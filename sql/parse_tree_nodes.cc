@@ -903,12 +903,6 @@ bool PT_insert::contextualize(Parse_context *pc)
     lex->bulk_insert_row_cnt= row_value_list->get_many_values().elements;
   }
 
-  if (lex->proc_analyse)
-  {
-    my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "non-SELECT");
-    return true;
-  }
-
   if (opt_on_duplicate_column_list != NULL)
   {
     DBUG_ASSERT(!is_replace);
@@ -984,7 +978,7 @@ bool PT_call::contextualize(Parse_context *pc)
 
   lex->sql_command= SQLCOM_CALL;
 
-  sp_add_used_routine(lex, thd, proc_name, enum_sp_type::PROCEDURE);
+  sp_add_own_used_routine(lex, thd, Sroutine_hash_entry::PROCEDURE, proc_name);
 
   return false;
 }
@@ -1120,7 +1114,7 @@ bool PT_table_factor_joined_table::contextualize(Parse_context *pc)
     return true;
   value= m_joined_table->value;
 
-  if (outer_select->end_nested_join(pc->thd) == NULL)
+  if (outer_select->end_nested_join() == nullptr)
     return true;
 
   return false;
@@ -1520,7 +1514,8 @@ bool PT_create_union_option::contextualize(Parse_context *pc)
   HA_CREATE_INFO * const create_info= lex->create_info;
   const Yacc_state *yyps= &thd->m_parser_state->m_yacc;
 
-  lex->select_lex->table_list.save_and_clear(&lex->save_list);
+  SQL_I_List<TABLE_LIST> save_list;
+  lex->select_lex->table_list.save_and_clear(&save_list);
   if (pc->select->add_tables(thd, tables, TL_OPTION_UPDATING,
                              yyps->m_lock_type, yyps->m_mdl_type))
     return true;
@@ -1529,7 +1524,7 @@ bool PT_create_union_option::contextualize(Parse_context *pc)
     from the global list.
   */
   create_info->merge_list= lex->select_lex->table_list;
-  lex->select_lex->table_list= lex->save_list;
+  lex->select_lex->table_list= save_list;
   /*
     When excluding union list from the global list we assume that
     elements of the former immediately follow elements which represent
@@ -1767,12 +1762,6 @@ bool PT_create_table_stmt::contextualize(Parse_context *pc)
       if (opt_query_expression->contextualize(pc))
         return true;
 
-      if (opt_query_expression->has_procedure())
-      {
-        my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "non-SELECT");
-        return true;
-      }
-
       /*
         The following work only with the local list, the global list
         is created correctly in this case
@@ -1910,4 +1899,37 @@ bool PT_show_fields_and_keys::contextualize(Parse_context *pc)
   }
 
   return false;
+}
+
+
+bool PT_show_fields::contextualize(Parse_context *pc)
+{
+  pc->thd->lex->verbose= false;
+  pc->thd->lex->m_extended_show= false;
+
+  switch (m_show_fields_type)
+  {
+  case Show_fields_type::STANDARD:
+    break;
+  case Show_fields_type::FULL_SHOW:
+    pc->thd->lex->verbose= true;
+    break;
+  case Show_fields_type::EXTENDED_SHOW:
+    pc->thd->lex->m_extended_show= true;
+    break;
+  case Show_fields_type::EXTENDED_FULL_SHOW:
+    pc->thd->lex->verbose= true;
+    pc->thd->lex->m_extended_show= true;
+    break;
+  default:
+    DBUG_ASSERT(false);
+  }
+  return super::contextualize(pc);
+}
+
+
+bool PT_show_keys::contextualize(Parse_context *pc)
+{
+  pc->thd->lex->m_extended_show= m_extended_show;
+  return super::contextualize(pc);
 }

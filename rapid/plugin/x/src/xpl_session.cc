@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -17,21 +17,18 @@
  * 02110-1301  USA
  */
 
-#include "xpl_dispatcher.h"
 #include "xpl_session.h"
-#include "xpl_log.h"
-#include "xpl_server.h"
 
 #include "crud_cmd_handler.h"
-#include "sql_data_context.h"
-#include "notices.h"
-
-#include "ngs/scheduler.h"
+#include "ngs_common/protocol_protobuf.h"
 #include "ngs/interface/client_interface.h"
 #include "ngs/ngs_error.h"
-#include "ngs_common/protocol_protobuf.h"
-
-#include <iostream>
+#include "ngs/scheduler.h"
+#include "notices.h"
+#include "sql_data_context.h"
+#include "xpl_dispatcher.h"
+#include "xpl_log.h"
+#include "xpl_server.h"
 
 
 xpl::Session::Session(ngs::Client_interface &client, ngs::Protocol_encoder *proto, const Session_id session_id)
@@ -108,7 +105,7 @@ void xpl::Session::on_kill()
 }
 
 
-void xpl::Session::on_auth_success(const ngs::Authentication_handler::Response &response)
+void xpl::Session::on_auth_success(const ngs::Authentication_interface::Response &response)
 {
   xpl::notices::send_client_id(proto(), m_client.client_id_num());
   ngs::Session::on_auth_success(response);
@@ -120,11 +117,13 @@ void xpl::Session::on_auth_success(const ngs::Authentication_handler::Response &
 }
 
 
-void xpl::Session::on_auth_failure(const ngs::Authentication_handler::Response &response)
+void xpl::Session::on_auth_failure(const ngs::Authentication_interface::Response &response)
 {
   if (response.error_code == ER_MUST_CHANGE_PASSWORD && !m_sql.password_expired())
   {
-    ngs::Authentication_handler::Response r = {"Password for " MYSQLXSYS_ACCOUNT " account has been expired", response.status, response.error_code};
+    ngs::Authentication_interface::Response r{
+        response.status, response.error_code,
+        "Password for " MYSQLXSYS_ACCOUNT " account has been expired"};
     ngs::Session::on_auth_failure(r);
   }
   else

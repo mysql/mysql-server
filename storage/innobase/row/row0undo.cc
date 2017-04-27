@@ -23,6 +23,8 @@ Row undo
 Created 1/8/1997 Heikki Tuuri
 *******************************************************/
 
+#include <stddef.h>
+
 #include "fsp0fsp.h"
 #include "ha_prototypes.h"
 #include "mach0data.h"

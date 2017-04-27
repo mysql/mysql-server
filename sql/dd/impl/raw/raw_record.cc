@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -272,7 +272,7 @@ Object_id Raw_record::read_ref_id(int field_no) const
 my_time_t Raw_record::read_time(int field_no) const
 {
   MYSQL_TIME time;
-  my_bool not_used;
+  bool not_used;
 
   field(field_no)->get_date(&time, TIME_DATETIME_ONLY);
   return my_tz_OFFSET0->TIME_to_gmt_sec(&time,&not_used);

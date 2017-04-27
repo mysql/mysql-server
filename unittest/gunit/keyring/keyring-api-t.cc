@@ -16,11 +16,11 @@
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
-#include <my_global.h>
 #include <sql_plugin_ref.h>
 
 #include "keyring.cc"
 #include "keyring_impl.cc"
+#include "lex_string.h"
 #include "mock_logger.h"
 #include "my_inttypes.h"
 

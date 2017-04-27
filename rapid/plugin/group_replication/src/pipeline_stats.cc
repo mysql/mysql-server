@@ -15,6 +15,8 @@
 
 #include "pipeline_stats.h"
 
+#include <time.h>
+
 #include "my_dbug.h"
 #include "my_systime.h"
 #include "plugin.h"
@@ -163,7 +165,7 @@ Pipeline_stats_member_message::encode_payload(std::vector<unsigned char> *buffer
 
 void
 Pipeline_stats_member_message::decode_payload(const unsigned char *buffer,
-                                              size_t length)
+                                              const unsigned char*)
 {
   DBUG_ENTER("Pipeline_stats_member_message::decode_payload");
   const unsigned char *slider= buffer;
@@ -507,7 +509,10 @@ Flow_control_module::flow_control_step()
       else
       {
         if (quota_size > 0 && (quota_size * RELEASE_FACTOR) < MAXTPS)
-          quota_size= static_cast<int64>(quota_size * RELEASE_FACTOR);
+        {
+          int64 quota_size_next= static_cast<int64>(quota_size * RELEASE_FACTOR);
+          quota_size= quota_size_next > quota_size ? quota_size_next : quota_size + 1;
+        }
         else
           quota_size= 0;
 

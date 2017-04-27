@@ -4,7 +4,6 @@
 --source include/force_myisam_default.inc
 
 -- source include/have_multi_ndb.inc
--- source include/not_embedded.inc
 
 -- disable_query_log
 call mtr.add_suppression("NDB_SHARE: .* already exists use_count=[0-9]*. Moving away for safety, but possible memleak.");

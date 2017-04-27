@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,10 +24,6 @@
 #include "m_ctype.h"
 #include "m_string.h"
 #include "mysql_com.h"
-
-namespace dd {
-class Dictionary_object;
-}  // namespace dd
 
 namespace dd {
 namespace tables {
@@ -177,7 +173,7 @@ bool Events::update_object_key(Item_name_key *key,
 
 ///////////////////////////////////////////////////////////////////////////
 
-Dictionary_object *Events::create_dictionary_object(const Raw_record &) const
+Event *Events::create_entity_object(const Raw_record &) const
 {
   return new (std::nothrow) Event_impl();
 }

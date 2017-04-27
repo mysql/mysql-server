@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -15,12 +15,13 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <boost/algorithm/string.hpp>
+#include <boost/bind.hpp>
+#include <stddef.h>
 #include <functional>
 #include <sstream>
 
 #include "abstract_mysql_chain_element_extension.h"
-#include <boost/algorithm/string.hpp>
-#include <boost/bind.hpp>
 
 using namespace Mysql::Tools::Dump;
 
@@ -79,7 +80,7 @@ Mysql::Nullable<std::string>
   Abstract_mysql_chain_element_extension::get_create_statement(
     Mysql::Tools::Base::Mysql_query_runner* runner,
     const std::string& database_name, const std::string& object_name,
-    const std::string& object_type, uint field_id/*= 1*/)
+    const std::string& object_type, uint)
 {
   std::vector<const Mysql::Tools::Base::Mysql_query_runner::Row*> result;
 

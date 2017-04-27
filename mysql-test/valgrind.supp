@@ -1,4 +1,4 @@
-# Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
@@ -25,6 +25,7 @@
    pthread allocate_tls memory loss
    Memcheck:Leak
    fun:calloc
+   ...
    fun:_dl_allocate_tls
    fun:allocate_stack
    fun:pthread_create*
@@ -37,6 +38,14 @@
    fun:_dl_allocate_tls
    fun:pthread_create*
 
+}
+
+{
+   GCC never cleans up its TLS block
+   Memcheck:Leak
+   fun:memalign
+   fun:allocate_and_init
+   fun:tls_get_addr_tail
 }
 
 {
@@ -155,6 +164,14 @@
    fun:_dlerror_run
    fun:dlsym
    fun:__errno_location
+}
+
+{
+   pthread errno
+   Memcheck:Leak
+   fun:calloc
+   fun:_dlerror_run
+   fun:dlclose
 }
 
 
@@ -1137,7 +1154,7 @@
    Memcheck:Leak
    fun:calloc
    ...
-   fun:numa_node_to_cpus
+   fun:numa_node_*_cpu*
 }
 
 {

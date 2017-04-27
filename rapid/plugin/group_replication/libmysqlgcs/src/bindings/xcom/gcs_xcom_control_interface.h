@@ -16,24 +16,24 @@
 #ifndef GCS_XCOM_CONTROL_INTERFACE_INCLUDED
 #define GCS_XCOM_CONTROL_INTERFACE_INCLUDED
 
-#include "xplatform/my_xp_thread.h"
-#include "xplatform/my_xp_util.h"
-
-#include "gcs_control_interface.h"
-#include "gcs_xcom_utils.h"
-#include "gcs_message.h"
-#include "gcs_types.h"
-#include "gcs_view.h"
-
-#include "gcs_xcom_state_exchange.h"
-#include "gcs_xcom_group_member_information.h"
-#include "gcs_xcom_interface.h"
-#include "gcs_xcom_notification.h"
-
 #include <cstring>
 #include <map>
 #include <set>
 #include <cstdlib>
+
+#include "mysql/gcs/xplatform/my_xp_thread.h"
+#include "mysql/gcs/xplatform/my_xp_util.h"
+#include "mysql/gcs/gcs_control_interface.h"
+#include "mysql/gcs/gcs_message.h"
+#include "mysql/gcs/gcs_types.h"
+#include "mysql/gcs/gcs_view.h"
+
+#include "gcs_xcom_utils.h"
+#include "gcs_xcom_state_exchange.h"
+#include "gcs_xcom_group_member_information.h"
+#include "gcs_xcom_group_management.h"
+#include "gcs_xcom_interface.h"
+#include "gcs_xcom_notification.h"
 
 #include "simset.h"
 #include "xcom_vp.h"
@@ -48,11 +48,166 @@
 #include "xcom_transport.h"
 #include "xcom_base.h"
 
-typedef struct {
-  std::vector<Gcs_member_identifier *> *nodes;
-  Gcs_xcom_proxy *proxy;
-  unsigned int group_id_hash;
-} nodes_to_kill;
+/**
+  @class Gcs_suspicions_manager
+
+  This class stores all node suspicions, as well as the timeout and period
+  parameters used by the thread that processes the suspicions.
+  Suspicions are added and removed upon reception of a new global view.
+*/
+class Gcs_suspicions_manager
+{
+public:
+  /**
+    Constructor for Gcs_suspicions_manager, which sets m_proxy with the
+    received pointer parameter.
+    @param[in] proxy Pointer to Gcs_xcom_proxy
+  */
+
+  explicit Gcs_suspicions_manager(Gcs_xcom_proxy *proxy);
+
+
+  /**
+    Destructor for Gcs_suspicions_manager.
+  */
+
+  ~Gcs_suspicions_manager();
+
+
+  /**
+    Invoked by Gcs_xcom_control::xcom_receive_global_view, it invokes the
+    remove_suspicions method for the alive_nodes and expel_nodes parameters,
+    if they're not empty, neither m_suspicions. It also invokes the
+    add_suspicions method if the suspect_nodes parameter isn't empty.
+
+    @param[in] xcom_nodes List of all nodes (i.e. alive or dead) with low level
+                          information such as timestamp, unique identifier, etc
+    @param[in] alive_nodes List of the nodes that currently belong to the group
+    @param[in] expel_nodes List of nodes to expel from the group
+    @param[in] suspect_nodes List of nodes to suspect
+  */
+
+  void process_view(Gcs_xcom_nodes *xcom_nodes,
+                    std::vector<Gcs_member_identifier *> alive_nodes,
+                    std::vector<Gcs_member_identifier *> expel_nodes,
+                    std::vector<Gcs_member_identifier *> suspect_nodes);
+
+
+  /**
+    Invoked periodically by the suspicions processing thread, it picks a
+    timestamp and verifies which suspect nodes should be removed as they
+    have timed out.
+  */
+
+  void process_suspicions();
+
+
+  /**
+    Retrieves current list of suspicions.
+  */
+
+  const Gcs_xcom_nodes& get_suspicions() const;
+
+
+  /**
+    Retrieves suspicion thread period in seconds.
+  */
+
+  unsigned int get_period() const;
+
+
+  /**
+    Sets the period or sleep time, between iterations, for the suspicion
+    thread.
+    @param[in] sec Suspicion thread period
+  */
+
+  void set_period(unsigned int sec);
+
+
+  /**
+    Retrieves suspicion timeout in 100s of nanoseconds.
+  */
+
+  uint64_t get_timeout() const;
+
+
+  /**
+    Sets the time interval to wait before removing the suspect nodes
+    from the cluster.
+    @param[in] sec Suspicions timeout in seconds
+  */
+
+  void set_timeout_seconds(unsigned long sec);
+
+
+  /**
+    Sets the hash for the current group identifier.
+    @param[in] gid_h Group ID hash
+  */
+
+  void set_groupid_hash(unsigned int gid_h);
+
+private:
+
+  /**
+    Invoked by Gcs_suspicions_manager::process_view, it verifies if any
+    of the nodes in the received list was a suspect and removes it from
+    m_suspicions.
+    @param[in] nodes List of nodes to remove from m_suspicions
+  */
+
+  void remove_suspicions(std::vector<Gcs_member_identifier *> nodes);
+
+
+  /**
+    Invoked by Gcs_suspicions_manager::process_view, it adds suspicions
+    for the nodes received as argument if they aren't already suspects.
+
+    @param[in] xcom_nodes List of all nodes (i.e. alive or dead) with low level
+                          information such as timestamp, unique identifier, etc
+    @param[in] suspect_nodes List of nodes to add to m_suspicions
+  */
+
+  void add_suspicions(Gcs_xcom_nodes *xcom_nodes,
+                      std::vector<Gcs_member_identifier *> suspect_nodes);
+
+
+  /**
+    XCom proxy pointer
+  */
+  Gcs_xcom_proxy *m_proxy;
+
+  /**
+    Suspicions processing thread period in seconds
+  */
+  unsigned int m_period;
+
+  /**
+    Suspicion timeout stored in 100s of nanoseconds
+  */
+  uint64_t m_timeout;
+
+  /*
+   Group ID hash
+  */
+  unsigned int m_gid_hash;
+
+  /*
+    List of suspicions
+  */
+  Gcs_xcom_nodes m_suspicions;
+
+  // Mutex to control access to m_suspicions
+  My_xp_mutex_impl m_suspicions_mutex;
+
+  /*
+    Disabling the copy constructor and assignment operator.
+  */
+  Gcs_suspicions_manager(Gcs_suspicions_manager const&);
+  Gcs_suspicions_manager& operator=(Gcs_suspicions_manager const&);
+};
+
 
 /**
   @class Gcs_xcom_control_interface
@@ -73,26 +228,26 @@ public:
   /**
     Gcs_xcom_control_interface constructor.
 
-    @param[in] group_member_information Information about this node in XCom
-                                        format
+    @param[in] xcom_node_address Information about the node's address
     @param[in] xcom_peers Information about the nodes that it
-                                       should get in touch to enter a group
+                          should get in touch to enter a group
 
     @param[in] group_identifier Group identifier object
     @param[in] xcom_proxy Proxy implementation reference
+    @param[in] xcom_group_management Group management reference
     @param[in] gcs_engine MySQL GCS engine
     @param[in] state_exchange Reference to the State Exchange algorithm implementation
     @param[in] view_control View change control interface reference
     @param[in] boot Whether the node will be used to bootstrap the group
     @param[in] socket_util Reference to a socket utility
-
   */
 
   explicit Gcs_xcom_control(
-    Gcs_xcom_group_member_information *group_member_information,
-    std::vector<Gcs_xcom_group_member_information *> &xcom_peers,
+    Gcs_xcom_node_address *xcom_node_address,
+    std::vector<Gcs_xcom_node_address *> &xcom_peers,
     Gcs_group_identifier group_identifier,
     Gcs_xcom_proxy *xcom_proxy,
+    Gcs_xcom_group_management *xcom_group_management,
     Gcs_xcom_engine *gcs_engine,
     Gcs_xcom_state_exchange_interface *state_exchange,
     Gcs_xcom_view_change_control_interface *view_control,
@@ -141,11 +296,12 @@ public:
 
     @param[in] message_id the message that conveys the View Change
     @param[in] xcom_nodes Set of nodes that participated in the consensus
-                          to deliver the message
+                            to deliver the message
     @param[in] same_view  Whether this global view was already delivered.
   */
 
-  bool xcom_receive_global_view(synode_no message_id, Gcs_xcom_nodes *xcom_nodes,
+  bool xcom_receive_global_view(synode_no message_id,
+                                Gcs_xcom_nodes *xcom_nodes,
                                 bool same_view);
 
   /*
@@ -153,7 +309,7 @@ public:
     about other nodes.
 
     @param[in] xcom_nodes Set of nodes that participated in the consensus
-                          to deliver the message
+                            to deliver the message
   */
   bool xcom_receive_local_view(Gcs_xcom_nodes *xcom_nodes);
 
@@ -171,31 +327,43 @@ public:
   std::map<int, const Gcs_control_event_listener &> *get_event_listeners();
 
 
-  Gcs_xcom_group_member_information *get_local_member_info();
+  /**
+    Return the address associated with the current node.
+  */
+  Gcs_xcom_node_address *get_node_address();
 
 
+  /**
+    Return a pointer to the proxy object used to access XCOM.
+  */
   Gcs_xcom_proxy *get_xcom_proxy();
+
+
+  Gcs_suspicions_manager *get_suspicions_manager();
 
 
   // For testing purposes
   void set_boot_node(bool boot);
 
 
-  void set_local_node_info(Gcs_xcom_group_member_information *group_member_information);
+  /**
+    Set the address associated with the current node.
+  */
+  void set_node_address(Gcs_xcom_node_address *node_address);
 
 
   /**
-    Inserts in m_initial_peers copies of the Gcs_xcom_group_member_information
+    Inserts in m_initial_peers copies of the Gcs_xcom_node_address
     objects whose addresses are in the xcom_peers vector.
 
     @param[in] xcom_peers vector with peers' information
   */
 
-  void set_peer_nodes(std::vector<Gcs_xcom_group_member_information *> &xcom_peers);
+  void set_peer_nodes(std::vector<Gcs_xcom_node_address *> &xcom_peers);
 
 
   /**
-    Deletes all the Gcs_xcom_group_member_information objects pointed by the
+    Deletes all the Gcs_xcom_node_address objects pointed by the
     elements of the m_initial_peers vector, clearing it at the end.
   */
 
@@ -231,7 +399,7 @@ public:
   */
   void set_join_behavior(unsigned int join_attempts,
                          unsigned int join_sleep_time);
-  
+
 private:
   void init_me();
 
@@ -257,6 +425,12 @@ private:
   build_expel_members(std::vector<Gcs_member_identifier *> &expel_members,
                       std::vector<Gcs_member_identifier *> &failed_members,
                       const std::vector<Gcs_member_identifier> *current_members);
+
+  void
+  build_suspect_members(std::vector<Gcs_member_identifier *> &suspect_members,
+                        std::vector<Gcs_member_identifier *> &failed_members,
+                        const std::vector<Gcs_member_identifier> *current_members);
+
 
   /**
      Decides if this node shall be the one to kill failed nodes. The algorithm
@@ -324,39 +498,43 @@ private:
   // Reference to the proxy between xcom and this implementation
   Gcs_xcom_proxy *m_xcom_proxy;
 
+  // Reference to the group management object.
+  Gcs_xcom_group_management *m_xcom_group_management;
+
   // Map holding all the registered control event listeners
   std::map<int, const Gcs_control_event_listener &> event_listeners;
 
   // Information about the local membership of this node
-  Gcs_member_identifier *m_local_member_id;
+  Gcs_xcom_node_information *m_local_node_info;
+
+  // Reference to the local physical node information
+  Gcs_xcom_node_address *m_local_node_address;
 
   // A reference of the State Exchange algorithm implementation
   Gcs_xcom_state_exchange_interface *m_state_exchange;
 
-  // Reference to the local physical node information
-  Gcs_xcom_group_member_information *m_local_node_info;
-
   // XCom main loop
   My_xp_thread_impl m_xcom_thread;
 
-  /*
-     Structure that contains the identification of this node
-     from XCOM's perspective
-  */
-  node_list m_node_list_me;
-
+  // Socket utility.
   My_xp_socket_util* m_socket_util;
 
   /*
     Number of attempts to join a group before giving up and reporting
     an error.
   */
-  unsigned int m_join_attempts; 
+  unsigned int m_join_attempts;
 
   /*
     Number of time in seconds to wait between attempts to join a group.
   */
   unsigned int m_join_sleep_time;
+
+  // Suspect nodes holding object
+  Gcs_suspicions_manager *m_suspicions_manager;
+
+  // Suspicions processing task
+  My_xp_thread_impl m_suspicions_processing_thread;
 
 protected:
   /*
@@ -373,7 +551,7 @@ protected:
   bool m_boot;
 
   // Reference to the remote node to whom I shall connect
-  std::vector<Gcs_xcom_group_member_information *> m_initial_peers;
+  std::vector<Gcs_xcom_node_address *> m_initial_peers;
 
   // Reference to the mechanism that ensures view safety
   Gcs_xcom_view_change_control_interface *m_view_control;

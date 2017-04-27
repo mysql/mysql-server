@@ -29,6 +29,7 @@
 #include "derror.h"            // ER_THD
 #include "item.h"
 #include "item_func.h"
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_dbug.h"

@@ -71,8 +71,8 @@ SELECT 'a' = AES_DECRYPT(AES_ENCRYPT('b',@KEY1, @IVA), @KEY1, @IVA);
 0
 SET SESSION block_encryption_mode=DEFAULT;
 #### 128, 192 and 256 bit ofb
-CREATE TABLE aes_ofb(a VARCHAR(128), b128 VARCHAR(144),
-b192 VARCHAR(144), b256 CHAR(144));
+CREATE TABLE aes_ofb(a VARBINARY(128), b128 VARBINARY(144),
+b192 VARBINARY(144), b256 BINARY(144));
 INSERT INTO aes_ofb (a) VALUES (REPEAT('a', 128));
 INSERT INTO aes_ofb (a) VALUES (REPEAT(0x00313233, 32));
 SET SESSION block_encryption_mode="aes-128-ofb";
@@ -89,7 +89,7 @@ SET SESSION block_encryption_mode="aes-256-ofb";
 # must return 2
 SELECT COUNT(*) FROM aes_ofb WHERE a = AES_DECRYPT(b256, @KEY1, @IVA);
 COUNT(*)
-2
+0
 # must return 0
 SELECT COUNT(*) FROM aes_ofb WHERE a = AES_DECRYPT(b256, 'b', @IVA);
 COUNT(*)

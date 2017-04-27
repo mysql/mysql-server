@@ -38,3 +38,29 @@ CALL mtr.add_suppression("currently unknown variable 'validate_password_*");
 # Search for warnings in error log.
 CALL mtr.add_suppression("currently unknown variable 'validate_password_*");
 # Restart server
+# Test RESET PERSIST for plugin variables.
+INSTALL PLUGIN validate_password SONAME 'validate_password.so';
+SELECT * FROM performance_schema.persisted_variables;
+VARIABLE_NAME	VARIABLE_VALUE
+SET PERSIST validate_password_policy= 2;
+SELECT * FROM performance_schema.persisted_variables;
+VARIABLE_NAME	VARIABLE_VALUE
+validate_password_policy	STRONG
+SET PERSIST validate_password_length= 13;
+SELECT * FROM performance_schema.persisted_variables;
+VARIABLE_NAME	VARIABLE_VALUE
+validate_password_length	13
+validate_password_policy	STRONG
+RESET PERSIST validate_password_length;
+SELECT * FROM performance_schema.persisted_variables;
+VARIABLE_NAME	VARIABLE_VALUE
+validate_password_policy	STRONG
+# uninstall plugin
+UNINSTALL PLUGIN validate_password;
+SELECT * FROM performance_schema.persisted_variables;
+VARIABLE_NAME	VARIABLE_VALUE
+validate_password_policy	STRONG
+# Test RESET PERSIST after plugin is uninstalled
+RESET PERSIST;
+SELECT * FROM performance_schema.persisted_variables;
+VARIABLE_NAME	VARIABLE_VALUE

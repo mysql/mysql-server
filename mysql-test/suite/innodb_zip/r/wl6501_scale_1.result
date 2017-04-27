@@ -26,14 +26,14 @@ index cNUMBER_idx(cNUMBER))
 engine=innodb row_format=compact
 key_block_size=NUMBER;
 Warnings:
-Warning	NUMBER	InnoDB: ignoring KEY_BLOCK_SIZE=NUMBER unless ROW_FORMAT=COMPRESSED.
+Warning	NUMBER	InnoDB: ignoring KEY_BLOCK_SIZE=NUMBER as ROW_FORMAT is not COMPRESSED.
 create table t2
 (i int, c1 char(100), c2 char(100),
 index c1_idx(c1))
 engine=innodb row_format=compact
 key_block_size=16;
 Warnings:
-Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=16 unless ROW_FORMAT=COMPRESSED.
+Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=16 as ROW_FORMAT is not COMPRESSED.
 create temporary table t3
 (i int, c1 char(100), c2 char(100),
 index c1_idx(c1))

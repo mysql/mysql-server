@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,10 +13,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "sql/sql_query_rewrite.h"
+
 #include <stddef.h>
 
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_sqlcommand.h"
 #include "mysql/plugin_audit.h"
 #include "mysql/service_mysql_alloc.h"
@@ -29,7 +30,6 @@
 #include "sql_error.h"
 #include "sql_lex.h"
 #include "sql_parse.h"
-#include "sql_query_rewrite.h"
 
 class Parser_state;
 class THD;
@@ -96,7 +96,7 @@ void enable_digest_if_any_plugin_needs_it(THD *thd, Parser_state *ps)
 }
 
 
-bool invoke_post_parse_rewrite_plugins(THD *thd, my_bool is_prepared)
+bool invoke_post_parse_rewrite_plugins(THD *thd, bool is_prepared)
 {
   Diagnostics_area *plugin_da= thd->get_query_rewrite_plugin_da();
   plugin_da->reset_diagnostics_area();

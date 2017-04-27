@@ -21,6 +21,8 @@
   Table PREPARED_STATEMENT_INSTANCE(declarations).
 */
 
+#include <sys/types.h>
+
 #include "my_inttypes.h"
 #include "pfs_prepared_stmt.h"
 #include "table_helper.h"
@@ -214,7 +216,7 @@ class table_prepared_stmt_instances : public PFS_engine_table
 public:
   /** Table share */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table *create();
+  static PFS_engine_table *create(PFS_engine_table_share *);
   static int delete_all_rows();
   static ha_rows get_row_count();
 

@@ -22,14 +22,15 @@
   This code needs extra visibility in the lexer structures
 */
 
-#include "my_global.h"
-#include "my_sys.h"
-#include "pfs_instr.h"
-#include "pfs_prepared_stmt.h"
-#include "pfs_global.h"
-#include "sql_string.h"
-#include "pfs_buffer_container.h"
+#include "storage/perfschema/pfs_prepared_stmt.h"
+
 #include <string.h>
+
+#include "my_sys.h"
+#include "pfs_buffer_container.h"
+#include "pfs_global.h"
+#include "pfs_instr.h"
+#include "sql_string.h"
 
 /**
   Initialize table PREPARED_STATEMENTS_INSTANCE.

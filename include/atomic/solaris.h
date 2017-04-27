@@ -22,7 +22,6 @@
 
 #include <atomic.h>
 
-#include "my_global.h"
 #include "my_inttypes.h"
 
 #if defined(__GNUC__)

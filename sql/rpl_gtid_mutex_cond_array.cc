@@ -19,7 +19,6 @@
 
 #include "mdl.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/psi/mysql_cond.h"
@@ -82,8 +81,6 @@ enum_return_status Mutex_cond_array::ensure_index(int n)
   int max_index= get_max_index();
   if (n > max_index)
   {
-    if (m_array.reserve(n + 1))
-      goto error;
     for (int i= max_index + 1; i <= n; i++)
     {
       Mutex_cond *mutex_cond=

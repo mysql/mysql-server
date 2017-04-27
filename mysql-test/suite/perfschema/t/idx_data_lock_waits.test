@@ -1,7 +1,5 @@
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_embedded.inc
-
 show create table performance_schema.data_lock_waits;
 
 # Debug

@@ -3,7 +3,6 @@
 # 2) The relay log info repository is set to FILE
 # 3) The master info repository is set to FILE
 
---source include/not_embedded.inc
 --source include/have_debug.inc
 --source include/have_binlog_format_mixed.inc
 --source include/have_replication_observers_example_plugin.inc

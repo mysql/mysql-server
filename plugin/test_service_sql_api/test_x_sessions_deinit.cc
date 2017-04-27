@@ -14,7 +14,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 #include <fcntl.h>
-#include <my_global.h>
 #include <mysql/plugin.h>
 #include <stdlib.h>
 
@@ -54,7 +53,7 @@ static struct st_mysql_sys_var *test_services_sysvars[]= {
 static File outfile;
 
 
-static void test_session_open(void *p)
+static void test_session_open(void*)
 {
   char buffer[STRING_BUFFER_SIZE];
   DBUG_ENTER("test_session_open");
@@ -82,7 +81,7 @@ static void test_session_open(void *p)
 }
 
 
-static void test_session(void *p)
+static void test_session(void*)
 {
   char buffer[STRING_BUFFER_SIZE];
   DBUG_ENTER("test_session");

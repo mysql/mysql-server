@@ -18,6 +18,7 @@
  */
 
 #include <errno.h>
+#include <sys/types.h>
 
 // "ngs_common/protocol_protobuf.h" has to come before boost includes, because of build
 // issue in Solaris (unqualified map used, which clashes with some other map defined
@@ -131,7 +132,9 @@ bool Protocol_encoder::send_init_error(const Error_code& error_code)
 }
 
 
-void Protocol_encoder::send_local_notice(uint32_t type, const std::string &data, bool force_flush)
+void Protocol_encoder::send_local_notice(Notice_type type,
+                                         const std::string &data,
+                                         bool force_flush)
 {
   get_protocol_monitor().on_notice_other_send();
 
@@ -141,21 +144,20 @@ void Protocol_encoder::send_local_notice(uint32_t type, const std::string &data,
 /*
 NOTE: Commented for coverage. Uncomment when needed.
 
-void Protocol_encoder::send_global_notice(uint32_t type, const std::string &data)
+void Protocol_encoder::send_global_notice(Notice_type type, const std::string &data)
 {
   get_protocol_monitor().on_notice_other_send();
 
   send_notice(type, data, FRAME_SCOPE_GLOBAL, true);
 }
+*/
 
-
-void Protocol_encoder::send_local_warning(uint32_t type, const std::string &data, bool force_flush)
+void Protocol_encoder::send_local_warning(const std::string &data, bool force_flush)
 {
   get_protocol_monitor().on_notice_warning_send();
 
-  send_notice(type, data, FRAME_SCOPE_LOCAL, force_flush);
+  send_notice(k_notice_warning, data, FRAME_SCOPE_LOCAL, force_flush);
 }
-*/
 
 
 void Protocol_encoder::send_auth_ok(const std::string &data)
@@ -254,7 +256,9 @@ void Protocol_encoder::log_protobuf(const char *direction_name, Request &request
 }
 
 
-void Protocol_encoder::log_protobuf(const char *direction_name, const Message *message)
+void
+Protocol_encoder::log_protobuf(const char *direction_name MY_ATTRIBUTE((unused)),
+                               const Message *message MY_ATTRIBUTE((unused)))
 {
 #ifdef USE_MYSQLX_FULL_PROTO
   std::string text_message;
@@ -280,7 +284,7 @@ void Protocol_encoder::log_protobuf(const char *direction_name, const Message *m
 }
 
 // for message sent as raw buffer only logging its type tag now
-void Protocol_encoder::log_protobuf(int8_t type)
+void Protocol_encoder::log_protobuf(int8_t type MY_ATTRIBUTE((unused)))
 {
   log_debug("SEND RAW: Type: %d", type);
 }

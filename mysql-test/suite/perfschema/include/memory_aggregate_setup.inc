@@ -50,7 +50,6 @@
 # HELPER include/memory_aggregate_setup.inc
 # =========================================
 
---source include/not_embedded.inc
 # Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
 --source include/no_protocol.inc
 --source ../include/wait_for_pfs_thread_count.inc

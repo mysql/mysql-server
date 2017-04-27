@@ -3,9 +3,6 @@
 # http://bugs.mysql.com/56143
 #
 
-# This test uses performance_schema.memory_summary_global_by_event_name
--- source include/not_embedded.inc
-
 -- disable_query_log
 -- disable_result_log
 

@@ -207,11 +207,11 @@ public:
       m_table_name(table_name)
   {}
 
-  virtual bool handle_condition(THD *thd,
+  virtual bool handle_condition(THD*,
                                 uint sql_errno,
-                                const char* sqlstate,
-                                Sql_condition::enum_severity_level *level,
-                                const char* msg)
+                                const char*,
+                                Sql_condition::enum_severity_level*,
+                                const char*)
   {
     if (sql_errno == ER_LOCK_DEADLOCK && m_can_deadlock)
     {
@@ -330,7 +330,6 @@ ulonglong Statistics_cache::read_stat(
                               index_name_ptr,
                               index_ordinal_position,
                               column_ordinal_position,
-                              engine_name_ptr,
                               se_private_id,
                               stype);
   else
@@ -375,7 +374,6 @@ ulonglong Statistics_cache::read_stat_from_SE(
             const String &index_name_ptr,
             uint index_ordinal_position,
             uint column_ordinal_position,
-            const String &engine_name_ptr,
             Object_id se_private_id,
             enum_statistics_type stype)
 {

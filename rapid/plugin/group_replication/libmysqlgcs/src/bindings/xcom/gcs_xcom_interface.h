@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,24 +21,27 @@
   the XCom Group communication library.
 */
 
-#include "xplatform/my_xp_thread.h"
-#include "xplatform/my_xp_mutex.h"
-#include "xplatform/my_xp_cond.h"
+#include <map>
+#include <string>
+#include <cstdlib>
+#include <ctime>
 
-#include "gcs_logging.h"
-#include "gcs_interface.h"
+#include "mysql/gcs/xplatform/my_xp_thread.h"
+#include "mysql/gcs/xplatform/my_xp_mutex.h"
+#include "mysql/gcs/xplatform/my_xp_cond.h"
+#include "mysql/gcs/gcs_logging.h"
+#include "mysql/gcs/gcs_interface.h"
+
 #include "gcs_xcom_communication_interface.h"
 #include "gcs_xcom_control_interface.h"
 #include "gcs_xcom_statistics_interface.h"
 #include "gcs_xcom_state_exchange.h"
 #include "gcs_xcom_group_management.h"
 #include "gcs_xcom_utils.h"
+#include "gcs_xcom_group_member_information.h"
 #include "gcs_xcom_networking.h"
 
-#include <map>
-#include <string>
-#include <cstdlib>
-#include <ctime>
+class Gcs_suspicions_manager;
 
 /**
   Struct that holds instances of this binding interface implementations.
@@ -73,6 +76,7 @@ private:
     XCom binding private constructor.
   */
   explicit Gcs_xcom_interface();
+
 public:
   /**
     Since one wants that a single instance exists, the interface implementation
@@ -122,13 +126,16 @@ public:
   enum_gcs_error configure_msg_stages(const Gcs_interface_parameters &p,
                                       const Gcs_group_identifier &gid);
 
+  enum_gcs_error configure_suspicions_mgr(Gcs_interface_parameters &p,
+                                          Gcs_suspicions_manager *mgr);
+
   enum_gcs_error set_logger(Ext_logger_interface *logger);
 
   void set_xcom_group_information(const std::string &group_id);
 
   Gcs_group_identifier *get_xcom_group_information(const u_long group_id);
 
-  Gcs_xcom_group_member_information *get_xcom_local_information();
+  Gcs_xcom_node_address *get_node_address();
 
   /**
    This member function shall return the set of parameters that configure
@@ -240,8 +247,15 @@ private:
 
   std::map<u_long, Gcs_group_identifier *> m_xcom_configured_groups;
 
-  Gcs_xcom_group_member_information *m_local_node_information;
-  std::vector<Gcs_xcom_group_member_information *> m_xcom_peers;
+  /*
+    The address associated with the current node.
+  */
+  Gcs_xcom_node_address *m_node_address;
+
+  /*
+    The addresses associated with current node's peers.
+  */
+  std::vector<Gcs_xcom_node_address *> m_xcom_peers;
 
   // States if this interface is initialized
   bool m_is_initialized;
@@ -300,10 +314,5 @@ int cb_xcom_match_port(xcom_port if_port);
 }
 #endif
 
-
-#ifdef WITH_UNIT_TESTS
-void do_cb_xcom_receive_data(synode_no message_id, Gcs_xcom_nodes *xcom_nodes, u_int size,
-                          char *data);
-#endif
 
 #endif  /* GCS_XCOM_INTERFACE_INCLUDED */

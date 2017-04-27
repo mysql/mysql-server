@@ -21,8 +21,8 @@
 
 #include <string.h>
 
+#include "lex_string.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/mysql_lex_string.h"       // LEX_STRING
@@ -45,8 +45,6 @@ class String;
 class Trigger;
 class Trigger_chain;
 
-typedef struct st_mysql_lex_string LEX_STRING;
-
 ///////////////////////////////////////////////////////////////////////////
 
 /**
@@ -61,19 +59,6 @@ public:
 
   bool check_n_load(THD *thd, bool names_only);
 
-
-  /**
-    Load triggers without their parsing.
-
-    @param thd          current thread context
-
-    @return Operation status.
-      @retval false Success
-      @retval true  Failure
-  */
-
-  bool load_triggers(THD *thd);
-
 private:
   Table_trigger_dispatcher(TABLE *subject_table);
 
@@ -84,21 +69,6 @@ public:
   Table_trigger_field_support *get_trigger_field_support()
   { return this; }
 
-
-  /**
-    Store all trigger objects in a list passed as an argument.
-
-    @param[out] triggers  Pointer to a list that will be filled by instances of
-                          class Trigger.
-
-    @return
-       @retval nullptr in case of OOM error
-       @retval NOT NULL pointer to List<Trigger> passed in argument
-               filled by Trigger objects.
-
-  */
-
-  List<Trigger>* fill_and_return_trigger_list(List<Trigger> *triggers);
 
   /**
     Checks if there is a broken trigger for this table.
@@ -118,10 +88,6 @@ public:
   }
 
   bool create_trigger(THD *thd, String *binlog_create_trigger_stmt);
-
-  bool drop_trigger(THD *thd,
-                    const LEX_STRING &trigger_name,
-                    bool *trigger_found);
 
   bool process_triggers(THD *thd, enum_trigger_event_type event,
                         enum_trigger_action_time_type action_time,

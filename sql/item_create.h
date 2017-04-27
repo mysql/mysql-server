@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,6 +26,7 @@
 #include <stddef.h>
 
 #include "binary_log_types.h"           // enum_field_types
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "mysql/mysql_lex_string.h"     // LEX_STRING
 #include "parse_tree_node_base.h"       // POS
@@ -39,7 +40,6 @@ class Item;
 class PT_item_list;
 class THD;
 
-typedef struct st_mysql_lex_string LEX_STRING;
 typedef struct charset_info_st CHARSET_INFO;
 typedef struct st_udf_func udf_func;
 struct Cast_type;

@@ -20,7 +20,6 @@
 #include "binary_log_types.h"        // enum_field_types
 #include "dd/object_id.h"            // dd::Object_id
 #include "m_ctype.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"                  // get_charset
 #include "dd/dd_table.h"
@@ -60,6 +59,30 @@ namespace dd {
 */
 bool open_table_def(THD *thd, TABLE_SHARE *share, bool open_view,
                     const dd::Table *table_def);
+
+
+/**
+  Read the table definition from the data-dictionary.
+
+  @param thd        Thread handler
+  @param share      Fill this with table definition
+  @param table_def  If not NULL: a data-dictionary Table-object describing
+                    table to be used for opening, instead of reading
+                    information from DD. If NULL, a new dd::Table-object
+                    will be constructed and read from the Data Dictionary.
+
+  @note
+    This function is called from InnoDB, and will suppress errors
+    due to:
+      Invalid collations.
+      Missing FTS parser.
+
+  @returns
+   false   OK
+   true    Error
+*/
+bool open_table_def_suppress_invalid_meta_data(THD *thd, TABLE_SHARE *share,
+                                               const dd::Table *table_def);
 
 
 /* Map from new to old field type. */

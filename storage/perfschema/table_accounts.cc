@@ -18,9 +18,12 @@
   TABLE ACCOUNTS.
 */
 
+#include "storage/perfschema/table_accounts.h"
+
+#include <stddef.h>
+
 #include "field.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_thread.h"
 #include "pfs_account.h"
 #include "pfs_instr.h"
@@ -28,7 +31,6 @@
 #include "pfs_memory.h"
 #include "pfs_status.h"
 #include "pfs_visitor.h"
-#include "table_accounts.h"
 
 THR_LOCK table_accounts::m_table_lock;
 
@@ -98,7 +100,7 @@ PFS_index_accounts_by_user_host::match(PFS_account *pfs)
 }
 
 PFS_engine_table *
-table_accounts::create()
+table_accounts::create(PFS_engine_table_share *)
 {
   return new table_accounts();
 }

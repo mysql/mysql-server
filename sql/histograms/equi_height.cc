@@ -18,7 +18,7 @@
   Equi-height histogram (implementation).
 */
 
-#include "equi_height.h"
+#include "sql/histograms/equi_height.h"
 
 #include <cmath>            // std::lround
 #include <iterator>
@@ -31,7 +31,6 @@
 #include "my_base.h"        // ha_rows
 #include "my_dbug.h"
 #include "my_decimal.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "sql_string.h"
 

@@ -21,6 +21,7 @@ mysql.default_roles                                OK
 mysql.engine_cost                                  OK
 mysql.func                                         OK
 mysql.general_log                                  OK
+mysql.global_grants                                OK
 mysql.gtid_executed                                OK
 mysql.help_category                                OK
 mysql.help_keyword                                 OK

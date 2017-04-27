@@ -18,14 +18,16 @@
   Table SETUP_CONSUMERS (implementation).
 */
 
+#include "storage/perfschema/table_setup_consumers.h"
+
+#include <stddef.h>
+
 #include "field.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_thread.h"
 #include "pfs_digest.h"
 #include "pfs_events_waits.h"
 #include "pfs_instr.h"
-#include "table_setup_consumers.h"
 
 #define COUNT_SETUP_CONSUMERS 15
 
@@ -141,7 +143,7 @@ PFS_index_setup_consumers::match(row_setup_consumers *row)
 }
 
 PFS_engine_table *
-table_setup_consumers::create(void)
+table_setup_consumers::create(PFS_engine_table_share *)
 {
   return new table_setup_consumers();
 }
@@ -196,7 +198,7 @@ table_setup_consumers::rnd_pos(const void *pos)
 }
 
 int
-table_setup_consumers::index_init(uint idx, bool)
+table_setup_consumers::index_init(uint idx MY_ATTRIBUTE((unused)), bool)
 {
   PFS_index_setup_consumers *result = NULL;
   DBUG_ASSERT(idx == 0);

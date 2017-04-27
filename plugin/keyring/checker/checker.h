@@ -16,7 +16,6 @@
 #ifndef MYSQL_CHECKER_H
 #define MYSQL_CHECKER_H
 
-#include <my_global.h>
 
 #include "digest.h"
 #include "keyring_memory.h"
@@ -37,19 +36,19 @@ public:
     file_version(file_version)
   {}
   virtual ~Checker() {}
-  virtual my_bool check_file_structure(File file, size_t file_size, Digest *dgst);
+  virtual bool check_file_structure(File file, size_t file_size, Digest *dgst);
 
   static const my_off_t EOF_TAG_SIZE;
   static const std::string eofTAG;
 
 protected:
-  virtual my_bool is_empty_file_correct(Digest *digest);
-  virtual my_bool is_file_size_correct(size_t file_size)= 0;
-  virtual my_bool is_file_tag_correct(File file);
-  virtual my_bool is_file_version_correct(File file);
-  virtual my_bool is_dgst_correct(File file, Digest *dgst)= 0;
+  virtual bool is_empty_file_correct(Digest *digest);
+  virtual bool is_file_size_correct(size_t file_size)= 0;
+  virtual bool is_file_tag_correct(File file);
+  virtual bool is_file_version_correct(File file);
+  virtual bool is_dgst_correct(File file, Digest *dgst)= 0;
 
-  virtual my_bool file_seek_to_tag(File file)= 0;
+  virtual bool file_seek_to_tag(File file)= 0;
 
   std::string file_version;
 };

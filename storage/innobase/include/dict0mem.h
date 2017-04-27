@@ -28,6 +28,7 @@ Created 1/8/1996 Heikki Tuuri
 #define dict0mem_h
 
 #include "univ.i"
+#include "dd/object_id.h"
 #include "dict0types.h"
 #include "data0type.h"
 #include "mem0mem.h"
@@ -232,7 +233,7 @@ ROW_FORMAT=REDUNDANT.  InnoDB engines do not check these flags
 for unknown bits in order to protect backward incompatibility. */
 /* @{ */
 /** Total number of bits in table->flags2. */
-#define DICT_TF2_BITS			10	
+#define DICT_TF2_BITS			10
 #define DICT_TF2_UNUSED_BIT_MASK	(~0U << DICT_TF2_BITS)
 #define DICT_TF2_BIT_MASK		~DICT_TF2_UNUSED_BIT_MASK
 
@@ -257,7 +258,8 @@ use its own tablespace instead of the system tablespace. */
 #define DICT_TF2_DISCARDED		32
 
 /** This bit is set if all aux table names (both common tables and
-index tables) of a FTS table are in HEX format. */
+index tables) of a FTS table are in HEX format.
+TODO: NewDD: WL#9535 remove this flag */
 #define DICT_TF2_FTS_AUX_HEX_NAME	64
 
 /** Intrinsic table bit
@@ -413,7 +415,7 @@ dict_mem_foreign_fill_vcol_set(
 @param[in,out]	table	innodb table object. */
 void
 dict_mem_table_fill_foreign_vcol_set(
-        dict_table_t*	table);
+	dict_table_t*	table);
 
 /** Free the vcol_set from all foreign key constraint on the table.
 @param[in,out]	table	innodb table object. */
@@ -921,10 +923,6 @@ public:
 system clustered index when there is no primary key. */
 const char innobase_index_reserve_name[] = "GEN_CLUST_INDEX";
 
-/* Estimated number of offsets in records (based on columns)
-to start with. */
-#define OFFS_IN_REC_NORMAL_SIZE		100
-
 /** Data structure for an index.  Most fields will be
 initialized to 0, NULL or FALSE in dict_mem_index_create(). */
 struct dict_index_t{
@@ -1071,6 +1069,13 @@ struct dict_index_t{
 				compression failures and successes */
 	rw_lock_t	lock;	/*!< read-write lock protecting the
 				upper levels of the index tree */
+#ifdef INNODB_DD_TABLE
+	bool		skip_step;/*!< Skip certain steps in
+				dict_create_index_step(), will be removed
+				in wl#9535 */
+#endif /* INNNODB_DD_TABLE */
+	bool		fill_dd;/*!< Flag whether need to fill dd tables
+				when it's a fulltext index. */
 
 	/** Determine if the index has been committed to the
 	data dictionary.
@@ -1560,7 +1565,10 @@ struct dict_table_t {
 	id_name_t				tablespace;
 
 	/** Space where the clustered index of the table is placed. */
-	space_id_t			space;
+	space_id_t				space;
+
+	/** dd::Tablespace::id of the table */
+	dd::Object_id				dd_space_id;
 
 	/** Stores information about:
 	1 row format (redundant or compact),
@@ -1617,13 +1625,13 @@ struct dict_table_t {
 	unsigned				n_t_cols:10;
 
 	/** Number of total columns defined so far. */
-	unsigned                                n_t_def:10;
+	unsigned				n_t_def:10;
 
 	/** Number of virtual columns defined so far. */
-	unsigned                                n_v_def:10;
+	unsigned				n_v_def:10;
 
 	/** Number of virtual columns. */
-	unsigned                                n_v_cols:10;
+	unsigned				n_v_cols:10;
 
 	/** TRUE if it's not an InnoDB system table or a table that has no FK
 	relationships. */
@@ -1809,6 +1817,9 @@ struct dict_table_t {
 	/** Approximate size of other indexes in database pages. */
 	ulint					stat_sum_of_other_index_sizes;
 
+	/** If FTS AUX table, parent table id */
+	table_id_t				parent_id;
+
 	/** How many rows are modified since last stats recalc. When a row is
 	inserted, updated, or deleted, we add 1 to this number; we calculate
 	new estimates for the table and the indexes if the table has changed
@@ -1965,8 +1976,16 @@ public:
 	/** remove the dict_table_t from cache after DDL operation */
 	bool					discard_after_ddl;
 
+	/** refresh/reload FK info */
+	bool					refresh_fk;
+
 	/** multiple cursors can be active on this temporary table */
 	temp_prebuilt_vec*			temp_prebuilt;
+
+	/** TRUE only for dictionary tables like mysql/tables,
+	mysql/columns, mysql/tablespaces, etc. This flag is used
+	to do non-locking reads on DD tables. */
+	bool					is_dd_table;
 
 	/** @return the clustered index */
 	const dict_index_t* first_index() const
@@ -2250,7 +2269,7 @@ public:
 	@param[out]	metadata	metadata where we store the read data
 	@param[in]	buffer		buffer to read
 	@param[in]	size		size of buffer
-        @param[out]	corrupt		true if we found something wrong in
+	@param[out]	corrupt		true if we found something wrong in
 					the buffer except incomplete buffer,
 					otherwise false
 	@return the bytes we read from the buffer if the buffer data
@@ -2319,9 +2338,9 @@ class AutoIncPersister : public Persister {
 public:
 	/** Write the autoinc counter of a table, we can pre-calculate
 	the size by calling get_write_size()
-        @param[in]	metadata	persistent metadata
-        @param[out]	buffer		write buffer
-        @param[in]	size		size of write buffer, should be
+	@param[in]	metadata	persistent metadata
+	@param[out]	buffer		write buffer
+	@param[in]	size		size of write buffer, should be
 					at least get_write_size()
 	@return the length of bytes written */
 	ulint write(

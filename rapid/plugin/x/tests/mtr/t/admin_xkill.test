@@ -17,7 +17,7 @@
 #        that of with mysql client                                   #
 ######################################################################
 
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 call mtr.add_suppression("Plugin mysqlx reported: 'Unhandled network error: Bad file descriptor'");
 create user sslcon@localhost identified by 'sslcon';
 grant all on *.* to sslcon@localhost;

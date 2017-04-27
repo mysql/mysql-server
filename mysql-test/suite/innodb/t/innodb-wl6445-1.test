@@ -12,9 +12,6 @@
 #                                                                    #
 ######################################################################
 
-# Restarting is not supported in embedded
---source include/not_embedded.inc
-
 # This test takes long time, so only run it with the --big-test mtr-flag.
 --source include/big_test.inc
 
@@ -626,6 +623,7 @@ call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number 2 in
 call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means the system cannot find the path specified.");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
 call mtr.add_suppression("\\[Warning\\] Skip re-populating collations and character sets tables in read-only mode.");
+call mtr.add_suppression("\\[Warning\\] Skip updating I_S metadata in read-only mode.");
 --enable_query_log
 
 

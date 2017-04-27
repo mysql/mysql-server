@@ -20,7 +20,7 @@
 --echo PREAMBLE
 --echo ================================================================================
 --replace_regex /\.dll/.so/
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 create user updatearrayinsert@localhost identified by 'updatearrayinsert';
 grant all on *.* to updatearrayinsert@localhost;
 

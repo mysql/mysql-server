@@ -1,8 +1,10 @@
 
 # Store the time of password_last_changed column from mysql.user table
-# to restore it back later.
-let $date_to_restore_root=`SELECT password_last_changed from mysql.user where host='localhost' and user='root'`;
-let $date_to_restore_sys=`SELECT password_last_changed from mysql.user where host='localhost' and user='mysql.sys'`;
+# to restore it back later for the different users.
+let $date_to_restore_root=`SELECT password_last_changed from mysql.user where user='root'`;
+let $date_to_restore_sys=`SELECT password_last_changed from mysql.user where user='mysql.sys'`;
+let $date_to_restore_session_user=`SELECT password_last_changed from mysql.user where user='mysql.session_user'`;
+
 let $LOAD_FILE= $MYSQLTEST_VARDIR/std_data/words.dat;
 CREATE TABLE t1 (word CHAR(20) NOT NULL);
 --replace_result $LOAD_FILE LOAD_FILE
@@ -87,10 +89,11 @@ SELECT n FROM t1;
 connection master;
 DROP TABLE t1;
 
---disable_query_log ONCE
---eval UPDATE mysql.user SET password_last_changed = '$date_to_restore_root' WHERE user='root'
---disable_query_log ONCE
---eval UPDATE mysql.user SET password_last_changed = '$date_to_restore_sys' WHERE user='mysql.sys'
+--disable_query_log
+--eval UPDATE mysql.user SET password_last_changed= '$date_to_restore_root'
+--eval UPDATE mysql.user SET password_last_changed= '$date_to_restore_sys' WHERE USER= 'mysql.sys'
+--eval UPDATE mysql.user SET password_last_changed= '$date_to_restore_session_user' WHERE USER= 'mysql.session_user'
+--enable_query_log
 --echo # mysql.user table restored to original values.
 
 sync_slave_with_master;

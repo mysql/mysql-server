@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -110,6 +110,10 @@ BuildRequires:  zlib-devel
 BuildRequires:  systemd
 BuildRequires:  pkgconfig(systemd)
 %endif
+BuildRequires:  cyrus-sasl-devel
+%if 0%{?commercial}
+BuildRequires:  openldap-devel
+%endif
 BuildRoot:      %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 
 %if 0%{?rhel} > 6
@@ -180,6 +184,7 @@ Obsoletes:      MySQL-server < %{version}-%{release}
 Obsoletes:      mysql-community-bench < 5.7.8
 Obsoletes:      mysql-community-embedded < 8.0.1
 Obsoletes:      mysql-community-embedded-devel < 8.0.1
+Obsoletes:      mysql-embedded-devel < 8.0.1
 Obsoletes:      community-mysql-bench
 Obsoletes:      mysql-bench
 Obsoletes:      mysql-server < %{version}-%{release}
@@ -696,9 +701,6 @@ echo "%{_libdir}/mysql" > %{buildroot}%{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}
 
 # multiarch support
 %ifarch %{multiarchs}
-mv %{buildroot}/%{_includedir}/mysql/my_config.h \
-   %{buildroot}/%{_includedir}/mysql/my_config_%{_arch}.h
-install -p -m 0644 packaging/rpm-common/my_config.h %{buildroot}/%{_includedir}/mysql/my_config.h
 mv %{buildroot}/%{_bindir}/mysql_config %{buildroot}/%{_bindir}/mysql_config-%{__isa_bits}
 install -p -m 0755 packaging/rpm-common/mysql_config.sh %{buildroot}/%{_bindir}/mysql_config
 %endif
@@ -849,6 +851,7 @@ fi
 %dir %{_libdir}/mysql/plugin
 %attr(755, root, root) %{_libdir}/mysql/plugin/adt_null.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth_socket.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/group_replication.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/connection_control.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/ha_example.so
@@ -869,6 +872,7 @@ fi
 %dir %{_libdir}/mysql/plugin/debug
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/adt_null.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_socket.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_sasl_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/group_replication.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/connection_control.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/ha_example.so
@@ -895,6 +899,8 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/audit_log.so
 %attr(644, root, root) %{_datadir}/mysql/audit_log_filter_linux_install.sql
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_pam.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_simple.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_okv.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/thread_pool.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/openssl_udf.so
@@ -902,6 +908,8 @@ fi
 %attr(644, root, root) %{_datadir}/mysql/linux_install_firewall.sql
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/audit_log.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_pam.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_sasl.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_simple.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_okv.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/thread_pool.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/openssl_udf.so
@@ -1038,7 +1046,7 @@ fi
 %attr(644, root, root) %{_mandir}/man1/ndb_show_tables.1*
 %attr(644, root, root) %{_mandir}/man1/ndb_size.pl.1*
 %attr(644, root, root) %{_mandir}/man1/ndb_waiter.1*
-%attr(644, root, root) %{_mandir}/man1/ndbd_redo_log_reader.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_redo_log_reader.1*
 %attr(644, root, root) %{_mandir}/man1/ndbinfo_select_all.1*
 %endif #cluster
 
@@ -1090,6 +1098,9 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_example_component1.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_example_component2.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_example_component3.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_string_service_charset.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_string_service_long.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_string_service.so
 %attr(644, root, root) %{_libdir}/mysql/plugin/daemon_example.ini
 %attr(755, root, root) %{_libdir}/mysql/plugin/libdaemon_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/test_udf_services.so
@@ -1126,6 +1137,9 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_example_component1.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_example_component2.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_example_component3.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_string_service_charset.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_string_service_long.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_string_service.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libdaemon_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_udf_services.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/replication_observers_example_plugin.so

@@ -1,7 +1,7 @@
 ## generated
 ## Invalid admin command
 
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 ## Test starts here
 --write_file $MYSQL_TMP_DIR/admin_bogus.tmp
 Mysqlx.Sql.StmtExecute {

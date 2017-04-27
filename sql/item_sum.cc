@@ -45,13 +45,14 @@
 #include "my_double2ulonglong.h"
 #include "my_sys.h"
 #include "mysql/psi/mysql_statement.h"
-#include "mysqld.h"                        // my_thread_get_THR_MALLOC
+#include "mysqld.h"
 #include "mysqld_error.h"
 #include "parse_tree_helpers.h"            // PT_item_list
 #include "parse_tree_nodes.h"              // PT_order_list
 #include "sql_array.h"
 #include "sql_class.h"                     // THD
 #include "sql_error.h"
+#include "sql_exception_handler.h"         // handle_std_exception
 #include "sql_executor.h"                  // copy_fields
 #include "sql_lex.h"
 #include "sql_list.h"
@@ -288,7 +289,7 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref)
       Note that we must not mark the Item of calculation context itself
       because with_sum_func on the aggregation query block is already set above.
 
-      with_sum_func being set for an Item means that this Item refers 
+      has_aggregation() being set for an Item means that this Item refers
       (somewhere in it, e.g. one of its arguments if it's a function) directly
       or indirectly to a set function that is calculated in a
       context "outside" of the Item (e.g. in the current or outer query block).
@@ -299,7 +300,7 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref)
     for (SELECT_LEX *sl= base_select;
          sl && sl != aggr_select && sl->master_unit()->item;
          sl= sl->outer_select())
-      sl->master_unit()->item->with_sum_func= true;
+      sl->master_unit()->item->set_aggregation();
 
     base_select->mark_as_dependent(aggr_select);
   }
@@ -393,8 +394,8 @@ void Item_sum::mark_as_sum_func()
 void Item_sum::mark_as_sum_func(SELECT_LEX *cur_select)
 {
   cur_select->n_sum_items++;
-  cur_select->with_sum_func= 1;
-  with_sum_func= 1;
+  cur_select->with_sum_func= true;
+  set_aggregation();
 }
 
 
@@ -455,9 +456,9 @@ bool Item_sum::walk(Item_processor processor, enum_walk walk, uchar *argument)
   that the item may be removed from the query.
 
   @note This doesn't completely undo Item_sum::check_sum_func(), as
-  with_sum_func information is left untouched. This means that if this
+  aggregation information is left untouched. This means that if this
   item is removed, aggr_select and all subquery items between aggr_select
-  and this item may be left with with_sum_func set to true, even if
+  and this item may be left with has_aggregation() set to true, even if
   there are no aggregation functions. To our knowledge, this has no
   impact on the query result.
 
@@ -615,14 +616,14 @@ void Item_sum::update_used_tables ()
   if (!forced_const)
   {
     used_tables_cache= 0;
-    with_subselect= false;
-    with_stored_program= false;
+    // Re-accumulate all properties except "aggregation"
+    m_accum_properties&= PROP_AGGREGATION;
+
     for (uint i=0 ; i < arg_count ; i++)
     {
       args[i]->update_used_tables();
       used_tables_cache|= args[i]->used_tables();
-      with_subselect|= args[i]->has_subquery();
-      with_stored_program|= args[i]->has_stored_program();
+      add_accum_properties(args[i]);
     }
 
     used_tables_cache&= PSEUDO_TABLE_BITS;
@@ -2296,7 +2297,7 @@ my_decimal *Item_sum_hybrid::val_decimal(my_decimal *val)
     return 0;
   my_decimal *retval= value->val_decimal(val);
   if ((null_value= value->null_value))
-    DBUG_ASSERT(retval == NULL);
+    DBUG_ASSERT(retval == NULL || my_decimal_is_zero(retval));
   return retval;
 }
 
@@ -3579,8 +3580,8 @@ int dump_leaf_key(void* key_arg, element_count count MY_ATTRIBUTE((unused)),
   Item **arg= item->args, **arg_end= item->args + item->arg_count_field;
   size_t old_length= result->length();
 
-  if (item->no_appended)
-    item->no_appended= FALSE;
+  if (!item->m_result_finalized)
+    item->m_result_finalized= true;
   else
     result->append(*item->separator);
 
@@ -3668,7 +3669,7 @@ Item_func_group_concat::Item_func_group_concat(const POS &pos,
                        String *separator_arg)
   :super(pos), tmp_table_param(0), separator(separator_arg), tree(0),
    unique_filter(NULL), table(0),
-   order_array(*my_thread_get_THR_MALLOC()),
+   order_array(*THR_MALLOC),
    arg_count_order(opt_order_list ? opt_order_list->value.elements : 0),
    arg_count_field(select_list->elements()),
    row_count(0),
@@ -3860,7 +3861,7 @@ void Item_func_group_concat::clear()
   result.copy();
   null_value= TRUE;
   warning_for_row= FALSE;
-  no_appended= TRUE;
+  m_result_finalized= false;
   if (tree)
     reset_tree(tree);
   if (unique_filter)
@@ -3917,12 +3918,10 @@ bool Item_func_group_concat::add()
       return 1;
   }
   /*
-    If the row is not a duplicate (el->count == 1)
-    we can dump the row here in case of GROUP_CONCAT(DISTINCT...)
-    instead of doing tree traverse later.
+    In case of GROUP_CONCAT with DISTINCT or ORDER BY (or both) don't dump the
+    row to the output buffer here. That will be done in val_str.
   */
-  if (row_eligible && !warning_for_row &&
-      (!tree || (el->count == 1 && distinct && !arg_count_order)))
+  if (row_eligible && !warning_for_row && tree == nullptr && !distinct)
     dump_leaf_key(table->record[0] + table->s->null_bytes, 1, this);
 
   return 0;
@@ -4137,9 +4136,16 @@ String* Item_func_group_concat::val_str(String*)
   DBUG_ASSERT(fixed == 1);
   if (null_value)
     return 0;
-  if (no_appended && tree)
-    /* Tree is used for sorting as in ORDER BY */
-    tree_walk(tree, &dump_leaf_key, this, left_root_right);
+
+  if (!m_result_finalized) // Result yet to be written.
+  {
+    if (tree != nullptr) // order by
+      tree_walk(tree, &dump_leaf_key, this, left_root_right);
+    else if (distinct) // distinct (and no order by).
+      unique_filter->walk(&dump_leaf_key, this);
+    else
+      DBUG_ASSERT(false); // Can't happen
+  }
 
   if (table && table->blob_storage && 
       table->blob_storage->is_truncated_value())
@@ -4230,12 +4236,9 @@ bool Item_sum_json::fix_fields(THD *thd, Item **ref)
   if (resolve_type(thd))
     return true;
 
-  set_data_type(MYSQL_TYPE_JSON);
-
   if (check_sum_func(thd, ref))
     return true;
 
-  max_length= MAX_BLOB_WIDTH;
   maybe_null= true;
   null_value= true;
   fixed= true;
@@ -4264,10 +4267,7 @@ bool Item_sum_json::val_json(Json_wrapper *wr)
     val_* functions are called more than once in aggregates and
     by passing the dom some function will destroy it so a clone is needed.
   */
-  Json_dom *dom= m_wrapper.clone_dom(current_thd);
-  Json_wrapper tmp(dom);
-  wr->steal(&tmp);
-
+  *wr= Json_wrapper(m_wrapper.clone_dom(current_thd));
   return false;
 }
 
@@ -4369,9 +4369,8 @@ void Item_sum_json_array::clear()
   null_value= true;
   m_json_array.clear();
 
-  Json_wrapper tmp(&m_json_array);
   // Set the array to the m_wrapper.
-  m_wrapper.steal(&tmp);
+  m_wrapper= Json_wrapper(&m_json_array);
   // But let Item_sum_json_array keep the ownership.
   m_wrapper.set_alias();
 }
@@ -4382,9 +4381,8 @@ void Item_sum_json_object::clear()
   null_value= true;
   m_json_object.clear();
 
-  Json_wrapper tmp(&m_json_object);
   // Set the object to the m_wrapper.
-  m_wrapper.steal(&tmp);
+  m_wrapper= Json_wrapper(&m_json_object);
   // But let Item_sum_json_object keep the ownership.
   m_wrapper.set_alias();
 }
@@ -4664,12 +4662,12 @@ bool Item_func_grouping::aggregate_check_group(uchar *arg)
 
 
 /**
-  Resets 'with_sum_func' which was set during creation
+  Resets the aggregation property which was set during creation
   of references to GROUP BY fields in SELECT_LEX::change_group_ref.
   Calls Item_int_func::cleanup() to do the rest of the cleanup.
 */
 void Item_func_grouping::cleanup()
 {
-  with_sum_func= 0;
+  reset_aggregation();
   Item_int_func::cleanup();
 }

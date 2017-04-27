@@ -27,6 +27,8 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <sys/types.h>
+#include <time.h>
 #ifndef _WIN32
 #include <netdb.h>
 #endif
@@ -201,7 +203,7 @@ size_t vio_read_buff(Vio *vio, uchar* buf, size_t size)
 }
 
 
-my_bool vio_buff_has_data(Vio *vio)
+bool vio_buff_has_data(Vio *vio)
 {
   return (vio->read_pos != vio->read_end);
 }
@@ -238,7 +240,7 @@ size_t vio_write(Vio *vio, const uchar* buf, size_t size)
 }
 
 //WL#4896: Not covered
-static int vio_set_blocking(Vio *vio, my_bool status)
+static int vio_set_blocking(Vio *vio, bool status)
 {
   DBUG_ENTER("vio_set_blocking");
 
@@ -280,7 +282,7 @@ static int vio_set_blocking(Vio *vio, my_bool status)
 
 int vio_socket_timeout(Vio *vio,
                        uint which MY_ATTRIBUTE((unused)),
-                       my_bool old_mode)
+                       bool old_mode)
 {
   int ret= 0;
   DBUG_ENTER("vio_socket_timeout");
@@ -334,7 +336,7 @@ int vio_socket_timeout(Vio *vio,
 #endif
   {
     /* Deduce what should be the new blocking mode of the socket. */
-    my_bool new_mode= vio->write_timeout < 0 && vio->read_timeout < 0;
+    bool new_mode= vio->write_timeout < 0 && vio->read_timeout < 0;
 
     /* If necessary, update the blocking mode. */
     if (new_mode != old_mode)
@@ -380,7 +382,7 @@ int vio_fastsend(Vio * vio)
   DBUG_RETURN(r);
 }
 
-int vio_keepalive(Vio* vio, my_bool set_keep_alive)
+int vio_keepalive(Vio* vio, bool set_keep_alive)
 {
   int r=0;
   uint opt = 0;
@@ -408,7 +410,7 @@ int vio_keepalive(Vio* vio, my_bool set_keep_alive)
   @retval FALSE   Indeterminate failure.
 */
 
-my_bool
+bool
 vio_should_retry(Vio *vio)
 {
   return (vio_errno(vio) == SOCKET_EINTR);
@@ -425,7 +427,7 @@ vio_should_retry(Vio *vio)
   @retval FALSE   Not a timeout failure.
 */
 
-my_bool
+bool
 vio_was_timeout(Vio *vio)
 {
   return (vio_errno(vio) == SOCKET_ETIMEDOUT);
@@ -644,10 +646,10 @@ static void vio_get_normalized_ip(const struct sockaddr *src,
   @retval FALSE on success.
 */
 
-my_bool vio_get_normalized_ip_string(const struct sockaddr *addr,
-                                     size_t addr_length,
-                                     char *ip_string,
-                                     size_t ip_string_size)
+bool vio_get_normalized_ip_string(const struct sockaddr *addr,
+                                  size_t addr_length,
+                                  char *ip_string,
+                                  size_t ip_string_size)
 {
   struct sockaddr_storage norm_addr_storage;
   struct sockaddr *norm_addr= (struct sockaddr *) &norm_addr_storage;
@@ -679,8 +681,8 @@ my_bool vio_get_normalized_ip_string(const struct sockaddr *addr,
   IPv6 address is returned.
 */
 
-my_bool vio_peer_addr(Vio *vio, char *ip_buffer, uint16 *port,
-                      size_t ip_buffer_size)
+bool vio_peer_addr(Vio *vio, char *ip_buffer, uint16 *port,
+                   size_t ip_buffer_size)
 {
   DBUG_ENTER("vio_peer_addr");
   DBUG_PRINT("enter", ("Client socked fd: %d",
@@ -762,7 +764,7 @@ my_bool vio_peer_addr(Vio *vio, char *ip_buffer, uint16 *port,
   @retval TRUE    Failure.
 */
 // WL#4896: Not covered
-static my_bool socket_peek_read(Vio *vio, uint *bytes)
+static bool socket_peek_read(Vio *vio, uint *bytes)
 {
   my_socket sd= mysql_socket_getfd(vio->mysql_socket);
 #if defined(_WIN32)
@@ -1104,7 +1106,7 @@ int vio_io_wait(Vio *vio, enum enum_vio_io_event event, int timeout)
   @retval TRUE    A fatal error. See socket_errno.
 */
 
-my_bool
+bool
 vio_socket_connect(Vio *vio, struct sockaddr *addr, socklen_t len, int timeout)
 {
   int ret, wait;
@@ -1196,7 +1198,7 @@ vio_socket_connect(Vio *vio, struct sockaddr *addr, socklen_t len, int timeout)
   @retval FALSE   EOF condition is signaled.
 */
 
-my_bool vio_is_connected(Vio *vio)
+bool vio_is_connected(Vio *vio)
 {
   uint bytes= 0;
   DBUG_ENTER("vio_is_connected");
@@ -1283,7 +1285,7 @@ ssize_t vio_pending(Vio *vio)
   @retval false otherwise.
 */
 
-my_bool vio_is_no_name_error(int err_code)
+bool vio_is_no_name_error(int err_code)
 {
 #ifdef _WIN32
 

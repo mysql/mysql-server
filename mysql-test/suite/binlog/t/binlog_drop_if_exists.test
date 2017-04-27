@@ -1,4 +1,3 @@
-
 # BUG#13684: 
 #   SP: DROP PROCEDURE|FUNCTION IF EXISTS not binlogged if routine 
 #   does not exist

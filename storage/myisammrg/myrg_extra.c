@@ -20,6 +20,8 @@
     record-cache-flags are set in myrg_rrnd when we are changing database.
 */
 
+#include <sys/types.h>
+
 #include "my_dbug.h"
 #include "myrg_def.h"
 

@@ -58,7 +58,7 @@ drop table t1;
 
 
 #
-# Bug #21531: EXPORT_SET() doesn't accept args with coercible character sets
+# Bug #21531: EXPORT_SET() does not accept args with coercible character sets
 #
 select export_set(3, _latin1'foo', _utf8'bar', ',', 4);
 
@@ -134,7 +134,6 @@ drop table t1;
 #      - "worker" session sending the query with "send" and pulling results
 #        with "reap"
 #      - session observing the processlist parallel to the worker session
-#      "send" and "reap" do not work in case of an embedded server.
 #    Conclusion: Tests based on processlist have too many restrictions.
 #
 # Solutions for subtests based on TIMEDIFF of values filled via NOW()
@@ -449,12 +448,6 @@ SELECT NAME_CONST('a', -(1 OR 2)) OR 1;
 --error ER_WRONG_ARGUMENTS
 SELECT NAME_CONST('a', -(1 AND 2)) OR 1;
 SELECT NAME_CONST('a', -(1)) OR 1;
-
-
-#
-#
-# Bug #30389: connection_id() always return 0 in embedded server
-#
 
 select connection_id() > 0;
 

@@ -19,10 +19,12 @@
   Cursor CURSOR_BY_ACCOUNT (implementation).
 */
 
-#include "my_global.h"
-#include "cursor_by_account.h"
-#include "pfs_buffer_container.h"
+#include "storage/perfschema/cursor_by_account.h"
+
+#include <stddef.h>
+
 #include "current_thd.h"
+#include "pfs_buffer_container.h"
 
 ha_rows
 cursor_by_account::get_row_count(void)

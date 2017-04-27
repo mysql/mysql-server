@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +16,6 @@
 #ifndef MYSQL_KEYRING_MEMORY_H
 #define MYSQL_KEYRING_MEMORY_H
 
-#include <my_global.h>
 #include <mysql/plugin_keyring.h>
 #include <limits>
 #include <memory>
@@ -43,11 +42,11 @@ namespace keyring {
       {
         return keyring_malloc<void*>(size);
       }
-      static void operator delete(void* ptr, std::size_t sz)
+      static void operator delete(void* ptr, std::size_t)
       {
           my_free(ptr);
       }
-      static void operator delete[](void* ptr, std::size_t sz)
+      static void operator delete[](void* ptr, std::size_t)
       {
           my_free(ptr);
       }

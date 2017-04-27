@@ -110,6 +110,8 @@
 
 #include "opt_range.h"
 
+#include "my_config.h"
+
 #include <fcntl.h>
 #include <float.h>
 #include <stdio.h>
@@ -133,6 +135,7 @@
 #include "item_row.h"
 #include "item_sum.h"            // Item_sum
 #include "key.h"                 // is_key_used
+#include "lex_string.h"
 #include "log.h"                 // sql_print_error
 #include "m_ctype.h"
 #include "malloc_allocator.h"
@@ -141,7 +144,6 @@
 #include "my_alloc.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"
-#include "my_config.h"
 #include "my_dbug.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
@@ -175,6 +177,7 @@
 #include "template_utils.h"
 #include "thr_malloc.h"
 #include "uniques.h"             // Unique
+                                 // idx_merge_hint_state()
 
 using std::min;
 using std::max;
@@ -1505,7 +1508,8 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
                                        const Cost_estimate *cost_est);
 static
 TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
-                                          const Cost_estimate *cost_est);
+                                          const Cost_estimate *cost_est,
+                                          bool force_index_merge_result);
 static
 TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
                                          const Cost_estimate *cost_est);
@@ -1527,9 +1531,16 @@ static void append_range_all_keyparts(Opt_trace_array *range_trace,
                                       SEL_ROOT *keypart,
                                       const KEY_PART_INFO *key_parts,
                                       const bool print_full);
+#ifndef DBUG_OFF
 static inline void dbug_print_tree(const char *tree_name,
                                    SEL_TREE *tree,
                                    const RANGE_OPT_PARAM *param);
+#else
+static inline void dbug_print_tree(const char*,
+                                   SEL_TREE*,
+                                   const RANGE_OPT_PARAM*)
+{}
+#endif
 
 static inline void print_tree(String *out,
                               const char *tree_name,
@@ -1901,7 +1912,8 @@ static bool imerge_list_or_tree(RANGE_OPT_PARAM *param,
 
 QUICK_SELECT_I::QUICK_SELECT_I()
   :max_used_key_length(0),
-   used_key_parts(0)
+   used_key_parts(0),
+   forced_by_hint(false)
 {}
 
 void QUICK_SELECT_I::trace_quick_description(Opt_trace_context *trace)
@@ -2777,7 +2789,9 @@ public:
   static void *operator new(size_t size, MEM_ROOT *mem_root,
         const std::nothrow_t &arg MY_ATTRIBUTE((unused))= std::nothrow) throw ()
   { return alloc_root(mem_root, size); }
-  static void operator delete(void *ptr,size_t size) { TRASH(ptr, size); }
+  static void operator delete(void *ptr MY_ATTRIBUTE((unused)),
+                              size_t size MY_ATTRIBUTE((unused)))
+  { TRASH(ptr, size); }
   static void operator delete(void*, MEM_ROOT*,
                               const std::nothrow_t &) throw ()
   { /* Never called */ }
@@ -2892,8 +2906,12 @@ typedef struct st_ror_scan_info
 
 class TRP_ROR_INTERSECT : public TABLE_READ_PLAN
 {
+  bool forced_by_hint;
 public:
-  TRP_ROR_INTERSECT() {}                      /* Remove gcc warning */
+  explicit TRP_ROR_INTERSECT(bool forced_by_hint_arg)
+    : forced_by_hint(forced_by_hint_arg)
+  { }
+
   virtual ~TRP_ROR_INTERSECT() {}             /* Remove gcc warning */
   QUICK_SELECT_I *make_quick(PARAM *param, bool retrieve_full_rows,
                              MEM_ROOT *parent_alloc);
@@ -2962,8 +2980,11 @@ void TRP_ROR_INTERSECT::trace_basic_info(const PARAM *param,
 
 class TRP_ROR_UNION : public TABLE_READ_PLAN
 {
+  bool forced_by_hint;
 public:
-  TRP_ROR_UNION() {}                          /* Remove gcc warning */
+  explicit TRP_ROR_UNION(bool forced_by_hint_arg)
+    : forced_by_hint(forced_by_hint_arg)
+  { }
   virtual ~TRP_ROR_UNION() {}                 /* Remove gcc warning */
   QUICK_SELECT_I *make_quick(PARAM *param, bool retrieve_full_rows,
                              MEM_ROOT *parent_alloc);
@@ -2999,8 +3020,11 @@ void TRP_ROR_UNION::trace_basic_info(const PARAM *param,
 
 class TRP_INDEX_MERGE : public TABLE_READ_PLAN
 {
+  bool forced_by_hint;
 public:
-  TRP_INDEX_MERGE() {}                        /* Remove gcc warning */
+  explicit TRP_INDEX_MERGE(bool forced_by_hint_arg)
+    : forced_by_hint(forced_by_hint_arg)
+  { }
   virtual ~TRP_INDEX_MERGE() {}               /* Remove gcc warning */
   QUICK_SELECT_I *make_quick(PARAM *param, bool retrieve_full_rows,
                              MEM_ROOT *parent_alloc);
@@ -3569,15 +3593,18 @@ int test_quick_select(THD *thd, Key_map keys_to_use,
           table deletes. Also, ROR-intersection cannot return rows in
           descending order
         */
-        if ((thd->lex->sql_command != SQLCOM_DELETE) && 
-            param.index_merge_allowed &&
+        if ((thd->lex->sql_command != SQLCOM_DELETE) &&
+            (param.index_merge_allowed ||
+             hint_table_state(param.thd, param.table->pos_in_table_list,
+                              INDEX_MERGE_HINT_ENUM, 0)) &&
             interesting_order != ORDER_DESC)
         {
           /*
             Get best non-covering ROR-intersection plan and prepare data for
             building covering ROR-intersection.
           */
-          if ((rori_trp= get_best_ror_intersect(&param, tree, &best_cost)))
+          if ((rori_trp= get_best_ror_intersect(&param, tree,
+                                                &best_cost, true)))
           {
             best_trp= rori_trp;
             best_cost= best_trp->cost_est;
@@ -3589,7 +3616,9 @@ int test_quick_select(THD *thd, Key_map keys_to_use,
       if (!tree->merges.is_empty())
       {
         // Cannot return rows in descending order.
-        if (param.index_merge_allowed &&
+        if ((param.index_merge_allowed ||
+             hint_table_state(param.thd, param.table->pos_in_table_list,
+                              INDEX_MERGE_HINT_ENUM, 0)) &&
             interesting_order != ORDER_DESC &&
             param.table->file->stats.records)
         {
@@ -3790,11 +3819,11 @@ typedef struct st_part_prune_param
                                used in partitioning)
     Used to maintain current values of cur_part_fields and cur_subpart_fields
   */
-  my_bool *is_part_keypart;
+  bool *is_part_keypart;
   /* Same as above for subpartitioning */
-  my_bool *is_subpart_keypart;
+  bool *is_subpart_keypart;
 
-  my_bool ignore_part_fields; /* Ignore rest of partioning fields */
+  bool ignore_part_fields; /* Ignore rest of partioning fields */
 
   /***************************************************************
    Following fields form find_used_partitions() recursion context:
@@ -4832,9 +4861,9 @@ static bool create_partition_index_description(PART_PRUNE_PARAM *ppar)
                                                total_parts)) ||
       !(ppar->arg_stack= (SEL_ARG**)alloc_root(alloc, sizeof(SEL_ARG*)* 
                                                       total_parts)) ||
-      !(ppar->is_part_keypart= (my_bool*)alloc_root(alloc, sizeof(my_bool)*
-                                                           total_parts)) ||
-      !(ppar->is_subpart_keypart= (my_bool*)alloc_root(alloc, sizeof(my_bool)*
+      !(ppar->is_part_keypart= (bool*)alloc_root(alloc, sizeof(bool)*
+                                                        total_parts)) ||
+      !(ppar->is_subpart_keypart= (bool*)alloc_root(alloc, sizeof(bool)*
                                                            total_parts)))
     return TRUE;
  
@@ -5073,6 +5102,10 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
 
   DBUG_ASSERT(param->table->file->stats.records);
 
+  const bool force_index_merge=
+    hint_table_state(param->thd, param->table->pos_in_table_list,
+                     INDEX_MERGE_HINT_ENUM, 0);
+
   Opt_trace_context * const trace= &param->thd->opt_trace;
   Opt_trace_object trace_best_disjunct(trace);
   if (!(range_scans= (TRP_RANGE**)alloc_root(param->mem_root,
@@ -5104,6 +5137,7 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
       */
       imerge_too_expensive= true;
     }
+
     if (imerge_too_expensive)
     {
       trace_idx.add("chosen", false).add_alnum("cause", "cost");
@@ -5138,9 +5172,11 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
   to_merge.end();
 
   trace_best_disjunct.add("cost_of_reading_ranges", imerge_cost);
-  if (imerge_too_expensive || (imerge_cost > read_cost) ||
-      ((non_cpk_scan_records+cpk_scan_records >= param->table->file->stats.records) &&
-      !read_cost.is_max_cost()))
+  if (imerge_too_expensive ||
+      (((imerge_cost > read_cost) ||
+        ((non_cpk_scan_records+cpk_scan_records >=
+          param->table->file->stats.records) &&
+         !read_cost.is_max_cost())) && !force_index_merge))
   {
     /*
       Bail out if it is obvious that both index_merge and ROR-union will be
@@ -5158,7 +5194,7 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
     disabled in @@optimizer_switch
   */
   if (all_scans_rors && 
-      param->index_merge_union_allowed)
+      (param->index_merge_union_allowed || force_index_merge))
   {
     roru_read_plans= (TABLE_READ_PLAN**)range_scans;
     trace_best_disjunct.add("use_roworder_union", true).
@@ -5192,8 +5228,9 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
   }
   DBUG_PRINT("info",("index_merge cost with rowid-to-row scan: %g",
                      imerge_cost.total_cost()));
-  if (imerge_cost > read_cost || 
-      !param->index_merge_sort_union_allowed)
+  if ((imerge_cost > read_cost ||
+       !param->index_merge_sort_union_allowed) &&
+      !force_index_merge)
   {
     trace_best_disjunct.add("use_roworder_index_merge", true).
       add_alnum("cause", "cost");
@@ -5232,9 +5269,9 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
     DBUG_PRINT("info",("index_merge total cost: %g (wanted: less then %g)",
               imerge_cost.total_cost(), read_cost.total_cost()));
   }
-  if (imerge_cost < read_cost)
+  if (imerge_cost < read_cost || force_index_merge)
   {
-    if ((imerge_trp= new (param->mem_root)TRP_INDEX_MERGE))
+    if ((imerge_trp= new (param->mem_root) TRP_INDEX_MERGE(force_index_merge)))
     {
       imerge_trp->cost_est= imerge_cost;
       imerge_trp->records= non_cpk_scan_records + cpk_scan_records;
@@ -5249,7 +5286,7 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
 build_ror_index_merge:
   if (!all_scans_ror_able ||
       param->thd->lex->sql_command == SQLCOM_DELETE ||
-      !param->index_merge_union_allowed)
+      (!param->index_merge_union_allowed && !force_index_merge))
     DBUG_RETURN(imerge_trp);
 
   /* Ok, it is possible to build a ROR-union, try it. */
@@ -5297,7 +5334,8 @@ skip_to_ror_scan:
       scan_cost= read_cost;
 
     TABLE_READ_PLAN *prev_plan= *cur_child;
-    if (!(*cur_roru_plan= get_best_ror_intersect(param, *ptree, &scan_cost)))
+    if (!(*cur_roru_plan= get_best_ror_intersect(param, *ptree,
+                                                 &scan_cost, false)))
     {
       if (prev_plan->is_ror)
         *cur_roru_plan= prev_plan;
@@ -5349,9 +5387,9 @@ skip_to_ror_scan:
                           roru_total_cost).
     add("members", n_child_scans);
   TRP_ROR_UNION* roru;
-  if (roru_total_cost < read_cost)
+  if (roru_total_cost < read_cost || force_index_merge)
   {
-    if ((roru= new (param->mem_root) TRP_ROR_UNION))
+    if ((roru= new (param->mem_root) TRP_ROR_UNION(force_index_merge)))
     {
       trace_best_disjunct.add("chosen", true);
       roru->first_ror= roru_read_plans;
@@ -5862,6 +5900,7 @@ static double ror_scan_selectivity(const ROR_INTERSECT_INFO *info,
                    from other parameters and is passed separately only to
                    avoid duplicating the inference code)
       trace_costs  Optimizer trace object cost details are added to
+      ignore_cost  Ignore cost check due to use of INDEX_MERGE hint
 
   NOTES
     Adding a ROR scan to ROR-intersect "makes sense" iff the cost of ROR-
@@ -5887,7 +5926,8 @@ static double ror_scan_selectivity(const ROR_INTERSECT_INFO *info,
 
 static bool ror_intersect_add(ROR_INTERSECT_INFO *info,
                               ROR_SCAN_INFO* ror_scan, bool is_cpk_scan,
-                              Opt_trace_object *trace_costs)
+                              Opt_trace_object *trace_costs,
+                              bool ignore_cost)
 {
   double selectivity_mult= 1.0;
 
@@ -5898,7 +5938,7 @@ static bool ror_intersect_add(ROR_INTERSECT_INFO *info,
   DBUG_PRINT("info", ("is_cpk_scan: %d",is_cpk_scan));
 
   selectivity_mult = ror_scan_selectivity(info, ror_scan);
-  if (selectivity_mult == 1.0)
+  if (selectivity_mult == 1.0 && !ignore_cost)
   {
     /* Don't add this scan if it doesn't improve selectivity. */
     DBUG_PRINT("info", ("The scan doesn't improve selectivity."));
@@ -5973,6 +6013,9 @@ static bool ror_intersect_add(ROR_INTERSECT_INFO *info,
       are_all_covering [out] set to TRUE if union of all scans covers all
                        fields needed by the query (and it is possible to build
                        a covering ROR-intersection)
+      force_index_merge_result TRUE if the function must return cheapest
+                               intersection object when INDEX_MERGE hint is
+                               used without specified indexes, FALSE otherwise.
 
   NOTES
     get_key_scans_params must be called before this function can be called.
@@ -6026,19 +6069,26 @@ static bool ror_intersect_add(ROR_INTERSECT_INFO *info,
 
 static
 TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
-                                          const Cost_estimate *cost_est)
+                                          const Cost_estimate *cost_est,
+                                          bool force_index_merge_result)
 {
   uint idx;
   Cost_estimate min_cost;
   Opt_trace_context * const trace= &param->thd->opt_trace;
   DBUG_ENTER("get_best_ror_intersect");
 
+  bool use_cheapest_index_merge= false;
+  bool force_index_merge= idx_merge_hint_state(param->table,
+                                               &use_cheapest_index_merge);
+
   Opt_trace_object trace_ror(trace, "analyzing_roworder_intersect");
 
   min_cost.set_max_cost();
 
-  if ((tree->n_ror_scans < 2) || !param->table->file->stats.records ||
-      !param->index_merge_intersect_allowed)
+  if (tree->n_ror_scans < 2 ||
+      ((!param->table->file->stats.records ||
+        !param->index_merge_intersect_allowed) &&
+       !force_index_merge))
   {
     trace_ror.add("usable", false);
     if (tree->n_ror_scans < 2)
@@ -6107,7 +6157,7 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
   intersect_scans_end= intersect_scans;
 
   /* Create and incrementally update ROR intersection. */
-  ROR_INTERSECT_INFO *intersect, *intersect_best;
+  ROR_INTERSECT_INFO *intersect, *intersect_best= nullptr;
   if (!(intersect= ror_intersect_init(param)) || 
       !(intersect_best= ror_intersect_init(param)))
     DBUG_RETURN(NULL);
@@ -6126,8 +6176,19 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
     Opt_trace_object trace_idx(trace);
     trace_idx.add_utf8("index",
                        param->table->key_info[(*cur_ror_scan)->keynr].name);
+
+    if (!idx_merge_key_enabled(param->table, (*cur_ror_scan)->keynr))
+    {
+      trace_idx.
+        add("usable", false).
+        add_alnum("cause", "index_merge_hint");
+      cur_ror_scan++;
+      continue;
+    }
+
     /* S= S + first(R);  R= R - first(R); */
-    if (!ror_intersect_add(intersect, *cur_ror_scan, FALSE, &trace_idx))
+    if (!ror_intersect_add(intersect, *cur_ror_scan, FALSE, &trace_idx,
+                           force_index_merge && !use_cheapest_index_merge))
     {
       trace_idx.add("cumulated_total_cost",
                     intersect->total_cost).
@@ -6145,7 +6206,23 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
 
     *(intersect_scans_end++)= *(cur_ror_scan++);
 
-    if (intersect->total_cost < min_cost)
+    if (intersect->total_cost < min_cost ||
+        (force_index_merge &&
+         /*
+           If INDEX_MERGE hint is used without only specified index,
+           index merge is forced and the cheapest combination of indexes
+           will be chosen. Since ranges are sorted by index scan cost,
+           index merge is forced for first two ranges and next ranges are
+           added only if they reduce total cost and there is no clustered
+           primary key scan or intersection is covering. If there is
+           a range by clustered primary key and intersection is not covering,
+           combination of first index and primary key is considered as
+           a cheapest intersection.
+         */
+         ((intersect_scans_best - intersect_scans < 2 &&
+           force_index_merge_result &&
+           (!cpk_scan || intersect->is_covering)) ||
+          !use_cheapest_index_merge)))
     {
       /* Local minimum found, save it */
       ror_intersect_cpy(intersect_best, intersect);
@@ -6185,10 +6262,14 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
   */
   { // Scope for trace object
     Opt_trace_object trace_cpk(trace, "clustered_pk");
-    if (cpk_scan && !intersect->is_covering)
+    if (cpk_scan && !intersect->is_covering &&
+        idx_merge_key_enabled(param->table, cpk_no))
     {
-      if (ror_intersect_add(intersect, cpk_scan, TRUE, &trace_cpk) &&
-          (intersect->total_cost < min_cost))
+      if (ror_intersect_add(intersect, cpk_scan, TRUE, &trace_cpk, true) &&
+          ((intersect->total_cost < min_cost) ||
+           (force_index_merge && (!use_cheapest_index_merge ||
+                                  (best_num == 1 &&
+                                   force_index_merge_result)))))
       {
         trace_cpk.add("clustered_pk_scan_added_to_intersect", true).
           add("cumulated_cost", intersect->total_cost);
@@ -6208,9 +6289,10 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
   }
   /* Ok, return ROR-intersect plan if we have found one */
   TRP_ROR_INTERSECT *trp= NULL;
-  if (min_cost < *cost_est && (cpk_scan_used || best_num > 1))
+  if ((min_cost < *cost_est || force_index_merge) &&
+      (cpk_scan_used || best_num > 1))
   {
-    if (!(trp= new (param->mem_root) TRP_ROR_INTERSECT))
+    if (!(trp= new (param->mem_root) TRP_ROR_INTERSECT(force_index_merge)))
       DBUG_RETURN(trp);
     if (!(trp->first_scan=
            (ROR_SCAN_INFO**)alloc_root(param->mem_root,
@@ -6298,6 +6380,9 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
   tree->ror_scans_map.clear_all();
   tree->n_ror_scans= 0;
   bool is_best_idx_imerge_scan= true;
+  bool use_cheapest_index_merge= false;
+  bool force_index_merge= idx_merge_hint_state(param->table,
+                                               &use_cheapest_index_merge);
   for (idx= 0; idx < param->keys; idx++)
   {
     key= tree->keys[idx];
@@ -6316,10 +6401,15 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
 
       Opt_trace_object trace_idx(trace);
       trace_idx.add_utf8("index", param->table->key_info[keynr].name);
-
       found_records= check_quick_select(param, idx, read_index_only, key,
                                         update_tbl_stats, &mrr_flags,
                                         &buf_size, &cost);
+
+      if (!idx_merge_key_enabled(param->table, keynr))
+      {
+        trace_idx.add("chosen", false).add_alnum("cause", "index_merge_hint");
+        continue;
+      }
 
 #ifdef OPTIMIZER_TRACE
       // check_quick_select() says don't use range if it returns HA_POS_ERROR
@@ -6353,7 +6443,14 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
       }
 
       if (found_records != HA_POS_ERROR &&
-          read_cost > cost)
+          (read_cost > cost ||
+           /*
+             Ignore cost check if INDEX_MERGE hint is used with
+             explicitly specified indexes or if INDEX_MERGE hint
+             is used without any specified indexes and no best
+             index is chosen yet.
+           */
+           (force_index_merge && (!use_cheapest_index_merge || !key_to_read))))
       {
         trace_idx.add("chosen", true);
         read_cost= cost;
@@ -6429,6 +6526,7 @@ QUICK_SELECT_I *TRP_INDEX_MERGE::make_quick(PARAM *param,
       return NULL;
     }
   }
+  quick_imerge->forced_by_hint= forced_by_hint;
   return quick_imerge;
 }
 
@@ -6481,6 +6579,7 @@ QUICK_SELECT_I *TRP_ROR_INTERSECT::make_quick(PARAM *param,
     quick_intrsect->records= records;
     quick_intrsect->cost_est= cost_est;
   }
+  quick_intrsect->forced_by_hint= forced_by_hint;
   DBUG_RETURN(quick_intrsect);
 }
 
@@ -6507,6 +6606,7 @@ QUICK_SELECT_I *TRP_ROR_UNION::make_quick(PARAM *param,
     quick_roru->records= records;
     quick_roru->cost_est= cost_est;
   }
+  quick_roru->forced_by_hint= forced_by_hint;
   DBUG_RETURN(quick_roru);
 }
 
@@ -15438,14 +15538,16 @@ static void append_range_all_keyparts(Opt_trace_array *range_trace,
   @param tree        The SEL_TREE that will be printed to debug log
   @param param       PARAM from test_quick_select
 */
-static inline void dbug_print_tree(const char *tree_name,
-                                   SEL_TREE *tree,
-                                   const RANGE_OPT_PARAM *param)
-{
 #ifndef DBUG_OFF
-  print_tree(NULL, tree_name, tree, param, true);
-#endif
+static inline
+void dbug_print_tree(const char *tree_name,
+                     SEL_TREE *tree,
+                     const RANGE_OPT_PARAM *param)
+{
+  if (_db_enabled_())
+    print_tree(NULL, tree_name, tree, param, true);
 }
+#endif
 
 
 static inline void print_tree(String *out,

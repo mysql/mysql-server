@@ -2,10 +2,12 @@
 --source include/have_no_undo_tablespaces.inc
 --source include/big_test.inc
 
-# Embedded server does not support restarting
---source include/not_embedded.inc
 # Avoid CrashReporter popup on Mac
 --source include/not_crashrep.inc
+# run for page size >= 8k
+--disable_warnings
+--source include/have_innodb_min_8k.inc
+--enable_warnings
 
 ####################################################################
 # TC to test temp-table undolog changes correctness                #
@@ -28,11 +30,6 @@
 #    innodb_log_files_in_group                                     #
 # - Verify rseg message from server log                            # 
 ####################################################################
-
-# run for page size >= 8k
---disable_warnings
---source include/have_innodb_min_8k.inc
---enable_warnings
 
 call mtr.ADD_suppression(".*Resizing redo log.*");
 call mtr.ADD_suppression(".*Starting to delete and rewrite log files.*");
@@ -66,9 +63,9 @@ CREATE PROCEDURE populate_tables(IN id VARCHAR(10))
    PRIMARY KEY (c1),
    INDEX (c3,c4(50),c5(50)), 
    INDEX (c2))
-   ENGINE=InnoDB ROW_FORMAT=redundant;
+   charset latin1 ENGINE=InnoDB ROW_FORMAT=redundant;
 
-   set @s = concat("CREATE TABLE t1",id," ( c1 int NOT NULL,   c2 int NOT NULL,   c3 char(255) NOT NULL,   c4 text(600) NOT NULL,   c5 blob(600) NOT NULL,   c6 varchar(600) NOT NULL,   c7 varchar(600) NOT NULL,   c8 datetime,   c9 decimal(6,3),   PRIMARY KEY (c1),   INDEX (c3,c4(50),c5(50)),   INDEX (c2))   ENGINE=InnoDB ROW_FORMAT=redundant;");
+   set @s = concat("CREATE TABLE t1",id," ( c1 int NOT NULL,   c2 int NOT NULL,   c3 char(255) NOT NULL,   c4 text(600) NOT NULL,   c5 blob(600) NOT NULL,   c6 varchar(600) NOT NULL,   c7 varchar(600) NOT NULL,   c8 datetime,   c9 decimal(6,3),   PRIMARY KEY (c1),   INDEX (c3,c4(50),c5(50)),   INDEX (c2))   charset latin1 ENGINE=InnoDB ROW_FORMAT=redundant;");
    PREPARE createTable FROM @s;
    EXECUTE createTable;
    DEALLOCATE PREPARE createTable;
@@ -86,14 +83,14 @@ CREATE PROCEDURE populate_tables(IN id VARCHAR(10))
    PRIMARY KEY (c1),
    INDEX (c3,c4(50),c5(50)),
    INDEX (c2))
-   ENGINE=InnoDB ROW_FORMAT=compact;
+   charset latin1 ENGINE=InnoDB ROW_FORMAT=compact;
 
-   set @s = concat("CREATE TABLE t2",id," (c1 int NOT NULL,   c2 int NOT NULL,   c3 char(255) NOT NULL,   c4 text(600) NOT NULL,   c5 blob(600) NOT NULL,   c6 varchar(600) NOT NULL,   c7 varchar(600) NOT NULL,   c8 datetime,   c9 decimal(6,3),   PRIMARY KEY (c1),   INDEX (c3,c4(50),c5(50)),   INDEX (c2))   ENGINE=InnoDB ROW_FORMAT=compact;");
+   set @s = concat("CREATE TABLE t2",id," (c1 int NOT NULL,   c2 int NOT NULL,   c3 char(255) NOT NULL,   c4 text(600) NOT NULL,   c5 blob(600) NOT NULL,   c6 varchar(600) NOT NULL,   c7 varchar(600) NOT NULL,   c8 datetime,   c9 decimal(6,3),   PRIMARY KEY (c1),   INDEX (c3,c4(50),c5(50)),   INDEX (c2))   charset latin1 ENGINE=InnoDB ROW_FORMAT=compact;");
    PREPARE createTable FROM @s;
    EXECUTE createTable;
    DEALLOCATE PREPARE createTable;
 
-   set @s = concat("CREATE TABLE t3",id," (c1 int NOT NULL,   c2 int NOT NULL,   c3 char(255) NOT NULL,   c4 text(600) NOT NULL,   c5 blob(600) NOT NULL,   c6 varchar(600) NOT NULL,   c7 varchar(600) NOT NULL,   c8 datetime,   c9 decimal(6,3),   PRIMARY KEY (c1),   INDEX (c3,c4(50),c5(50)),   INDEX (c2))   ENGINE=InnoDB ROW_FORMAT=compressed key_block_size=4;");
+   set @s = concat("CREATE TABLE t3",id," (c1 int NOT NULL,   c2 int NOT NULL,   c3 char(255) NOT NULL,   c4 text(600) NOT NULL,   c5 blob(600) NOT NULL,   c6 varchar(600) NOT NULL,   c7 varchar(600) NOT NULL,   c8 datetime,   c9 decimal(6,3),   PRIMARY KEY (c1),   INDEX (c3,c4(50),c5(50)),   INDEX (c2))   charset latin1 ENGINE=InnoDB ROW_FORMAT=compressed key_block_size=4;");
    PREPARE createTable FROM @s;
    EXECUTE createTable;
    DEALLOCATE PREPARE createTable;
@@ -110,9 +107,9 @@ CREATE PROCEDURE populate_tables(IN id VARCHAR(10))
    PRIMARY KEY (c1),
    INDEX (c3,c4(50),c5(50)),
    INDEX (c2))
-   ENGINE=InnoDB ROW_FORMAT=dynamic;
+   charset latin1 ENGINE=InnoDB ROW_FORMAT=dynamic;
 
-   set @s = concat("CREATE TABLE t4",id," (c1 int NOT NULL,   c2 int NOT NULL,   c3 char(255) NOT NULL,   c4 text(600) NOT NULL,   c5 blob(600) NOT NULL,   c6 varchar(600) NOT NULL,   c7 varchar(600) NOT NULL,   c8 datetime,   c9 decimal(6,3),   PRIMARY KEY (c1),   INDEX (c3,c4(50),c5(50)),   INDEX (c2))   ENGINE=InnoDB ROW_FORMAT=dynamic;");
+   set @s = concat("CREATE TABLE t4",id," (c1 int NOT NULL,   c2 int NOT NULL,   c3 char(255) NOT NULL,   c4 text(600) NOT NULL,   c5 blob(600) NOT NULL,   c6 varchar(600) NOT NULL,   c7 varchar(600) NOT NULL,   c8 datetime,   c9 decimal(6,3),   PRIMARY KEY (c1),   INDEX (c3,c4(50),c5(50)),   INDEX (c2))   charset latin1 ENGINE=InnoDB ROW_FORMAT=dynamic;");
    PREPARE createTable FROM @s;
    EXECUTE createTable;
    DEALLOCATE PREPARE createTable;

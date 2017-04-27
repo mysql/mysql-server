@@ -20,6 +20,8 @@
 
 #include "auth_acls.h"
 #include "auth_common.h"            // check_global_access
+#include "dd/cache/dictionary_client.h"
+#include "dd/dd_schema.h"
 #include "dd/dd_trigger.h"          // dd::create_trigger
 #include "derror.h"                 // ER_THD
 #include "field.h"
@@ -136,32 +138,6 @@ Table_trigger_dispatcher::~Table_trigger_dispatcher()
 }
 
 
-List<Trigger>* Table_trigger_dispatcher::fill_and_return_trigger_list(
-  List<Trigger> *triggers)
-{
-  for (int i= 0; i < static_cast<int>(TRG_EVENT_MAX); ++i)
-  {
-    for (int j= 0; j < static_cast<int>(TRG_ACTION_MAX); ++j)
-    {
-      Trigger_chain *tc= get_triggers(i, j);
-
-      if (tc == nullptr)
-        continue;
-
-      List_iterator<Trigger> it(tc->get_trigger_list());
-      Trigger *t;
-
-      while ((t= it++) != nullptr)
-      {
-        if (triggers->push_back(t, get_mem_root()))
-          return nullptr;
-      }
-    }
-  }
-  return triggers;
-}
-
-
 /**
   Create trigger for table.
 
@@ -187,30 +163,34 @@ bool Table_trigger_dispatcher::create_trigger(
   THD *thd, String *binlog_create_trigger_stmt)
 {
   LEX *lex= thd->lex;
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   // If this table has broken triggers, CREATE TRIGGER is not allowed.
-
   if (check_for_broken_triggers())
     return true;
 
   // Check that the new trigger is in the same schema as the base table.
-
   if (my_strcasecmp(table_alias_charset, m_db_name.str, lex->spname->m_db.str))
   {
     my_error(ER_TRG_IN_WRONG_SCHEMA, MYF(0));
     return true;
   }
 
-  // Check that the trigger does not exist.
-
-  bool trigger_exists;
-  if (dd::check_trigger_exists(thd,
-                               thd->lex->spname->m_db.str,
-                               thd->lex->spname->m_name.str,
-                               &trigger_exists))
+  // Check if a trigger with the same name already exist in this schema.
+  const dd::Schema *sch_obj= nullptr;
+  if (thd->dd_client()->acquire(lex->spname->m_db.str, &sch_obj))
     return true;
 
-  if (trigger_exists)
+  // The table is already open, so the schema must exist.
+  DBUG_ASSERT(sch_obj != nullptr);
+
+  dd::String_type table_name;
+  if (thd->dd_client()->get_table_name_by_trigger_name(*sch_obj,
+                                                       lex->spname->m_name.str,
+                                                       &table_name))
+    return true;
+
+  if (table_name != "")
   {
     my_error(ER_TRG_ALREADY_EXISTS, MYF(0));
     return true;
@@ -247,7 +227,7 @@ bool Table_trigger_dispatcher::create_trigger(
     else
     {
       my_error(ER_TRG_NO_DEFINER,  MYF(0),
-               m_db_name.str, thd->lex->spname->m_name.str);
+               m_db_name.str, lex->spname->m_name.str);
       return true;
     }
   }
@@ -265,9 +245,12 @@ bool Table_trigger_dispatcher::create_trigger(
                      lex->definer->host.str,
                      thd->security_context()->priv_host().str)))
   {
-    if (check_global_access(thd, SUPER_ACL))
+    Security_context *sctx= thd->security_context();
+    if (!sctx->check_access(SUPER_ACL) &&
+        !sctx->has_global_grant(STRING_WITH_LEN("SET_USER_ID")).first)
     {
-      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER");
+      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+               "SUPER or SET_USER_ID");
       return true;
     }
   }
@@ -348,37 +331,6 @@ bool Table_trigger_dispatcher::create_trigger(
   return dd::create_trigger(thd, t,
                             lex->sphead->m_trg_chistics.ordering_clause,
                             lex->sphead->m_trg_chistics.anchor_trigger_name);
-}
-
-
-/**
-  Drop trigger for table.
-
-  @param thd                  thread context
-  @param trigger_name         name of the trigger to drop
-  @param [out] trigger_found  out-flag to determine if the trigger found
-
-  @return Operation status.
-    @retval false Success
-    @retval true  Failure
-*/
-
-bool Table_trigger_dispatcher::drop_trigger(THD *thd,
-                                            const LEX_STRING &trigger_name,
-                                            bool *trigger_found)
-{
-  if (dd::drop_trigger(thd, m_db_name.str,
-                       m_subject_table_name.str,
-                       trigger_name.str,
-                       trigger_found))
-    return true;
-
-  if (*trigger_found)
-    return false;
-
-  my_error(ER_TRG_DOES_NOT_EXIST, MYF(0));
-
-  return true;
 }
 
 
@@ -523,39 +475,6 @@ bool Table_trigger_dispatcher::check_n_load(THD *thd, bool names_only)
   return false;
 }
 
-
-bool Table_trigger_dispatcher::load_triggers(THD *thd)
-{
-  // Load triggers from Data Dictionary.
-
-  List<Trigger> triggers;
-
-  if (dd::load_triggers(thd,
-                        get_mem_root(),
-                        m_db_name.str,
-                        m_subject_table_name.str,
-                        &triggers))
-    return true;
-
-  // Create trigger chains and assigns triggers to chains.
-
-  {
-    List_iterator_fast<Trigger> it(triggers);
-    Trigger *t;
-
-    while ((t= it++) != nullptr)
-    {
-      Trigger_chain *tc= create_trigger_chain(t->get_event(),
-                                              t->get_action_time());
-
-      if (tc == nullptr || tc->add_trigger(get_mem_root(), t))
-        return true;
-    }
-  }
-
-
-  return false;
-}
 
 /**
   Make sure there is a chain for the specified event and action time.

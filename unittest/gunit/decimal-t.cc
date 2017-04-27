@@ -21,11 +21,11 @@
 #include "my_config.h"
 
 #include <gtest/gtest.h>
+#include <math.h>
 
 #include "decimal.h"
 #include "m_string.h"
 #include "my_decimal.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 
 

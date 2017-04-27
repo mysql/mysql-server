@@ -21,7 +21,9 @@
 */
 
 #include <myisammrg.h>
+#include <sys/types.h>
 
+#include "lex_string.h"
 #include "my_double2ulonglong.h"
 #include "my_inttypes.h"
 #include "my_io.h"
@@ -75,7 +77,7 @@ public:
 class ha_myisammrg: public handler
 {
   MYRG_INFO *file;
-  my_bool is_cloned;                    /* This instance has been cloned */
+  bool is_cloned;                    /* This instance has been cloned */
 
 public:
   MEM_ROOT      children_mem_root;      /* mem root for children list */

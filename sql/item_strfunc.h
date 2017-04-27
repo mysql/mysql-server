@@ -29,10 +29,10 @@
 #include "item.h"
 #include "item_cmpfunc.h"             // Item_bool_func
 #include "item_func.h"                // Item_func
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_decimal.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_table_map.h"
 #include "my_time.h"
@@ -741,7 +741,6 @@ public:
   String *val_str(String *) override;
   bool resolve_type(THD *) override
   {
-    DBUG_ASSERT(collation.collation == system_charset_info);
     set_data_type_string(uint32(MAX_FIELD_NAME));
     maybe_null= true;
     return false;
@@ -1317,10 +1316,10 @@ class Item_func_weight_string final : public Item_str_func
 
   String tmp_value;
   uint flags;
-  uint num_codepoints;
-  uint result_length;
+  const uint num_codepoints;
+  const uint result_length;
   Field *field;
-  bool as_binary;
+  const bool as_binary;
 public:
   Item_func_weight_string(const POS &pos, Item *a, uint result_length_arg,
                           uint num_codepoints_arg, uint flags_arg,
@@ -1451,7 +1450,7 @@ public:
       per privileges is 11 chars.
       So, setting max approximate to 200.
     */
-    max_length= 14*11;
+    set_data_type_string(14*11, default_charset());
     maybe_null= true;
 
     return false;
@@ -1461,34 +1460,6 @@ public:
 
   String *val_str(String *) override;
 };
-
-
-class Item_func_get_dd_index_sub_part_length final : public Item_str_func
-{
-public:
-  Item_func_get_dd_index_sub_part_length(
-    const POS &pos, Item *a, Item *b, Item *c, Item *d, Item *e)
-    :Item_str_func(pos, a, b, c, d, e)
-  {}
-
-  bool resolve_type(THD *) override
-  {
-    /**
-      maximum number of chars in length of uint value is max 11 so setting
-      max_length to 11+1.
-    */
-    max_length= 12;
-    maybe_null= 1;
-
-    return false;
-  }
-
-  const char *func_name() const override
-  { return "get_dd_index_sub_part_length"; }
-
-  String *val_str(String *) override;
-};
-
 
 class Item_func_get_dd_create_options final : public Item_str_func
 {
@@ -1501,7 +1472,7 @@ public:
   {
     // maximum string length of all options is expected
     // to be less than 256 characters.
-    max_length= 256;
+    set_data_type_string(256, default_charset());
     maybe_null= false;
 
     return false;
@@ -1524,7 +1495,7 @@ public:
   {
     // maximum string length of all options is expected
     // to be less than 256 characters.
-    max_length= 256;
+    set_data_type_string(256, default_charset());
     maybe_null= 1;
 
     return false;

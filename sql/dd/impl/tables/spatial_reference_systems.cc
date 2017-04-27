@@ -24,12 +24,6 @@
 #include "m_ctype.h"
 
 namespace dd {
-class Dictionary_object;
-class Object_key;
-class Raw_record;
-}  // namespace dd
-
-namespace dd {
 namespace tables {
 
 const Spatial_reference_systems & Spatial_reference_systems::instance()
@@ -88,8 +82,8 @@ Spatial_reference_systems::Spatial_reference_systems()
 
 ///////////////////////////////////////////////////////////////////////////
 
-Dictionary_object*
-Spatial_reference_systems::create_dictionary_object(const Raw_record &) const
+Spatial_reference_system*
+Spatial_reference_systems::create_entity_object(const Raw_record &) const
 {
   return new (std::nothrow) Spatial_reference_system_impl();
 }

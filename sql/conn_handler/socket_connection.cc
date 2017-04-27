@@ -15,7 +15,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "socket_connection.h"
+#include "sql/conn_handler/socket_connection.h"
 
 #include "my_config.h"
 
@@ -48,7 +48,6 @@
 #include "log.h"                        // sql_print_error
 #include "m_string.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_io.h"
 #include "my_sys.h"
 #include "my_thread.h"
@@ -81,7 +80,7 @@ ulong Mysqld_socket_listener::connection_errors_accept= 0;
 ulong Mysqld_socket_listener::connection_errors_tcpwrap= 0;
 
 ///////////////////////////////////////////////////////////////////////////
-// Channel_info_local_socket implementation
+//Channel_info_local_socket implementation
 ///////////////////////////////////////////////////////////////////////////
 
 /**
@@ -399,7 +398,7 @@ public:
       returned by getaddrinfo();
     */
 
-    struct addrinfo *a;
+    struct addrinfo *a= nullptr;
     MYSQL_SOCKET listener_socket= create_socket(ai, AF_INET, &a);
 
     if (mysql_socket_getfd(listener_socket) == INVALID_SOCKET)
@@ -929,12 +928,13 @@ Channel_info* Mysqld_socket_listener::listen_for_connection_event()
       if (req.sink)
         ((void (*)(int))req.sink)(req.fd);
 #endif
-      mysql_socket_shutdown(listen_sock, SHUT_RDWR);
-      mysql_socket_close(listen_sock);
       /*
         The connection was refused by TCP wrappers.
         There are no details (by client IP) available to update the host_cache.
       */
+      mysql_socket_shutdown(connect_sock, SHUT_RDWR);
+      mysql_socket_close(connect_sock);
+
       connection_errors_tcpwrap++;
       return NULL;
     }

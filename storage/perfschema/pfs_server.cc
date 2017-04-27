@@ -18,8 +18,9 @@
   Private interface for the server (implementation).
 */
 
+#include "storage/perfschema/pfs_server.h"
+
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_sys.h"
@@ -40,7 +41,6 @@
 #include "pfs_instr_class.h"
 #include "pfs_prepared_stmt.h"
 #include "pfs_program.h"
-#include "pfs_server.h"
 #include "pfs_setup_actor.h"
 #include "pfs_setup_object.h"
 #include "pfs_timer.h"
@@ -69,6 +69,8 @@ pre_initialize_performance_schema()
   global_idle_stat.reset();
   global_table_io_stat.reset();
   global_table_lock_stat.reset();
+  g_histogram_pico_timers.init();
+  global_statements_histogram.reset();
 
   if (my_create_thread_local_key(&THR_PFS, destroy_pfs_thread))
   {
@@ -112,12 +114,6 @@ pre_initialize_performance_schema()
   }
 
   THR_PFS_initialized = true;
-}
-
-void
-set_embedded_performance_schema_param(PFS_global_param* param)
-{
-  memset(param, 0, sizeof(PFS_global_param));
 }
 
 int

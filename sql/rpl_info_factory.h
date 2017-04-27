@@ -18,8 +18,8 @@
 
 #include <sys/types.h>
 #include <vector>
+#include <string>
 
-#include "my_global.h"
 #include "my_io.h"
 #include "rpl_channel_service_interface.h" // enum_channel_type
 #include "rpl_info_handler.h"              // enum_return_check
@@ -40,13 +40,25 @@ public:
   static bool create_slave_info_objects(uint mi_option, uint rli_option, int
                                         thread_mask, Multisource_info *pchannel_map);
 
-  static Master_info*
-  create_slave_per_channel(uint mi_option,uint rli_option,
-                           const char* channel,
-                           bool convert_repo,
-                           Multisource_info* channel_map,
-                           enum_channel_type channel_type=
-                               SLAVE_REPLICATION_CHANNEL);
+  /**
+    Establish the relation between the channel's replication filters and
+    the channel's Relay_log_info, and copy global replication filters to
+    the channel's replication filters if needed.
+
+    @param rli Pointer to Relay_log_info.
+    @param channel_name The channel name.
+
+    @retval false No error
+    @retval true  Failure
+  */
+  static bool configure_channel_replication_filters(Relay_log_info *rli,
+                                                    const char* channel_name);
+
+  static Master_info* create_mi_and_rli_objects(uint mi_option,
+                                                uint rli_option,
+                                                const char* channel,
+                                                bool convert_repo,
+                                                Multisource_info* channel_map);
 
   static Master_info *create_mi(uint rli_option, const char* channel,
                                 bool conver_repo);
@@ -114,10 +126,13 @@ private:
                                 uint* found_rep_option,
                                 const struct_table_data table_data,
                                 const struct_file_data file_data, const char **msg);
-  static bool create_channel_list(std::vector<const char*> & channel_list, uint mi_instances,
-                                  uint mi_repository, const char* default_channel);
+  static bool load_channel_names_from_repository(std::vector<std::string> & channel_list, uint mi_instances,
+                                                 uint mi_repository, const char *default_channel,
+                                                 bool *default_channel_created_previously);
 
-  static bool create_channel_list_from_mi_table(std::vector<const char*> &channel_list);
+  static bool load_channel_names_from_table(std::vector<std::string> &channel_list,
+                                            const char *default_channel,
+                                            bool *default_channel_created_previously);
 };
 
 #endif

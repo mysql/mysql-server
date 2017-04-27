@@ -14,9 +14,9 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 #include <fcntl.h>
-#include <my_global.h>
 #include <mysql/plugin.h>
 #include <stdlib.h>
+#include <sys/types.h>
 #include <vector>
 
 #include "m_string.h"
@@ -274,7 +274,7 @@ static void dump_decoded_server_status(const char *prefix, uint server_status)
 }
 
 
-static int handle_start_column_metadata(void *pctx, uint num_cols, uint flags,
+static int handle_start_column_metadata(void *pctx, uint num_cols, uint,
                                         const CHARSET_INFO *resultcs)
 {
   Server_context *ctx= (Server_context*) pctx;
@@ -292,7 +292,7 @@ static int handle_start_column_metadata(void *pctx, uint num_cols, uint flags,
 }
 
 static int handle_send_column_metadata(void *pctx, struct st_send_field *field,
-                                       const CHARSET_INFO *charset)
+                                       const CHARSET_INFO*)
 {
   Server_context *ctx= (Server_context*) pctx;
 //  char buffer[STRING_BUFFER_SIZE];
@@ -363,7 +363,7 @@ static int handle_end_row(void *pctx)
   DBUG_RETURN(false);
 }
 
-static void handle_abort_row(void *ctx)
+static void handle_abort_row(void*)
 {
   char buffer[STRING_BUFFER_SIZE];
   WRITE_STR("handle_abort_row\n");
@@ -371,7 +371,7 @@ static void handle_abort_row(void *ctx)
   DBUG_VOID_RETURN;
 }
 
-static ulong get_client_capabilities(void *ctx)
+static ulong get_client_capabilities(void*)
 {
   DBUG_ENTER("get_client_capabilities");
   DBUG_RETURN(CLIENT_PS_MULTI_RESULTS | CLIENT_MULTI_RESULTS);
@@ -449,7 +449,7 @@ static int handle_store_decimal(void *pctx, const decimal_t *value)
 }
 
 
-static int handle_store_double(void *pctx, double value, uint32 decimals)
+static int handle_store_double(void *pctx, double value, uint32)
 {
   char buffer[LARGE_STRING_BUFFER_SIZE];
   Server_context *ctx= (Server_context*) pctx;
@@ -483,7 +483,7 @@ static int handle_store_date(void *pctx, const MYSQL_TIME *value)
   DBUG_RETURN(false);
 }
 
-static int handle_store_time(void *pctx, const MYSQL_TIME *value, uint decimals)
+static int handle_store_time(void *pctx, const MYSQL_TIME *value, uint)
 {
   char buffer[LARGE_STRING_BUFFER_SIZE];
   Server_context *ctx= (Server_context*) pctx;
@@ -501,7 +501,7 @@ static int handle_store_time(void *pctx, const MYSQL_TIME *value, uint decimals)
   DBUG_RETURN(false);
 }
 
-static int handle_store_datetime(void *pctx, const MYSQL_TIME *value, uint decimals)
+static int handle_store_datetime(void *pctx, const MYSQL_TIME *value, uint)
 {
   char buffer[LARGE_STRING_BUFFER_SIZE];
   Server_context *ctx= (Server_context*) pctx;
@@ -525,7 +525,7 @@ static int handle_store_datetime(void *pctx, const MYSQL_TIME *value, uint decim
 
 static int
 handle_store_string(void *pctx, const char *const value, size_t length,
-                    const CHARSET_INFO *const valuecs)
+                    const CHARSET_INFO *const)
 {
   Server_context *ctx= (Server_context*) pctx;
   DBUG_ENTER("handle_store_string");
@@ -587,7 +587,7 @@ static void handle_error(void *pctx, uint sql_errno,
 }
 
 
-static void handle_shutdown(void *pctx, int shutdown_server)
+static void handle_shutdown(void*, int)
 {
   char buffer[STRING_BUFFER_SIZE];
   WRITE_STR("handle_shutdown\n");

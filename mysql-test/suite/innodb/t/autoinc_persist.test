@@ -1,5 +1,6 @@
 --source include/no_valgrind_without_big.inc
---source include/not_embedded.inc
+# Disabled in --log-bin runs until atomic DDL is properly supported
+--source include/not_log_bin.inc
 
 --echo # This test case is introduced to test the persisted autoinc, basic
 --echo # autoinc features are not the main part of this one.
@@ -590,3 +591,17 @@ SELECT * FROM t1;
 
 DROP TABLE t1;
 
+# Check if the AUTOINC can be kept after a no-op ALTER TABLE
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ENGINE = InnoDB;
+INSERT INTO t1 VALUES(0, 1), (2, 4), (3, 6);
+ALTER TABLE t1 CHANGE COLUMN b b INTEGER, ALGORITHM DEFAULT;
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 AUTO_INCREMENT = 20, CHANGE COLUMN b b INT, ALGORITHM DEFAULT;
+SHOW CREATE TABLE t1;
+INSERT INTO t1 VALUES(NULL, 10);
+SELECT MAX(a) FROM t1;
+ALTER TABLE t1 AUTO_INCREMENT = 10, CHANGE COLUMN b b INTEGER, ALGORITHM DEFAULT;
+SHOW CREATE TABLE t1;
+INSERT INTO t1 VALUES(NULL, 12);
+SELECT MAX(a) FROM t1;
+DROP TABLE t1;

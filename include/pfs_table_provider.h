@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,6 +21,8 @@
   Performance schema instrumentation (declarations).
 */
 
+#include <sys/types.h>
+
 #include "my_psi_config.h"
 
 #ifdef HAVE_PSI_TABLE_INTERFACE
@@ -36,12 +38,12 @@
 C_MODE_START
 
 PSI_table_share*
-pfs_get_table_share_v1(my_bool temporary, struct TABLE_SHARE *share);
+pfs_get_table_share_v1(bool temporary, struct TABLE_SHARE *share);
 
 void pfs_release_table_share_v1(PSI_table_share* share);
 
 void
-pfs_drop_table_share_v1(my_bool temporary,
+pfs_drop_table_share_v1(bool temporary,
                         const char *schema_name, int schema_name_length,
                         const char *table_name, int table_name_length);
 

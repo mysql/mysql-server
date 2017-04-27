@@ -266,4 +266,3 @@ SET sql_mode = default;
 --echo #
 --echo # End of 5.7 tests
 --echo #
-

@@ -19,7 +19,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <m_string.h>
 #include <my_aes.h>
-#include <my_global.h>
 #include <openssl/aes.h>
 #include <openssl/bio.h>
 #include <openssl/err.h>
@@ -221,7 +220,7 @@ int my_aes_get_size(uint32 source_length, my_aes_opmode opmode)
   @retval FALSE  IV not needed
 */
 
-my_bool my_aes_needs_iv(my_aes_opmode opmode)
+bool my_aes_needs_iv(my_aes_opmode opmode)
 {
   const EVP_CIPHER *cipher= aes_evp_type(opmode);
   int iv_length;

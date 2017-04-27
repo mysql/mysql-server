@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 
 C_MODE_START
 
-extern int my_lock(File fd,int op,my_off_t start, my_off_t length,myf MyFlags);
+extern int my_lock(File fd, int op, myf MyFlags);
 
 #define MY_REDEL_MAKE_BACKUP 256
 #define MY_REDEL_NO_COPY_STAT 512 /* my_redel() doesn't call my_copystat() */

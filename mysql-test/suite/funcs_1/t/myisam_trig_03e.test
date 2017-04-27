@@ -1,8 +1,5 @@
 #### suite/funcs_1/t/myisam_trig_03e.test
 
-# This test cannot be used for the embedded server because we check here
-# privileges.
---source include/not_embedded.inc
 
 # MyISAM tables should be used
 #

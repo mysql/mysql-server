@@ -340,7 +340,7 @@
   See also worklog entry WL#4259 - Test Synchronization Facility
 */
 
-#include "debug_sync.h"
+#include "sql/debug_sync.h"
 
 #include <boost/algorithm/string/classification.hpp>
 #include <boost/algorithm/string/split.hpp>
@@ -355,7 +355,6 @@
 
 #include "m_ctype.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sys.h"

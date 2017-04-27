@@ -25,7 +25,9 @@
 #include "dd/dd.h"                         // enum_dd_init_type
 #include "dd/impl/bootstrapper.h"          // dd::Bootstrapper
 #include "dd/impl/system_registry.h"       // dd::System_tables
-#include "dd/impl/tables/version.h"        // get_actual_dd_version()
+#include "dd/impl/tables/dd_properties.h"  // get_actual_dd_version()
+#include "dd/info_schema/metadata.h"       // dd::info_schema::store_dynamic...
+#include "dd/upgrade/upgrade.h"            // dd::upgrade
 #include "m_ctype.h"
 #include "mdl.h"
 #include "my_dbug.h"
@@ -94,26 +96,38 @@ bool Dictionary_impl::init(enum_dd_init_type dd_init)
     result= ::bootstrap::run_bootstrap_thread(NULL, &bootstrap::initialize,
                                               SYSTEM_THREAD_DD_INITIALIZE);
 
+  // Creation of INFORMATION_SCHEMA system views.
+  else if (dd_init == enum_dd_init_type::DD_INITIALIZE_SYSTEM_VIEWS)
+    result= ::bootstrap::run_bootstrap_thread(NULL,
+                                              &dd::info_schema::initialize,
+                                              SYSTEM_THREAD_DD_INITIALIZE);
+
   /*
     Creation of Dictionary Tables in old Data Directory
     This function also takes care of normal server restart.
   */
   else if (dd_init == enum_dd_init_type::DD_RESTART_OR_UPGRADE)
     result= ::bootstrap::run_bootstrap_thread(NULL,
-                         &bootstrap::upgrade_do_pre_checks_and_initialize_dd,
+                         &upgrade::do_pre_checks_and_initialize_dd,
                          SYSTEM_THREAD_DD_INITIALIZE);
 
   // Populate metadata in DD tables from old data directory and do cleanup.
   else if (dd_init == enum_dd_init_type::DD_POPULATE_UPGRADE)
     result= ::bootstrap::run_bootstrap_thread(NULL,
-                         &bootstrap::upgrade_fill_dd_and_finalize,
+                         &upgrade::fill_dd_and_finalize,
                          SYSTEM_THREAD_DD_INITIALIZE);
 
 
   // Delete DD tables and do cleanup in case of error in upgrade
   else if (dd_init == enum_dd_init_type::DD_DELETE)
     result= ::bootstrap::run_bootstrap_thread(NULL,
-                         &bootstrap::delete_dictionary_and_cleanup,
+                         &upgrade::terminate,
+                         SYSTEM_THREAD_DD_INITIALIZE);
+
+  // Update server and plugin I_S table metadata into DD tables.
+  else if (dd_init == enum_dd_init_type::DD_UPDATE_I_S_METADATA)
+    result= ::bootstrap::run_bootstrap_thread(NULL,
+                         &dd::info_schema::update_I_S_metadata,
                          SYSTEM_THREAD_DD_INITIALIZE);
 
   /* Now that the dd is initialized, delete the cost model. */
@@ -122,17 +136,6 @@ bool Dictionary_impl::init(enum_dd_init_type dd_init)
   // TODO: See above.
   acl_free(true);
   return result;
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-bool Dictionary_impl::install_plugin_IS_table_metadata()
-{
-  DBUG_ASSERT(Dictionary_impl::instance());
-
-  return ::bootstrap::run_bootstrap_thread(
-           NULL, &bootstrap::store_plugin_IS_table_metadata,
-           SYSTEM_THREAD_DD_INITIALIZE);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -153,20 +156,41 @@ bool Dictionary_impl::shutdown()
 ///////////////////////////////////////////////////////////////////////////
 
 uint Dictionary_impl::get_target_dd_version()
-{ return dd::tables::Version::get_target_dd_version(); }
+{ return tables::DD_properties::get_target_dd_version(); }
 
 ///////////////////////////////////////////////////////////////////////////
 
 uint Dictionary_impl::get_actual_dd_version(THD *thd)
 {
   bool not_used;
-  return dd::tables::Version::instance().get_actual_dd_version(thd, &not_used);
+  return tables::DD_properties::instance().get_actual_dd_version(thd,
+                                                                 &not_used);
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
 uint Dictionary_impl::get_actual_dd_version(THD *thd, bool *not_used)
-{ return dd::tables::Version::instance().get_actual_dd_version(thd, not_used); }
+{ return tables::DD_properties::instance().get_actual_dd_version(thd,
+                                                                 not_used);
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+uint Dictionary_impl::get_target_I_S_version()
+{ return tables::DD_properties::get_target_I_S_version(); }
+
+///////////////////////////////////////////////////////////////////////////
+
+uint Dictionary_impl::get_actual_I_S_version(THD *thd)
+{ return tables::DD_properties::instance().get_actual_I_S_version(thd); }
+
+///////////////////////////////////////////////////////////////////////////
+
+uint Dictionary_impl::set_I_S_version(THD *thd, uint version)
+{
+  return const_cast<tables::DD_properties&>(
+           tables::DD_properties::instance()).set_I_S_version(thd, version);
+}
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -227,12 +251,10 @@ bool Dictionary_impl::is_dd_table_access_allowed(
   */
    /* FIX_ME: NewDD: re-enable this check when mysql-trunk-meta-sync pushes
    to mysql-trunk to mysql-trunk-wl7743-wip-3 */
-#if 0
   if (schema_length != MYSQL_SCHEMA_NAME.length ||
       strncmp(schema_name, MYSQL_SCHEMA_NAME.str, MYSQL_SCHEMA_NAME.length) ||
       is_dd_internal_thread ||
       DBUG_EVALUATE_IF("skip_dd_table_access_check", true, false))
-#endif
     return true;
 
   // Now we need to get the table type.
@@ -249,7 +271,8 @@ bool Dictionary_impl::is_dd_table_access_allowed(
 ///////////////////////////////////////////////////////////////////////////
 
 bool Dictionary_impl::is_system_view_name(const char *schema_name,
-                                          const char *table_name) const
+                                          const char *table_name,
+                                          bool *hidden) const
 {
   /*
     TODO One possible improvement here could be to try and use the variant
@@ -263,14 +286,21 @@ bool Dictionary_impl::is_system_view_name(const char *schema_name,
       is_infoschema_db(schema_name) == false)
     return false;
 
-  // The System_views registry stores the view name in lowercase.
-  // So convert the input to lowercase before search.
+  // The System_views registry stores the view name in uppercase.
+  // So convert the input to uppercase before search.
   char tab_name_buf[NAME_LEN + 1];
   my_stpcpy(tab_name_buf, table_name);
   my_caseup_str(system_charset_info, tab_name_buf);
 
-  return (System_views::instance()->find(INFORMATION_SCHEMA_NAME.str,
-                                         tab_name_buf) != NULL);
+  const system_views::System_view *s=
+    System_views::instance()->find(INFORMATION_SCHEMA_NAME.str, tab_name_buf);
+
+  if (s)
+    *hidden= s->hidden();
+  else
+    *hidden = false;
+
+  return s != nullptr;
 }
 
 ///////////////////////////////////////////////////////////////////////////

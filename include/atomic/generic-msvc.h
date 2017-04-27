@@ -22,7 +22,6 @@
 
 #include <windows.h>
 
-#include "my_global.h"
 #include "my_inttypes.h"
 
 static inline int my_atomic_cas32(int32 volatile *a, int32 *cmp, int32 set)

@@ -92,11 +92,6 @@ typedef struct eng_config_info {
 
 extern option_t config_option_names[];
 
-/** Check if global read lock is active  */
-extern
-bool
-handler_check_global_read_lock_active();
-
 /** Check the input key name implies a table mapping switch. The name
 would start with "@@", and in the format of "@@new_table_mapping.key"
 or simply "@@new_table_mapping" */
@@ -136,6 +131,52 @@ innodb_conn_clean_data(
 	innodb_conn_data_t*	conn_data,
 	bool			has_lock,
 	bool			free_all);
+
+/*******************************************************************//**
+Destroy and Free InnoDB Memcached engine */
+static
+void
+innodb_destroy(
+/*===========*/
+	ENGINE_HANDLE*	handle,		/*!< in: Destroy the engine instance */
+	bool		force);		/*!< in: Force to destroy */
+
+/*******************************************************************//**
+Support memcached "INCR" and "DECR" command, add or subtract a "delta"
+value from an integer key value
+@return ENGINE_SUCCESS if successfully, otherwise error code */
+static
+ENGINE_ERROR_CODE
+innodb_arithmetic(
+/*==============*/
+	ENGINE_HANDLE*	handle,		/*!< in: Engine Handle */
+	const void*	cookie,		/*!< in: connection cookie */
+	const void*	key,		/*!< in: key for the value to add */
+	const int	nkey,		/*!< in: key length */
+	const bool	increment,	/*!< in: whether to increment
+					or decrement */
+	const bool	create,		/*!< in: whether to create the key
+					value pair if can't find */
+	const uint64_t	delta,		/*!< in: value to add/substract */
+	const uint64_t	initial,	/*!< in: initial */
+	const rel_time_t exptime,	/*!< in: expiration time */
+	uint64_t*	cas,		/*!< out: new cas value */
+	uint64_t*	result,		/*!< out: result out */
+	uint16_t	vbucket);	/*!< in: bucket, used by default
+					engine only */
+
+/*******************************************************************//**
+Callback functions used by Memcached's process_command() function
+to get the result key/value information
+@return TRUE if info fetched */
+static
+bool
+innodb_get_item_info(
+/*=================*/
+	ENGINE_HANDLE*	handle,		/*!< in: Engine Handle */
+	const void*	cookie,		/*!< in: connection cookie */
+	const item*	item,		/*!< in: item in question */
+	item_info*	item_info);	/*!< out: item info got */
 
 /*******************************************************************//**
 Get default Memcached engine handle
@@ -310,8 +351,8 @@ innodb_bk_thread(
 	my_thread_init();
 
 	/* While we commit transactions on behalf of the other
-        threads, we will "pretend" to be each connection. */
-        void*		thd = handler_create_thd(innodb_eng->enable_binlog);
+	threads, we will "pretend" to be each connection. */
+	void*		thd = handler_create_thd(innodb_eng->enable_binlog);
 
 	conn_data = UT_LIST_GET_FIRST(innodb_eng->conn_data);
 
@@ -672,6 +713,7 @@ innodb_conn_clean_data(
 	if (free_all) {
 		if (conn_data->thd) {
 			handler_close_thd(conn_data->thd);
+			conn_data->thd = NULL;
 		}
 
 		conn_data->is_stale = false;
@@ -871,7 +913,7 @@ enum conn_mode {
 /*******************************************************************//**
 Opens mysql table if enable_binlog or enable_mdl is set
 @param conn_data	connection cursor data
-@param conn_optioin	read or write operation
+@param conn_option	read or write operation
 @param engine		Innodb memcached engine
 @returns DB_SUCCESS on success and DB_ERROR on failure */
 ib_err_t

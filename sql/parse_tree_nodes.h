@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,12 +26,12 @@
 #include "item_func.h"
 #include "key.h"
 #include "key_spec.h"
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "mem_root_array.h"
 #include "my_base.h"
 #include "my_bit.h"                  // is_single_bit
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
@@ -813,44 +813,6 @@ public:
   {}
 
   virtual bool contextualize(Parse_context *pc);
-};
-
-
-class PT_procedure_analyse : public Parse_tree_node
-{
-  typedef Parse_tree_node super;
-
-  Proc_analyse_params params;
-
-public:
-  PT_procedure_analyse(const Proc_analyse_params &params_arg)
-  : params(params_arg)
-  {}
-
-  virtual bool contextualize(Parse_context *pc)
-  {
-    if (super::contextualize(pc))
-      return true;
-          
-    THD *thd= pc->thd;
-    LEX *lex= thd->lex;
-
-    if (!lex->parsing_options.allows_select_procedure)
-    {
-      my_error(ER_VIEW_SELECT_CLAUSE, MYF(0), "PROCEDURE");
-      return true;
-    }
-
-    if (lex->select_lex != pc->select)
-    {
-      my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "subquery");
-      return true;
-    }
-
-    lex->proc_analyse= &params;
-    lex->set_uncacheable(pc->select, UNCACHEABLE_SIDEEFFECT);
-    return false;
-  }
 };
 
 
@@ -1963,23 +1925,29 @@ class PT_query_expression : public Parse_tree_node
 {
 public:
 
-  PT_query_expression(PT_query_expression_body *body,
+  PT_query_expression(PT_with_clause *with_clause,
+                      PT_query_expression_body *body,
                       PT_order *order,
                       PT_limit_clause *limit,
-                      PT_procedure_analyse *procedure_analyse,
                       PT_locking_clause_list *locking_clauses)
     : contextualized(false),
       m_body(body),
       m_order(order),
       m_limit(limit),
-      m_procedure_analyse(procedure_analyse),
       m_locking_clauses(locking_clauses),
       m_parentheses(false),
-      m_with_clause(NULL)
+      m_with_clause(with_clause)
+  {}
+
+  PT_query_expression(PT_query_expression_body *body,
+                      PT_order *order,
+                      PT_limit_clause *limit,
+                      PT_locking_clause_list *locking_clauses)
+    : PT_query_expression(nullptr, body, order, limit, locking_clauses)
   {}
 
   explicit PT_query_expression(PT_query_expression_body *body)
-    : PT_query_expression(body, NULL, NULL, NULL, NULL)
+    : PT_query_expression(body, NULL, NULL, NULL)
   {}
 
   virtual bool contextualize(Parse_context *pc)
@@ -1997,12 +1965,6 @@ public:
     if (!contextualized && contextualize_order_and_limit(pc))
         return true;
 
-    if (contextualize_safe(pc, m_procedure_analyse))
-      return true;
-
-    if (m_procedure_analyse && pc->select->master_unit()->outer_select() != NULL)
-      my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "subquery");
-
     if (contextualize_safe(pc, m_locking_clauses))
       return true;
 
@@ -2010,8 +1972,6 @@ public:
   }
 
   PT_query_expression_body *body() { return m_body; }
-
-  bool has_procedure() const { return m_procedure_analyse != NULL; }
 
   bool has_order() const { return m_order != NULL; }
 
@@ -2086,11 +2046,8 @@ private:
   PT_query_expression_body *m_body;
   PT_order *m_order;
   PT_limit_clause *m_limit;
-  PT_procedure_analyse *m_procedure_analyse;
   PT_locking_clause_list *m_locking_clauses;
   bool m_parentheses;
-
-public:
   PT_with_clause *m_with_clause;
 };
 
@@ -3518,17 +3475,146 @@ public:
   }
 };
 
+/**
+  This class is used for representing both static and dynamic privileges on
+  global as well as table and column level.
+*/
+struct Privilege : public Sql_alloc
+{
+  enum privilege_type { STATIC, DYNAMIC };
+
+  privilege_type type;
+  const Trivial_array<LEX_CSTRING> *columns;
+
+  explicit Privilege(privilege_type type,
+                     const Trivial_array<LEX_CSTRING> *columns)
+  : type(type), columns(columns)
+  {}
+};
+
+
+struct Static_privilege : public Privilege
+{
+  const uint grant;
+
+  Static_privilege(uint grant, const Trivial_array<LEX_CSTRING> *columns)
+  : Privilege(STATIC, columns), grant(grant)
+  {}
+};
+
+
+struct Dynamic_privilege : public Privilege
+{
+  const LEX_STRING ident;
+
+  Dynamic_privilege(const LEX_STRING &ident,
+                    const Trivial_array<LEX_CSTRING> *columns)
+  : Privilege(DYNAMIC, columns), ident(ident)
+  {}
+};
+
+
+class PT_role_or_privilege : public Parse_tree_node
+{
+protected:
+  POS pos;
+
+public:
+  explicit PT_role_or_privilege(const POS &pos) : pos(pos) {}
+
+  virtual st_lex_user *get_user(THD *thd)
+  {
+    syntax_error_at(thd, pos, "role or user name with the ON clause");
+    return NULL;
+  }
+  virtual Privilege *get_privilege(THD *thd)
+  {
+    syntax_error_at(thd, pos, "privilege name without the ON clause");
+    return NULL;
+  }
+};
+
+
+class PT_role_at_host final : public PT_role_or_privilege
+{
+  LEX_STRING role;
+  LEX_STRING host;
+
+public:
+  PT_role_at_host(const POS &pos,
+                  const LEX_STRING &role, const LEX_STRING &host)
+  : PT_role_or_privilege(pos), role(role), host(host)
+  {}
+
+  st_lex_user *get_user(THD *thd) override
+  { return st_lex_user::alloc(thd, &role, &host); }
+};
+
+
+class PT_role_or_dynamic_privilege final : public PT_role_or_privilege
+{
+  LEX_STRING ident;
+
+public:
+  PT_role_or_dynamic_privilege(const POS &pos, const LEX_STRING &ident)
+  : PT_role_or_privilege(pos), ident(ident)
+  {}
+
+  st_lex_user *get_user(THD *thd) override
+  { return st_lex_user::alloc(thd, &ident, NULL); }
+
+  Privilege *get_privilege(THD *thd) override
+  { return new(thd->mem_root) Dynamic_privilege(ident, NULL); }
+};
+
+
+class PT_static_privilege final : public PT_role_or_privilege
+{
+  const uint grant;
+  const Trivial_array<LEX_CSTRING> *columns;
+
+public:
+  PT_static_privilege(const POS &pos,
+                      uint grant,
+                      const Trivial_array<LEX_CSTRING> *columns= NULL)
+  : PT_role_or_privilege(pos), grant(grant), columns(columns)
+  {}
+
+  Privilege *get_privilege(THD *thd) override
+  { return new(thd->mem_root) Static_privilege(grant, columns); }
+};
+
+
+class PT_dynamic_privilege final : public PT_role_or_privilege
+{
+  LEX_STRING ident;
+
+public:
+  PT_dynamic_privilege(const POS &pos,
+                       const LEX_STRING &ident)
+  : PT_role_or_privilege(pos), ident(ident)
+  {}
+
+  Privilege *get_privilege(THD *thd) override
+  { return new(thd->mem_root) Dynamic_privilege(ident, nullptr); }
+};
+
 
 class PT_grant_roles : public PT_statement
 {
   typedef PT_statement super;
 
-  Sql_cmd_grant_roles sql_cmd;
+  const Trivial_array<PT_role_or_privilege *> *roles;
+  const List<LEX_USER> *users;
+  const bool with_admin_option;
+
+  List<LEX_USER> *role_objects;
 
 public:
-  PT_grant_roles(const List<LEX_USER> *roles, const List<LEX_USER> *users,
+  PT_grant_roles(const Trivial_array<PT_role_or_privilege *> *roles,
+                 const List<LEX_USER> *users,
                  bool with_admin_option)
-  : sql_cmd(roles, users, with_admin_option)
+  : roles(roles), users(users), with_admin_option(with_admin_option)
   {}
 
   virtual Sql_cmd *make_cmd(THD *thd)
@@ -3536,13 +3622,24 @@ public:
     Parse_context pc(thd, thd->lex->current_select());
     if (contextualize(&pc))
       return NULL;
-    return &sql_cmd;
+
+    return new (thd->mem_root) Sql_cmd_grant_roles(role_objects, users,
+                                                   with_admin_option);
   }
   virtual bool contextualize(Parse_context *pc)
   {
     if (super::contextualize(pc))
       return true;
-    // TODO: parse-time processing of GRANT roles TO users (if needed)
+
+    role_objects= new(pc->thd->mem_root) List<LEX_USER>;
+    if (role_objects == NULL)
+      return NULL; // OOM
+    for (PT_role_or_privilege *r : *roles)
+    {
+      st_lex_user *user= r->get_user(pc->thd);
+      if (r == NULL || role_objects->push_back(user))
+        return NULL;
+    }
     return false;
   }
 };
@@ -3552,11 +3649,15 @@ class PT_revoke_roles : public PT_statement
 {
   typedef PT_statement super;
 
-  Sql_cmd_revoke_roles sql_cmd;
+  const Trivial_array<PT_role_or_privilege *> *roles;
+  const List<LEX_USER> *users;
+
+  List<LEX_USER> *role_objects;
 
 public:
-  PT_revoke_roles(const List<LEX_USER> *roles, const List<LEX_USER> *users)
-  : sql_cmd(roles, users)
+  PT_revoke_roles(Trivial_array<PT_role_or_privilege *> *roles,
+                  const List<LEX_USER> *users)
+  : roles(roles), users(users), role_objects(NULL)
   {}
 
   virtual Sql_cmd *make_cmd(THD *thd)
@@ -3564,13 +3665,24 @@ public:
     Parse_context pc(thd, thd->lex->current_select());
     if (contextualize(&pc))
       return NULL;
-    return &sql_cmd;
+
+    return new (thd->mem_root) Sql_cmd_revoke_roles(role_objects, users);
   }
+
   virtual bool contextualize(Parse_context *pc)
   {
     if (super::contextualize(pc))
       return true;
-    // TODO: parse-time processing of REVOKE roles TO users (if needed)
+
+    role_objects= new(pc->thd->mem_root) List<LEX_USER>;
+    if (role_objects == NULL)
+      return NULL; // OOM
+    for (PT_role_or_privilege *r : *roles)
+    {
+      st_lex_user *user= r->get_user(pc->thd);
+      if (r == NULL || role_objects->push_back(user))
+        return NULL;
+    }
     return false;
   }
 };
@@ -3699,17 +3811,29 @@ class PT_show_fields : public PT_show_fields_and_keys
 {
 public:
   PT_show_fields(const POS &pos,
+                 Show_fields_type show_field_types,
                  Table_ident *table,
                  const LEX_STRING &wild)
-    : PT_show_fields_and_keys(pos, SHOW_FIELDS, table, wild, nullptr)
+    : PT_show_fields_and_keys(pos, SHOW_FIELDS, table, wild, nullptr),
+      m_show_fields_type(show_field_types)
   {}
 
   PT_show_fields(const POS &pos,
+                 Show_fields_type show_field_types,
                  Table_ident *table_ident,
                  Item *where_condition= nullptr)
     : PT_show_fields_and_keys(pos, SHOW_FIELDS, table_ident, NULL_STR,
-                              where_condition)
+                              where_condition),
+      m_show_fields_type(show_field_types)
   {}
+
+  virtual bool contextualize(Parse_context *pc);
+
+private:
+  typedef PT_show_fields_and_keys super;
+
+  // Show fields type: EXTENDED, FULL OR EXTENDED FULL.
+  Show_fields_type m_show_fields_type;
 };
 
 
@@ -3720,9 +3844,19 @@ class PT_show_keys : public PT_show_fields_and_keys
 {
 public:
   PT_show_keys(const POS &pos,
+               bool extended_show,
                Table_ident *table,
                Item *where_condition)
-    : PT_show_fields_and_keys(pos, SHOW_KEYS, table, NULL_STR, where_condition)
+    : PT_show_fields_and_keys(pos, SHOW_KEYS, table, NULL_STR, where_condition),
+      m_extended_show(extended_show)
   {}
+
+  virtual bool contextualize(Parse_context *pc);
+
+private:
+  typedef PT_show_fields_and_keys super;
+
+  // Flag to indicate EXTENDED keyword usage in the statement.
+  bool m_extended_show;
 };
 #endif /* PARSE_TREE_NODES_INCLUDED */

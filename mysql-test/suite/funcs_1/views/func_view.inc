@@ -176,7 +176,7 @@ eval CREATE TABLE t1_selects
    disable_result ENUM('Yes','No') NOT NULL default 'No',
    PRIMARY KEY(id),
    UNIQUE (my_select)
-) ENGINE=$type;
+) charset latin1 ENGINE=$type;
 # ) ENGINE=MyISAM;
 
 # MODES to be checked
@@ -198,7 +198,7 @@ eval CREATE TABLE t1_values
    id BIGINT AUTO_INCREMENT,
    select_id BIGINT,
    PRIMARY KEY(id)
-) ENGINE = $type;
+) charset latin1 ENGINE = $type;
 
 ##### BEGIN      Basic preparations      #######################################
 #

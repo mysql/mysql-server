@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,13 +12,15 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
-#include "gcs_message.h"
-#include "gcs_logging.h"
-#include <xplatform/byteorder.h>
-#include "xplatform/my_xp_util.h"
+
+#include "mysql/gcs/gcs_message.h"
+#include "mysql/gcs/gcs_logging.h"
+#include "mysql/gcs/xplatform/byteorder.h"
+#include "mysql/gcs/xplatform/my_xp_util.h"
 
 #include "my_compiler.h"
 
@@ -235,7 +237,7 @@ bool Gcs_message_data::encode(uchar *buffer, uint64_t *buffer_len)
   slider+= payload_len;
   assert(static_cast<uint64_t>(slider - buffer) <= *buffer_len);
 
-  MYSQL_GCS_TRACE_EXECUTE(
+  MYSQL_GCS_DEBUG_EXECUTE(
     uint64_t MY_ATTRIBUTE((unused)) encoded_header_size= get_encode_header_size();
     MYSQL_GCS_LOG_TRACE(
       "Encoded message: (header)=" << encoded_header_size <<

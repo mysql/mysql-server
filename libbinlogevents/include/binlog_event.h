@@ -29,6 +29,7 @@
 #define BINLOG_EVENT_INCLUDED
 
 #include <stdlib.h>
+#include <sys/types.h>
 #include <zlib.h> //for checksum calculations
 #include <climits>
 #include <cstdio>
@@ -126,7 +127,9 @@
                                    1U + (MAX_DBS_IN_EVENT_MTS * (1 + NAME_LEN)) + \
                                    3U +            /* type, microseconds */ + \
                                    1U + 32*3 + 1 + 60 \
-                                   /* type, user_len, user, host_len, host */)
+                                   /* type, user_len, user, host_len, host */ + \
+                                   1U + 1          /* type, explicit_def..ts*/+ \
+                                   1U + 8          /* type, xid of DDL */)
 
 
 /**
@@ -148,7 +151,7 @@ const int64_t UNDEFINED_COMMIT_TIMESTAMP= MAX_COMMIT_TIMESTAMP_VALUE;
 
 /**
   In case the variable is updated,
-  make sure to update it in $MYSQL_SOURCE_DIR/my_global.h.
+  make sure to update it in $MYSQL_SOURCE_DIR/my_io.h.
 */
 #ifndef FN_REFLEN
 #define FN_REFLEN       512     /* Max length of full path-name */

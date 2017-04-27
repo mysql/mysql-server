@@ -24,23 +24,23 @@ Smart ALTER TABLE
 /* Include necessary SQL headers */
 #include "ha_prototypes.h"
 #include <current_thd.h>
+#include <assert.h>
 #include <debug_sync.h>
 #include <key_spec.h>
 #include <log.h>
+#include <my_bit.h>
 #include <mysql/plugin.h>
 #include <sql_class.h>
 #include <sql_lex.h>
 #include <sql_table.h>
 #include <sql_thd_internal_api.h>
-#include <mysql/plugin.h>
-#include <key_spec.h>
-#include <my_bit.h>
+#include <sys/types.h>
 
 #include "dd/dd.h"
 #include "dd/dictionary.h"
 #include "dd/cache/dictionary_client.h"
 #include "dd/properties.h"
-#include "dd/sdi_tablespace.h"    // dd::sdi_tablespace::store
+#include "dd/sdi_tablespace.h"	// dd::sdi_tablespace::store
 #include "dd/impl/properties_impl.h"
 #include "dd/types/table.h"
 #include "dd/types/index.h"
@@ -53,8 +53,8 @@ Smart ALTER TABLE
 #include "dd_table_share.h"
 
 #include "btr0sea.h"
-#include "dd/types/table.h"           // dd::Table
 #include "dict0crea.h"
+#include "dict0dd.h"
 #include "dict0dict.h"
 #include "dict0priv.h"
 #include "dict0stats.h"
@@ -66,6 +66,7 @@ Smart ALTER TABLE
 #include "ha_innopart.h"
 #include "ha_prototypes.h"
 #include "handler0alter.h"
+#include "lex_string.h"
 #include "log0log.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -95,12 +96,6 @@ Smart ALTER TABLE
 /* For supporting Native InnoDB Partitioning. */
 #include "partition_info.h"
 #include "ha_innopart.h"
-
-/** TRUE if we don't have DDTableBuffer in the system tablespace,
-this should be due to we run the server against old data files.
-Please do NOT change this when server is running.
-FIXME: This should be removed away once we can upgrade for new DD. */
-extern bool	srv_missing_dd_table_buffer;
 
 /** Operations for creating secondary indexes (no rebuild needed) */
 static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_ONLINE_CREATE
@@ -224,6 +219,8 @@ struct ha_innobase_inplace_ctx : public inplace_alter_handler_ctx
 	const char**	drop_vcol_name;
 	/** ALTER TABLE stage progress recorder */
 	ut_stage_alter_t* m_stage;
+	/** FTS AUX Tables to drop */
+	aux_name_vec_t*	fts_drop_aux_vec;
 
 	ha_innobase_inplace_ctx(row_prebuilt_t* prebuilt_arg,
 				dict_index_t** drop_arg,
@@ -266,7 +263,8 @@ struct ha_innobase_inplace_ctx : public inplace_alter_handler_ctx
 		num_to_drop_vcol(0),
 		drop_vcol(0),
 		drop_vcol_name(0),
-		m_stage(NULL)
+		m_stage(NULL),
+		fts_drop_aux_vec(nullptr)
 	{
 #ifdef UNIV_DEBUG
 		for (ulint i = 0; i < num_to_add_index; i++) {
@@ -283,6 +281,10 @@ struct ha_innobase_inplace_ctx : public inplace_alter_handler_ctx
 
 	~ha_innobase_inplace_ctx()
 	{
+		if (fts_drop_aux_vec != nullptr) {
+			fts_free_aux_names(fts_drop_aux_vec);
+			delete fts_drop_aux_vec;
+		}
 		UT_DELETE(m_stage);
 		mem_heap_free(heap);
 	}
@@ -295,6 +297,37 @@ private:
 	// Disable copying
 	ha_innobase_inplace_ctx(const ha_innobase_inplace_ctx&);
 	ha_innobase_inplace_ctx& operator=(const ha_innobase_inplace_ctx&);
+};
+
+/** Structure to remember table information for updating DD */
+struct alter_table_old_info_t {
+	/** Constructor */
+	alter_table_old_info_t()
+		: m_discarded(),
+		m_fts_doc_id(),
+		m_rebuild()
+	{}
+
+	/** If old table is discarded one */
+	bool		m_discarded;
+
+	/** If old table has FTS DOC ID */
+	bool		m_fts_doc_id;
+
+	/** If this ATLER TABLE requires rebuild */
+	bool		m_rebuild;
+
+	/** Update the old table information
+	@param[in]	old_table	Old InnoDB table object
+	@param[in]	rebuild		True if rebuild is necessary */
+	void update(
+		const dict_table_t* old_table, bool rebuild)
+	{
+		m_discarded = dict_table_is_discarded(old_table);
+		m_fts_doc_id = DICT_TF2_FLAG_IS_SET(
+			old_table, DICT_TF2_FTS_HAS_DOC_ID);
+		m_rebuild = rebuild;
+	}
 };
 
 /* Report an InnoDB error to the client by invoking my_error(). */
@@ -463,7 +496,7 @@ check_v_col_in_order(
 	/* We don't support any adding new virtual column before
 	existed virtual column. */
 	if (ha_alter_info->handler_flags
-              & Alter_inplace_info::ADD_VIRTUAL_COLUMN) {
+	      & Alter_inplace_info::ADD_VIRTUAL_COLUMN) {
 		bool			has_new = false;
 
 		List_iterator_fast<Create_field> cf_it(
@@ -473,6 +506,13 @@ check_v_col_in_order(
 
 		while (const Create_field* new_field = cf_it++) {
 			if (!new_field->is_virtual_gcol()) {
+				/* We do not support add virtual col
+				before autoinc column */
+				if (has_new
+				    && (new_field->flags
+					& AUTO_INCREMENT_FLAG)) {
+					return(false);
+				}
 				continue;
 			}
 
@@ -493,7 +533,7 @@ check_v_col_in_order(
 
 	/* directly return true if ALTER_VIRTUAL_COLUMN_ORDER is not on */
 	if (!(ha_alter_info->handler_flags
-              & Alter_inplace_info::ALTER_VIRTUAL_COLUMN_ORDER)) {
+	      & Alter_inplace_info::ALTER_VIRTUAL_COLUMN_ORDER)) {
 		return(true);
 	}
 
@@ -939,6 +979,41 @@ ha_innobase::check_if_supported_inplace_alter(
 		    : HA_ALTER_INPLACE_SHARED_LOCK_AFTER_PREPARE);
 }
 
+/** Update the metadata in prepare phase. This only check if dd::Tablespace
+should be removed or(and) created, because to remove and store dd::Tablespace
+could fail, so it's better to do it earlier, to prevent a late rollback
+@param[in,out]	thd		MySQL connection
+@param[in]	old_table	Old InnoDB table object
+@param[in,out]	new_table	New InnoDB table object
+@param[in]	old_dd_tab	Old dd::Table or dd::Partition
+@param[in,out]	new_dd_tab	New dd::Table or dd::Partition
+@return	false	On success
+@retval	true	On failure */
+template<typename Table>
+static MY_ATTRIBUTE((warn_unused_result))
+bool
+dd_prepare_inplace_alter_table(
+	THD*			thd,
+	const dict_table_t*	old_table,
+	dict_table_t*		new_table,
+	const Table*		old_dd_tab,
+	Table*			new_dd_tab);
+
+/** Update metadata in commit phase. Note this function should only update
+the metadata which would not result in failure
+@param[in]	old_info	Some table information for the old table
+@param[in,out]	new_table	New InnoDB table object
+@param[in]	old_dd_tab	Old dd::Table or dd::Partition
+@param[in,out]	new_dd_tab	New dd::Table or dd::Partition */
+template<typename Table>
+static
+void
+dd_commit_inplace_alter_table(
+	const alter_table_old_info_t&	old_info,
+	dict_table_t*			new_table,
+	const Table*			old_dd_tab,
+	Table*				new_dd_tab);
+
 /** Allows InnoDB to update internal structures with concurrent
 writes blocked (provided that check_if_supported_inplace_alter()
 did not return HA_ALTER_INPLACE_NO_LOCK).
@@ -968,8 +1043,8 @@ ha_innobase::prepare_inplace_alter_table(
 	    && innobase_need_rebuild(ha_alter_info)) {
 		ut_ad(!m_prebuilt->table->is_temporary());
 		my_error(ER_NOT_ALLOWED_COMMAND, MYF(0));
-		DBUG_RETURN(HA_ERR_UNSUPPORTED);
-        }
+		DBUG_RETURN(true);
+	}
 
 	if (altered_table->found_next_number_field != NULL) {
 		dd_set_autoinc(new_dd_tab->se_private_data(),
@@ -1040,8 +1115,38 @@ ha_innobase::commit_inplace_alter_table(
 	ut_ad(old_dd_tab != NULL);
 	ut_ad(new_dd_tab != NULL);
 
-	DBUG_RETURN(commit_inplace_alter_table_impl<dd::Table>(
-		altered_table, ha_alter_info, commit, old_dd_tab, new_dd_tab));
+	ha_innobase_inplace_ctx*ctx = static_cast<ha_innobase_inplace_ctx*>
+		(ha_alter_info->handler_ctx);
+
+	alter_table_old_info_t	old_info;
+	ut_d(bool	old_info_updated = false);
+	if (commit && ctx != NULL) {
+		ut_ad(!!(ha_alter_info->handler_flags & ~INNOBASE_INPLACE_IGNORE));
+		old_info.update(ctx->old_table, ctx->need_rebuild());
+		ut_d(old_info_updated = true);
+	}
+
+	bool	res = commit_inplace_alter_table_impl<dd::Table>(
+		altered_table, ha_alter_info, commit, old_dd_tab, new_dd_tab);
+
+	if (res || !commit) {
+		DBUG_RETURN(true);
+	}
+
+	if (!(ha_alter_info->handler_flags & ~INNOBASE_INPLACE_IGNORE)
+	    || ctx == NULL) {
+		dd_add_fts_doc_id_index(*new_dd_tab, *old_dd_tab);
+		dd_copy_private(*new_dd_tab, *old_dd_tab);
+		ut_ad(!res);
+		ut_ad(dd_table_match(m_prebuilt->table, new_dd_tab));
+	} else {
+		ut_ad(old_info_updated);
+		dd_commit_inplace_alter_table<dd::Table>(
+			old_info, ctx->new_table, old_dd_tab, new_dd_tab);
+		ut_ad(dd_table_match(ctx->new_table, new_dd_tab));
+	}
+
+	DBUG_RETURN(res);
 }
 
 /*************************************************************//**
@@ -1071,22 +1176,22 @@ innobase_init_foreign(
 {
 	ut_ad(mutex_own(&dict_sys->mutex));
 
-        if (constraint_name) {
-                ulint   db_len;
+	if (constraint_name) {
+		ulint   db_len;
 
-                /* Catenate 'databasename/' to the constraint name specified
-                by the user: we conceive the constraint as belonging to the
-                same MySQL 'database' as the table itself. We store the name
-                to foreign->id. */
+		/* Catenate 'databasename/' to the constraint name specified
+		by the user: we conceive the constraint as belonging to the
+		same MySQL 'database' as the table itself. We store the name
+		to foreign->id. */
 
-                db_len = dict_get_db_name_len(table->name.m_name);
+		db_len = dict_get_db_name_len(table->name.m_name);
 
-                foreign->id = static_cast<char*>(mem_heap_alloc(
-                        foreign->heap, db_len + strlen(constraint_name) + 2));
+		foreign->id = static_cast<char*>(mem_heap_alloc(
+			foreign->heap, db_len + strlen(constraint_name) + 2));
 
-                ut_memcpy(foreign->id, table->name.m_name, db_len);
-                foreign->id[db_len] = '/';
-                strcpy(foreign->id + db_len + 1, constraint_name);
+		ut_memcpy(foreign->id, table->name.m_name, db_len);
+		foreign->id[db_len] = '/';
+		strcpy(foreign->id + db_len + 1, constraint_name);
 
 		/* Check if any existing foreign key has the same id,
 		this is needed only if user supplies the constraint name */
@@ -1095,40 +1200,40 @@ innobase_init_foreign(
 		    != table->foreign_set.end()) {
 			return(false);
 		}
-        }
+	}
 
-        foreign->foreign_table = table;
-        foreign->foreign_table_name = mem_heap_strdup(
-                foreign->heap, table->name.m_name);
-        dict_mem_foreign_table_name_lookup_set(foreign, TRUE);
+	foreign->foreign_table = table;
+	foreign->foreign_table_name = mem_heap_strdup(
+		foreign->heap, table->name.m_name);
+	dict_mem_foreign_table_name_lookup_set(foreign, TRUE);
 
-        foreign->foreign_index = index;
-        foreign->n_fields = (unsigned int) num_field;
+	foreign->foreign_index = index;
+	foreign->n_fields = (unsigned int) num_field;
 
-        foreign->foreign_col_names = static_cast<const char**>(
-                mem_heap_alloc(foreign->heap, num_field * sizeof(void*)));
+	foreign->foreign_col_names = static_cast<const char**>(
+		mem_heap_alloc(foreign->heap, num_field * sizeof(void*)));
 
-        for (ulint i = 0; i < foreign->n_fields; i++) {
-                foreign->foreign_col_names[i] = mem_heap_strdup(
-                        foreign->heap, column_names[i]);
-        }
+	for (ulint i = 0; i < foreign->n_fields; i++) {
+		foreign->foreign_col_names[i] = mem_heap_strdup(
+			foreign->heap, column_names[i]);
+	}
 
 	foreign->referenced_index = referenced_index;
 	foreign->referenced_table = referenced_table;
 
 	foreign->referenced_table_name = mem_heap_strdup(
 		foreign->heap, referenced_table_name);
-        dict_mem_referenced_table_name_lookup_set(foreign, TRUE);
+	dict_mem_referenced_table_name_lookup_set(foreign, TRUE);
 
-        foreign->referenced_col_names = static_cast<const char**>(
-                mem_heap_alloc(foreign->heap,
+	foreign->referenced_col_names = static_cast<const char**>(
+		mem_heap_alloc(foreign->heap,
 			       referenced_num_field * sizeof(void*)));
 
-        for (ulint i = 0; i < foreign->n_fields; i++) {
-                foreign->referenced_col_names[i]
-                        = mem_heap_strdup(foreign->heap,
+	for (ulint i = 0; i < foreign->n_fields; i++) {
+		foreign->referenced_col_names[i]
+			= mem_heap_strdup(foreign->heap,
 					  referenced_column_names[i]);
-        }
+	}
 
 	return(true);
 }
@@ -1747,7 +1852,7 @@ innobase_rec_to_mysql(
 {
 	uint	n_fields	= table->s->fields;
 
-	ut_ad(n_fields == index->table->get_n_user_cols()
+	ut_ad(n_fields == dict_table_get_n_tot_u_cols(index->table)
 	      - !!(DICT_TF2_FLAG_IS_SET(index->table,
 					DICT_TF2_FTS_HAS_DOC_ID)));
 
@@ -2951,29 +3056,6 @@ innobase_check_foreigns(
 	return(false);
 }
 
-/** Get the default POINT value in MySQL format
-@param[in]	heap	memory heap where allocated
-@param[in]	length	length of MySQL format
-@return mysql format data */
-static
-const byte*
-innobase_build_default_mysql_point(
-	mem_heap_t*	heap,
-	ulint		length)
-{
-	byte*	buf	= static_cast<byte*>(mem_heap_alloc(
-				heap, DATA_POINT_LEN + length));
-
-	byte*	wkb	= buf + length;
-
-	ulint   len = get_wkb_of_default_point(SPDIMS, wkb, DATA_POINT_LEN);
-	ut_ad(len == DATA_POINT_LEN);
-
-	row_mysql_store_blob_ref(buf, length, wkb, len);
-
-	return(buf);
-}
-
 /** Convert a default value for ADD COLUMN.
 
 @param heap Memory heap where allocated
@@ -2999,16 +3081,6 @@ innobase_build_col_map_add(
 	byte*	buf	= static_cast<byte*>(mem_heap_alloc(heap, size));
 
 	const byte*	mysql_data = field->ptr;
-
-	if (dfield_get_type(dfield)->mtype == DATA_POINT) {
-		/** If the DATA_POINT field is NOT NULL, we need to
-		give it a default value, since DATA_POINT is a fixed length
-		type, we couldn't store a value of length 0, like other
-		geom types. Server doesn't provide the default value, and
-		we would use POINT(0 0) here instead. */
-
-		mysql_data = innobase_build_default_mysql_point(heap, size);
-	}
 
 	row_mysql_store_col_in_innobase_format(
 		dfield, buf, true, mysql_data, size, comp);
@@ -3170,7 +3242,7 @@ static
 dberr_t
 innobase_drop_fts_index_table(
 /*==========================*/
-        dict_table_t*   table,
+	dict_table_t*   table,
 	trx_t*		trx)
 {
 	dberr_t		ret_err = DB_SUCCESS;
@@ -3181,7 +3253,7 @@ innobase_drop_fts_index_table(
 		if (index->type & DICT_FTS) {
 			dberr_t	err;
 
-			err = fts_drop_index_tables(trx, index);
+			err = fts_drop_index_tables(trx, index, nullptr);
 
 			if (err != DB_SUCCESS) {
 				ret_err = err;
@@ -3565,11 +3637,10 @@ prepare_inplace_add_virtual(
 		ulint	field_type;
 		ulint	charset_no;
 
-		field =  altered_table->field[i - 1];
+		field = altered_table->field[i - 1];
 
-		ulint           col_type
-                                = get_innobase_type_from_mysql_type(
-                                        &is_unsigned, field);
+		ulint	col_type = get_innobase_type_from_mysql_type(
+				&is_unsigned, field);
 
 		if (!field->gcol_info || field->stored_in_db) {
 			my_error(ER_WRONG_KEY_COLUMN, MYF(0),
@@ -3702,9 +3773,8 @@ prepare_inplace_drop_virtual(
 
 		field =  table->field[old_i];
 
-		ulint           col_type
-                                = get_innobase_type_from_mysql_type(
-                                        &is_unsigned, field);
+		ulint	col_type = get_innobase_type_from_mysql_type(
+				&is_unsigned, field);
 
 		if (!field->gcol_info || field->stored_in_db) {
 			my_error(ER_WRONG_KEY_COLUMN, MYF(0),
@@ -3861,104 +3931,6 @@ innodb_v_adjust_idx_col(
 	}
 }
 
-/** Copy the engine-private parts of a table definition
-when the change does not affect InnoDB.
-@tparam		Table		dd::Table or dd::Partition
-@param[in,out]	new_table	Copy of old table or partition definition
-@param[in]	old_table	Old table or partition definition */
-template<typename Table>
-void
-dd_copy_private(
-	Table&			new_table,
-	const Table&		old_table)
-{
-	ut_ad(new_table.se_private_data().empty());
-
-	new_table.set_se_private_id(old_table.se_private_id());
-	new_table.set_se_private_data(old_table.se_private_data());
-
-	auto j = new_table.indexes()->begin();
-
-	for (const auto old_index : old_table.indexes()) {
-		auto new_index = *j;
-		++j;
-		ut_ad(!old_index->se_private_data().empty());
-		ut_ad(new_index != NULL);
-		ut_ad(new_index->se_private_data().empty());
-		ut_ad(new_index->name() == old_index->name());
-
-		new_index->set_se_private_data(old_index->se_private_data());
-		new_index->set_tablespace_id(old_index->tablespace_id());
-	}
-
-	ut_ad(j == new_table.indexes()->end());
-}
-
-template<typename Index>
-static MY_ATTRIBUTE((warn_unused_result))
-dict_index_t*
-find_index(
-	Alter_inplace_info*	ha_alter_info,
-	dict_table_t*		new_table,
-	Index*			new_dd_idx)
-{
-	/* If the name is PRIMARY, return the first index directly,
-	because the internal index name could be 'GEN_CLUST_INDEX'.
-	It could be possible that the primary key name is not PRIMARY,
-	because it's an implicitly upgraded unique index. We have to
-	search all the indexes */
-	if (new_dd_idx->name() == "PRIMARY") {
-		return(new_table->first_index());
-	}
-
-	/* The order could be different because all unique dd::Index(es)
-	would be in front of other indexes. */
-	dict_index_t*	new_idx;
-	for (new_idx = new_table->first_index();
-	     new_idx != NULL
-	     && strcmp(new_dd_idx->name().c_str(), new_idx->name) != 0;
-	     new_idx = new_idx->next()) {}
-
-	ha_innobase_inplace_ctx* ctx =
-		reinterpret_cast<ha_innobase_inplace_ctx*>(
-			ha_alter_info->handler_ctx);
-
-	if (new_idx == NULL) {
-		/* This could be due to a renaming of index */
-		ut_a(ctx->num_to_rename != 0);
-
-		const char*	old_idx_name = NULL;
-		for (ulint i = 0; i < ctx->num_to_rename; ++i) {
-			KEY_PAIR* pair = &ha_alter_info->index_rename_buffer[i];
-
-			if (strcmp(new_dd_idx->name().c_str(),
-				   pair->new_key->name) == 0) {
-				old_idx_name = pair->old_key->name;
-				break;
-                        }
-		}
-
-		for (new_idx = new_table->first_index()->next();
-		     new_idx != NULL
-		     && strcmp(new_idx->name, old_idx_name) != 0;
-		     new_idx = new_idx->next()) {}
-
-		ut_a(new_idx != NULL);
-	} else if (ctx->num_to_add_index != 0 && ctx->num_to_drop_index != 0) {
-		/* Have to check if this is a DROP INDEX name, ADD INDEX name */
-		dict_index_t*	index = new_idx;
-		for (index = new_idx->next();
-		     index != NULL && strcmp(index->name, new_idx->name) != 0;
-		     index = index->next()) {}
-
-		if (index != NULL && index->trx_id > new_idx->trx_id) {
-			new_idx = index;
-		}
-	}
-
-	return(new_idx);
-}
-
 /** Replace the table name in filename with the specified one
 @param[in]	filename	original file name
 @param[out]	new_filename	new file name
@@ -3992,81 +3964,115 @@ replace_table_name(
 	strcpy(new_filename + len, dot_ext[IBD]);
 }
 
+/** Update the metadata in prepare phase. This only check if dd::Tablespace
+should be removed or(and) created, because to remove and store dd::Tablespace
+could fail, so it's better to do it earlier, to prevent a late rollback
+@param[in,out]	thd		MySQL connection
+@param[in]	old_table	Old InnoDB table object
+@param[in,out]	new_table	New InnoDB table object
+@param[in]	old_dd_tab	Old dd::Table or dd::Partition
+@param[in,out]	new_dd_tab	New dd::Table or dd::Partition
+@return	false	On success
+@retval	true	On failure */
 template<typename Table>
 static MY_ATTRIBUTE((warn_unused_result))
 bool
-prepare_inplace_alter_table_global_dd(
-	Alter_inplace_info*	ha_alter_info,
-	dict_table_t*		new_table,
+dd_prepare_inplace_alter_table(
+	THD*			thd,
 	const dict_table_t*	old_table,
-	const Table*		old_dd_tab,
-	Table*			new_dd_tab,
-	bool			need_rebuild)
+	dict_table_t*		new_table,
+	const Table*		 old_dd_tab,
+	Table*			new_dd_tab)
 {
-	if (new_table->is_temporary()) {
+	if (new_table->is_temporary() || old_table == new_table) {
 		/* No need to fill in metadata for temporary tables,
 		which would not be stored in Global DD */
 		return(false);
 	}
 
-	ha_innobase_inplace_ctx*ctx = static_cast<ha_innobase_inplace_ctx*>
-		(ha_alter_info->handler_ctx);
-	THD*			thd = ctx->prebuilt->trx->mysql_thd;
+	dd::cache::Dictionary_client* client = dd::get_dd_client(thd);
+	dd::cache::Dictionary_client::Auto_releaser releaser(client);
 
-	if (DICT_TF_HAS_DATA_DIR(new_table->flags)) {
-		ut_ad(dict_table_is_file_per_table(new_table));
-		new_dd_tab->se_private_data().set_bool(
-			dd_table_key_strings[DD_TABLE_DATA_DIRECTORY], true);
-	}
+	if (dict_table_is_file_per_table(old_table)) {
+		dd::Object_id   old_space_id =
+			dd_first_index(old_dd_tab)->tablespace_id();
 
-	if (need_rebuild) {
-		/* To rebuild, we wtite back the whole table */
-		dd::cache::Dictionary_client* client = dd::get_dd_client(thd);
-		dd::cache::Dictionary_client::Auto_releaser releaser(client);
-
-		if (dict_table_is_file_per_table(old_table)) {
-			dd::Object_id	old_space_id =
-				dd_first_index(old_dd_tab)->tablespace_id();
-
-			dd::Tablespace*	old_dd_space = NULL;
-			if (client->acquire_uncached_uncommitted(
-					old_space_id, &old_dd_space)) {
-				ut_a(false);
-				return(true);
-			}
-
-			ut_a(old_dd_space != NULL);
-			if (dd::acquire_exclusive_tablespace_mdl(
-				thd, old_dd_space->name().c_str(), false)) {
-				ut_a(false);
-				return(true);
-			}
-
-			if (client->drop(old_dd_space)) {
-				ut_a(false);
-				return(true);
-			}
+		dd::Tablespace* old_dd_space = NULL;
+		if (client->acquire_uncached_uncommitted(
+			old_space_id, &old_dd_space)) {
+			my_error(ER_INTERNAL_ERROR, MYF(0),
+				 " InnoDB can't get tablespace object"
+				 " for space ", old_space_id);
+			return(true);
 		}
 
+		ut_a(old_dd_space != NULL);
+		if (dd::acquire_exclusive_tablespace_mdl(
+			thd, old_dd_space->name().c_str(), false)) {
+			my_error(ER_INTERNAL_ERROR, MYF(0),
+				 " InnoDB can't set exclusive MDL on"
+				 " tablespace ", old_dd_space->name().c_str());
+			return(true);
+		}
+
+		if (client->drop(old_dd_space)) {
+			my_error(ER_INTERNAL_ERROR, MYF(0),
+				 " InnoDB can't drop tablespace object",
+				 old_dd_space->name().c_str());
+			return(true);
+		}
+	}
+
+	if (dict_table_is_file_per_table(new_table)) {
+		/* Replace the table name with the final correct one */
+		char* path = fil_space_get_first_path(new_table->space);
+		char filename[FN_REFLEN + 1];
+		replace_table_name(path, filename, old_table->name.m_name);
+		ut_free(path);
+
 		dd::Object_id	dd_space_id;
+		if (dd_create_implicit_tablespace(
+			client, thd, new_table->space,
+			filename, dd_space_id)) {
+			my_error(ER_INTERNAL_ERROR, MYF(0),
+				 " InnoDB can't create tablespace object"
+				 " for ", new_table->name);
+			return(true);
+		}
 
+		new_table->dd_space_id = dd_space_id;
+	}
+
+	return(false);
+}
+
+/** Update metadata in commit phase. Note this function should only update
+the metadata which would not result in failure
+@param[in]	old_info	Some table information for the old table
+@param[in,out]	new_table	New InnoDB table object
+@param[in]	old_dd_tab	Old dd::Table or dd::Partition
+@param[in,out]	new_dd_tab	New dd::Table or dd::Partition */
+template<typename Table>
+static
+void
+dd_commit_inplace_alter_table(
+	const alter_table_old_info_t&	old_info,
+	dict_table_t*			new_table,
+	const Table*			old_dd_tab,
+	Table*				new_dd_tab)
+{
+	if (new_table->is_temporary()) {
+		/* No need to fill in metadata for temporary tables,
+		which would not be stored in Global DD */
+		return;
+	}
+
+	dd::Object_id	dd_space_id;
+
+	if (old_info.m_rebuild) {
 		if (dict_table_is_file_per_table(new_table)) {
-			/* Replace the table name with the final correct one */
-			char* path = fil_space_get_first_path(new_table->space);
-			char filename[FN_REFLEN + 1];
-
-			replace_table_name(path, filename,
-					   old_table->name.m_name);
-
-			ut_free(path);
-
-			if (innobase_create_implicit_dd_tablespace(
-				    client, thd, new_table->space,
-				    filename, dd_space_id)) {
-				ut_a(false);
-				return(true);
-			}
-
+			/* Get the one created in prepare phase */
+			dd_space_id = new_table->dd_space_id;
 		} else if (new_table->space == TRX_SYS_SPACE) {
 			dd_space_id = dict_sys_t::dd_sys_space_id;
 		} else {
@@ -4074,32 +4080,17 @@ prepare_inplace_alter_table_global_dd(
 			for partitioned table, existing partitions would not
 			be moved to new tablespaces. Thus, the old
 			tablespace id should still be used for new partition */
-			if (new_dd_tab->table().partition_type()
-			    != dd::Table::PT_NONE) {
+			if (dd_table_is_partitioned(new_dd_tab->table())) {
 				dd_space_id = dd_first_index(old_dd_tab)
 					->tablespace_id();
 			} else {
-				dd_space_id = dd_get_space_id(*new_dd_tab);
+				dd_space_id = dd_get_space_id(
+					new_dd_tab->table());
 			}
 			ut_ad(dd_space_id != dd::INVALID_OBJECT_ID);
 		}
-
-		/* For discarded table, need set this to dd. */
-		if (dict_table_is_discarded(old_table)) {
-			/* Set discard flag. */
-			new_dd_tab->table().options().set_bool("discard",
-							       true);
-		}
-
-		create_table_info_t::set_table_options(
-			&(new_dd_tab->table()), new_table);
-
-		innobase_write_dd_table(dd_space_id, new_dd_tab, new_table);
-
 	} else {
-		ut_ad(old_table == new_table);
-
-		if (old_table->flags2 & DICT_TF2_FTS_HAS_DOC_ID
+		if (old_info.m_fts_doc_id
 		    && !dd_find_column(&new_dd_tab->table(),
 				       FTS_DOC_ID_COL_NAME)) {
 			dd::Column* col  = dd_add_hidden_column(
@@ -4113,25 +4104,61 @@ prepare_inplace_alter_table_global_dd(
 				FTS_DOC_ID_INDEX_NAME, col);
 		}
 
-		/* No need to update dd::Table, but update all dd::Index */
-		new_dd_tab->set_se_private_id(old_dd_tab->se_private_id());
-
-		dd::Object_id	dd_space_id = dd_first_index(old_dd_tab)
-			->tablespace_id();
-
-                /* Now all index metadata are ready in dict_index_t(s),
-		copy them into dd::Index(es) */
-		for (auto idx : *new_dd_tab->indexes()) {
-			const dict_index_t*	new_idx = find_index(
-				ha_alter_info, new_table, idx);
-
-			innobase_write_dd_index(
-				dd_space_id, idx, new_idx);
-			new_idx = new_idx->next();
-		}
+		dd_space_id = dd_first_index(old_dd_tab)->tablespace_id();
 	}
 
-	return(false);
+	dd_set_table_options(&(new_dd_tab->table()), new_table);
+
+	new_table->dd_space_id = dd_space_id;
+
+	dd_write_table(dd_space_id, new_dd_tab, new_table);
+
+	/* For discarded table, need set this to dd. */
+	if (old_info.m_discarded) {
+		dd::Properties& p = new_dd_tab->se_private_data();
+		p.set_bool(dd_table_key_strings[DD_TABLE_DISCARD], true);
+	}
+}
+
+/** Check if a new table's index will exceed the index limit for the table
+row format
+@param[in]	form		MySQL table that is being altered
+@param[in]	max_len		max index length allowed
+@return	true if within limits false otherwise */
+static
+bool
+innobase_check_index_len(
+	const TABLE*		form,
+	ulint			max_len)
+{
+	for (uint key_num = 0; key_num < form->s->keys; key_num++) {
+		const KEY&	key = form->key_info[key_num];
+
+		for (unsigned i = 0; i < key.user_defined_key_parts; i++) {
+			const KEY_PART_INFO*	key_part = &key.key_part[i];
+			unsigned		prefix_len = 0;
+
+			if (key.flags & HA_SPATIAL) {
+				prefix_len = 0;
+			} else if (key.flags & HA_FULLTEXT) {
+				prefix_len = 0;
+			} else if (key_part->key_part_flag & HA_PART_KEY_SEG) {
+				/* SPATIAL and FULLTEXT index always are on
+				full columns. */
+				ut_ad(!(key.flags & (HA_SPATIAL | HA_FULLTEXT)));
+				prefix_len = key_part->length;
+				ut_ad(prefix_len > 0);
+			} else {
+				prefix_len = 0;
+			}
+
+			if (key_part->length > max_len
+			    || prefix_len > max_len) {
+				return(false);
+			}
+		}
+	}
+	return(true);
 }
 
 /** Update internal structures with concurrent writes blocked,
@@ -4140,6 +4167,8 @@ while preparing ALTER TABLE.
 @param ha_alter_info Data used during in-place alter
 @param altered_table MySQL table that is being altered
 @param old_table MySQL table as it is before the ALTER operation
+@param old_dd_tab old dd table
+@param new_dd_tab new dd table
 @param table_name Table name in MySQL
 @param flags Table and tablespace flags
 @param flags2 Additional table flags
@@ -4153,7 +4182,6 @@ template<typename Table>
 static MY_ATTRIBUTE((warn_unused_result))
 bool
 prepare_inplace_alter_table_dict(
-/*=============================*/
 	Alter_inplace_info*	ha_alter_info,
 	const TABLE*		altered_table,
 	const TABLE*		old_table,
@@ -4179,6 +4207,7 @@ prepare_inplace_alter_table_dict(
 	dict_table_t*		table;
 	MDL_ticket*		mdl = nullptr;
 	THD*			thd = current_thd;
+	bool			build_fts_common = false;
 
 	ha_innobase_inplace_ctx*ctx;
 
@@ -4263,6 +4292,20 @@ prepare_inplace_alter_table_dict(
 		goto error_handled;
 	}
 
+	if (new_clustered) {
+		/* If max index length is reduced due to row format change
+		make sure the index can all be accomodated in new row format */
+		ulint	max_len = DICT_MAX_FIELD_LEN_BY_FORMAT_FLAG(flags);
+
+		if (max_len < DICT_MAX_FIELD_LEN_BY_FORMAT(ctx->old_table)) {
+			if (!innobase_check_index_len(altered_table, max_len)) {
+				my_error(ER_INDEX_COLUMN_TOO_LONG,
+					 MYF(0), max_len);
+				goto error_handled;
+			}
+		}
+	}
+
 	if (!ctx->online) {
 		/* This is not an online operation (LOCK=NONE). */
 	} else if (ctx->add_autoinc == ULINT_UNDEFINED
@@ -4318,7 +4361,10 @@ prepare_inplace_alter_table_dict(
 	/* Latch the InnoDB data dictionary exclusively so that no deadlocks
 	or lock waits can happen in it during an index create operation. */
 
-	row_mysql_lock_data_dictionary(ctx->trx);
+	/* TODO: NewDD: WL#9535, we will not need ctx->trx once we
+	remove InnoDB System tables */
+	row_mysql_lock_data_dictionary(ctx->prebuilt->trx);
+	ctx->trx->dict_operation_lock_mode = RW_X_LATCH;
 	dict_locked = true;
 
 	/* Wait for background stats processing to stop using the table that
@@ -4411,6 +4457,10 @@ prepare_inplace_alter_table_dict(
 		ctx->new_table = dict_mem_table_create(
 			new_table_name, space_id, n_cols + n_v_cols, n_v_cols,
 			flags, flags2);
+
+		/* TODO: Fix this problematic assignment */
+		ctx->new_table->dd_space_id = new_dd_tab->tablespace_id();
+
 		/* The rebuilt indexed_table will use the renamed
 		column names. */
 		ctx->col_names = NULL;
@@ -4552,6 +4602,39 @@ prepare_inplace_alter_table_dict(
 			compression = NULL;
 		}
 
+		const char* encrypt;
+		encrypt	= ha_alter_info->create_info->encrypt_type.str;
+
+		if (!(ctx->new_table->flags2 & DICT_TF2_USE_FILE_PER_TABLE)
+		    && ha_alter_info->create_info->encrypt_type.length > 0
+		    && !Encryption::is_none(encrypt)) {
+
+			dict_mem_table_free( ctx->new_table);
+			my_error(ER_TABLESPACE_CANNOT_ENCRYPT, MYF(0));
+			goto new_clustered_failed;
+		} else if (!Encryption::is_none(encrypt)) {
+			/* Set the encryption flag. */
+			byte*			master_key = NULL;
+			ulint			master_key_id;
+			Encryption::Version	version;
+
+			/* Check if keyring is ready. */
+			Encryption::get_master_key(&master_key_id,
+						   &master_key,
+						   &version);
+
+			if (master_key == NULL) {
+				dict_mem_table_free(ctx->new_table);
+				my_error(ER_CANNOT_FIND_KEY_IN_KEYRING,
+					 MYF(0));
+				goto new_clustered_failed;
+			} else {
+				my_free(master_key);
+				DICT_TF2_FLAG_SET(ctx->new_table,
+						  DICT_TF2_ENCRYPTION);
+			}
+		}
+
 		error = row_create_table_for_mysql(
 			ctx->new_table, compression, ctx->trx, false);
 
@@ -4575,6 +4658,7 @@ prepare_inplace_alter_table_dict(
 				ctx->old_table->name.m_name);
 
 			error = DB_SUCCESS;
+			// Fall through.
 
 		case DB_SUCCESS:
 			/* We need to bump up the table ref count and
@@ -4813,9 +4897,6 @@ op_ok:
 			DBUG_ASSERT(ctx->new_table->fts_doc_id_index != NULL);
 		}
 
-		/* Fixeme: set dd space id in dict_table_t. */
-		thread_local_dd_space_id = new_dd_tab->tablespace_id();
-
 		/* This function will commit the transaction and reset
 		the trx_t::dict_operation flag on success. */
 
@@ -4845,6 +4926,8 @@ op_ok:
 				goto error_handling;
 			}
 
+			build_fts_common = true;
+
 			ctx->new_table->fts->fts_status
 				|= TABLE_DICT_LOCKED;
 
@@ -4873,18 +4956,38 @@ op_ok:
 	dropped by the database administrator. */
 	trx_commit_for_mysql(ctx->trx);
 
-	row_mysql_unlock_data_dictionary(ctx->trx);
+	if (build_fts_common || fts_index) {
+		fts_freeze_aux_tables(ctx->new_table);
+	}
+
+	row_mysql_unlock_data_dictionary(ctx->prebuilt->trx);
+	ctx->trx->dict_operation_lock_mode = 0;
 	dict_locked = false;
 
 	ut_a(ctx->trx->lock.n_active_thrs == 0);
 
-	if (prepare_inplace_alter_table_global_dd(
-		    ha_alter_info, ctx->new_table, user_table,
-		    old_dd_tab, new_dd_tab, new_clustered)) {
+	if (dd_prepare_inplace_alter_table(
+		ctx->prebuilt->trx->mysql_thd, user_table, ctx->new_table,
+		old_dd_tab, new_dd_tab)) {
 		error = DB_ERROR;
 	}
 
+	if (error == DB_SUCCESS) {
+		if (build_fts_common) {
+			fts_create_common_dd_tables(ctx->new_table);
+		}
+
+		if (fts_index) {
+			fts_create_index_dd_tables(ctx->new_table);
+		}
+	}
+
 error_handling:
+
+	if (build_fts_common || fts_index) {
+		fts_detach_aux_tables(ctx->new_table, dict_locked);
+	}
+
 	/* After an error, remove all those index definitions from the
 	dictionary which were defined. */
 
@@ -4916,7 +5019,8 @@ error_handled:
 	ctx->trx->error_state = DB_SUCCESS;
 
 	if (!dict_locked) {
-		row_mysql_lock_data_dictionary(ctx->trx);
+		row_mysql_lock_data_dictionary(ctx->prebuilt->trx);
+		ctx->trx->dict_operation_lock_mode = RW_X_LATCH;
 	}
 
 	if (new_clustered) {
@@ -4973,7 +5077,8 @@ err_exit:
 	}
 #endif /* UNIV_DEBUG */
 
-	row_mysql_unlock_data_dictionary(ctx->trx);
+	row_mysql_unlock_data_dictionary(ctx->prebuilt->trx);
+	ctx->trx->dict_operation_lock_mode = 0;
 
 	trx_free_for_mysql(ctx->trx);
 	trx_commit_for_mysql(ctx->prebuilt->trx);
@@ -5204,7 +5309,8 @@ alter_fill_stored_column(
 /** Implementation of prepare_inplace_alter_table()
 @param[in]	altered_table	TABLE object for new version of table.
 @param[in,out]	ha_alter_info	Structure describing changes to be done
-by ALTER TABLE and holding data used during in-place alter.
+				by ALTER TABLE and holding data used
+				during in-place alter.
 @param[in]	old_dd_tab	dd::Table object representing old
 version of the table
 @param[in,out]	new_dd_tab	dd::Table object representing new
@@ -5270,8 +5376,6 @@ ha_innobase::prepare_inplace_alter_table_impl(
 				m_prebuilt->table, m_user_thd);
 
 		}
-
-		dd_copy_private(*new_dd_tab, *old_dd_tab);
 
 		DBUG_RETURN(false);
 	}
@@ -5416,26 +5520,6 @@ check_if_ok_to_rename:
 
 	if (!info.innobase_table_flags()) {
 		goto err_exit_no_heap;
-	}
-
-	/* Above we might have choosen real row format which is different
-	than one that would have been choosen for ALTER TABLE .. ALGORITHM=COPY
-	case. Since dd::Table object which includes information about real row
-	format was created before point where we make a choice between INPLACE
-	and COPY it needs to be updated to reflect correct row format. */
-	switch (dict_tf_get_rec_format(info.flags())) {
-	case REC_FORMAT_REDUNDANT:
-		new_dd_tab->table().set_row_format(dd::Table::RF_REDUNDANT);
-		break;
-	case REC_FORMAT_COMPACT:
-		new_dd_tab->table().set_row_format(dd::Table::RF_COMPACT);
-		break;
-	case REC_FORMAT_COMPRESSED:
-		new_dd_tab->table().set_row_format(dd::Table::RF_COMPRESSED);
-		break;
-	case REC_FORMAT_DYNAMIC:
-		new_dd_tab->table().set_row_format(dd::Table::RF_DYNAMIC);
-		break;
 	}
 
 	max_col_len = DICT_MAX_FIELD_LEN_BY_FORMAT_FLAG(info.flags());
@@ -5830,13 +5914,16 @@ err_exit:
 			DBUG_RETURN(true);
 		}
 
-		ha_innobase_inplace_ctx*	ctx
-			= static_cast<ha_innobase_inplace_ctx*>(
-				ha_alter_info->handler_ctx);
-
-		DBUG_RETURN(prepare_inplace_alter_table_global_dd(
-			ha_alter_info, ctx->new_table, ctx->old_table,
-			old_dd_tab, new_dd_tab, false));
+		if (ha_alter_info->handler_ctx != NULL) {
+			ha_innobase_inplace_ctx*	ctx =
+				static_cast<ha_innobase_inplace_ctx*>(
+					ha_alter_info->handler_ctx);
+			DBUG_RETURN(dd_prepare_inplace_alter_table(
+				m_user_thd, ctx->old_table, ctx->new_table,
+				old_dd_tab, new_dd_tab));
+		} else {
+			DBUG_RETURN(false);
+		}
 	}
 
 	/* If we are to build a full-text search index, check whether
@@ -5995,13 +6082,13 @@ to rebuild the template.
 static
 bool
 alter_templ_needs_rebuild(
-	TABLE*                  altered_table,
-	Alter_inplace_info*     ha_alter_info,
+	TABLE*			altered_table,
+	Alter_inplace_info*	ha_alter_info,
 	dict_table_t*		table)
 {
-        ulint	i = 0;
-        List_iterator_fast<Create_field>  cf_it(
-                ha_alter_info->alter_info->create_list);
+	ulint	i = 0;
+	List_iterator_fast<Create_field>  cf_it(
+		ha_alter_info->alter_info->create_list);
 
 	for (Field** fp = altered_table->field; *fp; fp++, i++) {
 		cf_it.rewind();
@@ -6043,13 +6130,15 @@ get_error_key_name(
 /** Implementation of inplace_alter_table()
 @param[in]	altered_table	TABLE object for new version of table.
 @param[in,out]	ha_alter_info	Structure describing changes to be done
-by ALTER TABLE and holding data used during in-place alter.
-@param old_table_def dd::Table object describing old version
-of the table.
-@param new_table_def dd::Table object for the new version of the
-table. Can be adjusted by this call. Changes to the table
-definition will be persisted in the data-dictionary at statement
-commit time.
+				by ALTER TABLE and holding data used
+				during in-place alter.
+@param[in]	old_dd_tab	dd::Table object describing old version
+				of the table.
+@param[in,out]	new_dd_tab	dd::Table object for the new version of the
+				table. Can be adjusted by this call.
+				Changes to the table definition will be
+				persisted in the data-dictionary at statement
+				commit time.
 @retval true Failure
 @retval false Success
 */
@@ -6629,8 +6718,7 @@ commit_get_autoinc(
 
 		We could only search the tree to know current max counter
 		in the table and compare. */
-		if (max_autoinc <= max_value_table
-		    || srv_missing_dd_table_buffer) {
+		if (max_autoinc <= max_value_table) {
 			dberr_t		err;
 			dict_index_t*	index;
 
@@ -7272,7 +7360,9 @@ commit_cache_norebuild(
 					index->type == DICT_FTS
 					|| index->is_corrupted());
 				DBUG_ASSERT(index->table->fts);
-				fts_drop_index(index->table, index, trx);
+				ctx->fts_drop_aux_vec = new aux_name_vec_t;
+				fts_drop_index(index->table, index,
+					       trx, ctx->fts_drop_aux_vec);
 			}
 
 			dict_drop_index(index, page_no_vector->at(i));
@@ -7295,6 +7385,7 @@ commit_cache_norebuild(
 
 	DBUG_RETURN(found);
 }
+
 
 /** Adjust the persistent statistics after non-rebuilding ALTER TABLE.
 Remove statistics for dropped indexes, add statistics for created indexes
@@ -7411,6 +7502,7 @@ alter_stats_rebuild(
 	THD*		thd)
 {
 	DBUG_ENTER("alter_stats_rebuild");
+	DBUG_EXECUTE_IF("ib_ddl_crash_before_rename", DBUG_SUICIDE(););
 
 	if (dict_table_is_discarded(table)
 	    || !dict_stats_is_persistent_enabled(table)) {
@@ -7614,11 +7706,38 @@ ha_innobase::commit_inplace_alter_table_impl(
 	}
 
 	trx_start_for_ddl(trx, TRX_DICT_OP_INDEX);
+
+	/* Generate the temporary name for old table, and acquire mdl
+	lock on it. */
+	THD*            thd = current_thd;
+	for (inplace_alter_handler_ctx** pctx = ctx_array;
+	     *pctx && !fail; pctx++) {
+		ha_innobase_inplace_ctx*	ctx
+			= static_cast<ha_innobase_inplace_ctx*>(*pctx);
+
+		if (ctx->need_rebuild()) {
+			char            db_buf[NAME_LEN + 1];
+			char            tbl_buf[NAME_LEN + 1];
+			MDL_ticket*	mdl_ticket= NULL;
+
+			ctx->tmp_name = dict_mem_create_temporary_tablename(
+				ctx->heap, ctx->new_table->name.m_name,
+				ctx->new_table->id);
+
+			/* Acquire mdl lock on the temporary table name. */
+			dd_parse_tbl_name(ctx->tmp_name, db_buf,
+					  tbl_buf, nullptr);
+
+			if (dd::acquire_exclusive_table_mdl(thd, db_buf,
+				tbl_buf, false, &mdl_ticket)) {
+				DBUG_RETURN(true);
+			}
+		}
+	}
+
 	/* Latch the InnoDB data dictionary exclusively so that no deadlocks
 	or lock waits can happen in it during the data dictionary operation. */
 	row_mysql_lock_data_dictionary(trx);
-
-	ut_ad(log_append_on_checkpoint(NULL) == NULL);
 
 	/* Prevent the background statistics collection from accessing
 	the tables. */
@@ -7663,15 +7782,11 @@ ha_innobase::commit_inplace_alter_table_impl(
 			ha_alter_info, ctx, altered_table, table);
 
 		if (ctx->need_rebuild()) {
-			ctx->tmp_name = dict_mem_create_temporary_tablename(
-				ctx->heap, ctx->new_table->name.m_name,
-				ctx->new_table->id);
-
 			fail = commit_try_rebuild(
 				ha_alter_info, ctx, altered_table, table,
 				trx, table_share->table_name.str);
 
-			if (!fail && !srv_missing_dd_table_buffer) {
+			if (!fail) {
 				/* Also check the DDTableBuffer and delete
 				the corresponding row for old table */
 				dberr_t		error;
@@ -7710,13 +7825,17 @@ ha_innobase::commit_inplace_alter_table_impl(
 	/* Commit or roll back the changes to the data dictionary. */
 
 	if (fail) {
+
 		trx_rollback_for_mysql(trx);
+
 	} else if (!new_clustered) {
+
 		trx_commit_for_mysql(trx);
+
 	} else {
 		mtr_t	mtr;
+
 		mtr_start(&mtr);
-		mtr.set_sys_modified();
 
 		for (inplace_alter_handler_ctx** pctx = ctx_array;
 		     *pctx; pctx++) {
@@ -7735,8 +7854,9 @@ ha_innobase::commit_inplace_alter_table_impl(
 				/* Out of memory or a problem will occur
 				when renaming files. */
 				fail = true;
-				my_error_innodb(error, ctx->old_table->name.m_name,
-						ctx->old_table->flags);
+				my_error_innodb(
+					error, ctx->old_table->name.m_name,
+					ctx->old_table->flags);
 			}
 			DBUG_INJECT_CRASH("ib_commit_inplace_crash",
 					  crash_inject_count++);
@@ -7758,22 +7878,9 @@ ha_innobase::commit_inplace_alter_table_impl(
 			trx_rollback_for_mysql(trx);
 		} else {
 			ut_ad(trx_state_eq(trx, TRX_STATE_ACTIVE));
-			if (mtr.get_log()->size() > 0) {
-				ut_ad(*mtr.get_log()->front()->begin()
-				      == MLOG_FILE_RENAME2);
-
-				/* Append the MLOG_FILE_RENAME2
-				records on checkpoint, as a separate
-				mini-transaction before the one that
-				contains the MLOG_CHECKPOINT marker. */
-				static const byte	multi
-					= MLOG_MULTI_REC_END;
-
-				mtr.get_log()->for_each_block(logs);
-				logs.m_buf.push(&multi, sizeof multi);
-
-				log_append_on_checkpoint(&logs.m_buf);
-			}
+#ifdef INNODB_NO_NEW_DD
+			ut_ad(trx_is_rseg_updated(trx));
+#endif /* INNODB_NO_NEW_DD */
 
 			/* The following call commits the
 			mini-transaction, making the data dictionary
@@ -7798,11 +7905,10 @@ ha_innobase::commit_inplace_alter_table_impl(
 	/* Update the persistent autoinc counter if necessary, we should
 	do this before flushing logs. */
 	uint64	autoinc = 0;
-	if (altered_table->found_next_number_field
-	    && !srv_missing_dd_table_buffer) {
+	if (altered_table->found_next_number_field) {
 		for (inplace_alter_handler_ctx** pctx = ctx_array;
 		     *pctx; pctx++) {
-			ha_innobase_inplace_ctx*        ctx
+			ha_innobase_inplace_ctx*	ctx
 				= static_cast<ha_innobase_inplace_ctx*>
 				(*pctx);
 			DBUG_ASSERT(ctx->need_rebuild() == new_clustered);
@@ -7902,7 +8008,17 @@ ha_innobase::commit_inplace_alter_table_impl(
 			/* Rename the tablespace files. */
 			commit_cache_rebuild(ctx);
 
-			ctx->new_table->discard_after_ddl = true;
+			/* Discard the added foreign keys, because we will
+			load them from the data dictionary. */
+			for (ulint i = 0; i < ctx->num_to_add_fk; i++) {
+				dict_foreign_t* fk = ctx->add_fk[i];
+				dict_foreign_free(fk);
+			}
+
+			/* There is no FK on partition table */
+			if (m_share) {
+				ctx->new_table->discard_after_ddl = true;
+			}
 		} else {
 			error = innobase_update_foreign_cache(
 				ctx, m_user_thd, &new_dd_tab->table());
@@ -7941,8 +8057,6 @@ ha_innobase::commit_inplace_alter_table_impl(
 		DBUG_INJECT_CRASH("ib_commit_inplace_crash",
 				  crash_inject_count++);
 	}
-
-	log_append_on_checkpoint(NULL);
 
 	/* Invalidate the index translation table. In partitioned
 	tables, there is no share. */
@@ -8028,7 +8142,6 @@ ha_innobase::commit_inplace_alter_table_impl(
 		DBUG_RETURN(false);
 	}
 
-	/* Release the table locks. */
 	trx_commit_for_mysql(m_prebuilt->trx);
 
 	DBUG_EXECUTE_IF("ib_ddl_crash_after_user_trx_commit", DBUG_SUICIDE(););
@@ -8040,9 +8153,8 @@ ha_innobase::commit_inplace_alter_table_impl(
 			(*pctx);
 		DBUG_ASSERT(ctx->need_rebuild() == new_clustered);
 
-		/* TODO: To remove the whole 'if' in WL#7141 */
-		if (altered_table->found_next_number_field
-		    && srv_missing_dd_table_buffer) {
+		/* TODO: To remove the whole 'if' in WL#9536 */
+		if (altered_table->found_next_number_field) {
 			dict_table_t*	t = ctx->new_table;
 
 			dict_table_autoinc_lock(t);
@@ -8119,6 +8231,7 @@ ha_innobase::commit_inplace_alter_table_impl(
 
 			DBUG_EXECUTE_IF("ib_ddl_crash_before_commit",
 					DBUG_SUICIDE(););
+
 
 			ut_ad(m_prebuilt != ctx->prebuilt
 			      || ctx == ctx0);
@@ -8232,12 +8345,15 @@ public:
 	inplace_alter_handler_ctx**	ctx_array;
 	/** Array of prebuilt for all partitions. */
 	row_prebuilt_t**		prebuilt_array;
+	/** Array of old table information needed for writing back to DD */
+	alter_table_old_info_t*		m_old_info;
 
 	ha_innopart_inplace_ctx(THD *thd, uint tot_parts)
 		: inplace_alter_handler_ctx(),
 		m_tot_parts(tot_parts),
 		ctx_array(),
-		prebuilt_array()
+		prebuilt_array(),
+		m_old_info()
 	{}
 
 	~ha_innopart_inplace_ctx()
@@ -8268,118 +8384,121 @@ Considering that it's easy to get table in this way, it's still OK. */
 class Altered_partitions
 {
 public:
-        /** Constructor
-        @param[in]      parts   total partitions */
-        Altered_partitions(uint parts) :
-                m_new_table_parts(), m_ins_nodes(), m_sql_stat_start(),
-                m_trx_ids(), m_num_new_parts(parts)
-        {}
+	/** Constructor
+	@param[in]	parts	total partitions */
+	Altered_partitions(uint parts) :
+		m_new_table_parts(),
+		m_ins_nodes(),
+		m_sql_stat_start(),
+		m_trx_ids(),
+		m_num_new_parts(parts)
+	{}
 
-        /** Destructor */
-        ~Altered_partitions();
+	/** Destructor */
+	~Altered_partitions();
 
-        /** Initialize the object.
-        @return false   on success
-        @retval true    on failure */
-        bool initialize();
+	/** Initialize the object.
+	@return	false	on success
+	@retval	true	on failure */
+	bool initialize();
 
-        /** Open and set currently used partition.
-        @param[in]      new_part_id     Partition id to set.
-        @param[in,out]  part            Internal table object to use. */
-        void set_part(ulint new_part_id, dict_table_t* part)
-        {
-                ut_ad(m_new_table_parts[new_part_id] == nullptr);
-                m_new_table_parts[new_part_id] = part;
-                part->skip_alter_undo = true;
-                m_sql_stat_start.set(new_part_id);
-        }
+	/** Open and set currently used partition.
+	@param[in]	new_part_id	Partition id to set.
+	@param[in,out]	part		Internal table object to use. */
+	void set_part(ulint new_part_id, dict_table_t* part)
+	{
+		ut_ad(m_new_table_parts[new_part_id] == nullptr);
+		m_new_table_parts[new_part_id] = part;
+		part->skip_alter_undo = true;
+		m_sql_stat_start.set(new_part_id);
+	}
 
-        /** Get lower level internal table object for partition.
-        @param[in]      part_id         Partition id.
-        @return Lower level internal table object for the partition id. */
-        dict_table_t* part(uint part_id)
-        {
-                ut_ad(part_id < m_num_new_parts);
-                return(m_new_table_parts[part_id]);
-        }
+	/** Get lower level internal table object for partition.
+	@param[in]	part_id	 Partition id.
+	@return Lower level internal table object for the partition id. */
+	dict_table_t* part(uint part_id)
+	{
+		ut_ad(part_id < m_num_new_parts);
+		return(m_new_table_parts[part_id]);
+	}
 
-        /** Set up prebuilt for using a specified partition.
-        @param[in,out]  prebuilt        Prebuilt to update.
-        @param[in]      new_part_id     Partition to use. */
-        void get_prebuilt(row_prebuilt_t* prebuilt, uint new_part_id) const
-        {
-                ut_ad(m_new_table_parts[new_part_id]);
-                prebuilt->table = m_new_table_parts[new_part_id];
-                prebuilt->ins_node = m_ins_nodes[new_part_id];
-                prebuilt->trx_id = m_trx_ids[new_part_id];
-                prebuilt->sql_stat_start = m_sql_stat_start.test(new_part_id);
-        }
+	/** To write a row, set up prebuilt for using a specified partition.
+	@param[in,out]	prebuilt	Prebuilt to update.
+	@param[in]	new_part_id	Partition to use. */
+	void prepare_write(row_prebuilt_t* prebuilt, uint new_part_id) const
+	{
+		ut_ad(m_new_table_parts[new_part_id]);
+		prebuilt->table = m_new_table_parts[new_part_id];
+		prebuilt->ins_node = m_ins_nodes[new_part_id];
+		prebuilt->trx_id = m_trx_ids[new_part_id];
+		prebuilt->sql_stat_start = m_sql_stat_start.test(new_part_id);
+	}
 
-        /** Update cached values for a partition from prebuilt.
-        @param[in,out]  prebuilt        Prebuilt to copy from.
-        @param[in]      new_part_id     Partition id to copy. */
-        void set_from_prebuilt(row_prebuilt_t* prebuilt, uint new_part_id)
-        {
-                ut_ad(m_new_table_parts[new_part_id] == prebuilt->table);
-                m_ins_nodes[new_part_id] = prebuilt->ins_node;
-                m_trx_ids[new_part_id] = prebuilt->trx_id;
-                if (!prebuilt->sql_stat_start) {
-                        m_sql_stat_start.set(new_part_id, 0);
-                }
-        }
+	/** After a write, update cached values for a partition from prebuilt.
+	@param[in,out]	prebuilt	Prebuilt to copy from.
+	@param[in]	new_part_id	Partition id to copy. */
+	void finish_write(row_prebuilt_t* prebuilt, uint new_part_id)
+	{
+		ut_ad(m_new_table_parts[new_part_id] == prebuilt->table);
+		m_ins_nodes[new_part_id] = prebuilt->ins_node;
+		m_trx_ids[new_part_id] = prebuilt->trx_id;
+		if (!prebuilt->sql_stat_start) {
+			m_sql_stat_start.set(new_part_id, 0);
+		}
+	}
 
 private:
-        /** New partitions created during ADD(HASH/KEY)/COALESCE/REORGANIZE
-        PARTITION. */
-        dict_table_t**          m_new_table_parts;
+	/** New partitions created during ADD(HASH/KEY)/COALESCE/REORGANIZE
+	PARTITION. */
+	dict_table_t**		m_new_table_parts;
 
-        /** Insert nodes per partition. */
-        ins_node_t**            m_ins_nodes;
+	/** Insert nodes per partition. */
+	ins_node_t**		m_ins_nodes;
 
-        /** bytes for sql_stat_start bitset */
-        byte*                   m_bitset;
+	/** bytes for sql_stat_start bitset */
+	byte*			m_bitset;
 
-        /** sql_stat_start per partition */
-        Sql_stat_start_parts    m_sql_stat_start;
+	/** sql_stat_start per partition */
+	Sql_stat_start_parts	m_sql_stat_start;
 
 	/** Trx id per partition. */
-        trx_id_t*       	m_trx_ids;
+	trx_id_t*		m_trx_ids;
 
-        /** Number of new partitions. */
-        size_t                  m_num_new_parts;
+	/** Number of new partitions. */
+	size_t			m_num_new_parts;
 };
 
 /** Destructor */
 Altered_partitions::~Altered_partitions()
 {
-        if (m_new_table_parts != nullptr) {
-                for (ulint i = 0; i < m_num_new_parts; i++) {
-                        if (m_new_table_parts[i] != nullptr) {
-                                m_new_table_parts[i]->skip_alter_undo = false;
-                        }
-                }
+	if (m_new_table_parts != nullptr) {
+		for (ulint i = 0; i < m_num_new_parts; i++) {
+			if (m_new_table_parts[i] != nullptr) {
+				m_new_table_parts[i]->skip_alter_undo = false;
+			}
+		}
 
-                ut_free(m_new_table_parts);
-        }
+		ut_free(m_new_table_parts);
+	}
 
-        if (m_ins_nodes != nullptr) {
-                for (ulint i = 0; i < m_num_new_parts; i++) {
-                        if (m_ins_nodes[i] != nullptr) {
-                                ins_node_t* ins = m_ins_nodes[i];
-                                ut_ad(ins->select == nullptr);
-                                que_graph_free_recursive(ins->select);
-                                ins->select = nullptr;
-                                if (ins->entry_sys_heap != nullptr) {
-                                        mem_heap_free(ins->entry_sys_heap);
-                                        ins->entry_sys_heap = nullptr;
-                                }
-                        }
-                }
+	if (m_ins_nodes != nullptr) {
+		for (ulint i = 0; i < m_num_new_parts; i++) {
+			if (m_ins_nodes[i] != nullptr) {
+				ins_node_t* ins = m_ins_nodes[i];
+				ut_ad(ins->select == nullptr);
+				que_graph_free_recursive(ins->select);
+				ins->select = nullptr;
+				if (ins->entry_sys_heap != nullptr) {
+					mem_heap_free(ins->entry_sys_heap);
+					ins->entry_sys_heap = nullptr;
+				}
+			}
+		}
 
-                ut_free(m_ins_nodes);
-        }
+		ut_free(m_ins_nodes);
+	}
 
-        ut_free(m_bitset);
+	ut_free(m_bitset);
 	ut_free(m_trx_ids);
 }
 
@@ -8388,41 +8507,41 @@ Altered_partitions::~Altered_partitions()
 bool
 Altered_partitions::initialize()
 {
-        size_t  alloc_size = sizeof(*m_new_table_parts) * m_num_new_parts;
-        m_new_table_parts = static_cast<dict_table_t**>(
-                ut_zalloc(alloc_size, mem_key_partitioning));
+	size_t	alloc_size = sizeof(*m_new_table_parts) * m_num_new_parts;
+	m_new_table_parts = static_cast<dict_table_t**>(
+		ut_zalloc(alloc_size, mem_key_partitioning));
 
-        alloc_size = sizeof(*m_ins_nodes) * m_num_new_parts;
-        m_ins_nodes = static_cast<ins_node_t**>(
-                ut_zalloc(alloc_size, mem_key_partitioning));
+	alloc_size = sizeof(*m_ins_nodes) * m_num_new_parts;
+	m_ins_nodes = static_cast<ins_node_t**>(
+		ut_zalloc(alloc_size, mem_key_partitioning));
 
-        alloc_size = sizeof(*m_bitset) * UT_BITS_IN_BYTES(m_num_new_parts);
-        m_bitset = static_cast<byte*>(
-                ut_zalloc(alloc_size, mem_key_partitioning));
+	alloc_size = sizeof(*m_bitset) * UT_BITS_IN_BYTES(m_num_new_parts);
+	m_bitset = static_cast<byte*>(
+		ut_zalloc(alloc_size, mem_key_partitioning));
 
 	alloc_size = sizeof(*m_trx_ids) * m_num_new_parts;
-        m_trx_ids = static_cast<trx_id_t*>(
-                ut_zalloc(alloc_size, mem_key_partitioning));
+	m_trx_ids = static_cast<trx_id_t*>(
+		ut_zalloc(alloc_size, mem_key_partitioning));
 
-        if (m_new_table_parts == nullptr || m_ins_nodes == nullptr
-            || m_bitset == nullptr || m_trx_ids == nullptr) {
-                ut_free(m_new_table_parts);
-                ut_free(m_ins_nodes);
-                ut_free(m_bitset);
-                ut_free(m_trx_ids);
+	if (m_new_table_parts == nullptr || m_ins_nodes == nullptr
+	    || m_bitset == nullptr || m_trx_ids == nullptr) {
+		ut_free(m_new_table_parts);
+		ut_free(m_ins_nodes);
+		ut_free(m_bitset);
+		ut_free(m_trx_ids);
 
-                return(true);
-        }
+		return(true);
+	}
 
-        m_sql_stat_start.init(m_bitset, UT_BITS_IN_BYTES(m_num_new_parts));
+	m_sql_stat_start.init(m_bitset, UT_BITS_IN_BYTES(m_num_new_parts));
 
-        return(false);
+	return(false);
 }
 
 /** Class(interface) which manages the operations for partitions of states
 in different categories during ALTER PARTITION. There are four categories
 for now:
-1. normal: mapping to PART_NORMAL
+1. normal: mapping to PART_NORMAL, which means the partition is not changed
 2. add: mapping to PART_TO_BE_ADDED
 3. drop: mapping to PART_TO_BE_DROPPED, PART_TO_BE_REORGED
 and PART_REORGED_DROPPED
@@ -8430,102 +8549,102 @@ and PART_REORGED_DROPPED
 class alter_part
 {
 public:
-        /** Virtual destructor */
-        virtual ~alter_part() {}
+	/** Virtual destructor */
+	virtual ~alter_part() {}
 
-        /** Return the partition id */
-        virtual uint part_id() const
-        {
-                return(m_part_id);
-        }
+	/** Return the partition id */
+	virtual uint part_id() const
+	{
+		return(m_part_id);
+	}
 
-        /** Return the partition state */
-        virtual partition_state state() const
-        {
-                return(m_state);
-        }
+	/** Return the partition state */
+	virtual partition_state state() const
+	{
+		return(m_state);
+	}
 
 	/** Get the InnoDB table object for newly created partition
 	if applicable
-	@return the InnoDB table object or NULL if not applicable */
+	@return the InnoDB table object or nullptr if not applicable */
 	dict_table_t* new_table() { return(m_new); }
 
 	/** Prepare
-        @param[in,out]  altered_table   Table definition after the ALTER
-        @param[in]      old_part        the stored old partition or nullptr
-                                        if no corresponding one exists
-        @param[in,out]  new_part        the stored new partition or nullptr
-                                        if no corresponding one exists
+	@param[in,out]	altered_table	Table definition after the ALTER
+	@param[in]	old_part	the stored old partition or nullptr
+					if no corresponding one exists
+	@param[in,out]	new_part	the stored new partition or nullptr
+					if no corresponding one exists
 	@return 0 or error number */
 	virtual int prepare(
-                TABLE*                  altered_table,
-                const dd::Partition*    old_part,
-                dd::Partition*          new_part)
+		TABLE*			altered_table,
+		const dd::Partition*	old_part,
+		dd::Partition*		new_part)
 	{
 		return(0);
 	}
 
 	/** Try to commit
-        @param[in]      table           Table definition before the ALTER
-        @param[in,out]  altered_table   Table definition after the ALTER
-        @param[in]      old_part        the stored old partition or nullptr
-                                        if no corresponding one exists
-        @param[in,out]  new_part        the stored new partition or nullptr
-                                        if no corresponding one exists
+	@param[in]	table		Table definition before the ALTER
+	@param[in,out]	altered_table	Table definition after the ALTER
+	@param[in]	old_part	the stored old partition or nullptr
+					if no corresponding one exists
+	@param[in,out]	new_part	the stored new partition or nullptr
+					if no corresponding one exists
 	@return 0 or error number */
-        virtual int try_commit(
-                const TABLE*            table,
-                TABLE*                  altered_table,
-                const dd::Partition*    old_part,
-                dd::Partition*          new_part)
+	virtual int try_commit(
+		const TABLE*		table,
+		TABLE*			altered_table,
+		const dd::Partition*	old_part,
+		dd::Partition*		new_part)
 	{
 		return(0);
 	}
 
-        /** Rollback */
-        virtual void rollback() { return; }
+	/** Rollback */
+	virtual void rollback() { return; }
 
-        /** Note committed changes */
-        virtual void post_commit() { return; }
+	/** Note committed changes */
+	virtual void post_commit() { return; }
 
 protected:
-        /** Constructor
-        @param[in,out]  trx             InnoDB transaction, nullptr if not used
-        @param[in]      part_id         Partition id in the table. This could
-                                        be partition id for either old table
-                                        or new table, callers should remember
-                                        which one is applicable
-        @param[in]      state           Partition state of the partition on
-                                        which this class will do operations.
-                                        If this is for one partition in new
-                                        table, the partition state is the same
-                                        for both the new partition and the
-                                        corresponding old partition
+	/** Constructor
+	@param[in,out]	trx		InnoDB transaction, nullptr if not used
+	@param[in]	part_id		Partition id in the table. This could
+					be partition id for either old table
+					or new table, callers should remember
+					which one is applicable
+	@param[in]	state		Partition state of the partition on
+					which this class will do operations.
+					If this is for one partition in new
+					table, the partition state is the same
+					for both the new partition and the
+					corresponding old partition
 	@param[in]	table_name	Partitioned table name, in the
 					form of db/table, which considers
 					the charset
 	@param[in,out]	old		InnoDB table object for old partition,
-                                        default is nullptr, which means there
-                                        is no corresponding object */
-        alter_part(
-                trx_t*          trx,
-                uint            part_id,
-                partition_state state,
+					default is nullptr, which means there
+					is no corresponding object */
+	alter_part(
+		trx_t*		trx,
+		uint		part_id,
+		partition_state	state,
 		const char*	table_name,
 		dict_table_t*	old)
-                :
-                m_trx(trx),
-                m_part_id(part_id),
-                m_state(state),
+		:
+		m_trx(trx),
+		m_part_id(part_id),
+		m_state(state),
 		m_table_name(table_name),
 		m_old(old),
-		m_new(NULL)
-        {}
+		m_new(nullptr)
+	{}
 
 	/** Build the partition name for specified partition
 	@param[in]	dd_part		dd::Partition
 	@param[in]	temp		True if this is a temporary name
-	@param[out]	name		Partition name buffer, which is of
+	@param[in,out]	name		Partition name buffer, which is of
 					length FN_REFLEN */
 	void build_partition_name(
 		const dd::Partition*	dd_part,
@@ -8536,7 +8655,7 @@ protected:
 	@param[in]	part_name	Partition name, including db/table
 	@param[in,out]	dd_part		dd::Partition
 	@param[in]	table		Table format
-	@param[in]      tablespace      Tablespace of this partition,
+	@param[in]	tablespace	Tablespace of this partition,
 					if length is 0, it means no
 					tablespace specified
 	@param[in]	file_per_table	Current value of innodb_file_per_table
@@ -8569,19 +8688,19 @@ protected:
 		const dd::Partition*	dd_part);
 
 protected:
-        /** InnoDB transaction, nullptr if not used */
-        trx_t* const                    m_trx;
+	/** InnoDB transaction, nullptr if not used */
+	trx_t* const			m_trx;
 
-        /** Partition id in the table. This could be partition id for
-        either old table or new table, callers should remember which one
-        is applicable */
-        uint                            m_part_id;
+	/** Partition id in the table. This could be partition id for
+	either old table or new table, callers should remember which one
+	is applicable */
+	uint				m_part_id;
 
-        /** Partition state of the partition on which this class will
-        do operations. If this is for one partition in new table, the
-        partition state is the same for both the new partition and the
-        corresponding old partition */
-        partition_state                 m_state;
+	/** Partition state of the partition on which this class will
+	do operations. If this is for one partition in new table, the
+	partition state is the same for both the new partition and the
+	corresponding old partition */
+	partition_state			m_state;
 
 	/** Partitioned table name, in form of ./db/table, which already
 	considers the charset */
@@ -8595,14 +8714,14 @@ protected:
 };
 
 /** Build the partition name for specified partition
-@param[in]      dd_part         dd::Partition
-@param[in]      temp            True if this is a temporary name
-@param[out]     name            Partition name buffer, which is of
-                                length FN_REFLEN */
+@param[in]	dd_part		dd::Partition
+@param[in]	temp		True if this is a temporary name
+@param[in,out]	name		Partition name buffer, which is of
+				length FN_REFLEN */
 void
 alter_part::build_partition_name(
-        const dd::Partition*    dd_part,
-        bool                    temp,
+	const dd::Partition*	dd_part,
+	bool			temp,
 	char*			name)
 {
 	size_t		len = 0;
@@ -8611,7 +8730,7 @@ alter_part::build_partition_name(
 	/* Just get the 'db/table' part. In embedded server, m_table_name
 	could be a full path */
 	table_name = strrchr(m_table_name, OS_PATH_SEPARATOR);
-	ut_a(table_name != NULL);
+	ut_a(table_name != nullptr);
 	while (*(--table_name) != OS_PATH_SEPARATOR);
 	++table_name;
 
@@ -8619,7 +8738,7 @@ alter_part::build_partition_name(
 #ifdef _WIN32
 	/* Adjust the '\' to '/' for Windows */
 	char*		slash = strchr(name, OS_PATH_SEPARATOR);
-	ut_a(slash != NULL);
+	ut_a(slash != nullptr);
 	*slash = '/';
 #endif /* _WIN32 */
 
@@ -8672,7 +8791,7 @@ alter_part::create(
 	if (!data_file_name.empty()) {
 		/* Have to append the postfix table name, to make it work */
 		const char*	name = strrchr(part_name, '/');
-		ut_ad(name != NULL);
+		ut_ad(name != nullptr);
 		size_t		len = data_file_name.length();
 		strcpy(full_path, data_file_name.c_str());
 		full_path[len] = OS_PATH_SEPARATOR;
@@ -8684,14 +8803,14 @@ alter_part::create(
 	create_info.auto_increment_value = autoinc;
 	create_info.key_block_size = key_block_size;
 	create_info.data_file_name = data_file_name.empty()
-		? NULL : full_path;
-	create_info.tablespace = tablespace[0] == '\0' ? NULL : tablespace;
+		? nullptr : full_path;
+	create_info.tablespace = tablespace[0] == '\0' ? nullptr : tablespace;
 
 	/* The below check is the same as for CREATE TABLE, but since we are
 	doing an alter here it will not trigger the check in
 	create_option_tablespace_is_valid(). */
 	if (tablespace_is_shared_space(&create_info)
-	    && create_info.data_file_name != NULL
+	    && create_info.data_file_name != nullptr
 	    && create_info.data_file_name[0] != '\0') {
 		my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
 				"InnoDB: DATA DIRECTORY cannot be used"
@@ -8703,39 +8822,39 @@ alter_part::create(
 		part_name, table, &create_info, dd_part, file_per_table));
 }
 
-/* TODO maybe WL#9536: Remove this */
+/* WL#9536 TODO: Remove this or refactor it to prevent redundant code */
 int
 alter_part::create_table(
-	const char*     name,
-        TABLE*          form,
-        HA_CREATE_INFO* create_info,
-        dd::Partition*  dd_part,
-        bool            file_per_table)
+	const char*	name,
+	TABLE*		form,
+	HA_CREATE_INFO*	create_info,
+	dd::Partition*	dd_part,
+	bool		file_per_table)
 {
-	int             error;
-        char            norm_name[FN_REFLEN];   /* {database}/{tablename} */
-        char            remote_path[FN_REFLEN]; /* Absolute path of table */
-        char            tablespace[NAME_LEN];   /* Tablespace name identifier */
+	int		error;
+	char		norm_name[FN_REFLEN];	/* {database}/{tablename} */
+	char		remote_path[FN_REFLEN];	/* Absolute path of table */
+	char		tablespace[NAME_LEN];	/* Tablespace name identifier */
 
-	create_table_info_t     info(current_thd,
-                                     form,
-                                     create_info,
-                                     norm_name,
-                                     remote_path,
-                                     tablespace,
-                                     file_per_table);
+	create_table_info_t	info(current_thd,
+				     form,
+				     create_info,
+				     norm_name,
+				     remote_path,
+				     tablespace,
+				     file_per_table);
 
-        /* Initialize the object. */
-        if ((error = info.initialize())) {
-                return(error);
-        }
+	/* Initialize the object. */
+	if ((error = info.initialize())) {
+		return(error);
+	}
 
-        /* Prepare for create and validate options. */
-        if ((error = info.prepare_create_table(name))) {
-                return(error);
-        }
+	/* Prepare for create and validate options. */
+	if ((error = info.prepare_create_table(name))) {
+		return(error);
+	}
 
-        info.allocate_trx();
+	info.allocate_trx();
 
 	trx_t*	trx = info.trx();
 
@@ -8766,16 +8885,16 @@ alter_part::create_table(
 	return(error);
 }
 
-/* TODO maybe WL#9536: Remove this */
+/* WL#9536 TODO: Remove this or refactor it to prevent redundant code */
 int
 alter_part::delete_table(
-	const char*             name,
-	const dd::Partition*    dd_part,
-	enum enum_sql_command   sqlcom)
+	const char*		name,
+	const dd::Partition*	dd_part,
+	enum enum_sql_command	sqlcom)
 {
 	dberr_t	err;
 	THD*	thd = current_thd;
-	char    norm_name[FN_REFLEN];
+	char	norm_name[FN_REFLEN];
 
 	normalize_table_name(norm_name, name);
 
@@ -8783,68 +8902,68 @@ alter_part::delete_table(
 
 	++m_trx->will_lock;
 
-	bool    file_per_table = false;
-        {
+	bool	file_per_table = false;
+	{
 		dict_table_t*	tab;
 
 		mutex_enter(&dict_sys->mutex);
 		tab = dict_table_check_if_in_cache_low(norm_name);
-		if (tab != NULL) {
-                        file_per_table = dict_table_is_file_per_table(tab);
-                }
+		if (tab != nullptr) {
+			file_per_table = dict_table_is_file_per_table(tab);
+		}
 		mutex_exit(&dict_sys->mutex);
-        }
+	}
 
 	err = row_drop_table_for_mysql(
-                norm_name, m_trx, sqlcom, true, NULL);
+		norm_name, m_trx, sqlcom, true, nullptr);
 
 	if (err == DB_SUCCESS && file_per_table) {
-                dd::Object_id   dd_space_id = (*dd_part->indexes().begin())
-                        ->tablespace_id();
-                dd::cache::Dictionary_client* client = dd::get_dd_client(thd);
-                dd::cache::Dictionary_client::Auto_releaser releaser(client);
+		dd::Object_id	dd_space_id = (*dd_part->indexes().begin())
+			->tablespace_id();
+		dd::cache::Dictionary_client* client = dd::get_dd_client(thd);
+		dd::cache::Dictionary_client::Auto_releaser releaser(client);
 
-                dd::Tablespace*		dd_space;
+		dd::Tablespace*		dd_space;
 		const dd::Tablespace*	new_dd_space;
-                if (client->acquire_uncached_uncommitted<dd::Tablespace>(
-                            dd_space_id, &dd_space)) {
-                        ut_a(false);
-                }
+		if (client->acquire_uncached_uncommitted<dd::Tablespace>(
+			    dd_space_id, &dd_space)) {
+			ut_a(false);
+		}
 
-                ut_a(dd_space != NULL);
+		ut_a(dd_space != nullptr);
 
-                if (dd::acquire_exclusive_tablespace_mdl(
-                            thd, dd_space->name().c_str(), false)) {
-                        ut_a(false);
-                }
+		if (dd::acquire_exclusive_tablespace_mdl(
+			    thd, dd_space->name().c_str(), false)) {
+			ut_a(false);
+		}
 
 		if (client->acquire<dd::Tablespace>(
 			dd_space->name(), &new_dd_space)) {
 			ut_a(false);
 		}
 
-                bool fail = client->drop(new_dd_space);
-                DBUG_EXECUTE_IF("fail_while_dropping_dd_object",
-                                fail = false;);
-                ut_a(!fail);
-        }
+		bool fail = client->drop(new_dd_space);
+		DBUG_EXECUTE_IF("fail_while_dropping_dd_object",
+				fail = false;);
+		ut_a(!fail);
+	}
 
 	return(false);
 }
 
-/* TODO maybe WL#9536: Remove this */
+/* WL#9536 TODO: Remove this or refactor it to prevent redundant code */
 int
 alter_part::rename_table(
-	const char*     	from,
-	const char*     	to,
+	const char*		from,
+	const char*		to,
 	const dd::Partition*	dd_part)
 {
 	dberr_t error;
-        char    norm_to[FN_REFLEN];
-        char    norm_from[FN_REFLEN];
+	char	norm_to[FN_REFLEN];
+	char	norm_from[FN_REFLEN];
 
 	normalize_table_name(norm_to, to);
-        normalize_table_name(norm_from, from);
+	normalize_table_name(norm_from, from);
 
 	trx_start_if_not_started_xa(m_trx, true);
 
@@ -8857,25 +8976,25 @@ alter_part::rename_table(
 
 	row_mysql_unlock_data_dictionary(m_trx);
 
-	bool    rename_dd_filename = false;
-        char*   new_path = NULL;
-        if (error == DB_SUCCESS && strcmp(norm_from, norm_to) != 0) {
-                dict_table_t*   table;
-                mutex_enter(&dict_sys->mutex);
-                table = dict_table_check_if_in_cache_low(norm_to);
-                ut_ad(table != NULL);
-                ut_ad(!table->ibd_file_missing);
+	bool	rename_dd_filename = false;
+	char*	new_path = nullptr;
+	if (error == DB_SUCCESS && strcmp(norm_from, norm_to) != 0) {
+		dict_table_t*	table;
+		mutex_enter(&dict_sys->mutex);
+		table = dict_table_check_if_in_cache_low(norm_to);
+		ut_ad(table != nullptr);
+		ut_ad(!table->ibd_file_missing);
 
-                rename_dd_filename = dict_table_is_file_per_table(table);
-                if (rename_dd_filename) {
-                        new_path = fil_space_get_first_path(table->space);
-                }
+		rename_dd_filename = dict_table_is_file_per_table(table);
+		if (rename_dd_filename) {
+			new_path = fil_space_get_first_path(table->space);
+		}
 
 		mutex_exit(&dict_sys->mutex);
-        }
+	}
 
 	if (rename_dd_filename) {
-                ut_ad(new_path != NULL);
+		ut_ad(new_path != nullptr);
 
 		dd::Object_id	dd_space_id =
 			(*dd_part->indexes().begin())->tablespace_id();
@@ -8884,8 +9003,8 @@ alter_part::rename_table(
 			ut_a(false);
 		}
 
-                ut_free(new_path);
-        }
+		ut_free(new_path);
+	}
 
 	if (error == DB_SUCCESS) {
 		char	errstr[512];
@@ -8910,326 +9029,326 @@ partition states in both old and new tables */
 class alter_part_factory
 {
 public:
-        /** Constructor
-        @param[in,out]  trx             Transaction
-        @param[in]      ha_alter_info   ALTER Information
-        @param[in,out]  part_share      Innopart share
-        @param[in]      old_part_info   Partition info of the table before
-                                        ALTER TABLE */
-        alter_part_factory(
-                trx_t*                          trx,
-                const Alter_inplace_info*       ha_alter_info,
-                Ha_innopart_share*              part_share,
-                partition_info*                 old_part_info)
-                :
-                m_trx(trx),
-                m_part_share(part_share),
-                m_ha_alter_info(ha_alter_info),
-                m_old_part_info(old_part_info),
-                m_file_per_table(srv_file_per_table)
-        {}
+	/** Constructor
+	@param[in,out]	trx		Transaction
+	@param[in]	ha_alter_info	ALTER Information
+	@param[in,out]	part_share	Innopart share
+	@param[in]	old_part_info	Partition info of the table before
+					ALTER TABLE */
+	alter_part_factory(
+		trx_t*				trx,
+		const Alter_inplace_info*	ha_alter_info,
+		Ha_innopart_share*		part_share,
+		partition_info*			old_part_info)
+		:
+		m_trx(trx),
+		m_part_share(part_share),
+		m_ha_alter_info(ha_alter_info),
+		m_old_part_info(old_part_info),
+		m_file_per_table(srv_file_per_table)
+	{}
 
-        /** Destructor */
-        ~alter_part_factory() {}
+	/** Destructor */
+	~alter_part_factory() {}
 
-        /** Create the alter_part_* objects according to the given
-        partition states
-        @param[out]     to_drop         To store the alter_part_* objects
-                                        for partitions to be dropped
-        @param[out]     all_news        To store the alter_part_* objects
-                                        for partitions in table after
-                                        ALTER TABLE
-        @return False   On success
-        @retval True    On failure */
-        bool create(
-                alter_part_array&       to_drop,
-                alter_part_array&       all_news)
-        {
-                to_drop.clear();
-                all_news.clear();
+	/** Create the alter_part_* objects according to the given
+	partition states
+	@param[in,out]	to_drop		To store the alter_part_* objects
+					for partitions to be dropped
+	@param[in,out]	all_news	To store the alter_part_* objects
+					for partitions in table after
+					ALTER TABLE
+	@return	false	On success
+	@retval	true	On failure */
+	bool create(
+		alter_part_array&	to_drop,
+		alter_part_array&	all_news)
+	{
+		to_drop.clear();
+		all_news.clear();
 
-                if (!(m_ha_alter_info->handler_flags
-                      & Alter_inplace_info::REORGANIZE_PARTITION)) {
-                        return(create_for_non_reorg(to_drop, all_news));
-                } else {
-                        return(create_for_reorg(to_drop, all_news));
-                }
-        }
+		if (!(m_ha_alter_info->handler_flags
+		      & Alter_inplace_info::REORGANIZE_PARTITION)) {
+			return(create_for_non_reorg(to_drop, all_news));
+		} else {
+			return(create_for_reorg(to_drop, all_news));
+		}
+	}
 
 private:
-        /** Create the alter_part_* objects when it's an operation like
-        REORGANIZE PARTITION
-        @param[out]     to_drop         To store the alter_part_* objects
-                                        for partitions to be dropped
-        @param[out]     all_news        To store the alter_part_* objects
-                                        for partitions in table after
-                                        ALTER TABLE
-        @return False   On success
-        @retval True    On failure */
-        bool create_for_reorg(
-                alter_part_array&       to_drop,
-                alter_part_array&       all_news);
+	/** Create the alter_part_* objects when it's an operation like
+	REORGANIZE PARTITION
+	@param[in,out]	to_drop		To store the alter_part_* objects
+					for partitions to be dropped
+	@param[in,out]	all_news	To store the alter_part_* objects
+					for partitions in table after
+					ALTER TABLE
+	@return false	On success
+	@retval true	On failure */
+	bool create_for_reorg(
+		alter_part_array&	to_drop,
+		alter_part_array&	all_news);
 
-        /** Create the alter_part_* objects when it's NOT an operation like
-        REORGANIZE PARTITION
-        @param[out]     to_drop         To store the alter_part_* objects
-                                        for partitions to be dropped
-        @param[out]     all_news        To store the alter_part_* objects
-                                        for partitions in table after
-                                        ALTER TABLE
-        @return False   On success
-        @retval True    On Failure */
-        bool create_for_non_reorg(
-                alter_part_array&       to_drop,
-                alter_part_array&       all_news);
+	/** Create the alter_part_* objects when it's NOT an operation like
+	REORGANIZE PARTITION
+	@param[in,out]	to_drop		To store the alter_part_* objects
+					for partitions to be dropped
+	@param[in,out]	all_news	To store the alter_part_* objects
+					for partitions in table after
+					ALTER TABLE
+	@return	false	On success
+	@retval	true	On Failure */
+	bool create_for_non_reorg(
+		alter_part_array&	to_drop,
+		alter_part_array&	all_news);
 
-        /** Check if the partition(and its subpartitions) conflicts with any
-        of the original ones, will create the alter_part_add objects here
-        @param[in]      new_part        The new partition to check
-        @param[out]     all_news        To store the alter_part_add objects
-        @param[in,out]  new_part_id     Partition id for both partition and
-                                        subpartition, which would be increased
-                                        by number of subpartitions per
-                                        partition here
-        @return True if the names are same, otherwise false */
-        bool check_conflict_and_create(
-                partition_element*      new_part,
-                alter_part_array&       all_news,
-                uint&                   new_part_id);
+	/** Check if the partition(and its subpartitions) conflicts with any
+	of the original ones, will create the alter_part_add objects here
+	@param[in]	new_part	The new partition to check
+	@param[in,out]	all_news	To store the alter_part_add objects
+	@param[in,out]	new_part_id	Partition id for both partition and
+					subpartition, which would be increased
+					by number of subpartitions per
+					partition here
+	@return true if the names are same, otherwise false */
+	bool check_conflict_and_create(
+		partition_element*	new_part,
+		alter_part_array&	all_news,
+		uint&			new_part_id);
 
 	/** Check if the two (sub)partitions conflict with each other.
 	That is they have same name and both are innodb_file_per_table
 	@param[in]	new_part	New partition to check
 	@param[in]	old_part	Old partition to check
-	@retval True	Conflict
-	@retval	False	Not conflict */
+	@retval true	Conflict
+	@retval	false	Not conflict */
 	bool is_conflict(
 		const partition_element*	new_part,
 		const partition_element*	old_part);
 
-        /** Create alter_part_* object(s) for subpartitions of a partition,
-        or the partition itself
-        @param[out]     array           Where to store the new object(s)
-        @param[in]      part            partition_element to handle
-        @param[in,out]  part_id         Partition id for both partition and
-                                        subpartition, which would be increased
-                                        by number of object(s) created
-        @param[in]      old_part_id     Start partition id of the table before
-                                        ALTER TABLE
-        @param[in]      state           Partition state
-        @param[in]      conflict        Only valid when state is
-                                        PART_TO_BE_ADDED. True if the new
-                                        (sub)partition has the same name with
-                                        an exist one and they are of
+	/** Create alter_part_* object(s) for subpartitions of a partition,
+	or the partition itself
+	@param[in,out]	array		Where to store the new object(s)
+	@param[in]	part		partition_element to handle
+	@param[in,out]	part_id		Partition id for both partition and
+					subpartition, which would be increased
+					by number of object(s) created
+	@param[in]	old_part_id	Start partition id of the table before
+					ALTER TABLE
+	@param[in]	state		Partition state
+	@param[in]	conflict	Only valid when state is
+					PART_TO_BE_ADDED. True if the new
+					(sub)partition has the same name with
+					an exist one and they are of
 					innodb_file_per_table
-        @return false   On success
-        @return true    On failure */
-        bool create_one(
-                alter_part_array&       array,
-                partition_element*      part,
-                uint&                   part_id,
-                uint                    old_part_id,
-                partition_state         state,
-                bool                    conflict);
+	@retval	false	On success
+	@retval	true	On failure */
+	bool create_one(
+		alter_part_array&	array,
+		partition_element*	part,
+		uint&			part_id,
+		uint			old_part_id,
+		partition_state		state,
+		bool			conflict);
 
-        /** Create the specified alter_part_* object
-        @param[in]      part_id         Partition id for current partition
-        @oaram[in]      old_part_id     Start partition id of the table before
-                                        ALTER TABLE
-        @param[in]      state           Partition state
+	/** Create the specified alter_part_* object
+	@param[in]	part_id		Partition id for current partition
+	@param[in]	old_part_id	Start partition id of the table before
+					ALTER TABLE
+	@param[in]	state		Partition state
 	@param[in]	tablespace	Tablespace specified explicitly
-        @param[in]      conflict        Only valid when state is
-                                        PART_TO_BE_ADDED. True if the new
-                                        (sub)partition has the same name with
-                                        an exist one and they are of
+	@param[in]	conflict	Only valid when state is
+					PART_TO_BE_ADDED. True if the new
+					(sub)partition has the same name with
+					an exist one and they are of
 					innodb_file_per_table
-        @return alter_part_* object or NULL */
-        alter_part* create_one_low(
-                uint&                   part_id,
-                uint                    old_part_id,
-                partition_state         state,
+	@return alter_part_* object or nullptr */
+	alter_part* create_one_low(
+		uint&			part_id,
+		uint			old_part_id,
+		partition_state		state,
 		const char*		tablespace,
-                bool                    conflict);
+		bool			conflict);
 
 private:
-        /** InnoDB transaction */
-        trx_t* const                    m_trx;
+	/** InnoDB transaction */
+	trx_t* const			m_trx;
 
-        /** InnoDB partition specific Handler_share */
-        Ha_innopart_share* const        m_part_share;
+	/** InnoDB partition specific Handler_share */
+	Ha_innopart_share* const	m_part_share;
 
-        /** ALTER information */
-        const Alter_inplace_info* const m_ha_alter_info;
+	/** ALTER information */
+	const Alter_inplace_info* const m_ha_alter_info;
 
-        /** Partition info of the table before ALTER TABLE */
-        partition_info* const           m_old_part_info;
+	/** Partition info of the table before ALTER TABLE */
+	partition_info* const		m_old_part_info;
 
-        /** Current innodb_file_per_table value */
-        bool                            m_file_per_table;
+	/** Current innodb_file_per_table value */
+	bool				m_file_per_table;
 };
 
 /** Helper class for in-place alter partitions, see handler.h */
 class alter_parts : public inplace_alter_handler_ctx
 {
 public:
-        /** Constructor
-        @param[in,out]  trx             InnoDB transaction
-        @param[in,out]  part_share      Innopart share
-        @param[in]      ha_alter_info   ALTER information
-        @param[in]      old_part_info   Partition info of the table before
-                                        ALTER TABLE
-        @param[in,out]  new_partitions  Altered partition helper */
-        alter_parts(
-                trx_t*                          trx,
-                Ha_innopart_share*              part_share,
-                const Alter_inplace_info*       ha_alter_info,
-                partition_info*                 old_part_info,
-                Altered_partitions*             new_partitions)
-                :
-                m_trx(trx),
-                m_part_share(part_share),
-                m_ha_alter_info(ha_alter_info),
-                m_new_partitions(new_partitions),
-                m_factory(trx, ha_alter_info, part_share, old_part_info),
-                m_news(),
-                m_to_drop()
-        {}
+	/** Constructor
+	@param[in,out]	trx		InnoDB transaction
+	@param[in,out]	part_share	Innopart share
+	@param[in]	ha_alter_info	ALTER information
+	@param[in]	old_part_info	Partition info of the table before
+					ALTER TABLE
+	@param[in,out]	new_partitions	Altered partition helper */
+	alter_parts(
+		trx_t*				trx,
+		Ha_innopart_share*		part_share,
+		const Alter_inplace_info*	ha_alter_info,
+		partition_info*			old_part_info,
+		Altered_partitions*		new_partitions)
+		:
+		m_trx(trx),
+		m_part_share(part_share),
+		m_ha_alter_info(ha_alter_info),
+		m_new_partitions(new_partitions),
+		m_factory(trx, ha_alter_info, part_share, old_part_info),
+		m_news(),
+		m_to_drop()
+	{}
 
-        /** Destructor */
-        ~alter_parts();
+	/** Destructor */
+	~alter_parts();
 
-        /** Create the to be created partitions and update internal
-        structures with concurrent writes blocked, while preparing
-        ALTER TABLE.
-        @param[in]      old_dd_tab      dd::Table before ALTER TABLE
-        @param[in,out]  new_dd_tab      dd::Table after ALTER TABLE
-        @param[in,out]  altered_table   Table definition after the ALTER
+	/** Create the to be created partitions and update internal
+	structures with concurrent writes blocked, while preparing
+	ALTER TABLE.
+	@param[in]	old_dd_tab	dd::Table before ALTER TABLE
+	@param[in,out]	new_dd_tab	dd::Table after ALTER TABLE
+	@param[in,out]	altered_table	Table definition after the ALTER
 	@return 0 or error number, my_error() should be called by callers */
-        int prepare(
-                const dd::Table&old_dd_tab,
-                dd::Table&      new_dd_tab,
-                TABLE*          altered_table);
+	int prepare(
+		const dd::Table&	old_dd_tab,
+		dd::Table&		new_dd_tab,
+		TABLE*			altered_table);
 
-        /** Notify the storage engine that the changes made during
-        prepare_inplace_alter_table() and inplace_alter_table()
-        will be rolled back for all the partitions. */
-        void rollback();
+	/** Notify the storage engine that the changes made during
+	prepare_inplace_alter_table() and inplace_alter_table()
+	will be rolled back for all the partitions. */
+	void rollback();
 
-        /** Try to commit the changes made during prepare_inplace_alter_table()
-        inside the storage engine. This is protected by MDL_EXCLUSIVE.
-        @param[in]      old_dd_tab      dd::Table before ALTER TABLE
-        @param[in,out]  new_dd_tab      dd::Table after ALTER TABLE
-        @param[in]      table           Table definition before the ALTER
-        @param[in,out]  altered_table   Table definition after the ALTER
+	/** Try to commit the changes made during prepare_inplace_alter_table()
+	inside the storage engine. This is protected by MDL_EXCLUSIVE.
+	@param[in]	old_dd_tab	dd::Table before ALTER TABLE
+	@param[in,out]	new_dd_tab	dd::Table after ALTER TABLE
+	@param[in]	table		Table definition before the ALTER
+	@param[in,out]	altered_table	Table definition after the ALTER
 	@return 0 or error number, my_error() should be called by callers */
-        int try_commit(
-                const dd::Table&old_dd_tab,
-                dd::Table&      new_dd_tab,
-                const TABLE*    table,
-                TABLE*          altered_table);
+	int try_commit(
+		const dd::Table&	old_dd_tab,
+		dd::Table&		new_dd_tab,
+		const TABLE*		table,
+		TABLE*			altered_table);
 
-        /** Note committed changes. */
-        void post_commit();
+	/** Note committed changes. */
+	void post_commit();
 
-        /** Determine if this is an ALTER TABLE ... PARTITION operation
-        @param[in]      ha_alter_info   thd DDL operation
-        @return whether it is a such kind of operation */
-        static inline bool apply_to(
-                const Alter_inplace_info*       ha_alter_info)
-        {
-                return((ha_alter_info->handler_flags & OPERATIONS) != 0);
-        }
+	/** Determine if this is an ALTER TABLE ... PARTITION operation
+	@param[in]	ha_alter_info	thd DDL operation
+	@return whether it is a such kind of operation */
+	static inline bool apply_to(
+		const Alter_inplace_info*	ha_alter_info)
+	{
+		return((ha_alter_info->handler_flags & OPERATIONS) != 0);
+	}
 
-        /** Determine if copying data between partitions is necessary
-        @param[in]      ha_alter_info   thd DDL operation
-        @return whether it is necessary to copy data */
-        static inline bool need_copy(const Alter_inplace_info* ha_alter_info)
-        {
-                ut_ad(apply_to(ha_alter_info));
+	/** Determine if copying data between partitions is necessary
+	@param[in]	ha_alter_info	thd DDL operation
+	@return whether it is necessary to copy data */
+	static inline bool need_copy(const Alter_inplace_info* ha_alter_info)
+	{
+		ut_ad(apply_to(ha_alter_info));
 
-                /* Basically, only DROP PARTITION, ADD PARTITION for RANGE/LIST
-                partitions don't require copying data between partitions */
-                if (ha_alter_info->handler_flags
-                    & Alter_inplace_info::ADD_PARTITION) {
-                        switch (ha_alter_info->modified_part_info->part_type) {
-                        case partition_type::RANGE:
-                        case partition_type::LIST:
-                                return(false);
-                        default:
-                                break;
-                        }
-                }
+		/* Basically, only DROP PARTITION, ADD PARTITION for RANGE/LIST
+		partitions don't require copying data between partitions */
+		if (ha_alter_info->handler_flags
+		    & Alter_inplace_info::ADD_PARTITION) {
+			switch (ha_alter_info->modified_part_info->part_type) {
+			case partition_type::RANGE:
+			case partition_type::LIST:
+				return(false);
+			default:
+				break;
+			}
+		}
 
-                return(!(ha_alter_info->handler_flags
-                         & (Alter_inplace_info::DROP_PARTITION)));
-        }
+		return(!(ha_alter_info->handler_flags
+			 & (Alter_inplace_info::DROP_PARTITION)));
+	}
 
 private:
 
-        /** Initialize the m_news and m_to_drop array here
-        @param[in]      old_dd_tab      dd::Table before ALTER TABLE
-        @param[in]      new_dd_tab      dd::Table after ALTER TABLE
-        @return true if success
-        @retval false on failure */
-        bool prepare_alter_part(
-                const dd::Table&old_dd_tab,
-                dd::Table&      new_dd_tab);
+	/** Initialize the m_news and m_to_drop array here
+	@param[in]	old_dd_tab	dd::Table before ALTER TABLE
+	@param[in]	new_dd_tab	dd::Table after ALTER TABLE
+	@retval true if success
+	@retval false on failure */
+	bool prepare_alter_part(
+		const dd::Table&	old_dd_tab,
+		dd::Table&		new_dd_tab);
 
-        /** Prepare or commit for all the partitions in table after ALTER TABLE
-        @param[in]      old_dd_tab      dd::Table before ALTER TABLE
-        @param[in,out]  new_dd_tab      dd::Table after ALTER TABLE
-        @param[in,out]  altered_table   Table definition after the ALTER
-        @param[in]      prepare         true if it's in prepare phase,
-                                        false if it's in commit phase
-	@return 0 or error number */
-        int prepare_or_commit_for_new(
-                const dd::Table&old_dd_tab,
-                dd::Table&      new_dd_tab,
-                TABLE*          altered_table,
-                bool            prepare);
-
-        /** Prepare or commit for all the partitions in table before ALTER TABLE
-        @param[in]      old_dd_tab      dd::Table before ALTER TABLE
+	/** Prepare or commit for all the partitions in table after ALTER TABLE
+	@param[in]	old_dd_tab	dd::Table before ALTER TABLE
+	@param[in,out]	new_dd_tab	dd::Table after ALTER TABLE
 	@param[in,out]	altered_table	Table definition after the ALTER
-        @param[in]      prepare         true if it's in prepare phase,
-                                        false if it's in commit phase
+	@param[in]	prepare		true if it's in prepare phase,
+					false if it's in commit phase
 	@return 0 or error number */
-        int prepare_or_commit_for_old(
-                const dd::Table&old_dd_tab,
-		TABLE*		altered_table,
-                bool            prepare);
+	int prepare_or_commit_for_new(
+		const dd::Table&	old_dd_tab,
+		dd::Table&		new_dd_tab,
+		TABLE*			altered_table,
+		bool			prepare);
+
+	/** Prepare or commit for all the partitions in table before ALTER TABLE
+	@param[in]	old_dd_tab	dd::Table before ALTER TABLE
+	@param[in,out]	altered_table	Table definition after the ALTER
+	@param[in]	prepare		true if it's in prepare phase,
+					false if it's in commit phase
+	@return 0 or error number */
+	int prepare_or_commit_for_old(
+		const dd::Table&	old_dd_tab,
+		TABLE*			altered_table,
+		bool			prepare);
 
 public:
-        /** Operations that the native partitioning can perform inplace */
-        static constexpr Alter_inplace_info::HA_ALTER_FLAGS     OPERATIONS =
-                Alter_inplace_info::ADD_PARTITION
-                | Alter_inplace_info::DROP_PARTITION
-                | Alter_inplace_info::ALTER_REBUILD_PARTITION
-                | Alter_inplace_info::COALESCE_PARTITION
-                | Alter_inplace_info::REORGANIZE_PARTITION;
+	/** Operations that the native partitioning can perform inplace */
+	static constexpr Alter_inplace_info::HA_ALTER_FLAGS	OPERATIONS =
+		Alter_inplace_info::ADD_PARTITION
+		| Alter_inplace_info::DROP_PARTITION
+		| Alter_inplace_info::ALTER_REBUILD_PARTITION
+		| Alter_inplace_info::COALESCE_PARTITION
+		| Alter_inplace_info::REORGANIZE_PARTITION;
 
 private:
 
-        /** InnoDB transaction */
-        trx_t* const                            m_trx;
+	/** InnoDB transaction */
+	trx_t* const				m_trx;
 
-        /** InnoDB partition specific Handler_share */
-        Ha_innopart_share* const                m_part_share;
+	/** InnoDB partition specific Handler_share */
+	Ha_innopart_share* const		m_part_share;
 
-        /** Operation being performed */
-        const Alter_inplace_info* const         m_ha_alter_info;
+	/** Operation being performed */
+	const Alter_inplace_info* const		m_ha_alter_info;
 
-        /** New partitions helper */
-        Altered_partitions* const               m_new_partitions;
+	/** New partitions helper */
+	Altered_partitions* const		m_new_partitions;
 
-        /** alter_part factory which creates all the necessary alter_part_* */
-        alter_part_factory                      m_factory;
+	/** alter_part factory which creates all the necessary alter_part_* */
+	alter_part_factory			m_factory;
 
-        /** The alter_part array for all the newly created partitions */
-        alter_part_array                        m_news;
+	/** The alter_part array for all the newly created partitions */
+	alter_part_array			m_news;
 
-        /** The alter_part array for all the to be dropped partitions */
-        alter_part_array                        m_to_drop;
+	/** The alter_part array for all the to be dropped partitions */
+	alter_part_array			m_to_drop;
 };
 
 /** Class which handles the partition of state PART_NORMAL.
@@ -9238,62 +9357,77 @@ and alter_part_factory::create_for_non_reorg. */
 class alter_part_normal : public alter_part
 {
 public:
-        /** Constructor
-        @param[in]      part_id         Partition id in the table. This could
-                                        be partition id for either old table
-                                        or new table, callers should remember
-                                        which one is applicable
-        @param[in]      state           Partition state of the partition on
-                                        which this class will do operations.
-                                        If this is for one partition in new
-                                        table, the partition state is the same
-                                        for both the new partition and the
-                                        corresponding old partition
-	@param[in,out]  old             InnoDB table object for old partition,
-                                        default is nullptr, which means there
-                                        is no corresponding object */
-        alter_part_normal(
-                uint            part_id,
-                partition_state state,
+	/** Constructor
+	@param[in]	part_id		Partition id in the table. This could
+					be partition id for either old table
+					or new table, callers should remember
+					which one is applicable
+	@param[in]	state		Partition state of the partition on
+					which this class will do operations.
+					If this is for one partition in new
+					table, the partition state is the same
+					for both the new partition and the
+					corresponding old partition
+	@param[in,out]	old		InnoDB table object for old partition,
+					default is nullptr, which means there
+					is no corresponding object */
+	alter_part_normal(
+		uint		part_id,
+		partition_state state,
 		dict_table_t*	old)
-                :
+		:
 		/* Table name is not used in this class, so pass a fake
 		one */
-                alter_part(nullptr, part_id, state, old->name.m_name, old)
-        {}
+		alter_part(nullptr, part_id, state, old->name.m_name, old)
+	{}
 
-        /** Destructor */
-        ~alter_part_normal() {}
+	/** Destructor */
+	~alter_part_normal() {}
 
-	/** @see alter_part::prepare */
-        int prepare(
-                TABLE*                  altered_table,
-                const dd::Partition*    old_part,
-                dd::Partition*          new_part)
-        {
-                ut_ad(old_part->level() == new_part->level());
-                ut_ad(old_part->name() == new_part->name());
+	/** Prepare
+	@param[in,out]	altered_table	Table definition after the ALTER
+	@param[in]	old_part	the stored old partition or nullptr
+					if no corresponding one exists
+	@param[in,out]	new_part	the stored new partition or nullptr
+					if no corresponding one exists
+	@return 0 or error number */
+	int prepare(
+		TABLE*			altered_table,
+		const dd::Partition*	old_part,
+		dd::Partition*		new_part)
+	{
+		ut_ad(old_part->level() == new_part->level());
+		ut_ad(old_part->name() == new_part->name());
 
-                dd_copy_private<dd::Partition>(*new_part, *old_part);
+		dd_copy_private<dd::Partition>(*new_part, *old_part);
 
-                return(0);
-        }
+		return(0);
+	}
 
-	/** @see alter_part::try_commit */
+	/** Try to commit
+	@param[in]	table		Table definition before the ALTER
+	@param[in,out]	altered_table	Table definition after the ALTER
+	@param[in]	old_part	the stored old partition or nullptr
+					if no corresponding one exists
+	@param[in,out]	new_part	the stored new partition or nullptr
+					if no corresponding one exists
+	@return 0 or error number */
 	int try_commit(
-                const TABLE*            table,
-                TABLE*                  altered_table,
-                const dd::Partition*    old_part,
-                dd::Partition*          new_part)
-        {
-		ut_ad(m_old != NULL);
+		const TABLE*		table,
+		TABLE*			altered_table,
+		const dd::Partition*	old_part,
+		dd::Partition*		new_part)
+	{
+		ut_ad(m_old != nullptr);
 
-		dd_table_close(m_old, NULL, NULL, false);
+		btr_drop_ahi_for_table(m_old);
+
 		mutex_enter(&dict_sys->mutex);
+		dd_table_close(m_old, nullptr, nullptr, true);
 		dict_table_remove_from_cache(m_old);
 		mutex_exit(&dict_sys->mutex);
-                return(0);
-        }
+		return(0);
+	}
 
 };
 
@@ -9303,47 +9437,46 @@ and alter_part_factory::create_for_non_reorg. */
 class alter_part_add : public alter_part
 {
 public:
-        /** Constructor
-        @param[in]      part_id         Partition id in the table. This could
-                                        be partition id for either old table
-                                        or new table, callers should remember
-                                        which one is applicable
-	@param[in]	part		Partition element for this partition
-        @param[in]      state           Partition state of the partition on
-                                        which this class will do operations.
-                                        If this is for one partition in new
-                                        table, the partition state is the same
-                                        for both the new partition and the
-                                        corresponding old partition
+	/** Constructor
+	@param[in]	part_id		Partition id in the table. This could
+					be partition id for either old table
+					or new table, callers should remember
+					which one is applicable
+	@param[in]	state		Partition state of the partition on
+					which this class will do operations.
+					If this is for one partition in new
+					table, the partition state is the same
+					for both the new partition and the
+					corresponding old partition
 	@param[in]	table_name	Partitioned table name, in the form
 					of db/table, which already considers
 					the charset
 	@param[in]	tablespace	Tablespace specified explicitly
-        @param[in,out]  trx             InnoDB transaction
-        @param[in]      ha_alter_info   ALTER information
-        @param[in]      file_per_table  Current value of innodb_file_per_table
+	@param[in,out]	trx		InnoDB transaction
+	@param[in]	ha_alter_info	ALTER information
+	@param[in]	file_per_table	Current value of innodb_file_per_table
 	@param[in]	autoinc		Next autoinc value to use
-        @param[in]      conflict        True if there is already a partition
-                                        table with the same name, which is
+	@param[in]	conflict	True if there is already a partition
+					table with the same name, which is
 					innodb_file_per_table */
-        alter_part_add(
-                uint                            part_id,
-                partition_state                 state,
+	alter_part_add(
+		uint				part_id,
+		partition_state			state,
 		const char*			table_name,
 		const char*			tablespace,
-                trx_t*                          trx,
-                const Alter_inplace_info*       ha_alter_info,
-                bool                            file_per_table,
+		trx_t*				trx,
+		const Alter_inplace_info*	ha_alter_info,
+		bool				file_per_table,
 		ib_uint64_t			autoinc,
-                bool                            conflict)
-                :
-                alter_part(trx, part_id, state, table_name, NULL),
-                m_ha_alter_info(ha_alter_info),
-                m_file_per_table(file_per_table),
+		bool				conflict)
+		:
+		alter_part(trx, part_id, state, table_name, nullptr),
+		m_ha_alter_info(ha_alter_info),
+		m_file_per_table(file_per_table),
 		m_autoinc(autoinc),
-                m_conflict(conflict)
-        {
-		if (tablespace == NULL || tablespace[0] == '\0') {
+		m_conflict(conflict)
+	{
+		if (tablespace == nullptr || tablespace[0] == '\0') {
 			m_tablespace[0] = '\0';
 		} else {
 			strcpy(m_tablespace, tablespace);
@@ -9351,16 +9484,22 @@ public:
 	}
 
 	/** Destructor */
-        ~alter_part_add() {}
+	~alter_part_add() {}
 
-	/** @see alter_part::prepare */
-        int prepare(
-                TABLE*                  altered_table,
-                const dd::Partition*    old_part,
-                dd::Partition*          new_part)
-        {
-		ut_ad(old_part != NULL);
-		ut_ad(new_part != NULL);
+	/** Prepare
+	@param[in,out]	altered_table	Table definition after the ALTER
+	@param[in]	old_part	the stored old partition or nullptr
+					if no corresponding one exists
+	@param[in,out]	new_part	the stored new partition or nullptr
+					if no corresponding one exists
+	@return 0 or error number */
+	int prepare(
+		TABLE*			altered_table,
+		const dd::Partition*	old_part,
+		dd::Partition*		new_part)
+	{
+		ut_ad(old_part != nullptr);
+		ut_ad(new_part != nullptr);
 		char	part_name[FN_REFLEN];
 
 		build_partition_name(new_part, need_rename(), part_name);
@@ -9371,28 +9510,33 @@ public:
 		if (error == 0 && alter_parts::need_copy(m_ha_alter_info)) {
 			mutex_enter(&dict_sys->mutex);
 			m_new = dict_table_check_if_in_cache_low(part_name);
-			ut_ad(m_new != NULL);
-			if (m_new != NULL) {
-				m_new->acquire();
-			}
+			ut_ad(m_new != nullptr);
+			m_new->acquire();
 			mutex_exit(&dict_sys->mutex);
 
-			return(m_new == NULL ? DB_TABLE_NOT_FOUND : 0);
+			return(m_new == nullptr ? DB_TABLE_NOT_FOUND : 0);
 		}
 
 		return(error);
 	}
 
-	/** @see alter_part::try_commit */
-        int try_commit(
-                const TABLE*            table,
-                TABLE*                  altered_table,
-                const dd::Partition*    old_part,
-                dd::Partition*          new_part)
-        {
+	/** Try to commit
+	@param[in]	table		Table definition before the ALTER
+	@param[in,out]	altered_table	Table definition after the ALTER
+	@param[in]	old_part	the stored old partition or nullptr
+					if no corresponding one exists
+	@param[in,out]	new_part	the stored new partition or nullptr
+					if no corresponding one exists
+	@return 0 or error number */
+	int try_commit(
+		const TABLE*		table,
+		TABLE*			altered_table,
+		const dd::Partition*	old_part,
+		dd::Partition*		new_part)
+	{
 		int	error = 0;
 
-                if (need_rename()) {
+		if (need_rename()) {
 			char	old_name[FN_REFLEN];
 			char	new_name[FN_REFLEN];
 			build_partition_name(
@@ -9402,12 +9546,12 @@ public:
 			error = rename_table(old_name, new_name, new_part);
 		}
 
-		if (m_new != NULL) {
-			dd_table_close(m_new, m_trx->mysql_thd, NULL, false);
+		if (m_new != nullptr) {
+			dd_table_close(m_new, m_trx->mysql_thd, nullptr, false);
 		}
 
 		return(error);
-        }
+	}
 
 private:
 	/** Check if the new partition file needs a temporary name and
@@ -9415,18 +9559,18 @@ private:
 	bool need_rename() const { return(m_conflict); }
 
 private:
-        /** ALTER information */
-        const Alter_inplace_info*       m_ha_alter_info;
+	/** ALTER information */
+	const Alter_inplace_info*	m_ha_alter_info;
 
-        /** Current value of innodb_file_per_table */
-        const bool                      m_file_per_table;
+	/** Current value of innodb_file_per_table */
+	const bool			m_file_per_table;
 
 	/** Next AUTOINC value to use */
 	const ib_uint64_t		m_autoinc;
 
-        /** True if there is already a file_per_table partition table
+	/** True if there is already a file_per_table partition table
 	with the same name */
-        const bool                      m_conflict;
+	const bool			m_conflict;
 
 	/** Tablespace of this partition */
 	char				m_tablespace[FN_REFLEN + 1];
@@ -9440,46 +9584,53 @@ class alter_part_drop : public alter_part
 {
 public:
 	/** Constructor
-        @param[in]      part_id         Partition id in the table. This could
-                                        be partition id for either old table
-                                        or new table, callers should remember
-                                        which one is applicable
-        @param[in]      state           Partition state of the partition on
-                                        which this class will do operations.
-                                        If this is for one partition in new
-                                        table, the partition state is the same
-                                        for both the new partition and the
-                                        corresponding old partition
-	@param[in]			Partitioned table name, in the form
+	@param[in]	part_id		Partition id in the table. This could
+					be partition id for either old table
+					or new table, callers should remember
+					which one is applicable
+	@param[in]	state		Partition state of the partition on
+					which this class will do operations.
+					If this is for one partition in new
+					table, the partition state is the same
+					for both the new partition and the
+					corresponding old partition
+	@param[in]	table_name	Partitioned table name, in the form
 					of db/table, which already considers
 					the charset
-        @param[in,out]  trx             InnoDB transaction
-	@param[in,out]  old             InnoDB table object for old partition,
-                                        default is nullptr, which means there
-                                        is no corresponding object */	
-        alter_part_drop(
-                uint                    part_id,
-                partition_state         state,
+	@param[in,out]	trx		InnoDB transaction
+	@param[in,out]	old		InnoDB table object for old partition,
+					default is nullptr, which means there
+					is no corresponding object */
+	alter_part_drop(
+		uint			part_id,
+		partition_state		state,
 		const char*		table_name,
-                trx_t*                  trx,
+		trx_t*			trx,
 		dict_table_t*		old)
-                :
-                alter_part(trx, part_id, state, table_name, old)
-        {}
+		:
+		alter_part(trx, part_id, state, table_name, old)
+	{}
 
 	/** Destructor */
-        ~alter_part_drop() {}
+	~alter_part_drop() {}
 
-	/** @see alter_part::try_commit */
-        int try_commit(
-                const TABLE*            table,
-                TABLE*                  altered_table,
-                const dd::Partition*    old_part,
-                dd::Partition*          new_part)
-        {
-                ut_ad(new_part == nullptr);
+	/** Try to commit
+	@param[in]	table		Table definition before the ALTER
+	@param[in,out]	altered_table	Table definition after the ALTER
+	@param[in]	old_part	the stored old partition or nullptr
+					if no corresponding one exists
+	@param[in,out]	new_part	the stored new partition or nullptr
+					if no corresponding one exists
+	@return 0 or error number */
+	int try_commit(
+		const TABLE*		table,
+		TABLE*			altered_table,
+		const dd::Partition*	old_part,
+		dd::Partition*		new_part)
+	{
+		ut_ad(new_part == nullptr);
 
-		dd_table_close(m_old, NULL, NULL, false);
+		dd_table_close(m_old, nullptr, nullptr, false);
 
 		char	part_name[FN_REFLEN];
 		build_partition_name(old_part, false, part_name);
@@ -9497,74 +9648,86 @@ and alter_part_factory::create_for_non_reorg. */
 class alter_part_change : public alter_part
 {
 public:
-        /** Constructor
-        @param[in]      part_id         Partition id in the table. This could
-                                        be partition id for either old table
-                                        or new table, callers should remember
-                                        which one is applicable
-	@param[in]      part            Partition element for this partition
-        @param[in]      state           Partition state of the partition on
-                                        which this class will do operations.
-                                        If this is for one partition in new
-                                        table, the partition state is the same
-                                        for both the new partition and the
-                                        corresponding old partition
-	@param[in]			Partitioned table name, in the form
+	/** Constructor
+	@param[in]	part_id		Partition id in the table. This could
+					be partition id for either old table
+					or new table, callers should remember
+					which one is applicable
+	@param[in]	state		Partition state of the partition on
+					which this class will do operations.
+					If this is for one partition in new
+					table, the partition state is the same
+					for both the new partition and the
+					corresponding old partition
+	@param[in]	table_name	Partitioned table name, in the form
 					of db/table, which already considers
 					the chraset
-	@param[in]			Tablespace specified explicitly
-        @param[in,out]  trx             InnoDB transaction
-	@param[in,out]  old             InnoDB table object for old partition,
-                                        default is nullptr, which means there
-                                        is no corresponding object
-        @param[in]      ha_alter_info   ALTER information
-        @param[in]      file_per_table  Current value of innodb_file_per_table
+	@param[in]	tablespace	Tablespace specified explicitly
+	@param[in,out]	trx		InnoDB transaction
+	@param[in,out]	old		InnoDB table object for old partition,
+					default is nullptr, which means there
+					is no corresponding object
+	@param[in]	ha_alter_info	ALTER information
+	@param[in]	file_per_table	Current value of innodb_file_per_table
 	@param[in]	autoinc		Next AUTOINC value to use */
-        alter_part_change(
-                uint                            part_id,
-                partition_state                 state,
+	alter_part_change(
+		uint				part_id,
+		partition_state			state,
 		const char*			table_name,
 		const char*			tablespace,
-                trx_t*                          trx,
+		trx_t*				trx,
 		dict_table_t*			old,
-                const Alter_inplace_info*       ha_alter_info,
-                bool                            file_per_table,
+		const Alter_inplace_info*	ha_alter_info,
+		bool				file_per_table,
 		ib_uint64_t			autoinc)
-                :
-                alter_part(trx, part_id, state, table_name, old),
-                m_ha_alter_info(ha_alter_info),
-                m_file_per_table(file_per_table),
+		:
+		alter_part(trx, part_id, state, table_name, old),
+		m_ha_alter_info(ha_alter_info),
+		m_file_per_table(file_per_table),
 		m_autoinc(autoinc)
-        {
-		if (tablespace == NULL || tablespace[0] == '\0') {
-                        m_tablespace[0] = '\0';
-                } else {
-                        strcpy(m_tablespace, tablespace);
-                }
+	{
+		if (tablespace == nullptr || tablespace[0] == '\0') {
+			m_tablespace[0] = '\0';
+		} else {
+			strcpy(m_tablespace, tablespace);
+		}
 	}
 
-        /** Destructor */
-        ~alter_part_change() {}
+	/** Destructor */
+	~alter_part_change() {}
 
-	/** @see alter_part::prepare */
-        int prepare(
-                TABLE*                  altered_table,
-                const dd::Partition*    old_part,
-                dd::Partition*          new_part);
+	/** Prepare
+	@param[in,out]	altered_table	Table definition after the ALTER
+	@param[in]	old_part	the stored old partition or nullptr
+					if no corresponding one exists
+	@param[in,out]	new_part	the stored new partition or nullptr
+					if no corresponding one exists
+	@return 0 or error number */
+	int prepare(
+		TABLE*			altered_table,
+		const dd::Partition*	old_part,
+		dd::Partition*		new_part);
 
-        /** @see alter_part::try_commit */
-        int try_commit(
-                const TABLE*            table,
-                TABLE*                  altered_table,
-                const dd::Partition*    old_part,
-                dd::Partition*          new_part);
+	/** Try to commit
+	@param[in]	table		Table definition before the ALTER
+	@param[in,out]	altered_table	Table definition after the ALTER
+	@param[in]	old_part	the stored old partition or nullptr
+					if no corresponding one exists
+	@param[in,out]	new_part	the stored new partition or nullptr
+					if no corresponding one exists
+	@return 0 or error number */
+	int try_commit(
+		const TABLE*		table,
+		TABLE*			altered_table,
+		const dd::Partition*	old_part,
+		dd::Partition*		new_part);
 
 private:
-        /** ALTER information */
-        const Alter_inplace_info*       m_ha_alter_info;
+	/** ALTER information */
+	const Alter_inplace_info*	m_ha_alter_info;
 
-        /** Current value of innodb_file_per_table */
-        const bool                      m_file_per_table;
+	/** Current value of innodb_file_per_table */
+	const bool			m_file_per_table;
 
 	/** Next AUTOINC value to use */
 	const ib_uint64_t		m_autoinc;
@@ -9573,15 +9736,21 @@ private:
 	char				m_tablespace[FN_REFLEN + 1];
 };
 
-/** @see alter_part::prepare */
+/** Prepare
+@param[in,out]	altered_table	Table definition after the ALTER
+@param[in]	old_part	the stored old partition or nullptr
+				if no corresponding one exists
+@param[in,out]	new_part	the stored new partition or nullptr
+				if no corresponding one exists
+@return 0 or error number */
 int
 alter_part_change::prepare(
-	TABLE*                  altered_table,
-	const dd::Partition*    old_part,
-	dd::Partition*          new_part)
+	TABLE*			altered_table,
+	const dd::Partition*	old_part,
+	dd::Partition*		new_part)
 {
-	ut_ad(old_part != NULL);
-	ut_ad(new_part != NULL);
+	ut_ad(old_part != nullptr);
+	ut_ad(new_part != nullptr);
 
 	/* In some scenario, it could be unnecessary to create partition
 	with temporary name, for example, old one is in innodb_system while
@@ -9597,32 +9766,37 @@ alter_part_change::prepare(
 	if (error == 0) {
 		mutex_enter(&dict_sys->mutex);
 		m_new = dict_table_check_if_in_cache_low(part_name);
-		ut_ad(m_new != NULL);
-		if (m_new != NULL) {
-			m_new->acquire();
-		}
+		ut_ad(m_new != nullptr);
+		m_new->acquire();
 		mutex_exit(&dict_sys->mutex);
 
-		return(m_new == NULL);
+		return(m_new == nullptr);
 	}
 
 	return(error);
 }
 
-/** @see alter_part::try_commit */
+/** Try to commit
+@param[in]	table		Table definition before the ALTER
+@param[in,out]	altered_table	Table definition after the ALTER
+@param[in]	old_part	the stored old partition or nullptr
+				if no corresponding one exists
+@param[in,out]	new_part	the stored new partition or nullptr
+				if no corresponding one exists
+@return 0 or error number */
 int
 alter_part_change::try_commit(
-	const TABLE*            table,
-	TABLE*                  altered_table,
-	const dd::Partition*    old_part,
-	dd::Partition*          new_part)
+	const TABLE*		table,
+	TABLE*			altered_table,
+	const dd::Partition*	old_part,
+	dd::Partition*		new_part)
 {
-	ut_ad(old_part != NULL);
-	ut_ad(new_part != NULL);
+	ut_ad(old_part != nullptr);
+	ut_ad(new_part != nullptr);
 	ut_ad(old_part->level() == new_part->level());
 	ut_ad(old_part->name() == new_part->name());
 
-	dd_table_close(m_old, NULL, NULL, false);
+	dd_table_close(m_old, nullptr, nullptr, false);
 
 	char	old_name[FN_REFLEN];
 	char	temp_name[FN_REFLEN];
@@ -9640,8 +9814,8 @@ alter_part_change::try_commit(
 		}
 	}
 
-	if (m_new != NULL) {
-		dd_table_close(m_new, m_trx->mysql_thd, NULL, false);
+	if (m_new != nullptr) {
+		dd_table_close(m_new, m_trx->mysql_thd, nullptr, false);
 	}
 
 	return(error);
@@ -9649,21 +9823,21 @@ alter_part_change::try_commit(
 
 /** Create alter_part_* object(s) for subpartitions of a partition,
 or the partition itself
-@param[out]     array           Where to store the new object(s)
-@param[in]      part            partition_element to handle
-@param[in,out]  part_id         Partition id for both partition and
-                                subpartition, which would be increased
-                                by number of object(s) created
-@param[in]      old_part_id     Start partition id of the table before
-                                ALTER TABLE
-@param[in]      state           Partition state
-@param[in]      conflict        Only valid when state is
-                                PART_TO_BE_ADDED. True if the new
-                                (sub)partition has the same name with
-                                an exist one and they are of
+@param[in,out]	array		Where to store the new object(s)
+@param[in]	part		partition_element to handle
+@param[in,out]	part_id		Partition id for both partition and
+				subpartition, which would be increased
+				by number of object(s) created
+@param[in]	old_part_id	Start partition id of the table before
+				ALTER TABLE
+@param[in]	state		Partition state
+@param[in]	conflict	Only valid when state is
+				PART_TO_BE_ADDED. True if the new
+				(sub)partition has the same name with
+				an exist one and they are of
 				innodb_file_per_table
-@return false   On success
-@return true    On failure */
+@retval false	On success
+@retval true	On failure */
 bool
 alter_part_factory::create_one(
 	alter_part_array&	array,
@@ -9676,15 +9850,15 @@ alter_part_factory::create_one(
 	if (part->subpartitions.elements > 0) {
 		partition_element*	sub_elem;
 		List_iterator_fast <partition_element>
-			new_sub_it(part->subpartitions);	
-		while ((sub_elem = new_sub_it++) != NULL) {
+			new_sub_it(part->subpartitions);
+		while ((sub_elem = new_sub_it++) != nullptr) {
 			const char*	tablespace = partition_get_tablespace(
 				m_ha_alter_info->create_info->tablespace,
 				part, sub_elem);
 			alter_part*	alter = create_one_low(
 				part_id, old_part_id++, state, tablespace,
 				conflict);
-			if (alter == NULL) {
+			if (alter == nullptr) {
 				return(true);
 			}
 
@@ -9693,10 +9867,11 @@ alter_part_factory::create_one(
 		}
 	} else {
 		const char*	tablespace = partition_get_tablespace(
-			m_ha_alter_info->create_info->tablespace, part, NULL);
+			m_ha_alter_info->create_info->tablespace, part,
+			nullptr);
 		alter_part* alter = create_one_low(
 			part_id, old_part_id++, state, tablespace, conflict);
-		if (alter == NULL) {
+		if (alter == nullptr) {
 			return(true);
 		}
 
@@ -9708,52 +9883,54 @@ alter_part_factory::create_one(
 }
 
 /** Create the specified alter_part_* object
-@param[in]      part            partition_element to handle
-@param[in]      part_id         Partition id for current partition
-@param[in]      state           Partition state
+@param[in]	part_id		Partition id for current partition
+
+@param[in]	old_part_id	Start partition id of the table before
+				ALTER TABLE
+@param[in]	state		Partition state
 @param[in]	tablespace	Tablespace specified explicitly
-@param[in]      conflict        Only valid when state is
-                                PART_TO_BE_ADDED. True if the new
-                                (sub)partition has the same name with
-                                an exist one and they are of
+@param[in]	conflict	Only valid when state is
+				PART_TO_BE_ADDED. True if the new
+				(sub)partition has the same name with
+				an exist one and they are of
 				innodb_file_per_table
-@return alter_part_* object or NULL */
+@return alter_part_* object or nullptr */
 alter_part*
 alter_part_factory::create_one_low(
-        uint&                   part_id,
+	uint&			part_id,
 	uint			old_part_id,
-        partition_state         state,
+	partition_state		state,
 	const char*		tablespace,
-        bool                    conflict)
+	bool			conflict)
 {
-	alter_part*		alter_part = NULL;
+	alter_part*		alter_part = nullptr;
 
-        switch (state) {
-        case PART_NORMAL:
-                alter_part = UT_NEW(alter_part_normal(
-                        part_id, state,
+	switch (state) {
+	case PART_NORMAL:
+		alter_part = UT_NEW(alter_part_normal(
+			part_id, state,
 			m_part_share->get_table_part(old_part_id)),
 			mem_key_partitioning);
-                break;
-        case PART_TO_BE_ADDED:
-                alter_part = UT_NEW(alter_part_add(
-                        part_id, state,
+		break;
+	case PART_TO_BE_ADDED:
+		alter_part = UT_NEW(alter_part_add(
+			part_id, state,
 			m_part_share->get_table_share()->normalized_path.str,
 			tablespace, m_trx, m_ha_alter_info,
 			m_file_per_table, m_part_share->next_auto_inc_val,
 			conflict), mem_key_partitioning);
-        	break;
+		break;
 	case PART_TO_BE_DROPPED:
-        case PART_TO_BE_REORGED:
-        case PART_REORGED_DROPPED:
-        	alter_part = UT_NEW(alter_part_drop(
+	case PART_TO_BE_REORGED:
+	case PART_REORGED_DROPPED:
+		alter_part = UT_NEW(alter_part_drop(
 			part_id, state,
 			m_part_share->get_table_share()->normalized_path.str,
 			m_trx, m_part_share->get_table_part(old_part_id)),
 			mem_key_partitioning);
-                break;
+		break;
 	case PART_CHANGED:
-        	alter_part = UT_NEW(alter_part_change(
+		alter_part = UT_NEW(alter_part_change(
 			part_id, state,
 			m_part_share->get_table_share()->normalized_path.str,
 			tablespace, m_trx,
@@ -9761,92 +9938,92 @@ alter_part_factory::create_one_low(
 			m_ha_alter_info, m_file_per_table,
 			m_part_share->next_auto_inc_val),
 			mem_key_partitioning);
-                break;
-        default:
-                ut_ad(0);
-        }
+		break;
+	default:
+		ut_ad(0);
+	}
 
 	return(alter_part);
 }
 
 /** Check if the partition(and its subpartitions) conflicts with any
 of the original ones, will create the alter_part_add objects here
-@param[in]      new_part        The new partition to check
-@param[out]     all_news        To store the alter_part_add objects here
-@param[in,out]  new_part_id     Partition id for both partition and
-                                subpartition, which would be increased
-                                by number of subpartitions per partition here
-@return True if the names are same, otherwise false */
+@param[in]	new_part	The new partition to check
+@param[in,out]	all_news	To store the alter_part_add objects here
+@param[in,out]	new_part_id	Partition id for both partition and
+				subpartition, which would be increased
+				by number of subpartitions per partition here
+@return true if the names are same, otherwise false */
 bool
 alter_part_factory::check_conflict_and_create(
-        partition_element*      new_part,
-        alter_part_array&       all_news,
-        uint&                   new_part_id)
+	partition_element*	new_part,
+	alter_part_array&	all_news,
+	uint&			new_part_id)
 {
-        ut_ad((m_ha_alter_info->handler_flags
-               & Alter_inplace_info::REORGANIZE_PARTITION) != 0);
+	ut_ad((m_ha_alter_info->handler_flags
+	       & Alter_inplace_info::REORGANIZE_PARTITION) != 0);
 
-        partition_info*         part_info = m_ha_alter_info->modified_part_info;
-        /* To compare with this partition list which contains all the
-        to be reorganized partitions */
-        List_iterator_fast <partition_element>  tmp_part_it(
-                part_info->temp_partitions);
-        partition_element*                      tmp_part_elem;
+	partition_info*		part_info = m_ha_alter_info->modified_part_info;
+	/* To compare with this partition list which contains all the
+	to be reorganized partitions */
+	List_iterator_fast <partition_element>	tmp_part_it(
+		part_info->temp_partitions);
+	partition_element*			tmp_part_elem;
 
-        while ((tmp_part_elem = tmp_part_it++) != nullptr) {
-                if (my_strcasecmp(system_charset_info, new_part->partition_name,
-                                  tmp_part_elem->partition_name) != 0) {
-                        continue;
-                }
+	while ((tmp_part_elem = tmp_part_it++) != nullptr) {
+		if (my_strcasecmp(system_charset_info, new_part->partition_name,
+				  tmp_part_elem->partition_name) != 0) {
+			continue;
+		}
 
-                if (m_ha_alter_info->modified_part_info->is_sub_partitioned()) {
-                        List_iterator_fast <partition_element>
-                                tmp_sub_it(tmp_part_elem->subpartitions);
-                        partition_element*      tmp_sub_elem;
-                        List_iterator_fast <partition_element>
-                                new_sub_it(new_part->subpartitions);
-                        partition_element*      new_sub_elem;
+		if (m_ha_alter_info->modified_part_info->is_sub_partitioned()) {
+			List_iterator_fast <partition_element>
+				tmp_sub_it(tmp_part_elem->subpartitions);
+			partition_element*	tmp_sub_elem;
+			List_iterator_fast <partition_element>
+				new_sub_it(new_part->subpartitions);
+			partition_element*	new_sub_elem;
 
-                        while ((new_sub_elem = new_sub_it++) != nullptr) {
-                                ut_ad(new_sub_elem->partition_name != nullptr);
-                                tmp_sub_elem = tmp_sub_it++;
-                                ut_ad(tmp_sub_elem != nullptr);
-                                ut_ad(tmp_sub_elem->partition_name != nullptr);
+			while ((new_sub_elem = new_sub_it++) != nullptr) {
+				ut_ad(new_sub_elem->partition_name != nullptr);
+				tmp_sub_elem = tmp_sub_it++;
+				ut_ad(tmp_sub_elem != nullptr);
+				ut_ad(tmp_sub_elem->partition_name != nullptr);
 
-                                bool    conflict = is_conflict(
+				bool	conflict = is_conflict(
 					new_sub_elem, tmp_sub_elem);
-                                if (create_one(all_news, new_sub_elem,
+				if (create_one(all_news, new_sub_elem,
 					       new_part_id, 0,
-                                               PART_TO_BE_ADDED, conflict)) {
-                                        return(true);
-                                }
-                        }
-                        ut_ad((tmp_sub_elem = tmp_sub_it++) == nullptr);
-                } else {
-                        if (create_one(all_news, new_part, new_part_id, 0,
-                                       PART_TO_BE_ADDED, true)) {
-                                return(true);
-                        }
-                }
+					       PART_TO_BE_ADDED, conflict)) {
+					return(true);
+				}
+			}
+			ut_ad((tmp_sub_elem = tmp_sub_it++) == nullptr);
+		} else {
+			if (create_one(all_news, new_part, new_part_id, 0,
+				       PART_TO_BE_ADDED, true)) {
+				return(true);
+			}
+		}
 
-                /* There should be only one match */
-                return(false);
-        }
+		/* There should be only one match */
+		return(false);
+	}
 
-        return(create_one(all_news, new_part, new_part_id, 0,
+	return(create_one(all_news, new_part, new_part_id, 0,
 			  PART_TO_BE_ADDED, false));
 }
 
 /** Check if the two (sub)partitions conflict with each other,
 Which means they have same name.
-@param[in]      new_part        New partition to check
-@param[in]      old_part        Old partition to check
-@retval True    Conflict
-@retval False   Not conflict */
+@param[in]	new_part	New partition to check
+@param[in]	old_part	Old partition to check
+@retval true	Conflict
+@retval false	Not conflict */
 bool
 alter_part_factory::is_conflict(
-        const partition_element*        new_part,
-        const partition_element*        old_part)
+	const partition_element*	new_part,
+	const partition_element*	old_part)
 {
 	if (my_strcasecmp(system_charset_info, new_part->partition_name,
 			  old_part->partition_name) != 0) {
@@ -9867,7 +10044,7 @@ list, it contains
 {PART_NORMAL, PART_NORMAL, PART_TO_BE_ADDED, PART_TO_BE_ADDED,
 PART_TO_BE_ADDED, PART_TO_BE_ADDED}.
 
-So finally, the to_drop array would contains
+So finally, the to_drop array would contain
 {alter_part_drop, alter_part_drop}, which are for p2, p3;
 the all_news array would contains
 {alter_part_normal, alter_part_normal, alter_part_add, alter_part_add,
@@ -9878,106 +10055,106 @@ partition/subpartition have the same name, would be checked here too */
 
 /** Create the alter_part_* objects when it's an operation like
 REORGANIZE PARTITION
-@param[out]     to_drop         To store the alter_part_* objects
-                                for partitions to be dropped
-@param[out]     all_news        To store the alter_part_* objects
-                                for partitions in table after ALTER TABLE
-@return False   On success
-@retval True    On failure */
+@param[in,out]	to_drop		To store the alter_part_* objects
+				for partitions to be dropped
+@param[in,out]	all_news	To store the alter_part_* objects
+				for partitions in table after ALTER TABLE
+@return false	On success
+@retval true	On failure */
 bool
 alter_part_factory::create_for_reorg(
-        alter_part_array&       to_drop,
-        alter_part_array&       all_news)
+	alter_part_array&	to_drop,
+	alter_part_array&	all_news)
 {
-        ut_ad((m_ha_alter_info->handler_flags
-               & Alter_inplace_info::REORGANIZE_PARTITION) != 0);
-        ut_ad(m_ha_alter_info->modified_part_info->num_subparts
-              == m_old_part_info->num_subparts);
+	ut_ad((m_ha_alter_info->handler_flags
+	       & Alter_inplace_info::REORGANIZE_PARTITION) != 0);
+	ut_ad(m_ha_alter_info->modified_part_info->num_subparts
+	      == m_old_part_info->num_subparts);
 
-        partition_info*         part_info = m_ha_alter_info->modified_part_info;
-        /* This list contains only the to be reorganized partitions,
-        the sequence is the same as the list of m_old_part_info,
-        and they should be consecutive ones */
-        List_iterator_fast <partition_element>  tmp_part_it(
-                part_info->temp_partitions);
-        /* This list contains all the new partitions */
-        List_iterator_fast <partition_element>  part_it(
-                part_info->partitions);
-        /* This list contains all the old partitions */
-        List_iterator_fast <partition_element>  old_part_it(
-                m_old_part_info->partitions);
-        partition_element*      part_elem;
-        partition_element*      tmp_part_elem;
-        partition_element*      old_part_elem;
-        uint                    parts_per_part =
-                part_info->is_sub_partitioned() ? part_info->num_subparts : 1;
+	partition_info*	 part_info = m_ha_alter_info->modified_part_info;
+	/* This list contains only the to be reorganized partitions,
+	the sequence is the same as the list of m_old_part_info,
+	and they should be consecutive ones */
+	List_iterator_fast <partition_element>	tmp_part_it(
+		part_info->temp_partitions);
+	/* This list contains all the new partitions */
+	List_iterator_fast <partition_element>	part_it(
+		part_info->partitions);
+	/* This list contains all the old partitions */
+	List_iterator_fast <partition_element>	old_part_it(
+		m_old_part_info->partitions);
+	partition_element*	part_elem;
+	partition_element*	tmp_part_elem;
+	partition_element*	old_part_elem;
+	uint			parts_per_part =
+		part_info->is_sub_partitioned() ? part_info->num_subparts : 1;
 
-        tmp_part_elem = tmp_part_it++;
-        ut_ad(tmp_part_elem != nullptr);
-        old_part_elem = old_part_it++;
-        ut_ad(old_part_elem != nullptr);
+	tmp_part_elem = tmp_part_it++;
+	ut_ad(tmp_part_elem != nullptr);
+	old_part_elem = old_part_it++;
+	ut_ad(old_part_elem != nullptr);
 
-        uint                    old_part_id = 0;
-        uint                    new_part_id = 0;
+	uint			old_part_id = 0;
+	uint			new_part_id = 0;
 
-        /* There are 3 steps here:
-        1. Check if the old one is a to be reorganized one, if so, mark it
-        and check next old one
-        2. If not, check if the new one is a to be added one, if so, mark it
-        and check next new one
-        3. If not, the old one and the new one should point to the same
-        partition */
-        while ((part_elem = part_it++) != nullptr) {
+	/* There are 3 steps here:
+	1. Check if the old one is a to be reorganized one, if so, mark it
+	and check next old one
+	2. If not, check if the new one is a to be added one, if so, mark it
+	and check next new one
+	3. If not, the old one and the new one should point to the same
+	partition */
+	while ((part_elem = part_it++) != nullptr) {
 
-                while (old_part_elem != nullptr && tmp_part_elem != nullptr
-                       && strcmp(tmp_part_elem->partition_name,
-                                 old_part_elem->partition_name) == 0) {
-                        ut_ad(tmp_part_elem->part_state == PART_TO_BE_REORGED);
+		while (old_part_elem != nullptr && tmp_part_elem != nullptr
+		       && strcmp(tmp_part_elem->partition_name,
+				 old_part_elem->partition_name) == 0) {
+			ut_ad(tmp_part_elem->part_state == PART_TO_BE_REORGED);
 
-                        if (create_one(to_drop, old_part_elem,
+			if (create_one(to_drop, old_part_elem,
 				       old_part_id, old_part_id,
-                                       PART_TO_BE_REORGED, false)) {
-                                return(true);
-                        }
+				       PART_TO_BE_REORGED, false)) {
+				return(true);
+			}
 
-                        old_part_elem = old_part_it++;
-                        tmp_part_elem = tmp_part_it++;
-                }
+			old_part_elem = old_part_it++;
+			tmp_part_elem = tmp_part_it++;
+		}
 
-                switch (part_elem->part_state) {
-                case PART_TO_BE_ADDED:
+		switch (part_elem->part_state) {
+		case PART_TO_BE_ADDED:
 
-                        if (check_conflict_and_create(part_elem, all_news,
-                                                       new_part_id)) {
-                                return(true);
-                        }
+			if (check_conflict_and_create(part_elem, all_news,
+						       new_part_id)) {
+				return(true);
+			}
 
-                        break;
+			break;
 
-                case PART_NORMAL:
+		case PART_NORMAL:
 
-                        ut_ad(strcmp(part_elem->partition_name,
-                                     old_part_elem->partition_name) == 0);
+			ut_ad(strcmp(part_elem->partition_name,
+				     old_part_elem->partition_name) == 0);
 
-                        if (create_one(all_news, part_elem, new_part_id,
+			if (create_one(all_news, part_elem, new_part_id,
 				       old_part_id, PART_NORMAL, false)) {
-                                return(true);
-                        }
+				return(true);
+			}
 
-                        old_part_elem = old_part_it++;
-                        old_part_id += parts_per_part;
+			old_part_elem = old_part_it++;
+			old_part_id += parts_per_part;
 
-                        break;
+			break;
 
-                default:
-                        ut_ad(0);
-                }
-        }
+		default:
+			ut_ad(0);
+		}
+	}
 
-        ut_ad(old_part_elem == nullptr);
-        ut_ad(tmp_part_elem == nullptr);
+	ut_ad(old_part_elem == nullptr);
+	ut_ad(tmp_part_elem == nullptr);
 
-        return(false);
+	return(false);
 }
 
 /** Suppose that there is a table with 4 range partitions: p0, p1, p2, p3.
@@ -9986,17 +10163,17 @@ alter_part_factory::create_for_reorg(
 modified_part_info->partitions list contains
 {PART_NORMAL, PART_NORMAL, PART_NORMAL, PART_NORMAL, PART_TO_BE_ADDED}.
 
-So finally, the to_drop array would contains
+So finally, the to_drop array would contain
 {}, which is empty;
 the all_news array would contains
 {alter_part_normal, alter_part_normal, alter_part_normal, alter_part_normal,
 alter_part_add}.
 
 2. DROP PARTITION p2
-modified_part_info->partitions list contains
+modified_part_info->partitions list contain
 {PART_NORMAL, PART_NORMAL, PART_TO_BE_DROPPED, PART_NORMAL}.
 
-So finally, the to_drop array would contains
+So finally, the to_drop array would contain
 {alter_part_drop}, which is for p2, so part_id is 2;
 the all_news array would contains
 {alter_part_normal, alter_part_normal, alter_part_normal}.
@@ -10009,7 +10186,7 @@ modified_part_info->partitions list contains
 {PART_CHANGED, PART_CHANGED, PART_CHANGED, PART_CHANGED, PART_TO_BE_ADDED,
 PART_TO_BE_ADDED}.
 
-So finally, the to_drop array would contains
+So finally, the to_drop array would contain
 {}, which is empty;
 the all_news array would contains
 {alter_part_change, alter_part_change, alter_part_change, alter_part_change,
@@ -10019,7 +10196,7 @@ alter_part_add, alter_part_add}.
 modified_part_info->partitions contains:
 {PART_CHANGED, PART_CHANGED, PART_REORGED_DROPPED, PART_REORGED_DROPPED}.
 
-So finally, the to_drop array would contains
+So finally, the to_drop array would contain
 {alter_part_drop, alter_part_drop}, which are for p2, p3, part_id are 2 and 3;
 the all_news array would contains
 {alter_part_change, alter_part_change}.
@@ -10028,143 +10205,143 @@ the all_news array would contains
 modified_part_info->partitions contains:
 {PART_NORMAL, PART_CHANGED, PART_NORMAL, PART_CHANGED}.
 
-So finally, the to_drop array would contains
+So finally, the to_drop array would contain
 {}, which is empty;
 the all_news array would contains
 {alter_part_normal, alter_part_change, alter_part_normal, alter_part_change}. */
 
 /** Create the alter_part_* objects when it's NOT an operation like
 REORGANIZE PARTITION
-@param[out]     to_drop         To store the alter_part_* objects
-                                for partitions to be dropped
-@param[out]     all_news        To store the alter_part_* objects
-                                for partitions in table after ALTER TABLE
-@return False   On success
-@retval True    On Failure */
+@param[in,out]	to_drop		To store the alter_part_* objects
+				for partitions to be dropped
+@param[in,out]	all_news	To store the alter_part_* objects
+				for partitions in table after ALTER TABLE
+@return	false	On success
+@retval	true	On Failure */
 bool
 alter_part_factory::create_for_non_reorg(
-        alter_part_array&       to_drop,
-        alter_part_array&       all_news)
+	alter_part_array&	to_drop,
+	alter_part_array&	all_news)
 {
-        ut_ad((m_ha_alter_info->handler_flags
-               & Alter_inplace_info::REORGANIZE_PARTITION) == 0);
+	ut_ad((m_ha_alter_info->handler_flags
+	       & Alter_inplace_info::REORGANIZE_PARTITION) == 0);
 
-        partition_info*         part_info = m_ha_alter_info->modified_part_info;
-        uint                    parts_per_part =
-                part_info->is_sub_partitioned() ? part_info->num_subparts : 1;
-        List_iterator_fast <partition_element>  part_it(part_info->partitions);
-        partition_element*      part_elem;
-        uint                    old_part_id = 0;
-        uint                    new_part_id = 0;
+	partition_info*		part_info = m_ha_alter_info->modified_part_info;
+	uint			parts_per_part =
+		part_info->is_sub_partitioned() ? part_info->num_subparts : 1;
+	List_iterator_fast <partition_element>	part_it(part_info->partitions);
+	partition_element*	part_elem;
+	uint			old_part_id = 0;
+	uint			new_part_id = 0;
 
-        while ((part_elem = part_it++) != nullptr) {
-                partition_state state = part_elem->part_state;
-                switch (state) {
-                case PART_NORMAL:
-                case PART_CHANGED:
-                        if (create_one(all_news, part_elem, new_part_id,
+	while ((part_elem = part_it++) != nullptr) {
+		partition_state state = part_elem->part_state;
+		switch (state) {
+		case PART_NORMAL:
+		case PART_CHANGED:
+			if (create_one(all_news, part_elem, new_part_id,
 				       old_part_id, state, false)) {
-                                return(true);
-                        }
+				return(true);
+			}
 
-                        old_part_id += parts_per_part;
-                        break;
-                case PART_TO_BE_ADDED:
-                        if (create_one(all_news, part_elem, new_part_id, 0,
-                                       state, false)) {
-                                return(true);
-                        }
+			old_part_id += parts_per_part;
+			break;
+		case PART_TO_BE_ADDED:
+			if (create_one(all_news, part_elem, new_part_id, 0,
+				       state, false)) {
+				return(true);
+			}
 
-                        break;
-                case PART_TO_BE_DROPPED:
-                case PART_REORGED_DROPPED:
-                        if (create_one(to_drop, part_elem, old_part_id,
+			break;
+		case PART_TO_BE_DROPPED:
+		case PART_REORGED_DROPPED:
+			if (create_one(to_drop, part_elem, old_part_id,
 				       old_part_id, state, false)) {
-                                return(true);
-                        }
+				return(true);
+			}
 
-                        break;
-                default:
-                        ut_ad(0);
-                }
-        }
+			break;
+		default:
+			ut_ad(0);
+		}
+	}
 
-        return(false);
+	return(false);
 }
 
 
 /** Check if the specified partition_state is of drop state
-@param[in]      state   The state to be checked
-@return True    if this is of a drop state
-@retval False   if not */
+@param[in]	s	The state to be checked
+@retval	true    if this is of a drop state
+@retval	false   if not */
 inline
 static
 bool
 is_drop_state(partition_state s)
 {
-        return(s == PART_TO_BE_DROPPED || s == PART_REORGED_DROPPED
-               || s == PART_TO_BE_REORGED);
+	return(s == PART_TO_BE_DROPPED || s == PART_REORGED_DROPPED
+	       || s == PART_TO_BE_REORGED);
 }
 
 /** Check if the specified partition_state is of common state
-@param[in]      state   The state to be checked
-@return True    if this is of a common state
-@retval False   if not */
+@param[in]	s	The state to be checked
+@retval	true	if this is of a common state
+@retval	false	if not */
 inline
 static
 bool
 is_common_state(partition_state s)
 {
-        return(s == PART_NORMAL || s == PART_CHANGED);
+	return(s == PART_NORMAL || s == PART_CHANGED);
 }
 
 /** Destructor */
 alter_parts::~alter_parts()
 {
-        for (alter_part* alter_part : m_news) {
-                UT_DELETE(alter_part);
-        }
+	for (alter_part* alter_part : m_news) {
+		UT_DELETE(alter_part);
+	}
 
-        for (alter_part* alter_part : m_to_drop) {
-                UT_DELETE(alter_part);
-        }
+	for (alter_part* alter_part : m_to_drop) {
+		UT_DELETE(alter_part);
+	}
 }
 
 /** Create the to be created partitions and update internal
 structures with concurrent writes blocked, while preparing
 ALTER TABLE.
-@param[in]      old_dd_tab      dd::Table before ALTER TABLE
-@param[in,out]  new_dd_tab      dd::Table after ALTER TABLE
-@param[in,out]  altered_table   Table definition after the ALTER
+@param[in]	old_dd_tab	dd::Table before ALTER TABLE
+@param[in,out]	new_dd_tab	dd::Table after ALTER TABLE
+@param[in,out]	altered_table	Table definition after the ALTER
 @return 0 or error number, my_error() should be called by callers */
 int
 alter_parts::prepare(
-        const dd::Table&        old_dd_tab,
-        dd::Table&              new_dd_tab,
-        TABLE*                  altered_table)
+	const dd::Table&	old_dd_tab,
+	dd::Table&		new_dd_tab,
+	TABLE*			altered_table)
 {
-        if (m_factory.create(m_to_drop, m_news)) {
-                return(true);
-        }
+	if (m_factory.create(m_to_drop, m_news)) {
+		return(true);
+	}
 
-        if (m_part_share->get_table_share()->found_next_number_field) {
-                dd_set_autoinc(
-                        new_dd_tab.se_private_data(),
-                        m_ha_alter_info->create_info->auto_increment_value);
-        }
+	if (m_part_share->get_table_share()->found_next_number_field) {
+		dd_set_autoinc(
+			new_dd_tab.se_private_data(),
+			m_ha_alter_info->create_info->auto_increment_value);
+	}
 
 	int	error;
 	error = prepare_or_commit_for_old(old_dd_tab, altered_table, true);
 	if (error != 0) {
-                return(error);
-        }
+		return(error);
+	}
 
-        error = prepare_or_commit_for_new(old_dd_tab, new_dd_tab,
+	error = prepare_or_commit_for_new(old_dd_tab, new_dd_tab,
 					  altered_table, true);
 
-        /* We don't have to prepare for the partitions that will be dropped. */
+	/* We don't have to prepare for the partitions that will be dropped. */
 
-        return(error);
+	return(error);
 }
 
 /** Notify the storage engine that the changes made during
@@ -10173,37 +10350,37 @@ will be rolled back for all the partitions. */
 void
 alter_parts::rollback()
 {
-        for (alter_part* alter_part : m_to_drop) {
-                alter_part->rollback();
-        }
+	for (alter_part* alter_part : m_to_drop) {
+		alter_part->rollback();
+	}
 
-        for (alter_part* alter_part : m_news) {
-                alter_part->rollback();
-        }
+	for (alter_part* alter_part : m_news) {
+		alter_part->rollback();
+	}
 }
 
 /** Try to commit the changes made during prepare_inplace_alter_table()
 inside the storage engine.v This is protected by MDL_EXCLUSIVE.
-@param[in]      old_dd_tab      dd::Table before ALTER TABLE
-@param[in,out]  new_dd_tab      dd::Table after ALTER TABLE
-@param[in]      table           Table definition before the ALTER
-@param[in,out]  altered_table   Table definition after the ALTER
+@param[in]	old_dd_tab	dd::Table before ALTER TABLE
+@param[in,out]	new_dd_tab	dd::Table after ALTER TABLE
+@param[in]	table		Table definition before the ALTER
+@param[in,out]	altered_table	Table definition after the ALTER
 @return 0 or error number, my_error() should be called by callers */
 int
 alter_parts::try_commit(
-        const dd::Table&old_dd_tab,
-        dd::Table&      new_dd_tab,
-        const TABLE*    table,
-        TABLE*          altered_table)
+	const dd::Table&	old_dd_tab,
+	dd::Table&		new_dd_tab,
+	const TABLE*		table,
+	TABLE*			altered_table)
 {
 	int	error;
-        /* Commit for the old ones first, to clear data files for new ones */
-        error = prepare_or_commit_for_old(old_dd_tab, altered_table, false);
+	/* Commit for the old ones first, to clear data files for new ones */
+	error = prepare_or_commit_for_old(old_dd_tab, altered_table, false);
 	if (error != 0) {
-                return(error);
-        }
+		return(error);
+	}
 
-        error = prepare_or_commit_for_new(old_dd_tab, new_dd_tab, altered_table,
+	error = prepare_or_commit_for_new(old_dd_tab, new_dd_tab, altered_table,
 					  false);
 	if (error != 0) {
 		return(error);
@@ -10212,172 +10389,172 @@ alter_parts::try_commit(
 	ut_ad(m_trx->n_mysql_tables_in_use > 0);
 	--m_trx->n_mysql_tables_in_use;
 
-        return(0);
+	return(0);
 }
 
 /** Note committed changes. */
 void
 alter_parts::post_commit()
 {
-        for (alter_part* alter_part : m_to_drop) {
-                alter_part->post_commit();
-        }
+	for (alter_part* alter_part : m_to_drop) {
+		alter_part->post_commit();
+	}
 
-        for (alter_part* alter_part : m_news) {
-                alter_part->post_commit();
-        }
+	for (alter_part* alter_part : m_news) {
+		alter_part->post_commit();
+	}
 }
 
 /** Prepare for all the partitions in table after ALTER TABLE
-@param[in]      old_dd_tab      dd::Table before ALTER TABLE
-@param[in,out]  new_dd_tab      dd::Table after ALTER TABLE
-@param[in,out]  altered_table   Table definition after the ALTER
-@param[in]      prepare         true if it's in prepare phase,
-                                false if it's in commit phase
+@param[in]	old_dd_tab	dd::Table before ALTER TABLE
+@param[in,out]	new_dd_tab	dd::Table after ALTER TABLE
+@param[in,out]	altered_table	Table definition after the ALTER
+@param[in]	prepare		true if it's in prepare phase,
+				false if it's in commit phase
 @return 0 or error number */
 int
 alter_parts::prepare_or_commit_for_new(
-        const dd::Table&old_dd_tab,
-        dd::Table&      new_dd_tab,
-        TABLE*          altered_table,
-        bool            prepare)
+	const dd::Table&	old_dd_tab,
+	dd::Table&		new_dd_tab,
+	TABLE*			altered_table,
+	bool			prepare)
 {
-        auto                    oldp = old_dd_tab.partitions().begin();
-        uint                    new_part_id = 0;
-        uint                    old_part_id = 0;
-        uint                    drop_seq = 0;
-        const dd::Partition*    old_part = nullptr;
+	auto			oldp = old_dd_tab.partitions().begin();
+	uint			new_part_id = 0;
+	uint			old_part_id = 0;
+	uint			drop_seq = 0;
+	const dd::Partition*	old_part = nullptr;
 	int			error = 0;
 
-        for (auto new_part : *new_dd_tab.partitions()) {
+	for (auto new_part : *new_dd_tab.partitions()) {
 
-                if (!dd_part_is_stored(new_part)) {
-                        continue;
-                }
+		if (!dd_part_is_stored(new_part)) {
+			continue;
+		}
 
-                ut_ad(new_part_id < m_news.size());
+		ut_ad(new_part_id < m_news.size());
 
-                /* To add a new partition, there is no corresponding old one,
-                otherwise, find the old one */
-                partition_state s = m_news[new_part_id]->state();
-                if (is_common_state(s)) {
-                        bool    found = false;
-                        for (; oldp != old_dd_tab.partitions().end() && !found;
-                             ++oldp) {
-                                old_part = *oldp;
+		/* To add a new partition, there is no corresponding old one,
+		otherwise, find the old one */
+		partition_state s = m_news[new_part_id]->state();
+		if (is_common_state(s)) {
+			bool	found = false;
+			for (; oldp != old_dd_tab.partitions().end() && !found;
+			     ++oldp) {
+				old_part = *oldp;
 
-                                if (!dd_part_is_stored(old_part)) {
-                                        continue;
-                                }
+				if (!dd_part_is_stored(old_part)) {
+					continue;
+				}
 
-                                ++old_part_id;
-                                if (drop_seq < m_to_drop.size()
-                                    && (old_part_id - 1
-                                        == m_to_drop[drop_seq]->part_id())) {
-                                        ut_ad(is_drop_state(
-                                                m_to_drop[drop_seq]->state()));
-                                        ++drop_seq;
-                                        continue;
-                                }
+				++old_part_id;
+				if (drop_seq < m_to_drop.size()
+				    && (old_part_id - 1
+					== m_to_drop[drop_seq]->part_id())) {
+					ut_ad(is_drop_state(
+						m_to_drop[drop_seq]->state()));
+					++drop_seq;
+					continue;
+				}
 
-                                found = true;
-                        }
+				found = true;
+			}
 
-                        ut_ad(found);
-                        ut_ad(drop_seq <= m_to_drop.size());
-                        ut_ad(new_part->name() == old_part->name());
-                        ut_ad((new_part->parent() == nullptr)
-                              == (old_part->parent() == nullptr));
-                        ut_ad(new_part->parent() == nullptr
-                              || new_part->parent()->name()
-                                 == old_part->parent()->name());
-                } else {
-                        ut_ad(s == PART_TO_BE_ADDED);
+			ut_ad(found);
+				ut_ad(drop_seq <= m_to_drop.size());
+				ut_ad(new_part->name() == old_part->name());
+				ut_ad((new_part->parent() == nullptr)
+				      == (old_part->parent() == nullptr));
+				ut_ad(new_part->parent() == nullptr
+				      || new_part->parent()->name()
+					 == old_part->parent()->name());
+		} else {
+			ut_ad(s == PART_TO_BE_ADDED);
 			/* Let's still set one to get the old table name */
-                        old_part = *(old_dd_tab.partitions().begin());
-                }
+			old_part = *(old_dd_tab.partitions().begin());
+		}
 
-                alter_part*     alter_part = m_news[new_part_id];
-                ut_ad(alter_part != nullptr);
+		alter_part*	alter_part = m_news[new_part_id];
+		ut_ad(alter_part != nullptr);
 
-                if (prepare) {
-                        error = alter_part->prepare(altered_table, old_part,
+		if (prepare) {
+			error = alter_part->prepare(altered_table, old_part,
 						    new_part);
 			if (error != 0) {
-                                return(error);
-                        }
+				return(error);
+			}
 
-                        if (m_new_partitions != nullptr
-                            && alter_part->new_table() != nullptr) {
-                                m_new_partitions->set_part(
-                                        new_part_id, alter_part->new_table());
-                        }
-                } else {
-                        error = alter_part->try_commit(nullptr, altered_table,
-                                                       old_part, new_part);
+			if (m_new_partitions != nullptr
+			    && alter_part->new_table() != nullptr) {
+				m_new_partitions->set_part(
+					new_part_id, alter_part->new_table());
+			}
+		} else {
+			error = alter_part->try_commit(nullptr, altered_table,
+						       old_part, new_part);
 			if (error != 0) {
-                                return(error);
-                        }
-                }
+					return(error);
+			}
+		}
 
-                ++new_part_id;
-        }
+		++new_part_id;
+	}
 
 #ifdef UNIV_DEBUG
-        ut_ad(drop_seq <= m_to_drop.size());
-        for (uint i = drop_seq; i < m_to_drop.size(); ++i) {
-                ut_ad(!is_common_state(m_to_drop[i]->state()));
-        }
+	ut_ad(drop_seq <= m_to_drop.size());
+	for (uint i = drop_seq; i < m_to_drop.size(); ++i) {
+		ut_ad(!is_common_state(m_to_drop[i]->state()));
+	}
 #endif /* UNIV_DEBUG */
 
-        return(error);
+	return(error);
 }
 
 /** Prepare or commit for all the partitions in table before ALTER TABLE
-@param[in]      old_dd_tab      dd::Table before ALTER TABLE
+@param[in]	old_dd_tab	dd::Table before ALTER TABLE
 @param[in,out]	altered_table	Table definition after the ALTER
-@param[in]      prepare         true if it's in prepare phase,
-                                false if it's in commit phase
+@param[in]	prepare		true if it's in prepare phase,
+				false if it's in commit phase
 @return 0 or error number */
 int
 alter_parts::prepare_or_commit_for_old(
-        const dd::Table&old_dd_tab,
-	TABLE*		altered_table,
-        bool            prepare)
+	const dd::Table&	old_dd_tab,
+	TABLE*			altered_table,
+	bool			prepare)
 {
-        uint            old_part_id = 0;
-        auto            dd_part = old_dd_tab.partitions().begin();
+	uint		old_part_id = 0;
+	auto		dd_part = old_dd_tab.partitions().begin();
 	int		error = 0;
 
-        for (alter_part* alter_part : m_to_drop) {
-                const dd::Partition*    old_part = nullptr;
+	for (alter_part* alter_part : m_to_drop) {
+		const dd::Partition*	old_part = nullptr;
 
-                for (; dd_part != old_dd_tab.partitions().end(); ++dd_part) {
-                        if (!dd_part_is_stored(*dd_part)
-                            || old_part_id++ < alter_part->part_id()) {
-                                continue;
-                        }
+		for (; dd_part != old_dd_tab.partitions().end(); ++dd_part) {
+			if (!dd_part_is_stored(*dd_part)
+			    || old_part_id++ < alter_part->part_id()) {
+				continue;
+			}
 
-                        old_part = *dd_part;
-                        ++dd_part;
-                        break;
-                }
-                ut_ad(old_part != nullptr);
+			old_part = *dd_part;
+			++dd_part;
+			break;
+		}
+		ut_ad(old_part != nullptr);
 
-                if (prepare) {
+		if (prepare) {
 			error = alter_part->prepare(altered_table, old_part,
 						    nullptr);
-                } else {
-                        error = alter_part->try_commit(nullptr, altered_table,
-                                                       old_part, nullptr);
-                }
+		} else {
+			error = alter_part->try_commit(nullptr, altered_table,
+						       old_part, nullptr);
+		}
 
 		if (error != 0) {
 			return(error);
 		}
-        }
+	}
 
-        return(error);
+	return(error);
 }
 
 /** Check if supported inplace alter table.
@@ -10457,27 +10634,34 @@ ha_innopart::check_if_supported_inplace_alter(
 	}
 
 	/* Check for ALTER TABLE ... PARTITION, following operations can
-        be done inplace */
-        if (alter_parts::apply_to(ha_alter_info)) {
-                /* Two meanings here: 1. ALTER TABLE .. PARTITION could
-                not be combined with other ALTER TABLE operations;
-                2. Only one operation of ALTER TABLE .. PARTITION can be
-                done in single statement.
-                The ALTER_ALL_PARTITION should be screened out, which could only
-                be set along with the REBUILD PARTITION */
-                ut_ad(is_single_bit(ha_alter_info->handler_flags
-                                    & ~Alter_inplace_info::ALTER_ALL_PARTITION));
-                ut_ad(!(ha_alter_info->handler_flags
-                        & Alter_inplace_info::ALTER_ALL_PARTITION)
-                      || (ha_alter_info->handler_flags
-                          & Alter_inplace_info::ALTER_REBUILD_PARTITION));
+	be done inplace */
+	if (alter_parts::apply_to(ha_alter_info)) {
+		/* Two meanings here:
+		1. ALTER TABLE .. PARTITION could not be combined with
+		other ALTER TABLE operations;
+		2. Only one operation of ALTER TABLE .. PARTITION can be
+		done in single statement. Only exception is that
+		'ALTER TABLE table REORGANIZE PARTITION' for HASH/KEY
+		partitions. This will flag both COALESCE_PARTITION
+		and ALTER_TABLE_REORG;
+		The ALTER_ALL_PARTITION should be screened out, which could only
+		be set along with the REBUILD PARTITION */
+		ut_ad(is_single_bit(ha_alter_info->handler_flags
+				    & ~Alter_inplace_info::ALTER_ALL_PARTITION)
+		      || ha_alter_info->handler_flags
+			 == (Alter_inplace_info::COALESCE_PARTITION
+			     | Alter_inplace_info::ALTER_TABLE_REORG));
+		ut_ad(!(ha_alter_info->handler_flags
+			& Alter_inplace_info::ALTER_ALL_PARTITION)
+		      || (ha_alter_info->handler_flags
+			  & Alter_inplace_info::ALTER_REBUILD_PARTITION));
 
-                if (alter_parts::need_copy(ha_alter_info)) {
-                        DBUG_RETURN(HA_ALTER_INPLACE_SHARED_LOCK_AFTER_PREPARE);
-                } else {
-                        DBUG_RETURN(HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE);
-                }
-        }
+		if (alter_parts::need_copy(ha_alter_info)) {
+			DBUG_RETURN(HA_ALTER_INPLACE_SHARED_LOCK_AFTER_PREPARE);
+		} else {
+			DBUG_RETURN(HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE);
+		}
+	}
 
 	/* Check for PK and UNIQUE should already be done when creating the
 	new table metadata.
@@ -10495,13 +10679,15 @@ did not return HA_ALTER_INPLACE_NO_LOCK).
 This will be invoked before inplace_alter_table().
 @param[in]	altered_table	TABLE object for new version of table.
 @param[in]	ha_alter_info	Structure describing changes to be done
-by ALTER TABLE and holding data used during in-place alter.
+				by ALTER TABLE and holding data used during
+				in-place alter.
 @param[in]	old_table_def	dd::Table object describing old version
-of the table.
-@param[in/out]	new_table_def	dd::Table object for the new version of
-the table. Can be adjusted by this call. Changes to the table
-definition will be persisted in the data-dictionary at statement commit
-time.
+				of the table.
+@param[in,out]	new_table_def	dd::Table object for the new version of
+				the table. Can be adjusted by this call.
+				Changes to the table definition will be
+				persisted in the data-dictionary at statement
+				commit time.
 @retval true Failure.
 @retval false Success. */
 bool
@@ -10512,13 +10698,13 @@ ha_innopart::prepare_inplace_alter_table(
 	dd::Table*		new_table_def)
 {
 	DBUG_ENTER("ha_innopart::prepare_inplace_alter_table");
-	DBUG_ASSERT(ha_alter_info->handler_ctx == NULL);
+	DBUG_ASSERT(ha_alter_info->handler_ctx == nullptr);
 
-        if (alter_parts::apply_to(ha_alter_info)) {
-                DBUG_RETURN(prepare_inplace_alter_partition(
-                                    altered_table, ha_alter_info,
-                                    old_table_def, new_table_def));
-        }
+	if (alter_parts::apply_to(ha_alter_info)) {
+		DBUG_RETURN(prepare_inplace_alter_partition(
+				    altered_table, ha_alter_info,
+				    old_table_def, new_table_def));
+	}
 
 	ha_innopart_inplace_ctx*	ctx_parts;
 	THD*				thd = ha_thd();
@@ -10530,22 +10716,28 @@ ha_innopart::prepare_inplace_alter_table(
 	This object will be freed by server, so always use 'new'
 	and there is no need to free on failure */
 	ctx_parts = new ha_innopart_inplace_ctx(thd, m_tot_parts);
-	if (ctx_parts == NULL) {
+	if (ctx_parts == nullptr) {
 		DBUG_RETURN(HA_ALTER_ERROR);
 	}
 
 	ctx_parts->ctx_array = UT_NEW_ARRAY_NOKEY(inplace_alter_handler_ctx*,
 						  m_tot_parts + 1);
-	if (ctx_parts->ctx_array == NULL) {
+	if (ctx_parts->ctx_array == nullptr) {
 		DBUG_RETURN(HA_ALTER_ERROR);
 	}
 
 	memset(ctx_parts->ctx_array, 0,
 	       sizeof(inplace_alter_handler_ctx*) * (m_tot_parts + 1));
 
+	ctx_parts->m_old_info = UT_NEW_ARRAY_NOKEY(alter_table_old_info_t,
+						   m_tot_parts);
+	if (ctx_parts->m_old_info == nullptr) {
+		DBUG_RETURN(HA_ALTER_ERROR);
+	}
+
 	ctx_parts->prebuilt_array = UT_NEW_ARRAY_NOKEY(row_prebuilt_t*,
 						       m_tot_parts);
-	if (ctx_parts->prebuilt_array == NULL) {
+	if (ctx_parts->prebuilt_array == nullptr) {
 		DBUG_RETURN(HA_ALTER_ERROR);
 	}
 	/* For the first partition use the current prebuilt. */
@@ -10563,7 +10755,7 @@ ha_innopart::prepare_inplace_alter_table(
 		ctx_parts->prebuilt_array[i] = tmp_prebuilt;
 	}
 
-	if (altered_table->found_next_number_field != NULL) {
+	if (altered_table->found_next_number_field != nullptr) {
 		dd_set_autoinc(new_table_def->se_private_data(),
 			       ha_alter_info->create_info
 			       ->auto_increment_value);
@@ -10572,7 +10764,7 @@ ha_innopart::prepare_inplace_alter_table(
 	const char*	save_tablespace =
 		ha_alter_info->create_info->tablespace;
 
-	const char*     save_data_file_name =
+	const char*	save_data_file_name =
 		ha_alter_info->create_info->data_file_name;
 
 	auto	oldp = old_table_def->partitions().begin();
@@ -10589,12 +10781,12 @@ ha_innopart::prepare_inplace_alter_table(
 
 		const dd::Partition*	old_part = *oldp;
 		dd::Partition*		new_part = *newp;
-		ut_ad(old_part != NULL);
-		ut_ad(new_part != NULL);
+		ut_ad(old_part != nullptr);
+		ut_ad(new_part != nullptr);
 		ut_ad(old_part->level() == new_part->level());
 		ut_ad(m_prebuilt->table->id == old_part->se_private_id());
 
-		ha_alter_info->handler_ctx = NULL;
+		ha_alter_info->handler_ctx = nullptr;
 
 		/* Set the tablespace and data_file_name value of the
 		alter_info to the tablespace and data_file_name value
@@ -10617,6 +10809,14 @@ ha_innopart::prepare_inplace_alter_table(
 			break;
 		}
 
+		ha_innobase_inplace_ctx*	ctx =
+			static_cast<ha_innobase_inplace_ctx*>(
+				ctx_parts->ctx_array[i]);
+		if (ctx != nullptr) {
+			ctx_parts->m_old_info[i].update(
+				ctx->old_table, ctx->need_rebuild());
+		}
+
 		++i;
 	}
 
@@ -10636,13 +10836,15 @@ The level of concurrency allowed during this operation depends
 on the return value from check_if_supported_inplace_alter().
 @param[in]	altered_table	TABLE object for new version of table.
 @param[in]	ha_alter_info	Structure describing changes to be done
-by ALTER TABLE and holding data used during in-place alter.
+				by ALTER TABLE and holding data used during
+				in-place alter.
 @param[in]	old_table_def	dd::Table object describing old version
-of the table.
-@param[in/out]	new_table_def	dd::Table object for the new version of
-the table. Can be adjusted by this call. Changes to the table
-definition will be persisted in the data-dictionary at statement commit
-time.
+				of the table.
+@param[in,out]	new_table_def	dd::Table object for the new version of
+				the table. Can be adjusted by this call.
+				Changes to the table definition will be
+				persisted in the data-dictionary at statement
+				commit time.
 @retval true Failure.
 @retval false Success. */
 bool
@@ -10652,11 +10854,11 @@ ha_innopart::inplace_alter_table(
 	const dd::Table*	old_table_def,
 	dd::Table*		new_table_def)
 {
-        if (alter_parts::apply_to(ha_alter_info)) {
-                return(inplace_alter_partition(
+	if (alter_parts::apply_to(ha_alter_info)) {
+		return(inplace_alter_partition(
 			altered_table, ha_alter_info,
 			old_table_def, new_table_def));
-        }
+	}
 
 	bool res = true;
 	ha_innopart_inplace_ctx* ctx_parts;
@@ -10664,7 +10866,8 @@ ha_innopart::inplace_alter_table(
 	ctx_parts = static_cast<ha_innopart_inplace_ctx*>(
 		ha_alter_info->handler_ctx);
 
-	if (ctx_parts == NULL) {
+	/* It could be not allocated at all */
+	if (ctx_parts == nullptr) {
 		return(false);
 	}
 
@@ -10710,14 +10913,16 @@ prepare_inplace_alter_table(). (E.g concurrent writes were
 blocked during prepare, but might not be during commit).
 @param[in]	altered_table	TABLE object for new version of table.
 @param[in]	ha_alter_info	Structure describing changes to be done
-by ALTER TABLE and holding data used during in-place alter.
+				by ALTER TABLE and holding data used during
+				in-place alter.
 @param[in]	commit		true => Commit, false => Rollback.
 @param[in]	old_table_def	dd::Table object describing old version
-of the table.
-@param[in/out]	new_table_def	dd::Table object for the new version of
-the table. Can be adjusted by this call. Changes to the table
-definition will be persisted in the data-dictionary at statement commit
-time.
+				of the table.
+@param[in,out]	new_table_def	dd::Table object for the new version of
+				the table. Can be adjusted by this call.
+				Changes to the table definition will be
+				persisted in the data-dictionary at statement
+				commit time.
 @retval true Failure.
 @retval false Success. */
 bool
@@ -10728,24 +10933,24 @@ ha_innopart::commit_inplace_alter_table(
 	const dd::Table*	old_table_def,
 	dd::Table*		new_table_def)
 {
-        if (alter_parts::apply_to(ha_alter_info)) {
-                return(commit_inplace_alter_partition(
+	if (alter_parts::apply_to(ha_alter_info)) {
+		return(commit_inplace_alter_partition(
 			altered_table, ha_alter_info, commit,
 			old_table_def, new_table_def));
-        }
+	}
 
-	bool res = false;
-	ha_innopart_inplace_ctx* ctx_parts;
+	ha_innopart_inplace_ctx*	ctx_parts =
+		static_cast<ha_innopart_inplace_ctx*>(
+			ha_alter_info->handler_ctx);
 
-	ctx_parts = static_cast<ha_innopart_inplace_ctx*>(
-					ha_alter_info->handler_ctx);
-
-	if (ctx_parts == NULL) {
+	/* It could be not allocated at all */
+	if (ctx_parts == nullptr) {
 		return(false);
 	}
 
-	ut_ad(ctx_parts->ctx_array != NULL);
-	ut_ad(ctx_parts->prebuilt_array != NULL);
+	bool		res = false;
+	ut_ad(ctx_parts->ctx_array != nullptr);
+	ut_ad(ctx_parts->prebuilt_array != nullptr);
 	ut_ad(ctx_parts->prebuilt_array[0] == m_prebuilt);
 
 	if (commit) {
@@ -10754,12 +10959,11 @@ ha_innopart::commit_inplace_alter_table(
 		ha_alter_info->handler_ctx = ctx_parts->ctx_array[0];
 		set_partition(0);
 
-		res = ha_innobase::commit_inplace_alter_table(altered_table,
-							ha_alter_info,
-							commit,
-							old_table_def,
-							new_table_def);
+		res = ha_innobase::commit_inplace_alter_table_impl<dd::Table>(
+			altered_table, ha_alter_info, commit,
+			old_table_def, new_table_def);
 		ut_ad(res || !ha_alter_info->group_commit_ctx);
+
 		goto end;
 	}
 
@@ -10768,16 +10972,70 @@ ha_innopart::commit_inplace_alter_table(
 		m_prebuilt = ctx_parts->prebuilt_array[i];
 		ha_alter_info->handler_ctx = ctx_parts->ctx_array[i];
 		set_partition(i);
-		if (ha_innobase::commit_inplace_alter_table(altered_table,
-						ha_alter_info, commit,
-						old_table_def,
-						new_table_def)) {
+		if (ha_innobase::commit_inplace_alter_table_impl<dd::Table>(
+			altered_table, ha_alter_info, commit,
+			old_table_def, new_table_def)) {
 			res = true;
 		}
 		ut_ad(ctx_parts->ctx_array[i] == ha_alter_info->handler_ctx);
 		ctx_parts->ctx_array[i] = ha_alter_info->handler_ctx;
 	}
 end:
+	/* All are done successfully, now write back metadata to DD */
+	if (commit && !res) {
+		auto	oldp = old_table_def->partitions().begin();
+		auto	newp = new_table_def->partitions()->begin();
+
+		for (uint i = 0; i < m_tot_parts; ++oldp, ++newp) {
+			ut_ad(dd_part_is_stored(*oldp)
+			      == dd_part_is_stored(*newp));
+
+			if (!dd_part_is_stored(*newp)) {
+				continue;
+			}
+
+			const dd::Partition*	old_part = *oldp;
+			dd::Partition*		new_part = *newp;
+			ut_ad(old_part != nullptr);
+			ut_ad(new_part != nullptr);
+			ut_ad(old_part->level() == new_part->level());
+
+			ha_innobase_inplace_ctx*	ctx =
+				static_cast<ha_innobase_inplace_ctx*>(
+					ctx_parts->ctx_array[i]);
+
+			if (!(ha_alter_info->handler_flags
+			      & ~INNOBASE_INPLACE_IGNORE)
+			    || ctx == nullptr) {
+				dd_copy_private(*new_part, *old_part);
+			} else {
+				dd_commit_inplace_alter_table(
+					ctx_parts->m_old_info[i],
+					ctx->new_table,
+					old_part, new_part);
+			}
+
+			++i;
+		}
+#ifdef UNIV_DEBUG
+		if (!res) {
+			uint i = 0;
+			for (auto part : *new_table_def->partitions()) {
+				if (!dd_part_is_stored(part)) {
+					continue;
+				}
+				ha_innobase_inplace_ctx*	ctx =
+					static_cast<ha_innobase_inplace_ctx*>(
+						ctx_parts->ctx_array[i++]);
+				if (ctx != nullptr) {
+					ut_ad(dd_table_match(
+						ctx->new_table, part));
+				}
+			}
+		}
+#endif /* univ_debug */
+	}
+
 	/* Move the ownership of the new tables back to the m_part_share. */
 	ha_innobase_inplace_ctx*	ctx;
 	for (uint i = 0; i < m_tot_parts; i++) {
@@ -10786,9 +11044,9 @@ end:
 		copies... */
 		ctx = static_cast<ha_innobase_inplace_ctx*>(
 			ctx_parts->ctx_array[i]);
-		if (ctx != NULL) {
+		if (ctx != nullptr) {
 			m_part_share->set_table_part(i, ctx->prebuilt->table);
-			ctx->prebuilt->table = NULL;
+			ctx->prebuilt->table = nullptr;
 			ctx_parts->prebuilt_array[i] = ctx->prebuilt;
 		} else {
 			break;
@@ -10802,57 +11060,57 @@ end:
 }
 
 /** Create the Altered_partitoins object
-@param[in]      ha_alter_info   thd DDL operation
-@return true    On failure
-@retval false   On success */
+@param[in]	ha_alter_info	thd DDL operation
+@retval	true	On failure
+@retval	false	On success */
 bool
 ha_innopart::prepare_for_copy_partitions(
-        Alter_inplace_info*     ha_alter_info)
+	Alter_inplace_info*	ha_alter_info)
 {
-        ut_ad(m_new_partitions == nullptr);
-        ut_ad(alter_parts::need_copy(ha_alter_info));
+	ut_ad(m_new_partitions == nullptr);
+	ut_ad(alter_parts::need_copy(ha_alter_info));
 
-        uint    num_parts = ha_alter_info->modified_part_info->num_parts;
-        uint    total_parts = num_parts;
+	uint	num_parts = ha_alter_info->modified_part_info->num_parts;
+	uint	total_parts = num_parts;
 
-        if (ha_alter_info->modified_part_info->is_sub_partitioned()) {
-                total_parts *= ha_alter_info->modified_part_info->num_subparts;
-        }
+	if (ha_alter_info->modified_part_info->is_sub_partitioned()) {
+		total_parts *= ha_alter_info->modified_part_info->num_subparts;
+	}
 
-        m_new_partitions = UT_NEW(Altered_partitions(total_parts),
-                                  mem_key_partitioning);
+	m_new_partitions = UT_NEW(Altered_partitions(total_parts),
+				  mem_key_partitioning);
 
-        if (m_new_partitions == nullptr) {
-                return(true);
-        } else if (m_new_partitions->initialize()) {
-                UT_DELETE(m_new_partitions);
-                m_new_partitions = nullptr;
-                return(true);
-        }
+	if (m_new_partitions == nullptr) {
+		return(true);
+	} else if (m_new_partitions->initialize()) {
+		UT_DELETE(m_new_partitions);
+		m_new_partitions = nullptr;
+		return(true);
+	}
 
-        return(false);
+	return(false);
 }
 
 /** write row to new partition.
-@param[in]      new_part        New partition to write to.
+@param[in]	new_part	New partition to write to.
 @return 0 for success else error code. */
 int
 ha_innopart::write_row_in_new_part(uint new_part)
 {
-        int     result;
-        DBUG_ENTER("ha_innopart::write_row_in_new_part");
+	int	result;
+	DBUG_ENTER("ha_innopart::write_row_in_new_part");
 
-        m_last_part = new_part;
-        if (m_new_partitions->part(new_part) == nullptr) {
-                /* Altered partition contains misplaced row. */
-                m_err_rec = table->record[0];
-                DBUG_RETURN(HA_ERR_ROW_IN_WRONG_PARTITION);
-        }
+	m_last_part = new_part;
+	if (m_new_partitions->part(new_part) == nullptr) {
+		/* Altered partition contains misplaced row. */
+		m_err_rec = table->record[0];
+		DBUG_RETURN(HA_ERR_ROW_IN_WRONG_PARTITION);
+	}
 
-        m_new_partitions->get_prebuilt(m_prebuilt, new_part);
-        result = ha_innobase::write_row(table->record[0]);
-        m_new_partitions->set_from_prebuilt(m_prebuilt, new_part);
-        DBUG_RETURN(result);
+	m_new_partitions->prepare_write(m_prebuilt, new_part);
+	result = ha_innobase::write_row(table->record[0]);
+	m_new_partitions->finish_write(m_prebuilt, new_part);
+	DBUG_RETURN(result);
 }
 
 /** Allows InnoDB to update internal structures with concurrent
@@ -10862,46 +11120,47 @@ This is for 'ALTER TABLE ... PARTITION' and a corresponding function
 to inplace_alter_table().
 This will be invoked before inplace_alter_partition().
 
-@param[in,out]  altered_table   TABLE object for new version of table
-@param[in,out]  ha_alter_info   Structure describing changes to be done
-by ALTER TABLE and holding data used during in-place alter.
-@param[in]      old_dd_tab      Table definition before the ALTER
-@param[in,out]  new_dd_tab      Table definition after the ALTER
-@retval true    Failure
-@retval false   Success */
+@param[in,out]	altered_table	TABLE object for new version of table
+@param[in,out]	ha_alter_info	Structure describing changes to be done
+				by ALTER TABLE and holding data used during
+				in-place alter.
+@param[in]	old_dd_tab	Table definition before the ALTER
+@param[in,out]	new_dd_tab	Table definition after the ALTER
+@retval true	Failure
+@retval false	Success */
 bool
 ha_innopart::prepare_inplace_alter_partition(
-        TABLE*                  altered_table,
-        Alter_inplace_info*     ha_alter_info,
-        const dd::Table*        old_dd_tab,
-        dd::Table*              new_dd_tab)
+	TABLE*			altered_table,
+	Alter_inplace_info*	ha_alter_info,
+	const dd::Table*	old_dd_tab,
+	dd::Table*		new_dd_tab)
 {
-        clear_ins_upd_nodes();
+	clear_ins_upd_nodes();
 
-        trx_start_if_not_started_xa(m_prebuilt->trx, true);
+	trx_start_if_not_started_xa(m_prebuilt->trx, true);
 
-        if (alter_parts::need_copy(ha_alter_info)
-            && prepare_for_copy_partitions(ha_alter_info)) {
-                my_error(ER_OUT_OF_RESOURCES, MYF(0));
-                return(true);
-        }
+	if (alter_parts::need_copy(ha_alter_info)
+	    && prepare_for_copy_partitions(ha_alter_info)) {
+		my_error(ER_OUT_OF_RESOURCES, MYF(0));
+		return(true);
+	}
 
-        alter_parts*    ctx = UT_NEW_NOKEY(alter_parts(
-                m_prebuilt->trx, m_part_share, ha_alter_info, m_part_info,
-                m_new_partitions));
+	alter_parts*	ctx = UT_NEW_NOKEY(alter_parts(
+		m_prebuilt->trx, m_part_share, ha_alter_info, m_part_info,
+		m_new_partitions));
 
-        if (ctx == NULL) {
-                my_error(ER_OUT_OF_RESOURCES, MYF(0));
-                return(true);
-        }
+	if (ctx == nullptr) {
+		my_error(ER_OUT_OF_RESOURCES, MYF(0));
+		return(true);
+	}
 
-        ha_alter_info->handler_ctx = ctx;
+	ha_alter_info->handler_ctx = ctx;
 
 	int	error = ctx->prepare(*old_dd_tab, *new_dd_tab, altered_table);
 	if (error != 0) {
 		print_error(error,
 			    MYF(error != ER_OUTOFMEMORY ? 0 : ME_FATALERROR));
-        }
+	}
 	return(error);
 }
 
@@ -10912,130 +11171,130 @@ to inplace_alter_table().
 The level of concurrency allowed during this operation depends
 on the return value from check_if_supported_inplace_alter().
 
-@param[in,out]  altered_table   TABLE object for new version of table
-@param[in,out]  ha_alter_info   Structure describing changes to be done
-by ALTER TABLE and holding data used during in-place alter.
-@param[in]      old_dd_tab      Table definition before the ALTER
-@param[in,out]  new_dd_tab      Table definition after the ALTER
-@retval true    Failure
-@retval false   Success */
+@param[in,out]	altered_table	TABLE object for new version of table
+@param[in,out]	ha_alter_info	Structure describing changes to be done
+				by ALTER TABLE and holding data used during
+				in-place alter.
+@param[in]	old_dd_tab	Table definition before the ALTER
+@param[in,out]	new_dd_tab	Table definition after the ALTER
+@retval true	Failure
+@retval false	Success */
 bool
 ha_innopart::inplace_alter_partition(
-        TABLE*                  altered_table,
-        Alter_inplace_info*     ha_alter_info,
-        const dd::Table*        old_dd_tab,
-        dd::Table*              new_dd_tab)
+	TABLE*			altered_table,
+	Alter_inplace_info*	ha_alter_info,
+	const dd::Table*	old_dd_tab,
+	dd::Table*		new_dd_tab)
 {
-        if (!alter_parts::need_copy(ha_alter_info)) {
-                return(false);
-        }
+	if (!alter_parts::need_copy(ha_alter_info)) {
+		return(false);
+	}
 
-        /* The lock type can be set as none, since in this step, the
-        shared table lock is held, thus no other changes. This is to fix
-        if the table was explicitly lock, then select_lock_type in the
-        prebuilt here would not be LOCK_NONE, then row locks would be
-        required; if we finally want to drop the original partitions,
-        these row locks would lead to failure/crash. */
-        ulint   lock_type = m_prebuilt->select_lock_type;
-        m_prebuilt->select_lock_type = LOCK_NONE;
+	/* The lock type can be set as none, since in this step, the
+	shared table lock is held, thus no other changes. This is to fix
+	if the table was explicitly lock, then select_lock_type in the
+	prebuilt here would not be LOCK_NONE, then row locks would be
+	required; if we finally want to drop the original partitions,
+	these row locks would lead to failure/crash. */
+	ulint	lock_type = m_prebuilt->select_lock_type;
+	m_prebuilt->select_lock_type = LOCK_NONE;
 
-        prepare_change_partitions();
+	prepare_change_partitions();
 
-        partition_info *old_part_info= table->part_info;
+	partition_info *old_part_info= table->part_info;
 
-        set_part_info(ha_alter_info->modified_part_info, true);
+	set_part_info(ha_alter_info->modified_part_info, true);
 
-        prepare_change_partitions();
+	prepare_change_partitions();
 
-        ulonglong       copied;
-        ulonglong       deleted;
-        int             res;
+	ulonglong	deleted;
+	int		res;
 
-        res = copy_partitions(&copied, &deleted);
+	res = copy_partitions(&deleted);
 
-        set_part_info(old_part_info, false);
+	set_part_info(old_part_info, false);
 
-        m_prebuilt->select_lock_type = lock_type;
+	m_prebuilt->select_lock_type = lock_type;
 
 	if (res > 0) {
 		print_error(res,
 			    MYF(res != ER_OUTOFMEMORY ? 0 : ME_FATALERROR));
 	}
 
-        return(res);
+	return(res);
 }
 
 /** Prepare to commit or roll back ALTER TABLE...ALGORITHM=INPLACE.
 This is for 'ALTER TABLE ... PARTITION' and a corresponding function
 to commit_inplace_alter_table().
-@param[in,out]  altered_table   TABLE object for new version of table.
-@param[in,out]  ha_alter_info   ALGORITHM=INPLACE metadata
-@param[in]      commit          true=Commit, false=Rollback.
-@param[in]      old_dd_tab      old table
-@param[in,out]  new_dd_tab      new table
-@retval true    on failure (my_error() will have been called)
-@retval false   on success */
+@param[in,out]	altered_table	TABLE object for new version of table.
+@param[in,out]	ha_alter_info	ALGORITHM=INPLACE metadata
+@param[in]	commit		true=Commit, false=Rollback.
+@param[in]	old_dd_tab	old table
+@param[in,out]	new_dd_tab	new table
+@retval true	on failure (my_error() will have been called)
+@retval false	on success */
 bool
 ha_innopart::commit_inplace_alter_partition(
-        TABLE*                  altered_table,
-        Alter_inplace_info*     ha_alter_info,
-        bool                    commit,
-        const dd::Table*        old_dd_tab,
-        dd::Table*              new_dd_tab)
+	TABLE*			altered_table,
+	Alter_inplace_info*	ha_alter_info,
+	bool			commit,
+	const dd::Table*	old_dd_tab,
+	dd::Table*		new_dd_tab)
 {
-        alter_parts*    ctx = static_cast<alter_parts*>(
-                ha_alter_info->handler_ctx);
-        if (ctx == nullptr) {
-                ut_ad(!commit);
-                return(false);
-        }
+	alter_parts*	ctx = static_cast<alter_parts*>(
+		ha_alter_info->handler_ctx);
+	if (ctx == nullptr) {
+		ut_ad(!commit);
+		return(false);
+	}
 
-        if (commit) {
-                int error = ctx->try_commit(*old_dd_tab, *new_dd_tab,
-                                            table, altered_table);
-                if (!error) {
-                        m_prebuilt->table = nullptr;
+	if (commit) {
+		int error = ctx->try_commit(*old_dd_tab, *new_dd_tab,
+					    table, altered_table);
+		if (!error) {
+			m_prebuilt->table = nullptr;
 
 			UT_DELETE(ctx);
-			ha_alter_info->handler_ctx = NULL;
+			ha_alter_info->handler_ctx = nullptr;
 
-                        UT_DELETE(m_new_partitions);
-                        m_new_partitions = nullptr;
+			UT_DELETE(m_new_partitions);
+			m_new_partitions = nullptr;
 
-                        if (altered_table->found_next_number_field) {
-                                dd_set_autoinc(new_dd_tab->se_private_data(),
-                                               m_part_share->next_auto_inc_val);
-                        }
-                }
+			if (altered_table->found_next_number_field) {
+				dd_set_autoinc(new_dd_tab->se_private_data(),
+					       m_part_share->next_auto_inc_val);
+			}
+		}
 
-                return(error != 0);
-        }
+		return(error != 0);
+	}
 
-        ctx->rollback();
-        UT_DELETE(ctx);
-        ha_alter_info->handler_ctx = nullptr;
+	ctx->rollback();
+	UT_DELETE(ctx);
+	ha_alter_info->handler_ctx = nullptr;
 
-        UT_DELETE(m_new_partitions);
-        m_new_partitions = nullptr;
+	UT_DELETE(m_new_partitions);
+	m_new_partitions = nullptr;
 
-        return(false);
+	return(false);
 }
 
 /** Check if the DATA DIRECTORY is specified (implicitly or explicitly)
-@param[in]      part    The dd::Partition to be checked
-@return true    the DATA DIRECTORY is specified (implicitly or explicitly)
-@retval false   otherwise */
+@param[in]	dd_part		The dd::Partition to be checked
+@retval true	the DATA DIRECTORY is specified (implicitly or explicitly)
+@retval false	otherwise */
 static
 bool
 dd_part_has_datadir(const dd::Partition* dd_part)
 {
-        ut_ad(dd_part_is_stored(dd_part));
+	ut_ad(dd_part_is_stored(dd_part));
 
-        return(dd_part->options().exists(data_file_name_key)
-               || (dd_part->parent() != nullptr
-                   && dd_part->parent()->options().exists(data_file_name_key))
-               || dd_part->table().se_private_data().exists(
-                        dd_table_key_strings[DD_TABLE_DATA_DIRECTORY]));
+	return(dd_part->options().exists(data_file_name_key)
+	       || (dd_part->parent() != nullptr
+		   && dd_part->parent()->options().exists(data_file_name_key))
+	       || dd_part->table().se_private_data().exists(
+			dd_table_key_strings[DD_TABLE_DATA_DIRECTORY]));
 }
 
 static
@@ -11047,35 +11306,35 @@ rename_table_for_exchange(
 	dd::Object_id	dd_space_id)
 {
 	dberr_t error;
-        char    norm_to[FN_REFLEN];
-        char    norm_from[FN_REFLEN];
+	char	norm_to[FN_REFLEN];
+	char	norm_from[FN_REFLEN];
 
-        normalize_table_name(norm_to, to);
-        normalize_table_name(norm_from, from);
+	normalize_table_name(norm_to, to);
+	normalize_table_name(norm_from, from);
 
 	trx_start_if_not_started_xa(trx, true);
 
-        trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
+	trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
 
-        row_mysql_lock_data_dictionary(trx);
+	row_mysql_lock_data_dictionary(trx);
 
-        error = row_rename_table_for_mysql(norm_from, norm_to, nullptr,
+	error = row_rename_table_for_mysql(norm_from, norm_to, nullptr,
 					   trx, TRUE);
 
 	row_mysql_unlock_data_dictionary(trx);
 
-	char*	new_path = NULL;
+	char*	new_path = nullptr;
 	if (error == DB_SUCCESS && strcmp(norm_from, norm_to) != 0) {
 		dict_table_t*	table;
 		mutex_enter(&dict_sys->mutex);
 		table = dict_table_check_if_in_cache_low(norm_to);
-		ut_ad(table != NULL);
+		ut_ad(table != nullptr);
 		ut_ad(!table->ibd_file_missing);
 		new_path = fil_space_get_first_path(table->space);
 		mutex_exit(&dict_sys->mutex);
 	}
 
-	if (new_path != NULL) {
+	if (new_path != nullptr) {
 		if (dd_tablespace_update_filename(dd_space_id, new_path)) {
 			ut_a(false);
 		}
@@ -11084,44 +11343,44 @@ rename_table_for_exchange(
 	}
 
 	if (error == DB_SUCCESS) {
-                char    errstr[512];
-                dberr_t ret = dict_stats_rename_table(
-                        norm_from, norm_to, errstr, sizeof(errstr));
-                if (ret != DB_SUCCESS) {
-                        ib::error() << errstr;
-                        push_warning(trx->mysql_thd,
-                                     Sql_condition::SL_WARNING,
-                                     ER_LOCK_WAIT_TIMEOUT, errstr);
-                }
-        }
+		char	errstr[512];
+		dberr_t ret = dict_stats_rename_table(
+			norm_from, norm_to, errstr, sizeof(errstr));
+		if (ret != DB_SUCCESS) {
+			ib::error() << errstr;
+			push_warning(trx->mysql_thd,
+				     Sql_condition::SL_WARNING,
+				     ER_LOCK_WAIT_TIMEOUT, errstr);
+		}
+	}
 
 	return(error);
 }
 
 /** Exchange partition.
 Low-level primitive which implementation is provided here.
-@param[in]      part_table_path         data file path of the partitioned table
-@param[in]      swap_table_path         data file path of the to be swapped table
-@param[in]      part_id                 The id of the partition to be exchanged
-@param[in]      part_table              partitioned table to be exchanged
-@param[in]      swap_table              table to be exchanged
+@param[in]	part_table_path		data file path of the partitioned table
+@param[in]	swap_table_path		data file path of the to be swapped table
+@param[in]	part_id			The id of the partition to be exchanged
+@param[in]	part_table		partitioned table to be exchanged
+@param[in]	swap_table		table to be exchanged
 @return error number
-@retval 0       on success */
+@retval 0	on success */
 int
 ha_innopart::exchange_partition_low(
-        const char*     part_table_path,
-        const char*     swap_table_path,
-        uint            part_id,
-        dd::Table*      part_table,
-        dd::Table*      swap_table)
+	const char*	part_table_path,
+	const char*	swap_table_path,
+	uint		part_id,
+	dd::Table*	part_table,
+	dd::Table*	swap_table)
 {
-        DBUG_ENTER("ha_innopart::exchange_partition_low");
+	DBUG_ENTER("ha_innopart::exchange_partition_low");
 
 	ut_ad(part_table != nullptr);
 	ut_ad(swap_table != nullptr);
 	ut_ad(m_part_share != nullptr);
-	ut_ad(part_table->partition_type() != dd::Table::PT_NONE);
-	ut_ad(swap_table->partition_type() == dd::Table::PT_NONE);
+	ut_ad(dd_table_is_partitioned(*part_table));
+	ut_ad(!dd_table_is_partitioned(*swap_table));
 	ut_ad(innobase_strcasecmp(part_table->name().c_str(),
 				  table_share->table_name.str) == 0);
 	ut_ad(part_id < m_tot_parts);
@@ -11132,8 +11391,8 @@ ha_innopart::exchange_partition_low(
 	}
 
 	/* Find the specified dd::Partition object */
-        uint            id = 0;
-        dd::Partition*  dd_part = nullptr;
+	uint		id = 0;
+	dd::Partition*	dd_part = nullptr;
 	for (auto part : *part_table->partitions()) {
 		if (!dd_part_is_stored(part)) {
 			continue;
@@ -11143,29 +11402,29 @@ ha_innopart::exchange_partition_low(
 		ut_ad(table->n_ref_count == 1);
 		ut_ad(!table->is_temporary());
 
-                if (++id > part_id) {
-                        dd_part = part;
-                        break;
-                }
-        }
+		if (++id > part_id) {
+			dd_part = part;
+			break;
+		}
+	}
 	ut_ad(dd_part != nullptr);
 
 	/* According to current restriction, all options should be equal
-        between partition and table. And DATA DIRECTORY and INDEX DIRECTORY
-        should not be set */
-        if (dd_part_has_datadir(dd_part)
-            || swap_table->options().exists(data_file_name_key)) {
-                my_error(ER_PARTITION_EXCHANGE_DIFFERENT_OPTION, MYF(0),
-                         "DATA DIRECTORY");
-                DBUG_RETURN(true);
-        }
-        if (dd_part->options().exists(index_file_name_key)
-            || swap_table->options().exists(index_file_name_key)) {
-                ut_ad(0);
-                my_error(ER_PARTITION_EXCHANGE_DIFFERENT_OPTION, MYF(0),
-                         "INDEX DIRECTORY");
-                DBUG_RETURN(true);
-        }
+	between partition and table. And DATA DIRECTORY and INDEX DIRECTORY
+	should not be set */
+	if (dd_part_has_datadir(dd_part)
+	    || swap_table->options().exists(data_file_name_key)) {
+		my_error(ER_PARTITION_EXCHANGE_DIFFERENT_OPTION, MYF(0),
+			 "DATA DIRECTORY");
+		DBUG_RETURN(true);
+	}
+	if (dd_part->options().exists(index_file_name_key)
+	    || swap_table->options().exists(index_file_name_key)) {
+		ut_ad(0);
+		my_error(ER_PARTITION_EXCHANGE_DIFFERENT_OPTION, MYF(0),
+			 "INDEX DIRECTORY");
+		DBUG_RETURN(true);
+	}
 
 	/* Get the innodb table objects of part_table and swap_table */
 	const table_id_t	table_id = swap_table->se_private_id();
@@ -11175,10 +11434,10 @@ ha_innopart::exchange_partition_low(
 
 	mutex_enter(&dict_sys->mutex);
 	HASH_SEARCH(id_hash, dict_sys->table_id_hash, fold,
-                    dict_table_t*, swap, ut_ad(swap->cached),
-                    swap->id == table_id);
+		    dict_table_t*, swap, ut_ad(swap->cached),
+		    swap->id == table_id);
 	mutex_exit(&dict_sys->mutex);
-	ut_ad(swap != NULL);
+	ut_ad(swap != nullptr);
 	ut_ad(swap->n_ref_count == 1);
 
 	/* Try to rename files. Tablespace checking ensures that
@@ -11188,15 +11447,15 @@ ha_innopart::exchange_partition_low(
 	3. Rename the intermediate file of swap table to the partition file */
 	trx_t*	trx = m_prebuilt->trx;
 
-	const dd::Object_id     p_id = dd_first_index(dd_part)->tablespace_id();
-	const dd::Object_id     swap_id = dd_first_index(swap_table)
+	const dd::Object_id	p_id = dd_first_index(dd_part)->tablespace_id();
+	const dd::Object_id	swap_id = dd_first_index(swap_table)
 		->tablespace_id();
 	char*			swap_name = strdup(swap->name.m_name);
-        char*			part_name = strdup(part->name.m_name);
+	char*			part_name = strdup(part->name.m_name);
 
 	/* Define the temporary table name, by appending "#tmp" */
-        char			temp_name[FN_REFLEN];
-        snprintf(temp_name, sizeof temp_name, "%s#tmp", swap_name);
+	char			temp_name[FN_REFLEN];
+	snprintf(temp_name, sizeof temp_name, "%s#tmp", swap_name);
 
 	/* TODO WL#9536: Handle rollback */
 	int	error;
@@ -11211,71 +11470,71 @@ ha_innopart::exchange_partition_low(
 	free(part_name);
 
 	/* Swap the se_private_data and options between indexes.
-        The se_private_data should be swapped between every index of
-        dd_part and swap_table; however, options should be swapped(checked)
-        between part_table and swap_table */
-        auto    swap_i = swap_table->indexes()->begin();
+	The se_private_data should be swapped between every index of
+	dd_part and swap_table; however, options should be swapped(checked)
+	between part_table and swap_table */
+	auto	swap_i = swap_table->indexes()->begin();
 	ut_d(auto part_table_i = part_table->indexes()->begin());
 
 	for (auto part_index : *dd_part->indexes()) {
-                ut_ad(swap_i != swap_table->indexes()->end());
-                auto    swap_index = *swap_i;
-                ++swap_i;
+		ut_ad(swap_i != swap_table->indexes()->end());
+		auto	swap_index = *swap_i;
+		++swap_i;
 
-                dd::Object_id   p_tablespace_id = part_index->tablespace_id();
-                part_index->set_tablespace_id(swap_index->tablespace_id());
-                swap_index->set_tablespace_id(p_tablespace_id);
+		dd::Object_id	p_tablespace_id = part_index->tablespace_id();
+		part_index->set_tablespace_id(swap_index->tablespace_id());
+		swap_index->set_tablespace_id(p_tablespace_id);
 
-                ut_ad(part_index->se_private_data().empty()
-                      == swap_index->se_private_data().empty());
-                ut_ad(part_index->se_private_data().size()
-                      == swap_index->se_private_data().size());
+		ut_ad(part_index->se_private_data().empty()
+		      == swap_index->se_private_data().empty());
+		ut_ad(part_index->se_private_data().size()
+		      == swap_index->se_private_data().size());
 
-                if (!part_index->se_private_data().empty()) {
-                        dd::Properties_impl     p_se_data;
-                        p_se_data.assign(part_index->se_private_data());
-                        part_index->se_private_data().clear();
-                        part_index->se_private_data().assign(
-                                swap_index->se_private_data());
-                        swap_index->se_private_data().clear();
-                        swap_index->se_private_data().assign(p_se_data);
-                }
+		if (!part_index->se_private_data().empty()) {
+			dd::Properties_impl	p_se_data;
+			p_se_data.assign(part_index->se_private_data());
+			part_index->se_private_data().clear();
+			part_index->se_private_data().assign(
+				swap_index->se_private_data());
+			swap_index->se_private_data().clear();
+			swap_index->se_private_data().assign(p_se_data);
+		}
 
 		ut_ad(part_table_i != part_table->indexes()->end());
 		ut_d(auto part_table_index = *part_table_i);
 		ut_d(++part_table_i);
-                ut_ad(part_table_index->options().raw_string()
-                      == swap_index->options().raw_string());
+		ut_ad(part_table_index->options().raw_string()
+		      == swap_index->options().raw_string());
 
-        }
-        ut_ad(part_table_i == part_table->indexes()->end());
-        ut_ad(swap_i == swap_table->indexes()->end());
+	}
+	ut_ad(part_table_i == part_table->indexes()->end());
+	ut_ad(swap_i == swap_table->indexes()->end());
 
 	/* Swap the se_private_data and options of the two tables.
-        Only the max autoinc should be set to both tables */
-        if (m_part_share->get_table_share()->found_next_number_field) {
-                uint64  part_autoinc = part->autoinc;
-                uint64  swap_autoinc = swap->autoinc;
-                uint64  max_autoinc = std::max(part_autoinc, swap_autoinc);
+	Only the max autoinc should be set to both tables */
+	if (m_part_share->get_table_share()->found_next_number_field) {
+		uint64	part_autoinc = part->autoinc;
+		uint64	swap_autoinc = swap->autoinc;
+		uint64	max_autoinc = std::max(part_autoinc, swap_autoinc);
 
-                dd_set_autoinc(swap_table->se_private_data(), max_autoinc);
-                dd_set_autoinc(part_table->se_private_data(),
-                               std::max(swap_autoinc,
-                                        m_part_share->next_auto_inc_val));
+		dd_set_autoinc(swap_table->se_private_data(), max_autoinc);
+		dd_set_autoinc(part_table->se_private_data(),
+			       std::max(swap_autoinc,
+					m_part_share->next_auto_inc_val));
 
 		dict_table_autoinc_lock(part);
 		dict_table_autoinc_initialize(part, max_autoinc);
 		dict_table_autoinc_unlock(part);
 
-                if (m_part_share->next_auto_inc_val < swap_autoinc) {
-                        lock_auto_increment();
-                        m_part_share->next_auto_inc_val = swap_autoinc;
-                        unlock_auto_increment();
+		if (m_part_share->next_auto_inc_val < swap_autoinc) {
+			lock_auto_increment();
+			m_part_share->next_auto_inc_val = swap_autoinc;
+			unlock_auto_increment();
 		}
 	}
 
 	/* Swap the se_private_id between partition and table */
-	dd::Object_id   p_se_id = dd_part->se_private_id();
+	dd::Object_id	p_se_id = dd_part->se_private_id();
 	dd_part->set_se_private_id(swap_table->se_private_id());
 	swap_table->set_se_private_id(p_se_id);
 

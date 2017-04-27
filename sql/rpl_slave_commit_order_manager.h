@@ -23,12 +23,9 @@
 #include "my_inttypes.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
-
-class THD;
-
-#include "my_global.h"
 #include "rpl_rli_pdb.h"    // get_thd_worker
 
+class THD;
 
 class Commit_order_manager
 {

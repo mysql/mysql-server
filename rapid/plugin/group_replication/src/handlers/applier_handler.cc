@@ -15,6 +15,8 @@
 
 #include "handlers/applier_handler.h"
 
+#include <stddef.h>
+
 #include "my_dbug.h"
 #include "plugin.h"
 #include "plugin_log.h"
@@ -221,7 +223,7 @@ bool Applier_handler::is_applier_thread_waiting()
   DBUG_RETURN(result);
 }
 
-int Applier_handler::wait_for_gtid_execution(longlong timeout)
+int Applier_handler::wait_for_gtid_execution(double timeout)
 {
   DBUG_ENTER("Applier_handler::wait_for_gtid_execution");
 

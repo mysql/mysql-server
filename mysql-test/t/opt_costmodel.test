@@ -1,7 +1,5 @@
-
 # The block size influence cost estimates in JSON EXPLAIN.
 # To produce the same cost estimates this test can only run with 16K pages.
---source include/have_innodb_16k.inc 
 
 #
 # Default values for cost constants (from the source code)

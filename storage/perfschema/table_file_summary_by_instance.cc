@@ -18,10 +18,13 @@
   Table FILE_SUMMARY_BY_INSTANCE (implementation).
 */
 
+#include "storage/perfschema/table_file_summary_by_instance.h"
+
+#include <stddef.h>
+
 #include "field.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_thread.h"
 #include "pfs_buffer_container.h"
@@ -29,7 +32,6 @@
 #include "pfs_column_values.h"
 #include "pfs_global.h"
 #include "pfs_instr_class.h"
-#include "table_file_summary_by_instance.h"
 
 THR_LOCK table_file_summary_by_instance::m_table_lock;
 
@@ -227,7 +229,7 @@ PFS_index_file_summary_by_instance_by_event_name::match(const PFS_file *pfs)
 }
 
 PFS_engine_table *
-table_file_summary_by_instance::create(void)
+table_file_summary_by_instance::create(PFS_engine_table_share *)
 {
   return new table_file_summary_by_instance();
 }

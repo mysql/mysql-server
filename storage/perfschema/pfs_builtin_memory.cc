@@ -18,9 +18,9 @@
   Performance schema built in memory instrumentation.
 */
 
+#include "storage/perfschema/pfs_builtin_memory.h"
+
 #include "my_dbug.h"
-#include "my_global.h"
-#include "pfs_builtin_memory.h"
 #include "pfs_global.h"
 
 PFS_builtin_memory_class builtin_memory_mutex;

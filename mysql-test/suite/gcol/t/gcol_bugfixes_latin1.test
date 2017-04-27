@@ -13,7 +13,7 @@ SET NAMES latin1;
 --echo # ON EACH TABLE REBUILD
 --echo #
 
-CREATE TABLE t1 ( gc VARCHAR( 20 ) GENERATED ALWAYS AS ( 'Å' ) );
+CREATE TABLE t1 ( gc VARCHAR( 20 ) charset latin1 GENERATED ALWAYS AS ( 'Å' ) );
 
 INSERT INTO t1 VALUES ();
 

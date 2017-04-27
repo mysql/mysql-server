@@ -11,8 +11,22 @@ innodb.bootstrap                             : Bug#19442959 2015-11-05 jhauglid
 innodb.log_file_name                         : Bug#19442959 2015-11-05 jhauglid
 innodb.log_file_size                         : Bug#19442959 2015-11-05 jhauglid
 innodb.log_file_size_1                       : Bug#19442959 2015-11-05 jhauglid
-innodb.log_file_system                       : Bug#19442959 2015-11-05 jhauglid
 innodb.temporary_table                       : Bug#19442959 2015-11-05 jhauglid
 innodb.table_encrypt_2                       : Bug#21237667 2016-02-05 hvadodar
-binlog.binlog_index                          : Bug#23531998 2016-06-06 edahl
 main.dd_bootstrap                            : Bug#24421481 2016-08-08 edahl
+binlog.binlog_check_flush_log_assertion      : Bug#22732184 2017-03-10 edahl
+innodb.innodb_tsof_use_1                     : Bug#19442959 2017-03-13 edahl
+innodb.virtual_basic                         : Bug#25431979 2017-03-27 edahl
+authentication_ldap.auth_ldap_rootdn                         : LDAP work-log 5847, temporary skip ysahu
+authentication_ldap.auth_ldap_ca_fail                        : LDAP work-log 5847, temporary skip ysahu
+authentication_ldap.auth_ldap_simple_ad                        : LDAP work-log 5847, temporary skip ysahu
+authentication_ldap.auth_ldap_simple_forest                        : LDAP work-log 5847, temporary skip ysahu
+authentication_ldap.auth_ldap_ca                        : LDAP work-log 5847, temporary skip ysahu
+authentication_ldap.auth_ldap_sasl_invalid_method                        : LDAP work-log 5847, temporary skip ysahu
+authentication_ldap.auth_ldap_z_options                        : LDAP work-log 5847, temporary skip ysahu
+authentication_ldap.auth_ldap_sasl                        : LDAP work-log 5847, temporary skip ysahu
+authentication_ldap.auth_ldap_pool_disable                        : LDAP work-log 5847, temporary skip ysahu
+authentication_ldap.auth_ldap_pool_create                        : LDAP work-log 5847, temporary skip ysahu
+authentication_ldap.auth_ldap_invalid_server                        : LDAP work-log 5847, temporary skip ysahu
+authentication_ldap.auth_ldap_simple                        : LDAP work-log 5847, temporary skip ysahu
+authentication_ldap.auth_ldap_tls                        : LDAP work-log 5847, temporary skip ysahu

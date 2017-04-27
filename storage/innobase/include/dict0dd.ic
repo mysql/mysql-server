@@ -30,43 +30,46 @@ Created  10/2016 Jimmy Yamg
 #include "dict0priv.h"
 
 /** Get the explicit dd::Tablespace::id of a partition.
-@param[in]      partition       partition or subpartition
-@return the explicit dd::Tablespace::id
-@retval dd::INVALID_OBJECT_ID   if there is no explicit tablespace */
+@param[in]	partition	partition or subpartition
+@return	the explicit dd::Tablespace::id
+@retval	dd::INVALID_OBJECT_ID	if there is no explicit tablespace */
 inline
 dd::Object_id
 dd_get_space_id(const dd::Partition& partition)
 {
-        ut_ad(dd_part_is_stored(&partition));
-        ut_ad(partition.table().partition_type() != dd::Table::PT_NONE);
-        ut_ad((partition.table().subpartition_type() == dd::Table::ST_NONE)
-              == (partition.parent() == nullptr));
+	ut_ad(dd_part_is_stored(&partition));
+	ut_ad(dd_table_is_partitioned(partition.table()));
+	ut_ad((partition.table().subpartition_type() == dd::Table::ST_NONE)
+	      == (partition.parent() == nullptr));
 
-        dd::Object_id   id = partition.tablespace_id();
-        if (id == dd::INVALID_OBJECT_ID) {
-                if (const dd::Partition* parent = partition.parent()) {
-                        /* If there is no explicit TABLESPACE for the
-                        subpartition, fall back to the TABLESPACE
-                        of the partition. */
-                        id = parent->tablespace_id();
-                }
-        }
-        if (id == dd::INVALID_OBJECT_ID) {
-                /* If there is no explicit TABLESPACE for the partition,
-                fall back to the TABLESPACE of the table. */
-                id = partition.table().tablespace_id();
-        }
-        return(id);
+	dd::Object_id	id = partition.tablespace_id();
+	if (id == dd::INVALID_OBJECT_ID) {
+		if (const dd::Partition* parent = partition.parent()) {
+			/* If there is no explicit TABLESPACE for the
+			subpartition, fall back to the TABLESPACE
+			of the partition. */
+			id = parent->tablespace_id();
+		}
+	}
+	if (id == dd::INVALID_OBJECT_ID) {
+		/* If there is no explicit TABLESPACE for the partition,
+		fall back to the TABLESPACE of the table. */
+		id = partition.table().tablespace_id();
+	}
+	return(id);
 }
 
+/** partition name separator */
+extern	const char* part_sep;
+
 /** Parse a table file name into table name and database name
-@param[in]      tbl_name        table name including database and table name
+@param[in]	tbl_name	table name including database and table name
 @param[in,out]	dd_db_name	database name buffer to be filled
 @param[in,out]	dd_tbl_name	table name buffer to be filled
 @param[in,out]	dd_ptn_name	partition name to be filled if not NULL
 @return true if table name is parsed properly, false if the table name
 is invalid */
-UNIV_INLINE
+inline
 bool
 dd_parse_tbl_name(
 	const char*	tbl_name,
@@ -90,22 +93,26 @@ dd_parse_tbl_name(
 	       strlen(tbl_name) - db_len - 1);
 	tbl_buf[strlen(tbl_name) - db_len - 1] = 0;
 
-	filename_to_tablename(db_buf, dd_db_name, MAX_DATABASE_NAME_LEN + 1);
+	filename_to_tablename(db_buf, dd_db_name, MAX_DATABASE_NAME_LEN + 1
+#ifndef DBUG_OFF
+			      , true
+#endif /* DBUG_OFF */
+	);
 
-#ifdef _WIN32
-	is_part = strstr(tbl_buf, "#p#");
-#else
-	is_part = strstr(tbl_buf, "#P#");
-#endif /* _WIN32 */
+	is_part = strstr(tbl_buf, part_sep);
 
 	if (is_part) {
 		*is_part = 0;
 	}
 
-        filename_to_tablename(tbl_buf, dd_tbl_name, MAX_TABLE_NAME_LEN + 1);
+	filename_to_tablename(tbl_buf, dd_tbl_name, MAX_TABLE_NAME_LEN + 1
+#ifndef DBUG_OFF
+			      , true
+#endif /* DBUG_OFF */
+	);
 
 	if (is_part && dd_ptn_name) {
-        	filename_to_tablename((is_part + 3), dd_ptn_name,
+		filename_to_tablename((is_part + 3), dd_ptn_name,
 				      MAX_TABLE_NAME_LEN + 1);
 	}
 
@@ -113,11 +120,11 @@ dd_parse_tbl_name(
 }
 
 /** Look up a column in a table using the system_charset_info collation.
-@param[in]      dd_table        data dictionary table
-@param[in]      name            column name
+@param[in]	dd_table	data dictionary table
+@param[in]	name		column name
 @return the column
 @retval nullptr if not found */
-UNIV_INLINE
+inline
 const dd::Column*
 dd_find_column(
 	const dd::Table*	dd_table,
@@ -129,7 +136,7 @@ dd_find_column(
 			return(c);
 		}
 	}
-        return(nullptr);
+	return(nullptr);
 }
 
 /** Add a hidden column when creating a table.
@@ -138,7 +145,7 @@ dd_find_column(
 @param[in]	length		length of the column, in bytes
 @param[in]	type		column type
 @return the added column, or NULL if there already was a column by that name */
-UNIV_INLINE
+inline
 dd::Column*
 dd_add_hidden_column(
 	dd::Table*		dd_table,
@@ -163,48 +170,48 @@ dd_add_hidden_column(
 }
 
 /** Add a hidden index element at the end.
-@param[in,out]  index   created index metadata
-@param[in]      column  column of the index */
-UNIV_INLINE
+@param[in,out]	index	created index metadata
+@param[in]	column	column of the index */
+inline
 void
 dd_add_hidden_element(dd::Index* index, const dd::Column* column)
 {
-        dd::Index_element* e = index->add_element(
-                const_cast<dd::Column*>(column));
-        e->set_hidden(true);
-        e->set_order(dd::Index_element::ORDER_ASC);
+	dd::Index_element* e = index->add_element(
+		const_cast<dd::Column*>(column));
+	e->set_hidden(true);
+	e->set_order(dd::Index_element::ORDER_ASC);
 }
 
 /** Initialize a hidden unique B-tree index.
-@param[in,out]  index   created index metadata
-@param[in]      name    name of the index
-@param[in]      column  column of the index
+@param[in,out]	index	created index metadata
+@param[in]	name	name of the index
+@param[in]	column	column of the index
 @return the initialized index */
-UNIV_INLINE
+inline
 dd::Index*
 dd_set_hidden_unique_index(
-        dd::Index*              index,
-        const char*             name,
-        const dd::Column*       column)
+	dd::Index*		index,
+	const char*		name,
+	const dd::Column*	column)
 {
-        index->set_name(name);
-        index->set_hidden(true);
-        index->set_algorithm(dd::Index::IA_BTREE);
-        index->set_type(dd::Index::IT_UNIQUE);
-        index->set_engine(innobase_hton_name);
-        dd_add_hidden_element(index, column);
-        return(index);
+	index->set_name(name);
+	index->set_hidden(true);
+	index->set_algorithm(dd::Index::IA_BTREE);
+	index->set_type(dd::Index::IT_UNIQUE);
+	index->set_engine(innobase_hton_name);
+	dd_add_hidden_element(index, column);
+	return(index);
 }
 
 /** Returns a cached table object based on table id.
 @param[in]	table_id	table id
 @param[in]	dict_locked	TRUE=data dictionary locked
 @return table, NULL if does not exist */
-UNIV_INLINE
+inline
 dict_table_t*
 dd_table_open_on_id_in_mem(
 	table_id_t	table_id,
-	ibool		dict_locked)
+	bool		dict_locked)
 {
 	dict_table_t*	table;
 
@@ -221,9 +228,9 @@ dd_table_open_on_id_in_mem(
 		    dict_table_t*, table, ut_ad(table->cached),
 		    table->id == table_id);
 
-	ut_ad(!table || table->cached);
+	ut_ad(table == nullptr || table->cached);
 
-	if (table != NULL) {
+	if (table != nullptr) {
 
 		if (table->can_be_evicted) {
 			dict_move_to_mru(table);
@@ -238,14 +245,14 @@ dd_table_open_on_id_in_mem(
 		mutex_exit(&dict_sys->mutex);
 	}
 
-        return(table);
+	return(table);
 }
 
 /** Returns a cached table object based on table name.
 @param[in]	table_id	table id
 @param[in]	dict_locked	TRUE=data dictionary locked
 @return table, NULL if does not exist */
-UNIV_INLINE
+inline
 dict_table_t*
 dd_table_open_on_name_in_mem(
 	const char*	name,
@@ -261,7 +268,7 @@ dd_table_open_on_name_in_mem(
 
 	ut_ad(!table || table->cached);
 
-	if (table != NULL) {
+	if (table != nullptr) {
 		if (table->can_be_evicted) {
 			dict_move_to_mru(table);
 		}
@@ -288,7 +295,7 @@ reserved for InnoDB FTS Doc ID
 				ULINT_UNDEFINED if column is of the
 				wrong type/name/size
 @return true if there exist a "FTS_DOC_ID" column */
-UNIV_INLINE
+inline
 bool
 create_table_check_doc_id_col(
 	THD*		thd,
@@ -344,29 +351,29 @@ create_table_check_doc_id_col(
 /** Return a display name for the row format
 @param[in]      row_format      Row Format
 @return row format name */
-UNIV_INLINE
+inline
 const char*
 get_row_format_name(enum row_type row_format)
 {
-        switch (row_format) {
-        case ROW_TYPE_COMPACT:
-                return("ROW_FORMAT=COMPACT");
-        case ROW_TYPE_COMPRESSED:
-                return("ROW_FORMAT=COMPRESSED");
-        case ROW_TYPE_DYNAMIC:
-                return("ROW_FORMAT=DYNAMIC");
-        case ROW_TYPE_REDUNDANT:
-                return("ROW_FORMAT=REDUNDANT");
-        case ROW_TYPE_DEFAULT:
-                return("ROW_FORMAT=DEFAULT");
-        case ROW_TYPE_FIXED:
-                return("ROW_FORMAT=FIXED");
-        case ROW_TYPE_PAGED:
-                return("ROW_FORMAT=PAGED");
-        case ROW_TYPE_NOT_USED:
-                break;
-        }
-        return("ROW_FORMAT");
+	switch (row_format) {
+	case ROW_TYPE_COMPACT:
+		return("ROW_FORMAT=COMPACT");
+	case ROW_TYPE_COMPRESSED:
+		return("ROW_FORMAT=COMPRESSED");
+	case ROW_TYPE_DYNAMIC:
+		return("ROW_FORMAT=DYNAMIC");
+	case ROW_TYPE_REDUNDANT:
+		return("ROW_FORMAT=REDUNDANT");
+	case ROW_TYPE_DEFAULT:
+		return("ROW_FORMAT=DEFAULT");
+	case ROW_TYPE_FIXED:
+		return("ROW_FORMAT=FIXED");
+	case ROW_TYPE_PAGED:
+		return("ROW_FORMAT=PAGED");
+	case ROW_TYPE_NOT_USED:
+		break;
+	}
+	return("ROW_FORMAT");
 }
 
 /** Acquire a shared metadata lock.
@@ -376,17 +383,37 @@ get_row_format_name(enum row_type row_format)
 @param[in]	table	table name
 @retval false if acquired
 @retval true if failed (my_error() will have been called) */
-UNIV_INLINE
+UNIV_INLINE MY_ATTRIBUTE((warn_unused_result))
 bool
 dd_mdl_acquire(
 	THD*		thd,
 	MDL_ticket**	mdl,
 	const char*	db,
-	char*		table)
+	const char*	table)
 {
-        bool	ret = false;
+	bool		ret = false;
+	char		table_name[MAX_TABLE_NAME_LEN + 1];
+	const char*	namep = table;
 
-        ret = dd::acquire_shared_table_mdl(thd, db, table, false, mdl);
+	if (innobase_get_lower_case_table_names() == 2) {
+		ulint	len = strlen(table);
+		ut_memcpy(table_name, table, len);
+		table_name[len] = '\0';
+		innobase_casedn_str(table_name);
+		namep = table_name;
+	} else {
+#ifndef _WIN32
+		if (innobase_get_lower_case_table_names() == 1) {
+			ulint	len = strlen(table);
+			ut_memcpy(table_name, table, len);
+			table_name[len] = '\0';
+			innobase_casedn_str(table_name);
+			namep = table_name;
+		}
+#endif /* !_WIN32 */
+	}
 
-        return(ret);
+	ret = dd::acquire_shared_table_mdl(thd, db, namep, false, mdl);
+
+	return(ret);
 }

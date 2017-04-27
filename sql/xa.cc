@@ -104,8 +104,7 @@ void xid_t::set(my_xid xid)
 }
 
 
-static my_bool xacommit_handlerton(THD *unused1, plugin_ref plugin,
-                                   void *arg)
+static bool xacommit_handlerton(THD*, plugin_ref plugin, void *arg)
 {
   handlerton *hton= plugin_data<handlerton*>(plugin);
   if (hton->state == SHOW_OPTION_YES && hton->recover)
@@ -115,8 +114,7 @@ static my_bool xacommit_handlerton(THD *unused1, plugin_ref plugin,
 }
 
 
-static my_bool xarollback_handlerton(THD *unused1, plugin_ref plugin,
-                                     void *arg)
+static bool xarollback_handlerton(THD*, plugin_ref plugin, void *arg)
 {
   handlerton *hton= plugin_data<handlerton*>(plugin);
   if (hton->state == SHOW_OPTION_YES && hton->recover)
@@ -126,7 +124,7 @@ static my_bool xarollback_handlerton(THD *unused1, plugin_ref plugin,
 }
 
 
-static void ha_commit_or_rollback_by_xid(THD *thd, XID *xid, bool commit)
+static void ha_commit_or_rollback_by_xid(THD*, XID *xid, bool commit)
 {
   plugin_foreach(NULL, commit ? xacommit_handlerton : xarollback_handlerton,
                  MYSQL_STORAGE_ENGINE_PLUGIN, xid);
@@ -142,8 +140,7 @@ struct xarecover_st
 };
 
 
-static my_bool xarecover_handlerton(THD *unused, plugin_ref plugin,
-                                    void *arg)
+static bool xarecover_handlerton(THD*, plugin_ref plugin, void *arg)
 {
   handlerton *hton= plugin_data<handlerton*>(plugin);
   struct xarecover_st *info= (struct xarecover_st *) arg;
@@ -381,12 +378,37 @@ bool Sql_cmd_xa_commit::trans_xa_commit(THD *thd)
       xid_state->set_binlogged();
     else
       xid_state->unset_binlogged();
+
+    /*
+      Acquire metadata lock which will ensure that COMMIT is blocked
+      by active FLUSH TABLES WITH READ LOCK (and vice versa COMMIT in
+      progress blocks FTWRL).
+
+      We allow FLUSHer to COMMIT; we assume FLUSHer knows what it does.
+    */
+    MDL_request mdl_request;
+    MDL_REQUEST_INIT(&mdl_request,
+                     MDL_key::COMMIT, "", "", MDL_INTENTION_EXCLUSIVE,
+                     MDL_STATEMENT);
+    if (thd->mdl_context.acquire_lock(&mdl_request,
+                                      thd->variables.lock_wait_timeout))
+    {
+      /*
+        We can't rollback an XA transaction on lock failure due to
+        Innodb redo log and bin log update is involved in rollback.
+        Return error to user for a retry.
+      */
+      my_error(ER_XA_RETRY, MYF(0));
+      DBUG_RETURN(true);
+    }
+
     /* Do not execute gtid wrapper whenever 'res' is true (rm error) */
     gtid_error= MY_TEST(commit_owned_gtids(thd,
                                            true, &need_clear_owned_gtid));
     if (gtid_error)
       my_error(ER_XA_RBROLLBACK, MYF(0));
     res= res || gtid_error;
+
     // todo xa framework: return an error
     ha_commit_or_rollback_by_xid(thd, m_xid, !res);
     xid_state->unset_binlogged();
@@ -422,11 +444,21 @@ bool Sql_cmd_xa_commit::trans_xa_commit(THD *thd)
     */
     MDL_REQUEST_INIT(&mdl_request,
                      MDL_key::COMMIT, "", "", MDL_INTENTION_EXCLUSIVE,
-                     MDL_TRANSACTION);
+                     MDL_STATEMENT);
+    if (thd->mdl_context.acquire_lock(&mdl_request,
+                                      thd->variables.lock_wait_timeout))
+    {
+      /*
+        We can't rollback an XA transaction on lock failure due to
+        Innodb redo log and bin log update are involved in rollback.
+        Return error to user for a retry.
+      */
+      my_error(ER_XA_RETRY, MYF(0));
+      DBUG_RETURN(true);
+    }
 
     gtid_error= MY_TEST(commit_owned_gtids(thd, true, &need_clear_owned_gtid));
-    if (gtid_error || thd->mdl_context.acquire_lock(&mdl_request,
-                                             thd->variables.lock_wait_timeout))
+    if (gtid_error)
     {
       res= true;
       /*
@@ -551,6 +583,29 @@ bool Sql_cmd_xa_rollback::trans_xa_rollback(THD *thd)
     bool gtid_error= false;
 
     DBUG_ASSERT(xs->is_in_recovery());
+
+    /*
+      Acquire metadata lock which will ensure that XA ROLLBACK is blocked
+      by active FLUSH TABLES WITH READ LOCK (and vice versa ROLLBACK in
+      progress blocks FTWRL). This is to avoid binlog and redo entries
+      while a backup is in progress.
+    */
+    MDL_request mdl_request;
+    MDL_REQUEST_INIT(&mdl_request,
+                     MDL_key::COMMIT, "", "", MDL_INTENTION_EXCLUSIVE,
+                     MDL_STATEMENT);
+    if (thd->mdl_context.acquire_lock(&mdl_request,
+                                      thd->variables.lock_wait_timeout))
+    {
+      /*
+        We can't rollback an XA transaction on lock failure due to
+        Innodb redo log and bin log update is involved in rollback.
+        Return error to user for a retry.
+      */
+      my_error(ER_XAER_RMERR, MYF(0));
+      DBUG_RETURN(true);
+    }
+
     /*
       Like in the commit case a failure to store gtid is regarded
       as the resource manager issue.
@@ -573,6 +628,28 @@ bool Sql_cmd_xa_rollback::trans_xa_rollback(THD *thd)
       xid_state->has_state(XID_STATE::XA_ACTIVE))
   {
     my_error(ER_XAER_RMFAIL, MYF(0), xid_state->state_name());
+    DBUG_RETURN(true);
+  }
+
+  /*
+    Acquire metadata lock which will ensure that XA ROLLBACK is blocked
+    by active FLUSH TABLES WITH READ LOCK (and vice versa ROLLBACK in
+    progress blocks FTWRL). This is to avoid binlog and redo entries
+    while a backup is in progress.
+  */
+  MDL_request mdl_request;
+  MDL_REQUEST_INIT(&mdl_request,
+                   MDL_key::COMMIT, "", "", MDL_INTENTION_EXCLUSIVE,
+                   MDL_STATEMENT);
+  if (thd->mdl_context.acquire_lock(&mdl_request,
+                                    thd->variables.lock_wait_timeout))
+  {
+    /*
+      We can't rollback an XA transaction on lock failure due to
+      Innodb redo log and bin log update is involved in rollback.
+      Return error to user for a retry.
+    */
+    my_error(ER_XAER_RMERR, MYF(0));
     DBUG_RETURN(true);
   }
 
@@ -755,30 +832,52 @@ bool Sql_cmd_xa_prepare::trans_xa_prepare(THD *thd)
     my_error(ER_XAER_RMFAIL, MYF(0), xid_state->state_name());
   else if (!xid_state->has_same_xid(m_xid))
     my_error(ER_XAER_NOTA, MYF(0));
-  else if (ha_prepare(thd))
-  {
-#ifdef HAVE_PSI_TRANSACTION_INTERFACE
-    DBUG_ASSERT(thd->m_transaction_psi == NULL);
-#endif
-
-    /*
-      Reset rm_error in case ha_prepare() returned error,
-      so thd->transaction.xid structure gets reset
-      by THD::transaction::cleanup().
-    */
-    thd->get_transaction()->xid_state()->reset_error();
-    cleanup_trans_state(thd);
-    xid_state->set_state(XID_STATE::XA_NOTR);
-    thd->get_transaction()->cleanup();
-    my_error(ER_XA_RBROLLBACK, MYF(0));
-  }
   else
   {
-    xid_state->set_state(XID_STATE::XA_PREPARED);
-    MYSQL_SET_TRANSACTION_XA_STATE(thd->m_transaction_psi,
-                                   (int)xid_state->get_state());
-    if (thd->rpl_thd_ctx.session_gtids_ctx().notify_after_xa_prepare(thd))
-      sql_print_warning("Failed to collect GTID to send in the response packet!");
+    /*
+      Acquire metadata lock which will ensure that XA PREPARE is blocked
+      by active FLUSH TABLES WITH READ LOCK (and vice versa PREPARE in
+      progress blocks FTWRL). This is to avoid binlog and redo entries
+      while a backup is in progress.
+    */
+    MDL_request mdl_request;
+    MDL_REQUEST_INIT(&mdl_request,
+                     MDL_key::COMMIT, "", "", MDL_INTENTION_EXCLUSIVE,
+                     MDL_STATEMENT);
+    if (thd->mdl_context.acquire_lock(&mdl_request,
+                                      thd->variables.lock_wait_timeout) ||
+        ha_prepare(thd))
+    {
+      /*
+        Rollback the transaction if lock failed. For ha_prepare() failure
+        scenarios, transaction is already rolled back by ha_prepare().
+      */
+      if (!mdl_request.ticket)
+        ha_rollback_trans(thd, true);
+
+#ifdef HAVE_PSI_TRANSACTION_INTERFACE
+      DBUG_ASSERT(thd->m_transaction_psi == NULL);
+#endif
+
+      /*
+        Reset rm_error in case ha_prepare() returned error,
+        so thd->transaction.xid structure gets reset
+        by THD::transaction::cleanup().
+      */
+      thd->get_transaction()->xid_state()->reset_error();
+      cleanup_trans_state(thd);
+      xid_state->set_state(XID_STATE::XA_NOTR);
+      thd->get_transaction()->cleanup();
+      my_error(ER_XA_RBROLLBACK, MYF(0));
+    }
+    else
+    {
+      xid_state->set_state(XID_STATE::XA_PREPARED);
+      MYSQL_SET_TRANSACTION_XA_STATE(thd->m_transaction_psi,
+                                     (int)xid_state->get_state());
+      if (thd->rpl_thd_ctx.session_gtids_ctx().notify_after_xa_prepare(thd))
+        sql_print_warning("Failed to collect GTID to send in the response packet!");
+    }
   }
 
   DBUG_RETURN(thd->is_error() ||
@@ -1319,12 +1418,11 @@ bool applier_reset_xa_trans(THD *thd)
 
   @param[in,out]     thd     Thread context
   @param             plugin  Reference to handlerton
-  @param             unused  Unused
 
   @return    FALSE   on success, TRUE otherwise.
 */
 
-my_bool detach_native_trx(THD *thd, plugin_ref plugin, void *unused)
+bool detach_native_trx(THD *thd, plugin_ref plugin, void*)
 {
   handlerton *hton= plugin_data<handlerton *>(plugin);
 

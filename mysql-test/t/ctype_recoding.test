@@ -1,8 +1,8 @@
-
  #Get deafult engine value
 --let $DEFAULT_ENGINE = `select @@global.default_storage_engine`
 
 SET CHARACTER SET koi8r;
+--character_set koi8r
 
 --disable_warnings
 DROP TABLE IF EXISTS ‘¡¬Ã…√¡, t1, t2;
@@ -55,6 +55,7 @@ SHOW CREATE TABLE ‘¡¬Ã…√¡;
 SHOW FIELDS FROM ‘¡¬Ã…√¡;
 
 SET CHARACTER SET cp1251;
+--character_set cp1251
 SHOW TABLES;
 
 #Replace default engine value with static engine string 
@@ -64,6 +65,7 @@ SHOW FIELDS FROM Ú‡·ÎËˆ‡;
 
 
 SET CHARACTER SET utf8;
+--character_set utf8mb4
 SHOW TABLES;
 
 #Replace default engine value with static engine string 
@@ -72,6 +74,7 @@ SHOW CREATE TABLE —Ç–∞–±–ª–∏—Ü–∞;
 SHOW FIELDS FROM —Ç–∞–±–ª–∏—Ü–∞;
 
 SET CHARACTER SET koi8r;
+--character_set koi8r
 DROP TABLE ‘¡¬Ã…√¡;
 SET CHARACTER SET default;
 
@@ -105,12 +108,14 @@ USE test;
 # when the client character set is binary.
 
 SET NAMES binary;
+--character_set binary
 CREATE TABLE `—Ç–µ—Å—Ç` (`—Ç–µ—Å—Ç` int);
 
 #Replace default engine value with static engine string 
 --replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE `—Ç–µ—Å—Ç`;
 SET NAMES utf8;
+--character_set utf8mb4
 
 #Replace default engine value with static engine string 
 --replace_result $DEFAULT_ENGINE ENGINE
@@ -131,6 +136,8 @@ SELECT '—Ç–µ—Å—Ç' as s;
 # return column names and default values in UTF8 after "SET NAMES BINARY"
 
 SET NAMES latin1;
+--character_set latin1
+
 CREATE TABLE t1 (`‰` CHAR(128) DEFAULT '‰', `‰1` ENUM('‰1','‰2') DEFAULT '‰2');
 
 #Replace default engine value with static engine string 

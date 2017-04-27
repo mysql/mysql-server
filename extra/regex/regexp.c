@@ -58,14 +58,14 @@
  */
 
 /* Headers */
-#include "my_global.h"
 #include <ctype.h>
+
 #include "regexp.h"
 #ifdef	_WIN32
 #include <string.h>
 #else
-#include "memory.h"
 #include "error.h"
+#include "memory.h"
 #endif
 
 /*

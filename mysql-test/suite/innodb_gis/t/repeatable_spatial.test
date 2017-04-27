@@ -6,7 +6,6 @@
 # Test at con1: Global Repeatable Read con2 : Sess Read Committed
 # Test at con1: Sess Repeatable Read   con2 : Sess Read Committed
 # *****************************************************************
---source include/not_embedded.inc
 
 # Test Repeatable Read & Read committed at Global, Session levels
 CREATE TABLE tab(c1 int NOT NULL PRIMARY KEY,c2 POINT NOT NULL,

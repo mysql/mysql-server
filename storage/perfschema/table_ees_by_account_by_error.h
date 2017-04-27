@@ -21,13 +21,15 @@
   Table EVENTS_ERRORS_SUMMARY_BY_ACCOUNT_BY_ERROR (declarations).
 */
 
+#include <sys/types.h>
+
+#include "pfs_account.h"
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"
-#include "pfs_instr_class.h"
-#include "pfs_instr.h"
-#include "pfs_account.h"
-#include "table_helper.h"
 #include "pfs_error.h"
+#include "pfs_instr.h"
+#include "pfs_instr_class.h"
+#include "table_helper.h"
 
 /**
   @addtogroup Performance_schema_tables
@@ -115,7 +117,7 @@ class table_ees_by_account_by_error : public PFS_engine_table
 public:
   /** Table share */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table *create();
+  static PFS_engine_table *create(PFS_engine_table_share *);
   static int delete_all_rows();
   static ha_rows get_row_count();
 

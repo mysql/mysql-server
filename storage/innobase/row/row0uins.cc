@@ -77,7 +77,7 @@ row_undo_ins_remove_clust_rec(
 	ut_ad(node->trx->in_rollback);
 
 	mtr_start(&mtr);
-	mtr.set_named_space(index->space);
+
 	dict_disable_redo_if_temporary(index->table, &mtr);
 
 	/* This is similar to row_undo_mod_clust(). The DDL thread may
@@ -126,7 +126,7 @@ row_undo_ins_remove_clust_rec(
 retry:
 	/* If did not succeed, try pessimistic descent to tree */
 	mtr_start(&mtr);
-	mtr.set_named_space(index->space);
+
 	dict_disable_redo_if_temporary(index->table, &mtr);
 
 	success = btr_pcur_restore_position(
@@ -189,7 +189,7 @@ row_undo_ins_remove_sec_low(
 	memset(&pcur, 0, sizeof(pcur));
 
 	mtr_start(&mtr);
-	mtr.set_named_space(index->space);
+
 	dict_disable_redo_if_temporary(index->table, &mtr);
 
 	if (mode == BTR_MODIFY_LEAF) {

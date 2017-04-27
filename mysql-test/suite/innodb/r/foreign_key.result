@@ -39,7 +39,7 @@ t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   `b` int(11) NOT NULL,
   KEY `idx` (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -48,7 +48,7 @@ t2	CREATE TABLE `t2` (
   PRIMARY KEY (`a`),
   KEY `ind` (`b`),
   CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t1` (`a`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 INSERT INTO t1 VALUES (1, 80);
 INSERT INTO t1 VALUES (2, 81);
 INSERT INTO t1 VALUES (3, 82);
@@ -75,22 +75,9 @@ a	b
 55	5
 INSERT INTO t2 VALUES (56, 6);
 ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t1` (`a`) ON DELETE CASCADE ON UPDATE CASCADE)
-ALTER TABLE t1 CHANGE a id INT;
-SELECT id, b FROM t1 ORDER BY id;
-id	b
-1	80
-2	81
-3	82
-4	83
-5	84
-SELECT a, b FROM t2 ORDER BY a;
-a	b
-51	1
-52	2
-53	3
-54	4
-55	5
+NewDD TODO: Runtime Bug#25722221 - RENAME COLUMN DID NOT UPDATE MYSQL.FOREIGN_KEY_COLUMN_USAGE FOR FK CONSTRAINT
 # Operations on child table
+<<<<<<< HEAD
 TODO: NewDD: Waiting for WL#6049 fixes
 TODO: Waiting for Bug#24666169
 DELETE FROM t2 WHERE a = 53;
@@ -122,6 +109,9 @@ a	b
 52	2
 54	4
 55	5
+=======
+TODO: Waiting for Bug#24666169
+>>>>>>> mysql-trunk
 DROP TABLE t2, t1;
 #
 # Bug#20752436: INNODB: FAILING ASSERTION: 0 IN FILE HANDLER0ALTER.CC

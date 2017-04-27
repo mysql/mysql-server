@@ -42,16 +42,16 @@ using std::vector;
 #define EX_MYSQLERR 2
 
 static MYSQL mysql_connection, *sock = 0;
-static my_bool opt_alldbs = 0, opt_check_only_changed = 0, opt_extended = 0,
-               opt_compress = 0, opt_databases = 0, opt_fast = 0,
-               opt_medium_check = 0, opt_quick = 0, opt_all_in_1 = 0,
-               opt_silent = 0, opt_auto_repair = 0, ignore_errors = 0,
-               tty_password= 0, opt_frm= 0, debug_info_flag= 0, debug_check_flag= 0,
-               opt_fix_table_names= 0, opt_fix_db_names= 0, opt_upgrade= 0,
-               opt_write_binlog= 1, opt_secure_auth=TRUE;
+static bool opt_alldbs = 0, opt_check_only_changed = 0, opt_extended = 0,
+            opt_compress = 0, opt_databases = 0, opt_fast = 0,
+            opt_medium_check = 0, opt_quick = 0, opt_all_in_1 = 0,
+            opt_silent = 0, opt_auto_repair = 0, ignore_errors = 0,
+            tty_password= 0, opt_frm= 0, debug_info_flag= 0, debug_check_flag= 0,
+            opt_fix_table_names= 0, opt_fix_db_names= 0, opt_upgrade= 0,
+            opt_write_binlog= 1, opt_secure_auth=TRUE;
 static uint verbose = 0, opt_mysql_port=0;
 static uint opt_enable_cleartext_plugin= 0;
-static my_bool using_opt_enable_cleartext_plugin= 0;
+static bool using_opt_enable_cleartext_plugin= 0;
 static int my_end_arg;
 static char * opt_mysql_unix_port = 0;
 static char *opt_password = 0, *current_user = 0,
@@ -266,7 +266,7 @@ static void usage(void)
 
 
 extern "C" {
-static my_bool
+static bool
 get_one_option(int optid, const struct my_option *opt,
 	       char *argument)
 {
@@ -400,12 +400,12 @@ static int get_options(int *argc, char ***argv)
 
   /*
     If there's no --default-character-set option given with
-    --fix-table-name or --fix-db-name set the default character set to "utf8".
+    --fix-table-name or --fix-db-name set the default character set to "utf8mb4".
   */
   if (!default_charset)
   {
     if (opt_fix_db_names || opt_fix_table_names)
-      default_charset= (char*) "utf8";
+      default_charset= (char*) "utf8mb4";
     else
       default_charset= (char*) MYSQL_AUTODETECT_CHARSET_NAME;
   }

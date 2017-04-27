@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -291,6 +291,9 @@ struct fts_token_t {
 /** It's defined in fts/fts0fts.c */
 extern const fts_index_selector_t fts_index_selector[];
 
+/** It's defined in fts/fts0fts.c */
+extern const fts_index_selector_t fts_index_selector_5_7[];
+
 /** Compare two fts_trx_row_t instances doc_ids.
 @param[in]	p1	id1
 @param[in]	p2	id2
@@ -370,6 +373,13 @@ const char*
 fts_get_suffix(
 /*===========*/
 	ulint		selected);		/*!< in: selected index */
+
+/** Return the selected FTS aux index suffix in 5.7 compatible format
+@param[in]	selected	selected index
+@return the suffix name */
+UNIV_INLINE
+const char*
+fts_get_suffix_5_7(ulint selected);
 
 /** Select the FTS auxiliary index for the given character.
 @param[in]	cs	charset

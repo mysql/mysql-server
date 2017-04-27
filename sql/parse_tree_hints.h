@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,7 +25,6 @@
 
 #include "mem_root_array.h"
 #include "my_compiler.h"
-#include "my_global.h"
 #include "opt_hints.h"
 #include "parse_tree_node_base.h"
 #include "sql_plugin.h"
@@ -232,7 +231,8 @@ public:
     @return  true in case of error,
              false otherwise
   */
-  virtual bool contextualize(Parse_context *pc);
+  virtual bool contextualize(Parse_context *pc) override;
+  void append_args(THD *thd, String *str) const override;
 };
 
 

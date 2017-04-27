@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -24,15 +24,17 @@ Created 3/26/1996 Heikki Tuuri
 *******************************************************/
 
 #include "trx0rseg.h"
-#include "trx0undo.h"
-#include "fut0lst.h"
-#include "srv0srv.h"
-#include "trx0purge.h"
-#include "srv0mon.h"
-#include "srv0start.h"
-#include "fsp0sysspace.h"
 
+#include <stddef.h>
 #include <algorithm>
+
+#include "fsp0sysspace.h"
+#include "fut0lst.h"
+#include "srv0mon.h"
+#include "srv0srv.h"
+#include "srv0start.h"
+#include "trx0purge.h"
+#include "trx0undo.h"
 
 /** Creates a rollback segment header.
 This function is called only when a new rollback segment is created in
@@ -305,20 +307,20 @@ trx_rseg_create(
 	ulint		rseg_id)
 {
 	mtr_t		mtr;
-	trx_rseg_t*	rseg = nullptr;
-
-	mtr_start(&mtr);
 
 	/* To obey the latching order, acquire the file space
 	x-latch before the trx_sys->mutex. */
-	fil_space_t*	space = mtr.set_undo_space(space_id);
+	fil_space_t*	space = fil_space_get(space_id);
+
+	mtr_start(&mtr);
+
 	mtr_x_lock(&space->latch, &mtr);
 
 	ut_ad(!fsp_is_system_temporary(space_id)
 		|| rseg_id < srv_tmp_rollback_segments);
 	ut_ad(fsp_is_system_temporary(space_id)
 		|| rseg_id < srv_rollback_segments);
-	ut_ad(space->purpose == fsp_is_system_temporary(space_id)
+	ut_ad(to_int(space->purpose) == fsp_is_system_temporary(space_id)
 				? FIL_TYPE_TEMPORARY
 				: FIL_TYPE_TABLESPACE);
 	ut_ad(univ_page_size.equals_to(page_size_t(space->flags)));
@@ -327,7 +329,6 @@ trx_rseg_create(
 		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
 	} else {
 		/* We will modify TRX_SYS_RSEGS in TRX_SYS page. */
-		mtr.set_sys_modified();
 	}
 
 	page_no_t	page_no = trx_rseg_header_create(
@@ -336,14 +337,14 @@ trx_rseg_create(
 	if (page_no == FIL_NULL) {
 		mtr_commit(&mtr);
 
-		return(rseg);
+		return(nullptr);
 	}
 
 	ut_ad(fsp_is_system_temporary(space_id)
 	      || space_id == trx_sysf_rseg_get_space(
 		      trx_sysf_get(&mtr), rseg_id, &mtr));
 
-	rseg = trx_rseg_mem_create(
+	trx_rseg_t*	rseg = trx_rseg_mem_create(
 		rseg_id, space_id,
 		page_no, univ_page_size,
 		purge_sys->purge_queue, &mtr);

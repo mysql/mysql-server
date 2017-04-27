@@ -19,9 +19,9 @@
 #include <stddef.h>
 
 #include "control_events.h" // enum_incidents
+#include "lex_string.h"
 #include "my_bitmap.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "sql_plugin_ref.h"
 #include "table.h"          // TABLE
@@ -229,7 +229,8 @@ public:
         Add an 'update row' entry to the transaction.
       */
       int update_row(server_id_type sid, table tbl, 
-                     MY_BITMAP const *cols,
+                     MY_BITMAP const *before_cols,
+                     MY_BITMAP const *after_cols,
                      record_type before, record_type after,
                      const uchar* extra_row_info);
       int update_row(server_id_type sid, table tbl,

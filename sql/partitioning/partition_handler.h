@@ -29,7 +29,6 @@
 #include "my_alloc.h"
 #include "my_base.h"              // ha_rows.
 #include "my_dbug.h"
-#include "my_global.h"            // uint etc.
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/psi/mysql_mutex.h"
@@ -58,15 +57,12 @@ static const uint NO_CURRENT_PART_ID= UINT_MAX32;
 
   HA_PARTITION_FUNCTION_SUPPORTED indicates that the function is
   supported at all.
-  HA_FAST_CHANGE_PARTITION means that optimized variants of the changes
-  exists but they are not necessarily done online.
   HA_INPLACE_CHANGE_PARTITION means that changes to partitioning can be done
   through in-place ALTER TABLE API but special mark-up in partition_info
   object is required for this.
 */
 #define HA_PARTITION_FUNCTION_SUPPORTED         (1L << 0)
-#define HA_FAST_CHANGE_PARTITION                (1L << 1)
-#define HA_INPLACE_CHANGE_PARTITION             (1L << 2)
+#define HA_INPLACE_CHANGE_PARTITION             (1L << 1)
 
 enum enum_part_operation {
   OPTIMIZE_PARTS= 0,
@@ -83,7 +79,7 @@ typedef struct st_part_name_def
   uchar *partition_name;
   uint length;
   uint32 part_id;
-  my_bool is_subpart;
+  bool is_subpart;
 } PART_NAME_DEF;
 
 
@@ -275,28 +271,6 @@ public:
   int truncate_partition(dd::Table *table_def);
 
   /**
-    Change partitions.
-
-    Change partitions according to their partition_element::part_state set up
-    in prep_alter_part_table(). Will create new partitions and copy requested
-    partitions there. Also updating part_state to reflect current state.
-
-    Handler level wrapper for changing partitions.
-    This is the reason for having Partition_handler a friend class of handler,
-    mark_trx_read_write() is called and also checks locking assertions.
-    to ensure that mark_trx_read_write() is called and checking the asserts.
-
-    @param[in]     create_info  Table create info.
-    @param[in]     path         Path including table name.
-    @param[out]    copied       Number of rows copied.
-    @param[out]    deleted      Number of rows deleted.
-  */
-  int change_partitions(HA_CREATE_INFO *create_info,
-                        const char *path,
-                        ulonglong * const copied,
-                        ulonglong * const deleted);
-
-  /**
     Exchange partition.
 
     @param[in]      part_table_path   Path to partition in partitioned table
@@ -347,30 +321,6 @@ private:
   */
   virtual int truncate_partition_low(dd::Table*)
   { return HA_ERR_WRONG_COMMAND; }
-  /**
-    Change partitions.
-
-    Low-level primitive for handler, implementing
-    Partition_handler::change_partitions().
-
-    @param[in]     create_info  Table create info.
-    @param[in]     path         Path including table name.
-    @param[out]    copied       Number of rows copied.
-    @param[out]    deleted      Number of rows deleted.
-
-    @return Operation status
-      @retval    0  Success.
-      @retval != 0  Error code.
-  */
-  virtual int
-    change_partitions_low(HA_CREATE_INFO *create_info,
-                          const char *path MY_ATTRIBUTE((unused)),
-                          ulonglong * const copied MY_ATTRIBUTE((unused)),
-                          ulonglong * const deleted MY_ATTRIBUTE((unused)))
-  {
-    my_error(ER_ILLEGAL_HA, MYF(0), create_info->alias);
-    return HA_ERR_WRONG_COMMAND;
-  }
 
   /**
     Exchange partition.
@@ -438,8 +388,7 @@ struct Key_rec_less
   How to use it:
   Inherit it and implement:
   - *_in_part() functions for row operations.
-  - prepare_for_new_partitions(), create_new_partition(), close_new_partitions()
-    write_row_in_new_part() for handling 'fast' alter partition.
+  - write_row_in_new_part() for handling 'fast' alter partition.
 */
 class Partition_helper : public Sql_alloc
 {
@@ -627,7 +576,7 @@ public:
   int ph_index_first(uchar *buf);
   int ph_index_last(uchar *buf);
   int ph_index_next(uchar *buf);
-  int ph_index_next_same(uchar *buf, const uchar *key, uint keylen);
+  int ph_index_next_same(uchar *buf, uint keylen);
   int ph_index_prev(uchar *buf);
   int ph_index_read_map(uchar *buf,
                         const uchar *key,
@@ -674,33 +623,6 @@ public:
   */
   void prepare_change_partitions();
 
-  /**
-    Implement the partition changes defined by ALTER TABLE of partitions.
-
-    Add and copy if needed a number of partitions, during this operation
-    only read operation is ongoing in the server. This is used by
-    ADD PARTITION all types as well as by REORGANIZE PARTITION. For
-    one-phased implementations it is used also by DROP and COALESCE
-    PARTITIONs.
-    One-phased implementation needs the new frm file, other handlers will
-    get zero length and a NULL reference here.
-
-    @param[in]  create_info       HA_CREATE_INFO object describing all
-                                  fields and indexes in table
-    @param[in]  path              Complete path of db and table name
-    @param[out] copied            Output parameter where number of copied
-                                  records are added
-    @param[out] deleted           Output parameter where number of deleted
-                                  records are added
-
-    @return Operation status
-      @retval    0 Success
-      @retval != 0 Failure
-  */
-  virtual int change_partitions(HA_CREATE_INFO *create_info,
-                                const char *path,
-                                ulonglong * const copied,
-                                ulonglong * const deleted);
   /** @} */
 
 protected:
@@ -779,10 +701,9 @@ protected:
 
   /** Print partitioning specific error.
     @param error   Error code.
-    @param errflag Error flag.
     @return false if error is printed else true.
   */
-  bool print_partition_error(int error, myf errflag);
+  bool print_partition_error(int error);
   /**
     Print a message row formatted for ANALYZE/CHECK/OPTIMIZE/REPAIR TABLE.
 
@@ -828,19 +749,17 @@ protected:
   /**
     Copy partitions as part of ALTER TABLE of partitions.
 
-    change_partitions has done all the preparations, now it is time to
-    actually copy the data from the reorganized partitions to the new
-    partitions.
+    SE and prepare_change_partitions has done all the preparations,
+    now it is time to actually copy the data from the reorganized
+    partitions to the new partitions.
 
-    @param[out] copied   Number of records copied.
     @param[out] deleted  Number of records deleted.
 
     @return Operation status
       @retval  0  Success
       @retval >0  Error code
   */
-  virtual int copy_partitions(ulonglong * const copied,
-                              ulonglong * const deleted);
+  virtual int copy_partitions(ulonglong * const deleted);
 
 private:
   enum partition_index_scan_type
@@ -1024,39 +943,7 @@ private:
   */
   virtual void copy_cached_row(uchar *to_rec, const uchar *from_rec)
   { memcpy(to_rec, from_rec, m_rec_length); }
-  /**
-    Prepare for creating new partitions during ALTER TABLE ... PARTITION.
-    @param  num_partitions  Number of new partitions to be created.
-    @param  only_create     True if only creating the partition
-                            (no open/lock is needed).
 
-    @return Operation status.
-      @retval    0  Success.
-      @retval != 0  Error code.
-  */
-  virtual int prepare_for_new_partitions(uint num_partitions,
-                                         bool only_create) = 0;
-  /**
-    Create a new partition to be filled during ALTER TABLE ... PARTITION.
-    @param   table         Table to create the partition in.
-    @param   create_info   Table/partition specific create info.
-    @param   part_name     Partition name.
-    @param   new_part_id   Partition id in new table.
-    @param   part_elem     Partition element.
-
-    @return Operation status.
-      @retval    0  Success.
-      @retval != 0  Error code.
-  */
-  virtual int create_new_partition(TABLE *table,
-                                   HA_CREATE_INFO *create_info,
-                                   const char *part_name,
-                                   uint new_part_id,
-                                   partition_element *part_elem) = 0;
-  /**
-    Close and finalize new partitions.
-  */
-  virtual void close_new_partitions() = 0;
   /**
     write row to new partition.
     @param  new_part   New partition to write to.

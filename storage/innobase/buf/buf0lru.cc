@@ -1394,7 +1394,7 @@ loop:
 
 		if (started_monitor) {
 			srv_print_innodb_monitor =
-				static_cast<my_bool>(mon_value_was);
+				static_cast<bool>(mon_value_was);
 		}
 
 		block->skip_flush_check = false;
@@ -2319,8 +2319,8 @@ buf_LRU_block_remove_hashed(
 			}
 		}
 
-		/* fall through */
 	}
+	/* fall through */
 	case BUF_BLOCK_ZIP_PAGE:
 		ut_a(bpage->oldest_modification == 0);
 		if (bpage->size.is_compressed()) {

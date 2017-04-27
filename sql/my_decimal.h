@@ -34,7 +34,6 @@
 #include <algorithm>
 
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "sql_string.h"                         /* String */
@@ -186,7 +185,7 @@ public:
   }
 
   // Error reporting in server code only.
-  int check_result(uint mask, int result) const
+  int check_result(uint, int result) const
 #ifndef MYSQL_SERVER
   {
     return result;
@@ -367,7 +366,7 @@ int my_decimal2string(uint mask, const my_decimal *d, uint fixed_prec,
 		      uint fixed_dec, char filler, String *str);
 
 inline
-int my_decimal2int(uint mask, const my_decimal *d, my_bool unsigned_flag,
+int my_decimal2int(uint mask, const my_decimal *d, bool unsigned_flag,
 		   longlong *l)
 {
   my_decimal rounded;
@@ -392,13 +391,6 @@ inline int my_decimal2lldiv_t(uint mask, const my_decimal *d, lldiv_t *to)
   return d->check_result(mask, decimal2lldiv_t(d, to));
 }
 
-
-inline int string2decimal(const char *from,
-                          decimal_t *to,
-                          char **end)
-{
-  return internal_str2dec(from, to, end, FALSE);
-}
 
 inline int str2my_decimal(uint mask, const char *str,
                           my_decimal *d, char **end)
@@ -429,7 +421,7 @@ int double2my_decimal(uint mask, double val, my_decimal *d)
 
 
 inline
-int int2my_decimal(uint mask, longlong i, my_bool unsigned_flag, my_decimal *d)
+int int2my_decimal(uint mask, longlong i, bool unsigned_flag, my_decimal *d)
 {
   return d->check_result(mask, (unsigned_flag ?
                                 ulonglong2decimal((ulonglong)i, d) :

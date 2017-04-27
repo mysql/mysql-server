@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,19 +18,18 @@
 
 #include <string>
 
-#include "dd/impl/types/dictionary_object_table_impl.h" // dd::Dictionary_obj...
-#include "my_global.h"
+#include "dd/impl/types/entity_object_table_impl.h"
+#include "dd/types/tablespace.h"
 
 namespace dd {
 class Global_name_key;
-class Dictionary_object;
 class Raw_record;
 
 namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Tablespaces : public Dictionary_object_table_impl
+class Tablespaces : public Entity_object_table_impl
 {
 public:
   static const Tablespaces &instance();
@@ -58,7 +57,7 @@ public:
   virtual const String_type &name() const
   { return Tablespaces::table_name(); }
 
-  virtual Dictionary_object *create_dictionary_object(const Raw_record &) const;
+  virtual Tablespace *create_entity_object(const Raw_record &) const;
 
 public:
   static bool update_object_key(Global_name_key *key,

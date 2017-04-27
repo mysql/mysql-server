@@ -19,13 +19,11 @@
 #define NDB_CONFLICT_H
 
 #include "my_bitmap.h"
-#include "my_global.h"
-#include "mysql_com.h"       // NAME_CHAR_LEN
 #include "mysql/plugin.h"    // SHOW_VAR
+#include "mysql_com.h"       // NAME_CHAR_LEN
+#include "ndb_conflict_trans.h"
 #include "ndbapi/NdbDictionary.hpp"
 #include "ndbapi/NdbTransaction.hpp"
-
-#include "ndb_conflict_trans.h"
 #include "sql_const.h"       // MAX_REF_PARTS
 
 enum enum_conflict_fn_type

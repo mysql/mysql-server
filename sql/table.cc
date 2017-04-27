@@ -72,7 +72,6 @@
 #include "query_result.h"                // Query_result
 #include "session_tracker.h"
 #include "set_var.h"
-#include "sql_base.h"                    // OPEN_VIEW_ONLY
 #include "sql_class.h"                   // THD
 #include "sql_error.h"
 #include "sql_lex.h"
@@ -83,7 +82,7 @@
 #include "sql_select.h"                  // actual_key_parts
 #include "sql_string.h"
 #include "sql_table.h"                   // build_table_filename
-#include "sql_tablespace.h"              // check_tablespace_name())
+#include "sql_tablespace.h"              // validate_tablespace_name())
 #include "sql_udf.h"
 #include "strfunc.h"                     // find_type
 #include "table_cache.h"                 // table_cache_manager
@@ -133,7 +132,7 @@ static Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
                                const char *name,
                                Name_resolution_context *context);
 static void open_table_error(THD *thd, TABLE_SHARE *share,
-                             int error, int db_errno, int errarg);
+                             int error, int db_errno);
 
 inline bool is_system_table_name(const char *name, size_t length);
 
@@ -1874,10 +1873,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
           but this server binary is not compiled with the performance_schema,
           as ha_resolve_by_name() did not find the storage engine.
           This can happen:
-          - (a) during tests with mysql-test-run,
-            because the same database installed image is used
-            for regular builds (with P_S) and embedded builds (without P_S)
-          - (b) in production, when random binaries (without P_S) are thrown
+          - in production, when random binaries (without P_S) are thrown
             on top of random installed database instances on disk (with P_S).
           For the sake of robustness, pretend the table simply does not exist,
           so that in particular it does not pollute the information_schema
@@ -2002,11 +1998,12 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
       {
         Tablespace_name_error_handler error_handler;
         thd->push_internal_handler(&error_handler);
-        Ident_name_check name_check= check_tablespace_name(tablespace);
+        bool name_check_error=
+          validate_tablespace_name_length(tablespace);
         thd->pop_internal_handler();
-        if (name_check == Ident_name_check::OK &&
-          !(share->tablespace= strmake_root(&share->mem_root,
-                                            tablespace, tablespace_length+1)))
+        if (!name_check_error &&
+            !(share->tablespace= strmake_root(&share->mem_root,
+                                              tablespace, tablespace_length+1)))
         {
           goto err;
         }
@@ -2538,7 +2535,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
   delete handler_file;
   my_hash_free(&share->name_hash);
 
-  open_table_error(thd, share, error, my_errno(), errarg);
+  open_table_error(thd, share, error, my_errno());
   DBUG_RETURN(error);
 } /*open_binary_frm*/
 
@@ -3412,7 +3409,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
 
  err:
   if (! error_reported)
-    open_table_error(thd, share, error, my_errno(), 0);
+    open_table_error(thd, share, error, my_errno());
   delete outparam->file;
   if (outparam->part_info)
     free_items(outparam->part_info->item_free_list);
@@ -3524,7 +3521,7 @@ void free_blob_buffers_and_reset(TABLE *table, uint32 size)
 	/* error message when opening a table defintion */
 
 static void open_table_error(THD *thd, TABLE_SHARE *share,
-                             int error, int db_errno, int errarg)
+                             int error, int db_errno)
 {
   int err_no;
   char buff[FN_REFLEN];
@@ -3879,7 +3876,7 @@ Table_check_intact::check(THD *thd, TABLE *table,
                           const TABLE_FIELD_DEF *table_def)
 {
   uint i;
-  my_bool error= FALSE;
+  bool error= FALSE;
   const TABLE_FIELD_TYPE *field_def= table_def->field;
   DBUG_ENTER("table_check_intact");
   DBUG_PRINT("info",("table: %s  expected_count: %d",
@@ -5041,7 +5038,7 @@ TABLE_LIST *TABLE_LIST::last_leaf_for_name_resolution()
   @param want_privilege  Required privileges
 */
 
-void TABLE_LIST::set_want_privilege(ulong want_privilege)
+void TABLE_LIST::set_want_privilege(ulong want_privilege MY_ATTRIBUTE((unused)))
 {
 #ifndef DBUG_OFF
   // Remove SHOW_VIEW_ACL, because it will be checked during making view
@@ -5709,6 +5706,9 @@ void TABLE::clear_column_bitmaps()
   fields_set_during_insert= &def_fields_set_during_insert;
 
   bitmap_clear_all(&tmp_set);
+
+  if (m_partial_update_columns != nullptr)
+    bitmap_clear_all(m_partial_update_columns);
 }
 
 
@@ -6638,7 +6638,7 @@ void TABLE_LIST::reinit_before_use(THD *thd)
 
   mdl_request.ticket= NULL;
 
-  if (is_recursive_reference && select_lex)
+  if (is_recursive_reference() && select_lex)
     set_derived_unit(select_lex->recursive_dummy_unit);
 
   /*
@@ -6947,7 +6947,7 @@ int TABLE_LIST::fetch_number_of_rows()
     */
     table->file->stats.records= derived->query_result()->estimated_rowcount;
   }
-  else if (is_recursive_reference)
+  else if (is_recursive_reference())
   {
     /*
       Use the estimated row count of all query blocks before this one, as the
@@ -7154,7 +7154,7 @@ int TABLE_LIST::fetch_number_of_rows()
 */
 
 static bool add_derived_key(List<Derived_key> &derived_key_list, Field *field,
-                             table_map ref_by_tbl)
+                            table_map ref_by_tbl)
 {
   uint key= 0;
   Derived_key *entry= 0;
@@ -7265,7 +7265,7 @@ bool TABLE_LIST::update_derived_keys(Field *field, Item **values,
   See TABLE_LIST::generate_keys.
 */
 
-static int Derived_key_comp(Derived_key *e1, Derived_key *e2, void *arg)
+static int Derived_key_comp(Derived_key *e1, Derived_key *e2, void*)
 {
   /* Move entries for tables with greater table bit to the end. */
   return ((e1->referenced_by < e2->referenced_by) ? -1 :
@@ -7380,7 +7380,7 @@ bool TABLE::update_const_key_parts(Item *conds)
     KEY_PART_INFO *keyinfo= key_info[index].key_part;
     KEY_PART_INFO *keyinfo_end= keyinfo + key_info[index].user_defined_key_parts;
 
-    for (key_part_map part_map= (key_part_map)1; 
+    for (key_part_map part_map= (key_part_map)1;
         keyinfo < keyinfo_end;
         keyinfo++, part_map<<= 1)
     {
@@ -7388,7 +7388,12 @@ bool TABLE::update_const_key_parts(Item *conds)
         const_key_parts[index]|= part_map;
     }
   }
-  return FALSE;
+
+  /*
+    Handle error for the whole function here instead of along with the call for
+    const_expression_in_where() as the function does not return TRUE for errors.
+  */
+  return this->in_use && this->in_use->is_error();
 }
 
 
@@ -7523,7 +7528,7 @@ bool update_generated_read_fields(uchar *buf, TABLE *table, uint active_index)
       Only calculate those virtual generated fields that are marked in the
       read_set bitmap.
     */
-    if (!vfield->stored_in_db &&
+    if (vfield->is_virtual_gcol() &&
         bitmap_is_set(table->read_set, vfield->field_index))
     {
       if (vfield->type() == MYSQL_TYPE_BLOB)
@@ -7670,6 +7675,16 @@ void TABLE::mark_gcol_in_maps(Field *field)
 }
 
 
+bool TABLE_LIST::set_recursive_reference()
+{
+  if (select_lex->recursive_reference != nullptr)
+    return true;
+  select_lex->recursive_reference= this;
+  m_is_recursive_reference= true;
+  return false;
+}
+
+
 st_lex_user *
 st_lex_user::alloc(THD *thd, LEX_STRING *user_arg, LEX_STRING *host_arg)
 {
@@ -7719,6 +7734,262 @@ st_lex_user::alloc(THD *thd, LEX_STRING *user_arg, LEX_STRING *host_arg)
 }
 
 
+/**
+  A struct that contains execution time state used for partial update of JSON
+  columns.
+*/
+struct Partial_update_info : public Sql_alloc
+{
+  Partial_update_info(const TABLE *table, const MY_BITMAP *columns)
+    : m_diff_vectors(table->in_use->mem_root, table->s->fields, nullptr)
+  {
+    auto buffer= static_cast<my_bitmap_map*>(
+                   table->in_use->alloc(table->s->column_bitmap_size));
+    if (buffer != nullptr)
+      bitmap_init(&m_disabled_columns, buffer, table->s->fields, false);
+
+    for (uint i= bitmap_get_first_set(columns);
+         i != MY_BIT_NONE;
+         i= bitmap_get_next_set(columns, i))
+    {
+      void *mem= table->in_use->alloc(sizeof(Binary_diff_vector));
+      if (mem == nullptr)
+        return;
+      m_diff_vectors[i]= new (mem) Binary_diff_vector(table->in_use->mem_root);
+    }
+  }
+
+  /**
+    The columns for which partial update has been disabled in the current row.
+  */
+  MY_BITMAP m_disabled_columns;
+
+  /**
+    The binary diffs that have been collected for the current row.
+  */
+  Mem_root_array<Binary_diff_vector*> m_diff_vectors;
+
+  /**
+    A buffer that can be used to hold the partially updated column value while
+    performing the update in memory.
+  */
+  String m_buffer;
+};
+
+
+bool TABLE::mark_column_for_partial_update(const Field *field)
+{
+  DBUG_ASSERT(field->table == this);
+  if (m_partial_update_columns == nullptr)
+  {
+    auto map= static_cast<MY_BITMAP*>(alloc_root(&mem_root, sizeof(MY_BITMAP)));
+    auto buf=
+      static_cast<my_bitmap_map*>(alloc_root(&mem_root, s->column_bitmap_size));
+    if (map == nullptr ||
+        buf == nullptr ||
+        bitmap_init(map, buf, s->fields, false))
+      return true;                              /* purecov: inspected */
+    m_partial_update_columns= map;
+  }
+
+  bitmap_set_bit(m_partial_update_columns, field->field_index);
+  return false;
+}
+
+
+void TABLE::disable_partial_update_for_current_row(const Field *field)
+{
+  DBUG_ASSERT(field->table == this &&
+              m_partial_update_columns != nullptr &&
+              m_partial_update_info != nullptr &&
+              bitmap_is_set(m_partial_update_columns, field->field_index));
+
+  // Remove the diffs collected for the column.
+  m_partial_update_info->m_diff_vectors[field->field_index]->clear();
+
+  // Mark the column as disabled.
+  bitmap_set_bit(&m_partial_update_info->m_disabled_columns,
+                 field->field_index);
+}
+
+
+bool TABLE::is_partial_update_column(const Field *field) const
+{
+  DBUG_ASSERT(field->table == this);
+  return
+    m_partial_update_info != nullptr &&
+    bitmap_is_set(m_partial_update_columns, field->field_index) &&
+    !bitmap_is_set(&m_partial_update_info->m_disabled_columns,
+                   field->field_index);
+}
+
+
+bool TABLE::has_partial_update_columns() const
+{
+  return
+    m_partial_update_info != nullptr &&
+    bitmap_bits_set(&m_partial_update_info->m_disabled_columns)
+    < bitmap_bits_set(m_partial_update_columns);
+}
+
+
+bool TABLE::setup_partial_update()
+{
+  DBUG_ASSERT(m_partial_update_info == nullptr);
+
+  if (!has_columns_marked_for_partial_update())
+    return false;
+
+  Opt_trace_context *trace= &in_use->opt_trace;
+  if (trace->is_started())
+  {
+    Opt_trace_object trace_wrapper(trace);
+    Opt_trace_object trace_partial_update(trace, "json_partial_update");
+    trace_partial_update.add_utf8_table(pos_in_table_list);
+    Opt_trace_array columns(trace, "eligible_columns");
+    for (uint i= bitmap_get_first_set(m_partial_update_columns);
+         i != MY_BIT_NONE;
+         i= bitmap_get_next_set(m_partial_update_columns, i))
+    {
+      columns.add_utf8(s->field[i]->field_name);
+    }
+  }
+
+  m_partial_update_info=
+    new Partial_update_info(this, m_partial_update_columns);
+  return in_use->is_error();
+}
+
+
+bool TABLE::has_columns_marked_for_partial_update() const
+{
+  /*
+    If m_partial_update_columns is not nullptr, it means that the function is
+    called during execution. During execution, it makes more sense to call
+    has_partial_update_columns(), which additionally checks if partial update
+    has been disabled for this table or all its columns.
+  */
+  DBUG_ASSERT(m_partial_update_info == nullptr);
+
+  /*
+    Do we have any columns that satisfy the syntactical requirements for
+    partial update?
+  */
+  return
+    m_partial_update_columns != nullptr &&
+    !bitmap_is_clear_all(m_partial_update_columns);
+}
+
+
+void TABLE::cleanup_partial_update()
+{
+  delete m_partial_update_info;
+  m_partial_update_info= nullptr;
+}
+
+
+String *TABLE::get_partial_update_buffer()
+{
+  DBUG_ASSERT(m_partial_update_info != nullptr);
+  return &m_partial_update_info->m_buffer;
+}
+
+
+void TABLE::clear_binary_diffs()
+{
+  if (m_partial_update_info != nullptr)
+  {
+    for (auto v : m_partial_update_info->m_diff_vectors)
+      if (v != nullptr)
+        v->clear();
+
+    bitmap_clear_all(&m_partial_update_info->m_disabled_columns);
+  }
+}
+
+
+const Binary_diff_vector *TABLE::get_binary_diffs(const Field *field) const
+{
+  if (!is_partial_update_column(field))
+    return nullptr;
+  return m_partial_update_info->m_diff_vectors[field->field_index];
+}
+
+
+bool TABLE::add_binary_diff(const Field *field, size_t offset, size_t length)
+{
+  DBUG_ASSERT(is_partial_update_column(field));
+
+  Binary_diff_vector *diffs=
+    m_partial_update_info->m_diff_vectors[field->field_index];
+
+  /*
+    Find the first diff that does not end before the diff we want to insert.
+    That is, we find the first diff that is either overlapping with the diff we
+    want to insert, adjacent to the diff we want to insert, or comes after the
+    diff that we want to insert.
+
+    In the case of overlapping or adjacent diffs, we want to merge the diffs
+    rather than insert a new one.
+  */
+  Binary_diff_vector::iterator first_it=
+    std::lower_bound(diffs->begin(), diffs->end(), offset,
+                     [](const Binary_diff &diff, size_t start_offset) {
+                       return diff.offset() + diff.length() < start_offset;
+                     });
+
+  if (first_it != diffs->end() && first_it->offset() <= offset + length)
+  {
+    /*
+      The diff we found was overlapping or adjacent, so we want to merge the
+      new diff with it. Find out if the new diff overlaps with or borders to
+      some of the diffs behind it. The call below finds the first diff after
+      first_it that is not overlapping with or adjacent to the new diff.
+    */
+    Binary_diff_vector::const_iterator last_it=
+      std::upper_bound(first_it, diffs->end(), offset + length,
+                       [](size_t end_offset, const Binary_diff &diff) {
+                         return end_offset < diff.offset();
+                       });
+
+    // First and last adjacent or overlapping diff. They can be the same one.
+    const Binary_diff &first_diff= *first_it;
+    const Binary_diff &last_diff= *(last_it - 1);
+
+    // Calculate the boundaries of the merged diff.
+    size_t beg= std::min(offset, first_diff.offset());
+    size_t end= std::max(offset + length,
+                         last_diff.offset() + last_diff.length());
+
+    /*
+      Replace the first overlapping/adjacent diff with the merged diff, and
+      erase any subsequent diffs that are covered by the merged diff.
+    */
+    *first_it= Binary_diff(beg, end - beg);
+    diffs->erase(first_it + 1, last_it);
+    return false;
+  }
+
+  /*
+    The new diff isn't overlapping with or adjacent to any of the existing
+    diffs. Just insert it.
+  */
+  diffs->insert(first_it, Binary_diff(offset, length));
+  return false;
+}
+
+
+const char *Binary_diff::new_data(Field *field) const
+{
+  /*
+    Currently, partial update is only supported for JSON columns, so it's
+    safe to assume that the Field is in fact a Field_json.
+  */
+  auto fld= down_cast<Field_json*>(field);
+  return fld->get_binary() + m_offset;
+}
+
+
 //////////////////////////////////////////////////////////////////////////
 
 /*
@@ -7742,7 +8013,6 @@ st_lex_user::alloc(THD *thd, LEX_STRING *user_arg, LEX_STRING *host_arg)
   @param  share                     TABLE_SHARE object to be filled.
   @param  frm_context               FRM_context for structures removed from
                                     TABLE_SHARE
-  @param  db                        database name
   @param  table                     table name
   @param  is_fix_view_cols_and_deps Flag to indicate that we are recreating view
                                     to create view dependency entry in DD tables
@@ -7753,7 +8023,6 @@ st_lex_user::alloc(THD *thd, LEX_STRING *user_arg, LEX_STRING *host_arg)
 static bool read_frm_file(THD *thd,
                           TABLE_SHARE *share,
                           FRM_context *frm_context,
-                          const std::string &db,
                           const std::string &table,
                           bool is_fix_view_cols_and_deps)
 {
@@ -7798,7 +8067,7 @@ static bool read_frm_file(THD *thd,
           return false;
        }
        int error;
-       root_ptr= my_thread_get_THR_MALLOC();
+       root_ptr= THR_MALLOC;
        old_root= *root_ptr;
        *root_ptr= &share->mem_root;
 
@@ -7877,7 +8146,7 @@ bool create_table_share_for_upgrade(THD *thd,
   mysql_mutex_init(key_TABLE_SHARE_LOCK_ha_data,
                      &share->LOCK_ha_data, MY_MUTEX_INIT_FAST);
 
-  if (read_frm_file(thd, share, frm_context, db_name,
+  if (read_frm_file(thd, share, frm_context,
                     table_name, is_fix_view_cols_and_deps))
   {
     free_table_share(share);

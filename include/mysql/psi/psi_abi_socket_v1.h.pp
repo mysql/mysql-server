@@ -1,5 +1,4 @@
 #include "mysql/psi/psi_socket.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_config.h"
 typedef unsigned char uchar;
@@ -17,10 +16,8 @@ typedef unsigned long long my_ulonglong;
 typedef intptr_t intptr;
 typedef ulonglong my_off_t;
 typedef ptrdiff_t my_ptrdiff_t;
-typedef char my_bool;
 typedef int myf;
 #include "my_io.h"
-#include "my_config.h"
 static inline int is_directory_separator(char c)
 {
   return c == '/';

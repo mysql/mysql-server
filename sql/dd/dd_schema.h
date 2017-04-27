@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,18 +20,13 @@
 #include <string>
 
 #include "dd/object_id.h"     // Object_id
-#include "my_global.h"
 
 class MDL_ticket;
 class THD;
 
-typedef struct st_ha_create_information HA_CREATE_INFO;
 typedef struct charset_info_st CHARSET_INFO;
 
 namespace dd {
-  namespace cache {
-    class Dictionary_client;
-  }
 
 /**
   Check if given schema exists.
@@ -46,13 +41,6 @@ bool schema_exists(THD *thd, const char *schema_name, bool *exists);
 /** Create a schema record into dd.schemata. */
 bool create_schema(THD *thd, const char *schema_name,
                    const CHARSET_INFO *charset_info);
-
-/** Alter a schema record into dd.schemata. */
-bool alter_schema(THD *thd, const char *schema_name,
-                  const CHARSET_INFO *charset_info);
-
-/** Remove schema metadata from dd.schemata. */
-bool drop_schema(THD *thd, const char *schema_name);
 
 /**
   RAII based class to acquire and release schema meta data locks.

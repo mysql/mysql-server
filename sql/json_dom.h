@@ -30,12 +30,12 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_decimal.h"         // my_decimal
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "mysql_time.h"         // MYSQL_TIME
 #include "prealloced_array.h"   // Prealloced_array
 #include "sql_alloc.h"          // Sql_alloc
 
+class Field_json;
 class Json_dom;
 class Json_path;
 class Json_path_leg;
@@ -232,17 +232,15 @@ public:
     @param[out] errmsg any syntax error message (will be ignored if it is NULL)
     @param[out] offset the position in the parsed string a syntax error was
                        found (will be ignored if it is NULL)
-    @param[in]  preserve_neg_zero_int whether integer negative zero should
-                                      be preserved. If set to TRUE, -0 is
-                                      handled as a DOUBLE. Double negative
-                                      zero (-0.0) is preserved regardless of
-                                      what this parameter is set to.
+    @param[in]  handle_numbers_as_double whether numbers should be handled as
+                                         double. If set to TRUE, all numbers are
+                                         parsed as DOUBLE
 
     @result the built DOM if JSON text was parseable, else NULL
   */
   static Json_dom *parse(const char *text, size_t length,
                          const char **errmsg, size_t *offset,
-                         bool preserve_neg_zero_int= false);
+                         bool handle_numbers_as_double= false);
 
   /**
     Construct a DOM object based on a binary JSON value. The ownership
@@ -924,13 +922,16 @@ public:
     An opaque MySQL value.
 
     @param[in] mytype  the MySQL type of the value
-    @param[in] v       the binary value to be stored in the DOM.
-                       A copy is taken.
-    @param[in] size    the size of the binary value in bytes
+    @param[in] args    arguments to construct the binary value to be stored
+                       in the DOM (anything accepted by the std::string
+                       constructors)
     @see #enum_field_types
     @see Class documentation
   */
-  Json_opaque(enum_field_types mytype, const char *v, size_t size);
+  template <typename... Args>
+  explicit Json_opaque(enum_field_types mytype, Args&&... args)
+    : Json_scalar(), m_mytype(mytype), m_val(std::forward<Args>(args)...)
+  {}
   ~Json_opaque() {}
 
   // See base class documentation
@@ -1101,6 +1102,7 @@ private:
   };
   bool m_is_dom;      //!< Wraps a DOM iff true
 
+public:
   /**
     Get the wrapped datetime value in the packed format.
 
@@ -1111,7 +1113,6 @@ private:
   */
   const char *get_datetime_packed(char *buffer) const;
 
-public:
   /**
     Create an empty wrapper. Cf #empty().
   */
@@ -1155,14 +1156,6 @@ public:
   void set_alias() { m_dom_alias= true; }
 
   /**
-    Copy the contents (and take ownership if old has any) of the old value.
-    Any already owned DOM will be deallocated.
-
-    @param old value
-  */
-  void steal(Json_wrapper *old);
-
-  /**
     Wrap a binary value. Does not copy the underlying buffer, so
     lifetime is limited the that of the supplied value.
 
@@ -1177,11 +1170,31 @@ public:
   Json_wrapper(const Json_wrapper &old);
 
   /**
+    Move constructor. Take over the ownership of the other wrapper's
+    DOM, unless it's aliased. If the other wrapper is aliased, this
+    wrapper becomes an alias too. Any already owned DOM will be
+    deallocated.
+
+    @param old the wrapper whose contents to take over
+  */
+  Json_wrapper(Json_wrapper &&old);
+
+  /**
     Assignment operator. Does a deep copy of any owned DOM. If a DOM
     os not owned (aliased), the copy will also be aliased. Any owned
     DOM in the left side will be deallocated.
   */
   Json_wrapper &operator=(const Json_wrapper &old);
+
+  /**
+    Move-assignment operator. Take over the ownership of the other
+    wrapper's DOM, unless it's aliased. If the other wrapper is
+    aliased, this wrapper becomes an alias too. Any already owned DOM
+    will be deallocated.
+
+    @param old the wrapper whose contents to take over
+  */
+  Json_wrapper &operator=(Json_wrapper &&old);
 
   ~Json_wrapper();
 
@@ -1192,6 +1205,14 @@ public:
     @return true if the wrapper is empty.
   */
   bool empty() const { return m_is_dom && !m_dom_value; }
+
+  /**
+    Does this wrapper contain a DOM?
+
+    @retval true   if the wrapper contains a DOM representation
+    @retval false  if the wrapper contains a binary representation
+  */
+  bool is_dom() const { return m_is_dom; }
 
   /**
     Get the wrapped contents in DOM form. The DOM is (still) owned by the
@@ -1312,12 +1333,11 @@ public:
     not J_OBJECT will give undefined results.
 
     @param[in]     key name for identifying member
-    @param[in]     len length of that member name
 
     @return The member value. If there is no member with the specified
     name, a value with type Json_dom::J_ERROR is returned.
   */
-  Json_wrapper lookup(const char *key, size_t len) const;
+  Json_wrapper lookup(const std::string &key) const;
 
   /**
     Get a pointer to the data of a JSON string or JSON opaque value.
@@ -1449,7 +1469,16 @@ public:
 
     @param[in] path   the (possibly wildcarded) address of the sub-documents
     @param[out] hits  the result of the search
-    @param[in] leg_number  the 0-based index of the current path leg
+    @param[in] current_leg the 0-based index of the first path leg to look at.
+               Should be the same as the depth at which the document in this
+               wrapper is located. Usually called on the root document with the
+               value 0, and then increased by one in recursive calls within the
+               function itself.
+    @param[in] last_leg the 0-based index of the leg just behind the last leg to
+               look at. If equal to the length of the path, the entire path is
+               used. If shorter than the length of the path, the search stops
+               at one of the ancestors of the value pointed to by the full
+               path.
     @param[in] auto_wrap true of we match a final scalar with search for [0]
     @param[in]  only_need_one True if we can stop after finding one match
 
@@ -1457,7 +1486,8 @@ public:
   */
   bool seek_no_ellipsis(const Json_seekable_path &path,
                         Json_wrapper_vector *hits,
-                        const size_t leg_number,
+                        size_t current_leg,
+                        size_t last_leg,
                         bool auto_wrap,
                         bool only_need_one)
     const;
@@ -1577,6 +1607,44 @@ public:
     @param[in]  hash_val  An initial hash value.
   */
   ulonglong make_hash_key(ulonglong *hash_val);
+
+  /**
+    Calculate the amount of unused space inside a JSON binary value.
+
+    @param[out] space  the amount of unused space, or zero if this is a DOM
+    @return false on success
+    @return true if the JSON binary value was invalid
+  */
+  bool get_free_space(size_t *space) const;
+
+  /**
+    Attempt a partial update by replacing the value at @a path with @a
+    new_value. On successful completion, the updated document will be available
+    in @a result, and this Json_wrapper will point to @a result instead of the
+    original binary representation. The modifications that have been applied,
+    will also be collected in a vector in the TABLE object and can be retrieved
+    via TABLE::get_binary_diffs().
+
+    @param thd             the current session
+    @param field           the column being updated
+    @param path            the path of the value to update
+    @param new_value       the new value
+    @param replace         true if we use JSON_REPLACE semantics
+    @param[in,out] result  buffer that holds the updated JSON document (is
+                           empty if no partial update has been performed on
+                           this Json_wrapper so far, or contains the binary
+                           representation of the document in this wrapper
+                           otherwise)
+
+    @retval false     if the value was updated in place
+    @retval true      if the value could not be updated in place
+  */
+  bool attempt_partial_update(const THD *thd,
+                              Field_json *field,
+                              const Json_seekable_path &path,
+                              Json_wrapper *new_value,
+                              bool replace,
+                              String *result);
 };
 
 /**

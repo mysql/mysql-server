@@ -682,13 +682,13 @@ drop table t1,t2,t3;
 # test of tracing a query with an HAVING condition, in
 # ps-protocol, does not crash
 
-CREATE TABLE t1 (f1 INT, f2 VARCHAR(1));
+CREATE TABLE t1 (f1 INT, f2 VARCHAR(1)) CHARSET utf8mb4;
 INSERT INTO t1 VALUES (16,'f');
 INSERT INTO t1 VALUES (16,'f');
-CREATE TABLE t2 (f1 INT, f2 VARCHAR(1));
+CREATE TABLE t2 (f1 INT, f2 VARCHAR(1)) CHARSET utf8mb4;
 INSERT INTO t2 VALUES (13,'f');
 INSERT INTO t2 VALUES (20,'f');
-CREATE TABLE t3 (f1 INT, f2 VARCHAR(1));
+CREATE TABLE t3 (f1 INT, f2 VARCHAR(1)) CHARSET utf8mb4;
 INSERT INTO t3 VALUES (7,'f');
 EXPLAIN SELECT t1.f2 FROM t1
 STRAIGHT_JOIN (t2 JOIN t3 ON t3.f2  = t2.f2  ) ON t3 .f2  = t2 .f2
@@ -911,9 +911,9 @@ TRACE
                         } /* best_access_path */,
                         "condition_filtering_pct": 100,
                         "rows_for_plan": 4,
-                        "cost_for_plan": 2.3061,
+                        "cost_for_plan": 2.3062,
                         "sort_cost": 4,
-                        "new_cost_for_plan": 6.3061,
+                        "new_cost_for_plan": 6.3062,
                         "chosen": true
                       }
                     ] /* rest_of_plan */
@@ -1109,11 +1109,11 @@ TRACE
             "creating_tmp_table": {
               "tmp_table_info": {
                 "table": "intermediate_tmp_table",
-                "row_length": 3,
+                "row_length": 6,
                 "key_length": 0,
                 "unique_constraint": false,
                 "location": "memory (heap)",
-                "row_limit_estimate": 5592405
+                "row_limit_estimate": 2796202
               } /* tmp_table_info */
             } /* creating_tmp_table */
           },
@@ -1174,7 +1174,7 @@ TRACE
               "num_rows_estimate": 15,
               "num_rows_found": 4,
               "num_examined_rows": 4,
-              "num_tmp_files": 0,
+              "num_initial_chunks_spilled_to_disk": 0,
               "sort_buffer_size": "NNN",
               "sort_algorithm": "std::sort",
               "unpacked_addon_fields": "using_heap_table",
@@ -2413,12 +2413,12 @@ DROP TABLE t2;
 BUG#12552262 - INVALID JSON WITH TWO CALLS TO TEST_QUICK_SELECT
 
 CREATE TABLE t1 (
-col_varchar_10_latin1_key varchar(10) DEFAULT NULL,
+col_varchar_10_latin1_key varchar(10) CHARACTER SET latin1 DEFAULT NULL,
 col_int_key INT,
 KEY col_int_key (col_int_key)
 );
 CREATE TABLE t2 (
-col_varchar_10_latin1_key varchar(10) DEFAULT NULL,
+col_varchar_10_latin1_key varchar(10) CHARACTER SET latin1 DEFAULT NULL,
 col_varchar_10_utf8_key varchar(10) CHARACTER SET utf8 DEFAULT NULL,
 col_int_key INT,
 KEY col_varchar_10_utf8_key (col_varchar_10_utf8_key),
@@ -2428,7 +2428,7 @@ INSERT INTO t2 VALUES ('qykbaqfyhz','l',NULL);
 CREATE TABLE t3 (
 col_int_key INT,
 col_varchar_10_utf8_key varchar(10) CHARACTER SET utf8 DEFAULT NULL,
-col_varchar_10_latin1_key varchar(10) DEFAULT NULL,
+col_varchar_10_latin1_key varchar(10) CHARACTER SET latin1 DEFAULT NULL,
 KEY col_varchar_10_utf8_key (col_varchar_10_utf8_key),
 KEY col_varchar_10_latin1_key (col_varchar_10_latin1_key)
 );
@@ -5105,7 +5105,7 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
               "num_rows_estimate": 18,
               "num_rows_found": 8,
               "num_examined_rows": 8,
-              "num_tmp_files": 0,
+              "num_initial_chunks_spilled_to_disk": 0,
               "sort_buffer_size": "NNN",
               "sort_algorithm": "std::sort",
               "unpacked_addon_fields": "using_heap_table",

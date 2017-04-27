@@ -1,5 +1,5 @@
 ## Preamble
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 
 --echo #
 --echo # Tests for setting the global and session value for net_read_timeout

@@ -42,7 +42,7 @@
 
 
 ## Preamble
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 create user readuser@localhost identified by 'readuser';
 grant select on *.* to readuser@localhost;
 

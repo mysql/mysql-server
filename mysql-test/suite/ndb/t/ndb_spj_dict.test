@@ -29,7 +29,6 @@
 # may vary depending on OS, compiler and .. phase of moon.
 #
 ##############################################################
---source include/not_embedded.inc
 --source include/have_multi_ndb.inc
 
 connect (ddl,localhost,root,,test);

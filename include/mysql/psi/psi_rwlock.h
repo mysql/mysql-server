@@ -25,7 +25,6 @@
   @{
 */
 
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_psi_config.h"  // IWYU pragma: keep
@@ -144,7 +143,7 @@ typedef enum PSI_rwlock_operation PSI_rwlock_operation;
 
 /**
   Rwlock information.
-  @since PSI_VERSION_1
+  @since PSI_RWLOCK_VERSION_1
   This structure is used to register an instrumented rwlock.
 */
 struct PSI_rwlock_info_v1

@@ -7,23 +7,14 @@
 # mode for TRUNCATE(PARTITION) operations.
 --source include/have_debug.inc
 
-# Test uses performance_schema.status_by_thread, not available in embedded
---source include/not_embedded.inc
-
 # Different page sizes gives different query plans
 # results based on default 16k.
---source include/have_innodb_16k.inc
 
 --echo # The results where created without innodb persistent stats.
 SET @old_innodb_stats_persistent= @@global.innodb_stats_persistent;
 SET @@global.innodb_stats_persistent= 0;
 
 --echo # Original tests for WL#4443
-
---echo # Must have InnoDB as engine to get the same statistics results.
---echo # embedded uses MyISAM as default. CREATE SELECT uses the default engine.
-SET @old_default_storage_engine = @@default_storage_engine;
-SET @@default_storage_engine = 'InnoDB';
 
 # Helper statement
 
@@ -283,6 +274,7 @@ CREATE TABLE t3
  d int unsigned DEFAULT 9,
  e varchar(255) DEFAULT "Default-filler.filler.filler.",
  PRIMARY KEY (a,b,c,d))
+charset latin1
 PARTITION BY RANGE COLUMNS (a, b)
 SUBPARTITION BY LINEAR KEY (d, c)
 SUBPARTITIONS 4
@@ -700,6 +692,7 @@ FLUSH STATUS;
 TRUNCATE TABLE t2;
 
 connection monitor;
+--replace_regex /[0-9]*//
 --source include/get_handler_status_counts.inc
 connection default;
 
@@ -725,6 +718,7 @@ FLUSH STATUS;
 ALTER TABLE t2 TRUNCATE PARTITION p1;
 
 connection monitor;
+--replace_regex /[0-9]*//
 --source include/get_handler_status_counts.inc
 connection default;
 

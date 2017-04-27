@@ -1,0 +1,88 @@
+#
+# ==== Purpose ====
+#
+# This test checks if the sql delay is being applied in a multiple toplogy
+# server_1->server_2,server_1->server_3.
+#
+# ==== Implementation ====
+#
+# The SQL_Delay is set to 5 seconds on one server_2 and to 8 seconds on
+# server_3. For each for the six different transactions executed (two DDL,
+# three DML and one multi-statement DML), the test verifies if the delay
+# was the expected using replication timestamp infrastructure introduced
+# by WL#7319.
+#
+# ==== References ====
+#
+# WL#7318 Delayed Replication: GTID based and relative to immediate master commit
+
+--source include/have_debug.inc
+
+--let $rpl_topology=1->2,1->3
+--let $rpl_skip_start_slave= 1
+--source include/rpl_init.inc
+
+--let $delay_1= 5
+--let $delay_2= 8
+--let $slave_sleep= 1
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+
+--eval CHANGE MASTER TO MASTER_DELAY= $delay_1
+source include/start_slave.inc;
+
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+
+--eval CHANGE MASTER TO MASTER_DELAY= $delay_2
+source include/start_slave.inc;
+
+--let $rpl_connection_name=server_1
+--source include/rpl_connection.inc
+
+CREATE TABLE t1 (a INT);
+--let $trx_num= 1
+--source extra/rpl_tests/check_slave_delay_multiple.inc
+
+INSERT INTO t1 VALUES (1);
+--let $trx_num= 2
+--source extra/rpl_tests/check_slave_delay_multiple.inc
+
+UPDATE t1 SET a=2;
+--let $trx_num= 3
+--source extra/rpl_tests/check_slave_delay_multiple.inc
+
+DELETE FROM t1 WHERE a=2;
+--let $trx_num= 4
+--source extra/rpl_tests/check_slave_delay_multiple.inc
+
+START TRANSACTION;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+COMMIT;
+
+--let $trx_num= 5
+--source extra/rpl_tests/check_slave_delay_multiple.inc
+
+DROP TABLE t1;
+--let $trx_num= 6
+--source extra/rpl_tests/check_slave_delay_multiple.inc
+
+# Cleanup
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+
+--source include/stop_slave_sql.inc
+CHANGE MASTER TO MASTER_DELAY= 0;
+--source include/start_slave_sql.inc
+
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+
+--source include/stop_slave_sql.inc
+CHANGE MASTER TO MASTER_DELAY= 0;
+--source include/start_slave_sql.inc
+
+--source include/rpl_end.inc

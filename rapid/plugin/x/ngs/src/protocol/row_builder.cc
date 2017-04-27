@@ -93,7 +93,7 @@ void Row_builder::add_null_field()
 }
 
 
-void Row_builder::add_longlong_field(longlong value, my_bool unsigned_flag)
+void Row_builder::add_longlong_field(longlong value, bool unsigned_flag)
 {
   ADD_FIELD_HEADER();
 
@@ -127,16 +127,16 @@ static inline int count_leading_zeroes(int i, dec1 val)
   switch (i)
   {
     /* @note Intentional fallthrough in all case labels */
-  case 9: if (val >= 1000000000) break; ++ret;
-  case 8: if (val >= 100000000) break; ++ret;
-  case 7: if (val >= 10000000) break; ++ret;
-  case 6: if (val >= 1000000) break; ++ret;
-  case 5: if (val >= 100000) break; ++ret;
-  case 4: if (val >= 10000) break; ++ret;
-  case 3: if (val >= 1000) break; ++ret;
-  case 2: if (val >= 100) break; ++ret;
-  case 1: if (val >= 10) break; ++ret;
-  case 0: if (val >= 1) break; ++ret;
+  case 9: if (val >= 1000000000) break; ++ret;  // Fall through.
+  case 8: if (val >= 100000000) break; ++ret;  // Fall through.
+  case 7: if (val >= 10000000) break; ++ret;  // Fall through.
+  case 6: if (val >= 1000000) break; ++ret;  // Fall through.
+  case 5: if (val >= 100000) break; ++ret;  // Fall through.
+  case 4: if (val >= 10000) break; ++ret;  // Fall through.
+  case 3: if (val >= 1000) break; ++ret;  // Fall through.
+  case 2: if (val >= 100) break; ++ret;  // Fall through.
+  case 1: if (val >= 10) break; ++ret;  // Fall through.
+  case 0: if (val >= 1) break; ++ret;  // Fall through.
   default: { DBUG_ASSERT(FALSE); }
   }
   return ret;
@@ -386,7 +386,7 @@ void Row_builder::append_time_values(const MYSQL_TIME * value, CodedOutputStream
   }
 }
 
-void Row_builder::add_time_field(const MYSQL_TIME * value, uint decimals)
+void Row_builder::add_time_field(const MYSQL_TIME * value, uint)
 {
   ADD_FIELD_HEADER();
 
@@ -399,7 +399,7 @@ void Row_builder::add_time_field(const MYSQL_TIME * value, uint decimals)
   append_time_values(value, m_out_stream.get());
 }
 
-void Row_builder::add_datetime_field(const MYSQL_TIME * value, uint decimals)
+void Row_builder::add_datetime_field(const MYSQL_TIME * value, uint)
 {
   ADD_FIELD_HEADER();
 
@@ -418,7 +418,7 @@ void Row_builder::add_datetime_field(const MYSQL_TIME * value, uint decimals)
 }
 
 void Row_builder::add_string_field(const char * const value, size_t length,
-  const CHARSET_INFO * const valuecs)
+                                   const CHARSET_INFO * const)
 {
   ADD_FIELD_HEADER();
 
@@ -430,7 +430,7 @@ void Row_builder::add_string_field(const char * const value, size_t length,
 }
 
 void Row_builder::add_set_field(const char * const value, size_t length,
-  const CHARSET_INFO * const valuecs)
+                                const CHARSET_INFO * const)
 {
   ADD_FIELD_HEADER();
 
@@ -484,7 +484,7 @@ void Row_builder::add_set_field(const char * const value, size_t length,
 }
 
 void Row_builder::add_bit_field(const char * const value, size_t length,
-  const CHARSET_INFO * const valuecs)
+                                const CHARSET_INFO * const)
 {
   ADD_FIELD_HEADER();
   DBUG_ASSERT(length <= 8);

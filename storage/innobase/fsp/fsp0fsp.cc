@@ -251,84 +251,6 @@ fsp_flags_to_dict_tf(
 	return(flags);
 }
 
-/** Validate the tablespace flags.
-These flags are stored in the tablespace header at offset FSP_SPACE_FLAGS.
-They should be 0 for ROW_FORMAT=COMPACT and ROW_FORMAT=REDUNDANT.
-The newer row formats, COMPRESSED and DYNAMIC, will have at least
-the DICT_TF_COMPACT bit set.
-@param[in]	flags	Tablespace flags
-@return true if valid, false if not */
-bool
-fsp_flags_is_valid(
-	ulint	flags)
-{
-	bool	post_antelope = FSP_FLAGS_GET_POST_ANTELOPE(flags);
-	ulint	zip_ssize = FSP_FLAGS_GET_ZIP_SSIZE(flags);
-	bool	atomic_blobs = FSP_FLAGS_HAS_ATOMIC_BLOBS(flags);
-	ulint	page_ssize = FSP_FLAGS_GET_PAGE_SSIZE(flags);
-	bool	has_data_dir = FSP_FLAGS_HAS_DATA_DIR(flags);
-	bool	is_shared = FSP_FLAGS_GET_SHARED(flags);
-	bool	is_temp = FSP_FLAGS_GET_TEMPORARY(flags);
-	bool	is_encryption = FSP_FLAGS_GET_ENCRYPTION(flags);
-
-	ulint	unused = FSP_FLAGS_GET_UNUSED(flags);
-
-	DBUG_EXECUTE_IF("fsp_flags_is_valid_failure", return(false););
-
-	/* The Antelope row formats REDUNDANT and COMPACT did
-	not use tablespace flags, so the entire 4-byte field
-	is zero for Antelope row formats. */
-	if (flags == 0) {
-		return(true);
-	}
-
-	/* Row_FORMAT=COMPRESSED and ROW_FORMAT=DYNAMIC use a feature called
-	ATOMIC_BLOBS which builds on the page structure introduced for the
-	COMPACT row format by allowing long fields to be broken into prefix
-	and externally stored parts. So if it is Post_antelope, it uses
-	Atomic BLOBs. */
-	if (post_antelope != atomic_blobs) {
-		return(false);
-	}
-
-	/* Make sure there are no bits that we do not know about. */
-	if (unused != 0) {
-		return(false);
-	}
-
-	/* The zip ssize can be zero if it is other than compressed row format,
-	or it could be from 1 to the max. */
-	if (zip_ssize > PAGE_ZIP_SSIZE_MAX) {
-		return(false);
-	}
-
-	/* The actual page size must be within 4k and 16K (3 =< ssize =< 5). */
-	if (page_ssize != 0
-	    && (page_ssize < UNIV_PAGE_SSIZE_MIN
-	        || page_ssize > UNIV_PAGE_SSIZE_MAX)) {
-		return(false);
-	}
-
-	/* Only single-table tablespaces use the DATA DIRECTORY clause.
-	It is not compatible with the TABLESPACE clause.  Nor is it
-	compatible with the TEMPORARY clause. */
-	if (has_data_dir && (is_shared || is_temp)) {
-		return(false);
-	}
-
-	/* Only single-table and not temp tablespaces use the encryption
-	clause. */
-	if (is_encryption && (is_shared || is_temp)) {
-		return(false);
-	}
-
-#if FSP_FLAGS_POS_UNUSED != 15
-# error You have added a new FSP_FLAG without adding a validation check.
-#endif
-
-	return(true);
-}
-
 /** Check whether a space id is an undo tablespace ID
 @param[in]	space_id	space id to check
 @return true if it is undo tablespace else false. */
@@ -337,7 +259,7 @@ fsp_is_undo_tablespace(space_id_t space_id)
 {
 	/* Quick elimination.  space_id==0 is most common. */
 	if (fsp_is_system_or_temp_tablespace(space_id)
-	    || space_id >= SRV_LOG_SPACE_FIRST_ID
+	    || dict_sys_t::is_reserved(space_id)
 	    /* Before trx_sys_undo_spaces is set, we do not know
 	    what the undo tablespace ID range is. Assume this is
 	    not an undo space. */
@@ -872,7 +794,6 @@ fsp_space_modify_check(
 		ut_ad(!fsp_is_system_temporary(id));
 		/* If we write redo log, the tablespace must exist. */
 		ut_ad(fil_space_get_type(id) == FIL_TYPE_TABLESPACE);
-		ut_ad(mtr->is_named_space(id));
 		return;
 	}
 
@@ -990,7 +911,7 @@ fsp_header_get_encryption_offset(
 @return true if success. */
 bool
 fsp_header_write_encryption(
-	ulint			space_id,
+	space_id_t		space_id,
 	ulint			space_flags,
 	byte*			encrypt_info,
 	bool			update_fsp_flags,
@@ -1093,7 +1014,9 @@ fsp_header_init(
 
 	ut_ad(mtr);
 
-	fil_space_t*		space	= mtr_x_lock_space(space_id, mtr);
+	fil_space_t*		space	= fil_space_get(space_id);
+
+	mtr_x_lock_space(space, mtr);
 
 	const page_id_t		page_id(space_id, 0);
 	const page_size_t	page_size(space->flags);
@@ -1243,16 +1166,18 @@ fsp_header_inc_size(
 	page_no_t	size_inc,	/*!< in: size increment in pages */
 	mtr_t*		mtr)		/*!< in/out: mini-transaction */
 {
-	fsp_header_t*	header;
-	page_no_t	size;
+	fil_space_t*	space = fil_space_get(space_id);
 
-	ut_ad(mtr);
+	mtr_x_lock_space(space, mtr);
 
-	fil_space_t*	space = mtr_x_lock_space(space_id, mtr);
 	ut_d(fsp_space_modify_check(space_id, mtr));
+
+	fsp_header_t*	header;
 
 	header = fsp_get_space_header(
 		space_id, page_size_t(space->flags), mtr);
+
+	page_no_t	size;
 
 	size = mach_read_from_4(header + FSP_SIZE);
 	ut_ad(size == space->size_in_header);
@@ -1273,20 +1198,22 @@ page_no_t
 fsp_header_get_tablespace_size(void)
 /*================================*/
 {
-	fsp_header_t*	header;
-	page_no_t	size;
+	fil_space_t*	space = fil_space_get_sys_space();
+
 	mtr_t		mtr;
 
 	mtr_start(&mtr);
 
-#ifdef UNIV_DEBUG
-	fil_space_t*	space =
-#endif /* UNIV_DEBUG */
-	mtr_x_lock_space(TRX_SYS_SPACE, &mtr);
+	mtr_x_lock_space(space, &mtr);
+
+	fsp_header_t*	header;
 
 	header = fsp_get_space_header(TRX_SYS_SPACE, univ_page_size, &mtr);
 
+	page_no_t	size;
+
 	size = mach_read_from_4(header + FSP_SIZE);
+
 	ut_ad(space->size_in_header == size);
 
 	mtr_commit(&mtr);
@@ -1485,7 +1412,7 @@ fsp_init_xdes_free_frag(
 	xdes_t*		descr,
 	mtr_t*		mtr)
 {
-	ulint           n_used;
+	ulint		n_used;
 
 	/* The first page in the extent is a extent descriptor page
 	and the second is an ibuf bitmap page: mark them used */
@@ -1597,7 +1524,6 @@ fsp_fill_free_list(
 				mtr_t	ibuf_mtr;
 
 				mtr_start(&ibuf_mtr);
-				ibuf_mtr.set_named_space(space);
 
 				if (space->purpose == FIL_TYPE_TEMPORARY) {
 					mtr_set_log_mode(
@@ -2055,13 +1981,22 @@ fsp_free_extent(
 	case XDES_FSEG:
 	case XDES_FREE_FRAG:
 	case XDES_FULL_FRAG:
+
 		xdes_init(descr, mtr);
+
 		flst_add_last(header + FSP_FREE, descr + XDES_FLST_NODE, mtr);
-		mtr->fsp_free_list_length_incr(page_id.space());
+
+		fil_space_t*	space;
+
+		space = fil_space_get(page_id.space());
+
+		++space->free_len;
+
 		break;
+
 	case XDES_FREE:
 	case XDES_NOT_INITED:
-                ut_error;
+		ut_error;
 	}
 }
 
@@ -2526,7 +2461,10 @@ fseg_create_general(
 	      <= UNIV_PAGE_SIZE - FIL_PAGE_DATA_END);
 	ut_d(fsp_space_modify_check(space_id, mtr));
 
-	fil_space_t*		space = mtr_x_lock_space(space_id, mtr);
+	fil_space_t*	space = fil_space_get(space_id);
+
+	mtr_x_lock_space(space, mtr);
+
 	const page_size_t	page_size(space->flags);
 
 	if (page != 0) {
@@ -2693,19 +2631,21 @@ fseg_n_reserved_pages(
 	ulint*		used,	/*!< out: number of pages used (<= reserved) */
 	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 {
-	ulint		ret;
-	fseg_inode_t*	inode;
 	space_id_t	space_id;
-	fil_space_t*	space;
 
 	space_id = page_get_space_id(page_align(header));
-	space = mtr_x_lock_space(space_id, mtr);
+
+	fil_space_t*	space = fil_space_get(space_id);
+
+	mtr_x_lock_space(space, mtr);
 
 	const page_size_t	page_size(space->flags);
 
+	fseg_inode_t*	inode;
+
 	inode = fseg_inode_get(header, space_id, page_size, mtr);
 
-	ret = fseg_n_reserved_pages_low(inode, used, mtr);
+	ulint	ret = fseg_n_reserved_pages_low(inode, used, mtr);
 
 	return(ret);
 }
@@ -3101,7 +3041,7 @@ take_hinted_page:
 		} else if (xdes_get_state(ret_descr, mtr) == XDES_FSEG_FRAG) {
 			ret_page += xdes_find_bit(
 				ret_descr, XDES_FREE_BIT, TRUE, 0, mtr);
-                }
+		}
 
 		ut_ad(!has_done_reservation || ret_page != FIL_NULL);
 		/*-----------------------------------------------------------*/
@@ -3274,13 +3214,16 @@ fseg_alloc_free_page_general(
 {
 	fseg_inode_t*	inode;
 	space_id_t	space_id;
-	fil_space_t*	space;
 	buf_block_t*	iblock;
 	buf_block_t*	block;
 	ulint		n_reserved = 0;
 
 	space_id = page_get_space_id(page_align(seg_header));
-	space = mtr_x_lock_space(space_id, mtr);
+
+	fil_space_t*	space = fil_space_get(space_id);
+
+	mtr_x_lock_space(space, mtr);
+
 	const page_size_t	page_size(space->flags);
 
 	if (rw_lock_get_x_lock_count(&space->latch) == 1) {
@@ -3414,10 +3357,12 @@ fsp_reserve_free_extents(
 	ulint		reserve;
 	DBUG_ENTER("fsp_reserve_free_extents");
 
-	ut_ad(mtr);
 	*n_reserved = n_ext;
 
-	fil_space_t*		space = mtr_x_lock_space(space_id, mtr);
+	fil_space_t*	space = fil_space_get(space_id);
+
+	mtr_x_lock_space(space, mtr);
+
 	const page_size_t	page_size(space->flags);
 
 	space_header = fsp_get_space_header(space_id, page_size, mtr);
@@ -3521,8 +3466,7 @@ been acquired by the caller who holds it for the calculation,
 @param[in]	space		tablespace object from fil_space_acquire()
 @return available space in KiB */
 uintmax_t
-fsp_get_available_space_in_free_extents(
-	const fil_space_t*	space)
+fsp_get_available_space_in_free_extents(const fil_space_t* space)
 {
 	ut_ad(space->n_pending_ops > 0);
 
@@ -3781,7 +3725,11 @@ fseg_free_page(
 	DBUG_ENTER("fseg_free_page");
 	fseg_inode_t*		seg_inode;
 	buf_block_t*		iblock;
-	const fil_space_t*	space = mtr_x_lock_space(space_id, mtr);
+
+	fil_space_t*	space = fil_space_get(space_id);
+
+	mtr_x_lock_space(space, mtr);
+
 	const page_size_t	page_size(space->flags);
 
 	DBUG_LOG("fseg_free_page", "space_id: " << space_id
@@ -3815,8 +3763,12 @@ fseg_page_is_free(
 	xdes_t*		descr;
 	fseg_inode_t*	seg_inode;
 
+	fil_space_t*	space = fil_space_get(space_id);
+
 	mtr_start(&mtr);
-	const fil_space_t*	space = mtr_x_lock_space(space_id, &mtr);
+
+	mtr_x_lock_space(space, &mtr);
+
 	const page_size_t	page_size(space->flags);
 
 	seg_inode = fseg_inode_get(seg_header, space_id, page_size, &mtr);
@@ -3954,7 +3906,10 @@ fseg_free_step(
 	space_id = page_get_space_id(page_align(header));
 	header_page = page_get_page_no(page_align(header));
 
-	const fil_space_t*	space = mtr_x_lock_space(space_id, mtr);
+	fil_space_t*	space = fil_space_get(space_id);
+
+	mtr_x_lock_space(space, mtr);
+
 	const page_size_t	page_size(space->flags);
 
 	descr = xdes_get_descriptor(space_id, header_page, page_size, mtr);
@@ -4033,9 +3988,11 @@ fseg_free_step_not_header(
 	page_no_t	page_no;
 
 	space_id = page_get_space_id(page_align(header));
-	ut_ad(mtr->is_named_space(space_id));
 
-	const fil_space_t*	space = mtr_x_lock_space(space_id, mtr);
+	fil_space_t*	space = fil_space_get(space_id);
+
+	mtr_x_lock_space(space, mtr);
+
 	const page_size_t	page_size(space->flags);
 	buf_block_t*		iblock;
 
@@ -4182,7 +4139,11 @@ fseg_print(
 	space_id_t	space_id;
 
 	space_id = page_get_space_id(page_align(header));
-	const fil_space_t*	space = mtr_x_lock_space(space_id, mtr);
+
+	fil_space_t*	space = fil_space_get();
+
+	mtr_x_lock_space(space, mtr);
+
 	const page_size_t	page_size(space->flags);
 
 	inode = fseg_inode_get(header, space_id, page_size, mtr);
@@ -4415,8 +4376,11 @@ fsp_check_tablespace_size(space_id_t space_id)
 
 	mtr_start(&mtr);
 
-	fil_space_t* space = mtr_x_lock_space(space_id, &mtr);
-        const page_size_t       page_size(space->flags);
+	fil_space_t*	space = fil_space_get(space_id);
+
+	mtr_x_lock_space(space, &mtr);
+
+	const page_size_t page_size(space->flags);
 
 	fsp_header_t* space_header = fsp_get_space_header(
 		space_id, page_size, &mtr);
@@ -4424,9 +4388,9 @@ fsp_check_tablespace_size(space_id_t space_id)
 	xdes_t* descr = xdes_get_descriptor_with_space_hdr(
 		space_header, space->id, 0, &mtr);
 
-        ulint	n_used = xdes_get_n_used(descr, &mtr);
-        ulint	size = mach_read_from_4(space_header + FSP_SIZE);
-        ut_a(n_used <= size);
+	ulint	n_used = xdes_get_n_used(descr, &mtr);
+	ulint	size = mach_read_from_4(space_header + FSP_SIZE);
+	ut_a(n_used <= size);
 
 	mtr_commit(&mtr);
 

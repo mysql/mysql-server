@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,14 +17,15 @@
 #define MYSQLBINLOG_INCLUDED
 
 #include <stdarg.h>
+#include <sys/types.h>
 
 #include "my_compiler.h"
 #include "my_inttypes.h"
 
 class Format_description_log_event;
 
-extern my_bool force_opt;
-extern my_bool short_form;
+extern bool force_opt;
+extern bool short_form;
 extern ulong opt_server_id_mask;
 extern ulong opt_binlog_rows_event_max_size;
 

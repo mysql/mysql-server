@@ -42,6 +42,8 @@ update performance_schema.setup_instruments set enabled='NO';
 update performance_schema.setup_instruments set enabled='YES';
 connection default;
 grant super on *.* to pfsuser@localhost;
+Warnings:
+Warning	1287	The SUPER privilege identifier is deprecated
 flush privileges;
 disconnect con1;
 connect  con1, localhost, pfsuser, , test;

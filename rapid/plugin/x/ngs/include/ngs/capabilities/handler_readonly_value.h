@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -44,7 +44,7 @@ namespace ngs
     virtual bool is_supported() const { return true; }
 
     virtual void get(::Mysqlx::Datatypes::Any &any) {any.CopyFrom(m_value); }
-    virtual bool set(const ::Mysqlx::Datatypes::Any &any) { return false; };
+    virtual bool set(const ::Mysqlx::Datatypes::Any&) { return false; };
 
     virtual void commit() {}
 

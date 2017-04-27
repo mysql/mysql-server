@@ -13,6 +13,7 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#include <assert.h>
 #include <sstream>
 
 #include "my_dbug.h"
@@ -24,7 +25,6 @@
 #include "pipeline_stats.h"
 #include "plugin.h"
 #include "plugin_log.h"
-#include "sql_service_gr_user.h"
 
 using std::string;
 
@@ -37,7 +37,6 @@ unsigned int plugin_version= 0;
 static mysql_mutex_t plugin_running_mutex;
 static bool group_replication_running;
 bool wait_on_engine_initialization= false;
-bool delay_gr_user_creation= false;
 bool server_shutdown_status= false;
 bool plugin_is_auto_starting= false;
 
@@ -65,7 +64,7 @@ char *group_seeds_var= NULL;
 char *force_members_var= NULL;
 bool force_members_running= false;
 static mysql_mutex_t force_members_running_mutex;
-my_bool bootstrap_group_var= false;
+bool bootstrap_group_var= false;
 ulong poll_spin_loops_var= 0;
 ulong ssl_mode_var= 0;
 
@@ -109,10 +108,10 @@ Compatibility_module* compatibility_mgr= NULL;
 /* Plugin group related options */
 const char *group_replication_plugin_name= "group_replication";
 char *group_name_var= NULL;
-my_bool start_group_replication_at_boot_var= true;
+bool start_group_replication_at_boot_var= true;
 rpl_sidno group_sidno;
-my_bool single_primary_mode_var= FALSE;
-my_bool enforce_update_everywhere_checks_var= TRUE;
+bool single_primary_mode_var= FALSE;
+bool enforce_update_everywhere_checks_var= TRUE;
 
 /* Applier module related */
 bool known_server_reset;
@@ -131,7 +130,7 @@ static const int RECOVERY_SSL_CRLPATH_OPT= 7;
 std::map<const char*, int> recovery_ssl_opt_map;
 
 // SSL options
-my_bool recovery_use_ssl_var= false;
+bool recovery_use_ssl_var= false;
 char* recovery_ssl_ca_var= NULL;
 char* recovery_ssl_capath_var= NULL;
 char* recovery_ssl_cert_var= NULL;
@@ -139,7 +138,7 @@ char* recovery_ssl_cipher_var= NULL;
 char* recovery_ssl_key_var= NULL;
 char* recovery_ssl_crl_var= NULL;
 char* recovery_ssl_crlpath_var= NULL;
-my_bool recovery_ssl_verify_server_cert_var= false;
+bool recovery_ssl_verify_server_cert_var= false;
 ulong  recovery_completion_policy_var;
 
 ulong recovery_retry_count_var= 0;
@@ -181,11 +180,17 @@ ulong flow_control_mode_var= FCM_QUOTA;
 int flow_control_certifier_threshold_var= DEFAULT_FLOW_CONTROL_THRESHOLD;
 int flow_control_applier_threshold_var= DEFAULT_FLOW_CONTROL_THRESHOLD;
 
+/* Transaction size limits */
+#define DEFAULT_TRANSACTION_SIZE_LIMIT 150000000
+#define MAX_TRANSACTION_SIZE_LIMIT 2147483647
+#define MIN_TRANSACTION_SIZE_LIMIT 0
+ulong transaction_size_limit_var= DEFAULT_TRANSACTION_SIZE_LIMIT;
+
 /* Downgrade options */
-char allow_local_lower_version_join_var= 0;
+bool allow_local_lower_version_join_var= 0;
 
 /* Allow errand transactions */
-char allow_local_disjoint_gtids_join_var= 0;
+bool allow_local_disjoint_gtids_join_var= 0;
 
 /* Certification latch */
 Wait_ticket<my_thread_id> *certification_latch;
@@ -266,8 +271,7 @@ plugin_get_group_members(
 {
   char* channel_name= applier_module_channel_name;
 
-  return get_group_members_info(index, callbacks, group_member_mgr,
-                                group_name_var, channel_name);
+  return get_group_members_info(index, callbacks, group_member_mgr, channel_name);
 }
 
 uint plugin_get_group_members_number()
@@ -284,7 +288,7 @@ plugin_get_group_member_stats(
   char* channel_name= applier_module_channel_name;
 
   return get_group_member_stats(callbacks, group_member_mgr, applier_module,
-                                gcs_module, group_name_var, channel_name);
+                                gcs_module, channel_name);
 }
 
 int plugin_group_replication_start()
@@ -294,6 +298,8 @@ int plugin_group_replication_start()
   Mutex_autolock auto_lock_mutex(&plugin_running_mutex);
 
   int error= 0;
+  st_server_ssl_variables server_ssl_variables=
+    {false,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL};
 
   if (plugin_is_group_replication_running())
     DBUG_RETURN(GROUP_REPLICATION_ALREADY_RUNNING);
@@ -338,16 +344,15 @@ int plugin_group_replication_start()
   */
   certification_latch= new Wait_ticket<my_thread_id>();
   read_mode_handler= new Read_mode_handler();
-  Sql_service_command *sql_command_interface= new Sql_service_command();
-  Sql_service_interface *sql_interface= NULL;
-  int check_gr_user= 1;
+  Sql_service_command_interface *sql_command_interface=
+      new Sql_service_command_interface();
 
   // GCS interface.
   if ((error= gcs_module->initialize()))
     goto err; /* purecov: inspected */
 
   // GR delayed initialization.
-  if(!server_engine_initialized())
+  if (!server_engine_initialized())
   {
     wait_on_engine_initialization= true;
     plugin_is_auto_starting= false;
@@ -357,41 +362,11 @@ int plugin_group_replication_start()
   }
 
   // Setup SQL service interface.
-  if (sql_command_interface->establish_session_connection(false))
+  if (sql_command_interface->
+          establish_session_connection(PSESSION_DEDICATED_THREAD,plugin_info_ptr))
   {
     error =1; /* purecov: inspected */
     goto err; /* purecov: inspected */
-  }
-
-  sql_interface= sql_command_interface->get_sql_service_interface();
-  check_gr_user= check_group_replication_user(false,sql_interface);
-
-  if (check_gr_user < 0)
-  {
-    /* purecov: begin inspected */
-    log_message(MY_ERROR_LEVEL,
-                "Could not evaluate if the group replication user is present in"
-                " the server");
-    error =1;
-    goto err;
-    /* purecov: end */
-  }
-  if (!check_gr_user)
-  {
-    log_message(MY_WARNING_LEVEL,
-                "The group replication user is not present in the server."
-                " The user will be recreated, please do not remove it");
-
-    if (create_group_replication_user(false, sql_interface))
-    {
-      /* purecov: begin inspected */
-      log_message(MY_ERROR_LEVEL,
-                  "It was not possible to create the group replication user used"
-                  "by the plugin for internal operations.");
-      error =1;
-      goto err;
-      /* purecov: end */
-    }
   }
 
   if (sql_command_interface->set_interface_user(GROUPREPL_USER))
@@ -400,8 +375,15 @@ int plugin_group_replication_start()
     goto err; /* purecov: inspected */
   }
 
+  char *hostname, *uuid;
+  uint port;
+  unsigned int server_version;
+
+  get_server_parameters(&hostname, &port, &uuid, &server_version,
+                        &server_ssl_variables);
+
   // Setup GCS.
-  if ((error= configure_group_communication(sql_interface)))
+  if ((error= configure_group_communication(&server_ssl_variables)))
   {
     log_message(MY_ERROR_LEVEL,
                 "Error on group communication engine initialization");
@@ -409,7 +391,8 @@ int plugin_group_replication_start()
   }
 
   // Setup Group Member Manager.
-  if ((error= configure_group_member_manager()))
+  if ((error= configure_group_member_manager(hostname, uuid, port,
+                                             server_version)))
     goto err; /* purecov: inspected */
   configure_compatibility_manager();
   DBUG_EXECUTE_IF("group_replication_compatibility_rule_error",
@@ -507,7 +490,8 @@ err:
   DBUG_RETURN(error);
 }
 
-int configure_group_member_manager()
+int configure_group_member_manager(char *hostname, char *uuid,
+                                   uint port, unsigned int server_version)
 {
   DBUG_ENTER("configure_group_member_manager");
 
@@ -526,10 +510,6 @@ int configure_group_member_manager()
   }
 
   //Configure Group Member Manager
-  char *hostname, *uuid;
-  uint port;
-  unsigned int server_version;
-  get_server_parameters(&hostname, &port, &uuid, &server_version);
   plugin_version= server_version;
 
   uint32 local_version= plugin_version;
@@ -743,8 +723,11 @@ int terminate_plugin_modules()
 
   if (!server_shutdown_status && server_engine_initialized())
   {
-    Sql_service_command *sql_command_interface= new Sql_service_command();
-    if (sql_command_interface->establish_session_connection(false) ||
+    Sql_service_command_interface *sql_command_interface=
+        new Sql_service_command_interface();
+    if (sql_command_interface->
+            establish_session_connection(PSESSION_DEDICATED_THREAD,
+                                         plugin_info_ptr) ||
         sql_command_interface->set_interface_user(GROUPREPL_USER) ||
         read_mode_handler->reset_super_read_only_mode(sql_command_interface))
     {
@@ -857,19 +840,7 @@ int plugin_group_replication_init(MYSQL_PLUGIN plugin_info)
   init_compatibility_manager();
 
   //Create the group replication user and give it grants.
-  if(server_engine_initialized())
-  {
-    if (create_group_replication_user(false))
-    {
-      /* purecov: begin inspected */
-      log_message(MY_ERROR_LEVEL,
-                  "It was not possible to create the group replication user used"
-                  "by the plugin for internal operations.");
-      return 1;
-      /* purecov: end */
-    }
-  }
-  else
+  if (!server_engine_initialized())
   {
     delayed_initialization_thread= new Delayed_initialization_thread();
     if (delayed_initialization_thread->launch_initialization_thread())
@@ -883,7 +854,6 @@ int plugin_group_replication_init(MYSQL_PLUGIN plugin_info)
       return 1;
       /* purecov: end */
     }
-    delay_gr_user_creation= true;
   }
 
   plugin_is_auto_starting= start_group_replication_at_boot_var;
@@ -909,28 +879,13 @@ int plugin_group_replication_deinit(void *p)
     log_message(MY_ERROR_LEVEL,
                 "Failure when cleaning Group Replication server state");
 
-  DBUG_EXECUTE_IF("group_replication_bypass_user_removal",
-          { server_shutdown_status= true; };);
-
-  if(!server_shutdown_status && server_engine_initialized())
-  {
-    if(remove_group_replication_user(false))
-    {
-      //Do not throw an error as the user can remove the user
-      log_message(MY_WARNING_LEVEL,
-                  "On plugin shutdown there was an error when removing the"
-                  " user associate to the plugin: " GROUPREPL_USER "."
-                  " You can remove it manually if desired.");
-    }
-  }
-
-  if(group_member_mgr != NULL)
+  if (group_member_mgr != NULL)
   {
     delete group_member_mgr;
     group_member_mgr= NULL;
   }
 
-  if(local_member_info != NULL)
+  if (local_member_info != NULL)
   {
     delete local_member_info;
     local_member_info= NULL;
@@ -976,7 +931,6 @@ int plugin_group_replication_deinit(void *p)
 
   if (delayed_initialization_thread != NULL)
   {
-    delay_gr_user_creation= false;
     wait_on_engine_initialization= false;
     delayed_initialization_thread->signal_thread_ready();
     delayed_initialization_thread->wait_for_initialization();
@@ -1125,7 +1079,7 @@ int terminate_applier_module()
   return error;
 }
 
-int configure_group_communication(Sql_service_interface *sql_interface)
+int configure_group_communication(st_server_ssl_variables *ssl_variables)
 {
   DBUG_ENTER("configure_group_communication");
 
@@ -1164,33 +1118,17 @@ int configure_group_communication(Sql_service_interface *sql_interface)
   std::string ssl_mode(ssl_mode_values[ssl_mode_var]);
   if (ssl_mode_var > 0)
   {
-    std::string query= "SELECT @@have_ssl='YES', @@ssl_key, @@ssl_cert, "
-                       "@@ssl_ca, @@ssl_capath, @@ssl_cipher, @@ssl_crl, "
-                       "@@ssl_crlpath, @@tls_version;";
-    Sql_resultset rset;
-    long query_error= sql_interface->execute_query(query, &rset);
-    if (query_error || rset.get_rows() != 1 || rset.get_cols() != 9)
-    {
-      /* purecov: begin inspected */
-      log_message(MY_ERROR_LEVEL,
-                  "Unable to fetch SSL configuration from server, START "
-                  "GROUP_REPLICATION will abort");
-      DBUG_RETURN(GROUP_REPLICATION_COMMUNICATION_LAYER_SESSION_ERROR);
-      /* purecov: end */
-    }
-
-    bool have_ssl = rset.getLong(0);
-    std::string ssl_key(rset.getString(1));
-    std::string ssl_cert(rset.getString(2));
-    std::string ssl_ca(rset.getString(3));
-    std::string ssl_capath(rset.getString(4));
-    std::string ssl_cipher(rset.getString(5));
-    std::string ssl_crl(rset.getString(6));
-    std::string ssl_crlpath(rset.getString(7));
-    std::string tls_version(rset.getString(8));
+    std::string ssl_key(ssl_variables->ssl_key ? ssl_variables->ssl_key : "");
+    std::string ssl_cert(ssl_variables->ssl_cert ? ssl_variables->ssl_cert : "");
+    std::string ssl_ca(ssl_variables->ssl_ca ? ssl_variables->ssl_ca : "");
+    std::string ssl_capath(ssl_variables->ssl_capath ? ssl_variables->ssl_capath : "");
+    std::string ssl_cipher(ssl_variables->ssl_cipher ? ssl_variables->ssl_cipher : "");
+    std::string ssl_crl(ssl_variables->ssl_crl ? ssl_variables->ssl_crl : "");
+    std::string ssl_crlpath(ssl_variables->ssl_crlpath ? ssl_variables->ssl_crlpath : "");
+    std::string tls_version(ssl_variables->tls_version? ssl_variables->tls_version : "");
 
     // SSL support on server.
-    if (have_ssl)
+    if (ssl_variables->have_ssl_opt)
     {
       gcs_module_parameters.add_parameter("ssl_mode", ssl_mode);
       gcs_module_parameters.add_parameter("server_key_file", ssl_key);
@@ -1375,6 +1313,12 @@ bool get_allow_local_disjoint_gtids_join()
   DBUG_RETURN(allow_local_disjoint_gtids_join_var);
 }
 
+ulong get_transaction_size_limit()
+{
+  DBUG_ENTER("get_transaction_size_limit");
+  DBUG_RETURN(transaction_size_limit_var);
+}
+
 /*
   This method is used to accomplish the startup validations of the plugin
   regarding system configuration.
@@ -1529,7 +1473,7 @@ static int check_group_name_string(const char *str, bool is_var_update)
   DBUG_RETURN(0);
 }
 
-static int check_group_name(MYSQL_THD thd, SYS_VAR *var, void* save,
+static int check_group_name(MYSQL_THD thd, SYS_VAR*, void* save,
                             struct st_mysql_value *value)
 {
   DBUG_ENTER("check_group_name");
@@ -1563,7 +1507,7 @@ static int check_group_name(MYSQL_THD thd, SYS_VAR *var, void* save,
 
 //Recovery module's module variable update/validate methods
 
-static void update_recovery_retry_count(MYSQL_THD thd, SYS_VAR *var,
+static void update_recovery_retry_count(MYSQL_THD, SYS_VAR*,
                                         void *var_ptr, const void *save)
 {
   DBUG_ENTER("update_recovery_retry_count");
@@ -1579,7 +1523,7 @@ static void update_recovery_retry_count(MYSQL_THD thd, SYS_VAR *var,
   DBUG_VOID_RETURN;
 }
 
-static void update_recovery_reconnect_interval(MYSQL_THD thd, SYS_VAR *var,
+static void update_recovery_reconnect_interval(MYSQL_THD, SYS_VAR*,
                                                void *var_ptr, const void *save)
 {
   DBUG_ENTER("update_recovery_reconnect_interval");
@@ -1598,14 +1542,13 @@ static void update_recovery_reconnect_interval(MYSQL_THD thd, SYS_VAR *var,
 
 //Recovery SSL options
 
-static void
-update_ssl_use(MYSQL_THD thd, SYS_VAR *var,
-               void *var_ptr, const void *save)
+static void update_ssl_use(MYSQL_THD, SYS_VAR*,
+                           void *var_ptr, const void *save)
 {
   DBUG_ENTER("update_ssl_use");
 
-  bool use_ssl_val= *((my_bool *) save);
-  (*(my_bool *) var_ptr)= (*(my_bool *) save);
+  bool use_ssl_val= *((bool *) save);
+  (*(bool *) var_ptr)= (*(bool *) save);
 
   if (recovery_module != NULL)
   {
@@ -1663,7 +1606,7 @@ static int check_recovery_ssl_option(MYSQL_THD thd, SYS_VAR *var, void* save,
   DBUG_RETURN(0);
 }
 
-static void update_recovery_ssl_option(MYSQL_THD thd, SYS_VAR *var,
+static void update_recovery_ssl_option(MYSQL_THD, SYS_VAR *var,
                                        void *var_ptr, const void *save)
 {
   DBUG_ENTER("update_recovery_ssl_option");
@@ -1711,13 +1654,13 @@ static void update_recovery_ssl_option(MYSQL_THD thd, SYS_VAR *var,
 }
 
 static void
-update_ssl_server_cert_verification(MYSQL_THD thd, SYS_VAR *var,
+update_ssl_server_cert_verification(MYSQL_THD, SYS_VAR*,
                                     void *var_ptr, const void *save)
 {
   DBUG_ENTER("update_ssl_server_cert_verification");
 
-  bool ssl_verify_server_cert= *((my_bool *) save);
-  (*(my_bool *) var_ptr)= (*(my_bool *) save);
+  bool ssl_verify_server_cert= *((bool *) save);
+  (*(bool *) var_ptr)= (*(bool *) save);
 
   if (recovery_module != NULL)
   {
@@ -1731,7 +1674,7 @@ update_ssl_server_cert_verification(MYSQL_THD thd, SYS_VAR *var,
 // Recovery threshold update method
 
 static void
-update_recovery_completion_policy(MYSQL_THD thd, SYS_VAR *var,
+update_recovery_completion_policy(MYSQL_THD, SYS_VAR*,
                                   void *var_ptr, const void *save)
 {
   DBUG_ENTER("update_recovery_completion_policy");
@@ -1751,7 +1694,7 @@ update_recovery_completion_policy(MYSQL_THD thd, SYS_VAR *var,
 
 //Component timeout update method
 
-static void update_component_timeout(MYSQL_THD thd, SYS_VAR *var,
+static void update_component_timeout(MYSQL_THD, SYS_VAR*,
                                      void *var_ptr, const void *save)
 {
   DBUG_ENTER("update_component_timeout");
@@ -1771,7 +1714,7 @@ static void update_component_timeout(MYSQL_THD thd, SYS_VAR *var,
   DBUG_VOID_RETURN;
 }
 
-static int check_auto_increment_increment(MYSQL_THD thd, SYS_VAR *var,
+static int check_auto_increment_increment(MYSQL_THD, SYS_VAR*,
                                           void* save,
                                           struct st_mysql_value *value)
 {
@@ -1808,7 +1751,7 @@ static int check_auto_increment_increment(MYSQL_THD thd, SYS_VAR *var,
 
 //Communication layer options.
 
-static int check_ip_whitelist_preconditions(MYSQL_THD thd, SYS_VAR *var,
+static int check_ip_whitelist_preconditions(MYSQL_THD thd, SYS_VAR*,
                                             void *save,
                                             struct st_mysql_value *value)
 {
@@ -1851,7 +1794,7 @@ static int check_ip_whitelist_preconditions(MYSQL_THD thd, SYS_VAR *var,
   DBUG_RETURN(0);
 }
 
-static int check_compression_threshold(MYSQL_THD thd, SYS_VAR *var,
+static int check_compression_threshold(MYSQL_THD, SYS_VAR*,
                                        void* save,
                                        struct st_mysql_value *value)
 {
@@ -1883,7 +1826,7 @@ static int check_compression_threshold(MYSQL_THD thd, SYS_VAR *var,
   DBUG_RETURN(0);
 }
 
-static int check_force_members(MYSQL_THD thd, SYS_VAR *var,
+static int check_force_members(MYSQL_THD thd, SYS_VAR*,
                                void* save,
                                struct st_mysql_value *value)
 {
@@ -1943,7 +1886,7 @@ end:
   DBUG_RETURN(error);
 }
 
-static int check_gtid_assignment_block_size(MYSQL_THD thd, SYS_VAR *var,
+static int check_gtid_assignment_block_size(MYSQL_THD, SYS_VAR*,
                                             void* save,
                                             struct st_mysql_value *value)
 {
@@ -1979,7 +1922,7 @@ static int check_gtid_assignment_block_size(MYSQL_THD thd, SYS_VAR *var,
 
 static bool
 get_bool_value_using_type_lib(struct st_mysql_value *value,
-                              my_bool &resulting_value)
+                              bool &resulting_value)
 {
   DBUG_ENTER("get_bool_value_using_type_lib");
   longlong value_to_check;
@@ -2019,12 +1962,12 @@ get_bool_value_using_type_lib(struct st_mysql_value *value,
 }
 
 static int
-check_single_primary_mode(MYSQL_THD thd, SYS_VAR *var,
+check_single_primary_mode(MYSQL_THD, SYS_VAR*,
                           void* save,
                           struct st_mysql_value *value)
 {
   DBUG_ENTER("check_single_primary_mode");
-  my_bool single_primary_mode_val;
+  bool single_primary_mode_val;
 
   if (!get_bool_value_using_type_lib(value, single_primary_mode_val))
     DBUG_RETURN(1);
@@ -2046,18 +1989,18 @@ check_single_primary_mode(MYSQL_THD thd, SYS_VAR *var,
     DBUG_RETURN(1);
   }
 
-  *(my_bool *)save = single_primary_mode_val;
+  *(bool *)save = single_primary_mode_val;
 
   DBUG_RETURN(0);
 }
 
 static int
-check_enforce_update_everywhere_checks(MYSQL_THD thd, SYS_VAR *var,
+check_enforce_update_everywhere_checks(MYSQL_THD, SYS_VAR*,
                                        void* save,
                                        struct st_mysql_value *value)
 {
   DBUG_ENTER("check_enforce_update_everywhere_checks");
-  my_bool enforce_update_everywhere_checks_val;
+  bool enforce_update_everywhere_checks_val;
 
   if (!get_bool_value_using_type_lib(value, enforce_update_everywhere_checks_val))
     DBUG_RETURN(1);
@@ -2079,7 +2022,7 @@ check_enforce_update_everywhere_checks(MYSQL_THD thd, SYS_VAR *var,
     DBUG_RETURN(1);
   }
 
-  *(my_bool *)save = enforce_update_everywhere_checks_val;
+  *(bool *)save = enforce_update_everywhere_checks_val;
 
   DBUG_RETURN(0);
 }
@@ -2509,6 +2452,19 @@ static MYSQL_SYSVAR_INT(
   0                                    /* block */
 );
 
+static MYSQL_SYSVAR_ULONG(
+  transaction_size_limit,              /* name */
+  transaction_size_limit_var,          /* var */
+  PLUGIN_VAR_OPCMDARG,                 /* optional var */
+  "Specifies the limit of transaction size that can be transferred over network.",
+  NULL,                                /* check func. */
+  NULL,                                /* update func. */
+  DEFAULT_TRANSACTION_SIZE_LIMIT,      /* default */
+  MIN_TRANSACTION_SIZE_LIMIT,          /* min */
+  MAX_TRANSACTION_SIZE_LIMIT,          /* max */
+  0                                    /* block */
+);
+
 static SYS_VAR* group_replication_system_vars[]= {
   MYSQL_SYSVAR(group_name),
   MYSQL_SYSVAR(start_on_boot),
@@ -2542,12 +2498,12 @@ static SYS_VAR* group_replication_system_vars[]= {
   MYSQL_SYSVAR(flow_control_mode),
   MYSQL_SYSVAR(flow_control_certifier_threshold),
   MYSQL_SYSVAR(flow_control_applier_threshold),
+  MYSQL_SYSVAR(transaction_size_limit),
   NULL,
 };
 
 
-static int
-show_primary_member(MYSQL_THD thd, SHOW_VAR *var, char *buff)
+static int show_primary_member(MYSQL_THD, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_CHAR;
   var->value= NULL;

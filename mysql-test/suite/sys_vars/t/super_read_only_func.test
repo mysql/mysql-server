@@ -26,7 +26,6 @@
 # Setup
 #
 
-# --source include/not_embedded.inc
 
 SET @default_read_only = @@global.read_only;
 SET @default_super_read_only = @@global.super_read_only;

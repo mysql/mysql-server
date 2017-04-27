@@ -22,6 +22,8 @@
   Table replication_connection_configuration (declarations).
 */
 
+#include <sys/types.h>
+
 #include "my_io.h"
 #include "mysql_com.h"
 #include "pfs_column_types.h"
@@ -150,7 +152,7 @@ public:
 
   /** Table share. */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table *create();
+  static PFS_engine_table *create(PFS_engine_table_share *);
   static ha_rows get_row_count();
   virtual void reset_position(void);
 

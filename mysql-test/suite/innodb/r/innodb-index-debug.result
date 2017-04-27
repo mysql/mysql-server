@@ -5,7 +5,7 @@ t1	CREATE TABLE `t1` (
   `c1` int(11) NOT NULL,
   `c2` int(11) DEFAULT NULL,
   PRIMARY KEY (`c1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 INSERT INTO t1 VALUES (1,1),(2,2),(3,3),(4,4),(5,5);
 SET SESSION DEBUG='+d,ib_build_indexes_too_many_concurrent_trxs, ib_rename_indexes_too_many_concurrent_trxs, ib_drop_index_too_many_concurrent_trxs';
 ALTER TABLE t1 ADD UNIQUE INDEX(c2);
@@ -17,7 +17,7 @@ t1	CREATE TABLE `t1` (
   `c1` int(11) NOT NULL,
   `c2` int(11) DEFAULT NULL,
   PRIMARY KEY (`c1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE bug13861218 (c1 INT NOT NULL, c2 INT NOT NULL, INDEX(c2))
 ENGINE=InnoDB;
@@ -45,7 +45,7 @@ insert into t480 select 0 from t480;
 insert into t480 select 0 from t480;
 create table t1(f1 int auto_increment not null,
 f2 char(200) not null, f3 char(200) not null,
-primary key(f1,f2,f3), key(f1))engine=innodb;
+primary key(f1,f2,f3), key(f1))engine=innodb charset latin1;
 insert into t1 select NULL,'aaa','bbb' from t480;
 insert into t1 select NULL,'aaaa','bbbb' from t480;
 insert into t1 select NULL,'aaaaa','bbbbb' from t480;
@@ -101,7 +101,7 @@ t1	CREATE TABLE `t1` (
   `k2` char(200) DEFAULT NULL,
   `k3` char(200) DEFAULT NULL,
   PRIMARY KEY (`k1`)
-) ENGINE=InnoDB AUTO_INCREMENT=1023 DEFAULT CHARSET=latin1
+) ENGINE=InnoDB AUTO_INCREMENT=1023 DEFAULT CHARSET=utf8mb4
 drop table t1;
 drop table t480;
 SET DEBUG_SYNC='RESET';

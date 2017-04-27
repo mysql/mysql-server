@@ -4,9 +4,6 @@
 #
 
 --source include/have_ipv4_mapped.inc
-# Can't be tested with embedded server
---source include/not_embedded.inc
-
 --source include/add_extra_root_users.inc
 
 # Save the initial number of concurrent sessions

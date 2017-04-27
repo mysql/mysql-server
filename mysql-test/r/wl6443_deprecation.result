@@ -117,12 +117,14 @@ mysql.default_roles                                OK
 mysql.engine_cost                                  OK
 mysql.func                                         OK
 mysql.general_log                                  OK
+mysql.global_grants                                OK
 mysql.gtid_executed                                OK
 mysql.help_category                                OK
 mysql.help_keyword                                 OK
 mysql.help_relation                                OK
 mysql.help_topic                                   OK
 mysql.host                                         OK
+mysql.innodb_dynamic_metadata                      OK
 mysql.innodb_index_stats                           OK
 mysql.innodb_table_stats                           OK
 mysql.plugin                                       OK
@@ -150,7 +152,7 @@ create view mysql.host as select HOST from mysql.db;
 create user 'wl6443_u1'@'10.10.10.1' identified by 'sql';
 select count(*) from mysql.host;
 count(*)
-2
+3
 mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
@@ -159,11 +161,13 @@ mysql.default_roles                                OK
 mysql.engine_cost                                  OK
 mysql.func                                         OK
 mysql.general_log                                  OK
+mysql.global_grants                                OK
 mysql.gtid_executed                                OK
 mysql.help_category                                OK
 mysql.help_keyword                                 OK
 mysql.help_relation                                OK
 mysql.help_topic                                   OK
+mysql.innodb_dynamic_metadata                      OK
 mysql.innodb_index_stats                           OK
 mysql.innodb_table_stats                           OK
 mysql.plugin                                       OK
@@ -196,11 +200,13 @@ mysql.default_roles                                OK
 mysql.engine_cost                                  OK
 mysql.func                                         OK
 mysql.general_log                                  OK
+mysql.global_grants                                OK
 mysql.gtid_executed                                OK
 mysql.help_category                                OK
 mysql.help_keyword                                 OK
 mysql.help_relation                                OK
 mysql.help_topic                                   OK
+mysql.innodb_dynamic_metadata                      OK
 mysql.innodb_index_stats                           OK
 mysql.innodb_table_stats                           OK
 mysql.plugin                                       OK

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -62,7 +62,7 @@ struct NdbThread;
   signum set in g_ndb_shm_signum in a portable manner.
 */
 #ifdef NDB_SHM_TRANSPORTER
-void NdbThread_set_shm_sigmask(my_bool block);
+void NdbThread_set_shm_sigmask(bool block);
 #endif
 
 /**
@@ -137,13 +137,13 @@ int NdbThread_GetTid(struct NdbThread*);
  * Yield to normal time-share prio and back to real-time prio for
  * real-time threads
  */
-int NdbThread_yield_rt(struct NdbThread*, my_bool high_prio);
+int NdbThread_yield_rt(struct NdbThread*, bool high_prio);
 
 /**
  * Set Scheduler for thread
  * This sets real-time priority of the thread.
  */
-int NdbThread_SetScheduler(struct NdbThread*, my_bool rt_prio, my_bool high_prio);
+int NdbThread_SetScheduler(struct NdbThread*, bool rt_prio, bool high_prio);
 
 /**
  * Set Thread priority for thread

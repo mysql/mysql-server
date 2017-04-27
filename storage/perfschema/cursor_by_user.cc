@@ -19,8 +19,10 @@
   Cursor CURSOR_BY_USER (implementation).
 */
 
-#include "my_global.h"
-#include "cursor_by_user.h"
+#include "storage/perfschema/cursor_by_user.h"
+
+#include <stddef.h>
+
 #include "pfs_buffer_container.h"
 
 ha_rows

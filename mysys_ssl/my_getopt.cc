@@ -18,13 +18,14 @@
 */
 
 #include <errno.h>
+#include <limits.h>
 #include <m_ctype.h>
 #include <m_string.h>
 #include <my_getopt.h>
-#include <my_global.h>
 #include <mysys_err.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/types.h>
 
 #include "../mysys/mysys_priv.h"
 #include "my_compiler.h"
@@ -42,18 +43,18 @@ typedef void (*init_func_p)(const struct my_option *option, void *variable,
 
 my_error_reporter my_getopt_error_reporter= &my_message_local;
 
-static my_bool getopt_compare_strings(const char *, const char *, uint);
+static bool getopt_compare_strings(const char *, const char *, uint);
 static longlong getopt_ll(char *arg, const struct my_option *optp, int *err);
 static ulonglong getopt_ull(char *, const struct my_option *, int *);
 static double getopt_double(char *arg, const struct my_option *optp, int *err);
 static void init_variables(const struct my_option *, init_func_p);
 static void init_one_value(const struct my_option *, void *, longlong);
 static void fini_one_value(const struct my_option *, void *, longlong);
-static int setval(const struct my_option *, void *, char *, my_bool);
+static int setval(const struct my_option *, void *, char *, bool);
 static void setval_source(const struct my_option *, void *);
 static char *check_struct_option(char *cur_arg, char *key_name);
-static my_bool get_bool_argument(const char *argument,
-                                 bool *error);
+static bool get_bool_argument(const char *argument,
+                              bool *error);
 
 /*
   The following three variables belong to same group and the number and
@@ -75,14 +76,14 @@ char *enabled_my_option= (char*) "1";
    it by itself
 */
 
-my_bool my_getopt_print_errors= 1;
+bool my_getopt_print_errors= 1;
 
 /* 
    This is a flag that can be set in client programs. 1 means that
    my_getopt will skip over options it does not know how to handle.
 */
 
-my_bool my_getopt_skip_unknown= 0;
+bool my_getopt_skip_unknown= 0;
 
 static my_getopt_value getopt_get_addr;
 
@@ -213,16 +214,16 @@ double getopt_ulonglong2double(ulonglong v)
 int my_handle_options(int *argc, char ***argv,
                       const struct my_option *longopts,
                       my_get_one_option get_one_option,
-                      const char **command_list, my_bool ignore_unknown_option)
+                      const char **command_list, bool ignore_unknown_option)
 {
   uint argvpos= 0, length;
-  my_bool end_of_options= 0, must_be_var, set_maximum_value,
-          option_is_loose;
+  bool end_of_options= 0, must_be_var, set_maximum_value,
+       option_is_loose;
   char **pos, **pos_end, *optend, *opt_str, key_name[FN_REFLEN];
   const struct my_option *optp;
   void *value;
   int error, i;
-  my_bool is_cmdline_arg= 1;
+  bool is_cmdline_arg= 1;
   int opt_found;
 
   /* handle_options() assumes arg0 (program name) always exists */
@@ -434,10 +435,10 @@ int my_handle_options(int *argc, char ***argv,
 	    */
             (*argc)--;
             if(!optend)
-              *((my_bool*) value)= (my_bool) 1;
+              *((bool*) value)= true;
             else
             {
-              my_bool ret= 0;
+              bool ret= 0;
               bool error= 0;
               ret= get_bool_argument(optend, &error);
               if(error)
@@ -449,10 +450,10 @@ int my_handle_options(int *argc, char ***argv,
                 continue;
               }
               else
-                *((my_bool*) value)= ret;
+                *((bool*) value)= ret;
             }
             if (get_one_option && get_one_option(optp->id, optp,
-                               *((my_bool*) value) ?
+                               *((bool*) value) ?
                                enabled_my_option : disabled_my_option))
               return EXIT_ARGUMENT_INVALID;
             /* set variables source */
@@ -506,7 +507,7 @@ int my_handle_options(int *argc, char ***argv,
 	      if ((optp->var_type & GET_TYPE_MASK) == GET_BOOL &&
 		  optp->arg_type == NO_ARG)
 	      {
-		*((my_bool*) optp->value)= (my_bool) 1;
+		*((bool*) optp->value)= true;
                 if (get_one_option && get_one_option(optp->id, optp, argument))
                   return EXIT_UNSPECIFIED_ERROR;
 		continue;
@@ -528,7 +529,7 @@ int my_handle_options(int *argc, char ***argv,
                   if (optp->arg_type == OPT_ARG)
                   {
                     if (optp->var_type == GET_BOOL)
-                      *((my_bool*) optp->value)= (my_bool) 1;
+                      *((bool*) optp->value)= true;
                     if (get_one_option && get_one_option(optp->id, optp, argument))
                       return EXIT_UNSPECIFIED_ERROR;
                     continue;
@@ -642,7 +643,7 @@ done:
 
 void print_cmdline_password_warning()
 {
-  static my_bool password_warning_announced= FALSE;
+  static bool password_warning_announced= FALSE;
 
   if (!password_warning_announced)
   {
@@ -711,8 +712,8 @@ static char *check_struct_option(char *cur_arg, char *key_name)
    @param [out] error Error indicator
    @return boolean value
 */
-static my_bool get_bool_argument(const char *argument,
-                                 bool *error)
+static bool get_bool_argument(const char *argument,
+                              bool *error)
 {
   if (!my_strcasecmp(&my_charset_latin1, argument, "true") ||
       !my_strcasecmp(&my_charset_latin1, argument, "on") ||
@@ -744,7 +745,7 @@ static void setval_source(const struct my_option *opts, void *value)
 */
 
 static int setval(const struct my_option *opts, void *value, char *argument,
-		  my_bool set_maximum_value)
+		  bool set_maximum_value)
 {
   int err= 0, res= 0;
   bool error= 0;
@@ -795,7 +796,7 @@ static int setval(const struct my_option *opts, void *value, char *argument,
 
     switch (var_type) {
     case GET_BOOL: /* If argument differs from 0, enable option, else disable */
-      *((my_bool*) value)= get_bool_argument(argument, &error);
+      *((bool*) value)= get_bool_argument(argument, &error);
       if(error)
         my_getopt_error_reporter(WARNING_LEVEL,
             "option '%s': boolean value '%s' wasn't recognized. Set to OFF.",
@@ -955,8 +956,8 @@ int findopt(char *optpat, uint length,
   2.) Returns -1 if strings differ, 0 if they are equal
 */
 
-my_bool getopt_compare_strings(const char *s, const char *t,
-			       uint length)
+bool getopt_compare_strings(const char *s, const char *t,
+                            uint length)
 {
   char const *end= s + length;
   for (;s != end ; s++, t++)
@@ -1102,10 +1103,10 @@ ulonglong max_of_int_range(int var_type)
 */
 
 longlong getopt_ll_limit_value(longlong num, const struct my_option *optp,
-                               my_bool *fix)
+                               bool *fix)
 {
   longlong old= num;
-  my_bool adjusted= FALSE;
+  bool adjusted= FALSE;
   char buf1[255], buf2[255];
   ulonglong block_size= (optp->block_size ? (ulonglong) optp->block_size : 1L);
   const longlong max_of_type=
@@ -1143,7 +1144,7 @@ longlong getopt_ll_limit_value(longlong num, const struct my_option *optp,
   return num;
 }
 
-static inline my_bool is_negative_num(char* num)
+static inline bool is_negative_num(char* num)
 {
   while (my_isspace(&my_charset_latin1, *num)) 
     num++;
@@ -1179,9 +1180,9 @@ static ulonglong getopt_ull(char *arg, const struct my_option *optp, int *err)
 
 
 ulonglong getopt_ull_limit_value(ulonglong num, const struct my_option *optp,
-                                 my_bool *fix)
+                                 bool *fix)
 {
-  my_bool adjusted= FALSE;
+  bool adjusted= FALSE;
   ulonglong old= num;
   char buf1[255], buf2[255];
   const ulonglong max_of_type=
@@ -1224,9 +1225,9 @@ ulonglong getopt_ull_limit_value(ulonglong num, const struct my_option *optp,
 }
 
 double getopt_double_limit_value(double num, const struct my_option *optp,
-                                 my_bool *fix)
+                                 bool *fix)
 {
-  my_bool adjusted= FALSE;
+  bool adjusted= FALSE;
   double old= num;
   double min, max;
 
@@ -1294,7 +1295,7 @@ static void init_one_value(const struct my_option *option, void *variable,
   DBUG_ENTER("init_one_value");
   switch ((option->var_type & GET_TYPE_MASK)) {
   case GET_BOOL:
-    *((my_bool*) variable)= (my_bool) value;
+    *((bool*) variable)= (bool) value;
     break;
   case GET_INT:
     *((int*) variable)= (int) getopt_ll_limit_value((int) value, option, NULL);
@@ -1607,7 +1608,7 @@ void my_print_variables_ex(const struct my_option *options, FILE* file)
                 "(No default value)");
         break;
       case GET_BOOL:
-        fprintf(file, "%s\n", *((my_bool*) value) ? "TRUE" : "FALSE");
+        fprintf(file, "%s\n", *((bool*) value) ? "TRUE" : "FALSE");
         break;
       case GET_INT:
         fprintf(file, "%d\n", *((int*) value));

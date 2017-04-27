@@ -28,7 +28,6 @@
 #include "dd/types/index.h"                   // dd::Index
 #include "dd/types/index_element.h"           // dd::Index_element
 #include "dd/types/object_type.h"             // dd::Object_type
-#include "my_global.h"
 
 namespace dd {
 
@@ -220,10 +219,10 @@ public:
   virtual bool is_candidate_key() const;
 
   // Fix "inherits ... via dominance" warnings
-  virtual Weak_object_impl *impl()
-  { return Weak_object_impl::impl(); }
-  virtual const Weak_object_impl *impl() const
-  { return Weak_object_impl::impl(); }
+  virtual Entity_object_impl *impl()
+  { return Entity_object_impl::impl(); }
+  virtual const Entity_object_impl *impl() const
+  { return Entity_object_impl::impl(); }
   virtual Object_id id() const
   { return Entity_object_impl::id(); }
   virtual bool is_persistent() const

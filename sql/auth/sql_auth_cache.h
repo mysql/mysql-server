@@ -25,10 +25,10 @@
 #include "handler.h"
 #include "hash.h"                       // HASH
 #include "key.h"
+#include "lex_string.h"
 #include "lf.h"
 #include "mf_wcomp.h"                   // wild_many, wild_one, wild_prefix
 #include "my_atomic.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql/psi/mysql_mutex.h"
@@ -397,6 +397,7 @@ public:
   SP_access_map *sp_acls();
   SP_access_map *func_acls();
   Grant_acl_set *grant_acls();
+  Dynamic_privileges *dynamic_privileges();
   uint64 version() { return m_version; }
   uint32 reference_count()
   {
@@ -412,6 +413,7 @@ private:
   SP_access_map m_sp_acls;
   SP_access_map m_func_acls;
   Grant_acl_set m_with_admin_acls;
+  Dynamic_privileges m_dynamic_privileges;
 };
 
 typedef LF_HASH Acl_cache_internal;

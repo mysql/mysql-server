@@ -21,6 +21,7 @@
 */
 
 #include <errno.h>
+#include <stddef.h>
 
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -126,13 +127,13 @@ static void ssl_set_sys_error(int ssl_error)
   @retval FALSE   Indeterminate failure.
 */
 
-static my_bool ssl_should_retry(Vio *vio, int ret,
-                                enum enum_vio_io_event *event,
-                                unsigned long *ssl_errno_holder)
+static bool ssl_should_retry(Vio *vio, int ret,
+                             enum enum_vio_io_event *event,
+                             unsigned long *ssl_errno_holder)
 {
   int ssl_error;
   SSL *ssl= static_cast<SSL*>(vio->ssl_arg);
-  my_bool should_retry= TRUE;
+  bool should_retry= TRUE;
 
   /* Retrieve the result for the SSL I/O operation. */
   ssl_error= SSL_get_error(ssl, ret);
@@ -166,7 +167,13 @@ static my_bool ssl_should_retry(Vio *vio, int ret,
   return should_retry;
 }
 
-
+#ifdef HAVE_YASSL
+size_t vio_ssl_read(Vio *vio, uchar *buf, size_t size)
+{
+  // YASSL maps ETIMEOUT to EWOULDBLOCK and hence no need for retry here.
+  return SSL_read(static_cast<SSL*>(vio->ssl_arg), buf, (int)size);
+}
+#else
 size_t vio_ssl_read(Vio *vio, uchar *buf, size_t size)
 {
   int ret;
@@ -179,14 +186,12 @@ size_t vio_ssl_read(Vio *vio, uchar *buf, size_t size)
   {
     enum enum_vio_io_event event;
 
-#ifndef HAVE_YASSL
     /*
       OpenSSL: check that the SSL thread's error queue is cleared. Otherwise
       SSL_read() returns an error from the error queue, when SSL_read() failed
       because it would block.
     */
     DBUG_ASSERT(ERR_peek_error() == 0);
-#endif
 
     ret= SSL_read(ssl, buf, (int)size);
 
@@ -204,7 +209,7 @@ size_t vio_ssl_read(Vio *vio, uchar *buf, size_t size)
 
   DBUG_RETURN(ret < 0 ? -1 : ret);
 }
-
+#endif
 
 size_t vio_ssl_write(Vio *vio, const uchar *buf, size_t size)
 {
@@ -250,8 +255,15 @@ extern "C" {
 /* Emulate a blocking recv() call with vio_read(). */
 static long yassl_recv(void *ptr, void *buf, size_t len)
 {
-  return static_cast<long>(vio_read(static_cast<Vio*>(ptr),
+  long result= static_cast<long>(vio_read(static_cast<Vio*>(ptr),
                                     static_cast<uchar*>(buf), len));
+  /*
+    YASSL considers ETIMEOUT as critical error. This causes
+    the connection to be invalidated.
+  */
+  if (result == -1 && vio_was_timeout(static_cast<Vio*>(ptr)))
+    errno= SOCKET_EWOULDBLOCK;
+  return result;
 }
 
 
@@ -516,7 +528,7 @@ int sslconnect(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
 }
 
 
-my_bool vio_ssl_has_data(Vio *vio)
+bool vio_ssl_has_data(Vio *vio)
 {
   return SSL_pending(static_cast<SSL*>(vio->ssl_arg)) > 0 ? TRUE : FALSE;
 }

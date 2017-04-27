@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "sql_view.h"
+#include "sql/sql_view.h"
 
 #include <limits.h>
 #include <string.h>
@@ -23,9 +23,9 @@
 #include "auth_acls.h"
 #include "auth_common.h"    // CREATE_VIEW_ACL
 #include "binlog.h"         // mysql_bin_log
+#include "dd/cache/dictionary_client.h"
 #include "dd/dd.h"          // dd::get_dictionary
 #include "dd/dd_schema.h"   // dd::schema_exists
-#include "dd/dd_table.h"    // dd::abstract_table_type
 #include "dd/dd_view.h"     // dd::create_view
 #include "dd/dictionary.h"  // dd::Dictionary
 #include "dd/types/abstract_table.h"
@@ -37,12 +37,12 @@
 #include "handler.h"
 #include "item.h"
 #include "key.h"
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "mdl.h"
 #include "my_base.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
@@ -76,6 +76,7 @@
 #include "system_variables.h"
 #include "table.h"
 #include "thr_lock.h"
+#include "transaction.h"
 
 class Field;
 namespace dd {
@@ -278,8 +279,8 @@ fill_defined_view_parts (THD *thd, TABLE_LIST *view)
 
   key_length= get_table_def_key(view, &key);
 
-  if (tdc_open_view(thd, &decoy, decoy.alias, key, key_length,
-                    OPEN_VIEW_NO_PARSE))
+  // No need to check metadata version nor parse the view definition.
+  if (tdc_open_view(thd, &decoy, key, key_length, false, true))
     return TRUE;
 
   if (!lex->definer)
@@ -442,10 +443,10 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   bool res= false;
   bool exists= false;
   DBUG_ENTER("mysql_create_view");
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   /* This is ensured in the parser. */
-  DBUG_ASSERT(!lex->proc_analyse && !lex->result &&
-              !lex->param_list.elements);
+  DBUG_ASSERT(!lex->result && !lex->param_list.elements);
 
   /*
     We can't allow taking exclusive meta-data locks of unlocked view under
@@ -545,9 +546,11 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
                      lex->definer->host.str,
                      thd->security_context()->priv_host().str) != 0))
   {
-    if (!(thd->security_context()->check_access(SUPER_ACL)))
+    Security_context *sctx= thd->security_context();
+    if (!(sctx->check_access(SUPER_ACL) ||
+          sctx->has_global_grant(STRING_WITH_LEN("SET_USER_ID")).first))
     {
-      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER");
+      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER or SET_USER_ID");
       res= true;
       goto err;
     }
@@ -709,7 +712,16 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     }
   }
 
-  res= mysql_register_view(thd, view, mode, true);
+  res= mysql_register_view(thd, view, mode);
+
+  if (res)
+  {
+    trans_rollback_stmt(thd);
+    // Full rollback in case we have THD::transaction_rollback_request.
+    trans_rollback(thd);
+  }
+  else
+    res= trans_commit_stmt(thd) || trans_commit(thd);
 
   /*
     View TABLE_SHARE must be removed from the table definition cache in order to
@@ -791,29 +803,20 @@ err:
   @param  view                View description
   @param  mode                VIEW_CREATE_NEW, VIEW_ALTER or
                               VIEW_CREATE_OR_REPLACE.
-  @param   commit_dd_changes  Indicates whether changes to DD need to be
-                              committed.
 
-  @note In case when commit_dd_changes is false, the caller must rollback
-        both statement and transaction on failure, before any further
-        accesses to DD. This is because such a failure might be caused by
-        a deadlock, which requires rollback before any other operations on
-        SE (including reads using attachable transactions) can be done.
-        If case when commit_dd_changes is true this function will handle
-        transaction rollback itself.
+  @note The caller must rollback both statement and transaction on failure,
+        before any further accesses to DD. This is because such a failure
+        might be caused by a deadlock, which requires rollback before any
+        other operations on SE (including reads using attachable transactions)
+        can be done.
 
-  @retval 0   OK
-  @retval -1  Error
-  @retval 1   Error and error message given.
+  @retval false   OK
+  @retval true    Error
 */
 
-int mysql_register_view(THD *thd, TABLE_LIST *view,
-                        enum_view_create_mode mode,
-                        bool commit_dd_changes)
+bool mysql_register_view(THD *thd, TABLE_LIST *view,
+                         enum_view_create_mode mode)
 {
-  bool update_view= false;
-  LEX *lex= thd->lex;
-
   /*
     View definition query -- a SELECT statement that fully defines view. It
     is generated from the Item-tree built from the original (specified by
@@ -849,13 +852,13 @@ int mysql_register_view(THD *thd, TABLE_LIST *view,
                   sizeof (is_query_buff),
                   system_charset_info);
 
-  int error= 0;
   DBUG_ENTER("mysql_register_view");
 
   /*
     A view can be merged if it is technically possible and if the user didn't
     ask that we create a temporary table instead.
   */
+  LEX *lex= thd->lex;
   const bool can_be_merged= lex->unit->is_mergeable() &&
     lex->create_view_algorithm != VIEW_ALGORITHM_TEMPTABLE;
 
@@ -889,8 +892,7 @@ int mysql_register_view(THD *thd, TABLE_LIST *view,
                             view_query.length(), false))
   {
     my_error(ER_OUT_OF_RESOURCES, MYF(0));
-    error= -1;
-    goto err;   
+    DBUG_RETURN(true);
   }
 
   if (lex->create_view_algorithm == VIEW_ALGORITHM_MERGE &&
@@ -949,54 +951,39 @@ int mysql_register_view(THD *thd, TABLE_LIST *view,
     view->timestamp.str= view->timestamp_buffer;
 
   /* check old definition */
+  bool update_view= false;
+  const dd::Abstract_table *at= nullptr;
+  if (thd->dd_client()->acquire(view->db, view->table_name, &at))
+    DBUG_RETURN(true);
+
+  if (at != nullptr)
   {
-    bool exists= false;
-    if (dd::table_exists<dd::Abstract_table>(thd->dd_client(), view->db,
-                                             view->table_name, &exists))
+    if (mode == enum_view_create_mode::VIEW_CREATE_NEW)
     {
-      error= -1;
-      goto err;
+      my_error(ER_TABLE_EXISTS_ERROR, MYF(0), view->alias);
+      DBUG_RETURN(true);
     }
-    if (exists)
+
+    if (at->type() != dd::enum_table_type::USER_VIEW &&
+        at->type() != dd::enum_table_type::SYSTEM_VIEW)
     {
-      dd::enum_table_type table_type;
-      if (dd::abstract_table_type(thd->dd_client(), view->db,
-                                  view->table_name, &table_type))
-      {
-        error= -1;
-        goto err;
-      }
-
-      if (mode == enum_view_create_mode::VIEW_CREATE_NEW)
-      {
-	my_error(ER_TABLE_EXISTS_ERROR, MYF(0), view->alias);
-        error= -1;
-        goto err;
-      }
-
-      if (table_type != dd::enum_table_type::USER_VIEW &&
-          table_type != dd::enum_table_type::SYSTEM_VIEW)
-      {
-        my_error(ER_WRONG_OBJECT, MYF(0), view->db, view->table_name, "VIEW");
-        error= -1;
-        goto err;
-      }
-
-      update_view= true;
-
-      /*
-        TODO: read dependence list, too, to process cascade/restrict
-        TODO: special cascade/restrict procedure for alter?
-      */
+      my_error(ER_WRONG_OBJECT, MYF(0), view->db, view->table_name, "VIEW");
+      DBUG_RETURN(true);
     }
-    else
+
+    update_view= true;
+
+    /*
+      TODO: read dependence list, too, to process cascade/restrict
+      TODO: special cascade/restrict procedure for alter?
+    */
+  }
+  else
+  {
+    if (mode == enum_view_create_mode::VIEW_ALTER)
     {
-      if (mode == enum_view_create_mode::VIEW_ALTER)
-      {
-	my_error(ER_NO_SUCH_TABLE, MYF(0), view->db, view->alias);
-        error= -1;
-        goto err;
-      }
+      my_error(ER_NO_SUCH_TABLE, MYF(0), view->db, view->alias);
+      DBUG_RETURN(true);
     }
   }
 
@@ -1036,16 +1023,14 @@ int mysql_register_view(THD *thd, TABLE_LIST *view,
               std::min<size_t>(is_query.length() - valid_length, 3));
     my_error(ER_INVALID_CHARACTER_STRING, MYF(0),
              system_charset_info->csname,  hexbuf);
-    error= -1;
-    goto err;
+    DBUG_RETURN(true);
   }
 
   if (!thd->make_lex_string(&view->view_body_utf8, is_query.ptr(),
                             is_query.length(), false))
   {
     my_error(ER_OUT_OF_RESOURCES, MYF(0));
-    error= -1;
-    goto err;   
+    DBUG_RETURN(true);
   }
 
   /*
@@ -1072,30 +1057,34 @@ int mysql_register_view(THD *thd, TABLE_LIST *view,
       !view->updatable_view)
   {
     my_error(ER_VIEW_NONUPD_CHECK, MYF(0), view->db, view->table_name);
-    error= -1;
-    goto err;
+    DBUG_RETURN(true);
   }
 
   // It is either ALTER or CREATE OR REPLACE of an existing view.
   if (update_view)
   {
-    if (dd::update_view(thd, view, commit_dd_changes))
-    {
-      error= 1;
-      goto err;
-    }
-  } //It is either CREATE or CREATE OR REPLACE of non-existent view.
-  else if (dd::create_view(thd, view, commit_dd_changes))
-  {
-    error= 1;
-    goto err;
+    dd::View *new_view= nullptr;
+    if (thd->dd_client()->acquire_for_modification(view->db, view->table_name,
+                                                   &new_view))
+      DBUG_RETURN(true);
+
+    DBUG_ASSERT(new_view != nullptr);
+
+    DBUG_RETURN(dd::update_view(thd, new_view, view));
   }
 
-  DBUG_RETURN(0);
-err:
-  view->select_stmt.str= NULL;
-  view->select_stmt.length= 0;
-  DBUG_RETURN(error);
+  // It is either CREATE or CREATE OR REPLACE of non-existent view.
+  const dd::Schema *schema= nullptr;
+  if (thd->dd_client()->acquire(view->db, &schema))
+    DBUG_RETURN(true);
+
+  if (schema == nullptr)
+  {
+    my_error(ER_BAD_DB_ERROR, MYF(0), view->db);
+    DBUG_RETURN(true);
+  }
+
+  DBUG_RETURN(dd::create_view(thd, *schema, view));
 }
 
 
@@ -1236,11 +1225,11 @@ public:
   DD_table_access_error_handler()
   {}
 
-  virtual bool handle_condition(THD *thd,
+  virtual bool handle_condition(THD*,
                                 uint sql_errno,
-                                const char* sqlstate,
-                                Sql_condition::enum_severity_level *level,
-                                const char* msg)
+                                const char*,
+                                Sql_condition::enum_severity_level*,
+                                const char*)
   {
     return (sql_errno == ER_NO_SYSTEM_TABLE_ACCESS);
   }
@@ -1779,12 +1768,13 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views)
 {
   TABLE_LIST *view;
   String non_existant_views;
-  char *wrong_object_db= NULL;
-  char *wrong_object_name= NULL;
+  const char *wrong_object_db= NULL;
+  const char *wrong_object_name= NULL;
   bool error= false;
   bool some_views_deleted= false;
 
   DBUG_ENTER("mysql_drop_view");
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   /*
     We can't allow dropping of unlocked view under LOCK TABLES since this
@@ -1810,11 +1800,11 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views)
       Otherwise, the entity does indeed exist, and we must take
       different actions depending on the table type.
     */
-    bool exists= false;
-    if (dd::table_exists<dd::Abstract_table>(thd->dd_client(), view->db,
-                                             view->table_name, &exists))
+    const dd::Abstract_table *at= nullptr;
+    if (thd->dd_client()->acquire(view->db, view->table_name, &at))
       DBUG_RETURN(true);
-    if (!exists)
+
+    if (at == nullptr)
     {
       String tbl_name(view->db, system_charset_info);
       tbl_name.append('.');
@@ -1835,18 +1825,13 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views)
     }
     else
     {
-      dd::enum_table_type table_type;
-      if (dd::abstract_table_type(thd->dd_client(), view->db, view->table_name,
-                                 &table_type))
-        DBUG_RETURN(true);
-
-      switch (table_type)
+      switch (at->type())
       {
       case dd::enum_table_type::BASE_TABLE:
         if (!wrong_object_name)
         {
-          wrong_object_db= const_cast<char*>(view->db);
-          wrong_object_name= const_cast<char*>(view->table_name);
+          wrong_object_db= view->db;
+          wrong_object_name= view->table_name;
         }
         break;
       case dd::enum_table_type::SYSTEM_VIEW: // Fall through
@@ -1858,7 +1843,19 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views)
             Remove view from DD tables and update metadata of other views
             referecing view being dropped.
           */
-          if (dd::drop_table<dd::View>(thd, view->db, view->table_name, true) ||
+          Disable_gtid_state_update_guard disabler(thd);
+
+          if (thd->dd_client()->drop(at))
+          {
+            trans_rollback_stmt(thd);
+            // Full rollback in case we have THD::transaction_rollback_request.
+            trans_rollback(thd);
+            error= true;
+          }
+          else
+            error= trans_commit_stmt(thd) || trans_commit(thd);
+
+          if (!error &&
               update_referencing_views_metadata(thd, view, true, nullptr))
           {
             error= true;

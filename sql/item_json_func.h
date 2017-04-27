@@ -18,6 +18,7 @@
 
 #include <stddef.h>
 #include <sys/types.h>
+#include <utility>              // std::forward
 
 #include "binary_log_types.h"
 #include "enum_query_type.h"
@@ -29,7 +30,6 @@
 #include "m_ctype.h"
 #include "mem_root_array.h"     // Mem_root_array
 #include "my_decimal.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_time.h"
 #include "mysql_com.h"
@@ -143,25 +143,21 @@ protected:
     override;
 
 public:
-  Item_json_func(THD *thd, const POS &pos, Item *a) : Item_func(pos, a),
-    m_path_cache(thd, 1)
-  {}
-  Item_json_func(THD *thd, const POS &pos, Item *a, Item *b) : Item_func(pos, a, b),
-    m_path_cache(thd, 2)
-  {}
-  Item_json_func(THD *thd, const POS &pos, Item *a, Item *b, Item *c)
-    : Item_func(pos, a, b, c), m_path_cache(thd, 3)
-  {}
-  Item_json_func(THD *thd, const POS &pos, PT_item_list *a) : Item_func(pos, a),
-    m_path_cache(thd, arg_count)
-  {}
+  /**
+    Construct an Item_json_func instance.
+    @param thd   THD handle
+    @param args  arguments to forward to Item_func's constructor
+  */
+  template <typename... Args>
+  Item_json_func(THD *thd, Args&&... args)
+    : Item_func(std::forward<Args>(args)...), m_path_cache(thd, arg_count)
+  {
+    set_data_type_json();
+  }
 
   bool resolve_type(THD *) override
   {
-    set_data_type(MYSQL_TYPE_JSON);
-    max_length= MAX_BLOB_WIDTH;
     maybe_null= true;
-    collation.set(&my_charset_utf8mb4_bin, DERIVATION_IMPLICIT);
     return false;
   }
   enum Item_result result_type() const override { return STRING_RESULT; }
@@ -199,16 +195,14 @@ bool json_value(Item **args, uint arg_idx, Json_wrapper *result);
   @param[out] str           the string buffer
   @param[in]  func_name     the name of the function we are executing
   @param[out] wrapper       the JSON value wrapper
-  @param[in]  preserve_neg_zero_int
-                            Whether integer negative zero should be preserved.
-                            If set to TRUE, -0 is handled as a DOUBLE. Double
-                            negative zero (-0.0) is preserved regardless of what
-                            this parameter is set to.
+  @param[in]  handle_numbers_as_double
+                            whether numbers should be handled as double. If set
+                            to TRUE, all numbers are parsed as DOUBLE
   @returns false if we found a value or NULL, true if not.
 */
 bool get_json_wrapper(Item **args, uint arg_idx, String *str,
                       const char *func_name, Json_wrapper *wrapper,
-                      bool preserve_neg_zero_int= false);
+                      bool handle_numbers_as_double= false);
 
 /**
   Convert Json values or MySQL values to JSON.
@@ -537,6 +531,17 @@ class Item_func_json_set_replace :public Item_json_func
   const bool m_json_set;
   String m_doc_value;
   Json_path_clone m_path;
+  /**
+    Target column for partial update, if this function is used in an
+    update statement and partial update can be used.
+  */
+  Field_json *m_partial_update_column= nullptr;
+
+  /**
+    Get the target column of a partial update operation, if this
+    expression is used in a partial update.
+  */
+  Field_json *get_partial_update_column() const;
 
 protected:
   Item_func_json_set_replace(THD *thd, const POS &pos, PT_item_list *a, bool json_set)
@@ -544,7 +549,22 @@ protected:
   {}
 
 public:
-  bool val_json(Json_wrapper *wr);
+  bool val_json(Json_wrapper *wr) override;
+
+  /**
+    Mark this expression as used in partial update if it is on the right form.
+
+    JSON_SET and JSON_REPLACE support partial update of a JSON column if the
+    JSON column is the first argument of the function call, or if the first
+    argument is a sequence of nested JSON_SET/JSON_REPLACE calls in which the
+    JSON column is the first argument of the inner function call.
+
+    For example, this expression can be used to partially update column
+    `json_col`:
+
+        JSON_SET(JSON_REPLACE(json_col, path1, val1), path2, val2)
+  */
+  bool mark_for_partial_update(Field *field) override;
 };
 
 /**
@@ -749,6 +769,32 @@ public:
   }
 
   String *val_str(String *str) override;
+};
+
+/**
+  Class that represents the function JSON_STORAGE_SIZE.
+*/
+class Item_func_json_storage_size final : public Item_int_func
+{
+public:
+  Item_func_json_storage_size(const POS &pos, Item *a)
+    : Item_int_func(pos, a)
+  {}
+  const char *func_name() const override { return "json_storage_size"; }
+  longlong val_int() override;
+};
+
+/**
+  Class that represents the function JSON_STORAGE_FREE.
+*/
+class Item_func_json_storage_free final : public Item_int_func
+{
+public:
+  Item_func_json_storage_free(const POS &pos, Item *a)
+    : Item_int_func(pos, a)
+  {}
+  const char *func_name() const override { return "json_storage_free"; }
+  longlong val_int() override;
 };
 
 /**

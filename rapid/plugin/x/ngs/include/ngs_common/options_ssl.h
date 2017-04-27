@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -17,11 +17,12 @@
  * 02110-1301  USA
  */
 
-#ifndef _NGS_ASIO_OPTIONS_SSL_H_
-#define _NGS_ASIO_OPTIONS_SSL_H_
+#ifndef _NGS_OPTIONS_SSL_H_
+#define _NGS_OPTIONS_SSL_H_
+
+#include <violite.h>
 
 #include "ngs_common/options.h"
-#include <violite.h>
 
 namespace ngs
 {
@@ -34,22 +35,22 @@ namespace ngs
     {
     }
 
-    bool supports_tls() { return true; };
-    bool active_tls() { return true; };
+    bool supports_tls() const override { return true; };
+    bool active_tls() const override { return true; };
 
-    std::string ssl_cipher();
-    std::string ssl_version();
-    std::vector<std::string> ssl_cipher_list();
+    std::string ssl_cipher() const override;
+    std::string ssl_version() const override;
+    std::vector<std::string> ssl_cipher_list() const override;
 
-    long ssl_verify_depth();
-    long ssl_verify_mode();
+    long ssl_verify_depth() const override;
+    long ssl_verify_mode() const override;
 
-    long ssl_sessions_reused();
-    long ssl_get_verify_result_and_cert();
+    long ssl_sessions_reused() const override;
+    long ssl_get_verify_result_and_cert() const override;
 
-    std::string ssl_get_peer_certificate_issuer();
+    std::string ssl_get_peer_certificate_issuer() const override;
 
-    std::string ssl_get_peer_certificate_subject();
+    std::string ssl_get_peer_certificate_subject() const override;
 
   private:
     Vio *m_vio;
@@ -63,28 +64,28 @@ namespace ngs
     {
     }
 
-    long ssl_ctx_verify_depth();
-    long ssl_ctx_verify_mode();
+    long ssl_ctx_verify_depth() override;
+    long ssl_ctx_verify_mode() override;
 
-    std::string ssl_server_not_after();
-    std::string ssl_server_not_before();
+    std::string ssl_server_not_after() override;
+    std::string ssl_server_not_before() override;
 
-    long ssl_sess_accept_good();
-    long ssl_sess_accept();
-    long ssl_accept_renegotiates();
+    long ssl_sess_accept_good() override;
+    long ssl_sess_accept() override;
+    long ssl_accept_renegotiates() override;
 
-    std::string ssl_session_cache_mode();
+    std::string ssl_session_cache_mode() override;
 
-    long ssl_session_cache_hits();
-    long ssl_session_cache_misses();
-    long ssl_session_cache_overflows();
-    long ssl_session_cache_size();
-    long ssl_session_cache_timeouts();
-    long ssl_used_session_cache_entries();
+    long ssl_session_cache_hits() override;
+    long ssl_session_cache_misses() override;
+    long ssl_session_cache_overflows() override;
+    long ssl_session_cache_size() override;
+    long ssl_session_cache_timeouts() override;
+    long ssl_used_session_cache_entries() override;
   private:
     st_VioSSLFd *m_vio_ssl;
   };
 
 } // namespace ngs
 
-#endif // _NGS_ASIO_OPTIONS_SSL_H_
+#endif // _NGS_OPTIONS_SSL_H_

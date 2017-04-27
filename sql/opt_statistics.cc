@@ -14,7 +14,7 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "opt_statistics.h"
+#include "sql/opt_statistics.h"
 
 #include <algorithm>
 
@@ -22,7 +22,6 @@
 #include "key.h"                                // rec_per_key_t, KEY
 #include "my_base.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_macros.h"
 #include "table.h"                              // TABLE
 

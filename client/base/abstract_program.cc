@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,10 +28,8 @@ using std::vector;
 
 extern const char *load_default_groups[];
 
-my_bool Abstract_program::callback_option_parsed(
-  int optid,
-  const struct my_option *opt MY_ATTRIBUTE((unused)),
-  char *argument)
+bool Abstract_program::callback_option_parsed(
+  int, const struct my_option *opt, char *argument)
 {
   // Check if option uses My::Tools::Base::Options, and it should.
   Options::I_option* app_type = (Options::I_option*)opt->app_type;

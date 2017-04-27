@@ -1,7 +1,5 @@
 # This test case will test checking R-tree features.
 
-# Not supported in embedded
---source include/not_embedded.inc
 --source include/have_debug.inc
 
 # Create table with R-tree index.

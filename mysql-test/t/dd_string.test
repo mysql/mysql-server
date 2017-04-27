@@ -1,4 +1,3 @@
---source include/not_embedded.inc
 
 --echo #
 --echo # Checking dd string memory use with PFS
@@ -95,7 +94,7 @@ FROM baseline JOIN (after_create, diffs, percents) ON
 WHERE percents.ALLOC_PCT > 15;
 
 --echo #
---echo # Checking increase in the number of bytes allocated (threshold 13%)
+--echo # Checking increase in the number of bytes allocated (threshold 19%)
 --echo #
 SELECT
   baseline.EVENT_NAME AS 'PSI MEMORY EVENT NAME',
@@ -103,12 +102,12 @@ SELECT
   after_create.SUM_NUMBER_OF_BYTES_ALLOC AS 'POST ALLOC BYTES',
   diffs.SUM_NUMBER_OF_BYTES_ALLOC_DIFF AS DELTA,
   percents.BYTES_ALLOC_PCT AS PCT_CHANGE,
-  'Exceeds threshold of +13%' AS REASON
+  'Exceeds threshold of +19%' AS REASON
 FROM baseline JOIN (after_create, diffs, percents) ON
   (baseline.EVENT_NAME = after_create.EVENT_NAME AND
    baseline.EVENT_NAME = diffs.EVENT_NAME AND
    baseline.EVENT_NAME = percents.EVENT_NAME)
-WHERE percents.BYTES_ALLOC_PCT > 13;
+WHERE percents.BYTES_ALLOC_PCT > 19;
 
 --echo #
 --echo # Cleaning up

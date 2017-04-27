@@ -2,9 +2,9 @@
 # This test case will test basic undo encryption support features.
 
 --source include/no_valgrind_without_big.inc
---source include/not_embedded.inc
 --source include/have_innodb_max_16k.inc
 #--source include/have_debug.inc
+
 
 --disable_query_log
 call mtr.add_suppression("\\[Error\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
@@ -40,7 +40,7 @@ let BOOTSTRAP_SQL=$MYSQL_TMP_DIR/boot.sql;
 
 --echo # create bootstrap file
 write_file $BOOTSTRAP_SQL;
-CREATE DATABASE test;
+CREATE DATABASE test DEFAULT CHARACTER SET latin1;
 EOF
 
 --echo # Stop the MTR default DB server

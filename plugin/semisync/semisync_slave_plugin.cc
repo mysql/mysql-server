@@ -19,6 +19,7 @@
 #include <mysql.h>
 #include <mysqld_error.h>
 #include <stdlib.h>
+#include <sys/types.h>
 
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -38,14 +39,14 @@ bool semi_sync_need_reply= false;
 
 C_MODE_START
 
-static int repl_semi_reset_slave(Binlog_relay_IO_param *param)
+static int repl_semi_reset_slave(Binlog_relay_IO_param*)
 {
   // TODO: reset semi-sync slave status here
   return 0;
 }
 
 static int repl_semi_slave_request_dump(Binlog_relay_IO_param *param,
-                                        uint32 flags)
+                                        uint32)
 {
   MYSQL *mysql= param->mysql;
   MYSQL_RES *res= 0;
@@ -107,7 +108,7 @@ static int repl_semi_slave_request_dump(Binlog_relay_IO_param *param,
   return 0;
 }
 
-static int repl_semi_slave_read_event(Binlog_relay_IO_param *param,
+static int repl_semi_slave_read_event(Binlog_relay_IO_param*,
                                       const char *packet, unsigned long len,
                                       const char **event_buf, unsigned long *event_len)
 {
@@ -121,9 +122,9 @@ static int repl_semi_slave_read_event(Binlog_relay_IO_param *param,
 }
 
 static int repl_semi_slave_queue_event(Binlog_relay_IO_param *param,
-                                       const char *event_buf,
-                                       unsigned long event_len,
-                                       uint32 flags)
+                                       const char*,
+                                       unsigned long,
+                                       uint32)
 {
   if (rpl_semi_sync_slave_status && semi_sync_need_reply)
   {
@@ -149,15 +150,15 @@ static int repl_semi_slave_io_end(Binlog_relay_IO_param *param)
   return repl_semisync.slaveStop(param);
 }
 
-static int repl_semi_slave_sql_stop(Binlog_relay_IO_param *param, bool aborted)
+static int repl_semi_slave_sql_stop(Binlog_relay_IO_param*, bool)
 {
   return 0;
 }
 
 C_MODE_END
 
-static void fix_rpl_semi_sync_slave_enabled(MYSQL_THD thd,
-					    SYS_VAR *var,
+static void fix_rpl_semi_sync_slave_enabled(MYSQL_THD,
+					    SYS_VAR*,
 					    void *ptr,
 					    const void *val)
 {
@@ -166,8 +167,8 @@ static void fix_rpl_semi_sync_slave_enabled(MYSQL_THD thd,
   return;
 }
 
-static void fix_rpl_semi_sync_trace_level(MYSQL_THD thd,
-					  SYS_VAR *var,
+static void fix_rpl_semi_sync_trace_level(MYSQL_THD,
+					  SYS_VAR*,
 					  void *ptr,
 					  const void *val)
 {

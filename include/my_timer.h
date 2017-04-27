@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,7 +21,6 @@
 */
 
 #include "my_config.h"
-#include "my_macros.h"
 
 struct st_my_timer;
 
@@ -38,7 +37,7 @@ struct st_my_timer;
   typedef struct st_os_timer
   {
     HANDLE timer_handle;
-    my_bool timer_state;
+    bool timer_state;
   } os_timer_t;
 #endif
 
@@ -54,13 +53,11 @@ struct st_my_timer
   void (*notify_function)(my_timer_t *);
 };
 
-C_MODE_START
-
 /* Initialize internal components. */
-int my_timer_initialize(void);
+int my_timer_initialize();
 
 /* Release any resources acquired. */
-void my_timer_deinitialize(void);
+void my_timer_deinitialize();
 
 /* Create a timer object. */
 int my_timer_create(my_timer_t *timer);
@@ -73,7 +70,5 @@ int my_timer_cancel(my_timer_t *timer, int *state);
 
 /* Delete a timer object. */
 void my_timer_delete(my_timer_t *timer);
-
-C_MODE_END
 
 #endif /* MY_TIMER_H */

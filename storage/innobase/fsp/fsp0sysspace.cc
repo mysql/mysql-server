@@ -25,6 +25,7 @@ Refactored 2013-7-26 by Kevin Lewis
 *******************************************************/
 
 #include <stdlib.h>
+#include <sys/types.h>
 
 #include "dict0load.h"
 #include "fsp0sysspace.h"
@@ -58,12 +59,6 @@ This variable is not exposed to end-user but still kept as variable for
 developer to enable it during debug. */
 bool srv_skip_temp_table_checks_debug = true;
 #endif /* UNIV_DEBUG */
-
-/** TRUE if we don't have DDTableBuffer in the system tablespace,
-this should be due to we run the server against old data files.
-Please do NOT change this when server is running.
-FIXME: This should be removed away once we can upgrade for new DD. */
-extern bool	srv_missing_dd_table_buffer;
 
 /** Put the pointer to the next byte after a valid file name. Note that we must
 step over the ':' in a Windows filepath.
@@ -561,7 +556,8 @@ SysTablespace::read_lsn_and_check_flags(lsn_t* flushed_lsn)
 	first datafile. */
 	for (int retry = 0; retry < 2; ++retry) {
 
-		err = it->validate_first_page(flushed_lsn, false);
+		err = it->validate_first_page(
+			it->m_space_id, flushed_lsn, false);
 
 		if (err != DB_SUCCESS
 		    && (retry == 1
@@ -923,19 +919,6 @@ SysTablespace::open_or_create(
 		err = read_lsn_and_check_flags(flush_lsn);
 		if (err != DB_SUCCESS) {
 			return(err);
-		}
-	}
-
-	/* Check if we have DDTableBuffer in the system tablespace. */
-	if (!is_temp) {
-
-		if (create_new_db) {
-
-			srv_missing_dd_table_buffer = false;
-		} else {
-
-			/* Assume that there is DDTableBuffer */
-			srv_missing_dd_table_buffer = false;
 		}
 	}
 

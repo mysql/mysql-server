@@ -62,6 +62,7 @@ delimiter ;//
 
 
 connection con1;
+set session lock_wait_timeout=1;
 --send call alter_column();
 
 connection default;
@@ -83,7 +84,11 @@ $memd->disconnect_all;
 EOF
 
 connection con1;
---error ER_TABLE_REFERENCED
+# Now all Memcached operation will acquire MDL lock on the table.
+# So the alter table will have to wait for MDL lock released by Memcached
+# connection, and then start the alter. If we set shorter timeout interval
+# it should report timeout
+--error ER_LOCK_WAIT_TIMEOUT
 reap;
 
 connection default;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -168,7 +168,7 @@ int test_if_hard_path(const char *dir_name)
     FALSE       name does not contain a path.
 */
 
-my_bool has_path(const char *name)
+bool has_path(const char *name)
 {
   return MY_TEST(strchr(name, FN_LIBCHAR)) 
 #if FN_LIBCHAR != '/'

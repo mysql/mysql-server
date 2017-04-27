@@ -13,14 +13,14 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 
-#include <my_global.h> // needed by mysql_com.h
+#include "components/mysql_server/dynamic_loader_path_filter.h"
+
 #include <mysql/components/service_implementation.h>
 #include <mysql/components/services/dynamic_loader_scheme_file.h>
 #include <mysql_com.h> // NAME_CHAR_LEN
 #include <string>
 
 #include "../../../sql/sql_plugin.h" // opt_plugin_dir
-#include "dynamic_loader_path_filter.h"
 #include "dynamic_loader_scheme_file.h"
 #include "my_io.h"
 #include "my_sharedlib.h"

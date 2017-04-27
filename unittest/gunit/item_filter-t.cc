@@ -14,6 +14,7 @@
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 #include <gtest/gtest.h>
+#include <stddef.h>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -21,7 +22,6 @@
 #include "fake_table.h"
 #include "item_cmpfunc.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_table_map.h"
 #include "parse_tree_helpers.h"

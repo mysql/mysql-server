@@ -110,6 +110,7 @@ INSERT INTO t1 VALUES (1);
 --query_vertical SELECT * FROM performance_schema.replication_connection_configuration WHERE channel_name = "group_replication_applier"
 
 --echo
+--replace_column 13 [ORIGINAL_COMMIT_TIMESTAMP] 14 [IMMEDIATE_COMMIT_TIMESTAMP] 15 [START_QUEUE_TIMESTAMP] 16 [END_QUEUE_TIMESTAMP]
 --query_vertical SELECT * FROM performance_schema.replication_connection_status WHERE channel_name = "group_replication_applier"
 
 --echo
@@ -119,11 +120,11 @@ INSERT INTO t1 VALUES (1);
 --query_vertical SELECT * FROM performance_schema.replication_applier_status WHERE channel_name = "group_replication_applier"
 
 --echo
---replace_column 2 [THREAD_ID]
+--replace_column 2 [THREAD_ID] 8 [ORIGINAL_COMMIT_TIMESTAMP] 9 [IMMEDIATE_COMMIT_TIMESTAMP] 10 [START_BUFFER_TIMESTAMP] 11 [END_BUFFER_TIMESTAMP]
 --query_vertical SELECT * FROM performance_schema.replication_applier_status_by_coordinator WHERE channel_name = "group_replication_applier"
 
 --echo
---replace_column 3 [THREAD_ID] 5 [LAST_SEEN_TRANSACTION]
+--replace_column 3 [THREAD_ID] 8 [GTID] 9 [ORIGINAL_COMMIT_TIMESTAMP] 10 [IMMEDIATE_COMMIT_TIMESTAMP] 11 [START_APPLY_TIMESTAMP] 12 [END_APPLY_TIMESTAMP]
 --query_vertical SELECT * FROM performance_schema.replication_applier_status_by_worker WHERE channel_name = "group_replication_applier"
 
 
@@ -180,6 +181,7 @@ DROP TABLE t1;
 --query_vertical SELECT * FROM performance_schema.replication_connection_configuration WHERE channel_name = "group_replication_applier"
 
 --echo
+--replace_column 13 [ORIGINAL_COMMIT_TIMESTAMP] 14 [IMMEDIATE_COMMIT_TIMESTAMP] 15 [START_QUEUE_TIMESTAMP] 16 [END_QUEUE_TIMESTAMP]
 --query_vertical SELECT * FROM performance_schema.replication_connection_status WHERE channel_name = "group_replication_applier"
 
 --echo
@@ -189,10 +191,11 @@ DROP TABLE t1;
 --query_vertical SELECT * FROM performance_schema.replication_applier_status WHERE channel_name = "group_replication_applier"
 
 --echo
+--replace_column 8 [ORIGINAL_COMMIT_TIMESTAMP] 9 [IMMEDIATE_COMMIT_TIMESTAMP] 10 [START_BUFFER_TIMESTAMP] 11 [END_BUFFER_TIMESTAMP]
 --query_vertical SELECT * FROM performance_schema.replication_applier_status_by_coordinator WHERE channel_name = "group_replication_applier"
 
 --echo
---replace_column 5 [LAST_SEEN_TRANSACTION]
+--replace_column 8 [GTID] 9 [ORIGINAL_COMMIT_TIMESTAMP] 10 [IMMEDIATE_COMMIT_TIMESTAMP] 11 [START_APPLY_TIMESTAMP] 12 [END_APPLY_TIMESTAMP]
 --query_vertical SELECT * FROM performance_schema.replication_applier_status_by_worker WHERE channel_name = "group_replication_applier"
 
 

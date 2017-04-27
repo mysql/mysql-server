@@ -1,6 +1,5 @@
 # Should be tested against "binlog disabled" server
 -- source include/not_log_bin.inc
--- source include/not_embedded.inc
 
 # BUG#50780: 'show binary logs' debug assertion when binary logging is disabled
 

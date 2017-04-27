@@ -1,5 +1,6 @@
 --source include/no_valgrind_without_big.inc
 --source include/have_innodb_max_16k.inc
+
 --source include/count_sessions.inc
 
 --disable_query_log
@@ -464,7 +465,7 @@ CREATE TABLE `t` (
   KEY `m3` (`m3`),
   KEY `c` (`c`(100)),
   KEY `e` (`e`,`d`(20))
-) ENGINE=InnoDB;
+) ENGINE=InnoDB charset latin1;
 
 INSERT INTO t VALUES (1, 2, DEFAULT, 3, "aaa", DEFAULT, REPEAT('g', 10000), REPEAT('x', 2800), DEFAULT, DEFAULT, DEFAULT, 1);
 

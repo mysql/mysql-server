@@ -25,6 +25,8 @@ Created 5/30/1994 Heikki Tuuri
 
 #include "rem0rec.h"
 
+#include <sys/types.h>
+
 #include "fts0fts.h"
 #include "gis0geo.h"
 #include "mach0data.h"
@@ -431,11 +433,12 @@ rec_get_converted_size_comp_prefix_low(
 			dfield_t*       vfield;
 			ulint		flen;
 
-                        const dict_v_col_t*     col
-                                = dict_table_get_nth_v_col(index->table, i);
+                        const dict_v_col_t*     col =
+				dict_table_get_nth_v_col(index->table, i);
 
 			/* Only those indexed needs to be logged */
-                        if (col->m_col.ord_part) {
+			if (col->m_col.ord_part
+			    || !dict_table_is_comp(index->table)) {
 				data_size += mach_get_compressed_size(
 					i + REC_MAX_N_FIELDS);
 				vfield = dtuple_get_nth_v_field(
@@ -879,7 +882,7 @@ rec_convert_dtuple_to_rec_comp(
 		const dict_v_col_t*     col
 			= dict_table_get_nth_v_col(index->table, col_no);
 
-		if (col->m_col.ord_part) {
+		if (col->m_col.ord_part || !dict_table_is_comp(index->table)) {
 			ulint   pos = col_no;
 
 			pos += REC_MAX_N_FIELDS;

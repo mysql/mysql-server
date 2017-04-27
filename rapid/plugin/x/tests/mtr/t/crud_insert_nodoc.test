@@ -1,7 +1,7 @@
 ## Inserting doc into non-doc table 
 
 ## Preamble
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 
 ## Test data
 DROP SCHEMA IF EXISTS xtest;

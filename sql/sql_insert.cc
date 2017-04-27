@@ -17,8 +17,9 @@
 
 /* Insert of records */
 
-#include "sql_insert.h"
+#include "sql/sql_insert.h"
 
+#include <assert.h>
 #include <errno.h>
 #include <string.h>
 #include <map>
@@ -35,6 +36,7 @@
 #include "field.h"
 #include "item.h"
 #include "key.h"
+#include "lex_string.h"
 #include "lock.h"                     // mysql_unlock_tables
 #include "m_string.h"
 #include "my_base.h"
@@ -1202,7 +1204,7 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd)
       DBUG_RETURN(true);         /* purecov: inspected */
 
     if (insert_table->has_gcol() &&
-        validate_gc_assignment(thd, &insert_field_list, values, insert_table))
+        validate_gc_assignment(&insert_field_list, values, insert_table))
       DBUG_RETURN(true);
   }
 
@@ -1251,7 +1253,7 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd)
   if (!select_insert)
   {
     TABLE_LIST *const duplicate=
-      unique_table(thd, lex->insert_table_leaf, table_list->next_global, true);
+      unique_table(lex->insert_table_leaf, table_list->next_global, true);
     if (duplicate)
     {
       update_non_unique_table_error(table_list, "INSERT", duplicate);
@@ -1266,7 +1268,7 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd)
     ulong added_options= SELECT_NO_UNLOCK;
 
     // Is inserted table used somewhere in other parts of query
-    if (unique_table(thd, lex->insert_table_leaf, table_list->next_global, 0))
+    if (unique_table(lex->insert_table_leaf, table_list->next_global, 0))
     {
       // Using same table for INSERT and SELECT, buffer the selection
       added_options|= OPTION_BUFFER_RESULT;
@@ -1322,7 +1324,7 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd)
     }
 
     if (insert_table->has_gcol() &&
-        validate_gc_assignment(thd, &insert_field_list,
+        validate_gc_assignment(&insert_field_list,
                                unit->get_unit_column_types(), insert_table))
       DBUG_RETURN(true);
   }
@@ -1366,7 +1368,7 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd)
       DBUG_RETURN(true);
 
     if (insert_table->has_gcol() &&
-        validate_gc_assignment(thd, &update_field_list, &update_value_list,
+        validate_gc_assignment(&update_field_list, &update_value_list,
                                insert_table))
       DBUG_RETURN(true);
 
@@ -2046,7 +2048,7 @@ bool check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
 }
 
 
-bool Query_result_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
+bool Query_result_insert::prepare(List<Item>&, SELECT_LEX_UNIT *u)
 {
   DBUG_ENTER("Query_result_insert::prepare");
 
@@ -2916,9 +2918,8 @@ void Query_result_create::send_error(uint errcode,const char *err)
     written to the binary log.
 
   */
-  tmp_disable_binlog(thd);
+  Disable_binlog_guard binlog_guard(thd);
   Query_result_insert::send_error(errcode, err);
-  reenable_binlog(thd);
 
   DBUG_VOID_RETURN;
 }
@@ -3086,10 +3087,11 @@ void Query_result_create::abort_result_set()
     of the table succeeded or not, since we need to reset the binary
     log state.
   */
-  tmp_disable_binlog(thd);
-  Query_result_insert::abort_result_set();
-  thd->get_transaction()->reset_unsafe_rollback_flags(Transaction_ctx::STMT);
-  reenable_binlog(thd);
+  {
+    Disable_binlog_guard binlog_guard(thd);
+    Query_result_insert::abort_result_set();
+    thd->get_transaction()->reset_unsafe_rollback_flags(Transaction_ctx::STMT);
+  }
   /* possible error of writing binary log is ignored deliberately */
   (void) thd->binlog_flush_pending_rows_event(TRUE, TRUE);
 

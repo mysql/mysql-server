@@ -35,6 +35,7 @@
 #include "sql_auth_cache.h"
 #include "sql_authorization.h"
 #include "sql_class.h"
+#include "current_thd.h"
 
 void Security_context::init()
 {
@@ -52,6 +53,7 @@ void Security_context::init()
   m_acl_map= 0;
   m_map_checkout_count= 0;
   m_password_expired= false;
+  m_is_locked= false;
   DBUG_VOID_RETURN;
 }
 
@@ -542,6 +544,36 @@ bool Security_context::any_table_acl(const LEX_CSTRING &db)
   return false;
 }
 
+std::pair<bool, bool>
+Security_context::has_global_grant(const char *priv, size_t priv_len)
+{
+  std::string privilege(priv, priv_len);
+  if (m_acl_map == 0)
+  {
+    Acl_cache_lock_guard acl_cache_lock(current_thd,
+                                        Acl_cache_lock_mode::READ_MODE);
+    if (!acl_cache_lock.lock(false))
+      return std::make_pair(false, false);
+    Role_id key(&m_priv_user[0], m_priv_user_length, &m_priv_host[0],
+                m_priv_host_length);
+    User_to_dynamic_privileges_map::iterator it, it_end;
+    std::tie(it, it_end)= get_dynamic_privileges_map()->equal_range(key);
+    it= std::find(it, it_end, privilege);
+    if (it != it_end)
+    {
+      return std::make_pair(true, it->second.second);
+    }
+    return std::make_pair(false, false);
+  }
+  Dynamic_privileges::iterator it=
+    m_acl_map->dynamic_privileges()->find(privilege);
+  if (it != m_acl_map->dynamic_privileges()->end())
+  {
+    return std::make_pair(true, it->second);
+  }
+
+  return std::make_pair(false, false);
+}
 
 LEX_CSTRING Security_context::priv_user() const
 {

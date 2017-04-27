@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -991,11 +991,9 @@ NdbSqlUtil::get_var_length(Uint32 typeId, const void* p, unsigned attrlen, Uint3
  *   'Pad the result not with 0x00 character, but with weight
  *    corresponding to the space character'.
  *
- * That should now have be handled by the flags 'MY_STRXFRM_PAD_WITH_SPACE',
- * possibly in combination with 'MY_STRXFRM_PAD_TO_MAXLEN'. However it
- * turns out that this only work as expected for 99% of the character sets.
- * 'latin2_czech_cs' is one of the collations not being well behaved,
- * and is likely to return a 'dst' not being completely padded.
+ * However, only PAD SPACE collations do this; NO PAD collations
+ * are likely to return a 'dst' not being completely padded
+ * unless the MY_STRXFRM_PAD_TO_MAXLEN flag is given.
  *
  * So we still have to handle the 'unlikely' case 'n3 < (int)dstLen'.
  */
@@ -1008,7 +1006,7 @@ NdbSqlUtil::strnxfrm_bug7284(CHARSET_INFO* cs,
   const int n3 = (int)(*cs->coll->strnxfrm)(cs,
                                 dst, dstLen, (uint)dstLen,
                                 src, srcLen,
-				MY_STRXFRM_PAD_WITH_SPACE);
+				0);
 
   if (unlikely(n3 < (int)dstLen))
   {
@@ -1026,7 +1024,7 @@ NdbSqlUtil::strnxfrm_bug7284(CHARSET_INFO* cs,
     const int n2 = (int)(*cs->coll->strnxfrm)(cs, 
                                 xsp, sizeof(xsp), (uint)sizeof(xsp),
                                 nsp, n1,
-				MY_STRXFRM_PAD_WITH_SPACE);
+				0);
     if (n2 <= 0)
       return -1;
 

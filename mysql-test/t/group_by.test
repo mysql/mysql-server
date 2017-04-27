@@ -1,5 +1,4 @@
 # Innodb page size 16k required
---source include/have_innodb_16k.inc
 
 # Initialise
 --disable_warnings
@@ -2070,7 +2069,7 @@ CREATE TABLE t1 (
   a int,
   b varchar(1),
   KEY (b,a)
-);
+) charset utf8mb4;
 
 INSERT INTO t1 VALUES (1,NULL),(0,'a'),(1,NULL),(0,'a');
 INSERT INTO t1 VALUES (1,'a'),(0,'a'),(1,'a'),(0,'a');
@@ -2510,4 +2509,3 @@ SELECT SQL_BUFFER_RESULT txt, VAR_POP(i) v FROM t GROUP BY txt ORDER BY v, txt;
 SELECT SQL_BUFFER_RESULT txt, STDDEV_POP(i) s FROM t
 GROUP BY txt ORDER BY s, txt;
 DROP TABLE t;
-

@@ -17,6 +17,7 @@
 
 #include <m_string.h>
 #include <stdlib.h>
+#include <sys/types.h>
 
 #include "mutex_lock.h"
 #include "my_dbug.h"
@@ -31,7 +32,7 @@
 #define DELIM ':'
 #endif
 
-my_bool init_tmpdir(MY_TMPDIR *tmpdir, const char *pathlist)
+bool init_tmpdir(MY_TMPDIR *tmpdir, const char *pathlist)
 {
   char *end, *copy;
   char buff[FN_REFLEN];

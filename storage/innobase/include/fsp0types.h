@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -185,6 +185,7 @@ The newer row formats, COMPRESSED and DYNAMIC, will have at least
 the DICT_TF_COMPACT bit set.
 @param[in]	flags	Tablespace flags
 @return true if valid, false if not */
+inline
 bool
 fsp_flags_is_valid(
 	ulint	flags)

@@ -17,6 +17,7 @@
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include <sys/types.h>
 
 #include "callback_command_delegate.h"
 #include "my_inttypes.h"
@@ -35,7 +36,7 @@ const longlong   EXPECTED_IS_LONGLONG_UNSIGNED = true;
 const longlong   EXPECTED_IS_LONGLONG_UNSIGNED_DEFAULT = false;
 const decimal_t  EXPECTED_VALUE_DECIMAL = { 0, 1, 2, FALSE, NULL };
 const double     EXPECTED_VALUE_DOUBLE = 20.0;
-const MYSQL_TIME EXPECTED_VALUE_DATATIME = { 2016, 12, 20, 20, 30, 00, 0, 0, MYSQL_TIMESTAMP_DATETIME };
+const MYSQL_TIME EXPECTED_VALUE_DATATIME = { 2017, 12, 20, 20, 30, 00, 0, 0, MYSQL_TIMESTAMP_DATETIME };
 const char      *EXPECTED_VALUE_STRING = "TEST STRING";
 
 } // namespace
@@ -46,8 +47,8 @@ using namespace ::testing;
 class Mock_callback_commands
 {
 public:
-    MOCK_METHOD0(start_row, Callback_command_delegate::Row_data *());
-    MOCK_METHOD1(end_row, bool (Callback_command_delegate::Row_data *));
+    MOCK_METHOD0(start_row, xpl::Callback_command_delegate::Row_data *());
+    MOCK_METHOD1(end_row, bool (xpl::Callback_command_delegate::Row_data *));
 };
 
 
@@ -80,22 +81,31 @@ MATCHER_P(Eq_decimal, n, "")
 }
 
 
+MATCHER_P(Eq_info, param, "")
+{
+  return ((arg.affected_rows == param.affected_rows) &&
+          (arg.last_insert_id == param.last_insert_id) &&
+          (arg.num_warnings == param.num_warnings) &&
+          (arg.message == param.message) &&
+          (arg.server_status == param.server_status));
+}
+
 class Callback_command_delegate_testsuite: public Test
 {
 public:
   void SetUp()
   {
-    m_sut.reset(new Callback_command_delegate());
+    m_sut.reset(new xpl::Callback_command_delegate());
   }
 
   void create_sut_with_callback_mock()
   {
-    Callback_command_delegate::Start_row_callback start_row =
+    xpl::Callback_command_delegate::Start_row_callback start_row =
         ngs::bind(&Mock_callback_commands::start_row, &m_mock_callbacks);
-    Callback_command_delegate::End_row_callback end_row =
+    xpl::Callback_command_delegate::End_row_callback end_row =
         ngs::bind(&Mock_callback_commands::end_row, &m_mock_callbacks, ngs::placeholders::_1);
 
-    m_sut.reset(new Callback_command_delegate(start_row, end_row));
+    m_sut.reset(new xpl::Callback_command_delegate(start_row, end_row));
   }
 
   void assert_row_and_data_functions(const bool expected_result)
@@ -120,11 +130,8 @@ public:
 
   void assert_sut_status_should_be_empty()
   {
-    EXPECT_EQ(0, m_sut->server_status());
-    EXPECT_EQ(0, m_sut->statement_warn_count());
-    EXPECT_EQ(0, m_sut->affected_rows());
-    EXPECT_EQ(0, m_sut->last_insert_id());
-    EXPECT_EQ("", m_sut->message());
+    ngs::Command_delegate::Info expect_empty;
+    ASSERT_THAT(m_sut->get_info(), Eq_info(expect_empty));
   }
 
   void assert_sut_handle_ok_and_its_status()
@@ -139,14 +146,17 @@ public:
                      expected_affected_rows, expected_last_inserted_id,
                      expected_message.c_str());
 
-    ASSERT_EQ(expected_status, m_sut->server_status());
-    ASSERT_EQ(expected_wrn_count, m_sut->statement_warn_count());
-    ASSERT_EQ(expected_affected_rows, m_sut->affected_rows());
-    ASSERT_EQ(expected_last_inserted_id, m_sut->last_insert_id());
-    ASSERT_EQ(expected_message, m_sut->message());
+    ngs::Command_delegate::Info expect;
+    expect.affected_rows = expected_affected_rows;
+    expect.last_insert_id = expected_last_inserted_id;
+    expect.num_warnings = expected_wrn_count;
+    expect.message = expected_message;
+    expect.server_status = expected_status;
+
+    ASSERT_THAT(m_sut->get_info(), Eq_info(expect));
   }
 
-  void assert_row_container(Callback_command_delegate::Row_data &row_data)
+  void assert_row_container(xpl::Callback_command_delegate::Row_data &row_data)
   {
     // assert_row_and_data_functions
     const std::size_t expected_size_inserted_by_testsuite = 9;
@@ -191,7 +201,7 @@ public:
   }
 
   StrictMock<Mock_callback_commands> m_mock_callbacks;
-  ngs::unique_ptr<Command_delegate> m_sut;
+  ngs::unique_ptr<ngs::Command_delegate> m_sut;
 };
 
 
@@ -211,7 +221,7 @@ TEST_F(Callback_command_delegate_testsuite, process_data_without_callback_functi
 TEST_F(Callback_command_delegate_testsuite, process_data_verify_that_callbacks_are_called_but_container_is_missing)
 {
   const bool expect_failure = true;
-  Callback_command_delegate::Row_data *expected_container = NULL;
+  xpl::Callback_command_delegate::Row_data *expected_container = NULL;
 
   create_sut_with_callback_mock();
 
@@ -228,7 +238,7 @@ TEST_F(Callback_command_delegate_testsuite, process_data_verify_that_callbacks_a
 TEST_F(Callback_command_delegate_testsuite, process_data_verify_that_callbacks_are_called_and_data_in_container)
 {
   const bool expect_success = false;
-  Callback_command_delegate::Row_data expected_container;
+  xpl::Callback_command_delegate::Row_data expected_container;
 
   create_sut_with_callback_mock();
 

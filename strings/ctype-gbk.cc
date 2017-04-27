@@ -26,7 +26,6 @@
  */
 
 
-#include <my_global.h>
 #include <stddef.h>
 #include <sys/types.h>
 
@@ -3483,7 +3482,7 @@ extern "C" {
 static int my_strnncoll_gbk(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                             const uchar *a, size_t a_length,
                             const uchar *b, size_t b_length,
-                            my_bool b_is_prefix)
+                            bool b_is_prefix)
 {
   size_t length= MY_MIN(a_length, b_length);
   int res= my_strnncoll_gbk_internal(&a, &b, length);
@@ -10844,7 +10843,8 @@ CHARSET_INFO my_charset_gbk_chinese_ci=
     1,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_handler,
-    &my_collation_ci_handler
+    &my_collation_ci_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_gbk_bin=
@@ -10878,5 +10878,6 @@ CHARSET_INFO my_charset_gbk_bin=
     1,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_handler,
-    &my_collation_mb_bin_handler
+    &my_collation_mb_bin_handler,
+    PAD_SPACE
 };

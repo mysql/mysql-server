@@ -200,7 +200,7 @@ CREATE TABLE t1
   f7 VARCHAR(500),
   PRIMARY KEY (f1, f2, f3, f4),
   KEY k1 (f5, f6, f7)
-) ENGINE = InnoDB;
+) charset latin1 ENGINE = InnoDB;
 
 --replace_column 10 #
 EXPLAIN SELECT f5 FROM t1 FORCE INDEX (k1) WHERE

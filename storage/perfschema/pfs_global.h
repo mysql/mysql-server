@@ -18,10 +18,12 @@
 
 #include "my_config.h"
 
+#include <stddef.h>
+#include <sys/types.h>
+
 #include "current_thd.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "sql_class.h"
 
@@ -53,7 +55,7 @@ extern bool pfs_initialized;
 #endif
 
 /**
-  A uint32 variable, guaranteed to be alone in a CPU cache line.
+  A @c uint32 variable, guaranteed to be alone in a CPU cache line.
   This is for performance, for variables accessed very frequently.
 */
 struct PFS_cacheline_uint32
@@ -67,7 +69,7 @@ struct PFS_cacheline_uint32
 };
 
 /**
-  A uint64 variable, guaranteed to be alone in a CPU cache line.
+  A @c uint64 variable, guaranteed to be alone in a CPU cache line.
   This is for performance, for variables accessed very frequently.
 */
 struct PFS_cacheline_uint64
@@ -135,63 +137,6 @@ uint pfs_get_socket_address(char *host,
 */
 #define PFS_NEW(CLASS) \
   reinterpret_cast<CLASS *>(new (current_thd->alloc(sizeof(CLASS))) CLASS())
-
-/**
-  Compute a random index value in an interval.
-  @param ptr seed address
-  @param max_size maximun size of the interval
-  @return a random value in [0, max_size-1]
-*/
-inline uint
-randomized_index(const void *ptr, uint max_size)
-{
-  static uint seed1 = 0;
-  static uint seed2 = 0;
-  uint result;
-  intptr value;
-
-  if (unlikely(max_size == 0))
-  {
-    return 0;
-  }
-
-  /*
-    ptr is typically an aligned structure, and can be in an array.
-    - The last bits are not random because of alignment,
-      so we divide by 8.
-    - The high bits are mostly constant, especially with 64 bits architectures,
-      but we keep most of them anyway, by doing computation in intptr.
-      The high bits are significant depending on where the data is
-      stored (the data segment, the stack, the heap, ...).
-    - To spread consecutive cells in an array further, we multiply by
-      a factor A. This factor should not be too high, which would cause
-      an overflow and cause loss of randomness (droping the top high bits).
-      The factor is a prime number, to help spread the distribution.
-    - To add more noise, and to be more robust if the calling code is
-      passing a constant value instead of a random identity,
-      we add the previous results, for hysteresys, with a degree 2 polynom,
-      X^2 + X + 1.
-    - Last, a modulo is applied to be within the [0, max_size - 1] range.
-    Note that seed1 and seed2 are static, and are *not* thread safe,
-    which is even better.
-    Effect with arrays: T array[N]
-    - ptr(i) = & array[i] = & array[0] + i * sizeof(T)
-    - ptr(i+1) = ptr(i) + sizeof(T).
-    What we want here, is to have index(i) and index(i+1) fall into
-    very different areas in [0, max_size - 1], to avoid locality.
-  */
-  value = (reinterpret_cast<intptr>(ptr)) >> 3;
-  value *= 1789;
-  value += seed2 + seed1 + 1;
-
-  result = (static_cast<uint>(value)) % max_size;
-
-  seed2 = seed1 * seed1;
-  seed1 = result;
-
-  DBUG_ASSERT(result < max_size);
-  return result;
-}
 
 void pfs_print_error(const char *format, ...)
   MY_ATTRIBUTE((format(printf, 1, 2)));

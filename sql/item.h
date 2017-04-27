@@ -28,6 +28,7 @@
 #include "enum_query_type.h"
 #include "field.h"       // Derivation
 #include "handler.h"
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_bitmap.h"
@@ -35,7 +36,6 @@
 #include "my_dbug.h"
 #include "my_decimal.h"  // my_decimal
 #include "my_double2ulonglong.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_sys.h"
@@ -150,7 +150,7 @@ char_to_byte_length_safe(uint32 char_length_arg, uint32 mbmaxlen_arg)
 class DTCollation {
 public:
   const CHARSET_INFO *collation;
-  enum Derivation derivation;
+  Derivation derivation{DERIVATION_NONE};
   uint repertoire;
   
   void set_repertoire_from_charset(const CHARSET_INFO *cs)
@@ -676,6 +676,7 @@ class Item : public Parse_tree_node
 {
   typedef Parse_tree_node super;
 
+  friend class udf_handler;
   virtual bool is_expensive_processor(uchar *) { return false; }
 
 protected:
@@ -1184,6 +1185,17 @@ public:
     collation.set_numeric();
     decimals= fsp;
     max_length= MAX_DATE_WIDTH + fsp + (fsp > 0 ? 1 : 0);
+  }
+
+  /**
+    Set the data type of the Item to be JSON.
+  */
+  void set_data_type_json()
+  {
+    set_data_type(MYSQL_TYPE_JSON);
+    collation.set(&my_charset_utf8mb4_bin, DERIVATION_IMPLICIT);
+    decimals= NOT_FIXED_DEC;
+    max_length= MAX_BLOB_WIDTH;
   }
 
   /**
@@ -1884,7 +1896,7 @@ public:
   virtual bool is_null() { return 0; }
 
   /// Make sure the null_value member has a correct value.
-  void update_null_value();
+  bool update_null_value();
 
   /*
     Inform the item that there will be no distinction between its result
@@ -2414,11 +2426,40 @@ public:
   */
   bool is_blob_field() const;
 
-  /**
-    Checks if this item or any of its decendents contains a subquery.
-  */
-  virtual bool has_subquery() const { return with_subselect; }
-  virtual bool has_stored_program() const { return with_stored_program; }
+protected:
+  /// Set accumulated properties for an Item
+  void set_accum_properties(const Item *item)
+  { m_accum_properties= item->m_accum_properties; }
+
+  /// Add more accumulated properties to an Item
+  void add_accum_properties(const Item *item)
+  { m_accum_properties|= item->m_accum_properties; }
+
+  /// Set the "has subquery" property
+  void set_subquery() { m_accum_properties|= PROP_SUBQUERY; }
+
+  /// Set the "has stored program" property
+  void set_stored_program() { m_accum_properties|= PROP_STORED_PROGRAM; }
+
+public:
+  /// @return true if this item or any of its decendents contains a subquery.
+  bool has_subquery() const
+  { return m_accum_properties & PROP_SUBQUERY; }
+
+  /// @return true if this item or any of its decendents refers a stored func.
+  bool has_stored_program() const
+  { return m_accum_properties & PROP_STORED_PROGRAM; }
+
+  /// @return true if this item or any of its decendents is an aggregated func.
+  bool has_aggregation() const
+  { return m_accum_properties & PROP_AGGREGATION; }
+
+  /// Set the "has aggregation" property
+  void set_aggregation() { m_accum_properties|= PROP_AGGREGATION; }
+
+  /// Reset the "has aggregation" property
+  void reset_aggregation() { m_accum_properties&= ~PROP_AGGREGATION; }
+
   /// Whether this Item was created by the IN->EXISTS subquery transformation
   virtual bool created_by_in2exists() const { return false; }
 
@@ -2545,7 +2586,6 @@ public:
   bool maybe_null;
   bool null_value;              ///< True if item is null
   bool unsigned_flag;
-  bool with_sum_func;              ///< True if item is aggregated
 
 private:
   /**
@@ -2556,16 +2596,17 @@ private:
 
 protected:
   /**
-    True if this item is a subquery or some of its arguments is or contains a
-    subquery. Computed by fix_fields() and updated by update_used_tables().
+    Set of properties that are calculated by accumulation from underlying items.
+    Computed by constructors and fix_fields() and updated by
+    update_used_tables(). The properties are accumulated up to the root of the
+    current item tree, except they are not accumulated across subqueries and
+    functions.
   */
-  bool with_subselect;
-  /**
-    True if this item is a stored program or some of its arguments is or
-    contains a stored program. Computed by fix_fields() and updated
-    by update_used_tables().
-  */
-  bool with_stored_program;
+  static constexpr uint8 PROP_SUBQUERY       = 0x01;
+  static constexpr uint8 PROP_STORED_PROGRAM = 0x02;
+  static constexpr uint8 PROP_AGGREGATION    = 0x04;
+
+  uint8 m_accum_properties;
 
   /**
     This variable is a cache of 'Needed tables are locked'. True if either
@@ -2576,6 +2617,20 @@ protected:
     It is used when checking const_item()/can_be_evaluated_now().
   */
   bool tables_locked_cache;
+
+public:
+  /**
+    Mark this expression as used in partial update, if it is on the right
+    form. For example, the expression `JSON_REPLACE(col, '$.foo', 'bar')`
+    can be used to partially update the column `foo`.
+
+    @param field   the target column of the update
+    @retval false  if successfully marked for partial update
+    @retval true   if this expression cannot be used for partial update
+                   of @a field
+  */
+  virtual bool mark_for_partial_update(Field *field MY_ATTRIBUTE((unused)))
+  { return true; }
 };
 
 
@@ -4454,6 +4509,7 @@ public:
   {
     if (!depended_from)
       (*ref)->update_used_tables();
+    set_accum_properties(*ref);
   }
 
   table_map not_null_tables() const override
@@ -4544,23 +4600,6 @@ public:
     return (*ref)->is_outer_field();
   }
 
-  /**
-    Checks if the item tree that ref points to contains a subquery.
-  */
-  bool has_subquery() const override
-  {
-    DBUG_ASSERT(ref);
-    return (*ref)->has_subquery();
-  }
-
-  /**
-    Checks if the item tree that ref points to contains a stored program.
-  */
-  bool has_stored_program() const override
-  {
-    DBUG_ASSERT(ref);
-    return (*ref)->has_stored_program();
-  }
 
   bool created_by_in2exists() const override
   {
@@ -4814,7 +4853,7 @@ protected:
   }
 public:
   Item_int_with_ref(enum_field_types field_type, longlong i, Item *ref_arg,
-                    my_bool unsigned_arg)
+                    bool unsigned_arg)
     : Item_int(i), ref(ref_arg)
   {
     set_data_type(field_type);
@@ -5407,8 +5446,7 @@ public:
      field_idx((uint)-1), original_privilege(priv),
      want_privilege(priv), table_grants(NULL), read_only (ro)
   {}
-  void setup_field(THD *thd,
-                   Table_trigger_field_support *table_triggers,
+  void setup_field(Table_trigger_field_support *table_triggers,
                    GRANT_INFO *table_grant_info);
   enum Type type() const override { return TRIGGER_FIELD_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const override;
@@ -5518,8 +5556,13 @@ public:
     decimals= item->decimals;
     collation.set(item->collation);
     unsigned_flag= item->unsigned_flag;
-    with_subselect|= item->has_subquery();
-    with_stored_program|= item->has_stored_program();
+    add_accum_properties(item);
+    /*
+      Cache object cannot be marked as aggregated, due to problems with
+      repeated preparation calls.
+      @todo - consider this in WL#6570.
+    */
+    reset_aggregation();
     if (item->type() == FIELD_ITEM)
     {
       cached_field= ((Item_field *)item)->field;

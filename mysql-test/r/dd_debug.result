@@ -24,7 +24,6 @@ DROP TABLE t1;
 #
 ###################################################################
 #
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Table `test`.`t1` .*");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number .* in a file operation");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means the system cannot find the path specified");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot open datafile for read-only");
@@ -65,7 +64,7 @@ SET GLOBAL DEBUG= '-d, fail_while_acquiring_dd_object';
 # 1.3b No schema found during drop.
 SET DEBUG= '+d, pretend_no_schema_in_drop_schema';
 DROP SCHEMA s1;
-ERROR 42000: Unknown database 's1'
+ERROR HY000: Can't drop database 's1'; database doesn't exist
 SET DEBUG= '-d, pretend_no_schema_in_drop_schema';
 # 1.3c Fail while dropping dd object during drop.
 SET DEBUG= '+d, fail_while_dropping_dd_object';
@@ -224,4 +223,44 @@ Warnings:
 Note	1051	Unknown table 'test.t1'
 DROP TABLE t2;
 DROP VIEW v1;
+#
+# Bug#25587256 NEWDD: FK: NEED TO SET PROPER REFERENCED COLUMN CASE
+#
+CREATE TABLE t1 (pk INT PRIMARY KEY);
+CREATE TABLE t2 (fk INT, FOREIGN KEY (FK) REFERENCES t1 (PK));
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `fk` int(11) DEFAULT NULL,
+  KEY `fk` (`fk`),
+  CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `t1` (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+SET SESSION debug= '+d,skip_dd_table_access_check';
+SELECT foreign_key_column_usage.referenced_column_name
+FROM mysql.foreign_key_column_usage, mysql.foreign_keys, mysql.tables
+WHERE tables.name= 't2'
+AND tables.id = foreign_keys.table_id
+AND foreign_keys.id = foreign_key_column_usage.foreign_key_id;
+referenced_column_name
+pk
+SET SESSION debug= '-d,skip_dd_table_access_check';
+DROP TABLE t2, t1;
+#
+# Bug#25685371: `E->USAGE() == 1' AT DD::CACHE::SHARED_MULTI_MAP<T>::
+#               REMOVE FOR DROP VIEW
+#
+CREATE TABLE t1 (a INT) engine= myisam;
+CREATE VIEW v1 AS SELECT * FROM t1;
+connect con1, localhost, root;
+SET debug_sync= 'view_metadata_updater_context_dtor SIGNAL blocked WAIT_FOR next';
+ALTER TABLE t1 ADD COLUMN b INT;
+connection default;
+SET debug_sync= 'now WAIT_FOR blocked';
+DROP VIEW v1;
+SET debug_sync= 'now SIGNAL next';
+connection con1;
+disconnect con1;
+connection default;
+DROP TABLE t1;
+SET DEBUG_SYNC= 'RESET';
 ###################################################################

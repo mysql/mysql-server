@@ -1,5 +1,4 @@
 --source include/have_ndb.inc
---source include/not_embedded.inc
 
 # The purpose of this test is to show that the global binlog_format
 # is automatically upgraded to MIXED in case the mysqld is started

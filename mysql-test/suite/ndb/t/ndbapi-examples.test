@@ -3,8 +3,6 @@
 #but needs to be kept for tests that would need MyISAM in future.
 --source include/force_myisam_default.inc
 
-# The programs want to connect to MySQL Server,they can't run with embedded
--- source include/not_embedded.inc
 
 -- source include/have_ndb.inc
 -- source include/have_ndbapi_examples.inc

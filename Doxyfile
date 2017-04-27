@@ -855,6 +855,7 @@ INPUT                  = ./client \
                          ./libbinlogevents \
                          ./libbinlogstandalone \
                          ./libservices \
+                         ./mysql-test/mysql-test-run.dox \
                          ./mysys \
                          ./mysys_ssl \
                          ./plugin/audit_null \
@@ -941,8 +942,7 @@ EXCLUDE                = cmd-line-utils \
                          libevent \
                          libmysql \
                          libmysql_r \
-                         mysql-test \
-                         plugin \
+                         plugin/innodb_memcached/daemon_memcached/include/memcached \
                          source_downloads \
                          sql/sql_hints.cc \
                          sql/sql_yacc.cc \

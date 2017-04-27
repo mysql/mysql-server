@@ -119,13 +119,15 @@ ELSEIF(NOT HAVE_CMAKE_BUILD_TYPE OR OLD_WITH_DEBUG)
   SET(OLD_WITH_DEBUG 0 CACHE INTERNAL "" FORCE)
 ENDIF()
 
+IF(CMAKE_GENERATOR MATCHES "Visual Studio 14.*")
 # Switch to 64 bit toolset on Windows (32 bit is default).
 # This is recommended as the 32 bit linker can run into address space issues.
 # Sadly there is no clean way to do it from CMake yet, so therefore this
 # slightly hackish way of doing it.
-IF(WIN32)
-  SET(CMAKE_GENERATOR_TOOLSET
-      "v140</PlatformToolset><PreferredToolArchitecture>x64</PreferredToolArchitecture><PlatformToolset>v140")
+  IF(WIN32)
+    SET(CMAKE_GENERATOR_TOOLSET
+        "v140</PlatformToolset><PreferredToolArchitecture>x64</PreferredToolArchitecture><PlatformToolset>v140")
+  ENDIF()
 ENDIF()
 
 # On Linux el6/el7 the default gcc is too old, see if devtoolset is installed.
@@ -277,6 +279,7 @@ INCLUDE(component)
 INCLUDE(install_macros)
 INCLUDE(install_layout)
 INCLUDE(mysql_add_executable)
+INCLUDE(mysqlgcs)
 
 # Handle options
 IF(EXISTS ${CMAKE_SOURCE_DIR}/rapid)
@@ -302,7 +305,8 @@ ENDIF()
 IF(NOT WITHOUT_SERVER)
   OPTION (WITH_UNIT_TESTS "Compile MySQL with unit tests" ON)
 ENDIF()
-
+OPTION(WITH_AUTHENTICATION_LDAP
+       "Report error if the LDAP authentication plugin cannot be built." OFF)
 
 include(CheckCSourceCompiles)
 include(CheckCXXSourceCompiles)
@@ -638,6 +642,7 @@ ADD_DEFINITIONS(-D_USE_MATH_DEFINES)       # Get access to M_PI, M_E, etc. in ma
 
 INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_BINARY_DIR}/include
+  ${CMAKE_SOURCE_DIR}
   ${CMAKE_SOURCE_DIR}/extra/regex
   ${CMAKE_SOURCE_DIR}/extra/rapidjson/include
   ${CMAKE_SOURCE_DIR}/sql/histograms
@@ -708,6 +713,11 @@ ADD_SUBDIRECTORY(libmysql)
 ADD_SUBDIRECTORY(libbinlogevents)
 ADD_SUBDIRECTORY(libbinlogstandalone)
 
+IF(NOT WITHOUT_SERVER)
+  SET (MYSQLD_STATIC_COMPONENT_LIBS "" CACHE INTERNAL "")
+  CONFIGURE_COMPONENTS()
+ENDIF()
+
 IF(WITH_UNIT_TESTS)
   # Visual Studio 11 needs this extra flag in order to compile gmock.
   IF(WIN32)
@@ -725,11 +735,6 @@ IF(WITH_UNIT_TESTS)
   IF(WITH_RAPID AND EXISTS ${CMAKE_SOURCE_DIR}/rapid/unittest/gunit)
     ADD_SUBDIRECTORY(rapid/unittest/gunit)
   ENDIF()
-ENDIF()
-
-IF(NOT WITHOUT_SERVER)
-  SET (MYSQLD_STATIC_COMPONENT_LIBS "" CACHE INTERNAL "")
-  CONFIGURE_COMPONENTS()
 ENDIF()
 
 ADD_SUBDIRECTORY(client)

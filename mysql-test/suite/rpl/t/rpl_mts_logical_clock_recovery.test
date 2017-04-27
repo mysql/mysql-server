@@ -93,7 +93,13 @@ START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 # needs an aditional event after the failed group to stop the slave
 # due to buf in until conditions
 -- connection master
-CREATE TABLE t5 (a int);
+# The following "CREATE TABLE t5 (a int);" statement was replaced by the
+# "INSERT INTO t1 (a) VALUES (5);" to make sure this test case will not fail
+# until BUG#25658222 be fixed. This change will keep replication MTS
+# recovery test coverage, but should be reverted with the above mentioned
+# bug fix.
+#CREATE TABLE t5 (a int);
+INSERT INTO t1 (a) VALUES (5);
 
 -- connection slave
 -- source include/wait_for_slave_sql_to_stop.inc
@@ -101,7 +107,7 @@ CREATE TABLE t5 (a int);
 
 # cleanup
 -- connection master
-DROP TABLES t1, t2, t3, t4, t5;
+DROP TABLES t1, t2, t3, t4;
 -- connection master
 -- source include/sync_slave_sql_with_master.inc
 -- source include/rpl_end.inc

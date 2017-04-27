@@ -18,12 +18,14 @@
   Table STATUS_BY_THREAD (implementation).
 */
 
+#include "storage/perfschema/table_status_by_thread.h"
+
+#include <stddef.h>
 #include <new>
 
 #include "current_thd.h"
 #include "field.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_thread.h"
 #include "mysqld.h"
 #include "pfs_column_types.h"
@@ -31,7 +33,6 @@
 #include "pfs_global.h"
 #include "pfs_instr_class.h"
 #include "sql_class.h"
-#include "table_status_by_thread.h"
 
 bool
 PFS_index_status_by_thread::match(PFS_thread *pfs)
@@ -102,7 +103,7 @@ PFS_engine_table_share table_status_by_thread::m_share = {
 };
 
 PFS_engine_table *
-table_status_by_thread::create(void)
+table_status_by_thread::create(PFS_engine_table_share *)
 {
   return new table_status_by_thread();
 }
@@ -217,7 +218,7 @@ table_status_by_thread::rnd_pos(const void *pos)
 }
 
 int
-table_status_by_thread::index_init(uint idx, bool)
+table_status_by_thread::index_init(uint idx MY_ATTRIBUTE((unused)), bool)
 {
   /* Build array of SHOW_VARs from the global status array. */
   m_status_cache.initialize_session();

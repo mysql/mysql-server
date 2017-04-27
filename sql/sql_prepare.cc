@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -125,7 +125,6 @@ When one supplies long data for a placeholder:
 #include "set_var.h"            // set_var_base
 #include "sp.h"                 // Sroutine_hash_entry
 #include "sp_cache.h"           // sp_cache_enforce_limit
-#include "sql_analyse.h"        // Query_result_analyse
 #include "sql_audit.h"          // mysql_global_audit_mask
 #include "sql_base.h"           // open_tables_for_query, open_temporary_table
 #include "sql_cache.h"          // query_cache
@@ -207,11 +206,9 @@ public:
   virtual bool end_result_metadata();
   virtual bool send_field_metadata(Send_field *field, const CHARSET_INFO *charset);
   virtual bool flush() { return true; }
-  virtual bool send_parameters(List<Item_param> *parameters,
-                               bool is_sql_prepare)
+  virtual bool send_parameters(List<Item_param>*, bool)
   { return false; }
-  bool store_ps_status(ulong stmt_id, uint column_count, uint param_count,
-                       ulong cond_count)
+  bool store_ps_status(ulong, uint, uint, ulong)
   { return false; }
 protected:
   String *convert;
@@ -716,6 +713,8 @@ bool Prepared_statement::insert_params(String *query, PS_PARAM *parameters)
         param->set_null();
       else
       {
+
+        //TODO: Add error handling for set_param_func functions.
         param->set_param_func(param, const_cast<uchar**>(&parameters[i].value),
                               parameters[i].length);
         if (param->state == Item_param::NO_VALUE)
@@ -954,7 +953,6 @@ bool mysql_test_show(Prepared_statement *stmt, TABLE_LIST *tables)
 
   DBUG_ASSERT(lex->result == NULL);
   DBUG_ASSERT(lex->sql_command != SQLCOM_DO);
-  DBUG_ASSERT(!lex->proc_analyse);
   DBUG_ASSERT(!lex->describe);
 
   if (!lex->result)
@@ -1344,6 +1342,7 @@ static bool check_prepared_statement(Prepared_statement *stmt)
   case SQLCOM_GRANT:
   case SQLCOM_GRANT_ROLE:
   case SQLCOM_REVOKE:
+  case SQLCOM_REVOKE_ALL:
   case SQLCOM_REVOKE_ROLE:
   case SQLCOM_KILL:
   case SQLCOM_ALTER_INSTANCE:
@@ -1417,7 +1416,7 @@ static bool check_prepared_statement(Prepared_statement *stmt)
 }
 
 
-static int Item_param_comp(Item_param *e1, Item_param *e2, void *arg)
+static int Item_param_comp(Item_param *e1, Item_param *e2, void*)
 {
   return ((e1->pos_in_query < e2->pos_in_query) ? -1 :
           ((e1->pos_in_query > e2->pos_in_query) ? 1 : 0));
@@ -1577,7 +1576,7 @@ mysql_stmt_precheck(THD *thd, const COM_DATA *com_data,
       // out of memory: error is set in Sql_alloc
       goto silent_error;           /* purecov: inspected */
 
-    if (thd->stmt_map.insert(thd, *stmt))
+    if (thd->stmt_map.insert(*stmt))
       /*
         The error is set in the insert. The statement itself
         will be also deleted there (this is how the hash works).
@@ -1786,7 +1785,7 @@ void mysql_sql_stmt_prepare(THD *thd)
     DBUG_VOID_RETURN;
   }
 
-  if (thd->stmt_map.insert(thd, stmt))
+  if (thd->stmt_map.insert(stmt))
   {
     /* The statement is deleted and an error is set if insert fails */
     DBUG_VOID_RETURN;
@@ -1935,11 +1934,6 @@ bool reinit_stmt_before_use(THD *thd, LEX *lex)
     tables->reinit_before_use(thd);
   }
 
-  /* Reset MDL tickets for procedures/functions */
-  for (Sroutine_hash_entry *rt= thd->lex->sroutines_list.first;
-       rt; rt= rt->next)
-    rt->mdl_request.ticket= NULL;
-
   lex->set_current_select(lex->select_lex);
 
   if (lex->result)
@@ -2031,7 +2025,7 @@ mysqld_stmt_execute(THD *thd, Prepared_statement *stmt, bool has_new_types,
   {
     bool open_cursor=
       static_cast<bool>(execute_flags & (ulong) CURSOR_TYPE_READ_ONLY);
-    stmt->execute_loop(&expanded_query, open_cursor, parameters);
+    stmt->execute_loop(&expanded_query, open_cursor);
   }
 
   if (switch_protocol)
@@ -2093,7 +2087,7 @@ void mysql_sql_stmt_execute(THD *thd)
   if(stmt->set_parameters(&expanded_query))
     DBUG_VOID_RETURN;
 
-  stmt->execute_loop(&expanded_query, false, nullptr);
+  stmt->execute_loop(&expanded_query, false);
 
   DBUG_VOID_RETURN;
 }
@@ -2753,6 +2747,7 @@ bool Prepared_statement::prepare(const char *query_str, size_t query_length)
   /* The order is important */
   lex->unit->cleanup(true);
 
+  lex->clear_values_map();
 
   close_thread_tables(thd);
   thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
@@ -2911,7 +2906,6 @@ bool Prepared_statement::set_parameters(String *expanded_query)
 
   @param expanded_query   Query string.
   @param open_cursor      Flag to specift if a cursor should be used.
-  @param parameters       Prepared statement's parsed parameters.
 
   @return  a bool value representing the function execution status.
   @retval  true    error: either MAX_REPREPARE_ATTEMPTS has been reached,
@@ -2921,8 +2915,7 @@ bool Prepared_statement::set_parameters(String *expanded_query)
 */
 
 bool
-Prepared_statement::execute_loop(String *expanded_query, bool open_cursor,
-                                 PS_PARAM *parameters)
+Prepared_statement::execute_loop(String *expanded_query, bool open_cursor)
 {
   const int MAX_REPREPARE_ATTEMPTS= 3;
   Reprepare_observer reprepare_observer;
@@ -2938,7 +2931,8 @@ Prepared_statement::execute_loop(String *expanded_query, bool open_cursor,
 
   DBUG_ASSERT(!thd->get_stmt_da()->is_set());
 
-  if (unlikely(thd->security_context()->password_expired() &&
+  if (unlikely(!thd->security_context()->account_is_locked() &&
+               thd->security_context()->password_expired() &&
                lex->sql_command != SQLCOM_SET_PASSWORD &&
                lex->sql_command != SQLCOM_ALTER_USER))
   {
@@ -3430,7 +3424,7 @@ void Prepared_statement::deallocate()
   server code.
 */
 
-void Ed_result_set::operator delete(void *ptr, size_t size) throw ()
+void Ed_result_set::operator delete(void *ptr, size_t) throw ()
 {
   if (ptr)
   {
@@ -3715,7 +3709,7 @@ bool Protocol_local::store_long(longlong value)
 
 /** Store a "longlong" as is (8 bytes, host order) in a result set column. */
 
-bool Protocol_local::store_longlong(longlong value, bool unsigned_flag)
+bool Protocol_local::store_longlong(longlong value, bool)
 {
   int64 v= (int64) value;
   return store_column(&v, 8);
@@ -3790,7 +3784,7 @@ bool Protocol_local::store_time(MYSQL_TIME *time,
 
 /* Store a floating point number, as is. */
 
-bool Protocol_local::store(float value, uint32 decimals, String *buffer)
+bool Protocol_local::store(float value, uint32, String*)
 {
   return store_column(&value, sizeof(float));
 }
@@ -3798,7 +3792,7 @@ bool Protocol_local::store(float value, uint32 decimals, String *buffer)
 
 /* Store a double precision number, as is. */
 
-bool Protocol_local::store(double value, uint32 decimals, String *buffer)
+bool Protocol_local::store(double value, uint32, String*)
 {
   return store_column(&value, sizeof (double));
 }
@@ -3815,10 +3809,7 @@ bool Protocol_local::store(Proto_field *field)
 
 /** Called for statements that don't have a result set, at statement end. */
 
-bool
-Protocol_local::send_ok(uint server_status, uint statement_warn_count,
-                        ulonglong affected_rows, ulonglong last_insert_id,
-                        const char *message)
+bool Protocol_local::send_ok(uint, uint, ulonglong, ulonglong, const char*)
 {
   /*
     Just make sure nothing is sent to the client, we have grabbed
@@ -3836,7 +3827,7 @@ Protocol_local::send_ok(uint server_status, uint statement_warn_count,
   building of the result set at hand.
 */
 
-bool Protocol_local::send_eof(uint server_status, uint statement_warn_count)
+bool Protocol_local::send_eof(uint, uint)
 {
   Ed_result_set *ed_result_set;
 
@@ -3867,8 +3858,7 @@ bool Protocol_local::send_eof(uint server_status, uint statement_warn_count)
 
 /** Called to send an error to the client at the end of a statement. */
 
-bool
-Protocol_local::send_error(uint sql_errno, const char *err_msg, const char*)
+bool Protocol_local::send_error(uint, const char*, const char*)
 {
   /*
     Just make sure that nothing is sent to the client (default
@@ -3890,8 +3880,7 @@ Protocol_local::get_client_capabilities()
   return 0;
 }
 
-bool
-Protocol_local::has_client_capability(unsigned long client_capability)
+bool Protocol_local::has_client_capability(unsigned long)
 {
   return false;
 }
@@ -3903,8 +3892,7 @@ bool Protocol_local::connection_alive()
 
 void Protocol_local::end_partial_result_set() {}
 
-int
-Protocol_local::shutdown(bool server_shutdown)
+int Protocol_local::shutdown(bool)
 {
   return 0;
 }
@@ -3951,8 +3939,8 @@ uint Protocol_local::get_rw_status()
   return 0;
 }
 
-bool Protocol_local::start_result_metadata(uint num_cols, uint flags,
-                                           const CHARSET_INFO *charset)
+bool Protocol_local::start_result_metadata(uint, uint,
+                                           const CHARSET_INFO*)
 {
   return 0;
 }
@@ -3960,15 +3948,15 @@ bool Protocol_local::start_result_metadata(uint num_cols, uint flags,
 bool Protocol_local::end_result_metadata() { return false; }
 
 bool
-Protocol_local::send_field_metadata(Send_field *field,
-                                    const CHARSET_INFO *charset)
+Protocol_local::send_field_metadata(Send_field*,
+                                    const CHARSET_INFO*)
 {
   return false;
 }
 
 bool Protocol_local::get_compression() { return false; }
 
-int Protocol_local::get_command(COM_DATA *com_data, enum_server_command *cmd)
+int Protocol_local::get_command(COM_DATA*, enum_server_command*)
 {
   return -1;
 }

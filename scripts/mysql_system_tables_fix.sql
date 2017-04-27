@@ -1,4 +1,4 @@
--- Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -503,11 +503,11 @@ ALTER TABLE user MODIFY password_expired ENUM('N', 'Y') COLLATE utf8_general_ci 
 
 -- Need to pre-fill mysql.proxies_priv with access for root even when upgrading from
 -- older versions
-
-CREATE TEMPORARY TABLE tmp_proxies_priv LIKE proxies_priv;
-INSERT INTO tmp_proxies_priv VALUES ('localhost', 'root', '', '', TRUE, '', now());
-INSERT INTO proxies_priv SELECT * FROM tmp_proxies_priv WHERE @had_proxies_priv_table=0;
-DROP TABLE tmp_proxies_priv;
+SET @cmd="INSERT INTO proxies_priv VALUES ('localhost', 'root', '', '', TRUE, '', now())";
+SET @str = IF(@had_proxies_priv_table = 0, @cmd, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
 
 -- Checking for any duplicate hostname and username combination are exists.
 -- If exits we will throw error.
@@ -868,3 +868,67 @@ SET @str = IF(@had_audit_log_user > 0, @cmd, "SET @dummy = 0");
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
+
+
+--
+-- Update default_value column for cost tables to new defaults
+-- Note: Column definition must be updated if a default value is changed
+-- (Must check if column exists to determine whether to add or modify column)
+--
+
+-- Update column definition for mysql.server_cost.default_value
+SET @have_server_cost_default =
+  (SELECT COUNT(column_name) FROM information_schema.columns
+     WHERE table_schema = 'mysql' AND table_name = 'server_cost' AND
+           column_name = 'default_value');
+SET @op = IF(@have_server_cost_default > 0, "MODIFY COLUMN ", "ADD COLUMN ");
+SET @str = CONCAT("ALTER TABLE mysql.server_cost ", @op,
+   "default_value FLOAT GENERATED ALWAYS AS
+    (CASE cost_name
+       WHEN 'disk_temptable_create_cost' THEN 20.0
+       WHEN 'disk_temptable_row_cost' THEN 0.5
+       WHEN 'key_compare_cost' THEN 0.05
+       WHEN 'memory_temptable_create_cost' THEN 1.0
+       WHEN 'memory_temptable_row_cost' THEN 0.1
+       WHEN 'row_evaluate_cost' THEN 0.1
+       ELSE NULL
+     END) VIRTUAL");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+-- Update column definition for mysql.engine_cost.default_value
+SET @have_engine_cost_default =
+  (SELECT COUNT(column_name) FROM information_schema.columns
+     WHERE table_schema = 'mysql' AND table_name = 'engine_cost' AND
+           column_name = 'default_value');
+SET @op = IF(@have_engine_cost_default > 0, "MODIFY COLUMN ", "ADD COLUMN ");
+SET @str = CONCAT("ALTER TABLE mysql.engine_cost ", @op,
+   "default_value FLOAT GENERATED ALWAYS AS
+    (CASE cost_name
+       WHEN 'io_block_read_cost' THEN 1.0
+       WHEN 'memory_block_read_cost' THEN 0.25
+       ELSE NULL
+     END) VIRTUAL");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+#
+# SQL commands for creating the user in MySQL Server which can be used by the
+# internal server session service
+# Notes:
+# This user is disabled for login
+# This user has super privileges and select privileges into performance schema
+# tables the mysql.user table.
+#
+
+INSERT IGNORE INTO mysql.user VALUES ('localhost','mysql.session_user','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','Y','N','N','N','N','N','N','N','N','N','N','N','N','N','','','','',0,0,0,0,'mysql_native_password','*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE','N',CURRENT_TIMESTAMP,NULL,'Y', 'N', 'N');
+
+UPDATE user SET Create_role_priv= 'N', Drop_role_priv= 'N' WHERE User= 'mysql.session_user';
+
+INSERT IGNORE INTO mysql.tables_priv VALUES ('localhost', 'mysql', 'mysql.session_user', 'user', 'root\@localhost', CURRENT_TIMESTAMP, 'Select', '');
+
+INSERT IGNORE INTO mysql.db VALUES ('localhost', 'performance_schema', 'mysql.session_user','Y','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N');
+
+FLUSH PRIVILEGES;

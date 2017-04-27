@@ -20,12 +20,11 @@
 
 /* Common defines for all clients */
 
-#include <my_global.h>
-#include <my_sys.h>
-#include <m_string.h>
-#include <mysql.h>
 #include <errmsg.h>
+#include <m_string.h>
 #include <my_getopt.h>
+#include <my_sys.h>
+#include <mysql.h>
 
 #ifndef WEXITSTATUS
 # ifdef _WIN32
@@ -107,6 +106,7 @@ enum options_client
   OPT_CONNECTION_SERVER_ID,
   OPT_TLS_VERSION,
   OPT_SSL_MODE,
+  OPT_PRINT_TABLE_METADATA,
   /* Add new option above this */
   OPT_MAX_CLIENT_OPTION
 };

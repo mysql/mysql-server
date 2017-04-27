@@ -2,7 +2,7 @@
 #define FAKE_COSTMODEL_CC_INCLUDED
 
 /*
-   Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 
 #include <sys/types.h>
 
+#include "lex_string.h"
 #include "m_string.h"
 #include "my_dbug.h"
 
@@ -42,7 +43,7 @@ const double SE_cost_constants::IO_BLOCK_READ_COST= 1.0;
 
 /* purecov: begin inspected */
 const SE_cost_constants
-*Cost_model_constants::get_se_cost_constants(const TABLE *table) const
+*Cost_model_constants::get_se_cost_constants(const TABLE*) const
 {
   // This is only implemented in order to link the unit tests
   DBUG_ASSERT(false);
@@ -51,9 +52,9 @@ const SE_cost_constants
 /* purecov: end */
 
 /* purecov: begin inspected */
-cost_constant_error SE_cost_constants::set(const LEX_CSTRING &name,
-                                           const double value,
-                                           bool default_value)
+cost_constant_error SE_cost_constants::set(const LEX_CSTRING&,
+                                           const double,
+                                           bool)
 {
   // This is only implemented in order to link the unit tests
   DBUG_ASSERT(false);
@@ -78,8 +79,8 @@ Cost_model_constants::~Cost_model_constants()
 /* purecov: end */
 
 /* purecov: begin inspected */
-uint Cost_model_constants::find_handler_slot_from_name(THD *thd,
-                                           const LEX_CSTRING &name) const
+uint Cost_model_constants::find_handler_slot_from_name(THD*,
+                                                       const LEX_CSTRING&) const
 {
   // This is only implemented in order to link the unit tests
   DBUG_ASSERT(false);

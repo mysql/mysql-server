@@ -24,7 +24,7 @@ t2	CREATE TABLE `t2` (
   `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `b` char(10) DEFAULT NULL,
   UNIQUE KEY `a` (`a`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4
 SELECT * from t2;
 a	b
 1	one
@@ -47,8 +47,13 @@ t1	CREATE TABLE `t1` (
   `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `b` char(20) DEFAULT NULL,
   UNIQUE KEY `a` (`a`)
+<<<<<<< HEAD
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1
 SELECT name, space_type FROM information_schema.innodb_tables WHERE name = 'test/t1';
+=======
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4
+SELECT name, space_type FROM information_schema.innodb_sys_tables WHERE name = 'test/t1';
+>>>>>>> mysql-trunk
 name	space_type
 #
 # ALTER TABLE from system tablespace to system tablespace
@@ -96,8 +101,13 @@ t1	CREATE TABLE `t1` (
   `d` int(11) DEFAULT NULL,
   `e` int(11) DEFAULT NULL,
   UNIQUE KEY `a` (`a`)
+<<<<<<< HEAD
 ) /*!50100 TABLESPACE `s1` */ ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1
 SELECT name, space_type FROM information_schema.innodb_tables WHERE name = 'test/t1';
+=======
+) /*!50100 TABLESPACE `s1` */ ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4
+SELECT name, space_type FROM information_schema.innodb_sys_tables WHERE name = 'test/t1';
+>>>>>>> mysql-trunk
 name	space_type
 SET GLOBAL innodb_file_per_table=OFF;
 #

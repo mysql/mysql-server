@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -31,6 +31,7 @@ usr/bin/zlib_decompress
 # debug binary
 usr/sbin/mysqld-debug
 # man pages
+usr/share/man/man1/ibd2sdi.1
 usr/share/man/man1/innochecksum.1
 usr/share/man/man1/comp_err.1
 usr/share/man/man1/lz4_decompress.1
@@ -57,6 +58,7 @@ usr/share/mysql/*.sql
 # debug plugins
 usr/lib/mysql/plugin/debug/adt_null.so
 usr/lib/mysql/plugin/debug/auth_socket.so
+usr/lib/mysql/plugin/debug/authentication_ldap_sasl_client.so
 usr/lib/mysql/plugin/debug/group_replication.so
 usr/lib/mysql/plugin/debug/connection_control.so
 usr/lib/mysql/plugin/debug/innodb_engine.so
@@ -74,6 +76,7 @@ usr/lib/mysql/plugin/debug/semisync_slave.so
 usr/lib/mysql/plugin/debug/validate_password.so
 usr/lib/mysql/plugin/debug/version_token.so
 @DEB_INSTALL_SERVER_PLUGINS@
+usr/share/mysql/mysql-helpers
 @DEB_INSTALL_SERVER_SYSTEMD@
 usr/share/mysql/mysqld_multi.server
 # legal

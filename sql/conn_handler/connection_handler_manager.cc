@@ -15,7 +15,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "connection_handler_manager.h"
+#include "sql/conn_handler/connection_handler_manager.h"
 
 #include <new>
 
@@ -23,7 +23,6 @@
 #include "connection_handler_impl.h"   // Per_thread_connection_handler
 #include "current_thd.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
 #include "mysql/psi/psi_base.h"

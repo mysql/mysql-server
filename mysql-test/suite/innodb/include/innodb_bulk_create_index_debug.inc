@@ -2,8 +2,6 @@
 # wl#7277: InnoDB: Bulk Load for Create Index
 #
 
-# Not supported in embedded
--- source include/not_embedded.inc
 
 # This test case needs to crash the server. Needs a debug server.
 -- source include/have_debug.inc

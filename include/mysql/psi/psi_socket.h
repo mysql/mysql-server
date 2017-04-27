@@ -25,7 +25,6 @@
   @{
 */
 
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_macros.h"
@@ -151,7 +150,7 @@ typedef enum PSI_socket_operation PSI_socket_operation;
 
 /**
   Socket instrument information.
-  @since PSI_VERSION_1
+  @since PSI_SOCKET_VERSION_1
   This structure is used to register an instrumented socket.
 */
 struct PSI_socket_info_v1

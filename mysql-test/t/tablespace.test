@@ -1,7 +1,4 @@
 --source include/have_debug.inc
-#
-# BUG#60111 storage type for table not saved in .frm
-#
 
 #
 # Check that the table options for TABLESPACE and STORAGE
@@ -198,3 +195,151 @@ CREATE TABLESPACE ts ADD DATAFILE 'ts.ibd' ENGINE=InnoDB;
 --error ER_WRONG_FILE_NAME
 ALTER TABLESPACE ts DROP DATAFILE 'no_such_file.ibd';
 DROP TABLESPACE ts;
+
+--disable_connect_log
+--echo #
+--echo # Validate tablespace names in the SE.
+--echo #
+--echo # 1. Tablespace DDL.
+--echo # 1.1 Create/drop predefined tablespaces.
+
+--error ER_WRONG_TABLESPACE_NAME
+CREATE TABLESPACE innodb_system ADD DATAFILE 'f.ibd' ENGINE InnoDB;
+--error ER_WRONG_TABLESPACE_NAME
+CREATE TABLESPACE innodb_file_per_table ADD DATAFILE 'f.ibd' ENGINE InnoDB;
+--error ER_WRONG_TABLESPACE_NAME
+CREATE TABLESPACE innodb_temporary ADD DATAFILE 'f.ibd' ENGINE InnoDB;
+--error ER_WRONG_TABLESPACE_NAME
+CREATE TABLESPACE mysql ADD DATAFILE 'f.ibd' ENGINE InnoDB;
+
+--error ER_WRONG_TABLESPACE_NAME
+DROP TABLESPACE innodb_system;
+--error ER_WRONG_TABLESPACE_NAME
+DROP TABLESPACE innodb_file_per_table;
+--error ER_WRONG_TABLESPACE_NAME
+DROP TABLESPACE innodb_temporary;
+--error ER_WRONG_TABLESPACE_NAME
+DROP TABLESPACE mysql;
+
+--echo # 1.2 Create/drop implicit tablespaces.
+
+--error ER_WRONG_TABLESPACE_NAME
+CREATE TABLESPACE `innodb_file_per_table.2` ADD DATAFILE 'f.ibd' ENGINE InnoDB;
+--error ER_WRONG_TABLESPACE_NAME
+DROP TABLESPACE `innodb_file_per_table.2`;
+
+--error ER_WRONG_TABLESPACE_NAME
+CREATE TABLESPACE innodb_file_per_table_whatever ADD DATAFILE 'f.ibd' ENGINE InnoDB;
+--error ER_WRONG_TABLESPACE_NAME
+DROP TABLESPACE innodb_file_per_table_whatever;
+
+--error ER_WRONG_TABLESPACE_NAME
+CREATE TABLESPACE innodb_file_per_table ADD DATAFILE 'f.ibd' ENGINE InnoDB;
+--error ER_WRONG_TABLESPACE_NAME
+DROP TABLESPACE innodb_file_per_table;
+
+--echo # 2. Non partitioned table DDL.
+--echo # 2.1 Create table.
+
+CREATE TABLE t1 (i INTEGER) TABLESPACE innodb_file_per_table ENGINE InnoDB;
+CREATE TABLE t2 (i INTEGER) TABLESPACE innodb_system ENGINE InnoDB;
+
+SHOW CREATE TABLE t1;
+SHOW CREATE TABLE t2;
+
+--error ER_WRONG_TABLESPACE_NAME
+CREATE TABLE t_bad (i INTEGER) TABLESPACE `innodb_file_per_table.2` ENGINE InnoDB;
+
+--echo # 2.2 Alter table.
+
+--error ER_WRONG_TABLESPACE_NAME
+ALTER TABLE t2 TABLESPACE `innodb_file_per_table.2`;
+--echo # This is valid since MyISAM does not care:
+ALTER TABLE t2 TABLESPACE `innodb_file_per_table.2` ENGINE MyISAM;
+SHOW CREATE TABLE t2;
+
+--echo # Table t1 is carried over to MyISAM using the dummy 'innodb_file_per_table':
+ALTER TABLE t1 ENGINE MyISAM;
+SHOW CREATE TABLE t1;
+
+--echo # Changing only engine back to InnoDB now will be rejected for t2:
+--error ER_WRONG_TABLESPACE_NAME
+ALTER TABLE t2 ENGINE InnoDB;
+SHOW CREATE TABLE t2;
+
+--echo # For t1, changing engine back to InnoDB will re-establish usage of the implicit tablespace:
+ALTER TABLE t1 ENGINE InnoDB;
+SHOW CREATE TABLE t1;
+
+--echo # Changing both engine and tablespace works:
+ALTER TABLE t1 TABLESPACE innodb_system ENGINE InnoDB;
+SHOW CREATE TABLE t1;
+ALTER TABLE t2 TABLESPACE innodb_file_per_table ENGINE InnoDB;
+SHOW CREATE TABLE t2;
+
+--echo # Keeping a valid tablespace through ALTER TABLE:
+ALTER TABLE t1 ADD COLUMN (j INTEGER);
+CREATE TABLESPACE ts ADD DATAFILE 'f.ibd' ENGINE InnoDB;
+ALTER TABLE t1 TABLESPACE ts;
+ALTER TABLE t1 ENGINE MyISAM;
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 ENGINE InnoDB;
+SHOW CREATE TABLE t1;
+
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLESPACE ts;
+
+--echo # 3. Partitioned table DDL.
+--echo # 3.1 Create table.
+
+--error ER_WRONG_TABLESPACE_NAME
+CREATE TABLE t_part_bad (i INTEGER) PARTITION BY RANGE(i)
+PARTITIONS 2 (
+    PARTITION p0 VALUES LESS THAN(100) TABLESPACE `innodb_file_per_table.2`,
+    PARTITION p1 VALUES LESS THAN(200));
+
+CREATE TABLE t_part (i INTEGER) TABLESPACE innodb_file_per_table PARTITION BY RANGE(i)
+PARTITIONS 2 (
+    PARTITION p0 VALUES LESS THAN(100),
+    PARTITION p1 VALUES LESS THAN(200));
+SHOW CREATE TABLE t_part;
+
+CREATE TABLE t_subpart (i INTEGER) PARTITION BY RANGE(i)
+PARTITIONS 2 SUBPARTITION BY HASH(i) (
+    PARTITION p0 VALUES LESS THAN(100) (
+      SUBPARTITION sp00,
+      SUBPARTITION sp01),
+    PARTITION p1 VALUES LESS THAN(200) (
+      SUBPARTITION sp10,
+      SUBPARTITION sp11));
+SHOW CREATE TABLE t_subpart;
+
+--echo # 2.3 Alter table.
+
+ALTER TABLE t_part TABLESPACE innodb_system;
+SHOW CREATE TABLE t_part;
+
+ALTER TABLE t_subpart TABLESPACE innodb_file_per_table;
+SHOW CREATE TABLE t_subpart;
+
+--error ER_WRONG_TABLESPACE_NAME
+ALTER TABLE t_part TABLESPACE `innodb_file_per_table.2`;
+
+--error ER_WRONG_TABLESPACE_NAME
+ALTER TABLE t_subpart TABLESPACE `innodb_file_per_table.2`;
+
+--error ER_WRONG_TABLESPACE_NAME
+ALTER TABLE t_part REORGANIZE PARTITION p1 INTO
+  (PARTITION p1 VALUES LESS THAN (300) TABLESPACE `innodb_file_per_table.2`);
+
+--error ER_WRONG_TABLESPACE_NAME
+ALTER TABLE t_subpart REORGANIZE PARTITION p1 INTO
+  (PARTITION p1 VALUES LESS THAN (300) TABLESPACE `innodb_file_per_table.2`);
+
+--error ER_WRONG_TABLESPACE_NAME
+ALTER TABLE t_subpart REORGANIZE PARTITION s11 INTO
+  (PARTITION s11 TABLESPACE `innodb_file_per_table.2`);
+
+DROP TABLE t_part;
+DROP TABLE t_subpart;

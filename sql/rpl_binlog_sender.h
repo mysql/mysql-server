@@ -20,8 +20,6 @@
 #include <sys/types.h>
 #include <time.h>
 
-// Hack needed due to mysql_com.h not including my_global.h.
-#include "my_global.h"  // IWYU pragma: keep
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "mysql_com.h"
@@ -40,7 +38,7 @@ class THD;
   The major logic of dump thread is implemented in this class. It sends
   required binlog events to clients according to their requests.
 */
-class Binlog_sender
+class Binlog_sender : Gtid_mode_copy
 {
 public:
   Binlog_sender(THD *thd, const char *start_file, my_off_t start_pos,

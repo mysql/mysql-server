@@ -147,7 +147,7 @@ size_t vio_write_shared_memory(Vio *vio, const uchar *buf, size_t size)
 }
 
 
-my_bool vio_is_connected_shared_memory(Vio *vio)
+bool vio_is_connected_shared_memory(Vio *vio)
 {
   return (WaitForSingleObject(vio->event_conn_closed, 0) != WAIT_OBJECT_0);
 }

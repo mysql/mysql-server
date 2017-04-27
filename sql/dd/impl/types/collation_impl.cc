@@ -19,7 +19,6 @@
 #include "dd/impl/raw/raw_record.h"      // Raw_record
 #include "dd/impl/tables/collations.h"   // Collations
 #include "dd/impl/transaction_impl.h"    // Open_dictionary_tables_ctx
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"                // ER_*
@@ -32,7 +31,7 @@ namespace dd {
 // Collation implementation.
 ///////////////////////////////////////////////////////////////////////////
 
-const Dictionary_object_table &Collation::OBJECT_TABLE()
+const Entity_object_table &Collation::OBJECT_TABLE()
 {
   return Collations::instance();
 }
@@ -73,6 +72,7 @@ bool Collation_impl::restore_attributes(const Raw_record &r)
   m_is_compiled= r.read_bool(Collations::FIELD_IS_COMPILED);
   m_sort_length= r.read_uint(Collations::FIELD_SORT_LENGTH);
   m_charset_id= r.read_ref_id(Collations::FIELD_CHARACTER_SET_ID);
+  m_pad_attribute= r.read_str(Collations::FIELD_PAD_ATTRIBUTE);
 
   return false;
 }
@@ -85,7 +85,8 @@ bool Collation_impl::store_attributes(Raw_record *r)
          store_name(r, Collations::FIELD_NAME) ||
          r->store_ref_id(Collations::FIELD_CHARACTER_SET_ID, m_charset_id) ||
          r->store(Collations::FIELD_IS_COMPILED, m_is_compiled) ||
-         r->store(Collations::FIELD_SORT_LENGTH, m_sort_length);
+         r->store(Collations::FIELD_SORT_LENGTH, m_sort_length) ||
+         r->store(Collations::FIELD_PAD_ATTRIBUTE, m_pad_attribute);
 }
 
 ///////////////////////////////////////////////////////////////////////////

@@ -15,10 +15,13 @@
 #ifndef SQL_USER_TABLE_INCLUDED
 #define SQL_USER_TABLE_INCLUDED
 
+#include <sys/types.h>
+
 #include "derror.h"                     /* ER_DEFAULT */
 #include "log.h"                        /* error_log_print */
 #include "my_compiler.h"
 #include "my_inttypes.h"
+#include "mysqld_error.h"
 #include "sql_connect.h"
 #include "table.h"
 
@@ -81,6 +84,7 @@ typedef enum ACL_TABLES
   TABLE_PROXIES_PRIV,
   TABLE_ROLE_EDGES,
   TABLE_DEFAULT_ROLES,
+  TABLE_DYNAMIC_PRIV,
   LAST_ENTRY  /* Must always be at the end */
 } ACL_TABLES;
 

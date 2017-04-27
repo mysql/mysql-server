@@ -177,6 +177,7 @@ dict_mem_table_create(
 	table->flags2 = (unsigned int) flags2;
 	table->name.m_name = mem_strdup(name);
 	table->space = (unsigned int) space;
+	table->dd_space_id = dd::INVALID_OBJECT_ID;
 	table->n_t_cols = (unsigned int) (n_cols + table->get_n_sys_cols());
 	table->n_v_cols = (unsigned int) (n_v_cols);
 	table->n_cols = table->n_t_cols - table->n_v_cols;
@@ -226,6 +227,7 @@ dict_mem_table_create(
 	new(&table->referenced_set) dict_foreign_set();
 
 #endif /* !UNIV_LIBRARY */
+	table->is_dd_table = false;
 
 	return(table);
 }

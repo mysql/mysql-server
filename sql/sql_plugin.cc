@@ -1,5 +1,4 @@
-/*
-   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,6 +15,9 @@
 
 #include "sql_plugin.h"
 
+#include "my_config.h"
+
+#include <assert.h>
 #include <limits.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -24,6 +26,10 @@
 #include "auth_acls.h"
 #include "auth_common.h"       // check_table_access
 #include "current_thd.h"
+#include "dd/dd_schema.h"                // dd::Schema_MDL_locker
+#include "dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
+#include "dd/info_schema/metadata.h"     // dd::info_schema::store_dynamic_p...
+#include "dd/string_type.h"    // dd::String_type
 #include "debug_sync.h"        // DEBUG_SYNC
 #include "derror.h"            // ER_THD
 #include "error_handler.h"     // No_such_table_error_handler
@@ -38,7 +44,6 @@
 #include "mutex_lock.h"        // Mutex_lock
 #include "my_base.h"
 #include "my_compiler.h"
-#include "my_config.h"
 #include "my_dbug.h"
 #include "my_default.h"        // free_defaults
 #include "my_getopt.h"
@@ -406,6 +411,7 @@ mysql_mutex_t LOCK_plugin_delete;
   We are always manipulating ref count, so a rwlock here is unneccessary.
 */
 mysql_mutex_t LOCK_plugin;
+mysql_mutex_t LOCK_plugin_install;
 static Prealloced_array<st_plugin_dl*, 16> *plugin_dl_array;
 static Prealloced_array<st_plugin_int*, 16> *plugin_array;
 static HASH plugin_hash[MYSQL_MAX_PLUGIN_TYPE_NUM];
@@ -471,7 +477,7 @@ static SHOW_TYPE pluginvar_show_type(st_mysql_sys_var *plugin_var);
 */
 class sys_var_pluginvar: public sys_var
 {
-  static bool on_check_pluginvar(sys_var *self, THD *thd, set_var *var);
+  static bool on_check_pluginvar(sys_var *self, THD*, set_var *var);
 public:
   st_plugin_int *plugin;
   st_mysql_sys_var *plugin_var;
@@ -485,14 +491,16 @@ public:
   const char *orig_pluginvar_name;
 
   static void *operator new(size_t size, MEM_ROOT *mem_root,
-                            const std::nothrow_t &arg= std::nothrow) throw ()
+                            const std::nothrow_t &arg MY_ATTRIBUTE((unused))=
+                            std::nothrow) throw ()
   { return alloc_root(mem_root, size); }
 
-  static void operator delete(void *ptr_arg,size_t size)
+  static void operator delete(void *ptr_arg MY_ATTRIBUTE((unused)),
+                              size_t size MY_ATTRIBUTE((unused)))
   { TRASH(ptr_arg, size); }
 
-  static void operator delete(void *ptr, MEM_ROOT *mem_root,
-                              const std::nothrow_t &arg) throw ()
+  static void operator delete(void*, MEM_ROOT*,
+                              const std::nothrow_t&) throw ()
   { /* never called */ }
 
   sys_var_pluginvar(sys_var_chain *chain, const char *name_arg,
@@ -520,15 +528,15 @@ public:
   uchar* global_value_ptr(THD *thd, LEX_STRING *base)
   { return do_value_ptr(thd, OPT_GLOBAL, base); }
   bool do_check(THD *thd, set_var *var);
-  virtual void session_save_default(THD *thd, set_var *var) {}
-  virtual void global_save_default(THD *thd, set_var *var) {}
+  virtual void session_save_default(THD*, set_var*) {}
+  virtual void global_save_default(THD*, set_var*) {}
   bool session_update(THD *thd, set_var *var);
   bool global_update(THD *thd, set_var *var);
   bool is_default(THD *thd, set_var *var);
   longlong get_min_value();
   ulonglong get_max_value();
   void set_arg_source(get_opt_arg_source *src)
-  { source.m_name= src->m_name; source.m_source= src->m_source; }
+  { source.m_path_name= src->m_path_name; source.m_source= src->m_source; }
 };
 
 
@@ -536,14 +544,14 @@ public:
 static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv);
 static bool plugin_load_list(MEM_ROOT *tmp_root, int *argc, char **argv,
                              const char *list);
-static my_bool check_if_option_is_deprecated(int optid,
-                                             const struct my_option *opt,
-                                             char *argument);
+static bool check_if_option_is_deprecated(int optid,
+                                          const struct my_option *opt,
+                                          char *argument);
 static int test_plugin_options(MEM_ROOT *, st_plugin_int *,
                                int *, char **);
 static bool register_builtin(st_mysql_plugin *, st_plugin_int *,
                              st_plugin_int **);
-static void unlock_variables(THD *thd, struct System_variables *vars);
+static void unlock_variables(struct System_variables *vars);
 static void cleanup_variables(THD *thd, struct System_variables *vars);
 static void plugin_vars_free_values(sys_var *vars);
 static bool plugin_var_memalloc_session_update(THD *thd,
@@ -1510,11 +1518,13 @@ static inline void convert_underscore_to_dash(char *str, size_t len)
 #ifdef HAVE_PSI_INTERFACE
 static PSI_mutex_key key_LOCK_plugin;
 static PSI_mutex_key key_LOCK_plugin_delete;
+static PSI_mutex_key key_LOCK_plugin_install;
 
 static PSI_mutex_info all_plugin_mutexes[]=
 {
   { &key_LOCK_plugin, "LOCK_plugin", PSI_FLAG_GLOBAL, 0},
-  { &key_LOCK_plugin_delete, "LOCK_plugin_delete", PSI_FLAG_GLOBAL, 0}
+  { &key_LOCK_plugin_delete, "LOCK_plugin_delete", PSI_FLAG_GLOBAL, 0},
+  { &key_LOCK_plugin_install, "LOCK_plugin_install", PSI_FLAG_GLOBAL, 0}
 };
 
 
@@ -1570,6 +1580,7 @@ static bool plugin_init_internals()
 
   mysql_mutex_init(key_LOCK_plugin, &LOCK_plugin, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_plugin_delete, &LOCK_plugin_delete, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_plugin_install, &LOCK_plugin_install, MY_MUTEX_INIT_FAST);
 
   plugin_dl_array= new (std::nothrow)
     Prealloced_array<st_plugin_dl*, 16>(key_memory_mysql_plugin_dl);
@@ -1978,10 +1989,10 @@ static bool plugin_load_list(MEM_ROOT *tmp_root, int *argc, char **argv,
     case '\0':
       list= NULL; /* terminate the loop */
       /* fall through */
+    case ';':
 #ifndef _WIN32
     case ':':     /* can't use this as delimiter as it may be drive letter */
 #endif
-    case ';':
       str->str[str->length]= '\0';
       if (str == &name)  // load all plugins in named module
       {
@@ -2028,6 +2039,7 @@ static bool plugin_load_list(MEM_ROOT *tmp_root, int *argc, char **argv,
         str->str= p;
         continue;
       }
+      // Fall through.
     default:
       str->length++;
       continue;
@@ -2115,8 +2127,8 @@ void plugin_shutdown(void)
         /*
           release any plugin references held.
         */
-        unlock_variables(NULL, &global_system_variables);
-        unlock_variables(NULL, &max_system_variables);
+        unlock_variables(&global_system_variables);
+        unlock_variables(&max_system_variables);
       }
     }
 
@@ -2214,6 +2226,27 @@ void plugin_shutdown(void)
 }
 
 
+// Helper function to do rollback or commit, depending on error.
+static bool end_transaction(THD *thd, bool error)
+{
+  if (error)
+  {
+    // Rollback the statement before we can rollback the real transaction.
+    trans_rollback_stmt(thd);
+    trans_rollback(thd);
+  }
+  else if (trans_commit_stmt(thd) || trans_commit(thd))
+  {
+    error= true;
+    trans_rollback(thd);
+  }
+
+  // Close tables regardless of error.
+  close_thread_tables(thd);
+  return error;
+}
+
+
 static bool mysql_install_plugin(THD *thd, const LEX_STRING *name,
                                  const LEX_STRING *dl)
 {
@@ -2222,10 +2255,14 @@ static bool mysql_install_plugin(THD *thd, const LEX_STRING *name,
   bool error= true;
   int argc= orig_argc;
   char **argv= orig_argv;
-  st_plugin_int *tmp;
+  st_plugin_int *tmp= nullptr;
   LEX_CSTRING name_cstr= {name->str, name->length};
+  bool store_infoschema_metadata= false;
+  dd::Schema_MDL_locker mdl_handler(thd);
 
   DBUG_ENTER("mysql_install_plugin");
+
+  Disable_autocommit_guard autocommit_guard(thd);
 
   tables.init_one_table("mysql", 5, "plugin", 6, "plugin", TL_WRITE);
 
@@ -2260,6 +2297,8 @@ static bool mysql_install_plugin(THD *thd, const LEX_STRING *name,
   mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_GENERAL_CLASS,
                               MYSQL_AUDIT_GENERAL_ALL);
 
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  mysql_mutex_lock(&LOCK_plugin_install);
   mysql_mutex_lock(&LOCK_plugin);
   DEBUG_SYNC(thd, "acquired_LOCK_plugin");
   mysql_rwlock_wrlock(&LOCK_system_variables_hash);
@@ -2269,6 +2308,7 @@ static bool mysql_install_plugin(THD *thd, const LEX_STRING *name,
   {
     mysql_rwlock_unlock(&LOCK_system_variables_hash);
     report_error(REPORT_TO_USER, ER_PLUGIN_IS_NOT_LOADED, name->str);
+    mysql_mutex_unlock(&LOCK_plugin);
     goto err;
   }
   error= plugin_add(thd->mem_root, name, dl, &argc, argv, REPORT_TO_USER);
@@ -2277,8 +2317,12 @@ static bool mysql_install_plugin(THD *thd, const LEX_STRING *name,
   mysql_rwlock_unlock(&LOCK_system_variables_hash);
 
   if (error || !(tmp= plugin_find_internal(name_cstr, MYSQL_ANY_PLUGIN)))
+  {
+    mysql_mutex_unlock(&LOCK_plugin);
     goto err;
+  }
 
+  error= false;
   if (tmp->state == PLUGIN_IS_DISABLED)
   {
     push_warning_printf(thd, Sql_condition::SL_WARNING,
@@ -2290,48 +2334,79 @@ static bool mysql_install_plugin(THD *thd, const LEX_STRING *name,
   {
     if (plugin_initialize(tmp))
     {
-      mysql_mutex_unlock(&LOCK_plugin);
       my_error(ER_CANT_INITIALIZE_UDF, MYF(0), name->str,
                "Plugin initialization function failed.");
-      goto deinit;
+      error= true;
     }
   }
+
+  // Check if we need to store I_S plugin metadata in DD.
+  store_infoschema_metadata=
+    (tmp->plugin->type == MYSQL_INFORMATION_SCHEMA_PLUGIN &&
+     tmp->state != PLUGIN_IS_DISABLED);
   mysql_mutex_unlock(&LOCK_plugin);
+
+  // Acquire MDL lock if we are storing metadata in DD.
+  if (store_infoschema_metadata)
+  {
+    if (!mdl_handler.ensure_locked(INFORMATION_SCHEMA_NAME.str))
+    {
+      MDL_request mdl_request;
+      MDL_REQUEST_INIT(&mdl_request, MDL_key::TABLE,
+                       INFORMATION_SCHEMA_NAME.str, tmp->name.str,
+                       MDL_EXCLUSIVE,
+                       MDL_TRANSACTION);
+      if (thd->mdl_context.acquire_lock(&mdl_request,
+                                        thd->variables.lock_wait_timeout))
+        error= true;
+    }
+    else
+      error= true;
+  }
 
   /*
     We do not replicate the INSTALL PLUGIN statement. Disable binlogging
     of the insert into the plugin table, so that it is not replicated in
     row based mode.
   */
-  tmp_disable_binlog(thd);
-  table->use_all_columns();
-  restore_record(table, s->default_values);
-  table->field[0]->store(name->str, name->length, system_charset_info);
-  table->field[1]->store(dl->str, dl->length, files_charset_info);
-  error= table->file->ha_write_row(table->record[0]);
-  reenable_binlog(thd);
+  if (!error)
+  {
+    Disable_binlog_guard binlog_guard(thd);
+    table->use_all_columns();
+    restore_record(table, s->default_values);
+    table->field[0]->store(name->str, name->length, system_charset_info);
+    table->field[1]->store(dl->str, dl->length, files_charset_info);
+    error= table->file->ha_write_row(table->record[0]);
+    if (error)
+    {
+      table->file->print_error(error, MYF(0));
+    }
+    else
+    {
+      mysql_mutex_lock(&LOCK_plugin);
+      /*
+        Store plugin I_S table metadata into DD tables. The
+        tables are closed before the function returns.
+       */
+      error= thd->transaction_rollback_request;
+      if (!error && store_infoschema_metadata)
+        error= dd::info_schema::store_dynamic_plugin_I_S_metadata(thd, tmp);
+      mysql_mutex_unlock(&LOCK_plugin);
+    }
+  }
+
   if (error)
   {
-    table->file->print_error(error, MYF(0));
-    trans_rollback_stmt(thd);
-    goto deinit;
+    mysql_mutex_lock(&LOCK_plugin);
+    tmp->state= PLUGIN_IS_DELETED;
+    reap_needed= true;
+    reap_plugins();
+    mysql_mutex_unlock(&LOCK_plugin);
   }
-  else
-    trans_commit_stmt(thd);
 
-  close_mysql_tables(thd);
-  DBUG_RETURN(false);
-deinit:
-  mysql_mutex_lock(&LOCK_plugin);
-  tmp->state= PLUGIN_IS_DELETED;
-  reap_needed= true;
-  reap_plugins();
 err:
-  mysql_mutex_unlock(&LOCK_plugin);
-  trans_rollback_stmt(thd);
-  close_mysql_tables(thd);
-
-  DBUG_RETURN(true);
+  mysql_mutex_unlock(&LOCK_plugin_install);
+  DBUG_RETURN(end_transaction(thd, error));
 }
 
 
@@ -2342,6 +2417,10 @@ static bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
   st_plugin_int *plugin;
   LEX_CSTRING name_cstr={name->str, name->length};
   bool error= true;
+  int rc= 0;
+  bool remove_IS_metadata_from_dd= false;
+  dd::Schema_MDL_locker mdl_handler(thd);
+  dd::String_type orig_plugin_name;
 
   DBUG_ENTER("mysql_uninstall_plugin");
 
@@ -2349,19 +2428,26 @@ static bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
 
   if (!opt_noacl &&
       check_table_access(thd, DELETE_ACL, &tables, false, 1, false))
+  {
+    DBUG_ASSERT(thd->is_error());
     DBUG_RETURN(true);
+  }
 
+  Disable_autocommit_guard autocommit_guard(thd);
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   /* need to open before acquiring LOCK_plugin or it will deadlock */
   if (! (table= open_ltable(thd, &tables, TL_WRITE, MYSQL_LOCK_IGNORE_TIMEOUT)))
+  {
+    DBUG_ASSERT(thd->is_error());
     DBUG_RETURN(true);
+  }
 
+  mysql_mutex_lock(&LOCK_plugin_install);
   if (!table->key_info)
   {
     my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
              table->s->table_name.str);
-    trans_rollback_stmt(thd);
-    close_thread_tables(thd);
-    DBUG_RETURN(true);
+    goto err;
   }
 
   /*
@@ -2466,6 +2552,13 @@ static bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
                  WARN_PLUGIN_BUSY, ER_THD(thd, WARN_PLUGIN_BUSY));
   else
     reap_needed= true;
+
+  // Check if we need to remove I_S plugin metadata from DD.
+  remove_IS_metadata_from_dd=
+    (plugin->plugin->type == MYSQL_INFORMATION_SCHEMA_PLUGIN &&
+     plugin->load_option != PLUGIN_OFF);
+
+  orig_plugin_name= dd::String_type(plugin->name.str, plugin->name.length);
   reap_plugins();
   mysql_mutex_unlock(&LOCK_plugin);
 
@@ -2475,38 +2568,50 @@ static bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
   key_copy(user_key, table->record[0], table->key_info,
            table->key_info->key_length);
 
-  if (! table->file->ha_index_read_idx_map(table->record[0], 0, user_key,
-                                           HA_WHOLE_KEY, HA_READ_KEY_EXACT))
+  if ((rc=table->file->ha_index_read_idx_map(table->record[0], 0,
+                                             user_key,
+                                             HA_WHOLE_KEY,
+                                             HA_READ_KEY_EXACT)) == 0)
   {
     /*
       We do not replicate the UNINSTALL PLUGIN statement. Disable binlogging
       of the delete from the plugin table, so that it is not replicated in
       row based mode.
     */
-    tmp_disable_binlog(thd);
-    error= table->file->ha_delete_row(table->record[0]);
-    reenable_binlog(thd);
-    if (error)
-      table->file->print_error(error, MYF(0));
+    DBUG_ASSERT(!thd->is_error());
+    Disable_binlog_guard binlog_guard(thd);
+    rc= table->file->ha_delete_row(table->record[0]);
+    if (rc)
+    {
+      table->file->print_error(rc, MYF(0));
+      DBUG_ASSERT(thd->is_error());
+    }
+    else
+      error= false;
   }
-  else
+  else if (rc != HA_ERR_KEY_NOT_FOUND && rc != HA_ERR_END_OF_FILE)
   {
+    table->file->print_error(rc, MYF(0));
+    DBUG_ASSERT(thd->is_error());
+  }
+  else
     error= false;
+
+  if (!error &&
+      !thd->transaction_rollback_request &&
+      remove_IS_metadata_from_dd)
+  {
+    error= dd::info_schema::remove_I_S_view_metadata(
+             thd, dd::String_type(orig_plugin_name.c_str(),
+                                  orig_plugin_name.length()));
+    if (error)
+      DBUG_ASSERT(thd->is_error());
   }
 
-  if (error)
-    trans_rollback_stmt(thd);
-  else
-    trans_commit_stmt(thd);
-
-  close_mysql_tables(thd);
-
-  DBUG_RETURN(error);
 err:
-  trans_rollback_stmt(thd);
-  close_mysql_tables(thd);
-
-  DBUG_RETURN(true);
+  mysql_mutex_unlock(&LOCK_plugin_install);
+  DBUG_RETURN(end_transaction(thd, error ||
+                              thd->transaction_rollback_request));
 }
 
 bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func **funcs,
@@ -2591,8 +2696,8 @@ bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func *func,
 
 #define EXTRA_OPTIONS 3 /* options for: 'foo', 'plugin-foo' and NULL */
 
-typedef DECLARE_MYSQL_SYSVAR_BASIC(sysvar_bool_t, my_bool);
-typedef DECLARE_MYSQL_THDVAR_BASIC(thdvar_bool_t, my_bool);
+typedef DECLARE_MYSQL_SYSVAR_BASIC(sysvar_bool_t, bool);
+typedef DECLARE_MYSQL_THDVAR_BASIC(thdvar_bool_t, bool);
 typedef DECLARE_MYSQL_SYSVAR_BASIC(sysvar_str_t, char *);
 typedef DECLARE_MYSQL_THDVAR_BASIC(thdvar_str_t, char *);
 
@@ -2622,7 +2727,7 @@ typedef DECLARE_MYSQL_THDVAR_SIMPLE(thdvar_double_t, double);
   default variable data check and update functions
 ****************************************************************************/
 
-static int check_func_bool(THD *thd, st_mysql_sys_var *var,
+static int check_func_bool(THD*, st_mysql_sys_var*,
                            void *save, st_mysql_value *value)
 {
   char buff[STRING_BUFFER_USUAL_SIZE];
@@ -2645,7 +2750,7 @@ static int check_func_bool(THD *thd, st_mysql_sys_var *var,
       goto err;
     result= (int) tmp;
   }
-  *(my_bool *) save= result ? TRUE : FALSE;
+  *(bool *) save= result ? TRUE : FALSE;
   return 0;
 err:
   return 1;
@@ -2655,7 +2760,7 @@ err:
 static int check_func_int(THD *thd, st_mysql_sys_var *var,
                           void *save, st_mysql_value *value)
 {
-  my_bool fixed1, fixed2;
+  bool fixed1, fixed2;
   long long orig, val;
   struct my_option options;
   value->val_int(value, &orig);
@@ -2684,7 +2789,7 @@ static int check_func_int(THD *thd, st_mysql_sys_var *var,
 static int check_func_long(THD *thd, st_mysql_sys_var *var,
                           void *save, st_mysql_value *value)
 {
-  my_bool fixed1, fixed2;
+  bool fixed1, fixed2;
   long long orig, val;
   struct my_option options;
   value->val_int(value, &orig);
@@ -2713,7 +2818,7 @@ static int check_func_long(THD *thd, st_mysql_sys_var *var,
 static int check_func_longlong(THD *thd, st_mysql_sys_var *var,
                                void *save, st_mysql_value *value)
 {
-  my_bool fixed1, fixed2;
+  bool fixed1, fixed2;
   long long orig, val;
   struct my_option options;
   value->val_int(value, &orig);
@@ -2738,7 +2843,7 @@ static int check_func_longlong(THD *thd, st_mysql_sys_var *var,
                               value->is_unsigned(value), orig);
 }
 
-static int check_func_str(THD *thd, st_mysql_sys_var *var,
+static int check_func_str(THD *thd, st_mysql_sys_var*,
                           void *save, st_mysql_value *value)
 {
   char buff[STRING_BUFFER_USUAL_SIZE];
@@ -2753,7 +2858,7 @@ static int check_func_str(THD *thd, st_mysql_sys_var *var,
 }
 
 
-static int check_func_enum(THD *thd, st_mysql_sys_var *var,
+static int check_func_enum(THD*, st_mysql_sys_var *var,
                            void *save, st_mysql_value *value)
 {
   char buff[STRING_BUFFER_USUAL_SIZE];
@@ -2791,7 +2896,7 @@ err:
 }
 
 
-static int check_func_set(THD *thd, st_mysql_sys_var *var,
+static int check_func_set(THD*, st_mysql_sys_var *var,
                           void *save, st_mysql_value *value)
 {
   char buff[STRING_BUFFER_USUAL_SIZE], *error= 0;
@@ -2835,7 +2940,7 @@ static int check_func_double(THD *thd, st_mysql_sys_var *var,
                              void *save, st_mysql_value *value)
 {
   double v;
-  my_bool fixed;
+  bool fixed;
   struct my_option option;
 
   value->val_real(value, &v);
@@ -2846,41 +2951,41 @@ static int check_func_double(THD *thd, st_mysql_sys_var *var,
 }
 
 
-static void update_func_bool(THD *thd, st_mysql_sys_var *var,
+static void update_func_bool(THD*, st_mysql_sys_var*,
                              void *tgt, const void *save)
 {
-  *(my_bool *) tgt= *(my_bool *) save ? TRUE : FALSE;
+  *(bool *) tgt= *(bool *) save ? TRUE : FALSE;
 }
 
 
-static void update_func_int(THD *thd, st_mysql_sys_var *var,
-                             void *tgt, const void *save)
+static void update_func_int(THD*, st_mysql_sys_var*,
+                            void *tgt, const void *save)
 {
   *(int *)tgt= *(int *) save;
 }
 
 
-static void update_func_long(THD *thd, st_mysql_sys_var *var,
+static void update_func_long(THD*, st_mysql_sys_var*,
                              void *tgt, const void *save)
 {
   *(long *)tgt= *(long *) save;
 }
 
 
-static void update_func_longlong(THD *thd, st_mysql_sys_var *var,
-                             void *tgt, const void *save)
+static void update_func_longlong(THD*, st_mysql_sys_var*,
+                                 void *tgt, const void *save)
 {
   *(longlong *)tgt= *(ulonglong *) save;
 }
 
 
-static void update_func_str(THD *thd, st_mysql_sys_var *var,
+static void update_func_str(THD*, st_mysql_sys_var*,
                              void *tgt, const void *save)
 {
   *(char **) tgt= *(char **) save;
 }
 
-static void update_func_double(THD *thd, st_mysql_sys_var *var,
+static void update_func_double(THD*, st_mysql_sys_var*,
                                void *tgt, const void *save)
 {
   *(double *) tgt= *(double *) save;
@@ -3004,7 +3109,7 @@ static st_bookmark *register_var(const char *plugin, const char *name,
 
   switch (flags & PLUGIN_VAR_TYPEMASK) {
   case PLUGIN_VAR_BOOL:
-    size= sizeof(my_bool);
+    size= sizeof(bool);
     break;
   case PLUGIN_VAR_INT:
     size= sizeof(int);
@@ -3245,9 +3350,9 @@ static uchar *intern_sys_var_ptr(THD* thd, int offset, bool global_lock)
   construct_options to their respective types.
 */
 
-static char *mysql_sys_var_char(THD* thd, int offset)
+static bool *mysql_sys_var_bool(THD* thd, int offset)
 {
-  return (char *) intern_sys_var_ptr(thd, offset, true);
+  return (bool *) intern_sys_var_ptr(thd, offset, true);
 }
 
 static int *mysql_sys_var_int(THD* thd, int offset)
@@ -3329,7 +3434,7 @@ void plugin_thdvar_init(THD *thd, bool enable_plugins)
 /*
   Unlocks all system variables which hold a reference
 */
-static void unlock_variables(THD *thd, struct System_variables *vars)
+static void unlock_variables(struct System_variables *vars)
 {
   intern_plugin_unlock(NULL, vars->table_plugin);
   intern_plugin_unlock(NULL, vars->temp_table_plugin);
@@ -3374,7 +3479,7 @@ void plugin_thdvar_cleanup(THD *thd, bool enable_plugins)
   if (enable_plugins)
   {
     Mutex_lock plugin_lock(&LOCK_plugin);
-    unlock_variables(thd, &thd->variables);
+    unlock_variables(&thd->variables);
     size_t idx;
     if ((idx= thd->lex->plugins.size()))
     {
@@ -3666,7 +3771,7 @@ TYPELIB* sys_var_pluginvar::plugin_var_typelib(void)
 
 
 uchar* sys_var_pluginvar::do_value_ptr(THD *running_thd, THD *target_thd, enum_var_type type,
-                                       LEX_STRING *base)
+                                       LEX_STRING*)
 {
   uchar* result;
 
@@ -3812,7 +3917,7 @@ bool sys_var_pluginvar::is_default(THD *thd, set_var *var)
     case PLUGIN_VAR_SET:
       return (((sysvar_set_t*) plugin_var)->def_val == *(ulong *)tgt);
     case PLUGIN_VAR_BOOL:
-      return (((sysvar_bool_t*) plugin_var)->def_val == *(my_bool *)tgt);
+      return (((sysvar_bool_t*) plugin_var)->def_val == *(bool *)tgt);
     case PLUGIN_VAR_STR:
       return
         !strcmp((char*)(((sysvar_str_t*) plugin_var)->def_val),*(char **)tgt);
@@ -3830,7 +3935,7 @@ bool sys_var_pluginvar::is_default(THD *thd, set_var *var)
     case PLUGIN_VAR_SET | PLUGIN_VAR_THDLOCAL:
       return (((thdvar_set_t*) plugin_var)->def_val == *(ulong *)tgt);
     case PLUGIN_VAR_BOOL | PLUGIN_VAR_THDLOCAL:
-      return (((thdvar_bool_t*) plugin_var)->def_val == *(my_bool *)tgt);
+      return (((thdvar_bool_t*) plugin_var)->def_val == *(bool *)tgt);
     case PLUGIN_VAR_STR | PLUGIN_VAR_THDLOCAL:
       return
         !strcmp((char*)(((thdvar_str_t*) plugin_var)->def_val),*(char **)tgt);
@@ -3907,13 +4012,13 @@ ulonglong sys_var_pluginvar::get_max_value()
     sys_var_pluginvar::do_check(), PLUGIN_VAR_NODEFAULT
 
   @param self   the sys_var structure for the variable being set
-  @param thd    the current thread
   @param var    the data about the value being set
   @return is the setting valid
   @retval true not valid
   @retval false valid
 */
-bool sys_var_pluginvar::on_check_pluginvar(sys_var *self, THD *thd, set_var *var)
+bool sys_var_pluginvar::on_check_pluginvar(sys_var *self MY_ATTRIBUTE((unused)),
+                                           THD*, set_var *var)
 {
   /* This handler is installed only if NO_DEFAULT is specified */
   DBUG_ASSERT(((sys_var_pluginvar *) self)->plugin_var->flags &
@@ -4044,12 +4149,10 @@ static void plugin_opt_set_limits(struct my_option *options,
     options->arg_type= OPT_ARG;
 }
 
-extern "C" my_bool get_one_plugin_option(int optid, const struct my_option *,
-                                         char *);
+extern "C" bool get_one_plugin_option(int, const struct my_option*,
+                                      char *);
 
-my_bool get_one_plugin_option(int optid MY_ATTRIBUTE((unused)),
-                              const struct my_option *opt,
-                              char *argument)
+bool get_one_plugin_option(int, const struct my_option*, char*)
 {
   return 0;
 }
@@ -4133,7 +4236,7 @@ static int construct_options(MEM_ROOT *mem_root, st_plugin_int *tmp,
     options[0].arg_source= options[1].arg_source=
       (get_opt_arg_source *)alloc_root(mem_root, sizeof(get_opt_arg_source));
     memset(options[0].arg_source, 0, sizeof(get_opt_arg_source));
-    options[0].arg_source->m_name= options[1].arg_source->m_name= 0;
+    options[0].arg_source->m_path_name= options[1].arg_source->m_path_name= 0;
     options[0].arg_source->m_source= options[1].arg_source->m_source=
       enum_variable_source::COMPILED;
 
@@ -4161,7 +4264,7 @@ static int construct_options(MEM_ROOT *mem_root, st_plugin_int *tmp,
       continue;
     switch (opt->flags & PLUGIN_VAR_TYPEMASK) {
     case PLUGIN_VAR_BOOL:
-      ((thdvar_bool_t *) opt)->resolve= mysql_sys_var_char;
+      ((thdvar_bool_t *) opt)->resolve= mysql_sys_var_bool;
       break;
     case PLUGIN_VAR_INT:
       ((thdvar_int_t *) opt)->resolve= mysql_sys_var_int;
@@ -4323,7 +4426,7 @@ static int construct_options(MEM_ROOT *mem_root, st_plugin_int *tmp,
     options[0].arg_source= options[1].arg_source=
       (get_opt_arg_source *)alloc_root(mem_root, sizeof(get_opt_arg_source));
     memset(options[0].arg_source, 0, sizeof(get_opt_arg_source));
-    options[0].arg_source->m_name= options[1].arg_source->m_name= 0;
+    options[0].arg_source->m_path_name= options[1].arg_source->m_path_name= 0;
     options[0].arg_source->m_source= options[1].arg_source->m_source=
       enum_variable_source::COMPILED;
 
@@ -4380,9 +4483,9 @@ static my_option *construct_help_options(MEM_ROOT *mem_root,
   @retval 0 Success
 */
 
-static my_bool check_if_option_is_deprecated(int optid,
-                                             const struct my_option *opt,
-                                             char *argument MY_ATTRIBUTE((unused)))
+static bool check_if_option_is_deprecated(int optid,
+                                          const struct my_option *opt,
+                                          char *argument MY_ATTRIBUTE((unused)))
 {
   if (optid == -1)
   {

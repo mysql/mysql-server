@@ -1,6 +1,5 @@
 --disable_ps_protocol
 --disable_warnings
---source include/not_embedded.inc
 call mtr.add_suppression("Plugin keyring_file reported: \'Keyring initialization failure\'");
 call mtr.add_suppression("Plugin \'keyring_file\' init function returned error");
 call mtr.add_suppression("Cannot create keyring directory: ../bad_dir/../..");

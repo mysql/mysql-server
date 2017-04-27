@@ -17,10 +17,12 @@
  * 02110-1301  USA
  */
 
+#include "my_config.h"
+
+#include <sys/types.h>
 #include <new>
 #include <utility>
 
-#include "my_config.h"
 #include "my_dbug.h"
 #include "ngs/log.h"
 #include "ngs/protocol/buffer.h"

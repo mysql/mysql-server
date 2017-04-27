@@ -19,7 +19,6 @@
 #include <sys/types.h>
 
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "my_sys.h"                        // free_root
@@ -136,7 +135,7 @@ public:
   }
 
   explicit Delegate(
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_RWLOCK_INTERFACE
            PSI_rwlock_key key
 #endif
                     );
@@ -155,7 +154,7 @@ private:
   bool inited;
 };
 
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_RWLOCK_INTERFACE
 extern PSI_rwlock_key key_rwlock_Trans_delegate_lock;
 #endif
 
@@ -165,7 +164,7 @@ public:
 
   Trans_delegate()
   : Delegate(
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_RWLOCK_INTERFACE
              key_rwlock_Trans_delegate_lock
 #endif
              )
@@ -177,7 +176,7 @@ public:
   int before_commit(THD *thd, bool all,
                     IO_CACHE *trx_cache_log,
                     IO_CACHE *stmt_cache_log,
-                    ulonglong cache_log_max_size);
+                    ulonglong cache_log_max_size, bool is_atomic_ddl);
   int before_rollback(THD *thd, bool all);
   int after_commit(THD *thd, bool all);
   int after_rollback(THD *thd, bool all);
@@ -187,7 +186,7 @@ private:
                           uint& number_of_tables);
 };
 
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_RWLOCK_INTERFACE
 extern PSI_rwlock_key key_rwlock_Server_state_delegate_lock;
 #endif
 
@@ -197,7 +196,7 @@ public:
 
   Server_state_delegate()
   : Delegate(
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_RWLOCK_INTERFACE
              key_rwlock_Server_state_delegate_lock
 #endif
              )
@@ -212,7 +211,7 @@ public:
   int after_server_shutdown(THD *thd);
 };
 
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_RWLOCK_INTERFACE
 extern PSI_rwlock_key key_rwlock_Binlog_storage_delegate_lock;
 #endif
 
@@ -222,7 +221,7 @@ public:
 
   Binlog_storage_delegate()
   : Delegate(
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_RWLOCK_INTERFACE
              key_rwlock_Binlog_storage_delegate_lock
 #endif
              )
@@ -235,7 +234,7 @@ public:
                  my_off_t log_pos);
 };
 
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_RWLOCK_INTERFACE
 extern PSI_rwlock_key key_rwlock_Binlog_transmit_delegate_lock;
 #endif
 
@@ -245,7 +244,7 @@ public:
 
   Binlog_transmit_delegate()
   : Delegate(
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_RWLOCK_INTERFACE
              key_rwlock_Binlog_transmit_delegate_lock
 #endif
              )
@@ -266,7 +265,7 @@ public:
   int after_reset_master(THD *thd, ushort flags);
 };
 
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_RWLOCK_INTERFACE
 extern PSI_rwlock_key key_rwlock_Binlog_relay_IO_delegate_lock;
 #endif
 
@@ -276,7 +275,7 @@ public:
 
   Binlog_relay_IO_delegate()
   : Delegate(
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_RWLOCK_INTERFACE
              key_rwlock_Binlog_relay_IO_delegate_lock
 #endif
              )

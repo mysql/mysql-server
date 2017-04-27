@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 
 #include <m_string.h>
 #include <stdarg.h>
+#include <stdarg.h>
 #include <string.h>
 #include <sys/types.h>
 
@@ -29,8 +30,8 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysys_priv.h"
 
-my_bool init_dynamic_string(DYNAMIC_STRING *str, const char *init_str,
-			    size_t init_alloc, size_t alloc_increment)
+bool init_dynamic_string(DYNAMIC_STRING *str, const char *init_str,
+                         size_t init_alloc, size_t alloc_increment)
 {
   size_t length;
   DBUG_ENTER("init_dynamic_string");
@@ -55,7 +56,7 @@ my_bool init_dynamic_string(DYNAMIC_STRING *str, const char *init_str,
 }
 
 
-my_bool dynstr_set(DYNAMIC_STRING *str, const char *init_str)
+bool dynstr_set(DYNAMIC_STRING *str, const char *init_str)
 {
   uint length=0;
   DBUG_ENTER("dynstr_set");
@@ -81,7 +82,7 @@ my_bool dynstr_set(DYNAMIC_STRING *str, const char *init_str)
 }
 
 
-my_bool dynstr_realloc(DYNAMIC_STRING *str, size_t additional_size)
+bool dynstr_realloc(DYNAMIC_STRING *str, size_t additional_size)
 {
   DBUG_ENTER("dynstr_realloc");
 
@@ -98,14 +99,14 @@ my_bool dynstr_realloc(DYNAMIC_STRING *str, size_t additional_size)
 }
 
 
-my_bool dynstr_append(DYNAMIC_STRING *str, const char *append)
+bool dynstr_append(DYNAMIC_STRING *str, const char *append)
 {
   return dynstr_append_mem(str,append,(uint) strlen(append));
 }
 
 
-my_bool dynstr_append_mem(DYNAMIC_STRING *str, const char *append,
-			  size_t length)
+bool dynstr_append_mem(DYNAMIC_STRING *str, const char *append,
+                       size_t length)
 {
   char *new_ptr;
   if (str->length+length >= str->max_length)
@@ -126,7 +127,7 @@ my_bool dynstr_append_mem(DYNAMIC_STRING *str, const char *append,
 }
 
 
-my_bool dynstr_trunc(DYNAMIC_STRING *str, size_t n)
+bool dynstr_trunc(DYNAMIC_STRING *str, size_t n)
 {
   str->length-=n;
   str->str[str->length]= '\0';
@@ -149,7 +150,7 @@ my_bool dynstr_trunc(DYNAMIC_STRING *str, size_t n)
   @return True = Success.
 */
 
-my_bool dynstr_append_os_quoted(DYNAMIC_STRING *str, const char *append, ...)
+bool dynstr_append_os_quoted(DYNAMIC_STRING *str, const char *append, ...)
 {
 #ifdef _WIN32
   const char *quote_str= "\"";
@@ -158,7 +159,7 @@ my_bool dynstr_append_os_quoted(DYNAMIC_STRING *str, const char *append, ...)
   const char *quote_str= "\'";
   const uint  quote_len= 1;
 #endif /* _WIN32 */
-  my_bool ret= TRUE;
+  bool ret= TRUE;
   va_list dirty_text;
 
   ret&= dynstr_append_mem(str, quote_str, quote_len); /* Leading quote */

@@ -1,6 +1,4 @@
 --source include/windows.inc
-# Embedded server does not support restarting.
---source include/not_embedded.inc
 
 select @@innodb_flush_method;
 select @@innodb_use_native_aio;

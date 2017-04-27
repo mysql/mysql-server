@@ -21,7 +21,6 @@ set ndb_join_pushdown = false;
 --enable_query_log
 
 # bug#36342
--- source include/not_embedded.inc
 
 -- source include/have_ndb.inc
 let $type= 'NDB' ;

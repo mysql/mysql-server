@@ -28,6 +28,7 @@ Created 1/8/1996 Heikki Tuuri
 
 #include <stdlib.h>
 #include <strfunc.h>
+#include <sys/types.h>
 #include <algorithm>
 #include <string>
 
@@ -38,7 +39,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "ha_prototypes.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "mysqld.h"                             // system_charset_info
+#include "mysqld.h"			// system_charset_info
 #include "que0types.h"
 #include "row0sel.h"
 
@@ -89,12 +90,6 @@ extern uint	ibuf_debug;
 #include "trx0undo.h"
 #include "ut0new.h"
 
-/** TRUE if we don't have DDTableBuffer in the system tablespace,
-this should be due to we run the server against old data files.
-Please do NOT change this when server is running.
-FIXME: This should be removed away once we can upgrade for new DD. */
-extern bool	srv_missing_dd_table_buffer;
-
 /** the dictionary system */
 dict_sys_t*	dict_sys	= NULL;
 
@@ -142,6 +137,9 @@ ulong	zip_pad_max = 50;
 
 /** Identifies generated InnoDB foreign key names */
 static char	dict_ibfk[] = "_ibfk_";
+
+/** Array to store table_ids of INNODB_SYS_* TABLES */
+static table_id_t	dict_sys_table_id[SYS_NUM_SYSTEM_TABLES];
 
 /** Tries to find column names for the index and sets the col field of the
 index.
@@ -465,12 +463,12 @@ dict_table_try_drop_aborted(
 	trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
 
 	if (table == NULL) {
-		table = dd_table_open_on_id(table_id, nullptr, nullptr, false);
+		table = dd_table_open_on_id(table_id, nullptr, nullptr, true);
 
 		/* Decrement the ref count. The table is MDL locked, so should
 		not be dropped */
 		if (table) {
-			dd_table_close(table, nullptr, nullptr, false);
+			dd_table_close(table, nullptr, nullptr, true);
 		}
 	} else {
 		ut_ad(table->id == table_id);
@@ -764,17 +762,13 @@ dict_table_autoinc_alloc(
 	dict_table_t*	table = static_cast<dict_table_t*>(table_void);
 
 	table->autoinc_mutex = UT_NEW_NOKEY(ib_mutex_t());
-	ut_a(table->autoinc_mutex != NULL);
+	ut_a(table->autoinc_mutex != nullptr);
 	mutex_create(LATCH_ID_AUTOINC, table->autoinc_mutex);
 
-	if (!srv_missing_dd_table_buffer) {
-		table->autoinc_persisted_mutex = UT_NEW_NOKEY(ib_mutex_t());
-		ut_a(table->autoinc_persisted_mutex != NULL);
-		mutex_create(LATCH_ID_PERSIST_AUTOINC,
-			     table->autoinc_persisted_mutex);
-	} else {
-		table->autoinc_persisted_mutex = NULL;
-	}
+	table->autoinc_persisted_mutex = UT_NEW_NOKEY(ib_mutex_t());
+	ut_a(table->autoinc_persisted_mutex != nullptr);
+	mutex_create(LATCH_ID_PERSIST_AUTOINC,
+		     table->autoinc_persisted_mutex);
 }
 
 /** Allocate and init the zip_pad_mutex of a given index.
@@ -905,7 +899,7 @@ should only be used in DDL operation functions like
 2. ha_innobase::commit_inplace_alter_table()
 3. row_rename_table_for_mysql()
 4. When we do TRUNCATE TABLE
-TODO: In WL#7141, we should reconsider the solution here. Once the DDL
+WL#9536 TODO: We should reconsider the solution here. Once the DDL
 becomes crash-safe, we could not only reset the counter in DDTableBuffer
 in this simple way. We also have to make sure the update on this table
 is crash-safe, but not forget the old value because it doesn't support
@@ -922,10 +916,6 @@ dict_table_set_and_persist_autoinc(
 	ib_uint64_t	counter,
 	bool		log_reset)
 {
-	if (srv_missing_dd_table_buffer) {
-		return;
-	}
-
 	ut_ad(dict_table_has_autoinc_col(table));
 
 	mutex_enter(table->autoinc_persisted_mutex);
@@ -1505,6 +1495,11 @@ dict_table_add_to_cache(
 
 	dict_sys->size += mem_heap_get_size(table->heap)
 		+ strlen(table->name.m_name) + 1;
+	DBUG_EXECUTE_IF("dd_upgrade",
+		if (srv_is_upgrade_mode && srv_upgrade_old_undo_found) {
+			ib::info() << "Adding table to cache: " << table->name;
+		}
+	);
 }
 
 /**********************************************************************//**
@@ -1610,7 +1605,7 @@ dict_make_room_in_cache(
 
 		dict_table_t*	prev_table;
 
-	        prev_table = UT_LIST_GET_PREV(table_LRU, table);
+		prev_table = UT_LIST_GET_PREV(table_LRU, table);
 
 		if (dict_table_can_be_evicted(table)) {
 
@@ -1642,6 +1637,24 @@ dict_table_move_from_lru_to_non_lru(
 	UT_LIST_ADD_LAST(dict_sys->table_non_LRU, table);
 
 	table->can_be_evicted = FALSE;
+}
+
+/** Move a table to the LRU end from the non LRU list.
+@param[in]	table	InnoDB table object */
+void
+dict_table_move_from_non_lru_to_lru(
+	dict_table_t*	table)
+{
+	ut_ad(mutex_own(&dict_sys->mutex));
+	ut_ad(dict_non_lru_find_table(table));
+
+	ut_a(!table->can_be_evicted);
+
+	UT_LIST_REMOVE(dict_sys->table_non_LRU, table);
+
+	UT_LIST_ADD_LAST(dict_sys->table_LRU, table);
+
+	table->can_be_evicted = TRUE;
 }
 
 /** Look up an index in a table.
@@ -2408,6 +2421,7 @@ dict_index_node_ptr_max_size(
 If a record of this index might not fit on a single B-tree page,
 return TRUE.
 @return TRUE if the index record could become too big */
+static
 bool
 dict_index_too_big_for_tree(
 /*========================*/
@@ -3663,6 +3677,8 @@ dict_foreign_add_to_cache(
 	bool			check_charsets,
 				/*!< in: whether to check charset
 				compatibility */
+	bool			can_free_fk,
+				/*!< in: whether free existing FK */
 	dict_err_ignore_t	ignore_err)
 				/*!< in: error to be ignored */
 {
@@ -3721,7 +3737,7 @@ dict_foreign_add_to_cache(
 				"referenced table do not match"
 				" the ones in table.");
 
-			if (for_in_cache == foreign && !found_in_cache) {
+			if (for_in_cache == foreign && can_free_fk) {
 				mem_heap_free(foreign->heap);
 			}
 
@@ -4097,11 +4113,12 @@ dict_get_referenced_table(
 	memcpy(ref + database_name_len + 1, table_name, table_name_len + 1);
 
 	/* Values;  0 = Store and compare as given; case sensitive
-	            1 = Store and compare in lower; case insensitive
-	            2 = Store as given, compare in lower; case semi-sensitive */
+		    1 = Store and compare in lower; case insensitive
+		    2 = Store as given, compare in lower; case semi-sensitive */
 	if (innobase_get_lower_case_table_names() == 2) {
 		innobase_casedn_str(ref);
-		*table = dict_table_get_low(ref);
+		*table = dd_table_open_on_name(current_thd, NULL, ref,
+					       true, DICT_ERR_IGNORE_NONE);
 		memcpy(ref, db_name, database_name_len);
 		ref[database_name_len] = '/';
 		memcpy(ref + database_name_len + 1, table_name, table_name_len + 1);
@@ -4114,7 +4131,12 @@ dict_get_referenced_table(
 #else
 		innobase_casedn_str(ref);
 #endif /* !_WIN32 */
-		*table = dict_table_get_low(ref);
+		*table = dd_table_open_on_name(current_thd, NULL, ref,
+					       true, DICT_ERR_IGNORE_NONE);
+	}
+
+	if (*table != NULL) {
+		(*table)->release();
 	}
 
 	return(ref);
@@ -4583,11 +4605,6 @@ loop:
 			return(DB_NO_FK_ON_S_BASE_COL);
 		}
 
-#ifndef NO_NEW_DD_FK
-		std::for_each(local_fk_set.begin(),
-				  local_fk_set.end(),
-				  dict_foreign_free);
-#endif /* NO_NEW_DD_FK */
 		local_fk_set.clear();
 		return(DB_SUCCESS);
 	}
@@ -5598,10 +5615,6 @@ dict_print_info_on_foreign_keys(
 void
 dict_persist_init(void)
 {
-	if (srv_missing_dd_table_buffer) {
-		return;
-	}
-
 	dict_persist = static_cast<dict_persist_t*>(
 		ut_zalloc_nokey(sizeof(*dict_persist)));
 
@@ -5611,7 +5624,7 @@ dict_persist_init(void)
 		       SYNC_PERSIST_CHECKPOINT);
 
 	UT_LIST_INIT(dict_persist->dirty_dict_tables,
-                     &dict_table_t::dirty_dict_tables);
+		     &dict_table_t::dirty_dict_tables);
 
 	dict_persist->persisters = UT_NEW_NOKEY(Persisters());
 	dict_persist->persisters->add(PM_INDEX_CORRUPTED);
@@ -5622,10 +5635,6 @@ dict_persist_init(void)
 void
 dict_persist_close(void)
 {
-	if (srv_missing_dd_table_buffer) {
-		return;
-	}
-
 	UT_DELETE(dict_persist->persisters);
 
 	UT_DELETE(dict_persist->table_buffer);
@@ -5646,10 +5655,6 @@ dict_init_dynamic_metadata(
 	dict_table_t*	table,
 	PersistentTableMetadata*metadata)
 {
-	if (srv_missing_dd_table_buffer) {
-		return;
-	}
-
 	ut_ad(mutex_own(&dict_persist->mutex));
 
 	ut_ad(metadata->get_table_id() == table->id);
@@ -5684,10 +5689,6 @@ dict_table_apply_dynamic_metadata(
 	dict_table_t*			table,
 	const PersistentTableMetadata*	metadata)
 {
-	if (srv_missing_dd_table_buffer) {
-		return(false);
-	}
-
 	bool	get_dirty = false;
 
 	ut_ad(mutex_own(&dict_sys->mutex));
@@ -5754,10 +5755,6 @@ dict_table_read_dynamic_metadata(
 	ulint			size,
 	PersistentTableMetadata*metadata)
 {
-	if (srv_missing_dd_table_buffer) {
-		return;
-	}
-
 	const byte*		pos = buffer;
 	persistent_type_t	type;
 	Persister*		persister;
@@ -5792,10 +5789,6 @@ void
 dict_table_load_dynamic_metadata(
 	dict_table_t*	table)
 {
-	if (srv_missing_dd_table_buffer) {
-		return;
-	}
-
 	DDTableBuffer*	table_buffer;
 
 	ut_ad(dict_sys != NULL);
@@ -5821,6 +5814,14 @@ dict_table_load_dynamic_metadata(
 		bool is_dirty = dict_table_apply_dynamic_metadata(
 			table, &metadata);
 
+		/* If !is_dirty, it could be either:
+		1. It's first time to load this table, and the corrupted
+		index marked has been dropped. Current dirty_status should
+		be METADATA_CLEAN.
+		2. It's the second time to apply dynamic metadata to this
+		table, current in-memory dynamic metadata is up-to-date.
+		Current dirty_status should be METADATA_BUFFERED.
+		In both cases, we don't have to change the dirty_status */
 		if (is_dirty) {
 			UT_LIST_ADD_LAST(dict_persist->dirty_dict_tables,
 					 table);
@@ -5849,8 +5850,6 @@ void
 dict_table_mark_dirty(
 	dict_table_t*	table)
 {
-	ut_ad(!srv_missing_dd_table_buffer);
-
 	ut_ad(!table->is_temporary());
 
 	mutex_enter(&dict_persist->mutex);
@@ -5886,12 +5885,6 @@ dict_set_corrupted(
 	dict_index_t*	index)
 {
 	dict_table_t*	table = index->table;
-
-	if (srv_missing_dd_table_buffer) {
-
-		index->type |= DICT_CORRUPT;
-		return;
-	}
 
 	/* Acquire lock at first, so that setting index as corrupted would be
 	protected, in case that some checkpoint would flush the table to
@@ -5949,10 +5942,6 @@ void
 dict_table_persist_to_dd_table_buffer_low(
 	dict_table_t*	table)
 {
-	if (srv_missing_dd_table_buffer) {
-		return;
-	}
-
 	ut_ad(dict_sys != NULL);
 	ut_ad(mutex_own(&dict_persist->mutex));
 	ut_ad(table->dirty_status == METADATA_DIRTY);
@@ -5998,10 +5987,6 @@ void
 dict_table_persist_to_dd_table_buffer(
 	dict_table_t*	table)
 {
-	if (srv_missing_dd_table_buffer) {
-		return;
-	}
-
 	ut_ad(dict_sys != NULL);
 	ut_ad(mutex_own(&dict_sys->mutex));
 
@@ -6028,10 +6013,6 @@ write dirty persistent data of table to DD TABLE BUFFER table accordingly */
 void
 dict_persist_to_dd_table_buffer(void)
 {
-	if (srv_missing_dd_table_buffer) {
-		return;
-	}
-
 	if (dict_sys == NULL) {
 		/* We don't have dict_sys now, so just return.
 		This only happen during recovery.
@@ -6438,13 +6419,13 @@ dict_close(void)
 	/* Acquire only because it's a pre-condition. */
 	mutex_enter(&dict_sys->mutex);
 
-	if (dict_sys->table_stats) {
+	if (dict_sys->table_stats != NULL) {
 		dict_table_close(dict_sys->table_stats, true, false);
 	}
-	if (dict_sys->index_stats) {
+	if (dict_sys->index_stats != NULL) {
 		dict_table_close(dict_sys->index_stats, true, false);
 	}
-	if (dict_sys->dynamic_metadata) {
+	if (dict_sys->dynamic_metadata != NULL) {
 		dict_table_close(dict_sys->dynamic_metadata, true, false);
 	}
 
@@ -7050,9 +7031,9 @@ DDTableBuffer::update_set_metadata(
 	upd_t*		update;
 
 	rec_offs_init(offsets);
-        rec_offs_set_n_fields(offsets, N_FIELDS);
-        rec_init_offsets_comp_ordinary(rec, false, m_index, offsets);
-        ut_ad(!rec_get_deleted_flag(rec, true));
+	rec_offs_set_n_fields(offsets, N_FIELDS);
+	rec_init_offsets_comp_ordinary(rec, false, m_index, offsets);
+	ut_ad(!rec_get_deleted_flag(rec, 1));
 
 	data = rec_get_nth_field(rec, offsets, METADATA_FIELD_NO, &len);
 	dfield = dtuple_get_nth_field(entry, METADATA_FIELD_NO);
@@ -7107,7 +7088,6 @@ DDTableBuffer::replace(
 
 	/* Start to search for the to-be-replaced tuple */
 	mtr.start();
-	mtr.set_named_space(m_index->space);
 
 	btr_pcur_open(m_index, m_search_tuple, PAGE_CUR_LE,
 		      BTR_MODIFY_TREE, &pcur, &mtr);
@@ -7190,9 +7170,7 @@ DDTableBuffer::remove(
 	if (!page_rec_is_infimum(btr_pcur_get_rec(&pcur))
 	    && btr_pcur_get_low_match(&pcur) == m_index->n_uniq) {
 
-		mtr.set_named_space(m_index->space);
-
-		DEBUG_SYNC_C("delete_metadata_before");
+	DEBUG_SYNC_C("delete_metadata_before");
 
 		btr_cur_pessimistic_delete(
 			&error, false, btr_pcur_get_btr_cur(&pcur),
@@ -7291,7 +7269,7 @@ Persister::write_log(
 	ulint consumed = write(metadata, log_ptr, size);
 	log_ptr += consumed;
 
-        mlog_close(mtr, log_ptr);
+	mlog_close(mtr, log_ptr);
 }
 
 /** Write the corrupted indexes of a table, we can pre-calculate the size
@@ -7518,8 +7496,6 @@ AutoIncLogMtr::log(
 	dict_table_t*	table,
 	ib_uint64_t	counter)
 {
-	ut_ad(!srv_missing_dd_table_buffer);
-
 	ut_ad(!m_locked);
 	rw_lock_s_lock(&dict_persist->lock);
 	ut_d(m_locked = true);
@@ -7762,4 +7738,117 @@ dict_sdi_remove_from_cache(
 			dict_table_remove_from_cache(sdi_table);
 		}
 	}
+}
+
+/** Change the table_id of SYS_* tables if they have been created after
+an earlier upgrade. This will update the table_id by adding DICT_MAX_DD_TABLES */
+void
+dict_table_change_id_sys_tables()
+{
+	ut_ad(mutex_own(&dict_sys->mutex));
+
+	for (uint32_t i = 0; i < SYS_NUM_SYSTEM_TABLES; i++) {
+		dict_table_t*	system_table = dict_table_get_low(SYSTEM_TABLE_NAME[i]);
+		ut_a(system_table != nullptr);
+		ut_ad(dict_sys_table_id[i] == system_table->id);
+
+		if (system_table->id >= INNODB_SYS_TABLE_ID_MAX) {
+
+			/* During upgrade, table_id of user tables is also
+			moved by DICT_MAX_DD_TABLES. See dict_load_table_one()*/
+			table_id_t	new_table_id = system_table->id
+				+ DICT_MAX_DD_TABLES;
+
+			dict_table_change_id_in_cache(system_table, new_table_id);
+
+			dict_sys_table_id[i] = system_table->id;
+		}
+	}
+}
+
+/** Evict all tables that are loaded for applying purge.
+Since we move the offset of all table ids during upgrade,
+these tables cannot exist in cache. Also change table_ids
+of SYS_* tables if they are upgraded from earlier versions */
+void
+dict_upgrade_evict_tables_cache()
+{
+	dict_table_t*	table;
+
+	rw_lock_x_lock(dict_operation_lock);
+	mutex_enter(&dict_sys->mutex);
+
+	ut_ad(dict_lru_validate());
+	ut_ad(srv_is_upgrade_mode);
+
+	/* Move all tables from non-LRU to LRU */
+	for (table = UT_LIST_GET_LAST(dict_sys->table_non_LRU);
+	     table != NULL;) {
+
+		dict_table_t*	prev_table;
+
+		prev_table = UT_LIST_GET_PREV(table_LRU, table);
+
+		if (!dict_table_is_system(table->id)) {
+			DBUG_EXECUTE_IF("dd_upgrade",
+				ib::info() << "Moving table " << table->name
+					<< " from non-LRU to LRU";
+			);
+
+			dict_table_move_from_non_lru_to_lru(table);
+		}
+
+		table = prev_table;
+	}
+
+	for (table = UT_LIST_GET_LAST(dict_sys->table_LRU);
+	     table != NULL;) {
+
+		dict_table_t*	prev_table;
+
+		prev_table = UT_LIST_GET_PREV(table_LRU, table);
+
+		ut_ad(dict_table_can_be_evicted(table));
+
+		DBUG_EXECUTE_IF("dd_upgrade",
+			ib::info() << "Evicting table: LRU: " << table->name;
+		);
+
+		dict_table_remove_from_cache_low(table, TRUE);
+
+		table = prev_table;
+	}
+
+	dict_table_change_id_sys_tables();
+
+	mutex_exit(&dict_sys->mutex);
+	rw_lock_x_unlock(dict_operation_lock);
+}
+
+/** Build the table_id array of SYS_* tables. This
+array is used to determine if a table is InnoDB SYSTEM
+table or not. */
+void
+dict_sys_table_id_build()
+{
+	mutex_enter(&dict_sys->mutex);
+	for (uint32_t i = 0; i < SYS_NUM_SYSTEM_TABLES; i++) {
+		dict_table_t*	system_table = dict_table_get_low(SYSTEM_TABLE_NAME[i]);
+		ut_a(system_table != nullptr);
+		dict_sys_table_id[i] = system_table->id;
+	}
+	mutex_exit(&dict_sys->mutex);
+}
+
+/** @return true if table is InnoDB SYS_* table
+@param[in]	table_id	table id  */
+bool
+dict_table_is_system(table_id_t table_id)
+{
+	for (uint32_t i = 0; i < SYS_NUM_SYSTEM_TABLES; i++) {
+		if (table_id == dict_sys_table_id[i]) {
+			return(true);
+		}
+	}
+	return(false);
 }

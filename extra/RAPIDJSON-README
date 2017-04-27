@@ -16,13 +16,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ----
 
 The rapidjson library included in this directory is based on
-https://github.com/miloyip/rapidjson, upstream commit
-75d0e4ff652769309052bbbb3745da12a572af9a.
+https://github.com/miloyip/rapidjson, version 1.1.0.
 
-There is one change made to the library:
-
-1) Rapidjson-specific changes from bug#19504183 have been applied, so that
-   negative zero is handled properly.
-
-2) RAPIDJSON_DIAG_OFF(unused-parameter) is added to rapidjson.h to silence some
-   compiler warnings.
+The folder lib/jsonchecker is removed so that we don't include any code licensed
+under the JSON License.

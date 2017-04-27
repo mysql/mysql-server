@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -113,7 +113,7 @@ typedef struct PSI_memory_bootstrap PSI_memory_bootstrap;
 
 /**
   Memory instrument information.
-  @since PSI_VERSION_1
+  @since PSI_MEMORY_VERSION_1
   This structure is used to register instrumented memory.
 */
 struct PSI_memory_info_v1

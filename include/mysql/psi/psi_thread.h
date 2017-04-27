@@ -25,7 +25,6 @@
   @{
 */
 
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_psi_config.h"  // IWYU pragma: keep
@@ -115,7 +114,7 @@ typedef struct PSI_thread PSI_thread;
 
 /**
   Thread instrument information.
-  @since PSI_VERSION_1
+  @since PSI_THREAD_VERSION_1
   This structure is used to register an instrumented thread.
 */
 struct PSI_thread_info_v1

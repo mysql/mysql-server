@@ -19,7 +19,6 @@
 #include "dd/impl/raw/raw_record.h"        // Raw_record
 #include "dd/impl/tables/character_sets.h" // Character_sets
 #include "dd/impl/transaction_impl.h"      // Open_dictionary_tables_ctx
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
@@ -32,7 +31,7 @@ namespace dd {
 // Charset implementation.
 ///////////////////////////////////////////////////////////////////////////
 
-const Dictionary_object_table &Charset::OBJECT_TABLE()
+const Entity_object_table &Charset::OBJECT_TABLE()
 {
   return Character_sets::instance();
 }

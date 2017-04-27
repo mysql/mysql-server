@@ -31,7 +31,6 @@
 */
 
 
-#include <my_global.h>
 #include <string.h>
 #include <sys/types.h>
 #include <algorithm>
@@ -51,6 +50,7 @@
 #include "str_uca_type.h"
 #include "template_utils.h"
 #include "uca900_data.h"
+#include "uca900_ja_data.h"
 #include "uca_data.h"
 
 MY_UCA_INFO my_uca_v400=
@@ -60,10 +60,11 @@ MY_UCA_INFO my_uca_v400=
   0xFFFF,    /* maxchar           */
   uca_length,
   uca_weight,
-  {          /* Contractions:     */
-    0,       /*   nitems          */
-    NULL,    /*   item            */
-    NULL     /*   flags           */
+  {            /* Contractions:     */
+    false,     /* has_contractions  */
+    {0},       /*   nitems          */
+    {nullptr}, /*   item            */
+    nullptr    /*   flags           */
   },
 
   /* Logical positions */
@@ -96,10 +97,11 @@ MY_UCA_INFO my_uca_v520=
   0x10FFFF,      /* maxchar           */
   uca520_length,
   uca520_weight,
-  {              /* Contractions:     */
-    0,           /*   nitems          */
-    NULL,        /*   item            */
-    NULL         /*   flags           */
+  {            /* Contractions:     */
+    false,     /* has_contractions  */
+    {0},       /*   nitems          */
+    {nullptr}, /*   item            */
+    nullptr    /*   flags           */
   },
 
   0x0009,    /* first_non_ignorable       p != ignore                       */
@@ -440,13 +442,13 @@ static const char vietnamese[]=
    " << \\u1EF5 <<< \\u1EF4";
 
 /* German Phonebook */
-static const char de_pb_cldr_29[]=
+static const char de_pb_cldr_30[]=
   "&AE << \\u00E4 <<< \\u00C4 "
   "&OE << \\u00F6 <<< \\u00D6 "
   "&UE << \\u00FC <<< \\u00DC ";
 
 /* Icelandic */
-static const char is_cldr_29[]=
+static const char is_cldr_30[]=
   "&[before 1]b       <  \\u00E1 <<< \\u00C1 "
   "&          d       << \\u0111 <<< \\u0110 < \\u00F0 <<< \\u00D0 "
   "&[before 1]f       <  \\u00E9 <<< \\u00C9 "
@@ -459,7 +461,7 @@ static const char is_cldr_29[]=
                      "<  \\u00E5 <<< \\u00C5";
 
 /* Latvian */
-static const char lv_cldr_29[]=
+static const char lv_cldr_30[]=
   "&[before 1]D       <  \\u010D <<< \\u010C "
   "&[before 1]H       <  \\u0123 <<< \\u0122 "
   "&          I       << y       <<< Y "
@@ -471,21 +473,21 @@ static const char lv_cldr_29[]=
   "&[before 1]\\u01B7 <  \\u017E <<< \\u017D";
 
 /* Romanian */
-static const char ro_cldr_29[]=
+static const char ro_cldr_30[]=
   "&A < \\u0103 <<< \\u0102 <   \\u00E2 <<< \\u00C2 "
   "&I < \\u00EE <<< \\u00CE "
   "&S < \\u015F =   \\u0219 <<< \\u015E =   \\u0218 "
   "&T < \\u0163 =   \\u021B <<< \\u0162 =   \\u021A";
 
 /* Slovenian */
-static const char sl_cldr_29[]=
+static const char sl_cldr_30[]=
   "&C < \\u010D <<< \\u010C < \\u0107 <<< \\u0106 "
   "&D < \\u0111 <<< \\u0110 "
   "&S < \\u0161 <<< \\u0160 "
   "&Z < \\u017E <<< \\u017D";
 
 /* Polish */
-static const char pl_cldr_29[]=
+static const char pl_cldr_30[]=
   "&A < \\u0105 <<< \\u0104 "
   "&C < \\u0107 <<< \\u0106 "
   "&E < \\u0119 <<< \\u0118 "
@@ -496,14 +498,14 @@ static const char pl_cldr_29[]=
   "&Z < \\u017A <<< \\u0179 < \\u017C <<< \\u017B";
 
 /* Estonian */
-static const char et_cldr_29[]=
+static const char et_cldr_30[]=
   "&[before 1]T <   \\u0161 <<< \\u0160 < z         <<< Z "
                "<   \\u017E <<< \\u017D "
   "&[before 1]X <   \\u00F5 <<< \\u00D5 <   \\u00E4 <<< \\u00C4 "
                "<   \\u00F6 <<< \\u00D6 <   \\u00FC <<< \\u00DC";
 
 /* Swedish */
-static const char sv_cldr_29[]=
+static const char sv_cldr_30[]=
   "&          D       <<  \\u0111   <<< \\u0110 <<  \\u00F0 <<< \\u00D0 "
   "&          t       <<< \\u00FE/h "
   "&          T       <<< \\u00DE/H "
@@ -515,7 +517,7 @@ static const char sv_cldr_29[]=
                       "<< \\u00F4   <<< \\u00D4";
 
 /* Turkish */
-static const char tr_cldr_29[]=
+static const char tr_cldr_30[]=
   "&          C <   \\u00E7 <<< \\u00C7 "
   "&          G <   \\u011F <<< \\u011E "
   "&[before 1]i <   \\u0131 <<< I "
@@ -525,7 +527,7 @@ static const char tr_cldr_29[]=
   "&          U <   \\u00FC <<< \\u00DC ";
 
 /* Czech */
-static const char cs_cldr_29[]=
+static const char cs_cldr_30[]=
   "&C < \\u010D <<< \\u010C "
   "&H < ch      <<< cH       <<< Ch <<< CH "
   "&R < \\u0159 <<< \\u0158"
@@ -533,7 +535,7 @@ static const char cs_cldr_29[]=
   "&Z < \\u017E <<< \\u017D";
 
 /* Danish */
-static const char da_cldr_29[]=
+static const char da_cldr_30[]=
   "&          D       <<  \\u0111   <<< \\u0110 <<  \\u00F0 <<< \\u00D0 "
   "&          t       <<< \\u00FE/h "
   "&          T       <<< \\u00DE/H "
@@ -549,7 +551,7 @@ static Coll_param da_coll_param= {
 };
 
 /* Lithuanian */
-static const char lt_cldr_29[]=
+static const char lt_cldr_30[]=
   "&\\u0300 = \\u0307\\u0300 "
   "&\\u0301 = \\u0307\\u0301 "
   "&\\u0303 = \\u0307\\u0303 "
@@ -562,7 +564,7 @@ static const char lt_cldr_29[]=
   "&Z <  \\u017E <<< \\u017D";
 
 /* Slovak */
-static const char sk_cldr_29[]=
+static const char sk_cldr_30[]=
   "&A < \\u00E4 <<< \\u00C4 "
   "&C < \\u010D <<< \\u010C "
   "&H < ch      <<< cH      <<< Ch <<< CH "
@@ -572,14 +574,14 @@ static const char sk_cldr_29[]=
   "&Z < \\u017E <<< \\u017D";
 
 /* Spanish (Traditional) */
-static const char es_trad_cldr_29[]=
+static const char es_trad_cldr_30[]=
   "&N <  \\u00F1 <<< \\u00D1 "
   "&C <  ch      <<< Ch      <<< CH "
   "&l <  ll      <<< Ll      <<< LL";
 
 /* Persian */
 #if 0
-static const char fa_cldr_29[]=
+static const char fa_cldr_30[]=
   "&          \\u064E << \\u0650 << \\u064F <<  \\u064B << \\u064D "
                      "<< \\u064C "
   "&[before 1]\\u0627 <  \\u0622 "
@@ -603,7 +605,7 @@ static Coll_param fa_coll_param= {
 #endif
 
 /* Hungarian */
-static const char hu_cldr_29[]=
+static const char hu_cldr_30[]=
   "&C  <   cs      <<< Cs      <<< CS "
   "&D  <   dz      <<< Dz      <<< DZ "
   "&DZ <   dzs     <<< Dzs     <<< DZS "
@@ -644,7 +646,7 @@ static const char hu_cldr_29[]=
   "&ZS <<< ZZS/ZS";
 
 /* Croatian */
-static const char hr_cldr_29[]=
+static const char hr_cldr_30[]=
   "&C <   \\u010D  <<< \\u010C <   \\u0107  <<< \\u0106 "
   "&D <   d\\u017E <<< \\u01C6 <<< D\\u017E <<< \\u01C5 <<< D\\u017D "
      "<<< \\u01C4  <   \\u0111 <<< \\u0110 "
@@ -656,7 +658,7 @@ static const char hr_cldr_29[]=
   "&Z <   \\u017E  <<< \\u017D ";
 
 static Reorder_param hr_reorder_param= {
-  {CHARGRP_LATIN, CHARGRP_CYRILLIC, CHARGRP_NONE}, {{{0, 0}, {0, 0}}}, 0
+  {CHARGRP_LATIN, CHARGRP_CYRILLIC, CHARGRP_NONE}, {{{0, 0}, {0, 0}}}, 0, 0
 };
 
 static Coll_param hr_coll_param= {
@@ -665,13 +667,13 @@ static Coll_param hr_coll_param= {
 
 /* Sinhala */
 #if 0
-static const char si_cldr_29[]=
+static const char si_cldr_30[]=
   "&\\u0D96 < \\u0D82 < \\u0D83 "
   "&\\u0DA5 < \\u0DA4";
 #endif
 
 /* Vietnamese */
-static const char vi_cldr_29[]=
+static const char vi_cldr_30[]=
   "&\\u0300 << \\u0309 <<  \\u0303 << \\u0301 <<  \\u0323 "
   "&a       < \\u0103 <<< \\u0102 <  \\u00E2 <<< \\u00C2 "
   "&d       < \\u0111 <<< \\u0110 "
@@ -681,6 +683,24 @@ static const char vi_cldr_29[]=
 
 static Coll_param vi_coll_param= {
   nullptr, TRUE, CASE_FIRST_OFF
+};
+
+static Reorder_param ja_reorder_param= {
+  /*
+    Per CLDR 30, Japanese reorder rule is defined as [Latn Kana Hani],
+    but for Hani characters, their weight is implicit according to UCA,
+    which is different from other character groups. We don't add "Hani"
+    below and will have special handling for them in
+    adjust_japanese_weight() and apply_reorder_param(). Implicit weight
+    has two collation elements. To make strnxfrm() run faster, we give
+    Japanese Han characters tailored weight which has only one collation
+    element. These characters' weight is defined in ja_han_pages.
+  */
+  {CHARGRP_LATIN, CHARGRP_KANA, CHARGRP_NONE}, {{{0, 0}, {0, 0}}}, 0, 0
+};
+
+static Coll_param ja_coll_param= {
+  &ja_reorder_param, false/*norm_enabled*/, CASE_FIRST_OFF
 };
 
 static constexpr uint16 nochar[]= {0,0};
@@ -810,8 +830,26 @@ private:
   inline int next_raw();
   inline int more_weight();
   uint16 apply_case_first(uint16 weight);
+  uint16 apply_reorder_param(uint16 weight);
   inline int next_implicit(my_wc_t ch);
   void my_put_jamo_weights(my_wc_t *hangul_jamo, int jamo_cnt);
+  /*
+    apply_reorder_param() needs to return two weights for each origin
+    weight. This boolean signals whether we have already returned the
+    FB86 weight, and are ready to return the origin weight.
+  */
+  bool return_origin_weight{true};
+  /*
+    For Japanese kana-sensitive collation, we only add quaternary
+    weight for katakana and hiragana, but not for others like latin
+    and kanji, because characters like latin and kanji can be already
+    distinguished from kana by three levels of weight.
+    has_quaternary_weight is to indicate whether quaternary weight is
+    needed for characters in string.
+  */
+  bool has_quaternary_weight{false};
+  int handle_ja_contraction_quat_wt();
+  int handle_ja_common_quat_wt(my_wc_t wc);
 };
 
 
@@ -847,17 +885,17 @@ my_uca_add_contraction_flag(MY_CONTRACTIONS *list, my_wc_t wc, int flag)
 
 static MY_CONTRACTION *
 my_uca_add_contraction(MY_CONTRACTIONS *list, my_wc_t *wc, size_t len,
-                       my_bool with_context)
+                       bool with_context)
 {
-  MY_CONTRACTION *next= &list->item[list->nitems];
-  size_t i;
   /*
     Contraction is always at least two code points.
     Contraction is never longer than MY_UCA_MAX_CONTRACTION,
     which is guaranteed by using my_coll_rule_expand() with proper limit.
   */
   DBUG_ASSERT(len > 1 && len <= MY_UCA_MAX_CONTRACTION);
-  for (i= 0; i < len; i++)
+
+  MY_CONTRACTION *next= &list->item[len][list->nitems[len]];
+  for (size_t i= 0; i < len; i++)
   {
     /*
       We don't support contractions with U+0000.
@@ -866,10 +904,10 @@ my_uca_add_contraction(MY_CONTRACTIONS *list, my_wc_t *wc, size_t len,
     DBUG_ASSERT(wc[i] != 0);
     next->ch[i]= wc[i];
   }
-  if (i < MY_UCA_MAX_CONTRACTION)
-    next->ch[i]= 0; /* Add end-of-line marker */
+  if (len < MY_UCA_MAX_CONTRACTION)
+    next->ch[len]= 0; /* Add end-of-line marker */
   next->with_context= with_context;
-  list->nitems++;
+  list->nitems[len]++;
   return next;
 }
 
@@ -879,24 +917,35 @@ my_uca_add_contraction(MY_CONTRACTIONS *list, my_wc_t *wc, size_t len,
   
   @param contractions      Pointer to UCA data
   @param loader            Pointer to charset loader
-  @param n        Number of contractions
+  @param ncontractions     Pointer to number of contractions
   
   @return   Error code
   @retval   0 - memory allocated successfully
   @retval   1 - not enough memory
 */
 
-static my_bool
+static bool
 my_uca_alloc_contractions(MY_CONTRACTIONS *contractions,
-                          MY_CHARSET_LOADER *loader, size_t n)
+                          MY_CHARSET_LOADER *loader, size_t *ncontractions)
 {
-  size_t size= n * sizeof(MY_CONTRACTION);
-  if (!(contractions->item= static_cast<MY_CONTRACTION*>((loader->once_alloc)(size))) ||
-      !(contractions->flags= (char *) (loader->once_alloc)(MY_UCA_CNT_FLAG_SIZE)))
-    return 1;
-  memset(contractions->item, 0, size);
+  for (size_t contraction_len= 2; contraction_len <= MY_UCA_MAX_CONTRACTION;
+       contraction_len++)
+  {
+    if (ncontractions[contraction_len])
+    {
+      size_t size= ncontractions[contraction_len] * sizeof(MY_CONTRACTION);
+      contractions->item[contraction_len]=
+        static_cast<MY_CONTRACTION*>((loader->once_alloc)(size));
+      if (!contractions->item[contraction_len])
+        return true;
+      memset(contractions->item[contraction_len], 0, size);
+    }
+  }
+  if (!(contractions->flags=
+        (char *)(loader->once_alloc)(MY_UCA_CNT_FLAG_SIZE)))
+    return true;
   memset(contractions->flags, 0, MY_UCA_CNT_FLAG_SIZE);
-  return 0;
+  return false;
 }
 
 
@@ -911,7 +960,7 @@ my_uca_alloc_contractions(MY_CONTRACTIONS *contractions,
 const MY_CONTRACTIONS *
 my_charset_get_contractions(const CHARSET_INFO *cs)
 {
-  return (cs->uca != NULL) && (cs->uca->contractions.nitems > 0) ?
+  return (cs->uca != NULL) && (cs->uca->contractions.has_contractions) ?
           &cs->uca->contractions : NULL;
 }
 
@@ -926,10 +975,10 @@ my_charset_get_contractions(const CHARSET_INFO *cs)
   @retval   1 - there are some contractions
 */
 
-static inline my_bool
+static inline bool
 my_uca_have_contractions(const MY_UCA_INFO *uca)
 {
-  return (uca->contractions.nitems > 0);
+  return uca->contractions.has_contractions;
 }
 
 
@@ -944,7 +993,7 @@ my_uca_have_contractions(const MY_UCA_INFO *uca)
   @retval   1 - can be contraction head
 */
 
-my_bool
+bool
 my_uca_can_be_contraction_head(const MY_CONTRACTIONS *c, my_wc_t wc)
 {
   return c->flags[wc & MY_UCA_CNT_FLAG_MASK] & MY_UCA_CNT_HEAD;
@@ -961,7 +1010,7 @@ my_uca_can_be_contraction_head(const MY_CONTRACTIONS *c, my_wc_t wc)
   @retval   1 - can be contraction tail
 */
 
-my_bool
+bool
 my_uca_can_be_contraction_tail(const MY_CONTRACTIONS *c, my_wc_t wc)
 {
   return c->flags[wc & MY_UCA_CNT_FLAG_MASK] & MY_UCA_CNT_TAIL;
@@ -979,7 +1028,7 @@ my_uca_can_be_contraction_tail(const MY_CONTRACTIONS *c, my_wc_t wc)
   @retval   1 - can be contraction part
 */
 
-static inline my_bool
+static inline bool
 my_uca_can_be_contraction_part(const MY_CONTRACTIONS *c, my_wc_t wc, int flag)
 {
   return c->flags[wc & MY_UCA_CNT_FLAG_MASK] & flag;
@@ -1002,9 +1051,9 @@ uint16 *
 my_uca_contraction2_weight(const MY_CONTRACTIONS *list, my_wc_t wc1, my_wc_t wc2)
 {
   MY_CONTRACTION *c, *last;
-  for (c= list->item, last= c + list->nitems; c < last; c++)
+  for (c= list->item[2], last= c + list->nitems[2]; c < last; c++)
   {
-    if (c->ch[0] == wc1 && c->ch[1] == wc2 && c->ch[2] == 0)
+    if (c->ch[0] == wc1 && c->ch[1] == wc2)
     {
       return c->weight;
     }
@@ -1024,7 +1073,7 @@ my_uca_contraction2_weight(const MY_CONTRACTIONS *list, my_wc_t wc1, my_wc_t wc2
   @retval   TRUE  - can be previous context head
 */
 
-static inline my_bool
+static inline bool
 my_uca_can_be_previous_context_head(const MY_CONTRACTIONS *list, my_wc_t wc)
 {
   return list->flags[wc & MY_UCA_CNT_FLAG_MASK] & MY_UCA_PREVIOUS_CONTEXT_HEAD;
@@ -1042,7 +1091,7 @@ my_uca_can_be_previous_context_head(const MY_CONTRACTIONS *list, my_wc_t wc)
   @retval   TRUE - can be contraction tail
 */
 
-static inline my_bool
+static inline bool
 my_uca_can_be_previous_context_tail(const MY_CONTRACTIONS *list, my_wc_t wc)
 {
   return list->flags[wc & MY_UCA_CNT_FLAG_MASK] & MY_UCA_PREVIOUS_CONTEXT_TAIL;
@@ -1085,7 +1134,7 @@ static inline const uint16 *
 my_uca_contraction_weight(const MY_CONTRACTIONS *list, const my_wc_t *wc, size_t len)
 {
   MY_CONTRACTION *c, *last;
-  for (c= list->item, last= c + list->nitems; c < last; c++)
+  for (c= list->item[len], last= c + list->nitems[len]; c < last; c++)
   {
     if ((len == MY_UCA_MAX_CONTRACTION || c->ch[len] == 0) &&
         !c->with_context &&
@@ -1149,9 +1198,6 @@ my_uca_scanner::contraction_find(my_wc_t wc0, size_t *chars_skipped)
   size_t clen= 1;
   int flag;
   uchar *s, *beg= nullptr;
-  const MY_CONTRACTION *contraction_begin= cs->uca->contractions.item;
-  const MY_CONTRACTION *contraction_end=
-    contraction_begin + cs->uca->contractions.nitems;
   MY_CONTRACTION tofind;
   memset(&tofind, 0, sizeof(tofind));
   tofind.ch[0]= wc0;
@@ -1192,13 +1238,16 @@ my_uca_scanner::contraction_find(my_wc_t wc0, size_t *chars_skipped)
         to looking for new character sequence which adds one more character,
         which is obviously greater than the current one.
       */
+      const MY_CONTRACTION *contraction_begin=
+        cs->uca->contractions.item[clen + 1];
+      const MY_CONTRACTION *contraction_end=
+        contraction_begin + cs->uca->contractions.nitems[clen + 1];
       auto candidate= std::lower_bound(contraction_begin,
                                        contraction_end,
                                        tofind,
                                        contraction_chars_cmp);
-      if (candidate == contraction_end)
-        break;
-      if (!contraction_chars_cmp(tofind, *candidate))
+      if (candidate != contraction_end &&
+          !contraction_chars_cmp(tofind, *candidate))
       {
         /*
           std::lower_bound() ensures *candidate is greater than or equal to
@@ -1206,7 +1255,7 @@ my_uca_scanner::contraction_find(my_wc_t wc0, size_t *chars_skipped)
           tofind is greater than or equal to *candidate. So tofind has to
           equal to *candidate.
         */
-        contraction_begin= longest_contraction= candidate;
+        longest_contraction= candidate;
         beg= s;
         *chars_skipped= clen;
       }
@@ -1263,11 +1312,12 @@ my_uca_scanner::previous_context_find(my_wc_t wc0, my_wc_t wc1)
   memset(&tofind, 0, sizeof(tofind));
   tofind.ch[0]= wc0;
   tofind.ch[1]= wc1;
-  MY_CONTRACTION *contraction_end= contractions->item + contractions->nitems;
-  MY_CONTRACTION *c= std::lower_bound(contractions->item,
+  MY_CONTRACTION *contraction_end=
+    contractions->item[2] + contractions->nitems[2];
+  MY_CONTRACTION *c= std::lower_bound(contractions->item[2],
                                       contraction_end,
                                       tofind, contraction_chars_cmp);
-  if (c == contraction_end || c->ch[0] != wc0 || c->ch[1] != wc1 || c->ch[2])
+  if (c == contraction_end || c->ch[0] != wc0 || c->ch[1] != wc1)
     return NULL;
   if (c->with_context)
   {
@@ -1431,12 +1481,15 @@ ALWAYS_INLINE int uca_scanner_any<Mb_wc>::next()
 
   do
   {
-    my_wc_t wc;
+    my_wc_t wc= 0;
 
     /* Get next code point */
     int mblen= mb_wc(&wc, sbeg, send);
     if (mblen <= 0)
+    {
+      ++weight_lv;
       return -1;
+    }
 
     sbeg+= mblen;
     char_index++;
@@ -1521,6 +1574,118 @@ inline int uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::more_weight()
   return -1;
 }
 
+static inline bool
+is_hiragana_char(my_wc_t wc)
+{
+  return wc >= 0x3041 && wc <= 0x3096;
+}
+
+static inline bool
+is_katakana_char(my_wc_t wc)
+{
+  return (wc >= 0x30A1 && wc <= 0x30FA) || // Full width katakana
+         (wc >= 0xFF66 && wc <= 0xFF9D);   // Half width katakana
+}
+
+static inline bool
+is_katakana_iteration(my_wc_t wc)
+{
+  return wc == 0x30FD || wc == 0x30FE;
+}
+
+static inline bool
+is_hiragana_iteration(my_wc_t wc)
+{
+  return wc == 0x309D || wc == 0x309E;
+}
+
+static inline bool
+is_ja_length_mark(my_wc_t wc)
+{
+  return wc == 0x30FC;
+}
+
+/**
+  Return quaternary weight when running for that level.
+
+  @retval  0 - Do not return quaternary weight.
+  @retval  others - Quaternary weight for this character.
+*/
+template<class Mb_wc, int LEVELS_FOR_COMPARE>
+ALWAYS_INLINE int
+uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::handle_ja_contraction_quat_wt()
+{
+  /*
+    For Japanese, only weight shift rule and previous context rule is
+    defined. And in previous context rules, the first character is always
+    katakana / hiragana, and the second character is always iteration or
+    length mark. The quaternary weight of iteration / length mark is
+    same as the first character. So has_quaternary_weight is always true.
+    For how we return quaternary weight, please refer to the comment in
+    handle_ja_common_quat_wt().
+  */
+  if (weight_lv == 3)
+  {
+    wbeg= nochar;
+    num_of_ce_left= 0;
+    if (is_katakana_char(prev_char))
+    {
+      return JA_KATA_QUAT_WEIGHT;
+    }
+    else if (is_hiragana_char(prev_char))
+    {
+      return JA_HIRA_QUAT_WEIGHT;
+    }
+  }
+  return 0;
+}
+
+/**
+  Check whether quaternary weight is needed for character with Japanese
+  kana-sensitive collation. If it is, return quaternary weight when running
+  for that level.
+
+  @retval  0 - Quaternary weight check is done.
+  @retval -1 - There is no quaternary weight for this character.
+  @retval others - Quaternary weight for this character.
+*/
+template<class Mb_wc, int LEVELS_FOR_COMPARE>
+ALWAYS_INLINE int
+uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::handle_ja_common_quat_wt(
+    my_wc_t wc)
+{
+  /*
+    For Japanese kana-sensitive collation, we detect whether quaternary
+    weight is necessary when scanning for the first level of weight.
+    If it is, the quaternary weight will be returned for katakana /
+    hiragana later.
+  */
+  if (weight_lv == 0 && !has_quaternary_weight)
+  {
+    if (is_katakana_char(wc) || is_katakana_iteration(wc) ||
+        is_hiragana_char(wc) || is_hiragana_iteration(wc) ||
+        is_ja_length_mark(wc))
+      has_quaternary_weight= true;
+  }
+  else if (weight_lv == 3)
+  {
+    wbeg= nochar;
+    num_of_ce_left= 0;
+    if (is_katakana_char(wc) ||
+        is_katakana_iteration(wc) ||
+        is_ja_length_mark(wc))
+    {
+      return JA_KATA_QUAT_WEIGHT;
+    }
+    else if (is_hiragana_char(wc) || is_hiragana_iteration(wc))
+    {
+      return JA_HIRA_QUAT_WEIGHT;
+    }
+    return -1;
+  }
+  return 0;
+}
+
 // Generic version that can handle any number of levels.
 template<class Mb_wc, int LEVELS_FOR_COMPARE>
 ALWAYS_INLINE int uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::next_raw()
@@ -1531,7 +1696,7 @@ ALWAYS_INLINE int uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::next_raw()
 
   do
   {
-    my_wc_t wc;
+    my_wc_t wc= 0;
 
     /* Get next code point */
     int mblen= mb_wc(&wc, sbeg, send);
@@ -1545,6 +1710,12 @@ ALWAYS_INLINE int uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::next_raw()
 
       if (++weight_lv < LEVELS_FOR_COMPARE)
       {
+        if (LEVELS_FOR_COMPARE == 4 && cs->coll_param == &ja_coll_param)
+        {
+          // Return directly if we don't have quaternary weight.
+          if (weight_lv == 3 && !has_quaternary_weight)
+            return -1;
+        }
         /*
           Restart scanning from the beginning of the string, and add
           a level separator.
@@ -1570,12 +1741,21 @@ ALWAYS_INLINE int uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::next_raw()
         a real previous context pair.
         Note, we support only 2-character long sequences with previous
         context at the moment. CLDR does not have longer sequences.
+        CLDR doesn't have previous context rule whose first character is
+        0x0000, so the initial value (0) of prev_char won't break the logic.
       */
       if (my_uca_can_be_previous_context_tail(&uca->contractions, wc) &&
-          wbeg != nochar &&     /* if not the very first code point */
           my_uca_can_be_previous_context_head(&uca->contractions, prev_char) &&
           (cweight= previous_context_find(prev_char, wc)))
       {
+        // For Japanese kana-sensitive collation.
+        if (LEVELS_FOR_COMPARE == 4 && cs->coll_param == &ja_coll_param)
+        {
+          int quat_wt= handle_ja_contraction_quat_wt();
+          prev_char= 0;
+          if (quat_wt > 0)
+            return quat_wt;
+        }
         prev_char= 0; /* Clear for the next code point */
         return *cweight;
       }
@@ -1589,6 +1769,15 @@ ALWAYS_INLINE int uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::next_raw()
       prev_char= wc;
     }
 
+    // For Japanese kana-sensitive collation.
+    if (LEVELS_FOR_COMPARE == 4 && cs->coll_param == &ja_coll_param)
+    {
+      int quat_wt= handle_ja_common_quat_wt(wc);
+      if (quat_wt == -1)
+        continue;
+      else if (quat_wt)
+        return quat_wt;
+    }
     /* Process single code point */
     uint page= wc >> 8;
     uint code= wc & 0xFF;
@@ -1633,6 +1822,13 @@ ALWAYS_INLINE void uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::for_each_weight(
   const uint16 *ascii_wpage= UCA900_WEIGHT_ADDR(
     cs->uca->weights[0], /*level=*/weight_lv, /*subcode=*/0);
 
+  /*
+    Precalculate the limit for the fast path below, taking care not to form
+    pointers that are before sbeg, as those cannot be legally compared.
+    (In particular, this catches the case of sbeg == send == nullptr.)
+  */
+  const uchar *send_local= (send - sbeg > 3) ? (send - 3) : sbeg;
+
   for ( ;; )
   {
     /*
@@ -1652,7 +1848,6 @@ ALWAYS_INLINE void uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::for_each_weight(
       we'd otherwise have to do.
     */
     const uchar *sbeg_local= sbeg;
-    const uchar *send_local= send - (sizeof(uint32) - 1);
     while (sbeg_local < send_local && preaccept_data(sizeof(uint32)))
     {
       /*
@@ -1696,27 +1891,51 @@ ALWAYS_INLINE void uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::for_each_weight(
 
 /**
   Change a weight according to the reorder parameters.
-  @param   wt_rec     Weight boundary for each character group and gap
-                      between groups
-  @param   max_weight The maximum weight of char groups to reorder
   @param   weight     The weight to change
+  @retval  reordered weight
 */
-static uint16
-my_apply_reorder_param(const Reorder_wt_rec(&wt_rec)[2 * UCA_MAX_CHAR_GRP],
-                       const int max_weight, uint16 weight)
+template<class Mb_wc, int LEVELS_FOR_COMPARE>
+uint16 uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::apply_reorder_param(
+    uint16 weight)
 {
-  if (weight >= START_WEIGHT_TO_REORDER && weight <= max_weight)
+  const Reorder_param *param= cs->coll_param->reorder_param;
+  if (weight >= START_WEIGHT_TO_REORDER && weight <= param->max_weight)
   {
-    for (int rec_ind= 0; rec_ind < 2 * UCA_MAX_CHAR_GRP; ++rec_ind)
+    for (int rec_ind= 0; rec_ind < param->wt_rec_num; ++rec_ind)
     {
-      if (wt_rec[rec_ind].old_wt_bdy.begin == 0 &&
-          wt_rec[rec_ind].old_wt_bdy.end == 0)
-        break;
-      if (weight >= wt_rec[rec_ind].old_wt_bdy.begin &&
-          weight <= wt_rec[rec_ind].old_wt_bdy.end)
+      const Reorder_wt_rec *wt_rec= param->wt_rec + rec_ind;
+      if (weight >= wt_rec->old_wt_bdy.begin &&
+          weight <= wt_rec->old_wt_bdy.end)
       {
-        return weight - wt_rec[rec_ind].old_wt_bdy.begin +
-          wt_rec[rec_ind].new_wt_bdy.begin;
+        /*
+          As commented in adjust_japanese_weight(), if this is a Japanese
+          collation, for characters whose weight is between Latin and Kana
+          group, and for the characters whose weight is between Kana and
+          Han, we need to change their weight to be after all Han
+          characters. We decide to give them the weights [FB86 0000 0000]
+          [origin weight] to make sure the new weights are greater than
+          the maximum implicit weight of Han characters. If this character's
+          origin weight has more than one non-ignorable primary weight, for
+          example, [AAAA 0020 0002][BBBB 0020 0002], both AAAA and BBBB need
+          to be changed. The new weight should be:
+          [FB86 0000 0000][AAAA 0020 0002][FB86 0000 0000][BBBB 0020 0002].
+        */
+        if (param == &ja_reorder_param && wt_rec->new_wt_bdy.begin == 0)
+        {
+          return_origin_weight= !return_origin_weight;
+          if (return_origin_weight) break;
+
+          /*
+            We didn't consume the weight; rewind the iterator, so we will
+            get another call where we can output it.
+          */
+          wbeg-= wbeg_stride;
+          ++num_of_ce_left;
+          return 0xFB86;
+        }
+
+        // Regular (non-Japanese-specific) reordering.
+        return weight - wt_rec->old_wt_bdy.begin + wt_rec->new_wt_bdy.begin;
       }
     }
   }
@@ -1762,9 +1981,7 @@ ALWAYS_INLINE int uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::next()
   {
     /* Reorder weight change only on primary level. */
     if (param->reorder_param && weight_lv == 0)
-      res= my_apply_reorder_param(param->reorder_param->wt_rec,
-                                  param->reorder_param->max_weight,
-                                  res);
+      res= apply_reorder_param(res);
     if (param->case_first != CASE_FIRST_OFF)
       res= apply_case_first(res);
   }
@@ -1780,7 +1997,7 @@ ALWAYS_INLINE int uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::next()
     s		First string
     slen	First string length
     t		Second string
-    tlen	Seconf string length
+    tlen	Second string length
   
   NOTES:
     Initializes two weight scanners and gets weights
@@ -1812,25 +2029,78 @@ ALWAYS_INLINE int uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::next()
     positive number - means the first string is bigger
 */
 
-template<class Scanner, class Mb_wc>
+template<class Scanner, int LEVELS_FOR_COMPARE, class Mb_wc>
 static int my_strnncoll_uca(const CHARSET_INFO *cs, 
                             const Mb_wc mb_wc,
 			    const uchar *s, size_t slen,
                             const uchar *t, size_t tlen,
-                            my_bool t_is_prefix)
+                            bool t_is_prefix)
 {
   Scanner sscanner(mb_wc, cs, s, slen);
   Scanner tscanner(mb_wc, cs, t, tlen);
-  int s_res;
-  int t_res;
-  
-  do
+  int s_res= 0;
+  int t_res= 0;
+
+  /*
+    We compare 2 strings in same level first. If only string A's scanner
+    has gone to next level, which means another string, B's weight of
+    current level is longer than A's. We'll compare B's remaining weights
+    with space.
+  */
+  for (uint current_lv= 0; current_lv < LEVELS_FOR_COMPARE; ++current_lv)
   {
-    s_res= sscanner.next();
-    t_res= tscanner.next();
-  } while ( s_res == t_res && s_res >0);
-  
-  return  (t_is_prefix && t_res < 0) ? 0 : (s_res - t_res);
+    /* Run the scanners until one of them runs out of current lv */
+    do
+    {
+      s_res= sscanner.next();
+      t_res= tscanner.next();
+    } while (s_res == t_res && s_res >= 0 &&
+             sscanner.get_weight_level() == current_lv &&
+             tscanner.get_weight_level() == current_lv);
+
+    /*
+      Two scanners run to next level at same time, or we found a difference,
+      or we found an error.
+    */
+    if (sscanner.get_weight_level() == tscanner.get_weight_level())
+    {
+      if (s_res == t_res && s_res >= 0)
+        continue;
+      break;  // Error or inequality found, end.
+    }
+
+    if (tscanner.get_weight_level() > current_lv)
+    {
+      // t ran out of weights on this level, and s didn't.
+      if (t_is_prefix)
+      {
+        // Consume the rest of the weights from s.
+        do {
+          s_res= sscanner.next();
+        } while (s_res >= 0 && sscanner.get_weight_level() == current_lv);
+
+        if (s_res < 0) break;  // Error found, end.
+
+        // s is now also on the next level. Continue comparison.
+        continue;
+      }
+      else
+      {
+        // s is longer than t (and t_prefix isn't set).
+        return 1;
+      }
+    }
+
+    if (sscanner.get_weight_level() > current_lv)
+    {
+      // s ran out of weights on this level, and t didn't.
+      return -1;
+    }
+
+    break;
+  }
+
+  return ( s_res - t_res );
 }
 
 
@@ -1990,183 +2260,6 @@ static int my_strnncollsp_uca(const CHARSET_INFO *cs,
   return ( s_res - t_res );
 }
 
-template<class Mb_wc, int LEVELS_FOR_COMPARE>
-static int my_strnncollsp_uca_900_tmpl(const CHARSET_INFO *cs,
-                                       const Mb_wc mb_wc,
-                                       const uchar *s, size_t slen,
-                                       const uchar *t, size_t tlen)
-{
-  int s_res= 0;
-  int t_res= 0;
-
-  uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE> sscanner(mb_wc, cs, s, slen);
-  uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE> tscanner(mb_wc, cs, t, tlen);
-
-  /*
-    We compare 2 strings in same level first. If only string A's scanner
-    has gone to next level, which means another string, B's weight of
-    current level is longer than A's. We'll compare B's remaining weights
-    with space.
-  */
-  for (uint current_lv= 0; current_lv < LEVELS_FOR_COMPARE; ++current_lv)
-  {
-    /* Run the scanners until one of them runs out of current lv */
-    do
-    {
-      s_res= sscanner.next();
-      t_res= tscanner.next();
-    } while (s_res == t_res && s_res >= 0 &&
-             sscanner.get_weight_level() == current_lv &&
-             tscanner.get_weight_level() == current_lv);
-    /* Two scanners run to next level at same time */
-    if (sscanner.get_weight_level() == tscanner.get_weight_level())
-    {
-      if (s_res == t_res && s_res >= 0)
-        continue;
-      break;
-    }
-
-    if (tscanner.get_weight_level() > current_lv)
-    {
-      const uint16 space_weight= UCA900_WEIGHT(
-        cs->uca->weights[0], current_lv, 0x20);
-      /* compare the first string to spaces */
-      do
-      {
-        if (s_res != space_weight)
-          return (s_res - space_weight);
-        s_res= sscanner.next();
-      } while (s_res >= 0 && sscanner.get_weight_level() == current_lv);
-      if (sscanner.get_weight_level() > current_lv && s_res == t_res)
-        continue;
-      break;
-    }
-
-    if (sscanner.get_weight_level() > current_lv)
-    {
-      const uint16 space_weight= UCA900_WEIGHT(
-        cs->uca->weights[0], current_lv, 0x20);
-      /* compare the second string to spaces */
-      do
-      {
-        if (space_weight != t_res)
-          return (space_weight - t_res);
-        t_res= tscanner.next();
-      } while (t_res >= 0 && tscanner.get_weight_level() == current_lv);
-      if (tscanner.get_weight_level() > current_lv && s_res == t_res)
-        continue;
-      break;
-    }
-  }
-
-  return ( s_res - t_res );
-}
-
-// Simpler version of my_strnncollsp_uca_900_tmpl for only a single level.
-// (Avoids calling get_weight_level(), which saves time.)
-template<class Mb_wc>
-static int my_strnncollsp_uca_900_tmpl_single_level(const CHARSET_INFO *cs,
-                                                    const Mb_wc mb_wc,
-                                                    const uchar *s, size_t slen,
-                                                    const uchar *t, size_t tlen)
-{
-  int s_res= 0;
-  int t_res= 0;
-
-  uca_scanner_900<Mb_wc, 1> sscanner(mb_wc, cs, s, slen);
-  uca_scanner_900<Mb_wc, 1> tscanner(mb_wc, cs, t, tlen);
-
-  do
-  {
-    s_res= sscanner.next();
-    t_res= tscanner.next();
-  } while (s_res == t_res && s_res >= 0);
-
-  if (s_res != t_res && s_res >= 0 && t_res >= 0)
-  {
-    // Most common case: Both scanners still have weights left,
-    // but they are different.
-    return ( s_res - t_res );
-  }
-
-  if (s_res < 0 && t_res < 0)
-  {
-    // Both ended at the same time, without ever showing a difference.
-    return 0;
-  }
-
-  uint16 space_weight= UCA900_WEIGHT(
-    cs->uca->weights[0], /*weight_lv=*/0, 0x20);
-
-  if (t_res < 0)
-  {
-    /* compare the first string to spaces */
-    do
-    {
-      if (s_res != space_weight)
-        return (s_res - space_weight);
-      s_res= sscanner.next();
-    } while (s_res >= 0);
-
-    // The first string ran out without showing anything but spaces.
-    return 0;
-  }
-
-  DBUG_ASSERT(s_res < 0);
-
-  /* compare the second string to spaces */
-  do
-  {
-    if (space_weight != t_res)
-      return (space_weight - t_res);
-    t_res= tscanner.next();
-  } while (t_res >= 0);
-
-  // The second string ran out without showing anything but spaces.
-  return 0;
-}
-
-
-static int my_strnncollsp_uca_900(const CHARSET_INFO *cs,
-                                  const uchar *s, size_t slen,
-                                  const uchar *t, size_t tlen)
-{
-  if (cs->cset->mb_wc == my_mb_wc_utf8mb4_thunk)
-  {
-    switch (cs->levels_for_compare) {
-    case 1:
-      return my_strnncollsp_uca_900_tmpl_single_level<Mb_wc_utf8mb4>(
-        cs, Mb_wc_utf8mb4(), s, slen, t, tlen);
-    case 2:
-      return my_strnncollsp_uca_900_tmpl<Mb_wc_utf8mb4, 2>(
-        cs, Mb_wc_utf8mb4(), s, slen, t, tlen);
-    default:
-      DBUG_ASSERT(false);
-    case 3:
-      return my_strnncollsp_uca_900_tmpl<Mb_wc_utf8mb4, 3>(
-        cs, Mb_wc_utf8mb4(), s, slen, t, tlen);
-    }
-  }
-  else
-  {
-    Mb_wc_through_function_pointer mb_wc(cs);
-    switch (cs->levels_for_compare)
-    {
-    case 1:
-      return my_strnncollsp_uca_900_tmpl_single_level<decltype(mb_wc)>(
-        cs, mb_wc, s, slen, t, tlen);
-    case 2:
-      return my_strnncollsp_uca_900_tmpl<decltype(mb_wc), 2>(
-        cs, mb_wc, s, slen, t, tlen);
-    default:
-      DBUG_ASSERT(false);
-    case 3:
-      return my_strnncollsp_uca_900_tmpl<decltype(mb_wc), 3>(
-        cs, mb_wc, s, slen, t, tlen);
-    }
-  }
-}
-
 /*
   Calculates hash value for the given string,
   according to the collation, and ignoring trailing spaces.
@@ -2269,9 +2362,11 @@ my_strnxfrm_uca(const CHARSET_INFO *cs, Mb_wc mb_wc,
       *dst++= s_res & 0xFF;
   }
 
-  if (dst < de && (flags & MY_STRXFRM_PAD_WITH_SPACE))
+  if (dst < de)
   {
     /*
+      PAD SPACE behavior.
+
       We still have space left in the output buffer, which must mean
       that the scanner is at the end of the last level. Find out
       how many weights we wrote per level, and add any remaining
@@ -3019,7 +3114,7 @@ typedef struct my_coll_rule_item_st
   my_wc_t curr[MY_UCA_MAX_CONTRACTION];  /* Current character               */
   int diff[4];      /* Primary, Secondary, Tertiary, Quaternary difference  */
   size_t before_level;                   /* "reset before" indicator        */
-  my_bool with_context;
+  bool with_context;
 } MY_COLL_RULE;
 
 
@@ -3684,8 +3779,26 @@ my_coll_parser_scan_shift_sequence(MY_COLL_RULE_PARSER *p)
     */
     my_coll_parser_scan(p);
     p->rule.with_context= TRUE;
-    if (!my_coll_parser_scan_character_list(p, p->rule.curr + 1, 1, "context"))
+    if (!my_coll_parser_scan_character_list(p, p->rule.curr + 1,
+                                            MY_UCA_MAX_EXPANSION - 1,
+                                            "context"))
       return 0;
+    /*
+      It might be CONTEXT followed by EXPANSION. For example, Japanese
+      collation has one rule defined as:
+      "&[before 3]へ<<<へ|ゝ=べ|ゝ=へ|ゞ/\u3099"
+      The part of "へ|ゞ/\u3099" is CONTEXT ('|') followed by EXPANSION ('/').
+    */
+    if (my_coll_parser_curr(p)->term == MY_COLL_LEXEM_EXTEND)
+    {
+      my_coll_parser_scan(p);
+      size_t len= my_wstrnlen(p->rule.base, MY_UCA_MAX_EXPANSION);
+      if (!my_coll_parser_scan_character_list(p, p->rule.base + len,
+                                              MY_UCA_MAX_EXPANSION - len,
+                                              "Expansion"))
+        return 0;
+    }
+
   }
 
   /* Add rule to the rule list */
@@ -4168,7 +4281,7 @@ my_char_weight_put(MY_UCA_INFO *dst, uint16 *to,
   @retval         FALSE on success
   @retval         TRUE  on error
 */
-static my_bool
+static bool
 my_uca_copy_page(CHARSET_INFO *cs,
                  MY_CHARSET_LOADER *loader,
                  const MY_UCA_INFO *src,
@@ -4199,76 +4312,120 @@ my_uca_copy_page(CHARSET_INFO *cs,
 }
 
 static bool
-apply_shift_900(MY_CHARSET_LOADER *loader,
-                MY_COLL_RULES *rules, MY_COLL_RULE *r, int level,
-                uint16 *to, size_t to_stride, size_t nweights)
+apply_primary_shift_900(MY_CHARSET_LOADER *loader, MY_COLL_RULES *rules,
+                        MY_COLL_RULE *r, uint16 *to, size_t to_stride,
+                        size_t nweights, uint16 * const last_weight_ptr)
 {
-  /* Apply level difference. */
-  if (nweights)
+  /*
+    Find the second-to-last non-ignorable primary weight to apply shift,
+    because the last one is the extra CE we added in my_char_weight_put_900().
+  */
+  int last_sec_pri= 0;
+  for (last_sec_pri= nweights - 2; last_sec_pri >= 0; --last_sec_pri)
   {
-    uint16 * const last_weight_ptr = to + (nweights - 1) * to_stride * MY_UCA_900_CE_SIZE;
-    last_weight_ptr[0]+= r->diff[0];
-    last_weight_ptr[to_stride]+= r->diff[1];
-    last_weight_ptr[to_stride * 2]+= r->diff[2];
-    if (r->before_level == 1) /* Apply "&[before primary]" */
+    if (to[last_sec_pri * to_stride * MY_UCA_900_CE_SIZE])
+      break;
+  }
+  if (last_sec_pri >= 0)
+  {
+    to[last_sec_pri * to_stride * MY_UCA_900_CE_SIZE]--; /* Reset before */
+    if (rules->shift_after_method == my_shift_method_expand)
     {
-      int last_sec_pri_pos= 0;
-      for (int i= nweights - 2; i >= 0; --i)
-      {
-        if (to[i * to_stride * MY_UCA_900_CE_SIZE])
-        {
-          last_sec_pri_pos= i;
-          break;
-        }
-      }
-      if (last_sec_pri_pos >= 0)
-      {
-        to[last_sec_pri_pos * to_stride * MY_UCA_900_CE_SIZE]--; /* Reset before */
-        if (rules->shift_after_method == my_shift_method_expand)
-        {
-          /*
-            Special case. Don't let characters shifted after X
-            and before next(X) intermix to each other.
+      /*
+        Special case. Don't let characters shifted after X
+        and before next(X) intermix to each other.
 
-            For example:
-            "[shift-after-method expand] &0 < a &[before primary]1 < A".
-            I.e. we reorder 'a' after '0', and then 'A' before '1'.
-            'a' must be sorted before 'A'.
+        For example:
+        "[shift-after-method expand] &0 < a &[before primary]1 < A".
+        I.e. we reorder 'a' after '0', and then 'A' before '1'.
+        'a' must be sorted before 'A'.
 
-            Note, there are no real collations in CLDR which shift
-            after and before two neighbourgh characters. We need this
-            just in case. Reserving 4096 (0x1000) weights for such
-            cases is perfectly enough.
-          */
-          /* W3-TODO: const may vary on levels 2,3*/
-          last_weight_ptr[0]+= 0x1000;
-        }
-      }
-      else
-      {
-        my_snprintf(loader->error, sizeof(loader->error),
-                    "Can't reset before "
-                    "a primary ignorable character U+%04lX", r->base[0]);
-        return TRUE;
-      }
+        Note, there are no real collations in CLDR which shift
+        after and before two neighbouring characters. We need this
+        just in case. Reserving 4096 (0x1000) weights for such
+        cases is perfectly enough.
+      */
+      /* W3-TODO: const may vary on levels 2,3*/
+      last_weight_ptr[0]+= 0x1000;
     }
   }
   else
   {
-    /* Shift to an ignorable character, e.g.: & \u0000 < \u0001 */
-    DBUG_ASSERT(to[0] == 0);
-    to[0]= r->diff[level];
+    my_snprintf(loader->error, sizeof(loader->error),
+                "Can't reset before "
+                "a primary ignorable character U+%04lX", r->base[0]);
+    return true;
   }
-  return FALSE;
+  return false;
 }
 
-static my_bool
+static bool
+apply_tertiary_shift_900(MY_CHARSET_LOADER *loader, MY_COLL_RULES *rules,
+                         MY_COLL_RULE *r, uint16 *to, size_t to_stride,
+                         size_t nweights, uint16 * const last_weight_ptr)
+{
+  /*
+    Find the second-to-last non-ignorable tertiary weight to apply shift,
+    because the last one is the extra CE we added in my_char_weight_put_900().
+  */
+  int last_sec_ter;
+  for (last_sec_ter= nweights - 2; last_sec_ter >= 0; --last_sec_ter)
+  {
+    if (to[last_sec_ter * MY_UCA_900_CE_SIZE * to_stride + 2 * to_stride])
+      break;
+  }
+  if (last_sec_ter >= 0)
+  {
+    // Reset before.
+    to[last_sec_ter * MY_UCA_900_CE_SIZE * to_stride + 2 * to_stride]--;
+    if (rules->shift_after_method == my_shift_method_expand)
+    {
+      /*
+        Same reason as in apply_primary_shift_900(), reserve 16 (0x10)
+        weights for tertiary level.
+      */
+      last_weight_ptr[to_stride * 2]+= 0x10;
+    }
+  }
+  else
+  {
+    my_snprintf(loader->error, sizeof(loader->error),
+                "Can't reset before "
+                "a tertiary ignorable character U+%04lX", r->base[0]);
+    return true;
+  }
+  return false;
+}
+
+static bool
+apply_shift_900(MY_CHARSET_LOADER *loader,
+                MY_COLL_RULES *rules, MY_COLL_RULE *r,
+                uint16 *to, size_t to_stride, size_t nweights)
+{
+  // nweights should not less than 1 because of the extra CE.
+  DBUG_ASSERT(nweights);
+  // Apply level difference.
+  uint16 * const last_weight_ptr=
+    to + (nweights - 1) * to_stride * MY_UCA_900_CE_SIZE;
+  last_weight_ptr[0]+= r->diff[0];
+  last_weight_ptr[to_stride]+= r->diff[1];
+  last_weight_ptr[to_stride * 2]+= r->diff[2];
+  if (r->before_level == 1) // Apply "&[before primary]".
+    return apply_primary_shift_900(loader, rules, r, to, to_stride,
+                                   nweights, last_weight_ptr);
+  else if (r->before_level == 3) // Apply "[before 3]".
+    return apply_tertiary_shift_900(loader, rules, r, to, to_stride,
+                                    nweights, last_weight_ptr);
+  return false;
+}
+
+static bool
 apply_shift(MY_CHARSET_LOADER *loader,
             MY_COLL_RULES *rules, MY_COLL_RULE *r, int level,
             uint16 *to, size_t to_stride, size_t nweights)
 {
   if (rules->uca->version == UCA_V900)
-    return apply_shift_900(loader, rules, r, level, to, to_stride, nweights);
+    return apply_shift_900(loader, rules, r, to, to_stride, nweights);
 
   DBUG_ASSERT(to_stride == 1);
 
@@ -4320,7 +4477,7 @@ apply_shift(MY_CHARSET_LOADER *loader,
 }
 
 
-static my_bool
+static bool
 apply_one_rule(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader,
                MY_COLL_RULES *rules, MY_COLL_RULE *r, int level,
                MY_UCA_INFO *dst)
@@ -4352,11 +4509,12 @@ apply_one_rule(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader,
                                r->with_context)->weight;
     to_stride= 1;
     to_num_ce= &to[MY_UCA_MAX_WEIGHT_SIZE - 1];
+    /* Temporarily hide - it's incomplete */
+    dst->contractions.nitems[nshift]--;
     /* Store weights of the "reset to" character */
-    dst->contractions.nitems--; /* Temporarily hide - it's incomplete */
     nweights= my_char_weight_put(dst, to, to_stride, MY_UCA_MAX_WEIGHT_SIZE - 1,
                                  to_num_ce, r, nreset, rules->uca->version);
-    dst->contractions.nitems++; /* Activate, now it's complete */
+    dst->contractions.nitems[nshift]++; /* Activate, now it's complete */
   }
   else
   {
@@ -4437,15 +4595,29 @@ synthesize_lengths_900(uchar *lengths,
   }
 }
 
-static my_bool
+static void
+copy_ja_han_pages(const CHARSET_INFO *cs, MY_UCA_INFO *dst)
+{
+  if (!cs->uca || cs->uca->version != UCA_V900 ||
+      cs->coll_param != &ja_coll_param)
+    return;
+  for (int page= 0x4E; page <= 0x9F; page++)
+  {
+    // In DUCET, weight is not assigned to code points in [U+4E00, U+9FFF].
+    DBUG_ASSERT(dst->weights[page] == nullptr);
+    dst->weights[page]= ja_han_pages[page - 0x4E];
+  }
+}
+
+static bool
 init_weight_level(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader,
                   MY_COLL_RULES *rules, int level,
                   MY_UCA_INFO *dst, const MY_UCA_INFO *src,
                   bool lengths_are_temporary)
 {
   MY_COLL_RULE *r, *rlast;
-  int ncontractions= 0;
   size_t i, npages= (src->maxchar + 1) / 256;
+  size_t ncontractions[MY_UCA_MAX_CONTRACTION + 1]{0};
 
   dst->maxchar= src->maxchar;
 
@@ -4510,13 +4682,16 @@ init_weight_level(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader,
       dst->weights[pagec]= NULL; /* Mark that we'll overwrite this page */
     }
     else
-      ncontractions++;
+    {
+      ncontractions[my_wstrnlen(r->curr, MY_UCA_MAX_CONTRACTION)]++;
+      dst->contractions.has_contractions= true;
+    }
   }
 
   /* Allocate pages that we'll overwrite and copy default weights */
   for (i= 0; i < npages; i++)
   {
-    my_bool rc;
+    bool rc;
     /*
       Don't touch pages with lengths[i]==0, they have implicit weights
       calculated algorithmically.
@@ -4526,7 +4701,9 @@ init_weight_level(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader,
       return rc;
   }
 
-  if (ncontractions)
+  copy_ja_han_pages(cs, dst);
+
+  if (dst->contractions.has_contractions)
   {
     if (my_uca_alloc_contractions(&dst->contractions, loader, ncontractions))
       return TRUE;
@@ -4546,10 +4723,16 @@ init_weight_level(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader,
       return TRUE;
   }
   // Sort contractions by the code points.
-  if (ncontractions)
-    std::sort(dst->contractions.item,
-              dst->contractions.item + dst->contractions.nitems,
-              contraction_chars_cmp);
+  if (dst->contractions.has_contractions)
+  {
+    for (size_t i= 2; i <= MY_UCA_MAX_CONTRACTION; i++)
+    {
+      if (dst->contractions.nitems[i])
+        std::sort(dst->contractions.item[i],
+                  dst->contractions.item[i] + dst->contractions.nitems[i],
+                  contraction_chars_cmp);
+    }
+  }
   return FALSE;
 }
 
@@ -4851,7 +5034,7 @@ my_calc_char_grp_param(const CHARSET_INFO *cs, int &rec_ind)
   @param      rec_ind    The position from where to store weight boundary
 */
 static void
-my_calc_char_grp_gap_param(CHARSET_INFO *cs, int rec_ind)
+my_calc_char_grp_gap_param(CHARSET_INFO *cs, int &rec_ind)
 {
   Reorder_param *param= cs->coll_param->reorder_param;
   uint16 weight_start= param->wt_rec[rec_ind - 1].new_wt_bdy.end + 1;
@@ -4896,6 +5079,7 @@ my_calc_char_grp_gap_param(CHARSET_INFO *cs, int rec_ind)
       break;
     }
   }
+  param->wt_rec_num= rec_ind;
 }
 
 
@@ -4904,10 +5088,10 @@ my_calc_char_grp_gap_param(CHARSET_INFO *cs, int rec_ind)
   Prepare reorder parameters.
   @param  cs     Character set info
 */
-static void my_prepare_reorder(CHARSET_INFO *cs)
+static int my_prepare_reorder(CHARSET_INFO *cs)
 {
   if (!cs->coll_param->reorder_param)
-    return;
+    return 0;
   /*
     For each group of character, for example, latin characters,
     their weights are in a seperate range. The default sequence
@@ -4922,6 +5106,48 @@ static void my_prepare_reorder(CHARSET_INFO *cs)
   int rec_ind= 0;
   my_calc_char_grp_param(cs, rec_ind);
   my_calc_char_grp_gap_param(cs, rec_ind);
+  return rec_ind;
+}
+
+static void adjust_japanese_weight(CHARSET_INFO *cs, int rec_ind)
+{
+  /*
+    Per CLDR 30, Japanese collations need to reorder characters as
+    [Latin, Kana, Han, others]. So for the original character group list:
+    [Latin, CharA, Kana, CharB, Han, Others], it should be reordered as
+    [Latin, Kana, Han, CharA, CharB, Others]. But my_prepare_reorder()
+    reorders original group to be [Latin, Kana, CharA, CharB, Han, Others].
+    This is because Han characters are different from others in that Han
+    characters' weight is implicit and has two primary weights for each
+    character. Other characters have only one primary weight for each (base)
+    character. Han characters always sort bigger.
+
+    CLDR defines the collating order for 6355 Japanese Han characters. All
+    of them are in [U+4E00, U+9FFF]; we give them tailored primary weights
+    in ja_han_pages. The tailored primary weights are just after Kana,
+    because these characters are very common. These Han characters' weight
+    pages will be added to collation's UCA data in copy_ja_han_pages().
+    For the other Han characters, we don't change their implicit weights,
+    which is [FB80 - FB85, 0020, 0002][XXXX, 0000, 0000].
+
+    To make sure CharA and CharB's weight is greater than all Han characters,
+    we give them weight as [FB86, 0000, 0000][origin weights]. This will be
+    done in apply_reorder_param().
+
+    Because the values stored in last wt_rec element is calculated for moving
+    CharA to be after Kana, but we want them to be after all Han character,
+    we reset the weight boundary here, and will change all these characters'
+    weight in apply_reorder_param().
+  */
+  Reorder_param *param= cs->coll_param->reorder_param;
+  param->wt_rec[rec_ind - 1].new_wt_bdy.begin= 0;
+  param->wt_rec[rec_ind - 1].new_wt_bdy.end= 0;
+  param->wt_rec[rec_ind].old_wt_bdy.begin= param->wt_rec[1].old_wt_bdy.end + 1;
+  param->wt_rec[rec_ind].old_wt_bdy.end= 0x54A3;
+  param->wt_rec[rec_ind].new_wt_bdy.begin= 0;
+  param->wt_rec[rec_ind].new_wt_bdy.end= 0;
+  param->wt_rec_num++;
+  param->max_weight= 0x54A3;
 }
 
 /**
@@ -4936,9 +5162,12 @@ static bool my_prepare_coll_param(CHARSET_INFO *cs, MY_COLL_RULES *rules)
   if (rules->uca->version != UCA_V900 || !cs->coll_param)
     return false;
 
-  my_prepare_reorder(cs);
+  int rec_ind= my_prepare_reorder(cs);
   if (add_normalization_rules(cs, rules))
     return true;
+
+  if (cs->coll_param == &ja_coll_param)
+    adjust_japanese_weight(cs, rec_ind);
   /* Might add other parametric tailoring rules later. */
   return false;
 }
@@ -4959,7 +5188,7 @@ static bool my_prepare_coll_param(CHARSET_INFO *cs, MY_COLL_RULES *rules)
   default weights.
 */
 
-static my_bool
+static bool
 create_tailoring(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader)
 {
   MY_COLL_RULES rules;
@@ -5061,7 +5290,7 @@ ex:
 */
 
 extern "C" {
-static my_bool
+static bool
 my_coll_init_uca(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader)
 {
   cs->pad_char= ' ';
@@ -5074,16 +5303,16 @@ my_coll_init_uca(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader)
 static int my_strnncoll_any_uca(const CHARSET_INFO *cs,
                                 const uchar *s, size_t slen,
                                 const uchar *t, size_t tlen,
-                                my_bool t_is_prefix)
+                                bool t_is_prefix)
 {
   if (cs->cset->mb_wc == my_mb_wc_utf8mb4_thunk)
   {
-    return my_strnncoll_uca<uca_scanner_any<Mb_wc_utf8mb4>>(
+    return my_strnncoll_uca<uca_scanner_any<Mb_wc_utf8mb4>, 1>(
       cs, Mb_wc_utf8mb4(), s, slen, t, tlen, t_is_prefix);
   }
 
   Mb_wc_through_function_pointer mb_wc(cs);
-  return my_strnncoll_uca<uca_scanner_any<decltype(mb_wc)>>(
+  return my_strnncoll_uca<uca_scanner_any<decltype(mb_wc)>, 1>(
     cs, mb_wc, s, slen, t, tlen, t_is_prefix);
 }
 
@@ -5130,22 +5359,25 @@ static size_t my_strnxfrm_any_uca(const CHARSET_INFO *cs,
 static int my_strnncoll_uca_900(const CHARSET_INFO *cs,
                                 const uchar *s, size_t slen,
                                 const uchar *t, size_t tlen,
-                                my_bool t_is_prefix)
+                                bool t_is_prefix)
 {
   if (cs->cset->mb_wc == my_mb_wc_utf8mb4_thunk)
   {
     switch (cs->levels_for_compare)
     {
     case 1:
-      return my_strnncoll_uca<uca_scanner_900<Mb_wc_utf8mb4, 1>>(
+      return my_strnncoll_uca<uca_scanner_900<Mb_wc_utf8mb4, 1>, 1>(
         cs, Mb_wc_utf8mb4(), s, slen, t, tlen, t_is_prefix);
     case 2:
-      return my_strnncoll_uca<uca_scanner_900<Mb_wc_utf8mb4, 2>>(
+      return my_strnncoll_uca<uca_scanner_900<Mb_wc_utf8mb4, 2>, 2>(
         cs, Mb_wc_utf8mb4(), s, slen, t, tlen, t_is_prefix);
     default:
       DBUG_ASSERT(false);
     case 3:
-      return my_strnncoll_uca<uca_scanner_900<Mb_wc_utf8mb4, 3>>(
+      return my_strnncoll_uca<uca_scanner_900<Mb_wc_utf8mb4, 3>, 3>(
+        cs, Mb_wc_utf8mb4(), s, slen, t, tlen, t_is_prefix);
+    case 4:
+      return my_strnncoll_uca<uca_scanner_900<Mb_wc_utf8mb4, 4>, 4>(
         cs, Mb_wc_utf8mb4(), s, slen, t, tlen, t_is_prefix);
     }
   }
@@ -5154,17 +5386,28 @@ static int my_strnncoll_uca_900(const CHARSET_INFO *cs,
   switch (cs->levels_for_compare)
   {
   case 1:
-    return my_strnncoll_uca<uca_scanner_900<decltype(mb_wc), 1>>(
+    return my_strnncoll_uca<uca_scanner_900<decltype(mb_wc), 1>, 1>(
       cs, mb_wc, s, slen, t, tlen, t_is_prefix);
   case 2:
-    return my_strnncoll_uca<uca_scanner_900<decltype(mb_wc), 2>>(
+    return my_strnncoll_uca<uca_scanner_900<decltype(mb_wc), 2>, 2>(
       cs, mb_wc, s, slen, t, tlen, t_is_prefix);
   default:
     DBUG_ASSERT(false);
   case 3:
-    return my_strnncoll_uca<uca_scanner_900<decltype(mb_wc), 3>>(
+    return my_strnncoll_uca<uca_scanner_900<decltype(mb_wc), 3>, 3>(
+      cs, mb_wc, s, slen, t, tlen, t_is_prefix);
+  case 4:
+    return my_strnncoll_uca<uca_scanner_900<decltype(mb_wc), 4>, 4>(
       cs, mb_wc, s, slen, t, tlen, t_is_prefix);
   }
+}
+
+static int my_strnncollsp_uca_900(const CHARSET_INFO *cs,
+                                  const uchar *s, size_t slen,
+                                  const uchar *t, size_t tlen)
+{
+  // We are a NO PAD collation, so this is identical to strnncoll.
+  return my_strnncoll_uca_900(cs, s, slen, t, tlen, false);
 }
 
 }  // extern "C"
@@ -5175,7 +5418,6 @@ static void my_hash_sort_uca_900_tmpl(const CHARSET_INFO *cs,
                                       const uchar *s, size_t slen,
                                       ulong *n1)
 {
-  slen= cs->cset->lengthsp(cs, (char*) s, slen);
   uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE> scanner(mb_wc, cs, s, slen);
 
   /*
@@ -5212,35 +5454,9 @@ static void my_hash_sort_uca_900_tmpl(const CHARSET_INFO *cs,
   uint64 h= *n1;
   h^= 14695981039346656037ULL;
 
-  /*
-    We don't want any 0x0001 weights before level markers or end-of-string
-    to count (see comments on my_strnxfrm_uca_900_tmpl for rationale).
-    Thus, whenever we see a 0x0001 weight, we keep updating pending_hash,
-    but we don't actually update h before we see something else. This way,
-    we can roll back the effect of these weights (similar to
-    strip_space_weights()) if we need to.
-  */
-  uint64 pending_hash= h;
-
-  scanner.for_each_weight([&](int s_res, bool is_level_separator) {
-    if (is_level_separator)
-    {
-      /*
-        Level marker; roll back the hash to the last point we saw
-        a non-0x0001 weight, effectively doing space stripping.
-      */
-      pending_hash= h;
-    }
-
-    pending_hash^= s_res;
-    pending_hash*= 1099511628211ULL;
-
-    if (s_res != 0x0001)
-    {
-      // Commit any pending 0x0001 weights.
-      h= pending_hash;
-    }
-
+  scanner.for_each_weight([&](int s_res, bool) {
+    h^= s_res;
+    h*= 1099511628211ULL;
     return true;
   }, [](int) { return true; });
 
@@ -5268,6 +5484,9 @@ static void my_hash_sort_uca_900(const CHARSET_INFO *cs,
     case 3:
       return my_hash_sort_uca_900_tmpl<Mb_wc_utf8mb4, 3>(
         cs, Mb_wc_utf8mb4(), s, slen, n1);
+    case 4:
+      return my_hash_sort_uca_900_tmpl<Mb_wc_utf8mb4, 4>(
+        cs, Mb_wc_utf8mb4(), s, slen, n1);
     }
   }
 
@@ -5285,118 +5504,14 @@ static void my_hash_sort_uca_900(const CHARSET_INFO *cs,
   case 3:
     return my_hash_sort_uca_900_tmpl<decltype(mb_wc), 3>(
       cs, mb_wc, s, slen, n1);
+  case 4:
+    return my_hash_sort_uca_900_tmpl<decltype(mb_wc), 4>(
+      cs, mb_wc, s, slen, n1);
   }
 }
 
 }  // extern "C"
 
-/**
-  For each level, strip all 0x0001 weights from the end of the level.
-  See the comments on my_strnxfrm_uca_900_tmpl for rationale.
-*/
-static inline uchar *strip_space_weights(const uchar *d0, uchar *dst)
-{
-  while (dst > d0 && dst[-2] == 0x00 && dst[-1] == 0x01)
-  {
-    dst-= sizeof(uint16);
-  }
-
-  return dst;
-}
-
-/**
-  Since pad space takes so much space (and time) to write for complicated
-  collations, strnxfrm for UCA 9.0.0 takes a more subtle approach to padding
-  (MY_STRXFRM_PAD_WITH_SPACE) than actually adding spaces; it strips them
-  from the right instead.
-
-  However, we want to _preserve equality_ just as if we actually padded
-  (for both 1-, 2-, and 3-level compare), and we want to maintain a
-  _consistent_ ordering for strings that are not equal.
-  (This ordering will be very similar to, but not identical to,
-  the default DUCET ordering.)
-
-  These are all the code points that could ever sort equal to SPACE:
-
-      0020  ; [*0209.0020.0002] # SPACE
-      00A0  ; [*0209.0020.001B] # NO-BREAK SPACE
-      1680  ; [*0209.0020.0004] # OGHAM SPACE MARK
-      2000  ; [*0209.0020.0004] # EN QUAD
-      2001  ; [*0209.0020.0004] # EM QUAD
-      2002  ; [*0209.0020.0004] # EN SPACE
-      2003  ; [*0209.0020.0004] # EM SPACE
-      2004  ; [*0209.0020.0004] # THREE-PER-EM SPACE
-      2005  ; [*0209.0020.0004] # FOUR-PER-EM SPACE
-      2006  ; [*0209.0020.0004] # SIX-PER-EM SPACE
-      2007  ; [*0209.0020.001B] # FIGURE SPACE
-      2008  ; [*0209.0020.0004] # PUNCTUATION SPACE
-      2009  ; [*0209.0020.0004] # THIN SPACE
-      200A  ; [*0209.0020.0004] # HAIR SPACE
-      202F  ; [*0209.0020.001B] # NARROW NO-BREAK SPACE
-      205F  ; [*0209.0020.0004] # MEDIUM MATHEMATICAL SPACE
-      3000  ; [*0209.0020.0003] # IDEOGRAPHIC SPACE
-
-  Now we make our only ordering change (this happens in uca9-dump.cc,
-  so it is built into the tables). We make a tailoring so that the
-  spaces sort lowest (nothing else ever has a weight of 0x0001):
-
-      0020  ; [*0001.0020.0002] # SPACE
-      00A0  ; [*0001.0020.001B] # NO-BREAK SPACE
-      1680  ; [*0001.0020.0004] # OGHAM SPACE MARK
-      2000  ; [*0001.0020.0004] # EN QUAD
-      2001  ; [*0001.0020.0004] # EM QUAD
-      2002  ; [*0001.0020.0004] # EN SPACE
-      2003  ; [*0001.0020.0004] # EM SPACE
-      2004  ; [*0001.0020.0004] # THREE-PER-EM SPACE
-      2005  ; [*0001.0020.0004] # FOUR-PER-EM SPACE
-      2006  ; [*0001.0020.0004] # SIX-PER-EM SPACE
-      2007  ; [*0001.0020.001B] # FIGURE SPACE
-      2008  ; [*0001.0020.0004] # PUNCTUATION SPACE
-      2009  ; [*0001.0020.0004] # THIN SPACE
-      200A  ; [*0001.0020.0004] # HAIR SPACE
-      202F  ; [*0001.0020.001B] # NARROW NO-BREAK SPACE
-      205F  ; [*0001.0020.0004] # MEDIUM MATHEMATICAL SPACE
-      3000  ; [*0001.0020.0003] # IDEOGRAPHIC SPACE
-
-  Now nothing sorts before SPACE, but SPACE still sorts equal to a few
-  codepoints in primary and secondary weight. (SPACE sorts before everything
-  if you consider all three weights.) In other words:
-
-      [level end marker] < SPACE = [all other spaces] < *  [considering up to 2nd level]
-      [level end marker] < SPACE < *                       [considering up to 3rd level]
-
-  In PAD collations, everything is is conceptually the same length
-  (by definition), so we can safely move things from the second group
-  (ie., the group consisting of “all spaces” for first two levels,
-  only SPACE for the third level) to the first by stripping them
-  from the right. For convenience, let's change some more weights
-  (this does not change the ordering):
-
-      0020  ; [*0001.0001.0001] # SPACE
-      00A0  ; [*0001.0001.001B] # NO-BREAK SPACE
-      1680  ; [*0001.0001.0004] # OGHAM SPACE MARK
-      2000  ; [*0001.0001.0004] # EN QUAD
-      2001  ; [*0001.0001.0004] # EM QUAD
-      2002  ; [*0001.0001.0004] # EN SPACE
-      2003  ; [*0001.0001.0004] # EM SPACE
-      2004  ; [*0001.0001.0004] # THREE-PER-EM SPACE
-      2005  ; [*0001.0001.0004] # FOUR-PER-EM SPACE
-      2006  ; [*0001.0001.0004] # SIX-PER-EM SPACE
-      2007  ; [*0001.0001.001B] # FIGURE SPACE
-      2008  ; [*0001.0001.0004] # PUNCTUATION SPACE
-      2009  ; [*0001.0001.0004] # THIN SPACE
-      200A  ; [*0001.0001.0004] # HAIR SPACE
-      202F  ; [*0001.0001.001B] # NARROW NO-BREAK SPACE
-      205F  ; [*0001.0001.0004] # MEDIUM MATHEMATICAL SPACE
-      3000  ; [*0001.0001.0003] # IDEOGRAPHIC SPACE
-
-  Now we can simply make the rule that every 0x0001 weight in front of
-  a level marker gets stripped. This way, we keep equality of the
-  different spaces on first and second level, but we keep the property
-  that SPACE sorts first (and thus, _inequality_) on the third level.
-  The only thing we have changed is that the SPACE group sorts before
-  e.g. TAB (on the primary level), whereas earlier, it would sort later.
-*/
 template<class Mb_wc, int LEVELS_FOR_COMPARE>
 static size_t my_strnxfrm_uca_900_tmpl(const CHARSET_INFO *cs,
                                        const Mb_wc mb_wc,
@@ -5415,16 +5530,14 @@ static size_t my_strnxfrm_uca_900_tmpl(const CHARSET_INFO *cs,
     --dst_end;
   }
 
-restart:
   if (dst != dst_end)
   {
     scanner.for_each_weight([&dst, d0, dst_end, flags]
-                              (int s_res, bool is_level_separator) {
+                            (int s_res,
+                              bool is_level_separator MY_ATTRIBUTE((unused))) {
       DBUG_ASSERT(is_level_separator == (s_res == 0));
       if (LEVELS_FOR_COMPARE == 1)
         DBUG_ASSERT(!is_level_separator);
-      else if (is_level_separator && (flags & MY_STRXFRM_PAD_WITH_SPACE))
-        dst= strip_space_weights(d0, dst);
 
       dst= store16be(dst, s_res);
       return (dst < dst_end);
@@ -5432,60 +5545,6 @@ restart:
     [&dst, dst_end](int num_weights) {
       return (dst < dst_end - num_weights * 2);
     });
-  }
-
-  if (flags & MY_STRXFRM_PAD_WITH_SPACE)
-  {
-    uchar *nonspace_end= strip_space_weights(d0, dst);
-    if (dst == dst_end && dst != nonspace_end)
-    {
-      /*
-        If we went out of room for the output, there are two situations; either,
-        the string has more non-space characters left for us, in which case we are
-        done. However, if _only_ space weights (0x0001) in this level is space,
-        we should strip them and restart! This is required for prefix correctness,
-        ie. strnxfrm with an N-byte output buffer should give the same first
-        N bytes as if running with an infinite output buffer.
-
-        This is an edge case, so it's fine that it's not particularly fast.
-      */
-      for ( ;; )
-      {
-        int s_res= scanner.next();
-        if (s_res == -1)
-        {
-          /*
-            End of string without ever seeing anything except space.
-            We need to strip the spaces we've added, and then we're done.
-          */
-          dst= nonspace_end;
-          break;
-        }
-        if (s_res == 0)
-        {
-          /*
-            End of level without seeing anything except space, but there are
-            more levels. We need to strip the spaces we've added, write out
-            the level separator, and then restart the normal loop writing weights
-            (for the next level) as if nothing had happened.
-          */
-          dst= store16be(nonspace_end, s_res);
-          goto restart;
-        }
-        if (s_res != 0x0001)
-        {
-          // A non-space weight; we should _not_ strip spaces, just end.
-          break;
-        }
-
-        // Another space, so we still don't know; keep scanning the string.
-        DBUG_ASSERT(s_res == 0x0001);
-      }
-    }
-    else
-    {
-      dst= nonspace_end;
-    }
   }
 
   if (flags & MY_STRXFRM_PAD_TO_MAXLEN)
@@ -5519,6 +5578,9 @@ static size_t my_strnxfrm_uca_900(const CHARSET_INFO *cs,
     case 3:
       return my_strnxfrm_uca_900_tmpl<Mb_wc_utf8mb4, 3>(
         cs, Mb_wc_utf8mb4(), dst, dstlen, src, srclen, flags);
+    case 4:
+      return my_strnxfrm_uca_900_tmpl<Mb_wc_utf8mb4, 4>(
+        cs, Mb_wc_utf8mb4(), dst, dstlen, src, srclen, flags);
     }
   }
   else
@@ -5537,6 +5599,9 @@ static size_t my_strnxfrm_uca_900(const CHARSET_INFO *cs,
     case 3:
       return my_strnxfrm_uca_900_tmpl<decltype(mb_wc), 3>(
         cs, mb_wc, dst, dstlen, src, srclen, flags);
+    case 4:
+      return my_strnxfrm_uca_900_tmpl<decltype(mb_wc), 4>(
+        cs, mb_wc, dst, dstlen, src, srclen, flags);
     }
   }
 }
@@ -5551,10 +5616,10 @@ extern "C" {
 static int my_strnncoll_ucs2_uca(const CHARSET_INFO *cs,
                                  const uchar *s, size_t slen,
                                  const uchar *t, size_t tlen,
-                                 my_bool t_is_prefix)
+                                 bool t_is_prefix)
 {
   Mb_wc_through_function_pointer mb_wc(cs);
-  return my_strnncoll_uca<uca_scanner_any<decltype(mb_wc)>>(
+  return my_strnncoll_uca<uca_scanner_any<decltype(mb_wc)>, 1>(
     cs, mb_wc, s, slen, t, tlen, t_is_prefix);
 }
 
@@ -5631,7 +5696,8 @@ CHARSET_INFO my_charset_ucs2_unicode_ci=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_ucs2_handler,
-    &my_collation_ucs2_uca_handler
+    &my_collation_ucs2_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_ucs2_icelandic_uca_ci=
@@ -5665,7 +5731,8 @@ CHARSET_INFO my_charset_ucs2_icelandic_uca_ci=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_ucs2_handler,
-    &my_collation_ucs2_uca_handler
+    &my_collation_ucs2_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_ucs2_latvian_uca_ci=
@@ -5699,7 +5766,8 @@ CHARSET_INFO my_charset_ucs2_latvian_uca_ci=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_ucs2_handler,
-    &my_collation_ucs2_uca_handler
+    &my_collation_ucs2_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_ucs2_romanian_uca_ci=
@@ -5733,7 +5801,8 @@ CHARSET_INFO my_charset_ucs2_romanian_uca_ci=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_ucs2_handler,
-    &my_collation_ucs2_uca_handler
+    &my_collation_ucs2_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_ucs2_slovenian_uca_ci=
@@ -5767,7 +5836,8 @@ CHARSET_INFO my_charset_ucs2_slovenian_uca_ci=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_ucs2_handler,
-    &my_collation_ucs2_uca_handler
+    &my_collation_ucs2_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_ucs2_polish_uca_ci=
@@ -5801,7 +5871,8 @@ CHARSET_INFO my_charset_ucs2_polish_uca_ci=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_ucs2_handler,
-    &my_collation_ucs2_uca_handler
+    &my_collation_ucs2_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_ucs2_estonian_uca_ci=
@@ -5835,7 +5906,8 @@ CHARSET_INFO my_charset_ucs2_estonian_uca_ci=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_ucs2_handler,
-    &my_collation_ucs2_uca_handler
+    &my_collation_ucs2_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_ucs2_spanish_uca_ci=
@@ -5869,7 +5941,8 @@ CHARSET_INFO my_charset_ucs2_spanish_uca_ci=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_ucs2_handler,
-    &my_collation_ucs2_uca_handler
+    &my_collation_ucs2_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_ucs2_swedish_uca_ci=
@@ -5903,7 +5976,8 @@ CHARSET_INFO my_charset_ucs2_swedish_uca_ci=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_ucs2_handler,
-    &my_collation_ucs2_uca_handler
+    &my_collation_ucs2_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_ucs2_turkish_uca_ci=
@@ -5937,7 +6011,8 @@ CHARSET_INFO my_charset_ucs2_turkish_uca_ci=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_ucs2_handler,
-    &my_collation_ucs2_uca_handler
+    &my_collation_ucs2_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_ucs2_czech_uca_ci=
@@ -5971,7 +6046,8 @@ CHARSET_INFO my_charset_ucs2_czech_uca_ci=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_ucs2_handler,
-    &my_collation_ucs2_uca_handler
+    &my_collation_ucs2_uca_handler,
+    PAD_SPACE
 };
 
 
@@ -6006,7 +6082,8 @@ CHARSET_INFO my_charset_ucs2_danish_uca_ci=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_ucs2_handler,
-    &my_collation_ucs2_uca_handler
+    &my_collation_ucs2_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_ucs2_lithuanian_uca_ci=
@@ -6040,7 +6117,8 @@ CHARSET_INFO my_charset_ucs2_lithuanian_uca_ci=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_ucs2_handler,
-    &my_collation_ucs2_uca_handler
+    &my_collation_ucs2_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_ucs2_slovak_uca_ci=
@@ -6074,7 +6152,8 @@ CHARSET_INFO my_charset_ucs2_slovak_uca_ci=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_ucs2_handler,
-    &my_collation_ucs2_uca_handler
+    &my_collation_ucs2_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_ucs2_spanish2_uca_ci=
@@ -6108,7 +6187,8 @@ CHARSET_INFO my_charset_ucs2_spanish2_uca_ci=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_ucs2_handler,
-    &my_collation_ucs2_uca_handler
+    &my_collation_ucs2_uca_handler,
+    PAD_SPACE
 };
 
 
@@ -6143,7 +6223,8 @@ CHARSET_INFO my_charset_ucs2_roman_uca_ci=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_ucs2_handler,
-    &my_collation_ucs2_uca_handler
+    &my_collation_ucs2_uca_handler,
+    PAD_SPACE
 };
 
 
@@ -6178,7 +6259,8 @@ CHARSET_INFO my_charset_ucs2_persian_uca_ci=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_ucs2_handler,
-    &my_collation_ucs2_uca_handler
+    &my_collation_ucs2_uca_handler,
+    PAD_SPACE
 };
 
 
@@ -6213,7 +6295,8 @@ CHARSET_INFO my_charset_ucs2_esperanto_uca_ci=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_ucs2_handler,
-    &my_collation_ucs2_uca_handler
+    &my_collation_ucs2_uca_handler,
+    PAD_SPACE
 };
 
 
@@ -6248,7 +6331,8 @@ CHARSET_INFO my_charset_ucs2_hungarian_uca_ci=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_ucs2_handler,
-    &my_collation_ucs2_uca_handler
+    &my_collation_ucs2_uca_handler,
+    PAD_SPACE
 };
 
 
@@ -6283,7 +6367,8 @@ CHARSET_INFO my_charset_ucs2_sinhala_uca_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_ucs2_handler,
-    &my_collation_ucs2_uca_handler
+    &my_collation_ucs2_uca_handler,
+    PAD_SPACE
 };
 
 
@@ -6318,7 +6403,8 @@ CHARSET_INFO my_charset_ucs2_german2_uca_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_ucs2_handler,
-    &my_collation_ucs2_uca_handler
+    &my_collation_ucs2_uca_handler,
+    PAD_SPACE
 };
 
 
@@ -6353,7 +6439,8 @@ CHARSET_INFO my_charset_ucs2_croatian_uca_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_ucs2_handler,
-    &my_collation_ucs2_uca_handler
+    &my_collation_ucs2_uca_handler,
+    PAD_SPACE
 };
 
 
@@ -6388,7 +6475,8 @@ CHARSET_INFO my_charset_ucs2_unicode_520_ci=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_ucs2_handler,
-    &my_collation_ucs2_uca_handler
+    &my_collation_ucs2_uca_handler,
+    PAD_SPACE
 };
 
 
@@ -6423,7 +6511,8 @@ CHARSET_INFO my_charset_ucs2_vietnamese_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_ucs2_handler,
-    &my_collation_ucs2_uca_handler
+    &my_collation_ucs2_uca_handler,
+    PAD_SPACE
 };
 
 
@@ -6521,7 +6610,8 @@ CHARSET_INFO my_charset_utf8_unicode_ci=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_utf8_handler,
-    &my_collation_any_uca_handler
+    &my_collation_any_uca_handler,
+    PAD_SPACE
 };
 
 
@@ -6556,7 +6646,8 @@ CHARSET_INFO my_charset_utf8_icelandic_uca_ci=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_utf8_handler,
-    &my_collation_any_uca_handler
+    &my_collation_any_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf8_latvian_uca_ci=
@@ -6590,7 +6681,8 @@ CHARSET_INFO my_charset_utf8_latvian_uca_ci=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_utf8_handler,
-    &my_collation_any_uca_handler
+    &my_collation_any_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf8_romanian_uca_ci=
@@ -6624,7 +6716,8 @@ CHARSET_INFO my_charset_utf8_romanian_uca_ci=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_utf8_handler,
-    &my_collation_any_uca_handler
+    &my_collation_any_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf8_slovenian_uca_ci=
@@ -6658,7 +6751,8 @@ CHARSET_INFO my_charset_utf8_slovenian_uca_ci=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_utf8_handler,
-    &my_collation_any_uca_handler
+    &my_collation_any_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf8_polish_uca_ci=
@@ -6692,7 +6786,8 @@ CHARSET_INFO my_charset_utf8_polish_uca_ci=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_utf8_handler,
-    &my_collation_any_uca_handler
+    &my_collation_any_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf8_estonian_uca_ci=
@@ -6726,7 +6821,8 @@ CHARSET_INFO my_charset_utf8_estonian_uca_ci=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_utf8_handler,
-    &my_collation_any_uca_handler
+    &my_collation_any_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf8_spanish_uca_ci=
@@ -6760,7 +6856,8 @@ CHARSET_INFO my_charset_utf8_spanish_uca_ci=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_utf8_handler,
-    &my_collation_any_uca_handler
+    &my_collation_any_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf8_swedish_uca_ci=
@@ -6794,7 +6891,8 @@ CHARSET_INFO my_charset_utf8_swedish_uca_ci=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_utf8_handler,
-    &my_collation_any_uca_handler
+    &my_collation_any_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf8_turkish_uca_ci=
@@ -6828,7 +6926,8 @@ CHARSET_INFO my_charset_utf8_turkish_uca_ci=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_utf8_handler,
-    &my_collation_any_uca_handler
+    &my_collation_any_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf8_czech_uca_ci=
@@ -6862,7 +6961,8 @@ CHARSET_INFO my_charset_utf8_czech_uca_ci=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_utf8_handler,
-    &my_collation_any_uca_handler
+    &my_collation_any_uca_handler,
+    PAD_SPACE
 };
 
 
@@ -6897,7 +6997,8 @@ CHARSET_INFO my_charset_utf8_danish_uca_ci=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_utf8_handler,
-    &my_collation_any_uca_handler
+    &my_collation_any_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf8_lithuanian_uca_ci=
@@ -6931,7 +7032,8 @@ CHARSET_INFO my_charset_utf8_lithuanian_uca_ci=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_utf8_handler,
-    &my_collation_any_uca_handler
+    &my_collation_any_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf8_slovak_uca_ci=
@@ -6965,7 +7067,8 @@ CHARSET_INFO my_charset_utf8_slovak_uca_ci=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_utf8_handler,
-    &my_collation_any_uca_handler
+    &my_collation_any_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf8_spanish2_uca_ci=
@@ -6999,7 +7102,8 @@ CHARSET_INFO my_charset_utf8_spanish2_uca_ci=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_utf8_handler,
-    &my_collation_any_uca_handler
+    &my_collation_any_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf8_roman_uca_ci=
@@ -7033,7 +7137,8 @@ CHARSET_INFO my_charset_utf8_roman_uca_ci=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_utf8_handler,
-    &my_collation_any_uca_handler
+    &my_collation_any_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf8_persian_uca_ci=
@@ -7067,7 +7172,8 @@ CHARSET_INFO my_charset_utf8_persian_uca_ci=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_utf8_handler,
-    &my_collation_any_uca_handler
+    &my_collation_any_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf8_esperanto_uca_ci=
@@ -7101,7 +7207,8 @@ CHARSET_INFO my_charset_utf8_esperanto_uca_ci=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_utf8_handler,
-    &my_collation_any_uca_handler
+    &my_collation_any_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf8_hungarian_uca_ci=
@@ -7135,7 +7242,8 @@ CHARSET_INFO my_charset_utf8_hungarian_uca_ci=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_utf8_handler,
-    &my_collation_any_uca_handler
+    &my_collation_any_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf8_sinhala_uca_ci=
@@ -7169,7 +7277,8 @@ CHARSET_INFO my_charset_utf8_sinhala_uca_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf8_handler,
-    &my_collation_any_uca_handler
+    &my_collation_any_uca_handler,
+    PAD_SPACE
 };
 
 
@@ -7204,7 +7313,8 @@ CHARSET_INFO my_charset_utf8_german2_uca_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf8_handler,
-    &my_collation_any_uca_handler
+    &my_collation_any_uca_handler,
+    PAD_SPACE
 };
 
 
@@ -7239,7 +7349,8 @@ CHARSET_INFO my_charset_utf8_croatian_uca_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf8_handler,
-    &my_collation_any_uca_handler
+    &my_collation_any_uca_handler,
+    PAD_SPACE
 };
 
 
@@ -7274,7 +7385,8 @@ CHARSET_INFO my_charset_utf8_unicode_520_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf8_handler,
-    &my_collation_any_uca_handler
+    &my_collation_any_uca_handler,
+    PAD_SPACE
 };
 
 
@@ -7309,7 +7421,8 @@ CHARSET_INFO my_charset_utf8_vietnamese_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf8_handler,
-    &my_collation_any_uca_handler
+    &my_collation_any_uca_handler,
+    PAD_SPACE
 };
 
 extern MY_CHARSET_HANDLER my_charset_utf8mb4_handler;
@@ -7347,7 +7460,8 @@ CHARSET_INFO my_charset_utf8mb4_unicode_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf8mb4_handler,
-    &my_collation_any_uca_handler
+    &my_collation_any_uca_handler,
+    PAD_SPACE
 };
 
 
@@ -7382,7 +7496,8 @@ CHARSET_INFO my_charset_utf8mb4_icelandic_uca_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf8mb4_handler,
-    &my_collation_any_uca_handler
+    &my_collation_any_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf8mb4_latvian_uca_ci=
@@ -7416,7 +7531,8 @@ CHARSET_INFO my_charset_utf8mb4_latvian_uca_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf8mb4_handler,
-    &my_collation_any_uca_handler
+    &my_collation_any_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf8mb4_romanian_uca_ci=
@@ -7450,7 +7566,8 @@ CHARSET_INFO my_charset_utf8mb4_romanian_uca_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf8mb4_handler,
-    &my_collation_any_uca_handler
+    &my_collation_any_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf8mb4_slovenian_uca_ci=
@@ -7484,7 +7601,8 @@ CHARSET_INFO my_charset_utf8mb4_slovenian_uca_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf8mb4_handler,
-    &my_collation_any_uca_handler
+    &my_collation_any_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf8mb4_polish_uca_ci=
@@ -7518,7 +7636,8 @@ CHARSET_INFO my_charset_utf8mb4_polish_uca_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf8mb4_handler,
-    &my_collation_any_uca_handler
+    &my_collation_any_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf8mb4_estonian_uca_ci=
@@ -7552,7 +7671,8 @@ CHARSET_INFO my_charset_utf8mb4_estonian_uca_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf8mb4_handler,
-    &my_collation_any_uca_handler
+    &my_collation_any_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf8mb4_spanish_uca_ci=
@@ -7586,7 +7706,8 @@ CHARSET_INFO my_charset_utf8mb4_spanish_uca_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf8mb4_handler,
-    &my_collation_any_uca_handler
+    &my_collation_any_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf8mb4_swedish_uca_ci=
@@ -7620,7 +7741,8 @@ CHARSET_INFO my_charset_utf8mb4_swedish_uca_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf8mb4_handler,
-    &my_collation_any_uca_handler
+    &my_collation_any_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf8mb4_turkish_uca_ci=
@@ -7654,7 +7776,8 @@ CHARSET_INFO my_charset_utf8mb4_turkish_uca_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf8mb4_handler,
-    &my_collation_any_uca_handler
+    &my_collation_any_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf8mb4_czech_uca_ci=
@@ -7688,7 +7811,8 @@ CHARSET_INFO my_charset_utf8mb4_czech_uca_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf8mb4_handler,
-    &my_collation_any_uca_handler
+    &my_collation_any_uca_handler,
+    PAD_SPACE
 };
 
 
@@ -7723,7 +7847,8 @@ CHARSET_INFO my_charset_utf8mb4_danish_uca_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf8mb4_handler,
-    &my_collation_any_uca_handler
+    &my_collation_any_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf8mb4_lithuanian_uca_ci=
@@ -7757,7 +7882,8 @@ CHARSET_INFO my_charset_utf8mb4_lithuanian_uca_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf8mb4_handler,
-    &my_collation_any_uca_handler
+    &my_collation_any_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf8mb4_slovak_uca_ci=
@@ -7791,7 +7917,8 @@ CHARSET_INFO my_charset_utf8mb4_slovak_uca_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf8mb4_handler,
-    &my_collation_any_uca_handler
+    &my_collation_any_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf8mb4_spanish2_uca_ci=
@@ -7825,7 +7952,8 @@ CHARSET_INFO my_charset_utf8mb4_spanish2_uca_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf8mb4_handler,
-    &my_collation_any_uca_handler
+    &my_collation_any_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf8mb4_roman_uca_ci=
@@ -7859,7 +7987,8 @@ CHARSET_INFO my_charset_utf8mb4_roman_uca_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf8mb4_handler,
-    &my_collation_any_uca_handler
+    &my_collation_any_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf8mb4_persian_uca_ci=
@@ -7893,7 +8022,8 @@ CHARSET_INFO my_charset_utf8mb4_persian_uca_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf8mb4_handler,
-    &my_collation_any_uca_handler
+    &my_collation_any_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf8mb4_esperanto_uca_ci=
@@ -7927,7 +8057,8 @@ CHARSET_INFO my_charset_utf8mb4_esperanto_uca_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf8mb4_handler,
-    &my_collation_any_uca_handler
+    &my_collation_any_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf8mb4_hungarian_uca_ci=
@@ -7961,7 +8092,8 @@ CHARSET_INFO my_charset_utf8mb4_hungarian_uca_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf8mb4_handler,
-    &my_collation_any_uca_handler
+    &my_collation_any_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf8mb4_sinhala_uca_ci=
@@ -7995,7 +8127,8 @@ CHARSET_INFO my_charset_utf8mb4_sinhala_uca_ci=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_utf8mb4_handler,
-    &my_collation_any_uca_handler
+    &my_collation_any_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf8mb4_german2_uca_ci=
@@ -8029,7 +8162,8 @@ CHARSET_INFO my_charset_utf8mb4_german2_uca_ci=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_utf8mb4_handler,
-    &my_collation_any_uca_handler
+    &my_collation_any_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf8mb4_croatian_uca_ci=
@@ -8063,7 +8197,8 @@ CHARSET_INFO my_charset_utf8mb4_croatian_uca_ci=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_utf8mb4_handler,
-    &my_collation_any_uca_handler
+    &my_collation_any_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf8mb4_unicode_520_ci=
@@ -8097,7 +8232,8 @@ CHARSET_INFO my_charset_utf8mb4_unicode_520_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf8mb4_handler,
-    &my_collation_any_uca_handler
+    &my_collation_any_uca_handler,
+    PAD_SPACE
 };
 
 
@@ -8132,7 +8268,8 @@ CHARSET_INFO my_charset_utf8mb4_vietnamese_ci=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_utf8mb4_handler,
-    &my_collation_any_uca_handler
+    &my_collation_any_uca_handler,
+    PAD_SPACE
 };
 
 
@@ -8156,7 +8293,7 @@ MY_COLLATION_HANDLER my_collation_utf32_uca_handler =
 
 extern MY_CHARSET_HANDLER my_charset_utf32_handler;
 
-#define MY_CS_UTF32_UCA_FLAGS (MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII)
+#define MY_CS_UTF32_UCA_FLAGS (MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_UNICODE_SUPPLEMENT|MY_CS_NONASCII)
 
 CHARSET_INFO my_charset_utf32_unicode_ci=
 {
@@ -8189,7 +8326,8 @@ CHARSET_INFO my_charset_utf32_unicode_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf32_handler,
-    &my_collation_utf32_uca_handler
+    &my_collation_utf32_uca_handler,
+    PAD_SPACE
 };
 
 
@@ -8224,7 +8362,8 @@ CHARSET_INFO my_charset_utf32_icelandic_uca_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf32_handler,
-    &my_collation_utf32_uca_handler
+    &my_collation_utf32_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf32_latvian_uca_ci=
@@ -8258,7 +8397,8 @@ CHARSET_INFO my_charset_utf32_latvian_uca_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf32_handler,
-    &my_collation_utf32_uca_handler
+    &my_collation_utf32_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf32_romanian_uca_ci=
@@ -8292,7 +8432,8 @@ CHARSET_INFO my_charset_utf32_romanian_uca_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf32_handler,
-    &my_collation_utf32_uca_handler
+    &my_collation_utf32_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf32_slovenian_uca_ci=
@@ -8326,7 +8467,8 @@ CHARSET_INFO my_charset_utf32_slovenian_uca_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf32_handler,
-    &my_collation_utf32_uca_handler
+    &my_collation_utf32_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf32_polish_uca_ci=
@@ -8360,7 +8502,8 @@ CHARSET_INFO my_charset_utf32_polish_uca_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf32_handler,
-    &my_collation_utf32_uca_handler
+    &my_collation_utf32_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf32_estonian_uca_ci=
@@ -8394,7 +8537,8 @@ CHARSET_INFO my_charset_utf32_estonian_uca_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf32_handler,
-    &my_collation_utf32_uca_handler
+    &my_collation_utf32_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf32_spanish_uca_ci=
@@ -8428,7 +8572,8 @@ CHARSET_INFO my_charset_utf32_spanish_uca_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf32_handler,
-    &my_collation_utf32_uca_handler
+    &my_collation_utf32_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf32_swedish_uca_ci=
@@ -8462,7 +8607,8 @@ CHARSET_INFO my_charset_utf32_swedish_uca_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf32_handler,
-    &my_collation_utf32_uca_handler
+    &my_collation_utf32_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf32_turkish_uca_ci=
@@ -8496,7 +8642,8 @@ CHARSET_INFO my_charset_utf32_turkish_uca_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf32_handler,
-    &my_collation_utf32_uca_handler
+    &my_collation_utf32_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf32_czech_uca_ci=
@@ -8530,7 +8677,8 @@ CHARSET_INFO my_charset_utf32_czech_uca_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf32_handler,
-    &my_collation_utf32_uca_handler
+    &my_collation_utf32_uca_handler,
+    PAD_SPACE
 };
 
 
@@ -8565,7 +8713,8 @@ CHARSET_INFO my_charset_utf32_danish_uca_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf32_handler,
-    &my_collation_utf32_uca_handler
+    &my_collation_utf32_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf32_lithuanian_uca_ci=
@@ -8599,7 +8748,8 @@ CHARSET_INFO my_charset_utf32_lithuanian_uca_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf32_handler,
-    &my_collation_utf32_uca_handler
+    &my_collation_utf32_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf32_slovak_uca_ci=
@@ -8633,7 +8783,8 @@ CHARSET_INFO my_charset_utf32_slovak_uca_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf32_handler,
-    &my_collation_utf32_uca_handler
+    &my_collation_utf32_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf32_spanish2_uca_ci=
@@ -8667,7 +8818,8 @@ CHARSET_INFO my_charset_utf32_spanish2_uca_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf32_handler,
-    &my_collation_utf32_uca_handler
+    &my_collation_utf32_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf32_roman_uca_ci=
@@ -8701,7 +8853,8 @@ CHARSET_INFO my_charset_utf32_roman_uca_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf32_handler,
-    &my_collation_utf32_uca_handler
+    &my_collation_utf32_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf32_persian_uca_ci=
@@ -8735,7 +8888,8 @@ CHARSET_INFO my_charset_utf32_persian_uca_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf32_handler,
-    &my_collation_utf32_uca_handler
+    &my_collation_utf32_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf32_esperanto_uca_ci=
@@ -8769,7 +8923,8 @@ CHARSET_INFO my_charset_utf32_esperanto_uca_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf32_handler,
-    &my_collation_utf32_uca_handler
+    &my_collation_utf32_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf32_hungarian_uca_ci=
@@ -8803,7 +8958,8 @@ CHARSET_INFO my_charset_utf32_hungarian_uca_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf32_handler,
-    &my_collation_utf32_uca_handler
+    &my_collation_utf32_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf32_sinhala_uca_ci=
@@ -8837,7 +8993,8 @@ CHARSET_INFO my_charset_utf32_sinhala_uca_ci=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_utf32_handler,
-    &my_collation_utf32_uca_handler
+    &my_collation_utf32_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf32_german2_uca_ci=
@@ -8871,7 +9028,8 @@ CHARSET_INFO my_charset_utf32_german2_uca_ci=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_utf32_handler,
-    &my_collation_utf32_uca_handler
+    &my_collation_utf32_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf32_croatian_uca_ci=
@@ -8905,7 +9063,8 @@ CHARSET_INFO my_charset_utf32_croatian_uca_ci=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_utf32_handler,
-    &my_collation_utf32_uca_handler
+    &my_collation_utf32_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf32_unicode_520_ci=
@@ -8939,7 +9098,8 @@ CHARSET_INFO my_charset_utf32_unicode_520_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf32_handler,
-    &my_collation_utf32_uca_handler
+    &my_collation_utf32_uca_handler,
+    PAD_SPACE
 };
 
 
@@ -8974,7 +9134,8 @@ CHARSET_INFO my_charset_utf32_vietnamese_ci=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_utf32_handler,
-    &my_collation_utf32_uca_handler
+    &my_collation_utf32_uca_handler,
+    PAD_SPACE
 };
 
 
@@ -9032,7 +9193,8 @@ CHARSET_INFO my_charset_utf16_unicode_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf16_handler,
-    &my_collation_utf16_uca_handler
+    &my_collation_utf16_uca_handler,
+    PAD_SPACE
 };
 
 
@@ -9067,7 +9229,8 @@ CHARSET_INFO my_charset_utf16_icelandic_uca_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf16_handler,
-    &my_collation_utf16_uca_handler
+    &my_collation_utf16_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf16_latvian_uca_ci=
@@ -9101,7 +9264,8 @@ CHARSET_INFO my_charset_utf16_latvian_uca_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf16_handler,
-    &my_collation_utf16_uca_handler
+    &my_collation_utf16_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf16_romanian_uca_ci=
@@ -9135,7 +9299,8 @@ CHARSET_INFO my_charset_utf16_romanian_uca_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf16_handler,
-    &my_collation_utf16_uca_handler
+    &my_collation_utf16_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf16_slovenian_uca_ci=
@@ -9169,7 +9334,8 @@ CHARSET_INFO my_charset_utf16_slovenian_uca_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf16_handler,
-    &my_collation_utf16_uca_handler
+    &my_collation_utf16_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf16_polish_uca_ci=
@@ -9203,7 +9369,8 @@ CHARSET_INFO my_charset_utf16_polish_uca_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf16_handler,
-    &my_collation_utf16_uca_handler
+    &my_collation_utf16_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf16_estonian_uca_ci=
@@ -9237,7 +9404,8 @@ CHARSET_INFO my_charset_utf16_estonian_uca_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf16_handler,
-    &my_collation_utf16_uca_handler
+    &my_collation_utf16_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf16_spanish_uca_ci=
@@ -9271,7 +9439,8 @@ CHARSET_INFO my_charset_utf16_spanish_uca_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf16_handler,
-    &my_collation_utf16_uca_handler
+    &my_collation_utf16_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf16_swedish_uca_ci=
@@ -9305,7 +9474,8 @@ CHARSET_INFO my_charset_utf16_swedish_uca_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf16_handler,
-    &my_collation_utf16_uca_handler
+    &my_collation_utf16_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf16_turkish_uca_ci=
@@ -9339,7 +9509,8 @@ CHARSET_INFO my_charset_utf16_turkish_uca_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf16_handler,
-    &my_collation_utf16_uca_handler
+    &my_collation_utf16_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf16_czech_uca_ci=
@@ -9373,7 +9544,8 @@ CHARSET_INFO my_charset_utf16_czech_uca_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf16_handler,
-    &my_collation_utf16_uca_handler
+    &my_collation_utf16_uca_handler,
+    PAD_SPACE
 };
 
 
@@ -9408,7 +9580,8 @@ CHARSET_INFO my_charset_utf16_danish_uca_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf16_handler,
-    &my_collation_utf16_uca_handler
+    &my_collation_utf16_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf16_lithuanian_uca_ci=
@@ -9442,7 +9615,8 @@ CHARSET_INFO my_charset_utf16_lithuanian_uca_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf16_handler,
-    &my_collation_utf16_uca_handler
+    &my_collation_utf16_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf16_slovak_uca_ci=
@@ -9476,7 +9650,8 @@ CHARSET_INFO my_charset_utf16_slovak_uca_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf16_handler,
-    &my_collation_utf16_uca_handler
+    &my_collation_utf16_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf16_spanish2_uca_ci=
@@ -9510,7 +9685,8 @@ CHARSET_INFO my_charset_utf16_spanish2_uca_ci=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_utf16_handler,
-    &my_collation_utf16_uca_handler
+    &my_collation_utf16_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf16_roman_uca_ci=
@@ -9544,7 +9720,8 @@ CHARSET_INFO my_charset_utf16_roman_uca_ci=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_utf16_handler,
-    &my_collation_utf16_uca_handler
+    &my_collation_utf16_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf16_persian_uca_ci=
@@ -9578,7 +9755,8 @@ CHARSET_INFO my_charset_utf16_persian_uca_ci=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_utf16_handler,
-    &my_collation_utf16_uca_handler
+    &my_collation_utf16_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf16_esperanto_uca_ci=
@@ -9612,7 +9790,8 @@ CHARSET_INFO my_charset_utf16_esperanto_uca_ci=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_utf16_handler,
-    &my_collation_utf16_uca_handler
+    &my_collation_utf16_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf16_hungarian_uca_ci=
@@ -9646,7 +9825,8 @@ CHARSET_INFO my_charset_utf16_hungarian_uca_ci=
     0,                 /* escape_with_backslash_is_dangerous */
     1,                 /* levels_for_compare */
     &my_charset_utf16_handler,
-    &my_collation_utf16_uca_handler
+    &my_collation_utf16_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf16_sinhala_uca_ci=
@@ -9680,7 +9860,8 @@ CHARSET_INFO my_charset_utf16_sinhala_uca_ci=
     0,                 /* escape_with_backslash_is_dangerous */
     1,                 /* levels_for_compare */
     &my_charset_utf16_handler,
-    &my_collation_utf16_uca_handler
+    &my_collation_utf16_uca_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_utf16_german2_uca_ci=
@@ -9714,7 +9895,8 @@ CHARSET_INFO my_charset_utf16_german2_uca_ci=
     0,                 /* escape_with_backslash_is_dangerous */
     1,                 /* levels_for_compare */
     &my_charset_utf16_handler,
-    &my_collation_utf16_uca_handler
+    &my_collation_utf16_uca_handler,
+    PAD_SPACE
 };
 
 
@@ -9749,7 +9931,8 @@ CHARSET_INFO my_charset_utf16_croatian_uca_ci=
     0,                 /* escape_with_backslash_is_dangerous */
     1,                 /* levels_for_compare */
     &my_charset_utf16_handler,
-    &my_collation_utf16_uca_handler
+    &my_collation_utf16_uca_handler,
+    PAD_SPACE
 };
 
 
@@ -9784,7 +9967,8 @@ CHARSET_INFO my_charset_utf16_unicode_520_ci=
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     &my_charset_utf16_handler,
-    &my_collation_utf16_uca_handler
+    &my_collation_utf16_uca_handler,
+    PAD_SPACE
 };
 
 
@@ -9819,7 +10003,8 @@ CHARSET_INFO my_charset_utf16_vietnamese_ci=
     0,                 /* escape_with_backslash_is_dangerous */
     1,                 /* levels_for_compare */
     &my_charset_utf16_handler,
-    &my_collation_utf16_uca_handler
+    &my_collation_utf16_uca_handler,
+    PAD_SPACE
 };
 
 
@@ -9899,7 +10084,8 @@ CHARSET_INFO my_charset_gb18030_unicode_520_ci=
     0,                 /* escape_with_backslash_is_dangerous */
     1,                 /* levels_for_compare */
     &my_charset_gb18030_uca_handler,
-    &my_collation_gb18030_uca_handler
+    &my_collation_gb18030_uca_handler,
+    PAD_SPACE
 };
 
 
@@ -9928,13 +10114,14 @@ CHARSET_INFO my_charset_utf8mb4_0900_ai_ci=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
   1,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_900_handler
+  &my_collation_uca_900_handler,
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_de_pb_0900_ai_ci=
@@ -9944,7 +10131,7 @@ CHARSET_INFO my_charset_utf8mb4_de_pb_0900_ai_ci=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_de_pb_0900_ai_ci",/* name */
   "",                 /* comment      */
-  de_pb_cldr_29,      /* tailoring    */
+  de_pb_cldr_30,      /* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -9962,13 +10149,14 @@ CHARSET_INFO my_charset_utf8mb4_de_pb_0900_ai_ci=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
   1,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_900_handler
+  &my_collation_uca_900_handler,
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_is_0900_ai_ci=
@@ -9978,7 +10166,7 @@ CHARSET_INFO my_charset_utf8mb4_is_0900_ai_ci=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_is_0900_ai_ci",/* name */
   "",                 /* comment      */
-  is_cldr_29,         /* tailoring    */
+  is_cldr_30,         /* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -9996,13 +10184,14 @@ CHARSET_INFO my_charset_utf8mb4_is_0900_ai_ci=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
   1,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_900_handler
+  &my_collation_uca_900_handler,
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_lv_0900_ai_ci=
@@ -10012,7 +10201,7 @@ CHARSET_INFO my_charset_utf8mb4_lv_0900_ai_ci=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_lv_0900_ai_ci",/* name */
   "",                 /* comment      */
-  lv_cldr_29,         /* tailoring    */
+  lv_cldr_30,         /* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -10030,13 +10219,14 @@ CHARSET_INFO my_charset_utf8mb4_lv_0900_ai_ci=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
   1,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_900_handler
+  &my_collation_uca_900_handler,
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_ro_0900_ai_ci=
@@ -10046,7 +10236,7 @@ CHARSET_INFO my_charset_utf8mb4_ro_0900_ai_ci=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_ro_0900_ai_ci",/* name */
   "",                 /* comment      */
-  ro_cldr_29,         /* tailoring    */
+  ro_cldr_30,         /* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -10064,13 +10254,14 @@ CHARSET_INFO my_charset_utf8mb4_ro_0900_ai_ci=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
   1,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_900_handler
+  &my_collation_uca_900_handler,
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_sl_0900_ai_ci=
@@ -10080,7 +10271,7 @@ CHARSET_INFO my_charset_utf8mb4_sl_0900_ai_ci=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_sl_0900_ai_ci",/* name */
   "",                 /* comment      */
-  sl_cldr_29,         /* tailoring    */
+  sl_cldr_30,         /* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -10098,13 +10289,14 @@ CHARSET_INFO my_charset_utf8mb4_sl_0900_ai_ci=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
   1,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_900_handler
+  &my_collation_uca_900_handler,
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_pl_0900_ai_ci=
@@ -10114,7 +10306,7 @@ CHARSET_INFO my_charset_utf8mb4_pl_0900_ai_ci=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_pl_0900_ai_ci",/* name */
   "",                 /* comment      */
-  pl_cldr_29,         /* tailoring    */
+  pl_cldr_30,         /* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -10132,13 +10324,14 @@ CHARSET_INFO my_charset_utf8mb4_pl_0900_ai_ci=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
   1,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_900_handler
+  &my_collation_uca_900_handler,
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_et_0900_ai_ci=
@@ -10148,7 +10341,7 @@ CHARSET_INFO my_charset_utf8mb4_et_0900_ai_ci=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_et_0900_ai_ci",/* name */
   "",                 /* comment      */
-  et_cldr_29,         /* tailoring    */
+  et_cldr_30,         /* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -10166,13 +10359,14 @@ CHARSET_INFO my_charset_utf8mb4_et_0900_ai_ci=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
   1,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_900_handler
+  &my_collation_uca_900_handler,
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_es_0900_ai_ci=
@@ -10200,13 +10394,14 @@ CHARSET_INFO my_charset_utf8mb4_es_0900_ai_ci=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
   1,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_900_handler
+  &my_collation_uca_900_handler,
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_sv_0900_ai_ci=
@@ -10216,7 +10411,7 @@ CHARSET_INFO my_charset_utf8mb4_sv_0900_ai_ci=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_sv_0900_ai_ci",/* name */
   "",                 /* comment      */
-  sv_cldr_29,         /* tailoring    */
+  sv_cldr_30,         /* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -10234,13 +10429,14 @@ CHARSET_INFO my_charset_utf8mb4_sv_0900_ai_ci=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
   1,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_900_handler
+  &my_collation_uca_900_handler,
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_tr_0900_ai_ci=
@@ -10250,7 +10446,7 @@ CHARSET_INFO my_charset_utf8mb4_tr_0900_ai_ci=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_tr_0900_ai_ci",/* name */
   "",                 /* comment      */
-  tr_cldr_29,         /* tailoring    */
+  tr_cldr_30,         /* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -10268,13 +10464,14 @@ CHARSET_INFO my_charset_utf8mb4_tr_0900_ai_ci=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
   1,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_900_handler
+  &my_collation_uca_900_handler,
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_cs_0900_ai_ci=
@@ -10284,7 +10481,7 @@ CHARSET_INFO my_charset_utf8mb4_cs_0900_ai_ci=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_cs_0900_ai_ci",/* name */
   "",                 /* comment      */
-  cs_cldr_29,         /* tailoring    */
+  cs_cldr_30,         /* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -10302,13 +10499,14 @@ CHARSET_INFO my_charset_utf8mb4_cs_0900_ai_ci=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
   1,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_900_handler
+  &my_collation_uca_900_handler,
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_da_0900_ai_ci=
@@ -10318,7 +10516,7 @@ CHARSET_INFO my_charset_utf8mb4_da_0900_ai_ci=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_da_0900_ai_ci",/* name */
   "",                 /* comment      */
-  da_cldr_29,         /* tailoring    */
+  da_cldr_30,         /* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -10336,13 +10534,14 @@ CHARSET_INFO my_charset_utf8mb4_da_0900_ai_ci=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
   1,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_900_handler
+  &my_collation_uca_900_handler,
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_lt_0900_ai_ci=
@@ -10352,7 +10551,7 @@ CHARSET_INFO my_charset_utf8mb4_lt_0900_ai_ci=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_lt_0900_ai_ci",/* name */
   "",                 /* comment      */
-  lt_cldr_29,         /* tailoring    */
+  lt_cldr_30,         /* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -10370,13 +10569,14 @@ CHARSET_INFO my_charset_utf8mb4_lt_0900_ai_ci=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
   1,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_900_handler
+  &my_collation_uca_900_handler,
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_sk_0900_ai_ci=
@@ -10386,7 +10586,7 @@ CHARSET_INFO my_charset_utf8mb4_sk_0900_ai_ci=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_sk_0900_ai_ci",/* name */
   "",                 /* comment      */
-  sk_cldr_29,         /* tailoring    */
+  sk_cldr_30,         /* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -10404,13 +10604,14 @@ CHARSET_INFO my_charset_utf8mb4_sk_0900_ai_ci=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
   1,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_900_handler
+  &my_collation_uca_900_handler,
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_es_trad_0900_ai_ci=
@@ -10420,7 +10621,7 @@ CHARSET_INFO my_charset_utf8mb4_es_trad_0900_ai_ci=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_es_trad_0900_ai_ci",/* name */
   "",                 /* comment      */
-  es_trad_cldr_29,    /* tailoring    */
+  es_trad_cldr_30,    /* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -10438,13 +10639,14 @@ CHARSET_INFO my_charset_utf8mb4_es_trad_0900_ai_ci=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
   1,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_900_handler
+  &my_collation_uca_900_handler,
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_la_0900_ai_ci=
@@ -10472,13 +10674,14 @@ CHARSET_INFO my_charset_utf8mb4_la_0900_ai_ci=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
   1,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_900_handler
+  &my_collation_uca_900_handler,
+  NO_PAD
 };
 
 #if 0
@@ -10489,7 +10692,7 @@ CHARSET_INFO my_charset_utf8mb4_fa_0900_ai_ci=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_fa_0900_ai_ci",/* name */
   "",                 /* comment      */
-  fa_cldr_29,         /* tailoring    */
+  fa_cldr_30,         /* tailoring    */
   &fa_coll_param,     /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -10507,13 +10710,14 @@ CHARSET_INFO my_charset_utf8mb4_fa_0900_ai_ci=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
   1,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_900_handler
+  &my_collation_uca_900_handler,
+  NO_PAD
 };
 #endif
 
@@ -10542,13 +10746,14 @@ CHARSET_INFO my_charset_utf8mb4_eo_0900_ai_ci=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
   1,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_900_handler
+  &my_collation_uca_900_handler,
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_hu_0900_ai_ci=
@@ -10558,7 +10763,7 @@ CHARSET_INFO my_charset_utf8mb4_hu_0900_ai_ci=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_hu_0900_ai_ci",/* name */
   "",                 /* comment      */
-  hu_cldr_29,         /* tailoring    */
+  hu_cldr_30,         /* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -10576,13 +10781,14 @@ CHARSET_INFO my_charset_utf8mb4_hu_0900_ai_ci=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
   1,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_900_handler
+  &my_collation_uca_900_handler,
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_hr_0900_ai_ci=
@@ -10592,7 +10798,7 @@ CHARSET_INFO my_charset_utf8mb4_hr_0900_ai_ci=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_hr_0900_ai_ci",/* name */
   "",                 /* comment      */
-  hr_cldr_29,         /* tailoring    */
+  hr_cldr_30,         /* tailoring    */
   &hr_coll_param,     /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -10610,13 +10816,14 @@ CHARSET_INFO my_charset_utf8mb4_hr_0900_ai_ci=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
   1,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_900_handler
+  &my_collation_uca_900_handler,
+  NO_PAD
 };
 
 #if 0
@@ -10627,7 +10834,7 @@ CHARSET_INFO my_charset_utf8mb4_si_0900_ai_ci=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_si_0900_ai_ci",/* name */
   "",                 /* comment      */
-  si_cldr_29,         /* tailoring    */
+  si_cldr_30,         /* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -10645,13 +10852,14 @@ CHARSET_INFO my_charset_utf8mb4_si_0900_ai_ci=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
   1,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_900_handler
+  &my_collation_uca_900_handler,
+  NO_PAD
 };
 #endif
 
@@ -10662,7 +10870,7 @@ CHARSET_INFO my_charset_utf8mb4_vi_0900_ai_ci=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_vi_0900_ai_ci",/* name */
   "",                 /* comment      */
-  vi_cldr_29,         /* tailoring    */
+  vi_cldr_30,         /* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -10680,13 +10888,14 @@ CHARSET_INFO my_charset_utf8mb4_vi_0900_ai_ci=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
   1,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_900_handler
+  &my_collation_uca_900_handler,
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_0900_as_cs=
@@ -10714,13 +10923,14 @@ CHARSET_INFO my_charset_utf8mb4_0900_as_cs=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
   3,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_900_handler
+  &my_collation_uca_900_handler,
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_de_pb_0900_as_cs=
@@ -10730,7 +10940,7 @@ CHARSET_INFO my_charset_utf8mb4_de_pb_0900_as_cs=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_de_pb_0900_as_cs",/* name */
   "",                 /* comment      */
-  de_pb_cldr_29,/* tailoring    */
+  de_pb_cldr_30,/* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -10748,13 +10958,14 @@ CHARSET_INFO my_charset_utf8mb4_de_pb_0900_as_cs=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
   3,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_900_handler
+  &my_collation_uca_900_handler,
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_is_0900_as_cs=
@@ -10764,7 +10975,7 @@ CHARSET_INFO my_charset_utf8mb4_is_0900_as_cs=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_is_0900_as_cs",/* name */
   "",                 /* comment      */
-  is_cldr_29,         /* tailoring    */
+  is_cldr_30,         /* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -10782,13 +10993,14 @@ CHARSET_INFO my_charset_utf8mb4_is_0900_as_cs=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
   3,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_900_handler
+  &my_collation_uca_900_handler,
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_lv_0900_as_cs=
@@ -10798,7 +11010,7 @@ CHARSET_INFO my_charset_utf8mb4_lv_0900_as_cs=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_lv_0900_as_cs",/* name */
   "",                 /* comment      */
-  lv_cldr_29,         /* tailoring    */
+  lv_cldr_30,         /* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -10816,13 +11028,14 @@ CHARSET_INFO my_charset_utf8mb4_lv_0900_as_cs=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
   3,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_900_handler
+  &my_collation_uca_900_handler,
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_ro_0900_as_cs=
@@ -10832,7 +11045,7 @@ CHARSET_INFO my_charset_utf8mb4_ro_0900_as_cs=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_ro_0900_as_cs",/* name */
   "",                 /* comment      */
-  ro_cldr_29,         /* tailoring    */
+  ro_cldr_30,         /* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -10850,13 +11063,14 @@ CHARSET_INFO my_charset_utf8mb4_ro_0900_as_cs=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
   3,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_900_handler
+  &my_collation_uca_900_handler,
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_sl_0900_as_cs=
@@ -10866,7 +11080,7 @@ CHARSET_INFO my_charset_utf8mb4_sl_0900_as_cs=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_sl_0900_as_cs",/* name */
   "",                 /* comment      */
-  sl_cldr_29,         /* tailoring    */
+  sl_cldr_30,         /* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -10884,13 +11098,14 @@ CHARSET_INFO my_charset_utf8mb4_sl_0900_as_cs=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
   3,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_900_handler
+  &my_collation_uca_900_handler,
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_pl_0900_as_cs=
@@ -10900,7 +11115,7 @@ CHARSET_INFO my_charset_utf8mb4_pl_0900_as_cs=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_pl_0900_as_cs",/* name */
   "",                 /* comment      */
-  pl_cldr_29,         /* tailoring    */
+  pl_cldr_30,         /* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -10918,13 +11133,14 @@ CHARSET_INFO my_charset_utf8mb4_pl_0900_as_cs=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
   3,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_900_handler
+  &my_collation_uca_900_handler,
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_et_0900_as_cs=
@@ -10934,7 +11150,7 @@ CHARSET_INFO my_charset_utf8mb4_et_0900_as_cs=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_et_0900_as_cs",/* name */
   "",                 /* comment      */
-  et_cldr_29,         /* tailoring    */
+  et_cldr_30,         /* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -10952,13 +11168,14 @@ CHARSET_INFO my_charset_utf8mb4_et_0900_as_cs=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
   3,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_900_handler
+  &my_collation_uca_900_handler,
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_es_0900_as_cs=
@@ -10986,13 +11203,14 @@ CHARSET_INFO my_charset_utf8mb4_es_0900_as_cs=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
   3,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_900_handler
+  &my_collation_uca_900_handler,
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_sv_0900_as_cs=
@@ -11002,7 +11220,7 @@ CHARSET_INFO my_charset_utf8mb4_sv_0900_as_cs=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_sv_0900_as_cs",/* name */
   "",                 /* comment      */
-  sv_cldr_29,         /* tailoring    */
+  sv_cldr_30,         /* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -11020,13 +11238,14 @@ CHARSET_INFO my_charset_utf8mb4_sv_0900_as_cs=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
   3,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_900_handler
+  &my_collation_uca_900_handler,
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_tr_0900_as_cs=
@@ -11036,7 +11255,7 @@ CHARSET_INFO my_charset_utf8mb4_tr_0900_as_cs=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_tr_0900_as_cs",/* name */
   "",                 /* comment      */
-  tr_cldr_29,         /* tailoring    */
+  tr_cldr_30,         /* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -11054,13 +11273,14 @@ CHARSET_INFO my_charset_utf8mb4_tr_0900_as_cs=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
   3,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_900_handler
+  &my_collation_uca_900_handler,
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_cs_0900_as_cs=
@@ -11070,7 +11290,7 @@ CHARSET_INFO my_charset_utf8mb4_cs_0900_as_cs=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_cs_0900_as_cs",/* name */
   "",                 /* comment      */
-  cs_cldr_29,         /* tailoring    */
+  cs_cldr_30,         /* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -11088,13 +11308,14 @@ CHARSET_INFO my_charset_utf8mb4_cs_0900_as_cs=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
   3,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_900_handler
+  &my_collation_uca_900_handler,
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_da_0900_as_cs=
@@ -11104,7 +11325,7 @@ CHARSET_INFO my_charset_utf8mb4_da_0900_as_cs=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_da_0900_as_cs",/* name */
   "",                 /* comment      */
-  da_cldr_29,         /* tailoring    */
+  da_cldr_30,         /* tailoring    */
   &da_coll_param,     /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -11122,13 +11343,14 @@ CHARSET_INFO my_charset_utf8mb4_da_0900_as_cs=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
   3,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_900_handler
+  &my_collation_uca_900_handler,
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_lt_0900_as_cs=
@@ -11138,7 +11360,7 @@ CHARSET_INFO my_charset_utf8mb4_lt_0900_as_cs=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_lt_0900_as_cs",/* name */
   "",                 /* comment      */
-  lt_cldr_29,         /* tailoring    */
+  lt_cldr_30,         /* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -11156,13 +11378,14 @@ CHARSET_INFO my_charset_utf8mb4_lt_0900_as_cs=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
   3,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_900_handler
+  &my_collation_uca_900_handler,
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_sk_0900_as_cs=
@@ -11172,7 +11395,7 @@ CHARSET_INFO my_charset_utf8mb4_sk_0900_as_cs=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_sk_0900_as_cs",/* name */
   "",                 /* comment      */
-  sk_cldr_29,         /* tailoring    */
+  sk_cldr_30,         /* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -11190,13 +11413,14 @@ CHARSET_INFO my_charset_utf8mb4_sk_0900_as_cs=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
   3,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_900_handler
+  &my_collation_uca_900_handler,
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_es_trad_0900_as_cs=
@@ -11206,7 +11430,7 @@ CHARSET_INFO my_charset_utf8mb4_es_trad_0900_as_cs=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_es_trad_0900_as_cs",/* name */
   "",                 /* comment      */
-  es_trad_cldr_29,/* tailoring    */
+  es_trad_cldr_30,/* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -11224,13 +11448,14 @@ CHARSET_INFO my_charset_utf8mb4_es_trad_0900_as_cs=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
   3,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_900_handler
+  &my_collation_uca_900_handler,
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_la_0900_as_cs=
@@ -11258,13 +11483,14 @@ CHARSET_INFO my_charset_utf8mb4_la_0900_as_cs=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
   3,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_900_handler
+  &my_collation_uca_900_handler,
+  NO_PAD
 };
 
 #if 0
@@ -11275,7 +11501,7 @@ CHARSET_INFO my_charset_utf8mb4_fa_0900_as_cs=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_fa_0900_as_cs",/* name */
   "",                 /* comment      */
-  fa_cldr_29,         /* tailoring    */
+  fa_cldr_30,         /* tailoring    */
   &fa_coll_param,     /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -11293,13 +11519,14 @@ CHARSET_INFO my_charset_utf8mb4_fa_0900_as_cs=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
   3,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_900_handler
+  &my_collation_uca_900_handler,
+  NO_PAD
 };
 #endif
 
@@ -11328,13 +11555,14 @@ CHARSET_INFO my_charset_utf8mb4_eo_0900_as_cs=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
   3,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_900_handler
+  &my_collation_uca_900_handler,
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_hu_0900_as_cs=
@@ -11344,7 +11572,7 @@ CHARSET_INFO my_charset_utf8mb4_hu_0900_as_cs=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_hu_0900_as_cs",/* name */
   "",                 /* comment      */
-  hu_cldr_29,         /* tailoring    */
+  hu_cldr_30,         /* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -11362,13 +11590,14 @@ CHARSET_INFO my_charset_utf8mb4_hu_0900_as_cs=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
   3,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_900_handler
+  &my_collation_uca_900_handler,
+  NO_PAD
 };
 
 CHARSET_INFO my_charset_utf8mb4_hr_0900_as_cs=
@@ -11378,7 +11607,7 @@ CHARSET_INFO my_charset_utf8mb4_hr_0900_as_cs=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_hr_0900_as_cs",/* name */
   "",                 /* comment      */
-  hr_cldr_29,         /* tailoring    */
+  hr_cldr_30,         /* tailoring    */
   &hr_coll_param,     /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -11396,13 +11625,14 @@ CHARSET_INFO my_charset_utf8mb4_hr_0900_as_cs=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
   3,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_900_handler
+  &my_collation_uca_900_handler,
+  NO_PAD
 };
 
 #if 0
@@ -11413,7 +11643,7 @@ CHARSET_INFO my_charset_utf8mb4_si_0900_as_cs=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_si_0900_as_cs",/* name */
   "",                 /* comment      */
-  si_cldr_29,         /* tailoring    */
+  si_cldr_30,         /* tailoring    */
   NULL,               /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
@@ -11431,13 +11661,14 @@ CHARSET_INFO my_charset_utf8mb4_si_0900_as_cs=
   1,                  /* mbminlen      */
   4,                  /* mbmaxlen      */
   1,                  /* mbmaxlenlen   */
-  32,                 /* min_sort_char */
+  9,                  /* min_sort_char */
   0x10FFFF,           /* max_sort_char */
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
   3,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_900_handler
+  &my_collation_uca_900_handler,
+  NO_PAD
 };
 #endif
 
@@ -11448,8 +11679,43 @@ CHARSET_INFO my_charset_utf8mb4_vi_0900_as_cs=
   MY_UTF8MB4,         /* csname       */
   MY_UTF8MB4 "_vi_0900_as_cs",/* name */
   "",                 /* comment      */
-  vi_cldr_29,         /* tailoring    */
+  vi_cldr_30,         /* tailoring    */
   &vi_coll_param,     /* coll_param   */
+  ctype_utf8,         /* ctype        */
+  NULL,               /* to_lower     */
+  NULL,               /* to_upper     */
+  NULL,               /* sort_order   */
+  &my_uca_v900,       /* uca          */
+  NULL,               /* tab_to_uni   */
+  NULL,               /* tab_from_uni */
+  &my_unicase_unicode900,/* caseinfo     */
+  NULL,               /* state_map    */
+  NULL,               /* ident_map    */
+  24,                 /* strxfrm_multiply */
+  1,                  /* caseup_multiply  */
+  1,                  /* casedn_multiply  */
+  1,                  /* mbminlen      */
+  4,                  /* mbmaxlen      */
+  1,                  /* mbmaxlenlen   */
+  9,                  /* min_sort_char */
+  0x10FFFF,           /* max_sort_char */
+  ' ',                /* pad char      */
+  0,                  /* escape_with_backslash_is_dangerous */
+  3,                  /* levels_for_compare */
+  &my_charset_utf8mb4_handler,
+  &my_collation_uca_900_handler,
+  NO_PAD
+};
+
+CHARSET_INFO my_charset_utf8mb4_ja_0900_as_cs=
+{
+  303, 0, 0,            /* number       */
+  MY_CS_UTF8MB4_UCA_FLAGS|MY_CS_CSSORT,/* state    */
+  MY_UTF8MB4,         /* csname       */
+  MY_UTF8MB4 "_ja_0900_as_cs",/* name */
+  "",                 /* comment      */
+  ja_cldr_30,         /* tailoring    */
+  &ja_coll_param,     /* coll_param   */
   ctype_utf8,         /* ctype        */
   NULL,               /* to_lower     */
   NULL,               /* to_upper     */
@@ -11472,5 +11738,41 @@ CHARSET_INFO my_charset_utf8mb4_vi_0900_as_cs=
   0,                  /* escape_with_backslash_is_dangerous */
   3,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
-  &my_collation_uca_900_handler
+  &my_collation_uca_900_handler,
+  NO_PAD
+};
+
+CHARSET_INFO my_charset_utf8mb4_ja_0900_as_cs_ks=
+{
+  304, 0, 0,            /* number       */
+  MY_CS_UTF8MB4_UCA_FLAGS|MY_CS_CSSORT,/* state    */
+  MY_UTF8MB4,         /* csname       */
+  MY_UTF8MB4 "_ja_0900_as_cs_ks",/* name */
+  "",                 /* comment      */
+  ja_cldr_30,         /* tailoring    */
+  &ja_coll_param,     /* coll_param   */
+  ctype_utf8,         /* ctype        */
+  NULL,               /* to_lower     */
+  NULL,               /* to_upper     */
+  NULL,               /* sort_order   */
+  &my_uca_v900,       /* uca          */
+  NULL,               /* tab_to_uni   */
+  NULL,               /* tab_from_uni */
+  &my_unicase_unicode900,/* caseinfo     */
+  NULL,               /* state_map    */
+  NULL,               /* ident_map    */
+  24,                 /* strxfrm_multiply */
+  1,                  /* caseup_multiply  */
+  1,                  /* casedn_multiply  */
+  1,                  /* mbminlen      */
+  4,                  /* mbmaxlen      */
+  1,                  /* mbmaxlenlen   */
+  32,                 /* min_sort_char */
+  0x10FFFF,           /* max_sort_char */
+  ' ',                /* pad char      */
+  0,                  /* escape_with_backslash_is_dangerous */
+  4,                  /* levels_for_compare */
+  &my_charset_utf8mb4_handler,
+  &my_collation_uca_900_handler,
+  NO_PAD
 };

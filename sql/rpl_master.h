@@ -18,7 +18,6 @@
 
 #include <stddef.h>
 
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "mysql_com.h"   // HOSTNAME_LENGTH
 #include "sql_const.h"   // MAX_PASSWORD_LENGTH
@@ -30,8 +29,8 @@ class THD;
 
 extern bool server_id_supplied;
 extern int max_binlog_dump_events;
-extern my_bool opt_sporadic_binlog_dump_fail;
-extern my_bool opt_show_slave_auth_info;
+extern bool opt_sporadic_binlog_dump_fail;
+extern bool opt_show_slave_auth_info;
 
 typedef struct st_slave_info
 {

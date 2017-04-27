@@ -18,10 +18,13 @@
   Table DATA_LOCKS (implementation).
 */
 
+#include "storage/perfschema/table_data_locks.h"
+
+#include <stddef.h>
+
 #include "field.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_thread.h"
 #include "pfs_buffer_container.h"
@@ -29,7 +32,6 @@
 #include "pfs_column_values.h"
 #include "pfs_global.h"
 #include "pfs_instr.h"
-#include "table_data_locks.h"
 
 THR_LOCK table_data_locks::m_table_lock;
 
@@ -132,7 +134,7 @@ PFS_engine_table_share table_data_locks::m_share = {
 };
 
 PFS_engine_table *
-table_data_locks::create(void)
+table_data_locks::create(PFS_engine_table_share *)
 {
   return new table_data_locks();
 }

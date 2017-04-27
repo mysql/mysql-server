@@ -31,6 +31,7 @@ Created 2012-08-21 Sunny Bains
 
 #include "sync0debug.h"
 
+#include <stddef.h>
 #include <algorithm>
 #include <iostream>
 #include <map>
@@ -43,7 +44,7 @@ Created 2012-08-21 Sunny Bains
 
 #ifdef UNIV_DEBUG
 
-my_bool		srv_sync_debug;
+bool		srv_sync_debug;
 
 /** The global mutex which protects debug info lists of all rw-locks.
 To modify the debug info list of an rw-lock, this mutex has to be
@@ -1612,6 +1613,8 @@ sync_latch_meta_init()
 
 	LATCH_ADD_RWLOCK(SYNC_DEBUG_MUTEX, SYNC_NO_ORDER_CHECK,
 			 PFS_NOT_INSTRUMENTED);
+
+	LATCH_ADD_MUTEX(FILE_OPEN, SYNC_NO_ORDER_CHECK, file_open_mutex_key);
 
 	LATCH_ADD_MUTEX(MASTER_KEY_ID_MUTEX, SYNC_NO_ORDER_CHECK,
 			master_key_id_mutex_key);

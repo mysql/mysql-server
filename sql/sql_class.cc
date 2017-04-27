@@ -304,7 +304,7 @@ void THD::set_psi(PSI_thread *psi)
 
 void THD::enter_stage(const PSI_stage_info *new_stage,
                       PSI_stage_info *old_stage,
-                      const char *calling_func,
+                      const char *calling_func MY_ATTRIBUTE((unused)),
                       const char *calling_file,
                       const unsigned int calling_line)
 {
@@ -565,6 +565,9 @@ THD::THD(bool enable_plugins)
                                               max_digest_length,
                                               MYF(MY_WME));
   }
+#ifndef DBUG_OFF
+  debug_binlog_xid_last.reset();
+#endif
 }
 
 
@@ -1343,22 +1346,38 @@ void THD::disconnect(bool server_shutdown)
 
   mysql_mutex_lock(&LOCK_thd_data);
 
-  killed= THD::KILL_CONNECTION;
-
   /*
-    Since a active vio might might have not been set yet, in
-    any case save a reference to avoid closing a inexistent
-    one or closing the vio twice if there is a active one.
-  */
-  vio= active_vio;
-  shutdown_active_vio();
+    If thread is in kill immune mode (i.e. operation on new DD tables
+    is in progress) then just save state_to_set with THD::kill_immunizer
+    object.
 
-  /* Disconnect even if a active vio is not associated. */
-  if (is_classic_protocol() &&
-      get_protocol_classic()->get_vio() != vio &&
-      get_protocol_classic()->connection_alive())
+    While exiting kill immune mode, awake() is called again with the killed
+    state saved in THD::kill_immunizer object.
+
+    active_vio is aleady associated to the thread when it is in the kill
+    immune mode. THD::awake() closes the active_vio.
+ */
+  if (kill_immunizer != nullptr)
+    kill_immunizer->save_killed_state(THD::KILL_CONNECTION);
+  else
   {
-    m_protocol->shutdown(server_shutdown);
+    killed= THD::KILL_CONNECTION;
+
+    /*
+      Since a active vio might might have not been set yet, in
+      any case save a reference to avoid closing a inexistent
+      one or closing the vio twice if there is a active one.
+    */
+    vio= active_vio;
+    shutdown_active_vio();
+
+    /* Disconnect even if a active vio is not associated. */
+    if (is_classic_protocol() &&
+        get_protocol_classic()->get_vio() != vio &&
+        get_protocol_classic()->connection_alive())
+    {
+      m_protocol->shutdown(server_shutdown);
+    }
   }
 
   mysql_mutex_unlock(&LOCK_thd_data);
@@ -1405,9 +1424,8 @@ bool THD::store_globals()
   */
   DBUG_ASSERT(thread_stack);
 
-  if (my_thread_set_THR_THD(this) ||
-      my_thread_set_THR_MALLOC(&mem_root))
-    return true;
+  current_thd= this;
+  THR_MALLOC= &mem_root;
   /*
     is_killable is concurrently readable by a killer thread.
     It is protected by LOCK_thd_data, it is not needed to lock while the
@@ -1441,8 +1459,8 @@ void THD::restore_globals()
   DBUG_ASSERT(thread_stack);
 
   /* Undocking the thread specific data. */
-  my_thread_set_THR_THD(NULL);
-  my_thread_set_THR_MALLOC(NULL);
+  current_thd= nullptr;
+  THR_MALLOC= nullptr;
 }
 
 
@@ -1945,7 +1963,7 @@ Prepared_statement_map::Prepared_statement_map()
 }
 
 
-int Prepared_statement_map::insert(THD *thd, Prepared_statement *statement)
+int Prepared_statement_map::insert(Prepared_statement *statement)
 {
   if (my_hash_insert(&st_hash, (uchar*) statement))
   {
@@ -2231,6 +2249,13 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
   num_truncated_fields= 0;
   get_transaction()->m_savepoints= 0;
   first_successful_insert_id_in_cur_stmt= 0;
+
+  /* Reset savepoint on transaction write set */
+  if (is_current_stmt_binlog_row_enabled_with_write_set_extraction())
+  {
+      get_transaction()->get_transaction_write_set_ctx()
+          ->reset_savepoint_list();
+  }
 }
 
 
@@ -2298,6 +2323,14 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
   */
   inc_examined_row_count(backup->examined_row_count);
   num_truncated_fields+= backup->num_truncated_fields;
+
+  /* Restore savepoint on transaction write set */
+  if (is_current_stmt_binlog_row_enabled_with_write_set_extraction())
+  {
+      get_transaction()->get_transaction_write_set_ctx()
+          ->restore_savepoint_list();
+  }
+
   DBUG_VOID_RETURN;
 }
 
@@ -2550,7 +2583,7 @@ void THD::clear_next_event_pos()
   binlog_next_event_pos.pos= 0;
 }
 
-void THD::set_currently_executing_gtid_for_slave_thread()
+void THD::set_original_commit_timestamp_for_slave_thread()
 {
   /*
     This function may be called in four cases:
@@ -2570,12 +2603,11 @@ void THD::set_currently_executing_gtid_for_slave_thread()
       originating from the master.
 
     Because of the last case, we need to add the following conditions to set
-    currently_executing_gtid.
+    original_commit_timestamp.
   */
   if (system_thread == SYSTEM_THREAD_SLAVE_SQL ||
       system_thread == SYSTEM_THREAD_SLAVE_WORKER)
   {
-    rli_slave->currently_executing_gtid= variables.gtid_next;
     rli_slave->original_commit_timestamp= variables.original_commit_timestamp;
   }
 }
@@ -2888,4 +2920,11 @@ bool THD::is_current_stmt_binlog_disabled() const
 {
   return (!(variables.option_bits & OPTION_BIN_LOG) ||
           !mysql_bin_log.is_open());
+}
+
+bool THD::is_current_stmt_binlog_row_enabled_with_write_set_extraction() const
+{
+  return ((variables.transaction_write_set_extraction != HASH_ALGORITHM_OFF) &&
+          is_current_stmt_binlog_format_row() &&
+          !is_current_stmt_binlog_disabled());
 }

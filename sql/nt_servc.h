@@ -9,6 +9,9 @@
 
   Copyright Abandoned 1998 Irena Pancirov - Irnet Snc
   This file is public domain and comes with NO WARRANTY of any kind
+
+  Modifications copyright (c) 2000, 2017. Oracle and/or its affiliates.
+  All rights reserved.
 */
 
 // main application thread
@@ -61,7 +64,7 @@ class NTService
     BOOL SeekStatus(LPCSTR szInternName, int OperationType);
     BOOL Remove(LPCSTR szInternName);
     BOOL IsService(LPCSTR ServiceName);
-    BOOL got_service_option(char **argv, char *service_option);
+    BOOL got_service_option(char **argv, const char *service_option);
     BOOL is_super_user();
 
     /* 

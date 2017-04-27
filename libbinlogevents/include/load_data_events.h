@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,6 +27,8 @@
 
 #ifndef LOAD_DATA_EVENTS_INCLUDED
 #define	LOAD_DATA_EVENTS_INCLUDED
+
+#include <sys/types.h>
 
 #include "statement_events.h"
 #include "table_id.h"
@@ -247,8 +249,8 @@ public:
 #ifndef HAVE_MYSYS
   //TODO(WL#7684): Implement the method print_event_info and print_long_info for
   //            all the events supported  in  MySQL Binlog
-  void print_event_info(std::ostream& info) {};
-  void print_long_info(std::ostream& info) {};
+  void print_event_info(std::ostream&) {};
+  void print_long_info(std::ostream&) {};
 #endif
 };
 
@@ -362,8 +364,8 @@ public:
 #ifndef HAVE_MYSYS
   //TODO(WL#7684): Implement the method print_event_info and print_long_info for
   //            all the events supported  in  MySQL Binlog
-  void print_event_info(std::ostream& info) {};
-  void print_long_info(std::ostream& info) {};
+  void print_event_info(std::ostream&) {};
+  void print_long_info(std::ostream&) {};
 #endif
 };
 
@@ -422,8 +424,8 @@ public:
 #ifndef HAVE_MYSYS
   //TODO(WL#7684): Implement the method print_event_info and print_long_info for
   //            all the events supported  in  MySQL Binlog
-  void print_event_info(std::ostream& info) {};
-  void print_long_info(std::ostream& info) {};
+  void print_event_info(std::ostream&) {};
+  void print_long_info(std::ostream&) {};
 #endif
 };
 } // end namespace binary_log

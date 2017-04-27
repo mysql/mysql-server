@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -73,7 +73,7 @@ Item_processing_data* Abstract_chain_element::new_task_created(
 }
 
 Item_processing_data* Abstract_chain_element::new_chain_created(
-  Chain_data* new_chain_data, Item_processing_data* parent_processing_data,
+  Chain_data*, Item_processing_data* parent_processing_data,
   I_chain_element* child_chain_element)
 {
   Item_processing_data* new_item_to_process=

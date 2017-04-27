@@ -1,4 +1,3 @@
---source include/not_embedded.inc
 
 --echo ------ Run plugin ------------------------------------------------
 --replace_result $TEST_SERVICES_PLUGIN_REGISTRY TEST_SERVICES_PLUGIN_REGISTRY

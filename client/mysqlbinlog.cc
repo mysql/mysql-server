@@ -28,11 +28,13 @@
    Format_desc_of_slave, Rotate_of_master, Format_desc_of_master.
 */
 
-#include "mysqlbinlog.h"
+#include "client/mysqlbinlog.h"
 
 #include <fcntl.h>
 #include <signal.h>
+#include <stdarg.h>
 #include <stdlib.h>
+#include <time.h>
 #include <algorithm>
 #include <map>
 #include <utility>
@@ -66,21 +68,6 @@ using std::max;
 */
 static
 std::map<std::string, std::string> map_mysqlbinlog_rewrite_db;
-
-/**
-  The function represents Log_event delete wrapper
-  to reset possibly active temp_buf member.
-  It's to be invoked in context where the member is
-  not bound with dynamically allocated memory and therefore can
-  be reset as simple as with plain assignment to NULL.
-
-  @param ev  a pointer to Log_event instance
-*/
-inline void reset_temp_buf_and_delete(Log_event *ev)
-{
-  ev->temp_buf= NULL;
-  delete ev;
-}
 
 static bool
 rewrite_db(char **buf, ulong *buf_size,
@@ -303,8 +290,8 @@ static const char* default_dbug_option = "d:t:o,/tmp/mysqlbinlog.trace";
 #endif
 static const char *load_default_groups[]= { "mysqlbinlog","client",0 };
 
-static my_bool one_database=0, disable_log_bin= 0;
-static my_bool opt_hexdump= 0;
+static bool one_database=0, disable_log_bin= 0;
+static bool opt_hexdump= 0;
 const char *base64_output_mode_names[]=
 {"NEVER", "AUTO", "UNSPEC", "DECODE-ROWS", NullS};
 TYPELIB base64_output_mode_typelib=
@@ -312,7 +299,7 @@ TYPELIB base64_output_mode_typelib=
     base64_output_mode_names, NULL };
 static enum_base64_output_mode opt_base64_output_mode= BASE64_OUTPUT_UNSPEC;
 static char *opt_base64_output_mode_str= 0;
-static my_bool opt_remote_alias= 0;
+static bool opt_remote_alias= 0;
 const char *remote_proto_names[]=
 {"BINLOG-DUMP-NON-GTIDS", "BINLOG-DUMP-GTIDS", NullS};
 TYPELIB remote_proto_typelib=
@@ -327,11 +314,11 @@ static char *opt_remote_proto_str= 0;
 static char *database= 0;
 static char *output_file= 0;
 static char *rewrite= 0;
-my_bool force_opt= 0, short_form= 0, idempotent_mode= 0;
-static my_bool debug_info_flag, debug_check_flag;
-static my_bool force_if_open_opt= 1, raw_mode= 0;
-static my_bool to_last_remote_log= 0, stop_never= 0;
-static my_bool opt_verify_binlog_checksum= 1;
+bool force_opt= 0, short_form= 0, idempotent_mode= 0;
+static bool debug_info_flag, debug_check_flag;
+static bool force_if_open_opt= 1, raw_mode= 0;
+static bool to_last_remote_log= 0, stop_never= 0;
+static bool opt_verify_binlog_checksum= 1;
 static ulonglong offset = 0;
 static int64 stop_never_slave_server_id= -1;
 static int64 connection_server_id= -1;
@@ -340,7 +327,7 @@ static int port= 0;
 static uint my_end_arg;
 static const char* sock= 0;
 static char *opt_plugin_dir= 0, *opt_default_auth= 0;
-static my_bool opt_secure_auth= TRUE;
+static bool opt_secure_auth= TRUE;
 
 #if defined (_WIN32)
 static char *shared_memory_base_name= 0;
@@ -368,6 +355,8 @@ Checkable_rwlock *global_sid_lock= NULL;
 Gtid_set *gtid_set_included= NULL;
 Gtid_set *gtid_set_excluded= NULL;
 
+static bool opt_print_table_metadata;
+
 /**
   Pointer to the Format_description_log_event of the currently active binlog.
 
@@ -393,7 +382,7 @@ enum Exit_status {
 */
 static char *opt_include_gtids_str= NULL,
             *opt_exclude_gtids_str= NULL;
-static my_bool opt_skip_gtids= 0;
+static bool opt_skip_gtids= 0;
 static bool filter_based_on_gtids= false;
 
 /* It is set to true when BEGIN is found, and false when the transaction ends. */
@@ -1002,7 +991,6 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *
 {
   char ll_buff[21];
   Log_event_type ev_type= ev->get_type_code();
-  my_bool destroy_evt= TRUE;
   DBUG_ENTER("process_event");
   Exit_status retval= OK_CONTINUE;
   IO_CACHE *const head= &print_event_info->head_cache;
@@ -1126,34 +1114,32 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *
       if (head->error == -1)
         goto err;
       break;
-      
-      destroy_evt= TRUE;
     }
           
     case binary_log::INTVAR_EVENT:
     {
-      destroy_evt= FALSE;
       buff_event.event= ev;
       buff_event.event_pos= pos;
       buff_ev->push_back(buff_event);
+      ev= NULL;
       break;
     }
     	
     case binary_log::RAND_EVENT:
     {
-      destroy_evt= FALSE;
       buff_event.event= ev;
       buff_event.event_pos= pos;      
       buff_ev->push_back(buff_event);
+      ev= NULL;
       break;
     }
     
     case binary_log::USER_VAR_EVENT:
     {
-      destroy_evt= FALSE;
       buff_event.event= ev;
       buff_event.event_pos= pos;      
       buff_ev->push_back(buff_event);
+      ev= NULL;
       break; 
     }
     case binary_log::APPEND_BLOCK_EVENT:
@@ -1203,17 +1189,6 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *
 
       if (head->error == -1)
         goto err;
-      if (opt_remote_proto == BINLOG_LOCAL)
-      {
-        ev->free_temp_buf(); // free memory allocated in dump_local_log_entries
-      }
-      else
-      {
-        /*
-          disassociate but not free dump_remote_log_entries time memory
-        */
-        ev->temp_buf= 0;
-      }
       /*
         We don't want this event to be deleted now, so let's hide it (I
         (Guilhem) should later see if this triggers a non-serious Valgrind
@@ -1275,7 +1250,7 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *
       {
         print_event_info->skipped_event_in_transaction= true;
         print_event_info->m_table_map_ignored.set_table(map->get_table_id(), map);
-        destroy_evt= FALSE;
+        ev= NULL;
         goto end;
       }
     }
@@ -1449,16 +1424,9 @@ err:
 end:
   rec_count++;
   /*
-    Destroy the log_event object. If reading from a remote host,
-    set the temp_buf to NULL so that memory isn't freed twice.
+    Destroy the log_event object.
   */
-  if (ev)
-  {
-    if (opt_remote_proto != BINLOG_LOCAL)
-      ev->temp_buf= 0;
-    if (destroy_evt) /* destroy it later if not set (ignored table map) */
-      delete ev;
-  }
+  delete ev;
   DBUG_RETURN(retval);
 }
 
@@ -1704,6 +1672,10 @@ static struct my_option my_long_options[] =
    "Identifiers were provided.",
    &opt_exclude_gtids_str, &opt_exclude_gtids_str, 0,
    GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"print-table-metadata", OPT_PRINT_TABLE_METADATA,
+   "Print metadata stored in Table_map_log_event",
+   &opt_print_table_metadata, &opt_print_table_metadata, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -1825,7 +1797,7 @@ static my_time_t convert_str_to_timestamp(const char* str)
   MYSQL_TIME_STATUS status;
   MYSQL_TIME l_time;
   long dummy_my_timezone;
-  my_bool dummy_in_dst_time_gap;
+  bool dummy_in_dst_time_gap;
   /* We require a total specification (date AND time) */
   if (str_to_datetime(str, strlen(str), &l_time, 0, &status) ||
       l_time.time_type != MYSQL_TIMESTAMP_DATETIME || status.warnings)
@@ -1843,7 +1815,7 @@ static my_time_t convert_str_to_timestamp(const char* str)
 }
 
 
-extern "C" my_bool
+extern "C" bool
 get_one_option(int optid, const struct my_option *opt,
 	       char *argument)
 {
@@ -2090,6 +2062,7 @@ static Exit_status dump_multiple_logs(int argc, char **argv)
   print_event_info.short_form= short_form;
   print_event_info.base64_output_mode= opt_base64_output_mode;
   print_event_info.skip_gtids= opt_skip_gtids;
+  print_event_info.print_table_metadata= opt_print_table_metadata;
 
   // Dump all logs.
   my_off_t save_stop_position= stop_position;
@@ -2256,6 +2229,24 @@ static void fix_gtid_set(MYSQL_RPL *rpl, uchar *packet_gtid_set)
   global_sid_lock->unlock();
 }
 
+/*
+  A RAII class created to handle the memory of Log_event object
+  created in the dump_remote_log_entries method.
+*/
+class Destroy_log_event_guard
+{
+public:
+  Log_event **ev_del;
+  Destroy_log_event_guard(Log_event** ev_arg)
+  {
+    ev_del= ev_arg;
+  }
+  ~Destroy_log_event_guard()
+  {
+    if (*ev_del != NULL)
+      delete *ev_del;
+  }
+};
 
 /**
   Requests binlog dump from a remote server and prints the events it
@@ -2360,6 +2351,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
 
     Log_event_type type= (Log_event_type) rpl.buffer[1 + EVENT_TYPE_OFFSET];
     Log_event *ev= NULL;
+    Destroy_log_event_guard del(&ev);
 
     if (!raw_mode || (type == binary_log::ROTATE_EVENT) ||
         (type == binary_log::FORMAT_DESCRIPTION_EVENT))
@@ -2377,7 +2369,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
         If reading from a remote host, ensure the temp_buf for the
         Log_event class is pointing to the incoming stream.
       */
-      ev->register_temp_buf((char *) rpl.buffer + 1);
+      ev->register_temp_buf((char *) rpl.buffer + 1, false);
     }
 
     {
@@ -2420,7 +2412,6 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
             if ((rev->ident_len != rpl.file_name_length) ||
                 memcmp(rev->new_log_ident, logname, rpl.file_name_length))
             {
-              reset_temp_buf_and_delete(rev);
               DBUG_RETURN(OK_CONTINUE);
             }
             /*
@@ -2429,7 +2420,6 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
               log. If we are running with to_last_remote_log, we print it,
               because it serves as a useful marker between binlogs then.
             */
-            reset_temp_buf_and_delete(rev);
             continue;
           }
           /*
@@ -2458,7 +2448,8 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
             my_fclose(result_file, MYF(0));
           if (!(result_file = my_fopen(log_file_name,
                                        O_WRONLY | MY_FOPEN_BINARY,
-                                       MYF(MY_WME))))
+                                       MYF(MY_WME)))||
+                 DBUG_EVALUATE_IF("simulate_create_log_file_error_for_FD_event", 1, 0))
           {
             error("Could not create log file '%s'", log_file_name);
             DBUG_RETURN(ERROR_STOP);
@@ -2492,12 +2483,16 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
           error("Could not write into log file '%s'", log_file_name);
           retval= ERROR_STOP;
         }
-        if (ev)
-          reset_temp_buf_and_delete(ev);
+
+        /* Flush result_file after every event */
+        fflush(result_file);
       }
       else
       {
         retval= process_event(print_event_info, ev, old_off, logname);
+        // The event's deletion has been handled in process_event. To prevent that
+        // Destroy_log_event_guard deletes it again, we have to set it to NULL
+        ev= NULL;
       }
 
       if (retval != OK_CONTINUE)

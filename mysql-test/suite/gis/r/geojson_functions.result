@@ -2668,7 +2668,7 @@ PREPARE stmt FROM "SELECT ST_GEOMFROMGEOJSON(?, 0, ?)";
 PREPARE stmt FROM "SELECT ST_GEOMFROMGEOJSON('', ?, ?)";
 PREPARE stmt FROM "SELECT ST_GEOMFROMGEOJSON(?, ?, ?)";
 SELECT ST_GEOMFROMGEOJSON("{}foo");
-ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "The document root must not follow by other values." at position 2.
+ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "The document root must not be followed by other values." at position 2.
 SELECT ST_GEOMFROMGEOJSON("[12 foo 13]");
 ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "Missing a comma or ']' after an array element." at position 4.
 SELECT ST_GEOMFROMGEOJSON("{ \"type\": nul123 } ");
@@ -2730,6 +2730,8 @@ POINT(9.223372036854776e18 4294967295)
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON("{ \"type\": \"Point\", \"coordinates\": [18446744073709551615, 9223372036854775807] }"));
 ST_ASTEXT(ST_GEOMFROMGEOJSON("{ \"type\": \"Point\", \"coordinates\": [18446744073709551615, 9223372036854775807] }"))
 POINT(9.223372036854776e18 1.8446744073709552e19)
+SELECT ST_AsGeoJSON(ST_GeomFromGeoJSON('{"type":"Point","coordinates":[2e308,-0]}'));
+ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "Terminate parsing due to Handler error." at position 31.
 # Checking that Point with wrong coordinate array depth are invalidated.
 SELECT ST_GEOMFROMGEOJSON(
 "{                      "

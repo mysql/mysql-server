@@ -12,7 +12,6 @@
 # sources the same ndb_dist_priv_common.inc file
 #
 
---source include/not_embedded.inc
 --source include/have_ndb.inc
 --source include/have_binlog_format_mixed_or_row.inc
 

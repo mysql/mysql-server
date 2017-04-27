@@ -45,11 +45,18 @@ Created 10/21/1995 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 # include "os0event.h"
 # include "os0thread.h"
+#ifdef _WIN32
+# include <sys/types.h>
+# include <sys/stat.h>
+# include <errno.h>
+# include <tchar.h>
+# include <codecvt>
+# include <mbstring.h>
+# endif /* _WIN32 */
 #else /* !UNIV_HOTBACKUP */
 # ifdef _WIN32
 #  include <errno.h>
 #  include <sys/stat.h>
-/* Add includes for the _stat() call to compile on Windows */
 #  include <sys/types.h>
 # endif /* _WIN32 */
 #endif /* !UNIV_HOTBACKUP */
@@ -73,6 +80,8 @@ Created 10/21/1995 Heikki Tuuri
 #include <my_rnd.h>
 #include <mysql/service_mysql_keyring.h>
 #include <mysqld.h>
+#include <sys/types.h>
+#include <time.h>
 #include <zlib.h>
 
 /** Insert buffer segment id */
@@ -194,8 +203,8 @@ the completed IO request and calls completion routine on it.
 
 #ifdef UNIV_PFS_IO
 /* Keys to register InnoDB I/O with performance schema */
-mysql_pfs_key_t  innodb_data_file_key;
 mysql_pfs_key_t  innodb_log_file_key;
+mysql_pfs_key_t  innodb_data_file_key;
 mysql_pfs_key_t  innodb_temp_file_key;
 #endif /* UNIV_PFS_IO */
 
@@ -3195,6 +3204,7 @@ os_file_status_posix(
 
 	} else if (errno == ENOENT || errno == ENOTDIR) {
 		/* file does not exist */
+		*type = OS_FILE_TYPE_MISSING;
 		return(true);
 
 	} else {
@@ -3921,6 +3931,75 @@ void
 os_aio_simulated_put_read_threads_to_sleep()
 {
 	/* No op on non Windows */
+}
+
+/** Depth first traversal of the directory starting from basedir
+@param[in]	basedir		Start scanning from this directory
+@param[in]	f		Function to call for each entry */
+void
+Dir_Walker::walk_posix(const Path& basedir, Function&& f)
+{
+	using Stack = std::stack<Entry>;
+
+	Stack	directories;
+
+	directories.push(Entry(basedir, 0));
+
+	while (!directories.empty()) {
+
+		Entry	current = directories.top();
+
+		directories.pop();
+
+		DIR*	parent = opendir(current.m_path.c_str());
+
+		if (parent == nullptr) {
+
+			std::cerr
+				<< std::endl
+				<< "Failed to walk directory"
+				<< " '" << current.m_path << "'"
+				<< std::endl;
+
+			continue;
+		}
+
+		f(current.m_path, current.m_depth);
+
+		struct dirent*	dirent = nullptr;
+
+		for (;;) {
+
+			dirent = readdir(parent);
+
+			if (dirent == nullptr) {
+				break;
+			}
+
+			if (strcmp(dirent->d_name, ".") == 0
+			    || strcmp(dirent->d_name, "..") == 0) {
+
+				continue;
+			}
+
+			Path	path(current.m_path);
+
+			path.append("/");
+			path.append(dirent->d_name);
+
+			if (is_directory(path)) {
+
+				directories.push(
+					Entry(path, current.m_depth + 1));
+
+			} else {
+
+				f(path, current.m_depth + 1);
+			}
+		}
+
+		closedir(parent);
+	}
 }
 
 #else /* !_WIN32 */
@@ -5124,6 +5203,113 @@ AIO::simulated_put_read_threads_to_sleep()
 	}
 }
 
+/** Depth first traversal of the directory starting from basedir
+@param[in]	basedir		Start scanning from this directory
+@param[in]	f		Callback for each entry found
+@param[in,out]	args		Optional arguments for f */
+void
+Dir_Walker::walk_win32(const Path& basedir, Function&& f)
+{
+	using Stack = std::stack<Entry>;
+
+	HRESULT res;
+	size_t	length;
+	Stack	directories;
+	TCHAR	directory[MAX_PATH];
+
+	res = StringCchLength(basedir.c_str(), MAX_PATH, &length);
+
+	/* Check if the name is too long. */
+	if (!SUCCEEDED(res)) {
+
+		ib::warn() << "StringCchLength() call failed!";
+		return;
+
+	} else if (length > (MAX_PATH - 3)) {
+
+		ib::warn() << "Directory name too long: '" << basedir << "'";
+		return;
+	}
+
+	StringCchCopy(directory, MAX_PATH, basedir.c_str());
+
+	if (directory[_tcslen(directory) - 1] != TEXT('\\')) {
+		StringCchCat(directory, MAX_PATH, TEXT("\\*"));
+	} else {
+		StringCchCat(directory, MAX_PATH, TEXT("*"));
+	}
+
+	directories.push(Entry(directory, 0));
+
+	using Type = std::codecvt_utf8<wchar_t>;
+	using Converter = std::wstring_convert<Type, wchar_t>;
+
+	Converter	converter;
+
+	while (!directories.empty()) {
+
+		Entry	current = directories.top();
+
+		directories.pop();
+
+		HANDLE		h;
+		WIN32_FIND_DATA	dirent;
+
+		h = FindFirstFile(current.m_path.c_str(), &dirent);
+
+		if (h == INVALID_HANDLE_VALUE) {
+
+			ib::warn()
+				<< "Directory read failed:"
+				<< " '" << current.m_path << "' during scan";
+
+			continue;
+		}
+
+		do {
+			/* dirent.cFileName is a TCHAR. */
+			if (_tcscmp(dirent.cFileName, _T(".")) == 0
+			    || _tcscmp(dirent.cFileName, _T("..")) == 0) {
+
+				continue;
+			}
+
+			Path	path(current.m_path);
+
+			/* Shorten the path to remove the trailing '*'. */
+			ut_ad(path.substr(path.size() - 2).compare("\\*") == 0);
+
+			path.resize(path.size() - 1);
+			path.append(dirent.cFileName);
+
+			if (dirent.dwFileAttributes
+			    & FILE_ATTRIBUTE_DIRECTORY) {
+
+				path.append("\\*");
+
+				using value_type = Stack::value_type;
+
+				value_type	dir(path, current.m_depth + 1);
+
+				directories.push(dir);
+
+			} else {
+
+				f(path, current.m_depth + 1);
+			}
+
+		} while (FindNextFile(h, &dirent) != 0);
+
+		if (GetLastError() != ERROR_NO_MORE_FILES) {
+
+			ib::error()
+				<< "Scanning '" << directory << "'"
+				<< " - FindNextFile(): returned error";
+		}
+
+		FindClose(h);
+	}
+}
 #endif /* !_WIN32*/
 
 /** Does a syncronous read or write depending upon the type specified
@@ -5331,7 +5517,7 @@ os_file_write_page(
 	if ((ulint) n_bytes != n && !os_has_said_disk_full) {
 
 		ib::error()
-			<< "Write to file " << name << "failed at offset "
+			<< "Write to file " << name << " failed at offset "
 			<< offset << ", " << n
 			<< " bytes should have been written,"
 			" only " << n_bytes << " were written."
@@ -9491,4 +9677,27 @@ os_normalize_path(
 			}
 		}
 	}
+}
+
+
+/** Check if the path is a directory. The file/directory must exist.
+@param[in]	path		The path to check
+@return true if it is a directory */
+bool
+Dir_Walker::is_directory(const Path& path)
+{
+	os_file_type_t	type;
+	bool		exists;
+
+	if (os_file_status(path.c_str(), &exists, &type)) {
+
+		ut_ad(type != OS_FILE_TYPE_MISSING);
+
+		return(type == OS_FILE_TYPE_DIR);
+	}
+
+	ut_ad(exists);
+	ut_ad(type != OS_FILE_TYPE_MISSING);
+
+	return(false);
 }

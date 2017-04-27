@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -48,7 +48,6 @@ SELECT_LEX), by calling explain_unit() for each of them.
 */
 
 #include "my_base.h"
-#include "my_global.h"
 #include "opt_explain_format.h"
 #include "parse_tree_node_base.h"
 #include "query_result.h"                // Query_result_send

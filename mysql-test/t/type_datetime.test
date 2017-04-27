@@ -627,3 +627,67 @@ SET @@sql_mode= @org_mode;
 --echo #
 --echo # End of 5.6 tests
 --echo #
+
+--echo #
+--echo #Bug#25586673: ASSERT IN DA FOR SQL_CMD_UPDATE::UPDATE_SINGLE_TABLE
+--echo #Bug#25586959: SERVER CRASH IN SQL_CMD_DELETE::DELETE_FROM_SINGLE_TABLE
+--echo #
+CREATE TABLE test.t(col_varchar_nokey VARCHAR(1) NOT NULL,
+                    col_time_nokey time NOT NULL,
+                    col_int_nokey INT NOT NULL,
+                    col_datetime_key datetime not null,
+                    key(col_datetime_key)) ENGINE= InnoDB;
+--error ER_TRUNCATED_WRONG_VALUE
+DELETE FROM test.t WHERE `col_int_nokey` > `col_int_nokey`
+                         AND TIMESTAMP( '18:16:35.025453' ) IS  NULL;
+--error ER_TRUNCATED_WRONG_VALUE
+UPDATE test.t SET `col_varchar_nokey` = TIMESTAMP(`col_time_nokey`,'00:00:00')
+  WHERE `col_int_nokey` > `col_int_nokey`
+        AND TIMESTAMP('18:16:35.025453') IS  NULL;
+--error ER_TRUNCATED_WRONG_VALUE
+UPDATE test.t SET `col_datetime_key` = `col_datetime_key` WHERE
+  `col_datetime_key` <=> FROM_UNIXTIME(1151860736,CONCAT_WS(':','%D','%v'));
+DROP TABLE test.t;
+
+--echo #
+--echo # Bug#25866743 - ASSERTION FAILED: FALSE IN
+--echo #                ITEM_FUNC_GEOMETRY_FROM_TEXT::VAL_STR
+--echo # Bug#25867000 - CRASH IN ITEM_FUNC_PASSWORD::VAL_STR_ASCII
+--echo # Bug#25866143 CRASH IN ST_ASWKB STRING::COPY
+--echo #
+
+--error ER_GIS_INVALID_DATA
+do
+mbrintersects(
+ st_asbinary(1),
+ password(sec_to_time(4221094224))
+);
+
+--error ER_GIS_INVALID_DATA
+do st_intersects(st_srid(st_linestringfromwkb('' )),
+  ( -29033 between (password(last_day(json_valid(abs('&#] $ {')))))and(6683)));
+
+--error ER_DATA_OUT_OF_RANGE
+do is_ipv4_mapped(bin(maketime(11111,exp(repeat('1',32)),'')));
+
+--error ER_WRONG_VALUE_FOR_TYPE
+do ifnull((bin_to_uuid(uuid_to_bin(date_format('7088-02-14'
+   ,0xabbd95)))),(maketime('4678-07-20 03:51:44.174847',1,'b')));
+
+--error ER_WRONG_VALUE_FOR_TYPE
+do ucase(insert(maketime(9.565398e+307 ,'',
+                         st_longfromgeohash(('4358-04-12 03:45:08.727399'))),
+			 0xdc0823,6756,release_all_locks()));
+
+--error ER_DATA_OUT_OF_RANGE
+do soundex(maketime(cast((2530967061762658367) as decimal),
+   exp(repeat('1',32)),((period_add(579349005,27636))xor (sha(current_user)))));
+
+--error ER_DATA_OUT_OF_RANGE
+do st_mlinefromtext(
+ maketime(
+  now(),
+  instr(1,pow(15270551309908264860,100)),
+  31
+ )
+);

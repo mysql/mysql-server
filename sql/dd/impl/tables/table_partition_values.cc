@@ -27,7 +27,6 @@
 #include "field.h"                          // Field
 #include "key.h"
 #include "my_base.h"                        // HA_WHOLE_KEY
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "table.h"
 

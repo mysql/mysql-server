@@ -2,6 +2,7 @@
 # Tests with the sjis character set
 #
 --source include/no_valgrind_without_big.inc
+
 --disable_warnings
 drop table if exists t1;
 --enable_warnings

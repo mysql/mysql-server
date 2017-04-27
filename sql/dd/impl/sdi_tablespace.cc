@@ -26,7 +26,6 @@
 #include "handler.h"
 #include "mdl.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "sql_class.h"                   // THD
 
@@ -41,7 +40,7 @@
 using namespace dd::sdi_utils;
 
 namespace {
-bool is_valid(const dd::Tablespace *ts)
+bool is_valid(const dd::Tablespace *ts MY_ATTRIBUTE((unused)))
 {
   // return ts && ts->se_private_data().exists("id");
   // TODO: WL#9538  Remove this when SDI is enabled for InnoDB
@@ -217,8 +216,6 @@ bool store(THD *thd, handlerton *hton, const MYSQL_LEX_CSTRING &sdi,
 bool store(handlerton *hton, const MYSQL_LEX_CSTRING &sdi,
            const Tablespace *tablespace)
 {
-  DBUG_ASSERT(hton->db_type == DB_TYPE_INNODB);
-  DBUG_ASSERT(hton->sdi_set != nullptr);
   if (!tablespace->se_private_data().exists("id"))
   {
     return false; // FIXME - needs wl#7141

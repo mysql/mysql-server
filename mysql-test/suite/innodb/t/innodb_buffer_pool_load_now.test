@@ -8,8 +8,6 @@
 # with innodb_buffer_pool_dump_now=ON
 # and innodb_buffer_pool_load_now=ON
 
-# include/restart_mysqld.inc does not work in embedded mode
---source include/not_embedded.inc
 
 --let $file = `SELECT CONCAT(@@datadir, @@global.innodb_buffer_pool_filename)`
 

@@ -3,7 +3,7 @@
 --source include/restart_mysqld.inc
 
 --sleep 2
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 call mtr.add_suppression("Plugin mysqlx reported: '3.1: Unhandled message of type 12'");
 call mtr.add_suppression("Plugin mysqlx reported: '4.1: Unhandled message of type 12'");
 call mtr.add_suppression("Plugin mysqlx reported: '5.1: Unhandled message of type 12'");

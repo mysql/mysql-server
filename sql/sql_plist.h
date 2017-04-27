@@ -18,7 +18,6 @@
 
 #include <algorithm>
 
-#include "my_global.h"
 #include "my_inttypes.h"
 
 template <typename T, typename L>

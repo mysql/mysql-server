@@ -18,8 +18,8 @@
 #include <string.h>
 #include <sys/types.h>
 
+#include "lex_string.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "my_sqlcommand.h"
@@ -361,7 +361,7 @@ static inline bool is_already_logged_transaction(const THD *thd)
 
   @param  thd     The calling thread.
 */
-static inline void skip_statement(const THD *thd)
+static inline void skip_statement(const THD *thd MY_ATTRIBUTE((unused)))
 {
   DBUG_ENTER("skip_statement");
 
@@ -414,7 +414,7 @@ bool gtid_reacquire_ownership_if_anonymous(THD *thd)
       // this can happen if gtid_mode=on
       DBUG_RETURN(true);
 
-    thd->set_currently_executing_gtid_for_slave_thread();
+    thd->set_original_commit_timestamp_for_slave_thread();
   }
   DBUG_RETURN(false);
 }
@@ -605,7 +605,7 @@ bool gtid_pre_statement_post_implicit_commit_checks(THD *thd)
 }
 
 
-void gtid_set_performance_schema_values(const THD *thd)
+void gtid_set_performance_schema_values(const THD *thd MY_ATTRIBUTE((unused)))
 {
   DBUG_ENTER("gtid_set_performance_schema_values");
 #ifdef HAVE_PSI_TRANSACTION_INTERFACE

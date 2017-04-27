@@ -180,6 +180,16 @@ performance_schema_digests_size	2
 SELECT COUNT(*) FROM performance_schema.events_statements_summary_by_digest;
 COUNT(*)
 2
+select count(*)
+from performance_schema.events_statements_histogram_by_digest;
+count(*)
+900
+select SCHEMA_NAME, DIGEST IS NULL, BUCKET_NUMBER
+from performance_schema.events_statements_histogram_by_digest
+where BUCKET_NUMBER= 1;
+SCHEMA_NAME	DIGEST IS NULL	BUCKET_NUMBER
+NULL	1	1
+statements_digest	0	1
 ####################################
 # CLEANUP
 ####################################

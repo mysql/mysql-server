@@ -38,7 +38,7 @@ INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
 # Cardinality is correct even without ANALYZE.
 SHOW KEYS FROM t1 WHERE key_name LIKE 'latest%';
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	latest_key	1	i	A	10	NULL	NULL	YES	BTREE			YES
+t1	1	latest_key	1	i	A	#	NULL	NULL	YES	BTREE			YES
 DROP TABLE t1;
 SET @@session.information_schema_stats= @old_information_schema_stats;
 #########################################################
@@ -66,7 +66,7 @@ tables_priv
 # I_S view definitions.
 SHOW CREATE TABLE information_schema.tables;
 View	Create View	character_set_client	collation_connection
-TABLES	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `information_schema`.`TABLES` AS select (`cat`.`name` collate utf8_tolower_ci) AS `TABLE_CATALOG`,(`sch`.`name` collate utf8_tolower_ci) AS `TABLE_SCHEMA`,(`tbl`.`name` collate utf8_tolower_ci) AS `TABLE_NAME`,`tbl`.`type` AS `TABLE_TYPE`,if((`tbl`.`type` = 'BASE TABLE'),`tbl`.`engine`,NULL) AS `ENGINE`,if((`tbl`.`type` = 'VIEW'),NULL,10) AS `VERSION`,`tbl`.`row_format` AS `ROW_FORMAT`,`stat`.`table_rows` AS `TABLE_ROWS`,`stat`.`avg_row_length` AS `AVG_ROW_LENGTH`,`stat`.`data_length` AS `DATA_LENGTH`,`stat`.`max_data_length` AS `MAX_DATA_LENGTH`,`stat`.`index_length` AS `INDEX_LENGTH`,`stat`.`data_free` AS `DATA_FREE`,`stat`.`auto_increment` AS `AUTO_INCREMENT`,`tbl`.`created` AS `CREATE_TIME`,`stat`.`update_time` AS `UPDATE_TIME`,`stat`.`check_time` AS `CHECK_TIME`,`col`.`name` AS `TABLE_COLLATION`,`stat`.`checksum` AS `CHECKSUM`,if((`tbl`.`type` = 'VIEW'),NULL,get_dd_create_options(`tbl`.`options`,if((ifnull(`tbl`.`partition_expression`,'NOT_PART_TBL') = 'NOT_PART_TBL'),0,1))) AS `CREATE_OPTIONS`,internal_get_comment_or_error(`sch`.`name`,`tbl`.`name`,`tbl`.`type`,`tbl`.`options`,`tbl`.`comment`) AS `TABLE_COMMENT` from ((((`mysql`.`tables` `tbl` join `mysql`.`schemata` `sch` on((`tbl`.`schema_id` = `sch`.`id`))) join `mysql`.`catalogs` `cat` on((`cat`.`id` = `sch`.`catalog_id`))) left join `mysql`.`collations` `col` on((`tbl`.`collation_id` = `col`.`id`))) left join `mysql`.`table_stats` `stat` on(((`tbl`.`name` = `stat`.`table_name`) and (`sch`.`name` = `stat`.`schema_name`)))) where (can_access_table(`sch`.`name`,`tbl`.`name`,FALSE) and (not(`tbl`.`hidden`)))	utf8	utf8_general_ci
+TABLES	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `information_schema`.`TABLES` AS select (`cat`.`name` collate utf8_tolower_ci) AS `TABLE_CATALOG`,(`sch`.`name` collate utf8_tolower_ci) AS `TABLE_SCHEMA`,(`tbl`.`name` collate utf8_tolower_ci) AS `TABLE_NAME`,`tbl`.`type` AS `TABLE_TYPE`,if((`tbl`.`type` = 'BASE TABLE'),`tbl`.`engine`,NULL) AS `ENGINE`,if((`tbl`.`type` = 'VIEW'),NULL,10) AS `VERSION`,`tbl`.`row_format` AS `ROW_FORMAT`,`stat`.`table_rows` AS `TABLE_ROWS`,`stat`.`avg_row_length` AS `AVG_ROW_LENGTH`,`stat`.`data_length` AS `DATA_LENGTH`,`stat`.`max_data_length` AS `MAX_DATA_LENGTH`,`stat`.`index_length` AS `INDEX_LENGTH`,`stat`.`data_free` AS `DATA_FREE`,`stat`.`auto_increment` AS `AUTO_INCREMENT`,`tbl`.`created` AS `CREATE_TIME`,`stat`.`update_time` AS `UPDATE_TIME`,`stat`.`check_time` AS `CHECK_TIME`,`col`.`name` AS `TABLE_COLLATION`,`stat`.`checksum` AS `CHECKSUM`,if((`tbl`.`type` = 'VIEW'),NULL,get_dd_create_options(`tbl`.`options`,if((ifnull(`tbl`.`partition_expression`,'NOT_PART_TBL') = 'NOT_PART_TBL'),0,1))) AS `CREATE_OPTIONS`,internal_get_comment_or_error(`sch`.`name`,`tbl`.`name`,`tbl`.`type`,`tbl`.`options`,`tbl`.`comment`) AS `TABLE_COMMENT` from ((((`mysql`.`tables` `tbl` join `mysql`.`schemata` `sch` on((`tbl`.`schema_id` = `sch`.`id`))) join `mysql`.`catalogs` `cat` on((`cat`.`id` = `sch`.`catalog_id`))) left join `mysql`.`collations` `col` on((`tbl`.`collation_id` = `col`.`id`))) left join `mysql`.`table_stats` `stat` on(((`tbl`.`name` = `stat`.`table_name`) and (`sch`.`name` = `stat`.`schema_name`)))) where (can_access_table(`sch`.`name`,`tbl`.`name`,FALSE) and (`tbl`.`hidden` = 'Visible'))	utf8	utf8_general_ci
 #########################################################
 # Issue WL#6599/HLS/6c): Capital cased I_S table column names.
 #########################################################
@@ -115,9 +115,9 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `CHARACTER_SET_NAME` varchar(64) CHARACTER SET utf8 NOT NULL,
   `DEFAULT_COLLATE_NAME` varchar(64) CHARACTER SET utf8 NOT NULL,
-  `DESCRIPTION` varchar(2048) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
+  `DESCRIPTION` varchar(2048) CHARACTER SET utf8 NOT NULL,
   `MAXLEN` int(10) unsigned NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 # CREATE TABLE LIKE works for I_S tables that are not system view.
 CREATE TABLE t1 LIKE information_schema.processlist;
@@ -174,16 +174,11 @@ REFERENTIAL_CONSTRAINTS
 ROUTINES
 SCHEMATA
 SCHEMA_PRIVILEGES
-SHOW_STATISTICS
-SHOW_STATISTICS_DYNAMIC
 STATISTICS
-STATISTICS_BASE
-STATISTICS_DYNAMIC
 ST_GEOMETRY_COLUMNS
 ST_SPATIAL_REFERENCE_SYSTEMS
 TABLES
 TABLESPACES
-TABLES_DYNAMIC
 TABLE_CONSTRAINTS
 TABLE_PRIVILEGES
 TRIGGERS
@@ -200,15 +195,15 @@ WHERE TABLE_NAME LIKE 'no_such_table';
 TABLE_NAME
 # 4. Names collate differently. On trunk, the queries below returns
 #    the same result set.
-SELECT count(*) = IF(@@lower_case_table_names = 0, 5, 10)
+SELECT count(*) = IF(@@lower_case_table_names = 0, 4, 9)
 FROM information_schema.tables
 WHERE table_name LIKE 'TAB%';
-count(*) = IF(@@lower_case_table_names = 0, 5, 10)
+count(*) = IF(@@lower_case_table_names = 0, 4, 9)
 1
-SELECT count(*) = IF(@@lower_case_table_names = 0, 5, 10)
+SELECT count(*) = IF(@@lower_case_table_names = 0, 5, 9)
 FROM information_schema.tables
 WHERE table_name LIKE 'tab%';
-count(*) = IF(@@lower_case_table_names = 0, 5, 10)
+count(*) = IF(@@lower_case_table_names = 0, 5, 9)
 1
 # This is because the collation of the column is different. On trunk,
 # it is utf8_general_ci. With the global DD, it is the collation of the

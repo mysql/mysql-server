@@ -29,13 +29,13 @@
 #include "ft_global.h"
 #include "handler.h"
 #include "item.h"       // Item_result_field
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "my_base.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_decimal.h" // string2my_decimal
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_pointer_arithmetic.h"
 #include "my_sys.h"
@@ -116,7 +116,6 @@ public:
     allowed_arg_cols(1), arg_count(0)
   {
     args= tmp_arg;
-    with_sum_func= 0;
   }
 
   explicit Item_func(const POS &pos)
@@ -130,7 +129,7 @@ public:
   {
     args= tmp_arg;
     args[0]= a;
-    with_sum_func= a->with_sum_func;
+    set_accum_properties(a);
   }
   Item_func(const POS &pos, Item *a): super(pos),
     allowed_arg_cols(1), arg_count(1)
@@ -144,7 +143,9 @@ public:
   {
     args= tmp_arg;
     args[0]= a; args[1]= b;
-    with_sum_func= a->with_sum_func || b->with_sum_func;
+    m_accum_properties= 0;
+    add_accum_properties(a);
+    add_accum_properties(b);
   }
   Item_func(const POS &pos, Item *a,Item *b): super(pos),
     allowed_arg_cols(1), arg_count(2)
@@ -159,7 +160,10 @@ public:
     if ((args= (Item**) sql_alloc(sizeof(Item*)*3)))
     {
       args[0]= a; args[1]= b; args[2]= c;
-      with_sum_func= a->with_sum_func || b->with_sum_func || c->with_sum_func;
+      m_accum_properties= 0;
+      add_accum_properties(a);
+      add_accum_properties(b);
+      add_accum_properties(c);
     }
     else
       arg_count= 0; // OOM
@@ -182,8 +186,11 @@ public:
     if ((args= (Item**) sql_alloc(sizeof(Item*)*4)))
     {
       args[0]= a; args[1]= b; args[2]= c; args[3]= d;
-      with_sum_func= a->with_sum_func || b->with_sum_func ||
-	c->with_sum_func || d->with_sum_func;
+      m_accum_properties= 0;
+      add_accum_properties(a);
+      add_accum_properties(b);
+      add_accum_properties(c);
+      add_accum_properties(d);
     }
     else
       arg_count= 0; // OOM
@@ -205,8 +212,12 @@ public:
     if ((args= (Item**) sql_alloc(sizeof(Item*)*5)))
     {
       args[0]= a; args[1]= b; args[2]= c; args[3]= d; args[4]= e;
-      with_sum_func= a->with_sum_func || b->with_sum_func ||
-	c->with_sum_func || d->with_sum_func || e->with_sum_func ;
+      m_accum_properties= 0;
+      add_accum_properties(a);
+      add_accum_properties(b);
+      add_accum_properties(c);
+      add_accum_properties(d);
+      add_accum_properties(e);
     }
     else
       arg_count= 0; // OOM
@@ -283,7 +294,11 @@ public:
     return (null_value= args[0]->get_time(ltime));
   }
   bool is_null() override {
-    update_null_value();
+    /*
+      TODO : Implement error handling for this function as
+      update_null_value() can return error.
+    */
+    (void )update_null_value();
     return null_value;
   }
   void signal_divide_by_null();
@@ -713,7 +728,15 @@ public:
   */
   virtual bool date_op(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)= 0;
   virtual bool time_op(MYSQL_TIME *ltime)= 0;
-  bool is_null() override { update_null_value(); return null_value; }
+  bool is_null() override
+  {
+    /*
+      TODO : Implement error handling for this function as
+      update_null_value() can return error.
+    */
+    (void) update_null_value();
+    return null_value;
+  }
 };
 
 /* function where type of result detected by first argument */
@@ -2524,6 +2547,23 @@ public:
   }
 };
 
+class Item_func_get_dd_index_sub_part_length final : public Item_int_func
+{
+public:
+  Item_func_get_dd_index_sub_part_length(const POS &pos, PT_item_list *list)
+    :Item_int_func(pos, list)
+  {}
+  longlong val_int() override;
+  bool resolve_type(THD *) override
+  {
+    max_length= 21;
+    maybe_null= true;
+    return false;
+  }
+  const char *func_name() const override
+  { return "get_dd_index_sub_part_length"; }
+};
+
 /**
   Common class for:
     Item_func_get_system_var
@@ -2925,6 +2965,39 @@ public:
 #define GET_SYS_VAR_CACHE_DOUBLE   2
 #define GET_SYS_VAR_CACHE_STRING   4
 
+class Item_func_get_system_var;
+/** Class to log audit event MYSQL_AUDIT_GLOBAL_VARIABLE_GET. */
+class Audit_global_variable_get_event
+{
+public:
+  Audit_global_variable_get_event(THD *thd, Item_func_get_system_var *item,
+                                  uchar cache_type);
+  ~Audit_global_variable_get_event();
+private:
+  // Thread handle.
+  THD *m_thd;
+
+  // Item_func_get_system_var instance.
+  Item_func_get_system_var *m_item;
+
+  /*
+    Value conversion type.
+    Depending on the value conversion type GET_SYS_VAR_CACHE_* is stored in this
+    member while creating the object. While converting value if there are any
+    intermediate conversions in the same query then this member is used to avoid
+    auditing more than once.
+  */
+  uchar m_val_type;
+
+  /*
+    To indicate event auditing is required or not. Event is not audited if
+      * scope of the variable is *not* GLOBAL.
+      * or the event is already audited for global variable for the same query.
+  */
+  bool m_audit_event;
+};
+
+
 class Item_func_get_system_var final : public Item_var_func
 {
   sys_var *var;
@@ -2939,6 +3012,8 @@ class Item_func_get_system_var final : public Item_var_func
 
   template <typename T>
   longlong get_sys_var_safe(THD *thd);
+
+  friend class Audit_global_variable_get_event;
 
 public:
   Item_func_get_system_var(sys_var *var_arg, enum_var_type var_type_arg,
@@ -3354,7 +3429,8 @@ public:
   */
   table_map get_initial_pseudo_tables() const override;
   void update_used_tables() override;
-
+  void fix_after_pullout(SELECT_LEX *parent_select, SELECT_LEX *removed_select)
+  override;
   void cleanup() override;
 
   const char *func_name() const override;
@@ -3503,21 +3579,5 @@ bool eval_const_cond(THD *thd, Item *cond, bool *value);
 Item_field *get_gc_for_expr(Item_func **func, Field *fld, Item_result type);
 
 extern bool volatile  mqh_used;
-
-/**
-  Handle an exception of any type.
-
-  Code that could throw exceptions should be wrapped in try/catch, and
-  the catch block should raise a corresponding MySQL error. If this
-  function is called from the catch block, it will raise a specialized
-  error message for many of the std::exception subclasses, or a more
-  generic error message if it is not a std::exception.
-
-  @param funcname the name of the function that caught an exception
-
-  @see handle_gis_exception
-*/
-void handle_std_exception(const char *funcname);
-
 
 #endif /* ITEM_FUNC_INCLUDED */

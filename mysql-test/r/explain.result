@@ -1,5 +1,5 @@
 drop table if exists t1;
-create table t1 (id int not null, str char(10), unique(str));
+create table t1 (id int not null, str char(10), unique(str)) charset utf8mb4;
 explain select * from t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
@@ -15,7 +15,7 @@ id	str
 3	foo
 explain select * from t1 where str is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	str	str	11	const	1	100.00	Using index condition
+1	SIMPLE	t1	NULL	ref	str	str	41	const	1	100.00	Using index condition
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`str` AS `str` from `test`.`t1` where isnull(`test`.`t1`.`str`)
 explain format=json select * from t1 where str is null;
@@ -36,7 +36,7 @@ EXPLAIN
       "used_key_parts": [
         "str"
       ],
-      "key_length": "11",
+      "key_length": "41",
       "ref": [
         "const"
       ],
@@ -48,7 +48,7 @@ EXPLAIN
         "read_cost": "0.25",
         "eval_cost": "0.10",
         "prefix_cost": "0.35",
-        "data_read_per_join": "16"
+        "data_read_per_join": "48"
       },
       "used_columns": [
         "id",
@@ -61,9 +61,9 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`str` AS `str` from `test`.`t1` where isnull(`test`.`t1`.`str`)
 explain select * from t1 where str="foo";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	const	str	str	11	const	1	100.00	NULL
+1	SIMPLE	t1	NULL	const	str	str	41	const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '3' AS `id`,'foo' AS `str` from `test`.`t1` where 1
+Note	1003	/* select#1 */ select '3' AS `id`,'foo' AS `str` from `test`.`t1` where ('foo' = 'foo')
 explain select * from t1 ignore key (str) where str="foo";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
@@ -71,9 +71,9 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`str` AS `str` from `test`.`t1` IGNORE INDEX (`str`) where (`test`.`t1`.`str` = 'foo')
 explain select * from t1 use key (str,str) where str="foo";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	const	str	str	11	const	1	100.00	NULL
+1	SIMPLE	t1	NULL	const	str	str	41	const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '3' AS `id`,'foo' AS `str` from `test`.`t1` USE INDEX (`str`) USE INDEX (`str`) where 1
+Note	1003	/* select#1 */ select '3' AS `id`,'foo' AS `str` from `test`.`t1` USE INDEX (`str`) USE INDEX (`str`) where ('foo' = 'foo')
 explain select * from t1 use key (str,str,foo) where str="foo";
 ERROR 42000: Key 'foo' doesn't exist in table 't1'
 explain select * from t1 ignore key (str,str,foo) where str="foo";
@@ -613,7 +613,7 @@ Note	1003	/* select#1 */ select 1 AS `1` union all /* select#2 */ select 1 AS `1
 # BUG#53562: EXPLAIN statement should hint when 
 #            index is not used due to type conversion
 #
-CREATE TABLE t1 (url char(1) PRIMARY KEY);
+CREATE TABLE t1 (url char(1) PRIMARY KEY) charset latin1;
 INSERT INTO t1 VALUES ('1'),('2'),('3'),('4'),('5');
 
 # Normally, lookup access on primary key is done
@@ -768,3 +768,23 @@ Warnings:
 Note	1003	/* select#1 */ select '1' AS `c1` from `test`.`t1` where 1
 DROP TABLE t1;
 # End of test for Bug#18899860
+# 
+# Bug #23209903: ASSERTION: SELECT_LEX->LEAF_TABLE_COUNT == 0 ||
+# THD->LEX->IS_QUERY_TABLES_LOCKED
+#
+CREATE TABLE t1 (a INT, b INT) ENGINE=INNODB PARTITION BY KEY (b) PARTITIONS 2;
+CREATE TABLE t2 (c INT) ENGINE=INNODB;
+
+# Test single-table update with subquery and empty outer query block
+UPDATE t1 SET a=(SELECT c from t2) WHERE 0;
+EXPLAIN UPDATE t1 SET a=(SELECT c from t2) WHERE 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+
+# Test delete from single-table with subquery and empty outer query block
+DELETE FROM t1 WHERE 0 AND a IN (SELECT c from t2);
+EXPLAIN DELETE FROM t1 WHERE 0 AND a IN (SELECT c from t2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	DELETE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching rows after partition pruning
+DROP TABLE t1, t2;
+# End of test for Bug#23209903

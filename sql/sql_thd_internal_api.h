@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,7 +29,6 @@
 #include "handler.h"       // enum_tx_isolation
 #include "key.h"
 #include "m_ctype.h"
-#include "my_global.h"
 #include "mysql/psi/psi_base.h"
 
 class THD;
@@ -182,6 +181,16 @@ void thd_get_autoinc(const THD *thd, ulong* off, ulong* inc);
     @retval false sql_mode has not strict mode (all or trans).
 */
 bool thd_is_strict_mode(const THD *thd);
+
+/**
+  Is an error set in the DA.
+  Needed by InnoDB to catch behavior modified by an error handler.
+  @param thd	Thread object
+  @return True if THD::is_error() returns true.
+    @retval true  An error has been raised.
+    @retval false No error has been raised.
+*/
+bool thd_is_error(const THD *thd);
 
 /**
   Test a file path whether it is same as mysql data directory path.

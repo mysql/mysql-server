@@ -18,7 +18,7 @@
 /* Copy data from a textfile to table */
 /* 2006-12 Erik Wetterberg : LOAD XML added */
 
-#include "sql_load.h"
+#include "sql/sql_load.h"
 
 #include <fcntl.h>
 #include <limits.h>
@@ -37,6 +37,7 @@
 #include "item.h"
 #include "item_func.h"
 #include "item_timefunc.h"  // Item_func_now_local
+#include "lex_string.h"
 #include "load_data_events.h"
 #include "log.h"
 #include "log_event.h"  // Delete_file_log_event,
@@ -46,7 +47,6 @@
 #include "my_bitmap.h"
 #include "my_dbug.h"
 #include "my_dir.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_macros.h"
@@ -319,7 +319,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     table is marked to be 'used for insert' in which case we should never
     mark this table as 'const table' (ie, one that has only one row).
   */
-  if (unique_table(thd, insert_table_ref, table_list->next_global, 0))
+  if (unique_table(insert_table_ref, table_list->next_global, 0))
   {
     my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->table_name);
     DBUG_RETURN(TRUE);

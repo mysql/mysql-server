@@ -106,8 +106,8 @@ insert into t1 values ('a'), ('a '), ('a\t');
 select collation(a),hex(a) from t1 order by a;
 collation(a)	hex(a)
 utf8mb4_0900_ai_ci	61
-utf8mb4_0900_ai_ci	6120
 utf8mb4_0900_ai_ci	6109
+utf8mb4_0900_ai_ci	6120
 drop table t1;
 create table t1 engine=innodb select repeat('a',50) as c1;
 alter table t1 add index(c1(5));
@@ -160,7 +160,8 @@ insert into t1 values (0x60),(0x61),(0x62),(0x63),(0x64),(0x65),(0x66),(0x67),(0
 insert into t1 values (0x70),(0x71),(0x72),(0x73),(0x74),(0x75),(0x76),(0x77),(0x78),(0x79),(0x7A),(0x7B),(0x7C),(0x7D),(0x7E),(0x7F);
 SELECT GROUP_CONCAT(c1 ORDER BY binary c1 SEPARATOR ''), GROUP_CONCAT(hex(c1) ORDER BY BINARY c1) FROM t1 GROUP BY c1;
 GROUP_CONCAT(c1 ORDER BY binary c1 SEPARATOR '')	GROUP_CONCAT(hex(c1) ORDER BY BINARY c1)
- 	20,7F
+	7F
+ 	20
 _	5F
 -	2D
 ,	2C
@@ -319,7 +320,7 @@ HEX(WEIGHT_STRING(CAST(_utf32 x'337F' AS CHAR)))
 FB40E82AFB40DF0FFB40CF1AFB40F93E
 SELECT HEX(WEIGHT_STRING(CAST(_utf32 x'FDFA' AS CHAR)));
 HEX(WEIGHT_STRING(CAST(_utf32 x'FDFA' AS CHAR)))
-2364239C23C50001230B239C239C23B1
+2364239C23C50209230B239C239C23B1
 select @@collation_connection;
 @@collation_connection
 utf8mb4_0900_ai_ci
@@ -471,8 +472,8 @@ CREATE TABLE t1 AS SELECT repeat('a', 10) as c LIMIT 0;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` varchar(10) CHARACTER SET utf8mb4 DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+  `c` varchar(10) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 INSERT INTO t1 VALUES (_utf32 0x0180),(_utf32 0x023A);
 INSERT INTO t1 VALUES (_utf32 0x023B),(_utf32 0x023C);
 INSERT INTO t1 VALUES (_utf32 0x023D),(_utf32 0x023E);
@@ -840,19 +841,19 @@ F09090A8	4452	𐐨
 DROP TABLE t1;
 SELECT 'a' = 'a ';
 'a' = 'a '
-1
+0
 SELECT 'a\0' < 'a';
 'a\0' < 'a'
 0
 SELECT 'a\0' < 'a ';
 'a\0' < 'a '
-0
+1
 SELECT 'a\t' < 'a';
 'a\t' < 'a'
 0
 SELECT 'a\t' < 'a ';
 'a\t' < 'a '
-0
+1
 SELECT 'a' LIKE 'a';
 'a' LIKE 'a'
 1
@@ -906,7 +907,7 @@ INSERT INTO t1 VALUES(_utf16 0xAC00, _utf16 0x326E), (_utf16 0xAD, _utf16 0xA0),
 SELECT a = b FROM t1;
 a = b
 1
-1
+0
 0
 0
 1
@@ -3724,12 +3725,12 @@ HEX(a)	HEX(WEIGHT_STRING(a))
 65	1CAA
 TRUNCATE TABLE t1;
 INSERT INTO t1 VALUES(_utf16 0x00C4), (_utf16 0x00C5), (_utf16 0x00C6), (_utf16 0x00D8), (_utf16 0x00D6);
-SELECT HEX(a), HEX(WEIGHT_STRING(a)) FROM t1 ORDER BY a;
+SELECT HEX(a), HEX(WEIGHT_STRING(a)) FROM t1 ORDER BY a, BINARY a;
 HEX(a)	HEX(WEIGHT_STRING(a))
 C384	1F9854A5
 C386	1F9854A5
-C398	1F9854A6
 C396	1F9854A6
+C398	1F9854A6
 C385	1F9854A7
 DROP TABLE t1;
 CREATE TABLE t1 (a VARCHAR(10), b VARCHAR(10)) COLLATE utf8mb4_da_0900_ai_ci;
@@ -3752,7 +3753,7 @@ U16_a	U16_b	a<b
 DROP TABLE t1;
 CREATE TABLE t1(a VARCHAR(10)) COLLATE utf8mb4_et_0900_ai_ci;
 INSERT INTO t1 VALUES(_utf16 0x4F), (_utf16 0xD5), (_utf16 0x01A0), (_utf16 0x1EE0);
-SELECT HEX(a), HEX(WEIGHT_STRING(a)) FROM t1 ORDER BY a;
+SELECT HEX(a), HEX(WEIGHT_STRING(a)) FROM t1 ORDER BY a, BINARY a;
 HEX(a)	HEX(WEIGHT_STRING(a))
 4F	1DDD
 C6A0	1DDD
@@ -3787,8 +3788,8 @@ INSERT INTO t1 VALUES(3, _utf16 0x0430), (3, _utf16 0x046A), (3, _utf16 0x04C0);
 INSERT INTO t1 VALUES(4, _utf16 0x2C30), (4, _utf16 0x10D0), (4, _utf16 0x0561), (4, _utf16 0x3041);
 SELECT grp, HEX(CONVERT(ch USING utf16)) FROM t1 ORDER BY ch COLLATE utf8mb4_0900_ai_ci;
 grp	HEX(CONVERT(ch USING utf16))
-0	0020
 0	0009
+0	0020
 0	005F
 0	02DC
 0	2180
@@ -3809,8 +3810,8 @@ grp	HEX(CONVERT(ch USING utf16))
 4	3041
 SELECT grp, HEX(CONVERT(ch USING utf16)) FROM t1 ORDER BY ch COLLATE utf8mb4_hr_0900_ai_ci;
 grp	HEX(CONVERT(ch USING utf16))
-0	0020
 0	0009
+0	0020
 0	005F
 0	02DC
 0	2180

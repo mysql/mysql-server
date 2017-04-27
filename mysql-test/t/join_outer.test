@@ -1558,7 +1558,7 @@ DROP TABLE t1, t2;
 --echo # Bug#13980954 Missing data on left join + null value + where..in
 --echo #
 
-CREATE TABLE t1 (ik INT, vc varchar(1)) ENGINE=Innodb;
+CREATE TABLE t1 (ik INT, vc varchar(1)) charset utf8mb4 ENGINE=Innodb;
 
 let $query=
 SELECT straight_join t1.vc, t1.ik
@@ -1952,4 +1952,3 @@ FROM t1 s LEFT JOIN
     USING (adslot);
 
 DROP TABLE t1, t2, t3;
-

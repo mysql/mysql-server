@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -85,6 +85,8 @@ extern PSI_mutex_key
               key_GR_LOCK_recovery_module_run,
               key_GR_LOCK_recovery,
               key_GR_LOCK_recovery_donor_selection,
+              key_GR_LOCK_session_thread_method_exec,
+              key_GR_LOCK_session_thread_run,
               key_GR_LOCK_plugin_running,
               key_GR_LOCK_force_members_running,
               key_GR_LOCK_write_lock_protection,
@@ -105,12 +107,15 @@ extern PSI_cond_key
               key_GR_COND_wait_ticket,
               key_GR_COND_recovery_module_run,
               key_GR_COND_recovery,
+              key_GR_COND_session_thread_method_exec,
+              key_GR_COND_session_thread_run,
               key_GR_COND_pipeline_stats_flow_control;
 
 extern PSI_thread_key
                key_GR_THD_applier_module_receiver,
                key_GR_THD_cert_broadcast,
                key_GR_THD_delayed_init,
+               key_GR_THD_plugin_session,
                key_GR_THD_recovery;
 
 extern PSI_rwlock_key

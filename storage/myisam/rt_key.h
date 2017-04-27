@@ -22,6 +22,8 @@
 #ifndef _rt_key_h
 #define _rt_key_h
 
+#include <sys/types.h>
+
 #include "my_inttypes.h"
 
 int rtree_add_key(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key, 

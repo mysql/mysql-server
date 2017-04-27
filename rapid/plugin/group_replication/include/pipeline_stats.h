@@ -152,9 +152,8 @@ protected:
     Message decoding method
 
     @param[in] buffer the received data
-    @param[in] length the received data size
   */
-  void decode_payload(const unsigned char *buffer, size_t length);
+  void decode_payload(const unsigned char *buffer, const unsigned char*);
 
 private:
   int32 m_transactions_waiting_certification;

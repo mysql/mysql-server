@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,10 +16,12 @@
 // First include (the generated) my_config.h, to get correct platform defines,
 // then gtest.h (before any other MySQL headers), to avoid min() macros etc ...
 #include "my_config.h"
+
 #include <gtest/gtest.h>
-#include "test_utils.h"
+#include <sys/types.h>
 
 #include "log.h"
+#include "test_utils.h"
 
 namespace log_throttle_unittest {
 
@@ -28,7 +30,7 @@ using my_testing::Server_initializer;
 int summary_count= 0;
 char last_query[10];
 
-static bool slow_logger(THD *thd, const char *query, size_t query_length)
+static bool slow_logger(THD*, const char *query, size_t)
 {
   summary_count++;
   strcpy(last_query, query);

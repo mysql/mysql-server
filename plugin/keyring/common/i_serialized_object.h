@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +16,6 @@
 #ifndef MYSQL_I_SERIALIZED_OBJECT_H
 #define MYSQL_I_SERIALIZED_OBJECT_H
 
-#include <my_global.h>
 #include "i_keyring_key.h"
 
 namespace keyring
@@ -34,8 +33,8 @@ namespace keyring
     ISerialized_object() : key_operation(NONE)
     {}
 
-    virtual my_bool get_next_key(IKey **key)= 0;
-    virtual my_bool has_next_key()= 0;
+    virtual bool get_next_key(IKey **key)= 0;
+    virtual bool has_next_key()= 0;
     virtual Key_operation get_key_operation()
     {
       return key_operation;

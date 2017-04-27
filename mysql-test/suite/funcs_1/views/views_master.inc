@@ -3925,7 +3925,7 @@ SELECT * FROM t1 order by f1, report;
 SELECT * FROM v1 order by f1, report;
 #
 # 5. Type of one base table column altered   numeric -> string
-ALTER TABLE t1 CHANGE COLUMN f1 f1 VARCHAR(30);
+ALTER TABLE t1 CHANGE COLUMN f1 f1 VARCHAR(30) charset latin1;
 INSERT INTO t1 SET f1 = '<------------- 30 ----------->',
                    f4 = '<------ 20 -------->', report = 't1 5';
 INSERT INTO v1 SET f1 = '<------------- 30 ----------->',

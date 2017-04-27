@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -90,7 +90,7 @@ size_t vio_write_pipe(Vio *vio, const uchar *buf, size_t count)
 }
 
 
-my_bool vio_is_connected_pipe(Vio *vio)
+bool vio_is_connected_pipe(Vio *vio)
 {
   if (PeekNamedPipe(vio->hPipe, NULL, 0, NULL, NULL, NULL))
     return TRUE;

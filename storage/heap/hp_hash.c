@@ -16,6 +16,8 @@
 /* The hash functions used for saveing keys */
 
 #include <m_ctype.h>
+#include <math.h>
+#include <sys/types.h>
 
 #include "heapdef.h"
 #include "my_compiler.h"
@@ -274,6 +276,18 @@ ulong hp_hashnr(HP_KEYDEF *keydef, const uchar *key)
          char_length= my_charpos(cs, pos, pos + length, length/cs->mbmaxlen);
          set_if_smaller(length, char_length);
        }
+       if (cs->pad_attribute == NO_PAD) {
+         /*
+           MySQL specifies that CHAR fields are stripped of
+           trailing spaces before being returned from the database.
+           Normally this is done in Field_string::val_str(),
+           but since we don't involve the Field classes for
+           hashing, we need to do the same thing here
+           for NO PAD collations. (If not, hash_sort will ignore
+           the spaces for us, so we don't need to do it here.)
+         */
+         length= cs->cset->lengthsp(cs, (const char *)pos, length);
+       }
        cs->coll->hash_sort(cs, pos, length, &nr, &nr2);
     }
     else if (seg->type == HA_KEYTYPE_VARTEXT1)  /* Any VARCHAR segments */
@@ -332,6 +346,18 @@ ulong hp_rec_hashnr(HP_KEYDEF *keydef, const uchar *rec)
         char_length= my_charpos(cs, pos, pos + char_length,
                                 char_length / cs->mbmaxlen);
         set_if_smaller(char_length, seg->length); /* QQ: ok to remove? */
+      }
+      if (cs->pad_attribute == NO_PAD) {
+        /*
+          MySQL specifies that CHAR fields are stripped of
+          trailing spaces before being returned from the database.
+          Normally this is done in Field_string::val_str(),
+          but since we don't involve the Field classes for
+          hashing, we need to do the same thing here
+          for NO PAD collations. (If not, hash_sort will ignore
+          the spaces for us, so we don't need to do it here.)
+        */
+        char_length= cs->cset->lengthsp(cs, (const char *)pos, char_length);
       }
       cs->coll->hash_sort(cs, pos, char_length, &nr, &nr2);
     }
@@ -411,9 +437,22 @@ int hp_rec_key_cmp(HP_KEYDEF *keydef, const uchar *rec1, const uchar *rec2)
       {
         char_length1= char_length2= seg->length;
       }
-      if (seg->charset->coll->strnncollsp(seg->charset,
-      					  pos1,char_length1,
-					  pos2,char_length2))
+      if (cs->pad_attribute == NO_PAD) {
+        /*
+          MySQL specifies that CHAR fields are stripped of
+          trailing spaces before being returned from the database.
+          Normally this is done in Field_string::val_str(),
+          but since we don't involve the Field classes for
+          internal comparisons, we need to do the same thing here
+          for NO PAD collations. (If not, strnncollsp will ignore
+          the spaces for us, so we don't need to do it here.)
+        */
+        char_length1= cs->cset->lengthsp(cs, (const char *)pos1, char_length1);
+        char_length2= cs->cset->lengthsp(cs, (const char *)pos2, char_length2);
+      }
+      if (cs->coll->strnncollsp(cs,
+                                pos1,char_length1,
+                                pos2,char_length2))
 	return 1;
     }
     else if (seg->type == HA_KEYTYPE_VARTEXT1)  /* Any VARCHAR segments */
@@ -502,10 +541,24 @@ int hp_key_cmp(HP_KEYDEF *keydef, const uchar *rec, const uchar *key)
         char_length_key= seg->length;
         char_length_rec= seg->length;
       }
+
+      if (cs->pad_attribute == NO_PAD) {
+        /*
+          MySQL specifies that CHAR fields are stripped of
+          trailing spaces before being returned from the database.
+          Normally this is done in Field_string::val_str(),
+          but since we don't involve the Field classes for
+          internal comparisons, we need to do the same thing here
+          for NO PAD collations. (If not, strnncollsp will ignore
+          the spaces for us, so we don't need to do it here.)
+        */
+        char_length_rec= cs->cset->lengthsp(cs, (const char *)pos, char_length_rec);
+        char_length_key= cs->cset->lengthsp(cs, (const char *)key, char_length_key);
+      }
       
-      if (seg->charset->coll->strnncollsp(seg->charset,
-					  (uchar*) pos, char_length_rec,
-					  (uchar*) key, char_length_key))
+      if (cs->coll->strnncollsp(cs,
+                                (uchar*) pos, char_length_rec,
+                                (uchar*) key, char_length_key))
 	return 1;
     }
     else if (seg->type == HA_KEYTYPE_VARTEXT1)  /* Any VARCHAR segments */
@@ -788,7 +841,7 @@ uint hp_rb_var_key_length(HP_KEYDEF *keydef, const uchar *key)
     0 otherwise
 */
 
-my_bool hp_if_null_in_key(HP_KEYDEF *keydef, const uchar *record)
+bool hp_if_null_in_key(HP_KEYDEF *keydef, const uchar *record)
 {
   HA_KEYSEG *seg,*endseg;
   for (seg=keydef->seg,endseg=seg+keydef->keysegs ; seg < endseg ; seg++)

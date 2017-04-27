@@ -22,7 +22,6 @@
 
 #include "malloc_allocator.h"             // Malloc_allocator.
 #include "my_dbug.h"
-#include "my_global.h"                    // DBUG_ASSERT() etc.
 
 namespace dd {
 namespace cache {

@@ -13,8 +13,9 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "rpl_record.h"
+#include "sql/rpl_record.h"
 
+#include <stddef.h>
 #include <algorithm>
 
 #include "binary_log_types.h"

@@ -23,17 +23,18 @@
 #include <m_string.h>
 #include <my_config.h>
 #include <my_getopt.h>
-#include <my_global.h>
 #include <my_sys.h>
 #include <mysql_version.h>
+#include <stdarg.h>
 #include <stdio.h>                              // Needed on SunOS 5.10
 #include <stdlib.h>
-#include "print_version.h"
+#include <sys/types.h>
 #include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 #include <string>
 #include <vector>
 
 #include "my_compiler.h"
+#include "print_version.h"
 
 const int initial_symbol_table_size= 4096;
 
@@ -101,7 +102,7 @@ static void die(const char* fmt, ...)
 }
 
 
-static my_bool
+static bool
 get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
 	       char *argument MY_ATTRIBUTE((unused)))
 {

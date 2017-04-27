@@ -4,7 +4,6 @@
 # i.e. lower_case_filesystem=OFF
 #
 -- source include/have_case_sensitive_file_system.inc
--- source include/not_embedded.inc
 -- source include/have_lowercase0.inc
 
 set @orig_sql_mode_session= @@SESSION.sql_mode;

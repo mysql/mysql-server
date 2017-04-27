@@ -191,7 +191,7 @@ bool Collection<T>::store_items(Open_dictionary_tables_ctx *otx)
 
   // Drop items from m_removed_items.
 
-  for (Weak_object_impl *removed : m_removed_items)
+  for (auto *removed : m_removed_items)
   {
     if (removed->validate() || removed->drop(otx))
       DBUG_RETURN(true);
@@ -286,6 +286,8 @@ template Column*&
 Collection<Column*>::Collection_iterator::operator*();
 template Column_type_element*&
 Collection<Column_type_element*>::Collection_iterator::operator*();
+template Foreign_key*&
+Collection<Foreign_key*>::Collection_iterator::operator*();
 template Index*&
 Collection<Index*>::Collection_iterator::operator*();
 template Index_element*&
@@ -344,6 +346,11 @@ template bool Collection<Foreign_key*>::
 restore_items<Table_impl>(Table_impl*,
                           Open_dictionary_tables_ctx*,
                           Raw_table*, Object_key*);
+template bool Collection<Foreign_key*>::
+restore_items<Table_impl, Foreign_key_order_comparator>(Table_impl*,
+                          Open_dictionary_tables_ctx*,
+                          Raw_table*, Object_key*,
+                          Foreign_key_order_comparator);
 template bool Collection<Foreign_key_element*>::
 restore_items<Foreign_key_impl>(Foreign_key_impl*,
                                 Open_dictionary_tables_ctx*,
@@ -374,13 +381,19 @@ restore_items<Table_impl, Partition_order_comparator>(Table_impl*,
                           Raw_table*, Object_key*,
                           Partition_order_comparator);
 template bool Collection<Partition_index*>::
-restore_items<Partition_impl>(Partition_impl*,
+restore_items<Partition_impl, Partition_index_order_comparator>(Partition_impl*,
                               Open_dictionary_tables_ctx*,
-                              Raw_table*, Object_key*);
+                              Raw_table*, Object_key*,
+                              Partition_index_order_comparator);
 template bool Collection<Partition_value*>::
 restore_items<Partition_impl>(Partition_impl*,
                               Open_dictionary_tables_ctx*,
                               Raw_table*, Object_key*);
+template bool Collection<Partition_value*>::
+restore_items<Partition_impl, Partition_value_order_comparator>(Partition_impl*,
+                              Open_dictionary_tables_ctx*,
+                              Raw_table*, Object_key*,
+                              Partition_value_order_comparator);
 template bool Collection<Tablespace_file*>::
 restore_items<Tablespace_impl>(Tablespace_impl*,
                                Open_dictionary_tables_ctx*,
@@ -397,6 +410,11 @@ template bool Collection<Trigger*>::
 restore_items<Table_impl>(Table_impl*,
                           Open_dictionary_tables_ctx*,
                           Raw_table*, Object_key*);
+template bool Collection<Trigger*>::
+restore_items<Table_impl, Trigger_order_comparator>(Table_impl*,
+                          Open_dictionary_tables_ctx*,
+                          Raw_table*, Object_key*,
+                          Trigger_order_comparator);
 
 template bool Collection<Column*>::
 store_items(Open_dictionary_tables_ctx*);

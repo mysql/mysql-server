@@ -11,12 +11,9 @@
 
 --source include/have_debug.inc
 --source include/big_test.inc
---source include/have_innodb_16k.inc
 
 # Valgrind would result in a "long semaphore wait" inside InnoDB
 --source include/not_valgrind.inc
-# Embedded server does not support crashing
---source include/not_embedded.inc
 # Avoid CrashReporter popup on Mac
 --source include/not_crashrep.inc
 

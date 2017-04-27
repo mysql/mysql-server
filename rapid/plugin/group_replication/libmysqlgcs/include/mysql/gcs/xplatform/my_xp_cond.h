@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,8 +16,9 @@
 #ifndef MY_XP_COND_INCLUDED
 #define MY_XP_COND_INCLUDED
 
-#include <xplatform/my_xp_mutex.h>
-#include <xplatform/my_xp_util.h>
+#include "mysql/gcs/xplatform/my_xp_mutex.h"
+#include "mysql/gcs/xplatform/my_xp_util.h"
+
 #include <time.h>
 #include <errno.h>
 #include <stdlib.h>
@@ -123,7 +124,7 @@ public:
 class My_xp_cond_win : public My_xp_cond
 {
 private:
-  static DWORD My_xp_cond_win::get_milliseconds(const struct timespec *abstime);
+  static DWORD get_milliseconds(const struct timespec *abstime);
   /*
     Disabling the copy constructor and assignment operator.
   */

@@ -29,24 +29,24 @@ set global innodb_file_per_table=on;
 create table t6(a int primary key) engine=innodb
 key_block_size=1 row_format=redundant;
 Warnings:
-Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=1 unless ROW_FORMAT=COMPRESSED.
+Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=1 as ROW_FORMAT is not COMPRESSED.
 create table t7(a int primary key) engine=innodb
 key_block_size=1 row_format=redundant;
 Warnings:
-Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=1 unless ROW_FORMAT=COMPRESSED.
+Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=1 as ROW_FORMAT is not COMPRESSED.
 create table t8(a int primary key) engine=innodb
 key_block_size=1 row_format=fixed;
 Warnings:
-Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=1 unless ROW_FORMAT=COMPRESSED.
+Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=1 as ROW_FORMAT is not COMPRESSED.
 Warning	1478	InnoDB: assuming ROW_FORMAT=DYNAMIC.
 create table t9(a int primary key) engine=innodb
 key_block_size=1 row_format=compact;
 Warnings:
-Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=1 unless ROW_FORMAT=COMPRESSED.
+Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=1 as ROW_FORMAT is not COMPRESSED.
 create table t10(a int primary key) engine=innodb
 key_block_size=1 row_format=dynamic;
 Warnings:
-Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=1 unless ROW_FORMAT=COMPRESSED.
+Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=1 as ROW_FORMAT is not COMPRESSED.
 create table t11(a int primary key) engine=innodb
 key_block_size=1 row_format=compressed;
 create table t12(a int primary key) engine=innodb

@@ -2528,7 +2528,7 @@ CALL mtr.add_suppression(".ERROR. InnoDB: The error means mysqld does not have t
 
 #
 # Bug 20770 Partitions: DATA DIRECTORY clause change in reorganize
-#                       doesn't remove old directory
+#                       does not remove old directory
 
 let $MYSQLD_DATADIR= `select @@datadir`;
 let $data_directory = DATA DIRECTORY = '$MYSQLTEST_VARDIR/tmp';
@@ -2679,4 +2679,3 @@ DROP TABLE example;
 --rmdir $MYSQLTEST_VARDIR/p2Data
 --rmdir $MYSQLTEST_VARDIR/p3Data/test
 --rmdir $MYSQLTEST_VARDIR/p3Data
-

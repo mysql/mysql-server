@@ -42,27 +42,27 @@ pk INT NOT NULL AUTO_INCREMENT,
 col_int_key INT DEFAULT NULL,
 col_varchar_key VARCHAR(1) DEFAULT NULL,
 PRIMARY KEY (pk)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB, CHARSET utf8mb4;
 CREATE TABLE t2 (  
 pk INT NOT NULL AUTO_INCREMENT,
 col_int_key INT DEFAULT NULL,
 col_varchar_key VARCHAR(1) DEFAULT NULL,
 col_varchar_nokey VARCHAR(1) DEFAULT NULL,
 PRIMARY KEY (pk)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB, CHARSET utf8mb4;
 CREATE TABLE t3 (  
 pk INT NOT NULL AUTO_INCREMENT,
 col_int_key INT DEFAULT NULL,
 col_varchar_key VARCHAR(1) DEFAULT NULL,
 col_varchar_nokey VARCHAR(1) DEFAULT NULL,
 PRIMARY KEY (pk)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB, CHARSET utf8mb4;
 CREATE TABLE t4 (
 pk INT NOT NULL AUTO_INCREMENT,
 col_int_key INT DEFAULT NULL,
 col_varchar_key VARCHAR(1) DEFAULT NULL,
 PRIMARY KEY (pk)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB, CHARSET utf8mb4;
 CREATE VIEW view_t4 AS SELECT * FROM t4;
 CREATE TABLE where_subselect_19379 SELECT
 (
@@ -537,7 +537,7 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
                             } /* best_access_path */,
                             "condition_filtering_pct": 100,
                             "rows_for_plan": 1,
-                            "cost_for_plan": 1.4,
+                            "cost_for_plan": 1.4001,
                             "semijoin_strategy_choice": [
                               {
                                 "strategy": "FirstMatch",
@@ -561,13 +561,13 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
                                     }
                                   ] /* tables */
                                 } /* recalculate_access_paths_and_cost */,
-                                "cost": 1.4,
+                                "cost": 1.4001,
                                 "rows": 1,
                                 "chosen": true
                               },
                               {
                                 "strategy": "DuplicatesWeedout",
-                                "cost": 2.6,
+                                "cost": 2.6001,
                                 "rows": 1,
                                 "duplicate_tables_left": false,
                                 "chosen": false
@@ -657,11 +657,11 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
                             } /* best_access_path */,
                             "condition_filtering_pct": 100,
                             "rows_for_plan": 1,
-                            "cost_for_plan": 1.4,
+                            "cost_for_plan": 1.4001,
                             "semijoin_strategy_choice": [
                               {
                                 "strategy": "DuplicatesWeedout",
-                                "cost": 2.6,
+                                "cost": 2.6001,
                                 "rows": 1,
                                 "duplicate_tables_left": false,
                                 "chosen": false
@@ -3435,12 +3435,12 @@ CREATE TABLE t1 (
 a TINYTEXT NOT NULL,
 b TINYINT(3) UNSIGNED NOT NULL,
 PRIMARY KEY (a(32),b)
-) ENGINE=MyISAM;
+) ENGINE=MyISAM, CHARSET utf8mb4;
 CREATE TABLE t2 (
 a TINYTEXT NOT NULL,
 b TINYINT(3) UNSIGNED NOT NULL,
 PRIMARY KEY (a(32),b)
-) ENGINE=INNODB;
+) ENGINE=INNODB, CHARSET utf8mb4;
 INSERT INTO t1 VALUES ('a',1),('a',2);
 INSERT INTO t2 VALUES ('a',1),('a',2),('a',3),('b',1),('c',1),('c',4),('e',2);
 ANALYZE TABLE t1;
@@ -3451,7 +3451,7 @@ Table	Op	Msg_type	Msg_text
 test.t2	analyze	status	OK
 EXPLAIN SELECT * FROM t1 WHERE a='a' AND b in (1,2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	PRIMARY	PRIMARY	35	NULL	2	100.00	Using where
+1	SIMPLE	t1	NULL	range	PRIMARY	PRIMARY	131	NULL	2	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`a` = 'a') and (`test`.`t1`.`b` in (1,2)))
 SELECT TRACE into @trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
@@ -3460,7 +3460,7 @@ SELECT @trace RLIKE "access_type_changed";
 1
 EXPLAIN SELECT * FROM t2 WHERE a='a' AND b in (1,2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	range	PRIMARY	PRIMARY	35	NULL	2	100.00	Using where
+1	SIMPLE	t2	NULL	range	PRIMARY	PRIMARY	131	NULL	2	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where ((`test`.`t2`.`a` = 'a') and (`test`.`t2`.`b` in (1,2)))
 SELECT TRACE into @trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;

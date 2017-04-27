@@ -4,6 +4,8 @@ include/save_binlog_position.inc
 CREATE USER userX, userY, userA;
 CREATE DATABASE db1;
 GRANT SUPER ON *.* TO userX, userA;
+Warnings:
+Warning	1287	The SUPER privilege identifier is deprecated
 GRANT SELECT ON db1.* TO userX, userA;
 GRANT PROXY ON userY TO userX, userA;
 include/save_binlog_position.inc
@@ -49,6 +51,8 @@ include/assert_binlog_events.inc
 include/assert_binlog_events.inc
 # Case 3 : Valid revoke
 REVOKE SUPER ON *.* FROM userX, userA;
+Warnings:
+Warning	1287	The SUPER privilege identifier is deprecated
 # This event sequence pattern MUST be present in binlog: !Q(REVOKE SUPER ON *.* FROM.*userX.*userA.*)
 include/assert_binlog_events.inc
 include/save_binlog_position.inc
@@ -216,6 +220,8 @@ BEGIN
 SELECT 1234;
 END ||
 GRANT SUPER ON *.* TO userX, userA;
+Warnings:
+Warning	1287	The SUPER privilege identifier is deprecated
 GRANT SELECT ON db1.* TO userX, userA;
 GRANT PROXY ON userY TO userX, userA;
 GRANT SELECT ON db1.table1 TO userX, userA;

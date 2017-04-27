@@ -2,7 +2,6 @@
 # This test checks the basics of setting the variable rbr_exec_mode
 #
 ################################################################################
---source include/not_embedded.inc
 
 set @saved_session_rbr_exec_mode = @@session.rbr_exec_mode;
 

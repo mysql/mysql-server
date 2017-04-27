@@ -17,8 +17,9 @@
 /* UTF8 according RFC 2279 */
 /* Written by Alexander Barkov <bar@udm.net> */
 
+#include "my_config.h"
+
 #include <errno.h>
-#include <my_global.h>
 #include <string.h>
 #include <sys/types.h>
 #include <algorithm>
@@ -28,7 +29,6 @@
 #include "mb_wc.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"
-#include "my_config.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
@@ -4871,7 +4871,7 @@ my_wildcmp_unicode_impl(const CHARSET_INFO *cs,
   {
     while (1)
     {
-      my_bool escaped= 0;
+      bool escaped= 0;
       if ((scan= mb_wc(cs, &w_wc, (const uchar*)wildstr,
                        (const uchar*)wildend)) <= 0)
         return 1;
@@ -5177,7 +5177,7 @@ my_strnxfrm_unicode_tmpl(const CHARSET_INFO *cs, Mb_wc mb_wc,
   }
 
 pad:
-  if (dst < de && nweights && (flags & MY_STRXFRM_PAD_WITH_SPACE))
+  if (dst < de && nweights)  // PAD SPACE behavior.
     dst+= my_strxfrm_pad_nweights_unicode(dst, de, nweights);
 
   if ((flags & MY_STRXFRM_PAD_TO_MAXLEN) && dst < de)
@@ -5245,9 +5245,10 @@ my_strnxfrm_unicode_full_bin(const CHARSET_INFO *cs,
     }
   }
 
-  if (flags & MY_STRXFRM_PAD_WITH_SPACE)
+  if (flags & MY_STRXFRM_PAD_TO_MAXLEN)
   {
-    for ( ; dst < de && nweights; nweights--)
+    // Pad with an infinite amount of spaces.
+    while (dst < de)
     {
       *dst++= 0x00;
       if (dst < de)
@@ -5258,10 +5259,10 @@ my_strnxfrm_unicode_full_bin(const CHARSET_INFO *cs,
       }
     }
   }
-  
-  if (flags & MY_STRXFRM_PAD_TO_MAXLEN)
+  else
   {
-    while (dst < de)
+    // Regular PAD SPACE behavior.
+    for ( ; dst < de && nweights; nweights--)
     {
       *dst++= 0x00;
       if (dst < de)
@@ -5395,9 +5396,8 @@ static int my_uni_utf8 (const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
     return MY_CS_TOOSMALLN(count);
 
   switch (count) {
-    /* Fall through all cases!!! */
-    case 3: r[2] = (uchar) (0x80 | (wc & 0x3f)); wc = wc >> 6; wc |= 0x800;
-    case 2: r[1] = (uchar) (0x80 | (wc & 0x3f)); wc = wc >> 6; wc |= 0xc0;
+    case 3: r[2] = (uchar) (0x80 | (wc & 0x3f)); wc = wc >> 6; wc |= 0x800;  // Fall through.
+    case 2: r[1] = (uchar) (0x80 | (wc & 0x3f)); wc = wc >> 6; wc |= 0xc0;  // Fall through.
     case 1: r[0] = (uchar) wc;
   }
   return count;
@@ -5424,9 +5424,8 @@ static int my_uni_utf8_no_range(const CHARSET_INFO *cs
 
   switch (count)
   {
-    /* Fall through all cases!!! */
-    case 3: r[2]= (uchar) (0x80 | (wc & 0x3f)); wc= wc >> 6; wc |= 0x800;
-    case 2: r[1]= (uchar) (0x80 | (wc & 0x3f)); wc= wc >> 6; wc |= 0xc0;
+    case 3: r[2]= (uchar) (0x80 | (wc & 0x3f)); wc= wc >> 6; wc |= 0x800;  // Fall through.
+    case 2: r[1]= (uchar) (0x80 | (wc & 0x3f)); wc= wc >> 6; wc |= 0xc0;  // Fall through.
     case 1: r[0]= (uchar) wc;
   }
   return count;
@@ -5595,7 +5594,7 @@ static size_t my_casedn_str_utf8(const CHARSET_INFO *cs, char *src)
 static int my_strnncoll_utf8(const CHARSET_INFO *cs,
                              const uchar *s, size_t slen,
                              const uchar *t, size_t tlen,
-                             my_bool t_is_prefix)
+                             bool t_is_prefix)
 {
   int s_res,t_res;
   my_wc_t s_wc= 0, t_wc= 0;
@@ -5981,7 +5980,8 @@ CHARSET_INFO my_charset_utf8_general_ci=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_utf8_handler,
-    &my_collation_utf8_general_ci_handler
+    &my_collation_utf8_general_ci_handler,
+    PAD_SPACE
 };
 
 
@@ -6016,7 +6016,8 @@ CHARSET_INFO my_charset_utf8_tolower_ci=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_utf8_handler,
-    &my_collation_utf8_general_ci_handler
+    &my_collation_utf8_general_ci_handler,
+    PAD_SPACE
 };
 
 
@@ -6051,7 +6052,8 @@ CHARSET_INFO my_charset_utf8_general_mysql500_ci=
   0,                          /* escape_with_backslash_is_dangerous */
   1,                                            /* levels_for_compare */
   &my_charset_utf8_handler,
-  &my_collation_utf8_general_ci_handler
+  &my_collation_utf8_general_ci_handler,
+  PAD_SPACE
 };
 
 
@@ -6087,7 +6089,8 @@ CHARSET_INFO my_charset_utf8_bin=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_utf8_handler,
-    &my_collation_utf8_bin_handler
+    &my_collation_utf8_bin_handler,
+    PAD_SPACE
 };
 
 
@@ -7392,7 +7395,8 @@ CHARSET_INFO my_charset_filename=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_filename_handler,
-    &my_collation_filename_handler
+    &my_collation_filename_handler,
+    PAD_SPACE
 };
 
 
@@ -7609,10 +7613,9 @@ my_wc_mb_utf8mb4(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
     return MY_CS_TOOSMALLN(count);
 
   switch (count) {
-    /* Fall through all cases!!! */
-    case 4: r[3] = (uchar) (0x80 | (wc & 0x3f)); wc = wc >> 6; wc |= 0x10000;
-    case 3: r[2] = (uchar) (0x80 | (wc & 0x3f)); wc = wc >> 6; wc |= 0x800;
-    case 2: r[1] = (uchar) (0x80 | (wc & 0x3f)); wc = wc >> 6; wc |= 0xc0;
+    case 4: r[3] = (uchar) (0x80 | (wc & 0x3f)); wc = wc >> 6; wc |= 0x10000;  // Fall through.
+    case 3: r[2] = (uchar) (0x80 | (wc & 0x3f)); wc = wc >> 6; wc |= 0x800;  // Fall through.
+    case 2: r[1] = (uchar) (0x80 | (wc & 0x3f)); wc = wc >> 6; wc |= 0xc0;  // Fall through.
     case 1: r[0] = (uchar) wc;
   }
   return count;
@@ -7642,10 +7645,9 @@ my_wc_mb_utf8mb4_no_range(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 
   switch (count)
   {
-    /* Fall through all cases!!! */
-    case 4: r[3]= (uchar) (0x80 | (wc & 0x3f)); wc= wc >> 6; wc |= 0x10000;
-    case 3: r[2]= (uchar) (0x80 | (wc & 0x3f)); wc= wc >> 6; wc |= 0x800;
-    case 2: r[1]= (uchar) (0x80 | (wc & 0x3f)); wc= wc >> 6; wc |= 0xc0;
+    case 4: r[3]= (uchar) (0x80 | (wc & 0x3f)); wc= wc >> 6; wc |= 0x10000;  // Fall through.
+    case 3: r[2]= (uchar) (0x80 | (wc & 0x3f)); wc= wc >> 6; wc |= 0x800;  // Fall through.
+    case 2: r[1]= (uchar) (0x80 | (wc & 0x3f)); wc= wc >> 6; wc |= 0xc0;  // Fall through.
     case 1: r[0]= (uchar) wc;
   }
   return count;
@@ -7845,7 +7847,7 @@ static int
 my_strnncoll_utf8mb4(const CHARSET_INFO *cs,
                      const uchar *s, size_t slen,
                      const uchar *t, size_t tlen,
-                     my_bool t_is_prefix)
+                     bool t_is_prefix)
 {
   my_wc_t s_wc= 0;
   my_wc_t t_wc= 0;
@@ -8069,7 +8071,7 @@ my_strnxfrmlen_utf8mb4(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 } // extern "C"
 
 
-static int
+static ALWAYS_INLINE int
 my_valid_mbcharlen_utf8mb4(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                            const uchar *s, const uchar *e)
 {
@@ -8102,12 +8104,18 @@ size_t my_well_formed_len_utf8mb4(const CHARSET_INFO *cs,
   return (size_t) (b - b_start);
 }
 
+static uint ALWAYS_INLINE
+my_ismbchar_utf8mb4_inl(const CHARSET_INFO *cs, const char *b, const char *e)
+{
+  int res = my_valid_mbcharlen_utf8mb4(cs, (const uchar*)b, (const uchar*)e);
+  return (res > 1) ? res : 0;
+}
+
 
 static uint
 my_ismbchar_utf8mb4(const CHARSET_INFO *cs, const char *b, const char *e)
 {
-  int res= my_valid_mbcharlen_utf8mb4(cs, (const uchar*)b, (const uchar*)e);
-  return (res > 1) ? res : 0;
+  return my_ismbchar_utf8mb4_inl(cs, b, e);
 }
 
 
@@ -8119,7 +8127,7 @@ size_t my_charpos_mb4(const CHARSET_INFO *cs,
   while (length && pos < end)
   {
     uint mb_len;
-    pos+= (mb_len= my_ismbchar_utf8mb4(cs, pos, end)) ? mb_len : 1;
+    pos+= (mb_len= my_ismbchar_utf8mb4_inl(cs, pos, end)) ? mb_len : 1;
     length--;
   }
   return (size_t) (length ? end+2-start : pos-start);
@@ -8240,7 +8248,8 @@ CHARSET_INFO my_charset_utf8mb4_general_ci=
   0,                  /* escape_with_backslash_is_dangerous */
   1,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
-  &my_collation_utf8mb4_general_ci_handler
+  &my_collation_utf8mb4_general_ci_handler,
+  PAD_SPACE
 };
 
 
@@ -8276,5 +8285,6 @@ CHARSET_INFO my_charset_utf8mb4_bin=
   0,                  /* escape_with_backslash_is_dangerous */
   1,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
-  &my_collation_utf8mb4_bin_handler
+  &my_collation_utf8mb4_bin_handler,
+  PAD_SPACE
 };

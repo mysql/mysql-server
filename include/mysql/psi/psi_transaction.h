@@ -25,7 +25,6 @@
   @{
 */
 
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_psi_config.h"  // IWYU pragma: keep
@@ -120,9 +119,9 @@ struct PSI_transaction_locker_state_v1
   /** Internal data. */
   void *m_transaction;
   /** True if read-only transaction, false if read-write. */
-  my_bool m_read_only;
+  bool m_read_only;
   /** True if transaction is autocommit. */
-  my_bool m_autocommit;
+  bool m_autocommit;
   /** Number of statements. */
   ulong m_statement_count;
   /** Total number of savepoints. */
@@ -149,8 +148,8 @@ typedef struct PSI_transaction_locker *(*get_thread_transaction_locker_v1_t)(
   const void *xid,
   const ulonglong *trxid,
   int isolation_level,
-  my_bool read_only,
-  my_bool autocommit);
+  bool read_only,
+  bool autocommit);
 
 /**
   Start a new transaction event.
@@ -228,7 +227,7 @@ typedef void (*inc_transaction_release_savepoint_v1_t)(
   @param commit true if transaction was committed, false if rolled back
 */
 typedef void (*end_transaction_v1_t)(struct PSI_transaction_locker *locker,
-                                     my_bool commit);
+                                     bool commit);
 
 /**
   Performance Schema Transaction Interface, version 1.

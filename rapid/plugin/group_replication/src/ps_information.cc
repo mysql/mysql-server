@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,7 +23,6 @@ bool get_group_members_info(uint index,
                             const GROUP_REPLICATION_GROUP_MEMBERS_CALLBACKS& callbacks,
                             Group_member_info_manager_interface
                                 *group_member_manager,
-                            char *group_name_pointer,
                             char *channel_name)
 {
   if (channel_name != NULL)
@@ -97,7 +96,6 @@ bool get_group_member_stats(const GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS
                                 *group_member_manager,
                             Applier_module *applier_module,
                             Gcs_operations *gcs_module,
-                            char *group_name_pointer,
                             char *channel_name)
 {
   if (group_member_manager != NULL)
@@ -105,7 +103,11 @@ bool get_group_member_stats(const GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS
     char *hostname, *uuid;
     uint port;
     unsigned int server_version;
-    get_server_parameters(&hostname, &port, &uuid, &server_version);
+    st_server_ssl_variables server_ssl_variables=
+      {false,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL};
+
+    get_server_parameters(&hostname, &port, &uuid, &server_version,
+                          &server_ssl_variables);
 
     callbacks.set_member_id(callbacks.context, *uuid, strlen(uuid));
   }

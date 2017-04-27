@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,12 +33,12 @@ struct IKey : public Keyring_alloc
   virtual void xor_data()= 0;
   virtual void set_key_data(uchar *key_data, size_t key_data_size)= 0;
   virtual void set_key_type(const std::string *key_type)= 0;
-  virtual my_bool load_from_buffer(uchar* buffer, size_t *buffer_position,
+  virtual bool load_from_buffer(uchar* buffer, size_t *buffer_position,
                                    size_t input_buffer_size)= 0;
   virtual void store_in_buffer(uchar* buffer, size_t *buffer_position) const = 0;
-  virtual my_bool is_key_type_valid()= 0;
-  virtual my_bool is_key_id_valid()= 0;
-  virtual my_bool is_key_valid()= 0;
+  virtual bool is_key_type_valid()= 0;
+  virtual bool is_key_id_valid()= 0;
+  virtual bool is_key_valid()= 0;
 
   virtual ~IKey() {}
 };

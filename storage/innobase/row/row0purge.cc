@@ -25,6 +25,8 @@ Created 3/14/1997 Heikki Tuuri
 
 #include "row0purge.h"
 
+#include <stddef.h>
+
 #include "fsp0fsp.h"
 #include "ha_innodb.h"
 #include "handler.h"
@@ -160,7 +162,6 @@ row_purge_remove_clust_if_poss_low(
 
 	log_free_check();
 	mtr_start(&mtr);
-	mtr.set_named_space(index->space);
 
 	if (!row_purge_reposition_pcur(mode, node, &mtr)) {
 		/* The record was already removed. */
@@ -310,7 +311,6 @@ row_purge_remove_sec_if_poss_tree(
 
 	log_free_check();
 	mtr_start(&mtr);
-	mtr.set_named_space(index->space);
 
 	if (!index->is_committed()) {
 		/* The index->online_status may change if the index is
@@ -430,7 +430,6 @@ row_purge_remove_sec_if_poss_leaf(
 	log_free_check();
 
 	mtr_start(&mtr);
-	mtr.set_named_space(index->space);
 
 	if (!index->is_committed()) {
 		/* For uncommitted spatial index, we also skip the purge. */
@@ -781,10 +780,8 @@ skip_secondaries:
 			index tree (exclude other tree changes) */
 
 			index = node->table->first_index();
-			mtr_sx_lock(dict_index_get_lock(index), &mtr);
 
-			mtr.set_undo_space(rseg->space_id);
-			mtr.set_named_space(index->space);
+			mtr_sx_lock(dict_index_get_lock(index), &mtr);
 
 			/* NOTE: we must also acquire an X-latch to the
 			root page of the tree. We will need it when we
@@ -889,25 +886,29 @@ row_purge_parse_undo_rec(
 	node->table = NULL;
 	node->trx_id = trx_id;
 
-	/* TODO: Remove all INNODB_DD_VC_SUPPORT in WL#7141, nest opening
-	table should never happen again */
+	/* TODO: Remove all INNODB_DD_VC_SUPPORT, nest opening
+	table should never happen again after new DD */
 #ifdef INNODB_DD_VC_SUPPORT
 try_again:
 #endif /* INNODB_DD_VC_SUPPORT */
 
 	/* Cannot call dd_table_open_on_id() before server is fully up */
-	while (table_id >= INNODB_SYS_TABLE_ID_MAX && !mysqld_server_started) {
-		if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
-                        return(false);
-                }
-                os_thread_sleep(1000000);
-        }
+	if (!srv_upgrade_old_undo_found
+	    && !dict_table_is_system(table_id)) {
+		while (!mysqld_server_started) {
+			if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
+				return(false);
+			}
+			os_thread_sleep(1000000);
+		}
+	}
 
 	/* SDI tables are hidden tables and are not registered with global
 	dictionary. Open the table internally. Also acquire dict_operation
 	lock for SDI table to prevent concurrent DROP TABLE and purge */
-	if (table_id < INNODB_SYS_TABLE_ID_MAX
-	    || dict_table_is_sdi(table_id)) {
+	if (dict_table_is_system(table_id)
+	    || dict_table_is_sdi(table_id)
+	    || srv_upgrade_old_undo_found) {
 		if (dict_table_is_sdi(table_id)) {
 			rw_lock_s_lock_inline(
 				dict_operation_lock, 0, __FILE__, __LINE__);
@@ -917,13 +918,36 @@ try_again:
 			table_id, FALSE, DICT_TABLE_OP_NORMAL);
 	} else {
 		for (;;) {
-			const auto no_mdl = reinterpret_cast<MDL_ticket*>(-1);
+			const auto no_mdl = nullptr;
 			node->mdl = no_mdl;
 
 			node->table = dd_table_open_on_id(
 				table_id, thd, &node->mdl, false);
 
 			if (node->table != nullptr) {
+				if (node->table->is_fts_aux()) {
+					table_id_t	parent_id
+						 = node->table->parent_id;
+
+					dd_table_close(node->table, thd,
+						       &node->mdl, false);
+
+					node->parent_mdl = nullptr;
+					node->parent = dd_table_open_on_id(
+						parent_id, thd,
+						&node->parent_mdl, false);
+
+					if (node->parent == nullptr) {
+						goto err_exit;
+					}
+
+					ut_ad(node->parent_mdl != nullptr);
+					node->mdl = nullptr;
+					node->table = dd_table_open_on_id(
+						table_id, thd,
+						&node->mdl, false);
+
+				}
 				break;
 			}
 
@@ -934,8 +958,7 @@ try_again:
 				goto err_exit;
 			}
 		}
-        }
-
+	}
 
 	if (node->table == NULL) {
 		/* The table has been dropped: no need to do purge */
@@ -948,13 +971,19 @@ try_again:
 		/* Need server fully up for virtual column computation */
 		if (!mysqld_server_started) {
 
-			if (node->table->id < INNODB_SYS_TABLE_ID_MAX
+			if (dict_table_is_system(node->table->id)
 			    || dict_table_is_sdi(node->table->id)) {
 				dict_table_close(node->table, FALSE, FALSE);
-				node->table = NULL;
+				node->table = nullptr;
 			} else  {
+				bool	is_aux = node->table->is_fts_aux();
+
 				dd_table_close(node->table, thd,
 					       &node->mdl, false);
+				if (is_aux && node->parent) {
+					dd_table_close(node->parent, thd
+						       &node->parent_mdl, false);
+				}
 			}
 			if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
 				return(false);
@@ -977,13 +1006,18 @@ try_again:
 	if (node->table->ibd_file_missing) {
 		/* We skip purge of missing .ibd files */
 
-		if (node->table->id < INNODB_SYS_TABLE_ID_MAX
+		if (dict_table_is_system(node->table->id)
 		    || dict_table_is_sdi(node->table->id)) {
 			dict_table_close(node->table, FALSE, FALSE);
 			node->table = NULL;
 		} else  {
-	                dd_table_close(node->table, thd, &node->mdl, false);
-                }
+			bool	is_aux = node->table->is_fts_aux();
+			dd_table_close(node->table, thd, &node->mdl, false);
+			if (is_aux && node->parent) {
+				dd_table_close(node->parent, thd,
+					       &node->parent_mdl, false);
+			}
+		}
 
 		node->table = NULL;
 
@@ -999,12 +1033,18 @@ try_again:
 		we do not have an index to call it with. */
 close_exit:
 		/* Purge requires no changes to indexes: we may return */
-		if (node->table->id < INNODB_SYS_TABLE_ID_MAX
-		    || dict_table_is_sdi(node->table->id)) {
+		if (dict_table_is_system(node->table->id)
+		    || dict_table_is_sdi(node->table->id)
+		    || srv_upgrade_old_undo_found) {
 			dict_table_close(node->table, FALSE, FALSE);
 			node->table = NULL;
 		} else  {
+			bool	is_aux = node->table->is_fts_aux();
 			dd_table_close(node->table, thd, &node->mdl, false);
+			if (is_aux && node->parent) {
+				dd_table_close(node->parent, thd,
+					       &node->parent_mdl, false);
+			}
 		}
 err_exit:
 		if (*dict_op_lock_acquired) {
@@ -1045,11 +1085,11 @@ err_exit:
 }
 
 /** Purges the parsed record.
-@param[in,out]  node            row purge node
-@param[in]      undo_rec        undo record to purge
-@param[in,out]  thr             query thread
-@param[in]      updated_extern  whether external columns were updated
-@param[in,out]  thd             current thread
+@param[in,out]	node		row purge node
+@param[in]	undo_rec	undo record to purge
+@param[in,out]	thr		query thread
+@param[in]	updated_extern	whether external columns were updated
+@param[in,out]	thd		current thread
 @return true if purged, false if skipped */
 static MY_ATTRIBUTE((warn_unused_result))
 bool
@@ -1109,12 +1149,17 @@ row_purge_record_func(
                         node->mysql_table = nullptr;
                 }
 
-		if (node->table->id < INNODB_SYS_TABLE_ID_MAX
+		if (dict_table_is_system(node->table->id)
 		    || dict_table_is_sdi(node->table->id)) {
 			dict_table_close(node->table, FALSE, FALSE);
 			node->table = NULL;
 		} else  {
-	                dd_table_close(node->table, thd, &node->mdl, false);
+			bool	is_aux = node->table->is_fts_aux();
+			dd_table_close(node->table, thd, &node->mdl, false);
+			if (is_aux && node->parent) {
+				dd_table_close(node->parent, thd,
+					       &node->parent_mdl, false);
+			}
                 }
 	}
 
@@ -1143,7 +1188,7 @@ row_purge(
 {
 	bool	updated_extern;
 	THD*	thd = current_thd;
-	bool 	dict_op_lock_acquired = false;
+	bool	dict_op_lock_acquired = false;
 
 	DBUG_EXECUTE_IF("do_not_meta_lock_in_background",
 			while (srv_shutdown_state == SRV_SHUTDOWN_NONE) {
@@ -1171,15 +1216,6 @@ row_purge(
 		/* Retry the purge in a second. */
 		os_thread_sleep(1000000);
 	}
-}
-
-/** Explicitly call the destructor, this is to get around Clang bug#12350.
-@param[in,out]	p		Instance on which to call the destructor */
-template<typename T>
-void
-call_destructor(T* p)
-{
-	p->~T();
 }
 
 /** Reset the purge query thread.

@@ -13,9 +13,11 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#include <assert.h>
 #include <errno.h>
 #include <mysql/group_replication_priv.h>
 #include <signal.h>
+#include <time.h>
 
 #include "applier.h"
 #include "my_dbug.h"
@@ -287,6 +289,7 @@ Applier_module::apply_view_change_packet(View_change_packet *view_change_packet,
       = new View_change_log_event((char*)view_change_packet->view_id.c_str());
 
   Pipeline_event* pevent= new Pipeline_event(view_change_event, fde_evt, cache);
+  pevent->mark_event(SINGLE_VIEW_EVENT);
   error= inject_event_into_pipeline(pevent, cont);
   delete pevent;
 
@@ -726,7 +729,12 @@ void Applier_module::kill_pending_transactions(bool set_read_mode,
     shared_stop_write_lock->release_write_lock();
 
   if (set_read_mode)
-    set_server_read_mode(threaded_sql_session);
+  {
+    if (threaded_sql_session)
+      set_server_read_mode(PSESSION_INIT_THREAD);
+    else
+      set_server_read_mode(PSESSION_USE_THREAD);
+  }
 
   DBUG_VOID_RETURN;
 }
@@ -804,7 +812,7 @@ Applier_module::is_applier_thread_waiting()
 }
 
 int
-Applier_module::wait_for_applier_event_execution(ulonglong timeout)
+Applier_module::wait_for_applier_event_execution(double timeout)
 {
   DBUG_ENTER("Applier_module::wait_for_applier_event_execution");
   int error= 0;

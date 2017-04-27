@@ -27,14 +27,12 @@
 #include "dd/types/procedure.h"                // dd::Procedure
 #include "dd/types/routine.h"
 #include "dd/types/view.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Dictionary_object_table;
 class Open_dictionary_tables_ctx;
 class Parameter;
 class Weak_object;
@@ -58,10 +56,10 @@ public:
   virtual void debug_print(String_type &outb) const;
 
   // Fix "inherits ... via dominance" warnings
-  virtual Weak_object_impl *impl()
-  { return Weak_object_impl::impl(); }
-  virtual const Weak_object_impl *impl() const
-  { return Weak_object_impl::impl(); }
+  virtual Entity_object_impl *impl()
+  { return Entity_object_impl::impl(); }
+  virtual const Entity_object_impl *impl() const
+  { return Entity_object_impl::impl(); }
   virtual Object_id id() const
   { return Entity_object_impl::id(); }
   virtual bool is_persistent() const
@@ -70,7 +68,7 @@ public:
   { return Entity_object_impl::name(); }
   virtual void set_name(const String_type &name)
   { Entity_object_impl::set_name(name); }
-  virtual const Dictionary_object_table &object_table() const
+  virtual const Object_table &object_table() const
   { return Routine_impl::object_table(); }
   virtual Object_id schema_id() const
   { return Routine_impl::schema_id(); }

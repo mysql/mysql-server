@@ -4,7 +4,6 @@
 --echo #
 
 --source suite/query_rewrite_plugins/include/have_plugin_rewrite_example.inc
---source include/not_embedded.inc
 --source suite/query_rewrite_plugins/include/install_pre_parse_plugin.inc
 
 SELECT PLUGIN_NAME, PLUGIN_TYPE

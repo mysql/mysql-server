@@ -5,7 +5,6 @@
 # Add includes which are necessary to do this safely.
 --source include/have_debug.inc
 --source include/not_valgrind.inc
---source include/not_embedded.inc
 --source include/not_crashrep.inc
 
 # It also requires various storage engines.

@@ -18,13 +18,13 @@
 #include <fcntl.h>
 #include <m_string.h>
 #include <my_getopt.h>
-#include <my_global.h>
 #include <my_sys.h>
 #include <stdio.h>
-#include "print_version.h"
-#include "welcome_copyright_notice.h"
+#include <sys/types.h>
 
 #include "my_compiler.h"
+#include "print_version.h"
+#include "welcome_copyright_notice.h"
 
 static const char *INFILE= "errmsg.h";
 static const char *OUTFILE= "mysqlclient_ername.h";
@@ -48,10 +48,7 @@ static void usage(void)
          " -O, --out_file=name Output file name\n");
 }
 
-static my_bool
-get_one_option(int optid,
-               const struct my_option *opt MY_ATTRIBUTE ((unused)),
-               char *argument MY_ATTRIBUTE ((unused)))
+static bool get_one_option(int, const struct my_option*, char*)
 {
   return 0;
 }

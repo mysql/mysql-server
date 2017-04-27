@@ -1,8 +1,7 @@
-# Performance Schema is partially supported by embedded server. Hence skip when test runs with embedded mode.
--- source include/not_embedded.inc
-
 #Want to skip this test from daily Valgrind execution
 --source include/no_valgrind_without_big.inc
+
+-- source include/have_innodb_max_16k.inc
 
 #######################################################################
 #                                                                     #
@@ -18,8 +17,6 @@
 # (otherwise your changes may be erased).                             #
 #                                                                     #
 #######################################################################
-
--- source include/have_innodb_max_16k.inc
 
 let $MYSQLD_DATADIR= `select @@datadir`;
 # Save the original values of some variables in order to be able to
@@ -1260,8 +1257,6 @@ drop table t2;
 
 # Test error handling
 
-# Embedded server doesn't chdir to data directory
---replace_result $MYSQLTEST_VARDIR . master-data/ ''
 --error ER_WRONG_FK_DEF
 create table t2 (id int(11) not null, id2 int(11) not null, constraint t1_id_fk foreign key (id2,id) references t1 (id)) engine = innodb;
 
@@ -1467,10 +1462,8 @@ set session old_alter_table=0;
 # Some errors/warnings on create
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-# Embedded server doesn't chdir to data directory
---replace_result $MYSQLTEST_VARDIR . master-data/ ''
 --error ER_TOO_LONG_KEY,ER_INDEX_COLUMN_TOO_LONG
-create table t1 (v varchar(65530), key(v)) ROW_FORMAT=COMPACT;
+create table t1 (v varchar(65530), key(v)) charset latin1 ROW_FORMAT=COMPACT;
 create table t1 (v varchar(65536));
 show create table t1;
 drop table t1;
@@ -1481,7 +1474,7 @@ SET sql_mode = default;
 eval set default_storage_engine=$default;
 
 # InnoDB specific varchar tests
-create table t1 (v varchar(16384)) engine=innodb;
+create table t1 (v varchar(16384)) charset latin1 engine=innodb;
 drop table t1;
 
 #
@@ -1725,13 +1718,16 @@ drop table t1;
 
 # test that invalid datatype conversions with ALTER are not allowed
 
-set foreign_key_checks=0;
-create table t2 (a varchar(10), foreign key (a) references t1(a)) engine = innodb;
-create table t1(a varchar(10) primary key) engine = innodb;
--- error 1025,1025
-alter table t1 modify column a int;
-set foreign_key_checks=1;
-drop table t2,t1;
+--echo NewDD_FK: Re-enabel this test after fixing Bug 25722927 - NEWDD
+--echo FK: ALTER TABLE CHANGE COLUMN TYPE SHOULD CHECK FK CONSTRAINT"
+
+#set foreign_key_checks=0;
+#create table t2 (a varchar(10), foreign key (a) references t1(a)) engine = innodb;
+#create table t1(a varchar(10) primary key) engine = innodb;
+#-- error 1025,1025
+#alter table t1 modify column a int;
+#set foreign_key_checks=1;
+#drop table t2,t1;
 
 # test that charset conversions with ALTER are allowed when f_k_c is 0
 
@@ -1744,15 +1740,17 @@ drop table t2,t1;
 
 # test that RENAME does not allow invalid charsets when f_k_c is 0
 
-set foreign_key_checks=0;
-create table t2 (a varchar(10), foreign key (a) references t1(a)) engine = innodb DEFAULT CHARSET=latin1;
-create table t3(a varchar(10) primary key) engine = innodb DEFAULT CHARSET=utf8;
+--echo NewDD_FK: Re-enabel this test after fixing Bug 25722927 - NEWDD
+--echo FK: ALTER TABLE CHANGE COLUMN TYPE SHOULD CHECK FK CONSTRAINT"
+#set foreign_key_checks=0;
+#create table t2 (a varchar(10), foreign key (a) references t1(a)) engine = innodb DEFAULT CHARSET=latin1;
+#create table t3(a varchar(10) primary key) engine = innodb DEFAULT CHARSET=utf8;
 # Embedded server doesn't chdir to data directory
---replace_result $MYSQLD_DATADIR ./ master-data/ ''
--- error 1025
-rename table t3 to t1;
-set foreign_key_checks=1;
-drop table t2,t3;
+#--replace_result $MYSQLD_DATADIR ./ master-data/ ''
+#-- error 1025
+#rename table t3 to t1;
+#set foreign_key_checks=1;
+#drop table t2,t3;
 
 # test that foreign key errors are reported correctly (Bug #15550)
 
@@ -2431,7 +2429,7 @@ CREATE TABLE t1 (
 	c21 CHAR(255), c22 CHAR(255), c23 CHAR(255), c24 CHAR(255),
 	c25 CHAR(255), c26 CHAR(255), c27 CHAR(255), c28 CHAR(255),
 	c29 CHAR(255), c30 CHAR(255), c31 CHAR(255), c32 CHAR(255)
-	) ENGINE = InnoDB;
+	) charset latin1 ENGINE = InnoDB;
 SET innodb_strict_mode=OFF;
 
 #
@@ -2704,3 +2702,44 @@ DROP TABLE t2;
 # (otherwise your changes may be erased).                             #
 #                                                                     #
 #######################################################################
+
+SET @old_log_bin_trust_function_creators= @@global.log_bin_trust_function_creators;
+connect (a,localhost,root,,);
+connect (b,localhost,root,,);
+
+#
+# BUG#11238 - in prelocking mode SELECT .. FOR UPDATE is changed to
+# non-blocking SELECT
+#
+SET GLOBAL log_bin_trust_function_creators = 1;
+create table t1 (col1 integer primary key, col2 integer) engine=innodb;
+insert t1 values (1,100);
+delimiter |;
+create function f1 () returns integer begin
+declare var1 int;
+select col2 into var1 from t1 where col1=1 for update;
+return var1;
+end|
+delimiter ;|
+start transaction;
+select f1();
+connection b;
+send update t1 set col2=0 where col1=1;
+connection a;
+select * from t1;
+rollback;
+connection b;
+reap;
+rollback;
+
+# Cleanup
+connection a;
+disconnect a;
+--source include/wait_until_disconnected.inc
+connection b;
+disconnect b;
+--source include/wait_until_disconnected.inc
+connection default;
+drop table t1;
+drop function f1;
+SET @@global.log_bin_trust_function_creators= @old_log_bin_trust_function_creators;

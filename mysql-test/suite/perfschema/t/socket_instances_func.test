@@ -2,7 +2,6 @@
 # Some functional checks for the content of performance_schema.socket_instances.
 #
 
---source include/not_embedded.inc
 --source include/not_windows.inc
 
 # Set this to enable debugging output

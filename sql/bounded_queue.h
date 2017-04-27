@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,12 +16,11 @@
 #ifndef BOUNDED_QUEUE_INCLUDED
 #define BOUNDED_QUEUE_INCLUDED
 
-#include "my_global.h"
+#include "malloc_allocator.h"
 #include "my_base.h"
 #include "my_sys.h"
 #include "mysys_err.h"
 #include "priority_queue.h"
-#include "malloc_allocator.h"
 
 /**
   A priority queue with a fixed, limited size.

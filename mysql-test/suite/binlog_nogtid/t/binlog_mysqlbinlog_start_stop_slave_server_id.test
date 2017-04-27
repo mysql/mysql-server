@@ -49,5 +49,3 @@ RESET MASTER;
 --echo
 --echo ==== clean up ====
 DROP TABLE t1;
-
-

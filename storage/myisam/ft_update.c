@@ -18,6 +18,7 @@
 /* functions to work with full-text indices */
 
 #include <math.h>
+#include <sys/types.h>
 
 #include "ftdefs.h"
 #include "my_dbug.h"

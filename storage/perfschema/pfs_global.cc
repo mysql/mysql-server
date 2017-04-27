@@ -18,15 +18,15 @@
   Miscellaneous global dependencies (implementation).
 */
 
+#include "storage/perfschema/pfs_global.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_sys.h"
 #include "pfs_builtin_memory.h"
-#include "pfs_global.h"
 
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
@@ -209,7 +209,7 @@ pfs_print_error(const char *format, ...)
   /*
     Printing to anything else, like the error log, would generate even more
     recursive calls to the performance schema implementation
-    (file io is instrumented), so that could lead to catastrophic results.
+    (file I/O is instrumented), so that could lead to catastrophic results.
     Printing to something safe, and low level: stderr only.
   */
   vfprintf(stderr, format, args);

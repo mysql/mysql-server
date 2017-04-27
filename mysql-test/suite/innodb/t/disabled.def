@@ -16,35 +16,17 @@ innodb_wl6501_crash_2     : WL#6795 2015-11-06 jhauglid WL6795_WL9536_RECOVERY
 innodb_wl6501_crash_6     : WL#6795 2015-11-06 jhauglid WL6795_WL9536_RECOVERY
 innodb_wl6501_crash_7     : WL#6795 2015-11-06 jhauglid WL6795_WL9536_RECOVERY
 innodb_wl6501_crash_8     : WL#6795 2015-11-06 jhauglid WL6795_WL9536_RECOVERY
-alter_foreign_crash       : WL#6378 2015-11-06 jhauglid WL6378_TEMPORARY_FILES
+alter_foreign_crash       : WL#9536, 2017-04-07 Bin
 innodb.bootstrap        @windows  : Bug#22680868 2016-02-08 Erlend Failing too often on PB2
 innodb.log_corruption   @windows  : Bug#22680868 2016-02-08 Erlend Failing too often on PB2
 innodb.log_corruption_1 @windows  : Bug#22680868 2016-02-08 Erlend Failing too often on PB2
 analyze_table           @solaris  : Bug#22607584 2016-03-01 Shaohua Failing too often on PB2 due to timeout
-
-
-# Disabled list(Due to server issues)
-(Due to InnoDB issues)
-
-innodb_bulk_create_index_debug : WL#9525 disables it, tablespaces are not crash-safe for now
-
-create_tablespace_debug   : WL#9525 disables it, it is related to other SEs, maybe just remove it
-
-innodb-system-table-view_cs : WL#9532 disables it, this may not be needed after WL#9535
-innodb-system-table-view_ci : WL#9532 disables it, this may not be needed after WL#9535
+innodb.innodb_tsof_use_1  @windows : Bug#25716069 2017-03-14 Anitha Fails consistently on windows
+innodb.innodb_tsof_use_2  @windows : Bug#25716110 2017-03-14 Anitha Fails consistently on windows
 
 create_tablespace_partition : WL#9559 disables it, according to Dmitry, waiting for fix of Bug#18513130 STRANGE INTERACTION OF SQL_MODE=ANSI AND PARTITION BY TIMESTAMP
-
-log_file_name_debug       : Waiting for WL#9175
-log_file_size             : Waiting for WL#9175
-log_file_size_checkpoint  : Waiting for WL#9175
-table_encrypt_debug       : Waiting for WL#9175
-autoinc_persist           : Waiting for WL#9175
-blob-crash                : Waiting for WL#9175
-log_alter_table           : Waiting for WL#9175
-innodb_bug-13628249       : Waiting for WL#9175
-
-innodb-copy-alter-debug	  : Require atomic DDL, WL#9536
+innodb.innodb_wl6560_debug : Bug#25804386 2017-04-06 Bin Failing sporadically on PB2
+innodb.skip_locked_nowait  : Bug#25886814 2017-04-13 Allen Failing sporadically on PB2
 
 innodb_bug53046           : WL9535 disable it, need to check it deeper
 tablespace_portability    : WL9535 disable it, need to check it deeper
@@ -55,4 +37,3 @@ create_tablespace         : WL9535 disable it, need to check it deeper
 foreign_key               : WL9535 disable it, need to check it deeper
 innodb-multiple-tablespaces : WL9535 disable it, need to check it deeper
 
-bootstrap		  : waiting fix from mysql-trunk

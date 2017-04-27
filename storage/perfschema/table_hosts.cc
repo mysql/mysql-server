@@ -18,9 +18,12 @@
   TABLE HOSTS.
 */
 
+#include "storage/perfschema/table_hosts.h"
+
+#include <stddef.h>
+
 #include "field.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_thread.h"
 #include "pfs_account.h"
 #include "pfs_host.h"
@@ -29,7 +32,6 @@
 #include "pfs_memory.h"
 #include "pfs_status.h"
 #include "pfs_visitor.h"
-#include "table_hosts.h"
 
 THR_LOCK table_hosts::m_table_lock;
 
@@ -86,7 +88,7 @@ PFS_index_hosts_by_host::match(PFS_host *pfs)
 }
 
 PFS_engine_table *
-table_hosts::create()
+table_hosts::create(PFS_engine_table_share *)
 {
   return new table_hosts();
 }

@@ -24,6 +24,7 @@ Created 11/5/1995 Heikki Tuuri
 *******************************************************/
 
 #include <mysql/service_thd_wait.h>
+#include <stddef.h>
 
 #include "buf0buf.h"
 #include "buf0dblwr.h"

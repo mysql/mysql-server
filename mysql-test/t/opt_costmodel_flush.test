@@ -4,7 +4,6 @@
 
 # To get stable cost estimates, the test should only be run with 
 # 16K InnoDB page size.
---source include/have_innodb_16k.inc
 
 CREATE TABLE t0 (
   i1 INTEGER

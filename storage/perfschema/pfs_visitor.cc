@@ -13,10 +13,11 @@
   along with this program; if not, write to the Free Software Foundation,
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#include "storage/perfschema/pfs_visitor.h"
+
 #include "my_config.h"
 
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_sys.h"
 #include "mysqld.h"
 #include "mysqld_thd_manager.h"
@@ -26,7 +27,6 @@
 #include "pfs_instr.h"
 #include "pfs_instr_class.h"
 #include "pfs_user.h"
-#include "pfs_visitor.h"
 #include "sql_class.h"
 
 /**
@@ -669,7 +669,7 @@ PFS_instance_iterator::visit_file_instances(PFS_file_class *klass,
   }
 }
 
-/** Socket instance iterator visting a socket class and all instances */
+/** Socket instance iterator visiting a socket class and all instances */
 
 void
 PFS_instance_iterator::visit_socket_instances(PFS_socket_class *klass,
@@ -706,7 +706,7 @@ PFS_instance_iterator::visit_socket_instances(PFS_socket_class *klass,
   }
 }
 
-/** Socket instance iterator visting sockets owned by PFS_thread. */
+/** Socket instance iterator visiting sockets owned by a PFS_thread. */
 
 void
 PFS_instance_iterator::visit_socket_instances(PFS_socket_class *klass,
@@ -1661,7 +1661,7 @@ PFS_instance_wait_visitor::visit_socket(PFS_socket *pfs)
   m_stat.aggregate(&stat);
 }
 
-/** Table IO wait visitor */
+/** Table I/O wait visitor */
 
 PFS_object_wait_visitor::PFS_object_wait_visitor()
 {
@@ -1762,7 +1762,7 @@ PFS_table_io_wait_visitor::visit_table(PFS_table *pfs)
   }
 }
 
-/** Table IO stat visitor */
+/** Table I/O stat visitor */
 
 PFS_table_io_stat_visitor::PFS_table_io_stat_visitor()
 {
@@ -1818,7 +1818,7 @@ PFS_table_io_stat_visitor::visit_table(PFS_table *pfs)
   }
 }
 
-/** Index IO stat visitor */
+/** Index I/O stat visitor */
 
 PFS_index_io_stat_visitor::PFS_index_io_stat_visitor()
 {

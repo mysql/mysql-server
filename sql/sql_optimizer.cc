@@ -94,7 +94,6 @@ static ORDER *create_distinct_group(THD *thd,
                                     Ref_item_array ref_item_array,
                                     ORDER *order,
                                     List<Item> &fields,
-                                    List<Item> &all_fields,
                                     bool *all_order_by_fields_used);
 static TABLE *get_sort_by_table(ORDER *a,ORDER *b,TABLE_LIST *tables);
 static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab);
@@ -103,7 +102,7 @@ static void trace_table_dependencies(Opt_trace_context * trace,
                                      uint table_count);
 static bool
 update_ref_and_keys(THD *thd, Key_use_array *keyuse,JOIN_TAB *join_tab,
-                    uint tables, Item *cond, COND_EQUAL *cond_equal,
+                    uint tables, Item *cond,
                     table_map normal_tables, SELECT_LEX *select_lex,
                     SARGABLE_PARAM **sargables);
 static bool pull_out_semijoin_tables(JOIN *join);
@@ -563,7 +562,7 @@ JOIN::optimize()
     elements may be lost during further having
     condition transformation in JOIN::exec.
   */
-  if (having_cond && const_table_map && !having_cond->with_sum_func)
+  if (having_cond && const_table_map && !having_cond->has_aggregation())
   {
     having_cond->update_used_tables();
     if (remove_eq_conds(thd, having_cond, &having_cond,
@@ -1258,7 +1257,7 @@ bool JOIN::optimize_distinct_group_order()
     ORDER *o;
     bool all_order_fields_used;
     if ((o= create_distinct_group(thd, ref_items[REF_SLICE_BASE],
-                                  order, fields_list, all_fields,
+                                  order, fields_list,
 				  &all_order_fields_used)))
     {
       group_list= ORDER_with_src(o, ESC_DISTINCT);
@@ -1471,7 +1470,7 @@ int test_if_order_by_key(ORDER_with_src *order_src, TABLE *table, uint idx,
   key_part_map const_key_parts=table->const_key_parts[idx];
   int reverse=0;
   uint key_parts;
-  my_bool on_pk_suffix= FALSE;
+  bool on_pk_suffix= FALSE;
   // Whether [extented] key has key parts with mixed ASC/DESC order
   bool mixed_order= false;
   // Order direction of the first key part
@@ -1852,7 +1851,7 @@ private:
   uint index;                     ///< copy of tab->index
 #else // in non-debug build, empty class
 public:
-  Plan_change_watchdog(const JOIN_TAB *tab_arg, const bool no_changes_arg) {}
+  Plan_change_watchdog(const JOIN_TAB*, const bool) {}
 #endif
 };
 
@@ -4170,6 +4169,10 @@ bool build_equal_items(THD *thd, Item *cond, Item **retcond,
     if (build_equal_items_for_cond(thd, cond, &cond, inherited, do_inherit))
       return true;
     cond->update_used_tables();
+    // update_used_tables() returns void but can stil fail.
+    if (thd->is_error())
+      return true;
+
     const enum Item::Type cond_type= cond->type();
     if (cond_type == Item::COND_ITEM &&
         down_cast<Item_cond *>(cond)->functype() == Item_func::COND_AND_FUNC)
@@ -4839,7 +4842,7 @@ void JOIN::update_depend_map(ORDER *order)
     order->used= 0;
     // Not item_sum(), RAND() and no reference to table outside of sub select
     if (!(order->depend_map & (OUTER_REF_TABLE_BIT | RAND_TABLE_BIT))
-        && !order->item[0]->with_sum_func)
+        && !order->item[0]->has_aggregation())
     {
       for (JOIN_TAB **tab= map2table; depend_map; tab++, depend_map >>= 1)
       {
@@ -5106,7 +5109,7 @@ bool JOIN::make_join_plan()
   if (where_cond || select_lex->outer_join)
   {
     if (update_ref_and_keys(thd, &keyuse_array, join_tab, tables, where_cond,
-                            cond_equal, ~select_lex->outer_join, select_lex,
+                            ~select_lex->outer_join, select_lex,
                             &sargables))
       DBUG_RETURN(true);
   }
@@ -6250,40 +6253,39 @@ static void add_not_null_conds(JOIN *join)
 }
 
 
-/* 
-  Check if given expression uses only table fields covered by the given index
+/**
+  Check if given expression only uses fields covered by index @a keyno in the
+  table tbl. The expression can use any fields in any other tables.
 
-  SYNOPSIS
-    uses_index_fields_only()
-      item           Expression to check
-      tbl            The table having the index
-      keyno          The index number
-      other_tbls_ok  TRUE <=> Fields of other non-const tables are allowed
+  The expression is guaranteed not to be AND or OR - those constructs are
+  handled outside of this function.
 
-  DESCRIPTION
-    Check if given expression only uses fields covered by index #keyno in the
-    table tbl. The expression can use any fields in any other tables.
-    
-    The expression is guaranteed not to be AND or OR - those constructs are 
-    handled outside of this function.
+  Restrict some function types from being pushed down to storage engine:
+  a) Don't push down the triggered conditions. Nested outer joins execution
+     code may need to evaluate a condition several times (both triggered and
+     untriggered).
+  b) Stored functions contain a statement that might start new operations (like
+     DML statements) from within the storage engine. This does not work against
+     all SEs.
+  c) Subqueries might contain nested subqueries and involve more tables.
 
-  RETURN
-    TRUE   Yes
-    FALSE  No
+  @param  item           Expression to check
+  @param  tbl            The table having the index
+  @param  keyno          The index number
+  @param  other_tbls_ok  TRUE <=> Fields of other non-const tables are allowed
+
+  @return false if No, true if Yes
 */
 
 bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno, 
                             bool other_tbls_ok)
 {
+  // Restrictions b and c.
+  if (item->has_stored_program() || item->has_subquery())
+    return false;
+
   if (item->const_item())
-  {
-    /*
-      const_item() might not return correct value if the item tree
-      contains a subquery. If this is the case we do not include this
-      part of the condition.
-    */
-    return !item->has_subquery();
-  }
+    return true;
 
   const Item::Type item_type= item->type();
 
@@ -6294,21 +6296,14 @@ bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno,
       const Item_func::Functype func_type= item_func->functype();
 
       /*
-        Avoid some function types from being pushed down to storage engine:
-        - Don't push down the triggered conditions. Nested outer joins
-          execution code may need to evaluate a condition several times
-          (both triggered and untriggered).
-          TODO: Consider cloning the triggered condition and using the
-                copies for: 
-                 1. push the first copy down, to have most restrictive
-                    index condition possible.
-                 2. Put the second copy into tab->m_condition.
-        - Stored functions contain a statement that might start new operations
-          against the storage engine. This does not work against all storage
-          engines.
+        Restriction a.
+        TODO: Consider cloning the triggered condition and using the copies
+        for:
+        1. push the first copy down, to have most restrictive index condition
+           possible.
+        2. Put the second copy into tab->m_condition.
       */
-      if (func_type == Item_func::TRIG_COND_FUNC ||
-          func_type == Item_func::FUNC_SP)
+      if (func_type == Item_func::TRIG_COND_FUNC)
         return false;
 
       /* This is a function, apply condition recursively to arguments */
@@ -7557,7 +7552,7 @@ add_key_fields(JOIN *join, Key_field **key_fields, uint *and_level,
   case Item_func::OPTIMIZE_OP:
   {
     bool equal_func=(cond_func->functype() == Item_func::EQ_FUNC ||
-		     cond_func->functype() == Item_func::EQUAL_FUNC);
+                     cond_func->functype() == Item_func::EQUAL_FUNC);
 
     if (is_local_field (cond_func->arguments()[0]))
     {
@@ -8216,7 +8211,6 @@ add_group_and_distinct_keys(JOIN *join, JOIN_TAB *join_tab)
   @param       tables         Number of tables in join
   @param       cond           WHERE condition (note that the function analyzes
                               join_tab[i]->join_cond() too)
-  @param       cond_equal
   @param       normal_tables  Tables not inner w.r.t some outer join (ones
                               for which we can make ref access based the WHERE
                               clause)
@@ -8231,7 +8225,7 @@ add_group_and_distinct_keys(JOIN *join, JOIN_TAB *join_tab)
 
 static bool
 update_ref_and_keys(THD *thd, Key_use_array *keyuse,JOIN_TAB *join_tab,
-                    uint tables, Item *cond, COND_EQUAL *cond_equal,
+                    uint tables, Item *cond,
                     table_map normal_tables, SELECT_LEX *select_lex,
                     SARGABLE_PARAM **sargables)
 {
@@ -8410,14 +8404,13 @@ update_ref_and_keys(THD *thd, Key_use_array *keyuse,JOIN_TAB *join_tab,
   To be used when creating a materialized temporary table.
 
   @param thd         THD pointer, for memory allocation
-  @param table       Table object representing table
   @param keyparts    Number of key parts in the primary key
   @param fields
   @param outer_exprs List of items used for key lookup
 
   @return Pointer to created keyuse array, or NULL if error
 */
-Key_use_array *create_keyuse_for_table(THD *thd, TABLE *table, uint keyparts,
+Key_use_array *create_keyuse_for_table(THD *thd, uint keyparts,
                                        Item_field **fields,
                                        List<Item> outer_exprs)
 {
@@ -10029,7 +10022,7 @@ ORDER *JOIN::remove_const(ORDER *first_order, Item *cond, bool change_list,
     Opt_trace_object trace_one_item(trace);
     trace_one_item.add("item", order->item[0]);
     table_map order_tables=order->item[0]->used_tables();
-    if (order->item[0]->with_sum_func ||
+    if (order->item[0]->has_aggregation() ||
         /*
           If the outer table of an outer join is const (either by itself or
           after applying WHERE condition), grouping on a field from such a
@@ -10662,7 +10655,6 @@ create_distinct_group(THD *thd,
                       Ref_item_array ref_item_array,
                       ORDER *order_list,
                       List<Item> &fields,
-                      List<Item> &all_fields,
                       bool *all_order_by_fields_used)
 {
   List_iterator<Item> li(fields);
@@ -10692,7 +10684,7 @@ create_distinct_group(THD *thd,
   li.rewind();
   while ((item=li++))
   {
-    if (!item->const_item() && !item->with_sum_func && !item->marker)
+    if (!item->const_item() && !item->has_aggregation() && !item->marker)
     {
       /* 
         Don't put duplicate columns from the SELECT list into the 

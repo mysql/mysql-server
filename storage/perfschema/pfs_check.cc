@@ -22,8 +22,9 @@
   This code organization helps a lot maintenance of the unit tests.
 */
 
+#include <stddef.h>
+
 #include "my_dbug.h"
-#include "my_global.h"
 #include "pfs_engine_table.h"
 #include "pfs_server.h"
 #include "sql_class.h"

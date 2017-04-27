@@ -3405,15 +3405,15 @@ colb char(3) not null,
 filler char(200),
 key(cola), 
 key(colb)
-);
+) CHARSET utf8mb4;
 INSERT INTO t1 VALUES ('foo','bar', 'ZZ'),('fuz','baz', 'ZZ');
 Inserting records
 
 EXPLAIN SELECT * FROM t1 WHERE cola = 'foo' AND colb = 'bar';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	cola,colb	cola,colb	3,3	NULL	32	100.00	Using intersect(cola,colb); Using where
+1	SIMPLE	t1	NULL	index_merge	cola,colb	cola,colb	12,12	NULL	29	100.00	Using intersect(cola,colb); Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`cola` AS `cola`,`test`.`t1`.`colb` AS `colb`,`test`.`t1`.`filler` AS `filler` from `test`.`t1` where ((`test`.`t1`.`colb` = 'bar') and (`test`.`t1`.`cola` = 'foo'))
+Note	1003	/* select#1 */ select `test`.`t1`.`cola` AS `cola`,`test`.`t1`.`colb` AS `colb`,`test`.`t1`.`filler` AS `filler` from `test`.`t1` where ((`test`.`t1`.`cola` = 'foo') and (`test`.`t1`.`colb` = 'bar'))
 
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
@@ -3440,15 +3440,15 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'foo' AND colb = 'bar'	{
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "(multiple equal('foo', `t1`.`cola`) and multiple equal('bar', `t1`.`colb`))"
+                  "resulting_condition": "((`t1`.`cola` = 'foo') and (`t1`.`colb` = 'bar'))"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "(multiple equal('foo', `t1`.`cola`) and multiple equal('bar', `t1`.`colb`))"
+                  "resulting_condition": "((`t1`.`cola` = 'foo') and (`t1`.`colb` = 'bar'))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "(multiple equal('foo', `t1`.`cola`) and multiple equal('bar', `t1`.`colb`))"
+                  "resulting_condition": "((`t1`.`cola` = 'foo') and (`t1`.`colb` = 'bar'))"
                 }
               ] /* steps */
             } /* condition_processing */
@@ -3491,7 +3491,7 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'foo' AND colb = 'bar'	{
                 "range_analysis": {
                   "table_scan": {
                     "rows": 8704,
-                    "cost": 982.97
+                    "cost": 1311.3
                   } /* table_scan */,
                   "potential_range_indexes": [
                     {
@@ -3526,8 +3526,8 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'foo' AND colb = 'bar'	{
                         "rowid_ordered": true,
                         "using_mrr": false,
                         "index_only": false,
-                        "rows": 533,
-                        "cost": 186.81,
+                        "rows": 504,
+                        "cost": 176.66,
                         "chosen": true
                       },
                       {
@@ -3539,8 +3539,8 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'foo' AND colb = 'bar'	{
                         "rowid_ordered": true,
                         "using_mrr": false,
                         "index_only": false,
-                        "rows": 533,
-                        "cost": 186.81,
+                        "rows": 504,
+                        "cost": 176.66,
                         "chosen": false,
                         "cause": "cost"
                       }
@@ -3549,23 +3549,23 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'foo' AND colb = 'bar'	{
                       "intersecting_indexes": [
                         {
                           "index": "cola",
-                          "index_scan_cost": 2.8077,
-                          "cumulated_index_scan_cost": 2.8077,
-                          "disk_sweep_cost": 77.288,
-                          "cumulated_total_cost": 80.096,
+                          "index_scan_cost": 4.9074,
+                          "cumulated_index_scan_cost": 4.9074,
+                          "disk_sweep_cost": 109.54,
+                          "cumulated_total_cost": 114.45,
                           "usable": true,
-                          "matching_rows_now": 533,
+                          "matching_rows_now": 504,
                           "isect_covering_with_this_index": false,
                           "chosen": true
                         },
                         {
                           "index": "colb",
-                          "index_scan_cost": 2.8077,
-                          "cumulated_index_scan_cost": 5.6154,
-                          "disk_sweep_cost": 7.7245,
-                          "cumulated_total_cost": 13.34,
+                          "index_scan_cost": 4.9074,
+                          "cumulated_index_scan_cost": 9.8148,
+                          "disk_sweep_cost": 7.1924,
+                          "cumulated_total_cost": 17.007,
                           "usable": true,
-                          "matching_rows_now": 32.639,
+                          "matching_rows_now": 29.184,
                           "isect_covering_with_this_index": false,
                           "chosen": true
                         }
@@ -3574,8 +3574,8 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'foo' AND colb = 'bar'	{
                         "clustered_pk_added_to_intersect": false,
                         "cause": "no_clustered_pk_index"
                       } /* clustered_pk */,
-                      "rows": 32,
-                      "cost": 13.34,
+                      "rows": 29,
+                      "cost": 17.007,
                       "covering": false,
                       "chosen": true
                     } /* analyzing_roworder_intersect */
@@ -3583,15 +3583,15 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'foo' AND colb = 'bar'	{
                   "chosen_range_access_summary": {
                     "range_access_plan": {
                       "type": "index_roworder_intersect",
-                      "rows": 32,
-                      "cost": 13.34,
+                      "rows": 29,
+                      "cost": 17.007,
                       "covering": false,
                       "clustered_pk_scan": false,
                       "intersect_of": [
                         {
                           "type": "range_scan",
                           "index": "cola",
-                          "rows": 533,
+                          "rows": 504,
                           "ranges": [
                             "foo <= cola <= foo"
                           ] /* ranges */
@@ -3599,15 +3599,15 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'foo' AND colb = 'bar'	{
                         {
                           "type": "range_scan",
                           "index": "colb",
-                          "rows": 533,
+                          "rows": 504,
                           "ranges": [
                             "bar <= colb <= bar"
                           ] /* ranges */
                         }
                       ] /* intersect_of */
                     } /* range_access_plan */,
-                    "rows_for_plan": 32,
-                    "cost_for_plan": 13.34,
+                    "rows_for_plan": 29,
+                    "cost_for_plan": 17.007,
                     "chosen": true
                   } /* chosen_range_access_summary */
                 } /* range_analysis */
@@ -3625,45 +3625,45 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'foo' AND colb = 'bar'	{
                     {
                       "access_type": "ref",
                       "index": "cola",
-                      "rows": 533,
-                      "cost": 186.55,
+                      "rows": 504,
+                      "cost": 176.4,
                       "chosen": true
                     },
                     {
                       "access_type": "ref",
                       "index": "colb",
-                      "rows": 533,
-                      "cost": 186.55,
+                      "rows": 504,
+                      "cost": 176.4,
                       "chosen": false
                     },
                     {
-                      "rows_to_scan": 32,
+                      "rows_to_scan": 29,
                       "access_type": "range",
                       "range_details": {
                         "used_index": "intersect(cola,colb)"
                       } /* range_details */,
-                      "resulting_rows": 32,
-                      "cost": 16.54,
+                      "resulting_rows": 29,
+                      "cost": 19.907,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
-                "rows_for_plan": 32,
-                "cost_for_plan": 16.54,
+                "rows_for_plan": 29,
+                "cost_for_plan": 19.907,
                 "chosen": true
               }
             ] /* considered_execution_plans */
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "((`t1`.`colb` = 'bar') and (`t1`.`cola` = 'foo'))",
+              "original_condition": "((`t1`.`cola` = 'foo') and (`t1`.`colb` = 'bar'))",
               "attached_conditions_computation": [
               ] /* attached_conditions_computation */,
               "attached_conditions_summary": [
                 {
                   "table": "`t1`",
-                  "attached": "((`t1`.`colb` = 'bar') and (`t1`.`cola` = 'foo'))"
+                  "attached": "((`t1`.`cola` = 'foo') and (`t1`.`colb` = 'bar'))"
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */
@@ -3690,7 +3690,7 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'foo' AND colb = 'bar'	{
 
 EXPLAIN SELECT * FROM t1 WHERE cola = 'f\no';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	cola	cola	3	const	1	100.00	NULL
+1	SIMPLE	t1	NULL	ref	cola	cola	12	const	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`cola` AS `cola`,`test`.`t1`.`colb` AS `colb`,`test`.`t1`.`filler` AS `filler` from `test`.`t1` where (`test`.`t1`.`cola` = 'f\no')
 
@@ -3719,15 +3719,15 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'f\no'	{
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "multiple equal('f\\no', `t1`.`cola`)"
+                  "resulting_condition": "(`t1`.`cola` = 'f\\no')"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "multiple equal('f\\no', `t1`.`cola`)"
+                  "resulting_condition": "(`t1`.`cola` = 'f\\no')"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "multiple equal('f\\no', `t1`.`cola`)"
+                  "resulting_condition": "(`t1`.`cola` = 'f\\no')"
                 }
               ] /* steps */
             } /* condition_processing */
@@ -3764,7 +3764,7 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'f\no'	{
                 "range_analysis": {
                   "table_scan": {
                     "rows": 8704,
-                    "cost": 982.97
+                    "cost": 1311.3
                   } /* table_scan */,
                   "potential_range_indexes": [
                     {
@@ -4540,7 +4540,7 @@ i2 int,
 c char(1),
 KEY k1 (i1),
 KEY k2 (i1, i2)
-);
+) CHARSET utf8mb4;
 INSERT INTO t1 VALUES (0,1,'2'),(3,2,'1');
 EXPLAIN SELECT * FROM t1 WHERE i1 > '2' ORDER BY i1, i2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -4612,7 +4612,7 @@ EXPLAIN SELECT * FROM t1 WHERE i1 > '2' ORDER BY i1, i2	{
                 "range_analysis": {
                   "table_scan": {
                     "rows": 2,
-                    "cost": 2.8012
+                    "cost": 2.8016
                   } /* table_scan */,
                   "potential_range_indexes": [
                     {
@@ -4757,7 +4757,7 @@ EXPLAIN SELECT * FROM t1 WHERE i1 > '2' ORDER BY i1, i2	{
                 "range_analysis": {
                   "table_scan": {
                     "rows": 2,
-                    "cost": 2.8012
+                    "cost": 2.8016
                   } /* table_scan */,
                   "potential_range_indexes": [
                     {
@@ -4918,7 +4918,7 @@ EXPLAIN SELECT DISTINCT i1 FROM t1 WHERE i1 >= '1' ORDER BY i1 DESC	{
                 "range_analysis": {
                   "table_scan": {
                     "rows": 2,
-                    "cost": 2.8012
+                    "cost": 2.8016
                   } /* table_scan */,
                   "potential_range_indexes": [
                     {
@@ -5039,7 +5039,7 @@ EXPLAIN SELECT DISTINCT i1 FROM t1 WHERE i1 >= '1' ORDER BY i1 DESC	{
                       "rows_to_scan": 2,
                       "access_type": "scan",
                       "resulting_rows": 2,
-                      "cost": 0.7012,
+                      "cost": 0.7016,
                       "chosen": true,
                       "use_tmp_table": true
                     }
@@ -5047,9 +5047,9 @@ EXPLAIN SELECT DISTINCT i1 FROM t1 WHERE i1 >= '1' ORDER BY i1 DESC	{
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 2,
-                "cost_for_plan": 0.7012,
+                "cost_for_plan": 0.7016,
                 "sort_cost": 2,
-                "new_cost_for_plan": 2.7012,
+                "new_cost_for_plan": 2.7016,
                 "chosen": true
               }
             ] /* considered_execution_plans */
@@ -5157,7 +5157,7 @@ i2 INT,
 v varchar(1),
 INDEX i1_idx (i1),
 INDEX v_idx (v,i1)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB, CHARSET utf8mb4;
 INSERT INTO t1 VALUES (1, 1, 9,'a'), (2, 2, 8,'b'), (3, 3, 7,'c'),
 (4, 4, 6,'d'), (5, 5, 5,'e');
 
@@ -5166,7 +5166,7 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND v = 'a' AND pk < 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	PRIMARY,i1_idx,v_idx	i1_idx	5	const	1	20.00	Using index condition; Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`v` AS `v` from `test`.`t1` where ((`test`.`t1`.`v` = 'a') and (`test`.`t1`.`i1` = 1) and (`test`.`t1`.`pk` < 3))
+Note	1003	/* select#1 */ select `test`.`t1`.`v` AS `v` from `test`.`t1` where ((`test`.`t1`.`i1` = 1) and (`test`.`t1`.`v` = 'a') and (`test`.`t1`.`pk` < 3))
 
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
@@ -5193,15 +5193,15 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND v = 'a' AND pk < 3	{
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "((`t1`.`pk` < 3) and multiple equal(1, `t1`.`i1`) and multiple equal('a', `t1`.`v`))"
+                  "resulting_condition": "((`t1`.`v` = 'a') and (`t1`.`pk` < 3) and multiple equal(1, `t1`.`i1`))"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "((`t1`.`pk` < 3) and multiple equal(1, `t1`.`i1`) and multiple equal('a', `t1`.`v`))"
+                  "resulting_condition": "((`t1`.`v` = 'a') and (`t1`.`pk` < 3) and multiple equal(1, `t1`.`i1`))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "((`t1`.`pk` < 3) and multiple equal(1, `t1`.`i1`) and multiple equal('a', `t1`.`v`))"
+                  "resulting_condition": "((`t1`.`v` = 'a') and (`t1`.`pk` < 3) and multiple equal(1, `t1`.`i1`))"
                 }
               ] /* steps */
             } /* condition_processing */
@@ -5280,7 +5280,7 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND v = 'a' AND pk < 3	{
                   ] /* potential_range_indexes */,
                   "best_covering_index_scan": {
                     "index": "v_idx",
-                    "cost": 0.7516,
+                    "cost": 0.7519,
                     "chosen": true
                   } /* best_covering_index_scan */,
                   "setup_range_conditions": [
@@ -5413,7 +5413,7 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND v = 'a' AND pk < 3	{
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "((`t1`.`v` = 'a') and (`t1`.`i1` = 1) and (`t1`.`pk` < 3))",
+              "original_condition": "((`t1`.`i1` = 1) and (`t1`.`v` = 'a') and (`t1`.`pk` < 3))",
               "attached_conditions_computation": [
               ] /* attached_conditions_computation */,
               "attached_conditions_summary": [
@@ -5454,9 +5454,9 @@ test.t1	analyze	status	OK
 # Covering ROR intersect not chosen: cost
 EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND i2 = 1  AND v = 'a' AND pk < 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	PRIMARY,v_idx,i1_i2_idx	v_idx	9	const,const	1	20.00	Using index condition; Using where
+1	SIMPLE	t1	NULL	ref	PRIMARY,v_idx,i1_i2_idx	v_idx	12	const,const	1	20.00	Using index condition; Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`v` AS `v` from `test`.`t1` where ((`test`.`t1`.`v` = 'a') and (`test`.`t1`.`i2` = 1) and (`test`.`t1`.`i1` = 1) and (`test`.`t1`.`pk` < 3))
+Note	1003	/* select#1 */ select `test`.`t1`.`v` AS `v` from `test`.`t1` where ((`test`.`t1`.`i2` = 1) and (`test`.`t1`.`i1` = 1) and (`test`.`t1`.`v` = 'a') and (`test`.`t1`.`pk` < 3))
 
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
@@ -5483,15 +5483,15 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND i2 = 1  AND v = 'a' AND pk < 3	{
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "((`t1`.`pk` < 3) and multiple equal(1, `t1`.`i1`) and multiple equal(1, `t1`.`i2`) and multiple equal('a', `t1`.`v`))"
+                  "resulting_condition": "((`t1`.`v` = 'a') and (`t1`.`pk` < 3) and multiple equal(1, `t1`.`i1`) and multiple equal(1, `t1`.`i2`))"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "((`t1`.`pk` < 3) and multiple equal(1, `t1`.`i1`) and multiple equal(1, `t1`.`i2`) and multiple equal('a', `t1`.`v`))"
+                  "resulting_condition": "((`t1`.`v` = 'a') and (`t1`.`pk` < 3) and multiple equal(1, `t1`.`i1`) and multiple equal(1, `t1`.`i2`))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "((`t1`.`pk` < 3) and multiple equal(1, `t1`.`i1`) and multiple equal(1, `t1`.`i2`) and multiple equal('a', `t1`.`v`))"
+                  "resulting_condition": "((`t1`.`v` = 'a') and (`t1`.`pk` < 3) and multiple equal(1, `t1`.`i1`) and multiple equal(1, `t1`.`i2`))"
                 }
               ] /* steps */
             } /* condition_processing */
@@ -5732,7 +5732,7 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND i2 = 1  AND v = 'a' AND pk < 3	{
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "((`t1`.`v` = 'a') and (`t1`.`i2` = 1) and (`t1`.`i1` = 1) and (`t1`.`pk` < 3))",
+              "original_condition": "((`t1`.`i2` = 1) and (`t1`.`i1` = 1) and (`t1`.`v` = 'a') and (`t1`.`pk` < 3))",
               "attached_conditions_computation": [
               ] /* attached_conditions_computation */,
               "attached_conditions_summary": [
@@ -6058,11 +6058,11 @@ i1 INTEGER NOT NULL,
 c2 VARCHAR(2) NOT NULL,
 KEY k1 (c1),
 KEY k2 (c1, i1)
-);
+) CHARSET utf8mb4;
 INSERT INTO t1 VALUES ('0',3,'0'),('0',2,'1');
 EXPLAIN SELECT * FROM t1 WHERE c1 = '1' ORDER BY i1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	k1,k2	k2	4	const	1	100.00	Using index condition
+1	SIMPLE	t1	NULL	ref	k1,k2	k2	10	const	1	100.00	Using index condition
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1`,`test`.`t1`.`i1` AS `i1`,`test`.`t1`.`c2` AS `c2` from `test`.`t1` where (`test`.`t1`.`c1` = '1') order by `test`.`t1`.`i1`
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
@@ -6090,15 +6090,15 @@ EXPLAIN SELECT * FROM t1 WHERE c1 = '1' ORDER BY i1	{
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "multiple equal('1', `t1`.`c1`)"
+                  "resulting_condition": "(`t1`.`c1` = '1')"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "multiple equal('1', `t1`.`c1`)"
+                  "resulting_condition": "(`t1`.`c1` = '1')"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "multiple equal('1', `t1`.`c1`)"
+                  "resulting_condition": "(`t1`.`c1` = '1')"
                 }
               ] /* steps */
             } /* condition_processing */

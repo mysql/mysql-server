@@ -17,6 +17,7 @@
 #define DD__TRIGGER_IMPL_INCLUDED
 
 #include "my_config.h"
+
 #include "my_inttypes.h"
 
 #if HAVE_SYS_TIME_H
@@ -33,7 +34,6 @@
 #include "dd/object_id.h"
 #include "dd/types/object_type.h"              // dd::Object_type
 #include "dd/types/trigger.h"                  // dd::Trigger
-#include "my_global.h"
 
 namespace dd {
 
@@ -233,11 +233,11 @@ public:
   { m_schema_collation_id= schema_collation_id; }
 
   // Fix "inherits ... via dominance" warnings
-  virtual Weak_object_impl *impl() override
-  { return Weak_object_impl::impl(); }
+  virtual Entity_object_impl *impl() override
+  { return Entity_object_impl::impl(); }
 
-  virtual const Weak_object_impl *impl() const override
-  { return Weak_object_impl::impl(); }
+  virtual const Entity_object_impl *impl() const override
+  { return Entity_object_impl::impl(); }
 
   virtual Object_id id() const override
   { return Entity_object_impl::id(); }
@@ -309,6 +309,25 @@ public:
 
 ///////////////////////////////////////////////////////////////////////////
 
+/**
+  Used to sort Triggers of the same table by action timing, event type and
+  action order.
+*/
+
+struct Trigger_order_comparator
+{
+  bool operator()(const dd::Trigger* t1, const dd::Trigger* t2) const
+  {
+    return ((t1->action_timing() < t2->action_timing()) ||
+            (t1->action_timing() == t2->action_timing() &&
+             t1->event_type() < t2->event_type()) ||
+            (t1->action_timing() == t2->action_timing() &&
+             t1->event_type() == t2->event_type() &&
+             t1->action_order() < t2->action_order()));
+  }
+};
+
+///////////////////////////////////////////////////////////////////////////
 }
 
 #endif // DD__TRIGGER_IMPL_INCLUDED

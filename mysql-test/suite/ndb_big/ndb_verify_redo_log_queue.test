@@ -3,9 +3,6 @@
 # CPU, memory and disks.
 --source include/not_parallel.inc
 
-# Test does not need to run with embedded
-# since mysqld/libmysqld is not involved
---source include/not_embedded.inc
 
 let NDBAPITEST_NAME=testBasic;
 let NDBAPITEST_ARGS=--stop-on-error -n FillQueueREDOLog T6;

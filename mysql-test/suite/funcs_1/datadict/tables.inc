@@ -14,8 +14,8 @@
 DROP DATABASE IF EXISTS test1;
 DROP DATABASE IF EXISTS test2;
 --enable_warnings
-CREATE DATABASE test1;
-CREATE DATABASE test2;
+CREATE DATABASE test1 charset latin1;
+CREATE DATABASE test2 charset latin1;
 
 --replace_result $engine_type <engine_to_be_used>
 eval CREATE TABLE test1.t1  (f1 VARCHAR(20)) ENGINE = $engine_type;

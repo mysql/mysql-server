@@ -28,7 +28,7 @@ t5980	CREATE TABLE `t5980` (
   `a` int(11) NOT NULL,
   `b` text,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 #
 # Backup the cfg and ibd files.
 #
@@ -314,7 +314,7 @@ t5980	CREATE TABLE `t5980` (
   `a` int(11) NOT NULL,
   `b` text,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 ### files in MYSQLD_DATADIR/test
 ### files in MYSQL_TMP_DIR/alt_dir/test
 t5980.cfg
@@ -410,7 +410,7 @@ t5980	CREATE TABLE `t5980` (
   `a` int(11) NOT NULL,
   `b` text,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 #
 # Show that the system tables have this table in them correctly.
 #
@@ -455,26 +455,31 @@ Table	Create Table
 t5980a	CREATE TABLE `t5980a` (
   `a` int(11) DEFAULT NULL,
   `b` text
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SHOW CREATE TABLE t5980b;
 Table	Create Table
 t5980b	CREATE TABLE `t5980b` (
   `a` int(11) DEFAULT NULL,
   `b` text
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 SHOW CREATE TABLE t5980c;
 Table	Create Table
 t5980c	CREATE TABLE `t5980c` (
   `a` int(11) DEFAULT NULL,
   `b` text
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SHOW CREATE TABLE t5980d;
 Table	Create Table
 t5980d	CREATE TABLE `t5980d` (
   `a` int(11) DEFAULT NULL,
   `b` text
+<<<<<<< HEAD
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 === information_schema.innodb_tables  and innodb_tablespaces ===
+=======
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+>>>>>>> mysql-trunk
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t5980a	innodb_file_per_table.##	0	5	Dynamic	0	Single
 test/t5980b	innodb_file_per_table.##	0	5	Dynamic	0	Single
@@ -521,13 +526,13 @@ Table	Create Table
 t5980a	CREATE TABLE `t5980a` (
   `a` int(11) DEFAULT NULL,
   `b` text
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SHOW CREATE TABLE t5980b;
 Table	Create Table
 t5980b	CREATE TABLE `t5980b` (
   `a` int(11) DEFAULT NULL,
   `b` text
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 SHOW CREATE TABLE t5980c;
 ERROR HY000: Tablespace is missing for table `test`.`t5980c`.
 SHOW CREATE TABLE t5980d;
@@ -589,13 +594,13 @@ Table	Create Table
 t5980aa	CREATE TABLE `t5980aa` (
   `a` int(11) DEFAULT NULL,
   `b` text
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SHOW CREATE TABLE t5980bb;
 Table	Create Table
 t5980bb	CREATE TABLE `t5980bb` (
   `a` int(11) DEFAULT NULL,
   `b` text
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 SHOW CREATE TABLE t5980c;
 ERROR HY000: Tablespace is missing for table `test`.`t5980c`.
 SHOW CREATE TABLE t5980d;
@@ -649,15 +654,20 @@ t5980aa	CREATE TABLE `t5980aa` (
   `a` int(11) NOT NULL,
   `b` text,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SHOW CREATE TABLE t5980bb;
 Table	Create Table
 t5980bb	CREATE TABLE `t5980bb` (
   `a` int(11) NOT NULL,
   `b` text,
   PRIMARY KEY (`a`)
+<<<<<<< HEAD
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 === information_schema.innodb_tables  and innodb_tablespaces ===
+=======
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+>>>>>>> mysql-trunk
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t5980aa	innodb_file_per_table.##	0	4	Dynamic	0	Single
 test/t5980bb	innodb_file_per_table.##	0	4	Dynamic	0	Single
@@ -696,7 +706,7 @@ t5980a	CREATE TABLE `t5980a` (
   `a` int(11) NOT NULL,
   `b` text,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 Warnings:
 Warning	1814	InnoDB: Tablespace has been discarded for table 't5980a'
 SHOW CREATE TABLE t5980b;
@@ -705,7 +715,7 @@ t5980b	CREATE TABLE `t5980b` (
   `a` int(11) NOT NULL,
   `b` text,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 Warnings:
 Warning	1814	InnoDB: Tablespace has been discarded for table 't5980b'
 === information_schema.innodb_tables  and innodb_tablespaces ===

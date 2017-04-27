@@ -25,8 +25,8 @@
 #include <sys/types.h>
 
 #include "binary_log_types.h"
+#include "lex_string.h"
 #include "my_dbug.h"
-#include "my_global.h"                          /* ulong */
 #include "my_inttypes.h"
 #include "my_time.h"
 #include "mysql_time.h"                         /* timestamp_type */
@@ -66,7 +66,7 @@ ulong convert_period_to_month(ulong period);
 ulong convert_month_to_period(ulong month);
 void mix_date_and_time(MYSQL_TIME *ldate, const MYSQL_TIME *ltime);
 void get_date_from_daynr(long daynr,uint *year, uint *month, uint *day);
-my_time_t TIME_to_timestamp(THD *thd, const MYSQL_TIME *t, my_bool *not_exist);
+my_time_t TIME_to_timestamp(THD *thd, const MYSQL_TIME *t, bool *not_exist);
 bool datetime_with_no_zero_in_date_to_timeval(THD *thd, const MYSQL_TIME *t,
                                               struct timeval *tm,
                                               int *warnings);
@@ -100,7 +100,7 @@ inline void date_to_datetime(MYSQL_TIME *ltime)
 {
   ltime->time_type= MYSQL_TIMESTAMP_DATETIME;
 }
-void make_truncated_value_warning(THD *thd,
+bool make_truncated_value_warning(THD *thd,
                                   Sql_condition::enum_severity_level level,
                                   ErrConvString val,
                                   timestamp_type time_type,
@@ -194,8 +194,7 @@ ulonglong TIME_to_ulonglong_time_round(const MYSQL_TIME *ltime);
 
 bool time_add_nanoseconds_with_truncate(MYSQL_TIME *ltime, uint nanoseconds,
                                         int *warnings);
-bool datetime_add_nanoseconds_with_truncate(MYSQL_TIME *ltime, uint nanoseconds,
-                                        int *warnings);
+bool datetime_add_nanoseconds_with_truncate(MYSQL_TIME *ltime, uint nanoseconds);
 bool time_add_nanoseconds_adjust_frac(MYSQL_TIME *ltime, uint nanoseconds,
                                       int *warnings, bool truncate);
 bool datetime_add_nanoseconds_adjust_frac(MYSQL_TIME *ltime, uint nanoseconds,

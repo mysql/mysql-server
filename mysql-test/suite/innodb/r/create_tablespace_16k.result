@@ -389,6 +389,10 @@ s_2k	TABLESPACE	InnoDB	NORMAL	s_2k	s_2k.ibd
 s_4k	TABLESPACE	InnoDB	NORMAL	s_4k	s_4k.ibd
 s_8k	TABLESPACE	InnoDB	NORMAL	s_8k	s_8k.ibd
 s_16k	TABLESPACE	InnoDB	NORMAL	s_16k	s_16k.ibd
+<<<<<<< HEAD
+=======
+s_missing	TABLESPACE	InnoDB	NORMAL	s_missing	MYSQLD_DATADIR/delete_me.ibd
+>>>>>>> mysql-trunk
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_com_in_16k	s_16k	0	5	Compact	0	General
@@ -580,6 +584,7 @@ s_2k	TABLESPACE	InnoDB	NORMAL	s_2k	s_2k.ibd
 s_4k	TABLESPACE	InnoDB	NORMAL	s_4k	s_4k.ibd
 s_8k	TABLESPACE	InnoDB	NORMAL	s_8k	s_8k.ibd
 s_16k	TABLESPACE	InnoDB	NORMAL	s_16k	s_16k.ibd
+<<<<<<< HEAD
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t_zip4k_as_file_per_table.ibd
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t_zip8k_as_file_per_table.ibd
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t_zip16k_as_file_per_table.ibd
@@ -588,6 +593,18 @@ innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/test/t_zip4k_as_remote.ibd
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/test/t_zip8k_as_remote.ibd
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/test/t_zip16k_as_remote.ibd
+=======
+test/t_zip1k_as_file_per_table	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t_zip1k_as_file_per_table.ibd
+test/t_zip2k_as_file_per_table	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t_zip2k_as_file_per_table.ibd
+test/t_zip4k_as_file_per_table	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t_zip4k_as_file_per_table.ibd
+test/t_zip8k_as_file_per_table	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t_zip8k_as_file_per_table.ibd
+test/t_zip16k_as_file_per_table	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t_zip16k_as_file_per_table.ibd
+test/t_zip1k_as_remote	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/test/t_zip1k_as_remote.ibd
+test/t_zip2k_as_remote	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/test/t_zip2k_as_remote.ibd
+test/t_zip4k_as_remote	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/test/t_zip4k_as_remote.ibd
+test/t_zip8k_as_remote	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/test/t_zip8k_as_remote.ibd
+test/t_zip16k_as_remote	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/test/t_zip16k_as_remote.ibd
+>>>>>>> mysql-trunk
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_zip16k_as_file_per_table	innodb_file_per_table.##	0	5	Compressed	0	Single
@@ -897,6 +914,10 @@ s_2k	TABLESPACE	InnoDB	NORMAL	s_2k	s_2k.ibd
 s_4k	TABLESPACE	InnoDB	NORMAL	s_4k	s_4k.ibd
 s_8k	TABLESPACE	InnoDB	NORMAL	s_8k	s_8k.ibd
 s_16k	TABLESPACE	InnoDB	NORMAL	s_16k	s_16k.ibd
+<<<<<<< HEAD
+=======
+test/t_zip16k_as_file_per_table	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t_zip16k_as_file_per_table.ibd
+>>>>>>> mysql-trunk
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_zip16k_as_file_per_table	innodb_file_per_table.##	0	5	Compressed	0	Single
@@ -1065,8 +1086,16 @@ s_2k	TABLESPACE	InnoDB	NORMAL	s_2k	s_2k.ibd
 s_4k	TABLESPACE	InnoDB	NORMAL	s_4k	s_4k.ibd
 s_8k	TABLESPACE	InnoDB	NORMAL	s_8k	s_8k.ibd
 s_16k	TABLESPACE	InnoDB	NORMAL	s_16k	s_16k.ibd
+<<<<<<< HEAD
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t_zip4k_to_file_per_table.ibd
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t_zip8k_to_file_per_table.ibd
+=======
+test/t_zip16k_as_file_per_table	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t_zip16k_as_file_per_table.ibd
+test/t_zip1k_to_file_per_table	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t_zip1k_to_file_per_table.ibd
+test/t_zip2k_to_file_per_table	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t_zip2k_to_file_per_table.ibd
+test/t_zip4k_to_file_per_table	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t_zip4k_to_file_per_table.ibd
+test/t_zip8k_to_file_per_table	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t_zip8k_to_file_per_table.ibd
+>>>>>>> mysql-trunk
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_zip16k_as_file_per_table	innodb_file_per_table.##	0	5	Compressed	0	Single
@@ -1130,8 +1159,15 @@ s_2k	TABLESPACE	InnoDB	NORMAL	s_2k	s_2k.ibd
 s_4k	TABLESPACE	InnoDB	NORMAL	s_4k	s_4k.ibd
 s_8k	TABLESPACE	InnoDB	NORMAL	s_8k	s_8k.ibd
 s_16k	TABLESPACE	InnoDB	NORMAL	s_16k	s_16k.ibd
+<<<<<<< HEAD
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t_zip4k_to_file_per_table.ibd
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t_zip8k_to_file_per_table.ibd
+=======
+test/t_zip1k_to_file_per_table	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t_zip1k_to_file_per_table.ibd
+test/t_zip2k_to_file_per_table	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t_zip2k_to_file_per_table.ibd
+test/t_zip4k_to_file_per_table	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t_zip4k_to_file_per_table.ibd
+test/t_zip8k_to_file_per_table	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t_zip8k_to_file_per_table.ibd
+>>>>>>> mysql-trunk
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_zip1k_to_file_per_table	innodb_file_per_table.##	0	5	Compressed	0	Single

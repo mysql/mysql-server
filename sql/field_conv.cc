@@ -36,7 +36,6 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_decimal.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_sys.h"
@@ -255,6 +254,12 @@ set_field_to_null_with_conversions(Field *field, bool no_conversions)
 
   switch (field->table->in_use->check_for_truncated_fields) {
   case CHECK_FIELD_WARN:
+    // There's no valid conversion for geometry values.
+    if (field->type() == MYSQL_TYPE_GEOMETRY)
+    {
+      my_error(ER_BAD_NULL_ERROR, MYF(0), field->field_name);
+      return TYPE_ERR_NULL_CONSTRAINT_VIOLATION;
+    }
     field->set_warning(Sql_condition::SL_WARNING, ER_BAD_NULL_ERROR, 1);
     /* fall through */
   case CHECK_FIELD_IGNORE:

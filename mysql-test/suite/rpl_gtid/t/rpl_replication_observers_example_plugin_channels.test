@@ -2,7 +2,6 @@
 # Using the example plugin, we execute several of the interface methods,
 # verifying the result.
 
---source include/not_embedded.inc
 --source include/have_debug.inc
 --source include/have_binlog_format_mixed.inc
 --source include/have_replication_observers_example_plugin.inc

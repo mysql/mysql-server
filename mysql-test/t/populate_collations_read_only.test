@@ -2,9 +2,6 @@
 --echo # re-populating character sets and collations. Also verify the
 --echo # same for --innodb-read-only.
 
-# Cannot run with embedded server since it requires server restarts.
---source include/not_embedded.inc
-
 --echo # 1. Server restart with --read-only:
 
 --echo # 1.1 Request shutdown and wait for disconnect.
@@ -40,6 +37,14 @@
 --echo # 2.3 Search for, and suppress, the expected warning in the log file.
 --let SEARCH_FILE= $MYSQLTEST_VARDIR/log/mysqld.1.err
 --let SEARCH_PATTERN= Skip re-populating collations and character sets tables in InnoDB read-only mode.
+--source include/search_pattern_in_file.inc
+--eval CALL mtr.add_suppression("$SEARCH_PATTERN")
+--let SEARCH_FILE= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let SEARCH_PATTERN= Skip updating I_S metadata in read-only mode.
+--source include/search_pattern_in_file.inc
+--eval CALL mtr.add_suppression("$SEARCH_PATTERN")
+--let SEARCH_FILE= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let SEARCH_PATTERN= Skip updating I_S metadata in InnoDB read-only mode.
 --source include/search_pattern_in_file.inc
 --eval CALL mtr.add_suppression("$SEARCH_PATTERN")
 

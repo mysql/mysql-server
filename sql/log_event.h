@@ -37,11 +37,11 @@
 
 #include "binlog_event.h"
 #include "control_events.h"
+#include "lex_string.h"
 #include "load_data_events.h"
 #include "m_string.h"                // native_strncasecmp
 #include "my_bitmap.h"               // MY_BITMAP
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_psi_config.h"
@@ -475,6 +475,7 @@ typedef struct st_print_event_info
    */
   bool skipped_event_in_transaction;
 
+  bool print_table_metadata;
 } PRINT_EVENT_INFO;
 #endif
 
@@ -610,7 +611,7 @@ protected:
   */
   bool write_header(IO_CACHE* file, size_t data_length);
   bool write_footer(IO_CACHE* file);
-  my_bool need_checksum();
+  bool need_checksum();
 
 
 public:
@@ -619,6 +620,14 @@ public:
      event's type, and its content is distributed in the event-specific fields.
   */
   char *temp_buf;
+
+  /*
+    This variable determines whether the event is responsible for deallocating
+    the memory pointed by temp_buf. When set to true temp_buf is deallocated
+    and when it is set to false just make temp_buf point to NULL.
+  */
+  bool m_free_temp_buf_in_destructor;
+
   /* The number of seconds the query took to run on the master. */
   ulong exec_time;
 
@@ -710,7 +719,7 @@ public:
                                    mysql_mutex_t* log_lock,
                                    const Format_description_log_event
                                    *description_event,
-                                   my_bool crc_check);
+                                   bool crc_check);
 
   /*
    This function will read the common header into the buffer.
@@ -824,7 +833,7 @@ public:
     /* avoid having to link mysqlbinlog against libpthread */
   static Log_event* read_log_event(IO_CACHE* file,
                                    const Format_description_log_event
-                                   *description_event, my_bool crc_check,
+                                   *description_event, bool crc_check,
                                    read_log_event_filter_function f);
   /* print*() functions are used by mysqlbinlog */
   virtual void print(FILE* file, PRINT_EVENT_INFO* print_event_info) = 0;
@@ -929,12 +938,17 @@ public:
             Log_event_footer *footer);
 
   virtual ~Log_event() { free_temp_buf(); }
-  void register_temp_buf(char* buf) { temp_buf = buf; }
+  void register_temp_buf(char* buf, bool free_in_destructor= true)
+  {
+    m_free_temp_buf_in_destructor= free_in_destructor;
+    temp_buf = buf;
+  }
   void free_temp_buf()
   {
     if (temp_buf)
     {
-      my_free(temp_buf);
+      if (m_free_temp_buf_in_destructor)
+        my_free(temp_buf);
       temp_buf = 0;
     }
   }
@@ -946,7 +960,7 @@ public:
   static Log_event* read_log_event(const char* buf, uint event_len,
 				   const char **error,
                                    const Format_description_log_event
-                                   *description_event, my_bool crc_check);
+                                   *description_event, bool crc_check);
   /**
     Returns the human readable name of the given event type.
   */
@@ -1120,11 +1134,13 @@ public:
      @param[out] arg pointer to a struct containing char* array
                      pointers to be filled in and the number
                      of filled instances.
+     @param rpl_filter pointer to a replication filter.
 
      @return     number of the filled intances indicating how many
                  databases the event accesses.
   */
-  virtual uint8 get_mts_dbs(Mts_db_names *arg)
+  virtual uint8 get_mts_dbs(Mts_db_names *arg,
+                            Rpl_filter *rpl_filter MY_ATTRIBUTE((unused)))
   {
     arg->name[0]= get_db();
 
@@ -1363,6 +1379,26 @@ public:
   */
   my_thread_id slave_proxy_id;
 
+  /**
+   True if this is a ROLLBACK event injected by the mts coordinator to finish a
+   group corresponding to a partial transaction in the relay log.
+   False otherwise and by default, as it must be explicitly set to true by the
+   coordinator.
+  */
+  bool rollback_injected_by_coord= false;
+
+  /**
+    The flag indicates whether the DDL query has been (already)
+    committed or not.  It's initialized as OFF at the event instantiation,
+    flips ON when the DDL transaction has been committed with
+    all its possible extra statement due to replication or GTID.
+
+    The flag status is also checked in few places to catch uncommitted
+    transactions which can normally happen due to filtering out. In
+    such a case the commit is deferred to @c Log_event::do_update_pos().
+  */
+  bool has_ddl_committed;
+
 #ifdef MYSQL_SERVER
 
   Query_log_event(THD* thd_arg, const char* query_arg, size_t query_length,
@@ -1377,10 +1413,11 @@ public:
                      In case the number exceeds MAX_DBS_IN_EVENT_MTS,
                      the overfill is indicated with assigning the number to
                      OVER_MAX_DBS_IN_EVENT_MTS.
+     @param rpl_filter pointer to a replication filter.
 
      @return     number of databases in the array or OVER_MAX_DBS_IN_EVENT_MTS.
   */
-  virtual uint8 get_mts_dbs(Mts_db_names* arg)
+  virtual uint8 get_mts_dbs(Mts_db_names* arg, Rpl_filter *rpl_filter)
   {
     if (mts_accessed_dbs == OVER_MAX_DBS_IN_EVENT_MTS)
     {
@@ -1397,7 +1434,8 @@ public:
         if (!rpl_filter->is_rewrite_empty() && !strcmp(get_db(), db_name))
         {
           size_t dummy_len;
-          const char *db_filtered= rpl_filter->get_rewrite_db(db_name, &dummy_len);
+          const char *db_filtered=
+            rpl_filter->get_rewrite_db(db_name, &dummy_len);
           // db_name != db_filtered means that db_name is rewritten.
           if (strcmp(db_name, db_filtered))
             db_name= (char*)db_filtered;
@@ -2491,19 +2529,21 @@ public:
   /**
      @param[out] arg pointer to a struct containing char* array
                      pointers be filled in and the number of filled instances.
+     @param rpl_filter pointer to a replication filter.
 
      @return    number of databases in the array: either one or
                 OVER_MAX_DBS_IN_EVENT_MTS, when the Table map event reports
                 foreign keys constraint.
   */
-  virtual uint8 get_mts_dbs(Mts_db_names *arg)
+  virtual uint8 get_mts_dbs(Mts_db_names *arg, Rpl_filter *rpl_filter)
   {
     const char *db_name= get_db();
 
     if (!rpl_filter->is_rewrite_empty() && !get_flags(TM_REFERRED_FK_DB_F))
     {
       size_t dummy_len;
-      const char *db_filtered= rpl_filter->get_rewrite_db(db_name, &dummy_len);
+      const char *db_filtered=
+        rpl_filter->get_rewrite_db(db_name, &dummy_len);
       // db_name != db_filtered means that db_name is rewritten.
       if (strcmp(db_name, db_filtered))
         db_name= db_filtered;
@@ -2523,6 +2563,29 @@ public:
 
 #ifndef MYSQL_SERVER
   virtual void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
+
+  /**
+    Print column metadata. Its format looks like:
+    # Columns(colume_name type, colume_name type, ...)
+    if colume_name field is not logged into table_map_log_event, then
+    only type is printed.
+
+    @@param[out] file the place where colume metadata is printed
+    @@param[in]  The metadata extracted from optional metadata fields
+ */
+  void print_columns(IO_CACHE *file,
+                     const Optional_metadata_fields &fields);
+  /**
+    Print primary information. Its format looks like:
+    # Primary Key(colume_name, column_name(prifix), ...)
+    if colume_name field is not logged into table_map_log_event, then
+    colume index is printed.
+
+    @@param[out] file the place where primary key is printed
+    @@param[in]  The metadata extracted from optional metadata fields
+ */
+  void print_primary_key(IO_CACHE *file,
+                         const Optional_metadata_fields &fields);
 #endif
 
 
@@ -2535,6 +2598,22 @@ private:
 
 #ifdef MYSQL_SERVER
   TABLE         *m_table;
+
+  // Metadata fields buffer
+  StringBuffer<1024> m_metadata_buf;
+
+  /**
+    Initialize the optional metadata fields should be logged into
+    table_map_log_event and write them into m_metadata_buf.
+  */
+  void init_metadata_fields();
+  bool init_signedness_field();
+  bool init_charset_field();
+  bool init_column_name_field();
+  bool init_set_str_value_field();
+  bool init_enum_str_value_field();
+  bool init_geometry_type_field();
+  bool init_primary_key_field();
 #endif
 };
 
@@ -3728,8 +3807,8 @@ public:
   */
   Gtid_log_event(THD *thd_arg, bool using_trans,
                  int64 last_committed_arg, int64 sequence_number_arg,
-                 uint64 original_commit_timestamp_arg,
-                 uint64 immediate_commit_timestamp_arg);
+                 ulonglong original_commit_timestamp_arg,
+                 ulonglong immediate_commit_timestamp_arg);
 
   /**
     Create a new event using the GTID from the given Gtid_specification
@@ -3737,8 +3816,8 @@ public:
   */
   Gtid_log_event(uint32 server_id_arg, bool using_trans,
                  int64 last_committed_arg, int64 sequence_number_arg,
-                 uint64 original_commit_timestamp_arg,
-                 uint64 immediate_commit_timestamp_arg,
+                 ulonglong original_commit_timestamp_arg,
+                 ulonglong immediate_commit_timestamp_arg,
                  const Gtid_specification spec_arg);
 #endif
 
@@ -4254,6 +4333,42 @@ inline bool is_gtid_event(Log_event* evt)
   return (evt->get_type_code() == binary_log::GTID_LOG_EVENT ||
           evt->get_type_code() == binary_log::ANONYMOUS_GTID_LOG_EVENT);
 }
+
+/**
+  The function checks the argument event properties to deduce whether
+  it represents an atomic DDL.
+
+  @param  evt    a reference to Log_event
+  @return true   when the DDL properties are found,
+          false  otherwise
+*/
+inline bool is_atomic_ddl_event(Log_event *evt)
+{
+  return
+    evt != NULL && evt->get_type_code() == binary_log::QUERY_EVENT &&
+    static_cast<Query_log_event*>(evt)->ddl_xid != binary_log::INVALID_XID;
+}
+
+/**
+  The function lists all DDL instances that are supported
+  for crash-recovery (WL9175).
+  todo: the supported feature list is supposed to grow. Once
+        a feature has been readied for 2pc through WL7743,9536(7141/7016) etc
+        it needs registering in the function.
+
+  @param  thd    an Query-log-event creator thread handle
+  @param  using_trans
+                 The caller must specify the value accoding to the following
+                 rules:
+                 @c true when
+                  - on master the current statement is not processing
+                    a table in SE which does not support atomic DDL
+                  - on slave the relay-log repository is transactional.
+                 @c false otherwise.
+  @return true   when the being created (master) or handled (slave) event
+                 is 2pc-capable, @c false otherwise.
+*/
+bool is_atomic_ddl(THD *thd, bool using_trans);
 
 #ifdef MYSQL_SERVER
 /*

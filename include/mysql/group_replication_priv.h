@@ -20,12 +20,10 @@
   @file include/mysql/group_replication_priv.h
 */
 
-#include <my_global.h>
-#include <my_thread.h>
-#include <my_sys.h>
-
 #include <debug_sync.h>
 #include <log_event.h>
+#include <my_sys.h>
+#include <my_thread.h>
 #include <replication.h>
 #include <rpl_channel_service_interface.h>
 #include <rpl_gtid.h>
@@ -50,7 +48,6 @@ int group_replication_stop();
 */
 my_thread_attr_t *get_connection_attrib();
 
-
 /**
   Returns the server hostname, port and uuid.
 
@@ -58,9 +55,12 @@ my_thread_attr_t *get_connection_attrib();
   @param[out] port
   @param[out] uuid
   @param[out] server_version
+  @param[out] server_ssl_variables
+
 */
 void get_server_parameters(char **hostname, uint *port, char **uuid,
-                           unsigned int *server_version);
+                           unsigned int *server_version,
+                           st_server_ssl_variables* server_ssl_variables);
 
 /**
   Returns the server_id.

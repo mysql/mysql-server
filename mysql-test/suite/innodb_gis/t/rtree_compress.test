@@ -1,8 +1,6 @@
 # WL#6745 InnoDB R-tree support
 # This test case will test R-tree split.
 
-# Not supported in embedded
---source include/not_embedded.inc
 
 --source include/have_innodb_max_16k.inc
 --source include/have_debug.inc

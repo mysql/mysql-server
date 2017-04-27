@@ -14,6 +14,8 @@
   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
   */
 
+#include "storage/perfschema/pfs_variable.h"
+
 #include "current_thd.h"
 #include "debug_sync.h"
 #include "derror.h"
@@ -23,13 +25,12 @@
   Performance schema system variable and status variable (implementation).
 */
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_macros.h"
 #include "my_sys.h"
 #include "mysqld.h"
+#include "persisted_variable.h"
 #include "pfs.h"
 #include "pfs_global.h"
-#include "pfs_variable.h"
 #include "pfs_visitor.h"
 #include "sql_audit.h"  // audit_global_variable_get
 #include "sql_class.h"
@@ -68,10 +69,6 @@ PFS_variable_cache<Var_type>::PFS_variable_cache(bool external_init)
 {
 }
 
-/**
-  CLASS PFS_system_variable_cache
-*/
-
 PFS_system_variable_cache::PFS_system_variable_cache(bool external_init)
   : PFS_variable_cache<System_variable>(external_init),
     m_mem_thd(NULL),
@@ -97,8 +94,7 @@ PFS_system_variable_cache::init_show_var_array(enum_var_type scope, bool strict)
   m_version = get_system_variable_hash_version();
 
   /* Build the SHOW_VAR array from the system variable hash. */
-  enumerate_sys_vars(
-    m_current_thd, &m_show_var_array, true, m_query_scope, strict);
+  enumerate_sys_vars(&m_show_var_array, true, m_query_scope, strict);
 
   mysql_rwlock_unlock(&LOCK_system_variables_hash);
 
@@ -277,7 +273,7 @@ PFS_system_variable_cache::set_mem_root(void)
       PSI_INSTRUMENT_ME, &m_mem_sysvar, SYSVAR_MEMROOT_BLOCK_SIZE, 0);
     m_mem_sysvar_ptr = &m_mem_sysvar;
   }
-  m_mem_thd = my_thread_get_THR_MALLOC(); /* pointer to current THD mem_root */
+  m_mem_thd = THR_MALLOC;                 /* pointer to current THD mem_root */
   m_mem_thd_save = *m_mem_thd;            /* restore later */
   *m_mem_thd = &m_mem_sysvar;             /* use temporary mem_root */
 }
@@ -538,6 +534,60 @@ PFS_system_variable_info_cache::do_materialize_all(THD *unsafe_thd)
 }
 
 /**
+  CLASS PFS_system_persisted_variables_cache
+*/
+
+/**
+  Build PERSISTED system variable cache.
+*/
+int
+PFS_system_persisted_variables_cache::do_materialize_all(THD *unsafe_thd)
+{
+  int ret = 1;
+  m_unsafe_thd = unsafe_thd;
+  m_safe_thd = NULL;
+  m_materialized = false;
+  m_cache.clear();
+
+  /* Block plugins from unloading. */
+  mysql_mutex_lock(&LOCK_plugin_delete);
+
+  /* Get and lock a validated THD from the thread manager. */
+  if ((m_safe_thd = get_THD(unsafe_thd)) != NULL)
+  {
+    Persisted_variables_cache *pv = Persisted_variables_cache::get_instance();
+    if (pv)
+    {
+      map<string, string> *persist_hash = pv->get_persist_hash();
+      map<string, string>::const_iterator iter;
+      for (iter = persist_hash->begin(); iter != persist_hash->end(); iter++)
+      {
+        System_variable system_var;
+        system_var.m_charset = system_charset_info;
+
+        system_var.m_name = iter->first.c_str();
+        system_var.m_name_length = iter->first.length();
+        system_var.m_value_length = iter->second.length();
+        memcpy(system_var.m_value_str,
+               iter->second.c_str(),
+               system_var.m_value_length);
+        system_var.m_value_str[system_var.m_value_length] = 0;
+
+        m_cache.push_back(system_var);
+      }
+    }
+    /* Release lock taken in get_THD(). */
+    mysql_mutex_unlock(&m_safe_thd->LOCK_thd_data);
+
+    m_materialized = true;
+    ret = 0;
+  }
+
+  mysql_mutex_unlock(&LOCK_plugin_delete);
+  return ret;
+}
+
+/**
   CLASS System_variable
 */
 
@@ -555,12 +605,17 @@ System_variable::System_variable()
     m_path_length(0),
     m_min_value_length(0),
     m_max_value_length(0),
+    m_set_time(0),
+    m_set_user_str_length(0),
+    m_set_host_str_length(0),
     m_initialized(false)
 {
   m_value_str[0] = '\0';
   m_path_str[0] = '\0';
   m_min_value_str[0] = '\0';
   m_max_value_str[0] = '\0';
+  m_set_user_str[0] = '\0';
+  m_set_host_str[0] = '\0';
 }
 
 /**
@@ -579,12 +634,17 @@ System_variable::System_variable(THD *target_thd,
     m_path_length(0),
     m_min_value_length(0),
     m_max_value_length(0),
+    m_set_time(0),
+    m_set_user_str_length(0),
+    m_set_host_str_length(0),
     m_initialized(false)
 {
   m_value_str[0] = '\0';
   m_path_str[0] = '\0';
   m_min_value_str[0] = '\0';
   m_max_value_str[0] = '\0';
+  m_set_user_str[0] = '\0';
+  m_set_host_str[0] = '\0';
   init(target_thd, show_var, query_scope);
 }
 
@@ -602,12 +662,17 @@ System_variable::System_variable(THD *target_thd, const SHOW_VAR *show_var)
     m_path_length(0),
     m_min_value_length(0),
     m_max_value_length(0),
+    m_set_time(0),
+    m_set_user_str_length(0),
+    m_set_host_str_length(0),
     m_initialized(false)
 {
   m_value_str[0] = '\0';
   m_path_str[0] = '\0';
   m_min_value_str[0] = '\0';
   m_max_value_str[0] = '\0';
+  m_set_user_str[0] = '\0';
+  m_set_host_str[0] = '\0';
   init(target_thd, show_var);
 }
 
@@ -742,6 +807,12 @@ System_variable::init(THD *target_thd, const SHOW_VAR *show_var)
               "%llu",
               system_var->get_max_value());
   m_max_value_length = strlen(m_max_value_str);
+
+  m_set_time = system_var->get_timestamp();
+  m_set_user_str_length = strlen(system_var->get_user());
+  memcpy(m_set_user_str, system_var->get_user(), m_set_user_str_length);
+  m_set_host_str_length = strlen(system_var->get_host());
+  memcpy(m_set_host_str, system_var->get_host(), m_set_host_str_length);
 
   mysql_mutex_unlock(&LOCK_global_system_variables);
   if (target_thd != current_thread)
@@ -891,7 +962,7 @@ PFS_status_variable_cache::filter_by_name(const SHOW_VAR *show_var)
 
   if (show_var->type == SHOW_ARRAY)
   {
-    /* The SHOW_ARRAY name is the prefix for the variables in the subarray. */
+    /* The SHOW_ARRAY name is the prefix for the variables in the sub array. */
     const char *prefix = show_var->name;
     /* Exclude COM counters if not a SHOW STATUS command. */
     if (!my_strcasecmp(system_charset_info, prefix, "Com") && !m_show_command)
@@ -1005,7 +1076,7 @@ PFS_status_variable_cache::filter_show_var(const SHOW_VAR *show_var,
 
 /**
   Build an array of SHOW_VARs from the global status array. Expand nested
-  subarrays, filter unwanted variables.
+  sub arrays, filter unwanted variables.
   NOTE: Must be done inside of LOCK_status to guard against plugin load/unload.
 */
 bool
@@ -1032,7 +1103,7 @@ PFS_status_variable_cache::init_show_var_array(enum_var_type scope, bool strict)
 
     if (show_var.type == SHOW_ARRAY)
     {
-      /* Expand nested subarray. The name is used as a prefix. */
+      /* Expand nested sub array. The name is used as a prefix. */
       expand_show_var_array((SHOW_VAR *)show_var.value, show_var.name, strict);
     }
     else
@@ -1056,7 +1127,7 @@ PFS_status_variable_cache::init_show_var_array(enum_var_type scope, bool strict)
 }
 
 /**
-  Expand a nested subarray of status variables, indicated by a type of
+  Expand a nested sub array of status variables, indicated by a type of
   SHOW_ARRAY.
 */
 void
@@ -1080,7 +1151,7 @@ PFS_status_variable_cache::expand_show_var_array(const SHOW_VAR *show_var_array,
       char name_buf[SHOW_VAR_MAX_NAME_LEN];
       show_var.name =
         make_show_var_name(prefix, show_var.name, name_buf, sizeof(name_buf));
-      /* Expand nested subarray. The name is used as a prefix. */
+      /* Expand nested sub array. The name is used as a prefix. */
       expand_show_var_array((SHOW_VAR *)show_var.value, show_var.name, strict);
     }
     else
@@ -1123,7 +1194,7 @@ PFS_status_variable_cache::make_show_var_name(const char *prefix,
 }
 
 /**
-  Make a copy of the name string prefixed with the subarray name if necessary.
+  Make a copy of the name string prefixed with the sub array name if necessary.
 */
 char *
 PFS_status_variable_cache::make_show_var_name(const char *prefix,
@@ -1495,7 +1566,7 @@ PFS_status_variable_cache::manifest(THD *thd,
       /*
         Status variables of type SHOW_ARRAY were expanded and filtered by
         init_show_var_array(), except where a SHOW_FUNC resolves into a
-        SHOW_ARRAY, such as with InnoDB. Recurse to expand the subarray.
+        SHOW_ARRAY, such as with InnoDB. Recurse to expand the sub array.
       */
       manifest(thd,
                (SHOW_VAR *)show_var_ptr->value,

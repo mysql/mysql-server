@@ -190,7 +190,7 @@ parse_string(const char *ptr, const char *end, MEM_ROOT *mem_root,
     TRUE    error
 */
 
-static my_bool
+static bool
 read_escaped_string(const char *ptr, const char *eol, LEX_STRING *str)
 {
   char *write_pos= str->str;
@@ -382,7 +382,7 @@ nlist_err:
 */
 
 
-my_bool
+bool
 File_parser::parse(uchar* base, MEM_ROOT *mem_root,
                    struct File_option *parameters, uint required,
                    Unknown_key_hook *hook) const
@@ -584,9 +584,10 @@ list_err:
 */
 
 bool
-File_parser_dummy_hook::process_unknown_string(const char *&unknown_key,
-                                               uchar*, MEM_ROOT*,
-                                               const char*)
+File_parser_dummy_hook::
+process_unknown_string(const char *&unknown_key MY_ATTRIBUTE((unused)),
+                       uchar*, MEM_ROOT*,
+                       const char*)
 {
   DBUG_ENTER("file_parser_dummy_hook::process_unknown_string");
   DBUG_PRINT("info", ("Unknown key: '%60s'", unknown_key));

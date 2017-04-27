@@ -23,6 +23,8 @@ Update of a row
 Created 12/27/1996 Heikki Tuuri
 *******************************************************/
 
+#include <sys/types.h>
+
 #include "dict0dict.h"
 #include "ha_prototypes.h"
 #include "my_compiler.h"
@@ -114,12 +116,6 @@ check.
 If you make a change in this module make sure that no codepath is
 introduced where a call to log_free_check() is bypassed. */
 
-/** TRUE if we don't have DDTableBuffer in the system tablespace,
-this should be due to we run the server against old data files.
-Please do NOT change this when server is running.
-FIXME: This should be removed away once we can upgrade for new DD. */
-extern bool	srv_missing_dd_table_buffer;
-
 /***********************************************************//**
 Checks if an update vector changes some of the first ordering fields of an
 index record. This is only used in foreign key checks and we can assume
@@ -198,8 +194,8 @@ row_upd_check_references_constraints(
 
 	DBUG_ENTER("row_upd_check_references_constraints");
 
-	if (strstr(table->name.m_name, "mysql") != NULL
-	    && strstr(table->name.m_name, "tablespace") != NULL) {
+	/* TODO: NEWDD: WL#6049 Ignore FK on DD system tables for now */
+	if (table->is_dd_table) {
 		DBUG_RETURN(DB_SUCCESS);
 	}
 
@@ -1637,10 +1633,8 @@ row_upd_changes_ord_field_binary_func(
 				dlen = dfield->len;
 			}
 
-			rtree_mbr_from_wkb(dptr + GEO_DATA_HEADER_SIZE,
-					   static_cast<uint>(dlen
-					   - GEO_DATA_HEADER_SIZE),
-					   SPDIMS, mbr1);
+			get_mbr_from_store(
+				dptr, static_cast<uint>(dlen), SPDIMS, mbr1);
 			old_mbr = reinterpret_cast<rtr_mbr_t*>(mbr1);
 
 			/* Get the new mbr. */
@@ -1678,17 +1672,16 @@ row_upd_changes_ord_field_binary_func(
 				dptr = static_cast<uchar*>(upd_field->new_val.data);
 				dlen = upd_field->new_val.len;
 			}
-			rtree_mbr_from_wkb(dptr + GEO_DATA_HEADER_SIZE,
-					   static_cast<uint>(dlen
-					   - GEO_DATA_HEADER_SIZE),
-					   SPDIMS, mbr2);
+			get_mbr_from_store(
+				dptr, static_cast<uint>(dlen), SPDIMS, mbr2);
+
 			new_mbr = reinterpret_cast<rtr_mbr_t*>(mbr2);
 
 			if (temp_heap) {
 				mem_heap_free(temp_heap);
 			}
 
-			if (!MBR_EQUAL_CMP(old_mbr, new_mbr)) {
+			if (!mbr_equal_cmp(old_mbr, new_mbr, 0)) {
 				return(TRUE);
 			} else {
 				continue;
@@ -2162,7 +2155,6 @@ row_upd_sec_index_entry(
 			    "before_row_upd_sec_index_entry");
 
 	mtr_start(&mtr);
-	mtr.set_named_space(index->space);
 
 	/* Disable REDO logging as lifetime of temp-tables is limited to
 	server or connection lifetime and so REDO information is not needed
@@ -2641,10 +2633,6 @@ row_upd_check_autoinc_counter(
 {
 	dict_table_t*		table = node->table;
 
-	if (srv_missing_dd_table_buffer) {
-		return;
-	}
-
 	if (!dict_table_has_autoinc_col(table)
 	    || table->is_temporary()
 	    || node->row == NULL) {
@@ -2768,7 +2756,6 @@ row_upd_clust_rec(
 	down the index tree */
 
 	autoinc_mtr.start();
-	autoinc_mtr.get_mtr()->set_named_space(index->space);
 
 	/* Disable REDO logging as lifetime of temp-tables is limited to
 	server or connection lifetime and so REDO information is not needed
@@ -2934,7 +2921,6 @@ row_upd_clust_step(
 	/* We have to restore the cursor to its position */
 
 	mtr_start(&mtr);
-	mtr.set_named_space(index->space);
 
 	/* Disable REDO logging as lifetime of temp-tables is limited to
 	server or connection lifetime and so REDO information is not needed

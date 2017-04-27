@@ -119449,4 +119449,4 @@ DFBE	1
 DFBF	1
 DROP TABLE IF EXISTS test.t1;
 DROP database test;
-CREATE database test CHARACTER SET latin1;
+CREATE database test CHARACTER SET utf8mb4;

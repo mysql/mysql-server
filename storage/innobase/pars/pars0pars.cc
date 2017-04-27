@@ -792,9 +792,14 @@ pars_retrieve_table_def(
 			THD*		thd = current_thd;
 
 			sym_node->mdl = nullptr;
-			sym_node->table = dd_table_open_on_name(
-				thd, &sym_node->mdl,  sym_node->name,
-				true, DICT_ERR_IGNORE_NONE);
+			sym_node->table = dd_table_open_on_name_in_mem(
+				sym_node->name, true);
+
+			if (sym_node->table == nullptr) {
+				sym_node->table = dd_table_open_on_name(
+					thd, &sym_node->mdl, sym_node->name,
+					true, DICT_ERR_IGNORE_NONE);
+			}
 		}
 
 		ut_a(sym_node->table != NULL);

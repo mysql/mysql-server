@@ -18,9 +18,6 @@ if (!$require_case_insensitive_file_system)
 # Test need MyISAM to execute repair
 --source include/have_myisam.inc
 
-# Uses GRANT commands that usually disabled in embedded server
--- source include/not_embedded.inc
-
 #
 # Test of some show commands
 #
@@ -1517,7 +1514,19 @@ SHOW TABLES FROM UNKNOWN;
 DROP DATABASE unknown;
 
 --echo #
---echo # WL#6599 -  New Data Dictionary and I_S integration
+--echo # WL#9570 -  Extend SHOW statements to list hidden columns and index
+--echo #            information.
+--echo #
+--echo #            Test case to verify hidden columns, index and index elements
+--echo #            display in INFORMATION_SCHEMA queries and SHOW statements.
+--echo #            EXPECTATION: INFORMATION_SCHEMA.COLUMNS/STATISTICS*/KEY_COLUMN_USAGE
+--echo #                         SHOW [FULL] COLUMNS and SHOW INDEX should not display
+--echo #                         hidden columns, indexes and index elements.
+--echo #                         SHOW EXTENED [FULL] COLUMNS and SHOW EXTENDED INDEX
+--echo #                         should display hidden columns, index and index elements
+--echo #                         too.
+--echo #
+>>>>>>> mysql-trunk
 --echo #
 CREATE TABLE t1 (c1 int(11) NOT NULL,
                  c2 int(11) DEFAULT NULL,
@@ -1533,9 +1542,6 @@ SHOW FULL COLUMNS FROM t1;
 SELECT table_name, column_name, column_type FROM
        INFORMATION_SCHEMA.COLUMNS WHERE table_name='t1';
 --echo # EXTENDED keyword is introduced to list the hidden columns.
---echo # Note: Currently no hidden columns are created for the table t1.
---echo #       WL#7743 introduces few hidden columns. Please verify hidden
---echo #       columns in following statements output and record result.
 --replace_column 3 # 4 # 5 # 6 #
 SHOW EXTENDED COLUMNS FROM t1;
 --replace_column 3 # 4 # 5 # 6 # 7 # 8 # 9 #
@@ -1552,10 +1558,6 @@ SELECT constraint_schema, constraint_name, table_name, column_name FROM
 
 --echo # EXTENDED keyword is introduced to list the hidden index and index
 --echo # columns.
---echo # Note: Currently no hidden index or index columns are created for the
---echo #       table t1.
---echo #       WL#7743 introduces hidden index columns. Please verify result
---echo #       of following statement output and record result.
 SHOW EXTENDED INDEX FROM t1;
 DROP TABLE t1;
 

@@ -72,7 +72,7 @@
 
   This section shows the guidelines that MySQL developers
   follow when writing new code. In general, MySQL development
-  uses the Google coding style:
+  uses the Google coding style (See https://google.github.io/styleguide/cppguide.html):
 
   - For new projects/components, use Google coding style wherever
     possible.
@@ -334,6 +334,13 @@
 
 
 /**
+  @page PAGE_TESTING_TOOLS Testing Tools
+
+  - @subpage PAGE_MYSQL_TEST_RUN
+*/
+
+
+/**
   @page PAGE_SQL_Optimizer SQL Optimizer
 
   The task of query optimizer is to determine the most efficient means for
@@ -353,7 +360,9 @@
   - @ref AGGREGATE_CHECKS
 */
 
-#include "mysqld.h"
+#include "sql/mysqld.h"
+
+#include "my_config.h"
 
 #include "../storage/myisam/ha_myisam.h"    // HA_RECOVER_OFF
 #include "auth_common.h"                // grant_init
@@ -391,7 +400,6 @@
 #include "my_base.h"
 #include "my_bitmap.h"                  // MY_BITMAP
 #include "my_command.h"
-#include "my_config.h"
 #include "my_dbug.h"
 #include "my_decimal.h"
 #include "my_default.h"                 // print_defaults
@@ -441,7 +449,6 @@
 #include "psi_memory_key.h"             // key_memory_MYSQL_RELAY_LOG_index
 #include "query_options.h"
 #include "replication.h"                // thd_enter_cond
-#include "rpl_filter.h"                 // Rpl_filter
 #include "rpl_gtid.h"
 #include "rpl_gtid_persist.h"           // Gtid_table_persistor
 #include "rpl_handler.h"                // RUN_HOOK
@@ -480,7 +487,7 @@
 #include "sql_servers.h"
 #include "sql_show.h"
 #include "sql_string.h"
-#include "sql_table.h"                  // execute_ddl_log_recovery
+#include "sql_table.h"                  // build_table_filename
 #include "sql_test.h"                   // mysql_print_status
 #include "sql_time.h"                   // Date_time_format
 #include "sql_udf.h"
@@ -508,6 +515,7 @@
 #ifdef MY_MSCRT_DEBUG
 #include <crtdbg.h>
 #endif
+#include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <fenv.h>
@@ -555,10 +563,13 @@
 #include <vector>
 
 #include "../components/mysql_server/server_component.h"
+#include <mysql/components/my_service.h>
 #include "dd/dd.h"                      // dd::shutdown
 #include "dd/dd_kill_immunizer.h"       // dd::DD_kill_immunizer
 #include "dd/dictionary.h"              // dd::get_dictionary
+#include "dd/upgrade/upgrade.h"         // dd::upgrade::in_progress
 #include "srv_session.h"
+#include "dynamic_privileges_impl.h" 
 
 using std::min;
 using std::max;
@@ -634,11 +645,11 @@ const char *first_keyword= "first", *binary_keyword= "BINARY";
 const char *my_localhost= "localhost";
 
 bool opt_large_files= sizeof(my_off_t) > 4;
-static my_bool opt_autocommit; ///< for --autocommit command-line option
+static bool opt_autocommit; ///< for --autocommit command-line option
 /*
   Used with --help for detailed option
 */
-my_bool opt_help= 0, opt_verbose= 0;
+bool opt_help= false, opt_verbose= false;
 
 arg_cmp_func Arg_comparator::comparator_matrix[5][2] =
 {{&Arg_comparator::compare_string,     &Arg_comparator::compare_e_string},
@@ -723,10 +734,10 @@ static bool lower_case_table_names_used= 0;
 #if !defined(_WIN32)
 static bool socket_listener_active= false;
 static int pipe_write_fd= -1;
-static my_bool opt_daemonize= 0;
+static bool opt_daemonize= 0;
 #endif
-static my_bool opt_debugging= 0, opt_external_locking= 0, opt_console= 0;
-static my_bool opt_short_log_format= 0;
+static bool opt_debugging= 0, opt_external_locking= 0, opt_console= 0;
+static bool opt_short_log_format= 0;
 static char *mysqld_user, *mysqld_chroot;
 static char *default_character_set_name;
 static char *character_set_filesystem_name;
@@ -751,15 +762,15 @@ LEX_STRING opt_init_connect, opt_init_slave;
 bool opt_bin_log, opt_ignore_builtin_innodb= 0;
 bool opt_general_log, opt_slow_log, opt_general_log_raw;
 ulonglong log_output_options;
-my_bool opt_log_queries_not_using_indexes= 0;
+bool opt_log_queries_not_using_indexes= 0;
 ulong opt_log_throttle_queries_not_using_indexes= 0;
 bool opt_disable_networking=0, opt_skip_show_db=0;
 bool opt_skip_name_resolve=0;
-my_bool opt_character_set_client_handshake= 1;
+bool opt_character_set_client_handshake= 1;
 bool server_id_supplied = false;
 static bool opt_endinfo;
 bool using_udf_functions;
-my_bool locked_in_memory;
+bool locked_in_memory;
 bool opt_using_transactions;
 ulong opt_tc_log_size;
 int32 volatile connection_events_loop_aborted_flag;
@@ -785,22 +796,22 @@ ulong log_error_verbosity= 3; // have a non-zero value during early start-up
 ulong slow_start_timeout;
 #endif
 
-my_bool opt_initialize= 0;
-my_bool opt_skip_slave_start = 0; ///< If set, slave is not autostarted
-my_bool opt_reckless_slave = 0;
-my_bool opt_enable_named_pipe= 0;
-my_bool opt_local_infile, opt_slave_compressed_protocol;
-my_bool opt_safe_user_create = 0;
-my_bool opt_show_slave_auth_info;
-my_bool opt_log_slave_updates= 0;
+bool opt_initialize= 0;
+bool opt_skip_slave_start = 0; ///< If set, slave is not autostarted
+bool opt_reckless_slave = 0;
+bool opt_enable_named_pipe= 0;
+bool opt_local_infile, opt_slave_compressed_protocol;
+bool opt_safe_user_create = 0;
+bool opt_show_slave_auth_info;
+bool opt_log_slave_updates= 0;
 char *opt_slave_skip_errors;
-my_bool opt_slave_allow_batching= 0;
+bool opt_slave_allow_batching= 0;
 
 /**
   compatibility option:
     - index usage hints (USE INDEX without a FOR clause) behave as in 5.0
 */
-my_bool old_mode;
+bool old_mode;
 
 /*
   Legacy global handlerton. These will be removed (please do not add more).
@@ -812,22 +823,22 @@ handlerton *innodb_hton;
 char *opt_disabled_storage_engines;
 uint opt_server_id_bits= 0;
 ulong opt_server_id_mask= 0;
-my_bool read_only= 0, opt_readonly= 0;
-my_bool super_read_only= 0, opt_super_readonly= 0;
-my_bool opt_require_secure_transport= 0;
-my_bool relay_log_purge;
-my_bool relay_log_recovery;
-my_bool opt_allow_suspicious_udfs;
-my_bool opt_secure_auth= 0;
+bool read_only= 0, opt_readonly= 0;
+bool super_read_only= 0, opt_super_readonly= 0;
+bool opt_require_secure_transport= 0;
+bool relay_log_purge;
+bool relay_log_recovery;
+bool opt_allow_suspicious_udfs;
+bool opt_secure_auth= 0;
 char* opt_secure_file_priv;
-my_bool opt_log_slow_admin_statements= 0;
-my_bool opt_log_slow_slave_statements= 0;
-my_bool lower_case_file_system= 0;
-my_bool opt_large_pages= 0;
-my_bool opt_super_large_pages= 0;
-my_bool opt_myisam_use_mmap= 0;
-my_bool offline_mode= 0;
-my_bool opt_log_builtin_as_identified_by_password= 0;
+bool opt_log_slow_admin_statements= 0;
+bool opt_log_slow_slave_statements= 0;
+bool lower_case_file_system= 0;
+bool opt_large_pages= 0;
+bool opt_super_large_pages= 0;
+bool opt_myisam_use_mmap= 0;
+bool offline_mode= 0;
+bool opt_log_builtin_as_identified_by_password= 0;
 uint   opt_large_page_size= 0;
 uint default_password_lifetime= 0;
 
@@ -836,27 +847,28 @@ mysql_mutex_t LOCK_default_password_lifetime;
 #if defined(ENABLED_DEBUG_SYNC)
 MYSQL_PLUGIN_IMPORT uint    opt_debug_sync_timeout= 0;
 #endif /* defined(ENABLED_DEBUG_SYNC) */
-my_bool opt_old_style_user_limits= 0, trust_function_creators= 0;
-my_bool check_proxy_users= 0, mysql_native_password_proxy_users= 0, sha256_password_proxy_users= 0;
+bool opt_old_style_user_limits= 0, trust_function_creators= 0;
+bool check_proxy_users= 0, mysql_native_password_proxy_users= 0, sha256_password_proxy_users= 0;
 /*
   True if there is at least one per-hour limit for some user, so we should
   check them before each query (and possibly reset counters when hour is
   changed). False otherwise.
 */
 volatile bool mqh_used = 0;
-my_bool opt_noacl= 0;
-my_bool sp_automatic_privileges= 1;
+bool opt_noacl= 0;
+bool sp_automatic_privileges= 1;
 
 ulong opt_binlog_rows_event_max_size;
 ulong binlog_checksum_options;
-my_bool opt_master_verify_checksum= 0;
-my_bool opt_slave_sql_verify_checksum= 1;
+ulong binlog_row_metadata;
+bool opt_master_verify_checksum= 0;
+bool opt_slave_sql_verify_checksum= 1;
 const char *binlog_format_names[]= {"MIXED", "STATEMENT", "ROW", NullS};
-my_bool binlog_gtid_simple_recovery;
+bool binlog_gtid_simple_recovery;
 ulong binlog_error_action;
 const char *binlog_error_action_list[]= {"IGNORE_ERROR", "ABORT_SERVER", NullS};
 uint32 gtid_executed_compression_period= 0;
-my_bool opt_log_unsafe_statements;
+bool opt_log_unsafe_statements;
 
 #ifdef HAVE_INITGROUPS
 volatile sig_atomic_t calling_initgroups= 0; /**< Used in SIGSEGV handler. */
@@ -888,7 +900,7 @@ ulonglong slave_type_conversions_options;
 ulong opt_mts_slave_parallel_workers;
 ulonglong opt_mts_pending_jobs_size_max;
 ulonglong slave_rows_search_algorithms_options;
-my_bool opt_slave_preserve_commit_order;
+bool opt_slave_preserve_commit_order;
 #ifndef DBUG_OFF
 uint slave_rows_last_search_algorithm_used;
 #endif
@@ -913,7 +925,7 @@ ulong binlog_cache_use= 0, binlog_cache_disk_use= 0;
 ulong binlog_stmt_cache_use= 0, binlog_stmt_cache_disk_use= 0;
 ulong max_connections, max_connect_errors;
 ulong rpl_stop_slave_timeout= LONG_TIMEOUT;
-my_bool log_bin_use_v1_row_events= 0;
+bool log_bin_use_v1_row_events= 0;
 bool thread_cache_size_specified= false;
 bool host_cache_size_specified= false;
 bool table_definition_cache_specified= false;
@@ -940,6 +952,7 @@ uint sync_binlog_period= 0, sync_relaylog_period= 0,
      sync_relayloginfo_period= 0, sync_masterinfo_period= 0,
      opt_mts_checkpoint_period, opt_mts_checkpoint_group;
 ulong expire_logs_days = 0;
+ulong binlog_expire_logs_seconds= 0;
 /**
   Soft upper limit for number of sp_head objects that can be stored
   in the sp_cache for one connection.
@@ -949,9 +962,9 @@ ulong stored_program_cache_size= 0;
   Compatibility option to prevent auto upgrade of old temporals
   during certain ALTER TABLE operations.
 */
-my_bool avoid_temporal_upgrade;
+bool avoid_temporal_upgrade;
 
-my_bool persisted_globals_load= TRUE;
+bool persisted_globals_load= TRUE;
 
 const double log_10[] = {
   1e000, 1e001, 1e002, 1e003, 1e004, 1e005, 1e006, 1e007, 1e008, 1e009,
@@ -1036,7 +1049,7 @@ Lt_creator lt_creator;
 Ge_creator ge_creator;
 Le_creator le_creator;
 
-Rpl_filter* rpl_filter;
+Rpl_filter* global_rpl_filter;
 Rpl_filter* binlog_filter;
 
 struct System_variables global_system_variables;
@@ -1060,8 +1073,7 @@ SHOW_COMP_OPTION have_statement_timeout= SHOW_OPTION_DISABLED;
 
 /* Thread specific variables */
 
-thread_local_key_t THR_MALLOC;
-bool THR_MALLOC_initialized= false;
+thread_local MEM_ROOT **THR_MALLOC= nullptr;
 
 mysql_mutex_t
   LOCK_status, LOCK_uuid_generator,
@@ -1123,7 +1135,7 @@ char *opt_general_logname, *opt_slow_logname, *opt_bin_logname;
 
 /* Static variables */
 
-static my_bool opt_myisam_log;
+static bool opt_myisam_log;
 static int cleanup_done;
 static ulong opt_specialflag;
 char *opt_binlog_index_name;
@@ -1248,7 +1260,7 @@ static mysql_mutex_t LOCK_handler_count;
 static mysql_cond_t COND_handler_count;
 static HANDLE hEventShutdown;
 char *shared_memory_base_name= default_shared_memory_base_name;
-my_bool opt_enable_shared_memory;
+bool opt_enable_shared_memory;
 static char shutdown_event_name[40];
 static   NTService  Service;        ///< Service object for WinNT
 #endif /* _WIN32 */
@@ -1261,7 +1273,7 @@ static const char* default_dbug_option;
 ulong query_cache_min_res_unit= QUERY_CACHE_MIN_RESULT_DATA_SIZE;
 Query_cache query_cache;
 
-my_bool opt_use_ssl= 1;
+bool opt_use_ssl= 1;
 char *opt_ssl_ca= NULL, *opt_ssl_capath= NULL, *opt_ssl_cert= NULL,
      *opt_ssl_cipher= NULL, *opt_ssl_key= NULL, *opt_ssl_crl= NULL,
      *opt_ssl_crlpath= NULL, *opt_tls_version= NULL;
@@ -1277,13 +1289,14 @@ SSL *ssl_acceptor;
 static int mysql_init_variables(void);
 static int get_options(int *argc_ptr, char ***argv_ptr);
 static void add_terminator(vector<my_option> *options);
-extern "C" my_bool mysqld_get_one_option(int, const struct my_option *, char *);
+extern "C" bool mysqld_get_one_option(int, const struct my_option *, char *);
 static void set_server_version(void);
 static int init_thread_environment();
 static char *get_relative_path(const char *path);
 static int fix_paths(void);
 static int test_if_case_insensitive(const char *dir_name);
 static void end_ssl();
+static void delete_dictionary_tablespace();
 
 extern "C" void *signal_hand(void *arg);
 static bool pid_file_created= false;
@@ -1332,7 +1345,6 @@ static bool component_infrastructure_init()
     sql_print_error("Failed to bootstrap components infrastructure.\n");
     return true;
   }
-
   return false;
 }
 /**
@@ -1343,16 +1355,26 @@ static bool component_infrastructure_init()
   @retval false success
   @retval true failure
 */
+
 static bool mysql_component_infrastructure_init()
 {
   /* We need a temporary THD during boot */
   Auto_THD thd;
-
   if (persistent_dynamic_loader_init(thd.thd))
   {
     sql_print_error("Failed to bootstrap persistent components loader.\n");
     return true;
   }
+  if (dynamic_privilege_init())
+  {
+    sql_print_error("Failed to bootstrap persistent privileges.\n");
+  }
+  /*
+   * Its a dummy initialization function. Else linker, is cutting out (as
+   * library optimization) the string service code because libsql code is not
+   * calling any functions of it.
+   */
+  mysql_string_services_init();
   return false;
 }
 
@@ -1389,7 +1411,6 @@ static void server_components_init_wait()
     mysql_cond_wait(&COND_server_started, &LOCK_server_started);
   mysql_mutex_unlock(&LOCK_server_started);
 }
-
 
 /****************************************************************************
 ** Code to end mysqld
@@ -1754,6 +1775,9 @@ bool gtid_server_init()
      !(global_sid_map= new Sid_map(global_sid_lock)) ||
      !(gtid_state= new Gtid_state(global_sid_lock, global_sid_map))||
      !(gtid_table_persistor= new Gtid_table_persistor()));
+
+  gtid_mode_counter= 1;
+
   if (res)
   {
     gtid_server_cleanup();
@@ -1787,7 +1811,6 @@ static void clean_up(bool print_message)
   dd::shutdown();
 
   stop_handle_manager();
-  release_ddl_log();
 
   memcached_shutdown();
 
@@ -1795,7 +1818,7 @@ static void clean_up(bool print_message)
     make sure that handlers finish up
     what they have that is dependent on the binlog
   */
-  if ((opt_help == 0) || (opt_verbose > 0))
+  if ((!opt_help) || (opt_verbose))
     sql_print_information("Binlog end");
   ha_binlog_end(current_thd);
 
@@ -1826,6 +1849,10 @@ static void clean_up(bool print_message)
     tc_log->close();
     tc_log= NULL;
   }
+
+  if (dd::upgrade::in_progress())
+    delete_dictionary_tablespace();
+
   delegates_destroy();
   transaction_cache_free();
   table_def_free();
@@ -1842,7 +1869,8 @@ static void clean_up(bool print_message)
   free_max_user_conn();
   end_slave_list();
   delete binlog_filter;
-  delete rpl_filter;
+  delete global_rpl_filter;
+  rpl_filter_map.clean_up();
   end_ssl();
   vio_end();
   my_regex_end();
@@ -1865,7 +1893,6 @@ static void clean_up(bool print_message)
   deinit_errmessage(); // finish server errs
   DBUG_PRINT("quit", ("Error messages freed"));
 
-  free_charsets();
   sys_var_end();
   Global_THD_manager::destroy_instance();
 
@@ -1882,18 +1909,6 @@ static void clean_up(bool print_message)
     where all dependencies are still ok.
   */
   component_infrastructure_deinit();
-
-  if (THR_THD_initialized)
-  {
-    THR_THD_initialized= false;
-    (void) my_delete_thread_local_key(THR_THD);
-  }
-
-  if (THR_MALLOC_initialized)
-  {
-    THR_MALLOC_initialized= false;
-    (void) my_delete_thread_local_key(THR_MALLOC);
-  }
 
   if (have_statement_timeout == SHOW_OPTION_YES)
     my_timer_deinitialize();
@@ -3137,9 +3152,9 @@ int init_common_variables()
   max_system_variables.pseudo_thread_id= (my_thread_id) ~0;
   server_start_time= flush_status_time= my_time(0);
 
-  rpl_filter= new Rpl_filter;
+  global_rpl_filter= new Rpl_filter;
   binlog_filter= new Rpl_filter;
-  if (!rpl_filter || !binlog_filter)
+  if (!global_rpl_filter || !binlog_filter)
   {
     sql_print_error("Could not allocate replication and binlog filters: %s",
                     strerror(errno));
@@ -3161,7 +3176,7 @@ int init_common_variables()
             sizeof(system_time_zone)-1);
 #endif
 
- }
+  }
 
   /*
     We set SYSTEM time zone as reasonable default and
@@ -3538,6 +3553,17 @@ int init_common_variables()
     return 1;
   }
 
+  if (global_system_variables.transaction_write_set_extraction == HASH_ALGORITHM_OFF
+      && mysql_bin_log.m_dependency_tracker.m_opt_tracking_mode != DEPENDENCY_TRACKING_COMMIT_ORDER)
+  {
+    sql_print_error("The transaction_write_set_extraction must be set to XXHASH64 or MURMUR32"
+                    " when binlog_transaction_dependency_tracking is WRITESET or WRITESET_SESSION.");
+    return 1;
+  }
+  else
+    mysql_bin_log.m_dependency_tracker.tracking_mode_changed();
+
+
 #define FIX_LOG_VAR(VAR, ALT)                                   \
   if (!VAR || !*VAR)                                            \
     VAR= ALT;
@@ -3606,16 +3632,19 @@ int init_common_variables()
       &my_charset_bin);
 
   /*
-    Build do_table and ignore_table rules to hush
-    after the resetting of table_alias_charset
+    Build do_table and ignore_table rules to hashes
+    after the resetting of table_alias_charset.
   */
-  if (rpl_filter->build_do_table_hash() ||
-      rpl_filter->build_ignore_table_hash())
+  if (global_rpl_filter->build_do_table_hash() ||
+      global_rpl_filter->build_ignore_table_hash())
   {
-    sql_print_error("An error occurred while building do_table"
-                    "and ignore_table rules to hush.");
+    sql_print_error("An error occurred while building do_table "
+                    "and ignore_table rules to hashes for "
+                    "global replication filter.");
     return 1;
   }
+  if (rpl_filter_map.build_do_and_ignore_table_hashes())
+    return 1;
   /* Once all options are handled we load persisted config file */
   if (persisted_variables_cache.load_persist_file())
     return 1;
@@ -3693,16 +3722,6 @@ static int init_thread_environment()
   pthread_attr_setscope(&connection_attrib, PTHREAD_SCOPE_SYSTEM);
 #endif
 
-  DBUG_ASSERT(! THR_THD_initialized);
-  DBUG_ASSERT(! THR_MALLOC_initialized);
-  if (my_create_thread_local_key(&THR_THD,NULL) ||
-      my_create_thread_local_key(&THR_MALLOC,NULL))
-  {
-    sql_print_error("Can't create thread-keys");
-    return 1;
-  }
-  THR_THD_initialized= true;
-  THR_MALLOC_initialized= true;
   return 0;
 }
 
@@ -4521,10 +4540,19 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   */
   if (opt_initialize)
   {
-    if(!opt_help && dd::init(dd::enum_dd_init_type::DD_INITIALIZE))
+    if (!opt_help)
     {
-      sql_print_error("Data Dictionary initialization failed.");
-      unireg_abort(1);
+      if (dd::init(dd::enum_dd_init_type::DD_INITIALIZE))
+      {
+        sql_print_error("Data Dictionary initialization failed.");
+        unireg_abort(1);
+      }
+
+      if (dd::init(dd::enum_dd_init_type::DD_INITIALIZE_SYSTEM_VIEWS))
+      {
+        sql_print_error("System views initialization failed.");
+        unireg_abort(1);
+      }
     }
   }
   else
@@ -4556,26 +4584,31 @@ a file name for --log-bin-index option", opt_binlog_index_name);
                                PLUGIN_INIT_SKIP_PLUGIN_TABLE) : 0)))
   {
     // Delete all DD tables in case of error in initializing plugins.
-    (void)dd::init(dd::enum_dd_init_type::DD_DELETE);
+    if (dd::upgrade::in_progress())
+      (void)dd::init(dd::enum_dd_init_type::DD_DELETE);
+
     sql_print_error("Failed to initialize dynamic plugins.");
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
   dynamic_plugins_are_initialized= true;  /* Don't separate from init function */
 
-  // Store meta data of plugin schema tables into new DD
-  if (!opt_help && (opt_initialize || dd_upgrade_flag) &&
-      dd::get_dictionary()->install_plugin_IS_table_metadata())
-  {
-    sql_print_error("Failed to store plugin metadata into dictionary tables.");
-    unireg_abort(1);
-  }
-
   // Populate DD tables with meta data from 5.7 in case of upgrade
-  if (!opt_help && dd_upgrade_flag &&
+  if (!opt_help && dd::upgrade::in_progress() &&
       dd::init(dd::enum_dd_init_type::DD_POPULATE_UPGRADE))
   {
     sql_print_error("Failed to Populate DD tables.");
     unireg_abort(1);
+  }
+
+  /*
+    Store server and plugin IS tables metadata into new DD.
+    This is done after all the plugins are registered.
+  */
+  if (!opt_help && !opt_initialize && !dd::upgrade::in_progress() &&
+      dd::init(dd::enum_dd_init_type::DD_UPDATE_I_S_METADATA))
+  {
+    sql_print_error("Failed to update plugin metadata in dictionary tables.");
+    unireg_abort(MYSQLD_ABORT_EXIT);
   }
 
   Session_tracker session_track_system_variables_check;
@@ -4767,9 +4800,10 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     mysql_mutex_unlock(log_lock);
   }
 
-  if (opt_bin_log && expire_logs_days)
+  if (opt_bin_log && (expire_logs_days || binlog_expire_logs_seconds))
   {
-    time_t purge_time= server_start_time - expire_logs_days*24*60*60;
+    time_t purge_time= server_start_time - expire_logs_days * 24 * 60 * 60 -
+                       binlog_expire_logs_seconds;
     if (purge_time >= 0)
       mysql_bin_log.purge_logs_before_date(purge_time, true);
   }
@@ -5441,7 +5475,7 @@ int mysqld_main(int argc, char **argv)
                                      opt_master_verify_checksum,
                                      true/*true=need lock*/,
                                      NULL/*trx_parser*/,
-                                     NULL/*gtid_partial_trx*/,
+                                     NULL/*partial_trx*/,
                                      true/*is_server_starting*/))
       unireg_abort(MYSQLD_ABORT_EXIT);
 
@@ -5567,11 +5601,11 @@ int mysqld_main(int argc, char **argv)
   if (!opt_initialize)
     create_pid_file();
 
-
   /* Read the optimizer cost model configuration tables */
   if (!opt_initialize)
     reload_optimizer_cost_constants();
 
+  bool abort= false;
   if (
     /*
       Read components table to restore previously installed components. This
@@ -5580,9 +5614,25 @@ int mysqld_main(int argc, char **argv)
       document requirements and by what means they are provided.
     */
     (!opt_initialize && mysql_component_infrastructure_init())
-    || mysql_rm_tmp_tables() || acl_init(opt_noacl)
-    || my_tz_init((THD *)0, default_tz_name, opt_initialize)
-    || grant_init(opt_noacl))
+     || mysql_rm_tmp_tables())
+  {
+    abort= true;
+  }
+  if (abort || acl_init(opt_noacl))
+  {
+    /*
+      During upgrade we might be missing the mysql.global_grants table
+      which is opened during acl_reload along with all the other core privilege
+      tables. If this operation fails we simply disable the privilege system
+      and issue a warning.
+    */
+    opt_noacl= true;
+    sql_print_warning("The privilege system failed to initialize correctly. "
+      "If you have upgraded your server, make sure you're executing "
+      "mysql_upgrade to correct the issue.");
+  }
+  if (abort || my_tz_init((THD *)0, default_tz_name, opt_initialize)
+      || grant_init(opt_noacl))
   {
     set_connection_events_loop_aborted(true);
 
@@ -5620,6 +5670,20 @@ int mysqld_main(int argc, char **argv)
     */
     if (server_id != 0)
       init_slave(); /* Ignoring errors while configuring replication. */
+
+    /*
+      If the user specifies a per-channel replication filter through a
+      command-line option (or in a configuration file) for a slave
+      replication channel which does not exist as of now (i.e not
+      present in slave info tables yet), then the per-channel
+      replication filter is discarded with a warning.
+      If the user specifies a per-channel replication filter through
+      a command-line option (or in a configuration file) for group
+      replication channels 'group_replication_recovery' and
+      'group_replication_applier' which is disallowed, then the
+      per-channel replication filter is discarded with a warning.
+    */
+    rpl_filter_map.discard_all_unattached_filters();
   }
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
@@ -5636,7 +5700,6 @@ int mysqld_main(int argc, char **argv)
 
   initialize_information_schema_acl();
 
-  execute_ddl_log_recovery();
   (void) RUN_HOOK(server_state, after_recovery, (NULL));
 
   if (Events::init(opt_noacl || opt_initialize))
@@ -6519,9 +6582,11 @@ struct my_option my_long_options[]=
   "Dummy option to start as a standalone program (NT).", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"symbolic-links", 's', "Enable symbolic link support.",
+  {"symbolic-links", 's',
+   "Enable symbolic link support (deprecated and will be  removed in a future"
+   " release).",
    &my_enable_symlinks, &my_enable_symlinks, 0, GET_BOOL, NO_ARG,
-   1, 0, 0, 0, 0, 0},
+   0, 0, 0, 0, 0, 0},
   {"sysdate-is-now", 0,
    "Non-default option to alias SYSDATE() to NOW() to make it safe-replicable. "
    "Since 5.0, SYSDATE() returns a `dynamic' value different for different "
@@ -6747,7 +6812,7 @@ static int show_slave_running(THD*, SHOW_VAR *var, char *buff)
   {
     var->type= SHOW_MY_BOOL;
     var->value= buff;
-    *((my_bool *)buff)= (my_bool) (mi &&
+    *((bool *)buff)= (bool) (mi &&
                                    mi->slave_running == MYSQL_SLAVE_RUN_CONNECT &&
                                    mi->rli->slave_running);
   }
@@ -6821,7 +6886,7 @@ static int show_slave_last_heartbeat(THD *thd, SHOW_VAR *var, char *buff)
     else
     {
       thd->variables.time_zone->gmt_sec_to_TIME(&received_heartbeat_time, 
-        static_cast<my_time_t>(mi->last_heartbeat));
+        static_cast<my_time_t>(mi->last_heartbeat/1000000));
       my_datetime_to_str(&received_heartbeat_time, buff, 0);
     }
   }
@@ -6835,7 +6900,7 @@ static int show_slave_last_heartbeat(THD *thd, SHOW_VAR *var, char *buff)
 /**
   Only for default channel. For details, refer to show_slave_running()
 */
-static int show_heartbeat_period(THD *thd, SHOW_VAR *var, char *buff)
+static int show_heartbeat_period(THD*, SHOW_VAR *var, char *buff)
 {
   channel_map.rdlock();
   Master_info *mi= channel_map.get_default_channel_mi();
@@ -7758,11 +7823,113 @@ static int mysql_init_variables(void)
   return 0;
 }
 
-my_bool
+
+/**
+  Check if it is a global replication filter setting.
+
+  @param argument The setting of startup option --replicate-*.
+
+  @retval
+    0    OK
+  @retval
+    1    Error
+*/
+static bool is_global_rpl_filter_setting(char* argument)
+{
+  DBUG_ENTER("is_global_rpl_filter_setting");
+
+  bool res= false;
+  char *p= strchr(argument, ':');
+  if (p == NULL)
+    res= true;
+
+  DBUG_RETURN(res);
+}
+
+
+/**
+  Extract channel name and filter value from argument.
+
+  @param [out] channel_name The name of the channel.
+  @param [out] filter_val The value of filter.
+  @param argument The setting of startup option --replicate-*.
+*/
+void parse_filter_arg(char** channel_name, char** filter_val, char* argument)
+{
+  DBUG_ENTER("parse_filter_arg");
+
+  char *p= strchr(argument, ':');
+
+  DBUG_ASSERT(p != NULL);
+
+  /*
+    If argument='channel_1:db1', then channel_name='channel_1'
+    and filter_val='db1'; If argument=':db1', then channel_name=''
+    and filter_val='db1'.
+  */
+  *channel_name= argument;
+  *filter_val= p +1;
+  *p=0;
+
+  DBUG_VOID_RETURN;
+}
+
+
+/**
+  Extract channel name and filter value from argument.
+
+  @param [out] key The db is rewritten from.
+  @param [out] val The db is rewritten to.
+  @param argument The value of filter.
+
+  @retval
+    0    OK
+  @retval
+    1    Error
+*/
+static int parse_replicate_rewrite_db(char **key, char **val, char *argument)
+{
+  DBUG_ENTER("parse_replicate_rewrite_db");
+  char *p;
+  *key= argument;
+
+  if (!(p= strstr(argument, "->")))
+  {
+    sql_print_error("Bad syntax in replicate-rewrite-db - missing '->'!\n");
+    DBUG_RETURN(1);
+  }
+  *val= p + 2;
+
+  while(p > argument && my_isspace(mysqld_charset, p[-1]))
+    p--;
+  *p= 0;
+
+  if (!**key)
+  {
+    sql_print_error("Bad syntax in replicate-rewrite-db - empty FROM db!\n");
+    DBUG_RETURN(1);
+  }
+  while (**val && my_isspace(mysqld_charset, **val))
+    (*val)++;
+  if (!**val)
+  {
+    sql_print_error("Bad syntax in replicate-rewrite-db - empty TO db!\n");
+    DBUG_RETURN(1);
+  }
+
+  DBUG_RETURN(0);
+}
+
+
+bool
 mysqld_get_one_option(int optid,
                       const struct my_option *opt MY_ATTRIBUTE((unused)),
                       char *argument)
 {
+  Rpl_filter* rpl_filter= NULL;
+  char* filter_val;
+  char* channel_name;
+
   switch(optid) {
   case '#':
 #ifndef DBUG_OFF
@@ -7792,6 +7959,9 @@ mysqld_get_one_option(int optid,
       mysqld_user= argument;
     else
       sql_print_warning("Ignoring user change to '%s' because the user was set to '%s' earlier on the command line\n", argument, mysqld_user);
+    break;
+  case 's':
+    push_deprecated_warn_no_replacement(NULL, "--symbolic-links/-s");
     break;
   case 'L':
     push_deprecated_warn(NULL, "--language/-l", "'--lc-messages-dir'");
@@ -7852,41 +8022,61 @@ mysqld_get_one_option(int optid,
     break;
   case (int)OPT_REPLICATE_IGNORE_DB:
   {
-    rpl_filter->add_ignore_db(argument);
+    if (is_global_rpl_filter_setting(argument))
+    {
+      global_rpl_filter->add_ignore_db(argument);
+      global_rpl_filter->ignore_db_statistics.set_all(
+        CONFIGURED_BY_STARTUP_OPTIONS, 0);
+    }
+    else
+    {
+      parse_filter_arg(&channel_name, &filter_val, argument);
+      rpl_filter= rpl_filter_map.get_channel_filter(channel_name);
+      rpl_filter->add_ignore_db(filter_val);
+      rpl_filter->ignore_db_statistics.set_all(
+        CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL, 0);
+    }
     break;
   }
   case (int)OPT_REPLICATE_DO_DB:
   {
-    rpl_filter->add_do_db(argument);
+    if (is_global_rpl_filter_setting(argument))
+    {
+      global_rpl_filter->add_do_db(argument);
+      global_rpl_filter->do_db_statistics.set_all(
+        CONFIGURED_BY_STARTUP_OPTIONS, 0);
+    }
+    else
+    {
+      parse_filter_arg(&channel_name, &filter_val, argument);
+      rpl_filter= rpl_filter_map.get_channel_filter(channel_name);
+      rpl_filter->add_do_db(filter_val);
+      rpl_filter->do_db_statistics.set_all(
+        CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL, 0);
+    }
     break;
   }
   case (int)OPT_REPLICATE_REWRITE_DB:
   {
-    char* key = argument,*p, *val;
-
-    if (!(p= strstr(argument, "->")))
+    char* key,*val;
+    if (is_global_rpl_filter_setting(argument))
     {
-      sql_print_error("Bad syntax in replicate-rewrite-db - missing '->'!\n");
-      return 1;
+      if (parse_replicate_rewrite_db(&key, &val, argument))
+        return 1;
+      global_rpl_filter->add_db_rewrite(key, val);
+      global_rpl_filter->rewrite_db_statistics.set_all(
+        CONFIGURED_BY_STARTUP_OPTIONS, 0);
     }
-    val= p + 2;
-    while(p > argument && my_isspace(mysqld_charset, p[-1]))
-      p--;
-    *p= 0;
-    if (!*key)
+    else
     {
-      sql_print_error("Bad syntax in replicate-rewrite-db - empty FROM db!\n");
-      return 1;
+      parse_filter_arg(&channel_name, &filter_val, argument);
+      rpl_filter= rpl_filter_map.get_channel_filter(channel_name);
+      if (parse_replicate_rewrite_db(&key, &val, filter_val))
+        return 1;
+      rpl_filter->add_db_rewrite(key, val);
+      rpl_filter->rewrite_db_statistics.set_all(
+        CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL, 0);
     }
-    while (*val && my_isspace(mysqld_charset, *val))
-      val++;
-    if (!*val)
-    {
-      sql_print_error("Bad syntax in replicate-rewrite-db - empty TO db!\n");
-      return 1;
-    }
-
-    rpl_filter->add_db_rewrite(key, val);
     break;
   }
 
@@ -7902,37 +8092,107 @@ mysqld_get_one_option(int optid,
   }
   case (int)OPT_REPLICATE_DO_TABLE:
   {
-    if (rpl_filter->add_do_table_array(argument))
+    if (is_global_rpl_filter_setting(argument))
     {
-      sql_print_error("Could not add do table rule '%s'!\n", argument);
-      return 1;
+      if (global_rpl_filter->add_do_table_array(argument))
+      {
+        sql_print_error("Could not add do table rule '%s'!\n", argument);
+        return 1;
+      }
+      global_rpl_filter->do_table_statistics.set_all(
+        CONFIGURED_BY_STARTUP_OPTIONS, 0);
+    }
+    else
+    {
+      parse_filter_arg(&channel_name, &filter_val, argument);
+      rpl_filter= rpl_filter_map.get_channel_filter(channel_name);
+      if (rpl_filter->add_do_table_array(filter_val))
+      {
+        sql_print_error("Could not add do table rule '%s'!\n", argument);
+        return 1;
+      }
+      rpl_filter->do_table_statistics.set_all(
+        CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL, 0);
     }
     break;
   }
   case (int)OPT_REPLICATE_WILD_DO_TABLE:
   {
-    if (rpl_filter->add_wild_do_table(argument))
+    if (is_global_rpl_filter_setting(argument))
     {
-      sql_print_error("Could not add do table rule '%s'!\n", argument);
-      return 1;
+      if (global_rpl_filter->add_wild_do_table(argument))
+      {
+        sql_print_error("Could not add wild do table rule '%s'!\n", argument);
+        return 1;
+      }
+      global_rpl_filter->wild_do_table_statistics.set_all(
+        CONFIGURED_BY_STARTUP_OPTIONS, 0);
+    }
+    else
+    {
+      parse_filter_arg(&channel_name, &filter_val, argument);
+      rpl_filter= rpl_filter_map.get_channel_filter(channel_name);
+      if (rpl_filter->add_wild_do_table(filter_val))
+      {
+        sql_print_error("Could not add wild do table rule '%s'!\n", argument);
+        return 1;
+      }
+      rpl_filter->wild_do_table_statistics.set_all(
+        CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL, 0);
     }
     break;
   }
   case (int)OPT_REPLICATE_WILD_IGNORE_TABLE:
   {
-    if (rpl_filter->add_wild_ignore_table(argument))
+    if (is_global_rpl_filter_setting(argument))
     {
-      sql_print_error("Could not add ignore table rule '%s'!\n", argument);
-      return 1;
+      if (global_rpl_filter->add_wild_ignore_table(argument))
+      {
+        sql_print_error("Could not add wild ignore table rule '%s'!\n",
+                        argument);
+        return 1;
+      }
+      global_rpl_filter->wild_ignore_table_statistics.set_all(
+        CONFIGURED_BY_STARTUP_OPTIONS, 0);
+    }
+    else
+    {
+      parse_filter_arg(&channel_name, &filter_val, argument);
+      rpl_filter= rpl_filter_map.get_channel_filter(channel_name);
+      if (rpl_filter->add_wild_ignore_table(filter_val))
+      {
+        sql_print_error("Could not add wild ignore table rule '%s'!\n",
+                        argument);
+        return 1;
+      }
+      rpl_filter->wild_ignore_table_statistics.set_all(
+        CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL, 0);
     }
     break;
   }
   case (int)OPT_REPLICATE_IGNORE_TABLE:
   {
-    if (rpl_filter->add_ignore_table_array(argument))
+    if (is_global_rpl_filter_setting(argument))
     {
-      sql_print_error("Could not add ignore table rule '%s'!\n", argument);
-      return 1;
+      if (global_rpl_filter->add_ignore_table_array(argument))
+      {
+        sql_print_error("Could not add ignore table rule '%s'!\n", argument);
+        return 1;
+      }
+      global_rpl_filter->ignore_table_statistics.set_all(
+        CONFIGURED_BY_STARTUP_OPTIONS, 0);
+    }
+    else
+    {
+      parse_filter_arg(&channel_name, &filter_val, argument);
+      rpl_filter= rpl_filter_map.get_channel_filter(channel_name);
+      if (rpl_filter->add_ignore_table_array(filter_val))
+      {
+        sql_print_error("Could not add ignore table rule '%s'!\n", argument);
+        return 1;
+      }
+      rpl_filter->ignore_table_statistics.set_all(
+        CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL, 0);
     }
     break;
   }
@@ -8032,8 +8292,8 @@ mysqld_get_one_option(int optid,
           performance_schema_instrument = '%='OFF''
       */
       char *name= argument,*p= NULL, *val= NULL;
-      my_bool quote= false; /* true if quote detected */
-      my_bool error= true;  /* false if no errors detected */
+      bool quote= false; /* true if quote detected */
+      bool error= true;  /* false if no errors detected */
       const int PFS_BUFFER_SIZE= 128;
       char orig_argument[PFS_BUFFER_SIZE+1];
       orig_argument[0]= 0;
@@ -8140,6 +8400,7 @@ pfs_error:
     sql_print_warning("The use of InnoDB is mandatory since MySQL 5.7. "
                       "The former options like '--innodb=0/1/OFF/ON' or "
                       "'--skip-innodb' are ignored.");
+    break;
   case OPT_AVOID_TEMPORAL_UPGRADE:
     push_deprecated_warn_no_replacement(NULL, "avoid_temporal_upgrade");
     break;
@@ -8717,14 +8978,14 @@ static bool check_secure_file_priv_path()
 
 static int fix_paths(void)
 {
-  char buff[FN_REFLEN],*pos;
+  char buff[FN_REFLEN];
   bool secure_file_priv_nonempty= false;
   convert_dirname(mysql_home,mysql_home,NullS);
   /* Resolve symlinks to allow 'mysql_home' to be a relative symlink */
   my_realpath(mysql_home,mysql_home,MYF(0));
   /* Ensure that mysql_home ends in FN_LIBCHAR */
-  pos=strend(mysql_home);
-  if (pos[-1] != FN_LIBCHAR)
+  char *pos= strend(mysql_home);
+  if (pos == mysql_home || pos[-1] != FN_LIBCHAR)
   {
     pos[0]= FN_LIBCHAR;
     pos[1]= 0;
@@ -8929,6 +9190,21 @@ static void delete_pid_file(myf flags)
   return;
 }
 
+/**
+  Delete mysql.ibd after aborting upgrade.
+*/
+static void delete_dictionary_tablespace()
+{
+  char path[FN_REFLEN+1];
+  bool not_used;
+
+  build_table_filename(path, sizeof(path) - 1, "",
+                       "mysql",".ibd", 0, &not_used);
+  (void) mysql_file_delete(key_file_misc, path, MYF(MY_WME));
+
+  // Drop file which tracks progress of upgrade.
+  dd::upgrade::Upgrade_status().remove();
+}
 
 /**
   Returns the current state of the server : booting, operational or shutting
@@ -9003,7 +9279,6 @@ void refresh_status()
 PSI_mutex_key key_LOCK_tc;
 PSI_mutex_key key_hash_filo_lock;
 PSI_mutex_key key_LOCK_error_log;
-PSI_mutex_key key_LOCK_gdl;
 PSI_mutex_key key_LOCK_thd_data;
 PSI_mutex_key key_LOCK_thd_sysvar;
 PSI_mutex_key key_LOG_LOCK_log;
@@ -9032,6 +9307,7 @@ PSI_mutex_key key_RELAYLOG_LOCK_done;
 PSI_mutex_key key_RELAYLOG_LOCK_flush_queue;
 PSI_mutex_key key_RELAYLOG_LOCK_index;
 PSI_mutex_key key_RELAYLOG_LOCK_log;
+PSI_mutex_key key_RELAYLOG_LOCK_log_end_pos;
 PSI_mutex_key key_RELAYLOG_LOCK_sync;
 PSI_mutex_key key_RELAYLOG_LOCK_sync_queue;
 PSI_mutex_key key_RELAYLOG_LOCK_xids;
@@ -9071,6 +9347,7 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_RELAYLOG_LOCK_flush_queue, "MYSQL_RELAY_LOG::LOCK_flush_queue", 0, 0},
   { &key_RELAYLOG_LOCK_index, "MYSQL_RELAY_LOG::LOCK_index", 0, 0},
   { &key_RELAYLOG_LOCK_log, "MYSQL_RELAY_LOG::LOCK_log", 0, 0},
+  { &key_RELAYLOG_LOCK_log_end_pos, "MYSQL_RELAY_LOG::LOCK_log_end_pos", 0, 0},
   { &key_RELAYLOG_LOCK_sync, "MYSQL_RELAY_LOG::LOCK_sync", 0, 0},
   { &key_RELAYLOG_LOCK_sync_queue, "MYSQL_RELAY_LOG::LOCK_sync_queue", 0, 0},
   { &key_RELAYLOG_LOCK_xids, "MYSQL_RELAY_LOG::LOCK_xids", 0, 0},
@@ -9078,7 +9355,6 @@ static PSI_mutex_info all_server_mutexes[]=
   { &Gtid_set::key_gtid_executed_free_intervals_mutex, "Gtid_set::gtid_executed::free_intervals_mutex", 0, 0},
   { &key_LOCK_crypt, "LOCK_crypt", PSI_FLAG_GLOBAL, 0},
   { &key_LOCK_error_log, "LOCK_error_log", PSI_FLAG_GLOBAL, 0},
-  { &key_LOCK_gdl, "LOCK_gdl", PSI_FLAG_GLOBAL, 0},
   { &key_LOCK_global_system_variables, "LOCK_global_system_variables", PSI_FLAG_GLOBAL, 0},
 #if defined(_WIN32)
   { &key_LOCK_handler_count, "LOCK_handler_count", PSI_FLAG_GLOBAL, 0},
@@ -9137,6 +9413,9 @@ PSI_rwlock_key key_rwlock_LOCK_logger;
 PSI_rwlock_key key_rwlock_query_cache_query_lock;
 PSI_rwlock_key key_rwlock_channel_map_lock;
 PSI_rwlock_key key_rwlock_channel_lock;
+PSI_rwlock_key key_rwlock_receiver_sid_lock;
+PSI_rwlock_key key_rwlock_rpl_filter_lock;
+PSI_rwlock_key key_rwlock_channel_to_filter_lock;
 
 PSI_rwlock_key key_rwlock_Trans_delegate_lock;
 PSI_rwlock_key key_rwlock_Server_state_delegate_lock;
@@ -9159,7 +9438,10 @@ static PSI_rwlock_info all_server_rwlocks[]=
   { &key_rwlock_channel_lock, "channel_lock", 0},
   { &key_rwlock_Trans_delegate_lock, "Trans_delegate::lock", PSI_FLAG_GLOBAL},
   { &key_rwlock_Server_state_delegate_lock, "Server_state_delegate::lock", PSI_FLAG_GLOBAL},
-  { &key_rwlock_Binlog_storage_delegate_lock, "Binlog_storage_delegate::lock", PSI_FLAG_GLOBAL}
+  { &key_rwlock_Binlog_storage_delegate_lock, "Binlog_storage_delegate::lock", PSI_FLAG_GLOBAL},
+  { &key_rwlock_receiver_sid_lock, "gtid_retrieved", PSI_FLAG_GLOBAL},
+  { &key_rwlock_rpl_filter_lock, "rpl_filter_lock", 0},
+  { &key_rwlock_channel_to_filter_lock, "channel_to_filter_lock", 0}
 };
 
 PSI_cond_key key_PAGE_cond;
@@ -9259,13 +9541,11 @@ PSI_file_key key_file_ERRMSG;
 PSI_file_key key_select_to_file;
 PSI_file_key key_file_fileparser;
 PSI_file_key key_file_frm;
-PSI_file_key key_file_global_ddl_log;
 PSI_file_key key_file_load;
 PSI_file_key key_file_loadfile;
 PSI_file_key key_file_log_event_data;
 PSI_file_key key_file_log_event_info;
 PSI_file_key key_file_misc;
-PSI_file_key key_file_partition_ddl_log;
 PSI_file_key key_file_tclog;
 PSI_file_key key_file_trg;
 PSI_file_key key_file_trn;
@@ -9296,13 +9576,11 @@ static PSI_file_info all_server_files[]=
   { &key_select_to_file, "select_to_file", 0},
   { &key_file_fileparser, "file_parser", 0},
   { &key_file_frm, "FRM", 0},
-  { &key_file_global_ddl_log, "global_ddl_log", 0},
   { &key_file_load, "load", 0},
   { &key_file_loadfile, "LOAD_FILE", 0},
   { &key_file_log_event_data, "log_event_data", 0},
   { &key_file_log_event_info, "log_event_info", 0},
   { &key_file_misc, "misc", 0},
-  { &key_file_partition_ddl_log, "partition_ddl_log", 0},
   { &key_file_pid, "pid", 0},
   { &key_file_general_log, "query_log", 0},
   { &key_file_slow_log, "slow_log", 0},

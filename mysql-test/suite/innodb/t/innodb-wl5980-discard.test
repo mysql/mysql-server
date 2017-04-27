@@ -4,9 +4,6 @@
 
 --source include/no_valgrind_without_big.inc
 
-# Not supported in embedded
---source include/not_embedded.inc
-
 # These values can change during the test
 LET $innodb_file_per_table_orig=`select @@innodb_file_per_table`;
 
@@ -700,4 +697,3 @@ call mtr.add_suppression("\\[Warning\\] InnoDB: Ignoring tablespace .* because i
 call mtr.add_suppression("\\[Warning\\] InnoDB: Tablespace for table .* is set as discarded");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Unable to open tablespace .* \\(flags=.*, filename=");
 -- enable_query_log
-

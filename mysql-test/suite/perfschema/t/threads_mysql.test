@@ -4,7 +4,6 @@
 # Show MySQL server related content in performance_schema.threads
 
 --source include/not_windows.inc
---source include/not_embedded.inc
 
 # Ensure that the event scheduler (started via threads_mysql-master.opt)
 # is really running.

@@ -37,6 +37,7 @@
 #include "item_func.h"            // Item_func
 #include "item_sum.h"             // Item_sum
 #include "key.h"
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "mem_root_array.h"       // Mem_root_array
@@ -137,7 +138,6 @@ Field *create_tmp_field_from_field(THD *thd, Field *org_field,
 /**
   Create field for temporary table using type of given item.
 
-  @param thd                   Thread handler
   @param item                  Item to create a field for
   @param table                 Temporary table
   @param copy_func             If set and item is a function, store copy of
@@ -156,7 +156,7 @@ Field *create_tmp_field_from_field(THD *thd, Field *org_field,
     new_created field
 */
 
-static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
+static Field *create_tmp_field_from_item(Item *item, TABLE *table,
                                          Func_ptr_array *copy_func,
                                          bool modify_item)
 {
@@ -236,7 +236,6 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
 /**
   Create field for information schema table.
 
-  @param thd		Thread handler
   @param table		Temporary table
   @param item		Item to create a field for
 
@@ -246,7 +245,7 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
     new_created field
 */
 
-static Field *create_tmp_field_for_schema(THD *thd, Item *item, TABLE *table)
+static Field *create_tmp_field_for_schema(Item *item, TABLE *table)
 {
   if (item->data_type() == MYSQL_TYPE_VARCHAR)
   {
@@ -340,7 +339,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
     */
     if (field->maybe_null && !field->field->maybe_null())
     {
-      result= create_tmp_field_from_item(thd, item, table, NULL,
+      result= create_tmp_field_from_item(item, table, NULL,
                                          modify_item);
       if (!result)
         break;
@@ -352,7 +351,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
              MYSQL_TYPE_BIT)
     {
       *from_field= field->field;
-      result= create_tmp_field_from_item(thd, item, table, copy_func,
+      result= create_tmp_field_from_item(item, table, copy_func,
                                          modify_item);
       if (!result)
         break;
@@ -432,7 +431,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
       DBUG_ASSERT(((Item_result_field*)item)->result_field);
       *from_field= ((Item_result_field*)item)->result_field;
     }
-    result= create_tmp_field_from_item(thd, item, table,
+    result= create_tmp_field_from_item(item, table,
                                        (make_copy_field ? NULL : copy_func),
                                        modify_item);
     break;
@@ -919,7 +918,7 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
     }
     if (not_all_columns)
     {
-      if (item->with_sum_func && type != Item::SUM_FUNC_ITEM)
+      if (item->has_aggregation() && type != Item::SUM_FUNC_ITEM)
       {
         if (item->used_tables() & OUTER_REF_TABLE_BIT)
           item->update_used_tables();
@@ -1002,7 +1001,7 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
         that in the later case group is set to the row pointer.
       */
       new_field= (param->schema_table) ?
-        create_tmp_field_for_schema(thd, item, table) :
+        create_tmp_field_for_schema(item, table) :
         create_tmp_field(thd, table, item, type, copy_func,
                          tmp_from_field, &default_field[fieldnr],
                          group != 0,
@@ -1232,7 +1231,8 @@ update_hidden:
   else if (blob_count ||                        // 1
            (thd->variables.big_tables &&        // 2
             !(select_options & SELECT_SMALL_RESULT)) ||
-           (param->allow_scan_from_position && using_unique_constraint)) // 3
+           (param->allow_scan_from_position && using_unique_constraint) || //3
+           opt_initialize) // 4
   {
     /*
       1: MEMORY doesn't support BLOBs
@@ -1252,6 +1252,9 @@ update_hidden:
       ha_index_read (hp_rkey) which modifies another member of the cursor:
       HEAP_INFO::current_record, which rnd_pos cannot restore. In that case,
       rnd_pos will work, but rnd_next won't. Thus we switch to InnoDB.
+      4: During bootstrap, the heap engine is not available, so we force using
+      InnoDB. This is especially hit when creating a I_S system view
+      definition with a UNION in it.
 
       Except for special conditions, tmp table engine will be chosen by user.
     */
@@ -2198,7 +2201,7 @@ bool open_tmp_table(TABLE *table)
 static bool create_myisam_tmp_table(TABLE *table, KEY *keyinfo,
                                     MI_COLUMNDEF *start_recinfo,
                                     MI_COLUMNDEF **recinfo,
-                                    ulonglong options, my_bool big_tables)
+                                    ulonglong options, bool big_tables)
 {
   int error;
   MI_KEYDEF keydef;
@@ -2292,7 +2295,6 @@ static bool create_myisam_tmp_table(TABLE *table, KEY *keyinfo,
   SYNOPSIS
     create_innodb_tmp_table()
       table           Table object that describes the table to be created
-      keyinfo         Description of the index (there is always one index)
 
   DESCRIPTION
     Create an InnoDB temporary table according to passed description. It is
@@ -2312,7 +2314,7 @@ static bool create_myisam_tmp_table(TABLE *table, KEY *keyinfo,
      FALSE - OK
      TRUE  - Error
 */
-static bool create_innodb_tmp_table(TABLE *table, KEY *keyinfo)
+static bool create_innodb_tmp_table(TABLE *table)
 {
   TABLE_SHARE *share= table->s;
 
@@ -2401,7 +2403,7 @@ static void trace_tmp_table(Opt_trace_context *trace, const TABLE *table)
 bool instantiate_tmp_table(THD *thd, TABLE *table, KEY *keyinfo,
                            MI_COLUMNDEF *start_recinfo,
                            MI_COLUMNDEF **recinfo, 
-                           ulonglong options, my_bool big_tables)
+                           ulonglong options, bool big_tables)
 {
   TABLE_SHARE *const share= table->s;
 #ifndef DBUG_OFF
@@ -2412,7 +2414,7 @@ bool instantiate_tmp_table(THD *thd, TABLE *table, KEY *keyinfo,
 
   if (share->db_type() == innodb_hton)
   {
-    if (create_innodb_tmp_table(table, keyinfo))
+    if (create_innodb_tmp_table(table))
       return TRUE;
     // Make empty record so random data is not written to disk
     empty_record(table);
@@ -2580,7 +2582,7 @@ void free_tmp_table(THD *thd, TABLE *entry)
 bool create_ondisk_from_heap(THD *thd, TABLE *wtable,
                              MI_COLUMNDEF *start_recinfo,
                              MI_COLUMNDEF **recinfo, 
-			     int error, bool ignore_last_dup,
+                             int error, bool ignore_last_dup,
                              bool *is_duplicate)
 {
   int write_err= 0;
@@ -2697,7 +2699,7 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable,
       }
       else if (share.db_type() == innodb_hton)
       {
-        if (create_innodb_tmp_table(&new_table, share.key_info))
+        if (create_innodb_tmp_table(&new_table))
           goto err_after_alloc;                 /* purecov: inspected */
       }
       table_on_disk= true;
@@ -2786,7 +2788,7 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable,
       /* remove heap table and change to use on-disk table */
 
       if (table->pos_in_table_list &&
-          table->pos_in_table_list->is_recursive_reference &&
+          table->pos_in_table_list->is_recursive_reference() &&
           table->file->inited)
       {
         /*

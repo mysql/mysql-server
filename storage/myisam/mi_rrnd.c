@@ -33,7 +33,7 @@
 
 int mi_rrnd(MI_INFO *info, uchar *buf, my_off_t filepos)
 {
-  my_bool skip_deleted_blocks;
+  bool skip_deleted_blocks;
   DBUG_ENTER("mi_rrnd");
 
   skip_deleted_blocks=0;

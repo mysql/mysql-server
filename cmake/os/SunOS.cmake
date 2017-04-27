@@ -140,28 +140,6 @@ CHECK_C_SOURCE_RUNS(
   }
 "  HAVE_SOLARIS_ATOMIC)
 
-CHECK_CXX_SOURCE_COMPILES("
-    #undef inline
-    #if !defined(_REENTRANT)
-    #define _REENTRANT
-    #endif
-    #include <pthread.h>
-    #include <sys/types.h>
-    #include <sys/socket.h>
-    #include <netinet/in.h>
-    #include <arpa/inet.h>
-    #include <netdb.h>
-    int main()
-    {
-
-       struct hostent *foo =
-       gethostbyaddr_r((const char *) 0,
-          0, 0, (struct hostent *) 0, (char *) NULL,  0, (int *)0);
-       return 0;
-    }
-  "
-  HAVE_SOLARIS_STYLE_GETHOST)
-
 # Check is special processor flag needs to be set on older GCC
 #that defaults to v8 sparc . Code here is taken from my_rdtsc.c 
 IF(CMAKE_COMPILER_IS_GNUCC AND CMAKE_SIZEOF_VOID_P EQUAL 4

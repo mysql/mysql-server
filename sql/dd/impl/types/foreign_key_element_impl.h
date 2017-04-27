@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,7 +25,6 @@
 #include "dd/sdi_fwd.h"
 #include "dd/types/foreign_key_element.h"    // dd::Foreign_key_element
 #include "dd/types/object_type.h"            // dd::Object_id
-#include "my_global.h"
 
 namespace dd {
 
@@ -123,12 +122,6 @@ public:
 
   virtual void referenced_column_name(const String_type &name)
   { m_referenced_column_name= name; }
-
-  // Fix "inherits ... via dominance" warnings
-  virtual Weak_object_impl *impl()
-  { return Weak_object_impl::impl(); }
-  virtual const Weak_object_impl *impl() const
-  { return Weak_object_impl::impl(); }
 
 public:
   static Foreign_key_element_impl *restore_item(Foreign_key_impl *fk)

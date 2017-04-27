@@ -5,8 +5,6 @@
 # metadata in the function dict_load_table_on_id() during crash recovery.
 
 #
-# innobackup needs to connect to the server. Not supported in embedded.
---source include/not_embedded.inc
 #
 # This test case needs to crash the server. Needs a debug server.
 --source include/have_debug.inc

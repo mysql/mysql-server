@@ -2,7 +2,6 @@
 # A series of tests to show the correct tablespace behavior when the
 # partition engine uses InnoDB.
 #
---source include/not_embedded.inc
 --let $old_default_storage_engine = @@default_storage_engine;
 SET default_storage_engine=InnoDB;
 
@@ -394,3 +393,78 @@ EVAL SET GLOBAL innodb_file_per_table=$innodb_file_per_table_orig;
 EVAL SET SESSION innodb_strict_mode=$innodb_strict_mode_orig;
 EVAL SET @@default_storage_engine=$old_default_storage_engine;
 --enable_query_log
+
+#
+# Bug#25512556: GETTING TABLESPACE NAMES FROM FREED MEMORY
+#
+CREATE TABLE t0 (col1 INT, col2 INT, col3 INT) ENGINE = InnoDB
+  TABLESPACE innodb_system PARTITION BY RANGE(col1 * 2)
+  ( PARTITION p2 VALUES LESS THAN MAXVALUE );
+
+ALTER TABLE t0 OPTIMIZE PARTITION ALL;
+DROP TABLE t0;
+
+--echo #
+--echo # Test case for bug#25524498.
+--echo #
+
+CREATE TABLESPACE gt1 ADD DATAFILE '1.ibd' FILE_BLOCK_SIZE = 16k ENGINE = InnoDB;
+CREATE TABLE t1 (col1 INT, col2 INT, col3 INT) ENGINE = InnoDB TABLESPACE gt1;
+ALTER TABLE t1 ADD COLUMN col5 VARCHAR(500) , ADD COLUMN col6 TEXT;
+ALTER TABLE t1 ENGINE = InnoDB PARTITION BY KEY(col1) PARTITIONS 3;
+ALTER TABLE t1 ENGINE = InnoDB TABLESPACE innodb_system;
+--error ER_DUP_FIELDNAME
+ALTER TABLE t1 ADD COLUMN col5 VARCHAR(500) , ADD COLUMN col6 TEXT;
+ALTER TABLE t1 ENGINE = InnoDB TABLESPACE innodb_system;
+DROP TABLE t1;
+DROP TABLESPACE gt1;
+
+--echo #
+--echo # Test case for bug#25533133.
+--echo #
+
+CREATE TABLESPACE gt1 ADD DATAFILE '1.ibd' FILE_BLOCK_SIZE = 16k ENGINE = InnoDB;
+CREATE TABLE t1 (col1 INT) ENGINE = InnoDB TABLESPACE gt1;
+ALTER TABLE t1 ENGINE = InnoDB PARTITION BY RANGE(col1 * 2)
+  ( PARTITION p3 VALUES LESS THAN MAXVALUE );
+ALTER TABLE t1 ENGINE = InnoDB TABLESPACE innodb_system;
+TRUNCATE TABLE t1;
+ALTER TABLE t1 ENGINE = InnoDB TABLESPACE gt1;
+
+DROP TABLE t1;
+DROP TABLESPACE gt1;
+
+--echo #
+--echo # Test case for bug#25616303.
+--echo #
+
+CREATE TABLESPACE  gt1 ADD DATAFILE  '1.ibd' FILE_BLOCK_SIZE = 16k ENGINE = InnoDB;
+CREATE TABLE t1 (col1 INT, col5 VARCHAR(500)) ENGINE = InnoDB PARTITION BY KEY(col1) PARTITIONS 4;
+ALTER TABLE t1 ALGORITHM COPY , TABLESPACE innodb_system;
+--error ER_DUP_FIELDNAME
+ALTER TABLE t1 ADD COLUMN col5 VARCHAR(500);
+ALTER TABLE t1 ALGORITHM COPY , TABLESPACE  gt1;
+
+DROP TABLE t1;
+DROP TABLESPACE gt1;
+
+--echo #
+--echo # Bug#25695284: PARTITION INFO AFTER FAILING ALTER INCORRECTLY
+--echo #               REFLECTED IN SUBSEQUENT ALTER
+--echo #
+
+CREATE TABLESPACE gt1 ADD DATAFILE 'gt1.ibd' ENGINE = InnoDB;
+CREATE TABLESPACE gt2 ADD DATAFILE 'gt2.ibd' ENGINE = InnoDB;
+
+CREATE TABLE t1 (str VARCHAR(10)) TABLESPACE gt2;
+
+ALTER TABLE t1 ALGORITHM COPY PARTITION BY KEY(str) PARTITIONS 4;
+--error ER_DUP_FIELDNAME
+ALTER TABLE t1 ALGORITHM COPY, ADD COLUMN str VARCHAR(10);
+
+# Without the patch, this fails with an aseert in InnoDB.
+ALTER TABLE t1 ALGORITHM COPY, TABLESPACE gt1;
+
+DROP TABLE t1;
+DROP TABLESPACE gt1;
+DROP TABLESPACE gt2;

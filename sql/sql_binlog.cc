@@ -14,7 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#include "sql_binlog.h"
+#include "sql/sql_binlog.h"
 
 #include <stddef.h>
 #include <stdint.h>
@@ -24,10 +24,10 @@
 #include "auth_common.h"                        // check_global_access
 #include "base64.h"                             // base64_needed_decoded_length
 #include "binlog_event.h"
+#include "lex_string.h"
 #include "log_event.h"                          // Format_description_log_event
 #include "my_byteorder.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
@@ -139,8 +139,13 @@ void mysql_client_binlog_statement(THD* thd)
                             thd->lex->binlog_stmt_arg.length : 2048),
                      thd->lex->binlog_stmt_arg.str));
 
-  if (check_global_access(thd, SUPER_ACL))
+  Security_context *sctx= thd->security_context();
+  if (!(sctx->check_access(SUPER_ACL) ||
+        sctx->has_global_grant(STRING_WITH_LEN("BINLOG_ADMIN")).first))
+  {
+    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER or BINLOG_ADMIN");
     DBUG_VOID_RETURN;
+  }
 
   size_t coded_len= thd->lex->binlog_stmt_arg.length;
   if (!coded_len)

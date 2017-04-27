@@ -2,7 +2,6 @@
 --echo # BUG#19316315 CRASH RECOVERY FAILS AFTER ONLINE ADD INDEX
 --echo #
 
---source include/not_embedded.inc
 --source include/have_debug_sync.inc
 
 CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT) ENGINE=InnoDB;

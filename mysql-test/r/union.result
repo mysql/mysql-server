@@ -663,8 +663,8 @@ aa
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` varchar(2) NOT NULL DEFAULT ''
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+  `a` varchar(2) CHARACTER SET latin1 NOT NULL DEFAULT ''
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 create table t1 SELECT 12 as a UNION select "aa" as a;
 select * from t1;
@@ -674,8 +674,8 @@ aa
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` varchar(2) NOT NULL DEFAULT ''
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+  `a` varchar(2) CHARACTER SET latin1 NOT NULL DEFAULT ''
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 create table t1 SELECT 12 as a UNION select 12.2 as a;
 select * from t1;
@@ -686,7 +686,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` decimal(3,1) NOT NULL DEFAULT '0.0'
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 create table t2 (it1 tinyint, it2 tinyint not null, i int not null, ib bigint, f float, d double, y year, da date, dt datetime, sc char(10), sv varchar(10), b blob, tx text);
 insert into t2 values (NULL, 1, 3, 4, 1.5, 2.5, 1972, '1972-10-22', '1972-10-22 11:50', 'testc', 'testv', 'tetetetetest', 'teeeeeeeeeeeest');
@@ -699,7 +699,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `it2` tinyint(4) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 create table t1 SELECT it2 from t2 UNION select i from t2;
 select * from t1;
@@ -710,7 +710,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `it2` int(11) NOT NULL DEFAULT '0'
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 create table t1 SELECT i from t2 UNION select f from t2;
 select * from t1;
@@ -721,7 +721,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` double DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 create table t1 SELECT f from t2 UNION select d from t2;
 select * from t1;
@@ -732,7 +732,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `f` double DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 create table t1 SELECT ib from t2 UNION select f from t2;
 select * from t1;
@@ -743,7 +743,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `ib` double DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 create table t1 SELECT ib from t2 UNION select d from t2;
 select * from t1;
@@ -754,7 +754,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `ib` double DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 create table t1 SELECT f from t2 UNION select y from t2;
 select * from t1;
@@ -765,7 +765,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `f` float DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 create table t1 SELECT f from t2 UNION select da from t2;
 select * from t1;
@@ -775,8 +775,8 @@ f
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f` varchar(12) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+  `f` varchar(12) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 create table t1 SELECT y from t2 UNION select da from t2;
 select * from t1;
@@ -786,8 +786,8 @@ y
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `y` varchar(10) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+  `y` varchar(10) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 create table t1 SELECT y from t2 UNION select dt from t2;
 select * from t1;
@@ -797,8 +797,8 @@ y
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `y` varchar(19) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+  `y` varchar(19) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 create table t1 SELECT da from t2 UNION select dt from t2;
 select * from t1;
@@ -809,7 +809,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `da` datetime DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 create table t1 SELECT dt from t2 UNION select trim(sc) from t2;
 select trim(dt) from t1;
@@ -820,7 +820,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `dt` varchar(19) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 create table t1 SELECT dt from t2 UNION select sv from t2;
 select * from t1;
@@ -831,7 +831,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `dt` varchar(19) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 create table t1 SELECT sc from t2 UNION select sv from t2;
 select * from t1;
@@ -842,7 +842,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `sc` varchar(10) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 create table t1 SELECT dt from t2 UNION select b from t2;
 select * from t1;
@@ -853,7 +853,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `dt` blob
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 create table t1 SELECT sv from t2 UNION select b from t2;
 select * from t1;
@@ -864,7 +864,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `sv` blob
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 create table t1 SELECT i from t2 UNION select d from t2 UNION select b from t2;
 select * from t1;
@@ -876,7 +876,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` blob
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 create table t1 SELECT sv from t2 UNION select tx from t2;
 select * from t1;
@@ -886,8 +886,8 @@ teeeeeeeeeeeest
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `sv` text
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+  `sv` mediumtext
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 create table t1 SELECT b from t2 UNION select tx from t2;
 select * from t1;
@@ -897,8 +897,8 @@ teeeeeeeeeeeest
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `b` blob
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+  `b` mediumblob
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1,t2;
 create table t1 select 1 union select -1;
 select * from t1;
@@ -909,7 +909,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `1` bigint(20) NOT NULL DEFAULT '0'
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 create table t1 select _latin1"test" union select _latin2"testt" ;
 ERROR HY000: Illegal mix of collations (latin1_swedish_ci,COERCIBLE) and (latin2_general_ci,COERCIBLE) for operation 'UNION'
@@ -918,7 +918,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `test` varchar(5) CHARACTER SET latin2 NOT NULL DEFAULT ''
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 create table t1 (s char(200));
 insert into t1 values (repeat("1",200));
@@ -1165,8 +1165,8 @@ create table t1 as
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `test` varchar(4) NOT NULL DEFAULT ''
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+  `test` varchar(4) CHARACTER SET latin1 NOT NULL DEFAULT ''
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 select count(*) from t1;
 count(*)
 1
@@ -1179,7 +1179,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `_latin1'test' collate latin1_bin` varchar(4) CHARACTER SET latin1 COLLATE latin1_bin DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 select count(*) from t1;
 count(*)
 3
@@ -1192,7 +1192,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `test` varchar(4) CHARACTER SET latin1 COLLATE latin1_bin DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 select count(*) from t1;
 count(*)
 3
@@ -1205,7 +1205,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `test` varchar(4) CHARACTER SET latin1 COLLATE latin1_bin DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 select count(*) from t1;
 count(*)
 3
@@ -1224,7 +1224,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a collate latin1_german1_ci` varchar(1) CHARACTER SET latin1 COLLATE latin1_german1_ci DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 create table t1 as
 (select a from t2) union
@@ -1233,7 +1233,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(1) CHARACTER SET latin1 COLLATE latin1_german1_ci DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 create table t1 as
 (select a from t2) union
@@ -1243,7 +1243,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(1) CHARACTER SET latin1 COLLATE latin1_german1_ci DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 drop table t2;
 create table t1(a1 int, f1 char(10));
@@ -1330,7 +1330,7 @@ t1	CREATE TABLE `t1` (
   `a` enum('ä','ö','ü') CHARACTER SET utf8 NOT NULL DEFAULT 'ü',
   `b` enum('one','two') CHARACTER SET utf8 DEFAULT NULL,
   `c` enum('one','two') DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 insert into t1 values ('ä', 'one', 'one'), ('ö', 'two', 'one'), ('ü', NULL, NULL);
 create table t2 select NULL union select a from t1;
 show columns from t2;
@@ -1386,7 +1386,7 @@ show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` varchar(12) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 select row_format from information_schema.TABLES where table_schema="test" and table_name="t2";
 ROW_FORMAT
 Dynamic
@@ -1395,7 +1395,7 @@ show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` varchar(12) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 ROW_FORMAT=FIXED
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 ROW_FORMAT=FIXED
 drop table t1,t2;
 create table t1 (a varchar(5));
 create table t2 select * from t1 union select 'abcdefghijkl';
@@ -1403,7 +1403,7 @@ show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` varchar(12) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 select row_format from information_schema.TABLES where table_schema="test" and table_name="t2";
 ROW_FORMAT
 Dynamic
@@ -1413,7 +1413,7 @@ show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` varchar(12) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1,t2;
 CREATE TABLE t1 (a mediumtext);
 CREATE TABLE t2 (b varchar(20));
@@ -1426,8 +1426,8 @@ create table t3 SELECT left(a,100000000) FROM t1 UNION  SELECT b FROM t2;
 show create table t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `left(a,100000000)` mediumtext
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+  `left(a,100000000)` longtext
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop tables t1,t2,t3;
 CREATE TABLE t1 (a longtext);
 CREATE TABLE t2 (b varchar(20));
@@ -1441,7 +1441,7 @@ show create table t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
   `left(a,100000000)` longtext
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop tables t1,t2,t3;
 SELECT @tmp_max:= @@global.max_allowed_packet;
 @tmp_max:= @@global.max_allowed_packet
@@ -1457,7 +1457,7 @@ SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
   `a` longtext
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLES t1,t3;
 CREATE TABLE t1 (a tinytext);
 INSERT INTO t1 VALUES ('a');
@@ -1466,7 +1466,7 @@ SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
   `a` varchar(510) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLES t1,t3;
 CREATE TABLE t1 (a mediumtext);
 INSERT INTO t1 VALUES ('a');
@@ -1475,7 +1475,7 @@ SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
   `a` longtext
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLES t1,t3;
 CREATE TABLE t1 (a tinyblob);
 INSERT INTO t1 VALUES ('a');
@@ -1484,7 +1484,7 @@ SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
   `a` varbinary(510) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLES t1,t2,t3;
 SET @@global.max_allowed_packet:= @tmp_max;
 create table t1 ( id int not null auto_increment, primary key (id), col1 int);
@@ -1520,9 +1520,9 @@ t2	CREATE TABLE `t2` (
   `f4` binary(5) DEFAULT NULL,
   `f5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   `f6` varchar(1) CHARACTER SET utf8 DEFAULT NULL,
-  `f7` text,
-  `f8` mediumtext CHARACTER SET utf8
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+  `f7` mediumtext,
+  `f8` mediumtext
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1, t2;
 SET sql_mode = default;
 (select avg(1)) union (select avg(1)) union (select avg(1)) union
@@ -2182,7 +2182,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1, t2;
 SET GLOBAL internal_tmp_disk_storage_engine=@tmp;
 CREATE TABLE geometries (
@@ -2211,7 +2211,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT pt AS a FROM geometries UNION SELECT g FROM geometries) t;
@@ -2219,7 +2219,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT ls AS a FROM geometries UNION SELECT g FROM geometries) t;
@@ -2227,7 +2227,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT py AS a FROM geometries UNION SELECT g FROM geometries) t;
@@ -2235,7 +2235,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT mpt AS a FROM geometries UNION SELECT g FROM geometries) t;
@@ -2243,7 +2243,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT mls AS a FROM geometries UNION SELECT g FROM geometries) t;
@@ -2251,7 +2251,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT mpy AS a FROM geometries UNION SELECT g FROM geometries) t;
@@ -2259,7 +2259,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT gc AS a FROM geometries UNION SELECT g FROM geometries) t;
@@ -2267,7 +2267,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT g AS a FROM geometries UNION SELECT pt FROM geometries) t;
@@ -2275,7 +2275,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT pt AS a FROM geometries UNION SELECT pt FROM geometries) t;
@@ -2283,7 +2283,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` point DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT ls AS a FROM geometries UNION SELECT pt FROM geometries) t;
@@ -2291,7 +2291,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT py AS a FROM geometries UNION SELECT pt FROM geometries) t;
@@ -2299,7 +2299,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT mpt AS a FROM geometries UNION SELECT pt FROM geometries) t;
@@ -2307,7 +2307,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT mls AS a FROM geometries UNION SELECT pt FROM geometries) t;
@@ -2315,7 +2315,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT mpy AS a FROM geometries UNION SELECT pt FROM geometries) t;
@@ -2323,7 +2323,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT gc AS a FROM geometries UNION SELECT pt FROM geometries) t;
@@ -2331,7 +2331,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT g AS a FROM geometries UNION SELECT ls FROM geometries) t;
@@ -2339,7 +2339,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT pt AS a FROM geometries UNION SELECT ls FROM geometries) t;
@@ -2347,7 +2347,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT ls AS a FROM geometries UNION SELECT ls FROM geometries) t;
@@ -2355,7 +2355,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` linestring DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT py AS a FROM geometries UNION SELECT ls FROM geometries) t;
@@ -2363,7 +2363,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT mpt AS a FROM geometries UNION SELECT ls FROM geometries) t;
@@ -2371,7 +2371,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT mls AS a FROM geometries UNION SELECT ls FROM geometries) t;
@@ -2379,7 +2379,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT mpy AS a FROM geometries UNION SELECT ls FROM geometries) t;
@@ -2387,7 +2387,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT gc AS a FROM geometries UNION SELECT ls FROM geometries) t;
@@ -2395,7 +2395,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT g AS a FROM geometries UNION SELECT py FROM geometries) t;
@@ -2403,7 +2403,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT pt AS a FROM geometries UNION SELECT py FROM geometries) t;
@@ -2411,7 +2411,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT ls AS a FROM geometries UNION SELECT py FROM geometries) t;
@@ -2419,7 +2419,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT py AS a FROM geometries UNION SELECT py FROM geometries) t;
@@ -2427,7 +2427,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` polygon DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT mpt AS a FROM geometries UNION SELECT py FROM geometries) t;
@@ -2435,7 +2435,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT mls AS a FROM geometries UNION SELECT py FROM geometries) t;
@@ -2443,7 +2443,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT mpy AS a FROM geometries UNION SELECT py FROM geometries) t;
@@ -2451,7 +2451,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT gc AS a FROM geometries UNION SELECT py FROM geometries) t;
@@ -2459,7 +2459,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT g AS a FROM geometries UNION SELECT mpt FROM geometries) t;
@@ -2467,7 +2467,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT pt AS a FROM geometries UNION SELECT mpt FROM geometries) t;
@@ -2475,7 +2475,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT ls AS a FROM geometries UNION SELECT mpt FROM geometries) t;
@@ -2483,7 +2483,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT py AS a FROM geometries UNION SELECT mpt FROM geometries) t;
@@ -2491,7 +2491,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT mpt AS a FROM geometries UNION SELECT mpt FROM geometries) t;
@@ -2499,7 +2499,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` multipoint DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT mls AS a FROM geometries UNION SELECT mpt FROM geometries) t;
@@ -2507,7 +2507,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT mpy AS a FROM geometries UNION SELECT mpt FROM geometries) t;
@@ -2515,7 +2515,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT gc AS a FROM geometries UNION SELECT mpt FROM geometries) t;
@@ -2523,7 +2523,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT g AS a FROM geometries UNION SELECT mls FROM geometries) t;
@@ -2531,7 +2531,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT pt AS a FROM geometries UNION SELECT mls FROM geometries) t;
@@ -2539,7 +2539,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT ls AS a FROM geometries UNION SELECT mls FROM geometries) t;
@@ -2547,7 +2547,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT py AS a FROM geometries UNION SELECT mls FROM geometries) t;
@@ -2555,7 +2555,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT mpt AS a FROM geometries UNION SELECT mls FROM geometries) t;
@@ -2563,7 +2563,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT mls AS a FROM geometries UNION SELECT mls FROM geometries) t;
@@ -2571,7 +2571,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` multilinestring DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT mpy AS a FROM geometries UNION SELECT mls FROM geometries) t;
@@ -2579,7 +2579,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT gc AS a FROM geometries UNION SELECT mls FROM geometries) t;
@@ -2587,7 +2587,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT g AS a FROM geometries UNION SELECT mpy FROM geometries) t;
@@ -2595,7 +2595,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT pt AS a FROM geometries UNION SELECT mpy FROM geometries) t;
@@ -2603,7 +2603,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT ls AS a FROM geometries UNION SELECT mpy FROM geometries) t;
@@ -2611,7 +2611,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT py AS a FROM geometries UNION SELECT mpy FROM geometries) t;
@@ -2619,7 +2619,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT mpt AS a FROM geometries UNION SELECT mpy FROM geometries) t;
@@ -2627,7 +2627,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT mls AS a FROM geometries UNION SELECT mpy FROM geometries) t;
@@ -2635,7 +2635,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT mpy AS a FROM geometries UNION SELECT mpy FROM geometries) t;
@@ -2643,7 +2643,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` multipolygon DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT gc AS a FROM geometries UNION SELECT mpy FROM geometries) t;
@@ -2651,7 +2651,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT g AS a FROM geometries UNION SELECT gc FROM geometries) t;
@@ -2659,7 +2659,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT pt AS a FROM geometries UNION SELECT gc FROM geometries) t;
@@ -2667,7 +2667,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT ls AS a FROM geometries UNION SELECT gc FROM geometries) t;
@@ -2675,7 +2675,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT py AS a FROM geometries UNION SELECT gc FROM geometries) t;
@@ -2683,7 +2683,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT mpt AS a FROM geometries UNION SELECT gc FROM geometries) t;
@@ -2691,7 +2691,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT mls AS a FROM geometries UNION SELECT gc FROM geometries) t;
@@ -2699,7 +2699,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT mpy AS a FROM geometries UNION SELECT gc FROM geometries) t;
@@ -2707,7 +2707,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 (SELECT gc AS a FROM geometries UNION SELECT gc FROM geometries) t;
@@ -2715,7 +2715,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` geometrycollection DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 DROP TABLE geometries;
 # 

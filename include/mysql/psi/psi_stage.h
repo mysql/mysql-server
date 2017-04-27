@@ -25,9 +25,6 @@
   @{
 */
 
-#ifndef MYSQL_ABI_CHECK
-#include "my_global.h"
-#endif  // MYSQL_ABI_CHECK
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_psi_config.h"
@@ -103,7 +100,7 @@ typedef struct PSI_stage_progress_v1 PSI_stage_progress_v1;
 
 /**
   Stage instrument information.
-  @since PSI_VERSION_1
+  @since PSI_STAGE_VERSION_1
   This structure is used to register an instrumented stage.
 */
 struct PSI_stage_info_v1
@@ -184,7 +181,6 @@ extern MYSQL_PLUGIN_IMPORT PSI_stage_service_t *psi_stage_service;
 
 /**
   Stage instrument information.
-  @since PSI_VERSION_1
   This structure is used to register an instrumented stage.
 */
 struct PSI_stage_info_none

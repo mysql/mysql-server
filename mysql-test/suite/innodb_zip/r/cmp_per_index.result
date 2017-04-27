@@ -9,7 +9,7 @@ c VARCHAR(16),
 PRIMARY KEY (a),
 INDEX (b(512)),
 INDEX (c(16))
-) ENGINE=INNODB KEY_BLOCK_SIZE=2;
+) charset latin1 ENGINE=INNODB KEY_BLOCK_SIZE=2;
 SELECT
 database_name,
 table_name,

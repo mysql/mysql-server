@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql_admin.h"
+#include "sql/sql_admin.h"
 
 #include <limits.h>
 #include <string.h>
@@ -39,7 +39,6 @@
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_dir.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_macros.h"
@@ -694,9 +693,11 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
         /* Same applies to MDL ticket. */
         table->mdl_request.ticket= NULL;
 
-        tmp_disable_binlog(thd); // binlogging is done by caller if wanted
-        result_code= mysql_recreate_table(thd, table, false);
-        reenable_binlog(thd);
+        {
+          // binlogging is done by caller if wanted
+          Disable_binlog_guard binlog_guard(thd);
+          result_code= mysql_recreate_table(thd, table, false);
+        }
         /*
           mysql_recreate_table() can push OK or ERROR.
           Clear 'OK' status. If there is an error, keep it:
@@ -889,11 +890,13 @@ send_result_message:
       TABLE_LIST *save_next_local= table->next_local,
                  *save_next_global= table->next_global;
       table->next_local= table->next_global= 0;
-      tmp_disable_binlog(thd); // binlogging is done by caller if wanted
-      /* Don't forget to pre-open temporary tables. */
-      result_code= (open_temporary_tables(thd, table) ||
-                    mysql_recreate_table(thd, table, false));
-      reenable_binlog(thd);
+      {
+        // binlogging is done by caller if wanted
+        Disable_binlog_guard binlog_guard(thd);
+        /* Don't forget to pre-open temporary tables. */
+        result_code= (open_temporary_tables(thd, table) ||
+                      mysql_recreate_table(thd, table, false));
+      }
       /*
         mysql_recreate_table() can push OK or ERROR.
         Clear 'OK' status. If there is an error, keep it:
@@ -1070,21 +1073,6 @@ send_result_message:
     }
     close_thread_tables(thd);
     thd->mdl_context.release_transactional_locks();
-
-    /*
-      If it is CHECK TABLE v1, v2, v3, and v1, v2, v3 are views, we will run
-      separate open_tables() for each CHECK TABLE argument.
-      Right now we do not have a separate method to reset the prelocking
-      state in the lex to the state after parsing, so each open will pollute
-      this state: add elements to lex->srotuines_list, TABLE_LISTs to
-      lex->query_tables. Below is a lame attempt to recover from this
-      pollution.
-      @todo: have a method to reset a prelocking context, or use separate
-      contexts for each open.
-    */
-    for (Sroutine_hash_entry *rt= thd->lex->sroutines_list.first;
-         rt; rt= rt->next)
-      rt->mdl_request.ticket= NULL;
 
     if (protocol->end_row())
       goto err;
@@ -1448,7 +1436,8 @@ bool Sql_cmd_grant_roles::execute(THD *thd)
   {
     if (!has_grant_role_privilege(thd, role->user,role->host))
     {
-      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "WITH ADMIN, SUPER");
+      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+               "WITH ADMIN, ROLE_ADMIN, SUPER");
       DBUG_RETURN(true);
     }
   }
@@ -1464,7 +1453,8 @@ bool Sql_cmd_revoke_roles::execute(THD *thd)
   {
     if (!has_grant_role_privilege(thd, role->user,role->host))
     {
-      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "WITH ADMIN, SUPER");
+      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+               "WITH ADMIN, ROLE_ADMIN, SUPER");
       DBUG_RETURN(true);
     }
   }

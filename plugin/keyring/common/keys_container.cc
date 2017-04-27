@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <my_global.h>
+#include <stddef.h>
 
 #include "keys_container.h"
 #include "my_dbug.h"
@@ -50,7 +50,7 @@ Keys_container::~Keys_container()
     delete keyring_io;
 }
 
-my_bool Keys_container::init(IKeyring_io* keyring_io, std::string keyring_storage_url)
+bool Keys_container::init(IKeyring_io* keyring_io, std::string keyring_storage_url)
 {
   this->keyring_io= keyring_io;
   this->keyring_storage_url= keyring_storage_url;
@@ -77,14 +77,14 @@ std::string Keys_container::get_keyring_storage_url()
   return keyring_storage_url;
 }
 
-my_bool Keys_container::store_key_in_hash(IKey *key)
+bool Keys_container::store_key_in_hash(IKey *key)
 {
   if (my_hash_insert(&keys_hash, (uchar *) key))
     return TRUE;
   return FALSE;
 }
 
-my_bool Keys_container::store_key(IKey* key)
+bool Keys_container::store_key(IKey* key)
 {
   if (flush_to_backup() || store_key_in_hash(key))
     return TRUE;
@@ -122,16 +122,16 @@ IKey*Keys_container::fetch_key(IKey *key)
   return key;
 }
 
-my_bool Keys_container::remove_key_from_hash(IKey *key)
+bool Keys_container::remove_key_from_hash(IKey *key)
 {
-  my_bool retVal= TRUE;
+  bool retVal= TRUE;
   keys_hash.free_element= NULL; //Prevent my_hash_delete from removing key from memory
   retVal= my_hash_delete(&keys_hash, reinterpret_cast<uchar*>(key));
   keys_hash.free_element= free_hash_key;
   return retVal;
 }
 
-my_bool Keys_container::remove_key(IKey *key)
+bool Keys_container::remove_key(IKey *key)
 {
   IKey* fetched_key_to_delete= get_key_from_hash(key);
   if (fetched_key_to_delete == NULL || flush_to_backup() ||
@@ -156,9 +156,9 @@ void Keys_container::free_keys_hash()
     my_hash_free(&keys_hash);
 }
 
-my_bool Keys_container::load_keys_from_keyring_storage()
+bool Keys_container::load_keys_from_keyring_storage()
 {
-  my_bool was_error= FALSE;
+  bool was_error= FALSE;
   ISerialized_object *serialized_keys= NULL;
   was_error= keyring_io->get_serialized_object(&serialized_keys);
   while(was_error == FALSE && serialized_keys != NULL)
@@ -186,7 +186,7 @@ my_bool Keys_container::load_keys_from_keyring_storage()
   return was_error;
 }
 
-my_bool Keys_container::flush_to_storage(IKey *key, Key_operation operation)
+bool Keys_container::flush_to_storage(IKey *key, Key_operation operation)
 {
   ISerialized_object *serialized_object=
     keyring_io->get_serializer()->serialize(&keys_hash, key, operation);
@@ -201,7 +201,7 @@ my_bool Keys_container::flush_to_storage(IKey *key, Key_operation operation)
   return FALSE;
 }
 
-my_bool Keys_container::flush_to_backup()
+bool Keys_container::flush_to_backup()
 {
   ISerialized_object *serialized_object=
     keyring_io->get_serializer()->serialize(&keys_hash, NULL, NONE);

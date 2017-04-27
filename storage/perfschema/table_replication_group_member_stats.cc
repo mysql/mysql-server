@@ -19,16 +19,18 @@
   Table replication_group_member_stats (implementation).
 */
 
-#include "my_compiler.h"
-#include "my_dbug.h"
-#include "my_global.h"
+#include "storage/perfschema/table_replication_group_member_stats.h"
+
+#include <stddef.h>
+
 #include "field.h"
 #include "log.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
 #include "pfs_instr.h"
 #include "pfs_instr_class.h"
 #include "rpl_group_replication.h"
 #include "table.h"
-#include "table_replication_group_member_stats.h"
 #include "table_helper.h"
 #include "thr_lock.h"
 
@@ -208,7 +210,7 @@ PFS_engine_table_share table_replication_group_member_stats::m_share = {
 };
 
 PFS_engine_table*
-table_replication_group_member_stats::create(void)
+table_replication_group_member_stats::create(PFS_engine_table_share *)
 {
   return new table_replication_group_member_stats();
 }

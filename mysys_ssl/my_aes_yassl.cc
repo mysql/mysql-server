@@ -19,7 +19,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <m_string.h>
 #include <my_aes.h>
-#include <my_global.h>
+#include <sys/types.h>
 
 #include "aes.hpp"
 #include "my_aes_impl.h"
@@ -221,7 +221,7 @@ int my_aes_get_size(uint32 source_length, my_aes_opmode)
 }
 
 
-my_bool my_aes_needs_iv(my_aes_opmode opmode)
+bool my_aes_needs_iv(my_aes_opmode opmode)
 {
   MyCipherCtx<TaoCrypt::ENCRYPTION> enc(opmode);
 

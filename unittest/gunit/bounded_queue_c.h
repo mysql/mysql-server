@@ -21,7 +21,6 @@
 #include "../storage/myisam/queues.h"
 #include "my_base.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_sys.h"
 #include "test_utils.h"
 

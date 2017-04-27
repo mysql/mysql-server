@@ -6,7 +6,6 @@
 # - IP --> HOST --> IP returns the client IP
 # - completes host validation in HOST_VALIDATED
 
---source include/not_embedded.inc
 --source include/have_debug.inc
 --source include/have_ipv6.inc
 

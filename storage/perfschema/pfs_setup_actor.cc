@@ -18,10 +18,11 @@
   Performance schema setup actor (implementation).
 */
 
+#include "storage/perfschema/pfs_setup_actor.h"
+
 #include "my_base.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "pfs.h"
@@ -29,7 +30,6 @@
 #include "pfs_buffer_container.h"
 #include "pfs_global.h"
 #include "pfs_instr.h"
-#include "pfs_setup_actor.h"
 #include "pfs_stat.h"
 
 /**

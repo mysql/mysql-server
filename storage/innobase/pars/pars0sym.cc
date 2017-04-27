@@ -82,7 +82,7 @@ sym_tab_free_private(
 
 		if (sym->token_type == SYM_TABLE_REF_COUNTED) {
 
-			if (sym->mdl) {
+			if (sym->mdl != nullptr) {
 				dd_table_close(sym->table, thd, &sym->mdl, true);
 			} else {
 				/* TODO: NewDD: Remove with WL#9535. This is only

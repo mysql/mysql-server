@@ -18,9 +18,12 @@
   TABLE USERS.
 */
 
+#include "storage/perfschema/table_users.h"
+
+#include <stddef.h>
+
 #include "field.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_thread.h"
 #include "pfs_account.h"
 #include "pfs_instr.h"
@@ -29,7 +32,6 @@
 #include "pfs_status.h"
 #include "pfs_user.h"
 #include "pfs_visitor.h"
-#include "table_users.h"
 
 THR_LOCK table_users::m_table_lock;
 
@@ -86,7 +88,7 @@ PFS_index_users_by_user::match(PFS_user *pfs)
 }
 
 PFS_engine_table *
-table_users::create()
+table_users::create(PFS_engine_table_share *)
 {
   return new table_users();
 }

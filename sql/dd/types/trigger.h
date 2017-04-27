@@ -16,11 +16,15 @@
 #ifndef DD__TRIGGER_INCLUDED
 #define DD__TRIGGER_INCLUDED
 
-#include "my_global.h"
-#include "my_inttypes.h"
+#include <time.h>
+
+#ifdef _WIN32
+#include <winsock2.h>                 // timeval
+#endif
 
 #include "dd/sdi_fwd.h"               // dd::Sdi_wcontext
 #include "dd/types/entity_object.h"   // dd::Entity_object
+#include "my_inttypes.h"
 
 namespace dd {
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,7 +28,7 @@
 #include "dd/impl/transaction_impl.h"       // Open_dictionary_tables_ctx
 #include "dd/impl/types/column_impl.h"      // Column_impl
 #include "dd/types/column.h"
-#include "dd/types/dictionary_object_table.h"
+#include "dd/types/entity_object_table.h"
 #include "dd/types/table.h"
 #include "dd/types/view.h"                  // View
 #include "dd/types/weak_object.h"
@@ -59,7 +59,7 @@ const Object_type &Abstract_table::TYPE()
   return s_instance;
 }
 
-const Dictionary_object_table &Abstract_table::OBJECT_TABLE()
+const Entity_object_table &Abstract_table::OBJECT_TABLE()
 {
   return Tables::instance();
 }
@@ -72,7 +72,7 @@ Abstract_table_impl::Abstract_table_impl()
  :m_mysql_version_id(MYSQL_VERSION_ID),
   m_created(0),
   m_last_altered(0),
-  m_hidden(false),
+  m_hidden(HT_VISIBLE),
   m_options(new Properties_impl()),
   m_columns(),
   m_schema_id(INVALID_OBJECT_ID)
@@ -146,7 +146,7 @@ bool Abstract_table_impl::restore_attributes(const Raw_record &r)
 
   m_created= r.read_int(Tables::FIELD_CREATED);
   m_last_altered= r.read_int(Tables::FIELD_LAST_ALTERED);
-  m_hidden= r.read_bool(Tables::FIELD_HIDDEN);
+  m_hidden= static_cast<enum_hidden_type>(r.read_int(Tables::FIELD_HIDDEN));
   m_schema_id= r.read_ref_id(Tables::FIELD_SCHEMA_ID);
   m_mysql_version_id= r.read_uint(Tables::FIELD_MYSQL_VERSION_ID);
 
@@ -188,7 +188,7 @@ bool Abstract_table_impl::store_attributes(Raw_record *r)
     r->store(Tables::FIELD_OPTIONS, *m_options) ||
     r->store(Tables::FIELD_CREATED, m_created) ||
     r->store(Tables::FIELD_LAST_ALTERED, m_last_altered) ||
-    r->store(Tables::FIELD_HIDDEN, m_hidden);
+    r->store(Tables::FIELD_HIDDEN, static_cast<int>(m_hidden));
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -212,7 +212,7 @@ void Abstract_table_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const
   write(w, m_mysql_version_id, STRING_WITH_LEN("mysql_version_id"));
   write(w, m_created, STRING_WITH_LEN("created"));
   write(w, m_last_altered, STRING_WITH_LEN("last_altered"));
-  write(w, m_hidden, STRING_WITH_LEN("hidden"));
+  write_enum(w, m_hidden, STRING_WITH_LEN("hidden"));
   write_properties(w, m_options, STRING_WITH_LEN("options"));
   serialize_each(wctx, w, m_columns, STRING_WITH_LEN("columns"));
   write(w, lookup_schema_name(wctx),
@@ -229,7 +229,7 @@ bool Abstract_table_impl::deserialize(Sdi_rcontext *rctx,
   read(&m_mysql_version_id, val, "mysql_version_id");
   read(&m_created, val, "created");
   read(&m_last_altered, val, "last_altered");
-  read(&m_hidden, val, "hidden");
+  read_enum(&m_hidden, val, "hidden");
   read_properties(&m_options, val, "options");
   deserialize_each(rctx, [this] () { return add_column(); },
                    val, "columns");

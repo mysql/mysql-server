@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -153,7 +153,7 @@ trx_rseg_mem_create(
 	const page_size_t&	page_size,
 	purge_pq_t*		purge_queue,
 	mtr_t*			mtr);
-	
+
 /** Create a rollback segment in the given tablespace. This could be either
 the system tablespace, the temporary tablespace, or an undo tablespace.
 @param[in]	space_id	tablespace to get the rollback segment

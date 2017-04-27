@@ -19,22 +19,20 @@
 
 #include "xpl_server.h"
 
-#include "my_config.h"
-
-#include <mysql/plugin.h>
-
 #include "auth_mysql41.h"
 #include "auth_plain.h"
 #include "io/xpl_listener_factory.h"
+#include "my_config.h"
 #include "my_inttypes.h"
 #include "my_thread_local.h"
-#include "mysql/service_ssl_wrapper.h"
 #include "mysql_show_variable_wrapper.h"
 #include "mysql_variables.h"
+#include "mysql/plugin.h"
+#include "mysql/service_ssl_wrapper.h"
 #include "mysqlx_version.h"
+#include "ngs/interface/authentication_interface.h"
 #include "ngs/interface/listener_interface.h"
 #include "ngs/protocol/protocol_config.h"
-#include "ngs/protocol_authentication.h"
 #include "ngs/scheduler.h"
 #include "ngs/server_acceptors.h"
 #include "sql_data_result.h"
@@ -210,7 +208,7 @@ ngs::shared_ptr<ngs::Session_interface> xpl::Server::create_session(ngs::Client_
 }
 
 
-void xpl::Server::on_client_closed(const ngs::Client_interface &client)
+void xpl::Server::on_client_closed(const ngs::Client_interface&)
 {
   ++Global_status_variables::instance().m_closed_connections_count;
 
@@ -219,7 +217,7 @@ void xpl::Server::on_client_closed(const ngs::Client_interface &client)
 }
 
 
-bool xpl::Server::will_accept_client(const ngs::Client_interface &client)
+bool xpl::Server::will_accept_client(const ngs::Client_interface&)
 {
   Mutex_lock lock(m_accepting_mutex);
 
@@ -238,7 +236,7 @@ bool xpl::Server::will_accept_client(const ngs::Client_interface &client)
 }
 
 
-void xpl::Server::did_accept_client(const ngs::Client_interface &client)
+void xpl::Server::did_accept_client(const ngs::Client_interface&)
 {
   ++Global_status_variables::instance().m_accepted_connections_count;
 }
@@ -348,7 +346,7 @@ int xpl::Server::main(MYSQL_PLUGIN p)
 }
 
 
-int xpl::Server::exit(MYSQL_PLUGIN p)
+int xpl::Server::exit(MYSQL_PLUGIN)
 {
   // this flag will trigger the on_verify_server_state() timer to trigger an acceptor thread exit
   exiting = true;
@@ -457,7 +455,8 @@ void xpl::Server::verify_mysqlx_user_grants(Sql_data_context &context)
     if (grants.find(" SELECT ") != std::string::npos ||
         grants.find(" SELECT,") != std::string::npos)
       has_select_on_mysql_user = true;
-    if (grants.find(" SUPER ") != std::string::npos)
+    if (grants.find(" SUPER ") != std::string::npos ||
+        grants.find(" SUPER,") != std::string::npos)
       has_super = true;
   } while (sql_result.next_row());
 

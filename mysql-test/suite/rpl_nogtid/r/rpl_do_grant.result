@@ -133,10 +133,10 @@ GRANT EXECUTE, ALTER ROUTINE ON FUNCTION `bug42217_db`.`upgrade_del_func` TO `cr
 USE bug42217_db;
 SHOW CREATE FUNCTION upgrade_del_func;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-upgrade_del_func	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`create_rout_db`@`localhost` FUNCTION `upgrade_del_func`() RETURNS char(30) CHARSET latin1
+upgrade_del_func	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`create_rout_db`@`localhost` FUNCTION `upgrade_del_func`() RETURNS char(30) CHARSET utf8mb4
 BEGIN
 RETURN "INSIDE upgrade_del_func()";
-END	latin1	latin1_swedish_ci	latin1_swedish_ci
+END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT upgrade_del_func();
 upgrade_del_func()
 INSIDE upgrade_del_func()
@@ -144,10 +144,10 @@ INSIDE upgrade_del_func()
 USE bug42217_db;
 SHOW CREATE FUNCTION upgrade_del_func;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-upgrade_del_func	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`create_rout_db`@`localhost` FUNCTION `upgrade_del_func`() RETURNS char(30) CHARSET latin1
+upgrade_del_func	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`create_rout_db`@`localhost` FUNCTION `upgrade_del_func`() RETURNS char(30) CHARSET utf8mb4
 BEGIN
 RETURN "INSIDE upgrade_del_func()";
-END	latin1	latin1_swedish_ci	latin1_swedish_ci
+END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT upgrade_del_func();
 upgrade_del_func()
 INSIDE upgrade_del_func()
@@ -169,10 +169,10 @@ upgrade_alter_func()
 INSIDE upgrade_alter_func()
 SHOW CREATE FUNCTION upgrade_alter_func;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-upgrade_alter_func	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`create_rout_db`@`localhost` FUNCTION `upgrade_alter_func`() RETURNS char(30) CHARSET latin1
+upgrade_alter_func	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`create_rout_db`@`localhost` FUNCTION `upgrade_alter_func`() RETURNS char(30) CHARSET utf8mb4
 BEGIN
 RETURN "INSIDE upgrade_alter_func()";
-END	latin1	latin1_swedish_ci	latin1_swedish_ci
+END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 "Should no privilege record for upgrade_alter_func in mysql.procs_priv"
 SELECT * FROM mysql.procs_priv;
 Host	Db	User	Routine_name	Routine_type	Grantor	Proc_priv	Timestamp
@@ -209,7 +209,7 @@ GRANT USAGE ON *.* TO `user49119`@`localhost`
 GRANT EXECUTE ON PROCEDURE `test`.`p1` TO `user49119`@`localhost`
 SHOW GRANTS FOR CURRENT_USER;
 Grants for root@localhost
-GRANT ALL PRIVILEGES ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `root`@`localhost` WITH GRANT OPTION
 GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
 ##############################################################
 ##############################################################
@@ -220,7 +220,7 @@ GRANT USAGE ON *.* TO `user49119`@`localhost`
 GRANT EXECUTE ON PROCEDURE `test`.`p1` TO `user49119`@`localhost`
 SHOW GRANTS FOR CURRENT_USER;
 Grants for root@localhost
-GRANT ALL PRIVILEGES ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `root`@`localhost` WITH GRANT OPTION
 GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
 ##############################################################
 ## This statement will make the revoke fail because root has no
@@ -237,7 +237,7 @@ GRANT USAGE ON *.* TO `user49119`@`localhost`
 GRANT EXECUTE ON PROCEDURE `test`.`p1` TO `user49119`@`localhost`
 SHOW GRANTS FOR CURRENT_USER;
 Grants for root@localhost
-GRANT ALL PRIVILEGES ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `root`@`localhost` WITH GRANT OPTION
 GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
 ##############################################################
 #############################################################
@@ -249,7 +249,7 @@ GRANT USAGE ON *.* TO `user49119`@`localhost`
 GRANT EXECUTE ON PROCEDURE `test`.`p1` TO `user49119`@`localhost`
 SHOW GRANTS FOR CURRENT_USER;
 Grants for root@localhost
-GRANT ALL PRIVILEGES ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `root`@`localhost` WITH GRANT OPTION
 GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
 ##############################################################
 DROP TABLE t1;

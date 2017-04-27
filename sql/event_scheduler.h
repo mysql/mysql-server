@@ -32,7 +32,6 @@
 
 #include <sys/types.h>
 
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "mysql/psi/mysql_cond.h"  // mysql_cond_t
 #include "mysql/psi/mysql_mutex.h"

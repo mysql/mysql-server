@@ -1,4 +1,3 @@
---source include/not_embedded.inc
 
 SHOW FULL PROCESSLIST;
 SHOW STATUS LIKE '%thread%';

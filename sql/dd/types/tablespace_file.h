@@ -16,11 +16,9 @@
 #ifndef DD__TABLESPACE_FILES_INCLUDED
 #define DD__TABLESPACE_FILES_INCLUDED
 
-#include "my_global.h"
-#include "my_inttypes.h"
-
 #include "dd/sdi_fwd.h"             // dd::Sdi_wcontext
 #include "dd/types/weak_object.h"   // dd::Weak_object
+#include "my_inttypes.h"
 
 namespace dd {
 

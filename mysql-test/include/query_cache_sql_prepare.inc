@@ -17,8 +17,6 @@
 #                   of preceding sql EXECUTEs
 #
 
-# embedded can't make more than one connection, which this test needs
--- source include/not_embedded.inc
 
 --echo ---- establish connection con1 (root) ----
 connect (con1,localhost,root,,test,$MASTER_MYPORT,);

@@ -26,7 +26,6 @@
 #include "my_bitmap.h"        // MY_BITMAP
 #include "my_byteorder.h"     // int8store
 #include "my_dbug.h"
-#include "my_global.h"
 
 
 template <uint default_width> class Bitmap
@@ -85,14 +84,14 @@ public:
   }
   void subtract(const Bitmap& map2) { bitmap_subtract(&map, &map2.map); }
   void merge(const Bitmap& map2) { bitmap_union(&map, &map2.map); }
-  my_bool is_set(uint n) const { return bitmap_is_set(&map, n); }
-  my_bool is_prefix(uint n) const { return bitmap_is_prefix(&map, n); }
-  my_bool is_clear_all() const { return bitmap_is_clear_all(&map); }
-  my_bool is_set_all() const { return bitmap_is_set_all(&map); }
-  my_bool is_subset(const Bitmap& map2) const { return bitmap_is_subset(&map, &map2.map); }
-  my_bool is_overlapping(const Bitmap& map2) const { return bitmap_is_overlapping(&map, &map2.map); }
-  my_bool operator==(const Bitmap& map2) const { return bitmap_cmp(&map, &map2.map); }
-  my_bool operator!=(const Bitmap& map2) const { return !(*this == map2); }
+  bool is_set(uint n) const { return bitmap_is_set(&map, n); }
+  bool is_prefix(uint n) const { return bitmap_is_prefix(&map, n); }
+  bool is_clear_all() const { return bitmap_is_clear_all(&map); }
+  bool is_set_all() const { return bitmap_is_set_all(&map); }
+  bool is_subset(const Bitmap& map2) const { return bitmap_is_subset(&map, &map2.map); }
+  bool is_overlapping(const Bitmap& map2) const { return bitmap_is_overlapping(&map, &map2.map); }
+  bool operator==(const Bitmap& map2) const { return bitmap_cmp(&map, &map2.map); }
+  bool operator!=(const Bitmap& map2) const { return !(*this == map2); }
   char *print(char *buf) const
   {
     char *s=buf;
@@ -150,9 +149,9 @@ public:
   void intersect_extended(ulonglong map2) { map&= map2; }
   void subtract(const Bitmap<64>& map2) { map&= ~map2.map; }
   void merge(const Bitmap<64>& map2) { map|= map2.map; }
-  my_bool is_set(uint n) const
+  bool is_set(uint n) const
   { DBUG_ASSERT(n < 64); return MY_TEST(map & (((ulonglong)1) << n)); }
-  my_bool is_prefix(uint n) const
+  bool is_prefix(uint n) const
   {
     DBUG_ASSERT(n <= 64);
     if (n < 64)
@@ -160,13 +159,13 @@ public:
     else
       return map == ~(ulonglong)1;
   }
-  my_bool is_clear_all() const { return map == (ulonglong)0; }
-  my_bool is_set_all() const { return map == ~(ulonglong)0; }
-  my_bool is_subset(const Bitmap<64>& map2) const { return !(map & ~map2.map); }
-  my_bool is_overlapping(const Bitmap<64>& map2) const
+  bool is_clear_all() const { return map == (ulonglong)0; }
+  bool is_set_all() const { return map == ~(ulonglong)0; }
+  bool is_subset(const Bitmap<64>& map2) const { return !(map & ~map2.map); }
+  bool is_overlapping(const Bitmap<64>& map2) const
   { return (map & map2.map)!= 0; }
-  my_bool operator==(const Bitmap<64>& map2) const { return map == map2.map; }
-  my_bool operator!=(const Bitmap<64>& map2) const { return !(*this == map2); }
+  bool operator==(const Bitmap<64>& map2) const { return map == map2.map; }
+  bool operator!=(const Bitmap<64>& map2) const { return !(*this == map2); }
   char *print(char *buf) const { longlong2str(map,buf,16); return buf; }
   ulonglong to_ulonglong() const { return map; }
 };

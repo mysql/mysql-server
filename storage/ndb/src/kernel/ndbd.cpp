@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1045,7 +1045,7 @@ ndbd_run(bool foreground, int report_fd,
 }
 
 
-extern "C" my_bool opt_core;
+extern "C" bool opt_core;
 
 // instantiated and updated in NdbcntrMain.cpp
 extern Uint32 g_currentStartPhase;

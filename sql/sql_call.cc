@@ -16,7 +16,7 @@
 
 /* Execute CALL statement */
 
-#include "sql_call.h"
+#include "sql/sql_call.h"
 
 #include <limits.h>
 #include <stddef.h>
@@ -26,9 +26,9 @@
 #include "auth_acls.h"
 #include "auth_common.h"        // check_routine_access, check_table_access
 #include "item.h"               // class Item
+#include "lex_string.h"
 #include "my_base.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/plugin_audit.h"

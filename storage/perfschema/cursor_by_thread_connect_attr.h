@@ -20,6 +20,8 @@
   @file storage/perfschema/cursor_by_thread_connect_attr.h
 */
 
+#include <sys/types.h>
+
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"
 #include "pfs_instr.h"

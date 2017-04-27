@@ -22,12 +22,14 @@
 #include <utility>
 
 #include "check_stack.h"
+#include "field.h"              // Field_json
 #include "json_dom.h"           // Json_dom
 #include "m_ctype.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
+#include "table.h"              // TABLE::add_binary_diff()
 #include "sql_class.h"          // THD
 #include "sql_const.h"
 #include "sql_string.h"
@@ -271,7 +273,7 @@ static bool append_variable_length(String *dest, size_t length)
   @param[in] data_length  the maximum number of bytes to read from data
   @param[out] length  the length that was read
   @param[out] num  the number of bytes needed to represent the length
-  @return  false on success, true on error
+  @return  false on success, true if the variable length field is ill-formed
 */
 static bool read_variable_length(const char *data, size_t data_length,
                                  uint32 *length, uint8 *num)
@@ -393,6 +395,62 @@ append_key_entries(const Json_object *object, String *dest,
 
 
 /**
+  Will a value of the specified type be inlined?
+  @param type  the type to check
+  @param large true if the large storage format is used
+  @return true if the value will be inlined
+*/
+static bool inlined_type(uint8 type, bool large)
+{
+  switch (type)
+  {
+  case JSONB_TYPE_LITERAL:
+  case JSONB_TYPE_INT16:
+  case JSONB_TYPE_UINT16:
+    return true;
+  case JSONB_TYPE_INT32:
+  case JSONB_TYPE_UINT32:
+    return large;
+  default:
+    return false;
+  }
+}
+
+
+/**
+  Get the size of an offset value.
+  @param large true if the large storage format is used
+  @return the size of an offset
+*/
+static uint8 offset_size(bool large)
+{
+  return large ? LARGE_OFFSET_SIZE : SMALL_OFFSET_SIZE;
+}
+
+
+/**
+  Get the size of a key entry.
+  @param large true if the large storage format is used
+  @return the size of a key entry
+*/
+static uint8 key_entry_size(bool large)
+{
+  return large ? KEY_ENTRY_SIZE_LARGE : KEY_ENTRY_SIZE_SMALL;
+}
+
+
+/**
+  Get the size of a value entry.
+  @param large true if the large storage format is used
+  @return the size of a value entry
+*/
+static uint8 value_entry_size(bool large)
+{
+  return large ? VALUE_ENTRY_SIZE_LARGE : VALUE_ENTRY_SIZE_SMALL;
+}
+
+
+/**
   Attempt to inline a value in its value entry at the beginning of an
   object or an array. This function assumes that the destination
   string has already allocated enough space to hold the inlined value.
@@ -488,8 +546,7 @@ serialize_json_array(const THD *thd, const Json_array *array, String *dest,
   size_t entry_pos= dest->length();
 
   // Reserve space for the value entries at the beginning of the array.
-  const size_t entry_size=
-    large ? VALUE_ENTRY_SIZE_LARGE : VALUE_ENTRY_SIZE_SMALL;
+  const auto entry_size= value_entry_size(large);
   if (dest->fill(dest->length() + size * entry_size, 0))
     return FAILURE;                             /* purecov: inspected */
 
@@ -557,10 +614,8 @@ serialize_json_object(const THD *thd, const Json_object *object, String *dest,
   if (append_offset_or_size(dest, 0, large))
     return FAILURE;                             /* purecov: inspected */
 
-  const size_t key_entry_size=
-    large ? KEY_ENTRY_SIZE_LARGE : KEY_ENTRY_SIZE_SMALL;
-  const size_t value_entry_size=
-    large ? VALUE_ENTRY_SIZE_LARGE : VALUE_ENTRY_SIZE_SMALL;
+  const auto key_entry_size= json_binary::key_entry_size(large);
+  const auto value_entry_size= json_binary::value_entry_size(large);
 
   /*
     Calculate the offset of the first key relative to the start of the
@@ -670,7 +725,7 @@ serialize_datetime(const Json_datetime *jdt, size_t type_pos, String *dest)
   // Store datetime as opaque values.
   char buf[Json_datetime::PACKED_SIZE];
   jdt->to_packed(buf);
-  Json_opaque o(jdt->field_type(), buf, Json_datetime::PACKED_SIZE);
+  Json_opaque o(jdt->field_type(), buf, sizeof(buf));
   return serialize_opaque(&o, type_pos, dest);
 }
 
@@ -1191,7 +1246,7 @@ static Value parse_array_or_object(Value::enum_type t, const char *data,
     Make sure the document is long enough to contain the two length fields
     (both number of elements or members, and number of bytes).
   */
-  const size_t offset_size= large ? LARGE_OFFSET_SIZE : SMALL_OFFSET_SIZE;
+  const auto offset_size= json_binary::offset_size(large);
   if (len < 2 * offset_size)
     return err();
   const uint32 element_count= read_offset_or_size(data, large);
@@ -1210,10 +1265,8 @@ static Value parse_array_or_object(Value::enum_type t, const char *data,
   */
   size_t header_size= 2 * offset_size;
   if (t == Value::OBJECT)
-    header_size+= element_count *
-      (large ? KEY_ENTRY_SIZE_LARGE : KEY_ENTRY_SIZE_SMALL);
-  header_size+= element_count *
-    (large ? VALUE_ENTRY_SIZE_LARGE : VALUE_ENTRY_SIZE_SMALL);
+    header_size+= element_count * key_entry_size(large);
+  header_size+= element_count * value_entry_size(large);
 
   // The header should not be larger than the full size of the value.
   if (header_size > bytes)
@@ -1275,19 +1328,8 @@ Value Value::element(size_t pos) const
   if (pos >= m_element_count)
     return err();
 
-  /*
-    Value entries come after the two length fields if it's an array, or
-    after the two length fields and all the key entries if it's an object.
-  */
-  size_t first_entry_offset=
-    2 * (m_large ? LARGE_OFFSET_SIZE : SMALL_OFFSET_SIZE);
-  if (type() == OBJECT)
-    first_entry_offset+=
-      m_element_count * (m_large ? KEY_ENTRY_SIZE_LARGE : KEY_ENTRY_SIZE_SMALL);
-
-  const size_t entry_size=
-    m_large ? VALUE_ENTRY_SIZE_LARGE : VALUE_ENTRY_SIZE_SMALL;
-  const size_t entry_offset= first_entry_offset + entry_size * pos;
+  const auto entry_size= value_entry_size(m_large);
+  const auto entry_offset= value_entry_offset(pos);
 
   uint8 type= m_data[entry_offset];
 
@@ -1296,9 +1338,7 @@ Value Value::element(size_t pos) const
     The scalar will be inlined just after the byte that identifies the
     type, so it's found on entry_offset + 1.
   */
-  if (type == JSONB_TYPE_INT16 || type == JSONB_TYPE_UINT16 ||
-      type == JSONB_TYPE_LITERAL ||
-      (m_large && (type == JSONB_TYPE_INT32 || type == JSONB_TYPE_UINT32)))
+  if (inlined_type(type, m_large))
     return parse_scalar(type, m_data + entry_offset + 1, entry_size - 1);
 
   /*
@@ -1307,7 +1347,7 @@ Value Value::element(size_t pos) const
   */
   uint32 value_offset= read_offset_or_size(m_data + entry_offset + 1, m_large);
 
-  if (m_length < value_offset)
+  if (m_length < value_offset || value_offset < entry_offset + entry_size)
     return err();                             /* purecov: inspected */
 
   return parse_value(type, m_data + value_offset, m_length - value_offset);
@@ -1329,11 +1369,9 @@ Value Value::key(size_t pos) const
   if (pos >= m_element_count)
     return err();
 
-  const size_t offset_size= m_large ? LARGE_OFFSET_SIZE : SMALL_OFFSET_SIZE;
-  const size_t key_entry_size=
-    m_large ? KEY_ENTRY_SIZE_LARGE : KEY_ENTRY_SIZE_SMALL;
-  const size_t value_entry_size=
-    m_large ? VALUE_ENTRY_SIZE_LARGE : VALUE_ENTRY_SIZE_SMALL;
+  const auto offset_size= json_binary::offset_size(m_large);
+  const auto key_entry_size= json_binary::key_entry_size(m_large);
+  const auto value_entry_size= json_binary::value_entry_size(m_large);
 
   // The key entries are located after two length fields of size offset_size.
   const size_t entry_offset= 2 * offset_size + key_entry_size * pos;
@@ -1361,20 +1399,32 @@ Value Value::key(size_t pos) const
 /**
   Get the value associated with the specified key in a JSON object.
 
-  @param[in] key  pointer to the key
-  @param[in] len  length of the key
+  @param[in] key  the key to look up
   @return the value associated with the key, if there is one. otherwise,
   returns ERROR
 */
-Value Value::lookup(const char *key, size_t len) const
+Value Value::lookup(const std::string &key) const
+{
+  size_t index= lookup_index(key);
+  if (index == element_count())
+    return err();
+  return element(index);
+}
+
+
+/**
+  Get the index of the element with the specified key in a JSON object.
+
+  @param[in] key  the key to look up
+  @return the index if the key is found, or `element_count()` if the
+  key is not found
+*/
+size_t Value::lookup_index(const std::string &key) const
 {
   DBUG_ASSERT(m_type == OBJECT);
 
-  const size_t offset_size=
-    (m_large ? LARGE_OFFSET_SIZE : SMALL_OFFSET_SIZE);
-
-  const size_t entry_size=
-    (m_large ? KEY_ENTRY_SIZE_LARGE : KEY_ENTRY_SIZE_SMALL);
+  const auto offset_size= json_binary::offset_size(m_large);
+  const auto entry_size= key_entry_size(m_large);
 
   // The first key entry is located right after the two length fields.
   const size_t first_entry_offset= 2 * offset_size;
@@ -1390,26 +1440,26 @@ Value Value::lookup(const char *key, size_t len) const
 
     // Keys are ordered on length, so check length first.
     size_t key_len= uint2korr(m_data + entry_offset + offset_size);
-    if (len > key_len)
+    if (key.length() > key_len)
       lo= idx + 1;
-    else if (len < key_len)
+    else if (key.length() < key_len)
       hi= idx;
     else
     {
       // The keys had the same length, so compare their contents.
       size_t key_offset= read_offset_or_size(m_data + entry_offset, m_large);
 
-      int cmp= memcmp(key, m_data + key_offset, len);
+      int cmp= memcmp(key.data(), m_data + key_offset, key_len);
       if (cmp > 0)
         lo= idx + 1;
       else if (cmp < 0)
         hi= idx;
       else
-        return element(idx);
+        return idx;
     }
   }
 
-  return err();
+  return m_element_count;                       // not found
 }
 
 
@@ -1513,6 +1563,595 @@ bool Value::raw_binary(const THD *thd, String *buf) const
   /* purecov: end */
 }
 
+
+/**
+  Find the start offset and the end offset of the specified element.
+  @param[in]  pos     which element to check
+  @param[out] start   the start offset of the value
+  @param[out] end     the end offset of the value (exclusive)
+  @param[out] inlined set to true if the specified element is inlined
+  @return true if the offsets cannot be determined, false if successful
+*/
+bool Value::element_offsets(size_t pos, size_t *start, size_t *end,
+                            bool *inlined) const
+{
+  DBUG_ASSERT(m_type == ARRAY || m_type == OBJECT);
+  DBUG_ASSERT(pos < m_element_count);
+
+  const char *entry= m_data + value_entry_offset(pos);
+  if (entry + value_entry_size(m_large) > m_data + m_length)
+    return true;                                /* purecov: inspected */
+
+  if (inlined_type(*entry, m_large))
+  {
+    *start= 0;
+    *end= 0;
+    *inlined= true;
+    return false;
+  }
+
+  const size_t val_pos= read_offset_or_size(entry + 1, m_large);
+  if (val_pos >= m_length)
+    return true;
+
+  size_t val_end= 0;
+  switch (entry[0])
+  {
+  case JSONB_TYPE_INT32:
+  case JSONB_TYPE_UINT32:
+    val_end= val_pos + 4;
+    break;
+  case JSONB_TYPE_INT64:
+  case JSONB_TYPE_UINT64:
+  case JSONB_TYPE_DOUBLE:
+    val_end= val_pos + 8;
+    break;
+  case JSONB_TYPE_STRING:
+  case JSONB_TYPE_OPAQUE:
+  case JSONB_TYPE_SMALL_OBJECT:
+  case JSONB_TYPE_LARGE_OBJECT:
+  case JSONB_TYPE_SMALL_ARRAY:
+  case JSONB_TYPE_LARGE_ARRAY:
+    {
+      Value v= element(pos);
+      if (v.type() == ERROR)
+        return true;
+      val_end= (v.m_data - this->m_data) + v.m_length;
+    }
+    break;
+  default:
+    return true;
+  }
+
+  *start= val_pos;
+  *end= val_end;
+  *inlined= false;
+  return false;
+}
+
+
+/**
+  Find the lowest possible offset where a value can be located inside this
+  array or object.
+
+  @param[out] offset   the lowest offset where a value can be located
+  @return false on success, true on error
+*/
+bool Value::first_value_offset(size_t *offset) const
+{
+  DBUG_ASSERT(m_type == ARRAY || m_type == OBJECT);
+
+  /*
+    Find the lowest offset where a value could be stored. Arrays can
+    store them right after the last value entry. Objects can store
+    them right after the last key.
+  */
+  if (m_type == ARRAY || m_element_count == 0)
+  {
+    *offset= value_entry_offset(m_element_count);
+    return false;
+  }
+
+  Value key= this->key(m_element_count - 1);
+  if (key.type() == ERROR)
+    return true;
+
+  *offset= key.get_data() + key.get_data_length() - m_data;
+  return false;
+}
+
+
+/**
+  Does this array or object have enough space to replace the value at
+  the given position with another value of a given size?
+
+  @param[in]  pos     the position in the array or object
+  @param[in]  needed  the number of bytes needed for the new value
+  @param[out] offset  if true is returned, this value is set to an
+                      offset relative to the start of the array or
+                      object, which tells where the replacement value
+                      should be stored
+  @return true if there is enough space, false otherwise
+*/
+bool Value::has_space(size_t pos, size_t needed, size_t *offset) const
+{
+  DBUG_ASSERT(m_type == ARRAY || m_type == OBJECT);
+  DBUG_ASSERT(pos < m_element_count);
+
+  /*
+    Find the lowest offset where a value could be stored. Arrays can
+    store them right after the last value entry. Objects can store
+    them right after the last key.
+  */
+  size_t first_value_offset;
+  if (this->first_value_offset(&first_value_offset))
+    return false;
+
+  /*
+    No need to check further if we need more space than the total
+    space available in the array or object.
+  */
+  if (needed > m_length - first_value_offset)
+    return false;
+
+  size_t val_start;
+  size_t val_end;
+  bool inlined;
+  if (element_offsets(pos, &val_start, &val_end, &inlined))
+    return false;
+
+  if (!inlined && val_end - val_start >= needed)
+  {
+    // Found enough space at the position where the original value was located.
+    *offset= val_start;
+    return true;
+  }
+
+  /*
+    Need more space. Look for free space after the original value.
+    There's potential free space after the end of the original value
+    and up to the start of the next non-inlined value.
+  */
+  const auto entry_size= value_entry_size(m_large);
+  size_t i= pos + 1;
+  for (auto entry= m_data + value_entry_offset(pos); i < m_element_count; ++i)
+  {
+    entry+= entry_size;
+    // TODO Give up after N iterations?
+    if (inlined_type(*entry, m_large))
+      continue;
+    val_end= read_offset_or_size(entry + 1, m_large);
+    if (val_end > m_length)
+      return false;
+    break;
+  }
+
+  if (i == m_element_count)
+  {
+    /*
+      There are no non-inlined values behind the one we are updating,
+      so we can use the rest of the space allocated for the array or
+      object.
+    */
+    val_end= m_length;
+  }
+
+  if (!inlined && val_end - val_start >= needed)
+  {
+    *offset= val_start;
+    return true;
+  }
+
+  /*
+    Still not enough space. See if there's free space we can use in
+    front of the original value. We can use space after the end of the
+    first non-inlined value we find.
+  */
+  if (needed > val_end - first_value_offset)
+    return false;
+  for (i= pos; i > 0; --i)
+  {
+    size_t elt_start;
+    size_t elt_end;
+    bool elt_inlined;
+    if (element_offsets(i - 1, &elt_start, &elt_end, &elt_inlined))
+      return false;
+    if (elt_inlined)
+      continue;
+    val_start= elt_end;
+    break;
+  }
+
+  if (i == 0)
+  {
+    /*
+      There are no non-inlined values ahead of the value we are
+      updating, so we can start right after the value entries.
+    */
+    val_start= first_value_offset;
+  }
+
+  if (val_start >= first_value_offset && val_end <= m_length &&
+      val_start <= val_end && val_end - val_start >= needed)
+  {
+    *offset= val_start;
+    return true;
+  }
+
+  return false;
+}
+
+
+/**
+  Get the offset of the value entry that describes the element at a
+  given position in this array or object.
+
+  @param pos  the position of the element
+  @return the offset of the entry, relative to the start of the array or object
+*/
+inline size_t Value::value_entry_offset(size_t pos) const
+{
+  DBUG_ASSERT(m_type == ARRAY || m_type == OBJECT);
+  /*
+    Value entries come after the two length fields if it's an array, or
+    after the two length fields and all the key entries if it's an object.
+  */
+  size_t first_entry_offset= 2 * offset_size(m_large);
+  if (m_type == OBJECT)
+    first_entry_offset+= m_element_count * key_entry_size(m_large);
+
+  return first_entry_offset + value_entry_size(m_large) * pos;
+}
+
+
+bool space_needed(const THD *thd, const Json_wrapper *value,
+                  bool large, size_t *needed)
+{
+  if (value->type() == enum_json_type::J_ERROR)
+  {
+    my_error(ER_INVALID_JSON_BINARY_DATA, MYF(0));
+    return true;
+  }
+
+  // Serialize the value to a temporary buffer to find out how big it is.
+  StringBuffer<STRING_BUFFER_USUAL_SIZE> buf;
+  if (value->to_binary(thd, &buf))
+    return true;                            /* purecov: inspected */
+
+  DBUG_ASSERT(buf.length() > 1);
+
+  // If the value can be inlined in the value entry, it doesn't need any space.
+  if (inlined_type(buf[0], large))
+  {
+    *needed= 0;
+    return false;
+  }
+
+  /*
+    The first byte in the buffer is the type identifier. We're only
+    interested in the size of the data portion, so exclude the type byte
+    from the returned size.
+  */
+  *needed= buf.length() - 1;
+  return false;
+}
+
+
+/**
+  Update a value in an array or object. The updated value is written to a
+  shadow copy. The original array or object is left unchanged, unless the
+  shadow copy is actually a pointer to the array backing this Value object. It
+  is assumed that the shadow copy is at least as big as the original document,
+  and that there is enough space at the given position to hold the new value.
+
+  Typically, if a document is modified multiple times in a single update
+  statement, the first invocation of update_in_shadow() will have a Value
+  object that points into the binary data in the Field, and write to a separate
+  destination buffer. Subsequent updates of the document will have a Value
+  object that points to the partially updated value in the destination buffer,
+  and write the new modifications to the same buffer.
+
+  All changes made to the binary value are recorded as binary diffs using
+  TABLE::add_binary_diff().
+
+  @param thd           THD handle
+  @param field         the column that is updated
+  @param pos           the element to update
+  @param new_value     the new value of the element
+  @param data_offset   where to write the value (offset relative to the
+                       beginning of the array or object, obtained with
+                       #has_space) or zero if the value can be inlined
+  @param data_length   the length of the new value in bytes or zero if
+                       the value can be inlined
+  @param original      pointer to the start of the JSON document
+  @param destination   pointer to the shadow copy of the JSON document
+                       (it could be the same as @a original, in which case the
+                       original document will be modified)
+  @return false on success, true if an error occurred
+
+  @par Example of partial update
+
+  Given the JSON document [ "abc", "def" ], which is serialized like this in a
+  JSON column:
+
+      0x02 - type: small JSON array
+      0x02 - number of elements (low byte)
+      0x00 - number of elements (high byte)
+      0x12 - number of bytes (low byte)
+      0x00 - number of bytes (high byte)
+      0x0C - type of element 0 (string)
+      0x0A - offset of element 0 (low byte)
+      0x00 - offset of element 0 (high byte)
+      0x0C - type of element 1 (string)
+      0x0E - offset of element 1 (low byte)
+      0x00 - offset of element 1 (high byte)
+      0x03 - length of element 0
+      'a'
+      'b'  - content of element 0
+      'c'
+      0x03 - length of element 1
+      'd'
+      'e'  - content of element 1
+      'f'
+
+  Let's change element 0 from "abc" to "XY" using the following statement:
+
+      UPDATE t SET j = JSON_SET(j, '$[0]', 'XY')
+
+  Since we're replacing one string with a shorter one, we can just overwrite
+  the length byte with the new length, and the beginning of the original string
+  data. Since the original string "abc" is longer than the new string "XY",
+  we'll have a free byte at the end of the string. This byte is left as is
+  ('c'). The resulting binary representation looks like this:
+
+              0x02 - type: small JSON array
+              0x02 - number of elements (low byte)
+              0x00 - number of elements (high byte)
+              0x12 - number of bytes (low byte)
+              0x00 - number of bytes (high byte)
+              0x0C - type of element 0 (string)
+              0x0A - offset of element 0 (low byte)
+              0x00 - offset of element 0 (high byte)
+              0x0C - type of element 1 (string)
+              0x0E - offset of element 1 (low byte)
+              0x00 - offset of element 1 (high byte)
+      CHANGED 0x02 - length of element 0
+      CHANGED 'X'
+      CHANGED 'Y'  - content of element 0
+      (free)  'c'
+              0x03 - length of element 1
+              'd'
+              'e'  - content of element 1
+              'f'
+
+  This change will be represented as one binary diff that covers the three
+  changed bytes.
+
+  Let's now change element 1 from "def" to "XYZW":
+
+      UPDATE t SET j = JSON_SET(j, '$[1]', 'XYZW')
+
+  Since the new string is one byte longer than the original string, we cannot
+  simply overwrite the old one. But we can reuse the free byte from the
+  previous update, which is immediately preceding the original value.
+
+  To make use of this, we need to change the offset of element 1 to point to
+  the free byte. Then we can overwrite the free byte and the original string
+  data with the new length and string contents. Resulting binary
+  representation:
+
+              0x02 - type: small JSON array
+              0x02 - number of elements (low byte)
+              0x00 - number of elements (high byte)
+              0x12 - number of bytes (low byte)
+              0x00 - number of bytes (high byte)
+              0x0C - type of element 0 (string)
+              0x0A - offset of element 0 (low byte)
+              0x00 - offset of element 0 (high byte)
+              0x0C - type of element 1 (string)
+      CHANGED 0x0D - offset of element 1 (low byte)
+              0x00 - offset of element 1 (high byte)
+              0x02 - length of element 0
+              'X'  - content of element 0
+              'Y'  - content of element 0
+      CHANGED 0x04 - length of element 1
+      CHANGED 'X'
+      CHANGED 'Y'
+      CHANGED 'Z'  - content of element 1
+      CHANGED 'W'
+
+  This change will be represented as two binary diffs. One diff for changing
+  the offset, and one for changing the contents of the string.
+
+  Then let's replace the string in element 1 with a small number:
+
+      UPDATE t SET j = JSON_SET(j, '$[1]', 456)
+
+  This will change the type of element 1 from string to int16. Such small
+  numbers are inlined in the value entry, where we normally store the offset of
+  the value. The offset section of the value entry is therefore changed to hold
+  the number 456. The length and contents of the original value ("XYZW") are
+  not touched, but they are now unused and free to be reused. Resulting binary
+  representation:
+
+              0x02 - type: small JSON array
+              0x02 - number of elements (low byte)
+              0x00 - number of elements (high byte)
+              0x12 - number of bytes (low byte)
+              0x00 - number of bytes (high byte)
+              0x0C - type of element 0 (string)
+              0x0A - offset of element 0 (low byte)
+              0x00 - offset of element 0 (high byte)
+      CHANGED 0x05 - type of element 1 (int16)
+      CHANGED 0xC8 - value of element 1 (low byte)
+      CHANGED 0x01 - value of element 1 (high byte)
+              0x02 - length of element 0
+              'X'  - content of element 0
+              'Y'  - content of element 0
+      (free)  0x04 - length of element 1
+      (free)  'X'
+      (free)  'Y'
+      (free)  'Z'  - content of element 1
+      (free)  'W'
+
+  The change is represented as one binary diff that changes the value entry
+  (type and inlined value).
+*/
+bool Value::update_in_shadow(const THD *thd, const Field_json *field,
+                             size_t pos, Json_wrapper *new_value,
+                             size_t data_offset, size_t data_length,
+                             const char *original, char *destination) const
+{
+  DBUG_ASSERT(m_type == ARRAY || m_type == OBJECT);
+
+  const bool inlined= (data_length == 0);
+  DBUG_ASSERT(inlined == (data_offset == 0));
+
+  /*
+    Create a buffer large enough to hold the new value entry. (Plus one since
+    some String functions insist on adding a terminating '\0'.)
+  */
+  StringBuffer<VALUE_ENTRY_SIZE_LARGE + 1> new_entry;
+
+  if (inlined)
+  {
+    new_entry.length(value_entry_size(m_large));
+    Json_dom *dom= new_value->to_dom(thd);
+    if (dom == nullptr)
+      return true;                              /* purecov: inspected */
+    attempt_inline_value(dom, &new_entry, 0, m_large);
+  }
+  else
+  {
+    new_entry.append('\0');     // type, to be filled in later
+    append_offset_or_size(&new_entry, data_offset, m_large);
+
+    const char *value= m_data + data_offset;
+    const size_t value_offset= value - original;
+    char *value_dest= destination + value_offset;
+
+    StringBuffer<STRING_BUFFER_USUAL_SIZE> buffer;
+    if (new_value->to_binary(thd, &buffer))
+      return true;                              /* purecov: inspected */
+
+    DBUG_ASSERT(buffer.length() > 1);
+
+    // The first byte is the type byte, which should be in the value entry.
+    new_entry[0]= buffer[0];
+
+    /*
+      Create another diff for the changed data, but only if the new data is
+      actually different from the old data.
+    */
+    const size_t length= buffer.length() - 1;
+    DBUG_ASSERT(length == data_length);
+    if (memcmp(value_dest, buffer.ptr() + 1, length) != 0)
+    {
+      memcpy(value_dest, buffer.ptr() + 1, length);
+      if (field->table->add_binary_diff(field, value_offset, length))
+        return true;                            /* purecov: inspected */
+    }
+  }
+
+  DBUG_ASSERT(new_entry.length() == value_entry_size(m_large));
+
+  /*
+    Type and offset will often be unchanged. Don't create a change
+    record unless they have actually changed.
+  */
+  const char *const entry= m_data + value_entry_offset(pos);
+  if (memcmp(entry, new_entry.ptr(), new_entry.length()) != 0)
+  {
+    const size_t entry_offset= entry - original;
+    memcpy(destination + entry_offset, new_entry.ptr(), new_entry.length());
+    if (field->table->add_binary_diff(field, entry_offset, new_entry.length()))
+      return true;                              /* purecov: inspected */
+  }
+
+  return false;
+}
+
+
+/**
+  Get the amount of unused space in the binary representation of this value.
+
+  @param      thd    THD handle
+  @param[out] space  the amount of free space
+  @return false on success, true on error
+*/
+bool Value::get_free_space(const THD *thd, size_t *space) const
+{
+  *space= 0;
+
+  switch (m_type)
+  {
+  case ARRAY:
+  case OBJECT:
+    break;
+  default:
+    // Scalars don't have any holes, so return immediately.
+    return false;
+  }
+
+  size_t next_value_offset;
+  if (first_value_offset(&next_value_offset))
+  {
+    my_error(ER_INVALID_JSON_BINARY_DATA, MYF(0));
+    return true;
+  }
+
+  // Find the "holes" between and inside each element in the array or object.
+  for (size_t i= 0; i < m_element_count; ++i)
+  {
+    size_t elt_start;
+    size_t elt_end;
+    bool inlined;
+    if (element_offsets(i, &elt_start, &elt_end, &inlined))
+    {
+      my_error(ER_INVALID_JSON_BINARY_DATA, MYF(0));
+      return true;
+    }
+
+    if (inlined)
+      continue;
+
+    if (elt_start < next_value_offset || elt_end > m_length)
+    {
+      my_error(ER_INVALID_JSON_BINARY_DATA, MYF(0));
+      return true;
+    }
+
+    *space+= elt_start - next_value_offset;
+    next_value_offset= elt_end;
+
+    Value elt= element(i);
+    switch (elt.type())
+    {
+    case ARRAY:
+    case OBJECT:
+      {
+        // Recursively process nested arrays or objects.
+        if (check_stack_overrun(thd, STACK_MIN_SIZE, nullptr))
+          return true;                          /* purecov: inspected */
+        size_t elt_space;
+        if (elt.get_free_space(thd, &elt_space))
+          return true;
+        *space+= elt_space;
+        break;
+      }
+    case ERROR:
+      /* purecov: begin inspected */
+      my_error(ER_INVALID_JSON_BINARY_DATA, MYF(0));
+      return true;
+      /* purecov: end */
+    default:
+      break;
+    }
+  }
+
+  *space+= m_length - next_value_offset;
+  return false;
+}
 
 
 } // end namespace json_binary

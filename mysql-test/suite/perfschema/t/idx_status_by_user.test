@@ -1,7 +1,5 @@
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_embedded.inc
-
 #setup
 let $select_column = VARIABLE_VALUE;
 let $table = performance_schema.status_by_user;

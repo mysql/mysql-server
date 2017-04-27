@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,7 +28,9 @@
 #include "dd/types/foreign_key.h"             // dd::Foreign_key
 #include "dd/types/foreign_key_element.h"     // dd::Foreign_key_element
 #include "dd/types/object_type.h"             // dd::Object_type
-#include "my_global.h"
+#include "m_ctype.h"                          // my_strcasecmp
+
+extern "C" MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
 
 namespace dd {
 
@@ -87,7 +89,7 @@ public:
   void debug_print(String_type &outb) const;
 
 public:
-  void set_ordinal_position(uint ordinal_position)
+  void set_ordinal_position(uint)
   { }
 
   virtual uint ordinal_position() const
@@ -188,10 +190,10 @@ public:
   { return m_elements; }
 
   // Fix "inherits ... via dominance" warnings
-  virtual Weak_object_impl *impl()
-  { return Weak_object_impl::impl(); }
-  virtual const Weak_object_impl *impl() const
-  { return Weak_object_impl::impl(); }
+  virtual Entity_object_impl *impl()
+  { return Entity_object_impl::impl(); }
+  virtual const Entity_object_impl *impl() const
+  { return Entity_object_impl::impl(); }
   virtual Object_id id() const
   { return Entity_object_impl::id(); }
   virtual bool is_persistent() const
@@ -248,6 +250,17 @@ public:
 
 ///////////////////////////////////////////////////////////////////////////
 
+/** Class used to sort Foreign key's by name for the same table. */
+struct Foreign_key_order_comparator
+{
+  bool operator()(const dd::Foreign_key* fk1, const dd::Foreign_key* fk2) const
+  {
+    return (my_strcasecmp(system_charset_info, fk1->name().c_str(),
+                          fk2->name().c_str()) < 0);
+  }
+};
+
+///////////////////////////////////////////////////////////////////////////
 }
 
 #endif // DD__FOREIGN_KEY_IMPL_INCLUDED

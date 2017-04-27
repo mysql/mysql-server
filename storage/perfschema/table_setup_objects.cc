@@ -18,10 +18,11 @@
   Table SETUP_OBJECTS (implementation).
 */
 
+#include "storage/perfschema/table_setup_objects.h"
+
 #include "field.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_thread.h"
 #include "pfs_buffer_container.h"
 #include "pfs_column_types.h"
@@ -30,7 +31,6 @@
 #include "pfs_instr.h"
 #include "pfs_setup_object.h"
 #include "table_helper.h"
-#include "table_setup_objects.h"
 
 THR_LOCK table_setup_objects::m_table_lock;
 
@@ -158,7 +158,7 @@ PFS_index_setup_objects::match(row_setup_objects *row)
 }
 
 PFS_engine_table *
-table_setup_objects::create(void)
+table_setup_objects::create(PFS_engine_table_share *)
 {
   return new table_setup_objects();
 }
@@ -300,7 +300,7 @@ table_setup_objects::rnd_pos(const void *pos)
 }
 
 int
-table_setup_objects::index_init(uint idx, bool)
+table_setup_objects::index_init(uint idx MY_ATTRIBUTE((unused)), bool)
 {
   PFS_index_setup_objects *result = NULL;
   DBUG_ASSERT(idx == 0);

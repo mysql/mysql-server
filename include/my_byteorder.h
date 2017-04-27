@@ -1,7 +1,7 @@
 #ifndef MY_BYTEORDER_INCLUDED
 #define MY_BYTEORDER_INCLUDED
 
-/* Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -37,7 +37,7 @@
 #include <stdlib.h>
 #endif
 
-#ifdef _WIN32
+#if defined(_WIN32) && defined(WIN32_LEAN_AND_MEAN)
 #include <winsock2.h>
 #endif
 
@@ -272,7 +272,7 @@ static inline uint32 load32be(const char *ptr)
   return ntohl(val);
 }
 
-static inline char *store16be(char *ptr, uint16 val)
+static ALWAYS_INLINE char *store16be(char *ptr, uint16 val)
 {
 #if defined(_MSC_VER)
   // _byteswap_ushort is an intrinsic on MSVC, but htons is not.
@@ -303,7 +303,7 @@ static inline uint32 load32be(const uchar *ptr)
   return load32be(pointer_cast<const char *>(ptr));
 }
 
-static inline uchar *store16be(uchar *ptr, uint16 val)
+static ALWAYS_INLINE uchar *store16be(uchar *ptr, uint16 val)
 {
   return pointer_cast<uchar *>(store16be(pointer_cast<char *>(ptr), val));
 }

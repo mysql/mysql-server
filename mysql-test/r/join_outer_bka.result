@@ -2137,7 +2137,7 @@ DROP TABLE t1, t2;
 #
 # Bug#13980954 Missing data on left join + null value + where..in
 #
-CREATE TABLE t1 (ik INT, vc varchar(1)) ENGINE=Innodb;
+CREATE TABLE t1 (ik INT, vc varchar(1)) charset utf8mb4 ENGINE=Innodb;
 explain format=json SELECT straight_join t1.vc, t1.ik
 FROM t1 JOIN t1 AS t2 ON t1.vc=t2.vc LEFT JOIN t1 AS t3 ON t1.vc=t3.vc;
 EXPLAIN
@@ -2159,7 +2159,7 @@ EXPLAIN
             "read_cost": "0.25",
             "eval_cost": "0.10",
             "prefix_cost": "0.35",
-            "data_read_per_join": "8"
+            "data_read_per_join": "16"
           },
           "used_columns": [
             "ik",
@@ -2179,7 +2179,7 @@ EXPLAIN
             "read_cost": "0.25",
             "eval_cost": "0.10",
             "prefix_cost": "0.70",
-            "data_read_per_join": "8"
+            "data_read_per_join": "16"
           },
           "used_columns": [
             "vc"
@@ -2199,7 +2199,7 @@ EXPLAIN
             "read_cost": "0.25",
             "eval_cost": "0.10",
             "prefix_cost": "1.05",
-            "data_read_per_join": "8"
+            "data_read_per_join": "16"
           },
           "used_columns": [
             "vc"

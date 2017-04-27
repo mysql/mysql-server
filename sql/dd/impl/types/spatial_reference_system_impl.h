@@ -25,12 +25,12 @@
 #include "dd/impl/types/weak_object_impl.h"
 #include "dd/object_id.h"
 #include "dd/sdi_fwd.h"
-#include "dd/types/dictionary_object_table.h" // dd::Dictionary_object_table
+#include "dd/types/entity_object_table.h"     // dd::Entity_object_table
 #include "dd/types/object_type.h"             // dd::Object_type
 #include "dd/types/spatial_reference_system.h"// dd:Spatial_reference_system
 #include "dd/types/weak_object.h"
+#include "gis/srid.h"
 #include "gis/srs/srs.h"                      // gis::srs::Spatial_reference_...
-#include "my_global.h"
 #include "my_inttypes.h"
 
 class THD;
@@ -77,7 +77,7 @@ private:
   { }
 
 public:
-  virtual const Dictionary_object_table &object_table() const override
+  virtual const Object_table &object_table() const override
   { return Spatial_reference_system::OBJECT_TABLE(); }
 
   virtual bool validate() const override;
@@ -89,6 +89,11 @@ public:
   void serialize(Sdi_wcontext *wctx, Sdi_writer *w) const;
 
   bool deserialize(Sdi_rcontext *rctx, const RJ_Value &val);
+
+  /// Parse the SRS definition string.
+  ///
+  /// Used internally. Made public to make it easier to write unit tests.
+  bool parse_definition();
 
 public:
   /////////////////////////////////////////////////////////////////////////
@@ -125,11 +130,11 @@ public:
   // organization_coordsys_id
   /////////////////////////////////////////////////////////////////////////
 
-  virtual srid_t organization_coordsys_id() const override
+  virtual gis::srid_t organization_coordsys_id() const override
   { return m_organization_coordsys_id; }
 
   virtual void set_organization_coordsys_id(
-     srid_t organization_coordsys_id) override
+     gis::srid_t organization_coordsys_id) override
   { m_organization_coordsys_id= organization_coordsys_id; }
 
   /////////////////////////////////////////////////////////////////////////
@@ -145,13 +150,88 @@ public:
   virtual bool is_projected() const override
   { return (m_parsed_definition->srs_type() == gis::srs::Srs_type::PROJECTED); }
 
+  virtual bool is_geographic() const override
+  { return (m_parsed_definition->srs_type() == gis::srs::Srs_type::GEOGRAPHIC); }
+
   virtual bool is_cartesian() const override
   { return (m_parsed_definition->srs_type() == gis::srs::Srs_type::PROJECTED); }
 
-  virtual bool is_geographic() const override
-  { return m_parsed_definition->srs_type() == gis::srs::Srs_type::GEOGRAPHIC; }
-
   virtual bool is_lat_long() const override;
+
+  virtual double semi_major_axis() const override
+  {
+    if (is_geographic())
+    {
+      return static_cast<gis::srs::Geographic_srs *>
+        (m_parsed_definition.get())->semi_major_axis();
+    }
+    else
+    {
+      return 0.0;
+    }
+  }
+
+  virtual double semi_minor_axis() const override
+  {
+    if (is_geographic())
+    {
+      gis::srs::Geographic_srs *srs= static_cast<gis::srs::Geographic_srs *>
+        (m_parsed_definition.get());
+      if (srs->inverse_flattening() == 0.0)
+        return srs->semi_major_axis();
+      else
+        return srs->semi_major_axis() * (1 - 1 / srs->inverse_flattening());
+    }
+    else
+    {
+      return 0.0;
+    }
+  }
+
+  virtual double angular_unit() const override
+  {
+    return m_parsed_definition->angular_unit();
+  }
+
+  virtual double prime_meridian() const override
+  {
+    return m_parsed_definition->prime_meridian();
+  }
+
+  virtual bool positive_east() const override
+  {
+    if (is_lat_long())
+    {
+      return (m_parsed_definition->axis_direction(1) ==
+              gis::srs::Axis_direction::EAST);
+    }
+    else
+    {
+      return (m_parsed_definition->axis_direction(0) ==
+              gis::srs::Axis_direction::EAST);
+    }
+  }
+
+  virtual bool positive_north() const override
+  {
+    if (is_lat_long())
+    {
+      return (m_parsed_definition->axis_direction(0) ==
+              gis::srs::Axis_direction::NORTH);
+    }
+    else
+    {
+      return (m_parsed_definition->axis_direction(1) ==
+              gis::srs::Axis_direction::NORTH);
+    }
+  }
+
+  virtual double from_radians(double d) const override
+  {
+    DBUG_ASSERT(is_geographic());
+    DBUG_ASSERT(angular_unit() > 0.0);
+    return d / angular_unit();
+  }
 
   /////////////////////////////////////////////////////////////////////////
   // description
@@ -164,10 +244,10 @@ public:
   { m_description= description; }
 
   // Fix "inherits ... via dominance" warnings
-  virtual Weak_object_impl *impl() override
-  { return Weak_object_impl::impl(); }
-  virtual const Weak_object_impl *impl() const override
-  { return Weak_object_impl::impl(); }
+  virtual Entity_object_impl *impl() override
+  { return Entity_object_impl::impl(); }
+  virtual const Entity_object_impl *impl() const override
+  { return Entity_object_impl::impl(); }
   virtual Object_id id() const override
   { return Entity_object_impl::id(); }
   virtual bool is_persistent() const override
@@ -192,7 +272,7 @@ private:
   ulonglong m_created;
   ulonglong m_last_altered;
   String_type m_organization;
-  srid_t m_organization_coordsys_id;
+  gis::srid_t m_organization_coordsys_id;
   String_type m_definition;
   std::unique_ptr<gis::srs::Spatial_reference_system> m_parsed_definition;
   String_type m_description;

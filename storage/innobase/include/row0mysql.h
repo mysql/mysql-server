@@ -400,6 +400,7 @@ fields than mentioned in the constraint.
 @param[in]	reject_fks	if TRUE, fail with error code
 				DB_CANNOT_ADD_CONSTRAINT if any
 				foreign keys are found.
+@param[in]	dd_table	MySQL dd::Table for the table
 @return error code or DB_SUCCESS */
 dberr_t
 row_table_add_foreign_constraints(
@@ -500,12 +501,23 @@ row_import_tablespace_for_mysql(
 	row_prebuilt_t*	prebuilt)	/*!< in: prebuilt struct in MySQL */
         MY_ATTRIBUTE((warn_unused_result));
 
+/** Drop a database for MySQL.
+@param[in]	name	database name which ends at '/'
+@param[in]	trx	transaction handle
+@param[out]	found	number of dropped tables
+@return error code or DB_SUCCESS */
+dberr_t
+row_drop_database_for_mysql(
+	const char*	name,
+	trx_t*		trx,
+	ulint*		found);
+
 /** Renames a table for MySQL.
-@param[in]      old_name        old table name
-@param[in]      new_name        new table name
-@param[in]      dd_table        dd::Table for new table
-@param[in,out]  trx             transaction
-@param[in]      commit          whether to commit trx
+@param[in]	old_name	old table name
+@param[in]	new_name	new table name
+@param[in]	dd_table	dd::Table for new table
+@param[in,out]	trx		transaction
+@param[in]	commit		whether to commit trx
 @return error code or DB_SUCCESS */
 dberr_t
 row_rename_table_for_mysql(

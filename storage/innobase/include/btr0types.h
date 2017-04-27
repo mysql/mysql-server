@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -42,7 +42,7 @@ struct btr_search_t;
 
 /** Is search system enabled.
 Search system is protected by array of latches. */
-extern char	btr_search_enabled;
+extern bool	btr_search_enabled;
 
 /** Number of adaptive hash index partition. */
 extern ulong	btr_ahi_parts;

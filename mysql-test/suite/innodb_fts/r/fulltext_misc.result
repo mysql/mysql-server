@@ -8,9 +8,9 @@ EXPLAIN SELECT 1 FROM t1
 WHERE 1 > ALL((SELECT 1 FROM t1 JOIN t1 a ON (MATCH(t1.f1) AGAINST (""))
 WHERE t1.f1 GROUP BY t1.f1));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	index	NULL	f1_2	8	NULL	1	100.00	Using index
+1	PRIMARY	t1	NULL	index	NULL	f1_2	26	NULL	1	100.00	Using index
 2	SUBQUERY	t1	NULL	fulltext	f1	f1	0	const	1	100.00	Using where; Ft_hints: no_ranking
-2	SUBQUERY	a	NULL	index	NULL	f1_2	8	NULL	1	100.00	Using index
+2	SUBQUERY	a	NULL	index	NULL	f1_2	26	NULL	1	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where 1
 PREPARE stmt FROM
@@ -20,16 +20,16 @@ PREPARE stmt FROM
  WHERE t1.f1 GROUP BY t1.f1))';
 EXECUTE stmt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	index	NULL	f1_2	8	NULL	1	100.00	Using index
+1	PRIMARY	t1	NULL	index	NULL	f1_2	26	NULL	1	100.00	Using index
 2	SUBQUERY	t1	NULL	fulltext	f1	f1	0	const	1	100.00	Using where; Ft_hints: no_ranking
-2	SUBQUERY	a	NULL	index	NULL	f1_2	8	NULL	1	100.00	Using index
+2	SUBQUERY	a	NULL	index	NULL	f1_2	26	NULL	1	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where 1
 EXECUTE stmt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	index	NULL	f1_2	8	NULL	1	100.00	Using index
+1	PRIMARY	t1	NULL	index	NULL	f1_2	26	NULL	1	100.00	Using index
 2	SUBQUERY	t1	NULL	fulltext	f1	f1	0	const	1	100.00	Using where; Ft_hints: no_ranking
-2	SUBQUERY	a	NULL	index	NULL	f1_2	8	NULL	1	100.00	Using index
+2	SUBQUERY	a	NULL	index	NULL	f1_2	26	NULL	1	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where 1
 DEALLOCATE PREPARE stmt;
@@ -40,16 +40,16 @@ PREPARE stmt FROM
  WHERE t1.f1 GROUP BY t1.f1))';
 EXECUTE stmt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	index	NULL	f1_2	8	NULL	1	100.00	Using index
+1	PRIMARY	t1	NULL	index	NULL	f1_2	26	NULL	1	100.00	Using index
 2	SUBQUERY	t1	NULL	fulltext	f1	f1	0	const	1	100.00	Using where; Ft_hints: no_ranking
-2	SUBQUERY	a	NULL	index	NULL	f1_2	8	NULL	1	100.00	Using index
+2	SUBQUERY	a	NULL	index	NULL	f1_2	26	NULL	1	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where 1
 EXECUTE stmt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	index	NULL	f1_2	8	NULL	1	100.00	Using index
+1	PRIMARY	t1	NULL	index	NULL	f1_2	26	NULL	1	100.00	Using index
 2	SUBQUERY	t1	NULL	fulltext	f1	f1	0	const	1	100.00	Using where; Ft_hints: no_ranking
-2	SUBQUERY	a	NULL	index	NULL	f1_2	8	NULL	1	100.00	Using index
+2	SUBQUERY	a	NULL	index	NULL	f1_2	26	NULL	1	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where 1
 DEALLOCATE PREPARE stmt;
@@ -119,8 +119,8 @@ create table t2 ENGINE = InnoDB as select concat(match (a) against ('a')) as a f
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` varchar(23) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+  `a` varchar(23) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1, t2;
 CREATE TABLE t1(a TEXT CHARSET ucs2 COLLATE ucs2_unicode_ci) ENGINE = InnoDB;
 INSERT INTO t1 VALUES('abcd');

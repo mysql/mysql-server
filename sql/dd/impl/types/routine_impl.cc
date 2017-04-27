@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,11 +27,12 @@
 #include "dd/string_type.h"                      // dd::String_type
 #include "dd/types/parameter.h"
 #include "dd/types/weak_object.h"
-#include "mysql_com.h"
-#include "mysqld_error.h"
-#include "mysqld.h"
+#include "lex_string.h"
 #include "my_sys.h"
 #include "my_user.h"                             // parse_user
+#include "mysql_com.h"
+#include "mysqld.h"
+#include "mysqld_error.h"
 
 using dd::tables::Routines;
 using dd::tables::Parameters;
@@ -42,7 +43,7 @@ namespace dd {
 // Routine implementation.
 ///////////////////////////////////////////////////////////////////////////
 
-const Dictionary_object_table &Routine::OBJECT_TABLE()
+const Entity_object_table &Routine::OBJECT_TABLE()
 {
   return Routines::instance();
 }

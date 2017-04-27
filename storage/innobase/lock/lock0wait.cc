@@ -26,6 +26,8 @@ Created 25/5/2010 Sunny Bains
 #define LOCK_MODULE_IMPLEMENTATION
 
 #include <mysql/service_thd_wait.h>
+#include <sys/types.h>
+#include <time.h>
 
 #include "ha_prototypes.h"
 #include "lock0lock.h"
@@ -245,7 +247,7 @@ lock_wait_suspend_thread(
 		srv_stats.n_lock_wait_count.inc();
 		srv_stats.n_lock_wait_current_count.inc();
 
-		if (ut_high_res_usectime(&sec, &ms) == -1) {
+		if (ut_usectime(&sec, &ms) == -1) {
 			start_time = -1;
 		} else {
 			start_time = static_cast<int64_t>(sec) * 1000000 + ms;
@@ -280,17 +282,13 @@ lock_wait_suspend_thread(
 
 		DEBUG_SYNC_C("lock_wait_release_s_latch_before_sleep");
 		break;
-	default:
-		/* There should never be a lock wait when the
-		dictionary latch is reserved in X mode.  Dictionary
-		transactions should only acquire locks on dictionary
-		tables, not other tables. All access to dictionary
-		tables should be covered by dictionary
-		transactions. */
-		ut_error;
+	case RW_X_LATCH:
+		/* We may wait for rec lock in dd holding
+		dict_operation_lock for creating FTS AUX table */
+		ut_ad(!mutex_own(&dict_sys->mutex));
+		rw_lock_x_unlock(dict_operation_lock);
+		break;
 	}
-
-	ut_a(trx->dict_operation_lock_mode == 0);
 
 	/* Suspend this thread and wait for the event. */
 
@@ -326,9 +324,10 @@ lock_wait_suspend_thread(
 		srv_conc_force_enter_innodb(trx);
 	}
 
-	if (had_dict_lock) {
-
+	if (had_dict_lock == RW_S_LATCH) {
 		row_mysql_freeze_data_dictionary(trx);
+	} else if (had_dict_lock == RW_X_LATCH) {
+		rw_lock_x_lock(dict_operation_lock);
 	}
 
 	wait_time = ut_difftime(ut_time(), slot->suspend_time);
@@ -340,7 +339,7 @@ lock_wait_suspend_thread(
 	if (thr->lock_state == QUE_THR_LOCK_ROW) {
 		ulint	diff_time;
 
-		if (ut_high_res_usectime(&sec, &ms) == -1) {
+		if (ut_usectime(&sec, &ms) == -1) {
 			finish_time = -1;
 		} else {
 			finish_time = static_cast<int64_t>(sec) * 1000000 + ms;

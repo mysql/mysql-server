@@ -104,7 +104,7 @@ table_session_connect::~table_session_connect()
 }
 
 int
-table_session_connect::index_init(uint idx, bool)
+table_session_connect::index_init(uint idx MY_ATTRIBUTE((unused)), bool)
 {
   DBUG_ASSERT(idx == 0);
   m_opened_index = PFS_NEW(PFS_index_session_connect);

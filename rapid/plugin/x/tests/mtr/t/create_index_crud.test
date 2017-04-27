@@ -50,7 +50,7 @@
 #    XXXX - other normal index errors
 
 --source include/not_valgrind.inc
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 call mtr.add_suppression("Error parsing message of type 12: args");
 call mtr.add_suppression("Error handling message: args");
 call mtr.add_suppression("InnoDB: Compute virtual column values failed");

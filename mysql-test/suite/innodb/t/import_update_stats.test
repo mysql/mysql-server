@@ -2,8 +2,6 @@
 # BUG#20125349 - PERSISTANT STATS IS NOT UPDATED WHEN TTS IS IMPORTED.
 #
 
---source include/not_embedded.inc
-
 let MYSQLD_DATADIR =`SELECT @@datadir`;
 SET @old_innodb_file_per_table = @@innodb_file_per_table;
 
@@ -13,7 +11,7 @@ SELECT @@innodb_file_per_table;
 CREATE TABLE t1 (
 	col_1 CHAR (255),
 	col_2 VARCHAR (255)
-) ENGINE = InnoDB;
+) ENGINE = InnoDB charset latin1;
 
 CREATE INDEX idx1 ON t1(col_1);
 CREATE INDEX idx2 ON t1(col_2);
@@ -42,7 +40,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (
 	col_1 CHAR (255),
 	col_2 VARCHAR (255)
-) ENGINE = InnoDB;
+) ENGINE = InnoDB charset latin1;
 
 CREATE INDEX idx1 ON t1(col_1);
 CREATE INDEX idx2 ON t1(col_2);

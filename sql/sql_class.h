@@ -24,6 +24,8 @@
   Historically this file contained "Classes in mysql". 
 */
 
+#include "my_config.h"
+
 #include <limits.h>
 #include <stdio.h>
 #include <string.h>
@@ -43,12 +45,11 @@
 #include "field.h"
 #include "handler.h"
 #include "item.h"
+#include "lex_string.h"
 #include "mdl.h"
 #include "my_base.h"
 #include "my_command.h"
-#include "my_config.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_macros.h"
@@ -131,7 +132,6 @@ struct Binlog_user_var_event;
 struct Query_cache_block;
 
 typedef struct st_log_info LOG_INFO;
-typedef struct st_mysql_lex_string LEX_STRING;
 typedef struct user_conn USER_CONN;
 typedef struct st_mysql_lock MYSQL_LOCK;
 
@@ -231,6 +231,19 @@ public:
     STMT_CONVENTIONAL_EXECUTION= 3, STMT_EXECUTED= 4, STMT_ERROR= -1
   };
 
+  /*
+    State and state changes in SP:
+    1) When state is STMT_INITIALIZED_FOR_SP, objects in the item tree are
+       created on the statement memroot. This is enforced through
+       ps_arena_holder checking the state.
+    2) After the first execute (call p1()), this state should change to
+       STMT_EXECUTED. Objects will be created on the execution memroot and will
+       be destroyed at the end of each execution.
+    3) In case an ER_NEED_REPREPARE error occurs, state should be changed to
+       STMT_INITIALIZED_FOR_SP and objects will again be created on the
+       statement memroot. At the end of this execution, state should change to
+       STMT_EXECUTED.
+  */
   enum_state state;
 
   Query_arena(MEM_ROOT *mem_root_arg, enum enum_state state_arg) :
@@ -317,7 +330,7 @@ public:
                       reached. An error is sent to the client, the statement
                       is deleted.
   */
-  int insert(THD *thd, Prepared_statement *statement);
+  int insert(Prepared_statement *statement);
 
   /** Find prepared statement by name. */
   Prepared_statement *find_by_name(const LEX_CSTRING &name);
@@ -1407,6 +1420,14 @@ public:
 
   bool is_current_stmt_binlog_disabled() const;
 
+  /**
+    Determine if binloging is enabled in row format and write set extraction is
+    enabled for this session
+    @retval true  if is enable
+    @retval false otherwise
+  */
+  bool is_current_stmt_binlog_row_enabled_with_write_set_extraction() const;
+
   /** Tells whether the given optimizer_switch flag is on */
   inline bool optimizer_switch_flag(ulonglong flag) const
   {
@@ -1566,7 +1587,7 @@ private:
     Transaction_ctx *m_trx;
 
     /// Transaction read-only state.
-    my_bool m_tx_read_only;
+    bool m_tx_read_only;
 
     /// THD options.
     ulonglong m_thd_option_bits;
@@ -1881,7 +1902,10 @@ public:
     gtid into mysql.gtid_executed table before transaction prepare, as
     it does when binlog is disabled, or binlog is enabled and
     log_slave_updates is disabled.
-    Rpl_info_table::do_flush_info() uses this flag.
+    Also the flag is made to defer updates to the slave info table from
+    intermediate commits by non-atomic DDL.
+    Rpl_info_table::do_flush_info(), rpl_rli.h::is_atomic_ddl_commit_on_slave()
+    uses this flag.
   */
   bool is_operating_substatement_implicitly;
 
@@ -2073,14 +2097,10 @@ public:
   { return system_thread != NON_SYSTEM_THREAD; }
 
   // Check if this THD belongs to a dd bootstrap system thread.
-  // For now we also count the thread (or rather THD) that is used
-  // during DDL log recovery as a DD system thread as we do not
-  // need to take MDL locks during this phase either.
   bool is_dd_system_thread() const
   {
     return system_thread == SYSTEM_THREAD_DD_INITIALIZE ||
-           system_thread == SYSTEM_THREAD_DD_RESTART ||
-           system_thread == SYSTEM_THREAD_DDL_LOG_RECOVERY;
+           system_thread == SYSTEM_THREAD_DD_RESTART;
   }
 
   // Check if this THD belongs to the initialize system thread. The
@@ -2348,7 +2368,7 @@ public:
   /* Used by the sys_var class to store temporary values */
   union
   {
-    my_bool   my_bool_value;
+    bool      bool_value;
     long      long_value;
     ulong     ulong_value;
     ulonglong ulonglong_value;
@@ -2730,8 +2750,8 @@ public:
                               bool allocate_lex_string);
 
   bool convert_string(LEX_STRING *to, const CHARSET_INFO *to_cs,
-		      const char *from, size_t from_length,
-		      const CHARSET_INFO *from_cs);
+                      const char *from, size_t from_length,
+                      const CHARSET_INFO *from_cs);
 
   bool convert_string(String *s, const CHARSET_INFO *from_cs,
                       const CHARSET_INFO *to_cs);
@@ -3086,11 +3106,11 @@ public:
   }
 
   /**
-    Copies variables.gtid_next to
-    ((Slave_worker *)rli_slave)->currently_executing_gtid,
+    Copies variables.original_commit_timestamp to
+    ((Slave_worker *)rli_slave)->original_commit_timestamp,
     if this is a slave thread.
   */
-  void set_currently_executing_gtid_for_slave_thread();
+  void set_original_commit_timestamp_for_slave_thread();
 
   /// Return the value of @@gtid_next_list: either a Gtid_set or NULL.
   Gtid_set *get_gtid_next_list()
@@ -3985,6 +4005,15 @@ private:
     aggregates THD.
   */
   bool is_a_srv_session_thd;
+
+#ifndef DBUG_OFF
+public:
+  /*
+    The member serves to guard against duplicate use of the same xid
+    at binary logging.
+  */
+  XID debug_binlog_xid_last;
+#endif
 };
 
 
@@ -4120,12 +4149,6 @@ my_eof(THD *thd)
   }
 }
 
-#define tmp_disable_binlog(A)       \
-  {ulonglong tmp_disable_binlog__save_options= (A)->variables.option_bits; \
-  (A)->variables.option_bits&= ~OPTION_BIN_LOG
-
-#define reenable_binlog(A)   (A)->variables.option_bits= tmp_disable_binlog__save_options;}
-
 LEX_STRING *
 make_lex_string_root(MEM_ROOT *mem_root,
                      LEX_STRING *lex_str, const char* str, size_t length,
@@ -4157,7 +4180,7 @@ inline LEX_STRING *lex_string_copy(MEM_ROOT *root, LEX_STRING *dst,
 
 inline bool add_item_to_list(THD *thd, Item *item)
 {
-  return thd->lex->select_lex->add_item_to_list(thd, item);
+  return thd->lex->select_lex->add_item_to_list(item);
 }
 
 inline void add_order_to_list(THD *thd, ORDER *order)
@@ -4243,6 +4266,32 @@ private:
   bool m_save_is_operating_substatement_implicitly;
   bool m_save_skip_gtid_rollback;
 };
+
+
+/**
+  RAII class to temporarily disable binlogging.
+*/
+
+class Disable_binlog_guard
+{
+public:
+  Disable_binlog_guard(THD *thd)
+    : m_thd(thd), m_binlog_disabled(thd->variables.option_bits & OPTION_BIN_LOG)
+  {
+    thd->variables.option_bits &= ~OPTION_BIN_LOG;
+  }
+
+  ~Disable_binlog_guard()
+  {
+    if (m_binlog_disabled)
+      m_thd->variables.option_bits |= OPTION_BIN_LOG;
+  }
+
+private:
+  THD * const m_thd;
+  const bool m_binlog_disabled;
+};
+
 
 /**
   RAII class which allows to save, clear and store binlog format state

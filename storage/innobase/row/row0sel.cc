@@ -32,6 +32,8 @@ Created 12/19/1997 Heikki Tuuri
 
 #include "row0sel.h"
 
+#include <sys/types.h>
+
 #include "btr0btr.h"
 #include "btr0cur.h"
 #include "btr0sea.h"
@@ -304,15 +306,12 @@ row_sel_sec_rec_is_for_clust_rec(
 					heap);
 			}
 
-			rtree_mbr_from_wkb(dptr + GEO_DATA_HEADER_SIZE,
-					   static_cast<uint>(clust_len
-					   - GEO_DATA_HEADER_SIZE),
+			get_mbr_from_store(dptr, static_cast<uint>(clust_len),
 					   SPDIMS,
-					   reinterpret_cast<double*>(
-						&tmp_mbr));
+					   reinterpret_cast<double*>(&tmp_mbr));
 			rtr_read_mbr(sec_field, &sec_mbr);
 
-			if (!MBR_EQUAL_CMP(&sec_mbr, &tmp_mbr)) {
+			if (!mbr_equal_cmp(&sec_mbr, &tmp_mbr, 0)) {
 				is_equal = FALSE;
 				goto func_exit;
 			}
@@ -2930,7 +2929,10 @@ row_sel_field_store_in_mysql_format_func(
 		containing UTF-8 ENUM columns due to Bug #9526. */
 		ut_ad(!templ->mbmaxlen
 		      || !(templ->mysql_col_len % templ->mbmaxlen));
-		ut_ad(len * templ->mbmaxlen >= templ->mysql_col_len
+		/* Length of the record will be less in case of
+		clust_templ_for_sec is true. */
+		ut_ad(clust_templ_for_sec
+		      || len * templ->mbmaxlen >= templ->mysql_col_len
 		      || (field_no == templ->icp_rec_field_no
 			  && field->prefix_len > 0));
 		ut_ad(templ->is_virtual
@@ -3324,7 +3326,7 @@ row_sel_store_mysql_rec(
 	if secondary index is used then FTS_DOC_ID column should be part
 	of this index. */
 	if (dict_table_has_fts_index(prebuilt->table)) {
-		if (index->is_clustered()
+		if ((index->is_clustered() && !clust_templ_for_sec)
 		    || prebuilt->fts_doc_id_in_read_set) {
 			prebuilt->fts_doc_id = fts_get_doc_id_from_rec(
 				prebuilt->table, rec, index, NULL);
@@ -4241,8 +4243,14 @@ row_search_no_mvcc(
 	ut_ad(index && pcur && search_tuple);
 
 	/* Step-0: Re-use the cached mtr. */
-	mtr_t*		mtr = &index->last_sel_cur->mtr;
+	mtr_t*		mtr;
 	dict_index_t*	clust_index = index->table->first_index();
+
+	if(!index->last_sel_cur) {
+		dict_allocate_mem_intrinsic_cache(index);
+	}
+
+	mtr = &index->last_sel_cur->mtr;
 
 	/* Step-1: Build the select graph. */
 	if (direction == 0 && prebuilt->sel_graph == NULL) {
@@ -4933,13 +4941,17 @@ row_search_mvcc(
 
 	trx_start_if_not_started(trx, false);
 
-	if (trx->skip_gap_locks()
-	    && prebuilt->select_lock_type != LOCK_NONE
-	    && trx->mysql_thd != NULL
-	    && thd_is_select(trx->mysql_thd)) {
+	if (prebuilt->table->is_dd_table
+	    || (trx->skip_gap_locks()
+	        && prebuilt->select_lock_type != LOCK_NONE
+	        && trx->mysql_thd != NULL
+	        && thd_is_select(trx->mysql_thd))) {
 		/* It is a plain locking SELECT and the isolation
 		level is low: do not lock gaps */
 
+		/* Reads on DD tables dont require gap-locks as serializability
+		between different DDL statements is achieved using
+		metadata locks */
 		set_also_gap_locks = false;
 	}
 

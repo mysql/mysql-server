@@ -1,7 +1,7 @@
 #ifndef SQL_STRING_INCLUDED
 #define SQL_STRING_INCLUDED
 
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,6 +26,7 @@
 #include <sys/types.h>
 #include <new>
 
+#include "lex_string.h"
 #include "m_ctype.h"                         // my_convert
 #include "m_string.h"                        // LEX_CSTRING
 #include "mem_root_fwd.h"
@@ -38,9 +39,6 @@
 #include "mysql/psi/psi_base.h"
 #include "mysql/psi/psi_memory.h"
 #include "mysql/service_mysql_alloc.h"       // my_free
-
-typedef struct st_mysql_lex_string LEX_STRING;
-
 
 #ifdef MYSQL_SERVER
 extern "C" {
@@ -712,4 +710,7 @@ inline LEX_CSTRING to_lex_cstring(const char *s)
 bool
 validate_string(const CHARSET_INFO *cs, const char *str, uint32 length,
                 size_t *valid_length, bool *length_error);
+
+bool append_escaped(String *to_str, const String *from_str);
+
 #endif /* SQL_STRING_INCLUDED */

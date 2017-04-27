@@ -36,8 +36,8 @@ namespace keyring
   protected:
     size_t memory_needed_for_buffer;
 
-    my_bool store_keys_in_buffer(HASH *keys_hash, Buffer *buffer);
-    my_bool store_key_in_buffer(const IKey* key, Buffer *buffer);
+    bool store_keys_in_buffer(HASH *keys_hash, Buffer *buffer);
+    bool store_key_in_buffer(const IKey* key, Buffer *buffer);
   };
 }
 

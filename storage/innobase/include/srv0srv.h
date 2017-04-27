@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2008, 2009, Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -41,20 +41,18 @@ Created 10/10/1995 Heikki Tuuri
 #ifndef srv0srv_h
 #define srv0srv_h
 
-#include "my_global.h"
 
 #include "mysql/psi/mysql_stage.h"
-
 #include "univ.i"
 #ifndef UNIV_HOTBACKUP
+#include "buf0checksum.h"
+#include "fil0fil.h"
 #include "log0log.h"
 #include "os0event.h"
 #include "que0types.h"
-#include "trx0types.h"
 #include "srv0conc.h"
-#include "buf0checksum.h"
+#include "trx0types.h"
 #include "ut0counter.h"
-#include "fil0fil.h"
 
 /* Global counters used inside InnoDB. */
 struct srv_stats_t {
@@ -134,6 +132,12 @@ struct srv_stats_t {
 	ulint_ctr_64_t		n_rows_inserted;
 };
 
+#ifdef INNODB_DD_TABLE
+extern bool	srv_is_upgrade_mode;
+extern bool	srv_downgrade_logs;
+extern bool	srv_upgrade_old_undo_found;
+#endif /* INNODB_DD_TABLE */
+
 extern const char*	srv_main_thread_op_info;
 
 /* The monitor thread waits on this event. */
@@ -154,11 +158,11 @@ extern char*		srv_buf_dump_filename;
 
 /** Boolean config knobs that tell InnoDB to dump the buffer pool at shutdown
 and/or load it during startup. */
-extern char		srv_buffer_pool_dump_at_shutdown;
-extern char		srv_buffer_pool_load_at_startup;
+extern bool		srv_buffer_pool_dump_at_shutdown;
+extern bool		srv_buffer_pool_load_at_startup;
 
 /* Whether to disable file system cache if it is defined */
-extern char		srv_disable_sort_file_cache;
+extern bool		srv_disable_sort_file_cache;
 
 /* If the last data file is auto-extended, we add this many pages to it
 at a time */
@@ -190,13 +194,13 @@ extern char*	srv_data_home;
 /** Set if InnoDB must operate in read-only mode. We don't do any
 recovery and open all tables in RO mode instead of RW mode. We don't
 sync the max trx id to disk either. */
-extern my_bool	srv_read_only_mode;
+extern bool	srv_read_only_mode;
 /** Set if InnoDB operates in read-only mode or innodb-force-recovery
 is greater than SRV_FORCE_NO_TRX_UNDO. */
-extern my_bool high_level_read_only;
+extern bool high_level_read_only;
 /** store to its own file each table created by an user; data
 dictionary tables are in the system tablespace 0 */
-extern my_bool	srv_file_per_table;
+extern bool	srv_file_per_table;
 /** Sleep delay for threads waiting to enter InnoDB. In micro-seconds. */
 extern	ulong	srv_thread_sleep_delay;
 /** Maximum sleep delay (in micro-seconds), value of 0 disables it.*/
@@ -211,8 +215,8 @@ extern unsigned long long	srv_online_max_size;
 OS (provided we compiled Innobase with it in), otherwise we will
 use simulated aio we build below with threads.
 Currently we support native aio on windows and linux */
-extern my_bool	srv_use_native_aio;
-extern my_bool	srv_numa_interleave;
+extern bool	srv_use_native_aio;
+extern bool	srv_numa_interleave;
 #endif /* !UNIV_HOTBACKUP */
 
 /** Server undo tablespaces directory, can be absolute path. */
@@ -237,18 +241,22 @@ extern unsigned long long	srv_max_undo_tablespace_size;
 extern ulong	srv_purge_rseg_truncate_frequency;
 
 /** Enable or Disable Truncate of UNDO tablespace. */
-extern my_bool	srv_undo_log_truncate;
+extern bool	srv_undo_log_truncate;
 
 /** Enable or disable Encrypt of UNDO tablespace. */
-extern my_bool	srv_undo_log_encrypt;
+extern bool	srv_undo_log_encrypt;
 
 /** Default size of UNDO tablespace while it is created new. */
 extern const page_no_t	SRV_UNDO_TABLESPACE_SIZE_IN_PAGES;
 
 extern char*	srv_log_group_home_dir;
 
+#ifdef UNIV_DEBUG
+extern bool	srv_checkpoint_disabled;
+#endif /* UNIV_DEBUG */
+
 /** Enable or Disable Encrypt of REDO tablespace. */
-extern my_bool	srv_redo_log_encrypt;
+extern bool	srv_redo_log_encrypt;
 
 #ifndef UNIV_HOTBACKUP
 /** Maximum number of srv_n_log_files, or innodb_log_files_in_group */
@@ -269,13 +277,13 @@ extern ulong	srv_log_buffer_size;
 extern ulong	srv_flush_log_at_trx_commit;
 extern uint	srv_flush_log_at_timeout;
 extern ulong	srv_log_write_ahead_size;
-extern my_bool	srv_adaptive_flushing;
-extern my_bool	srv_flush_sync;
+extern bool	srv_adaptive_flushing;
+extern bool	srv_flush_sync;
 
 /* If this flag is TRUE, then we will load the indexes' (and tables') metadata
 even if they are marked as "corrupted". Mostly it is for DBA to process
 corrupted index and table */
-extern my_bool	srv_load_corrupted;
+extern bool	srv_load_corrupted;
 
 /** Requested size in bytes */
 extern ulint		srv_buf_pool_size;
@@ -308,7 +316,7 @@ extern ulong	srv_buf_pool_dump_pct;
 extern ulint	srv_lock_table_size;
 
 extern ulint	srv_n_file_io_threads;
-extern my_bool	srv_random_read_ahead;
+extern bool	srv_random_read_ahead;
 extern ulong	srv_read_ahead_threshold;
 extern ulong	srv_n_read_io_threads;
 extern ulong	srv_n_write_io_threads;
@@ -367,10 +375,10 @@ extern ulong	srv_fast_shutdown;
 extern ibool	srv_innodb_status;
 
 extern unsigned long long	srv_stats_transient_sample_pages;
-extern my_bool			srv_stats_persistent;
+extern bool			srv_stats_persistent;
 extern unsigned long long	srv_stats_persistent_sample_pages;
-extern my_bool			srv_stats_auto_recalc;
-extern my_bool			srv_stats_include_delete_marked;
+extern bool			srv_stats_auto_recalc;
+extern bool			srv_stats_include_delete_marked;
 
 extern ibool	srv_use_doublewrite_buf;
 extern ulong	srv_doublewrite_batch_size;
@@ -383,8 +391,8 @@ extern ulong	srv_max_purge_lag_delay;
 extern ulong	srv_replication_delay;
 /*-------------------------------------------*/
 
-extern my_bool	srv_print_innodb_monitor;
-extern my_bool	srv_print_innodb_lock_monitor;
+extern bool	srv_print_innodb_monitor;
+extern bool	srv_print_innodb_lock_monitor;
 extern ibool	srv_print_verbose_log;
 
 extern ibool	srv_monitor_active;
@@ -409,16 +417,16 @@ extern ulint	srv_truncated_status_writes;
 extern ulint	srv_available_rollback_segments;
 
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
-extern my_bool	srv_ibuf_disable_background_merge;
+extern bool	srv_ibuf_disable_background_merge;
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 
 #ifdef UNIV_DEBUG
-extern my_bool	srv_buf_pool_debug;
-extern my_bool	srv_sync_debug;
-extern my_bool	srv_purge_view_update_only_debug;
+extern bool	srv_buf_pool_debug;
+extern bool	srv_sync_debug;
+extern bool	srv_purge_view_update_only_debug;
 
 /** Value of MySQL global used to disable master thread. */
-extern my_bool	srv_master_thread_disabled_debug;
+extern bool	srv_master_thread_disabled_debug;
 #endif /* UNIV_DEBUG */
 
 extern ulint	srv_fatal_semaphore_wait_threshold;
@@ -442,9 +450,9 @@ extern ulong srv_purge_batch_size;
 extern ulong srv_sync_array_size;
 
 /* print all user-level transactions deadlocks to mysqld stderr */
-extern my_bool srv_print_all_deadlocks;
+extern bool srv_print_all_deadlocks;
 
-extern my_bool	srv_cmp_per_index_enabled;
+extern bool	srv_cmp_per_index_enabled;
 
 /** Status variables to be passed to MySQL */
 extern struct export_var_t export_vars;

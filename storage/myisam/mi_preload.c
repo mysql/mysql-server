@@ -18,6 +18,8 @@
 */
 
 #include <errno.h>
+#include <stddef.h>
+#include <sys/types.h>
 
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -43,7 +45,7 @@
     of the table will be preloaded.
 */
 
-int mi_preload(MI_INFO *info, ulonglong key_map, my_bool ignore_leaves)
+int mi_preload(MI_INFO *info, ulonglong key_map, bool ignore_leaves)
 {
   uint i;
   ulong length, block_length= 0;

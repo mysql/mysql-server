@@ -1,6 +1,4 @@
 
--- source include/not_embedded.inc
-
 --echo #
 --echo # Testing mysql_config_editor utility.
 --echo #

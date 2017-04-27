@@ -18,17 +18,19 @@
   Table EVENTS_TRANSACTIONS_xxx (implementation).
 */
 
+#include "storage/perfschema/table_events_transactions.h"
+
+#include <stddef.h>
+
 #include "field.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_thread.h"
 #include "pfs_buffer_container.h"
 #include "pfs_events_transactions.h"
 #include "pfs_instr.h"
 #include "pfs_instr_class.h"
 #include "pfs_timer.h"
-#include "table_events_transactions.h"
 #include "table_helper.h"
 #include "xa.h"
 
@@ -592,7 +594,7 @@ table_events_transactions_common::read_row_values(TABLE *table,
 }
 
 PFS_engine_table *
-table_events_transactions_current::create(void)
+table_events_transactions_current::create(PFS_engine_table_share *)
 {
   return new table_events_transactions_current();
 }
@@ -659,7 +661,8 @@ table_events_transactions_current::rnd_pos(const void *pos)
 }
 
 int
-table_events_transactions_current::index_init(uint idx, bool)
+table_events_transactions_current::index_init(uint idx MY_ATTRIBUTE((unused)),
+                                              bool)
 {
   m_normalizer = time_normalizer::get(transaction_timer);
 
@@ -715,7 +718,7 @@ table_events_transactions_current::get_row_count(void)
 }
 
 PFS_engine_table *
-table_events_transactions_history::create(void)
+table_events_transactions_history::create(PFS_engine_table_share *)
 {
   return new table_events_transactions_history();
 }
@@ -813,7 +816,8 @@ table_events_transactions_history::rnd_pos(const void *pos)
 }
 
 int
-table_events_transactions_history::index_init(uint idx, bool)
+table_events_transactions_history::index_init(uint idx MY_ATTRIBUTE((unused)),
+                                              bool)
 {
   m_normalizer = time_normalizer::get(transaction_timer);
 
@@ -895,7 +899,7 @@ table_events_transactions_history::get_row_count(void)
 }
 
 PFS_engine_table *
-table_events_transactions_history_long::create(void)
+table_events_transactions_history_long::create(PFS_engine_table_share *)
 {
   return new table_events_transactions_history_long();
 }

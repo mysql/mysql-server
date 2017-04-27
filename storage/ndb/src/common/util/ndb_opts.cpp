@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -83,7 +83,7 @@ void ndb_usage(void (*usagefunc)(void), const char *load_default_groups[],
 }
 
 extern "C"
-my_bool
+bool
 ndb_std_get_one_option(int optid,
                        const struct my_option *opt MY_ATTRIBUTE((unused)),
                        char *argument MY_ATTRIBUTE((unused)))
@@ -120,7 +120,7 @@ void ndb_std_print_version()
 }
 
 extern "C"
-my_bool ndb_is_load_default_arg_separator(const char* arg)
+bool ndb_is_load_default_arg_separator(const char* arg)
 {
   /*
     load_default() in 5.5+ returns an extra arg which has to

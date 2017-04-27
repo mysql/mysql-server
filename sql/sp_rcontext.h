@@ -21,7 +21,6 @@
 
 #include "item.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "prealloced_array.h"             // Prealloced_array
@@ -440,12 +439,12 @@ public:
 
   bool open(THD *thd);
 
-  bool close(THD *thd);
+  bool close();
 
   bool is_open() const
   { return MY_TEST(m_server_side_cursor); }
 
-  bool fetch(THD *thd, List<sp_variable> *vars);
+  bool fetch(List<sp_variable> *vars);
 
   sp_instr_cpush *get_push_instr()
   { return m_push_instr; }

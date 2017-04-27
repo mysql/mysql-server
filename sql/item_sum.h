@@ -23,6 +23,7 @@
 #include <math.h>
 #include <stddef.h>
 #include <sys/types.h>
+#include <utility>          // std::forward
 
 #include "binary_log_types.h"
 #include "enum_query_type.h"
@@ -35,7 +36,6 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_decimal.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_table_map.h"
@@ -473,7 +473,7 @@ public:
   Type type() const override { return SUM_FUNC_ITEM; }
   virtual enum Sumfunctype sum_func() const= 0;
   virtual void fix_after_pullout(SELECT_LEX*,
-                                 SELECT_LEX *removed_select) override
+                     SELECT_LEX *removed_select MY_ATTRIBUTE((unused))) override
   {
     // Just make sure we are not aggregating into a context that is merged up.
     DBUG_ASSERT(base_select != removed_select &&
@@ -974,7 +974,15 @@ public:
   {
     return get_time_from_numeric(ltime); /* Decimal or real */
   }
-  bool is_null() override { update_null_value(); return null_value; }
+  bool is_null() override
+  {
+    /*
+      TODO : Implement error handling for this function as
+      update_null_value() can return error.
+    */
+    (void) update_null_value();
+    return null_value;
+  }
 };
 
 
@@ -1027,22 +1035,14 @@ protected:
   Json_wrapper m_wrapper;
 
 public:
-  Item_sum_json(THD *thd, Item_sum *item)
-    : Item_sum(thd, item)
+  /**
+    Construct an Item_sum_json instance.
+    @param args  arguments to forward to Item_sum's constructor
+  */
+  template <typename... Args>
+  Item_sum_json(Args&&... args) : Item_sum(std::forward<Args>(args)...)
   {
-    set_data_type(MYSQL_TYPE_JSON);
-  }
-
-  Item_sum_json(const POS &pos, Item *a)
-    : Item_sum(pos, a)
-  {
-    set_data_type(MYSQL_TYPE_JSON);
-  }
-
-  Item_sum_json(const POS &pos, Item *a, Item *b)
-    : Item_sum(pos, a, b)
-  {
-    set_data_type(MYSQL_TYPE_JSON);
+    set_data_type_json();
   }
 
   bool fix_fields(THD *thd, Item **pItem) override;
@@ -1678,7 +1678,8 @@ class Item_func_group_concat final : public Item_sum
   bool warning_for_row;
   bool always_null;
   bool force_copy_fields;
-  bool no_appended;
+  /** True if result has been written to output buffer. */
+  bool m_result_finalized;
   /*
     Following is 0 normal object and pointer to original one for copy
     (to correctly free resources)
@@ -1773,6 +1774,13 @@ public:
   longlong val_int() override;
   bool aggregate_check_group(uchar *arg) override;
   bool fix_fields(THD *thd, Item **ref) override;
+  void update_used_tables() override
+  {
+    const bool aggregated= has_aggregation();
+    Item_int_func::update_used_tables();
+    if (aggregated)
+      set_aggregation();
+  }
   void cleanup() override;
 };
 

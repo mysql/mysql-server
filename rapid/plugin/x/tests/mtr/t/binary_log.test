@@ -1,7 +1,7 @@
 ## generated
 ## Ping
 --source include/have_debug_sync.inc
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 
 ##
 ## Bug#23057045: CRASH WHEN RUNNING SHOW PROCESSLIST AFTER SYSBENCH RUN

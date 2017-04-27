@@ -13,12 +13,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#include "error_handler.h"
+#include "sql/error_handler.h"
 
 #include <errno.h>
 
 #include "key.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
@@ -38,6 +37,7 @@
   the following warnings during DROP TABLE:
     - Some of table files are missed or invalid (the table is going to be
       deleted anyway, so why bother that something was missed).
+    - The table is using an invalid collation.
 
   @return true if the condition is handled.
 */
@@ -47,7 +47,9 @@ bool Drop_table_error_handler::handle_condition(THD*,
                                                 Sql_condition::enum_severity_level*,
                                                 const char*)
 {
-  return (sql_errno == EE_DELETE && my_errno() == ENOENT);
+  return (sql_errno == ER_UNKNOWN_COLLATION) ||
+         (sql_errno == ER_PLUGIN_IS_NOT_LOADED) ||
+         (sql_errno == EE_DELETE && my_errno() == ENOENT);
 }
 
 

@@ -4,9 +4,6 @@
 #but needs to be kept for tests that would need MyISAM in future.
 --source include/force_myisam_default.inc
 
-# Grant tests not performed with embedded server
---source include/not_embedded.inc
-
 --source include/have_debug.inc
 
 --echo #

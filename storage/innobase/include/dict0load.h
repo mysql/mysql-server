@@ -65,6 +65,8 @@ enum dict_table_info_t {
 					is in the cache, if so, return it */
 };
 
+extern const char* SYSTEM_TABLE_NAME[];
+
 /********************************************************************//**
 Finds the first table name in the given database.
 @return own: table name, NULL if does not exist; the caller must free
@@ -162,6 +164,16 @@ dict_load_foreigns(
 						foreign key constraints. */
 	MY_ATTRIBUTE((warn_unused_result));
 
+/********************************************************************//**
+This function opens a system table, and return the first record.
+@return first record of the system table */
+const rec_t*
+dict_startscan_system(
+/*==================*/
+	btr_pcur_t*	pcur,		/*!< out: persistent cursor to
+					the record */
+	mtr_t*		mtr,		/*!< in: the mini-transaction */
+	dict_system_id_t system_id);	/*!< in: which system table to open */
 /********************************************************************//**
 This function get the next system table record as we scan the table.
 @return the record if found, NULL if end of scan. */
@@ -295,29 +307,19 @@ dict_process_sys_datafiles(
 	ulint*		space,		/*!< out: pace id */
 	const char**	path);		/*!< out: datafile path */
 
-/** Replace records in SYS_TABLESPACES and SYS_DATAFILES associated with
-the given space_id using an independent transaction.
-@param[in]	space_id	Tablespace ID
-@param[in]	name		Tablespace name
-@param[in]	filepath	First filepath
-@param[in]	fsp_flags	Tablespace flags
-@return DB_SUCCESS if OK, dberr_t if the insert failed */
-dberr_t
-dict_replace_tablespace_and_filepath(
-	space_id_t	space_id,
-	const char*	name,
-	const char*	filepath,
-	ulint		fsp_flags);
-
 /** Opens a tablespace for dict_load_table_one()
 @param[in,out]	table		A table that refers to the tablespace to open
 @param[in,out]	heap		A memory heap
 @param[in]	ignore_err	Whether to ignore an error. */
 void
 dict_load_tablespace(
-	dict_table_t*           table,
+	dict_table_t*		table,
 	mem_heap_t*		heap,
 	dict_err_ignore_t	ignore_err);
+
+/** Load all tablespaces during upgrade */
+void
+dict_load_tablespaces_for_upgrade();
 
 #include "dict0load.ic"
 

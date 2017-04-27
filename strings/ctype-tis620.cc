@@ -47,7 +47,6 @@
  * .configure. strxfrm_multiply_tis620=4
  */
 
-#include <my_global.h>
 #include <string.h>
 #include <sys/types.h>
 
@@ -533,7 +532,7 @@ static
 int my_strnncoll_tis620(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                         const uchar *s1, size_t len1, 
                         const uchar *s2, size_t len2,
-                        my_bool s2_is_prefix)
+                        bool s2_is_prefix)
 {
   uchar	buf[80] ;
   uchar *tc1, *tc2;
@@ -949,7 +948,8 @@ CHARSET_INFO my_charset_tis620_thai_ci=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_handler,
-    &my_collation_ci_handler
+    &my_collation_ci_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_tis620_bin=
@@ -983,5 +983,6 @@ CHARSET_INFO my_charset_tis620_bin=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_handler,
-    &my_collation_8bit_bin_handler
+    &my_collation_8bit_bin_handler,
+    PAD_SPACE
 };

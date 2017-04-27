@@ -3,9 +3,9 @@
 --echo # Create a table with a certain collation. Restart
 --echo # the server with a new --character-sets-dir where
 --echo # the collation is not supported. Verify that we
---echo # can do  DROP TABLE, but not CHECK or RENAME.
+--echo # can do DROP and RENAME TABLE, and that CHECK TABLE
+--echo # will report a warning.
 
---source include/not_embedded.inc
 
 --echo #
 --echo # New character sets dir:
@@ -17,14 +17,18 @@ SHOW VARIABLES LIKE 'character_sets_dir%';
 SHOW COLLATION LIKE 'utf8_phone_ci';
 
 --echo #
---echo # Create a table using the new collation:
+--echo # Create two tables using the new collation:
 CREATE TABLE t1 (i INTEGER) COLLATE utf8_phone_ci;
+CREATE TABLE t2 (i INTEGER) COLLATE utf8_phone_ci;
 
 --echo #
 --echo # Restart server with original character sets dir:
 --let $restart_parameters=restart:--character-sets-dir=$MYSQL_CHARSETSDIR
 --replace_result $MYSQL_CHARSETSDIR MYSQL_CHARSETSDIR
 --source include/restart_mysqld.inc
+
+--let $old_log_error_verbosity = `select @@global.log_error_verbosity`
+SET @@global.log_error_verbosity = 1;
 
 --echo #
 --echo # Reverted to old character sets dir:
@@ -41,8 +45,8 @@ CHECK TABLE t1;
 
 --echo #
 --echo # Check behavior of RENAME TABLE (succeed):
-RENAME TABLE t1 TO t2;
-RENAME TABLE t2 TO t1;
+RENAME TABLE t1 TO t1_new;
+RENAME TABLE t1_new TO t1;
 
 --echo #
 --echo # Check behavior of ALTER TABLE w. COPY (fail):
@@ -66,4 +70,10 @@ SHOW CREATE TABLE t1;
 
 --echo #
 --echo # Check behavior of DROP TABLE (succeed):
+# Note that we introduce the table t2 for this purpose since
+# dropping t1 is likely to succeed anyway since the table is
+# cached in innodb after being renamed.
 DROP TABLE t1;
+DROP TABLE t2;
+
+--eval SET @@global.log_error_verbosity = $old_log_error_verbosity

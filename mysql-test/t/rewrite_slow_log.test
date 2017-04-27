@@ -8,7 +8,6 @@
 --source include/not_windows.inc
 
 # For Bug#16467055 and friends:
---source include/not_embedded.inc
 
 # make sure we start with a clean slate. log_tables.test says this is OK.
 TRUNCATE TABLE mysql.slow_log;

@@ -58,7 +58,6 @@
 #include <iostream>
 #ifdef VM_TRACE
 #include <my_dbug.h>
-#include <my_global.h>
 #endif
 #ifndef assert
 #include <assert.h>

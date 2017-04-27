@@ -19,9 +19,9 @@
 #include <stddef.h>
 #include <sys/types.h>
 
+#include "lex_string.h"
 #include "mem_root_array.h"
 #include "my_base.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "parse_tree_helpers.h"
 #include "parse_tree_node_base.h"

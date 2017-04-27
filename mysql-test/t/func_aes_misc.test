@@ -138,7 +138,7 @@ SET @ENCSTR=REPEAT('J',255);
 SET @@session.block_encryption_mode = 'aes-128-ecb';
 
 DROP TABLE IF EXISTS t1;
-CREATE TABLE t1(f1 varchar(256));
+CREATE TABLE t1(f1 varchar(256)) charset latin1;
 INSERT INTO t1 values(AES_ENCRYPT(@ENCSTR, @KEYS, @IV));
 
 --echo Combination1..............

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -465,7 +465,7 @@ innobase_next_autoinc(
 Check if the length of the identifier exceeds the maximum allowed.
 The input to this function is an identifier in charset my_charset_filename.
 return true when length of identifier is too long. */
-my_bool
+bool
 innobase_check_identifier_length(
 /*=============================*/
 	const char*	id);	/* in: identifier to check.  it must belong

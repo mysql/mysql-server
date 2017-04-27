@@ -8,9 +8,9 @@ select null, null;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `s1` varchar(64) DEFAULT NULL,
-  `s2` varchar(64) DEFAULT NULL
-) ENGINE=default_engine DEFAULT CHARSET=latin1
+  `s1` varchar(64) CHARACTER SET latin1 DEFAULT NULL,
+  `s2` varchar(64) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=default_engine DEFAULT CHARSET=utf8mb4
 delete from t1;
 insert into t1 values('aaa','aaa');
 insert into t1 values('aaa|qqq','qqq');
@@ -167,3 +167,7 @@ SELECT '\t' REGEXP '[[:space:]]';
 #
 DO 1 regexp (multilinestring(point(1,1)));
 ERROR HY000: Incorrect arguments to multilinestring
+#
+# Bug#58026: massive recursion and crash in regular expression handling
+#
+SELECT '1' RLIKE RPAD('1', 10000, '(');

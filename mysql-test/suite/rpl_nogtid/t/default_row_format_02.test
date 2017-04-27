@@ -31,7 +31,7 @@ USE test;
 SELECT @@innodb_default_row_format;
 
 # Create Index prefix greater than 767 bytes
-CREATE TABLE tab(a INT PRIMARY KEY, b VARCHAR(5000),KEY idx1(b(3070)))
+CREATE TABLE tab(a INT PRIMARY KEY, b VARCHAR(5000) CHARSET latin1, KEY idx1(b(3070)))
 ENGINE= InnoDB;
 
 # Insert a record

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,8 +22,8 @@
 #include <vector>
 
 #include "dd/object_id.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_global.h"                        // DBUG_ASSERT() etc.
 #include "object_registry.h"                  // Object_registry
 
 class THD;
@@ -208,7 +208,7 @@ public:
 
 
 private:
-  std::vector<Dictionary_object*> m_uncached_objects; // Objects to be deleted.
+  std::vector<Entity_object*> m_uncached_objects; // Objects to be deleted.
   Object_registry m_registry_committed;   // Registry of committed objects.
   Object_registry m_registry_uncommitted; // Registry of uncommitted objects.
   Object_registry m_registry_dropped;     // Registry of dropped objects.
@@ -258,7 +258,8 @@ private:
 
   template <typename K, typename T>
   bool acquire(const K &key, const T **object,
-               bool *local_committed, bool *local_uncommitted);
+               bool *local_committed, bool *local_uncommitted)
+    MY_ATTRIBUTE((warn_unused_result));
 
 
   /**
@@ -327,7 +328,7 @@ private:
   */
 
   template <typename T>
-  void auto_delete(Dictionary_object *object)
+  void auto_delete(T *object)
   {
 #ifndef DBUG_OFF
     // Make sure we do not sign up a shared object for auto delete.
@@ -356,7 +357,7 @@ private:
   */
 
   template <typename T>
-  void no_auto_delete(Dictionary_object *object)
+  void no_auto_delete(T *object)
   {
 #ifndef DBUG_OFF
     // Make sure the object has been registered as uncommitted.
@@ -461,7 +462,8 @@ public:
   */
 
   template <typename T>
-  bool acquire(Object_id id, const T** object);
+  bool acquire(Object_id id, const T** object)
+    MY_ATTRIBUTE((warn_unused_result));
 
 
   /**
@@ -478,7 +480,8 @@ public:
   */
 
   template <typename T>
-  bool acquire_for_modification(Object_id id, T** object);
+  bool acquire_for_modification(Object_id id, T** object)
+    MY_ATTRIBUTE((warn_unused_result));
 
 
   /**
@@ -498,7 +501,8 @@ public:
    */
 
   template <typename T>
-  bool acquire_uncached(Object_id id, T** object);
+  bool acquire_uncached(Object_id id, T** object)
+    MY_ATTRIBUTE((warn_unused_result));
 
 
   /**
@@ -522,7 +526,8 @@ public:
    */
 
   template <typename T>
-  bool acquire_uncached_uncommitted(Object_id id, T** object);
+  bool acquire_uncached_uncommitted(Object_id id, T** object)
+    MY_ATTRIBUTE((warn_unused_result));
 
 
   /**
@@ -537,7 +542,8 @@ public:
   */
 
   template <typename T>
-  bool acquire(const String_type &object_name, const T** object);
+  bool acquire(const String_type &object_name, const T** object)
+    MY_ATTRIBUTE((warn_unused_result));
 
 
   /**
@@ -554,7 +560,8 @@ public:
   */
 
   template <typename T>
-  bool acquire_for_modification(const String_type &object_name, T** object);
+  bool acquire_for_modification(const String_type &object_name, T** object)
+    MY_ATTRIBUTE((warn_unused_result));
 
 
   /**
@@ -581,7 +588,8 @@ public:
 
   template <typename T>
   bool acquire(const String_type &schema_name, const String_type &object_name,
-               const T** object);
+               const T** object)
+    MY_ATTRIBUTE((warn_unused_result));
 
 
   /**
@@ -611,7 +619,8 @@ public:
   template <typename T>
   bool acquire_for_modification(const String_type &schema_name,
                                 const String_type &object_name,
-                                T** object);
+                                T** object)
+    MY_ATTRIBUTE((warn_unused_result));
 
   /**
     Retrieve an object by its schema- and object name.
@@ -643,7 +652,45 @@ public:
 
   template <typename T>
   bool acquire(const String_type &schema_name, const String_type &object_name,
-               const typename T::cache_partition_type** object);
+               const typename T::cache_partition_type** object)
+    MY_ATTRIBUTE((warn_unused_result));
+
+
+  /**
+    Retrieve an object by its schema- and object name.
+
+    This function returns a cloned object that can be modified.
+
+    @note We will acquire an IX-lock on the schema name unless we already
+          have one. This is needed for proper synchronization with schema
+          DDL in cases where the table does not exist, and where the
+          indirect synchronization based on table names therefore will not
+          apply.
+
+    @note This is a variant of the method above asking for an object of type
+          T, and hence using T's functions for updating name keys etc.
+          This function, however, returns the instance pointed to as type
+          T::cache_partition_type to ease handling of various subtypes
+          of the same base type.
+
+    @todo TODO: We should change the MDL acquisition (see above) for a more
+          long term solution.
+
+    @tparam       T             Dictionary object type.
+    @param        schema_name   Name of the schema containing the object.
+    @param        object_name   Name of the object.
+    @param [out]  object        Dictionary object, if present; otherwise NULL.
+
+    @retval       false   No error.
+    @retval       true    Error (from handling a cache miss, or from
+                                 failing to get an MDL lock).
+  */
+
+  template <typename T>
+  bool acquire_for_modification(const String_type &schema_name,
+                                const String_type &object_name,
+                                typename T::cache_partition_type** object)
+    MY_ATTRIBUTE((warn_unused_result));
 
 
   /**
@@ -665,7 +712,8 @@ public:
 
   bool acquire_uncached_table_by_se_private_id(const String_type &engine,
                                                Object_id se_private_id,
-                                               Table **table);
+                                               Table **table)
+    MY_ATTRIBUTE((warn_unused_result));
 
 
   /**
@@ -682,7 +730,8 @@ public:
   bool acquire_uncached_table_by_partition_se_private_id(
          const String_type &engine,
          Object_id se_partition_id,
-         Table **table);
+         Table **table)
+    MY_ATTRIBUTE((warn_unused_result));
 
 
   /**
@@ -702,7 +751,8 @@ public:
   bool get_table_name_by_se_private_id(const String_type &engine,
                                        Object_id se_private_id,
                                        String_type *schema_name,
-                                       String_type *table_name);
+                                       String_type *table_name)
+    MY_ATTRIBUTE((warn_unused_result));
 
 
   /**
@@ -722,13 +772,14 @@ public:
   bool get_table_name_by_partition_se_private_id(const String_type &engine,
                                                  Object_id se_partition_id,
                                                  String_type *schema_name,
-                                                 String_type *table_name);
+                                                 String_type *table_name)
+    MY_ATTRIBUTE((warn_unused_result));
 
 
   /**
-    Retrieve a table name of a given trigger name and schema id.
+    Retrieve a table name of a given trigger name and schema.
 
-    @param        schema_id        schema id of the trigger.
+    @param        schema           Schema containing the trigger.
     @param        trigger_name     Name of the trigger.
     @param  [out] table_name       Name of the table for which
                                    trigger belongs to. Empty string if
@@ -738,9 +789,10 @@ public:
     @retval      true     Error.
   */
 
-  bool get_table_name_by_trigger_name(Object_id schema_id,
+  bool get_table_name_by_trigger_name(const Schema &schema,
                                       const String_type &trigger_name,
-                                      String_type *table_name);
+                                      String_type *table_name)
+    MY_ATTRIBUTE((warn_unused_result));
 
 
   /**
@@ -754,11 +806,13 @@ public:
   */
 
   bool get_tables_max_se_private_id(const String_type &engine,
-                                    Object_id *max_id);
+                                    Object_id *max_id)
+    MY_ATTRIBUTE((warn_unused_result));
 
 
   /**
-    Fetch the names of all the components in the schema.
+    Fetch the names of the components in the schema. Hidden components are
+    ignored. E.g., Object with dd::Table::hidden() == true will be ignored.
 
     @note          This is an intermediate solution which will be replaced
                    by the implementation in WL#6599.
@@ -772,9 +826,9 @@ public:
   */
 
   template <typename T>
-  bool fetch_schema_component_names(
-    const Schema *schema,
-    std::vector<String_type> *names) const;
+  bool fetch_schema_component_names(const Schema *schema,
+                                    std::vector<String_type> *names) const
+    MY_ATTRIBUTE((warn_unused_result));
 
 
   /**
@@ -789,9 +843,9 @@ public:
   */
 
   template <typename T>
-  bool fetch_schema_components(
-    const Schema *schema,
-    std::vector<const T*> *coll) const;
+  bool fetch_schema_components(const Schema *schema,
+                               std::vector<const T*> *coll) const
+    MY_ATTRIBUTE((warn_unused_result));
 
 
   /**
@@ -805,7 +859,8 @@ public:
   */
 
   template <typename T>
-  bool fetch_global_components(std::vector<const T*> *coll) const;
+  bool fetch_global_components(std::vector<const T*> *coll) const
+    MY_ATTRIBUTE((warn_unused_result));
 
 
   /**
@@ -825,10 +880,10 @@ public:
     @return      false  Success.
   */
   template <typename T>
-  bool fetch_referencing_views_object_id(
-    const char *schema,
-    const char *tbl_or_sf_name,
-    std::vector<Object_id> *view_ids) const;
+  bool fetch_referencing_views_object_id(const char *schema,
+                                         const char *tbl_or_sf_name,
+                                         std::vector<Object_id> *view_ids) const
+    MY_ATTRIBUTE((warn_unused_result));
 
 
   /**
@@ -898,7 +953,8 @@ public:
   */
 
   template <typename T>
-  bool drop(const T *object);
+  bool drop(const T *object)
+    MY_ATTRIBUTE((warn_unused_result));
 
 
   /**
@@ -927,7 +983,8 @@ public:
   */
 
   template <typename T>
-  bool store(T* object);
+  bool store(T* object)
+    MY_ATTRIBUTE((warn_unused_result));
 
 
   /**
@@ -956,7 +1013,8 @@ public:
   */
 
   template <typename T>
-  bool update(T* new_object);
+  bool update(T* new_object)
+    MY_ATTRIBUTE((warn_unused_result));
 
 
   /**
@@ -995,7 +1053,8 @@ public:
     @return false - on success
   */
   bool remove_table_dynamic_statistics(const String_type &schema_name,
-                                       const String_type &table_name);
+                                       const String_type &table_name)
+    MY_ATTRIBUTE((warn_unused_result));
 
 
   /**

@@ -21,9 +21,9 @@ INSERT INTO Bug_60196 VALUES (1, 1);
 INSERT INTO Bug_60196 VALUES (1, 2);
 INSERT INTO Bug_60196 VALUES (1, 3);
 INSERT INTO Bug_60196 VALUES (1, 99);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`bug_60196`, CONSTRAINT `FK_FK2` FOREIGN KEY (`FK2_Key`) REFERENCES `Bug_60196_FK2` (`Primary_Key`) ON DELETE CASCADE ON UPDATE CASCADE)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`bug_60196`, CONSTRAINT `FK_FK2` FOREIGN KEY (`FK2_Key`) REFERENCES `bug_60196_fk2` (`primary_key`) ON DELETE CASCADE ON UPDATE CASCADE)
 INSERT INTO Bug_60196 VALUES (99, 1);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`bug_60196`, CONSTRAINT `FK_FK1` FOREIGN KEY (`FK1_Key`) REFERENCES `Bug_60196_FK1` (`Primary_Key`) ON DELETE CASCADE ON UPDATE CASCADE)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`bug_60196`, CONSTRAINT `FK_FK1` FOREIGN KEY (`FK1_Key`) REFERENCES `bug_60196_fk1` (`primary_key`) ON DELETE CASCADE ON UPDATE CASCADE)
 SELECT * FROM bug_60196_FK1;
 Primary_Key
 1
@@ -84,7 +84,7 @@ CONSTRAINT FK FOREIGN KEY (FK_ID) REFERENCES Bug_60309_FK (ID)
 INSERT INTO Bug_60309_FK (ID, ID2) VALUES (1, 1), (2, 2), (3, 3);
 INSERT INTO Bug_60309 VALUES (1, 1);
 INSERT INTO Bug_60309 VALUES (2, 99);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`bug_60309`, CONSTRAINT `FK` FOREIGN KEY (`FK_ID`) REFERENCES `Bug_60309_FK` (`ID`))
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`bug_60309`, CONSTRAINT `FK` FOREIGN KEY (`FK_ID`) REFERENCES `bug_60309_fk` (`id`))
 SELECT * FROM Bug_60309_FK;
 ID	ID2
 1	1

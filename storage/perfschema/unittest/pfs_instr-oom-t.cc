@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,22 +13,20 @@
   along with this program; if not, write to the Free Software Foundation,
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include <my_global.h>
 #include <my_thread.h>
 #include <pfs.h>
-#include <pfs_instr.h>
-#include <pfs_stat.h>
-#include <pfs_global.h>
-#include <pfs_user.h>
-#include <pfs_host.h>
 #include <pfs_account.h>
-#include <pfs_instr_class.h>
 #include <pfs_buffer_container.h>
+#include <pfs_global.h>
+#include <pfs_host.h>
+#include <pfs_instr.h>
+#include <pfs_instr_class.h>
+#include <pfs_stat.h>
+#include <pfs_user.h>
+#include <string.h> /* memset */
 #include <tap.h>
 
 #include "stub_pfs_global.h"
-
-#include <string.h> /* memset */
 
 PSI_thread_key thread_key_1;
 PSI_thread_info all_thread[]=
@@ -440,6 +438,6 @@ int main(int, char **)
   plan(32);
   MY_INIT("pfs_instr-oom-t");
   do_all_tests();
-  return 0;
+  return (exit_status());
 }
 

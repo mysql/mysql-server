@@ -47,6 +47,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "trx0roll.h"
 #include "usr0sess.h"
 #include "ut0vec.h"
+#include "dict0upgrade.h"
 
 /** Build a table definition without updating SYSTEM TABLES
 @param[in,out]	table	dict table object
@@ -59,7 +60,19 @@ dict_build_table_def(
 {
 	dberr_t		err = DB_SUCCESS;
 
-	dict_table_assign_new_id(table, trx);
+
+	if (srv_is_upgrade_mode) {
+		table->id = dd_upgrade_tables_num++;
+#ifdef UNIV_DEBUG
+		char	db_buf[NAME_LEN + 1];
+		char	tbl_buf[NAME_LEN + 1];
+
+		dd_parse_tbl_name(table->name.m_name, db_buf, tbl_buf, NULL);
+#endif /* UNIV_DEBUG */
+
+	} else {
+		dict_table_assign_new_id(table, trx);
+	}
 
 	err = dict_build_tablespace_for_table(table);
 
@@ -80,8 +93,8 @@ dict_build_tablespace(
 	ut_ad(mutex_own(&dict_sys->mutex));
 	ut_ad(tablespace);
 
-        DBUG_EXECUTE_IF("out_of_tablespace_disk",
-                         return(DB_OUT_OF_FILE_SPACE););
+	DBUG_EXECUTE_IF("out_of_tablespace_disk",
+			return(DB_OUT_OF_FILE_SPACE););
 	/* Get a new space id. */
 	dict_hdr_get_new_id(NULL, NULL, &space, NULL, false);
 	if (space == SPACE_UNKNOWN) {
@@ -110,7 +123,6 @@ dict_build_tablespace(
 	}
 
 	mtr_start(&mtr);
-	mtr.set_named_space(space);
 
 	/* Once we allow temporary general tablespaces, we must do this;
 	mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO); */
@@ -119,6 +131,11 @@ dict_build_tablespace(
 	bool ret = fsp_header_init(
 		space, FIL_IBD_FILE_INITIAL_SIZE, &mtr, false);
 	mtr_commit(&mtr);
+
+	DBUG_EXECUTE_IF(
+		"fil_ibd_create_log",
+		log_write_up_to(mtr.commit_lsn(), true);
+		DBUG_SUICIDE(););
 
 	if (!ret) {
 		return(DB_ERROR);
@@ -213,11 +230,15 @@ dict_build_tablespace_for_table(
 		}
 
 		mtr_start(&mtr);
-		mtr.set_named_space(table->space);
 
 		bool ret = fsp_header_init(
 			table->space, FIL_IBD_FILE_INITIAL_SIZE, &mtr, false);
 		mtr_commit(&mtr);
+
+		DBUG_EXECUTE_IF(
+			"fil_ibd_create_log",
+			log_write_up_to(mtr.commit_lsn(), true);
+			DBUG_SUICIDE(););
 
 		if (!ret) {
 			return(DB_ERROR);
@@ -277,7 +298,13 @@ dict_build_index_def(
 	      || index->is_clustered());
 
 	if (!table->is_intrinsic()) {
-		dict_hdr_get_new_id(NULL, &index->id, NULL, table, false);
+		if (srv_is_upgrade_mode) {
+			index->id = dd_upgrade_indexes_num++;
+			ut_ad(dd_upgrade_indexes_num <= INNODB_SYS_INDEX_ID_MAX + dd_get_total_indexes_num());
+		} else {
+			dict_hdr_get_new_id(NULL, &index->id, NULL, table, false);
+		}
+
 	} else {
 		/* Index are re-loaded in process of creation using id.
 		If same-id is used for all indexes only first index will always
@@ -335,8 +362,6 @@ dict_create_index_tree_in_mem(
 
 	if (index->table->is_temporary()) {
 		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
-	} else {
-                mtr.set_named_space(index->space);
 	}
 
 	dberr_t		err = DB_SUCCESS;
@@ -372,6 +397,13 @@ dict_drop_index(
 	if (root_page_no == FIL_NULL) {
 		ut_ad((index->type & DICT_FTS)
 		      || index->table->ibd_file_missing);
+		return;
+	}
+
+	/* This is an index which has its index tree dropped, but left due
+	to table ref count in row_merge_drop_indexes() */
+	if (dict_index_get_online_status(index) == ONLINE_INDEX_ABORTED_DROPPED
+	    && index->is_corrupted()) {
 		return;
 	}
 
@@ -672,7 +704,7 @@ dict_sdi_create_idx_in_mem(
 		rec_format = REC_FORMAT_COMPACT;
 	}
 
-	ulint	table_flags;
+	ulint	table_flags = 0;
 	dict_tf_set(&table_flags, rec_format, zip_ssize, has_data_dir,
 		    has_shared_space);
 

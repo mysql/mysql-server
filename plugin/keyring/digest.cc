@@ -60,7 +60,7 @@ namespace keyring
     is_empty= FALSE;
   }
 
-  my_bool Digest::operator==(const Digest &digest)
+  bool Digest::operator==(const Digest &digest)
   {
     return this->is_empty == digest.is_empty &&
            this->length == digest.length &&

@@ -691,7 +691,7 @@ latin2_general_ci	4
 select collation(encode('abcd','ab')), coercibility(encode('abcd','ab'));
 collation(encode('abcd','ab'))	coercibility(encode('abcd','ab'))
 binary	4
-create table t1 
+create table t1 charset latin1
 select
 bin(130),
 oct(130),
@@ -813,7 +813,7 @@ SUBSTR('abcdefg',-1,-1)
 select SUBSTR('abcdefg',1,-1) FROM DUAL;
 SUBSTR('abcdefg',1,-1)
 
-create table t7 (s1 char);
+create table t7 (s1 char) charset latin1;
 select * from t7
 where concat(s1 collate latin1_general_ci,s1 collate latin1_swedish_ci) = 'AA';
 ERROR HY000: Illegal mix of collations (latin1_general_ci,EXPLICIT) and (latin1_swedish_ci,EXPLICIT) for operation 'concat'
@@ -1182,7 +1182,7 @@ ySQL
 SELECT CHAR_LENGTH(CHAR(NULL,121,83,81,'76')) as my_column;
 my_column
 4
-CREATE TABLE t1 (id int PRIMARY KEY, str char(255) NOT NULL);
+CREATE TABLE t1 (id int PRIMARY KEY, str char(255) NOT NULL) charset latin1;
 CREATE TABLE t2 (id int NOT NULL UNIQUE);
 INSERT INTO t2 VALUES (1),(2);
 INSERT INTO t1 VALUES (1, aes_encrypt('foo', 'bar'));
@@ -1328,9 +1328,9 @@ drop table t1;
 select load_file("lkjlkj");
 load_file("lkjlkj")
 NULL
-select ifnull(load_file("lkjlkj"),"it's null");
-ifnull(load_file("lkjlkj"),"it's null")
-it's null
+select ifnull(load_file("lkjlkj"),"it is null");
+ifnull(load_file("lkjlkj"),"it is null")
+it is null
 create table t1 (f1 varchar(4), f2 varchar(64), unique key k1 (f1,f2));
 insert into t1 values ( 'test',md5('test')), ('test', sha('test'));
 select * from t1 where f1='test' and (f2= md5("test") or f2= md5("TEST"));
@@ -1458,7 +1458,7 @@ conv("18383815659218730760",10,10) + 0
 select "18383815659218730760" + 0;
 "18383815659218730760" + 0
 1.838381565921873e19
-CREATE TABLE t1 (code varchar(10));
+CREATE TABLE t1 (code varchar(10)) charset utf8mb4;
 INSERT INTO t1 VALUES ('a12'), ('A12'), ('a13');
 SELECT ASCII(code), code FROM t1 WHERE code='A12';
 ASCII(code)	code
@@ -1467,32 +1467,32 @@ ASCII(code)	code
 SELECT ASCII(code), code FROM t1 WHERE code='A12' AND ASCII(code)=65;
 ASCII(code)	code
 65	A12
-INSERT INTO t1 VALUES ('a12 '), ('A12  ');
+INSERT INTO t1 VALUES (_utf16 0x0061003100320007), (_utf16 0x00410031003200070007);
 SELECT LENGTH(code), code FROM t1 WHERE code='A12';
 LENGTH(code)	code
 3	a12
 3	A12
-4	a12 
-5	A12  
+4	a12
+5	A12
 SELECT LENGTH(code), code FROM t1 WHERE code='A12' AND LENGTH(code)=5;
 LENGTH(code)	code
-5	A12  
+5	A12
 ALTER TABLE t1 ADD INDEX (code);
-CREATE TABLE t2 (id varchar(10) PRIMARY KEY);
+CREATE TABLE t2 (id varchar(10) PRIMARY KEY) charset utf8mb4;
 INSERT INTO t2 VALUES ('a11'), ('a12'), ('a13'), ('a14');
 SELECT * FROM t1 INNER JOIN t2 ON t1.code=t2.id 
 WHERE t2.id='a12' AND (LENGTH(code)=5 OR code < 'a00');
 code	id
-A12  	a12
+A12	a12
 EXPLAIN EXTENDED 
 SELECT * FROM t1 INNER JOIN t2 ON code=id 
 WHERE id='a12' AND (LENGTH(code)=5 OR code < 'a00');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	const	PRIMARY	PRIMARY	12	const	1	100.00	Using index
-1	SIMPLE	t1	NULL	ref	code	code	13	const	3	100.00	Using where; Using index
+1	SIMPLE	t2	NULL	const	PRIMARY	PRIMARY	42	const	1	100.00	Using index
+1	SIMPLE	t1	NULL	ref	code	code	43	const	3	100.00	Using where; Using index
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`code` AS `code`,'a12' AS `id` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`code` = 'a12') and (length(`test`.`t1`.`code`) = 5))
+Note	1003	/* select#1 */ select `test`.`t1`.`code` AS `code`,'a12' AS `id` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`code` = 'a12') and ('a12' = 'a12') and ((length(`test`.`t1`.`code`) = 5) or ('a12' < 'a00')))
 DROP TABLE t1,t2;
 select encode(NULL, NULL);
 encode(NULL, NULL)
@@ -2828,7 +2828,7 @@ NULL
 SELECT LPAD('hi', DAY(FROM_UNIXTIME(-1)),'?');
 LPAD('hi', DAY(FROM_UNIXTIME(-1)),'?')
 NULL
-CREATE TABLE t1
+CREATE TABLE t1 charset utf8mb4
 SELECT SUBSTRING('1', DAY(FROM_UNIXTIME(-1))) AS f1,
 LEFT('1', DAY(FROM_UNIXTIME(-1))) AS f2,
 RIGHT('1', DAY(FROM_UNIXTIME(-1))) AS f3,
@@ -2838,13 +2838,13 @@ LPAD('hi', DAY(FROM_UNIXTIME(-1)),'?') AS f6;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` varchar(1) DEFAULT NULL,
-  `f2` varchar(1) DEFAULT NULL,
-  `f3` varchar(1) DEFAULT NULL,
-  `f4` longtext,
-  `f5` longtext,
-  `f6` longtext
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `f1` varchar(1) CHARACTER SET latin1 DEFAULT NULL,
+  `f2` varchar(1) CHARACTER SET latin1 DEFAULT NULL,
+  `f3` varchar(1) CHARACTER SET latin1 DEFAULT NULL,
+  `f4` longtext CHARACTER SET latin1,
+  `f5` longtext CHARACTER SET latin1,
+  `f6` longtext CHARACTER SET latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 #
 # Bug#11766684 59851: UNINITIALISED VALUE IN ITEM_FUNC_LIKE::SELECT_OPTIMIZE WITH SUBQUERY AND
@@ -3000,12 +3000,12 @@ FORMAT(123.33, 2, 'no_NO')	FORMAT(1123.33, 2, 'no_NO')
 SELECT FORMAT(12333e-2, 2, 'no_NO'), FORMAT(112333e-2, 2, 'no_NO');
 FORMAT(12333e-2, 2, 'no_NO')	FORMAT(112333e-2, 2, 'no_NO')
 123,33	1.123,33
-CREATE TABLE t1 AS SELECT format(123,2,'no_NO');
+CREATE TABLE t1 charset utf8mb4 AS SELECT format(123,2,'no_NO');
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `format(123,2,'no_NO')` varchar(37) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `format(123,2,'no_NO')` varchar(37) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT * FROM t1;
 format(123,2,'no_NO')
 123,00
@@ -3095,1350 +3095,1350 @@ SET @@global.max_allowed_packet:= @tmp_max;
 #
 # WL#5510 Functions to_base64 and from_base64
 #
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',63)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',63)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(85) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(85) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh
 YWFhYWFh	85
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(63) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	63
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',62)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',62)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(85) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(85) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh
 YWFhYWE=	85
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(63) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	62
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',61)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',61)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(85) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(85) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh
 YWFhYQ==	85
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(63) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	61
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',60)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',60)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(81) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(81) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh
 YWFh	81
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(60) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	60
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',59)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',59)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(81) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(81) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh
 YWE=	81
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(60) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	59
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',58)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',58)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(81) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(81) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh
 YQ==	81
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(60) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	58
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',57)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',57)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(76) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(76) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh	76
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(57) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	57
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',56)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',56)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(76) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(76) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=	76
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(57) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	56
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',55)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',55)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(76) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(76) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYQ==	76
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(57) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	55
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',54)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',54)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(72) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(72) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh	72
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(54) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	54
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',53)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',53)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(72) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(72) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=	72
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(54) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	53
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',52)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',52)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(72) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(72) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYQ==	72
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(54) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	52
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',51)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',51)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(68) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(68) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh	68
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(51) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	51
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',50)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',50)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(68) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(68) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=	68
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(51) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	50
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',49)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',49)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(68) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(68) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYQ==	68
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(51) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	49
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',48)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',48)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(64) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh	64
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(48) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	48
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',47)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',47)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(64) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=	64
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(48) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	47
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',46)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',46)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(64) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(64) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYQ==	64
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(48) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	46
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',45)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',45)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(60) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(60) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh	60
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(45) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	45
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',44)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',44)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(60) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(60) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=	60
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(45) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	44
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',43)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',43)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(60) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(60) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYQ==	60
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(45) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	43
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',42)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',42)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(56) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(56) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh	56
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(42) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	42
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',41)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',41)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(56) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(56) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=	56
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(42) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	41
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',40)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',40)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(56) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(56) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYQ==	56
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(42) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	40
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',39)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',39)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(52) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(52) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh	52
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(39) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	39
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',38)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',38)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(52) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(52) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=	52
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(39) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	38
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',37)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',37)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(52) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(52) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYQ==	52
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(39) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	37
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',36)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',36)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(48) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(48) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh	48
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(36) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	36
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',35)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',35)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(48) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(48) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=	48
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(36) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	35
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',34)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',34)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(48) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(48) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYQ==	48
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(36) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	34
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',33)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',33)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(44) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(44) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh	44
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(33) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	33
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',32)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',32)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(44) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(44) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=	44
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(33) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	32
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',31)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',31)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(44) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(44) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYQ==	44
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(33) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	31
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',30)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',30)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(40) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(40) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh	40
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(30) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	30
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',29)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',29)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(40) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(40) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=	40
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(30) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaa	29
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',28)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',28)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(40) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(40) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYQ==	40
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(30) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaa	28
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',27)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',27)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(36) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(36) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh	36
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(27) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaa	27
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',26)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',26)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(36) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(36) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=	36
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(27) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaa	26
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',25)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',25)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(36) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(36) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYQ==	36
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(27) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaa	25
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',24)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',24)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(32) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(32) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh	32
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(24) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaa	24
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',23)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',23)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(32) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(32) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=	32
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(24) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaa	23
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',22)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',22)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(32) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(32) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYQ==	32
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(24) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaa	22
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',21)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',21)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(28) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(28) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFh	28
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(21) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaa	21
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',20)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',20)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(28) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(28) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWE=	28
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(21) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaa	20
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',19)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',19)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(28) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(28) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYQ==	28
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(21) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaa	19
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',18)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',18)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(24) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(24) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFh	24
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(18) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaa	18
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',17)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',17)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(24) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(24) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWE=	24
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(18) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaa	17
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',16)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',16)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(24) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(24) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYQ==	24
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(18) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaa	16
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',15)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',15)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(20) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(20) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFh	20
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(15) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaa	15
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',14)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',14)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(20) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(20) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWE=	20
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(15) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaa	14
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',13)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',13)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(20) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(20) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYQ==	20
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(15) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaa	13
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',12)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',12)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(16) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(16) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFh	16
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(12) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaa	12
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',11)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',11)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(16) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(16) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWE=	16
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(12) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaa	11
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',10)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',10)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(16) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(16) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYQ==	16
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(12) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaa	10
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',9)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',9)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(12) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(12) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFh	12
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(9) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaa	9
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',8)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',8)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(12) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(12) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWE=	12
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(9) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaa	8
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',7)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',7)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(12) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(12) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYQ==	12
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(9) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaa	7
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',6)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',6)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(8) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(8) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFh	8
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(6) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaa	6
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',5)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',5)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(8) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(8) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWE=	8
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(6) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaa	5
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',4)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',4)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(8) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(8) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYQ==	8
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(6) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaa	4
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',3)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',3)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(4) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(4) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFh	4
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(3) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaa	3
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',2)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',2)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(4) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(4) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWE=	4
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(3) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aa	2
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',1)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',1)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` varchar(4) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` varchar(4) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YQ==	4
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(3) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 a	1
 DROP TABLE t2;
 DROP TABLE t1;
 
-CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',0)) AS to_base64;
+CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',0)) AS to_base64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `to_base64` char(0) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `to_base64` char(0) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 	0
-CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` binary(0) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 	0
@@ -5200,3 +5200,20 @@ Warning	1301	Result of repeat() was larger than max_allowed_packet (4194304) - t
 SET SQL_MODE=@orig_sql_mode;
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+#
+# Bug#25688192 ASSERTION FAILED: MAYBE_NULL IN ITEM_FUNC_CONCAT::VAL_STR
+#
+set @max_allowed_packet=@@global.max_allowed_packet;
+set global max_allowed_packet=2048;
+Warnings:
+Warning	1708	The value of 'max_allowed_packet' should be no less than the value of 'net_buffer_length'
+connect  con1,localhost,root,,;
+set sql_mode="";
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+do concat(export_set(1,1,repeat('a',31),' $',213));
+Warnings:
+Warning	1301	Result of export_set() was larger than max_allowed_packet (2048) - truncated
+disconnect con1;
+connection default;
+set global max_allowed_packet=@max_allowed_packet;

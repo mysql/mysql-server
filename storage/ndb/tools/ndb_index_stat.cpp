@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,22 +24,22 @@
 
 // stats options
 static const char* _dbname = 0;
-static my_bool _delete = false;
-static my_bool _update = false;
-static my_bool _dump = false;
+static bool _delete = false;
+static bool _update = false;
+static bool _dump = false;
 static int _query = 0;
 static int _stats_any = 0;
 // sys options
-static my_bool _sys_drop = false;
-static my_bool _sys_create = false;
-static my_bool _sys_create_if_not_exist = false;
-static my_bool _sys_create_if_not_valid = false;
-static my_bool _sys_check = false;
-static my_bool _sys_skip_tables = false;
-static my_bool _sys_skip_events = false;
+static bool _sys_drop = false;
+static bool _sys_create = false;
+static bool _sys_create_if_not_exist = false;
+static bool _sys_create_if_not_valid = false;
+static bool _sys_check = false;
+static bool _sys_skip_tables = false;
+static bool _sys_skip_events = false;
 static int _sys_any = 0;
 // other
-static my_bool _verbose = false;
+static bool _verbose = false;
 static int _loops = 1;
 
 static Ndb_cluster_connection* g_ncc = 0;

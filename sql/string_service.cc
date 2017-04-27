@@ -20,11 +20,12 @@
   functions.
 */
 
+#include "sql/string_service.h"
+
 #include <stddef.h>
 #include <sys/types.h>
 
 #include "m_ctype.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "mysql/psi/psi_memory.h"
 #include "mysql/service_mysql_alloc.h"
@@ -32,17 +33,18 @@
 /* key_memory_string_iterator */
 #include "mysqld.h"
 #include "sql_string.h"
-#include "string_service.h"
 
 PSI_memory_key key_memory_string_iterator;
 
 /*  
   This service function converts the mysql_string to the character set
   specified by charset_name parameter.
+
+  TODO: Marking charset_name as unused for now, see Bug#25533463.
 */
 extern "C"
 int mysql_string_convert_to_char_ptr(mysql_string_handle string_handle,
-                                     const char *charset_name,
+                                     const char *charset_name MY_ATTRIBUTE((unused)),
                                      char *buffer,
                                      unsigned int buffer_size,
                                      int *error)

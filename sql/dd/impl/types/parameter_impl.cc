@@ -15,6 +15,7 @@
 
 #include "dd/impl/types/parameter_impl.h"
 
+#include <stddef.h>
 #include <sstream>
 
 #include "dd/impl/properties_impl.h"                  // Properties_impl
@@ -29,7 +30,6 @@
 #include "dd/types/parameter_type_element.h"
 #include "dd/types/weak_object.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"

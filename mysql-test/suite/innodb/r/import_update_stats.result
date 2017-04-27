@@ -6,7 +6,7 @@ SELECT @@innodb_file_per_table;
 CREATE TABLE t1 (
 col_1 CHAR (255),
 col_2 VARCHAR (255)
-) ENGINE = InnoDB;
+) ENGINE = InnoDB charset latin1;
 CREATE INDEX idx1 ON t1(col_1);
 CREATE INDEX idx2 ON t1(col_2);
 ANALYZE TABLE t1;
@@ -38,7 +38,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (
 col_1 CHAR (255),
 col_2 VARCHAR (255)
-) ENGINE = InnoDB;
+) ENGINE = InnoDB charset latin1;
 CREATE INDEX idx1 ON t1(col_1);
 CREATE INDEX idx2 ON t1(col_2);
 ANALYZE TABLE t1;

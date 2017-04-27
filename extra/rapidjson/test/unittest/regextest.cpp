@@ -17,6 +17,14 @@
 
 using namespace rapidjson::internal;
 
+TEST(Regex, Single) {
+    Regex re("a");
+    ASSERT_TRUE(re.IsValid());
+    EXPECT_TRUE(re.Match("a"));
+    EXPECT_FALSE(re.Match(""));
+    EXPECT_FALSE(re.Match("b"));
+}
+
 TEST(Regex, Concatenation) {
     Regex re("abc");
     ASSERT_TRUE(re.IsValid());
@@ -560,6 +568,9 @@ TEST(Regex, Invalid) {
     TEST_INVALID("a{1,0}");
     TEST_INVALID("a{-1,0}");
     TEST_INVALID("a{-1,1}");
+    TEST_INVALID("a{4294967296}"); // overflow of unsigned
+    TEST_INVALID("a{1a}");
+    TEST_INVALID("[");
     TEST_INVALID("[]");
     TEST_INVALID("[^]");
     TEST_INVALID("[\\a]");
@@ -571,6 +582,11 @@ TEST(Regex, Invalid) {
 TEST(Regex, Issue538) {
     Regex re("^[0-9]+(\\\\.[0-9]+){0,2}");
     EXPECT_TRUE(re.IsValid());
+}
+
+TEST(Regex, Issue583) {
+    Regex re("[0-9]{99999}");
+    ASSERT_TRUE(re.IsValid());
 }
 
 #undef EURO

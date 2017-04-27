@@ -8,7 +8,7 @@ set default_storage_engine=innodb;
 
 --source suite/json/inc/json_group_concat.inc
 
-create table t(j json, c varchar(20));
+create table t(j json, c varchar(20)) charset utf8mb4;
 show create table t;
 insert into t values (cast('[1,2,3]' as json), '[a,b,c]');
 insert into t values (cast(7 as json), '7'),  (cast(2 as json), '2');

@@ -896,11 +896,11 @@ CREATE TABLE e (
 CREATE OR REPLACE VIEW view_c AS SELECT * FROM c;
 CREATE OR REPLACE VIEW view_bb AS SELECT * FROM bb;
 
---echo # WHERE utf8_string IN (SELECT latin1_column)
+--echo # WHERE bogus_string IN (SELECT timestamp_column)
 --echo # makes semijoin transformation fail half-way, we want to check
 --echo # that INNRcte is properly cleaned up.
 
---error ER_CANT_AGGREGATE_2COLLATIONS
+--error ER_TRUNCATED_WRONG_VALUE
 WITH cte AS (
 SELECT alias1 . col_datetime_key AS field1
 FROM  view_c AS alias1  RIGHT  JOIN view_bb AS alias2

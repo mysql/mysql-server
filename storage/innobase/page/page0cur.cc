@@ -973,7 +973,6 @@ page_cur_insert_rec_write_log(
 	}
 
 	ut_a(rec_size < UNIV_PAGE_SIZE);
-	ut_ad(mtr->is_named_space(index->space));
 	ut_ad(page_align(insert_rec) == page_align(cursor_rec));
 	ut_ad(!page_rec_is_comp(insert_rec)
 	      == !dict_table_is_comp(index->table));
@@ -999,7 +998,7 @@ page_cur_insert_rec_write_log(
 		ut_ad(rec_size == rec_offs_size(ins_offs));
 		cur_rec_size = rec_offs_size(cur_offs);
 
-		if (UNIV_LIKELY_NULL(heap)) {
+		if (heap != nullptr) {
 			mem_heap_free(heap);
 		}
 	}
@@ -2215,7 +2214,6 @@ page_copy_rec_list_to_created_page_write_log(
 	byte*	log_ptr;
 
 	ut_ad(!!page_is_comp(page) == dict_table_is_comp(index->table));
-	ut_ad(mtr->is_named_space(index->space));
 
 	log_ptr = mlog_open_and_write_index(mtr, page, index,
 					    page_is_comp(page)
@@ -2486,7 +2484,6 @@ page_cur_delete_rec_write_log(
 	byte*	log_ptr;
 
 	ut_ad(!!page_rec_is_comp(rec) == dict_table_is_comp(index->table));
-	ut_ad(mtr->is_named_space(index->space));
 
 	log_ptr = mlog_open_and_write_index(mtr, rec, index,
 					    page_rec_is_comp(rec)
@@ -2598,7 +2595,6 @@ page_cur_delete_rec(
 	ut_ad(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID) == index->id
 	      || (mtr ? mtr->is_inside_ibuf() : dict_index_is_ibuf(index))
 	      || recv_recovery_is_on());
-	ut_ad(mtr == NULL || mtr->is_named_space(index->space));
 
 	/* The record must not be the supremum or infimum record. */
 	ut_ad(page_rec_is_user_rec(current_rec));

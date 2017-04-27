@@ -1,4 +1,3 @@
---source include/not_embedded.inc
 --source include/not_windows.inc
 
 --perl

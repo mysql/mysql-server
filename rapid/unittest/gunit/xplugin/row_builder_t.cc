@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -16,17 +16,19 @@
 
 #include <gtest/gtest.h>
 #include <mysql/service_my_snprintf.h>
+#include <stddef.h>
 #include <limits>
-#include <string>
 #include <set>
-#include "ngs_common/protocol_protobuf.h"
-#include "ngs/protocol/row_builder.h"
-#include "ngs_common/xdatetime.h"
-#include "ngs_common/xdecimal.h"
+#include <string>
+
 #include "decimal.h"
 #include "mysqlx_row.h"
 #include "ngs/protocol/buffer.h"
 #include "ngs/protocol/output_buffer.h"
+#include "ngs/protocol/row_builder.h"
+#include "ngs_common/protocol_protobuf.h"
+#include "ngs_common/xdatetime.h"
+#include "ngs_common/xdecimal.h"
 #include "protobuf_message.h"
 
 namespace xpl

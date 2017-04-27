@@ -3,7 +3,6 @@
 # testing of purging of binary log files bug#18199/Bug#18453
 #
 source include/have_log_bin.inc;
-source include/not_embedded.inc;
 # Don't test this under valgrind, memory leaks will occur
 --source include/not_valgrind.inc
 source include/have_debug.inc;
@@ -34,9 +33,23 @@ flush logs;
 source include/show_binary_logs.inc;
 remove_file $MYSQLD_DATADIR/master-bin.000001;
 
+--echo # Create a dedicated user to demonstrate the BINLOG_ADMIN privilege
+CREATE USER binlog_admin@localhost IDENTIFIED BY 'foo';
+GRANT BINLOG_ADMIN ON *.* TO binlog_admin@localhost;
+connect(con1, localhost, binlog_admin, foo, test);
+
 # there must be a warning with file names
 replace_regex /\.[\\\/]master/master/;
 purge binary logs TO 'master-bin.000004';
+
+connection default;
+REVOKE binlog_admin ON *.* FROM binlog_admin@localhost;
+connection con1;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+purge binary logs TO 'master-bin.000004';
+connection default;
+DROP USER binlog_admin@localhost;
+disconnect con1;
 
 --echo *** must show a list starting from the 'TO' argument of PURGE ***
 source include/show_binary_logs.inc;

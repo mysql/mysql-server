@@ -1,11 +1,10 @@
-#include <my_global.h>
-#include <sys/types.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "my_regex.h"
+#include <sys/types.h>
 
-#include "utils.h"
+#include "my_regex.h"
 #include "regex2.h"
+#include "utils.h"
 
 /*
  - regfree - free everything

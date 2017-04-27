@@ -1,11 +1,12 @@
 --source include/have_innodb_max_16k.inc
---source include/not_embedded.inc
 
-let $file_name_checking = SELECT LOWER(file_name) FROM mysql.tablespaces AS `t`, mysql.tablespace_files AS `tf`
-WHERE t.id = tf.tablespace_id
-AND t.name LIKE 'innodb_file_per_table.%'
-AND tf.file_name NOT LIKE 'mysql/%'
-ORDER BY t.id;
+CALL mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.');
+
+let $file_name_checking = SELECT LOWER(path) FROM information_schema.innodb_tablespaces AS `t`, information_schema.innodb_datafiles AS `df`
+WHERE t.space = df.space
+AND t.space_type = 'Single'
+AND df.path NOT LIKE './mysql/%'
+ORDER BY t.space;
 
 CREATE TABLE tr (
 id INT NOT NULL AUTO_INCREMENT,
@@ -37,7 +38,9 @@ PARTITION p2 VALUES LESS THAN (2000),
 PARTITION p3 VALUES LESS THAN (2005)
 );
 
+--disable_warnings
 INSERT INTO t1 SELECT * FROM tr;
+--enable_warnings
 
 SHOW CREATE TABLE t1;
 
@@ -89,7 +92,9 @@ PARTITION p2 VALUES LESS THAN (2000),
 PARTITION p3 VALUES LESS THAN (2005)
 );
 
+--disable_warnings
 INSERT INTO t1 SELECT * FROM tr;
+--enable_warnings
 
 SHOW CREATE TABLE t1;
 
@@ -165,7 +170,9 @@ purchased DATE,
 KEY(id))
 PARTITION BY HASH( YEAR(purchased) ) PARTITIONS 4;
 
+--disable_warnings
 INSERT INTO t1 SELECT * FROM tr;
+--enable_warnings
 
 SHOW CREATE TABLE t1;
 
@@ -213,7 +220,9 @@ purchased DATE,
 KEY(id))
 PARTITION BY HASH( YEAR(purchased) ) PARTITIONS 8;
 
+--disable_warnings
 INSERT INTO t1 SELECT * FROM tr;
+--enable_warnings
 
 SHOW CREATE TABLE t1;
 
@@ -267,7 +276,9 @@ PARTITION p2 VALUES LESS THAN (2000),
 PARTITION p3 VALUES LESS THAN (2005)
 );
 
+--disable_warnings
 INSERT INTO t1 SELECT * FROM tr;
+--enable_warnings
 
 SHOW CREATE TABLE t1;
 
@@ -339,7 +350,9 @@ PARTITION p2 VALUES LESS THAN (2000),
 PARTITION p3 VALUES LESS THAN (2005)
 );
 
+--disable_warnings
 INSERT INTO t1 SELECT * FROM tr;
+--enable_warnings
 
 SHOW CREATE TABLE t1;
 
@@ -401,7 +414,9 @@ SUBPARTITION BY HASH ( YEAR(purchased) )
  PARTITION p2 VALUES LESS THAN (2010)
  (SUBPARTITION sp20, SUBPARTITION sp21));
 
+--disable_warnings
 INSERT INTO t1 SELECT * FROM tr;
+--enable_warnings
 
 SHOW CREATE TABLE t1;
 

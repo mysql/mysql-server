@@ -24,7 +24,7 @@
 #include "dd/types/abstract_table.h"
 #include "dd/types/charset.h"
 #include "dd/types/collation.h"
-#include "dd/types/dictionary_object_table.h"
+#include "dd/types/entity_object_table.h"
 #include "dd/types/event.h"
 #include "dd/types/routine.h"
 #include "dd/types/schema.h"
@@ -32,7 +32,6 @@
 #include "dd/types/tablespace.h"
 #include "free_list.h"                       // Free_list
 #include "malloc_allocator.h"                // Malloc_allocator.
-#include "my_global.h"
 #include "my_psi_config.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"

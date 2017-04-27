@@ -31,10 +31,10 @@
 #include "handler.h"
 #include "item.h"
 #include "key.h"
+#include "lex_string.h"
 #include "mock_field_long.h" // todo: put this #include first
 #include "my_bitmap.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "mysql_com.h"
 #include "sql_bitmap.h"

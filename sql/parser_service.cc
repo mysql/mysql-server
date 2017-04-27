@@ -23,10 +23,10 @@
 #include "enum_query_type.h"
 #include "error_handler.h"
 #include "item.h"
+#include "lex_string.h"
 #include "m_string.h"
 #include "mdl.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "my_thread.h"
@@ -122,7 +122,7 @@ public:
       thd->push_internal_handler(this);
   }
 
-  virtual bool handle_condition(THD *thd,
+  virtual bool handle_condition(THD*,
                                 uint sql_errno_u,
                                 const char* sqlstate,
                                 Sql_condition::enum_severity_level *,

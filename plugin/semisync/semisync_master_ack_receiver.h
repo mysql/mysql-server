@@ -16,9 +16,9 @@
 #ifndef SEMISYNC_MASTER_ACK_RECEIVER_DEFINED
 #define SEMISYNC_MASTER_ACK_RECEIVER_DEFINED
 
+#include <sys/types.h>
 #include <vector>
 
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_thread.h"

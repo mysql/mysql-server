@@ -194,7 +194,7 @@ void JOIN_CACHE::calc_record_fields()
   for ( ; tab < qep_tab ; tab++)
   {
     uint used_fields, used_fieldlength, used_blobs;
-    calc_used_field_length(join->thd, tab->table(),
+    calc_used_field_length(tab->table(),
                            tab->keep_current_rowid,
                            &used_fields, &used_fieldlength, &used_blobs,
                            &tab->used_null_fields, &tab->used_uneven_bit_fields);
@@ -2378,8 +2378,6 @@ finish:
   SYNOPSIS
     bka_range_seq_init()
      init_params   pointer to the BKA join cache object
-     n_ranges      the number of ranges obtained 
-     flags         combination of HA_MRR_SINGLE_POINT, HA_MRR_FIXED_KEY
 
   DESCRIPTION
     The function interprets init_param as a pointer to a JOIN_CACHE_BKA
@@ -2394,7 +2392,7 @@ finish:
 */    
 
 static 
-range_seq_t bka_range_seq_init(void *init_param, uint n_ranges, uint flags)
+range_seq_t bka_range_seq_init(void *init_param, uint, uint)
 {
   DBUG_ENTER("bka_range_seq_init");
   JOIN_CACHE_BKA *cache= (JOIN_CACHE_BKA *) init_param;
@@ -2452,7 +2450,6 @@ uint bka_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
     bka_range_seq_skip_record()
       seq              value returned by bka_range_seq_init()
       range_info       information about the next range
-      rowid [NOT USED] rowid of the record to be checked 
 
     
   DESCRIPTION
@@ -2472,7 +2469,7 @@ uint bka_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
 */ 
 
 static 
-bool bka_range_seq_skip_record(range_seq_t rseq, char *range_info, uchar *rowid)
+bool bka_range_seq_skip_record(range_seq_t rseq, char *range_info, uchar*)
 {
   DBUG_ENTER("bka_range_seq_skip_record");
   JOIN_CACHE_BKA *cache= (JOIN_CACHE_BKA *) rseq;
@@ -2530,7 +2527,8 @@ bool bka_range_seq_skip_record(range_seq_t rseq, char *range_info, uchar *rowid)
     return one of enum_nested_loop_state
 */
 
-enum_nested_loop_state JOIN_CACHE_BKA::join_matching_records(bool skip_last)
+enum_nested_loop_state JOIN_CACHE_BKA::
+join_matching_records(bool skip_last MY_ATTRIBUTE((unused)))
 {
   /* The value of skip_last must be always FALSE when this function is called */
   DBUG_ASSERT(!skip_last);
@@ -3185,8 +3183,6 @@ void JOIN_CACHE_BKA_UNIQUE:: cleanup_hash_table()
   SYNOPSIS
     bka_range_seq_init()
       init_params   pointer to the BKA_INIQUE join cache object
-      n_ranges      the number of ranges obtained 
-      flags         combination of HA_MRR_SINGLE_POINT, HA_MRR_FIXED_KEY
 
   DESCRIPTION
     The function interprets init_param as a pointer to a JOIN_CACHE_BKA_UNIQUE
@@ -3202,8 +3198,7 @@ void JOIN_CACHE_BKA_UNIQUE:: cleanup_hash_table()
 */    
 
 static 
-range_seq_t bka_unique_range_seq_init(void *init_param, uint n_ranges,
-                                      uint flags)
+range_seq_t bka_unique_range_seq_init(void *init_param, uint, uint)
 {
   DBUG_ENTER("bka_unique_range_seq_init");
   JOIN_CACHE_BKA_UNIQUE *cache= (JOIN_CACHE_BKA_UNIQUE *) init_param;
@@ -3261,8 +3256,7 @@ uint bka_unique_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
     bka_unique_range_seq_skip_record()
       seq              value returned by bka_unique_range_seq_init()
       range_info       information about the next range
-      rowid [NOT USED] rowid of the record to be checked (not used)
-    
+
   DESCRIPTION
     The function interprets seq as a pointer to the JOIN_CACHE_BKA_UNIQUE
     object. The function returns TRUE if the record with this range_info
@@ -3280,7 +3274,7 @@ uint bka_unique_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
 
 static 
 bool bka_unique_range_seq_skip_record(range_seq_t rseq, char *range_info,
-                                      uchar *rowid)
+                                      uchar*)
 {
   DBUG_ENTER("bka_unique_range_seq_skip_record");
   JOIN_CACHE_BKA_UNIQUE *cache= (JOIN_CACHE_BKA_UNIQUE *) rseq;
@@ -3407,8 +3401,8 @@ bool bka_unique_skip_index_tuple(range_seq_t rseq, char *range_info)
     return one of enum_nested_loop_state 
 */
 
-enum_nested_loop_state 
-JOIN_CACHE_BKA_UNIQUE::join_matching_records(bool skip_last)
+enum_nested_loop_state JOIN_CACHE_BKA_UNIQUE::
+join_matching_records(bool skip_last MY_ATTRIBUTE((unused)))
 {
   /* The value of skip_last must be always FALSE when this function is called */
   DBUG_ASSERT(!skip_last);

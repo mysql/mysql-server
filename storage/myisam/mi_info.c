@@ -16,6 +16,8 @@
 /* Return useful base information for an open table */
 
 #include <fcntl.h>
+#include <stddef.h>
+#include <sys/types.h>
 
 #include "my_dbug.h"
 #include "my_inttypes.h"

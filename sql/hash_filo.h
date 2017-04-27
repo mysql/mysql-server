@@ -24,7 +24,6 @@
 
 #include "hash.h"        /* hash_get_key_function, my_hash_free_key, HASH */
 #include "my_dbug.h"
-#include "my_global.h"
 
 #ifdef HAVE_PSI_INTERFACE
 extern PSI_mutex_key key_hash_filo_lock;
@@ -148,7 +147,7 @@ public:
     return entry;
   }
 
-  my_bool add(hash_filo_element *entry)
+  bool add(hash_filo_element *entry)
   {
     if (!m_size) return 1;
     if (cache.records == m_size)

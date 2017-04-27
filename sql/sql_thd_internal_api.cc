@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql_thd_internal_api.h"
+#include "sql/sql_thd_internal_api.h"
 
 #include "my_config.h"
 
@@ -25,9 +25,9 @@
 
 #include "binlog.h"               // mysql_bin_log
 #include "current_thd.h"          // current_thd
+#include "lex_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_macros.h"
@@ -258,6 +258,11 @@ void thd_get_autoinc(const THD *thd, ulong* off, ulong* inc)
 bool thd_is_strict_mode(const THD *thd)
 {
   return thd->is_strict_mode();
+}
+
+bool thd_is_error(const THD *thd)
+{
+  return thd->is_error();
 }
 
 bool is_mysql_datadir_path(const char *path)

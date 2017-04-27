@@ -1,4 +1,3 @@
-
 #
 # Fulltext configurable parameters
 #
@@ -213,4 +212,3 @@ DROP TABLE t1,t2;
 
 
 --echo End of 5.1 tests
-

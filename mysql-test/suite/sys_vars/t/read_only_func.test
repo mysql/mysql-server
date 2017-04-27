@@ -26,7 +26,6 @@
 # Setup
 #
 
---source include/not_embedded.inc
 
 SET @default_read_only = @@read_only;
 

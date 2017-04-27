@@ -70,7 +70,7 @@ DROP TABLE t1;
 #
 # BUG#23175 - MYISAM crash/repair failed during repair
 #
-CREATE TABLE t1(a CHAR(255), KEY(a));
+CREATE TABLE t1(a CHAR(255), KEY(a)) charset latin1;
 SET myisam_sort_buffer_size=4096;
 INSERT INTO t1 VALUES
 ('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),
@@ -99,7 +99,7 @@ DROP TABLE t1;
 # BUG#31174 - "Repair" command on MyISAM crashes with small 
 #              myisam_sort_buffer_size
 #
-CREATE TABLE t1(a CHAR(255), KEY(a));
+CREATE TABLE t1(a CHAR(255), KEY(a)) charset latin1;
 SET myisam_sort_buffer_size=4496;
 INSERT INTO t1 VALUES
 ('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),('0'),

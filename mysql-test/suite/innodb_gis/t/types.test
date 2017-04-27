@@ -3,8 +3,6 @@
 # InnoDB needs to support GEOMETRY datatypes,
 # so that InnoDB stores them properly and understands them.
 
-# Restarting is not supported in embedded
---source include/not_embedded.inc
 --source include/have_debug.inc
 
 # Avoid CrashReporter popup on Mac

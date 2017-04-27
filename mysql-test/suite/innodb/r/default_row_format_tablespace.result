@@ -180,27 +180,39 @@ test/tab	innodb_system	0	5	Dynamic	0	System
 ALTER TABLE tab ROW_FORMAT=COMPACT;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+<<<<<<< HEAD
 test/tab	innodb_system	0	5	Compact	0	System
+=======
+test/tab	innodb_system	129	5	Compact	0	System
+>>>>>>> mysql-trunk
 CHECK TABLE tab;
 Table	Op	Msg_type	Msg_text
 test.tab	check	status	OK
 ALTER TABLE tab ROW_FORMAT=DYNAMIC;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+<<<<<<< HEAD
 test/tab	innodb_system	0	5	Dynamic	0	System
+=======
+test/tab	innodb_system	161	5	Dynamic	0	System
+>>>>>>> mysql-trunk
 CHECK TABLE tab;
 Table	Op	Msg_type	Msg_text
 test.tab	check	status	OK
 ALTER TABLE tab ROW_FORMAT=REDUNDANT;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/tab	innodb_system	0	5	Redundant	0	System
+test/tab	innodb_system	128	5	Redundant	0	System
 CHECK TABLE tab;
 Table	Op	Msg_type	Msg_text
 test.tab	check	status	OK
 ALTER TABLE tab ROW_FORMAT=COMPRESSED;
 ERROR HY000: InnoDB: Tablespace `innodb_system` cannot contain a COMPRESSED table
+<<<<<<< HEAD
 SELECT NAME,ROW_FORMAT FROM INFORMATION_SCHEMA.INNODB_TABLES
+=======
+SELECT NAME,ROW_FORMAT FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
+>>>>>>> mysql-trunk
 WHERE NAME='test/tab';
 NAME	ROW_FORMAT
 test/tab	Redundant
@@ -210,7 +222,11 @@ test.tab	check	status	OK
 ALTER TABLE tab ROW_FORMAT=Dynamic;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+<<<<<<< HEAD
 test/tab	innodb_system	0	5	Dynamic	0	System
+=======
+test/tab	innodb_system	161	5	Dynamic	0	System
+>>>>>>> mysql-trunk
 CHECK TABLE tab;
 Table	Op	Msg_type	Msg_text
 test.tab	check	status	OK

@@ -36,12 +36,6 @@ Created 4/18/1996 Heikki Tuuri
 #include "srv0srv.h"
 #include "trx0trx.h"
 
-/** TRUE if we don't have DDTableBuffer in the system tablespace,
-this should be due to we run the server against old data files.
-Please do NOT change this when server is running.
-FIXME: This should be removed away once we can upgrade for new DD. */
-extern bool    srv_missing_dd_table_buffer;
-
 /**********************************************************************//**
 Gets a pointer to the dictionary header and x-latches its page.
 @return pointer to the dictionary header, page x-latched */
@@ -83,7 +77,6 @@ dict_hdr_get_new_id(
 	mtr_t		mtr;
 
 	mtr_start(&mtr);
-	mtr.set_sys_modified();
 
 	if (table) {
 		dict_disable_redo_if_temporary(table, &mtr);
@@ -167,7 +160,6 @@ dict_hdr_flush_row_id(void)
 	id = dict_sys->row_id;
 
 	mtr_start(&mtr);
-	mtr.set_sys_modified();
 
 	dict_hdr = dict_hdr_get(&mtr);
 
@@ -284,7 +276,8 @@ dict_boot(void)
 
 	dberr_t	err = DB_SUCCESS;
 
-	if (srv_read_only_mode && !ibuf_is_empty()) {
+	if (srv_force_recovery != SRV_FORCE_NO_LOG_REDO
+	    && srv_read_only_mode && !ibuf_is_empty()) {
 
 		ib::error() << "Change buffer must be empty when"
 			" --innodb-read-only is set!";
@@ -307,7 +300,6 @@ dict_create(void)
 	mtr_t	mtr;
 
 	mtr_start(&mtr);
-	mtr.set_sys_modified();
 
 	dict_hdr_create(&mtr);
 

@@ -21,7 +21,6 @@
 #include "my_base.h"                            // ha_storage_media
 #include "my_compare.h"                         // portable_sizeof_char_ptr
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_pointer_arithmetic.h"
 #include "my_time.h"                            // MYSQL_TIME_NOTE_TRUNCATED
 #include "mysqld_error.h"                       // ER_*
@@ -268,6 +267,33 @@ inline bool is_integer_type(enum_field_types type)
   case MYSQL_TYPE_INT24:
   case MYSQL_TYPE_LONG:
   case MYSQL_TYPE_LONGLONG:
+    return true;
+  default:
+    return false;
+  }
+}
+
+
+/**
+  Tests if field type is a numeric type
+
+  @param type Field type, as returned by field->type()
+
+  @returns true if numeric type, false otherwise
+*/
+inline bool is_numeric_type(enum_field_types type)
+{
+  switch (type)
+  {
+  case MYSQL_TYPE_TINY:
+  case MYSQL_TYPE_SHORT:
+  case MYSQL_TYPE_INT24:
+  case MYSQL_TYPE_LONG:
+  case MYSQL_TYPE_LONGLONG:
+  case MYSQL_TYPE_FLOAT:
+  case MYSQL_TYPE_DOUBLE:
+  case MYSQL_TYPE_DECIMAL:
+  case MYSQL_TYPE_NEWDECIMAL:
     return true;
   default:
     return false;
@@ -934,7 +960,7 @@ public:
      This trickery is used to decrease a number of malloc calls.
   */
   virtual String *val_str(String*,String *)=0;
-  String *val_int_as_str(String *val_buffer, my_bool unsigned_flag);
+  String *val_int_as_str(String *val_buffer, bool unsigned_flag);
   /*
    str_needs_quotes() returns TRUE if the value returned by val_str() needs
    to be quoted when used in constructing an SQL query.
@@ -1351,9 +1377,9 @@ public:
 
   virtual void move_field_offset(my_ptrdiff_t ptr_diff)
   {
-    ptr= ADD_TO_PTR(ptr, ptr_diff, uchar*);
+    ptr+= ptr_diff;
     if (real_maybe_null())
-      m_null_ptr= ADD_TO_PTR(m_null_ptr, ptr_diff, uchar*);
+      m_null_ptr+= ptr_diff;
   }
 
   virtual void get_image(uchar *buff, size_t length, const CHARSET_INFO*)
@@ -1945,7 +1971,7 @@ public:
 /* base class for float and double and decimal (old one) */
 class Field_real :public Field_num {
 public:
-  my_bool not_fixed;
+  bool not_fixed;
 
   Field_real(uchar *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
              uchar null_bit_arg, uchar auto_flags_arg,
@@ -2471,7 +2497,7 @@ public:
                 NONE, field_name_arg, dec_arg, 0, 0)
     {}
   Field_double(uint32 len_arg, bool maybe_null_arg, const char *field_name_arg,
-	       uint8 dec_arg, my_bool not_fixed_arg)
+	       uint8 dec_arg, bool not_fixed_arg)
     :Field_real((uchar*) 0, len_arg, maybe_null_arg ? (uchar*) "" : 0, (uint) 0,
                 NONE, field_name_arg, dec_arg, 0, 0)
     {not_fixed= not_fixed_arg; }
@@ -2682,8 +2708,12 @@ protected:
 
     @param str      Warning parameter
     @param warnings Warning bit flag
+
+    @retval false  Function reported warning
+    @retval true   Function reported error
   */
-  void set_warnings(ErrConvString str, int warnings);
+  bool set_warnings(ErrConvString str, int warnings)
+                    MY_ATTRIBUTE((warn_unused_result));
 
   /**
     Flags that are passed as "flag" argument to
@@ -2711,16 +2741,20 @@ protected:
 
   /**
     Set a single warning using make_truncated_value_warning().
-    
+
     @param[in] level           Warning level (error, warning, note)
     @param[in] code            Warning code
     @param[in] val             Warning parameter
     @param[in] ts_type         Timestamp type (time, date, datetime, none)
     @param[in] truncate_increment  Incrementing of truncated field counter
+
+    @retval false  Function reported warning
+    @retval true   Function reported error
   */
-  void set_datetime_warning(Sql_condition::enum_severity_level level, uint code,
+  bool set_datetime_warning(Sql_condition::enum_severity_level level, uint code,
                             ErrConvString val,
-                            timestamp_type ts_type, int truncate_increment);
+                            timestamp_type ts_type, int truncate_increment)
+                            MY_ATTRIBUTE((warn_unused_result));
 public:
   /**
     Constructor for Field_temporal
@@ -3647,8 +3681,8 @@ public:
   uint32 key_length() const { return (uint32) field_length; }
   uint32 sort_length() const
   {
-    return (uint32) field_length + (field_charset == &my_charset_bin ?
-                                    length_bytes : 0);
+    return (uint32) field_length +
+      (field_charset->pad_attribute == NO_PAD ? 2 : 0);
   }
   type_conversion_status store(const char *to, size_t length,
                                const CHARSET_INFO *charset);
@@ -3876,7 +3910,7 @@ public:
     }
   void set_ptr_offset(my_ptrdiff_t ptr_diff, uint32 length, uchar *data)
     {
-      uchar *ptr_ofs= ADD_TO_PTR(ptr,ptr_diff,uchar*);
+      uchar *ptr_ofs= ptr + ptr_diff;
       store_length(ptr_ofs, packlength, length);
       memcpy(ptr_ofs+packlength, &data, sizeof(char*));
     }
@@ -3911,7 +3945,7 @@ public:
   }
   virtual uchar *pack(uchar *to, const uchar *from,
                       uint max_length, bool low_byte_first);
-  virtual const uchar *unpack(uchar *to, const uchar *from,
+  virtual const uchar *unpack(uchar *, const uchar *from,
                               uint param_data, bool low_byte_first);
   uint max_packed_col_length();
   void mem_free()
@@ -4179,6 +4213,12 @@ public:
     @param[in]  hash_val  An initial hash value.
   */
   ulonglong make_hash_key(ulonglong *hash_val);
+
+  /**
+    Get a read-only pointer to the binary representation of the JSON document
+    in this field.
+  */
+  const char *get_binary();
 };
 
 
@@ -4393,7 +4433,7 @@ public:
   void move_field_offset(my_ptrdiff_t ptr_diff)
   {
     Field::move_field_offset(ptr_diff);
-    bit_ptr= ADD_TO_PTR(bit_ptr, ptr_diff, uchar*);
+    bit_ptr+= ptr_diff;
   }
   void hash(ulong *nr, ulong *nr2);
   Field_bit *clone(MEM_ROOT *mem_root) const { 
@@ -4620,7 +4660,7 @@ class Copy_field :public Sql_alloc {
 public:
   uchar *from_ptr,*to_ptr;
   uchar *from_null_ptr,*to_null_ptr;
-  my_bool *null_row;
+  bool *null_row;
   uint	from_bit,to_bit;
   String tmp;					// For items
 

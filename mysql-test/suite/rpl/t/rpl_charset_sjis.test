@@ -9,7 +9,9 @@ create table t1 (a varchar(255) character set sjis);
 create procedure p1 (in a varchar(255) character set sjis) insert into t1 values (a);
 
 SET NAMES binary;
+--character_set binary
 CALL p1 ('–\\');
+--character_set utf8mb4
 select "--- on master ---";
 select hex(a) from t1 ;
 --source include/sync_slave_sql_with_master.inc

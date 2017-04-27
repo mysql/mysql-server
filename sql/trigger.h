@@ -25,7 +25,6 @@
 #endif
 #include <sys/types.h>
 
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "mysql/mysql_lex_string.h"   // LEX_STRING
 #include "mysql_com.h"
@@ -40,8 +39,6 @@ class THD;
 class sp_head;
 
 typedef ulonglong sql_mode_t;
-typedef struct st_mysql_lex_string LEX_STRING;
-typedef struct st_mysql_const_lex_string LEX_CSTRING;
 
 
 /**

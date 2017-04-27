@@ -13,13 +13,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "parse_error.h"
+#include "sql/parse_error.h"
 
 #include <sys/types.h>
 
 #include "check_stack.h"
 #include "derror.h" // ER_THD
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/service_my_snprintf.h"

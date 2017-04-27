@@ -1,5 +1,4 @@
 #include "mysql/psi/psi_statement.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_config.h"
 typedef unsigned char uchar;
@@ -17,7 +16,6 @@ typedef unsigned long long my_ulonglong;
 typedef intptr_t intptr;
 typedef ulonglong my_off_t;
 typedef ptrdiff_t my_ptrdiff_t;
-typedef char my_bool;
 typedef int myf;
 #include "my_macros.h"
 #include "my_psi_config.h"
@@ -60,8 +58,8 @@ struct PSI_statement_info_v1
 typedef struct PSI_statement_info_v1 PSI_statement_info_v1;
 struct PSI_statement_locker_state_v1
 {
-  my_bool m_discarded;
-  my_bool m_in_prepare;
+  bool m_discarded;
+  bool m_in_prepare;
   uchar m_no_index_used;
   uchar m_no_good_index_used;
   uint m_flags;

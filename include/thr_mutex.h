@@ -1,7 +1,7 @@
 #ifndef THR_MUTEX_INCLUDED
 #define THR_MUTEX_INCLUDED
 
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -143,7 +143,7 @@ typedef struct st_safe_mutex_t
 void safe_mutex_global_init();
 int safe_mutex_init(my_mutex_t *mp, const native_mutexattr_t *attr,
                     const char *file, uint line);
-int safe_mutex_lock(my_mutex_t *mp, my_bool try_lock, const char *file, uint line);
+int safe_mutex_lock(my_mutex_t *mp, bool try_lock, const char *file, uint line);
 int safe_mutex_unlock(my_mutex_t *mp, const char *file, uint line);
 int safe_mutex_destroy(my_mutex_t *mp, const char *file, uint line);
 

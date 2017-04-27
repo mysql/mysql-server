@@ -16,12 +16,14 @@
 #include "my_config.h"
 
 #include <fcntl.h>
+#include <limits.h>
 #include <m_ctype.h>
 #include <m_string.h>
-#include <my_global.h>
+#include <math.h>
 #include <my_sys.h>
 #include <my_time.h>
 #include <mysys_err.h>
+#include <sys/types.h>
 #ifndef _WIN32
 #include <netdb.h>
 #endif
@@ -56,7 +58,7 @@
 #include <sys/select.h>
 #endif
 #ifdef HAVE_POLL
-#include <sys/poll.h>
+#include <poll.h>
 #endif
 #ifdef HAVE_SYS_UN_H
 #include <sys/un.h>
@@ -81,8 +83,8 @@
 #define COM_SHUTDOWN_DEPRECATED 8
 static void append_wild(char *to,char *end,const char *wild);
 
-static my_bool mysql_client_init= 0;
-static my_bool org_my_init_done= 0;
+static bool mysql_client_init= 0;
+static bool org_my_init_done= 0;
 
 typedef struct st_mysql_stmt_extension
 {
@@ -202,14 +204,13 @@ void STDCALL mysql_server_end()
   }
   else
   {
-    free_charsets();
     mysql_thread_end();
   }
 
   mysql_client_init= org_my_init_done= 0;
 }
 
-my_bool STDCALL mysql_thread_init()
+bool STDCALL mysql_thread_init()
 {
   return my_thread_init();
 }
@@ -283,7 +284,7 @@ mysql_debug(const char *debug MY_ATTRIBUTE((unused)))
   Change user and database
 **************************************************************************/
 
-my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
+bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
 				  const char *passwd, const char *db)
 {
   int rc;
@@ -394,9 +395,9 @@ void read_user_name(char *name)
 
 #endif
 
-my_bool handle_local_infile(MYSQL *mysql, const char *net_filename)
+bool handle_local_infile(MYSQL *mysql, const char *net_filename)
 {
-  my_bool result= 1;
+  bool result= 1;
   uint packet_length=MY_ALIGN(mysql->net.max_packet-16,IO_SIZE);
   NET *net= &mysql->net;
   int readcount;
@@ -978,7 +979,7 @@ ulong STDCALL mysql_get_client_version(void)
   return MYSQL_VERSION_ID;
 }
 
-my_bool STDCALL mysql_eof(MYSQL_RES *res)
+bool STDCALL mysql_eof(MYSQL_RES *res)
 {
   return res->eof;
 }
@@ -1237,7 +1238,7 @@ void STDCALL
 myodbc_remove_escape(MYSQL *mysql,char *name)
 {
   char *to;
-  my_bool use_mb_flag=use_mb(mysql->charset);
+  bool use_mb_flag=use_mb(mysql->charset);
   char *end= NULL;
   if (use_mb_flag)
     for (end=name; *end ; end++) ;
@@ -1264,11 +1265,10 @@ myodbc_remove_escape(MYSQL *mysql,char *name)
 
  mysql_stmt_* are real prototypes used by applications.
 
- To make API work in embedded library all functions performing
+ All functions performing
  real I/O are prefixed with 'cli_' (abbreviated from 'Call Level
  Interface'). This functions are invoked via pointers set in
- MYSQL::methods structure. Embedded counterparts, prefixed with
- 'emb_' reside in libmysqld/lib_sql.cc.
+ MYSQL::methods structure.
 *********************************************************************/
 
 /******************* Declarations ***********************************/
@@ -1296,7 +1296,7 @@ static int stmt_read_row_no_result_set(MYSQL_STMT *stmt, unsigned char **row);
   STMT_ATTR_UPDATE_MAX_LENGTH attribute is set.
 */
 static void stmt_update_metadata(MYSQL_STMT *stmt, MYSQL_ROWS *data);
-static my_bool setup_one_fetch_function(MYSQL_BIND *, MYSQL_FIELD *field);
+static bool setup_one_fetch_function(MYSQL_BIND *, MYSQL_FIELD *field);
 
 /* Auxilary function used to reset statement handle. */
 
@@ -1305,7 +1305,7 @@ static my_bool setup_one_fetch_function(MYSQL_BIND *, MYSQL_FIELD *field);
 #define RESET_STORE_RESULT 4
 #define RESET_CLEAR_ERROR 8
 
-static my_bool reset_stmt_handle(MYSQL_STMT *stmt, uint flags);
+static bool reset_stmt_handle(MYSQL_STMT *stmt, uint flags);
 
 /*
   Maximum sizes of MYSQL_TYPE_DATE, MYSQL_TYPE_TIME, MYSQL_TYPE_DATETIME
@@ -1360,10 +1360,10 @@ static my_bool reset_stmt_handle(MYSQL_STMT *stmt, uint flags);
         than max_allowed_packet. The error code is stored in net->last_errno.
 */
 
-static my_bool my_realloc_str(NET *net, ulong length)
+static bool my_realloc_str(NET *net, ulong length)
 {
   ulong buf_length= (ulong) (net->write_pos - net->buff);
-  my_bool res=0;
+  bool res=0;
   DBUG_ENTER("my_realloc_str");
   if (buf_length + length > net->max_packet)
   {
@@ -1455,7 +1455,7 @@ void set_stmt_errmsg(MYSQL_STMT *stmt, NET *net)
     1	error
 */
 
-my_bool cli_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
+bool cli_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
 {
   uchar *pos;
   uint field_count, param_count;
@@ -1652,7 +1652,8 @@ mysql_stmt_prepare(MYSQL_STMT *stmt, const char *query, ulong length)
       These members must be reset for API to
       function in case of error or misuse.
     */
-    stmt->bind_param_done= stmt->bind_result_done= FALSE;
+    stmt->bind_param_done= FALSE;
+    stmt->bind_result_done= FALSE;
     stmt->param_count= stmt->field_count= 0;
     free_root(stmt->mem_root, MYF(MY_KEEP_PREALLOC));
     free_root(&stmt->extension->fields_mem_root, MYF(0));
@@ -2085,7 +2086,7 @@ static void store_param_null(NET *net, MYSQL_BIND *param)
   of store_param_xxxx functions.
 */
 
-static my_bool store_param(MYSQL_STMT *stmt, MYSQL_BIND *param)
+static bool store_param(MYSQL_STMT *stmt, MYSQL_BIND *param)
 {
   NET *net= &stmt->mysql->net;
   DBUG_ENTER("store_param");
@@ -2137,14 +2138,14 @@ static inline int add_binary_row(NET *net, MYSQL_STMT *stmt, ulong pkt_len, MYSQ
   Used from cli_stmt_execute, which is in turn used by mysql_stmt_execute.
 */
 
-static my_bool execute(MYSQL_STMT *stmt, char *packet, ulong length)
+static bool execute(MYSQL_STMT *stmt, char *packet, ulong length)
 {
   MYSQL *mysql= stmt->mysql;
   NET	*net= &mysql->net;
   uchar buff[4 /* size of stmt id */ +
              5 /* execution flags */];
-  my_bool res;
-  my_bool is_data_packet= FALSE;
+  bool res;
+  bool is_data_packet= FALSE;
   ulong      pkt_len;
   MYSQL_ROWS **prev_ptr= NULL;
   DBUG_ENTER("execute");
@@ -2221,7 +2222,7 @@ int cli_stmt_execute(MYSQL_STMT *stmt)
     char       *param_data;
     ulong length;
     uint null_count;
-    my_bool    result;
+    bool    result;
 
     if (!stmt->bind_param_done)
     {
@@ -2477,13 +2478,13 @@ stmt_read_row_no_result_set(MYSQL_STMT *stmt  MY_ATTRIBUTE((unused)),
    !0 wrong attribute type
 */
 
-my_bool STDCALL mysql_stmt_attr_set(MYSQL_STMT *stmt,
-                                    enum enum_stmt_attr_type attr_type,
-                                    const void *value)
+bool STDCALL mysql_stmt_attr_set(MYSQL_STMT *stmt,
+                                 enum enum_stmt_attr_type attr_type,
+                                 const void *value)
 {
   switch (attr_type) {
   case STMT_ATTR_UPDATE_MAX_LENGTH:
-    stmt->update_max_length= value ? *(const my_bool*) value : 0;
+    stmt->update_max_length= value ? *(const bool*) value : 0;
     break;
   case STMT_ATTR_CURSOR_TYPE:
   {
@@ -2512,13 +2513,13 @@ err_not_implemented:
 }
 
 
-my_bool STDCALL mysql_stmt_attr_get(MYSQL_STMT *stmt,
-                                    enum enum_stmt_attr_type attr_type,
-                                    void *value)
+bool STDCALL mysql_stmt_attr_get(MYSQL_STMT *stmt,
+                                 enum enum_stmt_attr_type attr_type,
+                                 void *value)
 {
   switch (attr_type) {
   case STMT_ATTR_UPDATE_MAX_LENGTH:
-    *(my_bool*) value= stmt->update_max_length;
+    *(bool*) value= stmt->update_max_length;
     break;
   case STMT_ATTR_CURSOR_TYPE:
     *(ulong*) value= stmt->flags;
@@ -2732,8 +2733,8 @@ my_ulonglong STDCALL mysql_stmt_insert_id(MYSQL_STMT *stmt)
 }
 
 
-static my_bool int_is_null_true= 1;		/* Used for MYSQL_TYPE_NULL */
-static my_bool int_is_null_false= 0;
+static bool int_is_null_true= 1;		/* Used for MYSQL_TYPE_NULL */
+static bool int_is_null_false= 0;
 
 
 /*
@@ -2836,7 +2837,7 @@ static my_bool int_is_null_false= 0;
       MYSQL_BIND::is_null to 0, or this has already been done if you
       zero-initialized the entire structure.  If you set
       MYSQL_TYPE::is_null to point to an application buffer of type
-      'my_bool', then this buffer will be checked on each execution:
+      'bool', then this buffer will be checked on each execution:
       this way you can set the buffer to TRUE, or any non-0 value for
       NULLs, and to FALSE or 0 for not NULL data.
 
@@ -2905,7 +2906,7 @@ static my_bool int_is_null_false= 0;
     1  error, can be retrieved with mysql_stmt_error.
 */
 
-my_bool STDCALL mysql_stmt_bind_param(MYSQL_STMT *stmt, MYSQL_BIND *my_bind)
+bool STDCALL mysql_stmt_bind_param(MYSQL_STMT *stmt, MYSQL_BIND *my_bind)
 {
   uint count=0;
   MYSQL_BIND *param, *end;
@@ -3065,7 +3066,7 @@ my_bool STDCALL mysql_stmt_bind_param(MYSQL_STMT *stmt, MYSQL_BIND *my_bind)
     1	error
 */
 
-my_bool STDCALL
+bool STDCALL
 mysql_stmt_send_long_data(MYSQL_STMT *stmt, uint param_number,
 		     const char *data, ulong length)
 {
@@ -3378,7 +3379,7 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
 */
 
 static void fetch_long_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
-                                       longlong value, my_bool is_unsigned)
+                                       longlong value, bool is_unsigned)
 {
   uchar *buffer= pointer_cast<uchar*>(param->buffer);
 
@@ -3796,7 +3797,7 @@ static void fetch_result_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
 static void fetch_result_tinyint(MYSQL_BIND *param, MYSQL_FIELD *field,
                                  uchar **row)
 {
-  my_bool field_is_unsigned= MY_TEST(field->flags & UNSIGNED_FLAG);
+  bool field_is_unsigned= MY_TEST(field->flags & UNSIGNED_FLAG);
   uchar data= **row;
   *(uchar *)param->buffer= data;
   *param->error= param->is_unsigned != field_is_unsigned && data > INT_MAX8;
@@ -3806,7 +3807,7 @@ static void fetch_result_tinyint(MYSQL_BIND *param, MYSQL_FIELD *field,
 static void fetch_result_short(MYSQL_BIND *param, MYSQL_FIELD *field,
                                uchar **row)
 {
-  my_bool field_is_unsigned= MY_TEST(field->flags & UNSIGNED_FLAG);
+  bool field_is_unsigned= MY_TEST(field->flags & UNSIGNED_FLAG);
   ushort data= (ushort) sint2korr(*row);
   shortstore(pointer_cast<uchar*>(param->buffer), data);
   *param->error= param->is_unsigned != field_is_unsigned && data > INT_MAX16;
@@ -3817,7 +3818,7 @@ static void fetch_result_int32(MYSQL_BIND *param,
                                MYSQL_FIELD *field MY_ATTRIBUTE((unused)),
                                uchar **row)
 {
-  my_bool field_is_unsigned= MY_TEST(field->flags & UNSIGNED_FLAG);
+  bool field_is_unsigned= MY_TEST(field->flags & UNSIGNED_FLAG);
   uint32 data= (uint32) sint4korr(*row);
   longstore(pointer_cast<uchar*>(param->buffer), data);
   *param->error= param->is_unsigned != field_is_unsigned && data > INT_MAX32;
@@ -3828,7 +3829,7 @@ static void fetch_result_int64(MYSQL_BIND *param,
                                MYSQL_FIELD *field MY_ATTRIBUTE((unused)),
                                uchar **row)
 {
-  my_bool field_is_unsigned= MY_TEST(field->flags & UNSIGNED_FLAG);
+  bool field_is_unsigned= MY_TEST(field->flags & UNSIGNED_FLAG);
   ulonglong data= (ulonglong) sint8korr(*row);
   *param->error= param->is_unsigned != field_is_unsigned && data > LLONG_MAX;
   longlongstore(pointer_cast<uchar*>(param->buffer), data);
@@ -3957,8 +3958,8 @@ static void skip_result_string(MYSQL_BIND *param MY_ATTRIBUTE((unused)),
     TRUE or FALSE
 */
 
-static my_bool is_binary_compatible(enum enum_field_types type1,
-                                    enum enum_field_types type2)
+static bool is_binary_compatible(enum enum_field_types type1,
+                                 enum enum_field_types type2)
 {
   static const enum enum_field_types
     range1[]= { MYSQL_TYPE_SHORT, MYSQL_TYPE_YEAR, MYSQL_TYPE_NULL },
@@ -3978,7 +3979,7 @@ static my_bool is_binary_compatible(enum enum_field_types type1,
   for (range= range_list; range != range_list_end; ++range)
   {
     /* check that both type1 and type2 are in the same range */
-    my_bool type1_found= FALSE, type2_found= FALSE;
+    bool type1_found= FALSE, type2_found= FALSE;
     for (type= *range; *type != MYSQL_TYPE_NULL; type++)
     {
       type1_found|= type1 == *type;
@@ -4016,7 +4017,7 @@ static my_bool is_binary_compatible(enum enum_field_types type1,
     FALSE  success
 */
 
-static my_bool setup_one_fetch_function(MYSQL_BIND *param, MYSQL_FIELD *field)
+static bool setup_one_fetch_function(MYSQL_BIND *param, MYSQL_FIELD *field)
 {
   DBUG_ENTER("setup_one_fetch_function");
 
@@ -4170,7 +4171,7 @@ static my_bool setup_one_fetch_function(MYSQL_BIND *param, MYSQL_FIELD *field)
   Setup the bind buffers for resultset processing
 */
 
-my_bool STDCALL mysql_stmt_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *my_bind)
+bool STDCALL mysql_stmt_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *my_bind)
 {
   MYSQL_BIND *param, *end;
   MYSQL_FIELD *field;
@@ -4306,7 +4307,7 @@ static int stmt_fetch_row(MYSQL_STMT *stmt, uchar *row)
 int cli_unbuffered_fetch(MYSQL *mysql, char **row)
 {
   ulong len= 0;
-  my_bool is_data_packet;
+  bool is_data_packet;
   if (packet_error == cli_safe_read(mysql, &is_data_packet))
   {
     MYSQL_TRACE_STAGE(mysql, READY_FOR_COMMAND);
@@ -4426,7 +4427,7 @@ int cli_read_binary_rows(MYSQL_STMT *stmt)
   MYSQL_DATA *result= &stmt->result;
   MYSQL_ROWS **prev_ptr= &result->data;
   NET        *net;
-  my_bool    is_data_packet;
+  bool       is_data_packet;
 
   DBUG_ENTER("cli_read_binary_rows");
 
@@ -4731,7 +4732,7 @@ my_ulonglong STDCALL mysql_stmt_num_rows(MYSQL_STMT *stmt)
   this has been requested.
 */
 
-static my_bool reset_stmt_handle(MYSQL_STMT *stmt, uint flags)
+static bool reset_stmt_handle(MYSQL_STMT *stmt, uint flags)
 {
   /* If statement hasn't been prepared there is nothing to reset */
   if ((int) stmt->state > (int) MYSQL_STMT_INIT_DONE)
@@ -4798,7 +4799,7 @@ static my_bool reset_stmt_handle(MYSQL_STMT *stmt, uint flags)
   return 0;
 }
 
-my_bool STDCALL mysql_stmt_free_result(MYSQL_STMT *stmt)
+bool STDCALL mysql_stmt_free_result(MYSQL_STMT *stmt)
 {
   DBUG_ENTER("mysql_stmt_free_result");
 
@@ -4823,7 +4824,7 @@ my_bool STDCALL mysql_stmt_free_result(MYSQL_STMT *stmt)
     1	error
 */
 
-my_bool STDCALL mysql_stmt_close(MYSQL_STMT *stmt)
+bool STDCALL mysql_stmt_close(MYSQL_STMT *stmt)
 {
   MYSQL *mysql= stmt->mysql;
   int rc= 0;
@@ -4878,7 +4879,7 @@ my_bool STDCALL mysql_stmt_close(MYSQL_STMT *stmt)
   Reset the statement buffers in server
 */
 
-my_bool STDCALL mysql_stmt_reset(MYSQL_STMT *stmt)
+bool STDCALL mysql_stmt_reset(MYSQL_STMT *stmt)
 {
   DBUG_ENTER("mysql_stmt_reset");
   DBUG_ASSERT(stmt != 0);
@@ -4929,20 +4930,20 @@ const char *STDCALL mysql_stmt_error(MYSQL_STMT * stmt)
   Commit the current transaction
 */
 
-my_bool STDCALL mysql_commit(MYSQL * mysql)
+bool STDCALL mysql_commit(MYSQL * mysql)
 {
   DBUG_ENTER("mysql_commit");
-  DBUG_RETURN((my_bool) mysql_real_query(mysql, "commit", 6));
+  DBUG_RETURN((bool) mysql_real_query(mysql, "commit", 6));
 }
 
 /*
   Rollback the current transaction
 */
 
-my_bool STDCALL mysql_rollback(MYSQL * mysql)
+bool STDCALL mysql_rollback(MYSQL * mysql)
 {
   DBUG_ENTER("mysql_rollback");
-  DBUG_RETURN((my_bool) mysql_real_query(mysql, "rollback", 8));
+  DBUG_RETURN((bool) mysql_real_query(mysql, "rollback", 8));
 }
 
 
@@ -4950,12 +4951,12 @@ my_bool STDCALL mysql_rollback(MYSQL * mysql)
   Set autocommit to either true or false
 */
 
-my_bool STDCALL mysql_autocommit(MYSQL * mysql, my_bool auto_mode)
+bool STDCALL mysql_autocommit(MYSQL * mysql, bool auto_mode)
 {
   DBUG_ENTER("mysql_autocommit");
   DBUG_PRINT("enter", ("mode : %d", auto_mode));
 
-  DBUG_RETURN((my_bool) mysql_real_query(mysql, auto_mode ?
+  DBUG_RETURN((bool) mysql_real_query(mysql, auto_mode ?
                                          "set autocommit=1":"set autocommit=0",
                                          16));
 }
@@ -4970,9 +4971,9 @@ my_bool STDCALL mysql_autocommit(MYSQL * mysql, my_bool auto_mode)
   to be read using mysql_next_result()
 */
 
-my_bool STDCALL mysql_more_results(MYSQL *mysql)
+bool STDCALL mysql_more_results(MYSQL *mysql)
 {
-  my_bool res;
+  bool res;
   DBUG_ENTER("mysql_more_results");
 
   res= ((mysql->server_status & SERVER_MORE_RESULTS_EXISTS) ? 1: 0);
@@ -5058,7 +5059,7 @@ MYSQL_RES * STDCALL mysql_use_result(MYSQL *mysql)
   return (*mysql->methods->use_result)(mysql);
 }
 
-my_bool STDCALL mysql_read_query_result(MYSQL *mysql)
+bool STDCALL mysql_read_query_result(MYSQL *mysql)
 {
   return (*mysql->methods->read_query_result)(mysql);
 }

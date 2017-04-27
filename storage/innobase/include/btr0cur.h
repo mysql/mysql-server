@@ -16,6 +16,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
+#include <stddef.h>
+#include <sys/types.h>
+
 #include "my_compiler.h"
 
 /**************************************************//**
@@ -733,8 +736,8 @@ limit, merging it to a neighbor is tried */
 tree. Each slot contains data on a single level of the tree. */
 struct btr_path_t {
 	/* Assume a page like:
-	records:             (inf, a, b, c, d, sup)
-	index of the record:    0, 1, 2, 3, 4, 5
+	records:		(inf, a, b, c, d, sup)
+	index of the record:	0, 1, 2, 3, 4, 5
 	*/
 
 	/** Index of the record where the page cursor stopped on this level

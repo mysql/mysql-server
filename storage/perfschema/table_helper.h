@@ -22,6 +22,10 @@
   Helpers to implement a performance schema table.
 */
 
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "lex_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "pfs_column_types.h"
@@ -86,35 +90,35 @@ struct PFS_setup_object;
 */
 
 /**
-  Helper, assign a value to a long field.
+  Helper, assign a value to a @c long field.
   @param f the field to set
   @param value the value to assign
 */
 void set_field_long(Field *f, long value);
 
 /**
-  Helper, assign a value to a ulong field.
+  Helper, assign a value to a @c ulong field.
   @param f the field to set
   @param value the value to assign
 */
 void set_field_ulong(Field *f, ulong value);
 
 /**
-  Helper, assign a value to a longlong field.
+  Helper, assign a value to a @c longlong field.
   @param f the field to set
   @param value the value to assign
 */
 void set_field_longlong(Field *f, longlong value);
 
 /**
-  Helper, assign a value to a ulonglong field.
+  Helper, assign a value to a @c ulonglong field.
   @param f the field to set
   @param value the value to assign
 */
 void set_field_ulonglong(Field *f, ulonglong value);
 
 /**
-  Helper, assign a value to a char utf8 field.
+  Helper, assign a value to a @code char utf8 @endcode field.
   @param f the field to set
   @param str the string to assign
   @param len the length of the string to assign
@@ -122,7 +126,7 @@ void set_field_ulonglong(Field *f, ulonglong value);
 void set_field_char_utf8(Field *f, const char *str, uint len);
 
 /**
-  Helper, assign a value to a varchar utf8 field.
+  Helper, assign a value to a @code varchar utf8 @endcode field.
   @param f the field to set
   @param cs the string character set
   @param str the string to assign
@@ -134,7 +138,7 @@ void set_field_varchar(Field *f,
                        uint len);
 
 /**
-  Helper, assign a value to a varchar utf8 field.
+  Helper, assign a value to a @code varchar utf8 @endcode field.
   @param f the field to set
   @param str the string to assign
   @param len the length of the string to assign
@@ -142,7 +146,7 @@ void set_field_varchar(Field *f,
 void set_field_varchar_utf8(Field *f, const char *str, uint len);
 
 /**
-  Helper, assign a value to a varchar utf8mb4 field.
+  Helper, assign a value to a @code varchar utf8mb4 @endcode field.
   @param f the field to set
   @param str the string to assign
   @param len the length of the string to assign
@@ -150,21 +154,21 @@ void set_field_varchar_utf8(Field *f, const char *str, uint len);
 void set_field_varchar_utf8mb4(Field *f, const char *str, uint len);
 
 /**
-  Helper, assign a value to a varchar utf8 field.
+  Helper, assign a value to a @code varchar utf8 @endcode field.
   @param f the field to set
   @param str the string to assign
 */
 void set_field_varchar_utf8(Field *f, const char *str);
 
 /**
-  Helper, assign a value to a varchar utf8mb4 field.
+  Helper, assign a value to a @code varchar utf8mb4 @endcode field.
   @param f the field to set
   @param str the string to assign
 */
 void set_field_varchar_utf8mb4(Field *f, const char *str);
 
 /**
-  Helper, assign a value to a longtext utf8 field.
+  Helper, assign a value to a @code longtext utf8 @endcode field.
   @param f the field to set
   @param str the string to assign
   @param len the length of the string to assign
@@ -180,42 +184,42 @@ void set_field_longtext_utf8(Field *f, const char *str, uint len);
 void set_field_blob(Field *f, const char *val, uint len);
 
 /**
-  Helper, assign a value to an enum field.
+  Helper, assign a value to an @c enum field.
   @param f the field to set
   @param value the value to assign
 */
 void set_field_enum(Field *f, ulonglong value);
 
 /**
-  Helper, assign a value to a timestamp field.
+  Helper, assign a value to a @c timestamp field.
   @param f the field to set
   @param value the value to assign
 */
 void set_field_timestamp(Field *f, ulonglong value);
 
 /**
-  Helper, assign a value to a double field.
+  Helper, assign a value to a @c double field.
   @param f the field to set
   @param value the value to assign
 */
 void set_field_double(Field *f, double value);
 
 /**
-  Helper, read a value from an ulonglong field.
+  Helper, read a value from an @c ulonglong field.
   @param f the field to read
   @return the field value
 */
 ulonglong get_field_ulonglong(Field *f);
 
 /**
-  Helper, read a value from an enum field.
+  Helper, read a value from an @c enum field.
   @param f the field to read
   @return the field value
 */
 ulonglong get_field_enum(Field *f);
 
 /**
-  Helper, read a value from a char utf8 field.
+  Helper, read a value from a @code char utf8 @endcode field.
   @param f the field to read
   @param[out] val the field value
   @return the field value
@@ -223,14 +227,14 @@ ulonglong get_field_enum(Field *f);
 String *get_field_char_utf8(Field *f, String *val);
 
 /**
-  Helper, read a value from a varchar utf8 field.
+  Helper, read a value from a @code varchar utf8 @endcode field.
   @param f the field to read
   @param[out] val the field value
   @return the field value
 */
 String *get_field_varchar_utf8(Field *f, String *val);
 
-/** Namespace, internal views used within table setup_instruments. */
+/** Name space, internal views used within table setup_instruments. */
 struct PFS_instrument_view_constants
 {
   static const uint FIRST_INSTRUMENT = 1;
@@ -257,7 +261,7 @@ struct PFS_instrument_view_constants
   static const uint LAST_INSTRUMENT = 15;
 };
 
-/** Namespace, internal views used within object summaries. */
+/** Name space, internal views used within object summaries. */
 struct PFS_object_view_constants
 {
   static const uint FIRST_VIEW = 1;
@@ -487,7 +491,7 @@ struct PFS_byte_stat_row
   }
 };
 
-/** Row fragment for table io statistics columns. */
+/** Row fragment for table I/O statistics columns. */
 struct PFS_table_io_stat_row
 {
   PFS_stat_row m_all;
@@ -789,7 +793,7 @@ void set_field_mdl_status(Field *f, opaque_mdl_status mdl_status);
 void set_field_isolation_level(Field *f, enum_isolation_level iso_level);
 void set_field_xa_state(Field *f, enum_xa_transaction_state xa_state);
 
-/** Row fragment for socket io statistics columns. */
+/** Row fragment for socket I/O statistics columns. */
 struct PFS_socket_io_stat_row
 {
   PFS_byte_stat_row m_read;
@@ -815,7 +819,7 @@ struct PFS_socket_io_stat_row
   }
 };
 
-/** Row fragment for file io statistics columns. */
+/** Row fragment for file I/O statistics columns. */
 struct PFS_file_io_stat_row
 {
   PFS_byte_stat_row m_read;
@@ -930,28 +934,52 @@ private:
   size_t m_value_length;
 };
 
-class PFS_key_long_int : public PFS_engine_key
+class PFS_key_long : public PFS_engine_key
 {
 public:
-  PFS_key_long_int(const char *name) : PFS_engine_key(name), m_key_value(0)
+  PFS_key_long(const char *name) : PFS_engine_key(name), m_key_value(0)
   {
   }
 
-  virtual ~PFS_key_long_int()
+  virtual ~PFS_key_long()
   {
   }
 
   virtual void
   read(PFS_key_reader &reader, enum ha_rkey_function find_flag)
   {
-    m_find_flag = reader.read_long_int(find_flag, m_is_null, &m_key_value);
+    m_find_flag = reader.read_long(find_flag, m_is_null, &m_key_value);
   }
 
 protected:
-  bool do_match(bool record_null, int32 record_value);
+  bool do_match(bool record_null, long record_value);
 
 private:
-  int32 m_key_value;
+  long m_key_value;
+};
+
+class PFS_key_ulong : public PFS_engine_key
+{
+public:
+  PFS_key_ulong(const char *name) : PFS_engine_key(name), m_key_value(0)
+  {
+  }
+
+  virtual ~PFS_key_ulong()
+  {
+  }
+
+  virtual void
+  read(PFS_key_reader &reader, enum ha_rkey_function find_flag)
+  {
+    m_find_flag = reader.read_ulong(find_flag, m_is_null, &m_key_value);
+  }
+
+protected:
+  bool do_match(bool record_null, ulong record_value);
+
+private:
+  ulong m_key_value;
 };
 
 class PFS_key_ulonglong : public PFS_engine_key
@@ -1046,10 +1074,10 @@ public:
   bool match(ulonglong engine_transaction_id);
 };
 
-class PFS_key_processlist_id_int : public PFS_key_long_int
+class PFS_key_processlist_id_int : public PFS_key_long
 {
 public:
-  PFS_key_processlist_id_int(const char *name) : PFS_key_long_int(name)
+  PFS_key_processlist_id_int(const char *name) : PFS_key_long(name)
   {
   }
 
@@ -1088,10 +1116,10 @@ public:
   bool match(const PFS_prepared_stmt *pfs);
 };
 
-class PFS_key_socket_id : public PFS_key_long_int
+class PFS_key_socket_id : public PFS_key_long
 {
 public:
-  PFS_key_socket_id(const char *name) : PFS_key_long_int(name)
+  PFS_key_socket_id(const char *name) : PFS_key_long(name)
   {
   }
 
@@ -1102,10 +1130,10 @@ public:
   bool match(const PFS_socket *pfs);
 };
 
-class PFS_key_port : public PFS_key_long_int
+class PFS_key_port : public PFS_key_long
 {
 public:
-  PFS_key_port(const char *name) : PFS_key_long_int(name)
+  PFS_key_port(const char *name) : PFS_key_long(name)
   {
   }
 
@@ -1116,10 +1144,10 @@ public:
   bool match(const PFS_socket *pfs);
 };
 
-class PFS_key_error_number : public PFS_key_long_int
+class PFS_key_error_number : public PFS_key_long
 {
 public:
-  PFS_key_error_number(const char *name) : PFS_key_long_int(name)
+  PFS_key_error_number(const char *name) : PFS_key_long(name)
   {
   }
 
@@ -1288,6 +1316,20 @@ public:
   }
 
   bool match(PFS_statements_digest_stat *pfs);
+};
+
+class PFS_key_bucket_number : public PFS_key_ulong
+{
+public:
+  PFS_key_bucket_number(const char *name) : PFS_key_ulong(name)
+  {
+  }
+
+  ~PFS_key_bucket_number()
+  {
+  }
+
+  bool match(ulong value);
 };
 
 /* Generic NAME key */

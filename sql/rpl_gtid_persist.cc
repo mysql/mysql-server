@@ -15,11 +15,12 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
    02110-1301 USA */
 
-#include "rpl_gtid_persist.h"
-
-#include <stddef.h>
+#include "sql/rpl_gtid_persist.h"
 
 #include "my_config.h"
+
+#include <assert.h>
+#include <stddef.h>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -152,7 +153,7 @@ static void deinit_thd(THD *thd)
   thd->release_resources();
   thd->restore_globals();
   delete thd;
-  my_thread_set_THR_THD(NULL);
+  current_thd= nullptr;
   DBUG_VOID_RETURN;
 }
 

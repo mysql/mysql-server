@@ -20,7 +20,7 @@ t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   `b` text,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 SET SESSION innodb_strict_mode = ON;
 CREATE TABLE t1 (a int KEY, b text) INDEX DIRECTORY='MYSQL_TMP_DIR/alt_dir';
@@ -51,7 +51,11 @@ t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   `b` text,
   PRIMARY KEY (`a`)
+<<<<<<< HEAD
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+=======
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+>>>>>>> mysql-trunk
 DROP TABLE t1;
 SET SESSION innodb_strict_mode = ON;
 CREATE TABLE t1 (a int KEY, b text) DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir';
@@ -67,7 +71,7 @@ t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   `b` text,
   PRIMARY KEY (`a`)
-) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 DROP TABLE t1;
 # Now set innodb_file_per_table so that DATA DIRECTORY can be tested.
 SET GLOBAL innodb_file_per_table=ON;
@@ -98,7 +102,7 @@ t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   `b` text,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 # Show that the system tables have this tablespace in them correctly
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
@@ -134,8 +138,13 @@ t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   `b` text,
   PRIMARY KEY (`a`)
+<<<<<<< HEAD
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 === information_schema.innodb_tables  and innodb_tablespaces ===
+=======
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+>>>>>>> mysql-trunk
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t1	innodb_file_per_table.##	0	4	Dynamic	0	Single
 === information_schema.innodb_tablespaces and innodb_datafiles ===
@@ -287,7 +296,7 @@ t1	CREATE TEMPORARY TABLE `t1` (
   `a` int(11) NOT NULL,
   `b` text,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 SET SESSION innodb_strict_mode = ON;
 CREATE TEMPORARY TABLE t1 (a int KEY, b text) engine=InnoDB DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir';
@@ -317,7 +326,7 @@ t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   `b` text,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 ---- MYSQLD_DATADIR/test
 ---- MYSQL_TMP_DIR/alt_dir/test
 t1.ibd
@@ -343,8 +352,13 @@ t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   `b` text,
   PRIMARY KEY (`a`)
+<<<<<<< HEAD
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 === information_schema.innodb_tablespaces and innodb_datafiles ===
+=======
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
+=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+>>>>>>> mysql-trunk
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t1.ibd
 === information_schema.files ===
@@ -383,7 +397,7 @@ emp	CREATE TABLE `emp` (
   `store_name` varchar(30) DEFAULT NULL,
   `parts` varchar(30) DEFAULT NULL,
   `store_id` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 /*!50100 PARTITION BY LIST (store_id)
 (PARTITION east VALUES IN (10,20,30) DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_east/' ENGINE = InnoDB,
  PARTITION north VALUES IN (40,50,60) DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_north/' ENGINE = InnoDB,
@@ -426,7 +440,7 @@ emp	CREATE TABLE `emp` (
   `store_name` varchar(30) DEFAULT NULL,
   `parts` varchar(30) DEFAULT NULL,
   `store_id` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 /*!50100 PARTITION BY LIST (store_id)
 (PARTITION east VALUES IN (10,20,30) DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_east' ENGINE = InnoDB,
  PARTITION north VALUES IN (40,50,60) DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_north' ENGINE = InnoDB) */
@@ -497,7 +511,7 @@ emp	CREATE TABLE `emp` (
   `store_name` varchar(30) DEFAULT NULL,
   `parts` varchar(30) DEFAULT NULL,
   `store_id` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 /*!50100 PARTITION BY LIST (store_id)
 (PARTITION east VALUES IN (10,20,30) DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_east' ENGINE = InnoDB,
  PARTITION north VALUES IN (40,50,60) DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_north' ENGINE = InnoDB,

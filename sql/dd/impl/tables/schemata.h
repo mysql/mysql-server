@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,13 +18,12 @@
 
 #include <string>
 
-#include "dd/impl/types/dictionary_object_table_impl.h" // dd::Dictionary_obj...
+#include "dd/impl/types/entity_object_table_impl.h"
 #include "dd/object_id.h"
-#include "my_global.h"
+#include "dd/types/schema.h"
 
 namespace dd {
 
-class Dictionary_object;
 class Item_name_key;
 class Object_key;
 class Raw_record;
@@ -33,7 +32,7 @@ namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Schemata : public Dictionary_object_table_impl
+class Schemata : public Entity_object_table_impl
 {
 public:
   static const Schemata &instance();
@@ -61,7 +60,7 @@ public:
   virtual const String_type &name() const
   { return Schemata::table_name(); }
 
-  virtual Dictionary_object *create_dictionary_object(const Raw_record &) const;
+  virtual Schema *create_entity_object(const Raw_record &) const;
 
 public:
   static bool update_object_key(Item_name_key *key,

@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,6 +32,37 @@
 #include "my_static.h"
 #endif
 
+#if defined(_WIN32)
+typedef VOID(WINAPI *time_fn)(_Out_ LPFILETIME);
+static time_fn my_get_system_time_as_file_time= GetSystemTimeAsFileTime;
+
+/**
+  Initialise highest available time resolution API on Windows
+  @return Initialization result
+    @retval FALSE Success
+    @retval TRUE  Error. Couldn't initialize environment
+  */
+bool win_init_get_system_time_as_file_time()
+{
+  HMODULE h= LoadLibrary("kernel32.dll");
+  if (h != nullptr)
+  {
+    auto pfn = reinterpret_cast<time_fn>(
+      GetProcAddress(h, "GetSystemTimePreciseAsFileTime"));
+    if (pfn)
+      my_get_system_time_as_file_time= pfn;
+
+    return false;
+  }
+
+  DWORD error= GetLastError();
+  my_message_local(ERROR_LEVEL, 
+    "LoadLibrary(\"kernel32.dll\") failed: GetLastError returns %lu",
+    error);
+
+  return true;
+}
+#endif
 /**
   Get high-resolution time.
 
@@ -95,58 +126,31 @@ time_t my_time(myf flags)
   Return time in microseconds.
 
   @remark This function is to be used to measure performance in
-          micro seconds. Note that this value will be affected by NTP on Linux,
-          and is subject to drift of approx 1 second per day on Windows.
-          It cannot be used for timestamps that may be compared in different
-          servers as Windows' QueryPerformanceCounter() generates timestamps
-          that are only accurately comparable when produced by the same process.
+          micro seconds.
 
   @retval Number of microseconds since the Epoch, 1970-01-01 00:00:00 +0000 (UTC)
 */
-
-ulonglong my_micro_time()
-{
-#ifdef _WIN32
-  LARGE_INTEGER t_cnt;
-  QueryPerformanceCounter(&t_cnt);
-  return ((t_cnt.QuadPart / query_performance_frequency * 1000000) +
-          ((t_cnt.QuadPart % query_performance_frequency) * 1000000 /
-           query_performance_frequency) + query_performance_offset_micros);
-#else
-  return my_micro_time_ntp();
-#endif
-}
-
-
 #ifdef _WIN32
 #define OFFSET_TO_EPOCH 116444736000000000ULL
 #endif
 
-/**
-  Return time in microseconds. The timestamps returned by this function are
-  guaranteed to be comparable between different servers as they are synchronized
-  to an external time reference (NTP).
-  However, they may not be monotonic and, in Windows, their resolution may vary.
-
-  @retval Number of microseconds since the Epoch, 1970-01-01 00:00:00 +0000 (UTC)
-*/
-
-ulonglong my_micro_time_ntp()
+ulonglong my_micro_time()
 {
 #ifdef _WIN32
   ulonglong newtime;
-  GetSystemTimeAsFileTime((FILETIME*)&newtime);
-  newtime-= OFFSET_TO_EPOCH;
-  return (newtime/10);
+  my_get_system_time_as_file_time((FILETIME*)&newtime);
+  newtime -= OFFSET_TO_EPOCH;
+  return (newtime / 10);
 #else
   ulonglong newtime;
   struct timeval t;
   /*
-    The following loop is here because gettimeofday may fail on some systems
+  The following loop is here because gettimeofday may fail on some systems
   */
   while (gettimeofday(&t, NULL) != 0)
-  {}
-  newtime= (ulonglong)t.tv_sec * 1000000 + t.tv_usec;
+  {
+  }
+  newtime = (ulonglong)t.tv_sec * 1000000 + t.tv_usec;
   return newtime;
 #endif
 }

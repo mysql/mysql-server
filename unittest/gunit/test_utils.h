@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,10 +33,8 @@
 class THD;
 class my_decimal;
 
-extern thread_local_key_t THR_MALLOC;
-extern thread_local_key_t THR_THD;
-extern bool THR_THD_initialized;
-extern bool THR_MALLOC_initialized;
+extern thread_local THD *current_thd;
+extern thread_local MEM_ROOT **THR_MALLOC;
 extern mysql_mutex_t LOCK_open;
 extern uint    opt_debug_sync_timeout;
 extern "C" void sql_alloc_error_handler(void);

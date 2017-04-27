@@ -21,9 +21,12 @@
   Table replication_applier_status (implementation).
 */
 
+#include "storage/perfschema/table_replication_applier_status.h"
+
+#include <time.h>
+
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "pfs_instr.h"
 #include "pfs_instr_class.h"
 #include "rpl_info.h"
@@ -32,7 +35,6 @@
 #include "rpl_rli.h"
 #include "rpl_slave.h"
 #include "sql_parse.h"
-#include "table_replication_applier_status.h"
 
 THR_LOCK table_replication_applier_status::m_table_lock;
 
@@ -101,7 +103,7 @@ PFS_index_rpl_applier_status::match(Master_info *mi)
 }
 
 PFS_engine_table *
-table_replication_applier_status::create(void)
+table_replication_applier_status::create(PFS_engine_table_share *)
 {
   return new table_replication_applier_status();
 }

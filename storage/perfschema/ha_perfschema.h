@@ -16,6 +16,8 @@
 #ifndef HA_PERFSCHEMA_H
 #define HA_PERFSCHEMA_H
 
+#include <sys/types.h>
+
 #include "handler.h" /* class handler */
 #include "my_inttypes.h"
 
@@ -154,7 +156,9 @@ public:
     @param table_def unused
     @return 0 on success
   */
-  int open(const char *name, int mode, uint test_if_locked,
+  int open(const char *name,
+           int mode,
+           uint test_if_locked,
            const dd::Table *table_def);
 
   /**
@@ -224,11 +228,13 @@ public:
 
   int delete_table(const char *from, const dd::Table *table_def);
 
-  int rename_table(const char *from, const char *to,
+  int rename_table(const char *from,
+                   const char *to,
                    const dd::Table *from_table_def,
                    dd::Table *to_table_def);
 
-  int create(const char *name, TABLE *form,
+  int create(const char *name,
+             TABLE *form,
              HA_CREATE_INFO *create_info,
              dd::Table *table_def);
 
@@ -242,7 +248,7 @@ public:
     return HA_CACHE_TBL_NOCACHE;
   }
 
-  virtual my_bool
+  virtual bool
   register_query_cache_table(
     THD *, char *, size_t, qc_engine_callback *engine_callback, ulonglong *)
   {
@@ -255,7 +261,7 @@ public:
 private:
   /**
      Check if the caller is a replication thread or the caller is called
-     by a client thread executing base64 encoded BINLOG'... statement.
+     by a client thread executing base64 encoded BINLOG statement.
 
      In theory, performance schema tables are not supposed to be replicated.
      This is true and enforced starting with MySQL 5.6.10.
@@ -271,8 +277,8 @@ private:
      - performing point in time recovery in 5.6 with old archived logs.
 
      This API detects when the code calling the performance schema storage
-     engine is a slave thread or whether the code calling isthe client thread
-     executing a BINLOG'.. statement.
+     engine is a slave thread or whether the code calling is the client thread
+     executing a BINLOG statement.
 
      This API acts as a late filter for the above mentioned cases.
 
@@ -284,7 +290,7 @@ private:
   /** MySQL lock */
   THR_LOCK_DATA m_thr_lock;
   /** Performance schema table share for this table handler. */
-  const PFS_engine_table_share *m_table_share;
+  PFS_engine_table_share *m_table_share;
   /** Performance schema table cursor. */
   PFS_engine_table *m_table;
 };

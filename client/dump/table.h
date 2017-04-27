@@ -23,7 +23,6 @@
 
 #include "abstract_plain_sql_object.h"
 #include "field.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 
 namespace Mysql{

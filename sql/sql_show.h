@@ -20,7 +20,7 @@
 #include <vector>
 
 #include "handler.h"                            // enum_schema_tables
-#include "my_global.h"
+#include "lex_string.h"
 #include "my_inttypes.h"
 #include "mysql/plugin.h"
 #include "set_var.h"                            // enum_var_type

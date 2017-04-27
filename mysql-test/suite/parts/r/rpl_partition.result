@@ -24,16 +24,16 @@ include/start_slave.inc
 CREATE TABLE t1(id MEDIUMINT NOT NULL AUTO_INCREMENT,
 dt TIMESTAMP, user CHAR(255), uuidf LONGBLOB,
 fkid MEDIUMINT, filler VARCHAR(255),
-PRIMARY KEY(id)) ENGINE='innodb';
+PRIMARY KEY(id)) charset latin1 ENGINE='innodb';
 CREATE TABLE t2(id MEDIUMINT NOT NULL AUTO_INCREMENT,
 dt TIMESTAMP, user CHAR(255), uuidf LONGBLOB,
 fkid MEDIUMINT, filler VARCHAR(255),
-PRIMARY KEY(id)) ENGINE='innodb'
+PRIMARY KEY(id)) charset latin1 ENGINE='innodb'
 PARTITION BY KEY(id) partitions 5;
 CREATE TABLE t3(id MEDIUMINT NOT NULL AUTO_INCREMENT,
 dt TIMESTAMP, user CHAR(255), uuidf LONGBLOB,
 fkid MEDIUMINT, filler VARCHAR(255),
-PRIMARY KEY(id)) ENGINE='innodb' 
+PRIMARY KEY(id)) ENGINE='innodb' charset latin1
 PARTITION BY RANGE(id) 
 SUBPARTITION BY hash(id) subpartitions 2
 (PARTITION pa1 values less than (10),

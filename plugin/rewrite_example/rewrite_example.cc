@@ -15,7 +15,6 @@
     02110-1301  USA */
 
 #include <ctype.h>
-#include <my_global.h>
 #include <my_thread.h> // my_thread_handle needed by mysql_memory.h
 #include <mysql/plugin.h>
 #include <mysql/plugin_audit.h>
@@ -50,7 +49,7 @@ static int plugin_init(MYSQL_PLUGIN)
 #endif /* HAVE_PSI_INTERFACE */
 
 
-static int rewrite_lower(MYSQL_THD thd, mysql_event_class_t event_class,
+static int rewrite_lower(MYSQL_THD, mysql_event_class_t event_class,
                          const void *event)
 {
   if (event_class == MYSQL_AUDIT_PARSE_CLASS)

@@ -11,7 +11,7 @@ CREATE TABLE t1 (
 uniq VARCHAR(10),
 col1 VARCHAR(10),
 col2 VARCHAR(1024)
-);
+) CHARSET utf8mb4;
 INSERT INTO t1 SELECT pk, col1, col1 FROM tmp;
 SELECT uniq, col1 FROM t1 GROUP BY col2,uniq LIMIT 3;
 uniq	col1
@@ -133,11 +133,11 @@ SELECT uniq, col1 FROM t1 GROUP BY col2,uniq LIMIT 3	{
             "creating_tmp_table": {
               "tmp_table_info": {
                 "table": "intermediate_tmp_table",
-                "row_length": 1058,
+                "row_length": 4190,
                 "key_length": 8,
                 "unique_constraint": true,
                 "location": "memory (heap)",
-                "row_limit_estimate": 15857
+                "row_limit_estimate": 4004
               } /* tmp_table_info */
             } /* creating_tmp_table */
           }
@@ -271,11 +271,11 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq	{
             "creating_tmp_table": {
               "tmp_table_info": {
                 "table": "intermediate_tmp_table",
-                "row_length": 1050,
-                "key_length": 13,
+                "row_length": 4182,
+                "key_length": 43,
                 "unique_constraint": false,
                 "location": "memory (heap)",
-                "row_limit_estimate": 15978
+                "row_limit_estimate": 4011
               } /* tmp_table_info */
             } /* creating_tmp_table */
           }
@@ -423,8 +423,8 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq	{
             "creating_tmp_table": {
               "tmp_table_info": {
                 "table": "intermediate_tmp_table",
-                "row_length": 1050,
-                "key_length": 13,
+                "row_length": 4182,
+                "key_length": 43,
                 "unique_constraint": false,
                 "location": "memory (heap)",
                 "row_limit_estimate": 1
@@ -436,8 +436,8 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq	{
               "cause": "memory_table_size_exceeded",
               "tmp_table_info": {
                 "table": "intermediate_tmp_table",
-                "row_length": 1050,
-                "key_length": 13,
+                "row_length": 4182,
+                "key_length": 43,
                 "unique_constraint": false,
                 "location": "disk (TMP_TABLE_ENGINE)",
                 "record_format": "packed"
@@ -1144,7 +1144,7 @@ ORDER BY cc	{
               "num_rows_estimate": 1365,
               "num_rows_found": 132,
               "num_examined_rows": 132,
-              "num_tmp_files": 0,
+              "num_initial_chunks_spilled_to_disk": 0,
               "sort_buffer_size": 262144,
               "sort_algorithm": "std::stable_sort",
               "sort_mode": "<fixed_sort_key, packed_additional_fields>"
@@ -1197,7 +1197,7 @@ ORDER BY cc	{
               "num_rows_estimate": 1365,
               "num_rows_found": 66,
               "num_examined_rows": 66,
-              "num_tmp_files": 0,
+              "num_initial_chunks_spilled_to_disk": 0,
               "sort_buffer_size": 261872,
               "sort_algorithm": "std::sort",
               "unpacked_addon_fields": "max_length_for_sort_data",

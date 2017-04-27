@@ -172,7 +172,7 @@ mecab_parser_plugin_deinit(void*)
 @param[in]	doc		document to parse
 @param[in]	len		document length
 @param[in,out]	bool_info	boolean info
-@retvat	0	on success
+@retval	0	on success
 @retval	1	on failure. */
 static
 int

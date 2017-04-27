@@ -19,7 +19,6 @@
 #define SIMPLE_ID_GENERATOR_INCLUDED
 
 #include "base/atomic.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 
 namespace Mysql{

@@ -92,6 +92,8 @@ include/save_binlog_position.inc
 # Case 4 : Use unprivileged account to create new user using GRANT
 CREATE USER userSUPER;
 GRANT SUPER ON *.* TO userSUPER WITH GRANT OPTION;
+Warnings:
+Warning	1287	The SUPER privilege identifier is deprecated
 include/save_binlog_position.inc
 GRANT SUPER ON *.* TO userX, userY, userA IDENTIFIED BY 'abcd', userB;
 ERROR 42000: You are not allowed to create a user with GRANT
@@ -117,6 +119,8 @@ userZ	N
 include/assert_binlog_events.inc
 # Case 5 : Valid grant
 GRANT SUPER ON *.* TO userX, userY, userZ;
+Warnings:
+Warning	1287	The SUPER privilege identifier is deprecated
 Grants for userX, userY, userZ should show SUPER
 SHOW GRANTS FOR userX;
 Grants for userX@%

@@ -16,10 +16,8 @@
 #ifndef DD__PARAMETER_TYPE_ELEMENT_INCLUDED
 #define DD__PARAMETER_TYPE_ELEMENT_INCLUDED
 
-#include "my_global.h"
-#include "my_inttypes.h"
-
 #include "dd/types/weak_object.h"      // dd::Weak_object
+#include "my_inttypes.h"
 
 namespace dd {
 

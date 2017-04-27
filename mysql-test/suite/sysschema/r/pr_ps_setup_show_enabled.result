@@ -14,7 +14,8 @@ UPDATE performance_schema.threads
 SET INSTRUMENTED = 'NO'
  WHERE NAME LIKE 'thread/innodb/srv\_%'
     OR NAME LIKE '%con\_%'
-    OR NAME LIKE '%signal_handler%';
+    OR NAME LIKE '%signal_handler%'
+    OR NAME LIKE '%thread_timer_notifier';
 CALL sys.ps_setup_show_enabled(FALSE, FALSE);
 performance_schema_enabled
 1
@@ -222,7 +223,6 @@ innodb/io_write_thread	BACKGROUND
 innodb/io_write_thread	BACKGROUND
 innodb/io_write_thread	BACKGROUND
 innodb/page_flush_coordinator_thread	BACKGROUND
-mysys/thread_timer_notifier	BACKGROUND
 root@localhost	FOREGROUND
 sql/compress_gtid_table	FOREGROUND
 sql/main	BACKGROUND
@@ -268,7 +268,6 @@ innodb/io_write_thread	BACKGROUND
 innodb/io_write_thread	BACKGROUND
 innodb/io_write_thread	BACKGROUND
 innodb/page_flush_coordinator_thread	BACKGROUND
-mysys/thread_timer_notifier	BACKGROUND
 root@localhost	FOREGROUND
 sql/compress_gtid_table	FOREGROUND
 sql/main	BACKGROUND

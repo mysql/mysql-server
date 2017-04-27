@@ -15,7 +15,6 @@
 
 #include <errno.h>
 #include <limits.h>
-#include <my_global.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
@@ -118,7 +117,7 @@ my_strnxfrm_simple(const CHARSET_INFO *cs,
 
 int my_strnncoll_simple(const CHARSET_INFO * cs, const uchar *s, size_t slen,
                         const uchar *t, size_t tlen,
-                        my_bool t_is_prefix)
+                        bool t_is_prefix)
 {
   size_t len = ( slen > tlen ) ? tlen : slen;
   const uchar *map= cs->sort_order;
@@ -964,12 +963,12 @@ int my_wildcmp_8bit(const CHARSET_INFO *cs,
 ** optimized !
 */
 
-my_bool my_like_range_simple(const CHARSET_INFO *cs,
-			     const char *ptr, size_t ptr_length,
-			     my_bool escape, my_bool w_one, my_bool w_many,
-			     size_t res_length,
-			     char *min_str,char *max_str,
-			     size_t *min_length, size_t *max_length)
+bool my_like_range_simple(const CHARSET_INFO *cs,
+                          const char *ptr, size_t ptr_length,
+                          char escape, char w_one, char w_many,
+                          size_t res_length,
+                          char *min_str,char *max_str,
+                          size_t *min_length, size_t *max_length)
 {
   const char *end= ptr + ptr_length;
   char *min_org=min_str;
@@ -1196,7 +1195,7 @@ static int pcmp(const void * f, const void * s)
   return res;
 }
 
-static my_bool
+static bool
 create_fromuni(CHARSET_INFO *cs,
                MY_CHARSET_LOADER *loader)
 {
@@ -1291,7 +1290,7 @@ create_fromuni(CHARSET_INFO *cs,
 }
 
 extern "C" {
-static my_bool
+static bool
 my_cset_init_8bit(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader)
 {
   cs->caseup_multiply= 1;
@@ -1321,7 +1320,7 @@ static void set_max_sort_char(CHARSET_INFO *cs)
 }
 
 extern "C" {
-static my_bool
+static bool
 my_coll_init_simple(CHARSET_INFO *cs,
                     MY_CHARSET_LOADER *loader MY_ATTRIBUTE((unused)))
 {
@@ -1717,17 +1716,17 @@ ret_too_big:
 
 
 
-my_bool my_propagate_simple(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                            const uchar *str MY_ATTRIBUTE((unused)),
-                            size_t length MY_ATTRIBUTE((unused)))
+bool my_propagate_simple(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+                         const uchar *str MY_ATTRIBUTE((unused)),
+                         size_t length MY_ATTRIBUTE((unused)))
 {
   return 1;
 }
 
 
-my_bool my_propagate_complex(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                             const uchar *str MY_ATTRIBUTE((unused)),
-                             size_t length MY_ATTRIBUTE((unused)))
+bool my_propagate_complex(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+                          const uchar *str MY_ATTRIBUTE((unused)),
+                          size_t length MY_ATTRIBUTE((unused)))
 {
   return 0;
 }
@@ -1746,7 +1745,7 @@ my_bool my_propagate_complex(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 
 uint my_strxfrm_flag_normalize(uint flags)
 {
-  flags &= (MY_STRXFRM_PAD_WITH_SPACE | MY_STRXFRM_PAD_TO_MAXLEN);
+  flags &= MY_STRXFRM_PAD_TO_MAXLEN;
   return flags;
 }
 
@@ -1756,8 +1755,9 @@ my_strxfrm_pad(const CHARSET_INFO *cs,
                uchar *str, uchar *frmend, uchar *strend,
                uint nweights, uint flags)
 {
-  if (nweights && frmend < strend && (flags & MY_STRXFRM_PAD_WITH_SPACE))
+  if (nweights && frmend < strend)
   {
+    // PAD SPACE behavior.
     uint fill_length= MY_MIN((uint) (strend - frmend), nweights * cs->mbminlen);
     cs->cset->fill(cs, (char*) frmend, fill_length, cs->pad_char);
     frmend+= fill_length;

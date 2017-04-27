@@ -22,14 +22,16 @@
   Table replication_applier_configuration (declarations).
 */
 
+#include <sys/types.h>
+#include <time.h>
+
+#include "mysql_com.h"
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"
-#include "table_helper.h"
-
-#include "rpl_mi.h"
-#include "mysql_com.h"
-#include "rpl_msr.h"
 #include "rpl_info.h" /*CHANNEL_NAME_LENGTH*/
+#include "rpl_mi.h"
+#include "rpl_msr.h"
+#include "table_helper.h"
 
 class Master_info;
 
@@ -103,7 +105,7 @@ public:
 
   /** Table share. */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table *create();
+  static PFS_engine_table *create(PFS_engine_table_share *);
   static ha_rows get_row_count();
 
   virtual void reset_position(void);

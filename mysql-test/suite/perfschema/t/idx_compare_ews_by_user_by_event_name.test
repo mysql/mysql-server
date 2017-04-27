@@ -1,8 +1,6 @@
 #
 # Verify that query results are the same with and without indexes.
 #
---source include/not_embedded.inc
---source include/not_windows_embedded.inc
 --source include/have_debug_sync.inc
 
 let $table = "events_waits_summary_by_user_by_event_name";

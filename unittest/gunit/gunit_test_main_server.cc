@@ -21,7 +21,6 @@
 #include <stdlib.h>
 
 #include "my_getopt.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "test_utils.h"
@@ -38,8 +37,8 @@ int Fake_TABLE::highest_table_id= 5;
 
 namespace {
 
-my_bool opt_use_tap= true;
-my_bool opt_unit_help= false;
+bool opt_use_tap= true;
+bool opt_unit_help= false;
 
 struct my_option unittest_options[] =
 {
@@ -59,7 +58,7 @@ struct my_option unittest_options[] =
 };
 
 
-extern "C" my_bool get_one_option(int, const struct my_option *, char *)
+extern "C" bool get_one_option(int, const struct my_option *, char *)
 {
   return FALSE;
 }

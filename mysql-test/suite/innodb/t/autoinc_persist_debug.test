@@ -1,6 +1,4 @@
 --source include/have_debug.inc
---source include/not_embedded.inc
-
 --echo # Pre-create some tables, so that DDTableBuffer is not empty
 
 set global innodb_flush_log_at_trx_commit=1;
@@ -198,4 +196,3 @@ set session debug = "-d,partition_truncate_no_reset";
 ALTER TABLE t1 ADD INDEX(b), ALGORITHM = INPLACE;
 
 DROP TABLE t1;
-

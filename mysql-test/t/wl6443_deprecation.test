@@ -2,7 +2,6 @@
 --source include/no_valgrind_without_big.inc
 --source include/have_myisam.inc
 --source include/have_profiling.inc
---source include/not_embedded.inc
 --source include/have_validate_password_plugin.inc
 
 # Warning is generated when default file (NULL) is used

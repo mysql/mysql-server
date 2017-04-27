@@ -18,14 +18,16 @@
   Table SETUP_TIMERS (implementation).
 */
 
+#include "storage/perfschema/table_setup_timers.h"
+
+#include <stddef.h>
+
 #include "field.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_thread.h"
 #include "pfs_column_values.h"
 #include "pfs_timer.h"
-#include "table_setup_timers.h"
 
 #define COUNT_SETUP_TIMERS 5
 
@@ -89,7 +91,7 @@ PFS_index_setup_timers::match(row_setup_timers *row)
 }
 
 PFS_engine_table *
-table_setup_timers::create(void)
+table_setup_timers::create(PFS_engine_table_share *)
 {
   return new table_setup_timers();
 }
@@ -144,7 +146,7 @@ table_setup_timers::rnd_pos(const void *pos)
 }
 
 int
-table_setup_timers::index_init(uint idx, bool)
+table_setup_timers::index_init(uint idx MY_ATTRIBUTE((unused)), bool)
 {
   PFS_index_setup_timers *result = NULL;
   DBUG_ASSERT(idx == 0);

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -68,7 +68,7 @@
 #if defined(HAVE_LINUX_SCHEDULING) || defined(HAVE_PTHREAD_SET_SCHEDPARAM)
 static int g_min_prio = 0;
 static int g_max_prio = 0;
-static my_bool get_prio_first = TRUE;
+static bool get_prio_first = TRUE;
 #endif
 
 static NdbMutex *ndb_thread_mutex = 0;
@@ -87,8 +87,8 @@ struct NdbThread
   volatile int inited;
   my_thread_t thread;
   /* Have we called any lock to CPU function yet for this thread */
-  my_bool first_lock_call_exclusive;
-  my_bool first_lock_call_non_exclusive;
+  bool first_lock_call_exclusive;
+  bool first_lock_call_non_exclusive;
 #ifdef _WIN32
   /*
     Problem in mysys on certain MySQL versions where the thread id is
@@ -139,7 +139,7 @@ struct NdbThread
 };
 
 #ifdef NDB_SHM_TRANSPORTER
-void NdbThread_set_shm_sigmask(my_bool block)
+void NdbThread_set_shm_sigmask(bool block)
 {
   if (ndb_shm_signum)
   {
@@ -577,7 +577,7 @@ get_min_prio(int policy)
 }
 
 static int
-get_prio(my_bool high_prio, int policy)
+get_prio(bool high_prio, int policy)
 {
   int prio;
 
@@ -613,7 +613,7 @@ get_prio(my_bool high_prio, int policy)
  * time on real-time prio then we can easily crash the system.
  */
 int
-NdbThread_yield_rt(struct NdbThread* pThread, my_bool high_prio)
+NdbThread_yield_rt(struct NdbThread* pThread, bool high_prio)
 {
   int res = NdbThread_SetScheduler(pThread, FALSE, high_prio);
   int res1 = NdbThread_SetScheduler(pThread, TRUE, high_prio);
@@ -636,8 +636,8 @@ NdbThread_SetThreadPrioNormal(struct NdbThread *pThread)
 #ifndef _WIN32
 int
 NdbThread_SetScheduler(struct NdbThread* pThread,
-                       my_bool rt_prio,
-                       my_bool high_prio)
+                       bool rt_prio,
+                       bool high_prio)
 {
   int error_no= 0;
 #if defined HAVE_LINUX_SCHEDULING
@@ -896,8 +896,8 @@ NdbThread_SetThreadPrio(struct NdbThread *pThread,
 
 static unsigned int num_processor_groups = 0;
 static unsigned int *num_processors_per_group = NULL;
-static my_bool inited = FALSE;
-static my_bool support_cpu_locking_on_windows = FALSE;
+static bool inited = FALSE;
+static bool support_cpu_locking_on_windows = FALSE;
 
 /**
  * On Windows the processors group have different sizes.
@@ -925,7 +925,7 @@ static my_bool support_cpu_locking_on_windows = FALSE;
 #define GET_PROCESSOR_ID(a) ((a) & 63)
 #define NOT_ASSIGNED_TO_PROCESSOR_GROUP 0xFFFF0000
 
-static my_bool
+static bool
 is_cpu_locking_supported_on_windows()
 {
   if (inited)
@@ -961,7 +961,7 @@ is_cpu_locking_supported_on_windows()
 }
 
 
-static my_bool
+static bool
 is_cpu_available(unsigned int cpu_id)
 {
   unsigned int processor_group = GET_PROCESSOR_GROUP(cpu_id);
@@ -999,8 +999,8 @@ calculate_processor_mask(KAFFINITY *mask,
 
 int
 NdbThread_SetScheduler(struct NdbThread* pThread,
-                       my_bool rt_prio,
-                       my_bool high_prio)
+                       bool rt_prio,
+                       bool high_prio)
 {
   int windows_prio;
   if (rt_prio && high_prio)

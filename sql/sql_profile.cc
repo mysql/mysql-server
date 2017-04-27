@@ -73,8 +73,9 @@ static const size_t MAX_QUERY_LENGTH= 300;
 /**
   Connects Information_Schema and Profiling.
 */
-int fill_query_profile_statistics_info(THD *thd, TABLE_LIST *tables,
-                                       Item *cond)
+int fill_query_profile_statistics_info(THD *thd MY_ATTRIBUTE((unused)),
+                                       TABLE_LIST *tables MY_ATTRIBUTE((unused)),
+                                       Item*)
 {
 #if defined(ENABLED_PROFILING)
   const char *old= thd->lex->sql_command == SQLCOM_SHOW_PROFILE ?
@@ -83,7 +84,7 @@ int fill_query_profile_statistics_info(THD *thd, TABLE_LIST *tables,
   DBUG_ASSERT(thd->lex->sql_command != SQLCOM_SHOW_PROFILES);
 
   push_deprecated_warn(thd, old, "Performance Schema");
-  return(thd->profiling.fill_statistics_info(thd, tables, cond));
+  return(thd->profiling.fill_statistics_info(thd, tables));
 #else
   my_error(ER_FEATURE_DISABLED, MYF(0), "SHOW PROFILE", "enable-profiling");
   return(1);
@@ -554,7 +555,7 @@ void PROFILING::set_query_source(const char *query_source_arg, size_t query_leng
   There are two ways to get to this function:  Selecting from the information
   schema, and a SHOW command.
 */
-int PROFILING::fill_statistics_info(THD *thd_arg, TABLE_LIST *tables, Item *cond)
+int PROFILING::fill_statistics_info(THD *thd_arg, TABLE_LIST *tables)
 {
   DBUG_ENTER("PROFILING::fill_statistics_info");
   TABLE *table= tables->table;

@@ -22,11 +22,11 @@
 
 namespace keyring {
 
-my_bool CheckerVer_2_0::is_file_size_correct(size_t file_size)
+bool CheckerVer_2_0::is_file_size_correct(size_t file_size)
 {
   return file_size >= ((size_t)EOF_TAG_SIZE + file_version.length() + SHA256_DIGEST_LENGTH);
 }
-my_bool CheckerVer_2_0::file_seek_to_tag(File file)
+bool CheckerVer_2_0::file_seek_to_tag(File file)
 {
   return mysql_file_seek(file, -static_cast<int>(EOF_TAG_SIZE+SHA256_DIGEST_LENGTH),
                          MY_SEEK_END, MYF(0)) == MY_FILEPOS_ERROR;
@@ -36,7 +36,7 @@ my_bool CheckerVer_2_0::file_seek_to_tag(File file)
 //in case dgst argument is empty it will assign a digest read from the file
 //(if it exists) to dgst argument
 
-my_bool CheckerVer_2_0::is_dgst_correct(File file, Digest *digest)
+bool CheckerVer_2_0::is_dgst_correct(File file, Digest *digest)
 {
   static Digest dgst_read_from_file;
 

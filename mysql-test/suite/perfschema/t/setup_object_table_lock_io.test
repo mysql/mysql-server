@@ -2,8 +2,6 @@
 # To test the effect of disabling/enabling instrumentation for a table
 # in setup_objects table.
 
---source include/not_embedded.inc
-
 --disable_warnings
 drop table if exists test.setup_objects;
 --enable_warnings

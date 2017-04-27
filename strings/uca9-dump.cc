@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,11 +20,20 @@
   How to use:
     1. g++ uca9-dump.cc -o ucadump
     2. ucadump < /path/to/allkeys.txt > /path/to/youfile
+
+  This can also be used to dump weight table of Japanese Han characters.
+  How to use:
+    1. Copy the line of Han characters in CLDR file ja.xml to a seperate file,
+       e.g. ja_han.txt.
+    2. Make sure the file is saved in UTF-8 (use 'file' command to check), or
+       use iconv to convert.
+    3. ucadump ja < /path/to/ja_han.txt > /path/to/yourfile
 */
-#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "m_string.h"
 
 typedef unsigned char  uchar;
 typedef unsigned short uint16;
@@ -243,6 +252,45 @@ void my_put_jamo_weights(const my_wc_t *hangul_jamo, int jamo_cnt,
   }
   item->num_of_ce= jamo_cnt;
 }
+
+static void
+set_implicit_weights(MY_UCA_ITEM *item, int code)
+{
+  int base, aaaa, bbbb;
+  if (code >= 0x17000 && code <= 0x18AFF) //Tangut character
+  {
+    aaaa= 0xFB00;
+    bbbb= (code - 0x17000) | 0x8000;
+  }
+  else
+  {
+    /* non-Core Han Unified Ideographs */
+    if ((code >= 0x3400 && code <= 0x4DB5) ||
+        (code >= 0x20000 && code <= 0x2A6D6) ||
+        (code >= 0x2A700 && code <= 0x2B734) ||
+        (code >= 0x2B740 && code <= 0x2B81D) ||
+        (code >= 0x2B820 && code <= 0x2CEA1))
+      base= 0xFB80;
+    /* Core Han Unified Ideographs */
+    else if ((code >= 0x4E00 && code <= 0x9FD5) ||
+             (code >= 0xFA0E && code <= 0xFA29))
+      base= 0xFB40;
+    /* All other characters whose weight is unassigned */
+    else
+      base= 0xFBC0;
+    aaaa= base + (code >> 15);
+    bbbb= (code & 0x7FFF) | 0x8000;
+  }
+
+  item->weight[0]= aaaa;
+  item->weight[1]= 0x0020;
+  item->weight[2]= 0x0002;
+  item->weight[3]= bbbb;
+  item->weight[4]= 0x0000;
+  item->weight[5]= 0x0000;
+
+  item->num_of_ce= 2;
+}
 /*
   We need to initialize implicit weights because
   some pages have both implicit and explicit weights:
@@ -259,7 +307,6 @@ set_implicit_weights(MY_UCA *uca, const int *pageloaded)
     for (int code= page * MY_UCA_CHARS_PER_PAGE;
          code < (page + 1) * MY_UCA_CHARS_PER_PAGE; code++)
     {
-      int base, aaaa, bbbb;
       MY_UCA_ITEM *item= &uca->item[code];
 
       if (item->num_of_ce)
@@ -272,90 +319,8 @@ set_implicit_weights(MY_UCA *uca, const int *pageloaded)
         my_put_jamo_weights(hangul_jamo, jamo_cnt, item, uca);
         continue;
       }
-      else if (code >= 0x17000 && code <= 0x18AFF) //Tangut character
-      {
-        aaaa= 0xFB00;
-        bbbb= (code - 0x17000) | 0x8000;
-      }
-      else
-      {
-        /* non-Core Han Unified Ideographs */
-        if ((code >= 0x3400 && code <= 0x4DB5) ||
-            (code >= 0x20000 && code <= 0x2A6D6) ||
-            (code >= 0x2A700 && code <= 0x2B734) ||
-            (code >= 0x2B740 && code <= 0x2B81D) ||
-            (code >= 0x2B820 && code <= 0x2CEA1))
-          base= 0xFB80;
-        /* Core Han Unified Ideographs */
-        else if ((code >= 0x4E00 && code <= 0x9FD5) ||
-                 (code >= 0xFA0E && code <= 0xFA29))
-          base= 0xFB40;
-        /* All other characters whose weight is unassigned */
-        else
-          base= 0xFBC0;
-        aaaa= base +  (code >> 15);
-        bbbb= (code & 0x7FFF) | 0x8000;
-      }
 
-      item->weight[0]= aaaa;
-      item->weight[1]= 0x0020;
-      item->weight[2]= 0x0002;
-      item->weight[3]= bbbb;
-      item->weight[4]= 0x0000;
-      item->weight[5]= 0x0000;
-
-      item->num_of_ce= 2;
-    }
-  }
-}
-
-/*
-  Move SPACE to the lowest possible weight, such that:
-
-   1. Everything that is equal to SPACE (on a given level) keeps being
-      equal to it.
-   2. Everything else compares higher to SPACE on the first nonequal level.
-   3. Space gets the weight [.0001.0001.0001].
-
-  For why this is necessary, see the comments on my_strnxfrm_uca_900_tmpl()
-  in ctype-uca.cc.
-*/
-static void
-move_space_weights(MY_UCA *uca)
-{
-  const uint16 space_weights[3]= {
-    uca->item[0x20].weight[0],
-    uca->item[0x20].weight[1],
-    uca->item[0x20].weight[2]
-  };
-
-  for (int code= 0; code < MY_UCA_MAXCHAR; ++code)
-  {
-    MY_UCA_ITEM *item= &uca->item[code];
-    for (int ce= 0; ce < item->num_of_ce; ++ce)
-    {
-      uint16 *weight= item->weight + ce * MY_UCA_CE_SIZE;
-      assert(weight[0] != 0x0001);  // Must be free.
-      if (weight[0] == space_weights[0])
-      {
-        weight[0]= 0x0001;
-
-        /*
-          #2 is now met for the primary level. For the secondary and tertiary
-          level, it is already so in UCA 9.0.0, but we verify it here.
-          Also, we take care of demand #3, while making sure not to disturb
-          demand #1.
-        */
-        for (int level= 1; level < 3; ++level)
-        {
-          assert(weight[level] != 0x0001);  // Must be free.
-          assert(weight[level] >= space_weights[level]);
-          if (weight[level] != space_weights[level])
-            break;  // No need to modify the next levels.
-
-          weight[level]= 0x0001;
-        }
-      }
+      set_implicit_weights(item, code);
     }
   }
 }
@@ -453,9 +418,143 @@ print_one_page(const MY_UCA *uca, int page, int maxnum)
   printf("};\n\n");
 }
 
+/*
+  This is a very simple conversion from utf8 to wide char, assuming
+  the input is always legal 3 bytes encoded Japanese Han character.
+  Because our input is from the CLDR file, ja.xml, we believe there
+  is no problem.
+*/
+static void
+ja_han_u8_to_wc(const unsigned char *s, int *pwc)
+{
+  assert(((s[0] == 0xE4 && s[1] >= 0xB8) ||
+          (s[0] >= 0xE5 && s[0] <= 0xE9 && s[1] >= 0x80)) &&
+         s[1] <= 0xBF &&
+         s[2] >= 0x80 && s[2] <= 0xBF);
+  *pwc= ((my_wc_t) (s[0] & 0x0f) << 12) +
+        ((my_wc_t) (s[1] & 0x3f) << 6) +
+         (my_wc_t) (s[2] & 0x3f);
+}
+
+int dump_ja_hans()
+{
+  // There are 6355 Japanese Han characters.
+  unsigned char ja_u8_bytes[8000 * 3]= {0};
+  // There are 20992 characters in range [4E00, 9FFF].
+  MY_UCA_ITEM ja_han_items[25600];
+  if (!fgets((char*)ja_u8_bytes, sizeof(ja_u8_bytes), stdin))
+  {
+    fprintf(stderr, "Could not read Japanese Han characters.\n");
+    return 1;
+  }
+  int ja_length= strlen((char*)ja_u8_bytes);
+  if (ja_u8_bytes[ja_length - 1] == '\n')
+  {
+    ja_u8_bytes[ja_length - 1]= '\0';
+    ja_length--;
+  }
+  // All these Japanese Han characters should be 3 bytes.
+  if ((ja_length % 3))
+  {
+    fprintf(stderr, "Wrong UTF8 Han character bytes.\n");
+    return 1;
+  }
+  int han_cnt= ja_length / 3;
+  const int JA_CORE_HAN_BASE_WT= 0x54A4;
+  const int ja_han_page_cnt= 0x9F - 0x4E + 1;
+  // Set weight for Japanese Han characters.
+  unsigned char *ja_han= ja_u8_bytes;
+  for (int i= 0; i < han_cnt; i++)
+  {
+    int ja_ch_u16= 0;
+    ja_han_u8_to_wc(ja_han, &ja_ch_u16);
+    ja_han+= 3;
+    int page= ja_ch_u16 >> 8;
+    assert(page >= 0x4E && page <= 0x9F);
+    MY_UCA_ITEM *item= &ja_han_items[ja_ch_u16 - 0x4E00];
+    item->num_of_ce= 1;
+    item->weight[0]= JA_CORE_HAN_BASE_WT + i;
+    item->weight[1]= 0x20;
+    item->weight[2]= 0x02;
+  }
+
+  // Set implicit weight for non-Japanese characters.
+  for (int page= 0x4E; page <= 0x9F; page++)
+  {
+    for (int offs= 0; offs < MY_UCA_CHARS_PER_PAGE; ++offs)
+    {
+      int code= (page << 8) + offs;
+      int ind= code - 0x4E00;
+      MY_UCA_ITEM *item= &ja_han_items[ind];
+      if (item->num_of_ce == 0)
+        set_implicit_weights(item, code);
+    }
+  }
+
+  // Print weights.
+  for (int page= 0; page < ja_han_page_cnt; page++)
+  {
+    printf("uint16 ja_han_page%2X[]= {\n", 0x4E + page);
+    printf("  /* Number of CEs for each character. */\n");
+    for (int offs= 0; offs < MY_UCA_CHARS_PER_PAGE; ++offs)
+    {
+      int ind= (page << 8) + offs;
+      MY_UCA_ITEM *item= &ja_han_items[ind];
+      if ((offs % 16) == 0)
+        printf("  ");
+      printf("%d, ", item->num_of_ce);
+      if ((offs % 16) == 15)
+        printf("\n");
+    }
+    for (int i= 0; i < 6; i++)
+    {
+      printf("\n");
+      if ((i % 3) == 0)
+      {
+        printf("  /* Primary weight %d for each character. */\n", i / 3 + 1);
+      }
+      else if ((i % 3) == 1)
+      {
+        printf("  /* Secondary weight %d for each character. */\n", i / 3 + 1);
+      }
+      else
+      {
+        printf("  /* Tertiary weight %d for each character. */\n", i / 3 + 1);
+      }
+      for (int offs= 0; offs < MY_UCA_CHARS_PER_PAGE; offs++)
+      {
+        const int ind= page * MY_UCA_CHARS_PER_PAGE + offs;
+        const int code= (page + 0x4E) * MY_UCA_CHARS_PER_PAGE + offs;
+        const MY_UCA_ITEM *item= &ja_han_items[ind];
+        const uint16 *weight= item->weight;
+        printf("  0x%04X,   /* U+%04X */\n", weight[i], code);
+      }
+    }
+    printf("};\n\n");
+  }
+  /* Print page index */
+  printf("uint16* ja_han_pages[%d]= {\n", ja_han_page_cnt);
+  for (int page= 0; page < ja_han_page_cnt; page++)
+  {
+    if (!(page % 5))
+      printf("%13s%2X", "ja_han_page", page + 0x4E);
+    else
+      printf("%12s%2X", "ja_han_page", page + 0x4E);
+    if ((page + 1) != ja_han_page_cnt)
+      printf(",");
+    if (!((page + 1) % 5) || (page + 1) == ja_han_page_cnt)
+      printf("\n");
+  }
+  printf("};\n\n");
+
+  return 0;
+}
+
 int
 main(int ac, char **av)
 {
+  if (ac == 2 && !native_strcasecmp(av[1], "ja"))
+    return dump_ja_hans();
   static MY_UCA uca;
   int maxchar= MY_UCA_MAXCHAR;
   static int pageloaded[MY_UCA_NPAGES];
@@ -467,8 +566,6 @@ main(int ac, char **av)
   load_uca_file(&uca, maxchar, pageloaded);
 
   set_implicit_weights(&uca, pageloaded);
-
-  move_space_weights(&uca);
 
   int pagemaxlen[MY_UCA_NPAGES];
 

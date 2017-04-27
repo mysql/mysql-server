@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 */
 
 #include <stdarg.h>
+#include <stdarg.h>
 #include <string.h>
 #include <sys/types.h>
 
@@ -33,7 +34,7 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysys_err.h"
 
-static inline my_bool is_mem_available(MEM_ROOT *mem_root, size_t size);
+static inline bool is_mem_available(MEM_ROOT *mem_root, size_t size);
 
 /*
   For instrumented code: don't preallocate memory in alloc_root().
@@ -535,7 +536,7 @@ void *memdup_root(MEM_ROOT *root, const void *str, size_t len)
   @retval
   0 Memory is not available
 */
-static inline my_bool is_mem_available(MEM_ROOT *mem_root, size_t size)
+static inline bool is_mem_available(MEM_ROOT *mem_root, size_t size)
 {
   if (mem_root->max_capacity)
   {
@@ -568,7 +569,7 @@ void set_memroot_max_capacity(MEM_ROOT *mem_root, size_t max_value)
   @param report_error    set to true if error should be reported
                          else set to false
 */
-void set_memroot_error_reporting(MEM_ROOT *mem_root, my_bool report_error)
+void set_memroot_error_reporting(MEM_ROOT *mem_root, bool report_error)
 {
   DBUG_ASSERT(alloc_root_inited(mem_root));
   mem_root->error_for_capacity_exceeded= report_error;

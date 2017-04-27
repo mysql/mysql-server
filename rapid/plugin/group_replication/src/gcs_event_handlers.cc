@@ -13,16 +13,17 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#include <stddef.h>
 #include <algorithm>
 #include <string>
 #include <vector>
 
 #include "gcs_event_handlers.h"
 #include "my_dbug.h"
+#include "plugin.h"
 #include "pipeline_stats.h"
 #include "plugin.h"
 #include "single_primary_message.h"
-#include "sql_service_gr_user.h"
 
 using std::vector;
 
@@ -85,12 +86,13 @@ Plugin_gcs_events_handler::on_message_received(const Gcs_message& message) const
     break;
 
   default:
-    DBUG_ASSERT(0); /* purecov: inspected */
+    break; /* purecov: inspected */
   }
 }
 
 void
-Plugin_gcs_events_handler::handle_transactional_message(const Gcs_message& message) const
+Plugin_gcs_events_handler::
+handle_transactional_message(const Gcs_message& message) const
 {
   if ( (local_member_info->get_recovery_status() == Group_member_info::MEMBER_IN_RECOVERY ||
         local_member_info->get_recovery_status() == Group_member_info::MEMBER_ONLINE) &&
@@ -174,7 +176,7 @@ Plugin_gcs_events_handler::handle_recovery_message(const Gcs_message& message) c
         (local_member_info->get_role() == Group_member_info::MEMBER_ROLE_PRIMARY ||
          !local_member_info->in_primary_mode()))
     {
-      if (reset_server_read_mode(true))
+      if (reset_server_read_mode(PSESSION_INIT_THREAD))
       {
         log_message(MY_WARNING_LEVEL,
                     "When declaring the plugin online it was not possible to "
@@ -333,6 +335,15 @@ Plugin_gcs_events_handler::on_view_changed(const Gcs_view& new_view,
   //update the Group Manager with all the received states
   this->update_group_info_manager(new_view, exchanged_data, is_leaving);
 
+  //enable conflict detection if someone on group have it enabled
+  if (local_member_info->in_primary_mode() &&
+      group_member_mgr->is_conflict_detection_enabled())
+  {
+    Certifier_interface *certifier=
+        this->applier_module->get_certification_handler()->get_certifier();
+    certifier->enable_conflict_detection();
+  }
+
   //Inform any interested handler that the view changed
   View_change_pipeline_action *vc_action=
     new View_change_pipeline_action(is_leaving);
@@ -392,6 +403,55 @@ Plugin_gcs_events_handler::was_member_expelled_from_group(const Gcs_view& view) 
   DBUG_RETURN(result);
 }
 
+std::vector<Group_member_info*>::iterator
+Plugin_gcs_events_handler::sort_and_get_lowest_version_member_position(
+  std::vector<Group_member_info*>* all_members_info) const
+{
+  std::vector<Group_member_info*>::iterator it;
+
+  // sort in ascending order of lower member version
+  std::sort(all_members_info->begin(), all_members_info->end(),
+            Group_member_info::comparator_group_member_version);
+
+  /* if vector contains only single version then leader should be picked from
+     all members
+   */
+  std::vector<Group_member_info*>::iterator lowest_version_end=
+    all_members_info->end();
+
+  /* first member will have lowest version as members are already
+     sorted above using member_version.
+   */
+  it= all_members_info->begin();
+  Group_member_info* first_member= *it;
+  uint32 lowest_major_version=
+    first_member->get_member_version().get_major_version();
+
+  /* to avoid read compatibility issue leader should be picked only from lowest
+     version members so save position where member version differs
+   */
+  for(it= all_members_info->begin() + 1; it != all_members_info->end(); it++)
+  {
+    if (lowest_major_version != (*it)->get_member_version().get_major_version())
+    {
+      lowest_version_end= it;
+      break;
+    }
+  }
+
+  return lowest_version_end;
+}
+
+void Plugin_gcs_events_handler::sort_members_for_election(
+       std::vector<Group_member_info*>* all_members_info,
+       std::vector<Group_member_info*>::iterator lowest_version_end) const
+{
+  // sort only lower version members as they only will be needed to pick leader
+  std::sort(all_members_info->begin(), lowest_version_end,
+            Group_member_info::comparator_group_member_uuid);
+
+}
+
 void Plugin_gcs_events_handler::handle_leader_election_if_needed() const
 {
   // take action if in single leader mode
@@ -407,8 +467,16 @@ void Plugin_gcs_events_handler::handle_leader_election_if_needed() const
     group_member_mgr->get_all_members();
 
   std::vector<Group_member_info*>::iterator it;
-  std::sort(all_members_info->begin(), all_members_info->end(),
-            Group_member_info::comparator_group_member_info);
+  std::vector<Group_member_info*>::iterator lowest_version_end;
+
+  /* sort members based on member_version and get first iterator position
+     where member version differs
+   */
+  lowest_version_end=
+    sort_and_get_lowest_version_member_position(all_members_info);
+
+  // sort lower version members based on uuid
+  sort_members_for_election(all_members_info, lowest_version_end);
 
   /*
    1. Iterate over the list of all members and check if there is a primary
@@ -441,10 +509,13 @@ void Plugin_gcs_events_handler::handle_leader_election_if_needed() const
   /* If I am not leaving, then run election. Otherwise do nothing. */
   if (!am_i_leaving)
   {
-    Sql_service_command *sql_command_interface= new Sql_service_command();
+    Sql_service_command_interface *sql_command_interface=
+        new Sql_service_command_interface();
     bool skip_set_super_readonly= false;
     if (sql_command_interface == NULL ||
-        sql_command_interface->establish_session_connection(true, get_plugin_pointer()) ||
+        sql_command_interface->
+            establish_session_connection(PSESSION_INIT_THREAD,
+                                         get_plugin_pointer()) ||
         sql_command_interface->set_interface_user(GROUPREPL_USER))
     {
       log_message(MY_WARNING_LEVEL,
@@ -468,11 +539,14 @@ void Plugin_gcs_events_handler::handle_leader_election_if_needed() const
 
      The assumption is that std::sort(...) is deterministic
      on all members.
+
+     To pick leaders from only lowest version members loop
+     till lowest_version_end.
     */
     if (the_primary == NULL)
     {
       for (it= all_members_info->begin();
-           it != all_members_info->end() && the_primary == NULL;
+           it != lowest_version_end && the_primary == NULL;
            it++)
       {
         Group_member_info* mi= *it;
@@ -489,7 +563,8 @@ void Plugin_gcs_events_handler::handle_leader_election_if_needed() const
     {
       std::string primary_uuid= the_primary->get_uuid();
       const bool is_primary_local= !primary_uuid.compare(local_member_info->get_uuid());
-      const bool has_primary_changed = Group_member_info::MEMBER_ROLE_PRIMARY != the_primary->get_role();
+      const bool has_primary_changed=
+          Group_member_info::MEMBER_ROLE_PRIMARY != the_primary->get_role();
 
       if (has_primary_changed)
       {
@@ -563,10 +638,10 @@ void Plugin_gcs_events_handler::handle_leader_election_if_needed() const
   delete all_members_info;
 }
 
-void Plugin_gcs_events_handler::update_group_info_manager(const Gcs_view& new_view,
-                                                          const Exchanged_data &exchanged_data,
-                                                          bool is_leaving)
-                                                          const
+void Plugin_gcs_events_handler::
+update_group_info_manager(const Gcs_view& new_view,
+                          const Exchanged_data &exchanged_data,
+                          bool is_leaving) const
 {
   //update the Group Manager with all the received states
   vector<Group_member_info*> to_update;
@@ -655,7 +730,7 @@ void Plugin_gcs_events_handler::handle_joining_members(const Gcs_view& new_view,
     /**
       Set the read mode if not set during start (auto-start)
     */
-    if (set_server_read_mode(true))
+    if (set_server_read_mode(PSESSION_INIT_THREAD))
     {
       log_message(MY_ERROR_LEVEL,
                   "Error when activating super_read_only mode on start. "
@@ -767,7 +842,7 @@ void Plugin_gcs_events_handler::handle_joining_members(const Gcs_view& new_view,
 
     std::string view_id= new_view.get_view_id().get_representation();
     View_change_packet * view_change_packet= new View_change_packet(view_id);
-    collect_members_executed_sets(new_view.get_joined_members(), view_change_packet);
+    collect_members_executed_sets(view_change_packet);
     applier_module->add_view_change_packet(view_change_packet);
   }
 }
@@ -895,12 +970,14 @@ Plugin_gcs_events_handler::get_exchangeable_data() const
   std::string applier_retrieved_gtids;
   Replication_thread_api applier_channel("group_replication_applier");
 
-  Sql_service_command *sql_command_interface= new Sql_service_command();
+  Sql_service_command_interface *sql_command_interface=
+      new Sql_service_command_interface();
 
-  if(sql_command_interface->
-      establish_session_connection(true, get_plugin_pointer()) ||
-     sql_command_interface->set_interface_user(GROUPREPL_USER)
-    )
+  if (sql_command_interface->
+          establish_session_connection(PSESSION_INIT_THREAD,
+                                       get_plugin_pointer()) ||
+      sql_command_interface->set_interface_user(GROUPREPL_USER)
+     )
   {
     log_message(MY_WARNING_LEVEL,
                 "Error when extracting information for group change. "
@@ -1259,8 +1336,7 @@ cleaning:
 }
 
 void Plugin_gcs_events_handler::
-collect_members_executed_sets(const vector<Gcs_member_identifier> &joining_members,
-                              View_change_packet *view_packet) const
+collect_members_executed_sets(View_change_packet *view_packet) const
 {
   std::vector<Group_member_info*> *all_members= group_member_mgr->get_all_members();
   std::vector<Group_member_info*>::iterator all_members_it;

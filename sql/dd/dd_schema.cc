@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "dd_schema.h"
+#include "sql/dd/dd_schema.h"
 
 #include <memory>                             // unique_ptr
 
@@ -28,14 +28,12 @@
 #include "m_string.h"
 #include "mdl.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld.h"                           // lower_case_table_names
 #include "mysqld_error.h"
 #include "sql_class.h"                        // THD
 #include "system_variables.h"
-#include "transaction.h"                      // trans_commit
 
 namespace dd {
 
@@ -60,91 +58,15 @@ bool create_schema(THD *thd, const char *schema_name,
                    const CHARSET_INFO *charset_info)
 {
   // Create dd::Schema object.
-  dd::Schema *sch_obj= dd::create_object<dd::Schema>();
+  std::unique_ptr<dd::Schema> schema(dd::create_object<dd::Schema>());
 
   // Set schema name and collation id.
-  sch_obj->set_name(schema_name);
+  schema->set_name(schema_name);
   DBUG_ASSERT(charset_info);
-  sch_obj->set_default_collation_id(charset_info->number);
-
-  Disable_gtid_state_update_guard disabler(thd);
-
-  // Wrap the pointer in a unique_ptr to ease memory management.
-  std::unique_ptr<dd::Schema> wrapped_sch_obj(sch_obj);
+  schema->set_default_collation_id(charset_info->number);
 
   // Store the schema. Error will be reported by the dictionary subsystem.
-  if (thd->dd_client()->store(wrapped_sch_obj.get()))
-    return true;
-
-  return false;
-}
-
-
-bool alter_schema(THD *thd, const char *schema_name,
-                  const CHARSET_INFO *charset_info)
-{
-  dd::cache::Dictionary_client *client= thd->dd_client();
-  dd::cache::Dictionary_client::Auto_releaser releaser(client);
-
-  // Get dd::Schema object.
-  dd::Schema *sch_obj= nullptr;
-  if (client->acquire_for_modification(schema_name, &sch_obj))
-  {
-    // Error is reported by the dictionary subsystem.
-    return true;
-  }
-
-  if (!sch_obj)
-  {
-    my_error(ER_NO_SUCH_DB, MYF(0), schema_name);
-    return true;
-  }
-
-  // Set new collation ID.
-  sch_obj->set_default_collation_id(charset_info->number);
-
-  Disable_gtid_state_update_guard disabler(thd);
-
-  // Update schema.
-  if (client->update(sch_obj))
-    return true;
-
-  return false;
-}
-
-
-bool drop_schema(THD *thd, const char *schema_name)
-{
-  dd::cache::Dictionary_client *client= thd->dd_client();
-
-  dd::cache::Dictionary_client::Auto_releaser releaser(client);
-  // Get the schema.
-  const dd::Schema *sch_obj= NULL;
-  DEBUG_SYNC(thd, "before_acquire_in_drop_schema");
-  if (client->acquire(schema_name, &sch_obj))
-  {
-    // Error is reported by the dictionary subsystem.
-    return true;
-  }
-
-  DBUG_EXECUTE_IF("pretend_no_schema_in_drop_schema",
-  {
-    sch_obj= NULL;
-  });
-
-  if (!sch_obj)
-  {
-    my_error(ER_BAD_DB_ERROR, MYF(0), schema_name);
-    return true;
-  }
-
-  Disable_gtid_state_update_guard disabler(thd);
-
-  // Drop the schema.
-  if (client->drop(sch_obj))
-    return true;
-
-  return false;
+  return thd->dd_client()->store(schema.get());
 }
 
 

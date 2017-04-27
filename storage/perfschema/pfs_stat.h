@@ -287,7 +287,7 @@ struct PFS_rwlock_stat
   }
 };
 
-/** Statistics for COND usage. */
+/** Statistics for conditions usage. */
 struct PFS_cond_stat
 {
   /** Wait statistics. */
@@ -326,7 +326,7 @@ struct PFS_cond_stat
   }
 };
 
-/** Statistics for FILE IO. Used for both waits and byte counts. */
+/** Statistics for FILE I/O. Used for both waits and byte counts. */
 struct PFS_file_io_stat
 {
   /** READ statistics */
@@ -376,7 +376,7 @@ struct PFS_file_stat
 {
   /** Number of current open handles. */
   ulong m_open_count;
-  /** File IO statistics. */
+  /** File I/O statistics. */
   PFS_file_io_stat m_io_stat;
 
   inline void
@@ -844,7 +844,7 @@ struct PFS_error_stat
   }
 };
 
-/** Single table io statistic. */
+/** Single table I/O statistic. */
 struct PFS_table_io_stat
 {
   bool m_has_data;
@@ -974,7 +974,7 @@ struct PFS_table_stat
   */
   PFS_table_lock_stat m_lock_stat;
 
-  /** Reset table io statistic. */
+  /** Reset table I/O statistic. */
   inline void
   reset_io(void)
   {
@@ -1092,7 +1092,7 @@ struct PFS_table_stat
   static struct PFS_table_stat g_reset_template;
 };
 
-/** Statistics for SOCKET IO. Used for both waits and byte counts. */
+/** Statistics for SOCKET I/O. Used for both waits and byte counts. */
 struct PFS_socket_io_stat
 {
   /** READ statistics */

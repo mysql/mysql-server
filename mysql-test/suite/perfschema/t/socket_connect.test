@@ -4,7 +4,6 @@
 #
 #==============================================================================
 
---source include/not_embedded.inc
 --source ../include/wait_for_pfs_thread_count.inc
 
 # Since within the WL#7158 a transport used for initial(default) conneciton in mt

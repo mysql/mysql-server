@@ -44,6 +44,8 @@ Created 10/16/1994 Heikki Tuuri
 
 #include "btr0cur.h"
 
+#include <assert.h>
+
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "row0upd.h"
@@ -2870,7 +2872,6 @@ btr_cur_ins_lock_and_undo(
 	ut_ad(!dict_index_is_online_ddl(index)
 	      || index->is_clustered()
 	      || (flags & BTR_CREATE_FLAG));
-	ut_ad(mtr->is_named_space(index->space));
 
 	/* Check if there is predicate or GAP lock preventing the insertion */
 	if (!(flags & BTR_NO_LOCKING_FLAG)) {
@@ -3439,7 +3440,6 @@ btr_cur_upd_lock_and_undo(
 	index = cursor->index;
 
 	ut_ad(rec_offs_validate(rec, index, offsets));
-	ut_ad(mtr->is_named_space(index->space));
 
 	if (!index->is_clustered()) {
 		ut_ad(dict_index_is_online_ddl(index)
@@ -4625,7 +4625,6 @@ btr_cur_del_mark_set_clust_rec_log(
 	byte*	log_ptr;
 
 	ut_ad(!!page_rec_is_comp(rec) == dict_table_is_comp(index->table));
-	ut_ad(mtr->is_named_space(index->space));
 
 	log_ptr = mlog_open_and_write_index(mtr, rec, index,
 					    page_rec_is_comp(rec)
@@ -4761,7 +4760,6 @@ btr_cur_del_mark_set_clust_rec(
 	ut_ad(!!page_rec_is_comp(rec) == dict_table_is_comp(index->table));
 	ut_ad(buf_block_get_frame(block) == page_align(rec));
 	ut_ad(page_is_leaf(page_align(rec)));
-	ut_ad(mtr->is_named_space(index->space));
 
 	if (rec_get_deleted_flag(rec, rec_offs_comp(offsets))) {
 		/* While cascading delete operations, this becomes possible. */
@@ -5059,7 +5057,6 @@ btr_cur_optimistic_delete_func(
 				MTR_MEMO_PAGE_X_FIX));
 	ut_ad(mtr_is_block_fix(mtr, btr_cur_get_block(cursor),
 			       MTR_MEMO_PAGE_X_FIX, cursor->index->table));
-	ut_ad(mtr->is_named_space(cursor->index->space));
 
 	/* This is intended only for leaf page deletions */
 
@@ -5188,7 +5185,6 @@ btr_cur_pessimistic_delete(
 					| MTR_MEMO_SX_LOCK)
 	      || index->table->is_intrinsic());
 	ut_ad(mtr_is_block_fix(mtr, block, MTR_MEMO_PAGE_X_FIX, index->table));
-	ut_ad(mtr->is_named_space(index->space));
 
 	if (!has_reserved_extents) {
 		/* First reserve enough free space for the file segments

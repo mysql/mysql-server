@@ -15,12 +15,12 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "init_net_server_extension.h"
+#include "sql/conn_handler/init_net_server_extension.h"
 
 #include <stddef.h>
 
+#include "lex_string.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "mysql/psi/mysql_idle.h"       // MYSQL_SOCKET_SET_STATE,
 #include "mysql/psi/mysql_socket.h"
@@ -40,8 +40,8 @@
 PSI_statement_info stmt_info_new_packet;
 #endif
 
-#ifdef HAVE_PSI_INTERFACE
-static void net_before_header_psi(struct st_net *net, void *user_data,
+static void net_before_header_psi(struct st_net *net MY_ATTRIBUTE((unused)),
+                                  void *user_data,
                                   size_t /* unused: count */)
 {
   THD *thd;
@@ -62,8 +62,9 @@ static void net_before_header_psi(struct st_net *net, void *user_data,
   }
 }
 
-static void net_after_header_psi(struct st_net *net, void *user_data,
-                                 size_t /* unused: count */, my_bool rc)
+static void net_after_header_psi(struct st_net *net MY_ATTRIBUTE((unused)),
+                                 void *user_data,
+                                 size_t /* unused: count */, bool rc)
 {
   THD *thd;
   thd= static_cast<THD*> (user_data);
@@ -93,6 +94,10 @@ static void net_after_header_psi(struct st_net *net, void *user_data,
                                                   thd->db().length,
                                                   thd->charset(), NULL);
 
+      /*
+        Starts a new stage in performance schema, if compiled in and enabled.
+        Also sets THD::proc_info (used by SHOW PROCESSLIST, column STATE)
+      */
       THD_STAGE_INFO(thd, stage_starting);
     }
 
@@ -112,6 +117,7 @@ void init_net_server_extension(THD *thd)
   thd->m_idle_psi= NULL;
   thd->m_statement_psi= NULL;
   thd->m_server_idle= false;
+
   /* Hook up the NET_SERVER callback in the net layer. */
   thd->m_net_server_extension.m_user_data= thd;
   thd->m_net_server_extension.m_before_header= net_before_header_psi;
@@ -121,4 +127,3 @@ void init_net_server_extension(THD *thd)
   thd->get_protocol_classic()->get_net()->extension=
     &thd->m_net_server_extension;
 }
-#endif // HAVE_PSI_INTERFACE

@@ -1,10 +1,8 @@
 # This test scripts covers upgrade of tables, views, tablespaces,
 # events, stored routines and triggers from 5.7 to 8.0.
 
---source include/not_embedded.inc
 --source include/not_valgrind.inc
 #Zipped data directory was created with default 16K page size
---source include/have_innodb_16k.inc
 
 call mtr.add_suppression("Plugin * after shutdown");
 call mtr.add_suppression(".* Native table .* has the wrong structure");
@@ -24,15 +22,23 @@ call mtr.add_suppression("information_schema");
 call mtr.add_suppression("doesn't exist");
 call mtr.add_suppression("references invalid");
 call mtr.add_suppression("Creating routine without parsing routine body");
+call mtr.add_suppression(".*The privilege system failed to initialize correctly.*");
 call mtr.add_suppression("Resolving dependency for the view");
 call mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
 call mtr.add_suppression("Unknown system variable 'show_compatibility_56'");
 call mtr.add_suppression("Column count of mysql.* is wrong");
+call mtr.add_suppression("Column count of performance_schema.events_statements_summary_by_digest is wrong.*");
+call mtr.add_suppression(".*Missing system table mysql.global_grants.*");
 # InnoDB reports "Lock wait timeout" warnings when it tries to drop persistent
 # statistics while persistent statistics table is altered during upgrade.
 # This issue doesn't seem to cause any further trouble (as there is no persistent
 # stats for persistent stats table anyway), so we ignore these warnings here.
 call mtr.add_suppression("InnoDB: Unable to delete statistics for table mysql.");
+# new columns were added to these tables
+call mtr.add_suppression("Column count of performance_schema.replication_applier_status_by_worker is wrong. Expected 16, found 8.");
+call mtr.add_suppression("Column count of performance_schema.replication_applier_status_by_coordinator is wrong. Expected 15, found 6.");
+call mtr.add_suppression("Column count of performance_schema.replication_connection_status is wrong. Expected 20, found 11.");
+call mtr.add_suppression("\\[Warning\\] InnoDB: Parent table of FTS auxiliary table.*");
 # Set different paths for --datadir
 let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/data57;
 
@@ -45,6 +51,28 @@ let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/data57;
 
 --echo # Unzip the zip file.
 --exec unzip -qo $MYSQL_TMP_DIR/data57.zip -d $MYSQL_TMP_DIR
+
+--echo #
+--echo # BUG#25805260: MYSQL 8.0.X CRASHES WHEN OLD-STYLE TRIGGER MISSES THE
+--echo # "CREATED" LINE IN .TRG.
+--echo #
+
+--echo # Create a trigger without 'created' line. Without patch,
+--echo # the server exits during upgrade of trigger.
+--write_file $MYSQL_TMP_DIR/data57/test/vt2.TRG
+TYPE=TRIGGERS
+triggers='CREATE DEFINER=`root`@`localhost` TRIGGER tr1_bi BEFORE INSERT ON vt2 FOR EACH ROW SET @a:=1'
+sql_modes=1073741824 1073741824
+definers='root@localhost' 'root@localhost'
+client_cs_names='latin1' 'latin1'
+connection_cl_names='latin1_swedish_ci' 'latin1_swedish_ci'
+db_cl_names='latin1_swedish_ci' 'latin1_swedish_ci'
+EOF
+
+--write_file $MYSQL_TMP_DIR/data57/test/tr1_bi.TRN
+TYPE=TRIGGERNAME
+trigger_table=vt2
+EOF
 
 # Create a table as same as mysql.proc to repeat Bug#24805140
 # We need to add an entry in mysql.proc table of the zipped
@@ -132,6 +160,30 @@ INSERT INTO test.proc VALUES ('sp','bug24805140','PROCEDURE','bug24805140','SQL'
                               'utf8','utf8_general_ci','latin1_swedish_ci',
                               'begin select   @@show_compatibility_56 into b; end');
 
+
+# Data for Bug#25633041 : SHOW CREATE PROC/FUNCTION RESULT
+#                         AFTER LIVEUPGR IS DIFFERENT TO DUMPUPGR
+INSERT INTO `proc` VALUES ('test','downgrade_alter_proc','PROCEDURE',
+                           'downgrade_alter_proc',
+                           'SQL','CONTAINS_SQL','NO','INVOKER','','',
+                           'BEGIN\n      SELECT c1, English, French FROM t1 '
+                           'JOIN t2 ON t1.c3 = t2.col2;\n     END',
+                           'root@localhost','1988-04-25 20:45:00',
+                           '1988-04-25 20:45:00','NO_ZERO_DATE','','latin1',
+                           'latin1_swedish_ci','latin1_swedish_ci',
+                           'BEGIN\n      SELECT c1, English, French FROM t1 '
+                           'JOIN t2 ON t1.c3 = t2.col2;\n     END'),
+                          ('test','my_test_func','FUNCTION','myfunc','SQL',
+                           'CONTAINS_SQL','NO','DEFINER', '',
+                           'varchar(20) CHARSET latin1',
+                           'BEGIN\n  RETURN \'å\';\nEND',
+                           'root@localhost','2017-03-08 09:07:36',
+                           '2017-03-08 09:07:36', 'ONLY_FULL_GROUP_BY,'
+                           'STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,'
+                           'ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,'
+                           'NO_ENGINE_SUBSTITUTION','','latin1','latin1_swedish_ci',
+                           'latin1_swedish_ci','BEGIN\n  RETURN \'Ã¥\';\nEND');
+
 # Remove  the original zipped data and index files.
 --remove_file $MYSQL_TMP_DIR/data57/mysql/proc.MYD
 --remove_file $MYSQL_TMP_DIR/data57/mysql/proc.MYI
@@ -155,6 +207,7 @@ DROP TABLE test.proc;
 # Remove myisam partitioned tables. There are used for negative testing.
 --remove_files_wildcard $MYSQL_TMP_DIR/data57/partitions *
 --rmdir $MYSQL_TMP_DIR/data57/partitions
+--force-rmdir $MYSQL_TMP_DIR/data57/mismatch_frms
 
 #Copy table and view files as test case for Bug#24580586
 --copy_file $MYSQLTEST_VARDIR/std_data/initial_t@1o.frm $MYSQL_TMP_DIR/data57/test/initial_t@1o.frm
@@ -177,12 +230,36 @@ EOF
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 --exec echo $MYSQL_TMP_DIR/bootstrap.log
 
+let MYSQLD_LOG= $MYSQL_TMP_DIR/server.log;
 
 --echo # Start the DB server. Server will create and populate Dictionary tables.
---exec echo "restart: --loose-skip-log-bin --innodb_undo_tablespaces=0 --datadir=$MYSQLD_DATADIR1" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart: --loose-skip-log-bin --innodb_undo_tablespaces=0 --datadir=$MYSQLD_DATADIR1 --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 
+# Test for Bug#25518436 : MYSQL 8.0.1 - MYSQLD ERRORLOG HAS UPGRADE ERRORS
+#                         AT SERVER START AT LIVE UPGRADE
+# check for errors from sys schema.
+# These errors should not be there.
+--echo #Look for error.
+perl;
+  use strict;
+  my $log= $ENV{'MYSQLD_LOG'} or die;
+  open(FILE, "$log") or die;
+  my $c_e= grep(/\[Warning\] Parsing \'sys\.diagnostics\' routine body failed\. Creating routine without parsing routine body/gi,<FILE>);
+  print "# Sys Schema routine parsing warning found : $c_e times.\n";
+  seek(FILE,0,0);
+  $c_e= grep(/\[ERROR\] .* Unknown system variable \'show_compatibility_56\'/gi,<FILE>);
+  print "# Sys Schema routine parsing error found : $c_e times.\n";
+  seek(FILE,0,0);
+  $c_e= grep(/\[Warning\] Resolving dependency for the view \'sys\.innodb_lock_waits\' failed\. View is no more valid to use/gi,<FILE>);
+  print "# Sys Schema view parsing warning found : $c_e times.\n";
+  seek(FILE,0,0);
+  $c_e= grep(/\[ERROR\] .* Unknown table \'INNODB_LOCK_WAITS\' in information_schema/gi,<FILE>);
+  print "# Sys Schema view parsing error found : $c_e times.\n";
+  close(FILE);
+EOF
+#End of test case for Bug#25518436
 
 --echo # Sanity Testing after Server start
 CREATE SCHEMA test123;
@@ -269,6 +346,14 @@ SHOW CREATE EVENT events.e_totals;
 #Check for fulltext index
 SHOW CREATE TABLE test.opening_lines;
 
+#Check data for Bug#25633041
+SHOW CREATE PROCEDURE test.downgrade_alter_proc;
+SHOW CREATE FUNCTION test.my_test_func;
+SELECT ROUTINE_NAME, CHARACTER_SET_NAME, CHARACTER_SET_CLIENT,  COLLATION_CONNECTION,
+  DATABASE_COLLATION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA='test'
+  ORDER BY ROUTINE_NAME;
+
+
 # Check for General tablespace
 SHOW CREATE TABLE tablespace.t2;
 SHOW CREATE TABLE tablespace.t3;
@@ -303,6 +388,9 @@ SHOW CREATE TRIGGER triggers.trg1;
 --replace_column 7 #
 SHOW CREATE TRIGGER triggers.t1_bi;
 
+--replace_column 7 #
+SHOW CREATE TRIGGER test.tr1_bi;
+
 #I_S query to check Foreign_keys
 SELECT * FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS WHERE
  CONSTRAINT_SCHEMA='foreign_keys' ORDER BY CONSTRAINT_SCHEMA,CONSTRAINT_NAME;
@@ -318,12 +406,27 @@ SELECT * FROM view_with_column_names.v3;
 SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE
 TABLE_SCHEMA='view_with_column_names';
 
+# restart on the upgraded data dir
+--replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
+let $restart_parameters = "restart: --loose-skip-log-bin --innodb_undo_tablespaces=0 --datadir=$MYSQLD_DATADIR1";
+--source include/restart_mysqld.inc
+let $restart_parameters =;
+
+# execute FTS queries that modify FTS pages
+select count(*) from sakila.film_text;
+#set global innodb_ft_aux_table='sakila/film_text';
+select * from sakila.film_text where film_id = 984;
+select * from sakila.film_text where match(title,description) against("SCISSORHANDS");
+delete from sakila.film_text where film_id = 984;
+SET GLOBAL innodb_optimize_fulltext_only=ON;
+optimize table sakila.film_text;
+
 --echo # Stop the server
 --source include/shutdown_mysqld.inc
 
 #Remove copied files
 --remove_file $MYSQL_TMP_DIR/data57.zip
-
+--remove_file $MYSQLD_LOG
 --force-rmdir $MYSQL_TMP_DIR/data57
 
 --echo # Restart the server with default options.

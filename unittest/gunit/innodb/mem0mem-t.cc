@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,15 +18,14 @@
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
 
-#include "univ.i"
+#include <gtest/gtest.h>
+#include <stddef.h>
 
+#include "handler.h"
 #include "mem0mem.h"
 #include "srv0conc.h"
 #include "srv0srv.h"
-
-#include "handler.h"
-
-#include <gtest/gtest.h>
+#include "univ.i"
 
 namespace innodb_mem0mem_unittest {
 

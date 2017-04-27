@@ -22,7 +22,7 @@
 
 create user updateitemmerge@localhost identified by 'updateitemmerge';
 grant all on *.* to updateitemmerge@localhost;
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 ## TEST STARTS HERE
 --echo ================================================================================
 --echo TEST START

@@ -18,18 +18,18 @@
   Memory statistics aggregation (implementation).
 */
 
-#include "my_global.h"
+#include "storage/perfschema/pfs_memory.h"
+
+#include "m_string.h"
 #include "my_sys.h"
-#include "pfs_global.h"
-#include "pfs_instr_class.h"
-#include "pfs_instr.h"
 #include "pfs_account.h"
-#include "pfs_host.h"
-#include "pfs_user.h"
 #include "pfs_atomic.h"
 #include "pfs_buffer_container.h"
-#include "m_string.h"
-#include "pfs_memory.h"
+#include "pfs_global.h"
+#include "pfs_host.h"
+#include "pfs_instr.h"
+#include "pfs_instr_class.h"
+#include "pfs_user.h"
 
 static void
 fct_reset_memory_by_thread(PFS_thread *pfs)

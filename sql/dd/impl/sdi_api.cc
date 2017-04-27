@@ -15,24 +15,25 @@
 
 #include "dd/sdi_api.h"
 
-#include "auth/auth_common.h"      // CREATE_ACL
-#include "dd_sql_view.h"           // update_referencing_views_metadata()
-#include "mdl.h"                   // MDL_request
-#include "mysqld.h"                // lower_case_table_names
-#include "mysql/psi/mysql_file.h"  // mysql_file_x
-#include "sql_class.h"             // THD
-#include "strfunc.h"               // casedn
-#include "sql_base.h"              // open_tables()
-#include "table.h"                 // TABLE_LIST
+#include <sys/types.h>
 
-#include "dd/dd.h"
-#include "dd/sdi_file.h"           // dd::sdi_file::load
+#include "auth/auth_common.h"      // CREATE_ACL
 #include "dd/cache/dictionary_client.h" // dd::Dictionary_client
-#include "dd/types/schema.h"       // dd::Schema
-#include "dd/types/table.h"        // dd::Table
-#include "dd/impl/types/object_table_definition_impl.h" // Object_table_definition::fs_collation()
+#include "dd/dd.h"
 #include "dd/impl/sdi.h"           // dd::deserialize
 #include "dd/impl/sdi_utils.h"     // dd::sdi_utils::handle_errors
+#include "dd/impl/types/object_table_definition_impl.h" // Object_table_definition::fs_collation()
+#include "dd/sdi_file.h"           // dd::sdi_file::load
+#include "dd/types/schema.h"       // dd::Schema
+#include "dd/types/table.h"        // dd::Table
+#include "dd_sql_view.h"           // update_referencing_views_metadata()
+#include "mdl.h"                   // MDL_request
+#include "mysql/psi/mysql_file.h"  // mysql_file_x
+#include "mysqld.h"                // lower_case_table_names
+#include "sql_base.h"              // open_tables()
+#include "sql_class.h"             // THD
+#include "strfunc.h"               // casedn
+#include "table.h"                 // TABLE_LIST
 
 
 namespace dd {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,18 +15,19 @@
 
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
-#include <cstring>
-#include <iostream>
-#include <fstream>
-#include <gtest/gtest.h>
+
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
 #include <m_ctype.h>
+#include <sys/types.h>
+#include <cstring>
+#include <fstream>
+#include <iostream>
 #include <string>
 
-#include "json_path.h"
 #include "json_dom.h"
+#include "json_path.h"
 #include "sql_string.h"
-
 #include "test_utils.h"
 
 /**
@@ -207,7 +208,7 @@ void good_path(bool begins_with_column_id, const char *path_expression,
 }
 
 /** Shorter form of good_path() */
-void good_path(bool begins_with_column_id, const char *path_expression)
+void good_path(bool, const char *path_expression)
 {
   good_path(false, false, path_expression, "");
 }

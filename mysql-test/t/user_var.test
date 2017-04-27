@@ -78,7 +78,7 @@ select @a,@a:="hello",@a,@a:=3,@a,@a:="hello again" from t1 group by i;
 drop table t1;
 
 #
-# Bug #2244: User variables didn't copy collation and derivation
+# Bug #2244: User variables did not copy collation and derivation
 # attributes from values they were initialized to.
 #
 
@@ -516,4 +516,3 @@ SELECT 1 NOT IN (SELECT 1 FROM t1 as t1 ORDER BY 1 LIKE (SELECT 1 FROM t1 as t2)
 SET @c =(SELECT 1 NOT IN (SELECT 1 FROM t1 as t1 GROUP BY 1 LIKE (SELECT 1 FROM t1 as t2)) AS col);
 SET @d =(SELECT 1 NOT IN (SELECT 1 FROM t1 as t1 ORDER BY 1 LIKE (SELECT 1 FROM t1 as t2)) AS col);
 DROP TABLE t1; 
-

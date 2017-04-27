@@ -165,7 +165,7 @@ our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 
 # If you add a new suite, please check TEST_DIRS in Makefile.am.
 #
-my $DEFAULT_SUITES= "main,sys_vars,binlog,binlog_gtid,binlog_nogtid,federated,gis,rpl,rpl_gtid,rpl_nogtid,innodb,innodb_gis,innodb_fts,innodb_zip,innodb_undo,perfschema,funcs_1,opt_trace,parts,auth_sec,query_rewrite_plugins,gcol,sysschema,test_service_sql_api,json,connection_control";
+my $DEFAULT_SUITES= "main,sys_vars,binlog,binlog_gtid,binlog_nogtid,federated,gis,rpl,rpl_gtid,rpl_nogtid,innodb,innodb_gis,innodb_fts,innodb_zip,innodb_undo,perfschema,funcs_1,opt_trace,parts,auth_sec,query_rewrite_plugins,gcol,sysschema,test_service_sql_api,json,connection_control,test_services,collations";
 my $opt_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
@@ -221,7 +221,7 @@ sub using_extern { return (keys %opts_extern > 0);};
 
 our $opt_fast= 0;
 our $opt_force;
-our $opt_mem= $ENV{'MTR_MEM'};
+our $opt_mem= $ENV{'MTR_MEM'} ? 1 : 0;
 our $opt_clean_vardir= $ENV{'MTR_CLEAN_VARDIR'};
 
 our $opt_gcov;
@@ -268,6 +268,8 @@ my $opt_build_thread= $ENV{'MTR_BUILD_THREAD'} || "auto";
 my $opt_port_base= $ENV{'MTR_PORT_BASE'} || "auto";
 my $build_thread= 0;
 
+my $previous_test_had_bootstrap_opts = 0;
+
 my $ports_per_thread= 10;
 our $group_replication= 0;
 our $xplugin= 0;
@@ -302,6 +304,7 @@ my $opt_user_args;
 my $opt_repeat= 1;
 my $opt_retry= 3;
 my $opt_retry_failure= env_or_val(MTR_RETRY_FAILURE => 2);
+our $opt_report_unstable_tests;
 my $opt_reorder= 1;
 my $opt_force_restart= 0;
 
@@ -397,15 +400,19 @@ sub main {
     gcov_prepare($basedir);
   }
 
-  # New: collect suites and test cases from test list (file containing suite.testcase on each line)
-  #      and put suites to $opt_suites and test case to @opt_cases.
-  if ($opt_do_test_list ne "") {
-      	collect_test_cases_from_list(\$opt_suites, \@opt_cases, $opt_do_test_list,\$opt_ctest);
+  # Collect test cases from a file and put them into '@opt_cases'.
+  if ($opt_do_test_list)
+  {
+    collect_test_cases_from_list(\@opt_cases, $opt_do_test_list, \$opt_ctest);
   }
-  if (!$opt_suites) {
+
+  if (!$opt_suites)
+  {
     $opt_suites= $DEFAULT_SUITES;
   }
-  if ($opt_skip_sys_schema) {
+
+  if ($opt_skip_sys_schema)
+  {
     $opt_suites =~ s/,sysschema//;
   }
 
@@ -1316,6 +1323,7 @@ sub command_line_setup {
              'wait-all'                 => \$opt_wait_all,
 	     'print-testcases'          => \&collect_option,
 	     'repeat=i'                 => \$opt_repeat,
+             'report-unstable-tests'    => \$opt_report_unstable_tests,
 	     'retry=i'                  => \$opt_retry,
 	     'retry-failure=i'          => \$opt_retry_failure,
              'timer!'                   => \&report_option,
@@ -1417,7 +1425,7 @@ sub command_line_setup {
                                     "$basedir/sql/share/charsets",
                                     "$basedir/share/charsets");
 
-  ($auth_plugin)= find_plugin("auth_test_plugin", "plugin/auth");
+  ($auth_plugin)= find_plugin("auth_test_plugin", "plugin_output_directory");
 
   # --debug[-common] implies we run debug server
   $opt_debug_server= 1 if $opt_debug || $opt_debug_common;
@@ -1567,7 +1575,7 @@ sub command_line_setup {
     }
   }
 
-  if (IS_WINDOWS and defined $opt_mem) {
+  if (IS_WINDOWS and $opt_mem) {
     mtr_report("--mem not supported on Windows, ignored");
     $opt_mem= undef;
   }
@@ -1596,7 +1604,7 @@ sub command_line_setup {
   # --------------------------------------------------------------------------
   # Check if we should speed up tests by trying to run on tmpfs
   # --------------------------------------------------------------------------
-  if ( defined $opt_mem)
+  if ($opt_mem)
   {
     mtr_error("Can't use --mem and --vardir at the same time ")
       if $opt_vardir;
@@ -1605,12 +1613,14 @@ sub command_line_setup {
 
     # Search through list of locations that are known
     # to be "fast disks" to find a suitable location
-    # Use --mem=<dir> as first location to look.
-    my @tmpfs_locations= ($opt_mem, "/dev/shm", "/tmp");
+    my @tmpfs_locations= ("/dev/shm", "/run/shm", "/tmp");
+
+    # Value set for env variable MTR_MEM=[DIR] is looked as first location.
+    unshift(@tmpfs_locations, $ENV{'MTR_MEM'}) if defined $ENV{'MTR_MEM'};
 
     foreach my $fs (@tmpfs_locations)
     {
-      if ( -d $fs )
+      if (-d $fs and ! -l $fs)
       {
 	my $template= "var_${opt_build_thread}_XXXX";
 	$opt_mem= tempdir( $template, DIR => $fs, CLEANUP => 0);
@@ -1982,7 +1992,7 @@ sub set_build_thread_ports($) {
 
     my $max_parallel= $opt_parallel * $build_threads_per_thread;
     my $build_thread_upper = $build_thread + ($max_parallel > 39
-                             ? $max_parallel + int($max_parallel / 4)
+                             ? $max_parallel + int($max_parallel / 2)
                              : 49);
 
     while (!$found_free)
@@ -4020,6 +4030,13 @@ sub mysql_install_db {
     mtr_tofile($bootstrap_sql_file, "DROP DATABASE sys;\n");
   }
 
+  #Update table with better values making it easier to restore when changed
+  mtr_tofile($bootstrap_sql_file,
+             "UPDATE mysql.tables_priv SET
+               timestamp = CURRENT_TIMESTAMP,
+               Grantor= 'root\@localhost'
+               WHERE USER= 'mysql.session_user';\n");
+
   # Make sure no anonymous accounts exists as a safety precaution
   mtr_tofile($bootstrap_sql_file,
 	     "DELETE FROM mysql.user where user= '';\n");
@@ -4523,6 +4540,38 @@ sub resfile_report_test ($) {
 }
 
 
+# Search the opt file for '--bootstrap' key word.
+# For each instance of '--bootstrap', save the option immediately after it
+# into an array so that datadir can be reinitialized with those options.
+sub find_bootstrap_opts
+{
+  my ($opt_file)= @_;
+
+  my $bootstrap_opt= 0;
+  my $bootstrap_opts;
+
+  foreach my $opt (@$opt_file)
+  {
+    if ($opt =~ /^--bootstrap=/)
+    {
+      $opt =~ s/--bootstrap=//;
+      push(@$bootstrap_opts, $opt);
+    }
+    elsif ($opt eq "--bootstrap")
+    {
+      $bootstrap_opt= 1;
+      next;
+    }
+    elsif ($bootstrap_opt == 1)
+    {
+      push(@$bootstrap_opts, $opt);
+      $bootstrap_opt= 0;
+    }
+  }
+  return $bootstrap_opts if defined $bootstrap_opts;
+}
+
+
 #
 # Run a single test case
 #
@@ -4554,31 +4603,19 @@ sub run_testcase ($) {
   $ENV{'TZ'}= $timezone;
   mtr_verbose("Setting timezone: $timezone");
 
-  # If there are bootstrap options in the opt file, add them
-  my $bootstrap_opt = 0;
-  foreach my $opt (@{$tinfo->{master_opt}})
-  {
-    if ($opt =~ /^--bootstrap=/)
-    {
-      $opt =~ s/--bootstrap=//;
-      push(@{$tinfo->{bootstrap_opt}}, $opt);
-    }
-    elsif ($opt eq "--bootstrap")
-    {
-      $bootstrap_opt = 1;
-      next;
-    }
-    elsif ($bootstrap_opt == 1)
-    {
-      push(@{$tinfo->{bootstrap_opt}}, $opt);
-      $bootstrap_opt = 0;
-    }
-  }
+  # If there are bootstrap options in the opt file, add them. On retry,
+  # bootstrap_master_opt will already be set, so do not call
+  # find_bootstrap_opts again.
+  $tinfo->{bootstrap_master_opt}= find_bootstrap_opts($tinfo->{master_opt})
+    if (!$tinfo->{bootstrap_master_opt});
+  $tinfo->{bootstrap_slave_opt}= find_bootstrap_opts($tinfo->{slave_opt})
+    if (!$tinfo->{bootstrap_slave_opt});
 
   # The keyword "--bootstrap" is passed in the opt file to identify
   # the bootstrap variables. Remove this keyword before sending
   # these options to the server.
-  @{$tinfo->{master_opt}} = grep {!/--bootstrap/} @{$tinfo->{master_opt}};
+  @{$tinfo->{master_opt}}= grep {!/--bootstrap/} @{$tinfo->{master_opt}};
+  @{$tinfo->{slave_opt}}= grep {!/--bootstrap/} @{$tinfo->{slave_opt}};
 
   if ( ! using_extern() )
   {
@@ -6549,10 +6586,31 @@ sub start_servers($) {
 
     # Reinitialize the data directory if there are bootstrap options in
     # the opt file.
-    if ($tinfo->{bootstrap_opt})
+    my $bootstrap_opts= (is_slave($mysqld) ?
+                        $tinfo->{bootstrap_slave_opt} :
+                        $tinfo->{bootstrap_master_opt});
+
+    my $clean_datadir = 0;
+    if ($bootstrap_opts) 
+      {
+	$clean_datadir = 1;
+	$previous_test_had_bootstrap_opts=1;
+      }
+    elsif ($previous_test_had_bootstrap_opts)
+      {
+	$clean_datadir = 1;
+	$previous_test_had_bootstrap_opts = 0;
+      }
+
+    if ($clean_datadir)
     {
       clean_dir($datadir);
-      mysql_install_db($mysqld, $datadir, $tinfo->{bootstrap_opt});
+      mysql_install_db($mysqld, $datadir, $bootstrap_opts);
+
+      # Remove the bootstrap.sql file so that a duplicate set of
+      # SQL statements do not get written to the same file.
+      unlink("$opt_vardir/tmp/bootstrap.sql")
+        if (-f "$opt_vardir/tmp/bootstrap.sql");
     }
 
     # Create the servers tmpdir
@@ -7418,7 +7476,7 @@ Options to control directories to use
   mem                   Run testsuite in "memory" using tmpfs or ramdisk
                         Attempts to find a suitable location
                         using a builtin list of standard locations
-                        for tmpfs (/dev/shm)
+                        for tmpfs (/dev/shm, /run/shm, /tmp)
                         The option can also be set using environment
                         variable MTR_MEM=[DIR]
   clean-vardir          Clean vardir if tests were successful and if
@@ -7455,10 +7513,10 @@ Options to control what test suites or cases to run
   enable-disabled       Run also tests marked as disabled
   print-testcases       Don't run the tests but print details about all the
                         selected tests, in the order they would be run.
-  do-test-list=FILE     Run the tests listed in FILE. Each line in the file
-                        is an entry and should be formatted as:
-                        <SUITE>.<TESTNAME> or <SUITE> <TESTNAME>.
-                        "#" as first character marks a comment.
+  do-test-list=FILE     Run the tests listed in FILE. The tests should be
+                        listed one per line in the file. "#" as first
+                        character marks a comment and is ignored. Similary
+                        an empty line in the file is also ignored.
   skip-test-list=FILE   Skip the tests listed in FILE. Each line in the file
                         is an entry and should be formatted as: 
                         <TESTNAME> : <COMMENT>
@@ -7605,6 +7663,11 @@ Misc options
                         to $opt_retry_failure
   retry-failure=N       Limit number of retries for a failed test
   reorder               Reorder tests to get fewer server restarts
+  report-unstable-tests Mark tests which fail initially but pass on at least
+                        one retry attempt as unstable tests and report them
+                        separately in the end summary. If all failures
+                        encountered are due to unstable tests, MTR will print
+                        a warning and exit with a zero status code.
   help                  Get this help text
 
   testcase-timeout=MINUTES Max test case run time (default $opt_testcase_timeout)

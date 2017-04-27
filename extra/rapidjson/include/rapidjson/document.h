@@ -23,24 +23,26 @@
 #include "memorystream.h"
 #include "encodedstream.h"
 #include <new>      // placement new
+#include <limits>
 
-#ifdef _MSC_VER
 RAPIDJSON_DIAG_PUSH
+#ifdef _MSC_VER
 RAPIDJSON_DIAG_OFF(4127) // conditional expression is constant
 RAPIDJSON_DIAG_OFF(4244) // conversion from kXxxFlags to 'uint16_t', possible loss of data
 #endif
 
 #ifdef __clang__
-RAPIDJSON_DIAG_PUSH
 RAPIDJSON_DIAG_OFF(padded)
 RAPIDJSON_DIAG_OFF(switch-enum)
 RAPIDJSON_DIAG_OFF(c++98-compat)
 #endif
 
 #ifdef __GNUC__
-RAPIDJSON_DIAG_PUSH
 RAPIDJSON_DIAG_OFF(effc++)
+#if __GNUC__ >= 6
+RAPIDJSON_DIAG_OFF(terminate) // ignore throwing RAPIDJSON_ASSERT in RAPIDJSON_NOEXCEPT functions
 #endif
+#endif // __GNUC__
 
 #ifndef RAPIDJSON_NOMEMBERITERATORCLASS
 #include <iterator> // std::iterator, std::random_access_iterator_tag
@@ -478,7 +480,7 @@ template<typename ValueType>
 struct TypeHelper<ValueType, std::basic_string<typename ValueType::Ch> > {
     typedef std::basic_string<typename ValueType::Ch> StringType;
     static bool Is(const ValueType& v) { return v.IsString(); }
-    static StringType Get(const ValueType& v) { return v.GetString(); }
+    static StringType Get(const ValueType& v) { return StringType(v.GetString(), v.GetStringLength()); }
     static ValueType& Set(ValueType& v, const StringType& data, typename ValueType::AllocatorType& a) { return v.SetString(data, a); }
 };
 #endif
@@ -952,12 +954,16 @@ public:
         if (IsUint64()) {
             uint64_t u = GetUint64();
             volatile double d = static_cast<double>(u);
-            return static_cast<uint64_t>(d) == u;
+            return (d >= 0.0)
+                && (d < static_cast<double>(std::numeric_limits<uint64_t>::max()))
+                && (u == static_cast<uint64_t>(d));
         }
         if (IsInt64()) {
             int64_t i = GetInt64();
             volatile double d = static_cast<double>(i);
-            return static_cast< int64_t>(d) == i;
+            return (d >= static_cast<double>(std::numeric_limits<int64_t>::min()))
+                && (d < static_cast<double>(std::numeric_limits<int64_t>::max()))
+                && (i == static_cast<int64_t>(d));
         }
         return true; // double, int, uint are always lossless
     }
@@ -973,6 +979,9 @@ public:
     bool IsLosslessFloat() const {
         if (!IsNumber()) return false;
         double a = GetDouble();
+        if (a < static_cast<double>(-std::numeric_limits<float>::max())
+                || a > static_cast<double>(std::numeric_limits<float>::max()))
+            return false;
         double b = static_cast<double>(static_cast<float>(a));
         return a >= b && a <= b;    // Prevent -Wfloat-equal
     }
@@ -1160,8 +1169,8 @@ public:
         \return Iterator to member, if it exists.
             Otherwise returns \ref MemberEnd().
     */
-    MemberIterator FindMember(const std::basic_string<Ch>& name) { return FindMember(StringRef(name)); }
-    ConstMemberIterator FindMember(const std::basic_string<Ch>& name) const { return FindMember(StringRef(name)); }
+    MemberIterator FindMember(const std::basic_string<Ch>& name) { return FindMember(GenericValue(StringRef(name))); }
+    ConstMemberIterator FindMember(const std::basic_string<Ch>& name) const { return FindMember(GenericValue(StringRef(name))); }
 #endif
 
     //! Add a member (name-value pair) to the object.
@@ -2327,7 +2336,7 @@ public:
     bool Uint(unsigned i) { new (stack_.template Push<ValueType>()) ValueType(i); return true; }
     bool Int64(int64_t i) { new (stack_.template Push<ValueType>()) ValueType(i); return true; }
     bool Uint64(uint64_t i) { new (stack_.template Push<ValueType>()) ValueType(i); return true; }
-    bool Double(double d, bool is_int = false) { new (stack_.template Push<ValueType>()) ValueType(d); return true; }
+    bool Double(double d) { new (stack_.template Push<ValueType>()) ValueType(d); return true; }
 
     bool RawNumber(const Ch* str, SizeType length, bool copy) { 
         if (copy) 
@@ -2561,17 +2570,6 @@ private:
 };
 
 RAPIDJSON_NAMESPACE_END
-
-#ifdef _MSC_VER
 RAPIDJSON_DIAG_POP
-#endif
-
-#ifdef __clang__
-RAPIDJSON_DIAG_POP
-#endif
-
-#ifdef __GNUC__
-RAPIDJSON_DIAG_POP
-#endif
 
 #endif // RAPIDJSON_DOCUMENT_H_

@@ -14,20 +14,21 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
-#include "transaction.h"
+#include "sql/transaction.h"
 
+#include <assert.h>
 #include <stddef.h>
 
 #include "auth_common.h"      // SUPER_ACL
 #include "dd/cache/dictionary_client.h"
 #include "debug_sync.h"       // DEBUG_SYNC
 #include "handler.h"
+#include "lex_string.h"
 #include "log.h"              // sql_print_warning
 #include "m_ctype.h"
 #include "mdl.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_psi_config.h"
@@ -39,6 +40,7 @@
 #include "query_options.h"
 #include "rpl_context.h"
 #include "rpl_gtid.h"
+#include "rpl_rli.h"
 #include "session_tracker.h"
 #include "sql_class.h"        // THD
 #include "sql_lex.h"
@@ -576,6 +578,19 @@ bool trans_rollback_stmt(THD *thd)
     else
       gtid_state->update_on_rollback(thd);
   }
+  /*
+    Statement rollback for replicated atomic DDL should call
+    post-rollback hook. This ensures the slave info won't be updated
+    for failed atomic DDL statements during the eventual implicit
+    commit which is done even even in case of DDL failure.
+
+    Unlike the post_commit it has to be invoked even when there's
+    no active statement transaction.
+    TODO: consider to align the commit case to invoke pre- and post-
+    hooks on the same level with the rollback one.
+  */
+  if (is_atomic_ddl_commit_on_slave(thd))
+    thd->rli_slave->post_rollback();
 
   /* In autocommit=1 mode the transaction should be marked as complete in P_S */
   DBUG_ASSERT(thd->in_active_multi_stmt_transaction() ||
@@ -670,15 +685,6 @@ bool trans_savepoint(THD *thd, LEX_STRING name)
       !opt_using_transactions)
     DBUG_RETURN(FALSE);
 
-  if (thd->variables.transaction_write_set_extraction != HASH_ALGORITHM_OFF)
-  {
-    // is_fatal_errror is needed to avoid stored procedures to skip the error.
-    thd->is_fatal_error= 1;
-    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0),
-             "--transaction-write-set-extraction!=OFF");
-    DBUG_RETURN(true);
-  }
-
   if (thd->get_transaction()->xid_state()->check_has_uncommitted_xa())
     DBUG_RETURN(true);
 
@@ -721,6 +727,12 @@ bool trans_savepoint(THD *thd, LEX_STRING name)
     locks acquired during LOCK TABLES.
   */
   newsv->mdl_savepoint= thd->mdl_context.mdl_savepoint();
+
+  if (thd->is_current_stmt_binlog_row_enabled_with_write_set_extraction())
+  {
+    thd->get_transaction()->get_transaction_write_set_ctx()
+        ->add_savepoint(name.str);
+  }
 
   DBUG_RETURN(FALSE);
 }
@@ -790,6 +802,12 @@ bool trans_rollback_to_savepoint(THD *thd, LEX_STRING name)
   if (!res && ha_rollback_to_savepoint_can_release_mdl(thd))
     thd->mdl_context.rollback_to_savepoint(sv->mdl_savepoint);
 
+  if (thd->is_current_stmt_binlog_row_enabled_with_write_set_extraction())
+  {
+    thd->get_transaction()->get_transaction_write_set_ctx()
+        ->rollback_to_savepoint(name.str);
+  }
+
   DBUG_RETURN(MY_TEST(res));
 }
 
@@ -827,6 +845,12 @@ bool trans_release_savepoint(THD *thd, LEX_STRING name)
     res= TRUE;
 
   thd->get_transaction()->m_savepoints= sv->prev;
+
+  if (thd->is_current_stmt_binlog_row_enabled_with_write_set_extraction())
+  {
+    thd->get_transaction()->get_transaction_write_set_ctx()
+        ->del_savepoint(name.str);
+  }
 
   DBUG_RETURN(MY_TEST(res));
 }

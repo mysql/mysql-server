@@ -2,12 +2,8 @@
 # Test of the cost constants when restarting the server
 #
 
-# Can not run with embedded server since it requires server restarts
--- source include/not_embedded.inc
-
 # To get stable cost estimates, the test should only be run with 
 # 16K InnoDB page size.
---source include/have_innodb_16k.inc
 
 #
 # Test that changes to cost constants are used after restarting server
@@ -111,9 +107,9 @@ SET cost_value=DEFAULT;
 # other engines.
 #
 INSERT INTO mysql.engine_cost VALUES
-  ("InnoDB", 0, "memory_block_read_cost", 4.0, CURRENT_TIMESTAMP, DEFAULT);
+  ("InnoDB", 0, "memory_block_read_cost", 4.0, CURRENT_TIMESTAMP, DEFAULT, DEFAULT);
 INSERT INTO mysql.engine_cost VALUES
-  ("InnoDB", 0, "io_block_read_cost", 4.0, CURRENT_TIMESTAMP, DEFAULT);
+  ("InnoDB", 0, "io_block_read_cost", 4.0, CURRENT_TIMESTAMP, DEFAULT, DEFAULT);
 
 --echo "Restarting MySQL server"
 --source include/restart_mysqld.inc

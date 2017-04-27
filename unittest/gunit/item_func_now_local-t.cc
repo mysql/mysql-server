@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,16 +15,18 @@
 
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
-#include <gtest/gtest.h>
 
+#include <gtest/gtest.h>
+#include <sys/types.h>
+
+#include "item.h"
+#include "item_timefunc.h"
 #include "mock_field_datetime.h"
 #include "mock_field_timestamp.h"
 #include "mock_field_timestampf.h"
-#include "test_utils.h"
-#include "item.h"
-#include "item_timefunc.h"
-#include "sql_class.h"
 #include "rpl_handler.h"                        // delegates_init()
+#include "sql_class.h"
+#include "test_utils.h"
 #include "tztime.h"
 
 namespace item_func_now_local_unittest {

@@ -1,4 +1,3 @@
-
  #Get deafult engine value
 --let $DEFAULT_ENGINE = `select @@global.default_storage_engine`
 
@@ -240,4 +239,3 @@ SELECT * FROM t1 LEFT JOIN t2 ON c1 = c11
                AND TIMESTAMP'2014-01-05 01:01:01';
 
 DROP TABLE t1, t2;
-

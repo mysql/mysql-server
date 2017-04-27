@@ -18,9 +18,12 @@
   Table EVENTS_STATEMENTS_xxx (implementation).
 */
 
+#include "storage/perfschema/table_events_statements.h"
+
+#include <stddef.h>
+
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_md5.h"
 #include "my_thread.h"
 #include "pfs_buffer_container.h"
@@ -29,7 +32,6 @@
 #include "pfs_instr_class.h"
 #include "pfs_timer.h"
 #include "sp_head.h" /* TYPE_ENUM_FUNCTION, ... */
-#include "table_events_statements.h"
 #include "table_helper.h"
 
 THR_LOCK table_events_statements_current::m_table_lock;
@@ -784,7 +786,7 @@ table_events_statements_common::read_row_values(TABLE *table,
 }
 
 PFS_engine_table *
-table_events_statements_current::create(void)
+table_events_statements_current::create(PFS_engine_table_share *)
 {
   return new table_events_statements_current();
 }
@@ -990,7 +992,8 @@ table_events_statements_current::get_row_count(void)
 }
 
 int
-table_events_statements_current::index_init(uint idx, bool)
+table_events_statements_current::index_init(uint idx MY_ATTRIBUTE((unused)),
+                                            bool)
 {
   m_normalizer = time_normalizer::get(statement_timer);
 
@@ -1003,7 +1006,7 @@ table_events_statements_current::index_init(uint idx, bool)
 }
 
 PFS_engine_table *
-table_events_statements_history::create(void)
+table_events_statements_history::create(PFS_engine_table_share *)
 {
   return new table_events_statements_history();
 }
@@ -1195,7 +1198,8 @@ table_events_statements_history::get_row_count(void)
 }
 
 int
-table_events_statements_history::index_init(uint idx, bool)
+table_events_statements_history::index_init(uint idx MY_ATTRIBUTE((unused)),
+                                            bool)
 {
   m_normalizer = time_normalizer::get(statement_timer);
 
@@ -1208,7 +1212,7 @@ table_events_statements_history::index_init(uint idx, bool)
 }
 
 PFS_engine_table *
-table_events_statements_history_long::create(void)
+table_events_statements_history_long::create(PFS_engine_table_share *)
 {
   return new table_events_statements_history_long();
 }

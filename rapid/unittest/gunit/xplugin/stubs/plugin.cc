@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,18 +13,17 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#include "my_global.h"
 
 #include "mysql/plugin.h"
 
 extern "C" {
-  
-int thd_killed(const MYSQL_THD thd)
+
+int thd_killed(const MYSQL_THD)
 {
   return 0;
 }
 
-void thd_set_kill_status(const MYSQL_THD thd)
+void thd_set_kill_status(const MYSQL_THD)
 {
 }
 }

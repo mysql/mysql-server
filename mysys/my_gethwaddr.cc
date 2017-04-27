@@ -45,7 +45,7 @@
 #include <net/route.h>
 #include <sys/sysctl.h>
 
-my_bool my_gethwaddr(uchar *to)
+bool my_gethwaddr(uchar *to)
 {
   size_t len;
   char *buf, *next, *end;
@@ -86,7 +86,7 @@ err:
 
 #define MAX_IFS 64
 
-my_bool my_gethwaddr(uchar *to)
+bool my_gethwaddr(uchar *to)
 {
   int fd= -1;
   int res= 1;
@@ -177,13 +177,13 @@ typedef DWORD (WINAPI *pfnGetAdaptersAddresses)(IN ULONG Family,
     @retval 0       OK
     @retval <>0     FAILED
 */
-my_bool my_gethwaddr(uchar *to)
+bool my_gethwaddr(uchar *to)
 {
   PIP_ADAPTER_ADDRESSES pAdapterAddresses;
   PIP_ADAPTER_ADDRESSES pCurrAddresses;
   IP_ADAPTER_ADDRESSES  adapterAddresses;
   ULONG                 address_len;
-  my_bool               return_val= 1;
+  bool                  return_val= 1;
   static pfnGetAdaptersAddresses fnGetAdaptersAddresses=
                                 (pfnGetAdaptersAddresses)-1;
 
@@ -246,7 +246,7 @@ my_bool my_gethwaddr(uchar *to)
 
 #else /* __FreeBSD__ || __linux__ || _WIN32 */
 /* just fail */
-my_bool my_gethwaddr(uchar *to MY_ATTRIBUTE((unused)))
+bool my_gethwaddr(uchar *to MY_ATTRIBUTE((unused)))
 {
   return 1;
 }

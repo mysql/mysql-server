@@ -75,7 +75,7 @@ static const char tls_cipher_blocked[]= "!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!R
                                         "!ECDHE-RSA-DES-CBC3-SHA:!ECDHE-ECDSA-DES-CBC3-SHA:";
 #endif
 
-static my_bool     ssl_initialized         = FALSE;
+static bool     ssl_initialized         = FALSE;
 
 /*
   Diffie-Hellman key.
@@ -375,7 +375,7 @@ static void init_ssl_locks()
 #endif
 }
 
-static void set_lock_callback_functions(my_bool init)
+static void set_lock_callback_functions(bool init)
 {
   CRYPTO_set_locking_callback(init ? openssl_lock_function : NULL);
   CRYPTO_set_id_callback(init ? openssl_id_function : NULL);
@@ -487,7 +487,7 @@ long process_tls_version(const char *tls_version)
 static struct st_VioSSLFd *
 new_VioSSLFd(const char *key_file, const char *cert_file,
              const char *ca_file, const char *ca_path,
-             const char *cipher, my_bool is_client,
+             const char *cipher, bool is_client,
              enum enum_ssl_init_error *error,
              const char *crl_file, const char *crl_path, const long ssl_ctx_flags)
 {

@@ -75,7 +75,7 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 DROP TABLESPACE s-bad;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-bad' at line 1
 DROP TABLESPACE `test/s_bad`;
-ERROR HY000: Tablespace test/s_bad doesn't exist.
+ERROR 42000: InnoDB: A general tablespace name cannot contain '/'.
 DROP TABLESPACE s_does_not_exist;
 ERROR HY000: Tablespace s_does_not_exist doesn't exist.
 #
@@ -86,8 +86,7 @@ ERROR 42000: InnoDB: A general tablespace name cannot contain '/'.
 SHOW WARNINGS;
 Level	Code	Message
 Error	3119	InnoDB: A general tablespace name cannot contain '/'.
-Error	1528	Failed to create TABLESPACE test/s_bad
-Error	1031	Table storage engine for 'test/s_bad' doesn't have this option
+Error	3119	Incorrect tablespace name `test/s_bad`
 CREATE TABLESPACE `s_ !@#$%^&*()_+-={}[]|\?<>,. ` ADD DATAFILE 's_utf8.ibd';
 CREATE TABLE `t !@#$%^&*()_+-={}[]|\?<>,.` (a int, b text) TABLESPACE `s_ !@#$%^&*()_+-={}[]|\?<>,. `;
 INSERT INTO `t !@#$%^&*()_+-={}[]|\?<>,.` VALUES(1,'one');
@@ -96,7 +95,7 @@ Table	Create Table
 t !@#$%^&*()_+-={}[]|\?<>,.	CREATE TABLE `t !@#$%^&*()_+-={}[]|\?<>,.` (
   `a` int(11) DEFAULT NULL,
   `b` text
-) /*!50100 TABLESPACE `s_ !@#$%^&*()_+-={}[]|\?<>,. ` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `s_ !@#$%^&*()_+-={}[]|\?<>,. ` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 CREATE TABLE `t !@#$%^&*()_+-={}[]|\?<>,.2` (
 `a` int(11) DEFAULT NULL,
 `b` text
@@ -106,7 +105,7 @@ Table	Create Table
 t !@#$%^&*()_+-={}[]|\?<>,.	CREATE TABLE `t !@#$%^&*()_+-={}[]|\?<>,.` (
   `a` int(11) DEFAULT NULL,
   `b` text
-) /*!50100 TABLESPACE `s_ !@#$%^&*()_+-={}[]|\?<>,. ` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `s_ !@#$%^&*()_+-={}[]|\?<>,. ` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE `t !@#$%^&*()_+-={}[]|\?<>,.2`;
 CREATE TABLESPACE `#sql_1` ADD DATAFILE '#sql_1.ibd';
 CREATE TABLE `#sql_1` (a int, b text) TABLESPACE `#sql_1`;
@@ -116,7 +115,7 @@ Table	Create Table
 #sql_1	CREATE TABLE `#sql_1` (
   `a` int(11) DEFAULT NULL,
   `b` text
-) /*!50100 TABLESPACE `#sql_1` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `#sql_1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 CREATE TABLESPACE `s_Cöŀumň` ADD DATAFILE 's_utf8_a.ibd';
 CREATE TABLE `t_utf8_1` (a int, b text) TABLESPACE `s_Cöŀumň`;
 SHOW CREATE TABLE `t_utf8_1`;
@@ -124,7 +123,7 @@ Table	Create Table
 t_utf8_1	CREATE TABLE `t_utf8_1` (
   `a` int(11) DEFAULT NULL,
   `b` text
-) /*!50100 TABLESPACE `s_Cöŀumň` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `s_Cöŀumň` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 CREATE TABLESPACE `s_cöĿǖmň` ADD DATAFILE 's_utf8_b.ibd';
 CREATE TABLE `t_utf8_2` (a int, b text) TABLESPACE `s_cöĿǖmň`;
 SHOW CREATE TABLE `t_utf8_2`;
@@ -132,7 +131,7 @@ Table	Create Table
 t_utf8_2	CREATE TABLE `t_utf8_2` (
   `a` int(11) DEFAULT NULL,
   `b` text
-) /*!50100 TABLESPACE `s_cöĿǖmň` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `s_cöĿǖmň` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 CREATE TABLESPACE `s_😲` ADD DATAFILE 's_utf8_c.ibd';
 ERROR HY000: Invalid utf8 character string: 's_\xF0\x9F\x98\xB2'
 CREATE TABLESPACE `s_𐌀𐌁𐌂𐌃𐌄𐌅𐌆𐌇𐌈𐌉𐌊𐌋𐌌𐌍𐌎𐌏𐌐𐌑𐌒𐌓𐌔𐌕𐌖𐌗𐌘𐌙𐌚𐌛𐌜` ADD DATAFILE 's_utf8_d.ibd';
@@ -144,8 +143,13 @@ Table	Create Table
 t_utf8_3	CREATE TABLE `t_utf8_3` (
   `a` int(11) DEFAULT NULL,
   `b` text
+<<<<<<< HEAD
 ) /*!50100 TABLESPACE `s_வணக்கம்` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
 === information_schema.innodb_tablespaces and innodb_datafiles ===
+=======
+) /*!50100 TABLESPACE `s_வணக்கம்` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+>>>>>>> mysql-trunk
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
@@ -183,14 +187,13 @@ DROP TABLESPACE `s_வணக்கம்`;
 # Try to create a tablespace with the reserved case-sensitive prefix 'innodb_'
 #
 CREATE TABLESPACE `innodb_system` ADD DATAFILE 's_bad.ibd';
-ERROR HY000: Tablespace 'innodb_system' exists.
+ERROR 42000: InnoDB: `innodb_system` is a reserved tablespace name.
 DROP TABLESPACE `innodb_system`;
 ERROR 42000: InnoDB: `innodb_system` is a reserved tablespace name.
 SHOW WARNINGS;
 Level	Code	Message
 Error	3119	InnoDB: `innodb_system` is a reserved tablespace name.
-Error	1529	Failed to drop TABLESPACE innodb_system
-Error	1031	Table storage engine for 'innodb_system' doesn't have this option
+Error	3119	Incorrect tablespace name `innodb_system`
 CREATE TABLESPACE `InnoDB_System` ADD DATAFILE 's_InnoDB_System.ibd';
 DROP TABLESPACE `InnoDB_System`;
 CREATE TABLESPACE `InnoDB_System` ADD DATAFILE 'ibdata1';
@@ -204,7 +207,12 @@ CREATE TABLESPACE `innodb_temporary` ADD DATAFILE 's_bad.ibd';
 ERROR HY000: Tablespace 'innodb_temporary' exists.
 SHOW WARNINGS;
 Level	Code	Message
+<<<<<<< HEAD
 Error	1813	Tablespace 'innodb_temporary' exists.
+=======
+Error	3119	InnoDB: `innodb_temporary` is a reserved tablespace name.
+Error	3119	Incorrect tablespace name `innodb_temporary`
+>>>>>>> mysql-trunk
 DROP TABLESPACE `innodb_temporary`;
 ERROR 42000: InnoDB: `innodb_temporary` is a reserved tablespace name.
 CREATE TABLESPACE `InnoDB_Temporary` ADD DATAFILE 's_InnoDB_Temporary.ibd';
@@ -214,10 +222,9 @@ ERROR 42000: InnoDB: A general tablespace name cannot start with `innodb_`.
 SHOW WARNINGS;
 Level	Code	Message
 Error	3119	InnoDB: A general tablespace name cannot start with `innodb_`.
-Error	1528	Failed to create TABLESPACE innodb_custom
-Error	1031	Table storage engine for 'innodb_custom' doesn't have this option
+Error	3119	Incorrect tablespace name `innodb_custom`
 DROP TABLESPACE `innodb_custom`;
-ERROR HY000: Tablespace innodb_custom doesn't exist.
+ERROR 42000: InnoDB: A general tablespace name cannot start with `innodb_`.
 CREATE TABLESPACE `InnoDB_Custom` ADD DATAFILE 's_InnoDB_Custom.ibd';
 DROP TABLESPACE `InnoDB_Custom`;
 CREATE TABLESPACE `INNODB_CUSTOM` ADD DATAFILE 's_INNODB_CUSTOM.ibd';
@@ -350,10 +357,11 @@ s_def	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t_si
 CREATE TABLE t_general (a int, b text) TABLESPACE test/t_single engine=InnoDB;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '/t_single engine=InnoDB' at line 1
 CREATE TABLE t_general (a int, b text) TABLESPACE `test/t_single` engine=InnoDB;
-ERROR HY000: Tablespace test/t_single doesn't exist.
+ERROR 42000: InnoDB: A general tablespace name cannot contain '/'.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3510	Tablespace test/t_single doesn't exist.
+Error	3119	InnoDB: A general tablespace name cannot contain '/'.
+Error	3119	Incorrect tablespace name `test/t_single`
 CREATE TABLE t_general (a int, b text) TABLESPACE `S_Def` engine=InnoDB;
 ERROR HY000: Tablespace S_Def doesn't exist.
 SHOW WARNINGS;
@@ -369,23 +377,19 @@ ERROR 42000: InnoDB: A general tablespace name cannot contain '/'.
 SHOW WARNINGS;
 Level	Code	Message
 Error	3119	InnoDB: A general tablespace name cannot contain '/'.
-Error	1813	InnoDB: A tablespace named `test/t_single` already exists.
-Error	1528	Failed to create TABLESPACE test/t_single
-Error	1813	Tablespace 'test/t_single' exists.
+Error	3119	Incorrect tablespace name `test/t_single`
 CREATE TABLESPACE `Test/t_Single` ADD DATAFILE 's_single.ibd';
 ERROR 42000: InnoDB: A general tablespace name cannot contain '/'.
 SHOW WARNINGS;
 Level	Code	Message
 Error	3119	InnoDB: A general tablespace name cannot contain '/'.
-Error	1528	Failed to create TABLESPACE Test/t_Single
-Error	1031	Table storage engine for 'Test/t_Single' doesn't have this option
+Error	3119	Incorrect tablespace name `Test/t_Single`
 CREATE TABLESPACE `TEST/T_SINGLE` ADD DATAFILE 's_single.ibd';
 ERROR 42000: InnoDB: A general tablespace name cannot contain '/'.
 SHOW WARNINGS;
 Level	Code	Message
 Error	3119	InnoDB: A general tablespace name cannot contain '/'.
-Error	1528	Failed to create TABLESPACE TEST/T_SINGLE
-Error	1031	Table storage engine for 'TEST/T_SINGLE' doesn't have this option
+Error	3119	Incorrect tablespace name `TEST/T_SINGLE`
 DROP TABLE t_single;
 === information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
@@ -491,11 +495,17 @@ SHOW WARNINGS;
 Level	Code	Message
 Error	3510	Tablespace s_single doesn't exist.
 CREATE TABLE t_second (a int, b text) TABLESPACE=`test/s_single`;
-ERROR HY000: Tablespace test/s_single doesn't exist.
+ERROR 42000: InnoDB: A general tablespace name cannot contain '/'.
 SHOW WARNINGS;
 Level	Code	Message
+<<<<<<< HEAD
 Error	3510	Tablespace test/s_single doesn't exist.
 === information_schema.innodb_tablespaces and innodb_datafiles ===
+=======
+Error	3119	InnoDB: A general tablespace name cannot contain '/'.
+Error	3119	Incorrect tablespace name `test/s_single`
+=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+>>>>>>> mysql-trunk
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
@@ -529,7 +539,7 @@ Table	Create Table
 t4	CREATE TABLE `t4` (
   `a` int(11) DEFAULT NULL,
   `b` text
-) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/'
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DATA DIRECTORY='MYSQL_TMP_DIR/'
 # An altered table should retain both TABLESPACE=innodb_file_per_table and the DATA DIRECTORY
 ALTER TABLE t4 ROW_FORMAT=dynamic, algorithm=copy;
 SHOW CREATE TABLE t4;
@@ -537,7 +547,7 @@ Table	Create Table
 t4	CREATE TABLE `t4` (
   `a` int(11) DEFAULT NULL,
   `b` text
-) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC DATA DIRECTORY='MYSQL_TMP_DIR/'
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC DATA DIRECTORY='MYSQL_TMP_DIR/'
 DROP TABLE t4;
 # An empty string in DATA DIRECTORY='' indicates the current directory,
 # which is not allowed.
@@ -635,25 +645,25 @@ Table	Create Table
 t_red_as_file_per_table	CREATE TABLE `t_red_as_file_per_table` (
   `a` int(11) DEFAULT NULL,
   `b` text
-) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=REDUNDANT
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=REDUNDANT
 SHOW CREATE TABLE t_com_as_file_per_table;
 Table	Create Table
 t_com_as_file_per_table	CREATE TABLE `t_com_as_file_per_table` (
   `a` int(11) DEFAULT NULL,
   `b` text
-) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPACT
 SHOW CREATE TABLE t_dyn_as_file_per_table;
 Table	Create Table
 t_dyn_as_file_per_table	CREATE TABLE `t_dyn_as_file_per_table` (
   `a` int(11) DEFAULT NULL,
   `b` text
-) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
 SHOW CREATE TABLE t_def_as_remote;
 Table	Create Table
 t_def_as_remote	CREATE TABLE `t_def_as_remote` (
   `a` int(11) DEFAULT NULL,
   `b` text
-) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/'
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DATA DIRECTORY='MYSQL_TMP_DIR/'
 #
 # These explicit file_per_table tables can be moved to a general tablespace.
 #
@@ -791,8 +801,13 @@ t_in_def	CREATE TABLE `t_in_def` (
   `b` text,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
+<<<<<<< HEAD
 ) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=latin1
 === information_schema.innodb_tables  and innodb_tablespaces ===
+=======
+) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+>>>>>>> mysql-trunk
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_in_def	s_def	0	4	Dynamic	0	General
 ALTER TABLE t_in_def ROW_FORMAT=redundant;
@@ -803,7 +818,7 @@ t_in_def	CREATE TABLE `t_in_def` (
   `b` text,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
-) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=latin1 ROW_FORMAT=REDUNDANT
+) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 ROW_FORMAT=REDUNDANT
 ALTER TABLE t_in_def ROW_FORMAT=dynamic;
 SHOW CREATE TABLE t_in_def;
 Table	Create Table
@@ -812,7 +827,7 @@ t_in_def	CREATE TABLE `t_in_def` (
   `b` text,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
-) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
 ALTER TABLE t_in_def ADD COLUMN (c int);
 SHOW CREATE TABLE t_in_def;
 Table	Create Table
@@ -822,7 +837,7 @@ t_in_def	CREATE TABLE `t_in_def` (
   `c` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
-) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
 ALTER TABLE t_in_def ADD INDEX c (c);
 SHOW CREATE TABLE t_in_def;
 Table	Create Table
@@ -833,7 +848,7 @@ t_in_def	CREATE TABLE `t_in_def` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`),
   KEY `c` (`c`)
-) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
 ALTER TABLE t_in_def DROP INDEX c;
 SHOW CREATE TABLE t_in_def;
 Table	Create Table
@@ -843,7 +858,7 @@ t_in_def	CREATE TABLE `t_in_def` (
   `c` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
-) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
 ALTER TABLE t_in_def DROP COLUMN c;
 SHOW CREATE TABLE t_in_def;
 Table	Create Table
@@ -852,7 +867,7 @@ t_in_def	CREATE TABLE `t_in_def` (
   `b` text,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
-) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
 ALTER TABLE t_in_def AUTO_INCREMENT=100;
 SHOW CREATE TABLE t_in_def;
 Table	Create Table
@@ -861,7 +876,7 @@ t_in_def	CREATE TABLE `t_in_def` (
   `b` text,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
-) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=100 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=100 DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
 INSERT INTO t_in_def(b) VALUES("after ALTER TABLE AUTO_INCREMENT");
 SELECT a, left(b,50) FROM t_in_def;
 a	left(b,50)
@@ -877,7 +892,7 @@ t_in_def	CREATE TABLE `t_in_def` (
   `b` text,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
-) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=101 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=101 DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
 ALTER TABLE t_in_def CHANGE a aa int;
 SHOW CREATE TABLE t_in_def;
 Table	Create Table
@@ -886,7 +901,7 @@ t_in_def	CREATE TABLE `t_in_def` (
   `b` text,
   PRIMARY KEY (`aa`),
   UNIQUE KEY `a` (`aa`)
-) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
 ALTER TABLE t_in_def CHANGE b bb varchar(1000);
 SHOW CREATE TABLE t_in_def;
 Table	Create Table
@@ -895,7 +910,7 @@ t_in_def	CREATE TABLE `t_in_def` (
   `bb` varchar(1000) DEFAULT NULL,
   PRIMARY KEY (`aa`),
   UNIQUE KEY `a` (`aa`)
-) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
 ALTER TABLE t_in_def DROP PRIMARY KEY;
 SHOW CREATE TABLE t_in_def;
 Table	Create Table
@@ -903,7 +918,7 @@ t_in_def	CREATE TABLE `t_in_def` (
   `aa` int(11) NOT NULL,
   `bb` varchar(1000) DEFAULT NULL,
   UNIQUE KEY `a` (`aa`)
-) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
 ALTER TABLE t_in_def ADD PRIMARY KEY aa(aa), ALGORITHM=INPLACE;
 SHOW CREATE TABLE t_in_def;
 Table	Create Table
@@ -912,7 +927,7 @@ t_in_def	CREATE TABLE `t_in_def` (
   `bb` varchar(1000) DEFAULT NULL,
   PRIMARY KEY (`aa`),
   UNIQUE KEY `a` (`aa`)
-) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
 ALTER TABLE t_in_def ADD INDEX ab(aa,bb(25)), ALGORITHM=COPY;
 SHOW CREATE TABLE t_in_def;
 Table	Create Table
@@ -922,7 +937,7 @@ t_in_def	CREATE TABLE `t_in_def` (
   PRIMARY KEY (`aa`),
   UNIQUE KEY `a` (`aa`),
   KEY `ab` (`aa`,`bb`(25))
-) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
 ALTER TABLE t_in_def ADD INDEX bb(bb(50));
 SHOW CREATE TABLE t_in_def;
 Table	Create Table
@@ -933,7 +948,7 @@ t_in_def	CREATE TABLE `t_in_def` (
   UNIQUE KEY `a` (`aa`),
   KEY `ab` (`aa`,`bb`(25)),
   KEY `bb` (`bb`(50))
-) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
 RENAME TABLE t_in_def TO t;
 SHOW CREATE TABLE t;
 Table	Create Table
@@ -944,8 +959,13 @@ t	CREATE TABLE `t` (
   UNIQUE KEY `a` (`aa`),
   KEY `ab` (`aa`,`bb`(25)),
   KEY `bb` (`bb`(50))
+<<<<<<< HEAD
 ) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 === information_schema.innodb_tables  and innodb_tablespaces ===
+=======
+) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+>>>>>>> mysql-trunk
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t	s_def	0	4	Dynamic	0	General
 INSERT INTO t VALUES(200, "after RENAME TABLE t_in_def TO t");
@@ -976,8 +996,13 @@ t_nomad	CREATE TABLE `t_nomad` (
   UNIQUE KEY `a` (`aa`),
   KEY `ab` (`aa`,`bb`(25)),
   KEY `bb` (`bb`(50))
+<<<<<<< HEAD
 ) /*!50100 TABLESPACE `s_alt1` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 === information_schema.innodb_tables  and innodb_tablespaces ===
+=======
+) /*!50100 TABLESPACE `s_alt1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+>>>>>>> mysql-trunk
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_nomad	s_alt1	0	4	Dynamic	0	General
 ALTER TABLE t_nomad TABLESPACE s_alt2;
@@ -990,8 +1015,13 @@ t_nomad	CREATE TABLE `t_nomad` (
   UNIQUE KEY `a` (`aa`),
   KEY `ab` (`aa`,`bb`(25)),
   KEY `bb` (`bb`(50))
+<<<<<<< HEAD
 ) /*!50100 TABLESPACE `s_alt2` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 === information_schema.innodb_tables  and innodb_tablespaces ===
+=======
+) /*!50100 TABLESPACE `s_alt2` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+>>>>>>> mysql-trunk
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_nomad	s_alt2	0	4	Dynamic	0	General
 ALTER TABLE t_nomad TABLESPACE s_def, DROP COLUMN bb;
@@ -1002,8 +1032,13 @@ t_nomad	CREATE TABLE `t_nomad` (
   PRIMARY KEY (`aa`),
   UNIQUE KEY `a` (`aa`),
   KEY `ab` (`aa`)
+<<<<<<< HEAD
 ) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 === information_schema.innodb_tables  and innodb_tablespaces ===
+=======
+) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+>>>>>>> mysql-trunk
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_nomad	s_def	0	3	Dynamic	0	General
 === information_schema.innodb_tablespaces and innodb_datafiles ===
@@ -1028,8 +1063,13 @@ t_system	CREATE TABLE `t_system` (
   `b` text,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
+<<<<<<< HEAD
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=latin1
 === information_schema.innodb_tables  and innodb_tablespaces ===
+=======
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+>>>>>>> mysql-trunk
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_system	innodb_system	0	4	Dynamic	0	System
 ALTER TABLE t_system TABLESPACE s_def;
@@ -1040,8 +1080,13 @@ t_system	CREATE TABLE `t_system` (
   `b` text,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
+<<<<<<< HEAD
 ) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=latin1
 === information_schema.innodb_tables  and innodb_tablespaces ===
+=======
+) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+>>>>>>> mysql-trunk
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_system	s_def	0	4	Dynamic	0	General
 ALTER TABLE t_system TABLESPACE=`innodb_system`;
@@ -1052,8 +1097,13 @@ t_system	CREATE TABLE `t_system` (
   `b` text,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
+<<<<<<< HEAD
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=latin1
 === information_schema.innodb_tables  and innodb_tablespaces ===
+=======
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+>>>>>>> mysql-trunk
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_system	innodb_system	0	4	Dynamic	0	System
 #
@@ -1067,7 +1117,7 @@ t_system	CREATE TABLE `t_system` (
   `b` text,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
-) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=latin1 ROW_FORMAT=REDUNDANT
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 ROW_FORMAT=REDUNDANT
 ALTER TABLE t_system ROW_FORMAT=dynamic;
 SHOW CREATE TABLE t_system;
 Table	Create Table
@@ -1076,7 +1126,7 @@ t_system	CREATE TABLE `t_system` (
   `b` text,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
-) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
 ALTER TABLE t_system ADD COLUMN (c int);
 SHOW CREATE TABLE t_system;
 Table	Create Table
@@ -1086,7 +1136,7 @@ t_system	CREATE TABLE `t_system` (
   `c` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
-) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
 ALTER TABLE t_system ADD INDEX c (c);
 SHOW CREATE TABLE t_system;
 Table	Create Table
@@ -1097,7 +1147,7 @@ t_system	CREATE TABLE `t_system` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`),
   KEY `c` (`c`)
-) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
 ALTER TABLE t_system DROP INDEX c;
 SHOW CREATE TABLE t_system;
 Table	Create Table
@@ -1107,7 +1157,7 @@ t_system	CREATE TABLE `t_system` (
   `c` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
-) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
 ALTER TABLE t_system DROP COLUMN c;
 SHOW CREATE TABLE t_system;
 Table	Create Table
@@ -1116,7 +1166,7 @@ t_system	CREATE TABLE `t_system` (
   `b` text,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
-) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
 #
 # Now try to put that table into its own Single-Table tablespace.
 # It is not allowed since the table is now marked with the system tablespace
@@ -1130,8 +1180,13 @@ t_still_system	CREATE TABLE `t_still_system` (
   `b` text,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
+<<<<<<< HEAD
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 === information_schema.innodb_tables  and innodb_tablespaces ===
+=======
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+>>>>>>> mysql-trunk
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_still_system	innodb_system	0	4	Dynamic	0	System
 DROP TABLE t_still_system;
@@ -1158,7 +1213,7 @@ Table	Create Table
 t_my_temp	CREATE TEMPORARY TABLE `t_my_temp` (
   `a` int(11) DEFAULT NULL,
   `b` text
-) /*!50100 TABLESPACE `innodb_temporary` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `innodb_temporary` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t_my_temp;
 #
 # Try to create or move a table into the redo tablespace
@@ -1169,26 +1224,26 @@ ERROR 42000: InnoDB: A general tablespace name cannot start with `innodb_`.
 SHOW WARNINGS;
 Level	Code	Message
 Error	3119	InnoDB: A general tablespace name cannot start with `innodb_`.
-Error	1031	Table storage engine for 't_data' doesn't have this option
+Error	3119	Incorrect tablespace name `innodb_redo_log`
 CREATE TABLE t_data (a int, b text) TABLESPACE=`innodb_anything`;
 ERROR 42000: InnoDB: A general tablespace name cannot start with `innodb_`.
 SHOW WARNINGS;
 Level	Code	Message
 Error	3119	InnoDB: A general tablespace name cannot start with `innodb_`.
-Error	1031	Table storage engine for 't_data' doesn't have this option
+Error	3119	Incorrect tablespace name `innodb_anything`
 CREATE TABLE t_data (a int, b text) TABLESPACE s_def;
 ALTER TABLE t_data TABLESPACE=`innodb_redo_log`;
 ERROR 42000: InnoDB: A general tablespace name cannot start with `innodb_`.
 SHOW WARNINGS;
 Level	Code	Message
 Error	3119	InnoDB: A general tablespace name cannot start with `innodb_`.
-Error	1478	Table storage engine 'InnoDB' does not support the create option 'TABLESPACE'
+Error	3119	Incorrect tablespace name `innodb_redo_log`
 ALTER TABLE t_data TABLESPACE=`innodb_anything`;
 ERROR 42000: InnoDB: A general tablespace name cannot start with `innodb_`.
 SHOW WARNINGS;
 Level	Code	Message
 Error	3119	InnoDB: A general tablespace name cannot start with `innodb_`.
-Error	1478	Table storage engine 'InnoDB' does not support the create option 'TABLESPACE'
+Error	3119	Incorrect tablespace name `innodb_anything`
 DROP TABLE t_data;
 #
 # Move a table from a Single-Table tablespace into a General Tablespace.
@@ -1203,8 +1258,13 @@ t_single	CREATE TABLE `t_single` (
   `b` text,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
+<<<<<<< HEAD
 ) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=latin1
 === information_schema.innodb_tables  and innodb_tablespaces ===
+=======
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+>>>>>>> mysql-trunk
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_single	innodb_file_per_table.##	0	4	Dynamic	0	Single
 ALTER TABLE t_single TABLESPACE s_def;
@@ -1215,8 +1275,13 @@ t_single	CREATE TABLE `t_single` (
   `b` text,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
+<<<<<<< HEAD
 ) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=latin1
 === information_schema.innodb_tables  and innodb_tablespaces ===
+=======
+) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+>>>>>>> mysql-trunk
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_single	s_def	0	4	Dynamic	0	General
 DROP TABLE t_single;
@@ -1232,7 +1297,7 @@ t_myisam	CREATE TABLE `t_myisam` (
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
-) ENGINE=MyISAM AUTO_INCREMENT=2 DEFAULT CHARSET=latin1
+) ENGINE=MyISAM AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4
 ALTER TABLE t_myisam RENAME TO t_innodb, TABLESPACE s_def, ENGINE=InnoDB;
 INSERT INTO t_innodb(b) VALUES(22);
 SHOW CREATE TABLE t_innodb;
@@ -1242,8 +1307,13 @@ t_innodb	CREATE TABLE `t_innodb` (
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
+<<<<<<< HEAD
 ) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=latin1
 === information_schema.innodb_tables  and innodb_tablespaces ===
+=======
+) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+>>>>>>> mysql-trunk
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_innodb	s_def	0	4	Dynamic	0	General
 ALTER TABLE t_innodb RENAME TO t_myisam, ENGINE=MyISAM;
@@ -1260,7 +1330,7 @@ t_myisam	CREATE TABLE `t_myisam` (
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
-) /*!50100 TABLESPACE `s_def` */ ENGINE=MyISAM AUTO_INCREMENT=4 DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `s_def` */ ENGINE=MyISAM AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4
 ALTER TABLE t_myisam RENAME TO t_innodb, ENGINE=InnoDB;
 INSERT INTO t_innodb(b) VALUES(44);
 SHOW CREATE TABLE t_innodb;
@@ -1270,8 +1340,13 @@ t_innodb	CREATE TABLE `t_innodb` (
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
+<<<<<<< HEAD
 ) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=latin1
 === information_schema.innodb_tables  and innodb_tablespaces ===
+=======
+) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+>>>>>>> mysql-trunk
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_innodb	s_def	0	4	Dynamic	0	General
 DROP TABLE t_innodb;
@@ -1289,8 +1364,13 @@ t_dyn_in_s_def	CREATE TABLE `t_dyn_in_s_def` (
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
+<<<<<<< HEAD
 ) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 === information_schema.innodb_tables  and innodb_tablespaces ===
+=======
+) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+>>>>>>> mysql-trunk
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_dyn_in_s_def	s_def	0	4	Dynamic	0	General
 ALTER TABLE t_dyn_in_s_def ENGINE=MyISAM;
@@ -1302,8 +1382,13 @@ t_dyn_in_s_def	CREATE TABLE `t_dyn_in_s_def` (
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
+<<<<<<< HEAD
 ) /*!50100 TABLESPACE `s_def` */ ENGINE=MyISAM AUTO_INCREMENT=3 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 === information_schema.innodb_tables  and innodb_tablespaces ===
+=======
+) /*!50100 TABLESPACE `s_def` */ ENGINE=MyISAM AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+>>>>>>> mysql-trunk
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 ALTER TABLE t_dyn_in_s_def ENGINE=InnoDB;
 INSERT INTO t_dyn_in_s_def(b) VALUES(33);
@@ -1314,8 +1399,13 @@ t_dyn_in_s_def	CREATE TABLE `t_dyn_in_s_def` (
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
+<<<<<<< HEAD
 ) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 === information_schema.innodb_tables  and innodb_tablespaces ===
+=======
+) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+>>>>>>> mysql-trunk
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_dyn_in_s_def	s_def	0	4	Dynamic	0	General
 ALTER TABLE t_dyn_in_s_def ENGINE=Memory;
@@ -1327,8 +1417,13 @@ t_dyn_in_s_def	CREATE TABLE `t_dyn_in_s_def` (
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
+<<<<<<< HEAD
 ) /*!50100 TABLESPACE `s_def` */ ENGINE=MEMORY AUTO_INCREMENT=5 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 === information_schema.innodb_tables  and innodb_tablespaces ===
+=======
+) /*!50100 TABLESPACE `s_def` */ ENGINE=MEMORY AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+>>>>>>> mysql-trunk
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 ALTER TABLE t_dyn_in_s_def ENGINE=InnoDB;
 INSERT INTO t_dyn_in_s_def(b) VALUES(55);
@@ -1346,8 +1441,13 @@ t_dyn_in_s_def	CREATE TABLE `t_dyn_in_s_def` (
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
+<<<<<<< HEAD
 ) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 === information_schema.innodb_tables  and innodb_tablespaces ===
+=======
+) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+>>>>>>> mysql-trunk
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_dyn_in_s_def	s_def	0	4	Dynamic	0	General
 CHECK TABLE t_dyn_in_s_def;
@@ -1368,8 +1468,13 @@ t_nomad	CREATE TABLE `t_nomad` (
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
+<<<<<<< HEAD
 ) /*!50100 TABLESPACE `s_short_life` */ ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=latin1
 === information_schema.innodb_tables  and innodb_tablespaces ===
+=======
+) /*!50100 TABLESPACE `s_short_life` */ ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+>>>>>>> mysql-trunk
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_nomad	s_short_life	0	4	Dynamic	0	General
 ALTER TABLE t_nomad ENGINE=MyISAM;
@@ -1381,8 +1486,13 @@ t_nomad	CREATE TABLE `t_nomad` (
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
+<<<<<<< HEAD
 ) /*!50100 TABLESPACE `s_short_life` */ ENGINE=MyISAM AUTO_INCREMENT=3 DEFAULT CHARSET=latin1
 === information_schema.innodb_tables  and innodb_tablespaces ===
+=======
+) /*!50100 TABLESPACE `s_short_life` */ ENGINE=MyISAM AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+>>>>>>> mysql-trunk
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 DROP TABLESPACE s_short_life;
 ALTER TABLE t_nomad ENGINE=InnoDB;
@@ -1396,8 +1506,13 @@ t_nomad	CREATE TABLE `t_nomad` (
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
+<<<<<<< HEAD
 ) /*!50100 TABLESPACE `s_shorter_life` */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=latin1
 === information_schema.innodb_tables  and innodb_tablespaces ===
+=======
+) /*!50100 TABLESPACE `s_shorter_life` */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+>>>>>>> mysql-trunk
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_nomad	s_shorter_life	0	4	Dynamic	0	General
 DROP TABLE t_nomad;
@@ -1523,3 +1638,24 @@ DROP TABLESPACE s1;
 DROP TABLESPACE s_def;
 SET GLOBAL innodb_file_per_table=default;
 SET GLOBAL innodb_strict_mode=default;
+#
+# Bug #20763179 SEGV WHEN CREATE TABLESPACE IS EXECUTED IN READ ONLY MODE
+#
+# Check CREATE TABLESPACE is handled properly in read-only mode
+CREATE TABLESPACE s1 ADD DATAFILE 's1.ibd' ENGINE InnoDB;
+# restart: --innodb_read_only
+CREATE TABLESPACE s2 ADD DATAFILE 's2.ibd' ENGINE InnoDB;
+ERROR HY000: Table 'tablespaces' is read only
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1836	InnoDB: Running in read-only mode
+Error	1036	Table 'tablespaces' is read only
+DROP TABLESPACE s1;
+ERROR HY000: Failed to drop TABLESPACE s1
+SHOW WARNINGS;
+Level	Code	Message
+Error	1529	Failed to drop TABLESPACE s1
+Error	1874	InnoDB is in read only mode.
+# Restart in normal mode for cleanup.
+# restart
+DROP TABLESPACE s1;

@@ -249,11 +249,11 @@ private:
 	@param[in,out]	out	the output stream
 	@param[in]	page_id	the page_id_t object to be printed
 	@return the output stream */
-        friend
-        std::ostream&
-        operator<<(
-                std::ostream&           out,
-                const page_id_t&        page_id);
+	friend
+	std::ostream&
+	operator<<(
+		std::ostream&		out,
+		const page_id_t&	page_id);
 };
 
 /** Print the given page_id_t object.

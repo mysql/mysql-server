@@ -19,6 +19,7 @@
 #include <fcntl.h>
 #include <my_getopt.h>
 #include <stdlib.h>
+#include <sys/types.h>
 
 #include "ftdefs.h"
 #include "my_compiler.h"
@@ -28,10 +29,10 @@
 
 static void usage() MY_ATTRIBUTE((noreturn));
 static void complain(int val);
-static my_bool get_one_option(int, const struct my_option *, char *);
+static bool get_one_option(int, const struct my_option *, char *);
 
 static int count=0, stats=0, dump=0, lstats=0;
-static my_bool verbose;
+static bool verbose;
 static char *query=NULL;
 static uint lengths[256];
 
@@ -240,7 +241,7 @@ err:
 }
 
 
-static my_bool
+static bool
 get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
 	       char *argument MY_ATTRIBUTE((unused)))
 {

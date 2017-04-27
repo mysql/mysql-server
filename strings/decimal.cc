@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -102,7 +102,6 @@
 #include <m_ctype.h>
 #include <m_string.h>
 #include <math.h>
-#include <my_global.h>
 #include <my_sys.h> /* for my_alloca */
 #include <myisampack.h>
 #include <string.h>
@@ -231,16 +230,16 @@ static inline int count_leading_zeroes(int i, dec1 val)
   switch (i)
   {
   /* @note Intentional fallthrough in all case labels */
-  case 9: if (val >= 1000000000) break; ++ret;
-  case 8: if (val >= 100000000) break; ++ret;
-  case 7: if (val >= 10000000) break; ++ret;
-  case 6: if (val >= 1000000) break; ++ret;
-  case 5: if (val >= 100000) break; ++ret;
-  case 4: if (val >= 10000) break; ++ret;
-  case 3: if (val >= 1000) break; ++ret;
-  case 2: if (val >= 100) break; ++ret;
-  case 1: if (val >= 10) break; ++ret;
-  case 0: if (val >= 1) break; ++ret;
+  case 9: if (val >= 1000000000) break; ++ret;  // Fall through.
+  case 8: if (val >= 100000000) break; ++ret;  // Fall through.
+  case 7: if (val >= 10000000) break; ++ret;  // Fall through.
+  case 6: if (val >= 1000000) break; ++ret;  // Fall through.
+  case 5: if (val >= 100000) break; ++ret;  // Fall through.
+  case 4: if (val >= 10000) break; ++ret;  // Fall through.
+  case 3: if (val >= 1000) break; ++ret;  // Fall through.
+  case 2: if (val >= 100) break; ++ret;  // Fall through.
+  case 1: if (val >= 10) break; ++ret;  // Fall through.
+  case 0: if (val >= 1) break; ++ret;  // Fall through.
   default: { DBUG_ASSERT(FALSE); }
   }
   return ret;
@@ -264,16 +263,16 @@ static inline int count_trailing_zeroes(int i, dec1 val)
   switch(i)
   {
   /* @note Intentional fallthrough in all case labels */
-  case 0: if ((val % 1) != 0) break; ++ret;
-  case 1: if ((val % 10) != 0) break; ++ret;
-  case 2: if ((val % 100) != 0) break; ++ret;
-  case 3: if ((val % 1000) != 0) break; ++ret;
-  case 4: if ((val % 10000) != 0) break; ++ret;
-  case 5: if ((val % 100000) != 0) break; ++ret;
-  case 6: if ((val % 1000000) != 0) break; ++ret;
-  case 7: if ((val % 10000000) != 0) break; ++ret;
-  case 8: if ((val % 100000000) != 0) break; ++ret;
-  case 9: if ((val % 1000000000) != 0) break; ++ret;
+  case 0: if ((val % 1) != 0) break; ++ret;  // Fall through.
+  case 1: if ((val % 10) != 0) break; ++ret;  // Fall through.
+  case 2: if ((val % 100) != 0) break; ++ret;  // Fall through.
+  case 3: if ((val % 1000) != 0) break; ++ret;  // Fall through.
+  case 4: if ((val % 10000) != 0) break; ++ret;  // Fall through.
+  case 5: if ((val % 100000) != 0) break; ++ret;  // Fall through.
+  case 6: if ((val % 1000000) != 0) break; ++ret;  // Fall through.
+  case 7: if ((val % 10000000) != 0) break; ++ret;  // Fall through.
+  case 8: if ((val % 100000000) != 0) break; ++ret;  // Fall through.
+  case 9: if ((val % 1000000000) != 0) break; ++ret;  // Fall through.
   default: { DBUG_ASSERT(FALSE); }
   }
   return ret;
@@ -844,17 +843,12 @@ int decimal_shift(decimal_t *dec, int shift)
   Convert string to decimal
 
   SYNOPSIS
-    internal_str2decl()
+    string2decimal()
       from    - value to convert. Doesn't have to be \0 terminated!
       to      - decimal where where the result will be stored
                 to->buf and to->len must be set.
       end     - Pointer to pointer to end of string. Will on return be
 		set to the char after the last used character
-      fixed   - use to->intg, to->frac as limits for input number
-
-  NOTE
-    to->intg and to->frac can be modified even when fixed=1
-    (but only decreased, in this case)
 
   RETURN VALUE
     E_DEC_OK/E_DEC_TRUNCATED/E_DEC_OVERFLOW/E_DEC_BAD_NUM/E_DEC_OOM
@@ -863,7 +857,7 @@ int decimal_shift(decimal_t *dec, int shift)
 */
 
 int
-internal_str2dec(const char *from, decimal_t *to, char **end, my_bool fixed)
+string2decimal(const char *from, decimal_t *to, char **end)
 {
   const char *s= from, *s1, *endp, *end_of_string= *end;
   int i, intg, frac, error, intg1, frac1;
@@ -904,38 +898,17 @@ internal_str2dec(const char *from, decimal_t *to, char **end, my_bool fixed)
     goto fatal_error;
 
   error= 0;
-  if (fixed)
+
+  intg1=ROUND_UP(intg);
+  frac1=ROUND_UP(frac);
+  FIX_INTG_FRAC_ERROR(to->len, intg1, frac1, error);
+  if (unlikely(error))
   {
-    if (frac > to->frac)
-    {
-      error=E_DEC_TRUNCATED;
-      frac=to->frac;
-    }
-    if (intg > to->intg)
-    {
-      error=E_DEC_OVERFLOW;
-      intg=to->intg;
-    }
-    intg1=ROUND_UP(intg);
-    frac1=ROUND_UP(frac);
-    if (intg1+frac1 > to->len)
-    {
-      error= E_DEC_OOM;
-      goto fatal_error;
-    }
+    frac=frac1*DIG_PER_DEC1;
+    if (error == E_DEC_OVERFLOW)
+      intg=intg1*DIG_PER_DEC1;
   }
-  else
-  {
-    intg1=ROUND_UP(intg);
-    frac1=ROUND_UP(frac);
-    FIX_INTG_FRAC_ERROR(to->len, intg1, frac1, error);
-    if (unlikely(error))
-    {
-      frac=frac1*DIG_PER_DEC1;
-      if (error == E_DEC_OVERFLOW)
-        intg=intg1*DIG_PER_DEC1;
-    }
-  }
+
   /* Error is guranteed to be set here */
   to->intg=intg;
   to->frac=frac;
@@ -1060,7 +1033,7 @@ int double2decimal(double from, decimal_t *to)
   int res;
   DBUG_ENTER("double2decimal");
   end= buff + my_gcvt(from, MY_GCVT_ARG_DOUBLE, (int)sizeof(buff) - 1, buff, NULL);
-  res= internal_str2dec(buff, to, &end, FALSE);
+  res= string2decimal(buff, to, &end);
   DBUG_PRINT("exit", ("res: %d", res));
   DBUG_RETURN(res);
 }
@@ -2143,7 +2116,7 @@ int decimal_cmp(const decimal_t *from1, const decimal_t *from2)
   if (likely(from1->sign == from2->sign))
     return do_sub(from1, from2, 0);
 
-  // Reject negative zero, cfr. internal_str2dec()
+  // Reject negative zero, cfr. string2decimal()
   DBUG_ASSERT(!(decimal_is_zero(from1) && from1->sign));
   DBUG_ASSERT(!(decimal_is_zero(from2) && from2->sign));
 

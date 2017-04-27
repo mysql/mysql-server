@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,12 +16,11 @@
 #ifndef DD__STRING_TYPE
 #define DD__STRING_TYPE
 
-#include "my_global.h"
+
+#include <sstream>
+#include <string>
 
 #include "stateless_allocator.h"        // Stateless_allocator
-
-#include <string>
-#include <sstream>
 
 namespace dd {
 /**

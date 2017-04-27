@@ -9,7 +9,6 @@
 # This should yield the same result as when running
 # this test with default privilege tables
 
---source include/not_embedded.inc
 --source include/have_ndb.inc
 --source include/have_binlog_format_mixed_or_row.inc
 

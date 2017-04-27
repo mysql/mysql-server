@@ -44,54 +44,6 @@ static unsigned int __stdcall win_thread_start(void *p)
 #endif
 
 
-/*
- One time initialization. For simplicity, we assume initializer thread
- does not exit within init_routine().
-*/
-
-extern "C" int my_thread_once(my_thread_once_t *once_control,
-                              void (*init_routine)(void))
-{
-#ifndef _WIN32
-  return pthread_once(once_control, init_routine);
-#else
-  LONG state;
-
-  /*
-    Do "dirty" read to find out if initialization is already done, to
-    save an interlocked operation in common case. Memory barriers are ensured by 
-    Visual C++ volatile implementation.
-  */
-  if (*once_control == MY_THREAD_ONCE_DONE)
-    return 0;
-
-  state= InterlockedCompareExchange(once_control, MY_THREAD_ONCE_INPROGRESS,
-                                    MY_THREAD_ONCE_INIT);
-
-  switch(state)
-  {
-  case MY_THREAD_ONCE_INIT:
-    /* This is initializer thread */
-    (*init_routine)();
-    *once_control= MY_THREAD_ONCE_DONE;
-    break;
-
-  case MY_THREAD_ONCE_INPROGRESS:
-    /* init_routine in progress. Wait for its completion */
-    while(*once_control == MY_THREAD_ONCE_INPROGRESS)
-    {
-      Sleep(1);
-    }
-    break;
-  case MY_THREAD_ONCE_DONE:
-    /* Nothing to do */
-    break;
-  }
-  return 0;
-#endif /* _WIN32 */
-}
-
-
 int my_thread_create(my_thread_handle *thread, const my_thread_attr_t *attr,
                      my_start_routine func, void *arg)
 {

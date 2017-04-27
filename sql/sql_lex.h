@@ -36,6 +36,7 @@
 #include "item.h"                     // Name_resolution_context
 #include "item_subselect.h"           // chooser_compare_func_creator
 #include "key_spec.h"                 // KEY_CREATE_INFO
+#include "lex_string.h"
 #include "lex_symbol.h"               // LEX_SYMBOL
 #include "m_string.h"
 #include "mdl.h"
@@ -43,7 +44,6 @@
 #include "my_base.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_sqlcommand.h"
@@ -276,6 +276,14 @@ inline uint to_uint(enum_sp_type val)
 #define TYPE_ENUM_PROCEDURE 2
 #define TYPE_ENUM_TRIGGER   3
 #define TYPE_ENUM_PROXY     4
+
+enum class Acl_type
+{
+  TABLE= 0,
+  FUNCTION= TYPE_ENUM_FUNCTION,
+  PROCEDURE= TYPE_ENUM_PROCEDURE,
+};
+
 
 const LEX_STRING sp_data_access_name[]=
 {
@@ -1241,11 +1249,10 @@ public:
   /**
     @note the group_by and order_by lists below will probably be added to the
           constructor when the parser is converted into a true bottom-up design.
+
+          //SQL_I_LIST<ORDER> *group_by, SQL_I_LIST<ORDER> order_by
   */
-  SELECT_LEX(TABLE_LIST *table_list, List<Item> *item_list,
-                Item *where, Item *having, Item *limit, Item *offset
-                //SQL_I_LIST<ORDER> *group_by, SQL_I_LIST<ORDER> order_by
-                );
+  SELECT_LEX(Item *where, Item *having);
 
   SELECT_LEX_UNIT *master_unit() const { return master; }
   SELECT_LEX_UNIT *first_inner_unit() const { return slave; }
@@ -1330,7 +1337,7 @@ public:
   bool set_braces(bool value);
   uint get_in_sum_expr() const { return in_sum_expr; }
 
-  bool add_item_to_list(THD *thd, Item *item);
+  bool add_item_to_list(Item *item);
   bool add_ftfunc_to_list(Item_func_match *func);
   void add_order_to_list(ORDER *order);
   TABLE_LIST* add_table_to_list(THD *thd, Table_ident *table,
@@ -1344,7 +1351,7 @@ public:
                                 Parse_context *pc= NULL);
   TABLE_LIST* get_table_list() const { return table_list.first; }
   bool init_nested_join(THD *thd);
-  TABLE_LIST *end_nested_join(THD *thd);
+  TABLE_LIST *end_nested_join();
   TABLE_LIST *nest_last_join(THD *thd, size_t table_cnt= 2);
   bool add_joined_table(TABLE_LIST *table);
   TABLE_LIST *convert_right_join();
@@ -1417,7 +1424,7 @@ public:
   static void print_order(String *str,
                           ORDER *order,
                           enum_query_type query_type);
-  void print_limit(THD *thd, String *str, enum_query_type query_type);
+  void print_limit(String *str, enum_query_type query_type);
   void fix_prepare_information(THD *thd);
 
   bool accept(Select_lex_visitor *visitor);
@@ -1685,22 +1692,6 @@ struct Query_options {
 
 
 /**
-  Argument values for PROCEDURE ANALYSE(...)
-*/
-
-struct Proc_analyse_params
-{
-  /** Maximum number of distinct values per column. */
-  uint max_tree_elements;
-  /** Maximum amount of memory to allocate per column. */
-  uint max_treemem;
-
-  static const uint default_max_tree_elements= 256;
-  static const uint default_max_treemem= 8192;
-};
-
-
-/**
   Helper for the sql_exchange class
 */
 
@@ -1825,6 +1816,10 @@ enum class Numeric_type : ulong
 };
 
 
+enum class Show_fields_type { STANDARD, FULL_SHOW, EXTENDED_SHOW,
+                              EXTENDED_FULL_SHOW };
+
+
 union YYSTYPE {
   /*
     Hint parser section (sql_hints.yy)
@@ -1923,8 +1918,6 @@ union YYSTYPE {
   enum olap_type olap_type;
   class PT_group *group;
   class PT_order *order;
-  struct Proc_analyse_params procedure_analyse_params;
-  class PT_procedure_analyse *procedure_analyse;
   class PT_table_reference *table_reference;
   class PT_joined_table *join_table;
   enum PT_joined_table_type join_type;
@@ -2072,6 +2065,11 @@ union YYSTYPE {
     LEX_STRING wild;
     Item *where;
   } wild_or_where;
+  Show_fields_type show_fields_type;
+  Acl_type acl_type;
+  Trivial_array<LEX_CSTRING> *lex_cstring_list;
+  class PT_role_or_privilege *role_or_privilege;
+  Trivial_array<PT_role_or_privilege *> *role_or_privilege_list;
 };
 
 
@@ -2788,7 +2786,6 @@ struct st_parsing_options
 {
   bool allows_variable;
   bool allows_select_into;
-  bool allows_select_procedure;
 
   st_parsing_options() { reset(); }
   void reset();
@@ -3392,6 +3389,7 @@ public:
 
   List<LEX_USER>      users_list;
   List<LEX_COLUMN>    columns;
+  List<LEX_CSTRING>   dynamic_privileges;
 
   ulonglong           bulk_insert_row_cnt;
 
@@ -3458,7 +3456,7 @@ private:
     With Visual Studio, an std::map will always allocate two small objects
     on the heap. Sometimes we put LEX objects in a MEM_ROOT, and never run
     the LEX DTOR. To avoid memory leaks, put this std::map on the heap,
-    and call clear_values_map() in lex_end()
+    and call clear_values_map() at the end of each statement.
    */
   std::map<Field *,Field *> *insert_update_values_map;
 public:
@@ -3478,11 +3476,6 @@ public:
   */
   List<Name_resolution_context> context_stack;
 
-  /**
-    Argument values for PROCEDURE ANALYSE(); is NULL for other queries
-  */
-  Proc_analyse_params *proc_analyse;
-  SQL_I_List<TABLE_LIST> save_list;
   Item_sum *in_sum_func;
   udf_func udf;
   HA_CHECK_OPT   check_opt;			// check/repair options
@@ -3533,7 +3526,7 @@ public:
   /// QUERY ID for SHOW PROFILE and EXPLAIN CONNECTION
   my_thread_id query_id;
   uint profile_options;
-  uint grant, grant_tot_col, which_columns;
+  uint grant, grant_tot_col;
   uint slave_thd_opt, start_transaction_opt;
   int select_number;                     ///< Number of query block (by EXPLAIN)
   uint8 describe;
@@ -3544,7 +3537,7 @@ public:
   bool autocommit;
   bool verbose, no_write_to_binlog;
   // For show commands to show hidden columns and indexes.
-  bool extended_show;
+  bool m_extended_show;
 
   enum enum_yes_no_unknown tx_chain, tx_release;
   bool safe_to_cache_query;
@@ -3844,6 +3837,7 @@ public:
   bool accept(Select_lex_visitor *visitor);
 
   bool set_wild(LEX_STRING);
+  void clear_privileges();
 };
 
 

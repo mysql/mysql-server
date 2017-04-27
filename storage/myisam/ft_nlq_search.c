@@ -17,6 +17,7 @@
 
 #define FT_CORE
 #include <fcntl.h>
+#include <sys/types.h>
 
 #include "ftdefs.h"
 #include "my_compiler.h"

@@ -14,9 +14,10 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <errno.h>
+#include <time.h>
 #include <vector>
 
-#include "gcs_log_system.h"
+#include "mysql/gcs/gcs_log_system.h"
 
 Ext_logger_interface *Gcs_logger::log= NULL;
 

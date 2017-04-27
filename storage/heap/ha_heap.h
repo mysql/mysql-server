@@ -17,9 +17,10 @@
 
 /* class for the the heap handler */
 
+#include <sys/types.h>
+
 #include "handler.h"
 #include "heap.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "table.h"
 
@@ -31,7 +32,7 @@ class ha_heap: public handler
   uint    records_changed;
   uint    key_stat_version;
   /// True if only one ha_heap is to exist for the table.
-  my_bool single_instance;
+  bool single_instance;
 public:
   ha_heap(handlerton *hton, TABLE_SHARE *table);
   ~ha_heap() {}

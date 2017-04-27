@@ -1,6 +1,4 @@
 
-# Embedded server doesn't support external clients
---source include/not_embedded.inc
 # Windows fails because it disconnects on too-large packets instead of just
 # swallowing them and returning an error
 --source include/not_windows.inc
@@ -8,6 +6,16 @@
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
+
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs229=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema default character set latin1;
+use test;
+--enable_query_log
+########################################
 
 #
 # Check protocol handling
@@ -174,3 +182,10 @@ DROP TABLE t1, t2, t3, t4;
 
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs229;
+--enable_query_log
+########################################

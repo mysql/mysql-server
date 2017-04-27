@@ -18,9 +18,12 @@
   Table METADATA_LOCKS (implementation).
 */
 
+#include "storage/perfschema/table_md_locks.h"
+
+#include <stddef.h>
+
 #include "field.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_thread.h"
 #include "pfs_buffer_container.h"
@@ -28,7 +31,6 @@
 #include "pfs_column_values.h"
 #include "pfs_global.h"
 #include "pfs_instr.h"
-#include "table_md_locks.h"
 
 THR_LOCK table_metadata_locks::m_table_lock;
 
@@ -179,7 +181,7 @@ PFS_index_metadata_locks_by_owner::match(const PFS_metadata_lock *pfs)
 }
 
 PFS_engine_table *
-table_metadata_locks::create(void)
+table_metadata_locks::create(PFS_engine_table_share *)
 {
   return new table_metadata_locks();
 }

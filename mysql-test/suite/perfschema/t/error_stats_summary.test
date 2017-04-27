@@ -1,6 +1,5 @@
 ############# suite/perfschema/t/ees.test ####################
 
---source include/not_embedded.inc
 --source include/no_protocol.inc
 
 --echo

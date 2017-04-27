@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -17,17 +17,19 @@
 
 #ifndef UNITTEST_OBJECT_FILTER_PARSER
 #include "object_filter.h"
-#include "pattern_matcher.h"
+
 #include "database.h"
 #include "event_scheduler_event.h"
-#include "table.h"
-#include "stored_procedure.h"
 #include "mysql_function.h"
-#include "trigger.h"
+#include "pattern_matcher.h"
 #include "privilege.h"
+#include "stored_procedure.h"
+#include "table.h"
+#include "trigger.h"
 #endif
 #include <boost/algorithm/string.hpp>
 #include <boost/tokenizer.hpp>
+#include <stddef.h>
 
 using std::placeholders::_1;
 

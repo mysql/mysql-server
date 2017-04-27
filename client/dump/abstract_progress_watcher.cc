@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -17,13 +17,14 @@
 
 #include "abstract_progress_watcher.h"
 
+#include <stddef.h>
 #include <algorithm>
 #include <chrono>
 #include <functional>
 
-#include "table_rows_dump_task.h"
-#include "table_definition_dump_task.h"
 #include "row_group_dump_task.h"
+#include "table_definition_dump_task.h"
+#include "table_rows_dump_task.h"
 
 using namespace Mysql::Tools::Dump;
 
@@ -70,7 +71,7 @@ Abstract_progress_watcher::Abstract_progress_watcher(
   m_last_step_countdown(1)
 {}
 
-void Abstract_progress_watcher::crawler_completed(I_crawler* crawler)
+void Abstract_progress_watcher::crawler_completed(I_crawler*)
 {}
 
 void Abstract_progress_watcher::object_processing_ended(
@@ -106,7 +107,7 @@ void Abstract_progress_watcher::object_processing_ended(
 }
 
 void Abstract_progress_watcher::object_processing_started(
-  Item_processing_data* process_data)
+  Item_processing_data*)
 {}
 
 void Abstract_progress_watcher::new_chain_created(

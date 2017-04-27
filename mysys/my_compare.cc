@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,7 +30,7 @@
 #define CMP_NUM(a,b)    (((a) < (b)) ? -1 : ((a) == (b)) ? 0 : 1)
 
 int ha_compare_text(const CHARSET_INFO *charset_info, uchar *a, uint a_length,
-		    uchar *b, uint b_length, my_bool part_key)
+		    uchar *b, uint b_length, bool part_key)
 {
   if (!part_key)
     return charset_info->coll->strnncollsp(charset_info, a, a_length,
@@ -41,7 +41,7 @@ int ha_compare_text(const CHARSET_INFO *charset_info, uchar *a, uint a_length,
 
 
 static int compare_bin(uchar *a, uint a_length, uchar *b, uint b_length,
-                       my_bool part_key, my_bool skip_end_space)
+                       bool part_key, bool skip_end_space)
 {
   uint length= MY_MIN(a_length, b_length);
   uchar *end= a+ length;
@@ -186,8 +186,8 @@ int ha_key_cmp(HA_KEYSEG *keyseg, uchar *a,
 
         if (piks &&
             (flag=ha_compare_text(keyseg->charset,a,a_length,b,b_length,
-				  (my_bool) ((nextflag & SEARCH_PREFIX) &&
-					     next_key_length <= 0))))
+				  (bool) ((nextflag & SEARCH_PREFIX) &&
+					  next_key_length <= 0))))
           return ((keyseg->flag & HA_REVERSE_SORT) ? -flag : flag);
         a+=a_length;
         b+=b_length;
@@ -198,8 +198,8 @@ int ha_key_cmp(HA_KEYSEG *keyseg, uchar *a,
 	uint length=(uint) (end-a), a_length=length, b_length=length;
         if (piks &&
             (flag= ha_compare_text(keyseg->charset, a, a_length, b, b_length,
-				   (my_bool) ((nextflag & SEARCH_PREFIX) &&
-					      next_key_length <= 0))))
+				   (bool) ((nextflag & SEARCH_PREFIX) &&
+					   next_key_length <= 0))))
           return ((keyseg->flag & HA_REVERSE_SORT) ? -flag : flag);
         a=end;
         b+=length;
@@ -216,8 +216,8 @@ int ha_key_cmp(HA_KEYSEG *keyseg, uchar *a,
 
         if (piks &&
 	    (flag=compare_bin(a,a_length,b,b_length,
-                              (my_bool) ((nextflag & SEARCH_PREFIX) &&
-                                         next_key_length <= 0),1)))
+                              (bool) ((nextflag & SEARCH_PREFIX) &&
+                                      next_key_length <= 0),1)))
           return ((keyseg->flag & HA_REVERSE_SORT) ? -flag : flag);
         a+=a_length;
         b+=b_length;
@@ -228,8 +228,8 @@ int ha_key_cmp(HA_KEYSEG *keyseg, uchar *a,
         uint length=keyseg->length;
         if (piks &&
 	    (flag=compare_bin(a,length,b,length,
-                              (my_bool) ((nextflag & SEARCH_PREFIX) &&
-                                         next_key_length <= 0),0)))
+                              (bool) ((nextflag & SEARCH_PREFIX) &&
+                                      next_key_length <= 0),0)))
           return ((keyseg->flag & HA_REVERSE_SORT) ? -flag : flag);
         a+=length;
         b+=length;
@@ -245,8 +245,8 @@ int ha_key_cmp(HA_KEYSEG *keyseg, uchar *a,
 
         if (piks &&
 	    (flag= ha_compare_text(keyseg->charset,a,a_length,b,b_length,
-                                   (my_bool) ((nextflag & SEARCH_PREFIX) &&
-                                              next_key_length <= 0))))
+                                   (bool) ((nextflag & SEARCH_PREFIX) &&
+                                           next_key_length <= 0))))
           return ((keyseg->flag & HA_REVERSE_SORT) ? -flag : flag);
         a+= a_length;
         b+= b_length;
@@ -262,8 +262,8 @@ int ha_key_cmp(HA_KEYSEG *keyseg, uchar *a,
 
         if (piks &&
 	    (flag=compare_bin(a,a_length,b,b_length,
-                              (my_bool) ((nextflag & SEARCH_PREFIX) &&
-                                         next_key_length <= 0), 0)))
+                              (bool) ((nextflag & SEARCH_PREFIX) &&
+                                      next_key_length <= 0), 0)))
           return ((keyseg->flag & HA_REVERSE_SORT) ? -flag : flag);
         a+=a_length;
         b+=b_length;

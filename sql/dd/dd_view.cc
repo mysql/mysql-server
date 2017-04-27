@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,9 +13,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "dd_view.h"
+#include "sql/dd/dd_view.h"
 
 #include <string.h>
+#include <sys/types.h>
 #include <time.h>
 #include <memory>
 #include <string>
@@ -38,16 +39,16 @@
 #include "item.h"
 #include "item_func.h"                        // Item_func
 #include "key.h"
+#include "lex_string.h"
 #include "log.h"                              // sql_print_error, sql_print_..
 #include "mdl.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/psi/mysql_statement.h"
 #include "mysql_com.h"
-#include "mysqld_error.h"
 #include "mysql_time.h"                       // MYSQL_TIME
+#include "mysqld_error.h"
 #include "parse_file.h"                       // PARSE_FILE_TIMESTAMPLENGTH
 #include "session_tracker.h"
 #include "sp.h"                               // Sroutine_hash_entry
@@ -488,32 +489,38 @@ static void fill_dd_view_tables(View *view_obj, const TABLE_LIST *view,
 /**
   Method to fill view routines from the set of routines used by view query.
 
-  @param  view_obj  DD view object.
-  @param  routines  Set of routines used by view query.
+  @param  view_obj      DD view object.
+  @param  routines_ctx  Query_table_list object for the view which contains
+                        set of routines used by view query.
 */
 
 static void fill_dd_view_routines(
   View *view_obj,
-  const SQL_I_List<Sroutine_hash_entry> *routines)
+  Query_tables_list *routines_ctx)
 {
   DBUG_ENTER("fill_dd_view_routines");
 
-  // View stored functions.
-  for (Sroutine_hash_entry *rt= routines->first; rt; rt= rt->next)
+  // View stored functions. We need only directly used routines.
+  for (Sroutine_hash_entry *rt= routines_ctx->sroutines_list.first;
+       rt != nullptr && rt != *routines_ctx->sroutines_list_own_last;
+       rt= rt->next)
   {
     View_routine *view_sf_obj= view_obj->add_routine();
 
-    char qname_buff[NAME_LEN*2+1+1];
-    sp_name sf(&rt->mdl_request.key, qname_buff);
+    /*
+      We should get only stored functions here, as procedures are not directly
+      used by views, and thus not stored as dependencies.
+    */
+    DBUG_ASSERT(rt->type() == Sroutine_hash_entry::FUNCTION);
 
     // view routine catalog
     view_sf_obj->set_routine_catalog(Dictionary_impl::default_catalog_name());
 
     // View routine schema
-    view_sf_obj->set_routine_schema(String_type(sf.m_db.str, sf.m_db.length));
+    view_sf_obj->set_routine_schema(String_type(rt->db(), rt->m_db_length));
 
     // View routine name
-    view_sf_obj->set_routine_name(String_type(sf.m_name.str, sf.m_name.length));
+    view_sf_obj->set_routine_name(String_type(rt->name(), rt->name_length()));
   }
 
   DBUG_VOID_RETURN;
@@ -618,24 +625,19 @@ static bool fill_dd_view_definition(THD *thd, View *view_obj,
   // Fill view tables information in View object.
   fill_dd_view_tables(view_obj, view, thd->lex->query_tables);
 
-  // Fill view routines information in View object.
-  fill_dd_view_routines(view_obj, &thd->lex->sroutines_list);
+  /*
+    Fill view routines information in View object. It is important that
+    THD::lex points to the view's LEX at this point, so information about
+    directly used routines in it is correct.
+  */
+  fill_dd_view_routines(view_obj, thd->lex);
 
   return false;
 }
 
 
-bool update_view(THD *thd, TABLE_LIST *view, bool commit_dd_changes)
+bool update_view(THD *thd, dd::View *new_view, TABLE_LIST *view)
 {
-  dd::cache::Dictionary_client *client= thd->dd_client();
-  dd::cache::Dictionary_client::Auto_releaser releaser(client);
-  dd::View *new_view= nullptr;
-  if (client->acquire_for_modification(view->db, view->table_name,
-                                       &new_view))
-    return true;
-
-  DBUG_ASSERT(new_view != nullptr);
-
   // Clear the columns, tables and routines since it will be added later.
   new_view->remove_children();
 
@@ -650,75 +652,33 @@ bool update_view(THD *thd, TABLE_LIST *view, bool commit_dd_changes)
   if (fill_dd_view_definition(thd, new_view, view))
     return true;
 
-  Disable_gtid_state_update_guard disabler(thd);
-
   // Update DD tables.
-  if (client->update(new_view))
-  {
-    if (commit_dd_changes)
-    {
-      trans_rollback_stmt(thd);
-      // Full rollback in case we have THD::transaction_rollback_request.
-      trans_rollback(thd);
-    }
-    return true;
-  }
-
-  return commit_dd_changes &&
-         (trans_commit_stmt(thd) || trans_commit(thd));
-
+  return thd->dd_client()->update(new_view);
 }
 
 
-bool create_view(THD *thd, TABLE_LIST *view, bool commit_dd_changes)
+bool create_view(THD *thd, const dd::Schema &schema, TABLE_LIST *view)
 {
-  dd::cache::Dictionary_client *client= thd->dd_client();
-
-  // Check if the schema exists.
-  dd::cache::Dictionary_client::Auto_releaser releaser(client);
-  const dd::Schema *sch_obj= nullptr;
-  if (client->acquire(view->db, &sch_obj))
-  {
-    // Error is reported by the dictionary subsystem.
-    return true;
-  }
-
-  if (!sch_obj)
-  {
-    my_error(ER_BAD_DB_ERROR, MYF(0), view->db);
-    return true;
-  }
-
   // Create dd::View object.
+  bool hidden_system_view= false;
   std::unique_ptr<dd::View> view_obj;
-  if (dd::get_dictionary()->is_system_view_name(view->db, view->table_name))
+  if (dd::get_dictionary()->is_system_view_name(view->db, view->table_name,
+                                                &hidden_system_view))
   {
-    view_obj.reset(sch_obj->create_system_view(thd));
+    view_obj.reset(schema.create_system_view(thd));
+
+    // Mark the internal system views as hidden from users.
+    if (hidden_system_view)
+      view_obj->set_hidden(dd::Abstract_table::HT_HIDDEN_SYSTEM);
   }
   else
-  {
-    view_obj.reset(sch_obj->create_view(thd));
-  }
+    view_obj.reset(schema.create_view(thd));
 
   if (fill_dd_view_definition(thd, view_obj.get(), view))
     return true;
 
-  Disable_gtid_state_update_guard disabler(thd);
-
   // Store info in DD views table.
-  if (client->store(view_obj.get()))
-  {
-    if (commit_dd_changes)
-    {
-      trans_rollback_stmt(thd);
-      // Full rollback in case we have THD::transaction_rollback_request.
-      trans_rollback(thd);
-    }
-    return true;
-  }
-
-  return commit_dd_changes &&
-         (trans_commit_stmt(thd) || trans_commit(thd));
+  return thd->dd_client()->store(view_obj.get());
 }
 
 

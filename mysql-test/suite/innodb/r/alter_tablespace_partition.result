@@ -1,5 +1,6 @@
 CREATE TABLESPACE s1 ADD DATAFILE 's1.ibd' ENGINE InnoDB;
 CREATE TABLE t1 (col1 INT, col2 INT) ENGINE = InnoDB TABLESPACE innodb_file_per_table PARTITION BY KEY(col1) PARTITIONS 3;
+<<<<<<< HEAD
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t1#p#p0	innodb_system	0	5	Dynamic	0	General
@@ -17,12 +18,32 @@ s1	TABLESPACE	InnoDB	NORMAL	s1	MYSQLD_DATADIR/s1.ibd
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t1#p#p0.ibd
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t1#p#p1.ibd
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t1#p#p2.ibd
+=======
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t1#p#p0	test/t1#p#p0	33	5	Dynamic	0	Single
+test/t1#p#p1	test/t1#p#p1	33	5	Dynamic	0	Single
+test/t1#p#p2	test/t1#p#p2	33	5	Dynamic	0	Single
+=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+s1	General	DEFAULT	0	Any	MYSQLD_DATADIR/s1.ibd
+test/t1#p#p0	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t1#p#p0.ibd
+test/t1#p#p1	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t1#p#p1.ibd
+test/t1#p#p2	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t1#p#p2.ibd
+=== information_schema.files ===
+Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
+s1	TABLESPACE	InnoDB	NORMAL	s1	MYSQLD_DATADIR/s1.ibd
+test/t1#p#p0	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t1#p#p0.ibd
+test/t1#p#p1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t1#p#p1.ibd
+test/t1#p#p2	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t1#p#p2.ibd
+>>>>>>> mysql-trunk
 ALTER TABLE t1 ENGINE = InnoDB TABLESPACE s1;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `col1` int(11) DEFAULT NULL,
   `col2` int(11) DEFAULT NULL
+<<<<<<< HEAD
 ) /*!50100 TABLESPACE `s1` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY KEY (col1)
 PARTITIONS 3 */
@@ -43,12 +64,35 @@ s1	TABLESPACE	InnoDB	NORMAL	s1	MYSQLD_DATADIR/s1.ibd
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t1#p#p0.ibd
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t1#p#p1.ibd
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t1#p#p2.ibd
+=======
+) /*!50100 TABLESPACE `s1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+/*!50100 PARTITION BY KEY (col1)
+PARTITIONS 3 */
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t1#p#p0	test/t1#p#p0	33	5	Dynamic	0	Single
+test/t1#p#p1	test/t1#p#p1	33	5	Dynamic	0	Single
+test/t1#p#p2	test/t1#p#p2	33	5	Dynamic	0	Single
+=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+s1	General	DEFAULT	0	Any	MYSQLD_DATADIR/s1.ibd
+test/t1#p#p0	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t1#p#p0.ibd
+test/t1#p#p1	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t1#p#p1.ibd
+test/t1#p#p2	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t1#p#p2.ibd
+=== information_schema.files ===
+Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
+s1	TABLESPACE	InnoDB	NORMAL	s1	MYSQLD_DATADIR/s1.ibd
+test/t1#p#p0	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t1#p#p0.ibd
+test/t1#p#p1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t1#p#p1.ibd
+test/t1#p#p2	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t1#p#p2.ibd
+>>>>>>> mysql-trunk
 ALTER TABLE t1 ENGINE = InnoDB TABLESPACE innodb_file_per_table;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `col1` int(11) DEFAULT NULL,
   `col2` int(11) DEFAULT NULL
+<<<<<<< HEAD
 ) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY KEY (col1)
 PARTITIONS 3 */
@@ -79,6 +123,38 @@ test/t1#p#p2	innodb_system	0	5	Dynamic	0	System
 === information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 s1	GENERAL	0	0	Dynamic	s1.ibd
+=======
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+/*!50100 PARTITION BY KEY (col1)
+PARTITIONS 3 */
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t1#p#p0	test/t1#p#p0	33	5	Dynamic	0	Single
+test/t1#p#p1	test/t1#p#p1	33	5	Dynamic	0	Single
+test/t1#p#p2	test/t1#p#p2	33	5	Dynamic	0	Single
+=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+s1	General	DEFAULT	0	Any	MYSQLD_DATADIR/s1.ibd
+test/t1#p#p0	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t1#p#p0.ibd
+test/t1#p#p1	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t1#p#p1.ibd
+test/t1#p#p2	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t1#p#p2.ibd
+=== information_schema.files ===
+Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
+s1	TABLESPACE	InnoDB	NORMAL	s1	MYSQLD_DATADIR/s1.ibd
+test/t1#p#p0	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t1#p#p0.ibd
+test/t1#p#p1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t1#p#p1.ibd
+test/t1#p#p2	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t1#p#p2.ibd
+DROP TABLE t1;
+CREATE TABLE t1 (col1 INT, col2 INT) ENGINE = InnoDB TABLESPACE innodb_system PARTITION BY KEY(col1) PARTITIONS 3;
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t1#p#p0	innodb_system	161	5	Dynamic	0	System
+test/t1#p#p1	innodb_system	161	5	Dynamic	0	System
+test/t1#p#p2	innodb_system	161	5	Dynamic	0	System
+=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+s1	General	DEFAULT	0	Any	MYSQLD_DATADIR/s1.ibd
+>>>>>>> mysql-trunk
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 s1	TABLESPACE	InnoDB	NORMAL	s1	MYSQLD_DATADIR/s1.ibd
@@ -88,6 +164,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `col1` int(11) DEFAULT NULL,
   `col2` int(11) DEFAULT NULL
+<<<<<<< HEAD
 ) /*!50100 TABLESPACE `s1` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY KEY (col1)
 PARTITIONS 3 */
@@ -99,6 +176,19 @@ test/t1#p#p2	innodb_system	0	5	Dynamic	0	System
 === information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 s1	GENERAL	0	0	Dynamic	s1.ibd
+=======
+) /*!50100 TABLESPACE `s1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+/*!50100 PARTITION BY KEY (col1)
+PARTITIONS 3 */
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t1#p#p0	innodb_system	161	5	Dynamic	0	System
+test/t1#p#p1	innodb_system	161	5	Dynamic	0	System
+test/t1#p#p2	innodb_system	161	5	Dynamic	0	System
+=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+s1	General	DEFAULT	0	Any	MYSQLD_DATADIR/s1.ibd
+>>>>>>> mysql-trunk
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 s1	TABLESPACE	InnoDB	NORMAL	s1	MYSQLD_DATADIR/s1.ibd
@@ -108,6 +198,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `col1` int(11) DEFAULT NULL,
   `col2` int(11) DEFAULT NULL
+<<<<<<< HEAD
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY KEY (col1)
 PARTITIONS 3 */
@@ -119,11 +210,25 @@ test/t1#p#p2	innodb_system	0	5	Dynamic	0	System
 === information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 s1	GENERAL	0	0	Dynamic	s1.ibd
+=======
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+/*!50100 PARTITION BY KEY (col1)
+PARTITIONS 3 */
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t1#p#p0	innodb_system	161	5	Dynamic	0	System
+test/t1#p#p1	innodb_system	161	5	Dynamic	0	System
+test/t1#p#p2	innodb_system	161	5	Dynamic	0	System
+=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+s1	General	DEFAULT	0	Any	MYSQLD_DATADIR/s1.ibd
+>>>>>>> mysql-trunk
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 s1	TABLESPACE	InnoDB	NORMAL	s1	MYSQLD_DATADIR/s1.ibd
 DROP TABLE t1;
 CREATE TABLE t1 (col1 INT, col2 INT) ENGINE = InnoDB TABLESPACE s1 PARTITION BY KEY(col1) PARTITIONS 3;
+<<<<<<< HEAD
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t1#p#p0	innodb_system	0	5	Dynamic	0	General
@@ -132,6 +237,16 @@ test/t1#p#p2	innodb_system	0	5	Dynamic	0	General
 === information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 s1	GENERAL	0	0	Dynamic	s1.ibd
+=======
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t1#p#p0	s1	161	5	Dynamic	0	General
+test/t1#p#p1	s1	161	5	Dynamic	0	General
+test/t1#p#p2	s1	161	5	Dynamic	0	General
+=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+s1	General	DEFAULT	0	Any	MYSQLD_DATADIR/s1.ibd
+>>>>>>> mysql-trunk
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 s1	TABLESPACE	InnoDB	NORMAL	s1	MYSQLD_DATADIR/s1.ibd
@@ -141,6 +256,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `col1` int(11) DEFAULT NULL,
   `col2` int(11) DEFAULT NULL
+<<<<<<< HEAD
 ) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY KEY (col1)
 PARTITIONS 3 */
@@ -152,6 +268,19 @@ test/t1#p#p2	innodb_system	0	5	Dynamic	0	General
 === information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 s1	GENERAL	0	0	Dynamic	s1.ibd
+=======
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+/*!50100 PARTITION BY KEY (col1)
+PARTITIONS 3 */
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t1#p#p0	s1	161	5	Dynamic	0	General
+test/t1#p#p1	s1	161	5	Dynamic	0	General
+test/t1#p#p2	s1	161	5	Dynamic	0	General
+=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+s1	General	DEFAULT	0	Any	MYSQLD_DATADIR/s1.ibd
+>>>>>>> mysql-trunk
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 s1	TABLESPACE	InnoDB	NORMAL	s1	MYSQLD_DATADIR/s1.ibd
@@ -161,6 +290,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `col1` int(11) DEFAULT NULL,
   `col2` int(11) DEFAULT NULL
+<<<<<<< HEAD
 ) /*!50100 TABLESPACE `s1` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY KEY (col1)
 PARTITIONS 3 */
@@ -172,11 +302,25 @@ test/t1#p#p2	s1	0	5	Dynamic	0	General
 === information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 s1	GENERAL	0	0	Dynamic	s1.ibd
+=======
+) /*!50100 TABLESPACE `s1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+/*!50100 PARTITION BY KEY (col1)
+PARTITIONS 3 */
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t1#p#p0	s1	161	5	Dynamic	0	General
+test/t1#p#p1	s1	161	5	Dynamic	0	General
+test/t1#p#p2	s1	161	5	Dynamic	0	General
+=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+s1	General	DEFAULT	0	Any	MYSQLD_DATADIR/s1.ibd
+>>>>>>> mysql-trunk
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 s1	TABLESPACE	InnoDB	NORMAL	s1	MYSQLD_DATADIR/s1.ibd
 DROP TABLE t1;
 CREATE TABLE t1 (col1 INT, col2 INT) ENGINE = InnoDB TABLESPACE s1 PARTITION BY KEY(col1) PARTITIONS 3;
+<<<<<<< HEAD
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t1#p#p0	innodb_system	0	5	Dynamic	0	General
@@ -185,6 +329,16 @@ test/t1#p#p2	innodb_system	0	5	Dynamic	0	General
 === information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 s1	GENERAL	0	0	Dynamic	s1.ibd
+=======
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t1#p#p0	s1	161	5	Dynamic	0	General
+test/t1#p#p1	s1	161	5	Dynamic	0	General
+test/t1#p#p2	s1	161	5	Dynamic	0	General
+=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+s1	General	DEFAULT	0	Any	MYSQLD_DATADIR/s1.ibd
+>>>>>>> mysql-trunk
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 s1	TABLESPACE	InnoDB	NORMAL	s1	MYSQLD_DATADIR/s1.ibd
@@ -194,6 +348,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `col1` int(11) DEFAULT NULL,
   `col2` int(11) DEFAULT NULL
+<<<<<<< HEAD
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY KEY (col1)
 PARTITIONS 3 */
@@ -205,6 +360,19 @@ test/t1#p#p2	innodb_system	0	5	Dynamic	0	General
 === information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 s1	GENERAL	0	0	Dynamic	s1.ibd
+=======
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+/*!50100 PARTITION BY KEY (col1)
+PARTITIONS 3 */
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t1#p#p0	s1	161	5	Dynamic	0	General
+test/t1#p#p1	s1	161	5	Dynamic	0	General
+test/t1#p#p2	s1	161	5	Dynamic	0	General
+=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+s1	General	DEFAULT	0	Any	MYSQLD_DATADIR/s1.ibd
+>>>>>>> mysql-trunk
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 s1	TABLESPACE	InnoDB	NORMAL	s1	MYSQLD_DATADIR/s1.ibd
@@ -214,6 +382,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `col1` int(11) DEFAULT NULL,
   `col2` int(11) DEFAULT NULL
+<<<<<<< HEAD
 ) /*!50100 TABLESPACE `s1` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY KEY (col1)
 PARTITIONS 3 */
@@ -225,8 +394,65 @@ test/t1#p#p2	s1	0	5	Dynamic	0	General
 === information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 s1	GENERAL	0	0	Dynamic	s1.ibd
+=======
+) /*!50100 TABLESPACE `s1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+/*!50100 PARTITION BY KEY (col1)
+PARTITIONS 3 */
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t1#p#p0	s1	161	5	Dynamic	0	General
+test/t1#p#p1	s1	161	5	Dynamic	0	General
+test/t1#p#p2	s1	161	5	Dynamic	0	General
+=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+s1	General	DEFAULT	0	Any	MYSQLD_DATADIR/s1.ibd
+>>>>>>> mysql-trunk
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 s1	TABLESPACE	InnoDB	NORMAL	s1	MYSQLD_DATADIR/s1.ibd
 DROP TABLE t1;
 DROP TABLESPACE s1;
+<<<<<<< HEAD
+=======
+#
+# Check if tablespace id of general tablespace or system tablespace
+# are set properly
+#
+CREATE TABLESPACE gt1 ADD DATAFILE '1.ibd' FILE_BLOCK_SIZE = 16k ENGINE = InnoDB;
+CREATE TABLE t1 (col1 INT) ENGINE = InnoDB TABLESPACE gt1;
+ALTER TABLE t1 ENGINE = InnoDB PARTITION BY RANGE(col1 * 2)
+( PARTITION p3 VALUES LESS THAN MAXVALUE );
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `col1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `gt1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+/*!50100 PARTITION BY RANGE (col1 * 2)
+(PARTITION p3 VALUES LESS THAN MAXVALUE TABLESPACE = `gt1` ENGINE = InnoDB) */
+ALTER TABLE t1 ENGINE = InnoDB TABLESPACE innodb_system;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `col1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+/*!50100 PARTITION BY RANGE (col1 * 2)
+(PARTITION p3 VALUES LESS THAN MAXVALUE TABLESPACE = `gt1` ENGINE = InnoDB) */
+TRUNCATE TABLE t1;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `col1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+/*!50100 PARTITION BY RANGE (col1 * 2)
+(PARTITION p3 VALUES LESS THAN MAXVALUE TABLESPACE = `gt1` ENGINE = InnoDB) */
+ALTER TABLE t1 ENGINE = InnoDB TABLESPACE gt1;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `col1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `gt1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+/*!50100 PARTITION BY RANGE (col1 * 2)
+(PARTITION p3 VALUES LESS THAN MAXVALUE TABLESPACE = `gt1` ENGINE = InnoDB) */
+DROP TABLE t1;
+DROP TABLESPACE gt1;
+>>>>>>> mysql-trunk

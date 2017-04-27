@@ -20,7 +20,6 @@
   @file include/atomic/gcc_sync.h
 */
 
-#include "my_global.h"
 #include "my_inttypes.h"
 
 /* Old GCC __sync builtins introduced in GCC 4.1 */

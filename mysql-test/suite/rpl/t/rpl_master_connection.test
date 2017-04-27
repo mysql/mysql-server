@@ -21,7 +21,6 @@
 ################################################################################
 --source include/not_group_replication_plugin.inc
 --source include/have_plugin_auth.inc
---source include/not_embedded.inc
 --source include/have_ssl.inc
 --source include/master-slave.inc
 
@@ -31,7 +30,7 @@
 SET SQL_LOG_BIN=0;
 
 --sorted_result
-SELECT user, plugin, authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys');
+SELECT user, plugin, authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys','mysql.session_user');
 
 CREATE USER 'plug_user_p' IDENTIFIED WITH 'test_plugin_server' AS 'proxy_user_p';
 CREATE USER 'plug_user_wp' IDENTIFIED WITH 'test_plugin_server' AS 'proxy_user_wp';
@@ -41,7 +40,7 @@ CREATE USER 'regular_user_p' IDENTIFIED BY 'password';
 CREATE USER 'regular_user_wp' IDENTIFIED BY '';
 
 --sorted_result
-SELECT user, plugin, authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys');
+SELECT user, plugin, authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys','mysql.session_user');
 
 GRANT PROXY ON proxy_user_p to plug_user_p;
 GRANT PROXY ON proxy_user_wp to plug_user_wp;

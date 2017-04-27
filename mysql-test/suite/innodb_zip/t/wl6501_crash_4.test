@@ -6,14 +6,11 @@
 # compressed non-temp table residing in single tablespace.
 # with page-size=4k
 
---source include/have_innodb_4k.inc
 --source include/have_debug.inc
 --source include/big_test.inc
 
 # Valgrind would complain about memory leaks when we crash on purpose.
 --source include/not_valgrind.inc
-# Embedded server does not support crashing
---source include/not_embedded.inc
 # Avoid CrashReporter popup on Mac
 --source include/not_crashrep.inc
 

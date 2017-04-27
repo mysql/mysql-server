@@ -1,4 +1,3 @@
---source include/not_embedded.inc
 
 --echo # Creating tables
 CREATE TABLE t_int (c1  TINYINT,

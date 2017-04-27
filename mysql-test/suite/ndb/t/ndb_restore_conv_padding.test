@@ -10,7 +10,6 @@
 -- source include/have_ndb.inc
 
 # mysqld's configuration is not relevant to this test
--- source include/not_embedded.inc
 
 # Turn off STRICT sql_mode since test intentionally truncates
 # data when preparing the test data(those offending statements

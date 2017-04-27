@@ -25,9 +25,8 @@
  server version. Please use AES encrypt/decrypt instead
 */
 
-#include "sql_crypt.h"
+#include "sql/sql_crypt.h"
 
-#include "my_global.h"
 #include "my_inttypes.h"
 
 void SQL_CRYPT::init(ulong *rand_nr)

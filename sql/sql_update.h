@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,7 +20,6 @@
 #include <sys/types.h>
 
 #include "my_base.h"
-#include "my_global.h"
 #include "my_sqlcommand.h"
 #include "query_result.h"    // Query_result_interceptor
 #include "sql_cmd_dml.h"     // Sql_cmd_dml
@@ -51,7 +50,13 @@ class Query_result_update final : public Query_result_interceptor
   Temp_table_param *tmp_table_param;
   /// The first table in the join operation
   TABLE *main_table;
-  /// ???
+  /**
+    In a multi-table update, this is equal to the first table in the join
+    operation (#main_table) if that table can be updated on the fly while
+    scanning it. It is `nullptr` otherwise.
+
+    @see safe_update_on_fly
+  */
   TABLE *table_to_update;
   /// Number of rows found that matches join and WHERE conditions
   ha_rows found_rows;

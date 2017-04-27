@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -15,7 +15,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
    02110-1301 USA */
 
-#include "rpl_context.h"
+#include "sql/rpl_context.h"
 
 #include <stddef.h>
 
@@ -176,7 +176,7 @@ Session_consistency_gtids_ctx::register_ctx_change_listener(
 }
 
 void Session_consistency_gtids_ctx::unregister_ctx_change_listener(
-             Session_consistency_gtids_ctx::Ctx_change_listener* listener)
+Session_consistency_gtids_ctx::Ctx_change_listener* listener MY_ATTRIBUTE((unused)))
 {
   DBUG_ASSERT(m_listener == listener || m_listener == NULL);
 

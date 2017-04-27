@@ -18,7 +18,6 @@
 #ifndef CHAIN_DATA_INCLUDED
 #define CHAIN_DATA_INCLUDED
 
-#include "my_global.h"
 #include "my_inttypes.h"
 
 namespace Mysql{

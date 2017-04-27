@@ -7,7 +7,6 @@
 #                                                                  #
 ####################################################################
 
--- source include/not_embedded.inc
 # Tests for sys schema
 # Verify the sys.quote_identifer() function perfoms as expected
 

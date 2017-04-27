@@ -23,376 +23,8 @@ InnoDB R-tree related functions.
 Created 2013/03/27 Allen Lai and Jimmy Yang
 *******************************************************/
 
-#include <spatial.h>
 #include <cmath>
-
-#include "gis0geo.h"
-#include "mach0data.h"
-#include "my_inttypes.h"
 #include "page0cur.h"
-#include "page0types.h"
-#include "ut0rnd.h"
-
-/* These definitions are for comparing 2 mbrs. */
-
-/* Check if a intersects b.
-Return false if a intersects b, otherwise true. */
-#define INTERSECT_CMP(amin, amax, bmin, bmax) \
-(((amin) > (bmax)) || ((bmin) > (amax)))
-
-/* Check if b contains a.
-Return false if b contains a, otherwise true. */
-#define CONTAIN_CMP(amin, amax, bmin, bmax) \
-(((bmin) > (amin)) || ((bmax) < (amax)))
-
-/* Check if b is within a.
-Return false if b is within a, otherwise true. */
-#define WITHIN_CMP(amin, amax, bmin, bmax) \
-(((amin) > (bmin)) || ((amax) < (bmax)))
-
-/* Check if a disjoints b.
-Return false if a disjoints b, otherwise true. */
-#define DISJOINT_CMP(amin, amax, bmin, bmax) \
-(((amin) <= (bmax)) && ((bmin) <= (amax)))
-
-/* Check if a equals b.
-Return false if equal, otherwise true. */
-#define EQUAL_CMP(amin, amax, bmin, bmax) \
-(((amin) != (bmin)) || ((amax) != (bmax)))
-
-/****************************************************************
-Functions for generating mbr
-****************************************************************/
-/*************************************************************//**
-Add one point stored in wkb to a given mbr.
-@return 0 if the point in wkb is valid, otherwise -1. */
-static
-int
-rtree_add_point_to_mbr(
-/*===================*/
-	uchar**	wkb,		/*!< in: pointer to wkb,
-				where point is stored */
-	uchar*	end,		/*!< in: end of wkb. */
-	uint	n_dims,		/*!< in: dimensions. */
-	uchar	byte_order,	/*!< in: byte order. */
-	double*	mbr)		/*!< in/out: mbr, which
-				must be of length n_dims * 2. */
-{
-	double	ord;
-	double*	mbr_end = mbr + n_dims * 2;
-
-	while (mbr < mbr_end) {
-		if ((*wkb) + sizeof(double) > end) {
-			return(-1);
-		}
-
-		ord = mach_double_read(*wkb);
-		(*wkb) += sizeof(double);
-
-		if (ord < *mbr) {
-			*mbr = ord;
-		}
-		mbr++;
-
-		if (ord > *mbr) {
-			*mbr = ord;
-		}
-		mbr++;
-	}
-
-	return(0);
-}
-
-/*************************************************************//**
-Get mbr of point stored in wkb.
-@return 0 if ok, otherwise -1. */
-static
-int
-rtree_get_point_mbr(
-/*================*/
-	uchar**	wkb,		/*!< in: pointer to wkb,
-				where point is stored. */
-	uchar*	end,		/*!< in: end of wkb. */
-	uint	n_dims,		/*!< in: dimensions. */
-	uchar	byte_order,	/*!< in: byte order. */
-	double*	mbr)		/*!< in/out: mbr,
-				must be of length n_dims * 2. */
-{
-	return rtree_add_point_to_mbr(wkb, end, n_dims, byte_order, mbr);
-}
-
-
-/*************************************************************//**
-Get mbr of linestring stored in wkb.
-@return 0 if the linestring is valid, otherwise -1. */
-static
-int
-rtree_get_linestring_mbr(
-/*=====================*/
-	uchar**	wkb,		/*!< in: pointer to wkb,
-				where point is stored. */
-	uchar*	end,		/*!< in: end of wkb. */
-	uint	n_dims,		/*!< in: dimensions. */
-	uchar	byte_order,	/*!< in: byte order. */
-	double*	mbr)		/*!< in/out: mbr,
-				must be of length n_dims * 2. */
-{
-	uint	n_points;
-
-	n_points = uint4korr(*wkb);
-	(*wkb) += 4;
-
-	for (; n_points > 0; --n_points) {
-		/* Add next point to mbr */
-		if (rtree_add_point_to_mbr(wkb, end, n_dims,
-					   byte_order, mbr)) {
-			return(-1);
-		}
-	}
-
-	return(0);
-}
-
-/*************************************************************//**
-Get mbr of polygon stored in wkb.
-@return 0 if the polygon is valid, otherwise -1. */
-static
-int
-rtree_get_polygon_mbr(
-/*==================*/
-	uchar**	wkb,		/*!< in: pointer to wkb,
-				where point is stored. */
-	uchar*	end,		/*!< in: end of wkb. */
-	uint	n_dims,		/*!< in: dimensions. */
-	uchar	byte_order,	/*!< in: byte order. */
-	double*	mbr)		/*!< in/out: mbr,
-				must be of length n_dims * 2. */
-{
-	uint	n_linear_rings;
-	uint	n_points;
-
-	n_linear_rings = uint4korr((*wkb));
-	(*wkb) += 4;
-
-	for (; n_linear_rings > 0; --n_linear_rings) {
-		n_points = uint4korr((*wkb));
-		(*wkb) += 4;
-
-		for (; n_points > 0; --n_points) {
-			/* Add next point to mbr */
-			if (rtree_add_point_to_mbr(wkb, end, n_dims,
-						   byte_order, mbr)) {
-				return(-1);
-			}
-		}
-	}
-
-	return(0);
-}
-
-/*************************************************************//**
-Get mbr of geometry stored in wkb.
-@return 0 if the geometry is valid, otherwise -1. */
-static
-int
-rtree_get_geometry_mbr(
-/*===================*/
-	uchar**	wkb,		/*!< in: pointer to wkb,
-				where point is stored. */
-	uchar*	end,		/*!< in: end of wkb. */
-	uint	n_dims,		/*!< in: dimensions. */
-	double*	mbr,		/*!< in/out: mbr. */
-	int	top)		/*!< in: if it is the top,
-				which means it's not called
-				by itself. */
-{
-	int	res;
-	uchar	byte_order = 2;
-	uint	wkb_type = 0;
-	uint	n_items;
-
-	byte_order = *(*wkb);
-	++(*wkb);
-
-	wkb_type = uint4korr((*wkb));
-	(*wkb) += 4;
-
-	switch ((enum wkbType) wkb_type) {
-	case wkbPoint:
-		res = rtree_get_point_mbr(wkb, end, n_dims, byte_order, mbr);
-		break;
-	case wkbLineString:
-		res = rtree_get_linestring_mbr(wkb, end, n_dims,
-					       byte_order, mbr);
-		break;
-	case wkbPolygon:
-		res = rtree_get_polygon_mbr(wkb, end, n_dims, byte_order, mbr);
-		break;
-	case wkbMultiPoint:
-		n_items = uint4korr((*wkb));
-		(*wkb) += 4;
-		for (; n_items > 0; --n_items) {
-			byte_order = *(*wkb);
-			++(*wkb);
-			(*wkb) += 4;
-			if (rtree_get_point_mbr(wkb, end, n_dims,
-						byte_order, mbr)) {
-				return(-1);
-			}
-		}
-		res = 0;
-		break;
-	case wkbMultiLineString:
-		n_items = uint4korr((*wkb));
-		(*wkb) += 4;
-		for (; n_items > 0; --n_items) {
-			byte_order = *(*wkb);
-			++(*wkb);
-			(*wkb) += 4;
-			if (rtree_get_linestring_mbr(wkb, end, n_dims,
-						     byte_order, mbr)) {
-				return(-1);
-			}
-		}
-		res = 0;
-		break;
-	case wkbMultiPolygon:
-		n_items = uint4korr((*wkb));
-		(*wkb) += 4;
-		for (; n_items > 0; --n_items) {
-			byte_order = *(*wkb);
-			++(*wkb);
-			(*wkb) += 4;
-			if (rtree_get_polygon_mbr(wkb, end, n_dims,
-						  byte_order, mbr)) {
-				return(-1);
-			}
-		}
-		res = 0;
-		break;
-	case wkbGeometryCollection:
-		if (!top) {
-			return(-1);
-		}
-
-		n_items = uint4korr((*wkb));
-		(*wkb) += 4;
-		for (; n_items > 0; --n_items) {
-			if (rtree_get_geometry_mbr(wkb, end, n_dims,
-						   mbr, 0)) {
-				return(-1);
-			}
-		}
-		res = 0;
-		break;
-	default:
-		res = -1;
-	}
-
-	return(res);
-}
-
-/*************************************************************//**
-Calculate Minimal Bounding Rectangle (MBR) of the spatial object
-stored in "well-known binary representation" (wkb) format.
-@return 0 if ok. */
-int
-rtree_mbr_from_wkb(
-/*===============*/
-	uchar*	wkb,		/*!< in: wkb */
-	uint	size,		/*!< in: size of wkb. */
-	uint	n_dims,		/*!< in: dimensions. */
-	double*	mbr)		/*!< in/out: mbr, which must
-				be of length n_dim2 * 2. */
-{
-	for (uint i = 0; i < n_dims; ++i) {
-		mbr[i * 2] = DBL_MAX;
-		mbr[i * 2 + 1] = -DBL_MAX;
-	}
-
-	return rtree_get_geometry_mbr(&wkb, wkb + size, n_dims, mbr, 1);
-}
-
-
-/****************************************************************
-Functions for Rtree split
-****************************************************************/
-/*************************************************************//**
-Join 2 mbrs of dimensions n_dim. */
-static
-void
-mbr_join(
-/*=====*/
-	double*		a,	/*!< in/out: the first mbr,
-				where the joined result will be. */
-	const double*	b,	/*!< in: the second mbr. */
-	int		n_dim)	/*!< in: dimensions. */
-{
-	double*		end = a + n_dim * 2;
-
-	do {
-		if (a[0] > b[0]) {
-			a[0] = b[0];
-		}
-
-		if (a[1] < b[1]) {
-			a[1] = b[1];
-		}
-
-		a += 2;
-		b += 2;
-
-	} while (a != end);
-}
-
-/*************************************************************//**
-Counts the square of mbr which is the join of a and b. Both a and b
-are of dimensions n_dim. */
-static
-double
-mbr_join_square(
-/*============*/
-	const double*	a,	/*!< in: the first mbr. */
-	const double*	b,	/*!< in: the second mbr. */
-	int		n_dim)	/*!< in: dimensions. */
-{
-	const double*	end = a + n_dim * 2;
-	double		square = 1.0;
-
-	do {
-		square *= std::max(a[1], b[1]) - std::min(a[0], b[0]);
-
-		a += 2;
-		b += 2;
-	} while (a != end);
-
-	/* Check for infinity or NaN, so we don't get NaN in calculations */
-	if (std::isinf(square) || std::isnan(square)) {
-		return DBL_MAX;
-	}
-
-	return square;
-}
-
-/*************************************************************//**
-Counts the square of mbr of dimension n_dim. */
-static
-double
-count_square(
-/*=========*/
-	const double*	a,	/*!< in: the mbr. */
-	int		n_dim)	/*!< in: dimensions. */
-{
-	const double*	end = a + n_dim * 2;
-	double		square = 1.0;
-
-	do {
-		square *= a[1] - a[0];
-		a += 2;
-	} while (a != end);
-
-	return square;
-}
 
 /*************************************************************//**
 Copy mbr of dimension n_dim from src to dst. */
@@ -433,8 +65,8 @@ pick_seeds(
 
 	for (cur1 = node; cur1 < lim1; ++cur1) {
 		for (cur2 = cur1 + 1; cur2 < lim2; ++cur2) {
-			d = mbr_join_square(cur1->coords, cur2->coords, n_dim) -
-				cur1->square - cur2->square;
+			d = mbr_join_area(cur1->coords, cur2->coords,
+				n_dim, 0) - cur1->square - cur2->square;
 			if (d > max_d) {
 				max_d = d;
 				*seed_a = cur1;
@@ -490,8 +122,8 @@ pick_next(
 			continue;
 		}
 
-		diff = mbr_join_square(g1, cur->coords, n_dim) -
-		       mbr_join_square(g2, cur->coords, n_dim);
+		diff = mbr_join_area(g1, cur->coords, n_dim, 0) -
+		       mbr_join_area(g2, cur->coords, n_dim, 0);
 
 		abs_diff = fabs(diff);
 		if (abs_diff > max_diff) {
@@ -564,7 +196,7 @@ split_rtree_node(
 
 	cur = node;
 	for (; cur < end; ++cur) {
-		cur->square = count_square(cur->coords, n_dim);
+		cur->square = compute_area(cur->coords, n_dim, 0);
 		cur->n_node = 0;
 	}
 
@@ -593,10 +225,10 @@ split_rtree_node(
 		pick_next(node, n_entries, g1, g2, &next, &next_node, n_dim);
 		if (next_node == 1) {
 			size1 += key_size;
-			mbr_join(g1, next->coords, n_dim);
+			mbr_join(g1, next->coords, n_dim, 0);
 		} else {
 			size2 += key_size;
-			mbr_join(g2, next->coords, n_dim);
+			mbr_join(g2, next->coords, n_dim, 0);
 		}
 
 		next->n_node = next_node;
@@ -611,223 +243,73 @@ split_rtree_node(
 	return(first_rec_group);
 }
 
-/*************************************************************//**
-Compares two keys a and b depending on nextflag
+/** Compares two keys a and b depending on nextflag
 nextflag can contain these flags:
    MBR_INTERSECT(a,b)  a overlaps b
    MBR_CONTAIN(a,b)    a contains b
    MBR_DISJOINT(a,b)   a disjoint b
    MBR_WITHIN(a,b)     a within   b
    MBR_EQUAL(a,b)      All coordinates of MBRs are equal
-Return 0 on success, otherwise 1. */
+@param[in]	mode	compare method
+@param[in]	a	first key
+@param[in]	a_len	first key len
+@param[in]	b	second key
+@param[in]	b_len	second_key_len
+@retval 0 on success, otherwise 1. */
 int
 rtree_key_cmp(
-/*==========*/
-	page_cur_mode_t	mode,	/*!< in: compare method. */
-	const uchar*	b,	/*!< in: first key. */
-	int		b_len,	/*!< in: first key len. */
-	const uchar*	a,	/*!< in: second key. */
-	int		a_len)	/*!< in: second key len. */
-{
-	double		amin, amax, bmin, bmax;
-	int		key_len;
-	int		keyseg_len;
-
-	keyseg_len = 2 * sizeof(double);
-	for (key_len = a_len; key_len > 0; key_len -= keyseg_len) {
-		amin = mach_double_read(a);
-		bmin = mach_double_read(b);
-		amax = mach_double_read(a + sizeof(double));
-		bmax = mach_double_read(b + sizeof(double));
-
-		switch (mode) {
-		case PAGE_CUR_INTERSECT:
-			if (INTERSECT_CMP(amin, amax, bmin, bmax)) {
-				return(1);
-			}
-			break;
-		case PAGE_CUR_CONTAIN:
-			if (CONTAIN_CMP(amin, amax, bmin, bmax)) {
-				return(1);
-			}
-			break;
-		case PAGE_CUR_WITHIN:
-			if (WITHIN_CMP(amin, amax, bmin, bmax)) {
-				return(1);
-			}
-			break;
-		case PAGE_CUR_MBR_EQUAL:
-			if (EQUAL_CMP(amin, amax, bmin, bmax)) {
-				return(1);
-			}
-			break;
-		case PAGE_CUR_DISJOINT:
-			int result;
-
-			result = DISJOINT_CMP(amin, amax, bmin, bmax);
-			if (result == 0) {
-				return(0);
-			}
-
-			if (key_len - keyseg_len <= 0) {
-				return(1);
-			}
-
-			break;
-		default:
-			/* if unknown comparison operator */
-			ut_ad(0);
-		}
-
-		a += keyseg_len;
-		b += keyseg_len;
-	}
-
-	return(0);
-}
-
-/*************************************************************//**
-Calculates MBR_AREA(a+b) - MBR_AREA(a)
-Note: when 'a' and 'b' objects are far from each other,
-the area increase can be really big, so this function
-can return 'inf' as a result.
-Return the area increaed. */
-double
-rtree_area_increase(
-	const uchar*	a,		/*!< in: original mbr. */
-	const uchar*	b,		/*!< in: new mbr. */
-	int		mbr_len,	/*!< in: mbr length of a and b. */
-	double*		ab_area)	/*!< out: increased area. */
-{
-	double		a_area = 1.0;
-	double		loc_ab_area = 1.0;
-	double		amin, amax, bmin, bmax;
-	int		key_len;
-	int		keyseg_len;
-	double		data_round = 1.0;
-
-	keyseg_len = 2 * sizeof(double);
-
-	for (key_len = mbr_len; key_len > 0; key_len -= keyseg_len) {
-		double	area;
-
-		amin = mach_double_read(a);
-		bmin = mach_double_read(b);
-		amax = mach_double_read(a + sizeof(double));
-		bmax = mach_double_read(b + sizeof(double));
-
-		area = amax - amin;
-		if (area == 0) {
-			a_area *= LINE_MBR_WEIGHTS;
-		} else {
-			a_area *= area;
-		}
-
-		area = (double)std::max(amax, bmax) -
-		       (double)std::min(amin, bmin);
-		if (area == 0) {
-			loc_ab_area *= LINE_MBR_WEIGHTS;
-		} else {
-			loc_ab_area *= area;
-		}
-
-		/* Value of amax or bmin can be so large that small difference
-		are ignored. For example: 3.2884281489988079e+284 - 100 =
-		3.2884281489988079e+284. This results some area difference
-		are not detected */
-		if (loc_ab_area == a_area) {
-			if (bmin < amin || bmax > amax) {
-				data_round *= ((double)std::max(amax, bmax)
-					       - amax
-					       + (amin - (double)std::min(
-								amin, bmin)));
-			} else {
-				data_round *= area;
-			}
-		}
-
-		a += keyseg_len;
-		b += keyseg_len;
-	}
-
-	*ab_area = loc_ab_area;
-
-	if (loc_ab_area == a_area && data_round != 1.0) {
-		return(data_round);
-	}
-
-	return(loc_ab_area - a_area);
-}
-
-/** Calculates overlapping area
-@param[in]	a	mbr a
-@param[in]	b	mbr b
-@param[in]	mbr_len	mbr length
-@return overlapping area */
-double
-rtree_area_overlapping(
+	page_cur_mode_t	mode,
 	const uchar*	a,
+	int		a_len,
 	const uchar*	b,
-	int		mbr_len)
+	int		b_len)
 {
-	double	area = 1.0;
-	double	amin;
-	double	amax;
-	double	bmin;
-	double	bmax;
-	int	key_len;
-	int	keyseg_len;
+	rtr_mbr_t	x, y;
 
-	keyseg_len = 2 * sizeof(double);
+	/* Dimension length. */
+	uint	dim_len = SPDIMS * sizeof(double);
 
-	for (key_len = mbr_len; key_len > 0; key_len -= keyseg_len) {
-		amin = mach_double_read(a);
-		bmin = mach_double_read(b);
-		amax = mach_double_read(a + sizeof(double));
-		bmax = mach_double_read(b + sizeof(double));
+	x.xmin = mach_double_read(a);
+	y.xmin = mach_double_read(b);
+	x.xmax = mach_double_read(a + sizeof(double));
+	y.xmax = mach_double_read(b + sizeof(double));
 
-		amin = std::max(amin, bmin);
-		amax = std::min(amax, bmax);
+	x.ymin = mach_double_read(a + dim_len);
+	y.ymin = mach_double_read(b + dim_len);
+	x.ymax = mach_double_read(a + dim_len + sizeof(double));
+	y.ymax = mach_double_read(b + dim_len + sizeof(double));
 
-		if (amin > amax) {
+	switch (mode) {
+	case PAGE_CUR_INTERSECT:
+		if (mbr_intersect_cmp(&x, &y, 0)) {
 			return(0);
-		} else {
-			area *= (amax - amin);
 		}
-
-		a += keyseg_len;
-		b += keyseg_len;
+		break;
+	case PAGE_CUR_CONTAIN:
+		if (mbr_contain_cmp(&x, &y, 0)) {
+			return(0);
+		}
+		break;
+	case PAGE_CUR_WITHIN:
+		if (mbr_within_cmp(&x, &y, 0)) {
+			return(0);
+		}
+		break;
+	case PAGE_CUR_MBR_EQUAL:
+		if (mbr_equal_cmp(&x, &y, 0)) {
+			return(0);
+		}
+		break;
+	case PAGE_CUR_DISJOINT:
+		if (!mbr_disjoint_cmp(&x, &y, 0)
+		    || (b_len - (2 * dim_len) > 0)) {
+			return(0);
+		}
+		break;
+	default:
+		/* if unknown comparison operator */
+		ut_ad(0);
 	}
 
-	return(area);
-}
-
-/** Get the wkb of default POINT value, which represents POINT(0 0)
-if it's of dimension 2, etc.
-@param[in]	n_dims		dimensions
-@param[out]	wkb		wkb buffer for default POINT
-@param[in]	len		length of wkb buffer
-@return non-0 indicate the length of wkb of the default POINT,
-0 if the buffer is too small */
-uint
-get_wkb_of_default_point(
-	uint	n_dims,
-	uchar*	wkb,
-	uint	len)
-{
-	if (len < GEOM_HEADER_SIZE + sizeof(double) * n_dims) {
-		return(0);
-	}
-
-	/** POINT wkb comprises SRID, wkb header(byte order and type)
-	and coordinates of the POINT */
-	len = GEOM_HEADER_SIZE + sizeof(double) * n_dims;
-	/** We always use 0 as default coordinate */
-	memset(wkb, 0, len);
-	/** We don't need to write SRID, write 0x01 for Byte Order */
-	mach_write_to_n_little_endian(wkb + SRID_SIZE, 1, 0x01);
-	/** Write wkbType::wkbPoint for the POINT type */
-	mach_write_to_n_little_endian(wkb + SRID_SIZE + 1, 4, wkbPoint);
-
-	return(len);
+	return(1);
 }

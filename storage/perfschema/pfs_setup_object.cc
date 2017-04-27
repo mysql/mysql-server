@@ -19,17 +19,17 @@
   Performance schema setup object (implementation).
 */
 
+#include "storage/perfschema/pfs_setup_object.h"
+
 #include "my_base.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "pfs.h"
 #include "pfs_buffer_container.h"
 #include "pfs_global.h"
 #include "pfs_instr.h"
-#include "pfs_setup_object.h"
 #include "pfs_stat.h"
 #include "sql_string.h"
 
@@ -316,7 +316,7 @@ lookup_setup_object(PFS_thread *thread,
   int i;
 
   /*
-    The table io instrumentation uses "TABLE" and "TEMPORARY TABLE".
+    The table I/O instrumentation uses "TABLE" and "TEMPORARY TABLE".
     SETUP_OBJECT uses "TABLE" for both concepts.
     There is no way to provide a different setup for:
     - TABLE foo.bar

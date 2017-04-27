@@ -13,6 +13,7 @@
 # 5. Clean-up
 ###############################################################################
 
+--source include/big_test.inc
 --source include/have_mysqlx_plugin.inc
 --source ../inc/have_group_replication_plugin_base.inc
 
@@ -33,7 +34,7 @@
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 --replace_regex /\.dll/.so/
---source suite/x/include/xplugin_install_and_wait.inc
+--source include/xplugin_install_and_wait.inc
 --let $mysqlx_port1= `Select @@Global.mysqlx_port`
 
 # File for starting GR through X-protocol

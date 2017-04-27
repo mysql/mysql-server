@@ -60,10 +60,10 @@
 *****************************************************************************/
 
 #include <string.h>
+#include <sys/types.h>
 
 #include "crypt_genhash_impl.h"
 #include "m_string.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "mysql_com.h"
@@ -323,7 +323,7 @@ scramble(char *to, const char *message, const char *password)
     !0  password is invalid
 */
 
-static my_bool
+static bool
 check_scramble_sha1(const uchar *scramble_arg, const char *message,
                     const uint8 *hash_stage2)
 {
@@ -342,7 +342,7 @@ check_scramble_sha1(const uchar *scramble_arg, const char *message,
   return MY_TEST(memcmp(hash_stage2, hash_stage2_reassured, SHA1_HASH_SIZE));
 }
 
-my_bool
+bool
 check_scramble(const uchar *scramble_arg, const char *message,
                const uint8 *hash_stage2)
 {

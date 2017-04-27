@@ -1,7 +1,7 @@
 ## generated
 ## Doc: Find a valid document by _id
 
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 ## Test starts here
 --write_file $MYSQL_TMP_DIR/find_doc_simple.tmp
 ## Test data

@@ -25,7 +25,6 @@
 #include "connection_handler_manager.h"  // Connection_handler_manager
 #include "current_thd.h"                 // my_thread_get_THR_THD
 #include "keycache.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_stacktrace.h"
@@ -149,7 +148,7 @@ extern "C" void handle_fatal_signal(int sig)
     "Hope that's ok; if not, decrease some variables in the equation.\n\n");
 
 #ifdef HAVE_STACKTRACE
-  THD *thd= my_thread_get_THR_THD();
+  THD *thd= current_thd;
 
   if (!(test_flags & TEST_NO_STACKTRACE))
   {

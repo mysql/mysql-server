@@ -26,7 +26,6 @@
 #include "atomic.h"
 #include "message_data.h"
 #include "mutex.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "mysql.h"
 

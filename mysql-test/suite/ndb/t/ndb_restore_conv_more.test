@@ -1,5 +1,4 @@
 -- source include/have_ndb.inc
--- source include/not_embedded.inc
 -- source include/not_windows.inc
 
 --echo # bug#17275798

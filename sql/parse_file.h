@@ -19,14 +19,13 @@
 #include <stddef.h>
 #include <sys/types.h>
 
+#include "lex_string.h"
 #include "my_alloc.h"
-#include "my_global.h"                  // uchar
 #include "my_inttypes.h"
 #include "mysql/mysql_lex_string.h"     // LEX_STRING
 #include "sql_alloc.h"                  // Sql_alloc
 
 typedef struct st_mem_root MEM_ROOT;
-typedef struct st_mysql_lex_string LEX_STRING;
 
 #define PARSE_FILE_TIMESTAMPLENGTH 19
 
@@ -93,16 +92,16 @@ class File_parser: public Sql_alloc
 {
   const char *start, *end;
   LEX_STRING file_type;
-  my_bool content_ok;
+  bool content_ok;
 public:
   File_parser() :start(0), end(0), content_ok(0)
     { file_type.str= 0; file_type.length= 0; }
 
-  my_bool ok() { return content_ok; }
+  bool ok() { return content_ok; }
   const LEX_STRING *type() const { return &file_type; }
-  my_bool parse(uchar* base, MEM_ROOT *mem_root,
-		struct File_option *parameters, uint required,
-                Unknown_key_hook *hook) const;
+  bool parse(uchar* base, MEM_ROOT *mem_root,
+             struct File_option *parameters, uint required,
+             Unknown_key_hook *hook) const;
 
   friend File_parser *sql_parse_prepare(const LEX_STRING *file_name,
 					MEM_ROOT *mem_root,

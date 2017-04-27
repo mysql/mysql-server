@@ -8,6 +8,7 @@ default_roles
 engine_cost
 func
 general_log
+global_grants
 gtid_executed
 help_category
 help_keyword

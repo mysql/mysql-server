@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,12 +15,11 @@
 
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
+
 #include <gtest/gtest.h>
 
-#include "thread_utils.h"
-
-#include "my_global.h"
 #include "my_dbug.h"
+#include "thread_utils.h"
 
 using thread::Notification;
 using thread::Thread;

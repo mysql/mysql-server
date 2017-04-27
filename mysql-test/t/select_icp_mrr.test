@@ -25,4 +25,3 @@ if (`select locate('materialization', @@optimizer_switch) > 0`)
 --source include/select.inc
 
 set optimizer_switch=default;
-

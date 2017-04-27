@@ -19,15 +19,14 @@
 #include <string>
 
 #include "dd/impl/raw/raw_record.h"
-#include "dd/impl/types/dictionary_object_table_impl.h" // dd::Dictionary_obj...
+#include "dd/impl/types/entity_object_table_impl.h"
 #include "dd/object_id.h"                               // dd::Object_id
-#include "my_global.h"
 #include "my_inttypes.h"
+#include "dd/types/abstract_table.h"
 
 namespace dd {
 
 class Object_key;
-class Dictionary_object;
 class Item_name_key;
 class Open_dictionary_tables_ctx;
 class Se_private_id_key;
@@ -36,7 +35,7 @@ namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Tables : public Dictionary_object_table_impl
+class Tables : public Entity_object_table_impl
 {
 public:
   static const Tables &instance();
@@ -90,7 +89,7 @@ public:
   virtual const String_type &name() const
   { return Tables::table_name(); }
 
-  virtual Dictionary_object *create_dictionary_object(
+  virtual Abstract_table *create_entity_object(
     const Raw_record &r) const;
 
 public:

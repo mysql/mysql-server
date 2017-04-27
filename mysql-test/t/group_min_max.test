@@ -21,7 +21,7 @@ drop table if exists t1;
 
 create table t1 (
   a1 char(64), a2 char(64), b char(16), c char(16) not null, d char(16), dummy char(248) default ' '
-);
+) charset latin1;
 
 insert into t1 (a1, a2, b, c, d) values
 ('a','a','a','a111','xy1'),('a','a','a','b111','xy2'),('a','a','a','c111','xy3'),('a','a','a','d111','xy4'),
@@ -71,7 +71,7 @@ drop table if exists t2;
 
 create table t2 (
   a1 char(64), a2 char(64) not null, b char(16), c char(16), d char(16), dummy char(248) default ' '
-);
+) charset latin1;
 insert into t2 select * from t1;
 # add few rows with NULL's in the MIN/MAX column
 insert into t2 (a1, a2, b, c, d) values
@@ -108,7 +108,7 @@ drop table if exists t3;
 
 create table t3 (
   a1 char(1), a2 char(1), b char(1), c char(4) not null, d char(3), dummy char(1) default ' '
-);
+) charset latin1;
 
 insert into t3 (a1, a2, b, c, d) values
 ('a','a','a','a111','xy1'),('a','a','a','b111','xy2'),('a','a','a','c111','xy3'),('a','a','a','d111','xy4'),
@@ -727,7 +727,7 @@ drop table t1;
 #             returns impossible range
 #
 
-CREATE TABLE t1 (a varchar(5), b int(11), PRIMARY KEY (a,b));
+CREATE TABLE t1 (a varchar(5), b int(11), PRIMARY KEY (a,b)) charset utf8mb4;
 INSERT INTO t1 VALUES ('AA',1), ('AA',2), ('AA',3), ('BB',1), ('AA',4);
 OPTIMIZE TABLE t1;
 
@@ -785,7 +785,7 @@ DROP PROCEDURE a;
 # Bug #18068: SELECT DISTINCT
 #
 
-CREATE TABLE t1 (a varchar(64) NOT NULL default '', PRIMARY KEY(a));
+CREATE TABLE t1 (a varchar(64) NOT NULL default '', PRIMARY KEY(a)) charset utf8mb4;
 
 INSERT INTO t1 (a) VALUES 
   (''), ('CENTRAL'), ('EASTERN'), ('GREATER LONDON'),
@@ -1136,9 +1136,6 @@ INSERT INTO t1 VALUES (1), (2), (3);
 --echo #
 --echo # See bugs
 --echo #
---echo # - Bug#52173: Reading NULL value from non-NULL index gives
---echo #   wrong result in embedded server 
---echo #
 --echo # - Bug#52174: Sometimes wrong plan when reading a MAX value from 
 --echo #   non-NULL index
 --echo #
@@ -1331,7 +1328,7 @@ CREATE TABLE t1 (
   f1 int(11) NOT NULL DEFAULT '0',
   f2 char(1) NOT NULL DEFAULT '',
   PRIMARY KEY (f1,f2)
-) ;
+)  charset utf8mb4;
 insert into t1 values(1,'A'),(1 , 'B'), (1, 'C'), (2, 'A'), 
 (3, 'A'), (3, 'B'), (3, 'C'), (3, 'D');
 

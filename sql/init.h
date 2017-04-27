@@ -16,6 +16,8 @@
 #ifndef INIT_INCLUDED
 #define INIT_INCLUDED
 
+#include <sys/types.h>
+
 #include "my_inttypes.h"
 
 void unireg_init(ulong options);

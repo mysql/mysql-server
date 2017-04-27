@@ -26,6 +26,7 @@ Completed by Sunny Bains and Marko Makela
 
 #include <fcntl.h>
 #include <math.h>
+#include <sys/types.h>
 
 #include "btr0bulk.h"
 #include "dict0crea.h"
@@ -57,7 +58,7 @@ Completed by Sunny Bains and Marko Makela
 #endif /* _WIN32 */
 
 /* Whether to disable file system cache */
-char	srv_disable_sort_file_cache;
+bool	srv_disable_sort_file_cache;
 
 /** Class that caches index row tuples made from a single cluster
 index page scan, and then insert into corresponding index tree */
@@ -156,7 +157,6 @@ public:
 			}
 
 			mtr.start();
-			mtr.set_named_space(m_index->space);
 
 			ins_cur.index = m_index;
 			rtr_init_rtr_info(&rtr_info, false, &ins_cur, m_index,
@@ -177,8 +177,9 @@ public:
 				rtr_init_rtr_info(&rtr_info, false, &ins_cur,
 						  m_index, false);
 				rtr_info_update_btr(&ins_cur, &rtr_info);
+
 				mtr_start(&mtr);
-				mtr.set_named_space(m_index->space);
+
 				btr_cur_search_to_nth_level(
 					m_index, 0, dtuple,
 					PAGE_CUR_RTREE_INSERT,
@@ -192,11 +193,13 @@ public:
 
 			if (error == DB_FAIL) {
 				ut_ad(!big_rec);
+
 				mtr.commit();
+
 				mtr.start();
-				mtr.set_named_space(m_index->space);
 
 				rtr_clean_rtr_info(&rtr_info, true);
+
 				rtr_init_rtr_info(&rtr_info, false,
 						  &ins_cur, m_index, false);
 
@@ -1879,6 +1882,8 @@ row_merge_read_clustered_index(
 		row_ext_t*	ext = NULL;
 		page_cur_t*	cur	= btr_pcur_get_page_cur(&pcur);
 
+		mem_heap_empty(row_heap);
+
 		page_cur_move_to_next(cur);
 
 		stage->n_pk_recs_inc();
@@ -2538,7 +2543,6 @@ write_buffers:
 			goto func_exit;
 		}
 
-		mem_heap_empty(row_heap);
 		if (v_heap) {
 			mem_heap_empty(v_heap);
 		}
@@ -3475,7 +3479,8 @@ row_merge_drop_indexes(
 					this one. */
 					ut_ad(prev);
 					ut_a(table->fts);
-					fts_drop_index(table, index, trx);
+					fts_drop_index(table, index,
+						       trx, nullptr);
 					/* Since
 					INNOBASE_SHARE::idx_trans_tbl
 					is shared between all open
@@ -3553,7 +3558,7 @@ row_merge_drop_indexes(
 			and also drop its auxiliary tables */
 			if (index->type & DICT_FTS) {
 				ut_a(table->fts);
-				fts_drop_index(table, index, trx);
+				fts_drop_index(table, index, trx, nullptr);
 			}
 
 			switch (dict_index_get_online_status(index)) {
@@ -3577,7 +3582,11 @@ row_merge_drop_indexes(
 				MONITOR_DEC(MONITOR_BACKGROUND_DROP_INDEX);
 			}
 
-			dict_drop_index(index, index->page);
+			if (dict_index_get_online_status(index)
+			    != ONLINE_INDEX_ABORTED_DROPPED) {
+
+				dict_drop_index(index, index->page);
+			}
 
 			dict_index_remove_from_cache(table, index);
 		}

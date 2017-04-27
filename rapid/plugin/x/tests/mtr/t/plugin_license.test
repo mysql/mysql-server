@@ -1,7 +1,7 @@
 call mtr.add_suppression("Message of size .* received, exceeding the limit of"); 
 
 --echo Setup
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 
 --echo Test
 --let $_server_license= `SELECT IF(@@license = 'Commercial', 'PROPRIETARY', @@license);`

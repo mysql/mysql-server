@@ -22,6 +22,8 @@
   Table replication_applier_status_by_coordinator(declarations).
 */
 
+#include <sys/types.h>
+
 #include "my_inttypes.h"
 #include "mysql_com.h"
 #include "pfs_column_types.h"
@@ -63,6 +65,17 @@ struct st_row_coordinator
   char last_error_message[MAX_SLAVE_ERRMSG];
   uint last_error_message_length;
   ulonglong last_error_timestamp;
+  char last_processed_trx[Gtid::MAX_TEXT_LENGTH + 1];
+  uint last_processed_trx_length;
+  ulonglong last_processed_trx_original_commit_timestamp;
+  ulonglong last_processed_trx_immediate_commit_timestamp;
+  ulonglong last_processed_trx_start_buffer_timestamp;
+  ulonglong last_processed_trx_end_buffer_timestamp;
+  char processing_trx[Gtid::MAX_TEXT_LENGTH + 1];
+  uint processing_trx_length;
+  ulonglong processing_trx_original_commit_timestamp;
+  ulonglong processing_trx_immediate_commit_timestamp;
+  ulonglong processing_trx_start_buffer_timestamp;
 };
 
 class PFS_index_rpl_applier_status_by_coord : public PFS_engine_index
@@ -156,7 +169,7 @@ public:
 
   /** Table share. */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table *create();
+  static PFS_engine_table *create(PFS_engine_table_share *);
   static ha_rows get_row_count();
   virtual void reset_position(void);
 

@@ -19,7 +19,6 @@ create table messages
  key( received, sender, receiver ),
  key( sender, receiver, received )
 );
-show create table messages;
 
 insert into messages(id, raw_message) values
 (

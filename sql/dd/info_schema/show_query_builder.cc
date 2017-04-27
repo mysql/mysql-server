@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,8 +21,10 @@
 #include "my_dbug.h"
 #include "parse_tree_helpers.h"
 #include "parse_tree_items.h"                  // PTI_simple_ident_ident
+#include "parse_tree_nodes.h"                  // PT_select_item_list
 #include "sql_lex.h"                           // Query_options
 #include "sql_string.h"
+#include "query_options.h"                     // OPTION_SELECT_FOR_SHOW
 
 class Item;
 
@@ -32,9 +34,37 @@ namespace info_schema {
 
 static const Query_options options=
 {
-  0, /* query_spec_options */
+  OPTION_SELECT_FOR_SHOW, /* query_spec_options */
   SELECT_LEX::SQL_CACHE_UNSPECIFIED /* sql_cache */
 };
+
+
+Select_lex_builder::Select_lex_builder(const POS *pc, THD *thd)
+  :m_pos(pc),
+   m_thd(thd),
+   m_select_item_list(nullptr),
+   m_where_clause(nullptr),
+   m_order_by_list(nullptr)
+{
+  m_table_reference_list.init(m_thd->mem_root);
+}
+
+
+bool Select_lex_builder::add_to_select_item_list(Item *expr)
+{
+  // Prepare list if not exist.
+  if (!m_select_item_list)
+  {
+    m_select_item_list= new (m_thd->mem_root) PT_select_item_list();
+
+    if (m_select_item_list == nullptr)
+      return true;
+  }
+
+  m_select_item_list->push_back(expr);
+
+  return false;
+}
 
 
 // Add item representing star in "SELECT '*' ...".
@@ -360,7 +390,7 @@ SELECT_LEX* Select_lex_builder::prepare_select_lex()
   PT_query_expression *query_expression2;
   query_expression2= new (m_thd->mem_root)
     PT_query_expression(query_expression_body_primary2,
-                        pt_order_by, nullptr, nullptr, nullptr);
+                        pt_order_by, nullptr, nullptr);
   if (query_expression2 == nullptr)
     return nullptr;
 
@@ -371,6 +401,7 @@ SELECT_LEX* Select_lex_builder::prepare_select_lex()
 
   LEX *lex= m_thd->lex;
   SELECT_LEX *current_select= lex->current_select();
+
   Parse_context pc(m_thd, current_select);
   if (m_thd->is_error())
     return nullptr;

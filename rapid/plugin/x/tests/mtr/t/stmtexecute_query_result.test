@@ -1,7 +1,7 @@
 ## generated
 ## Test query with resultset
 
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 ## Test starts here
 --write_file $MYSQL_TMP_DIR/stmtexecute_query_result.tmp
 ## Test data

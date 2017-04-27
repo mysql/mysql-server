@@ -35,13 +35,13 @@
 #include "ft_global.h"         // ft_hints
 #include "hash.h"
 #include "key.h"
+#include "lex_string.h"
 #include "m_string.h"
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_double2ulonglong.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_macros.h"
@@ -90,9 +90,9 @@ namespace dd {
   typedef struct sdi_vector sdi_vector_t;
 }
 
-typedef my_bool (*qc_engine_callback)(THD *thd, const char *table_key,
-                                      uint key_length,
-                                      ulonglong *engine_data);
+typedef bool (*qc_engine_callback)(THD *thd, const char *table_key,
+                                   uint key_length,
+                                   ulonglong *engine_data);
 
 typedef bool (stat_print_fn)(THD *thd, const char *type, size_t type_len,
                              const char *file, size_t file_len,
@@ -454,6 +454,11 @@ enum enum_alter_inplace_result {
   Supports descending indexes
 */
 #define HA_DESCENDING_INDEX (1LL << 48)
+
+/**
+  Supports partial update of BLOB columns.
+*/
+#define HA_BLOB_PARTIAL_UPDATE (1LL << 49)
 
 /*
   Bits in index_flags(index_number) for what you can do with index.
@@ -1029,6 +1034,22 @@ typedef bool (*show_status_t)(handlerton *hton, THD *thd, stat_print_fn *print, 
 typedef uint (*partition_flags_t)();
 
 /**
+  SE specific validation of the tablespace name.
+
+  This function will ask the relevant SE whether the submitted tablespace
+  name is valid.
+
+  @param tablespace_ddl     Purpose of usage - is this tablespace DDL?
+  @param tablespace_name    Name of the tablespace.
+
+  @return Tablespace name validity.
+    @retval == false: The tablespace name is invalid.
+    @retval == true:  The tablespace name is valid.
+*/
+typedef bool (*is_valid_tablespace_name_t)(bool tablespace_ddl,
+                                           const char *tablespace_name);
+
+/**
   Get the tablespace name from the SE for the given schema and table.
 
   @param       thd              Thread context.
@@ -1065,6 +1086,43 @@ typedef int (*alter_tablespace_t)(handlerton *hton, THD *thd,
                                   st_alter_tablespace *ts_info,
                                   const dd::Tablespace *old_ts_def,
                                   dd::Tablespace *new_ts_def);
+
+/**
+  Get the tablespace data from SE and insert it into Data dictionary
+
+  @param    thd         Thread context
+
+  @return Operation status.
+  @retval == 0  Success.
+  @retval != 0  Error (handler error code returned)
+*/
+typedef int (*upgrade_tablespace_t)(THD *thd);
+
+
+/**
+  Finish upgrade process inside storage engines.
+  This includes resetting flags to indicate upgrade process
+  and cleanup after upgrade.
+
+  @param    thd      Thread context
+
+  @return Operation status.
+  @retval == 0  Success.
+  @retval != 0  Error (handler error code returned)
+*/
+typedef int (*finish_upgrade_t)(THD *thd, bool failed_upgrade);
+
+/**
+  Upgrade logs after the checkpoint from where upgrade
+  process can only roll forward.
+
+  @param    thd      Thread context
+
+  @return Operation status.
+  @retval == 0  Success.
+  @retval != 0  Error (handler error code returned)
+*/
+typedef int (*upgrade_logs_t)(THD *thd);
 
 typedef int (*fill_is_table_t)(handlerton *hton, THD *thd, TABLE_LIST *tables,
                                class Item *cond,
@@ -1336,6 +1394,7 @@ enum dict_init_mode_t
 {
   DICT_INIT_CREATE_FILES,         //< Create all required SE files
   DICT_INIT_CHECK_FILES,          //< Verify existence of expected files
+  DICT_INIT_UPGRADE_FILES,        //< Used for upgrade from mysql-5.7
   DICT_INIT_IGNORE_FILES          //< Don't care about files at all
 };
 
@@ -1607,8 +1666,12 @@ struct handlerton
   flush_logs_t flush_logs;
   show_status_t show_status;
   partition_flags_t partition_flags;
+  is_valid_tablespace_name_t is_valid_tablespace_name;
   get_tablespace_t get_tablespace;
   alter_tablespace_t alter_tablespace;
+  upgrade_tablespace_t upgrade_tablespace;
+  upgrade_logs_t upgrade_logs;
+  finish_upgrade_t finish_upgrade;
   fill_is_table_t fill_is_table;
   dict_init_t dict_init;
   dict_cache_reset_t dict_cache_reset;
@@ -3464,6 +3527,13 @@ public:
   */
   int ha_external_lock(THD *thd, int lock_type);
   int ha_write_row(uchar * buf);
+  /**
+    Update the current row.
+
+    @param old_data  the old contents of the row
+    @param new_data  the new contents of the row
+    @return error status (zero on success, HA_ERR_* error code on error)
+  */
   int ha_update_row(const uchar * old_data, uchar * new_data);
   int ha_delete_row(const uchar * buf);
   void ha_release_auto_increment();
@@ -3483,7 +3553,7 @@ public:
   bool ha_check_and_repair(THD *thd);
   int ha_disable_indexes(uint mode);
   int ha_enable_indexes(uint mode);
-  int ha_discard_or_import_tablespace(my_bool discard, dd::Table *table_def);
+  int ha_discard_or_import_tablespace(bool discard, dd::Table *table_def);
   int ha_rename_table(const char *from, const char *to,
                       const dd::Table *from_table_def,
                       dd::Table *to_table_def);
@@ -3828,17 +3898,6 @@ public:
            ((create_info->table_options & HA_OPTION_PACK_RECORD) ?
              ROW_TYPE_DYNAMIC : ROW_TYPE_FIXED);
   }
-
-  /**
-    Get the row type from the storage engine for upgrade. If this method
-    returns ROW_TYPE_NOT_USED, the information in HA_CREATE_INFO should be
-    used.
-    This function is temporarily added to handle case of upgrade. It should
-    not be used in any other use case. This function will be removed in future.
-    This function was handler::get_row_type() in mysql-5.7.
-  */
-  virtual enum row_type get_row_type_for_upgrade() const
-  { return ROW_TYPE_NOT_USED; }
 
   /**
     Get default key algorithm for SE. It is used when user has not provided
@@ -4419,7 +4478,7 @@ public:
         cached
   */
 
-  virtual my_bool
+  virtual bool
   register_query_cache_table(THD *thd MY_ATTRIBUTE((unused)),
                              char *table_key MY_ATTRIBUTE((unused)),
                              size_t key_length MY_ATTRIBUTE((unused)),
@@ -5142,6 +5201,13 @@ private:
   virtual bool is_record_buffer_wanted(ha_rows *const max_rows) const
   { *max_rows= 0; return false; }
 
+  // Set se_private_id and se_private_data during upgrade
+  virtual bool upgrade_table(THD *thd MY_ATTRIBUTE((unused)),
+                             const char* dbname MY_ATTRIBUTE((unused)),
+                             const char* table_name MY_ATTRIBUTE((unused)),
+                             dd::Table *dd_table MY_ATTRIBUTE((unused)))
+  { return false; }
+
   virtual int sample_init();
   virtual int sample_next(uchar *buf);
   virtual int sample_end();
@@ -5291,7 +5357,7 @@ public:
     @retval   != 0  Error.
   */
 
-  virtual int discard_or_import_tablespace(my_bool discard MY_ATTRIBUTE((unused)),
+  virtual int discard_or_import_tablespace(bool discard MY_ATTRIBUTE((unused)),
                 dd::Table *table_def MY_ATTRIBUTE((unused)))
   {
     set_my_errno(HA_ERR_WRONG_COMMAND);
@@ -5335,7 +5401,7 @@ public:
     @param  [in]      key_info      Array of KEY objects describing table
                                     indexes.
     @param  [in]      key_count     Number of indexes in the table.
-    @param  [in,out]  table         dd::Table object describing the table
+    @param  [in,out]  table_obj     dd::Table object describing the table
                                     to be created. Implicit columns and
                                     indexes are to be added to this object.
                                     Adjusted table description will be
@@ -5351,7 +5417,7 @@ public:
                                *create_list MY_ATTRIBUTE((unused)),
                                const KEY *key_info MY_ATTRIBUTE((unused)),
                                uint key_count MY_ATTRIBUTE((unused)),
-                               dd::Table *table MY_ATTRIBUTE((unused)))
+                               dd::Table *table_obj MY_ATTRIBUTE((unused)))
   { return 0; }
 
   virtual bool set_ha_share_ref(Handler_share **arg_ha_share)
@@ -5398,12 +5464,32 @@ public:
     @retval false on success
   */
   static bool my_eval_gcolumn_expr(THD *thd, TABLE *table,
-				   const MY_BITMAP *const fields,
+                                   const MY_BITMAP *const fields,
                                    uchar *record);
 
   /* This must be implemented if the handlerton's partition_flags() is set. */
   virtual Partition_handler *get_partition_handler()
   { return NULL; }
+
+  /**
+  Set se_private_id and se_private_data during upgrade
+
+    @param   thd         Pointer of THD
+    @param   dbname      Database name
+    @param   table_name  Table name
+    @param   dd_table    dd::Table for the table
+    @param   table_arg   TABLE object for the table.
+
+    @return Operation status
+      @retval false     Success
+      @retval true      Error
+  */
+
+  bool ha_upgrade_table(THD *thd,
+                         const char* dbname,
+                         const char* table_name,
+                         dd::Table *dd_table,
+                         TABLE *table_arg);
 
 protected:
   Handler_share *get_ha_share_ptr();

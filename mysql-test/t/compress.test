@@ -3,9 +3,6 @@
 # Turn on compression between the client and server
 # and run a number of tests
 
-# Can't test with embedded server
--- source include/not_embedded.inc
-
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
@@ -29,4 +26,3 @@ disconnect comp_con;
 
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
-

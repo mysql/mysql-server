@@ -23,7 +23,6 @@
  * .configure. mbmaxlen_gb2312=2
  */
 
-#include <my_global.h>
 #include <stddef.h>
 #include <sys/types.h>
 
@@ -6453,7 +6452,8 @@ CHARSET_INFO my_charset_gb2312_chinese_ci=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_handler,
-    &my_collation_ci_handler
+    &my_collation_ci_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_gb2312_bin=
@@ -6487,5 +6487,6 @@ CHARSET_INFO my_charset_gb2312_bin=
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
     &my_charset_handler,
-    &my_collation_mb_bin_handler
+    &my_collation_mb_bin_handler,
+    PAD_SPACE
 };

@@ -47,7 +47,7 @@ select grp, sum(a)+count(a)+avg(a)+std(a)+variance(a)+bit_or(a)+bit_and(a)+min(a
 create table t2 (grp int, a bigint unsigned, c char(10));
 insert into t2 select grp,max(a)+max(grp),max(c) from t1 group by grp;
 
-# REPLACE ... SELECT doesn't yet work with PS
+# REPLACE ... SELECT does not yet work with PS
 replace into t2 select grp, a, c from t1 limit 2,1;
 select * from t2;
 
@@ -667,7 +667,7 @@ DROP TABLE t1;
 # Test that new VARCHAR correctly works with COUNT(DISTINCT)
 #
 
-CREATE TABLE t1 (a VARCHAR(400));
+CREATE TABLE t1 (a VARCHAR(400)) charset latin1;
 INSERT INTO t1 (a) VALUES ("A"), ("a"), ("a "), ("a   "),
                           ("B"), ("b"), ("b "), ("b   ");
 SELECT COUNT(DISTINCT a) FROM t1;

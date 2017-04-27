@@ -16,6 +16,8 @@
 /* read record through position and fix key-position */
 /* As mi_rsame but supply a position */
 
+#include <sys/types.h>
+
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "myisamdef.h"

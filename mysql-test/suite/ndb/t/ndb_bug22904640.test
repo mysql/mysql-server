@@ -1,5 +1,4 @@
 -- source include/have_ndb.inc
--- source include/not_embedded.inc
 
 --let $ndb_desc_file= $MYSQLTEST_VARDIR/tmp/ndb_desc_out.txt
 

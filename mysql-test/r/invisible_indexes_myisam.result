@@ -108,7 +108,7 @@ t1	CREATE TABLE `t1` (
   KEY `a` (`a`),
   KEY `b` (`b`) /*!80000 INVISIBLE */,
   KEY `c` (`c`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 # Test that primary key indexes can't be made invisible.
 CREATE TABLE t1 ( a INT, PRIMARY KEY (a) INVISIBLE );
@@ -363,7 +363,7 @@ ALTER TABLE t1 ALTER INDEX a INVISIBLE;
 SHOW INDEXES FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	1	a	1	a	NULL	1	NULL	NULL	YES	FULLTEXT			NO
-t1	1	a	2	b	NULL	1	1	NULL	YES	FULLTEXT			NO
+t1	1	a	2	b	NULL	1	NULL	NULL	YES	FULLTEXT			NO
 EXPLAIN SELECT * FROM t1 WHERE MATCH(a, b) AGAINST ("collections");
 ERROR HY000: Can't find FULLTEXT index matching the column list
 EXPLAIN SELECT * FROM t1 WHERE MATCH(a, b) AGAINST ("collections" IN BOOLEAN MODE);

@@ -1,7 +1,5 @@
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_embedded.inc
-
 #setup
 let $select_column = LOW_COUNT_USED;
 let $table = performance_schema.memory_summary_global_by_event_name;

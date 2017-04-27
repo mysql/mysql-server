@@ -23,7 +23,6 @@
 #include "dd/impl/object_key.h"  // dd::Object_key
 #include "dd/object_id.h"        // dd::Object_id
 #include "m_ctype.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 
 namespace dd {

@@ -16,6 +16,7 @@
 # 6. Clean up.
 ################################################################################
 
+--source include/big_test.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 --let $group_replication_group_name= 572e4320-cd68-11e4-8830-0800200c9a66
@@ -41,6 +42,7 @@
  --echo server2
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("\\[GCS\\] Error pushing message into group communication engine.");
+call mtr.add_suppression("Error while sending message for group replication recovery");
 call mtr.add_suppression("Error while sending stats message");
 SET SESSION sql_log_bin= 1;
 

@@ -144,6 +144,39 @@ while ($i != 11)
 --let $assert_text= Rows until 10 in t1 must be replicated now
 --source include/assert.inc
 
+#
+# Bug#24976304 WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS TIMEOUT VALUE HANDLES SOME
+# INPUTS BADLY
+#
+--echo Test WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS function with negative timeout
+--echo value. When SQL_MODE is strict, then it will throw
+--echo WRONG_ARGUMENTS error.
+SET @save_sql_mode=@@SESSION.SQL_MODE;
+SET @@SESSION.SQL_MODE="STRICT_ALL_TABLES";
+--replace_result $master_uuid MASTER_UUID
+--error ER_WRONG_ARGUMENTS
+--eval SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('$master_uuid:100', -1);
+
+--echo When SQL_MODE is non-strict mode, then it will return NULL immediately
+--echo without doing any work and generates WRONG_ARGUMENTS warning.
+SET @@SESSION.SQL_MODE="";
+--replace_result $master_uuid MASTER_UUID
+--eval SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('$master_uuid:100', -1);
+SET @@SESSION.SQL_MODE=@save_sql_mode;
+
+--echo Test WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS function with fractional timeout
+--echo value. Earlier(before fix), 0.4 is read as integer value '0' and
+--echo the function hanged forever (or till all the specified gtids are
+--echo executed). Now(after fix) 0.4 will be read as double 0.4 and will waitfor
+--echo atleast 0.4 seconds (or till all the specified  gtids are executed).
+--echo Also check that function returns -1 if the timeout has been exceeded.
+--let $assert_text= WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS returns -1 if the timeout has been exceeded.
+--let $query_result= query_get_value("SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('$master_uuid:100', 0.4) AS VALUE", VALUE, 1)
+--let $assert_cond= "$query_result" = "-1"
+--source include/assert.inc
+
+# End of Test Bug#24976304
+
 # Cleanup
 --connection master
 DROP TABLE t1;

@@ -13,6 +13,8 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#include "sql/auth/sql_authorization.h"
+
 #include <limits.h>
 #include <string.h>
 #include <sys/types.h>
@@ -42,13 +44,13 @@
 #include "item.h"
 #include "key.h"
 #include "key_spec.h"                   /* Key_spec */
+#include "lex_string.h"
 #include "log.h"                        /* sql_print_warning */
 #include "m_ctype.h"
 #include "m_string.h"
 #include "mdl.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_sqlcommand.h"
@@ -68,7 +70,6 @@
 #include "sql_alter.h"
 #include "sql_auth_cache.h"
 #include "sql_authentication.h"
-#include "sql_authorization.h"
 #include "sql_base.h"                   /* open_and_lock_tables */
 #include "sql_class.h"                  /* THD */
 #include "sql_connect.h"
@@ -112,7 +113,8 @@ class Abstract_table;
 #include <boost/tuple/tuple.hpp>
 
 #include "my_sys.h"
-
+#include "dynamic_privilege_table.h"
+#include "sql_db.h"
 Granted_roles_graph *g_granted_roles= 0;
 Role_index_map *g_authid_to_vertex= 0;
 static char g_active_dummy_user[]= "active dummy user";
@@ -120,6 +122,7 @@ extern bool initialized;
 extern Default_roles *g_default_roles;
 typedef boost::graph_traits<Granted_roles_graph>::adjacency_iterator
   Role_adjacency_iterator;
+User_to_dynamic_privileges_map *g_dynamic_privileges_map= 0;
 
 const char *command_array[]=
 {
@@ -310,7 +313,7 @@ bool drop_role(THD *thd, TABLE *edge_table, TABLE *defaults_table,
   @param edge_table
   @param defaults_table
   @param user_name
- 
+
   @returns
     @retval true An error occurred
     @retval false Success
@@ -543,9 +546,7 @@ void make_global_privilege_statement(THD *thd, ulong want_access,
   global->length(0);
   global->append(STRING_WITH_LEN("GRANT "));
 
-  if (test_all_bits(want_access, (GLOBAL_ACLS & ~ GRANT_ACL)))
-    global->append(STRING_WITH_LEN("ALL PRIVILEGES"));
-  else if (!(want_access & ~GRANT_ACL))
+  if (!(want_access & ~GRANT_ACL))
     global->append(STRING_WITH_LEN("USAGE"));
   else
   {
@@ -830,6 +831,50 @@ make_with_admin_privilege_statement(THD *thd, ACL_USER *acl_user,
   }
 }
 
+void make_dynamic_privilege_statement(THD *thd, ACL_USER *role,
+                                      Protocol *protocol,
+                                      const Dynamic_privileges &dyn_priv)
+{
+  DBUG_ASSERT(assert_acl_cache_read_lock(thd));
+  bool found= false;
+  /*
+    On first iteration create a statement out of all the grants which don't
+    have a grant option.
+    On second iteration process all privileges with a grant option.
+  */
+  for(int grant_option= 0; grant_option< 2; ++grant_option)
+  {
+    String global;
+    global.append(STRING_WITH_LEN("GRANT "));
+    for(auto &&priv : dyn_priv)
+    {
+      if (grant_option == 0 && priv.second)
+        continue;
+      if (grant_option == 1 && !priv.second)
+        continue;
+      if (found)
+        global.append(',');
+      global.append(priv.first.c_str(), priv.first.length());
+      found= true;
+    }
+    if (found)
+    {
+      /* Dynamic privileges are always applied on global level */
+      global.append(STRING_WITH_LEN(" ON *.* TO "));
+      append_identifier(thd, &global, role->user, strlen(role->user));
+      global.append('@');
+      append_identifier(thd, &global, role->host.get_host(),
+                        role->host.get_host_len());
+      if (grant_option)
+        global.append(" WITH GRANT OPTION");
+      protocol->start_row();
+      protocol->store(global.ptr(), global.length(), global.charset());
+      protocol->end_row();
+    }
+    found= false;
+  } // end for
+}
+
 void make_roles_privilege_statement(THD *thd, ACL_USER *role,
                                     Protocol *protocol,
                                     const List_of_granted_roles &granted_roles)
@@ -1109,6 +1154,28 @@ void get_table_access_map(ACL_USER *acl_user,
   DBUG_VOID_RETURN;
 }
 
+void get_dynamic_privileges(ACL_USER *acl_user, Dynamic_privileges *acl)
+{
+  Role_id key(create_authid_from(acl_user));
+  User_to_dynamic_privileges_map::iterator it, it_end;
+
+  std::tie(it, it_end)= g_dynamic_privileges_map->equal_range(key);
+  for(;it != it_end; ++it)
+  {
+    auto aggr= acl->find(it->second.first);
+    if (aggr != acl->end() && aggr->second != it->second.second)
+    {
+      /*
+        If this privID was already in the aggregate we make sure that the
+        grant option take precedence; any GRANT OPTION will be sticky through
+        out role privilege aggregation.
+      */
+      aggr->second= true;
+    }
+    else
+      acl->insert(it->second);
+  }
+}
 
 bool has_wildcard_characters(const LEX_CSTRING &db)
 {
@@ -1175,14 +1242,16 @@ public:
                   Table_access_map *table_map,
                   SP_access_map *sp_map,
                   SP_access_map *func_map,
-                  Grant_acl_set *with_admin_acl) :
+                  Grant_acl_set *with_admin_acl,
+                  Dynamic_privileges *dyn_acl) :
     m_access(access),
     m_db_map(db_map),
     m_db_wild_map(db_wild_map),
     m_table_map(table_map),
     m_sp_map(sp_map),
     m_func_map(func_map),
-    m_with_admin_acl(with_admin_acl)
+    m_with_admin_acl(with_admin_acl),
+    m_dynamic_acl(dyn_acl)
   {}
 
   template < typename Vertex, typename Graph >
@@ -1209,6 +1278,9 @@ public:
 
     /* Add user function access */
     get_sp_access_map(&acl_user, m_sp_map, &func_priv_hash);
+
+    /* Add dynamic privileges */
+    get_dynamic_privileges(&acl_user, m_dynamic_acl);
   }
 
   template < typename Edge, typename Graph >
@@ -1242,6 +1314,7 @@ private:
   SP_access_map *m_sp_map;
   SP_access_map *m_func_map;
   Grant_acl_set *m_with_admin_acl;
+  Dynamic_privileges *m_dynamic_acl;
 };
 
 
@@ -1481,13 +1554,15 @@ bool check_readonly(THD *thd, bool err_if_readonly)
   if (thd->slave_thread)
     DBUG_RETURN(FALSE);
 
-  bool is_super= thd->security_context()->check_access(SUPER_ACL);
+  Security_context *sctx= thd->security_context();
+  bool is_super=
+    sctx->check_access(SUPER_ACL) ||
+    sctx->has_global_grant(STRING_WITH_LEN("CONNECTION_ADMIN")).first;
 
   /* super_read_only=OFF and user has SUPER privilege,
   do not prohibit operation:
   */
   if (is_super && !opt_super_readonly)
-
     DBUG_RETURN(FALSE);
 
   /* throw error in standardized way if requested: */
@@ -1751,7 +1826,7 @@ bool check_some_routine_access(THD *thd, const char *db, const char *name,
   @return Status of denial of access by exclusive ACLs.
     @retval FALSE Access can't exclusively be denied by Db- and User-table
       access unless Column- and Table-grants are checked too.
-    @retval TRUE Access denied.
+    @retval TRUE Access denied. The DA is set if no_error = false!
 */
 
 bool
@@ -2210,17 +2285,17 @@ bool has_grant_role_privilege(THD *thd, const LEX_CSTRING &role_name,
 {
   DBUG_ENTER("has_grant_role_privilege");
   Security_context *sctx= thd->security_context();
-  if (MY_TEST(sctx->check_access(SUPER_ACL)))
+  if (sctx->check_access(SUPER_ACL) ||
+      sctx->has_global_grant(STRING_WITH_LEN("ROLE_ADMIN")).first)
   {
     DBUG_PRINT("info",("`%s`@`%s` has with admin privileges for `%s`@`%s` "
-                       "through super privileges",
+                       "through super privileges or ROLE_ADMIN",
                        sctx->priv_user().str, sctx->priv_host().str,
                        role_name.str, role_host.str));
     DBUG_RETURN(true);
   }
-
   /*
-    1. user has global INSERT or SUPER_ACL privileges
+    1. user has global ROLE_ADMIN or SUPER_ACL privileges
     2. user has inherited the GRANT r TO CURRENT_USER WITH ADMIN OPTION
        privileges, where r is a node in some active role graph R granted to
        CURRENT_USER.
@@ -2351,10 +2426,8 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
           DBUG_RETURN(true);
 
         bool exists;
-        if (dd::table_exists<dd::Abstract_table>(thd->dd_client(),
-                                                 table_list->db,
-                                                 table_list->table_name,
-                                                 &exists))
+        if (dd::table_exists(thd->dd_client(), table_list->db,
+                             table_list->table_name, &exists))
           DBUG_RETURN(TRUE);
 
         if (!exists)
@@ -2831,6 +2904,11 @@ bool mysql_revoke_role(THD *thd, const List <LEX_USER > *users,
   DBUG_RETURN(false);
 }
 
+bool has_dynamic_privilege_grant_option(Security_context *sctx,
+                                        std::string priv)
+{
+  return sctx->has_global_grant(priv.c_str(),priv.length()).second;
+}
 
 /**
   Grants a list of roles to a list of users. Changes are persistent and written
@@ -2945,18 +3023,22 @@ bool mysql_grant_role(THD *thd, const List <LEX_USER > *users,
 
 
 bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
-                 ulong rights, bool revoke_grant, bool is_proxy)
+                 ulong rights, bool revoke_grant, bool is_proxy,
+                 const List<LEX_CSTRING > &dynamic_privilege, bool
+                 grant_all_current_privileges)
 {
+  Security_context *sctx= thd->security_context();
   List_iterator <LEX_USER> str_list (list);
-  LEX_USER *Str, *tmp_Str, *proxied_user= NULL;
+  LEX_USER *user, *target_user, *proxied_user= NULL;
   char tmp_db[NAME_LEN+1];
   bool create_new_users= false;
   TABLE_LIST tables[ACL_TABLES::LAST_ENTRY];
   bool transactional_tables;
   ulong what_to_set= 0;
   bool is_privileged_user= false;
-  bool result= false;
+  bool error= false;
   int ret;
+  TABLE *dynpriv_table;
 
   DBUG_ENTER("mysql_grant");
   if (!initialized)
@@ -3003,28 +3085,40 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   is_privileged_user= is_privileged_user_for_credential_change(thd);
   /* go through users in user_list */
   grant_version++;
-
-  while ((tmp_Str = str_list++))
+  dynpriv_table= tables[ACL_TABLES::TABLE_DYNAMIC_PRIV].table;
+  while ((target_user = str_list++))
   {
-    if (!(Str= get_current_user(thd, tmp_Str)))
+    if (!(user= get_current_user(thd, target_user)))
     {
-      result= true;
+      error= true;
       continue;
     }
 
-    if (set_and_validate_user_attributes(thd, Str, what_to_set,
+    if (set_and_validate_user_attributes(thd, user, what_to_set,
                                          is_privileged_user, false))
     {
-      result= true;
+      error= true;
       continue;
     }
 
-    if ((ret= replace_user_table(thd, tables[ACL_TABLES::TABLE_USER].table, Str,
-                                 (!db ? rights : 0), revoke_grant,
+    bool with_grant_option= ((rights & GRANT_ACL) != 0);
+    if (db == 0 && with_grant_option && (rights | GRANT_ACL) == 0 &&
+        dynamic_privilege.elements > 0)
+    {
+      /*
+        If this is a grant on global privilege level and there only dynamic
+        privileges specified; don't apply the GRANT OPTION on a global privilege
+        level.
+      */
+      rights= 0;
+    }
+
+    if ((ret= replace_user_table(thd, tables[ACL_TABLES::TABLE_USER].table,
+                                 user, (!db ? rights : 0), revoke_grant,
                                  create_new_users,
                                  (what_to_set | ACCESS_RIGHTS_ATTR))))
     {
-      result= true;
+      error= true;
       if (ret < 0)
         break;
 
@@ -3035,10 +3129,10 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
       ulong db_rights= rights & DB_ACLS;
       if (db_rights  == rights)
       {
-        if ((ret= replace_db_table(thd, tables[ACL_TABLES::TABLE_DB].table, db, *Str,
-                                   db_rights, revoke_grant)))
+        if ((ret= replace_db_table(thd, tables[ACL_TABLES::TABLE_DB].table, db,
+                                   *user, db_rights, revoke_grant)))
         {
-          result= true;
+          error= true;
           if (ret < 0)
             break;
 
@@ -3049,34 +3143,126 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
       else
       {
         my_error(ER_WRONG_USAGE, MYF(0), "DB GRANT", "GLOBAL PRIVILEGES");
-        result= true;
+        error= true;
         continue;
       }
     }
     else if (is_proxy)
     {
-      if((ret= replace_proxies_priv_table(thd, tables[5].table, Str, proxied_user,
+      if((ret= replace_proxies_priv_table(thd, tables[5].table, user, proxied_user,
                                           rights & GRANT_ACL ? true : false,
                                           revoke_grant)))
       {
-        result= true;
+        error= true;
         if (ret < 0)
           break;
 
         continue;
       }
     }
-  }
+    /* Handle dynamic privileges if there are any */
+    if (db && db != any_db && dynamic_privilege.elements > 0)
+    {
+      String privs;
+      List_iterator<LEX_CSTRING> it(const_cast<List<LEX_CSTRING> &>(dynamic_privilege));
+      LEX_CSTRING *priv;
+      bool comma= false;
+      while ((priv= it++))
+      {
+        if (comma)
+          privs.append(",");
+        privs.append(priv->str, priv->length);
+        comma= true;
+      }
+      my_error(ER_ILLEGAL_PRIVILEGE_LEVEL, MYF(0), privs.c_ptr());
+      error= true;
+      break;
+    }
 
-  DBUG_ASSERT(!result || thd->is_error());
+    if (!db && (dynamic_privilege.elements > 0 || grant_all_current_privileges))
+    {
+      LEX_CSTRING *priv;
+      Update_dynamic_privilege_table update_table(thd, dynpriv_table);
+      List<LEX_CSTRING> *privileges_to_check;
+      if (grant_all_current_privileges)
+      {
+        /*
+          Copy all currently available dynamic privileges to the list of
+          dynamic privileges to grant.
+        */
+        privileges_to_check= new List<LEX_CSTRING>;
+        iterate_all_dynamic_privileges(thd, [&](const char *str){
+          LEX_CSTRING *new_str= (LEX_CSTRING*)thd->alloc(sizeof(LEX_CSTRING));
+          new_str->str= str;
+          new_str->length= strlen(str);
+          privileges_to_check->push_back(new_str);
+          return false;
+        });
+      }
+      else
+        privileges_to_check=
+          &const_cast<List<LEX_CSTRING> &>(dynamic_privilege);
+      List_iterator<LEX_CSTRING>
+        priv_it(*privileges_to_check);
+      while((priv= priv_it++) && !error)
+      {
+        /*
+          Privilege to grant dynamic privilege to others is granted if the user
+          either has super user privileges (currently UPDATE_ACL on mysql.*) or
+          if the user has a GRANT_OPTION on the specific dynamic privilege he
+          wants to grant.
+          Note that this is different than the rules which apply for other
+          privileges since for them the GRANT OPTION applies on a privilege
+          scope level (ie global, db or table level).
+          From a user POV it might appear confusing that some privileges are
+          more strictly associated with GRANT OPTION than others, but this
+          choice is made to preserve back compatibility while also paving way
+          for future improvements where all privileges objects have their own
+          grant option.
+        */
+        if (check_access(thd, UPDATE_ACL, "mysql", NULL, NULL, 1, 1) &&
+            !has_dynamic_privilege_grant_option(sctx,
+                                                std::string(priv->str,
+                                                            priv->length)))
+        {
+          my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "GRANT OPTION");
+          error= true;
+          break;
+        }
+        if (revoke_grant)
+        {
+          error= revoke_dynamic_privilege(*priv, user->user, user->host,
+                                          update_table);
+        }
+        else
+        {
+          error= grant_dynamic_privilege(*priv, user->user, user->host,
+                                         with_grant_option, update_table);
+        }
+        if (error)
+        {
+          /*
+            If the operation fails the DA might have been set already, but
+            if wasn't we can assume the dynamic privilege wasn't
+            registered in which case a syntax error is a reasonable response.
+          */
+          if (!thd->get_stmt_da()->is_error())
+            my_error(ER_SYNTAX_ERROR, MYF(0));
+          break;
+        }
+      }
+    }
+  } // for each user
 
-  result= log_and_commit_acl_ddl(thd, transactional_tables);
+  DBUG_ASSERT(!error || thd->is_error());
 
-  if (!result)
+  error= log_and_commit_acl_ddl(thd, transactional_tables);
+
+  if (!error)
     my_ok(thd);
 
   get_global_acl_cache()->increase_version();
-  DBUG_RETURN(result);
+  DBUG_RETURN(error);
 }
 
 
@@ -4073,7 +4259,8 @@ void get_privilege_access_maps(ACL_USER *acl_user,
                                SP_access_map *sp_map,
                                SP_access_map *func_map,
                                List_of_granted_roles *granted_roles,
-                               Grant_acl_set *with_admin_acl)
+                               Grant_acl_set *with_admin_acl,
+                               Dynamic_privileges *dynamic_acl)
 {
   DBUG_ENTER("get_privilege_access_maps");
   DBUG_ASSERT(assert_acl_cache_read_lock(current_thd));
@@ -4091,6 +4278,8 @@ void get_privilege_access_maps(ACL_USER *acl_user,
   get_sp_access_map(acl_user, sp_map, &proc_priv_hash);
   // get user function privileges
   get_sp_access_map(acl_user, func_map, &func_priv_hash);
+  // get dynamic privileges
+  get_dynamic_privileges(acl_user, dynamic_acl);
 
   /* Only check roles if there are any granted roles at all */
   boost::tie(vi, vi_end) = boost::vertices(*g_granted_roles);
@@ -4182,7 +4371,7 @@ void get_privilege_access_maps(ACL_USER *acl_user,
     if (granted_active_roles > 0)
     {
       Get_access_maps vis(access, db_map, db_wild_map, table_map, sp_map,
-                          func_map, with_admin_acl);
+                          func_map, with_admin_acl, dynamic_acl);
       boost::breadth_first_search(*g_granted_roles,
                                   root,
                                   boost::color_map(boost::get(boost::vertex_color_t(),
@@ -4266,12 +4455,13 @@ bool mysql_show_grants(THD *thd, LEX_USER *lex_user,
   SP_access_map sp_map;
   SP_access_map func_map;
   Grant_acl_set with_admin_acl;
+  Dynamic_privileges dynamic_acl;
   List_of_granted_roles granted_roles;
   ulong access;
   table_map.set_thd(thd);
   get_privilege_access_maps(acl_user, &using_roles, &access, &db_map,
                             &db_wild_map, &table_map, &sp_map, &func_map,
-                            &granted_roles, &with_admin_acl);
+                            &granted_roles, &with_admin_acl, &dynamic_acl);
   String output;
   make_global_privilege_statement(thd, access, acl_user, &output);
   Protocol *protocol= thd->get_protocol();
@@ -4279,6 +4469,7 @@ bool mysql_show_grants(THD *thd, LEX_USER *lex_user,
   protocol->store(output.ptr(),output.length(),output.charset());
   protocol->end_row();
 
+  make_dynamic_privilege_statement(thd, acl_user, protocol, dynamic_acl);
   make_database_privilege_statement(thd, acl_user, protocol, db_map,
                                     db_wild_map);
   make_table_privilege_statement(thd, acl_user, protocol, table_map);
@@ -4288,7 +4479,6 @@ bool mysql_show_grants(THD *thd, LEX_USER *lex_user,
   make_roles_privilege_statement(thd, acl_user, protocol, granted_roles);
   make_with_admin_privilege_statement(thd, acl_user, protocol, with_admin_acl,
                                       granted_roles);
-
 
   my_eof(thd);
   DBUG_RETURN(error);
@@ -4586,11 +4776,13 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
     DBUG_RETURN(true);
   }
 
+  TABLE *dynpriv_table= tables[ACL_TABLES::TABLE_DYNAMIC_PRIV].table;
   LEX_USER *lex_user, *tmp_lex_user;
   List_iterator <LEX_USER> user_list(list);
 
   while ((tmp_lex_user= user_list++))
   {
+
     ulong what_to_set= 0;
     if (!(lex_user= get_current_user(thd, tmp_lex_user)))
     {
@@ -4603,6 +4795,13 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
       continue;
     }
 
+    Update_dynamic_privilege_table update_table(thd, dynpriv_table);
+    if ((result= revoke_all_dynamic_privileges(tmp_lex_user->user,
+                                               tmp_lex_user->host,
+                                               update_table)))
+    {
+      break;
+    }
     /* copy password expire attributes to individual user */
     lex_user->alter_status= thd->lex->alter_password;
 
@@ -4636,7 +4835,7 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
       result= true;
       continue;
     }
-  }
+  } // end while
 
   DBUG_EXECUTE_IF("force_mysql_revoke_all_fail", {
     result= 1;
@@ -5119,7 +5318,28 @@ int fill_schema_user_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
         }
       }
     }
-  }
+    /* Process all global privileges */
+    Role_id key(create_authid_from(acl_user));
+    User_to_dynamic_privileges_map::iterator it, it_end;
+    std::tie(it, it_end)= g_dynamic_privileges_map->equal_range(key);
+    for(;it != it_end; ++it)
+    {
+      size_t str_len= it->second.first.length();
+      if (it->second.second)
+        is_grantable= "YES";
+      else
+        is_grantable= "NO";
+      if (update_schema_privilege(thd, table, buff, 0, 0, 0, 0,
+                                  it->second.first.c_str(),
+                                  str_len,
+                                  is_grantable))
+      {
+        error= 1;
+        goto err;
+      }
+    }
+  } // end for each user
+
 err:
   DBUG_RETURN(error);
 }
@@ -6381,6 +6601,207 @@ bool is_granted_role(LEX_CSTRING user, LEX_CSTRING host, LEX_CSTRING role,
   return ret;
 }
 
+/**
+  Grant one privilege to one user
+  @param str_priv
+  @param str_user
+  @param str_host
+  @param with_grant_option
+  @param update_table
+
+  @return Error state
+    @retval true An error occurred. DA must be checked.
+    @retval false Success
+
+*/
+bool grant_dynamic_privilege(const LEX_CSTRING &str_priv,
+                             const LEX_CSTRING &str_user,
+                             const LEX_CSTRING &str_host,
+                             bool with_grant_option,
+                             Update_dynamic_privilege_table &update_table)
+{
+  try {
+  Role_id id(str_user, str_host);
+  std::string priv(str_priv.str, str_priv.length);
+  if (get_dynamic_privilege_register()->find(priv) == get_dynamic_privilege_register()->end())
+  {
+    return true;
+  }
+  /*
+    Is this grant already present? If so we will make an update by removing
+    the previous grant only if the grant_option property has changed.
+  */
+  auto range= g_dynamic_privileges_map->equal_range(id);
+  for (auto it= range.first; it != range.second; ++it)
+  {
+    if (it->second.first == priv)
+    {
+      /*
+        WITH GRANT OPTION is cumulative which means that if a previous GRANT
+        exists we only update it if we're adding GRANT OPTION to it.
+        We never remove the GRANT OPTION as a result of GRANT statement.
+      */
+      if (with_grant_option == true && it->second.second != with_grant_option)
+      {
+        if (update_table(priv, { str_user, str_host }, false,
+                         Update_dynamic_privilege_table::REVOKE))
+          return true;
+        g_dynamic_privileges_map->erase(it);
+        break;
+      }
+      /* If the entry already exist we're done */
+      return false;
+    }
+  }
+
+  if (update_table(priv, {str_user, str_host}, with_grant_option,
+                   Update_dynamic_privilege_table::GRANT))
+    return true;
+  g_dynamic_privileges_map->insert(std::make_pair(id,
+                                   std::make_pair(priv, with_grant_option)));
+  } catch(...)
+  {
+    return true;
+  }
+  return false;
+}
+
+/**
+  Revoke one privilege from one user
+  @param str_priv
+  @param str_user
+  @param str_host
+  @param update_table
+
+  @return Error state
+    @retval true An error occurred. DA must be checked.
+    @retval false Success
+*/
+
+bool revoke_dynamic_privilege(const LEX_CSTRING &str_priv,
+                              const LEX_CSTRING &str_user,
+                              const LEX_CSTRING &str_host,
+                              Update_dynamic_privilege_table &update_table)
+{
+  try {
+  Role_id id(str_user, str_host);
+  std::string priv(str_priv.str, str_priv.length);
+  auto range= g_dynamic_privileges_map->equal_range(id);
+  for (auto it= range.first; it != range.second; ++it)
+  {
+    if (it->second.first == priv)
+    {
+      if (update_table(priv, { str_user, str_host }, false,
+                       Update_dynamic_privilege_table::REVOKE))
+        return true;
+      g_dynamic_privileges_map->erase(it);
+      break;
+    }
+  }
+  } catch(...)
+  {
+    return true;
+  }
+  return false;
+}
+
+/**
+  Revoke all dynamic global privileges.
+  @param user The target user name
+  @param host The target host name
+  @param update_table Functor for updating a table
+
+  @return Error state
+    @retval true An error occurred. DA might not be set.
+    @retval false Success
+*/
+bool revoke_all_dynamic_privileges(const LEX_CSTRING &user,
+                                   const LEX_CSTRING &host,
+                                   Update_dynamic_privilege_table &update_table)
+{
+  try {
+  if (g_dynamic_privileges_map->size() > 0)
+  {
+    Role_id id(user, host);
+    auto range= g_dynamic_privileges_map->equal_range(id);
+    for (auto it= range.first; it != range.second; ++it)
+    {
+      if (update_table(it->second.first, { user, host }, false,
+                       Update_dynamic_privilege_table::REVOKE))
+      {
+        return true;
+      }
+
+    }
+    g_dynamic_privileges_map->erase(range.first, range.second);
+  }
+  } catch(...)
+  {
+    return true;
+  }
+  return false;
+}
+
+bool rename_dynamic_grant(const LEX_CSTRING &old_user,
+                          const LEX_CSTRING &old_host,
+                          const LEX_CSTRING &new_user,
+                          const LEX_CSTRING &new_host,
+                          Update_dynamic_privilege_table &update_table)
+{
+  try {
+  if (g_dynamic_privileges_map->size() > 0)
+  {
+    /*
+      Revoke all privileges using the old authorization identifier but don't
+      update the cache.
+    */
+    Role_id id(old_user, old_host);
+    auto range= g_dynamic_privileges_map->equal_range(id);
+    std::vector<Grant_privilege > privileges(std::distance(range.first,
+                                                           range.second));
+    int grants_count= 0;
+    for(auto it= range.first; it != range.second; ++it, ++grants_count)
+    {
+      privileges[grants_count]=
+        std::make_pair(it->second.first, it->second.second);
+    }
+    for (auto it= range.first; it != range.second; ++it)
+    {
+      if (update_table(it->second.first, { old_user, old_host }, false,
+                       Update_dynamic_privilege_table::REVOKE))
+      {
+        return true;
+      }
+    }
+    /*
+      Remove the old entries from the cache
+    */
+    g_dynamic_privileges_map->erase(range.first, range.second);
+
+    /*
+      Grant the new authorization id the same privileges as the old and update
+      the cache with the new entries.
+    */    
+    while(grants_count > 0)
+    {
+      --grants_count;
+      LEX_CSTRING priv= { privileges[grants_count].first.c_str(),
+                          privileges[grants_count].first.length() };
+      if (grant_dynamic_privilege(priv, new_user, new_host,
+                                  privileges[grants_count].second,
+                                  update_table))
+      {
+        return true;
+      }
+    }
+  } // end for
+  } catch(...)
+  {
+    return true;
+  }
+  return false;
+}
+
 void roles_init_graph()
 {
   g_authid_to_vertex= new Role_index_map;
@@ -6391,6 +6812,60 @@ void roles_delete_graph()
 {
   delete g_granted_roles;
   delete g_authid_to_vertex;
+}
+
+void dynamic_privileges_init()
+{
+  g_dynamic_privileges_map= new User_to_dynamic_privileges_map();
+}
+
+void dynamic_privileges_delete()
+{
+  if (g_dynamic_privileges_map)
+    delete g_dynamic_privileges_map;
+  g_dynamic_privileges_map= 0;
+}
+
+User_to_dynamic_privileges_map *get_dynamic_privileges_map()
+{
+  return g_dynamic_privileges_map;
+}
+
+void set_dynamic_privileges_map(User_to_dynamic_privileges_map *map)
+{
+  g_dynamic_privileges_map= map;
+}
+
+User_to_dynamic_privileges_map *
+swap_dynamic_privileges_map(User_to_dynamic_privileges_map *map)
+{
+  User_to_dynamic_privileges_map *old_map= g_dynamic_privileges_map;
+  g_dynamic_privileges_map= map;
+  return old_map;
+}
+
+bool assert_valid_privilege_id(const List<st_lex_user>* priv_list)
+{
+  /*
+    Because we need to combine the parsing rule of roles with the parsing
+    rule of dynamic privileges LEX_USER::user is used to carry the name of
+    the dynamic privilege.
+  */
+  List_iterator<LEX_USER> it(*(const_cast<List<LEX_USER > *>(priv_list)));
+  while(LEX_USER *priv= it++)
+  {
+    Dynamic_privilege_register::iterator it=
+      get_dynamic_privilege_register()->find(std::string(priv->user.str, priv->user.length));
+    if (it == get_dynamic_privilege_register()->end())
+    {
+      String error;
+      error.append("No such privilege identifier: ");
+      error.append(priv->user.str, priv->user.length);
+      my_error(ER_UNKNOWN_ERROR, MYF(0), error.c_ptr_quick());
+      return false;
+    }
+  }
+  return true;
 }
 
 bool operator==(const Role_id &a,
@@ -6455,4 +6930,10 @@ bool operator<(const Auth_id_ref &a, const Auth_id_ref &b)
   if (second != 0)
     return second < 0;
   return false;
+}
+
+bool operator==(std::pair<const Role_id, std::pair<std::string, bool> > &a,
+                const std::string &b)
+{
+  return a.second.first == b;
 }

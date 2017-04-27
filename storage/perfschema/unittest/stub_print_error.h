@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,13 +13,12 @@
   along with this program; if not, write to the Free Software Foundation,
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include <my_global.h>
 #include <my_sys.h>
 #include <pfs_global.h>
 
 bool pfs_initialized= false;
 
-void *pfs_malloc(PFS_builtin_memory_class *klass, size_t size, myf flags)
+void *pfs_malloc(PFS_builtin_memory_class*, size_t size, myf flags)
 {
   void *ptr= malloc(size);
   if (ptr && (flags & MY_ZEROFILL))
@@ -58,7 +57,7 @@ bool is_overflow(size_t product, size_t n1, size_t n2)
     return false;
 }
 
-void pfs_print_error(const char *format, ...)
+void pfs_print_error(const char*, ...)
 {
   /* Do not pollute the unit test output with annoying messages. */
 }

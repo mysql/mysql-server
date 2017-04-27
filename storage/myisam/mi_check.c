@@ -43,11 +43,15 @@
 
 #include "my_config.h"
 
+#include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <m_ctype.h>
 #include <my_getopt.h>
 #include <stdarg.h>
+#include <sys/types.h>
+#include <time.h>
 
 #include "ftdefs.h"
 #include "my_compiler.h"
@@ -959,7 +963,7 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
   char llbuff[22],llbuff2[22],llbuff3[22];
   ha_checksum intern_record_checksum;
   ha_checksum key_checksum[HA_MAX_POSSIBLE_KEY];
-  my_bool static_row_size;
+  bool static_row_size;
   MI_KEYDEF *keyinfo;
   MI_BLOCK_INFO block_info;
   DBUG_ENTER("chk_data_link");
@@ -1444,7 +1448,7 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
     then recrate all indexes.
 */
 
-static int mi_drop_all_indexes(MI_CHECK *param, MI_INFO *info, my_bool force)
+static int mi_drop_all_indexes(MI_CHECK *param, MI_INFO *info, bool force)
 {
   MYISAM_SHARE *share= info->s;
   MI_STATE_INFO *state= &share->state;
@@ -1530,7 +1534,7 @@ static int mi_drop_all_indexes(MI_CHECK *param, MI_INFO *info, my_bool force)
 	/* Save new datafile-name in temp_filename */
 
 int mi_repair(MI_CHECK *param, MI_INFO *info,
-	      char * name, int rep_quick, my_bool no_copy_stat)
+	      char * name, int rep_quick, bool no_copy_stat)
 {
   int error,got_error;
   ha_rows start_records,new_header_length;
@@ -1621,7 +1625,7 @@ int mi_repair(MI_CHECK *param, MI_INFO *info,
   param->read_cache.end_of_file=sort_info.filelength=
     mysql_file_seek(info->dfile, 0L, MY_SEEK_END, MYF(0));
   sort_info.dupp=0;
-  sort_param.fix_datafile= (my_bool) (! rep_quick);
+  sort_param.fix_datafile= (bool) (! rep_quick);
   sort_param.master=1;
   sort_info.max_records= ~(ha_rows) 0;
 
@@ -1671,7 +1675,7 @@ int mi_repair(MI_CHECK *param, MI_INFO *info,
     if (sort_write_record(&sort_param))
       goto err;
   }
-  if (error > 0 || write_data_suffix(&sort_info, (my_bool)!rep_quick) ||
+  if (error > 0 || write_data_suffix(&sort_info, (bool)!rep_quick) ||
       flush_io_cache(&info->rec_cache) || param->read_cache.error < 0)
     goto err;
 
@@ -1937,7 +1941,7 @@ int flush_blocks(MI_CHECK *param, KEY_CACHE *key_cache, File file)
 	/* Sort index for more efficent reads */
 
 int mi_sort_index(MI_CHECK *param, MI_INFO *info, char * name,
-                  my_bool no_copy_stat)
+                  bool no_copy_stat)
 {
   uint key;
   MI_KEYDEF *keyinfo;
@@ -2156,10 +2160,10 @@ int change_to_newfile(const char * filename, const char * old_ext,
 	/* Locks a whole file */
 	/* Gives an error-message if file can't be locked */
 
-int lock_file(MI_CHECK *param, File file, my_off_t start, int lock_type,
+int lock_file(MI_CHECK *param, File file, int lock_type,
 	      const char *filetype, const char *filename)
 {
-  if (my_lock(file,lock_type,start,F_TO_EOF,
+  if (my_lock(file,lock_type,
 	      param->testflag & T_WAIT_FOREVER ? MYF(MY_SEEK_NOT_DONE) :
 	      MYF(MY_SEEK_NOT_DONE |  MY_DONT_WAIT)))
   {
@@ -2228,7 +2232,7 @@ err:
 */
 
 int mi_repair_by_sort(MI_CHECK *param, MI_INFO *info,
-		      const char * name, int rep_quick, my_bool no_copy_stat)
+		      const char * name, int rep_quick, bool no_copy_stat)
 {
   int got_error;
   uint i;
@@ -2349,7 +2353,7 @@ int mi_repair_by_sort(MI_CHECK *param, MI_INFO *info,
   sort_param.key_cmp=sort_key_cmp;
   sort_param.tmpdir=param->tmpdir;
   sort_param.sort_info=&sort_info;
-  sort_param.fix_datafile= (my_bool) (! rep_quick);
+  sort_param.fix_datafile= (bool) (! rep_quick);
   sort_param.master =1;
   
   del=info->state->del;
@@ -2440,7 +2444,7 @@ int mi_repair_by_sort(MI_CHECK *param, MI_INFO *info,
     }
 
     if (_create_index_by_sort(&sort_param,
-			      (my_bool) (!(param->testflag & T_VERBOSE)),
+			      (bool) (!(param->testflag & T_VERBOSE)),
                               param->sort_buffer_length))
     {
       param->retry_repair=1;
@@ -2642,7 +2646,7 @@ err:
 */
 
 int mi_repair_parallel(MI_CHECK *param, MI_INFO *info,
-                       const char * name, int rep_quick, my_bool no_copy_stat)
+                       const char * name, int rep_quick, bool no_copy_stat)
 {
   int got_error;
   uint i,key, total_key_length, istep;
@@ -2903,7 +2907,7 @@ int mi_repair_parallel(MI_CHECK *param, MI_INFO *info,
   }
   sort_info.total_keys=i;
   sort_param[0].master= 1;
-  sort_param[0].fix_datafile= (my_bool)(! rep_quick);
+  sort_param[0].fix_datafile= (bool)(! rep_quick);
   sort_param[0].calc_checksum= MY_TEST(param->testflag & T_CALC_CHECKSUM);
 
   if (!ftparser_alloc_param(info))
@@ -3363,7 +3367,7 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param)
 	}
 	if (b_type & BLOCK_DELETED)
 	{
-	  my_bool error=0;
+	  bool error=0;
 	  if (block_info.block_len+ (uint) (block_info.filepos-pos) <
 	      share->base.min_block_length)
 	  {
@@ -4380,7 +4384,7 @@ end:
 
 	/* write suffix to data file if neaded */
 
-int write_data_suffix(SORT_INFO *sort_info, my_bool fix_datafile)
+int write_data_suffix(SORT_INFO *sort_info, bool fix_datafile)
 {
   MI_INFO *info=sort_info->info;
 
@@ -4474,7 +4478,7 @@ err:
 	*/
 
 void update_auto_increment_key(MI_CHECK *param, MI_INFO *info,
-			       my_bool repair_only)
+			       bool repair_only)
 {
   uchar *record= 0;
   DBUG_ENTER("update_auto_increment_key");
@@ -4639,7 +4643,7 @@ static ha_checksum mi_byte_checksum(const uchar *buf, uint length)
   return crc;
 }
 
-static my_bool mi_too_big_key_for_sort(MI_KEYDEF *key, ha_rows rows)
+static bool mi_too_big_key_for_sort(MI_KEYDEF *key, ha_rows rows)
 {
   uint key_maxlength=key->maxlength;
   if (key->flag & HA_FULLTEXT)
@@ -4688,8 +4692,8 @@ void mi_disable_non_unique_index(MI_INFO *info, ha_rows rows)
   even if the temporary file would be quite big!
 */
 
-my_bool mi_test_if_sort_rep(MI_INFO *info, ha_rows rows,
-			    ulonglong key_map, my_bool force)
+bool mi_test_if_sort_rep(MI_INFO *info, ha_rows rows,
+                         ulonglong key_map, bool force)
 {
   MYISAM_SHARE *share=info->s;
   MI_KEYDEF *key=share->keyinfo;

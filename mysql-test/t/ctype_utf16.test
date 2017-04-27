@@ -1,4 +1,5 @@
 --source include/have_myisam.inc
+
 # Testcases for some bug fixes need MyISAM
 
 --echo #

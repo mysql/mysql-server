@@ -1,7 +1,7 @@
 ## generated
 ## Rel: Insert a row with mismatched number of column/params
 
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 ## Test starts here
 --write_file $MYSQL_TMP_DIR/insert_table_bad_numcolumns.tmp
 ## Test data

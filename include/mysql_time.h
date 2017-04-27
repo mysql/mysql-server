@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -26,7 +26,8 @@
   and Time Values" chapter in documentation.
 */
 
-#include "my_inttypes.h"
+// Do not not pull in the server header "my_inttypes.h" from client code.
+// IWYU pragma: no_include "my_inttypes.h"
 
 enum enum_mysql_timestamp_type
 {
@@ -51,7 +52,7 @@ typedef struct st_mysql_time
 {
   unsigned int  year, month, day, hour, minute, second;
   unsigned long second_part;  /**< microseconds */
-  my_bool       neg;
+  bool          neg;
   enum enum_mysql_timestamp_type time_type;
 } MYSQL_TIME;
 

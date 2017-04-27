@@ -12,7 +12,7 @@ t1	CREATE TABLE `t1` (
   `g` geometry NOT NULL,
   PRIMARY KEY (`fid`),
   KEY `gis_key` (`g`(5))
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SELECT count(*) FROM t1;
 count(*)
 150
@@ -50,7 +50,7 @@ t1	CREATE TABLE `t1` (
   `g` geometry NOT NULL,
   PRIMARY KEY (`fid`),
   SPATIAL KEY `g` (`g`)
-) ENGINE=InnoDB AUTO_INCREMENT=101 DEFAULT CHARSET=latin1
+) ENGINE=InnoDB AUTO_INCREMENT=101 DEFAULT CHARSET=utf8mb4
 SELECT count(*) FROM t1;
 count(*)
 100

@@ -20,10 +20,10 @@
 #include "control_events.h"
 #include "current_thd.h"
 #include "debug_sync.h"            // DEBUG_SYNC
+#include "lex_string.h"
 #include "mdl.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "my_systime.h"
@@ -332,20 +332,20 @@ bool Gtid_state::wait_for_gtid(THD *thd, const Gtid &gtid,
 
 
 bool Gtid_state::wait_for_gtid_set(THD *thd, Gtid_set* wait_for,
-                                   longlong timeout)
+                                   double timeout)
 {
   struct timespec abstime;
   DBUG_ENTER("Gtid_state::wait_for_gtid_set");
   DEBUG_SYNC(thd, "begin_wait_for_executed_gtid_set");
   wait_for->dbug_print("Waiting for");
-  DBUG_PRINT("info", ("Timeout %lld", timeout));
+  DBUG_PRINT("info", ("Timeout %f", timeout));
 
   global_sid_lock->assert_some_rdlock();
 
   DBUG_ASSERT(wait_for->get_sid_map() == global_sid_map);
 
   if (timeout > 0)
-    set_timespec(&abstime, timeout);
+    set_timespec_nsec(&abstime, (ulonglong) timeout * 1000000000ULL);
 
   /*
     Algorithm:
@@ -816,10 +816,10 @@ int Gtid_state::compress(THD *thd)
 }
 
 
-bool Gtid_state::warn_or_err_on_modify_gtid_table(THD *thd, TABLE_LIST *table)
+int Gtid_state::warn_or_err_on_modify_gtid_table(THD *thd, TABLE_LIST *table)
 {
   DBUG_ENTER("Gtid_state::warn_or_err_on_modify_gtid_table");
-  bool ret=
+  int ret=
     gtid_table_persistor->warn_or_err_on_explicit_modification(thd, table);
   DBUG_RETURN(ret);
 }
@@ -1036,7 +1036,7 @@ void Gtid_state::update_gtids_impl_own_anonymous(THD* thd,
   }
 }
 
-void Gtid_state::update_gtids_impl_own_nothing(THD *thd)
+void Gtid_state::update_gtids_impl_own_nothing(THD *thd MY_ATTRIBUTE((unused)))
 {
   DBUG_ASSERT(thd->commit_error != THD::CE_COMMIT_ERROR ||
               thd->has_gtid_consistency_violation);

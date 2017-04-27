@@ -37,7 +37,7 @@ t1	CREATE TABLE `t1` (
   `c2` int(11) DEFAULT NULL,
   `c3` text,
   PRIMARY KEY (`c1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 STATS_PERSISTENT=0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 STATS_PERSISTENT=0
 BEGIN;
 INSERT INTO t1 VALUES(7,4,2);
 SET DEBUG_SYNC = 'row_log_apply_before SIGNAL scanned WAIT_FOR rollback_done';
@@ -102,7 +102,6 @@ test	t1	c2	LAST_UPDATE	n_leaf_pages	1	NULL	Number of leaf pages in the index
 test	t1	c2	LAST_UPDATE	size	1	NULL	Number of pages in the index
 CREATE TABLE t1_c2_stats SELECT * FROM mysql.innodb_index_stats
 WHERE database_name = 'test' AND table_name = 't1' and index_name = 'c2';
-ALTER TABLE t1_c2_stats ENGINE=INNODB;
 DROP INDEX c2 ON t1;
 ANALYZE TABLE t1_c2_stats;
 Table	Op	Msg_type	Msg_text
@@ -177,7 +176,7 @@ t1	CREATE TABLE `t1` (
   `c3` text,
   PRIMARY KEY (`c1`),
   KEY `c2d` (`c2`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 STATS_PERSISTENT=1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 STATS_PERSISTENT=1
 SET DEBUG_SYNC = 'row_log_apply_before SIGNAL c2e_created WAIT_FOR dml2_done';
 SET lock_wait_timeout = 10;
 ALTER TABLE t1 CHANGE c2 c22 INT, DROP INDEX c2d, ADD INDEX c2e(c22),
@@ -313,7 +312,7 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`c1`),
   KEY `c2d` (`c22f`),
   KEY `c2f` (`c22f`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 STATS_PERSISTENT=1 COMMENT='testing if c2e will be dropped'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 STATS_PERSISTENT=1 COMMENT='testing if c2e will be dropped'
 ALTER TABLE t1 DROP INDEX c2d, DROP INDEX c2f;
 SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
 subsystem = 'ddl' and count > 0;

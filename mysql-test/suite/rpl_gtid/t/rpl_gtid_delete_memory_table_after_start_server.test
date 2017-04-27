@@ -35,6 +35,7 @@
 ################################################################################
 --source include/not_group_replication_plugin.inc
 --source include/mysql_have_debug.inc
+
 --let $rpl_gtid_utils= 1
 --source include/master-slave.inc
 

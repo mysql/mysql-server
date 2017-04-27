@@ -20,7 +20,7 @@
 #include <sys/types.h>
 #include <vector>
 
-#include "my_global.h"
+#include "lex_string.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_sqlcommand.h"          // enum_sql_command
@@ -36,9 +36,7 @@ struct my_option;
 struct st_mysql_sys_var;
 template <class T> class I_List;
 
-typedef struct st_mysql_const_lex_string LEX_CSTRING;
 typedef struct st_mysql_show_var SHOW_VAR;
-typedef struct st_mysql_lex_string LEX_STRING;
 
 
 extern const char *global_plugin_typelib_names[];
@@ -182,9 +180,9 @@ extern void plugin_thdvar_safe_update(THD *thd, st_mysql_sys_var *var,
 extern bool check_valid_path(const char *path, size_t length);
 extern void alloc_and_copy_thd_dynamic_variables(THD *thd, bool global_lock);
 
-typedef my_bool (plugin_foreach_func)(THD *thd,
-                                      plugin_ref plugin,
-                                      void *arg);
+typedef bool (plugin_foreach_func)(THD *thd,
+                                   plugin_ref plugin,
+                                   void *arg);
 #define plugin_foreach(A,B,C,D) plugin_foreach_with_mask(A,B,C,PLUGIN_IS_READY,D)
 extern bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func *func,
                                      int type, uint state_mask, void *arg);

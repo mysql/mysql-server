@@ -1,6 +1,5 @@
 # Created: 2015-05-15  Lalit Choudhary
 
--- source include/not_embedded.inc
 -- source include/big_test.inc
 
 --echo #

@@ -1,4 +1,5 @@
 --source include/no_valgrind_without_big.inc
+
 #SET @@default_storage_engine=InnoDB;
 
 --disable_warnings
@@ -7020,14 +7021,11 @@ CREATE TABLE t1 (
   KEY col_time_2_key (col_time_2_key)
 )/*!50100 PARTITION BY KEY (pk)PARTITIONS 2 */;
 INSERT INTO t1 VALUES ('00:20:02','2007-08-09 05:14:12.05054','2007-06-20 21:00:00.000000','06:16:36.0','2011-09-09 21:37:45.2','19:15:37.02'),('18:00:14','0000-00-00 00:00:00.00000','2000-12-10 12:35:01.029761','00:20:04.0','2011-09-09 21:37:46.2','06:21:03.03');
-# different warnings in server and embedded run
---disable_warnings
 SELECT col_time_1 AS c1 
 FROM t1 
 WHERE col_time_not_null_key <= col_timestamp_6_key
 AND col_time_2_key > SUBTIME('2006-07-16', '05:05:02.040778')
 ORDER BY col_datetime_5_not_null_key, col_time_1;
---enable_warnings
 DROP TABLE t1;
 
 #

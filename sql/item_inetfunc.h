@@ -20,7 +20,6 @@
 #include "item_func.h"
 #include "item_strfunc.h"  // Item_str_func
 #include "m_ctype.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "parse_tree_node_base.h"
 

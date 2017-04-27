@@ -21,11 +21,15 @@
   Performance schema setup actors (declarations).
 */
 
-#include "sql_string.h"
-#include "pfs_lock.h"
+#include <sys/types.h>
+
 #include "lf.h"
+#include "pfs_global.h"
+#include "pfs_lock.h"
+#include "sql_string.h"
 
 struct PFS_global_param;
+struct PFS_thread;
 class PFS_opaque_container_page;
 
 /* WL#988 Roles Not implemented yet */
@@ -41,8 +45,8 @@ struct PFS_setup_actor_key
 {
   /**
     Hash search key.
-    This has to be a string for LF_HASH,
-    the format is "<username><0x00><hostname><0x00><rolename><0x00>"
+    This has to be a string for @c LF_HASH,
+    the format is @c "<username><0x00><hostname><0x00><rolename><0x00>"
   */
   char
     m_hash_key[USERNAME_LENGTH + 1 + HOSTNAME_LENGTH + 1 + ROLENAME_LENGTH + 1];

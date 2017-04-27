@@ -23,6 +23,7 @@ Transaction system
 Created 3/26/1996 Heikki Tuuri
 *******************************************************/
 
+#include <sys/types.h>
 #include <new>
 
 #include "current_thd.h"
@@ -110,7 +111,6 @@ trx_sys_flush_max_trx_id(void)
 
 	if (!srv_read_only_mode) {
 		mtr_start(&mtr);
-		mtr.set_sys_modified();
 
 		sys_header = trx_sysf_get(&mtr);
 
@@ -294,7 +294,7 @@ trx_sysf_create(
 	then enter the kernel: we must do it in this order to conform
 	to the latching order rules. */
 
-	mtr_x_lock_space(TRX_SYS_SPACE, mtr);
+	mtr_x_lock_space(fil_space_get_sys_space(), mtr);
 
 	/* Create the trx sys file block in a new allocated file segment */
 	block = fseg_create(TRX_SYS_SPACE, 0, TRX_SYS + TRX_SYS_FSEG_HEADER,
@@ -473,7 +473,6 @@ trx_sys_create_sys_pages(void)
 	mtr_t	mtr;
 
 	mtr_start(&mtr);
-	mtr.set_sys_modified();
 
 	trx_sysf_create(&mtr);
 

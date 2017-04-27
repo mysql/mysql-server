@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,11 +20,6 @@
 #include "dd/impl/raw/object_keys.h"       // dd::Global_name_key
 #include "dd/impl/types/object_table_definition_impl.h"
 #include "dd/impl/types/tablespace_impl.h" // dd::Tablespace_impl
-
-namespace dd {
-class Dictionary_object;
-class Raw_record;
-}  // namespace dd
 
 namespace dd {
 namespace tables {
@@ -67,8 +62,8 @@ Tablespaces::Tablespaces()
 
 ///////////////////////////////////////////////////////////////////////////
 
-Dictionary_object*
-Tablespaces::create_dictionary_object(const Raw_record &) const
+Tablespace*
+Tablespaces::create_entity_object(const Raw_record &) const
 {
   return new (std::nothrow) Tablespace_impl();
 }

@@ -1,7 +1,6 @@
 # Created: Horst Hunger 2014-05-21
 # WL#3836:  Method to bring servers off line
 
--- source include/not_embedded.inc
 -- source include/not_threadpool.inc
 
 # Save the global value to be used to restore the original value.

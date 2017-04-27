@@ -33,10 +33,6 @@
 #include "system_variables.h"
 
 namespace dd {
-class Dictionary_object;
-}  // namespace dd
-
-namespace dd {
 namespace tables {
 
 const Tables &Tables::instance()
@@ -86,7 +82,7 @@ Tables::Tables()
                          "comment VARCHAR(2048) NOT NULL");
   m_target_def.add_field(FIELD_HIDDEN,
                          "FIELD_HIDDEN",
-                         "hidden BOOL NOT NULL");
+                         "hidden ENUM('Visible', 'System', 'SE', 'DDL') NOT NULL");
   m_target_def.add_field(FIELD_OPTIONS,
                          "FIELD_OPTIONS",
                          "options MEDIUMBLOB");
@@ -186,7 +182,7 @@ Tables::Tables()
 
 ///////////////////////////////////////////////////////////////////////////
 
-Dictionary_object *Tables::create_dictionary_object(
+Abstract_table *Tables::create_entity_object(
   const Raw_record &r) const
 {
   enum_table_type table_type=

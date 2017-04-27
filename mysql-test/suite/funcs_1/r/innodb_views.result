@@ -52,9 +52,9 @@ f106 year(4) not null default 2000,
 f107 year(4) not null default 2000,
 f108 enum("1enum","2enum") not null default "1enum",
 f109 set("1set","2set") not null default "1set"
-) engine = innodb;
+) charset latin1 engine = innodb;
 load data infile '<MYSQLTEST_VARDIR>/std_data/funcs_1/innodb_tb2.txt'
-into table tb2;
+into table tb2 CHARACTER SET latin1 ;
 DROP DATABASE IF EXISTS test1;
 CREATE DATABASE test1;
 USE test1;
@@ -111,9 +111,9 @@ f106 year(4) not null default 2000,
 f107 year(4) not null default 2000,
 f108 enum("1enum","2enum") not null default "1enum",
 f109 set("1set","2set") not null default "1set"
-) engine = innodb;
+) charset latin1 engine = innodb;
 load data infile '<MYSQLTEST_VARDIR>/std_data/funcs_1/innodb_tb2.txt'
-into table tb2;
+into table tb2 CHARACTER SET latin1 ;
 USE test;
 set optimizer_switch='condition_fanout_filter=off';
 SET SESSION default_storage_engine = <storage_engine>;
@@ -22628,7 +22628,7 @@ f1	f2	f4	report
 3	NULL	<-- 10 -	v1 3
 4	NULL	<------ 20 -------->	t1 4
 4	NULL	<------ 20 -------->	v1 4
-ALTER TABLE t1 CHANGE COLUMN f1 f1 VARCHAR(30);
+ALTER TABLE t1 CHANGE COLUMN f1 f1 VARCHAR(30) charset latin1;
 INSERT INTO t1 SET f1 = '<------------- 30 ----------->',
 f4 = '<------ 20 -------->', report = 't1 5';
 INSERT INTO v1 SET f1 = '<------------- 30 ----------->',

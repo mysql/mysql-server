@@ -616,7 +616,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 @@ -61,4 +62,3 @@
                  "b"
 -              ],
--              "attached_condition": "((`test`.`t1`.`a` = `test`.`t2`.`a`))"
+-              "attached_condition": "((`test`.`t1`.`a` = `test`.`t2`.`a`) and (`test`.`t1`.`a` = `test`.`t2`.`a`))"
 +              ]
              }
 QUERY: SELECT t1.pk FROM t1 WHERE t1.col_varchar_key < ALL ( SELECT * FROM v1 ) 

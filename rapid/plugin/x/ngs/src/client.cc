@@ -24,6 +24,7 @@
 #endif
 #include <errno.h>
 #include <string.h>
+#include <sys/types.h>
 #include <algorithm>
 #include <functional>
 
@@ -59,7 +60,8 @@ Client::Client(Connection_ptr connection,
   m_protocol_monitor(pmon),
   m_close_reason(Not_closing),
   m_msg_buffer(NULL),
-  m_msg_buffer_size(0)
+  m_msg_buffer_size(0),
+  m_supports_expired_passwords(false)
 {
   my_snprintf(m_id, sizeof(m_id), "%llu", static_cast<ulonglong>(client_id));
 }
@@ -127,7 +129,7 @@ Capabilities_configurator *Client::capabilities_configurator()
 }
 
 
-void Client::get_capabilities(const Mysqlx::Connection::CapabilitiesGet &msg)
+void Client::get_capabilities(const Mysqlx::Connection::CapabilitiesGet&)
 {
   ngs::Memory_instrumented<Capabilities_configurator>::Unique_ptr configurator(capabilities_configurator());
   ngs::Memory_instrumented<Mysqlx::Connection::Capabilities>::Unique_ptr caps(configurator->get());
@@ -192,7 +194,7 @@ void Client::handle_message(Request &request)
         }
         break;
       }
-      /* no break */
+      // Fall through.
 
     default:
       // invalid message at this time
@@ -239,7 +241,7 @@ void Client::on_network_error(int error)
 }
 
 
-void Client::on_kill(Session_interface &session)
+void Client::on_kill(Session_interface&)
 {
   m_session->on_kill();
 }
@@ -330,7 +332,7 @@ void Client::on_accept()
   }
 }
 
-void Client::on_session_auth_success(Session_interface &s)
+void Client::on_session_auth_success(Session_interface&)
 {
   // this is called from worker thread
   Client_state expected = Client_authenticating_first;
@@ -338,7 +340,7 @@ void Client::on_session_auth_success(Session_interface &s)
 }
 
 
-void Client::on_session_close(Session_interface &s)
+void Client::on_session_close(Session_interface &s MY_ATTRIBUTE((unused)))
 {
   log_debug("%s: Session %i removed", client_id(), s.session_id());
 
@@ -354,7 +356,7 @@ void Client::on_session_close(Session_interface &s)
 }
 
 
-void Client::on_session_reset(Session_interface &s)
+void Client::on_session_reset(Session_interface &s MY_ATTRIBUTE((unused)))
 {
   log_debug("%s: Resetting session %i", client_id(), s.session_id());
 

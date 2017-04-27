@@ -20,6 +20,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stddef.h>
+#include <sys/types.h>
 
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
@@ -30,6 +31,7 @@
 #include "dd/types/schema.h"        // dd::Schema
 #include "dd/types/table.h"         // dd::Table
 #include "handler.h"
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -38,9 +40,9 @@
 #include "my_thread_local.h"
 #include "mysql/psi/mysql_file.h" // mysql_file_create
 #include "mysql/psi/psi_base.h"
-#include "psi_memory_key.h"       // key_memory_DD_import
 #include "mysqld.h"               // is_secure_file_path
 #include "mysqld_error.h"
+#include "psi_memory_key.h"       // key_memory_DD_import
 #include "sql_const.h"            // CREATE_MODE
 #include "sql_table.h"            // build_table_filename
 #include "table.h"
@@ -187,7 +189,7 @@ make_dir_pattern_tuple(const LEX_STRING &path, const LEX_CSTRING &schema_name)
 }
 
 
-bool expand_sdi_pattern(THD *thd, const Dir_pat_tuple &dpt,
+bool expand_sdi_pattern(const Dir_pat_tuple &dpt,
                         dd::sdi_file::Paths_type *paths)
 {
   const char *dir_beg= dpt.dir.c_str();
@@ -261,12 +263,13 @@ bool expand_sdi_pattern(THD *thd, const Dir_pat_tuple &dpt,
 namespace dd {
 namespace sdi_file {
 
-String_type sdi_filename(const dd::Entity_object *eo,
+template <typename T>
+String_type sdi_filename(const T *dd_object,
                          const String_type &schema)
 {
   typedef String_type::const_iterator CHARIT;
-  const CHARIT begin= eo->name().begin();
-  const CHARIT end= eo->name().end();
+  const CHARIT begin= dd_object->name().begin();
+  const CHARIT end= dd_object->name().end();
   CHARIT i= begin;
   size_t count= 0;
 
@@ -279,7 +282,7 @@ String_type sdi_filename(const dd::Entity_object *eo,
   }
 
   Stringstream_type fnamestr;
-  fnamestr << String_type(begin, i) << "_" << eo->id();
+  fnamestr << String_type(begin, i) << "_" << dd_object->id();
 
   char path[FN_REFLEN+1];
   bool was_truncated= false;
@@ -291,12 +294,12 @@ String_type sdi_filename(const dd::Entity_object *eo,
   return String_type(path);
 }
 
-bool store(THD *thd, const MYSQL_LEX_CSTRING &sdi, const dd::Schema *schema)
+bool store(THD*, const MYSQL_LEX_CSTRING &sdi, const dd::Schema *schema)
 {
   return checked_return(write_sdi_file(sdi_filename(schema, ""), sdi));
 }
 
-bool store(THD *thd, handlerton*, const MYSQL_LEX_CSTRING &sdi, const dd::Table *table,
+bool store(THD*, handlerton*, const MYSQL_LEX_CSTRING &sdi, const dd::Table *table,
            const dd::Schema *schema)
 {
   return checked_return(write_sdi_file(sdi_filename(table,
@@ -325,20 +328,20 @@ static bool remove_sdi_file_if_exists(const String_type &fname)
   return checked_return(remove(fname));
 }
 
-bool remove(THD *thd, const dd::Schema *schema)
+bool remove(THD*, const dd::Schema *schema)
 {
   String_type sdi_fname= sdi_filename(schema, "");
   return checked_return(remove_sdi_file_if_exists(sdi_fname));
 }
 
-bool remove(THD *thd, handlerton*, const dd::Table *table,
+bool remove(THD*, handlerton*, const dd::Table *table,
             const dd::Schema *schema)
 {
   String_type sdi_fname= sdi_filename(table, schema->name());
   return checked_return(remove_sdi_file_if_exists(sdi_fname));
 }
 
-bool load(THD *thd, const dd::String_type &fname,
+bool load(THD*, const dd::String_type &fname,
           dd::String_type *buf)
 {
   File sdi_fd= mysql_file_open(key_file_sdi, fname.c_str(), O_RDONLY,
@@ -377,7 +380,7 @@ bool load(THD *thd, const dd::String_type &fname,
 bool expand_pattern(THD *thd, const LEX_STRING &pattern, Paths_type *paths)
 {
   auto dpt= make_dir_pattern_tuple(pattern, thd->db());
-  if (expand_sdi_pattern(thd, dpt, paths))
+  if (expand_sdi_pattern(dpt, paths))
   {
     return true;
   }
@@ -428,5 +431,9 @@ bool check_data_files_exist(const dd::String_type &schema_name,
   }
   return false;
 }
+template dd::String_type sdi_filename(const dd::Table *dd_object,
+                                      const dd::String_type &schema);
 }
 }
+
+

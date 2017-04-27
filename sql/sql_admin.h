@@ -18,6 +18,7 @@
 
 #include <stddef.h>
 
+#include "lex_string.h"
 #include "my_dbug.h"
 #include "my_sqlcommand.h"
 #include "mysql/mysql_lex_string.h"
@@ -28,7 +29,6 @@ struct TABLE_LIST;
 template <class T> class List;
 
 typedef struct st_key_cache KEY_CACHE;
-typedef struct st_mysql_lex_string LEX_STRING;
 typedef struct st_lex_user LEX_USER;
 
 /* Must be able to hold ALTER TABLE t PARTITION BY ... KEY ALGORITHM = 1 ... */
@@ -229,8 +229,6 @@ public:
 */
 class Sql_cmd_grant_roles : public Sql_cmd
 {
-  friend class PT_grant_roles;
-
   const List<LEX_USER> *roles;
   const List<LEX_USER> *users;
   const bool with_admin_option;
@@ -253,8 +251,6 @@ public:
 */
 class Sql_cmd_revoke_roles : public Sql_cmd
 {
-  friend class PT_revoke_roles;
-
   const List<LEX_USER> *roles;
   const List<LEX_USER> *users;
 

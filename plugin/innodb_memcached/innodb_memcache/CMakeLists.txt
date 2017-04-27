@@ -1,4 +1,4 @@
-# Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -31,9 +31,10 @@ IF(CMAKE_C_FLAGS MATCHES "-Werror")
   STRING(REGEX REPLACE "-Wdeclaration-after-statement" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
 ENDIF(CMAKE_C_FLAGS MATCHES "-Werror")
 
-# Set extra flags for the C compiler
+# Set extra flags for the C/CXX compiler
 IF(CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID MATCHES "Clang")
-  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99")
+  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99 -fno-strict-aliasing")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-parameter")
 ENDIF()
 
 SET(MCD__UTILITITY_SOURCES

@@ -18,7 +18,6 @@
    (bin.x.su@oracle.com)
 */
 
-#include <my_global.h>
 #include <string.h>
 #include <sys/types.h>
 
@@ -21622,7 +21621,7 @@ get_casefolded_code(const CHARSET_INFO *cs, const uchar *src,
 static size_t
 my_casefold_gb18030(const CHARSET_INFO *cs, char *src, size_t srclen,
                     char *dst, size_t dstlen, const uchar *map,
-                    my_bool is_upper)
+                    bool is_upper)
 {
   char *srcend= src + srclen;
   char *dst0= dst;
@@ -22036,7 +22035,7 @@ static int
 my_strnncoll_gb18030(const CHARSET_INFO *cs,
                      const uchar *s, size_t s_length,
                      const uchar *t, size_t t_length,
-                     my_bool t_is_prefix)
+                     bool t_is_prefix)
 {
   int res= my_strnncoll_gb18030_internal(cs, &s, s_length, &t, t_length);
 
@@ -22219,7 +22218,7 @@ my_wildcmp_gb18030_impl(const CHARSET_INFO *cs,
   {
     while (1)
     {
-      my_bool escaped= 0;
+      bool escaped= 0;
       if ((w_len= get_code_and_length(cs, wildstr, wildend, &w_gb)) == 0)
         return 1;
 
@@ -22534,7 +22533,8 @@ CHARSET_INFO my_charset_gb18030_chinese_ci=
   1,                              /* escape_with_backslash_is_dangerous */
   1,                              /* levels_for_compare */
   &my_charset_gb18030_handler,
-  &my_collation_ci_handler
+  &my_collation_ci_handler,
+  PAD_SPACE
 };
 
 CHARSET_INFO my_charset_gb18030_bin=
@@ -22568,5 +22568,6 @@ CHARSET_INFO my_charset_gb18030_bin=
   1,                              /* escape_with_backslash_is_dangerous */
   1,                              /* levels_for_compare */
   &my_charset_gb18030_handler,
-  &my_collation_mb_bin_handler
+  &my_collation_mb_bin_handler,
+  PAD_SPACE
 };

@@ -3,8 +3,6 @@
 # i.e. lower_case_filesystem=ON
 #
 -- source include/have_case_insensitive_file_system.inc
-# Embedded server does not support restarting.
---source include/not_embedded.inc
 
 --echo #
 --echo # Bug#20198490 : LOWER_CASE_TABLE_NAMES=0 ON WINDOWS LEADS TO PROBLEMS

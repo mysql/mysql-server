@@ -16,7 +16,6 @@
 #ifndef DD__VIEW_INCLUDED
 #define DD__VIEW_INCLUDED
 
-#include "my_global.h"
 
 #include "dd/types/abstract_table.h"       // dd::Abstract_table
 

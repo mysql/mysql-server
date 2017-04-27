@@ -61,9 +61,9 @@ f237 char(130) binary,
 f238 varchar(25000) binary,
 f239 varbinary(0),
 f240 varchar(1200)
-) engine = memory;
+) charset latin1 engine = memory;
 
 --replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>
 eval
 load data infile '$MYSQLTEST_VARDIR/std_data/funcs_1/memory_tb4.txt'
-into table tb4;
+into table tb4 character set latin1;

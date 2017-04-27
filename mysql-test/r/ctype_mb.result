@@ -5,7 +5,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(4) CHARACTER SET utf8 NOT NULL DEFAULT '',
   `c2` varchar(4) CHARACTER SET utf8 NOT NULL DEFAULT ''
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DELETE FROM t1;
 ALTER TABLE t1 ADD c3 CHAR(4) CHARACTER SET utf8;
 SHOW CREATE TABLE t1;
@@ -14,7 +14,7 @@ t1	CREATE TABLE `t1` (
   `c1` varchar(4) CHARACTER SET utf8 NOT NULL DEFAULT '',
   `c2` varchar(4) CHARACTER SET utf8 NOT NULL DEFAULT '',
   `c3` char(4) CHARACTER SET utf8 DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 INSERT IGNORE INTO t1 VALUES ('aaaabbbbccccdddd','aaaabbbbccccdddd','aaaabbbbccccdddd');
 Warnings:
 Warning	1265	Data truncated for column 'c1' at row 1
@@ -30,7 +30,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` char(4) CHARACTER SET utf8 DEFAULT NULL,
   KEY `key_a` (`a`(3))
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
@@ -43,7 +43,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` char(4) DEFAULT NULL,
   KEY `key_a` (`a`(3))
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
@@ -56,7 +56,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` char(4) CHARACTER SET utf8 DEFAULT NULL,
   KEY `key_a` (`a`(3))
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK

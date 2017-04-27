@@ -303,9 +303,11 @@ drop table t1;
 # UTF8
 # INNODB_FTS: Charset Support (FIX)
 SET NAMES latin1;
+--character_set latin1
 CREATE TABLE t1 (t text character set utf8 not null, fulltext(t)) ENGINE = InnoDB;
 INSERT t1 VALUES ('Mit freundlichem GrЭъ'), ('aus OsnabrЭck');
 SET NAMES koi8r;
+--character_set koi8r
 INSERT t1 VALUES ("Это мы - опилки"),("Отлезь, гнида!"),
                 ("Не влезай, убьет!"),("и будет прав!");
 SELECT t, collation(t) FROM t1 WHERE MATCH t AGAINST ('ОПИЛКИ');
@@ -325,7 +327,7 @@ DROP TABLE t1;
 #
 # bug#3964
 #
-
+--character_set latin1
 CREATE TABLE t1 (s varchar(255), FULLTEXT (s)) ENGINE = InnoDB DEFAULT CHARSET=utf8;
 insert into t1 (s) values ('pДra para para'),('para para para');
 select * from t1 where match(s) against('para' in boolean mode);

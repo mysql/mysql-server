@@ -16,14 +16,16 @@
 #ifndef XCOM_BASE_H
 #define XCOM_BASE_H
 
+#include <stddef.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#include "xcom_os_layer.h"
-#include "xdr_utils.h"
 #include "task_debug.h"
 #include "x_platform.h"
+#include "xcom_os_layer.h"
+#include "xdr_utils.h"
 
 
 #define XCOM_THREAD_DEBUG 1

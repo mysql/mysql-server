@@ -4,7 +4,6 @@
 # are within setup_actors1.test.
 
 --source include/not_windows.inc
---source include/not_embedded.inc
 
 # The initial number of rows is 1. The initial row always looks like this:
 # mysql> select * from performance_schema.setup_actors;

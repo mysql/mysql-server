@@ -361,7 +361,7 @@ end:
 
 
 
-int unique_write_to_file(uchar* key, element_count count, Unique *unique)
+int unique_write_to_file(uchar* key, element_count, Unique *unique)
 {
   /*
     Use unique->size (size of element stored in the tree) and not
@@ -372,7 +372,7 @@ int unique_write_to_file(uchar* key, element_count count, Unique *unique)
   return my_b_write(&unique->file, key, unique->size) ? 1 : 0;
 }
 
-int unique_write_to_ptrs(uchar* key, element_count count, Unique *unique)
+int unique_write_to_ptrs(uchar* key, element_count, Unique *unique)
 {
   memcpy(unique->record_pointers, key, unique->size);
   unique->record_pointers+=unique->size;

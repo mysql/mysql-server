@@ -181,7 +181,6 @@ st_parsing_options::reset()
 {
   allows_variable= TRUE;
   allows_select_into= TRUE;
-  allows_select_procedure= TRUE;
 }
 
 /**
@@ -483,7 +482,6 @@ void LEX::reset()
   sphead= NULL;
   set_sp_current_parsing_ctx(NULL);
   m_sql_cmd= NULL;
-  proc_analyse= NULL;
   query_tables= NULL;
   reset_query_tables_list(false);
   expr_allows_subselect= true;
@@ -515,7 +513,9 @@ void LEX::reset()
   reparse_common_table_expr_at= 0;
   opt_hints_global= NULL;
   binlog_need_explicit_defaults_ts= false;
-  extended_show= false;
+  m_extended_show= false;
+
+  clear_privileges();
 }
 
 
@@ -567,7 +567,6 @@ void lex_end(LEX *lex)
 
   sp_head::destroy(lex->sphead);
   lex->sphead= NULL;
-  lex->clear_values_map();
 
   DBUG_VOID_RETURN;
 }
@@ -576,9 +575,9 @@ void lex_end(LEX *lex)
 SELECT_LEX *LEX::new_empty_query_block()
 {
   SELECT_LEX *select=
-    new (thd->mem_root) SELECT_LEX(NULL, NULL, NULL, NULL, NULL, NULL);
-  if (select == NULL)
-    return NULL;             /* purecov: inspected */
+    new (thd->mem_root) SELECT_LEX(nullptr, nullptr);
+  if (select == nullptr)
+    return nullptr;             /* purecov: inspected */
 
   select->parent_lex= this;
 
@@ -714,11 +713,6 @@ SELECT_LEX *LEX::new_union_query(SELECT_LEX *curr_select, bool distinct,
   if (outer_most && result)
   {
     my_error(ER_WRONG_USAGE, MYF(0), "UNION", "INTO");
-    DBUG_RETURN(NULL);
-  }
-  if (proc_analyse)
-  {
-    my_error(ER_WRONG_USAGE, MYF(0), "UNION", "SELECT ... PROCEDURE ANALYSE()");
     DBUG_RETURN(NULL);
   }
 
@@ -1527,12 +1521,14 @@ static int lex_one_token(YYSTYPE *yylval, THD *thd)
 	state= MY_LEX_HEX_NUMBER;
 	break;
       }
+      // Fall through.
     case MY_LEX_IDENT_OR_BIN:
       if (lip->yyPeek() == '\'')
       {                                 // Found b'bin-number'
         state= MY_LEX_BIN_NUMBER;
         break;
       }
+      // Fall through.
     case MY_LEX_IDENT:
       const char *start;
       if (use_mb(cs))
@@ -1891,6 +1887,7 @@ static int lex_one_token(YYSTYPE *yylval, THD *thd)
 	break;
       }
       /* " used for strings */
+      // Fall through.
     case MY_LEX_STRING:			// Incomplete text string
       if (!(yylval->lex_str.str = get_text(lip, 1, 1)))
       {
@@ -2269,11 +2266,7 @@ SELECT_LEX_UNIT::SELECT_LEX_UNIT(enum_parsing_context parsing_context) :
   Construct and initialize SELECT_LEX object.
 */
 
-SELECT_LEX::SELECT_LEX
-               (TABLE_LIST *table_list,
-                List<Item> *item_list_arg,       // unused
-                Item *where, Item *having, Item *limit, Item *offset)
-                //SQL_I_LIST<ORDER> *group_by, SQL_I_LIST<ORDER> order_by)
+SELECT_LEX::SELECT_LEX(Item *where, Item *having)
   :
   next(NULL),
   prev(NULL),
@@ -2661,7 +2654,7 @@ void SELECT_LEX::add_order_to_list(ORDER *order)
 }
 
 
-bool SELECT_LEX::add_item_to_list(THD *thd, Item *item)
+bool SELECT_LEX::add_item_to_list(Item *item)
 {
   DBUG_ENTER("SELECT_LEX::add_item_to_list");
   DBUG_PRINT("info", ("Item: %p", item));
@@ -2801,10 +2794,10 @@ void SELECT_LEX_UNIT::print(String *str, enum_query_type query_type)
         fake_select_lex->order_list.first,
         query_type);
     }
-    fake_select_lex->print_limit(thd, str, query_type);
+    fake_select_lex->print_limit(str, query_type);
   }
   else if (saved_fake_select_lex)
-    saved_fake_select_lex->print_limit(thd, str, query_type);
+    saved_fake_select_lex->print_limit(str, query_type);
 }
 
 
@@ -2825,8 +2818,7 @@ void SELECT_LEX::print_order(String *str,
 }
  
 
-void SELECT_LEX::print_limit(THD *thd,
-                             String *str,
+void SELECT_LEX::print_limit(String *str,
                              enum_query_type query_type)
 {
   SELECT_LEX_UNIT *unit= master_unit();
@@ -3330,7 +3322,7 @@ void SELECT_LEX::print(THD *thd, String *str, enum_query_type query_type)
   }
 
   // limit
-  print_limit(thd, str, query_type);
+  print_limit(str, query_type);
 
   // PROCEDURE unsupported here
 }
@@ -3437,6 +3429,20 @@ bool SELECT_LEX::accept(Select_lex_visitor *visitor)
       return true;
 
   return visitor->visit(this);
+}
+
+
+void LEX::clear_privileges()
+{
+  users_list.empty();
+  columns.empty();
+  grant= grant_tot_col= 0;
+  all_privileges= false;
+  ssl_type= SSL_TYPE_NOT_SPECIFIED;
+  ssl_cipher= x509_subject= x509_issuer= nullptr;
+  alter_password.cleanup();
+  memset(&mqh, 0, sizeof(mqh));
+  dynamic_privileges.empty();
 }
 
 
@@ -3563,6 +3569,7 @@ LEX::LEX()
    plugins(PSI_NOT_INSTRUMENTED),
    insert_update_values_map(NULL),
    option_type(OPT_DEFAULT),
+   drop_temporary(false),
    sphead(NULL),
    // Initialize here to avoid uninitialized variable warnings.
    contains_plaintext_password(false),
@@ -3730,7 +3737,8 @@ LEX::copy_db_to(char **p_db, size_t *p_db_length) const
 
   @returns false if success, true if error
 */
-bool SELECT_LEX_UNIT::prepare_limit(THD *thd_arg, SELECT_LEX *provider)
+bool SELECT_LEX_UNIT::prepare_limit(THD *thd_arg MY_ATTRIBUTE((unused)),
+                                    SELECT_LEX *provider)
 {
   /// @todo Remove THD from class SELECT_LEX_UNIT
   DBUG_ASSERT(this->thd == thd_arg);
@@ -3751,7 +3759,8 @@ bool SELECT_LEX_UNIT::prepare_limit(THD *thd_arg, SELECT_LEX *provider)
 
   @returns false if success, true if error
 */
-bool SELECT_LEX_UNIT::set_limit(THD *thd_arg, SELECT_LEX *provider)
+bool SELECT_LEX_UNIT::set_limit(THD *thd_arg MY_ATTRIBUTE((unused)),
+                                SELECT_LEX *provider)
 {
   /// @todo Remove THD from class SELECT_LEX_UNIT
   DBUG_ASSERT(this->thd == thd_arg);
@@ -4630,6 +4639,7 @@ bool SELECT_LEX::validate_outermost_option(LEX *lex,
           OPTION_BUFFER_RESULT
           OPTION_FOUND_ROWS
           OPTION_TO_QUERY_CACHE
+          OPTION_SELECT_FOR_SHOW
   DELETE: OPTION_QUICK
           LOW_PRIORITY
   INSERT: LOW_PRIORITY
@@ -4649,7 +4659,8 @@ bool SELECT_LEX::validate_base_options(LEX *lex, ulonglong options_arg) const
                                 SELECT_BIG_RESULT |
                                 OPTION_BUFFER_RESULT |
                                 OPTION_FOUND_ROWS |
-                                OPTION_TO_QUERY_CACHE)));
+                                OPTION_TO_QUERY_CACHE |
+                                OPTION_SELECT_FOR_SHOW)));
 
   if (options_arg & SELECT_DISTINCT &&
       options_arg & SELECT_ALL)

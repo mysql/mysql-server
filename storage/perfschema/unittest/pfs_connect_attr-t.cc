@@ -14,13 +14,13 @@
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include <memory.h>
-#include <my_global.h>
 #include <my_thread.h>
 #include <pfs_global.h>
 #include <pfs_instr.h>
 #include <pfs_instr_class.h>
 #include <pfs_server.h>
 #include <string.h>
+#include <sys/types.h>
 #include <tap.h>
 
 #include "my_inttypes.h"
@@ -341,5 +341,5 @@ int main(int, char **)
     diag("skipping the cp1251 tests : missing character set");
   plan(59 + (cs_cp1251 ? 10 : 0));
   do_all_tests();
-  return 0;
+  return (exit_status());
 }

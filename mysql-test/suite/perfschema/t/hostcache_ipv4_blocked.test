@@ -8,7 +8,6 @@
 # - reported in SUM_CONNECT_ERRORS
 # - reported in COUNT_HOST_BLOCKED_ERRORS
 
---source include/not_embedded.inc
 --source include/have_debug.inc
 
 # Enforce a clean state

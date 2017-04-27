@@ -14,6 +14,7 @@ def	mysql	PRIMARY	mysql	db	PRIMARY KEY
 def	mysql	PRIMARY	mysql	default_roles	PRIMARY KEY
 def	mysql	PRIMARY	mysql	engine_cost	PRIMARY KEY
 def	mysql	PRIMARY	mysql	func	PRIMARY KEY
+def	mysql	PRIMARY	mysql	global_grants	PRIMARY KEY
 def	mysql	PRIMARY	mysql	gtid_executed	PRIMARY KEY
 def	mysql	name	mysql	help_category	UNIQUE
 def	mysql	PRIMARY	mysql	help_category	PRIMARY KEY

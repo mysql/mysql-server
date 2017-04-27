@@ -212,7 +212,7 @@ Event_parse_data::check_dates(THD *thd, int previous_on_completion)
 int
 Event_parse_data::init_execute_at(THD *thd)
 {
-  my_bool not_used;
+  bool not_used;
   MYSQL_TIME ltime;
   my_time_t ltime_utc;
 
@@ -382,7 +382,7 @@ wrong_value:
 int
 Event_parse_data::init_starts(THD *thd)
 {
-  my_bool not_used;
+  bool not_used;
   MYSQL_TIME ltime;
   my_time_t ltime_utc;
 
@@ -436,7 +436,7 @@ wrong_value:
 int
 Event_parse_data::init_ends(THD *thd)
 {
-  my_bool not_used;
+  bool not_used;
   MYSQL_TIME ltime;
   my_time_t ltime_utc;
 

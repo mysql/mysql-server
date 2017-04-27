@@ -39,6 +39,8 @@ Created 10/8/1995 Heikki Tuuri
 *******************************************************/
 
 #include <mysqld.h>
+#include <sys/types.h>
+#include <time.h>
 
 #include "btr0sea.h"
 #include "buf0flu.h"
@@ -70,6 +72,13 @@ Created 10/8/1995 Heikki Tuuri
 #include "usr0sess.h"
 #include "ut0crc32.h"
 #include "ut0mem.h"
+
+#ifdef INNODB_DD_TABLE
+/* true when upgrading. */
+bool	srv_is_upgrade_mode = false;
+bool	srv_downgrade_logs = false;
+bool	srv_upgrade_old_undo_found = false;
+#endif /* INNODB_DD_TABLE */
 
 /* The following is the maximum allowed duration of a lock wait. */
 ulint	srv_fatal_semaphore_wait_threshold = 600;
@@ -119,10 +128,10 @@ Note: If enabled then UNDO tablespace will be selected for truncate.
 While Server waits for undo-tablespace to truncate if user disables
 it, truncate action is completed but no new tablespace is marked
 for truncate (action is never aborted). */
-my_bool	srv_undo_log_truncate = FALSE;
+bool	srv_undo_log_truncate = FALSE;
 
 /** Enable or disable Encrypt of UNDO tablespace. */
-my_bool	srv_undo_log_encrypt = FALSE;
+bool	srv_undo_log_encrypt = FALSE;
 
 /** Maximum size of undo tablespace. */
 unsigned long long	srv_max_undo_tablespace_size;
@@ -134,10 +143,11 @@ const page_no_t SRV_UNDO_TABLESPACE_SIZE_IN_PAGES =
 /** Set if InnoDB must operate in read-only mode. We don't do any
 recovery and open all tables in RO mode instead of RW mode. We don't
 sync the max trx id to disk either. */
-my_bool	srv_read_only_mode;
+bool	srv_read_only_mode;
+
 /** store to its own file each table created by an user; data
 dictionary tables are in the system tablespace 0 */
-my_bool	srv_file_per_table;
+bool	srv_file_per_table;
 
 /** Sort buffer size in index creation */
 ulong	srv_sort_buf_size = 1048576;
@@ -145,18 +155,18 @@ ulong	srv_sort_buf_size = 1048576;
 unsigned long long	srv_online_max_size;
 /** Set if InnoDB operates in read-only mode or innodb-force-recovery
 is greater than SRV_FORCE_NO_TRX_UNDO. */
-my_bool        high_level_read_only;
+bool        high_level_read_only;
 
 /* If this flag is TRUE, then we will use the native aio of the
 OS (provided we compiled Innobase with it in), otherwise we will
 use simulated aio we build below with threads.
 Currently we support native aio on windows and linux */
 #ifdef _WIN32
-my_bool	srv_use_native_aio = TRUE; /* enabled by default on Windows */
+bool	srv_use_native_aio = TRUE; /* enabled by default on Windows */
 #else
-my_bool	srv_use_native_aio;
+bool	srv_use_native_aio;
 #endif
-my_bool	srv_numa_interleave = FALSE;
+bool	srv_numa_interleave = FALSE;
 
 #ifdef UNIV_DEBUG
 /** Force all user tables to use page compression. */
@@ -164,7 +174,7 @@ ulong	srv_debug_compress;
 /** Set when InnoDB has invoked exit(). */
 bool	innodb_calling_exit;
 /** Used by SET GLOBAL innodb_master_thread_disabled_debug = X. */
-my_bool	srv_master_thread_disabled_debug;
+bool	srv_master_thread_disabled_debug;
 /** Event used to inform that master thread is disabled. */
 static os_event_t	srv_master_thread_disabled_event;
 /** Debug variable to find if any background threads are adding
@@ -176,7 +186,7 @@ extern bool		trx_commit_disallowed;
 char*	srv_log_group_home_dir	= NULL;
 
 /** Enable or disable Encrypt of REDO tablespace. */
-my_bool	srv_redo_log_encrypt = FALSE;
+bool	srv_redo_log_encrypt = FALSE;
 
 ulong	srv_n_log_files		= SRV_N_LOG_FILES_MAX;
 /** At startup, this is the current redo log file size.
@@ -202,10 +212,10 @@ page_size_t	univ_page_size(0, 0, false);
 
 /* Try to flush dirty pages so as to avoid IO bursts at
 the checkpoints. */
-my_bool	srv_adaptive_flushing	= TRUE;
+bool	srv_adaptive_flushing	= TRUE;
 
 /* Allow IO bursts at the checkpoints ignoring io_capacity setting. */
-my_bool	srv_flush_sync		= TRUE;
+bool	srv_flush_sync		= TRUE;
 
 /** Maximum number of times allowed to conditionally acquire
 mutex before switching to blocking wait on the mutex */
@@ -253,7 +263,7 @@ ulong	srv_n_read_io_threads;
 ulong	srv_n_write_io_threads;
 
 /* Switch to enable random read ahead. */
-my_bool	srv_random_read_ahead	= FALSE;
+bool	srv_random_read_ahead	= FALSE;
 /* User settable value of the number of pages that must be present
 in the buffer cache and accessed sequentially for InnoDB to trigger a
 readahead request. */
@@ -322,10 +332,10 @@ ulong	srv_force_recovery_crash;
 
 /** Print all user-level transactions deadlocks to mysqld stderr */
 
-my_bool	srv_print_all_deadlocks = FALSE;
+bool	srv_print_all_deadlocks = FALSE;
 
 /** Enable INFORMATION_SCHEMA.innodb_cmp_per_index */
-my_bool	srv_cmp_per_index_enabled = FALSE;
+bool	srv_cmp_per_index_enabled = FALSE;
 
 /** The value of the configuration parameter innodb_fast_shutdown,
 controlling the InnoDB shutdown.
@@ -351,10 +361,10 @@ this many index pages, there are 2 ways to calculate statistics:
 * quick transient stats, that are used if persistent stats for the given
   table/index are not found in the innodb database */
 unsigned long long	srv_stats_transient_sample_pages = 8;
-my_bool		srv_stats_persistent = TRUE;
-my_bool		srv_stats_include_delete_marked = FALSE;
+bool		srv_stats_persistent = TRUE;
+bool		srv_stats_include_delete_marked = FALSE;
 unsigned long long	srv_stats_persistent_sample_pages = 20;
-my_bool		srv_stats_auto_recalc = TRUE;
+bool		srv_stats_auto_recalc = TRUE;
 
 ibool	srv_use_doublewrite_buf	= TRUE;
 
@@ -382,8 +392,8 @@ ulint	srv_available_rollback_segments	= 0;
 /* Set the following to 0 if you want InnoDB to write messages on
 stderr on startup/shutdown. */
 ibool	srv_print_verbose_log		= TRUE;
-my_bool	srv_print_innodb_monitor	= FALSE;
-my_bool	srv_print_innodb_lock_monitor	= FALSE;
+bool	srv_print_innodb_monitor	= FALSE;
+bool	srv_print_innodb_lock_monitor	= FALSE;
 
 /* Array of English strings describing the current state of an
 i/o handler thread */
@@ -575,8 +585,8 @@ char*	srv_buf_dump_filename;
 
 /** Boolean config knobs that tell InnoDB to dump the buffer pool at shutdown
 and/or load it during startup. */
-char	srv_buffer_pool_dump_at_shutdown = TRUE;
-char	srv_buffer_pool_load_at_startup = TRUE;
+bool	srv_buffer_pool_dump_at_shutdown = true;
+bool	srv_buffer_pool_load_at_startup = true;
 
 /** Slot index in the srv_sys->sys_threads array for the purge thread. */
 static const ulint	SRV_PURGE_SLOT	= 1;
@@ -1965,7 +1975,7 @@ srv_master_thread_disabled_debug_update(
 	/* This method is protected by mutex, as every SET GLOBAL .. */
 	ut_ad(srv_master_thread_disabled_event != NULL);
 
-	const bool disable = *static_cast<const my_bool*>(save);
+	const bool disable = *static_cast<const bool*>(save);
 
 	const int64_t sig_count = os_event_reset(
 		srv_master_thread_disabled_event);
@@ -2200,6 +2210,7 @@ srv_master_do_shutdown_tasks(
 func_exit:
 	/* Make a new checkpoint about once in 10 seconds */
 	srv_main_thread_op_info = "making checkpoint";
+
 	log_checkpoint(TRUE, FALSE);
 
 	/* Print progress message every 60 seconds during shutdown */
@@ -2219,7 +2230,7 @@ void
 srv_enable_undo_encryption_if_set()
 {
 	fil_space_t*	space;
-	ulint		space_id;
+	space_id_t	space_id;
 
 	if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
 		return;
@@ -2276,10 +2287,9 @@ srv_enable_undo_encryption_if_set()
 				Encryption::random_value(iv);
 
 				mtr_start(&mtr);
-				mtr.set_named_space(space->id);
 
-				space = mtr_x_lock_space(space->id,
-							 &mtr);
+				mtr_x_lock_space(space, &mtr);
+
 				memset(encrypt_info, 0,
 				       ENCRYPTION_INFO_SIZE_V2);
 
@@ -2357,10 +2367,8 @@ srv_enable_undo_encryption_if_set()
 				ut_ad(FSP_FLAGS_GET_ENCRYPTION(space->flags));
 
 				mtr_start(&mtr);
-				mtr.set_named_space(space->id);
 
-				space = mtr_x_lock_space(space->id,
-							 &mtr);
+				mtr_x_lock_space(space, &mtr);
 
 				memset(encrypt_info, 0,
 				       ENCRYPTION_INFO_SIZE_V2);
@@ -2409,6 +2417,8 @@ srv_master_thread()
 	ib_time_t	last_print_time;
 
 	my_thread_init();
+
+	THD*	thd = create_thd(false, true, true, 0);
 
 	ut_ad(!srv_read_only_mode);
 
@@ -2468,6 +2478,7 @@ suspend_thread:
 		goto loop;
 	}
 
+	destroy_thd(thd);
 	my_thread_end();
 }
 
@@ -2545,7 +2556,11 @@ srv_worker_thread()
 	ut_ad(!srv_read_only_mode);
 	ut_a(srv_force_recovery < SRV_FORCE_NO_BACKGROUND);
 
+#ifdef UNIV_PFS_THREAD
 	THD*	thd = create_thd(false, true, true, srv_worker_thread_key.m_value);
+#else
+	THD*	thd = create_thd(false, true, true, 0);
+#endif
 	slot = srv_reserve_slot(SRV_WORKER);
 
 	ut_a(srv_n_purge_threads > 1);
@@ -2788,8 +2803,12 @@ srv_purge_coordinator_thread()
 {
 	srv_slot_t*	slot;
 
+#ifdef UNIV_PFS_THREAD
 	THD*	thd = create_thd(false, true, true,
 				 srv_purge_thread_key.m_value);
+#else
+	THD*	thd = create_thd(false, true, true, 0);
+#endif
 
 	ulint	n_total_purged = ULINT_UNDEFINED;
 

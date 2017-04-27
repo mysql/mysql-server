@@ -23,6 +23,8 @@
 
 #include "item_subselect.h"
 
+#include "my_config.h"
+
 #include <limits.h>
 #include <stdio.h>
 #include <string.h>
@@ -39,10 +41,10 @@
 #include "item_func.h"
 #include "item_sum.h"            // Item_sum_max
 #include "key.h"
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_base.h"
-#include "my_config.h"
 #include "my_dbug.h"
 #include "my_pointer_arithmetic.h"
 #include "my_sqlcommand.h"
@@ -86,7 +88,7 @@ Item_subselect::Item_subselect():
   used_tables_cache(0), have_to_be_excluded(0), const_item_cache(1),
   changed(false)
 {
-  with_subselect= 1;
+  set_subquery();
   reset();
   /*
     Item value is NULL if Query_result_interceptor didn't change this value
@@ -102,7 +104,7 @@ Item_subselect::Item_subselect(const POS &pos):
   used_tables_cache(0), have_to_be_excluded(0), const_item_cache(1),
   changed(false)
 {
-  with_subselect= 1;
+  set_subquery();
   reset();
   /*
     Item value is NULL if Query_result_interceptor didn't change this value
@@ -821,7 +823,7 @@ bool Item_subselect::const_item() const
 
 Item *Item_subselect::get_tmp_table_item(THD *thd_arg)
 {
-  if (!with_sum_func && !const_item())
+  if (!has_aggregation() && !const_item())
     return new Item_field(result_field);
   return copy_or_same(thd_arg);
 }
@@ -1167,7 +1169,7 @@ Item_singlerow_subselect::select_transformer(SELECT_LEX *select)
   if (!unit->is_union() &&
       !select->table_list.elements &&
       select->item_list.elements == 1 &&
-      !select->item_list.head()->with_sum_func &&
+      !select->item_list.head()->has_aggregation() &&
       /*
 	We cant change name of Item_field or Item_ref, because it will
 	prevent it's correct resolving, but we should save name of

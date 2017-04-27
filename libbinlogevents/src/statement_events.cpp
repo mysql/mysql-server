@@ -61,7 +61,7 @@ Query_event::Query_event(const char* query_arg, const char* catalog_arg,
   charset_database_number(0),
   table_map_for_update(table_map_for_update_arg),
   master_data_written(0), explicit_defaults_ts(TERNARY_UNSET),
-  mts_accessed_dbs(0)
+  mts_accessed_dbs(0), ddl_xid(INVALID_XID)
 {
 }
 
@@ -117,7 +117,7 @@ Query_event::Query_event(const char* buf, unsigned int event_len,
   time_zone_len(0), catalog_len(0), lc_time_names_number(0),
   charset_database_number(0), table_map_for_update(0), master_data_written(0),
   explicit_defaults_ts(TERNARY_UNSET),
-  mts_accessed_dbs(OVER_MAX_DBS_IN_EVENT_MTS)
+  mts_accessed_dbs(OVER_MAX_DBS_IN_EVENT_MTS), ddl_xid(INVALID_XID)
 {
   //buf is advanced in Binary_log_event constructor to point to
   //beginning of post-header
@@ -363,6 +363,16 @@ break;
       explicit_defaults_ts= *pos++ == 0 ? TERNARY_OFF : TERNARY_ON;
       break;
     }
+    case Q_DDL_LOGGED_WITH_XID:
+      CHECK_SPACE(pos, end, 8);
+      /*
+        Like in Xid_log_event case, the xid value is not used on the slave
+        so the number does not really need to respect endiness.
+      */
+      memcpy((char*) &ddl_xid, pos, 8);
+      ddl_xid= le64toh(ddl_xid);
+      pos+= 8;
+      break;
     default:
       /* That's why you must write status vars in growing order of code */
       pos= (const unsigned char*) end;         // Break loop

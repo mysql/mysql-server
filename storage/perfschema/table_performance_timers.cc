@@ -18,13 +18,15 @@
   Table PERFORMANCE_TIMERS (implementation).
 */
 
+#include "storage/perfschema/table_performance_timers.h"
+
+#include <stddef.h>
+
 #include "field.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_thread.h"
 #include "pfs_global.h"
 #include "pfs_timer.h"
-#include "table_performance_timers.h"
 #include "table_helper.h"
 
 THR_LOCK table_performance_timers::m_table_lock;
@@ -76,7 +78,7 @@ PFS_engine_table_share table_performance_timers::m_share = {
 };
 
 PFS_engine_table *
-table_performance_timers::create(void)
+table_performance_timers::create(PFS_engine_table_share *)
 {
   return new table_performance_timers();
 }

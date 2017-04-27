@@ -18,7 +18,6 @@
 
 #include <lf.h>                         /* LF Hash */
 #include <my_atomic.h>                  /* my_atomic_* */
-#include <my_global.h>
 #include <mysql_com.h>                  /* USERNAME_LENGTH */
 
 #include "connection_control_data.h"    /* variables and status */
@@ -120,7 +119,7 @@ namespace connection_control
       lf_hash_destroy(&m_entries);
     }
 
-    void fill_IS_table(THD *thd, TABLE_LIST *tables);
+    void fill_IS_table(TABLE_LIST *tables);
 
     /* Overridden function */
     bool create_or_update_entry(const Sql_string &s);

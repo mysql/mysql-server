@@ -1,5 +1,4 @@
 --source include/big_test.inc
---source include/not_embedded.inc
 --source include/have_no_undo_tablespaces.inc
 
 

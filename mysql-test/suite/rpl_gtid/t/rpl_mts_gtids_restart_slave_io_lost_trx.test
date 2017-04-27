@@ -10,4 +10,5 @@
 # using MTS slave configuration.
 #
 
+--let $using_mts= 1
 --source extra/rpl_tests/rpl_gtids_restart_slave_io_lost_trx.test

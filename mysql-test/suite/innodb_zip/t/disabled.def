@@ -16,7 +16,3 @@ wl6501_error_1   : WL#6795 2015-11-06 jhauglid WL6795_WL9536_RECOVERY
 wl6501_crash_3   : WL#6795 2015-11-06 jhauglid WL6795_WL9536_RECOVERY
 wl6501_crash_4   : WL#6795 2015-11-06 jhauglid WL6795_WL9536_RECOVERY
 wl6501_crash_5   : WL#6795 2015-11-06 jhauglid WL6795_WL9536_RECOVERY
-
-wl5522_debug_zip : WL#9525 disables it, waiting for IMPORT/EXPORT fix
-
-restart          : WL#9525 disables it, waiting for partitioning fix

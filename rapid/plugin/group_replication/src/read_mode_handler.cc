@@ -15,8 +15,11 @@
 
 #include "read_mode_handler.h"
 
+#include <stddef.h>
+
 #include "my_dbug.h"
 #include "plugin_utils.h"
+#include "plugin.h"
 
 Read_mode_handler::Read_mode_handler()
   : read_mode_active(false),
@@ -34,7 +37,7 @@ Read_mode_handler::~Read_mode_handler()
 }
 
 long Read_mode_handler::
-set_super_read_only_mode(Sql_service_command *command_interface)
+set_super_read_only_mode(Sql_service_command_interface *command_interface)
 {
   DBUG_ENTER("set_super_read_only_mode");
   long error =0;
@@ -88,7 +91,8 @@ set_super_read_only_mode(Sql_service_command *command_interface)
 }
 
 long Read_mode_handler::
-reset_super_read_only_mode(Sql_service_command *command_interface, bool force_reset)
+reset_super_read_only_mode(Sql_service_command_interface *command_interface,
+                           bool force_reset)
 {
   DBUG_ENTER("reset_super_read_mode");
   long error =0;
@@ -124,4 +128,30 @@ reset_super_read_only_mode(Sql_service_command *command_interface, bool force_re
   server_super_read_only= 0;
 
   DBUG_RETURN(error);
+}
+
+int set_server_read_mode(enum_plugin_con_isolation session_isolation)
+{
+  Sql_service_command_interface *sql_command_interface=
+      new Sql_service_command_interface();
+  int error=
+    sql_command_interface->
+      establish_session_connection(session_isolation, get_plugin_pointer()) ||
+    sql_command_interface->set_interface_user(GROUPREPL_USER) ||
+    read_mode_handler->set_super_read_only_mode(sql_command_interface);
+  delete sql_command_interface;
+  return error;
+}
+
+int reset_server_read_mode(enum_plugin_con_isolation session_isolation)
+{
+  Sql_service_command_interface *sql_command_interface=
+      new Sql_service_command_interface();
+  int error=
+    sql_command_interface->
+      establish_session_connection(session_isolation, get_plugin_pointer()) ||
+    sql_command_interface->set_interface_user(GROUPREPL_USER) ||
+    read_mode_handler->reset_super_read_only_mode(sql_command_interface);
+  delete sql_command_interface;
+  return error;
 }

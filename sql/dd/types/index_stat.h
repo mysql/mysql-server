@@ -28,11 +28,11 @@ class Composite_4char_key;
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Index_stat : virtual public Dictionary_object
+class Index_stat : virtual public Entity_object
 {
 public:
   static const Object_type &TYPE();
-  static const Dictionary_object_table &OBJECT_TABLE();
+  static const Entity_object_table &OBJECT_TABLE();
 
   typedef Composite_4char_key name_key_type;
 

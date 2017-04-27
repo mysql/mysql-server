@@ -17,8 +17,8 @@
 #define OPT_TRACE_CONTEXT_INCLUDED
 
 #include "my_config.h"  // OPTIMIZER_TRACE
+
 #include "my_dbug.h"
-#include "my_global.h"
 #include "prealloced_array.h"
 
 /**

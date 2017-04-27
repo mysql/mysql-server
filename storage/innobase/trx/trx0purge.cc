@@ -23,6 +23,7 @@ Purge old versions
 Created 3/26/1996 Heikki Tuuri
 *******************************************************/
 
+#include <sys/types.h>
 #include <new>
 
 #include "fsp0fsp.h"
@@ -60,7 +61,7 @@ ulong		srv_max_purge_lag_delay = 0;
 trx_purge_t*	purge_sys = NULL;
 
 #ifdef UNIV_DEBUG
-my_bool		srv_purge_view_update_only_debug;
+bool		srv_purge_view_update_only_debug;
 bool		trx_commit_disallowed = false;
 #endif /* UNIV_DEBUG */
 
@@ -443,10 +444,9 @@ trx_purge_free_segment(
 		page_t*	undo_page;
 
 		mtr_start(&mtr);
+
 		if (noredo) {
 			mtr.set_log_mode(MTR_LOG_NO_REDO);
-		} else {
-			mtr.set_undo_space(rseg->space_id);
 		}
 
 		mutex_enter(&rseg->mutex);
@@ -473,8 +473,6 @@ trx_purge_free_segment(
 				log_hdr + TRX_UNDO_DEL_MARKS, FALSE,
 				MLOG_2BYTES, &mtr);
 		}
-
-		ut_ad(mtr.is_undo_space(rseg->space_id));
 
 		if (fseg_free_step_not_header(
 			    seg_hdr + TRX_UNDO_FSEG_HEADER, false, &mtr)) {
@@ -546,10 +544,9 @@ trx_purge_truncate_rseg_history(
 		= fsp_is_system_temporary(rseg->space_id);
 
 	mtr_start(&mtr);
+
 	if (noredo) {
 		mtr.set_log_mode(MTR_LOG_NO_REDO);
-	} else {
-		mtr.set_undo_space(rseg->space_id);
 	}
 
 	mutex_enter(&(rseg->mutex));
@@ -623,11 +620,11 @@ loop:
 	}
 
 	mtr_start(&mtr);
+
 	if (noredo) {
 		mtr.set_log_mode(MTR_LOG_NO_REDO);
-	} else {
-		mtr.set_undo_space(rseg->space_id);
 	}
+
 	mutex_enter(&(rseg->mutex));
 
 	rseg_hdr = trx_rsegf_get(rseg->space_id, rseg->page_no,
@@ -2005,7 +2002,11 @@ run_synchronously:
 	rw_lock_x_unlock(&purge_sys->latch);
 #endif /* UNIV_DEBUG */
 
-	if (truncate) {
+	/* During upgrade, to know whether purge is empty,
+	we rely on purge history length. So truncate the
+	undo logs during upgrade to update purge history
+	length. */
+	if (truncate || srv_upgrade_old_undo_found) {
 		trx_purge_truncate();
 	}
 

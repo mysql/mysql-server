@@ -25,6 +25,7 @@ Created 2012-02-08 by Sunny Bains.
 
 #include <errno.h>
 #include <my_aes.h>
+#include <sys/types.h>
 #include <vector>
 
 #include "btr0pcur.h"
@@ -1709,7 +1710,7 @@ PageConverter::PageConverter(
 {
 	m_index = m_cfg->m_indexes;
 
-	m_current_lsn = log_get_lsn();
+	m_current_lsn = log_sys->flushed_to_disk_lsn;
 	ut_a(m_current_lsn > 0);
 
 	m_offsets = m_offsets_;
@@ -3406,6 +3407,8 @@ row_import_read_encryption_data(
 		return(DB_IO_ERROR);
 	}
 
+	lint old_size = mem_heap_get_size(table->heap);
+
 	table->encryption_key =
 		static_cast<byte*>(mem_heap_alloc(table->heap,
 						  ENCRYPTION_KEY_LEN));
@@ -3413,6 +3416,10 @@ row_import_read_encryption_data(
 	table->encryption_iv =
 		static_cast<byte*>(mem_heap_alloc(table->heap,
 						  ENCRYPTION_KEY_LEN));
+
+	lint	new_size = mem_heap_get_size(table->heap);
+	dict_sys->size += new_size - old_size;
+
 	/* Decrypt tablespace key and iv. */
 	elen = my_aes_decrypt(
 		encryption_key,
@@ -3888,14 +3895,14 @@ row_import_for_mysql(
 	fil_space_set_imported(prebuilt->table->space);
 
 	if (dict_table_is_encrypted(table)) {
-		fil_space_t*	space;
 		mtr_t		mtr;
 		byte		encrypt_info[ENCRYPTION_INFO_SIZE_V2];
 
+		fil_space_t*	space = fil_space_get(table->space);
+
 		mtr_start(&mtr);
 
-		mtr.set_named_space(table->space);
-		space = mtr_x_lock_space(table->space, &mtr);
+		mtr_x_lock_space(space, &mtr);
 
 		memset(encrypt_info, 0, ENCRYPTION_INFO_SIZE_V2);
 

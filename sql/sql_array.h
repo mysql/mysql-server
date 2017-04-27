@@ -17,7 +17,6 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "my_dbug.h"
-#include "my_global.h"
 
 /**
    A wrapper class which provides array bounds checking.

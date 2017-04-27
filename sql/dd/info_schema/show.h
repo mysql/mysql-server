@@ -16,13 +16,13 @@
 #ifndef SQL_DD_SHOW_H
 #define SQL_DD_SHOW_H
 
-#include "parse_tree_node_base.h"  // POS
-
 class Item;
 class String;
 class THD;
 class SELECT_LEX;
 class Table_ident;
+struct YYLTYPE;
+typedef YYLTYPE POS;
 
 namespace dd {
   namespace info_schema {
@@ -74,7 +74,8 @@ build_show_character_set_query(const POS &pos, THD *thd,
                      CHARACTER_SET_NAME as `Charset`,
                      ID as `Id`,
                      IS_COMPILED as `Compiled`,
-                     SORTLEN as `Sortlen`
+                     SORTLEN as `Sortlen`,
+                     PAD_ATTRIBUTE as `Pad_attribute`,
               FROM information_schema.collations) collations
       [ WHERE Collation LIKE "<value>" | WHERE @<where_clause@> ]
       ORDER BY `Collation`;

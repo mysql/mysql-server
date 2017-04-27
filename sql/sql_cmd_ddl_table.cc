@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql_cmd_ddl_table.h"
+#include "sql/sql_cmd_ddl_table.h"
 
 #include <string.h>
 #include <sys/types.h>
@@ -25,7 +25,6 @@
 #include "error_handler.h"      // Ignore_error_handler
 #include "handler.h"
 #include "item.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
@@ -44,7 +43,7 @@
 #include "sql_parse.h"          // prepare_index_and_data_dir_path()
 #include "sql_select.h"         // handle_query()
 #include "sql_table.h"          // mysql_create_like_table()
-#include "sql_tablespace.h"     // check_tablespace_name()
+#include "sql_tablespace.h"     // validate_tablespace_name()
 #include "system_variables.h"
 #include "table.h"
 #include "thr_lock.h"
@@ -85,7 +84,7 @@ bool Sql_cmd_create_table::execute(THD *thd)
 
   if (((lex->create_info->used_fields & HA_CREATE_USED_DATADIR) != 0 ||
        (lex->create_info->used_fields & HA_CREATE_USED_INDEXDIR) != 0) &&
-      check_access(thd, FILE_ACL, NULL, NULL, NULL, FALSE, FALSE))
+      check_access(thd, FILE_ACL, any_db, NULL, NULL, FALSE, FALSE))
   {
     my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "FILE");
     return true;
@@ -98,12 +97,22 @@ bool Sql_cmd_create_table::execute(THD *thd)
   create_info.alias= create_table->alias;
 
   /*
+    If no engine type was given, work out the default now
+    rather than at parse-time.
+  */
+  if (!(create_info.used_fields & HA_CREATE_USED_ENGINE))
+    create_info.db_type= create_info.options & HA_LEX_CREATE_TMP_TABLE ?
+            ha_default_temp_handlerton(thd) : ha_default_handlerton(thd);
+
+  /*
     Assign target tablespace name to enable locking in lock_table_names().
     Reject invalid names.
   */
   if (create_info.tablespace)
   {
-    if (check_tablespace_name(create_info.tablespace) != Ident_name_check::OK)
+    if (validate_tablespace_name_length(create_info.tablespace) ||
+        validate_tablespace_name(false, create_info.tablespace,
+                                 create_info.db_type))
       return true;
 
     if (!thd->make_lex_string(&create_table->target_tablespace_name,
@@ -113,7 +122,9 @@ bool Sql_cmd_create_table::execute(THD *thd)
   }
 
   // Reject invalid tablespace names specified for partitions.
-  if (check_partition_tablespace_names(thd->lex->part_info))
+  if (validate_partition_tablespace_name_lengths(thd->lex->part_info) ||
+      validate_partition_tablespace_names(thd->lex->part_info,
+                                          create_info.db_type))
     return true;
 
   /* Fix names if symlinked or relocated tables */
@@ -122,13 +133,6 @@ bool Sql_cmd_create_table::execute(THD *thd)
                                       create_table->table_name))
     return true;
 
-  /*
-    If no engine type was given, work out the default now
-    rather than at parse-time.
-  */
-  if (!(create_info.used_fields & HA_CREATE_USED_ENGINE))
-    create_info.db_type= create_info.options & HA_LEX_CREATE_TMP_TABLE ?
-            ha_default_temp_handlerton(thd) : ha_default_handlerton(thd);
   /*
     If we are using SET CHARSET without DEFAULT, add an implicit
     DEFAULT to not confuse old users. (This may change).
@@ -146,11 +150,11 @@ bool Sql_cmd_create_table::execute(THD *thd)
   {
     partition_info *part_info= thd->lex->part_info;
     if (part_info != NULL && has_external_data_or_index_dir(*part_info) &&
-        check_access(thd, FILE_ACL, NULL, NULL, NULL, FALSE, FALSE))
+        check_access(thd, FILE_ACL, any_db, NULL, NULL, FALSE, FALSE))
     {
       return true;
     }
-    if (part_info && !(part_info= thd->lex->part_info->get_clone(true)))
+    if (part_info && !(part_info= thd->lex->part_info->get_clone(thd, true)))
       return true;
     thd->work_part_info= part_info;
   }

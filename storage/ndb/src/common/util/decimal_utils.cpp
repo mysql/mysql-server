@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,10 +17,8 @@
  * decimal_utils.cpp
  */
 
-#include "my_global.h"
 #include "m_string.h"
 #include "decimal.h"
-#include "my_decimal.h"
 
 #include "decimal_utils.hpp"
 

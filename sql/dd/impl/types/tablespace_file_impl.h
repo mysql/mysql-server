@@ -27,7 +27,6 @@
 #include "dd/sdi_fwd.h"
 #include "dd/types/object_type.h"           // dd::Object_type
 #include "dd/types/tablespace_file.h"       // dd::Tablespace_file
-#include "my_global.h"
 
 namespace dd {
 
@@ -109,12 +108,6 @@ public:
 
   virtual bool set_se_private_data_raw(
     const String_type &se_private_data_raw);
-
-  // Fix "inherits ... via dominance" warnings
-  virtual Weak_object_impl *impl()
-  { return Weak_object_impl::impl(); }
-  virtual const Weak_object_impl *impl() const
-  { return Weak_object_impl::impl(); }
 
   /////////////////////////////////////////////////////////////////////////
   // tablespace.

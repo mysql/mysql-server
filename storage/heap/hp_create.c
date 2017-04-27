@@ -14,6 +14,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <errno.h>
+#include <sys/types.h>
+#include <time.h>
 
 #include "heapdef.h"
 #include "my_dbug.h"
@@ -28,7 +30,7 @@ static void init_block(HP_BLOCK *block,uint reclength,ulong min_records,
 /* Create a heap table */
 
 int heap_create(const char *name, HP_CREATE_INFO *create_info,
-                HP_SHARE **res, my_bool *created_new_share)
+                HP_SHARE **res, bool *created_new_share)
 {
   uint i, j, key_segs, max_length, length;
   HP_SHARE *share= 0;
@@ -95,7 +97,7 @@ int heap_create(const char *name, HP_CREATE_INFO *create_info,
         case HA_KEYTYPE_VARBINARY1:
           /* Case-insensitiveness is handled in coll->hash_sort */
           keyinfo->seg[j].type= HA_KEYTYPE_VARTEXT1;
-          /* fall_through */
+          /* Fall through. */
         case HA_KEYTYPE_VARTEXT1:
           keyinfo->flag|= HA_VAR_LENGTH_KEY;
           length+= 2;
@@ -311,7 +313,7 @@ void heap_drop_table(HP_INFO *info)
 
 void hp_free(HP_SHARE *share)
 {
-  my_bool not_internal_table= (share->open_list.data != NULL);
+  bool not_internal_table= (share->open_list.data != NULL);
   if (not_internal_table)                    /* If not internal table */
     heap_share_list= list_delete(heap_share_list, &share->open_list);
   hp_clear(share);			/* Remove blocks from memory */

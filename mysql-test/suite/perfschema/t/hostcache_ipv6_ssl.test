@@ -5,7 +5,6 @@
 # Simulate failures from SSL:
 # - reported in COUNT_SSL_ERRORS
 
---source include/not_embedded.inc
 --source include/have_debug.inc
 --source include/have_ipv6.inc
 

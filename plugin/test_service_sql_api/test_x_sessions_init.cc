@@ -14,9 +14,9 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 #include <fcntl.h>
-#include <my_global.h>
 #include <mysql/plugin.h>
 #include <stdlib.h>
+#include <sys/types.h>
 
 #include "my_dbug.h"
 #include "my_inttypes.h"

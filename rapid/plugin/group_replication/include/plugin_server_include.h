@@ -23,7 +23,6 @@
 #include "config.h"
 #endif
 
-#include <my_global.h>
 #include <my_thread.h>
 #include <my_sys.h>
 #include <my_stacktrace.h>

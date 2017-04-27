@@ -67,9 +67,9 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: "mytable"
   schema: "xtest"
   catalog: "def"
-  collation: 8
+  collation: 255
   fractional_digits: 0
-  length: 100
+  length: 400
   flags: 0
 }
 

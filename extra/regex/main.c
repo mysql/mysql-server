@@ -1,6 +1,5 @@
 #include <assert.h>
 #include <m_string.h>
-#include <my_global.h>
 #include <stdio.h>
 #include <sys/types.h>
 #ifdef HAVE_UNISTD_H

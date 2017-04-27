@@ -7,8 +7,6 @@
 --echo #
 
 --source include/have_innodb_max_16k.inc
-# Restart not supported in embedded server
---source include/not_embedded.inc
 
 SET DEFAULT_STORAGE_ENGINE=InnoDB;
 
@@ -416,6 +414,17 @@ SELECT NAME,ROW_FORMAT,SPACE_TYPE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHE
 DROP TABLE t1;
 
 --echo #
+--echo # BUG#22916982 - ASSERT 0 IN FSP_SDI_GET_ROOT_PAGE_NUM(), FLUSH TABLES FOR EXPORT
+--echo #
+
+CREATE TABLE t1 (a INT) ENGINE=INNODB ROW_FORMAT=DYNAMIC COMPRESSION='ZLIB';
+FLUSH TABLE t1 FOR EXPORT;
+--source include/restart_mysqld.inc
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLES;
+DROP TABLE t1;
+
+--echo #
 --echo # Cleanup
 --echo #
 DROP TABLESPACE s1;
@@ -423,4 +432,3 @@ eval SET GLOBAL INNODB_FILE_PER_TABLE=$prev_innodb_file_per_table;
 eval SET GLOBAL INNODB_FILE_PER_TABLE=$prev_innodb_strict_mode;
 SET DEBUG='-d,ignore_punch_hole';
 SET DEBUG='-d,ignore_punch_hole_size';
-

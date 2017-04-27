@@ -20,7 +20,7 @@
   Functions to create an item. Used by sql_yacc.yy
 */
 
-#include "item_create.h"
+#include "sql/item_create.h"
 
 #include <errno.h>
 #include <limits.h>
@@ -46,7 +46,6 @@
 #include "item_xmlfunc.h"        // Item_func_xml_extractvalue
 #include "my_dbug.h"
 #include "my_decimal.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "my_time.h"
@@ -60,6 +59,7 @@
 #include "sql_class.h"           // THD
 #include "sql_const.h"
 #include "sql_error.h"
+#include "sql_exception_handler.h"  // handle_std_exception
 #include "sql_lex.h"
 #include "sql_security_ctx.h"
 #include "sql_string.h"
@@ -627,51 +627,6 @@ using Mbr_within_instantiator=
 using Mbr_crosses_instantiator=
   Mbr_rel_instantiator<Item_func::SP_CROSSES_FUNC>;
 
-template<Item_func_spatial_operation::op_type Op_type>
-class Spatial_instantiator
-{
-public:
-  static const uint Min_argcount= 2;
-  static const uint Max_argcount= 2;
-
-  Item *instantiate(THD *thd, PT_item_list *args)
-  {
-    return new (thd->mem_root)
-      Item_func_spatial_operation(POS(), (*args)[0], (*args)[1], Op_type);
-  }
-};
-
-using Intersection_instantiator=
-  Spatial_instantiator<Item_func_spatial_operation::op_intersection>;
-using Difference_instantiator=
-  Spatial_instantiator<Item_func_spatial_operation::op_difference>;
-using Union_instantiator=
-  Spatial_instantiator<Item_func_spatial_operation::op_union>;
-using Symdifference_instantiator=
-  Spatial_instantiator<Item_func_spatial_operation::op_symdifference>;
-
-
-template<Item_func::Functype Functype>
-using Spatial_rel_instantiator=
-  Instantiator_with_functype<Item_func_spatial_rel, Functype, 2>;
-
-using St_contains_instantiator=
-  Spatial_rel_instantiator<Item_func::SP_CONTAINS_FUNC>;
-using St_crosses_instantiator=
-  Spatial_rel_instantiator<Item_func::SP_CROSSES_FUNC>;
-using St_disjoint_instantiator=
-  Spatial_rel_instantiator<Item_func::SP_DISJOINT_FUNC>;
-using St_equals_instantiator=
-  Spatial_rel_instantiator<Item_func::SP_EQUALS_FUNC>;
-using St_intersects_instantiator=
-  Spatial_rel_instantiator<Item_func::SP_INTERSECTS_FUNC>;
-using St_overlaps_instantiator=
-  Spatial_rel_instantiator<Item_func::SP_OVERLAPS_FUNC>;
-using St_touches_instantiator=
-  Spatial_rel_instantiator<Item_func::SP_TOUCHES_FUNC>;
-using St_within_instantiator=
-  Spatial_rel_instantiator<Item_func::SP_WITHIN_FUNC>;
-
 
 template<Item_func::Functype Functype>
 using Spatial_decomp_instantiator=
@@ -698,34 +653,8 @@ using Sp_interiorringn_instantiator=
 using Sp_pointn_instantiator=
   Spatial_decomp_n_instantiator<Item_func::SP_POINTN>;
 
-
 template<typename Geometry_class, enum Geometry_class::Functype Functype>
 class Geometry_instantiator
-{
-public:
-  static const uint Min_argcount= 1;
-  static const uint Max_argcount= 2;
-
-  Item *instantiate(THD *thd, PT_item_list *args)
-  {
-    switch (args->elements()) {
-    case 1:
-      return new (thd->mem_root)
-        Geometry_class(POS(), (*args)[0], Functype);
-    case 2:
-      return new (thd->mem_root)
-        Geometry_class(POS(), (*args)[0], (*args)[1], Functype);
-    default:
-      DBUG_ASSERT(false);
-      return nullptr;
-    }
-  }
-};
-
-
-// While wl9435 is still in production we need two seperate classes here
-template<typename Geometry_from_wkt, enum Geometry_from_wkt::Functype Functype>
-class Geometry_instantiator1
 {
 public:
   static const uint Min_argcount= 1;
@@ -733,15 +662,17 @@ public:
 
   Item *instantiate(THD *thd, PT_item_list *args)
   {
-    switch (args->elements()) {
+    switch (args->elements())
+    {
     case 1:
-      return new (thd->mem_root)Geometry_from_wkt(POS(), (*args)[0], Functype);
+      return new (thd->mem_root)
+        Geometry_class(POS(), (*args)[0], Functype);
     case 2:
       return new (thd->mem_root)
-        Geometry_from_wkt(POS(), (*args)[0], (*args)[1], Functype);
+        Geometry_class(POS(), (*args)[0], (*args)[1], Functype);
     case 3:
       return new (thd->mem_root)
-        Geometry_from_wkt(POS(), (*args)[0], (*args)[1], (*args)[2], Functype);
+        Geometry_class(POS(), (*args)[0], (*args)[1], (*args)[2], Functype);
     default:
       DBUG_ASSERT(false);
       return nullptr;
@@ -749,36 +680,30 @@ public:
   }
 };
 
-
 using txt_ft = Item_func_geometry_from_text::Functype;
 using I_txt = Item_func_geometry_from_text;
 template<typename Geometry_class, enum Geometry_class::Functype Functype>
 using G_i = Geometry_instantiator<Geometry_class, Functype>;
 
-// While worklog 9435 is still in production we need two types here
-template<typename Geometry_from_wkt, enum Geometry_from_wkt::Functype Functype>
-using G_i1 = Geometry_instantiator1<Geometry_from_wkt, Functype>;
-
-typedef G_i1<I_txt, txt_ft::GEOMCOLLFROMTEXT> Geomcollfromtext_instantiator;
-typedef G_i1<I_txt, txt_ft::GEOMCOLLFROMTXT> Geomcollfromtxt_instantiator;
-typedef G_i1<I_txt, txt_ft::GEOMETRYCOLLECTIONFROMTEXT>
-Geometrycollectionfromtext_instantiator;
-typedef G_i1<I_txt, txt_ft::GEOMETRYFROMTEXT> Geometryfromtext_instantiator;
-typedef G_i1<I_txt, txt_ft::GEOMFROMTEXT> Geomfromtext_instantiator;
-typedef G_i1<I_txt, txt_ft::LINEFROMTEXT> Linefromtext_instantiator;
-typedef G_i1<I_txt, txt_ft::LINESTRINGFROMTEXT> Linestringfromtext_instantiator;
-typedef G_i1<I_txt, txt_ft::MLINEFROMTEXT> Mlinefromtext_instantiator;
-typedef G_i1<I_txt, txt_ft::MPOINTFROMTEXT> Mpointfromtext_instantiator;
-typedef G_i1<I_txt, txt_ft::MPOLYFROMTEXT> Mpolyfromtext_instantiator;
-typedef G_i1<I_txt, txt_ft::MULTILINESTRINGFROMTEXT>
-Multilinestringfromtext_instantiator;
-typedef G_i1<I_txt, txt_ft::MULTIPOINTFROMTEXT> Multipointfromtext_instantiator;
-typedef G_i1<I_txt, txt_ft::MULTIPOLYGONFROMTEXT>
-Multipolygonfromtext_instantiator;
-typedef G_i1<I_txt, txt_ft::POINTFROMTEXT> Pointfromtext_instantiator;
-typedef G_i1<I_txt, txt_ft::POLYFROMTEXT> Polyfromtext_instantiator;
-typedef G_i1<I_txt, txt_ft::POLYGONFROMTEXT> Polygonfromtext_instantiator;
-
+using Geomcollfromtext_instantiator= G_i<I_txt, txt_ft::GEOMCOLLFROMTEXT>;
+using Geomcollfromtxt_instantiator= G_i<I_txt, txt_ft::GEOMCOLLFROMTXT>;
+using Geometrycollectionfromtext_instantiator=
+  G_i<I_txt, txt_ft::GEOMETRYCOLLECTIONFROMTEXT>;
+using Geometryfromtext_instantiator= G_i<I_txt, txt_ft::GEOMETRYFROMTEXT>;
+using Geomfromtext_instantiator= G_i<I_txt, txt_ft::GEOMFROMTEXT>;
+using Linefromtext_instantiator= G_i<I_txt, txt_ft::LINEFROMTEXT>;
+using Linestringfromtext_instantiator= G_i<I_txt, txt_ft::LINESTRINGFROMTEXT>;
+using Mlinefromtext_instantiator= G_i<I_txt, txt_ft::MLINEFROMTEXT>;
+using Mpointfromtext_instantiator= G_i<I_txt, txt_ft::MPOINTFROMTEXT>;
+using Mpolyfromtext_instantiator= G_i<I_txt, txt_ft::MPOLYFROMTEXT>;
+using Multilinestringfromtext_instantiator=
+  G_i<I_txt, txt_ft::MULTILINESTRINGFROMTEXT>;
+using Multipointfromtext_instantiator= G_i<I_txt, txt_ft::MULTIPOINTFROMTEXT>;
+using Multipolygonfromtext_instantiator=
+  G_i<I_txt, txt_ft::MULTIPOLYGONFROMTEXT>;
+using Pointfromtext_instantiator= G_i<I_txt, txt_ft::POINTFROMTEXT>;
+using Polyfromtext_instantiator= G_i<I_txt, txt_ft::POLYFROMTEXT>;
+using Polygonfromtext_instantiator= G_i<I_txt, txt_ft::POLYGONFROMTEXT>;
 
 using wkb_ft = Item_func_geometry_from_wkb::Functype;
 using I_wkb = Item_func_geometry_from_wkb;
@@ -1694,6 +1619,8 @@ static const std::pair<const char *, Create_func *> func_array[]=
   { "JSON_REMOVE", SQL_FN_V_LIST_THD(Item_func_json_remove, 2, MAX_ARGLIST_SIZE) },
   { "JSON_MERGE", SQL_FN_V_LIST_THD(Item_func_json_merge, 2, MAX_ARGLIST_SIZE) },
   { "JSON_QUOTE", SQL_FN_LIST(Item_func_json_quote, 1) },
+  { "JSON_STORAGE_FREE", SQL_FN(Item_func_json_storage_free, 1) },
+  { "JSON_STORAGE_SIZE", SQL_FN(Item_func_json_storage_size, 1) },
   { "JSON_UNQUOTE", SQL_FN_LIST(Item_func_json_unquote, 1) },
   { "IS_FREE_LOCK", SQL_FN(Item_func_is_free_lock, 1) },
   { "IS_USED_LOCK", SQL_FN(Item_func_is_used_lock, 1) },
@@ -1774,17 +1701,17 @@ static const std::pair<const char *, Create_func *> func_array[]=
   { "ST_BUFFER", SQL_FN_V_LIST(Item_func_buffer, 2, 5) },
   { "ST_BUFFER_STRATEGY", SQL_FN_V_LIST(Item_func_buffer_strategy, 1, 2) },
   { "ST_CENTROID", SQL_FN(Item_func_centroid, 1) },
-  { "ST_CONTAINS", SQL_FACTORY(St_contains_instantiator) },
+  { "ST_CONTAINS", SQL_FN(Item_func_st_contains, 2) },
   { "ST_CONVEXHULL", SQL_FN(Item_func_convex_hull, 1) },
-  { "ST_CROSSES", SQL_FACTORY(St_crosses_instantiator) },
-  { "ST_DIFFERENCE", SQL_FACTORY(Difference_instantiator) },
+  { "ST_CROSSES", SQL_FN(Item_func_st_crosses, 2) },
+  { "ST_DIFFERENCE", SQL_FN(Item_func_st_difference, 2) },
   { "ST_DIMENSION", SQL_FN(Item_func_dimension, 1) },
-  { "ST_DISJOINT", SQL_FACTORY(St_disjoint_instantiator) },
+  { "ST_DISJOINT", SQL_FN(Item_func_st_disjoint, 2) },
   { "ST_DISTANCE", SQL_FN_LIST(Item_func_distance, 2) },
   { "ST_DISTANCE_SPHERE", SQL_FN_V_LIST(Item_func_distance_sphere, 2, 3) },
   { "ST_ENDPOINT", SQL_FACTORY(Endpoint_instantiator) },
   { "ST_ENVELOPE", SQL_FN(Item_func_envelope, 1) },
-  { "ST_EQUALS", SQL_FACTORY(St_equals_instantiator) },
+  { "ST_EQUALS", SQL_FN(Item_func_st_equals, 2) },
   { "ST_EXTERIORRING", SQL_FACTORY(Exteriorring_instantiator) },
   { "ST_GEOHASH", SQL_FN_V(Item_func_geohash, 2, 3) },
   { "ST_GEOMCOLLFROMTEXT", SQL_FACTORY(Geomcollfromtext_instantiator) },
@@ -1800,8 +1727,8 @@ static const std::pair<const char *, Create_func *> func_array[]=
   { "ST_GEOMFROMTEXT", SQL_FACTORY(Geomfromtext_instantiator) },
   { "ST_GEOMFROMWKB", SQL_FACTORY(Geomfromwkb_instantiator) },
   { "ST_INTERIORRINGN", SQL_FACTORY(Sp_interiorringn_instantiator) },
-  { "ST_INTERSECTS", SQL_FACTORY(St_intersects_instantiator) },
-  { "ST_INTERSECTION", SQL_FACTORY(Intersection_instantiator) },
+  { "ST_INTERSECTS", SQL_FN(Item_func_st_intersects, 2) },
+  { "ST_INTERSECTION", SQL_FN(Item_func_st_intersection, 2) },
   { "ST_ISCLOSED", SQL_FN(Item_func_isclosed, 1) },
   { "ST_ISEMPTY", SQL_FN(Item_func_isempty, 1) },
   { "ST_ISSIMPLE", SQL_FN(Item_func_issimple, 1) },
@@ -1830,7 +1757,7 @@ static const std::pair<const char *, Create_func *> func_array[]=
   { "ST_NUMINTERIORRING", SQL_FN(Item_func_numinteriorring, 1) },
   { "ST_NUMINTERIORRINGS", SQL_FN(Item_func_numinteriorring, 1) },
   { "ST_NUMPOINTS", SQL_FN(Item_func_numpoints, 1) },
-  { "ST_OVERLAPS", SQL_FACTORY(St_overlaps_instantiator) },
+  { "ST_OVERLAPS", SQL_FN(Item_func_st_overlaps, 2) },
   { "ST_POINTFROMGEOHASH", SQL_FN(Item_func_pointfromgeohash, 2) },
   { "ST_POINTFROMTEXT", SQL_FACTORY(Pointfromtext_instantiator) },
   { "ST_POINTFROMWKB", SQL_FACTORY(Pointfromwkb_instantiator) },
@@ -1842,12 +1769,12 @@ static const std::pair<const char *, Create_func *> func_array[]=
   { "ST_SIMPLIFY", SQL_FN(Item_func_simplify, 2) },
   { "ST_SRID", SQL_FACTORY(Srid_instantiator) },
   { "ST_STARTPOINT", SQL_FACTORY(Startpoint_instantiator) },
-  { "ST_SYMDIFFERENCE", SQL_FACTORY(Symdifference_instantiator) },
+  { "ST_SYMDIFFERENCE", SQL_FN(Item_func_st_symdifference, 2) },
   { "ST_SWAPXY", SQL_FN(Item_func_swap_xy, 1) },
-  { "ST_TOUCHES", SQL_FACTORY(St_touches_instantiator) },
-  { "ST_UNION", SQL_FACTORY(Union_instantiator) },
+  { "ST_TOUCHES", SQL_FN(Item_func_st_touches, 2) },
+  { "ST_UNION", SQL_FN(Item_func_st_union, 2) },
   { "ST_VALIDATE", SQL_FN(Item_func_validate, 1) },
-  { "ST_WITHIN", SQL_FACTORY(St_within_instantiator) },
+  { "ST_WITHIN", SQL_FN(Item_func_st_within, 2) },
   { "ST_X", SQL_FACTORY(X_instantiator) },
   { "ST_Y", SQL_FACTORY(Y_instantiator) },
   { "SUBSTRING_INDEX", SQL_FN(Item_func_substr_index, 3) },
@@ -1875,7 +1802,7 @@ static const std::pair<const char *, Create_func *> func_array[]=
   { "WEEKOFYEAR", SQL_FACTORY(Weekofyear_instantiator) },
   { "YEARWEEK", SQL_FACTORY(Yearweek_instantiator) },
   { "GET_DD_COLUMN_PRIVILEGES", SQL_FN_INTERNAL(Item_func_get_dd_column_privileges, 3) },
-  { "GET_DD_INDEX_SUB_PART_LENGTH", SQL_FN_INTERNAL(Item_func_get_dd_index_sub_part_length, 5) },
+  { "GET_DD_INDEX_SUB_PART_LENGTH", SQL_FN_LIST_INTERNAL(Item_func_get_dd_index_sub_part_length, 5) },
   { "GET_DD_CREATE_OPTIONS", SQL_FN_INTERNAL(Item_func_get_dd_create_options, 2) },
   { "GET_DD_TABLE_PRIVATE_DATA", SQL_FN_INTERNAL(Item_func_get_dd_table_private_data, 2) },
   { "GET_DD_TABLESPACE_PRIVATE_DATA", SQL_FN_INTERNAL(Item_func_get_dd_tablespace_private_data, 2) },
@@ -1901,7 +1828,7 @@ static const std::pair<const char *, Create_func *> func_array[]=
   { "INTERNAL_UPDATE_TIME", SQL_FN_INTERNAL(Item_func_internal_update_time, 4) },
   { "INTERNAL_CHECK_TIME", SQL_FN_INTERNAL(Item_func_internal_check_time, 4) },
   { "INTERNAL_KEYS_DISABLED", SQL_FN_INTERNAL(Item_func_internal_keys_disabled, 1) },
-  { "INTERNAL_INDEX_COLUMN_CARDINALITY", SQL_FN_LIST_INTERNAL(Item_func_internal_index_column_cardinality, 7) },
+  { "INTERNAL_INDEX_COLUMN_CARDINALITY", SQL_FN_LIST_INTERNAL(Item_func_internal_index_column_cardinality, 8) },
   { "INTERNAL_GET_COMMENT_OR_ERROR", SQL_FN_LIST_INTERNAL(Item_func_internal_get_comment_or_error, 5) },
   { "INTERNAL_GET_VIEW_WARNING_OR_ERROR", SQL_FN_LIST_INTERNAL(Item_func_internal_get_view_warning_or_error, 4) }
 };

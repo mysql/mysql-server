@@ -13,6 +13,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "unittest/gunit/thread_utils.h"
+
 #include <errno.h>
 #include <gtest/gtest.h>
 #include <stddef.h>
@@ -20,11 +22,9 @@
 
 #include "gtest/gtest-message.h"
 #include "mutex_lock.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "mysql/psi/mysql_cond.h"
 #include "thr_mutex.h"
-#include "thread_utils.h"
 
 namespace thread {
 
@@ -77,7 +77,7 @@ void Thread::join()
 
 void Thread::run_wrapper(Thread *start_arg)
 {
-  const my_bool error= my_thread_init();
+  const bool error= my_thread_init();
   ASSERT_FALSE(error);
   start_arg->run();
   my_thread_end();

@@ -23,7 +23,6 @@
 #include "handler.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "mysql/service_mysql_alloc.h"
 #include "sql_executor.h"  // QEP_operation

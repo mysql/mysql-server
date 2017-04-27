@@ -1,4 +1,3 @@
---source include/not_embedded.inc
 
 --disable_query_log
 --eval SELECT "Outfile OK" INTO OUTFILE "$MYSQLTEST_VARDIR/tmp/outfile.test"

@@ -13,8 +13,10 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#include <assert.h>
 #include <mysql/service_rpl_transaction_ctx.h>
 #include <mysql/service_rpl_transaction_write_set.h>
+#include <stddef.h>
 #include <string>
 #include <vector>
 
@@ -23,6 +25,7 @@
 #include "my_inttypes.h"
 #include "observer_trans.h"
 #include "plugin_log.h"
+#include "plugin.h"
 #include "sql_command_test.h"
 #include "sql_service_command.h"
 #include "sql_service_interface.h"
@@ -339,6 +342,9 @@ int group_replication_trans_before_commit(Trans_param *param)
   }
 
   // Transaction information.
+  const ulong transaction_size_limit= get_transaction_size_limit();
+  my_off_t transaction_size= 0;
+
   const bool is_gtid_specified= param->gtid_info.type == GTID_GROUP;
   Gtid gtid= { param->gtid_info.sidno, param->gtid_info.gno };
   if (!is_gtid_specified)
@@ -363,7 +369,12 @@ int group_replication_trans_before_commit(Trans_param *param)
   enum enum_gcs_error send_error= GCS_OK;
 
   // Binlog cache.
-  bool is_dml= true;
+  /*
+    Atomic DDL:s are logged through the transactional cache so they should
+    be exempted from considering as DML by the plugin: not
+    everthing that is in the trans cache is actually DML.
+  */
+  bool is_dml= !param->is_atomic_ddl;
   IO_CACHE *cache_log= NULL;
   my_off_t cache_log_position= 0;
   bool reinit_cache_log_required= false;
@@ -433,7 +444,7 @@ int group_replication_trans_before_commit(Trans_param *param)
 
   // Create transaction context.
   tcle= new Transaction_context_log_event(param->server_uuid,
-                                          is_dml,
+                                          is_dml || param->is_atomic_ddl,
                                           param->thread_id,
                                           is_gtid_specified);
   if (!tcle->is_valid())
@@ -492,15 +503,28 @@ int group_replication_trans_before_commit(Trans_param *param)
      variable so that it won't be re-defined when this GTID is written to the
      binlog
     */
-    *(param->original_commit_timestamp)= my_micro_time_ntp();
+    *(param->original_commit_timestamp)= my_micro_time();
   } // otherwise the transaction did not originate in this server
 
-  // Write Gtid log event to group replication cache.
-  gle= new Gtid_log_event(param->server_id, is_dml, 0, 1,
+  // Notice the GTID of atomic DDL is written to the trans cache as well.
+  gle= new Gtid_log_event(param->server_id, is_dml || param->is_atomic_ddl, 0, 1,
                           *(param->original_commit_timestamp),
                           0,
                           gtid_specification);
   gle->write(cache);
+
+  transaction_size= cache_log_position + my_b_tell(cache);
+  if (is_dml && transaction_size_limit &&
+     transaction_size > transaction_size_limit)
+  {
+    log_message(MY_ERROR_LEVEL, "Error on session %u. "
+                "Transaction of size %llu exceeds specified limit %lu. "
+                "To increase the limit please adjust group_replication_transaction_size_limit option.",
+                param->thread_id, transaction_size,
+                transaction_size_limit);
+    error= pre_wait_error;
+    goto err;
+  }
 
   // Reinit group replication cache to read.
   if (reinit_cache(cache, READ_CACHE, 0))
@@ -639,19 +663,19 @@ err:
   DBUG_RETURN(error);
 }
 
-int group_replication_trans_before_rollback(Trans_param *param)
+int group_replication_trans_before_rollback(Trans_param*)
 {
   DBUG_ENTER("group_replication_trans_before_rollback");
   DBUG_RETURN(0);
 }
 
-int group_replication_trans_after_commit(Trans_param *param)
+int group_replication_trans_after_commit(Trans_param*)
 {
   DBUG_ENTER("group_replication_trans_after_commit");
   DBUG_RETURN(0);
 }
 
-int group_replication_trans_after_rollback(Trans_param *param)
+int group_replication_trans_after_rollback(Trans_param*)
 {
   DBUG_ENTER("group_replication_trans_after_rollback");
   DBUG_RETURN(0);
@@ -829,7 +853,8 @@ Transaction_Message::encode_payload(std::vector<unsigned char>* buffer) const
 }
 
 void
-Transaction_Message::decode_payload(const unsigned char* buffer, size_t length)
+Transaction_Message::decode_payload(const unsigned char* buffer,
+                                    const unsigned char*)
 {
   DBUG_ENTER("Transaction_Message::decode_payload");
   const unsigned char *slider= buffer;

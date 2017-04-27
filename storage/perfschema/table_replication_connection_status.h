@@ -22,6 +22,9 @@
   Table replication_connection_status (declarations).
 */
 
+#include <stddef.h>
+#include <sys/types.h>
+
 #include "my_inttypes.h"
 #include "mysql_com.h"
 #include "pfs_column_types.h"
@@ -78,6 +81,17 @@ struct st_row_connect_status
   char last_error_message[MAX_SLAVE_ERRMSG];
   uint last_error_message_length;
   ulonglong last_error_timestamp;
+  char last_queued_trx[Gtid::MAX_TEXT_LENGTH + 1];
+  uint last_queued_trx_length;
+  ulonglong last_queued_trx_original_commit_timestamp;
+  ulonglong last_queued_trx_immediate_commit_timestamp;
+  ulonglong last_queued_trx_start_queue_timestamp;
+  ulonglong last_queued_trx_end_queue_timestamp;
+  char queueing_trx[Gtid::MAX_TEXT_LENGTH + 1];
+  uint queueing_trx_length;
+  ulonglong queueing_trx_original_commit_timestamp;
+  ulonglong queueing_trx_immediate_commit_timestamp;
+  ulonglong queueing_trx_start_queue_timestamp;
 
   st_row_connect_status() : received_transaction_set(NULL)
   {
@@ -184,7 +198,7 @@ public:
 
   /** Table share. */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table *create();
+  static PFS_engine_table *create(PFS_engine_table_share *);
   static ha_rows get_row_count();
   virtual void reset_position(void);
 

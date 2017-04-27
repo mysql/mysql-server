@@ -23,7 +23,6 @@
 #ifndef SQL_CONST_INCLUDED
 #define SQL_CONST_INCLUDED
 
-#include "my_global.h"
 #include "my_inttypes.h"
 
 #define LIBLEN FN_REFLEN-FN_LEN			/* Max l{ngd p} dev */

@@ -21,6 +21,8 @@
   Table EVENTS_WAITS_SUMMARY_BY_xxx (declarations).
 */
 
+#include <sys/types.h>
+
 #include "my_inttypes.h"
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"
@@ -98,7 +100,7 @@ class table_events_waits_summary_by_instance : public table_all_instr
 public:
   /** Table share */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table *create();
+  static PFS_engine_table *create(PFS_engine_table_share *);
   static int delete_all_rows();
   int index_init(uint idx, bool sorted);
 

@@ -21,6 +21,8 @@
   Table SETUP_ACTORS (declarations).
 */
 
+#include <sys/types.h>
+
 #include "pfs_engine_table.h"
 #include "table_helper.h"
 
@@ -82,7 +84,7 @@ public:
   /** Table share. */
   static PFS_engine_table_share m_share;
   /** Table builder. */
-  static PFS_engine_table *create();
+  static PFS_engine_table *create(PFS_engine_table_share *);
   static int write_row(TABLE *table, unsigned char *buf, Field **fields);
   static int delete_all_rows();
   static ha_rows get_row_count();

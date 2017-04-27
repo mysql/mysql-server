@@ -1,3 +1,5 @@
+########################################
+
 # ==== Purpose ====
 #
 # Verify that a partially failed statement can consume
@@ -27,8 +29,6 @@
 # See mysql-test/t/no_binlog_gtid_next_partially_failed_stmts_error.test
 #
 
-# Test is not required to run against embedded server
---source include/not_embedded.inc
 # Should be tested against "binlog disabled" server
 --source include/not_log_bin.inc
 # Requires debug server to simulate failure to drop table in SE

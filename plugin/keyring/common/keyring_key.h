@@ -16,7 +16,6 @@
 #ifndef KEYRING_KEY_INCLUDED
 #define KEYRING_KEY_INCLUDED
 
-#include <my_global.h>
 #include <memory>
 
 #include "i_keyring_key.h"
@@ -33,8 +32,8 @@ struct Key : IKey
 
   ~Key();
 
-  my_bool load_from_buffer(uchar* buffer, size_t *buffer_position,
-                           size_t input_buffer_size);
+  bool load_from_buffer(uchar* buffer, size_t *buffer_position,
+                        size_t input_buffer_size);
   void store_in_buffer(uchar* buffer, size_t *buffer_position) const;
   std::string* get_key_signature() const;
   std::string* get_key_type();
@@ -45,22 +44,22 @@ struct Key : IKey
   void xor_data();
   void set_key_data(uchar *key_data, size_t key_data_size);
   void set_key_type(const std::string *key_type);
-  my_bool is_key_type_valid();
-  my_bool is_key_id_valid();
-  my_bool is_key_valid();
+  bool is_key_type_valid();
+  bool is_key_id_valid();
+  bool is_key_valid();
 
 private:
   Key(const Key& other);
   void create_key_signature() const;
-  my_bool load_string_from_buffer(const uchar *buffer, size_t *buffer_position,
-                                  size_t key_pod_size, std::string *string,
-                                  size_t string_length);
+  bool load_string_from_buffer(const uchar *buffer, size_t *buffer_position,
+                               size_t key_pod_size, std::string *string,
+                               size_t string_length);
   inline void store_field_length(uchar *buffer, size_t *buffer_position,
                                  size_t length) const;
   inline void store_field(uchar *buffer, size_t *buffer_position,
                           const char *field, size_t field_length) const;
-  my_bool load_field_size(const uchar *buffer, size_t *buffer_position,
-                          size_t key_pod_size, size_t *field_length);
+  bool load_field_size(const uchar *buffer, size_t *buffer_position,
+                       size_t key_pod_size, size_t *field_length);
 protected:
   std::string key_id;
   std::string key_type;

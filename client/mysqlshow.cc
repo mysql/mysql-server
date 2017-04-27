@@ -25,6 +25,7 @@
 #include <sslopt-vars.h>
 #include <stdarg.h>
 #include <stdlib.h>
+#include <sys/types.h>
 #include <welcome_copyright_notice.h>   /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 #include "client_priv.h"
@@ -38,16 +39,16 @@
 #include "typelib.h"
 
 static char * host=0, *opt_password=0, *user=0;
-static my_bool opt_show_keys= 0, opt_compress= 0, opt_count=0, opt_status= 0;
-static my_bool tty_password= 0, opt_table_type= 0;
-static my_bool debug_info_flag= 0, debug_check_flag= 0;
+static bool opt_show_keys= 0, opt_compress= 0, opt_count=0, opt_status= 0;
+static bool tty_password= 0, opt_table_type= 0;
+static bool debug_info_flag= 0, debug_check_flag= 0;
 static uint my_end_arg= 0;
 static uint opt_verbose=0;
 static char *default_charset= (char*) MYSQL_AUTODETECT_CHARSET_NAME;
 static char *opt_plugin_dir= 0, *opt_default_auth= 0;
 static uint opt_enable_cleartext_plugin= 0;
-static my_bool using_opt_enable_cleartext_plugin= 0;
-static my_bool opt_secure_auth= TRUE;
+static bool using_opt_enable_cleartext_plugin= 0;
+static bool opt_secure_auth= TRUE;
 
 #if defined (_WIN32)
 static char *shared_memory_base_name=0;
@@ -75,7 +76,7 @@ static char * opt_mysql_unix_port=0;
 int main(int argc, char **argv)
 {
   int error;
-  my_bool first_argument_uses_wildcards=0;
+  bool first_argument_uses_wildcards=0;
   char *wild;
   MYSQL mysql;
   MY_INIT(argv[0]);
@@ -316,7 +317,7 @@ are shown.");
 
 
 extern "C" {
-static my_bool
+static bool
 get_one_option(int optid, const struct my_option *opt,
 	       char *argument)
 {
@@ -543,7 +544,7 @@ list_tables(MYSQL *mysql,const char *db,const char *table)
   uint counter = 0;
   char query[NAME_LEN + 100], rows[NAME_LEN], fields[16];
   MYSQL_FIELD *field;
-  MYSQL_RES *result;
+  MYSQL_RES *result= nullptr;
   MYSQL_ROW row, rrow;
 
   if (mysql_select_db(mysql,db))

@@ -17,17 +17,16 @@
 #define RPL_REPORTING_H
 
 #include <stdarg.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <sys/types.h>
 #include <time.h>
 
 #include "my_compiler.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_loglevel.h"
-#include "my_sys.h"                   // my_time
 #include "mysql/psi/mysql_mutex.h"
-
+#include "my_systime.h"              //my_getsystime
 
 /**
    Maximum size of an error message from a slave thread.
@@ -108,12 +107,14 @@ public:
     {
       struct tm tm_tmp;
       struct tm *start;
+      time_t tt_tmp;
 
-      skr= my_time(0);
-      localtime_r(&skr, &tm_tmp);
+      skr= my_getsystime()/10;
+      tt_tmp= skr/1000000;
+      localtime_r(&tt_tmp, &tm_tmp);
       start=&tm_tmp;
 
-      sprintf(timestamp, "%02d%02d%02d %02d:%02d:%02d",
+      snprintf(timestamp, sizeof(timestamp), "%02d%02d%02d %02d:%02d:%02d",
               start->tm_year % 100,
               start->tm_mon+1,
               start->tm_mday,
@@ -128,9 +129,9 @@ public:
     /** Error message */
     char message[MAX_SLAVE_ERRMSG];
     /** Error timestamp as string */
-    char timestamp[16];
-    /** Error timestamp as time_t variable. Used in performance_schema */
-    time_t skr;
+    char timestamp[64];
+    /** Error timestamp in microseconds. Used in performance_schema */
+    ulonglong skr;
 
   };
 

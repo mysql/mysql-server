@@ -31,7 +31,6 @@
 #include "dd/types/abstract_table.h"          // dd::Abstract_table
 #include "dd/types/object_type.h"             // dd::Object_type
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 
 namespace dd {
@@ -131,10 +130,10 @@ public:
   // hidden.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual bool hidden() const
+  virtual enum_hidden_type hidden() const
   { return m_hidden; }
 
-  virtual void set_hidden(bool hidden)
+  virtual void set_hidden(enum_hidden_type hidden)
   { m_hidden= hidden; }
 
   /////////////////////////////////////////////////////////////////////////
@@ -158,10 +157,10 @@ public:
   Column *get_column(const String_type name);
 
   // Fix "inherits ... via dominance" warnings
-  virtual Weak_object_impl *impl()
-  { return Weak_object_impl::impl(); }
-  virtual const Weak_object_impl *impl() const
-  { return Weak_object_impl::impl(); }
+  virtual Entity_object_impl *impl()
+  { return Entity_object_impl::impl(); }
+  virtual const Entity_object_impl *impl() const
+  { return Entity_object_impl::impl(); }
   virtual Object_id id() const
   { return Entity_object_impl::id(); }
   virtual bool is_persistent() const
@@ -188,7 +187,7 @@ private:
   ulonglong m_created;
   ulonglong m_last_altered;
 
-  bool m_hidden;
+  enum_hidden_type m_hidden;
 
   std::unique_ptr<Properties> m_options;
 

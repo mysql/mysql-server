@@ -106,6 +106,3 @@ SELECT table_comment,char_length(table_comment) FROM information_schema.tables W
 SELECT column_comment,char_length(column_comment) FROM information_schema.columns WHERE table_name='t1' ORDER BY column_comment;
 SELECT comment,index_comment,char_length(index_comment) FROM information_schema.statistics WHERE table_name='t1' ORDER BY comment, index_comment;
 SET sql_mode=default;
-
-
-

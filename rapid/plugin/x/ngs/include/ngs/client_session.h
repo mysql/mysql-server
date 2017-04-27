@@ -20,9 +20,11 @@
 #ifndef _NGS_CLIENT_SESSION_H_
 #define _NGS_CLIENT_SESSION_H_
 
+#include <assert.h>
+
+#include "interface/authentication_interface.h"
 #include "interface/session_interface.h"
 #include "my_inttypes.h"
-#include "ngs/protocol_authentication.h"
 #include "ngs/protocol_encoder.h"
 #include "ngs/thread.h"
 
@@ -45,8 +47,8 @@ namespace ngs
   public:
     virtual void on_close(const bool update_old_state = false);
     virtual void on_kill();
-    virtual void on_auth_success(const Authentication_handler::Response &response);
-    virtual void on_auth_failure(const Authentication_handler::Response &response);
+    virtual void on_auth_success(const Authentication_interface::Response &response);
+    virtual void on_auth_failure(const Authentication_interface::Response &response);
 
     // handle a single message, returns true if message was handled false if not
     virtual bool handle_message(ngs::Request &command);
@@ -68,7 +70,7 @@ namespace ngs
   protected:
     Client_interface &m_client;
     Protocol_encoder *m_encoder;
-    Authentication_handler_ptr m_auth_handler;
+    Authentication_interface_ptr m_auth_handler;
     State m_state;
     State m_state_before_close;
 

@@ -1,44 +1,34 @@
 call mtr.add_suppression(".* Failed to activate default role .*");
 # test CREATE ROLE and variations of authorizationID:
 # WL988.I-1
+# Role is not a reserved keyword
 CREATE ROLE role;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'role' at line 1
-CREATE ROLE 'role';
+DROP ROLE role;
 CREATE ROLE `ident with space`;
 CREATE ROLE 'text string';
 CREATE ROLE role@host;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'role@host' at line 1
-CREATE ROLE 'role'@host;
+DROP ROLE role@host;
 CREATE ROLE 'role'@`host`;
-ERROR HY000: Operation CREATE ROLE failed for 'role'@'host'
 CREATE ROLE IF NOT EXISTS 'role'@'host';
 Warnings:
 Note	3163	Authorization ID 'role'@'host' already exists.
+DROP ROLE 'role'@`host`;
 CREATE ROLE `role`@host;
-ERROR HY000: Operation CREATE ROLE failed for 'role'@'host'
+DROP ROLE `role`@host;
 CREATE ROLE `role`@`host`;
-ERROR HY000: Operation CREATE ROLE failed for 'role'@'host'
-CREATE ROLE `role`@'host';
-ERROR HY000: Operation CREATE ROLE failed for 'role'@'host'
-CREATE ROLE 'role'@host;
-ERROR HY000: Operation CREATE ROLE failed for 'role'@'host'
-CREATE ROLE 'role'@`host`;
-ERROR HY000: Operation CREATE ROLE failed for 'role'@'host'
-CREATE ROLE 'role'@'host';
-ERROR HY000: Operation CREATE ROLE failed for 'role'@'host'
-CREATE ROLE role1, role2;
+DROP ROLE `role`@`host`;
+CREATE ROLE role, role1, role2;
 CREATE ROLE r1 IDENTIFIED BY 'test';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'IDENTIFIED BY 'test'' at line 1
 # Created roles should not allow login per default
 # WL988.R-1.4
-SELECT user,host, plugin,IF(account_locked = 'Y',"Account is locked","ERROR") FROM mysql.user u WHERE u.user <> 'root' AND u.user <> 'mysql.sys';
+SELECT user,host, plugin,IF(account_locked = 'Y',"Account is locked","ERROR") FROM mysql.user u WHERE u.user NOT IN ('root', 'mysql.sys', 'mysql.session_user');
 user	host	plugin	IF(account_locked = 'Y',"Account is locked","ERROR")
 ident with space	%	mysql_native_password	Account is locked
 role	%	mysql_native_password	Account is locked
 role1	%	mysql_native_password	Account is locked
 role2	%	mysql_native_password	Account is locked
 text string	%	mysql_native_password	Account is locked
-role	host	mysql_native_password	Account is locked
 # Creating roles which already exist should not cause an error to be raised
 # WL988.I-1
 CREATE ROLE IF NOT EXISTS role1, role2;
@@ -59,7 +49,7 @@ CREATE USER user1, user2, user3@host3;
 # or admin_roles privilege on the roles to be granted.
 # WL988 R-2.9
 GRANT role1 TO user1;
-ERROR 42000: Access denied; you need (at least one of) the WITH ADMIN, SUPER privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the WITH ADMIN, ROLE_ADMIN, SUPER privilege(s) for this operation
 CREATE ROLE role2@host2;
 CREATE ROLE role3;
 # Granting many roles to each user in a list of users.
@@ -96,12 +86,12 @@ GRANT SELECT ON test.* TO wp_administrators;
 TODO verify that joe@localhost can transfer wp_administrators
 # Granting a role on SQL objects must fail.
 GRANT engineering ON *.*, SUPER ON *.* TO joan, sally;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ON *.*, SUPER ON *.* TO joan, sally' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ' SUPER ON *.* TO joan, sally' at line 1
 # Mixing ACLs and roles in a grant must fail.
 GRANT SUPER, engineering ON *.* TO joan, sally;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'engineering ON *.* TO joan, sally' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use
 GRANT engineering,SELECT ON *.* TO joan;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SELECT ON *.* TO joan' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use
 # Make sure current_user() works correctly!
 GRANT 'role',engineering TO current_user();
 # WL988.I-6 SET ROLE
@@ -163,9 +153,9 @@ CURRENT_ROLE()
 `role`@`%`,`engineering`@`%`
 SHOW GRANTS FOR current_user() USING `engineering`@`%`,`role`@`%`;
 Grants for root@localhost
-GRANT ALL PRIVILEGES ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `root`@`localhost` WITH GRANT OPTION
 GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
-GRANT `role`@`%`,`engineering`@`%` TO `root`@`localhost`
+GRANT `engineering`@`%`,`role`@`%` TO `root`@`localhost`
 GRANT role1 TO current_user();
 SET ROLE ALL EXCEPT role1;
 SELECT CURRENT_ROLE();
@@ -283,6 +273,7 @@ DROP ROLE IF EXISTS role1, role2;
 DROP ROLE IF EXISTS `role`, `role`@`host`;
 Warnings:
 Note	3162	Authorization ID 'role'@'%' does not exist.
+Note	3162	Authorization ID 'role'@'host' does not exist.
 # ...unless this is what we want:
 DROP ROLE 'role';
 ERROR HY000: Operation DROP ROLE failed for 'role'@'%'
@@ -806,7 +797,7 @@ HOST	USER	DEFAULT_ROLE_HOST	DEFAULT_ROLE_USER
 localhost	joe_schema_designer	%	schema_designer
 DROP DATABASE db1;
 DROP PROCEDURE test.sp1;
-SELECT user,host FROM mysql.user WHERE user <> 'root' AND user <> 'mysql.sys';
+SELECT user,host FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session_user');
 user	host
 backup_admin	%
 db_admin	%
@@ -888,7 +879,7 @@ ALTER USER u1@localhost DEFAULT ROLE r1,r2;
 --------------------------
 SHOW GRANTS;
 Grants for root@localhost
-GRANT ALL PRIVILEGES ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `root`@`localhost` WITH GRANT OPTION
 GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
 --------------------------
 SHOW GRANTS FOR u1@localhost USING r1;
@@ -1010,35 +1001,43 @@ SHOW PRIVILEGES;
 Privilege	Context	Comment
 Alter	Tables	To alter the table
 Alter routine	Functions,Procedures	To alter or drop stored functions/procedures
+BINLOG_ADMIN	Server Admin	
+CONNECTION_ADMIN	Server Admin	
 Create	Databases,Tables,Indexes	To create new databases and tables
-Create routine	Databases	To use CREATE FUNCTION/PROCEDURE
 Create role	Server Admin	To create new roles
+Create routine	Databases	To use CREATE FUNCTION/PROCEDURE
+Create tablespace	Server Admin	To create/alter/drop tablespaces
 Create temporary tables	Databases	To use CREATE TEMPORARY TABLE
-Create view	Tables	To create new views
 Create user	Server Admin	To create new users
+Create view	Tables	To create new views
 Delete	Tables	To delete existing rows
 Drop	Databases,Tables	To drop databases, tables, and views
 Drop role	Server Admin	To drop roles
+ENCRYPTION_KEY_ADMIN	Server Admin	
 Event	Server Admin	To create, alter, drop and execute events
 Execute	Functions,Procedures	To execute stored routines
 File	File access on server	To read and write files on the server
+GROUP_REPLICATION_ADMIN	Server Admin	
 Grant option	Databases,Tables,Functions,Procedures	To give to other users those privileges you possess
 Index	Tables	To create or drop indexes
 Insert	Tables	To insert data into tables
 Lock tables	Databases	To use LOCK TABLES (together with SELECT privilege)
 Process	Server Admin	To view the plain text of currently executing queries
 Proxy	Server Admin	To make proxy user possible
+REPLICATION_SLAVE_ADMIN	Server Admin	
+ROLE_ADMIN	Server Admin	
 References	Databases,Tables	To have references on tables
 Reload	Server Admin	To reload or refresh tables, logs and privileges
 Replication client	Server Admin	To ask where the slave or master servers are
 Replication slave	Server Admin	To read binary log events from the master
+SET_USER_ID	Server Admin	
+SYSTEM_VARIABLES_ADMIN	Server Admin	
 Select	Tables	To retrieve rows from table
 Show databases	Server Admin	To see all databases with SHOW DATABASES
 Show view	Tables	To see views with SHOW CREATE VIEW
 Shutdown	Server Admin	To shut down the server
 Super	Server Admin	To use KILL thread, SET GLOBAL, CHANGE MASTER, etc.
 Trigger	Tables	To use triggers
-Create tablespace	Server Admin	To create/alter/drop tablespaces
 Update	Tables	To update existing rows
 Usage	Server Admin	No privileges - allow connect only
 CREATE USER u1@localhost IDENTIFIED BY 'foo';
@@ -1073,6 +1072,10 @@ GRANT `r1`@`%` TO `u1`@`localhost`
 SELECT CURRENT_ROLE();
 CURRENT_ROLE()
 `r1`@`%`
+++ charset should be utf8
+SELECT CHARSET(CURRENT_ROLE());
+CHARSET(CURRENT_ROLE())
+binary
 SET ROLE DEFAULT;
 SELECT CURRENT_ROLE();
 CURRENT_ROLE()

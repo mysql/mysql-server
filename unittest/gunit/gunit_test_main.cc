@@ -20,7 +20,6 @@
 #include <sys/types.h>
 
 #include "my_getopt.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
@@ -31,8 +30,8 @@ CHARSET_INFO *system_charset_info= NULL;
 
 namespace {
 
-my_bool opt_use_tap= true;
-my_bool opt_unit_help= false;
+bool opt_use_tap= true;
+bool opt_unit_help= false;
 
 struct my_option unittest_options[] =
 {
@@ -52,7 +51,7 @@ struct my_option unittest_options[] =
 };
 
 
-extern "C" my_bool get_one_option(int, const struct my_option *, char *)
+extern "C" bool get_one_option(int, const struct my_option *, char *)
 {
   return FALSE;
 }
@@ -62,10 +61,8 @@ extern "C" my_bool get_one_option(int, const struct my_option *, char *)
 // Some globals needed for merge_small_tests.cc
 mysql_mutex_t LOCK_open;
 uint    opt_debug_sync_timeout= 0;
-thread_local_key_t THR_MALLOC;
-thread_local_key_t THR_THD;
-bool THR_THD_initialized= false;
-bool THR_MALLOC_initialized= false;
+thread_local MEM_ROOT **THR_MALLOC= nullptr;
+thread_local THD *current_thd= nullptr;
 // Needed for linking with opt_costconstantcache.cc and Fake_Cost_model_server
 Cost_constant_cache *cost_constant_cache= NULL;
 

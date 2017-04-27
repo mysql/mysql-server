@@ -21,7 +21,6 @@
 
 #include "mdl.h"                       // MDL_savepoint
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"                    // strmake_root
 #include "rpl_transaction_ctx.h"       // Rpl_transaction_ctx

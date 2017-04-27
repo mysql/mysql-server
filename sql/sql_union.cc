@@ -62,7 +62,7 @@
 #include "sql_select.h"
 #include "sql_tmp_table.h"                      // tmp tables
 
-bool Query_result_union::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
+bool Query_result_union::prepare(List<Item>&, SELECT_LEX_UNIT *u)
 {
   unit= u;
   return false;
@@ -302,7 +302,7 @@ public:
     result->abort_result_set(); /* purecov: inspected */
   }
   void cleanup() override {}
-  void set_thd(THD *thd_arg)
+  void set_thd(THD*)
   {
     /*
       Only called for top-level Query_results, usually Query_result_send,
@@ -337,7 +337,7 @@ bool Query_result_union_direct::postponed_prepare(List<Item> &types)
 }
 
 
-bool Query_result_union_direct::send_result_set_metadata(List<Item> &list,
+bool Query_result_union_direct::send_result_set_metadata(List<Item>&,
                                                          uint flags)
 {
   if (result_set_metadata_sent)
@@ -505,8 +505,7 @@ bool SELECT_LEX_UNIT::prepare_fake_select_lex(THD *thd_arg)
       repeatedly, so this table has all the attributes of a recursive
       reference:
     */
-    result_table_list.is_recursive_reference= true;
-    fake_select_lex->recursive_reference= &result_table_list;
+    result_table_list.set_recursive_reference();
   }
 
   if (fake_select_lex->prepare(thd_arg))
@@ -1387,6 +1386,7 @@ bool SELECT_LEX_UNIT::cleanup(bool full)
       error:
     */
     fake_select_lex->table_list.empty();
+    fake_select_lex->recursive_reference= nullptr;
     error|= fake_select_lex->cleanup(full);
   }
 
@@ -1564,7 +1564,7 @@ static void destroy_materialized(THD *thd, TABLE_LIST *list)
       if (tl->common_table_expr())
         tl->common_table_expr()->tmp_tables.clear();
     }
-    else if (!tl->is_recursive_reference && !tl->schema_table)
+    else if (!tl->is_recursive_reference() && !tl->schema_table)
       continue;
     free_tmp_table(thd, tl->table);
   }

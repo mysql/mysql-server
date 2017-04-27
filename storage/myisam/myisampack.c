@@ -22,6 +22,8 @@
 #include <my_getopt.h>
 #include <my_tree.h>
 #include <stdlib.h>
+#include <sys/types.h>
+#include <time.h>
 #include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
 #include "my_compiler.h"
@@ -122,14 +124,14 @@ typedef struct st_isam_mrg {
   uint	max_blob_length;
   my_off_t records;
   /* true if at least one source file has at least one disabled index */
-  my_bool src_file_has_indexes_disabled;
+  bool src_file_has_indexes_disabled;
 } PACK_MRG_INFO;
 
 
 extern int main(int argc,char * *argv);
 static void get_options(int *argc,char ***argv);
 static MI_INFO *open_isam_file(char *name,int mode);
-static my_bool open_isam_files(PACK_MRG_INFO *mrg,char **names,uint count);
+static bool open_isam_files(PACK_MRG_INFO *mrg,char **names,uint count);
 static int compress(PACK_MRG_INFO *file,char *join_name);
 static int create_dest_frm(char *source_table, char *dest_table);
 static HUFF_COUNTS *init_huff_count(MI_INFO *info,my_off_t records);
@@ -168,7 +170,7 @@ static uint max_bit(uint value);
 static int compress_isam_file(PACK_MRG_INFO *file,HUFF_COUNTS *huff_counts);
 static char *make_new_name(char *new_name,char *old_name);
 static char *make_old_name(char *new_name,char *old_name);
-static void init_file_buffer(File file,my_bool read_buffer);
+static void init_file_buffer(File file,bool read_buffer);
 static int flush_buffer(ulong neaded_length);
 static void end_file_buffer(void);
 static void write_bits(ulonglong value, uint bits);
@@ -189,7 +191,7 @@ static int fakecmp(const void *a, const void *b);
 static int error_on_write=0,test_only=0,verbose=0,silent=0,
 	   write_loop=0,force_pack=0, isamchk_neaded=0;
 static int tmpfile_createflag=O_RDWR | O_TRUNC | O_EXCL;
-static my_bool backup, opt_wait;
+static bool backup, opt_wait;
 /*
   tree_buff_length is somewhat arbitrary. The bigger it is the better
   the chance to win in terms of compression factor. On the other hand,
@@ -326,7 +328,7 @@ static void usage(void)
 }
 
 
-static my_bool
+static bool
 get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
 	       char *argument)
 {
@@ -440,7 +442,7 @@ static MI_INFO *open_isam_file(char *name,int mode)
 }
 
 
-static my_bool open_isam_files(PACK_MRG_INFO *mrg, char **names, uint count)
+static bool open_isam_files(PACK_MRG_INFO *mrg, char **names, uint count)
 {
   uint i,j;
   mrg->count=0;
@@ -887,7 +889,7 @@ static int get_statistic(PACK_MRG_INFO *mrg,HUFF_COUNTS *huff_counts)
   ulong reclength,max_blob_length;
   uchar *record,*pos,*next_pos,*end_pos,*start_pos;
   ha_rows record_count;
-  my_bool static_row_size;
+  bool static_row_size;
   HUFF_COUNTS *count,*end_count;
   TREE_ELEMENT *element;
   DBUG_ENTER("get_statistic");
@@ -2840,7 +2842,7 @@ static char *make_old_name(char *new_name, char *old_name)
 
 	/* rutines for bit writing buffer */
 
-static void init_file_buffer(File file, my_bool read_buffer)
+static void init_file_buffer(File file, bool read_buffer)
 {
   file_buffer.file=file;
   file_buffer.buffer= (uchar*) my_malloc(PSI_NOT_INSTRUMENTED,

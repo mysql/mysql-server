@@ -29,7 +29,7 @@ t
 t1
 SHOW EVENTS in mysqltest;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
-mysqltest	e	root@localhost	SYSTEM	ONE TIME	#	NULL	NULL	NULL	NULL	SLAVESIDE_DISABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
+mysqltest	e	root@localhost	SYSTEM	ONE TIME	#	NULL	NULL	NULL	NULL	SLAVESIDE_DISABLED	1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 DROP DATABASE IF EXISTS mysqltest;
 -------------BUG#47418-------------
 USE test;
@@ -86,7 +86,7 @@ Note	1050	Table 'v1' already exists
 include/show_binlog_events.inc
 SHOW CREATE TABLE v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t2`.`id` AS `id` from `t2`	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t2`.`id` AS `id` from `t2`	utf8mb4	utf8mb4_0900_ai_ci
 SELECT * FROM t2;
 id
 2

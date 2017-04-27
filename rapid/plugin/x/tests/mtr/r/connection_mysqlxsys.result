@@ -60,6 +60,12 @@ drop user mysqlxsys@localhost;
 create user mysqlxsys@localhost;
 grant ALL on *.* to mysqlxsys@localhost;
 grant SUPER on *.* to mysqlxsys@localhost;
+Warnings:
+Warning	1287	The SUPER privilege identifier is deprecated
+SHOW GRANTS FOR mysqlxsys@localhost;
+Grants for mysqlxsys@localhost
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `mysqlxsys`@`localhost`
+GRANT BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,REPLICATION_SLAVE_ADMIN,ROLE_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN ON *.* TO `mysqlxsys`@`localhost`
 install plugin mysqlx soname "mysqlx.so";
 select sleep(1);
 sleep(1)
@@ -83,6 +89,8 @@ Start mysqlxplugin with existing mysqlxsys account with expired password
 CREATE USER mysqlxsys@localhost;
 GRANT SELECT ON mysql.user TO mysqlxsys@localhost;
 GRANT SUPER ON *.* TO mysqlxsys@localhost;
+Warnings:
+Warning	1287	The SUPER privilege identifier is deprecated
 ALTER USER mysqlxsys@localhost PASSWORD EXPIRE;
 install plugin mysqlx soname "mysqlx.so";
 Application terminated with expected error: Password for mysqlxsys@localhost account has been expired (code 1045)
@@ -113,6 +121,8 @@ GRANT ALL PRIVILEGES ON *.* TO 'super_user'@'localhost' WITH GRANT OPTION;
 CREATE USER mysqlxsys@localhost;
 GRANT SELECT ON mysql.user TO mysqlxsys@localhost;
 GRANT SUPER ON *.* TO mysqlxsys@localhost;
+Warnings:
+Warning	1287	The SUPER privilege identifier is deprecated
 ALTER USER mysqlxsys@localhost PASSWORD EXPIRE;
 ALTER USER root@localhost PASSWORD EXPIRE;
 install plugin mysqlx soname "mysqlx.so";

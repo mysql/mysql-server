@@ -34,18 +34,21 @@ eval CREATE TABLE t_10 (a INT,
   b VARCHAR(25),
   c DATE,
   PRIMARY KEY (a)) $data_directory $index_directory
+charset latin1
 ENGINE = $engine_table;
 
 eval CREATE TABLE t_100 (a INT,
   b VARCHAR(25),
   c DATE,
   PRIMARY KEY (a)) $data_directory $index_directory
+charset latin1
 ENGINE = $engine_table;
 
 eval CREATE TABLE t_1000 (a INT,
   b VARCHAR(25),
   c DATE,
   PRIMARY KEY (a)) $data_directory $index_directory
+charset latin1
 ENGINE = $engine_table;
 
 # Values t_10 (not partitioned)
@@ -66,27 +69,34 @@ eval CREATE TABLE t_empty (a INT,
   b VARCHAR(25),
   c DATE,
   PRIMARY KEY (a)) $data_directory $index_directory
+charset latin1
 ENGINE = $engine_table;
 
 eval CREATE TABLE t_null (a INT,
   b VARCHAR(25),
   c DATE,
   PRIMARY KEY (a)) $data_directory $index_directory
+charset latin1
 ENGINE = $engine_table;
 
 eval CREATE TABLE tsp_01(a INT,b VARCHAR(25),c DATE,PRIMARY KEY (a))
+             charset latin1
              ENGINE = $engine_table $data_directory $index_directory
              AS SELECT a, b FROM t_10 WHERE MOD(a,5)= 1;
 eval CREATE TABLE tsp_02(a INT,b VARCHAR(25),c DATE,PRIMARY KEY (a)) 
+     	     charset latin1
              ENGINE = $engine_table $data_directory $index_directory
              AS SELECT a, b FROM t_10 WHERE MOD(a,5)= 2;
 eval CREATE TABLE tsp_03(a INT,b VARCHAR(25),c DATE,PRIMARY KEY (a)) 
+     	     charset latin1
              ENGINE = $engine_table $data_directory $index_directory
              AS SELECT a, b FROM t_10 WHERE MOD(a,5)= 3;
 eval CREATE TABLE tsp_04(a INT,b VARCHAR(25),c DATE,PRIMARY KEY (a)) 
+     	     charset latin1
              ENGINE = $engine_table $data_directory $index_directory
              AS SELECT a, b FROM t_10 WHERE MOD(a,5)= 4;
 eval CREATE TABLE tsp_00(a INT,b VARCHAR(25),c DATE,PRIMARY KEY (a)) 
+             charset latin1
              ENGINE = $engine_table $data_directory $index_directory
              AS SELECT a, b FROM t_10 WHERE MOD(a,5)= 0;
  
@@ -95,6 +105,7 @@ eval CREATE TABLE tp_r (a INT,
   b VARCHAR(25),
   c DATE,
   PRIMARY KEY (a)) $data_directory $index_directory
+charset latin1
 ENGINE = $engine_part
 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (10) $p_data_directory $p_index_directory,
@@ -105,6 +116,7 @@ eval CREATE TABLE tsp_r (a INT,
   b VARCHAR(25),
   c DATE,
   PRIMARY KEY (a)) $data_directory $index_directory
+charset latin1
 ENGINE = $engine_subpart
 PARTITION BY RANGE (a)
 SUBPARTITION BY HASH(a)
@@ -145,6 +157,7 @@ INSERT INTO tsp_r VALUES (182, "Hundred eight-two", '2182-01-01'), (184, "Hundre
 
 --error ER_VALUES_IS_NOT_INT_TYPE_ERROR
 eval CREATE TABLE tp_rvar(a INT,b VARCHAR(25),c DATE,PRIMARY KEY (b)) 
+             charset latin1
              ENGINE = $engine_table $data_directory $index_directory
 PARTITION BY RANGE (b)
 (PARTITION p0 VALUES LESS THAN ('H') $p_data_directory $p_index_directory,
@@ -155,6 +168,7 @@ PARTITION BY RANGE (b)
 
 eval CREATE TABLE tp_rintvar(a INT,b VARCHAR(25),c DATE,
              PRIMARY KEY (a,b))
+             charset latin1
              ENGINE = $engine_table $data_directory $index_directory
 PARTITION BY RANGE COLUMNS (a,b)
 (PARTITION p0 VALUES LESS THAN (10,'HHHHHHHHHHHHHHHHHHHHHHHHH'),
@@ -164,6 +178,7 @@ PARTITION BY RANGE COLUMNS (a,b)
              AS SELECT a, b, c FROM tp_r;
 
 eval CREATE TABLE tp_rvar(a INT,b VARCHAR(25),c DATE) 
+             charset latin1
              ENGINE = $engine_table $data_directory $index_directory
 PARTITION BY RANGE COLUMNS (b)
 (PARTITION p0 VALUES LESS THAN ('HHHHHHHHHHHHHHHHHHHHHHHHH'),
@@ -174,6 +189,7 @@ PARTITION BY RANGE COLUMNS (b)
 
 eval CREATE TABLE tp_rintdate(a INT,b VARCHAR(25),c DATE, 
              PRIMARY KEY (a,c))
+             charset latin1
              ENGINE = $engine_table $data_directory $index_directory
 PARTITION BY RANGE COLUMNS (a,c)
 (PARTITION p0 VALUES LESS THAN (10,'2010-01-01'),
@@ -187,6 +203,7 @@ INSERT tp_rintdate SELECT * FROM t_1000;
 
 eval CREATE TABLE tp_rdate(a INT,b VARCHAR(25),c DATE,
              PRIMARY KEY (c))
+             charset latin1
              ENGINE = $engine_table $data_directory $index_directory
 PARTITION BY RANGE COLUMNS (c)
 (PARTITION p0 VALUES LESS THAN ('2010-01-01'),
@@ -196,6 +213,7 @@ PARTITION BY RANGE COLUMNS (c)
              AS SELECT a, b, c FROM tp_r;
 
 eval CREATE TABLE tsp_rvar(a INT,b VARCHAR(25),c DATE) 
+             charset latin1
              ENGINE = $engine_table $data_directory $index_directory
 PARTITION BY RANGE COLUMNS (b)
 SUBPARTITION BY HASH(a)
@@ -221,6 +239,7 @@ SUBPARTITIONS 5
   AS SELECT a, b, c FROM tsp_r;
 
 eval CREATE TABLE tsp_rvar1(a INT,b VARCHAR(25),c DATE) 
+             charset latin1
              ENGINE = $engine_table $data_directory $index_directory
 PARTITION BY RANGE COLUMNS (b)
 SUBPARTITION BY HASH(a)
@@ -235,6 +254,7 @@ eval CREATE TABLE tp_l (a INT,
   b VARCHAR(25),
   c DATE,
   PRIMARY KEY (a)) $data_directory $index_directory
+charset latin1
 ENGINE = $engine_part
 PARTITION BY LIST (a)
 (PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
@@ -252,6 +272,7 @@ eval CREATE TABLE tsp_l (a INT,
   b VARCHAR(25),
   c DATE,
   PRIMARY KEY (a)) $data_directory $index_directory
+charset latin1
 ENGINE = $engine_subpart
 PARTITION BY LIST (a)
 SUBPARTITION BY HASH(a)
@@ -286,6 +307,7 @@ eval CREATE TABLE tp_k (a INT,
   b VARCHAR(25),
   c DATE,
   PRIMARY KEY (a)) $data_directory $index_directory
+charset latin1
 ENGINE = $engine_subpart
 PARTITION BY KEY (a)
 PARTITIONS 3
@@ -295,6 +317,7 @@ eval CREATE TABLE tp_kvar (a INT,
   b VARCHAR(25),
   c DATE,
   PRIMARY KEY (b)) $data_directory $index_directory
+charset latin1
 ENGINE = $engine_subpart
 PARTITION BY KEY (b)
 PARTITIONS 3
@@ -304,6 +327,7 @@ eval CREATE TABLE tp_kdate (a INT,
   b VARCHAR(25),
   c DATE,
   PRIMARY KEY (c)) $data_directory $index_directory
+charset latin1
 ENGINE = $engine_subpart
 PARTITION BY KEY (c)
 PARTITIONS 3
@@ -314,6 +338,7 @@ eval CREATE TABLE tp_h (a INT,
   b VARCHAR(25),
   c DATE,
   PRIMARY KEY (a)) $data_directory $index_directory
+charset latin1
 ENGINE = $engine_subpart
 PARTITION BY HASH (a)
 PARTITIONS 3

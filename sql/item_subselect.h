@@ -26,7 +26,6 @@
 #include "item.h"   // Item_result_field
 #include "my_dbug.h"
 #include "my_decimal.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_table_map.h"
@@ -150,7 +149,11 @@ public:
   enum Type type() const override;
   bool is_null() override
   {
-    update_null_value();
+    /*
+      TODO : Implement error handling for this function as
+      update_null_value() can return error.
+    */
+    (void) update_null_value();
     return null_value;
   }
   bool fix_fields(THD *thd, Item **ref) override;

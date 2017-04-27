@@ -25,7 +25,6 @@
   @{
 */
 
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sharedlib.h"
 #include "psi_base.h"

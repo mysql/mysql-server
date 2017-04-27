@@ -13,9 +13,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "psi_memory_key.h"
+#include "sql/psi_memory_key.h"
 
-#include "my_global.h"
 #include "my_macros.h"
 #include "my_psi_config.h"
 #include "mysql/psi/mysql_memory.h"
@@ -32,7 +31,6 @@ PSI_memory_key key_memory_DATE_TIME_FORMAT;
 PSI_memory_key key_memory_DD_default_values;
 PSI_memory_key key_memory_DD_import;
 PSI_memory_key key_memory_DD_String_type;
-PSI_memory_key key_memory_DDL_LOG_MEMORY_ENTRY;
 PSI_memory_key key_memory_Event_queue_element_for_exec_names;
 PSI_memory_key key_memory_Event_scheduler_scheduler_param;
 PSI_memory_key key_memory_File_query_log_name;
@@ -270,7 +268,6 @@ static PSI_memory_info all_server_memory[]=
   { &key_memory_LOG_name, "LOG_name", 0},
   { &key_memory_DATE_TIME_FORMAT, "DATE_TIME_FORMAT", 0},
   { &key_memory_DD_String_type, "dd::String_type", 0},
-  { &key_memory_DDL_LOG_MEMORY_ENTRY, "DDL_LOG_MEMORY_ENTRY", 0},
   { &key_memory_ST_SCHEMA_TABLE, "ST_SCHEMA_TABLE", 0},
   { &key_memory_ignored_db, "ignored_db", 0},
   { &key_memory_PROFILE, "PROFILE", 0},

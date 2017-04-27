@@ -1,5 +1,4 @@
 --source include/have_ndb.inc
---source include/not_embedded.inc
 
 # Test is using error insert, check that binaries support it
 --source suite/ndb/t/have_ndb_error_insert.inc

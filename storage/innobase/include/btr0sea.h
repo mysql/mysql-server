@@ -153,15 +153,10 @@ btr_search_drop_page_hash_when_freed(
 	const page_id_t&	page_id,
 	const page_size_t&	page_size);
 
-/** Drop any adaptive hash index entries for a index.
-@param[in,out]	index	to drop AHI entries for this index */
-void
-btr_search_drop_index(dict_index_t* index);
-
 /** Drop any adaptive hash index entries for a table.
 @param[in,out]	table	to drop indexes of this table */
 void
-btr_search_drop_table(dict_table_t* table);
+btr_drop_ahi_for_table(dict_table_t* table);
 
 /** Updates the page hash index when a single record is inserted on a page.
 @param[in]	cursor	cursor which was positioned to the place to insert

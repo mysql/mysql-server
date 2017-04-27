@@ -6,7 +6,7 @@
 drop table if exists t1;
 --enable_warnings
 
-create table t1 (a varchar(10), key(a));
+create table t1 (a varchar(10), key(a)) charset utf8mb4;
 insert into t1 values ("a"),("abc"),("abcd"),("hello"),("test");
 analyze table t1;
 explain extended select * from t1 where a like 'abc%';
@@ -18,7 +18,7 @@ select * from t1 where a like "test%";
 select * from t1 where a like "te_t";
 
 #
-# The following will test the Boyer-Moore code
+# The following will test non-anchored matches
 #
 select * from t1 where a like "%a%";
 select * from t1 where a like "%abcd%";
@@ -203,7 +203,7 @@ DROP TABLE t1, t2;
 --echo # Bug#20035071: Out of range error in subselect lead to assertion failed
 
 CREATE TABLE t1(a INTEGER) engine=innodb;
---error ER_DATA_OUT_OF_RANGE
+# Error is OK but not mandatory.
 SELECT 1 FROM t1 HAVING (SELECT 1 FROM t1) LIKE EXP(NOW());
 DROP TABLE t1;
 

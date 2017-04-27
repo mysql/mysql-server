@@ -20,7 +20,7 @@
 --echo ================================================================================
 --echo PREAMBLE
 --echo ================================================================================
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 create user deletecruduser@localhost identified by 'deletecruduser';
 grant all on *.* to deletecruduser@localhost;
 

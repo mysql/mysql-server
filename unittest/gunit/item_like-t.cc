@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,14 +15,16 @@
 
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
-#include <gtest/gtest.h>
-#include <gmock/gmock.h>
 
-#include "test_utils.h"
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
+#include <stddef.h>
 
 #include "item.h"
 #include "item_cmpfunc.h"
 #include "sql_class.h"
+#include "test_utils.h"
+
 namespace item_like_unittest {
 
 using my_testing::Server_initializer;

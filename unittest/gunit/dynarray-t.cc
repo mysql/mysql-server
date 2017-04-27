@@ -14,6 +14,7 @@
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 #include <gtest/gtest.h>
+#include <sys/types.h>
 #include <algorithm>
 #include <functional>
 #include <vector>
@@ -95,11 +96,11 @@ namespace dynarray_unittest {
 // We still want to unit-test this, to compare performance.
 #undef my_init_dynamic_array
 extern "C" 
-my_bool my_init_dynamic_array(DYNAMIC_ARRAY *array,
-                              PSI_memory_key key,
-                              uint element_size,
-                              void *init_buffer, uint init_alloc,
-                              uint alloc_increment);
+bool my_init_dynamic_array(DYNAMIC_ARRAY *array,
+                           PSI_memory_key key,
+                           uint element_size,
+                           void *init_buffer, uint init_alloc,
+                           uint alloc_increment);
 /*
   Cut'n paste this function from sql_select.cc,
   to avoid linking in the entire server for this unit test.
@@ -247,9 +248,7 @@ protected:
   virtual void SetUp()
   {
     init_sql_alloc(PSI_NOT_INSTRUMENTED, &m_mem_root, 1024, 0);
-    ASSERT_EQ(0, my_set_thread_local(THR_MALLOC, &m_mem_root_p));
-    MEM_ROOT *root= *static_cast<MEM_ROOT**>(my_get_thread_local(THR_MALLOC));
-    ASSERT_EQ(root, m_mem_root_p);
+    THR_MALLOC= &m_mem_root_p;
 
     m_array_mysys.reserve(num_elements);
     m_array_std.reserve(num_elements);
@@ -264,18 +263,12 @@ protected:
   static void SetUpTestCase()
   {
     generate_test_data(test_data, table_list, num_elements);
-    ASSERT_EQ(0, my_create_thread_local_key(&THR_THD, NULL));
-    THR_THD_initialized= true;
-    ASSERT_EQ(0, my_create_thread_local_key(&THR_MALLOC, NULL));
-    THR_MALLOC_initialized= true;
+    THR_MALLOC= nullptr;
   }
 
   static void TearDownTestCase()
   {
-    my_delete_thread_local_key(THR_THD);
-    THR_THD_initialized= false;
-    my_delete_thread_local_key(THR_MALLOC);
-    THR_MALLOC_initialized= false;
+    THR_MALLOC= nullptr;
   }
 
   void insert_and_sort_mysys()
@@ -486,5 +479,55 @@ TEST_F(MemRootTest, ResizeShrink)
   EXPECT_EQ(5U, counter);
 }
 
+TEST_F(MemRootTest, Erase)
+{
+  using A= Mem_root_array<DestroyCounter>;
+  size_t counter= 0;
+  DestroyCounter foo(&counter);
+  A array(m_mem_root_p);
+  array.resize(10, foo);
+  EXPECT_EQ(10U, array.size());
+  EXPECT_EQ(0U, counter);
+
+  A::iterator it= array.erase(array.cbegin() + 2, array.cbegin() + 4);
+  EXPECT_EQ(8U, array.size());
+  EXPECT_EQ(array.begin() + 2, it);
+  EXPECT_EQ(2U, counter);
+
+  it= array.erase(array.cend(), array.cend());
+  EXPECT_EQ(8U, array.size());
+  EXPECT_EQ(array.cend(), it);
+  EXPECT_EQ(2U, counter);
+
+  it= array.erase(array.cbegin(), array.cbegin());
+  EXPECT_EQ(8U, array.size());
+  EXPECT_EQ(array.cbegin(), it);
+  EXPECT_EQ(2U, counter);
+
+  it= array.erase(array.cbegin(), array.cend());
+  EXPECT_EQ(0U, array.size());
+  EXPECT_EQ(array.cbegin(), it);
+  EXPECT_EQ(array.cend(), it);
+  EXPECT_EQ(10U, counter);
+}
+
+TEST_F(MemRootTest, Insert)
+{
+  using A= Mem_root_array<int>;
+  A array(m_mem_root_p);
+  A::iterator it= array.insert(array.cbegin(), 1);
+  EXPECT_EQ(array.cbegin(), it);
+  it= array.insert(array.cbegin(), 2);
+  EXPECT_EQ(array.cbegin(), it);
+  it= array.insert(array.cbegin() + 1, 3);
+  EXPECT_EQ(array.cbegin() + 1, it);
+  it= array.insert(array.cend(), 4);
+  EXPECT_EQ(array.cend() - 1, it);
+  EXPECT_EQ(4U, array.size());
+  EXPECT_EQ(2, array[0]);
+  EXPECT_EQ(3, array[1]);
+  EXPECT_EQ(1, array[2]);
+  EXPECT_EQ(4, array[3]);
+}
 
 }

@@ -12,7 +12,7 @@ drop table if exists t1;
 # Test MyISAM tables.
 #
 
-create table t1 (text1 varchar(32) not NULL, KEY key1 (text1));
+create table t1 (text1 varchar(32) not NULL, KEY key1 (text1)) charset latin1;
 insert into t1 values ('teststring'), ('nothing'), ('teststring\t');
 -- disable_result_log
 analyze table t1;
@@ -54,7 +54,7 @@ select concat('|', text1, '|') from t1 where text1='teststring' or text1 > 'test
 select concat('|', text1, '|') from t1 order by text1;
 drop table t1;
 
-create table t1 (text1 varchar(32) not NULL, KEY key1 (text1)) pack_keys=0;
+create table t1 (text1 varchar(32) not NULL, KEY key1 (text1)) charset latin1 pack_keys=0;
 insert into t1 values ('teststring'), ('nothing'), ('teststring\t');
 select concat('|', text1, '|') as c from t1 where text1='teststring' or text1 like 'teststring_%' order by c;
 select concat('|', text1, '|') from t1 where text1='teststring' or text1 >= 'teststring\t';
@@ -62,7 +62,8 @@ drop table t1;
 
 # Test HEAP tables (with BTREE keys)
 
-create table t1 (text1 varchar(32) not NULL, KEY key1 using BTREE (text1)) engine=heap;
+create table t1 (text1 varchar(32) not NULL, KEY key1 using BTREE (text1))
+charset latin1 engine=heap;
 insert into t1 values ('teststring'), ('nothing'), ('teststring\t');
 select * from t1 ignore key (key1) where text1='teststring' or 
   text1 like 'teststring_%' ORDER BY text1;
@@ -79,7 +80,8 @@ drop table t1;
 # Test InnoDB tables
 #
 
-create table t1 (text1 varchar(32) not NULL, KEY key1 (text1)) engine=innodb;
+create table t1 (text1 varchar(32) not NULL, KEY key1 (text1))
+charset latin1 engine=innodb;
 insert into t1 values ('teststring'), ('nothing'), ('teststring\t');
 -- disable_result_log
 analyze table t1;

@@ -1,8 +1,6 @@
 --source include/have_ndb.inc
 --source include/have_debug.inc
 
-# Embedded server does not support restarting
---source include/not_embedded.inc
 
 let MYSQLD_DATADIR= `select @@datadir`;
 # Setup path to server output log file

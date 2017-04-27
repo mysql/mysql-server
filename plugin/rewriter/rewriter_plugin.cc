@@ -14,16 +14,17 @@
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
     02110-1301  USA */
 
+#include "my_config.h"
+
 #include <my_atomic.h>
-#include <my_global.h>
 #include <my_sys.h>
 #include <mysql/plugin_audit.h>
 #include <mysql/psi/mysql_thread.h>
 #include <mysql/service_my_plugin_log.h>
+#include <stddef.h>
 #include <algorithm>
 #include <new>
 
-#include "my_config.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_psi_config.h"
@@ -103,7 +104,7 @@ static st_mysql_show_var rewriter_plugin_status_vars[]=
 static int sys_var_verbose;
 
 /// Enabled.
-static my_bool sys_var_enabled;
+static bool sys_var_enabled;
 
 /// Updater function for the status variable ..._verbose.
 static void update_verbose(MYSQL_THD, struct st_mysql_sys_var *, void *,
@@ -116,7 +117,7 @@ static void update_verbose(MYSQL_THD, struct st_mysql_sys_var *, void *,
 static void update_enabled(MYSQL_THD, struct st_mysql_sys_var *, void *,
                            const void *value)
 {
-  sys_var_enabled= *static_cast<const int*>(value);
+  sys_var_enabled= *static_cast<const bool*>(value);
 }
 
 
@@ -339,8 +340,10 @@ static void log_nonrewritten_query(MYSQL_THD thd, const uchar *digest_buf,
   query when the plugin is active. The function extracts the digest of the
   query. If the digest matches an existing rewrite rule, it is executed.
 */
-static int rewrite_query_notify(MYSQL_THD thd, mysql_event_class_t event_class,
-                                 const void *event)
+static
+int rewrite_query_notify(MYSQL_THD thd,
+                         mysql_event_class_t event_class MY_ATTRIBUTE((unused)),
+                         const void *event)
 {
   DBUG_ASSERT(event_class == MYSQL_AUDIT_PARSE_CLASS);
 

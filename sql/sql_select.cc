@@ -59,7 +59,6 @@
 #include "query_options.h"
 #include "query_result.h"
 #include "records.h"             // init_read_record, end_read_record
-#include "sql_analyse.h"         // Query_result_analyse
 #include "sql_base.h"
 #include "sql_cache.h"           // query_cache
 #include "sql_do.h"
@@ -443,14 +442,6 @@ bool Sql_cmd_select::prepare_inner(THD *thd)
         return true;                          /* purecov: inspected */
     }
     result= lex->result;
-    Query_result *analyse_result= NULL;
-    if (lex->proc_analyse)
-    {
-      if ((result= analyse_result=
-           new (thd->mem_root) Query_result_analyse(thd, result,
-                                                    lex->proc_analyse)) == NULL)
-        return true;                      /* purecov: inspected */
-    }
   }
 
   SELECT_LEX_UNIT *const unit= lex->unit;
@@ -641,6 +632,8 @@ bool Sql_cmd_dml::execute(THD *thd)
 
   // Do partial cleanup (preserve plans for EXPLAIN).
   res= unit->cleanup(false);
+  lex->clear_values_map();
+
 
   // Perform statement-specific cleanup for Query_result
   if (result != NULL)
@@ -656,6 +649,14 @@ bool Sql_cmd_dml::execute(THD *thd)
   if (statement_timer_armed && thd->timer)
     reset_statement_timer(thd);
 
+  /*
+    This sync point is normally right before thd->query_plan is reset, so
+    EXPLAIN FOR CONNECTION can catch the plan. It is copied here as
+    after unprepare() EXPLAIN considers the query as "not ready".
+    @todo remove in WL#6570 together with unprepare().
+  */
+  DEBUG_SYNC(thd, "before_reset_query_plan");
+
   // "unprepare" this object since unit->cleanup actually unprepares.
   unprepare(thd);
 
@@ -668,6 +669,7 @@ err:
   prepare_only= true;
 
   (void) unit->cleanup(false);
+  lex->clear_values_map();
 
   // Abort and cleanup the result set (if it has been prepared).
   if (result != NULL)
@@ -1657,8 +1659,7 @@ bool SELECT_LEX::optimize(THD *thd)
   Find how much space the prevous read not const tables takes in cache.
 */
 
-void calc_used_field_length(THD *thd,
-                            TABLE *table,
+void calc_used_field_length(TABLE *table,
                             bool keep_current_rowid,
                             uint *p_used_fields,
                             uint *p_used_fieldlength,
@@ -1691,7 +1692,7 @@ void calc_used_field_length(THD *thd,
   if (null_fields || uneven_bit_fields)
     rec_length+= (table->s->null_fields + 7) / 8;
   if (table->is_nullable())
-    rec_length+= sizeof(my_bool);
+    rec_length+= sizeof(bool);
   if (blobs)
   {
     uint blob_length=(uint) (table->file->stats.mean_rec_length-
@@ -2614,7 +2615,7 @@ bool JOIN::setup_semijoin_materialized_table(JOIN_TAB *tab, uint tableno,
     a proper ref access for this table.
   */
   Key_use_array *keyuse=
-   create_keyuse_for_table(thd, table, field_count, sjm_opt->mat_fields,
+   create_keyuse_for_table(thd, field_count, sjm_opt->mat_fields,
                            emb_sj_nest->nested_join->sj_outer_exprs);
   if (!keyuse)
     DBUG_RETURN(true);
@@ -2935,7 +2936,7 @@ make_join_readinfo(JOIN *join, uint no_jbuf_after)
                                    false) : COND_FILTER_ALLPASS;
     }
 
-    DBUG_ASSERT(!qep_tab->table_ref->is_recursive_reference ||
+    DBUG_ASSERT(!qep_tab->table_ref->is_recursive_reference() ||
                 qep_tab->type() == JT_ALL);
 
     qep_tab->pick_table_access_method(tab);
@@ -3289,7 +3290,7 @@ ORDER *simple_remove_const(ORDER *order, Item *where)
   ORDER *first= NULL, *prev= NULL;
   for (; order; order= order->next)
   {
-    DBUG_ASSERT(!order->item[0]->with_sum_func); // should never happen
+    DBUG_ASSERT(!order->item[0]->has_aggregation()); // should never happen
     if (!const_expression_in_where(where, order->item[0]))
     {
       if (!first)
@@ -3528,8 +3529,8 @@ count_field_types(SELECT_LEX *select_lex, Temp_table_param *param,
     {
       param->func_count++;
       if (reset_with_sum_func)
-	field->with_sum_func=0;
-      if (field->with_sum_func)
+        field->reset_aggregation();
+      if (field->has_aggregation())
         param->outer_sum_func_count++;
     }
   }
@@ -3708,7 +3709,7 @@ bool JOIN::alloc_func_list()
 
 bool JOIN::make_sum_func_list(List<Item> &field_list,
                               List<Item> &send_result_set_metadata,
-			      bool before_group_by, bool recompute)
+                              bool before_group_by, bool recompute)
 {
   List_iterator_fast<Item> it(field_list);
   Item_sum **func;
@@ -3747,14 +3748,13 @@ bool JOIN::make_sum_func_list(List<Item> &field_list,
 /**
   Free joins of subselect of this select.
 
-  @param thd      THD pointer
   @param select   pointer to SELECT_LEX which subselects joins we will free
 
   @todo when the final use of this function (from SET statements) is removed,
   this function can be deleted.
 */
 
-void free_underlaid_joins(THD *thd, SELECT_LEX *select)
+void free_underlaid_joins(SELECT_LEX *select)
 {
   for (SELECT_LEX_UNIT *unit= select->first_inner_unit();
        unit;
@@ -3837,7 +3837,7 @@ bool JOIN::rollup_process_const_fields()
 */
 
 bool JOIN::rollup_make_fields(List<Item> &fields_arg, List<Item> &sel_fields,
-			      Item_sum ***func)
+                              Item_sum ***func)
 {
   List_iterator_fast<Item> it(fields_arg);
   Item *first_field= sel_fields.head();
@@ -4776,7 +4776,7 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER_with_src *order,
 
   for (nr=0; nr < table->s->keys ; nr++)
   {
-    int direction;
+    int direction= 0;
     uint used_key_parts;
     bool  skip_quick;
 

@@ -20,7 +20,6 @@
   Compatibility layer to make available YaSSL's SHA1 implementation.
 */
 
-#include <my_global.h>
 #include <sha1.h>
 
 #include "my_inttypes.h"

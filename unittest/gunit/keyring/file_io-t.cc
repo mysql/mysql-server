@@ -15,7 +15,6 @@
 
 #include <fcntl.h>
 #include <gtest/gtest.h>
-#include <my_global.h>
 
 #include "current_thd.h"
 #include "file_io.h"
@@ -51,7 +50,8 @@ namespace keyring__file_io_unittest
 
       //Set user as super
       Security_context* sec_ctx= current_thd->security_context();
-      sec_ctx->set_master_access(sec_ctx->master_access() | SUPER_ACL);
+      sec_ctx->set_master_access(sec_ctx->master_access() |
+                                 SUPER_ACL);
     }
 
     virtual void TearDown()

@@ -16,19 +16,21 @@
 #ifndef RPL_MSR_H
 #define RPL_MSR_H
 
+#include "my_config.h"
+
 #include <stddef.h>
 #include <sys/types.h>
 #include <map>
 #include <string>
 #include <utility>
 
-#include "my_config.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_psi_config.h"
 #include "mysqld.h"                        // key_rwlock_channel_map_lock
 #include "rpl_channel_service_interface.h" // enum_channel_type
 #include "rpl_gtid.h"
+#include "rpl_mi.h"
+#include "rpl_filter.h"
 
 class Master_info;
 
@@ -40,6 +42,8 @@ class Master_info;
 typedef std::map<std::string, Master_info*> mi_map;
 //Maps a channel type to a map of channels of that type.
 typedef std::map<int, mi_map> replication_channel_map;
+//Maps a replication filter to a channel name.
+typedef std::map<std::string, Rpl_filter*> filter_map;
 
 /**
   Class to store all the Master_info objects of a slave
@@ -177,14 +181,11 @@ public:
     @param[in]  channel_name      channel name
     @param[in]  mi                pointer to master info corresponding
                                   to this channel
-    @param[in]  channel_type      The channel type. Default is a slave channel
-
     @return
       @retval      false       succesfully added
       @retval      true        couldn't add channel
   */
-  bool add_mi(const char* channel_name, Master_info* mi,
-              enum_channel_type channel_type= SLAVE_REPLICATION_CHANNEL);
+  bool add_mi(const char* channel_name, Master_info* mi);
 
   /**
     Find the master_info object corresponding to a channel explicitly
@@ -409,8 +410,198 @@ public:
   { m_channel_map_lock->assert_some_wrlock(); }
 };
 
+
+/**
+  Class to maintain a filter map which maps a replication filter to a channel
+  name. It is needed, because replication channels are not created and
+  channel_map is not filled in when these global and per-channel replication
+  filters are evaluated with current code frame.
+  In theory, after instantiating all channels from the repository and throwing
+  all the warnings about the filters configured for non-existent channels, we
+  can forget about its global object rpl_filter_map and rely only in the
+  global and per channel rpl_filter objects. But to avoid holding the
+  channel_map.rdlock() when quering P_S.replication_applier_filters table, we
+  keep the rpl_channel_map. So that we just need to hold the small
+  rpl_filter_map.rdlock() when quering P_S.replication_applier_filters table.
+  Many operations (RESET SLAVE [FOR CHANNEL], START SLAVE, INIT SLAVE,
+  END SLAVE, CHANGE MASTER TO, FLUSH RELAY LOGS, START CHANNEL, PURGE CHANNEL,
+  and so on) hold the channel_map.wrlock().
+*/
+class Multisource_filter_info
+{
+private:
+  /* Store all replication filters with channel names. */
+  filter_map channel_to_filter;
+  /* Store pointers of all Rpl_pfs_filter objects in the channel_to_filter. */
+  std::vector<Rpl_pfs_filter*> rpl_pfs_filter_vec;
+  /*
+    This lock was designed to protect the channel_to_filter from reading,
+    adding, or removing its objects from the map. It is used to preventing
+    the following commands to run in parallel:
+      RESET SLAVE ALL [FOR CHANNEL '<channel_name>']
+      CHANGE MASTER TO ... FOR CHANNEL
+      SELECT FROM performance_schema.replication_applier_filters
+
+    Please acquire a wrlock when modifying the map structure (RESET SLAVE ALL
+    [FOR CHANNEL '<channel_name>'], CHANGE MASTER TO ... FOR CHANNEL).
+    Please acqurie a rdlock when querying existing filter(s) (SELECT FROM
+    performance_schema.replication_applier_filters).
+
+    Note: To modify the object from the map, please see the protection of
+    m_rpl_filter_lock in Rpl_filter.
+  */
+  Checkable_rwlock *m_channel_to_filter_lock;
+
+public:
+  /**
+    Create a new replication filter and add it into a filter map.
+
+    @param channel_name A name of a channel.
+
+    @retval Rpl_filter A pointer to a replication filter, or NULL
+                       if we failed to add it into fiter_map.
+  */
+  Rpl_filter* create_filter(const char* channel_name);
+  /**
+    Delete the replication filter from the filter map.
+
+    @param rpl_filter A pointer to point to a replication filter.
+  */
+  void delete_filter(Rpl_filter* rpl_filter);
+  /**
+    Discard all replication filters if they are not attached to channels.
+  */
+  void discard_all_unattached_filters();
+  /**
+    Get a replication filter of a channel.
+
+    @param channel_name A name of a channel.
+
+    @retval Rpl_filter A pointer to a replication filter, or NULL
+                       if we failed to add a replication filter
+                       into fiter_map when creating it.
+  */
+  Rpl_filter* get_channel_filter(const char* channel_name);
+
+#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
+
+  /**
+    This member function is called everytime a filter is created
+    deleted or dropped. Once that happens the PFS view is
+    recreated.
+   */
+  void reset_pfs_view();
+
+  /**
+    Used only by replication performance schema indices to get the replication
+    filter at the position 'pos' from the rpl_pfs_filter_vec vector.
+
+    @param pos the index in the rpl_pfs_filter_vec vector.
+
+    @retval Rpl_filter A pointer to a Rpl_pfs_filter, or NULL if it
+                       arrived the end of the rpl_pfs_filter_vec.
+  */
+  Rpl_pfs_filter* get_filter_at_pos(uint pos);
+  /**
+    Used only by replication performance schema indices to get the count
+    of replication filters from the rpl_pfs_filter_vec vector.
+
+    @retval the count of the replication filters.
+  */
+  uint get_filter_count();
+#endif /*WITH_PERFSCHEMA_STORAGE_ENGINE */
+
+  /**
+    Traverse the filter map, build do_table and ignore_table
+    rules to hashes for every filter.
+
+    @retval
+      0    OK
+    @retval
+      -1   Error
+  */
+  bool build_do_and_ignore_table_hashes();
+
+  /* Constructor for this class.*/
+  Multisource_filter_info()
+  {
+     m_channel_to_filter_lock=
+       new Checkable_rwlock(
+#ifdef HAVE_PSI_INTERFACE
+                            key_rwlock_channel_to_filter_lock
+#endif
+                           );
+  }
+
+  /* Destructor for this class. */
+  ~Multisource_filter_info()
+  {
+    delete m_channel_to_filter_lock;
+  }
+
+  /**
+    Traverse the filter map and free all filters. Delete all objects
+    in the rpl_pfs_filter_vec vector and then clear the vector.
+  */
+  void clean_up()
+  {
+    /* Traverse the filter map and free all filters */
+    for (filter_map::iterator it= channel_to_filter.begin();
+         it != channel_to_filter.end(); it++)
+    {
+      if (it->second != NULL)
+      {
+        delete it->second;
+        it->second= NULL;
+      }
+    }
+
+    if (rpl_pfs_filter_vec.size() > 0)
+      cleanup_rpl_pfs_filter_vec();
+  }
+
+  /**
+    Delete all objects in the rpl_pfs_filter_vec vector
+    and then clear the vector.
+  */
+  void cleanup_rpl_pfs_filter_vec()
+  {
+    /* Delete all objects in the rpl_pfs_filter_vec vector. */
+    std::vector<Rpl_pfs_filter*>::iterator it;
+    for(it= rpl_pfs_filter_vec.begin(); it != rpl_pfs_filter_vec.end(); ++it)
+    {
+      delete(*it);
+      *it= NULL;
+    }
+
+    rpl_pfs_filter_vec.clear();
+  }
+
+  /**
+    Acquire the write lock.
+  */
+  inline void wrlock()
+  { m_channel_to_filter_lock->wrlock(); }
+
+  /**
+    Acquire the read lock.
+  */
+  inline void rdlock()
+  { m_channel_to_filter_lock->rdlock(); }
+
+  /**
+    Release the lock (whether it is a write or read lock).
+  */
+  inline void unlock()
+  { m_channel_to_filter_lock->unlock(); }
+};
+
+
 /* Global object for multisourced slave. */
 extern Multisource_info channel_map;
+
+/* Global object for storing per-channel replication filters */
+extern Multisource_filter_info rpl_filter_map;
 
 static bool inline is_slave_configured()
 {

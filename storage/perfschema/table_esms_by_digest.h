@@ -22,6 +22,8 @@
   Table EVENTS_STATEMENTS_SUMMARY_BY_DIGEST (declarations).
 */
 
+#include <sys/types.h>
+
 #include "my_inttypes.h"
 #include "pfs_digest.h"
 #include "table_helper.h"
@@ -68,6 +70,13 @@ struct row_esms_by_digest
   ulonglong m_first_seen;
   /** Column LAST_SEEN. */
   ulonglong m_last_seen;
+
+  /** Column QUANTILE_95. */
+  ulonglong m_p95;
+  /** Column QUANTILE_99. */
+  ulonglong m_p99;
+  /** Column QUANTILE_999. */
+  ulonglong m_p999;
 };
 
 /** Table PERFORMANCE_SCHEMA.EVENTS_STATEMENTS_SUMMARY_BY_DIGEST. */
@@ -76,7 +85,7 @@ class table_esms_by_digest : public PFS_engine_table
 public:
   /** Table share */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table *create();
+  static PFS_engine_table *create(PFS_engine_table_share *);
   static int delete_all_rows();
   static ha_rows get_row_count();
 

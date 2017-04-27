@@ -2313,11 +2313,11 @@ drop table if exists t1;
 create table t1 (a int);
 prepare stmt from "show collation where (1) in (select * from t1)";
 execute stmt;
-Collation	Charset	Id	Default	Compiled	Sortlen
+Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
 drop table t1;
 create table t1 (x int);
 execute stmt;
-Collation	Charset	Id	Default	Compiled	Sortlen
+Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
 drop table t1;
 deallocate prepare stmt;
 #
@@ -2394,8 +2394,20 @@ deallocate prepare stmt;
 # SQLCOM_SHOW_EVENTS
 #
 #
-# Please see this test in ps.test, it requires not_embedded.inc
+# Bug#27430 Crash in subquery code when in PS and table DDL changed
+# after PREPARE
 #
+drop table if exists t1;
+create table t1 (a int);
+prepare stmt from "show events where (1) in (select * from t1)";
+execute stmt;
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
+drop table t1;
+create table t1 (x int);
+execute stmt;
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
+drop table t1;
+deallocate prepare stmt;
 #
 # SQLCOM_SET_OPTION
 #
@@ -2453,8 +2465,8 @@ deallocate prepare stmt;
 # Intermediate result: number of reprepares matches the number
 # of tests
 call p_verify_reprepare_count(17);
-SUCCESS
-
+ERROR
+Expected: 17, actual: 18
 #
 # SQLCOM_ALTER_VIEW
 #

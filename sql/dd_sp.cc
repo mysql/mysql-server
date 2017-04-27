@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "dd_sp.h"
+#include "sql/dd_sp.h"
 
 #include <string.h>
 #include <sys/types.h>
@@ -30,10 +30,10 @@
 #include "dd/types/view.h"
 #include "dd_table_share.h"                    // dd_get_mysql_charset
 #include "field.h"
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql_com.h"

@@ -15,14 +15,16 @@
 
 /**
   @file storage/perfschema/pfs_instr_class.cc
-  Performance schema instruments meta data (implementation).
+  Performance schema instruments metadata (implementation).
 */
+
+#include "storage/perfschema/pfs_instr_class.h"
 
 #include <string.h>
 
+#include "lex_string.h"
 #include "lf.h"
 #include "my_dbug.h"
-#include "my_global.h"
 #include "my_macros.h"
 #include "my_sys.h"
 #include "mysql/psi/mysql_thread.h"
@@ -34,7 +36,6 @@
 #include "pfs_events_waits.h"
 #include "pfs_global.h"
 #include "pfs_instr.h"
-#include "pfs_instr_class.h"
 #include "pfs_program.h"
 #include "pfs_setup_object.h"
 #include "pfs_timer.h"
@@ -51,7 +52,7 @@
   Indicate if the performance schema is enabled.
   This flag is set at startup, and never changes.
 */
-my_bool pfs_enabled = TRUE;
+bool pfs_enabled = TRUE;
 
 /**
   PFS_INSTRUMENT option settings array
@@ -226,7 +227,7 @@ uint socket_class_start = 0;
 void
 init_event_name_sizing(const PFS_global_param *param)
 {
-  /* global table io, table lock, idle, metadata */
+  /* global table I/O, table lock, idle, metadata */
   mutex_class_start = COUNT_GLOBAL_EVENT_INDEX;
   rwlock_class_start = mutex_class_start + param->m_mutex_class_sizing;
   cond_class_start = rwlock_class_start + param->m_rwlock_class_sizing;
@@ -238,7 +239,7 @@ init_event_name_sizing(const PFS_global_param *param)
 void
 register_global_classes()
 {
-  /* Table IO class */
+  /* Table I/O class */
   init_instr_class(&global_table_io_class,
                    table_io_class_name.str,
                    (uint)table_io_class_name.length,
@@ -272,8 +273,6 @@ register_global_classes()
                    0,
                    PFS_CLASS_METADATA);
   global_metadata_class.m_event_name_index = GLOBAL_METADATA_EVENT_INDEX;
-  global_metadata_class.m_enabled = false; /* Disabled by default */
-  global_metadata_class.m_timed = false;
   configure_instr_class(&global_metadata_class);
 
   /* Error class */
@@ -296,8 +295,6 @@ register_global_classes()
                    0,
                    PFS_CLASS_TRANSACTION);
   global_transaction_class.m_event_name_index = GLOBAL_TRANSACTION_INDEX;
-  global_transaction_class.m_enabled = false; /* Disabled by default */
-  global_transaction_class.m_timed = false;
   configure_instr_class(&global_transaction_class);
   transaction_class_max = 1; /* used for sizing by other event classes */
 }
@@ -1800,7 +1797,6 @@ register_memory_class(const char *name, uint name_length, PSI_memory_info *info)
     entry = &memory_class_array[index];
     init_instr_class(entry, name, name_length, info->m_flags, PFS_CLASS_MEMORY);
     entry->m_event_name_index = index;
-    entry->m_enabled = false; /* disabled by default */
     /* Set user-defined configuration options for this instrument */
     configure_instr_class(entry);
     entry->m_timed = false; /* Immutable */
@@ -2278,7 +2274,7 @@ reset_events_waits_by_class()
   global_metadata_stat.reset();
 }
 
-/** Reset the io statistics per file class. */
+/** Reset the I/O statistics per file class. */
 void
 reset_file_class_io(void)
 {
@@ -2291,7 +2287,7 @@ reset_file_class_io(void)
   }
 }
 
-/** Reset the io statistics per socket class. */
+/** Reset the I/O statistics per socket class. */
 void
 reset_socket_class_io(void)
 {

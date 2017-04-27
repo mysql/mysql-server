@@ -16,11 +16,9 @@
 #ifndef DD__SCHEMA_INCLUDED
 #define DD__SCHEMA_INCLUDED
 
-#include "my_global.h"
-#include "my_inttypes.h"
-
-#include "dd/types/dictionary_object.h"   // dd::Dictionary_object
 #include "dd/sdi_fwd.h"                   // RJ_Document
+#include "dd/types/entity_object.h"   // dd::Entity_object
+#include "my_inttypes.h"
 
 class THD;
 
@@ -28,6 +26,7 @@ namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
+class Entity_object_table;
 class Item_name_key;
 class Object_type;
 class Primary_id_key;
@@ -44,11 +43,11 @@ namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Schema : public Dictionary_object
+class Schema : virtual public Entity_object
 {
 public:
   static const Object_type &TYPE();
-  static const Dictionary_object_table &OBJECT_TABLE();
+  static const Entity_object_table &OBJECT_TABLE();
 
   typedef Schema cache_partition_type;
   typedef tables::Schemata cache_partition_table_type;

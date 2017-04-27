@@ -20,7 +20,6 @@
 #include <sys/types.h>
 
 #include "my_base.h"        // ha_rows
-#include "my_global.h"
 #include "my_sqlcommand.h"
 #include "my_table_map.h"
 #include "query_result.h"   // Query_result_interceptor

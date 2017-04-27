@@ -16,7 +16,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
+#ifndef ha_innodb_h
+#define ha_innodb_h
+
 /* The InnoDB handler: the interface between MySQL and InnoDB. */
+
+#include <sys/types.h>
 
 #include "handler.h"
 #include "my_compiler.h"
@@ -27,8 +32,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** "GEN_CLUST_INDEX" is the name reserved for InnoDB default
 system clustered index when there is no primary key. */
 extern const char innobase_index_reserve_name[];
-
-extern thread_local dd::Object_id thread_local_dd_space_id;
 
 /* Structure defines translation table between mysql index and InnoDB
 index structures */
@@ -71,12 +74,6 @@ public:
 	~ha_innobase();
 
 	row_type get_real_row_type(const HA_CREATE_INFO *create_info) const;
-
-	/** Get the row type from the storage engine.  If this method returns
-	ROW_TYPE_NOT_USED, the information in HA_CREATE_INFO should be used.
-	This method has been added to handle upgrade scenario. It will be
-	removed in the future. */
-	row_type get_row_type_for_upgrade() const;
 
 	const char* table_type() const;
 
@@ -206,7 +203,9 @@ public:
 
 	int optimize(THD* thd,HA_CHECK_OPT* check_opt);
 
-	int discard_or_import_tablespace(my_bool discard, dd::Table* table_def);
+	int discard_or_import_tablespace(
+		bool		discard,
+		dd::Table*	table_def);
 
 	int extra(ha_extra_function operation);
 
@@ -262,6 +261,18 @@ public:
 		uint,
 		dd::Table*	dd_table);
 
+	/** Set Engine specific data to dd::Table object for upgrade.
+	@param[in,out]  thd		thread handle
+	@param[in]	db_name		database name
+	@param[in]	table_name	table name
+	@param[in,out]	dd_table	data dictionary cache object
+	@return 0 on success, non-zero on failure */
+	bool upgrade_table(
+		THD*			thd,
+		const char*		db_name,
+		const char*		table_name,
+		dd::Table*		dd_table);
+
 	/** Create an InnoDB table.
 	@param[in]	name		table name in filename-safe encoding
 	@param[in]	form		table structure
@@ -269,7 +280,6 @@ public:
 	@param[in,out]	table_def	dd::Table describing table to be created.
 	Can be adjusted by SE, the changes will be saved into data-dictionary at
 	statement commit time.
-	@param[in]	file_per_table	whether to create a tablespace too
 	@return error number
 	@retval 0 on success */
 	int create(
@@ -341,7 +351,7 @@ public:
 
 	void init_table_handle_for_HANDLER();
 
-        virtual void get_auto_increment(
+	virtual void get_auto_increment(
 		ulonglong		offset,
 		ulonglong		increment,
 		ulonglong		nb_desired_values,
@@ -357,7 +367,7 @@ public:
 	/**
 	Ask handler about permission to cache table during query registration
 	*/
-	my_bool register_query_cache_table(
+	bool register_query_cache_table(
 		THD*			thd,
 		char*			table_key,
 		size_t			key_length,
@@ -394,9 +404,9 @@ public:
 	@param[in]	altered_table	TABLE object for new version of table.
 	@param[in,out]	ha_alter_info	Structure describing changes to be done
 	by ALTER TABLE and holding data used during in-place alter.
-	@param old_table_def dd::Table object describing old version
+	@param[in]	old_dd_tab	dd::Table object describing old version
 	of the table.
-	@param new_table_def dd::Table object for the new version of the
+	@param[in,out]	new_dd_tab	dd::Table object for the new version of the
 	table. Can be adjusted by this call. Changes to the table
 	definition will be persisted in the data-dictionary at statement
 	commit time.
@@ -407,8 +417,8 @@ public:
 	bool prepare_inplace_alter_table(
 		TABLE*			altered_table,
 		Alter_inplace_info*	ha_alter_info,
-		const dd::Table*	old_table_def,
-		dd::Table*		new_table_def);
+		const dd::Table*	old_dd_tab,
+		dd::Table*		new_dd_tab);
 
 	/** Alter the table structure in-place with operations
 	specified using HA_ALTER_FLAGS and Alter_inplace_information.
@@ -418,9 +428,9 @@ public:
 	@param[in]	altered_table	TABLE object for new version of table.
 	@param[in,out]	ha_alter_info	Structure describing changes to be done
 	by ALTER TABLE and holding data used during in-place alter.
-	@param old_table_def dd::Table object describing old version
+	@param[in]	 old_dd_tab	dd::Table object describing old version
 	of the table.
-	@param new_table_def dd::Table object for the new version of the
+	@param[in,out]	 new_dd_tab	dd::Table object for the new version of the
 	table. Can be adjusted by this call. Changes to the table
 	definition will be persisted in the data-dictionary at statement
 	commit time.
@@ -431,8 +441,8 @@ public:
 	bool inplace_alter_table(
 		TABLE*			altered_table,
 		Alter_inplace_info*	ha_alter_info,
-		const dd::Table*	old_table_def,
-		dd::Table*		new_table_def);
+		const dd::Table*	old_dd_tab,
+		dd::Table*		new_dd_tab);
 
 	/** Commit or rollback the changes made during
 	prepare_inplace_alter_table() and inplace_alter_table() inside
@@ -446,9 +456,9 @@ public:
 	@param[in,out]	ha_alter_info	Structure describing changes to be done
 	by ALTER TABLE and holding data used during in-place alter.
 	@param commit true => Commit, false => Rollback.
-	@param old_table_def dd::Table object describing old version
+	@param old_dd_tab dd::Table object describing old version
 	of the table.
-	@param new_table_def dd::Table object for the new version of the
+	@param new_dd_tab dd::Table object for the new version of the
 	table. Can be adjusted by this call. Changes to the table
 	definition will be persisted in the data-dictionary at statement
 	commit time.
@@ -459,8 +469,8 @@ public:
 		TABLE*			altered_table,
 		Alter_inplace_info*	ha_alter_info,
 		bool			commit,
-		const dd::Table*	old_table_def,
-		dd::Table*		new_table_def);
+		const dd::Table*	old_dd_tab,
+		dd::Table*		new_dd_tab);
 	/** @} */
 
 	bool check_if_incompatible_data(
@@ -591,7 +601,7 @@ protected:
 	@param[in]	name		table name in filename-safe encoding
 	@param[in]	form		table structure
 	@param[in]	create_info	more information
-	@param[in,out]	dd_table	data dictionary cache object
+	@param[in,out]	dd_tab		data dictionary cache object
 	@param[in]	file_per_table	whether to create a tablespace too
 	@return	error number
 	@retval	0 on success */
@@ -605,15 +615,15 @@ protected:
 
 	/** Implementation of dropping a table.
 	@param[in]	name		table name
-	@param[in,out]	dd_table	data dictionary table
+	@param[in,out]	dd_tab		data dictionary table
 	@param[in]	sqlcom		type of operation that the DROP
 					is part of
 	@return	error number
 	@retval	0 on success */
 	template<typename Table>
-        int delete_table_impl(
+	int delete_table_impl(
 		const char*		name,
-		const Table*		dd_table,
+		const Table*		dd_tab,
 		enum enum_sql_command	sqlcom);
 
 	/** Renames an InnoDB table.
@@ -639,11 +649,12 @@ protected:
 	/** Implementation of prepare_inplace_alter_table()
 	@param[in]	altered_table	TABLE object for new version of table.
 	@param[in,out]	ha_alter_info	Structure describing changes to be done
-	by ALTER TABLE and holding data used during in-place alter.
+					by ALTER TABLE and holding data used
+					during in-place alter.
 	@param[in]	old_dd_tab	dd::Table object representing old
-	version of the table
+					version of the table
 	@param[in,out]	new_dd_tab	dd::Table object representing new
-	version of the table
+					version of the table
 	@retval	true Failure
 	@retval	false Success */
 	template<typename Table>
@@ -657,11 +668,12 @@ protected:
 	/** Implementation of inplace_alter_table()
 	@param[in]	altered_table	TABLE object for new version of table.
 	@param[in,out]	ha_alter_info	Structure describing changes to be done
-	by ALTER TABLE and holding data used during in-place alter.
+					by ALTER TABLE and holding data used
+					during in-place alter.
 	@param[in]	old_dd_tab	dd::Table object representing old
-	version of the table
+					version of the table
 	@param[in,out]	new_dd_tab	dd::Table object representing new
-	version of the table
+					version of the table
 	@retval	true Failure
 	@retval	false Success */
 	template<typename Table>
@@ -675,13 +687,16 @@ protected:
 	/** Implementation of commit_inplace_alter_table()
 	@param[in]	altered_table	TABLE object for new version of table.
 	@param[in,out]	ha_alter_info	Structure describing changes to be done
-	by ALTER TABLE and holding data used during in-place alter.
+					by ALTER TABLE and holding data used
+					during in-place alter.
 	@param[in]	commit		True to commit or false to rollback.
-	@param[1n]	old_dd_tab      Table object describing old version
-	of the table.
-	@param[in]      new_dd_tab	Table object for the new version of the
-	table. Can be adjusted by this call. Changes to the table definition
-	will be persisted in the data-dictionary at statement version of it.
+	@param[in]	old_dd_tab      Table object describing old version
+					of the table.
+	@param[in,out]	new_dd_tab	Table object for the new version of the
+					table. Can be adjusted by this call.
+					Changes to the table definition
+					will be persisted in the data-dictionary
+					at statement version of it.
 	@retval	true Failure
 	@retval	false Success */
 	template<typename Table>
@@ -729,7 +744,7 @@ protected:
 	ulint			m_stored_select_lock_type;
 
 	/** If mysql has locked with external_lock() */
-	bool                    m_mysql_has_locked;
+	bool			m_mysql_has_locked;
 };
 
 struct trx_t;
@@ -886,7 +901,7 @@ public:
 	void set_tablespace_type(bool table_being_altered_is_file_per_table);
 
 	/** Create the internal innodb table.
-	@param[in]	dd_table	dd::Table
+	@param[in]	dd_table	dd::Table or nullptr for intrinsic table
 	@return 0 or error number */
 	int create_table(const dd::Table*	dd_table);
 
@@ -894,8 +909,7 @@ public:
 	int create_table_update_dict();
 
 	/** Update the global data dictionary.
-	@tparam		Table	dd::Table or dd::Partition
-	@param[in]	table	table object
+	@param[in]	dd_table	table object
 	@return	0		On success
 	@retval	error number	On failure*/
 	template<typename Table>
@@ -959,6 +973,21 @@ public:
 		return((m_flags2 & DICT_TF2_INTRINSIC) != 0);
 	}
 
+	/** Prevent the created table to be evicted from cache, also all
+	auxiliary tables.
+	Call this if the DD would be updated after dict_sys mutex is released,
+	since all opening table functions require metadata updated to DD.
+	@return	True	The eviction of base table is changed,
+			so detach should handle it
+	@return	False	Already not evicted base table */
+	bool prevent_eviction();
+
+	/** Detach the just created table and its auxiliary tables.
+	@param[in]	prevented	True if the base table was prevented
+					to be evicted by prevent_eviction()
+	@param[in]	dict_locked	True if dict_sys mutex is held */
+	void detach(bool prevented, bool dict_locked);
+
 	/** Normalizes a table name string.
 	A normalized name consists of the database name catenated to '/' and
 	table name. An example: test/mytable. On Windows normalization puts
@@ -969,9 +998,9 @@ public:
 	@param[in]	set_lower_case	True if we want to set name to lower
 					case. */
 	static void normalize_table_name_low(
-		char*           norm_name,
-		const char*     name,
-		ibool           set_lower_case);
+		char*		norm_name,
+		const char*	name,
+		ibool		set_lower_case);
 
 	static void dd_tablespace_set_name(
 		dd::Tablespace*	dd_space,
@@ -997,8 +1026,10 @@ private:
 	parse_table_name(
 		const char*	name);
 
-	/** Create the internal innodb table definition. */
-	int create_table_def();
+	/** Create the internal innodb table definition.
+	@param[in]	dd_table	dd::Table or nullptr for intrinsic table
+	@return ER_* level error */
+	int create_table_def(const dd::Table*	dd_table);
 
 	/** Initialize the autoinc of this table if necessary, which should
 	be called before we flush logs, so autoinc counter can be persisted. */
@@ -1179,7 +1210,7 @@ void
 innobase_commit_low(
 	trx_t*	trx);
 
-extern my_bool	innobase_stats_on_metadata;
+extern bool	innobase_stats_on_metadata;
 
 /** Calculate Record Per Key value.
 Need to exclude the NULL value if innodb_stats_method is set to "nulls_ignored"
@@ -1216,45 +1247,11 @@ the table virtual columns' template
 @param[in,out]	ib_table	InnoDB dict_table_t */
 void
 innobase_build_v_templ_callback(
-        const TABLE*	table,
-        void*		ib_table);
+	const TABLE*	table,
+	void*		ib_table);
 
 /** Callback function definition, used by MySQL server layer to initialized
 the table virtual columns' template */
 typedef void (*my_gcolumn_templatecallback_t)(const TABLE*, void*);
 
-/** Create metadata for implicit tablespace
-@param[in,out]	dd_client	data dictionary client
-@param[in,out]	thd		THD
-@param[in,out]	dd_space	tablespace metadata
-@param[in]	space		InnoDB tablespace ID
-@param[in]	filename	tablespace filename
-@param[in,out]	dd_space_id	dd tablespace id
-@retval	false	on success
-@retval	true	on failure */
-bool
-innobase_create_implicit_dd_tablespace(
-	dd::cache::Dictionary_client*	dd_client,
-	THD*				thd,
-	space_id_t			space,
-	const char*			filename,
-	dd::Object_id&			dd_space_id);
-
-template<typename Table>
-void
-innobase_write_dd_table(
-	dd::Object_id		dd_space_id,
-	Table*			dd_table,
-	const dict_table_t*	table);
-
-template<typename Index>
-void
-innobase_write_dd_index(
-	dd::Object_id		dd_space_id,
-	Index*			dd_index,
-	const dict_index_t*	index);
-
-void
-innobase_adjust_fts_doc_id_index_order(
-	const dd::Table&	dd_table,
-	dict_table_t*		table);
+#endif /* ha_innodb_h */

@@ -68,6 +68,7 @@
 #include "thr_mutex.h"
 #include "xa.h"
 #include "mysqld_error.h"
+#include "dynamic_privilege_table.h"
 #include "role_tables.h"        // close_all_role_tables
 
 #define INVALID_DATE "0000-00-00 00:00:00"
@@ -123,7 +124,7 @@ bool initialized=0;
 bool acl_cache_initialized= false;
 bool allow_all_hosts=1;
 uint grant_version=0; /* Version of priv tables */
-my_bool validate_user_plugins= TRUE;
+bool validate_user_plugins= TRUE;
 
 #define IP_ADDR_STRLEN (3 + 1 + 3 + 1 + 3 + 1 + 3)
 #define ACL_KEY_LENGTH (IP_ADDR_STRLEN + 1 + NAME_LEN + \
@@ -889,7 +890,7 @@ bool GRANT_TABLE::init(TABLE *col_privs)
 */
 
 ACL_USER *
-find_acl_user(const char *host, const char *user, my_bool exact)
+find_acl_user(const char *host, const char *user, bool exact)
 {
   DBUG_ENTER("find_acl_user");
   DBUG_PRINT("enter",("host: '%s'  user: '%s'",host,user));
@@ -1110,7 +1111,7 @@ insert_entry_in_db_cache(THD *thd, acl_entry *entry)
 */
 
 ulong acl_get(THD *thd, const char *host, const char *ip,
-              const char *user, const char *db, my_bool db_is_pattern)
+              const char *user, const char *db, bool db_is_pattern)
 {
   ulong host_access= ~(ulong)0, db_access= 0;
   size_t key_length, copy_length;
@@ -1378,6 +1379,7 @@ bool acl_getroot(THD *thd, Security_context *sctx, char *user, char *host,
                            strlen(acl_user->host.get_host()) : 0);
 
     sctx->set_password_expired(acl_user->password_expired);
+    sctx->lock_account(acl_user->account_locked);
   } // end if
  
   if (acl_user && sctx->get_active_roles()->size() > 0)
@@ -1569,10 +1571,10 @@ void roles_init(THD *thd)
     1   Could not initialize grant's
 */
 
-my_bool acl_init(bool dont_read_acl_tables)
+bool acl_init(bool dont_read_acl_tables)
 {
   THD  *thd;
-  my_bool return_val;
+  bool return_val;
   DBUG_ENTER("acl_init");
 
   init_acl_cache();
@@ -1644,18 +1646,19 @@ my_bool acl_init(bool dont_read_acl_tables)
     acl_load()
       thd     Current thread
       tables  List containing open "mysql.host", "mysql.user",
-              "mysql.db" and "mysql.proxies_priv" tables in that order.
+              "mysql.db" and "mysql.proxies_priv", "mysql.global_grants"
+              tables in that order.
 
   RETURN VALUES
     FALSE  Success
     TRUE   Error
 */
 
-static my_bool acl_load(THD *thd, TABLE_LIST *tables)
+static bool acl_load(THD *thd, TABLE_LIST *tables)
 {
   TABLE *table;
   READ_RECORD read_record_info;
-  my_bool return_val= TRUE;
+  bool return_val= TRUE;
   bool check_no_resolve= specialflag & SPECIAL_NO_RESOLVE;
   char tmp_name[NAME_LEN+1];
   sql_mode_t old_sql_mode= thd->variables.sql_mode;
@@ -2206,6 +2209,21 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   validate_user_plugin_records();
   init_check_host();
 
+  /* Load dynamic privileges */
+  if (tables[3].table)
+  {
+    if (populate_dynamic_privilege_caches(thd, &tables[3]))
+    {
+      return_val= TRUE;
+      goto end;
+    }
+  }
+  else
+  {
+    sql_print_error("Missing system table mysql.global_grants; "
+                    "please run mysql_upgrade to create it");
+  }
+
   initialized=1;
   return_val= FALSE;
 
@@ -2483,19 +2501,19 @@ static bool is_expected_or_transient_error(THD *thd)
     TRUE   Failure
 */
 
-my_bool acl_reload(THD *thd)
+bool acl_reload(THD *thd)
 {
-  TABLE_LIST tables[3];
+  TABLE_LIST tables[4];
 
   MEM_ROOT old_mem;
-  my_bool return_val= TRUE;
+  bool return_val= TRUE;
   Prealloced_array<ACL_USER, ACL_PREALLOC_SIZE> *old_acl_users= NULL;
   Prealloced_array<ACL_DB, ACL_PREALLOC_SIZE> *old_acl_dbs= NULL;
   Prealloced_array<ACL_PROXY_USER,
     ACL_PREALLOC_SIZE> *old_acl_proxy_users = NULL;
   Acl_cache_lock_guard acl_cache_lock(thd,
                                       Acl_cache_lock_mode::WRITE_MODE);
- 
+  User_to_dynamic_privileges_map *old_dyn_priv_map;
   DBUG_ENTER("acl_reload");
 
   /*
@@ -2519,10 +2537,17 @@ my_bool acl_reload(THD *thd)
                            C_STRING_WITH_LEN("proxies_priv"),
                            "proxies_priv", TL_READ, MDL_SHARED_READ_ONLY);
 
+  tables[3].init_one_table(C_STRING_WITH_LEN("mysql"),
+                           C_STRING_WITH_LEN("global_grants"),
+                           "global_grants", TL_READ, MDL_SHARED_READ_ONLY);
+
   tables[0].next_local= tables[0].next_global= tables + 1;
   tables[1].next_local= tables[1].next_global= tables + 2;
+  tables[2].next_local= tables[2].next_global= tables + 3;
 
-  tables[0].open_type= tables[1].open_type= tables[2].open_type= OT_BASE_ONLY;
+  tables[0].open_type= tables[1].open_type= tables[2].open_type= 
+    tables[3].open_type= OT_BASE_ONLY;
+  tables[3].open_strategy= TABLE_LIST::OPEN_IF_EXISTS;
 
   if (open_and_lock_tables(thd, tables, MYSQL_LOCK_IGNORE_TIMEOUT))
   {
@@ -2563,7 +2588,8 @@ my_bool acl_reload(THD *thd)
   delete acl_wild_hosts;
   acl_wild_hosts= NULL;
   my_hash_free(&acl_check_hosts);
-
+  old_dyn_priv_map=
+    swap_dynamic_privileges_map(new User_to_dynamic_privileges_map());
   if ((return_val= acl_load(thd, tables)))
   {                                     // Error. Revert to old list
     DBUG_PRINT("error",("Reverting to old privileges"));
@@ -2573,6 +2599,7 @@ my_bool acl_reload(THD *thd)
     acl_proxy_users= old_acl_proxy_users;
     global_acl_memory= std::move(old_mem);
     init_check_host();
+    delete swap_dynamic_privileges_map(old_dyn_priv_map);
   }
   else
   {
@@ -2580,6 +2607,7 @@ my_bool acl_reload(THD *thd)
     delete old_acl_users;
     delete old_acl_dbs;
     delete old_acl_proxy_users;
+    delete old_dyn_priv_map;
   }
 
 end:
@@ -2678,7 +2706,7 @@ void  grant_free(void)
 bool grant_init(bool skip_grant_tables)
 {
   THD  *thd;
-  my_bool return_val;
+  bool return_val;
   DBUG_ENTER("grant_init");
 
   if (skip_grant_tables)
@@ -2717,13 +2745,13 @@ bool grant_init(bool skip_grant_tables)
     @retval FALSE Success
 */
 
-static my_bool grant_load_procs_priv(TABLE *p_table)
+static bool grant_load_procs_priv(TABLE *p_table)
 {
   MEM_ROOT *memex_ptr;
-  my_bool return_val= 1;
+  bool return_val= 1;
   int error;
   bool check_no_resolve= specialflag & SPECIAL_NO_RESOLVE;
-  MEM_ROOT **save_mem_root_ptr= my_thread_get_THR_MALLOC();
+  MEM_ROOT **save_mem_root_ptr= THR_MALLOC;
   DBUG_ENTER("grant_load_procs_priv");
   (void) my_hash_init(&proc_priv_hash, &my_charset_utf8_bin,
                       0, 0, get_grant_table,
@@ -2760,7 +2788,7 @@ static my_bool grant_load_procs_priv(TABLE *p_table)
   else
   {
     memex_ptr= &memex;
-    my_thread_set_THR_MALLOC(&memex_ptr);
+    THR_MALLOC= &memex_ptr;
     do
     {
       GRANT_NAME *mem_check;
@@ -2828,7 +2856,7 @@ static my_bool grant_load_procs_priv(TABLE *p_table)
 
 end_unlock:
   p_table->file->ha_index_end();
-  my_thread_set_THR_MALLOC(save_mem_root_ptr);
+  THR_MALLOC= save_mem_root_ptr;
   DBUG_RETURN(return_val);
 }
 
@@ -2848,14 +2876,14 @@ end_unlock:
     @retval TRUE Error
 */
 
-static my_bool grant_load(THD *thd, TABLE_LIST *tables)
+static bool grant_load(THD *thd, TABLE_LIST *tables)
 {
   MEM_ROOT *memex_ptr;
-  my_bool return_val= 1;
+  bool return_val= 1;
   int error;
   TABLE *t_table= 0, *c_table= 0;
   bool check_no_resolve= specialflag & SPECIAL_NO_RESOLVE;
-  MEM_ROOT **save_mem_root_ptr= my_thread_get_THR_MALLOC();
+  MEM_ROOT **save_mem_root_ptr= THR_MALLOC;
   sql_mode_t old_sql_mode= thd->variables.sql_mode;
   DBUG_ENTER("grant_load");
 
@@ -2898,7 +2926,7 @@ static my_bool grant_load(THD *thd, TABLE_LIST *tables)
   else
   {
     memex_ptr= &memex;
-    my_thread_set_THR_MALLOC(&memex_ptr);
+    THR_MALLOC= &memex_ptr;
     do
     {
       GRANT_TABLE *mem_check;
@@ -2958,7 +2986,7 @@ static my_bool grant_load(THD *thd, TABLE_LIST *tables)
 
 end_unlock:
   t_table->file->ha_index_end();
-  my_thread_set_THR_MALLOC(save_mem_root_ptr);
+  THR_MALLOC= save_mem_root_ptr;
 end_index_init:
   thd->variables.sql_mode= old_sql_mode;
   DBUG_RETURN(return_val);
@@ -2979,10 +3007,10 @@ end_index_init:
     @retval TRUE An error has occurred.
 */
 
-static my_bool grant_reload_procs_priv(THD *thd, TABLE_LIST *table)
+static bool grant_reload_procs_priv(THD *thd, TABLE_LIST *table)
 {
   HASH old_proc_priv_hash, old_func_priv_hash;
-  my_bool return_val= FALSE;
+  bool return_val= FALSE;
   DBUG_ENTER("grant_reload_procs_priv");
 
   /* Save a copy of the current hash if we need to undo the grant load */
@@ -3023,12 +3051,12 @@ static my_bool grant_reload_procs_priv(THD *thd, TABLE_LIST *table)
     @retval TRUE  Error
 */
 
-my_bool grant_reload(THD *thd)
+bool grant_reload(THD *thd)
 {
   TABLE_LIST tables[3];
   HASH old_column_priv_hash;
   MEM_ROOT old_mem;
-  my_bool return_val= 1;
+  bool return_val= 1;
   Acl_cache_lock_guard acl_cache_lock(thd,
                                       Acl_cache_lock_mode::WRITE_MODE);
   
@@ -3579,7 +3607,8 @@ Acl_map::Acl_map(Security_context *sctx, uint64 ver)  :
                             &m_sp_acls,
                             &m_func_acls,
                             &granted_roles,
-                            &m_with_admin_acls);
+                            &m_with_admin_acls,
+                            &m_dynamic_privileges);
   DBUG_VOID_RETURN;
 }
 
@@ -3658,6 +3687,12 @@ SP_access_map *
 Acl_map::func_acls()
 {
   return &m_func_acls;
+}
+
+Dynamic_privileges *
+Acl_map::dynamic_privileges()
+{
+  return &m_dynamic_privileges;  
 }
 
 void
@@ -3838,6 +3873,7 @@ void init_acl_cache()
 {
   g_default_roles= new Default_roles;
   roles_init_graph();
+  dynamic_privileges_init();
   g_acl_cache= new Acl_cache();
 }
 
@@ -3861,6 +3897,7 @@ void shutdown_acl_cache()
   g_acl_cache= NULL;
   g_default_roles= NULL;
   roles_delete_graph();
+  dynamic_privileges_delete();
 }
 
 
@@ -3869,8 +3906,8 @@ static const ulong ACL_CACHE_LOCK_TIMEOUT= 3600UL;
 static const MDL_key ACL_CACHE_KEY(MDL_key::ACL_CACHE, "", "");
 
 /**
-  Internal_error_hanlder subclass to suppress ER_LOCK_DEADLOCK and
-  ER_LOCK_WAIT_TIMEOUT.
+  Internal_error_handler subclass to suppress ER_LOCK_DEADLOCK,
+  ER_LOCK_WAIT_TIMEOUT, ER_QUERY_INTERRUPTED and ER_QUERY_TIMEOUT.
   Instead, we will use Acl_cache_lock_guard::lock()
   to raise ER_CANNOT_LOCK_USER_MANAGEMENT_CACHES error.
 */
@@ -3895,7 +3932,9 @@ public:
                                 const char *msg MY_ATTRIBUTE((unused)))
   {
     return (sql_errno == ER_LOCK_DEADLOCK ||
-            sql_errno == ER_LOCK_WAIT_TIMEOUT);
+            sql_errno == ER_LOCK_WAIT_TIMEOUT ||
+            sql_errno == ER_QUERY_INTERRUPTED ||
+            sql_errno == ER_QUERY_TIMEOUT);
   }
 };
 

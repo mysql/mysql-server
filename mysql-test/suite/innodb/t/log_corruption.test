@@ -1,7 +1,10 @@
---source include/have_innodb_16k.inc
 
 let newdir= $MYSQLTEST_VARDIR/tmp/log_corruption;
 --mkdir $newdir
+--mkdir $newdir/mysql
+write_file $newdir/mysql/plugin.frm;
+EOF
+
 let SEARCH_FILE = $newdir/my_restart.err;
 let $args=--no-defaults --datadir=$newdir --secure-file-priv="" --loose-skip-auto-generate-certs --loose-skip-sha256-password-auto-generate-rsa-keys --loose-console > $SEARCH_FILE 2>&1 ;
 
@@ -68,8 +71,6 @@ let SEARCH_PATTERN=InnoDB: Cannot create sys_virtual system tables. running in r
 # Missing tablespace files are tolerated already with innodb_force_recovery=1.
 --error 1
 --exec $MYSQLD $args --innodb-force-recovery=5
-let SEARCH_PATTERN=InnoDB: Ignoring the redo log due to missing MLOG_CHECKPOINT between the checkpoint 1213964 and the end 1213952\.;
---source include/search_pattern_in_file.inc
 let SEARCH_PATTERN=Data Dictionary initialization failed;
 --source include/search_pattern_in_file.inc
 --echo # --innodb-force-recovery=6 (skip the entire redo log)
@@ -84,8 +85,6 @@ let SEARCH_PATTERN=InnoDB: Cannot create sys_virtual system tables. running in r
 --error 1
 --exec $MYSQLD $args --innodb-force-recovery=5
 let SEARCH_PATTERN=InnoDB: Log block 2372 at lsn 1213952 has valid header, but checksum field contains 144444122, should be 3362026715;
---source include/search_pattern_in_file.inc
-let SEARCH_PATTERN=InnoDB: Ignoring the redo log due to missing MLOG_CHECKPOINT between the checkpoint 1213964 and the end 1213952\\.;
 --source include/search_pattern_in_file.inc
 let SEARCH_PATTERN=Data Dictionary initialization failed;
 --source include/search_pattern_in_file.inc
@@ -125,24 +124,22 @@ let SEARCH_PATTERN=InnoDB: Upgrade after a crash is not supported\\. This redo l
 --remove_file $newdir/ibdata1
 --exec unzip $MYSQL_TEST_DIR/suite/innodb/t/log_corruption.zip -d $newdir > $SEARCH_FILE
 
---echo # Test a corrupted MLOG_FILE_NAME record.
+--echo # Test a corrupted record.
 --echo # current header, valid checkpoint 1, all-zero (invalid) checkpoint 2
 --remove_file $newdir/ib_logfile0
 --exec unzip $MYSQL_TEST_DIR/suite/innodb/t/log_corruption5.zip -d $newdir > $SEARCH_FILE
 --error 1
 --exec $MYSQLD $args
-let SEARCH_PATTERN=InnoDB: Log scan progressed past the checkpoint lsn 1213964;
+let SEARCH_PATTERN=InnoDB: ############### CORRUPT LOG RECORD FOUND ###############;
 --source include/search_pattern_in_file.inc
-let SEARCH_PATTERN=InnoDB: ############### CORRUPT LOG RECORD FOUND ##################;
---source include/search_pattern_in_file.inc
-let SEARCH_PATTERN=InnoDB: Log record type 55, page 151:488\\. Log parsing proceeded successfully up to 1213973\\. Previous log record type 56, is multi 0 Recv offset 9, prev 0;
+let SEARCH_PATTERN=InnoDB: Log record type 56, page 0:0\\. Log parsing proceeded successfully up to 1213964\\. Previous log record type 128, is multi 0 Recv offset 0, prev 0;
 --source include/search_pattern_in_file.inc
 let SEARCH_PATTERN= len 22. hex 38000000000012860cb7809781e80006626f67757300. asc 8               bogus ;
 --source include/search_pattern_in_file.inc
 let SEARCH_PATTERN=InnoDB: Set innodb_force_recovery to ignore this error;
 --source include/search_pattern_in_file.inc
 
---echo # Test a corrupted MLOG_FILE_NAME record.
+--echo # Test a corrupted record.
 --echo # valid header, invalid checkpoint 1, valid checkpoint 2
 --remove_file $newdir/ib_logfile0
 --exec unzip $MYSQL_TEST_DIR/suite/innodb/t/log_corruption6.zip -d $newdir > $SEARCH_FILE
@@ -150,11 +147,11 @@ let SEARCH_PATTERN=InnoDB: Set innodb_force_recovery to ignore this error;
 --exec $MYSQLD $args
 let SEARCH_PATTERN=InnoDB: The log file was created by mysqlbackup --apply-log at ibbackup was here!!!1!\\. The following crash recovery is part of a normal restore\\.;
 --source include/search_pattern_in_file.inc
-let SEARCH_PATTERN=InnoDB: ############### CORRUPT LOG RECORD FOUND ##################;
+let SEARCH_PATTERN=InnoDB: ############### CORRUPT LOG RECORD FOUND ###############;
 --source include/search_pattern_in_file.inc
-let SEARCH_PATTERN=InnoDB: Log record type 55, page 151:488\\. Log parsing proceeded successfully up to 1213973\\. Previous log record type 56, is multi 0 Recv offset 9, prev 0;
+let SEARCH_PATTERN=InnoDB: Log record type 56, page 0:0\\. Log parsing proceeded successfully up to 1213964\\. Previous log record type 128, is multi 0 Recv offset 0, prev 0;
 --source include/search_pattern_in_file.inc
-let SEARCH_PATTERN=InnoDB: Hex dump starting 0 bytes before and ending 13 bytes after the corrupted record;
+let SEARCH_PATTERN=InnoDB: Hex dump starting 0 bytes before and ending 22 bytes after the corrupted record;
 --source include/search_pattern_in_file.inc
 let SEARCH_PATTERN= len 22. hex 38000000000012860cb7809781e80006626f67757300. asc 8               bogus ;
 --source include/search_pattern_in_file.inc
@@ -162,14 +159,14 @@ let SEARCH_PATTERN=InnoDB: Set innodb_force_recovery to ignore this error;
 --source include/search_pattern_in_file.inc
 
 # FIX_ME: NewDD. Re-enable with upgrade worklogs
-#--echo # Upgrade: valid 5.7.9 header, valid checkpoint 1, logically empty
-#--echo # redo log
-#--remove_file $newdir/ib_logfile0
-#--exec unzip $MYSQL_TEST_DIR/suite/innodb/t/log_corruption7.zip -d $newdir > $SEARCH_FILE
-#--error 1
-#--exec $MYSQLD $args
-#let SEARCH_PATTERN=InnoDB: Upgrading redo log: 2\\*.* pages, LSN=1213973;
-#--source include/search_pattern_in_file.inc
+--echo # Upgrade: valid 5.7.9 header, valid checkpoint 1, logically empty
+--echo # redo log
+--remove_file $newdir/ib_logfile0
+--exec unzip $MYSQL_TEST_DIR/suite/innodb/t/log_corruption7.zip -d $newdir > $SEARCH_FILE
+--error 1
+--exec $MYSQLD $args
+let SEARCH_PATTERN=InnoDB: Upgrading redo log: 2\\*.* pages, LSN=1213973;
+--source include/search_pattern_in_file.inc
 # This was created by the upgrade.
 #--remove_file $newdir/ib_buffer_pool
 
@@ -177,4 +174,7 @@ let SEARCH_PATTERN=InnoDB: Set innodb_force_recovery to ignore this error;
 --remove_file $newdir/ibdata1
 --remove_file $newdir/ib_logfile0
 --remove_file $newdir/ib_logfile1
+--remove_file $newdir/tablespaces.open.1
+--remove_file $newdir/tablespaces.open.2
+--force-rmdir  $newdir/mysql
 --rmdir $newdir

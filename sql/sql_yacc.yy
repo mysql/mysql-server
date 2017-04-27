@@ -419,7 +419,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
   1. We do not accept any reduce/reduce conflicts
   2. We should not introduce new shift/reduce conflicts any more.
 */
-%expect 112
+%expect 110
 
 /*
    MAINTAINER:
@@ -487,7 +487,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  ALL                           /* SQL-2003-R */
 %token  ALTER                         /* SQL-2003-R */
 %token  ALWAYS_SYM
-%token  ANALYSE_SYM
+%token  OBSOLETE_TOKEN_271            /* was: ANALYSE_SYM */
 %token  ANALYZE_SYM
 %token  AND_AND_SYM                   /* OPERATOR */
 %token  AND_SYM                       /* SQL-2003-R */
@@ -1235,7 +1235,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 
 %type <ulonglong_number>
         ulonglong_num real_ulonglong_num size_number
-        procedure_analyse_param
 
 %type <lock_type>
         replace_lock_option opt_low_priority insert_lock_option load_data_lock
@@ -1282,7 +1281,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 
 %type <item_list2>
         expr_list udf_expr_list opt_udf_expr_list opt_expr_list select_item_list
-        opt_paren_expr_list ident_list ident_list_arg
+        opt_paren_expr_list ident_list_arg ident_list values opt_values row_value fields
 
 %type <var_type>
         option_type opt_var_type opt_var_ident_type opt_set_var_ident_type
@@ -1347,15 +1346,14 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         preload_list preload_list_or_parts preload_keys preload_keys_parts
         handler
         opt_column
-        grant revoke lock unlock
+        lock unlock
         table_lock_list table_lock
         use
         varchar nchar nvarchar
         table_name
-        column_list column_list_id
-        opt_column_list grant_ident grant_list grant_option
-        object_privilege object_privilege_list rename_list
-        clear_privileges flush_options flush_option
+        grant_ident grant_list grant_option
+        rename_list
+        flush_options flush_option
         opt_flush_lock flush_options_list
         optional_braces
         opt_to
@@ -1376,7 +1374,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         install uninstall binlog_base64_event
         server_options_list server_option
         definer_opt no_definer definer get_diagnostics
-        alter_user_command password_expire
+        alter_user_command
         group_replication
 END_OF_INPUT
 
@@ -1423,7 +1421,9 @@ END_OF_INPUT
 %type <is_not_empty> opt_convert_xid opt_ignore opt_linear opt_bin_mod
         opt_if_not_exists opt_temporary
         opt_grant_option opt_with_admin_option
-        opt_full
+        opt_full opt_extended
+
+%type <show_fields_type> opt_show_fields_type
 
 %type <NONE>
         '-' '+' '*' '/' '%' '(' ')'
@@ -1478,10 +1478,6 @@ END_OF_INPUT
 %type <group> opt_group_clause
 
 %type <order> order_clause opt_order_clause
-
-%type <procedure_analyse_params> opt_procedure_analyse_params
-
-%type <procedure_analyse> opt_procedure_analyse_clause
 
 %type <locking_clause> locking_clause
 
@@ -1540,8 +1536,6 @@ END_OF_INPUT
 %type <param_marker> param_marker
 
 %type <text_literal> text_literal
-
-%type <item_list2> values opt_values row_value fields
 
 %type <statement>
         delete_stmt
@@ -1707,6 +1701,13 @@ END_OF_INPUT
         opt_create_partitioning_etc opt_duplicate_as_qe
 
 %type <wild_or_where> opt_wild_or_where_for_show
+%type <acl_type> opt_acl_type
+
+%type <lex_cstring_list> column_list opt_column_list
+
+%type <role_or_privilege> role_or_privilege
+
+%type <role_or_privilege_list> role_or_privilege_list
 
 %%
 
@@ -2015,7 +2016,7 @@ change:
             if (lex->m_sql_cmd == NULL)
               MYSQL_YYABORT;
           }
-          filter_defs
+          filter_defs opt_channel
           {}
         ;
 
@@ -2490,7 +2491,7 @@ create:
           }
           view_or_trigger_or_sp_or_event
           {}
-        | CREATE USER opt_if_not_exists clear_privileges grant_list require_clause
+        | CREATE USER opt_if_not_exists grant_list require_clause
                       connect_options opt_account_lock_password_expire_options
           {
             LEX *lex=Lex;
@@ -2500,10 +2501,10 @@ create:
               MYSQL_YYABORT; // OOM
             lex->create_info->options= $3 ? HA_LEX_CREATE_IF_NOT_EXISTS : 0;
           }
-        | CREATE ROLE_SYM opt_if_not_exists clear_privileges role_list
+        | CREATE ROLE_SYM opt_if_not_exists role_list
           {
             Lex->sql_command= SQLCOM_CREATE_ROLE;
-            PT_statement *tmp= NEW_PTN PT_create_role(!!$3, $5);
+            PT_statement *tmp= NEW_PTN PT_create_role(!!$3, $4);
             MAKE_CMD(tmp);
           }
         | CREATE LOGFILE_SYM GROUP_SYM logfile_group_info
@@ -2789,34 +2790,6 @@ ev_sql_stmt_inner:
         | sp_proc_stmt_close
         ;
 
-clear_privileges:
-          clear_password_expire_options
-          {
-           LEX *lex=Lex;
-           lex->users_list.empty();
-           lex->columns.empty();
-           lex->grant= lex->grant_tot_col= 0;
-           lex->all_privileges= 0;
-           lex->select_lex->db= NULL;
-           lex->ssl_type= SSL_TYPE_NOT_SPECIFIED;
-           lex->ssl_cipher= lex->x509_subject= lex->x509_issuer= 0;
-           lex->alter_password.update_account_locked_column= false;
-           lex->alter_password.account_locked= false;
-           memset(&(lex->mqh), 0, sizeof(lex->mqh));
-         }
-        ;
-
-clear_password_expire_options:
-         /* Nothing */
-         {
-           LEX *lex=Lex;
-           lex->alter_password.update_password_expired_fields= false;
-           lex->alter_password.update_password_expired_column= false;
-           lex->alter_password.use_default_password_lifetime= true;
-           lex->alter_password.expire_after_days= 0;
-         }
-        ;
-
 sp_name:
           ident '.' ident
           {
@@ -2962,7 +2935,6 @@ sp_fdparam:
             }
 
             if (prepare_sp_create_field(thd,
-                                        field_type,
                                         &spvar->field_def))
             {
               MYSQL_YYABORT;
@@ -3022,7 +2994,6 @@ sp_pdparam:
             }
 
             if (prepare_sp_create_field(thd,
-                                        field_type,
                                         &spvar->field_def))
             {
               MYSQL_YYABORT;
@@ -3150,7 +3121,7 @@ sp_decl:
                 MYSQL_YYABORT;
               }
 
-              if (prepare_sp_create_field(thd, var_type, &spvar->field_def))
+              if (prepare_sp_create_field(thd, &spvar->field_def))
                 MYSQL_YYABORT;
 
               spvar->field_def.field_name= spvar->name.str;
@@ -5173,9 +5144,11 @@ size_number:
                 case 'g':
                 case 'G':
                   text_shift_number+=10;
+                  // Fall through.
                 case 'm':
                 case 'M':
                   text_shift_number+=10;
+                  // Fall through.
                 case 'k':
                 case 'K':
                   text_shift_number+=10;
@@ -7133,7 +7106,7 @@ alter:
         ;
 
 alter_user_command:
-          ALTER USER if_exists clear_privileges
+          ALTER USER if_exists
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_ALTER_USER;
@@ -7164,40 +7137,45 @@ opt_account_lock_password_expire_option:
             lex->alter_password.update_account_locked_column= true;
             lex->alter_password.account_locked= true;
           }
-        | password_expire
+        | PASSWORD EXPIRE_SYM
           {
-            LEX *lex=Lex;
-            lex->alter_password.update_password_expired_fields= true;
+            LEX *lex= Lex;
+            lex->alter_password.expire_after_days= 0;
             lex->alter_password.update_password_expired_column= true;
+            lex->alter_password.update_password_expired_fields= true;
+            lex->alter_password.use_default_password_lifetime= true;
           }
-        | password_expire INTERVAL_SYM real_ulong_num DAY_SYM
+        | PASSWORD EXPIRE_SYM INTERVAL_SYM real_ulong_num DAY_SYM
           {
-            LEX *lex=Lex;
-            if ($3 == 0 || $3 > UINT_MAX16)
+            LEX *lex= Lex;
+            if ($4 == 0 || $4 > UINT_MAX16)
             {
               char buf[MAX_BIGINT_WIDTH + 1];
-              my_snprintf(buf, sizeof(buf), "%lu", $3);
+              my_snprintf(buf, sizeof(buf), "%lu", $4);
               my_error(ER_WRONG_VALUE, MYF(0), "DAY", buf);
               MYSQL_YYABORT;
             }
-            lex->alter_password.update_password_expired_fields= true;
-            lex->alter_password.expire_after_days= $3;
-            lex->alter_password.use_default_password_lifetime= false;
-          }
-        | password_expire NEVER_SYM
-          {
-            LEX *lex=Lex;
+            lex->alter_password.expire_after_days= $4;
+            lex->alter_password.update_password_expired_column= false;
             lex->alter_password.update_password_expired_fields= true;
             lex->alter_password.use_default_password_lifetime= false;
           }
-        | password_expire DEFAULT_SYM
+        | PASSWORD EXPIRE_SYM NEVER_SYM
           {
+            LEX *lex= Lex;
+            lex->alter_password.expire_after_days= 0;
+            lex->alter_password.update_password_expired_column= false;
+            lex->alter_password.update_password_expired_fields= true;
+            lex->alter_password.use_default_password_lifetime= false;
+          }
+        | PASSWORD EXPIRE_SYM DEFAULT_SYM
+          {
+            LEX *lex= Lex;
+            lex->alter_password.expire_after_days= 0;
+            lex->alter_password.update_password_expired_column= false;
             Lex->alter_password.update_password_expired_fields= true;
+            lex->alter_password.use_default_password_lifetime= true;
           }
-        ;
-
-password_expire:
-          PASSWORD EXPIRE_SYM clear_password_expire_options {}
         ;
 
 connect_options:
@@ -8354,7 +8332,7 @@ rename:
           }
           table_to_table_list
           {}
-        | RENAME USER clear_privileges rename_list
+        | RENAME USER rename_list
           {
             Lex->sql_command = SQLCOM_RENAME_USER;
           }
@@ -8568,12 +8546,6 @@ select_stmt_with_into:
             if ($1->has_into_clause())
               YYTHD->syntax_error_at(@2, ER_THD(YYTHD, ER_SYNTAX_ERROR));
 
-            if ($1->has_procedure())
-            {
-              my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "INTO");
-              MYSQL_YYABORT;
-            }
-
             $$= NEW_PTN PT_select_stmt($1, $2);
           }
         ;
@@ -8614,122 +8586,61 @@ query_expression:
           query_expression_body
           opt_order_clause
           opt_limit_clause
-          opt_procedure_analyse_clause
           opt_locking_clause_list
           {
-            if ($1 == NULL)
-              MYSQL_YYABORT; // OOM
-
-            if ($1->is_union() && $4 != NULL)
-              my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "UNION");
-
-            if ($1->has_into_clause() && $4 != NULL)
-            {
-              my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "INTO");
-              MYSQL_YYABORT;
-            }
-
-            $$= NEW_PTN PT_query_expression($1, $2, $3, $4, $5);
+            $$= NEW_PTN PT_query_expression($1, $2, $3, $4);
           }
         | with_clause
           query_expression_body
           opt_order_clause
           opt_limit_clause
-          opt_procedure_analyse_clause
           opt_locking_clause_list
           {
-            if ($2 == NULL)
-              MYSQL_YYABORT; // OOM
-
-            if ($2->is_union() && $5 != NULL)
-              my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "UNION");
-
-            if ($2->has_into_clause() && $5 != NULL)
-            {
-              my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "INTO");
-              MYSQL_YYABORT;
-            }
-
-            $$= NEW_PTN PT_query_expression($2, $3, $4, $5, $6);
-            if ($$ == NULL)
-              MYSQL_YYABORT; // OOM
-            $$->m_with_clause= $1;
+            $$= NEW_PTN PT_query_expression($1, $2, $3, $4, $5);
           }
         | query_expression_parens
           order_clause
           opt_limit_clause
-          opt_procedure_analyse_clause
           opt_locking_clause_list
           {
-            if ($1 == NULL)
-              MYSQL_YYABORT; // OOM
-            if ($1->is_union() && $4 != NULL)
-              my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "UNION");
-            PT_nested_query_expression *nested=
-              NEW_PTN PT_nested_query_expression($1);
-            PT_query_expression_body_primary *body=
-              NEW_PTN PT_query_expression_body_primary(nested);
-            $$= NEW_PTN PT_query_expression(body, $2, $3, $4, $5);
+            auto nested= NEW_PTN PT_nested_query_expression($1);
+            auto body= NEW_PTN PT_query_expression_body_primary(nested);
+            $$= NEW_PTN PT_query_expression(body, $2, $3, $4);
           }
         | with_clause
           query_expression_parens
           order_clause
           opt_limit_clause
-          opt_procedure_analyse_clause
           opt_locking_clause_list
           {
-            if ($2 == NULL)
-              MYSQL_YYABORT; // OOM
-            if ($2->is_union() && $5 != NULL)
-              my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "UNION");
-            PT_nested_query_expression *nested=
-              NEW_PTN PT_nested_query_expression($2);
-            PT_query_expression_body_primary *body=
-              NEW_PTN PT_query_expression_body_primary(nested);
-            $$= NEW_PTN PT_query_expression(body, $3, $4, $5, $6);
-            if ($$ == NULL)
-              MYSQL_YYABORT; // OOM
-            $$->m_with_clause= $1;
+            auto nested= NEW_PTN PT_nested_query_expression($2);
+            auto body= NEW_PTN PT_query_expression_body_primary(nested);
+            $$= NEW_PTN PT_query_expression($1, body, $3, $4, $5);
           }
         | query_expression_parens
           limit_clause
-          opt_procedure_analyse_clause
           opt_locking_clause_list
           {
             if ($1 == NULL)
               MYSQL_YYABORT; // OOM
-            if ($1->is_union() && $3 != NULL)
-              my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "UNION");
-            $$= NEW_PTN PT_query_expression($1->body(), NULL, $2, $3, $4);
+            $$= NEW_PTN PT_query_expression($1->body(), NULL, $2, $3);
           }
         | with_clause
           query_expression_parens
           limit_clause
-          opt_procedure_analyse_clause
           opt_locking_clause_list
           {
             if ($2 == NULL)
               MYSQL_YYABORT; // OOM
-            if ($2->is_union() && $4 != NULL)
-              my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "UNION");
-            $$= NEW_PTN PT_query_expression($2->body(), NULL, $3, $4, $5);
-            if ($$ == NULL)
-              MYSQL_YYABORT; // OOM
-            $$->m_with_clause= $1;
+            $$= NEW_PTN PT_query_expression($1, $2->body(), NULL, $3, $4);
           }
         | with_clause
           query_expression_parens
-          opt_procedure_analyse_clause
           opt_locking_clause_list
           {
             if ($2 == NULL)
               MYSQL_YYABORT; // OOM
-            if ($2->is_union() && $3 != NULL)
-              my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "UNION");
-            $$= NEW_PTN PT_query_expression($2->body(), NULL, NULL, $3, $4);
-            if ($$ == NULL)
-              MYSQL_YYABORT; // OOM
-            $$->m_with_clause= $1;
+            $$= NEW_PTN PT_query_expression($1, $2->body(), NULL, NULL, $3);
           }
         ;
 
@@ -9692,13 +9603,11 @@ function_call_conflict:
           }
         | WEIGHT_STRING_SYM '(' expr AS CHAR_SYM ws_num_codepoints ')'
           {
-            $$= NEW_PTN Item_func_weight_string(@$, $3, 0, $6,
-                        MY_STRXFRM_PAD_WITH_SPACE);
+            $$= NEW_PTN Item_func_weight_string(@$, $3, 0, $6, 0);
           }
         | WEIGHT_STRING_SYM '(' expr AS BINARY_SYM ws_num_codepoints ')'
           {
-            $$= NEW_PTN Item_func_weight_string(@$,
-                        $3, 0, $6, MY_STRXFRM_PAD_WITH_SPACE, true);
+            $$= NEW_PTN Item_func_weight_string(@$, $3, 0, $6, 0, true);
           }
         | WEIGHT_STRING_SYM '(' expr ',' ulong_num ',' ulong_num ',' ulong_num ')'
           {
@@ -10883,46 +10792,6 @@ dec_num:
         | FLOAT_NUM
         ;
 
-opt_procedure_analyse_clause:
-          /* empty */ { $$= NULL; }
-        | PROCEDURE_SYM ANALYSE_SYM
-          '(' opt_procedure_analyse_params ')'
-          {
-            $$= NEW_PTN PT_procedure_analyse($4);
-          }
-        ;
-
-opt_procedure_analyse_params:
-          /* empty */
-          {
-            $$.max_tree_elements= Proc_analyse_params::default_max_tree_elements;
-            $$.max_treemem= Proc_analyse_params::default_max_treemem;
-          }
-        | procedure_analyse_param
-          {
-            $$.max_tree_elements= static_cast<uint>($1);
-            $$.max_treemem= Proc_analyse_params::default_max_treemem;
-          }
-        | procedure_analyse_param ',' procedure_analyse_param
-          {
-            $$.max_tree_elements= static_cast<uint>($1);
-            $$.max_treemem= static_cast<uint>($3);
-          }
-        ;
-
-procedure_analyse_param:
-          NUM
-          {
-            int error;
-            $$= (ulonglong) my_strtoll10($1.str, (char**) 0, &error);
-            if (error != 0)
-            {
-              my_error(ER_WRONG_PARAMETERS_TO_PROCEDURE, MYF(0), "ANALYSE");
-              MYSQL_YYABORT;
-            }
-          }
-        ;
-
 select_var_list:
           select_var_list ',' select_var_ident
           {
@@ -11106,12 +10975,12 @@ drop:
             lex->drop_if_exists= $3;
             lex->spname= $4;
           }
-        | DROP USER if_exists clear_privileges user_list
+        | DROP USER if_exists user_list
           {
              LEX *lex=Lex;
              lex->sql_command= SQLCOM_DROP_USER;
              lex->drop_if_exists= $3;
-             lex->users_list= *$5;
+             lex->users_list= *$4;
           }
         | DROP VIEW_SYM if_exists table_list opt_restrict
           {
@@ -11787,7 +11656,7 @@ show_param:
           }
         | ENGINE_SYM ALL show_engine_param
           { Lex->create_info->db_type= NULL; }
-        | opt_extended_and_full COLUMNS from_or_in table_ident opt_db opt_wild_or_where_for_show
+        | opt_show_fields_type COLUMNS from_or_in table_ident opt_db opt_wild_or_where_for_show
           {
             LEX *lex= Lex;
 
@@ -11799,8 +11668,8 @@ show_param:
             LEX_STRING wild= $6.wild;
             DBUG_ASSERT((wild.str == nullptr) || (where == nullptr));
 
-            auto *p= where ? NEW_PTN PT_show_fields(@$, $4, where)
-                           : NEW_PTN PT_show_fields(@$, $4, wild);
+            auto *p= where ? NEW_PTN PT_show_fields(@$, $1, $4, where)
+                           : NEW_PTN PT_show_fields(@$, $1, $4, wild);
 
             lex->sql_command= SQLCOM_SHOW_FIELDS;
             MAKE_CMD(p);
@@ -11846,7 +11715,7 @@ show_param:
             if ($5)
               $4->change_db($5);
 
-            auto *p= NEW_PTN PT_show_keys(@$, $4, $6);
+            auto *p= NEW_PTN PT_show_keys(@$, $1, $4, $6);
 
             lex->sql_command= SQLCOM_SHOW_KEYS;
             MAKE_CMD(p);
@@ -12086,11 +11955,11 @@ show_param:
             Lex->spname= $3;
             Lex->sql_command = SQLCOM_SHOW_CREATE_EVENT;
           }
-        | CREATE USER clear_privileges user
+        | CREATE USER user
           {
             LEX *lex=Lex;
             lex->sql_command= SQLCOM_SHOW_CREATE_USER;
-            lex->grant_user=$4;
+            lex->grant_user=$3;
           }
         ;
 
@@ -12124,31 +11993,15 @@ opt_full:
         ;
 
 opt_extended:
-          /* empty */   { Lex->extended_show= 0; }
-        | EXTENDED_SYM  { Lex->extended_show= 1; }
+          /* empty */   { $$= 0; }
+        | EXTENDED_SYM  { $$= 1; }
         ;
 
-opt_extended_and_full:
-          /* empty */
-          {
-            Lex->verbose= 0;
-            Lex->extended_show= 0;
-          }
-        | EXTENDED_SYM
-          {
-            Lex->verbose= 0;
-            Lex->extended_show= 1;
-          }
-        | FULL
-          {
-            Lex->verbose= 1;
-            Lex->extended_show= 0;
-          }
-        | EXTENDED_SYM FULL
-          {
-            Lex->verbose= 1;
-            Lex->extended_show= 1;
-          }
+opt_show_fields_type:
+          /* empty */          { $$= Show_fields_type::STANDARD; }
+        | FULL                 { $$= Show_fields_type::FULL_SHOW; }
+        | EXTENDED_SYM         { $$= Show_fields_type::EXTENDED_SHOW; }
+        | EXTENDED_SYM FULL    { $$= Show_fields_type::EXTENDED_FULL_SHOW; }
         ;
 
 from_or_in:
@@ -12198,7 +12051,7 @@ describe:
             lex->select_lex->db= NULL;
             lex->verbose= 0;
 
-            auto *p= NEW_PTN PT_show_fields(@$, $2);
+            auto *p= NEW_PTN PT_show_fields(@$, Show_fields_type::STANDARD, $2);
 
             lex->sql_command= SQLCOM_SHOW_FIELDS;
             MAKE_CMD(p);
@@ -12408,11 +12261,33 @@ reset:
           }
           reset_options
           {}
+        | RESET_SYM PERSIST_SYM opt_if_exists_ident
+          {
+            LEX *lex=Lex;
+            lex->sql_command= SQLCOM_RESET;
+            lex->type|= REFRESH_PERSIST;
+            lex->option_type= OPT_PERSIST;
+          }
         ;
 
 reset_options:
           reset_options ',' reset_option
         | reset_option
+        ;
+
+opt_if_exists_ident:
+          /* empty */
+          {
+            LEX *lex=Lex;
+            lex->drop_if_exists= false;
+            lex->name= NULL_STR;
+          }
+        | if_exists ident
+          {
+            LEX *lex=Lex;
+            lex->drop_if_exists= $1;
+            lex->name= $2;
+          }
         ;
 
 reset_option:
@@ -13270,6 +13145,7 @@ role_or_ident_keyword:
         | REPAIR                {}
         | RESET_SYM             {}
         | RESTORE_SYM           {}
+        | ROLE_SYM              {} 
         | ROLLBACK_SYM          {}
         | SAVEPOINT_SYM         {}
         | SECURITY_SYM          {}
@@ -13315,7 +13191,6 @@ role_or_label_keyword:
         | AGAINST                  {}
         | AGGREGATE_SYM            {}
         | ALGORITHM_SYM            {}
-        | ANALYSE_SYM              {}
         | ANY_SYM                  {}
         | AT_SYM                   {}
         | AUTO_INC                 {}
@@ -13604,7 +13479,6 @@ role_or_label_keyword:
         | TYPES_SYM                {}
         | TYPE_SYM                 {}
         | UDF_RETURNS_SYM          {}
-        | FUNCTION_SYM             {}
         | UNCOMMITTED_SYM          {}
         | UNDEFINED_SYM            {}
         | UNDO_BUFFER_SIZE_SYM     {}
@@ -14188,127 +14062,116 @@ handler_rkey_mode:
 /* GRANT / REVOKE */
 
 revoke:
-          REVOKE clear_privileges { Lex->sql_command= SQLCOM_REVOKE; } revoke_command
-          {}
-        | REVOKE role_list FROM user_list
+          REVOKE role_or_privilege_list FROM user_list
           {
             Lex->sql_command= SQLCOM_REVOKE_ROLE;
             PT_statement *tmp= NEW_PTN PT_revoke_roles($2, $4);
             MAKE_CMD(tmp);
           }
-        ;
-
-revoke_command:
-          grant_privileges ON_SYM opt_table grant_ident FROM user_list
+        | REVOKE role_or_privilege_list ON_SYM opt_acl_type grant_ident FROM user_list
           {
             LEX *lex= Lex;
-            lex->type= 0;
-            lex->users_list= *$6;
-          }
-        | grant_privileges ON_SYM FUNCTION_SYM grant_ident FROM user_list
-          {
-            LEX *lex= Lex;
-            if (lex->columns.elements)
+            if (apply_privileges(YYTHD, *$2))
+              MYSQL_YYABORT;
+            lex->sql_command= (lex->grant == GLOBAL_ACLS) ? SQLCOM_REVOKE_ALL
+                                                          : SQLCOM_REVOKE;
+            if ($4 != Acl_type::TABLE && !lex->columns.is_empty())
             {
               my_syntax_error(YYTHD, ER_THD(YYTHD, ER_SYNTAX_ERROR));
               MYSQL_YYABORT;
             }
-            lex->type= TYPE_ENUM_FUNCTION;
-            lex->users_list= *$6;
+            lex->type= static_cast<ulong>($4);
+            lex->users_list= *$7;
           }
-        | grant_privileges ON_SYM PROCEDURE_SYM grant_ident FROM user_list
+        | REVOKE ALL opt_privileges
+          {
+            Lex->all_privileges= 1;
+            Lex->grant= GLOBAL_ACLS;
+          }
+          ON_SYM opt_acl_type grant_ident FROM user_list
           {
             LEX *lex= Lex;
-            if (lex->columns.elements)
+            lex->sql_command= (lex->grant == (GLOBAL_ACLS & ~GRANT_ACL)) ?
+                                                            SQLCOM_REVOKE_ALL
+                                                          : SQLCOM_REVOKE;
+            if ($6 != Acl_type::TABLE && !lex->columns.is_empty())
             {
               my_syntax_error(YYTHD, ER_THD(YYTHD, ER_SYNTAX_ERROR));
               MYSQL_YYABORT;
             }
-            lex->type= TYPE_ENUM_PROCEDURE;
-            lex->users_list= *$6;
+            lex->type= static_cast<ulong>($6);
+            lex->users_list= *$9;
           }
-        | ALL opt_privileges ',' GRANT OPTION FROM user_list
+        | REVOKE ALL opt_privileges ',' GRANT OPTION FROM user_list
           {
             Lex->sql_command = SQLCOM_REVOKE_ALL;
-            Lex->users_list= *$7;
+            Lex->users_list= *$8;
           }
-        | PROXY_SYM ON_SYM user FROM user_list
+        | REVOKE PROXY_SYM ON_SYM user FROM user_list
           {
             LEX *lex= Lex;
-            lex->users_list= *$5;
-            lex->users_list.push_front ($3);
+            lex->sql_command= SQLCOM_REVOKE;
+            lex->users_list= *$6;
+            lex->users_list.push_front ($4);
             lex->type= TYPE_ENUM_PROXY;
           }
         ;
 
 grant:
-          GRANT clear_privileges { Lex->sql_command= SQLCOM_GRANT; } grant_command
-          {}
-        | GRANT role_list TO_SYM user_list opt_with_admin_option
+          GRANT role_or_privilege_list TO_SYM user_list opt_with_admin_option
           {
             Lex->sql_command= SQLCOM_GRANT_ROLE;
             PT_statement *tmp= NEW_PTN PT_grant_roles($2, $4, $5);
             MAKE_CMD(tmp);
           }
-        ;
+        | GRANT role_or_privilege_list ON_SYM opt_acl_type grant_ident TO_SYM grant_list
+          require_clause grant_options
+          {
+            LEX *lex= Lex;
+            lex->sql_command= SQLCOM_GRANT;
+            if (apply_privileges(YYTHD, *$2))
+              MYSQL_YYABORT;
 
-grant_command:
-          grant_privileges ON_SYM opt_table grant_ident TO_SYM grant_list
-          require_clause grant_options
-          {
-            LEX *lex= Lex;
-            lex->type= 0;
-          }
-        | grant_privileges ON_SYM FUNCTION_SYM grant_ident TO_SYM grant_list
-          require_clause grant_options
-          {
-            LEX *lex= Lex;
-            if (lex->columns.elements)
+            if ($4 != Acl_type::TABLE && !lex->columns.is_empty())
             {
               my_syntax_error(YYTHD, ER_THD(YYTHD, ER_SYNTAX_ERROR));
               MYSQL_YYABORT;
             }
-            lex->type= TYPE_ENUM_FUNCTION;
+            lex->type= static_cast<ulong>($4);
           }
-        | grant_privileges ON_SYM PROCEDURE_SYM grant_ident TO_SYM grant_list
-          require_clause grant_options
-          {
-            LEX *lex= Lex;
-            if (lex->columns.elements)
-            {
-              my_syntax_error(YYTHD, ER_THD(YYTHD, ER_SYNTAX_ERROR));
-              MYSQL_YYABORT;
-            }
-            lex->type= TYPE_ENUM_PROCEDURE;
-          }
-        | PROXY_SYM ON_SYM user TO_SYM grant_list opt_grant_option
-          {
-            LEX *lex= Lex;
-            if ($6)
-              lex->grant |= GRANT_ACL;
-            lex->users_list.push_front ($3);
-            lex->type= TYPE_ENUM_PROXY;
-          }
-        ;
-
-opt_table:
-          /* Empty */
-        | TABLE_SYM
-        ;
-
-grant_privileges:
-          object_privilege_list
-          {
-            LEX *lex= Lex;
-            if (lex->grant == GLOBAL_ACLS &&
-                lex->sql_command == SQLCOM_REVOKE)
-              lex->sql_command= SQLCOM_REVOKE_ALL;
-          }
-        | ALL opt_privileges
+        | GRANT ALL opt_privileges
           {
             Lex->all_privileges= 1;
             Lex->grant= GLOBAL_ACLS;
           }
+          ON_SYM opt_acl_type grant_ident TO_SYM grant_list
+          require_clause grant_options
+          {
+            LEX *lex= Lex;
+            lex->sql_command= SQLCOM_GRANT;
+            if ($6 != Acl_type::TABLE && !lex->columns.is_empty())
+            {
+              my_syntax_error(YYTHD, ER_THD(YYTHD, ER_SYNTAX_ERROR));
+              MYSQL_YYABORT;
+            }
+            lex->type= static_cast<ulong>($6);
+          }
+        | GRANT PROXY_SYM ON_SYM user TO_SYM grant_list opt_grant_option
+          {
+            LEX *lex= Lex;
+            lex->sql_command= SQLCOM_GRANT;
+            if ($7)
+              lex->grant |= GRANT_ACL;
+            lex->users_list.push_front ($4);
+            lex->type= TYPE_ENUM_PROXY;
+          }
+        ;
+
+opt_acl_type:
+          /* Empty */   { $$= Acl_type::TABLE; }
+        | TABLE_SYM     { $$= Acl_type::TABLE; }
+        | FUNCTION_SYM  { $$= Acl_type::FUNCTION; }
+        | PROCEDURE_SYM { $$= Acl_type::PROCEDURE; }
         ;
 
 opt_privileges:
@@ -14316,52 +14179,107 @@ opt_privileges:
         | PRIVILEGES
         ;
 
-object_privilege_list:
-          object_privilege
-        | object_privilege_list ',' object_privilege
+role_or_privilege_list:
+          role_or_privilege
+          {
+            $$= NEW_PTN Trivial_array<PT_role_or_privilege *>(YYMEM_ROOT);
+            if ($$ == NULL || $$->push_back($1))
+              MYSQL_YYABORT; // OOM
+          }
+        | role_or_privilege_list ',' role_or_privilege
+          {
+            $$= $1;
+            if ($$->push_back($3))
+              MYSQL_YYABORT; // OOM
+          }
         ;
 
-object_privilege:
-          SELECT_SYM
-          { Lex->which_columns = SELECT_ACL;}
-          opt_column_list {}
-        | INSERT_SYM
-          { Lex->which_columns = INSERT_ACL;}
-          opt_column_list {}
-        | UPDATE_SYM
-          { Lex->which_columns = UPDATE_ACL; }
-          opt_column_list {}
-        | REFERENCES
-          { Lex->which_columns = REFERENCES_ACL;}
-          opt_column_list {}
-        | DELETE_SYM              { Lex->grant |= DELETE_ACL;}
-        | USAGE                   {}
-        | INDEX_SYM               { Lex->grant |= INDEX_ACL;}
-        | ALTER                   { Lex->grant |= ALTER_ACL;}
-        | CREATE                  { Lex->grant |= CREATE_ACL;}
-        | DROP                    { Lex->grant |= DROP_ACL;}
-        | EXECUTE_SYM             { Lex->grant |= EXECUTE_ACL;}
-        | RELOAD                  { Lex->grant |= RELOAD_ACL;}
-        | SHUTDOWN                { Lex->grant |= SHUTDOWN_ACL;}
-        | PROCESS                 { Lex->grant |= PROCESS_ACL;}
-        | FILE_SYM                { Lex->grant |= FILE_ACL;}
-        | GRANT OPTION            { Lex->grant |= GRANT_ACL;}
-        | SHOW DATABASES          { Lex->grant |= SHOW_DB_ACL;}
-        | SUPER_SYM               { Lex->grant |= SUPER_ACL;}
-        | CREATE TEMPORARY TABLES { Lex->grant |= CREATE_TMP_ACL;}
-        | LOCK_SYM TABLES         { Lex->grant |= LOCK_TABLES_ACL; }
-        | REPLICATION SLAVE       { Lex->grant |= REPL_SLAVE_ACL; }
-        | REPLICATION CLIENT_SYM  { Lex->grant |= REPL_CLIENT_ACL; }
-        | CREATE VIEW_SYM         { Lex->grant |= CREATE_VIEW_ACL; }
-        | SHOW VIEW_SYM           { Lex->grant |= SHOW_VIEW_ACL; }
-        | CREATE ROUTINE_SYM      { Lex->grant |= CREATE_PROC_ACL; }
-        | ALTER ROUTINE_SYM       { Lex->grant |= ALTER_PROC_ACL; }
-        | CREATE USER             { Lex->grant |= CREATE_USER_ACL; }
-        | EVENT_SYM               { Lex->grant |= EVENT_ACL;}
-        | TRIGGER_SYM             { Lex->grant |= TRIGGER_ACL; }
-        | CREATE TABLESPACE_SYM   { Lex->grant |= CREATE_TABLESPACE_ACL; }
-        | CREATE ROLE_SYM         { Lex->grant |= CREATE_ROLE_ACL; }
-        | DROP ROLE_SYM           { Lex->grant |= DROP_ROLE_ACL; }
+role_or_privilege:
+          role_ident_or_text opt_column_list
+          {
+            if ($2 == NULL)
+              $$= NEW_PTN PT_role_or_dynamic_privilege(@1, $1);
+            else
+              $$= NEW_PTN PT_dynamic_privilege(@1, $1);
+          }
+        | role_ident_or_text '@' ident_or_text
+          { $$= NEW_PTN PT_role_at_host(@1, $1, $3); }
+        | SELECT_SYM opt_column_list
+          { $$= NEW_PTN PT_static_privilege(@1, SELECT_ACL, $2); }
+        | INSERT_SYM opt_column_list
+          { $$= NEW_PTN PT_static_privilege(@1, INSERT_ACL, $2); }
+        | UPDATE_SYM opt_column_list
+          { $$= NEW_PTN PT_static_privilege(@1, UPDATE_ACL, $2); }
+        | REFERENCES opt_column_list
+          { $$= NEW_PTN PT_static_privilege(@1, REFERENCES_ACL, $2); }
+        | DELETE_SYM
+          { $$= NEW_PTN PT_static_privilege(@1, DELETE_ACL); }
+        | USAGE
+          { $$= NEW_PTN PT_static_privilege(@1, 0); }
+        | INDEX_SYM
+          { $$= NEW_PTN PT_static_privilege(@1, INDEX_ACL); }
+        | ALTER
+          { $$= NEW_PTN PT_static_privilege(@1, ALTER_ACL); }
+        | CREATE
+          { $$= NEW_PTN PT_static_privilege(@1, CREATE_ACL); }
+        | DROP
+          { $$= NEW_PTN PT_static_privilege(@1, DROP_ACL); }
+        | EXECUTE_SYM
+          { $$= NEW_PTN PT_static_privilege(@1, EXECUTE_ACL); }
+        | RELOAD
+          { $$= NEW_PTN PT_static_privilege(@1, RELOAD_ACL); }
+        | SHUTDOWN
+          { $$= NEW_PTN PT_static_privilege(@1, SHUTDOWN_ACL); }
+        | PROCESS
+          { $$= NEW_PTN PT_static_privilege(@1, PROCESS_ACL); }
+        | FILE_SYM
+          { $$= NEW_PTN PT_static_privilege(@1, FILE_ACL); }
+        | GRANT OPTION
+          { $$= NEW_PTN PT_static_privilege(@1, GRANT_ACL); }
+        | SHOW DATABASES
+          { $$= NEW_PTN PT_static_privilege(@1, SHOW_DB_ACL); }
+        | SUPER_SYM
+          { 
+            /* DEPRECATED */
+            $$= NEW_PTN PT_static_privilege(@1, SUPER_ACL);
+            if (Lex->grant != GLOBAL_ACLS)
+            {
+              /*
+                 An explicit request was made for the SUPER priv id
+              */
+              push_warning(Lex->thd, Sql_condition::SL_WARNING,
+                           ER_WARN_DEPRECATED_SYNTAX,
+                           "The SUPER privilege identifier is deprecated");
+            }
+          }
+        | CREATE TEMPORARY TABLES
+          { $$= NEW_PTN PT_static_privilege(@1, CREATE_TMP_ACL); }
+        | LOCK_SYM TABLES
+          { $$= NEW_PTN PT_static_privilege(@1, LOCK_TABLES_ACL); }
+        | REPLICATION SLAVE
+          { $$= NEW_PTN PT_static_privilege(@1, REPL_SLAVE_ACL); }
+        | REPLICATION CLIENT_SYM
+          { $$= NEW_PTN PT_static_privilege(@1, REPL_CLIENT_ACL); }
+        | CREATE VIEW_SYM
+          { $$= NEW_PTN PT_static_privilege(@1, CREATE_VIEW_ACL); }
+        | SHOW VIEW_SYM
+          { $$= NEW_PTN PT_static_privilege(@1, SHOW_VIEW_ACL); }
+        | CREATE ROUTINE_SYM
+          { $$= NEW_PTN PT_static_privilege(@1, CREATE_PROC_ACL); }
+        | ALTER ROUTINE_SYM
+          { $$= NEW_PTN PT_static_privilege(@1, ALTER_PROC_ACL); }
+        | CREATE USER
+          { $$= NEW_PTN PT_static_privilege(@1, CREATE_USER_ACL); }
+        | EVENT_SYM
+          { $$= NEW_PTN PT_static_privilege(@1, EVENT_ACL); }
+        | TRIGGER_SYM
+          { $$= NEW_PTN PT_static_privilege(@1, TRIGGER_ACL); }
+        | CREATE TABLESPACE_SYM
+          { $$= NEW_PTN PT_static_privilege(@1, CREATE_TABLESPACE_ACL); }
+        | CREATE ROLE_SYM
+          { $$= NEW_PTN PT_static_privilege(@1, CREATE_ROLE_ACL); }
+        | DROP ROLE_SYM
+          { $$= NEW_PTN PT_static_privilege(@1, DROP_ROLE_ACL); }
         ;
 
 opt_with_admin_option:
@@ -14566,45 +14484,22 @@ grant_user:
         ;
 
 opt_column_list:
-          /* empty */
-          {
-            LEX *lex=Lex;
-            lex->grant |= lex->which_columns;
-          }
-        | '(' column_list ')'
+          /* empty */        { $$= NULL; }
+        | '(' column_list ')' { $$= $2; }
         ;
 
 column_list:
-          column_list ',' column_list_id
-        | column_list_id
-        ;
-
-column_list_id:
           ident
           {
-            String *new_str = NEW_PTN String((const char*) $1.str,
-                                             $1.length,system_charset_info);
-            if (new_str == NULL)
-              MYSQL_YYABORT;
-            List_iterator <LEX_COLUMN> iter(Lex->columns);
-            class LEX_COLUMN *point;
-            LEX *lex=Lex;
-            while ((point=iter++))
-            {
-              if (!my_strcasecmp(system_charset_info,
-                                 point->column.ptr(), new_str->ptr()))
-                break;
-            }
-            lex->grant_tot_col|= lex->which_columns;
-            if (point)
-              point->rights |= lex->which_columns;
-            else
-            {
-              LEX_COLUMN *col= new LEX_COLUMN (*new_str,lex->which_columns);
-              if (col == NULL)
-                MYSQL_YYABORT;
-              lex->columns.push_back(col);
-            }
+            $$= NEW_PTN Trivial_array<LEX_CSTRING>(YYMEM_ROOT);
+            if ($$ == NULL || $$->push_back(to_lex_cstring($1)))
+              MYSQL_YYABORT; // OOM
+          }
+        | column_list ',' ident
+          {
+            $$= $1;
+            if ($$->push_back(to_lex_cstring($3)))
+              MYSQL_YYABORT; // OOM
           }
         ;
 
@@ -14937,7 +14832,6 @@ view_select:
             LEX *lex= Lex;
             lex->parsing_options.allows_variable= FALSE;
             lex->parsing_options.allows_select_into= FALSE;
-            lex->parsing_options.allows_select_procedure= FALSE;
 
             /*
               In CREATE VIEW v ... the table_list initially contains
@@ -14979,7 +14873,6 @@ view_select:
 
             lex->parsing_options.allows_variable= TRUE;
             lex->parsing_options.allows_select_into= TRUE;
-            lex->parsing_options.allows_select_procedure= TRUE;
           }
         ;
 
@@ -15200,7 +15093,6 @@ sf_tail:
             }
 
             if (prepare_sp_create_field(YYTHD,
-                                        field_type,
                                         &sp->m_return_field_def))
               MYSQL_YYABORT;
 

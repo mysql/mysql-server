@@ -16,16 +16,18 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "ha_archive.h"
+#include "storage/archive/ha_archive.h"
 
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <my_dir.h>
 #include <myisam.h>
 #include <mysql/plugin.h>
 
 #include "derror.h"
 #include "field.h"
+#include "lex_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_psi_config.h"

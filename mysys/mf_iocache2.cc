@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
   More functions to be used with IO_CACHE files
 */
 
+#include <stdarg.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
@@ -324,7 +325,7 @@ size_t my_b_vprintf(IO_CACHE *info, const char* fmt, va_list args)
   uint minimum_width; /* as yet unimplemented */
   uint minimum_width_sign;
   uint precision; /* as yet unimplemented for anything but %b */
-  my_bool is_zero_padded;
+  bool is_zero_padded;
 
   /*
     Store the location of the beginning of a format directive, for the

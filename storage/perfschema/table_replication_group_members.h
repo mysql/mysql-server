@@ -22,13 +22,14 @@
   Table replication_group_members (declarations).
 */
 
-#include "pfs_column_types.h"
-#include "pfs_engine_table.h"
+#include <mysql/plugin_group_replication.h>
+#include <sys/types.h>
 
 #include "mysql_com.h"
+#include "pfs_column_types.h"
+#include "pfs_engine_table.h"
 #include "rpl_info.h"
 #include "sql_const.h"  // UUID_LENGTH
-#include <mysql/plugin_group_replication.h>
 
 /**
   @addtogroup performance_schema_tables
@@ -91,7 +92,7 @@ public:
 
   /** Table share. */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table *create();
+  static PFS_engine_table *create(PFS_engine_table_share *);
   static ha_rows get_row_count();
   virtual int rnd_next();
   virtual int rnd_pos(const void *pos);

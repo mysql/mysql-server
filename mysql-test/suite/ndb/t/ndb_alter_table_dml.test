@@ -7,7 +7,6 @@
 # Testing' alter table partition by key' with concurrent dml.
 # 
 
---source include/not_embedded.inc
 --source include/have_multi_ndb.inc
 
 connect (j1,localhost,root,,test);

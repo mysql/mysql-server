@@ -146,7 +146,7 @@ DROP VIEW v1;
 DROP TABLE t1;
 # Original tests for WL#5217
 # Must have InnoDB as engine to get the same statistics results.
-# embedded uses MyISAM as default. CREATE SELECT uses the default engine.
+# CREATE SELECT uses the default engine.
 SET @old_default_storage_engine = @@default_storage_engine;
 SET @@default_storage_engine = 'InnoDB';
 # Test to show if I_S affects HANDLER_ counts
@@ -161,6 +161,7 @@ b varchar (64),
 INDEX (b,a),
 PRIMARY KEY (a))
 ENGINE = InnoDB
+charset latin1
 PARTITION BY RANGE (a)
 SUBPARTITION BY HASH (a) SUBPARTITIONS 2
 (PARTITION pNeg VALUES LESS THAN (0)
@@ -233,22 +234,28 @@ Handler_write	1
 FLUSH STATUS;
 LOCK TABLE t1 WRITE;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
-Handler_external_lock	1
+Handler_commit	17
+Handler_external_lock	65
+Handler_read_key	32
+Handler_read_next	16
 # should be 1 commit
 # 17 writes (internal I_S)
 INSERT INTO t1 PARTITION(`p0-9`) VALUES (5, "p0-9:subp3");
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
-Handler_external_lock	1
+Handler_commit	18
+Handler_external_lock	65
+Handler_read_key	32
+Handler_read_next	16
 Handler_write	1
 # + 1 commit
 # + 19 rnd next (internal I_S)
 # + 19 write (18 internal I_S + 1 insert)
 UNLOCK TABLES;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
-Handler_external_lock	2
+Handler_commit	18
+Handler_external_lock	66
+Handler_read_key	32
+Handler_read_next	16
 Handler_write	1
 # + 19 rnd next (internal I_S)
 # + 18 write (internal I_S)
@@ -513,17 +520,19 @@ a	b
 FLUSH STATUS;
 LOCK TABLE t1 WRITE;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
-Handler_external_lock	1
+Handler_commit	17
+Handler_external_lock	65
+Handler_read_key	32
+Handler_read_next	16
 # 1 commit
 # 17 write (internal I_S)
 DELETE FROM t1 PARTITION(subp1) WHERE b = "REPLACEd by REPLACE";
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
+Handler_commit	18
 Handler_delete	1
-Handler_external_lock	1
-Handler_read_key	1
-Handler_read_next	1
+Handler_external_lock	65
+Handler_read_key	33
+Handler_read_next	17
 # + 1 commit
 # + 1 delete (one row deleted)
 # + 3 read key (1 innodb_get_index in records_in_range,
@@ -534,33 +543,33 @@ Handler_read_next	1
 REPLACE INTO t1 PARTITION (subp0) VALUES (-21, 'Should fail!');
 ERROR HY000: Found a row not matching the given partition set
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
+Handler_commit	18
 Handler_delete	1
-Handler_external_lock	1
-Handler_read_key	1
-Handler_read_next	1
+Handler_external_lock	65
+Handler_read_key	33
+Handler_read_next	17
 # Failed before start_stmt/execution.
 # + 19 rnd next (internal I_S)
 #   0 rollback (No partition had called start_stmt, all parts pruned)
 # + 18 write (internal I_S)
 REPLACE INTO t1 PARTITION (pNeg) VALUES (-21, 'Insert by REPLACE');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	3
+Handler_commit	19
 Handler_delete	1
-Handler_external_lock	1
-Handler_read_key	1
-Handler_read_next	1
+Handler_external_lock	65
+Handler_read_key	33
+Handler_read_next	17
 Handler_write	1
 # + 1 commit
 # + 19 rnd next (internal I_S)
 # + 19 write (18 internal I_S + 1 real write)
 REPLACE INTO t1 PARTITION (subp1) VALUES (-21, 'REPLACEd by REPLACE');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	4
+Handler_commit	20
 Handler_delete	1
-Handler_external_lock	1
-Handler_read_key	2
-Handler_read_next	1
+Handler_external_lock	65
+Handler_read_key	34
+Handler_read_next	17
 Handler_update	1
 Handler_write	2
 # + 1 commit
@@ -574,12 +583,12 @@ a	b
 -1	pNeg(-subp1)
 -21	REPLACEd by REPLACE
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	5
+Handler_commit	21
 Handler_delete	1
-Handler_external_lock	1
+Handler_external_lock	65
 Handler_read_first	1
-Handler_read_key	3
-Handler_read_next	4
+Handler_read_key	35
+Handler_read_next	20
 Handler_update	1
 Handler_write	2
 # + 1 commit
@@ -590,12 +599,12 @@ Handler_write	2
 # + 18 write (internal I_S)
 UNLOCK TABLES;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	5
+Handler_commit	21
 Handler_delete	1
-Handler_external_lock	2
+Handler_external_lock	66
 Handler_read_first	1
-Handler_read_key	3
-Handler_read_next	4
+Handler_read_key	35
+Handler_read_next	20
 Handler_update	1
 Handler_write	2
 # + 19 rnd next (internal I_S)
@@ -626,20 +635,13 @@ Handler_read_next	5
 FLUSH STATUS;
 ALTER TABLE t1 TRUNCATE PARTITION pNeg, `p10-99`;
 VARIABLE_NAME	VARIABLE_VALUE
-<<<<<<< HEAD
-Handler_commit	10
-Handler_delete	8
-Handler_external_lock	88
-Handler_read_key	65
-Handler_read_next	8
-Handler_update	45
-Handler_write	8
-=======
-Handler_commit	2
-Handler_external_lock	24
-Handler_read_key	40
-Handler_update	40
->>>>>>> mysql-trunk
+Handler_commit	
+Handler_delete	
+Handler_external_lock	
+Handler_read_key	
+Handler_read_next	
+Handler_update	
+Handler_write	
 SELECT * FROM t1 PARTITION (pNeg, `p10-99`);
 a	b
 FLUSH STATUS;
@@ -685,19 +687,25 @@ SUBPARTITION BY HASH (a)
 FLUSH STATUS;
 LOCK TABLE t1 WRITE;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
-Handler_external_lock	1
+Handler_commit	17
+Handler_external_lock	65
+Handler_read_key	32
+Handler_read_next	16
 # 18 read key (ALTER forces table to be closed, see above for open)
-LOAD DATA INFILE 'loadtest.txt' INTO TABLE t1 PARTITION (pNeg, `p10-99`);
+LOAD DATA INFILE 'loadtest.txt' INTO TABLE t1 PARTITION (pNeg, `p10-99`) CHARACTER SET latin1;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
-Handler_external_lock	1
+Handler_commit	18
+Handler_external_lock	65
+Handler_read_key	32
+Handler_read_next	16
 Handler_write	5
 # + 23 write (18 internal I_S + 5 rows)
 UNLOCK TABLES;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
-Handler_external_lock	2
+Handler_commit	18
+Handler_external_lock	66
+Handler_read_key	32
+Handler_read_next	16
 Handler_write	5
 #
 # Test UPDATE
@@ -847,13 +855,16 @@ VARIABLE_NAME	VARIABLE_VALUE
 FLUSH STATUS;
 LOCK TABLE t1 WRITE;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
-Handler_external_lock	1
+Handler_commit	17
+Handler_external_lock	65
+Handler_read_key	32
+Handler_read_next	16
 UPDATE t1 PARTITION (subp7) SET b = concat(b, ', Updated to 103'), a = 103 WHERE a = 101;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
-Handler_external_lock	1
-Handler_read_key	2
+Handler_commit	18
+Handler_external_lock	65
+Handler_read_key	34
+Handler_read_next	16
 Handler_read_rnd	1
 Handler_update	1
 # + 4 read key
@@ -861,10 +872,11 @@ Handler_update	1
 # + 1 update
 UPDATE t1 PARTITION (`p100-99999`) SET b = concat(b, ', Updated to 110'), a = 110 WHERE a = 103;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	3
+Handler_commit	19
 Handler_delete	1
-Handler_external_lock	1
-Handler_read_key	4
+Handler_external_lock	65
+Handler_read_key	36
+Handler_read_next	16
 Handler_read_rnd	2
 Handler_update	1
 Handler_write	1
@@ -874,10 +886,11 @@ Handler_write	1
 # + 19 write (18 internal I_S + 1 insert)
 UNLOCK TABLES;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	3
+Handler_commit	19
 Handler_delete	1
-Handler_external_lock	2
-Handler_read_key	4
+Handler_external_lock	66
+Handler_read_key	36
+Handler_read_next	16
 Handler_read_rnd	2
 Handler_update	1
 Handler_write	1
@@ -922,32 +935,35 @@ Handler_read_rnd_next	2
 FLUSH STATUS;
 LOCK TABLE t1 WRITE;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
-Handler_external_lock	1
+Handler_commit	17
+Handler_external_lock	65
+Handler_read_key	32
+Handler_read_next	16
 DELETE FROM t1 PARTITION (subp1) WHERE b = 'p0-9:subp3';
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	2
-Handler_external_lock	1
-Handler_read_key	1
+Handler_commit	18
+Handler_external_lock	65
+Handler_read_key	33
+Handler_read_next	16
 # + 3 read key (1 innodb_get_index in records_in_range
 #               + 1 innobase_get_index in index_init + 1 index read)
 DELETE FROM t1 PARTITION (`p0-9`) WHERE b = 'p0-9:subp3';
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	3
+Handler_commit	19
 Handler_delete	1
-Handler_external_lock	1
-Handler_read_key	3
-Handler_read_next	1
+Handler_external_lock	65
+Handler_read_key	35
+Handler_read_next	17
 # + 1 delete
 # + 6 read key (same as above, but for two subpartitions)
 # + 1 read next (read next after found row)
 UNLOCK TABLES;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	3
+Handler_commit	19
 Handler_delete	1
-Handler_external_lock	2
-Handler_read_key	3
-Handler_read_next	1
+Handler_external_lock	66
+Handler_read_key	35
+Handler_read_next	17
 # Test multi-table DELETE
 # Can be expressed in two different ways.
 CREATE TABLE t2 LIKE t1;
@@ -985,20 +1001,13 @@ Handler_write	5
 FLUSH STATUS;
 ALTER TABLE t2 TRUNCATE PARTITION `p10-99`, `p0-9`, `p100-99999`;
 VARIABLE_NAME	VARIABLE_VALUE
-<<<<<<< HEAD
-Handler_commit	14
-Handler_delete	12
-Handler_external_lock	120
-Handler_read_key	75
-Handler_read_next	12
-Handler_update	45
-Handler_write	12
-=======
-Handler_commit	2
-Handler_external_lock	24
-Handler_read_key	40
-Handler_update	40
->>>>>>> mysql-trunk
+Handler_commit	
+Handler_delete	
+Handler_external_lock	
+Handler_read_key	
+Handler_read_next	
+Handler_update	
+Handler_write	
 # Warm-up data-dictionary cache
 FLUSH STATUS;
 INSERT INTO t2 PARTITION (subp3) SELECT * FROM t1 PARTITION (subp3, `p10-99`, `p100-99999`);
@@ -1109,8 +1118,8 @@ SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
   `a` int(11) NOT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+  `b` varchar(64) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SELECT * FROM t3;
 a	b
 -4	(pNeg-)subp0, Updated, Updated2, Updated from a = -2
@@ -1195,20 +1204,13 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 FLUSH STATUS;
 ALTER TABLE t1 TRUNCATE PARTITION pNeg;
 VARIABLE_NAME	VARIABLE_VALUE
-<<<<<<< HEAD
-Handler_commit	6
-Handler_delete	4
-Handler_external_lock	56
-Handler_read_key	55
-Handler_read_next	4
-Handler_update	45
-Handler_write	4
-=======
-Handler_commit	2
-Handler_external_lock	24
-Handler_read_key	40
-Handler_update	40
->>>>>>> mysql-trunk
+Handler_commit	
+Handler_delete	
+Handler_external_lock	
+Handler_read_key	
+Handler_read_next	
+Handler_update	
+Handler_write	
 # Lots of extra lock acquisitions, reads and etc due to
 # data-dictionary update.
 # Test on non partitioned table
@@ -1598,7 +1600,7 @@ t1	CREATE TABLE `t1` (
   `b` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `b` (`b`,`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 /*!50100 PARTITION BY RANGE (a)
 SUBPARTITION BY HASH (a)
 (PARTITION pNeg VALUES LESS THAN (0)

@@ -1,4 +1,3 @@
---source include/not_embedded.inc
 
 # Save initial value
 SET @saved_value= @@GLOBAL.slave_preserve_commit_order;
