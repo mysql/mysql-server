@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -15,247 +15,190 @@
  * 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-
-#include "insert_statement_builder.h"
-#include "query_string_builder.h"
-#include "mysqld_error.h"
-#include "expr_generator.h"
-#include "ngs_common/protocol_protobuf.h"
-
 #include <gtest/gtest.h>
 
-namespace xpl
-{
-namespace test
-{
+#include "insert_statement_builder.h"
+#include "mysqlx_pb_wrapper.h"
 
-class Insert_statement_builder_impl: public Insert_statement_builder
-{
-public:
-  Insert_statement_builder_impl(Expression_generator &gen) : Insert_statement_builder(gen) {}
+namespace xpl {
+namespace test {
 
-  using Insert_statement_builder::Projection_list;
-  using Insert_statement_builder::Row_list;
-  using Insert_statement_builder::Field_list;
+class Insert_statement_builder_stub : public Insert_statement_builder {
+ public:
+  explicit Insert_statement_builder_stub(Expression_generator *gen)
+      : Insert_statement_builder(*gen) {}
   using Insert_statement_builder::add_projection;
   using Insert_statement_builder::add_values;
   using Insert_statement_builder::add_row;
+  using Insert_statement_builder::add_upsert;
 };
 
+class Insert_statement_builder_test : public ::testing::Test {
+ public:
+  Insert_statement_builder_stub &builder() {
+    expr_gen.reset(new Expression_generator(query, args, schema,
+                                            is_table_data_model(msg)));
+    stub.reset(new Insert_statement_builder_stub(expr_gen.get()));
+    return *stub;
+  }
 
-class Insert_statement_builder_test : public ::testing::Test
-{
-public:
-  Insert_statement_builder_test()
-  : args(*msg.mutable_args()),
-    expr_gen(query, args, schema, true),
-    builder(expr_gen)
-  {}
   Insert_statement_builder::Insert msg;
-  Expression_generator::Args &args;
+  Expression_generator::Args &args = *msg.mutable_args();
   Query_string_builder query;
   std::string schema;
-  Expression_generator expr_gen;
-  Insert_statement_builder_impl builder;
+  std::unique_ptr<Expression_generator> expr_gen;
+  std::unique_ptr<Insert_statement_builder_stub> stub;
 
-  enum {DM_DOCUMENT = 0, DM_TABLE = 1};
+  enum {
+    DM_DOCUMENT = 0,
+    DM_TABLE = 1
+  };
 };
 
-namespace
-{
-
-void operator<< (::google::protobuf::Message &msg, const std::string& txt)
-{
-  ::google::protobuf::TextFormat::ParseFromString(txt, &msg);
-}
-
-inline std::string get_literal(const std::string& name)
-{
-  return "type: LITERAL literal "
-      "{type: V_STRING v_string {value: '"+ name + "' }}";
-}
-
-inline std::string get_field(const std::string& name)
-{
-  return "field {" + get_literal(name) + "}";
-}
-
-} // namespace
-
-
-TEST_F(Insert_statement_builder_test, add_row_empty_projection_empty_row)
-{
-  Insert_statement_builder_impl::Field_list row;
-  ASSERT_THROW(builder.add_row(row, 0), ngs::Error_code);
+TEST_F(Insert_statement_builder_test, add_row_empty_projection_empty_row) {
+  ASSERT_THROW(builder().add_row(Field_list(), 0), ngs::Error_code);
   EXPECT_EQ("", query.get());
 }
 
-
-TEST_F(Insert_statement_builder_test, add_row_one_projection_empty_row)
-{
-  Insert_statement_builder_impl::Field_list row;
-  ASSERT_THROW(builder.add_row(row, 1), ngs::Error_code);
+TEST_F(Insert_statement_builder_test, add_row_one_projection_empty_row) {
+  ASSERT_THROW(builder().add_row(Field_list(), 1), ngs::Error_code);
   EXPECT_EQ("", query.get());
 }
 
-
-TEST_F(Insert_statement_builder_test, add_row_full_row_projection_empty)
-{
-  Insert_statement_builder_impl::Field_list row;
-  *row.Add() << get_literal("one");
-  ASSERT_NO_THROW(builder.add_row(row, 0));
+TEST_F(Insert_statement_builder_test, add_row_full_row_projection_empty) {
+  ASSERT_NO_THROW(builder().add_row(Field_list{"one"}, 0));
   EXPECT_EQ("('one')", query.get());
 }
 
-
-TEST_F(Insert_statement_builder_test, add_row_half_row_full_projection)
-{
-  Insert_statement_builder_impl::Field_list row;
-  *row.Add() << get_literal("one");
-  ASSERT_THROW(builder.add_row(row, 2), ngs::Error_code);
+TEST_F(Insert_statement_builder_test, add_row_half_row_full_projection) {
+  ASSERT_THROW(builder().add_row(Field_list{"one"}, 2), ngs::Error_code);
   EXPECT_EQ("", query.get());
 }
 
-
-TEST_F(Insert_statement_builder_test, add_row_full_row_full_projection)
-{
-  Insert_statement_builder_impl::Field_list row;
-  *row.Add() << get_literal("one");
-  *row.Add() << get_literal("two");
-  ASSERT_NO_THROW(builder.add_row(row, 2));
+TEST_F(Insert_statement_builder_test, add_row_full_row_full_projection) {
+  ASSERT_NO_THROW(builder().add_row(Field_list{"one", "two"}, 2));
   EXPECT_EQ("('one','two')", query.get());
 }
 
-
-TEST_F(Insert_statement_builder_test, add_values_empty_list)
-{
-  Insert_statement_builder_impl::Row_list values;
-  ASSERT_THROW(builder.add_values(values, 1), ngs::Error_code);
+TEST_F(Insert_statement_builder_test, add_values_empty_list) {
+  ASSERT_THROW(builder().add_values(Row_list(), 1), ngs::Error_code);
   EXPECT_EQ("", query.get());
 }
 
-
-TEST_F(Insert_statement_builder_test, add_values_one_row)
-{
-  Insert_statement_builder_impl::Row_list values;
-  *values.Add() << get_field("one") + " " + get_field("two");
-  ASSERT_NO_THROW(builder.add_values(values, 0));
+TEST_F(Insert_statement_builder_test, add_values_one_row) {
+  ASSERT_NO_THROW(builder().add_values(Row_list{{"one", "two"}}, 0));
   EXPECT_EQ(" VALUES ('one','two')", query.get());
 }
 
+TEST_F(Insert_statement_builder_test, add_values_one_row_with_arg) {
+  *args.Add() = Scalar("two");
 
-TEST_F(Insert_statement_builder_test, add_values_one_row_with_arg)
-{
-  *args.Add() << "type: V_STRING v_string {value: 'two'}";
-
-  Insert_statement_builder_impl::Row_list values;
-  *values.Add() << get_field("one") + " field {type: PLACEHOLDER position: 0}";
-  ASSERT_NO_THROW(builder.add_values(values, 0));
+  ASSERT_NO_THROW(builder().add_values(Row_list{{"one", Placeholder(0)}}, 0));
   EXPECT_EQ(" VALUES ('one','two')", query.get());
 }
 
-
-TEST_F(Insert_statement_builder_test, add_values_one_row_missing_arg)
-{
-  Insert_statement_builder_impl::Row_list values;
-  *values.Add() << get_field("one") + " field {type: PLACEHOLDER position: 0}";
-  EXPECT_THROW(builder.add_values(values, 0),
+TEST_F(Insert_statement_builder_test, add_values_one_row_missing_arg) {
+  EXPECT_THROW(builder().add_values(Row_list{{"one", Placeholder(0)}}, 0),
                Expression_generator::Error);
 }
 
-
-TEST_F(Insert_statement_builder_test, add_values_two_rows)
-{
-  Insert_statement_builder_impl::Row_list values;
-  *values.Add() << get_field("one") + " " + get_field("two");
-  *values.Add() << get_field("three") + " " + get_field("four");
-  ASSERT_NO_THROW(builder.add_values(values, values.size()));
+TEST_F(Insert_statement_builder_test, add_values_two_rows) {
+  Row_list values{{"one", "two"}, {"three", "four"}};
+  ASSERT_NO_THROW(builder().add_values(values, values.size()));
   EXPECT_EQ(" VALUES ('one','two'),('three','four')", query.get());
 }
 
+TEST_F(Insert_statement_builder_test, add_values_two_rows_with_args) {
+  *args.Add() = Scalar("two");
+  *args.Add() = Scalar("four");
 
-TEST_F(Insert_statement_builder_test, add_values_two_rows_with_args)
-{
-  *args.Add() << "type: V_STRING v_string {value: 'two'}";
-  *args.Add() << "type: V_STRING v_string {value: 'four'}";
-
-  Insert_statement_builder_impl::Row_list values;
-  *values.Add() << get_field("one") + " field {type: PLACEHOLDER position: 0}";
-  *values.Add() << get_field("three") + " field {type: PLACEHOLDER position: 1}";
-  ASSERT_NO_THROW(builder.add_values(values, values.size()));
+  Row_list values{{"one", Placeholder(0)}, {"three", Placeholder(1)}};
+  ASSERT_NO_THROW(builder().add_values(values, values.size()));
   EXPECT_EQ(" VALUES ('one','two'),('three','four')", query.get());
 }
 
-
-TEST_F(Insert_statement_builder_test, add_projection_tabel_empty)
-{
-  Insert_statement_builder_impl::Projection_list projection;
-  ASSERT_NO_THROW(builder.add_projection(projection, DM_TABLE));
+TEST_F(Insert_statement_builder_test, add_projection_tabel_empty) {
+  ASSERT_NO_THROW(builder().add_projection(Column_projection_list(), DM_TABLE));
   EXPECT_EQ("", query.get());
 }
 
-
-TEST_F(Insert_statement_builder_test, add_projection_tabel_one_item)
-{
-  Insert_statement_builder_impl::Projection_list projection;
-  *projection.Add() << "name: 'first'";
-  ASSERT_NO_THROW(builder.add_projection(projection, DM_TABLE));
+TEST_F(Insert_statement_builder_test, add_projection_tabel_one_item) {
+  ASSERT_NO_THROW(builder().add_projection(
+      Column_projection_list{Column("first")}, DM_TABLE));
   EXPECT_EQ(" (`first`)", query.get());
 }
 
-
-TEST_F(Insert_statement_builder_test, add_projection_tabel_two_items)
-{
-  Insert_statement_builder_impl::Projection_list projection;
-  *projection.Add() << "name: 'first'";
-  *projection.Add() << "name: 'second'";
-  ASSERT_NO_THROW(builder.add_projection(projection, DM_TABLE));
+TEST_F(Insert_statement_builder_test, add_projection_tabel_two_items) {
+  ASSERT_NO_THROW(builder().add_projection(
+      Column_projection_list{Column("first"), Column("second")}, DM_TABLE));
   EXPECT_EQ(" (`first`,`second`)", query.get());
 }
 
-
-TEST_F(Insert_statement_builder_test, add_projection_document_empty)
-{
-  Insert_statement_builder_impl::Projection_list projection;
-  ASSERT_NO_THROW(builder.add_projection(projection, DM_DOCUMENT));
+TEST_F(Insert_statement_builder_test, add_projection_document_empty) {
+  ASSERT_NO_THROW(
+      builder().add_projection(Column_projection_list(), DM_DOCUMENT));
   EXPECT_EQ(" (doc)", query.get());
 }
 
-
-TEST_F(Insert_statement_builder_test, add_projection_document_one_item)
-{
-  Insert_statement_builder_impl::Projection_list projection;
-  *projection.Add() << "name: 'first'";
-  ASSERT_THROW(builder.add_projection(projection, DM_DOCUMENT), ngs::Error_code);
-  EXPECT_EQ("", query.get());
+TEST_F(Insert_statement_builder_test, add_projection_document_one_item) {
+  ASSERT_THROW(builder().add_projection(Column_projection_list{Column("first")},
+                                        DM_DOCUMENT),
+               ngs::Error_code);
 }
 
-
-TEST_F(Insert_statement_builder_test, build_document)
-{
-  msg <<
-      "collection { name: 'xcoll' schema: 'xtest' } "
-      "data_model: DOCUMENT "
-      "row {" + get_field("first") + "}"
-      "row {" + get_field("second") + "}";
-  ASSERT_NO_THROW(builder.build(msg));
-  EXPECT_EQ("INSERT INTO `xtest`.`xcoll` (doc) VALUES ('first'),('second')", query.get());
+TEST_F(Insert_statement_builder_test, add_upsert) {
+  ASSERT_NO_THROW(builder().add_upsert(DM_DOCUMENT));
+  EXPECT_STREQ(
+      " ON DUPLICATE KEY UPDATE doc = JSON_SET(VALUES(doc), '$._id',"
+      " JSON_EXTRACT(doc, '$._id'))",
+      query.get().c_str());
+  ASSERT_THROW(builder().add_upsert(DM_TABLE), ngs::Error_code);
 }
 
-
-TEST_F(Insert_statement_builder_test, build_table)
-{
-  msg <<
-      "collection { name: 'xtable' schema: 'xtest' } "
-      "data_model: TABLE "
-      "projection { name: 'one' } "
-      "projection { name: 'two' } "
-      "row {" + get_field("first") + " " + get_field("second") + "}";
-  ASSERT_NO_THROW(builder.build(msg));
-  EXPECT_EQ("INSERT INTO `xtest`.`xtable` (`one`,`two`) VALUES ('first','second')", query.get());
+TEST_F(Insert_statement_builder_test, build_document) {
+  msg.set_data_model(Mysqlx::Crud::DOCUMENT);
+  *msg.mutable_collection() = Collection("xcoll", "xtest");
+  *msg.mutable_row() = Row_list{{"first"}, {"second"}};
+  ASSERT_NO_THROW(builder().build(msg));
+  EXPECT_EQ(
+      "INSERT INTO `xtest`.`xcoll` (doc) "
+      "VALUES ('first'),('second')",
+      query.get());
 }
 
-} // namespace test
-} // namespace xpl
+TEST_F(Insert_statement_builder_test, build_table) {
+  msg.set_data_model(Mysqlx::Crud::TABLE);
+  *msg.mutable_collection() = Collection("xtable", "xtest");
+  *msg.mutable_projection() =
+      Column_projection_list{Column("one"), Column("two")};
+  *msg.mutable_row() = Row_list{{"first", "second"}};
+  ASSERT_NO_THROW(builder().build(msg));
+  EXPECT_EQ(
+      "INSERT INTO `xtest`.`xtable` (`one`,`two`) "
+      "VALUES ('first','second')",
+      query.get());
+}
 
+TEST_F(Insert_statement_builder_test, build_document_upsert) {
+  msg.set_data_model(Mysqlx::Crud::DOCUMENT);
+  msg.set_upsert(true);
+  *msg.mutable_collection() = Collection("xcoll", "xtest");
+  *msg.mutable_row() = Row_list{{"first"}, {"second"}};
+  ASSERT_NO_THROW(builder().build(msg));
+  EXPECT_STREQ(
+      "INSERT INTO `xtest`.`xcoll` (doc) VALUES ('first'),('second')"
+      " ON DUPLICATE KEY UPDATE doc = JSON_SET(VALUES(doc), '$._id',"
+      " JSON_EXTRACT(doc, '$._id'))",
+      query.get().c_str());
+}
 
+TEST_F(Insert_statement_builder_test, build_table_upsert) {
+  msg.set_data_model(Mysqlx::Crud::TABLE);
+  msg.set_upsert(true);
+  *msg.mutable_collection() = Collection("xcoll", "xtest");
+  *msg.mutable_row() = Row_list{{"first"}, {"second"}};
+  ASSERT_THROW(builder().build(msg), ngs::Error_code);
+}
+
+}  // namespace test
+}  // namespace xpl

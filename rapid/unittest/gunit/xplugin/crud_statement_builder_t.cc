@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -129,15 +129,16 @@ TEST_F(Crud_statement_builder_test, add_order_empty_list)
 
 TEST_F(Crud_statement_builder_test, add_order_one_item)
 {
-  ASSERT_NO_THROW(builder.add_order(Order_list(Order(ColumnIdentifier("A")))));
+  ASSERT_NO_THROW(builder.add_order(Order_list{Order(ColumnIdentifier("A"))}));
   EXPECT_EQ(" ORDER BY `A`", query.get());
 }
 
 
 TEST_F(Crud_statement_builder_test, add_order_two_items)
 {
-  ASSERT_NO_THROW(builder.add_order(Order_list(Order(ColumnIdentifier("A"), Mysqlx::Crud::Order_Direction_DESC))
-                                              (Order(ColumnIdentifier("B")))));
+  ASSERT_NO_THROW(builder.add_order(Order_list
+      {Order(ColumnIdentifier("A"), Mysqlx::Crud::Order_Direction_DESC),
+       Order(ColumnIdentifier("B"))}));
   EXPECT_EQ(" ORDER BY `A` DESC,`B`", query.get());
 }
 
@@ -146,8 +147,9 @@ TEST_F(Crud_statement_builder_test, add_order_two_items_placeholder)
 {
   *args.Add() = Scalar(2);
 
-  ASSERT_NO_THROW(builder.add_order(Order_list(Order(ColumnIdentifier("A"), Mysqlx::Crud::Order_Direction_DESC))
-                                              (Order(Placeholder(0)))));
+  ASSERT_NO_THROW(builder.add_order(Order_list
+      {Order(ColumnIdentifier("A"), Mysqlx::Crud::Order_Direction_DESC),
+       Order(Placeholder(0))}));
   EXPECT_EQ(" ORDER BY `A` DESC,2", query.get());
 }
 

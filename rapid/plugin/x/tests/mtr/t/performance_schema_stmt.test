@@ -70,6 +70,26 @@ Mysqlx.Crud.Insert {
 -->callmacro Show_sql_history
 
 -->callmacro Clear_sql_history
+-->echo ######### Crud.Insert (upsert) #########
+Mysqlx.Crud.Insert {
+  data_model: DOCUMENT
+  collection { name: 'test' schema: 'xtest'}
+  row{
+    field{
+      type: LITERAL literal {
+        type: V_OCTETS v_octets {
+          value:'{"_id": "two"}'
+          content_type:2
+        }
+      }
+    }
+  }
+  upsert: true
+}
+-->recvresult
+-->callmacro Show_sql_history
+
+-->callmacro Clear_sql_history
 -->echo ######### Crud.Update #########
 Mysqlx.Crud.Update {
   collection {

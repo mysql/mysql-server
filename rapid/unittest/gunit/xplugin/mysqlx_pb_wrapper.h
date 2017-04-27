@@ -13,45 +13,38 @@
  along with this program; if not, write to the Free Software
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#ifndef _XPL_MYSQLX_PB_WRAPPER_H_
-#define _XPL_MYSQLX_PB_WRAPPER_H_
+#ifndef XPLUGIN_MYSQLX_PB_WRAPPER_H_
+#define XPLUGIN_MYSQLX_PB_WRAPPER_H_
 
-#include <stddef.h>
+#include <cstddef>
+
+#include <map>
 #include <string>
+#include <vector>
 
 #include "ngs_common/protocol_protobuf.h"
 
-
-namespace xpl
-{
-
-namespace test
-{
+namespace xpl {
+namespace test {
 
 class Operator;
 class FunctionCall;
 class Object;
 class Array;
 
-
-class Identifier : public Mysqlx::Expr::Identifier
-{
-public:
+class Identifier : public Mysqlx::Expr::Identifier {
+ public:
   Identifier(const std::string &name = "", const std::string &schema_name = "");
 };
 
-
-typedef ::Mysqlx::Expr::DocumentPathItem Document_path_item;
-
+using Document_path_item =::Mysqlx::Expr::DocumentPathItem;
 
 class Document_path
-    : public ::google::protobuf::RepeatedPtrField<Document_path_item>
-{
-public:
+    : public ::google::protobuf::RepeatedPtrField<Document_path_item> {
+ public:
   class Path
-      : private std::vector<std::pair<Document_path_item::Type, std::string> >
-  {
-  public:
+      : private std::vector<std::pair<Document_path_item::Type, std::string> > {
+   public:
     Path() {}
     explicit Path(const std::string &value);
     Path &add_member(const std::string &value);
@@ -64,33 +57,26 @@ public:
   Document_path(const Path &path);
 };
 
-
-class ColumnIdentifier : public Mysqlx::Expr::ColumnIdentifier
-{
-public:
+class ColumnIdentifier : public Mysqlx::Expr::ColumnIdentifier {
+ public:
   ColumnIdentifier(const std::string &name = "",
                    const std::string &table_name = "",
                    const std::string &schema_name = "",
                    const Document_path::Path *path = NULL);
-  ColumnIdentifier(const Document_path &path,
-                   const std::string &name = "",
+  ColumnIdentifier(const Document_path &path, const std::string &name = "",
                    const std::string &table_name = "",
                    const std::string &schema_name = "");
 };
 
+class Scalar : public Mysqlx::Datatypes::Scalar {
+ public:
+  struct Null {};
 
-class Scalar : public Mysqlx::Datatypes::Scalar
-{
-public:
-  struct Null { };
-
-  struct String : public Mysqlx::Datatypes::Scalar_String
-  {
+  struct String : public Mysqlx::Datatypes::Scalar_String {
     String(const std::string &value);
   };
 
-  struct Octets : public Mysqlx::Datatypes::Scalar_Octets
-  {
+  struct Octets : public Mysqlx::Datatypes::Scalar_Octets {
     Octets(const std::string &value, unsigned type);
   };
 
@@ -108,49 +94,41 @@ public:
   Scalar(Null value);
 };
 
-
-class Any : public Mysqlx::Datatypes::Any
-{
-public:
+class Any : public Mysqlx::Datatypes::Any {
+ public:
   class Object;
-  class Array : public Mysqlx::Datatypes::Array
-  {
-  public:
-    class Scalar_values : private std::vector<Scalar>
-    {
-    public:
+  class Array : public Mysqlx::Datatypes::Array {
+   public:
+    class Scalar_values : private std::vector<Scalar> {
+     public:
       Scalar_values() {}
-      Scalar_values &operator () (const Scalar &value);
+      Scalar_values &operator()(const Scalar &value);
       friend class Array;
     };
 
     Array(const Scalar_values &values);
     Array(const Scalar &value);
     Array(const Object &value);
-    Array &operator () (const Scalar &value);
-    Array &operator () (const Object &value);
+    Array &operator()(const Scalar &value);
+    Array &operator()(const Object &value);
     Array() {}
   };
 
-
-  class Object : public Mysqlx::Datatypes::Object
-  {
-  public:
-    class Scalar_fields : private std::map<std::string, Scalar>
-    {
-    public:
+  class Object : public Mysqlx::Datatypes::Object {
+   public:
+    class Scalar_fields : private std::map<std::string, Scalar> {
+     public:
       Scalar_fields() {}
       Scalar_fields(const std::string &key, const Scalar &value);
-      Scalar_fields &operator () (const std::string &key, const Scalar &value);
+      Scalar_fields &operator()(const std::string &key, const Scalar &value);
       friend class Object;
     };
 
-    class Fields : private std::map<std::string, Any>
-    {
-    public:
+    class Fields : private std::map<std::string, Any> {
+     public:
       Fields() {}
       Fields(const std::string &key, const Any &value);
-      Fields &operator () (const std::string &key, const Any &value);
+      Fields &operator()(const std::string &key, const Any &value);
       friend class Object;
     };
 
@@ -166,31 +144,24 @@ public:
   Any(const Array &array);
 };
 
-
-class Placeholder
-{
-public:
+class Placeholder {
+ public:
   explicit Placeholder(const ::google::protobuf::uint32 v) : value(v) {}
   const ::google::protobuf::uint32 value;
 };
 
-
-class Variable
-{
-public:
+class Variable {
+ public:
   Variable(const std::string &name) : value(name) {}
   const std::string value;
 };
 
-
-class Expr : public Mysqlx::Expr::Expr
-{
-public:
+class Expr : public Mysqlx::Expr::Expr {
+ public:
   Expr() {}
 
-  template<typename T>
-  Expr(T value)
-  {
+  template <typename T>
+  Expr(T value) {
     Expr::initialize(*this, value);
   }
 
@@ -210,42 +181,34 @@ public:
   static void initialize(Mysqlx::Expr::Expr &expr, const Variable &var);
 };
 
+class Operator : public Mysqlx::Expr::Operator {
+ public:
+  Operator(const std::string &name) { set_name(name); }
 
-class Operator : public Mysqlx::Expr::Operator
-{
-public:
-  Operator(const std::string &name)
-  {
-    set_name(name);
-  }
-
-  template<typename T1>
-  Operator(const std::string &name, T1 param1)
-  {
+  template <typename T1>
+  Operator(const std::string &name, T1 param1) {
     set_name(name);
     add_param(param1);
   }
 
-  template<typename T1, typename T2>
-  Operator(const std::string &name, T1 param1, T2 param2)
-  {
+  template <typename T1, typename T2>
+  Operator(const std::string &name, T1 param1, T2 param2) {
     set_name(name);
     add_param(param1);
     add_param(param2);
   }
 
-  template<typename T1, typename T2, typename T3>
-  Operator(const std::string &name, T1 param1, T2 param2, T3 param3)
-  {
+  template <typename T1, typename T2, typename T3>
+  Operator(const std::string &name, T1 param1, T2 param2, T3 param3) {
     set_name(name);
     add_param(param1);
     add_param(param2);
     add_param(param3);
   }
 
-  template<typename T1, typename T2, typename T3, typename T4>
-  Operator(const std::string &name, T1 param1, T2 param2, T3 param3, T4 param4)
-  {
+  template <typename T1, typename T2, typename T3, typename T4>
+  Operator(const std::string &name, T1 param1, T2 param2, T3 param3,
+           T4 param4) {
     set_name(name);
     add_param(param1);
     add_param(param2);
@@ -253,127 +216,95 @@ public:
     add_param(param4);
   }
 
-  void add_param(Expr *value)
-  {
-    mutable_param()->AddAllocated(value);
-  }
+  void add_param(Expr *value) { mutable_param()->AddAllocated(value); }
 
-  void add_param(const Expr &value)
-  {
-    mutable_param()->Add()->CopyFrom(value);
-  }
+  void add_param(const Expr &value) { mutable_param()->Add()->CopyFrom(value); }
 };
 
+class FunctionCall : public Mysqlx::Expr::FunctionCall {
+ public:
+  FunctionCall(Identifier *name) { set_allocated_name(name); }
 
-class FunctionCall : public Mysqlx::Expr::FunctionCall
-{
-public:
-  FunctionCall(Identifier *name)
-  {
-    set_allocated_name(name);
-  }
+  FunctionCall(const Identifier &name) { mutable_name()->CopyFrom(name); }
 
-  FunctionCall(const Identifier &name)
-  {
-    mutable_name()->CopyFrom(name);
-  }
-
-  template<typename T1>
-  FunctionCall(Identifier *name, T1 param1)
-  {
+  template <typename T1>
+  FunctionCall(Identifier *name, T1 param1) {
     initialize(name, param1);
   }
 
-  template<typename T1, typename T2>
-  FunctionCall(Identifier *name, T1 param1, T2 param2)
-  {
+  template <typename T1, typename T2>
+  FunctionCall(Identifier *name, T1 param1, T2 param2) {
     initialize(name, param1);
     add_param(param2);
   }
 
-  FunctionCall(const std::string &name)
-  {
+  FunctionCall(const std::string &name) {
     set_allocated_name(new Identifier(name));
   }
 
-  template<typename T1>
-  FunctionCall(const Identifier &name, T1 param1)
-  {
+  template <typename T1>
+  FunctionCall(const Identifier &name, T1 param1) {
     mutable_name()->CopyFrom(name);
     add_param(param1);
   }
 
-  template<typename T1, typename T2>
-  FunctionCall(const Identifier &name, T1 param1, T2 param2)
-  {
+  template <typename T1, typename T2>
+  FunctionCall(const Identifier &name, T1 param1, T2 param2) {
     mutable_name()->CopyFrom(name);
     add_param(param1);
     add_param(param2);
   }
 
-  template<typename T1, typename T2, typename T3>
-  FunctionCall(const Identifier &name, T1 param1, T2 param2, T3 param3)
-  {
+  template <typename T1, typename T2, typename T3>
+  FunctionCall(const Identifier &name, T1 param1, T2 param2, T3 param3) {
     mutable_name()->CopyFrom(name);
     add_param(param1);
     add_param(param2);
     add_param(param3);
   }
 
-  template<typename T1>
-  FunctionCall(const std::string &name, T1 param1)
-  {
+  template <typename T1>
+  FunctionCall(const std::string &name, T1 param1) {
     initialize(new Identifier(name), param1);
   }
 
-  template<typename T1, typename T2>
-  FunctionCall(const std::string &name, T1 param1, T2 param2)
-  {
+  template <typename T1, typename T2>
+  FunctionCall(const std::string &name, T1 param1, T2 param2) {
     initialize(new Identifier(name), param1);
     add_param(param2);
   }
 
-  template<typename T1, typename T2, typename T3>
-  FunctionCall(const std::string &name, T1 param1, T2 param2, T3 param3)
-  {
+  template <typename T1, typename T2, typename T3>
+  FunctionCall(const std::string &name, T1 param1, T2 param2, T3 param3) {
     initialize(new Identifier(name), param1);
     add_param(param2);
     add_param(param3);
   }
 
-private:
-  template<typename T1>
-  void initialize(Identifier *name, T1 param1)
-  {
+ private:
+  template <typename T1>
+  void initialize(Identifier *name, T1 param1) {
     set_allocated_name(name);
     add_param(param1);
   }
 
-
-  template<typename T>
-  void add_param(T value)
-  {
+  template <typename T>
+  void add_param(T value) {
     Expr::initialize(*Mysqlx::Expr::FunctionCall::add_param(), value);
   }
 
-  void add_param(Expr *value)
-  {
-    mutable_param()->AddAllocated(value);
-  }
+  void add_param(Expr *value) { mutable_param()->AddAllocated(value); }
 };
 
-
-class Object : public Mysqlx::Expr::Object
-{
-public:
-  class Values : private std::map<std::string, Expr>
-   {
+class Object : public Mysqlx::Expr::Object {
+ public:
+  class Values : private std::map<std::string, Expr> {
    public:
-     Values() {}
-     Values(const std::string &key, const Expr &value);
-     Values &operator() (const std::string &key, const Expr &value);
-     friend class Object;
-   };
+    Values() {}
+    Values(const std::string &key, const Expr &value);
+    Values &operator()(const std::string &key, const Expr &value);
+    friend class Object;
+  };
 
   Object(const Values &values);
   Object() {}
@@ -381,77 +312,74 @@ public:
   Object(const std::string &key, const Expr &value);
 };
 
-
-class Array : public Mysqlx::Expr::Array
-{
-public:
+class Array : public Mysqlx::Expr::Array {
+ public:
   Array() {}
 
-  template<int size>
-  Array(Expr (&values)[size])
-  {
-    for (Expr *i = values; i != values+size; ++i)
+  template <int size>
+  Array(Expr (&values)[size]) {
+    for (Expr *i = values; i != values + size; ++i)
       mutable_value()->Add()->CopyFrom(*i);
   }
 };
 
-
-class Column: public ::Mysqlx::Crud::Column
-{
-public:
+class Column : public ::Mysqlx::Crud::Column {
+ public:
   Column(const std::string &name, const std::string &alias = "");
-  Column(const Document_path &path,
-         const std::string &name = "", const std::string &alias = "");
+  Column(const Document_path &path, const std::string &name = "",
+         const std::string &alias = "");
 };
 
-
-class Collection : public ::Mysqlx::Crud::Collection
-{
-public:
+class Collection : public ::Mysqlx::Crud::Collection {
+ public:
   Collection(const std::string &name, const std::string &schema = "");
 };
 
+using Data_model = ::Mysqlx::Crud::DataModel;
 
-typedef ::Mysqlx::Crud::DataModel Data_model;
-
-
-class Projection : public ::Mysqlx::Crud::Projection
-{
-public:
+class Projection : public ::Mysqlx::Crud::Projection {
+ public:
   Projection(const Expr &source, const std::string &alias = "");
 };
 
-
-class Order : public ::Mysqlx::Crud::Order
-{
-public:
-  Order(const Expr &expr, const ::Mysqlx::Crud::Order_Direction dir = ::Mysqlx::Crud::Order_Direction_ASC);
+class Order : public ::Mysqlx::Crud::Order {
+ public:
+  Order(const Expr &expr, const ::Mysqlx::Crud::Order_Direction dir =
+                              ::Mysqlx::Crud::Order_Direction_ASC);
 };
 
-
-class Limit : public ::Mysqlx::Crud::Limit
-{
-public:
+class Limit : public ::Mysqlx::Crud::Limit {
+ public:
   Limit(const uint64_t row_count = 0, const uint64_t offset = 0);
 };
 
-
-template<typename B, typename T>
-class RepeatedPtrField : public ::google::protobuf::RepeatedPtrField<B>
-{
-public:
+template <typename B, typename T>
+class RepeatedPtrField : public ::google::protobuf::RepeatedPtrField<B> {
+ public:
   RepeatedPtrField() {}
-  RepeatedPtrField(const T &arg) { add(arg); }
-  RepeatedPtrField &operator()(const T &arg) { return add(arg); }
-  RepeatedPtrField &add(const T &arg) { *this->Add() = arg; return *this; }
+  RepeatedPtrField(std::initializer_list<T> list) {
+    for (const T &e : list) *this->Add() = e;
+  }
 };
 
-typedef RepeatedPtrField<Mysqlx::Datatypes::Scalar, Scalar> Expression_args;
-typedef RepeatedPtrField<Mysqlx::Crud::Order, Order> Order_list;
-typedef Expr Filter;
+using Filter = Expr;
+using Column_projection_list = RepeatedPtrField<Mysqlx::Crud::Column, Column>;
+using Expression_args = RepeatedPtrField<Mysqlx::Datatypes::Scalar, Scalar>;
+using Field_list = RepeatedPtrField<Mysqlx::Expr::Expr, Expr>;
+using Order_list = RepeatedPtrField<Mysqlx::Crud::Order, Order>;
+using Projection_list = RepeatedPtrField<Mysqlx::Crud::Projection, Projection>;
+using Value_list = RepeatedPtrField<Mysqlx::Expr::Expr, Expr>;
 
-} // namespace test
-} // namespace xpl
+class Row_list : public ::google::protobuf::RepeatedPtrField<
+                     Mysqlx::Crud::Insert_TypedRow> {
+ public:
+  Row_list() {}
+  Row_list(std::initializer_list<Value_list> list) {
+    for (const Value_list &v : list) *this->Add()->mutable_field() = v;
+  }
+};
 
+}  // namespace test
+}  // namespace xpl
 
-#endif // _XPL_MYSQLX_PB_WRAPPER_H_
+#endif  // _XPL_MYSQLX_PB_WRAPPER_H_

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -108,7 +108,7 @@ TEST_F(View_statement_builder_test, add_check_option_local) {
 }
 
 TEST_F(View_statement_builder_test, build_create_view_two_columns) {
-  ASSERT_NO_THROW(builder.add_columns(Column_list("one")("two")("three")));
+  ASSERT_NO_THROW(builder.add_columns(Column_list{"one","two","three"}));
   EXPECT_STREQ(" (`one`,`two`,`three`)", query.get().c_str());
 }
 
@@ -144,7 +144,7 @@ TEST_F(View_statement_builder_test, build_create_view_no_replace) {
 TEST_F(View_statement_builder_test, build_create_view_column) {
   View_create msg;
   *msg.mutable_collection() = Collection("xview");
-  *msg.mutable_column() = Column_list("one");
+  *msg.mutable_column() = Column_list{"one"};
   *msg.mutable_stmt() = find;
   ASSERT_NO_THROW(builder.build(msg));
   EXPECT_STREQ("CREATE VIEW `xview` (`one`) AS SELECT doc FROM `A`",
@@ -205,7 +205,7 @@ TEST_F(View_statement_builder_test, build_modify_view_simple) {
 TEST_F(View_statement_builder_test, build_modify_view_column) {
   View_modify msg;
   *msg.mutable_collection() = Collection("xview");
-  *msg.mutable_column() = Column_list("one");
+  *msg.mutable_column() = Column_list{"one"};
   *msg.mutable_stmt() = find;
   ASSERT_NO_THROW(builder.build(msg));
   EXPECT_STREQ("ALTER VIEW `xview` (`one`) AS SELECT doc FROM `A`",
