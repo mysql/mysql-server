@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@
 
 #ifdef TEST_LHLEVEL
 
+#include <cstdint>
 #include <ndb_global.h>
 #include <assert.h>
 #include <stdlib.h>
@@ -26,10 +27,6 @@
 #include "md5_hash.hpp"
 #include "random.h"
 #include "LHLevel.hpp"
-
-#ifndef UINT32_MAX
-#define UINT32_MAX (4294967295U)
-#endif
 
 #define BUCKSIZE 3
 

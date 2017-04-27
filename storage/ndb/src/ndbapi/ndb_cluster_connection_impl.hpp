@@ -19,6 +19,7 @@
 #ifndef CLUSTER_CONNECTION_IMPL_HPP
 #define CLUSTER_CONNECTION_IMPL_HPP
 
+#include <cstdint>
 #include <ndb_cluster_connection.hpp>
 #include <Vector.hpp>
 #include <NdbMutex.h>
