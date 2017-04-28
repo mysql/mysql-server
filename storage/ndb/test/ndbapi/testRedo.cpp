@@ -1510,6 +1510,7 @@ runLCP(NDBT_Context* ctx, NDBT_Step* step)
     ctx->setProperty("lcps_done", (Uint32)1);
     ctx->setProperty("start_lcp", (Uint32)0);
   }
+
   return NDBT_OK;
 }
 
@@ -1641,7 +1642,7 @@ get_redo_logpart_maxusage(NDBT_Context* ctx, Uint32 &nodeid,
   if (max_usage <= 0)
     g_err << " The test could not fill the redo log. Redo log usage : usage " << usage
           << " max usage " << max_usage << endl;
-  
+
   return max_usage;
 }
 
@@ -1816,6 +1817,7 @@ runCheckLCPStartsAfterNR(NDBT_Context* ctx, NDBT_Step* step)
 
   // Find the redo logpart usage and node id of the logpart that went full
   int retries = -1;
+
   while (!ctx->isTestStopped())
   {
     run_write_ops(ctx, step, upval++, err, true);
@@ -1885,6 +1887,113 @@ runCheckLCPStartsAfterNR(NDBT_Context* ctx, NDBT_Step* step)
   CHK3((redologpart_is_trimmed(ctx, usage_before, full_logpart, nodeid)) == NDBT_OK,
        "Check for redolog trimmed failed");
   return NDBT_OK;
+}
+
+/** Test if a delay in opening a redo file is handled gracefully.
+ * Fill the redo log. Delay opening a redo log file in order to
+ * simulate a tardy disk, wth of error insertion (5090).
+ * Empty the redo log, execute some more transactions.
+ *
+ * The test fills some redo log part upto almost full (error 410).
+ * The error insertion is on the first redo log with fileNo>3 and the default
+ * NoOfFragmentLogFiles=16. So the test assumes with confidence that
+ * the error insertion must have occurred and the victim redo log file
+ * is opend after the delay, before the redo log part becomes full.
+ *
+ * The test will fail if transactions get errors other than the following:
+ * 410 - REDO log files overloaded, 266 - Time-out in NDB,
+ * 1220 - REDO log files overloaded (increase FragmentLogFileSize).
+ * The latter will be the direct consequence of the error injection
+ * when the test is run with DefaultOperationRedoProblemAction=abort.
+ * However the test is run with default value "queue".
+ * Test will pass after the redo log is trimmed and some more transactions pass.
+ */
+static int
+runCheckOpenNextRedoLogFile(NDBT_Context* ctx, NDBT_Step* step)
+{
+  // Block redo logpart being trimmed by holding a transaction open
+  HugoOperations *ops = NULL;
+  start_open_transaction(ctx, step, &ops);
+
+  NdbRestarter restarter;
+  int node = restarter.getNode(NdbRestarter::NS_RANDOM);
+  g_err << "Inserting error in node " << node << endl;
+  CHK3(restarter.insertErrorInNode(node, 5090) == 0, "Error insertion failed");
+
+  // Run transactions until some redo log part gets full.
+  // Commit the open transaction to trim the redo log.
+  int retries = -1;
+  int success_after_err = 0;
+  NdbError err;
+  int upval = 0;
+  g_err << "Filling redo logs" << endl;
+
+  while (!ctx->isTestStopped())
+  {
+    run_write_ops(ctx, step, upval++, err, true);
+
+    if ( err.code == 410)
+    {
+      if (retries == -1)
+        retries = 100;
+
+      // Find the logpart that became almost full
+      int usage_before = -1;
+      Uint32 full_logpart = UINT32_MAX;
+      Uint32 nodeid = 0;
+
+      usage_before = get_redo_logpart_maxusage(ctx, nodeid, full_logpart);
+      CHK3(usage_before> 0, "Redo log usage <= 0");
+      CHK3(nodeid != 0, "No nodeid found with almost full logpart");
+      CHK3(full_logpart != UINT32_MAX, "No logpart became full");
+
+      // Commit the open transaction to trim the redo log part.
+      CHK3(ops->execute_Commit(GETNDB(step)) == 0,
+           "Error: failed to commit the open transaction.");
+
+      g_err << "Check whether the redo log is trimmed" << endl;
+      CHK3(((redologpart_is_trimmed(ctx, usage_before, full_logpart,
+                                    nodeid)) == NDBT_OK),
+           "Check for redolog trimmed failed");
+
+      // Start counting the succeeded transactions after the log part trim
+      success_after_err = 0;
+
+    }
+    else if (err.code == 266 || err.code == 1220)
+    {
+      NdbSleep_MilliSleep(100);
+      // Continue with new transactions
+    }
+    else if (err.code > 0)
+    {
+      g_err << "Transaction aborted with err " << err.code
+            << " " << err.message << endl;
+      break;
+    }
+    else
+    {
+      // err.code = 0 (no errors)
+      if (retries > 0)
+      {
+        if (success_after_err++ > 50)
+        {
+          // Some more transactions are executed to confirm that
+          // the inserted error scenario is alleviated.
+          return NDBT_OK;
+        }
+        if (retries-- == 1)
+        {
+          g_err << "Transactions completed after redo log is trimmed are : "
+                << success_after_err
+                << ", Intended to complete > 50"
+                << endl;
+          break;
+        }
+      }
+    }
+  }
+  return NDBT_FAILED;
 }
 
 NDBT_TESTSUITE(testRedo);
@@ -1971,8 +2080,17 @@ TESTCASE("CheckLCPStartsAfterNR",
   FINALIZER(runDrop);
   FINALIZER(resizeRedoLog);
 }
+TESTCASE("CheckNextRedoFileOpened",
+         "Fill redo logs to full, check if next file is open"
+         "in a stressed disk situation"){
+  TC_PROPERTY("TABMASK", (Uint32)(3));
+  INITIALIZER(resizeRedoLog);
+  INITIALIZER(runCreate);
+  STEP(runCheckOpenNextRedoLogFile);
+  FINALIZER(runDrop);
+  FINALIZER(resizeRedoLog);
+}
 NDBT_TESTSUITE_END(testRedo);
-
 
 int
 main(int argc, const char** argv)

@@ -18,7 +18,7 @@ Next NDBCNTR 1007
 Next NDBFS 2002
 Next DBACC 3006
 Next DBTUP 4039
-Next DBLQH 5088
+Next DBLQH 5091
 Next DBDICT 6223
 Next DBDIH 7249
 Next DBTC 8115
@@ -102,6 +102,9 @@ Insert system error in GCP participant when receiving GCP_SAVEREQ.
 
 5007:
 Delay GCP_SAVEREQ by 10 secs
+
+5090:
+Delay opening next redo log file.
 
 7165: Delay INCL_NODE_REQ in starting node yeilding error in GCP_PREPARE
 
