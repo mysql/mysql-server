@@ -452,6 +452,9 @@ void clearbuf(char* buf, uint size)
 }
 
 void fun(const char* fmt, ...)
+  ATTRIBUTE_FORMAT(printf, 1, 2);
+
+void fun(const char* fmt, ...)
 {
   va_list arguments;
 

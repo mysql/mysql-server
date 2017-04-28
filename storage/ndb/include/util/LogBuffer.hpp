@@ -74,7 +74,8 @@ public:
    * @return Number of characters appended on success and
    * 0 if there's insufficient space in the log buffer.
    */
-  int append(const char* fmt, va_list ap, size_t len, bool append_ln=false);
+  int append(const char* fmt, va_list ap, size_t len, bool append_ln=false)
+    ATTRIBUTE_FORMAT(printf, 2, 0);
   /**
    * Append data to the buffer.
    * Thread safe.
