@@ -35,7 +35,6 @@ typedef struct st_lex_user LEX_USER;
 typedef struct st_order ORDER;
 typedef class st_select_lex SELECT_LEX;
 
-
 extern "C" int test_if_data_home_dir(const char *dir);
 
 bool stmt_causes_implicit_commit(const THD *thd, uint mask);
@@ -83,7 +82,7 @@ void mysql_init_multi_delete(LEX *lex);
 void create_table_set_open_action_and_adjust_tables(LEX *lex);
 int mysql_execute_command(THD *thd, bool first_level = false);
 bool do_command(THD *thd);
-bool dispatch_command(THD *thd, const COM_DATA *com_data,
+extern bool dispatch_command(THD *thd, const COM_DATA *com_data,
                       enum enum_server_command command);
 bool append_file_to_dir(THD *thd, const char **filename_ptr,
                         const char *table_name);

@@ -96,7 +96,8 @@ typedef struct st_mysql_xid MYSQL_XID;
 #define MYSQL_VALIDATE_PASSWORD_PLUGIN  8   /* validate password plugin type */
 #define MYSQL_GROUP_REPLICATION_PLUGIN  9  /* The Group Replication plugin */
 #define MYSQL_KEYRING_PLUGIN         10  /* The Keyring plugin type   */
-#define MYSQL_MAX_PLUGIN_TYPE_NUM    11  /* The number of plugin types   */
+#define MYSQL_SQLSHIM_PLUGIN         11  /* Can inject commands between user commands */
+#define MYSQL_MAX_PLUGIN_TYPE_NUM    12  /* The number of plugin types   */
 
 /* We use the following strings to define licenses for plugins */
 #define PLUGIN_LICENSE_PROPRIETARY 0
@@ -493,6 +494,14 @@ struct st_mysql_plugin
 
 #define MYSQL_REWRITE_PRE_PARSE_INTERFACE_VERSION 0x0010
 #define MYSQL_REWRITE_POST_PARSE_INTERFACE_VERSION 0x0010
+#define MYSQL_SQLSHIM_INTERFACE_VERSION 0x0010
+
+#include "com_data.h"
+struct st_mysql_sqlshim
+{
+  int interface_version;
+  my_bool (*shim_function)(MYSQL_THD, union COM_DATA*, enum enum_server_command, union COM_DATA*, enum enum_server_command*);
+};
 
 /*************************************************************************
   API for Storage Engine plugin. (MYSQL_DAEMON_PLUGIN)

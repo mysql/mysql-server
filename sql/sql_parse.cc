@@ -14,6 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql_parse.h"
+#include "sql_plugin.h"
 
 #include "auth_common.h"      // acl_authenticate
 #include "binlog.h"           // purge_master_logs
@@ -877,6 +878,8 @@ bool do_command(THD *thd)
   NET *net= NULL;
   enum enum_server_command command;
   COM_DATA com_data;
+  COM_DATA *use_com_data= NULL;
+  COM_DATA new_com_data;
   DBUG_ENTER("do_command");
 
   /*
@@ -992,11 +995,41 @@ bool do_command(THD *thd)
   // Reclaim some memory
   thd->get_protocol_classic()->get_packet()->shrink(
       thd->variables.net_buffer_length);
-  /* Restore read timeout value */
-  if (classic)
+
+  if (classic) 
+  {
+    /* Restore read timeout value */
     my_net_set_read_timeout(net, thd->variables.net_read_timeout);
 
-  return_value= dispatch_command(thd, &com_data, command);
+    /* This is the entry point for the SQL shim plugin.  It sits in front
+     * of all MySQL commands and is free to run any queries it
+     * likes before (optionally) sending a replacement command to 
+     * MySQL. Only one SQL shim plugin may be in the server at once, so
+     * the plugin reserves the name "sql_shim".
+     */
+    use_com_data = &com_data;
+    plugin_ref ref = plugin_get_sql_shim();
+
+    if(ref != NULL) 
+    {
+      enum enum_server_command new_command;
+      plugin_lock(thd, &ref);
+      st_mysql_sqlshim* plugin = (st_mysql_sqlshim*)ref->plugin->info;
+      if( plugin->shim_function(thd, &com_data, command, &new_com_data, &new_command) ) 
+      { 
+        use_com_data= &new_com_data;
+        command= new_command;
+      } 
+      plugin_unlock(thd, ref);
+    } 
+  }
+
+  return_value= dispatch_command(thd, use_com_data, command);
+  if(use_com_data != &com_data) 
+  {
+    if(new_com_data.com_query.query != NULL) 
+    { free((void*)new_com_data.com_query.query); }
+  }
   thd->get_protocol_classic()->get_packet()->shrink(
       thd->variables.net_buffer_length);
 
