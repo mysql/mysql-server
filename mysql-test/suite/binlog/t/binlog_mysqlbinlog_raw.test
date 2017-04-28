@@ -40,11 +40,9 @@ INSERT INTO t1 values (1);
 
 --echo # Step-2: Execute MYSQL_BINLOG with --stop-never and --raw option.
 --write_file $MYSQL_TMP_DIR/mysqlbinlog_raw.sh
-#!/bin/bash
 (`$MYSQL_BINLOG --raw --read-from-remote-server --stop-never --user=root --host=127.0.0.1 --port=$MASTER_MYPORT --result-file=$MYSQL_TMP_DIR/ master-bin.000001`) < /dev/null > /dev/null 2>&1 &
 EOF
---chmod 0755 $MYSQL_TMP_DIR/mysqlbinlog_raw.sh
---exec $MYSQL_TMP_DIR/mysqlbinlog_raw.sh
+--exec /bin/bash $MYSQL_TMP_DIR/mysqlbinlog_raw.sh
 
 --echo # Step-3: Wait till dump thread transfer is completed.
 let $wait_condition= SELECT id from information_schema.processlist where processlist.command like '%Binlog%' and state like '%Master has sent%';

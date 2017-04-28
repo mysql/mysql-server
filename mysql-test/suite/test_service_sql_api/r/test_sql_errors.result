@@ -271,7 +271,6 @@ SELECT * FROM test.t_date
 Close Session 2
 
 Close Session 2 again
-deinit thread missing
 Test in a server thread without closing sessions
 srv_session_open 0
 srv_session_open 1

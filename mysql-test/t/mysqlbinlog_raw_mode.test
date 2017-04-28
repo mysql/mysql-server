@@ -10,11 +10,9 @@
 CREATE TABLE raw_mode_exit (exit_code INT);
 # Now jump some loops to have mysqlbinlog executed in the background
 --write_file $MYSQL_TMP_DIR/mbl.sh
-#!/bin/bash
 (`$MYSQL_BINLOG --raw --read-from-remote-server --stop-never --user=root --host=127.0.0.1 --port=$MASTER_MYPORT --result-file=$MYSQL_TMP_DIR/ master-bin.000001 ; [ $? -le 1 ]` && $MYSQL -e "use test; INSERT INTO raw_mode_exit VALUES (1);") < /dev/null > /dev/null 2>&1 &
 EOF
---chmod 0755 $MYSQL_TMP_DIR/mbl.sh
---exec $MYSQL_TMP_DIR/mbl.sh
+--exec /bin/bash $MYSQL_TMP_DIR/mbl.sh
 let $wait_condition= SELECT id from information_schema.processlist where processlist.command like '%Binlog%' and state like '%Master has sent%';
 --source include/wait_condition.inc
 
