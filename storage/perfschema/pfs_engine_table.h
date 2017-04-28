@@ -56,9 +56,7 @@ struct time_normalizer;
 class PFS_table_context
 {
 public:
-  PFS_table_context(ulonglong current_version,
-                    bool restore,
-                    THR_PFS_key key);
+  PFS_table_context(ulonglong current_version, bool restore, THR_PFS_key key);
   PFS_table_context(ulonglong current_version,
                     ulong map_size,
                     bool restore,
@@ -109,8 +107,7 @@ private:
 class PFS_engine_table
 {
 public:
-  static PFS_engine_table_share *find_engine_table_share(
-    const char *name);
+  static PFS_engine_table_share *find_engine_table_share(const char *name);
 
   int read_row(TABLE *table, unsigned char *buf, Field **fields);
 

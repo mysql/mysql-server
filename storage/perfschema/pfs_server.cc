@@ -74,10 +74,10 @@ pre_initialize_performance_schema()
     - or PSI_server->delete_current_thread()
     in the instrumented code, to explicitly cleanup the instrumentation.
   */
-  THR_PFS= nullptr;
+  THR_PFS = nullptr;
   for (int i = 0; i < THR_PFS_NUM_KEYS; ++i)
   {
-     THR_PFS_contexts[i]= nullptr;
+    THR_PFS_contexts[i] = nullptr;
   }
 }
 

@@ -1473,7 +1473,7 @@ static inline int mysql_mutex_lock(...)
   @ingroup performance_schema_implementation
 */
 
-thread_local PFS_thread *THR_PFS= nullptr;
+thread_local PFS_thread *THR_PFS = nullptr;
 thread_local PFS_table_context *THR_PFS_contexts[THR_PFS_NUM_KEYS];
 
 static inline PFS_thread *
@@ -1485,7 +1485,7 @@ my_thread_get_THR_PFS()
 static inline void
 my_thread_set_THR_PFS(PFS_thread *pfs)
 {
-  THR_PFS= pfs;
+  THR_PFS = pfs;
 }
 
 /**

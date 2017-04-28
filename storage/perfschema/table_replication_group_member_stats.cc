@@ -210,7 +210,7 @@ PFS_engine_table_share table_replication_group_member_stats::m_share = {
 };
 
 PFS_engine_table*
-table_replication_group_member_stats::create(PFS_engine_table_share *)
+table_replication_group_member_stats::create(PFS_engine_table_share*)
 {
   return new table_replication_group_member_stats();
 }
