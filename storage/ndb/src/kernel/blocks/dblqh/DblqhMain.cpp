@@ -623,6 +623,21 @@ void Dblqh::execCONTINUEB(Signal* signal)
     return;
   }
   default:
+
+#if defined ERROR_INSERT
+    // ERROR_INSERT 5090
+    Uint32 compact = signal->theData[0];
+    if (compact >> 16 == ZDELAY_FS_OPEN)
+    {
+      jam();
+      // Remove ZDELAY_FS_OPEN from compacted theData[0] and
+      // restore logFilePtr.i as it was in the original FSOPENCONF signal
+      signal->theData[0] = (Uint16)compact;
+      sendSignalWithDelay(cownref, GSN_FSOPENCONF, signal, 10, 2);
+      return;
+    }
+#endif
+
     ndbrequire(false);
     break;
   }//switch
@@ -16492,6 +16507,23 @@ void Dblqh::execFSCLOSECONF(Signal* signal)
 void Dblqh::execFSOPENCONF(Signal* signal) 
 {
   jamEntry();
+
+#ifdef ERROR_INSERT
+  if (delayOpenFilePtrI > 0 && signal->theData[0] == delayOpenFilePtrI)
+  {
+    /* ERROR_INSERT 5090 : delay executing FSOPENCONF by sending
+     * GSN_CONTINUEB in order to simulate a delay in opening a redo log file.
+     * theData[0] of FSOPENCONF contains the LogFilePtr.i of the delayed file.
+     * Add ZDELAY_FS_OPEN to theData[0] in addition to LogFilePtr.i,
+     * in order to hint CONTINUEB to handle this signal.
+     */
+    Uint32 compact = signal->theData[0];
+    signal->theData[0] = compact | (Uint32)ZDELAY_FS_OPEN <<16 ;
+    sendSignal(cownref, GSN_CONTINUEB, signal, 2, JBB);
+    return;
+  }
+#endif
+
   initFsopenconf(signal);
   switch (logFilePtr.p->logFileStatus) {
   case LogFileRecord::OPEN_SR_READ_INVALIDATE_PAGES:
@@ -16841,6 +16873,25 @@ void Dblqh::initFsopenconf(Signal* signal)
   ptrCheckGuard(logPartPtr, clogPartFileSize, logPartRecord);
   logFilePtr.p->currentMbyte = 0;
   logFilePtr.p->filePosition = 0;
+
+  if (logFilePtr.p->fileChangeState == LogFileRecord::WAIT_FOR_OPEN_NEXT_FILE ||
+      logFilePtr.p->fileChangeState == LogFileRecord::LAST_FILEWRITE_WAITS ||
+      logFilePtr.p->fileChangeState == LogFileRecord::FIRST_FILEWRITE_WAITS)
+  {
+    jam();
+    logPagePtr.i = logFilePtr.p->currentLogpage;
+    ptrCheckGuard(logPagePtr, clogPageFileSize, logPageRecord);
+    writeFileHeaderOpen(signal, ZNORMAL);
+    openNextLogfile(signal);
+
+    if (logFilePtr.p->fileChangeState == LogFileRecord::WAIT_FOR_OPEN_NEXT_FILE)
+      logFilePtr.p->fileChangeState = LogFileRecord::BOTH_WRITES_ONGOING;
+    else if (logFilePtr.p->fileChangeState == LogFileRecord::LAST_FILEWRITE_WAITS)
+      logFilePtr.p->fileChangeState = LogFileRecord::FIRST_WRITE_ONGOING;
+    else if (logFilePtr.p->fileChangeState == LogFileRecord::FIRST_FILEWRITE_WAITS)
+      logFilePtr.p->fileChangeState = LogFileRecord::LAST_WRITE_ONGOING;
+  }
+
 }//Dblqh::initFsopenconf()
 
 /* ========================================================================= */
@@ -17063,9 +17114,16 @@ void Dblqh::firstPageWriteLab(Signal* signal)
 /* FILE 0. THE AIM IS TO MAKE RESTARTS EASIER BY SPECIFYING WHICH IS THE     */
 /* LAST FILE WHERE LOGGING HAS STARTED.                                      */
 /*---------------------------------------------------------------------------*/
-/* FIRST CHECK WHETHER THE LAST WRITE IN THE PREVIOUS FILE HAVE COMPLETED    */
+/* FIRST CHECK WHETHER THE NEXT FILE IS OPENED AND THEN                      */
+/* THE LAST WRITE IN THE PREVIOUS FILE HAVE COMPLETED                        */
 /*---------------------------------------------------------------------------*/
-  if (logFilePtr.p->fileChangeState == LogFileRecord::BOTH_WRITES_ONGOING) {
+  if (logFilePtr.p->fileChangeState == LogFileRecord::WAIT_FOR_OPEN_NEXT_FILE)
+  {
+    jam();
+    logFilePtr.p->fileChangeState = LogFileRecord::FIRST_FILEWRITE_WAITS;
+    return;
+  }
+  else if (logFilePtr.p->fileChangeState == LogFileRecord::BOTH_WRITES_ONGOING) {
     jam();
 /*---------------------------------------------------------------------------*/
 /* THE LAST WRITE WAS STILL ONGOING.                                         */
@@ -17149,13 +17207,21 @@ void Dblqh::lastWriteInFileLab(Signal* signal)
 /* FILE 0. THE AIM IS TO MAKE RESTARTS EASIER BY SPECIFYING WHICH IS THE     */
 /* LAST FILE WHERE LOGGING HAS STARTED.                                      */
 /*---------------------------------------------------------------------------*/
-/* FIRST CHECK WHETHER THE FIRST WRITE IN THE NEW FILE HAVE COMPLETED        */
+/* FIRST CHECK WHETHER THE NEXT FILE IS OPENED AND THEN                      */
+/* THE FIRST WRITE IN THE NEW FILE HAVE COMPLETED                            */
 /* THIS STATE INFORMATION IS IN THE NEW LOG FILE AND THUS WE HAVE TO MOVE    */
 /* THE LOG FILE POINTER TO THIS LOG FILE.                                    */
 /*---------------------------------------------------------------------------*/
   logFilePtr.i = logFilePtr.p->nextLogFile;
   ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
-  if (logFilePtr.p->fileChangeState == LogFileRecord::BOTH_WRITES_ONGOING) {
+
+  if (logFilePtr.p->fileChangeState == LogFileRecord::WAIT_FOR_OPEN_NEXT_FILE)
+  {
+    jam();
+    logFilePtr.p->fileChangeState = LogFileRecord::LAST_FILEWRITE_WAITS;
+    return;
+  }
+  else if (logFilePtr.p->fileChangeState == LogFileRecord::BOTH_WRITES_ONGOING) {
     jam();
 /*---------------------------------------------------------------------------*/
 /* THE FIRST WRITE WAS STILL ONGOING.                                        */
@@ -17630,6 +17696,21 @@ void Dblqh::openNextLogfile(Signal* signal)
 /* -------------------------------------------------- */
     onlLogFilePtr.i = logFilePtr.p->nextLogFile;
     ptrCheckGuard(onlLogFilePtr, clogFileFileSize, logFileRecord);
+
+#ifdef ERROR_INSERT
+    if (delayOpenFilePtrI == 0 && onlLogFilePtr.p->fileNo > 3 &&
+        ERROR_INSERTED_CLEAR(5090))
+    {
+      /* Instruct execFSOPENCONF to delay the execution of the
+       * signal for fileNo>3 to simulate a delay in opening it.
+       * (Choice of '>3': File 0 is held open. Let files 1-3
+       * being filled and opened normally. The next file belonging
+       * to the log part being filled by the test will be delayed).
+       */
+      delayOpenFilePtrI = logFilePtr.p->nextLogFile;
+    }
+#endif
+
     if (onlLogFilePtr.p->logFileStatus != LogFileRecord::CLOSED) {
       ndbrequire(onlLogFilePtr.p->fileNo == 0);
       return;
@@ -24262,9 +24343,31 @@ void Dblqh::writeNextLog(Signal* signal)
 /*       ALSO OPEN THE NEXT LOG FILE TO ENSURE THAT   */
 /*       THIS FILE IS OPEN WHEN ITS TURN COMES.       */
 /* -------------------------------------------------- */
-    writeFileHeaderOpen(signal, ZNORMAL);
-    openNextLogfile(signal);
-    logFilePtr.p->fileChangeState = LogFileRecord::BOTH_WRITES_ONGOING;
+#ifdef ERROR_INSERT
+    if (delayOpenFilePtrI > 0 &&  logFilePtr.i == delayOpenFilePtrI)
+    {
+      // Error insertion (the required file is not opened) is seen.
+      ndbassert(logFilePtr.p->fileRef == RNIL);
+      // Clear the inserted error 5090.
+      delayOpenFilePtrI = 0;
+    }
+#endif
+   if (logFilePtr.p->fileRef == RNIL)
+    {
+      jam();
+      logFilePtr.p->fileChangeState = LogFileRecord::WAIT_FOR_OPEN_NEXT_FILE;
+      update_log_problem(signal, logPartPtr,
+                         LogPartRecord::P_FILE_CHANGE_PROBLEM,
+                         /* set */ true);
+      // This problem will be cleared by writePageZeroLab() when the file
+      // is opened and the zero page is written.
+    }
+    else
+    {
+      writeFileHeaderOpen(signal, ZNORMAL);
+      openNextLogfile(signal);
+      logFilePtr.p->fileChangeState = LogFileRecord::BOTH_WRITES_ONGOING;
+    }
   }//if
   if (logFilePtr.p->fileNo == logPartPtr.p->logTailFileNo) 
   {

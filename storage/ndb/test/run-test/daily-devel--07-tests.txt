@@ -78,3 +78,7 @@ cmd: testNdbApi
 args: -n OldApiScanFinalise T1
 max-time : 180
 
+cmd: testRedo
+args: -n CheckNextRedoFileOpened T1
+max-time: 1440
+
