@@ -612,7 +612,9 @@ static void dd_upgrade_process_index(Index dd_index, dict_index_t* index,
   dd::Properties& p = dd_index->se_private_data();
 
   p.set_uint32(dd_index_key_strings[DD_INDEX_ROOT], index->page);
+  p.set_uint64(dd_index_key_strings[DD_INDEX_SPACE_ID], index->space);
   p.set_uint64(dd_index_key_strings[DD_INDEX_ID], index->id);
+  p.set_uint32(dd_index_key_strings[DD_TABLE_ID], index->table->id);
   p.set_uint64(dd_index_key_strings[DD_INDEX_TRX_ID], 0);
 
   if (has_auto_inc) {

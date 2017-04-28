@@ -5838,11 +5838,11 @@ i_s_common_deinit(
 	DBUG_RETURN(0);
 }
 
-/**  SYS_TABLES  ***************************************************/
-/* Fields of the dynamic table INFORMATION_SCHEMA.SYS_TABLES */
+/**  INNODB_TABLES  ***************************************************/
+/* Fields of the dynamic table INFORMATION_SCHEMA.INNODB_TABLES */
 static ST_FIELD_INFO	innodb_tables_fields_info[] =
 {
-#define SYS_TABLES_ID			0
+#define INNODB_TABLES_ID			0
 	{STRUCT_FLD(field_name,		"TABLE_ID"),
 	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
@@ -5851,7 +5851,7 @@ static ST_FIELD_INFO	innodb_tables_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-#define SYS_TABLES_NAME			1
+#define INNODB_TABLES_NAME			1
 	{STRUCT_FLD(field_name,		"NAME"),
 	 STRUCT_FLD(field_length,	MAX_FULL_NAME_LEN + 1),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
@@ -5860,7 +5860,7 @@ static ST_FIELD_INFO	innodb_tables_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-#define SYS_TABLES_FLAG			2
+#define INNODB_TABLES_FLAG			2
 	{STRUCT_FLD(field_name,		"FLAG"),
 	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
@@ -5869,7 +5869,7 @@ static ST_FIELD_INFO	innodb_tables_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-#define SYS_TABLES_NUM_COLUMN		3
+#define INNODB_TABLES_NUM_COLUMN		3
 	{STRUCT_FLD(field_name,		"N_COLS"),
 	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
@@ -5878,16 +5878,16 @@ static ST_FIELD_INFO	innodb_tables_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-#define SYS_TABLES_SPACE		4
+#define INNODB_TABLES_SPACE		4
 	{STRUCT_FLD(field_name,		"SPACE"),
-	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	0),
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-#define SYS_TABLES_ROW_FORMAT		5
+#define INNODB_TABLES_ROW_FORMAT		5
 	{STRUCT_FLD(field_name,		"ROW_FORMAT"),
 	 STRUCT_FLD(field_length,	12),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
@@ -5896,7 +5896,7 @@ static ST_FIELD_INFO	innodb_tables_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-#define SYS_TABLES_ZIP_PAGE_SIZE	6
+#define INNODB_TABLES_ZIP_PAGE_SIZE	6
 	{STRUCT_FLD(field_name,		"ZIP_PAGE_SIZE"),
 	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
@@ -5905,7 +5905,7 @@ static ST_FIELD_INFO	innodb_tables_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-#define SYS_TABLES_SPACE_TYPE		7
+#define INNODB_TABLES_SPACE_TYPE		7
 	{STRUCT_FLD(field_name,		"SPACE_TYPE"),
 	 STRUCT_FLD(field_length,	10),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
@@ -5917,14 +5917,13 @@ static ST_FIELD_INFO	innodb_tables_fields_info[] =
 	END_OF_ST_FIELD_INFO
 };
 
-#ifdef INNODB_NO_NEW_DD
 /**********************************************************************//**
 Populate information_schema.innodb_tables table with information
-from SYS_TABLES.
+from INNODB_TABLES.
 @return 0 on success */
 static
 int
-i_s_dict_fill_sys_tables(
+i_s_dict_fill_innodb_tables(
 /*=====================*/
 	THD*		thd,		/*!< in: thread */
 	dict_table_t*	table,		/*!< in: table */
@@ -5956,52 +5955,53 @@ i_s_dict_fill_sys_tables(
 		space_type = "Single";
 	}
 
-	DBUG_ENTER("i_s_dict_fill_sys_tables");
+	DBUG_ENTER("i_s_dict_fill_innodb_tables");
 
 	fields = table_to_fill->field;
 
-	OK(fields[SYS_TABLES_ID]->store(longlong(table->id), TRUE));
+	OK(fields[INNODB_TABLES_ID]->store(longlong(table->id), TRUE));
 
-	OK(field_store_string(fields[SYS_TABLES_NAME], table->name.m_name));
+	OK(field_store_string(fields[INNODB_TABLES_NAME], table->name.m_name));
 
-	OK(fields[SYS_TABLES_FLAG]->store(table->flags));
+	OK(fields[INNODB_TABLES_FLAG]->store(table->flags));
 
-	OK(fields[SYS_TABLES_NUM_COLUMN]->store(table->n_cols));
+	OK(fields[INNODB_TABLES_NUM_COLUMN]->store(table->n_cols));
 
-	OK(fields[SYS_TABLES_SPACE]->store(table->space));
+	OK(fields[INNODB_TABLES_SPACE]->store(table->space));
 
-	OK(field_store_string(fields[SYS_TABLES_ROW_FORMAT], row_format));
+	OK(field_store_string(fields[INNODB_TABLES_ROW_FORMAT], row_format));
 
-	OK(fields[SYS_TABLES_ZIP_PAGE_SIZE]->store(page_size.is_compressed()
+	OK(fields[INNODB_TABLES_ZIP_PAGE_SIZE]->store(page_size.is_compressed()
 						   ? page_size.physical()
 						   : 0, true));
 
-	OK(field_store_string(fields[SYS_TABLES_SPACE_TYPE], space_type));
+	OK(field_store_string(fields[INNODB_TABLES_SPACE_TYPE], space_type));
 
 	OK(schema_table_store_record(thd, table_to_fill));
 
 	DBUG_RETURN(0);
 }
-#endif /* INNODB_NO_NEW_DD */
+
 /*******************************************************************//**
-Function to go through each record in SYS_TABLES table, and fill the
+Function to go through each record in INNODB_TABLES table, and fill the
 information_schema.innodb_tables table with related table information
 @return 0 on success */
 static
 int
-i_s_sys_tables_fill_table(
+i_s_innodb_tables_fill_table(
 /*======================*/
 	THD*		thd,	/*!< in: thread */
 	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
 	Item*		)	/*!< in: condition (not used) */
 {
-#ifdef INNODB_NO_NEW_DD
 	btr_pcur_t	pcur;
 	const rec_t*	rec;
 	mem_heap_t*	heap;
 	mtr_t		mtr;
+	MDL_ticket*	mdl = nullptr;
+	dict_table_t*	dd_tables;
 
-	DBUG_ENTER("i_s_sys_tables_fill_table");
+	DBUG_ENTER("i_s_innodb_tables_fill_table");
 
 	/* deny access to user without PROCESS_ACL privilege */
 	if (check_global_access(thd, PROCESS_ACL)) {
@@ -6012,52 +6012,87 @@ i_s_sys_tables_fill_table(
 	mutex_enter(&dict_sys->mutex);
 	mtr_start(&mtr);
 
-	rec = dict_startscan_system(&pcur, &mtr, SYS_TABLES);
+	rec = dd_startscan_system(thd, &mdl, &pcur, &mtr, DD_TABLES, &dd_tables);
 
 	while (rec) {
-		const char*	err_msg;
 		dict_table_t*	table_rec;
 
-		/* Create and populate a dict_table_t structure with
-		information from SYS_TABLES row */
-		err_msg = dict_process_sys_tables_rec_and_mtr_commit(
-			heap, rec, &table_rec,
-			DICT_TABLE_LOAD_FROM_RECORD, &mtr);
+		/* Fetch the dict_table_t structure corresponding to
+		this INNODB_TABLES record */
+		dd_process_dd_tables_rec_and_mtr_commit(
+			heap, rec, &table_rec, dd_tables, &mtr);
 
-		mutex_exit(&dict_sys->mutex);
+		if (table_rec != NULL) {
+			/* Protect the dict_table_t object by incrementing
+			the reference count. */
+			table_rec->acquire();
+			mutex_exit(&dict_sys->mutex);
 
-		if (!err_msg) {
-			i_s_dict_fill_sys_tables(thd, table_rec, tables->table);
+			i_s_dict_fill_innodb_tables(thd, table_rec, tables->table);
 		} else {
-			push_warning_printf(thd, Sql_condition::SL_WARNING,
-					    ER_CANT_FIND_SYSTEM_REC, "%s",
-					    err_msg);
-		}
-
-		/* Since dict_process_sys_tables_rec_and_mtr_commit()
-		is called with DICT_TABLE_LOAD_FROM_RECORD, the table_rec
-		is created in dict_process_sys_tables_rec(), we will
-		need to free it */
-		if (table_rec) {
-			dict_mem_table_free(table_rec);
+			mutex_exit(&dict_sys->mutex);
 		}
 
 		mem_heap_empty(heap);
 
 		/* Get the next record */
 		mutex_enter(&dict_sys->mutex);
+
+		if (table_rec != NULL) {
+			dd_table_close(table_rec, thd, &mdl, true);
+		}
+
 		mtr_start(&mtr);
-		rec = dict_getnext_system(&pcur, &mtr);
+		rec = dd_getnext_system_rec(&pcur, &mtr);
 	}
 
 	mtr_commit(&mtr);
+	dd_table_close(dd_tables, thd, &mdl, true);
+
+	mtr_start(&mtr);
+
+	rec = dd_startscan_system(thd, &mdl, &pcur, &mtr, DD_PARTITIONS, &dd_tables);
+
+	while (rec) {
+		dict_table_t*	table_rec;
+
+		/* Fetch the dict_table_t structure corresponding to
+		this INNODB_TABLES record */
+		dd_process_dd_partitions_rec_and_mtr_commit(
+			heap, rec, &table_rec, dd_tables, &mtr);
+
+		if (table_rec != NULL) {
+			/* Protect the dict_table_t object by incrementing
+			the reference count. */
+			table_rec->acquire();
+
+			mutex_exit(&dict_sys->mutex);
+
+			i_s_dict_fill_innodb_tables(thd, table_rec, tables->table);
+		} else {
+			mutex_exit(&dict_sys->mutex);
+		}
+
+		mem_heap_empty(heap);
+
+		/* Get the next record */
+		mutex_enter(&dict_sys->mutex);
+
+		if (table_rec != NULL) {
+			dd_table_close(table_rec, thd, &mdl, true);
+		}
+
+		mtr_start(&mtr);
+		rec = dd_getnext_system_rec(&pcur, &mtr);
+	}
+
+	mtr_commit(&mtr);
+	dd_table_close(dd_tables, thd, &mdl, true);
 	mutex_exit(&dict_sys->mutex);
+
 	mem_heap_free(heap);
 
 	DBUG_RETURN(0);
-#else
-	return(0);
-#endif /* INNODB_NO_NEW_DD */
 }
 
 /*******************************************************************//**
@@ -6076,7 +6111,7 @@ innodb_tables_init(
 	schema = (ST_SCHEMA_TABLE*) p;
 
 	schema->fields_info = innodb_tables_fields_info;
-	schema->fill_table = i_s_sys_tables_fill_table;
+	schema->fill_table = i_s_innodb_tables_fill_table;
 
 	DBUG_RETURN(0);
 }
@@ -6101,7 +6136,7 @@ struct st_mysql_plugin	i_s_innodb_tables =
 
 	/* general descriptive text (for SHOW PLUGINS) */
 	/* const char* */
-	STRUCT_FLD(descr, "InnoDB SYS_TABLES"),
+	STRUCT_FLD(descr, "InnoDB INNODB_TABLES"),
 
 	/* the plugin license (PLUGIN_LICENSE_XXX) */
 	/* int */
@@ -6134,11 +6169,11 @@ struct st_mysql_plugin	i_s_innodb_tables =
 	STRUCT_FLD(flags, 0UL),
 };
 
-/**  SYS_TABLESTATS  ***********************************************/
-/* Fields of the dynamic table INFORMATION_SCHEMA.SYS_TABLESTATS */
+/**  INNODB_TABLESTATS  ***********************************************/
+/* Fields of the dynamic table INFORMATION_SCHEMA.INNODB_TABLESTATS */
 static ST_FIELD_INFO	innodb_tablestats_fields_info[] =
 {
-#define SYS_TABLESTATS_ID		0
+#define INNODB_TABLESTATS_ID		0
 	{STRUCT_FLD(field_name,		"TABLE_ID"),
 	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
@@ -6147,7 +6182,7 @@ static ST_FIELD_INFO	innodb_tablestats_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-#define SYS_TABLESTATS_NAME		1
+#define INNODB_TABLESTATS_NAME		1
 	{STRUCT_FLD(field_name,		"NAME"),
 	 STRUCT_FLD(field_length,	NAME_LEN + 1),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
@@ -6156,7 +6191,7 @@ static ST_FIELD_INFO	innodb_tablestats_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-#define SYS_TABLESTATS_INIT		2
+#define INNODB_TABLESTATS_INIT		2
 	{STRUCT_FLD(field_name,		"STATS_INITIALIZED"),
 	 STRUCT_FLD(field_length,	NAME_LEN + 1),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
@@ -6165,7 +6200,7 @@ static ST_FIELD_INFO	innodb_tablestats_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-#define SYS_TABLESTATS_NROW		3
+#define INNODB_TABLESTATS_NROW		3
 	{STRUCT_FLD(field_name,		"NUM_ROWS"),
 	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
@@ -6174,7 +6209,7 @@ static ST_FIELD_INFO	innodb_tablestats_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-#define SYS_TABLESTATS_CLUST_SIZE	4
+#define INNODB_TABLESTATS_CLUST_SIZE	4
 	{STRUCT_FLD(field_name,		"CLUST_INDEX_SIZE"),
 	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
@@ -6183,7 +6218,7 @@ static ST_FIELD_INFO	innodb_tablestats_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-#define SYS_TABLESTATS_INDEX_SIZE	5
+#define INNODB_TABLESTATS_INDEX_SIZE	5
 	{STRUCT_FLD(field_name,		"OTHER_INDEX_SIZE"),
 	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
@@ -6192,7 +6227,7 @@ static ST_FIELD_INFO	innodb_tablestats_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-#define SYS_TABLESTATS_MODIFIED		6
+#define INNODB_TABLESTATS_MODIFIED		6
 	{STRUCT_FLD(field_name,		"MODIFIED_COUNTER"),
 	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
@@ -6201,7 +6236,7 @@ static ST_FIELD_INFO	innodb_tablestats_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-#define SYS_TABLESTATS_AUTONINC		7
+#define INNODB_TABLESTATS_AUTONINC		7
 	{STRUCT_FLD(field_name,		"AUTOINC"),
 	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
@@ -6210,7 +6245,7 @@ static ST_FIELD_INFO	innodb_tablestats_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-#define SYS_TABLESTATS_TABLE_REF_COUNT	8
+#define INNODB_TABLESTATS_TABLE_REF_COUNT	8
 	{STRUCT_FLD(field_name,		"REF_COUNT"),
 	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
@@ -6223,7 +6258,7 @@ static ST_FIELD_INFO	innodb_tablestats_fields_info[] =
 };
 
 /** Populate information_schema.innodb_tablestats table with information
-from SYS_TABLES.
+from INNODB_TABLES.
 @param[in]	thd		thread ID
 @param[in,out]	table		table
 @param[in]	ref_count	table reference count
@@ -6231,7 +6266,7 @@ from SYS_TABLES.
 @return 0 on success */
 static
 int
-i_s_dict_fill_sys_tablestats(
+i_s_dict_fill_innodb_tablestats(
 	THD*		thd,
 	dict_table_t*	table,
 	ulint		ref_count,
@@ -6239,50 +6274,50 @@ i_s_dict_fill_sys_tablestats(
 {
 	Field**		fields;
 
-	DBUG_ENTER("i_s_dict_fill_sys_tablestats");
+	DBUG_ENTER("i_s_dict_fill_innodb_tablestats");
 
 	fields = table_to_fill->field;
 
-	OK(fields[SYS_TABLESTATS_ID]->store(longlong(table->id), TRUE));
+	OK(fields[INNODB_TABLESTATS_ID]->store(longlong(table->id), TRUE));
 
-	OK(field_store_string(fields[SYS_TABLESTATS_NAME],
+	OK(field_store_string(fields[INNODB_TABLESTATS_NAME],
 			      table->name.m_name));
 
 	dict_table_stats_lock(table, RW_S_LATCH);
 
 	if (table->stat_initialized) {
-		OK(field_store_string(fields[SYS_TABLESTATS_INIT],
+		OK(field_store_string(fields[INNODB_TABLESTATS_INIT],
 				      "Initialized"));
 
-		OK(fields[SYS_TABLESTATS_NROW]->store(table->stat_n_rows,
+		OK(fields[INNODB_TABLESTATS_NROW]->store(table->stat_n_rows,
 						      true));
 
-		OK(fields[SYS_TABLESTATS_CLUST_SIZE]->store(
+		OK(fields[INNODB_TABLESTATS_CLUST_SIZE]->store(
 			   table->stat_clustered_index_size, true));
 
-		OK(fields[SYS_TABLESTATS_INDEX_SIZE]->store(
+		OK(fields[INNODB_TABLESTATS_INDEX_SIZE]->store(
 			   table->stat_sum_of_other_index_sizes, true));
 
-		OK(fields[SYS_TABLESTATS_MODIFIED]->store(
+		OK(fields[INNODB_TABLESTATS_MODIFIED]->store(
 			   table->stat_modified_counter, true));
 	} else {
-		OK(field_store_string(fields[SYS_TABLESTATS_INIT],
+		OK(field_store_string(fields[INNODB_TABLESTATS_INIT],
 				      "Uninitialized"));
 
-		OK(fields[SYS_TABLESTATS_NROW]->store(0, true));
+		OK(fields[INNODB_TABLESTATS_NROW]->store(0, true));
 
-		OK(fields[SYS_TABLESTATS_CLUST_SIZE]->store(0, true));
+		OK(fields[INNODB_TABLESTATS_CLUST_SIZE]->store(0, true));
 
-		OK(fields[SYS_TABLESTATS_INDEX_SIZE]->store(0, true));
+		OK(fields[INNODB_TABLESTATS_INDEX_SIZE]->store(0, true));
 
-		OK(fields[SYS_TABLESTATS_MODIFIED]->store(0, true));
+		OK(fields[INNODB_TABLESTATS_MODIFIED]->store(0, true));
 	}
 
 	dict_table_stats_unlock(table, RW_S_LATCH);
 
-	OK(fields[SYS_TABLESTATS_AUTONINC]->store(table->autoinc, true));
+	OK(fields[INNODB_TABLESTATS_AUTONINC]->store(table->autoinc, true));
 
-	OK(fields[SYS_TABLESTATS_TABLE_REF_COUNT]->store(ref_count, true));
+	OK(fields[INNODB_TABLESTATS_TABLE_REF_COUNT]->store(ref_count, true));
 
 	OK(schema_table_store_record(thd, table_to_fill));
 
@@ -6290,13 +6325,13 @@ i_s_dict_fill_sys_tablestats(
 }
 
 /*******************************************************************//**
-Function to go through each record in SYS_TABLES table, and fill the
+Function to go through each record in INNODB_TABLES table, and fill the
 information_schema.innodb_tablestats table with table statistics
 related information
 @return 0 on success */
 static
 int
-i_s_sys_tables_fill_table_stats(
+i_s_innodb_tables_fill_table_stats(
 /*============================*/
 	THD*		thd,	/*!< in: thread */
 	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
@@ -6306,10 +6341,10 @@ i_s_sys_tables_fill_table_stats(
 	const rec_t*	rec;
 	mem_heap_t*	heap;
 	mtr_t		mtr;
-	MDL_ticket*		mdl = nullptr;
+	MDL_ticket*	mdl = nullptr;
 	dict_table_t*	dd_tables;
 
-	DBUG_ENTER("i_s_sys_tables_fill_table_stats");
+	DBUG_ENTER("i_s_innodb_tables_fill_table_stats");
 
 	/* deny access to user without PROCESS_ACL privilege */
 	if (check_global_access(thd, PROCESS_ACL)) {
@@ -6328,7 +6363,7 @@ i_s_sys_tables_fill_table_stats(
 		ulint		ref_count = 0;
 
 		/* Fetch the dict_table_t structure corresponding to
-		this SYS_TABLES record */
+		this INNODB_TABLES record */
 		dd_process_dd_tables_rec_and_mtr_commit(
 			heap, rec, &table_rec, dd_tables, &mtr);
 
@@ -6342,13 +6377,13 @@ i_s_sys_tables_fill_table_stats(
 
 		mutex_exit(&dict_sys->mutex);
 
-		DBUG_EXECUTE_IF("test_sys_tablestats", {
+		DBUG_EXECUTE_IF("test_innodb_tablestats", {
 			if (table_rec && strcmp("test/t1", table_rec->name.m_name) == 0 ) {
 				DEBUG_SYNC_C("dict_table_not_protected");
 			}});
 
 		if (table_rec != NULL) {
-			i_s_dict_fill_sys_tablestats(thd, table_rec, ref_count,
+			i_s_dict_fill_innodb_tablestats(thd, table_rec, ref_count,
 						     tables->table);
 		}
 
@@ -6389,7 +6424,7 @@ innodb_tablestats_init(
 	schema = (ST_SCHEMA_TABLE*) p;
 
 	schema->fields_info = innodb_tablestats_fields_info;
-	schema->fill_table = i_s_sys_tables_fill_table_stats;
+	schema->fill_table = i_s_innodb_tables_fill_table_stats;
 
 	DBUG_RETURN(0);
 }
@@ -6414,7 +6449,7 @@ struct st_mysql_plugin	i_s_innodb_tablestats =
 
 	/* general descriptive text (for SHOW PLUGINS) */
 	/* const char* */
-	STRUCT_FLD(descr, "InnoDB SYS_TABLESTATS"),
+	STRUCT_FLD(descr, "InnoDB INNODB_TABLESTATS"),
 
 	/* the plugin license (PLUGIN_LICENSE_XXX) */
 	/* int */
@@ -6447,8 +6482,8 @@ struct st_mysql_plugin	i_s_innodb_tablestats =
 	STRUCT_FLD(flags, 0UL),
 };
 
-/**  SYS_INDEXES  **************************************************/
-/* Fields of the dynamic table INFORMATION_SCHEMA.SYS_INDEXES */
+/**  INNODB_INDEXES  **************************************************/
+/* Fields of the dynamic table INFORMATION_SCHEMA.INNODB_INDEXES */
 static ST_FIELD_INFO	innodb_sysindex_fields_info[] =
 {
 #define SYS_INDEX_ID		0
@@ -6526,24 +6561,22 @@ static ST_FIELD_INFO	innodb_sysindex_fields_info[] =
 	END_OF_ST_FIELD_INFO
 };
 
-#ifdef INNODB_NO_NEW_DD
 /**********************************************************************//**
 Function to populate the information_schema.innodb_indexes table with
 collected index information
 @return 0 on success */
 static
 int
-i_s_dict_fill_sys_indexes(
+i_s_dict_fill_innodb_indexes(
 /*======================*/
-	THD*		thd,		/*!< in: thread */
-	table_id_t	table_id,	/*!< in: table id */
-	dict_index_t*	index,		/*!< in: populated dict_index_t
-					struct with index info */
-	TABLE*		table_to_fill)	/*!< in/out: fill this table */
+	THD*			thd,		/*!< in: thread */
+	const dict_index_t*	index,		/*!< in: populated dict_index_t
+						struct with index info */
+	TABLE*			table_to_fill)	/*!< in/out: fill this table */
 {
 	Field**		fields;
 
-	DBUG_ENTER("i_s_dict_fill_sys_indexes");
+	DBUG_ENTER("i_s_dict_fill_innodb_indexes");
 
 	fields = table_to_fill->field;
 
@@ -6551,7 +6584,7 @@ i_s_dict_fill_sys_indexes(
 
 	OK(fields[SYS_INDEX_ID]->store(longlong(index->id), true));
 
-	OK(fields[SYS_INDEX_TABLE_ID]->store(longlong(table_id), true));
+	OK(fields[SYS_INDEX_TABLE_ID]->store(longlong(index->table->id), true));
 
 	OK(fields[SYS_INDEX_TYPE]->store(index->type));
 
@@ -6572,26 +6605,28 @@ i_s_dict_fill_sys_indexes(
 
 	DBUG_RETURN(0);
 }
-#endif /* INNODB_NO_NEW_DD */
+
 /*******************************************************************//**
-Function to go through each record in SYS_INDEXES table, and fill the
+Function to go through each record in INNODB_INDEXES table, and fill the
 information_schema.innodb_indexes table with related index information
 @return 0 on success */
 static
 int
-i_s_sys_indexes_fill_table(
+i_s_innodb_indexes_fill_table(
 /*=======================*/
 	THD*		thd,	/*!< in: thread */
 	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
 	Item*		)	/*!< in: condition (not used) */
 {
-#ifdef INNODB_NO_NEW_DD
-	btr_pcur_t		pcur;
-	const rec_t*		rec;
-	mem_heap_t*		heap;
-	mtr_t			mtr;
+	btr_pcur_t	pcur;
+	const rec_t*	rec;
+	mem_heap_t*	heap;
+	mtr_t		mtr;
+	MDL_ticket*	mdl = nullptr;
+	dict_table_t*	dd_indexes;
+	bool		ret;
 
-	DBUG_ENTER("i_s_sys_indexes_fill_table");
+	DBUG_ENTER("i_s_innodb_indexes_fill_table");
 
 	/* deny access to user without PROCESS_ACL privilege */
 	if (check_global_access(thd, PROCESS_ACL)) {
@@ -6602,30 +6637,21 @@ i_s_sys_indexes_fill_table(
 	mutex_enter(&dict_sys->mutex);
 	mtr_start(&mtr);
 
-	/* Start scan the SYS_INDEXES table */
-	rec = dict_startscan_system(&pcur, &mtr, SYS_INDEXES);
+	/* Start scan the mysql.indexes */
+	rec = dd_startscan_system(thd, &mdl, &pcur, &mtr, DD_INDEXES, &dd_indexes);
 
 	/* Process each record in the table */
 	while (rec) {
-		const char*	err_msg;
-		table_id_t	table_id;
-		dict_index_t	index_rec;
+		const dict_index_t*	index_rec;
 
 		/* Populate a dict_index_t structure with information from
-		a SYS_INDEXES row */
-		err_msg = dict_process_sys_indexes_rec(heap, rec, &index_rec,
-						       &table_id);
+		a INNODB_INDEXES row */
+		ret = dd_process_dd_indexes_rec(heap, rec, &index_rec, dd_indexes, &mtr);
 
-		mtr_commit(&mtr);
 		mutex_exit(&dict_sys->mutex);
 
-		if (!err_msg) {
-			i_s_dict_fill_sys_indexes(thd, table_id, &index_rec,
-						 tables->table);
-		} else {
-			push_warning_printf(thd, Sql_condition::SL_WARNING,
-					    ER_CANT_FIND_SYSTEM_REC, "%s",
-					    err_msg);
+		if (ret) {
+			i_s_dict_fill_innodb_indexes(thd, index_rec, tables->table);
 		}
 
 		mem_heap_empty(heap);
@@ -6633,17 +6659,15 @@ i_s_sys_indexes_fill_table(
 		/* Get the next record */
 		mutex_enter(&dict_sys->mutex);
 		mtr_start(&mtr);
-		rec = dict_getnext_system(&pcur, &mtr);
+		rec = dd_getnext_system_rec(&pcur, &mtr);
 	}
 
 	mtr_commit(&mtr);
+	dd_table_close(dd_indexes, thd, &mdl, true);
 	mutex_exit(&dict_sys->mutex);
 	mem_heap_free(heap);
 
 	DBUG_RETURN(0);
-#else
-	return(0);
-#endif /* INNODB_NO_NEW_DD */
 }
 /*******************************************************************//**
 Bind the dynamic table INFORMATION_SCHEMA.innodb_indexes
@@ -6661,7 +6685,7 @@ innodb_indexes_init(
 	schema = (ST_SCHEMA_TABLE*) p;
 
 	schema->fields_info = innodb_sysindex_fields_info;
-	schema->fill_table = i_s_sys_indexes_fill_table;
+	schema->fill_table = i_s_innodb_indexes_fill_table;
 
 	DBUG_RETURN(0);
 }
@@ -6686,7 +6710,7 @@ struct st_mysql_plugin	i_s_innodb_indexes =
 
 	/* general descriptive text (for SHOW PLUGINS) */
 	/* const char* */
-	STRUCT_FLD(descr, "InnoDB SYS_INDEXES"),
+	STRUCT_FLD(descr, "InnoDB INNODB_INDEXES"),
 
 	/* the plugin license (PLUGIN_LICENSE_XXX) */
 	/* int */
@@ -7870,11 +7894,11 @@ struct st_mysql_plugin	i_s_innodb_foreign_cols =
 	STRUCT_FLD(flags, 0UL),
 };
 
-/**  SYS_TABLESPACES    ********************************************/
+/**  INNODB_TABLESPACES    ********************************************/
 /* Fields of the dynamic table INFORMATION_SCHEMA.INNODB_TABLESPACES */
 static ST_FIELD_INFO	innodb_tablespaces_fields_info[] =
 {
-#define SYS_TABLESPACES_SPACE		0
+#define INNODB_TABLESPACES_SPACE		0
 	{STRUCT_FLD(field_name,		"SPACE"),
 	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
@@ -7883,7 +7907,7 @@ static ST_FIELD_INFO	innodb_tablespaces_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-#define SYS_TABLESPACES_NAME		1
+#define INNODB_TABLESPACES_NAME		1
 	{STRUCT_FLD(field_name,		"NAME"),
 	 STRUCT_FLD(field_length,	MAX_FULL_NAME_LEN + 1),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
@@ -7892,7 +7916,7 @@ static ST_FIELD_INFO	innodb_tablespaces_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-#define SYS_TABLESPACES_FLAGS		2
+#define INNODB_TABLESPACES_FLAGS		2
 	{STRUCT_FLD(field_name,		"FLAG"),
 	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
@@ -7901,7 +7925,7 @@ static ST_FIELD_INFO	innodb_tablespaces_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-#define SYS_TABLESPACES_ROW_FORMAT	3
+#define INNODB_TABLESPACES_ROW_FORMAT	3
 	{STRUCT_FLD(field_name,		"ROW_FORMAT"),
 	 STRUCT_FLD(field_length,	22),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
@@ -7910,7 +7934,7 @@ static ST_FIELD_INFO	innodb_tablespaces_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-#define SYS_TABLESPACES_PAGE_SIZE	4
+#define INNODB_TABLESPACES_PAGE_SIZE	4
 	{STRUCT_FLD(field_name,		"PAGE_SIZE"),
 	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
@@ -7919,7 +7943,7 @@ static ST_FIELD_INFO	innodb_tablespaces_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-#define SYS_TABLESPACES_ZIP_PAGE_SIZE	5
+#define INNODB_TABLESPACES_ZIP_PAGE_SIZE	5
 	{STRUCT_FLD(field_name,		"ZIP_PAGE_SIZE"),
 	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
@@ -7928,7 +7952,7 @@ static ST_FIELD_INFO	innodb_tablespaces_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-#define SYS_TABLESPACES_SPACE_TYPE	6
+#define INNODB_TABLESPACES_SPACE_TYPE	6
 	{STRUCT_FLD(field_name,		"SPACE_TYPE"),
 	 STRUCT_FLD(field_length,	10),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
@@ -7937,7 +7961,7 @@ static ST_FIELD_INFO	innodb_tablespaces_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-#define SYS_TABLESPACES_FS_BLOCK_SIZE	7
+#define INNODB_TABLESPACES_FS_BLOCK_SIZE	7
 	{STRUCT_FLD(field_name,		"FS_BLOCK_SIZE"),
 	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
@@ -7946,7 +7970,7 @@ static ST_FIELD_INFO	innodb_tablespaces_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-#define SYS_TABLESPACES_FILE_SIZE	8
+#define INNODB_TABLESPACES_FILE_SIZE	8
 	{STRUCT_FLD(field_name,		"FILE_SIZE"),
 	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
@@ -7955,7 +7979,7 @@ static ST_FIELD_INFO	innodb_tablespaces_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-#define SYS_TABLESPACES_ALLOC_SIZE	9
+#define INNODB_TABLESPACES_ALLOC_SIZE	9
 	{STRUCT_FLD(field_name,		"ALLOCATED_SIZE"),
 	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
@@ -7968,14 +7992,13 @@ static ST_FIELD_INFO	innodb_tablespaces_fields_info[] =
 
 };
 
-#ifdef INNODB_NO_NEW_DD
 /**********************************************************************//**
 Function to fill INFORMATION_SCHEMA.INNODB_TABLESPACES with information
-collected by scanning SYS_TABLESPACESS table.
+collected by scanning INNODB_TABLESPACESS table.
 @return 0 on success */
 static
 int
-i_s_dict_fill_sys_tablespaces(
+i_s_dict_fill_innodb_tablespaces(
 /*==========================*/
 	THD*		thd,		/*!< in: thread */
 	space_id_t	space,		/*!< in: space ID */
@@ -7991,7 +8014,7 @@ i_s_dict_fill_sys_tablespaces(
 	const page_size_t	page_size(flags);
 	const char*	space_type;
 
-	DBUG_ENTER("i_s_dict_fill_sys_tablespaces");
+	DBUG_ENTER("i_s_dict_fill_innodb_tablespaces");
 
 	if (fsp_is_system_or_temp_tablespace(space)) {
 		row_format = "Compact or Redundant";
@@ -8015,31 +8038,31 @@ i_s_dict_fill_sys_tablespaces(
 
 	fields = table_to_fill->field;
 
-	OK(fields[SYS_TABLESPACES_SPACE]->store(space, true));
+	OK(fields[INNODB_TABLESPACES_SPACE]->store(space, true));
 
-	OK(field_store_string(fields[SYS_TABLESPACES_NAME], name));
+	OK(field_store_string(fields[INNODB_TABLESPACES_NAME], name));
 
-	OK(fields[SYS_TABLESPACES_FLAGS]->store(flags, true));
+	OK(fields[INNODB_TABLESPACES_FLAGS]->store(flags, true));
 
-	OK(field_store_string(fields[SYS_TABLESPACES_ROW_FORMAT],
+	OK(field_store_string(fields[INNODB_TABLESPACES_ROW_FORMAT],
 			      row_format));
 
-	OK(fields[SYS_TABLESPACES_PAGE_SIZE]->store(
+	OK(fields[INNODB_TABLESPACES_PAGE_SIZE]->store(
 			univ_page_size.physical(), true));
 
-	OK(fields[SYS_TABLESPACES_ZIP_PAGE_SIZE]->store(
+	OK(fields[INNODB_TABLESPACES_ZIP_PAGE_SIZE]->store(
 				page_size.is_compressed()
 				? page_size.physical()
 				: 0, true));
 
-	OK(field_store_string(fields[SYS_TABLESPACES_SPACE_TYPE],
+	OK(field_store_string(fields[INNODB_TABLESPACES_SPACE_TYPE],
 			      space_type));
 
 	char*	filepath = NULL;
 	if (FSP_FLAGS_HAS_DATA_DIR(flags)
 	    || FSP_FLAGS_GET_SHARED(flags)) {
 		mutex_enter(&dict_sys->mutex);
-		filepath = dict_get_first_path(space);
+		filepath = fil_space_get_first_path(space);
 		mutex_exit(&dict_sys->mutex);
 	}
 
@@ -8087,38 +8110,39 @@ i_s_dict_fill_sys_tablespaces(
 		file.m_alloc_size = 0;
 	}
 
-	OK(fields[SYS_TABLESPACES_FS_BLOCK_SIZE]->store(stat.block_size, true));
+	OK(fields[INNODB_TABLESPACES_FS_BLOCK_SIZE]->store(stat.block_size, true));
 
-	OK(fields[SYS_TABLESPACES_FILE_SIZE]->store(file.m_total_size, true));
+	OK(fields[INNODB_TABLESPACES_FILE_SIZE]->store(file.m_total_size, true));
 
-	OK(fields[SYS_TABLESPACES_ALLOC_SIZE]->store(file.m_alloc_size, true));
+	OK(fields[INNODB_TABLESPACES_ALLOC_SIZE]->store(file.m_alloc_size, true));
 
 	OK(schema_table_store_record(thd, table_to_fill));
 
 	DBUG_RETURN(0);
 }
-#endif /* INNODB_NO_NEW_DD */
 
 /*******************************************************************//**
 Function to populate INFORMATION_SCHEMA.INNODB_TABLESPACES table.
-Loop through each record in SYS_TABLESPACES, and extract the column
+Loop through each record in INNODB_TABLESPACES, and extract the column
 information and fill the INFORMATION_SCHEMA.INNODB_TABLESPACES table.
 @return 0 on success */
 static
 int
-i_s_sys_tablespaces_fill_table(
+i_s_innodb_tablespaces_fill_table(
 /*===========================*/
 	THD*		thd,	/*!< in: thread */
 	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
 	Item*		)	/*!< in: condition (not used) */
 {
-#ifdef INNODB_NO_NEW_DD
 	btr_pcur_t	pcur;
 	const rec_t*	rec;
 	mem_heap_t*	heap;
 	mtr_t		mtr;
+	dict_table_t*	dd_spaces;
+	MDL_ticket*	mdl = nullptr;
+	bool		ret;
 
-	DBUG_ENTER("i_s_sys_tablespaces_fill_table");
+	DBUG_ENTER("i_s_innodb_tablespaces_fill_table");
 
 	/* deny access to user without PROCESS_ACL privilege */
 	if (check_global_access(thd, PROCESS_ACL)) {
@@ -8129,30 +8153,25 @@ i_s_sys_tablespaces_fill_table(
 	mutex_enter(&dict_sys->mutex);
 	mtr_start(&mtr);
 
-	for (rec = dict_startscan_system(&pcur, &mtr, SYS_TABLESPACES);
+	for (rec = dd_startscan_system(thd, &mdl, &pcur, &mtr,
+				       DD_TABLESPACES, &dd_spaces);
 	     rec != NULL;
-	     rec = dict_getnext_system(&pcur, &mtr)) {
+	     rec = dd_getnext_system_rec(&pcur, &mtr)) {
 
-		const char*	err_msg;
 		space_id_t	space;
-		const char*	name;
-		ulint		flags;
+		char*		name;
+		uint		flags;
 
-		/* Extract necessary information from a SYS_TABLESPACES row */
-		err_msg = dict_process_sys_tablespaces(
-			heap, rec, &space, &name, &flags);
+		/* Extract necessary information from a INNODB_TABLESPACES row */
+		ret = dd_process_dd_tablespaces_rec(
+			heap, rec, &space, &name, &flags, dd_spaces);
 
 		mtr_commit(&mtr);
 		mutex_exit(&dict_sys->mutex);
 
-		if (!err_msg) {
-			i_s_dict_fill_sys_tablespaces(
-				thd, space, name, flags,
-				tables->table);
-		} else {
-			push_warning_printf(thd, Sql_condition::SL_WARNING,
-					    ER_CANT_FIND_SYSTEM_REC, "%s",
-					    err_msg);
+		if (ret && space != 0) {
+			i_s_dict_fill_innodb_tablespaces(
+				thd, space, name, flags, tables->table);
 		}
 
 		mem_heap_empty(heap);
@@ -8163,13 +8182,11 @@ i_s_sys_tablespaces_fill_table(
 	}
 
 	mtr_commit(&mtr);
+	dd_table_close(dd_spaces, thd, &mdl, true);
 	mutex_exit(&dict_sys->mutex);
 	mem_heap_free(heap);
 
 	DBUG_RETURN(0);
-#else
-	return(0);
-#endif /* INNODB_NO_NEW_DD */
 }
 /*******************************************************************//**
 Bind the dynamic table INFORMATION_SCHEMA.INNODB_TABLESPACES
@@ -8187,7 +8204,7 @@ innodb_tablespaces_init(
 	schema = (ST_SCHEMA_TABLE*) p;
 
 	schema->fields_info = innodb_tablespaces_fields_info;
-	schema->fill_table = i_s_sys_tablespaces_fill_table;
+	schema->fill_table = i_s_innodb_tablespaces_fill_table;
 
 	DBUG_RETURN(0);
 }
@@ -8212,7 +8229,7 @@ struct st_mysql_plugin	i_s_innodb_tablespaces =
 
 	/* general descriptive text (for SHOW PLUGINS) */
 	/* const char* */
-	STRUCT_FLD(descr, "InnoDB SYS_TABLESPACES"),
+	STRUCT_FLD(descr, "InnoDB INNODB_TABLESPACES"),
 
 	/* the plugin license (PLUGIN_LICENSE_XXX) */
 	/* int */
@@ -8622,20 +8639,22 @@ static ST_FIELD_INFO	innodb_cached_indexes_fields_info[] =
 
 /** Populate INFORMATION_SCHEMA.INNODB_CACHED_INDEXES.
 @param[in]	thd		user thread
-@param[in]	index		populated dict_index_t struct with index info
+@param[in]	space_id	space id
+@param[in]	index_id	index id
 @param[in,out]	table_to_fill	fill this table
 @return 0 on success */
 static
 int
 i_s_fill_innodb_cached_indexes_row(
 	THD*		thd,
-	dict_index_t*	index,
+	ulint		space_id,
+	ulint		index_id,
 	TABLE*		table_to_fill)
 {
 	DBUG_ENTER("i_s_fill_innodb_cached_indexes_row");
 
-	const index_id_t	index_id(index->space, index->id);
-	const uint64_t		n = buf_stat_per_index->get(index_id);
+	const index_id_t	idx_id(space_id, index_id);
+	const uint64_t		n = buf_stat_per_index->get(idx_id);
 
 	if (n == 0) {
 		DBUG_RETURN(0);
@@ -8643,11 +8662,9 @@ i_s_fill_innodb_cached_indexes_row(
 
 	Field**	fields = table_to_fill->field;
 
-	OK(fields[CACHED_INDEXES_SPACE_ID]->store(
-		   index_id.m_space_id, true));
+	OK(fields[CACHED_INDEXES_SPACE_ID]->store(space_id, true));
 
-	OK(fields[CACHED_INDEXES_INDEX_ID]->store(
-		   index_id.m_index_id, true));
+	OK(fields[CACHED_INDEXES_INDEX_ID]->store(index_id, true));
 
 	OK(fields[CACHED_INDEXES_N_CACHED_PAGES]->store(n, true));
 
@@ -8656,7 +8673,7 @@ i_s_fill_innodb_cached_indexes_row(
 	DBUG_RETURN(0);
 }
 
-/** Go through each record in SYS_INDEXES, and fill
+/** Go through each record in INNODB_INDEXES, and fill
 INFORMATION_SCHEMA.INNODB_CACHED_INDEXES.
 @param[in]	thd	thread
 @param[in,out]	tables	tables to fill
@@ -8669,7 +8686,9 @@ i_s_innodb_cached_indexes_fill_table(
 	Item*		/* not used */)
 {
 	MDL_ticket*		mdl = nullptr;
-	dict_table_t*	dd_indexes;
+	dict_table_t*		dd_indexes;
+	uint32			space_id;
+	uint32			index_id;
 
 	DBUG_ENTER("i_s_innodb_cached_indexes_fill_table");
 
@@ -8686,19 +8705,17 @@ i_s_innodb_cached_indexes_fill_table(
 
 	mtr_start(&mtr);
 
-	/* Start the scan of SYS_INDEXES. */
+	/* Start the scan of INNODB_INDEXES. */
 	btr_pcur_t	pcur;
 	const rec_t* rec = dd_startscan_system(thd, &mdl, &pcur, &mtr,
 		DD_INDEXES, &dd_indexes);
 
 	/* Process each record in the table. */
 	while (rec != NULL) {
-		dict_index_t	index;
-
 		/* Populate a dict_index_t structure with an information
-		from a SYS_INDEXES row. */
-		bool ret = dd_process_dd_indexes_rec(
-			heap, rec, &index, dd_indexes);
+		from a INNODB_INDEXES row. */
+		bool ret = dd_process_dd_indexes_rec_simple(
+			heap, rec, &index_id, &space_id, dd_indexes);
 
 		mtr_commit(&mtr);
 
@@ -8706,7 +8723,7 @@ i_s_innodb_cached_indexes_fill_table(
 
 		if (ret) {
 			i_s_fill_innodb_cached_indexes_row(
-				thd, &index, tables->table);
+				thd, index_id, space_id, tables->table);
 		}
 
 		mem_heap_empty(heap);

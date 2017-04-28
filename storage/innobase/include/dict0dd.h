@@ -93,6 +93,7 @@ enum dd_system_id_t {
 	DD_INDEXES = 23,
 	DD_FOREIGN = 26,
 	DD_FOREIGN_COLS = 27,
+	DD_PARTITIONS = 28,
 
 	/* This must be last item. Defines the number of system tables. */
 	DD_LAST_ID
@@ -121,6 +122,10 @@ const char* const dd_table_key_strings[DD_TABLE__LAST] = {
 enum dd_index_keys {
 	/** Index identifier */
 	DD_INDEX_ID,
+	/** Space id */
+	DD_INDEX_SPACE_ID,
+	/** Table id */
+	DD_TABLE_ID,
 	/** Root page number */
 	DD_INDEX_ROOT,
 	/** Creating transaction ID */
@@ -133,6 +138,8 @@ enum dd_index_keys {
 @see dd_index_keys */
 const char* const dd_index_key_strings[DD_INDEX__LAST] = {
 	"id",
+	"space_id",
+	"table_id",
 	"root",
 	"trx_id"
 };
@@ -416,6 +423,20 @@ dd_process_dd_tables_rec_and_mtr_commit(
 	dict_table_t**	table,
 	dict_table_t*	dd_tables,
 	mtr_t*			mtr);
+/** Process one mysql.table_partitions record and get the dict_table_t
+@param[in]	heap		temp memory heap
+@param[in,out]	rec		mysql.table_partitions record
+@param[in,out]	table		dict_table_t to fill
+@param[in]	dd_tables	dict_table_t obj of dd partition table
+@param[in]	mtr		the mini-transaction
+@retval error message, or NULL on success */
+const char*
+dd_process_dd_partitions_rec_and_mtr_commit(
+	mem_heap_t*	heap,
+	const rec_t*	rec,
+	dict_table_t**	table,
+	dict_table_t*	dd_tables,
+	mtr_t*		mtr);
 
 /** Get next record of new DD system tables
 @param[in,out]	pcur		persistent cursor
@@ -427,18 +448,49 @@ dd_getnext_system_rec(
 	mtr_t*		mtr);
 
 /** Process one mysql.indexes record and get the dict_index_t
-@param[in]		heap		temp memory heap
-@param[in,out]	rec			mysql.indexes record
+@param[in]	heap		temp memory heap
+@param[in,out]	rec		mysql.indexes record
 @param[in,out]	index		dict_index_t to fill
-@param[in]		dd_indexes	dict_table_t obj of mysql.indexes
-@param[in]		mtr			the mini-transaction
+@param[in]	dd_indexes	dict_table_t obj of mysql.indexes
+@param[in]	mtr		the mini-transaction
 @retval true if index is filled */
 bool
 dd_process_dd_indexes_rec(
 	mem_heap_t*		heap,
+	const rec_t*		rec,
+	const dict_index_t**	index,
+	dict_table_t*		dd_indexes,
+	mtr_t*			mtr);
+/** Process one mysql.indexes record and get brief info to dict_index_t
+@param[in]	heap		temp memory heap
+@param[in,out]	rec		mysql.indexes record
+@param[in,out]	index_id	index id
+@param[in,out]	space_id	space id
+@param[in]	dd_indexes	dict_table_t obj of mysql.indexes
+@retval true if index is filled */
+bool
+dd_process_dd_indexes_rec_simple(
+	mem_heap_t*	heap,
 	const rec_t*	rec,
-	dict_index_t*	index,
+	uint*		index_id,
+	uint*		space_id,
 	dict_table_t*	dd_indexes);
+/** Process one mysql.tablespaces record and get info
+@param[in]	heap		temp memory heap
+@param[in,out]	rec		mysql.tablespaces record
+@param[in,out]	space_id	space id
+@param[in,out]	name		space name
+@param[in,out]	flags		space flags
+@param[in]	dd_spaces	dict_table_t obj of mysql.tablespaces
+@retval true if index is filled */
+bool
+dd_process_dd_tablespaces_rec(
+	mem_heap_t*	heap,
+	const rec_t*	rec,
+	space_id_t*	space_id,
+	char**		name,
+	uint*		flags,
+	dict_table_t*	dd_spaces);
 /** Make sure the data_dir_path is saved in dict_table_t if DATA DIRECTORY
 was used. Try to read it from the fil_system first, then from SYS_DATAFILES.
 @param[in]	table		Table object

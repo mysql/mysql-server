@@ -12,7 +12,7 @@
 create table t1 (f1 int primary key, f2 int) engine=innodb;
 insert into t1 values (1, 1);
 
-set debug ='d,test_sys_tablestats';
+set debug ='d,test_innodb_tablestats';
 --disable_result_log
 set debug_sync = 'dict_table_not_protected SIGNAL have_t1 WAIT_FOR del_t1';
 --send

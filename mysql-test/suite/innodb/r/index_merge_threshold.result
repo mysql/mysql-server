@@ -52,14 +52,14 @@ SELECT t.NAME as TABLE_NAME, i.NAME as INDEX_NAME, i.MERGE_THRESHOLD
 FROM INFORMATION_SCHEMA.INNODB_TABLES t, INFORMATION_SCHEMA.INNODB_INDEXES i
 WHERE t.TABLE_ID = i.TABLE_ID AND t.NAME = 'test/tab' ORDER BY i.NAME;
 TABLE_NAME	INDEX_NAME	MERGE_THRESHOLD
-test/tab	index1	0
-test/tab	index2	0
-test/tab	index3	0
-test/tab	index4	0
-test/tab	index5	0
-test/tab	index6	0
-test/tab	index7	0
-test/tab	PRIMARY	0
+test/tab	index1	50
+test/tab	index2	50
+test/tab	index3	20
+test/tab	index4	25
+test/tab	index5	30
+test/tab	index6	35
+test/tab	index7	40
+test/tab	PRIMARY	50
 ALTER TABLE tab comment='MERGE_THRESHOLD=49';
 Warnings:
 Warning	1478	InnoDB: Invalid value for MERGE_THRESHOLD in the CREATE TABLE statement. The value is ignored.
@@ -88,20 +88,18 @@ SELECT t.NAME as TABLE_NAME, i.NAME as INDEX_NAME, i.MERGE_THRESHOLD
 FROM INFORMATION_SCHEMA.INNODB_TABLES t, INFORMATION_SCHEMA.INNODB_INDEXES i
 WHERE t.TABLE_ID = i.TABLE_ID AND t.NAME = 'test/tab' ORDER BY i.NAME;
 TABLE_NAME	INDEX_NAME	MERGE_THRESHOLD
-test/tab	index1	0
-test/tab	index2	0
-test/tab	index3	0
-test/tab	index4	0
-test/tab	index5	0
-test/tab	index6	0
-test/tab	index7	0
-test/tab	PRIMARY	0
+test/tab	index1	49
+test/tab	index2	49
+test/tab	index3	20
+test/tab	index4	25
+test/tab	index5	30
+test/tab	index6	35
+test/tab	index7	40
+test/tab	PRIMARY	49
 ALTER TABLE tab MODIFY COLUMN c7 VARCHAR(2048) ;
 Warnings:
 Warning	1478	InnoDB: Invalid value for MERGE_THRESHOLD in the CREATE TABLE statement. The value is ignored.
 Warning	1478	InnoDB: Invalid value for MERGE_THRESHOLD in the CREATE TABLE statement. The value is ignored.
-Warning	1618	<MERGE_THRESHOLD> option ignored
-Warning	1618	<MERGE_THRESHOLD> option ignored
 SHOW CREATE TABLE tab;
 Table	Create Table
 tab	CREATE TABLE `tab` (
@@ -126,14 +124,14 @@ SELECT t.NAME as TABLE_NAME, i.NAME as INDEX_NAME, i.MERGE_THRESHOLD
 FROM INFORMATION_SCHEMA.INNODB_TABLES t, INFORMATION_SCHEMA.INNODB_INDEXES i
 WHERE t.TABLE_ID = i.TABLE_ID AND t.NAME = 'test/tab' ORDER BY i.NAME;
 TABLE_NAME	INDEX_NAME	MERGE_THRESHOLD
-test/tab	index1	0
-test/tab	index2	0
-test/tab	index3	0
-test/tab	index4	0
-test/tab	index5	0
-test/tab	index6	0
-test/tab	index7	0
-test/tab	PRIMARY	0
+test/tab	index1	49
+test/tab	index2	49
+test/tab	index3	20
+test/tab	index4	25
+test/tab	index5	30
+test/tab	index6	35
+test/tab	index7	40
+test/tab	PRIMARY	49
 ALTER TABLE tab ADD INDEX index8 (c7(750)) COMMENT 'Check index level merge MERGE_THRESHOLD=45';
 Warnings:
 Warning	1831	Duplicate index 'index8' defined on the table 'test.tab'. This is deprecated and will be disallowed in a future release.
@@ -164,15 +162,15 @@ SELECT t.NAME as TABLE_NAME, i.NAME as INDEX_NAME, i.MERGE_THRESHOLD
 FROM INFORMATION_SCHEMA.INNODB_TABLES t, INFORMATION_SCHEMA.INNODB_INDEXES i
 WHERE t.TABLE_ID = i.TABLE_ID AND t.NAME = 'test/tab' ORDER BY i.NAME;
 TABLE_NAME	INDEX_NAME	MERGE_THRESHOLD
-test/tab	index1	0
-test/tab	index2	0
-test/tab	index3	0
-test/tab	index4	0
-test/tab	index5	0
-test/tab	index6	0
-test/tab	index7	0
-test/tab	index8	0
-test/tab	PRIMARY	0
+test/tab	index1	49
+test/tab	index2	49
+test/tab	index3	20
+test/tab	index4	25
+test/tab	index5	30
+test/tab	index6	35
+test/tab	index7	40
+test/tab	index8	45
+test/tab	PRIMARY	49
 DROP TABLE tab;
 #
 # behavior for deleting records
@@ -184,7 +182,7 @@ select t.NAME as TABLE_NAME, i.NAME as INDEX_NAME, i.MERGE_THRESHOLD
 from INFORMATION_SCHEMA.INNODB_TABLES t, INFORMATION_SCHEMA.INNODB_INDEXES i
 where t.TABLE_ID = i.TABLE_ID and t.NAME like 'test/tab1%' ORDER BY i.NAME;
 TABLE_NAME	INDEX_NAME	MERGE_THRESHOLD
-test/tab1	PRIMARY	0
+test/tab1	PRIMARY	50
 insert into tab1 values (1, repeat('a',2048));
 insert into tab1 values (2, repeat('a',2048));
 insert into tab1 values (3, repeat('a',2048));
@@ -261,7 +259,7 @@ select t.NAME as TABLE_NAME, i.NAME as INDEX_NAME, i.MERGE_THRESHOLD
 from INFORMATION_SCHEMA.INNODB_TABLES t, INFORMATION_SCHEMA.INNODB_INDEXES i
 where t.TABLE_ID = i.TABLE_ID and t.NAME like 'test/tab1%' ORDER BY i.NAME;
 TABLE_NAME	INDEX_NAME	MERGE_THRESHOLD
-test/tab1	PRIMARY	0
+test/tab1	PRIMARY	35
 insert into tab1 values (1, repeat('a',2048));
 insert into tab1 values (2, repeat('a',2048));
 insert into tab1 values (3, repeat('a',2048));
@@ -338,7 +336,7 @@ select t.NAME as TABLE_NAME, i.NAME as INDEX_NAME, i.MERGE_THRESHOLD
 from INFORMATION_SCHEMA.INNODB_TABLES t, INFORMATION_SCHEMA.INNODB_INDEXES i
 where t.TABLE_ID = i.TABLE_ID and t.NAME like 'test/tab1%' ORDER BY i.NAME;
 TABLE_NAME	INDEX_NAME	MERGE_THRESHOLD
-test/tab1	PRIMARY	0
+test/tab1	PRIMARY	25
 insert into tab1 values (1, repeat('a',2048));
 insert into tab1 values (2, repeat('a',2048));
 insert into tab1 values (3, repeat('a',2048));
@@ -496,7 +494,7 @@ select t.NAME as TABLE_NAME, i.NAME as INDEX_NAME, i.MERGE_THRESHOLD
 from INFORMATION_SCHEMA.INNODB_TABLES t, INFORMATION_SCHEMA.INNODB_INDEXES i
 where t.TABLE_ID = i.TABLE_ID and t.NAME like 'test/tab1%' ORDER BY i.NAME;
 TABLE_NAME	INDEX_NAME	MERGE_THRESHOLD
-test/tab1	PRIMARY	0
+test/tab1	PRIMARY	50
 insert into tab1 values (1, repeat('a',2048));
 insert into tab1 values (2, repeat('a',2048));
 insert into tab1 values (3, repeat('a',2048));
@@ -565,7 +563,7 @@ select t.NAME as TABLE_NAME, i.NAME as INDEX_NAME, i.MERGE_THRESHOLD
 from INFORMATION_SCHEMA.INNODB_TABLES t, INFORMATION_SCHEMA.INNODB_INDEXES i
 where t.TABLE_ID = i.TABLE_ID and t.NAME like 'test/tab1%' ORDER BY i.NAME;
 TABLE_NAME	INDEX_NAME	MERGE_THRESHOLD
-test/tab1	PRIMARY	0
+test/tab1	PRIMARY	35
 insert into tab1 values (1, repeat('a',2048));
 insert into tab1 values (2, repeat('a',2048));
 insert into tab1 values (3, repeat('a',2048));
@@ -634,7 +632,7 @@ select t.NAME as TABLE_NAME, i.NAME as INDEX_NAME, i.MERGE_THRESHOLD
 from INFORMATION_SCHEMA.INNODB_TABLES t, INFORMATION_SCHEMA.INNODB_INDEXES i
 where t.TABLE_ID = i.TABLE_ID and t.NAME like 'test/tab1%' ORDER BY i.NAME;
 TABLE_NAME	INDEX_NAME	MERGE_THRESHOLD
-test/tab1	PRIMARY	0
+test/tab1	PRIMARY	25
 insert into tab1 values (1, repeat('a',2048));
 insert into tab1 values (2, repeat('a',2048));
 insert into tab1 values (3, repeat('a',2048));
@@ -775,8 +773,8 @@ select t.NAME as TABLE_NAME, i.NAME as INDEX_NAME, i.MERGE_THRESHOLD
 from INFORMATION_SCHEMA.INNODB_TABLES t, INFORMATION_SCHEMA.INNODB_INDEXES i
 where t.TABLE_ID = i.TABLE_ID and t.NAME like 'test/tab1%' ORDER BY i.NAME;
 TABLE_NAME	INDEX_NAME	MERGE_THRESHOLD
-test/tab1	index1	0
-test/tab1	PRIMARY	0
+test/tab1	index1	50
+test/tab1	PRIMARY	50
 INSERT INTO tab1 VALUES (1, concat("01", repeat('a',8190)));
 INSERT INTO tab1 VALUES (2, concat("02", repeat('a',8190)));
 INSERT INTO tab1 VALUES (3, concat("03", repeat('a',8190)));
@@ -895,8 +893,8 @@ select t.NAME as TABLE_NAME, i.NAME as INDEX_NAME, i.MERGE_THRESHOLD
 from INFORMATION_SCHEMA.INNODB_TABLES t, INFORMATION_SCHEMA.INNODB_INDEXES i
 where t.TABLE_ID = i.TABLE_ID and t.NAME like 'test/tab1%' ORDER BY i.NAME;
 TABLE_NAME	INDEX_NAME	MERGE_THRESHOLD
-test/tab1	index1	0
-test/tab1	PRIMARY	0
+test/tab1	index1	45
+test/tab1	PRIMARY	50
 INSERT INTO tab1 VALUES (1, concat("01", repeat('a',8190)));
 INSERT INTO tab1 VALUES (2, concat("02", repeat('a',8190)));
 INSERT INTO tab1 VALUES (3, concat("03", repeat('a',8190)));
@@ -1015,8 +1013,8 @@ select t.NAME as TABLE_NAME, i.NAME as INDEX_NAME, i.MERGE_THRESHOLD
 from INFORMATION_SCHEMA.INNODB_TABLES t, INFORMATION_SCHEMA.INNODB_INDEXES i
 where t.TABLE_ID = i.TABLE_ID and t.NAME like 'test/tab1%' ORDER BY i.NAME;
 TABLE_NAME	INDEX_NAME	MERGE_THRESHOLD
-test/tab1	index1	0
-test/tab1	PRIMARY	0
+test/tab1	index1	40
+test/tab1	PRIMARY	50
 INSERT INTO tab1 VALUES (1, concat("01", repeat('a',8190)));
 INSERT INTO tab1 VALUES (2, concat("02", repeat('a',8190)));
 INSERT INTO tab1 VALUES (3, concat("03", repeat('a',8190)));
@@ -1136,8 +1134,8 @@ select t.NAME as TABLE_NAME, i.NAME as INDEX_NAME, i.MERGE_THRESHOLD
 from INFORMATION_SCHEMA.INNODB_TABLES t, INFORMATION_SCHEMA.INNODB_INDEXES i
 where t.TABLE_ID = i.TABLE_ID and t.NAME like 'test/tab1%' ORDER BY i.NAME;
 TABLE_NAME	INDEX_NAME	MERGE_THRESHOLD
-test/tab1	index1	0
-test/tab1	PRIMARY	0
+test/tab1	index1	45
+test/tab1	PRIMARY	50
 INSERT INTO tab1 VALUES (1, concat("01", repeat('a',8190)));
 INSERT INTO tab1 VALUES (2, concat("02", repeat('a',8190)));
 INSERT INTO tab1 VALUES (3, concat("03", repeat('a',8190)));

@@ -22031,17 +22031,15 @@ i_s_innodb_ft_being_deleted,
 i_s_innodb_ft_config,
 i_s_innodb_ft_index_cache,
 i_s_innodb_ft_index_table,
-#ifdef INNODB_NO_NEW_DD
 i_s_innodb_tables,
-#endif /* INNODB_NO_NEW_DD */
 i_s_innodb_tablestats,
-#ifdef INNODB_NO_NEW_DD
 i_s_innodb_indexes,
+i_s_innodb_tablespaces,
+#ifdef INNODB_NO_NEW_DD
 i_s_innodb_columns,
 i_s_innodb_fields,
 i_s_innodb_foreign,
 i_s_innodb_foreign_cols,
-i_s_innodb_tablespaces,
 i_s_innodb_datafiles,
 #endif /* INNODB_NO_NEW_DD */
 i_s_innodb_virtual,

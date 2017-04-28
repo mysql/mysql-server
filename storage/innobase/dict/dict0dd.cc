@@ -1360,6 +1360,8 @@ dd_write_index(
 
 	dd::Properties& p = dd_index->se_private_data();
 	p.set_uint64(dd_index_key_strings[DD_INDEX_ID], index->id);
+	p.set_uint64(dd_index_key_strings[DD_INDEX_SPACE_ID], index->space);
+	p.set_uint64(dd_index_key_strings[DD_TABLE_ID], index->table->id);
 	p.set_uint32(dd_index_key_strings[DD_INDEX_ROOT], index->page);
 	p.set_uint64(dd_index_key_strings[DD_INDEX_TRX_ID], index->trx_id);
 }
@@ -3644,8 +3646,9 @@ dd_getnext_system_low(
 	mtr_t*		mtr)		/*!< in: the mini-transaction */
 {
 	rec_t*	rec = NULL;
+	bool	is_comp = dict_table_is_comp(pcur->index()->table);
 
-	while (!rec || rec_get_deleted_flag(rec, 0)) {
+	while (!rec || rec_get_deleted_flag(rec, is_comp)) {
 		btr_pcur_move_to_next_user_rec(pcur, mtr);
 
 		rec = btr_pcur_get_rec(pcur);
@@ -3688,9 +3691,11 @@ dd_startscan_system(
 	ut_a(system_id < DD_LAST_ID);
 
 	system_table = dd_table_open_on_id(system_id, thd, mdl, true);
+	mtr_commit(mtr);
 
 	clust_index = UT_LIST_GET_FIRST(system_table->indexes);
 
+	mtr_start(mtr);
 	btr_pcur_open_at_index_side(true, clust_index, BTR_SEARCH_LEAF, pcur,
 		true, 0, mtr);
 
@@ -3738,25 +3743,107 @@ dd_process_dd_tables_rec_and_mtr_commit(
 
 	/* Get the se_private_id field. */
 	field = (const byte*)rec_get_nth_field(rec, offsets, 14, &len);
-	ut_ad(len == 8);
+	/* When table is partitioned table, the se_private_id is null. */
+	if (len != 8) {
+		*table = NULL;
+		mtr_commit(mtr);
+		return(NULL);
+	}
 
-	/* Get the table id*/
+	/* Get the table id */
 	table_id = mach_read_from_8(field);
 
-	/* If DICT_TABLE_LOAD_FROM_CACHE is set, first check
-	whether there is cached dict_table_t struct */
+	/* Skip mysql.* tables. */
+	if (table_id <= INNODB_DD_TABLE_ID_MAX) {
+		*table = NULL;
+		mtr_commit(mtr);
+		return(NULL);
+	}
+
 	/* Commit before load the table again */
 	mtr_commit(mtr);
 	THD*		thd = current_thd;
-	MDL_ticket*	mdl = nullptr;
 
-	*table = dd_table_open_on_id(table_id, thd, &mdl, true);
+	*table = dd_table_open_on_id(table_id, thd, NULL, true);
 
 	if (!(*table)) {
-		err_msg = "Table not found in cache";
+		err_msg = "Table not found";
+	} else {
+		dd_table_close(*table, thd, nullptr, true);
 	}
-	else if (mdl) {
-		dd_table_close(*table, thd, &mdl, true);
+
+	if (err_msg) {
+		return(err_msg);
+	}
+
+	return(NULL);
+}
+
+/** Process one mysql.table_partitions record and get the dict_table_t
+@param[in]	heap		temp memory heap
+@param[in,out]	rec		mysql.table_partitions record
+@param[in,out]	table		dict_table_t to fill
+@param[in]	dd_tables	dict_table_t obj of dd partition table
+@param[in]	mtr		the mini-transaction
+@retval error message, or NULL on success */
+const char*
+dd_process_dd_partitions_rec_and_mtr_commit(
+	mem_heap_t*	heap,
+	const rec_t*	rec,
+	dict_table_t**	table,
+	dict_table_t*	dd_tables,
+	mtr_t*		mtr)
+{
+	ulint		len;
+	const byte*	field;
+	const char*	err_msg = NULL;
+	ulint		table_id;
+
+	ut_ad(mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_S_FIX));
+
+	ut_ad(!rec_get_deleted_flag(rec, dict_table_is_comp(dd_tables)));
+
+	ulint*	offsets = rec_get_offsets(rec, dd_tables->first_index(), NULL,
+		ULINT_UNDEFINED, &heap);
+
+	field = rec_get_nth_field(rec, offsets, 7, &len);
+
+	/* If "engine" field is not "innodb", return. */
+	if (strncmp((const char*)field, "InnoDB", 6) != 0) {
+		*table = NULL;
+		mtr_commit(mtr);
+		return(NULL);
+	}
+
+	/* Get the se_private_id field. */
+	field = (const byte*)rec_get_nth_field(rec, offsets, 11, &len);
+	/* When table is partitioned table, the se_private_id is null. */
+	if (len != 8) {
+		*table = NULL;
+		mtr_commit(mtr);
+		return(NULL);
+	}
+
+	/* Get the table id */
+	table_id = mach_read_from_8(field);
+
+	/* Skip mysql.* tables. */
+	if (table_id <= INNODB_DD_TABLE_ID_MAX) {
+		*table = NULL;
+		mtr_commit(mtr);
+		return(NULL);
+	}
+
+	/* Commit before load the table again */
+	mtr_commit(mtr);
+	THD*		thd = current_thd;
+
+	*table = dd_table_open_on_id(table_id, thd, nullptr, true);
+
+	if (!(*table)) {
+		err_msg = "Table not found";
+	} else {
+		dd_table_close(*table, thd, nullptr, true);
 	}
 
 	if (err_msg) {
@@ -3801,23 +3888,139 @@ dd_getnext_system_rec(
 	return(rec);
 }
 
-/** Process one mysql.indexes record and get the dict_index_t
+/** Process one mysql.indexes record and get dict_index_t
+@param[in]	heap		temp memory heap
+@param[in,out]	rec		mysql.indexes record
+@param[in,out]	index		dict_index_t to fill
+@param[in]	dd_indexes	dict_table_t obj of mysql.indexes
+@param[in]	mtr		the mini-transaction
+@retval true if index is filled */
+bool
+dd_process_dd_indexes_rec(
+	mem_heap_t*		heap,
+	const rec_t*		rec,
+	const dict_index_t**	index,
+	dict_table_t*		dd_indexes,
+	mtr_t*			mtr)
+{
+	ulint		len;
+	const byte*	field;
+	uint32		index_id;
+	uint32		space_id;
+	uint32		table_id;
+
+	*index = nullptr;
+
+	ut_ad(!rec_get_deleted_flag(rec, dict_table_is_comp(dd_indexes)));
+
+	ulint*	offsets = rec_get_offsets(rec, dd_indexes->first_index(), NULL,
+		ULINT_UNDEFINED, &heap);
+
+	field = rec_get_nth_field(rec, offsets, 16, &len);
+
+	/* If "engine" field is not "innodb", return. */
+	if (strncmp((const char*)field, "InnoDB", 6) != 0) {
+		mtr_commit(mtr);
+		return(false);
+	}
+
+	/* Get the se_private_data field. */
+	field = (const byte*)rec_get_nth_field(rec, offsets, 14, &len);
+
+	if (len == 0) {
+		mtr_commit(mtr);
+		return(false);
+	}
+
+	/* Get index id. */
+	dd::String_type prop((char*)field);
+	dd::Properties* p = dd::Properties::parse_properties(prop);
+
+	if (!p || !p->exists(dd_index_key_strings[DD_INDEX_ID])
+	    || !p->exists(dd_index_key_strings[DD_INDEX_SPACE_ID])) {
+		mtr_commit(mtr);
+		return(false);
+	}
+
+	if (p->get_uint32(dd_index_key_strings[DD_INDEX_ID], &index_id)) {
+		mtr_commit(mtr);
+		return(false);
+	}
+
+	/* Get the tablespace id. */
+	if (p->get_uint32(dd_index_key_strings[DD_INDEX_SPACE_ID],
+			  &space_id)) {
+		mtr_commit(mtr);
+		return(false);
+	}
+
+	/* Skip mysql.* indexes. */
+	if (space_id == dict_sys->space_id) {
+		mtr_commit(mtr);
+		return(false);
+	}
+
+	/* Try to find the index in the cache. */
+	index_id_t ind_id(space_id, index_id);
+
+	*index = dict_index_find(ind_id);
+	if (*index != nullptr) {
+		mtr_commit(mtr);
+		return(true);
+	}
+
+	/* Load the table and get the index. */
+	if (!p->exists(dd_index_key_strings[DD_TABLE_ID])) {
+		mtr_commit(mtr);
+		return(false);
+	}
+
+	if (!p->get_uint32(dd_index_key_strings[DD_TABLE_ID], &table_id)) {
+		THD*		thd = current_thd;
+		dict_table_t*	table;
+
+		/* Commit before load the table */
+		mtr_commit(mtr);
+		table = dd_table_open_on_id(table_id, thd, nullptr, true);
+
+		if (!table) {
+			return(false);
+		}
+
+		for (const dict_index_t* t_index = table->first_index();
+		     t_index != NULL;
+		     t_index = t_index->next()) {
+			if (t_index->space == space_id
+			    && t_index->id == index_id) {
+				*index = t_index;
+			}
+		}
+		dd_table_close(table, thd, nullptr, true);
+
+	} else {
+		mtr_commit(mtr);
+		return(false);
+	}
+
+	return(true);
+}
+
+/** Process one mysql.indexes record and get breif info to dict_index_t
 @param[in]	heap		temp memory heap
 @param[in,out]	rec		mysql.indexes record
 @param[in,out]	index		dict_index_t to fill
 @param[in]	dd_indexes	dict_table_t obj of mysql.indexes
 @retval true if index is filled */
 bool
-dd_process_dd_indexes_rec(
+dd_process_dd_indexes_rec_simple(
 	mem_heap_t*	heap,
 	const rec_t*	rec,
-	dict_index_t*	index,
+	uint*		index_id,
+	uint*		space_id,
 	dict_table_t*	dd_indexes)
 {
 	ulint		len;
 	const byte*	field;
-	uint32		index_id;
-	uint32		tablespace_id;
 
 	ut_ad(!rec_get_deleted_flag(rec, dict_table_is_comp(dd_indexes)));
 
@@ -3840,28 +4043,90 @@ dd_process_dd_indexes_rec(
 
 	/* Get index id. */
 	dd::String_type prop((char*)field);
-	dd::Properties* properties = dd::Properties::parse_properties(prop);
+	dd::Properties* p = dd::Properties::parse_properties(prop);
 
-	if (!properties)
-		return(false);
-
-	if (!properties->get_uint32(dd_index_key_strings[DD_INDEX_ID], &index_id)
-		&& index_id != 0) {
-		index->id = index_id;
-	} else {
+	if (!p || !p->exists(dd_index_key_strings[DD_INDEX_ID])
+	    || !p->exists(dd_index_key_strings[DD_INDEX_SPACE_ID])) {
 		return(false);
 	}
 
-	/* Get the tablespace_id field. */
-	field = (const byte*)rec_get_nth_field(rec, offsets, 15, &len);
-	ut_ad(len == 8);
+	if (p->get_uint32(dd_index_key_strings[DD_INDEX_ID], index_id)) {
+		return(false);
+	}
 
-	/* Get the space id*/
-	tablespace_id = mach_read_from_8(field);
-	if (tablespace_id < 4) {
-		index->space = tablespace_id;
-	} else {
-		index->space = tablespace_id - 3;
+	/* Get the tablespace_id. */
+	if (p->get_uint32(dd_index_key_strings[DD_INDEX_SPACE_ID], space_id)) {
+		return(false);
+	}
+
+	return(true);
+}
+
+/** Process one mysql.tablespaces record and get info
+@param[in]	heap		temp memory heap
+@param[in,out]	rec		mysql.tablespaces record
+@param[in,out]	space_id	space id
+@param[in,out]	name		space name
+@param[in,out]	flags		space flags
+@param[in]	dd_spaces	dict_table_t obj of mysql.tablespaces
+@retval true if index is filled */
+bool
+dd_process_dd_tablespaces_rec(
+	mem_heap_t*	heap,
+	const rec_t*	rec,
+	space_id_t*	space_id,
+	char**		name,
+	uint*		flags,
+	dict_table_t*	dd_spaces)
+{
+	ulint		len;
+	const byte*	field;
+	char*		prop_str;
+
+	ut_ad(!rec_get_deleted_flag(rec, dict_table_is_comp(dd_spaces)));
+
+	ulint*	offsets = rec_get_offsets(rec, dd_spaces->first_index(), NULL,
+		ULINT_UNDEFINED, &heap);
+
+	field = rec_get_nth_field(rec, offsets, 7, &len);
+
+	/* If "engine" field is not "innodb", return. */
+	if (strncmp((const char*)field, "InnoDB", 6) != 0) {
+		return(false);
+	}
+
+	/* Get name field. */
+	field = rec_get_nth_field(rec, offsets, 3, &len);
+	*name = reinterpret_cast<char*>(mem_heap_alloc(heap, len + 1));
+	memset(*name, 0, len + 1);
+	memcpy(*name, field, len);
+
+	/* Get the se_private_data field. */
+	field = (const byte*)rec_get_nth_field(rec, offsets, 5, &len);
+
+	if (len == 0) {
+		return(false);
+	}
+
+	prop_str = static_cast<char*>(mem_heap_alloc(heap, len + 1));
+	memset(prop_str, 0, len + 1);
+	memcpy(prop_str, field, len);
+	dd::String_type prop(prop_str);
+	dd::Properties* p = dd::Properties::parse_properties(prop);
+
+	if (!p || !p->exists(dd_space_key_strings[DD_SPACE_ID])
+	    || !p->exists(dd_index_key_strings[DD_SPACE_FLAGS])) {
+		return(false);
+	}
+
+	/* Get space id. */
+	if (p->get_uint32(dd_space_key_strings[DD_SPACE_ID], space_id)) {
+		return(false);
+	}
+
+	/* Get space flag. */
+	if (p->get_uint32(dd_space_key_strings[DD_SPACE_FLAGS], flags)) {
+		return(false);
 	}
 
 	return(true);
