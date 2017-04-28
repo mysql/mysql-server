@@ -1887,6 +1887,7 @@ Lgman::create_file_commit(Signal* signal,
   Uint64 add= ptr.p->m_file_size - 1;
   lg_ptr.p->m_free_file_words += add * get_undo_page_words(lg_ptr);
   lg_ptr.p->m_total_log_space += add * get_undo_page_words(lg_ptr);
+  calculate_space_limit(lg_ptr);
   DEB_LGMAN(("Line(%u): free_file_words: %llu", __LINE__, lg_ptr.p->m_free_file_words));
 
   if(first)
@@ -1906,7 +1907,6 @@ Lgman::create_file_commit(Signal* signal,
   }
 
   validate_logfile_group(lg_ptr, "create_file_commit", jamBuffer());
-  calculate_space_limit(lg_ptr);
 
   CreateFileImplConf* conf= (CreateFileImplConf*)signal->getDataPtr();
   conf->senderData = senderData;
@@ -3304,7 +3304,7 @@ Lgman::exec_lcp_frag_ord(Signal* signal,
     signal->theData[1] = ptr.i;
     client_block->sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
   }
-  if(!ptr.isNull() && ptr.p->m_next_lsn)
+  if(!ptr.isNull() && (ptr.p->m_total_log_space > Uint64(0)))
   {
     jamBlock(client_block);
     Uint32 undo[4];
@@ -3339,7 +3339,7 @@ Lgman::exec_lcp_frag_ord(Signal* signal,
   while(!ptr.isNull())
   {
     jamBlock(client_block);
-    if (ptr.p->m_next_lsn)
+    if (ptr.p->m_total_log_space > Uint64(0))
     { 
       jamBlock(client_block);
       /**
@@ -3373,7 +3373,7 @@ void
 Lgman::cut_log_tail(Signal* signal, Ptr<Logfile_group> ptr)
 {
   bool done= true;
-  if (likely(ptr.p->m_next_lsn))
+  if (likely(ptr.p->m_next_lsn > 1))
   {
     jam();
     Buffer_idx tmp= ptr.p->m_tail_pos[0];
