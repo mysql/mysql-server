@@ -9722,7 +9722,7 @@ Backup::execLCP_PREPARE_REQ(Signal* signal)
     ndbrequire(ptr.p->m_first_fragment == false);
     ptr.p->m_first_fragment = true;
     ptr.p->m_is_lcp_scan_active = false;
-    ptr.p->m_current_lcp_lsn = 0;
+    ptr.p->m_current_lcp_lsn = Uint64(0);
     DEB_LCP(("(%u)TAGS Start new LCP, id: %u", instance(), req.backupId));
     LocalDeleteLcpFile_list queue(c_deleteLcpFilePool,
                                   m_delete_lcp_file_head);
@@ -11188,18 +11188,28 @@ void
 Backup::lcp_write_undo_log(Signal *signal,
                            BackupRecordPtr ptr)
 {
-  LcpFragOrd *ord = (LcpFragOrd*)signal->getDataPtr();
   TablePtr tabPtr;
-  FragmentPtr fragPtr;
   ptr.p->tables.first(tabPtr);
-  tabPtr.p->fragments.getPtr(fragPtr, 0);
-  ord->tableId = tabPtr.p->tableId;
-  ord->fragmentId = fragPtr.p->fragmentId;
-  ord->lcpId = ptr.p->backupId;
+  if (c_lqh->is_disk_columns_in_table(tabPtr.p->tableId))
   {
-    Logfile_client lgman(this, c_lgman, 0);
-    ptr.p->m_current_lcp_lsn = lgman.exec_lcp_frag_ord(signal,
-                                                       0);
+    jam();
+    LcpFragOrd *ord = (LcpFragOrd*)signal->getDataPtr();
+    FragmentPtr fragPtr;
+    tabPtr.p->fragments.getPtr(fragPtr, 0);
+    ord->tableId = tabPtr.p->tableId;
+    ord->fragmentId = fragPtr.p->fragmentId;
+    ord->lcpId = ptr.p->backupId;
+    {
+      Logfile_client lgman(this, c_lgman, 0);
+      ptr.p->m_current_lcp_lsn = lgman.exec_lcp_frag_ord(signal,
+                                                         0);
+      ndbrequire(ptr.p->m_current_lcp_lsn > Uint64(0));
+    }
+  }
+  else
+  {
+    jam();
+    ptr.p->m_current_lcp_lsn = Uint64(0);
   }
 }
 
@@ -11407,12 +11417,11 @@ Backup::lcp_start_complete_processing(Signal *signal, BackupRecordPtr ptr)
   ptr.p->wait_disk_data_sync = true;
   ptr.p->m_disk_data_exist = false;
 
-  if (ptr.p->m_current_lcp_lsn == 0)
+  if (ptr.p->m_current_lcp_lsn == Uint64(0))
   {
     /**
-     * No log file group created at start of LCP. So will not attempt to
-     * sync the LSN of the LCP. This means that no disk data tables can
-     * exist, so we will not wait for sync of page cache either.
+     * No entry in log file group created, thus table isn't a disk data
+     * table. So we can safely ignore going to PGMAN to sync data pages.
      */
     jam();
     ptr.p->wait_disk_data_sync = false;
@@ -11558,13 +11567,13 @@ Backup::lcp_pre_sync_lsn(BackupRecordPtr ptr)
        * before will be sync:ed to disk.
        */
       valid_flag = 0;
-      DEB_LCP(("(%u)Writing first with ValidFlag = 0", instance()));
     }
   }
   else
   {
     jam();
   }
+  DEB_LCP(("(%u)Writing first with ValidFlag = %u", instance(), valid_flag));
   return valid_flag;
 }
 
