@@ -25,6 +25,7 @@
 #include "template_utils.h"
 #include "mysqld.h"         // global_system_variables table_alias_charset ...
 #include "ndb_tdc.h"
+#include "sql_table.h"
 
 #define ERR_RETURN(err)                  \
 {                                        \
