@@ -511,17 +511,16 @@ static int check_slave_config(THD* thd)
 {
   DBUG_ENTER("check_slave_config");
 
-  if (ndb_mi_get_slave_parallel_workers() > 0)
-  {
-    sql_print_error("Slave SQL: Configuration 'slave_parallel_workers = %lu' is not supported when applying to Ndb",
-                    ndb_mi_get_slave_parallel_workers());
-    DBUG_RETURN(HA_ERR_UNSUPPORTED);
-  }
-
   if (ndb_get_number_of_channels() > 1)
   {
     sql_print_error("Slave SQL: Configuration with number of replication masters = %u' is not supported when applying to Ndb",
                     ndb_get_number_of_channels());
+    DBUG_RETURN(HA_ERR_UNSUPPORTED);
+  }
+  if (ndb_mi_get_slave_parallel_workers() > 0)
+  {
+    sql_print_error("Slave SQL: Configuration 'slave_parallel_workers = %lu' is not supported when applying to Ndb",
+                    ndb_mi_get_slave_parallel_workers());
     DBUG_RETURN(HA_ERR_UNSUPPORTED);
   }
 
