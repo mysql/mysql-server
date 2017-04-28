@@ -132,7 +132,7 @@ SET SESSION innodb_lock_wait_timeout=1;
 SELECT * FROM t1 FOR SHARE;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 SELECT * FROM t1 FOR SHARE NOWAIT;
-ERROR HY000: Do not wait for lock.
+ERROR HY000: Statement aborted because lock(s) could not be acquired immediately and NOWAIT is set.
 SELECT * FROM t1 ORDER BY d FOR SHARE SKIP LOCKED;
 a	b	c	d	e
 07	03	343	1	07_03_343
@@ -198,7 +198,7 @@ Note	1003	/* select#1 */ select `test`.`t3`.`d` AS `d`,`test`.`t3`.`a` AS `a`,`t
 SELECT * FROM t1 FOR UPDATE;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 SELECT * FROM t1 FOR UPDATE NOWAIT;
-ERROR HY000: Do not wait for lock.
+ERROR HY000: Statement aborted because lock(s) could not be acquired immediately and NOWAIT is set.
 SELECT * FROM t1 ORDER BY a FOR UPDATE SKIP LOCKED;
 a	b	c	d	e
 03	03	343	7	03_03_343
@@ -258,7 +258,7 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 SELECT * FROM t1, t2 FOR SHARE OF t1 FOR SHARE OF t2;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 SELECT * FROM t1 FOR SHARE OF t1 NOWAIT;
-ERROR HY000: Do not wait for lock.
+ERROR HY000: Statement aborted because lock(s) could not be acquired immediately and NOWAIT is set.
 SELECT * FROM t1 FOR SHARE OF t1 SKIP LOCKED;
 a	b	c	d	e
 03	03	343	7	03_03_343
@@ -271,7 +271,7 @@ a	b	c	d	e
 11	04	343	14	11_04_343
 07	03	343	1	07_03_343
 SELECT * FROM t1, t2 FOR SHARE OF t1 NOWAIT FOR SHARE OF t2 NOWAIT;
-ERROR HY000: Do not wait for lock.
+ERROR HY000: Statement aborted because lock(s) could not be acquired immediately and NOWAIT is set.
 COMMIT;
 connection con1;
 COMMIT;
@@ -413,7 +413,7 @@ Note	1003	/* select#1 */ select `test`.`t3`.`d` AS `d`,`test`.`t3`.`a` AS `a`,`t
 SELECT * FROM t1 FOR UPDATE;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 SELECT * FROM t1 FOR UPDATE NOWAIT;
-ERROR HY000: Do not wait for lock.
+ERROR HY000: Statement aborted because lock(s) could not be acquired immediately and NOWAIT is set.
 SELECT * FROM t1 ORDER BY a FOR UPDATE SKIP LOCKED;
 a	b	c	d	e
 03	03	343	7	03_03_343

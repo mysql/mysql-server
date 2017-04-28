@@ -7913,7 +7913,7 @@ ER_BINLOG_UNSAFE_NOWAIT
   eng "Statement is unsafe because it uses NOWAIT. Whether the command will succeed or fail is not deterministic."
 
 ER_LOCK_NOWAIT
-  eng "Do not wait for lock."
+  eng "Statement aborted because lock(s) could not be acquired immediately and NOWAIT is set."
 
 ER_CTE_RECURSIVE_REQUIRES_UNION
   eng "Recursive Common Table Expression '%s' should contain a UNION"

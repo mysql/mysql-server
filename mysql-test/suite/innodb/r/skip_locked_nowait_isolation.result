@@ -35,7 +35,7 @@ seat_id	state	ST_AsText(pos)
 SET @g = ST_GeomFromText('POLYGON((0 0,0 3,3 3,0 3,0 0))');
 SELECT seat_id, state, ST_AsText(pos) FROM t1
 WHERE state = 0 AND MBRWithin(pos, @g) LIMIT 2 FOR UPDATE NOWAIT;
-ERROR HY000: Do not wait for lock.
+ERROR HY000: Statement aborted because lock(s) could not be acquired immediately and NOWAIT is set.
 SELECT seat_id, state, ST_AsText(pos) FROM t1
 WHERE state = 0 AND MBRWithin(pos, @g) LIMIT 2 FOR UPDATE SKIP LOCKED;
 seat_id	state	ST_AsText(pos)
@@ -79,7 +79,7 @@ seat_id	state	ST_AsText(pos)
 SET @g = ST_GeomFromText('POLYGON((0 0,0 3,3 3,0 3,0 0))');
 SELECT seat_id, state, ST_AsText(pos) FROM t1
 WHERE state = 0 AND MBRWithin(pos, @g) LIMIT 2 FOR UPDATE NOWAIT;
-ERROR HY000: Do not wait for lock.
+ERROR HY000: Statement aborted because lock(s) could not be acquired immediately and NOWAIT is set.
 SELECT seat_id, state, ST_AsText(pos) FROM t1
 WHERE state = 0 AND MBRWithin(pos, @g) LIMIT 2 FOR UPDATE SKIP LOCKED;
 seat_id	state	ST_AsText(pos)
@@ -122,7 +122,7 @@ seat_id	state	ST_AsText(pos)
 SET @g = ST_GeomFromText('POLYGON((0 0,0 3,3 3,0 3,0 0))');
 SELECT seat_id, state, ST_AsText(pos) FROM t1
 WHERE state = 0 AND MBRWithin(pos, @g) LIMIT 2 FOR UPDATE NOWAIT;
-ERROR HY000: Do not wait for lock.
+ERROR HY000: Statement aborted because lock(s) could not be acquired immediately and NOWAIT is set.
 SELECT seat_id, state, ST_AsText(pos) FROM t1
 WHERE state = 0 AND MBRWithin(pos, @g) LIMIT 2 FOR UPDATE SKIP LOCKED;
 seat_id	state	ST_AsText(pos)
@@ -165,7 +165,7 @@ seat_id	state	ST_AsText(pos)
 SET @g = ST_GeomFromText('POLYGON((0 0,0 3,3 3,0 3,0 0))');
 SELECT seat_id, state, ST_AsText(pos) FROM t1
 WHERE state = 0 AND MBRWithin(pos, @g) LIMIT 2 FOR UPDATE NOWAIT;
-ERROR HY000: Do not wait for lock.
+ERROR HY000: Statement aborted because lock(s) could not be acquired immediately and NOWAIT is set.
 SELECT seat_id, state, ST_AsText(pos) FROM t1
 WHERE state = 0 AND MBRWithin(pos, @g) LIMIT 2 FOR UPDATE SKIP LOCKED;
 seat_id	state	ST_AsText(pos)

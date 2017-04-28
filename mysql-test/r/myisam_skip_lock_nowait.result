@@ -76,7 +76,7 @@ a	b
 2	2
 3	3
 SELECT * FROM t1, t2 FOR SHARE OF t1 NOWAIT FOR SHARE OF t2 NOWAIT;
-ERROR HY000: Do not wait for lock.
+ERROR HY000: Statement aborted because lock(s) could not be acquired immediately and NOWAIT is set.
 COMMIT;
 connection con1;
 commit;
@@ -143,7 +143,7 @@ a	b
 2	2
 3	3
 SELECT * FROM t1, t2 FOR SHARE OF t1 NOWAIT FOR SHARE OF t2 NOWAIT;
-ERROR HY000: Do not wait for lock.
+ERROR HY000: Statement aborted because lock(s) could not be acquired immediately and NOWAIT is set.
 COMMIT;
 connection con1;
 COMMIT;
