@@ -11365,7 +11365,7 @@ void Dblqh::scanReleaseLocksLab(Signal* signal)
      * conventions. Obviously doing this removes flexibility of using
      * blocks in a flexible manner.
      */
-    block->EXECUTE_DIRECT(f, signal);
+    block->EXECUTE_DIRECT_FN(f, signal);
     ndbrequire(signal->theData[0] == 0); /* Failure is not an option */
     if (scanPtr->scanReleaseCounter < scanPtr->m_curr_batch_size_rows)
     {
@@ -12186,7 +12186,7 @@ void Dblqh::continueAfterReceivingAllAiLab(Signal* signal)
   req->transId2 = transId2;
   req->savePointId = savePointId;
 
-  block->EXECUTE_DIRECT(f, signal);
+  block->EXECUTE_DIRECT_FN(f, signal);
   if (signal->theData[8] == 0)
   {
     /* ACC_SCANCONF */
@@ -13166,7 +13166,7 @@ void Dblqh::closeScanLab(Signal* signal)
   signal->theData[2] = NextScanReq::ZSCAN_CLOSE;
   signal->theData[0] = sig0;
   ndbrequire(is_scan_ok(scanPtr, fragstatus));
-  block->EXECUTE_DIRECT(f, signal);
+  block->EXECUTE_DIRECT_FN(f, signal);
 }//Dblqh::closeScanLab()
 
 /* ------------------------------------------------------------------------- 
@@ -14016,7 +14016,7 @@ void Dblqh::send_next_NEXT_SCANREQ(Signal* signal,
      */
     signal->m_extra_signals++;
     jamDebug();
-    block->EXECUTE_DIRECT(f, signal);
+    block->EXECUTE_DIRECT_FN(f, signal);
     return;
   }
 }
@@ -14476,7 +14476,7 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
     req->savePointId = savePointId;
     req->maxPage = maxPage;
 
-    block->EXECUTE_DIRECT(f, signal);
+    block->EXECUTE_DIRECT_FN(f, signal);
   }
   if (signal->theData[8] == 0)
   {
@@ -15139,7 +15139,7 @@ void Dblqh::closeCopyLab(Signal* signal)
   signal->theData[1] = RNIL;
   signal->theData[2] = NextScanReq::ZSCAN_CLOSE;
   ndbrequire(fragstatus == Fragrecord::FSACTIVE);
-  block->EXECUTE_DIRECT(f, signal);
+  block->EXECUTE_DIRECT_FN(f, signal);
 }//Dblqh::closeCopyLab()
 
 /*---------------------------------------------------------------------------*/
@@ -17021,8 +17021,8 @@ void Dblqh::handleFirstFragment(Signal *signal)
        */
       jam();
       *ord = lcpPtr.p->currentPrepareFragment.lcpFragOrd;
-      EXECUTE_DIRECT(TSMAN, GSN_LCP_FRAG_ORD,
-                     signal, signal->length(), 0);
+      EXECUTE_DIRECT_MT(TSMAN, GSN_LCP_FRAG_ORD,
+                        signal, signal->length(), 0);
       jamEntry();
     }
     else
@@ -17170,7 +17170,7 @@ template class Vector<TraceLCP::Sig>;
 void Dblqh::perform_fragment_checkpoint(Signal *signal)
 {
   lcpPtr.p->lcpRunState = LcpRecord::LCP_CHECKPOINTING;
-    
+
   fragptr.i = lcpPtr.p->currentRunFragment.fragPtrI;
   c_fragment_pool.getPtr(fragptr);
 
