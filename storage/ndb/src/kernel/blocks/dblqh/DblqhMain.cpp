@@ -4643,15 +4643,9 @@ void Dblqh::execKEYINFO(Signal* signal)
     return;
   }//if
 
-  receive_keyinfo(signal, 
-		  signal->theData+KeyInfo::HeaderLength, 
-		  signal->getLength()-KeyInfo::HeaderLength);
-}
+  Uint32* const data = signal->theData + KeyInfo::HeaderLength;
+  const Uint32 len = signal->getLength() - KeyInfo::HeaderLength;
 
-void
-Dblqh::receive_keyinfo(Signal* signal, 
-		       Uint32 * data, Uint32 len)
-{
   TcConnectionrec * const regTcPtr = tcConnectptr.p;
   TcConnectionrec::TransactionState state = regTcPtr->transactionState;
   if (state != TcConnectionrec::WAIT_TUPKEYINFO &&
@@ -4750,14 +4744,9 @@ void Dblqh::execATTRINFO(Signal* signal)
     return;
   }//if
 
-  receive_attrinfo(signal, 
-		   signal->getDataPtrSend()+AttrInfo::HeaderLength,
-		   signal->getLength()-AttrInfo::HeaderLength);
-}//Dblqh::execATTRINFO()
+  Uint32* const dataPtr = signal->getDataPtrSend() + AttrInfo::HeaderLength;
+  const Uint32 length = signal->getLength() - AttrInfo::HeaderLength;
 
-void
-Dblqh::receive_attrinfo(Signal* signal, Uint32 * dataPtr, Uint32 length)
-{
   TcConnectionrec * const regTcPtr = tcConnectptr.p;
   Uint32 totReclenAi = regTcPtr->totReclenAi;
   Uint32 currReclenAi = regTcPtr->currReclenAi + length;
@@ -17021,7 +17010,7 @@ void Dblqh::handleFirstFragment(Signal *signal)
        */
       jam();
       *ord = lcpPtr.p->currentPrepareFragment.lcpFragOrd;
-      EXECUTE_DIRECT_MT(TSMAN, GSN_LCP_FRAG_ORD,
+      EXECUTE_DIRECT_MT(TSMAN, GSN_LCP_FRAG_ORD, // YYY Is this really right, do not thinkg LCP_FRAG_ORD is thread safe
                         signal, signal->length(), 0);
       jamEntry();
     }
