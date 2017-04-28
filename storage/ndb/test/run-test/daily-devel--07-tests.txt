@@ -113,3 +113,8 @@ cmd: testScan
 args: -n ScanDihError7240 T1
 max-time : 60
 
+cmd: testRedo
+args: -n CheckNextRedoFileOpened T1
+max-time: 1440
+
+
