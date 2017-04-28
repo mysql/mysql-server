@@ -461,13 +461,15 @@ static int check_slave_config(THD* thd)
 {
   DBUG_ENTER("check_slave_config");
 
+#ifdef HAVE_NDB_BINLOG
   if (ndb_mi_get_slave_parallel_workers() > 0)
   {
     sql_print_error("Slave SQL: Configuration 'slave_parallel_workers = %lu' is not supported when applying to Ndb",
                     opt_mts_slave_parallel_workers);
     DBUG_RETURN(HA_ERR_UNSUPPORTED);
   }
-
+#endif
+  
   DBUG_RETURN(0);
 }
 
