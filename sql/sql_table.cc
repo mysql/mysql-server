@@ -5818,8 +5818,6 @@ bool create_table_impl(THD *thd,
       this information in the default_db_type variable, it is either
       DB_TYPE_DEFAULT or the engine set in the ALTER TABLE command.
     */
-    char *part_syntax_buf;
-    uint syntax_len;
     handlerton *engine_type;
     List_iterator<partition_element> part_it(part_info->partitions);
     partition_element *part_elem;
@@ -5882,27 +5880,6 @@ bool create_table_impl(THD *thd,
       DBUG_RETURN(true);
     part_info->default_engine_type= engine_type;
 
-    {
-      /*
-        We reverse the partitioning parser and generate a standard format
-        for syntax stored in frm file.
-      */
-      sql_mode_t sql_mode_backup= thd->variables.sql_mode;
-      thd->variables.sql_mode&= ~(MODE_ANSI_QUOTES);
-      part_syntax_buf= generate_partition_syntax(part_info,
-                                                 &syntax_len,
-                                                 TRUE, TRUE,
-                                                 create_info,
-                                                 &alter_info->create_list,
-                                                 NULL);
-      thd->variables.sql_mode= sql_mode_backup;
-      if (part_syntax_buf == NULL)
-      {
-        DBUG_RETURN(true);
-      }
-    }
-    part_info->part_info_string= part_syntax_buf;
-    part_info->part_info_len= syntax_len;
     if (!engine_type->partition_flags)
     {
       /*

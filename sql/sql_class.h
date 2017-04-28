@@ -4342,6 +4342,60 @@ private:
 
 
 /**
+  RAII class to temporarily turn off SQL modes that affect parsing
+  of expressions. Can also be used when printing expressions even
+  if it turns off more SQL modes than strictly necessary for it
+  (these extra modes are harmless as they do not affect expression
+  printing).
+*/
+class Sql_mode_parse_guard
+{
+public:
+  Sql_mode_parse_guard(THD *thd)
+    : m_thd(thd), m_old_sql_mode(thd->variables.sql_mode)
+  {
+    /*
+      Switch off modes which can prevent normal parsing of expressions:
+
+      - MODE_REAL_AS_FLOAT            affect only CREATE TABLE parsing
+      + MODE_PIPES_AS_CONCAT          affect expression parsing
+      + MODE_ANSI_QUOTES              affect expression parsing
+      + MODE_IGNORE_SPACE             affect expression parsing
+      - MODE_NOT_USED                 not used :)
+      * MODE_ONLY_FULL_GROUP_BY       affect execution
+      * MODE_NO_UNSIGNED_SUBTRACTION  affect execution
+      - MODE_NO_DIR_IN_CREATE         affect table creation only
+      - MODE_POSTGRESQL               compounded from other modes
+      - MODE_ORACLE                   compounded from other modes
+      - MODE_MSSQL                    compounded from other modes
+      - MODE_DB2                      compounded from other modes
+      - MODE_MAXDB                    affect only CREATE TABLE parsing
+      - MODE_NO_KEY_OPTIONS           affect only SHOW
+      - MODE_NO_TABLE_OPTIONS         affect only SHOW
+      - MODE_NO_FIELD_OPTIONS         affect only SHOW
+      - MODE_MYSQL323                 affect only SHOW
+      - MODE_MYSQL40                  affect only SHOW
+      - MODE_ANSI                     compounded from other modes
+                                      (+ transaction mode)
+      ? MODE_NO_AUTO_VALUE_ON_ZERO    affect UPDATEs
+      + MODE_NO_BACKSLASH_ESCAPES     affect expression parsing
+    */
+    thd->variables.sql_mode&= ~(MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
+                                MODE_IGNORE_SPACE | MODE_NO_BACKSLASH_ESCAPES);
+  }
+
+  ~Sql_mode_parse_guard()
+  {
+    m_thd->variables.sql_mode= m_old_sql_mode;
+  }
+
+private:
+  THD *m_thd;
+  const sql_mode_t m_old_sql_mode;
+};
+
+
+/**
   The function re-attaches the engine ha_data (which was previously detached by
   detach_ha_data_from_thd) to THD.
   This is typically done to replication applier executing

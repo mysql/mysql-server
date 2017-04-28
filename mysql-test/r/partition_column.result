@@ -243,7 +243,7 @@ t1	CREATE TABLE `t1` (
   `d` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 /*!50500 PARTITION BY RANGE  COLUMNS(a,b,c,d)
-SUBPARTITION BY HASH (to_seconds(d))
+SUBPARTITION BY HASH (to_seconds(`d`))
 SUBPARTITIONS 4
 (PARTITION p0 VALUES LESS THAN (1,'0',MAXVALUE,'1900-01-01') ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (1,'a',MAXVALUE,'1999-01-01') ENGINE = InnoDB,
@@ -388,14 +388,14 @@ partition p1 values in (4, NULL, 3));
 select partition_method, partition_expression, partition_description
 from information_schema.partitions where table_name = "t1";
 partition_method	partition_expression	partition_description
-LIST	a	2,1
-LIST	a	NULL,4,3
+LIST	`a`	2,1
+LIST	`a`	NULL,4,3
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY LIST (a)
+/*!50100 PARTITION BY LIST (`a`)
 (PARTITION p0 VALUES IN (2,1) ENGINE = InnoDB,
  PARTITION p1 VALUES IN (NULL,4,3) ENGINE = InnoDB) */
 insert into t1 values (1);

@@ -1573,9 +1573,28 @@ static bool fill_dd_partition_from_create_info(THD *thd,
     {
       /* column_list also has list_of_part_fields set! */
       DBUG_ASSERT(!part_info->column_list);
-      /* TODO-PARTITION: use part_info->part_expr->print() instead! */
-      dd::String_type str(part_info->part_func_string,
-                      part_info->part_func_len);
+      // Default on-stack buffer which allows to avoid malloc() in most cases.
+      char expr_buff[256];
+      String tmp(expr_buff, sizeof(expr_buff), system_charset_info);
+      tmp.length(0);
+
+      // Turn off ANSI_QUOTES and other SQL modes which affect printing of
+      // expressions.
+      Sql_mode_parse_guard parse_guard(thd);
+
+      // No point in including schema and table name for identifiers
+      // since any columns must be in this table.
+      part_info->part_expr->print(&tmp, enum_query_type(QT_TO_SYSTEM_CHARSET |
+                                                        QT_NO_DB |
+                                                        QT_NO_TABLE));
+
+      if (tmp.numchars() > PARTITION_EXPR_CHAR_LEN)
+      {
+        my_error(ER_PART_EXPR_TOO_LONG, MYF(0));
+        return true;
+      }
+
+      dd::String_type str(tmp.ptr(), tmp.length());
       tab_obj->set_partition_expression(str);
     }
 
@@ -1628,9 +1647,29 @@ static bool fill_dd_partition_from_create_info(THD *thd,
       }
       else
       {
-        /* TODO-PARTITION: use part_info->subpart_expr->print() instead! */
-        dd::String_type str(part_info->subpart_func_string,
-                        part_info->subpart_func_len);
+        // Default on-stack buffer which allows to avoid malloc() in most cases.
+        char expr_buff[256];
+        String tmp(expr_buff, sizeof(expr_buff), system_charset_info);
+        tmp.length(0);
+
+        // Turn off ANSI_QUOTES and other SQL modes which affect printing of
+        // expressions.
+        Sql_mode_parse_guard parse_guard(thd);
+
+        // No point in including schema and table name for identifiers
+        // since any columns must be in this table.
+        part_info->subpart_expr->print(&tmp,
+                                       enum_query_type(QT_TO_SYSTEM_CHARSET |
+                                                       QT_NO_DB |
+                                                       QT_NO_TABLE));
+
+        if (tmp.numchars() > PARTITION_EXPR_CHAR_LEN)
+        {
+          my_error(ER_PART_EXPR_TOO_LONG, MYF(0));
+          return true;
+        }
+
+        dd::String_type str(tmp.ptr(), tmp.length());
         tab_obj->set_subpartition_expression(str);
       }
       if (part_info->use_default_subpartitions)

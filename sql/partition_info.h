@@ -338,7 +338,6 @@ public:
    ********************************************/
 
   longlong err_value;
-  char* part_info_string;                //!< Partition clause as string
 
   char *part_func_string;                //!< Partition expression as string
   char *subpart_func_string;             //!< Subpartition expression as string
@@ -358,7 +357,6 @@ public:
   partition_type part_type;
   partition_type subpart_type;
 
-  size_t part_info_len;
   size_t part_func_len;
   size_t subpart_func_len;
 
@@ -418,13 +416,11 @@ public:
     part_expr(NULL), subpart_expr(NULL), item_free_list(NULL),
     bitmaps_are_initialized(FALSE),
     list_array(NULL), err_value(0),
-    part_info_string(NULL),
     part_func_string(NULL), subpart_func_string(NULL),
     num_columns(0), table(NULL),
     default_engine_type(NULL),
     part_type(partition_type::NONE),
     subpart_type(partition_type::NONE),
-    part_info_len(0),
     part_func_len(0), subpart_func_len(0),
     num_parts(0), num_subparts(0),
     num_list_values(0), num_part_fields(0), num_subpart_fields(0),

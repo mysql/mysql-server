@@ -99,6 +99,7 @@ SHOW CREATE TABLE t3;
 DROP TABLE t3;
 
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--error ER_ILLEGAL_HA_CREATE_OPTION
 eval ALTER TABLE t1 ALGORITHM=DEFAULT, ADD PARTITION
 (PARTITION fortythousands VALUES LESS THAN (50000)
  (SUBPARTITION p40k_1 DATA DIRECTORY = '$MYSQL_TMP_DIR',
@@ -168,8 +169,9 @@ SET @@sql_mode = @old_sql_mode;
 --replace_result #P# #p#  #SP# #sp#
 --error ER_NOT_ALLOWED_COMMAND
 ALTER TABLE t2 DISCARD TABLESPACE;
-call mtr.add_suppression("Table .* Subpartition .* does not exist in the InnoDB internal data dict");
-call mtr.add_suppression("Missing .ibd file for table .*subpart");
+call mtr.add_suppression("InnoDB: Operating system error number .* in a file operation.");
+call mtr.add_suppression("InnoDB: The error means the system cannot find the path specified.");
+call mtr.add_suppression("Cannot open datafile for read-only: .*");
 DROP TABLE t1;
 DROP TABLE t2;
 

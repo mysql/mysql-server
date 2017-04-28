@@ -10694,6 +10694,9 @@ ER_NDB_SLAVE_PARALLEL_WORKERS
 ER_NDB_DISTRIBUTING_ERR
   eng "NDB %s: distributing %s err: %u"
 
+ER_PART_EXPR_TOO_LONG
+  eng "Partitioning expression is too long."
+
 #
 #  End of 8.0 error messages.
 #

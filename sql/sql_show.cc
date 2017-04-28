@@ -1809,7 +1809,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
                                                   &part_syntax_len,
                                                   FALSE,
                                                   show_table_options,
-                                                  NULL, NULL,
+                                                  true, // For proper quoting.
                                                   comment_start.c_ptr())))
       {
          packet->append(comment_start);

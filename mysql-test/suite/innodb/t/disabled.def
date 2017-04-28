@@ -24,6 +24,5 @@ analyze_table           @solaris  : Bug#22607584 2016-03-01 Shaohua Failing too 
 innodb.innodb_tsof_use_1  @windows : Bug#25716069 2017-03-14 Anitha Fails consistently on windows
 innodb.innodb_tsof_use_2  @windows : Bug#25716110 2017-03-14 Anitha Fails consistently on windows
 
-create_tablespace_partition : WL#9559 disables it, according to Dmitry, waiting for fix of Bug#18513130 STRANGE INTERACTION OF SQL_MODE=ANSI AND PARTITION BY TIMESTAMP
 innodb.skip_locked_nowait  : Bug#25886814 2017-04-13 Allen Failing sporadically on PB2
 innodb.table_compress      : Bug#22916982 2017-05-04 Satya To be fixed by new fix for Bug#22916982

@@ -2220,13 +2220,17 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
   char *buf;
   uint buf_len;
 
+  // Turn off ANSI_QUOTES and other SQL modes which affect printing of
+  // generated partitioning clause.
+  Sql_mode_parse_guard parse_guard(thd);
+
   buf= generate_partition_syntax(part_info,
                                  &buf_len,
                                  true,
                                  true,
-                                 NULL,
-                                 NULL,
+                                 false,
                                  NULL);
+
   if (!buf)
     return true;
 

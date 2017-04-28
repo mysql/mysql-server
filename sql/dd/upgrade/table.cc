@@ -893,10 +893,8 @@ static bool fix_view_cols_and_deps(THD *thd, TABLE_LIST *view_ref,
   MEM_ROOT *m_mem_root= thd->mem_root;
   thd->mem_root= mem_root;
 
-  const sql_mode_t saved_mode= thd->variables.sql_mode;
   // Switch off modes which can prevent normal parsing of VIEW.
-  thd->variables.sql_mode&= ~(MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
-                              MODE_IGNORE_SPACE | MODE_NO_BACKSLASH_ESCAPES);
+  Sql_mode_parse_guard parse_guard(thd);
 
   String full_view_definition((char *)0, 0, m_connection_cl);
   create_alter_view_stmt(thd, view_ref, &full_view_definition,
@@ -939,7 +937,6 @@ static bool fix_view_cols_and_deps(THD *thd, TABLE_LIST *view_ref,
   thd->variables.collation_connection= cs;
   thd->update_charset();
   thd->mem_root= m_mem_root;
-  thd->variables.sql_mode= saved_mode;
 
   return error;
 }

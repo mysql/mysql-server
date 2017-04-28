@@ -2723,12 +2723,10 @@ void Generated_column::dup_expr_str(MEM_ROOT *root, const char *src,
 void Generated_column::print_expr(THD *thd, String *out)
 {
   out->length(0);
-  sql_mode_t sql_mode= thd->variables.sql_mode;
-  thd->variables.sql_mode&= ~MODE_ANSI_QUOTES;
+  Sql_mode_parse_guard parse_guard(thd);
   // Printing db and table name is useless
   auto flags= enum_query_type(QT_NO_DB | QT_NO_TABLE | QT_FORCE_INTRODUCERS);
   expr_item->print(out, flags);
-  thd->variables.sql_mode= sql_mode;
 }
 
 
