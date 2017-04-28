@@ -2438,9 +2438,6 @@ public:
   Dblqh(Block_context& ctx, Uint32 instanceNumber = 0);
   virtual ~Dblqh();
 
-  void receive_keyinfo(Signal*, Uint32 * data, Uint32 len);
-  void receive_attrinfo(Signal*, Uint32 * data, Uint32 len);
-
   void execTUPKEYCONF(Signal* signal);
   Uint32 get_scan_api_op_ptr(Uint32 scan_ptr_i);
 
