@@ -3210,7 +3210,7 @@ class Ndb_schema_event_handler {
      */
     DBUG_EXECUTE_IF("ndb_binlog_schema_object_race",
     {
-      NdbSleep_MilliSleep(10);
+      ndb_milli_sleep(10);
     });
     ndb_free_schema_object(&ndb_schema_object);
     DBUG_VOID_RETURN;
