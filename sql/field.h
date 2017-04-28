@@ -3667,30 +3667,30 @@ public:
     share->varchar_fields++;
   }
 
-  enum_field_types type() const { return MYSQL_TYPE_VARCHAR; }
-  bool match_collation_to_optimize_range() const { return true; }
-  enum ha_base_keytype key_type() const;
-  uint row_pack_length() const { return field_length; }
-  bool zero_pack() const { return 0; }
-  type_conversion_status reset(void)
+  enum_field_types type() const override { return MYSQL_TYPE_VARCHAR; }
+  bool match_collation_to_optimize_range() const override { return true; }
+  enum ha_base_keytype key_type() const override;
+  uint row_pack_length() const override { return field_length; }
+  bool zero_pack() const override { return 0; }
+  type_conversion_status reset() override
   {
     memset(ptr, 0, field_length+length_bytes);
     return TYPE_OK;
   }
-  uint32 pack_length() const { return (uint32) field_length+length_bytes; }
-  uint32 key_length() const { return (uint32) field_length; }
-  uint32 sort_length() const { return (uint32) field_length; }
+  uint32 pack_length() const override { return (uint32) field_length+length_bytes; }
+  uint32 key_length() const override { return (uint32) field_length; }
+  uint32 sort_length() const override { return (uint32) field_length; }
   type_conversion_status store(const char *to, size_t length,
-                               const CHARSET_INFO *charset);
-  type_conversion_status store(longlong nr, bool unsigned_val);
+                               const CHARSET_INFO *charset) override;
+  type_conversion_status store(longlong nr, bool unsigned_val) override;
   /* QQ: To be deleted */
-  type_conversion_status store(double nr) { return Field_str::store(nr); }
-  double val_real(void);
-  longlong val_int(void);
-  String *val_str(String*,String *);
-  my_decimal *val_decimal(my_decimal *);
-  int cmp_max(const uchar *, const uchar *, uint max_length);
-  int cmp(const uchar *a,const uchar *b)
+  type_conversion_status store(double nr) override { return Field_str::store(nr); }
+  double val_real() override;
+  longlong val_int() override;
+  String *val_str(String*,String *) override;
+  my_decimal *val_decimal(my_decimal *) override;
+  int cmp_max(const uchar *, const uchar *, uint max_length) override;
+  int cmp(const uchar *a,const uchar *b) override
   {
     return cmp_max(a, b, ~0L);
   }
@@ -3698,45 +3698,46 @@ public:
   {
     return (field_charset->pad_attribute == NO_PAD);
   }
-  size_t make_sort_key(uchar *buff, size_t length);
-  size_t get_key_image(uchar *buff, size_t length, imagetype type);
-  void set_key_image(const uchar *buff, size_t length);
-  void sql_type(String &str) const;
+  size_t make_sort_key(uchar *buff, size_t length) override;
+  size_t get_key_image(uchar *buff, size_t length, imagetype type) override;
+  void set_key_image(const uchar *buff, size_t length) override;
+  void sql_type(String &str) const override;
   virtual uchar *pack(uchar *to, const uchar *from,
-                      uint max_length, bool low_byte_first);
+                      uint max_length, bool low_byte_first) override;
   virtual const uchar *unpack(uchar* to, const uchar *from,
-                              uint param_data, bool low_byte_first);
-  int cmp_binary(const uchar *a,const uchar *b, uint32 max_length=~0L);
-  int key_cmp(const uchar *,const uchar*);
-  int key_cmp(const uchar *str, uint length);
+                              uint param_data, bool low_byte_first) override;
+  int cmp_binary(const uchar *a,const uchar *b, uint32 max_length=~0L) override;
+  int key_cmp(const uchar *,const uchar*) override;
+  int key_cmp(const uchar *str, uint length) override;
 
-  uint32 data_length(uint row_offset= 0);
-  enum_field_types real_type() const { return MYSQL_TYPE_VARCHAR; }
-  bool has_charset(void) const
+  uint32 data_length(uint row_offset= 0) override;
+  enum_field_types real_type() const override { return MYSQL_TYPE_VARCHAR; }
+  bool has_charset() const override
   { return charset() == &my_charset_bin ? FALSE : TRUE; }
-  Field *new_field(MEM_ROOT *root, TABLE *new_table, bool keep_type);
+  Field *new_field(MEM_ROOT *root, TABLE *new_table, bool keep_type) override;
   Field *new_key_field(MEM_ROOT *root, TABLE *new_table,
                        uchar *new_ptr, uchar *new_null_ptr,
-                       uint new_null_bit);
-  Field_varstring *clone(MEM_ROOT *mem_root) const { 
+                       uint new_null_bit) override;
+  Field_varstring *clone(MEM_ROOT *mem_root) const override {
     DBUG_ASSERT(type() == MYSQL_TYPE_VARCHAR);
     DBUG_ASSERT(real_type() == MYSQL_TYPE_VARCHAR);
     return new (mem_root) Field_varstring(*this);
   }
-  Field_varstring *clone() const {
+  Field_varstring *clone() const override {
     DBUG_ASSERT(type() == MYSQL_TYPE_VARCHAR);
     DBUG_ASSERT(real_type() == MYSQL_TYPE_VARCHAR);
     return new Field_varstring(*this);
   }
-  uint is_equal(const Create_field *new_field);
-  void hash(ulong *nr, ulong *nr2);
-  void get_ptr(uchar **str)
+  uint is_equal(const Create_field *new_field) override;
+  void hash(ulong *nr, ulong *nr2) override;
+  void get_ptr(uchar **str) override
   {
     *str= ptr + length_bytes;
   }
-  virtual bool is_text_key_type() const { return binary() ? false : true; }
+  virtual bool is_text_key_type() const override
+  { return binary() ? false : true; }
 private:
-  int do_save_field_metadata(uchar *first_byte);
+  int do_save_field_metadata(uchar *first_byte) override;
 };
 
 

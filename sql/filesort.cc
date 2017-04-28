@@ -1302,29 +1302,6 @@ write_keys(Sort_param *param, Filesort_info *fs_info, uint count,
 } /* write_keys */
 
 
-/**
-  Store length as suffix in high-byte-first order.
-*/
-
-static inline void store_length(uchar *to, size_t length, uint pack_length)
-{
-  switch (pack_length) {
-  case 1:
-    *to= (uchar) length;
-    break;
-  case 2:
-    mi_int2store(to, length);
-    break;
-  case 3:
-    mi_int3store(to, length);
-    break;
-  default:
-    mi_int4store(to, length);
-    break;
-  }
-}
-
-
 #ifdef WORDS_BIGENDIAN
 const bool Is_big_endian= true;
 #else
