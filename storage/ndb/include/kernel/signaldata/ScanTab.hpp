@@ -436,7 +436,8 @@ inline
 void
 ScanTabReq::setMultiFragFlag(UintR & requestInfo, Uint32 flag){
   ASSERT_BOOL(flag, "TcKeyReq::setMultiFragFlag");
-  requestInfo |= (flag << SCAN_MULTI_FRAG_SHIFT);
+  requestInfo= (requestInfo & ~(1 << SCAN_MULTI_FRAG_SHIFT)) |
+               (flag << SCAN_MULTI_FRAG_SHIFT);
 }
 
 /**
