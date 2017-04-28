@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1563,7 +1563,11 @@ get_redo_logpart_maxusage(NDBT_Context* ctx, Uint32 &nodeid,
     return -1;
   }
 
+  // Help variables to trace the max usage and the log part/node id having it
   int max_usage = -1, usage = -1;
+  Uint32 max_logpart = UINT32_MAX;
+  Uint32 max_node_id = 0;
+
   while(scanOp->nextResult() == 1)
   {
     Uint32 node_id = nodeid_colval->u_32_value();
@@ -1572,12 +1576,13 @@ get_redo_logpart_maxusage(NDBT_Context* ctx, Uint32 &nodeid,
     Uint32 logtype = logtype_colval->u_32_value();
     Uint32 logpart = logpart_colval->u_32_value();
 
-    // Check whether this result row is relevant for our search
-    if (logtype != 0 && // Not a redo log
-        nodeid != 0 && nodeid != node_id &&  // Not the requested nodeid
-        logpart_with_maxusage != UINT32_MAX && logpart_with_maxusage != logpart
-        // Not the requested logpart
-        )
+    /* The result row can be skipped if
+     * - it is NOT a redo log data or
+     * - it is NOT the row the test has requested to retrieve
+     */
+    if (logtype != 0 || // Not a redo log
+        (nodeid != 0 && logpart_with_maxusage != UINT32_MAX &&
+         nodeid != node_id && logpart_with_maxusage != logpart))
     {
       continue;
     }
@@ -1592,7 +1597,11 @@ get_redo_logpart_maxusage(NDBT_Context* ctx, Uint32 &nodeid,
 
       // Requested row is found
       if (node_id == nodeid && logpart == logpart_with_maxusage)
+      {
+        g_info << "Row with requested nodeid " << nodeid << " and logpart " << logpart
+              << "  is found. Usage " << usage << endl;
         return usage;
+      }
 
       /* The test blocks one logpart from being trimmed.
        * The following check may become true when LCP races with the load.
@@ -1601,9 +1610,9 @@ get_redo_logpart_maxusage(NDBT_Context* ctx, Uint32 &nodeid,
        * since the latter calls this method without LCPs performed.
        */
       if (usage > 0 && usage == max_usage &&
-          logpart_with_maxusage != logpart && nodeid != node_id)
+          max_logpart != logpart && max_node_id != node_id)
       {
-        g_err << "Two log parts having same usage is not handled" << endl;
+        g_err << "Two non-peer log parts having same usage is not handled" << endl;
         return -1;
       }
 
@@ -1613,17 +1622,26 @@ get_redo_logpart_maxusage(NDBT_Context* ctx, Uint32 &nodeid,
       if (usage > max_usage)
       {
         max_usage = usage;
-        logpart_with_maxusage = logpart;
-        nodeid = node_id;
+        max_logpart = logpart;
+        max_node_id = node_id;
       }
     }
   }
   ndbinfo.releaseScanOperation(scanOp);
   ndbinfo.closeTable(table);
 
+  // Return the results
+  logpart_with_maxusage = max_logpart;
+  nodeid = max_node_id;
+
   g_info << "get_redo_logpart_maxusage returns: nodeid " << nodeid
         << " lp " << logpart_with_maxusage
         << " usage " << max_usage << endl;
+
+  if (max_usage <= 0)
+    g_err << " The test could not fill the redo log. Redo log usage : usage " << usage
+          << " max usage " << max_usage << endl;
+  
   return max_usage;
 }
 
@@ -1725,9 +1743,9 @@ runCheckLCPStartsAfterSR(NDBT_Context* ctx, NDBT_Step* step)
   Uint32 nodeid = 0;
 
   usage_before_SR = get_redo_logpart_maxusage(ctx, nodeid, full_logpart);
-  CHK3(usage_before_SR > 0, "Redo log usage <= 0");
-  CHK3(nodeid != 0, "No nodeid found with almost full logpart");
   CHK3(full_logpart != UINT32_MAX, "No logpart became full");
+  CHK3(nodeid != 0, "No nodeid found with almost full logpart");
+  CHK3(usage_before_SR > 0, "Redo log usage <= 0");
 
   NdbRestarter restarter;
   // Perform a system restart
@@ -1820,9 +1838,9 @@ runCheckLCPStartsAfterNR(NDBT_Context* ctx, NDBT_Step* step)
   Uint32 nodeid = 0; // The node with full redo logpart
   Uint32 full_logpart = UINT32_MAX;
   usage_before = get_redo_logpart_maxusage(ctx, nodeid, full_logpart);
-  CHK3(usage_before > 0, "Redo log usage <= 0");
-  CHK3(nodeid != 0, "No nodeid found with almost full logpart");
   CHK3(full_logpart != UINT32_MAX, "No logpart became full");
+  CHK3(nodeid != 0, "No nodeid found with almost full logpart");
+  CHK3(usage_before > 0, "Redo log usage <= 0");
 
    // The node with full redo logpart. Same as nodeid but of type 'int'.
   int victim = (int)nodeid;

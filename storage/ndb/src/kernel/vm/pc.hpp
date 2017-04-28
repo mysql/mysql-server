@@ -41,11 +41,20 @@ extern thread_local Uint32 NDB_THREAD_TLS_RES_OWNER;
 
 #endif
 
+/**
+ * To enable jamDebug and its siblings in a production simply
+ * remove the comment and get EXTRA_JAM defined.
+ */
+//#define EXTRA_JAM 1
+
 #ifdef NO_EMULATED_JAM
 
 #define jam()
 #define jamLine(line)
 #define jamEntry()
+#define jamDebug()
+#define jamLineDebug(line)
+#define jamEntryDebug()
 #define jamEntryLine(line)
 #define jamBlock(block)
 #define jamBlockLine(block, line)
@@ -57,6 +66,10 @@ extern thread_local Uint32 NDB_THREAD_TLS_RES_OWNER;
 #define thrjamEntryLine(buf, line)
 #define thrjam(buf)
 #define thrjamLine(buf, line)
+#define thrjamEntryDebug(buf)
+#define thrjamEntryLineDebug(buf, line)
+#define thrjamDebug(buf)
+#define thrjamLineDebug(buf, line)
 
 #else
 
@@ -100,6 +113,23 @@ extern thread_local Uint32 NDB_THREAD_TLS_RES_OWNER;
 #define thrjam(buf) thrjamLine(buf, __LINE__)
 #define thrjamEntry(buf) thrjamEntryLine(buf, __LINE__)
 
+#if defined VM_TRACE || defined ERROR_INSERT || defined EXTRA_JAM
+#define jamDebug() jam()
+#define jamLineDebug(line) jamLine(line)
+#define jamEntryDebug() jamEntry()
+#define thrjamEntryDebug(buf) thrjamEntry(buf)
+#define thrjamEntryLineDebug(buf, line) thrJamEntryLine(guf, line)
+#define thrjamDebug(buf) thrjam(buf)
+#define thrjamLineDebug(buf, line) thrjamLine(buf, line)
+#else
+#define jamDebug()
+#define jamLineDebug(line)
+#define jamEntryDebug()
+#define thrjamEntryDebug(buf)
+#define thrjamEntryLineDebug(buf, line)
+#define thrjamDebug(buf)
+#define thrjamLineDebug(buf, line)
+#endif
 #endif
 
 #ifndef NDB_OPT

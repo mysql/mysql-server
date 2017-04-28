@@ -8530,6 +8530,9 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
         /* NOTE push_back allocates memory using transactions mem_root! */
         thd_ndb->changed_tables.push_back(get_share(m_share),
                                           thd->get_transaction()->transaction_memroot());
+        /* Add all the cascading dependent childs to this list */
+        append_dependents_to_changed_tables(thd_ndb->changed_tables,
+                                            thd->get_transaction()->transaction_memroot());
       }
 
       if (opt_ndb_cache_check_time)
@@ -10022,20 +10025,6 @@ void ha_ndbcluster::update_create_info(HA_CREATE_INFO *create_info)
         }
         break;
       }
-    }
-  }
-
-  /*
-    FK data is handled in get_metadata and release_metadata but
-    for some reason it is not enough
-  */
-  if (1)
-  {
-    int error= get_fk_data(thd, ndb);
-    if (error != 0)
-    {
-      sql_print_error("update_create_info: get FK data: error %d", error);
-      DBUG_VOID_RETURN;
     }
   }
 
@@ -17880,7 +17869,7 @@ uint32 ha_ndbcluster::calculate_key_hash_value(Field **field_array)
     DBUG_ASSERT(FALSE);
     abort();
   }
-  DBUG_RETURN(hash_value);
+  DBUG_RETURN(m_table->getPartitionId(hash_value));
 }
 
 

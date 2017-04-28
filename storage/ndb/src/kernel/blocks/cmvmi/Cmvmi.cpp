@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1951,7 +1951,7 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
       SafeCounter tmp(mgr, handle);
       tmp.clearWaitingFor(3);
       ndbrequire(tmp.done());
-      ndbout_c("Deallocted");
+      ndbout_c("Deallocated");
     }
     ndbrequire(handle.done());
   }

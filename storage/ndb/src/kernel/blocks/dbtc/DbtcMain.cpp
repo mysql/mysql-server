@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -179,7 +179,7 @@ void
 Dbtc::updateBuddyTimer(ApiConnectRecordPtr apiPtr)
 {
   if (apiPtr.p->buddyPtr != RNIL) {
-    jam();
+    jamDebug();
     ApiConnectRecordPtr buddyApiPtr;
     buddyApiPtr.i = apiPtr.p->buddyPtr;
     ptrCheckGuard(buddyApiPtr, capiConnectFilesize, apiConnectRecord);
@@ -2583,7 +2583,7 @@ void Dbtc::hash(Signal* signal)
     jam();
     tdistrHashValue = regCachePtr->distributionKey;
   } else {
-    jam();
+    jamDebug();
     tdistrHashValue = tmp[1];
   }//if
 }//Dbtc::hash()
@@ -2782,11 +2782,11 @@ Dbtc::seizeTcRecord(Signal* signal)
   regApiPtr->lastTcConnect = TtcConnectptrIndex;
 
   if (TlastTcConnect == RNIL) {
-    jam();
+    jamDebug();
     regApiPtr->firstTcConnect = TtcConnectptrIndex;
   } else {
     tmpTcConnectptr.i = TlastTcConnect;
-    jam();
+    jamDebug();
     ptrCheckGuard(tmpTcConnectptr, TtcConnectFilesize, localTcConnectRecord);
     tmpTcConnectptr.p->nextTcConnect = TtcConnectptrIndex;
   }//if
@@ -3571,7 +3571,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
 
   if (regCachePtr->isLongTcKeyReq) 
   {
-    jam();
+    jamDebug();
     /* Have all the KeyInfo (and AttrInfo), process now */
     tckeyreq050Lab(signal);
   } 
@@ -4466,7 +4466,7 @@ void Dbtc::packLqhkeyreq040Lab(Signal* signal,
   UintR Tdirty = (regTcPtr->dirtyOp == ZTRUE);
   UintR Tboth = Tread & Tdirty;
   setApiConTimer(apiConnectptr.i, TtcTimer, __LINE__);
-  jam();
+  jamDebug();
   /*--------------------------------------------------------------------
    *   WE HAVE SENT ALL THE SIGNALS OF THIS OPERATION. SET STATE AND EXIT.
    *---------------------------------------------------------------------*/
@@ -4686,7 +4686,7 @@ void Dbtc::execPACKED_SIGNAL(Signal* signal)
       Tstep += 3;
       break;
     case ZLQHKEYCONF:
-      jam();
+      jamDebug();
       Tdata1 = TpackDataPtr[3];
       Tdata2 = TpackDataPtr[4];
       Tdata3 = TpackDataPtr[5];
@@ -4702,7 +4702,7 @@ void Dbtc::execPACKED_SIGNAL(Signal* signal)
       Tstep += LqhKeyConf::SignalLength;
       break;
     case ZFIRE_TRIG_CONF:
-      jam();
+      jamDebug();
       signal->header.theLength = 4;
       signal->theData[3] = TpackDataPtr[3];
       jamBuffer()->markEndOfSigExec();
@@ -5058,7 +5058,7 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
      */
     for(Uint32 i = 0; i < noOfLqhs; i++)
     {
-      jam();
+      jamDebug();
       if (ERROR_INSERTED(8096) && i+1 == noOfLqhs)
       {
         CLEAR_ERROR_INSERT_VALUE;
@@ -5188,13 +5188,16 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
   }
   else 
   {
-    jam();
-    if (numFired == 0) {
-      jam();
+    if (numFired == 0)
+    {
       // No triggers to execute
       UintR Tlqhkeyconfrec = regApiPtr.p->lqhkeyconfrec;
       regApiPtr.p->lqhkeyconfrec = Tlqhkeyconfrec + 1;
       regTcPtr->tcConnectstate = OS_PREPARED;
+    }
+    else
+    {
+      jam();
     }
   }//if
 
@@ -5238,7 +5241,7 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
   else if (regTcPtr->triggeringOperation == RNIL)
   {
     // This is "normal" path
-    jam();
+    jamDebug();
     time_track_complete_key_operation(regTcPtr,
                                refToNode(regApiPtr.p->ndbapiBlockref),
                                regTcPtr->tcNodedata[0]);
@@ -5465,7 +5468,7 @@ void Dbtc::sendtckeyconf(Signal* signal, UintR TcommitFlag)
     EXECUTE_DIRECT(DBTC, GSN_TCKEYCONF, signal, sigLen);
     tc_clearbit(regApiPtr->m_flags, ApiConnectRecord::TF_INDEX_OP_RETURN);
     if (TopWords == 0) {
-      jam();
+      jamDebug();
       return; // No queued TcKeyConf
     }//if
   }//if
@@ -5568,7 +5571,7 @@ void Dbtc::execSEND_PACKED(Signal* signal)
   HostRecord *localHostRecord = hostRecord;
   UintR i;
   UintR TpackedListIndex = cpackedListIndex;
-  jamEntry();
+  jamEntryDebug();
   for (i = 0; i < TpackedListIndex; i++) {
     jam();
     Thostptr.i = cpackedList[i];
@@ -5577,15 +5580,15 @@ void Dbtc::execSEND_PACKED(Signal* signal)
     for (Uint32 j = 0; j < NDB_ARRAY_SIZE(Thostptr.p->lqh_pack); j++)
     {
       struct PackedWordsContainer * container = &Thostptr.p->lqh_pack[j];
-      jam();
+      jamDebug();
       if (container->noOfPackedWords > 0) {
-        jam();
+        jamDebug();
         sendPackedSignal(signal, container);
       }
     }
     struct PackedWordsContainer * container = &Thostptr.p->packTCKEYCONF;
     if (container->noOfPackedWords > 0) {
-      jam();
+      jamDebug();
       sendPackedTCKEYCONF(signal, Thostptr.p, (Uint32)Thostptr.i);
     }//if
     Thostptr.p->inPackedList = false;
@@ -5599,7 +5602,7 @@ Dbtc::updatePackedList(Signal* signal, HostRecord* ahostptr, Uint16 ahostIndex)
 {
   if (ahostptr->inPackedList == false) {
     UintR TpackedListIndex = cpackedListIndex;
-    jam();
+    jamDebug();
     ahostptr->inPackedList = true;
     cpackedList[TpackedListIndex] = ahostIndex;
     cpackedListIndex = TpackedListIndex + 1;
@@ -12229,7 +12232,6 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
     goto SCAN_error_check;
   }
   if (buddyPtr != RNIL) {
-    jam();
     ApiConnectRecordPtr buddyApiPtr;
     buddyApiPtr.i = buddyPtr;
     ptrCheckGuard(buddyApiPtr, capiConnectFilesize, apiConnectRecord);
@@ -12245,6 +12247,10 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
       }//if
       currSavePointId = buddyApiPtr.p->currSavePointId;
       buddyApiPtr.p->currSavePointId++;
+    }
+    else
+    {
+      jam();
     }
   }
   
@@ -12273,12 +12279,12 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
   releaseSection(handle.m_ptr[ScanTabReq::ReceiverIdSectionNum].i);
   if (likely(isLongReq))
   {
-    jam();
+    jamDebug();
     /* We keep the AttrInfo and KeyInfo sections */
     scanptr.p->scanAttrInfoPtr = handle.m_ptr[ScanTabReq::AttrInfoSectionNum].i;
     if (keyLen)
     {
-      jam();
+      jamDebug();
       scanptr.p->scanKeyInfoPtr = handle.m_ptr[ScanTabReq::KeyInfoSectionNum].i;
     }
   }
@@ -12436,7 +12442,7 @@ Dbtc::initScanrec(ScanRecordPtr scanptr,
   Local_ScanFragRec_dllist list(c_scan_frag_pool,
 		    scanptr.p->m_running_scan_frags);
   for (Uint32 i = 0; i < scanParallel; i++) {
-    jam();
+    jamDebug();
     ScanFragRecPtr ptr;
     if (unlikely((list.seizeFirst(ptr) == false) ||
                  ERROR_INSERTED(8093)))
@@ -12657,7 +12663,7 @@ void Dbtc::execDIH_SCAN_TAB_CONF(Signal* signal,
                                  TableRecordPtr tabPtr)
 {
   DihScanTabConf * conf = (DihScanTabConf*)signal->getDataPtr();
-  jamEntry();
+  jamEntryDebug();
   Uint32 tfragCount = conf->fragmentCount;
   ApiConnectRecord * const regApiPtr = apiConnectptr.p;
   scanptr.p->m_scan_cookie = conf->scanCookie;
@@ -12694,7 +12700,7 @@ void Dbtc::execDIH_SCAN_TAB_CONF(Signal* signal,
 
   if (scanptr.p->m_scan_dist_key_flag)
   {
-    jam();
+    jamDebug();
     ndbrequire(DictTabInfo::isOrderedIndex(tabPtr.p->tableType) ||
                tabPtr.p->get_user_defined_partitioning());
 
@@ -12721,7 +12727,7 @@ void Dbtc::execDIH_SCAN_TAB_CONF(Signal* signal,
                    DiGetNodesReq::SignalLength, 0);
 
     UintR TerrorIndicator = signal->theData[0];
-    jamEntry();
+    jamEntryDebug();
     if (TerrorIndicator != 0)
     {
       jam();
@@ -12754,7 +12760,7 @@ void Dbtc::execDIH_SCAN_TAB_CONF(Signal* signal,
      */
     for (list.first(ptr); !ptr.isNull() && tfragCount; 
          list.next(ptr), tfragCount--){
-      jam();
+      jamDebug();
 
       ndbassert(ptr.p->scanFragState == ScanFragRec::IDLE);
       ptr.p->lqhBlockref = 0;
@@ -12773,7 +12779,7 @@ void Dbtc::execDIH_SCAN_TAB_CONF(Signal* signal,
     Local_ScanFragRec_dllist queued(c_scan_frag_pool, scanptr.p->m_queued_scan_frags);
     for (; !ptr.isNull();)
     {
-      jam();
+      jamDebug();
       ptr.p->m_ops = 0;
       ptr.p->m_totalLen = 0;
       ptr.p->m_scan_frag_conf_status = 1;
@@ -12826,20 +12832,20 @@ void Dbtc::sendDihGetNodesReq(Signal* signal, ScanRecordPtr scanptr)
        */
       if (scanFragP.i == RNIL)
       {
-        jam();
+        jamDebug();
         list.first(scanFragP);
       }
       else
       {
-        jam();
+        jamDebug();
         list.next(scanFragP);
       }
       for ( ; !scanFragP.isNull(); list.next(scanFragP))
       {
-        jam();
+        jamDebug();
         if (scanFragP.p->scanFragState == ScanFragRec::IDLE) // Start it NOW!.
         {
-          jam();
+          jamDebug();
           fragCnt++;
 
           /**
@@ -12990,7 +12996,7 @@ void Dbtc::releaseScanResources(Signal* signal,
 
     EXECUTE_DIRECT(DBDIH, GSN_DIH_SCAN_TAB_COMPLETE_REP, signal,
                    DihScanTabCompleteRep::SignalLength, 0);
-    jamEntry();
+    jamEntryDebug();
     /* No return code, it will always succeed. */
     scanPtr.p->m_scan_cookie = DihScanTabConf::InvalidCookie;
   }
@@ -13013,7 +13019,7 @@ bool Dbtc::startFragScanLab(Signal* signal,
                             ScanRecordPtr scanptr,
                             bool & local)
 {
-  jam();
+  jamDebug();
   DiGetNodesReq * const req = (DiGetNodesReq *)&signal->theData[0];
 
   req->tableId = scanptr.p->scanTableref;
@@ -13042,7 +13048,7 @@ bool Dbtc::startFragScanLab(Signal* signal,
     scanError(signal, scanptr, ZGET_DATAREC_ERROR);
     return false;
   }
-  jamEntry();
+  jamEntryDebug();
   /**
    * Get instance key from upper bits except most significant bit which is used
    * reorg moving flag.
@@ -13328,13 +13334,14 @@ void Dbtc::execSCAN_FRAGCONF(Signal* signal)
   ndbrequire(scanFragptr.p->scanFragState == ScanFragRec::LQH_ACTIVE);
   if (refToMain(scanFragptr.p->lqhBlockref) == DBLQH)
   {
-    jam();
+    jamDebug();
     time_track_complete_scan_frag(scanFragptr.p);
   }
 
   if(scanptr.p->scanState == ScanRecord::CLOSING_SCAN){
-    jam();
-    if(status == 0){
+    if(status == 0)
+    {
+      jam();
       /**
        * We have started closing = we sent a close -> ignore this
        */
@@ -13412,7 +13419,7 @@ void Dbtc::execSCAN_FRAGCONF(Signal* signal)
   scanFragptr.p->stopFragTimer();
   
   if(scanptr.p->m_queued_count > /** Min */ 0){
-    jam();
+    jamDebug();
     sendScanTabConf(signal, scanptr);
   }
 }//Dbtc::execSCAN_FRAGCONF()
@@ -13811,7 +13818,7 @@ void Dbtc::sendScanFragReq(Signal* signal,
 
   if (scanP->scanKeyInfoPtr != RNIL)
   {
-    jam();
+    jamDebug();
     sections.m_cnt = 2; // and sometimes keyinfo
   }
 
@@ -13847,7 +13854,7 @@ void Dbtc::sendScanFragReq(Signal* signal,
 
   if (likely(longFragReq))
   {
-    jam();
+    jamDebug();
     /* Send long, possibly fragmented SCAN_FRAGREQ */
 
     // TODO : 
@@ -13955,7 +13962,7 @@ void Dbtc::sendScanFragReq(Signal* signal,
 
 
 void Dbtc::sendScanTabConf(Signal* signal, ScanRecordPtr scanPtr) {
-  jam();
+  jamDebug();
   Uint32* ops = signal->getDataPtrSend()+4;
   Uint32 op_count = scanPtr.p->m_queued_count;
 
@@ -13963,13 +13970,13 @@ void Dbtc::sendScanTabConf(Signal* signal, ScanRecordPtr scanPtr) {
   const Uint32 ref = apiConnectptr.p->ndbapiBlockref;
   if (!scanPtr.p->m_4word_conf)
   {
-    jam();
+    jamDebug();
     words_per_op = 3;
   }
 
   if (4 + words_per_op * op_count > 25)
   {
-    jam();
+    jamDebug();
     ops += 21;
   }
   
@@ -14038,11 +14045,15 @@ void Dbtc::sendScanTabConf(Signal* signal, ScanRecordPtr scanPtr) {
        */
       setApiConTimer(apiConnectptr.i, ctcTimer, __LINE__);
     }
+    else
+    {
+      jam();
+    }
   }
   
   if (4 + words_per_op * op_count > 25)
   {
-    jam();
+    jamDebug();
     LinearSectionPtr ptr[3];
     ptr[0].p = signal->getDataPtrSend()+25;
     ptr[0].sz = words_per_op * op_count;
@@ -14051,7 +14062,7 @@ void Dbtc::sendScanTabConf(Signal* signal, ScanRecordPtr scanPtr) {
   }
   else
   {
-    jam();
+    jamDebug();
     sendSignal(ref, GSN_SCAN_TABCONF, signal,
 	       ScanTabConf::SignalLength + words_per_op * op_count, JBB);
   }
@@ -14059,7 +14070,7 @@ void Dbtc::sendScanTabConf(Signal* signal, ScanRecordPtr scanPtr) {
 
   if (release)
   {
-    jam();
+    jamDebug();
     time_track_complete_scan(scanPtr.p, refToNode(ref));
     releaseScanResources(signal, scanPtr);
   }

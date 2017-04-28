@@ -24,6 +24,7 @@
 #include "ndb_table_guard.h"
 #include "template_utils.h"
 #include "mysqld.h"         // global_system_variables table_alias_charset ...
+#include "ndb_tdc.h"
 
 #define ERR_RETURN(err)                  \
 {                                        \
@@ -58,6 +59,14 @@ struct Ndb_fk_data : Sql_alloc
   List<Ndb_fk_item> list;
   uint cnt_child;
   uint cnt_parent;
+
+  /*
+    List to store the name of the child tables that would be updated
+    when this handler's table gets updated.
+   */
+  List<char> cascading_dependents;
+  int build_cascading_dependents_list(Ndb*, const char*, const char*,
+                                      MEM_ROOT*);
 };
 
 // Forward decl
@@ -265,6 +274,126 @@ ndb_fk_casecmp(const char* name1, const char* name2)
   ndb_fk_casedn(tmp2);
   return strcmp(tmp1, tmp2);
 }
+
+
+/**
+  @brief Build list of all dependent child tables that will be updated
+         during a cascading update/delete of the given table.
+
+  @param  ndb                    The Ndb Object
+  @param  dbname                 Database Name of the table.
+  @param  tabname                Name of the table
+  @param  fk_mem_root            Mem_root to store the fk data.
+  @return 0 on success
+  @return error_code on failure
+ */
+int
+Ndb_fk_data::build_cascading_dependents_list(Ndb* ndb,
+                                             const char* dbname,
+                                             const char* tabname,
+                                             MEM_ROOT* fk_mem_root)
+{
+  DBUG_ENTER("Ndb_fk_data::build_cascading_dependents_list");
+
+  /* Temporary dependent table Vector */
+  List<char> tmp_dependent_tables;
+
+  /* generate main parent full name */
+  char main_parent[FN_LEN + 1];
+  sprintf(main_parent, "%s/%s/%s", dbname, ndb->getSchemaName(), tabname);
+
+  /* Save db */
+  Ndb_db_guard db_guard(ndb);
+  NDBDICT *dict= ndb->getDictionary();
+
+  /* start looping */
+  char* dependent_table = main_parent;
+  do
+  {
+    char db_name[FN_LEN + 1];
+    const char* tab_name = fk_split_name(db_name, dependent_table);
+
+    DBUG_PRINT("debug", ("Checking for child FKs to %s.%s",
+                         db_name, tab_name));
+    setDbName(ndb, db_name);
+    Ndb_table_guard child_tab(dict, tab_name);
+    const NDBTAB* table = child_tab.get_table();
+    if (!table)
+    {
+      ERR_RETURN(dict->getNdbError());
+    }
+
+    NDBDICT::List obj_list;
+    if (dict->listDependentObjects(obj_list, *table) != 0)
+    {
+      ERR_RETURN(dict->getNdbError());
+    }
+
+    for (unsigned i = 0; i < obj_list.count; i++)
+    {
+      DBUG_PRINT("debug", ("DependentObject %d : %s, Type : %d", i,
+          obj_list.elements[i].name,
+          obj_list.elements[i].type));
+      if (obj_list.elements[i].type != NdbDictionary::Object::ForeignKey)
+        continue;
+
+      /* FK found - check its child and add it to the list */
+      NDBFK fk;
+      if (dict->getForeignKey(fk, obj_list.elements[i].name) != 0)
+      {
+        ERR_RETURN(dict->getNdbError());
+      }
+
+      const char* child_table = fk.getChildTable();
+
+      uint deleteAction = fk.getOnDeleteAction();
+      uint updateAction = fk.getOnUpdateAction();
+
+      if (ndb_fk_casecmp(child_table, dependent_table) != 0 &&
+          ndb_fk_casecmp(child_table, main_parent) != 0 &&
+          (deleteAction == NDB_FK_CASCADE  ||
+           deleteAction == NDB_FK_SET_NULL ||
+           updateAction == NDB_FK_CASCADE  ||
+           updateAction == NDB_FK_SET_NULL))
+      {
+        /*
+         The fk reference is cascade enabled and
+         the child is neither the current parent nor the main parent.
+         Add this child to the dependent list if not present already.
+        */
+        const char* tabname;
+        List_iterator_fast<char> it(cascading_dependents);
+        while ((tabname= it++))
+        {
+          if (ndb_fk_casecmp(child_table, tabname) == 0)
+          {
+            /* child table already in the list */
+            break;
+          }
+        }
+        if (tabname == NULL)
+        {
+          /* Child table not in list - add it! */
+          char* new_dependent_table = strdup_root(fk_mem_root, child_table);
+
+          tmp_dependent_tables.push_back(new_dependent_table);
+          cascading_dependents.push_back(new_dependent_table, fk_mem_root);
+
+          DBUG_PRINT("info", ("Added `%s` to dependents list", child_table));
+        }
+      }
+    }
+  } while ((dependent_table = tmp_dependent_tables.pop()));
+
+  DBUG_PRINT("exit", ("Added %d tables to the cascading tables list",
+                      cascading_dependents.elements));
+
+  /* restore db */
+  db_guard.restore();
+
+  DBUG_RETURN(0);
+}
+
 
 extern bool ndb_show_foreign_key_mock_tables(THD* thd);
 
@@ -1153,6 +1282,36 @@ bool ndb_fk_util_truncate_allowed(THD* thd, NdbDictionary::Dictionary* dict,
 }
 
 
+/**
+  @brief Flush the parent table after a successful addition/deletion
+         to the Foreign Key. This is done to force reload the Parent
+         table's metadata.
+
+  @param thd            thread handle
+  @param parent_db      Parent table's database name
+  @param parent_name    Parent table's name
+  @return Void
+*/
+static void
+flush_parent_table_for_fk(THD* thd,
+                          const char* parent_db, const char* parent_name)
+{
+  DBUG_ENTER("ha_ndbcluster::flush_parent_table_for_fk");
+
+  if(Fk_util::is_mock_name(parent_name))
+  {
+    /* Parent table is mock - no need to flush */
+    DBUG_PRINT("debug", ("Parent table is a mock - skipped flushing"));
+    DBUG_VOID_RETURN;
+  }
+
+  DBUG_PRINT("debug", ("Flushing table : `%s`.`%s` ",
+                       parent_db, parent_name));
+  ndb_tdc_close_cached_table(thd, parent_db, parent_name);
+  DBUG_VOID_RETURN;
+}
+
+
 int
 ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
 {
@@ -1247,7 +1406,9 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
     }
     else
     {
-      parent_db[0]= 0;
+      /* parent db missing - so the db is same as child's */
+      my_snprintf(parent_db, sizeof(parent_db), "%*s",
+                  (int)sizeof(m_dbname), m_dbname);
     }
     if (fk->ref_table.str != 0 && fk->ref_table.length != 0)
     {
@@ -1473,6 +1634,14 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
     if (err)
     {
       ERR_RETURN(dict->getNdbError());
+    }
+
+    /* Flush the parent table out if parent is different from child */
+    if (parent_tab.get_table()->getObjectId() !=
+          child_tab.get_table()->getObjectId())
+    {
+      /* flush parent table */
+      flush_parent_table_for_fk(thd, parent_db, parent_name);
     }
   }
 
@@ -1840,7 +2009,23 @@ ha_ndbcluster::get_fk_data(THD *thd, Ndb *ndb)
   }
 
   DBUG_PRINT("info", ("count FKs total %u child %u parent %u",
-                      data->list.elements, data->cnt_child, data->cnt_parent));
+                      data->list.elements, data->cnt_child,
+                      data->cnt_parent));
+
+  if (data->cnt_parent != 0 &&
+      global_system_variables.query_cache_type)
+  {
+    /*
+     Table has fk dependent child tables and query cache is enabled.
+     Build list of all dependent child tables that will
+     be updated during a cascading update/delete
+     */
+    res = data->build_cascading_dependents_list(ndb,
+                                                m_dbname, m_tabname,
+                                                &m_fk_mem_root);
+    if (res != 0)
+      DBUG_RETURN(res);
+  }
 
   m_fk_data= data;
   DBUG_RETURN(0);
@@ -1855,7 +2040,8 @@ ha_ndbcluster::release_fk_data()
   if (data != 0)
   {
     DBUG_PRINT("info", ("count FKs total %u child %u parent %u",
-                        data->list.elements, data->cnt_child, data->cnt_parent));
+                        data->list.elements, data->cnt_child,
+                        data->cnt_parent));
   }
 
   MEM_ROOT *mem_root= &m_fk_mem_root;
@@ -2530,6 +2716,15 @@ ha_ndbcluster::drop_fk_for_online_alter(THD * thd, Ndb* ndb, NDBDICT * dict,
         {
           ERR_RETURN(dict->getNdbError());
         }
+
+        /* Flush the parent table out if parent is different from child */
+        if(ndb_fk_casecmp(fk.getParentTable(), fk.getChildTable()) != 0)
+        {
+          char parent_db[FN_LEN + 1];
+          const char* parent_name = fk_split_name(parent_db,
+                                                  fk.getParentTable());
+          flush_parent_table_for_fk(thd, parent_db, parent_name);
+        }
         break;
       }
     }
@@ -2711,6 +2906,57 @@ ha_ndbcluster::recreate_fk_for_truncate(THD* thd, Ndb* ndb, const char* tab_name
     {
       ERR_RETURN(dict->getNdbError());
     }
+
+    /* Flush the parent table out if parent is different from child */
+    char parent_db[FN_LEN + 1];
+    const char* parent_name = fk_split_name(parent_db,
+                                            fk->getParentTable());
+    if(ndb_fk_casecmp(parent_name, tab_name) != 0 ||
+       ndb_fk_casecmp(parent_db, ndb->getDatabaseName()) != 0)
+    {
+      flush_parent_table_for_fk(thd, parent_db, parent_name);
+    }
   }
   DBUG_RETURN(0);
+}
+
+
+/**
+  @brief Append all the SHAREs of dependent children that would have been
+         updated in this transaction to the changed tables list
+
+  @param changed_tables        List to which the dependent children SHAREs
+                               has to be appended.
+  @param transaction_mem_root  Transaction's memroot
+  @return Void
+*/
+
+void
+ha_ndbcluster::append_dependents_to_changed_tables(
+    List<NDB_SHARE> &changed_tables,
+    MEM_ROOT* transaction_mem_root)
+{
+  DBUG_ENTER("ha_ndbcluster::append_dependents_to_changed_tables");
+
+  Ndb_fk_data *data= m_fk_data;
+
+  List<char> dependents_list = data->cascading_dependents;
+
+  const char* dependent_table;
+  List_iterator_fast<char> it(dependents_list);
+  while ((dependent_table= it++))
+  {
+    /* retrieve the NDB_SHARE using the key and add it to list */
+    char db_name[FN_REFLEN + 1];
+    const char* table_name = fk_split_name(db_name, dependent_table);
+    char key[FN_REFLEN + 1];
+    build_table_filename(key, sizeof(key) - 1, db_name,
+                         table_name, "", 0);
+    changed_tables.push_back(get_share(key, 0, TRUE),
+                             transaction_mem_root);
+  }
+
+  DBUG_PRINT("exit", ("Added %u dependents to list",
+                      dependents_list.elements));
+  DBUG_VOID_RETURN;
 }

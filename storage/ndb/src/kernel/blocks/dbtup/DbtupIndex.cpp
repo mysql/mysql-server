@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -40,7 +40,7 @@ Dbtup::tuxGetTupAddr(Uint32 fragPtrI,
                      Uint32& lkey1,
                      Uint32& lkey2)
 {
-  jamEntry();
+  jamEntryDebug();
   PagePtr pagePtr;
   c_page_pool.getPtr(pagePtr, pageId);
   lkey1 = pagePtr.p->frag_page_id;
@@ -139,7 +139,7 @@ Dbtup::tuxReadAttrs(EmulatedJamBuffer * jamBuf,
                     Uint32* dataOut,
                     bool xfrmFlag)
 {
-  thrjamEntry(jamBuf);
+  thrjamEntryDebug(jamBuf);
   // use own variables instead of globals
   FragrecordPtr fragPtr;
   fragPtr.i= fragPtrI;
@@ -163,21 +163,21 @@ Dbtup::tuxReadAttrs(EmulatedJamBuffer * jamBuf,
   Tuple_header *tuple_ptr= req_struct.m_tuple_ptr;
   if (tuple_ptr->get_tuple_version() != tupVersion)
   {
-    jam();
+    jamDebug();
     OperationrecPtr opPtr;
     opPtr.i= tuple_ptr->m_operation_ptr_i;
     Uint32 loopGuard= 0;
     while (opPtr.i != RNIL) {
       c_operation_pool.getPtr(opPtr);
       if (opPtr.p->op_struct.bit_field.tupVersion == tupVersion) {
-	jam();
+	jamDebug();
 	if (!opPtr.p->m_copy_tuple_location.isNull()) {
 	  req_struct.m_tuple_ptr=
             get_copy_tuple(&opPtr.p->m_copy_tuple_location);
         }
 	break;
       }
-      jam();
+      jamDebug();
       opPtr.i= opPtr.p->prevActiveOp;
       ndbrequire(++loopGuard < (1 << ZTUP_VERSION_BITS));
     }
@@ -200,7 +200,7 @@ Dbtup::tuxReadAttrs(EmulatedJamBuffer * jamBuf,
 int
 Dbtup::tuxReadPk(Uint32 fragPtrI, Uint32 pageId, Uint32 pageIndex, Uint32* dataOut, bool xfrmFlag)
 {
-  jamEntry();
+  jamEntryDebug();
   // use own variables instead of globals
   FragrecordPtr fragPtr;
   fragPtr.i= fragPtrI;
@@ -290,7 +290,7 @@ Dbtup::tuxReadPk(Uint32 fragPtrI, Uint32 pageId, Uint32 pageIndex, Uint32* dataO
 int
 Dbtup::accReadPk(Uint32 tableId, Uint32 fragId, Uint32 fragPageId, Uint32 pageIndex, Uint32* dataOut, bool xfrmFlag)
 {
-  jamEntry();
+  jamEntryDebug();
   // get table
   TablerecPtr tablePtr;
   tablePtr.i = tableId;
@@ -326,7 +326,7 @@ Dbtup::tuxQueryTh(Uint32 fragPtrI,
                   bool dirty,
                   Uint32 savepointId)
 {
-  jamEntry();
+  jamEntryDebug();
   FragrecordPtr fragPtr;
   fragPtr.i= fragPtrI;
   ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
@@ -353,7 +353,7 @@ Dbtup::tuxQueryTh(Uint32 fragPtrI,
   OperationrecPtr currOpPtr;
   currOpPtr.i = tuple_ptr->m_operation_ptr_i;
   if (currOpPtr.i == RNIL) {
-    jam();
+    jamDebug();
     // tuple has no operation, any scan can see it
     return true;
   }

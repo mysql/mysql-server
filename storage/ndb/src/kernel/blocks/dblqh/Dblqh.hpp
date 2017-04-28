@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1210,6 +1210,7 @@ public:
       return redo_written_bytes;
     }
   };
+  bool c_is_io_lag_reported;
   bool is_ldm_instance_io_lagging();
   Uint64 report_redo_written_bytes();
 
@@ -3654,7 +3655,7 @@ Dblqh::i_get_acc_ptr(ScanRecord* scanP, Uint32* &acc_ptr, Uint32 index)
     segment= (index + SectionSegment::DataLength -1) / 
       SectionSegment::DataLength;
     segmentOffset= (index - 1) % SectionSegment::DataLength;
-    jam();
+    jamDebug();
     ndbassert( segment < ScanRecord::MaxScanAccSegments );
 
     segmentIVal= scanP->scan_acc_op_ptr[ segment ];

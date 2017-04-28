@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # Same test as rpl_truncate_7ndb.test, but with mixed mode
 # This is marked with 'big_test' just because the rpl_truncate_7ndb test is
 # so slow...

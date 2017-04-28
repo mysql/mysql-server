@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1174,7 +1174,8 @@ protected:
 
   const NodeVersionInfo& getNodeVersionInfo() const;
   NodeVersionInfo& setNodeVersionInfo();
-  
+
+  Uint32 change_and_get_io_laggers(int change);
   /**********************
    * Xfrm stuff
    */
@@ -1726,6 +1727,18 @@ inline
 const NodeVersionInfo &
 SimulatedBlock::getNodeVersionInfo() const {
   return globalData.m_versionInfo;
+}
+
+inline
+Uint32 SimulatedBlock::change_and_get_io_laggers(Int32 change)
+{
+  globalData.lock_IO_lag();
+  Int32 io_laggers = Int32(globalData.get_io_laggers());
+  require((io_laggers + change) >= 0);
+  Uint32 new_io_laggers = Uint32(io_laggers + change);
+  globalData.set_io_laggers(new_io_laggers);
+  globalData.unlock_IO_lag();
+  return new_io_laggers;
 }
 
 inline

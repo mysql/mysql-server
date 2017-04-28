@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -276,6 +276,10 @@ public:
                            const LinearSectionPtr ptr[3], Uint32 secs);
   int sendFragmentedSignal(NdbApiSignal*, Uint32 nodeId,
                            const GenericSectionPtr ptr[3], Uint32 secs);
+
+  Uint32 mapRecipient(void * object);
+  void* unmapRecipient(Uint32 id, void *object);
+
   void* int2void(Uint32 val);
   static NdbReceiver* void2rec(void* val);
   static NdbTransaction* void2con(void* val);
@@ -300,6 +304,31 @@ public:
 #define CHECK_STATUS_MACRO_NULL \
    {if (checkInitState() == -1) { theError.code = 4100; DBUG_RETURN(NULL);}}
 
+/**
+ * theNdbObjectIdMap offers the translation between the object id
+ * used in the API protocol, and the object which a received signal
+ * should be delivered into.
+ * Objects are mapped using mapRecipient() function below and can be unmapped
+ * by calling unmapRecipient().
+ */
+
+inline
+Uint32
+NdbImpl::mapRecipient(void * object)
+{
+  return theNdbObjectIdMap.map(object);
+}
+
+inline
+void*
+NdbImpl::unmapRecipient(Uint32 id, void * object)
+{
+  return theNdbObjectIdMap.unmap(id, object);
+}
+
+/**
+ * Lookup of a previous mapped 'receiver'
+ */
 inline
 void *
 NdbImpl::int2void(Uint32 val)

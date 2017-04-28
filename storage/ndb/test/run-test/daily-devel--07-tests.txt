@@ -86,6 +86,10 @@ args: -n CheckTransIdMt T1
 max-time : 180
 
 cmd: testNdbApi
+args: -n OldApiScanFinalise T1
+max-time : 180
+
+cmd: testNdbApi
 args: -n CheckDisconnectCommit T1
 max-time : 180
 

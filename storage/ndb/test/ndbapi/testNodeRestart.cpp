@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -871,6 +871,431 @@ int runBug15587(NDBT_Context* ctx, NDBT_Step* step)
     return NDBT_FAILED;
   
   ctx->stopTest();
+  return NDBT_OK;
+}
+
+#define NO_NODE_GROUP int(-1)
+#define FREE_NODE_GROUP 65535
+#define MAX_NDB_NODES 49
+#define MAX_NDB_NODE_GROUPS 48
+
+static int numNodeGroups;
+static int numNoNodeGroups;
+static int nodeGroup[MAX_NDB_NODE_GROUPS];
+static int nodeGroupIds[MAX_NDB_NODE_GROUPS];
+
+void getNodeGroups(NdbRestarter & restarter)
+{
+  Uint32 nextFreeNodeGroup = 0;
+
+  numNoNodeGroups = 0;
+  for (Uint32 i = 0; i < MAX_NDB_NODE_GROUPS; i++)
+  {
+    nodeGroup[i] = NO_NODE_GROUP;
+    nodeGroupIds[i] = NO_NODE_GROUP;
+  }
+
+  int numDbNodes = restarter.getNumDbNodes();
+  for (int i = 0; i < numDbNodes; i++)
+  {
+    int nodeId = restarter.getDbNodeId(i);
+    ndbout_c("nodeId: %d", nodeId);
+    require(nodeId != -1);
+    int nodeGroupId = restarter.getNodeGroup(nodeId);
+    ndbout_c("nodeGroupId: %d", nodeGroupId);
+    require(nodeGroupId != -1);
+    nodeGroup[nodeId] = nodeGroupId;
+    if (nodeGroupId == FREE_NODE_GROUP)
+    {
+      numNoNodeGroups++;
+    }
+    else
+    {
+      bool found = false;
+      for (Uint32 i = 0; i < nextFreeNodeGroup; i++)
+      {
+        if (nodeGroupIds[i] == nodeGroupId)
+        {
+          found = true;
+          break;
+        }
+      }
+      if (!found)
+      {
+        nodeGroupIds[nextFreeNodeGroup++] = nodeGroupId;
+      }
+    }
+  }
+  numNodeGroups = nextFreeNodeGroup;
+}
+
+void crash_nodes_together(NdbRestarter & restarter,
+                          int *dead_nodes,
+                          int num_dead_nodes)
+{
+  /**
+   * This method ensures that all nodes sent in the dead_nodes
+   * array will die at the same time. We accomplish this by
+   * first inserting ERROR_INSERT code 1006. This code will
+   * perform a CRASH_INSERTION if NODE_FAILREP is received
+   * when this error insert is set.
+   *
+   * Next we fail all nodes with a forced graceful shutdown.
+   * As soon as one node fails the other nodes will also fail
+   * at the same time due to the error insert.
+   */
+  for (int i = 0; i < num_dead_nodes; i++)
+  {
+    int nodeId = dead_nodes[i];
+    ndbout_c("Kill node %d", nodeId);
+    restarter.insertErrorInNode(nodeId, 1006);
+  }
+  restarter.restartNodes(dead_nodes,
+          num_dead_nodes,
+          NdbRestarter::NRRF_NOSTART | NdbRestarter::NRRF_FORCE);
+  restarter.waitNodesNoStart(dead_nodes, num_dead_nodes);
+}
+
+int getFirstNodeInNodeGroup(NdbRestarter & restarter,
+                            int nodeGroupRequested)
+{
+  require(nodeGroupRequested < MAX_NDB_NODE_GROUPS ||
+          nodeGroupRequested == NO_NODE_GROUP);
+  int numDbNodes = restarter.getNumDbNodes();
+  for (int i = 0; i < numDbNodes; i++)
+  {
+    int nodeId = restarter.getDbNodeId(i);
+    require(nodeId != -1);
+    int nodeGroupId = nodeGroup[nodeId];
+    require(nodeGroupId != NO_NODE_GROUP);
+    if (nodeGroupRequested != NO_NODE_GROUP &&
+        nodeGroupId != nodeGroupRequested)
+      continue;
+    if (nodeGroupId != FREE_NODE_GROUP)
+    {
+      return nodeId;
+    }
+  }
+  require(false);
+  return 0;
+}
+
+int getNextNodeInNodeGroup(NdbRestarter & restarter,
+                           int prev_node_id,
+                           int nodeGroupRequested)
+{
+  require(nodeGroupRequested < MAX_NDB_NODE_GROUPS);
+  int numDbNodes = restarter.getNumDbNodes();
+  require(prev_node_id != 0);
+  bool found = false;
+  for (int i = 0; i < numDbNodes; i++)
+  {
+    int nodeId = restarter.getDbNodeId(i);
+    require(nodeId != -1);
+    int nodeGroupId = nodeGroup[nodeId];
+    require(nodeGroupId != NO_NODE_GROUP);
+    if (nodeGroupId == FREE_NODE_GROUP)
+      continue;
+    if (nodeGroupRequested != NO_NODE_GROUP &&
+        nodeGroupId != nodeGroupRequested)
+      continue;
+    if (found)
+      return nodeId;
+    if (nodeId == prev_node_id)
+      found = true;
+  }
+  return 0;
+}
+
+void
+crash_first_node_group(NdbRestarter & restarter,
+                       int *dead_nodes,
+                       int & num_dead_nodes)
+{
+  num_dead_nodes = 0;
+  int node_id = getFirstNodeInNodeGroup(restarter,
+                                        NO_NODE_GROUP);
+  int first_node_group = restarter.getNodeGroup(node_id);
+  dead_nodes[num_dead_nodes] = node_id;
+  num_dead_nodes++;
+  while ((node_id = getNextNodeInNodeGroup(restarter,
+                                           node_id,
+                                           first_node_group)) != 0)
+  {
+    dead_nodes[num_dead_nodes] = node_id;
+    num_dead_nodes++;
+  }
+  crash_nodes_together(restarter, dead_nodes, num_dead_nodes);
+}
+
+/**
+ * Crash one node per node group, index specifies which one
+ * to crash in each node. This makes it possible to call this
+ * multiple times with different index to ensure that we kill
+ * one node per node group at a time until we're out of nodes
+ * in the node group(s).
+ */
+void
+crash_one_node_per_node_group(NdbRestarter & restarter,
+                              int *dead_nodes,
+                              int & num_dead_nodes,
+                              int index)
+{
+  int local_dead_nodes[MAX_NDB_NODES];
+  int num_local_dead_nodes = 0;
+
+  for (int i = 0 ; i < numNodeGroups; i++)
+  {
+    int node_id = getFirstNodeInNodeGroup(restarter, nodeGroupIds[i]);
+    int loop_count = 0;
+    do
+    {
+      if (index == loop_count)
+      {
+        dead_nodes[num_dead_nodes++] = node_id;
+        local_dead_nodes[num_local_dead_nodes++] = node_id;
+        break;
+      }
+      node_id = getNextNodeInNodeGroup(restarter, node_id, nodeGroupIds[i]);
+      loop_count++;
+    } while (1);
+  }
+  crash_nodes_together(restarter, &local_dead_nodes[0], num_local_dead_nodes);
+}
+
+void
+crash_two_nodes_per_node_group(NdbRestarter & restarter,
+                               int *dead_nodes,
+                               int & num_dead_nodes,
+                               bool crash_three)
+{
+  num_dead_nodes = 0;
+  for (int i = 0 ; i < numNodeGroups; i++)
+  {
+    int node_id = getFirstNodeInNodeGroup(restarter, nodeGroupIds[i]);
+    dead_nodes[num_dead_nodes++] = node_id;
+    node_id = getNextNodeInNodeGroup(restarter, node_id, nodeGroupIds[i]);
+    dead_nodes[num_dead_nodes++] = node_id;
+    if (crash_three)
+    {
+      node_id = getNextNodeInNodeGroup(restarter, node_id, nodeGroupIds[i]);
+      dead_nodes[num_dead_nodes++] = node_id;
+    }
+  }
+  crash_nodes_together(restarter, dead_nodes, num_dead_nodes);
+}
+
+void
+crash_all_except_one_plus_one_nodegroup_untouched(NdbRestarter & restarter,
+                                                  int *dead_nodes,
+                                                  int &num_dead_nodes,
+                                                  int num_replicas)
+{
+  num_dead_nodes = 0;
+  int node_group_to_not_crash = 0;
+  for (int i = 0 ; i < numNodeGroups; i++)
+  {
+    if (i == node_group_to_not_crash)
+      continue; //Skip first node group
+    int j = 0;
+    int node_id = getFirstNodeInNodeGroup(restarter, nodeGroupIds[i]);
+    do
+    {
+      j++;
+      dead_nodes[num_dead_nodes++] = node_id;
+      node_id = getNextNodeInNodeGroup(restarter, node_id, nodeGroupIds[i]);
+    } while (j < (num_replicas - 1));
+  }
+  crash_nodes_together(restarter, dead_nodes, num_dead_nodes);
+}
+
+void
+prepare_all_nodes_for_death(NdbRestarter & restarter)
+{
+  int numDbNodes = restarter.getNumDbNodes();
+  for (int i = 0; i < numDbNodes; i++)
+  {
+    int nodeId = restarter.getDbNodeId(i);
+    restarter.insertErrorInNode(nodeId, 944);
+  }
+}
+
+void
+set_all_dead(NdbRestarter & restarter,
+             int *dead_nodes,
+             int & num_dead_nodes)
+{
+  int numDbNodes = restarter.getNumDbNodes();
+  for (int i = 0; i < numDbNodes; i++)
+  {
+    int nodeId = restarter.getDbNodeId(i);
+    dead_nodes[i] = nodeId;
+  }
+  num_dead_nodes = numDbNodes;
+}
+
+int runMultiCrashTest(NDBT_Context *ctx, NDBT_Step *step)
+{
+  NdbRestarter restarter;
+  int numDbNodes = restarter.getNumDbNodes();
+  getNodeGroups(restarter);
+  int num_replicas = (numDbNodes - numNoNodeGroups) / numNodeGroups;
+  int dead_nodes[MAX_NDB_NODES];
+  int num_dead_nodes = 0;
+
+  ndbout_c("numDbNodes: %d, numNoNodeGroups: %d, numNodeGroups: %d, num_replicas: %d",
+           numDbNodes,
+           numNoNodeGroups,
+           numNodeGroups,
+           num_replicas);
+
+  Uint32 expect_0 = (numDbNodes - numNoNodeGroups) % numNodeGroups;
+  require(expect_0 == 0);
+  require(num_replicas > 0);
+  require(num_replicas <= 4);
+
+  /**
+   * We start by verifying that we never survive a complete node
+   * group failure.
+   */
+  ndbout_c("Crash first node group");
+  prepare_all_nodes_for_death(restarter);
+  crash_first_node_group(restarter, dead_nodes, num_dead_nodes);
+  set_all_dead(restarter, dead_nodes, num_dead_nodes);
+  if (!restarter.checkClusterState(dead_nodes, num_dead_nodes))
+  {
+    return NDBT_FAILED;
+  }
+  if (restarter.startAll() != 0)
+    return NDBT_FAILED;
+  if (restarter.waitClusterStarted())
+    return NDBT_FAILED;
+
+  num_dead_nodes = 0;
+  if (num_replicas == 1)
+    return NDBT_OK;
+  /**
+   * With 2 replicas we expect to survive all types of crashes
+   * that don't crash two nodes in the same node group.
+   *
+   * We test the obvious case of surviving one node failure in
+   * each node group.
+   *
+   * Next we verify that crashing one more node per node group
+   * crashes the entire cluster.
+   *
+   * With 3 replicas we expect to survive all crashes with
+   * at most 1 crash per node group. We also expect to
+   * survive all crashes of at most 2 crashes per node
+   * group AND one node group with no crashes. We also
+   * expect to survive crashes where half of the nodes
+   * crash.
+   *
+   * With 4 nodes we also expect to survive 2 crashes
+   * in a node group.
+   *
+   * We start by verifying that we survive one node at
+   * at a time per node group to crash until we shut
+   * down the 3rd replica in each node group when we
+   * expect a complete failure.
+   *
+   * Next we verify that we don't survive a failure of
+   * 2 replicas in each node group if there are 3
+   * replicas, for 4 replicas we expect to survive.
+   *
+   * Finally we verify that we can survive a failure of
+   * all replicas except one when the first node group
+   * survives completely.
+   */
+
+  num_dead_nodes = 0;
+  for (int i = 1; i <= num_replicas; i++)
+  {
+    ndbout_c("Crash one node per group, index: %d", i - 1);
+    if (i == num_replicas)
+    {
+      prepare_all_nodes_for_death(restarter);
+    }
+    crash_one_node_per_node_group(restarter,
+                                  dead_nodes,
+                                  num_dead_nodes,
+                                  i - 1);
+    if (i == num_replicas)
+    {
+      set_all_dead(restarter, dead_nodes, num_dead_nodes);
+    }
+    if (!restarter.checkClusterState(dead_nodes, num_dead_nodes))
+    {
+      return NDBT_FAILED;
+    }
+    sleep(2);
+  }
+  if (restarter.startNodes(dead_nodes, num_dead_nodes) != 0)
+    return NDBT_FAILED;
+  if (restarter.waitClusterStarted())
+    return NDBT_FAILED;
+
+  if (num_replicas == 2)
+    return NDBT_OK;
+
+  ndbout_c("Crash two nodes per node group");
+  if (num_replicas == 3)
+  {
+    prepare_all_nodes_for_death(restarter);
+  }
+  crash_two_nodes_per_node_group(restarter,
+                                 dead_nodes,
+                                 num_dead_nodes,
+                                 false);
+  if (num_replicas == 3)
+  {
+    set_all_dead(restarter, dead_nodes, num_dead_nodes);
+  }
+  if (!restarter.checkClusterState(dead_nodes, num_dead_nodes))
+  {
+    return NDBT_FAILED;
+  }
+  sleep(3);
+  if (restarter.startNodes(dead_nodes, num_dead_nodes) != 0)
+    return NDBT_FAILED;
+  if (restarter.waitClusterStarted())
+    return NDBT_FAILED;
+
+  if (num_replicas == 4)
+  {
+    crash_two_nodes_per_node_group(restarter,
+                                   dead_nodes,
+                                   num_dead_nodes,
+                                   true);
+    set_all_dead(restarter, dead_nodes, num_dead_nodes);
+    if (!restarter.checkClusterState(dead_nodes, num_dead_nodes))
+    {
+      return NDBT_FAILED;
+    }
+    if (restarter.startNodes(dead_nodes, num_dead_nodes) != 0)
+      return NDBT_FAILED;
+    if (restarter.waitClusterStarted())
+      return NDBT_FAILED;
+  }
+
+  if (numNodeGroups == 1)
+    return NDBT_OK;
+
+  ndbout_c("Crash all except one per node group except one node group untouched");
+  crash_all_except_one_plus_one_nodegroup_untouched(restarter,
+                                                    dead_nodes,
+                                                    num_dead_nodes,
+                                                    num_replicas);
+
+  if (!restarter.checkClusterState(dead_nodes, num_dead_nodes))
+  {
+    return NDBT_FAILED;
+  }
+  sleep(3);
+  if (restarter.startNodes(dead_nodes, num_dead_nodes) != 0)
+    return NDBT_FAILED;
+  if (restarter.waitClusterStarted())
+    return NDBT_FAILED;
   return NDBT_OK;
 }
 
@@ -2557,6 +2982,17 @@ runPnr(NDBT_Context* ctx, NDBT_Step* step)
     while (max_cnt(ng_copy, MAX_NDB_NODES) > 1)
     {
       int node = res.getNode(NdbRestarter::NS_RANDOM);
+      bool found = false;
+      for (Uint32 i = 0; i < nodes.size(); i++)
+      {
+        if (nodes[i] == node)
+        {
+          found = true;
+          break;
+        }
+      }
+      if (found)
+        continue;
       int ng = res.getNodeGroup(node);
       if (ng_copy[ng] > 1)
       {
@@ -2573,20 +3009,29 @@ runPnr(NDBT_Context* ctx, NDBT_Step* step)
       res.dumpStateOneNode(nodes[j], val2, 2);
     }
     
-    int kill[] = { 9999, 1000, 3000 };
+    int kill[] = { 9999, 0 };
     for (Uint32 j = 0; j<nodes.size(); j++)
     {
-      res.dumpStateOneNode(nodes[j], kill, 3);
+      res.dumpStateOneNode(nodes[j], kill, 2);
+      if (res.waitNodesNoStart(nodes.getBase(), j + 1))
+      {
+        printf("Failed wait nodes no start\n");
+        return NDBT_FAILED;
+      }
     }
     
-    if (res.waitNodesNoStart(nodes.getBase(), nodes.size()))
-      return NDBT_FAILED;
-    
     if (res.startNodes(nodes.getBase(), nodes.size()))
+    {
+      printf("Failed start nodes\n");
       return NDBT_FAILED;
+    }
 
     if (res.waitClusterStarted())
+    {
+      printf("Failed start cluster\n");
       return NDBT_FAILED;
+    }
+    printf("Success one loop\n");
   }
   
   ctx->stopTest();
@@ -4437,7 +4882,7 @@ int
 runForceStopAndRestart(NDBT_Context* ctx, NDBT_Step* step)
 {
   NdbRestarter res;
-  if (res.getNumDbNodes() < 2)
+  if (res.getNumDbNodes() < 2 || res.getNumDbNodes() > 2)
     return NDBT_OK;
 
   Vector<int> group1;
@@ -4503,7 +4948,7 @@ runForceStopAndRestart(NDBT_Context* ctx, NDBT_Step* step)
   ndbout_c("%u", __LINE__);
 
   // All nodes should now be in nostart, the above stop force
-  // cvaused the remainig nodes to be stopped(and restarted nostart)
+  // caused the remaining nodes to be stopped(and restarted nostart)
   res.waitClusterNoStart();
 
   ndbout_c("%u", __LINE__);
@@ -8650,6 +9095,13 @@ TESTCASE("LCPLMBLeak",
   STEP(runLCP);
   STEP(waitAndCheckLMBUsage);
   FINALIZER(dropManyTables);
+}
+TESTCASE("MultiCrashTest",
+         "Check that we survive and die after node crashes as expected")
+{
+  INITIALIZER(runLoadTable);
+  STEP(runMultiCrashTest);
+  FINALIZER(runClearTable);
 }
 TESTCASE("ArbitrationWithApiNodeFailure",
          "Check that arbitration do not fail with non arbitrator api node "

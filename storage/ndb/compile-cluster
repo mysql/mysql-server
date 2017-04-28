@@ -43,6 +43,7 @@ if ($^O eq "cygwin" or $^O eq "MSWin32" or $^O eq "msys")
   # which can then be opened in VS
   $opt_build = 0;
 }
+my $opt_embedded = 0;
 my $opt_just_print;
 my $opt_vanilla;
 my $opt_autotest;
@@ -63,6 +64,7 @@ GetOptions(
   'autotest' => \$opt_autotest,
   'valgrind' => \$opt_valgrind,
   'distcheck' => \$opt_distcheck,
+  'embedded' => sub { $opt_embedded = 1; },
 
   # Special switch --parse-log=<file> which reads a log file (from build) and
   # parses it for warnings
@@ -127,6 +129,16 @@ if(defined $ENV{"CXXFLAGS"} and $ENV{"CXXFLAGS"} =~ "-fno-exceptions")
   print("compile-cluster: stripped off -fno-exceptions from CXXFLAGS='$ENV{CXXFLAGS}'\n");
 }
 
+# If no libmysqld directory in source, there is support for build embedded server.
+if(! -d "$opt_srcdir/libmysqld")
+{
+  if($opt_embedded)
+  {
+    die "Build with embedded server is not possible";
+  }
+  $opt_embedded = undef;
+}
+
 #
 # Configure
 #
@@ -171,6 +183,11 @@ if(defined $ENV{"CXXFLAGS"} and $ENV{"CXXFLAGS"} =~ "-fno-exceptions")
   {
     print("compile-cluster: autotest build requested, extra everything\n");
     push(@args, "-DWITH_NDB_CCFLAGS='-DERROR_INSERT'");
+  }
+
+  if (defined $opt_embedded)
+  {
+    push(@args, "-DWITH_EMBEDDED_SERVER=$opt_embedded");
   }
 
   if ($opt_valgrind)
