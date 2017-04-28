@@ -17453,6 +17453,9 @@ void Dbdih::copyGciLab(Signal* signal, CopyGCIReq::CopyReason reason)
 
 }//Dbdih::copyGciLab()
 
+#ifdef ERROR_INSERT
+static int s_7222_count = 0;
+#endif
 /* ------------------------------------------------------------------------- */
 /* COPY_GCICONF                           RESPONSE TO COPY_GCIREQ            */
 /* ------------------------------------------------------------------------- */
@@ -17499,36 +17502,33 @@ void Dbdih::execCOPY_GCICONF(Signal* signal)
 
     c_newest_restorable_gci = m_gcp_save.m_gci;
 #ifdef ERROR_INSERT
-    if ((ERROR_INSERTED(7222) || ERROR_INSERTED(7223)) &&
-        !Sysfile::getLCPOngoing(SYSFILE->systemRestartBits) &&
-        c_newest_restorable_gci >= c_lcpState.lcpStopGcp)
+    /**
+     * With changes in LCP handling it became rare that we come here when
+     * a LCP isn't ongoing, so to avoid test cases timing out we crash
+     * after 15 attempts even when proper test conditions are not met.
+     */
+    if (ERROR_INSERTED(7222) &&
+        ((!Sysfile::getLCPOngoing(SYSFILE->systemRestartBits) &&
+        c_newest_restorable_gci >= c_lcpState.lcpStopGcp) ||
+        s_7222_count++ >= 15))
     {
-      if (ERROR_INSERTED(7222))
+      s_7222_count = 0;
+      sendLoopMacro(COPY_TABREQ, nullRoutine, 0);
+      NodeReceiverGroup rg(CMVMI, c_COPY_TABREQ_Counter);
+
+      rg.m_nodes.clear(getOwnNodeId());
+      if (!rg.m_nodes.isclear())
       {
-        sendLoopMacro(COPY_TABREQ, nullRoutine, 0);
-        NodeReceiverGroup rg(CMVMI, c_COPY_TABREQ_Counter);
-
-        rg.m_nodes.clear(getOwnNodeId());
-        if (!rg.m_nodes.isclear())
-        {
-          signal->theData[0] = 9999;
-          sendSignal(rg, GSN_NDB_TAMPER, signal, 1, JBA);
-        }
         signal->theData[0] = 9999;
-        sendSignalWithDelay(CMVMI_REF, GSN_NDB_TAMPER, signal, 1000, 1);
-
-        signal->theData[0] = 932;
-        EXECUTE_DIRECT(QMGR, GSN_NDB_TAMPER, signal, 1);
-
-        return;
+        sendSignal(rg, GSN_NDB_TAMPER, signal, 1, JBA);
       }
-      if (ERROR_INSERTED(7223))
-      {
-        CLEAR_ERROR_INSERT_VALUE;
-        signal->theData[0] = 9999;
-        sendSignal(numberToRef(CMVMI, c_error_insert_extra)
-                   , GSN_NDB_TAMPER, signal, 1, JBA);
-      }
+      signal->theData[0] = 9999;
+      sendSignalWithDelay(CMVMI_REF, GSN_NDB_TAMPER, signal, 1000, 1);
+
+      signal->theData[0] = 932;
+      EXECUTE_DIRECT(QMGR, GSN_NDB_TAMPER, signal, 1);
+
+      return;
     }
 #endif
 
@@ -21929,7 +21929,7 @@ void Dbdih::allNodesLcpCompletedLab(Signal* signal)
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
 
   if (c_newest_restorable_gci > c_lcpState.lcpStopGcp &&
-      !(ERROR_INSERTED(7222) || ERROR_INSERTED(7223)))
+      !ERROR_INSERTED(7222))
   {
     jam();
     c_lcpState.lcpStopGcp = c_newest_restorable_gci;
