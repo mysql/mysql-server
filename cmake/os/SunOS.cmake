@@ -174,6 +174,7 @@ ENDMACRO()
 # We assume that the client code is built with -std=c++11
 # Both compilers will use libstdc++.so but possibly different version.
 # Hence we install the gcc version here, for use by the server and plugins.
+# Install only if INSTALL_GPP_LIBRARIES is set, use for non-native compilers.
 IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_COMPILER_IS_GNUCC)
   DIRNAME(${CMAKE_CXX_COMPILER} CXX_PATH)
   SET(LIB_SUFFIX "lib")
@@ -192,9 +193,11 @@ IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_COMPILER_IS_GNUCC)
   IF(GPP_LIBRARY_NAME)
     DIRNAME(${GPP_LIBRARY_NAME} GPP_LIBRARY_PATH)
     FIND_REAL_LIBRARY(${GPP_LIBRARY_NAME} real_library)
-    MESSAGE(STATUS "INSTALL ${GPP_LIBRARY_NAME} ${real_library}")
-    INSTALL(FILES ${GPP_LIBRARY_NAME} ${real_library}
-            DESTINATION ${INSTALL_LIBDIR} COMPONENT SharedLibraries)
+    IF(INSTALL_GPP_LIBRARIES)
+      MESSAGE(STATUS "INSTALL ${GPP_LIBRARY_NAME} ${real_library}")
+      INSTALL(FILES ${GPP_LIBRARY_NAME} ${real_library}
+        DESTINATION ${INSTALL_LIBDIR} COMPONENT SharedLibraries)
+    ENDIF()
     EXTEND_CXX_LINK_FLAGS(${GPP_LIBRARY_PATH})
     EXECUTE_PROCESS(
       COMMAND sh -c "elfdump ${real_library} | grep SONAME"
@@ -203,9 +206,11 @@ IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_COMPILER_IS_GNUCC)
     )
     IF(NOT result)
       STRING(REGEX MATCH "libstdc.*[^\n]" soname ${sonameline})
-      MESSAGE(STATUS "INSTALL ${GPP_LIBRARY_PATH}/${soname}")
-      INSTALL(FILES "${GPP_LIBRARY_PATH}/${soname}"
-              DESTINATION ${INSTALL_LIBDIR} COMPONENT SharedLibraries)
+      IF(INSTALL_GPP_LIBRARIES)
+        MESSAGE(STATUS "INSTALL ${GPP_LIBRARY_PATH}/${soname}")
+        INSTALL(FILES "${GPP_LIBRARY_PATH}/${soname}"
+          DESTINATION ${INSTALL_LIBDIR} COMPONENT SharedLibraries)
+      ENDIF()
     ENDIF()
   ENDIF()
   FIND_LIBRARY(GCC_LIBRARY_NAME
@@ -216,9 +221,11 @@ IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_COMPILER_IS_GNUCC)
   IF(GCC_LIBRARY_NAME)
     DIRNAME(${GCC_LIBRARY_NAME} GCC_LIBRARY_PATH)
     FIND_REAL_LIBRARY(${GCC_LIBRARY_NAME} real_library)
-    MESSAGE(STATUS "INSTALL ${GCC_LIBRARY_NAME} ${real_library}")
-    INSTALL(FILES ${GCC_LIBRARY_NAME} ${real_library}
-            DESTINATION ${INSTALL_LIBDIR} COMPONENT SharedLibraries)
+    IF(INSTALL_GPP_LIBRARIES)
+      MESSAGE(STATUS "INSTALL ${GCC_LIBRARY_NAME} ${real_library}")
+      INSTALL(FILES ${GCC_LIBRARY_NAME} ${real_library}
+        DESTINATION ${INSTALL_LIBDIR} COMPONENT SharedLibraries)
+    ENDIF()
     EXTEND_C_LINK_FLAGS(${GCC_LIBRARY_PATH})
   ENDIF()
 ENDIF()
