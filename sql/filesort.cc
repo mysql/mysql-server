@@ -1459,7 +1459,7 @@ size_t make_sortkey_from_field(
   Returns the length of the key, sans NULL indicator byte and varlength prefix.
 */
 size_t make_sortkey_from_item(
-  Item *item, Item_result result_type, bool is_varlen, bool use_hash,
+  Item *item, Item_result result_type, bool is_varlen,
   size_t max_length, char *tmp_buffer, uchar *to, bool *maybe_null,
   ulonglong *hash)
 {
@@ -1481,7 +1481,6 @@ size_t make_sortkey_from_item(
   {
     if (item->data_type() == MYSQL_TYPE_JSON)
     {
-      DBUG_ASSERT(use_hash);
       DBUG_ASSERT(is_varlen);
       DBUG_ASSERT(max_length >= VARLEN_PREFIX);
       return make_json_sort_key(
@@ -1664,7 +1663,7 @@ uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)
 
       actual_length= make_sortkey_from_item(
         item, sort_field->result_type, sort_field->is_varlen,
-        use_hash, sort_field->length, tmp_buffer, to, &maybe_null, &hash);
+        sort_field->length, tmp_buffer, to, &maybe_null, &hash);
     }
 
     /*
