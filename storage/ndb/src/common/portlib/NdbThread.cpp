@@ -940,7 +940,8 @@ is_cpu_locking_supported_on_windows()
     return FALSE;
   }
 
-  num_processors_per_group = malloc(num_processor_groups * sizeof(unsigned int));
+  num_processors_per_group =
+      (unsigned int*)malloc(num_processor_groups * sizeof(unsigned int));
   if (num_processors_per_group == NULL)
   {
     return FALSE;
@@ -1194,7 +1195,8 @@ NdbThread_LockCreateCPUSet(const Uint32 *cpu_ids,
    * place the next thread (in which processor group).
    */
   unsigned int *cpu_set_ptr =
-    malloc( (num_cpu_ids + 2 + (num_processor_groups * 2)) * sizeof(unsigned int));
+    (unsigned int*)malloc( (num_cpu_ids + 2 + (num_processor_groups * 2)) *
+                            sizeof(unsigned int));
   if (!cpu_set_ptr)
   {
     int error_no = GetLastError();
@@ -1664,7 +1666,7 @@ NdbThread_LockCreateCPUSet(const Uint32 *cpu_ids,
   /* New interface added in Solaris 11.2 */
   int error_no;
   Uint32 i;
-  id_t *cpu_set_ptr = malloc((num_cpu_ids + 1) * sizeof(id_t));
+  id_t *cpu_set_ptr = (id_t*)malloc((num_cpu_ids + 1) * sizeof(id_t));
   if (!cpu_set_ptr)
   {
     error_no = errno;
@@ -1697,7 +1699,7 @@ NdbThread_LockCreateCPUSetExclusive(const Uint32 *cpu_ids,
   int ret;
   int error_no;
   Uint32 i;
-  psetid_t *cpu_set_ptr = malloc(sizeof(psetid_t));
+  psetid_t *cpu_set_ptr = (psetid_t*)malloc(sizeof(psetid_t));
 
   if (!cpu_set_ptr)
   {
