@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -254,6 +254,9 @@ class Lgman;
 #define ZREBUILD_ORDERED_INDEXES 24
 #define ZWAIT_READONLY 25
 #define ZLCP_FRAG_WATCHDOG 26
+#if defined ERROR_INSERT
+#define ZDELAY_FS_OPEN 27
+#endif
 
 /* ------------------------------------------------------------------------- */
 /*        NODE STATE DURING SYSTEM RESTART, VARIABLES CNODES_SR_STATE        */
@@ -1670,7 +1673,10 @@ public:
       BOTH_WRITES_ONGOING = 1,
       LAST_WRITE_ONGOING = 2,
       FIRST_WRITE_ONGOING = 3,
-      WRITE_PAGE_ZERO_ONGOING = 4
+      WRITE_PAGE_ZERO_ONGOING = 4,
+      WAIT_FOR_OPEN_NEXT_FILE = 5,
+      LAST_FILEWRITE_WAITS = 6,
+      FIRST_FILEWRITE_WAITS = 7
     };  
     enum LogFileStatus {
       LFS_IDLE = 0,                     ///< Log file record not in use
@@ -3088,6 +3094,10 @@ private:
 
 #if defined VM_TRACE || defined ERROR_INSERT
   Uint32 cmaxLogFilesInPageZero_DUMP;
+#endif
+
+#if defined ERROR_INSERT
+  Uint32 delayOpenFilePtrI;
 #endif
 
 // Configurable
