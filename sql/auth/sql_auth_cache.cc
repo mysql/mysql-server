@@ -1485,19 +1485,19 @@ validate_user_plugin_records()
       if (acl_user->plugin.str == sha256_password_plugin_name.str &&
           rsa_auth_status() && !ssl_acceptor_fd)
       {
-          sql_print_warning("The plugin '%s' is used to authenticate "
-                            "user '%s'@'%.*s', "
 #if !defined(HAVE_YASSL)
-                            "but neither SSL nor RSA keys are "
+        const char *missing= "but neither SSL nor RSA keys are";
 #else
-                            "but no SSL is "
+        const char *missing= "but no SSL is";
 #endif
-                            "configured. "
-                            "Nobody can currently login using this account.",
-                            sha256_password_plugin_name.str,
-                            acl_user->user,
-                            static_cast<int>(acl_user->host.get_host_len()),
-                            acl_user->host.get_host());
+
+        sql_print_warning("The plugin '%s' is used to authenticate "
+                          "user '%s'@'%.*s', %s configured. "
+                          "Nobody can currently login using this account.",
+                          sha256_password_plugin_name.str,
+                          acl_user->user,
+                          static_cast<int>(acl_user->host.get_host_len()),
+                          acl_user->host.get_host(), missing);
       }
     }
   }

@@ -93,3 +93,4 @@ component_example_component3    component_output_directory  EXAMPLE_COMPONENT_3
 component_test_string_service   component_output_directory  TEST_STRING_SERVICE
 component_test_string_service_long   component_output_directory  TEST_STRING_SERVICE_LONG
 component_test_string_service_charset   component_output_directory  TEST_STRING_SERVICE_CHARSET
+component_log_sink_json         component_output_directory  LOGGING_COMPONENTS

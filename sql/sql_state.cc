@@ -16,33 +16,20 @@
 /* Functions to map mysqld errno to sql_state */
 
 #include <mysqld_error.h>
+#include <m_string.h> // ### MEOW
 #include <sys/types.h>
 
+#include "derror.h" // ### MEOW
 #include "my_inttypes.h"  // IWYU pragma: keep
 #include "mysql_com.h"  // IWYU pragma: keep
+#include "../storage/perfschema/pfs_error.h" // ### MEOW
 
-static const int NUM_SECTIONS=
-  sizeof(errmsg_section_start) / sizeof(errmsg_section_start[0]);
+extern server_error error_names_array[];
 
-struct st_map_errno_to_sqlstate
-{
-  const char *name;
-  unsigned    code;
-  const char *text;
-  /* SQLSTATE */
-  const char *odbc_state;
-  const char *jdbc_state;
-  unsigned error_index;
-};
+static server_error *sqlstate_map= &error_names_array[1];
 
-struct st_map_errno_to_sqlstate sqlstate_map[]=
-{
-#ifndef IN_DOXYGEN
-#include <mysqld_ername.h>
-#endif /* IN_DOXYGEN */
-};
 
-const char *mysql_errno_to_sqlstate(unsigned mysql_errno)
+int mysql_errno_to_builtin(uint mysql_errno)
 {
   int offset= 0; // Position where the current section starts in the array.
   int i;
@@ -52,8 +39,45 @@ const char *mysql_errno_to_sqlstate(unsigned mysql_errno)
   {
     if (temp_errno >= errmsg_section_start[i] &&
         temp_errno < (errmsg_section_start[i] + errmsg_section_size[i]))
-      return sqlstate_map[mysql_errno - errmsg_section_start[i] + offset].odbc_state;
+      return mysql_errno - errmsg_section_start[i] + offset;
     offset+= errmsg_section_size[i];
   }
-  return "HY000"; /* General error */
+  return -1; /* General error */
+}
+
+static const char *builtin_get_sqlstate(int i)
+{
+  return (i < 0) ? "HY000" : sqlstate_map[i].odbc_state;
+}
+
+const char *mysql_errno_to_sqlstate(uint mysql_errno)
+{
+  return builtin_get_sqlstate(mysql_errno_to_builtin(mysql_errno));
+}
+
+static const char *builtin_get_symbol(int i)
+{
+  return (i < 0) ? nullptr : sqlstate_map[i].name;
+}
+
+const char *mysql_errno_to_symbol(int mysql_errno)
+{
+  return builtin_get_symbol(mysql_errno_to_builtin(mysql_errno));
+}
+
+int mysql_symbol_to_errno(const char *error_symbol)
+{
+  int offset= 0; // Position where the current section starts in the array.
+  int i,j;
+
+  for (i= 0; i < NUM_SECTIONS; i++)
+  {
+    for (j= 0; j < errmsg_section_size[i]; j++)
+    {
+      if (!native_strcasecmp(error_symbol, sqlstate_map[j + offset].name))
+        return sqlstate_map[j + offset].mysql_errno;
+    }
+    offset+= errmsg_section_size[i];
+  }
+  return -1; /* General error */
 }

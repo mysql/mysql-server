@@ -23,6 +23,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 #include "dynamic_loader.h"
 #include "dynamic_loader_path_filter.h"
 #include "dynamic_loader_scheme_file.h"
+#include <log.h>
+#include "log_builtins_imp.h"
+#include "log_builtins_filter_imp.h"
 #include "my_inttypes.h"
 #include "mysqld_error.h"
 #include "persistent_dynamic_loader.h"
@@ -150,6 +153,90 @@ BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_string_ctype)
   mysql_string_imp::is_digit
 END_SERVICE_IMPLEMENTATION()
 
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, log_builtins)
+  log_builtins_imp::wellknown_by_type,
+  log_builtins_imp::wellknown_by_name,
+  log_builtins_imp::wellknown_get_type,
+  log_builtins_imp::wellknown_get_name,
+
+  log_builtins_imp::item_inconsistent,
+  log_builtins_imp::item_generic_type,
+  log_builtins_imp::item_string_class,
+  log_builtins_imp::item_numeric_class,
+
+  log_builtins_imp::item_set_int,
+  log_builtins_imp::item_set_float,
+  log_builtins_imp::item_set_lexstring,
+  log_builtins_imp::item_set_cstring,
+
+  log_builtins_imp::item_set_with_key,
+  log_builtins_imp::item_set,
+
+  log_builtins_imp::line_item_set_with_key,
+  log_builtins_imp::line_item_set,
+
+  log_builtins_imp::line_init,
+  log_builtins_imp::line_item_count,
+
+  log_builtins_imp::line_item_types_seen,
+
+  log_builtins_imp::line_item_iter_acquire,
+  log_builtins_imp::line_item_iter_release,
+  log_builtins_imp::line_item_iter_first,
+  log_builtins_imp::line_item_iter_next,
+  log_builtins_imp::line_item_iter_current,
+
+  log_builtins_imp::line_submit,
+
+  log_builtins_imp::message,
+
+  log_builtins_imp::sanitize,
+
+  log_builtins_imp::errmsg_by_errcode,
+  log_builtins_imp::errcode_by_errsymbol,
+
+  log_builtins_imp::label_from_prio,
+
+  log_builtins_imp::open_errstream,
+  log_builtins_imp::write_errstream,
+  log_builtins_imp::dedicated_errstream,
+  log_builtins_imp::close_errstream
+END_SERVICE_IMPLEMENTATION()
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, log_builtins_filter)
+  log_builtins_filter_imp::filter_run,
+  log_builtins_filter_imp::filter_ruleset_get,
+  log_builtins_filter_imp::filter_ruleset_drop,
+  log_builtins_filter_imp::filter_ruleset_release,
+  log_builtins_filter_imp::filter_rule_init
+END_SERVICE_IMPLEMENTATION()
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, log_builtins_string)
+  log_builtins_string_imp::malloc,
+  log_builtins_string_imp::strndup,
+  log_builtins_string_imp::free,
+
+  log_builtins_string_imp::length,
+  log_builtins_string_imp::find_first,
+  log_builtins_string_imp::find_last,
+
+  log_builtins_string_imp::compare,
+
+  log_builtins_string_imp::substitutev,
+  log_builtins_string_imp::substitute
+END_SERVICE_IMPLEMENTATION()
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, log_builtins_tmp)
+  log_builtins_tmp_imp::connection_loop_aborted
+END_SERVICE_IMPLEMENTATION()
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, log_builtins_syseventlog)
+  log_builtins_syseventlog_imp::open,
+  log_builtins_syseventlog_imp::write,
+  log_builtins_syseventlog_imp::close
+END_SERVICE_IMPLEMENTATION()
+
 BEGIN_COMPONENT_PROVIDES(mysql_server)
   PROVIDES_SERVICE(mysql_server, registry)
   PROVIDES_SERVICE(mysql_server, registry_registration)
@@ -172,6 +259,11 @@ BEGIN_COMPONENT_PROVIDES(mysql_server)
   PROVIDES_SERVICE(mysql_server, mysql_string_byte_access)
   PROVIDES_SERVICE(mysql_server, mysql_string_iterator)
   PROVIDES_SERVICE(mysql_server, mysql_string_ctype)
+  PROVIDES_SERVICE(mysql_server, log_builtins)
+  PROVIDES_SERVICE(mysql_server, log_builtins_filter)
+  PROVIDES_SERVICE(mysql_server, log_builtins_string)
+  PROVIDES_SERVICE(mysql_server, log_builtins_tmp)
+  PROVIDES_SERVICE(mysql_server, log_builtins_syseventlog)
 END_COMPONENT_PROVIDES()
 
 static BEGIN_COMPONENT_REQUIRES(mysql_server)

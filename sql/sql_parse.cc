@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,6 +12,8 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+
+#define  LOG_SUBSYSTEM_TAG "parser"
 
 #include "sql/sql_parse.h"
 
@@ -1513,6 +1515,10 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       PS_PARAM *parameters= com_data->com_stmt_execute.parameters;
       mysqld_stmt_execute(thd, stmt, com_data->com_stmt_execute.has_new_types,
                           com_data->com_stmt_execute.open_cursor, parameters);
+
+      DBUG_EXECUTE_IF("parser_stmt_to_error_log", {
+        LogErr(INFORMATION_LEVEL, ER_PARSER_TRACE, thd->query().str);
+      });
     }
     break;
   }
@@ -1596,6 +1602,10 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       break;
 
     mysql_parse(thd, &parser_state);
+
+    DBUG_EXECUTE_IF("parser_stmt_to_error_log", {
+        LogErr(INFORMATION_LEVEL, ER_PARSER_TRACE, thd->query().str);
+      });
 
     while (!thd->killed && (parser_state.m_lip.found_semicolon != NULL) &&
            ! thd->is_error())

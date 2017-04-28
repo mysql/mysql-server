@@ -582,7 +582,7 @@ static void report_error(int where_to, uint error, ...)
   if (where_to & REPORT_TO_LOG)
   {
     va_start(args, error);
-    error_log_print(ERROR_LEVEL, ER_DEFAULT(error), args);
+    error_log_printf(ERROR_LEVEL, ER_DEFAULT(error), args);
     va_end(args);
   }
 }

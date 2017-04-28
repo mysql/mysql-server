@@ -21,7 +21,7 @@
 #include "event_db_repository.h"  // Event_db_repository
 #include "events.h"               // Events
 #include "lock.h"                 // lock_object_name
-#include "log.h"                  // sql_print_error
+#include "log.h"                  // log_*()
 #include "malloc_allocator.h"
 #include "mdl.h"
 #include "my_dbug.h"

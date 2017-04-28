@@ -65,7 +65,9 @@ mysql_cond_t Per_thread_connection_handler::COND_flush_thread_cache;
 static
 Error_log_throttle create_thd_err_log_throttle(Log_throttle
                                                ::LOG_THROTTLE_WINDOW_SIZE,
-                                               sql_print_error,
+                                               ERROR_LEVEL,
+                                               0,
+                                               "connection_handler",
                                                "Error log throttle: %10lu"
                                                " 'Can't create thread to"
                                                " handle new connection'"

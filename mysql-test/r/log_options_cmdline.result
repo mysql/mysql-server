@@ -1,0 +1,48 @@
+CREATE TABLE t1(a int);
+# restart: --log-error=LOG_FILE1 --log-error-verbosity=1 --log-bin --binlog-format=statement
+INSERT INTO t1 SELECT FOUND_ROWS();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+connect(localhost,unknown_user,,,MASTER_PORT,MASTER_SOCKET);
+ERROR 28000: Access denied for user 'unknown_user'@'localhost' (using password: NO)
+# restart: --log-error=LOG_FILE2 --log-error-verbosity=2 --log-bin --binlog-format=statement
+INSERT INTO t1 SELECT FOUND_ROWS();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+connect(localhost,unknown_user,,,MASTER_PORT,MASTER_SOCKET);
+ERROR 28000: Access denied for user 'unknown_user'@'localhost' (using password: NO)
+# restart: --log-error=LOG_FILE3 --log-error-verbosity=7 --log-bin --binlog-format=statement
+INSERT INTO t1 SELECT FOUND_ROWS();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+connect(localhost,unknown_user,,,MASTER_PORT,MASTER_SOCKET);
+ERROR 28000: Access denied for user 'unknown_user'@'localhost' (using password: NO)
+DROP TABLE t1;
+# restart: --log-error=LOG_FILE8 --lc-messages-dir=MSG_DIR
+connect(localhost,unknown_user,,,MASTER_PORT,MASTER_SOCKET);
+ERROR 28000: Access denied for user 'unknown_user'@'localhost' (using password: NO)
+# restart: --log-error=LOG_FILE9 --log-error-services=abcd 
+SELECT @@GLOBAL.LOG_ERROR_SERVICES;
+@@GLOBAL.LOG_ERROR_SERVICES
+log_filter_internal; log_sink_internal
+SET GLOBAL LOG_ERROR_SERVICES=@@GLOBAL.LOG_ERROR_SERVICES;
+# restart: --log-error=LOG_FILE10 --log-error-services=log_sink_json 
+INSTALL COMPONENT "file://component_log_sink_json";
+# restart: --no-console --log-error=LOG_FILE11 --log-error-services=log_filter_internal;log_sink_internal;log_sink_json 
+connect(localhost,unknown_user,,,MASTER_PORT,MASTER_SOCKET);
+ERROR 28000: Access denied for user 'unknown_user'@'localhost' (using password: NO)
+SET GLOBAL log_error_services= default;
+UNINSTALL COMPONENT "file://component_log_sink_json";
+
+Reading error logs for validation
+---------------------------------
+[ PASS ] Error log does not contain WARNING's/NOTE's with --log-error-verbosity=1
+[ PASS ] Error log does not contain NOTE's with --log-error-verbosity=2
+[ PASS ] Error log contains NOTE's & WARNING's with --log-error-verbosity=3
+[ PASS ] Error log does not contain NOTE's with default verbosity(2)  during initialization
+[ PASS ] Error log does not contain WARNING's/NOTE's with --log-error-verbosity=1  during initialization
+[ PASS ] Error log does not contain NOTE's with --log-error-verbosity=2  during initialization
+[ PASS ] Error log contains NOTE's with --log-error-verbosity=3 during initialization
+[ PASS ] Error log contains a NOTE with compiled-in message 'Access denied' when lc_messages_dir does not contain error messages
+[ PASS ] Error log successfully parsed as a json document
+[ PASS ] Expected entry found in the json error log:-Access denied for user 'unknown_user'@'localhost' (using password: NO)

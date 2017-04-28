@@ -37,12 +37,12 @@
 #include "sql_locale.h"
 #include "system_variables.h"
 #include "table.h"
+#include "../storage/perfschema/pfs_error.h"
 
 CHARSET_INFO *error_message_charset_info;
 
 static const char *ERRMSG_FILE = "errmsg.sys";
-static const int NUM_SECTIONS=
-  sizeof(errmsg_section_start) / sizeof(errmsg_section_start[0]);
+
 
 /*
   Error messages are stored sequentially in an array.
@@ -77,7 +77,7 @@ const char* ER_THD(const THD *thd, int mysql_errno)
 
 
 C_MODE_START
-static const char *get_server_errmsgs(int mysql_errno)
+const char *get_server_errmsgs(int mysql_errno)
 {
   if (current_thd)
     return ER_THD(current_thd, mysql_errno);
@@ -141,10 +141,12 @@ bool MY_LOCALE_ERRMSGS::read_texts()
   File file;
   char name[FN_REFLEN];
   char lang_path[FN_REFLEN];
-  uchar *start_of_errmsgs= NULL;
-  uchar *pos= NULL;
+  uchar *start_of_errmsgs= nullptr;
+  uchar *pos= nullptr;
   uchar head[32];
   uint error_messages= 0;
+  server_error *sqlstate_map= &error_names_array[1];
+
   DBUG_ENTER("read_texts");
 
   for (int i= 0; i < NUM_SECTIONS; i++)
@@ -200,7 +202,7 @@ bool MY_LOCALE_ERRMSGS::read_texts()
                     but it should contain at least %d error messages.\n\
                     Check that the above file is the right version for \
                     this program!",
-		    name,no_of_errmsgs,error_messages);
+                    name,no_of_errmsgs,error_messages);
     (void) mysql_file_close(file, MYF(MY_WME));
     goto open_err;
   }
@@ -208,7 +210,7 @@ bool MY_LOCALE_ERRMSGS::read_texts()
   // Free old language and allocate for the new one
   my_free(errmsgs);
   if (!(errmsgs= (const char**)
-	my_malloc(key_memory_errmsgs,
+        my_malloc(key_memory_errmsgs,
                   length+no_of_errmsgs*sizeof(char*), MYF(0))))
   {
     sql_print_error("Not enough memory for messagefile '%s'", name);
@@ -244,7 +246,7 @@ bool MY_LOCALE_ERRMSGS::read_texts()
 
 read_err_init:
   for (uint i= 0; i < error_messages; ++i)
-    errmsgs[i]= "";
+    errmsgs[i]= sqlstate_map[i].text;
 read_err:
   sql_print_error("Can't read from messagefile '%s'", name);
   (void) mysql_file_close(file, MYF(MY_WME));
@@ -260,7 +262,7 @@ open_err:
                                            sizeof(char*), MYF(0))))
     {
       for (uint i= 0; i < error_messages; ++i)
-        errmsgs[i]= "";
+        errmsgs[i]= sqlstate_map[i].text;
     }
   }
   DBUG_RETURN(true);

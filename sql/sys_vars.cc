@@ -30,6 +30,8 @@
   (for example in storage/myisam/ha_myisam.cc) !
 */
 
+#define  LOG_SUBSYSTEM_TAG "server_variables"
+
 #include "sql/sys_vars.h"
 
 #include "my_config.h"
@@ -66,6 +68,7 @@
 #include "hostname.h"                    // host_cache_resize
 #include "item_timefunc.h"               // ISO_FORMAT
 #include "log.h"                         // sql_print_warning
+#include "../components/mysql_server/log_builtins_filter_imp.h" // until we have pluggable variables
 #include "log_event.h"                   // MAX_MAX_ALLOWED_PACKET
 #include "m_string.h"
 #include "mdl.h"
@@ -2060,6 +2063,85 @@ static Sys_var_charptr Sys_log_error(
        NOT_IN_BINLOG, ON_CHECK(NULL), ON_UPDATE(NULL),
        NULL, sys_var::PARSE_EARLY);
 
+
+/*
+  log_error_filter_rules: internal
+  (until components can have their own sysvars)
+*/
+
+static bool fix_log_error_filter_rules(sys_var *self,
+                                       THD *thd, enum_var_type type)
+{
+  int ret= LogVar(self->name).val(opt_log_error_filter_rules)
+                             .group("log_filter")
+                             .update();
+
+#if 0
+  /*
+    This will be enabled in the context of WL#9651:
+    Logging services: log filter (configuration engine)
+  */
+  if (ret < 1)
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
+                        ER_COMPONENT_FILTER_FLABBERGASTED,
+                        ER_THD(thd, ER_COMPONENT_FILTER_FLABBERGASTED),
+                        "draugnet", &opt_log_error_filter_rules[ret]);
+  return (ret != 0);
+#endif
+  return (ret == 0);
+}
+
+static Sys_var_charptr Sys_log_error_filter_rules(
+       "log_error_filter_rules", "Error log filter rules",
+       GLOBAL_VAR(opt_log_error_filter_rules),
+       CMD_LINE(OPT_ARG),
+       IN_SYSTEM_CHARSET,
+       DEFAULT("prio>=3? gag. "
+               "err_code==1408? set_priority 0. "
+               "err_code==1408? add_field log_label:=\"HELO\". "
+               "+source_line? delete_field. "
+               "+err_code? delete_field."),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(0),
+       ON_UPDATE(fix_log_error_filter_rules));
+
+
+static bool check_log_error_services(sys_var *self, THD *thd, set_var *var)
+{
+  int i;
+  if ((var->save_result.string_value.str != NULL) &&
+      ((i = log_builtins_error_stack(var->save_result.string_value.str,
+                                     true)) < 0))
+  {
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
+                        ER_WRONG_VALUE_FOR_VAR,
+                        "Value for %s got confusing at or around %s",
+                        self->name.str,
+                        &((char *) var->save_result.string_value.str)[-(i+1)]);
+    return true;
+  }
+
+  return false;
+}
+
+
+static bool fix_log_error_services(sys_var *self,
+                                   THD *thd, enum_var_type type)
+{
+  return (log_builtins_error_stack(opt_log_error_services, false) < 0);
+}
+
+static Sys_var_charptr Sys_log_error_services(
+       "log_error_services",
+       "Services that should be called when an error event is received",
+       GLOBAL_VAR(opt_log_error_services),
+       CMD_LINE(REQUIRED_ARG),
+       IN_SYSTEM_CHARSET,
+       DEFAULT("log_filter_internal; log_sink_internal"),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(check_log_error_services),
+       ON_UPDATE(fix_log_error_services));
+
 static Sys_var_bool Sys_log_queries_not_using_indexes(
        "log_queries_not_using_indexes",
        "Log queries that are executed without benefit of any index to the "
@@ -2108,7 +2190,7 @@ static bool update_log_warnings(sys_var*, THD*, enum_var_type)
   // log_warnings is deprecated, but for now, we'll set the
   // new log_error_verbosity from it for backward compatibility.
   log_error_verbosity= std::min(3UL, 1UL + log_warnings);
-  return false;
+  return (log_builtins_filter_update_verbosity(log_error_verbosity) < 0);
 }
 
 static Sys_var_ulong Sys_log_warnings(
@@ -2125,7 +2207,7 @@ static bool update_log_error_verbosity(sys_var*, THD*, enum_var_type)
   // log_warnings is deprecated, but for now, we'll set it from
   // the new log_error_verbosity for backward compatibility.
   log_warnings= log_error_verbosity - 1;
-  return false;
+  return (log_builtins_filter_update_verbosity(log_error_verbosity) < 0);
 }
 
 static Sys_var_ulong Sys_log_error_verbosity(
@@ -2160,15 +2242,9 @@ static Sys_var_bool Sys_log_statements_unsafe_for_binlog(
 
 /* logging to host OS's syslog */
 
-static bool fix_syslog(sys_var*, THD*, enum_var_type)
+static bool fix_syslog_enable(sys_var *self, THD *thd, enum_var_type type)
 {
-  return log_syslog_update_settings();
-}
-
-static bool check_syslog_tag(sys_var*, THD*, set_var *var)
-{
-  return ((var->save_result.string_value.str != NULL) &&
-          (strchr(var->save_result.string_value.str, FN_LIBCHAR) != NULL));
+  return LogVar(self->name).val((longlong) opt_log_syslog_enable).update();
 }
 
 static Sys_var_bool Sys_log_syslog_enable(
@@ -2178,15 +2254,24 @@ static Sys_var_bool Sys_log_syslog_enable(
        "log (\"syslog\").",
        GLOBAL_VAR(opt_log_syslog_enable),
        CMD_LINE(OPT_ARG),
-       // preserve current defaults for both platforms:
-#ifndef _WIN32
-       DEFAULT(FALSE),
-#else
-       DEFAULT(TRUE),
-#endif
+       DEFAULT(TRUE), // true-when-loaded on either platform
        NO_MUTEX_GUARD, NOT_IN_BINLOG,
-       ON_CHECK(0), ON_UPDATE(fix_syslog));
+       ON_CHECK(0), ON_UPDATE(fix_syslog_enable),
+       DEPRECATED("--log_error_services"));
 
+
+static bool fix_syslog_tag(sys_var *self, THD *thd, enum_var_type type)
+{
+  return LogVar(self->name).val(opt_log_syslog_tag).update();
+}
+
+static bool check_syslog_tag(sys_var *self, THD *THD, set_var *var)
+{
+  if (var->value != nullptr)
+    return LogVar(self->name).val(var->save_result.string_value).check();
+
+  return false;
+}
 
 static Sys_var_charptr Sys_log_syslog_tag(
        "log_syslog_tag",
@@ -2197,27 +2282,21 @@ static Sys_var_charptr Sys_log_syslog_tag(
        "default ident of 'mysqld', connected by a hyphen.",
        GLOBAL_VAR(opt_log_syslog_tag), CMD_LINE(REQUIRED_ARG),
        IN_SYSTEM_CHARSET, DEFAULT(""), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-       ON_CHECK(check_syslog_tag), ON_UPDATE(fix_syslog));
+       ON_CHECK(check_syslog_tag), ON_UPDATE(fix_syslog_tag));
 
 
 #ifndef _WIN32
 
-static bool check_syslog_facility(sys_var*, THD*, set_var *var)
+static bool check_syslog_facility(sys_var *self, THD*, set_var *var)
 {
-  SYSLOG_FACILITY rsf;
-
-  if (var->value &&
-      log_syslog_find_facility(var->save_result.string_value.str, &rsf))
-    return true;
+  if (var->value != nullptr)
+    return LogVar(self->name).val(var->save_result.string_value).check();
   return false;
 }
 
-static bool fix_syslog_facility(sys_var*, THD*, enum_var_type)
+static bool fix_syslog_facility(sys_var *self, THD *thd, enum_var_type type)
 {
-  if (opt_log_syslog_facility == NULL)
-    return true;
-
-  return log_syslog_update_settings();
+  return LogVar(self->name).val(opt_log_syslog_facility).update();
 }
 
 static Sys_var_charptr Sys_log_syslog_facility(
@@ -2228,6 +2307,12 @@ static Sys_var_charptr Sys_log_syslog_facility(
        IN_SYSTEM_CHARSET, DEFAULT("daemon"), NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(check_syslog_facility), ON_UPDATE(fix_syslog_facility));
 
+static bool fix_syslog_pid(sys_var *self, THD *thd, enum_var_type type)
+{
+  return LogVar(self->name).val((longlong) opt_log_syslog_include_pid)
+                           .update();
+}
+
 static Sys_var_bool Sys_log_syslog_log_pid(
        "log_syslog_include_pid",
        "When logging issues using the host operating system's syslog, "
@@ -2236,7 +2321,7 @@ static Sys_var_bool Sys_log_syslog_log_pid(
        GLOBAL_VAR(opt_log_syslog_include_pid),
        CMD_LINE(OPT_ARG), DEFAULT(TRUE),
        NO_MUTEX_GUARD, NOT_IN_BINLOG,
-       ON_CHECK(0), ON_UPDATE(fix_syslog));
+       ON_CHECK(0), ON_UPDATE(fix_syslog_pid));
 
 #endif
 

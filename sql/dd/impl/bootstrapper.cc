@@ -668,8 +668,7 @@ bool repopulate_charsets_and_collations(THD *thd)
   */
   if (opt_readonly)
   {
-    sql_print_warning("Skip re-populating collations and character "
-                      "sets tables in read-only mode.");
+    LogErr(WARNING_LEVEL, ER_DD_NO_WRITES_NO_REPOPULATION, "", "");
     return false;
   }
 
@@ -682,8 +681,7 @@ bool repopulate_charsets_and_collations(THD *thd)
   handlerton *ddse= ha_resolve_by_legacy_type(thd, DB_TYPE_INNODB);
   if (ddse->is_dict_readonly && ddse->is_dict_readonly())
   {
-    sql_print_warning("Skip re-populating collations and character "
-                      "sets tables in InnoDB read-only mode.");
+    LogErr(WARNING_LEVEL, ER_DD_NO_WRITES_NO_REPOPULATION, "InnoDB", " ");
     return false;
   }
 
@@ -946,8 +944,8 @@ bool initialize(THD *thd)
     return true;
 
   DBUG_ASSERT(d->get_target_dd_version() == d->get_actual_dd_version(thd));
-  sql_print_information("Installed data dictionary with version %d",
-                        d->get_target_dd_version());
+  LogErr(INFORMATION_LEVEL, ER_DD_VERSION_INSTALLED,
+         d->get_target_dd_version());
   return false;
 }
 
@@ -981,8 +979,8 @@ bool restart(THD *thd)
       verify_core_objects_present(thd))
     return true;
 
-  sql_print_information("Found data dictionary with version %d",
-                        d->get_actual_dd_version(thd));
+  LogErr(INFORMATION_LEVEL, ER_DD_VERSION_FOUND,
+         d->get_actual_dd_version(thd));
   return false;
 }
 

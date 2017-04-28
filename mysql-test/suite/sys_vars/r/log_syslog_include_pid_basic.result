@@ -1,33 +1,4 @@
-SET @start_value= @@global.log_syslog_include_pid;
-SET @@global.log_syslog_include_pid= DEFAULT;
-SELECT @@global.log_syslog_include_pid;
-@@global.log_syslog_include_pid
-1
-SET @@global.log_syslog_include_pid= 0;
-SELECT @@global.log_syslog_include_pid;
-@@global.log_syslog_include_pid
-0
-SET @@global.log_syslog_include_pid= 1;
-SELECT @@global.log_syslog_include_pid;
-@@global.log_syslog_include_pid
-1
-SET @@global.log_syslog_include_pid= ON;
-SELECT @@global.log_syslog_include_pid;
-@@global.log_syslog_include_pid
-1
-SET @@global.log_syslog_include_pid= OFF;
-SELECT @@global.log_syslog_include_pid;
-@@global.log_syslog_include_pid
-0
-SET @@global.log_syslog_include_pid= 9;
-ERROR 42000: Variable 'log_syslog_include_pid' can't be set to the value of '9'
-SELECT @@global.log_syslog_include_pid;
-@@global.log_syslog_include_pid
-0
-SET GLOBAL log_syslog_include_pid= 0.01;
-ERROR 42000: Incorrect argument type to variable 'log_syslog_include_pid'
-SET SESSION log_syslog_include_pid= 0;
-ERROR HY000: Variable 'log_syslog_include_pid' is a GLOBAL variable and should be set with SET GLOBAL
-SET LOCAL log_syslog_include_pid= 0;
-ERROR HY000: Variable 'log_syslog_include_pid' is a GLOBAL variable and should be set with SET GLOBAL
-SET @@global.log_syslog_include_pid= @start_value;
+# THIS NOW REQUIRES THE SYSLOG COMPONENT BEING LOADED.
+#
+# THE TESTS THAT USED TO LIVE HERE ARE NOW PART OF
+#   mysql-test\t\log_components_notwin.test

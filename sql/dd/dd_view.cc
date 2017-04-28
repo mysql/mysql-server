@@ -82,7 +82,7 @@ static ulonglong dd_get_old_view_check_type(dd::View::enum_check_option type)
   }
 
 /* purecov: begin deadcode */
-  sql_print_error("Error: Invalid view check option.");
+  LogErr(ERROR_LEVEL, ER_DD_FAILSAFE, "view check option.");
   DBUG_ASSERT(false);
 
   return VIEW_CHECK_NONE;
@@ -107,7 +107,7 @@ static dd::View::enum_check_option dd_get_new_view_check_type(ulonglong type)
   }
 
 /* purecov: begin deadcode */
-  sql_print_error("Error: Invalid view check option.");
+  LogErr(ERROR_LEVEL, ER_DD_FAILSAFE, "view check option.");
   DBUG_ASSERT(false);
 
   return dd::View::CO_NONE;
@@ -132,7 +132,7 @@ dd_get_old_view_algorithm_type(dd::View::enum_algorithm type)
   }
 
 /* purecov: begin deadcode */
-  sql_print_error("Error: Invalid view algorithm.");
+  LogErr(ERROR_LEVEL, ER_DD_FAILSAFE, "view algorithm.");
   DBUG_ASSERT(false);
 
   return VIEW_ALGORITHM_UNDEFINED;
@@ -157,7 +157,7 @@ dd_get_new_view_algorithm_type(enum enum_view_algorithm type)
   }
 
 /* purecov: begin deadcode */
-  sql_print_error("Error: Invalid view algorithm.");
+  LogErr(ERROR_LEVEL, ER_DD_FAILSAFE, "view algorithm.");
   DBUG_ASSERT(false);
 
   return dd::View::VA_UNDEFINED;
@@ -182,7 +182,7 @@ dd_get_old_view_security_type(dd::View::enum_security_type type)
   }
 
 /* purecov: begin deadcode */
-  sql_print_error("Error: Invalid view security type.");
+  LogErr(ERROR_LEVEL, ER_DD_FAILSAFE, "view security type.");
   DBUG_ASSERT(false);
 
   return VIEW_SUID_DEFAULT;
@@ -207,7 +207,7 @@ dd_get_new_view_security_type(ulonglong type)
   }
 
 /* purecov: begin deadcode */
-  sql_print_error("Error: Invalid view security type.");
+  LogErr(ERROR_LEVEL, ER_DD_FAILSAFE, "view security type.");
   DBUG_ASSERT(false);
 
   return dd::View::ST_DEFAULT;

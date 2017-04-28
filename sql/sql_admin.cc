@@ -944,16 +944,21 @@ send_result_message:
         DBUG_ASSERT(thd->is_error() || thd->killed);
         if (thd->is_error())
         {
-          const char *err_msg= thd->get_stmt_da()->message_text();
+          Diagnostics_area *da= thd->get_stmt_da();
           if (!thd->get_protocol()->connection_alive())
           {
-            sql_print_error("%s", err_msg);
+            LogEvent().type(LOG_TYPE_ERROR)
+                      .prio(ERROR_LEVEL)
+                      .source_file(MY_BASENAME)
+                      .errcode(da->mysql_errno())
+                      .sqlstate(da->returned_sqlstate())
+                      .verbatim(da->message_text());
           }
           else
           {
             /* Hijack the row already in-progress. */
             protocol->store(STRING_WITH_LEN("error"), system_charset_info);
-            protocol->store(err_msg, system_charset_info);
+            protocol->store(da->message_text(), system_charset_info);
             if (protocol->end_row())
               goto err;
             /* Start off another row for HA_ADMIN_FAILED */

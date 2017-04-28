@@ -186,7 +186,7 @@ SET PERSIST log_bin_trust_function_creators=1;
 # String type variables.
 SET PERSIST block_encryption_mode= 'aes-128-ecb';
 SET PERSIST ft_boolean_syntax= '+ -><()~*:""&|',
-    PERSIST log_syslog_tag=DEFAULT;
+    PERSIST log_error_services=DEFAULT;
 # Numeric type variables.
 SET PERSIST innodb_max_dirty_pages_pct=80.99;
 
@@ -214,13 +214,13 @@ SET PERSIST slow_query_log=DEFAULT;
 # String type variables.
 SELECT @@global.block_encryption_mode;
 SELECT @@global.ft_boolean_syntax;
-SELECT @@global.log_syslog_tag;
+SELECT @@global.log_error_services;
 #Numeric type varaibles.
 SELECT @@global.innodb_max_dirty_pages_pct;
 SELECT VARIABLE_NAME, VARIABLE_SOURCE, MIN_VALUE, MAX_VALUE
   FROM performance_schema.variables_info
   WHERE VARIABLE_NAME IN ('block_encryption_mode',
-  'ft_boolean_syntax','log_syslog_tag','innodb_max_dirty_pages_pct')
+  'ft_boolean_syntax','log_error_services','innodb_max_dirty_pages_pct')
   ORDER BY VARIABLE_NAME;
 
 SELECT @@global.innodb_fast_shutdown;
@@ -303,7 +303,8 @@ SET GLOBAL log_output=        @old_log_output;
 
 # UNSET PERSIST variables by setting variables values to DEFAULT.
 SET PERSIST block_encryption_mode=DEFAULT, PERSIST ft_boolean_syntax=DEFAULT,
-    PERSIST innodb_checksum_algorithm=DEFAULT, PERSIST log_syslog_tag=DEFAULT,
+    PERSIST innodb_checksum_algorithm=DEFAULT,
+    PERSIST log_error_services=DEFAULT,
     PERSIST innodb_max_dirty_pages_pct=DEFAULT;
 
 SET PERSIST innodb_fast_shutdown=DEFAULT,PERSIST innodb_default_row_format=DEFAULT,

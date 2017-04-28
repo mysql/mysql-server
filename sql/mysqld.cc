@@ -360,6 +360,8 @@
   - @ref AGGREGATE_CHECKS
 */
 
+#define LOG_SYSTEM_TAG "mysqld"
+
 #include "sql/mysqld.h"
 
 #include "my_config.h"
@@ -412,6 +414,7 @@
 #include "my_time.h"
 #include "my_timer.h"                   // my_timer_initialize
 #include "myisam.h"
+#include "mysql/components/services/log_shared.h"
 #include "mysql/plugin_audit.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_socket.h"
@@ -563,6 +566,7 @@
 #include <vector>
 
 #include "../components/mysql_server/server_component.h"
+#include "../components/mysql_server/log_builtins_filter_imp.h"
 #include <mysql/components/my_service.h>
 #include "dd/dd.h"                      // dd::shutdown
 #include "dd/dd_kill_immunizer.h"       // dd::DD_kill_immunizer
@@ -776,6 +780,8 @@ ulong opt_tc_log_size;
 int32 volatile connection_events_loop_aborted_flag;
 static enum_server_operational_state server_operational_state= SERVER_BOOTING;
 ulong log_warnings;
+char *opt_log_error_filter_rules;
+char *opt_log_error_services;
 bool  opt_log_syslog_enable;
 char *opt_log_syslog_tag= NULL;
 #ifndef _WIN32
@@ -1212,7 +1218,7 @@ static void option_error_reporter(enum loglevel level, const char *format, ...)
   if (level == ERROR_LEVEL || !opt_initialize ||
       (log_error_verbosity > 1))
   {
-    error_log_print(level, format, args);
+    error_log_printf(level, format, args);
   }
   va_end(args);
 }
@@ -1236,7 +1242,7 @@ static void charset_error_reporter(enum loglevel level,
 {
   va_list args;
   va_start(args, format);
-  error_log_print(level, format, args);
+  error_log_printf(level, format, args);
   va_end(args);
 }
 C_MODE_END
@@ -1908,6 +1914,7 @@ static void clean_up(bool print_message)
     dependencies are discovered, possibly being divided into separate points
     where all dependencies are still ok.
   */
+  log_builtins_error_stack("log_filter_internal; log_sink_internal", false);
   component_infrastructure_deinit();
 
   if (have_statement_timeout == SHOW_OPTION_YES)
@@ -1915,8 +1922,6 @@ static void clean_up(bool print_message)
 
   have_statement_timeout= SHOW_OPTION_DISABLED;
   shutdown_acl_cache();
-
-  log_syslog_exit();
 
   persisted_variables_cache.cleanup();
 
@@ -2763,7 +2768,11 @@ void my_message_sql(uint error, const char *str, myf MyFlags)
   DBUG_EXECUTE_IF("simulate_out_of_memory", DBUG_VOID_RETURN;);
 
   if (!thd || MyFlags & ME_ERRORLOG)
-    sql_print_error("%s: %s",my_progname,str); /* purecov: inspected */
+    LogEvent().type(LOG_TYPE_ERROR)
+              .prio(ERROR_LEVEL)
+              .errcode(error)
+              .message("%s: %s", my_progname, str);
+
   DBUG_VOID_RETURN;
 }
 
@@ -3296,9 +3305,6 @@ int init_common_variables()
     return 1;
 
   update_parser_max_mem_size();
-
-  if (log_syslog_init())
-    opt_log_syslog_enable= 0;
 
   if (set_default_auth_plugin(default_auth_plugin, strlen(default_auth_plugin)))
   {
@@ -4976,7 +4982,7 @@ int mysqld_main(int argc, char **argv)
   system_charset_info= &my_charset_utf8_general_ci;
 
   /* Write mysys error messages to the error log. */
-  local_message_hook= error_log_print;
+  local_message_hook= error_log_printf;
 
   int ho_error;
 
@@ -5026,6 +5032,7 @@ int mysqld_main(int argc, char **argv)
   init_sql_statement_names();
   sys_var_init();
   ulong requested_open_files;
+  init_error_log();
   adjust_related_options(&requested_open_files);
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
@@ -5250,8 +5257,6 @@ int mysqld_main(int argc, char **argv)
   */
   my_thread_global_reinit();
 #endif /* HAVE_PSI_INTERFACE */
-
-  init_error_log();
 
   /*
     Initialize Components core subsystem early on, once we have PSI, which it
@@ -5641,6 +5646,28 @@ int mysqld_main(int argc, char **argv)
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
 
+  /*
+    activate loadable error logging components, if any
+  */
+  if (log_builtins_error_stack(opt_log_error_services, true) >= 0)
+    log_builtins_error_stack(opt_log_error_services, false);
+  else
+  {
+    sql_print_information("Cannot set services \"%s\" requested in "
+                          "--log-error-services, using defaults",
+                          opt_log_error_services);
+    /*
+      We were given an illegal value at start-up, so the default was
+      used instead. We have reported the problem (and the dodgy value);
+      let's now point our variable back at the default (i.e. the value
+      actually used) so SELECT @@GLOBAL.log_error_services will render
+      correct results.
+    */
+    sys_var *var= intern_find_sys_var(STRING_WITH_LEN("log_error_services"));
+    if (var != nullptr)
+      opt_log_error_services= (char *) var->get_default();
+  }
+
   if (!opt_initialize)
     servers_init(0);
 
@@ -5747,16 +5774,18 @@ int mysqld_main(int argc, char **argv)
 
   create_compress_gtid_table_thread();
 
-  sql_print_information(ER_DEFAULT(ER_STARTUP),
-                        my_progname,
-                        server_version,
-#ifdef HAVE_SYS_UN_H
-                        (opt_initialize ? (char*) "" : mysqld_unix_port),
-#else
-                        (char*) "",
-#endif
-                         mysqld_port,
-                         MYSQL_COMPILATION_COMMENT);
+  LogEvent().type(LOG_TYPE_ERROR)
+            .prio(INFORMATION_LEVEL)
+            .lookup(ER_STARTUP,
+                    my_progname,
+                    server_version,
+#  ifdef HAVE_SYS_UN_H
+                    (opt_initialize ? (char*) "" : mysqld_unix_port),
+#  else
+                    (char*) "",
+#  endif
+                    mysqld_port, MYSQL_COMPILATION_COMMENT);
+
 #if defined(_WIN32)
   Service.SetRunning();
 #endif
@@ -8533,6 +8562,9 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
   if ((ho_error= handle_options(argc_ptr, argv_ptr, &all_options[0],
                                 mysqld_get_one_option)))
     return ho_error;
+
+  // update verbosity in filter engine, if needed
+  log_builtins_filter_update_verbosity(log_error_verbosity);
 
   if (!opt_help)
     vector<my_option>().swap(all_options);  // Deletes the vector contents.

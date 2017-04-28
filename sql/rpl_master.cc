@@ -30,7 +30,7 @@
 #include "hash.h"                               // HASH
 #include "item.h"
 #include "item_func.h"                          // user_var_entry
-#include "log.h"                                // sql_print_information
+#include "log.h"                                // log_*()
 #include "m_ctype.h"
 #include "m_string.h"                           // strmake
 #include "my_byteorder.h"
@@ -563,19 +563,15 @@ void kill_zombie_dump_threads(THD *thd)
     {
       if (slave_uuid.length())
       {
-        sql_print_information("While initializing dump thread for slave with "
-                              "UUID <%s>, found a zombie dump thread with the "
-                              "same UUID. Master is killing the zombie dump "
-                              "thread(%u).", slave_uuid.c_ptr(),
-                              tmp->thread_id());
+        LogErr(INFORMATION_LEVEL, ER_RPL_ZOMBIE_ENCOUNTERED,
+               "UUID", slave_uuid.c_ptr(), "UUID", tmp->thread_id());
       }
       else
       {
-        sql_print_information("While initializing dump thread for slave with "
-                              "server_id <%u>, found a zombie dump thread with the "
-                              "same server_id. Master is killing the zombie dump "
-                              "thread(%u).", thd->server_id,
-                              tmp->thread_id());
+        char numbuf[32];
+        my_snprintf(numbuf, sizeof(numbuf), "%u", thd->server_id);
+        LogErr(INFORMATION_LEVEL, ER_RPL_ZOMBIE_ENCOUNTERED,
+               "server_id", numbuf, "server_id", tmp->thread_id());
       }
     }
     tmp->duplicate_slave_id= true;

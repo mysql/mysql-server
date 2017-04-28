@@ -412,6 +412,11 @@ The following options may be given as the first argument:
  user statements in replication binlogs, general query
  logs and audit logs.
  --log-error[=name]  Error log file
+ --log-error-filter-rules[=name] 
+ Error log filter rules
+ --log-error-services=name 
+ Services that should be called when an error event is
+ received
  --log-error-verbosity=# 
  How detailed the error log should be. 1, log errors only.
  2, log errors and warnings. 3, log errors, warnings, and
@@ -1365,6 +1370,8 @@ log-bin-trust-function-creators FALSE
 log-bin-use-v1-row-events FALSE
 log-builtin-as-identified-by-password FALSE
 log-error stderr
+log-error-filter-rules prio>=3? gag. err_code==1408? set_priority 0. err_code==1408? add_field log_label:="HELO". +source_line? delete_field. +err_code? delete_field.
+log-error-services log_filter_internal; log_sink_internal
 log-error-verbosity 2
 log-isam myisam.log
 log-output FILE
@@ -1465,7 +1472,7 @@ performance-schema-consumer-global-instrumentation TRUE
 performance-schema-consumer-statements-digest TRUE
 performance-schema-consumer-thread-instrumentation TRUE
 performance-schema-digests-size -1
-performance-schema-error-size 1087
+performance-schema-error-size 1107
 performance-schema-events-stages-history-long-size -1
 performance-schema-events-stages-history-size -1
 performance-schema-events-statements-history-long-size -1

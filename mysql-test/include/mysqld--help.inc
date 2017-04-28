@@ -59,6 +59,8 @@ perl;
     s/\b196608\b/262144/;
     s/\b524288\b/262144/;
     s/\b393216\b/262144/;
+    s/\b573440\b/262144/;
+    s/\b286720\b/262144/;
     # Replacing port number with string
     s/^port \d+/port ####/;
     # log-tc-size varies by platform

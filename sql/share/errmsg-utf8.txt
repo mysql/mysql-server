@@ -5476,8 +5476,8 @@ ER_SP_BAD_SQLSTATE 42000
         eng "Bad SQLSTATE: '%s'"
         ger "Ungültiger SQLSTATE: '%s'"
 ER_STARTUP
-        eng "%s: ready for connections.\nVersion: '%s'  socket: '%s'  port: %d  %s"
-        ger "%s: bereit für Verbindungen.\nVersion: '%s'  Socket: '%s'  Port: %d  %s"
+        eng "%s: ready for connections. Version: '%s'  socket: '%s'  port: %d  %s"
+        ger "%s: bereit für Verbindungen. Version: '%s'  Socket: '%s'  Port: %d  %s"
 ER_LOAD_FROM_FIXED_SIZE_ROWS_TO_VAR
         eng "Can't load value from file with fixed size rows to variable"
         ger "Kann Wert aus Datei mit Zeilen fester Größe nicht in Variable laden"
@@ -7992,6 +7992,67 @@ ER_ILLEGAL_PRIVILEGE_LEVEL
 
 ER_NO_SYSTEM_VIEW_ACCESS
   eng "Access to system view INFORMATION_SCHEMA.'%.64s' is rejected."
+
+ER_PARSER_TRACE XX999
+  eng "Parser saw: %s"
+
+ER_BOOTSTRAP_CANT_THREAD
+  eng "Can't create thread to handle bootstrap (errno: %d)"
+
+ER_COMPONENT_FILTER_FLABBERGASTED
+  eng "The log-filter component \"%s\" got confused at \"%s\" ..."
+  ger "Der Logfilter \"%s\" wunderte sich ueber \"%s\" ..."
+
+ER_TRX_NO_GTID
+  eng "Failed to collect GTID to send in the response packet!"
+
+ER_TRIGGER_INVALID_VALUE
+  eng "Trigger for table '%s'.'%s': invalid %s value (%s)."
+
+ER_OPT_WRONG_TREE
+  eng "Wrong tree: %s"
+
+ER_DD_FAILSAFE
+  eng "Error: Invalid %s"
+
+ER_DD_NO_WRITES_NO_REPOPULATION
+  eng "Skip re-populating collations and character sets tables in %s%sread-only mode."
+
+ER_DD_VERSION_FOUND
+  eng "Found data dictionary with version %d"
+
+ER_DD_VERSION_INSTALLED
+  eng "Installed data dictionary with version %d"
+
+ER_DD_VERSION_UNSUPPORTED
+  eng "Data Dictionary version %d not supported"
+
+ER_LOG_SYSLOG_FACILITY_FAIL
+  eng "Failed to set syslog facility to \"%s\", setting to \"%s\" (%d) instead."
+
+ER_LOG_SYSLOG_CANNOT_OPEN
+  eng "Cannot open %s; check privileges, or start server with --log_syslog=0"
+
+ER_LOG_FILE_CANNOT_OPEN
+  eng "Could not use %s for logging (error %d - %s). Turning logging off for the server process. To turn it on again: fix the cause, then%s restart the MySQL server."
+
+ER_LOG_SLOW_CANNOT_OPEN
+  eng " either restart the query logging by using \"SET GLOBAL SLOW_QUERY_LOG=ON\" or"
+
+ER_LOG_GENERAL_CANNOT_OPEN
+  eng " either restart the query logging by using \"SET GLOBAL GENERAL_LOG=ON\" or"
+
+ER_LOG_CANNOT_WRITE
+  eng "Failed to write to %s: %s"
+
+ER_RPL_ZOMBIE_ENCOUNTERED
+  eng "While initializing dump thread for slave with %s <%s>, found a zombie dump thread with the same %s. Master is killing the zombie dump thread(%u)."
+
+ER_RPL_GTID_TABLE_CANNOT_OPEN
+  eng "Gtid table is not ready to be used. Table '%s.%s' cannot be opened."
+
+ER_SYSTEM_SCHEMA_NOT_FOUND
+  eng "System schema directory does not exist."
 
 #
 #  End of 8.0 error messages.

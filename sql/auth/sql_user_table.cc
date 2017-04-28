@@ -38,7 +38,7 @@
 #include "key.h"                        /* key_copy, key_cmp_if_same */
 #include "lex_string.h"
                                         /* key_restore */
-#include "log.h"                        /* sql_print_warning */
+#include "log.h"                        /* log_*() */
 #include "m_ctype.h"
 #include "m_string.h"                   /* C_STRING_WITH_LEN */
 #include "mdl.h"
@@ -3037,8 +3037,11 @@ bool check_acl_tables(TABLE_LIST *tables, bool report_error)
         break;
       }
       else
-        sql_print_warning("ACL table mysql.'%s' must use "
-                          "supported storage engine", t->table_name);
+      {
+        LogErr(WARNING_LEVEL, ER_UNSUPPORTED_ENGINE,
+               ha_resolve_storage_engine_name(t->table->file->ht),
+               t->db, t->table_name);
+      }
      }
   }
 

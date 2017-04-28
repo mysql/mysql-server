@@ -48,7 +48,7 @@
 #include "item_func.h"                  // mqh_used
 #include "key.h"
 #include "lex_string.h"
-#include "log.h"                        // sql_print_information
+#include "log.h"
 #include "m_ctype.h"
 #include "m_string.h"                   // my_stpcpy
 #include "my_command.h"
@@ -831,16 +831,30 @@ static void prepare_new_connection_state(THD* thd)
     execute_init_command(thd, &opt_init_connect, &LOCK_sys_init_connect);
     if (thd->is_error())
     {
-      Host_errors errors;
-      ulong packet_length;
-      LEX_CSTRING sctx_user= sctx->user();
+      Host_errors       errors;
+      ulong             packet_length;
+      LEX_CSTRING       sctx_user=     sctx->user();
+      Diagnostics_area *da=            thd->get_stmt_da();
+      const char       *user=          sctx_user.str
+                                       ? sctx_user.str
+                                       : "unauthenticated";
+      const char        *what=         "init_connect command failed";
 
-      sql_print_warning(ER_DEFAULT(ER_NEW_ABORTING_CONNECTION),
+      LogEvent().prio(WARNING_LEVEL)
+                .thread_id(thd->thread_id())
+                .user(sctx_user)
+                .host(sctx->host_or_ip())
+                .source_file(MY_BASENAME)
+                .errcode(da->mysql_errno())
+                .sqlstate(da->returned_sqlstate())
+                .string_value(LOG_TAG_DIAG, da->message_text())
+                .string_value(LOG_TAG_AUX,  what)
+                .lookup(ER_NEW_ABORTING_CONNECTION,
                         thd->thread_id(),
                         thd->db().str ? thd->db().str : "unconnected",
-                        sctx_user.str ? sctx_user.str : "unauthenticated",
-                        sctx->host_or_ip().str, "init_connect command failed");
-      sql_print_warning("%s", thd->get_stmt_da()->message_text());
+                        user,
+                        sctx->host_or_ip().str,
+                        what);
 
       thd->lex->set_current_select(0);
       my_net_set_read_timeout(net, thd->variables.net_wait_timeout);

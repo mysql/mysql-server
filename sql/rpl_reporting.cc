@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -127,7 +127,6 @@ Slave_reporting_capability::va_report(loglevel level, int err_code,
                                       const char *msg, va_list args) const
 {
   THD *thd= current_thd;
-  void (*report_function)(const char *, ...);
   char buff[MAX_SLAVE_ERRMSG];
   char *pbuff= buff;
   char *curr_buff;
@@ -150,13 +149,9 @@ Slave_reporting_capability::va_report(loglevel level, int err_code,
     pbuffsize= sizeof(m_last_error.message);
     m_last_error.number = err_code;
     m_last_error.update_timestamp();
-    report_function= sql_print_error;
     break;
   case WARNING_LEVEL:
-    report_function= sql_print_warning;
-    break;
   case INFORMATION_LEVEL:
-    report_function= sql_print_information;
     break;
   default:
     DBUG_ASSERT(0);                            // should not come here
@@ -170,10 +165,14 @@ Slave_reporting_capability::va_report(loglevel level, int err_code,
   mysql_mutex_unlock(&err_lock);
 
   /* If the msg string ends with '.', do not add a ',' it would be ugly */
-  report_function("Slave %s%s: %s%s Error_code: %d",
-                  m_thread_name, get_for_channel_str(false), pbuff,
-                  (curr_buff[0] && *(strend(curr_buff)-1) == '.') ? "" : ",",
-                  err_code);
+  LogEvent().type(LOG_TYPE_ERROR)
+            .prio(level)
+            .errcode(err_code)
+            .subsys("replication")
+            .message("Slave %s%s: %s%s Error_code: %d",
+                     m_thread_name, get_for_channel_str(false), pbuff,
+                     (curr_buff[0] && *(strend(curr_buff)-1) == '.') ? "" : ",",
+                     err_code);
 }
 
 Slave_reporting_capability::~Slave_reporting_capability()

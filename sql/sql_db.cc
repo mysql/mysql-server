@@ -50,7 +50,7 @@
 #include "handler.h"
 #include "lex_string.h"
 #include "lock.h"            // lock_schema_name
-#include "log.h"             // sql_print_error
+#include "log.h"             // log_*()
 #include "log_event.h"       // Query_log_event
 #include "m_ctype.h"
 #include "m_string.h"
