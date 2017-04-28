@@ -2619,7 +2619,7 @@ v1_9_check	CASCADED	YES	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` fro
 v1_all	NONE	YES	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1`
 SHOW CREATE VIEW v1_all;
 View	Create View	character_set_client	collation_connection
-v1_all	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1_all` AS select `t1`.`a` AS `a`,`t1`.`b` AS `b` from `t1`	latin1	latin1_swedish_ci
+v1_all	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1_all` AS select `t1`.`a` AS `a`,`t1`.`b` AS `b` from `t1`	utf8mb4	utf8mb4_0900_ai_ci
 FLUSH STATUS;
 INSERT INTO v1_all VALUES (23, "Insert in v1_all");
 VARIABLE_NAME	VARIABLE_VALUE
@@ -2628,7 +2628,7 @@ Handler_external_lock	2
 Handler_write	1
 SHOW CREATE VIEW v1_25;
 View	Create View	character_set_client	collation_connection
-v1_25	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1_25` AS select `t1`.`a` AS `a`,`t1`.`b` AS `b` from `t1` PARTITION (`p2`,`p5`)	latin1	latin1_swedish_ci
+v1_25	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1_25` AS select `t1`.`a` AS `a`,`t1`.`b` AS `b` from `t1` PARTITION (`p2`,`p5`)	utf8mb4	utf8mb4_0900_ai_ci
 FLUSH STATUS;
 INSERT INTO v1_25 VALUES (18, "Insert in v1_25");
 VARIABLE_NAME	VARIABLE_VALUE
@@ -2648,7 +2648,7 @@ VARIABLE_NAME	VARIABLE_VALUE
 Handler_external_lock	2
 SHOW CREATE VIEW v1_25;
 View	Create View	character_set_client	collation_connection
-v1_25	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1_25` AS select `t1`.`a` AS `a`,`t1`.`b` AS `b` from `t1` PARTITION (`p2`,`p5`)	latin1	latin1_swedish_ci
+v1_25	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1_25` AS select `t1`.`a` AS `a`,`t1`.`b` AS `b` from `t1` PARTITION (`p2`,`p5`)	utf8mb4	utf8mb4_0900_ai_ci
 FLUSH STATUS;
 INSERT INTO v1_25_check VALUES (31, "Insert in v1_25_check");
 VARIABLE_NAME	VARIABLE_VALUE
@@ -2668,7 +2668,7 @@ VARIABLE_NAME	VARIABLE_VALUE
 Handler_external_lock	2
 SHOW CREATE VIEW v1_9;
 View	Create View	character_set_client	collation_connection
-v1_9	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1_9` AS select `t1`.`a` AS `a`,`t1`.`b` AS `b` from `t1` where (`t1`.`a` = 9)	latin1	latin1_swedish_ci
+v1_9	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1_9` AS select `t1`.`a` AS `a`,`t1`.`b` AS `b` from `t1` where (`t1`.`a` = 9)	utf8mb4	utf8mb4_0900_ai_ci
 FLUSH STATUS;
 INSERT INTO v1_9 VALUES (9, "Insert in v1_9");
 VARIABLE_NAME	VARIABLE_VALUE
@@ -2687,7 +2687,7 @@ a	b
 # DELETE will not find row not in view
 SHOW CREATE VIEW v1_9_check;
 View	Create View	character_set_client	collation_connection
-v1_9_check	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1_9_check` AS select `t1`.`a` AS `a`,`t1`.`b` AS `b` from `t1` where (`t1`.`a` = 9) WITH CASCADED CHECK OPTION	latin1	latin1_swedish_ci
+v1_9_check	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1_9_check` AS select `t1`.`a` AS `a`,`t1`.`b` AS `b` from `t1` where (`t1`.`a` = 9) WITH CASCADED CHECK OPTION	utf8mb4	utf8mb4_0900_ai_ci
 FLUSH STATUS;
 DELETE FROM v1_9_check WHERE a = 8;
 VARIABLE_NAME	VARIABLE_VALUE

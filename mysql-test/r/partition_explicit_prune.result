@@ -12,7 +12,7 @@ INSERT INTO t1 VALUES (0), (1), (2), (3);
 CREATE VIEW v1 AS SELECT a FROM t1 PARTITION (p0);
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a` from `t1` PARTITION (`p0`)	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a` from `t1` PARTITION (`p0`)	utf8mb4	utf8mb4_0900_ai_ci
 FLUSH STATUS;
 SELECT * FROM v1;
 a
@@ -81,7 +81,7 @@ DROP VIEW v1;
 CREATE VIEW v1 AS SELECT a FROM t1 PARTITION (p0) WITH CHECK OPTION;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a` from `t1` PARTITION (`p0`) WITH CASCADED CHECK OPTION	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a` from `t1` PARTITION (`p0`) WITH CASCADED CHECK OPTION	utf8mb4	utf8mb4_0900_ai_ci
 FLUSH STATUS;
 INSERT INTO v1 VALUES (20);
 VARIABLE_NAME	VARIABLE_VALUE
@@ -112,7 +112,7 @@ CREATE VIEW v1 AS
 SELECT a FROM t1 PARTITION (p0) WHERE a = 30 WITH CHECK OPTION;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a` from `t1` PARTITION (`p0`) where (`t1`.`a` = 30) WITH CASCADED CHECK OPTION	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a` from `t1` PARTITION (`p0`) where (`t1`.`a` = 30) WITH CASCADED CHECK OPTION	utf8mb4	utf8mb4_0900_ai_ci
 FLUSH STATUS;
 INSERT INTO v1 VALUES (30);
 VARIABLE_NAME	VARIABLE_VALUE

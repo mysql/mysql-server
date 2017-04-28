@@ -161,28 +161,28 @@ TESTF_bug11763507()
 0
 SHOW FUNCTION STATUS LIKE  'testf_bug11763507';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-test	testf_bug11763507	FUNCTION	root@localhost	#	#	DEFINER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+test	testf_bug11763507	FUNCTION	root@localhost	#	#	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS WHERE NAME='testf_bug11763507';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-test	testf_bug11763507	FUNCTION	root@localhost	#	#	DEFINER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+test	testf_bug11763507	FUNCTION	root@localhost	#	#	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS LIKE  'TESTF_bug11763507';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-test	testf_bug11763507	FUNCTION	root@localhost	#	#	DEFINER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+test	testf_bug11763507	FUNCTION	root@localhost	#	#	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS WHERE NAME='TESTF_bug11763507';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-test	testf_bug11763507	FUNCTION	root@localhost	#	#	DEFINER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+test	testf_bug11763507	FUNCTION	root@localhost	#	#	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW CREATE FUNCTION testf_bug11763507;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 testf_bug11763507		CREATE DEFINER=`root`@`localhost` FUNCTION `testf_bug11763507`() RETURNS int(11)
 BEGIN
 RETURN 0;
-END	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW CREATE FUNCTION TESTF_bug11763507;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 testf_bug11763507		CREATE DEFINER=`root`@`localhost` FUNCTION `testf_bug11763507`() RETURNS int(11)
 BEGIN
 RETURN 0;
-END	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 CALL testp_bug11763507();
 PROCEDURE testp_bug11763507
 PROCEDURE testp_bug11763507
@@ -191,28 +191,28 @@ PROCEDURE testp_bug11763507
 PROCEDURE testp_bug11763507
 SHOW PROCEDURE STATUS LIKE  'testp_bug11763507';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-test	testp_bug11763507	PROCEDURE	root@localhost	#	#	DEFINER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+test	testp_bug11763507	PROCEDURE	root@localhost	#	#	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS WHERE NAME='testp_bug11763507';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-test	testp_bug11763507	PROCEDURE	root@localhost	#	#	DEFINER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+test	testp_bug11763507	PROCEDURE	root@localhost	#	#	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS LIKE  'TESTP_bug11763507';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-test	testp_bug11763507	PROCEDURE	root@localhost	#	#	DEFINER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+test	testp_bug11763507	PROCEDURE	root@localhost	#	#	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS WHERE NAME='TESTP_bug11763507';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-test	testp_bug11763507	PROCEDURE	root@localhost	#	#	DEFINER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+test	testp_bug11763507	PROCEDURE	root@localhost	#	#	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW CREATE PROCEDURE testp_bug11763507;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 testp_bug11763507		CREATE DEFINER=`root`@`localhost` PROCEDURE `testp_bug11763507`()
 BEGIN
 SELECT "PROCEDURE testp_bug11763507";
-END	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW CREATE PROCEDURE TESTP_bug11763507;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 testp_bug11763507		CREATE DEFINER=`root`@`localhost` PROCEDURE `testp_bug11763507`()
 BEGIN
 SELECT "PROCEDURE testp_bug11763507";
-END	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT specific_name FROM INFORMATION_SCHEMA.ROUTINES WHERE specific_name LIKE 'testf_bug11763507';
 SPECIFIC_NAME
 testf_bug11763507

@@ -150,7 +150,7 @@ ix+0
 0
 20030101000000
 drop table t1;
-create table t1 (t1 timestamp not null default '2003-01-01 00:00:00', t2 datetime, t3 timestamp NOT NULL DEFAULT '0000-00-00 00:00:00') charset utf8mb4;
+create table t1 (t1 timestamp not null default '2003-01-01 00:00:00', t2 datetime, t3 timestamp NOT NULL DEFAULT '0000-00-00 00:00:00');
 SET TIMESTAMP=1000000000;
 insert into t1 values ();
 SET TIMESTAMP=1000000001;
@@ -174,7 +174,7 @@ t1	timestamp	NO		2003-01-01 00:00:00
 t2	datetime	YES		NULL	
 t3	timestamp	NO		0000-00-00 00:00:00	
 drop table t1;
-create table t1 (t1 timestamp not null default now(), t2 datetime, t3 timestamp NOT NULL DEFAULT '0000-00-00 00:00:00') charset utf8mb4;
+create table t1 (t1 timestamp not null default now(), t2 datetime, t3 timestamp NOT NULL DEFAULT '0000-00-00 00:00:00');
 SET TIMESTAMP=1000000002;
 insert into t1 values ();
 SET TIMESTAMP=1000000003;
@@ -198,7 +198,7 @@ t1	timestamp	NO		CURRENT_TIMESTAMP
 t2	datetime	YES		NULL	
 t3	timestamp	NO		0000-00-00 00:00:00	
 drop table t1;
-create table t1 (t1 timestamp not null default '2003-01-01 00:00:00' on update now(), t2 datetime) charset utf8mb4;
+create table t1 (t1 timestamp not null default '2003-01-01 00:00:00' on update now(), t2 datetime);
 SET TIMESTAMP=1000000004;
 insert into t1 values ();
 select * from t1;
@@ -223,7 +223,7 @@ Field	Type	Null	Key	Default	Extra
 t1	timestamp	NO		2003-01-01 00:00:00	on update CURRENT_TIMESTAMP
 t2	datetime	YES		NULL	
 drop table t1;
-create table t1 (t1 timestamp not null default now() on update now(), t2 datetime) charset utf8mb4;
+create table t1 (t1 timestamp not null default now() on update now(), t2 datetime);
 SET TIMESTAMP=1000000006;
 insert into t1 values ();
 select * from t1;
@@ -248,7 +248,7 @@ Field	Type	Null	Key	Default	Extra
 t1	timestamp	NO		CURRENT_TIMESTAMP	on update CURRENT_TIMESTAMP
 t2	datetime	YES		NULL	
 drop table t1;
-create table t1 (t1 timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, t2 datetime, t3 timestamp NOT NULL DEFAULT '0000-00-00 00:00:00') charset utf8mb4;
+create table t1 (t1 timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, t2 datetime, t3 timestamp NOT NULL DEFAULT '0000-00-00 00:00:00');
 SET TIMESTAMP=1000000007;
 insert into t1 values ();
 select * from t1;
@@ -275,7 +275,7 @@ t1	timestamp	NO		CURRENT_TIMESTAMP	on update CURRENT_TIMESTAMP
 t2	datetime	YES		NULL	
 t3	timestamp	NO		0000-00-00 00:00:00	
 drop table t1;
-create table t1 (t1 timestamp not null default current_timestamp on update current_timestamp, t2 datetime) charset utf8mb4;
+create table t1 (t1 timestamp not null default current_timestamp on update current_timestamp, t2 datetime);
 SET TIMESTAMP=1000000009;
 insert into t1 values ();
 select * from t1;
@@ -343,7 +343,7 @@ select * from t1;
 t1	i
 2004-04-01 00:00:00	10
 drop table t1;
-create table t1 (a timestamp null, b timestamp null) charset utf8mb4;
+create table t1 (a timestamp null, b timestamp null);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -358,7 +358,7 @@ a	b
 NULL	NULL
 NULL	NULL
 drop table t1;
-create table t1 (a timestamp null default current_timestamp on update current_timestamp, b timestamp null) charset utf8mb4;
+create table t1 (a timestamp null default current_timestamp on update current_timestamp, b timestamp null);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -373,7 +373,7 @@ a	b
 NULL	NULL
 2001-09-09 04:46:58	NULL
 drop table t1;
-create table t1 (a timestamp null default null, b timestamp null default '2003-01-01 00:00:00') charset utf8mb4;
+create table t1 (a timestamp null default null, b timestamp null default '2003-01-01 00:00:00');
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -407,7 +407,7 @@ drop table t1;
 set sql_mode='maxdb';
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-create table t1 (a timestamp, b timestamp) charset utf8mb4;
+create table t1 (a timestamp, b timestamp);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE "t1" (

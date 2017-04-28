@@ -795,7 +795,7 @@ Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Da
 chistics	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `chistics`()
     MODIFIES SQL DATA
     COMMENT 'Characteristics procedure test'
-insert into t1 values ("chistics", 1)	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+insert into t1 values ("chistics", 1)	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 call chistics()|
 select * from t1|
 id	data
@@ -808,7 +808,7 @@ chistics	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERR
     MODIFIES SQL DATA
     SQL SECURITY INVOKER
     COMMENT 'Characteristics procedure test'
-insert into t1 values ("chistics", 1)	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+insert into t1 values ("chistics", 1)	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 drop procedure chistics|
 drop function if exists chistics|
 create function chistics() returns int
@@ -823,7 +823,7 @@ chistics	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERR
     DETERMINISTIC
     SQL SECURITY INVOKER
     COMMENT 'Characteristics procedure test'
-return 42	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+return 42	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 select chistics()|
 chistics()
 42
@@ -837,7 +837,7 @@ chistics	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERR
     DETERMINISTIC
     SQL SECURITY INVOKER
     COMMENT 'Characteristics function test'
-return 42	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+return 42	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 drop function chistics|
 insert into t1 values ("foo", 1), ("bar", 2), ("zip", 3)|
 set @@sql_mode = 'ANSI'|
@@ -1212,7 +1212,7 @@ n	f
 drop table t3|
 show function status like '%fac'|
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-test	fac	FUNCTION	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+test	fac	FUNCTION	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 drop procedure ifac|
 drop function fac|
 show function status like '%fac'|
@@ -1304,11 +1304,11 @@ set s = s+1;
 end;
 end if;
 end loop;
-end	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+end	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 show procedure status where name like '%p%' and db='test'|
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-test	ip	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
-test	opp	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+test	ip	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+test	opp	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 call ip(200)|
 select * from t3 where i=45 or i=100 or i=199|
 i	p
@@ -1326,7 +1326,7 @@ comment "111111111111" sql security invoker
 insert into test.t1 values (x, y)|
 show procedure status like 'bar'|
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-test	bar	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	INVOKER	111111111111	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+test	bar	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	INVOKER	111111111111	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 alter procedure bar comment "2222222222" sql security definer|
 alter procedure bar comment "3333333333"|
 alter procedure bar|
@@ -1334,10 +1334,10 @@ show create procedure bar|
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bar		CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(x char(16), y int)
     COMMENT '3333333333'
-insert into test.t1 values (x, y)	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+insert into test.t1 values (x, y)	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 show procedure status like 'bar'|
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-test	bar	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	3333333333	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+test	bar	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	3333333333	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 drop procedure bar|
 drop procedure if exists p1|
 create procedure p1 ()
@@ -1903,23 +1903,23 @@ end|
 create function bug2267_4() returns int return 100|
 call bug2267_1()|
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-test	bug2267_1	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
-test	bug2267_2	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
-test	bug2267_3	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
-test	bug2267_4	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+test	bug2267_1	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+test	bug2267_2	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+test	bug2267_3	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+test	bug2267_4	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 call bug2267_2()|
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-test	bug2267_4	FUNCTION	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+test	bug2267_4	FUNCTION	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 call bug2267_3()|
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bug2267_1		CREATE DEFINER=`root`@`localhost` PROCEDURE `bug2267_1`()
 begin
 show procedure status where db='test';
-end	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+end	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 call bug2267_4()|
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 bug2267_4		CREATE DEFINER=`root`@`localhost` FUNCTION `bug2267_4`() RETURNS int(11)
-return 100	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+return 100	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 drop procedure bug2267_1|
 drop procedure bug2267_2|
 drop procedure bug2267_3|
@@ -2223,19 +2223,19 @@ show create procedure bug2564_1|
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bug2564_1		CREATE DEFINER=`root`@`localhost` PROCEDURE `bug2564_1`()
     COMMENT 'Joe''s procedure'
-insert into `t1` values ("foo", 1)	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+insert into `t1` values ("foo", 1)	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 show create procedure bug2564_2|
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bug2564_2	ANSI_QUOTES	CREATE DEFINER="root"@"localhost" PROCEDURE "bug2564_2"()
-insert into "t1" values ('foo', 1)	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+insert into "t1" values ('foo', 1)	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 show create function bug2564_3|
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 bug2564_3		CREATE DEFINER=`root`@`localhost` FUNCTION `bug2564_3`(x int, y int) RETURNS int(11)
-return x || y	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+return x || y	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 show create function bug2564_4|
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 bug2564_4	REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI	CREATE DEFINER="root"@"localhost" FUNCTION "bug2564_4"(x int, y int) RETURNS int(11)
-return x || y	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+return x || y	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 drop procedure bug2564_1|
 drop procedure bug2564_2|
 drop function bug2564_3|
@@ -7889,7 +7889,7 @@ ERROR 42S02: Table 'mysql.proc' doesn't exist
 # Metadata of stored function f1.
 SELECT * FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_NAME = 'f1';
 SPECIFIC_NAME	ROUTINE_CATALOG	ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER	ROUTINE_BODY	ROUTINE_DEFINITION	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	IS_DETERMINISTIC	SQL_DATA_ACCESS	SQL_PATH	SECURITY_TYPE	CREATED	LAST_ALTERED	SQL_MODE	ROUTINE_COMMENT	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
-f1	def	test	f1	FUNCTION	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)	SQL	return 1	NULL	NULL	SQL	NO	CONTAINS SQL	NULL	DEFINER	<created>	<modified>	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION		root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+f1	def	test	f1	FUNCTION	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)	SQL	return 1	NULL	NULL	SQL	NO	CONTAINS SQL	NULL	DEFINER	<created>	<modified>	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION		root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT * FROM INFORMATION_SCHEMA.PARAMETERS WHERE SPECIFIC_NAME = 'f1';
 SPECIFIC_CATALOG	SPECIFIC_SCHEMA	SPECIFIC_NAME	ORDINAL_POSITION	PARAMETER_MODE	PARAMETER_NAME	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER	ROUTINE_TYPE
 def	test	f1	0	NULL	NULL	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)	FUNCTION
@@ -7897,7 +7897,7 @@ def	test	f1	1	IN	a	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)	FUNCTION
 # Metadata of stored procedure p1.
 SELECT * FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_NAME = 'p1';
 SPECIFIC_NAME	ROUTINE_CATALOG	ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER	ROUTINE_BODY	ROUTINE_DEFINITION	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	IS_DETERMINISTIC	SQL_DATA_ACCESS	SQL_PATH	SECURITY_TYPE	CREATED	LAST_ALTERED	SQL_MODE	ROUTINE_COMMENT	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
-p1	def	test	p1	PROCEDURE		NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	SQL	select 1	NULL	NULL	SQL	NO	CONTAINS SQL	NULL	DEFINER	<created>	<modified>	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION		root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+p1	def	test	p1	PROCEDURE		NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	SQL	select 1	NULL	NULL	SQL	NO	CONTAINS SQL	NULL	DEFINER	<created>	<modified>	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION		root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT * FROM INFORMATION_SCHEMA.PARAMETERS WHERE SPECIFIC_NAME = 'p1';
 SPECIFIC_CATALOG	SPECIFIC_SCHEMA	SPECIFIC_NAME	ORDINAL_POSITION	PARAMETER_MODE	PARAMETER_NAME	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER	ROUTINE_TYPE
 def	test	p1	1	IN	a	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)	PROCEDURE
@@ -7918,11 +7918,11 @@ CREATE DEFINER=user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostna
 CREATE DEFINER=user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char FUNCTION test.f_test() RETURNS INT RETURN 1;
 SHOW PROCEDURE STATUS LIKE 'proc_test';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-test	proc_test	PROCEDURE	user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char	#	#	DEFINER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+test	proc_test	PROCEDURE	user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char	#	#	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 DROP PROCEDURE test.proc_test;
 SHOW FUNCTION STATUS LIKE 'f_test';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-test	f_test	FUNCTION	user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char	#	#	DEFINER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+test	f_test	FUNCTION	user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char	#	#	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 DROP FUNCTION test.f_test;
 DROP USER user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
 set @old_concurrent_insert= @@global.concurrent_insert;
@@ -8259,16 +8259,16 @@ CREATE EVENT teste_bug11763507 ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 HOU
 DO SELECT 1 $
 SHOW EVENTS LIKE 'teste_bug11763507';
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
-test	teste_bug11763507	root@localhost	SYSTEM	ONE TIME	#	#	#	#	NULL	ENABLED	1	latin1	latin1_swedish_ci	DATABASE_COLLATION
+test	teste_bug11763507	root@localhost	SYSTEM	ONE TIME	#	#	#	#	NULL	ENABLED	1	utf8mb4	utf8mb4_0900_ai_ci	DATABASE_COLLATION
 SHOW EVENTS LIKE 'TESTE_bug11763507';
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
-test	teste_bug11763507	root@localhost	SYSTEM	ONE TIME	#	#	#	#	NULL	ENABLED	1	latin1	latin1_swedish_ci	DATABASE_COLLATION
+test	teste_bug11763507	root@localhost	SYSTEM	ONE TIME	#	#	#	#	NULL	ENABLED	1	utf8mb4	utf8mb4_0900_ai_ci	DATABASE_COLLATION
 SHOW CREATE EVENT teste_bug11763507;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-teste_bug11763507		SYSTEM	#	latin1	latin1_swedish_ci	DATABASE_COLLATION
+teste_bug11763507		SYSTEM	#	utf8mb4	utf8mb4_0900_ai_ci	DATABASE_COLLATION
 SHOW CREATE EVENT TESTE_bug11763507;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-teste_bug11763507		SYSTEM	#	latin1	latin1_swedish_ci	DATABASE_COLLATION
+teste_bug11763507		SYSTEM	#	utf8mb4	utf8mb4_0900_ai_ci	DATABASE_COLLATION
 DROP EVENT teste_bug11763507;
 #END OF BUG#11763507 test.
 

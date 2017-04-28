@@ -171,9 +171,9 @@ f1()
 6
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- character_set_connection
--- latin1
+-- utf8mb4
 -- character_set_client
--- latin1
+-- utf8mb4
 -- character_set_results
 -- big5
 
@@ -186,9 +186,9 @@ f1()
 6
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- character_set_connection
--- latin1
+-- utf8mb4
 -- character_set_client
--- latin1
+-- utf8mb4
 -- character_set_results
 -- big5
 
@@ -244,9 +244,9 @@ f4()
 1
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- character_set_connection
--- latin1
+-- utf8mb4
 -- character_set_client
--- latin1
+-- utf8mb4
 -- character_set_results
 -- utf8
 

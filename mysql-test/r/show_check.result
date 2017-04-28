@@ -12,77 +12,77 @@ insert into t1 values (1,2,2),(2,2,3),(3,2,4),(4,2,4);
 -- after Bug#29394 is implemented.
 check table t1 fast;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					Table	253	128	7	Y	0	31	8
-def					Op	253	10	5	Y	0	31	8
-def					Msg_type	253	10	6	Y	0	31	8
-def					Msg_text	250	393216	2	Y	0	31	8
+def					Table	253	512	7	Y	0	31	255
+def					Op	253	40	5	Y	0	31	255
+def					Msg_type	253	40	6	Y	0	31	255
+def					Msg_text	250	1572864	2	Y	0	31	255
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 check table t1 fast;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					Table	253	128	7	Y	0	31	8
-def					Op	253	10	5	Y	0	31	8
-def					Msg_type	253	10	6	Y	0	31	8
-def					Msg_text	250	393216	2	Y	0	31	8
+def					Table	253	512	7	Y	0	31	255
+def					Op	253	40	5	Y	0	31	255
+def					Msg_type	253	40	6	Y	0	31	255
+def					Msg_text	250	1572864	2	Y	0	31	255
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 check table t1 changed;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					Table	253	128	7	Y	0	31	8
-def					Op	253	10	5	Y	0	31	8
-def					Msg_type	253	10	6	Y	0	31	8
-def					Msg_text	250	393216	2	Y	0	31	8
+def					Table	253	512	7	Y	0	31	255
+def					Op	253	40	5	Y	0	31	255
+def					Msg_type	253	40	6	Y	0	31	255
+def					Msg_text	250	1572864	2	Y	0	31	255
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 insert into t1 values (5,5,5);
 check table t1 changed;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					Table	253	128	7	Y	0	31	8
-def					Op	253	10	5	Y	0	31	8
-def					Msg_type	253	10	6	Y	0	31	8
-def					Msg_text	250	393216	2	Y	0	31	8
+def					Table	253	512	7	Y	0	31	255
+def					Op	253	40	5	Y	0	31	255
+def					Msg_type	253	40	6	Y	0	31	255
+def					Msg_text	250	1572864	2	Y	0	31	255
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 check table t1 medium;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					Table	253	128	7	Y	0	31	8
-def					Op	253	10	5	Y	0	31	8
-def					Msg_type	253	10	6	Y	0	31	8
-def					Msg_text	250	393216	2	Y	0	31	8
+def					Table	253	512	7	Y	0	31	255
+def					Op	253	40	5	Y	0	31	255
+def					Msg_type	253	40	6	Y	0	31	255
+def					Msg_text	250	1572864	2	Y	0	31	255
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 check table t1 extended;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					Table	253	128	7	Y	0	31	8
-def					Op	253	10	5	Y	0	31	8
-def					Msg_type	253	10	6	Y	0	31	8
-def					Msg_text	250	393216	2	Y	0	31	8
+def					Table	253	512	7	Y	0	31	255
+def					Op	253	40	5	Y	0	31	255
+def					Msg_type	253	40	6	Y	0	31	255
+def					Msg_text	250	1572864	2	Y	0	31	255
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 analyze table t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					Table	253	128	7	Y	0	31	8
-def					Op	253	10	7	Y	0	31	8
-def					Msg_type	253	10	6	Y	0	31	8
-def					Msg_text	250	393216	2	Y	0	31	8
+def					Table	253	512	7	Y	0	31	255
+def					Op	253	40	7	Y	0	31	255
+def					Msg_type	253	40	6	Y	0	31	255
+def					Msg_text	250	1572864	2	Y	0	31	255
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 show index from t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def	mysql	tables	SHOW_STATISTICS	Table	Table	253	64	2	N	#	0	8
-def			SHOW_STATISTICS	Non_unique	Non_unique	253	1	1	N	1	0	8
-def			SHOW_STATISTICS	Key_name	Key_name	253	64	7	Y	0	0	8
+def	mysql	tables	SHOW_STATISTICS	Table	Table	253	256	2	N	#	0	255
+def			SHOW_STATISTICS	Non_unique	Non_unique	253	4	1	N	1	0	255
+def			SHOW_STATISTICS	Key_name	Key_name	253	256	7	Y	0	0	255
 def	mysql	index_column_usage	SHOW_STATISTICS	Seq_in_index	Seq_in_index	3	10	1	N	36897	0	63
-def			SHOW_STATISTICS	Column_name	Column_name	253	64	1	Y	0	0	8
-def			SHOW_STATISTICS	Collation	Collation	253	1	1	Y	0	0	8
+def			SHOW_STATISTICS	Column_name	Column_name	253	256	1	Y	0	0	255
+def			SHOW_STATISTICS	Collation	Collation	253	4	1	Y	0	0	255
 def	mysql	index_stats	SHOW_STATISTICS	Cardinality	Cardinality	8	20	1	Y	32800	0	63
 def			SHOW_STATISTICS	Sub_part	Sub_part	8	21	0	Y	32768	0	63
 def					Packed	6	0	0	Y	32896	0	63
-def			SHOW_STATISTICS	Null	Null	253	3	0	N	1	0	8
-def			SHOW_STATISTICS	Index_type	Index_type	253	11	5	N	129	0	8
-def			SHOW_STATISTICS	Comment	Comment	253	8	0	N	1	0	8
-def	mysql	indexes	SHOW_STATISTICS	Index_comment	Index_comment	253	2048	0	N	#	0	8
-def			SHOW_STATISTICS	Visible	Visible	253	3	3	N	1	0	8
+def			SHOW_STATISTICS	Null	Null	253	12	0	N	1	0	255
+def			SHOW_STATISTICS	Index_type	Index_type	253	44	5	N	129	0	255
+def			SHOW_STATISTICS	Comment	Comment	253	32	0	N	1	0	255
+def	mysql	indexes	SHOW_STATISTICS	Index_comment	Index_comment	253	8192	0	N	#	0	255
+def			SHOW_STATISTICS	Visible	Visible	253	12	3	N	1	0	255
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	0	PRIMARY	1	a	A	5	NULL	NULL		BTREE			YES
 t1	1	b	1	b	A	2	NULL	NULL		BTREE			YES
@@ -94,10 +94,10 @@ ERROR 23000: Duplicate entry '5' for key 'PRIMARY'
 -- after Bug#29394 is implemented.
 optimize table t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					Table	253	128	7	Y	0	31	8
-def					Op	253	10	8	Y	0	31	8
-def					Msg_type	253	10	6	Y	0	31	8
-def					Msg_text	250	393216	65	Y	0	31	8
+def					Table	253	512	7	Y	0	31	255
+def					Op	253	40	8	Y	0	31	255
+def					Msg_type	253	40	6	Y	0	31	255
+def					Msg_text	250	1572864	65	Y	0	31	255
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
 test.t1	optimize	status	OK
@@ -111,27 +111,27 @@ drop table t1;
 -- after Bug#29394 is implemented.
 show variables like "wait_timeout%";
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def		session_variables	session_variables	Variable_name	Variable_name	253	64	12	N	4097	0	8
-def		session_variables	session_variables	Value	Value	253	1024	5	Y	0	0	8
+def		session_variables	session_variables	Variable_name	Variable_name	253	256	12	N	4097	0	255
+def		session_variables	session_variables	Value	Value	253	4096	5	Y	0	0	255
 Variable_name	Value
 wait_timeout	28800
 show variables like "WAIT_timeout%";
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def		session_variables	session_variables	Variable_name	Variable_name	253	64	12	N	4097	0	8
-def		session_variables	session_variables	Value	Value	253	1024	5	Y	0	0	8
+def		session_variables	session_variables	Variable_name	Variable_name	253	256	12	N	4097	0	255
+def		session_variables	session_variables	Value	Value	253	4096	5	Y	0	0	255
 Variable_name	Value
 wait_timeout	28800
 show variables like "this_doesn't_exists%";
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def		session_variables	session_variables	Variable_name	Variable_name	253	64	0	N	4097	0	8
-def		session_variables	session_variables	Value	Value	253	1024	0	Y	0	0	8
+def		session_variables	session_variables	Variable_name	Variable_name	253	256	0	N	4097	0	255
+def		session_variables	session_variables	Value	Value	253	4096	0	Y	0	0	255
 Variable_name	Value
 show table status from test like "this_doesn't_exists%";
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def	mysql	tables	TABLES	Name	Name	253	64	0	N	#	0	8
-def			TABLES	Engine	Engine	253	64	0	Y	0	0	8
+def	mysql	tables	TABLES	Name	Name	253	256	0	N	#	0	255
+def			TABLES	Engine	Engine	253	256	0	Y	0	0	255
 def			TABLES	Version	Version	3	2	0	Y	32768	0	63
-def	mysql	tables	TABLES	Row_format	Row_format	254	10	0	Y	384	0	8
+def	mysql	tables	TABLES	Row_format	Row_format	254	40	0	Y	384	0	255
 def	mysql	table_stats	TABLES	Rows	Rows	8	20	0	Y	32800	0	63
 def	mysql	table_stats	TABLES	Avg_row_length	Avg_row_length	8	20	0	Y	32800	0	63
 def	mysql	table_stats	TABLES	Data_length	Data_length	8	20	0	Y	32800	0	63
@@ -142,14 +142,14 @@ def	mysql	table_stats	TABLES	Auto_increment	Auto_increment	8	20	0	Y	32800	0	63
 def	mysql	tables	TABLES	Create_time	Create_time	7	19	0	N	129	0	63
 def	mysql	table_stats	TABLES	Update_time	Update_time	7	19	0	Y	128	0	63
 def	mysql	table_stats	TABLES	Check_time	Check_time	7	19	0	Y	128	0	63
-def	mysql	collations	TABLES	Collation	Collation	253	64	0	Y	4096	0	8
+def	mysql	collations	TABLES	Collation	Collation	253	256	0	Y	4096	0	255
 def	mysql	table_stats	TABLES	Checksum	Checksum	8	20	0	Y	32800	0	63
-def			TABLES	Create_options	Create_options	253	256	0	Y	0	0	8
-def			TABLES	Comment	Comment	253	256	0	Y	0	0	8
+def			TABLES	Create_options	Create_options	253	1024	0	Y	0	0	255
+def			TABLES	Comment	Comment	253	1024	0	Y	0	0	255
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 show databases;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def	mysql	schemata	SCHEMATA	Database	Database	253	64	18	N	#	0	8
+def	mysql	schemata	SCHEMATA	Database	Database	253	256	18	N	#	0	255
 Database
 information_schema
 mtr
@@ -159,7 +159,7 @@ sys
 test
 show databases like "test%";
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def	mysql	schemata	SCHEMATA	Database (test%)	Database (test%)	253	64	4	N	#	0	8
+def	mysql	schemata	SCHEMATA	Database (test%)	Database (test%)	253	256	4	N	#	0	255
 Database (test%)
 test
 create table t1 (f1 int not null, f2 int not null, f3 int not null, f4 int not null, primary key(f1,f2,f3,f4)) engine=myisam;
@@ -169,10 +169,10 @@ insert into t1 values (1,1,1,0),(1,1,2,0),(1,1,3,0),(1,2,1,0),(1,2,2,0),(1,2,3,0
 -- after Bug#29394 is implemented.
 analyze table t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					Table	253	128	7	Y	0	31	8
-def					Op	253	10	7	Y	0	31	8
-def					Msg_type	253	10	6	Y	0	31	8
-def					Msg_text	250	393216	2	Y	0	31	8
+def					Table	253	512	7	Y	0	31	255
+def					Op	253	40	7	Y	0	31	255
+def					Msg_type	253	40	6	Y	0	31	255
+def					Msg_text	250	1572864	2	Y	0	31	255
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 show index from t1;
@@ -186,10 +186,10 @@ t1	0	PRIMARY	4	f4	A	18	NULL	NULL		BTREE			YES
 -- after Bug#29394 is implemented.
 repair table t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					Table	253	128	7	Y	0	31	8
-def					Op	253	10	6	Y	0	31	8
-def					Msg_type	253	10	6	Y	0	31	8
-def					Msg_text	250	393216	2	Y	0	31	8
+def					Table	253	512	7	Y	0	31	255
+def					Op	253	40	6	Y	0	31	255
+def					Msg_type	253	40	6	Y	0	31	255
+def					Msg_text	250	1572864	2	Y	0	31	255
 Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
 show index from t1;

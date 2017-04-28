@@ -283,12 +283,12 @@ show full columns from t2;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
 auto	int(11) unsigned	NULL	NO	PRI	NULL		select,insert,update,references	
 t1	int(1)	NULL	NO		0		select,insert,update,references	
-t2	varchar(1)	latin1_swedish_ci	NO				select,insert,update,references	
-t3	varchar(256)	latin1_swedish_ci	NO				select,insert,update,references	
-t4	varbinary(256)	NULL	NO				select,insert,update,references	
-t5	text	latin1_swedish_ci	NO		NULL		select,insert,update,references	
+t2	varchar(1)	utf8mb4_0900_ai_ci	NO				select,insert,update,references	
+t3	varchar(256)	utf8mb4_0900_ai_ci	NO				select,insert,update,references	
+t4	blob	NULL	NO		NULL		select,insert,update,references	
+t5	text	utf8mb4_0900_ai_ci	NO		NULL		select,insert,update,references	
 t6	blob	NULL	NO		NULL		select,insert,update,references	
-t7	char(0)	latin1_swedish_ci	NO				select,insert,update,references	
+t7	char(0)	utf8mb4_0900_ai_ci	NO				select,insert,update,references	
 t8	binary(0)	NULL	NO				select,insert,update,references	
 select t1,t2,length(t3),length(t4),length(t5),length(t6),t7,t8 from t2;
 t1	t2	length(t3)	length(t4)	length(t5)	length(t6)	t7	t8

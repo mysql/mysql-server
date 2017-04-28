@@ -119,6 +119,7 @@ hex(a)
 00410000
 0041005F
 drop table t1;
+set names latin1;
 create table t1 (a varchar(1) character set latin1 collate latin1_general_ci)
 partition by range columns(a)
 ( partition p0 values less than ('a'),
@@ -169,6 +170,7 @@ a = 'A' collate latin1_bin;
 a	b
 A	A
 drop table t1;
+set names utf8mb4;
 create table t1 (a varchar(5))
 partition by list columns(a)
 ( partition p0 values in ('\''),

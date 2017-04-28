@@ -24,7 +24,7 @@ time_zone,autocommit,character_set_client,character_set_results,character_set_co
 # SET NAMES ..
 SELECT @@session.character_set_client, @@session.character_set_results, @@session.character_set_connection;
 @@session.character_set_client	@@session.character_set_results	@@session.character_set_connection
-latin1	latin1	latin1
+utf8mb4	utf8mb4	utf8mb4
 SET NAMES 'utf8';
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- character_set_connection
