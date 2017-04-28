@@ -540,7 +540,8 @@ inline
 void
 ScanFragReq::setMultiFragFlag(UintR & requestInfo, UintR val){
   ASSERT_BOOL(val, "ScanFragReq::setMultiFragFlag");
-  requestInfo |= (val << SF_MULTI_FRAG_SHIFT);
+  requestInfo= (requestInfo & ~(1 << SF_MULTI_FRAG_SHIFT)) |
+               (val << SF_MULTI_FRAG_SHIFT);
 }
 
 inline
