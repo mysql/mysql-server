@@ -613,7 +613,8 @@ Dbtup::handle_lcp_skip_bit(EmulatedJamBuffer *jamBuf,
   {
     thrjam(jamBuf);
     bool dummy = false;
-    if ((c_backup->is_page_lcp_scanned(page_no, dummy) == -1))
+    int ret_code;
+    if ((ret_code= c_backup->is_page_lcp_scanned(page_no, dummy)) == -1)
     {
       thrjam(jamBuf);
       DynArr256 map(c_page_map_pool, fragPtrP->m_page_map);
@@ -649,6 +650,10 @@ Dbtup::handle_lcp_skip_bit(EmulatedJamBuffer *jamBuf,
          * scanning was handled at drop time.
          */
       }
+    }
+    else
+    {
+      ndbrequire(ret_code == +1);
     }
   }
 }
@@ -878,61 +883,76 @@ Dbtup::releaseFragPage(Fragrecord* fragPtrP,
   Uint32 lcp_scanned_bit = (*next) & LCP_SCANNED_BIT;
   Uint32 last_lcp_state = (*prev) & LAST_LCP_FREE_BIT;
   Uint32 lcp_scan_ptr_i = fragPtrP->m_lcp_scan_op;
-  if (lcp_scan_ptr_i != RNIL &&
-      c_backup->is_page_lcp_scanned(logicalPageId, all_part) != (int)+1)
+  bool lcp_to_scan = false;
+  if (lcp_scan_ptr_i != RNIL)
   {
-    jam();
-    if (lcp_scanned_bit == 0)
+    /**
+     * We use the method is_rowid_in_remaining_lcp_set. We set the
+     * key to the page and beyond the last row in the page. This means
+     * that if the page is not fully scanned yet we will set the
+     * LCP_SCANNED_BIT. Otherwise we will ignore it.
+     */
+    ScanOpPtr scanOp;
+    c_scanOpPool.getPtr(scanOp, lcp_scan_ptr_i);
+    Local_key key;
+    key.m_page_no = logicalPageId;
+    key.m_page_idx = ZNIL;
+    if (is_rowid_in_remaining_lcp_set(pagePtr.p, key, *scanOp.p))
     {
       jam();
-      /**
-       * Page is being dropped and it is part of LCP and has not
-       * yet been scanned by LCP. This means we need to act right
-       * now before we release the page and record the needed
-       * information. Also we haven't already dropped the page
-       * already before in this LCP scan.
-       *
-       * We will release the page during handle_lcp_drop_change
-       * to ensure that we are certain to get the space we
-       * need to store the space needed to store things into the
-       * LCP keep list.
-       *
-       * If the SKIP_LCP flag was set on the page then this page
-       * was added since the start of the LCP and in that case
-       * we record the page as a DELETE by PAGEID and then sets
-       * the LCP_SCANNED_BIT to ensure that any further allocation
-       * and release of the fragment before LCP scan has passed it
-       * is ignored.
-       *
-       * For ALL ROWS pages the LCP scan is always completed in
-       * this state, all the rows existing at start of LCP has been
-       * deleted and all of those were put into LCP through the LCP
-       * keep list. So we ensure that the page is ignored for the
-       * rest of the LCP scan by setting the LCP_SCANNED_BIT here
-       * as well.
-       *
-       * No need to clear the page to skip lcp flag here since the
-       * page is dropped immediately following this.
-       */
-      lcp_scanned_bit = LCP_SCANNED_BIT;
-      Uint32 new_last_lcp_state = pagePtr.p->is_page_to_skip_lcp() ?
-                                  LAST_LCP_FREE_BIT : 0;
-      if (!all_part && (last_lcp_state == 0))
+      lcp_to_scan = true;
+      if (lcp_scanned_bit == 0)
       {
         jam();
-        c_page_pool.getPtr(pagePtr);
-        bool delete_by_pageid = pagePtr.p->is_page_to_skip_lcp();
-        page_freed = true;
-        ndbassert(c_backup->is_partial_lcp_enabled());
-        handle_lcp_drop_change_page(fragPtrP,
-                                    logicalPageId,
-                                    pagePtr,
-                                    delete_by_pageid);
+        /**
+         * Page is being dropped and it is part of LCP and has not
+         * yet been scanned by LCP. This means we need to act right
+         * now before we release the page and record the needed
+         * information. Also we haven't already dropped the page
+         * already before in this LCP scan.
+         *
+         * We will release the page during handle_lcp_drop_change
+         * to ensure that we are certain to get the space we
+         * need to store the space needed to store things into the
+         * LCP keep list.
+         *
+         * If the SKIP_LCP flag was set on the page then this page
+         * was added since the start of the LCP and in that case
+         * we record the page as a DELETE by PAGEID and then sets
+         * the LCP_SCANNED_BIT to ensure that any further allocation
+         * and release of the fragment before LCP scan has passed it
+         * is ignored.
+         *
+         * For ALL ROWS pages the LCP scan is always completed in
+         * this state, all the rows existing at start of LCP has been
+         * deleted and all of those were put into LCP through the LCP
+         * keep list. So we ensure that the page is ignored for the
+         * rest of the LCP scan by setting the LCP_SCANNED_BIT here
+         * as well.
+         *
+         * No need to clear the page to skip lcp flag here since the
+         * page is dropped immediately following this.
+         */
+        lcp_scanned_bit = LCP_SCANNED_BIT;
+        Uint32 new_last_lcp_state = pagePtr.p->is_page_to_skip_lcp() ?
+                                    LAST_LCP_FREE_BIT : 0;
+        if (!all_part && (last_lcp_state == 0))
+        {
+          jam();
+          c_page_pool.getPtr(pagePtr);
+          bool delete_by_pageid = pagePtr.p->is_page_to_skip_lcp();
+          page_freed = true;
+          ndbassert(c_backup->is_partial_lcp_enabled());
+          handle_lcp_drop_change_page(fragPtrP,
+                                      logicalPageId,
+                                      pagePtr,
+                                      delete_by_pageid);
+        }
+        last_lcp_state = new_last_lcp_state;
       }
-      last_lcp_state = new_last_lcp_state;
     }
   }
-  else
+  if (!lcp_to_scan)
   {
     if (unlikely(lcp_scanned_bit != 0))
     {
