@@ -586,7 +586,7 @@ partition_name	space_type	space_name
 test/t1#p#p1	General	ts1
 test/t1#p#p2	System	NULL
 test/t1#p#p3	General	ts2
-test/t1#p#p4	Single	innodb_file_per_table.78
+test/t1#p#p4	Single	innodb_file_per_table.66
 ALTER TABLE t1 ADD COLUMN b int;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -610,7 +610,7 @@ partition_name	space_type	space_name
 test/t1#p#p1	General	ts1
 test/t1#p#p2	System	NULL
 test/t1#p#p3	General	ts2
-test/t1#p#p4	Single	innodb_file_per_table.79
+test/t1#p#p4	Single	innodb_file_per_table.67
 ALTER TABLE t1 ADD COLUMN c int, TABLESPACE ts1;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -635,7 +635,7 @@ partition_name	space_type	space_name
 test/t1#p#p1	General	ts1
 test/t1#p#p2	System	NULL
 test/t1#p#p3	General	ts2
-test/t1#p#p4	Single	innodb_file_per_table.80
+test/t1#p#p4	Single	innodb_file_per_table.68
 ALTER TABLE t1 ADD PARTITION (PARTITION p5 VALUES LESS THAN (10) TABLESPACE ts2);
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -661,7 +661,7 @@ partition_name	space_type	space_name
 test/t1#p#p1	General	ts1
 test/t1#p#p2	System	NULL
 test/t1#p#p3	General	ts2
-test/t1#p#p4	Single	innodb_file_per_table.80
+test/t1#p#p4	Single	innodb_file_per_table.68
 test/t1#p#p5	General	ts2
 ALTER TABLE t1 ADD PARTITION (PARTITION p6 VALUES LESS THAN (12));
 SHOW CREATE TABLE t1;
@@ -689,7 +689,7 @@ partition_name	space_type	space_name
 test/t1#p#p1	General	ts1
 test/t1#p#p2	System	NULL
 test/t1#p#p3	General	ts2
-test/t1#p#p4	Single	innodb_file_per_table.80
+test/t1#p#p4	Single	innodb_file_per_table.68
 test/t1#p#p5	General	ts2
 test/t1#p#p6	General	ts1
 ALTER TABLE t1 REORGANIZE PARTITION p4 INTO (PARTITION p4 VALUES LESS THAN (8));
@@ -779,8 +779,8 @@ WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
 partition_name	space_type	space_name
 test/t1#p#p1	General	ts1
 test/t1#p#p2	System	NULL
-test/t1#p#p3	Single	innodb_file_per_table.81
-test/t1#p#p4	Single	innodb_file_per_table.82
+test/t1#p#p3	Single	innodb_file_per_table.69
+test/t1#p#p4	Single	innodb_file_per_table.70
 ALTER TABLE t1 ADD COLUMN b int;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -803,8 +803,8 @@ WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
 partition_name	space_type	space_name
 test/t1#p#p1	General	ts1
 test/t1#p#p2	System	NULL
-test/t1#p#p3	Single	innodb_file_per_table.83
-test/t1#p#p4	Single	innodb_file_per_table.84
+test/t1#p#p3	Single	innodb_file_per_table.71
+test/t1#p#p4	Single	innodb_file_per_table.72
 ALTER TABLE t1 ADD COLUMN c int, TABLESPACE ts1;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -828,8 +828,8 @@ WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
 partition_name	space_type	space_name
 test/t1#p#p1	General	ts1
 test/t1#p#p2	System	NULL
-test/t1#p#p3	Single	innodb_file_per_table.85
-test/t1#p#p4	Single	innodb_file_per_table.86
+test/t1#p#p3	Single	innodb_file_per_table.73
+test/t1#p#p4	Single	innodb_file_per_table.74
 ALTER TABLE t1 ADD PARTITION (PARTITION p5 VALUES LESS THAN (10) TABLESPACE ts2);
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -854,8 +854,8 @@ WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
 partition_name	space_type	space_name
 test/t1#p#p1	General	ts1
 test/t1#p#p2	System	NULL
-test/t1#p#p3	Single	innodb_file_per_table.85
-test/t1#p#p4	Single	innodb_file_per_table.86
+test/t1#p#p3	Single	innodb_file_per_table.73
+test/t1#p#p4	Single	innodb_file_per_table.74
 test/t1#p#p5	General	ts2
 ALTER TABLE t1 ADD PARTITION (PARTITION p6 VALUES LESS THAN (12));
 SHOW CREATE TABLE t1;
@@ -882,8 +882,8 @@ WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
 partition_name	space_type	space_name
 test/t1#p#p1	General	ts1
 test/t1#p#p2	System	NULL
-test/t1#p#p3	Single	innodb_file_per_table.85
-test/t1#p#p4	Single	innodb_file_per_table.86
+test/t1#p#p3	Single	innodb_file_per_table.73
+test/t1#p#p4	Single	innodb_file_per_table.74
 test/t1#p#p5	General	ts2
 test/t1#p#p6	General	ts1
 ALTER TABLE t1 REORGANIZE PARTITION p4 INTO (PARTITION p4 VALUES LESS THAN (8));
@@ -911,7 +911,7 @@ WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
 partition_name	space_type	space_name
 test/t1#p#p1	General	ts1
 test/t1#p#p2	System	NULL
-test/t1#p#p3	Single	innodb_file_per_table.85
+test/t1#p#p3	Single	innodb_file_per_table.73
 test/t1#p#p4	General	ts1
 test/t1#p#p5	General	ts2
 test/t1#p#p6	General	ts1
@@ -974,7 +974,7 @@ t1	CREATE TABLE `t1` (
 partition_name	space_type	space_name
 test/t1#p#p1	System	NULL
 test/t1#p#p2	System	NULL
-test/t1#p#p3	Single	innodb_file_per_table.88
+test/t1#p#p3	Single	innodb_file_per_table.##
 SET GLOBAL innodb_file_per_table = ON;
 ALTER TABLE t1 ADD PARTITION
 (PARTITION p4 VALUES LESS THAN (20) );
@@ -992,8 +992,8 @@ t1	CREATE TABLE `t1` (
 partition_name	space_type	space_name
 test/t1#p#p1	System	NULL
 test/t1#p#p2	System	NULL
-test/t1#p#p3	Single	innodb_file_per_table.88
-test/t1#p#p4	Single	innodb_file_per_table.89
+test/t1#p#p3	Single	innodb_file_per_table.##
+test/t1#p#p4	Single	innodb_file_per_table.##
 DROP TABLE t1;
 SET GLOBAL innodb_file_per_table = OFF;
 CREATE TABLE t2 (a INT NOT NULL, b INT)
@@ -1023,7 +1023,7 @@ SUBPARTITION BY KEY (b)
 partition_name	space_type	space_name
 test/t2#p#p1#sp#sp1	System	NULL
 test/t2#p#p2#sp#sp2	System	NULL
-test/t2#p#p3#sp#sp3	Single	innodb_file_per_table.90
+test/t2#p#p3#sp#sp3	Single	innodb_file_per_table.##
 SET GLOBAL innodb_file_per_table = ON;
 ALTER TABLE t2 ADD PARTITION
 (PARTITION p4 VALUES LESS THAN (20)
@@ -1047,8 +1047,8 @@ SUBPARTITION BY KEY (b)
 partition_name	space_type	space_name
 test/t2#p#p1#sp#sp1	System	NULL
 test/t2#p#p2#sp#sp2	System	NULL
-test/t2#p#p3#sp#sp3	Single	innodb_file_per_table.90
-test/t2#p#p4#sp#sp4	Single	innodb_file_per_table.91
+test/t2#p#p3#sp#sp3	Single	innodb_file_per_table.##
+test/t2#p#p4#sp#sp4	Single	innodb_file_per_table.##
 DROP TABLE t2;
 # CASE B
 # file_per_table ON for CREATE, OFF for ALTER
@@ -1070,9 +1070,9 @@ t1	CREATE TABLE `t1` (
  PARTITION p2 VALUES LESS THAN (10) TABLESPACE = `innodb_system` ENGINE = InnoDB,
  PARTITION p3 VALUES LESS THAN (15) TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB) */
 partition_name	space_type	space_name
-test/t1#p#p1	Single	innodb_file_per_table.92
+test/t1#p#p1	Single	innodb_file_per_table.##
 test/t1#p#p2	System	NULL
-test/t1#p#p3	Single	innodb_file_per_table.93
+test/t1#p#p3	Single	innodb_file_per_table.##
 SET GLOBAL innodb_file_per_table = OFF;
 ALTER TABLE t1 ADD PARTITION
 (PARTITION p4 VALUES LESS THAN (20) );
@@ -1088,9 +1088,9 @@ t1	CREATE TABLE `t1` (
  PARTITION p3 VALUES LESS THAN (15) TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
  PARTITION p4 VALUES LESS THAN (20) TABLESPACE = `innodb_system` ENGINE = InnoDB) */
 partition_name	space_type	space_name
-test/t1#p#p1	Single	innodb_file_per_table.92
+test/t1#p#p1	Single	innodb_file_per_table.##
 test/t1#p#p2	System	NULL
-test/t1#p#p3	Single	innodb_file_per_table.93
+test/t1#p#p3	Single	innodb_file_per_table.##
 test/t1#p#p4	System	NULL
 DROP TABLE t1;
 SET GLOBAL innodb_file_per_table = ON;
@@ -1119,9 +1119,9 @@ SUBPARTITION BY KEY (b)
  PARTITION p3 VALUES LESS THAN (15)
  (SUBPARTITION sp3 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB)) */
 partition_name	space_type	space_name
-test/t2#p#p1#sp#sp1	Single	innodb_file_per_table.94
+test/t2#p#p1#sp#sp1	Single	innodb_file_per_table.##
 test/t2#p#p2#sp#sp2	System	NULL
-test/t2#p#p3#sp#sp3	Single	innodb_file_per_table.95
+test/t2#p#p3#sp#sp3	Single	innodb_file_per_table.##
 SET GLOBAL innodb_file_per_table = OFF;
 ALTER TABLE t2 ADD PARTITION
 (PARTITION p4 VALUES LESS THAN (20)
@@ -1143,9 +1143,9 @@ SUBPARTITION BY KEY (b)
  PARTITION p4 VALUES LESS THAN (20)
  (SUBPARTITION sp4 TABLESPACE = `innodb_system` ENGINE = InnoDB)) */
 partition_name	space_type	space_name
-test/t2#p#p1#sp#sp1	Single	innodb_file_per_table.94
+test/t2#p#p1#sp#sp1	Single	innodb_file_per_table.##
 test/t2#p#p2#sp#sp2	System	NULL
-test/t2#p#p3#sp#sp3	Single	innodb_file_per_table.95
+test/t2#p#p3#sp#sp3	Single	innodb_file_per_table.##
 test/t2#p#p4#sp#sp4	System	NULL
 DROP TABLE t2;
 # CASE C
@@ -1266,9 +1266,9 @@ t1	CREATE TABLE `t1` (
  PARTITION p2 VALUES LESS THAN (10) ENGINE = InnoDB,
  PARTITION p3 VALUES LESS THAN (15) ENGINE = InnoDB) */
 partition_name	space_type	space_name
-test/t1#p#p1	Single	innodb_file_per_table.96
-test/t1#p#p2	Single	innodb_file_per_table.97
-test/t1#p#p3	Single	innodb_file_per_table.98
+test/t1#p#p1	Single	innodb_file_per_table.##
+test/t1#p#p2	Single	innodb_file_per_table.##
+test/t1#p#p3	Single	innodb_file_per_table.##
 SET GLOBAL innodb_file_per_table = ON;
 ALTER TABLE t1 ADD PARTITION
 (PARTITION p4 VALUES LESS THAN (20) );
@@ -1284,10 +1284,10 @@ t1	CREATE TABLE `t1` (
  PARTITION p3 VALUES LESS THAN (15) ENGINE = InnoDB,
  PARTITION p4 VALUES LESS THAN (20) ENGINE = InnoDB) */
 partition_name	space_type	space_name
-test/t1#p#p1	Single	innodb_file_per_table.96
-test/t1#p#p2	Single	innodb_file_per_table.97
-test/t1#p#p3	Single	innodb_file_per_table.98
-test/t1#p#p4	Single	innodb_file_per_table.99
+test/t1#p#p1	Single	innodb_file_per_table.##
+test/t1#p#p2	Single	innodb_file_per_table.##
+test/t1#p#p3	Single	innodb_file_per_table.##
+test/t1#p#p4	Single	innodb_file_per_table.##
 DROP TABLE t1;
 SET GLOBAL innodb_file_per_table = ON;
 CREATE TABLE t2 (a INT NOT NULL, b INT)
@@ -1315,9 +1315,9 @@ SUBPARTITION BY KEY (b)
  PARTITION p3 VALUES LESS THAN (15)
  (SUBPARTITION sp3 ENGINE = InnoDB)) */
 partition_name	space_type	space_name
-test/t2#p#p1#sp#sp1	Single	innodb_file_per_table.100
-test/t2#p#p2#sp#sp2	Single	innodb_file_per_table.101
-test/t2#p#p3#sp#sp3	Single	innodb_file_per_table.102
+test/t2#p#p1#sp#sp1	Single	innodb_file_per_table.##
+test/t2#p#p2#sp#sp2	Single	innodb_file_per_table.##
+test/t2#p#p3#sp#sp3	Single	innodb_file_per_table.##
 SET GLOBAL innodb_file_per_table = ON;
 ALTER TABLE t2 ADD PARTITION
 (PARTITION p4 VALUES LESS THAN (20)
@@ -1339,10 +1339,10 @@ SUBPARTITION BY KEY (b)
  PARTITION p4 VALUES LESS THAN (20)
  (SUBPARTITION sp4 ENGINE = InnoDB)) */
 partition_name	space_type	space_name
-test/t2#p#p1#sp#sp1	Single	innodb_file_per_table.100
-test/t2#p#p2#sp#sp2	Single	innodb_file_per_table.101
-test/t2#p#p3#sp#sp3	Single	innodb_file_per_table.102
-test/t2#p#p4#sp#sp4	Single	innodb_file_per_table.103
+test/t2#p#p1#sp#sp1	Single	innodb_file_per_table.##
+test/t2#p#p2#sp#sp2	Single	innodb_file_per_table.##
+test/t2#p#p3#sp#sp3	Single	innodb_file_per_table.##
+test/t2#p#p4#sp#sp4	Single	innodb_file_per_table.##
 DROP TABLE t2;
 # CASE E
 # file_per_table ON for CREATE, OFF for ALTER
@@ -1364,9 +1364,9 @@ t1	CREATE TABLE `t1` (
  PARTITION p2 VALUES LESS THAN (10) ENGINE = InnoDB,
  PARTITION p3 VALUES LESS THAN (15) ENGINE = InnoDB) */
 partition_name	space_type	space_name
-test/t1#p#p1	Single	innodb_file_per_table.104
-test/t1#p#p2	Single	innodb_file_per_table.105
-test/t1#p#p3	Single	innodb_file_per_table.106
+test/t1#p#p1	Single	innodb_file_per_table.##
+test/t1#p#p2	Single	innodb_file_per_table.##
+test/t1#p#p3	Single	innodb_file_per_table.##
 SET GLOBAL innodb_file_per_table = OFF;
 ALTER TABLE t1 ADD PARTITION
 (PARTITION p4 VALUES LESS THAN (20) );
@@ -1382,9 +1382,9 @@ t1	CREATE TABLE `t1` (
  PARTITION p3 VALUES LESS THAN (15) TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
  PARTITION p4 VALUES LESS THAN (20) TABLESPACE = `innodb_system` ENGINE = InnoDB) */
 partition_name	space_type	space_name
-test/t1#p#p1	Single	innodb_file_per_table.104
-test/t1#p#p2	Single	innodb_file_per_table.105
-test/t1#p#p3	Single	innodb_file_per_table.106
+test/t1#p#p1	Single	innodb_file_per_table.##
+test/t1#p#p2	Single	innodb_file_per_table.##
+test/t1#p#p3	Single	innodb_file_per_table.##
 test/t1#p#p4	System	NULL
 DROP TABLE t1;
 SET GLOBAL innodb_file_per_table = ON;
@@ -1413,9 +1413,9 @@ SUBPARTITION BY KEY (b)
  PARTITION p3 VALUES LESS THAN (15)
  (SUBPARTITION sp3 ENGINE = InnoDB)) */
 partition_name	space_type	space_name
-test/t2#p#p1#sp#sp1	Single	innodb_file_per_table.107
-test/t2#p#p2#sp#sp2	Single	innodb_file_per_table.108
-test/t2#p#p3#sp#sp3	Single	innodb_file_per_table.109
+test/t2#p#p1#sp#sp1	Single	innodb_file_per_table.##
+test/t2#p#p2#sp#sp2	Single	innodb_file_per_table.##
+test/t2#p#p3#sp#sp3	Single	innodb_file_per_table.##
 SET GLOBAL innodb_file_per_table = OFF;
 ALTER TABLE t2 ADD PARTITION
 (PARTITION p4 VALUES LESS THAN (20)
@@ -1437,9 +1437,9 @@ SUBPARTITION BY KEY (b)
  PARTITION p4 VALUES LESS THAN (20)
  (SUBPARTITION sp4 TABLESPACE = `innodb_system` ENGINE = InnoDB)) */
 partition_name	space_type	space_name
-test/t2#p#p1#sp#sp1	Single	innodb_file_per_table.107
-test/t2#p#p2#sp#sp2	Single	innodb_file_per_table.108
-test/t2#p#p3#sp#sp3	Single	innodb_file_per_table.109
+test/t2#p#p1#sp#sp1	Single	innodb_file_per_table.##
+test/t2#p#p2#sp#sp2	Single	innodb_file_per_table.##
+test/t2#p#p3#sp#sp3	Single	innodb_file_per_table.##
 test/t2#p#p4#sp#sp4	System	NULL
 DROP TABLE t2;
 SET GLOBAL innodb_file_per_table=1;

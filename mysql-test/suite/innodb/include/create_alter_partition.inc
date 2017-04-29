@@ -20,6 +20,7 @@ SHOW CREATE TABLE t1;
 
 --disable_query_log
 --replace_result #P# #p#
+--replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
 SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as
 space_name
 FROM information_schema.innodb_tables A
@@ -38,6 +39,7 @@ SHOW CREATE TABLE t1;
 
 --disable_query_log
 --replace_result #P# #p#
+--replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
 SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as
 space_name
 FROM information_schema.innodb_tables A
@@ -66,6 +68,7 @@ SHOW CREATE TABLE t2;
 
 --disable_query_log
 --replace_result #P# #p# #SP# #sp#
+--replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
 SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as
 space_name
 FROM information_schema.innodb_tables A
@@ -85,6 +88,7 @@ SHOW CREATE TABLE t2;
 
 --disable_query_log
 --replace_result #P# #p# #SP# #sp#
+--replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
 SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as
 space_name
 FROM information_schema.innodb_tables A

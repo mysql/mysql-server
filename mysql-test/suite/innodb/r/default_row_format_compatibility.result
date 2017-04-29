@@ -7,7 +7,7 @@ col6 TEXT, col7 TEXT, col8 TEXT, col9 TEXT, col10 TEXT,
 col11 TEXT) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/tab	innodb_file_per_table.1	33	14	Dynamic	0	Single
+test/tab	innodb_file_per_table.##	33	14	Dynamic	0	Single
 INSERT INTO tab SET
 col1=REPEAT('a',1000),col2=REPEAT('b',1000),col3=REPEAT('c',1000),
 col4=REPEAT('d',1000),col5=REPEAT('e',1000),col6=REPEAT('f',1000),
@@ -49,7 +49,7 @@ compact
 CREATE TABLE tab(a INT);
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/tab	innodb_file_per_table.5	1	4	Compact	0	Single
+test/tab	innodb_file_per_table.##	1	4	Compact	0	Single
 ALTER TABLE tab DISCARD TABLESPACE;
 ALTER TABLE tab IMPORT TABLESPACE;
 SELECT * FROM tab;
@@ -69,7 +69,7 @@ a	b
 1	Check with max column size
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/tab	innodb_file_per_table.6	33	5	Dynamic	0	Single
+test/tab	innodb_file_per_table.##	33	5	Dynamic	0	Single
 SET GLOBAL innodb_default_row_format=COMPACT;
 ALTER TABLE tab ROW_FORMAT=COMPACT;
 ERROR HY000: Index column size too large. The maximum column size is 767 bytes.
@@ -85,23 +85,23 @@ a	b
 1	Check with max column size
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/tab	innodb_file_per_table.7	33	5	Dynamic	0	Single
+test/tab	innodb_file_per_table.##	33	5	Dynamic	0	Single
 ALTER TABLE tab ROW_FORMAT=COMPACT;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/tab	innodb_file_per_table.8	1	5	Compact	0	Single
+test/tab	innodb_file_per_table.##	1	5	Compact	0	Single
 SELECT * FROM tab;
 a	b
 1	Check with max column size
 ALTER TABLE tab ROW_FORMAT=COMPRESSED;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/tab	innodb_file_per_table.9	41	5	Compressed	8192	Single
+test/tab	innodb_file_per_table.##	41	5	Compressed	8192	Single
 SELECT * FROM tab;
 a	b
 1	Check with max column size
 ALTER TABLE tab ROW_FORMAT=Dynamic;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/tab	innodb_file_per_table.10	33	5	Dynamic	0	Single
+test/tab	innodb_file_per_table.##	33	5	Dynamic	0	Single
 DROP TABLE tab;

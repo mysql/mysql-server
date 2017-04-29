@@ -8,32 +8,32 @@ redundant
 CREATE  TABLE t1(c1 TEXT,c2 BLOB) ENGINE=InnoDB;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/t1	innodb_file_per_table.1	0	5	Redundant	0	Single
+test/t1	innodb_file_per_table.##	0	5	Redundant	0	Single
 DROP TABLE t1;
 
 CREATE  TABLE t1(c1 TEXT,c2 BLOB) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/t1	innodb_file_per_table.2	33	5	Dynamic	0	Single
+test/t1	innodb_file_per_table.##	33	5	Dynamic	0	Single
 DROP TABLE t1;
 
 CREATE  TABLE t1(c1 TEXT,c2 BLOB) ENGINE=InnoDB ROW_FORMAT=COMPACT;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/t1	innodb_file_per_table.3	1	5	Compact	0	Single
+test/t1	innodb_file_per_table.##	1	5	Compact	0	Single
 DROP TABLE t1;
 
 CREATE  TABLE t1(c1 TEXT,c2 BLOB) ENGINE=InnoDB ROW_FORMAT=REDUNDANT;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/t1	innodb_file_per_table.4	0	5	Redundant	0	Single
+test/t1	innodb_file_per_table.##	0	5	Redundant	0	Single
 DROP TABLE t1;
 
 CREATE  TABLE t1(c1 TEXT,c2 BLOB) ENGINE=InnoDB
 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/t1	innodb_file_per_table.5	35	5	Compressed	1024	Single
+test/t1	innodb_file_per_table.##	35	5	Compressed	1024	Single
 DROP TABLE t1;
 
 
@@ -90,32 +90,32 @@ compact
 CREATE  TABLE t1(c1 TEXT,c2 BLOB) ENGINE=InnoDB;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/t1	innodb_file_per_table.6	1	5	Compact	0	Single
+test/t1	innodb_file_per_table.##	1	5	Compact	0	Single
 DROP TABLE t1;
 
 CREATE  TABLE t1(c1 TEXT,c2 BLOB) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/t1	innodb_file_per_table.7	33	5	Dynamic	0	Single
+test/t1	innodb_file_per_table.##	33	5	Dynamic	0	Single
 DROP TABLE t1;
 
 CREATE  TABLE t1(c1 TEXT,c2 BLOB) ENGINE=InnoDB ROW_FORMAT=COMPACT;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/t1	innodb_file_per_table.8	1	5	Compact	0	Single
+test/t1	innodb_file_per_table.##	1	5	Compact	0	Single
 DROP TABLE t1;
 
 CREATE  TABLE t1(c1 TEXT,c2 BLOB) ENGINE=InnoDB ROW_FORMAT=REDUNDANT;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/t1	innodb_file_per_table.9	0	5	Redundant	0	Single
+test/t1	innodb_file_per_table.##	0	5	Redundant	0	Single
 DROP TABLE t1;
 
 CREATE  TABLE t1(c1 TEXT,c2 BLOB) ENGINE=InnoDB
 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/t1	innodb_file_per_table.10	35	5	Compressed	1024	Single
+test/t1	innodb_file_per_table.##	35	5	Compressed	1024	Single
 DROP TABLE t1;
 
 
@@ -172,32 +172,32 @@ dynamic
 CREATE  TABLE t1(c1 TEXT,c2 BLOB) ENGINE=InnoDB;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/t1	innodb_file_per_table.11	33	5	Dynamic	0	Single
+test/t1	innodb_file_per_table.##	33	5	Dynamic	0	Single
 DROP TABLE t1;
 
 CREATE  TABLE t1(c1 TEXT,c2 BLOB) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/t1	innodb_file_per_table.12	33	5	Dynamic	0	Single
+test/t1	innodb_file_per_table.##	33	5	Dynamic	0	Single
 DROP TABLE t1;
 
 CREATE  TABLE t1(c1 TEXT,c2 BLOB) ENGINE=InnoDB ROW_FORMAT=COMPACT;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/t1	innodb_file_per_table.13	1	5	Compact	0	Single
+test/t1	innodb_file_per_table.##	1	5	Compact	0	Single
 DROP TABLE t1;
 
 CREATE  TABLE t1(c1 TEXT,c2 BLOB) ENGINE=InnoDB ROW_FORMAT=REDUNDANT;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/t1	innodb_file_per_table.14	0	5	Redundant	0	Single
+test/t1	innodb_file_per_table.##	0	5	Redundant	0	Single
 DROP TABLE t1;
 
 CREATE  TABLE t1(c1 TEXT,c2 BLOB) ENGINE=InnoDB
 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/t1	innodb_file_per_table.15	35	5	Compressed	1024	Single
+test/t1	innodb_file_per_table.##	35	5	Compressed	1024	Single
 DROP TABLE t1;
 
 
@@ -255,13 +255,13 @@ CREATE  TABLE t1 (a INT PRIMARY KEY, b TEXT) ROW_FORMAT=COMPACT ENGINE=INNODB;
 INSERT INTO t1 VALUES (1, 'abc');
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/t1	innodb_file_per_table.16	1	5	Compact	0	Single
+test/t1	innodb_file_per_table.##	1	5	Compact	0	Single
 SET GLOBAL innodb_default_row_format=DYNAMIC;
 ALTER TABLE t1 DROP PRIMARY KEY, ADD COLUMN c INT PRIMARY KEY;
 # Here we expect COMPACT because it was explicitly specified at CREATE
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/t1	innodb_file_per_table.17	1	6	Compact	0	Single
+test/t1	innodb_file_per_table.##	1	6	Compact	0	Single
 DROP TABLE t1;
 
 ####################################
@@ -272,14 +272,14 @@ CREATE  TABLE t1 (a INT PRIMARY KEY, b TEXT) ENGINE=INNODB;
 INSERT INTO t1 VALUES (1, 'abc');
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/t1	innodb_file_per_table.18	1	5	Compact	0	Single
+test/t1	innodb_file_per_table.##	1	5	Compact	0	Single
 SET GLOBAL innodb_default_row_format = DYNAMIC;
 ALTER TABLE t1 DROP PRIMARY KEY, ADD COLUMN c INT PRIMARY KEY;
 # Here we expect DYNAMIC because there is no explicit ROW_FORMAT and the
 # default_row_format is changed to DYNAMIC just before ALTER
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/t1	innodb_file_per_table.19	33	6	Dynamic	0	Single
+test/t1	innodb_file_per_table.##	33	6	Dynamic	0	Single
 DROP TABLE t1;
 
 ####################################
@@ -289,14 +289,14 @@ CREATE  TABLE t1 (a INT PRIMARY KEY, b TEXT) ENGINE=INNODB;
 INSERT INTO t1 VALUES (1, REPEAT('abc',1000));
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/t1	innodb_file_per_table.20	0	5	Redundant	0	Single
+test/t1	innodb_file_per_table.##	0	5	Redundant	0	Single
 SET GLOBAL innoDB_default_row_format = COMPACT;
 ALTER TABLE t1 ADD COLUMN c2 BLOB, ALGORITHM=COPY;
 # Because of ALGORITHM=COPY, there is TABLE REBUILD and the table isn't
 # created with explicit row_format, so we expect ROW_FORMAT=COMPACT
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/t1	innodb_file_per_table.21	1	6	Compact	0	Single
+test/t1	innodb_file_per_table.##	1	6	Compact	0	Single
 DROP TABLE t1;
 
 ###################################
@@ -306,7 +306,7 @@ CREATE  TABLE t1 (a INT PRIMARY KEY, b TEXT) ROW_FORMAT=REDUNDANT ENGINE=INNODB;
 INSERT INTO t1 VALUES (1, REPEAT('abc',1000));
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/t1	innodb_file_per_table.22	0	5	Redundant	0	Single
+test/t1	innodb_file_per_table.##	0	5	Redundant	0	Single
 SET GLOBAL innoDB_default_row_format = COMPACT;
 ALTER TABLE t1 ADD COLUMN c2 BLOB, ALGORITHM=COPY;
 # Because of ALGORITHM=COPY, there is TABLE REBUILD and the table is
@@ -314,7 +314,7 @@ ALTER TABLE t1 ADD COLUMN c2 BLOB, ALGORITHM=COPY;
 # ROW_FORMAT=REDUNDANT
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/t1	innodb_file_per_table.23	0	6	Redundant	0	Single
+test/t1	innodb_file_per_table.##	0	6	Redundant	0	Single
 DROP TABLE t1;
 
 ##################################
@@ -324,14 +324,14 @@ CREATE  TABLE t1 (a INT PRIMARY KEY, b TEXT, KEY k1(b(10))) ENGINE=INNODB;
 INSERT INTO t1 VALUES (1, REPEAT('abc',1000));
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/t1	innodb_file_per_table.24	1	5	Compact	0	Single
+test/t1	innodb_file_per_table.##	1	5	Compact	0	Single
 SET GLOBAL innodb_default_row_format=DYNAMIC;
 ALTER TABLE t1 DROP INDEX k1;
 # Because it is in-place operation, there is no rebuild, so the
 # original format has to be retained.
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/t1	innodb_file_per_table.24	1	5	Compact	0	Single
+test/t1	innodb_file_per_table.##	1	5	Compact	0	Single
 DROP TABLE t1;
 
 ####################################

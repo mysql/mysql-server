@@ -9,18 +9,18 @@ CREATE TABLE tab(c1  TEXT, c2 BLOB);
 INSERT INTO tab VALUES('Check with no tablespace','Check with no tablespace');
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/tab	innodb_file_per_table.##	0	5	Dynamic	0	Single
+test/tab	innodb_file_per_table.##	33	5	Dynamic	0	Single
 ALTER TABLE tab ROW_FORMAT=COMPACT;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/tab	innodb_file_per_table.##	0	5	Compact	0	Single
+test/tab	innodb_file_per_table.##	1	5	Compact	0	Single
 CHECK TABLE tab;
 Table	Op	Msg_type	Msg_text
 test.tab	check	status	OK
 ALTER TABLE tab ROW_FORMAT=DYNAMIC;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/tab	innodb_file_per_table.##	0	5	Dynamic	0	Single
+test/tab	innodb_file_per_table.##	33	5	Dynamic	0	Single
 CHECK TABLE tab;
 Table	Op	Msg_type	Msg_text
 test.tab	check	status	OK
@@ -42,7 +42,7 @@ test.tab	check	status	OK
 ALTER TABLE tab ROW_FORMAT=Dynamic;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/tab	innodb_file_per_table.##	0	5	Dynamic	0	Single
+test/tab	innodb_file_per_table.##	33	5	Dynamic	0	Single
 CHECK TABLE tab;
 Table	Op	Msg_type	Msg_text
 test.tab	check	status	OK
@@ -64,29 +64,29 @@ INSERT INTO tab1 VALUES('tablsp File Block size',
 'tablsp File Block size');
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/tab	$tablespace	0	5	Dynamic	0	General
-test/tab1	tblsp1	0	5	Compressed	0	General
+test/tab	$tablespace	161	5	Dynamic	0	General
+test/tab1	tblsp1	163	5	Compressed	1024	General
 ALTER TABLE tab ROW_FORMAT=COMPACT;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/tab	$tablespace	0	5	Compact	0	General
-test/tab1	tblsp1	0	5	Compressed	0	General
+test/tab	$tablespace	129	5	Compact	0	General
+test/tab1	tblsp1	163	5	Compressed	1024	General
 CHECK TABLE tab;
 Table	Op	Msg_type	Msg_text
 test.tab	check	status	OK
 ALTER TABLE tab ROW_FORMAT=DYNAMIC;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/tab	$tablespace	0	5	Dynamic	0	General
-test/tab1	tblsp1	0	5	Compressed	0	General
+test/tab	$tablespace	161	5	Dynamic	0	General
+test/tab1	tblsp1	163	5	Compressed	1024	General
 CHECK TABLE tab;
 Table	Op	Msg_type	Msg_text
 test.tab	check	status	OK
 ALTER TABLE tab ROW_FORMAT=REDUNDANT;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/tab	$tablespace	0	5	Redundant	0	General
-test/tab1	tblsp1	0	5	Compressed	0	General
+test/tab	$tablespace	128	5	Redundant	0	General
+test/tab1	tblsp1	163	5	Compressed	1024	General
 CHECK TABLE tab;
 Table	Op	Msg_type	Msg_text
 test.tab	check	status	OK
@@ -107,8 +107,8 @@ test.tab1	check	status	OK
 ALTER TABLE tab ROW_FORMAT=Dynamic;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/tab	$tablespace	0	5	Dynamic	0	General
-test/tab1	tblsp1	0	5	Compressed	0	General
+test/tab	$tablespace	161	5	Dynamic	0	General
+test/tab1	tblsp1	163	5	Compressed	1024	General
 CHECK TABLE tab;
 Table	Op	Msg_type	Msg_text
 test.tab	check	status	OK
@@ -126,25 +126,25 @@ INSERT INTO tab VALUES('Check with InnoDB system tablespace',
 'Check with InnoDB system tablespace');
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/tab	innodb_system	0	5	Dynamic	0	System
+test/tab	innodb_system	161	5	Dynamic	0	System
 ALTER TABLE tab ROW_FORMAT=COMPACT;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/tab	innodb_system	0	5	Compact	0	System
+test/tab	innodb_system	129	5	Compact	0	System
 CHECK TABLE tab;
 Table	Op	Msg_type	Msg_text
 test.tab	check	status	OK
 ALTER TABLE tab ROW_FORMAT=DYNAMIC;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/tab	innodb_system	0	5	Dynamic	0	System
+test/tab	innodb_system	161	5	Dynamic	0	System
 CHECK TABLE tab;
 Table	Op	Msg_type	Msg_text
 test.tab	check	status	OK
 ALTER TABLE tab ROW_FORMAT=REDUNDANT;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/tab	innodb_system	0	5	Redundant	0	System
+test/tab	innodb_system	128	5	Redundant	0	System
 CHECK TABLE tab;
 Table	Op	Msg_type	Msg_text
 test.tab	check	status	OK
@@ -158,7 +158,7 @@ test.tab	check	status	OK
 ALTER TABLE tab ROW_FORMAT=Dynamic;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/tab	innodb_system	0	5	Dynamic	0	System
+test/tab	innodb_system	161	5	Dynamic	0	System
 CHECK TABLE tab;
 Table	Op	Msg_type	Msg_text
 test.tab	check	status	OK
@@ -176,26 +176,18 @@ CREATE TABLE tab(c1  TEXT, c2 BLOB);
 INSERT INTO tab VALUES('File per table off','File per table off');
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/tab	innodb_system	0	5	Dynamic	0	System
+test/tab	innodb_system	33	5	Dynamic	0	System
 ALTER TABLE tab ROW_FORMAT=COMPACT;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-<<<<<<< HEAD
-test/tab	innodb_system	0	5	Compact	0	System
-=======
 test/tab	innodb_system	129	5	Compact	0	System
->>>>>>> mysql-trunk
 CHECK TABLE tab;
 Table	Op	Msg_type	Msg_text
 test.tab	check	status	OK
 ALTER TABLE tab ROW_FORMAT=DYNAMIC;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-<<<<<<< HEAD
-test/tab	innodb_system	0	5	Dynamic	0	System
-=======
 test/tab	innodb_system	161	5	Dynamic	0	System
->>>>>>> mysql-trunk
 CHECK TABLE tab;
 Table	Op	Msg_type	Msg_text
 test.tab	check	status	OK
@@ -208,11 +200,7 @@ Table	Op	Msg_type	Msg_text
 test.tab	check	status	OK
 ALTER TABLE tab ROW_FORMAT=COMPRESSED;
 ERROR HY000: InnoDB: Tablespace `innodb_system` cannot contain a COMPRESSED table
-<<<<<<< HEAD
 SELECT NAME,ROW_FORMAT FROM INFORMATION_SCHEMA.INNODB_TABLES
-=======
-SELECT NAME,ROW_FORMAT FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
->>>>>>> mysql-trunk
 WHERE NAME='test/tab';
 NAME	ROW_FORMAT
 test/tab	Redundant
@@ -222,11 +210,7 @@ test.tab	check	status	OK
 ALTER TABLE tab ROW_FORMAT=Dynamic;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-<<<<<<< HEAD
-test/tab	innodb_system	0	5	Dynamic	0	System
-=======
 test/tab	innodb_system	161	5	Dynamic	0	System
->>>>>>> mysql-trunk
 CHECK TABLE tab;
 Table	Op	Msg_type	Msg_text
 test.tab	check	status	OK
