@@ -219,9 +219,6 @@ static char*	innodb_version_str = (char*) INNODB_VERSION_STR;
 
 static Innodb_data_lock_inspector innodb_data_lock_inspector;
 
-/** dd table space id for creating fts dd table. */
-thread_local dd::Object_id thread_local_dd_space_id = dd::INVALID_OBJECT_ID;
-
 /** Note we cannot use rec_format_enum because we do not allow
 COMPRESSED row format for innodb_default_row_format option. */
 enum default_row_format_enum {
@@ -3759,6 +3756,7 @@ boot_tablespaces(THD* thd)
 	}
 
 	fil_set_max_space_id_if_bigger(max_id);
+
 	mem_heap_free(heap);
 
 	return(fail);
@@ -4856,7 +4854,7 @@ innobase_init_files(
 	}
 
 	if (srv_is_upgrade_mode) {
-                dict_sys_table_id_build();
+		dict_sys_table_id_build();
 		/* Disable AHI when we start loading tables for purge.
 		These tables are evicted anyway after purge. */
 
@@ -5668,14 +5666,10 @@ innobase_sdi_check_existence(
 		return(DB_ERROR);
 	}
 
-#if 1 /* TODO: To make SDI work here */
-	return(DB_ERROR);
-#else
 	ut_ad(check_trx_exists(current_thd) != NULL);
 
 	uint32_t	num_of_sdi = innobase_sdi_get_num_copies(tablespace);
 	return(num_of_sdi != MAX_SDI_COPIES ? DB_ERROR : DB_SUCCESS);
-#endif
 }
 
 /** Create SDI in a tablespace. This API should be used when
@@ -12278,7 +12272,7 @@ innobase_fts_load_stopword(
 partitions and subpartitions, in number of characters.
 The naming is: "table_name#P#partition_name#SP#subpartition_name",
 where each of the names can be up to NAME_CHAR_LEN (64) characters.
-So the maximum is 64 + strlen(#P#) + 64 + strlen(#SP#) + 64 = 199. */
+So the maximum is 64 + strlen(#P#) + 64 + strlen(\#SP#) + 64 = 199. */
 
 #define NAME_CHAR_LEN_PARTITIONS_STR	"199"
 
@@ -12323,7 +12317,7 @@ innobase_dict_init(
 		"  database_name VARCHAR(64) NOT NULL, \n"
 		"  table_name VARCHAR(" NAME_CHAR_LEN_PARTITIONS_STR
 		") NOT NULL, \n"
-		"  last_update TIMESTAMP NOT NULL NOT NULL \n"
+		"  last_update TIMESTAMP NOT NULL \n"
 		"  DEFAULT CURRENT_TIMESTAMP \n"
 		"  ON UPDATE CURRENT_TIMESTAMP, \n"
 		"  n_rows BIGINT UNSIGNED NOT NULL, \n"
@@ -12940,18 +12934,6 @@ create_table_info_t::set_tablespace_type(
 	general or system tablespace. */
 	m_use_shared_space = tablespace_is_shared_space(m_create_info);
 
-	/* Need adjustment for the intermediate table created during
-	ALTER TABLE...COPY. This is because m_create_info->tablespace
-	may say it's 'innodb_system', but if current innodb_file_per_table
-	is ON, we still have to create the table in file-per-table tablespace */
-	if (m_use_shared_space && m_innodb_file_per_table
-	    && m_table_name != NULL
-	    && row_is_mysql_tmp_table_name(m_table_name)
-	    && strcmp(m_create_info->tablespace, dict_sys_t::sys_space_name)
-	       == 0) {
-		m_use_shared_space = false;
-	}
-
 	/** Allow file_per_table for this table either because:
 	1) the setting innodb_file_per_table=on,
 	2) the table being altered is currently file_per_table
@@ -12962,6 +12944,10 @@ create_table_info_t::set_tablespace_type(
 		|| tablespace_is_file_per_table(m_create_info);
 
 	bool is_temp = m_create_info->options & HA_LEX_CREATE_TMP_TABLE;
+
+	/* Note whether this table will be created using a shared,
+	general or system tablespace. */
+	m_use_shared_space = tablespace_is_shared_space(m_create_info);
 
 	/* Ignore the current innodb_file_per_table setting if we are
 	creating a temporary table or if the
@@ -13880,7 +13866,7 @@ ha_innobase::get_se_private_data(
 	dd_table->set_se_private_id(DICT_HDR_FIRST_ID + 1 + n_tables++);
 	dd_table->set_tablespace_id(dict_sys_t::dd_space_id);
 
-	for (dd::Index *i : *dd_table->indexes()) {
+	for (dd::Index* i : *dd_table->indexes()) {
 		i->set_tablespace_id(dict_sys_t::dd_space_id);
 
 		if (fsp_is_inode_page(n_pages)) {
@@ -13924,6 +13910,7 @@ ha_innobase::create_table_impl(
 	char		remote_path[FN_REFLEN];	/* Absolute path of table */
 	char		tablespace[NAME_LEN];	/* Tablespace name identifier */
 	trx_t*		trx;
+	trx_t*		thd_trx = thd_to_trx(ha_thd());
 	DBUG_ENTER("ha_innobase::create");
 
 	create_table_info_t	info(ha_thd(),
@@ -13949,6 +13936,8 @@ ha_innobase::create_table_impl(
 	trx = info.trx();
 
 	bool	dict_locked = false;
+	bool	prevent_eviction = false;
+	bool	prevented = false;
 	/* Latch the InnoDB data dictionary exclusively so that no deadlocks
 	or lock waits can happen in it during a table create operation.
 	Drop table etc. do this latching in row0mysql.cc.
@@ -13956,11 +13945,20 @@ ha_innobase::create_table_impl(
 	Table Object for such table is cached in THD instead of storing it
 	to dictionary. */
 	if (!info.is_intrinsic_temp_table()) {
-		row_mysql_lock_data_dictionary(trx);
+		/* We need to set the lock mode for both thd trx and
+		info.trx()).*/
+		if (thd_trx) {
+			row_mysql_lock_data_dictionary(thd_trx);
+			trx->dict_operation_lock_mode = RW_X_LATCH;
+		} else {
+			row_mysql_lock_data_dictionary(trx);
+		}
+
 		dict_locked = true;
 	}
 
-	if ((error = info.create_table(&dd_tab->table()))) {
+	if ((error = info.create_table(
+		dd_tab != nullptr ? &dd_tab->table() : nullptr))) {
 		goto cleanup;
 	}
 
@@ -13968,7 +13966,18 @@ ha_innobase::create_table_impl(
 
 	if (!info.is_intrinsic_temp_table()) {
 		ut_ad(!srv_read_only_mode);
-		row_mysql_unlock_data_dictionary(trx);
+
+		/* Prevent eviction before releasing dict_sys mutex */
+		prevent_eviction = info.prevent_eviction();
+		prevented = true;
+
+		if (thd_trx) {
+			row_mysql_unlock_data_dictionary(thd_trx);
+			trx->dict_operation_lock_mode = 0;
+		} else {
+			row_mysql_unlock_data_dictionary(trx);
+		}
+
 		dict_locked = false;
 		/* Flush the log to reduce probability that the .frm files and
 		the InnoDB data dictionary get out-of-sync if the user runs
@@ -13982,6 +13991,10 @@ ha_innobase::create_table_impl(
 
 	error = info.create_table_update_dict();
 
+	if (prevent_eviction || prevented) {
+		info.detach(prevent_eviction, false);
+	}
+
 	/* Tell the InnoDB server that there might be work for
 	utility threads: */
 
@@ -13992,11 +14005,20 @@ ha_innobase::create_table_impl(
 	DBUG_RETURN(error);
 
 cleanup:
+	if (prevent_eviction || prevented) {
+		info.detach(prevent_eviction, dict_locked);
+	}
+
 	trx_rollback_for_mysql(trx);
 
 	if (!info.is_intrinsic_temp_table()) {
 		if (dict_locked) {
-			row_mysql_unlock_data_dictionary(trx);
+			if (thd_trx) {
+				row_mysql_unlock_data_dictionary(thd_trx);
+				trx->dict_operation_lock_mode = 0;
+			} else {
+				row_mysql_unlock_data_dictionary(trx);
+			}
 		}
 	} else {
 		THD* thd = info.thd();

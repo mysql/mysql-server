@@ -71,6 +71,7 @@ static const uint NO_FK_CHECKS=    1 << 3;
 */
 static const uint NO_DD_COMMIT=    1 << 4;
 
+
 size_t filename_to_tablename(const char *from, char *to, size_t to_length
 #ifndef DBUG_OFF
                            , bool stay_quiet = false

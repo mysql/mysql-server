@@ -979,6 +979,7 @@ class Round_instantiator
 public:
   static const uint Min_argcount= 1;
   static const uint Max_argcount= 2;
+
   Item *instantiate(THD *thd, PT_item_list *args)
   {
     switch (args->elements())
@@ -2035,6 +2036,7 @@ create_func_cast(THD *thd, const POS &pos, Item *a, const Cast_type *type)
   }
   return res;
 }
+
 
 /**
   Builder for datetime literals:

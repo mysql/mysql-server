@@ -526,6 +526,7 @@ static void fill_dd_view_routines(
   DBUG_VOID_RETURN;
 }
 
+
 /**
   Method to fill view information in the View object.
 

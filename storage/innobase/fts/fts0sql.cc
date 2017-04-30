@@ -177,16 +177,7 @@ fts_get_table_name_low(
 	prefix_name = is_5_7 ? fts_get_table_name_prefix_5_7(fts_table)
 		: fts_get_table_name_prefix(fts_table);
 
-	std::string	name_str;
-	name_str.append(prefix_name);
-	name_str.append("_");
-	name_str.append(fts_table->suffix);
-
-	std::transform(name_str.begin(), name_str.end(),
-		       name_str.begin(), ::tolower);
-
-	len = name_str.size();
-	strcpy(table_name, name_str.c_str());
+	len = sprintf(table_name, "%s_%s", prefix_name, fts_table->suffix);
 
 	ut_a(len > 0);
 	ut_a(strlen(prefix_name) + 1 + strlen(fts_table->suffix)

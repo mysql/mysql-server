@@ -4770,11 +4770,6 @@ new_clustered_failed:
 						&index_defs[a]);
 		}
 
-		DBUG_EXECUTE_IF("ib_import_create_index_failure_1",
-			ctx->trx->error_state = DB_OUT_OF_FILE_SPACE;
-			error = ctx->trx->error_state;
-			goto error_handling;);
-
 		ctx->add_index[a] = row_merge_create_index(
 			ctx->trx, ctx->new_table,
 			&index_defs[a], add_v);
@@ -6813,6 +6808,19 @@ innobase_update_foreign_try(
 				DBUG_RETURN(true);
 			}
 		}
+		
+		/* During upgrade, inserts into SYS_* should be avoided. */
+		if (!srv_is_upgrade_mode) {
+			DBUG_EXECUTE_IF(
+				"innodb_test_cannot_add_fk_system",
+				error = DB_ERROR;);
+
+			if (error != DB_SUCCESS) {
+				my_error(ER_FK_FAIL_ADD_SYSTEM, MYF(0),
+					 fk->id);
+				DBUG_RETURN(true);
+			}
+		}
 	}
 	DBUG_EXECUTE_IF("ib_drop_foreign_error",
 			my_error_innodb(DB_OUT_OF_FILE_SPACE,
@@ -6824,13 +6832,13 @@ innobase_update_foreign_try(
 
 /** Update the foreign key constraint definitions in the data dictionary cache
 after the changes to data dictionary tables were committed.
-@param ctx	In-place ALTER TABLE context
-@param user_thd	MySQL connection
+@param[in,out]	ctx		In-place ALTER TABLE context
+@param[in]	user_thd	MySQL connection
+@param[in,out]	dd_table	dd table instance
 @return		InnoDB error code (should always be DB_SUCCESS) */
 static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 innobase_update_foreign_cache(
-/*==========================*/
 	ha_innobase_inplace_ctx*	ctx,
 	THD*				user_thd,
 	dd::Table*			dd_table)
@@ -8106,11 +8114,6 @@ ha_innobase::commit_inplace_alter_table_impl(
 
 		trx_commit_for_mysql(m_prebuilt->trx);
 
-		if (btr_search_enabled) {
-			btr_search_disable(false);
-			btr_search_enable();
-		}
-
 		char	tb_name[FN_REFLEN];
 		ut_strcpy(tb_name, m_prebuilt->table->name.m_name);
 
@@ -8142,6 +8145,7 @@ ha_innobase::commit_inplace_alter_table_impl(
 		DBUG_RETURN(false);
 	}
 
+	/* Release the table locks. */
 	trx_commit_for_mysql(m_prebuilt->trx);
 
 	DBUG_EXECUTE_IF("ib_ddl_crash_after_user_trx_commit", DBUG_SUICIDE(););
@@ -8185,7 +8189,7 @@ ha_innobase::commit_inplace_alter_table_impl(
 		ut_d(dict_table_check_for_dup_indexes(
 			     ctx->new_table, CHECK_ALL_COMPLETE));
 
-		if (add_fts) {
+		if (add_fts && !ctx->new_table->discard_after_ddl) {
 			fts_optimize_add_table(ctx->new_table);
 		}
 
@@ -8231,7 +8235,6 @@ ha_innobase::commit_inplace_alter_table_impl(
 
 			DBUG_EXECUTE_IF("ib_ddl_crash_before_commit",
 					DBUG_SUICIDE(););
-
 
 			ut_ad(m_prebuilt != ctx->prebuilt
 			      || ctx == ctx0);
@@ -8303,6 +8306,14 @@ ha_innobase::commit_inplace_alter_table_impl(
 				table->s->table_name.str, m_user_thd);
 			DBUG_INJECT_CRASH("ib_commit_inplace_crash",
 					  crash_inject_count++);
+
+			if (ctx->fts_drop_aux_vec != nullptr
+			    && ctx->fts_drop_aux_vec->aux_name.size() > 0) {
+				fts_drop_dd_tables(
+					ctx->fts_drop_aux_vec,
+					dict_table_is_file_per_table(
+						ctx->old_table));
+			}
 		}
 	}
 
@@ -8364,11 +8375,16 @@ public:
 			}
 			ut_free(ctx_array);
 		}
+
+		if (m_old_info != nullptr) {
+			ut_free(m_old_info);
+		}
+
 		if (prebuilt_array) {
 			/* First entry is the original prebuilt! */
 			for (uint i = 1; i < m_tot_parts; i++) {
 				/* Don't close the tables. */
-				prebuilt_array[i]->table = NULL;
+				prebuilt_array[i]->table = nullptr;
 				row_prebuilt_free(prebuilt_array[i], false);
 			}
 			ut_free(prebuilt_array);

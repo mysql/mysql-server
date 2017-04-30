@@ -23,7 +23,6 @@
 #include "dd/cache/dictionary_client.h"// dd::cache::Dictionary_client
 #include "dd/dd_schema.h"   // dd::Schema_MDL_locker
 #include "dd/dd_table.h"    // dd::recreate_table
-#include "dd/dd_schema.h"   // dd::Schema_MDL_locker
 #include "dd/types/abstract_table.h" // dd::enum_table_type
 #include "dd/types/table.h" // dd::Table
 #include "debug_sync.h"     // DEBUG_SYNC

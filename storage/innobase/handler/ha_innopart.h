@@ -1371,24 +1371,24 @@ private:
 	truncate_partition_low(dd::Table *dd_table);
 
 	/** Exchange partition.
-        Low-level primitive which implementation is provided here.
-        @param[in]      part_table_path         data file path of the
-                                                partitioned table
-        @param[in]      swap_table_path         data file path of the to be
-                                                swapped table
-        @param[in]      part_id                 The id of the partition to
-                                                be exchanged
-        @param[in,out]  part_table              partitioned table to be
-                                                exchanged
-        @param[in,out]  swap_table              table to be exchanged
-        @return error number
-        @retval 0       on success */
-        int exchange_partition_low(
-                const char*     part_table_path,
-                const char*     swap_table_path,
-                uint            part_id,
-                dd::Table*      part_table,
-                dd::Table*      swap_table);
+	Low-level primitive which implementation is provided here.
+	@param[in]	part_table_path	data file path of the
+					partitioned table
+	@param[in]	swap_table_path	data file path of the to be
+					swapped table
+	@param[in]	part_id		The id of the partition to
+					be exchanged
+	@param[in,out]	part_table	partitioned table to be
+					exchanged
+	@param[in,out]	swap_table	table to be exchanged
+	@return	error number
+	@retval	0	on success */
+	int exchange_partition_low(
+		const char*	part_table_path,
+		const char*	swap_table_path,
+		uint		part_id,
+		dd::Table*	part_table,
+		dd::Table*	swap_table);
 
 	/** Access methods to protected areas in handler to avoid adding
 	friend class Partition_helper in class handler.

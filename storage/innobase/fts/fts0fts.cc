@@ -2084,7 +2084,7 @@ fts_create_one_common_table(
 			fts_table_name, table, FTS_CONFIG_TABLE_NUM_COLS);
 
 		dict_mem_table_add_col(
-			new_table, heap, "key", DATA_VARCHAR, DATA_NOT_NULL,
+			new_table, heap, "key", DATA_VARCHAR, 0,
 			FTS_CONFIG_TABLE_KEY_COL_LEN);
 
 		dict_mem_table_add_col(
@@ -2118,6 +2118,7 @@ fts_create_one_common_table(
 
 	if (error != DB_SUCCESS) {
 		trx->error_state = error;
+		dict_mem_table_free(new_table);
 		new_table = NULL;
 		ib::warn() << "Failed to create FTS common table "
 			<< fts_table_name;
@@ -2323,6 +2324,7 @@ fts_create_one_index_table(
 
 	if (error != DB_SUCCESS) {
 		trx->error_state = error;
+		dict_mem_table_free(new_table);
 		new_table = NULL;
 		ib::warn() << "Failed to create FTS index table "
 			<< table_name;

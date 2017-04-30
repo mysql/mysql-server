@@ -442,6 +442,7 @@ private:
 
 public:
 
+
   // Initialize an instance with a default auto releaser.
   explicit Dictionary_client(THD *thd);
 
@@ -621,6 +622,7 @@ public:
                                 const String_type &object_name,
                                 T** object)
     MY_ATTRIBUTE((warn_unused_result));
+
 
   /**
     Retrieve an object by its schema- and object name.

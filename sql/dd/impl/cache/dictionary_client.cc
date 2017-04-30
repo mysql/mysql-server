@@ -2684,8 +2684,6 @@ template bool Dictionary_client::acquire_for_modification(const String_type&,
                                                           const String_type&,
                                                           Abstract_table**);
 template void Dictionary_client::remove_uncommitted_objects<Abstract_table>(bool);
-//template bool Dictionary_client::acquire_uncached_uncommitted(
-//	Object_id, const Tablespace**);
 template bool Dictionary_client::drop(const Abstract_table*);
 template bool Dictionary_client::store(Abstract_table*);
 template bool Dictionary_client::update(Abstract_table*);

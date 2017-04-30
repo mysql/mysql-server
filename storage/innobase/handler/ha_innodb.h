@@ -1002,23 +1002,6 @@ public:
 		const char*	name,
 		ibool		set_lower_case);
 
-	static void dd_tablespace_set_name(
-		dd::Tablespace*	dd_space,
-		space_id_t	space);
-
-	static bool create_dd_tablespace(
-		dd::cache::Dictionary_client*	dd_client,
-		THD*				thd,
-		const char*			dd_space_name,
-		space_id_t			space_id,
-		ulint				flags,
-		const char*			filename,
-		dd::Object_id&			dd_space_id);
-
-	static void set_table_options(
-		dd::Table*	dd_table,
-		dict_table_t*	table);
-
 private:
 	/** Parses the table name into normal name and either temp path or
 	remote path if needed.*/

@@ -22,9 +22,6 @@
 #include "m_ctype.h"
 #include "my_inttypes.h"
 #include "my_sys.h"                  // get_charset
-#include "dd/dd_table.h"
-#include "dd/types/abstract_table.h"
-#include "dd/types/index_element.h"
 
 class THD;
 struct TABLE_SHARE;
@@ -109,8 +106,5 @@ class KEY_PART_INFO;
 */
 bool is_suitable_for_primary_key(KEY_PART_INFO *key_part,
                                  Field *table_field);
-
-bool dd_index_element_is_prefix(const dd::Index_element *idx_el);
-bool dd_index_is_candidate_key(const dd::Index *idx);
 
 #endif // DD_TABLE_SHARE_INCLUDED

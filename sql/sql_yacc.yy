@@ -12049,7 +12049,6 @@ describe:
             LEX *lex= Lex;
             lex->current_select()->parsing_place= CTX_SELECT_LIST;
             lex->select_lex->db= NULL;
-            lex->verbose= 0;
 
             auto *p= NEW_PTN PT_show_fields(@$, Show_fields_type::STANDARD, $2);
 

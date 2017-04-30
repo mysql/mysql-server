@@ -352,6 +352,7 @@ bool acquire_shared_table_mdl(THD *thd,
                      MDL_SHARED, MDL_EXPLICIT, out_mdl_ticket);
 }
 
+
 bool has_shared_table_mdl(THD *thd,
                           const char *schema_name,
                           const char *table_name)
