@@ -504,6 +504,7 @@ PARTITIONS 4
 
 SHOW CREATE TABLE t1;
 
+--replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
 --replace_result #P# #p#
 SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
 FROM information_schema.innodb_tables A
@@ -515,6 +516,7 @@ WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
 ALTER TABLE t1 ADD COLUMN b int;
 SHOW CREATE TABLE t1;
 
+--replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
 --replace_result #P# #p#
 SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
 FROM information_schema.innodb_tables A
@@ -526,6 +528,7 @@ WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
 ALTER TABLE t1 ADD COLUMN c int, TABLESPACE ts1;
 SHOW CREATE TABLE t1;
 
+--replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
 --replace_result #P# #p#
 SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
 FROM information_schema.innodb_tables A
@@ -537,6 +540,7 @@ WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
 ALTER TABLE t1 ADD PARTITION (PARTITION p5 VALUES LESS THAN (10) TABLESPACE ts2);
 SHOW CREATE TABLE t1;
 
+--replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
 --replace_result #P# #p#
 SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
 FROM information_schema.innodb_tables A
@@ -548,6 +552,7 @@ WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
 ALTER TABLE t1 ADD PARTITION (PARTITION p6 VALUES LESS THAN (12));
 SHOW CREATE TABLE t1;
 
+--replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
 --replace_result #P# #p#
 SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
 FROM information_schema.innodb_tables A
@@ -560,6 +565,7 @@ ALTER TABLE t1 REORGANIZE PARTITION p4 INTO (PARTITION p4 VALUES LESS THAN (8));
 SHOW CREATE TABLE t1;
 
 --replace_result #P# #p#
+--replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
 SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
 FROM information_schema.innodb_tables A
 LEFT JOIN
@@ -570,6 +576,7 @@ WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
 ALTER TABLE t1 REORGANIZE PARTITION p3 INTO (PARTITION p3 VALUES LESS THAN (6) TABLESPACE innodb_system);
 SHOW CREATE TABLE t1;
 
+--replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
 --replace_result #P# #p#
 SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
 FROM information_schema.innodb_tables A
@@ -591,6 +598,7 @@ PARTITIONS 4
 
 SHOW CREATE TABLE t1;
 
+--replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
 --replace_result #P# #p#
 SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
 FROM information_schema.innodb_tables A
@@ -602,6 +610,7 @@ WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
 ALTER TABLE t1 ADD COLUMN b int;
 SHOW CREATE TABLE t1;
 
+--replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
 --replace_result #P# #p#
 SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
 FROM information_schema.innodb_tables A
@@ -613,6 +622,7 @@ WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
 ALTER TABLE t1 ADD COLUMN c int, TABLESPACE ts1;
 SHOW CREATE TABLE t1;
 
+--replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
 --replace_result #P# #p#
 SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
 FROM information_schema.innodb_tables A
@@ -624,6 +634,7 @@ WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
 ALTER TABLE t1 ADD PARTITION (PARTITION p5 VALUES LESS THAN (10) TABLESPACE ts2);
 SHOW CREATE TABLE t1;
 
+--replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
 --replace_result #P# #p#
 SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
 FROM information_schema.innodb_tables A
@@ -635,6 +646,7 @@ WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
 ALTER TABLE t1 ADD PARTITION (PARTITION p6 VALUES LESS THAN (12));
 SHOW CREATE TABLE t1;
 
+--replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
 --replace_result #P# #p#
 SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
 FROM information_schema.innodb_tables A
@@ -646,6 +658,7 @@ WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
 ALTER TABLE t1 REORGANIZE PARTITION p4 INTO (PARTITION p4 VALUES LESS THAN (8));
 SHOW CREATE TABLE t1;
 
+--replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
 --replace_result #P# #p#
 SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
 FROM information_schema.innodb_tables A
@@ -657,6 +670,7 @@ WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
 ALTER TABLE t1 REORGANIZE PARTITION p3 INTO (PARTITION p3 VALUES LESS THAN (6) TABLESPACE innodb_system);
 SHOW CREATE TABLE t1;
 
+--replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
 --replace_result #P# #p#
 SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
 FROM information_schema.innodb_tables A

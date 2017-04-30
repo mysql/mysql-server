@@ -586,7 +586,7 @@ partition_name	space_type	space_name
 test/t1#p#p1	General	ts1
 test/t1#p#p2	System	NULL
 test/t1#p#p3	General	ts2
-test/t1#p#p4	Single	innodb_file_per_table.66
+test/t1#p#p4	Single	innodb_file_per_table.##
 ALTER TABLE t1 ADD COLUMN b int;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -610,7 +610,7 @@ partition_name	space_type	space_name
 test/t1#p#p1	General	ts1
 test/t1#p#p2	System	NULL
 test/t1#p#p3	General	ts2
-test/t1#p#p4	Single	innodb_file_per_table.67
+test/t1#p#p4	Single	innodb_file_per_table.##
 ALTER TABLE t1 ADD COLUMN c int, TABLESPACE ts1;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -635,7 +635,7 @@ partition_name	space_type	space_name
 test/t1#p#p1	General	ts1
 test/t1#p#p2	System	NULL
 test/t1#p#p3	General	ts2
-test/t1#p#p4	Single	innodb_file_per_table.68
+test/t1#p#p4	Single	innodb_file_per_table.##
 ALTER TABLE t1 ADD PARTITION (PARTITION p5 VALUES LESS THAN (10) TABLESPACE ts2);
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -661,7 +661,7 @@ partition_name	space_type	space_name
 test/t1#p#p1	General	ts1
 test/t1#p#p2	System	NULL
 test/t1#p#p3	General	ts2
-test/t1#p#p4	Single	innodb_file_per_table.68
+test/t1#p#p4	Single	innodb_file_per_table.##
 test/t1#p#p5	General	ts2
 ALTER TABLE t1 ADD PARTITION (PARTITION p6 VALUES LESS THAN (12));
 SHOW CREATE TABLE t1;
@@ -689,7 +689,7 @@ partition_name	space_type	space_name
 test/t1#p#p1	General	ts1
 test/t1#p#p2	System	NULL
 test/t1#p#p3	General	ts2
-test/t1#p#p4	Single	innodb_file_per_table.68
+test/t1#p#p4	Single	innodb_file_per_table.##
 test/t1#p#p5	General	ts2
 test/t1#p#p6	General	ts1
 ALTER TABLE t1 REORGANIZE PARTITION p4 INTO (PARTITION p4 VALUES LESS THAN (8));
@@ -779,8 +779,8 @@ WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
 partition_name	space_type	space_name
 test/t1#p#p1	General	ts1
 test/t1#p#p2	System	NULL
-test/t1#p#p3	Single	innodb_file_per_table.69
-test/t1#p#p4	Single	innodb_file_per_table.70
+test/t1#p#p3	Single	innodb_file_per_table.##
+test/t1#p#p4	Single	innodb_file_per_table.##
 ALTER TABLE t1 ADD COLUMN b int;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -803,8 +803,8 @@ WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
 partition_name	space_type	space_name
 test/t1#p#p1	General	ts1
 test/t1#p#p2	System	NULL
-test/t1#p#p3	Single	innodb_file_per_table.71
-test/t1#p#p4	Single	innodb_file_per_table.72
+test/t1#p#p3	Single	innodb_file_per_table.##
+test/t1#p#p4	Single	innodb_file_per_table.##
 ALTER TABLE t1 ADD COLUMN c int, TABLESPACE ts1;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -828,8 +828,8 @@ WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
 partition_name	space_type	space_name
 test/t1#p#p1	General	ts1
 test/t1#p#p2	System	NULL
-test/t1#p#p3	Single	innodb_file_per_table.73
-test/t1#p#p4	Single	innodb_file_per_table.74
+test/t1#p#p3	Single	innodb_file_per_table.##
+test/t1#p#p4	Single	innodb_file_per_table.##
 ALTER TABLE t1 ADD PARTITION (PARTITION p5 VALUES LESS THAN (10) TABLESPACE ts2);
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -854,8 +854,8 @@ WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
 partition_name	space_type	space_name
 test/t1#p#p1	General	ts1
 test/t1#p#p2	System	NULL
-test/t1#p#p3	Single	innodb_file_per_table.73
-test/t1#p#p4	Single	innodb_file_per_table.74
+test/t1#p#p3	Single	innodb_file_per_table.##
+test/t1#p#p4	Single	innodb_file_per_table.##
 test/t1#p#p5	General	ts2
 ALTER TABLE t1 ADD PARTITION (PARTITION p6 VALUES LESS THAN (12));
 SHOW CREATE TABLE t1;
@@ -882,8 +882,8 @@ WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
 partition_name	space_type	space_name
 test/t1#p#p1	General	ts1
 test/t1#p#p2	System	NULL
-test/t1#p#p3	Single	innodb_file_per_table.73
-test/t1#p#p4	Single	innodb_file_per_table.74
+test/t1#p#p3	Single	innodb_file_per_table.##
+test/t1#p#p4	Single	innodb_file_per_table.##
 test/t1#p#p5	General	ts2
 test/t1#p#p6	General	ts1
 ALTER TABLE t1 REORGANIZE PARTITION p4 INTO (PARTITION p4 VALUES LESS THAN (8));
@@ -911,7 +911,7 @@ WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
 partition_name	space_type	space_name
 test/t1#p#p1	General	ts1
 test/t1#p#p2	System	NULL
-test/t1#p#p3	Single	innodb_file_per_table.73
+test/t1#p#p3	Single	innodb_file_per_table.##
 test/t1#p#p4	General	ts1
 test/t1#p#p5	General	ts2
 test/t1#p#p6	General	ts1

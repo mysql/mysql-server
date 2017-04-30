@@ -4098,10 +4098,11 @@ dd_process_dd_indexes_rec(
 	if (!p->get_uint32(dd_index_key_strings[DD_TABLE_ID], &table_id)) {
 		THD*		thd = current_thd;
 		dict_table_t*	table;
+		MDL_ticket*	mdl = NULL;
 
 		/* Commit before load the table */
 		mtr_commit(mtr);
-		table = dd_table_open_on_id(table_id, thd, nullptr, true);
+		table = dd_table_open_on_id(table_id, thd, &mdl, true);
 
 		if (!table) {
 			return(false);
@@ -4115,7 +4116,7 @@ dd_process_dd_indexes_rec(
 				*index = t_index;
 			}
 		}
-		dd_table_close(table, thd, nullptr, true);
+		dd_table_close(table, thd, &mdl, true);
 
 	} else {
 		mtr_commit(mtr);
