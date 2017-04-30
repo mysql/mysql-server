@@ -61,6 +61,9 @@ CREATE TABLESPACE s_64k ADD DATAFILE 's_64k.ibd' FILE_BLOCK_SIZE=64k;
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
+s_64k	TABLESPACE	InnoDB	NORMAL	s_64k	MYSQLD_DATADIR/s_64k.ibd
+innodb_temporary	TEMPORARY	InnoDB	NORMAL	innodb_temporary	MYSQLD_DATADIR/ibtmp1
+mysql	TABLESPACE	InnoDB	NORMAL	mysql	mysql.ibd
 #
 # Add tables to the tablespaces.
 #
@@ -134,16 +137,14 @@ INSERT INTO t_dyn_in_64k VALUES (4,'d');
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
-<<<<<<< HEAD
-=== information_schema.innodb_tables  and innodb_tablespaces ===
-=======
 s_64k	TABLESPACE	InnoDB	NORMAL	s_64k	s_64k.ibd
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
->>>>>>> mysql-trunk
+innodb_temporary	TEMPORARY	InnoDB	NORMAL	innodb_temporary	MYSQLD_DATADIR/ibtmp1
+mysql	TABLESPACE	InnoDB	NORMAL	mysql	mysql.ibd
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/t_com_in_64k	s_64k	0	5	Compact	0	General
-test/t_dyn_in_64k	s_64k	0	5	Dynamic	0	General
-test/t_red_in_64k	s_64k	0	5	Redundant	0	General
+test/t_com_in_64k	s_64k	129	5	Compact	0	General
+test/t_dyn_in_64k	s_64k	161	5	Dynamic	0	General
+test/t_red_in_64k	s_64k	128	5	Redundant	0	General
 # Directory of MYSQLD_DATADIR/
 mysql.ibd
 s_64k.ibd

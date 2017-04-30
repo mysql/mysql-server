@@ -6743,7 +6743,7 @@ struct st_mysql_plugin	i_s_innodb_indexes =
 	STRUCT_FLD(flags, 0UL),
 };
 
-/**  SYS_COLUMNS  **************************************************/
+/**  INNODB_COLUMNS  **************************************************/
 /* Fields of the dynamic table INFORMATION_SCHEMA.INNODB_COLUMNS */
 static ST_FIELD_INFO	innodb_columns_fields_info[] =
 {
@@ -6804,14 +6804,13 @@ static ST_FIELD_INFO	innodb_columns_fields_info[] =
 	END_OF_ST_FIELD_INFO
 };
 
-#ifdef INNODB_NO_NEW_DD
 /**********************************************************************//**
 Function to populate the information_schema.innodb_columns with
 related column information
 @return 0 on success */
 static
 int
-i_s_dict_fill_sys_columns(
+i_s_dict_fill_innodb_columns(
 /*======================*/
 	THD*		thd,		/*!< in: thread */
 	table_id_t	table_id,	/*!< in: table ID */
@@ -6824,7 +6823,7 @@ i_s_dict_fill_sys_columns(
 {
 	Field**		fields;
 
-	DBUG_ENTER("i_s_dict_fill_sys_columns");
+	DBUG_ENTER("i_s_dict_fill_innodb_columns");
 
 	fields = table_to_fill->field;
 
@@ -6849,27 +6848,29 @@ i_s_dict_fill_sys_columns(
 
 	DBUG_RETURN(0);
 }
-#endif /* INNODB_NO_NEW_DD */
+
 /*******************************************************************//**
 Function to fill information_schema.innodb_columns with information
-collected by scanning SYS_COLUMNS table.
+collected by scanning INNODB_COLUMNS table.
 @return 0 on success */
 static
 int
-i_s_sys_columns_fill_table(
+i_s_innodb_columns_fill_table(
 /*=======================*/
 	THD*		thd,	/*!< in: thread */
 	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
 	Item*		)	/*!< in: condition (not used) */
 {
-#ifdef INNODB_NO_NEW_DD
 	btr_pcur_t	pcur;
 	const rec_t*	rec;
-	const char*	col_name;
+	char*		col_name;
 	mem_heap_t*	heap;
 	mtr_t		mtr;
+	MDL_ticket*	mdl = nullptr;
+	dict_table_t*	dd_columns;
+	bool		ret;
 
-	DBUG_ENTER("i_s_sys_columns_fill_table");
+	DBUG_ENTER("i_s_innodb_columns_fill_table");
 
 	/* deny access to user without PROCESS_ACL privilege */
 	if (check_global_access(thd, PROCESS_ACL)) {
@@ -6880,31 +6881,27 @@ i_s_sys_columns_fill_table(
 	mutex_enter(&dict_sys->mutex);
 	mtr_start(&mtr);
 
-	rec = dict_startscan_system(&pcur, &mtr, SYS_COLUMNS);
+	/* Start scan the mysql.columns */
+	rec = dd_startscan_system(thd, &mdl, &pcur, &mtr,
+				  DD_COLUMNS, &dd_columns);
 
 	while (rec) {
-		const char*	err_msg;
 		dict_col_t	column_rec;
 		table_id_t	table_id;
 		ulint		nth_v_col;
 
 		/* populate a dict_col_t structure with information from
-		a SYS_COLUMNS row */
-		err_msg = dict_process_sys_columns_rec(heap, rec, &column_rec,
-						       &table_id, &col_name,
-						       &nth_v_col);
+		a row */
+		ret = dd_process_dd_columns_rec(
+			heap, rec, &column_rec, &table_id,
+			&col_name, &nth_v_col, dd_columns, &mtr);
 
-		mtr_commit(&mtr);
 		mutex_exit(&dict_sys->mutex);
 
-		if (!err_msg) {
-			i_s_dict_fill_sys_columns(thd, table_id, col_name,
+		if (ret) {
+			i_s_dict_fill_innodb_columns(thd, table_id, col_name,
 						 &column_rec, nth_v_col,
 						 tables->table);
-		} else {
-			push_warning_printf(thd, Sql_condition::SL_WARNING,
-					    ER_CANT_FIND_SYSTEM_REC, "%s",
-					    err_msg);
 		}
 
 		mem_heap_empty(heap);
@@ -6912,17 +6909,15 @@ i_s_sys_columns_fill_table(
 		/* Get the next record */
 		mutex_enter(&dict_sys->mutex);
 		mtr_start(&mtr);
-		rec = dict_getnext_system(&pcur, &mtr);
+		rec = dd_getnext_system_rec(&pcur, &mtr);
 	}
 
 	mtr_commit(&mtr);
+	dd_table_close(dd_columns, thd, &mdl, true);
 	mutex_exit(&dict_sys->mutex);
 	mem_heap_free(heap);
 
 	DBUG_RETURN(0);
-#else
-	return(0);
-#endif /* INNODB_NO_NEW_DD */
 }
 /*******************************************************************//**
 Bind the dynamic table INFORMATION_SCHEMA.innodb_columns
@@ -6940,7 +6935,7 @@ innodb_columns_init(
 	schema = (ST_SCHEMA_TABLE*) p;
 
 	schema->fields_info = innodb_columns_fields_info;
-	schema->fill_table = i_s_sys_columns_fill_table;
+	schema->fill_table = i_s_innodb_columns_fill_table;
 
 	DBUG_RETURN(0);
 }
@@ -6965,7 +6960,7 @@ struct st_mysql_plugin	i_s_innodb_columns =
 
 	/* general descriptive text (for SHOW PLUGINS) */
 	/* const char* */
-	STRUCT_FLD(descr, "InnoDB SYS_COLUMNS"),
+	STRUCT_FLD(descr, "InnoDB INNODB_COLUMNS"),
 
 	/* the plugin license (PLUGIN_LICENSE_XXX) */
 	/* int */
@@ -8262,11 +8257,11 @@ struct st_mysql_plugin	i_s_innodb_tablespaces =
 	STRUCT_FLD(flags, 0UL),
 };
 
-/**  SYS_DATAFILES  ************************************************/
+/**  INNODB_DATAFILES  ************************************************/
 /* Fields of the dynamic table INFORMATION_SCHEMA.INNODB_DATAFILES */
 static ST_FIELD_INFO	innodb_datafiles_fields_info[] =
 {
-#define SYS_DATAFILES_SPACE		0
+#define INNODB_DATAFILES_SPACE		0
 	{STRUCT_FLD(field_name,		"SPACE"),
 	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
@@ -8275,7 +8270,7 @@ static ST_FIELD_INFO	innodb_datafiles_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-#define SYS_DATAFILES_PATH		1
+#define INNODB_DATAFILES_PATH		1
 	{STRUCT_FLD(field_name,		"PATH"),
 	 STRUCT_FLD(field_length,	OS_FILE_MAX_PATH),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
@@ -8287,14 +8282,13 @@ static ST_FIELD_INFO	innodb_datafiles_fields_info[] =
 	END_OF_ST_FIELD_INFO
 };
 
-#ifdef INNODB_NO_NEW_DD
 /**********************************************************************//**
 Function to fill INFORMATION_SCHEMA.INNODB_DATAFILES with information
-collected by scanning SYS_DATAFILESS table.
+collected by scanning INNODB_DATAFILESS table.
 @return 0 on success */
 static
 int
-i_s_dict_fill_sys_datafiles(
+i_s_dict_fill_innodb_datafiles(
 /*========================*/
 	THD*		thd,		/*!< in: thread */
 	ulint		space,		/*!< in: space ID */
@@ -8303,39 +8297,41 @@ i_s_dict_fill_sys_datafiles(
 {
 	Field**		fields;
 
-	DBUG_ENTER("i_s_dict_fill_sys_datafiles");
+	DBUG_ENTER("i_s_dict_fill_innodb_datafiles");
 
 	fields = table_to_fill->field;
 
-	OK(field_store_ulint(fields[SYS_DATAFILES_SPACE], space));
+	OK(field_store_ulint(fields[INNODB_DATAFILES_SPACE], space));
 
-	OK(field_store_string(fields[SYS_DATAFILES_PATH], path));
+	OK(field_store_string(fields[INNODB_DATAFILES_PATH], path));
 
 	OK(schema_table_store_record(thd, table_to_fill));
 
 	DBUG_RETURN(0);
 }
-#endif /* INNODB_NO_NEW_DD */
+
 /*******************************************************************//**
 Function to populate INFORMATION_SCHEMA.INNODB_DATAFILES table.
-Loop through each record in SYS_DATAFILES, and extract the column
+Loop through each record in INNODB_DATAFILES, and extract the column
 information and fill the INFORMATION_SCHEMA.INNODB_DATAFILES table.
 @return 0 on success */
 static
 int
-i_s_sys_datafiles_fill_table(
+i_s_innodb_datafiles_fill_table(
 /*=========================*/
 	THD*		thd,	/*!< in: thread */
 	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
 	Item*		)	/*!< in: condition (not used) */
 {
-#ifdef INNODB_NO_NEW_DD
 	btr_pcur_t	pcur;
 	const rec_t*	rec;
 	mem_heap_t*	heap;
 	mtr_t		mtr;
+	MDL_ticket*	mdl = nullptr;
+	dict_table_t*	dd_files;
+	bool		ret;
 
-	DBUG_ENTER("i_s_sys_datafiles_fill_table");
+	DBUG_ENTER("i_s_innodb_datafiles_fill_table");
 
 	/* deny access to user without PROCESS_ACL privilege */
 	if (check_global_access(thd, PROCESS_ACL)) {
@@ -8346,27 +8342,21 @@ i_s_sys_datafiles_fill_table(
 	mutex_enter(&dict_sys->mutex);
 	mtr_start(&mtr);
 
-	rec = dict_startscan_system(&pcur, &mtr, SYS_DATAFILES);
+	rec = dd_startscan_system(thd, &mdl, &pcur, &mtr, DD_DATAFILES, &dd_files);
 
 	while (rec) {
-		const char*	err_msg;
-		ulint		space;
-		const char*	path;
+		uint		space;
+		char*		path;
 
-		/* Extract necessary information from a SYS_DATAFILES row */
-		err_msg = dict_process_sys_datafiles(
-			heap, rec, &space, &path);
+		/* Extract necessary information from a mysql.tablespace_files row */
+		ret = dd_process_dd_datafiles_rec(heap, rec, &space, &path, dd_files);
 
 		mtr_commit(&mtr);
 		mutex_exit(&dict_sys->mutex);
 
-		if (!err_msg) {
-			i_s_dict_fill_sys_datafiles(
+		if (ret) {
+			i_s_dict_fill_innodb_datafiles(
 				thd, space, path, tables->table);
-		} else {
-			push_warning_printf(thd, Sql_condition::SL_WARNING,
-					    ER_CANT_FIND_SYSTEM_REC, "%s",
-					    err_msg);
 		}
 
 		mem_heap_empty(heap);
@@ -8374,17 +8364,15 @@ i_s_sys_datafiles_fill_table(
 		/* Get the next record */
 		mutex_enter(&dict_sys->mutex);
 		mtr_start(&mtr);
-		rec = dict_getnext_system(&pcur, &mtr);
+		rec = dd_getnext_system_rec(&pcur, &mtr);
 	}
 
 	mtr_commit(&mtr);
+	dd_table_close(dd_files, thd, &mdl, true);
 	mutex_exit(&dict_sys->mutex);
 	mem_heap_free(heap);
 
 	DBUG_RETURN(0);
-#else
-	return(0);
-#endif /* INNODB_NO_NEW_DD */
 }
 /*******************************************************************//**
 Bind the dynamic table INFORMATION_SCHEMA.INNODB_DATAFILES
@@ -8402,7 +8390,7 @@ innodb_datafiles_init(
 	schema = (ST_SCHEMA_TABLE*) p;
 
 	schema->fields_info = innodb_datafiles_fields_info;
-	schema->fill_table = i_s_sys_datafiles_fill_table;
+	schema->fill_table = i_s_innodb_datafiles_fill_table;
 
 	DBUG_RETURN(0);
 }
@@ -8427,7 +8415,7 @@ struct st_mysql_plugin	i_s_innodb_datafiles =
 
 	/* general descriptive text (for SHOW PLUGINS) */
 	/* const char* */
-	STRUCT_FLD(descr, "InnoDB SYS_DATAFILES"),
+	STRUCT_FLD(descr, "InnoDB INNODB_DATAFILES"),
 
 	/* the plugin license (PLUGIN_LICENSE_XXX) */
 	/* int */

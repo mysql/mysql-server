@@ -437,6 +437,26 @@ dd_process_dd_partitions_rec_and_mtr_commit(
 	dict_table_t**	table,
 	dict_table_t*	dd_tables,
 	mtr_t*		mtr);
+/** Process one mysql.columns record and get info to dict_col_t
+@param[in]	heap		temp memory heap
+@param[in,out]	rec		mysql.columns record
+@param[in,out]	col		dict_col_t to fill
+@param[in,out]	table_id	table id
+@param[in,out]	col_name	column name
+@param[in,out]	nth_v_col	nth v column
+@param[in]	dd_columns	dict_table_t obj of mysql.columns
+@param[in]	mtr		the mini-transaction
+@retval true if index is filled */
+bool
+dd_process_dd_columns_rec(
+	mem_heap_t*		heap,
+	const rec_t*		rec,
+	dict_col_t*		col,
+	table_id_t*		table_id,
+	char**			col_name,
+	ulint*			nth_v_col,
+	dict_table_t*		dd_columns,
+	mtr_t*			mtr);
 
 /** Get next record of new DD system tables
 @param[in,out]	pcur		persistent cursor
@@ -461,6 +481,21 @@ dd_process_dd_indexes_rec(
 	const dict_index_t**	index,
 	dict_table_t*		dd_indexes,
 	mtr_t*			mtr);
+/** Process one mysql.tablespace_files record and get information from it
+@param[in]	heap		temp memory heap
+@param[in,out]	rec		mysql.indexes record
+@param[in,out]	space_id	space id
+@param[in,out]	path		datafile path
+@param[in]	dd_files	dict_table_t obj of mysql.tablespace_files
+@param[in]	mtr		the mini-transaction
+@retval true if index is filled */
+bool
+dd_process_dd_datafiles_rec(
+	mem_heap_t*		heap,
+	const rec_t*		rec,
+	uint32*			space_id,
+	char**			path,
+	dict_table_t*		dd_files);
 /** Process one mysql.indexes record and get brief info to dict_index_t
 @param[in]	heap		temp memory heap
 @param[in,out]	rec		mysql.indexes record

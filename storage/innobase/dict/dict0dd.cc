@@ -594,7 +594,13 @@ reopen:
 		for (;;) {
 			bool ret = dd_parse_tbl_name(
 				ib_table->name.m_name, db_buf, tbl_buf, nullptr);
-			strcpy(full_name, ib_table->name.m_name);
+			memset(full_name, 0, 2 * (NAME_LEN + 1));
+			if (strlen(ib_table->name.m_name) > 2 * (NAME_LEN + 1)) {
+				memcpy(full_name, ib_table->name.m_name,
+				       2 * (NAME_LEN + 1));
+			} else {
+				strcpy(full_name, ib_table->name.m_name);
+			}
 
 			mutex_exit(&dict_sys->mutex);
 
@@ -625,6 +631,9 @@ reopen:
 
 			if (ib_table != nullptr) {
 				ulint	namelen = strlen(ib_table->name.m_name);
+				if (namelen > 2 * (NAME_LEN + 1)) {
+					namelen = 2 * (NAME_LEN + 1);
+				}
 
 				/* The table could have been renamed. After
 				we release dict mutex before the old table
@@ -1403,6 +1412,11 @@ dd_write_table(
 		const dict_index_t*	index = dd_find_index(table, dd_index);
 		ut_ad(index != nullptr);
 		dd_write_index(dd_space_id, dd_index, index);
+	}
+
+	for (auto dd_column : *dd_table->table().columns()) {
+		dd_column->se_private_data().set_uint64(
+			dd_index_key_strings[DD_TABLE_ID], table->id);
 	}
 }
 
@@ -2408,6 +2422,9 @@ create_dd_tablespace(
 		     static_cast<uint32>(flags));
 	dd::Tablespace_file*    dd_file = dd_space->add_file();
 	dd_file->set_filename(filename);
+	dd_file->se_private_data().set_uint32(
+		dd_space_key_strings[DD_SPACE_ID],
+		static_cast<uint32>(space_id));
 
 	if (dd_client->store(dd_space.get())) {
 		return(true);
@@ -3763,13 +3780,14 @@ dd_process_dd_tables_rec_and_mtr_commit(
 	/* Commit before load the table again */
 	mtr_commit(mtr);
 	THD*		thd = current_thd;
+	MDL_ticket*	mdl = NULL;
 
-	*table = dd_table_open_on_id(table_id, thd, NULL, true);
+	*table = dd_table_open_on_id(table_id, thd, &mdl, true);
 
 	if (!(*table)) {
 		err_msg = "Table not found";
 	} else {
-		dd_table_close(*table, thd, nullptr, true);
+		dd_table_close(*table, thd, &mdl, true);
 	}
 
 	if (err_msg) {
@@ -3888,6 +3906,108 @@ dd_getnext_system_rec(
 	return(rec);
 }
 
+/** Process one mysql.columns record and get info to dict_col_t
+@param[in]	heap		temp memory heap
+@param[in,out]	rec		mysql.columns record
+@param[in,out]	col		dict_col_t to fill
+@param[in,out]	table_id	table id
+@param[in,out]	col_name	column name
+@param[in,out]	nth_v_col	nth v column
+@param[in]	dd_columns	dict_table_t obj of mysql.columns
+@param[in]	mtr		the mini-transaction
+@retval true if index is filled */
+bool
+dd_process_dd_columns_rec(
+	mem_heap_t*		heap,
+	const rec_t*		rec,
+	dict_col_t*		col,
+	table_id_t*		table_id,
+	char**			col_name,
+	ulint*			nth_v_col,
+	dict_table_t*		dd_columns,
+	mtr_t*			mtr)
+{
+	ulint		len;
+	const byte*	field;
+	dict_col_t*	t_col;
+	ulint		pos;
+	bool		is_hidden;
+
+	ut_ad(!rec_get_deleted_flag(rec, dict_table_is_comp(dd_columns)));
+
+	ulint*	offsets = rec_get_offsets(rec, dd_columns->first_index(), NULL,
+		ULINT_UNDEFINED, &heap);
+
+	/* Get the hidden attibute, and skip if it's a hidden column. */
+	field = (const byte*)rec_get_nth_field(rec, offsets, 25, &len);
+	is_hidden = mach_read_from_1(field) & 0x01;
+	if (is_hidden) {
+		mtr_commit(mtr);
+		return(false);
+	}
+
+	/* Get the column name. */
+	field = (const byte*)rec_get_nth_field(rec, offsets, 4, &len);
+	*col_name = mem_heap_strdupl(heap, (const char*) field, len);
+
+	/* Get the position. */
+	field = (const byte*)rec_get_nth_field(rec, offsets, 5, &len);
+	pos = mach_read_from_4(field) - 1;
+
+	/* Get the se_private_data field. */
+	field = (const byte*)rec_get_nth_field(rec, offsets, 27, &len);
+
+	if (len == 0 || len == UNIV_SQL_NULL) {
+		mtr_commit(mtr);
+		return(false);
+	}
+
+	char* p_ptr = (char*)mem_heap_strdupl(heap, (const char*) field, len);
+	dd::String_type prop((char*)p_ptr);
+	dd::Properties* p = dd::Properties::parse_properties(prop);
+
+	/* Load the table and get the col. */
+	if (!p || !p->exists(dd_index_key_strings[DD_TABLE_ID])) {
+		mtr_commit(mtr);
+		return(false);
+	}
+
+	if (!p->get_uint64(dd_index_key_strings[DD_TABLE_ID], (uint64*)table_id)) {
+		THD*		thd = current_thd;
+		dict_table_t*	table;
+		MDL_ticket*	mdl = NULL;
+
+		/* Commit before load the table */
+		mtr_commit(mtr);
+		table = dd_table_open_on_id(*table_id, thd, &mdl, true);
+
+		if (!table) {
+			return(false);
+		}
+
+		t_col = table->get_col(pos);
+
+		/* Copy info. */
+		col->ind = t_col->ind;
+		col->mtype = t_col->mtype;
+		col->prtype = t_col->prtype;
+		col->len = t_col->len;
+
+		dd_table_close(table, thd, &mdl, true);
+
+	} else {
+		mtr_commit(mtr);
+		return(false);
+	}
+
+	/* Report the virtual column number */
+	if (col->prtype & DATA_VIRTUAL) {
+		*nth_v_col = dict_get_v_col_pos(col->ind);
+	}
+
+	return(true);
+}
+
 /** Process one mysql.indexes record and get dict_index_t
 @param[in]	heap		temp memory heap
 @param[in,out]	rec		mysql.indexes record
@@ -3927,7 +4047,7 @@ dd_process_dd_indexes_rec(
 	/* Get the se_private_data field. */
 	field = (const byte*)rec_get_nth_field(rec, offsets, 14, &len);
 
-	if (len == 0) {
+	if (len == 0 || len == UNIV_SQL_NULL) {
 		mtr_commit(mtr);
 		return(false);
 	}
@@ -4005,6 +4125,65 @@ dd_process_dd_indexes_rec(
 	return(true);
 }
 
+/** Process one mysql.tablespace_files record and get information from it
+@param[in]	heap		temp memory heap
+@param[in,out]	rec		mysql.indexes record
+@param[in,out]	space_id	space id
+@param[in,out]	path		datafile path
+@param[in]	dd_files	dict_table_t obj of mysql.tablespace_files
+@retval true if index is filled */
+bool
+dd_process_dd_datafiles_rec(
+	mem_heap_t*		heap,
+	const rec_t*		rec,
+	uint32*			space_id,
+	char**			path,
+	dict_table_t*		dd_files)
+{
+	ulint		len;
+	const byte*	field;
+
+	ut_ad(!rec_get_deleted_flag(rec, dict_table_is_comp(dd_files)));
+
+	ulint*	offsets = rec_get_offsets(rec, dd_files->first_index(), NULL,
+		ULINT_UNDEFINED, &heap);
+
+	/* Get the se_private_data field. */
+	field = (const byte*)rec_get_nth_field(rec, offsets, 5, &len);
+
+	if (len == 0 || len == UNIV_SQL_NULL) {
+		return(false);
+	}
+
+	/* Get space id. */
+	char* se_str = static_cast<char*>(mem_heap_alloc(heap, len + 1));
+	memset(se_str, 0, len + 1);
+	memcpy(se_str, field, len);
+	dd::String_type prop(se_str);
+	dd::Properties* p = dd::Properties::parse_properties(prop);
+
+	if (!p || !p->exists(dd_space_key_strings[DD_SPACE_ID])) {
+		return(false);
+	}
+
+	if (p->get_uint32(dd_space_key_strings[DD_SPACE_ID], space_id)) {
+		return(false);
+	}
+
+	/* Skip temp tablespace. */
+	if (*space_id == dict_sys->temp_space_id) {
+		return(false);
+	}
+
+	/* Get the data file path. */
+	field = rec_get_nth_field(rec, offsets, 4, &len);
+	*path = reinterpret_cast<char*>(mem_heap_alloc(heap, len + 1));
+	memset(*path, 0, len + 1);
+	memcpy(*path, field, len);
+
+	return(true);
+}
+
 /** Process one mysql.indexes record and get breif info to dict_index_t
 @param[in]	heap		temp memory heap
 @param[in,out]	rec		mysql.indexes record
@@ -4037,7 +4216,7 @@ dd_process_dd_indexes_rec_simple(
 	/* Get the se_private_data field. */
 	field = (const byte*)rec_get_nth_field(rec, offsets, 14, &len);
 
-	if (len == 0) {
+	if (len == 0 || len == UNIV_SQL_NULL) {
 		return(false);
 	}
 
@@ -4104,7 +4283,7 @@ dd_process_dd_tablespaces_rec(
 	/* Get the se_private_data field. */
 	field = (const byte*)rec_get_nth_field(rec, offsets, 5, &len);
 
-	if (len == 0) {
+	if (len == 0 || len == UNIV_SQL_NULL) {
 		return(false);
 	}
 

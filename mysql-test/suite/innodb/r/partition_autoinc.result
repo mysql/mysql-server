@@ -42,12 +42,12 @@ SELECT MAX(id) AS `Expect 5` FROM t1;
 Expect 5
 5
 ALTER TABLE t1 ALGORITHM = INPLACE, ADD PARTITION (PARTITION p4 VALUES LESS THAN (2010), PARTITION p5 VALUES LESS THAN (2015));
-SELECT LOWER(file_name) FROM mysql.tablespaces AS `t`, mysql.tablespace_files AS `tf`
-WHERE t.id = tf.tablespace_id
-AND t.name LIKE 'innodb_file_per_table.%'
-AND tf.file_name NOT LIKE 'mysql/%'
-ORDER BY t.id;
-LOWER(file_name)
+SELECT LOWER(path) FROM information_schema.innodb_tablespaces AS `t`, information_schema.innodb_datafiles AS `df`
+WHERE t.space = df.space
+AND t.space_type = 'Single'
+AND df.path NOT LIKE './mysql/%'
+ORDER BY t.space;
+LOWER(path)
 ./test/tr.ibd
 ./test/t1#p#p0.ibd
 ./test/t1#p#p1.ibd
@@ -75,12 +75,12 @@ SELECT MAX(id) AS `Expect 7` FROM t1;
 Expect 7
 7
 ALTER TABLE t1 ALGORITHM = INPLACE, ADD PARTITION (PARTITION p6 VALUES LESS THAN (2018), PARTITION p7 VALUES LESS THAN (2020));
-SELECT LOWER(file_name) FROM mysql.tablespaces AS `t`, mysql.tablespace_files AS `tf`
-WHERE t.id = tf.tablespace_id
-AND t.name LIKE 'innodb_file_per_table.%'
-AND tf.file_name NOT LIKE 'mysql/%'
-ORDER BY t.id;
-LOWER(file_name)
+SELECT LOWER(path) FROM information_schema.innodb_tablespaces AS `t`, information_schema.innodb_datafiles AS `df`
+WHERE t.space = df.space
+AND t.space_type = 'Single'
+AND df.path NOT LIKE './mysql/%'
+ORDER BY t.space;
+LOWER(path)
 ./test/tr.ibd
 ./test/t1#p#p0.ibd
 ./test/t1#p#p1.ibd
@@ -174,12 +174,12 @@ id
 5
 # This doesn't delete the row containing max(id) in the table
 ALTER TABLE t1 ALGORITHM = INPLACE, DROP PARTITION p2;
-SELECT LOWER(file_name) FROM mysql.tablespaces AS `t`, mysql.tablespace_files AS `tf`
-WHERE t.id = tf.tablespace_id
-AND t.name LIKE 'innodb_file_per_table.%'
-AND tf.file_name NOT LIKE 'mysql/%'
-ORDER BY t.id;
-LOWER(file_name)
+SELECT LOWER(path) FROM information_schema.innodb_tablespaces AS `t`, information_schema.innodb_datafiles AS `df`
+WHERE t.space = df.space
+AND t.space_type = 'Single'
+AND df.path NOT LIKE './mysql/%'
+ORDER BY t.space;
+LOWER(path)
 ./test/tr.ibd
 ./test/t1#p#p0.ibd
 ./test/t1#p#p1.ibd
@@ -202,12 +202,12 @@ Expect 7
 7
 # This will delete the row containing max(id) in the table
 ALTER TABLE t1 ALGORITHM = INPLACE, DROP PARTITION p3;
-SELECT LOWER(file_name) FROM mysql.tablespaces AS `t`, mysql.tablespace_files AS `tf`
-WHERE t.id = tf.tablespace_id
-AND t.name LIKE 'innodb_file_per_table.%'
-AND tf.file_name NOT LIKE 'mysql/%'
-ORDER BY t.id;
-LOWER(file_name)
+SELECT LOWER(path) FROM information_schema.innodb_tablespaces AS `t`, information_schema.innodb_datafiles AS `df`
+WHERE t.space = df.space
+AND t.space_type = 'Single'
+AND df.path NOT LIKE './mysql/%'
+ORDER BY t.space;
+LOWER(path)
 ./test/tr.ibd
 ./test/t1#p#p0.ibd
 ./test/t1#p#p1.ibd
@@ -230,23 +230,23 @@ SELECT MAX(id) AS `Expect 8` FROM t1;
 Expect 8
 8
 ALTER TABLE t1 ALGORITHM = INPLACE, ADD PARTITION (PARTITION p3 VALUES LESS THAN (2008));
-SELECT LOWER(file_name) FROM mysql.tablespaces AS `t`, mysql.tablespace_files AS `tf`
-WHERE t.id = tf.tablespace_id
-AND t.name LIKE 'innodb_file_per_table.%'
-AND tf.file_name NOT LIKE 'mysql/%'
-ORDER BY t.id;
-LOWER(file_name)
+SELECT LOWER(path) FROM information_schema.innodb_tablespaces AS `t`, information_schema.innodb_datafiles AS `df`
+WHERE t.space = df.space
+AND t.space_type = 'Single'
+AND df.path NOT LIKE './mysql/%'
+ORDER BY t.space;
+LOWER(path)
 ./test/tr.ibd
 ./test/t1#p#p0.ibd
 ./test/t1#p#p1.ibd
 ./test/t1#p#p3.ibd
 ALTER TABLE t1 ALGORITHM = INPLACE, DROP PARTITION p0;
-SELECT LOWER(file_name) FROM mysql.tablespaces AS `t`, mysql.tablespace_files AS `tf`
-WHERE t.id = tf.tablespace_id
-AND t.name LIKE 'innodb_file_per_table.%'
-AND tf.file_name NOT LIKE 'mysql/%'
-ORDER BY t.id;
-LOWER(file_name)
+SELECT LOWER(path) FROM information_schema.innodb_tablespaces AS `t`, information_schema.innodb_datafiles AS `df`
+WHERE t.space = df.space
+AND t.space_type = 'Single'
+AND df.path NOT LIKE './mysql/%'
+ORDER BY t.space;
+LOWER(path)
 ./test/tr.ibd
 ./test/t1#p#p1.ibd
 ./test/t1#p#p3.ibd
@@ -279,12 +279,12 @@ Expect 9
 9
 DELETE FROM t1 WHERE id >= 0;
 ALTER TABLE t1 ALGORITHM = INPLACE, DROP PARTITION p3;
-SELECT LOWER(file_name) FROM mysql.tablespaces AS `t`, mysql.tablespace_files AS `tf`
-WHERE t.id = tf.tablespace_id
-AND t.name LIKE 'innodb_file_per_table.%'
-AND tf.file_name NOT LIKE 'mysql/%'
-ORDER BY t.id;
-LOWER(file_name)
+SELECT LOWER(path) FROM information_schema.innodb_tablespaces AS `t`, information_schema.innodb_datafiles AS `df`
+WHERE t.space = df.space
+AND t.space_type = 'Single'
+AND df.path NOT LIKE './mysql/%'
+ORDER BY t.space;
+LOWER(path)
 ./test/tr.ibd
 ./test/t1#p#p1.ibd
 SHOW CREATE TABLE t1;
@@ -317,11 +317,7 @@ t1	CREATE TABLE `t1` (
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
-<<<<<<< HEAD
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=latin1
-=======
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
->>>>>>> mysql-trunk
 /*!50100 PARTITION BY HASH (YEAR(purchased))
 PARTITIONS 4 */
 DELETE FROM t1 WHERE id = 6;
@@ -329,21 +325,12 @@ SELECT MAX(id) AS `Expect 5` FROM t1;
 Expect 5
 5
 ALTER TABLE t1 ALGORITHM = INPLACE, ADD PARTITION PARTITIONS 2;
-<<<<<<< HEAD
-SELECT LOWER(file_name) FROM mysql.tablespaces AS `t`, mysql.tablespace_files AS `tf`
-WHERE t.id = tf.tablespace_id
-AND t.name LIKE 'innodb_file_per_table.%'
-AND tf.file_name NOT LIKE 'mysql/%'
-ORDER BY t.id;
-LOWER(file_name)
-=======
-SELECT LOWER(path) FROM information_schema.innodb_sys_tablespaces AS `t`, information_schema.innodb_sys_datafiles AS `df`
+SELECT LOWER(path) FROM information_schema.innodb_tablespaces AS `t`, information_schema.innodb_datafiles AS `df`
 WHERE t.space = df.space
 AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
 ORDER BY t.space;
 LOWER(path)
->>>>>>> mysql-trunk
 ./test/tr.ibd
 ./test/t1#p#p0.ibd
 ./test/t1#p#p1.ibd
@@ -358,11 +345,7 @@ t1	CREATE TABLE `t1` (
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
-<<<<<<< HEAD
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=latin1
-=======
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
->>>>>>> mysql-trunk
 /*!50100 PARTITION BY HASH (YEAR(purchased))
 PARTITIONS 6 */
 INSERT INTO t1 VALUES (0, 'popcorn maker', '2010-11-22');
@@ -370,21 +353,12 @@ SELECT MAX(id) AS `Expect 7` FROM t1;
 Expect 7
 7
 ALTER TABLE t1 ALGORITHM = INPLACE, ADD PARTITION PARTITIONS 2;
-<<<<<<< HEAD
-SELECT LOWER(file_name) FROM mysql.tablespaces AS `t`, mysql.tablespace_files AS `tf`
-WHERE t.id = tf.tablespace_id
-AND t.name LIKE 'innodb_file_per_table.%'
-AND tf.file_name NOT LIKE 'mysql/%'
-ORDER BY t.id;
-LOWER(file_name)
-=======
-SELECT LOWER(path) FROM information_schema.innodb_sys_tablespaces AS `t`, information_schema.innodb_sys_datafiles AS `df`
+SELECT LOWER(path) FROM information_schema.innodb_tablespaces AS `t`, information_schema.innodb_datafiles AS `df`
 WHERE t.space = df.space
 AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
 ORDER BY t.space;
 LOWER(path)
->>>>>>> mysql-trunk
 ./test/tr.ibd
 ./test/t1#p#p0.ibd
 ./test/t1#p#p1.ibd
@@ -401,11 +375,7 @@ t1	CREATE TABLE `t1` (
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
-<<<<<<< HEAD
-) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=latin1
-=======
 ) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4
->>>>>>> mysql-trunk
 /*!50100 PARTITION BY HASH (YEAR(purchased))
 PARTITIONS 8 */
 # restart
@@ -416,11 +386,7 @@ t1	CREATE TABLE `t1` (
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
-<<<<<<< HEAD
-) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=latin1
-=======
 ) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4
->>>>>>> mysql-trunk
 /*!50100 PARTITION BY HASH (YEAR(purchased))
 PARTITIONS 8 */
 INSERT INTO t1 VALUES
@@ -446,11 +412,7 @@ t1	CREATE TABLE `t1` (
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
-<<<<<<< HEAD
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=latin1
-=======
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
->>>>>>> mysql-trunk
 /*!50100 PARTITION BY HASH (YEAR(purchased))
 PARTITIONS 8 */
 DELETE FROM t1 WHERE id = 6;
@@ -458,21 +420,12 @@ SELECT MAX(id) AS `Expect 5` FROM t1;
 Expect 5
 5
 ALTER TABLE t1 ALGORITHM = INPLACE, COALESCE PARTITION 2;
-<<<<<<< HEAD
-SELECT LOWER(file_name) FROM mysql.tablespaces AS `t`, mysql.tablespace_files AS `tf`
-WHERE t.id = tf.tablespace_id
-AND t.name LIKE 'innodb_file_per_table.%'
-AND tf.file_name NOT LIKE 'mysql/%'
-ORDER BY t.id;
-LOWER(file_name)
-=======
-SELECT LOWER(path) FROM information_schema.innodb_sys_tablespaces AS `t`, information_schema.innodb_sys_datafiles AS `df`
+SELECT LOWER(path) FROM information_schema.innodb_tablespaces AS `t`, information_schema.innodb_datafiles AS `df`
 WHERE t.space = df.space
 AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
 ORDER BY t.space;
 LOWER(path)
->>>>>>> mysql-trunk
 ./test/tr.ibd
 ./test/t1#p#p0.ibd
 ./test/t1#p#p1.ibd
@@ -487,11 +440,7 @@ t1	CREATE TABLE `t1` (
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
-<<<<<<< HEAD
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=latin1
-=======
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
->>>>>>> mysql-trunk
 /*!50100 PARTITION BY HASH (YEAR(purchased))
 PARTITIONS 6 */
 INSERT INTO t1 VALUES (0, 'popcorn maker', '2010-11-22');
@@ -505,29 +454,16 @@ t1	CREATE TABLE `t1` (
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
-<<<<<<< HEAD
-) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY HASH (YEAR(purchased))
-PARTITIONS 6 */
-ALTER TABLE t1 ALGORITHM = INPLACE, COALESCE PARTITION 4;
-SELECT LOWER(file_name) FROM mysql.tablespaces AS `t`, mysql.tablespace_files AS `tf`
-WHERE t.id = tf.tablespace_id
-AND t.name LIKE 'innodb_file_per_table.%'
-AND tf.file_name NOT LIKE 'mysql/%'
-ORDER BY t.id;
-LOWER(file_name)
-=======
 ) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4
 /*!50100 PARTITION BY HASH (YEAR(purchased))
 PARTITIONS 6 */
 ALTER TABLE t1 ALGORITHM = INPLACE, COALESCE PARTITION 4;
-SELECT LOWER(path) FROM information_schema.innodb_sys_tablespaces AS `t`, information_schema.innodb_sys_datafiles AS `df`
+SELECT LOWER(path) FROM information_schema.innodb_tablespaces AS `t`, information_schema.innodb_datafiles AS `df`
 WHERE t.space = df.space
 AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
 ORDER BY t.space;
 LOWER(path)
->>>>>>> mysql-trunk
 ./test/tr.ibd
 ./test/t1#p#p0.ibd
 ./test/t1#p#p1.ibd
@@ -539,11 +475,7 @@ t1	CREATE TABLE `t1` (
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
-<<<<<<< HEAD
-) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=latin1
-=======
 ) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4
->>>>>>> mysql-trunk
 /*!50100 PARTITION BY HASH (YEAR(purchased))
 PARTITIONS 2 */
 INSERT INTO t1 VALUES
@@ -559,11 +491,7 @@ t1	CREATE TABLE `t1` (
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
-<<<<<<< HEAD
-) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=latin1
-=======
 ) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4
->>>>>>> mysql-trunk
 /*!50100 PARTITION BY HASH (YEAR(purchased))
 PARTITIONS 2 */
 DROP TABLE t1;
@@ -587,11 +515,7 @@ t1	CREATE TABLE `t1` (
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
-<<<<<<< HEAD
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=latin1
-=======
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
->>>>>>> mysql-trunk
 /*!50100 PARTITION BY RANGE (YEAR(purchased))
 (PARTITION p0 VALUES LESS THAN (1990) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (1995) ENGINE = InnoDB,
@@ -604,21 +528,12 @@ Expect 5
 ALTER TABLE t1 ALGORITHM = INPLACE, REORGANIZE PARTITION p0, p1 INTO
 (PARTITION p01 VALUES LESS THAN(1985), PARTITION p02 VALUES LESS THAN(1990),
 PARTITION p11 VALUES LESS THAN(1993), PARTITION p12 VALUES LESS THAN(1995));
-<<<<<<< HEAD
-SELECT LOWER(file_name) FROM mysql.tablespaces AS `t`, mysql.tablespace_files AS `tf`
-WHERE t.id = tf.tablespace_id
-AND t.name LIKE 'innodb_file_per_table.%'
-AND tf.file_name NOT LIKE 'mysql/%'
-ORDER BY t.id;
-LOWER(file_name)
-=======
-SELECT LOWER(path) FROM information_schema.innodb_sys_tablespaces AS `t`, information_schema.innodb_sys_datafiles AS `df`
+SELECT LOWER(path) FROM information_schema.innodb_tablespaces AS `t`, information_schema.innodb_datafiles AS `df`
 WHERE t.space = df.space
 AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
 ORDER BY t.space;
 LOWER(path)
->>>>>>> mysql-trunk
 ./test/tr.ibd
 ./test/t1#p#p2.ibd
 ./test/t1#p#p3.ibd
@@ -633,11 +548,7 @@ t1	CREATE TABLE `t1` (
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
-<<<<<<< HEAD
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=latin1
-=======
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
->>>>>>> mysql-trunk
 /*!50100 PARTITION BY RANGE (YEAR(purchased))
 (PARTITION p01 VALUES LESS THAN (1985) ENGINE = InnoDB,
  PARTITION p02 VALUES LESS THAN (1990) ENGINE = InnoDB,
@@ -656,11 +567,7 @@ t1	CREATE TABLE `t1` (
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
-<<<<<<< HEAD
-) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=latin1
-=======
 ) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4
->>>>>>> mysql-trunk
 /*!50100 PARTITION BY RANGE (YEAR(purchased))
 (PARTITION p01 VALUES LESS THAN (1985) ENGINE = InnoDB,
  PARTITION p02 VALUES LESS THAN (1990) ENGINE = InnoDB,
@@ -671,21 +578,12 @@ t1	CREATE TABLE `t1` (
 ALTER TABLE t1 ALGORITHM = INPLACE, REORGANIZE PARTITION p2, p3 INTO
 (PARTITION p21 VALUES LESS THAN(1997), PARTITION p22 VALUES LESS THAN(2000),
 PARTITION p31 VALUES LESS THAN(2002), PARTITION p32 VALUES LESS THAN(2005));
-<<<<<<< HEAD
-SELECT LOWER(file_name) FROM mysql.tablespaces AS `t`, mysql.tablespace_files AS `tf`
-WHERE t.id = tf.tablespace_id
-AND t.name LIKE 'innodb_file_per_table.%'
-AND tf.file_name NOT LIKE 'mysql/%'
-ORDER BY t.id;
-LOWER(file_name)
-=======
-SELECT LOWER(path) FROM information_schema.innodb_sys_tablespaces AS `t`, information_schema.innodb_sys_datafiles AS `df`
+SELECT LOWER(path) FROM information_schema.innodb_tablespaces AS `t`, information_schema.innodb_datafiles AS `df`
 WHERE t.space = df.space
 AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
 ORDER BY t.space;
 LOWER(path)
->>>>>>> mysql-trunk
 ./test/tr.ibd
 ./test/t1#p#p01.ibd
 ./test/t1#p#p02.ibd
@@ -702,11 +600,7 @@ t1	CREATE TABLE `t1` (
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
-<<<<<<< HEAD
-) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=latin1
-=======
 ) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4
->>>>>>> mysql-trunk
 /*!50100 PARTITION BY RANGE (YEAR(purchased))
 (PARTITION p01 VALUES LESS THAN (1985) ENGINE = InnoDB,
  PARTITION p02 VALUES LESS THAN (1990) ENGINE = InnoDB,
@@ -729,11 +623,7 @@ t1	CREATE TABLE `t1` (
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
-<<<<<<< HEAD
-) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=latin1
-=======
 ) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4
->>>>>>> mysql-trunk
 /*!50100 PARTITION BY RANGE (YEAR(purchased))
 (PARTITION p01 VALUES LESS THAN (1985) ENGINE = InnoDB,
  PARTITION p02 VALUES LESS THAN (1990) ENGINE = InnoDB,
@@ -745,21 +635,12 @@ t1	CREATE TABLE `t1` (
  PARTITION p32 VALUES LESS THAN (2005) ENGINE = InnoDB) */
 # Test for REBUILD PARTITION
 ALTER TABLE t1 ALGORITHM = INPLACE, REBUILD PARTITION p01, p02, p31, p32;
-<<<<<<< HEAD
-SELECT LOWER(file_name) FROM mysql.tablespaces AS `t`, mysql.tablespace_files AS `tf`
-WHERE t.id = tf.tablespace_id
-AND t.name LIKE 'innodb_file_per_table.%'
-AND tf.file_name NOT LIKE 'mysql/%'
-ORDER BY t.id;
-LOWER(file_name)
-=======
-SELECT LOWER(path) FROM information_schema.innodb_sys_tablespaces AS `t`, information_schema.innodb_sys_datafiles AS `df`
+SELECT LOWER(path) FROM information_schema.innodb_tablespaces AS `t`, information_schema.innodb_datafiles AS `df`
 WHERE t.space = df.space
 AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
 ORDER BY t.space;
 LOWER(path)
->>>>>>> mysql-trunk
 ./test/tr.ibd
 ./test/t1#p#p11.ibd
 ./test/t1#p#p12.ibd
@@ -776,11 +657,7 @@ t1	CREATE TABLE `t1` (
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
-<<<<<<< HEAD
-) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=latin1
-=======
 ) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4
->>>>>>> mysql-trunk
 /*!50100 PARTITION BY RANGE (YEAR(purchased))
 (PARTITION p01 VALUES LESS THAN (1985) ENGINE = InnoDB,
  PARTITION p02 VALUES LESS THAN (1990) ENGINE = InnoDB,
@@ -798,11 +675,7 @@ t1	CREATE TABLE `t1` (
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
-<<<<<<< HEAD
-) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=latin1
-=======
 ) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4
->>>>>>> mysql-trunk
 /*!50100 PARTITION BY RANGE (YEAR(purchased))
 (PARTITION p01 VALUES LESS THAN (1985) ENGINE = InnoDB,
  PARTITION p02 VALUES LESS THAN (1990) ENGINE = InnoDB,
@@ -836,11 +709,7 @@ t1	CREATE TABLE `t1` (
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
-<<<<<<< HEAD
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=latin1
-=======
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
->>>>>>> mysql-trunk
 /*!50100 PARTITION BY RANGE (YEAR(purchased))
 (PARTITION p0 VALUES LESS THAN (1990) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (1995) ENGINE = InnoDB,
@@ -857,21 +726,12 @@ purchased DATE,
 KEY(id)) ENGINE = InnoDB;
 INSERT INTO tp VALUES (100, 'DVD player', '2002-03-21');
 ALTER TABLE t1 EXCHANGE PARTITION p3 WITH TABLE tp;
-<<<<<<< HEAD
-SELECT LOWER(file_name) FROM mysql.tablespaces AS `t`, mysql.tablespace_files AS `tf`
-WHERE t.id = tf.tablespace_id
-AND t.name LIKE 'innodb_file_per_table.%'
-AND tf.file_name NOT LIKE 'mysql/%'
-ORDER BY t.id;
-LOWER(file_name)
-=======
-SELECT LOWER(path) FROM information_schema.innodb_sys_tablespaces AS `t`, information_schema.innodb_sys_datafiles AS `df`
+SELECT LOWER(path) FROM information_schema.innodb_tablespaces AS `t`, information_schema.innodb_datafiles AS `df`
 WHERE t.space = df.space
 AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
 ORDER BY t.space;
 LOWER(path)
->>>>>>> mysql-trunk
 ./test/tr.ibd
 ./test/t1#p#p0.ibd
 ./test/t1#p#p1.ibd
@@ -885,11 +745,7 @@ tp	CREATE TABLE `tp` (
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
-<<<<<<< HEAD
-) ENGINE=InnoDB AUTO_INCREMENT=101 DEFAULT CHARSET=latin1
-=======
 ) ENGINE=InnoDB AUTO_INCREMENT=101 DEFAULT CHARSET=utf8mb4
->>>>>>> mysql-trunk
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -897,11 +753,7 @@ t1	CREATE TABLE `t1` (
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
-<<<<<<< HEAD
-) ENGINE=InnoDB AUTO_INCREMENT=101 DEFAULT CHARSET=latin1
-=======
 ) ENGINE=InnoDB AUTO_INCREMENT=101 DEFAULT CHARSET=utf8mb4
->>>>>>> mysql-trunk
 /*!50100 PARTITION BY RANGE (YEAR(purchased))
 (PARTITION p0 VALUES LESS THAN (1990) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (1995) ENGINE = InnoDB,
@@ -916,21 +768,12 @@ SELECT MAX(id) AS `Expect 101` FROM tp;
 Expect 101
 101
 ALTER TABLE t1 EXCHANGE PARTITION p3 WITH TABLE tp;
-<<<<<<< HEAD
-SELECT LOWER(file_name) FROM mysql.tablespaces AS `t`, mysql.tablespace_files AS `tf`
-WHERE t.id = tf.tablespace_id
-AND t.name LIKE 'innodb_file_per_table.%'
-AND tf.file_name NOT LIKE 'mysql/%'
-ORDER BY t.id;
-LOWER(file_name)
-=======
-SELECT LOWER(path) FROM information_schema.innodb_sys_tablespaces AS `t`, information_schema.innodb_sys_datafiles AS `df`
+SELECT LOWER(path) FROM information_schema.innodb_tablespaces AS `t`, information_schema.innodb_datafiles AS `df`
 WHERE t.space = df.space
 AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
 ORDER BY t.space;
 LOWER(path)
->>>>>>> mysql-trunk
 ./test/tr.ibd
 ./test/t1#p#p0.ibd
 ./test/t1#p#p1.ibd
@@ -944,11 +787,7 @@ tp	CREATE TABLE `tp` (
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
-<<<<<<< HEAD
-) ENGINE=InnoDB AUTO_INCREMENT=102 DEFAULT CHARSET=latin1
-=======
 ) ENGINE=InnoDB AUTO_INCREMENT=102 DEFAULT CHARSET=utf8mb4
->>>>>>> mysql-trunk
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -956,11 +795,7 @@ t1	CREATE TABLE `t1` (
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
-<<<<<<< HEAD
-) ENGINE=InnoDB AUTO_INCREMENT=102 DEFAULT CHARSET=latin1
-=======
 ) ENGINE=InnoDB AUTO_INCREMENT=102 DEFAULT CHARSET=utf8mb4
->>>>>>> mysql-trunk
 /*!50100 PARTITION BY RANGE (YEAR(purchased))
 (PARTITION p0 VALUES LESS THAN (1990) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (1995) ENGINE = InnoDB,
@@ -997,11 +832,7 @@ t1	CREATE TABLE `t1` (
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
-<<<<<<< HEAD
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=latin1
-=======
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
->>>>>>> mysql-trunk
 /*!50100 PARTITION BY RANGE (YEAR(purchased))
 SUBPARTITION BY HASH (YEAR(purchased))
 (PARTITION p0 VALUES LESS THAN (1990)
@@ -1030,11 +861,7 @@ t1	CREATE TABLE `t1` (
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
-<<<<<<< HEAD
-) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=latin1
-=======
 ) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4
->>>>>>> mysql-trunk
 /*!50100 PARTITION BY RANGE (YEAR(purchased))
 SUBPARTITION BY HASH (YEAR(purchased))
 (PARTITION p0 VALUES LESS THAN (1990)
@@ -1047,21 +874,12 @@ SUBPARTITION BY HASH (YEAR(purchased))
  (SUBPARTITION sp20 ENGINE = InnoDB,
   SUBPARTITION sp21 ENGINE = InnoDB)) */
 ALTER TABLE t1 ADD PARTITION (PARTITION p3 VALUES LESS THAN(2015) (SUBPARTITION sp30, SUBPARTITION sp31));
-<<<<<<< HEAD
-SELECT LOWER(file_name) FROM mysql.tablespaces AS `t`, mysql.tablespace_files AS `tf`
-WHERE t.id = tf.tablespace_id
-AND t.name LIKE 'innodb_file_per_table.%'
-AND tf.file_name NOT LIKE 'mysql/%'
-ORDER BY t.id;
-LOWER(file_name)
-=======
-SELECT LOWER(path) FROM information_schema.innodb_sys_tablespaces AS `t`, information_schema.innodb_sys_datafiles AS `df`
+SELECT LOWER(path) FROM information_schema.innodb_tablespaces AS `t`, information_schema.innodb_datafiles AS `df`
 WHERE t.space = df.space
 AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
 ORDER BY t.space;
 LOWER(path)
->>>>>>> mysql-trunk
 ./test/tr.ibd
 ./test/t1#p#p0#sp#sp00.ibd
 ./test/t1#p#p0#sp#sp01.ibd
@@ -1078,11 +896,7 @@ t1	CREATE TABLE `t1` (
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
-<<<<<<< HEAD
-) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=latin1
-=======
 ) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4
->>>>>>> mysql-trunk
 /*!50100 PARTITION BY RANGE (YEAR(purchased))
 SUBPARTITION BY HASH (YEAR(purchased))
 (PARTITION p0 VALUES LESS THAN (1990)
@@ -1110,11 +924,7 @@ t1	CREATE TABLE `t1` (
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
-<<<<<<< HEAD
-) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=latin1
-=======
 ) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4
->>>>>>> mysql-trunk
 /*!50100 PARTITION BY RANGE (YEAR(purchased))
 SUBPARTITION BY HASH (YEAR(purchased))
 (PARTITION p0 VALUES LESS THAN (1990)
@@ -1130,21 +940,12 @@ SUBPARTITION BY HASH (YEAR(purchased))
  (SUBPARTITION sp30 ENGINE = InnoDB,
   SUBPARTITION sp31 ENGINE = InnoDB)) */
 ALTER TABLE t1 DROP PARTITION p3;
-<<<<<<< HEAD
-SELECT LOWER(file_name) FROM mysql.tablespaces AS `t`, mysql.tablespace_files AS `tf`
-WHERE t.id = tf.tablespace_id
-AND t.name LIKE 'innodb_file_per_table.%'
-AND tf.file_name NOT LIKE 'mysql/%'
-ORDER BY t.id;
-LOWER(file_name)
-=======
-SELECT LOWER(path) FROM information_schema.innodb_sys_tablespaces AS `t`, information_schema.innodb_sys_datafiles AS `df`
+SELECT LOWER(path) FROM information_schema.innodb_tablespaces AS `t`, information_schema.innodb_datafiles AS `df`
 WHERE t.space = df.space
 AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
 ORDER BY t.space;
 LOWER(path)
->>>>>>> mysql-trunk
 ./test/tr.ibd
 ./test/t1#p#p0#sp#sp00.ibd
 ./test/t1#p#p0#sp#sp01.ibd
@@ -1159,11 +960,7 @@ t1	CREATE TABLE `t1` (
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
-<<<<<<< HEAD
-) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=latin1
-=======
 ) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4
->>>>>>> mysql-trunk
 /*!50100 PARTITION BY RANGE (YEAR(purchased))
 SUBPARTITION BY HASH (YEAR(purchased))
 (PARTITION p0 VALUES LESS THAN (1990)
@@ -1191,11 +988,7 @@ t1	CREATE TABLE `t1` (
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
-<<<<<<< HEAD
-) ENGINE=InnoDB AUTO_INCREMENT=14 DEFAULT CHARSET=latin1
-=======
 ) ENGINE=InnoDB AUTO_INCREMENT=14 DEFAULT CHARSET=utf8mb4
->>>>>>> mysql-trunk
 /*!50100 PARTITION BY RANGE (YEAR(purchased))
 SUBPARTITION BY HASH (YEAR(purchased))
 (PARTITION p0 VALUES LESS THAN (1990)
@@ -1212,21 +1005,12 @@ ALTER TABLE t1 REORGANIZE PARTITION p2 INTO
 (SUBPARTITION sp210, SUBPARTITION sp211),
 PARTITION p22 VALUES LESS THAN (2010)
 (SUBPARTITION sp220, SUBPARTITION sp221));
-<<<<<<< HEAD
-SELECT LOWER(file_name) FROM mysql.tablespaces AS `t`, mysql.tablespace_files AS `tf`
-WHERE t.id = tf.tablespace_id
-AND t.name LIKE 'innodb_file_per_table.%'
-AND tf.file_name NOT LIKE 'mysql/%'
-ORDER BY t.id;
-LOWER(file_name)
-=======
-SELECT LOWER(path) FROM information_schema.innodb_sys_tablespaces AS `t`, information_schema.innodb_sys_datafiles AS `df`
+SELECT LOWER(path) FROM information_schema.innodb_tablespaces AS `t`, information_schema.innodb_datafiles AS `df`
 WHERE t.space = df.space
 AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
 ORDER BY t.space;
 LOWER(path)
->>>>>>> mysql-trunk
 ./test/tr.ibd
 ./test/t1#p#p0#sp#sp00.ibd
 ./test/t1#p#p0#sp#sp01.ibd
@@ -1243,11 +1027,7 @@ t1	CREATE TABLE `t1` (
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
-<<<<<<< HEAD
-) ENGINE=InnoDB AUTO_INCREMENT=14 DEFAULT CHARSET=latin1
-=======
 ) ENGINE=InnoDB AUTO_INCREMENT=14 DEFAULT CHARSET=utf8mb4
->>>>>>> mysql-trunk
 /*!50100 PARTITION BY RANGE (YEAR(purchased))
 SUBPARTITION BY HASH (YEAR(purchased))
 (PARTITION p0 VALUES LESS THAN (1990)
@@ -1267,21 +1047,12 @@ SELECT MAX(id) AS `Expect 14` FROM t1;
 Expect 14
 14
 ALTER TABLE t1 DROP PARTITION p21, p0;
-<<<<<<< HEAD
-SELECT LOWER(file_name) FROM mysql.tablespaces AS `t`, mysql.tablespace_files AS `tf`
-WHERE t.id = tf.tablespace_id
-AND t.name LIKE 'innodb_file_per_table.%'
-AND tf.file_name NOT LIKE 'mysql/%'
-ORDER BY t.id;
-LOWER(file_name)
-=======
-SELECT LOWER(path) FROM information_schema.innodb_sys_tablespaces AS `t`, information_schema.innodb_sys_datafiles AS `df`
+SELECT LOWER(path) FROM information_schema.innodb_tablespaces AS `t`, information_schema.innodb_datafiles AS `df`
 WHERE t.space = df.space
 AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
 ORDER BY t.space;
 LOWER(path)
->>>>>>> mysql-trunk
 ./test/tr.ibd
 ./test/t1#p#p1#sp#sp10.ibd
 ./test/t1#p#p1#sp#sp11.ibd
@@ -1294,11 +1065,7 @@ t1	CREATE TABLE `t1` (
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
-<<<<<<< HEAD
-) ENGINE=InnoDB AUTO_INCREMENT=15 DEFAULT CHARSET=latin1
-=======
 ) ENGINE=InnoDB AUTO_INCREMENT=15 DEFAULT CHARSET=utf8mb4
->>>>>>> mysql-trunk
 /*!50100 PARTITION BY RANGE (YEAR(purchased))
 SUBPARTITION BY HASH (YEAR(purchased))
 (PARTITION p1 VALUES LESS THAN (2000)
@@ -1320,11 +1087,7 @@ t1	CREATE TABLE `t1` (
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
-<<<<<<< HEAD
-) ENGINE=InnoDB AUTO_INCREMENT=17 DEFAULT CHARSET=latin1
-=======
 ) ENGINE=InnoDB AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4
->>>>>>> mysql-trunk
 /*!50100 PARTITION BY RANGE (YEAR(purchased))
 SUBPARTITION BY HASH (YEAR(purchased))
 (PARTITION p1 VALUES LESS THAN (2000)
