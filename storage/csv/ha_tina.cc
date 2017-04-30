@@ -1169,7 +1169,7 @@ int ha_tina::init_data_file()
   ha_tina::info
   ha_tina::rnd_init
   ha_tina::extra
-  ENUM HA_EXTRA_CACHE   Cash record in HA_rrnd()
+  ENUM HA_EXTRA_CACHE   Cache record in HA_rrnd()
   ha_tina::rnd_next
   ha_tina::rnd_next
   ha_tina::rnd_next

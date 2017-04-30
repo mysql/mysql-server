@@ -47,7 +47,7 @@ int _mi_write_static_record(MI_INFO *info, const uchar *record)
       return(2);
     }
     if (info->opt_flag & WRITE_CACHE_USED)
-    {				/* Cash in use */
+    {				/* Cache in use */
       if (my_b_write(&info->rec_cache, record,
 		     info->s->base.reclength))
 	goto err;

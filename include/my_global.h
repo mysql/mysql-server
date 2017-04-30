@@ -349,9 +349,9 @@ static inline int is_directory_separator(char c)
 
 	/* get memory in huncs */
 #define ONCE_ALLOC_INIT		(uint) (4096-MALLOC_OVERHEAD)
-	/* Typical record cash */
+	/* Typical record cache */
 #define RECORD_CACHE_SIZE	(uint) (64*1024-MALLOC_OVERHEAD)
-	/* Typical key cash */
+	/* Typical key cache */
 #define KEY_CACHE_SIZE		(uint) (8*1024*1024)
 	/* Default size of a key cache block  */
 #define KEY_CACHE_BLOCK_SIZE	(uint) 1024
