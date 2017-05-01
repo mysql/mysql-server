@@ -209,8 +209,6 @@ enabled_threads	thread_type
 innodb/buf_dump_thread	BACKGROUND
 innodb/buf_resize_thread	BACKGROUND
 innodb/dict_stats_thread	BACKGROUND
-innodb/dict_stats_thread	BACKGROUND
-innodb/fts_optimize_thread	BACKGROUND
 innodb/fts_optimize_thread	BACKGROUND
 innodb/io_ibuf_thread	BACKGROUND
 innodb/io_log_thread	BACKGROUND
@@ -254,8 +252,6 @@ enabled_threads	thread_type
 innodb/buf_dump_thread	BACKGROUND
 innodb/buf_resize_thread	BACKGROUND
 innodb/dict_stats_thread	BACKGROUND
-innodb/dict_stats_thread	BACKGROUND
-innodb/fts_optimize_thread	BACKGROUND
 innodb/fts_optimize_thread	BACKGROUND
 innodb/io_ibuf_thread	BACKGROUND
 innodb/io_log_thread	BACKGROUND

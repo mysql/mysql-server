@@ -1526,7 +1526,6 @@ DROP DATABASE unknown;
 --echo #                         should display hidden columns, index and index elements
 --echo #                         too.
 --echo #
->>>>>>> mysql-trunk
 --echo #
 CREATE TABLE t1 (c1 int(11) NOT NULL,
                  c2 int(11) DEFAULT NULL,

@@ -104,7 +104,7 @@ SELECT * FROM information_schema.INNODB_FOREIGN_COLS;
 SELECT t2.name, t1.name FROM information_schema.innodb_columns t1, information_schema.innodb_tables t2 WHERE t1.table_id = t2.table_id AND t2.name LIKE "%child" ORDER BY t1.name;
 
 SELECT NAME FROM information_schema.INNODB_TABLES WHERE NAME not like 'sys\/%'
-  AND name NOT LIKE 'mysql/ndb_binlog_index';
+  AND name NOT LIKE 'mysql\/%';
 
 # this should succeed, since we disabled the foreign key check
 INSERT INTO child VALUES(5,4);
@@ -139,7 +139,7 @@ SET DEBUG = '-d,innodb_test_no_foreign_idx';
 
 SELECT * FROM information_schema.INNODB_FOREIGN;
 
-SELECT * FROM information_schema.INNODB_FOREIGN_COLS;
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID;
 
 # This is to test the scenario no index on referenced table,
 # alter table should fail
@@ -164,7 +164,7 @@ SET DEBUG = '-d,innodb_test_wrong_fk_option';
 
 SELECT * FROM information_schema.INNODB_FOREIGN;
 
-SELECT * FROM information_schema.INNODB_FOREIGN_COLS;
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID;
 
 # This is to test the scenario cannot add fk to the system table,
 # alter table should fail
@@ -192,7 +192,7 @@ ALGORITHM = INPLACE;
 
 SELECT * FROM information_schema.INNODB_FOREIGN;
 
-SELECT * FROM information_schema.INNODB_FOREIGN_COLS;
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID;
 
 DROP TABLE child;
 DROP TABLE parent;
@@ -224,7 +224,7 @@ SHOW CREATE TABLE child;
 
 SELECT * FROM information_schema.INNODB_FOREIGN;
 
-SELECT * FROM information_schema.INNODB_FOREIGN_COLS;
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID;
 
 SET foreign_key_checks = 1;
 
@@ -287,10 +287,10 @@ ALGORITHM = INPLACE;
 SET DEBUG = '-d,innodb_test_cannot_add_fk_system';
 
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
-SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN_COLS;
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID;
 SELECT t2.name, t1.name FROM information_schema.innodb_columns t1, information_schema.innodb_tables t2 WHERE t1.table_id = t2.table_id AND t2.name LIKE "%child" ORDER BY t1.name;
 SELECT NAME FROM information_schema.INNODB_TABLES WHERE NAME not like 'sys\/%'
-  AND name NOT LIKE 'mysql/ndb_binlog_index';
+  AND name NOT LIKE 'mysql\/%';
 
 # This should be successful. It will also check any left over
 # from previous failed operation (if dictionary entries not cleaned,
@@ -301,10 +301,10 @@ ON DELETE SET NULL ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
 
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
-SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN_COLS;
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID;
 SELECT t2.name, t1.name FROM information_schema.innodb_columns t1, information_schema.innodb_tables t2 WHERE t1.table_id = t2.table_id AND t2.name LIKE "%child" ORDER BY t1.name;
 SELECT NAME FROM information_schema.INNODB_TABLES WHERE NAME not like 'sys\/%'
-  AND name NOT LIKE 'mysql/ndb_binlog_index';
+  AND name NOT LIKE 'mysql\/%';
 
 SHOW CREATE TABLE child;
 
@@ -319,10 +319,10 @@ ON DELETE SET NULL ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
 
 SELECT * from information_schema.INNODB_FOREIGN;
-SELECT * from information_schema.INNODB_FOREIGN_COLS;
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID;
 SELECT t2.name, t1.name FROM information_schema.innodb_columns t1, information_schema.innodb_tables t2 WHERE t1.table_id = t2.table_id AND t2.name LIKE "%child" ORDER BY t1.name;
 SELECT NAME FROM information_schema.INNODB_TABLES WHERE NAME not like 'sys\/%'
-  AND name NOT LIKE 'mysql/ndb_binlog_index';
+  AND name NOT LIKE 'mysql\/%';
 
 SHOW CREATE TABLE child;
 
@@ -336,10 +336,10 @@ ON DELETE SET NULL ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
 
 SELECT * from information_schema.INNODB_FOREIGN;
-SELECT * from information_schema.INNODB_FOREIGN_COLS;
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID;
 SELECT t2.name, t1.name FROM information_schema.innodb_columns t1, information_schema.innodb_tables t2 WHERE t1.table_id = t2.table_id AND t2.name LIKE "%child" ORDER BY t1.name;
 SELECT NAME FROM information_schema.INNODB_TABLES WHERE NAME not like 'sys\/%'
-  AND name NOT LIKE 'mysql/ndb_binlog_index';
+  AND name NOT LIKE 'mysql\/%';
 
 
 SHOW CREATE TABLE child;
@@ -379,7 +379,7 @@ ALTER TABLE child CHANGE a2 a2_new INT, CHANGE a1 a1_new INT;
 SHOW CREATE TABLE child;
 
 SELECT * from information_schema.INNODB_FOREIGN;
-SELECT * from information_schema.INNODB_FOREIGN_COLS;
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID;
 
 # The third add FK will fail
 --error ER_FK_NO_INDEX_PARENT
@@ -394,7 +394,7 @@ SHOW CREATE TABLE child;
 
 SELECT * from information_schema.INNODB_FOREIGN;
 
-SELECT * from information_schema.INNODB_FOREIGN_COLS;
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID;
 
 #Now let's make it successful
 ALTER TABLE child
@@ -408,7 +408,7 @@ SHOW CREATE TABLE child;
 
 SELECT * from information_schema.INNODB_FOREIGN;
 
-SELECT * from information_schema.INNODB_FOREIGN_COLS;
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID;
 
 DROP TABLE child;
 CREATE TABLE child (a1 INT NOT NULL, a2 INT, a3 INT) ENGINE = InnoDB;
@@ -427,7 +427,7 @@ SHOW CREATE TABLE child;
 
 SELECT * from information_schema.INNODB_FOREIGN;
 
-SELECT * from information_schema.INNODB_FOREIGN_COLS;
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID;
 
 # make it successful
 ALTER TABLE child ADD PRIMARY KEY idx (a1),
@@ -441,7 +441,7 @@ SHOW CREATE TABLE child;
 
 SELECT * from information_schema.INNODB_FOREIGN;
 
-SELECT * from information_schema.INNODB_FOREIGN_COLS;
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID;
 
 SET foreign_key_checks = 1;
 
@@ -484,7 +484,7 @@ ALTER TABLE `t2` ADD CONSTRAINT `e` foreign key (`d`) REFERENCES t3(a);
 ALTER TABLE `t3` ADD CONSTRAINT `e` foreign key (`c`) REFERENCES `t2`(`c`) ON UPDATE SET NULL;
 
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
-SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN_COLS;
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN_COLS ORDER BY ID;
 
 DROP TABLE t2;
 

@@ -47,24 +47,24 @@ SUBPARTITION BY HASH (store_id)
   SUBPARTITION sw3 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_southwest/' ENGINE = InnoDB)) */
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/emp#p#ne0	innodb_system	0	7	Dynamic	0	General
-test/emp#p#ne1	innodb_system	0	7	Dynamic	0	General
-test/emp#p#northeast	innodb_system	0	7	Dynamic	0	General
-test/emp#p#southwest	innodb_system	0	7	Dynamic	0	General
-test/emp#p#sw2	innodb_system	0	7	Dynamic	0	General
-test/emp#p#sw3	innodb_system	0	7	Dynamic	0	General
+test/emp#p#northeast#sp#ne0	innodb_file_per_table.##	97	7	Dynamic	0	Single
+test/emp#p#northeast#sp#ne1	innodb_file_per_table.##	97	7	Dynamic	0	Single
+test/emp#p#southwest#sp#sw2	innodb_file_per_table.##	97	7	Dynamic	0	Single
+test/emp#p#southwest#sp#sw3	innodb_file_per_table.##	97	7	Dynamic	0	Single
 === information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alt_dir_northeast/test/emp#p#northeast#sp#ne0.ibd
-innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alt_dir_northeast/test/emp#p#northeast#sp#ne1.ibd
-innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alt_dir_southwest/test/emp#p#southwest#sp#sw2.ibd
-innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alt_dir_southwest/test/emp#p#southwest#sp#sw3.ibd
+innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir_northeast/test/emp#p#northeast#sp#ne0.ibd
+innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir_northeast/test/emp#p#northeast#sp#ne1.ibd
+innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir_southwest/test/emp#p#southwest#sp#sw2.ibd
+innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir_southwest/test/emp#p#southwest#sp#sw3.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_northeast/test/emp#p#northeast#sp#ne0.ibd
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_northeast/test/emp#p#northeast#sp#ne1.ibd
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_southwest/test/emp#p#southwest#sp#sw2.ibd
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_southwest/test/emp#p#southwest#sp#sw3.ibd
+innodb_temporary	TEMPORARY	InnoDB	NORMAL	innodb_temporary	MYSQLD_DATADIR/ibtmp1
+mysql	TABLESPACE	InnoDB	NORMAL	mysql	mysql.ibd
 ---- MYSQLD_DATADIR/test
 ---- MYSQL_TMP_DIR/alt_dir_northeast/test
 emp#p#northeast#sp#ne0.ibd
@@ -123,28 +123,24 @@ SUBPARTITION BY HASH (store_id)
   SUBPARTITION s1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_south' ENGINE = InnoDB)) */
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/emp#p#e0	innodb_system	0	7	Dynamic	0	General
-test/emp#p#e1	innodb_system	0	7	Dynamic	0	General
-test/emp#p#east	innodb_system	0	7	Dynamic	0	General
-test/emp#p#n0	innodb_system	0	7	Dynamic	0	General
-test/emp#p#n1	innodb_system	0	7	Dynamic	0	General
-test/emp#p#north	innodb_system	0	7	Dynamic	0	General
-test/emp#p#s0	innodb_system	0	7	Dynamic	0	General
-test/emp#p#s1	innodb_system	0	7	Dynamic	0	General
-test/emp#p#south	innodb_system	0	7	Dynamic	0	General
-test/emp#p#w0	innodb_system	0	7	Dynamic	0	General
-test/emp#p#w1	innodb_system	0	7	Dynamic	0	General
-test/emp#p#west	innodb_system	0	7	Dynamic	0	General
+test/emp#p#east#sp#e0	innodb_file_per_table.##	97	7	Dynamic	0	Single
+test/emp#p#east#sp#e1	innodb_file_per_table.##	97	7	Dynamic	0	Single
+test/emp#p#north#sp#n0	innodb_file_per_table.##	97	7	Dynamic	0	Single
+test/emp#p#north#sp#n1	innodb_file_per_table.##	97	7	Dynamic	0	Single
+test/emp#p#south#sp#s0	innodb_file_per_table.##	97	7	Dynamic	0	Single
+test/emp#p#south#sp#s1	innodb_file_per_table.##	97	7	Dynamic	0	Single
+test/emp#p#west#sp#w0	innodb_file_per_table.##	97	7	Dynamic	0	Single
+test/emp#p#west#sp#w1	innodb_file_per_table.##	97	7	Dynamic	0	Single
 === information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alt_dir_east/test/emp#p#east#sp#e0.ibd
-innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alt_dir_east/test/emp#p#east#sp#e1.ibd
-innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alt_dir_north/test/emp#p#north#sp#n0.ibd
-innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alt_dir_north/test/emp#p#north#sp#n1.ibd
-innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alt_dir_west/test/emp#p#west#sp#w0.ibd
-innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alt_dir_west/test/emp#p#west#sp#w1.ibd
-innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alt_dir_south/test/emp#p#south#sp#s0.ibd
-innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alt_dir_south/test/emp#p#south#sp#s1.ibd
+innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir_east/test/emp#p#east#sp#e0.ibd
+innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir_east/test/emp#p#east#sp#e1.ibd
+innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir_north/test/emp#p#north#sp#n0.ibd
+innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir_north/test/emp#p#north#sp#n1.ibd
+innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir_west/test/emp#p#west#sp#w0.ibd
+innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir_west/test/emp#p#west#sp#w1.ibd
+innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir_south/test/emp#p#south#sp#s0.ibd
+innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir_south/test/emp#p#south#sp#s1.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_east/test/emp#p#east#sp#e0.ibd
@@ -155,6 +151,8 @@ innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_west/test/emp#p#west#sp#w1.ibd
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_south/test/emp#p#south#sp#s0.ibd
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_south/test/emp#p#south#sp#s1.ibd
+innodb_temporary	TEMPORARY	InnoDB	NORMAL	innodb_temporary	MYSQLD_DATADIR/ibtmp1
+mysql	TABLESPACE	InnoDB	NORMAL	mysql	mysql.ibd
 ---- MYSQLD_DATADIR/test
 ---- MYSQL_TMP_DIR/alt_dir_northeast/test
 ---- MYSQL_TMP_DIR/alt_dir_southwest/test
