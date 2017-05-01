@@ -1151,8 +1151,8 @@ table_schema='information_schema' AND
  OR column_type = 'varchar(30)')
 GROUP BY column_type ORDER BY num;
 COLUMN_TYPE	GROUP_CONCAT(table_schema, '.', table_name)	num
+varchar(7)	information_schema.VIEWS	1
 varchar(30)	information_schema.PROFILING,information_schema.PROFILING	2
-varchar(7)	information_schema.INNODB_TABLES,information_schema.INNODB_TABLESPACES,information_schema.INNODB_TABLESPACES,information_schema.VIEWS	4
 varchar(20)	information_schema.FILES,information_schema.FILES,information_schema.PLUGINS,information_schema.PLUGINS,information_schema.PLUGINS,information_schema.PROFILING	6
 create table t1(f1 char(1) not null, f2 char(9) not null)
 default character set utf8;
@@ -1293,6 +1293,7 @@ group by t.table_name order by num1, t.table_name COLLATE utf8_general_ci;
 TABLE_NAME	group_concat(t.table_schema, '.', t.table_name)	num1
 CHARACTER_SETS	information_schema.CHARACTER_SETS	1
 COLLATIONS	information_schema.COLLATIONS	1
+COLLATION_CHARACTER_SET_APPLICABILITY	information_schema.COLLATION_CHARACTER_SET_APPLICABILITY	1
 COLUMNS	information_schema.COLUMNS	1
 COLUMN_PRIVILEGES	information_schema.COLUMN_PRIVILEGES	1
 ENGINES	information_schema.ENGINES	1

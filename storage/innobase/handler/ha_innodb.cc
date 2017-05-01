@@ -16977,11 +16977,12 @@ get_foreign_key_info(
 	if (foreign->referenced_table == NULL) {
 
 		dict_table_t*	ref_table;
+		MDL_ticket*	mdl = nullptr;
 
 		ut_ad(mutex_own(&dict_sys->mutex));
-		ref_table = dict_table_open_on_name(
-			foreign->referenced_table_name_lookup,
-			TRUE, FALSE, DICT_ERR_IGNORE_NONE);
+		ref_table = dd_table_open_on_name(
+			thd, &mdl, foreign->referenced_table_name_lookup,
+			true, DICT_ERR_IGNORE_NONE);
 
 		if (ref_table == NULL) {
 
@@ -16991,7 +16992,7 @@ get_foreign_key_info(
 				   << foreign->foreign_table_name;
 		} else {
 
-			dict_table_close(ref_table, TRUE, FALSE);
+			dd_table_close(ref_table, thd, &mdl, true);
 		}
 	}
 

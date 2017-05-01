@@ -82,6 +82,7 @@ baseline.EVENT_NAME = diffs.EVENT_NAME AND
 baseline.EVENT_NAME = percents.EVENT_NAME)
 WHERE percents.BYTES_ALLOC_PCT > 19;
 PSI MEMORY EVENT NAME	BASE ALLOC BYTES	POST ALLOC BYTES	DELTA	PCT_CHANGE	REASON
+memory/sql/dd::String_type	473021	579458	106437	22.502	Exceeds threshold of +19%
 #
 # Cleaning up
 DROP TABLE percents;

@@ -410,10 +410,6 @@ NO	plugin
 ALTER TABLE mysql.user MODIFY plugin char(64) DEFAULT '' NOT NULL;
 ALTER TABLE mysql.user MODIFY authentication_string TEXT NOT NULL;
 Run mysql_upgrade on a 5.5.10 external authentication column layout
-mysql_upgrade: [ERROR] 1478: InnoDB: Tablespace `mysql` cannot contain TEMPORARY tables.
-mysql_upgrade: [ERROR] 1146: Table 'mysql.tmp_proxies_priv' doesn't exist
-mysql_upgrade: [ERROR] 1146: Table 'mysql.tmp_proxies_priv' doesn't exist
-mysql_upgrade: [ERROR] 1051: Unknown table 'mysql.tmp_proxies_priv'
 mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK

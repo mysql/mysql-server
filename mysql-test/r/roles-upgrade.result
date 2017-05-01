@@ -1,8 +1,4 @@
 Run mysql_upgrade once
-mysql_upgrade: [ERROR] 1478: InnoDB: Tablespace `mysql` cannot contain TEMPORARY tables.
-mysql_upgrade: [ERROR] 1146: Table 'mysql.tmp_proxies_priv' doesn't exist
-mysql_upgrade: [ERROR] 1146: Table 'mysql.tmp_proxies_priv' doesn't exist
-mysql_upgrade: [ERROR] 1051: Unknown table 'mysql.tmp_proxies_priv'
 mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
@@ -57,10 +53,6 @@ ERROR 42S02: Table 'mysql.role_edges' doesn't exist
 GRANT SELECT ON *.* TO u1;
 ERROR 42S02: Table 'mysql.role_edges' doesn't exist
 # Run mysql_upgrade
-mysql_upgrade: [ERROR] 1478: InnoDB: Tablespace `mysql` cannot contain TEMPORARY tables.
-mysql_upgrade: [ERROR] 1146: Table 'mysql.tmp_proxies_priv' doesn't exist
-mysql_upgrade: [ERROR] 1146: Table 'mysql.tmp_proxies_priv' doesn't exist
-mysql_upgrade: [ERROR] 1051: Unknown table 'mysql.tmp_proxies_priv'
 mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
