@@ -66,21 +66,21 @@
 --let $do_pre_binlog=0
 --let $ts=ts_0
 --let $ddl_query=CREATE TABLESPACE $ts ADD DATAFILE 'ts_0.ibd'
---let $pre_binlog_crash_check= SELECT COUNT(*) = 0 FROM information_schema.INNODB_SYS_TABLESPACES WHERE name = '$ts'
---let $post_binlog_crash_check=   SELECT COUNT(*) = 1 FROM information_schema.INNODB_SYS_TABLESPACES WHERE name = '$ts'
+--let $pre_binlog_crash_check= SELECT COUNT(*) = 0 FROM information_schema.INNODB_TABLESPACES WHERE name = '$ts'
+--let $post_binlog_crash_check=   SELECT COUNT(*) = 1 FROM information_schema.INNODB_TABLESPACES WHERE name = '$ts'
   --source extra/binlog_tests/binlog_crash_safe_ddl.inc
 
 # The following feature is just not implemented expect for NDB, e.g:
 #--error ER_CHECK_NOT_IMPLEMENTED
 #--let $ddl_query=ALTER TABLESPACE $ts ADD DATAFILE 'ts_1.ibd'
 # Otherwise the after crash checks would be:
-#--let $pre_binlog_crash_check= SELECT COUNT(*) = 0 FROM information_schema.INNODB_SYS_TABLESPACES WHERE name = '$ts'
-#--let $post_binlog_crash_check=   SELECT COUNT(*) = 1 FROM information_schema.INNODB_SYS_TABLESPACES WHERE name = '$ts'
+#--let $pre_binlog_crash_check= SELECT COUNT(*) = 0 FROM information_schema.INNODB_TABLESPACES WHERE name = '$ts'
+#--let $post_binlog_crash_check=   SELECT COUNT(*) = 1 FROM information_schema.INNODB_TABLESPACES WHERE name = '$ts'
 #  --source extra/binlog_tests/binlog_crash_safe_ddl.inc
 
 --let $ddl_query=DROP TABLESPACE $ts
---let $pre_binlog_crash_check= SELECT COUNT(*) = 1 FROM information_schema.INNODB_SYS_TABLESPACES WHERE name = '$ts'
---let $post_binlog_crash_check=   SELECT COUNT(*) = 0 FROM information_schema.INNODB_SYS_TABLESPACES WHERE name = '$ts'
+--let $pre_binlog_crash_check= SELECT COUNT(*) = 1 FROM information_schema.INNODB_TABLESPACES WHERE name = '$ts'
+--let $post_binlog_crash_check=   SELECT COUNT(*) = 0 FROM information_schema.INNODB_TABLESPACES WHERE name = '$ts'
   --source extra/binlog_tests/binlog_crash_safe_ddl.inc
 
 #
