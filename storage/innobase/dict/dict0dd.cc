@@ -3113,6 +3113,8 @@ dd_load_tablespace(
 	mem_heap_t*			heap,
 	dict_err_ignore_t		ignore_err)
 {
+	bool	alloc_from_heap = false;
+
 	ut_ad(!table->is_temporary());
 	ut_ad(mutex_own(&dict_sys->mutex));
 
@@ -3195,15 +3197,19 @@ dd_load_tablespace(
 
 	}
 	else if (DICT_TF_HAS_SHARED_SPACE(table->flags)) {
+#ifdef INNODB_NO_NEW_DD
 		/* Set table->tablespace from either
 		fil_system or SYS_TABLESPACES */
 		dict_get_and_save_space_name(table, true);
+#endif /* INNODB_NO_NEW_DD */
 
 		filepath = dd_get_first_path(heap, table, dd_table);
 		if (filepath == nullptr) {
 			ib::warn() << "Could not find the filepath"
 				" for table " << table->name <<
 				", space ID " << table->space;
+		} else {
+			alloc_from_heap = true;
 		}
 	}
 
@@ -3223,7 +3229,9 @@ dd_load_tablespace(
 	}
 
 	ut_free(shared_space_name);
-	ut_free(filepath);
+	if (!alloc_from_heap && filepath) {
+		ut_free(filepath);
+	}
 }
 
 /** Open or load a table definition based on a Global DD object.
@@ -3358,9 +3366,11 @@ dd_open_table_one(
 		index = index->next();
 	}
 
+#ifdef INNODB_NO_NEW_DD
 	if (!implicit) {
 		dict_get_and_save_space_name(m_table, false);
 	}
+#endif /* INNODB_NO_NEW_DD */
 
 	mutex_enter(&dict_sys->mutex);
 

@@ -103,21 +103,21 @@ yyy.ibd
 # Start the server and show the tablespaces.
 #
 # restart
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/yyy.ibd
-innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/nyy.ibd
-innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/yny.ibd
-innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/yyn.ibd
-innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/nyw.ibd
-innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/nwy.ibd
-innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/wny.ibd
-innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/ynw.ibd
-innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/wyn.ibd
-innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/ywn.ibd
-innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/nnn.ibd
-innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/www.ibd
-innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/nolink.ibd
+innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/yyy.ibd
+innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/nyy.ibd
+innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/yny.ibd
+innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/yyn.ibd
+innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/nyw.ibd
+innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/nwy.ibd
+innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/wny.ibd
+innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/ynw.ibd
+innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/wyn.ibd
+innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/ywn.ibd
+innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/nnn.ibd
+innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/www.ibd
+innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/nolink.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/yyy.ibd
@@ -126,6 +126,8 @@ innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/nyw.ibd
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/wyn.ibd
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/nolink.ibd
+innodb_temporary	TEMPORARY	InnoDB	NORMAL	innodb_temporary	MYSQLD_DATADIR/ibtmp1
+mysql	TABLESPACE	InnoDB	NORMAL	mysql	mysql.ibd
 SELECT * FROM yyy;
 c1	c2
 1	yyy
@@ -417,13 +419,13 @@ yy	CREATE TABLE `yy` (
   `c2` text,
   PRIMARY KEY (`c1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/ny.ibd
-innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/wy.ibd
-innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/yn.ibd
-innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/yw.ibd
-innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/yy.ibd
+innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/ny.ibd
+innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/wy.ibd
+innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/yn.ibd
+innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/yw.ibd
+innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/yy.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/ny.ibd
@@ -431,6 +433,8 @@ innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/yn.ibd
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/yw.ibd
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/yy.ibd
+innodb_temporary	TEMPORARY	InnoDB	NORMAL	innodb_temporary	MYSQLD_DATADIR/ibtmp1
+mysql	TABLESPACE	InnoDB	NORMAL	mysql	mysql.ibd
 #
 # List of files before removing unused files
 #

@@ -77,41 +77,7 @@ INSERT INTO t2 VALUES (56, 6);
 ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t1` (`a`) ON DELETE CASCADE ON UPDATE CASCADE)
 NewDD TODO: Runtime Bug#25722221 - RENAME COLUMN DID NOT UPDATE MYSQL.FOREIGN_KEY_COLUMN_USAGE FOR FK CONSTRAINT
 # Operations on child table
-<<<<<<< HEAD
-TODO: NewDD: Waiting for WL#6049 fixes
 TODO: Waiting for Bug#24666169
-DELETE FROM t2 WHERE a = 53;
-SELECT id, b FROM t1 ORDER BY id;
-id	b
-1	80
-2	81
-3	82
-4	83
-5	84
-SELECT a, b FROM t2 ORDER BY a;
-a	b
-51	1
-52	2
-54	4
-55	5
-# Operations on parent table
-DELETE FROM t1 WHERE id = 1;
-UPDATE t1 SET id = 50 WHERE id = 5;
-SELECT id, b FROM t1 ORDER BY id;
-id	b
-2	81
-3	82
-4	83
-50	84
-SELECT a, b FROM t2 ORDER BY a;
-a	b
-51	1
-52	2
-54	4
-55	5
-=======
-TODO: Waiting for Bug#24666169
->>>>>>> mysql-trunk
 DROP TABLE t2, t1;
 #
 # Bug#20752436: INNODB: FAILING ASSERTION: 0 IN FILE HANDLER0ALTER.CC
