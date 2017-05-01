@@ -33,6 +33,9 @@
 #include "dd/impl/system_views/table_constraints.h"  // Table_constraints
 #include "dd/impl/system_views/triggers.h"           // Triggers
 #include "dd/impl/system_views/views.h"              // Views
+#include "dd/impl/system_views/innodb_foreign.h"     // Innodb_foreign
+#include "dd/impl/system_views/innodb_foreign_cols.h"// Innodb_foreign_cols
+#include "dd/impl/system_views/innodb_fields.h"      // Innodb_fields
 
 #include "dd/impl/tables/catalogs.h"                 // Catalog
 #include "dd/impl/tables/character_sets.h"           // Character_sets
@@ -178,6 +181,9 @@ void System_views::init()
   register_view<dd::system_views::Tables_dynamic>(is);
   register_view<dd::system_views::Triggers>(is);
   register_view<dd::system_views::Views>(is);
+  register_view<dd::system_views::Innodb_foreign>(is);
+  register_view<dd::system_views::Innodb_foreign_cols>(is);
+  register_view<dd::system_views::Innodb_fields>(is);
 }
 
 } // namespace dd

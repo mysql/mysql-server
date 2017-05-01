@@ -114,6 +114,9 @@ SET(DD_SOURCES
   dd/impl/system_views/table_constraints.cc
   dd/impl/system_views/triggers.cc
   dd/impl/system_views/views.cc
+  dd/impl/system_views/innodb_foreign.cc
+  dd/impl/system_views/innodb_foreign_cols.cc
+  dd/impl/system_views/innodb_fields.cc
 
   dd/impl/tables/table_stats.cc
   dd/impl/tables/index_stats.cc
