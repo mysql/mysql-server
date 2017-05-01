@@ -29,14 +29,11 @@ Innodb_foreign::Innodb_foreign()
   m_target_def.set_view_name(view_name());
 
   m_target_def.add_field(FIELD_FOREIGN_ID, "ID",
-                         "CONCAT(sch.name, '/', fk.name)"
-			 + m_target_def.fs_name_collation());
+                         "CONCAT(sch.name, '/', fk.name)");
   m_target_def.add_field(FIELD_FOREIGN_NAME, "FOR_NAME",
-			 "CONCAT(sch.name, '/', tbl.name)"
-			 + m_target_def.fs_name_collation());
+			 "CONCAT(sch.name, '/', tbl.name)");
   m_target_def.add_field(FIELD_REF_NAME, "REF_NAME",
-                         "CONCAT(fk.referenced_table_schema, '/', fk.referenced_table_name)"
-                         + m_target_def.fs_name_collation());
+                         "CONCAT(fk.referenced_table_schema, '/', fk.referenced_table_name)");
   m_target_def.add_field(FIELD_N_COLS, "N_COLS", "COUNT(*)");
   m_target_def.add_field(FIELD_TYPE, "TYPE", "0");
 

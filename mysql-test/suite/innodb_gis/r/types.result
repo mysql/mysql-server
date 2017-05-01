@@ -75,6 +75,6 @@ FROM information_schema.innodb_columns sc
 INNER JOIN information_schema.innodb_tables st
 ON sc.TABLE_ID=st.TABLE_ID
 WHERE st.NAME='test/t_wl6455' AND sc.NAME='g';
-NAME	POS	MTYPE
-g	2	0
+name	pos	mtype
+g	1	14
 DROP TABLE t_wl6455;
