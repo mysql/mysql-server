@@ -35,6 +35,12 @@
 #endif
 
 #define DEBUG_LCP_SCANNED_BIT 1
+#ifdef DEBUG_LCP_SCANNED_BIT
+#define DEB_LCP_SCANNED_BIT(arglist) \
+  do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_LCP_SCANNED_BIT(arglist) do { } while (0)
+#endif
 
 #define DBUG_PAGE_MAP 0
 
@@ -612,16 +618,19 @@ Dbtup::handle_lcp_skip_bit(EmulatedJamBuffer *jamBuf,
   if (lcp_scan_ptr_i != RNIL)
   {
     thrjam(jamBuf);
-    bool dummy = false;
-    int ret_code;
-    if ((ret_code= c_backup->is_page_lcp_scanned(page_no, dummy)) == -1)
+    DynArr256 map(c_page_map_pool, fragPtrP->m_page_map);
+    const Uint32 *ptr = map.set(2 * page_no);
+    ndbrequire(ptr != 0);
+    ndbassert((*ptr) != RNIL);
+    Uint32 lcp_scanned_bit = (*ptr) & LCP_SCANNED_BIT;
+    ScanOpPtr scanOp;
+    c_scanOpPool.getPtr(scanOp, lcp_scan_ptr_i);
+    Local_key key;
+    key.m_page_no = page_no;
+    key.m_page_idx = ZNIL;
+    if (is_rowid_in_remaining_lcp_set(pagePtr.p, key, *scanOp.p))
     {
       thrjam(jamBuf);
-      DynArr256 map(c_page_map_pool, fragPtrP->m_page_map);
-      const Uint32 *ptr = map.set(2 * page_no);
-      ndbrequire(ptr != 0);
-      ndbassert((*ptr) != RNIL);
-      Uint32 lcp_scanned_bit = (*ptr) & LCP_SCANNED_BIT;
       if (lcp_scanned_bit == 0)
       {
         thrjam(jamBuf);
@@ -653,7 +662,15 @@ Dbtup::handle_lcp_skip_bit(EmulatedJamBuffer *jamBuf,
     }
     else
     {
-      ndbrequire(ret_code == +1);
+      if (lcp_scanned_bit)
+      {
+        g_eventLogger->info("(%u):lcp_scanned_bit crash on tab(%u,%u).%u",
+                            instance(),
+                            fragPtrP->fragTableId,
+                            fragPtrP->fragmentId,
+                            page_no);
+      }
+      ndbrequire(lcp_scanned_bit == 0);
     }
   }
 }
@@ -893,8 +910,8 @@ Dbtup::releaseFragPage(Fragrecord* fragPtrP,
      * LCP_SCANNED_BIT. Otherwise we will ignore it.
      */
     ScanOpPtr scanOp;
-    c_scanOpPool.getPtr(scanOp, lcp_scan_ptr_i);
     Local_key key;
+    c_scanOpPool.getPtr(scanOp, lcp_scan_ptr_i);
     key.m_page_no = logicalPageId;
     key.m_page_idx = ZNIL;
     if (is_rowid_in_remaining_lcp_set(pagePtr.p, key, *scanOp.p))
@@ -933,6 +950,11 @@ Dbtup::releaseFragPage(Fragrecord* fragPtrP,
          * No need to clear the page to skip lcp flag here since the
          * page is dropped immediately following this.
          */
+        DEB_LCP_SCANNED_BIT(("(%u) Set lcp_scanned_bit on tab(%u,%u).%u",
+                             instance(),
+                             fragPtrP->fragTableId,
+                             fragPtrP->fragmentId,
+                             logicalPageId));
         lcp_scanned_bit = LCP_SCANNED_BIT;
         Uint32 new_last_lcp_state = pagePtr.p->is_page_to_skip_lcp() ?
                                     LAST_LCP_FREE_BIT : 0;
