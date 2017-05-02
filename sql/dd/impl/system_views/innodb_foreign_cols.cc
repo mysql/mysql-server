@@ -29,7 +29,7 @@ Innodb_foreign_cols::Innodb_foreign_cols()
   m_target_def.set_view_name(view_name());
 
   m_target_def.add_field(FIELD_FOREIGN_ID, "ID",
-                         "CONCAT(sch.name, '/', fk.name)");
+                         "CONCAT(sch.name, '/', fk.name)" + m_target_def.fs_name_collation());
   m_target_def.add_field(FIELD_FOR_COL_NAME, "FOR_COL_NAME", "col.name");
   m_target_def.add_field(FIELD_REF_COL_NAME, "REF_COL_NAME", "referenced_column_name");
   m_target_def.add_field(FIELD_COL_POS, "POS", "fk_col.ordinal_position");

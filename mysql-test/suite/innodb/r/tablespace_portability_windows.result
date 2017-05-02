@@ -129,6 +129,17 @@ SELECT s.space_type 'Type', s.name 'Space Name', f.file_name 'Path'
 	FROM information_schema.innodb_tablespaces s, information_schema.files f
 WHERE s.name like '%ibport%' AND s.space = f.file_id ORDER BY s.space;
 Type	Space Name	Path
+General	ibport_s01	./ibport_s01.ibd
+General	ibport_s02	./ibport_s02.ibd
+General	ibport_s03	../data/ibport_s03.ibd
+General	ibport_s04	./test/../ibport_s04.ibd
+General	ibport_s05	./test/../ibport_s05.ibd
+General	ibport_s06	..///data//test///..//ibport_s06.ibd
+General	ibport_s12	.//ibport_s12.ibd
+General	ibport_s13	..//data//ibport_s13.ibd
+General	ibport_s14	./test//..//ibport_s14.ibd
+General	ibport_s15	.//test//..//ibport_s15.ibd
+General	ibport_s16	..//////data////test//////..////ibport_s16.ibd
 DROP TABLESPACE ibport_s01;
 DROP TABLESPACE ibport_s02;
 DROP TABLESPACE ibport_s03;
