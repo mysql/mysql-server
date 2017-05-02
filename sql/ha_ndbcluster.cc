@@ -10138,21 +10138,21 @@ void ha_ndbcluster::update_create_info(HA_CREATE_INFO *create_info)
    */
   if (thd->lex->sql_command == SQLCOM_ALTER_TABLE)
   {
-    update_comment_info(create_info, m_table);
+    update_comment_info(thd, create_info, m_table);
   }
   else if (thd->lex->sql_command == SQLCOM_SHOW_CREATE)
   {
-    update_comment_info(NULL, m_table);
+    update_comment_info(thd, NULL, m_table);
   }
   DBUG_VOID_RETURN;
 }
 
 void
-ha_ndbcluster::update_comment_info(HA_CREATE_INFO *create_info,
-                                   const NDBTAB *ndbtab)
+ha_ndbcluster::update_comment_info(THD* thd,
+                                   HA_CREATE_INFO *create_info,
+                                   const NdbDictionary::Table *ndbtab)
 {
   DBUG_ENTER("ha_ndbcluster::update_comment_info");
-  THD *thd= current_thd;
   NDB_Modifiers table_modifiers(ndb_table_modifiers);
   const char *ndb_table_str= "NDB_TABLE=";
   Uint32 end_parse_comment_pos = 0;
@@ -11240,7 +11240,7 @@ int ha_ndbcluster::create(const char *name,
 
   if (!is_alter)
   {
-    update_comment_info(create_info, &tab);
+    update_comment_info(thd, create_info, &tab);
   }
 
   {

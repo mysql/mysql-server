@@ -227,7 +227,8 @@ public:
   void unlock_row();
   int start_stmt(THD *thd, thr_lock_type lock_type);
   void update_create_info(HA_CREATE_INFO *create_info);
-  void update_comment_info(HA_CREATE_INFO *create_info, const NdbDictionary::Table *tab);
+  void update_comment_info(THD* thd, HA_CREATE_INFO *create_info,
+                           const NdbDictionary::Table *tab);
   void print_error(int error, myf errflag);
   const char * table_type() const;
   ulonglong table_flags(void) const;
