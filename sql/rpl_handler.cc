@@ -890,6 +890,18 @@ int Binlog_relay_IO_delegate::thread_stop(THD *thd, Master_info *mi)
   return ret;
 }
 
+int Binlog_relay_IO_delegate::applier_start(THD *thd, Master_info *mi)
+{
+  Binlog_relay_IO_param param;
+  init_param(&param, mi);
+  param.server_id= thd->server_id;
+  param.thread_id= thd->thread_id();
+
+  int ret= 0;
+  FOREACH_OBSERVER(ret, applier_start, (&param));
+  return ret;
+}
+
 int Binlog_relay_IO_delegate::applier_stop(THD *thd,
                                            Master_info *mi,
                                            bool aborted)

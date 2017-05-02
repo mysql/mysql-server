@@ -354,6 +354,7 @@ Trans_observer trans_observer = {
 */
 static int binlog_relay_thread_start_call= 0;
 static int binlog_relay_thread_stop_call= 0;
+static int binlog_relay_applier_start_call= 0;
 static int binlog_relay_applier_stop_call= 0;
 static int binlog_relay_before_request_transmit_call= 0;
 static int binlog_relay_after_read_event_call= 0;
@@ -374,6 +375,13 @@ static void dump_binlog_relay_calls()
     my_plugin_log_message(&plugin_info_ptr,
                           MY_INFORMATION_LEVEL,
                           "\nreplication_observers_example_plugin:binlog_relay_thread_stop");
+  }
+
+  if (binlog_relay_applier_start_call)
+  {
+    my_plugin_log_message(&plugin_info_ptr,
+                          MY_INFORMATION_LEVEL,
+                          "\nreplication_observers_example_plugin:binlog_relay_applier_start");
   }
 
   if (binlog_relay_applier_stop_call)
@@ -426,6 +434,12 @@ static int binlog_relay_thread_stop(Binlog_relay_IO_param*)
   return 0;
 }
 
+int binlog_relay_applier_start(Binlog_relay_IO_param *param)
+{
+  binlog_relay_applier_start_call++;
+  return 0;
+}
+
 static int binlog_relay_applier_stop(Binlog_relay_IO_param*,
                                      bool aborted)
 {
@@ -473,6 +487,7 @@ Binlog_relay_IO_observer relay_io_observer = {
 
   binlog_relay_thread_start,
   binlog_relay_thread_stop,
+  binlog_relay_applier_start,
   binlog_relay_applier_stop,
   binlog_relay_before_request_transmit,
   binlog_relay_after_read_event,

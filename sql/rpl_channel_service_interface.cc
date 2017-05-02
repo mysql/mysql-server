@@ -38,7 +38,6 @@
 #include "rpl_gtid.h"
 #include "rpl_info_factory.h"
 #include "rpl_info_handler.h"
-#include "rpl_mi.h"
 #include "rpl_msr.h"         /* Multisource replication */
 #include "rpl_mts_submode.h"
 #include "rpl_rli.h"
@@ -1006,4 +1005,48 @@ bool is_partial_transaction_on_channel_relay_log(const char *channel)
   mi->channel_unlock();
   channel_map.unlock();
   DBUG_RETURN(ret);
+}
+
+bool is_any_slave_channel_running(int thread_mask)
+{
+  DBUG_ENTER("is_any_slave_channel_running");
+  Master_info *mi= 0;
+  bool is_running;
+
+  channel_map.rdlock();
+
+  for (mi_map::iterator it= channel_map.begin(); it != channel_map.end(); it++)
+  {
+    mi= it->second;
+
+    if (mi)
+    {
+      if ((thread_mask & SLAVE_IO) != 0)
+      {
+        mysql_mutex_lock(&mi->run_lock);
+        is_running= mi->slave_running;
+        mysql_mutex_unlock(&mi->run_lock);
+        if (is_running)
+        {
+          channel_map.unlock();
+          DBUG_RETURN(true);
+        }
+      }
+
+      if ((thread_mask & SLAVE_SQL) != 0)
+      {
+        mysql_mutex_lock(&mi->rli->run_lock);
+        is_running= mi->rli->slave_running;
+        mysql_mutex_unlock(&mi->rli->run_lock);
+        if (is_running)
+        {
+          channel_map.unlock();
+          DBUG_RETURN(true);
+        }
+      }
+    }
+  }
+
+  channel_map.unlock();
+  DBUG_RETURN(false);
 }
