@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -171,6 +171,18 @@ struct view {
     "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>transactions` t"
     " LEFT JOIN `<NDBINFO_DB>`.`<TABLE_PREFIX>dbtc_apiconnect_state` s"
     "        ON s.state_int_value = t.state"
+  },
+  { "config_nodes",
+    "SELECT distinct node_id, "
+    "CASE node_type"
+    "  WHEN 0 THEN \"NDB\""
+    "  WHEN 1 THEN \"API\""
+    "  WHEN 2 THEN \"MGM\""
+    "  ELSE NULL "
+    " END AS node_type, "
+    "node_hostname "
+    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>config_nodes` "
+    "ORDER BY node_id"
   },
   { "config_params",
     "SELECT param_number, param_name, param_description, param_type, param_default, "
@@ -361,9 +373,7 @@ struct view {
     "  SUM(total*entry_size) AS total,"
     "  SUM(total) AS total_pages "
     "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>pools` "
-    "WHERE ( block_number IN (248, 254) AND "
-    "  (pool_name = \"Index memory\" OR pool_name = \"Data memory\") "
-    ") OR pool_name = \"Long message buffer\" "
+    "WHERE block_number = 254 "
     "GROUP BY node_id, memory_type"
   },
   { "nodes",
@@ -430,11 +440,26 @@ struct view {
     "LEFT JOIN `<NDBINFO_DB>`.config_params cp4 ON p.config_param4 = cp4.param_number"
   },
 #endif
+  { "processes",
+    "SELECT DISTINCT node_id, "
+    "CASE node_type"
+    "  WHEN 0 THEN \"NDB\""
+    "  WHEN 1 THEN \"API\""
+    "  WHEN 2 THEN \"MGM\""
+    "  ELSE NULL "
+    " END AS node_type, "
+    " node_version, "
+    " NULLIF(process_id, 0) AS process_id, "
+    " NULLIF(angel_process_id, 0) AS angel_process_id, "
+    " process_name, service_URI "
+    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>processes` "
+    "ORDER BY node_id"
+  },
   { "resources",
     "SELECT node_id, "
     " CASE resource_id"
     "  WHEN 0 THEN \"RESERVED\""
-    "  WHEN 1 THEN \"DISK_OPERATIONS\""
+    "  WHEN 1 THEN \"TRANSACTION_MEMORY\""
     "  WHEN 2 THEN \"DISK_RECORDS\""
     "  WHEN 3 THEN \"DATA_MEMORY\""
     "  WHEN 4 THEN \"JOBBUFFER\""
@@ -445,7 +470,7 @@ struct view {
     "  WHEN 9 THEN \"SCHEMA_TRANS_MEMORY\""
     "  ELSE \"<unknown>\" "
     " END AS resource_name, "
-    "reserved, used, max "
+    "reserved, used, max, spare "
     "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>resources`"
   },
   {"restart_info",

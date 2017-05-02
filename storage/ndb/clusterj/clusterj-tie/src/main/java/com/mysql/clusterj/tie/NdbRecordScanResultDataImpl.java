@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@ package com.mysql.clusterj.tie;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.mysql.clusterj.ClusterJUserException;
 import com.mysql.clusterj.core.util.I18NHelper;
 import com.mysql.clusterj.core.util.Logger;
 import com.mysql.clusterj.core.util.LoggerFactoryService;
@@ -110,6 +111,9 @@ class NdbRecordScanResultDataImpl extends NdbRecordResultDataImpl {
 
     @Override
     public boolean next() {
+        if (!clusterTransaction.isEnlisted()) {
+            throw new ClusterJUserException(local.message("ERR_Db_Is_Closing"));
+        }
         if (recordCounter >= limit) {
             // the next record is past the limit; we have delivered all the rows
             executeIfRecordsLocked();

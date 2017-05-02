@@ -53,6 +53,7 @@
 #include <logger/SysLogHandler.hpp>
 #include <DebuggerNames.hpp>
 #include <ndb_version.h>
+#include <OwnProcessInfo.hpp>
 
 #include <SocketServer.hpp>
 #include <NdbConfig.h>
@@ -526,6 +527,7 @@ MgmtSrvr::start_mgm_service(const Config* config)
       DBUG_RETURN(false);
     }
   }
+  setOwnProcessInfoPort(port);
 
   m_socket_server.startServer();
 

@@ -109,7 +109,6 @@ void Dbacc::execCONTINUEB(Signal* signal)
       releaseDirResources(signal);
       break;
     }
-
   default:
     ndbrequire(false);
     break;
@@ -296,7 +295,6 @@ void Dbacc::execREAD_CONFIG_REQ(Signal* signal)
   
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_ACC_FRAGMENT, &cfragmentsize));
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_ACC_OP_RECS, &coprecsize));
-  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_ACC_PAGE8, &cpagesize));
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_ACC_TABLE, &ctablesize));
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_ACC_SCAN, &cscanRecSize));
   initRecords();
@@ -375,7 +373,6 @@ void Dbacc::initialiseOperationRec()
 /* --------------------------------------------------------------------------------- */
 void Dbacc::initialisePageRec()
 {
-  ndbrequire(cpagesize > 0);
   cnoOfAllocatedPages = 0;
   cnoOfAllocatedPagesMax = 0;
 }//Dbacc::initialisePageRec()
@@ -494,7 +491,7 @@ void Dbacc::execACCFRAGREQ(Signal* signal)
     return;
   }//if
   Page8Ptr spPageptr;
-  seizePage(spPageptr);
+  seizePage(spPageptr, Page32Lists::ANY_SUB_PAGE);
   if (tresult > ZLIMIT_OF_ERROR) {
     jam();
     addFragRefuse(signal, tresult);
@@ -503,6 +500,7 @@ void Dbacc::execACCFRAGREQ(Signal* signal)
   if (!setPagePtr(fragrecptr.p->directory, 0, spPageptr.i))
   {
     jam();
+    releasePage(spPageptr);
     addFragRefuse(signal, ZDIR_RANGE_FULL_ERROR);
     return;
   }
@@ -635,7 +633,6 @@ void Dbacc::releaseRootFragResources(Signal* signal, Uint32 tableId)
 void Dbacc::releaseFragResources(Signal* signal, Uint32 fragIndex)
 {
   jam();
-  ndbassert(g_acc_pages_used[instance()] == cnoOfAllocatedPages);
   FragmentrecPtr regFragPtr;
   regFragPtr.i = fragIndex;
   ptrCheckGuard(regFragPtr, cfragmentsize, fragmentrec);
@@ -653,8 +650,8 @@ void Dbacc::releaseFragResources(Signal* signal, Uint32 fragIndex)
     jam();
     {
       ndbassert(static_cast<Uint32>(regFragPtr.p->m_noOfAllocatedPages) == 
-                regFragPtr.p->sparsepages.getCount() + 
-                regFragPtr.p->fullpages.getCount());
+                  regFragPtr.p->sparsepages.getCount() +
+                  regFragPtr.p->fullpages.getCount());
       regFragPtr.p->m_noOfAllocatedPages = 0;
 
       LocalPage8List freelist(*this, cfreepages);
@@ -662,10 +659,8 @@ void Dbacc::releaseFragResources(Signal* signal, Uint32 fragIndex)
       freelist.appendList(regFragPtr.p->sparsepages);
       cnoOfAllocatedPages -= regFragPtr.p->fullpages.getCount();
       freelist.appendList(regFragPtr.p->fullpages);
-      ndbassert(freelist.getCount() + cnoOfAllocatedPages == cpageCount);
-      g_acc_pages_used[instance()] = cnoOfAllocatedPages;
-      if (cnoOfAllocatedPages < m_maxAllocPages)
-        m_oom = false;
+      ndbassert(pages.getCount() == cfreepages.getCount() + cnoOfAllocatedPages);
+      ndbassert(pages.getCount() <= cpageCount);
     }
     jam();
     Uint32 tab = regFragPtr.p->mytabptr;
@@ -702,11 +697,8 @@ void Dbacc::releaseDirResources(Signal* signal)
   DynArr256 dir(directoryPool, *directory);
   Uint32 ret;
   Uint32 pagei;
-  /* TODO: find a good value for count
-   * bigger value means quicker release of big index,
-   * but longer time slice so less concurrent
-   */
-  int count = 10;
+  fragrecptr = regFragPtr;
+  int count = 32;
   while (count > 0 &&
          (ret = dir.release(iter, &pagei)) != 0)
   {
@@ -717,10 +709,25 @@ void Dbacc::releaseDirResources(Signal* signal)
       jam();
       Page8Ptr rpPageptr;
       rpPageptr.i = pagei;
-      ptrCheckGuard(rpPageptr, cpagesize, page8);
-      fragrecptr = regFragPtr;
+      getPtr(rpPageptr);
       releasePage(rpPageptr);
     }
+  }
+  while (ret==0 && count>0 && !cfreepages.isEmpty())
+  {
+    jam();
+    Page8Ptr page;
+    LocalPage8List freelist(*this, cfreepages);
+    freelist.removeFirst(page);
+    pages.releasePage8(c_page_pool, page);
+    Page32Ptr page32ptr;
+    pages.dropFirstPage32(c_page_pool, page32ptr, 5);
+    if (page32ptr.i != RNIL)
+    {
+      g_acc_pages_used[instance()]--;
+      m_ctx.m_mm.release_page(RT_DBACC_PAGE, page32ptr.i);
+    }
+    count--;
   }
   if (ret != 0)
   {
@@ -1051,7 +1058,6 @@ void Dbacc::execACCKEYREQ(Signal* signal)
           operationRecPtr.p->elementPointer = elemptr;
 
 	  eh = ElementHeader::setLocked(operationRecPtr.i);
-          dbgWord32(elemPageptr, elemptr, eh);
           elemPageptr.p->word32[elemptr] = eh;
 	  
 	  opbits |= Operationrec::OP_LOCK_OWNER;
@@ -1523,12 +1529,6 @@ void Dbacc::insertelementLab(Signal* signal,
                              Page8Ptr bucketPageptr,
                              Uint32 bucketConidx)
 {
-  if (unlikely(m_oom))
-  {
-    jam();
-    acckeyref1Lab(signal, ZPAGESIZE_ERROR);
-    return;
-  }
   if (unlikely(fragrecptr.p->dirRangeFull))
   {
     jam();
@@ -1664,7 +1664,7 @@ Dbacc::validate_lock_queue(OperationrecPtr opPtr)const
   {
     Page8Ptr pagePtr;
     pagePtr.i = loPtr.p->elementPage;
-    ptrCheckGuard(pagePtr, cpagesize, page8);
+    getPtr(pagePtr);
     arrGuard(loPtr.p->elementPointer, 2048);
     Uint32 eh = pagePtr.p->word32[loPtr.p->elementPointer];
     vlqrequire(ElementHeader::getLocked(eh));
@@ -2255,8 +2255,7 @@ void Dbacc::execACCMINUPDATE(Signal* signal)
   if ((opbits & Operationrec::OP_STATE_MASK) == Operationrec::OP_STATE_RUNNING)
   {
     ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
-    ptrCheckGuard(ulkPageidptr, cpagesize, page8);
-    dbgWord32(ulkPageidptr, tulkLocalPtr, tlocalkey1);
+    getPtr(ulkPageidptr);
     arrGuard(tulkLocalPtr, 2048);
     operationRecPtr.p->localdata = localkey;
     ndbrequire(fragrecptr.p->localkeylen == 1);
@@ -2923,7 +2922,7 @@ void Dbacc::insertElement(const Element   elem,
       if (!containerhead.isNextOnSamePage()) {
         jam();     /* NEXT CONTAINER IS IN AN OVERFLOW PAGE */
         pageptr.i = pageptr.p->word32[conptr + 1];
-        ptrCheckGuard(pageptr, cpagesize, page8);
+        getPtr(pageptr);
       }//if
       ndbrequire(conidx <= Container::MAX_CONTAINER_INDEX);
     } else {
@@ -3155,7 +3154,6 @@ void Dbacc::insertContainer(const Element          elem,
     if (tidrContainerlen > Container::UP_LIMIT) {
       ContainerHeader conthead = pageptr.p->word32[conptr];
       conthead.setUsingBothEnds();
-      dbgWord32(pageptr, conptr, conthead);
       pageptr.p->word32[conptr] = conthead;
       if (isforward) {
         jam();
@@ -3205,7 +3203,6 @@ void Dbacc::insertContainer(const Element          elem,
   pageptr.p->word32[tidrIndex] = elem.getHeader();
   pageptr.p->word32[tidrIndex + 1] = elem.getData(); /* INSERTS LOCALKEY */
   conthead.setLength(tidrContainerlen);
-  dbgWord32(pageptr, conptr, conthead);
   pageptr.p->word32[conptr] = conthead;
   result = ZTRUE;
 }//Dbacc::insertContainer()
@@ -3230,9 +3227,7 @@ void Dbacc::addnewcontainer(Page8Ptr pageptr,
 {
   ContainerHeader containerhead(pageptr.p->word32[conptr]);
   containerhead.setNext(nextContype, nextConidx, nextSamepage);
-  dbgWord32(pageptr, conptr, containerhead);
   pageptr.p->word32[conptr] = containerhead;
-  dbgWord32(pageptr, conptr + 1, nextPagei);
   pageptr.p->word32[conptr + 1] = nextPagei;
 }//Dbacc::addnewcontainer()
 
@@ -3250,7 +3245,7 @@ void Dbacc::addnewcontainer(Page8Ptr pageptr,
 /* --------------------------------------------------------------------------------- */
 void Dbacc::getfreelist(Page8Ptr pageptr, Uint32& pageindex, Uint32& buftype)
 {
-  const Uint32 emptylist = pageptr.p->word32[ZPOS_EMPTY_LIST];
+  const Uint32 emptylist = pageptr.p->word32[Page8::EMPTY_LIST];
   pageindex = (emptylist >> 7) & 0x7f;	/* LEFT FREE LIST */
   buftype = ZLEFT;
   if (pageindex == Container::NO_CONTAINER_INDEX) {
@@ -3273,12 +3268,11 @@ void Dbacc::getfreelist(Page8Ptr pageptr, Uint32& pageindex, Uint32& buftype)
 /* --------------------------------------------------------------------------------- */
 void Dbacc::increaselistcont(Page8Ptr ilcPageptr)
 {
-  dbgWord32(ilcPageptr, ZPOS_ALLOC_CONTAINERS, ilcPageptr.p->word32[ZPOS_ALLOC_CONTAINERS] + 1);
-  ilcPageptr.p->word32[ZPOS_ALLOC_CONTAINERS] = ilcPageptr.p->word32[ZPOS_ALLOC_CONTAINERS] + 1;
+  ilcPageptr.p->word32[Page8::ALLOC_CONTAINERS] = ilcPageptr.p->word32[Page8::ALLOC_CONTAINERS] + 1;
   // A sparse page just got full
-  if (ilcPageptr.p->word32[ZPOS_ALLOC_CONTAINERS] == ZFREE_LIMIT + 1) {
+  if (ilcPageptr.p->word32[Page8::ALLOC_CONTAINERS] == ZFREE_LIMIT + 1) {
     // Check that it is an overflow page
-    if (((ilcPageptr.p->word32[ZPOS_EMPTY_LIST] >> ZPOS_PAGE_TYPE_BIT) & 3) == 1)
+    if (((ilcPageptr.p->word32[Page8::EMPTY_LIST] >> ZPOS_PAGE_TYPE_BIT) & 3) == 1)
     {
       jam();
       LocalContainerPageList sparselist(*this, fragrecptr.p->sparsepages);
@@ -3316,23 +3310,20 @@ void Dbacc::seizeLeftlist(Page8Ptr slPageptr, Uint32 tslPageindex)
   if (tslPrevfree == Container::NO_CONTAINER_INDEX) {
     jam();
     /* UPDATE FREE LIST OF LEFT CONTAINER IN PAGE HEAD */
-    tsllTmp1 = slPageptr.p->word32[ZPOS_EMPTY_LIST];
+    tsllTmp1 = slPageptr.p->word32[Page8::EMPTY_LIST];
     tsllTmp = tsllTmp1 & 0x7f;
     tsllTmp1 = (tsllTmp1 >> 14) << 14;
     tsllTmp1 = (tsllTmp1 | (tslNextfree << 7)) | tsllTmp;
-    dbgWord32(slPageptr, ZPOS_EMPTY_LIST, tsllTmp1);
-    slPageptr.p->word32[ZPOS_EMPTY_LIST] = tsllTmp1;
+    slPageptr.p->word32[Page8::EMPTY_LIST] = tsllTmp1;
   } else {
     ndbrequire(tslPrevfree <= Container::MAX_CONTAINER_INDEX);
     jam();
     tsllTmp = getForwardContainerPtr(tslPrevfree);
-    dbgWord32(slPageptr, tsllTmp, tslNextfree);
     slPageptr.p->word32[tsllTmp] = tslNextfree;
   }//if
   if (tslNextfree <= Container::MAX_CONTAINER_INDEX) {
     jam();
     tsllTmp = getForwardContainerPtr(tslNextfree) + 1;
-    dbgWord32(slPageptr, tsllTmp, tslPrevfree);
     slPageptr.p->word32[tsllTmp] = tslPrevfree;
   } else {
     ndbrequire(tslNextfree == Container::NO_CONTAINER_INDEX);
@@ -3359,20 +3350,17 @@ void Dbacc::seizeRightlist(Page8Ptr slPageptr, Uint32 tslPageindex)
   Uint32 tslPrevfree = slPageptr.p->word32[tsrlHeadIndex + 1];
   if (tslPrevfree == Container::NO_CONTAINER_INDEX) {
     jam();
-    tsrlTmp = slPageptr.p->word32[ZPOS_EMPTY_LIST];
-    dbgWord32(slPageptr, ZPOS_EMPTY_LIST, ((tsrlTmp >> 7) << 7) | tslNextfree);
-    slPageptr.p->word32[ZPOS_EMPTY_LIST] = ((tsrlTmp >> 7) << 7) | tslNextfree;
+    tsrlTmp = slPageptr.p->word32[Page8::EMPTY_LIST];
+    slPageptr.p->word32[Page8::EMPTY_LIST] = ((tsrlTmp >> 7) << 7) | tslNextfree;
   } else {
     ndbrequire(tslPrevfree <= Container::MAX_CONTAINER_INDEX);
     jam();
     tsrlTmp = getBackwardContainerPtr(tslPrevfree);
-    dbgWord32(slPageptr, tsrlTmp, tslNextfree);
     slPageptr.p->word32[tsrlTmp] = tslNextfree;
   }//if
   if (tslNextfree <= Container::MAX_CONTAINER_INDEX) {
     jam();
     tsrlTmp = getBackwardContainerPtr(tslNextfree) + 1;
-    dbgWord32(slPageptr, tsrlTmp, tslPrevfree);
     slPageptr.p->word32[tsrlTmp] = tslPrevfree;
   } else {
     ndbrequire(tslNextfree == Container::NO_CONTAINER_INDEX);
@@ -3460,7 +3448,7 @@ void Dbacc::getdirindex(Page8Ptr& pageptr, Uint32& conidx)
   conidx = fragrecptr.p->getPageIndex(address);
   pageptr.i = getPagePtr(fragrecptr.p->directory,
                          fragrecptr.p->getPageNumber(address));
-  ptrCheckGuard(pageptr, cpagesize, page8);
+  getPtr(pageptr);
 }//Dbacc::getdirindex()
 
 Uint32
@@ -3643,7 +3631,7 @@ Dbacc::getElement(const AccKeyReq* signal,
     if (!containerhead.isNextOnSamePage()) {
       jam();
       elemPageptr.i = elemPageptr.p->word32[elemConptr + 1];	/* NEXT PAGE ID */
-      ptrCheckGuard(elemPageptr, cpagesize, page8);
+      getPtr(elemPageptr);
     }//if
   } while (1);
 
@@ -3732,7 +3720,7 @@ void Dbacc::commitdelete(Signal* signal)
    */
   Page8Ptr delPageptr;
   delPageptr.i = operationRecPtr.p->elementPage;
-  ptrCheckGuard(delPageptr, cpagesize, page8);
+  getPtr(delPageptr);
   const Uint32 delConptr = operationRecPtr.p->elementContainer;
 
   while (lastPageptr.i != delPageptr.i ||
@@ -3745,7 +3733,7 @@ void Dbacc::commitdelete(Signal* signal)
     if (!lasthead.isNextOnSamePage())
     {
       lastPageptr.i = lastPageptr.p->word32[tlastContainerptr + 1];
-      ptrCheckGuard(lastPageptr, cpagesize, page8);
+      getPtr(lastPageptr);
     }
     tlastPageindex = lasthead.getNextIndexNumber();
     lastIsforward = lasthead.getNextEnd() == ZLEFT;
@@ -3980,7 +3968,7 @@ void Dbacc::getLastAndRemove(Page8Ptr lastPrevpageptr,
     {
       jam();
       nextPage.i = lastPageptr.p->word32[tlastContainerptr + 1];
-      ptrCheckGuard(nextPage, cpagesize, page8);
+      getPtr(nextPage);
     }
     const bool nextIsforward = nextEnd == ZLEFT;
     const Uint32 nextConptr = getContainerPtr(nextIndex, nextIsforward);
@@ -4068,7 +4056,6 @@ void Dbacc::getLastAndRemove(Page8Ptr lastPrevpageptr,
       if (!containerhead.haveNext())
       {
          Uint32 tglrTmp = prevConhead.clearNext();
-         dbgWord32(lastPrevpageptr, tlastPrevconptr, tglrTmp);
          lastPrevpageptr.p->word32[tlastPrevconptr] = tglrTmp;
       }
       else
@@ -4079,7 +4066,6 @@ void Dbacc::getLastAndRemove(Page8Ptr lastPrevpageptr,
         Uint32 tglrTmp = prevConhead.setNext(containerhead.getNextEnd(),
                                              containerhead.getNextIndexNumber(),
                                              (nextPagei == lastPrevpageptr.i));
-        dbgWord32(lastPrevpageptr, tlastPrevconptr, tglrTmp);
         lastPrevpageptr.p->word32[tlastPrevconptr] = tglrTmp;
         lastPrevpageptr.p->word32[tlastPrevconptr+1] = nextPagei;
       }
@@ -4128,7 +4114,6 @@ void Dbacc::getLastAndRemove(Page8Ptr lastPrevpageptr,
     }//if
   }//if
   containerhead.setLength(tlastContainerlen);
-  dbgWord32(lastPageptr, tlastContainerptr, containerhead);
   arrGuard(tlastContainerptr, 2048);
   lastPageptr.p->word32[tlastContainerptr] = containerhead;
 }//Dbacc::getLastAndRemove()
@@ -4153,35 +4138,28 @@ void Dbacc::releaseLeftlist(Page8Ptr pageptr, Uint32 conidx, Uint32 conptr)
   Uint32 tullTmp;
   Uint32 tullTmp1;
 
-  dbgWord32(pageptr, conptr + 1, Container::NO_CONTAINER_INDEX);
   arrGuard(conptr + 1, 2048);
   pageptr.p->word32[conptr + 1] = Container::NO_CONTAINER_INDEX;
-  tullTmp1 = (pageptr.p->word32[ZPOS_EMPTY_LIST] >> 7) & 0x7f;
-  dbgWord32(pageptr, conptr, tullTmp1);
+  tullTmp1 = (pageptr.p->word32[Page8::EMPTY_LIST] >> 7) & 0x7f;
   arrGuard(conptr, 2048);
   pageptr.p->word32[conptr] = tullTmp1;
   if (tullTmp1 <= Container::MAX_CONTAINER_INDEX) {
     jam();
     tullTmp1 = getForwardContainerPtr(tullTmp1) + 1;
-    dbgWord32(pageptr, tullTmp1, conidx);
     /* UPDATES PREV POINTER IN THE NEXT FREE */
     pageptr.p->word32[tullTmp1] = conidx;
   } else {
     ndbrequire(tullTmp1 == Container::NO_CONTAINER_INDEX);
   }//if
-  tullTmp = pageptr.p->word32[ZPOS_EMPTY_LIST];
+  tullTmp = pageptr.p->word32[Page8::EMPTY_LIST];
   tullTmp = (((tullTmp >> 14) << 14) | (conidx << 7)) | (tullTmp & 0x7f);
-  dbgWord32(pageptr, ZPOS_EMPTY_LIST, tullTmp);
-  pageptr.p->word32[ZPOS_EMPTY_LIST] = tullTmp;
-  dbgWord32(pageptr,
-            ZPOS_ALLOC_CONTAINERS,
-            pageptr.p->word32[ZPOS_ALLOC_CONTAINERS] - 1);
-  pageptr.p->word32[ZPOS_ALLOC_CONTAINERS] =
-    pageptr.p->word32[ZPOS_ALLOC_CONTAINERS] - 1;
-  ndbrequire(pageptr.p->word32[ZPOS_ALLOC_CONTAINERS] <= ZNIL);
-  if (((pageptr.p->word32[ZPOS_EMPTY_LIST] >> ZPOS_PAGE_TYPE_BIT) & 3) == 1) {
+  pageptr.p->word32[Page8::EMPTY_LIST] = tullTmp;
+  pageptr.p->word32[Page8::ALLOC_CONTAINERS] =
+    pageptr.p->word32[Page8::ALLOC_CONTAINERS] - 1;
+  ndbrequire(pageptr.p->word32[Page8::ALLOC_CONTAINERS] <= ZNIL);
+  if (((pageptr.p->word32[Page8::EMPTY_LIST] >> ZPOS_PAGE_TYPE_BIT) & 3) == 1) {
     jam();
-    ptrCheck(pageptr, cpagesize, page8);
+    getPtrForce(pageptr);
     checkoverfreelist(pageptr);
   }//if
 }//Dbacc::releaseLeftlist()
@@ -4207,32 +4185,25 @@ void Dbacc::releaseRightlist(Page8Ptr pageptr, Uint32 conidx, Uint32 conptr)
   Uint32 turlTmp1;
   Uint32 turlTmp;
 
-  dbgWord32(pageptr, conptr + 1, Container::NO_CONTAINER_INDEX);
   arrGuard(conptr + 1, 2048);
   pageptr.p->word32[conptr + 1] = Container::NO_CONTAINER_INDEX;
-  turlTmp1 = pageptr.p->word32[ZPOS_EMPTY_LIST] & 0x7f;
-  dbgWord32(pageptr, conptr, turlTmp1);
+  turlTmp1 = pageptr.p->word32[Page8::EMPTY_LIST] & 0x7f;
   arrGuard(conptr, 2048);
   pageptr.p->word32[conptr] = turlTmp1;
   if (turlTmp1 <= Container::MAX_CONTAINER_INDEX) {
     jam();
     turlTmp = getBackwardContainerPtr(turlTmp1) + 1;
-    dbgWord32(pageptr, turlTmp, conidx);
     /* UPDATES PREV POINTER IN THE NEXT FREE */
     pageptr.p->word32[turlTmp] = conidx;
   } else {
     ndbrequire(turlTmp1 == Container::NO_CONTAINER_INDEX);
   }//if
-  turlTmp = pageptr.p->word32[ZPOS_EMPTY_LIST];
-  dbgWord32(pageptr, ZPOS_EMPTY_LIST, ((turlTmp >> 7) << 7) | conidx);
-  pageptr.p->word32[ZPOS_EMPTY_LIST] = ((turlTmp >> 7) << 7) | conidx;
-  dbgWord32(pageptr,
-            ZPOS_ALLOC_CONTAINERS,
-            pageptr.p->word32[ZPOS_ALLOC_CONTAINERS] - 1);
-  pageptr.p->word32[ZPOS_ALLOC_CONTAINERS] =
-    pageptr.p->word32[ZPOS_ALLOC_CONTAINERS] - 1;
-  ndbrequire(pageptr.p->word32[ZPOS_ALLOC_CONTAINERS] <= ZNIL);
-  if (((pageptr.p->word32[ZPOS_EMPTY_LIST] >> ZPOS_PAGE_TYPE_BIT) & 3) == 1) {
+  turlTmp = pageptr.p->word32[Page8::EMPTY_LIST];
+  pageptr.p->word32[Page8::EMPTY_LIST] = ((turlTmp >> 7) << 7) | conidx;
+  pageptr.p->word32[Page8::ALLOC_CONTAINERS] =
+    pageptr.p->word32[Page8::ALLOC_CONTAINERS] - 1;
+  ndbrequire(pageptr.p->word32[Page8::ALLOC_CONTAINERS] <= ZNIL);
+  if (((pageptr.p->word32[Page8::EMPTY_LIST] >> ZPOS_PAGE_TYPE_BIT) & 3) == 1) {
     jam();
     checkoverfreelist(pageptr);
   }//if
@@ -4250,7 +4221,7 @@ void Dbacc::checkoverfreelist(Page8Ptr colPageptr)
   Uint32 tcolTmp;
 
 // always an overflow page
-  tcolTmp = colPageptr.p->word32[ZPOS_ALLOC_CONTAINERS];
+  tcolTmp = colPageptr.p->word32[Page8::ALLOC_CONTAINERS];
   if (tcolTmp == 0) // Just got empty
   {
     jam();
@@ -4640,8 +4611,7 @@ void Dbacc::abortOperation(Signal* signal)
         tmp2Olq = ElementHeader::setUnlocked(
                       operationRecPtr.p->localdata.m_page_idx,
                       operationRecPtr.p->reducedHashValue);
-        ptrCheckGuard(aboPageidptr, cpagesize, page8);
-        dbgWord32(aboPageidptr, taboElementptr, tmp2Olq);
+        getPtr(aboPageidptr);
         arrGuard(taboElementptr, 2048);
         aboPageidptr.p->word32[taboElementptr] = tmp2Olq;
         return;
@@ -4802,8 +4772,7 @@ void Dbacc::commitOperation(Signal* signal)
       tmp2Olq = ElementHeader::setUnlocked(
                     operationRecPtr.p->localdata.m_page_idx,
                     operationRecPtr.p->reducedHashValue);
-      ptrCheckGuard(coPageidptr, cpagesize, page8);
-      dbgWord32(coPageidptr, tcoElementptr, tmp2Olq);
+      getPtr(coPageidptr);
       arrGuard(tcoElementptr, 2048);
       coPageidptr.p->word32[tcoElementptr] = tmp2Olq;
       return;
@@ -5134,7 +5103,7 @@ Dbacc::release_lockowner(Signal* signal, OperationrecPtr opPtr, bool commit)
 
     Page8Ptr pagePtr;
     pagePtr.i = newOwner.p->elementPage;
-    ptrCheckGuard(pagePtr, cpagesize, page8);
+    getPtr(pagePtr);
     const Uint32 tmp = ElementHeader::setLocked(newOwner.i);
     arrGuard(newOwner.p->elementPointer, 2048);
     pagePtr.p->word32[newOwner.p->elementPointer] = tmp;
@@ -5374,7 +5343,7 @@ void Dbacc::allocOverflowPage()
 {
   tresult = 0;
   Page8Ptr spPageptr;
-  seizePage(spPageptr);
+  seizePage(spPageptr, Page32Lists::ANY_SUB_PAGE);
   if (tresult > ZLIMIT_OF_ERROR)
   {
     return;
@@ -5485,7 +5454,7 @@ Uint32 Dbacc::checkScanExpand(Uint32 splitBucket)
   TPageIndex = fragrecptr.p->getPageIndex(TreleaseScanBucket);
   TDirInd = fragrecptr.p->getPageNumber(TreleaseScanBucket);
   TPageptr.i = getPagePtr(fragrecptr.p->directory, TDirInd);
-  ptrCheckGuard(TPageptr, cpagesize, page8);
+  getPtr(TPageptr);
   releaseScanBucket(TPageptr, TPageIndex, releaseScanMask);
   return TreturnCode;
 }//Dbacc::checkScanExpand()
@@ -5550,17 +5519,6 @@ void Dbacc::execEXPANDCHECK2(Signal* signal)
       return;
     }//if
   }//if
-  if (cfreepages.isEmpty())
-  {
-    jam();
-    /*--------------------------------------------------------------*/
-    /* WE HAVE TO STOP THE EXPAND PROCESS SINCE THERE ARE NO FREE   */
-    /* PAGES. THIS MEANS THAT WE COULD BE FORCED TO CRASH SINCE WE  */
-    /* CANNOT COMPLETE THE EXPAND. TO AVOID THE CRASH WE EXIT HERE. */
-    /*--------------------------------------------------------------*/
-    return;
-  }//if
-
   if (fragrecptr.p->level.isFull())
   {
     jam();
@@ -5607,7 +5565,7 @@ void Dbacc::execEXPANDCHECK2(Signal* signal)
   }
   if (expPageptr.i == RNIL) {
     jam();
-    seizePage(expPageptr);
+    seizePage(expPageptr, Page32Lists::ANY_SUB_PAGE);
     if (tresult > ZLIMIT_OF_ERROR) {
       jam();
       return;
@@ -5615,15 +5573,22 @@ void Dbacc::execEXPANDCHECK2(Signal* signal)
     if (!setPagePtr(fragrecptr.p->directory, texpDirInd, expPageptr.i))
     {
       jam();
-      // TODO: should release seized page
+      releasePage(expPageptr);
       tresult = ZDIR_RANGE_FULL_ERROR;
       return;
     }
     tipPageId = texpDirInd;
     initPage(expPageptr);
   } else {
-    ptrCheckGuard(expPageptr, cpagesize, page8);
+    getPtr(expPageptr);
   }//if
+
+  /**
+   * Allow use of extra index memory (m_free_pct) during expand
+   * even after node have become started.
+   * Reset to false in endofexpLab().
+   */
+  c_allow_use_of_spare_pages = true;
 
   fragrecptr.p->expReceivePageptr = expPageptr.i;
   fragrecptr.p->expReceiveIndex = fragrecptr.p->getPageIndex(receiveBucket);
@@ -5646,14 +5611,15 @@ void Dbacc::execEXPANDCHECK2(Signal* signal)
     return;
   }//if
   fragrecptr.p->expReceiveIsforward = true;
-  ptrCheckGuard(pageptr, cpagesize, page8);
+  getPtr(pageptr);
   expandcontainer(pageptr, conidx);
   endofexpLab(signal);
   return;
 }//Dbacc::execEXPANDCHECK2()
   
-void Dbacc::endofexpLab(Signal* signal) const
+void Dbacc::endofexpLab(Signal* signal)
 {
+  c_allow_use_of_spare_pages = false;
   fragrecptr.p->slack += fragrecptr.p->maxloadfactor;
   fragrecptr.p->expandCounter++;
   fragrecptr.p->level.expand();
@@ -5897,7 +5863,7 @@ void Dbacc::expandcontainer(Page8Ptr pageptr, Uint32 conidx)
     Uint32 tidrPageindex = fragrecptr.p->expReceiveIndex;
     Page8Ptr idrPageptr;
     idrPageptr.i = fragrecptr.p->expReceivePageptr;
-    ptrCheckGuard(idrPageptr, cpagesize, page8);
+    getPtr(idrPageptr);
     bool tidrIsforward = fragrecptr.p->expReceiveIsforward;
     insertElement(Element(tidrElemhead, localkey),
                   oprecptr,
@@ -5918,7 +5884,7 @@ void Dbacc::expandcontainer(Page8Ptr pageptr, Uint32 conidx)
   lastPageptr.p = pageptr.p;
   tlastContainerptr = conptr;
   lastPrevpageptr.i = prevPageptr;
-  ptrCheck(lastPrevpageptr, cpagesize, page8);
+  getPtrForce(lastPrevpageptr);
   tlastPrevconptr = prevConptr;
   arrGuard(tlastContainerptr, 2048);
   lastIsforward = isforward;
@@ -6011,7 +5977,7 @@ void Dbacc::expandcontainer(Page8Ptr pageptr, Uint32 conidx)
       Uint32 tidrPageindex = fragrecptr.p->expReceiveIndex;
       Page8Ptr idrPageptr;
       idrPageptr.i = fragrecptr.p->expReceivePageptr;
-      ptrCheckGuard(idrPageptr, cpagesize, page8);
+      getPtr(idrPageptr);
       bool tidrIsforward = fragrecptr.p->expReceiveIsforward;
       insertElement(Element(tidrElemhead, localkey),
                     oprecptr,
@@ -6186,14 +6152,14 @@ Uint32 Dbacc::checkScanShrink(Uint32 sourceBucket, Uint32 destBucket)
   TPageIndex = fragrecptr.p->getPageIndex(TreleaseScanBucket);
   TDirInd = fragrecptr.p->getPageNumber(TreleaseScanBucket);
   TPageptr.i = getPagePtr(fragrecptr.p->directory, TDirInd);
-  ptrCheckGuard(TPageptr, cpagesize, page8);
+  getPtr(TPageptr);
   releaseScanBucket(TPageptr, TPageIndex, releaseSourceScanMask);
 
   TreleaseScanBucket = TmergeDest;
   TPageIndex = fragrecptr.p->getPageIndex(TreleaseScanBucket);
   TDirInd = fragrecptr.p->getPageNumber(TreleaseScanBucket);
   TPageptr.i = getPagePtr(fragrecptr.p->directory, TDirInd);
-  ptrCheckGuard(TPageptr, cpagesize, page8);
+  getPtr(TPageptr);
   releaseScanBucket(TPageptr, TPageIndex, releaseDestScanMask);
 
   if (TreleaseInd == 1) {
@@ -6291,17 +6257,11 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
       return;
     }//if
   }//if
-  if (cfreepages.isEmpty())
+  if (!pages.haveFreePage8(Page32Lists::ANY_SUB_PAGE))
   {
     jam();
-    /*--------------------------------------------------------------*/
-    /* WE HAVE TO STOP THE SHRINK PROCESS SINCE THERE ARE NO FREE   */
-    /* PAGES. THIS MEANS THAT WE COULD BE FORCED TO CRASH SINCE WE  */
-    /* CANNOT COMPLETE THE SHRINK. TO AVOID THE CRASH WE EXIT HERE. */
-    /*--------------------------------------------------------------*/
     return;
-  }//if
-
+  }
   if (fragrecptr.p->level.isEmpty())
   {
     jam();
@@ -6329,6 +6289,13 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
     return;
   }//if
   
+  /**
+   * Allow use of extra index memory (m_free_pct) during shrink
+   * even after node have become started.
+   * Reset to false in endofshrinkbucketLab().
+   */
+  c_allow_use_of_spare_pages = true;
+
   if (ERROR_INSERTED(3002))
     debug_lh_vars("SHR");
   if (fragrecptr.p->dirRangeFull == ZTRUE) {
@@ -6366,7 +6333,7 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
   /*--------------------------------------------------------------------------*/
   /*       INITIALISE THE VARIABLES FOR THE SHRINK PROCESS.                   */
   /*--------------------------------------------------------------------------*/
-  ptrCheckGuard(pageptr, cpagesize, page8);
+  getPtr(pageptr);
   bool isforward = true;
   Uint32 conptr = getForwardContainerPtr(cexcPageindex);
   arrGuard(conptr, 2048);
@@ -6388,7 +6355,6 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
   }//if
   ContainerHeader conthead;
   conthead.initInUse();
-  dbgWord32(pageptr, conptr, conthead);
   arrGuard(conptr, 2048);
   pageptr.p->word32[conptr] = conthead;
   if (containerhead.getNextEnd() == 0) {
@@ -6428,7 +6394,7 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
     }//if
     Page8Ptr rlPageptr;
     rlPageptr.i = prevPageptr;
-    ptrCheckGuard(rlPageptr, cpagesize, page8);
+    getPtr(rlPageptr);
     ndbassert(!containerhead.isScanInProgress());
     if (cexcPrevisforward)
     {
@@ -6459,6 +6425,7 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
 
 void Dbacc::endofshrinkbucketLab(Signal* signal)
 {
+  c_allow_use_of_spare_pages = false;
   fragrecptr.p->level.shrink();
   fragrecptr.p->expandCounter--;
   fragrecptr.p->slack -= fragrecptr.p->maxloadfactor;
@@ -6468,7 +6435,7 @@ void Dbacc::endofshrinkbucketLab(Signal* signal)
       jam();
       Page8Ptr rpPageptr;
       rpPageptr.i = fragrecptr.p->expSenderPageptr;
-      ptrCheckGuard(rpPageptr, cpagesize, page8);
+      getPtr(rpPageptr);
       releasePage(rpPageptr);
       unsetPagePtr(fragrecptr.p->directory, fragrecptr.p->expSenderDirIndex);
     }//if
@@ -6574,7 +6541,7 @@ Dbacc::shrink_adjust_reduced_hash_value(Uint32 bucket_number)
   tgePageindex = fragrecptr.p->getPageIndex(bucket_number);
   Page8Ptr gePageptr;
   gePageptr.i = getPagePtr(fragrecptr.p->directory, fragrecptr.p->getPageNumber(bucket_number));
-  ptrCheckGuard(gePageptr, cpagesize, page8);
+  getPtr(gePageptr);
 
   ndbrequire(TelemLen == ZELEM_HEAD_SIZE + localkeylen);
   tgeNextptrtype = ZLEFT;
@@ -6657,7 +6624,7 @@ Dbacc::shrink_adjust_reduced_hash_value(Uint32 bucket_number)
     {
       jam();
       gePageptr.i = gePageptr.p->word32[tgeContainerptr + 1];  /* NEXT PAGE I */
-      ptrCheckGuard(gePageptr, cpagesize, page8);
+      getPtr(gePageptr);
     }//if
   } while (1);
 
@@ -6722,7 +6689,7 @@ void Dbacc::shrinkcontainer(Page8Ptr pageptr,
     Uint32 tidrPageindex = fragrecptr.p->expReceiveIndex;
     Page8Ptr idrPageptr;
     idrPageptr.i = fragrecptr.p->expReceivePageptr;
-    ptrCheckGuard(idrPageptr, cpagesize, page8);
+    getPtr(idrPageptr);
     bool tidrIsforward = fragrecptr.p->expReceiveIsforward;
     insertElement(Element(tidrElemhead, localkey),
                   oprecptr,
@@ -6984,7 +6951,7 @@ void Dbacc::checkNextBucketLab(Signal* signal)
 
   tnsCopyDir = fragrecptr.p->getPageNumber(scanPtr.p->nextBucketIndex);
   tnsPageidptr.i = getPagePtr(fragrecptr.p->directory, tnsCopyDir);
-  ptrCheckGuard(tnsPageidptr, cpagesize, page8);
+  getPtr(tnsPageidptr);
   gnsPageidptr.i = tnsPageidptr.i;
   gnsPageidptr.p = tnsPageidptr.p;
   Uint32 conidx = fragrecptr.p->getPageIndex(scanPtr.p->nextBucketIndex);
@@ -7060,7 +7027,7 @@ void Dbacc::checkNextBucketLab(Signal* signal)
         jam();
         Uint32 pagei = fragrecptr.p->getPageNumber(scanPtr.p->nextBucketIndex);
         gnsPageidptr.i = getPagePtr(fragrecptr.p->directory, pagei);
-        ptrCheckGuard(gnsPageidptr, cpagesize, page8);
+        getPtr(gnsPageidptr);
       }//if
       ndbassert(!scanPtr.p->isInContainer());
       releaseScanBucket(gnsPageidptr, conidx, scanPtr.p->scanMask);
@@ -7210,7 +7177,7 @@ void Dbacc::initScanFragmentPart()
   scanPtr.p->minBucketIndexToRescan = 0xFFFFFFFF;
   scanPtr.p->maxBucketIndexToRescan = 0;
   cnfPageidptr.i = getPagePtr(fragrecptr.p->directory, 0);
-  ptrCheckGuard(cnfPageidptr, cpagesize, page8);
+  getPtr(cnfPageidptr);
   const Uint32 conidx = fragrecptr.p->getPageIndex(scanPtr.p->nextBucketIndex);
   ndbassert(!(fragrecptr.p->activeScanMask & scanPtr.p->scanMask));
   ndbassert(!scanPtr.p->isInContainer());
@@ -7247,7 +7214,7 @@ void Dbacc::releaseScanLab(Signal* signal)
     Uint32 pagei = fragrecptr.p->getPageNumber(scanPtr.p->nextBucketIndex);
     Page8Ptr pageptr;
     pageptr.i = getPagePtr(fragrecptr.p->directory, pagei);
-    ptrCheckGuard(pageptr, cpagesize, page8);
+    getPtr(pageptr);
 
     Uint32 inPageI;
     Uint32 inConptr;
@@ -7255,7 +7222,7 @@ void Dbacc::releaseScanLab(Signal* signal)
     {
       Page8Ptr page;
       page.i = inPageI;
-      ptrCheckGuard(page, cpagesize, page8);
+      getPtr(page);
       ContainerHeader conhead(page.p->word32[inConptr]);
       scanPtr.p->leaveContainer(inPageI, inConptr);
       page.p->clearScanContainer(scanPtr.p->scanMask, inConptr);
@@ -7579,7 +7546,7 @@ bool Dbacc::getScanElement(Page8Ptr& pageptr,
   {
     // TODO: in VM_TRACE double check container is in bucket!
     pageptr.i = inPageI;
-    ptrCheckGuard(pageptr, cpagesize, page8);
+    getPtr(pageptr);
     conptr = inConptr;
     ContainerHeader conhead(pageptr.p->word32[conptr]);
     ndbassert(conhead.isScanInProgress());
@@ -7756,7 +7723,7 @@ void Dbacc::nextcontainerinfo(Page8Ptr& pageptr,
     /* NEXT CONTAINER IS IN AN OVERFLOW PAGE */
     arrGuard(conptr + 1, 2048);
     pageptr.i = pageptr.p->word32[conptr + 1];
-    ptrCheckGuard(pageptr, cpagesize, page8);
+    getPtr(pageptr);
   }//if
 }//Dbacc::nextcontainerinfo()
 
@@ -8108,7 +8075,6 @@ void Dbacc::setlock(Page8Ptr pageptr, Uint32 elemptr) const
   operationRecPtr.p->reducedHashValue = ElementHeader::getReducedHashValue(tselTmp1);
 
   tselTmp1 = ElementHeader::setLocked(operationRecPtr.i);
-  dbgWord32(pageptr, elemptr, tselTmp1);
   pageptr.p->word32[elemptr] = tselTmp1;
 }//Dbacc::setlock()
 
@@ -8258,6 +8224,8 @@ bool Dbacc::getfragmentrec(FragmentrecPtr& rootPtr, Uint32 fid)
 /* --------------------------------------------------------------------------------- */
 void Dbacc::initOverpage(Page8Ptr iopPageptr)
 {
+  Page32* p32 = reinterpret_cast<Page32*>(iopPageptr.p - (iopPageptr.i % 4));
+  ndbrequire(p32->magic == Page32::MAGIC);
   Uint32 tiopPrevFree;
   Uint32 tiopNextFree;
 
@@ -8265,7 +8233,8 @@ void Dbacc::initOverpage(Page8Ptr iopPageptr)
   // Setting word32[ALLOC_CONTAINERS] and word32[CHECK_SUM] to zero is essential
   Uint32 nextPage = iopPageptr.p->word32[Page8::NEXT_PAGE];
   Uint32 prevPage = iopPageptr.p->word32[Page8::PREV_PAGE];
-  bzero(iopPageptr.p->word32, sizeof(iopPageptr.p->word32));
+  bzero(iopPageptr.p->word32 + Page8::P32_WORD_COUNT,
+        sizeof(iopPageptr.p->word32) - Page8::P32_WORD_COUNT * sizeof(Uint32));
   iopPageptr.p->word32[Page8::NEXT_PAGE] = nextPage;
   iopPageptr.p->word32[Page8::PREV_PAGE] = prevPage;
 
@@ -8321,7 +8290,10 @@ void Dbacc::initPage(Page8Ptr inpPageptr)
   Uint32 tinpPrevFree;
   Uint32 tinpNextFree;
 
-  for (tiopIndex = 0; tiopIndex <= 2047; tiopIndex++) {
+  Page32* p32 = reinterpret_cast<Page32*>(inpPageptr.p - (inpPageptr.i % 4));
+  ndbrequire(p32->magic == Page32::MAGIC);
+  for (tiopIndex = Page8::P32_WORD_COUNT; tiopIndex <= 2047; tiopIndex++)
+  {
     // Do not clear page list
     if (tiopIndex == Page8::NEXT_PAGE) continue;
     if (tiopIndex == Page8::PREV_PAGE) continue;
@@ -8332,7 +8304,7 @@ void Dbacc::initPage(Page8Ptr inpPageptr)
   /*       SET PAGE ID FOR USE OF CHECKPOINTER.                                        */
   /*       PREPARE CONTAINER HEADERS INDICATING EMPTY CONTAINERS WITHOUT NEXT.         */
   /* --------------------------------------------------------------------------------- */
-  inpPageptr.p->word32[ZPOS_PAGE_ID] = tipPageId;
+  inpPageptr.p->word32[Page8::PAGE_ID] = tipPageId;
   ContainerHeader tinpTmp1;
   tinpTmp1.initInUse();
   /* --------------------------------------------------------------------------------- */
@@ -8343,7 +8315,7 @@ void Dbacc::initPage(Page8Ptr inpPageptr)
     inpPageptr.p->word32[tinpIndex] = tinpTmp1;
     tinpIndex = tinpIndex + ZBUF_SIZE;
   }//for
-  /* WORD32(ZPOS_EMPTY_LIST) DATA STRUCTURE:*/
+  /* WORD32(Page8::EMPTY_LIST) DATA STRUCTURE:*/
   /*--------------------------------------- */
   /*| PAGE TYPE|LEFT FREE|RIGHT FREE        */
   /*|     1    |  LIST   |  LIST            */
@@ -8355,7 +8327,7 @@ void Dbacc::initPage(Page8Ptr inpPageptr)
   /*       ALSO INITIALISE PAGE TYPE TO NOT OVERFLOW PAGE.                             */
   /* --------------------------------------------------------------------------------- */
   tinpTmp = (ZNO_CONTAINERS << 7);
-  inpPageptr.p->word32[ZPOS_EMPTY_LIST] = tinpTmp;
+  inpPageptr.p->word32[Page8::EMPTY_LIST] = tinpTmp;
   /* --------------------------------------------------------------------------------- */
   /*       INITIALISE PREVIOUS PART OF DOUBLY LINKED LIST FOR RIGHT CONTAINERS.        */
   /* --------------------------------------------------------------------------------- */
@@ -8400,8 +8372,8 @@ void Dbacc::initPage(Page8Ptr inpPageptr)
   /*       INITIALISE HEADER POSITIONS NOT CURRENTLY USED AND ENSURE USE OF OVERFLOW   */
   /*       RECORD POINTER ON THIS PAGE LEADS TO ERROR.                                 */
   /* --------------------------------------------------------------------------------- */
-  inpPageptr.p->word32[ZPOS_CHECKSUM] = 0;
-  inpPageptr.p->word32[ZPOS_ALLOC_CONTAINERS] = 0;
+  inpPageptr.p->word32[Page8::CHECKSUM] = 0;
+  inpPageptr.p->word32[Page8::ALLOC_CONTAINERS] = 0;
 }//Dbacc::initPage()
 
 /* --------------------------------------------------------------------------------- */
@@ -8458,20 +8430,21 @@ void Dbacc::releaseOverpage(Page8Ptr ropPageptr)
 void Dbacc::releasePage(Page8Ptr rpPageptr)
 {
   jam();
-  ndbassert(g_acc_pages_used[instance()] == cnoOfAllocatedPages);
-  LocalPage8List freelist(*this, cfreepages);
-#ifdef VM_TRACE
-//  ndbrequire(!freelist.find(rpPageptr));
-#endif
-  freelist.addFirst(rpPageptr);
+  pages.releasePage8(c_page_pool, rpPageptr);
   cnoOfAllocatedPages--;
-  ndbassert(freelist.getCount() + cnoOfAllocatedPages == cpageCount);
   fragrecptr.p->m_noOfAllocatedPages--;
 
-  g_acc_pages_used[instance()] = cnoOfAllocatedPages;
+  Page32Ptr page32ptr;
+  pages.dropFirstPage32(c_page_pool, page32ptr, 5);
+  if (page32ptr.i != RNIL)
+  {
+    g_acc_pages_used[instance()]--;
+    m_ctx.m_mm.release_page(RT_DBACC_PAGE, page32ptr.i);
+  }
 
-  if (cnoOfAllocatedPages < m_maxAllocPages)
-    m_oom = false;
+  ndbassert(pages.getCount() ==
+            cfreepages.getCount() + cnoOfAllocatedPages);
+  ndbassert(pages.getCount() <= cpageCount);
 }//Dbacc::releasePage()
 
 bool Dbacc::validatePageCount() const
@@ -8540,7 +8513,6 @@ void Dbacc::zpagesize_error(const char* where){
   DEBUG(where << endl
 	<< "  ZPAGESIZE_ERROR" << endl
         << "  cfreepages.getCount()=" << cfreepages.getCount() << endl
-	<< "  cpagesize=" <<cpagesize<<endl
 	<< "  cnoOfAllocatedPages="<<cnoOfAllocatedPages);
 }
 
@@ -8548,35 +8520,53 @@ void Dbacc::zpagesize_error(const char* where){
 /* --------------------------------------------------------------------------------- */
 /* SEIZE_PAGE                                                                        */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::seizePage(Page8Ptr& spPageptr)
+void Dbacc::seizePage(Page8Ptr& spPageptr, int sub_page_id)
 {
   jam();
-  ndbassert(g_acc_pages_used[instance()] == cnoOfAllocatedPages);
-  tresult = 0;
-  if (cfreepages.isEmpty() || m_oom)
+  pages.seizePage8(c_page_pool, spPageptr, sub_page_id);
+  if (spPageptr.i == RNIL)
   {
     jam();
-    zpagesize_error("Dbacc::seizePage");
-    tresult = ZPAGESIZE_ERROR;
+    /**
+     * Need to allocate a new 32KiB page
+     */
+    Page32Ptr ptr;
+    void * p = m_ctx.m_mm.alloc_page(RT_DBACC_PAGE,
+                                     &ptr.i,
+                                     Ndbd_mem_manager::NDB_ZONE_LE_30);
+    if (p == NULL && c_allow_use_of_spare_pages)
+    {
+      jam();
+      p = m_ctx.m_mm.alloc_spare_page(RT_DBACC_PAGE,
+                                      &ptr.i,
+                                      Ndbd_mem_manager::NDB_ZONE_LE_30);
+    }
+    if (p == NULL)
+    {
+      jam();
+      zpagesize_error("Dbacc::seizePage");
+      tresult = ZPAGESIZE_ERROR;
+      return;
+    }
+    ptr.p = static_cast<Page32*>(p);
+
+    g_acc_pages_used[instance()]++;
+    cpageCount += 4; // 8KiB pages per 32KiB page
+    pages.addPage32(c_page_pool, ptr);
+    pages.seizePage8(c_page_pool, spPageptr, sub_page_id);
+    ndbrequire(spPageptr.i != RNIL);
+    ndbassert(spPageptr.p == &ptr.p->page8[spPageptr.i % 4]);
+    ndbassert((spPageptr.i >> 2) == ptr.i);
   }
-  else
+  cnoOfAllocatedPages++;
+  ndbassert(pages.getCount() == cfreepages.getCount() + cnoOfAllocatedPages);
+  ndbassert(pages.getCount() <= cpageCount);
+  fragrecptr.p->m_noOfAllocatedPages++;
+
+  if (cnoOfAllocatedPages > cnoOfAllocatedPagesMax)
   {
-    jam();
-    LocalPage8List freelist(*this, cfreepages);
-    freelist.removeFirst(spPageptr);
-    cnoOfAllocatedPages++;
-    ndbassert(freelist.getCount() + cnoOfAllocatedPages == cpageCount);
-    fragrecptr.p->m_noOfAllocatedPages++;
-
-    if (cnoOfAllocatedPages >= m_maxAllocPages)
-      m_oom = true;
-
-    if (cnoOfAllocatedPages > cnoOfAllocatedPagesMax)
-      cnoOfAllocatedPagesMax = cnoOfAllocatedPages;
-
-    g_acc_pages_used[instance()] = cnoOfAllocatedPages;
+    cnoOfAllocatedPagesMax = cnoOfAllocatedPages;
   }
-
 }//Dbacc::seizePage()
 
 /* --------------------------------------------------------------------------------- */
@@ -9170,32 +9160,6 @@ Dbacc::execREAD_PSEUDO_REQ(Signal* signal){
   //  signal->theData[1] = src[1];
 }
 
-void
-Dbacc::execNODE_STATE_REP(Signal* signal)
-{
-  jamEntry();
-  const NodeStateRep* rep = CAST_CONSTPTR(NodeStateRep,
-                                          signal->getDataPtr());
-
-  if (rep->nodeState.startLevel == NodeState::SL_STARTED)
-  {
-    jam();
-
-    const ndb_mgm_configuration_iterator * p =
-      m_ctx.m_config.getOwnConfigIterator();
-    ndbrequire(p != 0);
-
-    Uint32 free_pct = 5;
-    ndb_mgm_get_int_parameter(p, CFG_DB_FREE_PCT, &free_pct);
-
-    m_free_pct = free_pct;
-    m_maxAllocPages = (cpagesize * (100 - free_pct)) / 100;
-    if (cnoOfAllocatedPages >= m_maxAllocPages)
-      m_oom = true;
-  }
-  SimulatedBlock::execNODE_STATE_REP(signal);
-}
-
 #ifdef VM_TRACE
 void
 Dbacc::debug_lh_vars(const char* where)const
@@ -9216,3 +9180,150 @@ Dbacc::debug_lh_vars(const char* where)const
     << "\n";
 }
 #endif
+
+/**
+ * Implementation of Dbacc::Page32Lists
+ */
+
+void Dbacc::Page32Lists::addPage32(Page32_pool& pool, Page32Ptr p)
+{
+  const Uint8 list_id = 0; // List of 32KiB pages with all 8KiB pages free
+  LocalPage32_list list(pool, lists[list_id]);
+  list.addFirst(p);
+  nonempty_lists |= (1 << list_id);
+  p.p->list_id = list_id;
+  p.p->magic = Page32::MAGIC;
+}
+
+void Dbacc::Page32Lists::dropFirstPage32(Page32_pool& pool,
+                                         Page32Ptr& p,
+                                         Uint32 keep)
+{
+  if (lists[0].getCount() <= keep)
+  {
+    p.i = RNIL;
+    p.p = NULL;
+    return;
+  }
+  LocalPage32_list list(pool, lists[0]);
+  list.first(p);
+  dropPage32(pool, p);
+}
+
+void Dbacc::Page32Lists::dropPage32(Page32_pool& pool, Page32Ptr p)
+{
+  require(p.p->magic == Page32::MAGIC);
+  require(p.p->list_id == 0);
+  p.p->magic = ~Page32::MAGIC;
+  const Uint8 list_id = 0; // The list of pages with all its four 8KiB pages free
+  LocalPage32_list list(pool, lists[list_id]);
+  list.remove(p);
+  if (list.isEmpty())
+  {
+    nonempty_lists &= ~(1 << list_id);
+  }
+}
+
+void Dbacc::Page32Lists::seizePage8(Page32_pool& pool,
+                                    Page8Ptr& /* out */ p8,
+                                    int sub_page_id)
+{
+  Uint16 list_id_set;
+  Uint8 sub_page_id_set;
+  if (sub_page_id == LEAST_COMMON_SUB_PAGE)
+  { // Find out least common sub_page_ids
+    Uint32 min_sub_page_count = UINT32_MAX;
+    for (int i = 0; i < 4; i++)
+    {
+      if (sub_page_id_count[i] < min_sub_page_count)
+      {
+        min_sub_page_count = sub_page_id_count[i];
+      }
+    }
+    list_id_set = 0;
+    sub_page_id_set = 0;
+    for (int i = 0; i < 4; i++)
+    {
+      if (sub_page_id_count[i] == min_sub_page_count)
+      {
+        list_id_set |= sub_page_id_to_list_id_set(sub_page_id);
+        sub_page_id_set |= (1 << i);
+      }
+    }
+  }
+  else
+  {
+    list_id_set = sub_page_id_to_list_id_set(sub_page_id);
+    if (sub_page_id < 0)
+    {
+      sub_page_id_set = 0xf;
+    }
+    else
+    {
+      sub_page_id_set = 1 << sub_page_id;
+    }
+  }
+  list_id_set &= nonempty_lists;
+  if (list_id_set == 0)
+  {
+    p8.i = RNIL;
+    p8.p = NULL;
+    return;
+  }
+  Uint8 list_id = least_free_list(list_id_set);
+  Uint8 list_sub_page_id_set = list_id_to_sub_page_id_set(list_id);
+  if (sub_page_id < 0)
+  {
+    Uint32 set = sub_page_id_set & list_sub_page_id_set;
+    require(set != 0);
+    sub_page_id = BitmaskImpl::fls(set);
+  }
+  list_sub_page_id_set ^= (1 << sub_page_id);
+  Uint8 new_list_id = sub_page_id_set_to_list_id(list_sub_page_id_set);
+
+  LocalPage32_list old_list(pool, lists[list_id]);
+  LocalPage32_list new_list(pool, lists[new_list_id]);
+
+  Page32Ptr p;
+  old_list.removeFirst(p);
+  if (old_list.isEmpty())
+  {
+    nonempty_lists &= ~(1 << list_id);
+  }
+  require(p.p->magic == Page32::MAGIC);
+  require(p.p->list_id == list_id);
+  new_list.addFirst(p);
+  nonempty_lists |= (1 << new_list_id);
+  p.p->list_id = new_list_id;
+  p8.i = (p.i << 2) | sub_page_id;
+  p8.p = &p.p->page8[sub_page_id];
+  sub_page_id_count[sub_page_id] ++;
+}
+
+void Dbacc::Page32Lists::releasePage8(Page32_pool& pool, Page8Ptr p8)
+{
+  int sub_page_id = p8.i & 3;
+  Page32Ptr p;
+  p.i = p8.i >> 2;
+  p.p = reinterpret_cast<Page32*>(p8.p-sub_page_id);
+
+  Uint8 list_id = p.p->list_id;
+  Uint8 sub_page_id_set = list_id_to_sub_page_id_set(list_id);
+  sub_page_id_set ^= (1 << sub_page_id);
+  Uint8 new_list_id = sub_page_id_set_to_list_id(sub_page_id_set);
+
+  LocalPage32_list old_list(pool, lists[list_id]);
+  LocalPage32_list new_list(pool, lists[new_list_id]);
+
+  old_list.remove(p);
+  if (old_list.isEmpty())
+  {
+    nonempty_lists &= ~(1 << list_id);
+  }
+  require(p.p->magic == Page32::MAGIC);
+  require(p.p->list_id == list_id);
+  new_list.addFirst(p);
+  nonempty_lists |= (1 << new_list_id);
+  p.p->list_id = new_list_id;
+  sub_page_id_count[sub_page_id] --;
+}

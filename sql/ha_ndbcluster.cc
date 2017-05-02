@@ -526,6 +526,28 @@ update_slave_api_stats(Ndb* ndb)
 
 st_ndb_slave_state g_ndb_slave_state;
 
+#ifdef HAVE_NDB_BINLOG
+static int check_slave_config(THD* thd)
+{
+  DBUG_ENTER("check_slave_config");
+
+  if (ndb_get_number_of_channels() > 1)
+  {
+    sql_print_error("Slave SQL: Configuration with number of replication masters = %u' is not supported when applying to Ndb",
+                    ndb_get_number_of_channels());
+    DBUG_RETURN(HA_ERR_UNSUPPORTED);
+  }
+  if (ndb_mi_get_slave_parallel_workers() > 0)
+  {
+    sql_print_error("Slave SQL: Configuration 'slave_parallel_workers = %lu' is not supported when applying to Ndb",
+                    ndb_mi_get_slave_parallel_workers());
+    DBUG_RETURN(HA_ERR_UNSUPPORTED);
+  }
+
+  DBUG_RETURN(0);
+}
+#endif
+
 static int check_slave_state(THD* thd)
 {
   DBUG_ENTER("check_slave_state");
@@ -541,6 +563,14 @@ static int check_slave_state(THD* thd)
     DBUG_PRINT("info", ("Slave run id changed from %u, "
                         "treating as Slave restart",
                         g_ndb_slave_state.sql_run_id));
+
+    /*
+     * Check for unsupported slave configuration
+     */
+    int error = check_slave_config(thd);
+    if (unlikely(error))
+      DBUG_RETURN(error);
+
     g_ndb_slave_state.sql_run_id = runId;
 
     g_ndb_slave_state.atStartSlave();
@@ -678,6 +708,7 @@ static int update_status_variables(Thd_ndb *thd_ndb,
   }
   ns->number_of_data_nodes= c->no_db_nodes();
   ns->connect_count= c->get_connect_count();
+  ns->system_name = c->get_system_name();
   ns->last_commit_epoch_server= ndb_get_latest_trans_gci();
   if (thd_ndb)
   {
@@ -799,6 +830,7 @@ SHOW_VAR ndb_status_variables_dynamic[]= {
   {"last_commit_epoch_session", 
                          (char*) &g_ndb_status.last_commit_epoch_session, 
                                                                       SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+  {"system_name", (char*) &g_ndb_status.system_name, SHOW_CHAR_PTR, SHOW_SCOPE_GLOBAL},
   {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}
 };
 
@@ -907,6 +939,39 @@ int ndb_to_mysql_error(const NdbError *ndberr)
                           ndberr->code, ndberr->message, "NDB");
   }
   return error;
+}
+
+/**
+  Report error using my_error() and the values extracted from the NdbError.
+  If a proper mysql_code mapping is not available, the error message
+  from the ndbError is pushed to my_error.
+  If a proper mapping is available, the ndb error message is pushed as a
+  warning and the mapped mysql error code is pushed as the error.
+
+  @param    ndberr            The NdbError object with error information
+*/
+void ndb_my_error(const NdbError *ndberr)
+{
+  if (ndberr->mysql_code == -1)
+  {
+    /* No mysql_code mapping present - print ndb error message */
+    const int error_number = (ndberr->status == NdbError::TemporaryError)
+                         ? ER_GET_TEMPORARY_ERRMSG
+                         : ER_GET_ERRMSG;
+    my_error(error_number, MYF(0), ndberr->code, ndberr->message, "NDB");
+  }
+  else
+  {
+    /* MySQL error code mapping is present.
+     * Now call ndb_to_mysql_error() with the ndberr object.
+     * This will check the validity of the mysql error code
+     * and convert it into a more proper error if required.
+     * It will also push the ndb error message as a warning.
+     */
+    const int error_number = ndb_to_mysql_error(ndberr);
+    /* Now push the relevant mysql error to my_error */
+    my_error(error_number, MYF(0));
+  }
 }
 
 ulong opt_ndb_slave_conflict_role;
@@ -2198,6 +2263,12 @@ int ha_ndbcluster::get_metadata(THD *thd, const dd::Table* table_def)
     DBUG_RETURN(HA_ERR_TABLE_DEF_CHANGED);
   }
 
+  DBUG_EXECUTE_IF("ndb_get_metadata_fail",
+                  {
+                    fprintf(stderr, "ndb_get_metadata_fail\n");
+                    error= HA_ERR_TABLE_DEF_CHANGED;
+                  });
+
   // Create field to column map when table is opened
   m_table_map = new Ndb_table_map(table, tab);
 
@@ -2749,7 +2820,6 @@ ha_ndbcluster::release_indexes(NdbDictionary::Dictionary *dict,
                                int invalidate)
 {
   DBUG_ENTER("ha_ndbcluster::release_indexes");
-  DBUG_ASSERT(m_table); // Should still be "open" when calling this function
 
   for (uint i= 0; i < MAX_KEY; i++)
   {
@@ -6115,9 +6185,35 @@ int ha_ndbcluster::exec_bulk_update(uint *dup_key_found)
   DBUG_ENTER("ha_ndbcluster::exec_bulk_update");
   *dup_key_found= 0;
 
+  /* If a fatal error is encountered during an update op, the error
+   * is saved and exec continues. So exec_bulk_update may be called
+   * even when init functions fail. Check for error conditions like
+   * an uninit'ed transaction.
+   */
+  if(unlikely(!m_thd_ndb->trans))
+  {
+    DBUG_PRINT("exit", ("Transaction was not started"));
+    int error = 0;
+    ERR_SET(m_thd_ndb->ndb->getNdbError(), error);
+    DBUG_RETURN(error);
+  }
+
   // m_handler must be NULL or point to _this_ handler instance
   assert(m_thd_ndb->m_handler == NULL || m_thd_ndb->m_handler == this);
 
+  /*
+   * Normal bulk update execution, driven by mysql_update() in sql_update.cc
+   * - read_record calls start_transaction and inits m_thd_ndb->trans.
+   * - ha_bulk_update calls ha_ndbcluster::bulk_update_row().
+   * - ha_ndbcluster::bulk_update_row calls ha_ndbcluster::ndb_update_row().
+   *   with flag is_bulk_update = 1.
+   * - ndb_update_row sets up update, sets various flags and options,
+   *   but does not execute_nocommit() because of batched exec.
+   * - after read_record processes all rows, exec_bulk_update checks for
+   *   rbwr and does an execute_commit() if rbwr enabled. If rbwr is
+   *   enabled, exec_bulk_update does an execute_nocommit().
+   * - if rbwr not enabled, execute_commit() done in ndbcluster_commit().
+   */
   if (m_thd_ndb->m_handler &&
       m_read_before_write_removal_possible)
   {
@@ -11525,6 +11621,23 @@ abort:
 /*
  *  Some step during table creation failed, abort schema transaction
  */
+
+    {
+      // Flush out the indexes(if any) from ndbapi dictionary's cache first
+      NDBDICT::List index_list;
+      dict->listIndexes(index_list, tab);
+      for (unsigned i = 0; i < index_list.count; i++)
+      {
+        const char * index_name= index_list.elements[i].name;
+        const NDBINDEX* index= dict->getIndexGlobal(index_name, tab);
+        if(index != NULL)
+        {
+          dict->removeIndexGlobal(*index, true);
+        }
+      }
+    }
+
+    // Now abort schema transaction
     DBUG_PRINT("info", ("Aborting schema transaction due to error %i",
                         my_errno()));
     if (dict->endSchemaTrans(NdbDictionary::Dictionary::SchemaTransAbort)
@@ -18337,9 +18450,11 @@ ha_ndbcluster::check_inplace_alter_supported(TABLE *altered_table,
     if (create_info->used_fields & HA_CREATE_USED_MAX_ROWS)
     {
       DBUG_PRINT("info", ("The MAX_ROWS value changed"));
+
       max_rows_changed= true;
 
-      if (old_tab->getMaxRows() == 0)
+      const ulonglong curr_max_rows = table_share->max_rows;
+      if (curr_max_rows == 0)
       {
         // Don't support setting MAX_ROWS on a table without MAX_ROWS
         DBUG_RETURN(inplace_unsupported(ha_alter_info,
@@ -18483,7 +18598,8 @@ ha_ndbcluster::check_inplace_alter_supported(TABLE *altered_table,
 
      if (alter_flags & Alter_inplace_info::ALTER_TABLE_REORG)
      {
-       if (old_tab->getMaxRows() != 0)
+       const ulonglong curr_max_rows = table_share->max_rows;
+       if (curr_max_rows != 0)
        {
          // No inplace REORGANIZE PARTITION for table with MAX_ROWS
          DBUG_RETURN(inplace_unsupported(ha_alter_info,
@@ -18530,8 +18646,15 @@ ha_ndbcluster::check_inplace_alter_supported(TABLE *altered_table,
        if (reported_frags < old_tab->getFragmentCount())
        {
          DBUG_RETURN(inplace_unsupported(ha_alter_info,
-                                         "Online reduction in number of fragments "
-                                         "not supported"));
+                                         "Online reduction in number of "
+                                         "fragments not supported"));
+       }
+       else if (rows == 0)
+       {
+         /* Dont support setting MAX_ROWS to 0 inplace */
+         DBUG_RETURN(inplace_unsupported(ha_alter_info,
+                                         "Setting MAX_ROWS to 0 is "
+                                         "not supported online"));
        }
        new_tab.setFragmentCount(reported_frags);
        new_tab.setDefaultNoPartitionsFlag(false);
@@ -18869,6 +18992,21 @@ ha_ndbcluster::parse_comment_changes(NdbDictionary::Table *new_tab,
   DBUG_RETURN(false);
 }
 
+
+/**
+   Updates the internal structures and prepares them for the inplace alter.
+
+   @note Function is responsible for reporting any errors by
+   calling my_error()/print_error()
+
+   @param    altered_table     TABLE object for new version of table.
+   @param    ha_alter_info     Structure describing changes to be done
+                               by ALTER TABLE and holding data used
+                               during in-place alter.
+
+   @retval   true              Error
+   @retval   false             Success
+*/
 bool
 ha_ndbcluster::prepare_inplace_alter_table(TABLE *altered_table,
                                            Alter_inplace_info *ha_alter_info,
@@ -18938,8 +19076,7 @@ ha_ndbcluster::prepare_inplace_alter_table(TABLE *altered_table,
   {
     DBUG_PRINT("info", ("Failed to start schema transaction"));
     ERR_PRINT(dict->getNdbError());
-    error= ndb_to_mysql_error(&dict->getNdbError());
-    table->file->print_error(error, MYF(0));
+    ndb_my_error(&dict->getNdbError());
     goto err;
   }
 
@@ -19093,8 +19230,7 @@ ha_ndbcluster::prepare_inplace_alter_table(TABLE *altered_table,
     int res= dict->prepareHashMap(*old_tab, *new_tab);
     if (res == -1)
     {
-      const NdbError err= dict->getNdbError();
-      set_my_errno(ndb_to_mysql_error(&err));
+      ndb_my_error(&dict->getNdbError());
       goto abort;
     }
   }

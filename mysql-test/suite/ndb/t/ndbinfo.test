@@ -842,3 +842,55 @@ select node_id, concat(config_value / 1024 / 1024, 'M') as DataMemory
   where config_param = 112 /* DataMemory */
   order by node_id;
 
+#
+# No tests after this point will run in embedded server testing:
+--source include/not_embedded.inc
+
+#
+# wl#9819 ndbinfo.processes
+#
+# Because port number and host address vary in the test environment,
+# we can not test the content of the service_URI column.
+
+# (A) Normative tests of table and view definition
+desc ndb$processes;
+show create table processes;
+
+# (B) Tests of table content.
+# These results will change if the cluster config used when running
+# this test case changes.
+
+# Query the base table
+SELECT reporting_node_id, node_id, node_type,
+replace(replace(process_name,"-debug",""),".exe","") AS process_name
+FROM ndb$processes
+ORDER BY reporting_node_id, node_id;
+
+# Query the view
+SELECT node_id,
+node_type,
+replace(replace(process_name,"-debug",""),".exe","") AS process_name,
+if(process_id is null, "null", "not_null") as proc_id,
+if(angel_process_id is null, "null", "not_null") as angel_proc_id
+FROM processes
+ORDER BY node_id;
+
+#
+# wl#10147 ndbinfo.config_nodes
+#
+# (A) Normative tests of table and view definition
+desc ndb$config_nodes;
+select view_definition, is_updatable, security_type
+  FROM information_schema.views
+  WHERE table_schema = 'ndbinfo' AND table_name = 'config_nodes';
+
+# (B) Tests of table content.
+# These results will change if the cluster config used when running
+# this test case changes.
+SELECT * from ndb$config_nodes order by reporting_node_id, node_id;
+
+# (C) Tests of view: SELECT DISTINCT, removing reporting_node_id
+SELECT node_type, count(*),
+ GROUP_CONCAT(node_id order by 1 asc separator " ") ids
+ FROM config_nodes group by node_type order by node_type;
+

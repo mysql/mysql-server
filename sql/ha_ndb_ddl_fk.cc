@@ -1634,7 +1634,18 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
 
     if (err)
     {
-      ERR_RETURN(dict->getNdbError());
+      const NdbError err = dict->getNdbError();
+      if (err.code == 721)
+      {
+        /* An FK constraint with same name exists */
+        my_error(ER_FK_DUP_NAME, MYF(0), fk->name);
+        DBUG_RETURN(err_default);
+      }
+      else
+      {
+        /* Return the error returned by dict */
+        ERR_RETURN(err);
+      }
     }
 
     /* Flush the parent table out if parent is different from child */

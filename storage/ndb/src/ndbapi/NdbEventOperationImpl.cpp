@@ -3381,7 +3381,6 @@ NdbEventBuffer::alloc(Uint32 sz)
     mem_block = expand_memory_blocks();
     assert(mem_block != NULL); //Will crashMemAllocError if failed.
 
-    reportStatus();
     memptr = mem_block->alloc(sz);
     if (unlikely(memptr == NULL))
     {
@@ -4276,10 +4275,17 @@ NdbEventBuffer::reportStatus(ReportReason reason)
   if (reason != NO_REPORT)
     goto send_report;
 
-  if (m_free_thresh)
+  /* Exclude LOW/ENOUGH_FREE_EVENTBUFFER reporting if
+   * m_free_thresh is not configured or
+   * event buffer has unlimited memory available
+   */
+  if (m_free_thresh && m_max_alloc > 0)
   {
-    const Uint64 free_data_sz = get_free_data_sz();
-    if (100*free_data_sz < m_min_free_thresh*(Uint64)m_total_alloc &&
+    Uint32 free_data_sz = 0;
+    if (m_max_alloc > get_used_data_sz())
+      free_data_sz = m_max_alloc - get_used_data_sz();
+
+    if (100*free_data_sz < m_min_free_thresh*(Uint64)m_max_alloc &&
         m_total_alloc > 1024*1024)
     {
       /* report less free buffer than m_free_thresh,
@@ -4291,7 +4297,7 @@ NdbEventBuffer::reportStatus(ReportReason reason)
       goto send_report;
     }
   
-    if (100*free_data_sz > m_max_free_thresh*(Uint64)m_total_alloc &&
+    if (100*free_data_sz > m_max_free_thresh*(Uint64)m_max_alloc &&
         m_total_alloc > 1024*1024)
     {
       /* report more free than 2 * m_free_thresh
@@ -4306,7 +4312,7 @@ NdbEventBuffer::reportStatus(ReportReason reason)
 
   if (m_gci_slip_thresh &&
       (m_buffered_epochs >= m_gci_slip_thresh) &&
-      NdbTick_Elapsed(m_last_log_time, NdbTick_getCurrentTicks()).milliSec() >= 1000)
+      NdbTick_Elapsed(m_last_log_time, NdbTick_getCurrentTicks()).milliSec() >= 10000)
   {
     m_last_log_time = NdbTick_getCurrentTicks();
     reason = BUFFERED_EPOCHS_OVER_THRESHOLD;

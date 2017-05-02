@@ -27,7 +27,8 @@ CREATE TABLESPACE ts_1
     INITIAL_SIZE 16M
     ENGINE NDB;
 
-create table t1(id int NOT NULL PRIMARY KEY, data char(8)) engine=ndb;
+# Using a pk bigger than 80 bytes, see bug#25152165.
+create table t1(id int, data char(8), id2 binary(80), primary key (id, id2)) engine=ndb;
 create table t2(id int NOT NULL PRIMARY KEY, data char(8))
 TABLESPACE ts_1 STORAGE DISK engine=ndb;
 # BUG#13714648

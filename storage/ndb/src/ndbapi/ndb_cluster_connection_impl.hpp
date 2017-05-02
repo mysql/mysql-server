@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -117,6 +117,7 @@ private:
   int configure(Uint32 nodeid, const ndb_mgm_configuration &config);
   void connect_thread();
   void set_name(const char *name);
+  int set_service_uri(const char *, const char *, int, const char *);
   void set_data_node_neighbour(Uint32 neighbour_node);
   void adjust_node_proximity(Uint32 node_id, Int32 adjustment);
   Uint32 get_db_nodes(Uint8 nodesarray[MAX_NDB_NODES]) const;
@@ -168,6 +169,13 @@ private:
   Uint64 globalApiStatsBaseline[ Ndb::NumClientStatistics ];
 
   NdbWaitGroup *m_multi_wait_group;
+
+  // Service URI in ndbinfo.processes
+  BaseString m_uri_scheme, m_uri_host, m_uri_path;
+  int m_uri_port;
+
+  // system.name copied from configuration
+  BaseString m_system_name;
 };
 
 #endif

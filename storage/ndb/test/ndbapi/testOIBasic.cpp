@@ -1607,7 +1607,7 @@ Con::printerror(NdbOut& out)
         // 631 is new, occurs only on 4 db nodes, needs to be checked out
         if (code == 266 || code == 274 || code == 296 || code == 297 || code == 499 || code == 631)
           m_errtype = ErrDeadlock;
-        if (code == 826 || code == 827 || code == 902)
+        if (code == 826 || code == 827 || code == 902 || code == 921)
           m_errtype = ErrNospace;
       }
       if (m_op && m_op->getNdbError().code != 0) {

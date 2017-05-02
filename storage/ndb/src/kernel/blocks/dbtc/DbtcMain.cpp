@@ -4830,6 +4830,36 @@ void Dbtc::execSIGNAL_DROPPED_REP(Signal* signal)
                signal, ScanTabRef::SignalLength, JBB);
     break;
   }
+  case GSN_TRANSID_AI: //TUP -> TC
+  {
+    jam();
+    /**
+     * TRANSID_AI is received as a result of performing a read on 
+     * the index table as part of a (unique) index operation.
+     */
+    const TransIdAI * const truncatedTransIdAI = 
+      reinterpret_cast<const TransIdAI*>(&rep->originalData[0]);
+
+    TcIndexOperationPtr indexOpPtr;
+    indexOpPtr.i = truncatedTransIdAI->connectPtr;
+    TcIndexOperation* indexOp = c_theIndexOperationPool.getPtr(indexOpPtr.i);
+    indexOpPtr.p = indexOp;
+    if (indexOp == NULL) {
+      jam();
+      // Missing index operation - ignore
+      break;
+    }
+
+    /* No more TransIdAI will arrive, abort */
+    apiConnectptr.i = indexOp->connectionIndex;
+    ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
+
+    terrorCode = ZGET_DATAREC_ERROR;
+    abortErrorLab(signal);
+    break;
+  }
+  case GSN_TRANSID_AI_R:  //TODO
+    jam();
   default:
     jam();
     /* Don't expect dropped signals for other GSNs,
@@ -13033,11 +13063,18 @@ bool Dbtc::startFragScanLab(Signal* signal,
   EXECUTE_DIRECT(DBDIH, GSN_DIGETNODESREQ, signal,
                  DiGetNodesReq::SignalLength, 0);
 
-  DiGetNodesConf * conf = (DiGetNodesConf *)&signal->theData[0];
-  Uint32 TerrorIndicator = signal->theData[0];
-  if (TerrorIndicator || ERROR_INSERTED_CLEAR(8095))
+  jamEntryDebug();
+  /**
+   * theData[0] is always '0' in a DiGetNodesCONF,
+   * else it is a REF, with errorCode in theData[1]
+   */
+  const Uint32 errorCode =
+    (signal->theData[0] != 0)    ? signal->theData[1] : //DIH error
+    (ERROR_INSERTED_CLEAR(8095)) ? ZGET_DATAREC_ERROR : //Fake error
+    0;
+
+  if (errorCode != 0)
   {
-    jamEntry();
     ndbrequire(scanFragP.p->scanFragState == ScanFragRec::WAIT_GET_PRIMCONF);
     scanFragP.p->scanFragState = ScanFragRec::COMPLETED;
     scanFragP.p->stopFragTimer();
@@ -13045,15 +13082,16 @@ bool Dbtc::startFragScanLab(Signal* signal,
       Local_ScanFragRec_dllist run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
       run.release(scanFragP);
     }
-    scanError(signal, scanptr, ZGET_DATAREC_ERROR);
+    scanError(signal, scanptr, errorCode);
     return false;
   }
-  jamEntryDebug();
+
   /**
-   * Get instance key from upper bits except most significant bit which is used
-   * reorg moving flag.
+   * Get instance key from upper bits except most significant bit which
+   * is used for reorg moving flag.
    */
-  Uint32 instanceKey = (conf->reqinfo >> 24) & 127;
+  const DiGetNodesConf * conf = (DiGetNodesConf *)&signal->theData[0]; 
+  const Uint32 instanceKey = (conf->reqinfo >> 24) & 127;
   NodeId nodeId = conf->nodes[0];
   const NodeId ownNodeId = getOwnNodeId();
   scanFragP.p->lqhScanFragId = conf->fragId;

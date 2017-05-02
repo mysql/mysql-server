@@ -134,6 +134,7 @@ struct st_ndb_status {
   long transaction_no_hint_count[MAX_NDB_NODES];
   long transaction_hint_count[MAX_NDB_NODES];
   long long api_client_stats[Ndb::NumClientStatistics];
+  const char * system_name;
 };
 
 int ndbcluster_commit(handlerton *hton, THD *thd, bool all);

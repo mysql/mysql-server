@@ -125,7 +125,8 @@ def handle_hostInfoReq(req, body):
                                            'cores': ch.cores, 
                                            'uname': ch.hostInfo.uname,
                                            'installdir': ch.installdir, 
-                                           'datadir': ch.hostInfo.pm.join(ch.homedir, 'MySQL_Cluster') }})
+                                           'datadir': ch.hostInfo.pm.join(ch.homedir, 'MySQL_Cluster'),
+                                           'diskfree': ch.hostInfo.disk_free   }})
 
 
 def start_proc(proc, body):

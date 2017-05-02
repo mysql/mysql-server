@@ -30,6 +30,7 @@
 #include <signaldata/AttrInfo.hpp>
 #include <signaldata/TuxMaint.hpp>
 #include <signaldata/ScanFrag.hpp>
+#include <signaldata/TransIdAI.hpp>
 #include <NdbSqlUtil.hpp>
 #include <Checksum.hpp>
 #include <portlib/ndb_prefetch.h>
@@ -1277,7 +1278,7 @@ int Dbtup::handleReadReq(Signal* signal,
     /**
      * execute direct
      */
-    start_index= 3;
+    start_index= AttrInfo::HeaderLength;  //3;
   }
   dst= &signal->theData[start_index];
   dstLen= (MAX_READ / 4) - start_index;
@@ -1294,8 +1295,7 @@ int Dbtup::handleReadReq(Signal* signal,
 // We have read all data into coutBuffer. Now send it to the API.
 /* ------------------------------------------------------------------------- */
       jamDebug();
-      Uint32 TnoOfDataRead= (Uint32) ret;
-      req_struct->read_length += TnoOfDataRead;
+      const Uint32 TnoOfDataRead= (Uint32) ret;
       sendReadAttrinfo(signal, req_struct, TnoOfDataRead);
       return 0;
     }
@@ -1354,7 +1354,7 @@ int Dbtup::handleUpdateReq(Signal* signal,
   ChangeMask * change_mask_ptr;
   if ((dst= alloc_copy_tuple(regTabPtr, &operPtrP->m_copy_tuple_location))== 0)
   {
-    terrorCode= ZMEM_NOMEM_ERROR;
+    terrorCode= ZNO_COPY_TUPLE_MEMORY_ERROR;
     goto error;
   }
 
@@ -2255,7 +2255,7 @@ size_change_error:
   
 undo_buffer_error:
   jam();
-  terrorCode= ZMEM_NOMEM_ERROR;
+  terrorCode= ZNO_COPY_TUPLE_MEMORY_ERROR;
   regOperPtr.p->m_undo_buffer_space = 0;
   if (mem_insert)
     regOperPtr.p->m_tuple_location.setNull();
@@ -2319,7 +2319,7 @@ int Dbtup::handleDeleteReq(Signal* signal,
   Tuple_header* dst = alloc_copy_tuple(regTabPtr,
                                        &regOperPtr->m_copy_tuple_location);
   if (dst == 0) {
-    terrorCode = ZMEM_NOMEM_ERROR;
+    terrorCode = ZNO_COPY_TUPLE_MEMORY_ERROR;
     goto error;
   }
 
@@ -2706,7 +2706,7 @@ int Dbtup::interpreterStartLab(Signal* signal,
     /**
      * execute direct
      */
-    start_index= 3;
+    start_index= TransIdAI::HeaderLength;  //3;
   }
   dst= &signal->theData[start_index];
   dstLen= (MAX_READ / 4) - start_index;
@@ -2860,7 +2860,6 @@ int Dbtup::interpreterStartLab(Signal* signal,
      *    This is used for ANYVALUE and interpreted delete.
      */
     req_struct->log_size+= RlogSize;
-    req_struct->read_length += RattroutCounter;
     sendReadAttrinfo(signal, req_struct, RattroutCounter);
     if (RlogSize > 0) {
       return sendLogAttrinfo(signal, req_struct, RlogSize, regOperPtr);

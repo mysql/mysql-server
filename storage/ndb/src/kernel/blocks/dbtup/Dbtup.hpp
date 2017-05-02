@@ -170,6 +170,7 @@ inline const Uint32* ALIGN_WORD(const void* ptr)
 #define ZTUPLE_DELETED_ERROR 626
 #define ZINSERT_ERROR 630
 #define ZOP_AFTER_REFRESH_ERROR 920
+#define ZNO_COPY_TUPLE_MEMORY_ERROR 921
 
 #define ZINVALID_CHAR_FORMAT 744
 #define ZROWID_ALLOCATED 899
@@ -1857,7 +1858,6 @@ private:
   void execTUP_DEALLOCREQ(Signal* signal);
   void execTUP_WRITELOG_REQ(Signal* signal);
   void execNODE_FAILREP(Signal* signal);
-  void execNODE_STATE_REP(Signal*);
 
   void execDROP_FRAG_REQ(Signal*);
 
@@ -2648,7 +2648,14 @@ private:
   bool  receive_defvalue(Signal* signal, const TablerecPtr& regTabPtr);
 //------------------------------------------------------------------
 //------------------------------------------------------------------
-  void bufferTRANSID_AI(Signal* signal, BlockReference aRef, Uint32 Tlen);
+  void bufferTRANSID_AI(Signal* signal, BlockReference aRef, 
+                        const Uint32 *dataBuf,
+                        Uint32 lenOfData);
+
+  void sendAPI_TRANSID_AI(Signal* signal,
+                          BlockReference recBlockRef,
+                          const Uint32 *dataBuf,
+                          Uint32 lenOfData);
 
 //------------------------------------------------------------------
 // Trigger handling routines
@@ -2964,7 +2971,7 @@ private:
 
   void removeActiveOpList(Operationrec*  const regOperPtr, Tuple_header*);
 
-  void updatePackedList(Signal* signal, Uint16 ahostIndex);
+  void updatePackedList(Uint16 ahostIndex);
 
   void setUpDescriptorReferences(Uint32 descriptorReference,
                                  Tablerec* regTabPtr,
@@ -3230,6 +3237,7 @@ private:
   DynArr256Pool c_page_map_pool;
   Operationrec_pool c_operation_pool;
 
+  bool c_allow_alloc_spare_page;
   Page_pool c_page_pool;
 
   /* read ahead in pages during disk order scan */
@@ -3283,7 +3291,6 @@ private:
 
   // Trigger variables
   Uint32 c_maxTriggersPerTable;
-  Uint32 m_minFreePages;
   Uint32 m_max_parallel_index_build;
 
   Uint32 c_errorInsert4000TableId;

@@ -211,11 +211,31 @@ trp_client::safe_noflush_sendSignal(const NdbApiSignal* signal, Uint32 nodeId)
   return m_facade->m_poll_owner->raw_sendSignal(signal, nodeId);
 }
 
+int trp_client::safe_noflush_sendSignal(const NdbApiSignal* signal, Uint32 nodeId,
+                                        const LinearSectionPtr ptr[3], Uint32 secs)
+{
+  // This thread must be the poll owner
+  assert(m_facade->is_poll_owner_thread());
+  return m_facade->m_poll_owner->raw_sendSignal(signal, nodeId, ptr, secs);
+}
+
 int
 trp_client::safe_sendSignal(const NdbApiSignal* signal, Uint32 nodeId)
 {
   int res;
   if ((res = safe_noflush_sendSignal(signal, nodeId)) != -1)
+  {
+    m_facade->m_poll_owner->flush_send_buffers();
+  }
+  return res;
+}
+
+int
+trp_client::safe_sendSignal(const NdbApiSignal* signal, Uint32 nodeId,
+                            const LinearSectionPtr ptr[3], Uint32 secs)
+{
+  int res;
+  if ((res = safe_noflush_sendSignal(signal, nodeId, ptr, secs)) != -1)
   {
     m_facade->m_poll_owner->flush_send_buffers();
   }

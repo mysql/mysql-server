@@ -246,7 +246,7 @@ compute_acc_32kpages(const ndb_mgm_configuration_iterator * p)
  * overallocated at any size as long as there is still memory
  * remaining.
  *
- * RG_DISK_OPERATIONS:
+ * RG_TRANSACTION_MEMOR:
  * This is a resource that is either set to zero size but can be overallocated
  * without limit. If a log file group is allocated based on the config, then
  * the size of the UNDO log buffer is used to set the size of this resource.
@@ -444,7 +444,7 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
     ed.m_mem_manager->set_resource_limit(rl);
   }
 
-  Uint32 undopages = 0;
+  Uint32 transmem = 0;
   {
     /**
      * Request extra undo buffer memory to be allocated when
@@ -472,31 +472,23 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
                                          "undo_buffer_size=",
                                          undo_buffer_size);
 
-        undopages = Uint32(undo_buffer_size / GLOBAL_PAGE_SIZE);
+        Uint32 undopages = Uint32(undo_buffer_size / GLOBAL_PAGE_SIZE);
         g_eventLogger->info("reserving %u extra pages for undo buffer memory",
                             undopages);
+        transmem = undopages;
         Resource_limit rl;
-        rl.m_min = undopages;
+        rl.m_min = transmem;
         rl.m_max = 0;
-        rl.m_resource_id = RG_DISK_OPERATIONS;
+        rl.m_resource_id = RG_TRANSACTION_MEMORY;
         ed.m_mem_manager->set_resource_limit(rl);
       }
     }
   }
 
   Uint32 sum = shared_pages + tupmem + filepages + jbpages + sbpages +
-    pgman_pages + stpages + undopages;
+    pgman_pages + stpages + transmem;
 
-  if (sum)
-  {
-    Resource_limit rl;
-    rl.m_min = 0;
-    rl.m_max = sum;
-    rl.m_resource_id = 0;
-    ed.m_mem_manager->set_resource_limit(rl);
-  }
-
-  if (!ed.m_mem_manager->init(watchCounter))
+  if (!ed.m_mem_manager->init(watchCounter, sum))
   {
     struct ndb_mgm_param_info dm;
     struct ndb_mgm_param_info sga;
@@ -794,12 +786,14 @@ void* async_log_func(void* args)
     if((bytes = logBuf->get(buf, get_bytes)))
     {
       fwrite(buf, bytes, 1, f);
+      fflush(f);
     }
   }
 
   while((bytes = logBuf->get(buf, get_bytes, 1)))// flush remaining logs
   {
     fwrite(buf, bytes, 1, f);
+    fflush(f);
   }
 
   // print lost count in the end, if any
@@ -807,6 +801,7 @@ void* async_log_func(void* args)
   if(lost_count)
   {
     fprintf(f, "\n*** %lu BYTES LOST ***\n", (unsigned long)lost_count);
+    fflush(f);
   }
 
   return NULL;
@@ -983,7 +978,6 @@ ndbd_run(bool foreground, int report_fd,
 
   globalEmulatorData.theConfiguration->addThread(log_threadvar, NdbfsThread);
 
-
 #ifdef VM_TRACE
   // Initialize signal logger before block constructors
   char *signal_log_name = NdbConfig_SignalLogFileName(globalData.ownId);
@@ -1127,7 +1121,6 @@ ndbd_run(bool foreground, int report_fd,
   NdbThread_Destroy(&log_threadvar);
   delete logBuf;
   delete ndbouts_bufferedoutputstream;
-
   ndbd_exit(0);
 }
 

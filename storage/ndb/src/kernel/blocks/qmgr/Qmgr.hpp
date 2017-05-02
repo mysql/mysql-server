@@ -24,6 +24,7 @@
 #include <SimulatedBlock.hpp>
 #include <NodeBitmask.hpp>
 #include <SignalCounter.hpp>
+#include <ProcessInfo.hpp>
 
 #include <signaldata/EventReport.hpp>
 #include <signaldata/ArbitSignalData.hpp>
@@ -371,6 +372,9 @@ private:
   // Ndbinfo signal
   void execDBINFO_SCANREQ(Signal *signal);
 
+  // ProcessInfo Report signal
+  void execPROCESSINFO_REP(Signal *signal);
+
   // NDBCNTR informing us our node is fully started
   void execNODE_STARTED_REP(Signal *signal);
 
@@ -484,6 +488,7 @@ private:
   void joinedCluster(Signal* signal, NodeRecPtr nodePtr);
   void sendCmRegReq(Signal * signal, Uint32 nodeId);
   void sendCmNodeInfoReq(Signal* signal, Uint32 nodeId, const NodeRec * self);
+  ProcessInfo * getProcessInfo(Uint32 nodeId);
 
 private:
   void sendPrepFailReqRef(Signal* signal, 
@@ -544,6 +549,9 @@ private:
   Timer hb_send_timer;
   Timer hb_api_timer;
 
+  Int16 processInfoNodeIndex[MAX_NODES];
+  ProcessInfo * receivedProcessInfo;
+  Uint16 max_api_node_id;
 
   NdbNodeBitmask cfailedNodes;
   NdbNodeBitmask cprepFailedNodes;

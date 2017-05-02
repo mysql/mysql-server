@@ -121,4 +121,16 @@ cmd: testDict
 args: -n StoreExtraMetadataError T3
 max-time: 180
 
+cmd: testScan
+args: -n ScanReadError8095 T1
+max-time : 60
+
+cmd: testScan
+args: -n ScanDihError7240 T1
+max-time : 60
+
+cmd: testRedo
+args: -n CheckNextRedoFileOpened T1
+max-time: 1440
+
 

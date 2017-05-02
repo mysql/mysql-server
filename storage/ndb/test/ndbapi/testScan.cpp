@@ -2647,6 +2647,55 @@ runScanDuringExpandAndShrinkBack(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+
+int
+runScanOperation(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb * pNdb = GETNDB(step);
+  const NdbDictionary::Table* pTab = ctx->getTab();
+  NdbTransaction* pTrans = pNdb->startTransaction();
+  if (pTrans == NULL)
+  {
+    NDB_ERR(pNdb->getNdbError());
+    return NDBT_FAILED;
+  }
+
+  NdbScanOperation* pOp = pTrans->getNdbScanOperation(pTab->getName());
+  if (pOp == NULL)
+  {
+    NDB_ERR(pTrans->getNdbError());
+    return NDBT_FAILED;
+  }
+  if (pOp->readTuples(NdbOperation::LM_CommittedRead) != 0)
+  {
+    NDB_ERR(pTrans->getNdbError());
+    return NDBT_FAILED;
+  }
+
+  if (pTrans->execute(NdbTransaction::NoCommit) != 0)
+  {
+    NDB_ERR(pTrans->getNdbError());
+    return NDBT_FAILED;
+  }
+
+  const int acceptError = ctx->getProperty("AcceptError");
+  if (pOp->nextResult(true) < 0)
+  {
+    NDB_ERR(pOp->getNdbError());
+    const NdbError err = pOp->getNdbError();
+    if (err.code != acceptError)
+    {
+      ndbout << "Expected error: " << acceptError << endl;
+      return NDBT_FAILED;
+    }
+  }
+
+  pOp->close();
+  pTrans->close();
+  return NDBT_OK;
+}
+
+
 NDBT_TESTSUITE(testScan);
 TESTCASE("ScanRead", 
 	 "Verify scan requirement: It should be possible "\
@@ -3075,6 +3124,17 @@ TESTCASE("ScanReadError7234",
   INITIALIZER(runLoadTable);
   TC_PROPERTY("ErrorCode", 7234);
   STEP(runScanReadError);
+  FINALIZER(runClearTable);
+}
+TESTCASE("ScanDihError7240",
+         "Check that any error from DIH->TC "
+         "is correctly returned by TC"){
+  TC_PROPERTY("ErrorCode", 7240);
+  TC_PROPERTY("AcceptError", 311);
+  INITIALIZER(runLoadTable);
+  INITIALIZER(runInsertError); //Set 'ErrorCode'
+  STEP(runScanOperation);
+  FINALIZER(runInsertError);   //Reset ErrorCode
   FINALIZER(runClearTable);
 }
 TESTCASE("ScanReadRestart", 

@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights
+ Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -154,6 +154,16 @@ ClusterConnectionPool::~ClusterConnectionPool() {
 }
 
 
+/* setMainConnection()
+*/
+void ClusterConnectionPool::setMainConnection(Ndb_cluster_connection *c) {
+  main_conn = c;
+  pool_size = 1;
+  pool_connections[0] = c;
+  c->set_service_uri("memcache", NULL, 0, "");
+}
+
+
 /* addPooledConnection() 
 */
 Ndb_cluster_connection * ClusterConnectionPool::addPooledConnection() {
@@ -166,6 +176,9 @@ Ndb_cluster_connection * ClusterConnectionPool::addPooledConnection() {
   
   if(conn && conn->node_id()) {
     pool_connections[pool_size++] = conn;
+    char uri_query_buff[32];
+    snprintf(uri_query_buff, sizeof(uri_query_buff), "?connection=%d", pool_size);
+    conn->set_service_uri("memcache", NULL, 0, uri_query_buff);
   }
   else {
     logger->log(LOG_WARNING, 0, "   Failed to grow connection pool.\n");

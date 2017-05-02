@@ -98,3 +98,7 @@ echo == 24 == Bug 21280428;
 --replace_regex /.*\[ndb_config\]//
 --error 255
 --exec $NDB_CONFIG --no-defaults --config-file=$MYSQL_TEST_DIR/suite/ndb/bug21280456.ini 2>&1
+
+echo == 25 == Bug25675643;
+# Check system name
+--exec $NDB_CONFIG --config-file=$MYSQL_TEST_DIR/suite/ndb/ndb_config_config.ini --system --query=name 2>&1

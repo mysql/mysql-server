@@ -460,7 +460,7 @@ Ndbfs::execFSOPENREQ(Signal* signal)
     jam();
     Uint32 cnt = 16; // 512k
     Ptr<GlobalPage> page_ptr;
-    m_ctx.m_mm.alloc_pages(RT_DBTUP_PAGE, &page_ptr.i, &cnt, 1);
+    m_ctx.m_mm.alloc_pages(RT_NDBFS_INIT_FILE_PAGE, &page_ptr.i, &cnt, 1);
     if(cnt == 0)
     {
       file->m_page_ptr.setNull();
@@ -474,7 +474,7 @@ Ndbfs::execFSOPENREQ(Signal* signal)
       return;
     }
     m_shared_page_pool.getPtr(page_ptr);
-    file->set_buffer(RT_DBTUP_PAGE, page_ptr, cnt);
+    file->set_buffer(RT_NDBFS_INIT_FILE_PAGE, page_ptr, cnt);
   } 
   else if (fsOpenReq->fileFlags & FsOpenReq::OM_WRITE_BUFFER)
   {
@@ -1040,7 +1040,7 @@ Ndbfs::execBUILD_INDX_IMPL_REQ(Signal* signal)
   Uint32 cnt = (req->buffer_size + 32768 - 1) / 32768;
   Uint32 save = cnt;
   Ptr<GlobalPage> page_ptr;
-  m_ctx.m_mm.alloc_pages(RT_DBTUP_PAGE, &page_ptr.i, &cnt, cnt);
+  m_ctx.m_mm.alloc_pages(RT_NDBFS_BUILD_INDEX_PAGE, &page_ptr.i, &cnt, cnt);
   if(cnt == 0)
   {
     file->m_page_ptr.setNull();
@@ -1053,7 +1053,7 @@ Ndbfs::execBUILD_INDX_IMPL_REQ(Signal* signal)
   ndbrequire(cnt == save);
 
   m_shared_page_pool.getPtr(page_ptr);
-  file->set_buffer(RT_DBTUP_PAGE, page_ptr, cnt);
+  file->set_buffer(RT_NDBFS_BUILD_INDEX_PAGE, page_ptr, cnt);
 
   memcpy(&request->par.build.m_req, req, sizeof(* req));
   request->action = Request::buildindx;
