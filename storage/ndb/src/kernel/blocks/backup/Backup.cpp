@@ -6656,6 +6656,9 @@ Backup::execSCAN_FRAGREF(Signal* signal)
     case ScanFragRef::NO_TC_CONNECT_ERROR:
     case ScanFragRef::ZTOO_MANY_ACTIVE_SCAN_ERROR:
       jam();
+      DEB_LCP(("(%u)execSCAN_FRAGREF(temp error: %u)",
+               instance(),
+               errCode));
       break;
     case ScanFragRef::TABLE_NOT_DEFINED_ERROR:
     case ScanFragRef::DROP_TABLE_IN_PROGRESS_ERROR:
@@ -6696,6 +6699,7 @@ Backup::execSCAN_FRAGREF(Signal* signal)
   {
     jam();
     filePtr.p->m_flags &= ~(Uint32)BackupFile::BF_SCAN_THREAD;
+    DEB_LCP(("(%u)execSCAN_FRAGREF(backupFragmentRef)", instance()));
     backupFragmentRef(signal, filePtr);
   }
   else
@@ -6777,6 +6781,7 @@ Backup::fragmentCompleted(Signal* signal,
   {
     jam();    
     filePtr.p->m_flags &= ~(Uint32)BackupFile::BF_SCAN_THREAD;
+    DEB_LCP(("(%u)fragmentCompleted(backupFragmentRef)", instance()));
     backupFragmentRef(signal, filePtr); // Scan completed
     return;
   }//if
@@ -6784,6 +6789,15 @@ Backup::fragmentCompleted(Signal* signal,
   BackupRecordPtr ptr;
   c_backupPool.getPtr(ptr, filePtr.p->backupPtr);
 
+#ifdef DEBUG_LCP
+  if (ptr.p->is_lcp())
+  {
+    DEB_LCP(("(%u)fragmentCompleted(LCP) tab(%u,%u)",
+             instance(),
+             filePtr.p->tableId,
+             filePtr.p->fragmentNo));
+  }
+#endif
   OperationRecord & op = filePtr.p->operation;
   if(!op.fragComplete(filePtr.p->tableId, filePtr.p->fragmentNo,
                       c_defaults.m_o_direct))
@@ -7084,7 +7098,7 @@ Backup::checkScan(Signal* signal,
   if (ptr.p->is_lcp())
   {
     jam();
-    DEB_EXTRA_LCP(("(%u)newScan false in checkScan", instance()));
+    DEB_LCP(("(%u)newScan false in checkScan", instance()));
   }
   signal->theData[0] = BackupContinueB::BUFFER_FULL_SCAN;
   signal->theData[1] = filePtr.i;
