@@ -10923,7 +10923,9 @@ void Dblqh::execSCAN_NEXTREQ(Signal* signal)
 
   if (ERROR_INSERTED(5023)){
     // Drop signal if sender is same node
-    if (refToNode(signal->senderBlockRef()) == cownNodeid) {
+    if (refToNode(signal->senderBlockRef()) == cownNodeid &&
+        refToBlock(signal->senderBlockRef()) != BACKUP)
+    {
       CLEAR_ERROR_INSERT_VALUE;
       return;
     }
@@ -10946,15 +10948,14 @@ void Dblqh::execSCAN_NEXTREQ(Signal* signal)
   }
 
   if (ERROR_INSERTED(5030)){
-    ndbout << "ERROR 5030" << endl;
-    CLEAR_ERROR_INSERT_VALUE;
-    // Drop signal
-    return;
+    if (refToBlock(signal->senderBlockRef()) != BACKUP)
+    {
+      ndbout << "ERROR 5030" << endl;
+      CLEAR_ERROR_INSERT_VALUE;
+      // Drop signal
+      return;
+    }
   }//if
-
-  if(ERROR_INSERTED(5036)){
-    return;
-  }
 
   Uint32 pos = 0;
   if (ScanFragNextReq::getCorrFactorFlag(nextReq->requestInfo))
@@ -10981,10 +10982,6 @@ void Dblqh::execSCAN_NEXTREQ(Signal* signal)
     jam();
     if(ERROR_INSERTED(5034)){
       CLEAR_ERROR_INSERT_VALUE;
-    }
-    if(ERROR_INSERTED(5036)){
-      CLEAR_ERROR_INSERT_VALUE;
-      return;
     }
     closeScanRequestLab(signal);
     return;
