@@ -1511,4 +1511,46 @@ INSERT INTO spoiled_child VALUES (1),(2);
 DELETE FROM parent WHERE a>1;
 DROP DATABASE `tttttttttttttttttttttttttttttttttttttttttt`;
 
+
+--echo #
+--echo #Bug #25943038: QUERY WITH DERIVED TABLE IS CACHED IN MVCC SCENARIO
+--echo #
+
+use test;
+CREATE TABLE t1(i1 INT, i2 INT, v3 VARCHAR(20)) ENGINE=INNODB;
+SET @qc= @@query_cache_size;
+SET GLOBAL query_cache_size=16777216;
+
+SELECT @@query_cache_size, @@query_cache_type;
+
+connect (con1, localhost, root);
+connect (con2, localhost, root);
+
+--enable_connect_log
+connection con1;
+START TRANSACTION;
+INSERT INTO t1 VALUES(1,1,'a'),(2,1,'b'),(3,2,'c'),(4,2,'d');
+
+connection con2;
+SHOW GLOBAL STATUS LIKE 'qcache%cache%';
+SELECT * FROM t1;
+SELECT * FROM (SELECT i2,SUM(i1) FROM t1 GROUP BY i2) b;
+SHOW GLOBAL STATUS LIKE 'qcache%cache%';
+
+connection con1;
+SHOW GLOBAL STATUS LIKE 'qcache%cache%';
+commit;
+
+connection con2;
+SHOW GLOBAL STATUS LIKE 'qcache%cache%';
+SELECT * FROM t1;
+SELECT * FROM (SELECT * FROM t1) a;
+SELECT * FROM (SELECT i2,SUM(i1) FROM t1 GROUP BY i2) b;
+
+disconnect con1;
+disconnect con2;
+--source include/wait_until_disconnected.inc
+connection default;
+DROP TABLE t1;
+
 SET GLOBAL query_cache_size = @query_cache_size.saved;

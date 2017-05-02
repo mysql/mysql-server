@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3895,14 +3895,10 @@ my_bool Query_cache::ask_handler_allowance(THD *thd,
     if (tables_used->uses_materialization())
     {
       /*
-        Currently all result tables are MyISAM/Innodb or HEAP. MyISAM/Innodb
-        allows caching unless table is under in a concurrent insert
-        (which never could happen to a derived table). HEAP always allows caching.
+        Skip the derived table itself, but process its underlying tables and
+        other tables that follow.
       */
-      DBUG_ASSERT(table->s->db_type() == heap_hton ||
-                  table->s->db_type() == myisam_hton ||
-                  table->s->db_type() == innodb_hton);
-      DBUG_RETURN(0);
+      continue;
     }
 
     /*
