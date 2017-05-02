@@ -2259,6 +2259,7 @@ Dbtup::stop_lcp_scan(Uint32 tableId, Uint32 fragId)
 
   fragPtr.p->m_lcp_scan_op = RNIL;
   scanPtr.p->m_fragPtrI = RNIL;
+  scanPtr.p->m_tableId = RNIL;
 }
 
 void
@@ -2307,6 +2308,7 @@ Dbtup::start_lcp_scan(Uint32 tableId,
   ndbrequire(scanPtr.p->m_fragPtrI == RNIL);
   new (scanPtr.p) ScanOp;
   scanPtr.p->m_fragPtrI = fragPtr.i;
+  scanPtr.p->m_tableId = tableId;
   scanPtr.p->m_state = ScanOp::First;
   scanPtr.p->m_last_seen = __LINE__;
   scanPtr.p->m_endPage = frag.m_max_page_cnt;

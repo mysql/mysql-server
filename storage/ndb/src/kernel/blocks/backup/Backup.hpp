@@ -282,7 +282,6 @@ public:
   Uint32 m_newestRestorableGci;
   Uint32 m_lcp_ptr_i;
   bool m_delete_lcp_files_ongoing;
-  bool m_wait_delete_lcp_file_processing;
   Uint32 m_enable_partial_lcp;
 
   struct Table {

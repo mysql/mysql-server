@@ -878,7 +878,7 @@ Dbtup::releaseFragPage(Fragrecord* fragPtrP,
   ndbrequire(next != 0 && prev != 0);
   ndbassert(((*prev) & FREE_PAGE_BIT) == FREE_PAGE_BIT);
 
-  bool all_part = false;
+  bool all_part = true;
   bool page_freed = false;
   Uint32 lcp_scanned_bit = (*next) & LCP_SCANNED_BIT;
   Uint32 last_lcp_state = (*prev) & LAST_LCP_FREE_BIT;
