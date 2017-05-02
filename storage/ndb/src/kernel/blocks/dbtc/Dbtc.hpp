@@ -1222,6 +1222,17 @@ public:
   typedef Ptr<TableRecord> TableRecordPtr;
 
   /**
+   * Specify the location of a fragment. The 'blockRef' is either
+   * the specific LQH where the fragId resides, or the SPJ block
+   * responsible for scaning this fragment, if 'viaSPJ'.
+   */ 
+  struct ScanFragLocation
+  {
+    Uint32 blockRef;
+    Uint32 fragId;
+  }; 
+
+  /**
    * There is max 16 ScanFragRec's for 
    * each scan started in TC. Each ScanFragRec is used by
    * a scan fragment "process" that scans one fragment at a time. 
@@ -1238,15 +1249,15 @@ public:
     /**
      * ScanFragState      
      *  WAIT_GET_PRIMCONF : Waiting for DIGETPRIMCONF when starting a new 
-     *   fragment scan
+     *   fragment scan (Obsolete; Checked for, but never set)
      *  LQH_ACTIVE : The scan process has sent a command to LQH and is
      *   waiting for the response
      *  LQH_ACTIVE_CLOSE : The scan process has sent close to LQH and is
-     *   waiting for the response
+     *   waiting for the response (Unused)
      *  DELIVERED : The result have been delivered, this scan frag process 
      *   are waiting for a SCAN_NEXTREQ to tell us to continue scanning
      *  RETURNING_FROM_DELIVERY : SCAN_NEXTREQ received and continuing scan
-     *   soon 
+     *   soon (Unused)
      *  QUEUED_FOR_DELIVERY : Result queued in TC and waiting for delivery
      *   to API
      *  COMPLETED : The fragment scan processes has completed and finally
@@ -1390,6 +1401,12 @@ public:
     ScanState scanState;
     Uint32 scanKeyInfoPtr;
     Uint32 scanAttrInfoPtr;
+
+    //ArrayPool<ScanFragLocation> m_fragLocationPool;
+
+    // Temp solution to storing a fragLocations-list
+    // Will be changed in later patches
+    ScanFragLocation fragLocations[256]; //Indexed with scanNextFragId
 
     ScanFragRec_dllist::Head m_running_scan_frags;  // Currently in LQH
     union { Uint32 m_queued_count; Uint32 scanReceivedOperations; };
@@ -1704,15 +1721,15 @@ private:
   void initScanTcrec(Signal* signal);
   Uint32 initScanrec(ScanRecordPtr,  const class ScanTabReq*,
                      const UintR scanParallel,
-                     const UintR noOprecPerFrag,
                      const Uint32 apiPtr[]);
   void initScanfragrec(Signal* signal);
   void releaseScanResources(Signal*, ScanRecordPtr, bool not_started = false);
   ScanRecordPtr seizeScanrec(Signal* signal);
-  bool startFragScanLab(Signal*, ScanFragRecPtr, ScanRecordPtr, bool &local);
 
-  void sendDihGetNodesReq(Signal*, ScanRecordPtr);
-  void sendScanFragReq(Signal*, ScanRecord*, ScanFragRecPtr, bool);
+  void sendDihGetNodesLab(Signal*, ScanRecordPtr);
+  bool sendDihGetNodeReq(Signal*, ScanRecordPtr, Uint32 scanFragId);
+  void sendFragScansLab(Signal*, ScanRecordPtr);
+  bool sendScanFragReq(Signal*, ScanRecordPtr, ScanFragRecPtr);
   void sendScanTabConf(Signal* signal, ScanRecordPtr);
   void close_scan_req(Signal*, ScanRecordPtr, bool received_req);
   void close_scan_req_send_conf(Signal*, ScanRecordPtr);
