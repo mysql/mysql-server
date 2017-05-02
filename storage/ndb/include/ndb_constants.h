@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -171,10 +171,6 @@
 
 #ifndef UINT32_MAX
 #define UINT32_MAX             (4294967295U)
-#endif
-
-#ifndef UINT32_HALF
-#define UINT32_HALF            (0x80000000U)
 #endif
 
 #ifndef INT32_MAX
