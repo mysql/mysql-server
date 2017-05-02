@@ -12,10 +12,10 @@ SET foreign_key_checks = 0;
 ALTER TABLE child ADD CONSTRAINT fk_1 FOREIGN KEY (a2)
 REFERENCES parent(b) ON DELETE SET NULL ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
-SELECT * FROM information_schema.INNODB_FOREIGN;
+SELECT * FROM information_schema.INNODB_FOREIGN ORDER BY ID;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
 test/fk_1	test/child	test/parent	1	0
-SELECT * FROM information_schema.INNODB_FOREIGN_COLS;
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID, POS;
 ID	FOR_COL_NAME	REF_COL_NAME	POS
 test/fk_1	a2	b	1
 ALTER TABLE child ADD CONSTRAINT fk_1 FOREIGN KEY (a2)
@@ -52,13 +52,13 @@ REFERENCES parent(a, b) ON DELETE CASCADE ON UPDATE CASCADE, ADD INDEX idx1(a1,a
 ALGORITHM = INPLACE;
 ALTER TABLE child ADD CONSTRAINT fk_3 FOREIGN KEY (a1, a2)
 REFERENCES parent(a, b) ON DELETE CASCADE ON UPDATE CASCADE;
-SELECT * FROM information_schema.INNODB_FOREIGN;
+SELECT * FROM information_schema.INNODB_FOREIGN ORDER BY ID;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
 test/fk_1	test/child	test/parent	1	0
 test/fk_10	test/child	test/parent	2	0
 test/fk_2	test/child	test/parent	2	0
 test/fk_3	test/child	test/parent	2	0
-SELECT * FROM information_schema.INNODB_FOREIGN_COLS;
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID, POS;
 ID	FOR_COL_NAME	REF_COL_NAME	POS
 test/fk_1	a2	b	1
 test/fk_10	a1	a	1
@@ -94,14 +94,14 @@ ALTER TABLE child ADD CONSTRAINT fk_4 FOREIGN KEY (a1, a2)
 REFERENCES parent(a, b) ON DELETE CASCADE ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
 SET DEBUG = '-d,innodb_test_open_ref_fail';
-SELECT * FROM information_schema.INNODB_FOREIGN;
+SELECT * FROM information_schema.INNODB_FOREIGN ORDER BY ID;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
 test/fk_1	test/child	test/parent	1	0
 test/fk_10	test/child	test/parent	2	0
 test/fk_2	test/child	test/parent	2	0
 test/fk_3	test/child	test/parent	2	0
 test/fk_4	test/child	test/parent	2	0
-SELECT * FROM information_schema.INNODB_FOREIGN_COLS;
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID, POS;
 ID	FOR_COL_NAME	REF_COL_NAME	POS
 test/fk_1	a2	b	1
 test/fk_10	a1	a	1
@@ -139,14 +139,14 @@ SHOW ERRORS;
 Level	Code	Message
 Error	1821	Failed to add the foreign key constaint. Missing index for constraint 'fk_40' in the foreign table '#child'
 SET DEBUG = '-d,innodb_test_no_foreign_idx';
-SELECT * FROM information_schema.INNODB_FOREIGN;
+SELECT * FROM information_schema.INNODB_FOREIGN ORDER BY ID;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
 test/fk_1	test/child	test/parent	1	0
 test/fk_10	test/child	test/parent	2	0
 test/fk_2	test/child	test/parent	2	0
 test/fk_3	test/child	test/parent	2	0
 test/fk_4	test/child	test/parent	2	0
-SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID;
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID, POS;
 ID	FOR_COL_NAME	REF_COL_NAME	POS
 test/fk_1	a2	b	1
 test/fk_10	a1	a	1
@@ -172,14 +172,14 @@ REFERENCES parent(a, b) ON DELETE CASCADE ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
 ERROR HY000: Failed to add the foreign key constraint on table 'child'. Incorrect options in FOREIGN KEY constraint 'test/fk_42'
 SET DEBUG = '-d,innodb_test_wrong_fk_option';
-SELECT * FROM information_schema.INNODB_FOREIGN;
+SELECT * FROM information_schema.INNODB_FOREIGN ORDER BY ID;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
 test/fk_1	test/child	test/parent	1	0
 test/fk_10	test/child	test/parent	2	0
 test/fk_2	test/child	test/parent	2	0
 test/fk_3	test/child	test/parent	2	0
 test/fk_4	test/child	test/parent	2	0
-SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID;
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID, POS;
 ID	FOR_COL_NAME	REF_COL_NAME	POS
 test/fk_1	a2	b	1
 test/fk_10	a1	a	1
@@ -207,7 +207,7 @@ ON DELETE SET NULL ON UPDATE CASCADE,
 ADD CONSTRAINT fk_6 FOREIGN KEY (a1, a2)
 REFERENCES parent(a, b) ON DELETE CASCADE ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
-SELECT * FROM information_schema.INNODB_FOREIGN;
+SELECT * FROM information_schema.INNODB_FOREIGN ORDER BY ID;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
 test/fk_1	test/child	test/parent	1	0
 test/fk_10	test/child	test/parent	2	0
@@ -216,7 +216,7 @@ test/fk_3	test/child	test/parent	2	0
 test/fk_4	test/child	test/parent	2	0
 test/fk_5	test/child	test/parent	1	0
 test/fk_6	test/child	test/parent	2	0
-SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID;
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID, POS;
 ID	FOR_COL_NAME	REF_COL_NAME	POS
 test/fk_1	a2	b	1
 test/fk_10	a1	a	1
@@ -252,10 +252,10 @@ child	CREATE TABLE `child` (
   KEY `fk_4` (`a2`),
   CONSTRAINT `fk_4` FOREIGN KEY (`a2`) REFERENCES `parent` (`b`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-SELECT * FROM information_schema.INNODB_FOREIGN;
+SELECT * FROM information_schema.INNODB_FOREIGN ORDER BY ID;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
 test/fk_4	test/child	test/parent	1	0
-SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID;
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID, POS;
 ID	FOR_COL_NAME	REF_COL_NAME	POS
 test/fk_4	a2	b	1
 SET foreign_key_checks = 1;
@@ -293,9 +293,9 @@ ON DELETE SET NULL ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
 ERROR HY000: Failed to add the foreign key constraint 'test/fk_1' to system tables
 SET DEBUG = '-d,innodb_test_cannot_add_fk_system';
-SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN ORDER BY ID;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
-SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID;
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID, POS;
 ID	FOR_COL_NAME	REF_COL_NAME	POS
 SELECT t2.name, t1.name FROM information_schema.innodb_columns t1, information_schema.innodb_tables t2 WHERE t1.table_id = t2.table_id AND t2.name LIKE "%child" ORDER BY t1.name;
 name	name
@@ -310,10 +310,10 @@ ALTER TABLE child ADD PRIMARY KEY idx (a3), CHANGE a1 a3 INT,
 ADD CONSTRAINT fk_1 FOREIGN KEY (a2) REFERENCES parent(b)
 ON DELETE SET NULL ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
-SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN ORDER BY ID;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
 test/fk_1	test/child	test/parent	1	0
-SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID;
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID, POS;
 ID	FOR_COL_NAME	REF_COL_NAME	POS
 test/fk_1	a2	b	1
 SELECT t2.name, t1.name FROM information_schema.innodb_columns t1, information_schema.innodb_tables t2 WHERE t1.table_id = t2.table_id AND t2.name LIKE "%child" ORDER BY t1.name;
@@ -340,10 +340,10 @@ ALTER TABLE child ADD PRIMARY KEY idx (a1),
 ADD CONSTRAINT fk_1 FOREIGN KEY (a2) REFERENCES parent(b)
 ON DELETE SET NULL ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
-SELECT * from information_schema.INNODB_FOREIGN;
+SELECT * from information_schema.INNODB_FOREIGN ORDER BY ID;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
 test/fk_1	test/child	test/parent	1	0
-SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID;
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID, POS;
 ID	FOR_COL_NAME	REF_COL_NAME	POS
 test/fk_1	a2	b	1
 SELECT t2.name, t1.name FROM information_schema.innodb_columns t1, information_schema.innodb_tables t2 WHERE t1.table_id = t2.table_id AND t2.name LIKE "%child" ORDER BY t1.name;
@@ -370,10 +370,10 @@ ALTER TABLE child CHANGE a1 a3 INT,
 ADD CONSTRAINT fk_1 FOREIGN KEY (a3) REFERENCES parent(b)
 ON DELETE SET NULL ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
-SELECT * from information_schema.INNODB_FOREIGN;
+SELECT * from information_schema.INNODB_FOREIGN ORDER BY ID;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
 test/fk_1	test/child	test/parent	1	0
-SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID;
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID, POS;
 ID	FOR_COL_NAME	REF_COL_NAME	POS
 test/fk_1	a3	b	1
 SELECT t2.name, t1.name FROM information_schema.innodb_columns t1, information_schema.innodb_tables t2 WHERE t1.table_id = t2.table_id AND t2.name LIKE "%child" ORDER BY t1.name;
@@ -426,11 +426,11 @@ child	CREATE TABLE `child` (
   CONSTRAINT `fk_a` FOREIGN KEY (`a2_new`) REFERENCES `parent` (`b`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `fk_b` FOREIGN KEY (`a1_new`) REFERENCES `parent` (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-SELECT * from information_schema.INNODB_FOREIGN;
+SELECT * from information_schema.INNODB_FOREIGN ORDER BY ID;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
 test/fk_a	test/child	test/parent	1	0
 test/fk_b	test/child	test/parent	1	0
-SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID;
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID, POS;
 ID	FOR_COL_NAME	REF_COL_NAME	POS
 test/fk_a	a2_new	b	1
 test/fk_b	a1_new	a	1
@@ -451,11 +451,11 @@ child	CREATE TABLE `child` (
   CONSTRAINT `fk_a` FOREIGN KEY (`a2_new`) REFERENCES `parent` (`b`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `fk_b` FOREIGN KEY (`a1_new`) REFERENCES `parent` (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-SELECT * from information_schema.INNODB_FOREIGN;
+SELECT * from information_schema.INNODB_FOREIGN ORDER BY ID;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
 test/fk_a	test/child	test/parent	1	0
 test/fk_b	test/child	test/parent	1	0
-SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID;
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID, POS;
 ID	FOR_COL_NAME	REF_COL_NAME	POS
 test/fk_a	a2_new	b	1
 test/fk_b	a1_new	a	1
@@ -479,14 +479,14 @@ child	CREATE TABLE `child` (
   CONSTRAINT `fk_new_2` FOREIGN KEY (`a2_new`) REFERENCES `parent` (`a`),
   CONSTRAINT `fk_new_3` FOREIGN KEY (`a3`) REFERENCES `parent` (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-SELECT * from information_schema.INNODB_FOREIGN;
+SELECT * from information_schema.INNODB_FOREIGN ORDER BY ID;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
 test/fk_a	test/child	test/parent	1	0
 test/fk_b	test/child	test/parent	1	0
 test/fk_new_1	test/child	test/parent	1	0
 test/fk_new_2	test/child	test/parent	1	0
 test/fk_new_3	test/child	test/parent	1	0
-SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID;
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID, POS;
 ID	FOR_COL_NAME	REF_COL_NAME	POS
 test/fk_a	a2_new	b	1
 test/fk_b	a1_new	a	1
@@ -510,9 +510,9 @@ child	CREATE TABLE `child` (
   `a3` int(11) DEFAULT NULL,
   KEY `tb` (`a2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-SELECT * from information_schema.INNODB_FOREIGN;
+SELECT * from information_schema.INNODB_FOREIGN ORDER BY ID;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
-SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID;
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID, POS;
 ID	FOR_COL_NAME	REF_COL_NAME	POS
 ALTER TABLE child ADD PRIMARY KEY idx (a1),
 ADD CONSTRAINT fk_new_1 FOREIGN KEY (a1) REFERENCES parent(b),
@@ -532,12 +532,12 @@ child	CREATE TABLE `child` (
   CONSTRAINT `fk_new_2` FOREIGN KEY (`a2`) REFERENCES `parent` (`a`),
   CONSTRAINT `fk_new_3` FOREIGN KEY (`a3`) REFERENCES `parent` (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-SELECT * from information_schema.INNODB_FOREIGN;
+SELECT * from information_schema.INNODB_FOREIGN ORDER BY ID;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
 test/fk_new_1	test/child	test/parent	1	0
 test/fk_new_2	test/child	test/parent	1	0
 test/fk_new_3	test/child	test/parent	1	0
-SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID;
+SELECT * FROM information_schema.INNODB_FOREIGN_COLS ORDER BY ID, POS;
 ID	FOR_COL_NAME	REF_COL_NAME	POS
 test/fk_new_1	a1	b	1
 test/fk_new_2	a2	a	1
@@ -565,11 +565,11 @@ ALTER TABLE `t2` ADD CONSTRAINT `fw` FOREIGN KEY (`c`) REFERENCES t3 (a);
 ALTER TABLE `t2` ADD CONSTRAINT `e` foreign key (`d`) REFERENCES t3(a);
 ALTER TABLE `t3` ADD CONSTRAINT `e` foreign key (`c`) REFERENCES `t2`(`c`) ON UPDATE SET NULL;
 ERROR HY000: Duplicate foreign key constraint name 'e'
-SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN ORDER BY ID;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
-test/fw	test/t2	test/t3	1	0
 test/e	test/t2	test/t3	1	0
-SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN_COLS ORDER BY ID;
+test/fw	test/t2	test/t3	1	0
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN_COLS ORDER BY ID, POS;
 ID	FOR_COL_NAME	REF_COL_NAME	POS
 test/e	d	a	1
 test/fw	c	a	1

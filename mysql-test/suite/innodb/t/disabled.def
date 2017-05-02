@@ -33,4 +33,5 @@ create_tablespace         : WL9535 disable it, need to check it deeper
 innodb_rename_index       : WL9535 disable it, need to check it deeper
 innodb-wl5980-discard     : WL9535 disable it, need to check it deeper
 create_tablespace_debug   : WL9535 disable it, need to check it deeper
-innodb.pct_cached_evict   : WL9535 disable it, need to check it deeper
+pct_cached_evict          : WL9535 disable it, need to check it deeper
+tablespace_per_table_not_windows : WL9535 disable it, need to check it deeper
