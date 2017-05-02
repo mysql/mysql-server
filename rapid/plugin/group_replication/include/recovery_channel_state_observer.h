@@ -31,9 +31,6 @@ public:
   /** Observer for receiver thread stops */
   int thread_stop(Binlog_relay_IO_param *param);
 
-  /** Observer for applier thread starts */
-  int applier_start(Binlog_relay_IO_param *param);
-
   /** Observer for applier thread stops */
   int applier_stop(Binlog_relay_IO_param *param, bool aborted);
 

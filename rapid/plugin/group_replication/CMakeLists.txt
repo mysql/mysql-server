@@ -47,7 +47,6 @@ SET(GROUP_REPLICATION_SOURCES
   src/recovery.cc
   src/recovery_channel_state_observer.cc
   src/applier_channel_state_observer.cc
-  src/asynchronous_channels_state_observer.cc
   src/recovery_message.cc
   src/recovery_state_transfer.cc
   src/replication_threads_api.cc

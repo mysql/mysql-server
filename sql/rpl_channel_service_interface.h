@@ -16,8 +16,6 @@
 #ifndef RPL_SERVICE_INTERFACE_INCLUDE
 #define RPL_SERVICE_INTERFACE_INCLUDE
 
-#include "rpl_mi.h"
-
 //Channel errors
 
 #define RPL_CHANNEL_SERVICE_RECEIVER_CONNECTION_ERROR      -1
@@ -376,16 +374,5 @@ bool channel_is_stopping(const char* channel, enum_channel_thread_types type);
     @retval false   If relaylog does not contain partial transaction.
 */
 bool is_partial_transaction_on_channel_relay_log(const char* channel);
-
-/**
-  Checks if any slave threads of any channel is running
-
-  @param[in]        thread_mask       type of slave thread- IO/SQL or any
-
-  @return
-    @retval          true               atleast one channel threads are running.
-    @retval          false              none of the the channels are running.
-*/
-bool is_any_slave_channel_running(int thread_mask);
 
 #endif //RPL_SERVICE_INTERFACE_INCLUDE

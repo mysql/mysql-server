@@ -768,26 +768,6 @@ Group_member_info_manager::decode(const uchar* to_decode, size_t length)
   return decoded_members;
 }
 
-void
-Group_member_info_manager::
-get_primary_member_uuid(std::string &primary_member_uuid)
-{
-  map<string, Group_member_info*>::iterator it= members->begin();
-
-  for (it= members->begin(); it != members->end(); it++)
-  {
-    Group_member_info* info= (*it).second;
-    if (info->get_role() == Group_member_info::MEMBER_ROLE_PRIMARY)
-    {
-      DBUG_ASSERT(primary_member_uuid.empty());
-      primary_member_uuid =info->get_uuid();
-    }
-  }
-
-  if (primary_member_uuid.empty() ||
-      Group_member_info::MEMBER_ERROR == local_member_info->get_recovery_status())
-    primary_member_uuid= "UNDEFINED";
-}
 
 Group_member_info_manager_message::Group_member_info_manager_message()
   : Plugin_gcs_message(CT_MEMBER_INFO_MANAGER_MESSAGE)

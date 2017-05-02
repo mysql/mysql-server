@@ -29,7 +29,6 @@
 #include "read_mode_handler.h"
 #include "delayed_plugin_initialization.h"
 #include "gcs_operations.h"
-#include "asynchronous_channels_state_observer.h"
 
 #include "plugin_constants.h"
 #include "plugin_server_include.h"
@@ -63,7 +62,6 @@ extern Applier_module *applier_module;
 extern Recovery_module *recovery_module;
 extern Group_member_info_manager_interface *group_member_mgr;
 extern Channel_observation_manager *channel_observation_manager;
-extern Asynchronous_channels_state_observer *asynchronous_channels_state_observer;
 //Lock for the applier and recovery module to prevent the race between STOP
 //Group replication and ongoing transactions.
 extern Shared_writelock *shared_plugin_stop_lock;
@@ -95,8 +93,6 @@ int terminate_plugin_modules();
 bool get_allow_local_lower_version_join();
 bool get_allow_local_disjoint_gtids_join();
 ulong get_transaction_size_limit();
-void initialize_asynchronous_channels_observer();
-void terminate_asynchronous_channels_observer();
 
 //Plugin public methods
 int plugin_group_replication_init(MYSQL_PLUGIN plugin_info);

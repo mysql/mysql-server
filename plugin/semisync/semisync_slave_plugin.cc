@@ -150,11 +150,6 @@ static int repl_semi_slave_io_end(Binlog_relay_IO_param *param)
   return repl_semisync.slaveStop(param);
 }
 
-int repl_semi_slave_sql_start(Binlog_relay_IO_param *param)
-{
-  return 0;
-}
-
 static int repl_semi_slave_sql_stop(Binlog_relay_IO_param*, bool)
 {
   return 0;
@@ -216,7 +211,6 @@ Binlog_relay_IO_observer relay_io_observer = {
 
   repl_semi_slave_io_start,	// start
   repl_semi_slave_io_end,	// stop
-  repl_semi_slave_sql_start,    // start sql thread
   repl_semi_slave_sql_stop,     // stop sql thread
   repl_semi_slave_request_dump,	// request_transmit
   repl_semi_slave_read_event,	// after_read_event

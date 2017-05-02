@@ -49,8 +49,6 @@ Recovery_module *recovery_module= NULL;
 Gcs_operations *gcs_module= NULL;
 //The channel observation module
 Channel_observation_manager *channel_observation_manager= NULL;
-//The Single primary channel observation module
-Asynchronous_channels_state_observer *asynchronous_channels_state_observer= NULL;
 //Lock to check if the plugin is running or not.
 Checkable_rwlock *plugin_stop_lock;
 //Class to coordinate access to the plugin stop lock
@@ -396,27 +394,6 @@ int plugin_group_replication_start()
   if ((error= configure_group_member_manager(hostname, uuid, port,
                                              server_version)))
     goto err; /* purecov: inspected */
-
-  /* To stop group replication to start on secondary member with single primary-
-     mode, when any async channels are running, we verify whether member is not
-     bootstrapping. As only when the member is bootstrapping, it can be the
-     primary leader on a single primary member context.
-
-   */
-  if (single_primary_mode_var && !bootstrap_group_var)
-  {
-    if (is_any_slave_channel_running(
-        CHANNEL_RECEIVER_THREAD | CHANNEL_APPLIER_THREAD))
-    {
-      error= 1;
-      log_message(MY_ERROR_LEVEL, "Can't start group replication on secondary"
-                                  " member with single primary-mode while"
-                                  " asynchronous replication channels are"
-                                  " running.");
-      goto err; /* purecov: inspected */
-    }
-  }
-
   configure_compatibility_manager();
   DBUG_EXECUTE_IF("group_replication_compatibility_rule_error",
                   {
@@ -471,8 +448,6 @@ int plugin_group_replication_start()
     error= GROUP_REPLICATION_REPLICATION_APPLIER_INIT_ERROR;
     goto err;
   }
-
-  initialize_asynchronous_channels_observer();
 
   DBUG_EXECUTE_IF("group_replication_read_mode_error",
                   { read_mode_handler->set_to_fail(); };);
@@ -745,8 +720,6 @@ int terminate_plugin_modules()
                 "On shutdown there was a timeout on the Group Replication"
                 " applier termination.");
   }
-
-  terminate_asynchronous_channels_observer();
 
   if (!server_shutdown_status && server_engine_initialized())
   {
@@ -1279,26 +1252,6 @@ int start_group_communication()
     DBUG_RETURN(GROUP_REPLICATION_COMMUNICATION_LAYER_JOIN_ERROR);
 
   DBUG_RETURN(0);
-}
-
-void initialize_asynchronous_channels_observer()
-{
-  if (single_primary_mode_var)
-  {
-    asynchronous_channels_state_observer= new Asynchronous_channels_state_observer();
-    channel_observation_manager
-        ->register_channel_observer(asynchronous_channels_state_observer);
-  }
-}
-
-void terminate_asynchronous_channels_observer()
-{
-  if (asynchronous_channels_state_observer != NULL)
-  {
-    channel_observation_manager->unregister_channel_observer(asynchronous_channels_state_observer);
-    delete asynchronous_channels_state_observer;
-    asynchronous_channels_state_observer= NULL;
-  }
 }
 
 int initialize_recovery_module()
@@ -2558,8 +2511,28 @@ static int show_primary_member(MYSQL_THD, SHOW_VAR *var, char *buff)
   if (group_member_mgr && single_primary_mode_var &&
       plugin_is_group_replication_running())
   {
-    string primary_member_uuid;
-    group_member_mgr->get_primary_member_uuid(primary_member_uuid);
+    std::vector<Group_member_info*>* members=
+      group_member_mgr->get_all_members();
+    std::vector<Group_member_info*>::iterator it;
+    std::string primary_member_uuid;
+
+    for (it= members->begin(); it != members->end(); it++)
+    {
+      Group_member_info* info= *it;
+      if (info->get_role() == Group_member_info::MEMBER_ROLE_PRIMARY)
+      {
+        DBUG_ASSERT(primary_member_uuid.empty());
+        primary_member_uuid =info->get_uuid();
+      }
+
+      // always delete the copies that were in the vector
+      delete info;
+    }
+    if (primary_member_uuid.empty() ||
+        Group_member_info::MEMBER_ERROR == local_member_info->get_recovery_status())
+      primary_member_uuid= "UNDEFINED";
+
+    delete members;
 
     strncpy(buff, primary_member_uuid.c_str(), SHOW_VAR_FUNC_BUFF_SIZE);
     buff[SHOW_VAR_FUNC_BUFF_SIZE - 1] = 0;
