@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1508,6 +1508,24 @@ TESTCASE("MixedJoinDiskWait", "Simulate disk wait during pushed joins"){
   INITIALIZER(runLoadTable);
   TC_PROPERTY("ErrorCode", 4035);
   STEPS(runJoin, 4);
+  FINALIZER(runClearTable);
+}
+TESTCASE("MultiFrag_OOM",
+         "'Out of LongMessageBuffer' during 'import' of MultiFrag list")
+{
+  INITIALIZER(runLoadTable);
+  TC_PROPERTY("ErrorCode", 8116);
+  TC_PROPERTY("AcceptError", 218);
+  STEP(runJoin);
+  FINALIZER(runClearTable);
+}
+TESTCASE("MultiFrag_OOM_rand",
+         "Random 'Out of LongMessageBuffer' during 'import' of MultiFrag list")
+{
+  INITIALIZER(runLoadTable);
+  TC_PROPERTY("ErrorCode", 8117);
+  TC_PROPERTY("AcceptError", 218);
+  STEP(runJoin);
   FINALIZER(runClearTable);
 }
 TESTCASE("NF_Join", ""){
