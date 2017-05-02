@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,6 +26,7 @@
 #include <signaldata/DumpStateOrd.hpp>
 #include <NdbConfig.hpp>
 #include <BlockNumbers.h>
+#include <NdbHost.h>
 
 #define CHK1(b) \
   if (!(b)) { \
@@ -3648,7 +3649,7 @@ runAccCommitOrderOps(NDBT_Context* ctx, NDBT_Step* step)
   const int records = ctx->getNumRecords();
   int result = NDBT_OK;
 
-  unsigned seed = (unsigned)(getpid() ^ stepNo);
+  unsigned seed = (unsigned)(NdbHost_GetProcessId() ^ stepNo);
   ndb_srand(seed);
 
   int loop = 0;

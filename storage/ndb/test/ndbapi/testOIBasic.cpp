@@ -30,6 +30,7 @@
 #include <NdbCondition.h>
 #include <NdbThread.h>
 #include <NdbTick.h>
+#include <NdbHost.h>
 #include <NdbSleep.h>
 #include <my_sys.h>
 #include <NdbSqlUtil.hpp>
@@ -5746,9 +5747,9 @@ runtest(Par par)
   int totret = 0;
   if (par.m_seed == -1) {
     // good enough for daily run
-    ushort seed = (ushort)getpid();
+    const int seed = NdbHost_GetProcessId();
     LL0("random seed: " << seed);
-    srandom((uint)seed);
+    srandom(seed);
   } else if (par.m_seed != 0) {
     LL0("random seed: " << par.m_seed);
     srandom(par.m_seed);

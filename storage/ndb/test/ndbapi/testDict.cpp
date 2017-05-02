@@ -31,6 +31,7 @@
 #include <NdbBackup.hpp>
 #include <NdbSqlUtil.hpp>
 #include <NdbEnv.h>
+#include <NdbHost.h>
 #include <ndb_rand.h>
 #include <Bitmask.hpp>
 #include <../src/kernel/ndbd.hpp>
@@ -7785,7 +7786,7 @@ runSchemaTrans(NDBT_Context* ctx, NDBT_Step* step)
   }
 
   if (st_random_seed == -1)
-    st_random_seed = (short)getpid();
+    st_random_seed = NdbHost_GetProcessId();
   if (st_random_seed != 0) {
     g_err << "random seed: " << st_random_seed << endl;
     ndb_srand(st_random_seed);
@@ -11161,7 +11162,7 @@ static void
 fk_env_options(Fkdef& d)
 {
   // random seed
-  int seed = (int)getpid();
+  int seed = NdbHost_GetProcessId();
 #ifdef NDB_USE_GET_ENV
   {
     const char* p = NdbEnv_GetEnv("RANDOM_SEED", (char*)0, 0);

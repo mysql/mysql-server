@@ -1589,6 +1589,7 @@ NdbSqlUtil::pack_timestamp2(const Timestamp2& s, uchar* d, uint prec)
 #include <ndb_rand.h>
 #include <NdbOut.hpp>
 #include <NdbEnv.h>
+#include <NdbHost.h>
 
 #define chk1(x) \
   do { if (x) break; ndbout << "line " << __LINE__ << ": " << #x << endl; \
@@ -2023,7 +2024,7 @@ testmain()
     ll0("random seed: loop number");
   else {
     if (seed < 0)
-      seed = getpid();
+      seed = NdbHost_GetProcessId();
     ll0("random seed " << seed);
     ndb_srand(seed);
   }

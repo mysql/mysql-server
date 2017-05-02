@@ -33,9 +33,6 @@
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
-#ifdef _WIN32
-#include <process.h>
-#endif
 
 /*
   Custom version of standard offsetof() macro which can be used to get
