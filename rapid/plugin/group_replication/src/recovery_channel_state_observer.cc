@@ -33,6 +33,12 @@ int Recovery_channel_state_observer::thread_stop(Binlog_relay_IO_param *param)
 }
 
 int Recovery_channel_state_observer::
+applier_start(Binlog_relay_IO_param*)
+{
+  return 0;
+}
+
+int Recovery_channel_state_observer::
 applier_stop(Binlog_relay_IO_param *param, bool aborted)
 {
   recovery_state_transfer->inform_of_applier_stop(param->thread_id, aborted);

@@ -54,4 +54,3 @@ void unblock_waiting_transactions()
     }
   }
 }
-

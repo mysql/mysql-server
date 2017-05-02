@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,17 +13,16 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#ifndef RECOVERY_CHANNEL_STATE_OBSERVER_INCLUDE
-#define	RECOVERY_CHANNEL_STATE_OBSERVER_INCLUDE
+#ifndef SINGLE_PRIMARY_CHANNEL_STATE_OBSERVER_INCLUDE
+#define	SINGLE_PRIMARY_CHANNEL_STATE_OBSERVER_INCLUDE
 
 #include "channel_observation_manager.h"
 #include "my_inttypes.h"
-#include "recovery_state_transfer.h"
 
-class Recovery_channel_state_observer : public Channel_state_observer
+class Asynchronous_channels_state_observer : public Channel_state_observer
 {
 public:
-  Recovery_channel_state_observer(Recovery_state_transfer* recovery_state_transfer);
+  Asynchronous_channels_state_observer();
 
   /** Observer for receiver thread starts */
   int thread_start(Binlog_relay_IO_param *param);
@@ -39,7 +38,7 @@ public:
 
   /**  Observer for when a new transmission from a another server is requested*/
   int before_request_transmit(Binlog_relay_IO_param *param,
-                            uint32 flags);
+                              uint32 flags);
 
   /** Observer for whenever a event is read by the receiver thread*/
   int after_read_event(Binlog_relay_IO_param *param,
@@ -55,10 +54,7 @@ public:
 
   /** Observer for whenever a reset slave is executed */
   int after_reset_slave(Binlog_relay_IO_param *param);
-private:
-  Recovery_state_transfer *recovery_state_transfer;
+
 };
 
-#endif /* RECOVERY_CHANNEL_STATE_OBSERVER_INCLUDE */
-
-
+#endif /* SINGLE_PRIMARY_CHANNEL_STATE_OBSERVER_INCLUDE */
