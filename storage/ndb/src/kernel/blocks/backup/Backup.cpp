@@ -163,7 +163,6 @@ Backup::execSTTOR(Signal* signal)
     m_lcp_ptr_i = RNIL;
     m_newestRestorableGci = 0;
     m_delete_lcp_files_ongoing = false;
-    m_wait_delete_lcp_file_processing = false;
     m_reset_disk_speed_time = NdbTick_getCurrentTicks();
     m_reset_delay_used = Backup::DISK_SPEED_CHECK_DELAY;
     signal->theData[0] = BackupContinueB::RESET_DISK_SPEED_COUNTER;
@@ -9726,25 +9725,7 @@ Backup::execLCP_PREPARE_REQ(Signal* signal)
     DEB_LCP(("(%u)TAGS Start new LCP, id: %u", instance(), req.backupId));
     LocalDeleteLcpFile_list queue(c_deleteLcpFilePool,
                                   m_delete_lcp_file_head);
-    if (!queue.isEmpty())
-    {
-      jam();
-      /**
-       * In most cases the delete file processing have been completed
-       * before we come here, but to simplify processing of LCPs we
-       * wait for this delete file processing to complete before we
-       * let the new LCP start its processing.
-       * We also ensure that old LCP files are deleted as part of restart
-       * processing and also as part of drop table processing.
-       *
-       * The processing is already ongoing through CONTINUEB signals, so
-       * no need to start it.
-       */
-      DEB_LCP(("Wait delete LCP file processing before starting LCP"));
-      ndbrequire(false);
-      m_wait_delete_lcp_file_processing = true;
-      return;
-    }
+    ndbrequire(queue.isEmpty())
   }
 
   /**
@@ -11943,35 +11924,6 @@ Backup::delete_lcp_file_processing(Signal *signal, Uint32 ptrI)
       sendEND_LCPCONF(signal, ptr);
     }
     m_delete_lcp_files_ongoing = false;
-    if ((m_wait_delete_lcp_file_processing &&
-         ptr.p->prepareState != PREPARE_DROP_CLOSE) ||
-        ptr.p->prepareState == PREPARE_DROP)
-    {
-      /**
-       * We stopped at the first fragment in the LCP to wait for
-       * completion of deletion of files from previous LCP to
-       * simplify LCP handling. We are now ready to start the
-       * new LCP, this continues LCP_PREPARE_REQ procesing for
-       * first fragment.
-       *
-       * We use this route also when we find the obscure case of
-       * finding LCP files belonging to an already dropped table.
-       * We keep the code simple here and even wait until the
-       * queue is completely empty also for this special case to
-       * avoid any unnecessary checks. We then proceed with normal
-       * LCP_PREPARE_REQ handling for both cases.
-       */
-      jam();
-      ndbrequire(false);
-      m_wait_delete_lcp_file_processing = false;
-      ptr.p->prepareState = PREPARE_READ_CTL_FILES;
-      DEB_LCP(("(%u)TAGT Completed wait delete files for new LCP or"
-               " drop case",
-               instance()));
-      lcp_open_ctl_file(signal, ptr, 0);
-      lcp_open_ctl_file(signal, ptr, 1);
-      return;
-    }
     DEB_LCP(("(%u)TAGB Completed delete files, queue empty, no LCP wait",
              instance()));
     return;
@@ -12730,8 +12682,7 @@ Backup::execLCP_STATUS_REQ(Signal* signal)
       found_lcp = true;
       
       LcpStatusConf::LcpState state = LcpStatusConf::LCP_IDLE;
-      if (m_wait_delete_lcp_file_processing ||
-          ptr.p->m_wait_end_lcp)
+      if (ptr.p->m_wait_end_lcp)
       {
         jam();
         state = LcpStatusConf::LCP_WAIT_GCI_TO_DELETE_FILES;

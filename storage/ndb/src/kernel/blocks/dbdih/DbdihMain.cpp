@@ -18662,12 +18662,9 @@ Dbdih::resetReplicaSr(TabRecordPtr tabPtr){
 	   */
 	  {
 	    CreateReplicaRecord createReplica;
-	    ConstPtr<ReplicaRecord> constReplicaPtr;
-	    constReplicaPtr.i = replicaPtr.i;
-	    constReplicaPtr.p = replicaPtr.p;
 	    if (tabPtr.p->tabStorage != TabRecord::ST_NORMAL ||
 		setup_create_replica(fragPtr,
-				     &createReplica, constReplicaPtr))
+				     &createReplica, replicaPtr))
 	    {
 	      jam();
 	      removeOldStoredReplica(fragPtr, replicaPtr);
@@ -23147,7 +23144,7 @@ void Dbdih::findMinGci(ReplicaRecordPtr fmgReplicaPtr,
   return;
 }//Dbdih::findMinGci()
 
-bool Dbdih::findStartGci(ConstPtr<ReplicaRecord> replicaPtr,
+bool Dbdih::findStartGci(Ptr<ReplicaRecord> replicaPtr,
                          Uint32 stopGci,
                          Uint32& startGci,
                          Uint32& lcpNo) 
@@ -23201,8 +23198,12 @@ bool Dbdih::findStartGci(ConstPtr<ReplicaRecord> replicaPtr,
   /* --------------------------------------------------------------------- */
   startGci = replicaPtr.p->initialGci;
   jam();
-  jamLine(Uint16(replicaPtr.p->nextLcp));
-  ndbrequire(replicaPtr.p->nextLcp == 0);
+  /**
+   * It is possible that we have saved an LCP that from DIH point of view isn't
+   * completed before the crash, so we set the nextLcp to 0 to start from
+   * 0 again.
+   */
+  replicaPtr.p->nextLcp = 0;
   return false;
 }//Dbdih::findStartGci()
 
@@ -25008,7 +25009,7 @@ void Dbdih::removeTooNewCrashedReplicas(ReplicaRecordPtr rtnReplicaPtr, Uint32 l
 bool
 Dbdih::setup_create_replica(FragmentstorePtr fragPtr,
 			    CreateReplicaRecord* createReplicaPtrP,
-			    ConstPtr<ReplicaRecord> replicaPtr)
+			    Ptr<ReplicaRecord> replicaPtr)
 {
   createReplicaPtrP->dataNodeId = replicaPtr.p->procNode;
   createReplicaPtrP->replicaRec = replicaPtr.i;
@@ -25105,9 +25106,6 @@ void Dbdih::searchStoredReplicas(FragmentstorePtr fragPtr)
     jam();
     c_replicaRecordPool.getPtr(replicaPtr);
     nextReplicaPtrI = replicaPtr.p->nextPool;
-    ConstPtr<ReplicaRecord> constReplicaPtr;
-    constReplicaPtr.i = replicaPtr.i;
-    constReplicaPtr.p = replicaPtr.p;
     NodeRecordPtr nodePtr;
     nodePtr.i = replicaPtr.p->procNode;
     ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
@@ -25133,7 +25131,7 @@ void Dbdih::searchStoredReplicas(FragmentstorePtr fragPtr)
 	 */
 	ndbrequire(setup_create_replica(fragPtr,
 					createReplicaPtr.p, 
-					constReplicaPtr));
+					replicaPtr));
 	break;
       }
       default:

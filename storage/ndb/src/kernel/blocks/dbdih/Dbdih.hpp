@@ -1637,7 +1637,7 @@ private:
   void findMinGci(ReplicaRecordPtr fmgReplicaPtr,
                   Uint32& keeGci,
                   Uint32& oldestRestorableGci);
-  bool findStartGci(ConstPtr<ReplicaRecord> fstReplicaPtr,
+  bool findStartGci(Ptr<ReplicaRecord> fstReplicaPtr,
                     Uint32 tfstStopGci,
                     Uint32& tfstStartGci,
                     Uint32& tfstLcp);
@@ -1704,7 +1704,7 @@ private:
                            ReplicaRecordPtr replicaPtr);
   void searchStoredReplicas(FragmentstorePtr regFragptr);
   bool setup_create_replica(FragmentstorePtr, CreateReplicaRecord*,
-			    ConstPtr<ReplicaRecord>);
+			    Ptr<ReplicaRecord>);
   void updateNodeInfo(FragmentstorePtr regFragptr);
 
 //------------------------------------
