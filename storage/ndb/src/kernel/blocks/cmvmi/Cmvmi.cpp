@@ -783,7 +783,11 @@ Cmvmi::init_global_page_pool()
   {
     Uint32 ptrI;
     Uint32 cnt = rl.m_max;
-    m_ctx.m_mm.alloc_pages(RG_DISK_PAGE_BUFFER, &ptrI, &cnt, 1);
+    m_ctx.m_mm.alloc_pages(RG_DISK_PAGE_BUFFER,
+                           &ptrI,
+                           &cnt,
+                           1,
+                           Ndbd_mem_manager::NDB_ZONE_LE_30);
     ndbrequire(cnt);
     for (Uint32 i = 0; i<cnt; i++)
     {
