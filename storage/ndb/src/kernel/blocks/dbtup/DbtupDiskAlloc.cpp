@@ -458,8 +458,13 @@ Dbtup::restart_setup_page(Ptr<Fragrecord> fragPtr,
 
     if (alloc.calc_page_free_bits(real_free) != committed)
     {
+      Uint64 page_lsn = 0;
+      page_lsn += pagePtr.p->m_page_header.m_page_lsn_hi;
+      page_lsn <<= 32;
+      page_lsn += pagePtr.p->m_page_header.m_page_lsn_lo;
       g_eventLogger->info("(%u)page(%u,%u):%u, calc_free_bits: %u,"
-                          " committed: %u, uncommitted: %u, free_space: %u",
+                          " committed: %u, uncommitted: %u, free_space: %u"
+                          ", page_lsn: %llu",
                           instance(),
                           page.m_file_no,
                           page.m_page_no,
@@ -467,7 +472,8 @@ Dbtup::restart_setup_page(Ptr<Fragrecord> fragPtr,
                           alloc.calc_page_free_bits(real_free),
                           committed,
                           uncommitted,
-                          real_free);
+                          real_free,
+                          page_lsn);
     }
     ddassert(alloc.calc_page_free_bits(real_free) == committed);
     if (prealloc)
@@ -2277,25 +2283,23 @@ Dbtup::disk_restart_undo_callback(Signal* signal,
   }
 
   Uint32 create_table_version = pagePtr.p->m_create_table_version;
-  Uint32 page_version = ntohl(pagePtr.p->m_ndb_version);
+  Uint32 page_version = pagePtr.p->m_ndb_version;
 
-  if (page_version >= NDB_DISK_V2)
+  ndbrequire(page_version >= NDB_DISK_V2);
+  if (create_table_version !=
+        c_lqh->getCreateSchemaVersion(tableId))
   {
-    if (create_table_version !=
-          c_lqh->getCreateSchemaVersion(tableId))
-    {
-      jam();
-      DEB_UNDO(("UNDO fragment null %u/%u, old,new=(%u,%u), page(%u,%u).%u",
-                 tableId,
-                 fragId,
-                 create_table_version,
-                 c_lqh->getCreateSchemaVersion(tableId),
-                 undo->m_key.m_file_no,
-                 undo->m_key.m_page_no,
-                 undo->m_key.m_page_idx));
-      disk_restart_undo_next(signal);
-      return;
-    }
+    jam();
+    DEB_UNDO(("UNDO fragment null %u/%u, old,new=(%u,%u), page(%u,%u).%u",
+               tableId,
+               fragId,
+               create_table_version,
+               c_lqh->getCreateSchemaVersion(tableId),
+               undo->m_key.m_file_no,
+               undo->m_key.m_page_no,
+               undo->m_key.m_page_idx));
+    disk_restart_undo_next(signal);
+    return;
   }
 
   getFragmentrec(undo->m_fragment_ptr, fragId, undo->m_table_ptr.p);
@@ -2422,7 +2426,6 @@ Dbtup::disk_restart_undo_callback(Signal* signal,
       jamEntry();
       disk_restart_undo_page_bits(signal, undo);
     }
-
   }
   else
   {
@@ -2613,14 +2616,19 @@ Dbtup::disk_restart_undo_page_bits(Signal* signal, Apply_undo* undo)
                           c_lqh->getCreateSchemaVersion(fragPtrP->fragTableId),
 			  fragPtrP->m_tablespace_id);
 
-  DEB_EXTENT_BITS(("(%u)tab(%u,%u), page(%u,%u):%u new_bits: %u",
+  DEB_EXTENT_BITS(("(%u)tab(%u,%u), page(%u,%u):%u new_bits: %u,"
+                   " free_space: %u, page_tab(%u,%u).%u",
                   instance(),
                   fragPtrP->fragTableId,
                   fragPtrP->fragmentId,
                   pageP->m_file_no,
                   pageP->m_page_no,
                   undo->m_page_ptr.i,
-                  new_bits));
+                  new_bits,
+                  free,
+                  pageP->m_table_id,
+                  pageP->m_fragment_id,
+                  pageP->m_create_table_version));
 
   tsman.restart_undo_page_free_bits(&undo->m_key, new_bits);
   jamEntry();
