@@ -91,9 +91,10 @@ connection con5;
 # - drop table
 --send drop table t5
 
-connection con6;
+#TODO: NewDD: Re-enable after WL9535
+#connection con6;
 # - alter table ... discard tablespace
---send alter table t6 discard tablespace
+#--send alter table t6 discard tablespace
 
 connection con7;
 # - drop database
@@ -127,8 +128,8 @@ connection con4;
 connection con5;
 --reap
 
-connection con6;
---reap
+#connection con6;
+#--reap
 
 connection con7;
 --reap
