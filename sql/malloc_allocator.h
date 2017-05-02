@@ -33,21 +33,26 @@
   internally by STL container classes.
 
   Example usage:
-  vector<int, Malloc_allocator<int> >
+  vector<int, Malloc_allocator<int>>
     v((Malloc_allocator<int>(PSI_NOT_INSTRUMENTED)));
+
+  If the type is complicated, you can just write Malloc_allocator<>(psi_key)
+  as a shorthand for Malloc_allocator<My_complicated_type>(psi_key), as all
+  Malloc_allocator instances are implicitly convertible to each other
+  and there is a default template parameter.
 
   @note allocate() throws std::bad_alloc() similarly to the default
   STL memory allocator. This is necessary - STL functions which allocates
   memory expects it. Otherwise these functions will try to use the memory,
-  leading to seg faults if memory allocation was not successful.
+  leading to segfaults if memory allocation was not successful.
 
-  @note This allocator cannot be used for std::basic_string
-  because of this libstd++ bug:
+  @note This allocator cannot be used for std::basic_string before GCC 5
+  because of this libstdc++ bug:
   http://gcc.gnu.org/bugzilla/show_bug.cgi?id=56437
   "basic_string assumes that allocators are default-constructible"
 */
 
-template <class T> class Malloc_allocator
+template <class T = void *> class Malloc_allocator
 {
   // This cannot be const if we want to be able to swap.
   PSI_memory_key m_key;

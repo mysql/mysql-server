@@ -19,6 +19,10 @@
 
 #include "mysql/mysql_lex_string.h"
 
+#ifdef __cplusplus
+#include <string>
+#endif
+
 /*
   LEX_STRING -- a pair of a C-string and its length.
   (it's part of the plugin API as a MYSQL_LEX_STRING)
@@ -27,5 +31,19 @@
 
 typedef struct st_mysql_lex_string LEX_STRING;
 typedef struct st_mysql_const_lex_string LEX_CSTRING;
+
+#ifdef __cplusplus
+
+static inline std::string to_string(const LEX_STRING &str)
+{
+  return std::string(str.str, str.length);
+}
+
+static inline std::string to_string(const LEX_CSTRING &str)
+{
+  return std::string(str.str, str.length);
+}
+
+#endif  // defined(__cplusplus)
 
 #endif

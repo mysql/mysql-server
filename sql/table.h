@@ -624,7 +624,7 @@ struct TABLE_SHARE
   TABLE_CATEGORY table_category;
 
   /* hash of field names (contains pointers to elements of field array) */
-  HASH	name_hash;			/* hash of field names */
+  collation_unordered_map<std::string, Field**> *name_hash{nullptr};
   MEM_ROOT mem_root;
   TYPELIB keynames;			/* Pointers to keynames */
   TYPELIB *intervals;			/* pointer to interval info */

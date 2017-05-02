@@ -41,22 +41,6 @@ PSI_mutex_info Table_cache::m_mutex_keys[]= {
 #endif
 
 
-static const uchar *table_cache_key(const uchar *record,
-                                    size_t *length)
-{
-  TABLE_SHARE *share= ((Table_cache_element*)record)->get_share();
-  *length= share->table_cache_key.length;
-  return (uchar*) share->table_cache_key.str;
-}
-
-
-static void table_cache_free_entry(void *arg)
-{
-  Table_cache_element *element= pointer_cast<Table_cache_element*>(arg);
-  delete element;
-}
-
-
 /**
   Initialize instance of table cache.
 
@@ -69,16 +53,6 @@ bool Table_cache::init()
   mysql_mutex_init(m_lock_key, &m_lock, MY_MUTEX_INIT_FAST);
   m_unused_tables= NULL;
   m_table_count= 0;
-
-  if (my_hash_init(&m_cache, &my_charset_bin,
-                   table_cache_size_per_instance, 0,
-                   table_cache_key, table_cache_free_entry,
-                   0,
-                   PSI_INSTRUMENT_ME))
-  {
-    mysql_mutex_destroy(&m_lock);
-    return true;
-  }
   return false;
 }
 
@@ -87,7 +61,6 @@ bool Table_cache::init()
 
 void Table_cache::destroy()
 {
-  my_hash_free(&m_cache);
   mysql_mutex_destroy(&m_lock);
 }
 
@@ -185,10 +158,9 @@ void Table_cache::print_tables()
 
   static_assert(TL_WRITE_ONLY+1 == array_elements(lock_descriptions), "");
 
-  for (uint idx= 0; idx < m_cache.records; idx++)
+  for (const auto &key_and_value : m_cache)
   {
-    Table_cache_element *el=
-      (Table_cache_element*) my_hash_element(&m_cache, idx);
+    Table_cache_element *el= key_and_value.second.get();
 
     Table_cache_element::TABLE_list::Iterator it(el->used_tables);
     TABLE *entry;

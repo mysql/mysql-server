@@ -2178,24 +2178,32 @@ deallocate prepare abc;
 
 create procedure proc_1() flush tables;
 flush tables;
+--sorted_result
 show open tables from mysql;
 select Host, User from mysql.user limit 0;
 select Host, Db from mysql.db limit 0;
+--sorted_result
 show open tables from mysql;
 call proc_1();
+--sorted_result
 show open tables from mysql;
 select Host, User from mysql.user limit 0;
 select Host, Db from mysql.db limit 0;
+--sorted_result
 show open tables from mysql;
 call proc_1();
+--sorted_result
 show open tables from mysql;
 select Host, User from mysql.user limit 0;
 select Host, Db from mysql.db limit 0;
+--sorted_result
 show open tables from mysql;
 call proc_1();
+--sorted_result
 show open tables from mysql;
 select Host, User from mysql.user limit 0;
 select Host, Db from mysql.db limit 0;
+--sorted_result
 show open tables from mysql;
 flush tables;
 delimiter |;
@@ -2215,24 +2223,31 @@ drop procedure proc_1;
 flush tables;
 select Host, User from mysql.user limit 0;
 select Host, Db from mysql.db limit 0;
+--sorted_result
 show open tables from mysql;
 --enable_ps_protocol
 
 prepare abc from "flush tables";
 execute abc;
+--sorted_result
 show open tables from mysql;
 select Host, User from mysql.user limit 0;
 select Host, Db from mysql.db limit 0;
+--sorted_result
 show open tables from mysql;
 execute abc;
+--sorted_result
 show open tables from mysql;
 select Host, User from mysql.user limit 0;
 select Host, Db from mysql.db limit 0;
+--sorted_result
 show open tables from mysql;
 execute abc;
+--sorted_result
 show open tables from mysql;
 select Host, User from mysql.user limit 0;
 select Host, Db from mysql.db limit 0;
+--sorted_result
 show open tables from mysql;
 flush tables;
 deallocate prepare abc;

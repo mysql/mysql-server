@@ -271,9 +271,6 @@ static bool fill_defined_view_parts(THD *thd, TABLE_LIST *view)
 {
   const char *cache_key;
   size_t cache_key_length= get_table_def_key(view, &cache_key);
-  my_hash_value_type hash_value= my_calc_hash(&table_def_cache,
-                                              (uchar*) cache_key,
-                                              cache_key_length);
   TABLE_LIST decoy;
   memcpy (&decoy, view, sizeof (TABLE_LIST));
 
@@ -281,7 +278,7 @@ static bool fill_defined_view_parts(THD *thd, TABLE_LIST *view)
 
   TABLE_SHARE *share;
   if (!(share= get_table_share(thd, view->db, view->table_name, cache_key,
-                               cache_key_length, true, hash_value)))
+                               cache_key_length, true)))
   {
     mysql_mutex_unlock(&LOCK_open);
     return true;

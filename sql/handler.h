@@ -37,6 +37,7 @@
 #include "key.h"
 #include "lex_string.h"
 #include "m_string.h"
+#include "map_helpers.h"
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "my_compiler.h"
@@ -5745,7 +5746,8 @@ int ha_prepare(THD *thd);
     there should be no prepared transactions in this case.
 */
 
-int ha_recover(HASH *commit_list);
+typedef ulonglong my_xid; // this line is the same as in log_event.h
+int ha_recover(const memroot_unordered_set<my_xid> *commit_list);
 
 /*
  transactions: interface to low-level handlerton functions. These are

@@ -9468,8 +9468,6 @@ int MYSQL_BIN_LOG::recover(IO_CACHE *log, Format_description_log_event *fdle,
                            my_off_t *valid_pos)
 {
   Log_event  *ev;
-  HASH xids;
-  MEM_ROOT mem_root;
   /*
     The flag is used for handling the case that a transaction
     is partially written to the binlog.
@@ -9477,108 +9475,102 @@ int MYSQL_BIN_LOG::recover(IO_CACHE *log, Format_description_log_event *fdle,
   bool in_transaction= FALSE;
   int memory_page_size= my_getpagesize();
 
-  if (! fdle->is_valid() ||
-      my_hash_init(&xids, &my_charset_bin, memory_page_size/3,
-                   sizeof(my_xid), nullptr, nullptr, 0,
-                   key_memory_binlog_recover_exec))
+  if (! fdle->is_valid())
     goto err1;
 
-  init_alloc_root(key_memory_binlog_recover_exec,
-                  &mem_root, memory_page_size, memory_page_size);
-
-  while ((ev= Log_event::read_log_event(log, 0, fdle, TRUE))
-         && ev->is_valid())
   {
-    if (ev->get_type_code() == binary_log::QUERY_EVENT &&
-        !strcmp(((Query_log_event*)ev)->query, "BEGIN"))
-      in_transaction= TRUE;
+    MEM_ROOT mem_root(
+      key_memory_binlog_recover_exec, memory_page_size, memory_page_size);
+    memroot_unordered_set<my_xid> xids(&mem_root);
 
-    if (ev->get_type_code() == binary_log::QUERY_EVENT &&
-        !strcmp(((Query_log_event*)ev)->query, "COMMIT"))
+    while ((ev= Log_event::read_log_event(log, 0, fdle, TRUE))
+           && ev->is_valid())
     {
-      DBUG_ASSERT(in_transaction == TRUE);
-      in_transaction= FALSE;
-    }
-    else if (ev->get_type_code() == binary_log::XID_EVENT ||
-             is_atomic_ddl_event(ev))
-    {
-      uchar *ptr_xid_str;
+      if (ev->get_type_code() == binary_log::QUERY_EVENT &&
+          !strcmp(((Query_log_event*)ev)->query, "BEGIN"))
+        in_transaction= TRUE;
 
-      if (ev->get_type_code() == binary_log::XID_EVENT)
+      if (ev->get_type_code() == binary_log::QUERY_EVENT &&
+          !strcmp(((Query_log_event*)ev)->query, "COMMIT"))
       {
         DBUG_ASSERT(in_transaction == TRUE);
         in_transaction= FALSE;
-        Xid_log_event *xev=(Xid_log_event *)ev;
-        ptr_xid_str= (uchar*) &xev->xid;
       }
-      else
+      else if (ev->get_type_code() == binary_log::XID_EVENT ||
+               is_atomic_ddl_event(ev))
       {
-        ptr_xid_str= (uchar*) &((Query_log_event*) ev)->ddl_xid;
-      }
-      uchar *x= (uchar *) memdup_root(&mem_root, ptr_xid_str, sizeof(my_xid));
+        my_xid xid;
 
-      if (!x || my_hash_insert(&xids, x))
-        goto err2;
+        if (ev->get_type_code() == binary_log::XID_EVENT)
+        {
+          DBUG_ASSERT(in_transaction == TRUE);
+          in_transaction= FALSE;
+          Xid_log_event *xev=(Xid_log_event *)ev;
+          xid= xev->xid;
+        }
+        else
+        {
+          xid= ((Query_log_event*) ev)->ddl_xid;
+        }
+
+        if (!xids.insert(xid).second)
+          goto err1;
+      }
+
+      /*
+        Recorded valid position for the crashed binlog file
+        which did not contain incorrect events. The following
+        positions increase the variable valid_pos:
+
+        1 -
+          ...
+          <---> HERE IS VALID <--->
+          GTID
+          BEGIN
+          ...
+          COMMIT
+          ...
+
+        2 -
+          ...
+          <---> HERE IS VALID <--->
+          GTID
+          DDL/UTILITY
+          ...
+
+        In other words, the following positions do not increase
+        the variable valid_pos:
+
+        1 -
+          GTID
+          <---> HERE IS VALID <--->
+          ...
+
+        2 -
+          GTID
+          BEGIN
+          <---> HERE IS VALID <--->
+          ...
+      */
+      if (!log->error && !in_transaction &&
+          !is_gtid_event(ev))
+        *valid_pos= my_b_tell(log);
+
+      delete ev;
     }
 
     /*
-      Recorded valid position for the crashed binlog file
-      which did not contain incorrect events. The following
-      positions increase the variable valid_pos:
-
-      1 -
-        ...
-        <---> HERE IS VALID <--->
-        GTID 
-        BEGIN
-        ...
-        COMMIT
-        ...
-         
-      2 -
-        ...
-        <---> HERE IS VALID <--->
-        GTID 
-        DDL/UTILITY
-        ...
-
-      In other words, the following positions do not increase
-      the variable valid_pos:
-
-      1 -
-        GTID 
-        <---> HERE IS VALID <--->
-        ...
-
-      2 -
-        GTID 
-        BEGIN
-        <---> HERE IS VALID <--->
-        ...
-    */
-    if (!log->error && !in_transaction &&
-        !is_gtid_event(ev))
-      *valid_pos= my_b_tell(log);
-
-    delete ev;
+      Call ha_recover if and only if there is a registered engine that
+      does 2PC, otherwise in DBUG builds calling ha_recover directly
+      will result in an assert. (Production builds would be safe since
+      ha_recover returns right away if total_ha_2pc <= opt_log_bin.)
+     */
+    if (total_ha_2pc > 1 && ha_recover(&xids))
+      goto err1;
   }
 
-  /*
-    Call ha_recover if and only if there is a registered engine that
-    does 2PC, otherwise in DBUG builds calling ha_recover directly
-    will result in an assert. (Production builds would be safe since
-    ha_recover returns right away if total_ha_2pc <= opt_log_bin.)
-   */
-  if (total_ha_2pc > 1 && ha_recover(&xids))
-    goto err2;
-
-  free_root(&mem_root, MYF(0));
-  my_hash_free(&xids);
   return 0;
 
-err2:
-  free_root(&mem_root, MYF(0));
-  my_hash_free(&xids);
 err1:
   LogErr(ERROR_LEVEL, ER_BINLOG_CRASH_RECOVERY_FAILED);
   return 1;

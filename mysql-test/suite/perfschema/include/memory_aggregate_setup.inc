@@ -98,7 +98,6 @@ update performance_schema.setup_instruments set enabled='NO', timed='NO';
 
 update performance_schema.setup_instruments set enabled='YES', timed='YES'
   where name in ('memory/sql/user_var_entry::value',
-                 'memory/sql/User_level_lock',
                  'memory/sql/Query_cache',
                  'idle');
 
@@ -142,7 +141,6 @@ begin
       LOW_NUMBER_OF_BYTES_USED, CURRENT_NUMBER_OF_BYTES_USED, HIGH_NUMBER_OF_BYTES_USED
       from performance_schema.memory_summary_by_thread_by_event_name
       where event_name in ('memory/sql/user_var_entry::value',
-                           'memory/sql/User_level_lock',
                            'memory/sql/Query_cache')
       and thread_id = my_thread_id
       order by event_name;
@@ -159,7 +157,6 @@ prepare dump_memory_account from
   from performance_schema.memory_summary_by_account_by_event_name
   where user like \'user%\'
   and event_name in ('memory/sql/user_var_entry::value',
-                     'memory/sql/User_level_lock',
                      'memory/sql/Query_cache')
   order by user, host, event_name;";
 
@@ -168,7 +165,6 @@ prepare dump_memory_user from
   from performance_schema.memory_summary_by_user_by_event_name
   where user like \'user%\'
   and event_name in ('memory/sql/user_var_entry::value',
-                     'memory/sql/User_level_lock',
                      'memory/sql/Query_cache')
   order by user, event_name;";
 
@@ -177,7 +173,6 @@ prepare dump_memory_host from
   from performance_schema.memory_summary_by_host_by_event_name
   where host=\'localhost\'
   and event_name in ('memory/sql/user_var_entry::value',
-                     'memory/sql/User_level_lock',
                      'memory/sql/Query_cache')
   order by host, event_name;";
 
@@ -185,7 +180,6 @@ prepare dump_memory_global from
   "select *
   from performance_schema.memory_summary_global_by_event_name
   where event_name in ('memory/sql/user_var_entry::value',
-                       'memory/sql/User_level_lock',
                        'memory/sql/Query_cache')
   order by event_name;";
 

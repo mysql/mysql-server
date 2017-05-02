@@ -19,9 +19,15 @@
 #include <stddef.h>
 #include <sys/types.h>
 
+#include <memory>
+#include <string>
+#include <unordered_map>
+
 #include "hash.h"                   // my_hash_value_type
 #include "lex_string.h"
 #include "m_string.h"
+#include "malloc_allocator.h"
+#include "map_helpers.h"
 #include "mdl.h"                    // MDL_savepoint
 #include "my_base.h"                // ha_extra_function
 #include "my_inttypes.h"
@@ -130,7 +136,7 @@ uint cached_table_definitions(void);
 size_t get_table_def_key(const TABLE_LIST *table_list, const char **key);
 TABLE_SHARE *get_table_share(THD *thd, const char *db, const char *table_name,
                              const char *key, size_t key_length,
-                             bool open_view, my_hash_value_type hash_value);
+                             bool open_view);
 void release_table_share(TABLE_SHARE *share);
 
 TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type update,
@@ -333,7 +339,13 @@ void mark_tmp_table_for_reuse(TABLE *table);
 extern Item **not_found_item;
 extern Field *not_found_field;
 extern Field *view_ref_found;
-extern HASH table_def_cache;
+
+struct Table_share_deleter {
+  void operator() (TABLE_SHARE *share) const;
+};
+extern malloc_unordered_map<
+  std::string, std::unique_ptr<TABLE_SHARE, Table_share_deleter>>
+    *table_def_cache;
 
 TABLE_LIST *find_table_in_global_list(TABLE_LIST *table,
                                       const char *db_name,

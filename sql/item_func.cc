@@ -5482,34 +5482,22 @@ struct User_level_lock
 };
 
 
-/** Extract a hash key from User_level_lock. */
-
-static const uchar *ull_get_key(const uchar *ptr, size_t *length)
-{
-  const User_level_lock *ull = reinterpret_cast<const User_level_lock*>(ptr);
-  const MDL_key *key = ull->ticket->get_key();
-  *length= key->length();
-  return key->ptr();
-}
-
-
 /**
   Release all user level locks for this THD.
 */
 
 void mysql_ull_cleanup(THD *thd)
 {
-  User_level_lock *ull;
   DBUG_ENTER("mysql_ull_cleanup");
 
-  for (ulong i= 0; i < thd->ull_hash.records; i++)
+  for (const auto &key_and_value : thd->ull_hash)
   {
-    ull= reinterpret_cast<User_level_lock*>(my_hash_element(&thd->ull_hash, i));
+    User_level_lock *ull= key_and_value.second;
     thd->mdl_context.release_lock(ull->ticket);
     my_free(ull);
   }
 
-  my_hash_free(&thd->ull_hash);
+  thd->ull_hash.clear();
 
   DBUG_VOID_RETURN;
 }
@@ -5523,12 +5511,11 @@ void mysql_ull_cleanup(THD *thd)
 
 void mysql_ull_set_explicit_lock_duration(THD *thd)
 {
-  User_level_lock *ull;
   DBUG_ENTER("mysql_ull_set_explicit_lock_duration");
 
-  for (ulong i= 0; i < thd->ull_hash.records; i++)
+  for (const auto &key_and_value : thd->ull_hash)
   {
-    ull= reinterpret_cast<User_level_lock*>(my_hash_element(&thd->ull_hash, i));
+    User_level_lock *ull= key_and_value.second;
     thd->mdl_context.set_lock_duration(ull->ticket, MDL_EXPLICIT);
   }
   DBUG_VOID_RETURN;
@@ -5688,7 +5675,6 @@ longlong Item_func_get_lock::val_int()
   ulonglong timeout= args[1]->val_int();
   char name[NAME_LEN + 1];
   THD *thd= current_thd;
-  User_level_lock *ull;
   DBUG_ENTER("Item_func_get_lock::val_int");
 
   null_value= TRUE;
@@ -5717,25 +5703,17 @@ longlong Item_func_get_lock::val_int()
   if (timeout > INT_MAX32)
     timeout= INT_MAX32;
 
-  /* HASH entries are of type User_level_lock. */
-  if (! my_hash_inited(&thd->ull_hash) &&
-      my_hash_init(&thd->ull_hash, &my_charset_bin,
-                   16 /* small hash */, 0, ull_get_key, nullptr, 0,
-                   key_memory_User_level_lock))
-  {
-    DBUG_RETURN(0);
-  }
-
   MDL_request ull_request;
   MDL_REQUEST_INIT(&ull_request, MDL_key::USER_LEVEL_LOCK, "",
                    name, MDL_EXCLUSIVE, MDL_EXPLICIT);
-  MDL_key *ull_key= &ull_request.key;
+  std::string ull_key(pointer_cast<const char *>(ull_request.key.ptr()),
+                      ull_request.key.length());
 
-  if ((ull= reinterpret_cast<User_level_lock*>
-         (my_hash_search(&thd->ull_hash, ull_key->ptr(), ull_key->length()))))
+  const auto it= thd->ull_hash.find(ull_key);
+  if (it != thd->ull_hash.end())
   {
     /* Recursive lock. */
-    ull->refs++;
+    it->second->refs++;
     null_value= FALSE;
     DBUG_RETURN(1);
   }
@@ -5759,6 +5737,7 @@ longlong Item_func_get_lock::val_int()
     DBUG_RETURN(0);
   }
 
+  User_level_lock *ull= nullptr;
   ull= reinterpret_cast<User_level_lock*>(my_malloc(key_memory_User_level_lock,
                                                     sizeof(User_level_lock),
                                                     MYF(0)));
@@ -5772,13 +5751,7 @@ longlong Item_func_get_lock::val_int()
   ull->ticket= ull_request.ticket;
   ull->refs= 1;
 
-  if (my_hash_insert(&thd->ull_hash, reinterpret_cast<uchar*>(ull)))
-  {
-    thd->mdl_context.release_lock(ull_request.ticket);
-    my_free(ull);
-    DBUG_RETURN(0);
-  }
-
+  thd->ull_hash.emplace(ull_key, ull);
   null_value= FALSE;
 
   DBUG_RETURN(1);
@@ -5831,10 +5804,9 @@ longlong Item_func_release_lock::val_int()
   MDL_key ull_key;
   ull_key.mdl_key_init(MDL_key::USER_LEVEL_LOCK, "", name);
 
-  User_level_lock *ull;
-
-  if (!(ull= reinterpret_cast<User_level_lock*>
-          (my_hash_search(&thd->ull_hash, ull_key.ptr(), ull_key.length()))))
+  const auto it= thd->ull_hash.find(
+    std::string(pointer_cast<const char *>(ull_key.ptr()), ull_key.length()));
+  if (it == thd->ull_hash.end())
   {
     /*
       When RELEASE_LOCK() is called for lock which is not owned by the
@@ -5850,10 +5822,12 @@ longlong Item_func_release_lock::val_int()
 
     DBUG_RETURN(0);
   }
+  User_level_lock *ull= it->second;
+
   null_value= FALSE;
   if (--ull->refs == 0)
   {
-    my_hash_delete(&thd->ull_hash, reinterpret_cast<uchar*>(ull));
+    thd->ull_hash.erase(it);
     thd->mdl_context.release_lock(ull->ticket);
     my_free(ull);
   }
@@ -5884,21 +5858,16 @@ longlong Item_func_release_all_locks::val_int()
   DBUG_ASSERT(fixed == 1);
   THD *thd= current_thd;
   uint result= 0;
-  User_level_lock *ull;
   DBUG_ENTER("Item_func_release_all_locks::val_int");
 
-  if (my_hash_inited(&thd->ull_hash))
+  for (const auto &key_and_value : thd->ull_hash)
   {
-    for (ulong i= 0; i < thd->ull_hash.records; i++)
-    {
-      ull= reinterpret_cast<User_level_lock*>(my_hash_element(&thd->ull_hash,
-                                                              i));
-      thd->mdl_context.release_lock(ull->ticket);
-      result+= ull->refs;
-      my_free(ull);
-    }
-    my_hash_reset(&thd->ull_hash);
+    User_level_lock *ull= key_and_value.second;
+    thd->mdl_context.release_lock(ull->ticket);
+    result+= ull->refs;
+    my_free(ull);
   }
+  thd->ull_hash.clear();
 
   DBUG_RETURN(result);
 }

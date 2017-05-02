@@ -269,16 +269,6 @@ GRANT_INFO::GRANT_INFO()
 }
 
 
-/* Get column name from column hash */
-
-const uchar *get_field_name(const uchar *arg, size_t *length)
-{
-  const Field * const * buff= reinterpret_cast<const Field * const *>(arg);
-  *length= strlen((*buff)->field_name);
-  return (uchar*) (*buff)->field_name;
-}
-
-
 /**
   Returns pointer to '.frm' extension of the file name.
 
@@ -554,7 +544,8 @@ void TABLE_SHARE::destroy()
   /* The mutex is initialized only for shares that are part of the TDC */
   if (tmp_table == NO_TMP_TABLE)
     mysql_mutex_destroy(&LOCK_ha_data);
-  my_hash_free(&name_hash);
+  delete name_hash;
+  name_hash= nullptr;
 
   plugin_unlock(NULL, db_plugin);
   db_plugin= NULL;
@@ -1490,15 +1481,10 @@ static int make_field_from_frm(THD *thd,
     share->found_next_number_field= share->field + field_idx;
 
   if (use_hash)
-    if (my_hash_insert(&share->name_hash, (uchar*)(share->field + field_idx)))
-    {
-      /*
-        Set return code 8 here to indicate that an error has
-        occurred but that the error message already has been
-        sent (OOM).
-      */
-      return 8;
-    }
+  {
+    Field **field= share->field + field_idx;
+    share->name_hash->emplace((*field)->field_name, field);
+  }
 
   if (format_section_fields)
   {
@@ -2161,11 +2147,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
 
   use_hash= share->fields >= MAX_FIELDS_BEFORE_HASH;
   if (use_hash)
-    use_hash= !my_hash_init(&share->name_hash,
-                            system_charset_info,
-                            0,0,
-                            (hash_get_key_function) get_field_name,0,0,
-                            PSI_INSTRUMENT_ME);
+    share->name_hash= new collation_unordered_map<std::string, Field**>(
+      system_charset_info, PSI_INSTRUMENT_ME);
 
   for (i=0 ; i < share->fields; i++, strpos+=field_pack_length)
   {
@@ -2514,10 +2497,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
   bitmap_set_all(&share->all_set);
 
   delete handler_file;
-#ifndef DBUG_OFF
-  if (use_hash)
-    (void) my_hash_check(&share->name_hash);
-#endif
   my_free(extra_segment_buff);
   DBUG_RETURN (0);
 
@@ -2525,7 +2504,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
   my_free(disk_buff);
   my_free(extra_segment_buff);
   delete handler_file;
-  my_hash_free(&share->name_hash);
+  delete share->name_hash;
+  share->name_hash= nullptr;
 
   open_table_error(thd, share, error, my_errno());
   DBUG_RETURN(error);

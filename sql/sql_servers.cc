@@ -75,7 +75,7 @@
   Read locked when only reading data and write-locked for all other access.
 */
 
-static HASH servers_cache;
+static collation_unordered_map<std::string, FOREIGN_SERVER *> *servers_cache;
 static MEM_ROOT mem;
 static mysql_rwlock_t THR_LOCK_servers;
 
@@ -96,15 +96,6 @@ enum enum_servers_table_field
 };
 
 static bool get_server_from_table_to_cache(TABLE *table);
-
-static const uchar *servers_cache_get_key(const uchar *arg, size_t *length)
-{
-  const FOREIGN_SERVER *server= pointer_cast<const FOREIGN_SERVER*>(arg);
-  *length= (uint) server->server_name_length;
-  return (uchar*) server->server_name;
-}
-
-static PSI_memory_key key_memory_servers;
 
 #ifdef HAVE_PSI_INTERFACE
 static PSI_rwlock_key key_rwlock_THR_LOCK_servers;
@@ -166,13 +157,8 @@ bool servers_init(bool dont_read_servers_table)
     DBUG_RETURN(TRUE);
 
   /* initialise our servers cache */
-  if (my_hash_init(&servers_cache, system_charset_info, 32, 0,
-                   servers_cache_get_key, nullptr, 0,
-                   key_memory_servers))
-  {
-    return_val= TRUE; /* we failed, out of memory? */
-    goto end;
-  }
+  servers_cache= new collation_unordered_map<std::string, FOREIGN_SERVER *>(
+    system_charset_info, key_memory_servers);
 
   /* Initialize the mem root for data */
   init_sql_alloc(key_memory_servers, &mem, ACL_ALLOC_BLOCK_SIZE, 0);
@@ -221,7 +207,10 @@ static bool servers_load(THD *thd, TABLE *table)
   bool return_val= TRUE;
   DBUG_ENTER("servers_load");
 
-  my_hash_reset(&servers_cache);
+  if (servers_cache != nullptr)
+  {
+    servers_cache->clear();
+  }
   free_root(&mem, MYF(0));
   init_sql_alloc(key_memory_servers, &mem, ACL_ALLOC_BLOCK_SIZE, 0);
 
@@ -366,13 +355,7 @@ static bool get_server_from_table_to_cache(TABLE *table)
   DBUG_PRINT("info", ("server->username %s", server->username));
   DBUG_PRINT("info", ("server->password %s", server->password));
   DBUG_PRINT("info", ("server->socket %s", server->socket));
-  if (my_hash_insert(&servers_cache, (uchar*) server))
-  {
-    DBUG_PRINT("info", ("had a problem inserting server %s at %p",
-                        server->server_name, server));
-    // error handling needed here
-    DBUG_RETURN(TRUE);
-  }
+  servers_cache->emplace(server->server_name, server);
   DBUG_RETURN(FALSE);
 }
 
@@ -386,7 +369,6 @@ static bool close_cached_connection_tables(THD *thd,
                                            const char *connection_string,
                                            size_t connection_length)
 {
-  uint idx;
   TABLE_LIST tmp, *tables= NULL;
   bool result= FALSE;
   DBUG_ENTER("close_cached_connection_tables");
@@ -396,9 +378,9 @@ static bool close_cached_connection_tables(THD *thd,
 
   mysql_mutex_lock(&LOCK_open);
 
-  for (idx= 0; idx < table_def_cache.records; idx++)
+  for (const auto &key_and_value : *table_def_cache)
   {
-    TABLE_SHARE *share= (TABLE_SHARE *) my_hash_element(&table_def_cache, idx);
+    TABLE_SHARE *share= key_and_value.second.get();
 
     /*
       Skip table shares being opened to avoid comparison reading into
@@ -528,7 +510,10 @@ bool Server_options::insert_into_cache() const
         strdup_root(&mem, m_owner.str) : unset_ptr))
     DBUG_RETURN(true);
 
-  DBUG_RETURN(my_hash_insert(&servers_cache, (uchar*) server));
+  servers_cache->emplace(
+    std::string(server->server_name, server->server_name_length),
+    server);
+  DBUG_RETURN(false);
 }
 
 
@@ -681,9 +666,9 @@ bool Sql_cmd_create_server::execute(THD *thd)
 
   // Check for existing cache entries with same name
   mysql_rwlock_wrlock(&THR_LOCK_servers);
-  if (my_hash_search(&servers_cache,
-                     (uchar*) m_server_options->m_server_name.str,
-                     m_server_options->m_server_name.length))
+  const auto it= servers_cache->find(
+    to_string(m_server_options->m_server_name));
+  if (it != servers_cache->end())
   {
     mysql_rwlock_unlock(&THR_LOCK_servers);
     my_error(ER_FOREIGN_SERVER_EXISTS, MYF(0),
@@ -763,11 +748,8 @@ bool Sql_cmd_alter_server::execute(THD *thd)
 
   // Find existing cache entry to update
   mysql_rwlock_wrlock(&THR_LOCK_servers);
-  FOREIGN_SERVER *existing=
-    (FOREIGN_SERVER *) my_hash_search(&servers_cache,
-                                  (uchar*) m_server_options->m_server_name.str,
-                                  m_server_options->m_server_name.length);
-  if (!existing)
+  const auto it= servers_cache->find(to_string(m_server_options->m_server_name));
+  if (it == servers_cache->end())
   {
     my_error(ER_FOREIGN_SERVER_DOESNT_EXIST, MYF(0),
              m_server_options->m_server_name.str);
@@ -776,6 +758,8 @@ bool Sql_cmd_alter_server::execute(THD *thd)
     close_mysql_tables(thd);
     DBUG_RETURN(true);
   }
+
+  FOREIGN_SERVER *existing= it->second;
 
   int error;
   {
@@ -883,13 +867,8 @@ bool Sql_cmd_drop_server::execute(THD *thd)
       else
       {
         // Remove from cache
-        FOREIGN_SERVER *server=
-          (FOREIGN_SERVER *)my_hash_search(&servers_cache,
-                                           (uchar*) m_server_name.str,
-                                           m_server_name.length);
-        if (server)
-          my_hash_delete(&servers_cache, (uchar*) server);
-        else if (!m_if_exists)
+        size_t num_erased= servers_cache->erase(to_string(m_server_name));
+        if (num_erased == 0 && !m_if_exists)
         {
           my_error(ER_FOREIGN_SERVER_DOESNT_EXIST, MYF(0),  m_server_name.str);
           error= 1;
@@ -922,17 +901,18 @@ bool Sql_cmd_drop_server::execute(THD *thd)
 void servers_free(bool end)
 {
   DBUG_ENTER("servers_free");
-  if (!my_hash_inited(&servers_cache))
+  if (servers_cache == nullptr)
     DBUG_VOID_RETURN;
   if (!end)
   {
     free_root(&mem, MYF(MY_MARK_BLOCKS_FREE));
-	my_hash_reset(&servers_cache);
+    servers_cache->clear();
     DBUG_VOID_RETURN;
   }
   mysql_rwlock_destroy(&THR_LOCK_servers);
   free_root(&mem,MYF(0));
-  my_hash_free(&servers_cache);
+  delete servers_cache;
+  servers_cache= nullptr;
   DBUG_VOID_RETURN;
 }
 
@@ -1000,9 +980,9 @@ FOREIGN_SERVER *get_server_by_name(MEM_ROOT *mem, const char *server_name,
 
   DBUG_PRINT("info", ("locking servers_cache"));
   mysql_rwlock_rdlock(&THR_LOCK_servers);
-  if (!(server= (FOREIGN_SERVER *) my_hash_search(&servers_cache,
-                                                  (uchar*) server_name,
-                                                  server_name_length)))
+  const auto it=
+    servers_cache->find(std::string(server_name, server_name_length));
+  if (it == servers_cache->end())
   {
     DBUG_PRINT("info", ("server_name %s length %u not found!",
                         server_name, (unsigned) server_name_length));
@@ -1010,7 +990,7 @@ FOREIGN_SERVER *get_server_by_name(MEM_ROOT *mem, const char *server_name,
   }
   /* otherwise, make copy of server */
   else
-    server= clone_server(mem, server, buff);
+    server= clone_server(mem, it->second, buff);
 
   DBUG_PRINT("info", ("unlocking servers_cache"));
   mysql_rwlock_unlock(&THR_LOCK_servers);

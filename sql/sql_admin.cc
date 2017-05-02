@@ -129,8 +129,6 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
       Attempt to do full-blown table open in mysql_admin_table() has failed.
       Let us try to open at least a .FRM for this table.
     */
-    my_hash_value_type hash_value;
-
     MDL_REQUEST_INIT(&table_list->mdl_request,
                      MDL_key::TABLE,
                      table_list->db, table_list->table_name,
@@ -143,10 +141,9 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
 
     key_length= get_table_def_key(table_list, &key);
 
-    hash_value= my_calc_hash(&table_def_cache, (uchar*) key, key_length);
     mysql_mutex_lock(&LOCK_open);
     share= get_table_share(thd, table_list->db, table_list->table_name,
-                           key, key_length, false, hash_value);
+                           key, key_length, false);
     mysql_mutex_unlock(&LOCK_open);
     if (share == NULL)
       DBUG_RETURN(0);				// Can't open frm file

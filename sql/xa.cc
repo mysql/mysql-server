@@ -135,7 +135,7 @@ struct xarecover_st
 {
   int len, found_foreign_xids, found_my_xids;
   XID *list;
-  HASH *commit_list;
+  const memroot_unordered_set<my_xid> *commit_list;
   bool dry_run;
 };
 
@@ -173,7 +173,7 @@ static bool xarecover_handlerton(THD*, plugin_ref plugin, void *arg)
         }
         // recovery mode
         if (info->commit_list ?
-            my_hash_search(info->commit_list, (uchar *)&x, sizeof(x)) != 0 :
+            info->commit_list->count(x) != 0 :
             tc_heuristic_recover == TC_HEURISTIC_RECOVER_COMMIT)
         {
 #ifndef DBUG_OFF
@@ -202,7 +202,7 @@ static bool xarecover_handlerton(THD*, plugin_ref plugin, void *arg)
 }
 
 
-int ha_recover(HASH *commit_list)
+int ha_recover(const memroot_unordered_set<my_xid> *commit_list)
 {
   struct xarecover_st info;
   DBUG_ENTER("ha_recover");

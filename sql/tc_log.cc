@@ -512,7 +512,6 @@ void TC_LOG_MMAP::close()
 
 int TC_LOG_MMAP::recover()
 {
-  HASH xids;
   PAGE *p=pages, *end_p=pages+npages;
 
   if (memcmp(data, tc_log_magic, sizeof(tc_log_magic)))
@@ -532,27 +531,27 @@ int TC_LOG_MMAP::recover()
     goto err1;
   }
 
-  if (my_hash_init(&xids, &my_charset_bin, tc_log_page_size/3,
-                   sizeof(my_xid), nullptr, nullptr, 0,
-                   PSI_INSTRUMENT_ME))
-    goto err1;
-
-  for ( ; p < end_p ; p++)
   {
-    for (my_xid *x=p->start; x < p->end; x++)
-      if (*x && my_hash_insert(&xids, (uchar *)x))
-        goto err2; // OOM
+    MEM_ROOT mem_root(
+      PSI_INSTRUMENT_ME, tc_log_page_size/3, tc_log_page_size/3);
+    memroot_unordered_set<my_xid> xids(&mem_root);
+
+    for ( ; p < end_p ; p++)
+    {
+      for (my_xid *x=p->start; x < p->end; x++)
+      {
+        if (*x) xids.insert(*x);
+      }
+    }
+
+    bool err= ha_recover(&xids);
+    if (err)
+      goto err1;
   }
 
-  if (ha_recover(&xids))
-    goto err2;
-
-  my_hash_free(&xids);
   memset(data, 0, (size_t)file_length);
   return 0;
 
-err2:
-  my_hash_free(&xids);
 err1:
   LogErr(ERROR_LEVEL, ER_TC_RECOVERY_FAILED_THESE_ARE_YOUR_OPTIONS);
   return 1;

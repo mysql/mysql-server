@@ -46,6 +46,7 @@
 #include "handler.h"
 #include "item.h"
 #include "lex_string.h"
+#include "map_helpers.h"
 #include "mdl.h"
 #include "my_base.h"
 #include "my_command.h"
@@ -112,6 +113,7 @@ class sp_rcontext;
 struct PSI_idle_locker;
 struct PSI_statement_locker;
 struct PSI_transaction_locker;
+struct User_level_lock;
 
 namespace dd {
   namespace cache {
@@ -1236,7 +1238,8 @@ public:
     contains granted tickets if a lock is present. See item_func.cc and
     chapter 'Miscellaneous functions', for functions GET_LOCK, RELEASE_LOCK.
   */
-  HASH ull_hash;
+  malloc_unordered_map<std::string, User_level_lock*> ull_hash{
+    key_memory_User_level_lock};
 #ifndef DBUG_OFF
   uint dbug_sentry; // watch out for memory corruption
 #endif

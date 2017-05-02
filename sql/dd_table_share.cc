@@ -281,18 +281,13 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share, const dd::Table *table_d
   if (use_hash)
   {
     Field **field_ptr= share->field;
-    use_hash= !my_hash_init(&share->name_hash,
-                            system_charset_info, share->fields, 0,
-                            get_field_name, nullptr, 0,
-                            PSI_INSTRUMENT_ME);
+    share->name_hash= new collation_unordered_map<std::string, Field**>(
+      system_charset_info, PSI_INSTRUMENT_ME);
+    share->name_hash->reserve(share->fields);
 
     for (uint i=0 ; i < share->fields; i++, field_ptr++)
     {
-        if (my_hash_insert(&share->name_hash, (uchar*) field_ptr) )
-        {
-          // OOM error message already reported
-          return true; /* purecov: inspected */
-        }
+      share->name_hash->emplace((*field_ptr)->field_name, field_ptr);
     }
   }
 

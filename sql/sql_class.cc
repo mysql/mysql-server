@@ -2512,7 +2512,7 @@ void THD::leave_locked_tables_mode()
     */
     if (handler_tables_hash.records)
       mysql_ha_set_explicit_lock_duration(this);
-    if (ull_hash.records)
+    if (!ull_hash.empty())
       mysql_ull_set_explicit_lock_duration(this);
   }
   locked_tables_mode= LTM_NONE;
