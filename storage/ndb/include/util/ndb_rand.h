@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,8 +18,6 @@
 #ifndef NDB_RAND_H
 #define NDB_RAND_H
 
-#define NDB_RAND_MAX 32767
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -27,10 +25,6 @@ extern "C" {
 int ndb_rand(void);
 int ndb_rand_r(unsigned * seed);
 void ndb_srand(unsigned seed);
-
-#ifdef NDB_WIN
-#define srandom(s) srand(s)
-#endif
 
 #ifdef __cplusplus
 }

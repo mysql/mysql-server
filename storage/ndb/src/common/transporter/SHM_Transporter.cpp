@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -49,7 +49,7 @@ SHM_Transporter::SHM_Transporter(TransporterRegistry &t_reg,
   shmKey(_shmKey),
   shmSize(_shmSize)
 {
-#ifndef NDB_WIN32
+#ifndef _WIN32
   shmId= 0;
 #endif
   _shmSegCreated = false;

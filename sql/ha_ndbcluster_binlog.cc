@@ -4587,7 +4587,7 @@ ndb_rep_event_name(String *event_name,const char *db, const char *tbl,
   else
     event_name->set_ascii("REPL$", 5);
   event_name->append(db);
-#ifdef NDB_WIN32
+#ifdef _WIN32
   /*
    * Some bright spark decided that we should sometimes have backslashes.
    * This causes us pain as the event is db/table and not db\table so trying

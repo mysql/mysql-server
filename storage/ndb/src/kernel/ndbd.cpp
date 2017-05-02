@@ -49,7 +49,7 @@ extern EventLogger * g_eventLogger;
 static void
 systemInfo(const Configuration & config, const LogLevel & logLevel)
 {
-#ifdef NDB_WIN32
+#ifdef _WIN32
   int processors = 0;
   int speed;
   SYSTEM_INFO sinfo;
@@ -637,7 +637,7 @@ handler_error(int signum){
       my_thread_equal(thread_id, my_thread_self()))
   {
     // Shutdown thread received signal
-#ifndef NDB_WIN32
+#ifndef _WIN32
 	signal(signum, SIG_DFL);
     kill(getpid(), signum);
 #endif
@@ -1213,7 +1213,7 @@ NdbShutdown(int error_code,
       }
     }
 
-#ifndef NDB_WIN32
+#ifndef _WIN32
     if (simulate_error_during_shutdown)
     {
       kill(getpid(), simulate_error_during_shutdown);

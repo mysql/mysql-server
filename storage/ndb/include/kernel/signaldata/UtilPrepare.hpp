@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,13 +22,6 @@
 #include <SimpleProperties.hpp>
 
 #define JAM_FILE_ID 18
-
-
-#ifdef NDB_WIN32
-#ifdef NO_ERROR
-#undef NO_ERROR
-#endif
-#endif
 
 /**
  * UTIL_PREPARE_REQ, UTIL_PREPARE_CONF, UTIL_PREPARE_REF
@@ -148,7 +141,7 @@ class UtilPrepareRef {
 
 public:
   enum ErrorCode {
-    NO_ERROR = 0,
+    PREPARE_REF_NO_ERROR = 0,
     PREPARE_SEIZE_ERROR = 1,
     PREPARE_PAGES_SEIZE_ERROR = 2,
     PREPARED_OPERATION_SEIZE_ERROR = 3,

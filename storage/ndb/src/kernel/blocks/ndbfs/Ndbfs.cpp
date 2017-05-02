@@ -20,7 +20,7 @@
 #include "Ndbfs.hpp"
 #include "AsyncFile.hpp"
 
-#ifdef NDB_WIN
+#ifdef _WIN32
 #include "Win32AsyncFile.hpp"
 #else
 #include "PosixAsyncFile.hpp"
@@ -175,7 +175,7 @@ validate_path(BaseString & dst,
 {
   char buf2[PATH_MAX];
   memset(buf2, 0,sizeof(buf2));
-#ifdef NDB_WIN32
+#ifdef _WIN32
   CreateDirectory(path, 0);
   char* szFilePart;
   if(!GetFullPathName(path, sizeof(buf2), buf2, &szFilePart) ||
@@ -1102,7 +1102,7 @@ Ndbfs::createAsyncFile()
     ERROR_SET(fatal, NDBD_EXIT_AFS_MAXOPEN,""," Ndbfs::createAsyncFile");
   }
 
-#ifdef NDB_WIN
+#ifdef _WIN32
   AsyncFile* file = new Win32AsyncFile(* this);
 #else
   AsyncFile* file = new PosixAsyncFile(* this);
@@ -1435,7 +1435,7 @@ Ndbfs::scanIPC(Signal* signal)
    return false;
 }
 
-#if defined NDB_WIN32
+#ifdef _WIN32
 Uint32 Ndbfs::translateErrno(int aErrno)
 {
   switch (aErrno)

@@ -67,20 +67,19 @@
 #define NDB_PORT 1186
 #endif
 
-#if defined(_WIN32)
-#define NDB_WIN32 1
-#define NDB_WIN 1
-#define PATH_MAX 256
+#ifdef _WIN32
 #define DIR_SEPARATOR "\\"
+#else
+#define DIR_SEPARATOR "/"
+#endif
+
+#if defined(_WIN32)
+#define PATH_MAX 256
 
 /* Disable a few compiler warnings on Windows */
 /* 4355: 'this': used in base member initializer list */
 #pragma warning(disable: 4355)
 
-#else
-#undef NDB_WIN32
-#undef NDB_WIN
-#define DIR_SEPARATOR "/"
 #endif
 
 #if ! (NDB_SIZEOF_CHAR == SIZEOF_CHAR)

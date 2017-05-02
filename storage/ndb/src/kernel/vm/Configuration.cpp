@@ -259,7 +259,7 @@ static char * get_and_validate_path(ndb_mgm_configuration_iterator &iter,
   // 
   char buf2[PATH_MAX];
   memset(buf2, 0,sizeof(buf2));
-#ifdef NDB_WIN32
+#ifdef _WIN32
   char* szFilePart;
   if(!GetFullPathName(path, sizeof(buf2), buf2, &szFilePart) ||
      (GetFileAttributes(buf2) & FILE_ATTRIBUTE_READONLY))

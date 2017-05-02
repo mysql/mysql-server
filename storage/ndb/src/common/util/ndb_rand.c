@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,8 @@
 #include <ndb_rand.h>
 
 static unsigned long next= 1;
+
+#define NDB_RAND_MAX 32767
 
 /**
  * ndb_rand

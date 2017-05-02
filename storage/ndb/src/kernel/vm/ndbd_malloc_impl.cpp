@@ -22,7 +22,7 @@
 #include <EventLogger.hpp>
 #include <portlib/NdbMem.h>
 
-#ifdef NDB_WIN
+#ifdef _WIN32
 void *sbrk(int increment)
 {
   return (void*)-1;
