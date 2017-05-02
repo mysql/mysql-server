@@ -430,7 +430,7 @@ NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
 
   NdbMutex_Unlock(ndb_thread_mutex);
 
-  DBUG_PRINT("exit",("ret: 0x%lx", (long) tmpThread));
+  DBUG_PRINT("exit", ("Returning thread pointer: %p", tmpThread));
   DBUG_RETURN(tmpThread);
 }
 
@@ -487,7 +487,7 @@ void NdbThread_Destroy(struct NdbThread** p_thread)
     if (thread_handle)
       CloseHandle(thread_handle);
 #endif
-    DBUG_PRINT("enter",("*p_thread: 0x%lx", (long) *p_thread));
+    DBUG_PRINT("info", ("Destroying thread pointer: %p", *p_thread));
     free(* p_thread);
     * p_thread = 0;
   }
