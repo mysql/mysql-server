@@ -749,7 +749,7 @@ TAPTEST(LogBuffer)
   buf1[8] = '\0';
   OK(strcmp(buf1, "4567890a") == 0);
   OK(buf_t1->append((void*)"123", 0) == 0); // length zero
-  OK(buf_t1->append("", empty_ap, 0) == 0); // length zero
+  OK(buf_t1->append("123", empty_ap, 0) == 0); // length zero
   assert(buf_t1->getSize() == 0);
   printf("Sub-test 8 OK\n");
   clearbuf(buf1, bufsize);
