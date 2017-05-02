@@ -18,13 +18,6 @@
 #ifndef NDB_GLOBAL_H
 #define NDB_GLOBAL_H
 
-#ifdef _WIN32
-/* Workaround for Bug#32082: VOID refdefinition results in compile errors */
-#ifndef DONT_DEFINE_VOID
-#define DONT_DEFINE_VOID
-#endif
-#endif
-
 #include <errno.h>
 #include <math.h>
 #include <stddef.h>
