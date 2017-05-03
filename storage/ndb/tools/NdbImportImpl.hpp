@@ -113,7 +113,6 @@ public:
     uint m_connectioncnt;
     Ndb_cluster_connection** m_connections;
     Ndb_cluster_connection* m_mainconnection;
-    bool m_connectionowner;
     bool m_connected;
     Ndb* m_mainndb;
   };
@@ -121,7 +120,6 @@ public:
   Connect c_connect;
   uint c_connectionindex;
 
-  int set_connections(uint cnt, Ndb_cluster_connection** connections);
   int do_connect();
   void do_disconnect();
 

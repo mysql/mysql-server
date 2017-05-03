@@ -191,12 +191,6 @@ NdbImport::set_opt(const Opt& opt)
 // connect
 
 int
-NdbImport::set_connections(int cnt, Ndb_cluster_connection** connections)
-{
-  return m_impl.set_connections(cnt, connections);
-}
-
-int
 NdbImport::do_connect()
 {
   if (m_impl.do_connect() == -1)

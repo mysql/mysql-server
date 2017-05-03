@@ -99,8 +99,6 @@ public:
 
   // connect
 
-  // pre-created connections (not used by ndb_import)
-  int set_connections(int cnt, Ndb_cluster_connection** connections);
   int do_connect();
   void do_disconnect();
 

@@ -183,39 +183,12 @@ NdbImportImpl::Connect::Connect()
   m_connectioncnt = 0;
   m_connections = 0;
   m_mainconnection = 0;
-  m_connectionowner = true;
   m_connected = false;
   m_mainndb = 0;
 }
 
 NdbImportImpl::Connect::~Connect()
 {
-}
-
-int
-NdbImportImpl::set_connections(uint cnt,
-                               Ndb_cluster_connection** connections)
-{
-  Connect& c = c_connect;
-  if (cnt == 0 || connections == 0)
-  {
-    m_util.set_error_usage(m_error, __LINE__);
-    return -1;
-  }
-  for (uint i = 0; i < cnt; i++)
-  {
-    if (connections[i] == 0)
-    {
-      m_util.set_error_usage(m_error, __LINE__);
-      return -1;
-    }
-  }
-  delete [] c.m_connections;
-  c.m_connectioncnt = cnt;
-  c.m_connections = connections;
-  c.m_mainconnection = connections[0];
-  c.m_connectionowner = false;
-  return 0;
 }
 
 int
@@ -229,7 +202,6 @@ NdbImportImpl::do_connect()
     m_util.set_error_usage(m_error, __LINE__);
     return -1;
   }
-  if (c.m_connectionowner)
   {
     require(c.m_connections == 0 && c.m_mainconnection == 0);
     c.m_connectioncnt = opt.m_connections;
@@ -291,7 +263,7 @@ NdbImportImpl::do_disconnect()
   // delete any ndb before delete connection
   delete c.m_mainndb;
   c.m_mainndb = 0;
-  if (c.m_connectionowner && c.m_connections != 0)
+  if (c.m_connections != 0)
   {
     for (uint i = 0; i < c.m_connectioncnt; i++)
     {
@@ -302,6 +274,7 @@ NdbImportImpl::do_disconnect()
   }
   delete [] c.m_connections;
   c.m_connections = 0;
+  c.m_connected = false;
   log1("do_disconnect: done");
 }
 
