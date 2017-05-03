@@ -52,4 +52,12 @@ create table t4 (
 a int primary key,
 b int not null
 ) engine=ndb;
+select count(*) from t4;
+count(*)
+997
+# test with rejects and --stats
+delete from t4;
+select count(*) from t4;
+count(*)
+997
 drop table t1, t2, t2ver, t3, t3ver, t4;
