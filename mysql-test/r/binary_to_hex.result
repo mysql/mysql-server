@@ -1,0 +1,117 @@
+USE test;
+DROP TABLE IF EXISTS t1, t2;
+CREATE TABLE t1 (c1  TINYBLOB,
+c2  BLOB,
+c3  MEDIUMBLOB,
+c4  LONGBLOB,
+c5  TEXT,
+c6  BIT(1),
+c7  CHAR,
+c8  VARCHAR(10),
+c9  GEOMETRY) CHARACTER SET = binary;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` tinyblob,
+  `c2` blob,
+  `c3` mediumblob,
+  `c4` longblob,
+  `c5` blob,
+  `c6` bit(1) DEFAULT NULL,
+  `c7` binary(1) DEFAULT NULL,
+  `c8` varbinary(10) DEFAULT NULL,
+  `c9` geometry DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=binary
+INSERT INTO t1 VALUES ('tinyblob-text readable', 'blob-text readable',
+'mediumblob-text readable', 'longblob-text readable',
+'text readable', b'1', 'c', 'variable',
+POINT(1, 1));
+CREATE TABLE t2(id int, `col1` binary(10),`col2` blob);
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` int(11) DEFAULT NULL,
+  `col1` binary(10) DEFAULT NULL,
+  `col2` blob
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+INSERT INTO t2 VALUES (1, X'AB1234', X'123ABC'), (2, X'DE1234', X'123DEF');
+#Print the table contents when binary-as-hex option is off.
+SELECT * FROM t1;
+c1	c2	c3	c4	c5	c6	c7	c8	c9
+tinyblob-text readable	blob-text readable	mediumblob-text readable	longblob-text readable	text readable	#	c	variable	#
+SELECT * FROM t2;
+id	col1	col2
+1	#	#
+2	#	#
+#Print the table contents after turning on the binary-as-hex option
+
+#Print the table contents in tab format
+
+c1	c2	c3	c4	c5	c6	c7	c8	c9
+0x74696E79626C6F622D74657874207265616461626C65	0x626C6F622D74657874207265616461626C65	0x6D656469756D626C6F622D74657874207265616461626C65	0x6C6F6E67626C6F622D74657874207265616461626C65	0x74657874207265616461626C65	0x01	0x63	0x7661726961626C65	0x000000000101000000000000000000F03F000000000000F03F
+id	col1	col2
+1	0xAB123400000000000000	0x123ABC
+2	0xDE123400000000000000	0x123DEF
+
+#Print the table contents in table format
+
++------------------------------------------------+----------------------------------------+----------------------------------------------------+------------------------------------------------+------------------------------+------------+------------+--------------------+------------------------------------------------------+
+| c1                                             | c2                                     | c3                                                 | c4                                             | c5                           | c6         | c7         | c8                 | c9                                                   |
++------------------------------------------------+----------------------------------------+----------------------------------------------------+------------------------------------------------+------------------------------+------------+------------+--------------------+------------------------------------------------------+
+| 0x74696E79626C6F622D74657874207265616461626C65 | 0x626C6F622D74657874207265616461626C65 | 0x6D656469756D626C6F622D74657874207265616461626C65 | 0x6C6F6E67626C6F622D74657874207265616461626C65 | 0x74657874207265616461626C65 | 0x01       | 0x63       | 0x7661726961626C65 | 0x000000000101000000000000000000F03F000000000000F03F |
++------------------------------------------------+----------------------------------------+----------------------------------------------------+------------------------------------------------+------------------------------+------------+------------+--------------------+------------------------------------------------------+
++------+------------------------+------------+
+| id   | col1                   | col2       |
++------+------------------------+------------+
+|    1 | 0xAB123400000000000000 | 0x123ABC   |
++------+------------------------+------------+
+
+#Print the table contents vertically
+
+*************************** 1. row ***************************
+c1: 0x74696E79626C6F622D74657874207265616461626C65
+c2: 0x626C6F622D74657874207265616461626C65
+c3: 0x6D656469756D626C6F622D74657874207265616461626C65
+c4: 0x6C6F6E67626C6F622D74657874207265616461626C65
+c5: 0x74657874207265616461626C65
+c6: 0x01
+c7: 0x63
+c8: 0x7661726961626C65
+c9: 0x000000000101000000000000000000F03F000000000000F03F
+
+#Print the table contents in xml format
+
+<?xml version="1.0"?>
+
+<resultset statement="SELECT * FROM t1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <row>
+	<field name="c1">0x74696E79626C6F622D74657874207265616461626C65</field>
+	<field name="c2">0x626C6F622D74657874207265616461626C65</field>
+	<field name="c3">0x6D656469756D626C6F622D74657874207265616461626C65</field>
+	<field name="c4">0x6C6F6E67626C6F622D74657874207265616461626C65</field>
+	<field name="c5">0x74657874207265616461626C65</field>
+	<field name="c6">0x01</field>
+	<field name="c7">0x63</field>
+	<field name="c8">0x7661726961626C65</field>
+	<field name="c9">0x000000000101000000000000000000F03F000000000000F03F</field>
+  </row>
+</resultset>
+<?xml version="1.0"?>
+
+<resultset statement="SELECT * FROM t2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <row>
+	<field name="id">1</field>
+	<field name="col1">0xAB123400000000000000</field>
+	<field name="col2">0x123ABC</field>
+  </row>
+
+  <row>
+	<field name="id">2</field>
+	<field name="col1">0xDE123400000000000000</field>
+	<field name="col2">0x123DEF</field>
+  </row>
+</resultset>
+
+#Print the table contents in html format
+
+<TABLE BORDER=1><TR><TH>c1</TH><TH>c2</TH><TH>c3</TH><TH>c4</TH><TH>c5</TH><TH>c6</TH><TH>c7</TH><TH>c8</TH><TH>c9</TH></TR><TR><TD>0x74696E79626C6F622D74657874207265616461626C65</TD><TD>0x626C6F622D74657874207265616461626C65</TD><TD>0x6D656469756D626C6F622D74657874207265616461626C65</TD><TD>0x6C6F6E67626C6F622D74657874207265616461626C65</TD><TD>0x74657874207265616461626C65</TD><TD>0x01</TD><TD>0x63</TD><TD>0x7661726961626C65</TD><TD>0x000000000101000000000000000000F03F000000000000F03F</TD></TR></TABLE><TABLE BORDER=1><TR><TH>id</TH><TH>col1</TH><TH>col2</TH></TR><TR><TD>1</TD><TD>0xAB123400000000000000</TD><TD>0x123ABC</TD></TR><TR><TD>2</TD><TD>0xDE123400000000000000</TD><TD>0x123DEF</TD></TR></TABLE>DROP TABLE t1, t2;
