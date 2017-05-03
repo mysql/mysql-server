@@ -1526,9 +1526,14 @@ size_t make_sortkey_from_item(
                     item->is_temporal_with_date() ?
                     item->val_date_temporal_result() :
                     item->val_int_result();
-    if (item->null_value)
+    /*
+      Note: item->null_value can't be trusted alone here; there are cases
+      (for the DATE data type in particular) where we can have item->null_value
+      set without maybe_null being set! This really should be cleaned up,
+      but until that happens, we need to have a more conservative check.
+    */
+    if (item->maybe_null && item->null_value)
     {
-      DBUG_ASSERT(item->maybe_null);
       *null_indicator= 0;
       memset(to, 0, max_length);
     }
