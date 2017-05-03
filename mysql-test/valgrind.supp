@@ -44,7 +44,7 @@
    GCC never cleans up its TLS block
    Memcheck:Leak
    fun:memalign
-   fun:allocate_and_init
+   ...
    fun:tls_get_addr_tail
 }
 
