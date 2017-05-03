@@ -2264,7 +2264,7 @@ int ha_ndbcluster::get_metadata(THD *thd, const dd::Table* table_def)
   DBUG_EXECUTE_IF("ndb_get_metadata_fail",
                   {
                     fprintf(stderr, "ndb_get_metadata_fail\n");
-                    error= HA_ERR_TABLE_DEF_CHANGED;
+                    DBUG_RETURN(HA_ERR_TABLE_DEF_CHANGED);
                   });
 
   // Create field to column map when table is opened
