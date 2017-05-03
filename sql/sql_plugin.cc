@@ -38,7 +38,7 @@
 #include "hash.h"
 #include "item.h"              // Item
 #include "key.h"               // key_copy
-#include "log.h"               // sql_print_error
+#include "log.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "mutex_lock.h"        // Mutex_lock
@@ -582,7 +582,7 @@ static void report_error(int where_to, uint error, ...)
   if (where_to & REPORT_TO_LOG)
   {
     va_start(args, error);
-    error_log_print(ERROR_LEVEL, ER_DEFAULT(error), args);
+    error_log_printf(ERROR_LEVEL, ER_DEFAULT(error), args);
     va_end(args);
   }
 }
@@ -1232,8 +1232,8 @@ static void plugin_deinitialize(st_plugin_int *plugin, bool ref_check)
   {
     if ((*plugin_type_deinitialize[plugin->plugin->type])(plugin))
     {
-      sql_print_error("Plugin '%s' of type %s failed deinitialization",
-                      plugin->name.str, plugin_type_names[plugin->plugin->type].str);
+      LogErr(ERROR_LEVEL, ER_PLUGIN_FAILED_DEINITIALIZATION,
+             plugin->name.str, plugin_type_names[plugin->plugin->type].str);
     }
   }
   else if (plugin->plugin->deinit)
@@ -1253,8 +1253,9 @@ static void plugin_deinitialize(st_plugin_int *plugin, bool ref_check)
     exit until NDB is shut down.
   */
   if (ref_check && plugin->ref_count)
-    sql_print_error("Plugin '%s' has ref_count=%d after deinitialization.",
-                    plugin->name.str, plugin->ref_count);
+    LogErr(ERROR_LEVEL,
+           ER_PLUGIN_HAS_NONZERO_REFCOUNT_AFTER_DEINITIALIZATION,
+           plugin->name.str, plugin->ref_count);
 }
 
 static void plugin_del(st_plugin_int *plugin)
@@ -1309,7 +1310,8 @@ static void reap_plugins(void)
   while ((plugin= *(--list)))
   {
     if (!opt_initialize)
-      sql_print_information("Shutting down plugin '%s'", plugin->name.str);
+      LogErr(INFORMATION_LEVEL, ER_PLUGIN_SHUTTING_DOWN_PLUGIN,
+             plugin->name.str);
     plugin_deinitialize(plugin, true);
   }
 
@@ -1428,8 +1430,8 @@ static int plugin_initialize(st_plugin_int *plugin)
   {
     if ((*plugin_type_initialize[plugin->plugin->type])(plugin))
     {
-      sql_print_error("Plugin '%s' registration as a %s failed.",
-                      plugin->name.str, plugin_type_names[plugin->plugin->type].str);
+      LogErr(ERROR_LEVEL, ER_PLUGIN_REGISTRATION_FAILED,
+             plugin->name.str, plugin_type_names[plugin->plugin->type].str);
       goto err;
     }
 
@@ -1447,8 +1449,7 @@ static int plugin_initialize(st_plugin_int *plugin)
 
     if (plugin->plugin->init(plugin))
     {
-      sql_print_error("Plugin '%s' init function returned error.",
-                      plugin->name.str);
+      LogErr(ERROR_LEVEL, ER_PLUGIN_INIT_FAILED, plugin->name.str);
       goto err;
     }
   }
@@ -1915,8 +1916,7 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
   if (result)
   {
     DBUG_PRINT("error",("Can't open plugin table"));
-    sql_print_error("Can't open the mysql.plugin table. Please "
-                    "run mysql_upgrade to create it.");
+    LogErr(ERROR_LEVEL, ER_PLUGIN_CANT_OPEN_PLUGIN_TABLE);
     DBUG_VOID_RETURN;
   }
   table= tables.table;
@@ -1944,16 +1944,16 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
     LEX_STRING dl= {(char *)str_dl.ptr(), str_dl.length()};
 
     if (plugin_add(tmp_root, &name, &dl, argc, argv, REPORT_TO_LOG))
-      sql_print_warning("Couldn't load plugin named '%s' with soname '%s'.",
-                        str_name.c_ptr(), str_dl.c_ptr());
+      LogErr(WARNING_LEVEL, ER_PLUGIN_CANT_LOAD,
+             str_name.c_ptr(), str_dl.c_ptr());
     free_root(tmp_root, MYF(MY_MARK_BLOCKS_FREE));
   }
   mysql_mutex_unlock(&LOCK_plugin);
   if (error > 0)
   {
     char errbuf[MYSQL_ERRMSG_SIZE];
-    sql_print_error(ER_THD(new_thd, ER_GET_ERRNO), my_errno(),
-                    my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
+    LogErr(ERROR_LEVEL, ER_GET_ERRNO, my_errno(),
+           my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
   }
   end_read_record(&read_record_info);
   table->m_needs_reopen= TRUE;                  // Force close to free memory
@@ -1981,7 +1981,7 @@ static bool plugin_load_list(MEM_ROOT *tmp_root, int *argc, char **argv,
   {
     if (p == buffer + sizeof(buffer) - 1)
     {
-      sql_print_error("plugin-load parameter too long");
+      LogErr(ERROR_LEVEL, ER_PLUGIN_LOAD_PARAMETER_TOO_LONG);
       DBUG_RETURN(TRUE);
     }
 
@@ -2048,8 +2048,7 @@ static bool plugin_load_list(MEM_ROOT *tmp_root, int *argc, char **argv,
   DBUG_RETURN(FALSE);
 error:
   mysql_mutex_unlock(&LOCK_plugin);
-  sql_print_error("Couldn't load plugin named '%s' with soname '%s'.",
-                  name.str, dl.str);
+  LogErr(ERROR_LEVEL, ER_PLUGIN_CANT_LOAD, name.str, dl.str);
   DBUG_RETURN(TRUE);
 }
 
@@ -2153,8 +2152,8 @@ void plugin_shutdown(void)
       if (!(plugins[i]->state & (PLUGIN_IS_UNINITIALIZED | PLUGIN_IS_FREED |
                                  PLUGIN_IS_DISABLED)))
       {
-        sql_print_warning("Plugin '%s' will be forced to shutdown",
-                          plugins[i]->name.str);
+        LogErr(WARNING_LEVEL, ER_PLUGIN_FORCING_SHUTDOWN,
+               plugins[i]->name.str);
         /*
           We are forcing deinit on plugins so we don't want to do a ref_count
           check until we have processed all the plugins.
@@ -2177,8 +2176,8 @@ void plugin_shutdown(void)
     for (i= 0; i < count; i++)
     {
       if (plugins[i]->ref_count)
-        sql_print_error("Plugin '%s' has ref_count=%d after shutdown.",
-                        plugins[i]->name.str, plugins[i]->ref_count);
+        LogErr(ERROR_LEVEL, ER_PLUGIN_HAS_NONZERO_REFCOUNT_AFTER_SHUTDOWN,
+               plugins[i]->name.str, plugins[i]->ref_count);
       if (plugins[i]->state & PLUGIN_IS_UNINITIALIZED)
         plugin_del(plugins[i]);
     }
@@ -4288,8 +4287,8 @@ static int construct_options(MEM_ROOT *mem_root, st_plugin_int *tmp,
       ((thdvar_double_t *) opt)->resolve= mysql_sys_var_double;
       break;
     default:
-      sql_print_error("Unknown variable type code 0x%x in plugin '%s'.",
-                      opt->flags, plugin_name);
+      LogErr(ERROR_LEVEL, ER_PLUGIN_UNKNOWN_VARIABLE_TYPE,
+             opt->flags, plugin_name);
       DBUG_RETURN(-1);
     };
   }
@@ -4331,10 +4330,8 @@ static int construct_options(MEM_ROOT *mem_root, st_plugin_int *tmp,
         if (!(opt->flags & (PLUGIN_VAR_MEMALLOC | PLUGIN_VAR_READONLY)))
         {
           opt->flags|= PLUGIN_VAR_READONLY;
-          sql_print_warning("Server variable %s of plugin %s was forced "
-                            "to be read-only: string variable without "
-                            "update_func and PLUGIN_VAR_MEMALLOC flag",
-                            opt->name, plugin_name);
+          LogErr(WARNING_LEVEL, ER_PLUGIN_VARIABLE_SET_READ_ONLY,
+                 opt->name, plugin_name);
         }
       }
       break;
@@ -4357,8 +4354,8 @@ static int construct_options(MEM_ROOT *mem_root, st_plugin_int *tmp,
         opt->update= update_func_double;
       break;
     default:
-      sql_print_error("Unknown variable type code 0x%x in plugin '%s'.",
-                      opt->flags, plugin_name);
+      LogErr(ERROR_LEVEL, ER_PLUGIN_UNKNOWN_VARIABLE_TYPE,
+             opt->flags, plugin_name);
       DBUG_RETURN(-1);
     }
 
@@ -4368,8 +4365,7 @@ static int construct_options(MEM_ROOT *mem_root, st_plugin_int *tmp,
 
     if (!opt->name)
     {
-      sql_print_error("Missing variable name in plugin '%s'.",
-                      plugin_name);
+      LogErr(ERROR_LEVEL, ER_PLUGIN_VARIABLE_MISSING_NAME, plugin_name);
       DBUG_RETURN(-1);
     }
 
@@ -4385,8 +4381,8 @@ static int construct_options(MEM_ROOT *mem_root, st_plugin_int *tmp,
       /* this should not fail because register_var should create entry */
       if (!(v= find_bookmark(plugin_name_ptr, opt->name, opt->flags)))
       {
-        sql_print_error("Thread local variable '%s' not allocated "
-                        "in plugin '%s'.", opt->name, plugin_name);
+        LogErr(ERROR_LEVEL, ER_PLUGIN_VARIABLE_NOT_ALLOCATED_THREAD_LOCAL,
+               opt->name, plugin_name);
         DBUG_RETURN(-1);
       }
 
@@ -4551,14 +4547,14 @@ static int test_plugin_options(MEM_ROOT *tmp_root, st_plugin_int *tmp,
   {
     if (!(opts= (my_option*) alloc_root(tmp_root, sizeof(my_option) * count)))
     {
-      sql_print_error("Out of memory for plugin '%s'.", tmp->name.str);
+      LogErr(ERROR_LEVEL, ER_PLUGIN_OOM, tmp->name.str);
       DBUG_RETURN(-1);
     }
     memset(opts, 0, sizeof(my_option) * count);
 
     if (construct_options(tmp_root, tmp, opts))
     {
-      sql_print_error("Bad options for plugin '%s'.", tmp->name.str);
+      LogErr(ERROR_LEVEL, ER_PLUGIN_BAD_OPTIONS, tmp->name.str);
       DBUG_RETURN(-1);
     }
 
@@ -4575,9 +4571,8 @@ static int test_plugin_options(MEM_ROOT *tmp_root, st_plugin_int *tmp,
 
     if (error)
     {
-       sql_print_error("Parsing options for plugin '%s' failed.",
-                       tmp->name.str);
-       goto err;
+      LogErr(ERROR_LEVEL, ER_PLUGIN_PARSING_OPTIONS_FAILED, tmp->name.str);
+      goto err;
     }
     /*
      Set plugin loading policy from option value. First element in the option
@@ -4596,8 +4591,7 @@ static int test_plugin_options(MEM_ROOT *tmp_root, st_plugin_int *tmp,
   */
   if (disable_plugin)
   {
-    sql_print_information("Plugin '%s' is disabled.",
-                          tmp->name.str);
+    LogErr(INFORMATION_LEVEL, ER_PLUGIN_DISABLED, tmp->name.str);
     if (opts)
       my_cleanup_options(opts);
     DBUG_RETURN(1);
@@ -4639,8 +4633,8 @@ static int test_plugin_options(MEM_ROOT *tmp_root, st_plugin_int *tmp,
     chain.last->next = NULL;
     if (mysql_add_sys_var_chain(chain.first))
     {
-      sql_print_error("Plugin '%s' has conflicting system variables",
-                      tmp->name.str);
+      LogErr(ERROR_LEVEL, ER_PLUGIN_HAS_CONFLICTING_SYSTEM_VARIABLES,
+             tmp->name.str);
       goto err;
     }
     tmp->system_vars= chain.first;
@@ -4655,9 +4649,9 @@ static int test_plugin_options(MEM_ROOT *tmp_root, st_plugin_int *tmp,
     Persisted_variables_cache *pv= Persisted_variables_cache::get_instance();
     if (pv && pv->set_persist_options(TRUE))
     {
-       sql_print_error("Setting persistent options for plugin '%s' failed.",
-                       tmp->name.str);
-       goto err;
+      LogErr(ERROR_LEVEL, ER_PLUGIN_CANT_SET_PERSISTENT_OPTIONS,
+             tmp->name.str);
+      goto err;
     }
   }
   DBUG_RETURN(0);

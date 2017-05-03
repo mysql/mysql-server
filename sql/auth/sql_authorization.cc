@@ -45,7 +45,7 @@
 #include "key.h"
 #include "key_spec.h"                   /* Key_spec */
 #include "lex_string.h"
-#include "log.h"                        /* sql_print_warning */
+#include "log.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "mdl.h"
@@ -492,13 +492,11 @@ bool roles_rename_authid(THD *thd, TABLE *edge_table, TABLE *defaults_table,
   if (ret)
   {
     String warning;
-    warning.append("MYSQL.DEFAULT_ROLES couldn't be updated for authorization"
-                   "identifier ");
     append_identifier(thd, &warning, user_from->user.str,
                       user_from->user.length);
     append_identifier(thd, &warning, user_from->host.str,
                       user_from->host.length);
-    sql_print_warning("%s", warning.c_ptr());
+    LogErr(WARNING_LEVEL, ER_SQL_AUTHOR_DEFAULT_ROLES_FAIL, warning.c_ptr());
     ret= false;
   }
 

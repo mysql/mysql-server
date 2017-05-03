@@ -38,7 +38,7 @@
 #include "key.h"                        /* key_copy, key_cmp_if_same */
 #include "lex_string.h"
                                         /* key_restore */
-#include "log.h"                        /* sql_print_warning */
+#include "log.h"                        /* log_*() */
 #include "m_ctype.h"
 #include "m_string.h"                   /* C_STRING_WITH_LEN */
 #include "mdl.h"
@@ -1019,17 +1019,11 @@ bool log_and_commit_acl_ddl(THD *thd,
           }
         }
         if (log_warning)
-          sql_print_warning("Following users were specified in %s but they "
-                            "%s. Corresponding entry in binary log used default "
-                            "authentication plugin '%s' to rewrite authentication "
-                            "information(if any) for them: %s",
-                            command == SQLCOM_CREATE_USER ?
-                            "CREATE USER IF NOT EXISTS" :
-                            "ALTER USER IF EXISTS",
-                            command == SQLCOM_CREATE_USER ?
-                            "already exist" : "do not exist",
-                            default_auth_plugin_name.str,
-                            warn_user.c_ptr_safe());
+          LogErr(WARNING_LEVEL,
+                 (command == SQLCOM_CREATE_USER)
+                 ? ER_SQL_USER_TABLE_CREATE_WARNING
+                 : ER_SQL_USER_TABLE_ALTER_WARNING,
+                 default_auth_plugin_name.str, warn_user.c_ptr_safe());
 
         warn_user.mem_free();
       }
@@ -3037,8 +3031,11 @@ bool check_acl_tables(TABLE_LIST *tables, bool report_error)
         break;
       }
       else
-        sql_print_warning("ACL table mysql.'%s' must use "
-                          "supported storage engine", t->table_name);
+      {
+        LogErr(WARNING_LEVEL, ER_UNSUPPORTED_ENGINE,
+               ha_resolve_storage_engine_name(t->table->file->ht),
+               t->db, t->table_name);
+      }
      }
   }
 

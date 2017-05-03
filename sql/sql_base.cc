@@ -45,7 +45,7 @@
 #include "item_subselect.h"
 #include "key.h"
 #include "lock.h"                     // mysql_lock_remove
-#include "log.h"                      // sql_print_error
+#include "log.h"
 #include "log_event.h"                // Query_log_event
 #include "m_ctype.h"
 #include "mf_wcomp.h"                 // wild_one, wild_many
@@ -2011,8 +2011,7 @@ bool close_temporary_tables(THD *thd)
             thread only calls close_temporary_tables while applying old
             Start_log_event_v3 events.)
           */
-          sql_print_error("Failed to write the DROP statement for "
-                        "temporary tables to binary log");
+          LogErr(ERROR_LEVEL, ER_BINLOG_FAILED_TO_WRITE_DROP_FOR_TEMP_TABLES);
         }
         thd->get_stmt_da()->set_overwrite_status(false);
       }
@@ -2043,8 +2042,7 @@ bool close_temporary_tables(THD *thd)
             thread only calls close_temporary_tables while applying old
             Start_log_event_v3 events.)
           */
-          sql_print_error("Failed to write the DROP statement for "
-                        "temporary tables to binary log");
+          LogErr(ERROR_LEVEL, ER_BINLOG_FAILED_TO_WRITE_DROP_FOR_TEMP_TABLES);
         }
         thd->get_stmt_da()->set_overwrite_status(false);
       }
@@ -4344,9 +4342,9 @@ static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share,
           DBA on top of warning the client (which will automatically be done
           because of MYF(MY_WME) in my_malloc() above).
         */
-        sql_print_error("When opening HEAP table, could not allocate memory "
-                        "to write 'DELETE FROM `%s`.`%s`' to the binary log",
-                        share->db.str, share->table_name.str);
+        LogErr(ERROR_LEVEL,
+               ER_BINLOG_OOM_WRITING_DELETE_WHILE_OPENING_HEAP_TABLE,
+               share->db.str, share->table_name.str);
         delete entry->triggers;
         return TRUE;
       }
@@ -4408,8 +4406,8 @@ static bool auto_repair_table(THD *thd, TABLE_LIST *table_list)
     /* Give right error message */
     thd->clear_error();
     my_error(ER_NOT_KEYFILE, MYF(0), share->table_name.str);
-    sql_print_error("Couldn't repair table: %s.%s", share->db.str,
-                    share->table_name.str);
+    LogErr(ERROR_LEVEL, ER_FAILED_TO_REPAIR_TABLE,
+           share->db.str, share->table_name.str);
     if (entry->file)
       closefrm(entry, 0);
   }
@@ -7186,8 +7184,7 @@ bool rm_temporary_table(THD *thd, handlerton *base, const char *path,
   if (file && file->ha_delete_table(path, table_def))
   {
     error=1;
-    sql_print_warning("Could not remove temporary table: '%s', error: %d",
-                      path, my_errno());
+    LogErr(WARNING_LEVEL, ER_FAILED_TO_REMOVE_TEMP_TABLE, path, my_errno());
   }
   delete file;
   DBUG_RETURN(error);
@@ -10233,8 +10230,8 @@ bool open_trans_system_tables_for_read(THD *thd, TABLE_LIST *table_list)
     // however. It will be make more strict in the future.
 
     if (!t->table->file->has_transactions())
-      sql_print_warning("System table '%.*s' is expected to be transactional.",
-                        static_cast<int>(t->table_name_length), t->table_name);
+      LogErr(WARNING_LEVEL, ER_SYSTEM_TABLE_NOT_TRANSACTIONAL,
+             static_cast<int>(t->table_name_length), t->table_name);
   }
 
   // Lock the tables.

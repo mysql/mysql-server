@@ -19,6 +19,7 @@ ENDIF()
 
 INCLUDE_DIRECTORIES(
   ${GMOCK_INCLUDE_DIRS}
+# ${CMAKE_SOURCE_DIR}
   ${CMAKE_SOURCE_DIR}/components/example
   ${CMAKE_SOURCE_DIR}/components/mysql_server
 )
@@ -39,6 +40,7 @@ FOREACH(test ${TESTS})
     ${CMAKE_SOURCE_DIR}/sql/rwlock_scoped_lock.cc
     ${CMAKE_SOURCE_DIR}/sql/server_component/mysql_string_service.cc
     ${CMAKE_SOURCE_DIR}/sql-common/sql_string.cc
+    builtins_stubs.cc
   )
   TARGET_LINK_LIBRARIES(${test}-t
     ${CMAKE_THREAD_LIBS_INIT} gunit_small component_mysql_server)

@@ -50,7 +50,7 @@
 #include "hash.h"
 #include "item_func.h"                      // user_var_entry
 #include "key.h"
-#include "log.h"                            // sql_print_warning
+#include "log.h"
 #include "log_event.h"                      // Rows_log_event
 #include "m_ctype.h"
 #include "mdl.h"
@@ -349,9 +349,8 @@ public:
       if (!attach_to(new_thd))
       {
         if (i > 0)
-          sql_print_warning("Server overcomes the temporary 'out of memory' "
-                            "in '%d' tries while attaching to session thread "
-                            "during the group commit phase.\n", i + 1);
+          LogErr(WARNING_LEVEL,
+                 ER_BINLOG_ATTACHING_THREAD_MEMORY_FINALLY_AVAILABLE, i + 1);
         break;
       }
       /* Sleep 1 microsecond per try to avoid temporary 'out of memory' */
@@ -519,7 +518,7 @@ public:
     {
       int error= 0;
       if((error= my_chsize(cache_log.file, 0, 0, MYF(MY_WME))))
-        sql_print_warning("Unable to resize binlog IOCACHE auxilary file");
+        LogErr(WARNING_LEVEL, ER_BINLOG_CANT_RESIZE_CACHE);
 
       DBUG_EXECUTE_IF("show_io_cache_size",
                       {
@@ -958,9 +957,9 @@ void check_binlog_cache_size(THD *thd)
     }
     else
     {
-      sql_print_warning(ER_DEFAULT(ER_BINLOG_CACHE_SIZE_GREATER_THAN_MAX),
-                        binlog_cache_size,
-                        (ulong) max_binlog_cache_size);
+      LogErr(WARNING_LEVEL, ER_BINLOG_CACHE_SIZE_GREATER_THAN_MAX,
+             binlog_cache_size,
+             (ulong) max_binlog_cache_size);
     }
     binlog_cache_size= static_cast<ulong>(max_binlog_cache_size);
   }
@@ -978,15 +977,16 @@ void check_binlog_stmt_cache_size(THD *thd)
     {
       push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_BINLOG_STMT_CACHE_SIZE_GREATER_THAN_MAX,
-                          ER_THD(thd, ER_BINLOG_STMT_CACHE_SIZE_GREATER_THAN_MAX),
+                          ER_THD(thd,
+                                 ER_BINLOG_STMT_CACHE_SIZE_GREATER_THAN_MAX),
                           (ulong) binlog_stmt_cache_size,
                           (ulong) max_binlog_stmt_cache_size);
     }
     else
     {
-      sql_print_warning(ER_DEFAULT(ER_BINLOG_STMT_CACHE_SIZE_GREATER_THAN_MAX),
-                        binlog_stmt_cache_size,
-                        (ulong) max_binlog_stmt_cache_size);
+      LogErr(WARNING_LEVEL, ER_BINLOG_STMT_CACHE_SIZE_GREATER_THAN_MAX,
+             binlog_stmt_cache_size,
+             (ulong) max_binlog_stmt_cache_size);
     }
     binlog_stmt_cache_size= static_cast<ulong>(max_binlog_stmt_cache_size);
   }
@@ -2765,8 +2765,8 @@ public:
     {
       if(!memcmp(m_log_name, linfo->log_file_name, m_log_name_len))
       {
-        sql_print_warning("file %s was not purged because it was being read"
-                          "by thread number %u", m_log_name, thd->thread_id());
+        LogErr(WARNING_LEVEL, ER_BINLOG_FILE_BEING_READ_NOT_PURGED,
+               m_log_name, thd->thread_id());
         m_count++;
       }
     }
@@ -2812,8 +2812,8 @@ int check_binlog_magic(IO_CACHE* log, const char** errmsg)
   if (my_b_read(log, (uchar*) magic, sizeof(magic)))
   {
     *errmsg = "I/O error reading the header from the binary log";
-    sql_print_error("%s, errno=%d, io cache code=%d", *errmsg, my_errno(),
-		    log->error);
+    LogErr(ERROR_LEVEL, ER_BINLOG_IO_ERROR_READING_HEADER,
+           my_errno(), log->error);
     return 1;
   }
   if (memcmp(magic, BINLOG_MAGIC, sizeof(magic)))
@@ -2834,16 +2834,14 @@ File open_binlog_file(IO_CACHE *log, const char *log_file_name, const char **err
                              log_file_name, O_RDONLY,
                              MYF(MY_WME))) < 0)
   {
-    sql_print_error("Failed to open log (file '%s', errno %d)",
-                    log_file_name, my_errno());
+    LogErr(ERROR_LEVEL, ER_BINLOG_CANT_OPEN_LOG, log_file_name, my_errno());
     *errmsg = "Could not open log file";
     goto err;
   }
   if (init_io_cache_ext(log, file, IO_SIZE*2, READ_CACHE, 0, 0,
                         MYF(MY_WME|MY_DONT_CHECK_FILESIZE), key_file_binlog_cache))
   {
-    sql_print_error("Failed to create a cache on log (file '%s')",
-                    log_file_name);
+    LogErr(ERROR_LEVEL, ER_BINLOG_CANT_CREATE_CACHE_FOR_LOG, log_file_name);
     *errmsg = "Could not open log file";
     goto err;
   }
@@ -3519,9 +3517,7 @@ static int find_uniq_filename(char *name, uint32 new_index_number)
   /* check if reached the maximum possible extension number */
   if (max_found >= MAX_LOG_UNIQUE_FN_EXT)
   {
-    sql_print_error("Log filename extension number exhausted: %06lu. \
-Please fix this by archiving old logs and \
-updating the index files.", max_found);
+    LogErr(ERROR_LEVEL, ER_BINLOG_FILE_EXTENSION_NUMBER_EXHAUSTED, max_found);
     error= 1;
     goto end;
   }
@@ -3552,9 +3548,8 @@ updating the index files.", max_found);
    */
   if (((strlen(ext_buf) + (end - name)) >= FN_REFLEN))
   {
-    sql_print_error("Log filename too large: %s%s (%zu). \
-Please fix this by archiving old logs and updating the \
-index files.", name, ext_buf, (strlen(ext_buf) + (end - name)));
+    LogErr(ERROR_LEVEL, ER_BINLOG_FILE_NAME_TOO_LONG,
+           name, ext_buf, (strlen(ext_buf) + (end - name)));
     error= 1;
     goto end;
   }
@@ -3567,9 +3562,8 @@ index files.", name, ext_buf, (strlen(ext_buf) + (end - name)));
 
   /* print warning if reaching the end of available extensions. */
   if ((next > (MAX_LOG_UNIQUE_FN_EXT - LOG_WARN_UNIQUE_FN_EXT_LEFT)))
-    sql_print_warning("Next log extension: %lu. \
-Remaining log filename extensions: %lu. \
-Please consider archiving some logs.", next, (MAX_LOG_UNIQUE_FN_EXT - next));
+    LogErr(WARNING_LEVEL, ER_BINLOG_FILE_EXTENSION_NUMBER_RUNNING_LOW,
+           next, (MAX_LOG_UNIQUE_FN_EXT - next));
 
 end:
   DBUG_RETURN(error);
@@ -3587,7 +3581,7 @@ int MYSQL_BIN_LOG::generate_new_name(char *new_name, const char *log_name,
       my_printf_error(ER_NO_UNIQUE_LOGFILE,
                       ER_THD(current_thd, ER_NO_UNIQUE_LOGFILE),
                       MYF(ME_FATALERROR), log_name);
-      sql_print_error(ER_DEFAULT(ER_NO_UNIQUE_LOGFILE), log_name);
+      LogErr(ERROR_LEVEL, ER_NO_UNIQUE_LOGFILE, log_name);
       return 1;
     }
   }
@@ -3705,12 +3699,8 @@ err:
                                    " server.");
   }
   else
-    sql_print_error("Could not open %s for logging (error %d). "
-                    "Turning logging off for the whole duration "
-                    "of the MySQL server process. To turn it on "
-                    "again: fix the cause, shutdown the MySQL "
-                    "server and restart it.",
-                    name, errno);
+    LogErr(ERROR_LEVEL, ER_BINLOG_CANT_OPEN_FOR_LOGGING,
+           name, errno);
   if (file >= 0)
     mysql_file_close(file, MYF(0));
   end_io_cache(&log_file);
@@ -3751,7 +3741,6 @@ bool MYSQL_BIN_LOG::open_index_file(const char *index_file_name_arg,
 
   if (set_crash_safe_index_file_name(index_file_name_arg))
   {
-    sql_print_error("MYSQL_BIN_LOG::set_crash_safe_index_file_name failed.");
     error= true;
     goto end;
   }
@@ -3765,8 +3754,9 @@ bool MYSQL_BIN_LOG::open_index_file(const char *index_file_name_arg,
       !my_access(crash_safe_index_file_name, F_OK) &&
       my_rename(crash_safe_index_file_name, index_file_name, MYF(MY_WME)))
   {
-    sql_print_error("MYSQL_BIN_LOG::open_index_file failed to "
-                    "move crash_safe_index_file to index file.");
+    LogErr(ERROR_LEVEL,
+           ER_BINLOG_CANT_MOVE_TMP_TO_INDEX,
+           "MYSQL_BIN_LOG::open_index_file");
     error= true;
     goto end;
   }
@@ -3809,8 +3799,7 @@ bool MYSQL_BIN_LOG::open_index_file(const char *index_file_name_arg,
       close_purge_index_file() ||
       DBUG_EVALUATE_IF("fault_injection_recovering_index", 1, 0))
   {
-    sql_print_error("MYSQL_BIN_LOG::open_index_file failed to sync the index "
-                    "file.");
+    LogErr(ERROR_LEVEL, ER_BINLOG_FAILED_TO_SYNC_INDEX_FILE);
     error= true;
     goto end;
   }
@@ -4090,7 +4079,8 @@ read_gtids_and_update_trx_parser_from_relaylog(
   {
     // This is not a fatal error; the log may just be truncated.
     // @todo but what other errors could happen? IO error?
-    sql_print_warning("Error reading GTIDs from relaylog: %d", log.error);
+    LogErr(WARNING_LEVEL, ER_BINLOG_ERROR_READING_GTIDS_FROM_RELAY_LOG,
+           log.error);
   }
 
   if (fd_ev_p != &fd_ev)
@@ -4103,10 +4093,8 @@ read_gtids_and_update_trx_parser_from_relaylog(
   end_io_cache(&log);
 
 #ifndef DBUG_OFF
-  sql_print_information("%lu events read in relaylog file '%s' for updating "
-                        "Retrieved_Gtid_Set and/or IO thread transaction "
-                        "parser state.",
-                        event_counter, filename);
+  LogErr(INFORMATION_LEVEL, ER_BINLOG_EVENTS_READ_FROM_RELAY_LOG_INFO,
+         event_counter, filename);
 #endif
 
   DBUG_RETURN(error);
@@ -4266,7 +4254,8 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
             THD instance. Therefore, ER(X) cannot be used.
            */
           const char* msg_fmt= (current_thd != NULL) ?
-                               ER_THD(current_thd, ER_BINLOG_LOGICAL_CORRUPTION) :
+                               ER_THD(current_thd,
+                                      ER_BINLOG_LOGICAL_CORRUPTION) :
                                ER_DEFAULT(ER_BINLOG_LOGICAL_CORRUPTION);
           my_printf_error(ER_BINLOG_LOGICAL_CORRUPTION,
                           msg_fmt, MYF(0),
@@ -4371,7 +4360,8 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
     // This is not a fatal error; the log may just be truncated.
 
     // @todo but what other errors could happen? IO error?
-    sql_print_warning("Error reading GTIDs from binary log: %d", log.error);
+    LogErr(WARNING_LEVEL, ER_BINLOG_ERROR_READING_GTIDS_FROM_BINARY_LOG,
+           log.error);
   }
 
   if (fd_ev_p != &fd_ev)
@@ -4402,9 +4392,8 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
 #ifndef DBUG_OFF
   if (!is_relay_log && prev_gtids != NULL &&
       all_gtids == NULL && first_gtid == NULL)
-    sql_print_information("Read %lu events from binary log file '%s' to "
-                          "determine the GTIDs purged from binary logs.",
-                          event_counter, filename);
+    LogErr(INFORMATION_LEVEL, ER_BINLOG_EVENTS_READ_FROM_BINLOG_INFO,
+           event_counter, filename);
 #endif
   DBUG_RETURN(ret);
 }
@@ -4892,7 +4881,7 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
 
   if (init_and_set_log_file_name(log_name, new_name, new_index_number))
   {
-    sql_print_error("MYSQL_BIN_LOG::open failed to generate new file name.");
+    LogErr(ERROR_LEVEL, ER_BINLOG_CANT_GENERATE_NEW_FILE_NAME);
     DBUG_RETURN(1);
   }
 
@@ -4922,7 +4911,7 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
       }
     });
 
-    sql_print_error("MYSQL_BIN_LOG::open failed to sync the index file.");
+    LogErr(ERROR_LEVEL, ER_BINLOG_FAILED_TO_SYNC_INDEX_FILE_IN_OPEN);
     DBUG_RETURN(1);
   }
   DBUG_EXECUTE_IF("crash_create_non_critical_before_update_index", DBUG_SUICIDE(););
@@ -5194,11 +5183,8 @@ err:
   }
   else
   {
-    sql_print_error("Could not use %s for logging (error %d). "
-                    "Turning logging off for the whole duration of the MySQL "
-                    "server process. To turn it on again: fix the cause, "
-                    "shutdown the MySQL server and restart it.",
-                    (new_name) ? new_name : name, errno);
+    LogErr(ERROR_LEVEL, ER_BINLOG_CANT_USE_FOR_LOGGING,
+           (new_name) ? new_name : name, errno);
     close(LOG_CLOSE_INDEX, false, need_lock_index);
   }
   DBUG_RETURN(1);
@@ -5231,8 +5217,9 @@ int MYSQL_BIN_LOG::move_crash_safe_index_file_to_index_file(bool need_lock_index
     if (mysql_file_close(index_file.file, MYF(0)) < 0)
     {
       error= -1;
-      sql_print_error("While rebuilding index file %s: "
-                      "Failed to close the index file.", index_file_name);
+      LogErr(ERROR_LEVEL,
+             ER_BINLOG_FAILED_TO_CLOSE_INDEX_FILE_WHILE_REBUILDING,
+             index_file_name);
       /*
         Delete Crash safe index file here and recover the binlog.index
         state(index_file io_cache) from old binlog.index content.
@@ -5246,10 +5233,9 @@ int MYSQL_BIN_LOG::move_crash_safe_index_file_to_index_file(bool need_lock_index
         mysql_file_delete(key_file_binlog_index, index_file_name, MYF(MY_WME)))
     {
       error= -1;
-      sql_print_error("While rebuilding index file %s: "
-                      "Failed to delete the existing index file. It could be "
-                      "that file is being used by some other process.",
-                      index_file_name);
+      LogErr(ERROR_LEVEL,
+             ER_BINLOG_FAILED_TO_DELETE_INDEX_FILE_WHILE_REBUILDING,
+             index_file_name);
       /*
         Delete Crash safe file index file here and recover the binlog.index
         state(index_file io_cache) from old binlog.index content.
@@ -5265,9 +5251,9 @@ int MYSQL_BIN_LOG::move_crash_safe_index_file_to_index_file(bool need_lock_index
   if (my_rename(crash_safe_index_file_name, index_file_name, MYF(MY_WME)))
   {
     error= -1;
-    sql_print_error("While rebuilding index file %s: "
-                    "Failed to rename the new index file to the existing "
-                    "index file.", index_file_name);
+    LogErr(ERROR_LEVEL,
+           ER_BINLOG_FAILED_TO_RENAME_INDEX_FILE_WHILE_REBUILDING,
+           index_file_name);
     goto fatal_err;
   }
   DBUG_EXECUTE_IF("crash_create_after_rename_index_file", DBUG_SUICIDE(););
@@ -5283,8 +5269,8 @@ recoverable_err:
                                              0, MYF(MY_WME | MY_WAIT_IF_FULL),
                              key_file_binlog_index_cache))
   {
-    sql_print_error("After rebuilding the index file %s: "
-                    "Failed to open the index file.", index_file_name);
+    LogErr(ERROR_LEVEL, ER_BINLOG_FAILED_TO_OPEN_INDEX_FILE_AFTER_REBUILDING,
+           index_file_name);
     goto fatal_err;
   }
 
@@ -5332,15 +5318,16 @@ int MYSQL_BIN_LOG::add_log_to_index(uchar* log_name,
 
   if (open_crash_safe_index_file())
   {
-    sql_print_error("MYSQL_BIN_LOG::add_log_to_index failed to "
-                    "open the crash safe index file.");
+    LogErr(ERROR_LEVEL, ER_BINLOG_CANT_OPEN_TMP_INDEX,
+           "MYSQL_BIN_LOG::add_log_to_index");
     goto err;
   }
 
   if (copy_file(&index_file, &crash_safe_index_file, 0))
   {
-    sql_print_error("MYSQL_BIN_LOG::add_log_to_index failed to "
-                    "copy index file to crash safe index file.");
+    LogErr(ERROR_LEVEL,
+           ER_BINLOG_CANT_COPY_INDEX_TO_TMP,
+           "MYSQL_BIN_LOG::add_log_to_index");
     goto err;
   }
 
@@ -5349,23 +5336,24 @@ int MYSQL_BIN_LOG::add_log_to_index(uchar* log_name,
       flush_io_cache(&crash_safe_index_file) ||
       mysql_file_sync(crash_safe_index_file.file, MYF(MY_WME)))
   {
-    sql_print_error("MYSQL_BIN_LOG::add_log_to_index failed to "
-                    "append log file name: %s, to crash "
-                    "safe index file.", log_name);
+    LogErr(ERROR_LEVEL,
+           ER_BINLOG_CANT_APPEND_LOG_TO_TMP_INDEX,
+           log_name);
     goto err;
   }
 
   if (close_crash_safe_index_file())
   {
-    sql_print_error("MYSQL_BIN_LOG::add_log_to_index failed to "
-                    "close the crash safe index file.");
+    LogErr(ERROR_LEVEL, ER_BINLOG_CANT_CLOSE_TMP_INDEX,
+           "MYSQL_BIN_LOG::add_log_to_index");
     goto err;
   }
 
   if (move_crash_safe_index_file_to_index_file(need_lock_index))
   {
-    sql_print_error("MYSQL_BIN_LOG::add_log_to_index failed to "
-                    "move crash safe index file to index file.");
+    LogErr(ERROR_LEVEL,
+           ER_BINLOG_CANT_MOVE_TMP_TO_INDEX,
+           "MYSQL_BIN_LOG::add_log_to_index");
     goto err;
   }
 
@@ -5716,7 +5704,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd, bool delete_only)
   if ((err= find_log_pos(&linfo, NullS, false/*need_lock_index=false*/)) != 0)
   {
     uint errcode= purge_log_get_error_code(err);
-    sql_print_error("Failed to locate old binlog or relay log files");
+    LogErr(ERROR_LEVEL, ER_BINLOG_CANT_LOCATE_OLD_BINLOG_OR_RELAY_LOG_FILES);
     my_error(errcode, MYF(0));
     error= 1;
     goto err;
@@ -5732,8 +5720,8 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd, bool delete_only)
                             ER_LOG_PURGE_NO_FILE,
                             ER_THD(current_thd, ER_LOG_PURGE_NO_FILE),
                             linfo.log_file_name);
-        sql_print_information("Failed to delete file '%s'",
-                              linfo.log_file_name);
+        LogErr(INFORMATION_LEVEL, ER_BINLOG_CANT_DELETE_FILE,
+               linfo.log_file_name);
         set_my_errno(0);
         error= 0;
       }
@@ -5766,8 +5754,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd, bool delete_only)
                           ER_LOG_PURGE_NO_FILE,
                           ER_THD(current_thd, ER_LOG_PURGE_NO_FILE),
                           index_file_name);
-      sql_print_information("Failed to delete file '%s'",
-                            index_file_name);
+      LogErr(INFORMATION_LEVEL, ER_BINLOG_CANT_DELETE_FILE, index_file_name);
       set_my_errno(0);
       error= 0;
     }
@@ -5844,8 +5831,7 @@ int MYSQL_BIN_LOG::set_crash_safe_index_file_name(const char *base_file_name)
                                          MY_REPLACE_EXT)) == NULL)
   {
     error= 1;
-    sql_print_error("MYSQL_BIN_LOG::set_crash_safe_index_file_name failed "
-                    "to set file name.");
+    LogErr(ERROR_LEVEL, ER_BINLOG_CANT_SET_TMP_INDEX_NAME);
   }
   DBUG_RETURN(error);
 }
@@ -5877,8 +5863,7 @@ int MYSQL_BIN_LOG::open_crash_safe_index_file()
                       0, 0, MYF(MY_WME | MY_NABP | MY_WAIT_IF_FULL)))
     {
       error= 1;
-      sql_print_error("MYSQL_BIN_LOG::open_crash_safe_index_file failed "
-                      "to open temporary index file.");
+      LogErr(ERROR_LEVEL, ER_BINLOG_FAILED_TO_OPEN_TEMPORARY_INDEX_FILE);
     }
   }
   DBUG_RETURN(error);
@@ -5981,11 +5966,11 @@ int MYSQL_BIN_LOG::purge_first_log(Relay_log_info* rli, bool included)
      (error=find_next_log(&rli->linfo, false/*need_lock_index=false*/)))
   {
     char buff[22];
-    sql_print_error("next log error: %d  offset: %s  log: %s included: %d",
-                    error,
-                    llstr(rli->linfo.index_file_offset,buff),
-                    rli->get_event_relay_log_name(),
-                    included);
+    LogErr(ERROR_LEVEL, ER_BINLOG_ERROR_GETTING_NEXT_LOG_FROM_INDEX,
+           error,
+           llstr(rli->linfo.index_file_offset,buff),
+           rli->get_event_relay_log_name(),
+           included);
     goto err;
   }
 
@@ -6043,11 +6028,11 @@ int MYSQL_BIN_LOG::purge_first_log(Relay_log_info* rli, bool included)
                          false/*need_lock_index=false*/)))
   {
     char buff[22];
-    sql_print_error("next log error: %d  offset: %s  log: %s included: %d",
-                    error,
-                    llstr(rli->linfo.index_file_offset,buff),
-                    rli->get_group_relay_log_name(),
-                    included);
+    LogErr(ERROR_LEVEL, ER_BINLOG_ERROR_GETTING_NEXT_LOG_FROM_INDEX,
+           error,
+           llstr(rli->linfo.index_file_offset,buff),
+           rli->get_group_relay_log_name(),
+           included);
     goto err;
   }
 
@@ -6086,31 +6071,33 @@ int MYSQL_BIN_LOG::remove_logs_from_index(LOG_INFO* log_info, bool need_update_t
 {
   if (open_crash_safe_index_file())
   {
-    sql_print_error("MYSQL_BIN_LOG::remove_logs_from_index failed to "
-                    "open the crash safe index file.");
+    LogErr(ERROR_LEVEL, ER_BINLOG_CANT_OPEN_TMP_INDEX,
+           "MYSQL_BIN_LOG::remove_logs_from_index");
     goto err;
   }
 
   if (copy_file(&index_file, &crash_safe_index_file,
                 log_info->index_file_start_offset))
   {
-    sql_print_error("MYSQL_BIN_LOG::remove_logs_from_index failed to "
-                    "copy index file to crash safe index file.");
+    LogErr(ERROR_LEVEL,
+           ER_BINLOG_CANT_COPY_INDEX_TO_TMP,
+           "MYSQL_BIN_LOG::remove_logs_from_index");
     goto err;
   }
 
   if (close_crash_safe_index_file())
   {
-    sql_print_error("MYSQL_BIN_LOG::remove_logs_from_index failed to "
-                    "close the crash safe index file.");
+    LogErr(ERROR_LEVEL, ER_BINLOG_CANT_CLOSE_TMP_INDEX,
+           "MYSQL_BIN_LOG::remove_logs_from_index");
     goto err;
   }
   DBUG_EXECUTE_IF("fault_injection_copy_part_file", DBUG_SUICIDE(););
 
   if (move_crash_safe_index_file_to_index_file(false/*need_lock_index=false*/))
   {
-    sql_print_error("MYSQL_BIN_LOG::remove_logs_from_index failed to "
-                    "move crash safe index file to index file.");
+    LogErr(ERROR_LEVEL,
+           ER_BINLOG_CANT_MOVE_TMP_TO_INDEX,
+           "MYSQL_BIN_LOG::remove_logs_from_index");
     goto err;
   }
 
@@ -6169,8 +6156,8 @@ int MYSQL_BIN_LOG::purge_logs(const char *to_log,
     mysql_mutex_assert_owner(&LOCK_index);
   if ((error=find_log_pos(&log_info, to_log, false/*need_lock_index=false*/))) 
   {
-    sql_print_error("MYSQL_BIN_LOG::purge_logs was called with file %s not "
-                    "listed in the index.", to_log);
+    LogErr(ERROR_LEVEL, ER_BINLOG_PURGE_LOGS_CALLED_WITH_FILE_NOT_IN_INDEX,
+           to_log);
     goto err;
   }
 
@@ -6178,7 +6165,7 @@ int MYSQL_BIN_LOG::purge_logs(const char *to_log,
 
   if ((error= open_purge_index_file(TRUE)))
   {
-    sql_print_error("MYSQL_BIN_LOG::purge_logs failed to sync the index file.");
+    LogErr(ERROR_LEVEL, ER_BINLOG_PURGE_LOGS_CANT_SYNC_INDEX_FILE);
     goto err;
   }
 
@@ -6215,8 +6202,8 @@ int MYSQL_BIN_LOG::purge_logs(const char *to_log,
 
     if ((error= register_purge_index_entry(log_info.log_file_name)))
     {
-      sql_print_error("MYSQL_BIN_LOG::purge_logs failed to copy %s to register file.",
-                      log_info.log_file_name);
+      LogErr(ERROR_LEVEL, ER_BINLOG_PURGE_LOGS_CANT_COPY_TO_REGISTER_FILE,
+             log_info.log_file_name);
       goto err;
     }
 
@@ -6228,14 +6215,14 @@ int MYSQL_BIN_LOG::purge_logs(const char *to_log,
 
   if ((error= sync_purge_index_file()))
   {
-    sql_print_error("MYSQL_BIN_LOG::purge_logs failed to flush register file.");
+    LogErr(ERROR_LEVEL, ER_BINLOG_PURGE_LOGS_CANT_FLUSH_REGISTER_FILE);
     goto err;
   }
 
   /* We know how many files to delete. Update index file. */
   if ((error=remove_logs_from_index(&log_info, need_update_threads)))
   {
-    sql_print_error("MYSQL_BIN_LOG::purge_logs failed to update the index file");
+    LogErr(ERROR_LEVEL, ER_BINLOG_PURGE_LOGS_CANT_UPDATE_INDEX_FILE);
     goto err;
   }
 
@@ -6261,8 +6248,7 @@ err:
   /* Read each entry from purge_index_file and delete the file. */
   if (!error && is_inited_purge_index_file() &&
       (error_index= purge_index_entry(thd, decrease_log_space, false/*need_lock_index=false*/)))
-    sql_print_error("MYSQL_BIN_LOG::purge_logs failed to process registered files"
-                    " that would be purged.");
+    LogErr(ERROR_LEVEL, ER_BINLOG_PURGE_LOGS_FAILED_TO_PURGE_LOG);
 
   close_error_index= close_purge_index_file();
 
@@ -6291,8 +6277,7 @@ int MYSQL_BIN_LOG::set_purge_index_file_name(const char *base_file_name)
                               MY_REPLACE_EXT)) == NULL)
   {
     error= 1;
-    sql_print_error("MYSQL_BIN_LOG::set_purge_index_file_name failed to set "
-                      "file name.");
+    LogErr(ERROR_LEVEL, ER_BINLOG_FAILED_TO_SET_PURGE_INDEX_FILE_NAME);
   }
   DBUG_RETURN(error);
 }
@@ -6316,8 +6301,7 @@ int MYSQL_BIN_LOG::open_purge_index_file(bool destroy)
                       0, 0, MYF(MY_WME | MY_NABP | MY_WAIT_IF_FULL)))
     {
       error= 1;
-      sql_print_error("MYSQL_BIN_LOG::open_purge_index_file failed to open register "
-                      " file.");
+      LogErr(ERROR_LEVEL, ER_BINLOG_FAILED_TO_OPEN_REGISTER_FILE);
     }
   }
   DBUG_RETURN(error);
@@ -6390,8 +6374,7 @@ int MYSQL_BIN_LOG::purge_index_entry(THD *thd, ulonglong *decrease_log_space,
 
   if ((error=reinit_io_cache(&purge_index_file, READ_CACHE, 0, 0, 0)))
   {
-    sql_print_error("MYSQL_BIN_LOG::purge_index_entry failed to reinit register file "
-                    "for read");
+    LogErr(ERROR_LEVEL, ER_BINLOG_FAILED_TO_REINIT_REGISTER_FILE);
     goto err;
   }
 
@@ -6405,8 +6388,7 @@ int MYSQL_BIN_LOG::purge_index_entry(THD *thd, ulonglong *decrease_log_space,
       if (purge_index_file.error)
       {
         error= purge_index_file.error;
-        sql_print_error("MYSQL_BIN_LOG::purge_index_entry error %d reading from "
-                        "register file.", error);
+        LogErr(ERROR_LEVEL, ER_BINLOG_FAILED_TO_READ_REGISTER_FILE, error);
         goto err;
       }
 
@@ -6432,8 +6414,7 @@ int MYSQL_BIN_LOG::purge_index_entry(THD *thd, ulonglong *decrease_log_space,
                               ER_THD(thd, ER_LOG_PURGE_NO_FILE),
                               log_info.log_file_name);
         }
-        sql_print_information("Failed to execute mysql_file_stat on file '%s'",
-			      log_info.log_file_name);
+        LogErr(INFORMATION_LEVEL, ER_CANT_STAT_FILE, log_info.log_file_name);
         set_my_errno(0);
       }
       else
@@ -6453,11 +6434,9 @@ int MYSQL_BIN_LOG::purge_index_entry(THD *thd, ulonglong *decrease_log_space,
         }
         else
         {
-          sql_print_information("Failed to delete log file '%s'; "
-                                "consider examining correspondence "
-                                "of your binlog index file "
-                                "to the actual binlog files",
-                                log_info.log_file_name);
+          LogErr(INFORMATION_LEVEL,
+                 ER_BINLOG_CANT_DELETE_LOG_FILE_DOES_INDEX_MATCH_FILES,
+                 log_info.log_file_name);
         }
         error= LOG_INFO_FATAL;
         goto err;
@@ -6480,13 +6459,13 @@ int MYSQL_BIN_LOG::purge_index_entry(THD *thd, ulonglong *decrease_log_space,
           }
           else
           {
-            sql_print_information("Failed to delete file '%s' and "
-                                  "read the binlog index file",
-                                  log_info.log_file_name);
+            LogErr(INFORMATION_LEVEL,
+                   ER_BINLOG_CANT_DELETE_FILE_AND_READ_BINLOG_INDEX,
+                   log_info.log_file_name);
           }
           goto err;
         }
-           
+
         error= 0;
         if (!need_lock_index)
         {
@@ -6516,8 +6495,8 @@ int MYSQL_BIN_LOG::purge_index_entry(THD *thd, ulonglong *decrease_log_space,
                                   ER_THD(thd, ER_LOG_PURGE_NO_FILE),
                                   log_info.log_file_name);
             }
-            sql_print_information("Failed to delete file '%s'",
-                                  log_info.log_file_name);
+            LogErr(INFORMATION_LEVEL, ER_BINLOG_CANT_DELETE_FILE,
+                   log_info.log_file_name);
             set_my_errno(0);
           }
           else
@@ -6534,11 +6513,9 @@ int MYSQL_BIN_LOG::purge_index_entry(THD *thd, ulonglong *decrease_log_space,
             }
             else
             {
-              sql_print_information("Failed to delete file '%s'; "
-                                    "consider examining correspondence "
-                                    "of your binlog index file "
-                                    "to the actual binlog files",
-                                    log_info.log_file_name);
+              LogErr(INFORMATION_LEVEL,
+                     ER_BINLOG_CANT_DELETE_LOG_FILE_DOES_INDEX_MATCH_FILES,
+                     log_info.log_file_name);
             }
             if (my_errno() == EMFILE)
             {
@@ -6636,8 +6613,8 @@ int MYSQL_BIN_LOG::purge_logs_before_date(time_t purge_time, bool auto_purge)
         }
         else
         {
-          sql_print_information("Failed to delete log file '%s'",
-                                log_info.log_file_name);
+          LogErr(INFORMATION_LEVEL, ER_BINLOG_FAILED_TO_DELETE_LOG_FILE,
+                 log_info.log_file_name);
         }
         error= LOG_INFO_FATAL;
         goto err;
@@ -6995,12 +6972,9 @@ end:
                                      " Aborting the server.");
     }
     else
-      sql_print_error("Could not open %s for logging (error %d). "
-                      "Turning logging off for the whole duration "
-                      "of the MySQL server process. To turn it on "
-                      "again: fix the cause, shutdown the MySQL "
-                      "server and restart it.",
-                      new_name_ptr, errno);
+      LogErr(ERROR_LEVEL, ER_BINLOG_CANT_OPEN_FOR_LOGGING,
+             new_name_ptr, errno);
+
     close(LOG_CLOSE_INDEX, false /*need_lock_log=false*/,
           false/*need_lock_index=false*/);
   }
@@ -7738,8 +7712,7 @@ bool MYSQL_BIN_LOG::write_incident(Incident_log_event *ev, bool need_lock_log,
     to be alerted and explore incident details.
   */
   if (!error)
-    sql_print_error("%s An incident event has been written to the binary "
-                    "log which will stop the slaves.", err_msg);
+    LogErr(ERROR_LEVEL, ER_BINLOG_LOGGING_INCIDENT_TO_STOP_SLAVES, err_msg);
 
   if (do_flush_and_sync)
   {
@@ -7887,8 +7860,8 @@ bool MYSQL_BIN_LOG::write_cache(THD *thd, binlog_cache_data *cache_data,
       if (cache->error)				// Error on read
       {
         char errbuf[MYSYS_STRERROR_SIZE];
-        sql_print_error(ER_DEFAULT(ER_ERROR_ON_READ), cache->file_name,
-                        errno, my_strerror(errbuf, sizeof(errbuf), errno));
+        LogErr(ERROR_LEVEL, ER_ERROR_ON_READ, cache->file_name,
+               errno, my_strerror(errbuf, sizeof(errbuf), errno));
         write_error= true; // Don't give more errors
         goto err;
       }
@@ -7903,8 +7876,8 @@ err:
   {
     char errbuf[MYSYS_STRERROR_SIZE];
     write_error= true;
-    sql_print_error(ER_DEFAULT(ER_ERROR_ON_WRITE), name,
-                    errno, my_strerror(errbuf, sizeof(errbuf), errno));
+    LogErr(ERROR_LEVEL, ER_ERROR_ON_WRITE, name,
+           errno, my_strerror(errbuf, sizeof(errbuf), errno));
   }
   thd->commit_error= THD::CE_FLUSH_ERROR;
 
@@ -8017,16 +7990,16 @@ void MYSQL_BIN_LOG::close(uint exiting, bool need_lock_log,
       {
         char errbuf[MYSYS_STRERROR_SIZE];
         write_error= 1;
-        sql_print_error(ER_DEFAULT(ER_ERROR_ON_WRITE), name, errno,
-                        my_strerror(errbuf, sizeof(errbuf), errno));
+        LogErr(ERROR_LEVEL, ER_ERROR_ON_WRITE, name, errno,
+               my_strerror(errbuf, sizeof(errbuf), errno));
       }
 
       if (mysql_file_close(log_file.file, MYF(MY_WME)) && ! write_error)
       {
         char errbuf[MYSYS_STRERROR_SIZE];
         write_error= 1;
-        sql_print_error(ER_DEFAULT(ER_ERROR_ON_WRITE), name, errno,
-                        my_strerror(errbuf, sizeof(errbuf), errno));
+        LogErr(ERROR_LEVEL, ER_ERROR_ON_WRITE, name, errno,
+               my_strerror(errbuf, sizeof(errbuf), errno));
       }
     }
 
@@ -8053,8 +8026,8 @@ void MYSQL_BIN_LOG::close(uint exiting, bool need_lock_log,
     {
       char errbuf[MYSYS_STRERROR_SIZE];
       write_error= 1;
-      sql_print_error(ER_DEFAULT(ER_ERROR_ON_WRITE), index_file_name,
-                      errno, my_strerror(errbuf, sizeof(errbuf), errno));
+      LogErr(ERROR_LEVEL, ER_ERROR_ON_WRITE, index_file_name,
+             errno, my_strerror(errbuf, sizeof(errbuf), errno));
     }
   }
 
@@ -8136,7 +8109,7 @@ int MYSQL_BIN_LOG::open_binlog(const char *opt_name)
   if ((error= find_log_pos(&log_info, NullS, true/*need_lock_index=true*/)))
   {
     if (error != LOG_INFO_EOF)
-      sql_print_error("find_log_pos() failed (error: %d)", error);
+      LogErr(ERROR_LEVEL, ER_BINLOG_CANT_FIND_LOG_IN_INDEX, error);
     else
       error= 0;
     goto err;
@@ -8163,7 +8136,7 @@ int MYSQL_BIN_LOG::open_binlog(const char *opt_name)
 
     if (error !=  LOG_INFO_EOF)
     {
-      sql_print_error("find_log_pos() failed (error: %d)", error);
+      LogErr(ERROR_LEVEL, ER_BINLOG_CANT_FIND_LOG_IN_INDEX, error);
       goto err;
     }
 
@@ -8195,7 +8168,8 @@ int MYSQL_BIN_LOG::open_binlog(const char *opt_name)
         (ev->common_header->flags & LOG_EVENT_BINLOG_IN_USE_F ||
          DBUG_EVALUATE_IF("eval_force_bin_log_recovery", true, false)))
     {
-      sql_print_information("Recovering after a crash using %s", opt_name);
+      LogErr(INFORMATION_LEVEL, ER_BINLOG_RECOVERING_AFTER_CRASH_USING,
+             opt_name);
       valid_pos= my_b_tell(&log);
       error= recover(&log, (Format_description_log_event *)ev, &valid_pos);
     }
@@ -8216,8 +8190,7 @@ int MYSQL_BIN_LOG::open_binlog(const char *opt_name)
       if ((file= mysql_file_open(key_file_binlog, log_name,
                                  O_RDWR, MYF(MY_WME))) < 0)
       {
-        sql_print_error("Failed to open the crashed binlog file "
-                        "when master server is recovering it.");
+        LogErr(ERROR_LEVEL, ER_BINLOG_CANT_OPEN_CRASHED_BINLOG);
         return -1;
       }
 
@@ -8226,16 +8199,14 @@ int MYSQL_BIN_LOG::open_binlog(const char *opt_name)
       {
         if (my_chsize(file, valid_pos, 0, MYF(MY_WME)))
         {
-          sql_print_error("Failed to trim the crashed binlog file "
-                          "when master server is recovering it.");
+          LogErr(ERROR_LEVEL, ER_BINLOG_CANT_TRIM_CRASHED_BINLOG);
           mysql_file_close(file, MYF(MY_WME));
           return -1;
         }
         else
         {
-          sql_print_information("Crashed binlog file %s size is %llu, "
-                                "but recovered up to %llu. Binlog trimmed to %llu bytes.",
-                                log_name, binlog_size, valid_pos, valid_pos);
+          LogErr(INFORMATION_LEVEL, ER_BINLOG_CRASHED_BINLOG_TRIMMED,
+                 log_name, binlog_size, valid_pos, valid_pos);
         }
       }
 
@@ -8244,9 +8215,8 @@ int MYSQL_BIN_LOG::open_binlog(const char *opt_name)
       uchar flags= 0;
       if (mysql_file_pwrite(file, &flags, 1, offset, MYF(0)) != 1)
       {
-        sql_print_error("Failed to clear LOG_EVENT_BINLOG_IN_USE_F "
-                        "for the crashed binlog file when master "
-                        "server is recovering it.");
+        LogErr(ERROR_LEVEL,
+               ER_BINLOG_CANT_CLEAR_IN_USE_FLAG_FOR_CRASHED_BINLOG);
         mysql_file_close(file, MYF(MY_WME));
         return -1;
       }
@@ -9049,7 +9019,7 @@ static inline int call_after_sync_hook(THD *queue_head)
   if (DBUG_EVALUATE_IF("simulate_after_sync_hook_error", 1, 0) ||
       RUN_HOOK(binlog_storage, after_sync, (queue_head, log_file, pos)))
   {
-    sql_print_error("Failed to run 'after_sync' hooks");
+    LogErr(ERROR_LEVEL, ER_BINLOG_FAILED_TO_RUN_AFTER_SYNC_HOOK);
     return ER_ERROR_ON_WRITE;
   }
   return 0;
@@ -9101,10 +9071,7 @@ void MYSQL_BIN_LOG::handle_binlog_flush_or_sync_error(THD *thd,
     */
     if (is_open())
     {
-      sql_print_error("%s Hence turning logging off for the whole duration "
-                      "of the MySQL server process. To turn it on again: fix "
-                      "the cause, shutdown the MySQL server and restart it.",
-                      errmsg);
+      LogErr(ERROR_LEVEL, ER_TURNING_LOGGING_OFF_FOR_THE_DURATION, errmsg);
     }
     close(LOG_CLOSE_INDEX|LOG_CLOSE_STOP_EVENT, false/*need_lock_log=false*/,
           true/*need_lock_index=true*/);
@@ -9278,7 +9245,7 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
     if (RUN_HOOK(binlog_storage, after_flush,
                  (thd, file_name_ptr, flush_end_pos)))
     {
-      sql_print_error("Failed to run 'after_flush' hooks");
+      LogErr(ERROR_LEVEL, ER_BINLOG_FAILED_TO_RUN_AFTER_FLUSH_HOOK);
       flush_error= ER_ERROR_ON_WRITE;
     }
 
@@ -9613,10 +9580,7 @@ err2:
   free_root(&mem_root, MYF(0));
   my_hash_free(&xids);
 err1:
-  sql_print_error("Crash recovery failed. Either correct the problem "
-                  "(if it's, for example, out of memory error) and restart, "
-                  "or delete (or rename) binary log and start mysqld with "
-                  "--tc-heuristic-recover={commit|rollback}");
+  LogErr(ERROR_LEVEL, ER_BINLOG_CRASH_RECOVERY_FAILED);
   return 1;
 }
 
@@ -11547,7 +11511,7 @@ static void print_unsafe_warning_to_log(int unsafe_type, char* buf,
   DBUG_ENTER("print_unsafe_warning_in_log");
   sprintf(buf, ER_DEFAULT(ER_BINLOG_UNSAFE_STATEMENT),
           ER_DEFAULT(LEX::binlog_stmt_unsafe_errcode[unsafe_type]));
-  sql_print_warning(ER_DEFAULT(ER_MESSAGE_AND_STATEMENT), buf, query);
+  LogErr(WARNING_LEVEL, ER_MESSAGE_AND_STATEMENT, buf, query);
   DBUG_VOID_RETURN;
 }
 
@@ -11617,11 +11581,10 @@ unsafety warning suppression has been activated."));
         /*
           Print the suppression note and the unsafe warning.
         */
-        sql_print_information("The following warning was suppressed %d times \
-during the last %d seconds in the error log",
-                              limit_unsafe_warning_count,
-                              (int)
-                              (now-limit_unsafe_suppression_start_time));
+        LogErr(INFORMATION_LEVEL, ER_BINLOG_WARNING_SUPPRESSED,
+               limit_unsafe_warning_count,
+               (int)
+               (now-limit_unsafe_suppression_start_time));
         print_unsafe_warning_to_log(unsafe_type, buf, query);
         /*
           DEACTIVATION: We got LIMIT_UNSAFE_WARNING_ACTIVATION_THRESHOLD_COUNT

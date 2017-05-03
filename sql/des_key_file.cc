@@ -18,7 +18,7 @@
 #include <fcntl.h>
 #include <string.h>
 
-#include "log.h"                // sql_print_error
+#include "log.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_dbug.h"
@@ -28,6 +28,7 @@
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysqld.h"             // LOCK_des_key_file
+#include "mysqld_error.h"       // ER_*
 #include "sql_string.h"
 
 #ifdef HAVE_OPENSSL
@@ -101,7 +102,7 @@ load_des_key_file(const char *file_name)
       }
     }
     else if (offset != '#')
-      sql_print_error("load_des_file:  Found wrong key_number: %c",offset);
+      LogErr(ERROR_LEVEL, ER_DES_FILE_WRONG_KEY, offset);
   }
   result=0;
 

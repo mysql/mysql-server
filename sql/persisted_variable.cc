@@ -18,7 +18,7 @@
 #include "derror.h"           // ER_THD
 #include "json_dom.h"
 #include "lex_string.h"
-#include "log.h"                        // sql_print_error
+#include "log.h"
 #include "my_default.h"                 // check_file_permissions
 #include "mysqld.h"
 #include "set_var.h"
@@ -386,7 +386,7 @@ bool Persisted_variables_cache::set_persist_options(bool what_options)
   {
     if (!(thd= new THD))
     {
-      sql_print_error("Failed to set persisted options.");
+      LogErr(ERROR_LEVEL, ER_CANT_SET_PERSISTED);
       return 1;
     }
     thd->thread_stack= (char*) &thd;
@@ -467,7 +467,7 @@ bool Persisted_variables_cache::set_persist_options(bool what_options)
   }
   if (sql_set_variables(thd, &tmp_var_list, false))
   {
-    sql_print_error("Failed to set persisted options.");
+    LogErr(ERROR_LEVEL, ER_CANT_SET_PERSISTED);
     result= 1;
     goto err;
   }
@@ -534,7 +534,7 @@ int Persisted_variables_cache::read_persist_file()
                                  parsed_value.length(), &error, &offset));
   if (!json.get())
   {
-    sql_print_error("JSON parsing error");
+    LogErr(ERROR_LEVEL, ER_JSON_PARSE_ERROR);
     return 1;
   }
   Json_object *obj= reinterpret_cast<Json_object *>(json.get());
@@ -542,7 +542,7 @@ int Persisted_variables_cache::read_persist_file()
   Json_string *group_name= reinterpret_cast<Json_string *>(group);
   if (!group_name)
   {
-    sql_print_error("Found option without preceding group in config file");
+    LogErr(ERROR_LEVEL, ER_CONFIG_OPTION_WITHOUT_GROUP);
     return 1;
   }
   /* Extract key/value pair and populate in a global hash map */

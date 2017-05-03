@@ -248,7 +248,7 @@ public:
            until there is a solution for Windows.
         */
         thread.thread= it->first;
-        sql_print_error("Killing thread %lu", (unsigned long) it->first);
+        LogErr(ERROR_LEVEL, ER_KILLING_THREAD, (unsigned long) it->first);
         if (!my_thread_cancel(&thread))
         {
           void *dummy_retval;
@@ -719,12 +719,10 @@ static void close_currently_attached_session_if_any(const st_plugin_int *plugin)
 
   if (current_session)
   {
-    sql_print_error("Plugin %s is deinitializing a thread but "
-                     "left a session attached. Detaching it forcefully.",
-                     plugin->name.str);
+    LogErr(ERROR_LEVEL, ER_DETACHING_SESSION_LEFT_BY_PLUGIN, plugin->name.str);
 
     if (current_session->detach())
-      sql_print_error("Failed to detach the session.");
+      LogErr(ERROR_LEVEL, ER_CANT_DETACH_SESSION_LEFT_BY_PLUGIN);
   }
 }
 
@@ -741,9 +739,9 @@ static void close_all_sessions_of_plugin_if_any(const st_plugin_int *plugin)
   server_session_list.remove_all_of_plugin(plugin, removed_count);
 
   if (removed_count)
-     sql_print_error("Closed forcefully %u session%s left opened by plugin %s",
-                     removed_count, (removed_count > 1)? "s":"",
-                     plugin? plugin->name.str : "SERVER_INTERNAL");
+    LogErr(ERROR_LEVEL, ER_DETACHED_SESSIONS_LEFT_BY_PLUGIN,
+           removed_count, (removed_count > 1)? "s":"",
+           plugin? plugin->name.str : "SERVER_INTERNAL");
 }
 
 
@@ -757,7 +755,7 @@ void Srv_session::deinit_thread()
     close_currently_attached_session_if_any(plugin);
 
   if (server_session_threads.remove(my_thread_self()))
-    sql_print_error("Failed to decrement the number of threads");
+    LogErr(ERROR_LEVEL, ER_FAILED_TO_DECREMENT_NUMBER_OF_THREADS);
 
   if (!server_session_threads.count(plugin))
     close_all_sessions_of_plugin_if_any(plugin);
@@ -785,12 +783,12 @@ void Srv_session::check_for_stale_threads(const st_plugin_int *plugin)
   {
     close_all_sessions_of_plugin_if_any(plugin);
 
-    sql_print_error("Plugin %s did not deinitialize %u threads",
-                    plugin->name.str, thread_count);
+    LogErr(ERROR_LEVEL, ER_PLUGIN_DID_NOT_DEINITIALIZE_THREADS,
+           plugin->name.str, thread_count);
 
     unsigned int killed_count= server_session_threads.kill(plugin);
-    sql_print_error("Killed %u threads of plugin %s",
-                    killed_count, plugin->name.str);
+    LogErr(ERROR_LEVEL, ER_KILLED_THREADS_OF_PLUGIN,
+           killed_count, plugin->name.str);
   }
 }
 

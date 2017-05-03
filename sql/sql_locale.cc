@@ -3506,9 +3506,7 @@ MY_LOCALE *my_locale_by_name(THD *thd, const char *name)
     else
     {
       // Send a warning to mysqld error log
-      sql_print_warning("The syntax '%s' is deprecated and will be removed. "
-                        "Please use %s instead.",
-                        name, locale->name);
+      LogErr(WARNING_LEVEL, ER_WARN_DEPRECATED_SYNTAX, name, locale->name);
     }
   }
   return locale;

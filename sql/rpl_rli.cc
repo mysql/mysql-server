@@ -22,7 +22,7 @@
 #include "binlog_event.h"
 #include "debug_sync.h"
 #include "derror.h"
-#include "log.h"                   // sql_print_error
+#include "log.h"
 #include "log_event.h"             // Log_event
 #include "m_ctype.h"
 #include "mdl.h"
@@ -454,8 +454,8 @@ static inline int add_relay_log(Relay_log_info* rli,LOG_INFO* linfo)
   if (!mysql_file_stat(key_file_relaylog,
                        linfo->log_file_name, &s, MYF(0)))
   {
-    sql_print_error("log %s listed in the index, but failed to stat.",
-                    linfo->log_file_name);
+    LogErr(ERROR_LEVEL, ER_RPL_FAILED_TO_STAT_LOG_IN_INDEX,
+           linfo->log_file_name);
     DBUG_RETURN(1);
   }
   rli->log_space_total += s.st_size;
@@ -473,7 +473,7 @@ int Relay_log_info::count_relay_log_space()
   log_space_total= 0;
   if (relay_log.find_log_pos(&flinfo, NullS, 1))
   {
-    sql_print_error("Could not find first log while counting relay log space.");
+    LogErr(ERROR_LEVEL, ER_RPL_LOG_NOT_FOUND_WHILE_COUNTING_RELAY_LOG_SPACE);
     DBUG_RETURN(1);
   }
   do
@@ -1797,8 +1797,7 @@ int Relay_log_info::rli_init_info()
   if (fn_format(pattern, PREFIX_SQL_LOAD, pattern, "",
                 MY_SAFE_PATH | MY_RETURN_REAL_PATH) == NullS)
   {
-    sql_print_error("Unable to use slave's temporary directory '%s'.",
-                    slave_load_tmpdir);
+    LogErr(ERROR_LEVEL, ER_SLAVE_CANT_USE_TEMPDIR, slave_load_tmpdir);
     DBUG_RETURN(1);
   }
   unpack_filename(slave_patternload_file, pattern);
@@ -1824,8 +1823,8 @@ int Relay_log_info::rli_init_info()
     if (opt_relay_logname &&
         opt_relay_logname[strlen(opt_relay_logname) - 1] == FN_LIBCHAR)
     {
-      sql_print_error("Path '%s' is a directory name, please specify \
-a file name for --relay-log option.", opt_relay_logname);
+      LogErr(ERROR_LEVEL, ER_RPL_RELAY_LOG_NEEDS_FILE_NOT_DIRECTORY,
+             opt_relay_logname);
       DBUG_RETURN(1);
     }
 
@@ -1835,8 +1834,8 @@ a file name for --relay-log option.", opt_relay_logname);
         opt_relaylog_index_name[strlen(opt_relaylog_index_name) - 1]
         == FN_LIBCHAR)
     {
-      sql_print_error("Path '%s' is a directory name, please specify \
-a file name for --relay-log-index option.", opt_relaylog_index_name);
+      LogErr(ERROR_LEVEL, ER_RPL_RELAY_LOG_INDEX_NEEDS_FILE_NOT_DIRECTORY,
+             opt_relaylog_index_name);
       DBUG_RETURN(1);
     }
 
@@ -1879,12 +1878,8 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
         instead require a name. But as we don't want to break many existing
         setups, we only give warning, not error.
       */
-      sql_print_warning("Neither --relay-log nor --relay-log-index were used;"
-                        " so replication "
-                        "may break when this MySQL server acts as a "
-                        "slave and has his hostname changed!! Please "
-                        "use '--relay-log=%s' to avoid this problem.",
-                        ln_without_channel_name);
+      LogErr(WARNING_LEVEL, ER_RPL_PLEASE_USE_OPTION_RELAY_LOG,
+             ln_without_channel_name);
       name_warning_sent= 1;
     }
 
@@ -1912,7 +1907,7 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
 
     if (relay_log.open_index_file(log_index_name, ln, TRUE))
     {
-      sql_print_error("Failed in open_index_file() called from Relay_log_info::rli_init_info().");
+      LogErr(ERROR_LEVEL, ER_RPL_OPEN_INDEX_FILE_FAILED);
       DBUG_RETURN(1);
     }
 #ifndef DBUG_OFF
@@ -1939,7 +1934,7 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
                                  true/*true=need lock*/,
                                  &mi->transaction_parser, &partial_trx))
     {
-      sql_print_error("Failed in init_gtid_sets() called from Relay_log_info::rli_init_info().");
+      LogErr(ERROR_LEVEL, ER_RPL_CANT_INITIALIZE_GTID_SETS_IN_RLI_INIT_INFO);
       DBUG_RETURN(1);
     }
     gtid_retrieved_initialized= true;
@@ -1984,7 +1979,7 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
                               mi->get_mi_description_event()))
     {
       mysql_mutex_unlock(log_lock);
-      sql_print_error("Failed in open_log() called from Relay_log_info::rli_init_info().");
+      LogErr(ERROR_LEVEL, ER_RPL_CANT_OPEN_LOG_IN_RLI_INIT_INFO);
       DBUG_RETURN(1);
     }
 
@@ -2047,9 +2042,8 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
                            &msg, 0))
     {
       char llbuf[22];
-      sql_print_error("Failed to open the relay log '%s' (relay_log_pos %s).",
-                      group_relay_log_name,
-                      llstr(group_relay_log_pos, llbuf));
+      LogErr(ERROR_LEVEL, ER_RPL_MTS_RECOVERY_CANT_OPEN_RELAY_LOG,
+             group_relay_log_name, llstr(group_relay_log_pos, llbuf));
       error= 1;
       goto err;
     }
@@ -2231,7 +2225,7 @@ int Relay_log_info::flush_info(const bool force)
   DBUG_RETURN(0);
 
 err:
-  sql_print_error("Error writing relay log configuration.");
+  LogErr(ERROR_LEVEL, ER_RPL_ERROR_WRITING_RELAY_LOG_CONFIGURATION);
   mysql_mutex_unlock(&mts_temp_table_LOCK);
   DBUG_RETURN(1);
 }

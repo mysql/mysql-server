@@ -57,7 +57,7 @@
 #include "key_spec.h"                 // Key_part_spec
 #include "lex_string.h"
 #include "lock.h"                     // mysql_lock_remove, lock_tablespace_names
-#include "log.h"                      // sql_print_error
+#include "log.h"
 #include "log_event.h"                // Query_log_event
 #include "m_ctype.h"
 #include "m_string.h"                 // my_stpncpy
@@ -641,7 +641,7 @@ size_t filename_to_tablename(const char *from, char *to, size_t to_length
 #ifndef DBUG_OFF
       if (!stay_quiet) {
 #endif /* DBUG_OFF */
-        sql_print_error("Invalid (old?) table or database name '%s'", from);
+        LogErr(ERROR_LEVEL, ER_INVALID_OR_OLD_TABLE_OR_DB_NAME, from);
 #ifndef DBUG_OFF
       }
 #endif /* DBUG_OFF */

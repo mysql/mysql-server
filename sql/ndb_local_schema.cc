@@ -95,8 +95,7 @@ void Ndb_local_schema::Base::log_warning(const char* fmt, ...) const
   else
   {
     // Print the warning to log file
-    sql_print_warning("Ndb schema[%s.%s]: %s",
-                      m_db, m_name, buf);
+    LogErr(WARNING_LEVEL, ER_NDB_SCHEMA_GENERIC_MESSAGE, m_db, m_name, buf);
   }
 }
 

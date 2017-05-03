@@ -488,9 +488,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
           LOAD DATA INFILE in the slave SQL Thread can only read from 
           --slave-load-tmpdir". This should never happen. Please, report a bug.
         */
-
-        sql_print_error("LOAD DATA INFILE in the slave SQL Thread can only read from --slave-load-tmpdir. " \
-                        "Please, report a bug.");
+        LogErr(ERROR_LEVEL, ER_LOAD_DATA_INFILE_FAILED_IN_UNEXPECTED_WAY);
         my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--slave-load-tmpdir");
         DBUG_RETURN(TRUE);
       }

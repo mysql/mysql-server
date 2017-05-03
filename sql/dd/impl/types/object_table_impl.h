@@ -17,12 +17,14 @@
 #define DD__OBJECT_TABLE_IMPL_INCLUDED
 
 
+#include <mysqld_error.h>
+
 #include "dd/impl/dictionary_impl.h"                    // get_target_dd_...
 #include "dd/impl/types/object_table_definition_impl.h" // Object_table_defin...
 #include "dd/types/object_table.h"                      // Object_table
 #include "dd/types/object_table.h"                      // Object_table
-#include "log.h"                                        // sql_print_warning
 #include "mysqld.h"                                     // opt_initialize
+#include "log.h"                                        // log_*()
 
 class THD;
 
@@ -52,7 +54,7 @@ public:
     // Upgrade/downgrade not supported yet.
     if (m_target_def.dd_version() != version)
     {
-      sql_print_warning("Data Dictionary version %d not supported", version);
+      LogErr(WARNING_LEVEL, ER_DD_VERSION_UNSUPPORTED, version);
       return nullptr;
     }
     return &m_target_def;
@@ -64,8 +66,8 @@ public:
     // Upgrade/downgrade not supported yet.
     if (m_target_def.dd_version() != default_dd_version(thd))
     {
-      sql_print_warning("Data Dictionary version %d not supported",
-                        default_dd_version(thd));
+      LogErr(WARNING_LEVEL, ER_DD_VERSION_UNSUPPORTED,
+             default_dd_version(thd));
       return nullptr;
     }
     return &m_target_def;

@@ -48,11 +48,11 @@ Trigger_creation_ctx::create(THD *thd,
                       thd->variables.character_set_client,
                       &client_cs))
   {
-    sql_print_warning("Trigger for table '%s'.'%s': "
-                      "invalid character_set_client value (%s).",
-                      (const char *) db_name.str,
-                      (const char *) table_name.str,
-                      (const char *) client_cs_name.str);
+    LogErr(WARNING_LEVEL, ER_TRIGGER_INVALID_VALUE,
+           (const char *) db_name.str,
+           (const char *) table_name.str,
+           "character_set_client",
+           (const char *) client_cs_name.str);
 
     invalid_creation_ctx= TRUE;
   }
@@ -61,22 +61,22 @@ Trigger_creation_ctx::create(THD *thd,
                         thd->variables.collation_connection,
                         &connection_cl))
   {
-    sql_print_warning("Trigger for table '%s'.'%s': "
-                      "invalid collation_connection value (%s).",
-                      (const char *) db_name.str,
-                      (const char *) table_name.str,
-                      (const char *) connection_cl_name.str);
+    LogErr(WARNING_LEVEL, ER_TRIGGER_INVALID_VALUE,
+           (const char *) db_name.str,
+           (const char *) table_name.str,
+           "collation_connection",
+           (const char *) connection_cl_name.str);
 
     invalid_creation_ctx= TRUE;
   }
 
   if (resolve_collation(db_cl_name.str, NULL, &db_cl))
   {
-    sql_print_warning("Trigger for table '%s'.'%s': "
-                      "invalid database_collation value (%s).",
-                      (const char *) db_name.str,
-                      (const char *) table_name.str,
-                      (const char *) db_cl_name.str);
+    LogErr(WARNING_LEVEL, ER_TRIGGER_INVALID_VALUE,
+           (const char *) db_name.str,
+           (const char *) table_name.str,
+           "database_collation",
+           (const char *) db_cl_name.str);
 
     invalid_creation_ctx= TRUE;
   }

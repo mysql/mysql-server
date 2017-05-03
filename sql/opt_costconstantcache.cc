@@ -19,7 +19,7 @@
 #include "current_thd.h"                  // current_thd
 #include "field.h"                        // Field
 #include "lex_string.h"
-#include "log.h"                          // sql_print_warning
+#include "log.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_dbug.h"
@@ -193,12 +193,11 @@ static void report_server_cost_warnings(const LEX_CSTRING &cost_name,
   switch(error)
   {
   case UNKNOWN_COST_NAME:
-    sql_print_warning("Unknown cost constant \"%s\" in mysql.server_cost table\n",
-                      cost_name.str);
+    LogErr(WARNING_LEVEL, ER_SERVER_COST_UNKNOWN_COST_CONSTANT, cost_name.str);
     break;
   case INVALID_COST_VALUE:
-    sql_print_warning("Invalid value for cost constant \"%s\" in mysql.server_cost table: %.1f\n",
-                      cost_name.str, value);
+    LogErr(WARNING_LEVEL, ER_SERVER_COST_INVALID_COST_CONSTANT,
+           cost_name.str, value);
     break;
   default:
     DBUG_ASSERT(false);                         /* purecov: inspected */
@@ -227,20 +226,19 @@ static void report_engine_cost_warnings(const LEX_CSTRING &se_name,
   switch(error)
   {
   case UNKNOWN_COST_NAME:
-    sql_print_warning("Unknown cost constant \"%s\" in mysql.engine_cost table\n",
-                      cost_name.str);
+    LogErr(WARNING_LEVEL, ER_ENGINE_COST_UNKNOWN_COST_CONSTANT, cost_name.str);
     break;
   case UNKNOWN_ENGINE_NAME:
-    sql_print_warning("Unknown storage engine \"%s\" in mysql.engine_cost table\n",
-                      se_name.str);
+    LogErr(WARNING_LEVEL, ER_ENGINE_COST_UNKNOWN_STORAGE_ENGINE, se_name.str);
     break;
   case INVALID_DEVICE_TYPE:
-    sql_print_warning("Invalid device type %d for \"%s\" storage engine for cost constant \"%s\" in mysql.engine_cost table\n",
-                      storage_category, se_name.str, cost_name.str);
+    LogErr(WARNING_LEVEL, ER_ENGINE_COST_INVALID_DEVICE_TYPE_FOR_SE,
+           storage_category, se_name.str, cost_name.str);
     break;
   case INVALID_COST_VALUE:
-    sql_print_warning("Invalid value for cost constant \"%s\" for \"%s\" storage engine and device type %d in mysql.engine_cost table: %.1f\n",
-                      cost_name.str, se_name.str, storage_category, value);
+    LogErr(WARNING_LEVEL,
+           ER_ENGINE_COST_INVALID_CONST_CONSTANT_FOR_SE_AND_DEVICE,
+           cost_name.str, se_name.str, storage_category, value);
     break;
   default:
     DBUG_ASSERT(false);                         /* purecov: inspected */
@@ -316,7 +314,7 @@ static void read_server_cost_constants(THD *thd, TABLE *table,
   }
   else
   {
-    sql_print_warning("init_read_record returned error when reading from mysql.server_cost table.\n");
+    LogErr(WARNING_LEVEL, ER_SERVER_COST_FAILED_TO_READ);
   }
 
   DBUG_VOID_RETURN;
@@ -406,9 +404,9 @@ static void read_engine_cost_constants(THD *thd, TABLE *table,
   }
   else
   {
-    sql_print_warning("init_read_record returned error when reading from mysql.engine_cost table.\n");
+    LogErr(WARNING_LEVEL, ER_ENGINE_COST_FAILED_TO_READ);
   }
-    
+
   DBUG_VOID_RETURN;
 }
 
@@ -463,7 +461,7 @@ static void read_cost_constants(Cost_model_constants* cost_constants)
   }
   else
   {
-    sql_print_warning("Failed to open optimizer cost constant tables\n");
+    LogErr(WARNING_LEVEL, ER_FAILED_TO_OPEN_COST_CONSTANT_TABLES);
   }
 
   trans_commit_stmt(thd);

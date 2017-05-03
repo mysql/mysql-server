@@ -31,13 +31,14 @@
 #include "handler.h"                          // legacy_db_type
 #include "lex_string.h"
 #include "lock.h"                             // Tablespace_hash_set
-#include "log.h"                              // sql_print_warning
+#include "log.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_user.h"                          // parse_user
 #include "mysql/psi/mysql_file.h"             // mysql_file_open
 #include "mysqld.h"                           // mysql_real_data_home
+#include "mysqld_error.h"                     // ER_*
 #include "parse_file.h"                       // File_option
 #include "partition_info.h"                   // partition_info
 #include "psi_memory_key.h"                   // key_memory_TABLE
@@ -317,9 +318,7 @@ bool Trigger_loader::load_triggers(THD *thd,
       DBUG_RETURN(true);
     }
 
-    sql_print_warning(ER_DEFAULT(ER_TRG_NO_CREATION_CTX),
-                      db_name,
-                      table_name);
+    LogErr(WARNING_LEVEL, ER_TRG_NO_CREATION_CTX, db_name, table_name);
 
 
     /*
@@ -371,29 +370,25 @@ bool Trigger_loader::load_triggers(THD *thd,
     if (!definer)
     {
       // We dont know trigger name yet.
-      sql_print_error("Definer clause is missing in Trigger of Table %s. "
-                      "Rebuild Trigger to fix definer.", table_name);
+      LogErr(ERROR_LEVEL, ER_TRG_WITHOUT_DEFINER, table_name);
       return true;
     }
 
     if (!client_cs_name)
     {
-      sql_print_warning("Client character set is missing for trigger of table "
-                        "%s. Using default character set.", table_name);
+      LogErr(WARNING_LEVEL, ER_TRG_NO_CLIENT_CHARSET, table_name);
       client_cs_name= &default_client_cs_name;
     }
 
     if (!connection_cl_name)
     {
-      sql_print_warning("Connection collation is missing for trigger of table "
-                        "%s. Using default connection collation.", table_name);
+      LogErr(WARNING_LEVEL, ER_DD_TRG_CONNECTION_COLLATION_MISSING,table_name);
       connection_cl_name= &default_connection_cl_name;
     }
 
     if (!db_cl_name)
     {
-      sql_print_warning("Database collation is missing for trigger of table "
-                        "%s. Using Default character set.", table_name);
+      LogErr(WARNING_LEVEL, ER_DD_TRG_DB_COLLATION_MISSING,table_name);
       db_cl_name= &default_db_cl_name;
     }
 
@@ -405,8 +400,7 @@ bool Trigger_loader::load_triggers(THD *thd,
     char *pos= NULL;
     if (!(pos= static_cast<char*>(alloc_root(mem_root, USERNAME_LENGTH + 1))))
     {
-      sql_print_error("Error in Memory allocation for "
-                      "Definer User for Trigger.");
+      LogErr(ERROR_LEVEL, ER_DD_TRG_DEFINER_OOM, "User");
       return true;
     }
 
@@ -414,8 +408,7 @@ bool Trigger_loader::load_triggers(THD *thd,
 
     if (!(pos= static_cast<char*>(alloc_root(mem_root, USERNAME_LENGTH + 1))))
     {
-      sql_print_error("Error in Memory allocation for "
-                      "Definer Host for Trigger.");
+      LogErr(ERROR_LEVEL, ER_DD_TRG_DEFINER_OOM, "Host");
       return true;
     }
 
@@ -535,8 +528,7 @@ bool Handle_old_incorrect_sql_modes_hook::process_unknown_string(
     const char *ptr= unknown_key + INVALID_SQL_MODES_LENGTH + 1;
 
     DBUG_PRINT("info", ("sql_modes affected by BUG#14090 detected"));
-    sql_print_warning(ER_DEFAULT(ER_OLD_FILE_FORMAT),
-                      m_path, "TRIGGER");
+    LogErr(WARNING_LEVEL, ER_OLD_FILE_FORMAT, m_path, "TRIGGER");
     if (get_file_options_ulllist(ptr, end, unknown_key, base,
                                  &sql_modes_parameters, mem_root))
     {
@@ -936,9 +928,8 @@ static bool fix_view_cols_and_deps(THD *thd, TABLE_LIST *view_ref,
       get fixed when mysql_upgrade is executed.
     */
     if (db_name != "sys")
-      sql_print_warning("Resolving dependency for the view '%s.%s' failed. "
-                        "View is no more valid to use", db_name.c_str(),
-                        view_name.c_str());
+      LogErr(WARNING_LEVEL, ER_DD_CANT_RESOLVE_VIEW,
+             db_name.c_str(), view_name.c_str());
     update_view_status(thd, db_name.c_str(), view_name.c_str(), false, true);
     error= false;
   }
@@ -995,17 +986,15 @@ static bool migrate_view_to_dd(THD *thd,
                                view_parameters, REQUIRED_VIEW_PARAMETERS,
                                &file_parser_dummy_hook))
   {
-    sql_print_error("Error in parsing view %s.%s",
-                    db_name.c_str(), view_name.c_str());
+    LogErr(ERROR_LEVEL, ER_PARSING_VIEW, db_name.c_str(), view_name.c_str());
     return true;
   }
 
   // Check old format view .frm file
   if (!table_list.definer.user.str)
   {
-    sql_print_warning("%s.%s has no definer(maybe an old view format. "
-                      "Current user is used as definer. Please recreate "
-                      "the view.", db_name.c_str(),  view_name.c_str());
+    LogErr(WARNING_LEVEL, ER_DD_VIEW_WITHOUT_DEFINER,
+           db_name.c_str(),  view_name.c_str());
     get_default_definer(thd, &table_list.definer);
   }
 
@@ -1023,8 +1012,8 @@ static bool migrate_view_to_dd(THD *thd,
   {
     // Print warning only once in the error log.
     if (!is_fix_view_cols_and_deps)
-      sql_print_warning(ER_DEFAULT(ER_VIEW_NO_CREATION_CTX),
-                        db_name.c_str(), view_name.c_str());
+      LogErr(WARNING_LEVEL, ER_VIEW_NO_CREATION_CTX,
+             db_name.c_str(), view_name.c_str());
     invalid_ctx= true;
   }
 
@@ -1042,12 +1031,10 @@ static bool migrate_view_to_dd(THD *thd,
 
     // Print warning only once in the error log.
     if (!is_fix_view_cols_and_deps && invalid_ctx)
-      sql_print_warning("View '%s'.'%s': there is unknown charset/collation "
-                        "names (client: '%s'; connection: '%s').",
-                        db_name.c_str(),
-                        view_name.c_str(),
-                        table_list.view_client_cs_name.str,
-                        table_list.view_connection_cl_name.str);
+      LogErr(WARNING_LEVEL, ER_VIEW_UNKNOWN_CHARSET_OR_COLLATION,
+             db_name.c_str(), view_name.c_str(),
+             table_list.view_client_cs_name.str,
+             table_list.view_connection_cl_name.str);
   }
 
   // Set system_charset_info for view.
@@ -1070,8 +1057,8 @@ static bool migrate_view_to_dd(THD *thd,
     if (table_list.view_client_cs_name.str == nullptr ||
         table_list.view_connection_cl_name.str == nullptr)
     {
-      sql_print_error("Error in allocating memory for character set name for "
-                      "view %s.%s.", db_name.c_str(), view_name.c_str());
+      LogErr(ERROR_LEVEL, ER_DD_VIEW_CANT_ALLOC_CHARSET,
+             db_name.c_str(), view_name.c_str());
       return true;
     }
   }
@@ -1081,8 +1068,8 @@ static bool migrate_view_to_dd(THD *thd,
   {
     if (fix_view_cols_and_deps(thd, &table_list, db_name, view_name, mem_root))
     {
-      sql_print_error("Error in Creating View %s.%s",
-                      db_name.c_str(), view_name.c_str());
+      LogErr(ERROR_LEVEL, ER_DD_VIEW_CANT_CREATE,
+             db_name.c_str(), view_name.c_str());
       return true;
     }
   }
@@ -1094,8 +1081,7 @@ static bool migrate_view_to_dd(THD *thd,
     */
     if (create_unlinked_view(thd, &table_list))
     {
-      sql_print_error("Error in parsing view %s.%s",
-      db_name.c_str(), view_name.c_str());
+      LogErr(ERROR_LEVEL, ER_PARSING_VIEW, db_name.c_str(), view_name.c_str());
       return true;
     }
   }
@@ -1158,7 +1144,7 @@ static bool add_triggers_to_table(THD *thd,
                                       table_name.c_str(),
                                       &m_triggers))
     {
-      sql_print_warning("Error in reading %s.TRG file.", table_name.c_str());
+      LogErr(WARNING_LEVEL, ER_DD_TRG_FILE_UNREADABLE, table_name.c_str());
       return true;
     }
     Table_trigger_dispatcher *d= Table_trigger_dispatcher::create(table);
@@ -1166,8 +1152,7 @@ static bool add_triggers_to_table(THD *thd,
     d->parse_triggers(thd, &m_triggers, true);
     if (d->check_for_broken_triggers())
     {
-      sql_print_warning("Error in parsing Triggers from %s.TRG file.",
-                        table_name.c_str());
+      LogErr(WARNING_LEVEL, ER_TRG_CANT_PARSE, table_name.c_str());
       return true;
     }
 
@@ -1262,8 +1247,8 @@ static bool add_triggers_to_table(THD *thd,
       // dd::create_trigger() does not commit transaction
       if (trans_commit_stmt(thd) || trans_commit(thd))
       {
-        sql_print_error("Error in creating DD entry for Trigger %s.%s",
-                        t->get_db_name().str, t->get_trigger_name().str);
+        LogErr(ERROR_LEVEL, ER_DD_TRG_CANT_ADD,
+               t->get_db_name().str, t->get_trigger_name().str);
         return true;
       }
 
@@ -1373,8 +1358,8 @@ set_se_data_for_user_tables(THD *thd,
        Should never hit this case as the caller of this function stores
        the information in dictionary.
     */
-    sql_print_error("Error in fetching %s.%s table data from dictionary",
-                    table_name.c_str(), schema_name.c_str());
+    LogErr(ERROR_LEVEL, ER_DD_CANT_FETCH_TABLE_DATA,
+           table_name.c_str(), schema_name.c_str());
     return true;
   }
 
@@ -1430,8 +1415,7 @@ static bool migrate_table_to_dd(THD *thd,
 
   if (was_truncated)
   {
-    sql_print_error(ER_DEFAULT(ER_IDENT_CAUSES_TOO_LONG_PATH),
-                    sizeof(path) - 1, path);
+    LogErr(ERROR_LEVEL, ER_IDENT_CAUSES_TOO_LONG_PATH, sizeof(path) - 1, path);
     return true;
   }
 
@@ -1444,8 +1428,8 @@ static bool migrate_table_to_dd(THD *thd,
                                      table_name.c_str(),
                                      is_fix_view_cols_and_deps))
   {
-    sql_print_error("Error in creating TABLE_SHARE from %s.frm file.",
-                     table_name.c_str());
+    LogErr(ERROR_LEVEL, ER_CANT_CREATE_TABLE_SHARE_FROM_FRM,
+           table_name.c_str());
     return true;
   }
 
@@ -1457,8 +1441,8 @@ static bool migrate_table_to_dd(THD *thd,
   if (mdl_guard.acquire_lock(schema_name, table_name))
   {
     free_table_share(&share);
-    sql_print_error("Unable to acquire lock on %s.%s",
-                    schema_name.c_str(), table_name.c_str());
+    LogErr(ERROR_LEVEL, ER_CANT_LOCK_TABLE,
+           schema_name.c_str(), table_name.c_str());
     return true;
   }
 
@@ -1470,7 +1454,7 @@ static bool migrate_table_to_dd(THD *thd,
   if (!(table= static_cast<TABLE *>(alloc_root(&mem_root, sizeof(*table)))))
   {
     free_table_share(&share);
-    sql_print_error("Error in allocation memory for TABLE object.");
+    LogErr(ERROR_LEVEL, ER_CANT_ALLOC_TABLE_OBJECT);
     return true;
   }
 
@@ -1498,8 +1482,8 @@ static bool migrate_table_to_dd(THD *thd,
                               &table->mem_root,
                               share.db_type())))
   {
-    sql_print_error("Error in creating handler object for table %s.%s",
-                    schema_name.c_str(), table_name.c_str());
+    LogErr(ERROR_LEVEL, ER_CANT_CREATE_HANDLER_OBJECT_FOR_TABLE,
+           schema_name.c_str(), table_name.c_str());
     return true;
   }
   table->file= file;
@@ -1507,8 +1491,8 @@ static bool migrate_table_to_dd(THD *thd,
 
   if (table->file->set_ha_share_ref(&share.ha_share))
   {
-    sql_print_error("Error in setting handler reference for table %s.%s",
-                    table_name.c_str(), schema_name.c_str());
+    LogErr(ERROR_LEVEL, ER_CANT_SET_HANDLER_REFERENCE_FOR_TABLE,
+           table_name.c_str(), schema_name.c_str());
     return true;
   }
 
@@ -1551,7 +1535,7 @@ static bool migrate_table_to_dd(THD *thd,
 
   if (error)
   {
-    sql_print_error(ER_DEFAULT(ER_TABLE_NEEDS_UPGRADE), table_name.c_str());
+    LogErr(ERROR_LEVEL, ER_TABLE_NEEDS_UPGRADE, table_name.c_str());
     return true;
   }
 
@@ -1696,8 +1680,7 @@ static bool migrate_table_to_dd(THD *thd,
   if ((tablespace_name_set.size() != 0) &&
     mdl_guard.acquire_lock_tablespace(&tablespace_name_set))
   {
-     sql_print_error("Unable to acquire lock on tablespace name %s",
-                     share.tablespace);
+    LogErr(ERROR_LEVEL, ER_CANT_LOCK_TABLESPACE, share.tablespace);
      return true;
   }
 
@@ -1709,7 +1692,8 @@ static bool migrate_table_to_dd(THD *thd,
   */
   if (fix_generated_columns_for_upgrade(thd, table, alter_info.create_list))
   {
-    sql_print_error("Error in processing generated columns");
+    LogErr(ERROR_LEVEL,
+           ER_CANT_UPGRADE_GENERATED_COLUMNS_TO_DD);
     return true;
   }
 
@@ -1759,8 +1743,8 @@ static bool migrate_table_to_dd(THD *thd,
                                fk_number,
                                table->file))
   {
-    sql_print_error("Error in Creating DD entry for %s.%s",
-                    schema_name.c_str(), table_name.c_str());
+    LogErr(ERROR_LEVEL, ER_DD_ERROR_CREATING_ENTRY,
+           schema_name.c_str(), table_name.c_str());
     trans_rollback_stmt(thd);
     // Full rollback in case we have THD::transaction_rollback_request.
     trans_rollback(thd);
@@ -1769,16 +1753,16 @@ static bool migrate_table_to_dd(THD *thd,
 
   if (trans_commit_stmt(thd) || trans_commit(thd))
   {
-    sql_print_error("Error in Creating DD entry for %s.%s",
-                    schema_name.c_str(), table_name.c_str());
+    LogErr(ERROR_LEVEL, ER_DD_ERROR_CREATING_ENTRY,
+           schema_name.c_str(), table_name.c_str());
     return true;
   }
 
   if (set_se_data_for_user_tables(thd, schema_name, to_table_name,
                                   table, is_innodb_stats_table))
   {
-    sql_print_error("Error in fixing SE data for %s.%s",
-                    schema_name.c_str(), table_name.c_str());
+    LogErr(ERROR_LEVEL, ER_DD_CANT_FIX_SE_DATA,
+           schema_name.c_str(), table_name.c_str());
     return true;
   }
 
@@ -1820,7 +1804,7 @@ bool migrate_all_frm_to_dd(THD *thd, const char *dbname,
 
   if (!(a = my_dir(path.c_str(), MYF(MY_WANT_STAT))))
   {
-    sql_print_error("Error in opening directory %s", path.c_str());
+    LogErr(ERROR_LEVEL, ER_CANT_OPEN_DIR, path.c_str());
     return true;
   }
   for (i = 0; i < (uint)a->number_off_files; i++)

@@ -35,7 +35,7 @@
 #include "dd/dictionary.h"               // is_dd_table_access_allowed
 #include "derror.h"                      // ER_THD
 #include "field.h"                       // Field
-#include "log.h"                         // sql_print_error
+#include "log.h"
 #include "log_event.h"                   // Log_event
 #include "m_ctype.h"
 #include "m_string.h"
@@ -852,14 +852,10 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli, TABLE *
       break;
 
     case MYSQL_TYPE_DECIMAL:
-      sql_print_error("In RBR mode, Slave received incompatible DECIMAL field "
-                      "(old-style decimal field) from Master while creating "
-                      "conversion table. Please consider changing datatype on "
-                      "Master to new style decimal by executing ALTER command for"
-                      " column Name: %s.%s.%s.",
-                      target_table->s->db.str,
-                      target_table->s->table_name.str,
-                      target_table->field[col]->field_name);
+      LogErr(ERROR_LEVEL, ER_RPL_INCOMPATIBLE_DECIMAL_IN_RBR,
+             target_table->s->db.str,
+             target_table->s->table_name.str,
+             target_table->field[col]->field_name);
       goto err;
 
     case MYSQL_TYPE_BLOB:

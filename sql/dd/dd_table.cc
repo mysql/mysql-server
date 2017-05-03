@@ -48,7 +48,7 @@
 #include "key.h"
 #include "key_spec.h"
 #include "lex_string.h"
-#include "log.h"                              // sql_print_error
+#include "log.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "mdl.h"
@@ -190,7 +190,7 @@ dd::enum_column_types get_new_field_type(enum_field_types type)
   }
 
   /* purecov: begin deadcode */
-  sql_print_error("Error: Invalid field type.");
+  LogErr(ERROR_LEVEL, ER_DD_FAILSAFE, "field type.");
   DBUG_ASSERT(false);
 
   return dd::enum_column_types::LONG;
@@ -770,7 +770,7 @@ static dd::Index::enum_index_algorithm dd_get_new_index_algorithm_type(enum ha_k
   }
 
   /* purecov: begin deadcode */
-  sql_print_error("Error: Invalid index algorithm.");
+  LogErr(ERROR_LEVEL, ER_DD_FAILSAFE, "index algorithm.");
   DBUG_ASSERT(false);
 
   return dd::Index::IA_SE_SPECIFIC;

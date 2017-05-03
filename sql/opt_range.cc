@@ -136,7 +136,7 @@
 #include "item_sum.h"            // Item_sum
 #include "key.h"                 // is_key_used
 #include "lex_string.h"
-#include "log.h"                 // sql_print_error
+#include "log.h"
 #include "m_ctype.h"
 #include "malloc_allocator.h"
 #include "mem_root_array.h"
@@ -10064,24 +10064,24 @@ static int test_rb_tree(SEL_ARG *element,SEL_ARG *parent)
     return 0;					// Found end of tree
   if (element->parent != parent)
   {
-    sql_print_error("Wrong tree: Parent doesn't point at parent");
+    LogErr(ERROR_LEVEL, ER_TREE_CORRUPT_PARENT_SHOULD_POINT_AT_PARENT);
     return -1;
   }
   if (!parent && element->color != SEL_ARG::BLACK)
   {
-    sql_print_error("Wrong tree: Root should be black");
+    LogErr(ERROR_LEVEL, ER_TREE_CORRUPT_ROOT_SHOULD_BE_BLACK);
     return -1;
   }
   if (element->color == SEL_ARG::RED &&
       (element->left->color == SEL_ARG::RED ||
        element->right->color == SEL_ARG::RED))
   {
-    sql_print_error("Wrong tree: Found two red in a row");
+    LogErr(ERROR_LEVEL, ER_TREE_CORRUPT_2_CONSECUTIVE_REDS);
     return -1;
   }
   if (element->left == element->right && element->left != null_element)
   {						// Dummy test
-    sql_print_error("Wrong tree: Found right == left");
+    LogErr(ERROR_LEVEL, ER_TREE_CORRUPT_RIGHT_IS_LEFT);
     return -1;
   }
   count_l=test_rb_tree(element->left,element);
@@ -10090,8 +10090,8 @@ static int test_rb_tree(SEL_ARG *element,SEL_ARG *parent)
   {
     if (count_l == count_r)
       return count_l+(element->color == SEL_ARG::BLACK);
-    sql_print_error("Wrong tree: Incorrect black-count: %d - %d",
-	    count_l,count_r);
+    LogErr(ERROR_LEVEL, ER_TREE_CORRUPT_INCORRECT_BLACK_COUNT,
+           count_l,count_r);
   }
   return -1;					// Error, no more warnings
 }
@@ -10170,7 +10170,7 @@ bool SEL_ROOT::test_use_count(const SEL_ROOT *origin) const
   uint e_count=0;
   if (this == origin && use_count != 1)
   {
-    sql_print_information("Use_count: Wrong count %lu for origin %p",use_count, this);
+    LogErr(INFORMATION_LEVEL, ER_WRONG_COUNT_FOR_ORIGIN, use_count, this);
     DBUG_ASSERT(false);
     return true;
   }
@@ -10189,9 +10189,8 @@ bool SEL_ROOT::test_use_count(const SEL_ROOT *origin) const
       */
       if (count > pos->next_key_part->use_count)
       {
-        sql_print_information("Use_count: Wrong count for key at %p, %lu "
-                              "should be %lu", pos->next_key_part,
-                              pos->next_key_part->use_count, count);
+        LogErr(INFORMATION_LEVEL, ER_WRONG_COUNT_FOR_KEY, pos->next_key_part,
+               pos->next_key_part->use_count, count);
         DBUG_ASSERT(false);
         return true;
       }
@@ -10200,8 +10199,7 @@ bool SEL_ROOT::test_use_count(const SEL_ROOT *origin) const
   }
   if (e_count != elements)
   {
-    sql_print_warning("Wrong number of elements: %u (should be %u) for tree at %p",
-                      e_count, elements, this);
+    LogErr(WARNING_LEVEL, ER_WRONG_COUNT_OF_ELEMENTS, e_count, elements, this);
     DBUG_ASSERT(false);
     return true;
   }

@@ -22,7 +22,7 @@
 #include "current_thd.h" // my_thread_set_THR_THD
 #include "handler.h"     // ha_rollback_trans
 #include "lex_string.h"
-#include "log.h"         // sql_print_warning
+#include "log.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
@@ -72,8 +72,7 @@ bool System_table_access::open_table(THD* thd, const LEX_STRING dbstr,
     thd->restore_backup_open_tables_state(backup);
     thd->lex->restore_backup_query_tables_list(&query_tables_list_backup);
     if (thd->is_operating_gtid_table_implicitly)
-      sql_print_warning("Gtid table is not ready to be used. Table '%s.%s' "
-                        "cannot be opened.", dbstr.str, tbstr.str);
+      LogErr(WARNING_LEVEL, ER_RPL_GTID_TABLE_CANNOT_OPEN, dbstr.str, tbstr.str);
     else
       my_error(ER_NO_SUCH_TABLE, MYF(0), dbstr.str, tbstr.str);
     DBUG_RETURN(true);

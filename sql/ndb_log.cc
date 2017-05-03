@@ -44,6 +44,8 @@ ndb_log_print(enum ndb_log_loglevel loglevel,
 {
   DBUG_ASSERT(fmt);
 
+  int prio;
+
   // Assemble the message
   char msg_buf[512];
   (void)my_vsnprintf(msg_buf, sizeof(msg_buf), fmt, args);
@@ -52,24 +54,20 @@ ndb_log_print(enum ndb_log_loglevel loglevel,
   switch (loglevel)
   {
     case NDB_LOG_ERROR_LEVEL:
-      if (prefix)
-        sql_print_error("NDB %s: %s", prefix, msg_buf);
-      else
-        sql_print_error("NDB: %s", msg_buf);
+      prio= ERROR_LEVEL;
       break;
     case NDB_LOG_WARNING_LEVEL:
-      if (prefix)
-        sql_print_warning("NDB %s: %s", prefix, msg_buf);
-      else
-        sql_print_warning("NDB: %s", msg_buf);
+      prio= WARNING_LEVEL;
       break;
     case NDB_LOG_INFORMATION_LEVEL:
-      if (prefix)
-        sql_print_information("NDB %s: %s", prefix, msg_buf);
-      else
-        sql_print_information("NDB: %s", msg_buf);
+      prio= INFORMATION_LEVEL;
       break;
   }
+
+  if (prefix)
+    LogErr(prio, ER_NDB_LOG_ENTRY_WITH_PEFIX, prefix, msg_buf);
+  else
+    LogErr(prio, ER_NDB_LOG_ENTRY, msg_buf);
 }
 
 
@@ -133,4 +131,3 @@ ndb_log_verbose(unsigned verbose_level, const char* fmt, ...)
   ndb_log_print(NDB_LOG_INFORMATION_LEVEL, NULL, fmt, args);
   va_end(args);
 }
-

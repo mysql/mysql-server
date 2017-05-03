@@ -47,7 +47,7 @@
 --source include/stop_slave.inc
 SET @@GLOBAL.master_info_repository ="TABLE";
 
-call mtr.add_suppression("Slave: Cannot create new master info structure when repositories are of type FILE. Convert slave repositories  to TABLE to replicate from multiple sources");
+call mtr.add_suppression("Slave: Cannot create new master info structure when repositories are of type FILE. Convert slave repositories to TABLE to replicate from multiple sources.");
 
 --replace_result $SERVER_MYPORT_3 MASTER_PORT
 --error ER_SLAVE_NEW_CHANNEL_WRONG_REPOSITORY

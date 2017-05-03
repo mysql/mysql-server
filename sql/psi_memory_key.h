@@ -44,6 +44,8 @@ extern PSI_memory_key key_memory_NAMED_ILINK_name;
 extern PSI_memory_key key_memory_Rows_query_log_event_rows_query;
 extern PSI_memory_key key_memory_Sid_map_Node;
 extern PSI_memory_key key_memory_String_value;
+extern PSI_memory_key key_memory_log_error_loaded_services;
+extern PSI_memory_key key_memory_log_error_stack;
 extern PSI_memory_key key_memory_log_event;
 extern PSI_memory_key key_memory_Gtid_state_group_commit_sidno;
 

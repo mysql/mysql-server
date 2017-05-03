@@ -337,8 +337,11 @@
   For complete syntax tests, functional tests, and examples see the test
   case debug_sync.test.
 
+
   See also worklog entry WL#4259 - Test Synchronization Facility
 */
+
+#define LOG_SUBSYSTEM_TAG "debug_sync"
 
 #include "sql/debug_sync.h"
 
@@ -620,12 +623,12 @@ void debug_sync_end(void)
     /* Print statistics. */
     {
       char llbuff[22];
-      sql_print_information("Debug sync points hit:                   %22s",
-                            llstr(debug_sync_global.dsp_hits, llbuff));
-      sql_print_information("Debug sync points executed:              %22s",
-                            llstr(debug_sync_global.dsp_executed, llbuff));
-      sql_print_information("Debug sync points max active per thread: %22s",
-                            llstr(debug_sync_global.dsp_max_active, llbuff));
+      LogErr(INFORMATION_LEVEL, ER_DEBUG_SYNC_HIT,
+             llstr(debug_sync_global.dsp_hits, llbuff));
+      LogErr(INFORMATION_LEVEL, ER_DEBUG_SYNC_EXECUTED,
+             llstr(debug_sync_global.dsp_executed, llbuff));
+      LogErr(INFORMATION_LEVEL, ER_DEBUG_SYNC_THREAD_MAX,
+             llstr(debug_sync_global.dsp_max_active, llbuff));
     }
   }
 
@@ -651,7 +654,7 @@ static void debug_sync_emergency_disable(void)
 
   DBUG_PRINT("debug_sync",
              ("Debug Sync Facility disabled due to lack of memory."));
-  sql_print_error("Debug Sync Facility disabled due to lack of memory.");
+  LogErr(ERROR_LEVEL, ER_DEBUG_SYNC_OOM);
 
   DBUG_VOID_RETURN;
 }

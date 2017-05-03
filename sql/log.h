@@ -13,13 +13,29 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+/**
+  @file sql/log.h
+
+  Error logging, slow query logging, general query logging:
+  If it's server-internal, and it's logging, it's here.
+
+  Components/services should NOT include this, but include
+  include/mysql/components/services/log_builtins.h instead
+  to gain access to the error logging stack.
+
+  Legacy plugins (pre-"services") will likely include
+  include/mysql/service_my_plugin_log.h instead.
+*/
+
 #ifndef LOG_H
 #define LOG_H
 
-#include <stdarg.h>
+#include <derror.h>                      // get_server_errmsgs
 #include <stdarg.h>
 #include <stddef.h>
 #include <sys/types.h>
+#include <mysql/components/services/log_shared.h>
+#include <mysql/service_my_snprintf.h>   // my_vsnprintf
 
 #include "auth/sql_security_ctx.h"  // Security_context
 #include "my_command.h"
@@ -92,6 +108,42 @@ struct TABLE_LIST;
     Values: INT
     Number of queries not using indexes logged to the slow query log per min.
 */
+
+class Query_logger;
+class Log_to_file_event_handler;
+
+
+
+/**
+  Write a message to a log (for now just used for error log).
+  This is a variadic convenience interface to the logging components
+  (which use the log_line structure internally), e.g.
+
+  log_message(LOG_TYPE_ERROR,
+              LOG_ITEM_LOG_PRIO,    INFORMATION_LEVEL,
+              LOG_ITEM_LOG_MESSAGE, "file %s is %f %% yellow",
+                                    filename, yellowfication);
+
+  For use by legacy sql_print_*(), legacy my_plugin_log_message();
+  also available via the log_builtins service as message().
+
+  Wherever possible, use the fluent C++ wrapper LogErr()
+  (see log_builtins.h) instead.
+
+  See log_shared.h for LOG_TYPEs as well as for allowed LOG_ITEM_ types.
+*/
+int  log_vmessage(int log_type, va_list lili);
+int  log_message(int log_type, ...);
+
+
+/**
+  A helper that we can stubify so we don't have to pull all of THD
+  into the unit tests.
+
+  @param   thd  a thd
+  @retval       its thread-ID
+*/
+my_thread_id log_get_thread_id(THD *thd);
 
 
 /** Type of the log table */
@@ -783,17 +835,20 @@ public:
 class Error_log_throttle : public Log_throttle
 {
 private:
-  /**
-    The routine we call to actually log a line (i.e. our summary).
-  */
-  void (*log_summary)(const char *, ...) MY_ATTRIBUTE((format(printf, 1, 2)));
+  loglevel    ll;
+  uint        err_code;
+  const char *subsys;
 
   /**
     Actually print the prepared summary to log.
   */
   void print_summary(ulong suppressed)
   {
-    (*log_summary)(summary_template, suppressed);
+    log_message(LOG_TYPE_ERROR,
+                LOG_ITEM_LOG_PRIO,    ll,
+                LOG_ITEM_SQL_ERRCODE, err_code,
+                LOG_ITEM_SRV_SUBSYS,  subsys,
+                LOG_ITEM_LOG_MESSAGE, summary_template, suppressed);
   }
 
 public:
@@ -803,10 +858,10 @@ public:
     @param msg           use this template containing %lu as only non-literal
   */
   Error_log_throttle(ulong window_usecs,
-                     void (*logger)(const char*, ...)
-                       MY_ATTRIBUTE((format(printf, 1, 2))),
+                     loglevel lvl, uint errcode, const char *subsystem,
                      const char *msg)
-  : Log_throttle(window_usecs, msg), log_summary(logger)
+    : Log_throttle(window_usecs, msg),
+      ll(lvl), err_code(errcode), subsys(subsystem)
   {}
 
   /**
@@ -837,38 +892,92 @@ extern Slow_log_throttle log_throttle_qni;
 //
 ////////////////////////////////////////////////////////////
 
-/**
-   Prints a printf style error message to the error log.
-   @see error_log_print
+/*
+  Set up some convenience defines to help us while we change
+  old-style ("sql_print_...()") calls to new-style ones
+  ("LogErr(...)").  New code should not use these, nor should
+  it use sql_print_...().
 */
-void sql_print_error(const char *format, ...)
-  MY_ATTRIBUTE((format(printf, 1, 2)));
 
 /**
-   Prints a printf style warning message to the error log.
-   @see error_log_print
+  Set up basics, fetch message for <errcode>, insert any va_args,
+  call the new error stack.  A helper for the transition to the
+  new stack.
 */
-void sql_print_warning(const char *format, ...)
-  MY_ATTRIBUTE((format(printf, 1, 2)));
+#define log_errlog(level, errcode, ...)                \
+  log_message(LOG_TYPE_ERROR,                          \
+              LOG_ITEM_LOG_PRIO, level,                \
+              LOG_ITEM_SRV_SUBSYS, LOG_SUBSYSTEM_TAG,  \
+              LOG_ITEM_SRC_LINE, __LINE__,             \
+              LOG_ITEM_SRC_FILE, MY_BASENAME,          \
+              LOG_ITEM_LOG_LOOKUP, errcode,            \
+              ## __VA_ARGS__)
 
 /**
-   Prints a printf style information message to the error log.
-   @see error_log_print
+  Default tags + freeform message. A helper for re#defining sql_print_*()
+  to go through the new error log service stack.
+
+  Remember to never blindly LOG_MESSAGE a string you that may contain
+  user input as it may contain % which will be treated as substitutions.
+
+  BAD:   LOG_ITEM_LOG_MESSAGE,  dodgy_message
+  OK:    LOG_ITEM_LOG_MESSAGE,  "%s", dodgy_message
+  GOOD:  LOG_ITEM_LOG_VERBATIM, dodgy_message
 */
-void sql_print_information(const char *format, ...)
-  MY_ATTRIBUTE((format(printf, 1, 2)));
+#define log_errlog_formatted(level, ...)               \
+  log_message(LOG_TYPE_ERROR,                          \
+              LOG_ITEM_LOG_PRIO, level,                \
+              LOG_ITEM_SRV_SUBSYS, LOG_SUBSYSTEM_TAG,  \
+              LOG_ITEM_SRC_LINE, __LINE__,             \
+              LOG_ITEM_SRC_FILE, MY_BASENAME,          \
+              LOG_ITEM_LOG_MESSAGE, ## __VA_ARGS__)
 
 /**
-   Prints a printf style message to the error log.
-   The message is also sent to syslog and to the
-   Windows event log if appropriate.
-
-   @param level          The level of the msg significance
-   @param format         Printf style format of message
-   @param args           va_list list of arguments for the message
+  Set up the default tags, then let us add/override any key/value we like,
+  call the new error stack.  A helper for the transition to the new stack.
 */
-void error_log_print(enum loglevel level, const char *format, va_list args)
+#define log_errlog_rich(level, ...)                    \
+  log_message(LOG_TYPE_ERROR,                          \
+              LOG_ITEM_LOG_PRIO, level,                \
+              LOG_ITEM_SRV_SUBSYS, LOG_SUBSYSTEM_TAG,  \
+              LOG_ITEM_SRC_LINE, __LINE__,             \
+              LOG_ITEM_SRC_FILE, MY_BASENAME,          \
+              __VA_ARGS__)
+
+
+/**
+  Define sql_print_*() so they use the new log_message()
+  variadic convenience interface to logging.  This lets
+  us switch over the bulk of the messages right away until
+  we can attend to them individually; it also verifies that
+  we no longer use function pointers to log functions.
+
+  As before, sql_print_*() only accepts a printf-style
+  format string, and the arguments to same, if any.
+*/
+#define sql_print_information(...) \
+  log_errlog_formatted(INFORMATION_LEVEL, ## __VA_ARGS__)
+
+#define sql_print_warning(...) \
+  log_errlog_formatted(WARNING_LEVEL, ## __VA_ARGS__)
+
+#define sql_print_error(...) \
+  log_errlog_formatted(ERROR_LEVEL, ## __VA_ARGS__)
+
+
+/**
+  Prints a printf style message to the error log.
+
+  A thin wrapper around log_message() for local_message_hook,
+  Table_check_intact::report_error, and others.
+
+  @param level          The level of the msg significance
+  @param format         Printf style format of message
+  @param args           va_list list of arguments for the message
+*/
+void error_log_printf(enum loglevel level, const char *format, va_list args)
   MY_ATTRIBUTE((format(printf, 2, 0)));
+
 
 /**
   Initialize structures (e.g. mutex) needed by the error log.
@@ -928,26 +1037,568 @@ bool reopen_error_log();
 */
 void flush_error_log_messages();
 
-////////////////////////////////////////////////////////////
-//
-// SysLog
-//
-////////////////////////////////////////////////////////////
 
 /**
-   DBA has changed syslog settings. Put them into effect!
+  Modular logger: log line and key/value manipulation helpers.
+  Server-internal.  External services should access these via
+  the log_builtins service API (cf. preamble for this file).
 */
-bool log_syslog_update_settings();
+
 
 /**
-   Translate a syslog facility name ("LOG_DAEMON", "local5", etc.)
-   to its numeric value on the platform this mysqld was compiled for.
-   Used for traditional unixoid syslog, harmless on systemd / Win
-   platforms.
-*/
-bool log_syslog_find_facility(char *f, SYSLOG_FACILITY *rsf);
+  Predicate used to determine whether a type is generic
+  (generic string, generic float, generic integer) rather
+  than a well-known type.
 
-bool log_syslog_init();
-void log_syslog_exit();
+  @param t          log item type to examine
+
+  @retval  true     if generic type
+  @retval  false    if wellknown type
+*/
+bool             log_item_generic_type(log_item_type t);
+
+/**
+  Predicate used to determine whether a class is a string
+  class (C-string or Lex-string).
+
+  @param c          log item class to examine
+
+  @retval   true    if of a string class
+  @retval   false   if not of a string class
+*/
+bool             log_item_string_class(log_item_class c);
+
+/**
+  Predicate used to determine whether a class is a numeric
+  class (integer or float).
+
+  @param c         log item class to examine
+
+  @retval   true   if of a numeric class
+  @retval   false  if not of a numeric class
+*/
+bool             log_item_numeric_class(log_item_class c);
+
+
+/**
+  Get a float value from a log-item of float or integer type.
+
+  @param li      log item to get the value from
+  @param f       float to store  the value in
+*/
+void             log_item_get_float(log_item *li, double *f);
+
+/**
+  Get a string value from a log-item of C-string or Lex string type.
+
+  @param li      log item to get the value from
+  @param str     char-pointer   to store the pointer to the value in
+  @param len     size_t pointer to store the length of  the value in
+*/
+void             log_item_get_string(log_item *li, char **str, size_t *len);
+
+/**
+  Set an integer value on a log_item.
+  Fails gracefully if not log_item_data is supplied, so it can safely
+  wrap log_line_item_set[_with_key]().
+
+  @param  lid    log_item_data struct to set the value on
+  @param  i      integer to set
+
+  @retval true   lid was nullptr (possibly: OOM, could not set up log_item)
+  @retval false  all's well
+*/
+bool log_item_set_int(log_item_data *lid, longlong i);
+
+/**
+  Set a floating point value on a log_item.
+  Fails gracefully if not log_item_data is supplied, so it can safely
+  wrap log_line_item_set[_with_key]().
+
+  @param  lid    log_item_data struct to set the value on
+  @param  f      float to set
+
+  @retval true   lid was nullptr (possibly: OOM, could not set up log_item)
+  @retval false  all's well
+*/
+bool log_item_set_float(log_item_data *lid, double f);
+
+/**
+  Set a string value on a log_item.
+  Fails gracefully if not log_item_data is supplied, so it can safely
+  wrap log_line_item_set[_with_key]().
+
+  @param  lid    log_item_data struct to set the value on
+  @param  s      pointer to string
+  @param  s_len  length of string
+
+  @retval true   lid was nullptr (possibly: OOM, could not set up log_item)
+  @retval false  all's well
+*/
+bool log_item_set_lexstring(log_item_data *lid, const char *s, size_t s_len);
+
+/**
+  Set a string value on a log_item.
+  Fails gracefully if not log_item_data is supplied, so it can safely
+  wrap log_line_item_set[_with_key]().
+
+  @param  lid    log_item_data struct to set the value on
+  @param  s      pointer to NTBS
+
+  @retval true   lid was nullptr (possibly: OOM, could not set up log_item)
+  @retval false  all's well
+*/
+bool log_item_set_cstring(log_item_data *lid, const char *s);
+
+/**
+  See whether a string is a wellknown field name.
+
+  @param k       potential key starts here
+  @param l       length of the string to examine
+
+  @retval        LOG_ITEM_TYPE_RESERVED:  reserved, but not "wellknown" key
+  @retval        LOG_ITEM_TYPE_NOT_FOUND: key not found
+  @retval        >0:                      index in array of wellknowns
+*/
+int              log_item_wellknown_by_name(const char *k, size_t l);
+
+/**
+  See whether a type is wellknown.
+
+  @param t       log item type to examine
+
+  @retval        LOG_ITEM_TYPE_NOT_FOUND: key not found
+  @retval        >0:                      index in array of wellknowns
+*/
+int              log_item_wellknown_by_type(log_item_type t);
+
+/**
+  Accessor: from a record describing a wellknown key, get its name
+
+  @param   idx  index in array of wellknowns, see log_item_wellknown_by_...()
+
+  @retval       name (NTBS)
+*/
+const char      *log_item_wellknown_get_name(uint i);
+
+/**
+  Accessor: from a record describing a wellknown key, get its type
+
+  @param i       index in array of wellknowns, see log_item_wellknown_by_...()
+
+  @retval        the log item type for the wellknown key
+*/
+log_item_type    log_item_wellknown_get_type(uint i);
+
+/**
+  Accessor: from a record describing a wellknown key, get its class
+
+  @param i       index in array of wellknowns, see log_item_wellknown_by_...()
+
+  @retval        the log item class for the wellknown key
+*/
+log_item_class   log_item_wellknown_get_class(uint i);
+
+/**
+  Release any of key and value on a log-item that were dynamically allocated.
+
+  @param  li  log-item to release the payload of
+*/
+void             log_item_free(log_item *li);
+
+/**
+  Predicate indicating whether a log line is "willing" to accept any more
+  key/value pairs.
+
+  @param   ll     the log-line to examine
+
+  @retval  false  if not full / if able to accept another log_item
+  @retval  true   if full
+*/
+bool             log_line_full(log_line *ll);
+
+/**
+  Test whether a given type is presumed present on the log line.
+
+  @param  ll  the log_line to examine
+  @param  m   the log_type to test for
+
+  @retval  0  not present
+  @retval !=0 present
+*/
+log_item_type_mask log_line_item_types_seen(log_line *ll, log_item_type_mask m);
+
+/**
+  Initialize a log_line.
+
+  @retval nullptr  could not set up buffer (too small?)
+  @retval other    address of the newly initialized log_line
+*/
+log_line        *log_line_init();
+
+
+/**
+  Release a log_line allocated with log_line_init.
+
+  @retval nullptr  could not set up buffer (too small?)
+  @retval other    address of the newly initialized log_line
+*/
+void             log_line_exit(log_line *ll);
+
+
+/**
+  Release log line item (key/value pair) with the index elem in log line ll.
+  This frees whichever of key and value were dynamically allocated.
+  This leaves a "gap" in the bag that may immediately be overwritten
+  with an updated element.  If the intention is to remove the item without
+  replacing it, use log_line_item_remove() instead!
+
+  @param         ll    log_line
+  @param         elem  index of the key/value pair to release
+*/
+void             log_line_item_free(log_line *ll, size_t elem);
+
+/**
+  Release all log line items (key/value pairs) in log line ll.
+  This frees whichever keys and values were dynamically allocated.
+
+  @param         ll    log_line
+*/
+void             log_line_item_free_all(log_line *ll);
+
+/**
+  Release log line item (key/value pair) with the index elem in log line ll.
+  This frees whichever of key and value were dynamically allocated.
+  This moves any trailing items to fill the "gap" and decreases the counter
+  of elements in the log line.  If the intention is to leave a "gap" in the
+  bag that may immediately be overwritten with an updated element, use
+  log_line_item_free() instead!
+
+  @param         ll    log_line
+  @param         elem  index of the key/value pair to release
+*/
+void             log_line_item_remove(log_line *li, int elem);
+
+/**
+  Find the (index of the) first key/value pair of the given type
+  in the log line.
+
+  @param         li   log line
+  @param         t    the log item type to look for
+
+  @retval        <0:  none found
+  @retval        >=0: index of the key/value pair in the log line
+*/
+int              log_line_index_by_type(log_line *li, log_item_type t);
+
+/**
+  Find the (index of the) first key/value pair of the given type
+  in the log line. This variant accepts a reference item and looks
+  for an item that is of the same type (for wellknown types), or
+  one that is of a generic type, and with the same key name (for
+  generic types).  For example, a reference item containing a
+  generic string with key "foo" will a generic string, integer, or
+  float with the key "foo".
+
+  @param         li   log line
+  @param         t    the log item type to look for
+
+  @retval        <0:  none found
+  @retval        >=0: index of the key/value pair in the log line
+*/
+int              log_line_index_by_item(log_line *ll, log_item *ref);
+
+/**
+  Initializes a log entry for use. This simply puts it in a defined
+  state; if you wish to reset an existing item, see log_item_free().
+
+  @param  li  the log-item to initialize
+*/
+void             log_item_init(log_item *li);
+
+/**
+  Initializes an entry in a log line for use. This simply puts it in
+  a defined state; if you wish to reset an existing item, see
+  log_item_free().
+  This resets the element beyond the last. The element count is not
+  adjusted; this is for the caller to do once it sets up a valid
+  element to suit its needs in the cleared slot. Finally, it is up
+  to the caller to make sure that an element can be allocated.
+
+  @param  ll  the log-line to initialize a log_item in
+
+  @retval     the address of the cleared log_item
+*/
+log_item        *log_line_item_init(log_line *ll);
+
+/**
+  Create new log item with key name "key", and allocation flags of
+  "alloc" (see enum_log_item_free).
+  Will return a pointer to the item's log_item_data struct for
+  convenience.
+  This is mostly interesting for filters and other services that create
+  items that are not part of a log_line; sources etc. that intend to
+  create an item for a log_line (the more common case) should usually
+  use the below line_item_set_with_key() which creates an item (like
+  this function does), but also correctly inserts it into a log_line.
+
+  @param  li     the log_item to work on
+  @param  t      the item-type
+  @param  key    the key to set on the item.
+                 ignored for non-generic types (may pass nullptr for those)
+                 see alloc
+  @param  alloc  LOG_ITEM_FREE_KEY  if key was allocated by caller
+                 LOG_ITEM_FREE_NONE if key was not allocated
+                 Allocated keys will automatically free()d when the
+                 log_item is.
+                 The log_item's alloc flags will be set to the
+                 submitted value; specifically, any pre-existing
+                 value will be clobbered.  It is therefore WRONG
+                 a) to use this on a log_item that already has a key;
+                    it should only be used on freshly init'd log_items;
+                 b) to use this on a log_item that already has a
+                    value (specifically, an allocated one); the correct
+                    order is to init a log_item, then set up type and
+                    key, and finally to set the value. If said value is
+                    an allocated string, the log_item's alloc should be
+                    bitwise or'd with LOG_ITEM_FREE_VALUE.
+
+  @retval        a pointer to the log_item's log_data, for easy chaining:
+                 log_item_set_with_key(...)->data_integer= 1;
+*/
+log_item_data   *log_item_set_with_key(log_item *li, log_item_type t,
+                                       const char *key, uint32 alloc);
+
+/**
+  Create new log item in log line "ll", with key name "key", and
+  allocation flags of "alloc" (see enum_log_item_free).
+  It is up to the caller to ensure the log_line can accept more items
+  (e.g. by using log_line_full(ll)).
+  On success, the number of registered items on the log line is increased,
+  the item's type is added to the log_line's "seen" property,
+  and a pointer to the item's log_item_data struct is returned for
+  convenience.
+
+  @param  ll     the log_line to work on
+  @param  t      the item-type
+  @param  key    the key to set on the item.
+                 ignored for non-generic types (may pass nullptr for those)
+                 see alloc
+  @param  alloc  LOG_ITEM_FREE_KEY  if key was allocated by caller
+                 LOG_ITEM_FREE_NONE if key was not allocated
+                 Allocated keys will automatically free()d when the
+                 log_item is.
+                 The log_item's alloc flags will be set to the
+                 submitted value; specifically, any pre-existing
+                 value will be clobbered.  It is therefore WRONG
+                 a) to use this on a log_item that already has a key;
+                    it should only be used on freshly init'd log_items;
+                 b) to use this on a log_item that already has a
+                    value (specifically, an allocated one); the correct
+                    order is to init a log_item, then set up type and
+                    key, and finally to set the value. If said value is
+                    an allocated string, the log_item's alloc should be
+                    bitwise or'd with LOG_ITEM_FREE_VALUE.
+
+  @retval        a pointer to the log_item's log_data, for easy chaining:
+                 log_line_item_set_with_key(...)->data_integer= 1;
+*/
+log_item_data   *log_line_item_set_with_key(log_line *ll, log_item_type t,
+                                            const char *key, uint32 alloc);
+
+/**
+  As log_item_set_with_key(), except that the key is automatically
+  derived from the wellknown log_item_type t.
+
+  Create new log item with type "t".
+  Will return a pointer to the item's log_item_data struct for
+  convenience.
+  This is mostly interesting for filters and other services that create
+  items that are not part of a log_line; sources etc. that intend to
+  create an item for a log_line (the more common case) should usually
+  use the below line_item_set_with_key() which creates an item (like
+  this function does), but also correctly inserts it into a log_line.
+
+  The allocation of this item will be LOG_ITEM_FREE_NONE;
+  specifically, any pre-existing value will be clobbered.
+  It is therefore WRONG
+  a) to use this on a log_item that already has a key;
+     it should only be used on freshly init'd log_items;
+  b) to use this on a log_item that already has a
+     value (specifically, an allocated one); the correct
+     order is to init a log_item, then set up type and
+     key, and finally to set the value. If said value is
+     an allocated string, the log_item's alloc should be
+     bitwise or'd with LOG_ITEM_FREE_VALUE.
+
+  @param  li     the log_item to work on
+  @param  t      the item-type
+
+  @retval        a pointer to the log_item's log_data, for easy chaining:
+                 log_item_set_with_key(...)->data_integer= 1;
+*/
+log_item_data   *log_item_set(log_item *li, log_item_type t);
+
+/**
+  Create a new log item of well-known type "t" in log line "ll".
+  On success, the number of registered items on the log line is increased,
+  the item's type is added to the log_line's "seen" property,
+  and a pointer to the item's log_item_data struct is returned for
+  convenience.
+
+  It is up to the caller to ensure the log_line can accept more items
+  (e.g. by using log_line_full(ll)).
+
+  The allocation of this item will be LOG_ITEM_FREE_NONE;
+  specifically, any pre-existing value will be clobbered.
+  It is therefore WRONG
+  a) to use this on a log_item that already has a key;
+     it should only be used on freshly init'd log_items;
+  b) to use this on a log_item that already has a
+     value (specifically, an allocated one); the correct
+     order is to init a log_item, then set up type and
+     key, and finally to set the value. If said value is
+     an allocated string, the log_item's alloc should be
+     bitwise or'd with LOG_ITEM_FREE_VALUE.
+
+  @param  ll     the log_line to work on
+  @param  t      the item-type
+
+  @retval        a pointer to the log_item's log_data, for easy chaining:
+                 log_line_item_set_with_key(...)->data_integer= 1;
+*/
+log_item_data   *log_line_item_set(log_line *ll, log_item_type t);
+
+/**
+  Convenience function: Derive a log label ("error", "warning",
+  "information") from a severity.
+
+  @param   prio       the severity/prio in question
+
+  @return             a label corresponding to that priority.
+  @retval  "ERROR"    for prio of ERROR_LEVEL or higher
+  @retval  "Warning"  for prio of WARNING_LEVEL
+  @retval  "Note"     otherwise
+*/
+const char      *log_label_from_prio(int prio);
+
+/**
+  Complete, filter, and write submitted log items.
+
+  This expects a log_line collection of log-related key/value pairs,
+  e.g. from log_message().
+
+  Where missing, timestamp, priority, thread-ID (if any) and so forth
+  are added.
+
+  Log item source services, log item filters, and log item sinks are
+  then called.
+
+  @param           ll                   key/value pairs describing info to log
+
+  @retval          int                  number of fields in created log line
+*/
+int              log_line_submit(log_line *ll);
+
+/**
+  Make and return an ISO 8601 / RFC 3339 compliant timestamp.
+  Heeds log_timestamps.
+
+  @param         buf         A buffer of at least 26 bytes to store
+                             the timestamp in (19 + tzinfo tail + \0)
+  @param         utime       Microseconds since the epoch
+  @param         mode        if 0, use UTC; if 1, use local time
+
+  @retval                    length of timestamp (excluding \0)
+*/
+int              make_iso8601_timestamp(char *buf, ulonglong utime, int mode);
+
+
+/**
+  Set up custom error logging stack.
+
+  @param   conf        The configuration string
+  @param   check_only  if true, report on whether configuration is valid
+                       (i.e. whether all requested services are available),
+                       but do not apply the new configuration.
+                       if false, set the configuration (acquire the necessary
+                       services, update the hash by adding/deleting entries
+                       as necessary)
+
+  @retval              <0   failure
+  @retval              >=0  success
+*/
+int              log_builtins_error_stack(const char *conf, bool check_only);
+
+/**
+  Call flush() on all log_services.
+  flush() function must not try to log anything, as we hold an
+  exclusive lock on the stack.
+
+  @retval   0   no problems
+  @retval  -1   error
+*/
+int              log_builtins_error_stack_flush();
+
+
+/**
+  Initialize the structured logging subsystem.
+
+  @retval  0  no errors
+  @retval -1  couldn't initialize lock
+  @retval -2  couldn't initialize built-in default filter
+  @retval -3  couldn't set up service hash
+*/
+int              log_builtins_init();
+
+/**
+  De-initialize the structured logging subsystem.
+
+  @retval  0  no errors
+*/
+int              log_builtins_exit();
+
+
+/**
+  Interim helper: write to the default error stream
+
+  @param         buffer       buffer containing serialized error message
+  @param         length       number of bytes in buffer
+*/
+void             log_write_errstream(const char *buffer, size_t length);
+
+
+/**
+   Temporary helper class to implement services' system variables
+   handling against until the component framework supports
+   per-component variables.
+*/
+class LogVar
+{
+private:
+  log_item      lv;
+  const char   *service_group= "log_sink";
+
+public:
+  LogVar(LEX_CSTRING &s);         /**< constructor with variable name */
+
+  LogVar &val(LEX_STRING &s);     /**< set a  value from a lex string */
+  LogVar &val(const char *s);     /**< set a  value from a C-string */
+  LogVar &val(longlong i);        /**< set an integer value */
+  LogVar &val(double d);          /**< set a  float value */
+
+  LogVar &group(const char *g);   /**< set non-default service group */
+
+  int check();                    /**< sanity check value. true: failure */
+  int update();                   /**< apply new value */
+};
+
+
+/*
+  Include fluent C++ error logging API, LogErr(). It should
+  be readily available to make the bar to using the new system
+  as low possible.
+*/
+#include <mysql/components/services/log_builtins.h>
 
 #endif /* LOG_H */
