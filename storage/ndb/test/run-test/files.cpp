@@ -140,6 +140,11 @@ dirname(const char * path)
   return 0;
 }
 
+#ifdef _WIN32
+#define popen _popen
+#define pclose _pclose
+#endif
+
 bool
 setup_files(atrt_config& config, int setup, int sshx)
 {
