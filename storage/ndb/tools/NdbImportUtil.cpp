@@ -711,7 +711,8 @@ NdbImportUtil::Table::get_attr(const char* attrname) const
 int
 NdbImportUtil::add_table(NdbDictionary::Dictionary* dic,
                          const NdbDictionary::Table* tab,
-                         uint& tabid)
+                         uint& tabid,
+                         Error& error)
 {
   require(tab != 0);
   require(tab->getObjectStatus() == NdbDictionary::Object::Retrieved);
@@ -861,7 +862,7 @@ NdbImportUtil::add_table(NdbDictionary::Dictionary* dic,
             table.m_has_hidden_pk = true;
           else
           {
-            set_error_usage(c_error, __LINE__,
+            set_error_usage(error, __LINE__,
                             "column %u: "
                             "invalid use of reserved column name $PK", i);
             ok = false;
@@ -880,7 +881,7 @@ NdbImportUtil::add_table(NdbDictionary::Dictionary* dic,
                         sizeof(NdbDictionary::RecordSpecification));
     if (keyrec == 0)
     {
-      m_util.set_error_ndb(c_error, __LINE__, dic->getNdbError());
+      m_util.set_error_ndb(error, __LINE__, dic->getNdbError());
       break;
     }
     table.m_keyrec = keyrec;

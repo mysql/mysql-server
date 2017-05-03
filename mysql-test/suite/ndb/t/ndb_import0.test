@@ -223,4 +223,51 @@ select count(*) from t4;
 --error 0
 --file_exists $MYSQLTEST_VARDIR/tmp/t4.stt
 
-drop table t1, t2, t2ver, t3, t3ver, t4;
+--echo # test --continue option with missing table
+
+create table t5a (a int primary key) engine=ndb;
+create table t5c like t5a;
+
+write_file $MYSQLTEST_VARDIR/tmp/t5a.csv;
+111
+222
+EOF
+
+write_file $MYSQLTEST_VARDIR/tmp/t5b.csv;
+111
+111
+EOF
+
+write_file $MYSQLTEST_VARDIR/tmp/t5c.csv;
+111
+222
+EOF
+
+--error 1
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --verbose=1
+     --continue
+     test
+     $MYSQLTEST_VARDIR/tmp/t5a.csv
+     $MYSQLTEST_VARDIR/tmp/t5b.csv
+     $MYSQLTEST_VARDIR/tmp/t5c.csv >> $NDB_TOOLS_OUTPUT 2>&1;
+select count(*) from t5a;
+select count(*) from t5c;
+
+--echo # test --continue option with rejects
+
+delete from t5a;
+delete from t5c;
+create table t5b like t5a;
+
+--error 1
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --verbose=1
+     --continue
+     test
+     $MYSQLTEST_VARDIR/tmp/t5a.csv
+     $MYSQLTEST_VARDIR/tmp/t5b.csv
+     $MYSQLTEST_VARDIR/tmp/t5c.csv >> $NDB_TOOLS_OUTPUT 2>&1;
+select count(*) from t5a;
+select count(*) from t5b;
+select count(*) from t5c;
+
+drop table t1, t2, t2ver, t3, t3ver, t4, t5a, t5b, t5c;

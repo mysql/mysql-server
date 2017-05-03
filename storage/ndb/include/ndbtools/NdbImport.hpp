@@ -106,8 +106,8 @@ public:
 
   // table
 
+  // tables are shared and can also be added outside job context
   int add_table(const char* database, const char* table, uint& tabid);
-  int set_tabid(uint tabid);
 
   // job
 
@@ -147,6 +147,8 @@ public:
     int do_stop();      // ask to stop before ready
     int do_wait();
     void do_destroy();
+    int add_table(const char* database, const char* table, uint& tabid);
+    void set_table(uint tabid);
     bool has_error() const;
     const Error& get_error() const;
     NdbImport& m_imp;

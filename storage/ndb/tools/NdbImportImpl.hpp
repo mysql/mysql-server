@@ -127,10 +127,10 @@ public:
 
   // tables
 
-  uint c_tabid;
-
-  int add_table(const char* database, const char* table, uint& tabid);
-  int set_tabid(uint tabid);
+  int add_table(const char* database,
+                const char* table,
+                uint& tabid,
+                Error& error);
 
   // files
 
@@ -259,6 +259,9 @@ public:
     // define teams and row queues
     void do_create();
     void add_team(Team* team);
+    // add and set table
+    int add_table(const char* database, const char* table, uint& tabid);
+    void set_table(uint tabid);
     // start teams and run the job until done
     void do_start();
     void start_diag_team();
@@ -280,6 +283,7 @@ public:
     // per-job stats
     Stats m_stats;
     JobState::State m_state;
+    uint m_tabid;
     bool m_dostop;      // request graceful stop
     bool m_fatal;       // error is unlikely to be resumable
     ErrorMap m_errormap;// temporary errors from exec-op
@@ -327,7 +331,7 @@ public:
     void do_stop();
     void stop_worker(Worker* w);
     virtual void do_end() = 0;
-    void set_tabid(uint tabid);
+    void set_table(uint tabid);
     virtual void str_state(char* str) const;
     Job& m_job;
     NdbImportImpl& m_impl;

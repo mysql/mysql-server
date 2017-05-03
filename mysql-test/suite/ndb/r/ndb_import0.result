@@ -60,4 +60,26 @@ delete from t4;
 select count(*) from t4;
 count(*)
 997
-drop table t1, t2, t2ver, t3, t3ver, t4;
+# test --continue option with missing table
+create table t5a (a int primary key) engine=ndb;
+create table t5c like t5a;
+select count(*) from t5a;
+count(*)
+2
+select count(*) from t5c;
+count(*)
+2
+# test --continue option with rejects
+delete from t5a;
+delete from t5c;
+create table t5b like t5a;
+select count(*) from t5a;
+count(*)
+2
+select count(*) from t5b;
+count(*)
+1
+select count(*) from t5c;
+count(*)
+2
+drop table t1, t2, t2ver, t3, t3ver, t4, t5a, t5b, t5c;
