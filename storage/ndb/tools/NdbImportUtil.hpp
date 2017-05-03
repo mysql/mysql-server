@@ -667,9 +667,11 @@ public:
   Lockable c_error_lock;
 
   void set_error_gen(Error& error, int line,
-                     const char* fmt = 0, ...);
+                     const char* fmt = 0, ...)
+    ATTRIBUTE_FORMAT(printf, 4, 5);
   void set_error_usage(Error& error, int line,
-                       const char* fmt = 0, ...);
+                       const char* fmt = 0, ...)
+    ATTRIBUTE_FORMAT(printf, 4, 5);
   void set_error_alloc(Error& error, int line);
   void set_error_mgm(Error& error, int line,
                      NdbMgmHandle handle);
@@ -678,9 +680,11 @@ public:
   void set_error_ndb(Error& error, int line,
                      const NdbError& ndberror, const char* fmt = 0, ...);
   void set_error_os(Error& error, int line,
-                    const char* fmt = 0, ...);
+                    const char* fmt = 0, ...)
+    ATTRIBUTE_FORMAT(printf, 4, 5);
   void set_error_data(Error& error, int line,
-                      int code, const char* fmt = 0, ...);
+                      int code, const char* fmt = 0, ...)
+    ATTRIBUTE_FORMAT(printf, 5, 6);
   void copy_error(Error& error, const Error& error2);
   bool has_error(const Error& error) {
     return error.type != Error::Type_noerror;
