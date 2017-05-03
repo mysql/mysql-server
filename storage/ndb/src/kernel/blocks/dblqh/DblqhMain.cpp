@@ -2096,6 +2096,14 @@ void Dblqh::execLQHFRAGREQ(Signal* signal)
   fragptr.p->createGci = req->createGci;
   fragptr.p->startGci = req->startGci;
   fragptr.p->newestGci = req->startGci;
+  DEB_LCP(("(%u)LQHFRAGREQ: tab(%u,%u) createGci: %u, startGci: %u,"
+           " newestGci: %u",
+           instance(),
+           tabptr.i,
+           req->fragId,
+           fragptr.p->createGci,
+           fragptr.p->startGci,
+           fragptr.p->newestGci));
   if (fragptr.p->newestGci < req->createGci)
   {
     jam();
@@ -19515,17 +19523,14 @@ Dblqh::send_restore_lcp(Signal * signal)
       req->maxGciCompleted = fragptr.p->srStartGci[0] - 1;
     }
     req->restoreGcpId = crestartNewestGci;
-    if (fragptr.p->createGci > crestartNewestGci)
-    {
-      jam();
-      /**
-       * Older DIHs could potentially send a createGci that is newer than
-       * what is restorable. This could happen when the table was created
-       * very close to the crash.
-       */
-      fragptr.p->createGci = crestartNewestGci;
-   }
-
+    /**
+     * DIH could potentially send a createGci that is newer than
+     * what is restorable. This could happen when the table was created
+     * very close to the crash.
+     * We will still keep the createGci as is to discover if it is the
+     * same table since all LCP control files are tagged with the
+     * createGci.
+     */
     req->createGci = fragptr.p->createGci;
     BlockReference restoreRef = calcInstanceBlockRef(RESTORE);
     sendSignal(restoreRef, GSN_RESTORE_LCP_REQ, signal,

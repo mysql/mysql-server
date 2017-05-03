@@ -513,6 +513,7 @@ Restore::lcp_create_ctl_done_open(Signal *signal, FilePtr file_ptr)
      * LCP control file. This could be either upgrade case or not.
      */
     jam();
+    lcpCtlFilePtr->CreateGci = file_ptr.p->m_create_gci;
     lcpCtlFilePtr->MaxGciWritten = 0;
     lcpCtlFilePtr->MaxGciCompleted = 0;
     lcpCtlFilePtr->LastDataFileNumber = 0;
@@ -533,6 +534,7 @@ Restore::lcp_create_ctl_done_open(Signal *signal, FilePtr file_ptr)
     ndbrequire(file_ptr.p->m_dih_lcp_no == 0 ||
                file_ptr.p->m_dih_lcp_no == 1);
     lcpCtlFilePtr->ValidFlag = 1;
+    lcpCtlFilePtr->CreateGci = file_ptr.p->m_create_gci;
     lcpCtlFilePtr->MaxGciWritten = file_ptr.p->m_restored_gcp_id;
     lcpCtlFilePtr->MaxGciCompleted = file_ptr.p->m_max_gci_completed;
     lcpCtlFilePtr->LastDataFileNumber = file_ptr.p->m_dih_lcp_no;
@@ -1173,13 +1175,32 @@ Restore::read_ctl_file_done(Signal *signal, FilePtr file_ptr, Uint32 bytesRead)
    * to know to handle the restore correctly.
    */
   Uint32 validFlag = lcpCtlFilePtr->ValidFlag;
+  Uint32 createGci = lcpCtlFilePtr->CreateGci;
   Uint32 maxGciCompleted = lcpCtlFilePtr->MaxGciCompleted;
   Uint32 maxGciWritten = lcpCtlFilePtr->MaxGciWritten;
   Uint32 lcpId = lcpCtlFilePtr->LcpId;
   Uint32 localLcpId = lcpCtlFilePtr->LocalLcpId;
   Uint32 maxPageCnt = lcpCtlFilePtr->MaxPageCount;
 
-  if (maxGciWritten > file_ptr.p->m_restored_gcp_id ||
+  if (createGci != file_ptr.p->m_create_gci &&
+      createGci != 0 &&
+      file_ptr.p->m_create_gci != 0)
+  {
+    jam();
+    g_eventLogger->info("(%u)Found LCP control file from old table"
+                        ", drop table haven't cleaned up properly"
+                        ", tab(%u,%u), createGci:%u, maxGciCompleted: %u"
+                        ", maxGciWritten: %u, restored createGci: %u",
+                        instance(),
+                        file_ptr.p->m_table_id,
+                        file_ptr.p->m_fragment_id,
+                        createGci,
+                        maxGciCompleted,
+                        maxGciWritten,
+                        file_ptr.p->m_create_gci);
+    ndbrequire(false);
+  }
+  else if (maxGciWritten > file_ptr.p->m_restored_gcp_id ||
       validFlag == 0)
   {
     jam();

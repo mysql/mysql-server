@@ -6789,15 +6789,6 @@ Backup::fragmentCompleted(Signal* signal,
   BackupRecordPtr ptr;
   c_backupPool.getPtr(ptr, filePtr.p->backupPtr);
 
-#ifdef DEBUG_LCP
-  if (ptr.p->is_lcp())
-  {
-    DEB_LCP(("(%u)fragmentCompleted(LCP) tab(%u,%u)",
-             instance(),
-             filePtr.p->tableId,
-             filePtr.p->fragmentNo));
-  }
-#endif
   OperationRecord & op = filePtr.p->operation;
   if(!op.fragComplete(filePtr.p->tableId, filePtr.p->fragmentNo,
                       c_defaults.m_o_direct))
@@ -9969,6 +9960,7 @@ Backup::lcp_read_ctl_file_done(Signal* signal, BackupRecordPtr ptr)
   Uint32 dataFileNumber;
   Uint32 maxGciCompleted;
   Uint32 maxGciWritten;
+  Uint32 createGci;
 
   if (lcpCtlFilePtr0->ValidFlag == 0)
   {
@@ -9993,6 +9985,7 @@ Backup::lcp_read_ctl_file_done(Signal* signal, BackupRecordPtr ptr)
     lcpCtlFilePtr = lcpCtlFilePtr1;
     ptr.p->prepareNextLcpCtlFileNumber = 1;
     closeLcpNumber = 0;
+    createGci = lcpCtlFilePtr0->CreateGci;
     maxGciCompleted = lcpCtlFilePtr0->MaxGciCompleted;
     maxGciWritten = lcpCtlFilePtr0->MaxGciWritten;
     ptr.p->prepareDeleteCtlFileNumber = closeLcpNumber;
@@ -10015,6 +10008,7 @@ Backup::lcp_read_ctl_file_done(Signal* signal, BackupRecordPtr ptr)
     dataFileNumber = lcpCtlFilePtr1->LastDataFileNumber;
     lcpCtlFilePtr = lcpCtlFilePtr0;
     ptr.p->prepareNextLcpCtlFileNumber = 0;
+    createGci = lcpCtlFilePtr0->CreateGci;
     maxGciCompleted = lcpCtlFilePtr1->MaxGciCompleted;
     maxGciWritten = lcpCtlFilePtr1->MaxGciWritten;
     closeLcpNumber = 1;
@@ -10043,6 +10037,11 @@ Backup::lcp_read_ctl_file_done(Signal* signal, BackupRecordPtr ptr)
       ptr.p->preparePrevLocalLcpId = 0;
       maxGciCompleted = 0;
       maxGciWritten = 0;
+      TablePtr tabPtr;
+      FragmentPtr fragPtr;
+      ndbrequire(ptr.p->prepare_table.first(tabPtr));
+      tabPtr.p->fragments.getPtr(fragPtr, 0);
+      createGci = fragPtr.p->createGci;
     }
     else
     {
@@ -10075,44 +10074,49 @@ Backup::lcp_read_ctl_file_done(Signal* signal, BackupRecordPtr ptr)
   if (maxGci < fragPtr.p->createGci &&
       maxGci != 0)
   {
-    jam();
-    /**
-     * This case is somewhat obscure. Due to the fact that we support the
-     * config variable __at_restart_skip_indexes we can actually come here
-     * for a table (should be a unique index table) that have an LCP file
-     * remaining from the previous use of this table id. It is potentially
-     * possible also when dropping a table while this node is down and then
-     * creating it again before this node has started. In this case we could
-     * come here and find an old LCP file. So what we do here is that we
-     * perform the drop of the old LCP fragments and then we restart the
-     * LCP handling again with an empty set of LCP files as it should be.
-     *
-     * This means first closing the CTL files (deleting the older one and
-     * keeping the newer one to ensure we keep one CTL file until all data
-     * files have been deleted and to integrate easily into the drop file
-     * handling in this block.
-     */
-     DEB_LCP(("(%u)TAGT Drop case: tab(%u,%u), maxGciCompleted: %u,"
-              " maxGciWritten: %u, createGci: %u",
-             instance(),
-             tabPtr.p->tableId,
-             fragPtr.p->fragmentId,
-             maxGciCompleted,
-             maxGciWritten,
-             fragPtr.p->createGci));
+    if (createGci < fragPtr.p->createGci)
+    {
+      jam();
+      /**
+       * This case is somewhat obscure. Due to the fact that we support the
+       * config variable __at_restart_skip_indexes we can actually come here
+       * for a table (should be a unique index table) that have an LCP file
+       * remaining from the previous use of this table id. It is potentially
+       * possible also when dropping a table while this node is down and then
+       * creating it again before this node has started. In this case we could
+       * come here and find an old LCP file. So what we do here is that we
+       * perform the drop of the old LCP fragments and then we restart the
+       * LCP handling again with an empty set of LCP files as it should be.
+       *
+       * This means first closing the CTL files (deleting the older one and
+       * keeping the newer one to ensure we keep one CTL file until all data
+       * files have been deleted and to integrate easily into the drop file
+       * handling in this block.
+       *
+       * We can only discover this case in a cluster where the master is
+       * on 7.6 version. So in upgrade cases we won't discover this case
+       * since we don't get the createGci from the DICT master in that case
+       * when the fragment is created.
+       */
+      DEB_LCP(("(%u)TAGT Drop case: tab(%u,%u), maxGciCompleted: %u,"
+               " maxGciWritten: %u, createGci: %u",
+              instance(),
+              tabPtr.p->tableId,
+              fragPtr.p->fragmentId,
+              maxGciCompleted,
+              maxGciWritten,
+              fragPtr.p->createGci));
 
-     ptr.p->prepareState = PREPARE_DROP_CLOSE;
-     closeFile(signal, ptr, filePtr[closeLcpNumber]);
-     closeFile(signal,
-               ptr,
-               filePtr[ptr.p->prepareNextLcpCtlFileNumber],
-               true,
-               true);
-     return;
+      ptr.p->prepareState = PREPARE_DROP_CLOSE;
+      closeFile(signal, ptr, filePtr[closeLcpNumber]);
+      closeFile(signal,
+                ptr,
+                filePtr[ptr.p->prepareNextLcpCtlFileNumber],
+                true,
+                true);
+      return;
+    }
   }
-  /* Initialise page to write to next CTL file with new LCP id */
-  lcp_set_lcp_id(ptr, lcpCtlFilePtr);
-
   DEB_LCP(("(%u)TAGC Use ctl file: %u, prev Lcp(%u,%u), curr Lcp(%u,%u)"
            ", next data file: %u, tab(%u,%u)"
            ", prevMaxGciCompleted: %u, createGci: %u",
@@ -10127,6 +10131,13 @@ Backup::lcp_read_ctl_file_done(Signal* signal, BackupRecordPtr ptr)
            fragPtr.p->fragmentId,
            maxGciCompleted,
            fragPtr.p->createGci));
+
+  ndbrequire(createGci == fragPtr.p->createGci ||
+             fragPtr.p->createGci == 0 ||
+             createGci == 0);
+
+  /* Initialise page to write to next CTL file with new LCP id */
+  lcp_set_lcp_id(ptr, lcpCtlFilePtr);
 
   /**
    * We close the file which was the previous LCP control file. We will
@@ -10263,6 +10274,7 @@ Backup::convert_ctl_page_to_host(
   lcpCtlFilePtr->ValidFlag = ntohl(lcpCtlFilePtr->ValidFlag);
   lcpCtlFilePtr->TableId = ntohl(lcpCtlFilePtr->TableId);
   lcpCtlFilePtr->FragmentId = ntohl(lcpCtlFilePtr->FragmentId);
+  lcpCtlFilePtr->CreateGci = ntohl(lcpCtlFilePtr->CreateGci);
   lcpCtlFilePtr->MaxGciCompleted = ntohl(lcpCtlFilePtr->MaxGciCompleted);
   lcpCtlFilePtr->MaxGciWritten = ntohl(lcpCtlFilePtr->MaxGciWritten);
   lcpCtlFilePtr->LcpId = ntohl(lcpCtlFilePtr->LcpId);
@@ -10336,6 +10348,7 @@ Backup::convert_ctl_page_to_network(Uint32 *page)
   lcpCtlFilePtr->ValidFlag = htonl(lcpCtlFilePtr->ValidFlag);
   lcpCtlFilePtr->TableId = htonl(lcpCtlFilePtr->TableId);
   lcpCtlFilePtr->FragmentId = htonl(lcpCtlFilePtr->FragmentId);
+  lcpCtlFilePtr->CreateGci = htonl(lcpCtlFilePtr->CreateGci);
   lcpCtlFilePtr->MaxGciCompleted = htonl(lcpCtlFilePtr->MaxGciCompleted);
   lcpCtlFilePtr->MaxGciWritten = htonl(lcpCtlFilePtr->MaxGciWritten);
   lcpCtlFilePtr->LcpId = htonl(lcpCtlFilePtr->LcpId);
@@ -10399,6 +10412,7 @@ Backup::lcp_init_ctl_file(Page32Ptr pagePtr)
   lcpCtlFilePtr->ValidFlag = 0;
   lcpCtlFilePtr->TableId = 0;
   lcpCtlFilePtr->FragmentId = 0;
+  lcpCtlFilePtr->CreateGci = 0;
   lcpCtlFilePtr->MaxGciWritten = 0;
   lcpCtlFilePtr->MaxGciCompleted = 0;
   lcpCtlFilePtr->LcpId = 0;
@@ -11634,17 +11648,20 @@ Backup::lcp_write_ctl_file(Signal *signal, BackupRecordPtr ptr)
 
   Uint32 maxCompletedGci;
   c_lqh->lcp_max_completed_gci(maxCompletedGci);
+  lcpCtlFilePtr->CreateGci = fragPtr.p->createGci;
   lcpCtlFilePtr->MaxGciCompleted = maxCompletedGci;
   lcpCtlFilePtr->MaxGciWritten = ptr.p->newestGci;
 
-  DEB_LCP(("(%u)tab(%u,%u), use ctl file %u, GCI completed: %u, GCI written: %u",
+  DEB_LCP(("(%u)tab(%u,%u), use ctl file %u, GCI completed: %u,"
+           " GCI written: %u, createGci: %u",
            instance(),
            lcpCtlFilePtr->TableId,
            lcpCtlFilePtr->FragmentId,
            (ptr.p->deleteCtlFileNumber == 0 ? 1 : 0),
            lcpCtlFilePtr->MaxGciCompleted,
-           lcpCtlFilePtr->MaxGciWritten));
-  ndbrequire(lcpCtlFilePtr->MaxGciWritten >= fragPtr.p->createGci);
+           lcpCtlFilePtr->MaxGciWritten,
+           lcpCtlFilePtr->CreateGci));
+  ndbrequire((lcpCtlFilePtr->MaxGciWritten + 1) >= fragPtr.p->createGci);
   /**
    * LcpId and LocalLcpId was set in prepare phase.
    */
@@ -11934,10 +11951,29 @@ Backup::delete_lcp_file_processing(Signal *signal, Uint32 ptrI)
     if (ptr.p->m_wait_end_lcp)
     {
       jam();
+      ndbrequire(ptr.p->prepareState != PREPARE_DROP);
       ptr.p->m_wait_end_lcp = false;
       sendEND_LCPCONF(signal, ptr);
     }
     m_delete_lcp_files_ongoing = false;
+    if (ptr.p->prepareState == PREPARE_DROP)
+    {
+      jam();
+      /**
+       * We use this route when we find the obscure case of
+       * finding LCP files belonging to an already dropped table.
+       * We keep the code simple here and even wait until the
+       * queue is completely empty also for this special case to
+       * avoid any unnecessary checks. We then proceed with normal
+       * LCP_PREPARE_REQ handling for this case.
+       */
+      ptr.p->prepareState = PREPARE_READ_CTL_FILES;
+      DEB_LCP(("(%u)TAGT Completed wait delete files for drop case",
+               instance()));
+      lcp_open_ctl_file(signal, ptr, 0);
+      lcp_open_ctl_file(signal, ptr, 1);
+      return;
+    }
     DEB_LCP(("(%u)TAGB Completed delete files, queue empty, no LCP wait",
              instance()));
     return;
@@ -12640,6 +12676,7 @@ Backup::lcp_close_ctl_file_drop_case(Signal *signal, BackupRecordPtr ptr)
   deleteLcpFilePtr.p->firstFileId = 0;
   deleteLcpFilePtr.p->lastFileId = BackupFormat::NDB_MAX_LCP_FILES - 1;
   deleteLcpFilePtr.p->waitCompletedGci = 0;
+  deleteLcpFilePtr.p->validFlag = 1;
   deleteLcpFilePtr.p->lcpCtlFileNumber =
     ptr.p->prepareNextLcpCtlFileNumber == 0 ? 1 : 0;
   queue.addFirst(deleteLcpFilePtr);
