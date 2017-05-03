@@ -43,7 +43,7 @@
 #include "item.h"
 #include "item_cmpfunc.h"                // and_conds
 #include "key.h"                         // find_ref_key
-#include "log.h"                         // sql_print_warning
+#include "log.h"
 #include "m_string.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
@@ -240,12 +240,11 @@ View_creation_ctx * View_creation_ctx::create(THD *thd,
 
   if (invalid_creation_ctx)
   {
-    sql_print_warning("View '%s'.'%s': there is unknown charset/collation "
-                      "names (client: '%s'; connection: '%s').",
-                      view->db,
-                      view->table_name,
-                      view->view_client_cs_name.str,
-                      view->view_connection_cl_name.str);
+    LogErr(WARNING_LEVEL, ER_VIEW_UNKNOWN_CHARSET_OR_COLLATION,
+           view->db,
+           view->table_name,
+           view->view_client_cs_name.str,
+           view->view_connection_cl_name.str);
 
     push_warning_printf(thd, Sql_condition::SL_NOTE,
                         ER_VIEW_INVALID_CREATION_CTX,
@@ -1398,15 +1397,13 @@ static int make_field_from_frm(THD *thd,
     field_length= my_decimal_precision_to_length(field_length,
                                                  decimals,
                                                  f_is_dec(pack_flag) == 0);
-    sql_print_error("Found incompatible DECIMAL field '%s' in %s; "
-                    "Please do \"ALTER TABLE `%s` FORCE\" to fix it!",
-                    frm_context->fieldnames.type_names[field_idx],
-                    share->table_name.str,
-                    share->table_name.str);
+    LogErr(ERROR_LEVEL, ER_TABLE_INCOMPATIBLE_DECIMAL_FIELD,
+           frm_context->fieldnames.type_names[field_idx],
+           share->table_name.str,
+           share->table_name.str);
     push_warning_printf(thd, Sql_condition::SL_WARNING,
                         ER_CRASHED_ON_USAGE,
-                        "Found incompatible DECIMAL field '%s' in %s; "
-                        "Please do \"ALTER TABLE `%s` FORCE\" to fix it!",
+                        ER_THD(thd, ER_TABLE_INCOMPATIBLE_DECIMAL_FIELD),
                         frm_context->fieldnames.type_names[field_idx],
                         share->table_name.str,
                         share->table_name.str);
@@ -1415,15 +1412,13 @@ static int make_field_from_frm(THD *thd,
 
   if (field_type == MYSQL_TYPE_YEAR && field_length != 4)
   {
-    sql_print_error("Found incompatible YEAR(x) field '%s' in %s; "
-                    "Please do \"ALTER TABLE `%s` FORCE\" to fix it!",
-                    frm_context->fieldnames.type_names[field_idx],
-                    share->table_name.str,
-                    share->table_name.str);
+    LogErr(ERROR_LEVEL, ER_TABLE_INCOMPATIBLE_YEAR_FIELD,
+           frm_context->fieldnames.type_names[field_idx],
+           share->table_name.str,
+           share->table_name.str);
     push_warning_printf(thd, Sql_condition::SL_WARNING,
                         ER_CRASHED_ON_USAGE,
-                        "Found incompatible YEAR(x) field '%s' in %s; "
-                        "Please do \"ALTER TABLE `%s` FORCE\" to fix it!",
+                        ER_THD(thd, ER_TABLE_INCOMPATIBLE_YEAR_FIELD),
                         frm_context->fieldnames.type_names[field_idx],
                         share->table_name.str,
                         share->table_name.str);
@@ -1638,10 +1633,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
     if (use_mb(default_charset_info))
     {
       /* Warn that we may be changing the size of character columns */
-      sql_print_warning("'%s' had no or invalid character set, "
-                        "and default character set is multi-byte, "
-                        "so character column sizes may have changed",
-                        share->path.str);
+      LogErr(WARNING_LEVEL, ER_INVALID_CHARSET_AND_DEFAULT_IS_MB,
+             share->path.str);
     }
     share->table_charset= default_charset_info;
   }
@@ -2397,10 +2390,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
             key_part->store_length-= (uint16)(key_part->length -
                                               field->key_length());
             key_part->length= (uint16)field->key_length();
-            sql_print_error("Found wrong key definition in %s; "
-                            "Please do \"ALTER TABLE `%s` FORCE \" to fix it!",
-                            share->table_name.str,
-                            share->table_name.str);
+            LogErr(ERROR_LEVEL, ER_TABLE_WRONG_KEY_DEFINITION,
+                   share->table_name.str, share->table_name.str);
             push_warning_printf(thd, Sql_condition::SL_WARNING,
                                 ER_CRASHED_ON_USAGE,
                                 "Found wrong key definition in %s; "
@@ -8037,13 +8028,13 @@ static bool read_frm_file(THD *thd,
   if ((file= mysql_file_open(key_file_frm,
                              path, O_RDONLY, MYF(0))) < 0)
   {
-    sql_print_error("Unable to open file %s\n", path);
+    LogErr(ERROR_LEVEL, ER_CANT_OPEN_FRM_FILE, path);
     return true;
   }
 
   if (mysql_file_read(file, head, 64, MYF(MY_NABP)))
   {
-    sql_print_error("Error in reading file %s\n", path);
+    LogErr(ERROR_LEVEL, ER_CANT_READ_FRM_FILE, path);
     goto err;
   }
 
@@ -8076,14 +8067,14 @@ static bool read_frm_file(THD *thd,
        *root_ptr= old_root;
        if (error)
        {
-         sql_print_error("Error in reading file %s\n", path);
+         LogErr(ERROR_LEVEL, ER_CANT_READ_FRM_FILE, path);
          goto err;
        }
     }
     else
     {
-      sql_print_error("Table '%s' was created with a different version "
-                      "of MySQL and cannot be read", table.c_str());
+      LogErr(ERROR_LEVEL, ER_TABLE_CREATED_WITH_DIFFERENT_VERSION,
+             table.c_str());
       goto err;
     }
   }
@@ -8101,19 +8092,19 @@ static bool read_frm_file(THD *thd,
       frm_context->view_def= sql_parse_prepare(&pathstr, &share->mem_root, true);
       if (!frm_context->view_def)
       {
-        sql_print_error("Unable to read view %s \n", pathstr.str);
+        LogErr(ERROR_LEVEL, ER_VIEW_UNPARSABLE, pathstr.str);
         goto err;
       }
     }
     else
     {
-      sql_print_error("File %s has unknown type in its header.", pathstr.str);
+      LogErr(ERROR_LEVEL, ER_FILE_TYPE_UNKNOWN, pathstr.str);
       goto err;
     }
   }
   else
   {
-    sql_print_error("Incorrect information in file %s", pathstr.str);
+    LogErr(ERROR_LEVEL, ER_INVALID_INFO_IN_FRM, pathstr.str);
     goto err;
   }
 

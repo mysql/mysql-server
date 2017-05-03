@@ -104,22 +104,25 @@ DEFINE_METHOD(int, log_service_imp::variable_update, (log_line *ll))
 */
 DEFINE_METHOD(int, log_service_imp::run, (void *inst, log_line *ll))
 {
-  char           out_buff[LOG_BUFF_MAX];
-  char           esc_buff[LOG_BUFF_MAX];
-  const char    *inp_readpos;
-  char          *out_writepos= out_buff;
-  size_t         len,
-                 out_left= LOG_BUFF_MAX,
-                 inp_left;
-  int            wellknown_label,
-                 out_fields= 0;
-  const char    *comma= (pretty != JSON_NOSPACE) ? " " : "";
-  const char    *separator;
-  enum loglevel  level= ERROR_LEVEL;
-  log_item_type  item_type= LOG_ITEM_END;
-  log_type_mask  out_types= 0;
-  log_item_iter *it;
-  log_item      *li;
+  char                out_buff[LOG_BUFF_MAX];
+  char                esc_buff[LOG_BUFF_MAX];
+  const char         *inp_readpos;
+  char               *out_writepos= out_buff;
+  size_t              len,
+                      out_left= LOG_BUFF_MAX,
+                      inp_left;
+  int                 wellknown_label,
+                      out_fields= 0;
+  const char         *comma= (pretty != JSON_NOSPACE) ? " " : "";
+  const char         *separator;
+  enum loglevel       level= ERROR_LEVEL;
+  log_item_type       item_type= LOG_ITEM_END;
+  log_item_type_mask  out_types= 0;
+  log_item_iter      *it;
+  log_item           *li;
+
+  if (inst == nullptr)
+    return out_fields;
 
   if (inst == nullptr)
     return out_fields;

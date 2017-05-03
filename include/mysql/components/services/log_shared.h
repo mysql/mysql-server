@@ -212,7 +212,7 @@ typedef enum enum_log_item_error
 } log_item_error;
 
 /** a bit mask of log_types. standardizing the width to 64 bit. */
-typedef uint64 log_type_mask;
+typedef uint64 log_item_type_mask;
 
 /** log line: a collection of log items */
 typedef struct _log_line log_line;

@@ -24,26 +24,12 @@
 #include "mysql_com.h"  // IWYU pragma: keep
 #include "../storage/perfschema/pfs_error.h" // ### MEOW
 
-extern server_error error_names_array[];
-
+extern server_error  error_names_array[];
 static server_error *sqlstate_map= &error_names_array[1];
 
 
-int mysql_errno_to_builtin(uint mysql_errno)
-{
-  int offset= 0; // Position where the current section starts in the array.
-  int i;
-  int temp_errno= (int)mysql_errno;
+extern int mysql_errno_to_builtin(uint mysql_errno);
 
-  for (i= 0; i < NUM_SECTIONS; i++)
-  {
-    if (temp_errno >= errmsg_section_start[i] &&
-        temp_errno < (errmsg_section_start[i] + errmsg_section_size[i]))
-      return mysql_errno - errmsg_section_start[i] + offset;
-    offset+= errmsg_section_size[i];
-  }
-  return -1; /* General error */
-}
 
 static const char *builtin_get_sqlstate(int i)
 {

@@ -17,7 +17,7 @@
 #include "sql/dd/upgrade/routine.h"
 #include "sql/dd/upgrade/global.h"
 #include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
-#include "log.h"                              // sql_print_warning
+#include "log.h"                              // LogErr()
 #include "my_user.h"                          // parse_user
 #include "sql_base.h"                         // open_tables
 #include "sp.h"                               // db_load_routine
@@ -449,9 +449,8 @@ static bool migrate_routine_to_dd(THD *thd, TABLE *proc_table)
       will get fixed when mysql_upgrade is executed.
     */
     if (strcmp(sp_db_str.str, "sys") != 0)
-      sql_print_warning("Parsing '%s.%s' routine body failed. "
-                        "Creating routine without parsing routine body",
-                        sp_db_str.str, sp_name_str.str);
+      LogErr(WARNING_LEVEL, ER_CANT_PARSE_STORED_ROUTINE_BODY,
+             sp_db_str.str, sp_name_str.str);
 
     LEX_CSTRING sr_body;
     if (routine_type == enum_sp_type::FUNCTION)
@@ -482,8 +481,7 @@ static bool migrate_routine_to_dd(THD *thd, TABLE *proc_table)
   return false;
 
 err:
-  sql_print_error("Error in creating stored program '%s.%s'", sp_db_str.str,
-                                                              sp_name_str.str);
+  LogErr(ERROR_LEVEL, ER_DD_CANT_CREATE_SP, sp_db_str.str, sp_name_str.str);
   if (sp != nullptr)            // To be safe
     sp_head::destroy(sp);
   return true;
@@ -510,7 +508,7 @@ bool migrate_routines_to_dd(THD *thd)
   if (open_and_lock_tables(thd, table_list, flags, &prelocking_strategy))
   {
     close_thread_tables(thd);
-    sql_print_error("Failed to open mysql.proc Table.");
+    LogErr(ERROR_LEVEL, ER_CANT_OPEN_TABLE_MYSQL_PROC);
     return true;
   }
 
@@ -531,7 +529,7 @@ bool migrate_routines_to_dd(THD *thd)
 
   if (proc_table->file->ha_index_init(0, 1))
   {
-    sql_print_error("Failed to read mysql.proc table.");
+    LogErr(ERROR_LEVEL, ER_CANT_READ_TABLE_MYSQL_PROC);
     return true;
   }
 
@@ -541,7 +539,7 @@ bool migrate_routines_to_dd(THD *thd)
     if (error == HA_ERR_END_OF_FILE)
       return false;
 
-    sql_print_error("Failed to read mysql.proc table.");
+    LogErr(ERROR_LEVEL, ER_CANT_READ_TABLE_MYSQL_PROC);
     return true;
   }
 
@@ -563,7 +561,7 @@ bool migrate_routines_to_dd(THD *thd)
 
   if (error != HA_ERR_END_OF_FILE)
   {
-    sql_print_error("Failed to read mysql.proc table.");
+    LogErr(ERROR_LEVEL, ER_CANT_READ_TABLE_MYSQL_PROC);
     goto err;
   }
 

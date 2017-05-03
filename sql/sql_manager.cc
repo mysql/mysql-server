@@ -26,7 +26,7 @@
 #include <sys/types.h>
 #include <time.h>
 
-#include "log.h"               // sql_print_warning
+#include "log.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -37,6 +37,7 @@
 #include "mysql/psi/mysql_thread.h"
 #include "mysql_com.h"
 #include "mysqld.h"            // flush_time
+#include "mysqld_error.h"
 #include "sql_base.h"          // tdc_flush_unused_tables
 
 static bool volatile manager_thread_in_use;
@@ -111,8 +112,7 @@ void start_handle_manager()
     if ((error= mysql_thread_create(key_thread_handle_manager,
                                     &hThread, &connection_attrib,
                                     handle_manager, 0)))
-      sql_print_warning("Can't create handle_manager thread (errno= %d)",
-                        error);
+      LogErr(WARNING_LEVEL, ER_CANT_CREATE_HANDLE_MGR_THREAD, error);
   }
   DBUG_VOID_RETURN;
 }

@@ -40,7 +40,7 @@
 #include "item_func.h"                        // Item_func
 #include "key.h"
 #include "lex_string.h"
-#include "log.h"                              // sql_print_error, sql_print_..
+#include "log.h"
 #include "mdl.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"

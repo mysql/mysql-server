@@ -33,7 +33,7 @@
 #include "hash.h"
 #include "hostname.h"                   // Host_errors, inc_host_errors
 #include "key.h"
-#include "log.h"                        // sql_print_warning, query_logger
+#include "log.h"                        // query_logger
 #include "m_string.h"
 #include "mutex_lock.h"                 // Mutex_lock
 #include "my_byteorder.h"
@@ -247,9 +247,8 @@ Rsa_authentication_keys::read_key_file(RSA **key_ptr,
   */
   if ((key_file= fopen(key_file_path.c_ptr(), "r")) == NULL)
   {
-    sql_print_information("RSA %s key file not found: %s."
-                          " Some authentication plugins will not work.",
-                          key_type, key_file_path.c_ptr());
+    LogErr(INFORMATION_LEVEL, ER_AUTH_RSA_CANT_FIND, key_type,
+           key_file_path.c_ptr());
   }
   else
   {
@@ -260,8 +259,8 @@ Rsa_authentication_keys::read_key_file(RSA **key_ptr,
     {
       char error_buf[MYSQL_ERRMSG_SIZE];
       ERR_error_string_n(ERR_get_error(), error_buf, MYSQL_ERRMSG_SIZE);
-      sql_print_error("Failure to parse RSA %s key (file exists): %s:"
-                      " %s", key_type, key_file_path.c_ptr(), error_buf);
+      LogErr(ERROR_LEVEL, ER_AUTH_RSA_CANT_PARSE,
+             key_type, key_file_path.c_ptr(), error_buf);
 
       /*
         Call ERR_clear_error() just in case there are more than 1 entry in the
@@ -286,8 +285,8 @@ Rsa_authentication_keys::read_key_file(RSA **key_ptr,
       if (read_error)
       {
         char errbuf[MYSQL_ERRMSG_SIZE];
-        sql_print_error("Failure to read key file: %s",
-                        my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
+        LogErr(ERROR_LEVEL, ER_AUTH_RSA_CANT_READ,
+               my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
       }
       (*key_text_buffer)[filesize]= '\0';
     }
@@ -358,8 +357,7 @@ Rsa_authentication_keys::read_rsa_keys()
   if ((strlen(auth_rsa_private_key_path) == 0) &&
       (strlen(auth_rsa_public_key_path) == 0))
   {
-    sql_print_information("RSA key files not found."
-                          " Some authentication plugins will not work.");
+    LogErr(INFORMATION_LEVEL, ER_AUTH_RSA_FILES_NOT_FOUND);
     return false;
   }
 
@@ -525,9 +523,9 @@ static void login_failed_error(THD *thd, MPVIO_EXT *mpvio, int passwd_used)
       so that the overhead of the general query log is not required to track
       failed connections.
     */
-    sql_print_information(ER_DEFAULT(ER_ACCESS_DENIED_NO_PASSWORD_ERROR),
-                          mpvio->auth_info.user_name,
-                          mpvio->auth_info.host_or_ip);
+    LogErr(INFORMATION_LEVEL, ER_ACCESS_DENIED_NO_PASSWORD_ERROR,
+           mpvio->auth_info.user_name,
+           mpvio->auth_info.host_or_ip);
   }
   else
   {
@@ -545,10 +543,10 @@ static void login_failed_error(THD *thd, MPVIO_EXT *mpvio, int passwd_used)
       so that the overhead of the general query log is not required to track
       failed connections.
     */
-    sql_print_information(ER_DEFAULT(ER_ACCESS_DENIED_ERROR),
-                          mpvio->auth_info.user_name,
-                          mpvio->auth_info.host_or_ip,
-                          passwd_used ? ER_DEFAULT(ER_YES) : ER_DEFAULT(ER_NO));
+    LogErr(INFORMATION_LEVEL, ER_ACCESS_DENIED_ERROR,
+           mpvio->auth_info.user_name,
+           mpvio->auth_info.host_or_ip,
+           passwd_used ? ER_DEFAULT(ER_YES) : ER_DEFAULT(ER_NO));
   }
 }
 
@@ -920,17 +918,15 @@ read_client_connect_attrs(char **ptr, size_t *max_bytes_available,
   MYSQL_SERVER_AUTH_INFO *auth_info= &mpvio->auth_info;
   int bytes_lost;
   if ((bytes_lost= PSI_THREAD_CALL(set_thread_connect_attrs)(*ptr, length, mpvio->charset_adapter->charset())))
-    sql_print_warning("Connection attributes of length %lu were truncated "
-                      "(%d bytes lost) "
-                      "for connection %llu, user %s@%s (as %s), auth: %s",
-                      (unsigned long) length, (int) bytes_lost,
-                      (unsigned long long) mpvio->thread_id,
-                      (auth_info->user_name == NULL)
-                      ? ""
-                      : auth_info->user_name,
-                      auth_info->host_or_ip,
-                      auth_info->authenticated_as,
-                      mpvio->can_authenticate() ? "yes" : "no");
+    LogErr(WARNING_LEVEL, ER_CONN_ATTR_TRUNCATED,
+           (unsigned long) length, (int) bytes_lost,
+           (unsigned long long) mpvio->thread_id,
+           (auth_info->user_name == NULL)
+           ? ""
+           : auth_info->user_name,
+           auth_info->host_or_ip,
+           auth_info->authenticated_as,
+           mpvio->can_authenticate() ? "yes" : "no");
 #endif /* HAVE_PSI_THREAD_INTERFACE */
   return false;
 }
@@ -984,8 +980,8 @@ static bool acl_check_ssl(THD *thd, const ACL_USER *acl_user)
                          acl_user->ssl_cipher, SSL_get_cipher(ssl)));
       if (strcmp(acl_user->ssl_cipher, SSL_get_cipher(ssl)))
       {
-        sql_print_information("X509 ciphers mismatch: should be '%s' but is '%s'",
-                              acl_user->ssl_cipher, SSL_get_cipher(ssl));
+        LogErr(INFORMATION_LEVEL, ER_X509_CIPHERS_MISMATCH,
+               acl_user->ssl_cipher, SSL_get_cipher(ssl));
         return 1;
       }
     }
@@ -1000,8 +996,7 @@ static bool acl_check_ssl(THD *thd, const ACL_USER *acl_user)
                          acl_user->x509_issuer, ptr));
       if (strcmp(acl_user->x509_issuer, ptr))
       {
-        sql_print_information("X509 issuer mismatch: should be '%s' "
-                              "but is '%s'", acl_user->x509_issuer, ptr);
+        LogErr(INFORMATION_LEVEL, ER_X509_ISSUER_MISMATCH, acl_user->x509_issuer, ptr);
         OPENSSL_free(ptr);
         X509_free(cert);
         return 1;
@@ -1016,8 +1011,7 @@ static bool acl_check_ssl(THD *thd, const ACL_USER *acl_user)
                          acl_user->x509_subject, ptr));
       if (strcmp(acl_user->x509_subject, ptr))
       {
-        sql_print_information("X509 subject mismatch: should be '%s' but is '%s'",
-                          acl_user->x509_subject, ptr);
+        LogErr(INFORMATION_LEVEL, ER_X509_SUBJECT_MISMATCH, acl_user->x509_subject, ptr);
         OPENSSL_free(ptr);
         X509_free(cert);
         return 1;
@@ -2449,8 +2443,8 @@ acl_authenticate(THD *thd, enum_server_command command)
         {
           std::string roleidstr= create_authid_str_from(*it);
           std::string authidstr= create_authid_str_from(acl_user);
-          sql_print_warning("Failed to activate default role %s for %s",
-                            roleidstr.c_str(), authidstr.c_str());
+          LogErr(WARNING_LEVEL, ER_AUTH_CANT_ACTIVATE_ROLE,
+                 roleidstr.c_str(), authidstr.c_str());
         }
       }
       acl_cache_lock.unlock();
@@ -2496,8 +2490,8 @@ acl_authenticate(THD *thd, enum_server_command command)
 
       my_error(ER_ACCOUNT_HAS_BEEN_LOCKED, MYF(0),
                mpvio.acl_user->user, mpvio.auth_info.host_or_ip);
-      sql_print_information(ER_DEFAULT(ER_ACCOUNT_HAS_BEEN_LOCKED),
-                            mpvio.acl_user->user, mpvio.auth_info.host_or_ip);
+      LogErr(INFORMATION_LEVEL, ER_ACCOUNT_HAS_BEEN_LOCKED,
+             mpvio.acl_user->user, mpvio.auth_info.host_or_ip);
       DBUG_RETURN(1);
     }
 
@@ -2527,7 +2521,7 @@ acl_authenticate(THD *thd, enum_server_command command)
       my_error(ER_MUST_CHANGE_PASSWORD_LOGIN, MYF(0));
       query_logger.general_log_print(thd, COM_CONNECT,
                                      ER_DEFAULT(ER_MUST_CHANGE_PASSWORD_LOGIN));
-      sql_print_information("%s", ER_DEFAULT(ER_MUST_CHANGE_PASSWORD_LOGIN));
+      LogErr(INFORMATION_LEVEL, ER_MUST_CHANGE_PASSWORD_LOGIN);
 
       errors.m_authentication= 1;
       inc_host_errors(mpvio.ip, &errors);
@@ -3701,8 +3695,7 @@ bool create_x509_certificate(RSA_generator_func &rsa_gen,
 
   if (!rsa)
   {
-    sql_print_error("Could not generate RSA private key "
-                    "required for X509 certificate.");
+    LogErr(ERROR_LEVEL, ER_X509_NEEDS_RSA_PRIVKEY);
     ret_val= false;
     goto end;
   }
@@ -3718,7 +3711,7 @@ bool create_x509_certificate(RSA_generator_func &rsa_gen,
                   });
   if (x509_key_file_ostream->get_error())
   {
-    sql_print_error("Could not write key file: %s", key_filename.c_str());
+    LogErr(ERROR_LEVEL, ER_X509_CANT_WRITE_KEY, key_filename.c_str());
     ret_val= false;
     goto end;
   }
@@ -3726,8 +3719,7 @@ bool create_x509_certificate(RSA_generator_func &rsa_gen,
   if (MY_TEST(my_chmod(key_filename.c_str(),
       USER_READ|USER_WRITE, MYF(MY_FAE+MY_WME))))
   {
-    sql_print_error("Could not set file permission for %s",
-                    key_filename.c_str());
+    LogErr(ERROR_LEVEL, ER_X509_CANT_CHMOD_KEY, key_filename.c_str());
     ret_val= false;
     goto end;
   }
@@ -3748,7 +3740,7 @@ bool create_x509_certificate(RSA_generator_func &rsa_gen,
                     });
     if (!ca_key)
     {
-      sql_print_error("Could not read CA key file: %s", ca_key_file.c_str());
+      LogErr(ERROR_LEVEL, ER_X509_CANT_READ_CA_KEY, ca_key_file.c_str());
       ret_val= false;
       goto end;
     }
@@ -3762,7 +3754,7 @@ bool create_x509_certificate(RSA_generator_func &rsa_gen,
                     });
     if (!ca_x509)
     {
-      sql_print_error("Could not read CA certificate file: %s", ca_cert_file.c_str());
+      LogErr(ERROR_LEVEL, ER_X509_CANT_READ_CA_CERT, ca_cert_file.c_str());
       ret_val= false;
       goto end;
     }
@@ -3780,7 +3772,7 @@ bool create_x509_certificate(RSA_generator_func &rsa_gen,
                   });
   if (!x509)
   {
-    sql_print_error("Could not generate X509 certificate.");
+    LogErr(ERROR_LEVEL, ER_X509_CANT_CREATE_CERT);
     ret_val= false;
     goto end;
   }
@@ -3794,7 +3786,7 @@ bool create_x509_certificate(RSA_generator_func &rsa_gen,
                   });
   if (x509_cert_file_ostream->get_error())
   {
-    sql_print_error("Could not write certificate file: %s", cert_filename.c_str());
+    LogErr(ERROR_LEVEL, ER_X509_CANT_WRITE_CERT, cert_filename.c_str());
     ret_val= false;
     goto end;
   }
@@ -3803,8 +3795,7 @@ bool create_x509_certificate(RSA_generator_func &rsa_gen,
                USER_READ|USER_WRITE|GROUP_READ|OTHERS_READ,
                MYF(MY_FAE+MY_WME))))
   {
-    sql_print_error("Could not set file permission for %s",
-                    cert_filename.c_str());
+    LogErr(ERROR_LEVEL, ER_X509_CANT_CHMOD_KEY, cert_filename.c_str());
     ret_val= false;
     goto end;
   }
@@ -3865,7 +3856,7 @@ bool create_RSA_key_pair(RSA_generator_func &rsa_gen,
 
   if (!rsa)
   {
-    sql_print_error("Could not generate RSA Private/Public key pair");
+    LogErr(ERROR_LEVEL, ER_AUTH_CANT_CREATE_RSA_PAIR);
     ret_val= false;
     goto end;
   }
@@ -3879,15 +3870,14 @@ bool create_RSA_key_pair(RSA_generator_func &rsa_gen,
                   });
   if (priv_key_file_ostream->get_error())
   {
-    sql_print_error("Could not write private key file: %s", priv_key_filename.c_str());
+    LogErr(ERROR_LEVEL, ER_AUTH_CANT_WRITE_PRIVKEY, priv_key_filename.c_str());
     ret_val= false;
     goto end;
   }
   if (MY_TEST(my_chmod(priv_key_filename.c_str(),
                USER_READ|USER_WRITE, MYF(MY_FAE+MY_WME))))
   {
-    sql_print_error("Could not set file permission for %s",
-                    priv_key_filename.c_str());
+    LogErr(ERROR_LEVEL, ER_X509_CANT_CHMOD_KEY, priv_key_filename.c_str());
     ret_val= false;
     goto end;
   }
@@ -3901,7 +3891,7 @@ bool create_RSA_key_pair(RSA_generator_func &rsa_gen,
 
   if (pub_key_file_ostream->get_error())
   {
-    sql_print_error("Could not write public key file: %s", pub_key_filename.c_str());
+    LogErr(ERROR_LEVEL, ER_AUTH_CANT_WRITE_PUBKEY, pub_key_filename.c_str());
     ret_val= false;
     goto end;
   }
@@ -3909,8 +3899,7 @@ bool create_RSA_key_pair(RSA_generator_func &rsa_gen,
                USER_READ|USER_WRITE|GROUP_READ|OTHERS_READ,
                MYF(MY_FAE+MY_WME))))
   {
-    sql_print_error("Could not set file permission for %s",
-                    pub_key_filename.c_str());
+    LogErr(ERROR_LEVEL, ER_X509_CANT_CHMOD_KEY, pub_key_filename.c_str());
     ret_val= false;
     goto end;
   }
@@ -3978,16 +3967,13 @@ bool do_auto_cert_generation(ssl_artifacts_status auto_detection_status)
 
     if (auto_detection_status == SSL_ARTIFACTS_VIA_OPTIONS)
     {
-      sql_print_information("Skipping generation of SSL certificates "
-                            "as options related to SSL are specified.");
+      LogErr(INFORMATION_LEVEL, ER_AUTH_SSL_CONF_PREVENTS_CERT_GENERATION);
       return true;
     }
     else if(auto_detection_status == SSL_ARTIFACTS_AUTO_DETECTED ||
             auto_detection_status == SSL_ARTIFACT_TRACES_FOUND)
     {
-      sql_print_information("Skipping generation of SSL certificates as "
-                            "certificate files are present in data "
-                            "directory.");
+      LogErr(INFORMATION_LEVEL, ER_AUTH_USING_EXISTING_CERTS);
       return true;
     }
     else
@@ -4046,15 +4032,13 @@ bool do_auto_cert_generation(ssl_artifacts_status auto_detection_status)
       opt_ssl_ca= (char *)DEFAULT_SSL_CA_CERT;
       opt_ssl_cert= (char *)DEFAULT_SSL_SERVER_CERT;
       opt_ssl_key= (char *)DEFAULT_SSL_SERVER_KEY;
-      sql_print_information("Auto generated SSL certificates are placed "
-                            "in data directory.");
+      LogErr(INFORMATION_LEVEL, ER_AUTH_CERTS_SAVED_TO_DATADIR);
     }
     return true;
   }
   else
   {
-    sql_print_information("Skipping generation of SSL certificates as "
-                          "--auto_generate_certs is set to OFF.");
+    LogErr(INFORMATION_LEVEL, ER_AUTH_CERT_GENERATION_DISABLED);
     return true;
   }
 }
@@ -4083,15 +4067,13 @@ static bool do_auto_rsa_keys_generation()
     if (strcmp(auth_rsa_private_key_path, AUTH_DEFAULT_RSA_PRIVATE_KEY) ||
         strcmp(auth_rsa_public_key_path, AUTH_DEFAULT_RSA_PUBLIC_KEY))
     {
-      sql_print_information("Skipping generation of RSA key pair as "
-                            "options related to RSA keys are specified.");
+      LogErr(INFORMATION_LEVEL, ER_AUTH_RSA_CONF_PREVENTS_KEY_GENERATION);
       return true;
     }
     else if (my_stat(AUTH_DEFAULT_RSA_PRIVATE_KEY, &priv_stat, MYF(0)) ||
              my_stat(AUTH_DEFAULT_RSA_PUBLIC_KEY, &pub_stat, MYF(0)))
     {
-      sql_print_information("Skipping generation of RSA key pair as "
-                            "key files are present in data directory.");
+      LogErr(INFORMATION_LEVEL, ER_AUTH_KEY_GENERATION_SKIPPED_PAIR_PRESENT);
       return true;
     }
     else
@@ -4105,16 +4087,13 @@ static bool do_auto_rsa_keys_generation()
                               fcr) == false)
         return false;
 
-      sql_print_information("Auto generated RSA key files are "
-                            "placed in data directory.");
+      LogErr(INFORMATION_LEVEL, ER_AUTH_KEYS_SAVED_TO_DATADIR);
       return true;
     }
   }
   else
   {
-    sql_print_information("Skipping generation of RSA key pair as "
-                          "--sha256_password_auto_generate_rsa_keys "
-                          "is set to OFF.");
+    LogErr(INFORMATION_LEVEL, ER_AUTH_KEY_GENERATION_DISABLED);
     return true;
   }
 }

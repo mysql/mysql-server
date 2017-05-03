@@ -25,17 +25,21 @@
 #endif
 
 
+/**
+  A record describing an error message.
+*/
 struct
 {
-  const char *name;         //< MySQL error symbol ("ER_STARTUP")
-  uint        mysql_errno;  //< MySQL error code (consecutive within sections)
-  const char *text;         //< MySQL error message
-  const char *odbc_state;   //< SQL state
-  const char *jdbc_state;
-  uint        error_index;  //< consecutive. 0 for obsolete.
+  const char *name;         ///< MySQL error symbol ("ER_STARTUP")
+  uint        mysql_errno;  ///< MySQL error code (consecutive within sections)
+  const char *text;         ///< MySQL error message
+  const char *odbc_state;   ///< SQL state
+  const char *jdbc_state;   ///< JBDC state
+  uint        error_index;  ///< consecutive. 0 for obsolete.
 } typedef server_error;
 
 class THD;
+struct TABLE;
 
 typedef struct charset_info_st CHARSET_INFO;
 
@@ -46,12 +50,12 @@ extern CHARSET_INFO *error_message_charset_info;
 
 class MY_LOCALE_ERRMSGS
 {
-  const char *language;
-  const char **errmsgs;
+  const char                      *language;
+  const char                     **errmsgs;
 
 public:
   MY_LOCALE_ERRMSGS(const char *lang_par)
-    : language(lang_par), errmsgs(NULL)
+    : language(lang_par), errmsgs(nullptr)
   {}
 
   /** Return error message string for a given error number. */
@@ -85,6 +89,7 @@ public:
   /** Read the error message file and initialize strings. */
   bool read_texts();
 
+  /** What language is this error message set for? */
   const char *get_language() const { return language; }
 };
 
@@ -97,6 +102,8 @@ C_MODE_END
 
 const char *mysql_errno_to_symbol(int mysql_errno);
 int         mysql_symbol_to_errno(const char *error_symbol);
+
+int         errmsgs_reload(THD *thd);
 
 /**
   Read the error message file, initialize and register error messages

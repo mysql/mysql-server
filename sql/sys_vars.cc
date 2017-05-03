@@ -67,7 +67,7 @@
 #include "ft_global.h"
 #include "hostname.h"                    // host_cache_resize
 #include "item_timefunc.h"               // ISO_FORMAT
-#include "log.h"                         // sql_print_warning
+#include "log.h"
 #include "../components/mysql_server/log_builtins_filter_imp.h" // until we have pluggable variables
 #include "log_event.h"                   // MAX_MAX_ALLOWED_PACKET
 #include "m_string.h"
@@ -1206,10 +1206,7 @@ static bool repository_check(sys_var *self, THD *thd, set_var *var, SLAVE_THD_TY
             }
           }
           else
-            sql_print_warning("It is not possible to change the type of the "
-                              "relay log's repository because there are workers' "
-                              "repositories with gaps. Please, fix the gaps first "
-                              "before doing such change.");
+            LogErr(WARNING_LEVEL, ER_RPL_REPO_HAS_GAPS);
         break;
         default:
           assert(0);
@@ -1339,8 +1336,8 @@ static bool check_storage_engine(sys_var *self, THD *thd, set_var *var)
     {
       handlerton *hton= plugin_data<handlerton*>(plugin);
       if (ha_is_storage_engine_disabled(hton))
-        sql_print_warning("%s is set to a disabled storage engine %s.",
-                          self->name.str, se_name.str);
+        LogErr(WARNING_LEVEL, ER_DISABLED_STORAGE_ENGINE_AS_DEFAULT,
+               self->name.str, se_name.str);
       plugin_unlock(NULL, plugin);
     }
   }
@@ -4073,9 +4070,9 @@ bool Sys_var_gtid_mode::global_update(THD*, set_var *var)
   lock_count= 3;
 
   // Generate note in log
-  sql_print_information("Changed GTID_MODE from %s to %s.",
-                        gtid_mode_names[old_gtid_mode],
-                        gtid_mode_names[new_gtid_mode]);
+  LogErr(INFORMATION_LEVEL, ER_CHANGED_GTID_MODE,
+         gtid_mode_names[old_gtid_mode],
+         gtid_mode_names[new_gtid_mode]);
 
   // Rotate
   {
@@ -4165,9 +4162,9 @@ bool Sys_var_enforce_gtid_consistency::global_update(THD *thd, set_var *var)
   global_var(ulong)= new_mode;
 
   // Generate note in log
-  sql_print_information("Changed ENFORCE_GTID_CONSISTENCY from %s to %s.",
-                        get_gtid_consistency_mode_string(old_mode),
-                        get_gtid_consistency_mode_string(new_mode));
+  LogErr(INFORMATION_LEVEL, ER_CHANGED_ENFORCE_GTID_CONSISTENCY,
+         get_gtid_consistency_mode_string(old_mode),
+         get_gtid_consistency_mode_string(new_mode));
 
 end:
   ret= false;
@@ -4235,10 +4232,7 @@ static void check_sub_modes_of_strict_mode(sql_mode_t &sql_mode, THD *thd)
                                ER_SQL_MODE_MERGED,
                                ER_THD(thd, ER_SQL_MODE_MERGED));
     else
-      sql_print_warning("'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and "
-                        "'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used "
-                        "with strict mode. They will be merged with strict mode "
-                        "in a future release.");
+      LogErr(WARNING_LEVEL, ER_SQL_MODE_MERGED);
   }
 }
 
@@ -6094,10 +6088,10 @@ bool Sys_var_gtid_purged::global_update(THD *thd, set_var *var)
   gtid_state->get_lost_gtids()->to_string(&current_gtid_purged);
 
   // Log messages saying that GTID_PURGED and GTID_EXECUTED were changed.
-  sql_print_information(ER_DEFAULT(ER_GTID_PURGED_WAS_CHANGED),
-                        previous_gtid_purged, current_gtid_purged);
-  sql_print_information(ER_DEFAULT(ER_GTID_EXECUTED_WAS_CHANGED),
-                        previous_gtid_executed, current_gtid_executed);
+  LogErr(INFORMATION_LEVEL, ER_GTID_PURGED_WAS_CHANGED,
+         previous_gtid_purged, current_gtid_purged);
+  LogErr(INFORMATION_LEVEL, ER_GTID_EXECUTED_WAS_CHANGED,
+         previous_gtid_executed, current_gtid_executed);
 
 end:
   global_sid_lock->unlock();

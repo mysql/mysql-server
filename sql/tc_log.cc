@@ -28,7 +28,7 @@
 
 #include "handler.h"
 #include "hash.h"
-#include "log.h"            // sql_print_error
+#include "log.h"
 #include "m_ctype.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -138,11 +138,10 @@ int TC_LOG_MMAP::open(const char *opt_name)
   {
     inited= 1;
     crashed= TRUE;
-    sql_print_information("Recovering after a crash using %s", opt_name);
+    LogErr(INFORMATION_LEVEL, ER_TC_RECOVERING_AFTER_CRASH_USING, opt_name);
     if (tc_heuristic_recover != TC_HEURISTIC_NOT_USED)
     {
-      sql_print_error("Cannot perform automatic crash recovery when "
-                      "--tc-heuristic-recover is used");
+      LogErr(ERROR_LEVEL, ER_TC_CANT_AUTO_RECOVER_WITH_TC_HEURISTIC_RECOVER);
       goto err;
     }
     file_length= mysql_file_seek(fd, 0L, MY_SEEK_END, MYF(MY_WME+MY_FAE));
@@ -518,7 +517,7 @@ int TC_LOG_MMAP::recover()
 
   if (memcmp(data, tc_log_magic, sizeof(tc_log_magic)))
   {
-    sql_print_error("Bad magic header in tc log");
+    LogErr(ERROR_LEVEL, ER_TC_BAD_MAGIC_IN_TC_LOG);
     goto err1;
   }
 
@@ -528,10 +527,8 @@ int TC_LOG_MMAP::recover()
   */
   if (data[sizeof(tc_log_magic)] != total_ha_2pc)
   {
-    sql_print_error("Recovery failed! You must enable "
-                    "exactly %d storage engines that support "
-                    "two-phase commit protocol",
-                    data[sizeof(tc_log_magic)]);
+    LogErr(ERROR_LEVEL, ER_TC_NEED_N_SE_SUPPORTING_2PC_FOR_RECOVERY,
+           data[sizeof(tc_log_magic)]);
     goto err1;
   }
 
@@ -557,10 +554,7 @@ int TC_LOG_MMAP::recover()
 err2:
   my_hash_free(&xids);
 err1:
-  sql_print_error("Crash recovery failed. Either correct the problem "
-                  "(if it's, for example, out of memory error) and restart, "
-                  "or delete tc log and start mysqld with "
-                  "--tc-heuristic-recover={commit|rollback}");
+  LogErr(ERROR_LEVEL, ER_TC_RECOVERY_FAILED_THESE_ARE_YOUR_OPTIONS);
   return 1;
 }
 
@@ -573,10 +567,9 @@ bool TC_LOG::using_heuristic_recover()
   if (tc_heuristic_recover == TC_HEURISTIC_NOT_USED)
     return false;
 
-  sql_print_information("Heuristic crash recovery mode");
+  LogErr(INFORMATION_LEVEL, ER_TC_HEURISTIC_RECOVERY_MODE);
   if (ha_recover(0))
-    sql_print_error("Heuristic crash recovery failed");
-  sql_print_information("Please restart mysqld without --tc-heuristic-recover");
+    LogErr(ERROR_LEVEL, ER_TC_HEURISTIC_RECOVERY_FAILED);
+  LogErr(INFORMATION_LEVEL, ER_TC_RESTART_WITHOUT_TC_HEURISTIC_RECOVER);
   return true;
 }
-

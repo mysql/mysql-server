@@ -43,18 +43,6 @@ PSI_memory_key key_memory_log_error_stack;
 }
 
 
-// interim interface until pfs exports services
-extern bool parse_length_encoded_string(const char **ptr,
-                                        char *dest, uint dest_size,
-                                        uint *copied_len,
-                                        const char *start_ptr,
-                                        uint input_length,
-                                        bool copy_data,
-                                        const CHARSET_INFO *from_cs,
-                                        uint nchars_max);
-extern bool pfs_copy_connect_attrs(const CHARSET_INFO **cs,
-                                   char *buff, uint bufsiz, uint *copied);
-
 /**
   We're caching handles to the services used in error logging
   as looking them up is costly.
@@ -463,21 +451,30 @@ void log_item_free(log_item *li)
 
 
 /**
-  Initialize a log_line.  Use buffer "buff" of size "bufsize".
-
-  @param  buff     address of buffer to use
-  @param  bufsize  size    of buffer to use
+  Dynamically allocate and initialize a log_line.
 
   @retval nullptr  could not set up buffer (too small?)
   @retval other    address of the newly initialized log_line
 */
-log_line *log_line_init(char *buff, size_t bufsize)
+log_line *log_line_init()
 {
-  if (bufsize < sizeof(log_line))
-    return nullptr;
+  log_line *ll;
+  if ((ll= (log_line *) my_malloc(key_memory_log_error_stack,
+                                  sizeof(log_line), MYF(0))) != nullptr)
+    memset(ll, 0, sizeof(log_line));
+  return ll;
+}
 
-  memset(buff, 0, bufsize);
-  return (log_line *) buff;
+
+/**
+  Release a log_line allocated with line_init()
+
+  @param  ll       a log_line previously allocated with line_init()
+*/
+void log_line_exit(log_line *ll)
+{
+  if (ll != nullptr)
+    my_free(ll);
 }
 
 
@@ -492,7 +489,7 @@ log_line *log_line_init(char *buff, size_t bufsize)
 */
 bool log_line_full(log_line *ll)
 {
-  return (ll->count >= LOG_ITEM_MAX);
+  return ((ll == nullptr) || (ll->count >= LOG_ITEM_MAX));
 }
 
 
@@ -518,9 +515,9 @@ inline bool log_line_item_count(log_line *ll)
   @retval  0  not present
   @retval !=0 present
 */
-log_type_mask log_line_item_types_seen(log_line *ll, log_type_mask m)
+log_item_type_mask log_line_item_types_seen(log_line *ll, log_item_type_mask m)
 {
-  return ll->seen & m;
+  return (ll != nullptr) ? (ll->seen & m) : 0;
 }
 
 
@@ -991,18 +988,18 @@ const char *log_label_from_prio(int prio)
 */
 static int log_sink_trad(void *instance, log_line *ll)
 {
-  const char    *label=         "",
-                *msg=           "";
-  int            c,
-                 out_fields=    0;
-  size_t         msg_len=       0,
-                 ts_len=        0,
-                 label_len=     0;
-  enum loglevel  level=         ERROR_LEVEL;
-  log_item_type  item_type=     LOG_ITEM_END;
-  log_type_mask  out_types=     0;
-  const char    *iso_timestamp= "";
-  my_thread_id   thread_id=     0;
+  const char         *label=         "",
+                     *msg=           "";
+  int                 c,
+                      out_fields=    0;
+  size_t              msg_len=       0,
+                      ts_len=        0,
+                      label_len=     0;
+  enum loglevel       level=         ERROR_LEVEL;
+  log_item_type       item_type=     LOG_ITEM_END;
+  log_item_type_mask  out_types=     0;
+  const char         *iso_timestamp= "";
+  my_thread_id        thread_id=     0;
 
   if (ll->count > 0)
   {
@@ -2380,18 +2377,25 @@ DEFINE_METHOD(log_item_data *,  log_builtins_imp::line_item_set,
 
 
 /**
-  Initialize a log_line.  Use buffer "buff" of size "bufsize".
-
-  @param  buff     address of buffer to use
-  @param  bufsize  size    of buffer to use
+  Dynamically allocate and initialize a log_line.
 
   @retval nullptr  could not set up buffer (too small?)
   @retval other    address of the newly initialized log_line
 */
-DEFINE_METHOD(log_line *,       log_builtins_imp::line_init,
-                                              (char *buff, size_t bufsize))
+DEFINE_METHOD(log_line *,       log_builtins_imp::line_init, ())
 {
-  return log_line_init(buff, bufsize);
+  return log_line_init();
+}
+
+
+/**
+  Release a log_line allocated with line_init()
+
+  @param  ll       a log_line previously allocated with line_init()
+*/
+DEFINE_METHOD(void,             log_builtins_imp::line_exit, (log_line *ll))
+{
+  log_line_exit(ll);
 }
 
 
@@ -2418,8 +2422,8 @@ DEFINE_METHOD(int,              log_builtins_imp::line_item_count,
   @retval  0  not present
   @retval !=0 present
 */
-DEFINE_METHOD(log_type_mask,    log_builtins_imp::line_item_types_seen,
-                                              (log_line *ll, log_type_mask m))
+DEFINE_METHOD(log_item_type_mask, log_builtins_imp::line_item_types_seen,
+                                         (log_line *ll, log_item_type_mask m))
 {
   return log_line_item_types_seen(ll, m);
 }

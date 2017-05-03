@@ -40,7 +40,7 @@
 #include "handler.h"
 #include "key.h"            // key_copy
 #include "lock.h"           // lock_object_name
-#include "log.h"            // sql_print_warning
+#include "log.h"
 #include "log_event.h"      // append_query_string
 #include "m_ctype.h"
 #include "m_string.h"
@@ -203,10 +203,8 @@ Stored_routine_creation_ctx::load_from_db(THD *thd,
                    thd->variables.character_set_client,
                    &client_cs))
   {
-    sql_print_warning("Stored routine '%s'.'%s': invalid value "
-                      "in column mysql.proc.character_set_client.",
-                      db_name,
-                      sr_name);
+    LogErr(WARNING_LEVEL, ER_SR_BOGUS_VALUE, db_name, sr_name,
+           "mysql.proc.character_set_client");
 
     invalid_creation_ctx= true;
   }
@@ -216,10 +214,8 @@ Stored_routine_creation_ctx::load_from_db(THD *thd,
                      thd->variables.collation_connection,
                      &connection_cl))
   {
-    sql_print_warning("Stored routine '%s'.'%s': invalid value "
-                      "in column mysql.proc.collation_connection.",
-                      db_name,
-                      sr_name);
+    LogErr(WARNING_LEVEL, ER_SR_BOGUS_VALUE, db_name, sr_name,
+           "mysql.proc.collation_connection.");
 
     invalid_creation_ctx= true;
   }
@@ -229,17 +225,15 @@ Stored_routine_creation_ctx::load_from_db(THD *thd,
                      NULL,
                      &db_cl))
   {
-    sql_print_warning("Stored routine '%s'.'%s': invalid value "
-                      "in column mysql.proc.db_collation.",
-                      db_name,
-                      sr_name);
+    LogErr(WARNING_LEVEL, ER_SR_BOGUS_VALUE, db_name, sr_name,
+           "mysql.proc.db_collation.");
 
     invalid_creation_ctx= true;
   }
 
   if (invalid_creation_ctx)
   {
-    sql_print_warning("Invalid creation context '%s.%s'.", db_name, sr_name);
+    LogErr(WARNING_LEVEL, ER_SR_INVALID_CONTEXT, db_name, sr_name);
   }
 
   /*

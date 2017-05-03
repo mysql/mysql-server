@@ -31,10 +31,10 @@ typedef struct _log_item_iter
 
 typedef struct _log_line
 {
-  log_type_mask  seen;
-  log_item_iter  iter;
-  int            count;
-  log_item       item[LOG_ITEM_MAX];
+  log_item_type_mask  seen;
+  log_item_iter       iter;
+  int                 count;
+  log_item            item[LOG_ITEM_MAX];
 } log_line;
 
 
@@ -83,13 +83,13 @@ public: /* Service Implementations */
   static DEFINE_METHOD(log_item_data *,  line_item_set,
                        (log_line *ll,    log_item_type t));
 
-  static DEFINE_METHOD(log_line *,       line_init,
-                                              (char *buff, size_t bufsize));
+  static DEFINE_METHOD(log_line *,       line_init, ());
+  static DEFINE_METHOD(void,             line_exit, (log_line *ll));
   static DEFINE_METHOD(int,              line_item_count,
                                               (log_line *ll));
 
-  static DEFINE_METHOD(log_type_mask,    line_item_types_seen,
-                                              (log_line *ll, log_type_mask m));
+  static DEFINE_METHOD(log_item_type_mask, line_item_types_seen,
+                                         (log_line *ll, log_item_type_mask m));
 
   static DEFINE_METHOD(log_item_iter *,  line_item_iter_acquire,
                                               (log_line *ll));

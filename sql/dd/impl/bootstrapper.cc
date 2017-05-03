@@ -53,7 +53,7 @@
 #include "error_handler.h"                    // No_such_table_error_handler
 #include "handler.h"                          // dict_init_mode_t
 #include "lex_string.h"
-#include "log.h"                              // sql_print_warning()
+#include "log.h"
 #include "m_ctype.h"
 #include "m_string.h"                         // STRING_WITH_LEN
 #include "mdl.h"
@@ -719,8 +719,7 @@ bool verify_core_objects_present(THD *thd)
   DBUG_ASSERT(dd_schema_id != INVALID_OBJECT_ID);
   if (dd_schema_id == INVALID_OBJECT_ID)
   {
-    sql_print_error("Unable to start server. The data dictionary schema "
-                    "'%s' does not exist.", MYSQL_SCHEMA_NAME.str);
+    LogErr(ERROR_LEVEL, ER_DD_SCHEMA_NOT_FOUND, MYSQL_SCHEMA_NAME.str);
     return dd::end_transaction(thd, true);
   }
   DBUG_ASSERT(cache::Storage_adapter::instance()->
@@ -748,8 +747,8 @@ bool verify_core_objects_present(THD *thd)
     DBUG_ASSERT(dd_table_id != INVALID_OBJECT_ID);
     if (dd_table_id == INVALID_OBJECT_ID)
     {
-      sql_print_error("Unable to start server. The data dictionary table "
-                      "'%s' does not exist.", (*it)->entity()->name().c_str());
+      LogErr(ERROR_LEVEL, ER_DD_TABLE_NOT_FOUND,
+             (*it)->entity()->name().c_str());
       return dd::end_transaction(thd, true);
     }
   }
@@ -771,8 +770,7 @@ bool verify_core_objects_present(THD *thd)
   DBUG_ASSERT(dd_tspace_id != INVALID_OBJECT_ID);
   if (dd_tspace_id == INVALID_OBJECT_ID)
   {
-    sql_print_error("Unable to start server. The data dictionary tablespace "
-                    "'%s' does not exist.", MYSQL_TABLESPACE_NAME.str);
+    LogErr(ERROR_LEVEL, ER_DD_TABLESPACE_NOT_FOUND, MYSQL_TABLESPACE_NAME.str);
     return dd::end_transaction(thd, true);
   }
   */
@@ -1003,10 +1001,9 @@ TODO: Workaround due to bug#20629014. Remove when the bug is fixed.
       create_tables(thd) ||
       DDSE_dict_recover(thd, DICT_RECOVERY_RESTART_SERVER,
                         d->get_actual_dd_version(thd)))
-  { 
+  {
     // Error is not be handled in this case as we are on cleanup code path.
-    sql_print_warning("Error in initializing dictionary, upgrade will "
-                      "do a cleanup and exit");
+    LogErr(WARNING_LEVEL, ER_DD_INIT_UPGRADE_FAILED);
   }
   thd->pop_internal_handler();
   return;
@@ -1040,9 +1037,8 @@ bool setup_dd_objects_and_collations(THD *thd)
   }
   else
   {
-    sql_print_information("Found data dictionary with version %d",
-                          d->get_actual_dd_version(thd));
-
+    LogErr(INFORMATION_LEVEL, ER_DD_VERSION_FOUND,
+           d->get_actual_dd_version(thd));
   }
 
   return false;

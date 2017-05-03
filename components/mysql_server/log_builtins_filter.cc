@@ -256,7 +256,7 @@ static void log_builtins_filter_defaults()
   // "+source_line? delete_field."
   // these are not desirable by default, only while debugging.
   r= log_builtins_filter_rule_init();
-  log_item_set(&r->match, LOG_ITEM_SRC_LINE)->data_integer= INFORMATION_LEVEL;
+  log_item_set(&r->match, LOG_ITEM_SRC_LINE);
   r->cond=  LOG_FILTER_COND_PRESENT;
   r->verb=  LOG_FILTER_ITEM_DEL;
   // aux optional

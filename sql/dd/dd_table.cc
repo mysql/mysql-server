@@ -48,7 +48,7 @@
 #include "key.h"
 #include "key_spec.h"
 #include "lex_string.h"
-#include "log.h"                              // sql_print_error
+#include "log.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "mdl.h"

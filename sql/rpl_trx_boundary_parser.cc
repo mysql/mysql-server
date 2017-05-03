@@ -19,7 +19,7 @@
 #include <sys/types.h>
 
 #include "binlog_event.h"
-#include "log.h"           // sql_print_warning
+#include "log.h"
 #include "log_event.h"     // Log_event
 #include "m_string.h"
 #include "my_byteorder.h"
@@ -244,9 +244,8 @@ Transaction_boundary_parser::get_event_boundary_type(
       {
         boundary_type= EVENT_BOUNDARY_TYPE_ERROR;
         if (throw_warnings)
-          sql_print_warning(
-            "Unsupported non-ignorable event fed into the "
-            "event stream.");
+          LogErr(WARNING_LEVEL,
+                 ER_RPL_UNSUPPORTED_UNIGNORABLE_EVENT_IN_STREAM);
       }
   } /* End of switch(event_type) */
 
@@ -289,9 +288,7 @@ bool Transaction_boundary_parser::update_state(
     case EVENT_PARSER_DDL:
     case EVENT_PARSER_DML:
       if (throw_warnings)
-        sql_print_warning(
-          "GTID_LOG_EVENT or ANONYMOUS_GTID_LOG_EVENT "
-          "is not expected in an event stream %s.",
+        LogErr(WARNING_LEVEL, ER_RPL_GTID_LOG_EVENT_IN_STREAM,
           current_parser_state == EVENT_PARSER_GTID ?
             "after a GTID_LOG_EVENT or an ANONYMOUS_GTID_LOG_EVENT" :
             current_parser_state == EVENT_PARSER_DDL ?
@@ -319,9 +316,7 @@ bool Transaction_boundary_parser::update_state(
     case EVENT_PARSER_DDL:
     case EVENT_PARSER_DML:
       if (throw_warnings)
-        sql_print_warning(
-          "QUERY(BEGIN) is not expected in an event stream "
-          "in the middle of a %s.",
+        LogErr(WARNING_LEVEL, ER_RPL_UNEXPECTED_BEGIN_IN_STREAM,
           current_parser_state == EVENT_PARSER_DDL ? "DDL" : "DML");
       error= true;
       break;
@@ -343,10 +338,8 @@ bool Transaction_boundary_parser::update_state(
     case EVENT_PARSER_GTID:
     case EVENT_PARSER_DDL:
       if (throw_warnings)
-        sql_print_warning(
-          "QUERY(COMMIT or ROLLBACK) or "
-          "XID_LOG_EVENT is not expected "
-          "in an event stream %s.",
+        LogErr(WARNING_LEVEL,
+               ER_RPL_UNEXPECTED_COMMIT_ROLLBACK_OR_XID_LOG_EVENT_IN_STREAM,
           current_parser_state == EVENT_PARSER_NONE ? "outside a transaction" :
           current_parser_state == EVENT_PARSER_GTID ? "after a GTID_LOG_EVENT" :
           "in the middle of a DDL"); /* EVENT_PARSER_DDL */
@@ -368,9 +361,7 @@ bool Transaction_boundary_parser::update_state(
       case EVENT_PARSER_NONE:
       case EVENT_PARSER_DDL:
         if (throw_warnings)
-          sql_print_warning(
-              "QUERY(XA ROLLBACK) is "
-              "not expected in an event stream %s.",
+          LogErr(WARNING_LEVEL, ER_RPL_UNEXPECTED_XA_ROLLBACK_IN_STREAM,
               current_parser_state == EVENT_PARSER_NONE ? "outside a transaction" :
               "in the middle of a DDL"); /* EVENT_PARSER_DDL */
         error= true;

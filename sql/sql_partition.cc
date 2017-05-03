@@ -61,7 +61,7 @@
 #include "item_func.h"                  // Item_func
 #include "key.h"
 #include "lock.h"                       // mysql_lock_remove
-#include "log.h"                        // sql_print_warning
+#include "log.h"
 #include "m_string.h"
 #include "mdl.h"
 #include "my_byteorder.h"

@@ -22,7 +22,7 @@
 #include "event_parse_data.h"   // Event_parse_data
 #include "key.h"
 #include "lex_string.h"
-#include "log.h"                // sql_print_error
+#include "log.h"
 #include "my_dbug.h"
 #include "my_sys.h"
 #include "mysqld_error.h"

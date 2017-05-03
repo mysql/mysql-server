@@ -1226,18 +1226,24 @@ bool             log_line_full(log_line *ll);
   @retval  0  not present
   @retval !=0 present
 */
-log_type_mask    log_line_item_types_seen(log_line *ll, log_type_mask m);
+log_item_type_mask log_line_item_types_seen(log_line *ll, log_item_type_mask m);
 
 /**
-  Initialize a log_line.  Use buffer "buff" of size "bufsize".
-
-  @param  buff     address of buffer to use
-  @param  bufsize  size    of buffer to use
+  Initialize a log_line.
 
   @retval nullptr  could not set up buffer (too small?)
   @retval other    address of the newly initialized log_line
 */
-log_line        *log_line_init(char *buff, size_t bufsize);
+log_line        *log_line_init();
+
+
+/**
+  Release a log_line allocated with log_line_init.
+
+  @retval nullptr  could not set up buffer (too small?)
+  @retval other    address of the newly initialized log_line
+*/
+void             log_line_exit(log_line *ll);
 
 
 /**

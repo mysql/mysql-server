@@ -177,6 +177,7 @@ BEGIN_SERVICE_IMPLEMENTATION(mysql_server, log_builtins)
   log_builtins_imp::line_item_set,
 
   log_builtins_imp::line_init,
+  log_builtins_imp::line_exit,
   log_builtins_imp::line_item_count,
 
   log_builtins_imp::line_item_types_seen,

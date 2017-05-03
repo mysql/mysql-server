@@ -438,8 +438,7 @@ handle_error:
   {
     connection_errors_internal++;
     if (!create_thd_err_log_throttle.log())
-      sql_print_error("Can't create thread to handle new connection(errno= %d)",
-                      error);
+      LogErr(ERROR_LEVEL, ER_CONN_PER_THREAD_NO_THREAD, error);
     channel_info->send_error_and_close_channel(ER_CANT_CREATE_THREAD,
                                                error, true);
     Connection_handler_manager::dec_connection_count();

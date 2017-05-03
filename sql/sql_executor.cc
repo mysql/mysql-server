@@ -42,7 +42,7 @@
 #include "json_dom.h"         // Json_wrapper
 #include "key.h"              // key_cmp
 #include "lex_string.h"
-#include "log.h"              // sql_print_error
+#include "log.h"
 #include "m_ctype.h"
 #include "my_bitmap.h"
 #include "my_byteorder.h"
@@ -2051,8 +2051,7 @@ int report_handler_error(TABLE *table, int error)
       error != HA_ERR_LOCK_WAIT_TIMEOUT &&
       error != HA_ERR_TABLE_DEF_CHANGED &&
       !table->in_use->killed)
-    sql_print_error("Got error %d when reading table '%s'",
-		    error, table->s->path.str);
+    LogErr(ERROR_LEVEL, ER_READING_TABLE_FAILED, error, table->s->path.str);
   table->file->print_error(error,MYF(0));
   return 1;
 }

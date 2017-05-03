@@ -459,8 +459,7 @@ bool File_query_log::open()
 
   if (!is_valid_log_name(real_log_file_name, strlen(real_log_file_name)))
   {
-    sql_print_error("Invalid log file name after expanding symlinks: '%s'",
-                    real_log_file_name);
+    LogErr(ERROR_LEVEL, ER_INVALID_ERROR_LOG_NAME, real_log_file_name);
     goto err;
   }
 
@@ -2073,8 +2072,8 @@ int log_vmessage(int log_type, va_list fili)
       MySQL error can be set numerically or symbolically, so they need to
       reset each other. Submitting both is a really strange idea, mind.
      */
-    const log_type_mask errcode_mask=  LOG_ITEM_SQL_ERRSYMBOL
-                                      |LOG_ITEM_SQL_ERRCODE;
+    const log_item_type_mask errcode_mask=  LOG_ITEM_SQL_ERRSYMBOL
+                                           |LOG_ITEM_SQL_ERRCODE;
 
     if ((ll.item[ll.count].type & errcode_mask)
         && (ll.seen & errcode_mask))

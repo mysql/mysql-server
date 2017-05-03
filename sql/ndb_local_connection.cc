@@ -111,9 +111,9 @@ Ndb_local_connection::execute_query(MYSQL_LEX_STRING sql_text,
     else
     {
       // Print the error to log file
-      sql_print_error("NDB: Query '%s' failed, error: %d: %s",
-                      sql_text.str,
-                      last_errno, last_errmsg);
+      LogErr(ERROR_LEVEL, ER_NDB_QUERY_FAILED,
+             sql_text.str,
+             last_errno, last_errmsg);
     }
 
     DBUG_RETURN(true);

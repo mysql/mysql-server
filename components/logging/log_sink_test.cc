@@ -540,17 +540,17 @@ static void banner()
 */
 DEFINE_METHOD(int, log_service_imp::run, (void *instance, log_line *ll))
 {
-  char           out_buff[LOG_BUFF_MAX];
-  char          *out_writepos= out_buff;
-  size_t         out_left= LOG_BUFF_MAX-1, // remaining bytes in output buffer
-                 len;                  // length of current output particle
-  int            out_fields= 0,        // number of fields in output (retval)
-                 wellknown_label;      // index of label in array of wellknowns
-  enum loglevel  level= ERROR_LEVEL;   // default severity
-  log_item_type  t= LOG_ITEM_END;
-  log_type_mask  out_types= 0;
-  log_item_iter *it;
-  log_item      *li;
+  char                out_buff[LOG_BUFF_MAX];
+  char               *out_writepos= out_buff;
+  size_t              out_left= LOG_BUFF_MAX-1, // bytes left in output buffer
+                      len;                  // length of current output particle
+  int                 out_fields= 0,        // number of fields in output
+                      wellknown_label;      // index of label in wellknowns[]
+  enum loglevel       level= ERROR_LEVEL;   // default severity
+  log_item_type       t= LOG_ITEM_END;
+  log_item_type_mask  out_types= 0;
+  log_item_iter      *it;
+  log_item           *li;
 
   /*
     If we have detected some sort of massive failure (disk full, out of

@@ -28,7 +28,7 @@
 #include "bootstrap_impl.h"
 #include "error_handler.h"       // Internal_error_handler
 #include "lex_string.h"
-#include "log.h"                 // sql_print_warning
+#include "log.h"
 #include "m_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"

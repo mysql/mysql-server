@@ -32,7 +32,7 @@
 #include "handler.h"
 #include "hash.h"
 #include "lex_string.h"
-#include "log.h"                            // sql_print_error
+#include "log.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "mdl.h"
@@ -436,7 +436,7 @@ int Slave_worker::rli_init_info(bool is_gaps_collecting_phase)
 err:
   // todo: handler->end_info(uidx, nidx);
   inited= 0;
-  sql_print_error("Error reading slave worker configuration");
+  LogErr(ERROR_LEVEL, ER_RPL_ERROR_READING_SLAVE_WORKER_CONFIGURATION);
   DBUG_RETURN(1);
 }
 
@@ -484,7 +484,7 @@ int Slave_worker::flush_info(const bool force)
   DBUG_RETURN(0);
 
 err:
-  sql_print_error("Error writing slave worker configuration");
+  LogErr(ERROR_LEVEL, ER_RPL_ERROR_WRITING_SLAVE_WORKER_CONFIGURATION);
   DBUG_RETURN(1);
 }
 
@@ -2115,8 +2115,8 @@ bool Slave_worker::read_and_apply_events(uint start_relay_number,
 
       if (open_binlog_file(&relay_io, file_name, &errmsg) == -1)
       {
-        sql_print_error("Failed to open relay log %s, error: %s", file_name,
-                        errmsg);
+        LogErr(ERROR_LEVEL, ER_RPL_FAILED_TO_OPEN_RELAY_LOG,
+               file_name, errmsg);
         goto end;
       }
       my_b_seek(&relay_io, start_relay_pos);
@@ -2170,16 +2170,14 @@ bool Slave_worker::read_and_apply_events(uint start_relay_number,
       */
       if (relay_io.error != 0)
       {
-        sql_print_error("Error when worker read relay log events,"
-                        "relay log name %s, position %llu",
-                        rli->get_event_relay_log_name(), my_b_tell(&relay_io));
+        LogErr(ERROR_LEVEL, ER_RPL_WORKER_CANT_READ_RELAY_LOG,
+               rli->get_event_relay_log_name(), my_b_tell(&relay_io));
         goto end;
       }
 
       if (rli->relay_log.find_next_relay_log(file_name))
       {
-        sql_print_error("Failed to find next relay log when retrying the "
-                        "transaction, current relay log is %s", file_name);
+        LogErr(ERROR_LEVEL, ER_RPL_WORKER_CANT_FIND_NEXT_RELAY_LOG, file_name);
         goto end;
       }
 
@@ -2372,10 +2370,8 @@ bool append_item_to_jobs(slave_job_item *job_item,
     if (thd->killed)
       return true;
     if (rli->wq_size_waits_cnt % 10 == 1)
-      sql_print_information("Multi-threaded slave: Coordinator has waited "
-                            "%lu times hitting slave_pending_jobs_size_max; "
-                            "current event size = %zu.",
-                            rli->wq_size_waits_cnt, ev_size);
+      LogErr(INFORMATION_LEVEL, ER_RPL_MTS_SLAVE_COORDINATOR_HAS_WAITED,
+             rli->wq_size_waits_cnt, ev_size);
     mysql_mutex_lock(&rli->pending_jobs_lock);
 
     new_pend_size= rli->mts_pending_jobs_size + ev_size;

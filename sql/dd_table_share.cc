@@ -44,7 +44,7 @@
 #include "hash.h"
 #include "key.h"
 #include "lex_string.h"
-#include "log.h"                              // sql_print_error
+#include "log.h"
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "my_compare.h"
@@ -450,10 +450,9 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share, const dd::Table *table_d
                       key_part->store_length-= (uint16)(key_part->length -
                               field->key_length());
                       key_part->length= (uint16)field->key_length();
-                      sql_print_error("Found wrong key definition in %s; "
-                              "Please do \"ALTER TABLE `%s` FORCE \" to fix it!",
-                              share->table_name.str,
-                              share->table_name.str);
+                      LogErr(ERROR_LEVEL, ER_TABLE_WRONG_KEY_DEFINITION,
+                             share->table_name.str,
+                             share->table_name.str);
                       push_warning_printf(thd, Sql_condition::SL_WARNING,
                               ER_CRASHED_ON_USAGE,
                               "Found wrong key definition in %s; "
@@ -719,10 +718,8 @@ static bool fill_share_from_dd(THD *thd, TABLE_SHARE *share, const dd::Table *ta
     if (use_mb(default_charset_info))
     {
       /* Warn that we may be changing the size of character columns */
-      sql_print_warning("'%s' had no or invalid character set, "
-                        "and default character set is multi-byte, "
-                        "so character column sizes may have changed",
-                        share->path.str);
+      LogErr(WARNING_LEVEL,
+             ER_INVALID_CHARSET_AND_DEFAULT_IS_MB, share->path.str);
     }
     share->table_charset= default_charset_info;
   }

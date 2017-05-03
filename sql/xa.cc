@@ -22,7 +22,7 @@
 #include "handler.h"            // handlerton
 #include "hash.h"               // HASH
 #include "item.h"
-#include "log.h"                // sql_print_information
+#include "log.h"
 #include "m_ctype.h"
 #include "mdl.h"
 #include "my_dbug.h"
@@ -150,8 +150,8 @@ static bool xarecover_handlerton(THD*, plugin_ref plugin, void *arg)
   {
     while ((got= hton->recover(hton, info->list, info->len)) > 0)
     {
-      sql_print_information("Found %d prepared transaction(s) in %s",
-                            got, ha_resolve_storage_engine_name(hton));
+      LogErr(INFORMATION_LEVEL, ER_XA_RECOVER_FOUND_TRX_IN_SE,
+             got, ha_resolve_storage_engine_name(hton));
       for (int i= 0; i < got; i++)
       {
         my_xid x= info->list[i].get_my_xid();
@@ -160,7 +160,7 @@ static bool xarecover_handlerton(THD*, plugin_ref plugin, void *arg)
 #ifndef DBUG_OFF
           char buf[XIDDATASIZE * 4 + 6]; // see xid_to_str
           XID *xid= info->list + i;
-          sql_print_information("ignore xid %s", xid->xid_to_str(buf));
+          LogErr(INFORMATION_LEVEL, ER_XA_IGNORING_XID, xid->xid_to_str(buf));
 #endif
           transaction_cache_insert_recovery(info->list + i);
           info->found_foreign_xids++;
@@ -179,7 +179,7 @@ static bool xarecover_handlerton(THD*, plugin_ref plugin, void *arg)
 #ifndef DBUG_OFF
           char buf[XIDDATASIZE * 4 + 6]; // see xid_to_str
           XID *xid= info->list + i;
-          sql_print_information("commit xid %s", xid->xid_to_str(buf));
+          LogErr(INFORMATION_LEVEL, ER_XA_COMMITTING_XID, xid->xid_to_str(buf));
 #endif
           hton->commit_by_xid(hton, info->list + i);
         }
@@ -188,7 +188,8 @@ static bool xarecover_handlerton(THD*, plugin_ref plugin, void *arg)
 #ifndef DBUG_OFF
           char buf[XIDDATASIZE * 4 + 6]; // see xid_to_str
           XID *xid= info->list + i;
-          sql_print_information("rollback xid %s", xid->xid_to_str(buf));
+          LogErr(INFORMATION_LEVEL, ER_XA_ROLLING_BACK_XID,
+                 xid->xid_to_str(buf));
 #endif
           hton->rollback_by_xid(hton, info->list + i);
         }
@@ -221,15 +222,13 @@ int ha_recover(HASH *commit_list)
     DBUG_RETURN(0);
 
   if (info.commit_list)
-    sql_print_information("Starting crash recovery...");
+    LogErr(INFORMATION_LEVEL, ER_XA_STARTING_RECOVERY);
 
   if (total_ha_2pc > (ulong)opt_bin_log + 1)
   {
     if (tc_heuristic_recover == TC_HEURISTIC_RECOVER_ROLLBACK)
     {
-      sql_print_error("--tc-heuristic-recover rollback strategy is not safe "
-                      "on systems with more than one 2-phase-commit-capable "
-                      "storage engine. Aborting crash recovery.");
+      LogErr(ERROR_LEVEL, ER_XA_NO_MULTI_2PC_HEURISTIC_RECOVER);
       DBUG_RETURN(1);
     }
   }
@@ -252,8 +251,8 @@ int ha_recover(HASH *commit_list)
   }
   if (!info.list)
   {
-    sql_print_error(ER_DEFAULT(ER_OUTOFMEMORY),
-                    static_cast<int>(info.len * sizeof(XID)));
+    LogErr(ERROR_LEVEL, ER_OUTOFMEMORY,
+           static_cast<int>(info.len * sizeof(XID)));
     DBUG_RETURN(1);
   }
 
@@ -262,21 +261,15 @@ int ha_recover(HASH *commit_list)
 
   my_free(info.list);
   if (info.found_foreign_xids)
-    sql_print_warning("Found %d prepared XA transactions",
-                      info.found_foreign_xids);
+    LogErr(WARNING_LEVEL, ER_XA_RECOVER_FOUND_XA_TRX, info.found_foreign_xids);
   if (info.dry_run && info.found_my_xids)
   {
-    sql_print_error("Found %d prepared transactions! It means that mysqld was "
-                    "not shut down properly last time and critical recovery "
-                    "information (last binlog or %s file) was manually deleted"
-                    " after a crash. You have to start mysqld with "
-                    "--tc-heuristic-recover switch to commit or rollback "
-                    "pending transactions.",
-                    info.found_my_xids, opt_tc_log_file);
+    LogErr(ERROR_LEVEL, ER_XA_RECOVER_EXPLANATION,
+           info.found_my_xids, opt_tc_log_file);
     DBUG_RETURN(1);
   }
   if (info.commit_list)
-    sql_print_information("Crash recovery finished.");
+    LogErr(INFORMATION_LEVEL, ER_XA_RECOVERY_DONE);
   DBUG_RETURN(0);
 }
 
@@ -876,7 +869,7 @@ bool Sql_cmd_xa_prepare::trans_xa_prepare(THD *thd)
       MYSQL_SET_TRANSACTION_XA_STATE(thd->m_transaction_psi,
                                      (int)xid_state->get_state());
       if (thd->rpl_thd_ctx.session_gtids_ctx().notify_after_xa_prepare(thd))
-        sql_print_warning("Failed to collect GTID to send in the response packet!");
+        LogErr(WARNING_LEVEL, ER_TRX_GTID_COLLECT_REJECT);
     }
   }
 

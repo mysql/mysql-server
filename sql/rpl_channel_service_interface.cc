@@ -56,16 +56,14 @@ int initialize_channel_service_interface()
   if (opt_mi_repository_id != INFO_REPOSITORY_TABLE ||
       opt_rli_repository_id != INFO_REPOSITORY_TABLE)
   {
-    sql_print_error("For the creation of replication channels the master info"
-                    " and relay log info repositories must be set to TABLE");
+    LogErr(ERROR_LEVEL, ER_RPL_CHANNELS_REQUIRE_TABLES_AS_INFO_REPOSITORIES);
     DBUG_RETURN(1);
   }
 
   //server id must be different from 0
   if (server_id == 0)
   {
-    sql_print_error("For the creation of replication channels the server id"
-                    " must be different from 0");
+    LogErr(ERROR_LEVEL, ER_RPL_CHANNELS_REQUIRE_NON_ZERO_SERVER_ID);
     DBUG_RETURN(1);
   }
 

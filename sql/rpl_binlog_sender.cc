@@ -24,7 +24,7 @@
 #include "hash.h"
 #include "item_func.h"               // user_var_entry
 #include "lex_string.h"
-#include "log.h"                     // sql_print_information
+#include "log.h"
 #include "log_event.h"               // MAX_MAX_ALLOWED_PACKET
 #include "m_string.h"
 #include "mdl.h"
@@ -125,10 +125,9 @@ void Binlog_sender::init()
   if (check_start_file())
     DBUG_VOID_RETURN;
 
-  sql_print_information("Start binlog_dump to master_thread_id(%u) "
-                        "slave_server(%u), pos(%s, %llu)",
-                        thd->thread_id(), thd->server_id,
-                        m_start_file, m_start_pos);
+  LogErr(INFORMATION_LEVEL, ER_RPL_BINLOG_STARTING_DUMP,
+         thd->thread_id(), thd->server_id,
+         m_start_file, m_start_pos);
 
   if (RUN_HOOK(binlog_transmit, transmit_start,
                (thd, m_flag, m_start_file, m_start_pos,
@@ -692,10 +691,11 @@ inline int Binlog_sender::wait_with_heartbeat(my_off_t log_pos)
 #ifndef DBUG_OFF
       if (hb_info_counter < 3)
       {
-        sql_print_information("master sends heartbeat message");
+        LogErr(INFORMATION_LEVEL, ER_RPL_BINLOG_MASTER_SENDS_HEARTBEAT);
         hb_info_counter++;
         if (hb_info_counter == 3)
-          sql_print_information("the rest of heartbeat info skipped ...");
+          LogErr(INFORMATION_LEVEL,
+                 ER_RPL_BINLOG_SKIPPING_REMAINING_HEARTBEAT_INFO);
       }
 #endif
       if (send_heartbeat_event(log_pos))
@@ -1022,9 +1022,7 @@ int Binlog_sender::send_format_description_event(IO_CACHE *log_cache,
     set_fatal_error("Slave can not handle replication events with the "
                     "checksum that master is configured to log");
 
-    sql_print_warning("Master is configured to log replication events "
-                      "with checksum, but will not send such events to "
-                      "slaves that cannot process them");
+    LogErr(WARNING_LEVEL, ER_RPL_BINLOG_MASTER_USES_CHECKSUM_AND_SLAVE_CANT);
     DBUG_RETURN(1);
   }
 

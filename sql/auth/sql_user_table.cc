@@ -1019,17 +1019,11 @@ bool log_and_commit_acl_ddl(THD *thd,
           }
         }
         if (log_warning)
-          sql_print_warning("Following users were specified in %s but they "
-                            "%s. Corresponding entry in binary log used default "
-                            "authentication plugin '%s' to rewrite authentication "
-                            "information(if any) for them: %s",
-                            command == SQLCOM_CREATE_USER ?
-                            "CREATE USER IF NOT EXISTS" :
-                            "ALTER USER IF EXISTS",
-                            command == SQLCOM_CREATE_USER ?
-                            "already exist" : "do not exist",
-                            default_auth_plugin_name.str,
-                            warn_user.c_ptr_safe());
+          LogErr(WARNING_LEVEL,
+                 (command == SQLCOM_CREATE_USER)
+                 ? ER_SQL_USER_TABLE_CREATE_WARNING
+                 : ER_SQL_USER_TABLE_ALTER_WARNING,
+                 default_auth_plugin_name.str, warn_user.c_ptr_safe());
 
         warn_user.mem_free();
       }

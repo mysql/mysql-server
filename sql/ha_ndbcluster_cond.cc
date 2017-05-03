@@ -724,8 +724,8 @@ ndb_serialize_cond(const Item *item, void *arg)
     if (!item)
     {
       DBUG_PRINT("info", ("Unexpected mismatch of found and expected number of function arguments %u", context->skip));
-      sql_print_error("ndb_serialize_cond: Unexpected mismatch of found and "
-                      "expected number of function arguments %u", context->skip);
+      LogErr(ERROR_LEVEL, ER_NDB_CLUSTER_WRONG_NUMBER_OF_FUNCTION_ARGUMENTS,
+             context->skip);
       context->skip= 0;
       DBUG_VOID_RETURN;
     }

@@ -736,7 +736,7 @@ PFS_check_intact::report_error(uint, const char *fmt, ...)
     - do not report it in the user connection, there is none in main(),
     - report it in the server error log.
   */
-  sql_print_error("%s", buff);
+  LogErr(ERROR_LEVEL, ER_TABLE_CHECK_INTACT, buff);
 }
 
 /**
@@ -774,9 +774,9 @@ PFS_engine_table_share::check_one_table(THD *thd)
   }
   else
   {
-    sql_print_error(ER_DEFAULT(ER_WRONG_NATIVE_TABLE_STRUCTURE),
-                    PERFORMANCE_SCHEMA_str.str,
-                    m_name.str);
+    LogErr(ERROR_LEVEL, ER_WRONG_NATIVE_TABLE_STRUCTURE,
+           PERFORMANCE_SCHEMA_str.str,
+           m_name.str);
     thd->clear_error();
   }
 

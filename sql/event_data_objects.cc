@@ -1177,11 +1177,9 @@ Event_job_data::execute(THD *thd, bool drop)
                                          m_definer_user, m_definer_host,
                                          &m_schema_name, &save_sctx))
   {
-    sql_print_error("Event Scheduler: "
-                    "[%s].[%s.%s] execution failed, "
-                    "failed to authenticate the user.",
-                    m_definer.str, m_schema_name.str,
-                    m_event_name.str);
+    LogErr(ERROR_LEVEL, ER_EVENT_EXECUTION_FAILED_CANT_AUTHENTICATE_USER,
+           m_definer.str, m_schema_name.str,
+           m_event_name.str);
     goto end;
   }
 
@@ -1193,11 +1191,9 @@ Event_job_data::execute(THD *thd, bool drop)
       privilege is revoked from trigger definer,
       triggers are not executed.
     */
-    sql_print_error("Event Scheduler: "
-                    "[%s].[%s.%s] execution failed, "
-                    "user no longer has EVENT privilege.",
-                    m_definer.str, m_schema_name.str, 
-                    m_event_name.str);
+    LogErr(ERROR_LEVEL, ER_EVENT_EXECUTION_FAILED_USER_LOST_EVEN_PRIVILEGE,
+           m_definer.str, m_schema_name.str, 
+           m_event_name.str);
     goto end;
   }
 
@@ -1227,11 +1223,10 @@ Event_job_data::execute(THD *thd, bool drop)
     thd->m_statement_psi= NULL;
     if (parse_sql(thd, & parser_state, m_creation_ctx))
     {
-      sql_print_error("Event Scheduler: "
-                      "%serror during compilation of %s.%s",
-                      thd->is_fatal_error ? "fatal " : "",
-                      m_schema_name.str,
-                      m_event_name.str);
+      LogErr(ERROR_LEVEL, ER_EVENT_ERROR_DURING_COMPILATION,
+             thd->is_fatal_error ? "fatal " : "",
+             m_schema_name.str,
+             m_event_name.str);
       thd->m_digest= parent_digest;
       thd->m_statement_psi= parent_locker;
       goto end;
@@ -1275,9 +1270,9 @@ end:
       We must do it here since here we're under the right authentication
       ID of the event definer.
     */
-    sql_print_information("Event Scheduler: Dropping %s.%s",
-                          m_schema_name.str,
-                          m_event_name.str);
+    LogErr(INFORMATION_LEVEL, ER_EVENT_DROPPING,
+           m_schema_name.str,
+           m_event_name.str);
     /*
       Construct a query for the binary log, to ensure the event is dropped
       on the slave

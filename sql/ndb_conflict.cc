@@ -1138,21 +1138,17 @@ st_ndb_slave_state::verifyNextEpoch(Uint64 next_epoch,
     */
     if (next_epoch < current_master_server_epoch)
     {
-      sql_print_warning("NDB Slave : At SQL thread start "
-                        "applying epoch %llu/%llu "
-                        "(%llu) from Master ServerId %u which is lower than previously "
-                        "applied epoch %llu/%llu (%llu).  "
-                        "Group Master Log : %s  Group Master Log Pos : %llu.  "
-                        "Check slave positioning.",
-                        next_epoch >> 32,
-                        next_epoch & 0xffffffff,
-                        next_epoch,
-                        master_server_id,
-                        current_master_server_epoch >> 32,
-                        current_master_server_epoch & 0xffffffff,
-                        current_master_server_epoch,
-                        ndb_mi_get_group_master_log_name(),
-                        ndb_mi_get_group_master_log_pos());
+      LogErr(WARNING_LEVEL,
+             ER_NDB_SLAVE_SAW_EPOCH_LOWER_THAN_PREVIOUS_ON_START,
+             next_epoch >> 32,
+             next_epoch & 0xffffffff,
+             next_epoch,
+             master_server_id,
+             current_master_server_epoch >> 32,
+             current_master_server_epoch & 0xffffffff,
+             current_master_server_epoch,
+             ndb_mi_get_group_master_log_name(),
+             ndb_mi_get_group_master_log_pos());
       /* Slave not stopped */
     }
     else if (next_epoch == current_master_server_epoch)
@@ -1182,20 +1178,16 @@ st_ndb_slave_state::verifyNextEpoch(Uint64 next_epoch,
     if (next_epoch < current_master_server_epoch)
     {
       /* Should never happen */
-      sql_print_error("NDB Slave : SQL thread stopped as "
-                      "applying epoch %llu/%llu "
-                      "(%llu) from Master ServerId %u which is lower than previously "
-                      "applied epoch %llu/%llu (%llu).  "
-                      "Group Master Log : %s  Group Master Log Pos : %llu",
-                      next_epoch >> 32,
-                      next_epoch & 0xffffffff,
-                      next_epoch,
-                      master_server_id,
-                      current_master_server_epoch >> 32,
-                      current_master_server_epoch & 0xffffffff,
-                      current_master_server_epoch,
-                      ndb_mi_get_group_master_log_name(),
-                      ndb_mi_get_group_master_log_pos());
+      LogErr(ERROR_LEVEL, ER_NDB_SLAVE_SAW_EPOCH_LOWER_THAN_PREVIOUS,
+             next_epoch >> 32,
+             next_epoch & 0xffffffff,
+             next_epoch,
+             master_server_id,
+             current_master_server_epoch >> 32,
+             current_master_server_epoch & 0xffffffff,
+             current_master_server_epoch,
+             ndb_mi_get_group_master_log_name(),
+             ndb_mi_get_group_master_log_pos());
       /* Stop the slave */
       DBUG_RETURN(false);
     }
@@ -1208,16 +1200,13 @@ st_ndb_slave_state::verifyNextEpoch(Uint64 next_epoch,
       if (current_master_server_epoch_committed)
       {
         /* This epoch is committed already, why are we replaying it? */
-        sql_print_error("NDB Slave : SQL thread stopped as attempted "
-                        "to reapply already committed epoch %llu/%llu (%llu) "
-                        "from server id %u.  "
-                        "Group Master Log : %s  Group Master Log Pos : %llu.",
-                        current_master_server_epoch >> 32,
-                        current_master_server_epoch & 0xffffffff,
-                        current_master_server_epoch,
-                        master_server_id,
-                        ndb_mi_get_group_master_log_name(),
-                        ndb_mi_get_group_master_log_pos());
+        LogErr(ERROR_LEVEL, ER_NDB_SLAVE_SAW_ALREADY_COMMITTED_EPOCH,
+               current_master_server_epoch >> 32,
+               current_master_server_epoch & 0xffffffff,
+               current_master_server_epoch,
+               master_server_id,
+               ndb_mi_get_group_master_log_name(),
+               ndb_mi_get_group_master_log_pos());
         /* Stop the slave */
         DBUG_RETURN(false);
       }
@@ -1241,20 +1230,16 @@ st_ndb_slave_state::verifyNextEpoch(Uint64 next_epoch,
            We've moved onto a new epoch without committing
            the last - probably a bug in transaction retry
         */
-        sql_print_error("NDB Slave : SQL thread stopped as attempting to "
-                        "apply new epoch %llu/%llu (%llu) while lower "
-                        "received epoch %llu/%llu (%llu) has not been "
-                        "committed.  Master server id : %u.  "
-                        "Group Master Log : %s  Group Master Log Pos : %llu.",
-                        next_epoch >> 32,
-                        next_epoch & 0xffffffff,
-                        next_epoch,
-                        current_master_server_epoch >> 32,
-                        current_master_server_epoch & 0xffffffff,
-                        current_master_server_epoch,
-                        master_server_id,
-                        ndb_mi_get_group_master_log_name(),
-                        ndb_mi_get_group_master_log_pos());
+        LogErr(ERROR_LEVEL, ER_NDB_SLAVE_PREVIOUS_EPOCH_NOT_COMMITTED,
+               next_epoch >> 32,
+               next_epoch & 0xffffffff,
+               next_epoch,
+               current_master_server_epoch >> 32,
+               current_master_server_epoch & 0xffffffff,
+               current_master_server_epoch,
+               master_server_id,
+               ndb_mi_get_group_master_log_name(),
+               ndb_mi_get_group_master_log_pos());
         /* Stop the slave */
         DBUG_RETURN(false);
       }
@@ -1893,10 +1878,9 @@ row_conflict_fn_old(NDB_CONFLICT_FN_SHARE* cfn_share,
 
   if (unlikely(!bitmap_is_set(bi_cols, resolve_column)))
   {
-    sql_print_information("NDB Slave: missing data for %s "
-                          "timestamp column %u.",
-                          cfn_share->m_conflict_fn->name,
-                          resolve_column);
+    LogErr(INFORMATION_LEVEL, ER_NDB_SLAVE_MISSING_DATA_FOR_TIMESTAMP_COLUMN,
+           cfn_share->m_conflict_fn->name,
+           resolve_column);
     DBUG_RETURN(1);
   }
 
@@ -1976,10 +1960,9 @@ row_conflict_fn_max_update_only(NDB_CONFLICT_FN_SHARE* cfn_share,
 
   if (unlikely(!bitmap_is_set(ai_cols, resolve_column)))
   {
-    sql_print_information("NDB Slave: missing data for %s "
-                          "timestamp column %u.",
-                          cfn_share->m_conflict_fn->name,
-                          resolve_column);
+    LogErr(INFORMATION_LEVEL, ER_NDB_SLAVE_MISSING_DATA_FOR_TIMESTAMP_COLUMN,
+           cfn_share->m_conflict_fn->name,
+           resolve_column);
     DBUG_RETURN(1);
   }
 
@@ -2662,11 +2645,11 @@ slave_set_resolve_fn(Ndb* ndb,
 
         if (opt_ndb_extra_logging)
         {
-          sql_print_information("NDB Slave: Table %s.%s logging exceptions to %s.%s",
-                                dbName,
-                                tabName,
-                                dbName,
-                                ex_tab_name);
+          LogErr(INFORMATION_LEVEL, ER_NDB_SLAVE_LOGGING_EXCEPTIONS_TO,
+                 dbName,
+                 tabName,
+                 dbName,
+                 ex_tab_name);
         }
       }
       else
@@ -2844,10 +2827,8 @@ setup_conflict_fn(Ndb* ndb,
      * represent SavePeriod/EpochPeriod
      */
     if (ndbtab->getExtraRowGciBits() == 0)
-      sql_print_information("NDB Slave: Table %s.%s : %s, low epoch resolution",
-                            dbName,
-                            tabName,
-                            conflict_fn->name);
+      LogErr(INFORMATION_LEVEL, ER_NDB_SLAVE_LOW_EPOCH_RESOLUTION,
+             dbName, tabName, conflict_fn->name);
 
     if (ndbtab->getExtraRowAuthorBits() == 0)
     {

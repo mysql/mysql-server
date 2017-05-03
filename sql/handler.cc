@@ -56,7 +56,7 @@
 #include "item.h"
 #include "keycache.h"
 #include "lock.h"                     // MYSQL_LOCK
-#include "log.h"                      // sql_print_error
+#include "log.h"
 #include "log_event.h"                // Write_rows_log_event
 #include "m_ctype.h"
 #include "mdl.h"
@@ -822,8 +822,7 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
 
   if (hton == NULL)
   {
-    sql_print_error("Unable to allocate memory for plugin '%s' handlerton.",
-                    plugin->name.str);
+    LogErr(ERROR_LEVEL, ER_HANDLERTON_OOM, plugin->name.str);
     goto err_no_hton_memory;
   }
 
@@ -832,9 +831,8 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
   plugin->data= hton; // shortcut for the future
   if (plugin->plugin->init && plugin->plugin->init(hton))
   {
-    sql_print_error("Plugin '%s' init function returned error.",
-                    plugin->name.str);
-    goto err;  
+    LogErr(ERROR_LEVEL, ER_PLUGIN_INIT_FAILED, plugin->name.str);
+    goto err;
   }
 
   if (hton->store_schema_sdi == nullptr)
@@ -873,12 +871,12 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
 
         if (idx == (int) DB_TYPE_DEFAULT)
         {
-          sql_print_warning("Too many storage engines!");
+          LogErr(WARNING_LEVEL, ER_TOO_MANY_STORAGE_ENGINES);
           goto err_deinit;
         }
         if (hton->db_type != DB_TYPE_UNKNOWN)
-          sql_print_warning("Storage engine '%s' has conflicting typecode. "
-                            "Assigning value %d.", plugin->plugin->name, idx);
+          LogErr(WARNING_LEVEL, ER_SE_TYPECODE_CONFLICT,
+                 plugin->plugin->name, idx);
         hton->db_type= (enum legacy_db_type) idx;
       }
 
@@ -8193,7 +8191,7 @@ int binlog_log_row(TABLE* table,
                                              MYF(MY_WME));
         if (!temp_image)
         {
-          sql_print_error("Out of memory on transaction write set extraction");
+          LogErr(ERROR_LEVEL, ER_TRX_WRITE_SET_OOM);
           return 1;
         }
         add_pke(table, thd);

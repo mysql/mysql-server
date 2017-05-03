@@ -26,7 +26,7 @@
 #include "item_func.h"         // user_var_entry
 #include "key.h"
 #include "lex_string.h"
-#include "log.h"               // sql_print_error
+#include "log.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_io.h"
@@ -184,8 +184,7 @@ int delegates_init()
 
   if (!transaction_delegate->is_inited())
   {
-    sql_print_error("Initialization of transaction delegates failed. "
-                    "Please report a bug.");
+    LogErr(ERROR_LEVEL, ER_RPL_TRX_DELEGATES_INIT_FAILED);
     return 1;
   }
 
@@ -193,8 +192,7 @@ int delegates_init()
 
   if (!binlog_storage_delegate->is_inited())
   {
-    sql_print_error("Initialization binlog storage delegates failed. "
-                    "Please report a bug.");
+    LogErr(ERROR_LEVEL, ER_RPL_BINLOG_STORAGE_DELEGATES_INIT_FAILED);
     return 1;
   }
 
@@ -207,8 +205,7 @@ int delegates_init()
 
   if (!binlog_transmit_delegate->is_inited())
   {
-    sql_print_error("Initialization of binlog transmit delegates failed. "
-                    "Please report a bug.");
+    LogErr(ERROR_LEVEL, ER_RPL_BINLOG_TRANSMIT_DELEGATES_INIT_FAILED);
     return 1;
   }
 
@@ -216,8 +213,7 @@ int delegates_init()
 
   if (!binlog_relay_io_delegate->is_inited())
   {
-    sql_print_error("Initialization binlog relay IO delegates failed. "
-                    "Please report a bug.");
+    LogErr(ERROR_LEVEL, ER_RPL_BINLOG_RELAY_DELEGATES_INIT_FAILED);
     return 1;
   }
 
@@ -266,8 +262,12 @@ void delegates_destroy()
         && ((Observer *)info->observer)->f args)                        \
     {                                                                   \
       r= 1;                                                             \
-      sql_print_error("Run function '" #f "' in plugin '%s' failed",    \
-                      info->plugin_int->name.str);                      \
+      LogEvent().prio(ERROR_LEVEL)                                      \
+                .errcode(ER_RPL_PLUGIN_FUNCTION_FAILED)                 \
+                .subsys(LOG_SUBSYSTEM_TAG)                              \
+                .function(#f)                                           \
+                .message("Run function '" #f "' in plugin '%s' failed", \
+                         info->plugin_int->name.str);                   \
       break;                                                            \
     }                                                                   \
   }                                                                     \
@@ -308,8 +308,12 @@ void delegates_destroy()
     if (hook_error)                                                     \
     {                                                                   \
       r= 1;                                                             \
-      sql_print_error("Run function '" #f "' in plugin '%s' failed",    \
-                      info->plugin_int->name.str);                      \
+      LogEvent().prio(ERROR_LEVEL)                                      \
+                .errcode(ER_RPL_PLUGIN_FUNCTION_FAILED)                 \
+                .subsys(LOG_SUBSYSTEM_TAG)                              \
+                .function(#f)                                           \
+                .message("Run function '" #f "' in plugin '%s' failed", \
+                         info->plugin_int->name.str);                   \
       break;                                                            \
     }                                                                   \
   }                                                                     \

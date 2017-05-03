@@ -198,8 +198,7 @@ static void mi_check_print_msg(MI_CHECK *param,	const char* msg_type,
   protocol->store(msg_type, system_charset_info);
   protocol->store(msgbuf, msg_length, system_charset_info);
   if (protocol->end_row())
-    sql_print_error("Failed on my_net_write, writing to stderr instead: %s\n",
-		    msgbuf);
+    LogErr(ERROR_LEVEL, ER_MY_NET_WRITE_FAILED_FALLING_BACK_ON_STDERR, msgbuf);
 
   if (param->need_print_msg_lock)
     mysql_mutex_unlock(&param->print_msg_mutex);
@@ -638,13 +637,16 @@ void _mi_report_crashed(MI_INFO *file, const char *message,
   LIST *element;
   char buf[1024];
   mysql_mutex_lock(&file->s->intern_lock);
+
   if ((cur_thd= (THD*) file->in_use.data))
-    sql_print_error("Got an error from thread_id=%u, %s:%d",
-                    cur_thd->thread_id(), sfile, sline);
+    LogErr(ERROR_LEVEL, ER_MYISAM_CRASHED_ERROR_IN_THREAD,
+           cur_thd->thread_id(), sfile, sline);
   else
-    sql_print_error("Got an error from unknown thread, %s:%d", sfile, sline);
+    LogErr(ERROR_LEVEL, ER_MYISAM_CRASHED_ERROR_IN, sfile, sline);
+
   if (message)
     sql_print_error("%s", message);
+
   for (element= file->s->in_use; element; element= list_rest(element))
   {
     THD *thd= (THD*) element->data;
@@ -1087,16 +1089,16 @@ int ha_myisam::repair(THD* thd, HA_CHECK_OPT *check_opt)
 		      (uint) (T_RETRY_WITHOUT_QUICK | T_QUICK)))
     {
       param.testflag&= ~T_RETRY_WITHOUT_QUICK;
-      sql_print_information("Retrying repair of: '%s' without quick",
-                            table->s->path.str);
+      LogErr(INFORMATION_LEVEL, ER_RETRYING_REPAIR_WITHOUT_QUICK,
+             table->s->path.str);
       continue;
     }
     param.testflag&= ~T_QUICK;
     if ((param.testflag & T_REP_BY_SORT))
     {
       param.testflag= (param.testflag & ~T_REP_BY_SORT) | T_REP;
-      sql_print_information("Retrying repair of: '%s' with keycache",
-                            table->s->path.str);
+      LogErr(INFORMATION_LEVEL, ER_RETRYING_REPAIR_WITH_KEYCACHE,
+             table->s->path.str);
       continue;
     }
     break;
@@ -1105,10 +1107,10 @@ int ha_myisam::repair(THD* thd, HA_CHECK_OPT *check_opt)
       !(check_opt->flags & T_VERY_SILENT))
   {
     char llbuff[22],llbuff2[22];
-    sql_print_information("Found %s of %s rows when repairing '%s'",
-                          llstr(file->state->records, llbuff),
-                          llstr(start_records, llbuff2),
-                          table->s->path.str);
+    LogErr(INFORMATION_LEVEL, ER_FOUND_ROWS_WHILE_REPAIRING,
+           llstr(file->state->records, llbuff),
+           llstr(start_records, llbuff2),
+           table->s->path.str);
   }
   return error;
 }
@@ -1127,8 +1129,8 @@ int ha_myisam::optimize(THD* thd, HA_CHECK_OPT *check_opt)
   param.sort_buffer_length=  THDVAR(thd, sort_buffer_size);
   if ((error= repair(thd,param,1)) && param.retry_repair)
   {
-    sql_print_warning("Warning: Optimize table got errno %d on %s.%s, retrying",
-                      my_errno(), param.db_name, param.table_name);
+    LogErr(WARNING_LEVEL, ER_ERROR_DURING_OPTIMIZE_TABLE,
+           my_errno(), param.db_name, param.table_name);
     param.testflag&= ~T_REP_BY_SORT;
     error= repair(thd,param,1);
   }
@@ -1525,8 +1527,8 @@ int ha_myisam::enable_indexes(uint mode)
     param.tmpdir=&mysql_tmpdir_list;
     if ((error= (repair(thd,param,0) != HA_ADMIN_OK)) && param.retry_repair)
     {
-      sql_print_warning("Warning: Enabling keys got errno %d on %s.%s, retrying",
-                        my_errno(), param.db_name, param.table_name);
+      LogErr(WARNING_LEVEL, ER_ERROR_ENABLING_KEYS,
+             my_errno(), param.db_name, param.table_name);
       /*
         Repairing by sort failed. Now try standard repair method.
         Still we want to fix only index file. If data file corruption
@@ -1682,11 +1684,11 @@ bool ha_myisam::check_and_repair(THD *thd)
   // Don't use quick if deleted rows
   if (!file->state->del && (myisam_recover_options & HA_RECOVER_QUICK))
     check_opt.flags|=T_QUICK;
-  sql_print_warning("Checking table:   '%s'",table->s->path.str);
+  LogErr(WARNING_LEVEL, ER_CHECKING_TABLE, table->s->path.str);
 
   if ((marked_crashed= mi_is_crashed(file)) || check(thd, &check_opt))
   {
-    sql_print_warning("Recovering table: '%s'",table->s->path.str);
+LogErr(WARNING_LEVEL, ER_RECOVERING_TABLE,table->s->path.str);
     check_opt.flags=
       ((myisam_recover_options & HA_RECOVER_BACKUP ? T_BACKUP_DATA : 0) |
        (marked_crashed                             ? 0 : T_QUICK) |

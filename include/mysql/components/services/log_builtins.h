@@ -335,15 +335,19 @@ BEGIN_SERVICE_DEFINITION(log_builtins)
                  (log_line *ll,    log_item_type t));
 
   /**
-    Initialize a log_line.  Use buffer "buff" of size "bufsize".
-
-    @param  buff     address of buffer to use
-    @param  bufsize  size of buffer to use
+    Dynamically allocate and initialize a log_line.
 
     @retval nullptr  could not set up buffer (too small?)
     @retval other    address of the newly initialized log_line
   */
-  DECLARE_METHOD(log_line *,       line_init, (char *buff, size_t bufsize));
+  DECLARE_METHOD(log_line *,       line_init, ());
+
+  /**
+    Release a log_line allocated with line_init()
+
+    @param  ll       a log_line previously allocated with line_init()
+  */
+  DECLARE_METHOD(void,             line_exit, (log_line *ll));
 
   /**
     How many items are currently set on the given log_line?
@@ -363,8 +367,8 @@ BEGIN_SERVICE_DEFINITION(log_builtins)
     @retval  0  not present
     @retval !=0 present
   */
-  DECLARE_METHOD(log_type_mask,    line_item_types_seen,
-                                              (log_line *ll, log_type_mask m));
+  DECLARE_METHOD(log_item_type_mask, line_item_types_seen,
+                                         (log_line *ll, log_item_type_mask m));
 
   /**
     Get an iterator for the items in a log_line.
@@ -621,6 +625,7 @@ extern SERVICE_TYPE(log_builtins)        *log_bi;
 extern SERVICE_TYPE(log_builtins_string) *log_bs;
 
 #      define log_line_init               log_bi->line_init
+#      define log_line_exit               log_bi->line_exit
 #      define log_line_item_set_with_key  log_bi->line_item_set_with_key
 #      define log_line_item_set           log_bi->line_item_set
 #      define log_line_item_types_seen    log_bi->line_item_types_seen
@@ -629,10 +634,14 @@ extern SERVICE_TYPE(log_builtins_string) *log_bs;
 #      define log_set_float               log_bi->item_set_float
 #      define log_set_lexstring           log_bi->item_set_lexstring
 #      define log_set_cstring             log_bi->item_set_cstring
+#      define log_malloc                  log_bs->malloc
+#      define log_free                    log_bs->free
 #      define log_msg                     log_bs->substitutev
 #      define error_msg_by_errcode        log_bi->errmsg_by_errcode
 #      define error_code_by_errsymbol     log_bi->errcode_by_errsymbol
 #    else
+#      define log_malloc(s)               my_malloc(0, (s), MYF(0))
+#      define log_free                    my_free
 #      define log_msg                     my_vsnprintf
 #      define error_msg_by_errcode        get_server_errmsgs
 #      define error_code_by_errsymbol     mysql_symbol_to_errno
@@ -663,8 +672,7 @@ class LogEvent
 {
 private:
   log_line     *ll;
-  char          msg[LOG_BUFF_MAX];
-  char          log_line_buffer[4096];
+  char         *msg;
 
   /**
     Set MySQL error-code if none has been set yet.
@@ -676,6 +684,9 @@ private:
   */
   bool set_errcode(longlong errcode)
   {
+    if (ll == nullptr)
+      return true;
+
     if (!log_line_item_types_seen(ll, LOG_ITEM_SQL_ERRCODE) &&
         !log_line_item_types_seen(ll, LOG_ITEM_SQL_ERRSYMBOL))
     {
@@ -692,9 +703,12 @@ private:
   */
   void set_message(const char *fmt, va_list ap)
   {
-    size_t         len=    log_msg(msg, LOG_BUFF_MAX - 1, fmt, ap);
-    log_set_lexstring(log_line_item_set(this->ll, LOG_ITEM_LOG_MESSAGE),
-                      msg, len);
+    if ((ll != nullptr) && (msg != nullptr))
+    {
+      size_t         len=    log_msg(msg, LOG_BUFF_MAX - 1, fmt, ap);
+      log_set_lexstring(log_line_item_set(this->ll, LOG_ITEM_LOG_MESSAGE),
+                        msg, len);
+    }
   }
 
   /**
@@ -723,7 +737,15 @@ public:
     Destructor automatically sends the event on.
     It is auto-free()d after processing.
   */
-  ~LogEvent()                { log_line_submit(this->ll); }
+  ~LogEvent()
+  {
+    if (ll != nullptr)
+    {
+      log_line_submit(this->ll);
+      log_line_exit(ll);
+      log_free(msg);
+    }
+  }
 
   /**
     "Full customization" constructor.  Use one of the LogErr() macro
@@ -735,7 +757,16 @@ public:
   */
   LogEvent()
   {
-    ll= log_line_init(log_line_buffer, sizeof(log_line_buffer));
+    if ((ll= log_line_init()) != nullptr)
+    {
+      if ((msg= (char *) log_malloc(LOG_BUFF_MAX)) == nullptr)
+      {
+        log_line_exit(ll);
+        ll= nullptr;
+      }
+    }
+    else
+      msg= nullptr;
   }
 
   /**
@@ -922,7 +953,7 @@ public:
   LogEvent &host(LEX_CSTRING host)
   {
     log_set_lexstring(log_line_item_set(this->ll, LOG_ITEM_MSC_HOST),
-                       host.str, host.length);
+                      host.str, host.length);
     return *this;
   }
 

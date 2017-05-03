@@ -478,14 +478,14 @@ done:
 */
 DEFINE_METHOD(int, log_service_imp::run, (void *instance, log_line *ll))
 {
-  const char    *msg=        nullptr;
-  int            out_fields= 0;
-  enum loglevel  level=      ERROR_LEVEL;
-  log_item_type  item_type=  LOG_ITEM_END;
-  log_type_mask  out_types=  0;
+  const char         *msg=        nullptr;
+  int                 out_fields= 0;
+  enum loglevel       level=      ERROR_LEVEL;
+  log_item_type       item_type=  LOG_ITEM_END;
+  log_item_type_mask  out_types=  0;
 
-  log_item_iter *it;
-  log_item      *li;
+  log_item_iter      *it;
+  log_item           *li;
 
   if (!log_syslog_enabled)
     return -1;

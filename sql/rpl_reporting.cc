@@ -18,7 +18,7 @@
 #include <stddef.h>
 
 #include "current_thd.h"
-#include "log.h"               // sql_print_warning
+#include "log.h"
 #include "m_string.h"
 #include "my_dbug.h"
 #include "mysql/service_my_snprintf.h"
