@@ -151,7 +151,7 @@ static my_bool ignore_errors=0,wait_flag=0,quick=0,
                default_pager_set= 0, opt_sigint_ignore= 0,
                auto_vertical_output= 0,
                show_warnings= 0, executing_query= 0, interrupted_query= 0,
-               ignore_spaces= 0;
+               ignore_spaces= 0, opt_binhex= 0;
 static my_bool debug_info_flag, debug_check_flag;
 static my_bool column_types_flag;
 static my_bool preserve_comments= 0;
@@ -1567,6 +1567,8 @@ static struct my_option my_long_options[] =
   {"bind-address", 0, "IP address to bind to.",
    (uchar**) &opt_bind_addr, (uchar**) &opt_bind_addr, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"binary-as-hex", 'b', "Print binary data as hex", &opt_binhex, &opt_binhex,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"character-sets-dir", OPT_CHARSETS_DIR,
    "Directory for character set files.", &charsets_dir,
    &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -3690,6 +3692,39 @@ print_field_types(MYSQL_RES *result)
   tee_puts("", PAGER);
 }
 
+/* Used to determine if we should invoke print_as_hex for this field */
+
+static bool
+is_binary_field(MYSQL_FIELD *field)
+{
+  if ((field->charsetnr == 63) &&
+      (field->type == MYSQL_TYPE_BIT ||
+       field->type == MYSQL_TYPE_BLOB ||
+       field->type == MYSQL_TYPE_LONG_BLOB ||
+       field->type == MYSQL_TYPE_MEDIUM_BLOB ||
+       field->type == MYSQL_TYPE_TINY_BLOB ||
+       field->type == MYSQL_TYPE_VAR_STRING ||
+       field->type == MYSQL_TYPE_STRING ||
+       field->type == MYSQL_TYPE_VARCHAR ||
+       field->type == MYSQL_TYPE_GEOMETRY))
+    return 1;
+  return 0;
+}
+
+
+/* Print binary value as hex literal (0x ...) */
+
+static void
+print_as_hex(FILE *output_file, const char *str, ulong len, ulong total_bytes_to_send)
+{
+  const char *ptr= str, *end= ptr+len;
+  ulong i;
+  fprintf(output_file, "0x");
+  for(; ptr < end; ptr++)
+    fprintf(output_file, "%02X", *((uchar*)ptr));
+  for (i= 2*len+2; i < total_bytes_to_send; i++)
+    tee_putc((int)' ', output_file);
+}
 
 static void
 print_table_data(MYSQL_RES *result)
@@ -3719,6 +3754,8 @@ print_table_data(MYSQL_RES *result)
       length= max<size_t>(length, field->max_length);
     if (length < 4 && !IS_NOT_NULL(field->flags))
       length=4;					// Room for "NULL"
+    if (opt_binhex && is_binary_field(field))
+      length= 2 + length * 2;
     field->max_length=length;
     separator.fill(separator.length()+length+2,'-');
     separator.append('+');
@@ -3788,7 +3825,9 @@ print_table_data(MYSQL_RES *result)
       visible_length= charset_info->cset->numcells(charset_info, buffer, buffer + data_length);
       extra_padding= data_length - visible_length;
 
-      if (field_max_length > MAX_COLUMN_LENGTH)
+      if (opt_binhex && is_binary_field(field))
+        print_as_hex(PAGER, cur[off], lengths[off], field_max_length);
+      else if (field_max_length > MAX_COLUMN_LENGTH)
         tee_print_sized_data(buffer, data_length, MAX_COLUMN_LENGTH+extra_padding, FALSE);
       else
       {
@@ -3914,18 +3953,21 @@ print_table_data_html(MYSQL_RES *result)
     if (interrupted_query)
       break;
     ulong *lengths=mysql_fetch_lengths(result);
+    field= mysql_fetch_fields(result);
     (void) tee_fputs("<TR>", PAGER);
     for (uint i=0; i < mysql_num_fields(result); i++)
     {
       (void) tee_fputs("<TD>", PAGER);
-      xmlencode_print(cur[i], lengths[i]);
+      if (opt_binhex && is_binary_field(&field[i]))
+        print_as_hex(PAGER, cur[i], lengths[i], lengths[i]);
+      else
+        xmlencode_print(cur[i], lengths[i]);
       (void) tee_fputs("</TD>", PAGER);
     }
     (void) tee_fputs("</TR>", PAGER);
   }
   (void) tee_fputs("</TABLE>", PAGER);
 }
-
 
 static void
 print_table_data_xml(MYSQL_RES *result)
@@ -3954,7 +3996,10 @@ print_table_data_xml(MYSQL_RES *result)
       if (cur[i])
       {
         tee_fprintf(PAGER, "\">");
-        xmlencode_print(cur[i], lengths[i]);
+        if (opt_binhex && is_binary_field(&fields[i]))
+          print_as_hex(PAGER, cur[i], lengths[i], lengths[i]);
+        else
+          xmlencode_print(cur[i], lengths[i]);
         tee_fprintf(PAGER, "</field>\n");
       }
       else
@@ -3999,7 +4044,10 @@ print_table_data_vertically(MYSQL_RES *result)
         tee_fprintf(PAGER, "%*s: ",(int) max_length,field->name);
       if (cur[off])
       {
-        tee_write(PAGER, cur[off], lengths[off], MY_PRINT_SPS_0 | MY_PRINT_MB);
+        if (opt_binhex && is_binary_field(field))
+          print_as_hex(PAGER, cur[off], lengths[off], lengths[off]);
+        else
+          tee_write(PAGER, cur[off], lengths[off], MY_PRINT_SPS_0 | MY_PRINT_MB);
         tee_putc('\n', PAGER);
       }
       else
@@ -4108,11 +4156,21 @@ print_tab_data(MYSQL_RES *result)
   while ((cur = mysql_fetch_row(result)))
   {
     lengths=mysql_fetch_lengths(result);
-    safe_put_field(cur[0],lengths[0]);
+
+    field= mysql_fetch_fields(result);
+    if (opt_binhex && is_binary_field(&field[0]))
+      print_as_hex(PAGER, cur[0], lengths[0], lengths[0]);
+    else
+      safe_put_field(cur[0],lengths[0]);
+
     for (uint off=1 ; off < mysql_num_fields(result); off++)
     {
       (void) tee_fputs("\t", PAGER);
-      safe_put_field(cur[off], lengths[off]);
+
+      if (opt_binhex && field && is_binary_field(&field[off]))
+        print_as_hex(PAGER, cur[off], lengths[off], lengths[off]);
+      else
+        safe_put_field(cur[off], lengths[off]);
     }
     (void) tee_fputs("\n", PAGER);
   }
