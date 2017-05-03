@@ -526,7 +526,6 @@ update_slave_api_stats(Ndb* ndb)
 
 st_ndb_slave_state g_ndb_slave_state;
 
-#ifdef HAVE_NDB_BINLOG
 static int check_slave_config(THD* thd)
 {
   DBUG_ENTER("check_slave_config");
@@ -546,7 +545,6 @@ static int check_slave_config(THD* thd)
 
   DBUG_RETURN(0);
 }
-#endif
 
 static int check_slave_state(THD* thd)
 {
