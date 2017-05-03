@@ -24,9 +24,11 @@
 #include "my_dbug.h"
 #include "ndbapi/NdbApi.hpp"
 #include "portlib/NdbTick.h"
+#include "rpl_slave.h"      // report_port
 #include "util/BaseString.hpp"
 #include "util/Vector.hpp"
-#include "mysqld.h"         // server_id, connection_events_loop_aborted 
+#include "mysqld.h"         // server_id, connection_events_loop_aborted
+#include <netdb.h>          // getservbyname
 
 #include "ndb_sleep.h"
 
