@@ -267,7 +267,8 @@ public:
 
   int add_table(NdbDictionary::Dictionary* dic,
                 const NdbDictionary::Table* tab,
-                uint& tabid);
+                uint& tabid,
+                Error& error);
   const Table& get_table(uint tabid);
 
   // rows

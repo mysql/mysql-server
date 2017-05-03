@@ -24,7 +24,6 @@ NdbImportImpl::NdbImportImpl(NdbImport& facade) :
   m_error(m_util.c_error)
 {
   c_connectionindex = 0;
-  c_tabid = Inval_uint;
   log1("ctor");
 }
 
@@ -309,17 +308,20 @@ NdbImportImpl::do_disconnect()
 // tables
 
 int
-NdbImportImpl::add_table(const char* database, const char* table, uint& tabid)
+NdbImportImpl::add_table(const char* database,
+                         const char* table,
+                         uint& tabid,
+                         Error& error)
 {
   Connect& c = c_connect;
   if (!c.m_connected)
   {
-    m_util.set_error_usage(m_error, __LINE__);
+    m_util.set_error_usage(error, __LINE__);
     return -1;
   }
   if (database == 0 || table == 0)
   {
-    m_util.set_error_usage(m_error, __LINE__);
+    m_util.set_error_usage(error, __LINE__);
     return -1;
   }
   log1("add table " << database << "." << table);
@@ -328,7 +330,7 @@ NdbImportImpl::add_table(const char* database, const char* table, uint& tabid)
   {
     if (ndb->setDatabaseName(database) != 0)
     {
-      m_util.set_error_ndb(m_error, __LINE__, ndb->getNdbError());
+      m_util.set_error_ndb(error, __LINE__, ndb->getNdbError());
       return -1;
     }
   }
@@ -336,19 +338,11 @@ NdbImportImpl::add_table(const char* database, const char* table, uint& tabid)
   const NdbDictionary::Table* tab = dic->getTable(table);
   if (tab == 0)
   {
-    m_util.set_error_ndb(m_error, __LINE__, dic->getNdbError());
+    m_util.set_error_ndb(error, __LINE__, dic->getNdbError());
     return -1;
   }
-  if (m_util.add_table(dic, tab, tabid) != 0)
+  if (m_util.add_table(dic, tab, tabid, error) != 0)
     return -1;
-  return 0;
-}
-
-int
-NdbImportImpl::set_tabid(uint tabid)
-{
-  (void)m_util.get_table(tabid);
-  c_tabid = tabid;
   return 0;
 }
 
@@ -371,6 +365,7 @@ NdbImportImpl::Job::Job(NdbImportImpl& impl, uint jobno) :
 {
   m_runno = 0;
   m_state = JobState::State_null;
+  m_tabid = Inval_uint;
   m_dostop = false;
   m_fatal = false;
   m_teamcnt = 0;
@@ -520,6 +515,21 @@ NdbImportImpl::Job::add_team(Team* team)
   require(m_teamcnt < g_max_teams);
   m_teams[m_teamcnt] = team;
   m_teamcnt++;
+}
+
+int
+NdbImportImpl::Job::add_table(const char* database,
+                              const char* table,
+                              uint& tabid)
+{
+  return m_impl.add_table(database, table, tabid, m_error);
+}
+
+void
+NdbImportImpl::Job::set_table(uint tabid)
+{
+  (void)m_util.get_table(tabid);
+  m_tabid = tabid;
 }
 
 void
@@ -1066,7 +1076,7 @@ NdbImportImpl::Team::stop_worker(Worker* w)
 }
 
 void
-NdbImportImpl::Team::set_tabid(uint tabid)
+NdbImportImpl::Team::set_table(uint tabid)
 {
   (void)m_util.get_table(tabid);
   m_tabid = tabid;
@@ -1379,7 +1389,7 @@ void
 NdbImportImpl::RandomInputTeam::do_init()
 {
   log1("do_init");
-  set_tabid(m_impl.c_tabid);
+  set_table(m_job.m_tabid);
 }
 
 void
@@ -1550,7 +1560,7 @@ NdbImportImpl::CsvInputTeam::do_init()
     require(m_util.has_error());
     return;
   }
-  set_tabid(m_impl.c_tabid);
+  set_table(m_job.m_tabid);
   WorkerFile& file = m_file;
   file.set_path(opt.m_input_file);
   if (file.do_open(File::Read_flags) == -1)

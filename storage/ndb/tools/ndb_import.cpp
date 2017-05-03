@@ -722,24 +722,22 @@ doimp()
       g_opt.m_rowmap_file = arg.m_rowmap_file.c_str();
       g_opt.m_stats_file = arg.m_stats_file.c_str();
       CHK3(imp.set_opt(g_opt) == 0, "invalid options", imp.get_error());
-      {
-        uint tabid;
-        CHK3(imp.add_table(g_opt.m_database, g_opt.m_table, tabid) == 0,
-                           "table "<< g_opt.m_table <<
-                           " not found", imp.get_error());
-        CHK3(imp.set_tabid(tabid) == 0,
-                           "table "<< g_opt.m_table << " tabid=" << tabid <<
-                           " unexpected error", imp.get_error());
-      }
       NdbImport::Job job(imp);
-      job.do_create();
-      job.get_status();
-      doreport(job, 0);
-      job.do_start();
-      doerrinsstop(job);
-      if (g_opt.m_monitor != 0)
-        domonitor(job);
-      job.do_wait();
+      do
+      {
+        job.do_create();
+        job.get_status();
+        doreport(job, 0);
+        uint tabid;
+        if (job.add_table(g_opt.m_database, g_opt.m_table, tabid) == -1)
+          break;
+        job.set_table(tabid);
+        job.do_start();
+        doerrinsstop(job);
+        if (g_opt.m_monitor != 0)
+          domonitor(job);
+        job.do_wait();
+      } while (0);
       bool imp_error = imp.has_error();
       bool job_error = job.has_error();
       job.get_status();
