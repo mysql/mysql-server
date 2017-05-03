@@ -41,6 +41,10 @@ class GcsNodeAddressTest : public ::testing::Test
 protected:
   GcsNodeAddressTest() {};
 
+  static void SetUpTestCase()
+  {
+    My_xp_util::init_time();
+  }
 
   virtual void SetUp()
   {
@@ -134,6 +138,10 @@ class GcsUUIDTest : public ::testing::Test
 protected:
   GcsUUIDTest() {};
 
+  static void SetUpTestCase()
+  {
+    My_xp_util::init_time();
+  }
 
   virtual void SetUp()
   {
@@ -193,6 +201,10 @@ class GcsNodeInformationTest : public ::testing::Test
 protected:
   GcsNodeInformationTest() {};
 
+  static void SetUpTestCase()
+  {
+    My_xp_util::init_time();
+  }
 
   virtual void SetUp()
   {
@@ -288,6 +300,11 @@ class GcsNodesTest : public ::testing::Test
 {
 protected:
   GcsNodesTest() {};
+
+  static void SetUpTestCase()
+  {
+    My_xp_util::init_time();
+  }
 
   virtual void SetUp()
   {
