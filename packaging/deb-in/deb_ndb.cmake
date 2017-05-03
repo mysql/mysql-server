@@ -79,6 +79,15 @@ Description: memcached
  This package contains the standard memcached server and a loadable
  storage engine for memcached using the Memcache API for MySQL Cluster
  to provide a persistent MySQL Cluster data store.
+
+Package: mysql-${DEB_PRODUCTNAME}-nodejs
+Architecture: any
+Depends: \${shlibs:Depends}, \${misc:Depends}
+Description: nodejs
+ This package contains MySQL NoSQL Connector for JavaScript, a set of
+ Node.js adapters for MySQL Cluster and MySQL Server, which make it
+ possible to write JavaScript applications for Node.js using MySQL
+ data.
 ")
 
   SET (DEB_NDB_CLIENT_EXTRA
@@ -143,6 +152,7 @@ Description: memcached
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/${DEB_INSTALL_LICENSEFILE} debian/tmp/usr/share/doc/mysql-${DEB_PRODUCTNAME}-java/${DEB_INSTALL_LICENSEFILE}
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/${DEB_INSTALL_LICENSEFILE} debian/tmp/usr/share/doc/mysql-${DEB_PRODUCTNAME}-management-server/${DEB_INSTALL_LICENSEFILE}
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/${DEB_INSTALL_LICENSEFILE} debian/tmp/usr/share/doc/mysql-${DEB_PRODUCTNAME}-memcached/${DEB_INSTALL_LICENSEFILE}
+	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/${DEB_INSTALL_LICENSEFILE} debian/tmp/usr/share/doc/mysql-${DEB_PRODUCTNAME}-nodejs/${DEB_INSTALL_LICENSEFILE}
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/${DEB_INSTALL_LICENSEFILE} debian/tmp/usr/share/doc/ndbclient/${DEB_INSTALL_LICENSEFILE}
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/${DEB_INSTALL_LICENSEFILE} debian/tmp/usr/share/doc/ndbclient-dev/${DEB_INSTALL_LICENSEFILE}
 ")
@@ -153,6 +163,7 @@ Description: memcached
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/README debian/tmp/usr/share/doc/mysql-${DEB_PRODUCTNAME}-java/README
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/README debian/tmp/usr/share/doc/mysql-${DEB_PRODUCTNAME}-management-server/README
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/README debian/tmp/usr/share/doc/mysql-${DEB_PRODUCTNAME}-memcached/README
+	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/README debian/tmp/usr/share/doc/mysql-${DEB_PRODUCTNAME}-nodejs/README
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/README debian/tmp/usr/share/doc/ndbclient/README
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/README debian/tmp/usr/share/doc/ndbclient-dev/README
 ")
@@ -163,6 +174,7 @@ Description: memcached
 	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/mysql-@DEB_PRODUCTNAME@-java
 	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/mysql-@DEB_PRODUCTNAME@-management-server
 	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/mysql-@DEB_PRODUCTNAME@-memcached
+	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/mysql-@DEB_PRODUCTNAME@-nodejs
 	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/ndbclient
 	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/ndbclient-dev
 ")
