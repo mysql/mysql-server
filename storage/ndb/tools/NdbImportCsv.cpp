@@ -1471,7 +1471,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
       {
         m_util.set_error_data(
           error, __LINE__, 0,
-          "line %llu field %u: eval %u failed: bad format",
+          "line %llu field %u: eval %s failed: bad format",
           linenr, fieldnr, attr.m_sqltype);
         break;
       }
@@ -2241,7 +2241,7 @@ NdbImportCsv::Eval::eval_null(Row* row, Line* line, Field* field)
     {
       m_util.set_error_data(
         error, __LINE__, 0,
-        "line %llu field %u: setting non-nullable attr to NULL",
+        "line %u field %u: setting non-nullable attr to NULL",
         lineno, fieldno);
       break;
     }
