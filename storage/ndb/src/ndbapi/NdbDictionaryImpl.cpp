@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -6107,7 +6107,7 @@ NdbDictionaryImpl::listObjects(List& list,
 }
 
 int
-NdbDictionaryImpl::listIndexes(List& list, Uint32 indexId)
+NdbDictionaryImpl::listIndexes(List& list, Uint32 indexId, bool fullyQualified)
 {
   ListTablesReq req;
   req.init();
@@ -6115,7 +6115,7 @@ NdbDictionaryImpl::listIndexes(List& list, Uint32 indexId)
   req.setTableType(0);
   req.setListNames(true);
   req.setListIndexes(true);
-  return m_receiver.listObjects(list, req, m_ndb.usingFullyQualifiedNames());
+  return m_receiver.listObjects(list, req, fullyQualified);
 }
 
 int
