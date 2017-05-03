@@ -52,6 +52,7 @@ public:
     const char* m_database;
     const char* m_state_dir;
     bool m_keep_state;
+    bool m_stats;
     const char* m_table;
     const char* m_input_type;
     const char* m_input_file;

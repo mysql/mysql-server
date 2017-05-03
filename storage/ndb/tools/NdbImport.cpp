@@ -58,6 +58,7 @@ NdbImport::Opt::Opt()
   m_database = 0;
   m_state_dir = ".";
   m_keep_state = false;
+  m_stats = false;
   m_table = 0;
   m_input_type = "csv";
   m_input_file = 0;

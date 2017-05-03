@@ -76,9 +76,13 @@ my_long_options[] =
   { "keep-state", NDB_OPT_NOSHORT,
     "By default state files are removed when the job completes"
     " successfully, except if there were any rejects (within allowed limit)"
-    " then *.rej is kept. This option keeps all state files"
-    " e.g. for study of stats *.stt",
+    " then *.rej is kept. This option keeps all state files",
     &g_opt.m_keep_state, &g_opt.m_keep_state, 0,
+    GET_BOOL, NO_ARG, false, 0, 0, 0, 0, 0 },
+  { "stats", NDB_OPT_NOSHORT,
+    "Collect internal statistics and write them into an additional"
+    " state file *.stt. The file is kept also on successful completion",
+    &g_opt.m_stats, &g_opt.m_stats, 0,
     GET_BOOL, NO_ARG, false, 0, 0, 0, 0, 0 },
   { "input-type", NDB_OPT_NOSHORT,
     "Input type: csv,random"
@@ -282,9 +286,9 @@ short_usage_sub(void)
     "test.t1 test.t2.\n"
     "\n"
     "For each job (load of one table), results, rejected rows,\n"
-    "processed row ranges, and stats are written to state files\n"
-    "with suffixes .res, .rej, .map, and .stt.  By default these\n"
-    "are removed when the job completes successfully with no rejects.\n"
+    "and processed row ranges are written to \"state files\" with\n"
+    "suffixes .res, .rej, and .map.  By default these are removed\n"
+    "when the job completes successfully with no rejects.\n"
     "See options --state-dir and --keep-state.\n"
     "\n",
     my_progname);
@@ -756,7 +760,6 @@ doimp()
         if (job.m_stats.m_reject == 0)
           removefile(g_opt.m_reject_file);
         removefile(g_opt.m_rowmap_file);
-        removefile(g_opt.m_stats_file);
       }
       job.do_destroy();
       jobs_run++;

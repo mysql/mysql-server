@@ -3299,20 +3299,24 @@ NdbImportImpl::DiagTeam::open_new_diags()
   }
   log1("file: opened: " << m_rowmap_file.get_path());
   // stats
-  m_stats_file.set_path(opt.m_stats_file);
-  if (m_stats_file.do_open(openflags) == -1)
+  if (opt.m_stats)
   {
-    require(has_error());
-    m_job.m_fatal = true;
-    return;
+    m_stats_file.set_path(opt.m_stats_file);
+    if (m_stats_file.do_open(openflags) == -1)
+    {
+      require(has_error());
+      m_job.m_fatal = true;
+      return;
+    }
+    log1("file: opened: " << m_stats_file.get_path());
   }
-  log1("file: opened: " << m_stats_file.get_path());
 }
 
 void
 NdbImportImpl::DiagTeam::do_end()
 {
   log1("do_end");
+  const Opt& opt = m_util.c_opt;
   if (m_result_file.do_close() == -1)
   {
     require(has_error());
@@ -3328,10 +3332,13 @@ NdbImportImpl::DiagTeam::do_end()
     require(has_error());
     // continue
   }
-  if (m_stats_file.do_close() == -1)
+  if (opt.m_stats)
   {
-    require(has_error());
-    // continue
+    if (m_stats_file.do_close() == -1)
+    {
+      require(has_error());
+      // continue
+    }
   }
 }
 
@@ -3425,6 +3432,7 @@ NdbImportImpl::DiagWorker::do_init()
     }
   }
   // stats
+  if (opt.m_stats)
   {
     File& file = static_cast<DiagTeam&>(m_team).m_stats_file;
     Buf& buf = m_stats_buf;
@@ -3467,13 +3475,17 @@ NdbImportImpl::DiagWorker::do_run()
 void
 NdbImportImpl::DiagWorker::do_end()
 {
+  const Opt& opt = m_util.c_opt;
   log1("do_end");
   // result
   write_result();
   // rowmap
   write_rowmap();
   // stats
-  write_stats();
+  if (opt.m_stats)
+  {
+    write_stats();
+  }
 }
 
 void
