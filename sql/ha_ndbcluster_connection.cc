@@ -28,7 +28,9 @@
 #include "util/BaseString.hpp"
 #include "util/Vector.hpp"
 #include "mysqld.h"         // server_id, connection_events_loop_aborted
+#ifndef _WIN32
 #include <netdb.h>          // getservbyname
+#endif
 
 #include "ndb_sleep.h"
 
