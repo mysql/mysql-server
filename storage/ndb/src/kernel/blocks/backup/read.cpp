@@ -474,6 +474,7 @@ NdbOut & operator<<(NdbOut& ndbout,
   ndbout << "ValidFlag: " << lcf.ValidFlag << endl;
   ndbout << "TableId: " << lcf.TableId << endl;
   ndbout << "FragmentId: " << lcf.FragmentId << endl;
+  ndbout << "CreateTableVersion: " << lcf.CreateTableVersion << endl;
   ndbout << "CreateGci: " << lcf.CreateGci << endl;
   ndbout << "MaxGciCompleted: " << lcf.MaxGciCompleted << endl;
   ndbout << "MaxGciWritten: " << lcf.MaxGciWritten << endl;
@@ -508,6 +509,8 @@ readLCPCtlFile(ndbzio_stream* f, BackupFormat::LCPCtlFile *ret)
   theData.LCPCtlFile.ValidFlag = ntohl(theData.LCPCtlFile.ValidFlag);
   theData.LCPCtlFile.TableId = ntohl(theData.LCPCtlFile.TableId);
   theData.LCPCtlFile.FragmentId = ntohl(theData.LCPCtlFile.FragmentId);
+  theData.LCPCtlFile.CreateTableVersion =
+    ntohl(theData.LCPCtlFile.CreateTableVersion);
   theData.LCPCtlFile.CreateGci = ntohl(theData.LCPCtlFile.CreateGci);
   theData.LCPCtlFile.MaxGciCompleted =
     ntohl(theData.LCPCtlFile.MaxGciCompleted);

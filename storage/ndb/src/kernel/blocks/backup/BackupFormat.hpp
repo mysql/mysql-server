@@ -110,6 +110,7 @@ struct BackupFormat {
     Uint32 ValidFlag;
     Uint32 TableId;
     Uint32 FragmentId;
+    Uint32 CreateTableVersion;
     Uint32 CreateGci;
     Uint32 MaxGciCompleted;
     Uint32 MaxGciWritten;
