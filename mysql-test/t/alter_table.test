@@ -2911,3 +2911,136 @@ TRUNCATE TABLE t1;
 --echo # Operation below succeeds, since the table has no records.
 ALTER TABLE t1 ADD COLUMN fld4 DATETIME NOT NULL, ALGORITHM=INPLACE;
 DROP TABLE t1;
+
+
+--echo #
+--echo # BUG#25385334: MYSQL 5.7 ERROR WITH ALTER TABLE MODIFY SYNTAX
+--echo #               AND DATETIME TYPE.
+
+SET @saved_sql_mode = @@session.sql_mode;
+
+--echo # Test case with both strict mode and 'NO_ZERO_DATE' enabled.
+CREATE TABLE t1 (fld1 INT, fld2 DATETIME NOT NULL) ENGINE= INNODB;
+CREATE TABLE t2 (fld1 INT, fld2 POINT NOT NULL) ENGINE= INNODB;
+
+INSERT INTO t1 VALUES(1, '2000-01-01');
+INSERT INTO t2 values(1,  ST_PointFromText('POINT(10 10)'));
+
+--echo # Without patch, the following statments report error.
+ALTER TABLE t1 MODIFY fld2 DATETIME NOT NULL AFTER fld1;
+ALTER TABLE t2 MODIFY fld2 POINT NOT NULL AFTER fld1;
+
+--echo # Without patch, the following statments report error.
+ALTER TABLE t1 MODIFY fld2 DATETIME NOT NULL FIRST, ALGORITHM= COPY;
+ALTER TABLE t2 MODIFY fld2 POINT NOT NULL FIRST, ALGORITHM= COPY;
+
+--echo # Tests added for coverage.
+--error ER_TRUNCATED_WRONG_VALUE
+ALTER TABLE t1 MODIFY fld2 DATETIME NOT NULL AFTER fld1,
+               ADD COLUMN fld3 DATETIME NOT NULL;
+--error ER_INVALID_USE_OF_NULL
+ALTER TABLE t2 MODIFY fld2 POINT NOT NULL AFTER fld1,
+               ADD COLUMN fld3 MULTIPOINT NOT NULL;
+
+--error ER_TRUNCATED_WRONG_VALUE
+ALTER TABLE t1 MODIFY fld2 DATETIME NOT NULL AFTER fld1,
+               ADD COLUMN fld3 DATETIME NOT NULL, ALGORITHM= COPY;
+--error ER_INVALID_USE_OF_NULL
+ALTER TABLE t2 MODIFY fld2 POINT NOT NULL AFTER fld1,
+               ADD COLUMN fld3 MULTIPOINT NOT NULL, ALGORITHM= COPY;
+
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+
+--echo # Without patch, the following statments report error.
+ALTER TABLE t1 MODIFY fld2 DATETIME NOT NULL AFTER fld1;
+ALTER TABLE t2 MODIFY fld2 POINT NOT NULL AFTER fld1;
+
+--echo # Without patch, the following statments report error.
+ALTER TABLE t1 MODIFY fld2 DATETIME NOT NULL FIRST, ALGORITHM= COPY;
+ALTER TABLE t2 MODIFY fld2 POINT NOT NULL FIRST, ALGORITHM= COPY;
+
+--echo # Tests added for coverage.
+ALTER TABLE t1 MODIFY fld2 DATETIME NOT NULL AFTER fld1,
+               ADD COLUMN fld3 DATETIME NOT NULL;
+ALTER TABLE t2 MODIFY fld2 POINT NOT NULL AFTER fld1,
+               ADD COLUMN fld3 MULTIPOINT NOT NULL;
+
+ALTER TABLE t1 MODIFY fld2 DATETIME NOT NULL AFTER fld1,
+               ADD COLUMN fld4 DATETIME NOT NULL, ALGORITHM= COPY;
+ALTER TABLE t2 MODIFY fld2 POINT NOT NULL AFTER fld1,
+               ADD COLUMN fld4 MULTIPOINT NOT NULL, ALGORITHM= COPY;
+
+DROP TABLE t1, t2;
+
+--echo # Test case when a non date column is converted to datetime column.
+
+--echo # Test case without any sql mode enabled.
+SET SESSION sql_mode= '';
+CREATE TABLE t1 (fld1 char(25)) ENGINE= INNODB;
+INSERT INTO t1 VALUES('0000-00-00');
+
+--echo # No error or warning is reported.
+ALTER TABLE t1 MODIFY fld1 DATETIME NOT NULL;
+
+DROP TABLE t1;
+
+--echo # Test case with only 'NO_ZERO_DATE' enabled.
+SET SESSION sql_mode= 'NO_ZERO_DATE';
+CREATE TABLE t1 (fld1 char(25)) ENGINE= INNODB;
+INSERT INTO t1 VALUES('0000-00-00');
+
+--echo # Reports only a warning.
+ALTER TABLE t1 MODIFY fld1 DATETIME NOT NULL;
+
+DROP TABLE t1;
+
+SET SESSION sql_mode= 'STRICT_ALL_TABLES';
+CREATE TABLE t1 (fld1 char(25)) ENGINE= INNODB;
+INSERT INTO t1 VALUES('0000-00-00');
+
+--echo # No error or warning is reported.
+ALTER TABLE t1 MODIFY fld1 DATETIME NOT NULL;
+
+DROP TABLE t1;
+
+--echo # Test case with both STRICT MODE and 'NO_ZERO_DATE' enabled.
+SET SESSION sql_mode= @saved_sql_mode;
+CREATE TABLE t1 (fld1 char(25)) ENGINE= INNODB;
+INSERT INTO t1 VALUES('0000-00-00');
+
+--echo # Reports an error.
+--error ER_TRUNCATED_WRONG_VALUE
+ALTER TABLE t1 MODIFY fld1 DATETIME NOT NULL;
+
+DROP TABLE t1;
+
+--echo # Test case when a NULL column is converted to NOT NULL column
+CREATE TABLE t1 (fld0 DATETIME, fld1 INT, fld2 DATETIME NOT NULL) ENGINE= INNODB;
+CREATE TABLE t2 (fld0 POINT, fld1 INT, fld2 POINT NOT NULL) ENGINE= INNODB;
+INSERT INTO t1 VALUES('2000-01-01', 1, '2000-01-01');
+INSERT INTO t2 values(ST_PointFromText('POINT(10 10)'), 1,
+                      ST_PointFromText('POINT(10 10)'));
+
+--echo # Reports an error without patch.
+ALTER TABLE t1 MODIFY fld0 DATETIME NOT NULL AFTER fld2;
+
+--echo # Reports an error without patch
+ALTER TABLE t2 MODIFY fld0 POINT NOT NULL AFTER fld2;
+
+DROP TABLE t1, t2;
+
+--echo # Test case demonstrating the NULL constraint check done by SE.
+CREATE TABLE t1 (fld0 DATETIME, fld1 INT, fld2 DATETIME NOT NULL) ENGINE= INNODB;
+CREATE TABLE t2 (fld0 POINT, fld1 INT, fld2 POINT NOT NULL) ENGINE= INNODB;
+
+INSERT INTO t1 VALUES(NULL, 1, '2000-01-01');
+INSERT INTO t2 values(NULL, 1, ST_PointFromText('POINT(10 10)'));
+
+--error ER_INVALID_USE_OF_NULL
+ALTER TABLE t1 MODIFY fld0 DATETIME NOT NULL;
+
+--error ER_INVALID_USE_OF_NULL
+ALTER TABLE t2 MODIFY fld0 POINT NOT NULL;
+
+DROP TABLE t1, t2;
