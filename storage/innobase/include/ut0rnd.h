@@ -36,13 +36,6 @@ in folding records */
 #define UT_END_OF_FIELD		257
 
 /********************************************************//**
-This is used to set the random number seed. */
-UNIV_INLINE
-void
-ut_rnd_set_seed(
-/*============*/
-	ulint	 seed);		 /*!< in: seed */
-/********************************************************//**
 The following function generates a series of 'random' ulint integers.
 @return the next 'random' number */
 UNIV_INLINE
