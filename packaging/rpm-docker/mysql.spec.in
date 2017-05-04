@@ -183,7 +183,7 @@ done
 rm -rf %{buildroot}%{_libdir}/mysql/libmysql*
 
 # Removing some tools
-for f in innochecksum myisamchk myisam_ftdump myisamlog myisampack mysqladmin \
+for f in innochecksum myisamchk myisam_ftdump myisamlog myisampack \
          mysqlbinlog mysqlcheck mysqld_safe mysql_client_test mysql_config_editor \
          mysqld_multi mysqldumpslow mysql_embedded mysqlimport \
          mysql_plugin mysql_secure_installation mysqlshow mysqlslap  mysqltest \
@@ -270,6 +270,7 @@ rm -r $(readlink var) var
 
 %attr(755, root, root) %{_sbindir}/mysqld
 %attr(755, root, root) %{_bindir}/mysql
+%attr(755, root, root) %{_bindir}/mysqladmin
 %attr(755, root, root) %{_bindir}/mysqldump
 %attr(755, root, root) %{_bindir}/mysqlpump
 %attr(755, root, root) %{_bindir}/mysql_config
