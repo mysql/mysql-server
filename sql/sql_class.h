@@ -962,7 +962,8 @@ public:
     so a lock is needed to prevent race conditions.
     Protected by @c LOCK_thd_data.
   */
-  HASH    user_vars;			// hash for user variables
+  collation_unordered_map<std::string, unique_ptr_with_deleter<user_var_entry>>
+    user_vars{system_charset_info, key_memory_user_var_entry};
   String  convert_buffer;               // buffer for charset conversions
   struct  rand_struct rand;		// used for authentication
   struct  System_variables variables;	// Changeable local variables
@@ -1232,7 +1233,8 @@ public:
 
   ulong max_client_packet_length;
 
-  HASH		handler_tables_hash;
+  collation_unordered_map<std::string, unique_ptr_my_free<TABLE_LIST>>
+    handler_tables_hash{&my_charset_latin1, key_memory_THD_handler_tables_hash};
   /*
     A thread can hold named user-level locks. This variable
     contains granted tickets if a lock is present. See item_func.cc and

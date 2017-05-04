@@ -111,6 +111,11 @@ class sp_rcontext;
 using std::min;
 using std::max;
 
+static void free_user_var(user_var_entry *entry)
+{
+  entry->destroy();
+}
+
 bool check_reserved_words(LEX_STRING *name)
 {
   if (!my_strcasecmp(system_charset_info, name->str, "GLOBAL") ||
@@ -6233,25 +6238,19 @@ longlong Item_func_sleep::val_int()
 static user_var_entry *get_variable(THD *thd, const Name_string &name,
                                     const CHARSET_INFO *cs)
 {
-  user_var_entry *entry;
-  HASH *hash= & thd->user_vars;
+  const std::string key(name.ptr(), name.length());
 
   /* Protects thd->user_vars. */
   mysql_mutex_assert_owner(&thd->LOCK_thd_data);
 
-  if (!(entry= (user_var_entry*) my_hash_search(hash, (uchar*) name.ptr(),
-                                                 name.length())) &&
-        cs != NULL)
+  user_var_entry *entry= find_or_nullptr(thd->user_vars, key);
+  if (entry == nullptr && cs != nullptr)
   {
-    if (!my_hash_inited(hash))
+    entry= user_var_entry::create(thd, name, cs);
+    if (entry == nullptr)
       return 0;
-    if (!(entry= user_var_entry::create(thd, name, cs)))
-      return 0;
-    if (my_hash_insert(hash,(uchar*) entry))
-    {
-      my_free(entry);
-      return 0;
-    }
+    thd->user_vars.emplace(
+      key, unique_ptr_with_deleter<user_var_entry>(entry, &free_user_var));
   }
   return entry;
 }

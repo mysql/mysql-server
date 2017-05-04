@@ -270,21 +270,6 @@ THD::Attachable_trx::~Attachable_trx()
   }
 }
 
-
-static const uchar *get_var_key(const uchar *arg, size_t *length)
-{
-  const user_var_entry *entry= pointer_cast<const user_var_entry*>(arg);
-  *length= entry->entry_name.length();
-  return (uchar*) entry->entry_name.ptr();
-}
-
-static void free_user_var(void *arg)
-{
-  user_var_entry *entry= pointer_cast<user_var_entry*>(arg);
-  entry->destroy();
-}
-
-
 void THD::enter_stage(const PSI_stage_info *new_stage,
                       PSI_stage_info *old_stage,
                       const char *calling_func MY_ATTRIBUTE((unused)),
@@ -508,10 +493,7 @@ THD::THD(bool enable_plugins)
   profiling.set_thd(this);
 #endif
   m_user_connect= NULL;
-  my_hash_init(&user_vars, system_charset_info, USER_VARS_HASH_SIZE, 0,
-               get_var_key,
-               free_user_var, 0,
-               key_memory_user_var_entry);
+  user_vars.clear();
 
   sp_proc_cache= NULL;
   sp_func_cache= NULL;
@@ -915,10 +897,7 @@ void THD::cleanup_connection(void)
   cleanup_done= 0;
   init();
   stmt_map.reset();
-  my_hash_init(&user_vars, system_charset_info, USER_VARS_HASH_SIZE, 0,
-               get_var_key,
-               free_user_var, 0,
-               key_memory_user_var_entry);
+  user_vars.clear();
   sp_cache_clear(&sp_proc_cache);
   sp_cache_clear(&sp_func_cache);
 
@@ -1007,7 +986,7 @@ void THD::cleanup(void)
 
   /* Protects user_vars. */
   mysql_mutex_lock(&LOCK_thd_data);
-  my_hash_free(&user_vars);
+  user_vars.clear();
   mysql_mutex_unlock(&LOCK_thd_data);
 
   /*
@@ -2493,7 +2472,7 @@ void THD::leave_locked_tables_mode()
       Also ensure that we don't release metadata locks for open HANDLERs
       and user-level locks.
     */
-    if (handler_tables_hash.records)
+    if (!handler_tables_hash.empty())
       mysql_ha_set_explicit_lock_duration(this);
     if (!ull_hash.empty())
       mysql_ull_set_explicit_lock_duration(this);
@@ -2862,7 +2841,10 @@ void THD::claim_memory_ownership()
     p->claim_memory_ownership();
   session_tracker.claim_memory_ownership();
   session_sysvar_res_mgr.claim_memory_ownership();
-  my_hash_claim(&user_vars);
+  for (const auto &key_and_value : user_vars)
+  {
+    my_claim(key_and_value.second.get());
+  }
 #if defined(ENABLED_DEBUG_SYNC)
   debug_sync_claim_memory_ownership(this);
 #endif /* defined(ENABLED_DEBUG_SYNC) */

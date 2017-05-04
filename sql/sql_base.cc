@@ -5789,7 +5789,7 @@ restart:
     the current session (i.e. to avoid having a DDL blocked by HANDLERs
     opened for a long time).
   */
-  if (thd->handler_tables_hash.records)
+  if (!thd->handler_tables_hash.empty())
     mysql_ha_flush(thd);
 
   has_prelocking_list= thd->lex->requires_prelocking();

@@ -98,15 +98,13 @@ int get_user_var_int(const char *name,
   /* Protects thd->user_vars. */
   mysql_mutex_lock(&thd->LOCK_thd_data);
 
-  user_var_entry *entry=
-    (user_var_entry*) my_hash_search(&thd->user_vars,
-                                  (uchar*) name, strlen(name));
-  if (!entry)
+  const auto it= thd->user_vars.find(name);
+  if (it == thd->user_vars.end())
   {
     mysql_mutex_unlock(&thd->LOCK_thd_data);
     return 1;
   }
-  *value= entry->val_int(&null_val);
+  *value= it->second->val_int(&null_val);
   if (null_value)
     *null_value= null_val;
   mysql_mutex_unlock(&thd->LOCK_thd_data);
@@ -122,15 +120,13 @@ int get_user_var_real(const char *name,
   /* Protects thd->user_vars. */
   mysql_mutex_lock(&thd->LOCK_thd_data);
 
-  user_var_entry *entry=
-    (user_var_entry*) my_hash_search(&thd->user_vars,
-                                  (uchar*) name, strlen(name));
-  if (!entry)
+  const auto it= thd->user_vars.find(name);
+  if (it == thd->user_vars.end())
   {
     mysql_mutex_unlock(&thd->LOCK_thd_data);
     return 1;
   }
-  *value= entry->val_real(&null_val);
+  *value= it->second->val_real(&null_val);
   if (null_value)
     *null_value= null_val;
   mysql_mutex_unlock(&thd->LOCK_thd_data);
@@ -147,15 +143,13 @@ int get_user_var_str(const char *name, char *value,
   /* Protects thd->user_vars. */
   mysql_mutex_lock(&thd->LOCK_thd_data);
 
-  user_var_entry *entry=
-    (user_var_entry*) my_hash_search(&thd->user_vars,
-                                  (uchar*) name, strlen(name));
-  if (!entry)
+  const auto it= thd->user_vars.find(name);
+  if (it == thd->user_vars.end())
   {
     mysql_mutex_unlock(&thd->LOCK_thd_data);
     return 1;
   }
-  entry->val_str(&null_val, &str, precision);
+  it->second->val_str(&null_val, &str, precision);
   strncpy(value, str.c_ptr(), len);
   if (null_value)
     *null_value= null_val;

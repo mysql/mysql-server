@@ -168,6 +168,22 @@ public:
          Malloc_allocator<>(psi_key)) {}
 };
 
+/**
+  std::unordered_set, but with my_malloc and collation-aware comparison.
+*/
+template<class Key>
+class collation_unordered_set
+  : public std::unordered_set<Key, Collation_hasher, Collation_key_equal,
+                              Malloc_allocator<Key>>
+{
+public:
+  collation_unordered_set(CHARSET_INFO *cs, PSI_memory_key psi_key)
+    : std::unordered_set<Key, Collation_hasher, Collation_key_equal,
+                         Malloc_allocator<Key>>
+        (/*bucket_count=*/ 10, Collation_hasher(cs), Collation_key_equal(cs),
+         Malloc_allocator<>(psi_key)) {}
+};
+
 /** std::unordered_set, but allocated on a MEM_ROOT.  */
 template<class Key,
          class Hash = std::hash<Key>,

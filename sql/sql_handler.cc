@@ -114,54 +114,6 @@ static enum_ha_read_modes rkey_to_rnext[]=
 
 static bool mysql_ha_open_table(THD *thd, TABLE_LIST *table);
 
-/*
-  Get hash key and hash key length.
-
-  SYNOPSIS
-    mysql_ha_hash_get_key()
-    tables                      Pointer to the hash object.
-    key_len_p   (out)           Pointer to the result for key length.
-    first                       Unused.
-
-  DESCRIPTION
-    The hash object is an TABLE_LIST struct.
-    The hash key is the alias name.
-    The hash key length is the alias name length plus one for the
-    terminateing NUL character.
-
-  RETURN
-    Pointer to the TABLE_LIST struct.
-*/
-
-static const uchar *mysql_ha_hash_get_key(const uchar *arg,
-                                          size_t *key_len_p)
-{
-  const TABLE_LIST *tables= pointer_cast<const TABLE_LIST*>(arg);
-  *key_len_p= strlen(tables->alias) + 1 ; /* include '\0' in comparisons */
-  return pointer_cast<const uchar*>(tables->alias);
-}
-
-
-/*
-  Free an hash object.
-
-  SYNOPSIS
-    mysql_ha_hash_free()
-    tables                      Pointer to the hash object.
-
-  DESCRIPTION
-    The hash object is an TABLE_LIST struct.
-
-  RETURN
-    Nothing
-*/
-
-static void mysql_ha_hash_free(void *arg)
-{
-  TABLE_LIST *tables= pointer_cast<TABLE_LIST*>(arg);
-  my_free(tables);
-}
-
 /**
   Close a HANDLER table.
 
@@ -233,38 +185,19 @@ bool Sql_cmd_handler_open::execute(THD *thd)
     DBUG_RETURN(TRUE);
   }
 
-  if (! my_hash_inited(&thd->handler_tables_hash))
-  {
-    /*
-      HASH entries are of type TABLE_LIST.
-    */
-    if (my_hash_init(&thd->handler_tables_hash, &my_charset_latin1,
-                     HANDLER_TABLES_HASH_SIZE, 0,
-                     mysql_ha_hash_get_key,
-                     mysql_ha_hash_free, 0,
-                     key_memory_THD_handler_tables_hash))
-    {
-      DBUG_PRINT("exit",("ERROR"));
-      DBUG_RETURN(TRUE);
-    }
-  }
-  else
-  {
-    /*
-      Otherwise we might have handler with the same name already.
+  /*
+    We might have a handler with the same name already.
 
-      Note that it is safe to disclose this information before doing privilege
-      check. Current user can always find out that handler is open by using
-      HANDLER ... READ command, which doesn't requires any privileges.
-    */
-    if (my_hash_search(&thd->handler_tables_hash, (uchar*) tables->alias,
-                       strlen(tables->alias) + 1))
-    {
-      DBUG_PRINT("info",("duplicate '%s'", tables->alias));
-      DBUG_PRINT("exit",("ERROR"));
-      my_error(ER_NONUNIQ_TABLE, MYF(0), tables->alias);
-      DBUG_RETURN(TRUE);
-    }
+    Note that it is safe to disclose this information before doing privilege
+    check. Current user can always find out that handler is open by using
+    HANDLER ... READ command, which doesn't requires any privileges.
+  */
+  if (thd->handler_tables_hash.count(tables->alias) != 0)
+  {
+    DBUG_PRINT("info",("duplicate '%s'", tables->alias));
+    DBUG_PRINT("exit",("ERROR"));
+    my_error(ER_NONUNIQ_TABLE, MYF(0), tables->alias);
+    DBUG_RETURN(TRUE);
   }
 
   /* copy the TABLE_LIST struct */
@@ -308,12 +241,8 @@ bool Sql_cmd_handler_open::execute(THD *thd)
   /* for now HANDLER can be used only for real TABLES */
   hash_tables->required_type= dd::enum_table_type::BASE_TABLE;
   /* add to hash */
-  if (my_hash_insert(&thd->handler_tables_hash, (uchar*) hash_tables))
-  {
-    my_free(hash_tables);
-    DBUG_PRINT("exit",("ERROR"));
-    DBUG_RETURN(TRUE);
-  }
+  thd->handler_tables_hash.emplace(
+    alias, unique_ptr_my_free<TABLE_LIST>(hash_tables));
 
   if (open_temporary_tables(thd, hash_tables) ||
       check_table_access(thd, SELECT_ACL, hash_tables, FALSE, UINT_MAX,
@@ -321,7 +250,7 @@ bool Sql_cmd_handler_open::execute(THD *thd)
       mysql_ha_open_table(thd, hash_tables))
 
   {
-    my_hash_delete(&thd->handler_tables_hash, (uchar*) hash_tables);
+    thd->handler_tables_hash.erase(alias);
     DBUG_PRINT("exit",("ERROR"));
     DBUG_RETURN(TRUE);
   }
@@ -449,7 +378,6 @@ static bool mysql_ha_open_table(THD *thd, TABLE_LIST *hash_tables)
 bool Sql_cmd_handler_close::execute(THD *thd)
 {
   TABLE_LIST    *tables= thd->lex->select_lex->get_table_list();
-  TABLE_LIST    *hash_tables;
   DBUG_ENTER("Sql_cmd_handler_close::execute");
   DBUG_PRINT("enter",("'%s'.'%s' as '%s'",
                       tables->db, tables->table_name, tables->alias));
@@ -459,12 +387,11 @@ bool Sql_cmd_handler_close::execute(THD *thd)
     my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
     DBUG_RETURN(TRUE);
   }
-  if ((hash_tables= (TABLE_LIST*) my_hash_search(&thd->handler_tables_hash,
-                                                 (uchar*) tables->alias,
-                                                 strlen(tables->alias) + 1)))
+  auto it= thd->handler_tables_hash.find(tables->alias);
+  if (it != thd->handler_tables_hash.end())
   {
-    mysql_ha_close_table(thd, hash_tables);
-    my_hash_delete(&thd->handler_tables_hash, (uchar*) hash_tables);
+    mysql_ha_close_table(thd, it->second.get());
+    thd->handler_tables_hash.erase(it);
   }
   else
   {
@@ -477,7 +404,7 @@ bool Sql_cmd_handler_close::execute(THD *thd)
     Mark MDL_context as no longer breaking protocol if we have
     closed last HANDLER.
   */
-  if (! thd->handler_tables_hash.records)
+  if (thd->handler_tables_hash.empty())
     thd->mdl_context.set_needs_thr_lock_abort(FALSE);
 
   my_ok(thd);
@@ -500,7 +427,7 @@ bool Sql_cmd_handler_close::execute(THD *thd)
 
 bool Sql_cmd_handler_read::execute(THD *thd)
 {
-  TABLE_LIST    *hash_tables;
+  TABLE_LIST    *hash_tables= nullptr;
   TABLE         *table, *backup_open_tables;
   MYSQL_LOCK    *lock;
   List<Item>	list;
@@ -554,16 +481,15 @@ bool Sql_cmd_handler_read::execute(THD *thd)
   it++;
 
 retry:
-  if ((hash_tables= (TABLE_LIST*) my_hash_search(&thd->handler_tables_hash,
-                                                 (uchar*) tables->alias,
-                                                 strlen(tables->alias) + 1)))
+  const auto hash_it= thd->handler_tables_hash.find(tables->alias);
+  if (hash_it != thd->handler_tables_hash.end())
   {
+    hash_tables= hash_it->second.get();
     /*
       Handler interface sometimes uses "tables", sometimes it uses "hash_tables"
       thus we need grant information in both objects.
     */
     tables->grant= hash_tables->grant;
-
     table= hash_tables->table;
 
     DBUG_PRINT("info-in-hash",("'%s'.'%s' as '%s' table: %p",
@@ -948,13 +874,13 @@ err0:
 
 static TABLE_LIST *mysql_ha_find(THD *thd, TABLE_LIST *tables)
 {
-  TABLE_LIST *hash_tables, *head= NULL, *first= tables;
+  TABLE_LIST *head= NULL, *first= tables;
   DBUG_ENTER("mysql_ha_find");
 
   /* search for all handlers with matching table names */
-  for (uint i= 0; i < thd->handler_tables_hash.records; i++)
+  for (const auto &key_and_value : thd->handler_tables_hash)
   {
-    hash_tables= (TABLE_LIST*) my_hash_element(&thd->handler_tables_hash, i);
+    TABLE_LIST *hash_tables= key_and_value.second.get();
     for (tables= first; tables; tables= tables->next_local)
     {
       if (tables->is_derived())
@@ -1002,7 +928,7 @@ void mysql_ha_rm_tables(THD *thd, TABLE_LIST *tables)
     next= hash_tables->next_local;
     if (hash_tables->table)
       mysql_ha_close_table(thd, hash_tables);
-    my_hash_delete(&thd->handler_tables_hash, (uchar*) hash_tables);
+    thd->handler_tables_hash.erase(hash_tables->alias);
     hash_tables= next;
   }
 
@@ -1010,7 +936,7 @@ void mysql_ha_rm_tables(THD *thd, TABLE_LIST *tables)
     Mark MDL_context as no longer breaking protocol if we have
     closed last HANDLER.
   */
-  if (! thd->handler_tables_hash.records)
+  if (thd->handler_tables_hash.empty())
     thd->mdl_context.set_needs_thr_lock_abort(FALSE);
 
   DBUG_VOID_RETURN;
@@ -1057,7 +983,6 @@ void mysql_ha_flush_tables(THD *thd, TABLE_LIST *all_tables)
 
 void mysql_ha_flush(THD *thd)
 {
-  TABLE_LIST *hash_tables;
   DBUG_ENTER("mysql_ha_flush");
 
   mysql_mutex_assert_not_owner(&LOCK_open);
@@ -1070,9 +995,9 @@ void mysql_ha_flush(THD *thd)
   if (thd->state_flags & Open_tables_state::BACKUPS_AVAIL)
     DBUG_VOID_RETURN;
 
-  for (uint i= 0; i < thd->handler_tables_hash.records; i++)
+  for (const auto &key_and_value : thd->handler_tables_hash)
   {
-    hash_tables= (TABLE_LIST*) my_hash_element(&thd->handler_tables_hash, i);
+    TABLE_LIST *hash_tables= key_and_value.second.get();
     /*
       TABLE::mdl_ticket is 0 for temporary tables so we need extra check.
     */
@@ -1103,10 +1028,9 @@ void mysql_ha_rm_temporary_tables(THD *thd)
   DBUG_ENTER("mysql_ha_rm_temporary_tables");
 
   TABLE_LIST *tmp_handler_tables= NULL;
-  for (uint i= 0; i < thd->handler_tables_hash.records; i++)
+  for (const auto &key_and_value : thd->handler_tables_hash)
   {
-    TABLE_LIST *handler_table= reinterpret_cast<TABLE_LIST*>
-      (my_hash_element(&thd->handler_tables_hash, i));
+    TABLE_LIST *handler_table= key_and_value.second.get();
 
     if (handler_table->table && handler_table->table->s->tmp_table)
     {
@@ -1119,7 +1043,7 @@ void mysql_ha_rm_temporary_tables(THD *thd)
   {
     TABLE_LIST *nl= tmp_handler_tables->next_local;
     mysql_ha_close_table(thd, tmp_handler_tables);
-    my_hash_delete(&thd->handler_tables_hash, (uchar*) tmp_handler_tables);
+    thd->handler_tables_hash.erase(tmp_handler_tables->alias);
     tmp_handler_tables= nl;
   }
 
@@ -1127,7 +1051,7 @@ void mysql_ha_rm_temporary_tables(THD *thd)
     Mark MDL_context as no longer breaking protocol if we have
     closed last HANDLER.
   */
-  if (thd->handler_tables_hash.records == 0)
+  if (thd->handler_tables_hash.empty())
   {
     thd->mdl_context.set_needs_thr_lock_abort(FALSE);
   }
@@ -1145,17 +1069,16 @@ void mysql_ha_rm_temporary_tables(THD *thd)
 
 void mysql_ha_cleanup(THD *thd)
 {
-  TABLE_LIST *hash_tables;
   DBUG_ENTER("mysql_ha_cleanup");
 
-  for (uint i= 0; i < thd->handler_tables_hash.records; i++)
+  for (const auto &key_and_value : thd->handler_tables_hash)
   {
-    hash_tables= (TABLE_LIST*) my_hash_element(&thd->handler_tables_hash, i);
+    TABLE_LIST *hash_tables= key_and_value.second.get();
     if (hash_tables->table)
       mysql_ha_close_table(thd, hash_tables);
   }
 
-  my_hash_free(&thd->handler_tables_hash);
+  thd->handler_tables_hash.clear();
 
   DBUG_VOID_RETURN;
 }
@@ -1170,12 +1093,11 @@ void mysql_ha_cleanup(THD *thd)
 
 void mysql_ha_set_explicit_lock_duration(THD *thd)
 {
-  TABLE_LIST *hash_tables;
   DBUG_ENTER("mysql_ha_set_explicit_lock_duration");
 
-  for (uint i= 0; i < thd->handler_tables_hash.records; i++)
+  for (const auto &key_and_value : thd->handler_tables_hash)
   {
-    hash_tables= (TABLE_LIST*) my_hash_element(&thd->handler_tables_hash, i);
+    TABLE_LIST *hash_tables= key_and_value.second.get();
     if (hash_tables->table && hash_tables->table->mdl_ticket)
       thd->mdl_context.set_lock_duration(hash_tables->table->mdl_ticket,
                                          MDL_EXPLICIT);

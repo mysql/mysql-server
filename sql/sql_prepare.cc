@@ -848,8 +848,6 @@ bool Prepared_statement::insert_params_from_vars(List<LEX_STRING>& varnames,
 {
   Item_param **begin= param_array;
   Item_param **end= begin + param_count;
-  user_var_entry *entry;
-  LEX_STRING *varname;
   List_iterator<LEX_STRING> var_it(varnames);
   String buf;
   const String *val;
@@ -864,18 +862,16 @@ bool Prepared_statement::insert_params_from_vars(List<LEX_STRING>& varnames,
   /* Protects thd->user_vars */
   mysql_mutex_lock(&thd->LOCK_thd_data);
 
-  Item_param *param= NULL;
   String      new_query(query->length());
 
   new_query.set_charset(query->charset());
 
   for (Item_param **it= begin; it < end; ++it)
   {
-    param=   *it;
-    varname=  var_it++;
+    Item_param *param=   *it;
+    LEX_STRING *varname=  var_it++;
 
-    entry= (user_var_entry *) my_hash_search(&thd->user_vars, (uchar*)
-                                             varname->str, varname->length);
+    user_var_entry *entry= find_or_nullptr(thd->user_vars, to_string(*varname));
     if (with_log)
     {
       /*
@@ -1658,7 +1654,6 @@ static const char *get_dynamic_sql_string(LEX *lex, size_t *query_len)
     String str;
     const CHARSET_INFO *to_cs= thd->variables.collation_connection;
     bool needs_conversion;
-    user_var_entry *entry;
     String *var_value= &str;
     size_t unused;
     size_t len;
@@ -1666,17 +1661,16 @@ static const char *get_dynamic_sql_string(LEX *lex, size_t *query_len)
     /* Protects thd->user_vars */
     mysql_mutex_lock(&thd->LOCK_thd_data);
 
-    entry= (user_var_entry*)my_hash_search(&thd->user_vars,
-                                           (uchar*)lex->prepared_stmt_code.str,
-                                           lex->prepared_stmt_code.length);
+    const auto it= thd->user_vars.find(to_string(lex->prepared_stmt_code));
 
     /*
       Convert @var contents to string in connection character set. Although
       it is known that int/real/NULL value cannot be a valid query we still
       convert it for error messages to be uniform.
     */
-    if ((entry != NULL) && entry->ptr())
+    if (it != thd->user_vars.end() && it->second->ptr())
     {
+      user_var_entry *entry= it->second.get();
       bool is_var_null;
       var_value= entry->val_str(&is_var_null, &str, NOT_FIXED_DEC);
 

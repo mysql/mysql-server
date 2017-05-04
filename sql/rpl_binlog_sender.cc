@@ -718,10 +718,11 @@ void Binlog_sender::init_heartbeat_period()
   /* Protects m_thd->user_vars. */
   mysql_mutex_lock(&m_thd->LOCK_thd_data);
 
-  user_var_entry *entry=
-    (user_var_entry*) my_hash_search(&m_thd->user_vars, (uchar*) name.str,
-                                     name.length);
-  m_heartbeat_period= entry ? entry->val_int(&null_value) : 0;
+  const auto it= m_thd->user_vars.find(to_string(name));
+  if (it == m_thd->user_vars.end())
+     m_heartbeat_period= 0;
+  else
+     m_heartbeat_period= it->second->val_int(&null_value);
 
   mysql_mutex_unlock(&m_thd->LOCK_thd_data);
 }
@@ -886,20 +887,17 @@ void Binlog_sender::init_checksum_alg()
 {
   DBUG_ENTER("init_binlog_checksum");
 
-  LEX_STRING name= {C_STRING_WITH_LEN("master_binlog_checksum")};
-  user_var_entry *entry;
-
   m_slave_checksum_alg= binary_log::BINLOG_CHECKSUM_ALG_UNDEF;
 
   /* Protects m_thd->user_vars. */
   mysql_mutex_lock(&m_thd->LOCK_thd_data);
 
-  entry= (user_var_entry*) my_hash_search(&m_thd->user_vars,
-                                          (uchar*) name.str, name.length);
-  if (entry)
+  const auto it= m_thd->user_vars.find("master_binlog_checksum");
+  if (it != m_thd->user_vars.end())
   {
     m_slave_checksum_alg=
-      static_cast<enum_binlog_checksum_alg>(find_type((char*) entry->ptr(), &binlog_checksum_typelib, 1) - 1);
+      static_cast<enum_binlog_checksum_alg>(
+        find_type((char*) it->second->ptr(), &binlog_checksum_typelib, 1) - 1);
     DBUG_ASSERT(m_slave_checksum_alg < binary_log::BINLOG_CHECKSUM_ALG_ENUM_END);
   }
 

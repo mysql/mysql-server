@@ -454,19 +454,16 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
 */
 String *get_slave_uuid(THD *thd, String *value)
 {
-  uchar name[]= "slave_uuid";
-
   if (value == NULL)
     return NULL;
 
   /* Protects thd->user_vars. */
   mysql_mutex_lock(&thd->LOCK_thd_data);
 
-  user_var_entry *entry=
-    (user_var_entry*) my_hash_search(&thd->user_vars, name, sizeof(name)-1);
-  if (entry && entry->length() > 0)
+  const auto it= thd->user_vars.find("slave_uuid");
+  if (it != thd->user_vars.end() && it->second->length() > 0)
   {
-    value->copy(entry->ptr(), entry->length(), NULL);
+    value->copy(it->second->ptr(), it->second->length(), NULL);
     mysql_mutex_unlock(&thd->LOCK_thd_data);
     return value;
   }

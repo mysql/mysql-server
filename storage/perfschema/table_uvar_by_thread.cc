@@ -48,7 +48,7 @@ public:
       return false;
     }
 
-    if (thd->user_vars.records == 0)
+    if (thd->user_vars.empty())
     {
       return false;
     }
@@ -68,24 +68,16 @@ User_variables::materialize(PFS_thread *pfs, THD *thd)
 
   m_pfs = pfs;
   m_thread_internal_id = pfs->m_thread_internal_id;
-  m_array.reserve(thd->user_vars.records);
+  m_array.reserve(thd->user_vars.size());
 
-  user_var_entry *sql_uvar;
-
-  uint index = 0;
   User_variable empty;
 
   /* Protects thd->user_vars. */
   mysql_mutex_assert_owner(&thd->LOCK_thd_data);
 
-  for (;;)
+  for (const auto &key_and_value : thd->user_vars)
   {
-    sql_uvar = reinterpret_cast<user_var_entry *>(
-      my_hash_element(&thd->user_vars, index));
-    if (sql_uvar == NULL)
-    {
-      break;
-    }
+    user_var_entry *sql_uvar = key_and_value.second.get();
 
     /*
       m_array is a container of objects (not pointers)
@@ -125,8 +117,6 @@ User_variables::materialize(PFS_thread *pfs, THD *thd)
     {
       pfs_uvar.m_value.make_row(NULL, 0);
     }
-
-    index++;
   }
 }
 

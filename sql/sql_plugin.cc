@@ -35,12 +35,12 @@
 #include "error_handler.h"     // No_such_table_error_handler
 #include "field.h"
 #include "handler.h"           // ha_initalize_handlerton
-#include "hash.h"
 #include "item.h"              // Item
 #include "key.h"               // key_copy
 #include "log.h"
 #include "m_ctype.h"
 #include "m_string.h"
+#include "map_helpers.h"
 #include "mutex_lock.h"        // Mutex_lock
 #include "my_base.h"
 #include "my_compiler.h"
@@ -424,11 +424,13 @@ static bool initialized= false;
   write-lock on LOCK_system_variables_hash is required before modifying
   the following variables/structures
 */
+struct st_bookmark;
 static MEM_ROOT plugin_mem_root;
 static uint global_variables_dynamic_size= 0;
-static HASH bookmark_hash;
+static malloc_unordered_map<std::string, st_bookmark *> *bookmark_hash;
 /** Hash for system variables of string type with MEMALLOC flag. */
-static HASH malloced_string_type_sysvars_bookmark_hash;
+static malloc_unordered_map<std::string, st_bookmark *>
+  *malloced_string_type_sysvars_bookmark_hash;
 
 
 /*
@@ -1495,13 +1497,6 @@ static const uchar *get_plugin_hash_key(const uchar *buff, size_t *length)
 }
 
 
-static const uchar *get_bookmark_hash_key(const uchar *buff, size_t *length)
-{
-  st_bookmark *var= (st_bookmark *)buff;
-  *length= var->name_len + 1;
-  return (uchar*) var->key;
-}
-
 static inline void convert_dash_to_underscore(char *str, size_t len)
 {
   for (char *p= str; p <= str+len; p++)
@@ -1569,15 +1564,12 @@ static bool plugin_init_internals()
 
   init_alloc_root(key_memory_plugin_mem_root, &plugin_mem_root, 4096, 4096);
 
-  if (my_hash_init(&bookmark_hash, &my_charset_bin, 16, 0,
-                   get_bookmark_hash_key, nullptr, HASH_UNIQUE,
-                   key_memory_plugin_bookmark))
-      goto err;
+  bookmark_hash= new malloc_unordered_map<std::string, st_bookmark *>(
+    key_memory_plugin_bookmark);
 
-  if (my_hash_init(&malloced_string_type_sysvars_bookmark_hash, &my_charset_bin,
-                   16, 0, get_bookmark_hash_key, nullptr, HASH_UNIQUE,
-                   key_memory_plugin_bookmark))
-      goto err;
+  malloced_string_type_sysvars_bookmark_hash=
+    new malloc_unordered_map<std::string, st_bookmark *>(
+      key_memory_plugin_bookmark);
 
   mysql_mutex_init(key_LOCK_plugin, &LOCK_plugin, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_plugin_delete, &LOCK_plugin_delete, MY_MUTEX_INIT_FAST);
@@ -2215,8 +2207,10 @@ void plugin_shutdown(void)
     plugin_dl_array= NULL;
   }
 
-  my_hash_free(&bookmark_hash);
-  my_hash_free(&malloced_string_type_sysvars_bookmark_hash);
+  delete bookmark_hash;
+  bookmark_hash= nullptr;
+  delete malloced_string_type_sysvars_bookmark_hash;
+  malloced_string_type_sysvars_bookmark_hash= nullptr;
   free_root(&plugin_mem_root, MYF(0));
 
   global_variables_dynamic_size= 0;
@@ -3059,7 +3053,6 @@ sys_var *find_sys_var(THD *thd, const char *str, size_t length)
 static st_bookmark *find_bookmark(const char *plugin, const char *name,
                                   int flags)
 {
-  st_bookmark *result= NULL;
   size_t namelen, length, pluginlen= 0;
   char *varname, *p;
 
@@ -3084,10 +3077,11 @@ static st_bookmark *find_bookmark(const char *plugin, const char *name,
 
   varname[0]= flags & PLUGIN_VAR_TYPEMASK;
 
-  result= (st_bookmark*) my_hash_search(&bookmark_hash,
-                                        (const uchar*) varname, length - 1);
-
-  return result;
+  const auto it= bookmark_hash->find(std::string(varname, length - 1));
+  if (it == bookmark_hash->end())
+    return nullptr;
+  else
+    return it->second;
 }
 
 
@@ -3189,19 +3183,16 @@ static st_bookmark *register_var(const char *plugin, const char *name,
     result->version= global_system_variables.dynamic_variables_version;
 
     /* this should succeed because we have already checked if a dup exists */
-    if (my_hash_insert(&bookmark_hash, (uchar*) result))
-    {
-      fprintf(stderr, "failed to add placeholder to hash");
-      DBUG_ASSERT(0);
-    }
+    std::string key(result->key, result->name_len + 1);
+    bookmark_hash->emplace(key, result);
 
     /*
       Hashing vars of string type with MEMALLOC flag.
     */
     if (((flags & PLUGIN_VAR_TYPEMASK) == PLUGIN_VAR_STR) &&
         (flags & PLUGIN_VAR_MEMALLOC) &&
-        (my_hash_insert(&malloced_string_type_sysvars_bookmark_hash,
-                        (uchar *)result)))
+        !malloced_string_type_sysvars_bookmark_hash->emplace(
+          key, result).second)
     {
       fprintf(stderr, "failed to add placeholder to"
                       " hash of malloced string type sysvars");
@@ -3232,8 +3223,6 @@ static void restore_pluginvar_names(sys_var *first)
 */
 void alloc_and_copy_thd_dynamic_variables(THD *thd, bool global_lock)
 {
-  uint idx;
-
   mysql_rwlock_rdlock(&LOCK_system_variables_hash);
 
   if (global_lock)
@@ -3271,15 +3260,13 @@ void alloc_and_copy_thd_dynamic_variables(THD *thd, bool global_lock)
     Iterate through newly copied vars of string type with MEMALLOC
     flag and strdup value.
   */
-  for (idx= 0; idx < malloced_string_type_sysvars_bookmark_hash.records; idx++)
+  for (const auto &key_and_value : *malloced_string_type_sysvars_bookmark_hash)
   {
     sys_var_pluginvar *pi;
     sys_var *var;
     int varoff;
     char **thdvar, **sysvar;
-    st_bookmark *v=
-      (st_bookmark*)my_hash_element(&malloced_string_type_sysvars_bookmark_hash,
-                                    idx);
+    st_bookmark *v= key_and_value.second;
 
     if (v->version <= thd->variables.dynamic_variables_version ||
         !(var= intern_find_sys_var(v->key + 1, v->name_len)) ||
