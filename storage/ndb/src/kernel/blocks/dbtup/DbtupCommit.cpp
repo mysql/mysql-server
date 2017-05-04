@@ -230,6 +230,7 @@ Dbtup::is_rowid_in_remaining_lcp_set(const Page* page,
     return false;
   }
   case Dbtup::ScanOp::Last:
+  case Dbtup::ScanOp::Aborting:
   { 
     jam();
     return false; /* Everything scanned already */
@@ -238,6 +239,7 @@ Dbtup::is_rowid_in_remaining_lcp_set(const Page* page,
     break;
   }
   /* Will never arrive here */
+  jamLine(Uint16(op.m_state));
   ndbrequire(false);
   return true;
 }
