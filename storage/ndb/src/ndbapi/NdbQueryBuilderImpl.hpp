@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -53,6 +53,7 @@
 #include "ndb_limits.h"
 
 // Forward declared
+class Ndb;
 class NdbTableImpl;
 class NdbIndexImpl;
 class NdbColumnImpl;
@@ -400,7 +401,8 @@ public:
    * the struct QueryNode type.
    * @return Possible error code.
    */
-  virtual int serializeOperation(Uint32Buffer& serializedTree) = 0;
+  virtual int serializeOperation(const Ndb *ndb,
+                                 Uint32Buffer& serializedTree) = 0;
 
   /** Find the projection that should be sent to the SPJ block. This should
    * contain the attributes needed to instantiate all child operations.
@@ -525,7 +527,8 @@ public:
   { return true; }
 
 protected:
-  int serialize(Uint32Buffer& serializedDef,
+  int serialize(const Ndb *ndb,
+                Uint32Buffer& serializedDef,
                 const NdbTableImpl& tableOrIndex);
 
   // Append pattern for creating complete range bounds to serialized code 
@@ -546,7 +549,8 @@ public:
   virtual const NdbIndexImpl* getIndex() const
   { return &m_index; }
 
-  virtual int serializeOperation(Uint32Buffer& serializedDef);
+  virtual int serializeOperation(const Ndb *ndb,
+                                 Uint32Buffer& serializedDef);
 
   virtual const NdbQueryIndexScanOperationDef& getInterface() const
   { return m_interface; }
@@ -611,7 +615,8 @@ class NdbQueryDefImpl
   friend class NdbQueryDef;
 
 public:
-  explicit NdbQueryDefImpl(const Vector<NdbQueryOperationDefImpl*>& operations,
+  explicit NdbQueryDefImpl(const Ndb *ndb,
+                           const Vector<NdbQueryOperationDefImpl*>& operations,
                            const Vector<NdbQueryOperandImpl*>& operands,
                            int& error);
   ~NdbQueryDefImpl();
@@ -661,7 +666,7 @@ public:
   ~NdbQueryBuilderImpl();
   explicit NdbQueryBuilderImpl();
 
-  const NdbQueryDefImpl* prepare();
+  const NdbQueryDefImpl* prepare(const Ndb *ndb);
 
   const NdbError& getNdbError() const;
 

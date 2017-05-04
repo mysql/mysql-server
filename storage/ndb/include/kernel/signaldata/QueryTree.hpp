@@ -43,6 +43,12 @@ struct QueryNode  // Effectively used as a base class for QN_xxxNode
   static Uint32 getOpType(Uint32 op_len) { return op_len & 0xFFFF;}
   static Uint32 getLength(Uint32 op_len) { return op_len >> 16;}
 
+  static const QueryNode* nextQueryNode(const QueryNode* node)
+  {
+    const Uint32 len = QueryNode::getLength(node->len);
+    return (const QueryNode*)((Uint32*)node + len);
+  }
+
   static void setOpLen(Uint32 &d, Uint32 o, Uint32 l) { d = (l << 16) | o;}
 
   // If possible we should change the above static methods to non-static:

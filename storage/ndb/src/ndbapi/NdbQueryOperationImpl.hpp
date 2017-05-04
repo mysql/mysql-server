@@ -35,6 +35,8 @@ class NdbReceiver;
 class NdbOut;
 class NdbWorker;
 
+struct QueryNode;
+
 /**
  * This class simplifies the task of allocating memory for many instances
  * of the same type at once and then constructing them later.
@@ -853,7 +855,8 @@ private:
 
   /** Prepare ATTRINFO for execution. (Add execution params++)
    *  @return possible error code.*/
-  int prepareAttrInfo(Uint32Buffer& attrInfo);
+  int prepareAttrInfo(Uint32Buffer& attrInfo,
+                      const QueryNode*& queryNode);
 
   /**
    * Expand keys and bounds for the root operation into the KEYINFO section.

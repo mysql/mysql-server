@@ -4381,7 +4381,7 @@ Dbspj::lookup_send(Signal* signal,
       break;
     }
     // Test for online downgrade.
-    if (unlikely(!ndb_join_pushdown(getNodeInfo(Tnode).m_version)))
+    if (unlikely(!ndbd_join_pushdown(getNodeInfo(Tnode).m_version)))
     {
       jam();
       releaseSections(handle);
@@ -6638,7 +6638,7 @@ Dbspj::scanFrag_send(Signal* signal,
 
       // Test for online downgrade.
       if (unlikely(ref != 0 && 
-                   !ndb_join_pushdown(getNodeInfo(refToNode(ref)).m_version)))
+                   !ndbd_join_pushdown(getNodeInfo(refToNode(ref)).m_version)))
       {
         jam();
         err = 4003; // Function not implemented.

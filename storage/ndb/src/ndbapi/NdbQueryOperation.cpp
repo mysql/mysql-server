@@ -1895,7 +1895,7 @@ NdbQueryImpl::buildQuery(NdbTransaction& trans,
 {
   assert(queryDef.getNoOfOperations() > 0);
   // Check for online upgrade/downgrade.
-  if (unlikely(!ndb_join_pushdown(trans.getNdb()->getMinDbNodeVersion())))
+  if (unlikely(!ndbd_join_pushdown(trans.getNdb()->getMinDbNodeVersion())))
   {
     trans.setOperationErrorCodeAbort(Err_FunctionNotImplemented);
     return NULL;
@@ -2786,9 +2786,12 @@ NdbQueryImpl::prepareSend()
     m_workers[i].init(*this, i); // Set worker number.
   }
 
+  const Uint32Buffer &queryTree = getQueryDef().getSerialized();
+  const QueryNode *queryNode = (const QueryNode*)queryTree.addr(1);
+
   // Fill in parameters (into ATTRINFO) for QueryTree.
   for (Uint32 i = 0; i < m_countOperations; i++) {
-    const int error = m_operations[i].prepareAttrInfo(m_attrInfo);
+    const int error = m_operations[i].prepareAttrInfo(m_attrInfo, queryNode);
     if (unlikely(error))
     {
       setErrorCode(error);
@@ -4446,7 +4449,8 @@ NdbQueryOperationImpl::setBatchedRows(Uint32 batchedRows)
 }
 
 int 
-NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo)
+NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo,
+                                       const QueryNode*& queryNode)
 {
   const NdbQueryOperationDefImpl& def = getQueryOperationDef();
 
@@ -4496,25 +4500,40 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo)
     }
     ndbout << endl;
 #endif
+
+    queryNode = QueryNode::nextQueryNode(queryNode);
   } // if (UniqueIndexAccess ...
 
   // Reserve memory for LookupParameters, fill in contents later when
   // 'length' and 'requestInfo' has been calculated.
   Uint32 startPos = attrInfo.getSize();
   Uint32 requestInfo = 0;
-  bool isRoot = (def.getOpNo()==0);
-
-  QueryNodeParameters::OpType paramType =
-       !def.isScanOperation() ? QueryNodeParameters::QN_LOOKUP
-           : (isRoot) ? QueryNodeParameters::QN_SCAN_FRAG_v1
-                      : QueryNodeParameters::QN_SCAN_INDEX_v1;
-
-  if (paramType == QueryNodeParameters::QN_SCAN_INDEX_v1)
-    attrInfo.alloc(QN_ScanIndexParameters_v1::NodeSize);
-  else if (paramType == QueryNodeParameters::QN_SCAN_FRAG_v1)
-    attrInfo.alloc(QN_ScanFragParameters_v1::NodeSize);
-  else
+  /**
+   * Create QueryNodeParameters type matching each QueryNode.
+   */
+  const Uint32 type = QueryNode::getOpType(queryNode->len);
+  const QueryNodeParameters::OpType paramType = (QueryNodeParameters::OpType)type;
+  switch (paramType)
+  {
+  case QueryNodeParameters::QN_LOOKUP:
+    assert(!def.isScanOperation());
     attrInfo.alloc(QN_LookupParameters::NodeSize);
+    break;
+  case QueryNodeParameters::QN_SCAN_FRAG:
+    assert(def.isScanOperation());
+    attrInfo.alloc(QN_ScanFragParameters::NodeSize);
+    break;
+  case QueryNodeParameters::QN_SCAN_INDEX_v1:
+    assert(def.isScanOperation() && def.getOpNo()>0);
+    attrInfo.alloc(QN_ScanIndexParameters_v1::NodeSize);
+    break;
+  case QueryNodeParameters::QN_SCAN_FRAG_v1:
+    assert(def.isScanOperation() && def.getOpNo()==0);
+    attrInfo.alloc(QN_ScanFragParameters_v1::NodeSize);
+    break;
+  default:
+    assert(false);
+  }
 
   // SPJ block assume PARAMS to be supplied before ATTR_LIST
   if (m_params.getSize() > 0 &&
@@ -4563,7 +4582,48 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo)
     return QRY_DEFINITION_TOO_LARGE; //Query definition too large.
   }
 
-  if (paramType == QueryNodeParameters::QN_SCAN_INDEX_v1)
+  switch (paramType)
+  {
+  case QueryNodeParameters::QN_LOOKUP:
+  {
+    QN_LookupParameters* param = reinterpret_cast<QN_LookupParameters*>(attrInfo.addr(startPos)); 
+    if (unlikely(param==NULL))
+      return Err_MemoryAlloc;
+
+    param->requestInfo = requestInfo;
+    param->resultData = getIdOfReceiver();
+    QueryNodeParameters::setOpLen(param->len, paramType, length);
+    break;
+  }
+  case QueryNodeParameters::QN_SCAN_FRAG:
+  {
+    QN_ScanFragParameters* param = 
+      reinterpret_cast<QN_ScanFragParameters*>(attrInfo.addr(startPos)); 
+    if (unlikely(param==NULL))
+      return Err_MemoryAlloc;
+
+    const Uint32 batchRows = getMaxBatchRows();
+    const Uint32 batchByteSize = getMaxBatchBytes();
+    assert(batchRows <= batchByteSize);
+    assert(m_parallelism == Parallelism_max ||
+           m_parallelism == Parallelism_adaptive);
+    if (m_parallelism == Parallelism_max)
+    {
+      requestInfo |= QN_ScanFragParameters::SFP_PARALLEL;
+    }
+    if (def.hasParamInPruneKey())
+    {
+      requestInfo |= QN_ScanFragParameters::SFP_PRUNE_PARAMS;
+    }
+    param->requestInfo = requestInfo;
+    param->resultData = getIdOfReceiver();
+    param->batch_size_rows = batchRows;
+    param->batch_size_bytes = batchByteSize;
+    QueryNodeParameters::setOpLen(param->len, paramType, length);
+    break;
+  }
+  // Check deprecated QueryNode types last:
+  case QueryNodeParameters::QN_SCAN_INDEX_v1:
   {
     QN_ScanIndexParameters_v1* param = 
       reinterpret_cast<QN_ScanIndexParameters_v1*>(attrInfo.addr(startPos)); 
@@ -4593,9 +4653,11 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo)
                       | batchRows;
     param->resultData = getIdOfReceiver();
     QueryNodeParameters::setOpLen(param->len, paramType, length);
+    break;
   }
-  else if (paramType == QueryNodeParameters::QN_SCAN_FRAG_v1)
+  case QueryNodeParameters::QN_SCAN_FRAG_v1:
   {
+    assert(paramType == QueryNodeParameters::QN_SCAN_FRAG_v1);
     QN_ScanFragParameters_v1* param =
       reinterpret_cast<QN_ScanFragParameters_v1*>(attrInfo.addr(startPos)); 
     if (unlikely(param==NULL))
@@ -4604,17 +4666,10 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo)
     param->requestInfo = requestInfo;
     param->resultData = getIdOfReceiver();
     QueryNodeParameters::setOpLen(param->len, paramType, length);
+    break;
   }
-  else
-  {
-    assert(paramType == QueryNodeParameters::QN_LOOKUP);
-    QN_LookupParameters* param = reinterpret_cast<QN_LookupParameters*>(attrInfo.addr(startPos)); 
-    if (unlikely(param==NULL))
-      return Err_MemoryAlloc;
-
-    param->requestInfo = requestInfo;
-    param->resultData = getIdOfReceiver();
-    QueryNodeParameters::setOpLen(param->len, paramType, length);
+  default:
+    assert(false);
   }
 
 #ifdef __TRACE_SERIALIZATION
@@ -4632,6 +4687,7 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo)
   // to reduce memory footprint.
   m_params.releaseExtend();
 
+  queryNode = QueryNode::nextQueryNode(queryNode);
   return 0;
 } // NdbQueryOperationImpl::prepareAttrInfo
 
