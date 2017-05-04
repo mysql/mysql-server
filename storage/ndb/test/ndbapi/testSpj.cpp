@@ -802,7 +802,7 @@ NegativeTest::runKeyTest() const
       builder->destroy();
       return NDBT_FAILED;
     }
-    if (builder->prepare() != NULL)
+    if (builder->prepare(m_ndb) != NULL)
     {
       g_err << "prepare() on failed query gave non-NULL result.";
       builder->destroy();
@@ -818,7 +818,7 @@ NegativeTest::runKeyTest() const
       {builder->paramValue(), builder->paramValue(), NULL};
 
     require(builder->readTuple(m_nt1Tab, keyOperands) != NULL);
-    const NdbQueryDef* const queryDef = builder->prepare();
+    const NdbQueryDef* const queryDef = builder->prepare(m_ndb);
     require(queryDef != NULL);
     builder->destroy();
 
@@ -856,7 +856,7 @@ NegativeTest::runGraphTest() const
   // Try preparing empty NdbQueryBuilder
   {
     NdbQueryBuilder* const builder = NdbQueryBuilder::create();
-    if (builder->prepare() != NULL ||
+    if (builder->prepare(m_ndb) != NULL ||
         builder->getNdbError().code != QRY_HAS_ZERO_OPERATIONS)
     {
       g_err << "prepare() on empty query gave non-NULL result.";
@@ -1095,7 +1095,7 @@ NegativeTest::runSetBoundTest() const
       = builder->scanIndex(m_nt2OrdIdx, m_nt2Tab);
     require(parentOperation != NULL);
 
-    const NdbQueryDef* const queryDef = builder->prepare();
+    const NdbQueryDef* const queryDef = builder->prepare(m_ndb);
     require(queryDef != NULL);
     builder->destroy();
 
@@ -1154,7 +1154,7 @@ NegativeTest::runSetBoundTest() const
       = builder->scanIndex(m_nt1OrdIdx, m_nt1Tab);
     require(parentOperation != NULL);
 
-    const NdbQueryDef* const queryDef = builder->prepare();
+    const NdbQueryDef* const queryDef = builder->prepare(m_ndb);
     require(queryDef != NULL);
     builder->destroy();
 
@@ -1189,7 +1189,7 @@ NegativeTest::runSetBoundTest() const
       = builder->scanTable(m_nt1Tab);
     require(parentOperation != NULL);
 
-    const NdbQueryDef* const queryDef = builder->prepare();
+    const NdbQueryDef* const queryDef = builder->prepare(m_ndb);
     require(queryDef != NULL);
     builder->destroy();
 
@@ -1223,7 +1223,7 @@ NegativeTest::runSetBoundTest() const
       = builder->scanIndex(m_nt1OrdIdx, m_nt1Tab);
     require(parentOperation != NULL);
 
-    const NdbQueryDef* const queryDef = builder->prepare();
+    const NdbQueryDef* const queryDef = builder->prepare(m_ndb);
     require(queryDef != NULL);
     builder->destroy();
 
@@ -1275,7 +1275,7 @@ NegativeTest::runValueTest() const
       = builder->scanTable(m_nt1Tab);
     require(parentOperation != NULL);
 
-    const NdbQueryDef* const queryDef = builder->prepare();
+    const NdbQueryDef* const queryDef = builder->prepare(m_ndb);
     require(queryDef != NULL);
     builder->destroy();
 
@@ -1303,7 +1303,7 @@ NegativeTest::runValueTest() const
       = builder->scanTable(m_nt1Tab);
     require(parentOperation != NULL);
 
-    const NdbQueryDef* const queryDef = builder->prepare();
+    const NdbQueryDef* const queryDef = builder->prepare(m_ndb);
     require(queryDef != NULL);
     builder->destroy();
 
@@ -1335,7 +1335,7 @@ NegativeTest::runValueTest() const
       = builder->scanTable(m_nt1Tab);
     require(parentOperation != NULL);
 
-    const NdbQueryDef* const queryDef = builder->prepare();
+    const NdbQueryDef* const queryDef = builder->prepare(m_ndb);
     require(queryDef != NULL);
     builder->destroy();
 
@@ -1372,7 +1372,7 @@ NegativeTest::runValueTest() const
       = builder->scanIndex(m_nt1OrdIdx, m_nt1Tab);
     require(parentOperation != NULL);
 
-    const NdbQueryDef* const queryDef = builder->prepare();
+    const NdbQueryDef* const queryDef = builder->prepare(m_ndb);
     require(queryDef != NULL);
     builder->destroy();
 
@@ -1409,7 +1409,7 @@ NegativeTest::runFeatureDisabledTest() const
   
   int result = NDBT_OK;
 
-  if (ndb_join_pushdown(ndbGetOwnVersion()))
+  if (ndbd_join_pushdown(ndbGetOwnVersion()))
   {
     if (parentOperation == NULL)
     {

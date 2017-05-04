@@ -206,7 +206,8 @@ class NdbQueryPKLookupOperationDefImpl : public NdbQueryLookupOperationDefImpl
   friend class NdbQueryBuilder;  // Allow privat access from builder interface
 
 public:
-  virtual int serializeOperation(Uint32Buffer& serializedDef);
+  virtual int serializeOperation(const Ndb *ndb,
+                                 Uint32Buffer& serializedDef);
 
 private:
 
@@ -236,7 +237,8 @@ public:
   virtual const NdbIndexImpl* getIndex() const
   { return &m_index; }
 
-  virtual int serializeOperation(Uint32Buffer& serializedDef);
+  virtual int serializeOperation(const Ndb *ndb,
+                                 Uint32Buffer& serializedDef);
 
 private:
 
@@ -269,7 +271,8 @@ class NdbQueryTableScanOperationDefImpl : public NdbQueryScanOperationDefImpl
   friend class NdbQueryBuilder;  // Allow privat access from builder interface
 
 public:
-  virtual int serializeOperation(Uint32Buffer& serializedDef);
+  virtual int serializeOperation(const Ndb *ndb,
+                                 Uint32Buffer& serializedDef);
 
   virtual const NdbQueryTableScanOperationDef& getInterface() const
   { return m_interface; }
@@ -684,7 +687,7 @@ NdbQueryBuilder* NdbQueryBuilder::create()
   NdbQueryBuilderImpl* const impl = new NdbQueryBuilderImpl();
   if (likely (impl != NULL))
   {
-    if((!ndb_join_pushdown(ndbGetOwnVersion())))
+    if((!ndbd_join_pushdown(ndbGetOwnVersion())))
     {
       /* The SPJ code is present in releases where the SPJ feature is
        * not yet enabled.
@@ -1080,9 +1083,9 @@ NdbQueryBuilder::scanIndex(const NdbDictionary::Index* index,
 }
 
 const NdbQueryDef*
-NdbQueryBuilder::prepare()
+NdbQueryBuilder::prepare(const Ndb *ndb)
 {
-  const NdbQueryDefImpl* def = m_impl.prepare();
+  const NdbQueryDefImpl* def = m_impl.prepare(ndb);
   return (def) ? &def->getInterface() : NULL;
 }
 
@@ -1131,7 +1134,7 @@ NdbQueryBuilderImpl::contains(const NdbQueryOperationDefImpl* opDef)
 
 
 const NdbQueryDefImpl*
-NdbQueryBuilderImpl::prepare()
+NdbQueryBuilderImpl::prepare(const Ndb *ndb)
 {
   if (hasError())
   {
@@ -1144,7 +1147,7 @@ NdbQueryBuilderImpl::prepare()
   }
 
   int error;
-  NdbQueryDefImpl* def = new NdbQueryDefImpl(m_operations, m_operands, error);
+  NdbQueryDefImpl* def = new NdbQueryDefImpl(ndb, m_operations, m_operands, error);
   m_operations.clear();
   m_operands.clear();
   m_paramCnt = 0;
@@ -1209,7 +1212,8 @@ NdbQueryBuilderImpl::addOperand(NdbQueryOperandImpl* operand)
 // The (hidden) Impl of NdbQueryDef
 ///////////////////////////////////
 NdbQueryDefImpl::
-NdbQueryDefImpl(const Vector<NdbQueryOperationDefImpl*>& operations,
+NdbQueryDefImpl(const Ndb *ndb,
+                const Vector<NdbQueryOperationDefImpl*>& operations,
                 const Vector<NdbQueryOperandImpl*>& operands,
                 int& error)
  : m_interface(*this), 
@@ -1229,7 +1233,7 @@ NdbQueryDefImpl(const Vector<NdbQueryOperationDefImpl*>& operations,
   m_serializedDef.append(0); 
   for(Uint32 i = 0; i<m_operations.size(); i++){
     NdbQueryOperationDefImpl* op =  m_operations[i];
-    error = op->serializeOperation(m_serializedDef);
+    error = op->serializeOperation(ndb,m_serializedDef);
     if(unlikely(error != 0)){
       return;
     }
@@ -2540,7 +2544,7 @@ NdbQueryIndexScanOperationDefImpl::appendBoundPattern(Uint32Buffer& serializedDe
 
 int
 NdbQueryPKLookupOperationDefImpl
-::serializeOperation(Uint32Buffer& serializedDef)
+::serializeOperation(const Ndb *ndb, Uint32Buffer& serializedDef)
 {
   assert (m_keys[0]!=NULL);
   // This method should only be invoked once.
@@ -2600,7 +2604,7 @@ NdbQueryPKLookupOperationDefImpl
 
 int
 NdbQueryIndexOperationDefImpl
-::serializeOperation(Uint32Buffer& serializedDef)
+::serializeOperation(const Ndb *ndb, Uint32Buffer& serializedDef)
 {
   assert (m_keys[0]!=NULL);
   // This method should only be invoked once.
@@ -2730,10 +2734,13 @@ NdbQueryScanOperationDefImpl::NdbQueryScanOperationDefImpl (
 {}
 
 int
-NdbQueryScanOperationDefImpl::serialize(Uint32Buffer& serializedDef,
+NdbQueryScanOperationDefImpl::serialize(const Ndb *ndb,
+                                        Uint32Buffer& serializedDef,
                                         const NdbTableImpl& tableOrIndex)
 {
-  bool isRoot = (getOpNo()==0);
+  const bool isRoot = (getOpNo()==0);
+  const bool useNewScanFrag = 
+    ndbd_spj_multifrag_scan(ndb->getMinDbNodeVersion());
 
   // This method should only be invoked once.
   assert (!m_isPrepared);
@@ -2761,21 +2768,41 @@ NdbQueryScanOperationDefImpl::serialize(Uint32Buffer& serializedDef,
   {
     return QRY_DEFINITION_TOO_LARGE; //Query definition too large.
   }
+
   // Fill in ScanFragNode contents (Already allocated, 'startPos' is our handle:
-  if (isRoot)
+  if (likely(useNewScanFrag))
   {
-    QN_ScanFragNode* node = reinterpret_cast<QN_ScanFragNode*>(serializedDef.addr(startPos)); 
+    QN_ScanFragNode* node =
+      reinterpret_cast<QN_ScanFragNode*>(serializedDef.addr(startPos)); 
+    if (unlikely(node==NULL)) {
+      return Err_MemoryAlloc;
+    }
+    // Need NI_REPEAT_SCAN_RESULT if there are star-joined child scans
+    if (!isRoot) {
+      requestInfo |= DABits::NI_REPEAT_SCAN_RESULT;
+    }
+    node->tableId = tableOrIndex.getObjectId();
+    node->tableVersion = tableOrIndex.getObjectVersion();
+    node->requestInfo = requestInfo;
+    QueryNode::setOpLen(node->len, QueryNode::QN_SCAN_FRAG, length);
+  }
+  // Deprecated QueryNode type, keep for backward comp
+  else if (isRoot)
+  {
+    QN_ScanFragNode_v1* node =
+      reinterpret_cast<QN_ScanFragNode_v1*>(serializedDef.addr(startPos)); 
     if (unlikely(node==NULL)) {
       return Err_MemoryAlloc;
     }
     node->tableId = tableOrIndex.getObjectId();
     node->tableVersion = tableOrIndex.getObjectVersion();
     node->requestInfo = requestInfo;
-    QueryNode::setOpLen(node->len, QueryNode::QN_SCAN_FRAG_v1, length); //TODO: Deprecate
+    QueryNode::setOpLen(node->len, QueryNode::QN_SCAN_FRAG_v1, length);
   }
   else 
   {
-    QN_ScanFragNode* node = reinterpret_cast<QN_ScanFragNode*>(serializedDef.addr(startPos)); 
+    QN_ScanIndexNode_v1* node =
+      reinterpret_cast<QN_ScanIndexNode_v1*>(serializedDef.addr(startPos)); 
     if (unlikely(node==NULL)) {
       return Err_MemoryAlloc;
     }
@@ -2801,17 +2828,18 @@ NdbQueryScanOperationDefImpl::serialize(Uint32Buffer& serializedDef,
 
 int
 NdbQueryTableScanOperationDefImpl
-::serializeOperation(Uint32Buffer& serializedDef)
+::serializeOperation(const Ndb *ndb, Uint32Buffer& serializedDef)
 {
-  return NdbQueryScanOperationDefImpl::serialize(serializedDef, getTable());
+  return NdbQueryScanOperationDefImpl::serialize(ndb, serializedDef, getTable());
 } // NdbQueryTableScanOperationDefImpl::serializeOperation
 
 
 int
 NdbQueryIndexScanOperationDefImpl
-::serializeOperation(Uint32Buffer& serializedDef)
+::serializeOperation(const Ndb *ndb, Uint32Buffer& serializedDef)
 {
-  return NdbQueryScanOperationDefImpl::serialize(serializedDef, *m_index.getIndexTable());
+  return NdbQueryScanOperationDefImpl::serialize(ndb, serializedDef,
+                                                 *m_index.getIndexTable());
 } // NdbQueryIndexScanOperationDefImpl::serializeOperation
 
 

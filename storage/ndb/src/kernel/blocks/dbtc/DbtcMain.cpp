@@ -3367,8 +3367,8 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   
   if (unlikely(TViaSPJFlag &&
                /* Check that all nodes can handle SPJ requests. */
-               !ndb_join_pushdown(getNodeVersionInfo().m_type[NodeInfo::DB]
-                                  .m_min_version)))
+               !ndbd_join_pushdown(getNodeVersionInfo().m_type[NodeInfo::DB]
+                                   .m_min_version)))
   {
     jam();
     releaseSections(handle);
@@ -12275,8 +12275,8 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
 
   if (unlikely (ScanTabReq::getViaSPJFlag(ri) &&
                 /* Check that all nodes can handle SPJ requests. */
-                !ndb_join_pushdown(getNodeVersionInfo().m_type[NodeInfo::DB]
-                                   .m_min_version)))
+                !ndbd_join_pushdown(getNodeVersionInfo().m_type[NodeInfo::DB]
+                                    .m_min_version)))
   {
     jam();
     errCode = 4003; // Function not implemented
