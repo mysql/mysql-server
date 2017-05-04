@@ -1693,8 +1693,9 @@ void test_strnxfrmlen(CHARSET_INFO *cs) {
   }
 
   fprintf(stderr,
-    "Longest character in '%s': U+%04lX, %ld bytes (strnxfrm_len=%ld)\n",
-    cs->name, longest.second, longest.first, max_len);
+    "Longest character in '%s': U+%04lX, %d bytes (strnxfrm_len=%d)\n",
+    cs->name, longest.second,
+    static_cast<int>(longest.first), static_cast<int>(max_len));
 }
 
 }  // namespace
