@@ -357,7 +357,7 @@ Dbtup::scanReply(Signal* signal, ScanOpPtr scanPtr)
     Uint32 scan_bits = scan.m_bits;
     if (scan_bits & ScanOp::SCAN_LOCK) {
       jam();
-      ndbrequire(!scan_bits & ScanOp::SCAN_LCP);
+      ndbrequire((scan_bits & ScanOp::SCAN_LCP) == 0);
       scan.m_last_seen = __LINE__;
       // read tuple key - use TUX routine
       const ScanPos& pos = scan.m_scanPos;
