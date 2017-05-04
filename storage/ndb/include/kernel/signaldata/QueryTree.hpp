@@ -233,7 +233,7 @@ struct QN_ScanFragParameters_v1 // Is a QueryNodeParameters subclass
 /**
  * This node describes a IndexScan, Deprecated
  */
-struct QN_ScanIndexNode
+struct QN_ScanIndexNode_v1
 {
   Uint32 len;
   Uint32 requestInfo;
