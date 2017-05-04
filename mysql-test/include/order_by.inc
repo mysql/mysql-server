@@ -1867,3 +1867,19 @@ SELECT
  )
 FROM t3;
 DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # Bug#16833464: Presence of ORDER BY changes data type of column in
+--echo #               CREATE TABLE SELECT
+
+CREATE TABLE z1 (c05 TIME);
+(SELECT * FROM z1 ORDER BY '1') ORDER BY '1';
+
+CREATE TABLE z2 (SELECT * FROM z1 ORDER BY '1') ORDER BY '1';
+CREATE TABLE z3 (SELECT * FROM z1) ORDER BY '1';
+
+#Column in z2 and z3 should be of same type.
+SHOW CREATE TABLE z2;
+SHOW CREATE TABLE z3;
+
+DROP TABLE z1, z2, z3;

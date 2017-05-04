@@ -652,7 +652,7 @@ bool SELECT_LEX_UNIT::prepare(THD *thd_arg, Query_result *sel_result,
       Use items list of underlaid select for derived tables to preserve
       information about fields lengths and exact types
     */
-    if (simple_query_expression)
+    if (!is_union())
       types= first_select()->item_list;
     else if (sl == first_select())
     {

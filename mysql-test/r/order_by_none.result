@@ -3177,4 +3177,23 @@ WHERE (SELECT c FROM t2 ORDER BY COUNT(t3.b ))
 )
 NULL
 DROP TABLE t1,t2,t3;
+#
+# Bug#16833464: Presence of ORDER BY changes data type of column in
+#               CREATE TABLE SELECT
+CREATE TABLE z1 (c05 TIME);
+(SELECT * FROM z1 ORDER BY '1') ORDER BY '1';
+c05
+CREATE TABLE z2 (SELECT * FROM z1 ORDER BY '1') ORDER BY '1';
+CREATE TABLE z3 (SELECT * FROM z1) ORDER BY '1';
+SHOW CREATE TABLE z2;
+Table	Create Table
+z2	CREATE TABLE `z2` (
+  `c05` time DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+SHOW CREATE TABLE z3;
+Table	Create Table
+z3	CREATE TABLE `z3` (
+  `c05` time DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+DROP TABLE z1, z2, z3;
 set optimizer_switch=default;
