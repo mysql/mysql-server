@@ -51,6 +51,7 @@
 #include "log.h"
 #include "m_ctype.h"
 #include "m_string.h"                   // my_stpcpy
+#include "map_helpers.h"
 #include "my_command.h"
 #include "my_dbug.h"
 #include "my_sqlcommand.h"
@@ -107,7 +108,8 @@ using std::max;
   Get structure for logging connection data for the current user
 */
 
-static HASH hash_user_connections;
+static collation_unordered_map<std::string, unique_ptr_my_free<user_conn>>
+  *hash_user_connections;
 
 int get_or_create_user_conn(THD *thd, const char *user,
                             const char *host,
@@ -116,7 +118,7 @@ int get_or_create_user_conn(THD *thd, const char *user,
   int return_val= 0;
   size_t temp_len, user_len;
   char temp_user[USER_HOST_BUFF_SIZE];
-  struct  user_conn *uc;
+  struct  user_conn *uc= nullptr;
 
   DBUG_ASSERT(user != 0);
   DBUG_ASSERT(host != 0);
@@ -124,8 +126,8 @@ int get_or_create_user_conn(THD *thd, const char *user,
   user_len= strlen(user);
   temp_len= (my_stpcpy(my_stpcpy(temp_user, user)+1, host) - temp_user)+1;
   mysql_mutex_lock(&LOCK_user_conn);
-  if (!(uc = (struct  user_conn *) my_hash_search(&hash_user_connections,
-                 (uchar*) temp_user, temp_len)))
+  const auto it= hash_user_connections->find(std::string(temp_user, temp_len));
+  if (it == hash_user_connections->end())
   {
     /* First connection for user; Create a user connection object */
     if (!(uc= ((struct user_conn*)
@@ -144,13 +146,13 @@ int get_or_create_user_conn(THD *thd, const char *user,
     uc->connections= uc->questions= uc->updates= uc->conn_per_hour= 0;
     uc->user_resources= *mqh;
     uc->reset_utime= thd->start_utime;
-    if (my_hash_insert(&hash_user_connections, (uchar*) uc))
-    {
-      /* The only possible error is out of memory, MY_WME sets an error. */
-      my_free(uc);
-      return_val= 1;
-      goto end;
-    }
+    hash_user_connections->emplace(
+      std::string(temp_user, temp_len),
+      unique_ptr_my_free<user_conn>(uc));
+  }
+  else
+  {
+   uc= it->second.get();
   }
   thd->set_user_connect(uc);
   thd->increment_user_connections_counter();
@@ -263,7 +265,7 @@ void decrease_user_connections(USER_CONN *uc)
   if (!--uc->connections && !mqh_used)
   {
     /* Last connection for user; Delete it */
-    (void) my_hash_delete(&hash_user_connections,(uchar*) uc);
+    hash_user_connections->erase(std::string(uc->user, uc->len));
   }
   mysql_mutex_unlock(&LOCK_user_conn);
   DBUG_VOID_RETURN;
@@ -290,7 +292,7 @@ void release_user_connection(THD *thd)
     if (!uc->connections && !mqh_used)
     {
       /* Last connection for user; Delete it */
-      (void) my_hash_delete(&hash_user_connections,(uchar*) uc);
+      hash_user_connections->erase(std::string(uc->user, uc->len));
     }
     mysql_mutex_unlock(&LOCK_user_conn);
     thd->set_user_connect(NULL);
@@ -351,39 +353,18 @@ end:
 }
 
 
-/*
-  Check for maximum allowable user connections, if the mysqld server is
-  started with corresponding variable that is greater then 0.
-*/
-
-static const uchar *get_key_conn(const uchar *arg, size_t *length)
-{
-  const user_conn *buff= pointer_cast<const user_conn*>(arg);
-  *length= buff->len;
-  return (uchar*) buff->user;
-}
-
-
-static void free_user(void *arg)
-{
-  struct user_conn *uc= pointer_cast<user_conn*>(arg);
-  my_free(uc);
-}
-
-
 void init_max_user_conn(void)
 {
-  (void)
-    my_hash_init(&hash_user_connections,system_charset_info,max_connections,
-                 0, get_key_conn,
-                 free_user, 0,
-                 key_memory_user_conn);
+  hash_user_connections=
+    new collation_unordered_map<std::string, unique_ptr_my_free<user_conn>>(
+      system_charset_info, key_memory_user_conn);
 }
 
 
 void free_max_user_conn(void)
 {
-  my_hash_free(&hash_user_connections);
+  delete hash_user_connections;
+  hash_user_connections= nullptr;
 }
 
 
@@ -392,17 +373,17 @@ void reset_mqh(THD *thd, LEX_USER *lu, bool get_them= 0)
   mysql_mutex_lock(&LOCK_user_conn);
   if (lu)  // for GRANT
   {
-    USER_CONN *uc;
     size_t temp_len=lu->user.length+lu->host.length+2;
     char temp_user[USER_HOST_BUFF_SIZE];
 
     memcpy(temp_user,lu->user.str,lu->user.length);
     memcpy(temp_user+lu->user.length+1,lu->host.str,lu->host.length);
     temp_user[lu->user.length]='\0'; temp_user[temp_len-1]=0;
-    if ((uc = (struct  user_conn *) my_hash_search(&hash_user_connections,
-                                                   (uchar*) temp_user,
-                                                   temp_len)))
+    const auto it= hash_user_connections->find(
+      std::string(temp_user, temp_len));
+    if (it != hash_user_connections->end())
     {
+      USER_CONN *uc= it->second.get();
       uc->questions=0;
       get_mqh(thd, temp_user,&temp_user[lu->user.length+1],uc);
       uc->updates=0;
@@ -412,10 +393,9 @@ void reset_mqh(THD *thd, LEX_USER *lu, bool get_them= 0)
   else
   {
     /* for FLUSH PRIVILEGES and FLUSH USER_RESOURCES */
-    for (uint idx=0;idx < hash_user_connections.records; idx++)
+    for (const auto &key_and_value : *hash_user_connections)
     {
-      USER_CONN *uc=(struct user_conn *)
-        my_hash_element(&hash_user_connections, idx);
+      USER_CONN *uc= key_and_value.second.get();
       if (get_them)
   get_mqh(thd, uc->user,uc->host,uc);
       uc->questions=0;

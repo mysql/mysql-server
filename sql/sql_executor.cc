@@ -4204,35 +4204,21 @@ static bool remove_dup_with_hash_index(THD *thd, TABLE *table,
                                        size_t key_length,
                                        Item *having)
 {
-  uchar *key_pos, *record= table->record[0];
+  uchar *record= table->record[0];
   int error;
   handler *file= table->file;
-  HASH hash;
   DBUG_ENTER("remove_dup_with_hash_index");
 
-  size_t extra_length= ALIGN_SIZE(key_length) - key_length;
+  MEM_ROOT mem_root(key_memory_hash_index_key_buffer, 32768, 0);
+  memroot_unordered_set<std::string> hash(&mem_root);
+  hash.reserve(file->stats.records);
 
-  uchar *key_buffer= (uchar *)my_malloc(key_memory_hash_index_key_buffer,
-		                        (key_length + extra_length) *
-			                    (size_t) file->stats.records,
-                                        MYF(MY_WME));
-  if (key_buffer == nullptr)
-    DBUG_RETURN(true);
-
-  if (my_hash_init(&hash, &my_charset_bin, (uint) file->stats.records,
-                   key_length, nullptr, nullptr, 0,
-                   key_memory_hash_index_key_buffer))
-  {
-    my_free(key_buffer);
-    DBUG_RETURN(true);
-  }
-
+  std::unique_ptr<uchar[]> key_buffer(new uchar[key_length]);
   if ((error= file->ha_rnd_init(1)))
     goto err;
-  key_pos=key_buffer;
   for (;;)
   {
-    uchar *org_key_pos;
+    uchar *key_pos= key_buffer.get();
     if (thd->killed)
     {
       thd->send_kill_message();
@@ -4242,60 +4228,51 @@ static bool remove_dup_with_hash_index(THD *thd, TABLE *table,
     if ((error=file->ha_rnd_next(record)))
     {
       if (error == HA_ERR_RECORD_DELETED)
-	continue;
+        continue;
       if (error == HA_ERR_END_OF_FILE)
-	break;
+        break;
       goto err;
     }
     if (having && !having->val_int())
     {
       if ((error=file->ha_delete_row(record)))
-	goto err;
+        goto err;
       continue;
     }
 
     /* copy fields to key buffer */
-    org_key_pos= key_pos;
     const size_t *field_length= field_lengths;
-    for (Field **ptr= first_field ; *ptr ; ptr++)
+    for (Field **ptr= first_field; *ptr; ++ptr, ++field_length)
     {
-      size_t len= (*ptr)->make_sort_key(key_pos,*field_length);
-      // TODO: Use a variable-length hash table instead of padding.
       if ((*ptr)->sort_key_is_varlen())
       {
-        DBUG_ASSERT(len + sizeof(uint32) <= *field_length);
-        memset(key_pos + len, 0, *field_length - len - sizeof(uint32));
-        int4store(key_pos + *field_length - sizeof(uint32), len);
+        size_t len= (*ptr)->make_sort_key(
+          key_pos + sizeof(uint32), *field_length - sizeof(uint32));
+        int4store(key_pos, len);
+        key_pos+= sizeof(uint32) + len;
       }
       else
       {
+        size_t len MY_ATTRIBUTE((unused))=
+          (*ptr)->make_sort_key(key_pos, *field_length);
         DBUG_ASSERT(len == *field_length);
+        key_pos+= *field_length;
       }
-      key_pos+= *field_length++;
     }
-    /* Check if it exists before */
-    if (my_hash_search(&hash, org_key_pos, key_length))
+
+    if (!hash.insert(std::string(key_buffer.get(), key_pos)).second)
     {
-      /* Duplicated found ; Remove the row */
+      // Duplicated record found; remove the row.
       if ((error=file->ha_delete_row(record)))
-	goto err;
-    }
-    else
-    {
-      if (my_hash_insert(&hash, org_key_pos))
         goto err;
     }
-    key_pos+=extra_length;
   }
-  my_free(key_buffer);
-  my_hash_free(&hash);
+
   file->extra(HA_EXTRA_NO_CACHE);
   (void) file->ha_rnd_end();
   DBUG_RETURN(false);
 
 err:
-  my_free(key_buffer);
-  my_hash_free(&hash);
   file->extra(HA_EXTRA_NO_CACHE);
   if (file->inited)
     (void) file->ha_rnd_end();

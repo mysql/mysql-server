@@ -76,6 +76,14 @@ static inline auto find_or_nullptr(const Container &container, const Key &key)
 template<class T>
 using unique_ptr_with_deleter = std::unique_ptr<T, void(*)(T*)>;
 
+struct My_free_deleter {
+  void operator() (void *ptr) const { my_free(ptr); }
+};
+
+/** std::unique_ptr, but with my_free as deleter. */
+template<class T>
+using unique_ptr_my_free = std::unique_ptr<T, My_free_deleter>;
+
 /** A Hasher that hashes std::strings according to a MySQL collation. */
 class Collation_hasher
 {
