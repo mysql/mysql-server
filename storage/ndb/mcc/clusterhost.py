@@ -1,4 +1,4 @@
-# Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -28,13 +28,13 @@ import logging
 import platform
 import json
 import stat
+import sys
 
 import util
 
 import request_handler
 
 _logger = logging.getLogger(__name__)
-
 
 class ExecException(Exception):
     """Exception type thrown when process-spawning fails on 
@@ -66,18 +66,6 @@ class HostInfo(object):
         hostRes['uname'] = self.uname
         return { 'host': { 'name' : self.ch.host }, 'hostRes': hostRes } 
     
-#     def _get_hostInfo(self):
-#         meminfo = self.ch.open('/proc/meminfo')
-#         cpuinfo = self.ch.open('/proc/cpuinfo')
-#         try:
-#             return { 'host': { 'name' : self.ch.host }, 
-#                      'hostRes': { 'ram' : int(meminfo.readline().split()[1]) / 1024, 
-#                                   'cores': len([ln for ln in cpuinfo.readlines() if 'processor' in ln]),
-#                                   'uname': self.uname}}                     
-#         finally:
-#             meminfo.close()
-#             cpuinfo.close()
-
     @property
     def ram(self):
         """Caching?"""
@@ -100,41 +88,42 @@ class HostInfo(object):
         """x"""
         return self.ch.env['HOME']
 
-#     @property
-#     def rep(self):
-#         """A Python dict representation of the hostInfoRep structure which can be directly converted to Json."""
-#         reply = None
-# #         try:
-# #             reply = self._run_host_info()
-# #         except:
-# #             _logger.exception('Running host_info failed. Falling back to system tools:')
-        
-#         reply = self._get_hostInfo()
-
-#         local = platform.system()
-#         remote = self.uname
-#         if (local == 'Windows' and (remote == 'CYGWIN' or remote == 'Windows')) or (local != 'Windows' and remote != 'CYGWIN' and remote != 'Windows'):
-#             _logger.debug('localhost and remote are similar type, apply local paths')
-#             _logger.debug('remote env: '+str(self.ch.env))
-#             reply['hostRes']['installdir'] = request_handler.basedir
-#             reply['hostRes']['datadir'] = self.pm.join(self.pm.expanduser('~'), 'MySQL_Cluster')
-
-#         return reply
-    
     @property
     def path_module(self):
         """Returns the python path module to use when manipulating path names on this host."""
         return self.pm
 
+    @property
+    def disk_free(self):
+        """Returns the free space for homedir on host."""
+        hd = self.ch.env['HOME']
+        #Localhost code, due to shellex escaping in subprocess, mimics AWK functionality.
+        #Remotehost sends full bash line to console.
+        if isinstance(self.ch, LocalClusterHost):
+            dtest=self.ch.exec_blocking(['df', '-h', hd])
+        else:
+            dtest=self.ch.exec_blocking(['df', '-h', hd, '|', 'awk', '''{ print \$4 }'''])
+        #There is a chance there will be an error output from opening the console so skip over it:
+        #o  grab df output, skip to last line, go one back and grab Avail (4th value).
+        lc = dtest.count('\n')
+        if lc > 1: #There has to be 2 lines of df output + errors from console (if any).
+            if isinstance(self.ch, LocalClusterHost):
+                ds = str(str(((dtest).split('\n')[lc-1]).split()[3:4]).strip('[]')).strip("''")
+            else:
+                ds = (self.ch.exec_blocking(['df', '-h', hd, '|', 'awk', '''{ print \$4 }'''])).split('\n')[lc-1]
+            #ds should be at least 2 characters wide (2T, 1G...) otherwise return "unknown".
+            if len(ds) >= 2:
+                return ds
+            else:
+                _logger.warning('Length of parsed df output was less than 2 characters wide.')
+                return 'unknown'
+        else:
+            _logger.warning('df output had less than 2 lines.')
+            return 'unknown'
      
 class  SolarisHostInfo(HostInfo):
     """Specialization for Solaris which uses prtconf and psrinfo to retrieve host information."""
 
-#     def _get_hostInfo(self):
-#         return { 'host': { 'name' : self.ch.host }, 
-#                 'hostRes': { 'ram' :  int(self.ch.exec_blocking(['/usr/sbin/prtconf']).split()[7]), 
-#                             'cores': len(self.ch.exec_blocking(['/usr/sbin/psrinfo']).split('\n')[0:-1]),
-#                             'uname': self.uname}}
     @property
     def ram(self):
         return int(self.ch.exec_blocking(['/usr/sbin/prtconf']).split()[7])
@@ -143,17 +132,10 @@ class  SolarisHostInfo(HostInfo):
     def cores(self):
         return len(self.ch.exec_blocking(['/usr/sbin/psrinfo']).split('\n')[0:-1])
 
+
 class MacHostInfo(HostInfo):
     """Specialization for MacOS which uses sysctl to retrieve host information."""
 
-#     def _get_hostInfo(self):
-#         sysinfo = self.ch.exec_blocking(['/usr/sbin/sysctl', 'hw.']) 
-#         ram = [int(filter(str.isdigit, ln.split()[1])) for ln in sysinfo.split('\n') if 'hw.memsize:' in ln][0] / 1024 / 1024
-#         cores = [int(filter(str.isdigit, ln.split()[1])) for ln in sysinfo.split('\n') if 'hw.ncpu:' in ln][0] 
-#         return { 'host': { 'name' : self.ch.host },
-#                   'hostRes': { 'ram' : ram, 'cores': cores,
-#                                'uname': self.uname}}                    
-    
     @property
     def ram(self):
         sysinfo = self.ch.exec_blocking(['/usr/sbin/sysctl', 'hw.'])
@@ -163,29 +145,14 @@ class MacHostInfo(HostInfo):
     def cores(self):
         sysinfo = self.ch.exec_blocking(['/usr/sbin/sysctl', 'hw.'])
         return [int(filter(str.isdigit, ln.split()[1])) for ln in sysinfo.split('\n') if 'hw.ncpu:' in ln][0]
- 
+
+        
 class CygwinHostInfo(HostInfo):
     """Specialization for Windows Cygwin which uses systeminfo and wmic to retrieve host information, but retains posixpath as the path module."""
 
     @property
     def _host_info_path(self):
         return self.path_module.join('install','host_info', 'Windows', 'host_info.exe')
-
-
-#     def _get_hostInfo(self):
-#         sysinfo = self.ch.exec_blocking(['C:/Windows/system32/systeminfo'])
-#         ram = [ int(filter(str.isdigit, ln.split()[3])) for ln in sysinfo.split('\n') if 'Total Physical Memory:' in ln][0]
-#         self.logger.debug("ram="+str(ram))
-        
-#         wmic = self.ch.exec_blocking(['C:/Windows/System32/Wbem/wmic', 'CPU', 'GET', '/VALUE'])
-#         if isinstance(self.ch, LocalClusterHost):
-#             wmic = unicode(wmic, 'utf-16')
-
-#         cores = sum([ int(ln.split('=')[1]) 
-#                       for ln in wmic.split('\n') if  'NumberOfCores' in ln ])
-#         self.logger.debug("cores="+str(cores))
-#         return { 'host': { 'name' : self.ch.host }, 
-#                'hostRes': { 'ram' : ram, 'cores': cores, 'uname': self.uname}}
 
     @property
     def ram(self):
@@ -197,8 +164,8 @@ class CygwinHostInfo(HostInfo):
         wmic = self.ch.exec_blocking(['C:/Windows/System32/Wbem/wmic', 'CPU', 'GET', '/VALUE'])
         if isinstance(self.ch, LocalClusterHost):
             wmic = unicode(wmic, 'utf-16')
+        return sum([ int(ln.split('=')[1]) for ln in wmic.split('\n') if  'NumberOfLogicalProcessors' in ln ])
 
-        return sum([ int(ln.split('=')[1]) for ln in wmic.split('\n') if  'NumberOfCores' in ln ])
 
 class WindowsHostInfo(CygwinHostInfo):
     """Specialization of CygwinHostInfo for native Windows which uses ntpath as the path module."""
@@ -209,21 +176,38 @@ class WindowsHostInfo(CygwinHostInfo):
         self.envcmd = [ 'cmd.exe', '/c', 'set' ]
 
     @property
-    def cores(self):
-        return int(self.ch.env['NUMBER_OF_PROCESSORS'])
-
-    @property
     def homedir(self):
-        env = self.ch.env
-        if env.has_key('USERPROFILE'):
-            return env['USERPROFILE']
+        envr = self.ch.env
+        if envr.has_key('USERPROFILE'):
+            return envr['USERPROFILE']
         
-        return env['HOMEDRIVE']+env['HOMEPATH']
-            
+        return envr['HOMEDRIVE']+envr['HOMEPATH']
 
     @property
     def path_module(self):
         return ntpath
+
+    @property
+    def disk_free(self):
+        envr = self.ch.env
+        if envr.has_key('USERPROFILE'):
+            hd = envr['USERPROFILE']
+        else:
+            hd = envr['HOMEDRIVE']+envr['HOMEPATH']
+
+        mt = (self.ch.exec_blocking(['C:/Windows/System32/Wbem/wmic', 'logicaldisk', hd[:2], 'GET', 'freespace'])).split('\n')[1]
+        s = ""
+        for i in range(0, len(mt)):
+            if ord(mt[i]) >= 48:
+                s+=str(mt[i])
+                
+        if len(s) < 2:
+            return 'unknown'
+        
+        try:
+            return str(int(s) / 1024 / 1024 / 1024) + 'G'
+        except:
+            return 'unknown'
 
 # Map from uname string to HostInfo type    
 hostInfo_map = { 'SunOS' : SolarisHostInfo,
@@ -312,6 +296,9 @@ class ABClusterHost(object):
     def homedir(self):
         return self.hostInfo.homedir
  
+    @property
+    def disk_free(self):
+        return self.hostInfo.disk_free
    
     @abc.abstractmethod    
     def drop(self, paths=[]):
@@ -386,7 +373,6 @@ class ABClusterHost(object):
         return self.exec_cmdv(cdaemonv, { 'daemonWait': waitsec })
         
             
-
 class LocalClusterHost(ABClusterHost):
     """Implement the ABClusterHost interface for access to the local host without 
     using SSH over Paramiko. Note that this implies that there will be no authentication """
@@ -500,8 +486,6 @@ class LocalClusterHost(ABClusterHost):
                 output.seek(0)
                 raise ExecException(' '.join(cmdv), proc.returncode, output)
         finally:
-            #output.seek(0)
-            #print output.read()
             if (stdin != output):
                 stdin.close()
             output.close()

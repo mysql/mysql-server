@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -133,18 +133,21 @@ void Dbtup::allocConsPages(EmulatedJamBuffer* jamBuf,
     return;
   }//if
 
-  Resource_limit rl;
-  m_ctx.m_mm.get_resource_limit_nolock(RG_DATAMEM, rl);
-  if (rl.m_curr + m_minFreePages + noOfPagesToAllocate > rl.m_max)
-  {
-    thrjam(jamBuf);
-    noOfPagesAllocated = 0;
-    return;
-  }
-
-  m_ctx.m_mm.alloc_pages(RT_DBTUP_PAGE, &allocPageRef,
-			 &noOfPagesToAllocate, 1);
   noOfPagesAllocated = noOfPagesToAllocate;
+  m_ctx.m_mm.alloc_pages(RT_DBTUP_PAGE,
+                         &allocPageRef,
+                         &noOfPagesAllocated,
+                         1);
+  if(noOfPagesAllocated == 0 && c_allow_alloc_spare_page)
+  {
+    void* p = m_ctx.m_mm.alloc_spare_page(RT_DBTUP_PAGE,
+                                          &allocPageRef,
+                                          Ndbd_mem_manager::NDB_ZONE_LE_32);
+    if (p != NULL)
+    {
+      noOfPagesAllocated = 1;
+    }
+  }
 
   // Count number of allocated pages
   m_pages_allocated += noOfPagesAllocated;

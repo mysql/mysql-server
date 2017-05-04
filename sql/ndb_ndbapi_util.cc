@@ -17,7 +17,9 @@
 
 #include "ndb_ndbapi_util.h"
 
-#include <string.h> // memcpy
+#include <string.h>           // memcpy
+
+#include "m_string.h"         // my_strtok_r
 
 #include "my_byteorder.h"
 
@@ -43,6 +45,52 @@ char *ndb_pack_varchar(const NdbDictionary::Column *col, char *buf,
       break;
   }
   return buf;
+}
+
+/*
+  Print the diff between the extra metadata in the table
+  with the data provided by the argument
+*/
+
+static void
+print_diff(char* data, char* unpacked_data)
+{
+  DBUG_ENTER("print_diff");
+  DBUG_PRINT("info", ("Diff found in extra metadata:\n"));
+
+  // Tokenize both strings and compare each token
+  char* data_save_ptr = data;
+  char* unpacked_data_save_ptr = unpacked_data;
+  char* data_token = my_strtok_r(data_save_ptr, "\n", &data_save_ptr);
+  char* unpacked_data_token = my_strtok_r(unpacked_data_save_ptr, "\n",
+                                       &unpacked_data_save_ptr);
+
+  while(data_token && unpacked_data_token)
+  {
+    if(strcmp(data_token, unpacked_data_token))
+    {
+      DBUG_PRINT("info", ("\n+ %s\n- %s\n", data_token,
+          unpacked_data_token));
+    }
+    data_token = my_strtok_r(data_save_ptr, "\n", &data_save_ptr);
+    unpacked_data_token = my_strtok_r(unpacked_data_save_ptr, "\n",
+                                   &unpacked_data_save_ptr);
+  }
+
+  while(data_token)
+  {
+    DBUG_PRINT("info", ("\n+ %s\n", data_token));
+    data_token = my_strtok_r(data_save_ptr, "\n", &data_save_ptr);
+  }
+
+  while(unpacked_data_token)
+  {
+    DBUG_PRINT("info", ("\n- %s\n", unpacked_data_token));
+    unpacked_data_token = my_strtok_r(unpacked_data_save_ptr, "\n",
+                                   &unpacked_data_save_ptr);
+  }
+
+  DBUG_VOID_RETURN;
 }
 
 
@@ -71,10 +119,12 @@ cmp_unpacked_frm(const NdbDictionary::Table* ndbtab, const void* data,
     DBUG_RETURN(1);
   }
 
-  DBUG_ASSERT(version == 1); // Only extra metadata with frm now
-
   if (data_length != unpacked_length)
   {
+    DBUG_PRINT("info", ("Different length, data_length: %u, "
+                        "unpacked_length: %u", (Uint32)data_length,
+                        unpacked_length));
+    print_diff((char*)data, (char*)unpacked_data);
     free(unpacked_data);
     // Different length, can't be equal
     DBUG_RETURN(1);
@@ -84,9 +134,7 @@ cmp_unpacked_frm(const NdbDictionary::Table* ndbtab, const void* data,
   {
     DBUG_PRINT("info", ("Different extra metadata for table %s",
                         ndbtab->getMysqlName()));
-    DBUG_DUMP("frm", (uchar*) unpacked_data,
-                      unpacked_length);
-
+    print_diff((char*)data, (char*)unpacked_data);
     free(unpacked_data);
     DBUG_RETURN(1);
   }

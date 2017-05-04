@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1019,111 +1019,6 @@ void ndbcluster_binlog_init(handlerton* h)
 }
 
 
-static bool
-create_cluster_sys_table(THD *thd, const char* db, size_t db_length,
-                         const char* table, size_t table_length,
-                         const char* create_definitions,
-                         const char* create_options)
-{
-  /* Need a connection to create table, else retry later. */
-  if (g_ndb_cluster_connection->get_no_ready() <= 0)
-    return true; 
-
-  if (opt_ndb_extra_logging)
-    sql_print_information("NDB: Creating %s.%s", db, table);
-
-  Ndb_local_connection mysqld(thd);
-
-  /*
-    Check if table exists in MySQL "dictionary"(i.e on disk)
-    if so, remove it since there is none in Ndb
-  */
-  {
-    char path[FN_REFLEN + 1];
-    build_table_filename(path, sizeof(path) - 1,
-                         db, table, reg_ext, 0);
-    if (my_delete(path, MYF(0)) == 0)
-    {
-      /*
-        The .frm file existed and was deleted from disk.
-        It's possible that someone has tried to use it and thus
-        it might have been inserted in the table definition cache.
-        It must be flushed to avoid that it exist only in the
-        table definition cache.
-      */
-      if (opt_ndb_extra_logging)
-        sql_print_information("NDB: Flushing %s.%s", db, table);
-
-      /* Flush mysql.ndb_apply_status table, ignore all errors */
-      (void)mysqld.flush_table(db, db_length,
-                               table, table_length);
-    }
-  }
-
-  const bool create_if_not_exists = true;
-  const bool res = mysqld.create_sys_table(db, db_length,
-                                           table, table_length,
-                                           create_if_not_exists,
-                                           create_definitions,
-                                           create_options);
-  return res;
-}
-
-
-static bool
-ndb_apply_table__create(THD *thd)
-{
-  DBUG_ENTER("ndb_apply_table__create");
-
-  /* NOTE! Updating this table schema must be reflected in ndb_restore */
-  const bool res =
-    create_cluster_sys_table(thd,
-                             STRING_WITH_LEN("mysql"),
-                             STRING_WITH_LEN("ndb_apply_status"),
-                             // table_definition
-                             "server_id INT UNSIGNED NOT NULL,"
-                             "epoch BIGINT UNSIGNED NOT NULL, "
-                             "log_name VARCHAR(255) BINARY NOT NULL, "
-                             "start_pos BIGINT UNSIGNED NOT NULL, "
-                             "end_pos BIGINT UNSIGNED NOT NULL, "
-                             "PRIMARY KEY USING HASH (server_id)",
-                             // table_options
-                             "ENGINE=NDB CHARACTER SET latin1");
-  DBUG_RETURN(res);
-}
-
-
-static bool
-ndb_schema_table__create(THD *thd)
-{
-  DBUG_ENTER("ndb_schema_table__create");
-
-  /* NOTE! Updating this table schema must be reflected in ndb_restore */
-  const bool res =
-    create_cluster_sys_table(thd,
-                             STRING_WITH_LEN("mysql"),
-                             STRING_WITH_LEN("ndb_schema"),
-                             // table_definition
-                             "db VARBINARY("
-                             NDB_MAX_DDL_NAME_BYTESIZE_STR
-                             ") NOT NULL,"
-                             "name VARBINARY("
-                             NDB_MAX_DDL_NAME_BYTESIZE_STR
-                             ") NOT NULL,"
-                             "slock BINARY(32) NOT NULL,"
-                             "query BLOB NOT NULL,"
-                             "node_id INT UNSIGNED NOT NULL,"
-                             "epoch BIGINT UNSIGNED NOT NULL,"
-                             "id INT UNSIGNED NOT NULL,"
-                             "version INT UNSIGNED NOT NULL,"
-                             "type INT UNSIGNED NOT NULL,"
-                             "PRIMARY KEY USING HASH (db,name)",
-                             // table_options
-                             "ENGINE=NDB CHARACTER SET latin1");
-  DBUG_RETURN(res);
-}
-
-
 /*
    ndb_notify_tables_writable
    
@@ -1462,27 +1357,10 @@ int find_all_files(THD *thd, Ndb* ndb)
       }
       else if (cmp_unpacked_frm(ndbtab, data, length))
       {
-        /* ndb_share reference temporary */
-        NDB_SHARE *share= get_share(key, 0, FALSE);
-        if (share)
-        {
-          DBUG_PRINT("NDB_SHARE", ("%s temporary  use_count: %u",
-                                   share->key_string(), share->use_count));
-        }
-        if (!share || get_ndb_share_state(share) != NSS_ALTERED)
-        {
-          discover= 1;
-          sql_print_information("NDB: mismatch in frm for %s.%s,"
+        discover= 1;
+        sql_print_information("NDB: mismatch in frm for %s.%s,"
                                 " discovering...",
                                 elmt.database, elmt.name);
-        }
-        if (share)
-        {
-          /* ndb_share reference temporary free */
-          DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",
-                                   share->key_string(), share->use_count));
-          free_share(&share);  // temporary ref.
-        }
       }
       my_free(data);
 
@@ -1510,6 +1388,110 @@ int find_all_files(THD *thd, Ndb* ndb)
 
   DBUG_RETURN(-(skipped + unhandled));
 }
+
+  static bool
+  create_cluster_sys_table(THD *thd, const char* db, size_t db_length,
+                           const char* table, size_t table_length,
+                           const char* create_definitions,
+                           const char* create_options)
+  {
+    /* Need a connection to create table, else retry later. */
+    if (g_ndb_cluster_connection->get_no_ready() <= 0)
+      return true;
+
+    if (opt_ndb_extra_logging)
+      sql_print_information("NDB: Creating %s.%s", db, table);
+
+    Ndb_local_connection mysqld(thd);
+
+    /*
+      Check if table exists in MySQL "dictionary"(i.e on disk)
+      if so, remove it since there is none in Ndb
+    */
+    {
+      char path[FN_REFLEN + 1];
+      build_table_filename(path, sizeof(path) - 1,
+                           db, table, reg_ext, 0);
+      if (my_delete(path, MYF(0)) == 0)
+      {
+        /*
+        The .frm file existed and was deleted from disk.
+        It's possible that someone has tried to use it and thus
+        it might have been inserted in the table definition cache.
+        It must be flushed to avoid that it exist only in the
+        table definition cache.
+        */
+        if (opt_ndb_extra_logging)
+          sql_print_information("NDB: Flushing %s.%s", db, table);
+
+        /* Flush mysql.ndb_apply_status table, ignore all errors */
+        (void)mysqld.flush_table(db, db_length,
+                                 table, table_length);
+      }
+    }
+
+    const bool create_if_not_exists = true;
+    const bool res = mysqld.create_sys_table(db, db_length,
+                                             table, table_length,
+                                             create_if_not_exists,
+                                             create_definitions,
+                                             create_options);
+    return res;
+  }
+
+
+  static bool
+  ndb_apply_table__create(THD *thd)
+  {
+    DBUG_ENTER("ndb_apply_table__create");
+
+    /* NOTE! Updating this table schema must be reflected in ndb_restore */
+    const bool res =
+      create_cluster_sys_table(thd,
+                               STRING_WITH_LEN("mysql"),
+                               STRING_WITH_LEN("ndb_apply_status"),
+                               // table_definition
+                               "server_id INT UNSIGNED NOT NULL,"
+                               "epoch BIGINT UNSIGNED NOT NULL, "
+                               "log_name VARCHAR(255) BINARY NOT NULL, "
+                               "start_pos BIGINT UNSIGNED NOT NULL, "
+                               "end_pos BIGINT UNSIGNED NOT NULL, "
+                               "PRIMARY KEY USING HASH (server_id)",
+                               // table_options
+                               "ENGINE=NDB CHARACTER SET latin1");
+    DBUG_RETURN(res);
+  }
+
+
+  static bool
+  ndb_schema_table__create(THD *thd)
+  {
+    DBUG_ENTER("ndb_schema_table__create");
+
+    /* NOTE! Updating this table schema must be reflected in ndb_restore */
+    const bool res =
+      create_cluster_sys_table(thd,
+                               STRING_WITH_LEN("mysql"),
+                               STRING_WITH_LEN("ndb_schema"),
+                               // table_definition
+                               "db VARBINARY("
+                               NDB_MAX_DDL_NAME_BYTESIZE_STR
+                               ") NOT NULL,"
+                               "name VARBINARY("
+                               NDB_MAX_DDL_NAME_BYTESIZE_STR
+                               ") NOT NULL,"
+                               "slock BINARY(32) NOT NULL,"
+                               "query BLOB NOT NULL,"
+                               "node_id INT UNSIGNED NOT NULL,"
+                               "epoch BIGINT UNSIGNED NOT NULL,"
+                               "id INT UNSIGNED NOT NULL,"
+                               "version INT UNSIGNED NOT NULL,"
+                               "type INT UNSIGNED NOT NULL,"
+                               "PRIMARY KEY USING HASH (db,name)",
+                               // table_options
+                               "ENGINE=NDB CHARACTER SET latin1");
+    DBUG_RETURN(res);
+  }
 
   Ndb_binlog_setup(const Ndb_binlog_setup&); // Not copyable
   Ndb_binlog_setup operator=(const Ndb_binlog_setup&); // Not assignable
@@ -1889,6 +1871,23 @@ int ndbcluster_log_schema_op(THD *thd,
     char key[FN_REFLEN + 1];
     build_table_filename(key, sizeof(key) - 1, db, table_name, "", 0);
     ndb_schema_object= ndb_get_schema_object(key, true);
+
+    /**
+     * We will either get a newly created schema_object, or a 
+     * 'all-clear' schema_object completed but still referred
+     * by my binlog-injector-thread. In both cases there should
+     * be no outstanding SLOCK's.
+     * See also the 'ndb_binlog_schema_object_race' error injection.
+     */ 
+    DBUG_ASSERT(bitmap_is_clear_all(&ndb_schema_object->slock_bitmap));
+
+    /**
+     * Expect answer from all other nodes by default(those
+     * who are not subscribed will be filtered away by
+     * the Coordinator which keep track of such stuff)
+     */
+    bitmap_set_all(&ndb_schema_object->slock_bitmap);
+
     ndb_schema_object->table_id= ndb_table_id;
     ndb_schema_object->table_version= ndb_table_version;
 
@@ -2118,7 +2117,13 @@ end:
   /*
     Wait for other mysqld's to acknowledge the table operation
   */
-  if (ndb_error == 0 && !bitmap_is_clear_all(&ndb_schema_object->slock_bitmap))
+  if (unlikely(ndb_error))
+  {
+    sql_print_error("NDB %s: distributing %s err: %u",
+                    type_str, ndb_schema_object->key,
+                    ndb_error->code);
+  }
+  else if (!bitmap_is_clear_all(&ndb_schema_object->slock_bitmap))
   {
     int max_timeout= DEFAULT_SYNC_TIMEOUT;
     mysql_mutex_lock(&ndb_schema_object->mutex);
@@ -2164,12 +2169,6 @@ end:
       }
     }
     mysql_mutex_unlock(&ndb_schema_object->mutex);
-  }
-  else if (ndb_error)
-  {
-    sql_print_error("NDB %s: distributing %s err: %u",
-                    type_str, ndb_schema_object->key,
-                    ndb_error->code);
   }
   else if (opt_ndb_extra_logging > 19)
   {
@@ -3197,6 +3196,22 @@ class Ndb_schema_event_handler {
     mysql_mutex_unlock(&ndb_schema_object->mutex);
     mysql_cond_signal(&ndb_schema_object->cond);
 
+    /**
+     * There is a possible race condition between this binlog-thread,
+     * which has not yet released its schema_object, and the
+     * coordinator which possibly release its reference
+     * to the same schema_object when signaled above.
+     *
+     * If the coordinator then starts yet another schema operation
+     * on the same schema / table, it will need a schema_object with
+     * the same key as the one already completed, and which this 
+     * thread still referrs. Thus, it will get this schema_object,
+     * instead of creating a new one as normally expected.
+     */
+    DBUG_EXECUTE_IF("ndb_binlog_schema_object_race",
+    {
+      ndb_milli_sleep(10);
+    });
     ndb_free_schema_object(&ndb_schema_object);
     DBUG_VOID_RETURN;
   }
@@ -6898,6 +6913,7 @@ restart_cluster_failure:
       if (is_stop_requested())
         goto err;
 
+      my_thread_yield();
       mysql_mutex_lock(&injector_event_mutex);
       schema_res= s_ndb->pollEvents(100, &schema_gci);
       mysql_mutex_unlock(&injector_event_mutex);
@@ -6911,6 +6927,7 @@ restart_cluster_failure:
         if (is_stop_requested())
           goto err;
 
+        my_thread_yield();
         mysql_mutex_lock(&injector_event_mutex);
         res= i_ndb->pollEvents(10, &gci);
         mysql_mutex_unlock(&injector_event_mutex);
@@ -7016,6 +7033,20 @@ restart_cluster_failure:
     thd->proc_info= "Waiting for event from ndbcluster";
     thd->set_time();
 
+    /**
+     * The binlog-thread holds the injector_mutex when waiting for
+     * pollEvents() - which is >99% of the elapsed time. As the
+     * native mutex guarantees no 'fairness', there is no guarantee
+     * that another thread waiting for the mutex will immeditately
+     * get the lock when unlocked by this thread. Thus this thread
+     * may lock it again rather soon and starve the waiting thread.
+     * To avoid this, my_thread_yield() is used to give any waiting
+     * threads a chance to run and grab the injector_mutex when
+     * it is available. The same pattern is used multiple places
+     * in the BI-thread where there are wait-loops holding this mutex.
+     */
+    my_thread_yield();
+
     /* Can't hold mutex too long, so wait for events in 10ms steps */
     int tot_poll_wait= 10;
 
@@ -7081,6 +7112,7 @@ restart_cluster_failure:
                     (uint)(ndb_latest_received_binlog_epoch));
         thd->proc_info= buf;
 
+        my_thread_yield();
         mysql_mutex_lock(&injector_event_mutex);
         schema_res= s_ndb->pollEvents(10, &schema_epoch);
         mysql_mutex_unlock(&injector_event_mutex);

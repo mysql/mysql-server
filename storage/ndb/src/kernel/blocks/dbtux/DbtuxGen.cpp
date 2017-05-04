@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -338,7 +338,7 @@ Dbtux::readKeyAttrs(TuxCtx& ctx, const Frag& frag, TreeEnt ent, KeyData& keyData
 
   int ret;
   ret = c_tup->tuxReadAttrs(ctx.jamBuffer, tableFragPtrI, pageId, pageOffset, tupVersion, keyAttrs32, count, outputBuffer, false);
-  thrjam(ctx.jamBuffer);
+  thrjamDebug(ctx.jamBuffer);
   ndbrequire(ret > 0);
   keyData.reset();
   Uint32 len;
@@ -397,9 +397,9 @@ Dbtux::findFrag(EmulatedJamBuffer* jamBuf, const Index& index,
 {
   const Uint32 numFrags = index.m_numFrags;
   for (Uint32 i = 0; i < numFrags; i++) {
-    thrjam(jamBuf);
+    thrjamDebug(jamBuf);
     if (index.m_fragId[i] == fragId) {
-      thrjam(jamBuf);
+      thrjamDebug(jamBuf);
       fragPtr.i = index.m_fragPtrI[i];
       c_fragPool.getPtr(fragPtr);
       return;

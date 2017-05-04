@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2164,7 +2164,7 @@ Dbtup::addTuxEntries(Signal* signal,
   Uint32 failPtrI;
   triggerList.first(triggerPtr);
   while (triggerPtr.i != RNIL) {
-    jam();
+    jamDebug();
     req->indexId = triggerPtr.p->indexId;
     req->errorCode = RNIL;
     if (ERROR_INSERTED(4023) &&
@@ -2177,7 +2177,7 @@ Dbtup::addTuxEntries(Signal* signal,
     }
     EXECUTE_DIRECT(DBTUX, GSN_TUX_MAINT_REQ,
         signal, TuxMaintReq::SignalLength);
-    jamEntry();
+    jamEntryDebug();
     if (req->errorCode != 0) {
       jam();
       terrorCode = req->errorCode;
@@ -2336,9 +2336,9 @@ Dbtup::ndbmtd_buffer_suma_trigger(Signal * signal,
     {
       jam();
       ndbassert(m_suma_trigger_buffer.m_pageId == RNIL);
-      void * vptr = m_ctx.m_mm.alloc_page(RT_DBTUP_PAGE,
+      void * vptr = m_ctx.m_mm.alloc_page(RT_SUMA_TRIGGER_BUFFER,
                                           &m_suma_trigger_buffer.m_pageId,
-                                          Ndbd_mem_manager::NDB_ZONE_ANY);
+                                          Ndbd_mem_manager::NDB_ZONE_LE_32);
       ptr = reinterpret_cast<Uint32*>(vptr);
       free = GLOBAL_PAGE_SIZE_WORDS - tot;
     }

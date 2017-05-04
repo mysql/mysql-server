@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,39 +35,6 @@
 
 
 #ifdef DBACC_C
-// Debug Macros
-#define dbgWord32(ptr, ind, val) 
-
-/*
-#define dbgWord32(ptr, ind, val) \
-if(debug_jan){ \
-tmp_val = val; \
-switch(ind){ \
-case 1: strcpy(tmp_string, "ZPOS_PAGE_TYPE   "); \
-break; \
-case 2: strcpy(tmp_string, "ZPOS_NO_ELEM_IN_PAGE"); \
-break; \
-case 3: strcpy(tmp_string, "ZPOS_CHECKSUM    "); \
-break; \
-case 5: strcpy(tmp_string, "ZPOS_FREE_AREA_IN_PAGE"); \
-break; \
-case 6: strcpy(tmp_string, "ZPOS_LAST_INDEX   "); \
-break; \
-case 7: strcpy(tmp_string, "ZPOS_INSERT_INDEX  "); \
-break; \
-case 8: strcpy(tmp_string, "ZPOS_ARRAY_POS    "); \
-break; \
-case 9: strcpy(tmp_string, "ZPOS_NEXT_FREE_INDEX"); \
-break; \
-case 10: strcpy(tmp_string, "ZPOS_NEXT_PAGE   "); \
-break; \
-case 11: strcpy(tmp_string, "ZPOS_PREV_PAGE   "); \
-break; \
-default: sprintf(tmp_string, "%-20d", ind);\
-} \
-ndbout << "Ptr: " << ptr.p->word32 << " \tIndex: " << tmp_string << " \tValue: " << tmp_val << " \tLINE: " << __LINE__ << endl; \
-}\
-*/
 
 // Constants
 /** ------------------------------------------------------------------------ 
@@ -83,45 +50,15 @@ ndbout << "Ptr: " << ptr.p->word32 << " \tIndex: " << tmp_string << " \tValue: "
 /* ------------------------------------------------------------------------- */
 /*  THESE CONSTANTS DEFINE THE USE OF THE PAGE HEADER IN THE INDEX PAGES.    */
 /* ------------------------------------------------------------------------- */
-#define ZPOS_PAGE_ID Page8::PAGE_ID
-#define ZPOS_PAGE_TYPE 1
 #define ZPOS_PAGE_TYPE_BIT 14
-#define ZPOS_EMPTY_LIST Page8::EMPTY_LIST
-#define ZPOS_ALLOC_CONTAINERS Page8::ALLOC_CONTAINERS
-#define ZPOS_CHECKSUM Page8::CHECKSUM
-#define ZPOS_NO_ELEM_IN_PAGE 2
-#define ZPOS_FREE_AREA_IN_PAGE Page8::FREE_AREA_IN_PAGE
-#define ZPOS_LAST_INDEX Page8::LAST_INDEX
-#define ZPOS_INSERT_INDEX Page8::INSERT_INDEX
-#define ZPOS_ARRAY_POS Page8::ARRAY_POS
-#define ZPOS_NEXT_FREE_INDEX Page8::NEXT_FREE_INDEX
-#define ZPOS_NEXT_PAGE Page8::NEXT_PAGE
-#define ZPOS_PREV_PAGE Page8::PREV_PAGE
 #define ZNORMAL_PAGE_TYPE 0
 #define ZOVERFLOW_PAGE_TYPE 1
-#define ZDEFAULT_LIST 3
-#define ZWORDS_IN_PAGE 2048
 #define ZADDFRAG 0
-//#define ZEMPTY_FRAGMENT 0
 #define ZFRAGMENTSIZE 64
-#define ZFIRSTTIME 1
-#define ZFS_CONNECTSIZE 300
-#define ZFS_OPSIZE 100
-#define ZKEYINKEYREQ 4
 #define ZLEFT 1
-#define ZLOCALLOGFILE 2
-#define ZLOCKED 0
-#define ZMAXSCANSIGNALLEN 20
-#define ZMAINKEYLEN 8
-#define ZNO_OF_DISK_VERSION 3
-#define ZNO_OF_OP_PER_SIGNAL 20
-//#define ZNOT_EMPTY_FRAGMENT 1
-#define ZOP_HEAD_INFO_LN 3
 #define ZOPRECSIZE 740
-#define ZPAGE8_BASE_ADD 1
 #define ZPAGESIZE 128
 #define ZPARALLEL_QUEUE 1
-#define ZPDIRECTORY 1
 #define ZSCAN_MAX_LOCK 4
 #define ZSERIAL_QUEUE 2
 #define ZSPH1 1
@@ -130,18 +67,12 @@ ndbout << "Ptr: " << ptr.p->word32 << " \tIndex: " << tmp_string << " \tValue: "
 #define ZSPH6 6
 #define ZREADLOCK 0
 #define ZRIGHT 2
-#define ZROOTFRAGMENTSIZE 32
-#define ZSCAN_LOCK_ALL 3
 /**
  * Check kernel_types for other operation types
  */
 #define ZSCAN_OP 8
 #define ZSCAN_REC_SIZE 256
-#define ZSTAND_BY 2
 #define ZTABLESIZE 16
-#define ZTABMAXINDEX 3
-#define ZUNDEFINED_OP 6
-#define ZUNLOCKED 1
 
 /* --------------------------------------------------------------------------------- */
 /* CONTINUEB CODES                                                                   */
@@ -150,7 +81,6 @@ ndbout << "Ptr: " << ptr.p->word32 << " \tIndex: " << tmp_string << " \tValue: "
 #define ZREL_ROOT_FRAG 5
 #define ZREL_FRAG 6
 #define ZREL_DIR 7
-
 /* ------------------------------------------------------------------------- */
 /* ERROR CODES                                                               */
 /* ------------------------------------------------------------------------- */
@@ -337,20 +267,27 @@ enum State {
 struct Page8 {
   Uint32 word32[2048];
   enum Page_variables {
-    PAGE_ID = 0,
-    EMPTY_LIST = 1,
-    ALLOC_CONTAINERS = 2,
-    CHECKSUM = 3,
-    FREE_AREA_IN_PAGE = 5,
-    LAST_INDEX = 6,
-    INSERT_INDEX = 7,
-    ARRAY_POS = 8,
-    NEXT_FREE_INDEX = 9,
-    NEXT_PAGE = 10,
-    PREV_PAGE = 11,
-    SCAN_CON_0_3 = 12,
-    SCAN_CON_4_7 = 13,
-    SCAN_CON_8_11 = 14,
+    /**
+     * First words are for the 32KiB page and must patch with header in Page32.
+     * Words should be zeroed out for second to fourth 8KiB page on 32KiB page
+     */
+    P32_MAGIC = 0,
+    P32_LIST_ID = 1,
+    P32_NEXT_PAGE = 2,
+    P32_PREV_PAGE = 3,
+    P32_WORD_COUNT = 4, // Not an variable index, but count of P32 variables
+    /**
+     * Following words are used for each 8KiB page
+     */
+    PAGE_ID = 4,
+    EMPTY_LIST = 5,
+    ALLOC_CONTAINERS = 6,
+    CHECKSUM = 7,
+    NEXT_PAGE = 8,
+    PREV_PAGE = 9,
+    SCAN_CON_0_3 = 10,
+    SCAN_CON_4_7 = 11,
+    SCAN_CON_8_11 = 12,
   };
   Uint8 getContainerShortIndex(Uint32 pointer) const;
   void setScanContainer(Uint16 scanbit, Uint32 conptr);
@@ -380,6 +317,49 @@ typedef SLCFifoList<Page8,Dbacc,Page8,Page8SLinkMethods> Page8List;
 typedef LocalSLCFifoList<Page8,Dbacc,Page8,Page8SLinkMethods> LocalPage8List;
 typedef DLCFifoList<Page8,Dbacc,Page8,ContainerPageLinkMethods> ContainerPageList;
 typedef LocalDLCFifoList<Page8,Dbacc,Page8,ContainerPageLinkMethods> LocalContainerPageList;
+
+struct Page32
+{
+  enum { MAGIC = 0x17283482 };
+  union {
+    struct {
+      /* fields must match P32-values in Page_variables */
+      Uint32 magic;
+      Uint32 list_id;
+      Uint32 nextList;
+      Uint32 prevList;
+    };
+    Page8 page8[4];
+  };
+};
+
+typedef Ptr<Page32> Page32Ptr;
+typedef ArrayPool<Page32> Page32_pool;
+typedef DLCList<Page32, Page32_pool> Page32_list;
+typedef LocalDLCList<Page32, Page32_pool> LocalPage32_list;
+
+  class Page32Lists {
+    Page32_list::Head lists[16];
+    Uint32 sub_page_id_count[4];
+    Uint16 nonempty_lists;
+
+    static Uint16 sub_page_id_to_list_id_set(int sub_page_id);
+    static Uint8 list_id_to_sub_page_id_set(int list_id);
+    static Uint8 sub_page_id_set_to_list_id(int sub_page_id_set);
+
+    Uint8 least_free_list(Uint16 list_id_set);
+public:
+    enum { ANY_SUB_PAGE = -1, LEAST_COMMON_SUB_PAGE = -2 };
+    Page32Lists();
+
+    Uint32 getCount() const;
+    void addPage32(Page32_pool& pool, Page32Ptr p);
+    void dropFirstPage32(Page32_pool& pool, Page32Ptr& p, Uint32 keep);
+    void dropPage32(Page32_pool& pool, Page32Ptr p);
+    void seizePage8(Page32_pool& pool, Page8Ptr& /* out */ p, int sub_page_id);
+    void releasePage8(Page32_pool& pool, Page8Ptr p);
+    bool haveFreePage8(int sub_page_id) const;
+  };
 
 /* --------------------------------------------------------------------------------- */
 /* FRAGMENTREC. ALL INFORMATION ABOUT FRAMENT AND HASH TABLE IS SAVED IN FRAGMENT    */
@@ -865,7 +845,6 @@ private:
   void execDROP_FRAG_REQ(Signal*);
 
   void execDBINFO_SCANREQ(Signal *signal);
-  void execNODE_STATE_REP(Signal*);
 
   // Statement blocks
   void commitDeleteCheck() const;
@@ -1065,7 +1044,7 @@ private:
   void seizeFsConnectRec(Signal* signal) const;
   void seizeFsOpRec(Signal* signal) const;
   void seizeOpRec();
-  void seizePage(Page8Ptr& spPageptr);
+  void seizePage(Page8Ptr& spPageptr, int sub_page_id);
   void seizeRootfragrec(Signal* signal) const;
   void seizeScanRec();
   void sendSystemerror(int line) const;
@@ -1077,7 +1056,7 @@ private:
                         Page8Ptr bucketPageptr,
                         Uint32 bucketConidx);
   void checkNextFragmentLab(Signal* signal);
-  void endofexpLab(Signal* signal) const;
+  void endofexpLab(Signal* signal);
   void endofshrinkbucketLab(Signal* signal);
   void sttorrysignalLab(Signal* signal) const;
   void sendholdconfsignalLab(Signal* signal) const;
@@ -1107,6 +1086,7 @@ private:
 
 public:
   void getPtr(Ptr<Page8>& page) const;
+  void getPtrForce(Ptr<Page8>& page) const;
 private:
   // Variables
 /* --------------------------------------------------------------------------------- */
@@ -1139,18 +1119,17 @@ private:
 /* --------------------------------------------------------------------------------- */
 /* PAGE8                                                                             */
 /* --------------------------------------------------------------------------------- */
-  Page8 *page8;
   /* 8 KB PAGE                       */
   Page8Ptr expPageptr;
+
+  Page32Lists pages;
   Page8List::Head cfreepages;
-  Uint32 cpagesize;
   Uint32 cpageCount;
   Uint32 cnoOfAllocatedPages;
   Uint32 cnoOfAllocatedPagesMax;
-  Uint32 m_maxAllocPages; // == cpagesize * (100 - m_free_pct) / 100
-  Uint32 m_free_pct;
-  bool m_oom; // if cnoOfAllocatedPages > m_maxAllocPages
 
+  Page32_pool c_page_pool;
+  bool c_allow_use_of_spare_pages;
 /* --------------------------------------------------------------------------------- */
 /* ROOTFRAGMENTREC                                                                   */
 /*          DURING EXPAND FRAGMENT PROCESS, EACH FRAGMEND WILL BE EXPAND INTO TWO    */
@@ -1268,7 +1247,7 @@ inline void Dbacc::Page8::setScanContainer(Uint16 scanbit, Uint32 conptr)
 }
 
 #ifdef NDEBUG
-inline void Dbacc::Page8::clearScanContainer(Uint16 scanbit, Uint32 /* conptr */)
+inline void Dbacc::Page8::clearScanContainer(Uint16 scanbit, Uint32)
 #else
 inline void Dbacc::Page8::clearScanContainer(Uint16 scanbit, Uint32 conptr)
 #endif
@@ -1439,7 +1418,24 @@ inline void Dbacc::ScanRec::moveScanBit(Uint32 toptr, Uint32 fromptr)
 
 inline void Dbacc::getPtr(Ptr<Page8>& page) const
 {
-  ptrCheckGuard(page, cpagesize, page8);
+  ndbrequire(page.i != RNIL);
+  Page32Ptr ptr;
+  ptr.i = page.i >> 2;
+  c_page_pool.getPtr(ptr);
+  page.p = &ptr.p->page8[page.i & 3];
+}
+
+inline void Dbacc::getPtrForce(Ptr<Page8>& page) const
+{
+  if (page.i == RNIL)
+  {
+    page.p = NULL;
+    return;
+  }
+  Page32Ptr ptr;
+  ptr.i = page.i >> 2;
+  c_page_pool.getPtr(ptr);
+  page.p = &ptr.p->page8[page.i & 3];
 }
 
 inline Uint32 Dbacc::getForwardContainerPtr(Uint32 index) const
@@ -1479,8 +1475,184 @@ inline Uint32 Dbacc::getContainerPtr(Uint32 index, bool isforward) const
   }
 }
 
+/**
+ * Implementation of Dbacc::Page32Lists
+ */
+
+inline Dbacc::Page32Lists::Page32Lists()
+: nonempty_lists(0)
+{
+  for (unsigned i = 0; i < NDB_ARRAY_SIZE(lists); i++)
+  {
+    lists[i].init();
+  }
+  for (unsigned i = 0; i < NDB_ARRAY_SIZE(sub_page_id_count); i++)
+  {
+    sub_page_id_count[i] = 0;
+  }
+}
+
+/**
+ * The Dbacc 32KiB pages are arranged in 16 lists depending on which 8KiB
+ * pages are in in use on 32KiB page.
+ *
+ * list#0 - no 8KiB page is in use.
+ *        - all sub pages are free.
+ *
+ * list#1-#4 - one 8KiB page is in use (sub page id 0 - sub page id 3)
+ * list#1 - sub page 0, 1, 2, are free.
+ * list#2 - sub page 0, 1, 3, are free.
+ * list#3 - sub page 0, 2, 3, are free.
+ * list#4 - sub page 1, 2, 3, are free.
+ *
+ * list#5-#10 - two 8KiB pages are in use.
+ * list#5  - sub page 0, 1, are free.
+ * list#6  - sub page 0, 2, are free.
+ * list#7  - sub page 0, 3, are free.
+ * list#8  - sub page 1, 2, are free.
+ * list#9  - sub page 1, 3, are free.
+ * list#10 - sub page 2, 3, are free.
+ *
+ * list#11-14 - three 8KiB pages are in use.
+ * list#11 - sub page 0 is free
+ * list#12 - sub page 1 is free
+ * list#13 - sub page 2 is free
+ * list#14 - sub page 3 is free
+ *
+ * list#15 - all four 8KiB pages are in use.
+ *         - no sub page is free.
+ *
+ * In list_id_set a set bit indicates that the corresponding list is
+ * included.
+ *
+ * List with fewer 8KiB pages free than an other list have higher id.
+ */
+
+/**
+ * sub_page_id_to_list_id
+ *
+ * Find lists of 32KiB pages with requested 8KiB page free, or if
+ * ANY_SUB_PAGE are passed all lists with at least one 8KiB page free.
+ *
+ * @param[in] sub_page_id Index (0-3) of 8KiB page, or ANY_SUB_PAGE.
+ *
+ * @returns A bitmask with one bit set for each matching list.
+ *          For list numbering see comment above.
+ */
+inline Uint16 Dbacc::Page32Lists::sub_page_id_to_list_id_set(int sub_page_id)
+{
+  switch (sub_page_id)
+  {
+  case ANY_SUB_PAGE: /* lists of 32KiB pages with at least one free 8KiB page */
+    return 0x7fff;
+  case 0: /* lists of 32KiB pages with 8KiB page with sub-id 0 free */
+    return 0x08ef; // 0b0'0001'000111'0111'1
+  case 1: /* lists of 32KiB pages with 8KiB page with sub-id 1 free */
+    return 0x1337; // 0b0'0010'011001'1011'1
+  case 2: /* lists of 32KiB pages with 8KiB page with sub-id 2 free */
+    return 0x255b; // 0b0'0100'101010'1101'1
+  case 3: /* lists of 32KiB pages with 8KiB page with sub-id 3 free */
+    return 0x469d; // 0b0'1000'110100'1110'1
+  }
+  require(false);
+  return 0;
+}
+
+/**
+ * least_free_list
+ *
+ * Return one of the lists of 32KiB pages that have least number of 8KiB
+ * pages free.
+ *
+ * Note that the list numbering is such (see comment above) that a list
+ * with fewer free 8KiB pages have a higher id number than one with more
+ * free 8KiB pages.
+ *
+ * @param[in] list_id_set A bitmask with one bit set for each list to
+ *                        consider.
+ *                        Note that at least one list must be given.
+ *
+ * @returns A list id (0-15).
+ */
+inline Uint8 Dbacc::Page32Lists::least_free_list(Uint16 list_id_set)
+{
+  require(list_id_set != 0);
+  return BitmaskImpl::fls(list_id_set);
+}
+
+/**
+ * list_id_to_sub_page_id_set
+ *
+ * Return the 8KiB sub pages that are free for 32KiB pages in a given
+ * list.
+ *
+ * @param[in] list_id
+ *
+ * @returns A bitmask of four bits, with bit set for 8KiB page free.
+ */
+inline Uint8 Dbacc::Page32Lists::list_id_to_sub_page_id_set(int list_id)
+{
+  require(0 <= list_id && list_id <= 15);
+  /**
+   * The 64 bit word below should be viewed as an array of 16 entries
+   * with 4 bits each.
+   *
+   * Index is the list_id, and a set bit in the 4 bits indicates that
+   * corresponding 8KiB page is free.
+   *
+   * What 8KiB page that are free for pages in the different lists is
+   * described in comment above.
+   *
+   * Example, list#0 have all 8KiB pages free so all 4 bits set, and
+   * accordingly the least four bits in lid_to_pidset is set, in hex 0xf.
+   */
+  const Uint64 lid_to_pidset = 0x08421ca6953edb7fULL;
+  return (lid_to_pidset >> (list_id * 4)) & 0xf;
+}
+
+/**
+ * sub_page_id_set_to_list_id
+ *
+ * Get the list id for a page with a specific pattern of 8KiB sub pages
+ * free.
+ *
+ * @param[in] sub_page_id_set A four bit bitmask, a bit is set for sub
+ *                            page requested to be free.
+ *
+ * @returns A list id (0-15).
+ */
+inline Uint8 Dbacc::Page32Lists::sub_page_id_set_to_list_id(int sub_page_id_set)
+{
+  require(0 <= sub_page_id_set && sub_page_id_set <= 15);
+  /**
+   * The 64bit value below should be viewed as an array of 16 entries
+   * with a 4 bit unsigned list id.
+   *
+   * There are 16 combinations of free sub pages, use the 4bit bitmask of
+   * sub pages as an 4 bit unsigned int as index into the "array".
+   *
+   * The list numbering is described in comment above.
+   */
+  const Uint64 pidset_to_lid = 0x043a297e186d5cbfULL; // sub-page-id-set -> list-id
+  return (pidset_to_lid >> (sub_page_id_set * 4)) & 0xf;
+}
+
+inline Uint32 Dbacc::Page32Lists::getCount() const
+{
+  Uint32 sum = 0;
+  for (unsigned i = 0; i < NDB_ARRAY_SIZE(sub_page_id_count); i++)
+    sum += sub_page_id_count[i];
+  return sum;
+}
+
+inline bool Dbacc::Page32Lists::haveFreePage8(int sub_page_id) const
+{
+  Uint16 list_id_set = sub_page_id_to_list_id_set(sub_page_id);
+  return (list_id_set & nonempty_lists) != 0;
+}
+
 #endif
 
+#endif
 #undef JAM_FILE_ID
 
-#endif

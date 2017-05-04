@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -623,6 +623,21 @@ void Dblqh::execCONTINUEB(Signal* signal)
     return;
   }
   default:
+
+#if defined ERROR_INSERT
+    // ERROR_INSERT 5090
+    Uint32 compact = signal->theData[0];
+    if (compact >> 16 == ZDELAY_FS_OPEN)
+    {
+      jam();
+      // Remove ZDELAY_FS_OPEN from compacted theData[0] and
+      // restore logFilePtr.i as it was in the original FSOPENCONF signal
+      signal->theData[0] = (Uint16)compact;
+      sendSignalWithDelay(cownref, GSN_FSOPENCONF, signal, 10, 2);
+      return;
+    }
+#endif
+
     ndbrequire(false);
     break;
   }//switch
@@ -1302,6 +1317,17 @@ void Dblqh::execREAD_CONFIG_REQ(Signal* signal)
       "Trying to start with %d log parts, number of log parts can"
       " only be set to 4, 6, 8, 10, 12, 16, 20, 24 or 32.",
       globalData.ndbLogParts);
+    progError(__LINE__, NDBD_EXIT_INVALID_CONFIG, buf);
+  }
+
+  Uint32 redoLogHandlers = isNdbMtLqh() ? globalData.ndbMtLqhWorkers : 1;
+  if ((redoLogHandlers * 4) < globalData.ndbLogParts)
+  {
+    char buf[255];
+    BaseString::snprintf(buf, sizeof(buf),
+      "Trying to start %d LQH workers with %d log parts, "
+      "too many log parts per LQH (max 4 parts per LQH)",
+       redoLogHandlers, globalData.ndbLogParts);
     progError(__LINE__, NDBD_EXIT_INVALID_CONFIG, buf);
   }
 
@@ -3750,7 +3776,7 @@ void Dblqh::execSEND_PACKED(Signal* signal)
     {
       struct PackedWordsContainer * container = &Thostptr.p->lqh_pack[j];
       if (container->noOfPackedWords > 0) {
-        jam();
+        jamDebug();
         sendPackedSignal(signal, container);
       }
     }
@@ -3758,7 +3784,7 @@ void Dblqh::execSEND_PACKED(Signal* signal)
     {
       struct PackedWordsContainer * container = &Thostptr.p->tc_pack[j];
       if (container->noOfPackedWords > 0) {
-        jam();
+        jamDebug();
         sendPackedSignal(signal, container);
       }
     }
@@ -3773,7 +3799,7 @@ Dblqh::updatePackedList(Signal* signal, HostRecord * ahostptr, Uint16 hostId)
 {
   Uint32 TpackedListIndex = cpackedListIndex;
   if (ahostptr->inPackedList == false) {
-    jam();
+    jamDebug();
     ahostptr->inPackedList = true;
     cpackedList[TpackedListIndex] = hostId;
     cpackedListIndex = TpackedListIndex + 1;
@@ -3782,7 +3808,7 @@ Dblqh::updatePackedList(Signal* signal, HostRecord * ahostptr, Uint16 hostId)
 
 void
 Dblqh::execREAD_PSEUDO_REQ(Signal* signal){
-  jamEntry();
+  jamEntryDebug();
   TcConnectionrecPtr regTcPtr;
   regTcPtr.i = signal->theData[0];
   ptrCheckGuard(regTcPtr, ctcConnectrecFileSize, tcConnectionrec);
@@ -3866,7 +3892,6 @@ void Dblqh::execTUPKEYCONF(Signal* signal)
   regTcPtr.i = tupKeyConf->userPtr;
   TcConnectionrec *regTcConnectionrec = tcConnectionrec;
   Uint32 ttcConnectrecFileSize = ctcConnectrecFileSize;
-  jamEntry();
   ptrCheckGuard(regTcPtr, ttcConnectrecFileSize, regTcConnectionrec);
   Uint32 activeCreat = regTcPtr.p->activeCreat;
 
@@ -3880,7 +3905,7 @@ void Dblqh::execTUPKEYCONF(Signal* signal)
   switch (regTcPtr.p->transactionState) {
   case TcConnectionrec::WAIT_TUP:
     {
-      jam();
+      jamDebug();
       if (regTcPtr.p->seqNoReplica == 0) // Primary replica
         regTcPtr.p->numFiredTriggers = tupKeyConf->numFiredTriggers;
       
@@ -4264,10 +4289,10 @@ void Dblqh::sendLqhkeyconfTc(Signal* signal, BlockReference atcBlockref)
   if (send_packed)
   {
     if (container->noOfPackedWords > (25 - LqhKeyConf::SignalLength)) {
-      jam();
+      jamDebug();
       sendPackedSignal(signal, container);
     } else {
-      jam();
+      jamDebug();
       updatePackedList(signal, Thostptr.p, Thostptr.i);
     }//if
     lqhKeyConf = (LqhKeyConf *)
@@ -5073,7 +5098,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   {
     struct CommitAckMarker check;
     CommitAckMarkerPtr markerPtr;
-    jam();
+    jamDebug();
     check.transid1 = regTcPtr->transid[0];
     check.transid2 = regTcPtr->transid[1];
 
@@ -5337,11 +5362,11 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   UintR TseqNoReplica = regTcPtr->seqNoReplica;
   UintR TlastReplicaNo = regTcPtr->lastReplicaNo;
   if (TseqNoReplica == TlastReplicaNo) {
-    jam();
+    jamDebug();
     regTcPtr->nextReplica = ZNIL;
   } else {
     if (TseqNoReplica < TlastReplicaNo) {
-      jam();
+      jamDebug();
       regTcPtr->nextSeqNoReplica = TseqNoReplica + 1;
       if ((regTcPtr->nextReplica == 0) ||
           (regTcPtr->nextReplica == cownNodeid)) {
@@ -5367,7 +5392,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
       regTcPtr->primKeyLen > keyLenWithLQHReq ||      //Await more KEYINFO
       regTcPtr->totReclenAi > regTcPtr->currReclenAi) //Await more ATTRINFO
   {
-    jam();
+    jamDebug();
     /* Check that no equal element exists */
     ndbassert(findTransaction(regTcPtr->transid[0], regTcPtr->transid[1], 
                               regTcPtr->tcOprec, regTcPtr->tcHashKeyHi) == ZNOT_FOUND);
@@ -5582,11 +5607,11 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   /* Handle any AttrInfo we received with the LQHKEYREQ */
   if (regTcPtr->currReclenAi != 0)
   {
-    jam();
+    jamDebug();
     if (isLongReq)
     {
       /* Long LQHKEYREQ */
-      jam();
+      jamDebug();
       
       regTcPtr->currTupAiLen= saveAttrInfo ?
         regTcPtr->totReclenAi :
@@ -5848,7 +5873,7 @@ Dblqh::exec_acckeyreq(Signal* signal, TcConnectionrecPtr regTcPtr)
   EXECUTE_DIRECT(refToMain(blockRef), GSN_ACCKEYREQ, 
 		 signal, AccKeyReq::SignalLength_keyInfo + regTcPtr.p->primKeyLen);
   if (signal->theData[0] < RNIL) {
-    jamEntry();
+    jamEntryDebug();
     continueACCKEYCONF(signal,
                        regTcPtr.p,
                        signal->theData[3],
@@ -6845,10 +6870,10 @@ void Dblqh::tupkeyConfLab(Signal* signal,
   Uint32 accOp = regTcPtr->accConnectrec;
   c_acc->execACCKEY_ORD(signal, accOp);
 
-  jamEntry();
+  jamEntryDebug();
   if (readLen != 0) 
   {
-    jam();
+    jamDebug();
 
     /* SET BIT 15 IN REQINFO */
     LqhKeyReq::setApplicationAddressFlag(regTcPtr->reqinfo, 1);
@@ -6858,7 +6883,7 @@ void Dblqh::tupkeyConfLab(Signal* signal,
   if (regTcPtr->operation == ZREAD && 
       (regTcPtr->opSimple || regTcPtr->dirtyOp))
   {
-    jam();
+    jamDebug();
     /* ----------------------------------------------------------------------
      * THE OPERATION IS A SIMPLE READ. 
      * WE WILL IMMEDIATELY COMMIT THE OPERATION.
@@ -7312,11 +7337,11 @@ void Dblqh::packLqhkeyreqLab(Signal* signal)
     if (! (regTcPtr->dirtyOp || 
            (regTcPtr->operation == ZREAD && regTcPtr->opSimple)))
     {
-      jam();
+      jamDebug();
       regTcPtr->transactionState = TcConnectionrec::PREPARED;
       releaseOprec(signal);
     } else {
-      jam();
+      jamDebug();
 
 /*************************************************************>*/
 /*       DIRTY WRITES ARE USED IN TWO SITUATIONS. THE FIRST    */
@@ -7811,7 +7836,7 @@ void Dblqh::writeAttrinfoLab(Signal* signal)
   if (totLen == 0)
     return;
 
-  jam();
+  jamDebug();
   ndbassert( regTcPtr->attrInfoIVal != RNIL );
   SectionReader attrInfoReader(regTcPtr->attrInfoIVal,
                                g_sectionSegmentPool);
@@ -7937,7 +7962,7 @@ void Dblqh::deleteTransidHash(Signal* signal)
    */ 
   if (regTcPtr->hashIndex == RNIL)
   {
-    jam();
+    jamDebug();
     /* If this operation is 'non-dirty', there should be no duplicates */
     ndbassert(regTcPtr->dirtyOp == ZTRUE ||
               findTransaction(regTcPtr->transid[0], regTcPtr->transid[1], 
@@ -7950,12 +7975,12 @@ void Dblqh::deleteTransidHash(Signal* signal)
   /* prevHashptr and nextHashptr may be RNIL when the bucket has 1 element */
 
   if (prevHashptr.i != RNIL) {
-    jam();
+    jamDebug();
     ptrCheckGuard(prevHashptr, ctcConnectrecFileSize, tcConnectionrec);
     ndbassert(prevHashptr.p->nextHashRec == tcConnectptr.i);
     prevHashptr.p->nextHashRec = nextHashptr.i;
   } else {
-    jam();
+    jamDebug();
 /* ------------------------------------------------------------------------- */
 /* THE OPERATION WAS PLACED FIRST IN THE LIST OF THE HASH TABLE. NEED TO SET */
 /* A NEW LEADER OF THE LIST.                                                 */
@@ -7966,7 +7991,7 @@ void Dblqh::deleteTransidHash(Signal* signal)
     ctransidHash[hashIndex] = nextHashptr.i;
   }//if
   if (nextHashptr.i != RNIL) {
-    jam();
+    jamDebug();
     ptrCheckGuard(nextHashptr, ctcConnectrecFileSize, tcConnectionrec);
     ndbassert(nextHashptr.p->prevHashRec == tcConnectptr.i);
     nextHashptr.p->prevHashRec = prevHashptr.i;
@@ -8886,7 +8911,7 @@ void Dblqh::commitContinueAfterBlockedLab(Signal* signal)
       
       if (dirtyOp && normalProtocol == 0)
       {
-	jam();
+	jamDebug();
         /**
          * The dirtyRead does not send anything but TRANSID_AI from LDM
          */
@@ -9106,7 +9131,7 @@ void Dblqh::completeUnusualLab(Signal* signal)
 /* ========================================================================= */
 void Dblqh::releaseTcrec(Signal* signal, TcConnectionrecPtr locTcConnectptr) 
 {
-  jam();
+  jamDebug();
   ndbassert(locTcConnectptr.p->hashIndex==RNIL);
   const Uint32 op = locTcConnectptr.p->operation;
   const Uint32 firstFree = cfirstfreeTcConrec;
@@ -9143,7 +9168,7 @@ void Dblqh::releaseTcrec(Signal* signal, TcConnectionrecPtr locTcConnectptr)
 
 void Dblqh::releaseTcrecLog(Signal* signal, TcConnectionrecPtr locTcConnectptr) 
 {
-  jam();
+  jamDebug();
   Uint32 numFree = ctcNumFree;
   ndbassert(locTcConnectptr.p->hashIndex==RNIL);
   locTcConnectptr.p->tcTimer = 0;
@@ -10456,7 +10481,7 @@ void Dblqh::execNEXT_SCANCONF(Signal* signal)
   loc_scanptr.i = nextScanConf->scanPtr;
   const Uint32 pageNo = nextScanConf->localKey[0];
   const Uint32 pageIdx = nextScanConf->localKey[1];
-  jamEntry();
+  jamEntryDebug();
   c_scanRecordPool.getPtr(loc_scanptr);
   ScanRecord * const scanPtr = loc_scanptr.p;
   scanptr = loc_scanptr;
@@ -12113,7 +12138,7 @@ void Dblqh::nextScanConfScanLab(Signal* signal,
     const Uint32 fragPtrI = fragPtrP->tableFragptr;
     const Uint32 rangeScan = scanPtr->rangeScan;
     bool disk_table = regTcPtr->m_disk_table;
-    jam();
+    jamDebug();
     regTcPtr->transactionState = TcConnectionrec::SCAN_TUPKEY;
     if (rangeScan) {
       // for ordered index use primary table
@@ -12145,7 +12170,7 @@ void Dblqh::nextScanConfScanLab(Signal* signal,
      ************************************************************ */    
     if (fragId == RNIL && !scanPtr->scanLockHold)
     {
-      jam();
+      jamDebug();
       closeScanLab(signal);
       return;
     }
@@ -12212,7 +12237,7 @@ Dblqh::next_scanconf_tupkeyreq(Signal* signal,
   tupKeyReq->disk_page= disk_page;
   tupKeyReq->attrInfoIVal= RNIL;
   tupKeyReq->attrBufLen = 0;
-  jam();
+  jamDebug();
 
   tupKeyReq->fragPtr = fragPtr;
   tupKeyReq->request = reqinfo;
@@ -13119,12 +13144,12 @@ bool Dblqh::finishScanrec(Signal* signal, ScanRecordPtr &restart_scan)
     Local_ScanRecord_list scans(c_scanRecordPool, fragptr.p->m_activeScans);
     if (reserved == 0)
     {
-      jam();
+      jamDebug();
       scans.release(scanptr);
     }
     else
     {
-      jam();
+      jamDebug();
       scans.remove(scanptr);
       m_reserved_scans.addFirst(scanptr);
     }
@@ -13152,7 +13177,7 @@ bool Dblqh::finishScanrec(Signal* signal, ScanRecordPtr &restart_scan)
          (scanNumber >= NR_ScanNo &&
           scanNumber <= Backup_ScanNo))
     {
-      jam();
+      jamDebug();
 
       /**
        * LCP scan, NR scan, Backup scans won't start any queued scans since
@@ -13268,8 +13293,9 @@ Uint32 Dblqh::sendKeyinfo20(Signal* signal,
    *  messing with if's below...
    */
   Uint32 keyLen ;
-  if (refToMain(ref) == SUMA && nodeId == getOwnNodeId())
+  if (refToMain(ref) == SUMA)
   {
+    ndbassert(refToNode(ref) == getOwnNodeId());
     keyLen = 0;
   }
   else
@@ -13452,7 +13478,7 @@ void Dblqh::send_next_NEXT_SCANREQ(Signal* signal,
     if (!is_prioritised_scan(resultRef))
     {
       /* Normal user scans */
-      jam();
+      jamDebug();
       sendSignal(blockRef, GSN_NEXT_SCANREQ, signal, 3, JBB);
       return;
     }
@@ -13489,7 +13515,7 @@ void Dblqh::send_next_NEXT_SCANREQ(Signal* signal,
      * as part of this signal execution.
      */
     signal->m_extra_signals++;
-    jam();
+    jamDebug();
     block->EXECUTE_DIRECT(f, signal);
     return;
   }
@@ -13516,7 +13542,7 @@ void Dblqh::sendScanFragConf(Signal* signal, Uint32 scanCompleted)
 
   if (!scanPtr->lcpScan)
   {
-    jam();
+    jamDebug();
     Fragrecord::UsageStat& useStat = 
       c_fragment_pool.getPtr(tcConnectptr.p->fragmentptr)->m_useStat;
     ndbassert(useStat.m_scanFragReqCount > 0);
@@ -13528,7 +13554,7 @@ void Dblqh::sendScanFragConf(Signal* signal, Uint32 scanCompleted)
 
   if(!scanPtr->scanLockHold)
   {
-    jam();
+    jamDebug();
     scanPtr->m_curr_batch_size_rows = 0;
     scanPtr->m_curr_batch_size_bytes= 0;
   }
@@ -13554,7 +13580,7 @@ void Dblqh::sendScanFragConf(Signal* signal, Uint32 scanCompleted)
   JobBufferLevel prio_level = JBB;
   if (scanPtr->prioAFlag)
   {
-    jam();
+    jamDebug();
     prio_level = JBA;
   }
   sendSignal(blockRef, GSN_SCAN_FRAGCONF, 
@@ -16539,6 +16565,23 @@ void Dblqh::execFSCLOSECONF(Signal* signal)
 void Dblqh::execFSOPENCONF(Signal* signal) 
 {
   jamEntry();
+
+#ifdef ERROR_INSERT
+  if (delayOpenFilePtrI > 0 && signal->theData[0] == delayOpenFilePtrI)
+  {
+    /* ERROR_INSERT 5090 : delay executing FSOPENCONF by sending
+     * GSN_CONTINUEB in order to simulate a delay in opening a redo log file.
+     * theData[0] of FSOPENCONF contains the LogFilePtr.i of the delayed file.
+     * Add ZDELAY_FS_OPEN to theData[0] in addition to LogFilePtr.i,
+     * in order to hint CONTINUEB to handle this signal.
+     */
+    Uint32 compact = signal->theData[0];
+    signal->theData[0] = compact | (Uint32)ZDELAY_FS_OPEN <<16 ;
+    sendSignal(cownref, GSN_CONTINUEB, signal, 2, JBB);
+    return;
+  }
+#endif
+
   initFsopenconf(signal);
   switch (logFilePtr.p->logFileStatus) {
   case LogFileRecord::OPEN_SR_READ_INVALIDATE_PAGES:
@@ -16888,6 +16931,25 @@ void Dblqh::initFsopenconf(Signal* signal)
   ptrCheckGuard(logPartPtr, clogPartFileSize, logPartRecord);
   logFilePtr.p->currentMbyte = 0;
   logFilePtr.p->filePosition = 0;
+
+  if (logFilePtr.p->fileChangeState == LogFileRecord::WAIT_FOR_OPEN_NEXT_FILE ||
+      logFilePtr.p->fileChangeState == LogFileRecord::LAST_FILEWRITE_WAITS ||
+      logFilePtr.p->fileChangeState == LogFileRecord::FIRST_FILEWRITE_WAITS)
+  {
+    jam();
+    logPagePtr.i = logFilePtr.p->currentLogpage;
+    ptrCheckGuard(logPagePtr, clogPageFileSize, logPageRecord);
+    writeFileHeaderOpen(signal, ZNORMAL);
+    openNextLogfile(signal);
+
+    if (logFilePtr.p->fileChangeState == LogFileRecord::WAIT_FOR_OPEN_NEXT_FILE)
+      logFilePtr.p->fileChangeState = LogFileRecord::BOTH_WRITES_ONGOING;
+    else if (logFilePtr.p->fileChangeState == LogFileRecord::LAST_FILEWRITE_WAITS)
+      logFilePtr.p->fileChangeState = LogFileRecord::FIRST_WRITE_ONGOING;
+    else if (logFilePtr.p->fileChangeState == LogFileRecord::FIRST_FILEWRITE_WAITS)
+      logFilePtr.p->fileChangeState = LogFileRecord::LAST_WRITE_ONGOING;
+  }
+
 }//Dblqh::initFsopenconf()
 
 /* ========================================================================= */
@@ -17110,9 +17172,16 @@ void Dblqh::firstPageWriteLab(Signal* signal)
 /* FILE 0. THE AIM IS TO MAKE RESTARTS EASIER BY SPECIFYING WHICH IS THE     */
 /* LAST FILE WHERE LOGGING HAS STARTED.                                      */
 /*---------------------------------------------------------------------------*/
-/* FIRST CHECK WHETHER THE LAST WRITE IN THE PREVIOUS FILE HAVE COMPLETED    */
+/* FIRST CHECK WHETHER THE NEXT FILE IS OPENED AND THEN                      */
+/* THE LAST WRITE IN THE PREVIOUS FILE HAVE COMPLETED                        */
 /*---------------------------------------------------------------------------*/
-  if (logFilePtr.p->fileChangeState == LogFileRecord::BOTH_WRITES_ONGOING) {
+  if (logFilePtr.p->fileChangeState == LogFileRecord::WAIT_FOR_OPEN_NEXT_FILE)
+  {
+    jam();
+    logFilePtr.p->fileChangeState = LogFileRecord::FIRST_FILEWRITE_WAITS;
+    return;
+  }
+  else if (logFilePtr.p->fileChangeState == LogFileRecord::BOTH_WRITES_ONGOING) {
     jam();
 /*---------------------------------------------------------------------------*/
 /* THE LAST WRITE WAS STILL ONGOING.                                         */
@@ -17196,13 +17265,21 @@ void Dblqh::lastWriteInFileLab(Signal* signal)
 /* FILE 0. THE AIM IS TO MAKE RESTARTS EASIER BY SPECIFYING WHICH IS THE     */
 /* LAST FILE WHERE LOGGING HAS STARTED.                                      */
 /*---------------------------------------------------------------------------*/
-/* FIRST CHECK WHETHER THE FIRST WRITE IN THE NEW FILE HAVE COMPLETED        */
+/* FIRST CHECK WHETHER THE NEXT FILE IS OPENED AND THEN                      */
+/* THE FIRST WRITE IN THE NEW FILE HAVE COMPLETED                            */
 /* THIS STATE INFORMATION IS IN THE NEW LOG FILE AND THUS WE HAVE TO MOVE    */
 /* THE LOG FILE POINTER TO THIS LOG FILE.                                    */
 /*---------------------------------------------------------------------------*/
   logFilePtr.i = logFilePtr.p->nextLogFile;
   ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
-  if (logFilePtr.p->fileChangeState == LogFileRecord::BOTH_WRITES_ONGOING) {
+
+  if (logFilePtr.p->fileChangeState == LogFileRecord::WAIT_FOR_OPEN_NEXT_FILE)
+  {
+    jam();
+    logFilePtr.p->fileChangeState = LogFileRecord::LAST_FILEWRITE_WAITS;
+    return;
+  }
+  else if (logFilePtr.p->fileChangeState == LogFileRecord::BOTH_WRITES_ONGOING) {
     jam();
 /*---------------------------------------------------------------------------*/
 /* THE FIRST WRITE WAS STILL ONGOING.                                        */
@@ -17677,6 +17754,21 @@ void Dblqh::openNextLogfile(Signal* signal)
 /* -------------------------------------------------- */
     onlLogFilePtr.i = logFilePtr.p->nextLogFile;
     ptrCheckGuard(onlLogFilePtr, clogFileFileSize, logFileRecord);
+
+#ifdef ERROR_INSERT
+    if (delayOpenFilePtrI == 0 && onlLogFilePtr.p->fileNo > 3 &&
+        ERROR_INSERTED_CLEAR(5090))
+    {
+      /* Instruct execFSOPENCONF to delay the execution of the
+       * signal for fileNo>3 to simulate a delay in opening it.
+       * (Choice of '>3': File 0 is held open. Let files 1-3
+       * being filled and opened normally. The next file belonging
+       * to the log part being filled by the test will be delayed).
+       */
+      delayOpenFilePtrI = logFilePtr.p->nextLogFile;
+    }
+#endif
+
     if (onlLogFilePtr.p->logFileStatus != LogFileRecord::CLOSED) {
       ndbrequire(onlLogFilePtr.p->fileNo == 0);
       return;
@@ -18025,6 +18117,11 @@ void Dblqh::writeSinglePage(Signal* signal, Uint32 pageNo,
   signal->theData[7] = pageNo;
   sendSignal(NDBFS_REF, GSN_FSWRITEREQ, signal, 8, JBA);
 
+  if (logFilePtr.p->fileRef == RNIL)
+  {
+    signal->theData[0] = 2305;
+    execDUMP_STATE_ORD(signal);
+  }
   ndbrequire(logFilePtr.p->fileRef != RNIL);
 
   logPartPtr.p->m_io_tracker.send_io(32768);
@@ -22367,7 +22464,7 @@ Dblqh::remove_from_prepare_log_queue(Signal *signal,
 bool Dblqh::getFragmentrec(Signal* signal, Uint32 fragId) 
 {
   for (Uint32 i = 0; i < NDB_ARRAY_SIZE(tabptr.p->fragid); i++) {
-    jam();
+    jamDebug();
     if (tabptr.p->fragid[i] == fragId) {
       fragptr.i = tabptr.p->fragrec[i];
       c_fragment_pool.getPtr(fragptr);
@@ -24312,9 +24409,31 @@ void Dblqh::writeNextLog(Signal* signal)
 /*       ALSO OPEN THE NEXT LOG FILE TO ENSURE THAT   */
 /*       THIS FILE IS OPEN WHEN ITS TURN COMES.       */
 /* -------------------------------------------------- */
-    writeFileHeaderOpen(signal, ZNORMAL);
-    openNextLogfile(signal);
-    logFilePtr.p->fileChangeState = LogFileRecord::BOTH_WRITES_ONGOING;
+#ifdef ERROR_INSERT
+    if (delayOpenFilePtrI > 0 &&  logFilePtr.i == delayOpenFilePtrI)
+    {
+      // Error insertion (the required file is not opened) is seen.
+      ndbassert(logFilePtr.p->fileRef == RNIL);
+      // Clear the inserted error 5090.
+      delayOpenFilePtrI = 0;
+    }
+#endif
+   if (logFilePtr.p->fileRef == RNIL)
+    {
+      jam();
+      logFilePtr.p->fileChangeState = LogFileRecord::WAIT_FOR_OPEN_NEXT_FILE;
+      update_log_problem(signal, logPartPtr,
+                         LogPartRecord::P_FILE_CHANGE_PROBLEM,
+                         /* set */ true);
+      // This problem will be cleared by writePageZeroLab() when the file
+      // is opened and the zero page is written.
+    }
+    else
+    {
+      writeFileHeaderOpen(signal, ZNORMAL);
+      openNextLogfile(signal);
+      logFilePtr.p->fileChangeState = LogFileRecord::BOTH_WRITES_ONGOING;
+    }
   }//if
   if (logFilePtr.p->fileNo == logPartPtr.p->logTailFileNo) 
   {
@@ -27196,15 +27315,41 @@ Dblqh::report_redo_written_bytes()
 bool
 Dblqh::is_ldm_instance_io_lagging()
 {
-  for (logPartPtr.i = 0; logPartPtr.i < clogPartFileSize; logPartPtr.i++)
+  bool io_lag_now = false;
+  do
   {
-    ptrCheckGuard(logPartPtr, clogPartFileSize, logPartRecord);
-    if (logPartPtr.p->m_io_tracker.get_lag_in_seconds() >= 2)
+    for (logPartPtr.i = 0; logPartPtr.i < clogPartFileSize; logPartPtr.i++)
+    {
+      ptrCheckGuard(logPartPtr, clogPartFileSize, logPartRecord);
+      if (logPartPtr.p->m_io_tracker.get_lag_in_seconds() >= 2)
+      {
+        jam();
+        io_lag_now = true;
+        break;
+      }
+      jam();
+    }
+  } while (0);
+
+  Int32 change = 0;
+  if (c_is_io_lag_reported)
+  {
+    jam();
+    if (!io_lag_now)
     {
       jam();
-      return true;
+      change = Int32(-1);
     }
-    jam();
   }
-  return false;
+  else
+  {
+    jam();
+    if (io_lag_now)
+    {
+      jam();
+      change = Int32(+1);
+    }
+  }
+  c_is_io_lag_reported = io_lag_now;
+  return change_and_get_io_laggers(change) == 0 ? false : true;
 }

@@ -39,9 +39,6 @@ NDB_SHARE::destroy(NDB_SHARE* share)
   // ndb_index_stat_free() should have cleaned up:
   assert(share->index_stat_list == NULL);
 
-  // ndb_index_stat_free() should have cleaned up:
-  assert(share->index_stat_list == NULL);
-
   teardown_conflict_fn(g_ndb, share->m_cfn_share);
 
   share->new_op= 0;

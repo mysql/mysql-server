@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,7 +28,6 @@
 void Dbacc::initData() 
 {
   coprecsize = ZOPRECSIZE;
-  cpagesize = ZPAGESIZE;
   ctablesize = ZTABLESIZE;
   cfragmentsize = ZFRAGMENTSIZE;
   cscanRecSize = ZSCAN_REC_SIZE;
@@ -39,13 +38,15 @@ void Dbacc::initData()
 
   fragmentrec = 0;
   operationrec = 0;
-  page8 = 0;
   scanRec = 0;
   tabrec = 0;
 
-  m_free_pct = 0;
-  m_oom = false;
-  cnoOfAllocatedPagesMax = cnoOfAllocatedPages = cpagesize = cpageCount = m_maxAllocPages = 0;
+  void* ptr = m_ctx.m_mm.get_memroot();
+  c_page_pool.set((Page32*)ptr, (Uint32)~0);
+
+  c_allow_use_of_spare_pages = false;
+
+  cnoOfAllocatedPagesMax = cnoOfAllocatedPages = cpageCount = 0;
   // Records with constant sizes
 
   RSS_OP_COUNTER_INIT(cnoOfFreeFragrec);
@@ -54,48 +55,10 @@ void Dbacc::initData()
 
 void Dbacc::initRecords() 
 {
-  {
-    AllocChunk chunks[16];
-    const Uint32 pages = (cpagesize + 3) / 4;
-    const Uint32 chunkcnt = allocChunks(chunks, 16, RT_DBTUP_PAGE, pages,
-                                        CFG_DB_INDEX_MEM);
-
-    /**
-     * Set base ptr
-     */
-    Ptr<GlobalPage> pagePtr;
-    m_shared_page_pool.getPtr(pagePtr, chunks[0].ptrI);
-    page8 = (Page8*)pagePtr.p;
-
-    /**
-     * 1) Build free-list per chunk
-     * 2) Add chunks to cfreepages-list
-     */
-    cfreepages.init();
-    cpagesize = 0;
-    cpageCount = 0;
-    LocalPage8List freelist(*this, cfreepages);
-    for (Int32 i = chunkcnt - 1; i >= 0; i--)
-    {
-      Ptr<GlobalPage> pagePtr;
-      m_shared_page_pool.getPtr(pagePtr, chunks[i].ptrI);
-      const Uint32 cnt = 4 * chunks[i].cnt; // 4 8k per 32k
-      Page8* base = (Page8*)pagePtr.p;
-      ndbrequire(base >= page8);
-      const Uint32 ptrI = Uint32(base - page8);
-      if (ptrI + cnt > cpagesize)
-        cpagesize = ptrI + cnt;
-      for (Uint32 j = 0; j < cnt; j++)
-      {
-        refresh_watch_dog();
-        freelist.addFirst(Page8Ptr::get(&base[j], ptrI + j));
-      }
-
-      cpageCount += cnt;
-      ndbassert(freelist.getCount() + cnoOfAllocatedPages == cpageCount);
-    }
-    m_maxAllocPages = cpagesize;
-  }
+  jam();
+  cfreepages.init();
+  ndbassert(pages.getCount() - cfreepages.getCount() + cnoOfAllocatedPages ==
+            cpageCount);
 
   operationrec = (Operationrec*)allocRecord("Operationrec",
 					    sizeof(Operationrec),
@@ -147,7 +110,6 @@ Dbacc::Dbacc(Block_context& ctx, Uint32 instanceNumber):
   addRecSignal(GSN_DROP_FRAG_REQ, &Dbacc::execDROP_FRAG_REQ);
 
   addRecSignal(GSN_DBINFO_SCANREQ, &Dbacc::execDBINFO_SCANREQ);
-  addRecSignal(GSN_NODE_STATE_REP, &Dbacc::execNODE_STATE_REP, true);
 
   initData();
 

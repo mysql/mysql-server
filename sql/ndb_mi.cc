@@ -119,3 +119,15 @@ bool ndb_mi_get_slave_sql_running()
   return msi.get_default_mi()->rli->slave_running;
 }
 
+ulong ndb_mi_get_slave_parallel_workers()
+{
+  Multisource_info_guard msi;
+  return msi.get_default_mi()->rli->opt_slave_parallel_workers;
+}
+
+uint32 ndb_get_number_of_channels()
+{
+  Multisource_info_guard msi;
+  return channel_map.get_num_instances();
+}
+

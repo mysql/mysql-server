@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -747,7 +747,7 @@ NdbResultStream::prepare()
 {
   NdbQueryImpl &query = m_operation.getQuery();
 
-  const Uint32 batchBufferSize = m_operation.getBatchBufferSize();
+  const Uint32 resultBufferSize = m_operation.getResultBufferSize();
   if (isScanQuery())
   {
     /* Parent / child correlation is only relevant for scan type queries
@@ -759,13 +759,13 @@ NdbResultStream::prepare()
       TupleSet[m_maxRows];
 
     // Scan results may be double buffered
-    m_resultSets[0].init(query, m_maxRows, batchBufferSize); 
-    m_resultSets[1].init(query, m_maxRows, batchBufferSize);
+    m_resultSets[0].init(query, m_maxRows, resultBufferSize); 
+    m_resultSets[1].init(query, m_maxRows, resultBufferSize);
   }
   else
   {
     m_maxRows = 1;
-    m_resultSets[0].init(query, m_maxRows, batchBufferSize);
+    m_resultSets[0].init(query, m_maxRows, resultBufferSize);
   }
 
   /* Alloc buffer for unpacked NdbRecord row */
@@ -2739,7 +2739,7 @@ NdbQueryImpl::prepareSend()
     const NdbQueryOperationImpl& op = getQueryOperation(opNo);
 
     // Add space for batchBuffer & m_correlations
-    Uint32 opBuffSize = op.getBatchBufferSize();
+    Uint32 opBuffSize = op.getResultBufferSize();
     if (getQueryDef().isScanQuery())
     {
       opBuffSize += (sizeof(TupleCorrelation) * op.getMaxBatchRows());
@@ -3064,13 +3064,7 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
     scanTabReq->transId2 = (Uint32) (transId >> 32);
 
     Uint32 batchRows = root.getMaxBatchRows();
-    Uint32 batchByteSize;
-    NdbReceiver::calculate_batch_size(* ndb.theImpl,
-                                      getRootFragCount(),
-                                      batchRows,
-                                      batchByteSize);
-    assert(batchRows==root.getMaxBatchRows());
-    assert(batchRows<=batchByteSize);
+    const Uint32 batchByteSize = root.getMaxBatchBytes();
 
     /**
      * Check if query is a sorted scan-scan.
@@ -3794,7 +3788,6 @@ NdbQueryOperationImpl::NdbQueryOperationImpl(
   m_operationDef(def),
   m_parent(NULL),
   m_children(0),
-  m_maxBatchRows(0),   // >0: User specified prefered value, ==0: Use default CFG values
   m_params(),
   m_resultBuffer(NULL),
   m_resultRef(NULL),
@@ -3808,8 +3801,10 @@ NdbQueryOperationImpl::NdbQueryOperationImpl(
   m_diskInUserProjection(false),
   m_parallelism(def.getOpNo() == 0
                 ? Parallelism_max : Parallelism_adaptive),
-  m_rowSize(0xffffffff),
-  m_batchBufferSize(0xffffffff)
+  m_rowSize(0),
+  m_maxBatchRows(0),
+  m_maxBatchBytes(0),
+  m_resultBufferSize(0)
 { 
   if (m_children.expand(def.getNoOfChildOperations()))
   {
@@ -4290,7 +4285,7 @@ NdbQueryOperationImpl::serializeProject(Uint32Buffer& attrInfo)
     recAttr = recAttr->next();
   }
 
-  bool withCorrelation = getRoot().getQueryDef().isScanQuery();
+  const bool withCorrelation = getQueryDef().isScanQuery();
   if (withCorrelation) {
     Uint32 ah;
     AttributeHeader::init(&ah, AttributeHeader::CORR_FACTOR64, 0);
@@ -4567,16 +4562,6 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo)
     if (unlikely(param==NULL))
       return Err_MemoryAlloc;
 
-    Ndb& ndb = *m_queryImpl.getNdbTransaction().getNdb();
-
-    Uint32 batchRows = getMaxBatchRows();
-    Uint32 batchByteSize;
-    NdbReceiver::calculate_batch_size(* ndb.theImpl,
-                                      m_queryImpl.getRootFragCount(),
-                                      batchRows,
-                                      batchByteSize);
-    assert(batchRows == getMaxBatchRows());
-    assert(batchRows <= batchByteSize);
     assert(m_parallelism == Parallelism_max ||
            m_parallelism == Parallelism_adaptive);
     if (m_parallelism == Parallelism_max)
@@ -4588,11 +4573,16 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo)
       requestInfo |= QN_ScanIndexParameters::SIP_PRUNE_PARAMS;
     }
     param->requestInfo = requestInfo;
-    // Check that both values fit in param->batchSize.
-    assert(getMaxBatchRows() < (1<<QN_ScanIndexParameters::BatchRowBits));
+
+    // Get Batch sizes, assert that both values fit in param->batchSize.
+    const Uint32 batchRows = getMaxBatchRows();
+    const Uint32 batchByteSize = getMaxBatchBytes();
+
+    assert(batchRows < (1<<QN_ScanIndexParameters::BatchRowBits));
     assert(batchByteSize < (1 << (sizeof param->batchSize * 8
                                   - QN_ScanIndexParameters::BatchRowBits)));
-    param->batchSize = (batchByteSize << 11) | getMaxBatchRows();
+    param->batchSize = (batchByteSize << QN_ScanIndexParameters::BatchRowBits)
+                      | batchRows;
     param->resultData = getIdOfReceiver();
     QueryNodeParameters::setOpLen(param->len, paramType, length);
   }
@@ -5285,22 +5275,26 @@ NdbQueryOperationImpl::getIdOfReceiver() const {
 Uint32 NdbQueryOperationImpl::getRowSize() const
 {
   // Check if row size has been computed yet.
-  if (m_rowSize == 0xffffffff)
+  if (m_rowSize == 0)
   {
     m_rowSize = 
       NdbReceiver::ndbrecord_rowsize(m_ndbRecord, false);
+    assert(m_rowSize > 0);
   }
   return m_rowSize;
 }
 
-Uint32 NdbQueryOperationImpl::getBatchBufferSize() const
+Uint32 NdbQueryOperationImpl::getMaxBatchBytes() const
 {
   // Check if batch buffer size has been computed yet.
-  if (m_batchBufferSize == 0xffffffff)
+  if (m_maxBatchBytes == 0)
   {
-    Uint32 batchRows = getMaxBatchRows();
+    Uint32 batchRows     = getMaxBatchRows();
     Uint32 batchByteSize = 0;
-    Uint32 batchFrags = 1;
+    Uint32 batchFrags    = 1;
+
+    // Set together with 'm_resultBufferSize'
+    assert(m_resultBufferSize == 0);
 
     if (m_operationDef.isScanOperation())
     {
@@ -5335,16 +5329,27 @@ Uint32 NdbQueryOperationImpl::getBatchBufferSize() const
       m_ndbRecord->copyMask(readMask.rep.data, m_read_mask);
     }
 
-    m_batchBufferSize = NdbReceiver::result_bufsize(
-                                                  batchRows, 
-                                                  batchByteSize,
-                                                  batchFrags,
-                                                  m_ndbRecord,
-                                                  readMask.rep.data,
-                                                  m_firstRecAttr,
-                                                  0, 0);
+    const bool withCorrelation = getQueryDef().isScanQuery();
+
+    m_maxBatchBytes = batchByteSize;
+    NdbReceiver::result_bufsize(m_ndbRecord,
+                                readMask.rep.data,
+                                m_firstRecAttr,
+                                0, false,           //No 'key_size' and 'read_range'
+                                withCorrelation,
+                                batchFrags,
+                                batchRows, 
+                                m_maxBatchBytes,
+                                m_resultBufferSize);
   }
-  return m_batchBufferSize;
+
+  return m_maxBatchBytes;
+}
+
+Uint32 NdbQueryOperationImpl::getResultBufferSize() const
+{
+  (void)getMaxBatchBytes();  //Force calculation if required
+  return m_resultBufferSize;
 }
 
 /** For debugging.*/

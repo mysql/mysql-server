@@ -159,6 +159,8 @@ SimulatedBlock::addInstance(SimulatedBlock* b, Uint32 theInstance)
 void
 SimulatedBlock::initCommon()
 {
+  NDB_STATIC_ASSERT(RG_COUNT == MM_RG_COUNT + 1);
+
   Uint32 count = 10;
   this->getParam("FragmentSendPool", &count);
   c_fragmentSendPool.setSize(count);

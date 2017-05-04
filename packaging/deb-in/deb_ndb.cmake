@@ -13,6 +13,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA 
 
+SET (DEB_NDB_CONTROL_TEST_DEPS "mysql-${DEB_PRODUCTNAME}-data-node (= \${binary:Version}), mysql-${DEB_PRODUCTNAME}-management-server (= \${binary:Version})")
 
 SET(DEB_NDB_CONTROL_EXTRAS
 "
@@ -90,6 +91,7 @@ Description: memcached
 /usr/bin/ndb_drop_table
 /usr/bin/ndb_error_reporter
 /usr/bin/ndb_index_stat
+/usr/bin/ndb_import
 /usr/bin/ndb_mgm
 /usr/bin/ndb_move_data
 /usr/bin/ndb_print_backup_file
@@ -120,6 +122,7 @@ Description: memcached
 /usr/share/man/man1/ndb_mgm.1*
 /usr/share/man/man1/ndb_print_backup_file.1*
 /usr/share/man/man1/ndb_print_file.1*
+/usr/share/man/man1/ndb_print_frag_file.1*
 /usr/share/man/man1/ndb_print_schema_file.1*
 /usr/share/man/man1/ndb_print_sys_file.1*
 /usr/share/man/man1/ndb_restore.1*

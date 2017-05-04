@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -75,6 +75,8 @@ static int g_verbose = 0;
 
 static int g_nodes, g_connections, g_system, g_section;
 static const char * g_query = 0;
+static int g_query_all = 0;
+static int g_diff_default = 0;
 
 static int g_nodeid = 0;
 static const char * g_type = 0;
@@ -136,6 +138,12 @@ static struct my_option my_long_options[] =
   { "config_from_node", NDB_OPT_NOSHORT, "Use current config from node with given nodeid",
     (uchar**) &g_config_from_node, (uchar**) &g_config_from_node,
     0, GET_INT, REQUIRED_ARG, INT_MIN, INT_MIN, 0, 0, 0, 0},
+  { "query_all", 'a', "Query all the options",
+    (uchar**)&g_query_all, (uchar**)&g_query_all,
+    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "diff_default", NDB_OPT_NOSHORT, "print parameters that are different from default",
+    (uchar**)&g_diff_default, (uchar**)&g_diff_default,
+    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -173,21 +181,29 @@ struct HostMatch : public Match
 struct Apply
 {
   Apply() {}
-  Apply(int val) { m_key = val;}
+  Apply(const char *s):m_name(s) {}
+  BaseString m_name;
+  virtual int apply(const Iter&) = 0;
+  virtual ~Apply() {}
+};
+
+
+struct ParamApply : public Apply
+{
+  ParamApply(int val,const char *s) :Apply(s), m_key(val) {}
   int m_key;
   virtual int apply(const Iter&);
-  virtual ~Apply() {}
 };
 
 struct NodeTypeApply : public Apply
 {
-  NodeTypeApply() {}
+  NodeTypeApply(const char *s) :Apply(s) {}
   virtual int apply(const Iter&);
 };
 
 struct ConnectionTypeApply : public Apply
 {
-  ConnectionTypeApply() {}
+  ConnectionTypeApply(const char *s) :Apply(s) {}
   virtual int apply(const Iter&);
 };
 
@@ -195,6 +211,7 @@ static int parse_query(Vector<Apply*>&, int &argc, char**& argv);
 static int parse_where(Vector<Match*>&, int &argc, char**& argv);
 static int eval(const Iter&, const Vector<Match*>&);
 static int apply(const Iter&, const Vector<Apply*>&);
+static int print_diff(const Iter&);
 static ndb_mgm_configuration* fetch_configuration(int from_node);
 static ndb_mgm_configuration* load_configuration();
 
@@ -205,6 +222,7 @@ main(int argc, char** argv){
   ndb_opt_set_usage_funcs(short_usage_sub, usage);
   ndb_load_defaults(NULL,load_default_groups,&argc,&argv);
   int ho_error;
+  bool print_headers = false;
   if ((ho_error=handle_options(&argc, &argv, my_long_options,
 			       ndb_std_get_one_option)))
     exit(255);
@@ -223,7 +241,7 @@ main(int argc, char** argv){
       (g_system && (g_nodes || g_connections)))
   {
     fprintf(stderr,
-	    "Error: Only one of the section-options: --nodes, --connections, --system is allowed.\n");
+        "Error: Only one of the section-options: --nodes, --connections, --system is allowed.\n");
     exit(255);
   }
 
@@ -274,6 +292,17 @@ main(int argc, char** argv){
   if(strcmp(g_field_delimiter, "\\n") == 0)
     g_field_delimiter = "\n";
 
+  if (g_query_all)
+  {
+    if (g_query)
+    {
+      fprintf(stderr,
+          "Error: Only one of the options: --query_all, --query is allowed.\n");
+      exit(0);
+    }
+    print_headers = true;
+  }
+
   if(parse_query(select_list, argc, argv))
   {
     exit(0);
@@ -284,6 +313,17 @@ main(int argc, char** argv){
     exit(0);
   }
 
+  if (print_headers)
+  {
+    printf("%s", select_list[0]->m_name.c_str());
+    for (unsigned i = 1; i < select_list.size(); i++)
+    {
+      printf("%s", g_field_delimiter);
+      printf("%s", select_list[i]->m_name.c_str());
+    }
+    printf("%s", g_row_delimiter);
+  }
+
   Iter iter(* conf, g_section);
   bool prev= false;
   iter.first();
@@ -292,12 +332,222 @@ main(int argc, char** argv){
     if(eval(iter, where_clause))
     {
       if(prev)
-	printf("%s", g_row_delimiter);
+        printf("%s", g_row_delimiter);
       prev= true;
       apply(iter, select_list);
+      if (g_diff_default)
+      {
+        print_diff(iter);
+      }
     }
   }
   printf("\n");
+  return 0;
+}
+
+static
+int
+print_diff(const Iter& iter)
+{
+  //works better with this --diff_default --fields=" " --rows="\n"
+  Uint32 val32;
+  Uint64 val64;
+  const char* config_value;
+  const char* node_type;
+  char str[300] = {0};
+
+  if (iter.get(CFG_TYPE_OF_SECTION, &val32) == 0)
+  {
+    if (val32 == 0)
+      node_type = "DB";
+    else if (val32 == 1)
+      node_type = "API";
+    else if (val32 == 2)
+      node_type = "MGM";
+  }
+
+
+  if (iter.get(3, &val32) == 0)
+  {
+    printf("config of node id %d that is different from default", val32);
+    printf("%s", g_row_delimiter);
+    printf("CONFIG_PARAMETER");
+    printf("%s", g_field_delimiter);
+    printf("ACTUAL_VALUE");
+    printf("%s", g_field_delimiter);
+    printf("DEFAULT_VALUE");
+    printf("%s", g_row_delimiter);
+  }
+
+  for (int p = 0; p < ConfigInfo::m_NoOfParams; p++)
+  {
+    if ((g_section == CFG_SECTION_CONNECTION &&
+        (strcmp(ConfigInfo::m_ParamInfo[p]._section, "TCP") == 0 ||
+        strcmp(ConfigInfo::m_ParamInfo[p]._section, "SCI") == 0 ||
+        strcmp(ConfigInfo::m_ParamInfo[p]._section, "SHM") == 0))
+        ||
+        (g_section == CFG_SECTION_NODE &&
+        (strcmp(ConfigInfo::m_ParamInfo[p]._section, "DB") == 0 ||
+        strcmp(ConfigInfo::m_ParamInfo[p]._section, "API") == 0 ||
+        strcmp(ConfigInfo::m_ParamInfo[p]._section, "MGM") == 0))
+        ||
+        (g_section == CFG_SECTION_SYSTEM))
+    {
+      if (iter.get(ConfigInfo::m_ParamInfo[p]._paramId, &val32) == 0)
+      {
+        sprintf(str, "%u", val32);
+      }
+      else if (iter.get(ConfigInfo::m_ParamInfo[p]._paramId, &val64) == 0)
+      {
+        sprintf(str, "%llu", val64);
+      }
+      else if (iter.get(ConfigInfo::m_ParamInfo[p]._paramId, &config_value) == 0)
+      {
+        strncpy(str, config_value,300);
+      }
+      else
+      {
+        continue;
+      }
+
+      if ((MANDATORY != ConfigInfo::m_ParamInfo[p]._default)
+          && (ConfigInfo::m_ParamInfo[p]._default)
+          && !strcmp(node_type, ConfigInfo::m_ParamInfo[p]._section)
+          && strcmp(str, ConfigInfo::m_ParamInfo[p]._default)          )
+      {
+        char parse_str[300] = {0};
+        bool convert_bytes = false;
+        uint64 memory_convert,def_value = 0;
+        uint len = strlen(ConfigInfo::m_ParamInfo[p]._default) - 1;
+        strncpy(parse_str, ConfigInfo::m_ParamInfo[p]._default,299);
+        if (parse_str[len] == 'M' || parse_str[len] == 'm')
+        {
+          memory_convert = 1048576;
+          convert_bytes = true;
+        }
+        if (parse_str[len] == 'K' || parse_str[len] == 'k')
+        {
+          memory_convert = 1024;
+          convert_bytes = true;
+        }
+        if (parse_str[len] == 'G' || parse_str[len] == 'g')
+        {
+          memory_convert = 1099511627776ULL;
+          convert_bytes = true;
+        }
+
+        if (convert_bytes)
+        {
+          parse_str[len] = '\0';
+          def_value = atoi(parse_str);
+          memory_convert = memory_convert * def_value;
+          BaseString::snprintf(parse_str, 299, "%llu", memory_convert);
+          if (!strcmp(str, parse_str))
+          {
+            continue;
+          }
+        }
+
+        if ((!strcmp("true", ConfigInfo::m_ParamInfo[p]._default) && !strcmp(str, "1")) ||
+            (!strcmp("true", ConfigInfo::m_ParamInfo[p]._default) && !strcmp(str, "0")))
+        {
+          continue;
+        }
+
+        printf("%s", ConfigInfo::m_ParamInfo[p]._fname);
+        printf("%s", g_field_delimiter);
+        printf("%s", str);
+        printf("%s", g_field_delimiter);
+        printf("%s", ConfigInfo::m_ParamInfo[p]._default);
+        printf("%s", g_row_delimiter);
+      }
+    }
+  }
+  return 0;
+}
+
+static
+int
+helper(Vector<Apply*>& select, const char * str)
+{
+  bool all = false;
+  bool retflag = false;
+
+  if (g_query_all)
+  {
+    all = true;
+  }
+
+  if (g_section == CFG_SECTION_NODE)
+  {
+    if (all)
+    {
+      select.push_back(new ParamApply(CFG_NODE_ID, "nodeid"));
+      select.push_back(new ParamApply(CFG_NODE_HOST, "host"));
+      select.push_back(new NodeTypeApply("type"));
+    }
+    else if (native_strcasecmp(str, "nodeid") == 0)
+    {
+      select.push_back(new ParamApply(CFG_NODE_ID, "nodeid"));
+      retflag = true;
+    }
+    else if (native_strncasecmp(str, "host", 4) == 0)
+    {
+      select.push_back(new ParamApply(CFG_NODE_HOST, "host"));
+      retflag = true;
+    }
+    else if (native_strcasecmp(str, "type") == 0)
+    {
+      select.push_back(new NodeTypeApply("type"));
+      retflag = true;
+    }
+  }
+  else if (g_section == CFG_SECTION_CONNECTION)
+  {
+    if (all || native_strcasecmp(str, "type") == 0)
+    {
+      select.push_back(new ConnectionTypeApply("type"));
+      retflag = true;
+    }
+  }
+  if (all || !retflag)
+  {
+    bool found = false;
+    for (int p = 0; p < ConfigInfo::m_NoOfParams; p++)
+    {
+      if (0)ndbout_c("%s %s",
+          ConfigInfo::m_ParamInfo[p]._section,
+          ConfigInfo::m_ParamInfo[p]._fname);
+      if ((g_section == CFG_SECTION_CONNECTION &&
+        (strcmp(ConfigInfo::m_ParamInfo[p]._section, "TCP") == 0 ||
+          strcmp(ConfigInfo::m_ParamInfo[p]._section, "SCI") == 0 ||
+          strcmp(ConfigInfo::m_ParamInfo[p]._section, "SHM") == 0))
+        ||
+        (g_section == CFG_SECTION_NODE &&
+        (strcmp(ConfigInfo::m_ParamInfo[p]._section, "DB") == 0 ||
+          strcmp(ConfigInfo::m_ParamInfo[p]._section, "API") == 0 ||
+          strcmp(ConfigInfo::m_ParamInfo[p]._section, "MGM") == 0))
+        ||
+        (g_section == CFG_SECTION_SYSTEM))
+      {
+        if (all || native_strcasecmp(ConfigInfo::m_ParamInfo[p]._fname, str) == 0)
+        {
+          select.push_back(new ParamApply(ConfigInfo::m_ParamInfo[p]._paramId,
+            ConfigInfo::m_ParamInfo[p]._fname));
+          if (!all)
+          {
+            found = true;
+            break;
+          }
+        }
+      }
+    }
+    if (!all && !found)
+    {
+      fprintf(stderr, "Unknown query option: %s\n", str);
+      return 1;
+    }
+  }
   return 0;
 }
 
@@ -313,66 +563,15 @@ parse_query(Vector<Apply*>& select, int &argc, char**& argv)
     for(unsigned i = 0; i<list.size(); i++)
     {
       const char * str= list[i].c_str();
-      if(g_section == CFG_SECTION_NODE)
+      if (helper(select, str))
       {
-	if(native_strcasecmp(str, "nodeid") == 0)
-	{
-	  select.push_back(new Apply(CFG_NODE_ID));
-	  continue;
-	}
-	else if(native_strncasecmp(str, "host", 4) == 0)
-	{
-	  select.push_back(new Apply(CFG_NODE_HOST));
-	  continue;
-	}
-	else if(native_strcasecmp(str, "type") == 0)
-	{
-	  select.push_back(new NodeTypeApply());
-	  continue;
-	}
-      }
-      else if (g_section == CFG_SECTION_CONNECTION)
-      {
-	if(native_strcasecmp(str, "type") == 0)
-	{
-	  select.push_back(new ConnectionTypeApply());
-	  continue;
-	}
-      }
-      {
-	bool found = false;
-	for(int p = 0; p<ConfigInfo::m_NoOfParams; p++)
-	{
-	  if(0)ndbout_c("%s %s",
-			ConfigInfo::m_ParamInfo[p]._section,
-			ConfigInfo::m_ParamInfo[p]._fname);
-	  if((g_section == CFG_SECTION_CONNECTION &&
-              (strcmp(ConfigInfo::m_ParamInfo[p]._section, "TCP") == 0 ||
-               strcmp(ConfigInfo::m_ParamInfo[p]._section, "SCI") == 0 ||
-               strcmp(ConfigInfo::m_ParamInfo[p]._section, "SHM") == 0))
-             ||
-	     (g_section == CFG_SECTION_NODE &&
-              (strcmp(ConfigInfo::m_ParamInfo[p]._section, "DB") == 0 ||
-               strcmp(ConfigInfo::m_ParamInfo[p]._section, "API") == 0 ||
-               strcmp(ConfigInfo::m_ParamInfo[p]._section, "MGM") == 0))
-             ||
-	     (g_section == CFG_SECTION_SYSTEM))
-	  {
-	    if(native_strcasecmp(ConfigInfo::m_ParamInfo[p]._fname, str) == 0)
-	    {
-	      select.push_back(new Apply(ConfigInfo::m_ParamInfo[p]._paramId));
-	      found = true;
-	      break;
-	    }
-	  }
-	}
-	if(!found)
-	{
-	  fprintf(stderr, "Unknown query option: %s\n", str);
-	  return 1;
-	}
+        return 1;
       }
     }
+  }
+  if (g_query_all)
+  {
+    return helper(select, NULL);
   }
   return 0;
 }
@@ -517,7 +716,7 @@ HostMatch::eval(const Iter& iter)
 }
 
 int
-Apply::apply(const Iter& iter)
+ParamApply::apply(const Iter& iter)
 {
   Uint32 val32;
   Uint64 val64;

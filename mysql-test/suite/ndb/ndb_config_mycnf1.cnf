@@ -1,18 +1,17 @@
 [cluster_config]
 NoOfReplicas=1
-DataMemory=50M
+DataMemory=70M
 
 [cluster_config.jonas]
-IndexMemory=50M
 ndbd = localhost,localhost,localhost,localhost
 ndb_mgmd = localhost
 mysqld = localhost
 
 [cluster_config.ndbd.1]
-DataMemory=25M
+DataMemory=45M
 
 [cluster_config.ndbd.2.jonas]
-DataMemory=35M
+DataMemory=55M
 
 [cluster_config.bug44689]
 NoOfReplicas=2

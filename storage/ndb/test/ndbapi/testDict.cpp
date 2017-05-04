@@ -1098,7 +1098,8 @@ runCreateMaxTables(NDBT_Context* ctx, NDBT_Step* step)
       if (pDic->getNdbError().code == 707 ||
           pDic->getNdbError().code == 708 ||
           pDic->getNdbError().code == 826 ||
-          pDic->getNdbError().code == 827)
+          pDic->getNdbError().code == 827 ||
+          pDic->getNdbError().code == 921)
         break;
       return NDBT_FAILED;
     }

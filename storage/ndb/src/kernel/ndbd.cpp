@@ -39,6 +39,8 @@
 #endif
 
 #include <EventLogger.hpp>
+#include <OutputStream.hpp>
+#include <LogBuffer.hpp>
 
 #define JAM_FILE_ID 484
 
@@ -244,7 +246,7 @@ compute_acc_32kpages(const ndb_mgm_configuration_iterator * p)
  * overallocated at any size as long as there is still memory
  * remaining.
  *
- * RG_DISK_OPERATIONS:
+ * RG_TRANSACTION_MEMOR:
  * This is a resource that is either set to zero size but can be overallocated
  * without limit. If a log file group is allocated based on the config, then
  * the size of the UNDO log buffer is used to set the size of this resource.
@@ -442,7 +444,7 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
     ed.m_mem_manager->set_resource_limit(rl);
   }
 
-  Uint32 undopages = 0;
+  Uint32 transmem = 0;
   {
     /**
      * Request extra undo buffer memory to be allocated when
@@ -470,31 +472,23 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
                                          "undo_buffer_size=",
                                          undo_buffer_size);
 
-        undopages = Uint32(undo_buffer_size / GLOBAL_PAGE_SIZE);
+        Uint32 undopages = Uint32(undo_buffer_size / GLOBAL_PAGE_SIZE);
         g_eventLogger->info("reserving %u extra pages for undo buffer memory",
                             undopages);
+        transmem = undopages;
         Resource_limit rl;
-        rl.m_min = undopages;
+        rl.m_min = transmem;
         rl.m_max = 0;
-        rl.m_resource_id = RG_DISK_OPERATIONS;
+        rl.m_resource_id = RG_TRANSACTION_MEMORY;
         ed.m_mem_manager->set_resource_limit(rl);
       }
     }
   }
 
   Uint32 sum = shared_pages + tupmem + filepages + jbpages + sbpages +
-    pgman_pages + stpages + undopages;
+    pgman_pages + stpages + transmem;
 
-  if (sum)
-  {
-    Resource_limit rl;
-    rl.m_min = 0;
-    rl.m_max = sum;
-    rl.m_resource_id = 0;
-    ed.m_mem_manager->set_resource_limit(rl);
-  }
-
-  if (!ed.m_mem_manager->init(watchCounter))
+  if (!ed.m_mem_manager->init(watchCounter, sum))
   {
     struct ndb_mgm_param_info dm;
     struct ndb_mgm_param_info sga;
@@ -761,6 +755,57 @@ DWORD WINAPI shutdown_thread(LPVOID)
 }
 #endif
 
+struct ThreadData
+{
+  FILE* f;
+  LogBuffer* logBuf;
+  bool stop;
+};
+
+/**
+ * This function/thread is responsible for getting
+ * bytes from the log buffer and writing them
+ * to the log file.
+ */
+
+void* async_log_func(void* args)
+{
+  ThreadData* data = (ThreadData*)args;
+  FILE* f = data->f;
+  LogBuffer* logBuf = data->logBuf;
+  const size_t get_bytes = 512;
+  char buf[get_bytes + 1];
+  size_t bytes;
+  int part_bytes = 0, bytes_printed = 0;
+
+  while(!data->stop)
+  {
+    part_bytes = 0;
+    bytes_printed = 0;
+
+    if((bytes = logBuf->get(buf, get_bytes)))
+    {
+      fwrite(buf, bytes, 1, f);
+      fflush(f);
+    }
+  }
+
+  while((bytes = logBuf->get(buf, get_bytes, 1)))// flush remaining logs
+  {
+    fwrite(buf, bytes, 1, f);
+    fflush(f);
+  }
+
+  // print lost count in the end, if any
+  size_t lost_count = logBuf->getLostCount();
+  if(lost_count)
+  {
+    fprintf(f, "\n*** %lu BYTES LOST ***\n", (unsigned long)lost_count);
+    fflush(f);
+  }
+
+  return NULL;
+}
 
 void
 ndbd_run(bool foreground, int report_fd,
@@ -768,6 +813,27 @@ ndbd_run(bool foreground, int report_fd,
          bool no_start, bool initial, bool initialstart,
          unsigned allocated_nodeid, int connect_retries, int connect_delay)
 {
+  LogBuffer* logBuf = new LogBuffer(32768); // 32kB
+  BufferedOutputStream* ndbouts_bufferedoutputstream = new BufferedOutputStream(logBuf);
+
+  // Make ndbout point to the BufferedOutputStream.
+  NdbOut_ReInit(ndbouts_bufferedoutputstream, ndbouts_bufferedoutputstream);
+
+  struct NdbThread* log_threadvar= NULL;
+  ThreadData thread_args=
+  {
+    stdout,
+    logBuf,
+    false
+  };
+
+  // Create log thread.
+  log_threadvar = NdbThread_Create(async_log_func,
+                       (void**)&thread_args,
+                       0,
+                       (char*)"async_log_thread",
+                       NDB_THREAD_PRIO_MEAN);
+
 #ifdef _WIN32
   {
     char shutdown_event_name[32];
@@ -910,6 +976,8 @@ ndbd_run(bool foreground, int report_fd,
   */
   globalEmulatorData.theThreadConfig->init();
 
+  globalEmulatorData.theConfiguration->addThread(log_threadvar, NdbfsThread);
+
 #ifdef VM_TRACE
   // Initialize signal logger before block constructors
   char *signal_log_name = NdbConfig_SignalLogFileName(globalData.ownId);
@@ -1039,8 +1107,20 @@ ndbd_run(bool foreground, int report_fd,
   globalEmulatorData.theConfiguration->removeThread(pWatchdog);
   globalEmulatorData.theConfiguration->removeThread(pTrp);
   globalEmulatorData.theConfiguration->removeThread(pSockServ);
+
   NdbShutdown(0, NST_Normal);
 
+  /**
+   * Stopping the log thread is done at the very end since the
+   * data node logs should be available until complete shutdown.
+   */
+  void* dummy_return_status;
+  thread_args.stop = true;
+  NdbThread_WaitFor(log_threadvar, &dummy_return_status);
+  globalEmulatorData.theConfiguration->removeThread(log_threadvar);
+  NdbThread_Destroy(&log_threadvar);
+  delete logBuf;
+  delete ndbouts_bufferedoutputstream;
   ndbd_exit(0);
 }
 

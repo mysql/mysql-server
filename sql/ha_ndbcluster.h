@@ -134,6 +134,7 @@ struct st_ndb_status {
   long transaction_no_hint_count[MAX_NDB_NODES];
   long transaction_hint_count[MAX_NDB_NODES];
   long long api_client_stats[Ndb::NumClientStatistics];
+  const char * system_name;
 };
 
 int ndbcluster_commit(handlerton *hton, THD *thd, bool all);
@@ -257,7 +258,7 @@ public:
                    dd::Table *to_table_def);
   int delete_table(const char *name, const dd::Table *table_def);
   int create(const char *name, TABLE *form, HA_CREATE_INFO *info,
-             dd::Table *table_def);
+             dd::Table* table_def);
   virtual bool is_ignorable_error(int error)
   {
     if (handler::is_ignorable_error(error) ||
@@ -394,8 +395,7 @@ static void set_tabname(const char *pathname, char *tabname);
 void notify_table_changed(Alter_inplace_info *ha_alter_info);
 
 private:
-  void prepare_for_alter();
-  void prepare_drop_index(uint key_num);
+  void prepare_inplace__drop_index(uint key_num);
   int final_drop_index(TABLE *table_arg);
 
   enum_alter_inplace_result
@@ -430,8 +430,8 @@ private:
                              const char *db,
                              const char *table_name);
 
-  int add_index_impl(THD *thd, TABLE *table_arg,
-                     KEY *key_info, uint num_of_keys);
+  int prepare_inplace__add_index(THD *thd, TABLE *table_arg,
+                                 KEY *key_info, uint num_of_keys) const;
   int create_ndb_index(THD *thd, const char *name, KEY *key_info,
                        bool unique) const;
   int create_ordered_index(THD *thd, const char *name, KEY *key_info) const;
@@ -461,11 +461,12 @@ private:
                                       Ndb_fk_list&);
   static int recreate_fk_for_truncate(THD*, Ndb*, const char*,
                                       Ndb_fk_list&);
+  void append_dependents_to_changed_tables(List<NDB_SHARE>&, MEM_ROOT*);
   static bool drop_table_and_related(THD*, Ndb*, NdbDictionary::Dictionary*,
                                      const NdbDictionary::Table*,
                                      int drop_flags, bool skip_related);
   int check_default_values(const NdbDictionary::Table* ndbtab);
-  int get_metadata(THD *thd, const char* path);
+  int get_metadata(THD *thd, const dd::Table* table_def);
   void release_metadata(THD *thd, Ndb *ndb);
   NDB_INDEX_TYPE get_index_type(uint idx_no) const;
   NDB_INDEX_TYPE get_index_type_from_table(uint index_no) const;
@@ -502,8 +503,6 @@ private:
   int ndb_delete_row(const uchar *record, bool primary_key_update);
 
   int ndb_optimize_table(THD* thd, uint delay);
-
-  int inplace_alter_frm(const char *file, class NDB_ALTER_DATA *alter_data);
 
   bool check_all_operations_for_error(NdbTransaction *trans,
                                       const NdbOperation *first,
@@ -759,6 +758,7 @@ private:
   int add_handler_to_open_tables(THD*, Thd_ndb*, ha_ndbcluster* handler);
   int rename_table_impl(THD* thd, Ndb* ndb,
                         const NdbDictionary::Table* orig_tab,
+                        const dd::Table* to_table_def,
                         const char* from, const char* to,
                         const char* old_dbname, const char* old_tabname,
                         const char* new_dbname, const char* new_tabname,

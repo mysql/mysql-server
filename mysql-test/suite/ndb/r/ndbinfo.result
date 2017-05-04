@@ -82,9 +82,11 @@ table_id	table_name	comment
 35	table_fragments_all	Partitions of the tables
 36	table_replicas_all	Fragment replicas of the tables
 37	stored_tables	Information about stored tables
+38	processes	Process ID and Name information for connected nodes
+39	config_nodes	All nodes of current cluster configuration
 SELECT COUNT(*) FROM ndb$tables;
 COUNT(*)
-38
+40
 SELECT * FROM ndb$tables WHERE table_id = 2;
 table_id	table_name	comment
 2	test	for testing
@@ -122,6 +124,8 @@ table_id	table_name	comment
 35	table_fragments_all	Partitions of the tables
 36	table_replicas_all	Fragment replicas of the tables
 37	stored_tables	Information about stored tables
+38	processes	Process ID and Name information for connected nodes
+39	config_nodes	All nodes of current cluster configuration
 SELECT * FROM ndb$tables WHERE table_name = 'LOGDESTINATION';
 table_id	table_name	comment
 SELECT COUNT(*) FROM ndb$tables t, ndb$columns c
@@ -143,6 +147,7 @@ SELECT table_id, table_name FROM ndb$tables ORDER BY table_name;
 table_id	table_name
 30	acc_operations
 1	columns
+39	config_nodes
 23	config_values
 8	counters
 28	cpustat
@@ -162,6 +167,7 @@ table_id	table_name
 9	nodes
 14	operations
 3	pools
+38	processes
 7	resources
 21	restart_info
 37	stored_tables
@@ -252,6 +258,8 @@ table_id
 35
 36
 37
+38
+39
 
 TRUNCATE ndb$tables;
 ERROR HY000: Table 'ndb$tables' is read only
@@ -815,14 +823,13 @@ from resources
 order by 1;
 resource_name
 DATA_MEMORY
-DISK_OPERATIONS
 DISK_PAGE_BUFFER
 DISK_RECORDS
 FILE_BUFFERS
 JOBBUFFER
 QUERY_MEMORY
-RESERVED
 SCHEMA_TRANS_MEMORY
+TRANSACTION_MEMORY
 TRANSPORTER_BUFFERS
 
 select distinct counter_name
@@ -1393,7 +1400,7 @@ tot_key_bytes_returned	4220
 tot_frag_scans	56
 tot_scan_rows_examined	306
 tot_scan_rows_returned	215
-tot_scan_bytes_returned	7116
+tot_scan_bytes_returned	5564
 tot_scan_prog_bytes	288
 tot_scan_bound_bytes	0
 tot_scan_inst_exec	305
@@ -1556,7 +1563,7 @@ new.log_tot_key_attrinfo_bytes - old.log_tot_key_attrinfo_bytes	2
 new.tot_key_keyinfo_bytes - old.tot_key_keyinfo_bytes	20
 new.tot_key_prog_bytes - old.tot_key_prog_bytes	168
 new.tot_key_inst_exec - old.tot_key_inst_exec	7
-new.tot_key_bytes_returned - old.tot_key_bytes_returned	88
+new.tot_key_bytes_returned - old.tot_key_bytes_returned	56
 new.tot_frag_scans - old.tot_frag_scans	0
 new.tot_scan_rows_examined - old.tot_scan_rows_examined	0
 new.tot_scan_rows_returned - old.tot_scan_rows_returned	0
@@ -1581,7 +1588,7 @@ select param_number, param_name, param_description, param_default,
        param_min, param_max from ndb$config_params
   where param_name = "DataMemory";
 param_number	param_name	param_description	param_default	param_min	param_max
-112	DataMemory	Number bytes on each ndbd(DB) node allocated for storing data	83886080	1048576	1099511627776
+112	DataMemory	Number bytes on each ndbd(DB) node allocated for storing data	102760448	1048576	1099511627776
 select * from ndb$dict_obj_types where type_id < 3;
 type_id	type_name
 1	System table
@@ -1635,6 +1642,118 @@ select node_id, concat(config_value / 1024 / 1024, 'M') as DataMemory
   where config_param = 112 /* DataMemory */
   order by node_id;
 node_id	DataMemory
-1	20M
-2	20M
+1	30M
+2	30M
+
+
+desc ndb$processes;
+Field	Type	Null	Key	Default	Extra
+reporting_node_id	int(10) unsigned	YES		NULL	
+node_id	int(10) unsigned	YES		NULL	
+node_type	int(10) unsigned	YES		NULL	
+node_version	varchar(512)	YES		NULL	
+process_id	int(10) unsigned	YES		NULL	
+angel_process_id	int(10) unsigned	YES		NULL	
+process_name	varchar(512)	YES		NULL	
+service_URI	varchar(512)	YES		NULL	
+show create table processes;
+View	Create View	character_set_client	collation_connection
+processes	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `processes` AS select distinct `ndb$processes`.`node_id` AS `node_id`,(case `ndb$processes`.`node_type` when 0 then 'NDB' when 1 then 'API' when 2 then 'MGM' else NULL end) AS `node_type`,`ndb$processes`.`node_version` AS `node_version`,nullif(`ndb$processes`.`process_id`,0) AS `process_id`,nullif(`ndb$processes`.`angel_process_id`,0) AS `angel_process_id`,`ndb$processes`.`process_name` AS `process_name`,`ndb$processes`.`service_URI` AS `service_URI` from `ndb$processes` order by `ndb$processes`.`node_id`	latin1	latin1_swedish_ci
+
+SELECT reporting_node_id, node_id, node_type,
+replace(replace(process_name,"-debug",""),".exe","") AS process_name
+FROM ndb$processes
+ORDER BY reporting_node_id, node_id;
+reporting_node_id	node_id	node_type	process_name
+1	1	0	ndbmtd
+1	3	2	ndb_mgmd
+1	16	1	mysqld
+1	32	1	mysqld
+1	48	1	mysqld
+1	49	1	mysqld
+1	63	1	mysqld
+1	127	1	mysqld
+2	2	0	ndbmtd
+2	3	2	ndb_mgmd
+2	16	1	mysqld
+2	32	1	mysqld
+2	48	1	mysqld
+2	49	1	mysqld
+2	63	1	mysqld
+2	127	1	mysqld
+
+SELECT node_id,
+node_type,
+replace(replace(process_name,"-debug",""),".exe","") AS process_name,
+if(process_id is null, "null", "not_null") as proc_id,
+if(angel_process_id is null, "null", "not_null") as angel_proc_id
+FROM processes
+ORDER BY node_id;
+node_id	node_type	process_name	proc_id	angel_proc_id
+1	NDB	ndbmtd	not_null	not_null
+2	NDB	ndbmtd	not_null	not_null
+3	MGM	ndb_mgmd	not_null	null
+16	API	mysqld	not_null	null
+32	API	mysqld	not_null	null
+48	API	mysqld	not_null	null
+49	API	mysqld	not_null	null
+63	API	mysqld	not_null	null
+127	API	mysqld	not_null	null
+
+desc ndb$config_nodes;
+Field	Type	Null	Key	Default	Extra
+reporting_node_id	int(10) unsigned	YES		NULL	
+node_id	int(10) unsigned	YES		NULL	
+node_type	int(10) unsigned	YES		NULL	
+node_hostname	varchar(512)	YES		NULL	
+select view_definition, is_updatable, security_type
+  FROM information_schema.views
+  WHERE table_schema = 'ndbinfo' AND table_name = 'config_nodes';
+view_definition	is_updatable	security_type
+select distinct `ndbinfo`.`ndb$config_nodes`.`node_id` AS `node_id`,(case `ndbinfo`.`ndb$config_nodes`.`node_type` when 0 then 'NDB' when 1 then 'API' when 2 then 'MGM' else NULL end) AS `node_type`,`ndbinfo`.`ndb$config_nodes`.`node_hostname` AS `node_hostname` from `ndbinfo`.`ndb$config_nodes` order by `ndbinfo`.`ndb$config_nodes`.`node_id`	NO	INVOKER
+
+SELECT * from ndb$config_nodes order by reporting_node_id, node_id;
+reporting_node_id	node_id	node_type	node_hostname
+1	1	0	localhost
+1	2	0	localhost
+1	3	2	localhost
+1	16	1	localhost
+1	32	1	localhost
+1	48	1	localhost
+1	49	1	localhost
+1	63	1	localhost
+1	127	1	localhost
+1	192	1	localhost
+1	228	1	localhost
+1	229	1	localhost
+1	230	1	localhost
+1	231	1	localhost
+1	232	1	localhost
+1	233	1	localhost
+1	255	1	localhost
+2	1	0	localhost
+2	2	0	localhost
+2	3	2	localhost
+2	16	1	localhost
+2	32	1	localhost
+2	48	1	localhost
+2	49	1	localhost
+2	63	1	localhost
+2	127	1	localhost
+2	192	1	localhost
+2	228	1	localhost
+2	229	1	localhost
+2	230	1	localhost
+2	231	1	localhost
+2	232	1	localhost
+2	233	1	localhost
+2	255	1	localhost
+
+SELECT node_type, count(*),
+ GROUP_CONCAT(node_id order by 1 asc separator " ") ids
+ FROM config_nodes group by node_type order by node_type;
+node_type	count(*)	ids
+API	14	16 32 48 49 63 127 192 228 229 230 231 232 233 255
+MGM	1	3
+NDB	2	1 2
 

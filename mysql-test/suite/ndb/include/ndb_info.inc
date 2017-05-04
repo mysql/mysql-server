@@ -26,16 +26,11 @@ my $mysql_test_dir = $ENV{MYSQL_TEST_DIR} or die "Need MYSQL_TEST_DIR";
 my $basedir = dirname($mysql_test_dir);
 my $bindir = $ENV{MTR_BINDIR} || $basedir; # Out of source set MTR_BINDIR
 my $ndb_connectstring = $ENV{NDB_CONNECTSTRING} or die "Need NDB_CONNECTSTRING";
+my $ndb_config = $ENV{NDB_CONFIG} or die "Need NDB_CONFIG tool";
 
-#
-# Find ndb_config
-#
-my $ndb_config = my_find_file($bindir,
-                              ["storage/ndb/tools", "bin"],
-                              ["ndb_config", "ndb_config.exe"], NOT_REQUIRED);
 
 my $fields = "NoOfReplicas,MaxNoOfTables,MaxNoOfOrderedIndexes,DataMemory,IndexMemory";
-my $cmd = "$ndb_config --ndb-connectstring='$ndb_connectstring' -q '$fields' -f ',' -r '\\n'";
+my $cmd = "$ndb_config --ndb-connectstring=$ndb_connectstring -q $fields -f , -r #";
 print "Calling ndb_config: '$cmd'\n";
 my $output = `$cmd`;
 
@@ -46,7 +41,7 @@ my $max_no_of_ordered_indexes = 0;
 my $data_memory = 0;
 my $index_memory = 0;
 
-foreach my $line (split("\n", $output)) {
+foreach my $line (split("#", $output)) {
     # Skip empty lines
     next if ($line =~ m/^,+$/g);
 
@@ -70,7 +65,7 @@ if ($no_of_replicas > 0) {
 sub get_first_last {
   my $type = shift;
 
-  my $cmd = "$ndb_config --ndb-connectstring='$ndb_connectstring' -q 'NodeId' -f '' -r ',' --type=$type";
+  my $cmd = "$ndb_config --ndb-connectstring=$ndb_connectstring -q NodeId -r , --type=$type";
   my $output = `$cmd`;
   chomp($output);
   my @nums = split(',', $output);

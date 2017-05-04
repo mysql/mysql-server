@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -153,6 +153,10 @@ ELSE()
       "${ndbclient_so_link_flags} ${LINK_FLAG_NO_UNDEFINED}")
     SET(ndbclient_so_link_flags
       "${ndbclient_so_link_flags} -Wl,--version-script=${CMAKE_CURRENT_BINARY_DIR}/libndbclient.ver")
+  ENDIF()
+  IF(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
+    SET(ndbclient_so_link_flags
+      "${ndbclient_so_link_flags} ${CMAKE_CXX_LINK_FLAGS}")
   ENDIF()
   SET_TARGET_PROPERTIES(ndbclient_so
     PROPERTIES LINK_FLAGS "${ndbclient_so_link_flags}")

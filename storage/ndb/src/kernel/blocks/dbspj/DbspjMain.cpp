@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3090,6 +3090,7 @@ Dbspj::execTRANSID_AI(Signal* signal)
   
   ndbassert(checkRequest(requestPtr));
   ndbassert(!requestPtr.p->m_completed_nodes.get(treeNodePtr.p->m_node_no));
+  ndbassert(!treeNodePtr.p->isLeaf())
 
   DEBUG("execTRANSID_AI"
      << ", node: " << treeNodePtr.p->m_node_no
@@ -3582,7 +3583,7 @@ Dbspj::allocPage(Ptr<RowPage> & ptr)
     }
     ptr.p = (RowPage*)m_ctx.m_mm.alloc_page(RT_SPJ_DATABUFFER,
                                             &ptr.i,
-                                            Ndbd_mem_manager::NDB_ZONE_ANY);
+                                            Ndbd_mem_manager::NDB_ZONE_LE_32);
     if (ptr.p == 0)
     {
       jam();
@@ -4089,6 +4090,15 @@ Dbspj::lookup_send(Signal* signal,
     ndbassert(checkTableError(treeNodePtr) == 0);
   }
 
+  /**
+   * Expected reply signal counts:
+   *  2: A non-Leaf will get both a TRANSID_AI reply and a CONF
+   *     (In case of a non-LEAF 'REF', it is counted twice)
+   *  1: A Leaf expect a CONF or REF if a scan request.
+   *     (TRANSID_AI sent directly to API-client)
+   *  0: A Leaf in a lookup request expect no replies to SPJ.
+   *     (All replies goes directly to API-client)
+   */
   Uint32 cnt = 2;
   if (treeNodePtr.p->isLeaf())
   {
@@ -4112,7 +4122,7 @@ Dbspj::lookup_send(Signal* signal,
   req->variableData[2] = treeNodePtr.p->m_send.m_correlation;
   req->variableData[3] = requestPtr.p->m_rootResultData;
 
-  if (!(requestPtr.p->isLookup() && treeNodePtr.p->isLeaf()))
+  if (!treeNodePtr.p->isLeaf() || requestPtr.p->isScan())
   {
     // Non-LEAF want reply to SPJ instead of ApiClient.
     LqhKeyReq::setNormalProtocolFlag(req->requestInfo, 1);
@@ -4440,7 +4450,7 @@ Dbspj::lookup_execLQHKEYREF(Signal* signal,
  * to inform that the query branch starting with 'treeNodePtr'
  * will not be executed due to 'errCode'.
  *
- * NOTE: 'errCode'is expected to be a 'soft error', like
+ * NOTE: 'errCode' is expected to be a 'soft error', like
  *       'row not found', and is *not* intended to abort
  *       entire query.
  */
@@ -4486,7 +4496,7 @@ Dbspj::lookup_stop_branch(Signal* signal,
     ndbrequire(list.getSize() == 1); // should only be 1 child
     Ptr<TreeNode> childPtr;
     m_treenode_pool.getPtr(childPtr, * it.data);
-    if (childPtr.p->m_bits & TreeNode::T_LEAF)
+    if (childPtr.p->isLeaf())
     {
       jam();
       DEBUG("  UNUQUE_INDEX-Leaf-lookup: sending extra 'CONF' "
@@ -4499,8 +4509,8 @@ Dbspj::lookup_stop_branch(Signal* signal,
    * Then produce the REF(errCode) which terminates this
    * tree branch.
    */
-  Uint32 resultRef = treeNodePtr.p->m_lookup_data.m_api_resultRef;
-  Uint32 resultData = treeNodePtr.p->m_lookup_data.m_api_resultData;
+  const Uint32 resultRef = treeNodePtr.p->m_lookup_data.m_api_resultRef;
+  const Uint32 resultData = treeNodePtr.p->m_lookup_data.m_api_resultData;
   TcKeyRef* ref = (TcKeyRef*)signal->getDataPtr();
   ref->connectPtr = resultData;
   ref->transId[0] = requestPtr.p->m_transId[0];
@@ -9288,22 +9298,51 @@ Dbspj::parseDA(Build_context& ctx,
         }
 
         param.ptr += len;
+        sum_read += len;
+
+        const NodeId API_node = refToNode(ctx.m_resultRef);
+        const Uint32 API_version = getNodeInfo(API_node).m_version;
 
         /**
-         * Insert a flush of this partial result set
+         * We have just added a 'USER_PROJECTION' which is the 
+         * result row to the SPJ-API. If we will also add a 
+         * projection of SPJ keys (NI_LINKED_ATTR), we need to
+         * insert a FLUSH of the client results now, else the
+         * FLUSH is skipped as we produced a single result
+         * projection only. (to API client)
+         *
+         * However, for scan requests we will always need to FLUSH:
+         * LqhKeyReq::tcBlockref need to refer this SPJ block as
+         * it is used to send the required REF/CONF to SPJ. However,
+         * tcBlockref is also used as the 'route' dest for TRANSID_AI_R,
+         * which should be routed to the requesting TC block. Thus
+         * we need the FLUSH which specifies its own RouteRef.
+         *
+         * Also need to have this under API-version control, as
+         * older API versions assumed that all SPJ results were 
+         * returned as 'long' signals.
          */
-        Uint32 flush[4];
-        flush[0] = AttributeHeader::FLUSH_AI << 16;
-        flush[1] = ctx.m_resultRef;
-        flush[2] = ctx.m_resultData;
-        flush[3] = ctx.m_senderRef; // RouteRef
-        if (!appendToSection(attrInfoPtrI, flush, 4))
+        if (treeBits & DABits::NI_LINKED_ATTR ||
+            requestPtr.p->isScan() ||
+            !ndbd_spj_api_support_short_TRANSID_AI(API_version))
         {
+          /**
+           * Insert a FLUSH_AI of 'USER_PROJECTION' result (to client) 
+           * before 'LINKED_ATTR' results to SPJ is produced.
+           */
           jam();
-          break;
+          Uint32 flush[4];
+          flush[0] = AttributeHeader::FLUSH_AI << 16;
+          flush[1] = ctx.m_resultRef;
+          flush[2] = ctx.m_resultData;
+          flush[3] = ctx.m_senderRef; // RouteRef
+          if (!appendToSection(attrInfoPtrI, flush, 4))
+          {
+            jam();
+            break;
+          }
+          sum_read += 4;
         }
-
-        sum_read += len + 4;
       }
 
       if (treeBits & DABits::NI_LINKED_ATTR)
