@@ -94,7 +94,7 @@ let NEW_CMD = $MYSQLD --no-defaults --innodb_page_size=$START_PAGE_SIZE --innodb
 
 --echo # DB1 server started with the wrong path of undo tablespaces.
 --echo # Expect errors during recovery.
---error 1
+--error 1,42
 --exec $NEW_CMD
 
 # Search for particular error

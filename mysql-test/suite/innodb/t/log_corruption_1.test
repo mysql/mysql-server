@@ -30,7 +30,7 @@ EOF
 # platform sporadically
 let $args=--no-defaults --datadir=$newdir --secure-file-priv="" --loose-console > $SEARCH_FILE 2>&1 ;
 
---error 0,1
+--error 0,1,42
 --exec $MYSQLD $args
 
 --echo # Matching the server logs for corrupted redo logs

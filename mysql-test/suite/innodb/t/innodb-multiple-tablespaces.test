@@ -384,7 +384,7 @@ let $mysqld=$MYSQLD_CMD --core-file --console > $SEARCH_FILE 2>&1;
 
 # TODO: This could fail to refuse startup, in case there was a log
 # checkpoint after the INSERT INTO yn.
---error 1
+--error 1,42
 --exec $mysqld
 
 let SEARCH_PATTERN= InnoDB: Could not find any file associated with the tablespace \d+;

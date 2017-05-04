@@ -39,7 +39,7 @@ COMMIT;
 let SEARCH_FILE= $MYSQLTEST_VARDIR/log/my_restart.err;
 let $mysqld=$MYSQLD_CMD --core-file --console > $SEARCH_FILE 2>&1;
 
---error 1
+--error 1,42
 --exec $mysqld
 
 # Remove orphaned file from fault 0
@@ -71,7 +71,7 @@ COMMIT;
 --echo # Fault 2: Wrong space_id in a dirty file, and a missing file.
 --move_file $MYSQLD_DATADIR/test/t3.ibd $MYSQLD_DATADIR/test/t1.ibd
 
---error 1
+--error 1,42
 --exec $mysqld
 
 let SEARCH_PATTERN= InnoDB: Tablespace file '.*t1.ibd' ID mismatch, expected \d+ but found \d+;
@@ -86,7 +86,7 @@ let SEARCH_PATTERN= InnoDB: Tablespace file '.*t1.ibd' ID mismatch, expected \d+
 --move_file $MYSQLD_DATADIR/test/t2.ibd $MYSQLD_DATADIR/test/t3.ibd
 --move_file $MYSQLD_DATADIR/test/t.ibd $MYSQLD_DATADIR/test/t2.ibd
 
---error 1
+--error 1,42
 --exec $mysqld
 
 let SEARCH_PATTERN= InnoDB: Tablespace file '.*t2.ibd' ID mismatch, expected \d+ but found \d+;
@@ -109,7 +109,7 @@ let SEARCH_PATTERN= InnoDB: Some files associated with the tablespace \d+ were n
 
 --echo # Fault 4: Missing data file
 
---error 1
+--error 1,42
 --exec $mysqld
 
 # The error message is the same as above. This is the additional message only.
@@ -127,7 +127,7 @@ let SEARCH_PATTERN= InnoDB: Some files associated with the tablespace \d+ were n
 # Create an empty file.
 --exec echo "" > $MYSQLD_DATADIR/test/t2.ibd
 
---error 1
+--error 1,42
 --exec $mysqld
 
 let SEARCH_PATTERN= \[ERROR\] InnoDB: Datafile .*t2.*\. Cannot determine the space ID from the first 64 pages;
@@ -194,7 +194,7 @@ INSERT INTO u6 VALUES(2);
 # We now have the original file and the final file (u4 -> u5 -> u6)
 --copy_file $MYSQLD_DATADIR/test/u6.ibd $MYSQLD_DATADIR/test/u4.ibd
 
---error 1
+--error 1,42
 --exec $mysqld
 
 let SEARCH_PATTERN= InnoDB: Attempted to open a previously opened tablespace. Previous tablespace .*u5 at filepath: .*u5.ibd uses space ID: \d+. Cannot open filepath: .*u6.ibd which uses the same space ID;
@@ -220,7 +220,7 @@ EOF
 
 --exec echo "" > $MYSQLD_DATADIR/test/u2.ibd
 
---error 1
+--error 1,42
 --exec $mysqld
 
 let SEARCH_PATTERN= \[ERROR\] InnoDB: Datafile .*u1.*\. Cannot determine the space ID from the first 64 pages;
@@ -235,7 +235,7 @@ let SEARCH_PATTERN= \[ERROR\] InnoDB: Cannot read first page of .*u2.ibd.*;
 
 --echo # Fault 8: Missing or wrong data file
 
---error 1
+--error 1,42
 --exec $mysqld
 
 let SEARCH_PATTERN= \[ERROR\] InnoDB: Header page consists of zero bytes in datafile: .*u1.ibd;
