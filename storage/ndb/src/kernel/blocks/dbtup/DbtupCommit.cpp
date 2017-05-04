@@ -36,6 +36,13 @@ extern EventLogger *g_eventLogger;
 #define DEB_LCP(arglist) do { } while (0)
 #endif
 
+#define DEBUG_LCP_SCANNED_BIT 1
+#ifdef DEBUG_LCP_SCANNED_BIT
+#define DEB_LCP_SCANNED_BIT(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_LCP_SCANNED_BIT(arglist) do { } while (0)
+#endif
+
 //#define DEBUG_PGMAN 1
 #ifdef DEBUG_PGMAN
 #define DEB_PGMAN(arglist) do { g_eventLogger->info arglist ; } while (0)
@@ -132,7 +139,8 @@ void Dbtup::initOpConnection(Operationrec* regOperPtr)
 bool
 Dbtup::is_rowid_in_remaining_lcp_set(const Page* page,
                                      const Local_key& key1,
-                                     const Dbtup::ScanOp& op) const
+                                     const Dbtup::ScanOp& op,
+                                     Uint32 debug_val) const
 {
   if (page->is_page_to_skip_lcp())
   {
@@ -149,6 +157,14 @@ Dbtup::is_rowid_in_remaining_lcp_set(const Page* page,
   else if (ret_val == -1)
   {
     jam();
+    if (debug_val != 0)
+    {
+      DEB_LCP_SCANNED_BIT(("(%u)Line: %u, page: %u, debug_val: %u",
+                           instance(),
+                           __LINE__,
+                           key1.m_page_no,
+                           debug_val));
+    }
     return true;
   }
   /* We are scanning the given page */
@@ -158,6 +174,14 @@ Dbtup::is_rowid_in_remaining_lcp_set(const Page* page,
   {
     jam();
     ndbrequire(key2.isNull());
+    if (debug_val != 0)
+    {
+      DEB_LCP_SCANNED_BIT(("(%u)Line: %u, page: %u, debug_val: %u",
+                           instance(),
+                           __LINE__,
+                           key1.m_page_no,
+                           debug_val));
+    }
     return true; /* Already checked page id above, so will scan the page */
   }
   case Dbtup::ScanOp::Current:
@@ -189,6 +213,14 @@ Dbtup::is_rowid_in_remaining_lcp_set(const Page* page,
     {
       jam();
       /* Include rows not LCP:ed yet */
+      if (debug_val != 0)
+      {
+        DEB_LCP_SCANNED_BIT(("(%u)Line: %u, page: %u, debug_val: %u",
+                             instance(),
+                             __LINE__,
+                             key1.m_page_no,
+                             debug_val));
+      }
       return true;
     }
     ndbassert(key1.m_page_idx == key2.m_page_idx);
@@ -257,7 +289,7 @@ Dbtup::dealloc_tuple(Signal* signal,
     c_scanOpPool.getPtr(scanOp, lcpScan_ptr_i);
     Local_key rowid = regOperPtr->m_tuple_location;
     rowid.m_page_no = page->frag_page_id;
-    if (is_rowid_in_remaining_lcp_set(page, rowid, *scanOp.p))
+    if (is_rowid_in_remaining_lcp_set(page, rowid, *scanOp.p, 0))
     {
       jam();
 
@@ -737,7 +769,7 @@ Dbtup::commit_operation(Signal* signal,
     c_scanOpPool.getPtr(scanOp, lcpScan_ptr_i);
     Local_key rowid = regOperPtr->m_tuple_location;
     rowid.m_page_no = pagePtr.p->frag_page_id;
-    if (is_rowid_in_remaining_lcp_set(pagePtr.p, rowid, *scanOp.p))
+    if (is_rowid_in_remaining_lcp_set(pagePtr.p, rowid, *scanOp.p, 0))
     {
       bool all_part;
       ndbrequire(c_backup->is_page_lcp_scanned(rowid.m_page_no,

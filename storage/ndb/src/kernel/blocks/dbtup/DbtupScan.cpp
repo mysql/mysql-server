@@ -667,13 +667,17 @@ Dbtup::scanFirst(Signal*, ScanOpPtr scanPtr)
   else if (frag.noOfPages == 0)
   {
     jam();
-    if (bits & ScanOp::SCAN_LCP)
+    if (!(bits & ScanOp::SCAN_LCP))
     {
       jam();
-      scan.m_last_seen = __LINE__;
+      scan.m_state = ScanOp::Last;
+      return;
     }
-    scan.m_state = ScanOp::Last;
-    return;
+    /**
+     * LCP scans will have to go through all pages even if no pages are still
+     * remaining to ensure that we reset the LCP scanned bits that possibly
+     * have been set before arriving here.
+     */
   }
 
   if (bits & ScanOp::SCAN_LCP)
@@ -682,7 +686,11 @@ Dbtup::scanFirst(Signal*, ScanOpPtr scanPtr)
     if (scan.m_endPage == 0)
     {
       jam();
-      /* Partition was empty at start of LCP, no records to report. */
+      /**
+       * Partition was empty at start of LCP, no records to report.
+       * In this case we cannot have set any LCP scanned bit since
+       * no page was around in table when the scan was started.
+       */
       scan.m_last_seen = __LINE__;
       scan.m_state = ScanOp::Last;
       return;

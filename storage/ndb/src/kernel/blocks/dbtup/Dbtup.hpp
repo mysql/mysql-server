@@ -3648,7 +3648,8 @@ private:
   void findFirstOp(OperationrecPtr&);
   bool is_rowid_in_remaining_lcp_set(const Page* page,
                                      const Local_key& key1,
-                                     const Dbtup::ScanOp& op) const;
+                                     const Dbtup::ScanOp& op,
+                                     Uint32 debug_val) const;
   void update_gci(Fragrecord*, Tablerec*, Tuple_header*, Uint32);
   void commit_operation(Signal*,
                         Uint32,

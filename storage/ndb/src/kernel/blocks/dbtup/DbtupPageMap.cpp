@@ -628,7 +628,10 @@ Dbtup::handle_lcp_skip_bit(EmulatedJamBuffer *jamBuf,
     Local_key key;
     key.m_page_no = page_no;
     key.m_page_idx = ZNIL;
-    if (is_rowid_in_remaining_lcp_set(pagePtr.p, key, *scanOp.p))
+    if (is_rowid_in_remaining_lcp_set(pagePtr.p,
+                                      key,
+                                      *scanOp.p,
+                                      2 /* Debug for LCP skip bit */))
     {
       thrjam(jamBuf);
       if (lcp_scanned_bit == 0)
@@ -914,7 +917,10 @@ Dbtup::releaseFragPage(Fragrecord* fragPtrP,
     c_scanOpPool.getPtr(scanOp, lcp_scan_ptr_i);
     key.m_page_no = logicalPageId;
     key.m_page_idx = ZNIL;
-    if (is_rowid_in_remaining_lcp_set(pagePtr.p, key, *scanOp.p))
+    if (is_rowid_in_remaining_lcp_set(pagePtr.p,
+                                      key,
+                                      *scanOp.p,
+                                      1 /* Debug for LCP scanned bit */))
     {
       jam();
       lcp_to_scan = true;
