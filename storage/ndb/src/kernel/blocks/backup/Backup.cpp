@@ -9962,6 +9962,7 @@ Backup::lcp_read_ctl_file_done(Signal* signal, BackupRecordPtr ptr)
   Uint32 maxGciWritten;
   Uint32 createGci;
   Uint32 createTableVersion;
+  Uint32 lqhCreateTableVersion;
 
   if (lcpCtlFilePtr0->ValidFlag == 0)
   {
@@ -10073,13 +10074,13 @@ Backup::lcp_read_ctl_file_done(Signal* signal, BackupRecordPtr ptr)
   ndbrequire(ptr.p->prepare_table.first(tabPtr));
   tabPtr.p->fragments.getPtr(fragPtr, 0);
   ptr.p->prepareMaxGciWritten = maxGciWritten;
+  lqhCreateTableVersion = c_lqh->getCreateSchemaVersion(tabPtr.p->tableId);
 
   Uint32 maxGci = MAX(maxGciCompleted, maxGciWritten);
   if (maxGci < fragPtr.p->createGci &&
       maxGci != 0)
   {
-    if (createTableVersion <
-        c_lqh->getCreateSchemaVersion(tabPtr.p->tableId))
+    if (createTableVersion < lqhCreateTableVersion)
     {
       jam();
       /**
@@ -10141,8 +10142,13 @@ Backup::lcp_read_ctl_file_done(Signal* signal, BackupRecordPtr ptr)
            maxGciCompleted,
            fragPtr.p->createGci));
 
-  ndbrequire(createTableVersion ==
-             c_lqh->getCreateSchemaVersion(tabPtr.p->tableId));
+  /**
+   * lqhCreateTableVersion == 0 means that the table is no longer active.
+   * We will continue as if things were ok, the table is being dropped so
+   * no need to abort here, the file will be dropped anyways.
+   */
+  ndbrequire(createTableVersion == lqhCreateTableVersion ||
+             lqhCreateTableVersion == 0);
 
   /* Initialise page to write to next CTL file with new LCP id */
   lcp_set_lcp_id(ptr, lcpCtlFilePtr);
@@ -10607,8 +10613,10 @@ Backup::lcp_update_ctl_page(BackupRecordPtr ptr,
   ndbassert(ptr.p->newestGci == 
             lcpCtlFilePtr->MaxGciWritten ||
             !m_our_node_started);
-  ndbrequire(lcpCtlFilePtr->CreateTableVersion ==
-             c_lqh->getCreateSchemaVersion(lcpCtlFilePtr->TableId));
+  /* Check that schema version is ok, 0 means we're currently deleting table */
+  Uint32 lqhCreateTableVersion = c_lqh->getCreateSchemaVersion(lcpCtlFilePtr->TableId);
+  ndbrequire(lcpCtlFilePtr->CreateTableVersion == lqhCreateTableVersion ||
+             lqhCreateTableVersion == 0);
 
   lcpCtlFilePtr->MaxGciWritten = ptr.p->newestGci;
   lcp_set_lcp_id(ptr, lcpCtlFilePtr);

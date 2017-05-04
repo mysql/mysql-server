@@ -1182,6 +1182,16 @@ Restore::read_ctl_file_done(Signal *signal, FilePtr file_ptr, Uint32 bytesRead)
   Uint32 localLcpId = lcpCtlFilePtr->LocalLcpId;
   Uint32 maxPageCnt = lcpCtlFilePtr->MaxPageCount;
   Uint32 createTableVersion = lcpCtlFilePtr->CreateTableVersion;
+  if (createTableVersion == 0)
+  {
+    jam();
+    /**
+     * LCP control file was created during table drop, simply set the valid flag
+     * to 0 and ignore the LCP control file.
+     */
+    createTableVersion = c_lqh->getCreateSchemaVersion(file_ptr.p->m_table_id);
+    validFlag = 0;
+  }
 
   if (createTableVersion !=
       c_lqh->getCreateSchemaVersion(file_ptr.p->m_table_id))
