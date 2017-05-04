@@ -1181,19 +1181,22 @@ Restore::read_ctl_file_done(Signal *signal, FilePtr file_ptr, Uint32 bytesRead)
   Uint32 lcpId = lcpCtlFilePtr->LcpId;
   Uint32 localLcpId = lcpCtlFilePtr->LocalLcpId;
   Uint32 maxPageCnt = lcpCtlFilePtr->MaxPageCount;
+  Uint32 createTableVersion = lcpCtlFilePtr->CreateTableVersion;
 
-  if (createGci != file_ptr.p->m_create_gci &&
-      createGci != 0 &&
-      file_ptr.p->m_create_gci != 0)
+  if (createTableVersion !=
+      c_lqh->getCreateSchemaVersion(file_ptr.p->m_table_id))
   {
     jam();
     g_eventLogger->info("(%u)Found LCP control file from old table"
                         ", drop table haven't cleaned up properly"
-                        ", tab(%u,%u), createGci:%u, maxGciCompleted: %u"
+                        ", tab(%u,%u).%u (now %u), createGci:%u,"
+                        " maxGciCompleted: %u"
                         ", maxGciWritten: %u, restored createGci: %u",
                         instance(),
                         file_ptr.p->m_table_id,
                         file_ptr.p->m_fragment_id,
+                        createTableVersion,
+                        c_lqh->getCreateSchemaVersion(file_ptr.p->m_table_id),
                         createGci,
                         maxGciCompleted,
                         maxGciWritten,

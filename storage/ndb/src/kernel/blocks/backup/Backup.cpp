@@ -9961,6 +9961,7 @@ Backup::lcp_read_ctl_file_done(Signal* signal, BackupRecordPtr ptr)
   Uint32 maxGciCompleted;
   Uint32 maxGciWritten;
   Uint32 createGci;
+  Uint32 createTableVersion;
 
   if (lcpCtlFilePtr0->ValidFlag == 0)
   {
@@ -9986,6 +9987,7 @@ Backup::lcp_read_ctl_file_done(Signal* signal, BackupRecordPtr ptr)
     ptr.p->prepareNextLcpCtlFileNumber = 1;
     closeLcpNumber = 0;
     createGci = lcpCtlFilePtr0->CreateGci;
+    createTableVersion = lcpCtlFilePtr0->CreateTableVersion;
     maxGciCompleted = lcpCtlFilePtr0->MaxGciCompleted;
     maxGciWritten = lcpCtlFilePtr0->MaxGciWritten;
     ptr.p->prepareDeleteCtlFileNumber = closeLcpNumber;
@@ -10008,7 +10010,8 @@ Backup::lcp_read_ctl_file_done(Signal* signal, BackupRecordPtr ptr)
     dataFileNumber = lcpCtlFilePtr1->LastDataFileNumber;
     lcpCtlFilePtr = lcpCtlFilePtr0;
     ptr.p->prepareNextLcpCtlFileNumber = 0;
-    createGci = lcpCtlFilePtr0->CreateGci;
+    createGci = lcpCtlFilePtr1->CreateGci;
+    createTableVersion = lcpCtlFilePtr1->CreateTableVersion;
     maxGciCompleted = lcpCtlFilePtr1->MaxGciCompleted;
     maxGciWritten = lcpCtlFilePtr1->MaxGciWritten;
     closeLcpNumber = 1;
@@ -10042,6 +10045,7 @@ Backup::lcp_read_ctl_file_done(Signal* signal, BackupRecordPtr ptr)
       ndbrequire(ptr.p->prepare_table.first(tabPtr));
       tabPtr.p->fragments.getPtr(fragPtr, 0);
       createGci = fragPtr.p->createGci;
+      createTableVersion = c_lqh->getCreateSchemaVersion(tabPtr.p->tableId);
     }
     else
     {
@@ -10074,7 +10078,8 @@ Backup::lcp_read_ctl_file_done(Signal* signal, BackupRecordPtr ptr)
   if (maxGci < fragPtr.p->createGci &&
       maxGci != 0)
   {
-    if (createGci < fragPtr.p->createGci)
+    if (createTableVersion <
+        c_lqh->getCreateSchemaVersion(tabPtr.p->tableId))
     {
       jam();
       /**
@@ -10098,11 +10103,14 @@ Backup::lcp_read_ctl_file_done(Signal* signal, BackupRecordPtr ptr)
        * since we don't get the createGci from the DICT master in that case
        * when the fragment is created.
        */
-      DEB_LCP(("(%u)TAGT Drop case: tab(%u,%u), maxGciCompleted: %u,"
+      DEB_LCP(("(%u)TAGT Drop case: tab(%u,%u).%u (now %u),"
+               " maxGciCompleted: %u,"
                " maxGciWritten: %u, createGci: %u",
               instance(),
               tabPtr.p->tableId,
               fragPtr.p->fragmentId,
+              createTableVersion,
+              c_lqh->getCreateSchemaVersion(tabPtr.p->tableId),
               maxGciCompleted,
               maxGciWritten,
               fragPtr.p->createGci));
@@ -10118,7 +10126,7 @@ Backup::lcp_read_ctl_file_done(Signal* signal, BackupRecordPtr ptr)
     }
   }
   DEB_LCP(("(%u)TAGC Use ctl file: %u, prev Lcp(%u,%u), curr Lcp(%u,%u)"
-           ", next data file: %u, tab(%u,%u)"
+           ", next data file: %u, tab(%u,%u).%u"
            ", prevMaxGciCompleted: %u, createGci: %u",
            instance(),
            ptr.p->prepareNextLcpCtlFileNumber,
@@ -10129,12 +10137,12 @@ Backup::lcp_read_ctl_file_done(Signal* signal, BackupRecordPtr ptr)
            dataFileNumber,
            tabPtr.p->tableId,
            fragPtr.p->fragmentId,
+           c_lqh->getCreateSchemaVersion(tabPtr.p->tableId),
            maxGciCompleted,
            fragPtr.p->createGci));
 
-  ndbrequire(createGci == fragPtr.p->createGci ||
-             fragPtr.p->createGci == 0 ||
-             createGci == 0);
+  ndbrequire(createTableVersion ==
+             c_lqh->getCreateSchemaVersion(tabPtr.p->tableId));
 
   /* Initialise page to write to next CTL file with new LCP id */
   lcp_set_lcp_id(ptr, lcpCtlFilePtr);
@@ -10274,6 +10282,7 @@ Backup::convert_ctl_page_to_host(
   lcpCtlFilePtr->ValidFlag = ntohl(lcpCtlFilePtr->ValidFlag);
   lcpCtlFilePtr->TableId = ntohl(lcpCtlFilePtr->TableId);
   lcpCtlFilePtr->FragmentId = ntohl(lcpCtlFilePtr->FragmentId);
+  lcpCtlFilePtr->CreateTableVersion = ntohl(lcpCtlFilePtr->CreateTableVersion);
   lcpCtlFilePtr->CreateGci = ntohl(lcpCtlFilePtr->CreateGci);
   lcpCtlFilePtr->MaxGciCompleted = ntohl(lcpCtlFilePtr->MaxGciCompleted);
   lcpCtlFilePtr->MaxGciWritten = ntohl(lcpCtlFilePtr->MaxGciWritten);
@@ -10348,6 +10357,7 @@ Backup::convert_ctl_page_to_network(Uint32 *page)
   lcpCtlFilePtr->ValidFlag = htonl(lcpCtlFilePtr->ValidFlag);
   lcpCtlFilePtr->TableId = htonl(lcpCtlFilePtr->TableId);
   lcpCtlFilePtr->FragmentId = htonl(lcpCtlFilePtr->FragmentId);
+  lcpCtlFilePtr->CreateTableVersion = htonl(lcpCtlFilePtr->CreateTableVersion);
   lcpCtlFilePtr->CreateGci = htonl(lcpCtlFilePtr->CreateGci);
   lcpCtlFilePtr->MaxGciCompleted = htonl(lcpCtlFilePtr->MaxGciCompleted);
   lcpCtlFilePtr->MaxGciWritten = htonl(lcpCtlFilePtr->MaxGciWritten);
@@ -10412,6 +10422,7 @@ Backup::lcp_init_ctl_file(Page32Ptr pagePtr)
   lcpCtlFilePtr->ValidFlag = 0;
   lcpCtlFilePtr->TableId = 0;
   lcpCtlFilePtr->FragmentId = 0;
+  lcpCtlFilePtr->CreateTableVersion = 0;
   lcpCtlFilePtr->CreateGci = 0;
   lcpCtlFilePtr->MaxGciWritten = 0;
   lcpCtlFilePtr->MaxGciCompleted = 0;
@@ -10596,6 +10607,9 @@ Backup::lcp_update_ctl_page(BackupRecordPtr ptr,
   ndbassert(ptr.p->newestGci == 
             lcpCtlFilePtr->MaxGciWritten ||
             !m_our_node_started);
+  ndbrequire(lcpCtlFilePtr->CreateTableVersion ==
+             c_lqh->getCreateSchemaVersion(lcpCtlFilePtr->TableId));
+
   lcpCtlFilePtr->MaxGciWritten = ptr.p->newestGci;
   lcp_set_lcp_id(ptr, lcpCtlFilePtr);
 
@@ -10612,11 +10626,12 @@ Backup::lcp_update_ctl_page(BackupRecordPtr ptr,
   ptr.p->m_lcp_lsn_synced = valid_flag;
   lcpCtlFilePtr->ValidFlag = valid_flag;
 
-  DEB_LCP(("(%u)TAGY Handle idle LCP, tab(%u,%u), maxGciCompleted = %u"
+  DEB_LCP(("(%u)TAGY Handle idle LCP, tab(%u,%u).%u, maxGciCompleted = %u"
            ", validFlag = %u",
             instance(),
             lcpCtlFilePtr->TableId,
             lcpCtlFilePtr->FragmentId,
+            lcpCtlFilePtr->CreateTableVersion,
             lcpCtlFilePtr->MaxGciCompleted,
             valid_flag));
 }
@@ -11289,11 +11304,13 @@ Backup::start_execute_lcp(Signal *signal,
   FragmentPtr fragPtr;
   ptr.p->tables.first(debTabPtr);
   debTabPtr.p->fragments.getPtr(fragPtr, 0);
-  DEB_LCP(("(%u)TAGY LCP_Start: tab(%u,%u), row_count: %llu, row_change_count: %llu, "
+  DEB_LCP(("(%u)TAGY LCP_Start: tab(%u,%u).%u, row_count: %llu,"
+           " row_change_count: %llu, "
            "memory_used_in_bytes: %llu, max_page_cnt: %u, LCP lsn: %llu",
            instance(),
            debTabPtr.p->tableId,
            fragPtr.p->fragmentId,
+           c_lqh->getCreateSchemaVersion(debTabPtr.p->tableId),
            ptr.p->m_row_count,
            ptr.p->m_row_change_count,
            ptr.p->m_memory_used_in_bytes,
@@ -11645,6 +11662,8 @@ Backup::lcp_write_ctl_file(Signal *signal, BackupRecordPtr ptr)
 
   lcpCtlFilePtr->TableId = tabPtr.p->tableId;
   lcpCtlFilePtr->FragmentId = fragPtr.p->fragmentId;
+  lcpCtlFilePtr->CreateTableVersion =
+    c_lqh->getCreateSchemaVersion(tabPtr.p->tableId);
 
   Uint32 maxCompletedGci;
   c_lqh->lcp_max_completed_gci(maxCompletedGci);
@@ -11652,11 +11671,12 @@ Backup::lcp_write_ctl_file(Signal *signal, BackupRecordPtr ptr)
   lcpCtlFilePtr->MaxGciCompleted = maxCompletedGci;
   lcpCtlFilePtr->MaxGciWritten = ptr.p->newestGci;
 
-  DEB_LCP(("(%u)tab(%u,%u), use ctl file %u, GCI completed: %u,"
+  DEB_LCP(("(%u)tab(%u,%u).%u, use ctl file %u, GCI completed: %u,"
            " GCI written: %u, createGci: %u",
            instance(),
            lcpCtlFilePtr->TableId,
            lcpCtlFilePtr->FragmentId,
+           lcpCtlFilePtr->CreateTableVersion,
            (ptr.p->deleteCtlFileNumber == 0 ? 1 : 0),
            lcpCtlFilePtr->MaxGciCompleted,
            lcpCtlFilePtr->MaxGciWritten,
@@ -11829,10 +11849,11 @@ Backup::finalize_lcp_processing(Signal *signal, BackupRecordPtr ptr)
     LocalDeleteLcpFile_list queue(c_deleteLcpFilePool,
                                   m_delete_lcp_file_head);
     DEB_LCP(("(%u))TAGI Insert delete file in queue:"
-      " tab(%u,%u), file(%u,%u) GCI: %u, validFlag: %u",
+      " tab(%u,%u).%u, file(%u,%u) GCI: %u, validFlag: %u",
       instance(),
       tableId,
       fragmentId,
+      c_lqh->getCreateSchemaVersion(tableId),
       ptr.p->deleteDataFileNumber,
       ptr.p->deleteCtlFileNumber,
       ptr.p->newestGci,
@@ -12207,10 +12228,11 @@ Backup::lcp_close_ctl_file_for_rewrite(Signal *signal,
 #ifdef DEBUG_LCP
   DeleteLcpFilePtr deleteLcpFilePtr;
   c_deleteLcpFilePool.getPtr(deleteLcpFilePtr, ptr.p->currentDeleteLcpFile);
-  DEB_LCP(("(%u)Completed writing with ValidFlag = 1 for tab(%u,%u)",
+  DEB_LCP(("(%u)Completed writing with ValidFlag = 1 for tab(%u,%u).%u",
            instance(),
            deleteLcpFilePtr.p->tableId,
-           deleteLcpFilePtr.p->fragmentId));
+           deleteLcpFilePtr.p->fragmentId,
+           c_lqh->getCreateSchemaVersion(deleteLcpFilePtr.p->tableId)));
 #endif
 }
 
