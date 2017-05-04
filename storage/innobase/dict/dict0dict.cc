@@ -4605,6 +4605,9 @@ loop:
 			return(DB_NO_FK_ON_S_BASE_COL);
 		}
 
+		std::for_each(local_fk_set.begin(),
+			      local_fk_set.end(),
+			      dict_foreign_free);
 		local_fk_set.clear();
 		return(DB_SUCCESS);
 	}
