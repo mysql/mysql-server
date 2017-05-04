@@ -4506,13 +4506,13 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo)
 
   QueryNodeParameters::OpType paramType =
        !def.isScanOperation() ? QueryNodeParameters::QN_LOOKUP
-           : (isRoot) ? QueryNodeParameters::QN_SCAN_FRAG //TODO: Deprecate
-                      : QueryNodeParameters::QN_SCAN_INDEX;
+           : (isRoot) ? QueryNodeParameters::QN_SCAN_FRAG_v1
+                      : QueryNodeParameters::QN_SCAN_INDEX_v1;
 
-  if (paramType == QueryNodeParameters::QN_SCAN_INDEX)
-    attrInfo.alloc(QN_ScanIndexParameters::NodeSize);
-  else if (paramType == QueryNodeParameters::QN_SCAN_FRAG)
-    attrInfo.alloc(QN_ScanFragParameters::NodeSize);
+  if (paramType == QueryNodeParameters::QN_SCAN_INDEX_v1)
+    attrInfo.alloc(QN_ScanIndexParameters_v1::NodeSize);
+  else if (paramType == QueryNodeParameters::QN_SCAN_FRAG_v1)
+    attrInfo.alloc(QN_ScanFragParameters_v1::NodeSize);
   else
     attrInfo.alloc(QN_LookupParameters::NodeSize);
 
@@ -4563,9 +4563,10 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo)
     return QRY_DEFINITION_TOO_LARGE; //Query definition too large.
   }
 
-  if (paramType == QueryNodeParameters::QN_SCAN_INDEX)
+  if (paramType == QueryNodeParameters::QN_SCAN_INDEX_v1)
   {
-    QN_ScanIndexParameters* param = reinterpret_cast<QN_ScanIndexParameters*>(attrInfo.addr(startPos)); 
+    QN_ScanIndexParameters_v1* param = 
+      reinterpret_cast<QN_ScanIndexParameters_v1*>(attrInfo.addr(startPos)); 
     if (unlikely(param==NULL))
       return Err_MemoryAlloc;
 
@@ -4573,11 +4574,11 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo)
            m_parallelism == Parallelism_adaptive);
     if (m_parallelism == Parallelism_max)
     {
-      requestInfo |= QN_ScanIndexParameters::SIP_PARALLEL;
+      requestInfo |= QN_ScanIndexParameters_v1::SIP_PARALLEL;
     }
     if (def.hasParamInPruneKey())
     {
-      requestInfo |= QN_ScanIndexParameters::SIP_PRUNE_PARAMS;
+      requestInfo |= QN_ScanIndexParameters_v1::SIP_PRUNE_PARAMS;
     }
     param->requestInfo = requestInfo;
 
@@ -4585,17 +4586,18 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo)
     const Uint32 batchRows = getMaxBatchRows();
     const Uint32 batchByteSize = getMaxBatchBytes();
 
-    assert(batchRows < (1<<QN_ScanIndexParameters::BatchRowBits));
+    assert(batchRows < (1<<QN_ScanIndexParameters_v1::BatchRowBits));
     assert(batchByteSize < (1 << (sizeof param->batchSize * 8
-                                  - QN_ScanIndexParameters::BatchRowBits)));
-    param->batchSize = (batchByteSize << QN_ScanIndexParameters::BatchRowBits)
+                                  - QN_ScanIndexParameters_v1::BatchRowBits)));
+    param->batchSize = (batchByteSize << QN_ScanIndexParameters_v1::BatchRowBits)
                       | batchRows;
     param->resultData = getIdOfReceiver();
     QueryNodeParameters::setOpLen(param->len, paramType, length);
   }
-  else if (paramType == QueryNodeParameters::QN_SCAN_FRAG)
+  else if (paramType == QueryNodeParameters::QN_SCAN_FRAG_v1)
   {
-    QN_ScanFragParameters* param = reinterpret_cast<QN_ScanFragParameters*>(attrInfo.addr(startPos)); 
+    QN_ScanFragParameters_v1* param =
+      reinterpret_cast<QN_ScanFragParameters_v1*>(attrInfo.addr(startPos)); 
     if (unlikely(param==NULL))
       return Err_MemoryAlloc;
 

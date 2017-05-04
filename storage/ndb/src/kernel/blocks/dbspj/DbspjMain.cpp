@@ -1383,16 +1383,60 @@ Dbspj::build(Build_context& ctx,
     }
 
     const OpInfo* info = NULL;
-    if (node_op == QueryNode::QN_SCAN_FRAG)
+    if (node_op == QueryNode::QN_SCAN_FRAG_v1)
     {
       /**
-       * Convert the deprecated SCAN_FRAG node+param to SCAN_INDEX:
+       * Convert the deprecated SCAN_FRAG_v1 node+param to new SCAN_FRAG:
        *  - The 'node' formats are identical, no conversion needed.
-       *  - The QN_ScanIndexParameters has an additional 'batchSize' member.
-       *    Extend entire param block to make room for it.
+       *  - The QN_ScanFragParameters has two additional 'batch_size' member.
+       *    Extend entire param block to make room for it, fill in from 'req'.
        */
       jam();
-      QN_ScanIndexParameters *indexParam = (QN_ScanIndexParameters*)m_buffer1;
+      QN_ScanFragParameters_v1 *param_old = (QN_ScanFragParameters_v1*)m_buffer1;
+      const Uint32 requestInfo = param_old->requestInfo;
+      const Uint32 resultData = param_old->resultData;
+
+      if (unlikely(param_len+2 >= NDB_ARRAY_SIZE(m_buffer1)))
+      {
+        jam();
+        err = DbspjErr::QueryNodeParametersTooBig;
+        goto error;
+      }
+      QN_ScanFragParameters *param = (QN_ScanFragParameters*)m_buffer1;
+      memmove(((Uint32*)param)+param->NodeSize,
+              ((Uint32*)param_old)+param_old->NodeSize, 
+              (param_len-param_old->NodeSize) * sizeof(Uint32));
+      param_len+=2;
+
+      param->requestInfo = requestInfo;
+      param->resultData = resultData;
+ 
+      /* Calculate and fill in param 'batchSize' from request */
+      Signal* signal = ctx.m_start_signal;
+      const ScanFragReq* req = (const ScanFragReq*)(signal->getDataPtr());
+      param->batch_size_rows = req->batch_size_rows;
+      param->batch_size_bytes = req->batch_size_bytes;
+
+      /* Execute root scan with full parallelism - as SCAN_FRAG_v1 always did */
+      param->requestInfo |= QN_ScanFragParameters::SFP_PARALLEL;
+
+      info = &Dbspj::g_ScanFragOpInfo;
+    }
+    else if (node_op == QueryNode::QN_SCAN_INDEX_v1)
+    {
+      /**
+       * Convert the deprecated SCAN_INDEX_v1 node+param to new SCAN_FRAG:
+       *  - The 'node' formats are identical, no conversion needed.
+       *  - The QN_ScanIndexParameters has splitt the single batchSize into
+       *    two seperate 'batch_size' member.
+       *    Extend entire param block to make room for it,
+       *    fill in from old batchSize argument.
+       */
+      jam();
+      QN_ScanIndexParameters_v1 *param_old = (QN_ScanIndexParameters_v1*)m_buffer1;
+      const Uint32 requestInfo = param_old->requestInfo;
+      const Uint32 batchSize = param_old->batchSize;
+      const Uint32 resultData = param_old->resultData;
 
       if (unlikely(param_len+1 >= NDB_ARRAY_SIZE(m_buffer1)))
       {
@@ -1400,15 +1444,17 @@ Dbspj::build(Build_context& ctx,
         err = DbspjErr::QueryNodeParametersTooBig;
         goto error;
       }
-      memmove((&indexParam->batchSize)+1, &indexParam->batchSize, 
-              (&m_buffer1[param_len]-&indexParam->batchSize)*sizeof(Uint32));
+      QN_ScanFragParameters *param = (QN_ScanFragParameters*)m_buffer1;
+      memmove(((Uint32*)param)+param->NodeSize,
+              ((Uint32*)param_old)+param_old->NodeSize, 
+              (param_len-param_old->NodeSize) * sizeof(Uint32));
+      param_len+=1;
 
-      /* Calculate param 'batchSize' from request */
-      Signal* signal = ctx.m_start_signal;
-      const ScanFragReq* req = (const ScanFragReq*)(signal->getDataPtr());
-      indexParam->batchSize = (req->batch_size_bytes << QN_ScanIndexParameters::BatchRowBits) | 
-                               req->batch_size_rows;
-      param_len++;
+      param->requestInfo = requestInfo;
+      param->resultData = resultData;
+      param->batch_size_rows = batchSize & ~(0xFFFFFFFF << QN_ScanIndexParameters_v1::BatchRowBits);
+      param->batch_size_bytes = batchSize >> QN_ScanIndexParameters_v1::BatchRowBits;
+
       info = &Dbspj::g_ScanFragOpInfo;
     }
     else
@@ -5294,15 +5340,15 @@ Dbspj::scanFrag_build(Build_context& ctx,
 {
   Uint32 err = 0;
   Ptr<TreeNode> treeNodePtr;
-  const QN_ScanIndexNode * node = (const QN_ScanIndexNode*)qn;
-  const QN_ScanIndexParameters * param = (const QN_ScanIndexParameters*)qp;
+  const QN_ScanFragNode * node = (const QN_ScanFragNode*)qn;
+  const QN_ScanFragParameters * param = (const QN_ScanFragParameters*)qp;
 
   do
   {
     jam();
     err = DbspjErr::InvalidTreeNodeSpecification;
     DEBUG("scanFrag_build: len=" << node->len);
-    if (unlikely(node->len < QN_ScanIndexNode::NodeSize))
+    if (unlikely(node->len < QN_ScanFragNode::NodeSize))
     {
       jam();
       break;
@@ -5310,7 +5356,7 @@ Dbspj::scanFrag_build(Build_context& ctx,
 
     err = DbspjErr::InvalidTreeParametersSpecification;
     DEBUG("param len: " << param->len);
-    if (unlikely(param->len < QN_ScanIndexParameters::NodeSize))
+    if (unlikely(param->len < QN_ScanFragParameters::NodeSize))
     {
       jam();
       break;
@@ -5327,7 +5373,8 @@ Dbspj::scanFrag_build(Build_context& ctx,
 
     const Uint32 treeBits = node->requestInfo;
     const Uint32 paramBits = param->requestInfo;
-    const Uint32 batchSize = param->batchSize;
+    const Uint32 batchRows = param->batch_size_rows;
+    const Uint32 batchBytes = param->batch_size_bytes;
     const Uint32 indexId = node->tableId;
     const Uint32 tableId = g_key_descriptor_pool.getPtr(indexId)->primaryTableId;
 
@@ -5336,8 +5383,7 @@ Dbspj::scanFrag_build(Build_context& ctx,
     treeNodePtr.p->m_primaryTableId = tableId;
     treeNodePtr.p->m_schemaVersion = node->tableVersion;
     treeNodePtr.p->m_bits |= TreeNode::T_ATTR_INTERPRETED;
-    treeNodePtr.p->m_batch_size =  //OJA, modified later if root?
-      batchSize & ~(0xFFFFFFFF << QN_ScanIndexParameters::BatchRowBits);
+    treeNodePtr.p->m_batch_size = batchRows;
 
     ctx.m_resultData = param->resultData;
 
@@ -5346,9 +5392,9 @@ Dbspj::scanFrag_build(Build_context& ctx,
      */
     struct DABuffer nodeDA, paramDA;
     nodeDA.ptr = node->optional;
-    nodeDA.end = nodeDA.ptr + (node->len - QN_ScanIndexNode::NodeSize);
+    nodeDA.end = nodeDA.ptr + (node->len - QN_ScanFragNode::NodeSize);
     paramDA.ptr = param->optional;
-    paramDA.end = paramDA.ptr + (param->len - QN_ScanIndexParameters::NodeSize);
+    paramDA.end = paramDA.ptr + (param->len - QN_ScanFragParameters::NodeSize);
 
     err = parseScanFrag(ctx, requestPtr, treeNodePtr,
                         nodeDA, treeBits, paramDA, paramBits);
@@ -5432,7 +5478,6 @@ Dbspj::scanFrag_build(Build_context& ctx,
       ndbassert(dst->transId2 == requestPtr.p->m_transId[1]);
 
       treeNodePtr.p->m_bits |= TreeNode::T_ONE_SHOT;
-      treeNodePtr.p->m_batch_size = ctx.m_batch_size_rows;
 
       TableRecordPtr tablePtr;
       tablePtr.i = treeNodePtr.p->m_tableOrIndexId;
@@ -5519,9 +5564,8 @@ Dbspj::scanFrag_build(Build_context& ctx,
     dst->resultData = treeNodePtr.i;
     ScanFragReq::setCorrFactorFlag(dst->requestInfo, 1);
 
-    dst->batch_size_rows  = 
-      batchSize & ~(0xFFFFFFFF << QN_ScanIndexParameters::BatchRowBits);
-    dst->batch_size_bytes = batchSize >> QN_ScanIndexParameters::BatchRowBits;
+    dst->batch_size_rows  = batchRows;
+    dst->batch_size_bytes = batchBytes;
 
     ctx.m_scan_cnt++;
     ctx.m_scans.set(treeNodePtr.p->m_node_no);
@@ -5541,8 +5585,8 @@ Dbspj::parseScanFrag(Build_context& ctx,
 {
   Uint32 err = 0;
 
-  typedef QN_ScanIndexNode Node;
-  typedef QN_ScanIndexParameters Params;
+  typedef QN_ScanFragNode Node;
+  typedef QN_ScanFragParameters Params;
 
   do
   {
@@ -5569,17 +5613,17 @@ Dbspj::parseScanFrag(Build_context& ctx,
     if (unlikely(err != 0))
       break;
 
-    if (treeBits & Node::SI_PRUNE_PATTERN)
+    if (treeBits & Node::SF_PRUNE_PATTERN)
     {
       Uint32 len_cnt = * tree.ptr ++;
       Uint32 len = len_cnt & 0xFFFF; // length of pattern in words
       Uint32 cnt = len_cnt >> 16;    // no of parameters
 
       LocalArenaPool<DataBufferSegment<14> > pool(requestPtr.p->m_arena, m_dependency_map_pool);
-      ndbrequire((cnt==0) == ((treeBits & Node::SI_PRUNE_PARAMS) ==0));
-      ndbrequire((cnt==0) == ((paramBits & Params::SIP_PRUNE_PARAMS)==0));
+      ndbrequire((cnt==0) == ((treeBits & Node::SF_PRUNE_PARAMS) ==0));
+      ndbrequire((cnt==0) == ((paramBits & Params::SFP_PRUNE_PARAMS)==0));
 
-      if (treeBits & Node::SI_PRUNE_LINKED)
+      if (treeBits & Node::SF_PRUNE_LINKED)
       {
         jam();
         DEBUG("LINKED-PRUNE PATTERN w/ " << cnt << " PARAM values");
@@ -5639,11 +5683,11 @@ Dbspj::parseScanFrag(Build_context& ctx,
         treeNodePtr.p->m_bits |= TreeNode::T_CONST_PRUNE;
         c_Counters.incr_counter(CI_CONST_PRUNED_RANGE_SCANS_RECEIVED, 1);
       }
-    } //SI_PRUNE_PATTERN
+    } //SF_PRUNE_PATTERN
 
     if ((treeNodePtr.p->m_bits & TreeNode::T_CONST_PRUNE) == 0 &&
-        ((treeBits & Node::SI_PARALLEL) ||
-         ((paramBits & Params::SIP_PARALLEL))))
+        ((treeBits & Node::SF_PARALLEL) ||
+         ((paramBits & Params::SFP_PARALLEL))))
     {
       jam();
       treeNodePtr.p->m_bits |= TreeNode::T_SCAN_PARALLEL;
@@ -7704,9 +7748,11 @@ Dbspj::getOpInfo(Uint32 op)
   switch(op){
   case QueryNode::QN_LOOKUP:
     return &Dbspj::g_LookupOpInfo;
+  case QueryNode::QN_SCAN_FRAG_v1:
+    return NULL; //Deprecated, converted into QN_SCAN_FRAG
+  case QueryNode::QN_SCAN_INDEX_v1:
+    return NULL; //Deprecated, converted into QN_SCAN_FRAG
   case QueryNode::QN_SCAN_FRAG:
-    return NULL; //Deprecated and removed
-  case QueryNode::QN_SCAN_INDEX:
     return &Dbspj::g_ScanFragOpInfo;
   default:
     return 0;

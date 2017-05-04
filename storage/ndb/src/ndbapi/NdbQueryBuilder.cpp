@@ -2772,7 +2772,7 @@ NdbQueryScanOperationDefImpl::serialize(Uint32Buffer& serializedDef,
     node->tableId = tableOrIndex.getObjectId();
     node->tableVersion = tableOrIndex.getObjectVersion();
     node->requestInfo = requestInfo;
-    QueryNode::setOpLen(node->len, QueryNode::QN_SCAN_FRAG, length); //TODO: Deprecate
+    QueryNode::setOpLen(node->len, QueryNode::QN_SCAN_FRAG_v1, length); //TODO: Deprecate
   }
   else 
   {
@@ -2784,7 +2784,7 @@ NdbQueryScanOperationDefImpl::serialize(Uint32Buffer& serializedDef,
     node->tableVersion = tableOrIndex.getObjectVersion();
     // Need NI_REPEAT_SCAN_RESULT if there are star-joined scans 
     node->requestInfo = requestInfo | DABits::NI_REPEAT_SCAN_RESULT;
-    QueryNode::setOpLen(node->len, QueryNode::QN_SCAN_INDEX, length);
+    QueryNode::setOpLen(node->len, QueryNode::QN_SCAN_INDEX_v1, length);
   }
 
 #ifdef __TRACE_SERIALIZATION
