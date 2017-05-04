@@ -2341,7 +2341,7 @@ NdbQueryIndexScanOperationDefImpl::appendPrunePattern(Uint32Buffer& serializedDe
         {
           case NdbQueryOperandImpl::Linked:
           {
-            appendedPattern |= QN_ScanIndexNode::SI_PRUNE_LINKED;
+            appendedPattern |= QN_ScanFragNode::SF_PRUNE_LINKED;
             const NdbLinkedOperandImpl& linkedOp = *static_cast<const NdbLinkedOperandImpl*>(key);
             const NdbQueryOperationDefImpl* parent = getParentOperation();
             uint32 levels = 0;
@@ -2363,7 +2363,7 @@ NdbQueryIndexScanOperationDefImpl::appendPrunePattern(Uint32Buffer& serializedDe
           }
           case NdbQueryOperandImpl::Const:
           {
-//          appendedPattern |= QN_ScanIndexNode::SI_PRUNE_CONST;
+//          appendedPattern |= QN_ScanFragNode::SF_PRUNE_CONST;
             const NdbConstOperandImpl& constOp = *static_cast<const NdbConstOperandImpl*>(key);
      
             // No of words needed for storing the constant data.
@@ -2375,7 +2375,7 @@ NdbQueryIndexScanOperationDefImpl::appendPrunePattern(Uint32Buffer& serializedDe
             break;
           }
           case NdbQueryOperandImpl::Param:
-            appendedPattern |= QN_ScanIndexNode::SI_PRUNE_PARAMS;
+            appendedPattern |= QN_ScanFragNode::SF_PRUNE_PARAMS;
             m_paramInPruneKey = true;
             serializedDef.append(QueryPattern::param(paramCnt++));
             break;
@@ -2387,7 +2387,7 @@ NdbQueryIndexScanOperationDefImpl::appendPrunePattern(Uint32Buffer& serializedDe
       // Set total length of bound pattern.
       Uint32 len = serializedDef.getSize() - startPos -1;
       serializedDef.put(startPos, (paramCnt << 16) | (len));
-      appendedPattern |= QN_ScanIndexNode::SI_PRUNE_PATTERN;
+      appendedPattern |= QN_ScanFragNode::SF_PRUNE_PATTERN;
     }
   }
   return appendedPattern;
@@ -2741,7 +2741,6 @@ NdbQueryScanOperationDefImpl::serialize(Uint32Buffer& serializedDef,
   // Reserve memory for ScanFragNode, fill in contents later when
   // 'length' and 'requestInfo' has been calculated.
   Uint32 startPos = serializedDef.getSize();
-  assert (QN_ScanFragNode::NodeSize==QN_ScanIndexNode::NodeSize);
   serializedDef.alloc(QN_ScanFragNode::NodeSize);
   Uint32 requestInfo = 0;
 
@@ -2762,7 +2761,7 @@ NdbQueryScanOperationDefImpl::serialize(Uint32Buffer& serializedDef,
   {
     return QRY_DEFINITION_TOO_LARGE; //Query definition too large.
   }
-  // Fill in ScanFragNode/ScanIndexNode contents (Already allocated, 'startPos' is our handle:
+  // Fill in ScanFragNode contents (Already allocated, 'startPos' is our handle:
   if (isRoot)
   {
     QN_ScanFragNode* node = reinterpret_cast<QN_ScanFragNode*>(serializedDef.addr(startPos)); 
@@ -2776,7 +2775,7 @@ NdbQueryScanOperationDefImpl::serialize(Uint32Buffer& serializedDef,
   }
   else 
   {
-    QN_ScanIndexNode* node = reinterpret_cast<QN_ScanIndexNode*>(serializedDef.addr(startPos)); 
+    QN_ScanFragNode* node = reinterpret_cast<QN_ScanFragNode*>(serializedDef.addr(startPos)); 
     if (unlikely(node==NULL)) {
       return Err_MemoryAlloc;
     }
