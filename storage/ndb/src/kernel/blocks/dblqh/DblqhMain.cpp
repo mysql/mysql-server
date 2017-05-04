@@ -2020,14 +2020,19 @@ Dblqh::sendAddAttrReq(Signal* signal)
 
 /**
  * Return the schemaVersion-part that changes when table is created.
+ * This function can be called during restart from thread where
+ * TSMAN belongs, so it is important to not use any block variables
+ * here. The table object should not change here during this phase
+ * since it is in a very specific restart phase.
  */
 Uint32 Dblqh::getCreateSchemaVersion(Uint32 tableId)
 {
-  tabptr.i = tableId;
-  ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
-  if (tabptr.p->tableStatus == Tablerec::TABLE_DEFINED)
+  TablerecPtr tabPtr;
+  tabPtr.i = tableId;
+  ptrCheckGuard(tabPtr, ctabrecFileSize, tablerec);
+  if (tabPtr.p->tableStatus == Tablerec::TABLE_DEFINED)
   {
-    return (tabptr.p->schemaVersion & 0xFFFFFF);
+    return (tabPtr.p->schemaVersion & 0xFFFFFF);
   }
   else
   {

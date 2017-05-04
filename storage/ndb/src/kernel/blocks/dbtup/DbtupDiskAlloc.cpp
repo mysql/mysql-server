@@ -2872,6 +2872,10 @@ Dbtup::disk_restart_alloc_extent(EmulatedJamBuffer* jamBuf,
 				 const Local_key* key,
                                  Uint32 pages)
 {
+  /**
+   * This function is called from TSMAN in rep thread. Must not use any
+   * block variables other than extent information.
+   */
   TablerecPtr tabPtr;
   FragrecordPtr fragPtr;
   tabPtr.i = tableId;
@@ -2945,6 +2949,17 @@ Dbtup::disk_restart_alloc_extent(EmulatedJamBuffer* jamBuf,
   return -1;
 }
 
+/**
+ * This function is called from TSMAN during scan of extent headers.
+ * It is vital that the LDM thread is not doing any activity
+ * regarding this information at the same time. This only happens
+ * in a very specific part of restart. It is vital to ensure that
+ * one only uses stack variables and no block variables. The only
+ * block variables allowed to use are those that we update here, that
+ * is the extent information of a fragment and this must not be
+ * manipulated at the same time from LDM thread activity, this is
+ * safe guarded by the restart phase serialisation.
+ */
 void
 Dbtup::disk_restart_page_bits(EmulatedJamBuffer* jamBuf, 
                               Uint32 tableId,
