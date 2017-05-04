@@ -27,3 +27,4 @@ innodb.innodb_tsof_use_2  @windows : Bug#25716110 2017-03-14 Anitha Fails consis
 create_tablespace_partition : WL#9559 disables it, according to Dmitry, waiting for fix of Bug#18513130 STRANGE INTERACTION OF SQL_MODE=ANSI AND PARTITION BY TIMESTAMP
 innodb.innodb_wl6560_debug : Bug#25804386 2017-04-06 Bin Failing sporadically on PB2
 innodb.skip_locked_nowait  : Bug#25886814 2017-04-13 Allen Failing sporadically on PB2
+innodb.innodb-wl5522-debug : Bug#25997291 2017-05-04 Gopal Fails on weekly pb2 run
