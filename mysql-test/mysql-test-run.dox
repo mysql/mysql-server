@@ -314,6 +314,11 @@
       </li>
 
       <li>
+        A file name of the form <b><em>test_name</em>-client.opt </b>
+        provides @ref PAGE_MYSQLTEST "mysqltest" client options.
+      </li>
+
+      <li>
         A file name of the form <b><em>test_name</em>.cnf</b> contains
         additional entries for the config file to be used for this
         test.
@@ -872,6 +877,7 @@
   - @subpage PAGE_PASSING_OPTIONS
   - @subpage PAGE_TESTCASE_SPECIFIC_SERVER_OPTIONS
   - @subpage PAGE_TESTCASE_SPECIFIC_BOOTSTRAP_OPTIONS
+  - @subpage PAGE_TESTCASE_SPECIFIC_CLIENT_OPTIONS
   - @subpage PAGE_INCLUDE_FILES
   - @subpage PAGE_BINARY_LOG_FORMAT
   - @subpage PAGE_WRITING_REPLICATION_TESTS
@@ -2070,6 +2076,38 @@
   master.opt file containing <b>`--innodb-page-size`=8k</b>, and while
   it is being run, <b>`--innodb-page-size`=4k</b> is passed on the
   command line, the test will run with <b>8k</b> page size.
+*/
+
+###############################################################################
+
+
+
+## Specifying Test Case-Specific Client Options
+
+/**
+  @page PAGE_TESTCASE_SPECIFIC_CLIENT_OPTIONS Specifying Test Case-Specific Client Options
+
+  If a test case needs a specific client option, you can specify such
+  options in a file named <b><em>testname</em>-client.opt</b>. When a
+  test case has its own <b>-client.opt</b> file, @ref
+  PAGE_MYSQL_TEST_RUN_PL "mysql-test-run.pl" examines it for any
+  additional options that the @ref PAGE_MYSQLTEST "mysqltest" should
+  run with while executing the test case.
+
+  For example, consider a test case <b>example.test</b> needs
+  <tt>latin1</tt> as default character set for client and connection,
+  then that option can be specified in
+  <b><em>example</em>-client.opt</b> file.
+
+  @verbatim
+  --default-character-set=latin1
+  @endverbatim
+
+  You may refer to environment variables in the option file, using the
+  usual <b><em>$VAR_NAME</em></b> syntax. It is also possible to refer
+  to optional variables using the syntax <b><em>$?VAR_NAME</em></b>.
+  This will be replaced with an empty string if the variable is not
+  set.
 */
 
 ###############################################################################

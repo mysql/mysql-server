@@ -190,7 +190,7 @@ our @opt_extra_bootstrap_opt;
 my $opt_stress;
 
 my $opt_compress;
-my $opt_ssl;
+our $opt_ssl;
 my $opt_skip_ssl;
 my @opt_skip_test_list;
 my $opt_do_test_list= "";
@@ -6441,6 +6441,21 @@ sub get_extra_opts {
 }
 
 
+# Collect client options from client.opt file
+sub get_client_options($$)
+{
+  my ($args, $tinfo)= @_;
+
+  foreach my $opt (@{$tinfo->{client_opt}})
+  {
+    # Expand environment variables
+    $opt =~ s/\$\{(\??\w+)\}/envsubst($1)/ge;
+    $opt =~ s/\$(\??\w+)/envsubst($1)/ge;
+    mtr_add_arg($args, $opt);
+  }
+}
+
+
 sub stop_servers($$) {
   my ($tinfo, @servers)= @_;
 
@@ -6877,6 +6892,9 @@ sub start_mysqltest ($) {
   foreach my $arg ( @opt_extra_mysqltest_opt ) {
     mtr_add_arg($args, $arg);
   }
+
+  # Check for any client options
+  get_client_options($args, $tinfo) if $tinfo->{client_opt};
 
   # ----------------------------------------------------------------------
   # export MYSQL_TEST variable containing <path>/mysqltest <args>
