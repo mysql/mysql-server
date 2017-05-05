@@ -1434,7 +1434,7 @@ sub command_line_setup {
   # path to error log file is calculated using vardir path and this
   # path is used with "load data infile" statement.
   # Replace '\' with '/' on windows.
-  $opt_vardir =~ s/\\/\//g if IS_WINDOWS;
+  $opt_vardir =~ s/\\/\//g if (defined $opt_vardir and IS_WINDOWS);
 
   # --debug[-common] implies we run debug server
   $opt_debug_server= 1 if $opt_debug || $opt_debug_common;
