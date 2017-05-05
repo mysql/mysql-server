@@ -37,7 +37,7 @@
 #include "handler.h"
 #include "hash.h"               // HASH
 #include "item_create.h"
-#include "log.h"                // sql_print_error
+#include "log.h"
 #include "m_ctype.h"
 #include "m_string.h"           // my_stpcpy
 #include "mdl.h"
@@ -125,7 +125,7 @@ static char *init_syms(udf_func *tmp, char *nm)
   {
     if (!opt_allow_suspicious_udfs)
       return nm;
-    sql_print_warning(ER_DEFAULT(ER_CANT_FIND_DL_ENTRY), nm);
+    LogErr(WARNING_LEVEL, ER_CANT_FIND_DL_ENTRY, nm);
   }
   return 0;
 }
@@ -196,7 +196,7 @@ void udf_init()
       my_hash_init(&udf_hash,system_charset_info,32,0,get_hash_key, nullptr, 0,
                    key_memory_udf_mem))
   {
-    sql_print_error("Can't allocate memory for udf structures");
+    LogErr(ERROR_LEVEL, ER_UDF_CANT_ALLOC_FOR_STRUCTURES);
     my_hash_free(&udf_hash);
     free_root(&mem,MYF(0));
     delete new_thd;
@@ -216,8 +216,7 @@ void udf_init()
   if (open_trans_system_tables_for_read(new_thd, &tables))
   {
     DBUG_PRINT("error",("Can't open udf table"));
-    sql_print_error("Can't open the mysql.func table. Please "
-                    "run mysql_upgrade to create it.");
+    LogErr(ERROR_LEVEL, ER_UDF_CANT_OPEN_FUNCTION_TABLE);
     goto end;
   }
 
@@ -249,15 +248,14 @@ void udf_init()
         check_string_char_length(name_cstr, "", NAME_CHAR_LEN,
                                  system_charset_info, 1))
     {
-      sql_print_error("Invalid row in mysql.func table for function '%.64s'",
-                      name.str);
+      LogErr(ERROR_LEVEL, ER_UDF_INVALID_ROW_IN_FUNCTION_TABLE, name.str);
       continue;
     }
 
     if (!(tmp= add_udf(&name,(Item_result) table->field[1]->val_int(),
                        dl_name, udftype)))
     {
-      sql_print_error("Can't alloc memory for udf function: '%.64s'", name.str);
+      LogErr(ERROR_LEVEL, ER_UDF_CANT_ALLOC_FOR_FUNCTION, name.str);
       continue;
     }
 
@@ -275,8 +273,8 @@ void udf_init()
         DLERROR_GENERATE(errmsg, error_number);
 
         // Print warning to log
-        sql_print_error(ER_DEFAULT(ER_CANT_OPEN_LIBRARY),
-                        tmp->dl, error_number, errmsg);
+        LogErr(ERROR_LEVEL, ER_CANT_OPEN_LIBRARY,
+               tmp->dl, error_number, errmsg);
         // Keep the udf in the hash so that we can remove it later
         continue;
       }
@@ -287,7 +285,7 @@ void udf_init()
       char buf[NAME_LEN+16], *missing;
       if ((missing= init_syms(tmp, buf)))
       {
-        sql_print_error(ER_DEFAULT(ER_CANT_FIND_DL_ENTRY), missing);
+        LogErr(ERROR_LEVEL, ER_CANT_FIND_DL_ENTRY, missing);
         udf_hash_delete(tmp);
         if (new_dl)
           dlclose(dl);
@@ -295,7 +293,7 @@ void udf_init()
     }
   }
   if (error > 0)
-    sql_print_error("Got unknown error: %d", my_errno());
+    LogErr(ERROR_LEVEL, ER_UNKNOWN_ERROR_NUMBER, my_errno());
   end_read_record(&read_record_info);
   table->m_needs_reopen= TRUE;                  // Force close to free memory
 

@@ -873,8 +873,7 @@ retry:
         continue;
       if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
       {
-        sql_print_error("mysql_ha_read: Got error %d when reading table '%s'",
-                        error, tables->table_name);
+        LogErr(ERROR_LEVEL, ER_SQL_HA_READ_FAILED, error, tables->table_name);
         table->file->print_error(error,MYF(0));
         goto err;
       }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -36,7 +36,7 @@
   which calls several other tools whose messages should be
   distinguishable from each other's, and from mysql_upgrade's.
 
-  This is low-level, in most cases, you should use my_message_local()
+  This is low-level; in most cases, you should use my_message_local()
   instead (which by default goes through my_message_local_stderr(),
   which is a wrapper around this function that adds a severity level).
 

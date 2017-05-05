@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,6 +12,8 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+
+#define  LOG_SUBSYSTEM_TAG "parser"
 
 #include "sql/sql_parse.h"
 
@@ -1343,9 +1345,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       past 2038.
     */
     const int max_tries= 5;
-    sql_print_warning("Current time has got past year 2038. Validating current "
-                      "time with %d iterations before initiating the normal "
-                      "server shutdown process.", max_tries);
+    LogErr(WARNING_LEVEL, ER_CONFIRMING_THE_FUTURE, max_tries);
 
     int tries= 0;
     while (++tries <= max_tries)
@@ -1353,12 +1353,10 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       thd->set_time();
       if (IS_TIME_T_VALID_FOR_TIMESTAMP(thd->query_start_in_secs()) == true)
       {
-        sql_print_warning("Iteration %d: Obtained valid current time from "
-                          "system", tries);
+        LogErr(WARNING_LEVEL, ER_BACK_IN_TIME, tries);
         break;
       }
-      sql_print_warning("Iteration %d: Current time obtained from system is "
-                        "greater than 2038", tries);
+      LogErr(WARNING_LEVEL, ER_FUTURE_DATE, tries);
     }
     if (tries > max_tries)
     {
@@ -1369,7 +1367,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
 
         TODO: remove this when we have full 64 bit my_time_t support
       */
-      sql_print_error("This MySQL server doesn't support dates later then 2038");
+      LogErr(ERROR_LEVEL, ER_UNSUPPORTED_DATE);
       ulong master_access= thd->security_context()->master_access();
       thd->security_context()->set_master_access(master_access | SHUTDOWN_ACL);
       error= TRUE;
@@ -1513,6 +1511,10 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       PS_PARAM *parameters= com_data->com_stmt_execute.parameters;
       mysqld_stmt_execute(thd, stmt, com_data->com_stmt_execute.has_new_types,
                           com_data->com_stmt_execute.open_cursor, parameters);
+
+      DBUG_EXECUTE_IF("parser_stmt_to_error_log", {
+        LogErr(INFORMATION_LEVEL, ER_PARSER_TRACE, thd->query().str);
+      });
     }
     break;
   }
@@ -1596,6 +1598,10 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       break;
 
     mysql_parse(thd, &parser_state);
+
+    DBUG_EXECUTE_IF("parser_stmt_to_error_log", {
+        LogErr(INFORMATION_LEVEL, ER_PARSER_TRACE, thd->query().str);
+      });
 
     while (!thd->killed && (parser_state.m_lip.found_semicolon != NULL) &&
            ! thd->is_error())
@@ -4784,14 +4790,14 @@ finish:
       and that is handled by the final report anyways.
       We print some extra information, to tell mtr to ignore this report.
     */
-    sql_print_information("VALGRIND_DO_QUICK_LEAK_CHECK");
+    LogErr(INFORMATION_LEVEL, ER_VALGRIND_DO_QUICK_LEAK_CHECK);
     VALGRIND_DO_QUICK_LEAK_CHECK;
     VALGRIND_COUNT_LEAKS(leaked, dubious, reachable, suppressed);
     if (leaked > total_leaked_bytes)
     {
-      sql_print_error("VALGRIND_COUNT_LEAKS reports %lu leaked bytes "
-                      "for query '%.*s'", leaked - total_leaked_bytes,
-                      static_cast<int>(thd->query().length), thd->query().str);
+      LogErr(ERROR_LEVEL, ER_VALGRIND_COUNT_LEAKS,
+             leaked - total_leaked_bytes,
+             static_cast<int>(thd->query().length), thd->query().str);
     }
     total_leaked_bytes= leaked;
   }

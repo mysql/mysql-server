@@ -35,7 +35,7 @@ public:
     // Upgrade/downgrade not supported yet.
     if (m_target_def.dd_version() != version)
     {
-      sql_print_warning("Data Dictionary version %d not supported", version);
+      LogErr(WARNING_LEVEL, ER_DD_VERSION_UNSUPPORTED, version);
       return nullptr;
     }
     return &m_target_def;
@@ -47,8 +47,8 @@ public:
     // Upgrade/downgrade not supported yet.
     if (m_target_def.dd_version() != default_dd_version(thd))
     {
-      sql_print_warning("Data Dictionary version %d not supported",
-                        default_dd_version(thd));
+      LogErr(WARNING_LEVEL, ER_DD_VERSION_UNSUPPORTED,
+             default_dd_version(thd));
       return nullptr;
     }
     return &m_target_def;

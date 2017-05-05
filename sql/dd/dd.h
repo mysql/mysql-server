@@ -16,6 +16,10 @@
 #ifndef DD__DD_INCLUDED
 #define DD__DD_INCLUDED
 
+#ifndef LOG_SUBSYSTEM_TAG
+#define LOG_SUBSYSTEM_TAG "data_dictionary"
+#endif
+
 #include "dd/types/object_type.h"  // IWYU pragma: keep
 
 namespace dd {

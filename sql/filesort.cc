@@ -694,14 +694,22 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
                     cause);
 
     if (thd->is_fatal_error)
-      sql_print_information("%s, host: %s, user: %s, "
-                            "thread: %u, error: %s, query: %-.4096s",
-                            msg,
-                            thd->security_context()->host_or_ip().str,
-                            thd->security_context()->priv_user().str,
-                            thd->thread_id(),
-                            cause,
-                            thd->query().str);
+    {
+      LogEvent().type(LOG_TYPE_ERROR)
+                .prio(INFORMATION_LEVEL)
+                .errcode(ER_FILSORT_ABORT)
+                .user(thd->security_context()->priv_user())
+                .host(thd->security_context()->host_or_ip())
+                .thread_id(thd->thread_id())
+                .message("%s, host: %s, user: %s, thread: %u, error: %s, "
+                         "query: %-.4096s",
+                         msg,
+                         thd->security_context()->host_or_ip().str,
+                         thd->security_context()->priv_user().str,
+                         thd->thread_id(),
+                         cause,
+                         thd->query().str);
+    }
   }
   else
     thd->inc_status_sort_rows(num_rows_found);

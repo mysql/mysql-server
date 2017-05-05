@@ -739,6 +739,11 @@ IF(NOT DISABLE_SHARED)
   ENDIF()
 ENDIF()
 
+FOREACH (CORELIB sql_main binlog slave mysys mysys_ssl dbug regex strings
+        vio binlogevents_static)
+      DEFINE_SOURCE_BASENAMES(${CORELIB})
+ENDFOREACH (CORELIB ${MYSQLD_CORE_LIBS})
+
 SET_TARGET_PROPERTIES(mysqld PROPERTIES ENABLE_EXPORTS TRUE) 
 TARGET_LINK_LIBRARIES(mysqld
   sql_main sql_gis binlog rpl master slave sql_main sql_gis mysys mysys_ssl

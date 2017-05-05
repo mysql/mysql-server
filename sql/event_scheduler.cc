@@ -13,6 +13,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#define LOG_SUBSYSTEM_TAG "event"
+
 #include "event_scheduler.h"
 
 #include <stdio.h>
@@ -41,6 +43,7 @@
 #include "mysql/thread_type.h"
 #include "mysql_com.h"
 #include "mysqld.h"                  // my_localhost slave_net_timeout
+#include "mysqld_error.h"
 #include "mysqld_thd_manager.h"      // Global_THD_manager
 #include "protocol_classic.h"
 #include "psi_memory_key.h"
@@ -99,6 +102,8 @@ void
 Event_worker_thread::print_warnings(THD *thd, Event_job_data *et)
 {
   const Sql_condition *err;
+  enum loglevel        ll;
+
   DBUG_ENTER("evex_print_warnings");
   if (thd->get_stmt_da()->cond_count() == 0)
     DBUG_VOID_RETURN;
@@ -132,17 +137,20 @@ Event_worker_thread::print_warnings(THD *thd, Event_job_data *et)
     switch (err->severity())
     {
     case Sql_condition::SL_ERROR:
-      sql_print_error("%*s", static_cast<int>(err_msg.length()), err_msg.c_ptr());
+      ll= ERROR_LEVEL;
       break;
     case Sql_condition::SL_WARNING:
-      sql_print_warning("%*s", static_cast<int>(err_msg.length()), err_msg.c_ptr());
+      ll= WARNING_LEVEL;
       break;
     case Sql_condition::SL_NOTE:
-      sql_print_information("%*s", static_cast<int>(err_msg.length()), err_msg.c_ptr());
+      ll= INFORMATION_LEVEL;
       break;
     default:
+      ll= ERROR_LEVEL;
       DBUG_ASSERT(false);
     }
+    LogErr(ll, ER_EVENT_MESSAGE_STACK,
+           static_cast<int>(err_msg.length()), err_msg.c_ptr());
   }
   DBUG_VOID_RETURN;
 }
@@ -408,11 +416,11 @@ Event_worker_thread::run(THD *thd, Event_queue_element_for_exec *event)
   print_warnings(thd, &job_data);
 
   if (res)
-    sql_print_information("Event Scheduler: "
-                          "[%s].[%s.%s] event execution failed.",
-                          job_data.m_definer.str,
-                          job_data.m_schema_name.str,
-                          job_data.m_event_name.str);
+    LogErr(INFORMATION_LEVEL, ER_EVENT_EXECUTION_FAILED,
+           job_data.m_definer.str,
+           job_data.m_schema_name.str,
+           job_data.m_event_name.str);
+
 end:
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
@@ -496,7 +504,7 @@ Event_scheduler::start(int *err_no)
 
   if (!(new_thd= new THD))
   {
-    sql_print_error("Event Scheduler: Cannot initialize the scheduler thread");
+    LogErr(ERROR_LEVEL, ER_CANT_INIT_SCHEDULER_THREAD);
     ret= true;
     goto end;
   }
@@ -532,9 +540,8 @@ Event_scheduler::start(int *err_no)
                                     (void*)scheduler_param_value)))
   {
     DBUG_PRINT("error", ("cannot create a new thread"));
-    sql_print_error("Event scheduler: Failed to start scheduler,"
-                    " Can not create thread for event scheduler (errno=%d)",
-                    *err_no);
+    LogErr(ERROR_LEVEL, ER_CANT_CREATE_SCHEDULER_THREAD, *err_no)
+      .os_errno(*err_no);
 
     new_thd->proc_info= "Clearing";
     new_thd->get_protocol_classic()->end_net();
@@ -571,8 +578,7 @@ Event_scheduler::run(THD *thd)
   bool res= false;
   DBUG_ENTER("Event_scheduler::run");
 
-  sql_print_information("Event Scheduler: scheduler thread started with id %u",
-                        thd->thread_id());
+  LogErr(INFORMATION_LEVEL, ER_SCHEDULER_STARTED, thd->thread_id());
   /*
     Recalculate the values in the queue because there could have been stops
     in executions of the scheduler and some times could have passed by.
@@ -586,9 +592,7 @@ Event_scheduler::run(THD *thd)
     /* Gets a minimized version */
     if (queue->get_top_for_execution_if_time(thd, &event_name))
     {
-      sql_print_information("Event Scheduler: "
-                            "Serious error during getting next "
-                            "event to execute. Stopping");
+      LogErr(INFORMATION_LEVEL, ER_SCHEDULER_STOPPING_FAILED_TO_GET_EVENT);
       break;
     }
 
@@ -664,8 +668,7 @@ Event_scheduler::execute_top(Event_queue_element_for_exec *event_name)
     Events::opt_event_scheduler= Events::EVENTS_OFF;
     mysql_mutex_unlock(&LOCK_global_system_variables);
 
-    sql_print_error("Event_scheduler::execute_top: Can not create event worker"
-                    " thread (errno=%d). Stopping event scheduler", res);
+    LogErr(ERROR_LEVEL, ER_SCHEDULER_STOPPING_FAILED_TO_CREATE_WORKER, res);
 
     new_thd->proc_info= "Clearing";
     new_thd->get_protocol_classic()->end_net();
@@ -763,19 +766,17 @@ Event_scheduler::stop()
     /* Lock from delete */
     mysql_mutex_lock(&scheduler_thd->LOCK_thd_data);
     /* This will wake up the thread if it waits on Queue's conditional */
-    sql_print_information("Event Scheduler: Killing the scheduler thread, "
-                          "thread id %u",
-                          scheduler_thd->thread_id());
+    LogErr(INFORMATION_LEVEL, ER_SCHEDULER_KILLING,
+           scheduler_thd->thread_id());
     scheduler_thd->awake(THD::KILL_CONNECTION);
     mysql_mutex_unlock(&scheduler_thd->LOCK_thd_data);
 
     /* thd could be 0x0, when shutting down */
-    sql_print_information("Event Scheduler: "
-                          "Waiting for the scheduler thread to reply");
+    LogErr(INFORMATION_LEVEL, ER_SCHEDULER_WAITING);
     COND_STATE_WAIT(thd, NULL, &stage_waiting_for_scheduler_to_stop);
   } while (state == STOPPING);
   DBUG_PRINT("info", ("Scheduler thread has cleaned up. Set state to INIT"));
-  sql_print_information("Event Scheduler: Stopped");
+  LogErr(INFORMATION_LEVEL, ER_SCHEDULER_STOPPED);
 end:
   UNLOCK_DATA();
   DBUG_RETURN(false);

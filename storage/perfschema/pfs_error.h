@@ -26,6 +26,7 @@
 #include "lf.h"
 #include "mysqld_error.h" /* For lookup */
 #include "pfs_server.h"
+#include "derror.h"
 
 static const int NUM_SECTIONS =
   sizeof(errmsg_section_start) / sizeof(errmsg_section_start[0]);
@@ -37,17 +38,6 @@ struct PFS_thread;
 struct PFS_account;
 struct PFS_user;
 struct PFS_host;
-
-struct
-{
-  const char *name;
-  uint mysql_errno;
-  const char *text;
-  /* SQLSTATE */
-  const char *odbc_state;
-  const char *jdbc_state;
-  uint error_index;
-} typedef server_error;
 
 extern server_error error_names_array[total_error_count + 2];
 

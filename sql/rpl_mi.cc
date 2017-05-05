@@ -20,7 +20,7 @@
 #include <algorithm>
 
 #include "dynamic_ids.h"        // Server_ids
-#include "log.h"                // sql_print_error
+#include "log.h"
 #include "my_dbug.h"
 #include "my_macros.h"
 #include "my_sys.h"
@@ -286,7 +286,7 @@ int Master_info::flush_info(bool force)
   DBUG_RETURN(0);
 
 err:
-  sql_print_error("Error writing master configuration.");
+  LogErr(ERROR_LEVEL, ER_RPL_ERROR_WRITING_MASTER_CONFIGURATION);
   DBUG_RETURN(1);
 }
 
@@ -334,7 +334,7 @@ int Master_info::mi_init_info()
 err:
   handler->end_info();
   inited= 0;
-  sql_print_error("Error reading master configuration.");
+  LogErr(ERROR_LEVEL, ER_RPL_ERROR_READING_MASTER_CONFIGURATION);
   DBUG_RETURN(1);
 }
 
@@ -516,9 +516,7 @@ bool Master_info::read_info(Rpl_info_handler *from)
 
 #ifndef HAVE_OPENSSL
   if (ssl)
-    sql_print_warning("SSL information in the master info file "
-                      "are ignored because this MySQL slave was "
-                      "compiled without SSL support.");
+    LogErr(WARNING_LEVEL, ER_RPL_SSL_INFO_IN_MASTER_INFO_IGNORED);
 #endif /* HAVE_OPENSSL */
 
   DBUG_RETURN(false);

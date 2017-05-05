@@ -29,7 +29,7 @@
 #include "item.h"
 #include "item_func.h"
 #include "key.h"
-#include "log.h"                 // sql_print_warning
+#include "log.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_dbug.h"
@@ -406,7 +406,7 @@ void sys_var::do_deprecated_warning(THD *thd)
                           ER_WARN_DEPRECATED_SYNTAX, ER_THD(thd, errmsg),
                           buf1, deprecation_substitute);
     else
-      sql_print_warning(ER_DEFAULT(errmsg), buf1, deprecation_substitute);
+      LogErr(WARNING_LEVEL, errmsg, buf1, deprecation_substitute);
   }
 }
 

@@ -23,10 +23,9 @@
 #include "my_thread.h"
 
 
-// Mock logger function sql_print_error(), to avoid log.cc linkage
-void sql_print_error(const char *format, ...) 
-{
-}
+// Mock logger function to avoid breaking the link
+int         log_message(int log_type, ...) { return -1; }
+
 
 namespace win_unittest {
 

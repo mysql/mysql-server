@@ -66,7 +66,7 @@
 #include "debug_sync.h"                      // DEBUG_SYNC()
 #include "handler.h"
 #include "lex_string.h"
-#include "log.h"                             // sql_print_warning()
+#include "log.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "mdl.h"
@@ -892,7 +892,7 @@ Dictionary_client::~Dictionary_client()
   DBUG_ASSERT(num_released == 0);
   if (num_released > 0)
   {
-    sql_print_warning("Dictionary objects used but not released.");
+    LogErr(WARNING_LEVEL, ER_DD_OBJECT_REMAINS);
   }
 
   // Delete the additional releasers (should be none).
@@ -900,7 +900,7 @@ Dictionary_client::~Dictionary_client()
          m_current_releaser != &m_default_releaser)
   {
     /* purecov: begin deadcode */
-    sql_print_warning("Dictionary object auto releaser not deleted");
+    LogErr(WARNING_LEVEL, ER_DD_OBJECT_RELEASER_REMAINS);
     DBUG_ASSERT(false);
     delete m_current_releaser;
     /* purecov: end */
@@ -912,7 +912,7 @@ Dictionary_client::~Dictionary_client()
   DBUG_ASSERT(num_released == 0);
   if (num_released > 0)
   {
-    sql_print_warning("Dictionary objects left in default releaser.");
+    LogErr(WARNING_LEVEL, ER_DD_OBJECT_REMAINS_IN_RELEASER);
   }
 }
 

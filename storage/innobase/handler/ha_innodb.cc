@@ -7610,14 +7610,9 @@ ha_innobase::open_dict_table(
 
 		if (ib_table != NULL) {
 #ifndef _WIN32
-			sql_print_warning("Partition table %s opened"
-					  " after converting to lower"
-					  " case. The table may have"
-					  " been moved from a case"
-					  " in-sensitive file system."
-					  " Please recreate table in"
-					  " the current file system\n",
-					  norm_name);
+			LogErr(WARNING_LEVEL,
+			  ER_INNODB_PARTITION_TABLE_LOWERCASED,
+			  norm_name);
 #else
 			sql_print_warning("Partition table %s opened"
 					  " after skipping the step to"

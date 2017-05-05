@@ -96,26 +96,16 @@
 #include <syslog.h>
 #endif
 
+#include "../components/mysql_server/registry.h"
+#include "../components/mysql_server/log_builtins_imp.h"
+
 using std::min;
 using std::max;
 
-/* max size of log messages (error log, plugins' logging, general log) */
-static const uint MAX_LOG_BUFFER_SIZE= 1024;
-
-
-#ifndef _WIN32
-static int   log_syslog_facility= 0;
-#endif
-static char *log_syslog_ident   = NULL;
-static bool  log_syslog_enabled = false;
-
-
-/* 26 for regular timestamp, plus 7 (".123456") when using micro-seconds */
-static const int iso8601_size= 33;
 
 enum enum_slow_query_log_table_field
 {
-  SQLT_FIELD_START_TIME = 0,
+  SQLT_FIELD_START_TIME= 0,
   SQLT_FIELD_USER_HOST,
   SQLT_FIELD_QUERY_TIME,
   SQLT_FIELD_LOCK_TIME,
@@ -200,7 +190,7 @@ static const TABLE_FIELD_DEF
 
 enum enum_general_log_table_field
 {
-  GLT_FIELD_EVENT_TIME = 0,
+  GLT_FIELD_EVENT_TIME= 0,
   GLT_FIELD_USER_HOST,
   GLT_FIELD_THREAD_ID,
   GLT_FIELD_SERVER_ID,
@@ -255,7 +245,7 @@ protected:
   {
     va_list args;
     va_start(args, fmt);
-    error_log_print(ERROR_LEVEL, fmt, args);
+    error_log_printf(ERROR_LEVEL, fmt, args);
     va_end(args);
   }
 };
@@ -292,210 +282,6 @@ public:
 };
 
 
-#ifndef _WIN32
-
-/**
-  On being handed a syslog facility name tries to look it up.
-  If successful, fills in a struct with the facility ID and
-  the facility's canonical name.
-
-  @param f     Name of the facility we're trying to look up.
-                    Lookup is case-insensitive; leading "log_" is ignored.
-  @param [out] rsf  A buffer in which to return the ID and canonical name.
-
-  @return
-    false           No errors; buffer contains valid result
-    true            Something went wrong, no valid result set returned
-*/
-bool log_syslog_find_facility(char *f, SYSLOG_FACILITY *rsf)
-{
-  if (!f || !*f || !rsf)
-    return true;
-
-  if (strncasecmp(f, "log_", 4) == 0)
-    f+= 4;
-
-  for(int i= 0; syslog_facility[i].name != NULL; i++)
-    if (!strcasecmp(f, syslog_facility[i].name))
-    {
-      rsf->id=   syslog_facility[i].id;
-      rsf->name= syslog_facility[i].name;
-      return false;
-    }
-
-  return true;
-}
-
-#endif
-
-
-/**
-  Close POSIX syslog / Windows EventLog.
-*/
-static void log_syslog_close()
-{
-  if (log_syslog_enabled)
-  {
-    log_syslog_enabled= false;
-    my_closelog();
-  }
-}
-
-
-/**
-  Update syslog / Windows EventLog characteristics (on/off,
-  identify-as, log-PIDs, facility, ...) from global variables.
-
-  @return
-    false  No errors; all characteristics updated.
-    true   Unable to update characteristics.
-*/
-bool log_syslog_update_settings()
-{
-  const char *prefix;
-
-  if (!opt_log_syslog_enable && log_syslog_enabled)
-  {
-    log_syslog_close();
-    return false;
-  }
-
-#ifndef _WIN32
-  {
-    /*
-      make facility
-    */
-
-    SYSLOG_FACILITY rsf = { LOG_DAEMON, "daemon" };
-
-    DBUG_ASSERT(opt_log_syslog_facility != NULL);
-
-    if (log_syslog_find_facility(opt_log_syslog_facility, &rsf))
-    {
-      log_syslog_find_facility((char *) "daemon", &rsf);
-      sql_print_warning("failed to set syslog facility to \"%s\", "
-                        "setting to \"%s\" (%d) instead.",
-                        opt_log_syslog_facility, rsf.name, rsf.id);
-      rsf.name= NULL;
-    }
-    log_syslog_facility= rsf.id;
-
-    // If NaN, set to the canonical form (cut "log_", fix case)
-    if ((rsf.name != NULL) && (strcmp(opt_log_syslog_facility, rsf.name) != 0))
-      strcpy(opt_log_syslog_facility, rsf.name);
-  }
-
-  /*
-    Logs historically have subtly different names, to meet each platform's
-    conventions -- "mysqld" on unix (via mysqld_safe), and "MySQL" for the
-    Win NT EventLog.
-  */
-  prefix= "mysqld";
-#else
-  prefix= "MySQL";
-#endif
-
-  // tag must not contain directory separators
-  if ((opt_log_syslog_tag != NULL) &&
-      (strchr(opt_log_syslog_tag, FN_LIBCHAR) != NULL))
-    return true;
-
-  if (opt_log_syslog_enable)
-  {
-    /*
-      make ident
-    */
-    char *ident= NULL;
-
-    if ((opt_log_syslog_tag == NULL) ||
-        (*opt_log_syslog_tag == '\0'))
-      ident= my_strdup(PSI_NOT_INSTRUMENTED, prefix, MYF(0));
-    else
-    {
-      size_t l= 6 + 1 + 1 + strlen(opt_log_syslog_tag);
-
-      ident= (char *) my_malloc(PSI_NOT_INSTRUMENTED, l, MYF(0));
-      if (ident)
-        my_snprintf(ident, l, "%s-%s", prefix, opt_log_syslog_tag);
-    }
-
-    // if we succeeded in making an ident, replace the old one
-    if (ident)
-    {
-      char *i= log_syslog_ident;
-      log_syslog_ident= ident;
-      if (i)
-        my_free(i);
-    }
-    else
-      return true;
-
-    log_syslog_close();
-
-    int ret;
-
-    ret= my_openlog(log_syslog_ident,
-#ifndef _WIN32
-                    opt_log_syslog_include_pid ? MY_SYSLOG_PIDS : 0,
-                    log_syslog_facility
-#else
-                    0, 0
-#endif
-                   );
-
-    if (ret == -1)
-      return true;
-
-    log_syslog_enabled= true;
-
-    if (ret == -2)
-    {
-      my_syslog(system_charset_info, ERROR_LEVEL, "could not update log settings!");
-      return true;
-    }
-  }
-
-  return false;
-}
-
-
-/**
-  Stop using syslog / EventLog. Call as late as possible.
-*/
-void log_syslog_exit(void)
-{
-  log_syslog_close();
-
-  if (log_syslog_ident != NULL)
-  {
-    my_free(log_syslog_ident);
-    log_syslog_ident= NULL;
-  }
-}
-
-
-/**
-  Start using syslog / EventLog.
-
-  @return
-    true   could not open syslog / EventLog with the requested characteristics
-    false  no issues encountered
-*/
-bool log_syslog_init(void)
-{
-  if (log_syslog_update_settings())
-  {
-#ifdef _WIN32
-    const char *l = "Windows EventLog";
-#else
-    const char *l = "syslog";
-#endif
-    sql_print_error("Cannot open %s; check privileges, or start server with --log_syslog=0", l);
-    return true;
-  }
-  return false;
-}
-
 
 static void ull2timeval(ulonglong utime, struct timeval *tv)
 {
@@ -505,68 +291,6 @@ static void ull2timeval(ulonglong utime, struct timeval *tv)
   tv->tv_usec=utime % 1000000;
 }
 
-
-/**
-  Make and return an ISO 8601 / RFC 3339 compliant timestamp.
-  Heeds log_timestamps.
-
-  @param buf       A buffer of at least 26 bytes to store the timestamp in
-                   (19 + tzinfo tail + \0)
-  @param utime     Microseconds since the epoch
-
-  @return          length of timestamp (excluding \0)
-*/
-
-static int make_iso8601_timestamp(char *buf, ulonglong utime)
-{
-  struct tm  my_tm;
-  char       tzinfo[7]="Z";  // max 6 chars plus \0
-  size_t     len;
-  time_t     seconds;
-
-  seconds= utime / 1000000;
-  utime = utime % 1000000;
-
-  if (opt_log_timestamps == 0)
-    gmtime_r(&seconds, &my_tm);
-  else
-  {
-    localtime_r(&seconds, &my_tm);
-
-#ifdef __FreeBSD__
-    /*
-      The field tm_gmtoff is the offset (in seconds) of the time represented
-      from UTC, with positive values indicating east of the Prime Meridian.
-    */
-    long tim= -my_tm.tm_gmtoff;
-#elif defined(_WIN32)
-    long tim = _timezone;
-#else
-    long tim= timezone; // seconds West of UTC.
-#endif
-    char dir= '-';
-
-    if (tim < 0)
-    {
-      dir= '+';
-      tim= -tim;
-    }
-    my_snprintf(tzinfo, sizeof(tzinfo), "%c%02d:%02d",
-                dir, (int) (tim / (60 * 60)), (int) ((tim / 60) % 60));
-  }
-
-  len= my_snprintf(buf, iso8601_size, "%04d-%02d-%02dT%02d:%02d:%02d.%06lu%s",
-                   my_tm.tm_year + 1900,
-                   my_tm.tm_mon  + 1,
-                   my_tm.tm_mday,
-                   my_tm.tm_hour,
-                   my_tm.tm_min,
-                   my_tm.tm_sec,
-                   (unsigned long) utime,
-                   tzinfo);
-
-  return min<int>(len, iso8601_size - 1);
-}
 
 
 File_query_log::File_query_log(enum_log_table_type log_type)
@@ -735,8 +459,7 @@ bool File_query_log::open()
 
   if (!is_valid_log_name(real_log_file_name, strlen(real_log_file_name)))
   {
-    sql_print_error("Invalid log file name after expanding symlinks: '%s'",
-                    real_log_file_name);
+    LogErr(ERROR_LEVEL, ER_INVALID_ERROR_LOG_NAME, real_log_file_name);
     goto err;
   }
 
@@ -779,22 +502,24 @@ err:
   char log_open_file_error_message[96]= "";
   if (strcmp(opt_slow_logname, name) == 0)
   {
-    strcpy(log_open_file_error_message, "either restart the query logging "
-           "by using \"SET GLOBAL SLOW_QUERY_LOG=ON\" or");
+    strcpy(log_open_file_error_message,
+           get_server_errmsgs(ER_LOG_SLOW_CANNOT_OPEN));
   }
   else if (strcmp(opt_general_logname, name) == 0)
   {
-    strcpy(log_open_file_error_message, "either restart the query logging "
-           "by using \"SET GLOBAL GENERAL_LOG=ON\" or");
+    strcpy(log_open_file_error_message,
+           get_server_errmsgs(ER_LOG_GENERAL_CANNOT_OPEN));
   }
 
   char errbuf[MYSYS_STRERROR_SIZE];
-  sql_print_error("Could not use %s for logging (error %d - %s). "
-                  "Turning logging off for the server process. "
-                  "To turn it on again: fix the cause, "
-                  "then %s restart the MySQL server.", name, errno,
-                  my_strerror(errbuf, sizeof(errbuf), errno),
-                  log_open_file_error_message);
+  my_strerror(errbuf, sizeof(errbuf), errno);
+  LogEvent().type(LOG_TYPE_ERROR)
+            .prio(ERROR_LEVEL)
+            .errcode(ER_LOG_FILE_CANNOT_OPEN)
+            .os_errno(errno)
+            .os_errmsg(errbuf)
+            .lookup(ER_LOG_FILE_CANNOT_OPEN,
+                    name, errno, errbuf, log_open_file_error_message);
   if (file >= 0)
     mysql_file_close(file, MYF(0));
   end_io_cache(&log_file);
@@ -831,9 +556,16 @@ void File_query_log::check_and_print_write_error()
   if (!write_error)
   {
     char errbuf[MYSYS_STRERROR_SIZE];
+    my_strerror(errbuf, sizeof(errbuf), errno);
     write_error= true;
-    sql_print_error(ER_DEFAULT(ER_ERROR_ON_WRITE), name, errno,
-                    my_strerror(errbuf, sizeof(errbuf), errno));
+    LogEvent().type(LOG_TYPE_ERROR)
+              .prio(ERROR_LEVEL)
+              .errcode(ER_ERROR_ON_WRITE)
+              .os_errno(errno)
+              .os_errmsg(errbuf)
+              .lookup(ER_ERROR_ON_WRITE,
+                      name, errno, errbuf);
+
   }
 }
 
@@ -853,7 +585,8 @@ bool File_query_log::write_general(ulonglong event_utime,
 
   /* Note that my_b_write() assumes it knows the length for this */
   char local_time_buff[iso8601_size];
-  int  time_buff_len= make_iso8601_timestamp(local_time_buff, event_utime);
+  int  time_buff_len= make_iso8601_timestamp(local_time_buff,
+                                             event_utime, opt_log_timestamps);
 
   if (my_b_write(&log_file, (uchar*) local_time_buff, time_buff_len))
     goto err;
@@ -908,7 +641,7 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
   {
     char my_timestamp[iso8601_size];
 
-    make_iso8601_timestamp(my_timestamp, current_utime);
+    make_iso8601_timestamp(my_timestamp, current_utime, opt_log_timestamps);
 
     buff_len= my_snprintf(buff, sizeof buff,
                           "# Time: %s\n", my_timestamp);
@@ -1118,8 +851,10 @@ err:
   thd->pop_internal_handler();
 
   if (result && !thd->killed)
-    sql_print_error("Failed to write to mysql.general_log: %s",
-                    error_handler.message());
+  {
+    LogErr(ERROR_LEVEL, ER_LOG_CANNOT_WRITE,
+           "mysql.general_log", error_handler.message());
+  }
 
   if (need_rnd_end)
   {
@@ -1298,8 +1033,10 @@ err:
   thd->pop_internal_handler();
 
   if (result && !thd->killed)
-    sql_print_error("Failed to write to mysql.slow_log: %s",
-                    error_handler.message());
+  {
+    LogErr(ERROR_LEVEL, ER_LOG_CANNOT_WRITE,
+           "mysql.slow_log", error_handler.message());
+  }
 
   if (need_rnd_end)
   {
@@ -1574,7 +1311,7 @@ bool Query_logger::general_log_print(THD *thd, enum_server_command command,
   }
 
   size_t message_buff_len= 0;
-  char message_buff[MAX_LOG_BUFFER_SIZE];
+  char message_buff[LOG_BUFF_MAX];
 
   /* prepare message */
   if (format)
@@ -1868,7 +1605,7 @@ void Slow_log_throttle::print_summary(THD *thd, ulong suppressed,
 
   mysql_mutex_lock(&thd->LOCK_thd_data);
   thd->set_security_context(save_sctx);
-  thd->start_utime     = save_start_utime;
+  thd->start_utime=      save_start_utime;
   thd->utime_after_lock= save_utime_after_lock;
   mysql_mutex_unlock(&thd->LOCK_thd_data);
 }
@@ -1925,8 +1662,8 @@ bool Slow_log_throttle::log(THD *thd, bool eligible)
         Current query's logging should be suppressed.
         Add its execution time and lock time to totals for the current window.
       */
-      total_exec_time += (end_utime_of_query - thd->start_utime);
-      total_lock_time += (thd->utime_after_lock - thd->start_utime);
+      total_exec_time+= (end_utime_of_query - thd->start_utime);
+      total_lock_time+= (thd->utime_after_lock - thd->start_utime);
       suppress_current= true;
     }
 
@@ -2044,6 +1781,11 @@ void init_error_log()
 {
   DBUG_ASSERT(!error_log_initialized);
   mysql_mutex_init(key_LOCK_error_log, &LOCK_error_log, MY_MUTEX_INIT_FAST);
+  /*
+    ready the default filter/sink so they'll be available before/without
+    the component system
+  */
+  log_builtins_init();
   error_log_initialized= true;
 }
 
@@ -2109,43 +1851,49 @@ void destroy_error_log()
   if (error_log_initialized)
   {
     error_log_initialized= false;
-    error_log_file= NULL;
+    error_log_file= nullptr;
     mysql_mutex_destroy(&LOCK_error_log);
+    log_builtins_exit();
   }
 }
 
 
 bool reopen_error_log()
 {
-  if (!error_log_file)
-    return false;
-  mysql_mutex_lock(&LOCK_error_log);
-  bool result= open_error_log(error_log_file);
-  mysql_mutex_unlock(&LOCK_error_log);
-  if (result)
-    my_error(ER_UNKNOWN_ERROR, MYF(0));
+  bool result= false;
+
+  // reload all error logging services
+  log_builtins_error_stack_flush();
+
+  if (error_log_file)
+  {
+    mysql_mutex_lock(&LOCK_error_log);
+    result= open_error_log(error_log_file);
+    mysql_mutex_unlock(&LOCK_error_log);
+
+    if (result)
+      my_error(ER_UNKNOWN_ERROR, MYF(0));
+  }
+
   return result;
 }
 
 
-static void print_buffer_to_file(enum loglevel level, const char *buffer,
-                                 size_t length)
+
+/**
+  helper for log writers: log to file
+  This is a helper for use by log writers that wish to emit to stderr/file.
+  Automatically appends a "\n", so the caller needn't.
+  Does its own locking.
+
+  @param           buffer               data to write
+  @param           length               length of the data
+  @retval          int                  number of added fields, if any
+*/
+void log_write_errstream(const char *buffer, size_t length)
 {
-  DBUG_ENTER("print_buffer_to_file");
+  DBUG_ENTER("log_write_errstream");
   DBUG_PRINT("enter",("buffer: %s", buffer));
-
-  char my_timestamp[iso8601_size];
-
-  my_thread_id thread_id= 0;
-
-  /*
-    If the thread system is up and running and we're in a connection,
-    add the connection ID to the log-line, otherwise 0.
-  */
-  if (current_thd != NULL)
-    thread_id= current_thd->thread_id();
-
-  make_iso8601_timestamp(my_timestamp, my_micro_time());
 
   /*
     This must work even if the mutex has not been initialized yet.
@@ -2158,109 +1906,397 @@ static void print_buffer_to_file(enum loglevel level, const char *buffer,
   if (error_log_buffering)
   {
     // Logfile not open yet, buffer messages for now.
-    if (buffered_messages == NULL)
+    if (buffered_messages == nullptr)
       buffered_messages= new (std::nothrow) std::string();
     std::ostringstream s;
-    s << my_timestamp << " " << thread_id;
-    if (level == ERROR_LEVEL)
-      s << " [ERROR] ";
-    else if (level == WARNING_LEVEL)
-      s << " [Warning] ";
-    else
-      s << " [Note] ";
-    s << buffer << std::endl;
+    s.write(buffer, length);
+    s << std::endl;
     buffered_messages->append(s.str());
   }
   else
   {
-    fprintf(stderr, "%s %u [%s] %.*s\n",
-            my_timestamp,
-            thread_id,
-            (level == ERROR_LEVEL ? "ERROR" : level == WARNING_LEVEL ?
-             "Warning" : "Note"),
-            (int) length, buffer);
-
+    fprintf(stderr, "%.*s\n", (int) length, buffer);
     fflush(stderr);
   }
 
   if (error_log_initialized)
     mysql_mutex_unlock(&LOCK_error_log);
+
   DBUG_VOID_RETURN;
 }
 
 
-void error_log_print(enum loglevel level, const char *format, va_list args)
+my_thread_id log_get_thread_id(THD *thd)
 {
-  char   buff[MAX_LOG_BUFFER_SIZE];
-  size_t length;
+  return thd->thread_id();
+}
+
+
+/**
+  Variadic convenience function for logging.
+
+  This fills in the array that is used by the filter and log-writer services.
+  Where missing, timestamp, priority, and thread-ID (if any) are added.
+  Log item source services, log item filters, and log item writers are called.
+
+  For convenience, any number of fields may be added:
+
+  - "well-known" field types require a type tag and the payload:
+    LOG_ITEM_LOG_LABEL, "ohai"
+
+  - "generic" field types require a type tag, a key (C-string),
+    and the payload:
+    LOG_ITEM_GEN_FLOAT, "myPi", 3.1415926927
+
+  Newer items (further to the right/bottom) overwrite older ones (further
+  to the left/top).
+
+  If a message is given, it must be the last tag in the argument list.
+  The message may be given verbatim as a C format string, followed by
+  its arguments:
+
+  LOG_ITEM_LOG_MESSAGE, "format string %s %d abc", "arg1", 12345
+
+  To avoid substitutions, use
+
+  LOG_ITEM_LOG_VERBATIM, "message from other subsys containing %user input"
+
+  Alternatively, an error code may be specified -- the corresponding error
+  message will be looked up and inserted --, followed by any arguments
+  required by the error message:
+
+  LOG_ITEM_LOG_LOOKUP, ER_CANT_CREATE_FILE, filename, errno, strerror(errno)
+
+  If no message is to be included (this should never be the case for the
+  erorr log), LOG_ITEM_END may be used instead to terminate the list.
+
+  @param           log_type             what log should this go to?
+  @param           fili                 field list:
+                                        LOG_ITEM_* tag, [[key], value]
+  @retval          int                  return value of log_line_submit()
+*/
+int log_vmessage(int log_type MY_ATTRIBUTE((unused)), va_list fili)
+{
+  char            buff[LOG_BUFF_MAX];
+  log_item_class  lic;
+  log_line        ll;
+  bool            dedup;
+  int             wk;
+
+  DBUG_ENTER("log_message");
+
+  ll.count= 0;
+  ll.seen=  0;
+
+  do {
+    dedup= false;
+
+    log_line_item_init(&ll);
+
+    ll.item[ll.count].type= (log_item_type) va_arg(fili, int);
+
+    if (ll.item[ll.count].type == LOG_ITEM_END)
+      break;
+
+    if ((wk= log_item_wellknown_by_type(ll.item[ll.count].type)) < 0)
+      lic= LOG_UNTYPED;
+    else
+      lic= log_item_wellknown_get_class(wk);
+
+    ll.item[ll.count].item_class= lic;
+
+    // if it's not a well-known item, read the key name from va_list
+    if (log_item_generic_type(ll.item[ll.count].type))
+      ll.item[ll.count].key= va_arg(fili, char *);
+    else if (wk >= 0)
+      ll.item[ll.count].key= log_item_wellknown_get_name(wk);
+    else
+    {
+      ll.item[ll.count].key= "???";
+      DBUG_ASSERT(false);
+    }
+
+    // if we've already got one of this type, de-duplicate later
+    if ((ll.seen & ll.item[ll.count].type) ||
+        log_item_generic_type(ll.item[ll.count].type))
+      dedup= true;
+
+    // read the payload
+    switch(lic)
+    {
+    case LOG_LEX_STRING:
+      ll.item[ll.count].data.data_string.str=      va_arg(fili, char *);
+      ll.item[ll.count].data.data_string.length=   va_arg(fili, size_t);
+      if (ll.item[ll.count].data.data_string.str == nullptr)
+        continue;
+      break;
+    case LOG_CSTRING:
+      {
+        char *p=                                   va_arg(fili, char *);
+        if (p == nullptr)
+          continue;
+        ll.item[ll.count].data.data_string.str=    p;
+        ll.item[ll.count].data.data_string.length= strlen(p);
+        ll.item[ll.count].item_class=              LOG_LEX_STRING;
+      }
+      break;
+    case LOG_INTEGER:
+      ll.item[ll.count].data.data_integer=         va_arg(fili, longlong);
+      break;
+    case LOG_FLOAT:
+      ll.item[ll.count].data.data_float=           va_arg(fili, double);
+      break;
+    default:
+      log_message(LOG_TYPE_ERROR,
+                  LOG_ITEM_LOG_MESSAGE,
+                  "log_vmessage: unknown class %d/%d for type %d",
+                  (int) lic, (int) ll.item[ll.count].item_class,
+                  (int) ll.item[ll.count].type);
+      log_message(LOG_TYPE_ERROR,
+                  LOG_ITEM_LOG_MESSAGE,
+                  "log_vmessage: seen: 0x%lx. "
+                  "trying to dump preceding %d item(s)",
+                  (long) ll.seen, (int) ll.count);
+      {
+        int i= 0;
+        while (i < ll.count)
+        {
+          if (ll.item[i].item_class == LOG_INTEGER)
+            log_message(LOG_TYPE_ERROR, LOG_ITEM_LOG_MESSAGE,
+                        "log_vmessage: \"%s\": %lld", ll.item[i].key,
+                        (long long) ll.item[ll.count].data.data_integer);
+          else if (ll.item[i].item_class == LOG_FLOAT)
+            log_message(LOG_TYPE_ERROR, LOG_ITEM_LOG_MESSAGE,
+                        "log_vmessage: \"%s\": %lf", ll.item[i].key,
+                        (double) ll.item[ll.count].data.data_float);
+          else if (ll.item[i].item_class == LOG_LEX_STRING)
+            log_message(LOG_TYPE_ERROR, LOG_ITEM_LOG_MESSAGE,
+                        "log_vmessage: \"%s\": \"%.*s\"", ll.item[i].key,
+                        ll.item[ll.count].data.data_string.length,
+                        ll.item[ll.count].data.data_string.str == nullptr
+                        ? "" : ll.item[ll.count].data.data_string.str);
+          i++;
+        }
+      }
+      va_end(fili);
+      /*
+        Bail. As the input is clearly badly broken, we don't dare try
+        to free anything here.
+      */
+      DBUG_ASSERT(false);
+      DBUG_RETURN(-1);
+    }
+
+    /*
+      errno is only of interest if unequal 0.
+    */
+    if ((ll.item[ll.count].type == LOG_ITEM_SYS_ERRNO) &&
+        (ll.item[ll.count].data.data_integer == 0))
+      continue;
+
+    /*
+      MySQL error can be set numerically or symbolically, so they need to
+      reset each other. Submitting both is a really strange idea, mind.
+     */
+    const log_item_type_mask errcode_mask=  LOG_ITEM_SQL_ERRSYMBOL
+                                           |LOG_ITEM_SQL_ERRCODE;
+
+    if ((ll.item[ll.count].type & errcode_mask)
+        && (ll.seen & errcode_mask))
+    {
+      size_t dd= ll.count;
+
+      while (dd > 0)
+      {
+        dd--;
+
+        if ((ll.item[dd].type & errcode_mask) != 0)
+        {
+          log_line_item_free(&ll, dd);
+
+          dedup=       false;
+          ll.item[dd]= ll.item[ll.count];
+          ll.count--;
+        }
+      }
+    }
+
+    /*
+      For well-known messages, we replace the error code with the
+      error message (and adjust the metadata accordingly).
+    */
+    if (ll.item[ll.count].type == LOG_ITEM_LOG_LOOKUP)
+    {
+      size_t      ec=  ll.item[ll.count].data.data_integer;
+      const char *msg= get_server_errmsgs(ec),
+                 *key= log_item_wellknown_get_name(
+                         log_item_wellknown_by_type(LOG_ITEM_LOG_MESSAGE));
+
+      if ((msg == nullptr) || (*msg == '\0'))
+        msg= "invalid error code";
+
+      ll.item[ll.count].type=                    LOG_ITEM_LOG_MESSAGE;
+      ll.item[ll.count].item_class=              LOG_LEX_STRING;
+      ll.item[ll.count].data.data_string.str=    msg;
+      ll.item[ll.count].data.data_string.length= strlen(msg);
+      ll.item[ll.count].key=                     key;
+
+      /*
+        If no errcode and no errsymbol were set, errcode is set from
+        the one used for the message (they should be the same, anyway).
+        Whichever items are still missing at the point will be added
+        below.
+      */
+      if (!(ll.seen & LOG_ITEM_SQL_ERRCODE) &&
+          !(ll.seen & LOG_ITEM_SQL_ERRSYMBOL) &&
+          !log_line_full(&ll))
+      {
+        // push up message so it remains the last item
+        ll.item[ll.count + 1]= ll.item[ll.count];
+        log_line_item_set(&ll, LOG_ITEM_SQL_ERRCODE)->data_integer= ec;
+      }
+
+      /*
+        Currently, this can't happen (as LOG_ITEM_LOG_MESSAGE ends
+        the loop), but this may change later.
+      */
+      if (ll.seen & ll.item[ll.count].type)
+        dedup= true;
+    }
+
+    // message is a format string optionally followed by args
+    if (ll.item[ll.count].type == LOG_ITEM_LOG_MESSAGE)
+    {
+      size_t msg_len= my_vsnprintf(buff, sizeof(buff),
+                                   ll.item[ll.count].data.data_string.str,
+                                   fili);
+
+      buff[sizeof(buff) - 1]=                    '\0';
+      ll.item[ll.count].data.data_string.str=    buff;
+      ll.item[ll.count].data.data_string.length= msg_len;
+    }
+    else if (ll.item[ll.count].type == LOG_ITEM_LOG_VERBATIM)
+    {
+      int         wellknown= log_item_wellknown_by_type(LOG_ITEM_LOG_MESSAGE);
+
+      ll.item[ll.count].key=        log_item_wellknown_get_name(wellknown);
+      ll.item[ll.count].type=       LOG_ITEM_LOG_MESSAGE;
+      ll.item[ll.count].item_class= LOG_LEX_STRING;
+      dedup= (ll.seen & ll.item[ll.count].type);
+    }
+
+    // element is given repeatedly; newer overwrites older
+    if (dedup)
+    {
+      int dd= 0;
+
+      /*
+        Above, we only check whether an item of the same type already
+        exists. Generic types used repeatedly will only be deduped if
+        the key is the same, so there might be nothing to dedup here
+        after all. (To be clear howeer, generic items of different type
+        intentionally overwrite each other as long as the key is the
+        same. You can NOT have a generic integer and a generic string
+        both named "foo"!
+      */
+      while ((dd < ll.count) &&
+             (log_item_generic_type(ll.item[ll.count].type)
+              ? (native_strcasecmp(ll.item[dd].key, ll.item[ll.count].key) != 0)
+              : (ll.item[dd].type != ll.item[ll.count].type)))
+        dd++;
+
+      // if it's a genuine duplicate, replace older with newer
+      if (dd < ll.count)
+      {
+        log_line_item_free(&ll, dd);
+        ll.item[dd]= ll.item[ll.count];
+        ll.count--;
+      }
+    }
+    else
+    {
+      /*
+        Remember we've seen this item type. Not necessary above, even
+        if the potential dedup turned out to be unnecessary (same generic,
+        different key).
+      */
+      ll.seen |= ll.item[ll.count].type;
+    }
+
+    ll.count++;
+
+  } while (!log_line_full(&ll) && !(ll.seen & LOG_ITEM_LOG_MESSAGE));
+
+  va_end(fili);
+
+  DBUG_RETURN(log_line_submit(&ll));
+}
+
+
+/**
+  Prints a printf style message to the error log.
+
+   A thin wrapper around log_message() for local_message_hook,
+   Table_check_intact::report_error, and others.
+
+  @param level          The level of the msg significance
+  @param format         Printf style format of message
+  @param args           va_list list of arguments for the message
+
+*/
+void error_log_printf(enum loglevel level, const char *format, va_list args)
+{
+  char   buff[LOG_BUFF_MAX];
   DBUG_ENTER("error_log_print");
 
-  if (static_cast<ulong>(level) < log_error_verbosity)
-  {
-    length= my_vsnprintf(buff, sizeof(buff), format, args);
-    print_buffer_to_file(level, buff, length);
-
-    if (log_syslog_enabled
-#ifdef _WIN32
-        // Don't write to the eventlog during shutdown.
-	 && !connection_events_loop_aborted()
-#endif
-      )
-    {
-      my_syslog(system_charset_info, level, buff);
-    }
-  }
+  my_vsnprintf(buff, sizeof(buff), format, args);
+  LogEvent().type(LOG_TYPE_ERROR)
+            .prio(level)
+            .verbatim(buff);
 
   DBUG_VOID_RETURN;
 }
 
 
-void sql_print_error(const char *format, ...)
+/**
+  Variadic convenience function for logging.
+
+  This fills in the array that is used by the filter and log-writer services.
+  Where missing, timestamp, priority, and thread-ID (if any) are added.
+  Log item source services, log item filters, and log item writers are called.
+
+  see log_vmessage() for more information.
+
+  @param           log_type             what log should this go to?
+  @param           ...                  fields: LOG_ITEM_* tag, [[key], value]
+  @retval          int                  return value of log_vmessage()
+*/
+int log_message(int log_type, ...)
 {
-  va_list args;
-  DBUG_ENTER("sql_print_error");
+  va_list         fili;
+  int             ret;
 
-  va_start(args, format);
-  error_log_print(ERROR_LEVEL, format, args);
-  va_end(args);
+  va_start(fili, log_type);
+  ret= log_vmessage(log_type, fili);
+  va_end(fili);
 
-  DBUG_VOID_RETURN;
+  return ret;
 }
 
 
-void sql_print_warning(const char *format, ...)
-{
-  va_list args;
-  DBUG_ENTER("sql_print_warning");
-
-  va_start(args, format);
-  error_log_print(WARNING_LEVEL, format, args);
-  va_end(args);
-
-  DBUG_VOID_RETURN;
-}
-
-
-void sql_print_information(const char *format, ...)
-{
-  va_list args;
-  DBUG_ENTER("sql_print_information");
-
-  va_start(args, format);
-  error_log_print(INFORMATION_LEVEL, format, args);
-  va_end(args);
-
-  DBUG_VOID_RETURN;
-}
-
+/*
+  For use by plugins that wish to write a message to the error log.
+  New plugins should use the service structure.
+*/
 
 extern "C"
 int my_plugin_log_message(MYSQL_PLUGIN *plugin_ptr, plugin_log_level level,
                           const char *format, ...)
 {
-  char format2[MAX_LOG_BUFFER_SIZE];
+  char format2[LOG_BUFF_MAX];
+  char msg[LOG_BUFF_MAX];
   loglevel lvl;
-  struct st_plugin_int *plugin = static_cast<st_plugin_int *> (*plugin_ptr);
+  struct st_plugin_int *plugin= static_cast<st_plugin_int *> (*plugin_ptr);
   va_list args;
 
   DBUG_ASSERT(level >= MY_ERROR_LEVEL && level <= MY_INFORMATION_LEVEL);
@@ -2273,10 +2309,25 @@ int my_plugin_log_message(MYSQL_PLUGIN *plugin_ptr, plugin_log_level level,
   default:                   return 1;
   }
 
-  va_start(args, format);
   my_snprintf(format2, sizeof (format2) - 1, "Plugin %.*s reported: '%s'",
               (int) plugin->name.length, plugin->name.str, format);
-  error_log_print(lvl, format2, args);
+
+  va_start(args, format);
+  my_vsnprintf(msg, sizeof (msg) - 1, format2, args);
   va_end(args);
+
+  LogEvent().type(LOG_TYPE_ERROR)
+            .prio(lvl)
+              /*
+                We're not setting LOG_ITEM_SRC_LINE and LOG_ITEM_SRC_FILE
+                here as we'd be interested in the location in the plugin,
+                not in the plugin interface, so rather than give confusing
+                or useless information, we give none. Plugins using the
+                richer (service) interface can use that to add such
+                information.
+              */
+            .component(plugin->name.str)
+            .verbatim(msg);
+
   return 0;
 }
