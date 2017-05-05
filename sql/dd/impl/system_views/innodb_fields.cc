@@ -40,6 +40,7 @@ Innodb_fields::Innodb_fields()
 
   m_target_def.add_where("NOT tbl.type = 'VIEW'");
   m_target_def.add_where("AND tbl.hidden = 'Visible'");
+  m_target_def.add_where("AND fld.hidden = 0");
   m_target_def.add_where("AND tbl.se_private_id IS NOT NULL");
   m_target_def.add_where("AND tbl.engine='INNODB'");
 }
