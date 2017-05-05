@@ -845,10 +845,11 @@ private:
   void print_summary(ulong suppressed)
   {
     log_message(LOG_TYPE_ERROR,
-                LOG_ITEM_LOG_PRIO,    ll,
-                LOG_ITEM_SQL_ERRCODE, err_code,
+                LOG_ITEM_LOG_PRIO,    (longlong) ll,
+                LOG_ITEM_SQL_ERRCODE, (longlong) err_code,
                 LOG_ITEM_SRV_SUBSYS,  subsys,
-                LOG_ITEM_LOG_MESSAGE, summary_template, suppressed);
+                LOG_ITEM_LOG_MESSAGE, summary_template,
+                                      (unsigned long) suppressed);
   }
 
 public:
@@ -906,11 +907,11 @@ extern Slow_log_throttle log_throttle_qni;
 */
 #define log_errlog(level, errcode, ...)                \
   log_message(LOG_TYPE_ERROR,                          \
-              LOG_ITEM_LOG_PRIO, level,                \
+              LOG_ITEM_LOG_PRIO, (longlong) level,     \
               LOG_ITEM_SRV_SUBSYS, LOG_SUBSYSTEM_TAG,  \
-              LOG_ITEM_SRC_LINE, __LINE__,             \
+              LOG_ITEM_SRC_LINE, (longlong) __LINE__,  \
               LOG_ITEM_SRC_FILE, MY_BASENAME,          \
-              LOG_ITEM_LOG_LOOKUP, errcode,            \
+              LOG_ITEM_LOG_LOOKUP, (longlong) errcode, \
               ## __VA_ARGS__)
 
 /**
@@ -926,9 +927,9 @@ extern Slow_log_throttle log_throttle_qni;
 */
 #define log_errlog_formatted(level, ...)               \
   log_message(LOG_TYPE_ERROR,                          \
-              LOG_ITEM_LOG_PRIO, level,                \
+              LOG_ITEM_LOG_PRIO, (longlong) level,     \
               LOG_ITEM_SRV_SUBSYS, LOG_SUBSYSTEM_TAG,  \
-              LOG_ITEM_SRC_LINE, __LINE__,             \
+              LOG_ITEM_SRC_LINE, (longlong) __LINE__,  \
               LOG_ITEM_SRC_FILE, MY_BASENAME,          \
               LOG_ITEM_LOG_MESSAGE, ## __VA_ARGS__)
 
@@ -938,9 +939,9 @@ extern Slow_log_throttle log_throttle_qni;
 */
 #define log_errlog_rich(level, ...)                    \
   log_message(LOG_TYPE_ERROR,                          \
-              LOG_ITEM_LOG_PRIO, level,                \
+              LOG_ITEM_LOG_PRIO, (longlong) level,     \
               LOG_ITEM_SRV_SUBSYS, LOG_SUBSYSTEM_TAG,  \
-              LOG_ITEM_SRC_LINE, __LINE__,             \
+              LOG_ITEM_SRC_LINE, (longlong) __LINE__,  \
               LOG_ITEM_SRC_FILE, MY_BASENAME,          \
               __VA_ARGS__)
 

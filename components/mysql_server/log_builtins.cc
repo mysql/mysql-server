@@ -986,7 +986,7 @@ const char *log_label_from_prio(int prio)
 
   @retval          int                  number of added fields, if any
 */
-static int log_sink_trad(void *instance, log_line *ll)
+static int log_sink_trad(void *instance MY_ATTRIBUTE((unused)), log_line *ll)
 {
   const char         *label=         "",
                      *msg=           "";
@@ -2897,6 +2897,8 @@ DEFINE_METHOD(int, log_builtins_imp::dedicated_errstream, (void *my_errstream))
 */
 DEFINE_METHOD(int, log_builtins_imp::close_errstream, (void **my_errstream))
 {
+  int rr;
+
   if (my_errstream == nullptr)
     return -1;
 
@@ -2909,12 +2911,16 @@ DEFINE_METHOD(int, log_builtins_imp::close_errstream, (void **my_errstream))
 
   if (les->file != nullptr)
   {
-    fclose(les->file);
+    my_fclose(les->file, MYF(0));
     // Continue to log after closing, you'll log to stderr. That'll learn ya.
     les->file= nullptr;
   }
 
-  return mysql_mutex_destroy(&les->LOCK_errstream);
+  rr= mysql_mutex_destroy(&les->LOCK_errstream);
+
+  my_free(les);
+
+  return rr;
 }
 
 

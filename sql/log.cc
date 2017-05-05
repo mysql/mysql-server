@@ -1975,7 +1975,7 @@ my_thread_id log_get_thread_id(THD *thd)
                                         LOG_ITEM_* tag, [[key], value]
   @retval          int                  return value of log_line_submit()
 */
-int log_vmessage(int log_type, va_list fili)
+int log_vmessage(int log_type MY_ATTRIBUTE((unused)), va_list fili)
 {
   char            buff[LOG_BUFF_MAX];
   log_item_class  lic;
@@ -2049,9 +2049,35 @@ int log_vmessage(int log_type, va_list fili)
     default:
       log_message(LOG_TYPE_ERROR,
                   LOG_ITEM_LOG_MESSAGE,
-                  "log_vmessage: unknown class %d/%d for type %d\n",
+                  "log_vmessage: unknown class %d/%d for type %d",
                   (int) lic, (int) ll.item[ll.count].item_class,
                   (int) ll.item[ll.count].type);
+      log_message(LOG_TYPE_ERROR,
+                  LOG_ITEM_LOG_MESSAGE,
+                  "log_vmessage: seen: 0x%lx. "
+                  "trying to dump preceding %d item(s)",
+                  (long) ll.seen, (int) ll.count);
+      {
+        int i= 0;
+        while (i < ll.count)
+        {
+          if (ll.item[i].item_class == LOG_INTEGER)
+            log_message(LOG_TYPE_ERROR, LOG_ITEM_LOG_MESSAGE,
+                        "log_vmessage: \"%s\": %lld", ll.item[i].key,
+                        (long long) ll.item[ll.count].data.data_integer);
+          else if (ll.item[i].item_class == LOG_FLOAT)
+            log_message(LOG_TYPE_ERROR, LOG_ITEM_LOG_MESSAGE,
+                        "log_vmessage: \"%s\": %lf", ll.item[i].key,
+                        (double) ll.item[ll.count].data.data_float);
+          else if (ll.item[i].item_class == LOG_LEX_STRING)
+            log_message(LOG_TYPE_ERROR, LOG_ITEM_LOG_MESSAGE,
+                        "log_vmessage: \"%s\": \"%.*s\"", ll.item[i].key,
+                        ll.item[ll.count].data.data_string.length,
+                        ll.item[ll.count].data.data_string.str == nullptr
+                        ? "" : ll.item[ll.count].data.data_string.str);
+          i++;
+        }
+      }
       va_end(fili);
       /*
         Bail. As the input is clearly badly broken, we don't dare try

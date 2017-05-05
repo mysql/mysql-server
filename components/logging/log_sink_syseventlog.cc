@@ -18,6 +18,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 #include "mysqld_error.h"  // so we can throw ER_LOG_SYSLOG_*
 
 #include <m_string.h>      // native_strncasecmp()/native_strcasecmp()
+#include "my_compiler.h"
 #include <my_sys.h>
 #include <mysql/components/services/log_builtins.h>
 #ifndef _WIN32
@@ -476,7 +477,8 @@ done:
   @retval          -2                   could not sanitize log message
   @retval          -3                   failure not otherwise specified
 */
-DEFINE_METHOD(int, log_service_imp::run, (void *instance, log_line *ll))
+DEFINE_METHOD(int, log_service_imp::run,
+              (void *instance MY_ATTRIBUTE((unused)), log_line *ll))
 {
   const char         *msg=        nullptr;
   int                 out_fields= 0;
@@ -628,7 +630,8 @@ bool log_service_init()
 
 
 /* flush logs */
-DEFINE_METHOD(int, log_service_imp::flush, (void **instance))
+DEFINE_METHOD(int, log_service_imp::flush,
+              (void **instance MY_ATTRIBUTE((unused))))
 {
   if (inited)
     log_service_exit();

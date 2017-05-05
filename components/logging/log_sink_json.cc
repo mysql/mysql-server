@@ -29,6 +29,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 */
 
 #include "log_service_imp.h"
+#include "my_compiler.h"
 #include <mysql/components/services/log_shared.h>
 #include <mysql/components/services/log_builtins.h>
 
@@ -53,11 +54,12 @@ enum enum_log_json_pretty_print
 };
 static enum_log_json_pretty_print   pretty= JSON_PAD;
 
+// This is private and specific to the component, and opaque to the server.
 typedef struct _instance
 {
-  int   id;
-  void *errstream;
-  char *ext;
+  int   id;          //*<< stream-id
+  void *errstream;   //*<< pointer to errstream in the server
+  char *ext;         //*<< file extension of a given error stream
 } instance;
 
 
@@ -70,7 +72,8 @@ typedef struct _instance
   @retval   0  for allow (including when we don't feel the event is for us),
   @retval  -1  for deny
 */
-DEFINE_METHOD(int, log_service_imp::variable_check, (log_line *ll))
+DEFINE_METHOD(int, log_service_imp::variable_check,
+              (log_line *ll MY_ATTRIBUTE((unused))))
 {
   return 0;
 }
@@ -85,7 +88,8 @@ DEFINE_METHOD(int, log_service_imp::variable_check, (log_line *ll))
   @retval   0  for success (including when we don't feel the event is for us),
   @retval  -1  for failure
 */
-DEFINE_METHOD(int, log_service_imp::variable_update, (log_line *ll))
+DEFINE_METHOD(int, log_service_imp::variable_update,
+              (log_line *ll MY_ATTRIBUTE((unused))))
 {
   return 0;
 }
@@ -249,6 +253,10 @@ DEFINE_METHOD(int, log_service_imp::run, (void *inst, log_line *ll))
         out_types|=    item_type;
       }
 
+      /*
+        We're multiplexing several JSON streams into the same output
+        stream, so add a stream_id to they can be told apart.
+      */
       if ((log_bi->dedicated_errstream(((instance *) inst)->errstream) < 1) &&
           (opened > 1))
       {
@@ -285,7 +293,8 @@ DEFINE_METHOD(int, log_service_imp::run, (void *inst, log_line *ll))
   @retval  <0   a new instance could not be created
   @retval  =0   success, returned hande is valid
 */
-DEFINE_METHOD(int, log_service_imp::open, (log_line *ll, void **inst))
+DEFINE_METHOD(int, log_service_imp::open, (log_line *ll MY_ATTRIBUTE((unused)),
+                                           void **inst))
 {
   int       rr;
   instance *mi;
@@ -320,6 +329,7 @@ DEFINE_METHOD(int, log_service_imp::open, (log_line *ll, void **inst))
     return 0;
   }
 
+  log_bs->free(mi->ext);
   rr= -4;
 
 fail_with_free:

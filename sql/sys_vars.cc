@@ -2067,7 +2067,9 @@ static Sys_var_charptr Sys_log_error(
 */
 
 static bool fix_log_error_filter_rules(sys_var *self,
-                                       THD *thd, enum_var_type type)
+                                       THD *thd MY_ATTRIBUTE((unused)),
+                                       enum_var_type type
+                                         MY_ATTRIBUTE((unused)))
 {
   int ret= LogVar(self->name).val(opt_log_error_filter_rules)
                              .group("log_filter")
@@ -2122,8 +2124,9 @@ static bool check_log_error_services(sys_var *self, THD *thd, set_var *var)
 }
 
 
-static bool fix_log_error_services(sys_var *self,
-                                   THD *thd, enum_var_type type)
+static bool fix_log_error_services(sys_var *self MY_ATTRIBUTE((unused)),
+                                   THD *thd MY_ATTRIBUTE((unused)),
+                                   enum_var_type type MY_ATTRIBUTE((unused)))
 {
   return (log_builtins_error_stack(opt_log_error_services, false) < 0);
 }
@@ -2239,7 +2242,8 @@ static Sys_var_bool Sys_log_statements_unsafe_for_binlog(
 
 /* logging to host OS's syslog */
 
-static bool fix_syslog_enable(sys_var *self, THD *thd, enum_var_type type)
+static bool fix_syslog_enable(sys_var *self, THD *thd MY_ATTRIBUTE((unused)),
+                              enum_var_type type MY_ATTRIBUTE((unused)))
 {
   return LogVar(self->name).val((longlong) opt_log_syslog_enable).update();
 }
@@ -2257,12 +2261,14 @@ static Sys_var_bool Sys_log_syslog_enable(
        DEPRECATED("--log_error_services"));
 
 
-static bool fix_syslog_tag(sys_var *self, THD *thd, enum_var_type type)
+static bool fix_syslog_tag(sys_var *self, THD *thd MY_ATTRIBUTE((unused)),
+                           enum_var_type type MY_ATTRIBUTE((unused)))
 {
   return LogVar(self->name).val(opt_log_syslog_tag).update();
 }
 
-static bool check_syslog_tag(sys_var *self, THD *THD, set_var *var)
+static bool check_syslog_tag(sys_var *self, THD *THD MY_ATTRIBUTE((unused)),
+                             set_var *var)
 {
   if (var->value != nullptr)
     return LogVar(self->name).val(var->save_result.string_value).check();
@@ -2291,7 +2297,8 @@ static bool check_syslog_facility(sys_var *self, THD*, set_var *var)
   return false;
 }
 
-static bool fix_syslog_facility(sys_var *self, THD *thd, enum_var_type type)
+static bool fix_syslog_facility(sys_var *self, THD *thd MY_ATTRIBUTE((unused)),
+                                enum_var_type type MY_ATTRIBUTE((unused)))
 {
   return LogVar(self->name).val(opt_log_syslog_facility).update();
 }
@@ -2304,7 +2311,8 @@ static Sys_var_charptr Sys_log_syslog_facility(
        IN_SYSTEM_CHARSET, DEFAULT("daemon"), NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(check_syslog_facility), ON_UPDATE(fix_syslog_facility));
 
-static bool fix_syslog_pid(sys_var *self, THD *thd, enum_var_type type)
+static bool fix_syslog_pid(sys_var *self, THD *thd MY_ATTRIBUTE((unused)),
+                           enum_var_type type MY_ATTRIBUTE((unused)))
 {
   return LogVar(self->name).val((longlong) opt_log_syslog_include_pid)
                            .update();

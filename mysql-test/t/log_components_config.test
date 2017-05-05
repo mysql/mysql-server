@@ -4,10 +4,10 @@
 
 #
 # this test uses the debug mode where we pipe all error logging
-# to stderr, so log_sink_test (square brackets) and log_sink_json
-# (curly braces) are interleaved below.  log_components_split
-# tests the "production setup" where different formats go to
-# different files.
+# to stderr, so log_sink_internal (traditional mysql log) and
+# log_sink_json (curly braces) are interleaved below.
+# log_components_split tests the "production setup" where different
+# formats go to different files.
 #
 
 --source include/have_debug.inc
@@ -92,6 +92,8 @@ perl;
      my $ts = 0;
 
      if ($stime == 0) {
+       $line =~ s/"source_line" : \d+, //;
+       $line =~ s/"err_code" : \d+, //;
        print "$line";
      }
      elsif ($line =~ /$pattern/) {

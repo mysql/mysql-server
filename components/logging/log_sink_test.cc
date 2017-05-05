@@ -16,6 +16,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 #include "log_service_imp.h"
 
 #include <assert.h>
+#include "my_compiler.h"
 #include <mysqld_error.h> // ER_*
 
 #include <mysql/components/services/log_builtins.h>
@@ -46,7 +47,8 @@ SERVICE_TYPE(log_builtins_string) *log_bs=     nullptr;
   @retval  -1  for deny (malformed input, caller broken)
   @retval   1  for deny (wrong data-type, or invalid value submitted by user)
 */
-DEFINE_METHOD(int, log_service_imp::variable_check, (log_line *ll))
+DEFINE_METHOD(int, log_service_imp::variable_check,
+              (log_line *ll MY_ATTRIBUTE((unused))))
 {
   return 0;
 }
@@ -63,7 +65,8 @@ DEFINE_METHOD(int, log_service_imp::variable_check, (log_line *ll))
   @retval -1  for failure (invalid input that wasn't caught in variable_check)
   @retval >0  for success (at least one variable was processed successfully)
 */
-DEFINE_METHOD(int, log_service_imp::variable_update, (log_line *ll))
+DEFINE_METHOD(int, log_service_imp::variable_update,
+              (log_line *ll MY_ATTRIBUTE((unused))))
 {
   return 0;
 }
@@ -104,6 +107,18 @@ static bool rule_delete(log_filter_ruleset *rs,
     {
       // found our rule. remove it.
       size_t rt;
+
+      if (r->match.alloc & LOG_ITEM_FREE_KEY)
+        log_bs->free((void *) r->match.key);
+      if ((r->match.alloc & LOG_ITEM_FREE_VALUE) &&
+          (r->match.item_class == LOG_LEX_STRING))
+        log_bs->free((void *) r->match.data.data_string.str);
+
+      if (r->aux.alloc & LOG_ITEM_FREE_KEY)
+        log_bs->free((void *) r->aux.key);
+      if ((r->aux.alloc & LOG_ITEM_FREE_VALUE) &&
+          (r->aux.item_class == LOG_LEX_STRING))
+        log_bs->free((void *) r->aux.data.data_string.str);
 
       rs->count--;
       for (rt= rn; rt < rs->count; rt++)
@@ -420,8 +435,8 @@ static void banner()
     Use this if for some bizarre reason you really can't or won't use C++
   */
   log_bi->message(LOG_TYPE_ERROR,
-                  LOG_ITEM_LOG_PRIO,    INFORMATION_LEVEL,
-                  LOG_ITEM_SRC_LINE,    __LINE__,
+                  LOG_ITEM_LOG_PRIO,    (longlong) INFORMATION_LEVEL,
+                  LOG_ITEM_SRC_LINE,    (longlong) __LINE__,
                   LOG_ITEM_LOG_MESSAGE,
                   "using log_message() in external service");
 
@@ -538,7 +553,8 @@ static void banner()
   @retval          int                  number of accepted fields, if any
   @retval          <0                   failure
 */
-DEFINE_METHOD(int, log_service_imp::run, (void *instance, log_line *ll))
+DEFINE_METHOD(int, log_service_imp::run, (void *instance MY_ATTRIBUTE((unused)),
+                                          log_line *ll))
 {
   char                out_buff[LOG_BUFF_MAX];
   char               *out_writepos= out_buff;
@@ -742,7 +758,8 @@ bool log_service_init()
 
 
 /* flush logs */
-DEFINE_METHOD(int, log_service_imp::flush, (void **instance))
+DEFINE_METHOD(int, log_service_imp::flush,
+              (void **instance MY_ATTRIBUTE((unused))))
 {
   int res;
 

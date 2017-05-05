@@ -51,7 +51,7 @@ Auto_THD::~Auto_THD()
 bool Auto_THD::handle_condition(THD *thd MY_ATTRIBUTE((unused)),
   uint sql_errno,
   const char *sqlstate,
-  Sql_condition::enum_severity_level *level,
+  Sql_condition::enum_severity_level *level MY_ATTRIBUTE((unused)),
   const char *msg)
 {
   /*

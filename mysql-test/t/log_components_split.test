@@ -105,14 +105,46 @@ EOF
 --echo ### error log file (JSON) -- stream 0
 --echo ###
 --echo
---cat_file $log_json_0_
+
+let GREP_FILE=$log_json_0_;
+
+perl;
+   use strict;
+   use File::stat;
+   my $file= $ENV{'GREP_FILE'} or die("grep file not set");
+
+   open(FILE, "$file") or die("Unable to open $file: $!");
+   while (<FILE>) {
+     my $line = $_;
+     $line =~ s/"source_line" : \d+, //;
+     $line =~ s/"err_code" : \d+, //;
+     print "$line";
+   }
+   close(FILE);
+EOF
 
 --echo
 --echo ###
 --echo ### error log file (JSON) -- stream 1
 --echo ###
 --echo
---cat_file $log_json_1_
+
+let GREP_FILE=$log_json_1_;
+
+perl;
+   use strict;
+   use File::stat;
+   my $file= $ENV{'GREP_FILE'} or die("grep file not set");
+
+   open(FILE, "$file") or die("Unable to open $file: $!");
+   while (<FILE>) {
+     my $line = $_;
+     $line =~ s/"source_line" : \d+, //;
+     $line =~ s/"err_code" : \d+, //;
+     print "$line";
+   }
+   close(FILE);
+EOF
 
 --remove_file $log_json_0_
 --remove_file $log_json_1_

@@ -612,7 +612,7 @@ bool initialize(THD *thd)
     return true;
 
   sql_print_information("Created system views with I_S version %d",
-                        d->get_target_dd_version());
+                        (int) d->get_target_dd_version());
   return false;
 }
 

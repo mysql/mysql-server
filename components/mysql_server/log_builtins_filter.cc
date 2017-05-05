@@ -594,7 +594,8 @@ static log_filter_match log_filter_try_match(log_item *li, log_filter_rule *ri)
 
   @retval          int                  number of matched rules
 */
-int log_builtins_filter_run(void *instance, log_line *ll)
+int log_builtins_filter_run(void *instance MY_ATTRIBUTE((unused)),
+                            log_line *ll)
 {
   size_t           rn;
   int              ln;

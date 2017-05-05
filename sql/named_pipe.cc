@@ -52,14 +52,20 @@ HANDLE create_server_named_pipe(SECURITY_ATTRIBUTES *sec_attr,
   memset(sec_descr, 0, sizeof(SECURITY_DESCRIPTOR));
   if (!InitializeSecurityDescriptor(sec_descr, SECURITY_DESCRIPTOR_REVISION))
   {
-    LogErr(ERROR_LEVEL, ER_NPIPE_FAILED_TO_INIT_SECURITY_DESCRIPTOR,
-           strerror(errno));
+    log_message(LOG_TYPE_ERROR,
+                LOG_ITEM_LOG_PRIO, (longlong) ERROR_LEVEL,
+                LOG_ITEM_LOG_LOOKUP,
+                  ER_NPIPE_FAILED_TO_INIT_SECURITY_DESCRIPTOR,
+                  strerror(errno));
     return INVALID_HANDLE_VALUE;
   }
   if (!SetSecurityDescriptorDacl(sec_descr, TRUE, NULL, FALSE))
   {
-    LogErr(ERROR_LEVEL, ER_NPIPE_FAILED_TO_SET_SECURITY_DESCRIPTOR,
-           strerror(errno));
+    log_message(LOG_TYPE_ERROR,
+                LOG_ITEM_LOG_PRIO, (longlong) ERROR_LEVEL,
+                LOG_ITEM_LOG_LOOKUP,
+                  ER_NPIPE_FAILED_TO_SET_SECURITY_DESCRIPTOR,
+                  strerror(errno));
     return INVALID_HANDLE_VALUE;
   }
   sec_attr->nLength= sizeof(SECURITY_ATTRIBUTES);
@@ -81,7 +87,10 @@ HANDLE create_server_named_pipe(SECURITY_ATTRIBUTES *sec_attr,
 
     if (error == ERROR_ACCESS_DENIED)
     {
-      LogErr(ERROR_LEVEL, ER_NPIPE_PIPE_ALREADY_IN_USE, name);
+      log_message(LOG_TYPE_ERROR,
+                  LOG_ITEM_LOG_PRIO, (longlong) ERROR_LEVEL,
+                  LOG_ITEM_LOG_LOOKUP,
+                    ER_NPIPE_PIPE_ALREADY_IN_USE, name);
     }
     else
     {
@@ -93,8 +102,10 @@ HANDLE create_server_named_pipe(SECURITY_ATTRIBUTES *sec_attr,
 
       if (msg_buff != NULL)
       {
-        LogErr(ERROR_LEVEL, ER_NPIPE_CANT_CREATE,
-               (char*) msg_buff, strerror(errno)).os_errno(errno);
+        log_message(LOG_TYPE_ERROR,
+                    LOG_ITEM_LOG_PRIO, (longlong) ERROR_LEVEL,
+                    LOG_ITEM_LOG_LOOKUP,
+                      ER_NPIPE_CANT_CREATE, (char*) msg_buff, strerror(errno));
         LocalFree(msg_buff);
       }
     }
