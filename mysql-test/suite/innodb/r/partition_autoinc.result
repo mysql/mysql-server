@@ -46,6 +46,7 @@ SELECT LOWER(path) FROM information_schema.innodb_tablespaces AS `t`, informatio
 WHERE t.space = df.space
 AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
+AND df.path NOT LIKE '%undo%'
 ORDER BY t.space;
 LOWER(path)
 ./test/tr.ibd
@@ -79,6 +80,7 @@ SELECT LOWER(path) FROM information_schema.innodb_tablespaces AS `t`, informatio
 WHERE t.space = df.space
 AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
+AND df.path NOT LIKE '%undo%'
 ORDER BY t.space;
 LOWER(path)
 ./test/tr.ibd
@@ -178,6 +180,7 @@ SELECT LOWER(path) FROM information_schema.innodb_tablespaces AS `t`, informatio
 WHERE t.space = df.space
 AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
+AND df.path NOT LIKE '%undo%'
 ORDER BY t.space;
 LOWER(path)
 ./test/tr.ibd
@@ -206,6 +209,7 @@ SELECT LOWER(path) FROM information_schema.innodb_tablespaces AS `t`, informatio
 WHERE t.space = df.space
 AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
+AND df.path NOT LIKE '%undo%'
 ORDER BY t.space;
 LOWER(path)
 ./test/tr.ibd
@@ -234,6 +238,7 @@ SELECT LOWER(path) FROM information_schema.innodb_tablespaces AS `t`, informatio
 WHERE t.space = df.space
 AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
+AND df.path NOT LIKE '%undo%'
 ORDER BY t.space;
 LOWER(path)
 ./test/tr.ibd
@@ -245,6 +250,7 @@ SELECT LOWER(path) FROM information_schema.innodb_tablespaces AS `t`, informatio
 WHERE t.space = df.space
 AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
+AND df.path NOT LIKE '%undo%'
 ORDER BY t.space;
 LOWER(path)
 ./test/tr.ibd
@@ -283,6 +289,7 @@ SELECT LOWER(path) FROM information_schema.innodb_tablespaces AS `t`, informatio
 WHERE t.space = df.space
 AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
+AND df.path NOT LIKE '%undo%'
 ORDER BY t.space;
 LOWER(path)
 ./test/tr.ibd
@@ -329,6 +336,7 @@ SELECT LOWER(path) FROM information_schema.innodb_tablespaces AS `t`, informatio
 WHERE t.space = df.space
 AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
+AND df.path NOT LIKE '%undo%'
 ORDER BY t.space;
 LOWER(path)
 ./test/tr.ibd
@@ -357,6 +365,7 @@ SELECT LOWER(path) FROM information_schema.innodb_tablespaces AS `t`, informatio
 WHERE t.space = df.space
 AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
+AND df.path NOT LIKE '%undo%'
 ORDER BY t.space;
 LOWER(path)
 ./test/tr.ibd
@@ -424,6 +433,7 @@ SELECT LOWER(path) FROM information_schema.innodb_tablespaces AS `t`, informatio
 WHERE t.space = df.space
 AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
+AND df.path NOT LIKE '%undo%'
 ORDER BY t.space;
 LOWER(path)
 ./test/tr.ibd
@@ -462,6 +472,7 @@ SELECT LOWER(path) FROM information_schema.innodb_tablespaces AS `t`, informatio
 WHERE t.space = df.space
 AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
+AND df.path NOT LIKE '%undo%'
 ORDER BY t.space;
 LOWER(path)
 ./test/tr.ibd
@@ -532,6 +543,7 @@ SELECT LOWER(path) FROM information_schema.innodb_tablespaces AS `t`, informatio
 WHERE t.space = df.space
 AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
+AND df.path NOT LIKE '%undo%'
 ORDER BY t.space;
 LOWER(path)
 ./test/tr.ibd
@@ -582,6 +594,7 @@ SELECT LOWER(path) FROM information_schema.innodb_tablespaces AS `t`, informatio
 WHERE t.space = df.space
 AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
+AND df.path NOT LIKE '%undo%'
 ORDER BY t.space;
 LOWER(path)
 ./test/tr.ibd
@@ -639,6 +652,7 @@ SELECT LOWER(path) FROM information_schema.innodb_tablespaces AS `t`, informatio
 WHERE t.space = df.space
 AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
+AND df.path NOT LIKE '%undo%'
 ORDER BY t.space;
 LOWER(path)
 ./test/tr.ibd
@@ -730,6 +744,7 @@ SELECT LOWER(path) FROM information_schema.innodb_tablespaces AS `t`, informatio
 WHERE t.space = df.space
 AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
+AND df.path NOT LIKE '%undo%'
 ORDER BY t.space;
 LOWER(path)
 ./test/tr.ibd
@@ -772,6 +787,7 @@ SELECT LOWER(path) FROM information_schema.innodb_tablespaces AS `t`, informatio
 WHERE t.space = df.space
 AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
+AND df.path NOT LIKE '%undo%'
 ORDER BY t.space;
 LOWER(path)
 ./test/tr.ibd
@@ -878,6 +894,7 @@ SELECT LOWER(path) FROM information_schema.innodb_tablespaces AS `t`, informatio
 WHERE t.space = df.space
 AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
+AND df.path NOT LIKE '%undo%'
 ORDER BY t.space;
 LOWER(path)
 ./test/tr.ibd
@@ -944,6 +961,7 @@ SELECT LOWER(path) FROM information_schema.innodb_tablespaces AS `t`, informatio
 WHERE t.space = df.space
 AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
+AND df.path NOT LIKE '%undo%'
 ORDER BY t.space;
 LOWER(path)
 ./test/tr.ibd
@@ -1009,6 +1027,7 @@ SELECT LOWER(path) FROM information_schema.innodb_tablespaces AS `t`, informatio
 WHERE t.space = df.space
 AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
+AND df.path NOT LIKE '%undo%'
 ORDER BY t.space;
 LOWER(path)
 ./test/tr.ibd
@@ -1051,6 +1070,7 @@ SELECT LOWER(path) FROM information_schema.innodb_tablespaces AS `t`, informatio
 WHERE t.space = df.space
 AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
+AND df.path NOT LIKE '%undo%'
 ORDER BY t.space;
 LOWER(path)
 ./test/tr.ibd

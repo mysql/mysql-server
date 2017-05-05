@@ -6,6 +6,7 @@ let $file_name_checking = SELECT LOWER(path) FROM information_schema.innodb_tabl
 WHERE t.space = df.space
 AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
+AND df.path NOT LIKE '%undo%'
 ORDER BY t.space;
 
 CREATE TABLE tr (
