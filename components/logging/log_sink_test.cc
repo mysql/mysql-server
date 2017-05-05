@@ -157,6 +157,7 @@ static void test_add_item_log_me(log_filter_ruleset *rs)
 /**
   Show that adding key/value pairs actually works.
 
+  @retval  0  success
   @retval -1  could not acquire ruleset (to add throttle)
   @retval -2  could not initialize new rule
   @retval -3  could not acquire ruleset (to delete throttle)
@@ -336,8 +337,75 @@ done:
 
 
 /**
+  Get coverage for some of the built-ins.
+
+  @retval -1  could not acquire ruleset (to add throttle)
+  @retval -2  could not initialize new rule
+  @retval -3  could not acquire ruleset (to delete throttle)
+*/
+static int test_builtins()
+{
+  // test classifiers
+  assert( log_bi->item_numeric_class(LOG_INTEGER));
+  assert( log_bi->item_numeric_class(LOG_FLOAT));
+  assert(!log_bi->item_numeric_class(LOG_LEX_STRING));
+  assert(!log_bi->item_numeric_class(LOG_CSTRING));
+
+  assert(!log_bi->item_string_class(LOG_INTEGER));
+  assert(!log_bi->item_string_class(LOG_FLOAT));
+  assert( log_bi->item_string_class(LOG_LEX_STRING));
+  assert( log_bi->item_string_class(LOG_CSTRING));
+
+  // test functions for wellknowns
+  int wellknown= log_bi->wellknown_by_type(LOG_ITEM_LOG_LABEL);
+  assert(LOG_ITEM_LOG_LABEL == log_bi->wellknown_get_type(wellknown));
+
+  wellknown= log_bi->wellknown_by_type(LOG_ITEM_GEN_INTEGER);
+  const char *wk= log_bi->wellknown_get_name(wellknown);
+  assert(LOG_ITEM_TYPE_RESERVED ==
+         log_bi->wellknown_by_name(wk, log_bs->length(wk)));
+
+  // make a bag, then create a key/value pair on it
+  log_line *ll= log_bi->line_init();
+  assert(log_bi->line_item_count(ll) == 0);
+
+  log_item_data *d= log_bi->line_item_set(ll, LOG_ITEM_LOG_LABEL);
+  assert(d != nullptr);
+  assert(log_bi->line_item_count(ll) == 1);
+
+  // setters (woof)
+  assert(!log_bi->item_set_float(      d, 3.1415926927));
+  assert(!log_bi->item_set_int(        d, 31415926927));
+  assert(!log_bi->item_set_cstring(    d, "pi==3.14"));
+  assert(!log_bi->item_set_lexstring(  d, "pi", 2));
+
+  // find our item in the bag
+  log_item_iter *it;
+  log_item      *li;
+  assert((it= log_bi->line_item_iter_acquire(ll)) != nullptr);
+  assert((li= log_bi->line_item_iter_first(it))   != nullptr);
+
+  // break item, then detect brokeness
+  li->item_class= LOG_FLOAT;
+  assert(log_bi->item_inconsistent(li) < 0);
+
+  // release iter
+  log_bi->line_item_iter_release(it);
+
+  // try to log it anyway
+  log_bi->line_submit(ll);
+
+  // release line
+  log_bi->line_exit(ll);
+
+  return 0;
+}
+
+
+/**
   Show that the rate-limiter actually works.
 
+  @retval  0  success!
   @retval -1  could not acquire ruleset (to add throttle)
   @retval -2  could not initialize new rule
   @retval -3  could not acquire ruleset (to delete throttle)
@@ -436,9 +504,45 @@ static void banner()
   */
   log_bi->message(LOG_TYPE_ERROR,
                   LOG_ITEM_LOG_PRIO,    (longlong) INFORMATION_LEVEL,
-                  LOG_ITEM_SRC_LINE,    (longlong) __LINE__,
                   LOG_ITEM_LOG_MESSAGE,
                   "using log_message() in external service");
+
+  log_bi->message(LOG_TYPE_ERROR,
+                  LOG_ITEM_LOG_PRIO,    (longlong) ERROR_LEVEL,
+                  LOG_ITEM_SRC_LINE,    (longlong) 1234,
+                  LOG_ITEM_SRC_LINE,    (longlong) 9876,
+                  LOG_ITEM_LOG_MESSAGE,
+                  "using log_message() with duplicate source-line k/v pair");
+
+  log_bi->message(LOG_TYPE_ERROR,
+                  LOG_ITEM_LOG_PRIO,    (longlong) ERROR_LEVEL,
+                  LOG_ITEM_GEN_CSTRING, "key", "val",
+                  LOG_ITEM_GEN_CSTRING, "key", "val",
+                  LOG_ITEM_LOG_MESSAGE,
+                  "using log_message() with duplicate generic C-string k/v pair");
+
+  log_bi->message(LOG_TYPE_ERROR,
+                  LOG_ITEM_LOG_PRIO,    (longlong) ERROR_LEVEL,
+                  LOG_ITEM_GEN_CSTRING, "key", "val",
+                  LOG_ITEM_GEN_INTEGER, "key", (longlong) 4711,
+                  LOG_ITEM_LOG_VERBATIM,
+                  "using log_message() with duplicate generic mixed k/v pair");
+
+  log_bi->message(LOG_TYPE_ERROR,
+                  LOG_ITEM_LOG_PRIO,    (longlong) ERROR_LEVEL,
+                  LOG_ITEM_SYS_ERRNO,   (longlong) 0,
+                  LOG_ITEM_LOG_VERBATIM,
+                  "using log_message() with errno 0");
+
+  log_bi->message(LOG_TYPE_ERROR,
+                  LOG_ITEM_LOG_PRIO,   (longlong) ERROR_LEVEL,
+                  LOG_ITEM_LOG_LOOKUP, (longlong) ER_YES);
+
+  log_bi->message(LOG_TYPE_ERROR,
+                  LOG_ITEM_LOG_PRIO,    (longlong) ERROR_LEVEL,
+                  LOG_ITEM_SQL_ERRSYMBOL, "ER_NO",
+                  LOG_ITEM_LOG_VERBATIM,
+                  "using log_message() with errsymbol");
 
   /*
     Fluent C++ API.  Use this free-form constructor if-and-only-if
@@ -678,6 +782,9 @@ DEFINE_METHOD(int, log_service_imp::run, (void *instance MY_ATTRIBUTE((unused)),
 
     // show that adding key/value pairs actually works
     test_add_item();
+
+    // get coverage for assorted built-ins
+    test_builtins();
 
     /*
       There wasn't actually a failure; we're just testing

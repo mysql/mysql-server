@@ -2177,7 +2177,11 @@ int log_vmessage(int log_type MY_ATTRIBUTE((unused)), va_list fili)
     }
     else if (ll.item[ll.count].type == LOG_ITEM_LOG_VERBATIM)
     {
-      ll.item[ll.count].type= LOG_ITEM_LOG_MESSAGE;
+      int         wellknown= log_item_wellknown_by_type(LOG_ITEM_LOG_MESSAGE);
+
+      ll.item[ll.count].key=        log_item_wellknown_get_name(wellknown);
+      ll.item[ll.count].type=       LOG_ITEM_LOG_MESSAGE;
+      ll.item[ll.count].item_class= LOG_LEX_STRING;
       dedup= (ll.seen & ll.item[ll.count].type);
     }
 

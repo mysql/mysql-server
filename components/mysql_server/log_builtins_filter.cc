@@ -21,7 +21,8 @@
   server proper (via log_error_verbosity etc.); for advanced configuration,
   load the service log_filter_draugnet which implements a configuration
   language for this engine.  See there for details about the Configuration
-  Stage.
+  Stage.  Some of the code-paths are only available via the configuration
+  language or an equivalent service (but not without any such service loaded).
 
   At present, the design is such that multiple threads can call the
   filter concurrently; the ruleset is global and shared between all
@@ -64,7 +65,6 @@
 
   The event itself is not locked.
 */
-
 
 #include "log.h"
 #include "log_builtins_imp.h"

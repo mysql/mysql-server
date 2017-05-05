@@ -13,6 +13,13 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 
+/*
+  NB  This module has an unusual amount of failsafes, OOM checks, and
+      so on as it implements a public API. This makes a fair number
+      of minor code paths cases of "we should never get here (unless
+      someone's going out of their way to break to API)". :)
+*/
+
 #include "current_thd.h"      // current_thd
 #include "log.h"
 #include "log_builtins_filter_imp.h"
@@ -225,7 +232,7 @@ bool log_item_generic_type(log_item_type t)
 */
 bool log_item_string_class(log_item_class c)
 {
-  return (c & (LOG_CSTRING | LOG_LEX_STRING));
+  return ((c == LOG_CSTRING) || (c == LOG_LEX_STRING));
 }
 
 
@@ -240,7 +247,7 @@ bool log_item_string_class(log_item_class c)
 */
 bool log_item_numeric_class(log_item_class c)
 {
-  return (c & (LOG_INTEGER | LOG_FLOAT));
+  return ((c == LOG_INTEGER) || (c == LOG_FLOAT));
 }
 
 
@@ -1371,10 +1378,20 @@ int log_line_submit(log_line *ll)
       int            n=        log_line_index_by_type(ll, LOG_ITEM_SQL_ERRCODE);
       const char    *es;
 
-      DBUG_ASSERT(n >= 0);
+      if (n < 0)
+      {
+        n=  log_line_index_by_type(ll, LOG_ITEM_SQL_ERRSYMBOL);
+        DBUG_ASSERT(n >= 0);
 
-      if (((ec=                (int) ll->item[n].data.data_integer) > 0) &&
-          ((es= mysql_errno_to_sqlstate((uint) ec)) != nullptr))
+        es= ll->item[n].data.data_string.str;
+        DBUG_ASSERT(es != nullptr);
+
+        ec= mysql_symbol_to_errno(es);
+      }
+      else
+        ec=                (int) ll->item[n].data.data_integer;
+
+      if ((ec > 0) && ((es= mysql_errno_to_sqlstate((uint) ec)) != nullptr))
       {
         log_item_data *d=      log_line_item_set(ll, LOG_ITEM_SQL_STATE);
         d->data_string.str=    es;
