@@ -261,8 +261,8 @@ user	plugin	authentication_string
 plüg_dest	mysql_native_password	*939AEE68989794C0F408277411C26055CDF41119
 DROP USER 'plüg_dest';
 SET NAMES utf8;
-CREATE USER plüg IDENTIFIED WITH 'test_plügin_server' AS 'plüg_dest';
-ERROR HY000: Plugin 'test_plügin_server' is not loaded
+CREATE USER plüg IDENTIFIED WITH 'test_pluggggin_server' AS 'plüg_dest';
+ERROR HY000: Plugin 'test_pluggggin_server' is not loaded
 CREATE USER 'plüg' IDENTIFIED WITH 'test_plugin_server' AS 'plüg_dest';
 SELECT user,plugin,authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session_user');
 user	plugin	authentication_string

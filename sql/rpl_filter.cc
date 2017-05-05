@@ -50,7 +50,6 @@
 class THD;
 
 
-#define TABLE_RULE_HASH_SIZE   16
 extern PSI_memory_key key_memory_array_buffer;
 
 
@@ -133,10 +132,9 @@ Rpl_filter::~Rpl_filter()
 void Rpl_filter::reset()
 {
   if (do_table_hash_inited)
-    my_hash_free(&do_table_hash);
-
+    delete do_table_hash;
   if (ignore_table_hash_inited)
-    my_hash_free(&ignore_table_hash);
+    delete ignore_table_hash;
 
   do_table_hash_inited= false;
   ignore_table_hash_inited= false;
@@ -220,7 +218,7 @@ int Rpl_filter::copy_global_replication_filters()
       global_rpl_filter->do_table_array is freed after building do table hash.
     */
     res= table_rule_ent_hash_to_array(&do_table_array,
-                                      &global_rpl_filter->do_table_hash,
+                                      global_rpl_filter->do_table_hash,
                                       global_rpl_filter->do_table_hash_inited);
     if (res != 0)
       goto err;
@@ -232,9 +230,10 @@ int Rpl_filter::copy_global_replication_filters()
     if (res != 0)
       goto err;
 
-    if (do_table_hash_inited && !do_table_hash.records)
+    if (do_table_hash_inited && do_table_hash->empty())
     {
-      my_hash_free(&do_table_hash);
+      delete do_table_hash;
+      do_table_hash= nullptr;
       do_table_hash_inited= 0;
     }
 
@@ -250,7 +249,7 @@ int Rpl_filter::copy_global_replication_filters()
       ignore table hash.
     */
     res= table_rule_ent_hash_to_array(
-      &ignore_table_array, &global_rpl_filter->ignore_table_hash,
+      &ignore_table_array, global_rpl_filter->ignore_table_hash,
       global_rpl_filter->ignore_table_hash_inited);
     if (res != 0)
       goto err;
@@ -263,9 +262,10 @@ int Rpl_filter::copy_global_replication_filters()
     if (res != 0)
       goto err;
 
-    if (ignore_table_hash_inited && !ignore_table_hash.records)
+    if (ignore_table_hash_inited && ignore_table_hash->empty())
     {
-      my_hash_free(&ignore_table_hash);
+      delete ignore_table_hash;
+      ignore_table_hash= nullptr;
       ignore_table_hash_inited= 0;
     }
 
@@ -422,7 +422,7 @@ Rpl_filter::tables_ok(const char* db, TABLE_LIST* tables)
     len= (uint) (my_stpcpy(end, tables->table_name) - hash_key);
     if (do_table_hash_inited) // if there are any do's
     {
-      if (my_hash_search(&do_table_hash, (uchar*) hash_key, len))
+      if (do_table_hash->count(std::string(hash_key, len)) != 0)
       {
         do_table_statistics.increase_counter();
 	DBUG_RETURN(1);
@@ -430,7 +430,7 @@ Rpl_filter::tables_ok(const char* db, TABLE_LIST* tables)
     }
     if (ignore_table_hash_inited) // if there are any ignores
     {
-      if (my_hash_search(&ignore_table_hash, (uchar*) hash_key, len))
+      if (ignore_table_hash->count(std::string(hash_key, len)) != 0)
       {
         ignore_table_statistics.increase_counter();
 	DBUG_RETURN(0); 
@@ -667,7 +667,7 @@ Rpl_filter::add_db_rewrite(const char* from_db, const char* to_db)
 }
 
 /*
-  Build do_table rules to HASH from dynamic array
+  Build do_table rules to hash from dynamic array
   for faster filter checking.
 
   @return
@@ -683,7 +683,7 @@ Rpl_filter::build_do_table_hash()
                        do_table_array_inited, &do_table_hash_inited))
     DBUG_RETURN(1);
 
-  /* Free do table ARRAY as it is a copy in do table HASH */
+  /* Free do table ARRAY as it is a copy in do table hash */
   if (do_table_array_inited)
   {
     free_string_array(&do_table_array);
@@ -694,7 +694,7 @@ Rpl_filter::build_do_table_hash()
 }
 
 /*
-  Build ignore_table rules to HASH from dynamic array
+  Build ignore_table rules to hash from dynamic array
   for faster filter checking.
 
   @return
@@ -710,7 +710,7 @@ Rpl_filter::build_ignore_table_hash()
                        ignore_table_array_inited, &ignore_table_hash_inited))
     DBUG_RETURN(1);
 
-  /* Free ignore table ARRAY as it is a copy in ignore table HASH */
+  /* Free ignore table ARRAY as it is a copy in ignore table hash */
   if (ignore_table_array_inited)
   {
     free_string_array(&ignore_table_array);
@@ -724,21 +724,22 @@ Rpl_filter::build_ignore_table_hash()
 /**
   Table rules are initially added to DYNAMIC_LIST, and then,
   when the charset to use for tables has been established,
-  inserted into a HASH for faster filter checking.
+  inserted into a hash for faster filter checking.
 
   @param[in] table_array         dynamic array stored table rules
-  @param[in] table_hash          HASH for storing table rules
+  @param[in] table_hash          hash for storing table rules
   @param[in] array_inited        Table rules are added to dynamic array
-  @param[in] hash_inited         Table rules are added to HASH
+  @param[in] hash_inited         Table rules are added to hash
 
   @return
              0           ok
              1           error
 */
 int
-Rpl_filter::build_table_hash_from_array(Table_rule_array *table_array,
-                                        HASH *table_hash,
-                                        bool array_inited, bool *hash_inited)
+Rpl_filter::build_table_hash_from_array(
+  Table_rule_array *table_array,
+  Table_rule_hash **table_hash,
+  bool array_inited, bool *hash_inited)
 {
   DBUG_ENTER("Rpl_filter::build_table_hash");
 
@@ -748,7 +749,7 @@ Rpl_filter::build_table_hash_from_array(Table_rule_array *table_array,
     for (size_t i= 0; i < table_array->size(); i++)
     {
       TABLE_RULE_ENT* e= table_array->at(i);
-      if (add_table_rule_to_hash(table_hash, e->db, e->key_len))
+      if (add_table_rule_to_hash(*table_hash, e->db, e->key_len))
         DBUG_RETURN(1);
     }
   }
@@ -758,9 +759,9 @@ Rpl_filter::build_table_hash_from_array(Table_rule_array *table_array,
 
 
 /**
-  Added one table rule to HASH.
+  Added one table rule to hash.
 
-  @param[in] h                   HASH for storing table rules
+  @param[in] h                   hash for storing table rules
   @param[in] table_spec          Table name with db
   @param[in] len                 The length of table_spec
 
@@ -769,7 +770,8 @@ Rpl_filter::build_table_hash_from_array(Table_rule_array *table_array,
              1           error
 */
 int
-Rpl_filter::add_table_rule_to_hash(HASH* h, const char* table_spec, uint len)
+Rpl_filter::add_table_rule_to_hash(
+  Table_rule_hash *h, const char* table_spec, uint len)
 {
   const char* dot = strchr(table_spec, '.');
   if (!dot) return 1;
@@ -783,11 +785,8 @@ Rpl_filter::add_table_rule_to_hash(HASH* h, const char* table_spec, uint len)
   e->key_len= len;
   memcpy(e->db, table_spec, len);
 
-  if (my_hash_insert(h, (uchar*)e))
-  {
-    my_free(e);
-    return 1;
-  }
+  h->emplace(std::string(e->db, e->key_len),
+             unique_ptr_my_free<TABLE_RULE_ENT>(e));
   return 0;
 }
 
@@ -896,16 +895,21 @@ Rpl_filter::set_do_table(List<Item> *do_table_list,
     DBUG_RETURN(0);
   int status;
   if (do_table_hash_inited)
-    my_hash_free(&do_table_hash);
+  {
+    delete do_table_hash;
+    do_table_hash= nullptr;
+    do_table_hash_inited= 0;
+  }
   if (do_table_array_inited)
     free_string_array(&do_table_array); /* purecov: inspected */
   status= parse_filter_list(do_table_list, &Rpl_filter::add_do_table_array);
   if (!status)
   {
     status = build_do_table_hash();
-    if (do_table_hash_inited && !do_table_hash.records)
+    if (do_table_hash_inited && do_table_hash->empty())
     {
-      my_hash_free(&do_table_hash);
+      delete do_table_hash;
+      do_table_hash= nullptr;
       do_table_hash_inited= 0;
     }
   }
@@ -923,16 +927,21 @@ Rpl_filter::set_ignore_table(List<Item>* ignore_table_list,
     DBUG_RETURN(0);
   int status;
   if (ignore_table_hash_inited)
-    my_hash_free(&ignore_table_hash);
+  {
+    delete ignore_table_hash;
+    ignore_table_hash= nullptr;
+    ignore_table_hash_inited= 0;
+  }
   if (ignore_table_array_inited)
     free_string_array(&ignore_table_array); /* purecov: inspected */
   status= parse_filter_list(ignore_table_list, &Rpl_filter::add_ignore_table_array);
   if (!status)
   {
     status = build_ignore_table_hash();
-    if (ignore_table_hash_inited && !ignore_table_hash.records)
+    if (ignore_table_hash_inited && ignore_table_hash->empty())
     {
-      my_hash_free(&ignore_table_hash);
+      delete ignore_table_hash;
+      ignore_table_hash= nullptr;
       ignore_table_hash_inited= 0;
     }
   }
@@ -1090,30 +1099,13 @@ Rpl_filter::add_ignore_db(const char* table_spec)
 }
 
 
-static const uchar *get_table_key(const uchar* a, size_t *len)
-{
-  TABLE_RULE_ENT *e= (TABLE_RULE_ENT *) a;
-
-  *len= e->key_len;
-  return (uchar*)e->db;
-}
-
-
-static void free_table_ent(void* a)
-{
-  TABLE_RULE_ENT *e= (TABLE_RULE_ENT *) a;
-
-  my_free(e);
-}
-
-
 void
-Rpl_filter::init_table_rule_hash(HASH* h, bool* h_inited)
+Rpl_filter::init_table_rule_hash(
+  Table_rule_hash **h,
+  bool* h_inited)
 {
-  my_hash_init(h, table_alias_charset, TABLE_RULE_HASH_SIZE,0,
-               get_table_key, free_table_ent, 0,
-               key_memory_TABLE_RULE_ENT);
-  *h_inited = 1;
+  *h= new Table_rule_hash(table_alias_charset, key_memory_TABLE_RULE_ENT);
+  *h_inited = true;
 }
 
 
@@ -1187,27 +1179,45 @@ Rpl_filter::free_string_pair_list(I_List<i_string_pair> *pl)
 }
 
 /*
-  Builds a String from a HASH of TABLE_RULE_ENT. Cannot be used for any other 
-  hash, as it assumes that the hash entries are TABLE_RULE_ENT.
+  Builds a String from a hash of TABLE_RULE_ENT.
 
   SYNOPSIS
     table_rule_ent_hash_to_str()
     s               pointer to the String to fill
-    h               pointer to the HASH to read
+    h               pointer to the hash to read
 
   RETURN VALUES
     none
 */
 
 void 
-Rpl_filter::table_rule_ent_hash_to_str(String* s, HASH* h, bool inited)
+Rpl_filter::table_rule_ent_hash_to_str(
+  String* s,
+  Table_rule_hash* h,
+  bool inited)
 {
   s->length(0);
   if (inited)
   {
-    for (uint i= 0; i < h->records; i++)
+    /*
+      Return the entries in sorted order. This isn't a protocol requirement
+      (and thus, we don't need to care about collations), but it makes for easier
+      testing when things are deterministic and not in hash order.
+    */
+    std::vector<TABLE_RULE_ENT *> entries;
+    entries.reserve(h->size());
+    for (const auto &key_and_value : *h)
     {
-      TABLE_RULE_ENT* e= (TABLE_RULE_ENT*) my_hash_element(h, i);
+      entries.push_back(key_and_value.second.get());
+    }
+    std::sort(entries.begin(), entries.end(),
+              [](const TABLE_RULE_ENT *a, const TABLE_RULE_ENT *b)
+              {
+                return std::string(a->db, a->key_len)
+                  < std::string(b->db, b->key_len);
+              });
+    for (const TABLE_RULE_ENT* e : entries)
+    {
       if (s->length())
         s->append(',');
       s->append(e->db,e->key_len);
@@ -1217,8 +1227,10 @@ Rpl_filter::table_rule_ent_hash_to_str(String* s, HASH* h, bool inited)
 
 
 int
-Rpl_filter::table_rule_ent_hash_to_array(Table_rule_array* table_array,
-                                         HASH* h, bool inited)
+Rpl_filter::table_rule_ent_hash_to_array(
+  Table_rule_array* table_array,
+  Table_rule_hash* h,
+  bool inited)
 {
   if (inited)
   {
@@ -1226,10 +1238,9 @@ Rpl_filter::table_rule_ent_hash_to_array(Table_rule_array* table_array,
       Build do_table_array from other.do_table_hash since other.do_table_array
       is freed after building do table hash.
     */
-    for (uint i= 0; i < h->records; i++)
+    for (const auto &key_and_value : *h)
     {
-      TABLE_RULE_ENT* ori_e=
-        (TABLE_RULE_ENT*) my_hash_element(h, i);
+      const TABLE_RULE_ENT* ori_e= key_and_value.second.get();
 
       const char* dot = strchr(ori_e->db, '.');
       if (!dot)
@@ -1317,14 +1328,14 @@ Rpl_filter::table_rule_ent_dynamic_array_to_str(String* s, Table_rule_array* a,
 void
 Rpl_filter::get_do_table(String* str)
 {
-  table_rule_ent_hash_to_str(str, &do_table_hash, do_table_hash_inited);
+  table_rule_ent_hash_to_str(str, do_table_hash, do_table_hash_inited);
 }
 
 
 void
 Rpl_filter::get_ignore_table(String* str)
 {
-  table_rule_ent_hash_to_str(str, &ignore_table_hash, ignore_table_hash_inited);
+  table_rule_ent_hash_to_str(str, ignore_table_hash, ignore_table_hash_inited);
 }
 
 

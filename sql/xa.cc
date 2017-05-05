@@ -63,8 +63,16 @@ const char *XID_STATE::xa_state_names[]={
 static const int MIN_XID_LIST_SIZE= 128;
 static const int MAX_XID_LIST_SIZE= 1024*128;
 
+struct transaction_free_hash
+{
+  void operator() (Transaction_ctx *transaction) const;
+};
+
+static bool inited= false;
 static mysql_mutex_t LOCK_transaction_cache;
-static HASH transaction_cache;
+static malloc_unordered_map<
+  std::string, std::unique_ptr<Transaction_ctx, transaction_free_hash>>
+    transaction_cache{key_memory_XID};
 
 static const uint MYSQL_XID_PREFIX_LEN= 8; // must be a multiple of 8
 static const uint MYSQL_XID_OFFSET= MYSQL_XID_PREFIX_LEN + sizeof(server_id);
@@ -909,8 +917,6 @@ bool Sql_cmd_xa_recover::trans_xa_recover(THD *thd)
 {
   List<Item> field_list;
   Protocol *protocol= thd->get_protocol();
-  int i= 0;
-  Transaction_ctx *transaction;
 
   DBUG_ENTER("trans_xa_recover");
 
@@ -928,9 +934,9 @@ bool Sql_cmd_xa_recover::trans_xa_recover(THD *thd)
 
   mysql_mutex_lock(&LOCK_transaction_cache);
 
-  while ((transaction= (Transaction_ctx*) my_hash_element(&transaction_cache,
-                                                         i++)))
+  for (const auto &key_and_value : transaction_cache)
   {
+    Transaction_ctx *transaction= key_and_value.second.get();
     XID_STATE *xs= transaction->xid_state();
     if (xs->has_state(XID_STATE::XA_PREPARED))
     {
@@ -1118,20 +1124,9 @@ char* XID::xid_to_str(char *buf) const
 #endif
 
 
-
-/**
-  Callback that is called to get the key for a hash.
-
-  @param ptr  pointer to the record
-  @param length  length of the record
-
-  @return  pointer to a record stored in cache
-*/
-
-static const uchar *transaction_get_hash_key(const uchar *ptr, size_t *length)
+static inline std::string to_string(const XID &xid)
 {
-  *length= ((Transaction_ctx*)ptr)->xid_state()->get_xid()->key_length();
-  return ((Transaction_ctx*)ptr)->xid_state()->get_xid()->key();
+  return std::string(pointer_cast<const char *>(xid.key()), xid.key_length());
 }
 
 
@@ -1141,9 +1136,8 @@ static const uchar *transaction_get_hash_key(const uchar *ptr, size_t *length)
   @param ptr  pointer to free
 */
 
-static void transaction_free_hash(void *ptr)
+void transaction_free_hash::operator() (Transaction_ctx *transaction) const
 {
-  Transaction_ctx *transaction= (Transaction_ctx*)ptr;
   // Only time it's allocated is during recovery process.
   if (transaction->xid_state()->is_in_recovery())
     delete transaction;
@@ -1177,16 +1171,15 @@ bool transaction_cache_init()
 
   mysql_mutex_init(key_LOCK_transaction_cache, &LOCK_transaction_cache,
                    MY_MUTEX_INIT_FAST);
-  return my_hash_init(&transaction_cache, &my_charset_bin, 100, 0,
-                      transaction_get_hash_key, transaction_free_hash, 0,
-                      key_memory_XID) != 0;
+  inited= true;
+  return false;
 }
 
 void transaction_cache_free()
 {
-  if (my_hash_inited(&transaction_cache))
+  if (inited)
   {
-    my_hash_free(&transaction_cache);
+    transaction_cache.clear();
     mysql_mutex_destroy(&LOCK_transaction_cache);
   }
 }
@@ -1207,10 +1200,7 @@ static Transaction_ctx *transaction_cache_search(XID *xid)
 {
   mysql_mutex_lock(&LOCK_transaction_cache);
 
-  Transaction_ctx *res=
-      (Transaction_ctx *)my_hash_search(&transaction_cache,
-                                        xid->key(),
-                                        xid->key_length());
+  Transaction_ctx *res= find_or_nullptr(transaction_cache, to_string(*xid));
   mysql_mutex_unlock(&LOCK_transaction_cache);
   return res;
 }
@@ -1232,15 +1222,13 @@ static Transaction_ctx *transaction_cache_search(XID *xid)
 bool transaction_cache_insert(XID *xid, Transaction_ctx *transaction)
 {
   mysql_mutex_lock(&LOCK_transaction_cache);
-  if (my_hash_search(&transaction_cache, xid->key(),
-                     xid->key_length()))
-  {
-    mysql_mutex_unlock(&LOCK_transaction_cache);
-    my_error(ER_XAER_DUPID, MYF(0));
-    return true;
-  }
-  bool res= my_hash_insert(&transaction_cache, (uchar*)transaction);
+  std::unique_ptr<Transaction_ctx, transaction_free_hash> ptr(transaction);
+  bool res= !transaction_cache.emplace(to_string(*xid), std::move(ptr)).second;
   mysql_mutex_unlock(&LOCK_transaction_cache);
+  if (res)
+  {
+    my_error(ER_XAER_DUPID, MYF(0));
+  }
   return res;
 }
 
@@ -1258,7 +1246,9 @@ inline bool create_and_insert_new_transaction(XID *xid, bool is_binlogged_arg)
   xs= transaction->xid_state();
   xs->start_recovery_xa(xid, is_binlogged_arg);
 
-  return my_hash_insert(&transaction_cache, (uchar*)transaction);
+  return !transaction_cache.emplace(
+    to_string(*xs->get_xid()),
+    std::unique_ptr<Transaction_ctx, transaction_free_hash>(transaction)).second;
 }
 
 
@@ -1274,10 +1264,8 @@ bool transaction_cache_detach(Transaction_ctx *transaction)
 
   mysql_mutex_lock(&LOCK_transaction_cache);
 
-  DBUG_ASSERT(my_hash_search(&transaction_cache, xid.key(),
-                             xid.key_length()));
-
-  my_hash_delete(&transaction_cache, (uchar *)transaction);
+  DBUG_ASSERT(transaction_cache.count(to_string(xid)) != 0);
+  transaction_cache.erase(to_string(xid));
   res= create_and_insert_new_transaction(&xid, was_logged);
 
   mysql_mutex_unlock(&LOCK_transaction_cache);
@@ -1302,8 +1290,7 @@ bool transaction_cache_insert_recovery(XID *xid)
 {
   mysql_mutex_lock(&LOCK_transaction_cache);
 
-  if (my_hash_search(&transaction_cache, xid->key(),
-                     xid->key_length()))
+  if (transaction_cache.count(to_string(*xid)))
   {
     mysql_mutex_unlock(&LOCK_transaction_cache);
     return false;
@@ -1326,7 +1313,9 @@ bool transaction_cache_insert_recovery(XID *xid)
 void transaction_cache_delete(Transaction_ctx *transaction)
 {
   mysql_mutex_lock(&LOCK_transaction_cache);
-  my_hash_delete(&transaction_cache, (uchar *)transaction);
+  const auto it= transaction_cache.find(to_string(*transaction->xid_state()->get_xid()));
+  if (it != transaction_cache.end() && it->second.get() == transaction)
+    transaction_cache.erase(it);
   mysql_mutex_unlock(&LOCK_transaction_cache);
 }
 

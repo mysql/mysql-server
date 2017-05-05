@@ -40,6 +40,7 @@
 #include "log.h"
 #include "m_ctype.h"
 #include "m_string.h"           // my_stpcpy
+#include "map_helpers.h"
 #include "mdl.h"
 #include "my_base.h"
 #include "my_config.h"
@@ -83,7 +84,7 @@
 
 static bool initialized = 0;
 static MEM_ROOT mem;
-static HASH udf_hash;
+static collation_unordered_map<std::string, udf_func*> *udf_hash;
 static mysql_rwlock_t THR_LOCK_udf;
 
 
@@ -130,13 +131,6 @@ static char *init_syms(udf_func *tmp, char *nm)
   return 0;
 }
 
-
-static const uchar* get_hash_key(const uchar *buff, size_t *length)
-{
-  udf_func *udf=(udf_func*) buff;
-  *length=(uint) udf->name.length;
-  return (uchar*) udf->name.str;
-}
 
 static PSI_memory_key key_memory_udf_mem;
 
@@ -192,16 +186,15 @@ void udf_init()
   init_sql_alloc(key_memory_udf_mem, &mem, UDF_ALLOC_BLOCK_SIZE, 0);
 
   THD *new_thd = new(std::nothrow) THD;
-  if (new_thd == nullptr ||
-      my_hash_init(&udf_hash,system_charset_info,32,0,get_hash_key, nullptr, 0,
-                   key_memory_udf_mem))
+  if (new_thd == nullptr)
   {
     LogErr(ERROR_LEVEL, ER_UDF_CANT_ALLOC_FOR_STRUCTURES);
-    my_hash_free(&udf_hash);
     free_root(&mem,MYF(0));
     delete new_thd;
     DBUG_VOID_RETURN;
   }
+  udf_hash= new collation_unordered_map<std::string, udf_func*>(
+    system_charset_info, key_memory_udf_mem);
   initialized = 1;
   new_thd->thread_stack= (char*) &new_thd;
   new_thd->store_globals();
@@ -316,22 +309,26 @@ void udf_deinit()
 {
   /* close all shared libraries */
   DBUG_ENTER("udf_free");
-  for (uint idx=0 ; idx < udf_hash.records ; idx++)
+  if (udf_hash != nullptr)
   {
-    udf_func *udf=(udf_func*) my_hash_element(&udf_hash,idx);
-    if (udf->dlhandle)				// Not closed before
+    for (auto it1= udf_hash->begin(); it1 != udf_hash->end(); ++it1)
     {
-      /* Mark all versions using the same handler as closed */
-      for (uint j=idx+1 ;  j < udf_hash.records ; j++)
+      udf_func *udf= it1->second;
+      if (udf->dlhandle)				// Not closed before
       {
-        udf_func *tmp=(udf_func*) my_hash_element(&udf_hash,j);
-        if (udf->dlhandle == tmp->dlhandle)
-          tmp->dlhandle=0;			// Already closed
+        /* Mark all versions using the same handler as closed */
+        for (auto it2= std::next(it1); it2 != udf_hash->end(); ++it2)
+        {
+          udf_func *tmp= it2->second;
+          if (udf->dlhandle == tmp->dlhandle)
+            tmp->dlhandle=0;			// Already closed
+        }
+        dlclose(udf->dlhandle);
       }
-      dlclose(udf->dlhandle);
     }
+    delete udf_hash;
+    udf_hash= nullptr;
   }
-  my_hash_free(&udf_hash);
   free_root(&mem,MYF(0));
   if (initialized)
   {
@@ -357,10 +354,17 @@ static void udf_hash_delete(udf_func *udf)
   DBUG_ENTER("udf_hash_delete");
 
   mysql_rwlock_wrlock(&THR_LOCK_udf);
+
+  const auto it= udf_hash->find(to_string(udf->name));
+  if (it == udf_hash->end()) {
+    DBUG_ASSERT(false);
+    DBUG_VOID_RETURN;
+  }
+
   if (!--udf->usage_count)
   {
-    my_hash_delete(&udf_hash,(uchar*) udf);
-    using_udf_functions=udf_hash.records != 0;
+    udf_hash->erase(it);
+    using_udf_functions= !udf_hash->empty();
   }
   else
   {
@@ -369,11 +373,10 @@ static void udf_hash_delete(udf_func *udf)
       The functions will be automaticly removed when the least threads
       doesn't use it anymore
     */
-    char *name= udf->name.str;
-    size_t name_length=udf->name.length;
-    udf->name.str=(char*) "*";
-    udf->name.length=1;
-    my_hash_update(&udf_hash,(uchar*) udf,(uchar*) name,name_length);
+    udf_hash->erase(it);
+    char new_name[32];
+    snprintf(new_name, sizeof(new_name), "*<%p>", udf);
+    udf_hash->emplace(new_name, udf);
   }
   mysql_rwlock_unlock(&THR_LOCK_udf);
   DBUG_VOID_RETURN;
@@ -394,8 +397,13 @@ void free_udf(udf_func *udf)
       We come here when someone has deleted the udf function
       while another thread still was using the udf
     */
-    my_hash_delete(&udf_hash,(uchar*) udf);
-    using_udf_functions=udf_hash.records != 0;
+    const auto it= udf_hash->find(to_string(udf->name));
+    if (it == udf_hash->end()) {
+      DBUG_ASSERT(false);
+      DBUG_VOID_RETURN;
+    }
+    udf_hash->erase(it);
+    using_udf_functions= !udf_hash->empty();
     if (!find_udf_dl(udf->dl))
       dlclose(udf->dlhandle);
   }
@@ -420,9 +428,12 @@ udf_func *find_udf(const char *name, size_t length,bool mark_used)
   else
     mysql_rwlock_rdlock(&THR_LOCK_udf);  /* Called during parsing */
 
-  if ((udf=(udf_func*) my_hash_search(&udf_hash,(uchar*) name,
-                                      length ? length : strlen(name))))
+  std::string key= length ? std::string(name, length) : std::string(name);
+  const auto it= udf_hash->find(key);
+
+  if (it != udf_hash->end())
   {
+    udf= it->second;
     if (!udf->dlhandle)
       udf=0;					// Could not be opened
     else if (mark_used)
@@ -441,9 +452,9 @@ static void *find_udf_dl(const char *dl)
     Because only the function name is hashed, we have to search trough
     all rows to find the dl.
   */
-  for (uint idx=0 ; idx < udf_hash.records ; idx++)
+  for (const auto &key_and_value : *udf_hash)
   {
-    udf_func *udf=(udf_func*) my_hash_element(&udf_hash,idx);
+    udf_func *udf= key_and_value.second;
     if (!strcmp(dl, udf->dl) && udf->dlhandle != NULL)
       DBUG_RETURN(udf->dlhandle);
   }
@@ -471,10 +482,8 @@ static udf_func *add_udf(LEX_STRING *name, Item_result ret, char *dl,
 
   mysql_rwlock_wrlock(&THR_LOCK_udf);
 
-  if (my_hash_insert(&udf_hash,(uchar*)  tmp))
-    tmp= nullptr;
-  else
-    using_udf_functions= 1;
+  udf_hash->emplace(to_string(tmp->name), tmp);
+  using_udf_functions= 1;
 
   mysql_rwlock_unlock(&THR_LOCK_udf);
   return tmp;
@@ -613,7 +622,7 @@ bool mysql_create_function(THD *thd,udf_func *udf)
   Save_and_Restore_binlog_format_state binlog_format_state(thd);
 
   mysql_rwlock_rdlock(&THR_LOCK_udf);
-  if ((my_hash_search(&udf_hash,(uchar*) udf->name.str, udf->name.length)))
+  if (udf_hash->count(to_string(udf->name)) != 0)
   {
     my_error(ER_UDF_EXISTS, MYF(0), udf->name.str);
     mysql_rwlock_unlock(&THR_LOCK_udf);
@@ -715,13 +724,14 @@ bool mysql_drop_function(THD *thd,const LEX_STRING *udf_name)
   Save_and_Restore_binlog_format_state binlog_format_state(thd);
 
   mysql_rwlock_rdlock(&THR_LOCK_udf);
-  if (!(udf=(udf_func*) my_hash_search(&udf_hash,(uchar*) udf_name->str,
-                                       (uint) udf_name->length)))
+  const auto it= udf_hash->find(to_string(*udf_name));
+  if (it == udf_hash->end())
   {
     my_error(ER_FUNCTION_NOT_DEFINED, MYF(0), udf_name->str);
     mysql_rwlock_unlock(&THR_LOCK_udf);
     DBUG_RETURN(error);
   }
+  udf= it->second;
   mysql_rwlock_unlock(&THR_LOCK_udf);
 
   table->use_all_columns();

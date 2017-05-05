@@ -19,8 +19,9 @@
 #include <stddef.h>
 #include <sys/types.h>
 #include <atomic>
+#include <string>
 
-#include "hash.h"                               // HASH
+#include "map_helpers.h"
 #include "my_sqlcommand.h"
 #include "options_mysqld.h"                     // options_mysqld
 #include "prealloced_array.h"                   // Prealloced_arrray
@@ -470,29 +471,37 @@ private:
   Checkable_rwlock *m_rpl_filter_lock;
 
   typedef Prealloced_array<TABLE_RULE_ENT*, 16> Table_rule_array;
+  typedef collation_unordered_map<
+    std::string, unique_ptr_my_free<TABLE_RULE_ENT>> Table_rule_hash;
 
-  void init_table_rule_hash(HASH* h, bool* h_inited);
+  void init_table_rule_hash(Table_rule_hash** h, bool* h_inited);
   void init_table_rule_array(Table_rule_array*, bool* a_inited);
 
   int add_table_rule_to_array(Table_rule_array* a, const char* table_spec);
-  int add_table_rule_to_hash(HASH* h, const char* table_spec, uint len);
+  int add_table_rule_to_hash(
+     Table_rule_hash* h, const char* table_spec, uint len);
 
   void free_string_array(Table_rule_array *a);
 
-  void table_rule_ent_hash_to_str(String* s, HASH* h, bool inited);
+  void table_rule_ent_hash_to_str(
+    String* s,
+    Table_rule_hash* h,
+    bool inited);
   /**
-    Builds a Table_rule_array from a HASH of TABLE_RULE_ENT. Cannot be used for
+    Builds a Table_rule_array from a hash of TABLE_RULE_ENT. Cannot be used for
     any other hash, as it assumes that the hash entries are TABLE_RULE_ENT.
 
     @param table_array Pointer to the Table_rule_array to fill
-    @param h Pointer to the HASH to read
-    @param inited True if the HASH is initialized
+    @param h Pointer to the hash to read
+    @param inited True if the hash is initialized
 
     @retval 0 OK
     @retval 1 Error
   */
-  int table_rule_ent_hash_to_array(Table_rule_array* table_array,
-                                   HASH* h, bool inited);
+  int table_rule_ent_hash_to_array(
+    Table_rule_array* table_array,
+    Table_rule_hash* h,
+    bool inited);
   /**
     Builds a destination Table_rule_array from a source Table_rule_array
     of TABLE_RULE_ENT.
@@ -511,17 +520,18 @@ private:
                                            bool inited);
   TABLE_RULE_ENT* find_wild(Table_rule_array *a, const char* key, size_t len);
 
-  int build_table_hash_from_array(Table_rule_array *table_array,
-                                  HASH *table_hash,
-                                  bool array_inited, bool *hash_inited);
+  int build_table_hash_from_array(
+    Table_rule_array *table_array,
+    Table_rule_hash **table_hash,
+    bool array_inited, bool *hash_inited);
 
   /*
     Those 6 structures below are uninitialized memory unless the
     corresponding *_inited variables are "true".
   */
   /* For quick search */
-  HASH do_table_hash;
-  HASH ignore_table_hash;
+  Table_rule_hash *do_table_hash{nullptr};
+  Table_rule_hash *ignore_table_hash{nullptr};
 
   Table_rule_array do_table_array;
   Table_rule_array ignore_table_array;

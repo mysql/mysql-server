@@ -43,9 +43,9 @@ a	b
 COMMIT;
 XA RECOVER;
 formatID	gtrid_length	bqual_length	data
-1	3	0	789
-1	3	0	456
 1	3	0	123
+1	3	0	456
+1	3	0	789
 XA ROLLBACK '123';
 XA ROLLBACK '456';
 XA COMMIT '789';

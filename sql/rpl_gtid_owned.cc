@@ -32,11 +32,6 @@
 Owned_gtids::Owned_gtids(Checkable_rwlock *_sid_lock)
   : sid_lock(_sid_lock), sidno_to_hash(key_memory_Owned_gtids_sidno_to_hash)
 {
-  /*
-  my_hash_init(&gtid_to_owner, &my_charset_bin, 20,
-               offsetof(Node, group), sizeof(Group), NULL,
-               my_free, 0);
-  */
 }
 
 

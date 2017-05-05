@@ -36,5 +36,5 @@ slave-bin.000001	#	Query	#	#	BEGIN
 slave-bin.000001	#	Query	#	#	COMMIT
 DROP DATABASE mydb;
 include/sync_slave_sql_with_master.inc
-Replicate_Ignore_Table: mydb.t3,mydb.t2
+Replicate_Ignore_Table: mydb.t2,mydb.t3
 include/rpl_end.inc

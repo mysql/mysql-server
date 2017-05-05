@@ -414,7 +414,8 @@ mysql_mutex_t LOCK_plugin;
 mysql_mutex_t LOCK_plugin_install;
 static Prealloced_array<st_plugin_dl*, 16> *plugin_dl_array;
 static Prealloced_array<st_plugin_int*, 16> *plugin_array;
-static HASH plugin_hash[MYSQL_MAX_PLUGIN_TYPE_NUM];
+static collation_unordered_map<std::string, st_plugin_int*>
+  *plugin_hash[MYSQL_MAX_PLUGIN_TYPE_NUM]= {nullptr};
 static bool reap_needed= false;
 static int plugin_array_version=0;
 
@@ -991,18 +992,13 @@ static st_plugin_int *plugin_find_internal(const LEX_CSTRING &name,
   {
     for (i= 0; i < MYSQL_MAX_PLUGIN_TYPE_NUM; i++)
     {
-      st_plugin_int *plugin= (st_plugin_int *)
-        my_hash_search(&plugin_hash[i],
-                       reinterpret_cast<const uchar*>(name.str), name.length);
-      if (plugin)
-        DBUG_RETURN(plugin);
+      const auto it= plugin_hash[i]->find(to_string(name));
+      if (it != plugin_hash[i]->end())
+        DBUG_RETURN(it->second);
     }
   }
   else
-    DBUG_RETURN((st_plugin_int *)
-        my_hash_search(&plugin_hash[type],
-                       reinterpret_cast<const uchar*>(name.str),
-                       name.length));
+    DBUG_RETURN(find_or_nullptr(*plugin_hash[type], to_string(name)));
   DBUG_RETURN(NULL);
 }
 
@@ -1190,7 +1186,8 @@ static bool plugin_add(MEM_ROOT *tmp_root,
       if ((tmp_plugin_ptr= plugin_insert_or_reuse(&tmp)))
       {
         plugin_array_version++;
-        if (!my_hash_insert(&plugin_hash[plugin->type], (uchar*)tmp_plugin_ptr))
+        if (plugin_hash[plugin->type]->emplace(
+              to_string(tmp_plugin_ptr->name), tmp_plugin_ptr).second)
         {
           init_alloc_root(key_memory_plugin_int_mem_root,
                           &tmp_plugin_ptr->mem_root, 4096, 4096);
@@ -1271,7 +1268,7 @@ static void plugin_del(st_plugin_int *plugin)
   mysql_rwlock_unlock(&LOCK_system_variables_hash);
   restore_pluginvar_names(plugin->system_vars);
   plugin_vars_free_values(plugin->system_vars);
-  my_hash_delete(&plugin_hash[plugin->plugin->type], (uchar*)plugin);
+  plugin_hash[plugin->plugin->type]->erase(to_string(plugin->name));
 
   if (plugin->plugin_dl)
     plugin_dl_del(&plugin->plugin_dl->dl);
@@ -1489,14 +1486,6 @@ err:
 }
 
 
-static const uchar *get_plugin_hash_key(const uchar *buff, size_t *length)
-{
-  st_plugin_int *plugin= (st_plugin_int *)buff;
-  *length= (uint)plugin->name.length;
-  return((uchar *)plugin->name.str);
-}
-
-
 static inline void convert_dash_to_underscore(char *str, size_t len)
 {
   for (char *p= str; p <= str+len; p++)
@@ -1584,10 +1573,8 @@ static bool plugin_init_internals()
 
   for (uint i= 0; i < MYSQL_MAX_PLUGIN_TYPE_NUM; i++)
   {
-    if (my_hash_init(&plugin_hash[i], system_charset_info, 16, 0,
-                     get_plugin_hash_key, nullptr, HASH_UNIQUE,
-                     key_memory_plugin_mem_root))
-      goto err;
+    plugin_hash[i]= new collation_unordered_map<std::string, st_plugin_int *>(
+      system_charset_info, key_memory_plugin_mem_root);
   }
   return false;
 
@@ -1875,8 +1862,7 @@ static bool register_builtin(st_mysql_plugin *plugin,
     static_cast<st_plugin_int*>(memdup_root(&plugin_mem_root, tmp,
                                             sizeof(st_plugin_int)));
 
-  if (my_hash_insert(&plugin_hash[plugin->type],(uchar*) *ptr))
-    DBUG_RETURN(1);
+  plugin_hash[plugin->type]->emplace(to_string((*ptr)->name), *ptr);
 
   DBUG_RETURN(0);
 }
@@ -2191,7 +2177,10 @@ void plugin_shutdown(void)
   /* Dispose of the memory */
 
   for (i= 0; i < MYSQL_MAX_PLUGIN_TYPE_NUM; i++)
-    my_hash_free(&plugin_hash[i]);
+  {
+    delete plugin_hash[i];
+    plugin_hash[i]= nullptr;
+  }
   delete plugin_array;
   plugin_array= NULL;
 
@@ -2622,7 +2611,7 @@ bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func **funcs,
 
   mysql_mutex_lock(&LOCK_plugin);
   total= type == MYSQL_ANY_PLUGIN ? plugin_array->size()
-                                  : plugin_hash[type].records;
+                                  : plugin_hash[type]->size();
   /*
     Do the alloca out here in case we do have a working alloca:
         leaving the nested stack frame invalidates alloca allocation.
@@ -2638,11 +2627,12 @@ bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func **funcs,
   }
   else
   {
-    HASH *hash= plugin_hash + type;
-    for (idx= 0; idx < total; idx++)
+    collation_unordered_map<std::string, st_plugin_int *> *hash= plugin_hash[type];
+    idx= 0;
+    for (const auto &key_and_value : *hash)
     {
-      plugin= (st_plugin_int *) my_hash_element(hash, idx);
-      plugins[idx]= !(plugin->state & state_mask) ? plugin : NULL;
+      plugin= key_and_value.second;
+      plugins[idx++]= !(plugin->state & state_mask) ? plugin : NULL;
     }
   }
   mysql_mutex_unlock(&LOCK_plugin);
