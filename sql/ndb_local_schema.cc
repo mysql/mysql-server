@@ -21,12 +21,14 @@
 
 #include "sql_class.h"
 #include "sql_table.h"
+
+#include "ndb_dd.h"
 #include "mdl.h"
 #include "log.h"
 #include "table_trigger_dispatcher.h"
 #include "sql_trigger.h"
 #include "mysqld.h"                             // reg_ext
-#include "dd/dd_table.h"  // dd::table_legacy_db_type, dd::drop_table
+#include "dd/dd_table.h"  // dd::table_legacy_db_type
 #include "dd/dd_trigger.h"  // dd::table_has_triggers
 #include "sql_trigger.h"  // reload_triggers_for_table
 
@@ -251,9 +253,7 @@ Ndb_local_schema::Table::remove_table(void) const
   (void)remove_file(ndb_ext);
 
   // Remove the table from DD
-  if (dd::drop_table<dd::Table>(m_thd,
-                                m_db, m_name,
-                                true)) /* commit_dd_changes */
+  if (!ndb_dd_drop_table(m_thd, m_db, m_name))
   {
     log_warning("Failed to drop table from DD");
     return;
@@ -320,11 +320,9 @@ Ndb_local_schema::Table::rename_table(const char* new_db,
     return;
   }
 
-  if (dd::rename_table<dd::Table>(m_thd,
-                                  m_db, m_name,
-                                  new_db, new_name,
-                                  false, /* mark_as_hidden */
-                                  true)) /* commit_dd_changes */
+  if (!ndb_dd_rename_table(m_thd,
+                           m_db, m_name,
+                           new_db, new_name)) /* commit_dd_changes */
   {
     log_warning("Failed to rename table in DD");
     return;

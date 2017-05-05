@@ -27,6 +27,7 @@
 #include "dd/types/table.h"
 #include "dd/cache/dictionary_client.h" // dd::Dictionary_client
 #include "dd/impl/sdi.h"           // dd::deserialize
+#include "dd/dd_table.h"
 
 
 bool ndb_sdi_serialize(THD *thd,
@@ -305,5 +306,114 @@ ndb_dd_install_table(class THD *thd,
   thd->mdl_context.release_transactional_locks();
 
   DBUG_RETURN(true); // OK!
+}
 
+
+bool
+ndb_dd_drop_table(THD *thd,
+                  const char *schema_name, const char *table_name)
+{
+  DBUG_ENTER("ndb_dd_drop_table");
+
+  ulonglong save_option_bits = thd->variables.option_bits;
+  thd->variables.option_bits&= ~OPTION_AUTOCOMMIT;
+  thd->variables.option_bits|= OPTION_NOT_AUTOCOMMIT;
+
+  {
+    dd::cache::Dictionary_client* client= thd->dd_client();
+    dd::cache::Dictionary_client::Auto_releaser releaser{client};
+
+    const dd::Table *existing= nullptr;
+    if (client->acquire(schema_name, table_name, &existing))
+    {
+      thd->variables.option_bits = save_option_bits;
+      DBUG_RETURN(false);
+    }
+
+    if (existing == nullptr)
+    {
+      // Table does not exist
+      thd->variables.option_bits = save_option_bits;
+      DBUG_RETURN(false);
+    }
+
+    DBUG_PRINT("info", ("dropping existing table"));
+    if (client->drop(existing))
+    {
+      // Failed to drop existing
+      DBUG_ASSERT(false); // Catch in debug, unexpected error
+      thd->variables.option_bits = save_option_bits;
+      DBUG_RETURN(false);
+    }
+
+    trans_commit_stmt(thd);
+    trans_commit(thd);
+  }
+
+  thd->variables.option_bits = save_option_bits;
+
+  // TODO Must be done in _all_ return paths
+  thd->mdl_context.release_transactional_locks();
+
+  DBUG_RETURN(true); // OK
+}
+
+
+bool
+ndb_dd_rename_table(THD *thd,
+                    const char *old_schema_name, const char *old_table_name,
+                    const char *new_schema_name, const char *new_table_name)
+{
+  DBUG_ENTER("ndb_dd_rename_table");
+  DBUG_PRINT("enter", ("old: '%s'.'%s'  new: '%s'.'%s'",
+                       old_schema_name, old_table_name,
+                       new_schema_name, new_table_name));
+
+  dd::cache::Dictionary_client* client= thd->dd_client();
+  dd::cache::Dictionary_client::Auto_releaser releaser(client);
+
+  // Read new schema from DD
+  const dd::Schema *new_schema= nullptr;
+  if (client->acquire(new_schema_name, &new_schema))
+  {
+    DBUG_RETURN(false);
+  }
+  if (new_schema == nullptr)
+  {
+    // Database does not exist, unexpected
+    DBUG_ASSERT(false);
+    DBUG_RETURN(false);
+  }
+
+  // Read table from DD
+  dd::Table *to_table_def= NULL;
+  if (client->acquire_for_modification(old_schema_name, old_table_name,
+                                       &to_table_def))
+    DBUG_RETURN(false);
+
+
+  // Set schema id and table name
+  to_table_def->set_schema_id(new_schema->id());
+  to_table_def->set_name(new_table_name);
+
+  // Rename foreign keys
+  if (dd::rename_foreign_keys(old_table_name, to_table_def))
+  {
+    // Failed to rename foreign keys or commit/rollback, unexpected
+    DBUG_ASSERT(false);
+    DBUG_RETURN(false);
+  }
+
+  // Save table in DD
+  if (client->update(to_table_def))
+  {
+    // Failed to save, unexpected
+    DBUG_ASSERT(false);
+    DBUG_RETURN(false);
+  }
+
+  trans_commit_stmt(thd);
+  trans_commit(thd);
+
+  DBUG_RETURN(true); // OK
 }

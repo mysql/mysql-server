@@ -45,4 +45,13 @@ bool ndb_dd_install_table(class THD *thd,
                           const char *table_name,
                           const dd::sdi_t& sdi, bool force_overwrite);
 
+bool ndb_dd_drop_table(class THD* thd,
+                       const char* schema_name,
+                       const char* table_name);
+
+bool ndb_dd_rename_table(class THD* thd,
+                         const char* old_schema_name,
+                         const char* old_table_name,
+                         const char* new_schema_name,
+                         const char* new_table_name);
 #endif
