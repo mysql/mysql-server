@@ -1,0 +1,9 @@
+-->macro Clear_sql_history
+-->stmtsql TRUNCATE TABLE performance_schema.events_statements_history;
+-->recvresult be-quiet
+-->endmacro
+
+-->macro Show_sql_history
+-->stmtsql SELECT sql_text AS Query FROM performance_schema.events_statements_history WHERE EVENT_NAME LIKE 'statement/sql/%' AND sql_text NOT LIKE '%performance_schema.events_statements_history%' ORDER BY timer_start ASC;
+-->recvresult
+-->endmacro
