@@ -45,8 +45,6 @@ innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/da
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p0.ibd
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p1.ibd
-innodb_temporary	TEMPORARY	InnoDB	NORMAL	innodb_temporary	MYSQLD_DATADIR/ibtmp1
-mysql	TABLESPACE	InnoDB	NORMAL	mysql	mysql.ibd
 # Verifying .ibd files
 # Verifying that there are no MyISAM files
 # Test TRUNCATE TABLE with partitioned InnoDB tables
@@ -83,8 +81,6 @@ innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/da
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p0.ibd
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p1.ibd
-innodb_temporary	TEMPORARY	InnoDB	NORMAL	innodb_temporary	MYSQLD_DATADIR/ibtmp1
-mysql	TABLESPACE	InnoDB	NORMAL	mysql	mysql.ibd
 # Verifying .ibd files
 # Test RENAME TABLE with partitioned InnoDB tables
 RENAME TABLE t1 TO t11;
@@ -110,8 +106,6 @@ innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/da
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data/test/t11#p#p0.ibd
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data2/test/t11#p#p1.ibd
-innodb_temporary	TEMPORARY	InnoDB	NORMAL	innodb_temporary	MYSQLD_DATADIR/ibtmp1
-mysql	TABLESPACE	InnoDB	NORMAL	mysql	mysql.ibd
 # Verifying .ibd files
 DROP TABLE t11;
 # Test the previous DDL as a prepared statement.
@@ -146,8 +140,6 @@ innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alternate_dir/da
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p0.ibd
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p1.ibd
-innodb_temporary	TEMPORARY	InnoDB	NORMAL	innodb_temporary	MYSQLD_DATADIR/ibtmp1
-mysql	TABLESPACE	InnoDB	NORMAL	mysql	mysql.ibd
 DROP TABLE t1;
 # Test DATA DIRECTORY with Sub-partitions.
 SET GLOBAL innodb_file_per_table = ON;
@@ -224,8 +216,6 @@ innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p1#sp#s3.ibd
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p2#sp#s4.ibd
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p2#sp#s5.ibd
-innodb_temporary	TEMPORARY	InnoDB	NORMAL	innodb_temporary	MYSQLD_DATADIR/ibtmp1
-mysql	TABLESPACE	InnoDB	NORMAL	mysql	mysql.ibd
 # Verifying .ibd files
 DROP TABLE t1;
 # Same as above except with ROW_FORMAT=Dyamic.
@@ -304,8 +294,6 @@ innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p1#sp#s3.ibd
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p2#sp#s4.ibd
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p2#sp#s5.ibd
-innodb_temporary	TEMPORARY	InnoDB	NORMAL	innodb_temporary	MYSQLD_DATADIR/ibtmp1
-mysql	TABLESPACE	InnoDB	NORMAL	mysql	mysql.ibd
 # Verifying .ibd files
 #
 # Cleanup
@@ -703,8 +691,6 @@ innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t3#p#p3#sp#sp11.ibd
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t_file_per_table_on.ibd
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data_part/test/t1#p#p0.ibd
-innodb_temporary	TEMPORARY	InnoDB	NORMAL	innodb_temporary	MYSQLD_DATADIR/ibtmp1
-mysql	TABLESPACE	InnoDB	NORMAL	mysql	mysql.ibd
 DROP TABLE t1,t2,t3;
 DROP TABLESPACE ts_part1;
 DROP TABLESPACE `ts part2`;

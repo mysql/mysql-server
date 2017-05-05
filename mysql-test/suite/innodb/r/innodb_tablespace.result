@@ -102,8 +102,6 @@ innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t1.
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t1.ibd
-innodb_temporary	TEMPORARY	InnoDB	NORMAL	innodb_temporary	MYSQLD_DATADIR/ibtmp1
-mysql	TABLESPACE	InnoDB	NORMAL	mysql	mysql.ibd
 #
 # Show that the system tables are updated on drop table
 #
@@ -114,8 +112,6 @@ Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
-innodb_temporary	TEMPORARY	InnoDB	NORMAL	innodb_temporary	MYSQLD_DATADIR/ibtmp1
-mysql	TABLESPACE	InnoDB	NORMAL	mysql	mysql.ibd
 #
 # Create the same table a second time in the same place
 #
@@ -140,8 +136,6 @@ innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t1.
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t1.ibd
-innodb_temporary	TEMPORARY	InnoDB	NORMAL	innodb_temporary	MYSQLD_DATADIR/ibtmp1
-mysql	TABLESPACE	InnoDB	NORMAL	mysql	mysql.ibd
 ---- MYSQLD_DATADIR/test
 ---- MYSQL_TMP_DIR/alt_dir/test
 t1.ibd
@@ -162,8 +156,6 @@ innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t1.
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t1.ibd
-innodb_temporary	TEMPORARY	InnoDB	NORMAL	innodb_temporary	MYSQLD_DATADIR/ibtmp1
-mysql	TABLESPACE	InnoDB	NORMAL	mysql	mysql.ibd
 ---- MYSQLD_DATADIR/test
 ---- MYSQL_TMP_DIR/alt_dir/test
 t1.ibd
@@ -185,8 +177,6 @@ innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t2.
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t2.ibd
-innodb_temporary	TEMPORARY	InnoDB	NORMAL	innodb_temporary	MYSQLD_DATADIR/ibtmp1
-mysql	TABLESPACE	InnoDB	NORMAL	mysql	mysql.ibd
 ---- MYSQLD_DATADIR/test
 ---- MYSQL_TMP_DIR/alt_dir/test
 t2.ibd
@@ -210,8 +200,6 @@ innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t3.ibd
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t2.ibd
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t3.ibd
-innodb_temporary	TEMPORARY	InnoDB	NORMAL	innodb_temporary	MYSQLD_DATADIR/ibtmp1
-mysql	TABLESPACE	InnoDB	NORMAL	mysql	mysql.ibd
 ---- MYSQLD_DATADIR/test
 t3.ibd
 #
@@ -224,8 +212,6 @@ Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
-innodb_temporary	TEMPORARY	InnoDB	NORMAL	innodb_temporary	MYSQLD_DATADIR/ibtmp1
-mysql	TABLESPACE	InnoDB	NORMAL	mysql	mysql.ibd
 ---- MYSQLD_DATADIR/test
 ---- MYSQL_TMP_DIR/alt_dir/test
 #
@@ -318,8 +304,6 @@ innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t1.
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t1.ibd
-innodb_temporary	TEMPORARY	InnoDB	NORMAL	innodb_temporary	MYSQLD_DATADIR/ibtmp1
-mysql	TABLESPACE	InnoDB	NORMAL	mysql	mysql.ibd
 INSERT INTO t1 VALUES (7, "Create the remote table via static DDL statements");
 SELECT * FROM t1;
 a	b
@@ -347,8 +331,6 @@ innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t1.
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t1.ibd
-innodb_temporary	TEMPORARY	InnoDB	NORMAL	innodb_temporary	MYSQLD_DATADIR/ibtmp1
-mysql	TABLESPACE	InnoDB	NORMAL	mysql	mysql.ibd
 INSERT INTO t1 VALUES (8, "Create the remote table via dynamic DDL statements");
 SELECT * FROM t1;
 a	b
@@ -413,8 +395,6 @@ Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_east/test/emp#p#east.ibd
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_north/test/emp#p#north.ibd
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_west/test/emp#p#west.ibd
-innodb_temporary	TEMPORARY	InnoDB	NORMAL	innodb_temporary	MYSQLD_DATADIR/ibtmp1
-mysql	TABLESPACE	InnoDB	NORMAL	mysql	mysql.ibd
 SELECT * FROM emp;
 id	store_name	parts	store_id
 1	Oracle	NUTT	10
@@ -454,8 +434,6 @@ innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir_north/te
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_east/test/emp#p#east.ibd
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_north/test/emp#p#north.ibd
-innodb_temporary	TEMPORARY	InnoDB	NORMAL	innodb_temporary	MYSQLD_DATADIR/ibtmp1
-mysql	TABLESPACE	InnoDB	NORMAL	mysql	mysql.ibd
 SELECT * FROM emp;
 id	store_name	parts	store_id
 1	Oracle	NUTT	10
@@ -499,8 +477,6 @@ Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_east/test/emp#p#east.ibd
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_north/test/emp#p#north.ibd
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_west/test/emp#p#west.ibd
-innodb_temporary	TEMPORARY	InnoDB	NORMAL	innodb_temporary	MYSQLD_DATADIR/ibtmp1
-mysql	TABLESPACE	InnoDB	NORMAL	mysql	mysql.ibd
 INSERT INTO emp VALUES(3,'IBM','NAIL',70);
 SELECT * FROM emp;
 id	store_name	parts	store_id
@@ -545,8 +521,6 @@ Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_east/test/emp#p#east.ibd
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_north/test/emp#p#north.ibd
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_west/test/emp#p#west.ibd
-innodb_temporary	TEMPORARY	InnoDB	NORMAL	innodb_temporary	MYSQLD_DATADIR/ibtmp1
-mysql	TABLESPACE	InnoDB	NORMAL	mysql	mysql.ibd
 SELECT * FROM emp;
 id	store_name	parts	store_id
 1	Oracle	NUTT	10

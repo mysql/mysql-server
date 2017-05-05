@@ -19,8 +19,7 @@ SELECT s.name 'Space_Name',
 	AND s.name NOT LIKE 'innodb_undo%'
 	ORDER BY s.space;
 
-# This SELECT will not show UNDO or TEMPORARY tablespaces since
-# they are only in FILES, not SYS_TABLESPACES.
+# This SELECT will not show UNDO or TEMPORARY tablespaces
 --echo === information_schema.files ===
 --replace_regex  /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/   /#P#/#p#/  /#SP#/#sp#/
 --replace_result ./ MYSQLD_DATADIR/  $MYSQLD_DATADIR/ MYSQLD_DATADIR/  $MYSQLD_DATADIR MYSQLD_DATADIR/  $MYSQL_TMP_DIR MYSQL_TMP_DIR  $INNODB_PAGE_SIZE DEFAULT
@@ -33,8 +32,9 @@ SELECT 	s.name 'Space_Name',
 	FROM information_schema.files f,
 	     information_schema.innodb_tablespaces s
 	WHERE f.file_id = s.space
-	AND s.name NOT LIKE 'mysql/%'
+	AND s.name NOT LIKE 'mysql'
 	AND s.name NOT LIKE 'sys/%'
+	AND s.name NOT LIKE 'innodb_temporary'
 	AND s.name NOT LIKE 'innodb_undo%'
 	ORDER BY f.file_id;
 --enable_query_log

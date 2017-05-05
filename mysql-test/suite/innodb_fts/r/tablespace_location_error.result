@@ -209,8 +209,6 @@ Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 s_def	TABLESPACE	InnoDB	NORMAL	s_def	MYSQLD_DATADIR/s_def.ibd
-innodb_temporary	TEMPORARY	InnoDB	NORMAL	innodb_temporary	MYSQLD_DATADIR/ibtmp1
-mysql	TABLESPACE	InnoDB	NORMAL	mysql	mysql.ibd
 # Test with TABLESPACE
 SET DEBUG = '+d,ib_fts_aux_table_error';
 CREATE TABLE t1(a TEXT, b TEXT, c TEXT, d TEXT, FULLTEXT idx(a,b), FULLTEXT idx2(c,d)) TABLESPACE=s_def;

@@ -16,8 +16,6 @@ s1	TABLESPACE	InnoDB	NORMAL	s1	MYSQLD_DATADIR/s1.ibd
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t1#p#p0.ibd
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t1#p#p1.ibd
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t1#p#p2.ibd
-innodb_temporary	TEMPORARY	InnoDB	NORMAL	innodb_temporary	MYSQLD_DATADIR/ibtmp1
-mysql	TABLESPACE	InnoDB	NORMAL	mysql	mysql.ibd
 ALTER TABLE t1 ENGINE = InnoDB TABLESPACE s1;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -43,8 +41,6 @@ s1	TABLESPACE	InnoDB	NORMAL	s1	MYSQLD_DATADIR/s1.ibd
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t1#p#p0.ibd
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t1#p#p1.ibd
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t1#p#p2.ibd
-innodb_temporary	TEMPORARY	InnoDB	NORMAL	innodb_temporary	MYSQLD_DATADIR/ibtmp1
-mysql	TABLESPACE	InnoDB	NORMAL	mysql	mysql.ibd
 ALTER TABLE t1 ENGINE = InnoDB TABLESPACE innodb_file_per_table;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -70,8 +66,6 @@ s1	TABLESPACE	InnoDB	NORMAL	s1	MYSQLD_DATADIR/s1.ibd
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t1#p#p0.ibd
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t1#p#p1.ibd
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t1#p#p2.ibd
-innodb_temporary	TEMPORARY	InnoDB	NORMAL	innodb_temporary	MYSQLD_DATADIR/ibtmp1
-mysql	TABLESPACE	InnoDB	NORMAL	mysql	mysql.ibd
 DROP TABLE t1;
 CREATE TABLE t1 (col1 INT, col2 INT) ENGINE = InnoDB TABLESPACE innodb_system PARTITION BY KEY(col1) PARTITIONS 3;
 === information_schema.innodb_tables  and innodb_tablespaces ===
@@ -84,8 +78,6 @@ Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 s1	TABLESPACE	InnoDB	NORMAL	s1	MYSQLD_DATADIR/s1.ibd
-innodb_temporary	TEMPORARY	InnoDB	NORMAL	innodb_temporary	MYSQLD_DATADIR/ibtmp1
-mysql	TABLESPACE	InnoDB	NORMAL	mysql	mysql.ibd
 ALTER TABLE t1 ENGINE = InnoDB TABLESPACE s1;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -105,8 +97,6 @@ Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 s1	TABLESPACE	InnoDB	NORMAL	s1	MYSQLD_DATADIR/s1.ibd
-innodb_temporary	TEMPORARY	InnoDB	NORMAL	innodb_temporary	MYSQLD_DATADIR/ibtmp1
-mysql	TABLESPACE	InnoDB	NORMAL	mysql	mysql.ibd
 ALTER TABLE t1 ENGINE = InnoDB TABLESPACE innodb_system;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -126,8 +116,6 @@ Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 s1	TABLESPACE	InnoDB	NORMAL	s1	MYSQLD_DATADIR/s1.ibd
-innodb_temporary	TEMPORARY	InnoDB	NORMAL	innodb_temporary	MYSQLD_DATADIR/ibtmp1
-mysql	TABLESPACE	InnoDB	NORMAL	mysql	mysql.ibd
 DROP TABLE t1;
 CREATE TABLE t1 (col1 INT, col2 INT) ENGINE = InnoDB TABLESPACE s1 PARTITION BY KEY(col1) PARTITIONS 3;
 === information_schema.innodb_tables  and innodb_tablespaces ===
@@ -140,8 +128,6 @@ Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 s1	TABLESPACE	InnoDB	NORMAL	s1	MYSQLD_DATADIR/s1.ibd
-innodb_temporary	TEMPORARY	InnoDB	NORMAL	innodb_temporary	MYSQLD_DATADIR/ibtmp1
-mysql	TABLESPACE	InnoDB	NORMAL	mysql	mysql.ibd
 ALTER TABLE t1 ENGINE = InnoDB TABLESPACE innodb_file_per_table;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -161,8 +147,6 @@ Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 s1	TABLESPACE	InnoDB	NORMAL	s1	MYSQLD_DATADIR/s1.ibd
-innodb_temporary	TEMPORARY	InnoDB	NORMAL	innodb_temporary	MYSQLD_DATADIR/ibtmp1
-mysql	TABLESPACE	InnoDB	NORMAL	mysql	mysql.ibd
 ALTER TABLE t1 ENGINE = InnoDB TABLESPACE s1;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -182,8 +166,6 @@ Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 s1	TABLESPACE	InnoDB	NORMAL	s1	MYSQLD_DATADIR/s1.ibd
-innodb_temporary	TEMPORARY	InnoDB	NORMAL	innodb_temporary	MYSQLD_DATADIR/ibtmp1
-mysql	TABLESPACE	InnoDB	NORMAL	mysql	mysql.ibd
 DROP TABLE t1;
 CREATE TABLE t1 (col1 INT, col2 INT) ENGINE = InnoDB TABLESPACE s1 PARTITION BY KEY(col1) PARTITIONS 3;
 === information_schema.innodb_tables  and innodb_tablespaces ===
@@ -196,8 +178,6 @@ Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 s1	TABLESPACE	InnoDB	NORMAL	s1	MYSQLD_DATADIR/s1.ibd
-innodb_temporary	TEMPORARY	InnoDB	NORMAL	innodb_temporary	MYSQLD_DATADIR/ibtmp1
-mysql	TABLESPACE	InnoDB	NORMAL	mysql	mysql.ibd
 ALTER TABLE t1 ENGINE = InnoDB TABLESPACE innodb_system;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -217,8 +197,6 @@ Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 s1	TABLESPACE	InnoDB	NORMAL	s1	MYSQLD_DATADIR/s1.ibd
-innodb_temporary	TEMPORARY	InnoDB	NORMAL	innodb_temporary	MYSQLD_DATADIR/ibtmp1
-mysql	TABLESPACE	InnoDB	NORMAL	mysql	mysql.ibd
 ALTER TABLE t1 ENGINE = InnoDB TABLESPACE s1;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -238,8 +216,6 @@ Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 s1	TABLESPACE	InnoDB	NORMAL	s1	MYSQLD_DATADIR/s1.ibd
-innodb_temporary	TEMPORARY	InnoDB	NORMAL	innodb_temporary	MYSQLD_DATADIR/ibtmp1
-mysql	TABLESPACE	InnoDB	NORMAL	mysql	mysql.ibd
 DROP TABLE t1;
 DROP TABLESPACE s1;
 #

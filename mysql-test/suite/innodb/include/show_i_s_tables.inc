@@ -13,8 +13,7 @@ SELECT t.name 'Table Name',
 	FROM information_schema.innodb_tables t LEFT JOIN
 	     information_schema.innodb_tablespaces s
 	ON t.space = s.space
-	WHERE t.name not like 'SYS_%'
-	AND t.name NOT LIKE 'mysql/%'
+	WHERE t.name not like 'mysql/%'
 	AND t.name NOT LIKE 'sys/%'
 	ORDER BY t.name;
 --enable_query_log
