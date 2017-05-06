@@ -58,6 +58,13 @@ enum enum_binlog_row_image {
   BINLOG_ROW_IMAGE_FULL= 2
 };
 
+// Bits for binlog_row_value_options sysvar
+enum enum_binlog_row_value_options
+{
+  /// Store JSON updates in partial form
+  PARTIAL_JSON_UPDATES= 1
+};
+
 // Values for binlog_row_metadata sysvar
 enum enum_binlog_row_metadata {
   BINLOG_ROW_METADATA_MINIMAL= 0,
@@ -211,6 +218,7 @@ struct System_variables
   ulong rbr_exec_mode_options; // see enum_rbr_exec_mode
   bool binlog_direct_non_trans_update;
   ulong binlog_row_image; // see enum_binlog_row_image
+  ulonglong binlog_row_value_options;
   bool sql_log_bin;
   // see enum_transaction_write_set_hashing_algorithm
   ulong transaction_write_set_extraction;

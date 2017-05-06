@@ -1262,6 +1262,7 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *
     case binary_log::WRITE_ROWS_EVENT_V1:
     case binary_log::UPDATE_ROWS_EVENT_V1:
     case binary_log::DELETE_ROWS_EVENT_V1:
+    case binary_log::PARTIAL_UPDATE_ROWS_EVENT:
     {
       bool stmt_end= FALSE;
       Table_map_log_event *ignored_map= NULL;
@@ -1270,7 +1271,8 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *
           ev_type == binary_log::UPDATE_ROWS_EVENT ||
           ev_type == binary_log::WRITE_ROWS_EVENT_V1 ||
           ev_type == binary_log::DELETE_ROWS_EVENT_V1 ||
-          ev_type == binary_log::UPDATE_ROWS_EVENT_V1)
+          ev_type == binary_log::UPDATE_ROWS_EVENT_V1 ||
+          ev_type == binary_log::PARTIAL_UPDATE_ROWS_EVENT)
       {
         Rows_log_event *new_ev= (Rows_log_event*) ev;
         if (new_ev->get_flags(Rows_log_event::STMT_END_F))

@@ -21,6 +21,8 @@
 
 #ifdef MYSQL_SERVER
 #include "sql/table.h"   // TABLE
+#else
+#include "sql/log_event.h" // Table_map_log_event
 #endif
 #include "lex_string.h"
 #include "my_dbug.h"
@@ -58,7 +60,7 @@ table_mapping::~table_mapping()
 #endif
 }
 
-TABLE* table_mapping::get_table(ulonglong table_id)
+Mapped_table* table_mapping::get_table(ulonglong table_id)
 {
   DBUG_ENTER("table_mapping::get_table(ulonglong)");
   DBUG_PRINT("enter", ("table_id: %llu", table_id));
@@ -102,9 +104,9 @@ int table_mapping::expand()
   return 0;
 }
 
-int table_mapping::set_table(ulonglong table_id, TABLE* table)
+int table_mapping::set_table(ulonglong table_id, Mapped_table* table)
 {
-  DBUG_ENTER("table_mapping::set_table(ulong,TABLE*)");
+  DBUG_ENTER("table_mapping::set_table(ulonglong, Mapped_table*)");
   DBUG_PRINT("enter", ("table_id: %llu  table: %p (%s)",
 		       table_id, 
 		       table, MAYBE_TABLE_NAME(table)));
@@ -121,7 +123,7 @@ int table_mapping::set_table(ulonglong table_id, TABLE* table)
   {
     e= it->second;
 #ifndef MYSQL_SERVER
-    free_table_map_log_event(e->table);
+    delete e->table;
 #endif
     m_table_ids.erase(table_id);
   }
@@ -160,7 +162,7 @@ void table_mapping::clear_tables()
   {
     entry *e= key_and_value.second;
 #ifndef MYSQL_SERVER
-    free_table_map_log_event(e->table);
+    delete e->table;
 #endif
     e->next= m_free;
     m_free= e;

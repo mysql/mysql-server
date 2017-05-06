@@ -4586,6 +4586,42 @@ static int init_server_components()
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
 
+  if (global_system_variables.binlog_row_value_options != 0)
+  {
+    const char *msg= NULL;
+    int err=  ER_WARN_BINLOG_PARTIAL_UPDATES_DISABLED;
+    if (!opt_bin_log)
+      msg= "the binary log is disabled";
+    else if (global_system_variables.binlog_format == BINLOG_FORMAT_STMT)
+      msg= "binlog_format=STATEMENT";
+    else if (log_bin_use_v1_row_events)
+    {
+      msg= "binlog_row_value_options=PARTIAL_JSON";
+      err= ER_WARN_BINLOG_V1_ROW_EVENTS_DISABLED;
+    }
+    else if (global_system_variables.binlog_row_image ==
+             BINLOG_ROW_IMAGE_FULL)
+    {
+      msg= "binlog_row_image=FULL";
+      err= ER_WARN_BINLOG_PARTIAL_UPDATES_SUGGESTS_PARTIAL_IMAGES;
+    }
+    if (msg)
+    {
+      switch (err)
+      {
+      case ER_WARN_BINLOG_PARTIAL_UPDATES_DISABLED:
+      case ER_WARN_BINLOG_PARTIAL_UPDATES_SUGGESTS_PARTIAL_IMAGES:
+        sql_print_warning(ER_DEFAULT(err), msg, "PARTIAL_JSON");
+        break;
+      case ER_WARN_BINLOG_V1_ROW_EVENTS_DISABLED:
+        sql_print_warning(ER_DEFAULT(err), msg);
+        break;
+      default:
+        DBUG_ASSERT(0); /* purecov: deadcode */
+      }
+    }
+  }
+
   /* call ha_init_key_cache() on all key caches to init them */
   process_key_caches(&ha_init_key_cache);
 

@@ -10843,11 +10843,27 @@ ER_RPL_CANT_HAVE_SAME_BASENAME
 ER_WARN_NO_SERVERID_SPECIFIED
   eng "You have not provided a mandatory server-id. Servers in a replication topology must have unique server-ids. Please refer to the proper server start-up parameters documentation."
 
+
 ER_WRONG_SRID_FOR_COLUMN
   eng "The SRID of the geometry does not match the SRID of the column '%.64s'. The SRID of the geometry is %lu, but the SRID of the column is %lu. Consider changing the SRID of the geometry or the SRID property of the column."
 
 ER_CANNOT_ALTER_SRID_DUE_TO_INDEX
   eng "The SRID specification on the column '%.64s' cannot be changed because there is a spatial index on the column. Please remove the spatial index before altering the SRID specification."
+
+ER_WARN_BINLOG_PARTIAL_UPDATES_DISABLED
+  eng "When %.192s, the option binlog_row_value_options=%.192s will be ignored and updates will be written in full format to binary log."
+
+ER_WARN_BINLOG_V1_ROW_EVENTS_DISABLED
+  eng "When %.192s, the option log_bin_use_v1_row_events=1 will be ignored and row events will be written in new format to binary log."
+
+ER_WARN_BINLOG_PARTIAL_UPDATES_SUGGESTS_PARTIAL_IMAGES
+  eng "When %.192s, the option binlog_row_value_options=%.192s will be used only for the after-image. Full values will be written in the before-image, so the saving in disk space due to binlog_row_value_options is limited to less than 50%%."
+
+ER_COULD_NOT_APPLY_JSON_DIFF
+  eng "Could not apply JSON diff in table %.*s, column %s."
+
+ER_CORRUPTED_JSON_DIFF
+  eng "Corrupted JSON diff for table %.*s, column %s."
 
 #
 #  End of 8.0 error messages.

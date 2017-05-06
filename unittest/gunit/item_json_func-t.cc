@@ -142,8 +142,11 @@ static void do_partial_update(Item_json_func *func,
   const auto thd= table->in_use;
   Json_diff_vector diffs(Json_diff_vector::allocator_type(thd->mem_root));
   for (const auto &diff : *table->get_logical_diffs(field))
-    diffs.emplace_back(diff.path(), diff.operation(),
-                       diff.value().clone_dom(thd));
+  {
+    Json_dom_ptr dom_ptr= diff.value().clone_dom(thd);
+    diffs.add_diff(diff.path(), diff.operation(),
+                   dom_ptr);
+  }
 
   /*
     apply_json_diffs() will try to collect binary diffs for the
@@ -169,8 +172,11 @@ static void do_partial_update(Item_json_func *func,
   // ... and applying those new diffs should produce the same result again ...
   diffs.clear();
   for (const auto &diff : *new_diffs)
-    diffs.emplace_back(diff.path(), diff.operation(),
-                       diff.value().clone_dom(thd));
+  {
+    Json_dom_ptr dom_ptr= diff.value().clone_dom(thd);
+    diffs.add_diff(diff.path(), diff.operation(),
+                   dom_ptr);
+  }
   table->clear_partial_update_diffs();
   store_json(field, orig_json);
   EXPECT_EQ(enum_json_diff_status::SUCCESS, apply_json_diffs(field, &diffs));

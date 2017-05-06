@@ -147,6 +147,14 @@ The following options may be given as the first argument:
  format. FULL causes all metadata to be logged; MINIMAL
  means that only metadata actually required by slave is
  logged. Default: MINIMAL.
+ --binlog-row-value-options=name 
+ When set to PARTIAL_JSON, this option enables a
+ space-efficient row-based binary log format for UPDATE
+ statements that modify a JSON value using only the
+ functions JSON_SET, JSON_REPLACE, and JSON_REMOVE. For
+ such updates, only the modified parts of the JSON
+ document are included in the binary log, so small changes
+ of big documents may need significantly less space.
  --binlog-rows-query-log-events 
  Allow writing of Rows_query_log events into binary log.
  --binlog-stmt-cache-size=# 
@@ -1309,6 +1317,7 @@ binlog-order-commits TRUE
 binlog-row-event-max-size 8192
 binlog-row-image FULL
 binlog-row-metadata MINIMAL
+binlog-row-value-options 
 binlog-rows-query-log-events FALSE
 binlog-stmt-cache-size 32768
 binlog-transaction-dependency-history-size 25000

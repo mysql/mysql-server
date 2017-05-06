@@ -53,11 +53,14 @@ extern PSI_memory_key key_memory_log_event;
 
 #ifdef HAVE_MYSYS
 #define BAPI_ASSERT(x) DBUG_ASSERT(x)
+#define BAPI_PRINT(name, params) DBUG_PRINT(name, params)
 #else
 #define BAPI_ASSERT(x) assert(x)
+#define BAPI_PRINT(name, params)
 #endif
 #else
 #define BAPI_ASSERT(x) do { } while(0)
+#define BAPI_PRINT(name, params)
 #endif
 
 #ifndef HAVE_STRNDUP

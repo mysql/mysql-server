@@ -74,6 +74,7 @@ static int check_event_type(int type, Relay_log_info *rli)
   case binary_log::WRITE_ROWS_EVENT_V1:
   case binary_log::UPDATE_ROWS_EVENT_V1:
   case binary_log::DELETE_ROWS_EVENT_V1:
+  case binary_log::PARTIAL_UPDATE_ROWS_EVENT:
     /*
       Row events are only allowed if a Format_description_event has
       already been seen.

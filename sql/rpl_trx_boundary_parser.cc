@@ -214,6 +214,7 @@ Transaction_boundary_parser::get_event_boundary_type(
     case binary_log::UPDATE_ROWS_EVENT_V1:
     case binary_log::DELETE_ROWS_EVENT_V1:
     case binary_log::VIEW_CHANGE_EVENT:
+    case binary_log::PARTIAL_UPDATE_ROWS_EVENT:
       boundary_type= EVENT_BOUNDARY_TYPE_STATEMENT;
       break;
 

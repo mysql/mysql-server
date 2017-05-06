@@ -1,0 +1,108 @@
+# ==== Requirements ====
+#
+# R1. When @@SESSION.BINLOG_ROW_VALUE_OPTIONS == PARTIAL_JSON, the event
+#     type for row updates should be PARTIAL_UPDATE_LOG_EVENT.
+#
+# R2. When @@SESSION.BINLOG_ROW_VALUE_OPTIONS != PARTIAL_JSON, the event
+#     type for row updates should be UPDATE_LOG_EVENT.
+#
+# R3. The above should hold on slave too, regardless of the event type
+#     on the master.
+#
+# ==== Implementation ====
+#
+# - Create a table.
+# - Execute updates on master and replicate to slave, in each of the
+#   following cases:
+#   - master full, slave full
+#   - master partial, slave full
+#   - master full, slave partial
+#   - master partial, slave partial
+# - Verify that the event type is according to the server's own option
+#
+# ==== References ====
+#
+# WL#2955: RBR replication of partial JSON updates
+
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+
+--echo ==== Initialize ====
+
+CREATE TABLE t (a INT);
+INSERT INTO t VALUES (1);
+
+--let $binlog_file_master= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_position_master= query_get_value(SHOW MASTER STATUS, Position, 1)
+SET @@SESSION.BINLOG_ROW_IMAGE = 'MINIMAL';
+
+--source include/sync_slave_sql_with_master.inc
+
+--let $binlog_file_slave= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_position_slave= query_get_value(SHOW MASTER STATUS, Position, 1)
+SET @binlog_row_value_options_save= @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS;
+SET @binlog_row_image_save= @@GLOBAL.BINLOG_ROW_IMAGE;
+SET @@GLOBAL.BINLOG_ROW_IMAGE= 'MINIMAL';
+
+--source include/rpl_connection_master.inc
+
+--echo ==== Generate binary logs on master and slave ====
+
+--echo * initially, master and slave use full format
+
+--echo 1. master full, slave full
+UPDATE t SET a= 2;
+
+--echo 2. master partial, slave full
+SET @@SESSION.BINLOG_ROW_VALUE_OPTIONS= PARTIAL_JSON;
+UPDATE t SET a= 3;
+
+--echo * switch slave to partial format
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave.inc
+SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS= PARTIAL_JSON;
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+
+--echo 3. master full, slave partial
+SET @@SESSION.BINLOG_ROW_VALUE_OPTIONS= '';
+UPDATE t SET a= 2;
+
+--echo 4. master partial, slave partial
+SET @@SESSION.BINLOG_ROW_VALUE_OPTIONS= PARTIAL_JSON;
+UPDATE t SET a= 3;
+
+--echo ==== Verify requirements ===
+
+--let $before= !Gtid_or_anon # !Begin # Table_map #
+--let $after= # !Commit
+--let $partial= $before Update_rows_partial $after
+--let $full= $before Update_rows $after
+
+--echo # Assert that master's binlog is written according to master's option
+--let $event_sequence= $full # $partial # $full # $partial
+--let $binlog_file= $binlog_file_master
+--let $binlog_position= $binlog_position_master
+--source include/assert_binlog_events.inc
+
+--source include/sync_slave_sql_with_master.inc
+
+--echo # Assert that slave's binlog is written according to slave's option
+--let $event_sequence= $full # $full # $partial # $partial
+--let $binlog_file= $binlog_file_slave
+--let $binlog_position= $binlog_position_slave
+--source include/assert_binlog_events.inc
+
+--let $diff_tables= master:test.t, slave:test.t
+--source include/diff_tables.inc
+
+--echo ==== Clean up ====
+
+--source include/rpl_connection_master.inc
+DROP TABLE t;
+--source include/sync_slave_sql_with_master.inc
+SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS= @binlog_row_value_options_save;
+SET @@GLOBAL.BINLOG_ROW_IMAGE= @binlog_row_image_save;
+
+--source include/rpl_end.inc

@@ -69,6 +69,8 @@
 #include "sql/field.h"
 #include "sql/handler.h"
 #include "sql/item_func.h"                  // user_var_entry
+#include "sql/json_diff.h"                      // Json_diff_vector
+#include "sql/json_dom.h"                       // Json_dom
 #include "sql/key.h"
 #include "sql/log.h"
 #include "sql/log_event.h"                  // Rows_log_event
@@ -11443,6 +11445,10 @@ THD::binlog_prepare_pending_rows_event(TABLE* table, uint32 serv_id,
     (between Write, Update and Delete), or not the same affected columns, or
     going to be too big, flush this event to disk and create a new pending
     event.
+
+    We do not need to check that the pending event and the new event
+    have the same setting for partial json updates, because
+    partialness of json can only be changed outside transactions.
   */
   if (!pending ||
       pending->server_id != serv_id || 
@@ -11478,7 +11484,8 @@ THD::binlog_prepare_pending_rows_event(TABLE* table, uint32 serv_id,
 }
 
 /* Declare in unnamed namespace. */
-namespace {
+namespace
+{
 
   /**
      Class to handle temporary allocation of memory for row data.
@@ -11487,10 +11494,9 @@ namespace {
      packing one or two rows of packed data (depending on what
      constructor is called).
 
-     In order to make the allocation more efficient for "simple" rows,
-     i.e., rows that do not contain any blobs, a pointer to the
-     allocated memory is of memory is stored in the table structure
-     for simple rows.  If memory for a table containing a blob field
+     In order to make the allocation more efficient for rows without blobs,
+     a pointer to the allocated memory is stored in the table structure
+     for such rows.  If memory for a table containing a blob field
      is requested, only memory for that is allocated, and subsequently
      released when the object is destroyed.
 
@@ -11504,26 +11510,29 @@ namespace {
       @param table
       Table where the pre-allocated memory is stored.
 
-      @param length
-      Length of data that is needed, if the record contain blobs.
+      @param data
+      Pointer to the table record.
      */
-    Row_data_memory(TABLE *table, size_t const len1)
+    Row_data_memory(TABLE *table, const uchar *data)
       : m_memory(0)
     {
 #ifndef DBUG_OFF
       m_alloc_checked= FALSE;
 #endif
-      allocate_memory(table, len1);
+      allocate_memory(table, max_row_length(table, data));
       m_ptr[0]= has_memory() ? m_memory : 0;
       m_ptr[1]= 0;
     }
 
-    Row_data_memory(TABLE *table, size_t const len1, size_t const len2)
+    Row_data_memory(TABLE *table, const uchar *data1, const uchar *data2,
+                    ulonglong value_options= 0)
       : m_memory(0)
     {
 #ifndef DBUG_OFF
       m_alloc_checked= FALSE;
 #endif
+      size_t len1= max_row_length(table, data1);
+      size_t len2= max_row_length(table, data2, value_options);
       allocate_memory(table, len1 + len2);
       m_ptr[0]= has_memory() ? m_memory        : 0;
       m_ptr[1]= has_memory() ? m_memory + len1 : 0;
@@ -11557,7 +11566,132 @@ namespace {
     }
 
   private:
-    void allocate_memory(TABLE *const table, size_t const total_length)
+    /**
+      Compute an upper bound on the amount of memory needed.
+
+      This may return an over-approximation.
+
+      @param table The table
+      @param data The server's row record.
+      @param value_options The value of @@global.binlog_row_value_options
+    */
+    size_t max_row_length(TABLE *table, const uchar *data,
+                          ulonglong value_options= 0)
+    {
+      TABLE_SHARE *table_s= table->s;
+      /*
+        The server stores rows using "records".  A record is a
+        sequence of bytes which contains values or pointers to values
+        for all fields (columns).  The server uses table_s->reclength
+        bytes for a row record.
+
+        The layout of a record is roughly:
+
+        - N+1+B bits, packed into CEIL((N+1+B)/8) bytes, where N is
+          the number of nullable columns in the table, and B is the
+          sum of the number of bits of all BIT columns.
+
+        - A sequence of serialized fields, each corresponding to a
+          non-BIT, non-NULL column in the table.
+
+          For variable-length columns, the first component of the
+          serialized field is a length, stored using 1, 2, 3, or 4
+          bytes depending on the maximum length for the data type.
+
+          For most data types, the next component of the serialized
+          field is the actual data.  But for for VARCHAR, VARBINARY,
+          TEXT, BLOB, and JSON, the next component of the serialized
+          field is a serialized pointer, i.e. sizeof(pointer) bytes,
+          which point to another memory area where the actual data is
+          stored.
+
+        The layout of a row image in the binary log is roughly:
+
+        - If this is an after-image and partial JSON is enabled, 1
+          byte containing value_options.  If the PARTIAL_JSON bit of
+          value_options is set, this is followed by P bits (the
+          "partial_bits"), packed into CEIL(P) bytes, where P is the
+          number of JSON columns in the table.
+
+        - M bits (the "null_bits"), packed into CEIL(M) bytes, where M
+          is the number of columns in the image.
+
+        - A sequence of serialized fields, each corresponding to a
+          non-NULL column in the row image.
+
+          For variable-length columns, the first component of the
+          serialized field is a length, stored using 1, 2, 3, or 4
+          bytes depending on the maximum length for the data type.
+
+          For most data types, the next component of the serialized
+          field is the actual field data.  But for JSON fields where
+          the corresponding bit of the partial_bits is 1, this is a
+          sequence of diffs instead.
+
+        Now we try to use table_s->reclength to estimate how much
+        memory to allocate for a row image in the binlog.  Due to the
+        differences this will only be an upper bound.  Notice the
+        differences:
+
+        - The binlog may only include a subset of the fields (the row
+          image), whereas reclength contains space for all fields.
+
+        - BIT columns are not packed together with NULL bits in the
+          binlog, so up to 1 more byte per BIT column may be needed.
+
+        - The binlog has a null bit even for non-nullable fields,
+          whereas the reclength only contains space nullable fields,
+          so the binlog may need up to CEIL(table_s->fields/8) more
+          bytes.
+
+        - The binlog only has a null bit for fields in the image,
+          whereas the reclength contains space for all fields.
+
+        - The binlog contains the full blob whereas the record only
+          contains sizeof(pointer) bytes.
+
+        - The binlog contains value_options and partial_bits.  So this
+          may use up to 1+CEIL(table_s->fields/8) more bytes.
+
+        - The binlog may contain partial JSON.  This is guaranteed to
+          be smaller than the size of the full value.
+
+        For those data types that are not stored using a pointer, the
+        size of the field in the binary log is at most 2 bytes more
+        than what the field contributes to in table_s->reclength,
+        because those data types use at most 1 byte for the length and
+        waste less than a byte on extra padding and extra bits in
+        null_bits or BIT columns.
+
+        For those data types that are stored using a pointer, the size
+        of the field in the binary log is at most 2 bytes more than
+        what the field contributes to in table_s->reclength, plus the
+        size of the data.  The size of the pointer is at least 4 on
+        all supported platforms, so it is bigger than what is used by
+        partial_bits, value_format, or any waste due to extra padding
+        and extra bits in null_bits.
+      */
+      size_t length= table_s->reclength + 2 * table_s->fields;
+
+      for (uint i= 0; i < table_s->blob_fields; i++)
+      {
+        Field *field= table->field[table_s->blob_field[i]];
+        Field_blob *field_blob= down_cast<Field_blob *>(field);
+
+        if (field_blob->type() == MYSQL_TYPE_JSON &&
+            (value_options & PARTIAL_JSON_UPDATES) != 0)
+        {
+          Field_json *field_json= down_cast<Field_json*>(field_blob);
+          length+= field_json->get_diff_vector_and_length(value_options);
+        }
+        else
+          length+=
+            field_blob->get_length(data + field_blob->offset(table->record[0]));
+      }
+      return length;
+    }
+
+    void allocate_memory(TABLE *const table, const size_t total_length)
     {
       if (table->s->blob_fields == 0)
       {
@@ -11612,13 +11746,14 @@ int THD::binlog_write_row(TABLE* table, bool is_trans,
     Pack records into format for transfer. We are allocating more
     memory than needed, but that doesn't matter.
   */
-  Row_data_memory memory(table, max_row_length(table, record));
+  Row_data_memory memory(table, record);
   if (!memory.has_memory())
     return HA_ERR_OUT_OF_MEM;
 
   uchar *row_data= memory.slot(0);
 
-  size_t const len= pack_row(table, table->write_set, row_data, record);
+  size_t const len= pack_row(table, table->write_set, row_data, record,
+                             enum_row_image_type::WRITE_AI);
 
   Rows_log_event* const ev=
     binlog_prepare_pending_rows_event(table, server_id, len, is_trans,
@@ -11653,20 +11788,21 @@ int THD::binlog_update_row(TABLE* table, bool is_trans,
    */
   binlog_prepare_row_images(table);
 
-  size_t const before_maxlen = max_row_length(table, before_record);
-  size_t const after_maxlen  = max_row_length(table, after_record);
-
-  Row_data_memory row_data(table, before_maxlen, after_maxlen);
+  Row_data_memory row_data(table, before_record, after_record,
+                           variables.binlog_row_value_options);
   if (!row_data.has_memory())
     return HA_ERR_OUT_OF_MEM;
 
   uchar *before_row= row_data.slot(0);
   uchar *after_row= row_data.slot(1);
 
-  size_t const before_size= pack_row(table, table->read_set, before_row,
-                                        before_record);
-  size_t const after_size= pack_row(table, table->write_set, after_row,
-                                       after_record);
+  size_t const before_size=
+    pack_row(table, table->read_set, before_row, before_record,
+             enum_row_image_type::UPDATE_BI);
+  size_t const after_size=
+    pack_row(table, table->write_set, after_row, after_record,
+             enum_row_image_type::UPDATE_AI,
+             variables.binlog_row_value_options);
 
   DBUG_DUMP("before_record", before_record, table->s->reclength);
   DBUG_DUMP("after_record",  after_record, table->s->reclength);
@@ -11719,14 +11855,15 @@ int THD::binlog_delete_row(TABLE* table, bool is_trans,
      Pack records into format for transfer. We are allocating more
      memory than needed, but that doesn't matter.
   */
-  Row_data_memory memory(table, max_row_length(table, record));
+  Row_data_memory memory(table, record);
   if (unlikely(!memory.has_memory()))
     return HA_ERR_OUT_OF_MEM;
 
   uchar *row_data= memory.slot(0);
 
   DBUG_DUMP("table->read_set", (uchar*) table->read_set->bitmap, (table->s->fields + 7) / 8);
-  size_t const len= pack_row(table, table->read_set, row_data, record);
+  size_t const len= pack_row(table, table->read_set, row_data, record,
+                             enum_row_image_type::DELETE_BI);
 
   Rows_log_event* const ev=
     binlog_prepare_pending_rows_event(table, server_id, len, is_trans,

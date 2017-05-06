@@ -37,6 +37,9 @@
 #include "sql/item_timefunc.h"           // Item_func_now_local
 #include "sql/json_binary.h"             // json_binary::serialize
 #include "sql/json_dom.h"                // Json_dom, Json_wrapper
+#include "sql/json_binary.h"                 // json_binary::serialize
+#include "sql/json_dom.h"                    // Json_dom, Json_wrapper
+#include "sql/json_diff.h"                   // Json_diff_vector
 #include "sql/log_event.h"               // class Table_map_log_event
 #include "sql/mysqld.h"                  // log_10
 #include "sql/rpl_rli.h"                 // Relay_log_info
@@ -8607,9 +8610,10 @@ uchar *Field_blob::pack(uchar *to, const uchar *from,
    blob fields.
 
    @param   from       Source of the data
-   @param   param_data @c TRUE if base types should be stored in little-
-                       endian format, @c FALSE if native format should
-                       be used.
+   @param   param_data The "metadata", as stored in the Table_map_log_event
+                       for this field. This metadata is the number of bytes
+                       used to represent the length of the blob (1, 2, 3, or
+                       4).
    @param low_byte_first If true, the length should be unpacked in
    little-endian format, otherwise in the machine's native order.
 
@@ -9029,6 +9033,7 @@ type_conversion_status Field_json::store(Field_json *field)
 
 bool Field_json::val_json(Json_wrapper *wr)
 {
+  DBUG_ENTER("Field_json::val_json");
   ASSERT_COLUMN_MARKED_FOR_READ;
 
   String tmp;
@@ -9050,7 +9055,7 @@ bool Field_json::val_json(Json_wrapper *wr)
   {
     using namespace json_binary;
     *wr= Json_wrapper(Value(Value::LITERAL_NULL));
-    return false;
+    DBUG_RETURN(false);
   }
 
   json_binary::Value v(json_binary::parse_binary(s->ptr(), s->length()));
@@ -9058,12 +9063,12 @@ bool Field_json::val_json(Json_wrapper *wr)
   {
     /* purecov: begin inspected */
     my_error(ER_INVALID_JSON_BINARY_DATA, MYF(0));
-    return true;
+    DBUG_RETURN(true);
     /* purecov: end */
   }
 
   *wr= Json_wrapper(v);
-  return false;
+  DBUG_RETURN(false);
 }
 
 longlong Field_json::val_int()
@@ -9123,6 +9128,190 @@ my_decimal *Field_json::val_decimal(my_decimal *decimal_value)
   }
 
   return wr.coerce_decimal(decimal_value, field_name);
+}
+
+
+bool Field_json::pack_diff(uchar **to, ulonglong value_format) const
+{
+  DBUG_ENTER("Field_json::pack_diff");
+
+  const Json_diff_vector *diff_vector;
+  get_diff_vector_and_length(value_format, &diff_vector);
+  if (diff_vector == nullptr)
+    DBUG_RETURN(true);
+
+  // We know the caller has allocated enough space, but we don't
+  // know how much it is.  So just say that it is large, to
+  // suppress bounds checks.
+  String to_string((char *)*to, 0xffffFFFF, &my_charset_bin);
+  to_string.length(0);
+  if (diff_vector->write_binary(&to_string))
+    // write_binary only returns true (error) in case it failed to
+    // allocate memory. But now we know it will not try to
+    // allocate.
+    DBUG_ASSERT(0); /* purecov: inspected */
+
+  // It should not have reallocated.
+  DBUG_ASSERT(*to == (uchar *)to_string.ptr());
+
+  *to += to_string.length();
+  DBUG_RETURN(false);
+}
+
+
+bool Field_json::is_before_image_equal_to_after_image() const
+{
+  Field_json *non_const_this= const_cast<Field_json *>(this);
+  ptrdiff_t row_offset= table->record[1] - table->record[0];
+  if (non_const_this->get_length(row_offset) != non_const_this->get_length())
+    return false;
+  if (non_const_this->cmp(ptr, ptr + row_offset) != 0)
+    return false;
+  return true;
+}
+
+
+longlong Field_json::get_diff_vector_and_length(
+  ulonglong value_options, const Json_diff_vector **diff_vector_p) const
+{
+  DBUG_ENTER("Field_json::get_diff_vector_and_length");
+
+  if (is_null())
+  {
+    DBUG_PRINT("info", ("Returning 0 because field is NULL"));
+    if (diff_vector_p)
+      *diff_vector_p= nullptr;
+    DBUG_RETURN(0);
+  }
+
+  size_t length_of_full_format= const_cast<Field_json *>(this)->get_length();
+  size_t length= 0;
+  const Json_diff_vector *diff_vector= nullptr;
+  // Is the partial update smaller than the full update?
+  DBUG_PRINT("info", ("length_of_full_format=%lu",
+                      (unsigned long) length_of_full_format));
+
+  // Is partial JSON updates enabled at all?
+  if ((value_options & PARTIAL_JSON_UPDATES) == 0)
+  {
+    DBUG_PRINT("info", ("Using full JSON format because "
+                        "binlog_row_value_format does not include "
+                        "PARTIAL_JSON"));
+    length= length_of_full_format;
+  }
+  else
+  {
+    // Was the optimizer able to compute a partial update?
+    diff_vector= table->get_logical_diffs(this);
+    if (diff_vector == nullptr)
+    {
+      // Are before-image and after-image equal?
+      if (is_before_image_equal_to_after_image())
+      {
+        DBUG_PRINT("info",
+                   ("Using empty Json_diff_vector because before-image "
+                    "is different from after-image."));
+        diff_vector= &Json_diff_vector::EMPTY_JSON_DIFF_VECTOR;
+        length= diff_vector->binary_length();
+      }
+      else
+      {
+        DBUG_PRINT("info",
+                   ("Using full JSON format because there is no diff vector "
+                    "and before-image is different from after-image."));
+        length= length_of_full_format;
+      }
+    }
+    else
+    {
+      size_t length_of_diff_vector= diff_vector->binary_length();
+      size_t length_of_empty_diff_vector=
+        Json_diff_vector::EMPTY_JSON_DIFF_VECTOR.binary_length();
+      DBUG_PRINT("info", ("length_of_diff_vector=%lu diff_vector->size()=%u",
+                          (unsigned long) length_of_diff_vector,
+                          (uint)diff_vector->size()));
+
+      // If the vector is empty, no need to do the expensive comparison
+      // between before-image and after-image.
+      if (length_of_diff_vector == length_of_empty_diff_vector)
+      {
+        DBUG_PRINT("info",
+                   ("Using empty Json_diff_vector provided by optimizer."));
+        length= length_of_diff_vector;
+      }
+      // Are the before-image and the after-image equal? (This can
+      // happen despite having a nonempty diff vector, in case
+      // optimizer does not detect the equality)
+      else if (is_before_image_equal_to_after_image())
+      {
+        DBUG_PRINT("info", ("Using Json_diff_vector::EMPTY_JSON_DIFF_VECTOR "
+                            "because the before-image equals the after-image "
+                            "but the diff vector provided by the optimizer "
+                            "is non-empty."));
+        diff_vector= &Json_diff_vector::EMPTY_JSON_DIFF_VECTOR;
+        length= length_of_diff_vector;
+      }
+      // Is the diff vector better than the full format?
+      else if (length_of_diff_vector < length_of_full_format)
+      {
+        DBUG_PRINT("info", ("Using non-empty Json_diff_vector provided by "
+                            "optimizer because it is smaller than "
+                            "full format."));
+        length= length_of_diff_vector;
+      }
+      else
+      {
+        DBUG_PRINT("info",
+                   ("Using full JSON format because diff vector was not "
+                    "smaller."));
+        diff_vector= nullptr;
+        length= length_of_full_format;
+      }
+    }
+  }
+
+  DBUG_ASSERT(length != 0);
+
+  if (diff_vector_p != nullptr)
+    *diff_vector_p= diff_vector;
+  DBUG_RETURN(length);
+}
+
+
+bool Field_json::unpack_diff(const uchar **from)
+{
+  DBUG_ENTER("Field_json::unpack_diff");
+
+  // Use a temporary mem_root so that the thread does not hold the
+  // memory for the Json_diff_vector until the end of the statement.
+  int memory_page_size= my_getpagesize();
+  MEM_ROOT mem_root(key_memory_Slave_applier_json_diff_vector,
+                    memory_page_size, memory_page_size);
+
+  Json_diff_vector diff_vector{
+    Json_diff_vector::allocator_type(&mem_root)};
+
+  // The caller should have verified that the buffer at 'from' is
+  // sufficiently big to hold the whole diff_vector.
+  if (diff_vector.read_binary(pointer_cast<const char **>(from),
+                              table, field_name))
+    DBUG_RETURN(true);
+
+  // Apply
+  switch (apply_json_diffs(this, &diff_vector))
+  {
+  case enum_json_diff_status::REJECTED:
+    my_error(ER_COULD_NOT_APPLY_JSON_DIFF, MYF(0),
+             (int)table->s->table_name.length,
+             table->s->table_name.str,
+             field_name);
+    DBUG_RETURN(true);
+  case enum_json_diff_status::ERROR:
+    DBUG_RETURN(true); /* purecov: inspected */
+  case enum_json_diff_status::SUCCESS:
+    break;
+  }
+  DBUG_RETURN(false);
 }
 
 

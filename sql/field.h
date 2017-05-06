@@ -1483,6 +1483,32 @@ public:
   }
 
   /**
+    Write the field for the binary log in diff format.
+
+    This should only write the field if the diff format is smaller
+    than the full format.  Otherwise it should leave the buffer
+    untouched.
+
+    @param[in,out] to Pointer to buffer where the field will be
+    written.  This will be changed to point to the next byte after the
+    last byte that was written.
+
+    @param value_options bitmap that indicates if full or partial
+    JSON format is to be used.
+
+    @retval true The field was not written, either because the data
+    type does not support it, or because it was disabled according to
+    value_options, or because there was no diff information available
+    from the optimizer, or because the the diff format was bigger than
+    the full format.  The 'to' parameter is unchanged in this case.
+
+    @retval false The field was written.
+  */
+  virtual bool pack_diff(uchar **to MY_ATTRIBUTE((unused)),
+                         ulonglong value_options MY_ATTRIBUTE((unused))) const
+  { return true; }
+
+  /**
     This is a wrapper around pack_length() used by filesort() to determine
     how many bytes we need for packing "addon fields".
     @returns maximum size of a row when stored in the filesort buffer.
@@ -4179,6 +4205,45 @@ public:
   type_conversion_status store_json(const Json_wrapper *json);
   type_conversion_status store_time(MYSQL_TIME *ltime, uint8 dec_arg) override;
   type_conversion_status store(Field_json *field);
+
+  bool pack_diff(uchar **to, ulonglong value_options) const override;
+  /**
+    Return the length of this field, taking into consideration that it may be in partial format.
+
+    This is the format used when writing the binary log in row format
+    and using a partial format according to
+    @@session.binlog_row_value_options.
+
+    @param[in] value_options The value of binlog_row_value options.
+
+    @param[out] diff_vector_p If this is not NULL, the pointer it
+    points to will be set to NULL if the field is to be stored in full
+    format, or to the Json_diff_vector if the field is to be stored in
+    partial format.
+
+    @return The number of bytes needed when writing to the binlog: the
+    size of the full format if stored in full format and the size of
+    the diffs if stored in partial format.
+  */
+  longlong get_diff_vector_and_length(ulonglong value_options,
+                                      const Json_diff_vector **diff_vector_p=
+                                      nullptr) const;
+  /**
+    Return true if the before-image and after-image for this field are
+    equal.
+  */
+  bool is_before_image_equal_to_after_image() const;
+  /**
+    Read the binary diff from the given buffer, and apply it to this field.
+
+    @param[in,out] from Pointer to buffer where the binary diff is stored.
+    This will be changed to point to the next byte after the field.
+
+    @retval false Success
+    @retval true Error (e.g. failed to apply the diff).  The error has
+    been reported through my_error.
+  */
+  bool unpack_diff(const uchar **from);
 
   /**
     Retrieve the field's value as a JSON wrapper. It

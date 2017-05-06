@@ -289,6 +289,7 @@ bool str_to_time(const CHARSET_INFO *cs, const char *str, size_t length,
 
 
 /* Character set-aware version of str_to_datetime() */
+#ifdef MYSQL_SERVER
 bool str_to_datetime(const CHARSET_INFO *cs,
                      const char *str, size_t length,
                      MYSQL_TIME *l_time, my_time_flags_t flags,
@@ -324,6 +325,7 @@ bool datetime_add_nanoseconds_adjust_frac(MYSQL_TIME *ltime, uint nanoseconds,
   else
     return datetime_add_nanoseconds_with_round(ltime, nanoseconds, warnings);
 }
+#endif // ifdef MYSQL_SERVER
 
 /**
   @param [in,out] ltime        MYSQL_TIME variable to add to.
@@ -445,6 +447,7 @@ ret:
   @param [in,out] warnings     Warning flag vector.
   @retval                      False on success, true on error.
 */
+#ifdef MYSQL_SERVER
 bool datetime_add_nanoseconds_with_round(MYSQL_TIME *ltime,
                                          uint nanoseconds, int *warnings)
 {
@@ -936,6 +939,7 @@ str_to_time_with_warn(String *str, MYSQL_TIME *l_time)
   }
   return ret_val;
 }
+#endif // ifdef MYSQL_SERVER
 
 
 /**
@@ -1328,6 +1332,7 @@ bool my_TIME_to_str(const MYSQL_TIME *ltime, String *str, uint dec)
 }
 
 
+#ifdef MYSQL_SERVER
 bool make_truncated_value_warning(THD *thd,
                                   Sql_condition::enum_severity_level level,
                                   ErrConvString val, timestamp_type time_type,
@@ -1482,6 +1487,7 @@ invalid_date:
 null_date:
   return 1;
 }
+#endif // ifdef MYSQL_SERVER
 
 
 /*
@@ -1659,6 +1665,7 @@ bool my_time_adjust_frac(MYSQL_TIME *ltime, uint dec,
                             truncated/rounded.
   @return                   False on success, true on error.
 */
+#ifdef MYSQL_SERVER
 bool my_datetime_adjust_frac(MYSQL_TIME *ltime, uint dec, int *warnings,
                              bool truncate)
 {
@@ -1670,6 +1677,7 @@ bool my_datetime_adjust_frac(MYSQL_TIME *ltime, uint dec, int *warnings,
   my_time_trunc(ltime, dec);
   return rc;
 }
+#endif // ifdef MYSQL_SERVER
 
 
 /**
@@ -1813,6 +1821,7 @@ void TIME_from_longlong_packed(MYSQL_TIME *ltime,
   @return     A decimal value in on of the following formats, depending
               on type: YYYYMMDD, hhmmss.ffffff or YYMMDDhhmmss.ffffff.
 */
+#ifdef MYSQL_SERVER
 my_decimal *my_decimal_from_datetime_packed(my_decimal *dec,
                                             enum enum_field_types type,
                                             longlong packed_value)
@@ -1837,6 +1846,7 @@ my_decimal *my_decimal_from_datetime_packed(my_decimal *dec,
       return dec;
   }
 }
+#endif // ifdef MYSQL_SERVER
 
 
 /**
@@ -1895,6 +1905,7 @@ double double_from_datetime_packed(enum enum_field_types type,
   @param  gmt_time     GMT time value.
 */
 
+#ifdef MYSQL_SERVER
 ulonglong gmt_time_to_local_time(ulonglong gmt_time)
 {
   MYSQL_TIME time;
@@ -1916,3 +1927,4 @@ ulonglong gmt_time_to_local_time(ulonglong gmt_time)
   // Return ulonglong value from MYSQL_TIME
   return TIME_to_ulonglong_datetime(&time);
 }
+#endif // ifdef MYSQL_SERVER

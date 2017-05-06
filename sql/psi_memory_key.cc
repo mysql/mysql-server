@@ -72,6 +72,7 @@ PSI_memory_key key_memory_Rpl_info_table;
 PSI_memory_key key_memory_SLAVE_INFO;
 PSI_memory_key key_memory_ST_SCHEMA_TABLE;
 PSI_memory_key key_memory_Security_context;
+PSI_memory_key key_memory_Slave_applier_json_diff_vector;
 PSI_memory_key key_memory_Slave_job_group_group_relay_log_name;
 PSI_memory_key key_memory_Sort_param_tmp_buffer;
 PSI_memory_key key_memory_Sys_var_charptr_value;

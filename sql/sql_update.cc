@@ -550,11 +550,7 @@ bool Sql_cmd_update::update_single_table(THD *thd)
 
   table->mark_columns_per_binlog_row_image(thd);
 
-  /*
-    WL#2955 will change this to only request JSON diffs when needed.
-    For now, always request JSON diffs so that the code can be tested.
-  */
-  if (table->setup_partial_update(true /* will be changed by WL#2955 */))
+  if (table->setup_partial_update())
     DBUG_RETURN(true);                          /* purecov: inspected */
 
   ha_rows updated_rows= 0;
@@ -2049,11 +2045,7 @@ bool Query_result_update::optimize()
                              select->get_table_list()))
       {
         table->mark_columns_needed_for_update(thd, true/*mark_binlog_columns=true*/);
-        /*
-          WL#2955 will change this to only request JSON diffs when needed.
-          For now, always request JSON diffs so that the code can be tested.
-        */
-        if (table->setup_partial_update(true /* will be changed by WL#2955 */))
+        if (table->setup_partial_update())
           DBUG_RETURN(true);                    /* purecov: inspected */
 	table_to_update= table;			// Update table on the fly
 	continue;
