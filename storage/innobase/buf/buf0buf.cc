@@ -3029,6 +3029,7 @@ DECLARE_THREAD(buf_resize_thread)(
 			buf_resize_status(sout.str().c_str());
 
 			/* nothing to do */
+			buf_pool_mutex_exit_all();
 			continue;
 		}
 		buf_pool_mutex_exit_all();
