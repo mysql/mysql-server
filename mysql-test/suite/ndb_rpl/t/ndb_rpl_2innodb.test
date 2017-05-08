@@ -27,7 +27,8 @@ CREATE TABLE mysql.ndb_apply_status
                    log_name VARCHAR(255) BINARY NOT NULL,
                    start_pos BIGINT UNSIGNED NOT NULL,
                    end_pos BIGINT UNSIGNED NOT NULL,
-                   PRIMARY KEY USING HASH (server_id)) ENGINE=INNODB;
+                   PRIMARY KEY USING HASH (server_id)) ENGINE=INNODB
+                   CHARACTER SET latin1;
 
 -- connection master
 set new=on;

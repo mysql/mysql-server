@@ -11,7 +11,8 @@ epoch BIGINT UNSIGNED NOT NULL,
 log_name VARCHAR(255) BINARY NOT NULL,
 start_pos BIGINT UNSIGNED NOT NULL,
 end_pos BIGINT UNSIGNED NOT NULL,
-PRIMARY KEY USING HASH (server_id)) ENGINE=MYISAM;
+PRIMARY KEY USING HASH (server_id)) ENGINE=MYISAM
+CHARACTER SET latin1;
 set new=on;
 set default_storage_engine=ndbcluster;
 supports_native_partitioning: 0
@@ -35,7 +36,7 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
 --- Show table on slave ---
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -50,7 +51,7 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 --- Perform basic operation on master ---
 --- and ensure replicated correctly ---
 "--- Insert into t1 --" as "";
@@ -108,7 +109,7 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`,`total`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
 --- Make sure that our tables on slave are still same engine ---
 --- and that the alter statements replicated correctly ---
 SHOW CREATE TABLE t1;
@@ -124,7 +125,7 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`,`total`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 --- Perform basic operation on master ---
 --- and ensure replicated correctly --- 
 "--- Insert into t1 --" as "";
