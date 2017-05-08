@@ -2087,10 +2087,8 @@ init()
 {
 	ut_crc32_init();
 
-	fprintf(stderr, "Using %s, CPU is %s-endian\n",
-		ut_crc32_sse2_enabled
-		? "hardware CPU crc32 instructions"
-		: "software crc32 implementation",
+	fprintf(stderr, "%s, CPU is %s-endian\n",
+		ut_crc32_implementation,
 #ifdef WORDS_BIGENDIAN
 		"big"
 #else /* WORDS_BIGENDIAN */
@@ -2099,16 +2097,16 @@ init()
 	);
 }
 
-/* test ut_crc32*() */
-TEST(ut0crc32, basic)
+/* test ut_crc32c*() */
+TEST(ut0crc32c, basic)
 {
 	init();
 
 	EXPECT_EQ(1090276284U,
-		  ut_crc32((const byte*) "innodb", 6));
+		  ut_crc32c((const byte*) "innodb", 6));
 
 	EXPECT_EQ(1090276284U,
-		  ut_crc32_legacy_big_endian((const byte*) "innodb", 6));
+		  ut_crc32c_legacy_big_endian((const byte*) "innodb", 6));
 
 	byte*	buf = new byte[page_size + 7];
 
@@ -2120,42 +2118,42 @@ TEST(ut0crc32, basic)
 
 		memcpy(p, page, page_size);
 
-		EXPECT_EQ(2400278014U, ut_crc32(p, page_size));
-		EXPECT_EQ(2400278014U, ut_crc32_byte_by_byte(p, page_size));
+		EXPECT_EQ(2400278014U, ut_crc32c(p, page_size));
+		EXPECT_EQ(2400278014U, ut_crc32c_byte_by_byte(p, page_size));
 
 		/* Big endian results depend on the alignment. */
 		switch (reinterpret_cast<uintptr_t>(p) % 8) {
 		case 0:
 			EXPECT_EQ(930371176U,
-				  ut_crc32_legacy_big_endian(p, page_size));
+				  ut_crc32c_legacy_big_endian(p, page_size));
 			break;
 		case 1:
 			EXPECT_EQ(3983560868U,
-				  ut_crc32_legacy_big_endian(p, page_size));
+				  ut_crc32c_legacy_big_endian(p, page_size));
 			break;
 		case 2:
 			EXPECT_EQ(2706750077U,
-				  ut_crc32_legacy_big_endian(p, page_size));
+				  ut_crc32c_legacy_big_endian(p, page_size));
 			break;
 		case 3:
 			EXPECT_EQ(1846753308U,
-				  ut_crc32_legacy_big_endian(p, page_size));
+				  ut_crc32c_legacy_big_endian(p, page_size));
 			break;
 		case 4:
 			EXPECT_EQ(781941328U,
-				  ut_crc32_legacy_big_endian(p, page_size));
+				  ut_crc32c_legacy_big_endian(p, page_size));
 			break;
 		case 5:
 			EXPECT_EQ(1972010982U,
-				  ut_crc32_legacy_big_endian(p, page_size));
+				  ut_crc32c_legacy_big_endian(p, page_size));
 			break;
 		case 6:
 			EXPECT_EQ(185421206U,
-				  ut_crc32_legacy_big_endian(p, page_size));
+				  ut_crc32c_legacy_big_endian(p, page_size));
 			break;
 		case 7:
 			EXPECT_EQ(745843327U,
-				  ut_crc32_legacy_big_endian(p, page_size));
+				  ut_crc32c_legacy_big_endian(p, page_size));
 			break;
 		}
 	}
@@ -2163,7 +2161,7 @@ TEST(ut0crc32, basic)
 	delete[] buf;
 }
 
-TEST(ut0crc32, perf)
+TEST(ut0crc32c, perf)
 {
 	init();
 
@@ -2194,7 +2192,7 @@ TEST(ut0crc32, perf)
 		for (size_t i = 0; i < n_pages; i++) {
 
 			ASSERT_EQ(3911978414U,
-				  ut_crc32(p + i * page_size, page_size));
+				  ut_crc32c(p + i * page_size, page_size));
 		}
 	}
 
@@ -2208,7 +2206,7 @@ TEST(ut0crc32, perf)
 		for (size_t i = 0; i < n_pages; i++) {
 
 			ASSERT_EQ(281254546U,
-				  ut_crc32_legacy_big_endian(p + i * page_size,
+				  ut_crc32c_legacy_big_endian(p + i * page_size,
 							     page_size));
 		}
 	}

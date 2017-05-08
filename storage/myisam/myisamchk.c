@@ -17,6 +17,7 @@
 
 #include "fulltext.h"
 #include "my_default.h"
+#include "ut0crc32.h"
 
 #include <m_ctype.h>
 #include <stdarg.h>
@@ -94,6 +95,7 @@ int main(int argc, char **argv)
 
   my_progname_short= my_progname+dirname_length(my_progname);
 
+  ut_crc32_init();
   myisamchk_init(&check_param);
   check_param.opt_lock_memory=1;		/* Lock memory if possible */
   check_param.using_global_keycache = 0;

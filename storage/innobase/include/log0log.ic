@@ -237,7 +237,7 @@ ulint
 log_block_calc_checksum_crc32(
 	const byte*	block)
 {
-	return(ut_crc32(block, OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_TRL_SIZE));
+	return(ut_crc32c(block, OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_TRL_SIZE));
 }
 
 /** Calculates the checksum for a log block using the "no-op" algorithm.

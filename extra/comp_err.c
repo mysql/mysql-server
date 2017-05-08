@@ -31,6 +31,7 @@
 #include <my_getopt.h>
 #include <assert.h>
 #include <my_dir.h>
+#include <ut0crc32.h>
 #include <mysql_version.h>
 
 #define MAX_ROWS  2000
@@ -174,6 +175,7 @@ int main(int argc, char *argv[])
     struct languages *lang_head;
     DBUG_ENTER("main");
 
+    ut_crc32_init();
     charsets_dir= DEFAULT_CHARSET_DIR;
     my_umask_dir= 0777;
     if (get_options(&argc, &argv))

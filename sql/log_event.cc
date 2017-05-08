@@ -18,6 +18,7 @@
 
 #include "base64.h"            // base64_encode
 #include "binary_log_funcs.h"  // my_timestamp_binary_length
+#include "ut0crc32.h"
 
 #ifndef MYSQL_CLIENT
 #include "debug_sync.h"        // debug_sync_set_action
@@ -663,6 +664,10 @@ const char* Log_event::get_type_str()
   return get_type_str(get_type_code());
 }
 
+#ifdef MYSQL_CLIENT
+Log_event::init_crc32::init_crc32() { ut_crc32_init(); }
+static Log_event::init_crc32 Log_event_crc32;
+#endif
 
 /*
   Log_event::Log_event()
@@ -972,7 +977,7 @@ my_bool Log_event::need_checksum()
 bool Log_event::wrapper_my_b_safe_write(IO_CACHE* file, const uchar* buf, size_t size)
 {
   if (need_checksum() && size != 0)
-    crc= checksum_crc32(crc, buf, size);
+    crc= ut_crc32_ex(crc, buf, size);
 
   return my_b_safe_write(file, buf, size);
 }
@@ -1046,7 +1051,6 @@ bool Log_event::write_header(IO_CACHE* file, size_t event_data_length)
 
   if (need_checksum())
   {
-    crc= checksum_crc32(0L, NULL, 0);
     common_header->data_written += BINLOG_CHECKSUM_LEN;
   }
 
@@ -1113,7 +1117,7 @@ bool Log_event::write_header(IO_CACHE* file, size_t event_data_length)
     common_header->flags &= ~LOG_EVENT_BINLOG_IN_USE_F;
     int2store(header + FLAGS_OFFSET, common_header->flags);
   }
-  crc= my_checksum(crc, header, LOG_EVENT_HEADER_LEN);
+  crc= ut_crc32(header, LOG_EVENT_HEADER_LEN);
 
   DBUG_RETURN( ret);
 }
@@ -12832,10 +12836,10 @@ Incident_log_event::write_data_body(IO_CACHE *file)
   uchar tmp[1];
   DBUG_ENTER("Incident_log_event::write_data_body");
   tmp[0]= (uchar) message_length;
-  crc= checksum_crc32(crc, (uchar*) tmp, 1);
+  crc= ut_crc32_ex(crc, (uchar*) tmp, 1);
   if (message_length > 0)
   {
-    crc= checksum_crc32(crc, (uchar*) message, message_length);
+    crc= ut_crc32_ex(crc, (uchar*) message, message_length);
     // todo: report a bug on write_str accepts uint but treats it as uchar
   }
   DBUG_RETURN(write_str_at_most_255_bytes(file, message, (uint) message_length));

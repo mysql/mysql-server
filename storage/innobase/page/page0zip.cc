@@ -4943,8 +4943,8 @@ page_zip_calc_checksum(
 			ut_ad(size > FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
 
 			ut_crc32_func_t	crc32_func = use_legacy_big_endian
-				? ut_crc32_legacy_big_endian
-				: ut_crc32;
+				? ut_crc32c_legacy_big_endian
+				: ut_crc32c;
 
 			const uint32_t	crc32
 				= crc32_func(

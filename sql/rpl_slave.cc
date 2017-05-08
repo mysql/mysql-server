@@ -51,6 +51,7 @@
 #include "transaction.h"                       // trans_begin
 #include "tztime.h"                            // Time_zone
 #include "rpl_group_replication.h"
+#include "ut0crc32.h"
 
 // Sic: Must be after mysqld.h to get the right ER macro.
 #include "errmsg.h"                            // CR_*
@@ -63,7 +64,6 @@
 
 using std::min;
 using std::max;
-using binary_log::checksum_crc32;
 using binary_log::Log_event_header;
 
 #define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
@@ -8049,8 +8049,7 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
       int2store(ev_buf + FLAGS_OFFSET,
                 uint2korr(ev_buf + FLAGS_OFFSET) | LOG_EVENT_IGNORABLE_F);
       /* Recalc event's CRC */
-      ha_checksum ev_crc= checksum_crc32(0L, NULL, 0);
-      ev_crc= checksum_crc32(ev_crc, (const uchar *) ev_buf,
+      ha_checksum ev_crc= ut_crc32((const uchar *) ev_buf,
                              event_len - BINLOG_CHECKSUM_LEN);
       int4store(&ev_buf[event_len - BINLOG_CHECKSUM_LEN], ev_crc);
       /*
@@ -8152,14 +8151,14 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
                   mi->rli->relay_log.relay_log_checksum_alg !=
                   binary_log::BINLOG_CHECKSUM_ALG_OFF)
     {
-      ha_checksum rot_crc= checksum_crc32(0L, NULL, 0);
+      ha_checksum rot_crc;
       event_len += BINLOG_CHECKSUM_LEN;
       memcpy(rot_buf, buf, event_len - BINLOG_CHECKSUM_LEN);
       int4store(&rot_buf[EVENT_LEN_OFFSET],
                 uint4korr(rot_buf + EVENT_LEN_OFFSET) +
                 BINLOG_CHECKSUM_LEN);
-      rot_crc= checksum_crc32(rot_crc, (const uchar *) rot_buf,
-                           event_len - BINLOG_CHECKSUM_LEN);
+      rot_crc= ut_crc32((const uchar *) rot_buf,
+                        event_len - BINLOG_CHECKSUM_LEN);
       int4store(&rot_buf[event_len - BINLOG_CHECKSUM_LEN], rot_crc);
       DBUG_ASSERT(event_len == uint4korr(&rot_buf[EVENT_LEN_OFFSET]));
       DBUG_ASSERT(mi->get_mi_description_event()->common_footer->checksum_alg ==

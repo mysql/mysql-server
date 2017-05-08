@@ -35,7 +35,6 @@
 */
 #include "byteorder.h"
 #include "wrapper_functions.h"
-#include <zlib.h> //for checksum calculations
 #include <cstdio>
 #include <iostream>
 #include <climits>
@@ -404,24 +403,6 @@ enum enum_binlog_checksum_alg
 #define BINLOG_CHECKSUM_LEN CHECKSUM_CRC32_SIGNATURE_LEN
 #define BINLOG_CHECKSUM_ALG_DESC_LEN 1  /* 1 byte checksum alg descriptor */
 #define LOG_EVENT_HEADER_SIZE 20
-
-/**
-  Calculate a long checksum for a memoryblock.
-
-  @param crc       start value for crc
-  @param pos       pointer to memory block
-  @param length    length of the block
-
-  @return checksum for a memory block
-*/
-inline uint32_t checksum_crc32(uint32_t crc, const unsigned char *pos,
-                               size_t length)
-{
-  BAPI_ASSERT(length <= UINT_MAX);
-  return static_cast<uint32_t>(crc32(static_cast<unsigned int>(crc), pos,
-                                     static_cast<unsigned int>(length)));
-}
-
 
 /*
   Reads string from buf.

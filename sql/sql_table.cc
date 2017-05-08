@@ -61,6 +61,7 @@
 #include "binlog.h"
 #include "sql_tablespace.h"            // check_tablespace_name())
 #include "item_timefunc.h"             // Item_func_now_local
+#include "ut0crc32.h"
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -68,7 +69,6 @@
 #include <algorithm>
 using std::max;
 using std::min;
-using binary_log::checksum_crc32;
 
 #define ER_THD_OR_DEFAULT(thd,X) ((thd) ? ER_THD(thd, X) : ER_DEFAULT(X))
 
@@ -10556,7 +10556,7 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
               if (!(t->s->db_create_options & HA_OPTION_PACK_RECORD))
                 t->record[0][0] |= 1;
 
-	      row_crc= checksum_crc32(row_crc, t->record[0], t->s->null_bytes);
+	      row_crc= ut_crc32_ex(row_crc, t->record[0], t->s->null_bytes);
             }
 
 	    for (uint i= 0; i < t->s->fields; i++ )
@@ -10576,12 +10576,12 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
                 {
                   String tmp;
                   f->val_str(&tmp);
-                  row_crc= checksum_crc32(row_crc, (uchar*) tmp.ptr(),
+                  row_crc= ut_crc32_ex(row_crc, (uchar*) tmp.ptr(),
                            tmp.length());
                   break;
                 }
                 default:
-                  row_crc= checksum_crc32(row_crc, f->ptr, f->pack_length());
+                  row_crc= ut_crc32_ex(row_crc, f->ptr, f->pack_length());
                   break;
 	      }
 	    }

@@ -65,6 +65,7 @@
                           // cached_table_definitions
 #include "sql_test.h"     // mysql_print_status
 #include "item_create.h"  // item_create_cleanup, item_create_init
+#include "ut0crc32.h"     // ut_crc32_init
 #include "sql_servers.h"  // servers_free, servers_init
 #include "init.h"         // unireg_init
 #include "derror.h"       // init_errmessage
@@ -3754,6 +3755,8 @@ static int init_server_components()
     We need to call each of these following functions to ensure that
     all things are initialized so that unireg_abort() doesn't fail
   */
+  ut_crc32_init();
+
   mdl_init();
   partitioning_init();
   if (table_def_init() | hostname_cache_init(host_cache_size))

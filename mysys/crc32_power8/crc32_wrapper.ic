@@ -1,0 +1,52 @@
+#ifdef __powerpc__
+
+
+#define VMX_ALIGN		 16
+#define VMX_ALIGN_MASK		 (VMX_ALIGN-1)
+
+static unsigned int crc32_align(unsigned int crc, unsigned char *p,
+		 		 		        unsigned long len)
+{
+		 while (len--)
+		 		 crc = crc_table[(crc ^ *p++) & 0xff] ^ (crc >> 8);
+		 return crc;
+}
+
+unsigned int __F(unsigned int crc, unsigned char *p,
+		 		 		     unsigned long len);
+
+unsigned int F(unsigned int crc, unsigned char *p,
+		 		 		   unsigned long len)
+{
+		 unsigned int prealign;
+		 unsigned int tail;
+
+		 crc ^= 0xffffffff;
+
+		 if (len < VMX_ALIGN + VMX_ALIGN_MASK) {
+		 		 crc = crc32_align(crc, p, len);
+		 		 goto out;
+		 }
+
+		 if ((unsigned long)p & VMX_ALIGN_MASK) {
+		 		 prealign = VMX_ALIGN - ((unsigned long)p & VMX_ALIGN_MASK);
+		 		 crc = crc32_align(crc, p, prealign);
+		 		 len -= prealign;
+		 		 p += prealign;
+		 }
+
+		 crc = __F(crc, p, len & ~VMX_ALIGN_MASK);
+
+		 tail = len & VMX_ALIGN_MASK;
+		 if (tail) {
+		 		 p += len & ~VMX_ALIGN_MASK;
+		 		 crc = crc32_align(crc, p, tail);
+		 }
+
+out:
+		 crc ^= 0xffffffff;
+
+		 return crc;
+}
+
+#endif /* __powerpc__ */

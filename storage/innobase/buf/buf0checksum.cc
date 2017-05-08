@@ -65,8 +65,8 @@ buf_calc_page_crc32(
 	there we store the old formula checksum. */
 
 	ut_crc32_func_t	crc32_func = use_legacy_big_endian
-		? ut_crc32_legacy_big_endian
-		: ut_crc32;
+		? ut_crc32c_legacy_big_endian
+		: ut_crc32c;
 
 	const uint32_t	c1 = crc32_func(
 		page + FIL_PAGE_OFFSET,

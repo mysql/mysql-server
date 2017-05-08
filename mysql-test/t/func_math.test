@@ -683,3 +683,10 @@ DELIMITER ;|
 
 CALL test_round_fn();
 DROP PROCEDURE test_round_fn;
+
+
+--echo #
+--echo # CRC32 tests
+--echo #
+
+select CRC32(NULL), CRC32(''), CRC32('MySQL'), CRC32('mysql'), CRC32('01234567'), CRC32('012345678');

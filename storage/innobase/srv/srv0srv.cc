@@ -70,7 +70,6 @@ Created 10/8/1995 Heikki Tuuri
 #include "trx0i_s.h"
 #include "trx0purge.h"
 #include "usr0sess.h"
-#include "ut0crc32.h"
 #include "ut0mem.h"
 
 #ifndef UNIV_PFS_THREAD
@@ -1020,8 +1019,6 @@ srv_init(void)
 
 	/* Initialize some INFORMATION SCHEMA internal structures */
 	trx_i_s_cache_init(trx_i_s_cache);
-
-	ut_crc32_init();
 
 	dict_mem_init();
 }

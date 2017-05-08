@@ -977,7 +977,7 @@ fsp_header_fill_encryption_info(
 	ptr += ENCRYPTION_KEY_LEN * 2;
 
 	/* Write checksum bytes. */
-	crc = ut_crc32(key_info, ENCRYPTION_KEY_LEN * 2);
+	crc = ut_crc32c(key_info, ENCRYPTION_KEY_LEN * 2);
 	mach_write_to_4(ptr, crc);
 
 	my_free(master_key);
@@ -1277,7 +1277,7 @@ fsp_header_decode_encryption_info(
 	ptr += ENCRYPTION_KEY_LEN * 2;
 
 	crc1 = mach_read_from_4(ptr);
-	crc2 = ut_crc32(key_info, ENCRYPTION_KEY_LEN * 2);
+	crc2 = ut_crc32c(key_info, ENCRYPTION_KEY_LEN * 2);
 	if (crc1 != crc2) {
 		ib::error() << "Failed to decrpt encryption information,"
 			<< " please check key file is not changed!";

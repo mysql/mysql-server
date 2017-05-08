@@ -24,6 +24,7 @@
 #include <queues.h>
 #include <my_tree.h>
 #include "mysys_err.h"
+#include "ut0crc32.h"
 #ifndef __GNU_LIBRARY__
 #define __GNU_LIBRARY__			/* Skip warnings in getopt.h */
 #endif
@@ -225,6 +226,7 @@ int main(int argc, char **argv)
   get_options(&argc,&argv);
 
   error=ok=isamchk_neaded=0;
+  ut_crc32_init();
   if (join_table)
   {
     /*

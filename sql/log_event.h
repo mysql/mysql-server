@@ -61,7 +61,6 @@ extern PSI_memory_key key_memory_Incident_log_event_message;
 extern PSI_memory_key key_memory_Rows_query_log_event_rows_query;
 /* Forward declarations */
 using binary_log::enum_binlog_checksum_alg;
-using binary_log::checksum_crc32;
 using binary_log::Log_event_type;
 using binary_log::Log_event_header;
 using binary_log::Log_event_footer;
@@ -930,6 +929,14 @@ public:
   */
   const char* get_type_str();
   /* Return start of query time or current time */
+
+#if defined(MYSQL_CLIENT)
+  class init_crc32
+  {
+    public:
+      init_crc32();
+  };
+#endif
 
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
   /**

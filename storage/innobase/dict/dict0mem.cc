@@ -1062,7 +1062,7 @@ dict_mem_init(void)
 
 	const byte*	buf = reinterpret_cast<const byte*>(&now);
 
-	dict_temp_file_num = ut_crc32(buf, sizeof(now));
+	dict_temp_file_num = ut_crc32c(buf, sizeof(now));
 
 	DBUG_PRINT("dict_mem_init",
 		   ("Starting Temporary file number is " UINT32PF,

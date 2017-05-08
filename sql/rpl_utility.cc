@@ -17,7 +17,7 @@
 
 #ifndef MYSQL_CLIENT
 
-#include "binlog_event.h"                // checksum_crv32
+#include "ut0crc32.h"                    // ut_crc32
 #include "template_utils.h"              // delete_container_pointers
 #include "field.h"                       // Field
 #include "log.h"                         // sql_print_error
@@ -30,7 +30,6 @@
 
 using std::min;
 using std::max;
-using binary_log::checksum_crc32;
 
 /**
    Function to compare two size_t integers for their relative
@@ -1209,7 +1208,7 @@ my_hash_value_type
 Hash_slave_rows::make_hash_key(TABLE *table, MY_BITMAP *cols)
 {
   DBUG_ENTER("Hash_slave_rows::make_hash_key");
-  ha_checksum crc= 0L;
+  ha_checksum crc=0;
 
   uchar *record= table->record[0];
   uchar saved_x= 0, saved_filler= 0;
@@ -1249,7 +1248,7 @@ Hash_slave_rows::make_hash_key(TABLE *table, MY_BITMAP *cols)
    */
   if (bitmap_is_set_all(cols))
   {
-    crc= checksum_crc32(crc, table->null_flags, table->s->null_bytes);
+    crc= ut_crc32(table->null_flags, table->s->null_bytes);
     DBUG_PRINT("debug", ("make_hash_entry: hash after null_flags: %u", crc));
   }
 
@@ -1278,11 +1277,11 @@ Hash_slave_rows::make_hash_key(TABLE *table, MY_BITMAP *cols)
         {
           String tmp;
           f->val_str(&tmp);
-          crc= checksum_crc32(crc, (uchar*) tmp.ptr(), tmp.length());
+          crc= ut_crc32_ex(crc, (uchar*) tmp.ptr(), tmp.length());
           break;
         }
         default:
-          crc= checksum_crc32(crc, f->ptr, f->data_length());
+          crc= ut_crc32_ex(crc, f->ptr, f->data_length());
           break;
       }
 #ifndef DBUG_OFF

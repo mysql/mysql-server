@@ -34,7 +34,18 @@ SET(MYSYS_SOURCES  array.c charset-def.c charset.c checksum.c
 				thr_rwlock.c tree.c typelib.c base64.c my_memmem.c
 				lf_alloc-pin.c lf_dynarray.c lf_hash.c
 				my_rdtsc.c psi_noop.c my_syslog.c
-				my_chmod.c my_thread.c)
+				my_chmod.c my_thread.c ut0crc32.cc)
+
+IF(CMAKE_SYSTEM_PROCESSOR MATCHES "ppc64le")
+    enable_language(ASM)
+    INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/mysys/crc32_power8)
+    LIST(APPEND MYSYS_SOURCES
+       crc32_power8/crc32.S
+       crc32_power8/crc32c.S
+       crc32_power8/crc32_wrapper.c
+       crc32_power8/crc32c_wrapper.c
+       )
+ENDIF()
 
 IF (WIN32)
   LIST(APPEND MYSYS_SOURCES
@@ -58,6 +69,19 @@ IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_C_COMPILER_ID MATCHES "SunPro")
   # Inline assembly template for rdtsc
   SET_SOURCE_FILES_PROPERTIES(my_rdtsc.c
    PROPERTIES COMPILE_FLAGS "${CMAKE_CURRENT_SOURCE_DIR}/my_timer_cycles.il")
+ENDIF()
+
+# Avoid generating Hardware Capabilities due to crc32 instructions
+IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND
+   CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
+  INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
+  MY_CHECK_CXX_COMPILER_FLAG("-Wa,-nH" HAVE_WA_NH)
+  IF(HAVE_WA_NH)
+    ADD_COMPILE_FLAGS(
+      ut0crc32.cc
+      COMPILE_FLAGS "-Wa,-nH"
+    )
+  ENDIF()
 ENDIF()
 
 IF(HAVE_LINUX_LARGE_PAGES)
