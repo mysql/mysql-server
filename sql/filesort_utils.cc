@@ -228,18 +228,6 @@ private:
 };
 
 
-template <typename type>
-size_t try_reserve(std::pair<type*, ptrdiff_t> *buf, ptrdiff_t size)
-{
-  *buf= std::get_temporary_buffer<type>(size);
-  if (buf->second != size)
-  {
-    std::return_temporary_buffer(buf->first);
-    return 0;
-  }
-  return buf->second;
-}
-
 } // namespace
 
 void Filesort_buffer::sort_buffer(Sort_param *param, uint count)
@@ -267,16 +255,6 @@ void Filesort_buffer::sort_buffer(Sort_param *param, uint count)
     return;
   }
 
-  std::pair<uchar**, ptrdiff_t> buffer;
-  if (radixsort_is_appliccable(count, param->max_compare_length()) &&
-      try_reserve(&buffer, count))
-  {
-    param->m_sort_algorithm= Sort_param::FILESORT_ALG_RADIX;
-    radixsort_for_str_ptr(m_sort_keys, count,
-                          param->max_compare_length(), buffer.first);
-    std::return_temporary_buffer(buffer.first);
-    return;
-  }
   /*
     std::stable_sort has some extra overhead in allocating the temp buffer,
     which takes some time. The cutover point where it starts to get faster

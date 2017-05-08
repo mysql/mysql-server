@@ -611,7 +611,7 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
     sort_mode.append(">");
 
     const char *algo_text[]= {
-      "none", "radix", "std::sort", "std::stable_sort"
+      "none", "std::sort", "std::stable_sort"
     };
 
     Opt_trace_object filesort_summary(trace, "filesort_summary");

@@ -40,7 +40,6 @@ SET(MYSYS_SOURCES
   mf_loadpath.cc
   mf_pack.cc
   mf_path.cc
-  mf_radix.cc
   mf_same.cc
   mf_tempdir.cc
   mf_tempfile.cc

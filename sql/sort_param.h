@@ -406,7 +406,6 @@ public:
 
   enum enum_sort_algorithm {
     FILESORT_ALG_NONE,
-    FILESORT_ALG_RADIX,
     FILESORT_ALG_STD_SORT,
     FILESORT_ALG_STD_STABLE
   };

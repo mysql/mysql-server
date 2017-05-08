@@ -301,25 +301,13 @@ TEST_F(BoundedQueueTest, PushAndPopKeepSmallest)
 
 static void my_string_ptr_sort(Test_key **base, uint items, size_t size)
 {
-  uchar **ptr=0;
-
-  if (radixsort_is_appliccable(items, size) &&
-      (ptr= (uchar**) my_malloc(PSI_NOT_INSTRUMENTED,
-                                items*sizeof(char*),MYF(0))))
+  if (size && items)
   {
-    radixsort_for_str_ptr(pointer_cast<uchar **>(base),items,size,ptr);
-    my_free(ptr);
-  }
-  else
-  {
-    if (size && items)
-    {
-      std::sort(base, base + items,
-        [size](const Test_key *a, const Test_key *b)
-        {
-          return memcmp(a, b, size) < 0;
-        });
-    }
+    std::sort(base, base + items,
+      [size](const Test_key *a, const Test_key *b)
+      {
+        return memcmp(a, b, size) < 0;
+      });
   }
 }
 

@@ -704,9 +704,6 @@ extern bool array_append_string_unique(const char *str,
                                           const char **array, size_t size);
 extern void get_date(char * to,int timeflag,time_t use_time);
 
-extern bool radixsort_is_appliccable(uint n_items, size_t size_of_element);
-extern void radixsort_for_str_ptr(uchar* base[], uint number_of_elements,
-				  size_t size_of_element,uchar *buffer[]);
 void my_store_ptr(uchar *buff, size_t pack_length, my_off_t pos);
 my_off_t my_get_ptr(uchar *ptr, size_t pack_length);
 extern int init_io_cache_ext(IO_CACHE *info,File file,size_t cachesize,

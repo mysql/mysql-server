@@ -27,9 +27,6 @@ namespace filesort_compare_unittest {
 /*
   Below are some performance microbenchmarks in order to compare our sorting
   options: 
-  radixsort -        requires extra memory: array of n pointers,
-                     seems to be quite fast on intel *when it is appliccable*:
-                     if (size <= 20 && items >= 1000 && items < 100000)
   std::sort -        requires no extra memory,
                      typically implemented with introsort/insertion sort
   std::stable_sort - requires extra memory: array of n pointers,
@@ -337,19 +334,6 @@ TEST_F(FileSortCompareTest, SetUpOnly)
   for (int ix= 0; ix < num_iterations; ++ix)
   {
     std::vector<uchar*> keys(sort_keys, sort_keys + num_records);
-  }
-}
-
-// Disabled because radixsort takes forever when benchmarking.
-TEST_F(FileSortCompareTest, DISABLED_RadixSort)
-{
-  for (int ix= 0; ix < num_iterations; ++ix)
-  {
-    std::vector<uchar*> keys(sort_keys, sort_keys + num_records);
-    std::pair<uchar**, ptrdiff_t> buffer=
-      std::get_temporary_buffer<uchar*>(num_records);
-    radixsort_for_str_ptr(&keys[0], num_records, record_size, buffer.first);
-    std::return_temporary_buffer(buffer.first);
   }
 }
 
