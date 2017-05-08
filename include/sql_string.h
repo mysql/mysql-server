@@ -203,7 +203,7 @@ public:
      m_alloced_length(static_cast<uint32>(str.m_alloced_length)),
      m_is_alloced(false)
   { }
-  String(String &&str)
+  String(String &&str) noexcept
     :m_ptr(str.m_ptr), m_length(str.m_length), m_charset(str.m_charset),
      m_alloced_length(str.m_alloced_length),
      m_is_alloced(str.m_is_alloced)
@@ -438,7 +438,7 @@ public:
     }
     return *this;
   }
-  String& operator = (String &&s)
+  String& operator = (String &&s) noexcept
   {
     if (&s != this)
     {
