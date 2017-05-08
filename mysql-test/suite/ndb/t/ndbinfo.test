@@ -851,10 +851,6 @@ select node_id, concat(config_value / 1024 / 1024, 'M') as DataMemory
   order by node_id;
 
 #
-# No tests after this point will run in embedded server testing:
---source include/not_embedded.inc
-
-#
 # wl#9819 ndbinfo.processes
 #
 # Because port number and host address vary in the test environment,
