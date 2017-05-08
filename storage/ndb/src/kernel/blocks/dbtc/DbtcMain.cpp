@@ -12890,13 +12890,28 @@ void Dbtc::sendDihGetNodesLab(Signal* signal, ScanRecordPtr scanptr)
 
   /**
    * We got the 'fragLocations' for all fragments to be scanned.
-   * Sort them on 'blockRef' such that possible multiFrag scans
-   * could easier find fragId's to be included in the same
-   * multiFragment SCAN_FRAGREQ
+   * For MultiFrag' scans the SPJ-instance has not been filled
+   * in yet. All frag scans in this REQ is now set up to use the
+   * same SPJ instance.
+   *
+   * Then sort the fragLocations[] on blockRef such that possible
+   * multiFrag scans could easier find fragId's to be included in
+   * the same multiFragment SCAN_FRAGREQ
    */
   if (ScanFragReq::getMultiFragFlag(scanptr.p->scanRequestInfo))
   {
     jam();
+    const Uint32 spjInstance = (cspjInstanceRR++ % 120) + 1;
+
+    for (Uint32 i=0; i<scanptr.p->scanNoFrag; i++)
+    {
+      const BlockReference blockRef = scanptr.p->fragLocations[i].blockRef;
+      const NodeId nodeId = refToNode(blockRef);
+      ndbassert(refToMain(blockRef) == DBSPJ);
+
+      scanptr.p->fragLocations[i].blockRef = numberToRef(DBSPJ, spjInstance, nodeId);
+    }
+
     qsort(scanptr.p->fragLocations, scanptr.p->scanNoFrag,
           sizeof(ScanFragLocation), compareFragLocation);
   }
@@ -13145,12 +13160,15 @@ bool Dbtc::sendDihGetNodeReq(Signal* signal,
      */
     blockInstance = (conf->reqinfo >> 24) & 127;
   }
-  /* Else, it is a 'viaSPJ request':
-   *  Prefer own TC/SPJ intance if a single request to ownNodeId
-   */
-  else if (nodeId == ownNodeId &&         //Request to ownNodeId
-           (scanptr.p->scanNoFrag == 1 || //Pruned to single fragment
-            ScanFragReq::getMultiFragFlag(scanptr.p->scanRequestInfo)))
+  // Else, it is a 'viaSPJ request':
+  else if (ScanFragReq::getMultiFragFlag(scanptr.p->scanRequestInfo))
+  {
+    //SPJ instance is set together with qsort'ing of fragLocations[]
+    blockInstance = 0;
+  }
+  // Prefer own TC/SPJ intance if a single request to ownNodeId
+  else if (nodeId == ownNodeId &&        //Request to ownNodeId
+           scanptr.p->scanNoFrag == 1)   //Pruned to single fragment
   {
     blockInstance = instance();          //Choose SPJ-instance in own block-thread
   }
@@ -13166,8 +13184,8 @@ bool Dbtc::sendDihGetNodeReq(Signal* signal,
    * If this is the last SCANFRAGREQ, sendScanFragReq will release
    * the KeyInfo and AttrInfo sections when sending.
    */
-  const Uint32 blockRef = numberToRef(scanptr.p->m_scan_block_no,
-                                      blockInstance, nodeId);
+  const BlockReference blockRef = numberToRef(scanptr.p->m_scan_block_no,
+                                              blockInstance, nodeId);
 
   //Build 'array' with fragId locations.
   if (scanptr.p->m_scan_dist_key_flag)  //OJA: Pruned scan, temp workaround
