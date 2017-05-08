@@ -43,7 +43,7 @@ Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Varchar(255;latin1_swedish_ci) NULL AT=SHORT_VAR ST=MEMORY
+b Longvarchar(1020;utf8mb4_0900_ai_ci) NULL AT=MEDIUM_VAR ST=MEMORY
 c Datetime2(0) NULL AT=FIXED ST=MEMORY
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
