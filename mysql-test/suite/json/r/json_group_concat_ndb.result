@@ -10,7 +10,7 @@ select group_concat(j order by j) from t2;
 group_concat(j order by j)
 [{"type": "LineString", "coordinates": [[0, 0], [1, 1], [2, 2]]}]
 drop table t2;
-create table t (c varchar(20));
+create table t (c varchar(20)) charset utf8mb4;
 insert into t values ('\\');
 select char_length(c) from t;
 char_length(c)
@@ -49,14 +49,14 @@ sum(char_length(c))
 9
 select group_concat(c order by c) from t;
 group_concat(c order by c)
-,	,
-,,,,",a,\
+,,	,
+,,,",\,a
 select char_length(group_concat(c)) from t;
 char_length(group_concat(c))
 17
 select json_quote(group_concat(c order by c)) from t;
 json_quote(group_concat(c order by c))
-"\b,\t,\n,\f,\r,\u0010,\",a,\\"
+"\u0010,\b,\t,\n,\f,\r,\",\\,a"
 select char_length(json_quote(group_concat(c))) from t;
 char_length(json_quote(group_concat(c)))
 31
@@ -84,13 +84,13 @@ Table	Create Table
 t	CREATE TABLE `t` (
   `j` json DEFAULT NULL,
   `c` varchar(20) DEFAULT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
 insert into t values (cast('[1,2,3]' as json), '[a,b,c]');
 insert into t values (cast(7 as json), '7'),  (cast(2 as json), '2');
 insert into t values (cast(7 as json), '7'),  (cast(2 as json), '2');
 select group_concat(j order by j), group_concat(distinct j order by j), group_concat(c order by c) from t;
 group_concat(j order by j)	group_concat(distinct j order by j)	group_concat(c order by c)
-[1, 2, 3],2,2,7,7	[1, 2, 3],2,7	2,2,7,7,[a,b,c]
+[1, 2, 3],2,2,7,7	[1, 2, 3],2,7	[a,b,c],2,2,7,7
 insert into t values (NULL, NULL);
 #
 # Bug#22992666 NULL VALUE IN JSON COLUMN CORRUPTS GROUP_CONCAT
@@ -101,5 +101,5 @@ GROUP_CONCAT(DISTINCT j ORDER BY j) AS c2,
 GROUP_CONCAT(c ORDER BY c) AS c3
 FROM t;
 c1	c2	c3
-[1, 2, 3],2,2,7,7	[1, 2, 3],2,7	2,2,7,7,[a,b,c]
+[1, 2, 3],2,2,7,7	[1, 2, 3],2,7	[a,b,c],2,2,7,7
 drop table t;
