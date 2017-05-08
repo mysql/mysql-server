@@ -62,7 +62,7 @@ ulint		btr_search_n_hash_fail	= 0;
 /** padding to prevent other memory update
 hotspots from residing on the same memory
 cache line as btr_search_latches */
-byte		btr_sea_pad1[64];
+byte		btr_sea_pad1[CACHE_LINE_SIZE];
 
 /** The latches protecting the adaptive search system: this latches protects the
 (1) positions of records on those pages where a hash index has been built.
@@ -74,7 +74,7 @@ rw_lock_t**	btr_search_latches;
 
 /** padding to prevent other memory update hotspots from residing on
 the same memory cache line */
-byte		btr_sea_pad2[64];
+byte		btr_sea_pad2[CACHE_LINE_SIZE];
 
 /** The adaptive hash index */
 btr_search_sys_t*	btr_search_sys;

@@ -32,11 +32,15 @@ Created 2012/04/12 by Sunny Bains
 #include "os0thread.h"
 
 /** CPU cache line size */
-#ifdef __powerpc__
-#define CACHE_LINE_SIZE		128
+#ifndef UNIV_HOTBACKUP
+# ifdef CPU_LEVEL1_DCACHE_LINESIZE
+#  define CACHE_LINE_SIZE		CPU_LEVEL1_DCACHE_LINESIZE
+# else
+#  error CPU_LEVEL1_DCACHE_LINESIZE is undefined
+# endif /* CPU_LEVEL1_DCACHE_LINESIZE */
 #else
-#define CACHE_LINE_SIZE		64
-#endif /* __powerpc__ */
+# define CACHE_LINE_SIZE 64
+#endif /* UNIV_HOTBACKUP */
 
 /** Default number of slots to use in ib_counter_t */
 #define IB_N_SLOTS		64
