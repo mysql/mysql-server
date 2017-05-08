@@ -194,7 +194,7 @@ done
 
 %if 0%{?cluster}
 for f in mcc_config.py ndb_blob_tool ndb_config ndb_delete_all ndb_desc ndb_drop_index \
-         ndb_drop_table ndb_error_reporter ndb_index_stat ndb_move_data \
+         ndb_drop_table ndb_error_reporter ndb_import ndb_index_stat ndb_move_data \
          ndb_print_backup_file ndb_print_file ndb_print_frag_file ndb_print_schema_file \
          ndb_print_sys_file ndb_redo_log_reader ndb_restore ndb_select_all \
          ndb_select_count ndb_setup.py ndb_show_tables ndb_size.pl ndbinfo_select_all ndb_waiter ; do

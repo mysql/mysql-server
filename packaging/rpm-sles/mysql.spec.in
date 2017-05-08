@@ -957,6 +957,7 @@ fi
 %attr(644, root, root) %{_mandir}/man1/ndb_drop_index.1*
 %attr(644, root, root) %{_mandir}/man1/ndb_drop_table.1*
 %attr(644, root, root) %{_mandir}/man1/ndb_error_reporter.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_import.1*
 %attr(644, root, root) %{_mandir}/man1/ndb_index_stat.1*
 %attr(644, root, root) %{_mandir}/man1/ndb_mgm.1*
 %attr(644, root, root) %{_mandir}/man1/ndb_print_backup_file.1*
