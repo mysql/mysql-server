@@ -2902,7 +2902,7 @@ calc_buf_pool_size:
 			buf_pool->old_size = buf_pool->curr_size;
 		}
 		srv_buf_pool_curr_size = curr_size;
-		innodb_set_buf_pool_size(buf_pool_size_align(curr_size));
+		innodb_set_buf_pool_size(srv_buf_pool_size);
 	}
 
 	const bool	new_size_too_diff
