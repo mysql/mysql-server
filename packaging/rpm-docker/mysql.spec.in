@@ -213,9 +213,12 @@ rm -f %{buildroot}%{_datadir}/mysql/win_install_firewall.sql
 rm -f %{buildroot}%{_datadir}/mysql/audit_log_filter_win_install.sql
 
 %check
-%if 0%{?runselftest}
+%if 0%{?runselftest} || 0%{?with_unittests}
 pushd release
-make test VERBOSE=1
+export CTEST_OUTPUT_ON_FAILURE=1
+make test
+%endif
+%if 0%{?runselftest}
 export MTR_BUILD_THREAD=auto
 pushd mysql-test
 ./mtr \
