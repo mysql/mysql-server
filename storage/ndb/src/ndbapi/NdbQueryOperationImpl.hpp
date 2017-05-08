@@ -249,6 +249,10 @@ public:
   Uint32 getWorkerCount() const
   { return m_workerCount; }
 
+  /** Get the number of fragments handled by each worker. */
+  Uint32 getFragsPrWorker() const
+  { return m_fragsPrWorker; }
+ 
   NdbBulkAllocator& getResultStreamAlloc()
   { return m_resultStreamAlloc; }
 
@@ -450,6 +454,11 @@ private:
    * (1 if root operation is a lookup)
    */
   Uint32 m_workerCount;
+
+  /**
+   * How many fragments are handled by each Worker, > 1 if MultiFragScan.
+   */
+  Uint32 m_fragsPrWorker;
 
   /**
    * This is an array with one element for each worker (SPJ requests)
@@ -659,7 +668,7 @@ public:
    * descendant lookup operations.
    * @param receiver The receiver object that shall process the results.*/
   bool execSCAN_TABCONF(Uint32 tcPtrI, Uint32 rowCount, Uint32 nodeMask,
-                        NdbReceiver* receiver); 
+                        const NdbReceiver* receiver); 
 
   const NdbQueryOperation& getInterface() const
   { return m_interface; }
