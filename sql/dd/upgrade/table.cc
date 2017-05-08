@@ -1404,7 +1404,6 @@ static bool migrate_table_to_dd(THD *thd,
   TABLE *table= nullptr;
   Field **ptr,*field;
   handler *file= nullptr;
-  MEM_ROOT mem_root;
 
   char path[FN_REFLEN + 1];
   bool was_truncated= false;
@@ -1446,23 +1445,26 @@ static bool migrate_table_to_dd(THD *thd,
     return true;
   }
 
-  // Initialize TABLE mem_root
-  init_sql_alloc(key_memory_TABLE,
-                 &mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
-
-  // Make a new TABLE object
-  if (!(table= static_cast<TABLE *>(alloc_root(&mem_root, sizeof(*table)))))
   {
-    free_table_share(&share);
-    LogErr(ERROR_LEVEL, ER_CANT_ALLOC_TABLE_OBJECT);
-    return true;
-  }
+    // Initialize TABLE mem_root
+    MEM_ROOT mem_root;
+    init_sql_alloc(key_memory_TABLE,
+                   &mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
 
-  // Fix pointers in TABLE, TABLE_SHARE
-  memset(table, 0, sizeof(*table));
-  table->s= &share;
-  table->in_use= thd;
-  memcpy((char*) &table->mem_root, (char*) &mem_root, sizeof(mem_root));
+    // Make a new TABLE object
+    if (!(table= new (&mem_root) TABLE()))
+    {
+      free_table_share(&share);
+      LogErr(ERROR_LEVEL, ER_CANT_ALLOC_TABLE_OBJECT);
+      return true;
+    }
+
+    // Fix pointers in TABLE, TABLE_SHARE
+    memset(table, 0, sizeof(*table));
+    table->s= &share;
+    table->in_use= thd;
+    table->mem_root= std::move(mem_root);
+  }
 
   // Object to handle cleanup.
   Table_upgrade_guard table_guard(thd, table, &table->mem_root);

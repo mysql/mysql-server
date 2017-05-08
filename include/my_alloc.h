@@ -38,13 +38,26 @@
 #include <string.h>
 #include <sys/types.h>
 
+#include "my_compiler.h"
 #include "my_inttypes.h"
 #include "mysql/psi/psi_memory.h"
 
 #include "mem_root_fwd.h"  // Contains the typedef to MEM_ROOT. IWYU pragma: keep
 
 #ifdef __cplusplus
+
+#include <new>
+
 extern "C" {
+
+extern void free_root(MEM_ROOT *root, myf MyFLAGS);
+extern void *alloc_root(MEM_ROOT *mem_root, size_t Size);
+extern void init_alloc_root(PSI_memory_key key,
+                            MEM_ROOT *mem_root, size_t block_size,
+                            size_t pre_alloc_size);
+
+}
+
 #endif
 
 typedef struct st_used_mem
@@ -57,25 +70,43 @@ typedef struct st_used_mem
 
 struct st_mem_root
 {
-#if defined(__cplusplus) && (__cplusplus >= 201103L || defined(_MSC_VER))
-  // Make the class movable but not copyable.
+#ifdef __cplusplus
   st_mem_root() :
-  min_malloc(0) // for alloc_root_inited()
+    free(nullptr), used(nullptr), pre_alloc(nullptr),
+    min_malloc(0) // for alloc_root_inited()
   {}
+
+  st_mem_root(PSI_memory_key key, size_t block_size, size_t pre_alloc_size)
+  {
+    init_alloc_root(key, this, block_size, pre_alloc_size);
+  }
+
+  // Make the class movable but not copyable.
   st_mem_root(const st_mem_root &) = delete;
-  st_mem_root(st_mem_root &&other) {
+  st_mem_root(st_mem_root &&other) noexcept {
     memcpy(this, &other, sizeof(*this));
     other.free= other.used= other.pre_alloc= nullptr;
     other.min_malloc= 0;
   }
 
   st_mem_root& operator= (const st_mem_root &) = delete;
-  st_mem_root& operator= (st_mem_root &&other) {
+  st_mem_root& operator= (st_mem_root &&other) noexcept {
     memcpy(this, &other, sizeof(*this));
     other.free= other.used= other.pre_alloc= nullptr;
     other.min_malloc= 0;
     return *this;
   }
+
+  /**
+    From C code where this destructor doesn't exist, use free_root() manually.
+    It's harmless to call free_root() multiple times, and thus also to call
+    free_root() on a to-be-destructed object.
+  */
+  ~st_mem_root()
+  {
+    free_root(this, MYF(0));
+  }
+
 #endif
 
   USED_MEM *free;                  /* blocks with free memory in it */
@@ -109,8 +140,46 @@ struct st_mem_root
   PSI_memory_key m_psi_key;
 };
 
-#ifdef  __cplusplus
+#ifdef __cplusplus
+/**
+  Allocate an object of the given type. Use like this:
+
+    Foo *foo = new (mem_root) Foo();
+
+  Note that unlike regular operator new, this will not throw exceptions.
+  However, it can return nullptr if the capacity of the MEM_ROOT has been
+  reached. This is allowed since it is not a replacement for global operator
+  new, and thus isn't used automatically by e.g. standard library containers.
+
+  TODO: This syntax is confusing in that it could look like allocating
+  a MEM_ROOT using regular placement new. We should make a less ambiguous
+  syntax, e.g. new (On(mem_root)) Foo().
+*/
+inline void *operator new(size_t size, MEM_ROOT *mem_root,
+                   const std::nothrow_t &arg MY_ATTRIBUTE((unused))
+                   = std::nothrow) noexcept
+{
+  return alloc_root(mem_root, size);
 }
-#endif
+
+inline void *operator new[](size_t size, MEM_ROOT *mem_root,
+                     const std::nothrow_t &arg MY_ATTRIBUTE((unused))
+                     = std::nothrow) noexcept
+{
+  return alloc_root(mem_root, size);
+}
+
+inline void operator delete(void*, MEM_ROOT*,
+                     const std::nothrow_t&) noexcept
+{
+  /* never called */
+}
+
+inline void operator delete[](void*, MEM_ROOT*,
+                       const std::nothrow_t&) noexcept
+{
+  /* never called */
+}
+#endif  // __cplusplus
 
 #endif

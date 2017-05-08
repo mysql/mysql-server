@@ -56,7 +56,6 @@ struct sql_digest_state;
 
 class Materialized_cursor final : public Server_side_cursor
 {
-  MEM_ROOT main_mem_root;
   /* A fake unit to supply to Query_result_send when fetching */
   SELECT_LEX_UNIT fake_unit;
   TABLE *table;
@@ -209,17 +208,17 @@ Server_side_cursor::~Server_side_cursor()
 void Server_side_cursor::operator delete(void *ptr,
                                          size_t size MY_ATTRIBUTE((unused)))
 {
+  DBUG_ENTER("Server_side_cursor::operator delete");
   Server_side_cursor *cursor= (Server_side_cursor*) ptr;
+  /*
+    If this cursor has never been opened, mem_root is empty. Otherwise,
+    mem_root is allocated on itself. In this case, it's important to move
+    it out before freeing, to avoid writing into freed memory during the
+    free process.
+  */
   MEM_ROOT own_root= std::move(*cursor->mem_root);
 
-  DBUG_ENTER("Server_side_cursor::operator delete");
   TRASH(ptr, size);
-  /*
-    If this cursor has never been opened mem_root is empty. Otherwise
-    mem_root points to the memory the cursor object was allocated in.
-    In this case it's important to call free_root last, and free a copy
-    instead of *mem_root to avoid writing into freed memory.
-  */
   free_root(&own_root, MYF(0));
   DBUG_VOID_RETURN;
 }
@@ -391,10 +390,10 @@ void Materialized_cursor::close()
     (void) table->file->ha_rnd_end();
   /*
     We need to grab table->mem_root to prevent free_tmp_table from freeing:
-    the cursor object was allocated in this memory.
+    the cursor object was allocated in this memory. The mem_root will be
+    freed in Materialized_cursor::operator delete.
   */
-  main_mem_root= std::move(table->s->mem_root);
-  mem_root= &main_mem_root;
+  mem_root= new (&table->s->mem_root) MEM_ROOT(std::move(table->s->mem_root));
   free_tmp_table(table->in_use, table);
   table= 0;
 }

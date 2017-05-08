@@ -456,7 +456,7 @@ TABLE_SHARE *alloc_table_share(const char *db,
            table_cache_instances * sizeof(*cache_element_array));
     share->cache_element= cache_element_array;
 
-    memcpy((char*) &share->mem_root, (char*) &mem_root, sizeof(mem_root));
+    share->mem_root= std::move(mem_root);
     mysql_mutex_init(key_TABLE_SHARE_LOCK_ha_data,
                      &share->LOCK_ha_data, MY_MUTEX_INIT_FAST);
   }

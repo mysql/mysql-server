@@ -226,20 +226,9 @@ TEST_F(MemRootTest, Reserve)
 }
 
 
-// Verify that we can swap mem-root, without any leaks.
+// Verify that we can move MEM_ROOT without any leaks.
 // Run with 
 // valgrind --leak-check=full <executable> --gtest_filter='-*DeathTest*' > foo
-TEST_F(MemRootTest, CopyMemRoot)
-{
-  Mem_root_array<uint> intarr(m_mem_root_p);
-  // Take a copy, we do *not* free_root(own_root)
-  MEM_ROOT own_root;
-  memcpy(&own_root, m_mem_root_p, sizeof(MEM_ROOT));
-  intarr.set_mem_root(&own_root);
-  intarr.push_back(42);
-  memcpy(m_mem_root_p, &own_root, sizeof(MEM_ROOT));
-}
-
 TEST_F(MemRootTest, MoveMemRoot)
 {
   Mem_root_array<uint> intarr(m_mem_root_p);
