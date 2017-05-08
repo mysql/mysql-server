@@ -7275,7 +7275,7 @@ Dbspj::scanFrag_execSCAN_NEXTREQ(Signal* signal,
 
 #ifdef DEBUG_SCAN_FRAGREQ
         printSCANFRAGNEXTREQ(stdout, &signal->theData[0],
-                             ScanFragNextReq:: SignalLength + 1, DBLQH);
+                             ScanFragNextReq::SignalLength + 1, DBLQH);
 #endif
 
         req->senderData = fragPtr.i;
@@ -7625,9 +7625,6 @@ Dbspj::scanFrag_checkNode(const Ptr<Request> requestPtr,
                           const Ptr<TreeNode> treeNodePtr)
 {
   jam();
-  
-  jamLine(treeNodePtr.p->m_state);
-
   if (treeNodePtr.p->m_state != TreeNode::TN_ACTIVE)
   {
     return true;
