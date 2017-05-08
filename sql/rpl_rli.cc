@@ -532,13 +532,7 @@ int Relay_log_info::init_relay_log_pos(const char* log,
   else
     mysql_mutex_assert_owner(&data_lock);
 
-  /*
-    By default the relay log is in binlog format 3 (4.0).
-    Even if format is 4, this will work enough to read the first event
-    (Format_desc) (remember that format 4 is just lenghtened compared to format
-    3; format 3 is a prefix of format 4).
-  */
-  set_rli_description_event(new Format_description_log_event(3));
+  set_rli_description_event(new Format_description_log_event());
 
   /* Close log file and free buffers if it's already open */
   if (cur_log_fd >= 0)

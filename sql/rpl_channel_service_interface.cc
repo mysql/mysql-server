@@ -103,7 +103,7 @@ static void set_mi_settings(Master_info *mi, Channel_creation_info* channel_info
     (channel_info->channel_mts_checkpoint_group == RPL_SERVICE_SERVER_DEFAULT) ?
     opt_mts_checkpoint_group : channel_info->channel_mts_checkpoint_group;
 
-  mi->set_mi_description_event(new Format_description_log_event(BINLOG_VERSION));
+  mi->set_mi_description_event(new Format_description_log_event());
 
   mysql_mutex_unlock(&mi->data_lock);
 }

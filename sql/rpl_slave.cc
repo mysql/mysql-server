@@ -903,7 +903,7 @@ read_rotate_from_relay_log(char *filename, char *master_log_file,
     Create a Format_description_log_event that is used to read the
     first event of the log.
    */
-  Format_description_log_event fd_ev(BINLOG_VERSION), *fd_ev_p= &fd_ev;
+  Format_description_log_event fd_ev, *fd_ev_p= &fd_ev;
   DBUG_ASSERT(fd_ev.is_valid());
   IO_CACHE log;
   const char *errmsg= NULL;
@@ -2668,74 +2668,21 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
   MYSQL_ROW master_row;
   DBUG_ENTER("get_master_version_and_clock");
 
-  /*
-    Free old mi_description_event (that is needed if we are in
-    a reconnection).
-  */
   DBUG_EXECUTE_IF("unrecognized_master_version",
                  {
                    version_number= 1;
                  };);
-  mysql_mutex_lock(&mi->data_lock);
-  mi->set_mi_description_event(NULL);
-
-  if (!my_isdigit(&my_charset_bin,*mysql->server_version))
+  if (!my_isdigit(&my_charset_bin,*mysql->server_version) ||
+      version_number < 5)
   {
     errmsg = "Master reported unrecognized MySQL version";
     err_code= ER_SLAVE_FATAL_ERROR;
     sprintf(err_buff, ER_THD(current_thd, err_code), errmsg);
-  }
-  else
-  {
-    /*
-      Note the following switch will bug when we have MySQL branch 30 ;)
-    */
-    switch (version_number)
-    {
-    case 0:
-    case 1:
-    case 2:
-      errmsg = "Master reported unrecognized MySQL version";
-      err_code= ER_SLAVE_FATAL_ERROR;
-      sprintf(err_buff, ER_THD(current_thd, err_code), errmsg);
-      break;
-    case 3:
-      mi->set_mi_description_event(new
-        Format_description_log_event(1, mysql->server_version));
-      break;
-    case 4:
-      mi->set_mi_description_event(new
-        Format_description_log_event(3, mysql->server_version));
-      break;
-    default:
-      /*
-        Master is MySQL >=5.0. Give a default Format_desc event, so that we can
-        take the early steps (like tests for "is this a 3.23 master") which we
-        have to take before we receive the real master's Format_desc which will
-        override this one. Note that the Format_desc we create below is garbage
-        (it has the format of the *slave*); it's only good to help know if the
-        master is 3.23, 4.0, etc.
-      */
-      mi->set_mi_description_event(new
-        Format_description_log_event(4, mysql->server_version));
-      break;
-    }
-  }
-
-  /*
-     This does not mean that a 5.0 slave will be able to read a 5.5 master; but
-     as we don't know yet, we don't want to forbid this for now. If a 5.0 slave
-     can't read a 5.5 master, this will show up when the slave can't read some
-     events sent by the master, and there will be error messages.
-  */
-
-  if (errmsg)
-  {
-    /* unlock the mutex on master info structure */
-    mysql_mutex_unlock(&mi->data_lock);
     goto err;
   }
 
+  mysql_mutex_lock(&mi->data_lock);
+  mi->set_mi_description_event(new Format_description_log_event());
   /* as we are here, we tried to allocate the event */
   if (mi->get_mi_description_event() == NULL)
   {
@@ -2746,11 +2693,6 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
     goto err;
   }
 
-  if (mi->get_mi_description_event()->binlog_version < 4 &&
-      opt_slave_sql_verify_checksum)
-  {
-    LogErr(WARNING_LEVEL, ER_RPL_SLAVE_USES_CHECKSUM_AND_MASTER_PRE_50);
-  }
   /*
     FD_q's (A) is set initially from RL's (A): FD_q.(A) := RL.(A).
     It's necessary to adjust FD_q.(A) at this point because in the following
@@ -2919,132 +2861,6 @@ maybe it is a *VERY OLD MASTER*.");
     err_code= ER_SLAVE_FATAL_ERROR;
     sprintf(err_buff, ER_THD(current_thd, err_code), errmsg);
     goto err;
-  }
-
-  /*
-    Check that the master's global character_set_server and ours are the same.
-    Not fatal if query fails (old master?).
-    Note that we don't check for equality of global character_set_client and
-    collation_connection (neither do we prevent their setting in
-    set_var.cc). That's because from what I (Guilhem) have tested, the global
-    values of these 2 are never used (new connections don't use them).
-    We don't test equality of global collation_database either as it's is
-    going to be deprecated (made read-only) in 4.1 very soon.
-    The test is only relevant if master < 5.0.3 (we'll test only if it's older
-    than the 5 branch; < 5.0.3 was alpha...), as >= 5.0.3 master stores
-    charset info in each binlog event.
-    We don't do it for 3.23 because masters <3.23.50 hang on
-    SELECT @@unknown_var (BUG#7965 - see changelog of 3.23.50). So finally we
-    test only if master is 4.x.
-  */
-
-  /* redundant with rest of code but safer against later additions */
-  if (*mysql->server_version == '3')
-    goto err;
-
-  if (*mysql->server_version == '4')
-  {
-    master_res= NULL;
-    if (!mysql_real_query(mysql,
-                          STRING_WITH_LEN("SELECT @@GLOBAL.COLLATION_SERVER")) &&
-        (master_res= mysql_store_result(mysql)) &&
-        (master_row= mysql_fetch_row(master_res)))
-    {
-      if (strcmp(master_row[0], global_system_variables.collation_server->name))
-      {
-        errmsg= "The slave I/O thread stops because master and slave have \
-different values for the COLLATION_SERVER global variable. The values must \
-be equal for the Statement-format replication to work";
-        err_code= ER_SLAVE_FATAL_ERROR;
-        sprintf(err_buff, ER_THD(current_thd, err_code), errmsg);
-        goto err;
-      }
-    }
-    else if (check_io_slave_killed(mi->info_thd, mi, NULL))
-      goto slave_killed_err;
-    else if (is_network_error(mysql_errno(mysql)))
-    {
-      mi->report(WARNING_LEVEL, mysql_errno(mysql),
-                 "Get master COLLATION_SERVER failed with error: %s", mysql_error(mysql));
-      goto network_err;
-    }
-    else if (mysql_errno(mysql) != ER_UNKNOWN_SYSTEM_VARIABLE)
-    {
-      /* Fatal error */
-      errmsg= "The slave I/O thread stops because a fatal error is encountered \
-when it try to get the value of COLLATION_SERVER global variable from master.";
-      err_code= mysql_errno(mysql);
-      sprintf(err_buff, "%s Error: %s", errmsg, mysql_error(mysql));
-      goto err;
-    }
-    else
-      mi->report(WARNING_LEVEL, ER_UNKNOWN_SYSTEM_VARIABLE,
-                 "Unknown system variable 'COLLATION_SERVER' on master, \
-maybe it is a *VERY OLD MASTER*. *NOTE*: slave may experience \
-inconsistency if replicated data deals with collation.");
-
-    if (master_res)
-    {
-      mysql_free_result(master_res);
-      master_res= NULL;
-    }
-  }
-
-  /*
-    Perform analogous check for time zone. Theoretically we also should
-    perform check here to verify that SYSTEM time zones are the same on
-    slave and master, but we can't rely on value of @@system_time_zone
-    variable (it is time zone abbreviation) since it determined at start
-    time and so could differ for slave and master even if they are really
-    in the same system time zone. So we are omiting this check and just
-    relying on documentation. Also according to Monty there are many users
-    who are using replication between servers in various time zones. Hence
-    such check will broke everything for them. (And now everything will
-    work for them because by default both their master and slave will have
-    'SYSTEM' time zone).
-    This check is only necessary for 4.x masters (and < 5.0.4 masters but
-    those were alpha).
-  */
-  if (*mysql->server_version == '4')
-  {
-    master_res= NULL;
-    if (!mysql_real_query(mysql, STRING_WITH_LEN("SELECT @@GLOBAL.TIME_ZONE")) &&
-        (master_res= mysql_store_result(mysql)) &&
-        (master_row= mysql_fetch_row(master_res)))
-    {
-      if (strcmp(master_row[0],
-                 global_system_variables.time_zone->get_name()->ptr()))
-      {
-        errmsg= "The slave I/O thread stops because master and slave have \
-different values for the TIME_ZONE global variable. The values must \
-be equal for the Statement-format replication to work";
-        err_code= ER_SLAVE_FATAL_ERROR;
-        sprintf(err_buff, ER_THD(current_thd, err_code), errmsg);
-        goto err;
-      }
-    }
-    else if (check_io_slave_killed(mi->info_thd, mi, NULL))
-      goto slave_killed_err;
-    else if (is_network_error(mysql_errno(mysql)))
-    {
-      mi->report(WARNING_LEVEL, mysql_errno(mysql),
-                 "Get master TIME_ZONE failed with error: %s", mysql_error(mysql));
-      goto network_err;
-    } 
-    else
-    {
-      /* Fatal error */
-      errmsg= "The slave I/O thread stops because a fatal error is encountered \
-when it try to get the value of TIME_ZONE global variable from master.";
-      err_code= mysql_errno(mysql);
-      sprintf(err_buff, "%s Error: %s", errmsg, mysql_error(mysql));
-      goto err;
-    }
-    if (master_res)
-    {
-      mysql_free_result(master_res);
-      master_res= NULL;
-    }
   }
 
   if (mi->heartbeat_period != 0.0)
@@ -3566,6 +3382,12 @@ static int register_slave_on_master(MYSQL* mysql, Master_info *mi,
     }
     DBUG_RETURN(1);
   }
+
+  DBUG_EXECUTE_IF("simulate_register_slave_killed",
+                  {
+                    mi->abort_slave= 1;
+                    DBUG_RETURN(1);
+                  };);
   DBUG_RETURN(0);
 }
 
@@ -4661,7 +4483,6 @@ static int sql_delay_event(Log_event *ev, THD *thd, Relay_log_info *rli)
       */
       if (type != binary_log::ROTATE_EVENT &&
           type != binary_log::FORMAT_DESCRIPTION_EVENT &&
-          type != binary_log::START_EVENT_V3 &&
           type != binary_log::PREVIOUS_GTIDS_LOG_EVENT)
       {
         // Calculate when we should execute the event.
@@ -5613,7 +5434,6 @@ extern "C" void *handle_slave_io(void *arg)
   uint retry_count;
   bool suppress_warnings;
   int ret;
-  int binlog_version;
 #ifndef DBUG_OFF
   uint retry_count_reg= 0, retry_count_dump= 0, retry_count_event= 0;
 #endif
@@ -5769,42 +5589,36 @@ connected:
     goto connected;
   } 
 
-  mysql_mutex_lock(&mi->data_lock);
-  binlog_version= mi->get_mi_description_event()->binlog_version;
-  mysql_mutex_unlock(&mi->data_lock);
-
-  if (binlog_version > 1)
+  /*
+    Register ourselves with the master.
+  */
+  THD_STAGE_INFO(thd, stage_registering_slave_on_master);
+  if (register_slave_on_master(mysql, mi, &suppress_warnings))
   {
-    /*
-      Register ourselves with the master.
-    */
-    THD_STAGE_INFO(thd, stage_registering_slave_on_master);
-    if (register_slave_on_master(mysql, mi, &suppress_warnings))
+    if (!check_io_slave_killed(thd, mi, "Slave I/O thread killed "
+                               "while registering slave on master"))
     {
-      if (!check_io_slave_killed(thd, mi, "Slave I/O thread killed "
-                                "while registering slave on master"))
-      {
-        LogErr(ERROR_LEVEL, ER_RPL_SLAVE_IO_THREAD_CANT_REGISTER_ON_MASTER);
-        if (try_to_reconnect(thd, mysql, mi, &retry_count, suppress_warnings,
-                             reconnect_messages[SLAVE_RECON_ACT_REG]))
-          goto err;
-      }
-      else
+      LogErr(ERROR_LEVEL, ER_RPL_SLAVE_IO_THREAD_CANT_REGISTER_ON_MASTER);
+      if (try_to_reconnect(thd, mysql, mi, &retry_count, suppress_warnings,
+                           reconnect_messages[SLAVE_RECON_ACT_REG]))
+        goto err;
+    }
+    else
+      goto err;
+    goto connected;
+  }
+
+  DBUG_EXECUTE_IF("FORCE_SLAVE_TO_RECONNECT_REG",
+    if (!retry_count_reg)
+    {
+      retry_count_reg++;
+      LogErr(INFORMATION_LEVEL, ER_RPL_SLAVE_FORCING_TO_RECONNECT_IO_THREAD,
+             mi->get_for_channel_str());
+      if (try_to_reconnect(thd, mysql, mi, &retry_count, suppress_warnings,
+                           reconnect_messages[SLAVE_RECON_ACT_REG]))
         goto err;
       goto connected;
-    }
-    DBUG_EXECUTE_IF("FORCE_SLAVE_TO_RECONNECT_REG", 
-      if (!retry_count_reg)
-      {
-        retry_count_reg++;
-        LogErr(INFORMATION_LEVEL, ER_RPL_SLAVE_FORCING_TO_RECONNECT_IO_THREAD,
-               mi->get_for_channel_str());
-        if (try_to_reconnect(thd, mysql, mi, &retry_count, suppress_warnings,
-                             reconnect_messages[SLAVE_RECON_ACT_REG]))
-          goto err;
-        goto connected;
-      });
-  }
+    });
 
   DBUG_PRINT("info",("Starting reading binary log from master"));
   while (!io_slave_killed(thd,mi))
@@ -6468,7 +6282,7 @@ bool mts_recovery_groups(Relay_log_info *rli)
     rli->get_group_master_log_pos()
   };
 
-  Format_description_log_event fdle(BINLOG_VERSION), *p_fdle= &fdle;
+  Format_description_log_event fdle, *p_fdle= &fdle;
   DBUG_ASSERT(p_fdle->is_valid());
 
   /*
@@ -7748,191 +7562,11 @@ static int process_io_rotate(Master_info *mi, Rotate_log_event *rev)
 #endif
 
   /*
-    If mi_description_event is format <4, there is conversion in the
-    relay log to the slave's format (4). And Rotate can mean upgrade or
-    nothing. If upgrade, it's to 5.0 or newer, so we will get a Format_desc, so
-    no need to reset mi_description_event now. And if it's nothing (same
-    master version as before), no need (still using the slave's format).
+    Master will send a FD event immediately after the Roate event, so don't log
+    the current FD event.
   */
-  Format_description_log_event *old_fdle= mi->get_mi_description_event();
-  if (old_fdle->binlog_version >= 4)
-  {
-    DBUG_ASSERT(old_fdle->common_footer->checksum_alg ==
-                mi->rli->relay_log.relay_log_checksum_alg);
-    Format_description_log_event *new_fdle= new
-      Format_description_log_event(3);
-    new_fdle->common_footer->checksum_alg=
-                             mi->rli->relay_log.relay_log_checksum_alg;
-    mi->set_mi_description_event(new_fdle);
-  }
-  /*
-    Rotate the relay log makes binlog format detection easier (at next slave
-    start or mysqlbinlog)
-  */
-  int ret= rotate_relay_log(mi);
+  int ret= rotate_relay_log(mi, false);
   DBUG_RETURN(ret);
-}
-
-/**
-  Reads a 3.23 event and converts it to the slave's format. This code was
-  copied from MySQL 4.0.
-
-  @note The caller must hold mi->data_lock before invoking this function.
-*/
-static int queue_binlog_ver_1_event(Master_info *mi, const char *buf,
-                                    ulong event_len)
-{
-  const char *errmsg = 0;
-  ulong inc_pos;
-  bool ignore_event= 0;
-  char *tmp_buf = 0;
-  Relay_log_info *rli= mi->rli;
-  DBUG_ENTER("queue_binlog_ver_1_event");
-
-  mysql_mutex_assert_owner(&mi->data_lock);
-
-  /*
-    This will transform LOAD_EVENT into CREATE_FILE_EVENT, ask the master to
-    send the loaded file, and write it to the relay log in the form of
-    Append_block/Exec_load (the SQL thread needs the data, as that thread is not
-    connected to the master).
-  */
-  Log_event *ev=
-    Log_event::read_log_event(buf, event_len, &errmsg,
-                              mi->get_mi_description_event(), 0);
-  if (unlikely(!ev))
-  {
-    LogErr(ERROR_LEVEL, ER_RPL_SLAVE_READ_INVALID_EVENT_FROM_MASTER, errmsg);
-    my_free(tmp_buf);
-    DBUG_RETURN(1);
-  }
-  /* 3.23 events don't contain log_pos */
-  mi->set_master_log_pos(ev->common_header->log_pos);
-  switch (ev->get_type_code()) {
-  case binary_log::STOP_EVENT:
-    ignore_event= 1;
-    inc_pos= event_len;
-    break;
-  case binary_log::ROTATE_EVENT:
-    if (unlikely(process_io_rotate(mi,(Rotate_log_event*)ev)))
-    {
-      delete ev;
-      DBUG_RETURN(1);
-    }
-    inc_pos= 0;
-    break;
-  default:
-    inc_pos= event_len;
-    break;
-  }
-  if (likely(!ignore_event))
-  {
-    if (ev->common_header->log_pos)
-      /*
-         Don't do it for fake Rotate events (see comment in
-      Log_event::Log_event(const char* buf...) in log_event.cc).
-      */
-      /* make log_pos be the pos of the end of the event */
-      ev->common_header->log_pos+= event_len;
-    if (unlikely(rli->relay_log.write_event(ev, mi) != 0))
-    {
-      delete ev;
-      DBUG_RETURN(1);
-    }
-    rli->relay_log.harvest_bytes_written(&rli->log_space_total);
-  }
-  delete ev;
-  mi->set_master_log_pos(mi->get_master_log_pos() + inc_pos);
-  DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->get_master_log_pos()));
-  DBUG_RETURN(0);
-}
-
-/**
-  Reads a 4.0 event and converts it to the slave's format. This code was copied
-  from queue_binlog_ver_1_event(), with some affordable simplifications.
-
-  @note The caller must hold mi->data_lock before invoking this function.
-*/
-static int queue_binlog_ver_3_event(Master_info *mi, const char *buf,
-                                    ulong event_len)
-{
-  const char *errmsg = 0;
-  ulong inc_pos;
-  char *tmp_buf = 0;
-  Relay_log_info *rli= mi->rli;
-  DBUG_ENTER("queue_binlog_ver_3_event");
-
-  mysql_mutex_assert_owner(&mi->data_lock);
-
-  /* read_log_event() will adjust log_pos to be end_log_pos */
-  Log_event *ev=
-    Log_event::read_log_event(buf, event_len, &errmsg,
-                              mi->get_mi_description_event(), 0);
-  if (unlikely(!ev))
-  {
-    LogErr(ERROR_LEVEL, ER_RPL_SLAVE_READ_INVALID_EVENT_FROM_MASTER, errmsg);
-    my_free(tmp_buf);
-    DBUG_RETURN(1);
-  }
-  switch (ev->get_type_code()) {
-  case binary_log::STOP_EVENT:
-    goto err;
-  case binary_log::ROTATE_EVENT:
-    if (unlikely(process_io_rotate(mi,(Rotate_log_event*)ev)))
-    {
-      delete ev;
-      DBUG_RETURN(1);
-    }
-    inc_pos= 0;
-    break;
-  default:
-    inc_pos= event_len;
-    break;
-  }
-
-  if (unlikely(rli->relay_log.write_event(ev, mi) != 0))
-  {
-    delete ev;
-    DBUG_RETURN(1);
-  }
-  rli->relay_log.harvest_bytes_written(&rli->log_space_total);
-  delete ev;
-  mi->set_master_log_pos(mi->get_master_log_pos() + inc_pos);
-err:
-  DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->get_master_log_pos()));
-  DBUG_RETURN(0);
-}
-
-/*
-  queue_old_event()
-
-  Writes a 3.23 or 4.0 event to the relay log, after converting it to the 5.0
-  (exactly, slave's) format. To do the conversion, we create a 5.0 event from
-  the 3.23/4.0 bytes, then write this event to the relay log.
-
-  TODO:
-    Test this code before release - it has to be tested on a separate
-    setup with 3.23 master or 4.0 master
-*/
-
-static int queue_old_event(Master_info *mi, const char *buf,
-                           ulong event_len)
-{
-  DBUG_ENTER("queue_old_event");
-
-  mysql_mutex_assert_owner(&mi->data_lock);
-
-  switch (mi->get_mi_description_event()->binlog_version)
-  {
-  case 1:
-      DBUG_RETURN(queue_binlog_ver_1_event(mi,buf,event_len));
-  case 3:
-      DBUG_RETURN(queue_binlog_ver_3_event(mi,buf,event_len));
-  default: /* unsupported format; eg version 2 */
-    DBUG_PRINT("info",("unsupported binlog format %d in queue_old_event()",
-                       mi->get_mi_description_event()->binlog_version));
-    DBUG_RETURN(1);
-  }
 }
 
 /**
@@ -7949,12 +7583,6 @@ static int queue_old_event(Master_info *mi, const char *buf,
   @retval QUEUE_EVENT_ERROR_QUEUING       if there was an error while queuing.
   @retval QUEUE_EVENT_ERROR_FLUSHING_INFO if there was an error while
                                           flushing master info.
-  @note
-  If the event is 3.23/4.0, passes it to queue_old_event() which will convert
-  it. Otherwise, writes a 5.0 (or newer) event to the relay log. Then there is
-  no format conversion, it's pure read/write of bytes.
-  So a 5.0.0 slave's relay log can contain events in the slave's format or in
-  any >=5.0.0 format.
 
   @todo Make this a member of Master_info.
 */
@@ -8012,16 +7640,6 @@ QUEUE_EVENT_RESULT queue_event(Master_info* mi,
   if (event_type == binary_log::FORMAT_DESCRIPTION_EVENT)
   {
     checksum_alg= Log_event_footer::get_checksum_alg(buf, event_len);
-  }
-  else if (event_type == binary_log::START_EVENT_V3)
-  {
-    // checksum behaviour is similar to the pre-checksum FD handling
-    mi->checksum_alg_before_fd= binary_log::BINLOG_CHECKSUM_ALG_UNDEF;
-    mysql_mutex_lock(&mi->data_lock);
-    mi->get_mi_description_event()->common_footer->checksum_alg=
-      mi->rli->relay_log.relay_log_checksum_alg= checksum_alg=
-      binary_log::BINLOG_CHECKSUM_ALG_OFF;
-    mysql_mutex_unlock(&mi->data_lock);
   }
 
   // does not hold always because of old binlog can work with NM 
@@ -8129,14 +7747,6 @@ QUEUE_EVENT_RESULT queue_event(Master_info* mi,
     DBUG_ASSERT(!mi->is_auto_position());
   }
 
-  if (mi->get_mi_description_event()->binlog_version < 4 &&
-      event_type != binary_log::FORMAT_DESCRIPTION_EVENT /* a way to escape */)
-  {
-    if (queue_old_event(mi,buf,event_len))
-      goto err;
-    else
-      goto end;
-  }
   switch (event_type) {
   case binary_log::STOP_EVENT:
     /*
@@ -9407,7 +9017,7 @@ err:
   is void).
 */
 
-int rotate_relay_log(Master_info* mi)
+int rotate_relay_log(Master_info* mi, bool log_master_fd)
 {
   DBUG_ENTER("rotate_relay_log");
 
@@ -9428,7 +9038,10 @@ int rotate_relay_log(Master_info* mi)
   }
 
   /* If the relay log is closed, new_file() will do nothing. */
-  error= rli->relay_log.new_file(mi->get_mi_description_event());
+  if (log_master_fd)
+    error= rli->relay_log.new_file(mi->get_mi_description_event());
+  else
+    error= rli->relay_log.new_file(NULL);
   if (error != 0)
     goto end;
 

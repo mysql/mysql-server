@@ -60,7 +60,7 @@ Query_event::Query_event(const char* query_arg, const char* catalog_arg,
   time_zone_len(0), lc_time_names_number(number),
   charset_database_number(0),
   table_map_for_update(table_map_for_update_arg),
-  master_data_written(0), explicit_defaults_ts(TERNARY_UNSET),
+  explicit_defaults_ts(TERNARY_UNSET),
   mts_accessed_dbs(0), ddl_xid(INVALID_XID)
 {
 }
@@ -115,7 +115,7 @@ Query_event::Query_event(const char* buf, unsigned int event_len,
   flags2_inited(0), sql_mode_inited(0), charset_inited(0),
   auto_increment_increment(1), auto_increment_offset(1),
   time_zone_len(0), catalog_len(0), lc_time_names_number(0),
-  charset_database_number(0), table_map_for_update(0), master_data_written(0),
+  charset_database_number(0), table_map_for_update(0),
   explicit_defaults_ts(TERNARY_UNSET),
   mts_accessed_dbs(OVER_MAX_DBS_IN_EVENT_MTS), ddl_xid(INVALID_XID)
 {
@@ -178,15 +178,9 @@ Query_event::Query_event(const char* buf, unsigned int event_len,
   }
   else
   {
-    /*
-      server version < 5.0 / binlog_version < 4 master's event is
-      relay-logged with storing the original size of the event in
-      Q_MASTER_DATA_WRITTEN_CODE status variable.
-      The size is to be restored at reading Q_MASTER_DATA_WRITTEN_CODE-marked
-      event from the relay log.
-    */
-    BAPI_ASSERT(description_event->binlog_version < 4);
-    master_data_written= header()->data_written;
+    /* formats before 5.0 are not supported anymore */
+    BAPI_ASSERT(0);
+    return;
   }
   /*
     We have parsed everything we know in the post header for QUERY_EVENT,
@@ -269,13 +263,6 @@ Query_event::Query_event(const char* buf, unsigned int event_len,
       memcpy(&table_map_for_update, pos, sizeof(table_map_for_update));
       table_map_for_update= le64toh(table_map_for_update);
       pos+= 8;
-      break;
-    case Q_MASTER_DATA_WRITTEN_CODE:
-      CHECK_SPACE(pos, end, 4);
-      memcpy(&master_data_written, pos, sizeof(master_data_written));
-      master_data_written= le32toh(static_cast<uint32_t>(master_data_written));
-      header()->data_written= master_data_written;
-      pos+= 4;
       break;
     case Q_MICROSECONDS:
     {

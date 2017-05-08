@@ -3286,7 +3286,7 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log)
               thd->lex->sql_command == SQLCOM_SHOW_RELAYLOG_EVENTS);
 
   Format_description_log_event *description_event= new
-    Format_description_log_event(3); /* MySQL 4.0 by default */
+    Format_description_log_event();
 
   if (binary_log->is_open())
   {
@@ -3990,7 +3990,7 @@ read_gtids_and_update_trx_parser_from_relaylog(
     Create a Format_description_log_event that is used to read the
     first event of the log.
   */
-  Format_description_log_event fd_ev(BINLOG_VERSION), *fd_ev_p= &fd_ev;
+  Format_description_log_event fd_ev, *fd_ev_p= &fd_ev;
   if (!fd_ev.is_valid())
     DBUG_RETURN(true);
 
@@ -4289,7 +4289,7 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
     Create a Format_description_log_event that is used to read the
     first event of the log.
   */
-  Format_description_log_event fd_ev(BINLOG_VERSION), *fd_ev_p= &fd_ev;
+  Format_description_log_event fd_ev, *fd_ev_p= &fd_ev;
   if (!fd_ev.is_valid())
     DBUG_RETURN(ERROR);
 
@@ -5082,7 +5082,7 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
   binary_log_debug::debug_pretend_version_50034_in_binlog=
     DBUG_EVALUATE_IF("pretend_version_50034_in_binlog", true, false);
 #endif
-  Format_description_log_event s(BINLOG_VERSION);
+  Format_description_log_event s;
 
   if (!my_b_filelength(&log_file))
   {
@@ -5238,8 +5238,7 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
       bytes_written+= prev_gtids_ev.common_header->data_written;
     }
   }
-  if (extra_description_event &&
-      extra_description_event->binlog_version>=4)
+  if (extra_description_event)
   {
     /*
       This is a relay log written to by the I/O slave thread.
@@ -8292,7 +8291,7 @@ int MYSQL_BIN_LOG::open_binlog(const char *opt_name)
     IO_CACHE    log;
     File        file;
     Log_event  *ev=0;
-    Format_description_log_event fdle(BINLOG_VERSION);
+    Format_description_log_event fdle;
     char        log_name[FN_REFLEN];
     my_off_t    valid_pos= 0;
     my_off_t    binlog_size;

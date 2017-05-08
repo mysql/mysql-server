@@ -669,14 +669,6 @@ private:
   /* The applier pipeline for event execution */
   Event_handler *pipeline;
 
-  /**
-    The Format description event used for Pipeline Events
-    One event is enough for now as we assume that the group is homogeneous.
-    If heterogeneous sources are used, then different format description events
-    can be used to describe each source.
-  */
-  Format_description_log_event fde_evt;
-
   /* Applier timeout on shutdown */
   ulong stop_wait_timeout;
 

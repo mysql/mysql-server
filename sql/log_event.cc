@@ -766,7 +766,6 @@ time_t Log_event::get_time()
 const char* Log_event::get_type_str(Log_event_type type)
 {
   switch(type) {
-  case binary_log::START_EVENT_V3:  return "Start_v3";
   case binary_log::STOP_EVENT:   return "Stop";
   case binary_log::QUERY_EVENT:  return "Query";
   case binary_log::ROTATE_EVENT: return "Rotate";
@@ -1558,10 +1557,6 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
   }
 
   uint event_type= buf[EVENT_TYPE_OFFSET];
-  // all following START events in the current file are without checksum
-  if (event_type == binary_log::START_EVENT_V3)
-    (const_cast< Format_description_log_event *>(description_event))->
-            common_footer->checksum_alg= binary_log::BINLOG_CHECKSUM_ALG_OFF;
   // Sanity check for Format description event
   if (event_type == binary_log::FORMAT_DESCRIPTION_EVENT)
   {
@@ -1652,31 +1647,6 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
   }
   else
   {
-    /*
-      In some previuos versions (see comment in
-      Format_description_log_event::Format_description_log_event(char*,...)),
-      event types were assigned different id numbers than in the
-      present version. In order to replicate from such versions to the
-      present version, we must map those event type id's to our event
-      type id's.  The mapping is done with the event_type_permutation
-      array, which was set up when the Format_description_log_event
-      was read.
-    */
-    if (description_event->event_type_permutation)
-    {
-      uint new_event_type;
-      if (event_type >= EVENT_TYPE_PERMUTATION_NUM)
-        /* Safe guard for read out of bounds of event_type_permutation. */
-        new_event_type= binary_log::UNKNOWN_EVENT;
-      else
-        new_event_type= description_event->event_type_permutation[event_type];
-
-      DBUG_PRINT("info", ("converting event type %d to %d (%s)",
-                 event_type, new_event_type,
-                 get_type_str((Log_event_type)new_event_type)));
-      event_type= new_event_type;
-    }
-
     if (alg != binary_log::BINLOG_CHECKSUM_ALG_UNDEF &&
         (event_type == binary_log::FORMAT_DESCRIPTION_EVENT ||
          alg != binary_log::BINLOG_CHECKSUM_ALG_OFF))
@@ -1699,9 +1669,6 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
       break;
     case binary_log::DELETE_FILE_EVENT:
       ev = new Delete_file_log_event(buf, event_len, description_event);
-      break;
-    case binary_log::START_EVENT_V3: /* this is sent only by MySQL <=4.x */
-      ev = new Start_log_event_v3(buf, event_len, description_event);
       break;
     case binary_log::STOP_EVENT:
       ev = new Stop_log_event(buf, description_event);
@@ -2681,8 +2648,7 @@ void Log_event::print_base64(IO_CACHE* file,
       size-= BINLOG_CHECKSUM_LEN; // checksum is displayed through the header
 
     const Format_description_event fd_evt=
-          Format_description_event(glob_description_event->binlog_version,
-                                   server_version);
+      Format_description_event(BINLOG_VERSION, server_version);
     switch(et)
     {
     case binary_log::TABLE_MAP_EVENT:
@@ -3843,17 +3809,6 @@ bool Query_log_event::write(IO_CACHE* file)
     *start++= Q_TABLE_MAP_FOR_UPDATE_CODE;
     int8store(start, table_map_for_update);
     start+= 8;
-  }
-  if (master_data_written != 0)
-  {
-    /*
-      Q_MASTER_DATA_WRITTEN_CODE only exists in relay logs where the master
-      has binlog_version<4 and the slave has binlog_version=4. See comment
-      for master_data_written in log_event.h for details.
-    */
-    *start++= Q_MASTER_DATA_WRITTEN_CODE;
-    int4store(start, static_cast<uint32>(master_data_written));
-    start+= 4;
   }
 
   if (thd && thd->need_binlog_invoker())
@@ -5404,44 +5359,61 @@ err:
 }
 
 
-/**************************************************************************
-	Start_log_event_v3 methods
-**************************************************************************/
+/***************************************************************************
+       Format_description_log_event methods
+****************************************************************************/
+
+/**
+  Format_description_log_event 1st ctor.
+
+    Ctor. Can be used to create the event to write to the binary log (when the
+    server starts or when FLUSH LOGS).
+*/
+Format_description_log_event::Format_description_log_event()
+  : Format_description_event(BINLOG_VERSION, ::server_version),
 #ifdef MYSQL_SERVER
-Start_log_event_v3::Start_log_event_v3()
-  : binary_log::Start_event_v3(),
     Log_event(header(), footer(), Log_event::EVENT_INVALID_CACHE,
               Log_event::EVENT_INVALID_LOGGING)
+#else
+    Log_event(header(), footer())
+#endif
 {
   is_valid_param= true;
 }
 
+/**
+  The problem with this constructor is that the fixed header may have a
+  length different from this version, but we don't know this length as we
+  have not read the Format_description_log_event which says it, yet. This
+  length is in the post-header of the event, but we don't know where the
+  post-header starts.
 
-/*
-  Start_log_event_v3::pack_info()
+  So this type of event HAS to:
+  - either have the header's length at the beginning (in the header, at a
+  fixed position which will never be changed), not in the post-header. That
+  would make the header be "shifted" compared to other events.
+  - or have a header of size LOG_EVENT_MINIMAL_HEADER_LEN (19), in all future
+  versions, so that we know for sure.
+
+  I (Guilhem) chose the 2nd solution. Rotate has the same constraint (because
+  it is sent before Format_description_log_event).
 */
 
-int Start_log_event_v3::pack_info(Protocol *protocol)
+Format_description_log_event::
+Format_description_log_event(const char* buf, uint event_len,
+                             const Format_description_event
+                             *description_event)
+  : Format_description_event(buf, event_len, description_event),
+    Log_event(header(), footer())
 {
-  char buf[12 + ST_SERVER_VER_LEN + 14 + 22], *pos;
-  pos= my_stpcpy(buf, "Server ver: ");
-  pos= my_stpcpy(pos, server_version);
-  pos= my_stpcpy(pos, ", Binlog ver: ");
-  pos= int10_to_str(binlog_version, pos, 10);
-  protocol->store(buf, (uint) (pos-buf), &my_charset_bin);
-  return 0;
+  is_valid_param= header_is_valid() && version_is_valid();
+  common_header->type_code= binary_log::FORMAT_DESCRIPTION_EVENT;
 }
-#endif
-
-
-/*
-  Start_log_event_v3::print()
-*/
 
 #ifndef MYSQL_SERVER
-void Start_log_event_v3::print(FILE*, PRINT_EVENT_INFO* print_event_info)
+void Format_description_log_event::print(FILE*, PRINT_EVENT_INFO* print_event_info)
 {
-  DBUG_ENTER("Start_log_event_v3::print");
+  DBUG_ENTER("Format_description_log_event::print");
 
   IO_CACHE *const head= &print_event_info->head_cache;
 
@@ -5513,230 +5485,22 @@ void Start_log_event_v3::print(FILE*, PRINT_EVENT_INFO* print_event_info)
 }
 #endif /* !MYSQL_SERVER */
 
-/*
-  Start_log_event_v3::Start_log_event_v3()
-*/
-
-Start_log_event_v3::Start_log_event_v3(const char* buf, uint event_len,
-                                       const Format_description_event
-                                       *description_event)
-: binary_log::Start_event_v3(buf, event_len, description_event),
-  Log_event(header(), footer())
-{
-  is_valid_param= server_version[0] != 0;
-  if (event_len < (uint)description_event->common_header_len +
-      ST_COMMON_HEADER_LEN_OFFSET)
-  {
-    server_version[0]= 0;
-    return;
-  }
-  buf+= description_event->common_header_len;
-  binlog_version= uint2korr(buf+ST_BINLOG_VER_OFFSET);
-  memcpy(server_version, buf+ST_SERVER_VER_OFFSET,
-	 ST_SERVER_VER_LEN);
-  // prevent overrun if log is corrupted on disk
-  server_version[ST_SERVER_VER_LEN-1]= 0;
-  created= uint4korr(buf+ST_CREATED_OFFSET);
-  dont_set_created= 1;
-}
-
-
-/*
-  Start_log_event_v3::write()
-*/
-
 #ifdef MYSQL_SERVER
-bool Start_log_event_v3::write(IO_CACHE* file)
+int Format_description_log_event::pack_info(Protocol *protocol)
 {
-  char buff[Binary_log_event::START_V3_HEADER_LEN];
-  int2store(buff + ST_BINLOG_VER_OFFSET,binlog_version);
-  memcpy(buff + ST_SERVER_VER_OFFSET,server_version,ST_SERVER_VER_LEN);
-  if (!dont_set_created)
-    created= get_time();
-  int4store(buff + ST_CREATED_OFFSET, static_cast<uint32>(created));
-  return (write_header(file, sizeof(buff)) ||
-          wrapper_my_b_safe_write(file, (uchar*) buff, sizeof(buff)) ||
-	  write_footer(file));
+  char buf[12 + ST_SERVER_VER_LEN + 14 + 22], *pos;
+  pos= my_stpcpy(buf, "Server ver: ");
+  pos= my_stpcpy(pos, server_version);
+  pos= my_stpcpy(pos, ", Binlog ver: ");
+  pos= int10_to_str(binlog_version, pos, 10);
+  protocol->store(buf, (uint) (pos-buf), &my_charset_bin);
+  return 0;
 }
 
-
-/**
-  Start_log_event_v3::do_apply_event() .
-  The master started
-
-    IMPLEMENTATION
-    - To handle the case where the master died without having time to write
-    DROP TEMPORARY TABLE, DO RELEASE_LOCK (prepared statements' deletion is
-    TODO), we clean up all temporary tables that we got, if we are sure we
-    can (see below).
-
-  @todo
-    - Remove all active user locks.
-    Guilhem 2003-06: this is true but not urgent: the worst it can cause is
-    the use of a bit of memory for a user lock which will not be used
-    anymore. If the user lock is later used, the old one will be released. In
-    other words, no deadlock problem.
-*/
-
-int Start_log_event_v3::do_apply_event(Relay_log_info const *rli)
-{
-  DBUG_ENTER("Start_log_event_v3::do_apply_event");
-  int error= 0;
-  switch (binlog_version)
-  {
-  case 3:
-  case 4:
-    /*
-      This can either be 4.x (then a Start_log_event_v3 is only at master
-      startup so we are sure the master has restarted and cleared his temp
-      tables; the event always has 'created'>0) or 5.0 (then we have to test
-      'created').
-    */
-    if (created)
-    {
-      error= close_temporary_tables(thd);
-      cleanup_load_tmpdir();
-    }
-    else
-    {
-      /*
-        Set all temporary tables thread references to the current thread
-        as they may point to the "old" SQL slave thread in case of its
-        restart.
-      */
-      TABLE *table;
-      for (table= thd->temporary_tables; table; table= table->next)
-        table->in_use= thd;
-    }
-    break;
-
-    /*
-       Now the older formats; in that case load_tmpdir is cleaned up by the I/O
-       thread.
-    */
-  case 1:
-    if (strncmp(rli->get_rli_description_event()->server_version,
-                "3.23.57",7) >= 0 && created)
-    {
-      /*
-        Can distinguish, based on the value of 'created': this event was
-        generated at master startup.
-      */
-      error= close_temporary_tables(thd);
-    }
-    /*
-      Otherwise, can't distinguish a Start_log_event generated at
-      master startup and one generated by master FLUSH LOGS, so cannot
-      be sure temp tables have to be dropped. So do nothing.
-    */
-    break;
-  default:
-    /* this case is impossible */
-    DBUG_RETURN(1);
-  }
-  DBUG_RETURN(error);
-}
-#endif /* defined(MYSQL_SERVER) */
-
-
-/***************************************************************************
-       Format_description_log_event methods
-****************************************************************************/
-
-/**
-  Format_description_log_event 1st ctor.
-
-    Ctor. Can be used to create the event to write to the binary log (when the
-    server starts or when FLUSH LOGS), or to create artificial events to parse
-    binlogs from MySQL 3.23 or 4.x.
-    When in a client, only the 2nd use is possible.
-
-  @param binlog_ver             the binlog version for which we want to build
-                                an event. Can be 1 (=MySQL 3.23), 3 (=4.0.x
-                                x>=2 and 4.1) or 4 (MySQL 5.0). Note that the
-                                old 4.0 (binlog version 2) is not supported;
-                                it should not be used for replication with
-                                5.0.
-  @param server_ver             a string containing the server version.
-*/
-
-Format_description_log_event::
-Format_description_log_event(uint8_t binlog_ver, const char* server_ver)
-: binary_log::Start_event_v3(binary_log::FORMAT_DESCRIPTION_EVENT),
-  Format_description_event(binlog_ver,  (binlog_ver <= 3 || server_ver != 0) ?
-                           server_ver : ::server_version)
-{
-  is_valid_param= header_is_valid() && version_is_valid();
-  common_header->type_code= binary_log::FORMAT_DESCRIPTION_EVENT;
-  /*
-   We here have the possibility to simulate a master before we changed
-   the table map id to be stored in 6 bytes: when it was stored in 4
-   bytes (=> post_header_len was 6). This is used to test backward
-   compatibility.
-   This code can be removed after a few months (today is Dec 21st 2005),
-   when we know that the 4-byte masters are not deployed anymore (check
-   with Tomas Ulin first!), and the accompanying test (rpl_row_4_bytes)
-   too.
-  */
-  DBUG_EXECUTE_IF("old_row_based_repl_4_byte_map_id_master",
-                  post_header_len[binary_log::TABLE_MAP_EVENT-1]=
-                  post_header_len[binary_log::WRITE_ROWS_EVENT_V1-1]=
-                  post_header_len[binary_log::UPDATE_ROWS_EVENT_V1-1]=
-                  post_header_len[binary_log::DELETE_ROWS_EVENT_V1-1]= 6;);
-}
-
-
-/**
-  The problem with this constructor is that the fixed header may have a
-  length different from this version, but we don't know this length as we
-  have not read the Format_description_log_event which says it, yet. This
-  length is in the post-header of the event, but we don't know where the
-  post-header starts.
-
-  So this type of event HAS to:
-  - either have the header's length at the beginning (in the header, at a
-  fixed position which will never be changed), not in the post-header. That
-  would make the header be "shifted" compared to other events.
-  - or have a header of size LOG_EVENT_MINIMAL_HEADER_LEN (19), in all future
-  versions, so that we know for sure.
-
-  I (Guilhem) chose the 2nd solution. Rotate has the same constraint (because
-  it is sent before Format_description_log_event).
-*/
-
-Format_description_log_event::
-Format_description_log_event(const char* buf, uint event_len,
-                             const Format_description_event
-                             *description_event)
-  : binary_log::Start_event_v3(buf, event_len, description_event),
-    Format_description_event(buf, event_len, description_event),
-    Start_log_event_v3(buf, event_len, description_event)
-{
-  is_valid_param= header_is_valid() && version_is_valid();
-  common_header->type_code= binary_log::FORMAT_DESCRIPTION_EVENT;
-
-  /*
-   We here have the possibility to simulate a master of before we changed
-   the table map id to be stored in 6 bytes: when it was stored in 4
-   bytes (=> post_header_len was 6). This is used to test backward
-   compatibility.
- */
-  DBUG_EXECUTE_IF("old_row_based_repl_4_byte_map_id_master",
-                  post_header_len[binary_log::TABLE_MAP_EVENT-1]=
-                  post_header_len[binary_log::WRITE_ROWS_EVENT_V1-1]=
-                  post_header_len[binary_log::UPDATE_ROWS_EVENT_V1-1]=
-                  post_header_len[binary_log::DELETE_ROWS_EVENT_V1-1]= 6;);
-}
-
-#ifdef MYSQL_SERVER
 bool Format_description_log_event::write(IO_CACHE* file)
 {
   bool ret;
   bool no_checksum;
-  /*
-    We don't call Start_log_event_v3::write() because this would make 2
-    my_b_safe_write().
-  */
   uchar buff[Binary_log_event::FORMAT_DESCRIPTION_HEADER_LEN +
              BINLOG_CHECKSUM_ALG_DESC_LEN];
   size_t rec_size= sizeof(buff);
@@ -5819,23 +5583,25 @@ int Format_description_log_event::do_apply_event(Relay_log_info const *rli)
     const_cast<Relay_log_info*>(rli)->cleanup_context(thd, 1);
   }
 
-  /*
-    If this event comes from ourselves, there is no cleaning task to
-    perform, we don't call Start_log_event_v3::do_apply_event()
-    (this was just to update the log's description event).
-  */
+  /* If this event comes from ourself, there is no cleaning task to perform. */
   if (server_id != (uint32) ::server_id)
   {
-    /*
-      If the event was not requested by the slave i.e. the master sent
-      it while the slave asked for a position >4, the event will make
-      rli->group_master_log_pos advance. Say that the slave asked for
-      position 1000, and the Format_desc event's end is 96. Then in
-      the beginning of replication rli->group_master_log_pos will be
-      0, then 96, then jump to first really asked event (which is
-      >96). So this is ok.
-    */
-    ret= Start_log_event_v3::do_apply_event(rli);
+    if (created)
+    {
+      ret= close_temporary_tables(thd);
+      cleanup_load_tmpdir();
+    }
+    else
+    {
+      /*
+        Set all temporary tables thread references to the current thread
+        as they may point to the "old" SQL slave thread in case of its
+        restart.
+      */
+      TABLE *table;
+      for (table= thd->temporary_tables; table; table= table->next)
+        table->in_use= thd;
+    }
   }
 
   if (!ret)
