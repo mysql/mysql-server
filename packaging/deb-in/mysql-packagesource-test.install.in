@@ -27,6 +27,7 @@ usr/lib/mysql/plugin/auth_test_plugin.so
 usr/lib/mysql/plugin/component_example_component1.so
 usr/lib/mysql/plugin/component_example_component2.so
 usr/lib/mysql/plugin/component_example_component3.so
+usr/lib/mysql/plugin/component_log_sink_test.so
 usr/lib/mysql/plugin/component_test_string_service.so
 usr/lib/mysql/plugin/component_test_string_service_charset.so
 usr/lib/mysql/plugin/component_test_string_service_long.so
@@ -68,6 +69,7 @@ usr/lib/mysql/plugin/debug/auth_test_plugin.so
 usr/lib/mysql/plugin/debug/component_example_component1.so
 usr/lib/mysql/plugin/debug/component_example_component2.so
 usr/lib/mysql/plugin/debug/component_example_component3.so
+usr/lib/mysql/plugin/debug/component_log_sink_test.so
 usr/lib/mysql/plugin/debug/component_test_string_service.so
 usr/lib/mysql/plugin/debug/component_test_string_service_charset.so
 usr/lib/mysql/plugin/debug/component_test_string_service_long.so

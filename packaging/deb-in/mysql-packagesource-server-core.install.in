@@ -26,6 +26,8 @@ usr/share/man/man1/mysql_tzinfo_to_sql.1
 usr/share/man/man1/mysql_upgrade.1
 usr/share/man/man1/my_print_defaults.1
 # plugins
+usr/lib/mysql/plugin/component_log_sink_json.so
+usr/lib/mysql/plugin/component_log_sink_syseventlog.so
 usr/lib/mysql/plugin/mysql_no_login.so
 usr/lib/mysql/plugin/innodb_engine.so
 usr/lib/mysql/plugin/rewriter.so
