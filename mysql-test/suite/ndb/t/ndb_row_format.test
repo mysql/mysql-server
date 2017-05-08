@@ -67,7 +67,8 @@ source show_varpart.inc;
 DROP TABLE t1;
 
 # test of bug
-create table t1 (a int auto_increment primary key, b varchar(1000)) engine = ndb;
+create table t1 (a int auto_increment primary key,
+                 b varchar(1000) character set latin1) engine = ndb;
 insert into t1(b) values ('0123456789');
 insert into t1(b) select b from t1;
 insert into t1(b) select b from t1;

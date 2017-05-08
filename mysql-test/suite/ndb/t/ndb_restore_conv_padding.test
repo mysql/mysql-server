@@ -18,7 +18,7 @@
 CREATE TABLE t3(
   c1 char(32),
   b1 binary(32)
-) ENGINE=NDB;
+) CHARACTER SET latin1 ENGINE=NDB;
 
 INSERT INTO t3 VALUES('aaaaaaaa', 'bbbbbbbb');
 SELECT length(c1), length(b1) FROM t3;

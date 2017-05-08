@@ -21,7 +21,7 @@ CREATE TABLE t1 (
   d blob,
   primary key(a,b),
   key(b),
-  unique (c)) engine=ndb comment='NDB_TABLE=FULLY_REPLICATED=1,PARTITION_BALANCE=FOR_RA_BY_NODE' partition by key(a) ;
+  unique (c)) engine=ndb character set latin1 comment='NDB_TABLE=FULLY_REPLICATED=1,PARTITION_BALANCE=FOR_RA_BY_NODE' partition by key(a) ;
 show warnings;
 
 # Test that invalid table comment creates a warning

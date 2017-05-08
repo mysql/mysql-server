@@ -7,7 +7,7 @@ create table t1 (
         th int primary key, 
         un int, 
         de int, 
-        rb varchar(1000), 
+        rb varchar(1000) character set latin1,
         al longtext, 
         key(de),
         unique(rb)) 

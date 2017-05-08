@@ -5,7 +5,7 @@ CREATE TABLE t1 (
   attr1 VARCHAR(1024),
   attr2 VARBINARY(1024),
   attr3 TEXT
-) ROW_FORMAT=DYNAMIC ENGINE=ndbcluster;
+) ROW_FORMAT=DYNAMIC ENGINE=ndbcluster CHARACTER SET latin1;
 
 CREATE UNIQUE INDEX ui on t1(pk,attr1,attr2);
 

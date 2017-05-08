@@ -200,6 +200,7 @@ create table t1(vc varchar(16), i int, vc2 varchar(1024)
   , KEY i1(i)
   , KEY i2(vc)
  )  ENGINE=ndbcluster
+    CHARACTER SET latin1
     COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 insert into t1 values

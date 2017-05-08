@@ -367,7 +367,7 @@ Table options:
 HashMap: HASHMAP-3840-16-24
 -- Attributes --
 id Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-data Char(8;latin1_swedish_ci) NULL AT=FIXED ST=MEMORY
+data Char(32;utf8mb4_0900_ai_ci) NULL AT=FIXED ST=MEMORY
 -- Indexes -- 
 PRIMARY KEY(id) - UniqueHashIndex
 PRIMARY(id) - OrderedIndex

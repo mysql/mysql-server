@@ -69,7 +69,10 @@ drop table t1;
 
 
 # Build table t2 with 2000 rows
-create table t2 (a int primary key, b varchar(256)) engine ndb;
+create table t2 (
+  a int primary key,
+  b varchar(256) character set latin1)
+engine ndb;
 --disable_result_log
 --disable_query_log
 let $i = 200;
