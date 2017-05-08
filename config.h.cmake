@@ -661,6 +661,7 @@
 
 #cmakedefine CPU_LEVEL1_DCACHE_LINESIZE @CPU_LEVEL1_DCACHE_LINESIZE@
 #cmakedefine HAVE_LIBNUMA 1
+#cmakedefine WITH_NUMA 1
 
 /* For --secure-file-priv */
 #cmakedefine DEFAULT_SECURE_FILE_PRIV_DIR @DEFAULT_SECURE_FILE_PRIV_DIR@
