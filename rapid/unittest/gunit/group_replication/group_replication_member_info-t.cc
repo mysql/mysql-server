@@ -21,6 +21,7 @@
 
 #include "member_info.h"
 #include "my_inttypes.h"
+#include "services/notification/notification.h"
 
 using std::string;
 using std::vector;
@@ -199,8 +200,10 @@ TEST_F(ClusterMemberInfoManagerTest, GetLocalInfoByUUIDTest)
 
 TEST_F(ClusterMemberInfoManagerTest, UpdateStatusOfLocalObjectTest)
 {
+  Notification_context ctx;
   cluster_member_mgr->update_member_status(local_node->get_uuid(),
-                                           Group_member_info::MEMBER_ONLINE);
+                                           Group_member_info::MEMBER_ONLINE,
+                                           ctx);
 
   ASSERT_EQ(Group_member_info::MEMBER_ONLINE,
             local_node->get_recovery_status());
@@ -267,6 +270,7 @@ TEST_F(ClusterMemberInfoManagerTest, GetLocalInfoByUUIDAfterEncodingTest)
 
 TEST_F(ClusterMemberInfoManagerTest, UpdateStatusOfLocalObjectAfterExchangeTest)
 {
+  Notification_context ctx;
   vector<uchar>* encoded= new vector<uchar>();
   cluster_member_mgr->encode(encoded);
 
@@ -279,7 +283,8 @@ TEST_F(ClusterMemberInfoManagerTest, UpdateStatusOfLocalObjectAfterExchangeTest)
   delete encoded;
 
   cluster_member_mgr->update_member_status(local_node->get_uuid(),
-                                           Group_member_info::MEMBER_ONLINE);
+                                           Group_member_info::MEMBER_ONLINE,
+                                           ctx);
 
   ASSERT_EQ(Group_member_info::MEMBER_ONLINE,
             local_node->get_recovery_status());

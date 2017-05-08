@@ -31,6 +31,7 @@
 #include "recovery_message.h"
 #include "read_mode_handler.h"
 
+#include "services/notification/notification.h"
 
 /**
   Group_member_info_pointer_comparator to guarantee uniqueness
@@ -273,6 +274,9 @@ private:
 #ifndef DBUG_OFF
   bool set_number_of_members_on_view_changed_to_10;
 #endif
+
+  /** The notification context for the GCS delivery thread. */
+  mutable Notification_context m_notification_ctx;
 };
 
 #endif /* GCS_EVENT_HANDLERS_INCLUDE */

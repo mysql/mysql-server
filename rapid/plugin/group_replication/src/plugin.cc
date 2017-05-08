@@ -26,6 +26,10 @@
 #include "plugin.h"
 #include "plugin_log.h"
 
+#ifndef DBUG_OFF
+#include "services/notification/impl/gms_listener_test.h"
+#endif
+
 using std::string;
 
 /* Plugin generic fields */
@@ -47,6 +51,8 @@ Applier_module *applier_module= NULL;
 Recovery_module *recovery_module= NULL;
 //The plugin group communication module
 Gcs_operations *gcs_module= NULL;
+// The registry module
+Registry_module_interface *registry_module= NULL;
 //The channel observation module
 Channel_observation_manager *channel_observation_manager= NULL;
 //The Single primary channel observation module
@@ -212,6 +218,10 @@ static bool init_group_sidno();
 
 static void initialize_ssl_option_map();
 
+static bool initialize_registry_module();
+
+static bool finalize_registry_module();
+
 /*
   Auxiliary public functions.
 */
@@ -239,6 +249,25 @@ int log_message(enum plugin_log_level level, const char *format, ...)
   my_vsnprintf(buff, sizeof(buff), format, args);
   va_end(args);
   return my_plugin_log_message(&plugin_info_ptr, level, "%s", buff);
+}
+
+static bool initialize_registry_module()
+{
+  return
+    (!(registry_module= new Registry_module()) ||
+     registry_module->initialize());
+}
+
+static bool finalize_registry_module()
+{
+  int res= false;
+  if (registry_module)
+  {
+    res= registry_module->finalize();
+    delete registry_module;
+    registry_module= NULL;
+  }
+  return res;
 }
 
 /*
@@ -341,6 +370,11 @@ int plugin_group_replication_start()
   if (init_group_sidno())
     DBUG_RETURN(GROUP_REPLICATION_CONFIGURATION_ERROR); /* purecov: inspected */
 
+  DBUG_EXECUTE_IF("register_gms_listener_example",
+  {
+    register_listener_service_gr_example();
+  });
+
   /*
     Instantiate certification latch.
   */
@@ -348,6 +382,10 @@ int plugin_group_replication_start()
   read_mode_handler= new Read_mode_handler();
   Sql_service_command_interface *sql_command_interface=
       new Sql_service_command_interface();
+
+  // Registry module.
+  if ((error= initialize_registry_module()))
+    goto err; /* purecov: inspected */
 
   // GCS interface.
   if ((error= gcs_module->initialize()))
@@ -712,6 +750,12 @@ int plugin_group_replication_stop()
   int error= terminate_plugin_modules();
 
   group_replication_running= false;
+
+  DBUG_EXECUTE_IF("register_gms_listener_example",
+  {
+    unregister_listener_service_gr_example();
+  });
+
   shared_plugin_stop_lock->release_write_lock();
 
   DBUG_RETURN(error);
@@ -784,8 +828,21 @@ int terminate_plugin_modules()
 
   if (group_member_mgr != NULL && local_member_info != NULL)
   {
+    Notification_context ctx;
     group_member_mgr->update_member_status(local_member_info->get_uuid(),
-                                           Group_member_info::MEMBER_OFFLINE);
+                                           Group_member_info::MEMBER_OFFLINE,
+                                           ctx);
+    notify_and_reset_ctx(ctx);
+  }
+
+  if (finalize_registry_module())
+  {
+    /* purecov: begin inspected */
+    log_message(MY_ERROR_LEVEL,
+                "Unexpected failure while shutting down registry module!");
+    if (!error)
+      error= 1;
+    /* purecov: end */
   }
 
   return error;

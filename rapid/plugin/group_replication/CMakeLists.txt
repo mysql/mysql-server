@@ -63,7 +63,12 @@ SET(GROUP_REPLICATION_SOURCES
   src/sql_service/sql_service_interface.cc
   src/sql_service/sql_command_test.cc
   src/sql_service/sql_service_command.cc
+  src/services/notification/notification.cc
+  src/services/registry.cc
 )
+
+SET(GMS_LISTENER_SERVICE_TEST_SOURCES
+    src/services/notification/impl/gms_listener_test.cc)
 
 ADD_DEFINITIONS(-DMYSQL_SERVER)
 
@@ -84,6 +89,7 @@ ENDIF()
 # declare the plugin itself
 MYSQL_ADD_PLUGIN(group_replication
                  ${GROUP_REPLICATION_SOURCES}
+                 ${GMS_LISTENER_SERVICE_TEST_SOURCES}
                  LINK_LIBRARIES
                  ${LZ4_LIBRARY}
                  ${SSL_LIBRARIES}

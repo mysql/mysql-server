@@ -653,7 +653,8 @@ Group_member_info_manager::update(vector<Group_member_info*>* new_members)
 void
 Group_member_info_manager::
 update_member_status(const string& uuid,
-                     Group_member_info::Group_member_status new_status)
+                     Group_member_info::Group_member_status new_status,
+                     Notification_context& ctx)
 {
   mysql_mutex_lock(&update_lock);
 
@@ -663,7 +664,13 @@ update_member_status(const string& uuid,
 
   if(it != members->end())
   {
-    (*it).second->update_recovery_status(new_status);
+    Group_member_info::Group_member_status old_status=
+      (*it).second->get_recovery_status();
+    if (old_status != new_status)
+    {
+      (*it).second->update_recovery_status(new_status);
+      ctx.set_member_state_changed();
+    }
   }
 
   mysql_mutex_unlock(&update_lock);
@@ -692,7 +699,8 @@ update_gtid_sets(const string& uuid,
 void
 Group_member_info_manager::
 update_member_role(const string& uuid,
-                   Group_member_info::Group_member_role new_role)
+                   Group_member_info::Group_member_role new_role,
+                   Notification_context& ctx)
 {
   mysql_mutex_lock(&update_lock);
 
@@ -702,7 +710,12 @@ update_member_role(const string& uuid,
 
   if(it != members->end())
   {
-    (*it).second->set_role(new_role);
+    Group_member_info::Group_member_role old_role= (*it).second->get_role();
+    if (old_role != new_role)
+    {
+      (*it).second->set_role(new_role);
+      ctx.set_member_role_changed();
+    }
   }
 
   mysql_mutex_unlock(&update_lock);

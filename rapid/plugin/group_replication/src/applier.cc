@@ -25,6 +25,7 @@
 #include "plugin.h"
 #include "plugin_log.h"
 #include "single_primary_message.h"
+#include "services/notification/notification.h"
 
 char applier_module_channel_name[] = "group_replication_applier";
 bool applier_thread_is_exiting= false;
@@ -674,14 +675,20 @@ void Applier_module::inform_of_applier_stop(char* channel_name,
 
 void Applier_module::leave_group_on_failure()
 {
+  Notification_context ctx;
   DBUG_ENTER("Applier_module::leave_group_on_failure");
 
   log_message(MY_ERROR_LEVEL,
               "Fatal error during execution on the Applier process of "
               "Group Replication. The server will now leave the group.");
 
+  /* Notify member status update. */
   group_member_mgr->update_member_status(local_member_info->get_uuid(),
-                                         Group_member_info::MEMBER_ERROR);
+                                         Group_member_info::MEMBER_ERROR,
+                                         ctx);
+
+  /* Single state update. Notify right away. */
+  notify_and_reset_ctx(ctx);
 
   bool set_read_mode= false;
   Gcs_operations::enum_leave_state state= gcs_module->leave();

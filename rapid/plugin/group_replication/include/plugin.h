@@ -35,6 +35,7 @@
 #include "plugin_server_include.h"
 #include <mysql/plugin.h>
 #include <mysql/plugin_group_replication.h>
+#include "services/registry.h"
 
 //Definition of system var structures
 
@@ -61,6 +62,7 @@ extern Wait_ticket<my_thread_id> *certification_latch;
 extern Gcs_operations *gcs_module;
 extern Applier_module *applier_module;
 extern Recovery_module *recovery_module;
+extern Registry_module_interface *registry_module;
 extern Group_member_info_manager_interface *group_member_mgr;
 extern Channel_observation_manager *channel_observation_manager;
 extern Asynchronous_channels_state_observer *asynchronous_channels_state_observer;

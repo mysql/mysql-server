@@ -35,6 +35,7 @@
 #include "gcs_plugin_messages.h"
 #include "member_version.h"
 #include "my_inttypes.h"
+#include "services/notification/notification.h"
 
 /*
   Encoding of the group_replication_enforce_update_everywhere_checks
@@ -443,10 +444,12 @@ public:
 
     @param[in] uuid        member uuid
     @param[in] new_status  status to change to
+    @param[in,out] ctx     The notification context to update.
    */
   virtual void
   update_member_status(const std::string& uuid,
-                       Group_member_info::Group_member_status new_status)= 0;
+                       Group_member_info::Group_member_status new_status,
+                       Notification_context& ctx)= 0;
 
   /**
     Updates the GTID sets on a single member
@@ -464,10 +467,12 @@ public:
 
     @param[in] uuid        member uuid
     @param[in] new_role    role to change to
+    @param[in,out] ctx     The notification context to update.
    */
   virtual void
   update_member_role(const std::string& uuid,
-                     Group_member_info::Group_member_role new_role)= 0;
+                     Group_member_info::Group_member_role new_role,
+                     Notification_context& ctx)= 0;
 
   /**
     Encodes this object to send via the network
@@ -526,14 +531,16 @@ public:
 
   void
   update_member_status(const std::string& uuid,
-                       Group_member_info::Group_member_status new_status);
+                       Group_member_info::Group_member_status new_status,
+                       Notification_context& ctx);
 
   void update_gtid_sets(const std::string& uuid,
                         std::string& gtid_executed,
                         std::string& gtid_retrieved);
   void
   update_member_role(const std::string& uuid,
-                     Group_member_info::Group_member_role new_role);
+                     Group_member_info::Group_member_role new_role,
+                     Notification_context& ctx);
 
   void encode(std::vector<uchar>* to_encode);
 
