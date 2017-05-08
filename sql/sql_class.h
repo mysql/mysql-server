@@ -222,7 +222,11 @@ public:
 };
 
 
+#if defined(__powerpc__) || defined(__aarch64__)
+#define TC_LOG_PAGE_SIZE   65535
+#else
 #define TC_LOG_PAGE_SIZE   8192
+#endif
 #define TC_LOG_MIN_SIZE    (3*TC_LOG_PAGE_SIZE)
 
 typedef struct st_user_var_events
