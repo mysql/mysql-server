@@ -716,7 +716,7 @@ void Dbacc::releaseDirResources(Signal* signal)
       releasePage(rpPageptr);
     }
   }
-  while (ret==0 && count>0 && !cfreepages.isEmpty())
+  while (ret == 0 && count > 0 && !cfreepages.isEmpty())
   {
     jam();
     Page8Ptr page;
@@ -727,12 +727,15 @@ void Dbacc::releaseDirResources(Signal* signal)
     pages.dropFirstPage32(c_page_pool, page32ptr, 5);
     if (page32ptr.i != RNIL)
     {
+      jam();
       g_acc_pages_used[instance()]--;
+      ndbassert(cpageCount >= 4);
+      cpageCount -= 4; // 8KiB pages per 32KiB page
       m_ctx.m_mm.release_page(RT_DBACC_PAGE, page32ptr.i);
     }
     count--;
   }
-  if (ret != 0)
+  if (ret != 0 || !cfreepages.isEmpty())
   {
     jam();
     memcpy(&signal->theData[2], &iter, sizeof(iter));
@@ -8442,6 +8445,8 @@ void Dbacc::releasePage(Page8Ptr rpPageptr)
   if (page32ptr.i != RNIL)
   {
     g_acc_pages_used[instance()]--;
+    ndbassert(cpageCount >= 4);
+    cpageCount -= 4; // 8KiB pages per 32KiB page
     m_ctx.m_mm.release_page(RT_DBACC_PAGE, page32ptr.i);
   }
 
