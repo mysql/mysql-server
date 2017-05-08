@@ -11,6 +11,14 @@ GRANT USAGE ON *.* TO `u1`@`localhost`
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO `u1`@`localhost`
 SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
+root	localhost	BINLOG_ADMIN	Y
+root	localhost	CONNECTION_ADMIN	Y
+root	localhost	ENCRYPTION_KEY_ADMIN	Y
+root	localhost	GROUP_REPLICATION_ADMIN	Y
+root	localhost	REPLICATION_SLAVE_ADMIN	Y
+root	localhost	ROLE_ADMIN	Y
+root	localhost	SET_USER_ID	Y
+root	localhost	SYSTEM_VARIABLES_ADMIN	Y
 u1	localhost	SYSTEM_VARIABLES_ADMIN	N
 -------------------------------------------------------------------------
 
@@ -21,6 +29,14 @@ GRANT USAGE ON *.* TO `u1`@`localhost` WITH GRANT OPTION
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO `u1`@`localhost` WITH GRANT OPTION
 SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
+root	localhost	BINLOG_ADMIN	Y
+root	localhost	CONNECTION_ADMIN	Y
+root	localhost	ENCRYPTION_KEY_ADMIN	Y
+root	localhost	GROUP_REPLICATION_ADMIN	Y
+root	localhost	REPLICATION_SLAVE_ADMIN	Y
+root	localhost	ROLE_ADMIN	Y
+root	localhost	SET_USER_ID	Y
+root	localhost	SYSTEM_VARIABLES_ADMIN	Y
 u1	localhost	SYSTEM_VARIABLES_ADMIN	Y
 
 FLUSH PRIVILEGES;
@@ -30,6 +46,14 @@ GRANT USAGE ON *.* TO `u1`@`localhost` WITH GRANT OPTION
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO `u1`@`localhost` WITH GRANT OPTION
 SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
+root	localhost	BINLOG_ADMIN	Y
+root	localhost	CONNECTION_ADMIN	Y
+root	localhost	ENCRYPTION_KEY_ADMIN	Y
+root	localhost	GROUP_REPLICATION_ADMIN	Y
+root	localhost	REPLICATION_SLAVE_ADMIN	Y
+root	localhost	ROLE_ADMIN	Y
+root	localhost	SET_USER_ID	Y
+root	localhost	SYSTEM_VARIABLES_ADMIN	Y
 u1	localhost	SYSTEM_VARIABLES_ADMIN	Y
 
 ** Try granting multiple times.This shouldn't result in duplicate entries
@@ -52,6 +76,14 @@ GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO `u1`@`localhost` WITH GRANT OPTION
 ** Only one dynamic entry
 SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
+root	localhost	BINLOG_ADMIN	Y
+root	localhost	CONNECTION_ADMIN	Y
+root	localhost	ENCRYPTION_KEY_ADMIN	Y
+root	localhost	GROUP_REPLICATION_ADMIN	Y
+root	localhost	REPLICATION_SLAVE_ADMIN	Y
+root	localhost	ROLE_ADMIN	Y
+root	localhost	SET_USER_ID	Y
+root	localhost	SYSTEM_VARIABLES_ADMIN	Y
 u1	localhost	SYSTEM_VARIABLES_ADMIN	Y
 ** Only one dynamic entry
 SELECT * FROM information_schema.user_privileges WHERE GRANTEE LIKE '%u1%'
@@ -66,6 +98,14 @@ GRANT USAGE ON *.* TO `u1`@`localhost` WITH GRANT OPTION
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO `u1`@`localhost` WITH GRANT OPTION
 SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
+root	localhost	BINLOG_ADMIN	Y
+root	localhost	CONNECTION_ADMIN	Y
+root	localhost	ENCRYPTION_KEY_ADMIN	Y
+root	localhost	GROUP_REPLICATION_ADMIN	Y
+root	localhost	REPLICATION_SLAVE_ADMIN	Y
+root	localhost	ROLE_ADMIN	Y
+root	localhost	SET_USER_ID	Y
+root	localhost	SYSTEM_VARIABLES_ADMIN	Y
 u1	localhost	SYSTEM_VARIABLES_ADMIN	Y
 
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO u1@localhost;
@@ -75,6 +115,14 @@ GRANT USAGE ON *.* TO `u1`@`localhost` WITH GRANT OPTION
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO `u1`@`localhost` WITH GRANT OPTION
 SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
+root	localhost	BINLOG_ADMIN	Y
+root	localhost	CONNECTION_ADMIN	Y
+root	localhost	ENCRYPTION_KEY_ADMIN	Y
+root	localhost	GROUP_REPLICATION_ADMIN	Y
+root	localhost	REPLICATION_SLAVE_ADMIN	Y
+root	localhost	ROLE_ADMIN	Y
+root	localhost	SET_USER_ID	Y
+root	localhost	SYSTEM_VARIABLES_ADMIN	Y
 u1	localhost	SYSTEM_VARIABLES_ADMIN	Y
 
 REVOKE SYSTEM_VARIABLES_ADMIN ON *.* FROM u1@localhost;
@@ -107,6 +155,14 @@ GRANT RUBBISH ON *.* TO `u1`@`localhost`
 DROP USER u1@localhost;
 SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
+root	localhost	BINLOG_ADMIN	Y
+root	localhost	CONNECTION_ADMIN	Y
+root	localhost	ENCRYPTION_KEY_ADMIN	Y
+root	localhost	GROUP_REPLICATION_ADMIN	Y
+root	localhost	REPLICATION_SLAVE_ADMIN	Y
+root	localhost	ROLE_ADMIN	Y
+root	localhost	SET_USER_ID	Y
+root	localhost	SYSTEM_VARIABLES_ADMIN	Y
 u1	localhoster	RUBBISH	N
 SELECT * FROM information_schema.user_privileges WHERE GRANTEE LIKE '%u1%'
 ORDER BY GRANTEE, PRIVILEGE_TYPE, IS_GRANTABLE;
@@ -130,6 +186,14 @@ ERROR 42000: There is no such grant defined for user 'u1' on host 'localhost'
 ** privileges are affected by RENAME
 SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
+root	localhost	BINLOG_ADMIN	Y
+root	localhost	CONNECTION_ADMIN	Y
+root	localhost	ENCRYPTION_KEY_ADMIN	Y
+root	localhost	GROUP_REPLICATION_ADMIN	Y
+root	localhost	REPLICATION_SLAVE_ADMIN	Y
+root	localhost	ROLE_ADMIN	Y
+root	localhost	SET_USER_ID	Y
+root	localhost	SYSTEM_VARIABLES_ADMIN	Y
 u1	localhoster	RUBBISH	N
 u2	localhost	BINLOG_ADMIN	N
 u2	localhost	GROUP_REPLICATION_ADMIN	Y
@@ -161,6 +225,14 @@ GRANT SELECT ON *.* TO `u1`@`localhost` WITH GRANT OPTION
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO `u1`@`localhost` WITH GRANT OPTION
 SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
+root	localhost	BINLOG_ADMIN	Y
+root	localhost	CONNECTION_ADMIN	Y
+root	localhost	ENCRYPTION_KEY_ADMIN	Y
+root	localhost	GROUP_REPLICATION_ADMIN	Y
+root	localhost	REPLICATION_SLAVE_ADMIN	Y
+root	localhost	ROLE_ADMIN	Y
+root	localhost	SET_USER_ID	Y
+root	localhost	SYSTEM_VARIABLES_ADMIN	Y
 u1	localhoster	RUBBISH	N
 u1	localhost	SYSTEM_VARIABLES_ADMIN	Y
 SELECT * FROM information_schema.user_privileges WHERE GRANTEE LIKE '%u1%'

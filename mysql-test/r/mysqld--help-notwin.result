@@ -351,18 +351,11 @@ The following options may be given as the first argument:
  --initialize-insecure 
  Create the default database and exit. Create a super user
  with empty password.
- --innmem-max-ram=#  Maximum amount of memory (in bytes) the InnMEM storage
- engine is allowed to allocate from the main memory (RAM)
- before starting to store data on disk.
  --interactive-timeout=# 
  The number of seconds the server waits for activity on an
  interactive connection before closing it
  --internal-tmp-disk-storage-engine[=name] 
- The default storage engine for on-disk internal temporary
- tables.
- --internal-tmp-mem-storage-engine=name 
- The default storage engine for in-memory internal
- temporary tables.
+ The default storage engine for on-disk internal tmp table
  --join-buffer-size=# 
  The size of the buffer that is used for full joins
  --keep-files-on-create 
@@ -1235,9 +1228,9 @@ The following options may be given as the first argument:
  --time-format=name  The TIME format (ignored)
  --tls-version=name  TLS version, permitted values are TLSv1, TLSv1.1,
  TLSv1.2(Only for openssl)
- --tmp-table-size=#  If an internal in-memory temporary table in the MEMORY
- storage engine exceeds this size, MySQL will
- automatically convert it to an on-disk table
+ --tmp-table-size=#  If an internal in-memory temporary table exceeds this
+ size, MySQL will automatically convert it to an on-disk
+ MyISAM table
  -t, --tmpdir=name   Path for temporary files. Several paths may be specified,
  separated by a colon (:), in this case they are used in a
  round-robin fashion
@@ -1360,10 +1353,8 @@ init-file (No default value)
 init-slave 
 initialize TRUE
 initialize-insecure TRUE
-innmem-max-ram 1073741824
 interactive-timeout 28800
 internal-tmp-disk-storage-engine InnoDB
-internal-tmp-mem-storage-engine InnMEM
 join-buffer-size 262144
 keep-files-on-create FALSE
 key-buffer-size 8388608

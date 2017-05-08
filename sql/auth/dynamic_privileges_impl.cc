@@ -161,6 +161,12 @@ DEFINE_BOOL_METHOD(dynamic_privilege_services_impl::has_global_grant,
   return sctx->has_global_grant(privilege_str, privilege_str_len).first;
 }
 
+
+/**
+  Boostrap the dynamic privilege service by seeding it with server
+  implementation specific data. 
+*/
+
 bool dynamic_privilege_init(void)
 {
   // Set up default dynamic privileges

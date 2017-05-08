@@ -1375,10 +1375,6 @@ static bool mysql_component_infrastructure_init()
     LogErr(ERROR_LEVEL, ER_COMPONENTS_PERSIST_LOADER_BOOTSTRAP);
     return true;
   }
-  if (dynamic_privilege_init())
-  {
-    sql_print_error("Failed to bootstrap persistent privileges.\n");
-  }
   /*
    * Its a dummy initialization function. Else linker, is cutting out (as
    * library optimization) the string service code because libsql code is not
@@ -5592,6 +5588,14 @@ int mysqld_main(int argc, char **argv)
     sys_var *var= intern_find_sys_var(STRING_WITH_LEN("log_error_services"));
     if (var != nullptr)
       opt_log_error_services= (char *) var->get_default();
+  }
+
+  /*
+    Bootstrap the dynamic privilege service implementation
+  */
+  if (dynamic_privilege_init())
+  {
+    sql_print_warning("Failed to bootstrap persistent privileges.");
   }
 
   if (!opt_initialize)
