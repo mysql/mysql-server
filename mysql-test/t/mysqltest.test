@@ -3897,3 +3897,38 @@ EOF
 
 # Cleanup
 --remove_file $MYSQLTEST_VARDIR/tmp/bug11766444.test
+
+--echo #
+--echo # BUG#25821838 : --ERROR IS NOT PROPERLY WORKING IF IT IS USED INSIDE WHILE LOOP
+--echo #
+
+# '--error' command should be evaluated only during the first iteration
+--let $counter= 0
+
+while ($counter <= 1)
+{
+  if ($counter == 0)
+  {
+    --error ER_BAD_TABLE_ERROR
+  }
+  DROP TABLE t1;
+  CREATE TABLE t1(c1 INT);
+  --inc $counter
+}
+
+DROP TABLE t1;
+
+# '--error' command should be evaluated only during the second iteration
+--let $counter= 0
+
+while ($counter <= 1)
+{
+  if ($counter == 1)
+  {
+    --error ER_TABLE_EXISTS_ERROR
+  }
+  CREATE TABLE t1(c1 INT);
+  --inc $counter
+}
+
+DROP TABLE t1;

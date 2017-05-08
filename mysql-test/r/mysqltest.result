@@ -1530,3 +1530,16 @@ Hello
 # BUG#11766444 : MTR PRINTS WRONG FILE AND LINE NUMBER WHEN TESTS FAIL
 #
 mysqltest: At line 7: query 'execute this invalid query' failed: 1064: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'invalid query' at line 1
+#
+# BUG#25821838 : --ERROR IS NOT PROPERLY WORKING IF IT IS USED INSIDE WHILE LOOP
+#
+DROP TABLE t1;
+ERROR 42S02: Unknown table 'test.t1'
+CREATE TABLE t1(c1 INT);
+DROP TABLE t1;
+CREATE TABLE t1(c1 INT);
+DROP TABLE t1;
+CREATE TABLE t1(c1 INT);
+CREATE TABLE t1(c1 INT);
+ERROR 42S01: Table 't1' already exists
+DROP TABLE t1;

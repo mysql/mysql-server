@@ -9833,8 +9833,11 @@ int main(int argc, char **argv)
     if (command->type == Q_UNKNOWN || command->type == Q_COMMENT_WITH_COMMAND)
       get_command_type(command);
 
-    if(saved_expected_errors.count > 0)
+    if((saved_expected_errors.count > 0) ||
+       (command->expected_errors.count > 0))
+    {
       update_expected_errors(command);
+    }
 
     if (parsing_disabled &&
         command->type != Q_ENABLE_PARSING &&
@@ -9852,12 +9855,11 @@ int main(int argc, char **argv)
     bool ok_to_do= cur_block->ok || command->type == Q_DELIMITER;
 
     /*
-      Some commands need to be "done" the first time if they may get
+      'source' command needs to be "done" the first time if it may get
       re-iterated over in a true context. This can only happen if there's 
       a while loop at some level above the current block.
     */
-    if (!ok_to_do && (command->type == Q_ERROR ||
-                      command->type == Q_SOURCE))
+    if (!ok_to_do && command->type == Q_SOURCE)
     {
       for (struct st_block *stb= cur_block - 1; stb >= block_stack; stb--)
       {
