@@ -1169,6 +1169,25 @@ Dbspj::execSCAN_FRAGREQ(Signal* signal)
     Uint32 len = QueryTree::getLength(len_cnt);
     Uint32 cnt = QueryTree::getNodeCnt(len_cnt);
 
+    Uint32 sectionCnt = handle.m_cnt;
+    Uint32 fragIdsPtrI = RNIL;
+    if (ScanFragReq::getMultiFragFlag(req->requestInfo))
+    {
+      jam();
+      sectionCnt--;
+      fragIdsPtrI = handle.m_ptr[sectionCnt].i;
+      SectionReader fragsReader(fragIdsPtrI, getSectionSegmentPool());
+
+      //Unpack into extended signal memory:
+      const Uint32 fragCnt = signal->theData[25] = fragsReader.getSize();
+      if (unlikely(!fragsReader.getWords(&signal->theData[26], fragCnt)))
+      {
+        jam();
+        err = DbspjErr::InvalidRequest;
+        break;
+      }
+    }
+
     {
       SectionReader treeReader(attrPtr, getSectionSegmentPool());
       SectionReader paramReader(attrPtr, getSectionSegmentPool());
@@ -1189,16 +1208,19 @@ Dbspj::execSCAN_FRAGREQ(Signal* signal)
       /**
        * Root TreeNode in Request takes ownership of keyPtr
        * section when build has completed.
-       * We are done with attrPtr which is now released.
+       * We are done with attrPtr and MultiFrag-list which is
+       * now released.
        */
       Ptr<TreeNode> rootNodePtr = ctx.m_node_list[0];
-      if (handle.m_cnt > 1)
+      if (sectionCnt > ScanFragReq::KeyInfoSectionNum)
       {
         jam();
+        sectionCnt--;
         const Uint32 keyPtrI = handle.m_ptr[ScanFragReq::KeyInfoSectionNum].i;
         rootNodePtr.p->m_send.m_keyInfoPtrI = keyPtrI;
       }
       release(attrPtr);
+      releaseSection(fragIdsPtrI); //MultiFrag list
       handle.clear();
     }
 
@@ -1383,7 +1405,7 @@ Dbspj::build(Build_context& ctx,
     }
 
     const OpInfo* info = NULL;
-    if (node_op == QueryNode::QN_SCAN_FRAG_v1)
+    if (unlikely(node_op == QueryNode::QN_SCAN_FRAG_v1))
     {
       /**
        * Convert the deprecated SCAN_FRAG_v1 node+param to new SCAN_FRAG:
@@ -1422,7 +1444,7 @@ Dbspj::build(Build_context& ctx,
 
       info = &Dbspj::g_ScanFragOpInfo;
     }
-    else if (node_op == QueryNode::QN_SCAN_INDEX_v1)
+    else if (unlikely(node_op == QueryNode::QN_SCAN_INDEX_v1))
     {
       /**
        * Convert the deprecated SCAN_INDEX_v1 node+param to new SCAN_FRAG:
@@ -5485,7 +5507,7 @@ Dbspj::scanFrag_build(Build_context& ctx,
       const bool readBackup =
         !!(tablePtr.p->m_flags & TableRecord::TR_READ_BACKUP);
 
-      data.m_fragCount = 1;
+      data.m_fragCount = 0;
 
       /**
        * As this is the root node, fragId is already contained in the REQuest
@@ -5493,16 +5515,51 @@ Dbspj::scanFrag_build(Build_context& ctx,
        */
       {
         Local_ScanFragHandle_list list(m_scanfraghandle_pool, data.m_fragments);
+
+        if (ScanFragReq::getMultiFragFlag(req->requestInfo))
+        {
+          jam();
+          Uint32 variableLen = 25;
+          data.m_fragCount = signal->theData[variableLen++];
+          for (Uint32 i=0; i < data.m_fragCount; i++)
+          {
+            jam();
+            Ptr<ScanFragHandle> fragPtr;
+            const Uint32 fragId  = signal->theData[variableLen++];
+            const Uint32 ref = numberToRef(DBLQH,
+                                           getInstanceKey(req->tableId, fragId),
+                                           getOwnNodeId());
+
+            DEBUG("Scan build, fragId: " << fragId << ", ref: " << ref);
+
+            if (!ERROR_INSERTED_CLEAR(17004) &&
+                likely(m_scanfraghandle_pool.seize(requestPtr.p->m_arena, fragPtr)))
+            {
+              fragPtr.p->init(fragId, readBackup);
+              fragPtr.p->m_treeNodePtrI = treeNodePtr.i;
+              fragPtr.p->m_ref = ref;
+              list.addLast(fragPtr);
+            }
+            else
+            {
+              jam();
+              err = DbspjErr::OutOfQueryMemory;
+              return err;
+            }
+          }
+        }
+        else // 'not getMultiFragFlag(req->requestInfo)'
         {
           jam();
           Ptr<ScanFragHandle> fragPtr;
+          data.m_fragCount = 1;
 
           const Uint32 ref =
             numberToRef(DBLQH,
                         getInstanceKey(req->tableId, req->fragmentNoKeyLen),
                         getOwnNodeId());
 
-         if (!ERROR_INSERTED_CLEAR(17004) &&
+          if (!ERROR_INSERTED_CLEAR(17004) &&
               likely(m_scanfraghandle_pool.seize(requestPtr.p->m_arena, fragPtr)))
           {
             jam();
@@ -5522,12 +5579,10 @@ Dbspj::scanFrag_build(Build_context& ctx,
 
       if (ScanFragReq::getRangeScanFlag(req->requestInfo))
       {
-        jam();
         c_Counters.incr_counter(CI_RANGE_SCANS_RECEIVED, 1);
       }
       else
       {
-        jam();
         c_Counters.incr_counter(CI_TABLE_SCANS_RECEIVED, 1);
       }
     }
@@ -5563,6 +5618,7 @@ Dbspj::scanFrag_build(Build_context& ctx,
     dst->resultRef  = reference();
     dst->resultData = treeNodePtr.i;
     ScanFragReq::setCorrFactorFlag(dst->requestInfo, 1);
+    ScanFragReq::setMultiFragFlag(dst->requestInfo, 0);
 
     dst->batch_size_rows  = batchRows;
     dst->batch_size_bytes = batchBytes;
@@ -6422,6 +6478,7 @@ Dbspj::scanFrag_send(Signal* signal,
   ndbassert(treeNodePtr.p->m_state == TreeNode::TN_INACTIVE);
   ScanFragData& data = treeNodePtr.p->m_scanFrag_data;
   ndbassert(data.m_frags_outstanding == 0);
+  ndbassert(data.m_frags_not_started == (data.m_fragCount - data.m_frags_complete));
 
   const ScanFragReq * org = (const ScanFragReq*)data.m_scanFragReq;
   ndbrequire(org->batch_size_rows > 0);
@@ -6430,8 +6487,7 @@ Dbspj::scanFrag_send(Signal* signal,
   if (treeNodePtr.p->m_bits & TreeNode::T_SCAN_PARALLEL)
   {
     jam();
-    data.m_parallelism = MIN(data.m_fragCount - data.m_frags_complete, 
-                             org->batch_size_rows);
+    data.m_parallelism = MIN(data.m_frags_not_started, org->batch_size_rows);
   }
   else if (data.m_firstExecution)
   {
@@ -6467,18 +6523,17 @@ Dbspj::scanFrag_send(Signal* signal,
       jam();
       parallelism = 1;
     }
-    else if ((data.m_fragCount - data.m_frags_complete) % parallelism != 0)
+    else if (data.m_frags_not_started % parallelism != 0)
     {
       jam();
       /**
        * Set parallelism such that we can expect to have similar
        * parallelism in each batch. For example if there are 8 remaining
-       * fragments, then we should fecth 2 times 4 fragments rather than
+       * fragments, then we should fetch 2 times 4 fragments rather than
        * 7+1.
        */
-      const Int32 roundTrips =
-        1 + (data.m_fragCount - data.m_frags_complete) / parallelism;
-      parallelism = (data.m_fragCount - data.m_frags_complete) / roundTrips;
+      const Int32 roundTrips = 1 + data.m_frags_not_started / parallelism;
+      parallelism = data.m_frags_not_started / roundTrips;
     }
 
     ndbassert(parallelism >= 1);
@@ -6486,14 +6541,23 @@ Dbspj::scanFrag_send(Signal* signal,
     data.m_parallelism = static_cast<Uint32>(parallelism);
 
 #ifdef DEBUG_SCAN_FRAGREQ
-    DEBUG("::scanFrag_parent_batch_complete()"
-          ", starting fragment scan with parallelism="
+    DEBUG("::scanFrag_send(), starting fragment scan with parallelism="
           << data.m_parallelism);
 #endif
   }
   ndbrequire(data.m_parallelism > 0);
 
-  const Uint32 bs_rows = org->batch_size_rows/ data.m_parallelism;
+  // Increase parallelism if MAX_ROWS limitation is exceeded
+  if ((org->batch_size_rows / data.m_parallelism) > MAX_PARALLEL_OP_PER_SCAN)
+  {
+    jam();
+    data.m_parallelism = MIN((org->batch_size_rows + MAX_PARALLEL_OP_PER_SCAN-1) / 
+			     MAX_PARALLEL_OP_PER_SCAN,
+                             data.m_frags_not_started);
+  }
+
+  const Uint32 bs_rows = MIN(org->batch_size_rows / data.m_parallelism,
+                             MAX_PARALLEL_OP_PER_SCAN);
   const Uint32 bs_bytes = org->batch_size_bytes / data.m_parallelism;
   ndbassert(bs_rows > 0);
   ndbassert(bs_bytes > 0);
@@ -6578,11 +6642,12 @@ Dbspj::scanFrag_send(Signal* signal,
     reinterpret_cast<ScanFragReq*>(signal->getDataPtrSend());
   const ScanFragReq * const org
     = reinterpret_cast<ScanFragReq*>(data.m_scanFragReq);
+
   memcpy(req, org, sizeof(data.m_scanFragReq));
   // req->variableData[0] // set below
   req->variableData[1] = requestPtr.p->m_rootResultData;
   req->batch_size_bytes = bs_bytes;
-  req->batch_size_rows = bs_rows;
+  req->batch_size_rows = MIN(bs_rows,MAX_PARALLEL_OP_PER_SCAN);
 
   Uint32 requestsSent = 0;
   Uint32 err = checkTableError(treeNodePtr);
@@ -6695,8 +6760,6 @@ Dbspj::scanFrag_send(Signal* signal,
       else
       {
         jam();
-        ndbassert(keyInfoPtrI == RNIL);  //Not both keyInfo and 'range'
-
         Ptr<ScanFragHandle> fragWithRangePtr;
         if (prune)
         {
@@ -6714,8 +6777,11 @@ Dbspj::scanFrag_send(Signal* signal,
           list.first(fragWithRangePtr);
           releaseAtSend = (!repeatable && data.m_frags_not_started==1);
         }
-        keyInfoPtrI = fragWithRangePtr.p->m_rangePtrI;
-
+        if (fragWithRangePtr.p->m_rangePtrI != RNIL)
+        {
+          ndbassert(keyInfoPtrI == RNIL);  //Not both keyInfo and 'range'
+          keyInfoPtrI = fragWithRangePtr.p->m_rangePtrI;
+        }
         /**
          * 'releaseAtSend' is set above based on the keyInfo lifetime.
          * Copy the attrInfo (comment above) whenever needed.
@@ -6863,6 +6929,14 @@ Dbspj::scanFrag_send(Signal* signal,
       batchRange += bs_rows;
       requestsSent++;
       list.next(fragPtr);
+
+      /**
+       * There is a 12-bit implementation limit of how large
+       * the 'parent-row-correlation-id' may be. Thus, if rows
+       * from this scan may be 'parents', number of rows in batch
+       * should not exceed what could be represented in 12 bits.
+       */
+      ndbassert(treeNodePtr.p->isLeaf() || batchRange <= 0x1000);
     } // while (requestsSent < noOfFrags)
   }
   if (err)
@@ -7040,8 +7114,8 @@ Dbspj::scanFrag_execSCAN_FRAGCONF(Signal* signal,
        * Correlation value must be unique within batch and smaller than 
        * org->batch_size_rows.
        */
-      const Uint32 maxCorrVal = data.m_totalRows == 0 ? 0 :
-        org->batch_size_rows / data.m_parallelism * (data.m_parallelism - 1)
+      const Uint32 maxCorrVal = (data.m_totalRows == 0) ? 0 :
+        ((org->batch_size_rows / data.m_parallelism) * (data.m_parallelism - 1))
         + data.m_totalRows;
       
       // Number of rows & bytes that we can still fetch in this batch.
@@ -7202,7 +7276,7 @@ Dbspj::scanFrag_execSCAN_NEXTREQ(Signal* signal,
         /**
          * Set parallelism such that we can expect to have similar
          * parallelism in each batch. For example if there are 8 remaining
-         * fragments, then we should fecth 2 times 4 fragments rather than
+         * fragments, then we should fetch 2 times 4 fragments rather than
          * 7+1.
          */
         const Uint32 roundTrips =
@@ -7233,7 +7307,8 @@ Dbspj::scanFrag_execSCAN_NEXTREQ(Signal* signal,
                              org->batch_size_rows);
   }
 
-  const Uint32 bs_rows = org->batch_size_rows/data.m_parallelism;
+  const Uint32 bs_rows = MIN(org->batch_size_rows/data.m_parallelism,
+                             MAX_PARALLEL_OP_PER_SCAN);
   ndbassert(bs_rows > 0);
   ScanFragNextReq* req =
     reinterpret_cast<ScanFragNextReq*>(signal->getDataPtrSend());
