@@ -880,7 +880,7 @@ select @@ndbinfo_offline;
 CREATE TABLE ndb$does_not_exist_in_ndb(
   node_id int,
   message varchar(255)
-) ENGINE = ndbinfo;
+) ENGINE = ndbinfo CHARACTER SET latin1;
 
 CREATE VIEW view_on_table_which_does_not_exist_in_ndb AS
   SELECT node_id, message
@@ -982,7 +982,7 @@ create table t1(
   c1 char(255),
   vc1 varchar(1024),
   tx1 text
-)engine=ndbcluster;
+)engine=ndbcluster character set latin1;
 
 insert into t1 select x1.i+x2.i*10+x3.i*100, x1.i-x2.i*10-x3.i*100, repeat('x', 1+x1.i), repeat('y', 1000+x1.i), repeat('z', x1.i*100) from numbers as x1, numbers as x2, numbers as x3;
 
@@ -1145,9 +1145,7 @@ create view frag_ops as select
   sum(tot_key_updates) as tot_key_updates, 
   sum(tot_key_writes) as tot_key_writes, 
   sum(tot_key_deletes) as tot_key_deletes, 
-  sum(tot_key_refs) as tot_key_refs, 
-  # Attrinfo for read operations is a bit longer when running with embedded 
-  # mysqld, which is why we do the rounding below. 
+  sum(tot_key_refs) as tot_key_refs,
   round(log2(1+sum(tot_key_attrinfo_bytes))) as log_tot_key_attrinfo_bytes,
   sum(tot_key_keyinfo_bytes) as tot_key_keyinfo_bytes,
   sum(tot_key_prog_bytes) as tot_key_prog_bytes,
@@ -1404,7 +1402,7 @@ tot_key_bytes_returned	4220
 tot_frag_scans	64
 tot_scan_rows_examined	306
 tot_scan_rows_returned	215
-tot_scan_bytes_returned	7116
+tot_scan_bytes_returned	5564
 tot_scan_prog_bytes	320
 tot_scan_bound_bytes	0
 tot_scan_inst_exec	305
@@ -1649,7 +1647,7 @@ node_id	DataMemory
 1	30M
 2	30M
 
-
+set @@ndbinfo_show_hidden=TRUE;
 desc ndb$processes;
 Field	Type	Null	Key	Default	Extra
 reporting_node_id	int(10) unsigned	YES		NULL	
@@ -1660,6 +1658,7 @@ process_id	int(10) unsigned	YES		NULL
 angel_process_id	int(10) unsigned	YES		NULL	
 process_name	varchar(512)	YES		NULL	
 service_URI	varchar(512)	YES		NULL	
+set @@ndbinfo_show_hidden=default;
 show create table processes;
 View	Create View	character_set_client	collation_connection
 processes	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `processes` AS select distinct `ndb$processes`.`node_id` AS `node_id`,(case `ndb$processes`.`node_type` when 0 then 'NDB' when 1 then 'API' when 2 then 'MGM' else NULL end) AS `node_type`,`ndb$processes`.`node_version` AS `node_version`,nullif(`ndb$processes`.`process_id`,0) AS `process_id`,nullif(`ndb$processes`.`angel_process_id`,0) AS `angel_process_id`,`ndb$processes`.`process_name` AS `process_name`,`ndb$processes`.`service_URI` AS `service_URI` from `ndb$processes` order by `ndb$processes`.`node_id`	latin1	latin1_swedish_ci
@@ -1704,16 +1703,18 @@ node_id	node_type	process_name	proc_id	angel_proc_id
 63	API	mysqld	not_null	null
 127	API	mysqld	not_null	null
 
+set @@ndbinfo_show_hidden=TRUE;
 desc ndb$config_nodes;
 Field	Type	Null	Key	Default	Extra
 reporting_node_id	int(10) unsigned	YES		NULL	
 node_id	int(10) unsigned	YES		NULL	
 node_type	int(10) unsigned	YES		NULL	
 node_hostname	varchar(512)	YES		NULL	
+set @@ndbinfo_show_hidden=default;
 select view_definition, is_updatable, security_type
   FROM information_schema.views
   WHERE table_schema = 'ndbinfo' AND table_name = 'config_nodes';
-view_definition	is_updatable	security_type
+VIEW_DEFINITION	IS_UPDATABLE	SECURITY_TYPE
 select distinct `ndbinfo`.`ndb$config_nodes`.`node_id` AS `node_id`,(case `ndbinfo`.`ndb$config_nodes`.`node_type` when 0 then 'NDB' when 1 then 'API' when 2 then 'MGM' else NULL end) AS `node_type`,`ndbinfo`.`ndb$config_nodes`.`node_hostname` AS `node_hostname` from `ndbinfo`.`ndb$config_nodes` order by `ndbinfo`.`ndb$config_nodes`.`node_id`	NO	INVOKER
 
 SELECT * from ndb$config_nodes order by reporting_node_id, node_id;

@@ -321,7 +321,7 @@ select @@ndbinfo_offline;
 CREATE TABLE ndb$does_not_exist_in_ndb(
   node_id int,
   message varchar(255)
-) ENGINE = ndbinfo;
+) ENGINE = ndbinfo CHARACTER SET latin1;
 
 CREATE VIEW view_on_table_which_does_not_exist_in_ndb AS
   SELECT node_id, message
@@ -428,7 +428,7 @@ create table t1(
   c1 char(255),
   vc1 varchar(1024),
   tx1 text
-)engine=ndbcluster;
+)engine=ndbcluster character set latin1;
 
 # Popultate t1 with 1000 rows, including som sizable varsize data.
 insert into t1 select x1.i+x2.i*10+x3.i*100, x1.i-x2.i*10-x3.i*100, repeat('x', 1+x1.i), repeat('y', 1000+x1.i), repeat('z', x1.i*100) from numbers as x1, numbers as x2, numbers as x3;
@@ -857,7 +857,11 @@ select node_id, concat(config_value / 1024 / 1024, 'M') as DataMemory
 # we can not test the content of the service_URI column.
 
 # (A) Normative tests of table and view definition
+# (turn show_hidden on since otherwise columns
+#  of the table is supposed to be hidden)
+set @@ndbinfo_show_hidden=TRUE;
 desc ndb$processes;
+set @@ndbinfo_show_hidden=default;
 show create table processes;
 
 # (B) Tests of table content.
@@ -883,7 +887,11 @@ ORDER BY node_id;
 # wl#10147 ndbinfo.config_nodes
 #
 # (A) Normative tests of table and view definition
+# (turn show_hidden on since otherwise columns
+#  of the table is supposed to be hidden)
+set @@ndbinfo_show_hidden=TRUE;
 desc ndb$config_nodes;
+set @@ndbinfo_show_hidden=default;
 select view_definition, is_updatable, security_type
   FROM information_schema.views
   WHERE table_schema = 'ndbinfo' AND table_name = 'config_nodes';
