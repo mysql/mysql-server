@@ -3102,9 +3102,18 @@ TESTCASE("ScanReadError5025",
   FINALIZER(runClearTable);
 }
 TESTCASE("ScanReadError8081",
-	 "Scan and insert error 8081"){
+         "Scan and insert error 8081."\
+         "Check scanError() return from 'sendDihGetNodesLab'"){
   INITIALIZER(runLoadTable);
   TC_PROPERTY("ErrorCode", 8081);
+  STEP(runScanReadError);
+  FINALIZER(runClearTable);
+}
+TESTCASE("ScanReadError8115",
+         "Scan and insert error 8115."\
+         "Check scanError() return from 'sendFragScansLab'"){
+  INITIALIZER(runLoadTable);
+  TC_PROPERTY("ErrorCode", 8115);
   STEP(runScanReadError);
   FINALIZER(runClearTable);
 }
