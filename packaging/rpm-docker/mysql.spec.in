@@ -194,8 +194,9 @@ done
 #  Remove test plugins
 for p in auth.so auth_test_plugin.so daemon_example.ini libdaemon_example.so qa_auth_client.so \
     component_example_component1.so component_example_component2.so component_example_component3.so \
-    component_test_string_service_charset.so component_test_string_service_long.so component_test_string_service.so \
-    qa_auth_interface.so qa_auth_server.so replication_observers_example_plugin.so ha_example.so \
+	component_log_sink_test.so component_test_string_service_charset.so \
+	component_test_string_service_long.so component_test_string_service.so qa_auth_interface.so \
+	qa_auth_server.so replication_observers_example_plugin.so ha_example.so \
     test_udf_services.so test_security_context.so test_services_plugin_registry.so ; do
     rm -f %{buildroot}%{_libdir}/mysql/plugin/$p
 done
@@ -257,7 +258,6 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth_socket.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/group_replication.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/component_log_sink_test.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_log_sink_syseventlog.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_log_sink_json.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/connection_control.so
