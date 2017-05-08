@@ -21,8 +21,10 @@ use test;
 --echo creation of multi-image events which can be batch-applied
 --echo on the slave regardless of slave_allow_batching
 
-create table t1 (pk int primary key, a varchar(8000)) engine=ndb;
-create table t2 (pk int primary key, a varchar(8000)) engine=ndb;
+create table t1 (pk int primary key, a varchar(8000))
+  engine=ndb character set latin1;
+create table t2 (pk int primary key, a varchar(8000))
+  engine=ndb character set latin1;
 
 --echo Insert some data which we can later delete
 --echo This also serves to 'prime' the Slave, so that NdbApi

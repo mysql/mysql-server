@@ -70,12 +70,12 @@ c$new                 varchar(2000) not null,
 NDB$OP_TYPE           ENUM('WRITE_ROW','UPDATE_ROW', 'DELETE_ROW') NOT NULL,
 NDB$CFT_CAUSE         ENUM('ROW_DOES_NOT_EXIST','ROW_ALREADY_EXISTS','DATA_IN_CONFLICT','TRANS_IN_CONFLICT') NOT NULL,
 primary key(NDB$SERVER_ID, NDB$MASTER_SERVER_ID, NDB$MASTER_EPOCH, NDB$COUNT))
-ENGINE=NDB;
+ENGINE=NDB CHARACTER SET latin1;
 create table test.t1 (
 a int not null,
 b int not null,
 c varchar(2000),
-primary key (a,b)) engine=ndb;
+primary key (a,b)) engine=ndb CHARACTER SET latin1;
 MySQLD error output for server 1.1 matching pattern %Exceptions table %
 relevant
 [warning] ndb slave: exceptions table t1$ex has wrong definition (column 5): old or new column reference c$new in table t1$ex is not nullable and doesn't have a default value
@@ -111,7 +111,7 @@ ndb$cft_cause         enum('row_does_not_exist','row_already_exists','data_in_co
 ndb$orig_transid      bigint unsigned not null,
 e                     int,
 primary key(ndb$server_id, ndb$master_server_id, ndb$master_epoch, ndb$count))
-engine=ndb;
+engine=ndb CHARACTER SET latin1;
 create table test.t2 (
 x int default 21,
 a int not null,
@@ -119,7 +119,7 @@ b int not null,
 c int,
 d varchar(2000),
 e int,
-primary key(a,b)) engine=ndb;
+primary key(a,b)) engine=ndb CHARACTER SET latin1;
 Add some data
 stop slave;
 Slave contents
