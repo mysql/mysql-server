@@ -3801,7 +3801,7 @@ NdbQueryOperationImpl::NdbQueryOperationImpl(
   m_diskInUserProjection(false),
   m_parallelism(def.getOpNo() == 0
                 ? Parallelism_max : Parallelism_adaptive),
-  m_rowSize(0),
+  m_rowSize(0xffffffff),
   m_maxBatchRows(0),
   m_maxBatchBytes(0),
   m_resultBufferSize(0)
@@ -5275,11 +5275,10 @@ NdbQueryOperationImpl::getIdOfReceiver() const {
 Uint32 NdbQueryOperationImpl::getRowSize() const
 {
   // Check if row size has been computed yet.
-  if (m_rowSize == 0)
+  if (m_rowSize == 0xffffffff)
   {
     m_rowSize = 
       NdbReceiver::ndbrecord_rowsize(m_ndbRecord, false);
-    assert(m_rowSize > 0);
   }
   return m_rowSize;
 }
