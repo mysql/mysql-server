@@ -2106,9 +2106,9 @@ end:
   */
   if (unlikely(ndb_error))
   {
-    sql_print_error("NDB %s: distributing %s err: %u",
-                    type_str, ndb_schema_object->key,
-                    ndb_error->code);
+    LogErr(ERROR_LEVEL, ER_NDB_DISTRIBUTING_ERR,
+           type_str, ndb_schema_object->key,
+           ndb_error->code);
   }
   else if (!bitmap_is_clear_all(&ndb_schema_object->slock_bitmap))
   {

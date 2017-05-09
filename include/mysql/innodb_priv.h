@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,7 +30,7 @@ bool check_global_access(THD *thd, ulong want_access);
 size_t strconvert(CHARSET_INFO *from_cs, const char *from,
                   CHARSET_INFO *to_cs, char *to, size_t to_length,
                   uint *errors);
-void sql_print_error(const char *format, ...);
+// void sql_print_error(const char *format, ...);
 
 /**
   Store record to I_S table, convert HEAP table to InnoDB table if necessary.

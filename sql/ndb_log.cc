@@ -23,6 +23,7 @@
 // can be extended with a my_log_message(level, prefix, message, ...) function
 #include "log.h"
 #include "my_dbug.h"
+#include "mysqld_error.h"
 #include "mysql/service_my_snprintf.h"
 
 
@@ -65,7 +66,7 @@ ndb_log_print(enum ndb_log_loglevel loglevel,
   }
 
   if (prefix)
-    LogErr(prio, ER_NDB_LOG_ENTRY_WITH_PEFIX, prefix, msg_buf);
+    LogErr(prio, ER_NDB_LOG_ENTRY_WITH_PREFIX, prefix, msg_buf);
   else
     LogErr(prio, ER_NDB_LOG_ENTRY, msg_buf);
 }

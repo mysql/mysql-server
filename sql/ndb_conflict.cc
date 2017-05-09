@@ -21,6 +21,7 @@
 #include "my_base.h"   // HA_ERR_ROWS_EVENT_APPLY
 #include "my_dbug.h"
 #include "mysqld.h"   // lower_case_table_names
+#include "mysqld_error.h"
 #include "ndb_binlog_extra_row_info.h"
 #include "ndb_table_guard.h"
 

@@ -8590,7 +8590,7 @@ ER_DD_TRG_DB_COLLATION_MISSING
   eng "Database collation is missing for trigger of table %s. Using Default character set."
 
 ER_DD_TRG_DEFINER_OOM
-  eng "Error in Memory allocation for Definer %s for Trigger.");
+  eng "Error in Memory allocation for Definer %s for Trigger.";
 
 # ER_TRG_CORRUPTED_FILE
 ER_DD_TRG_FILE_UNREADABLE
@@ -10678,6 +10678,16 @@ ER_AUDIT_CANT_ABORT_EVENT
 
 ER_AUDIT_WARNING
   eng "%s. The trigger error was (%d) [%s]: %s"
+
+ER_NDB_NUMBER_OF_CHANNELS
+  eng "Slave SQL: Configuration with number of replication masters = %u' is not supported when applying to Ndb"
+
+ER_NDB_SLAVE_PARALLEL_WORKERS
+  eng "Slave SQL: Configuration 'slave_parallel_workers = %lu' is not supported when applying to Ndb"
+
+ER_NDB_DISTRIBUTING_ERR
+  eng "NDB %s: distributing %s err: %u"
+
 #
 #  End of 8.0 error messages.
 #
