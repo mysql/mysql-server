@@ -755,7 +755,8 @@ PFS_engine_table_share::check_one_table(THD *thd)
   }
   else
   {
-    LogErr(ERROR_LEVEL, ER_WRONG_NATIVE_TABLE_STRUCTURE,
+    LogErr(ERROR_LEVEL,
+           ER_WRONG_NATIVE_TABLE_STRUCTURE,
            PERFORMANCE_SCHEMA_str.str,
            m_name.str);
     thd->clear_error();
