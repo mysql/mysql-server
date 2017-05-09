@@ -143,27 +143,27 @@ void Test::sysbench_distinct_ranges_write_only(size_t number_of_rows_to_write) {
   };
   // clang-format on
 
-  std::unique_ptr<H> h(new H(m_hton, m_mysql_table_share));
+  H h(m_hton, m_mysql_table_share);
 
   HA_CREATE_INFO create_info;
   create_info.auto_increment_value = 0;
 
-  ut_a(h->create("t1", m_mysql_table, &create_info, nullptr) == 0);
+  ut_a(h.create("t1", m_mysql_table, &create_info, nullptr) == 0);
 
-  ut_a(h->ha_open(m_mysql_table, "t1", 0, 0, nullptr) == 0);
+  ut_a(h.ha_open(m_mysql_table, "t1", 0, 0, nullptr) == 0);
 
   for (size_t n = 0; n < number_of_rows_to_write; ++n) {
     snprintf(row + 1, 119, "%016zx", n);
     row[17] = '-';
     memcpy(m_mysql_table->record[0], row, 120);
 
-    const int ret = h->write_row(m_mysql_table->record[0]);
+    const int ret = h.write_row(m_mysql_table->record[0]);
     ut_a(ret == 0);
   }
 
-  ut_a(h->close() == 0);
+  ut_a(h.close() == 0);
 
-  ut_a(h->delete_table("t1", nullptr) == 0);
+  ut_a(h.delete_table("t1", nullptr) == 0);
 }
 
 template <class H>
@@ -288,20 +288,20 @@ void Test::sysbench_distinct_ranges() {
 #endif /* ALSO_DO_READS */
 
   for (size_t n = 0; n < number_of_iterations; ++n) {
-    std::unique_ptr<H> h(new H(m_hton, m_mysql_table_share));
+    H h(m_hton, m_mysql_table_share);
 
 #ifdef ALSO_DO_READS
-    ut_a(h->ref_length <= sizeof(positions[0]));
+    ut_a(h.ref_length <= sizeof(positions[0]));
 #endif /* ALSO_DO_READS */
 
-    ut_a(h->create("t1", m_mysql_table, &create_info, nullptr) == 0);
+    ut_a(h.create("t1", m_mysql_table, &create_info, nullptr) == 0);
 
-    ut_a(h->ha_open(m_mysql_table, "t1", 0, 0, nullptr) == 0);
+    ut_a(h.ha_open(m_mysql_table, "t1", 0, 0, nullptr) == 0);
 
     for (size_t i = 0; i < n_rows; ++i) {
       memcpy(m_mysql_table->record[0], rows[i], 120);
 
-      const int ret = h->write_row(m_mysql_table->record[0]);
+      const int ret = h.write_row(m_mysql_table->record[0]);
       if (ret != 0) {
         std::cerr << "write_row() failed with error " << ret << std::endl;
         abort();
@@ -309,26 +309,26 @@ void Test::sysbench_distinct_ranges() {
     }
 
 #ifdef ALSO_DO_READS
-    ut_a(h->rnd_init(true) == 0);
+    ut_a(h.rnd_init(true) == 0);
 
     size_t i = 0;
-    while (h->rnd_next(m_mysql_table->record[0]) == 0) {
-      h->position(nullptr);
-      // std::cout << "ref: " << (void*)h->ref << ", ref_length: " <<
-      // h->ref_length
-      //          << ", ref val: " << *(uint64_t*)h->ref << "\n";
-      memcpy(positions.at(i), h->ref, h->ref_length);
+    while (h.rnd_next(m_mysql_table->record[0]) == 0) {
+      h.position(nullptr);
+      // std::cout << "ref: " << (void*)h.ref << ", ref_length: " <<
+      // h.ref_length
+      //          << ", ref val: " << *(uint64_t*)h.ref << "\n";
+      memcpy(positions.at(i), h.ref, h.ref_length);
       ++i;
     }
 
     for (size_t j = 0; j < i; ++j) {
-      ut_a(h->rnd_pos(m_mysql_table->record[0], positions.at(j)) == 0);
+      ut_a(h.rnd_pos(m_mysql_table->record[0], positions.at(j)) == 0);
     }
 #endif /* ALSO_DO_READS */
 
-    ut_a(h->close() == 0);
+    ut_a(h.close() == 0);
 
-    ut_a(h->delete_table("t1", nullptr) == 0);
+    ut_a(h.delete_table("t1", nullptr) == 0);
   }
 }
 
@@ -357,44 +357,44 @@ void Test::performance() {
 }
 
 void Test::create_and_drop() {
-  std::unique_ptr<Handler> h(new Handler(m_hton, m_mysql_table_share));
+  Handler h(m_hton, m_mysql_table_share);
 
-  ut_a(h->create("t1", m_mysql_table, nullptr, nullptr) == 0);
-  ut_a(h->create("t2", m_mysql_table, nullptr, nullptr) == 0);
-  ut_a(h->delete_table("t1", nullptr) == 0);
-  ut_a(h->delete_table("t2", nullptr) == 0);
+  ut_a(h.create("t1", m_mysql_table, nullptr, nullptr) == 0);
+  ut_a(h.create("t2", m_mysql_table, nullptr, nullptr) == 0);
+  ut_a(h.delete_table("t1", nullptr) == 0);
+  ut_a(h.delete_table("t2", nullptr) == 0);
 }
 
 void Test::scan_empty() {
-  std::unique_ptr<Handler> h(new Handler(m_hton, m_mysql_table_share));
+  Handler h(m_hton, m_mysql_table_share);
 
   static const char* table_name = "test_scan_empty";
 
-  ut_a(h->create(table_name, m_mysql_table, nullptr, nullptr) == 0);
+  ut_a(h.create(table_name, m_mysql_table, nullptr, nullptr) == 0);
 
-  h->change_table_ptr(m_mysql_table, m_mysql_table_share);
+  h.change_table_ptr(m_mysql_table, m_mysql_table_share);
 
-  ut_a(h->open(table_name, 0, 0, nullptr) == 0);
+  ut_a(h.open(table_name, 0, 0, nullptr) == 0);
 
-  ut_a(h->rnd_init(true /* ignored */) == 0);
-  ut_a(h->rnd_next(nullptr) == HA_ERR_END_OF_FILE);
-  ut_a(h->rnd_end() == 0);
+  ut_a(h.rnd_init(true /* ignored */) == 0);
+  ut_a(h.rnd_next(nullptr) == HA_ERR_END_OF_FILE);
+  ut_a(h.rnd_end() == 0);
 
-  ut_a(h->close() == 0);
+  ut_a(h.close() == 0);
 
-  ut_a(h->delete_table(table_name, nullptr) == 0);
+  ut_a(h.delete_table(table_name, nullptr) == 0);
 }
 
 void Test::scan_hash_index() {
-  std::unique_ptr<Handler> h(new Handler(m_hton, m_mysql_table_share));
+  Handler h(m_hton, m_mysql_table_share);
 
   static const char* table_name = "test_scan_hash_index";
 
-  ut_a(h->create(table_name, m_mysql_table, nullptr, nullptr) == 0);
+  ut_a(h.create(table_name, m_mysql_table, nullptr, nullptr) == 0);
 
-  h->change_table_ptr(m_mysql_table, m_mysql_table_share);
+  h.change_table_ptr(m_mysql_table, m_mysql_table_share);
 
-  ut_a(h->open(table_name, 0, 0, nullptr) == 0);
+  ut_a(h.open(table_name, 0, 0, nullptr) == 0);
 
   // clang-format off
   const unsigned char* row1 = reinterpret_cast<const unsigned char*>("\xFF""aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
@@ -403,20 +403,20 @@ void Test::scan_hash_index() {
   const size_t row_len = 121;
 
   memcpy(m_mysql_table->record[0], row1, row_len);
-  ut_a(h->write_row(m_mysql_table->record[0]) == 0);
+  ut_a(h.write_row(m_mysql_table->record[0]) == 0);
 
   memcpy(m_mysql_table->record[0], row2, row_len);
-  ut_a(h->write_row(m_mysql_table->record[0]) == 0);
+  ut_a(h.write_row(m_mysql_table->record[0]) == 0);
 
-  ut_a(h->index_init(0, true /* ignored */) == 0);
+  ut_a(h.index_init(0, true /* ignored */) == 0);
 
-  ut_a(h->index_read(m_mysql_table->record[0], row1 + 1, row_len - 1,
+  ut_a(h.index_read(m_mysql_table->record[0], row1 + 1, row_len - 1,
                      HA_READ_KEY_EXACT) == 0);
   ut_a(memcmp(m_mysql_table->record[0], row1, row_len) == 0);
 
   /* This could return either success or not found because hash indexes do not
    * have a predetermined order and we do not know if bbb... will follow a... */
-  switch (h->index_next(m_mysql_table->record[0])) {
+  switch (h.index_next(m_mysql_table->record[0])) {
     case 0:
       ut_a(memcmp(m_mysql_table->record[0], row2, row_len) == 0);
       break;
@@ -426,11 +426,11 @@ void Test::scan_hash_index() {
       abort();
   }
 
-  ut_a(h->index_end() == 0);
+  ut_a(h.index_end() == 0);
 
-  ut_a(h->close() == 0);
+  ut_a(h.close() == 0);
 
-  ut_a(h->delete_table(table_name, nullptr) == 0);
+  ut_a(h.delete_table(table_name, nullptr) == 0);
 }
 
 #if 0
