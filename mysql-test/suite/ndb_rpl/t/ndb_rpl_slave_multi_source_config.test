@@ -35,7 +35,7 @@ insert into t1 values(1);
 # and returns error ER_UNSUPPORTED_EXTENSION(1112)
 --let $slave_sql_errno= 1112
 --let $show_sql_error= 1
---let $rpl_channel_name= channel_1
+--let $rpl_channel_name= 'channel_1'
 --let $rpl_connection_name= cluster2
 --source include/rpl_connection.inc
 --let $not_switch_connection= true
