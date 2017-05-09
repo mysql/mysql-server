@@ -9,17 +9,12 @@ include/rpl_connect.inc [creating cluster1]
 include/rpl_connect.inc [creating cluster2]
 include/rpl_connect.inc [creating cluster3]
 [connection cluster1]
-use test;
 create table t1 (a int) engine=ndb;
 insert into t1 values(1);
 [connection cluster2]
 include/wait_for_slave_sql_error_and_skip.inc [errno=1112]
-[connection cluster3]
 [connection cluster1]
-use test;
 drop table t1;
-[connection cluster3]
-use test;
 include/rpl_reset.inc
 include/rpl_end.inc
 RESET SLAVE ALL FOR CHANNEL  'channel_1';
