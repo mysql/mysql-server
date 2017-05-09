@@ -87,23 +87,23 @@ int Handler::create(const char* table_name, TABLE* mysql_table, HA_CREATE_INFO*,
     DBUG_ASSERT(is_field_type_supported(*mysql_field));
   }
 
-  Result ret;
+  Result ret = Result::OUT_OF_MEM;
 
   try {
-    ret = Result::OUT_OF_MEM;
-
-    const std::string table_name_str(table_name);
-
-    ret = Result::RECORD_FILE_FULL;
-
-    DBUG_EXECUTE_IF("innmem_create_return_full", throw std::bad_alloc(););
+    // clang-format off
+    DBUG_EXECUTE_IF(
+        "innmem_create_return_full",
+        ret = Result::RECORD_FILE_FULL;
+        throw std::bad_alloc();
+    );
+    // clang-format on
 
     const auto insert_result = tables.emplace(
-        std::piecewise_construct, std::forward_as_tuple(table_name_str),
+        std::piecewise_construct, std::forward_as_tuple(table_name),
         std::forward_as_tuple(mysql_table, all_columns_are_fixed_size));
 
     ret = insert_result.second ? Result::OK : Result::TABLE_EXIST;
-  } catch (std::bad_alloc&) {
+  } catch (...) {
     /* ret is already set above. */
   }
 
@@ -123,9 +123,7 @@ int Handler::delete_table(const char* table_name, const dd::Table*) {
   Result ret;
 
   try {
-    const std::string table_name_str(table_name);
-
-    const auto pos = tables.find(table_name_str);
+    const auto pos = tables.find(table_name);
 
     if (pos != tables.end()) {
       if (&pos->second != m_opened_table) {
@@ -138,6 +136,8 @@ int Handler::delete_table(const char* table_name, const dd::Table*) {
     } else {
       ret = Result::NO_SUCH_TABLE;
     }
+  } catch (Result ex) {
+    ret = ex;
   } catch (std::bad_alloc&) {
     ret = Result::OUT_OF_MEM;
   }
@@ -442,6 +442,8 @@ int Handler::index_read(uchar* mysql_row, const uchar* mysql_search_cells,
                                          handler::table->s->rec_buff_length);
       m_index_read_number_of_cells = search_cells.number_of_cells();
     }
+  } catch (Result ex) {
+    ret = ex;
   } catch (std::bad_alloc&) {
     ret = Result::OUT_OF_MEM;
   }
@@ -560,6 +562,8 @@ Result Handler::index_next_conditional(uchar* mysql_row,
     if (ret != Result::OK) {
       m_index_cursor.unposition();
     }
+  } catch (Result ex) {
+    ret = ex;
   } catch (std::bad_alloc&) {
     ret = Result::OUT_OF_MEM;
   }
@@ -624,6 +628,8 @@ int Handler::index_prev(uchar* mysql_row) {
                                          handler::table->s->rec_buff_length);
       ret = Result::OK;
     }
+  } catch (Result ex) {
+    ret = ex;
   } catch (std::bad_alloc&) {
     ret = Result::OUT_OF_MEM;
   }
@@ -683,15 +689,9 @@ int Handler::write_row(uchar* mysql_row) {
 
   handler::ha_statistic_increment(&System_status_var::ha_write_count);
 
-  Result ret;
+  assign_table();
 
-  try {
-    assign_table();
-
-    ret = m_opened_table->insert(mysql_row);
-  } catch (std::bad_alloc&) {
-    ret = Result::RECORD_FILE_FULL;
-  }
+  const Result ret = m_opened_table->insert(mysql_row);
 
   DBUG_PRINT("innmem_api", ("this=%p row=(%s); return=%s", this,
                             row_to_string(mysql_row, handler::table).c_str(),
@@ -707,25 +707,20 @@ int Handler::update_row(const uchar* mysql_row_old, uchar* mysql_row_new) {
 
   handler::ha_statistic_increment(&System_status_var::ha_update_count);
 
-  Result ret;
+  Storage::Element* target_row;
 
-  try {
-    Storage::Element* target_row;
-
-    if (m_rnd_iterator_is_positioned) {
-      DBUG_ASSERT(!m_index_cursor.is_positioned());
-      target_row = *m_rnd_iterator;
-    } else {
-      DBUG_ASSERT(m_index_cursor.is_positioned());
-      target_row = m_index_cursor.row();
-    }
-
-    assign_table();
-
-    ret = m_opened_table->update(mysql_row_old, mysql_row_new, target_row);
-  } catch (std::bad_alloc&) {
-    ret = Result::RECORD_FILE_FULL;
+  if (m_rnd_iterator_is_positioned) {
+    DBUG_ASSERT(!m_index_cursor.is_positioned());
+    target_row = *m_rnd_iterator;
+  } else {
+    DBUG_ASSERT(m_index_cursor.is_positioned());
+    target_row = m_index_cursor.row();
   }
+
+  assign_table();
+
+  const Result ret =
+      m_opened_table->update(mysql_row_old, mysql_row_new, target_row);
 
   DBUG_PRINT("innmem_api",
              ("this=%p old=(%s), new=(%s); return=%s", this,

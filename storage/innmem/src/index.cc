@@ -15,11 +15,13 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** @file storage/innmem/src/index.cc
 InnMEM Index implementation. */
 
-#include "innmem/index.h"         /* innmem::Index */
+#include <utility> /* std::pair */
+
 #include "innmem/allocator.h"     /* innmem::allocator */
 #include "innmem/constants.h"     /* innmem::INDEX_DEFAULT_HASH_TABLE_BUCKETS */
 #include "innmem/containers.h"    /* innmem::*container */
 #include "innmem/cursor.h"        /* innmem::Cursor */
+#include "innmem/index.h"         /* innmem::Index */
 #include "innmem/indexed_cells.h" /* innmem::Indexed_cells* */
 #include "innmem/result.h"        /* innmem::Result */
 #include "key.h"                  /* KEY */
@@ -81,8 +83,16 @@ Result Tree::insert(const Indexed_cells& indexed_cells,
   }
 
   if (ok_to_insert) {
-    auto tree_iterator = m_tree.emplace(indexed_cells);
-    *insert_position = Cursor(tree_iterator);
+    Container::iterator it;
+
+    try {
+      it = m_tree.emplace(indexed_cells);
+    } catch (Result ex) {
+      return ex;
+    }
+
+    *insert_position = Cursor(it);
+
     return Result::OK;
   }
 
@@ -146,7 +156,13 @@ Hash_duplicates::Hash_duplicates(const Table& table, const KEY& mysql_index,
 
 Result Hash_duplicates::insert(const Indexed_cells& indexed_cells,
                                Cursor* insert_position) {
-  auto it = m_hash_table.emplace(indexed_cells);
+  Container::iterator it;
+
+  try {
+    it = m_hash_table.emplace(indexed_cells);
+  } catch (Result ex) {
+    return ex;
+  }
 
   *insert_position = Cursor(it);
 
@@ -192,7 +208,13 @@ Hash_unique::Hash_unique(const Table& table, const KEY& mysql_index,
 
 Result Hash_unique::insert(const Indexed_cells& indexed_cells,
                            Cursor* insert_position) {
-  auto r = m_hash_table.emplace(indexed_cells);
+  std::pair<Container::iterator, bool> r;
+
+  try {
+    r = m_hash_table.emplace(indexed_cells);
+  } catch (Result ex) {
+    return ex;
+  }
 
   auto& pos = r.first;
   const bool new_element_inserted = r.second;

@@ -23,7 +23,7 @@ InnMEM custom allocator. */
 #include <cstddef>   /* size_t */
 #include <cstdlib>   /* malloc(), free() */
 #include <limits>    /* std::numeric_limits */
-#include <new>       /* new, std::bad_alloc */
+#include <new>       /* new */
 #include <sstream>   /* std::stringstream */
 #include <utility>   /* std::forward */
 #include <vector>    /* std::vector */
@@ -46,6 +46,7 @@ https://msdn.microsoft.com/en-us/library/windows/desktop/aa366891(v=vs.85).aspx
 // clang-format on
 
 #include "innmem/constants.h"       /* innmem::ALLOCATOR_MAX_BLOCK_* */
+#include "innmem/result.h"          /* Result */
 #include "my_config.h"              /* HAVE_LIBNUMA */
 #include "my_dbug.h"                /* DBUG_ASSERT(), DBUG_PRINT() */
 #include "my_io.h"                  /* File */
@@ -476,6 +477,8 @@ inline T* Allocator<T>::allocate(size_t n_elements) {
   static_assert(sizeof(T) > 0, "Zero sized objects are not supported");
   DBUG_ASSERT(n_elements <= std::numeric_limits<size_type>::max() / sizeof(T));
 
+  DBUG_EXECUTE_IF("innmem_allocator_oom", throw Result::OUT_OF_MEM;);
+
   size_t size_bytes = n_elements * sizeof(T);
 
   if (size_bytes == 0) {
@@ -614,24 +617,14 @@ inline void* Allocator<T>::mem_fetch(size_t bytes) {
 
   if (t == Mem_type::RAM) {
     ptr = mem_fetch_from_ram(bytes);
+    if (ptr == nullptr) {
+      throw Result::OUT_OF_MEM;
+    }
   } else {
     ptr = mem_fetch_from_disk(bytes);
-  }
-
-  // clang-format off
-  DBUG_EXECUTE_IF(
-      "innmem_allocator_oom",
-      if (t == Mem_type::RAM) {
-        mem_drop_from_ram(ptr, bytes);
-      } else {
-        mem_drop_from_disk(ptr, bytes);
-      }
-      ptr = nullptr;
-  );
-  // clang-format on
-
-  if (ptr == nullptr) {
-    throw std::bad_alloc();
+    if (ptr == nullptr) {
+      throw Result::RECORD_FILE_FULL;
+    }
   }
 
   *reinterpret_cast<Mem_type*>(ptr) = t;

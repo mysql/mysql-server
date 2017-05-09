@@ -376,6 +376,7 @@ f7  | .   | from above (8/8)
 #include "innmem/allocator.h" /* innmem::Allocator */
 #include "innmem/cell.h"      /* innmem::Cell */
 #include "innmem/column.h"    /* innmem::Column, innmem::Columns */
+#include "innmem/result.h"    /* innmem::Result */
 #include "my_dbug.h"          /* DBUG_ASSERT() */
 
 namespace innmem {
@@ -429,8 +430,9 @@ class Row {
       const Row& rhs) const;
 #endif /* DBUG_OFF */
 
-  /** Copy the user data to an own buffer (convert from write_row() format). */
-  void copy_to_own_memory(
+  /** Copy the user data to an own buffer (convert from write_row() format).
+   * @return Result:OK or other Result::* error code */
+  Result copy_to_own_memory(
       /** [in] Metadata for the columns that constitute this row. */
       const Columns& columns,
       /** [in] Length of the mysql row in bytes (m_ptr). */

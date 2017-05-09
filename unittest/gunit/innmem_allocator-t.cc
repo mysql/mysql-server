@@ -58,7 +58,7 @@ TEST(innmem_allocator, edge)
   bool thrown = false;
   try {
     allocator.allocate(8_MiB);
-  } catch (std::bad_alloc&) {
+  } catch (Result) {
     thrown = true;
   }
   EXPECT_EQ(true, thrown);

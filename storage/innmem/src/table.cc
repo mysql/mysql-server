@@ -78,34 +78,32 @@ Table::~Table() {
 }
 
 Result Table::insert(const unsigned char* mysql_row) {
-  unsigned char* row_in_m_rows;
-  Row* row;
+  Storage::Element* row;
 
-  unsigned char* storage_element =
-      static_cast<unsigned char*>(m_rows.allocate_back());
+  try {
+    row = m_rows.allocate_back();
+  } catch (Result ex) {
+    return ex;
+  }
+
+  Result ret;
 
   if (m_all_columns_are_fixed_size) {
     DBUG_ASSERT(m_rows.element_size() == m_mysql_table->s->rec_buff_length);
     DBUG_ASSERT(m_rows.element_size() == m_mysql_row_length);
 
-    memcpy(storage_element, mysql_row, m_mysql_row_length);
-
-    row_in_m_rows = storage_element;
-
-    row = nullptr;
-
+    memcpy(row, mysql_row, m_mysql_row_length);
   } else {
     DBUG_ASSERT(m_rows.element_size() == sizeof(Row));
 
-    row_in_m_rows = nullptr;
+    new (row) Row(mysql_row, &m_allocator);
 
-    row = new (storage_element) Row(mysql_row, &m_allocator);
+    ret = static_cast<Row*>(row)->copy_to_own_memory(m_columns,
+                                                     m_mysql_row_length);
 
-    try {
-      row->copy_to_own_memory(m_columns, m_mysql_row_length);
-    } catch (std::bad_alloc&) {
+    if (ret != Result::OK) {
       m_rows.deallocate_back();
-      return Result::RECORD_FILE_FULL;
+      return ret;
     }
   }
 
@@ -115,20 +113,17 @@ Result Table::insert(const unsigned char* mysql_row) {
     return Result::OK;
   }
 
-  Result ret = Result::OK;
+  ret = Result::OK;
 
   for (auto& index : m_indexes) {
     Cursor insert_position;
 
-    Indexed_cells indexed_cells = m_all_columns_are_fixed_size
-                                      ? Indexed_cells{row_in_m_rows, *index}
-                                      : Indexed_cells{*row, *index};
+    Indexed_cells indexed_cells =
+        m_all_columns_are_fixed_size
+            ? Indexed_cells{static_cast<unsigned char*>(row), *index}
+            : Indexed_cells{*static_cast<Row*>(row), *index};
 
-    try {
-      ret = index->insert(indexed_cells, &insert_position);
-    } catch (std::bad_alloc&) {
-      ret = Result::RECORD_FILE_FULL;
-    }
+    ret = index->insert(indexed_cells, &insert_position);
 
     if (ret != Result::OK) {
       break;
@@ -150,7 +145,7 @@ Result Table::insert(const unsigned char* mysql_row) {
       index->erase(target);
     }
     if (!m_all_columns_are_fixed_size) {
-      row->~Row();
+      static_cast<Row*>(row)->~Row();
     }
     m_rows.deallocate_back();
   }
@@ -183,6 +178,8 @@ Result Table::update(const unsigned char* mysql_row_old,
   }
 #endif /* DBUG_OFF */
 
+  Result ret;
+
   /* We update `target_row` to `mysql_row_new` inplace in `m_rows` and in each
    * index by delete & insert. */
 
@@ -194,11 +191,11 @@ Result Table::update(const unsigned char* mysql_row_old,
 
     *row = std::move(Row(mysql_row_new, &m_allocator));
 
-    try {
-      row->copy_to_own_memory(m_columns, m_mysql_row_length);
-    } catch (std::bad_alloc&) {
+    ret = row->copy_to_own_memory(m_columns, m_mysql_row_length);
+
+    if (ret != Result::OK) {
       *row = std::move(Row(mysql_row_old, &m_allocator));
-      return Result::RECORD_FILE_FULL;
+      return ret;
     }
   }
 
@@ -215,7 +212,7 @@ Result Table::update(const unsigned char* mysql_row_old,
     max_index = m_indexes.size() - 1;
   }
 
-  Result ret = Result::OK;
+  ret = Result::OK;
 
   size_t i;
   for (i = 0; i <= max_index; ++i) {
@@ -278,11 +275,7 @@ Result Table::update(const unsigned char* mysql_row_old,
             : Indexed_cells{*reinterpret_cast<Row*>(target_row), index};
     Cursor inserted_pos;
 
-    try {
-      ret = index.insert(indexed_cells, &inserted_pos);
-    } catch (std::bad_alloc&) {
-      ret = Result::RECORD_FILE_FULL;
-    }
+    ret = index.insert(indexed_cells, &inserted_pos);
 
     if (ret != Result::OK) {
       break;

@@ -16,7 +16,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 InnMEM Row implementation. */
 
 #include <cstring> /* memcpy() */
-#include <new>     /* new */
 #include <utility> /* std::move() */
 
 #include "field.h"            /* Field */
@@ -24,6 +23,7 @@ InnMEM Row implementation. */
 #include "innmem/cell.h"      /* innmem::Cell */
 #include "innmem/column.h"    /* innmem::Column, innmem::Columns */
 #include "innmem/misc.h"      /* innmem::buf_is_inside_another() */
+#include "innmem/result.h"    /* innmem::Result */
 #include "innmem/row.h"       /* innmem::Row */
 #include "my_dbug.h"          /* DBUG_ASSERT */
 #include "table.h"            /* TABLE */
@@ -51,11 +51,12 @@ int Row::compare(const Columns& columns, Field** mysql_fields,
 }
 #endif /* DBUG_OFF */
 
-void Row::copy_to_own_memory(const Columns& columns, size_t mysql_row_length
+Result Row::copy_to_own_memory(const Columns& columns,
+                               size_t mysql_row_length
 #ifdef DBUG_OFF
-                                                         MY_ATTRIBUTE((unused))
+                                   MY_ATTRIBUTE((unused))
 #endif /* DBUG_OFF */
-                                 ) const {
+                                   ) const {
   DBUG_ASSERT(m_data_is_in_mysql_memory);
 
   const unsigned char* mysql_row = m_ptr;
@@ -68,7 +69,11 @@ void Row::copy_to_own_memory(const Columns& columns, size_t mysql_row_length
     buf_len += sizeof(Cell) + column.user_data_length(mysql_row);
   }
 
-  m_ptr = m_allocator->allocate(buf_len);
+  try {
+    m_ptr = m_allocator->allocate(buf_len);
+  } catch (Result ex) {
+    return ex;
+  }
 
   *reinterpret_cast<size_t*>(m_ptr) = buf_len;
 
@@ -101,6 +106,8 @@ void Row::copy_to_own_memory(const Columns& columns, size_t mysql_row_length
 
     data_ptr += data_length;
   }
+
+  return Result::OK;
 }
 
 void Row::copy_to_mysql_row(const Columns& columns, unsigned char* mysql_row,
