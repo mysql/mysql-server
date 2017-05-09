@@ -87,6 +87,10 @@ ndb_fk_no_fk: Bug#25915132 INPLACE ALTER TABLE WITH FOREIGN KEYS CAUSES TABLE DE
 # Inplace alter table and index problem(same problem as above)
 ndb_alter_table3: Bug#25915132 INPLACE ALTER TABLE WITH FOREIGN KEYS CAUSES TABLE DEFINITION MISMATCH
 
+# Inplace alter table reopen the table from SE and thus table definition
+# does not match
+ndb_index_unique: Bug#26028185 INPLACE ALTER TABLE REOPEN TABLE WITH TABLE DEFINITION OUT OF SYNCH
+
 # Problem with alter table leaving table with old name behind
 # (for example altering from MyISAM to NDB)
 ndb_trigger: Need WL#9185 MySQL Cluster support for new DD
