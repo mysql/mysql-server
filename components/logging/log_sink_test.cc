@@ -583,7 +583,7 @@ static void banner()
     // My_item is in some undefined, garbage state so far.
 
     // LOG_ITEM_TYPE_NOT_FOUND
-    li->type=                 ((log_item_type) (~0));
+    li->type= ((log_item_type) (LOG_ITEM_LOG_TYPE + LOG_ITEM_SQL_ERRCODE));
     LogEvent().type(LOG_TYPE_ERROR)
               .prio(INFORMATION_LEVEL)
               .message("item_inconsistent(#%d): %s",
