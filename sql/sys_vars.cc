@@ -954,7 +954,7 @@ static bool binlog_format_check(sys_var *self, THD *thd, set_var *var)
      switching @@SESSION.binlog_format from MIXED to STATEMENT when there are
      open temp tables and we are logging in row format.
   */
-  if (thd->temporary_tables && var->type == OPT_SESSION &&
+  if (thd->temporary_tables &&
       var->save_result.ulonglong_value == BINLOG_FORMAT_STMT &&
       ((thd->variables.binlog_format == BINLOG_FORMAT_MIXED &&
         thd->is_current_stmt_binlog_format_row()) ||
