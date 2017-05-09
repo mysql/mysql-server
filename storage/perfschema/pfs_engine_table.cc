@@ -480,17 +480,6 @@ PFS_table_context::initialize(void)
     m_map = NULL;
     m_word_size = sizeof(ulong) * 8;
 
-#if 0
-    /* Disabled. */
-    /* Allocate a bitmap to record which threads are materialized. */
-    if (m_map_size > 0)
-    {
-      THD *thd= current_thd;
-      ulong words= m_map_size / m_word_size + (m_map_size % m_word_size > 0);
-      m_map= (ulong *)thd->mem_calloc(words * m_word_size);
-    }
-#endif
-
     /* Write to TLS. */
     THR_PFS_contexts[m_thr_key] = context;
   }
@@ -1477,15 +1466,6 @@ PFS_key_reader::read_varchar_utf8(enum ha_rkey_function find_flag,
     *buffer_length = (uint)string_len;
 
     uchar *pos = (uchar *)buffer;
-#if 0
-    const CHARSET_INFO *cs= &my_charset_utf8_bin; // FIXME
-    if (cs->mbmaxlen > 1)
-    {
-      size_t char_length;
-      char_length= my_charpos(cs, pos, pos + string_len, string_len/cs->mbmaxlen);
-      set_if_smaller(string_len, char_length);
-    }
-#endif
     const uchar *end = skip_trailing_space(pos, string_len);
     *buffer_length = (uint)(end - pos);
 
