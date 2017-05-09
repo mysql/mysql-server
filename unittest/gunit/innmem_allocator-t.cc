@@ -53,6 +53,7 @@ TEST(innmem_allocator, edge)
 
   EXPECT_EQ(nullptr, allocator.allocate(0));
 
+#ifndef DBUG_OFF
   DBUG_SET("+d,innmem_allocator_oom");
   bool thrown = false;
   try {
@@ -62,6 +63,7 @@ TEST(innmem_allocator, edge)
   }
   EXPECT_EQ(true, thrown);
   DBUG_SET("-d,innmem_allocator_oom");
+#endif /* DBUG_OFF */
 }
 
 TEST(innmem_allocator, block_size_cap)
