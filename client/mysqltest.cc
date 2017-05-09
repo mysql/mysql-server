@@ -1890,19 +1890,6 @@ static int compare_files(const char* filename1, const char* filename2)
   if ((fd= my_open(filename1, O_RDONLY, MYF(0))) < 0)
     die("Failed to open first file: '%s'", filename1);
 
-  /*
-    Removing the unnecessary warning messages generated
-    on GCOV platform.
-  */
-#ifdef HAVE_GCOV
-  char cmd[FN_REFLEN+FN_REFLEN];
-  strcpy(cmd, "sed -i '/gcda:Merge mismatch for function/d' ");
-  strcat(cmd, filename1);
-  strcat(cmd, " ");
-  strcat(cmd, filename2);
-  system(cmd);
-#endif
-
   error= compare_files2(fd, filename2);
 
   my_close(fd, MYF(0));
@@ -1929,6 +1916,17 @@ static void check_result()
   DBUG_ENTER("check_result");
   DBUG_ASSERT(result_file_name);
   DBUG_PRINT("enter", ("result_file_name: %s", result_file_name));
+
+  /*
+    Removing the unnecessary warning messages generated
+    on GCOV platform.
+  */
+#ifdef HAVE_GCOV
+  char cmd[FN_REFLEN];
+  strcpy(cmd, "sed -i '/gcda:Merge mismatch for function/d' ");
+  strcat(cmd, log_file.file_name());
+  system(cmd);
+#endif
 
   switch (compare_files(log_file.file_name(), result_file_name)) {
   case RESULT_OK:
