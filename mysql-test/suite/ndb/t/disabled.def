@@ -110,4 +110,6 @@ ndb_alter_table_online_multi: Need WL#9185 MySQL Cluster support for new DD
 # Problem running clusterj* with utf8
 clusterj: Bug#26027722 UNKNOWN INITIAL CHARACTER SET
 clusterj_jpa: Bug#26027722 UNKNOWN INITIAL CHARACTER SET
- 
+
+# Problem with ndb_import and utf8
+ndb_import1: Bug#26027765 NDB_IMPORT FAILS WITH UTF8
