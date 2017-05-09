@@ -3597,8 +3597,7 @@ TRACE
                 "row_length": 9,
                 "key_length": 8,
                 "unique_constraint": false,
-                "location": "memory (heap)",
-                "row_limit_estimate": 1864135
+                "location": "InnMEM"
               } /* tmp_table_info */
             } /* creating_tmp_table */
           },
@@ -3641,8 +3640,7 @@ show_json_object('"join_execution": {', TRACE)
                 "row_length": 9,
                 "key_length": 0,
                 "unique_constraint": false,
-                "location": "memory (heap)",
-                "row_limit_estimate": 1864135
+                "location": "InnMEM"
               } /* tmp_table_info */
             } /* creating_tmp_table */
           },
@@ -3695,8 +3693,7 @@ show_json_object('"join_execution": {', TRACE)
                 "row_length": 9,
                 "key_length": 0,
                 "unique_constraint": false,
-                "location": "memory (heap)",
-                "row_limit_estimate": 1864135
+                "location": "InnMEM"
               } /* tmp_table_info */
             } /* creating_tmp_table */
           },

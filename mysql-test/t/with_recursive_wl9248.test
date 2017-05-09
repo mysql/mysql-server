@@ -1,6 +1,8 @@
 --source include/have_64bit.inc
 --source include/no_valgrind_without_big.inc
 
+set session internal_tmp_mem_storage_engine='memory';
+
 --echo # This specifically tests WITH RECURSIVE queries which have
 --echo # required changes in InnoDB (done as WL#9248).
 
@@ -68,3 +70,4 @@ set @@tmp_table_size=60000,@@max_heap_table_size=60000;
 
 --echo # cleanup
 drop table t1;
+set session internal_tmp_mem_storage_engine=default;

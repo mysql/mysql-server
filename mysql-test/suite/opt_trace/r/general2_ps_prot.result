@@ -1112,8 +1112,7 @@ TRACE
                 "row_length": 6,
                 "key_length": 0,
                 "unique_constraint": false,
-                "location": "memory (heap)",
-                "row_limit_estimate": 2796202
+                "location": "InnMEM"
               } /* tmp_table_info */
             } /* creating_tmp_table */
           },
@@ -1404,8 +1403,7 @@ TRACE
                 "row_length": 16,
                 "key_length": 0,
                 "unique_constraint": false,
-                "location": "memory (heap)",
-                "row_limit_estimate": 1048576
+                "location": "InnMEM"
               } /* tmp_table_info */
             } /* creating_tmp_table */
           },
@@ -1420,8 +1418,7 @@ TRACE
                       "row_length": 22,
                       "key_length": 5,
                       "unique_constraint": false,
-                      "location": "memory (heap)",
-                      "row_limit_estimate": 762600
+                      "location": "InnMEM"
                     } /* tmp_table_info */
                   } /* creating_tmp_table */
                 }
@@ -3894,8 +3891,7 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
                 "row_length": 10,
                 "key_length": 0,
                 "unique_constraint": false,
-                "location": "memory (heap)",
-                "row_limit_estimate": 1677721
+                "location": "InnMEM"
               } /* tmp_table_info */
             } /* creating_tmp_table */
           },
@@ -5078,8 +5074,7 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
                 "row_length": 18,
                 "key_length": 4,
                 "unique_constraint": false,
-                "location": "memory (heap)",
-                "row_limit_estimate": 932067
+                "location": "InnMEM"
               } /* tmp_table_info */
             } /* creating_tmp_table */
           },

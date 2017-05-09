@@ -148,7 +148,13 @@ int ha_heap::open(const char *name, int mode, uint test_if_locked,
     */
   key_stat_version= file->s->key_stat_version-1;
 end:
-  return (file ? 0 : 1);
+
+  const int ret = file ? 0 : 1;
+
+  DBUG_PRINT("heap_api", ("this=%p %s; return=%d", this,
+                          table_definition(name, table).c_str(), ret));
+
+  return (ret);
 }
 
 int ha_heap::close(void)
@@ -240,6 +246,10 @@ int ha_heap::write_row(uchar * buf)
     */
     file->s->key_stat_version++;
   }
+
+  DBUG_PRINT("heap_api", ("this=%p row=(%s); return=%d", this,
+                          row_to_string(buf, table).c_str(), res));
+
   return res;
 }
 
@@ -284,6 +294,18 @@ int ha_heap::index_read_map(uchar *buf, const uchar *key,
   DBUG_ASSERT(inited==INDEX);
   ha_statistic_increment(&System_status_var::ha_read_key_count);
   int error = heap_rkey(file,buf,active_index, key, keypart_map, find_flag);
+
+#ifndef DBUG_OFF
+  const uint key_len = calculate_key_len(table, active_index, keypart_map);
+#endif /* DBUG_OFF */
+  DBUG_PRINT(
+      "heap_api",
+      ("this=%p cells=(%s) cells_len=%u find_flag=%s out=(%s); return=%d", this,
+       indexed_cells_to_string(key, key_len, table->key_info[active_index]).c_str(),
+       key_len, ha_rkey_function_to_str(find_flag),
+       (error == 0 ? row_to_string(buf, table).c_str() : ""),
+       error));
+
   return error;
 }
 
@@ -347,6 +369,11 @@ int ha_heap::rnd_next(uchar *buf)
 {
   ha_statistic_increment(&System_status_var::ha_read_rnd_next_count);
   int error=heap_scan(file, buf);
+
+  DBUG_PRINT(
+      "heap_api",
+      ("this=%p out=(%s); return=%d", this,
+       (error == 0 ? row_to_string(buf, table).c_str() : ""), error));
   return error;
 }
 
@@ -728,13 +755,18 @@ int ha_heap::create(const char *name, TABLE *table_arg,
 
   error= heap_prepare_hp_create_info(table_arg, false, false,
                                      &hp_create_info);
-  if (error)
-    return error;
-  hp_create_info.auto_increment= (create_info->auto_increment_value ?
+  if (error == 0)
+  {
+    hp_create_info.auto_increment= (create_info->auto_increment_value ?
 				  create_info->auto_increment_value - 1 : 0);
-  error= heap_create(name, &hp_create_info, &internal_share, &created);
-  my_free(hp_create_info.keydef);
-  DBUG_ASSERT(file == 0);
+    error= heap_create(name, &hp_create_info, &internal_share, &created);
+    my_free(hp_create_info.keydef);
+    DBUG_ASSERT(file == 0);
+  }
+
+  DBUG_PRINT("heap_api", ("this=%p %s; return=%d", this,
+                          table_definition(name, table_arg).c_str(),
+                          error));
   return (error);
 }
 

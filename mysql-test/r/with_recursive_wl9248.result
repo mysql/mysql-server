@@ -1,3 +1,4 @@
+set session internal_tmp_mem_storage_engine='memory';
 # This specifically tests WITH RECURSIVE queries which have
 # required changes in InnoDB (done as WL#9248).
 create table t1(a int);
@@ -345,3 +346,4 @@ Variable_name	Value
 Created_tmp_disk_tables	0
 # cleanup
 drop table t1;
+set session internal_tmp_mem_storage_engine=default;

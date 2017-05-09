@@ -2759,8 +2759,7 @@ ON table2 .col_int_key = table1 .col_int_key
                 "row_length": 13,
                 "key_length": 14,
                 "unique_constraint": false,
-                "location": "memory (heap)",
-                "row_limit_estimate": 1290555
+                "location": "InnMEM"
               } /* tmp_table_info */
             } /* creating_tmp_table */
           },

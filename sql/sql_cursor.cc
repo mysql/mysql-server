@@ -79,10 +79,10 @@ public:
 /**
   Query_result_materialize -- a mediator between a cursor query and the
   protocol. In case we were not able to open a non-materialzed
-  cursor, it creates an internal temporary HEAP table, and insert
-  all rows into it. When the table reaches max_heap_table_size,
-  it's converted to a MyISAM table. Later this table is used to
-  create a Materialized_cursor.
+  cursor, it creates an internal temporary memory table, and inserts
+  all rows into it. If the table is in the Heap engine and if it reaches
+  maximum Heap table size, it's converted to a disk-based temporary
+  table. Later this table is used to create a Materialized_cursor.
 */
 
 class Query_result_materialize final : public Query_result_union

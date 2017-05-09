@@ -4714,8 +4714,9 @@ static Sys_var_tx_read_only Sys_tx_read_only(
 
 static Sys_var_ulonglong Sys_tmp_table_size(
        "tmp_table_size",
-       "If an internal in-memory temporary table exceeds this size, MySQL "
-       "will automatically convert it to an on-disk MyISAM table",
+       "If an internal in-memory temporary table in the MEMORY storage engine "
+       "exceeds this size, MySQL will automatically convert it to an on-disk "
+       "table",
        SESSION_VAR(tmp_table_size), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(1024, (ulonglong)~(intptr)0), DEFAULT(16*1024*1024),
        BLOCK_SIZE(1));
@@ -4761,9 +4762,27 @@ static Sys_var_plugin Sys_default_storage_engine(
 const char *internal_tmp_disk_storage_engine_names[] = { "MyISAM", "InnoDB", 0};
 static Sys_var_enum Sys_internal_tmp_disk_storage_engine(
        "internal_tmp_disk_storage_engine",
-       "The default storage engine for on-disk internal tmp table",
+       "The default storage engine for on-disk internal temporary tables.",
        GLOBAL_VAR(internal_tmp_disk_storage_engine), CMD_LINE(OPT_ARG),
        internal_tmp_disk_storage_engine_names, DEFAULT(TMP_TABLE_INNODB));
+
+const char *internal_tmp_mem_storage_engine_names[] = { "MEMORY", "InnMEM", 0};
+static Sys_var_enum Sys_internal_tmp_mem_storage_engine(
+       "internal_tmp_mem_storage_engine",
+       "The default storage engine for in-memory internal temporary tables.",
+       SESSION_VAR(internal_tmp_mem_storage_engine), CMD_LINE(REQUIRED_ARG),
+       internal_tmp_mem_storage_engine_names, DEFAULT(TMP_TABLE_INNMEM));
+
+static Sys_var_ulonglong Sys_innmem_max_ram(
+       "innmem_max_ram",
+       "Maximum amount of memory (in bytes) the InnMEM storage engine is "
+       "allowed to allocate from the main memory (RAM) before starting to "
+       "store data on disk.",
+       GLOBAL_VAR(innmem_max_ram),
+       CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(2 << 20 /* 2 MiB */, ULLONG_MAX),
+       DEFAULT(1 << 30 /* 1 GiB */),
+       BLOCK_SIZE(1));
 
 static Sys_var_plugin Sys_default_tmp_storage_engine(
        "default_tmp_storage_engine", "The default storage engine for new explicit temporary tables",

@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software Foundation,
    Inc., 51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-/** @file handler.cc
+/** @file sql/handler.cc
 
     @brief
   Handler-calling-functions
@@ -67,6 +67,7 @@
 #include "my_pointer_arithmetic.h"
 #include "my_psi_config.h"
 #include "my_sqlcommand.h"
+#include "my_sys.h"                   // MEM_DEFINED_IF_ADDRESSABLE()
 #include "myisam.h"                   // TT_FOR_UPGRADE
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_file.h"
@@ -925,6 +926,9 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
   switch (hton->db_type) {
   case DB_TYPE_HEAP:
     heap_hton= hton;
+    break;
+  case DB_TYPE_INNMEM:
+    innmem_hton= hton;
     break;
   case DB_TYPE_MYISAM:
     myisam_hton= hton;
@@ -4836,7 +4840,10 @@ handler::mark_trx_read_write()
       of standalone function ha_delete_table() in sql_base.cc.
     */
     if (table_share == NULL || table_share->tmp_table == NO_TMP_TABLE)
+    {
+      /* InnMEM and Heap tables don't use/support transactions. */
       ha_info->set_trx_read_write();
+    }
   }
 }
 
@@ -9039,3 +9046,293 @@ bool ha_notify_alter_table(THD *thd, const MDL_key *mdl_key,
   }
   return false;
 }
+
+const char* ha_rkey_function_to_str(enum ha_rkey_function r) {
+  switch (r) {
+  case HA_READ_KEY_EXACT:
+    return("HA_READ_KEY_EXACT");
+  case HA_READ_KEY_OR_NEXT:
+    return("HA_READ_KEY_OR_NEXT");
+  case HA_READ_KEY_OR_PREV:
+    return("HA_READ_KEY_OR_PREV");
+  case HA_READ_AFTER_KEY:
+    return("HA_READ_AFTER_KEY");
+  case HA_READ_BEFORE_KEY:
+    return("HA_READ_BEFORE_KEY");
+  case HA_READ_PREFIX:
+    return("HA_READ_PREFIX");
+  case HA_READ_PREFIX_LAST:
+    return("HA_READ_PREFIX_LAST");
+  case HA_READ_PREFIX_LAST_OR_PREV:
+    return("HA_READ_PREFIX_LAST_OR_PREV");
+  case HA_READ_MBR_CONTAIN:
+    return("HA_READ_MBR_CONTAIN");
+  case HA_READ_MBR_INTERSECT:
+    return("HA_READ_MBR_INTERSECT");
+  case HA_READ_MBR_WITHIN:
+    return("HA_READ_MBR_WITHIN");
+  case HA_READ_MBR_DISJOINT:
+    return("HA_READ_MBR_DISJOINT");
+  case HA_READ_MBR_EQUAL:
+    return("HA_READ_MBR_EQUAL");
+  case HA_READ_INVALID:
+    return("HA_READ_INVALID");
+  }
+  return("UNKNOWN");
+}
+
+std::string table_definition(const char *table_name, const TABLE *mysql_table) {
+  std::string def = table_name;
+
+  def += " (";
+  for (uint i = 0; i < mysql_table->s->fields; i++) {
+    Field* field = mysql_table->field[i];
+    String type(128);
+
+    field->sql_type(type);
+
+    def += i == 0 ? "`" : ", `";
+    def += field->field_name;
+    def += "` ";
+    def += type.c_ptr();
+
+    if (!field->real_maybe_null()) {
+      def += " not null";
+    }
+  }
+
+  for (uint i = 0; i < mysql_table->s->keys; i++) {
+    const KEY& key = mysql_table->key_info[i];
+
+    /* A string like "col1, col2, col3". */
+    std::string columns;
+
+    for (uint j = 0; j < key.user_defined_key_parts; j++) {
+      columns += j == 0 ? "`" : ", `";
+      columns += key.key_part[j].field->field_name;
+      columns += "`";
+    }
+
+    def += ", ";
+
+    switch (key.algorithm) {
+      case HA_KEY_ALG_BTREE:
+        def += "tree ";
+        break;
+      case HA_KEY_ALG_HASH:
+        def += "hash ";
+        break;
+      case HA_KEY_ALG_SE_SPECIFIC:
+        def += "se_specific ";
+        break;
+      case HA_KEY_ALG_RTREE:
+        def += "rtree ";
+        break;
+      case HA_KEY_ALG_FULLTEXT:
+        def += "fulltext ";
+        break;
+    }
+    def += key.flags & HA_NOSAME ? "unique " : "";
+    def += "index" + std::to_string(i) + "(" + columns + ")";
+  }
+  def += ")";
+
+  return def;
+}
+
+#ifndef DBUG_OFF
+/** Covert a binary buffer to a raw string, replacing non-printable characters
+ * with a dot.
+ * @param[in] buf buffer to convert
+ * @param[in] buf_size_bytes length of the buffer in bytes
+ * @return a printable string, e.g. "ab.d." for an input 0x61620064FF */
+static std::string buf_to_raw(const uchar* buf, uint buf_size_bytes) {
+  std::string r;
+  r.reserve(buf_size_bytes);
+  for (uint i = 0; i < buf_size_bytes; ++i) {
+    const uchar c = buf[i];
+    r += static_cast<char>(isprint(c) ? c : '.');
+  }
+  return r;
+}
+
+/** Covert a binary buffer to a hex string, replacing each character with its
+ * hex number.
+ * @param[in] buf buffer to convert
+ * @param[in] buf_size_bytes length of the buffer in bytes
+ * @return a hex string, e.g. "61 62 63" for an input "abc" */
+static std::string buf_to_hex(const uchar* buf, uint buf_size_bytes) {
+  std::string r;
+  r.reserve(buf_size_bytes * 3 -
+            1 /* the first hex byte has no leading space */);
+  char hex[3];
+  for (uint i = 0; i < buf_size_bytes; ++i) {
+    snprintf(hex, sizeof(hex), "%02x", buf[i]);
+    if (i > 0) {
+      r.append(" ", 1);
+    }
+    r.append(hex, 2);
+  }
+  return r;
+}
+
+std::string row_to_string(const uchar* mysql_row, TABLE* mysql_table) {
+  /* MySQL can either use handler::table->record[0] or handler::table->record[1]
+   * for buffers to store rows. We need each field in mysql_table->field[] to
+   * point inside the buffer which was used (either record[0] or record[1]). */
+
+  uchar* buf0 = mysql_table->record[0];
+  uchar* buf1 = mysql_table->record[1];
+  const uint mysql_row_length = mysql_table->s->rec_buff_length;
+
+  /* See which of the two buffers is being used. */
+  uchar* buf_used_by_mysql;
+  if (mysql_row == buf0) {
+    buf_used_by_mysql = buf0;
+  } else {
+    DBUG_ASSERT(mysql_row == buf1);
+    buf_used_by_mysql = buf1;
+  }
+
+  const uint number_of_fields = mysql_table->s->fields;
+  DBUG_ASSERT(number_of_fields > 0);
+
+  /* See where the fields currently point to. */
+  uchar* fields_orig_buf;
+  Field* first_field = mysql_table->field[0];
+  if (first_field->ptr >= buf0 && first_field->ptr < buf0 + mysql_row_length) {
+    fields_orig_buf = buf0;
+  } else {
+    DBUG_ASSERT(first_field->ptr >= buf1);
+    DBUG_ASSERT(first_field->ptr < buf1 + mysql_row_length);
+    fields_orig_buf = buf1;
+  }
+
+  /* Repoint if necessary. */
+  if (buf_used_by_mysql != fields_orig_buf) {
+    repoint_field_to_record(mysql_table, fields_orig_buf, buf_used_by_mysql);
+  }
+
+#ifdef HAVE_VALGRIND
+  /* It is expected that here not all bits in (mysql_row, mysql_row_length) are
+   * initialized. For example in the first byte (the null-byte) we only set
+   * the bits of the corresponding columns to 0 or 1 (is null). And leave the
+   * remaining bits uninitialized for performance reasons. Thus Valgrind is
+   * right to complain below when we print everything. We do not want to
+   * memset() everything, so that Valgrind does not complain here and we do
+   * not want to MEM_DEFINED_IF_ADDRESSABLE(mysql_row, mysql_row_length) either
+   * because that would silence Valgrind in other possible places where the
+   * uninitialized bits should not be read. In other words - we want the
+   * Valgrind warnings if somebody tries to use the uninitialized bits,
+   * except here in this function. */
+  uchar* mysql_row_copy = static_cast<uchar*>(malloc(mysql_row_length));
+  memcpy(mysql_row_copy, mysql_row, mysql_row_length);
+  MEM_DEFINED_IF_ADDRESSABLE(mysql_row_copy, mysql_row_length);
+#else
+  const uchar* mysql_row_copy = mysql_row;
+#endif /* HAVE_VALGRIND */
+
+  std::string r;
+
+  r += "len=" + std::to_string(mysql_row_length);
+
+  r += ", raw=" + buf_to_raw(mysql_row_copy, mysql_row_length);
+
+  r += ", hex=" + buf_to_hex(mysql_row_copy, mysql_row_length);
+
+#ifdef HAVE_VALGRIND
+  free(mysql_row_copy);
+#endif /* HAVE_VALGRIND */
+
+  r += ", human=(";
+  for (uint i = 0; i < number_of_fields; ++i) {
+    Field* field = mysql_table->field[i];
+
+    DBUG_ASSERT(field->field_index == i);
+    DBUG_ASSERT(field->ptr >= mysql_row);
+    DBUG_ASSERT(field->ptr < mysql_row + mysql_row_length);
+
+    std::string val;
+
+    if (bitmap_is_set(mysql_table->read_set, i)) {
+      String s;
+      field->val_str(&s);
+      val = std::string(s.ptr(), s.length());
+    } else {
+      /* Field::val_str() asserts in ASSERT_COLUMN_MARKED_FOR_READ() if
+       * the read bit is not set. */
+      val = "read_bit_not_set";
+    }
+
+    r += std::string(i == 0 ? "`" : ", `") + field->field_name + "`=" + val;
+  }
+  r += ")";
+
+  /* Revert the above repoint_field_to_record(). */
+  if (buf_used_by_mysql != fields_orig_buf) {
+    repoint_field_to_record(mysql_table, buf_used_by_mysql, fields_orig_buf);
+  }
+
+  return r;
+}
+
+std::string indexed_cells_to_string(const uchar *indexed_cells,
+                                    uint indexed_cells_len,
+                                    const KEY &mysql_index) {
+  std::string r = "raw=" + buf_to_raw(indexed_cells, indexed_cells_len);
+
+  r += ", hex=" + buf_to_hex(indexed_cells, indexed_cells_len);
+
+  r += ", human=(";
+  uint key_len_so_far = 0;
+  for (uint i = 0; i < mysql_index.user_defined_key_parts; i++) {
+    const KEY_PART_INFO& key_part = mysql_index.key_part[i];
+    Field* field = key_part.field;
+
+    if (key_len_so_far == indexed_cells_len) {
+      break;
+    }
+    DBUG_ASSERT(key_len_so_far < indexed_cells_len);
+
+    uchar* orig_ptr = field->ptr;
+    bool is_null = false;
+    field->ptr = const_cast<uchar*>(indexed_cells + key_len_so_far);
+
+    if (field->real_maybe_null()) {
+      if (field->ptr[0] != '\0') {
+        is_null = true;
+      } else {
+        field->ptr++;
+      }
+    }
+
+    uint32 orig_length_bytes;
+
+    String val;
+    if (!is_null) {
+      switch (field->type()) {
+        case MYSQL_TYPE_VARCHAR:
+          orig_length_bytes =
+              reinterpret_cast<Field_varstring*>(field)->length_bytes;
+          reinterpret_cast<Field_varstring*>(field)->length_bytes = 2;
+          field->val_str(&val);
+          reinterpret_cast<Field_varstring*>(field)->length_bytes =
+              orig_length_bytes;
+          break;
+        default:
+          field->val_str(&val);
+          break;
+      }
+    }
+
+    field->ptr = orig_ptr;
+
+    r += std::string(i > 0 ? ", `" : "`") + field->field_name + "`=" +
+         (is_null ? "NULL" : std::string(val.ptr(), val.length()));
+
+    key_len_so_far += key_part.store_length;
+  }
+  r += ")";
+  return r;
+}
+#endif /* DBUG_OFF */

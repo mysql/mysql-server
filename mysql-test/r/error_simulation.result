@@ -12,6 +12,7 @@ INSERT INTO t1 VALUES
 ('AAAAAAAAAF','AAAAAAAAAF'), ('AAAAAAAAAG','AAAAAAAAAG'),
 ('AAAAAAAAAH','AAAAAAAAAH'), ('AAAAAAAAAI','AAAAAAAAAI'),
 ('AAAAAAAAAJ','AAAAAAAAAJ'), ('AAAAAAAAAK','AAAAAAAAAK');
+set session internal_tmp_mem_storage_engine='memory';
 set tmp_table_size=1024;
 set session debug="d,raise_error";
 SELECT MAX(a) FROM t1 GROUP BY a,b;
@@ -23,6 +24,7 @@ SELECT 1 FROM t1, t1 t2, t1 t3, t1 t4 LIMIT 100000000
 SELECT * FROM qn qn0 WHERE z = (SELECT z FROM qn qn1 LIMIT 1);
 ERROR 23000: Can't write; duplicate key in table 'tmp_table'
 set tmp_table_size=default;
+set session internal_tmp_mem_storage_engine=default;
 DROP TABLE t1;
 #
 # Bug #50946: fast index creation still seems to copy the table

@@ -919,6 +919,9 @@ DROP TABLE t1,t2;
 --echo #
 create table t1(f1 char(255) charset utf8);
 insert into t1 values('1'),('2'),('3'),('4'),('5'),('6'),('7'),('8'),('9'),('0');
+# We only need the temp SE to overflow here, so use 'memory' for this purpose.
+set @save_internal_tmp_mem_storage_engine= @@internal_tmp_mem_storage_engine;
+set session internal_tmp_mem_storage_engine='memory';
 set @save_heap_size= @@max_heap_table_size;
 set @@max_heap_table_size= 1;
 SET @optimizer_switch_saved= @@optimizer_switch;
@@ -930,6 +933,7 @@ select count(*) from t1 join (
   select t1.f1 from t1 join t1 as t2 join t1 as t3) tt on t1.f1 = tt.f1;
 show status like 'Handler_write';
 set @@max_heap_table_size= @save_heap_size;
+set session internal_tmp_mem_storage_engine= @save_internal_tmp_mem_storage_engine;
 SET @@optimizer_switch= @optimizer_switch_saved;
 
 drop table t1;

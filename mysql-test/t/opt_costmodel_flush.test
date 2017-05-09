@@ -206,6 +206,8 @@ SET cost_value=DEFAULT;
 
 # The next two tests are for cost of disk based temporary tables
 # To ensure this temp table is written to a disk based storage engine
+set global internal_tmp_mem_storage_engine='memory';
+set session internal_tmp_mem_storage_engine='memory';
 set @max_heap_table_size_save= @@max_heap_table_size;
 set max_heap_table_size= 16384;
 
@@ -289,6 +291,8 @@ SET cost_value=DEFAULT;
 
 # Finished testing disk based temporary tables
 set max_heap_table_size= @max_heap_table_size_save;
+set session internal_tmp_mem_storage_engine=default;
+set global internal_tmp_mem_storage_engine=default;
 
 --echo #
 --echo # Test effect of changing the memory_block_read_cost

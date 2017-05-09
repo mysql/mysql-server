@@ -32,7 +32,8 @@ SELECT uniq, col1 FROM t1 GROUP BY col2,uniq LIMIT 3;
 --replace_result InnoDB TMP_TABLE_ENGINE MyISAM TMP_TABLE_ENGINE 
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 
-# Uses HEAP temporary table
+# Uses @internal_tmp_mem_storage_engine temporary table
+--sorted_result
 SELECT uniq, col1, col2 FROM t1 GROUP BY uniq ;   
 --replace_result InnoDB TMP_TABLE_ENGINE MyISAM TMP_TABLE_ENGINE 
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
@@ -40,6 +41,7 @@ SELECT * FROM information_schema.OPTIMIZER_TRACE;
 select @@tmp_table_size;
 SET @old_size= @@tmp_table_size;
 SET SESSION tmp_table_size= 1024;
+SET SESSION internal_tmp_mem_storage_engine='memory';
 
 INSERT INTO t1 SELECT pk+8, col1, col1 FROM tmp;
 
@@ -48,6 +50,7 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq;
 --replace_result InnoDB TMP_TABLE_ENGINE MyISAM TMP_TABLE_ENGINE 
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 
+SET SESSION internal_tmp_mem_storage_engine=default;
 SET GLOBAL tmp_table_size= @old_size;
 
 # Temp tables for I_S tables. Uses HEAP temporary table. 
@@ -73,6 +76,7 @@ INSERT INTO t1(c2) SELECT t1.c2 FROM t1, t1 t2, t1 t3, t1 t4, t1 t5, t1 t6;
 
 SET @@max_heap_table_size=1;
 SET @@group_concat_max_len= 500;
+SET SESSION internal_tmp_mem_storage_engine='memory';
 
 # This query creates 4 tmp tables, 3 of them aren''t packed without this
 # fix. 
@@ -92,4 +96,5 @@ DROP TABLE t1;
 --echo #
 
 # Clean up.
+SET SESSION internal_tmp_mem_storage_engine=default;
 SET max_length_for_sort_data=DEFAULT;

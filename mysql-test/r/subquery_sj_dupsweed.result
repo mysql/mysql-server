@@ -3665,6 +3665,7 @@ a
 drop table t1, t3, t4;
 create table t1 (a int);
 insert into t1 values (0),(0),(0),(1),(1),(1),(2),(2),(2),(3),(3),(3);
+set session internal_tmp_mem_storage_engine='memory';
 set @save_max_heap_table_size=@@max_heap_table_size;
 set @@max_heap_table_size= 16384;
 # Attempt to make one test that overflows the heap table when a
@@ -3692,6 +3693,7 @@ show status like 'Created_tmp_disk_tables';
 Variable_name	Value
 Created_tmp_disk_tables	1
 set @@max_heap_table_size= @save_max_heap_table_size;
+set session internal_tmp_mem_storage_engine=default;
 flush status;
 select count(*) from t0 a, t0 b, t0 c
 where c.a in (select a from t1 d);

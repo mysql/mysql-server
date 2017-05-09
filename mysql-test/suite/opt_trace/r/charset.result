@@ -329,8 +329,7 @@ select * from v1 where v1.col = 'ÁÂÃÄÅ'	{
                 "row_length": 7,
                 "key_length": 0,
                 "unique_constraint": false,
-                "location": "memory (heap)",
-                "row_limit_estimate": 2396745
+                "location": "InnMEM"
               } /* tmp_table_info */
             } /* creating_tmp_table */
           },

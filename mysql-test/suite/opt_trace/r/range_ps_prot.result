@@ -4106,8 +4106,7 @@ EXPLAIN SELECT 1 FROM
                 "row_length": 5,
                 "key_length": 0,
                 "unique_constraint": false,
-                "location": "memory (heap)",
-                "row_limit_estimate": 3355443
+                "location": "InnMEM"
               } /* tmp_table_info */
             } /* creating_tmp_table */
           },
@@ -4442,8 +4441,7 @@ EXPLAIN SELECT 1 FROM
                 "row_length": 5,
                 "key_length": 0,
                 "unique_constraint": false,
-                "location": "memory (heap)",
-                "row_limit_estimate": 3355443
+                "location": "InnMEM"
               } /* tmp_table_info */
             } /* creating_tmp_table */
           },

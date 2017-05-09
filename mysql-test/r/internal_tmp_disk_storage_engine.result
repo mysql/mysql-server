@@ -3172,6 +3172,7 @@ Variable_name	Value
 default_storage_engine	InnoDB
 default_tmp_storage_engine	InnoDB
 internal_tmp_disk_storage_engine	InnoDB
+internal_tmp_mem_storage_engine	InnMEM
 set @@global.internal_tmp_disk_storage_engine= @old_internal_tmp_disk_storage_engine;
 set big_tables= @old_big_tables;
 set optimizer_switch= @old_optimizer_switch;

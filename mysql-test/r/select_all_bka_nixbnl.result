@@ -4563,7 +4563,7 @@ Handler_read_last	0
 Handler_read_next	10
 Handler_read_prev	0
 Handler_read_rnd	10
-Handler_read_rnd_next	7
+Handler_read_rnd_next	6
 DROP TABLE t1, t2;
 CREATE TABLE t1 (f1 bigint(20) NOT NULL default '0',
 f2 int(11) NOT NULL default '0',

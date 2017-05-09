@@ -122,7 +122,7 @@ public:
   bool can_use_pk_for_unique;
   /**
     Whether table scan may start from any row defined by a rnd_pos() call.
-    @todo remove in WL#8117.
+    @todo remove in WL#9236.
   */
   bool allow_scan_from_position;
 

@@ -1571,8 +1571,7 @@ SELECT * from t1 ORDER BY rand(2) LIMIT 2	{
                 "row_length": 219,
                 "key_length": 0,
                 "unique_constraint": false,
-                "location": "memory (heap)",
-                "row_limit_estimate": 76608
+                "location": "InnMEM"
               }
             }
           },
@@ -3997,8 +3996,7 @@ ORDER BY tmp.f1, f0 LIMIT 30	{
                 "row_length": 235,
                 "key_length": 0,
                 "unique_constraint": false,
-                "location": "memory (heap)",
-                "row_limit_estimate": 71392
+                "location": "InnMEM"
               }
             }
           },
@@ -4291,8 +4289,7 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
                 "row_length": 235,
                 "key_length": 0,
                 "unique_constraint": false,
-                "location": "memory (heap)",
-                "row_limit_estimate": 71392
+                "location": "InnMEM"
               }
             }
           },
@@ -4590,8 +4587,7 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
                 "row_length": 235,
                 "key_length": 0,
                 "unique_constraint": false,
-                "location": "memory (heap)",
-                "row_limit_estimate": 71392
+                "location": "InnMEM"
               }
             }
           },
@@ -4941,8 +4937,7 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
                 "row_length": 235,
                 "key_length": 0,
                 "unique_constraint": false,
-                "location": "memory (heap)",
-                "row_limit_estimate": 71392
+                "location": "InnMEM"
               }
             }
           },
@@ -5257,8 +5252,7 @@ SELECT * FROM v1	{
                 "row_length": 210,
                 "key_length": 0,
                 "unique_constraint": false,
-                "location": "memory (heap)",
-                "row_limit_estimate": 79891
+                "location": "InnMEM"
               }
             }
           },
@@ -5570,8 +5564,7 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
                 "row_length": 210,
                 "key_length": 0,
                 "unique_constraint": false,
-                "location": "memory (heap)",
-                "row_limit_estimate": 79891
+                "location": "InnMEM"
               }
             }
           },
@@ -6229,8 +6222,7 @@ LIMIT 30	{
                 "row_length": 210,
                 "key_length": 0,
                 "unique_constraint": false,
-                "location": "memory (heap)",
-                "row_limit_estimate": 79891
+                "location": "InnMEM"
               }
             }
           },
@@ -6241,8 +6233,7 @@ LIMIT 30	{
                 "row_length": 210,
                 "key_length": 5,
                 "unique_constraint": false,
-                "location": "memory (heap)",
-                "row_limit_estimate": 79891
+                "location": "InnMEM"
               }
             }
           },
@@ -6335,8 +6326,7 @@ LIMIT 30	{
                 "row_length": 419,
                 "key_length": 0,
                 "unique_constraint": false,
-                "location": "memory (heap)",
-                "row_limit_estimate": 40041
+                "location": "InnMEM"
               }
             }
           },
@@ -6524,8 +6514,7 @@ GROUP BY 1 ORDER BY 2,1 LIMIT 5	{
                 "row_length": 18,
                 "key_length": 9,
                 "unique_constraint": false,
-                "location": "memory (heap)",
-                "row_limit_estimate": 932067
+                "location": "InnMEM"
               }
             }
           },
@@ -7462,8 +7451,7 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
                 "row_length": 210,
                 "key_length": 0,
                 "unique_constraint": false,
-                "location": "memory (heap)",
-                "row_limit_estimate": 79891
+                "location": "InnMEM"
               }
             }
           },
@@ -7908,8 +7896,7 @@ ORDER BY d1.f2 DESC LIMIT 30	{
                 "row_length": 210,
                 "key_length": 5,
                 "unique_constraint": false,
-                "location": "memory (heap)",
-                "row_limit_estimate": 79891
+                "location": "InnMEM"
               }
             }
           },
@@ -7956,8 +7943,7 @@ ORDER BY d1.f2 DESC LIMIT 30	{
                 "row_length": 206,
                 "key_length": 0,
                 "unique_constraint": false,
-                "location": "memory (heap)",
-                "row_limit_estimate": 81442
+                "location": "InnMEM"
               }
             }
           },

@@ -1567,6 +1567,8 @@ DROP TABLE t1,t2;
 #
 create table t1(f1 char(255) charset utf8);
 insert into t1 values('1'),('2'),('3'),('4'),('5'),('6'),('7'),('8'),('9'),('0');
+set @save_internal_tmp_mem_storage_engine= @@internal_tmp_mem_storage_engine;
+set session internal_tmp_mem_storage_engine='memory';
 set @save_heap_size= @@max_heap_table_size;
 set @@max_heap_table_size= 1;
 Warnings:
@@ -1582,6 +1584,7 @@ show status like 'Handler_write';
 Variable_name	Value
 Handler_write	1021
 set @@max_heap_table_size= @save_heap_size;
+set session internal_tmp_mem_storage_engine= @save_internal_tmp_mem_storage_engine;
 SET @@optimizer_switch= @optimizer_switch_saved;
 drop table t1;
 #

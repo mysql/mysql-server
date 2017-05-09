@@ -900,11 +900,11 @@ bool Aggregator_distinct::setup(THD *thd)
     if (table->hash_field)
       table->file->ha_index_init(0, 0);
 
-    if (table->s->db_type() == heap_hton)
+    if (table->s->db_type() == innmem_hton || table->s->db_type() == heap_hton)
     {
       /*
-        No blobs, otherwise it would have been MyISAM: set up a compare
-        function and its arguments to use with Unique.
+        No blobs:
+        set up a compare function and its arguments to use with Unique.
       */
       qsort2_cmp compare_key;
       void* cmp_arg;

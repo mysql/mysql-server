@@ -136,8 +136,7 @@ SELECT uniq, col1 FROM t1 GROUP BY col2,uniq LIMIT 3	{
                 "row_length": 4190,
                 "key_length": 8,
                 "unique_constraint": true,
-                "location": "memory (heap)",
-                "row_limit_estimate": 4004
+                "location": "InnMEM"
               } /* tmp_table_info */
             } /* creating_tmp_table */
           }
@@ -274,8 +273,7 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq	{
                 "row_length": 4182,
                 "key_length": 43,
                 "unique_constraint": false,
-                "location": "memory (heap)",
-                "row_limit_estimate": 4011
+                "location": "InnMEM"
               } /* tmp_table_info */
             } /* creating_tmp_table */
           }
@@ -289,6 +287,7 @@ select @@tmp_table_size;
 16777216
 SET @old_size= @@tmp_table_size;
 SET SESSION tmp_table_size= 1024;
+SET SESSION internal_tmp_mem_storage_engine='memory';
 INSERT INTO t1 SELECT pk+8, col1, col1 FROM tmp;
 SELECT uniq, col1, col2 FROM t1 GROUP BY uniq;
 uniq	col1	col2
@@ -449,6 +448,7 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq	{
     }
   ] /* steps */
 }	0	0
+SET SESSION internal_tmp_mem_storage_engine=default;
 SET GLOBAL tmp_table_size= @old_size;
 SELECT pool_id FROM information_schema.INNODB_BUFFER_PAGE LIMIT 1;
 pool_id
@@ -588,6 +588,7 @@ SET @@max_heap_table_size=1;
 Warnings:
 Warning	1292	Truncated incorrect max_heap_table_size value: '1'
 SET @@group_concat_max_len= 500;
+SET SESSION internal_tmp_mem_storage_engine='memory';
 SELECT c1,GROUP_CONCAT(c2) cc FROM
 (SELECT * FROM t1 UNION SELECT c1, 'a' FROM t1) tt
 GROUP BY c1
@@ -1211,4 +1212,5 @@ ORDER BY cc	{
 }	0	0
 DROP TABLE t1;
 #
+SET SESSION internal_tmp_mem_storage_engine=default;
 SET max_length_for_sort_data=DEFAULT;
