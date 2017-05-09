@@ -731,7 +731,7 @@ rm -f  %{buildroot}%{_mandir}/man1/mysqltest_embedded.1*
 %if 0%{?runselftest} || 0%{?with_unittests}
 pushd release
 export CTEST_OUTPUT_ON_FAILURE=1
-make test
+make test || true
 %endif
 %if 0%{?runselftest}
 export MTR_BUILD_THREAD=auto
