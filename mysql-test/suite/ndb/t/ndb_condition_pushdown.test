@@ -1,9 +1,5 @@
 -- source include/have_ndb.inc
 
---disable_warnings
-DROP TABLE IF EXISTS t1,t2,t3,t4;
---enable_warnings
-
 #
 # Test of condition pushdown to storage engine
 #
@@ -1667,7 +1663,7 @@ select * from t3,t4 where t4.attr1 > 1 and t4.attr2 = t3.attr2 and t4.attr3 < 5 
 # Some tests that are currently not supported and should not push condition
 --replace_column 10 # 11 #
 explain
-select auto from t1 where string = "aaaa" collate latin1_general_ci order by auto;
+select auto from t1 where string = "aaaa" collate utf8mb4_general_ci order by auto;
 --replace_column 10 # 11 #
 explain
 select * from t2 where (attr1 < 2) = (attr2 < 2) order by pk1;
@@ -2116,9 +2112,11 @@ select * from t1 where b in ('0', '1', '2','3','4','5','6','7','8','9',
 show warnings;
 
 # Test large SCANTABREQ
-create table balerno (a int primary key, 
-                      b varchar(2000), 
-                      c varchar(2000)) engine=ndb;
+create table balerno (
+  a int primary key,
+  b varchar(2000),
+  c varchar(2000)
+) engine=ndb character set latin1;
 
 alter table balerno add index (b);
 
