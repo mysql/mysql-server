@@ -893,6 +893,14 @@ extern Slow_log_throttle log_throttle_qni;
 //
 ////////////////////////////////////////////////////////////
 
+constexpr int basename_index(const char * const path, const int index)
+{
+  return (path [index] == '/' || path [index] == '\\') ?
+    index + 1 : basename_index(path, index - 1);
+}
+
+#define MY_BASENAME __FILE__ + basename_index(__FILE__, sizeof(__FILE__) - 1)
+
 /*
   Set up some convenience defines to help us while we change
   old-style ("sql_print_...()") calls to new-style ones

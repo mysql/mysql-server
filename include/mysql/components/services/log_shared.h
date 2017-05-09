@@ -25,11 +25,6 @@
 #define LOG_SUBSYSTEM_TAG NULL
 #endif
 
-/** fallback: in case our cmake macro for osme reason hasn't defined this. */
-#ifndef MY_BASENAME
-#define MY_BASENAME __FILE__
-#endif
-
 /**
   The logging sub-system internally uses the log_line structure to pass
   data around. This header primarily the specifics and symbols of that

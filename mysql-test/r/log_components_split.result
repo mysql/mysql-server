@@ -46,7 +46,7 @@ FLUSH ERROR LOGS;
 1970-01-01T00:00:00.000000Z 0 [Note] Parser saw: SELECT "*** TRYING TO LOG THINGS FROM EXTERNAL SERVICE ***"
 1970-01-01T00:00:00.000000Z 0 [Note] Parser saw: INSTALL COMPONENT "file://component_log_sink_json"
 1970-01-01T00:00:00.000000Z 0 [Note] Parser saw: INSTALL COMPONENT "file://component_log_sink_test"
-[prio=2];[err_code=3599];[subsystem=parser];[SQL_state=XX999];[source_file=sql_parse];[function=dispatch_command];[msg=Parser saw: SET @@global.log_error_services="log_filter_internal; log_sink_test; log_sink_json; log_sink_internal"];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_PARSER_TRACE];[label=Note];
+[prio=2];[err_code=3599];[subsystem=parser];[SQL_state=XX999];[source_file=sql_parse.cc];[function=dispatch_command];[msg=Parser saw: SET @@global.log_error_services="log_filter_internal; log_sink_test; log_sink_json; log_sink_internal"];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_PARSER_TRACE];[label=Note];
 [prio=2];[msg=using log_message() in external service];[time=1970-01-01T00:00:00.000000Z];[thread=0];[label=Note];
 1970-01-01T00:00:00.000000Z 0 [Note] using log_message() in external service
 [prio=0];[thread=0];[msg=using log_message() with duplicate source-line k/v pair];[time=1970-01-01T00:00:00.000000Z];[label=ERROR];
@@ -95,7 +95,7 @@ FLUSH ERROR LOGS;
 1970-01-01T00:00:00.000000Z 0 [ERROR] No error message, or error message of non-string type. This is almost certainly a bug!
 1970-01-01T00:00:00.000000Z 0 [Note] Parser saw: SET @@global.log_error_services="log_filter_internal; log_sink_test; log_sink_json; log_sink_internal"
 1970-01-01T00:00:00.000000Z 0 [Note] Parser saw: SELECT "logging as traditional MySQL error log and as JSON"
-[prio=2];[err_code=3599];[subsystem=parser];[SQL_state=XX999];[source_file=sql_parse];[function=dispatch_command];[msg=Parser saw: FLUSH ERROR LOGS];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_PARSER_TRACE];[label=Note];
+[prio=2];[err_code=3599];[subsystem=parser];[SQL_state=XX999];[source_file=sql_parse.cc];[function=dispatch_command];[msg=Parser saw: FLUSH ERROR LOGS];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_PARSER_TRACE];[label=Note];
 1970-01-01T00:00:00.000000Z 0 [Note] Parser saw: FLUSH ERROR LOGS
 1970-01-01T00:00:00.000000Z 0 [Note] Parser saw: SET @@global.log_error_services="log_filter_internal; log_sink_internal"
 1970-01-01T00:00:00.000000Z 0 [Note] Parser saw: UNINSTALL COMPONENT "file://component_log_sink_test"
@@ -128,18 +128,18 @@ FLUSH ERROR LOGS;
 { "log_type" : 1, "meow" : "test_me_for_presence", "thread" : 0, "prio_change" : "yes", "source_file" : "log_sink_test", "msg" : "filter_rules: 7", "prio" : 1, "time" : "1970-01-01T00:00:00.000000Z", "far" : "added_by_rule", "label" : "Warning" }
 { "log_type" : 1, "meow" : "test_me_for_presence", "bark" : "delete_me_by_rule", "prio_change" : "yes", "source_file" : "log_sink_test", "msg" : "filter_rules: 4", "prio" : 0, "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "label" : "ERROR" }
 { "label" : "log_sink_json: broken item with class 3, type 131072", "prio" : 0, "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "label" : "ERROR" }
-{ "prio" : 2, "subsystem" : "parser", "SQL_state" : "XX999", "source_file" : "sql_parse", "function" : "dispatch_command", "msg" : "Parser saw: SET @@global.log_error_services=\"log_filter_internal; log_sink_test; log_sink_json; log_sink_internal\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "label" : "Note" }
-{ "prio" : 2, "subsystem" : "parser", "SQL_state" : "XX999", "source_file" : "sql_parse", "function" : "dispatch_command", "msg" : "Parser saw: SELECT \"logging as traditional MySQL error log and as JSON\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "label" : "Note" }
-{ "prio" : 2, "subsystem" : "parser", "SQL_state" : "XX999", "source_file" : "sql_parse", "function" : "dispatch_command", "msg" : "Parser saw: FLUSH ERROR LOGS", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "label" : "Note" }
-{ "prio" : 2, "subsystem" : "parser", "source_file" : "sql_parse", "function" : "dispatch_command", "msg" : "Parser saw: SET @@global.log_error_services=\"log_sink_json; log_sink_json\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "Note" }
-{ "prio" : 2, "subsystem" : "parser", "source_file" : "sql_parse", "function" : "dispatch_command", "msg" : "Parser saw: SELECT \"double dutch!\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "Note" }
+{ "prio" : 2, "subsystem" : "parser", "SQL_state" : "XX999", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SET @@global.log_error_services=\"log_filter_internal; log_sink_test; log_sink_json; log_sink_internal\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "label" : "Note" }
+{ "prio" : 2, "subsystem" : "parser", "SQL_state" : "XX999", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SELECT \"logging as traditional MySQL error log and as JSON\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "label" : "Note" }
+{ "prio" : 2, "subsystem" : "parser", "SQL_state" : "XX999", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: FLUSH ERROR LOGS", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "label" : "Note" }
+{ "prio" : 2, "subsystem" : "parser", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SET @@global.log_error_services=\"log_sink_json; log_sink_json\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "Note" }
+{ "prio" : 2, "subsystem" : "parser", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SELECT \"double dutch!\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "Note" }
 
 ###
 ### error log file (JSON) -- stream 1
 ###
 
-{ "prio" : 2, "subsystem" : "parser", "source_file" : "sql_parse", "function" : "dispatch_command", "msg" : "Parser saw: SET @@global.log_error_services=\"log_sink_json; log_sink_json\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "Note" }
-{ "prio" : 2, "subsystem" : "parser", "source_file" : "sql_parse", "function" : "dispatch_command", "msg" : "Parser saw: SELECT \"double dutch!\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "Note" }
+{ "prio" : 2, "subsystem" : "parser", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SET @@global.log_error_services=\"log_sink_json; log_sink_json\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "Note" }
+{ "prio" : 2, "subsystem" : "parser", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SELECT \"double dutch!\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "Note" }
 
 ###
 ### done

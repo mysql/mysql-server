@@ -278,7 +278,6 @@ INCLUDE(plugin)
 INCLUDE(component)
 INCLUDE(install_macros)
 INCLUDE(install_layout)
-INCLUDE(source_basenames)
 INCLUDE(mysql_add_executable)
 INCLUDE(mysqlgcs)
 

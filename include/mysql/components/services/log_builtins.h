@@ -1049,13 +1049,13 @@ public:
     say unkind things about you.  Use registered messages and their
     error codes wherever possible!
 
-    @param  msg  the message. % substitution will not happen.
+    @param  msg_arg the message. % substitution will not happen.
 
-    @retval      the LogEvent, for easy fluent-style chaining.
+    @retval         the LogEvent, for easy fluent-style chaining.
   */
-  LogEvent &verbatim(const char *msg)
+  LogEvent &verbatim(const char *msg_arg)
   {
-    log_set_cstring(log_line_item_set(this->ll, LOG_ITEM_LOG_MESSAGE), msg);
+    log_set_cstring(log_line_item_set(this->ll, LOG_ITEM_LOG_MESSAGE), msg_arg);
     return *this;
   }
 
