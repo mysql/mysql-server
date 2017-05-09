@@ -56,9 +56,9 @@ create table c2(c2 varchar(100),
                 primary key(c2),
                 unique key abc(c2),
                 unique key abd(parent_temp),
-                constraint fk1 foreign key (id) references p1 (id),
-                constraint fk2 foreign key (parent_rc1, parent_rc2) references p1(parent_c1, parent_c2),
-                constraint fk3 foreign key (parent_rc3) references c1(id)
+                constraint c2_fk1 foreign key (id) references p1 (id),
+                constraint c2_fk2 foreign key (parent_rc1, parent_rc2) references p1(parent_c1, parent_c2),
+                constraint c2_fk3 foreign key (parent_rc3) references c1(id)
 ) engine=ndb;
 
 # Populate parent table
