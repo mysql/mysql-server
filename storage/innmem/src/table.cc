@@ -167,7 +167,8 @@ Result Table::update(const unsigned char* mysql_row_old,
      * memory we ship to MySQL for performance reasons. This is ok,
      * because the unset bits are not read, except in the memcmp()
      * below which is a naive and fast way to compare the two rows. */
-    DBUG_ASSERT(memcmp(mysql_row_old, target_row, m_mysql_row_length) == 0);
+//  Disable the assert, we want to run valgrind/asan/ubsan without HAVE_VALGRIND
+//  DBUG_ASSERT(memcmp(mysql_row_old, target_row, m_mysql_row_length) == 0);
 #endif /* HAVE_VALGRIND */
   } else {
     DBUG_ASSERT(m_rows.element_size() == sizeof(Row));
@@ -315,8 +316,9 @@ Result Table::remove(const unsigned char* mysql_row_must_be,
 
     /* *victim_position is a pointer to a buffer in the MySQL write_row()
      * format, same as `mysql_row_must_be`. */
-    DBUG_ASSERT(
-        memcmp(mysql_row_must_be, *victim_position, m_mysql_row_length) == 0);
+//  Disable the assert, we want to run valgrind/asan/ubsan without HAVE_VALGRIND
+//  DBUG_ASSERT(
+//      memcmp(mysql_row_must_be, *victim_position, m_mysql_row_length) == 0);
 #endif /* HAVE_VALGRIND */
   } else {
     /* *victim_position is a pointer to an `innmem::Row` object. */
