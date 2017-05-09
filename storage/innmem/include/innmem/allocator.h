@@ -97,6 +97,11 @@ extern PSI_memory_info pfs_info[];
 extern const size_t pfs_info_num_elements;
 #endif /* INNMEM_PFS_MEMORY */
 
+#ifdef INNMEM_USE_LINUX_NUMA
+/** Set to true if Linux's numa_available() reports "available" (!= -1). */
+extern bool linux_numa_available;
+#endif /* INNMEM_USE_LINUX_NUMA */
+
 /** Custom memory allocator. All dynamic memory used by the InnMEM engine
  * is allocated through this allocator.
  *
@@ -561,9 +566,7 @@ inline void Allocator<T>::init() {
 #endif /* INNMEM_PFS_MEMORY */
 
 #if defined(INNMEM_USE_LINUX_NUMA)
-  if (numa_available() == -1) {
-    abort();
-  }
+  linux_numa_available = numa_available() != -1;
 #endif
 }
 
@@ -679,7 +682,11 @@ inline void Allocator<T>::mem_drop(void* ptr, size_t bytes) {
 template <class T>
 inline void* Allocator<T>::mem_fetch_from_ram(size_t bytes) {
 #if defined(INNMEM_USE_LINUX_NUMA)
-  return numa_alloc_local(bytes);
+  if (linux_numa_available) {
+    return numa_alloc_local(bytes);
+  } else {
+    return malloc(bytes);
+  }
 #elif defined(HAVE_WINNUMA)
   SYSTEM_INFO systemInfo;
   PROCESSOR_NUMBER processorNumber;
@@ -701,7 +708,11 @@ template <class T>
 inline void Allocator<T>::mem_drop_from_ram(
     void* ptr, size_t bytes MY_ATTRIBUTE((unused))) {
 #if defined(INNMEM_USE_LINUX_NUMA)
-  numa_free(ptr, bytes);
+  if (linux_numa_available) {
+    numa_free(ptr, bytes);
+  } else {
+    free(ptr);
+  }
 #elif defined(HAVE_WINNUMA)
   VirtualFree(ptr, 0, MEM_DECOMMIT | MEM_RELEASE);
 #else

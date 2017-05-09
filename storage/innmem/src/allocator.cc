@@ -47,4 +47,8 @@ thread_local uint8_t* shared_block = nullptr;
 
 std::atomic<size_t> bytes_allocated_in_ram(0);
 
+#ifdef INNMEM_USE_LINUX_NUMA
+bool linux_numa_available = false;
+#endif /* INNMEM_USE_LINUX_NUMA */
+
 } /* namespace innmem */
