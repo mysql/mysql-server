@@ -1,9 +1,5 @@
 -- source include/have_multi_ndb.inc
 
---disable_warnings
-drop table if exists t1,t2;
---enable_warnings
-
 # operations allowed while cluster is in single user mode
 
 --connection server1
@@ -104,7 +100,7 @@ drop table t2;
 
 # test some sql on other mysqld
 --connection server2
---error 1051
+--error ER_ENGINE_CANT_DROP_TABLE
 drop table t1;
 --error 1296
 create index new_index_fail on t1 (c);
