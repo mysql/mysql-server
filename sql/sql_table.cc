@@ -5798,7 +5798,7 @@ bool create_table_impl(THD *thd,
       all tables as partitioned. The handler will set up the partition info
       object with the default settings.
     */
-    thd->work_part_info= part_info= new partition_info();
+    thd->work_part_info= part_info= new (*THR_MALLOC) partition_info();
     if (!part_info)
     {
       mem_alloc_error(sizeof(partition_info));
@@ -9436,7 +9436,7 @@ bool prepare_fields_and_keys(THD *thd,
         This field was not dropped and not changed, add it to the list
         for the new table.
       */
-      def= new Create_field(field, field);
+      def= new (*THR_MALLOC) Create_field(field, field);
       new_create_list.push_back(def);
       // Change default if ALTER
       size_t i= 0;
@@ -9685,10 +9685,10 @@ bool prepare_fields_and_keys(THD *thd,
       }
       key_part_length /= key_part->field->charset()->mbmaxlen;
       key_parts.push_back(
-        new Key_part_spec(to_lex_cstring(cfield->field_name),
-                          key_part_length,
-                          key_part->key_part_flag & HA_REVERSE_SORT ?
-                            ORDER_DESC : ORDER_ASC));
+        new (*THR_MALLOC) Key_part_spec(to_lex_cstring(cfield->field_name),
+                                        key_part_length,
+                                        key_part->key_part_flag & HA_REVERSE_SORT ?
+                                          ORDER_DESC : ORDER_ASC));
     }
     if (key_parts.elements)
     {
@@ -9798,12 +9798,11 @@ bool prepare_fields_and_keys(THD *thd,
         If we have dropped a column associated with an index,
         this warrants a check for duplicate indexes
       */
-      new_key_list.push_back(new Key_spec(thd->mem_root, key_type,
-                                          to_lex_cstring(key_name),
-                                          &key_create_info,
-                                          (key_info->flags & HA_GENERATED_KEY),
-                                          index_column_dropped,
-                                          key_parts));
+      new_key_list.push_back
+        (new (*THR_MALLOC) Key_spec(thd->mem_root, key_type,
+                                    to_lex_cstring(key_name), &key_create_info,
+                                    (key_info->flags & HA_GENERATED_KEY),
+                                    index_column_dropped, key_parts));
     }
   }
   {
@@ -12178,7 +12177,7 @@ copy_data_between_tables(THD * thd,
       mysql_trans_prepare_alter_copy_data(thd))
     DBUG_RETURN(-1);
 
-  if (!(copy= new Copy_field[to->s->fields]))
+  if (!(copy= new (*THR_MALLOC) Copy_field[to->s->fields]))
     DBUG_RETURN(-1);				/* purecov: inspected */
 
   if (to->file->ha_external_lock(thd, F_WRLCK))

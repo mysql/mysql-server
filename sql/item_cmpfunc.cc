@@ -717,7 +717,7 @@ bool Arg_comparator::set_compare_func(Item_result_field *item, Item_result type)
       comparators= 0;
       return true;
     }
-    if (!(comparators= new Arg_comparator[n]))
+    if (!(comparators= new (*THR_MALLOC) Arg_comparator[n]))
       return true;
     comparator_count= n;
 
@@ -1562,7 +1562,7 @@ static bool get_json_arg(Item* arg, String *value, String *tmp,
       so. Otherwise, we reuse the previously allocated memory.
     */
     if (*scalar == NULL)
-      *scalar= new Json_scalar_holder();
+      *scalar= new (*THR_MALLOC) Json_scalar_holder();
 
     holder= *scalar;
   }
@@ -4763,15 +4763,15 @@ cmp_item* cmp_item::get_comparator(Item_result type,
 {
   switch (type) {
   case STRING_RESULT:
-    return new cmp_item_string(cs);
+    return new (*THR_MALLOC) cmp_item_string(cs);
   case INT_RESULT:
-    return new cmp_item_int;
+    return new (*THR_MALLOC) cmp_item_int;
   case REAL_RESULT:
-    return new cmp_item_real;
+    return new (*THR_MALLOC) cmp_item_real;
   case ROW_RESULT:
-    return new cmp_item_row;
+    return new (*THR_MALLOC) cmp_item_row;
   case DECIMAL_RESULT:
-    return new cmp_item_decimal;
+    return new (*THR_MALLOC) cmp_item_decimal;
   default:
     DBUG_ASSERT(0);
     break;
@@ -4782,22 +4782,22 @@ cmp_item* cmp_item::get_comparator(Item_result type,
 
 cmp_item* cmp_item_string::make_same()
 {
-  return new cmp_item_string(cmp_charset);
+  return new (*THR_MALLOC) cmp_item_string(cmp_charset);
 }
 
 cmp_item* cmp_item_int::make_same()
 {
-  return new cmp_item_int();
+  return new (*THR_MALLOC) cmp_item_int();
 }
 
 cmp_item* cmp_item_real::make_same()
 {
-  return new cmp_item_real();
+  return new (*THR_MALLOC) cmp_item_real();
 }
 
 cmp_item* cmp_item_row::make_same()
 {
-  return new cmp_item_row();
+  return new (*THR_MALLOC) cmp_item_row();
 }
 
 
@@ -4962,7 +4962,7 @@ int cmp_item_decimal::compare(const cmp_item *arg) const
 
 cmp_item* cmp_item_decimal::make_same()
 {
-  return new cmp_item_decimal();
+  return new (*THR_MALLOC) cmp_item_decimal();
 }
 
 
@@ -4998,7 +4998,7 @@ int cmp_item_datetime::compare(const cmp_item *ci) const
 
 cmp_item *cmp_item_datetime::make_same()
 {
-  return new cmp_item_datetime(warn_item);
+  return new (*THR_MALLOC) cmp_item_datetime(warn_item);
 }
 
 

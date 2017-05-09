@@ -19029,7 +19029,7 @@ ha_ndbcluster::prepare_inplace_alter_table(TABLE *altered_table,
     DBUG_RETURN(true);
 
   NDB_ALTER_DATA *alter_data;
-  if (!(alter_data= new NDB_ALTER_DATA(dict, m_table)))
+  if (!(alter_data= new (*THR_MALLOC) NDB_ALTER_DATA(dict, m_table)))
     DBUG_RETURN(true);
 
   const NDBTAB* const old_tab = alter_data->old_table;

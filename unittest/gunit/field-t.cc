@@ -148,8 +148,8 @@ TEST_F(FieldTest, FieldTimef)
   uchar nullPtr[1]= {0};
   MYSQL_TIME time= {0, 0, 0, 12, 23, 12, 123400, false, MYSQL_TIMESTAMP_TIME};
 
-  Field_timef* field= new Field_timef(fieldBuf, nullPtr, false, Field::NONE,
-				      "f1", 4);
+  Field_timef* field= new (*THR_MALLOC) Field_timef(fieldBuf, nullPtr, false,
+                                                    Field::NONE, "f1", 4);
   // Test public member functions
   EXPECT_EQ(4UL, field->decimals()); //TS-TODO
   EXPECT_EQ(MYSQL_TYPE_TIME, field->type());
@@ -315,8 +315,8 @@ TEST_F(FieldTest, FieldTimefCompare)
   {
     char fieldName[3];
     sprintf(fieldName, "f%c", i);
-    fields[i]= new Field_timef(fieldBufs[i], nullPtrs+i, false, Field::NONE,
-			       fieldName, 6);
+    fields[i]= new (*THR_MALLOC) Field_timef(
+      fieldBufs[i], nullPtrs+i, false, Field::NONE, fieldName, 6);
 
     longlong packed= TIME_to_longlong_packed(&times[i]);
     EXPECT_EQ(0, fields[i]->store_packed(packed));
@@ -367,8 +367,8 @@ TEST_F(FieldTest, FieldTime)
   uchar nullPtr[1]= {0};
   MYSQL_TIME bigTime= {0, 0, 0, 123, 45, 45, 555500, false, MYSQL_TIMESTAMP_TIME};
 
-  Field_time* field= new Field_time(fieldBuf, nullPtr, false, Field::NONE,
-				     "f1");
+  Field_time* field= new (*THR_MALLOC) Field_time(fieldBuf, nullPtr, false,
+                                                  Field::NONE, "f1");
   EXPECT_EQ(0, field->store_time(&bigTime, 4));
   MYSQL_TIME t;
   EXPECT_FALSE(field->get_time(&t));

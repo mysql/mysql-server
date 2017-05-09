@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -182,18 +182,19 @@ inline Fake_TABLE *get_schema_table(THD *thd, handlerton *hton)
   Fake_TABLE_SHARE dummy_share(1); // Keep Field_varstring constructor happy.
 
   // Add fields
-  m_field_list.push_back(new Mock_dd_field_longlong());  // id
-  m_field_list.push_back(new Mock_dd_field_longlong());  // catalog_id
-  m_field_list.push_back(new Mock_dd_field_varstring(64, &dummy_share)); // name
-  m_field_list.push_back(new Mock_dd_field_longlong());  // collation_id
-  m_field_list.push_back(new Mock_dd_field_longlong());  // created
-  m_field_list.push_back(new Mock_dd_field_longlong());  // last_altered
+  m_field_list.push_back(new (*THR_MALLOC) Mock_dd_field_longlong());  // id
+  m_field_list.push_back(new (*THR_MALLOC) Mock_dd_field_longlong());  // catalog_id
+  m_field_list.push_back(new (*THR_MALLOC) Mock_dd_field_varstring(64, &dummy_share)); // name
+  m_field_list.push_back(new (*THR_MALLOC) Mock_dd_field_longlong());  // collation_id
+  m_field_list.push_back(new (*THR_MALLOC) Mock_dd_field_longlong());  // created
+  m_field_list.push_back(new (*THR_MALLOC) Mock_dd_field_longlong());  // last_altered
 
   // Create table object (and table share implicitly).
   table= new Fake_TABLE(m_field_list);
 
   // Create a strict mock handler for the share.
-  StrictMock<Mock_dd_HANDLER> *ha= new StrictMock<Mock_dd_HANDLER>(hton, table->s);
+  StrictMock<Mock_dd_HANDLER> *ha=
+    new (*THR_MALLOC) StrictMock<Mock_dd_HANDLER>(hton, table->s);
 
   // Set current open table.
   ha->change_table_ptr(table, table->s);

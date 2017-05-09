@@ -165,8 +165,9 @@ static Field *create_tmp_field_from_item(Item *item, TABLE *table,
 
   switch (item->result_type()) {
   case REAL_RESULT:
-    new_field= new Field_double(item->max_length, maybe_null,
-                                item->item_name.ptr(), item->decimals, TRUE);
+    new_field= new (*THR_MALLOC) Field_double(item->max_length, maybe_null,
+                                              item->item_name.ptr(),
+                                              item->decimals, TRUE);
     break;
   case INT_RESULT:
     /* 
@@ -176,11 +177,13 @@ static Field *create_tmp_field_from_item(Item *item, TABLE *table,
       Field_long : make them Field_longlong.  
     */
     if (item->max_length >= (MY_INT32_NUM_DECIMAL_DIGITS - 1))
-      new_field=new Field_longlong(item->max_length, maybe_null,
-                                   item->item_name.ptr(), item->unsigned_flag);
+      new_field=new (*THR_MALLOC) Field_longlong(item->max_length, maybe_null,
+                                                 item->item_name.ptr(),
+                                                 item->unsigned_flag);
     else
-      new_field=new Field_long(item->max_length, maybe_null,
-                               item->item_name.ptr(), item->unsigned_flag);
+      new_field=new (*THR_MALLOC) Field_long(item->max_length, maybe_null,
+                                             item->item_name.ptr(),
+                                             item->unsigned_flag);
     break;
   case STRING_RESULT:
     DBUG_ASSERT(item->collation.collation);
@@ -251,14 +254,15 @@ static Field *create_tmp_field_for_schema(Item *item, TABLE *table)
   {
     Field *field;
     if (item->max_length > MAX_FIELD_VARCHARLENGTH)
-      field= new Field_blob(item->max_length, item->maybe_null,
-                            item->item_name.ptr(),
-                            item->collation.collation, false);
+      field= new (*THR_MALLOC) Field_blob(item->max_length, item->maybe_null,
+                                          item->item_name.ptr(),
+                                          item->collation.collation, false);
     else
     {
-      field= new Field_varstring(item->max_length, item->maybe_null,
-                                 item->item_name.ptr(),
-                                 table->s, item->collation.collation);
+      field= new (*THR_MALLOC) Field_varstring(item->max_length,
+                                               item->maybe_null,
+                                               item->item_name.ptr(), table->s,
+                                               item->collation.collation);
       table->s->db_create_options|= HA_OPTION_PACK_RECORD;
     }
     if (field)
@@ -1815,8 +1819,8 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
       For the sake of uniformity, always use Field_varstring (altough we could
       use Field_string for shorter keys)
     */
-    field= new Field_varstring(uniq_tuple_length_arg, FALSE, "rowids", share,
-                               &my_charset_bin);
+    field= new (*THR_MALLOC) Field_varstring(uniq_tuple_length_arg, FALSE,
+                                             "rowids", share, &my_charset_bin);
     if (!field)
       DBUG_RETURN(0);
     field->table= table;

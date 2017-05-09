@@ -2104,7 +2104,7 @@ public:
                     strcmp(inspect_sctx_user.str, m_user))))
       return;
 
-    thread_info *thd_info= new thread_info;
+    thread_info *thd_info= new (*THR_MALLOC) thread_info;
 
     /* ID */
     thd_info->thread_id= inspect_thd->thread_id();
@@ -3002,7 +3002,7 @@ int make_table_list(THD *thd, SELECT_LEX *sel,
                     const LEX_CSTRING &table_name)
 {
   Table_ident *table_ident;
-  table_ident= new Table_ident(thd->get_protocol(), db_name, table_name, 1);
+  table_ident= new (*THR_MALLOC) Table_ident(thd->get_protocol(), db_name, table_name, 1);
   if (!sel->add_table_to_list(thd, table_ident, 0, 0, TL_READ, MDL_SHARED_READ))
     return 1;
   return 0;
@@ -5524,12 +5524,13 @@ int make_schema_select(THD *thd, SELECT_LEX *sel,
                        strlen(schema_table->table_name), 0);
 
   if (schema_table->old_format(thd, schema_table) ||   /* Handle old syntax */
-      !sel->add_table_to_list(thd,
-                              new Table_ident(thd->get_protocol(),
-                                              to_lex_cstring(db),
-                                              to_lex_cstring(table),
-                                              0),
-                              0, 0, TL_READ, MDL_SHARED_READ))
+      !sel->add_table_to_list(
+        thd,
+        new (*THR_MALLOC) Table_ident(thd->get_protocol(),
+                                      to_lex_cstring(db),
+                                      to_lex_cstring(table),
+                                      0),
+        0, 0, TL_READ, MDL_SHARED_READ))
   {
     DBUG_RETURN(1);
   }

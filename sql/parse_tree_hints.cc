@@ -50,7 +50,7 @@ static Opt_hints_global *get_global_hints(Parse_context *pc)
   LEX *lex= pc->thd->lex;
 
   if (!lex->opt_hints_global)
-    lex->opt_hints_global= new Opt_hints_global(pc->thd->mem_root);
+    lex->opt_hints_global= new (*THR_MALLOC) Opt_hints_global(pc->thd->mem_root);
   if (lex->opt_hints_global)
     lex->opt_hints_global->set_resolved();
   return lex->opt_hints_global;
@@ -78,8 +78,9 @@ static Opt_hints_qb *get_qb_hints(Parse_context *pc)
   if (global_hints == NULL)
     return NULL;
 
-  Opt_hints_qb *qb= new Opt_hints_qb(global_hints, pc->thd->mem_root,
-                                     pc->select->select_number);
+  Opt_hints_qb *qb= new (*THR_MALLOC) Opt_hints_qb(global_hints,
+                                                   pc->thd->mem_root,
+                                                   pc->select->select_number);
   if (qb)
   {
     global_hints->register_child(qb);
@@ -142,7 +143,7 @@ static Opt_hints_table *get_table_hints(Parse_context *pc,
                                                      table_alias_charset));
   if (!tab)
   {
-    tab= new Opt_hints_table(&table_name->table, qb, pc->thd->mem_root);
+    tab= new (*THR_MALLOC) Opt_hints_table(&table_name->table, qb, pc->thd->mem_root);
     qb->register_child(tab);
   }
 
@@ -462,7 +463,7 @@ bool PT_key_level_hint::contextualize(Parse_context *pc)
 
     if (!key)
     {
-      key= new Opt_hints_key(key_name, tab, pc->thd->mem_root);
+      key= new (*THR_MALLOC) Opt_hints_key(key_name, tab, pc->thd->mem_root);
       tab->register_child(key);
     }
 

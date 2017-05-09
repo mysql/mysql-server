@@ -177,7 +177,7 @@ Event_creation_ctx::create_event_creation_ctx(const dd::Event &event_obj,
                         (event_obj.schema_collation_id()));
 
   // Create the context.
-  *ctx = new Event_creation_ctx(client_cs, connection_cl, db_cl);
+  *ctx = new (*THR_MALLOC) Event_creation_ctx(client_cs, connection_cl, db_cl);
 
   return invalid_creation_ctx;
 }

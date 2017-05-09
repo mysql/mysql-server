@@ -105,5 +105,5 @@ Trigger_creation_ctx::create(THD *thd,
 
   db_cl= db_cl ? db_cl : thd->collation();
 
-  return new Trigger_creation_ctx(client_cs, connection_cl, db_cl);
+  return new (*THR_MALLOC) Trigger_creation_ctx(client_cs, connection_cl, db_cl);
 }

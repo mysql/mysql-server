@@ -149,9 +149,9 @@ void Item_subselect::init(SELECT_LEX *select_lex,
                     CTX_NONE :
                     outer_select->parsing_place);
     if (unit->is_union() || unit->fake_select_lex)
-      engine= new subselect_union_engine(unit, result, this);
+      engine= new (*THR_MALLOC) subselect_union_engine(unit, result, this);
     else
-      engine= new subselect_single_select_engine(select_lex, result, this);
+      engine= new (*THR_MALLOC) subselect_single_select_engine(select_lex, result, this);
   }
   {
     SELECT_LEX *upper= unit->outer_select();
@@ -376,7 +376,7 @@ bool Item_in_subselect::finalize_materialization_transform(JOIN *join)
   oto1.add("chosen", true);
 
   subselect_hash_sj_engine * const new_engine=
-    new subselect_hash_sj_engine(this, old_engine_derived);
+    new (*THR_MALLOC) subselect_hash_sj_engine(this, old_engine_derived);
   if (!new_engine)
     return true;
   if (new_engine->setup(unit->get_unit_column_types()))
@@ -893,7 +893,7 @@ Item_singlerow_subselect::Item_singlerow_subselect(SELECT_LEX *select_lex)
   :Item_subselect(), value(0), no_rows(false)
 {
   DBUG_ENTER("Item_singlerow_subselect::Item_singlerow_subselect");
-  init(select_lex, new Query_result_scalar_subquery(current_thd, this));
+  init(select_lex, new (*THR_MALLOC) Query_result_scalar_subquery(current_thd, this));
   maybe_null= 1; // if the subquery is empty, value is NULL
   max_columns= UINT_MAX;
   DBUG_VOID_RETURN;
@@ -1103,9 +1103,9 @@ Item_maxmin_subselect::Item_maxmin_subselect(THD *thd_param,
 {
   DBUG_ENTER("Item_maxmin_subselect::Item_maxmin_subselect");
   max= max_arg;
-  init(select_lex, new Query_result_max_min_subquery(thd_param,
-                                                     this, max_arg,
-                                                     ignore_nulls));
+  init(select_lex,
+       new (*THR_MALLOC) Query_result_max_min_subquery(thd_param, this, max_arg,
+                                                       ignore_nulls));
   max_columns= 1;
   maybe_null= 1;
   max_columns= 1;
@@ -1451,7 +1451,7 @@ Item_exists_subselect::Item_exists_subselect(SELECT_LEX *select):
      sj_convert_priority(0), embedding_join_nest(NULL)
 {
   DBUG_ENTER("Item_exists_subselect::Item_exists_subselect");
-  init(select, new Query_result_exists_subquery(current_thd, this));
+  init(select, new (*THR_MALLOC) Query_result_exists_subquery(current_thd, this));
   max_columns= UINT_MAX;
   null_value= FALSE; //can't be NULL
   maybe_null= 0; //can't be NULL
@@ -1487,7 +1487,7 @@ Item_in_subselect::Item_in_subselect(Item * left_exp,
   in2exists_info(NULL), pushed_cond_guards(NULL), upper_item(NULL)
 {
   DBUG_ENTER("Item_in_subselect::Item_in_subselect");
-  init(select, new Query_result_exists_subquery(current_thd, this));
+  init(select, new (*THR_MALLOC) Query_result_exists_subquery(current_thd, this));
   max_columns= UINT_MAX;
   maybe_null= 1;
   reset();
@@ -1521,7 +1521,7 @@ bool Item_in_subselect::itemize(Parse_context *pc, Item **res)
       pt_subselect->contextualize(pc))
     return true;
   SELECT_LEX *select_lex= pt_subselect->value();
-  init(select_lex, new Query_result_exists_subquery(pc->thd, this));
+  init(select_lex, new (*THR_MALLOC) Query_result_exists_subquery(pc->thd, this));
   if (test_limit())
     return true;
   return false;
@@ -1536,7 +1536,7 @@ Item_allany_subselect::Item_allany_subselect(Item * left_exp,
   DBUG_ENTER("Item_allany_subselect::Item_allany_subselect");
   left_expr= left_exp;
   func= func_creator(all_arg);
-  init(select, new Query_result_exists_subquery(current_thd, this));
+  init(select, new (*THR_MALLOC) Query_result_exists_subquery(current_thd, this));
   max_columns= 1;
   abort_on_null= 0;
   reset();
@@ -1970,7 +1970,7 @@ Item_in_subselect::single_value_transformer(SELECT_LEX *select,
     m_injected_left_expr= left;
 
     DBUG_ASSERT(in2exists_info == NULL);
-    in2exists_info= new In2exists_info;
+    in2exists_info= new (*THR_MALLOC) In2exists_info;
     in2exists_info->dependent_before= unit->uncacheable & UNCACHEABLE_DEPENDENT;
     if (!left_expr->const_item())
       unit->uncacheable|= UNCACHEABLE_DEPENDENT;
@@ -2291,7 +2291,7 @@ Item_in_subselect::row_value_transformer(SELECT_LEX *select)
 
     thd->lex->set_current_select(select);
     DBUG_ASSERT(in2exists_info == NULL);
-    in2exists_info= new In2exists_info;
+    in2exists_info= new (*THR_MALLOC) In2exists_info;
     in2exists_info->dependent_before= unit->uncacheable & UNCACHEABLE_DEPENDENT;
     if (!left_expr->const_item())
       unit->uncacheable|= UNCACHEABLE_DEPENDENT;
@@ -2787,7 +2787,7 @@ bool Item_in_subselect::init_left_expr_cache()
   if (end_select == end_send_group || end_select == end_write_group)
     use_result_field= TRUE;
 
-  if (!(left_expr_cache= new List<Cached_item>))
+  if (!(left_expr_cache= new (*THR_MALLOC) List<Cached_item>))
     return TRUE;
 
   for (uint i= 0; i < left_expr->cols(); i++)
@@ -3858,7 +3858,7 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
     managed (created/filled/etc) internally by the interceptor.
   */
   THD * const thd= item->unit->thd;
-  if (!(tmp_result_sink= new Query_result_union(thd)))
+  if (!(tmp_result_sink= new (*THR_MALLOC) Query_result_union(thd)))
     DBUG_RETURN(TRUE);
   if (tmp_result_sink->create_result_table(
                          thd, tmp_columns,
@@ -3950,7 +3950,7 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
   tmp_table_ref->table= tmp_table;
 
   /* Name resolution context for all tmp_table columns created below. */
-  Name_resolution_context *context= new Name_resolution_context;
+  Name_resolution_context *context= new (*THR_MALLOC) Name_resolution_context;
   context->init();
   context->first_name_resolution_table=
     context->last_name_resolution_table= tmp_table_ref;
@@ -3979,25 +3979,25 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
 
     if (tmp_table->hash_field)
       tab->ref().key_copy[part_no]=
-        new store_key_hash_item(thd, field,
-                           cur_ref_buff,
-                           0,
-                           field->pack_length(),
-                           tab->ref().items[part_no],
-                           &hash);
+        new (*THR_MALLOC) store_key_hash_item(thd, field,
+                                              cur_ref_buff,
+                                              0,
+                                              field->pack_length(),
+                                              tab->ref().items[part_no],
+                                              &hash);
     else
-      tab->ref().key_copy[part_no]=
-        new store_key_item(thd, field,
-                           /* TODO:
-                              the NULL byte is taken into account in
-                              key_parts[part_no].store_length, so instead of
-                              cur_ref_buff + test(maybe_null), we could
-                              use that information instead.
-                           */
-                           cur_ref_buff + (nullable ? 1 : 0),
-                           nullable ? cur_ref_buff : 0,
-                           key_parts[part_no].length,
-                           tab->ref().items[part_no]);
+      tab->ref().key_copy[part_no]= new (*THR_MALLOC)
+        store_key_item(thd, field,
+                       /* TODO:
+                          the NULL byte is taken into account in
+                          key_parts[part_no].store_length, so instead of
+                          cur_ref_buff + test(maybe_null), we could
+                          use that information instead.
+                        */
+                       cur_ref_buff + (nullable ? 1 : 0),
+                       nullable ? cur_ref_buff : 0,
+                       key_parts[part_no].length,
+                       tab->ref().items[part_no]);
     if (nullable &&          // nullable column in tmp table,
         // and UNKNOWN should not be interpreted as FALSE
         !item_in->is_top_level_item())

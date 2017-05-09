@@ -2161,7 +2161,7 @@ int replace_column_table(THD *thd, GRANT_TABLE *g_t,
         result= -1;
         goto end;
       }
-      grant_column= new GRANT_COLUMN(column->column,privileges);
+      grant_column= new (*THR_MALLOC) GRANT_COLUMN(column->column,privileges);
       if (my_hash_insert(&g_t->hash_columns,(uchar*) grant_column))
       {
         result= -1;

@@ -2539,10 +2539,10 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
 
       DBUG_EXECUTE_IF("mysql_table_grant_out_of_memory",
                       DBUG_SET("+d,simulate_out_of_memory"););
-      grant_table = new GRANT_TABLE (Str->host.str, db_name,
-                                     Str->user.str, table_name,
-                                     rights,
-                                     column_priv);
+      grant_table = new (*THR_MALLOC) GRANT_TABLE (Str->host.str, db_name,
+                                                   Str->user.str, table_name,
+                                                   rights,
+                                                   column_priv);
       DBUG_EXECUTE_IF("mysql_table_grant_out_of_memory",
                       DBUG_SET("-d,simulate_out_of_memory"););
 
@@ -2752,9 +2752,9 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
         result= true;
         continue;
       }
-      grant_name= new GRANT_NAME(Str->host.str, db_name,
-                                 Str->user.str, table_name,
-                                 rights, TRUE);
+      grant_name= new (*THR_MALLOC) GRANT_NAME(Str->host.str, db_name,
+                                               Str->user.str, table_name,
+                                               rights, TRUE);
       if (!grant_name ||
         my_hash_insert(is_proc ?
                        &proc_priv_hash : &func_priv_hash,(uchar*) grant_name))
@@ -3188,7 +3188,7 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
           Copy all currently available dynamic privileges to the list of
           dynamic privileges to grant.
         */
-        privileges_to_check= new List<LEX_CSTRING>;
+        privileges_to_check= new (*THR_MALLOC) List<LEX_CSTRING>;
         iterate_all_dynamic_privileges(thd, [&](const char *str){
           LEX_CSTRING *new_str= (LEX_CSTRING*)thd->alloc(sizeof(LEX_CSTRING));
           new_str->str= str;

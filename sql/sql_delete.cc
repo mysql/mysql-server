@@ -682,7 +682,7 @@ bool Sql_cmd_delete::prepare_inner(THD *thd)
       propagate_nullability(&select->top_join_list, false);
 
     Prepared_stmt_arena_holder ps_holder(thd);
-    result= new Query_result_delete(thd);
+    result= new (*THR_MALLOC) Query_result_delete(thd);
     if (result == NULL)
       DBUG_RETURN(true);            /* purecov: inspected */
 
@@ -1011,10 +1011,10 @@ bool Query_result_delete::optimize()
       continue;
 
     TABLE *const table= join->best_ref[i]->table();
-    if (!(*tempfile++= new Unique(refpos_order_cmp,
-                                  (void *) table->file,
-                                  table->file->ref_length,
-                                  thd->variables.sortbuff_size)))
+    if (!(*tempfile++= new (*THR_MALLOC) Unique(refpos_order_cmp,
+                                                (void *) table->file,
+                                                table->file->ref_length,
+                                                thd->variables.sortbuff_size)))
       DBUG_RETURN(true);                     /* purecov: inspected */
     *(table_ptr++)= table;
   }

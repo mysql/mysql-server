@@ -565,7 +565,7 @@ bool SELECT_LEX_UNIT::prepare(THD *thd_arg, Query_result *sel_result,
     if (is_union() && !union_needs_tmp_table())
     {
       if (!(tmp_result= union_result=
-            new Query_result_union_direct(thd, sel_result, last_select)))
+            new (*THR_MALLOC) Query_result_union_direct(thd, sel_result, last_select)))
         goto err; /* purecov: inspected */
       if (fake_select_lex != NULL)
       {
@@ -577,7 +577,7 @@ bool SELECT_LEX_UNIT::prepare(THD *thd_arg, Query_result *sel_result,
     }
     else
     {
-      if (!(tmp_result= union_result= new Query_result_union(thd)))
+      if (!(tmp_result= union_result= new (*THR_MALLOC) Query_result_union(thd)))
         goto err; /* purecov: inspected */
       instantiate_tmp_table= true;
     }

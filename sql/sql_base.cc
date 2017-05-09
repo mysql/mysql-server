@@ -8665,8 +8665,8 @@ store_natural_using_join_columns(THD *thd, TABLE_LIST *natural_using_join,
 
   Prepared_stmt_arena_holder ps_arena_holder(thd);
 
-  if (!(non_join_columns= new List<Natural_join_column>) ||
-      !(natural_using_join->join_columns= new List<Natural_join_column>))
+  if (!(non_join_columns= new (*THR_MALLOC) List<Natural_join_column>) ||
+      !(natural_using_join->join_columns= new (*THR_MALLOC) List<Natural_join_column>))
     DBUG_RETURN(true);
 
   /* Append the columns of the first join operand. */

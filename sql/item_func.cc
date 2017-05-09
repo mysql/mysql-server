@@ -591,14 +591,15 @@ Field *Item_func::tmp_table_field(TABLE *table)
   switch (result_type()) {
   case INT_RESULT:
     if (max_length > MY_INT32_NUM_DECIMAL_DIGITS)
-      field= new Field_longlong(max_length, maybe_null, item_name.ptr(),
-                                unsigned_flag);
+      field= new (*THR_MALLOC) Field_longlong(max_length, maybe_null,
+                                              item_name.ptr(), unsigned_flag);
     else
-      field= new Field_long(max_length, maybe_null, item_name.ptr(),
-                            unsigned_flag);
+      field= new (*THR_MALLOC) Field_long(max_length, maybe_null,
+                                          item_name.ptr(), unsigned_flag);
     break;
   case REAL_RESULT:
-    field= new Field_double(max_char_length(), maybe_null, item_name.ptr(), decimals);
+    field= new (*THR_MALLOC) Field_double(max_char_length(), maybe_null,
+                                          item_name.ptr(), decimals);
     break;
   case STRING_RESULT:
     return make_string_field(table);
@@ -7180,9 +7181,9 @@ get_var_with_binlog(THD *thd, enum_sql_command sql_command,
     LEX *sav_lex= thd->lex, lex_tmp;
     thd->lex= &lex_tmp;
     lex_start(thd);
-    tmp_var_list.push_back(new set_var_user(new Item_func_set_user_var(name,
-                                                                       new Item_null(),
-                                                                       false)));
+    tmp_var_list.push_back
+      (new (*THR_MALLOC)
+       set_var_user(new Item_func_set_user_var(name, new Item_null(), false)));
     /* Create the variable */
     if (sql_set_variables(thd, &tmp_var_list, false))
     {
@@ -8235,7 +8236,7 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref)
   if (!master)
   {
     Prepared_stmt_arena_holder ps_arena_holder(thd);
-    hints= new Ft_hints(flags);
+    hints= new (*THR_MALLOC) Ft_hints(flags);
     if (!hints)
     {
       my_error(ER_TABLE_CANT_HANDLE_FT, MYF(0));

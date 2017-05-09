@@ -199,7 +199,7 @@ protected:
   */
   bool push_extra(Extra_tag tag)
   {
-    extra *e= new extra(tag);
+    extra *e= new (*THR_MALLOC) extra(tag);
     return e == NULL || fmt->entry()->col_extra.push_back(e);
   }
 
@@ -217,7 +217,7 @@ protected:
   {
     if (arg.is_empty())
       return push_extra(tag);
-    extra *e= new extra(tag, arg.dup(thd->mem_root));
+    extra *e= new (*THR_MALLOC) extra(tag, arg.dup(thd->mem_root));
     return !e || !e->data || fmt->entry()->col_extra.push_back(e);
   }
 
@@ -235,7 +235,7 @@ protected:
   */
   bool push_extra(Extra_tag tag, const char *arg)
   {
-    extra *e= new extra(tag, arg);
+    extra *e= new (*THR_MALLOC) extra(tag, arg);
     return !e || fmt->entry()->col_extra.push_back(e);
   }
 
@@ -1090,7 +1090,7 @@ bool Explain_table_base::explain_extra_common(int quick_type,
       {
         if (fmt->is_hierarchical() && can_print_clauses())
         {
-          Lazy_condition *c= new Lazy_condition(tab->condition_optim());
+          Lazy_condition *c= new (*THR_MALLOC) Lazy_condition(tab->condition_optim());
           if (c == NULL)
             return true;
           fmt->entry()->col_attached_condition.set(c);
@@ -2260,7 +2260,7 @@ bool explain_query(THD *ethd, SELECT_LEX_UNIT *unit)
 
   if (other)  
   {
-    if (!((explain_result= new Query_result_send(ethd))))
+    if (!((explain_result= new (*THR_MALLOC) Query_result_send(ethd))))
       DBUG_RETURN(true); /* purecov: inspected */
     List<Item> dummy;
     if (explain_result->prepare(dummy, ethd->lex->unit))

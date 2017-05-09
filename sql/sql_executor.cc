@@ -4443,7 +4443,7 @@ setup_copy_fields(THD *thd, Temp_table_param *param,
   DBUG_ENTER("setup_copy_fields");
 
   if (param->field_count && 
-      !(copy=param->copy_field= new Copy_field[param->field_count]))
+      !(copy=param->copy_field= new (*THR_MALLOC) Copy_field[param->field_count]))
     goto err2;
 
   param->copy_funcs.empty();

@@ -162,7 +162,7 @@ protected:
   virtual Object_creation_ctx *create_backup_ctx(THD *thd) const
   {
     DBUG_ENTER("Stored_routine_creation_ctx::create_backup_ctx");
-    DBUG_RETURN(new Stored_routine_creation_ctx(thd));
+    DBUG_RETURN(new (*THR_MALLOC) Stored_routine_creation_ctx(thd));
   }
 
 private:

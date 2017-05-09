@@ -6798,13 +6798,13 @@ bool XA_prepare_log_event::do_commit(THD *thd)
       This is XA-prepare branch.
     */
     thd->lex->sql_command= SQLCOM_XA_PREPARE;
-    thd->lex->m_sql_cmd= new Sql_cmd_xa_prepare(&xid);
+    thd->lex->m_sql_cmd= new (*THR_MALLOC) Sql_cmd_xa_prepare(&xid);
     error= thd->lex->m_sql_cmd->execute(thd);
   }
   else
   {
     thd->lex->sql_command= SQLCOM_XA_COMMIT;
-    thd->lex->m_sql_cmd= new Sql_cmd_xa_commit(&xid, XA_ONE_PHASE);
+    thd->lex->m_sql_cmd= new (*THR_MALLOC) Sql_cmd_xa_commit(&xid, XA_ONE_PHASE);
     error= thd->lex->m_sql_cmd->execute(thd);
   }
   error|= mysql_bin_log.gtid_end_transaction(thd);

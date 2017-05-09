@@ -76,10 +76,9 @@ bool PT_option_value_no_option_type_charset:: contextualize(Parse_context *pc)
   cs2= opt_charset ? opt_charset
     : global_system_variables.character_set_client;
   set_var_collation_client *var;
-  var= new set_var_collation_client(flags,
-                                    cs2,
-                                    thd->variables.collation_database,
-                                    cs2);
+  var= new (*THR_MALLOC)
+    set_var_collation_client(flags, cs2, thd->variables.collation_database,
+                             cs2);
   if (var == NULL)
     return true;
   lex->var_list.push_back(var);
@@ -129,7 +128,7 @@ PT_option_value_no_option_type_names_charset:: contextualize(Parse_context *pc)
     return true;
   }
   set_var_collation_client *var;
-  var= new set_var_collation_client(flags, cs3, cs3, cs3);
+  var= new (*THR_MALLOC) set_var_collation_client(flags, cs3, cs3, cs3);
   if (var == NULL)
     return true;
   lex->var_list.push_back(var);
@@ -433,10 +432,9 @@ bool PT_option_value_no_option_type_internal::contextualize(Parse_context *pc)
       responsible for destruction of the LEX-object.
     */
 
-    sp_instr_set *i=
-      new sp_instr_set(sp->instructions(), lex,
-                       spv->offset, opt_expr, expr_query,
-                       true); // The instruction owns its lex.
+    sp_instr_set *i= new (*THR_MALLOC)
+      sp_instr_set(sp->instructions(), lex, spv->offset,
+                   opt_expr, expr_query, true); // The instruction owns its lex.
 
     if (!i || sp->add_instr(thd, i))
       return true;
@@ -476,8 +474,8 @@ bool PT_option_value_no_option_type_password::contextualize(Parse_context *pc)
   user->host.str= (char *) sctx_priv_host.str;
   user->host.length= sctx_priv_host.length;
 
-  set_var_password *var= new set_var_password(user,
-                                              const_cast<char *>(password));
+  set_var_password *var=
+    new (*THR_MALLOC) set_var_password(user, const_cast<char *>(password));
   if (var == NULL)
     return true;
 
@@ -1083,7 +1081,7 @@ bool PT_derived_table::contextualize(Parse_context *pc)
 
   SELECT_LEX_UNIT *unit= pc->select->first_inner_unit();
   pc->select= outer_select;
-  Table_ident *ti= new Table_ident(unit);
+  Table_ident *ti= new (*THR_MALLOC) Table_ident(unit);
   if (ti == NULL)
     return true;
 
@@ -1249,9 +1247,10 @@ static bool setup_index(keytype key_type,
     }
   }
 
-  Key_spec *key=
-    new Key_spec(thd->mem_root, key_type, to_lex_cstring(name),
-                 &lex->key_create_info, false, true, *columns);
+  Key_spec *key= new (*THR_MALLOC) Key_spec(thd->mem_root, key_type,
+                                            to_lex_cstring(name),
+                                            &lex->key_create_info, false, true,
+                                            *columns);
   if (key == NULL || lex->alter_info.key_list.push_back(key))
     return true;
 
@@ -1329,23 +1328,24 @@ bool PT_foreign_key_definition::contextualize(Parse_context *pc)
                       : m_key_name ? m_key_name->field_name : NULL_STR);
 
   Key_spec *foreign_key=
-    new Foreign_key_spec(thd->mem_root,
-                         used_name,
-                         *m_columns,
-                         m_referenced_table->db,
-                         m_referenced_table->table,
-                         m_ref_list,
-                         m_fk_delete_opt,
-                         m_fk_update_opt,
-                         m_fk_match_option);
+    new (*THR_MALLOC) Foreign_key_spec(thd->mem_root,
+                                       used_name,
+                                       *m_columns,
+                                       m_referenced_table->db,
+                                       m_referenced_table->table,
+                                       m_ref_list,
+                                       m_fk_delete_opt,
+                                       m_fk_update_opt,
+                                       m_fk_match_option);
   if (foreign_key == NULL || lex->alter_info.key_list.push_back(foreign_key))
     return true;
   /* Only used for ALTER TABLE. Ignored otherwise. */
   lex->alter_info.flags|= Alter_info::ADD_FOREIGN_KEY;
 
-  Key_spec *key=
-    new Key_spec(thd->mem_root, KEYTYPE_MULTIPLE, used_name,
-                 &default_key_create_info, true, true, *m_columns);
+  Key_spec *key= new (*THR_MALLOC) Key_spec(thd->mem_root, KEYTYPE_MULTIPLE,
+                                            used_name,
+                                            &default_key_create_info, true,
+                                            true, *m_columns);
   if (key == NULL || lex->alter_info.key_list.push_back(key))
     return true;
 

@@ -4988,7 +4988,7 @@ bool execute_show(THD *thd, TABLE_LIST *all_tables)
         to prepend EXPLAIN to any query and receive output for it,
         even if the query itself redirects the output.
       */
-      Query_result *const result= new Query_result_send(thd);
+      Query_result *const result= new (*THR_MALLOC) Query_result_send(thd);
       if (!result)
         DBUG_RETURN(true); /* purecov: inspected */
       res= handle_query(thd, lex, result, 0, 0);
@@ -4996,7 +4996,7 @@ bool execute_show(THD *thd, TABLE_LIST *all_tables)
     else
     {
       Query_result *result= lex->result;
-      if (!result && !(result= new Query_result_send(thd)))
+      if (!result && !(result= new (*THR_MALLOC) Query_result_send(thd)))
         DBUG_RETURN(true);                            /* purecov: inspected */
       Query_result *save_result= result;
       res= handle_query(thd, lex, result, 0, 0);
@@ -5485,28 +5485,28 @@ bool Alter_info::add_field(THD *thd,
   if (type_modifier & PRI_KEY_FLAG)
   {
     List<Key_part_spec> key_parts;
-    auto key_part_spec= new Key_part_spec(field_name_cstr, 0, ORDER_ASC);
+    auto key_part_spec= new (*THR_MALLOC) Key_part_spec(field_name_cstr, 0, ORDER_ASC);
     if (key_part_spec == NULL || key_parts.push_back(key_part_spec))
       DBUG_RETURN(true);
-    Key_spec *key= new Key_spec(thd->mem_root,
-                                KEYTYPE_PRIMARY,
-                                NULL_CSTR,
-                                &default_key_create_info,
-                                false, true, key_parts);
+    Key_spec *key= new (*THR_MALLOC) Key_spec(thd->mem_root,
+                                              KEYTYPE_PRIMARY,
+                                              NULL_CSTR,
+                                              &default_key_create_info,
+                                              false, true, key_parts);
     if (key == NULL || lex->alter_info.key_list.push_back(key))
       DBUG_RETURN(true);
   }
   if (type_modifier & (UNIQUE_FLAG | UNIQUE_KEY_FLAG))
   {
     List<Key_part_spec> key_parts;
-    auto key_part_spec= new Key_part_spec(field_name_cstr, 0, ORDER_ASC);
+    auto key_part_spec= new (*THR_MALLOC) Key_part_spec(field_name_cstr, 0, ORDER_ASC);
     if (key_part_spec == NULL || key_parts.push_back(key_part_spec))
       DBUG_RETURN(true);
-    Key_spec *key= new Key_spec(thd->mem_root,
-                                KEYTYPE_UNIQUE,
-                                NULL_CSTR,
-                                &default_key_create_info,
-                                false, true, key_parts);
+    Key_spec *key= new (*THR_MALLOC) Key_spec(thd->mem_root,
+                                              KEYTYPE_UNIQUE,
+                                              NULL_CSTR,
+                                              &default_key_create_info,
+                                              false, true, key_parts);
     if (key == NULL || lex->alter_info.key_list.push_back(key))
       DBUG_RETURN(true);
   }
@@ -5554,7 +5554,7 @@ bool Alter_info::add_field(THD *thd,
     DBUG_RETURN(1);
   }
 
-  if (!(new_field= new Create_field()) ||
+  if (!(new_field= new (*THR_MALLOC) Create_field()) ||
       new_field->init(thd, field_name->str, type, length, decimals, type_modifier,
                       default_value, on_update_value, comment, change,
                       interval_list, cs, uint_geom_type, gcol_info))

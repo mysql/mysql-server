@@ -28,6 +28,7 @@
 #include "sql_error.h"                          // Sql_condition
 #include "sql_string.h"                         // String
 #include "table.h"                              // TABLE
+#include "thr_malloc.h"
 
 class Create_field;
 class Json_dom;
@@ -2027,7 +2028,7 @@ public:
   }
   Field_decimal *clone() const {
     DBUG_ASSERT(type() == MYSQL_TYPE_DECIMAL);
-    return new Field_decimal(*this);
+    return new (*THR_MALLOC) Field_decimal(*this);
   }
   virtual const uchar *unpack(uchar* to, const uchar *from,
                               uint param_data, bool low_byte_first)
@@ -2099,7 +2100,7 @@ public:
   }
   Field_new_decimal *clone() const {
     DBUG_ASSERT(type() == MYSQL_TYPE_NEWDECIMAL);
-    return new Field_new_decimal(*this);
+    return new (*THR_MALLOC) Field_new_decimal(*this);
   }
   virtual const uchar *unpack(uchar* to, const uchar *from,
                               uint param_data, bool low_byte_first);
@@ -2142,7 +2143,7 @@ public:
   }
   Field_tiny *clone() const {
     DBUG_ASSERT(type() == MYSQL_TYPE_TINY);
-    return new Field_tiny(*this);
+    return new (*THR_MALLOC) Field_tiny(*this);
   }
   virtual uchar *pack(uchar* to, const uchar *from,
                       uint max_length MY_ATTRIBUTE((unused)),
@@ -2206,7 +2207,7 @@ public:
   }
   Field_short *clone() const {
     DBUG_ASSERT(type() == MYSQL_TYPE_SHORT);
-    return new Field_short(*this);
+    return new (*THR_MALLOC) Field_short(*this);
   }
   virtual uchar *pack(uchar* to, const uchar *from,
                       uint max_length MY_ATTRIBUTE((unused)),
@@ -2266,7 +2267,7 @@ public:
   }
   Field_medium *clone() const {
     DBUG_ASSERT(type() == MYSQL_TYPE_INT24);
-    return new Field_medium(*this);
+    return new (*THR_MALLOC) Field_medium(*this);
   }
   virtual uchar *pack(uchar* to, const uchar *from,
                       uint max_length, bool low_byte_first)
@@ -2333,7 +2334,7 @@ public:
   }
   Field_long *clone() const {
     DBUG_ASSERT(type() == MYSQL_TYPE_LONG);
-    return new Field_long(*this);
+    return new (*THR_MALLOC) Field_long(*this);
   }
   virtual uchar *pack(uchar* to, const uchar *from,
                       uint max_length MY_ATTRIBUTE((unused)),
@@ -2402,7 +2403,7 @@ public:
   }
   Field_longlong *clone() const {
     DBUG_ASSERT(type() == MYSQL_TYPE_LONGLONG);
-    return new Field_longlong(*this);
+    return new (*THR_MALLOC) Field_longlong(*this);
   }
   virtual uchar *pack(uchar* to, const uchar *from,
                       uint max_length  MY_ATTRIBUTE((unused)),
@@ -2465,7 +2466,7 @@ public:
   }
   Field_float *clone() const {
     DBUG_ASSERT(type() == MYSQL_TYPE_FLOAT);
-    return new Field_float(*this);
+    return new (*THR_MALLOC) Field_float(*this);
   }
 
   virtual ulonglong get_max_int_value() const
@@ -2527,7 +2528,7 @@ public:
   }
   Field_double *clone() const {
     DBUG_ASSERT(type() == MYSQL_TYPE_DOUBLE);
-    return new Field_double(*this);
+    return new (*THR_MALLOC) Field_double(*this);
   }
 
   virtual ulonglong get_max_int_value() const
@@ -2594,7 +2595,7 @@ public:
   }
   Field_null *clone() const {
     DBUG_ASSERT(type() == MYSQL_TYPE_NULL);
-    return new Field_null(*this);
+    return new (*THR_MALLOC) Field_null(*this);
   }
 };
 
@@ -3050,7 +3051,7 @@ public:
   Field_timestamp *clone() const
   {
     DBUG_ASSERT(type() == MYSQL_TYPE_TIMESTAMP);
-    return new Field_timestamp(*this);
+    return new (*THR_MALLOC) Field_timestamp(*this);
   }
   uchar *pack(uchar *to, const uchar *from,
               uint max_length MY_ATTRIBUTE((unused)), bool low_byte_first)
@@ -3106,7 +3107,7 @@ public:
   Field_timestampf *clone() const
   {
     DBUG_ASSERT(type() == MYSQL_TYPE_TIMESTAMP);
-    return new Field_timestampf(*this);
+    return new (*THR_MALLOC) Field_timestampf(*this);
   }
 
   enum_field_types type() const { return MYSQL_TYPE_TIMESTAMP; }
@@ -3162,7 +3163,7 @@ public:
   }
   Field_year *clone() const {
     DBUG_ASSERT(type() == MYSQL_TYPE_YEAR);
-    return new Field_year(*this);
+    return new (*THR_MALLOC) Field_year(*this);
   }
 };
 
@@ -3215,7 +3216,7 @@ public:
   {
     DBUG_ASSERT(type() == MYSQL_TYPE_DATE);
     DBUG_ASSERT(real_type() == MYSQL_TYPE_NEWDATE);
-    return new Field_newdate(*this);
+    return new (*THR_MALLOC) Field_newdate(*this);
   }
 };
 
@@ -3326,7 +3327,7 @@ public:
   }
   Field_time *clone() const {
     DBUG_ASSERT(type() == MYSQL_TYPE_TIME);
-    return new Field_time(*this);
+    return new (*THR_MALLOC) Field_time(*this);
   }
 };
 
@@ -3377,7 +3378,7 @@ public:
   Field_timef *clone() const
   {
     DBUG_ASSERT(type() == MYSQL_TYPE_TIME);
-    return new Field_timef(*this);
+    return new (*THR_MALLOC) Field_timef(*this);
   }
   uint decimals() const { return dec; }
   enum_field_types type() const { return MYSQL_TYPE_TIME;}
@@ -3478,7 +3479,7 @@ public:
   Field_datetime *clone() const
   {
     DBUG_ASSERT(type() == MYSQL_TYPE_DATETIME);
-    return new Field_datetime(*this);
+    return new (*THR_MALLOC) Field_datetime(*this);
   }
   uchar *pack(uchar* to, const uchar *from,
               uint max_length MY_ATTRIBUTE((unused)), bool low_byte_first)
@@ -3541,7 +3542,7 @@ public:
   Field_datetimef *clone() const
   {
     DBUG_ASSERT(type() == MYSQL_TYPE_DATETIME);
-    return new Field_datetimef(*this);
+    return new (*THR_MALLOC) Field_datetimef(*this);
   }
 
   enum_field_types type() const { return MYSQL_TYPE_DATETIME;}
@@ -3633,7 +3634,7 @@ public:
   }
   Field_string *clone() const {
     DBUG_ASSERT(real_type() == MYSQL_TYPE_STRING);
-    return new Field_string(*this);
+    return new (*THR_MALLOC) Field_string(*this);
   }
   virtual size_t get_key_image(uchar *buff, size_t length, imagetype type);
   virtual bool is_text_key_type() const { return binary() ? false : true; }
@@ -3726,7 +3727,7 @@ public:
   Field_varstring *clone() const override {
     DBUG_ASSERT(type() == MYSQL_TYPE_VARCHAR);
     DBUG_ASSERT(real_type() == MYSQL_TYPE_VARCHAR);
-    return new Field_varstring(*this);
+    return new (*THR_MALLOC) Field_varstring(*this);
   }
   uint is_equal(const Create_field *new_field) override;
   void hash(ulong *nr, ulong *nr2) override;
@@ -3942,7 +3943,7 @@ public:
   }
   Field_blob *clone() const {
     DBUG_ASSERT(type() == MYSQL_TYPE_BLOB);
-    return new Field_blob(*this);
+    return new (*THR_MALLOC) Field_blob(*this);
   }
   virtual uchar *pack(uchar *to, const uchar *from,
                       uint max_length, bool low_byte_first);
@@ -4098,7 +4099,7 @@ public:
   }
   Field_geom *clone() const {
     DBUG_ASSERT(type() == MYSQL_TYPE_GEOMETRY);
-    return new Field_geom(*this);
+    return new (*THR_MALLOC) Field_geom(*this);
   }
   uint is_equal(const Create_field *new_field);
 };
@@ -4277,7 +4278,7 @@ public:
   }
   Field_enum *clone() const { 
     DBUG_ASSERT(real_type() == MYSQL_TYPE_ENUM);
-    return new Field_enum(*this);
+    return new (*THR_MALLOC) Field_enum(*this);
   }
   virtual uchar *pack(uchar *to, const uchar *from,
                       uint max_length, bool low_byte_first);
@@ -4323,7 +4324,7 @@ public:
   }
   Field_set *clone() const {
     DBUG_ASSERT(real_type() == MYSQL_TYPE_SET);
-    return new Field_set(*this);
+    return new (*THR_MALLOC) Field_set(*this);
   }
 private:
   const String empty_set_string;
@@ -4444,7 +4445,7 @@ public:
   }
   Field_bit *clone() const {
     DBUG_ASSERT(type() == MYSQL_TYPE_BIT);
-    return new Field_bit(*this);
+    return new (*THR_MALLOC) Field_bit(*this);
   }
 private:
   virtual size_t do_last_null_byte() const;
@@ -4474,7 +4475,7 @@ public:
   Field_bit_as_char *clone(MEM_ROOT *mem_root) const { 
     return new (mem_root) Field_bit_as_char(*this);
   }
-  Field_bit_as_char *clone() const { return new Field_bit_as_char(*this); }
+  Field_bit_as_char *clone() const { return new (*THR_MALLOC) Field_bit_as_char(*this); }
 };
 
 

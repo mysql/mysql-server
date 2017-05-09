@@ -52,28 +52,6 @@ public:
   Sql_alloc() {}
   ~Sql_alloc() {}
 
-  // FIXME: Returning nullptr from replacement operator new is not allowed.
-  static void *operator new(size_t size) throw ()
-  {
-    return sql_alloc(size);
-  }
-  // FIXME: Returning nullptr from replacement operator new[] is not allowed.
-  static void *operator new[](size_t size) throw ()
-  {
-    return sql_alloc(size);
-  }
-
-  // Duplications of ::operator new from my_alloc.h.
-  static void *operator new[](size_t size, MEM_ROOT *mem_root,
-                              const std::nothrow_t &arg MY_ATTRIBUTE((unused))
-                              = std::nothrow) throw ()
-  { return alloc_root(mem_root, size); }
-
-  static void *operator new(size_t size, MEM_ROOT *mem_root,
-                            const std::nothrow_t &arg MY_ATTRIBUTE((unused))
-                            = std::nothrow) throw ()
-  { return alloc_root(mem_root, size); }
-
   static void operator delete(void *ptr MY_ATTRIBUTE((unused)),
                               size_t size MY_ATTRIBUTE((unused)))
   { TRASH(ptr, size); }
@@ -86,6 +64,17 @@ public:
   static void operator delete[](void *ptr MY_ATTRIBUTE((unused)),
                                 size_t size MY_ATTRIBUTE((unused)))
   { TRASH(ptr, size); }
+
+  // Duplications of ::operator new from my_alloc.h.
+  static void *operator new[](size_t size, MEM_ROOT *mem_root,
+                              const std::nothrow_t &arg MY_ATTRIBUTE((unused))
+                              = std::nothrow) throw ()
+  { return alloc_root(mem_root, size); }
+
+  static void *operator new(size_t size, MEM_ROOT *mem_root,
+                            const std::nothrow_t &arg MY_ATTRIBUTE((unused))
+                            = std::nothrow) throw ()
+  { return alloc_root(mem_root, size); }
 };
 
 #endif // SQL_ALLOC_INCLUDED

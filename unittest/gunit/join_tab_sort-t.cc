@@ -95,7 +95,7 @@ TEST_F(JTSortTest, SortFoundRecordsTest)
   MOCK_JOIN_TAB *arr[num_tables];
 
   for (int i= 0; i < num_tables; i++)
-    arr[i]= new MOCK_JOIN_TAB(i, 0);
+    arr[i]= new (*THR_MALLOC) MOCK_JOIN_TAB(i, 0);
 
   // MERGE SORT
   std::random_shuffle(arr, arr + 50);
@@ -127,7 +127,7 @@ TEST_F(JTSortTest, SortDependsTest)
   */
   for (int i= 0; i < num_tables; i++)
   {
-    arr[i]= new MOCK_JOIN_TAB(i, i);
+    arr[i]= new (*THR_MALLOC) MOCK_JOIN_TAB(i, i);
     for (int j= i+1; j < num_tables; j++)
       arr[i]->dependent|= 1ULL << j;
   }
@@ -165,7 +165,7 @@ TEST_F(JTSortTest, SortKeyDependsTest)
   */
   for (int i= 0; i < num_tables; i++)
   {
-    arr[i]= new MOCK_JOIN_TAB(i, i);
+    arr[i]= new (*THR_MALLOC) MOCK_JOIN_TAB(i, i);
     for (int j= i+1; j < num_tables; j++)
       arr[i]->key_dependent|= 1ULL << j;
   }

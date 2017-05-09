@@ -1631,7 +1631,7 @@ bool SELECT_LEX::optimize(THD *thd)
   DBUG_ENTER("SELECT_LEX::optimize");
 
   DBUG_ASSERT(join == NULL);
-  JOIN *const join_local= new JOIN(thd, this);
+  JOIN *const join_local= new (*THR_MALLOC) JOIN(thd, this);
   if (!join_local)
     DBUG_RETURN(true);  /* purecov: inspected */
 
@@ -2046,12 +2046,12 @@ get_store_key(THD *thd, Key_use *keyuse, table_map used_tables,
 {
   if (!((~used_tables) & keyuse->used_tables))		// if const item
   {
-    return new store_key_const_item(thd,
-                                    key_part->field,
-                                    key_buff + maybe_null,
-                                    maybe_null ? key_buff : 0,
-                                    key_part->length,
-                                    keyuse->val);
+    return new (*THR_MALLOC) store_key_const_item(thd,
+                                                  key_part->field,
+                                                  key_buff + maybe_null,
+                                                  maybe_null ? key_buff : 0,
+                                                  key_part->length,
+                                                  keyuse->val);
   }
 
   Item_field *field_item= NULL;
@@ -2072,20 +2072,20 @@ get_store_key(THD *thd, Key_use *keyuse, table_map used_tables,
     }
   }
   if (field_item)
-    return new store_key_field(thd,
-                               key_part->field,
-                               key_buff + maybe_null,
-                               maybe_null ? key_buff : 0,
-                               key_part->length,
-                               field_item->field,
-                               keyuse->val->full_name());
+    return new (*THR_MALLOC) store_key_field(thd,
+                                             key_part->field,
+                                             key_buff + maybe_null,
+                                             maybe_null ? key_buff : 0,
+                                             key_part->length,
+                                             field_item->field,
+                                             keyuse->val->full_name());
 
-  return new store_key_item(thd,
-                            key_part->field,
-                            key_buff + maybe_null,
-                            maybe_null ? key_buff : 0,
-                            key_part->length,
-                            keyuse->val);
+  return new (*THR_MALLOC) store_key_item(thd,
+                                          key_part->field,
+                                          key_buff + maybe_null,
+                                          maybe_null ? key_buff : 0,
+                                          key_part->length,
+                                          keyuse->val);
 }
 
 
@@ -2680,13 +2680,13 @@ void QEP_TAB::init_join_cache(JOIN_TAB *join_tab)
   switch (join_tab->use_join_cache())
   {
   case JOIN_CACHE::ALG_BNL:
-    op= new JOIN_CACHE_BNL(join_, this, prev_cache);
+    op= new (*THR_MALLOC) JOIN_CACHE_BNL(join_, this, prev_cache);
     break;
   case JOIN_CACHE::ALG_BKA:
-    op= new JOIN_CACHE_BKA(join_, this, join_tab->join_cache_flags, prev_cache);
+    op= new (*THR_MALLOC) JOIN_CACHE_BKA(join_, this, join_tab->join_cache_flags, prev_cache);
     break;
   case JOIN_CACHE::ALG_BKA_UNIQUE:
-    op= new JOIN_CACHE_BKA_UNIQUE(join_, this, join_tab->join_cache_flags, prev_cache);
+    op= new (*THR_MALLOC) JOIN_CACHE_BKA_UNIQUE(join_, this, join_tab->join_cache_flags, prev_cache);
     break;
   default:
     DBUG_ASSERT(0);

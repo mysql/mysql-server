@@ -1116,9 +1116,9 @@ int JOIN::replace_index_subquery()
   first_qep_tab->set_condition(where_cond);
 
   engine=
-    new subselect_indexsubquery_engine(first_qep_tab, unit->item,
-                                       where_cond,
-                                       having_cond);
+    new (*THR_MALLOC) subselect_indexsubquery_engine(first_qep_tab,
+                                                     unit->item, where_cond,
+                                                     having_cond);
 
   if (!unit->item->change_engine(engine))
     DBUG_RETURN(1);
@@ -4180,7 +4180,7 @@ bool build_equal_items(THD *thd, Item *cond, Item **retcond,
     else if (cond_type == Item::FUNC_ITEM &&
          down_cast<Item_func *>(cond)->functype() == Item_func::MULT_EQUAL_FUNC)
     {
-      cond_equal= new COND_EQUAL;
+      cond_equal= new (*THR_MALLOC) COND_EQUAL;
       if (cond_equal == NULL)
         return true;
       cond_equal->current_level.push_back(down_cast<Item_equal *>(cond));

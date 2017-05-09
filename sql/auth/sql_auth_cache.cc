@@ -851,8 +851,8 @@ bool GRANT_TABLE::init(TABLE *col_privs)
       ulong priv= (ulong) col_privs->field[6]->val_int();
       DBUG_EXECUTE_IF("mysql_grant_table_init_out_of_memory",
                       DBUG_SET("+d,simulate_out_of_memory"););
-      if (!(mem_check= new GRANT_COLUMN(*res,
-                                        fix_rights_for_column(priv))) ||
+      if (!(mem_check= new (*THR_MALLOC)
+              GRANT_COLUMN(*res, fix_rights_for_column(priv))) ||
             my_hash_insert(&hash_columns, (uchar *) mem_check))
       {
         /* Don't use this entry */

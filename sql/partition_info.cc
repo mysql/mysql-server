@@ -70,7 +70,7 @@ partition_info *partition_info::get_clone(THD *thd, bool reset /* = false */)
   DBUG_ENTER("partition_info::get_clone");
   List_iterator<partition_element> part_it(partitions);
   partition_element *part;
-  partition_info *clone= new partition_info();
+  partition_info *clone= new (*THR_MALLOC) partition_info();
   if (!clone)
   {
     mem_alloc_error(sizeof(partition_info));
@@ -87,7 +87,7 @@ partition_info *partition_info::get_clone(THD *thd, bool reset /* = false */)
   {
     List_iterator<partition_element> subpart_it(part->subpartitions);
     partition_element *subpart;
-    partition_element *part_clone= new partition_element();
+    partition_element *part_clone= new (*THR_MALLOC) partition_element();
     if (!part_clone)
     {
       mem_alloc_error(sizeof(partition_element));
@@ -122,7 +122,7 @@ partition_info *partition_info::get_clone(THD *thd, bool reset /* = false */)
     part_clone->subpartitions.empty();
     while ((subpart= (subpart_it++)))
     {
-      partition_element *subpart_clone= new partition_element();
+      partition_element *subpart_clone= new (*THR_MALLOC) partition_element();
       if (!subpart_clone)
       {
         mem_alloc_error(sizeof(partition_element));
@@ -774,7 +774,7 @@ bool partition_info::set_up_default_partitions(Partition_handler *part_handler,
   i= 0;
   do
   {
-    partition_element *part_elem= new partition_element();
+    partition_element *part_elem= new (*THR_MALLOC) partition_element();
     if (likely(part_elem != 0 &&
                (!partitions.push_back(part_elem))))
     {
@@ -850,7 +850,7 @@ partition_info::set_up_default_subpartitions(Partition_handler *part_handler,
     j= 0;
     do
     {
-      partition_element *subpart_elem= new partition_element(part_elem);
+      partition_element *subpart_elem= new (*THR_MALLOC) partition_element(part_elem);
       if (likely(subpart_elem != 0 &&
           (!part_elem->subpartitions.push_back(subpart_elem))))
       {

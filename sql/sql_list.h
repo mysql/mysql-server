@@ -190,7 +190,7 @@ public:
   base_list(const base_list &rhs, MEM_ROOT *mem_root);
   inline bool push_back(void *info)
   {
-    if (((*last)=new list_node(info, &end_of_list)))
+    if (((*last)=new (*THR_MALLOC) list_node(info, &end_of_list)))
     {
       last= &(*last)->next;
       elements++;
@@ -210,7 +210,7 @@ public:
   }
   inline bool push_front(void *info)
   {
-    list_node *node=new list_node(info,first);
+    list_node *node=new (*THR_MALLOC) list_node(info,first);
     if (node)
     {
       if (last == &first)
@@ -391,7 +391,7 @@ public:
 protected:
   void after(void *info,list_node *node)
   {
-    list_node *new_node=new list_node(info,node->next);
+    list_node *new_node=new (*THR_MALLOC) list_node(info,node->next);
     node->next=new_node;
     elements++;
     if (last == &(node->next))

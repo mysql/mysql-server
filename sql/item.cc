@@ -4726,7 +4726,7 @@ bool Item_copy_string::get_time(MYSQL_TIME *ltime)
  ****************************************************************************/
 
 Item_copy_json::Item_copy_json(Item *item)
-  : Item_copy(item), m_value(new Json_wrapper())
+  : Item_copy(item), m_value(new (*THR_MALLOC) Json_wrapper())
 {}
 
 
@@ -6477,17 +6477,17 @@ Field *Item::make_string_field(TABLE *table)
   Field *field;
   DBUG_ASSERT(collation.collation);
   if (data_type() == MYSQL_TYPE_JSON)
-    field= new Field_json(max_length, maybe_null, item_name.ptr());
+    field= new (*THR_MALLOC) Field_json(max_length, maybe_null, item_name.ptr());
   else if (max_length/collation.collation->mbmaxlen > CONVERT_IF_BIGGER_TO_BLOB)
-    field= new Field_blob(max_length, maybe_null, item_name.ptr(),
+    field= new (*THR_MALLOC) Field_blob(max_length, maybe_null, item_name.ptr(),
                           collation.collation, true);
   /* Item_type_holder holds the exact type, do not change it */
   else if (max_length > 0 &&
       (type() != Item::TYPE_HOLDER || data_type() != MYSQL_TYPE_STRING))
-    field= new Field_varstring(max_length, maybe_null, item_name.ptr(),
+    field= new (*THR_MALLOC) Field_varstring(max_length, maybe_null, item_name.ptr(),
                                table->s, collation.collation);
   else
-    field= new Field_string(max_length, maybe_null, item_name.ptr(),
+    field= new (*THR_MALLOC) Field_string(max_length, maybe_null, item_name.ptr(),
                             collation.collation);
   if (field)
     field->init(table);
@@ -6519,53 +6519,62 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table, bool fixed_length)
     field= Field_new_decimal::create_from_item(this);
     break;
   case MYSQL_TYPE_TINY:
-    field= new Field_tiny((uchar*) 0, max_length, null_ptr, 0, Field::NONE,
-			  item_name.ptr(), 0, unsigned_flag);
+    field= new (*THR_MALLOC) Field_tiny((uchar*) 0, max_length, null_ptr, 0,
+                                        Field::NONE, item_name.ptr(), 0,
+                                        unsigned_flag);
     break;
   case MYSQL_TYPE_SHORT:
-    field= new Field_short((uchar*) 0, max_length, null_ptr, 0, Field::NONE,
-			   item_name.ptr(), 0, unsigned_flag);
+    field= new (*THR_MALLOC) Field_short((uchar*) 0, max_length, null_ptr, 0,
+                                         Field::NONE, item_name.ptr(), 0,
+                                         unsigned_flag);
     break;
   case MYSQL_TYPE_LONG:
-    field= new Field_long((uchar*) 0, max_length, null_ptr, 0, Field::NONE,
-			  item_name.ptr(), 0, unsigned_flag);
+    field= new (*THR_MALLOC) Field_long((uchar*) 0, max_length, null_ptr, 0,
+                                        Field::NONE, item_name.ptr(), 0,
+                                        unsigned_flag);
     break;
   case MYSQL_TYPE_LONGLONG:
-    field= new Field_longlong((uchar*) 0, max_length, null_ptr, 0, Field::NONE,
-			      item_name.ptr(), 0, unsigned_flag);
+    field= new (*THR_MALLOC) Field_longlong((uchar*) 0, max_length, null_ptr, 0,
+                                            Field::NONE, item_name.ptr(), 0,
+                                            unsigned_flag);
     break;
   case MYSQL_TYPE_FLOAT:
-    field= new Field_float((uchar*) 0, max_length, null_ptr, 0, Field::NONE,
-			   item_name.ptr(), decimals, 0, unsigned_flag);
+    field= new (*THR_MALLOC) Field_float((uchar*) 0, max_length, null_ptr, 0,
+                                         Field::NONE, item_name.ptr(), decimals,
+                                         0, unsigned_flag);
     break;
   case MYSQL_TYPE_DOUBLE:
-    field= new Field_double((uchar*) 0, max_length, null_ptr, 0, Field::NONE,
-			    item_name.ptr(), decimals, 0, unsigned_flag);
+    field= new (*THR_MALLOC) Field_double((uchar*) 0, max_length, null_ptr, 0,
+                                          Field::NONE, item_name.ptr(),
+                                          decimals, 0, unsigned_flag);
     break;
   case MYSQL_TYPE_INT24:
-    field= new Field_medium((uchar*) 0, max_length, null_ptr, 0, Field::NONE,
-			    item_name.ptr(), 0, unsigned_flag);
+    field= new (*THR_MALLOC) Field_medium((uchar*) 0, max_length, null_ptr, 0,
+                                          Field::NONE, item_name.ptr(), 0,
+                                          unsigned_flag);
     break;
   case MYSQL_TYPE_DATE:
   case MYSQL_TYPE_NEWDATE:
-    field= new Field_newdate(maybe_null, item_name.ptr());
+    field= new (*THR_MALLOC) Field_newdate(maybe_null, item_name.ptr());
     break;
   case MYSQL_TYPE_TIME:
-    field= new Field_timef(maybe_null, item_name.ptr(), decimals);
+    field= new (*THR_MALLOC) Field_timef(maybe_null, item_name.ptr(), decimals);
     break;
   case MYSQL_TYPE_TIMESTAMP:
-    field= new Field_timestampf(maybe_null, item_name.ptr(), decimals);
+    field= new (*THR_MALLOC) Field_timestampf(maybe_null, item_name.ptr(),
+                                              decimals);
     break;
   case MYSQL_TYPE_DATETIME:
-    field= new Field_datetimef(maybe_null, item_name.ptr(), decimals);
+    field= new (*THR_MALLOC) Field_datetimef(maybe_null, item_name.ptr(),
+                                             decimals);
     break;
   case MYSQL_TYPE_YEAR:
-    field= new Field_year((uchar*) 0, max_length, null_ptr, 0, Field::NONE,
-			  item_name.ptr());
+    field= new (*THR_MALLOC) Field_year((uchar*) 0, max_length, null_ptr, 0,
+                                        Field::NONE, item_name.ptr());
     break;
   case MYSQL_TYPE_BIT:
-    field= new Field_bit_as_char(NULL, max_length, null_ptr, 0,
-                                 Field::NONE, item_name.ptr());
+    field= new (*THR_MALLOC) Field_bit_as_char(NULL, max_length, null_ptr, 0,
+                                               Field::NONE, item_name.ptr());
     break;
   default:
     /* This case should never be chosen */
@@ -6575,8 +6584,8 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table, bool fixed_length)
   case MYSQL_TYPE_NULL:
     if (fixed_length && max_length <= CONVERT_IF_BIGGER_TO_BLOB)
     {
-      field= new Field_string(max_length, maybe_null, item_name.ptr(),
-                              collation.collation);
+      field= new (*THR_MALLOC) Field_string(
+        max_length, maybe_null, item_name.ptr(), collation.collation);
       break;
     }
     /* Fall through to make_string_field() */
@@ -6590,18 +6599,18 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table, bool fixed_length)
   case MYSQL_TYPE_LONG_BLOB:
   case MYSQL_TYPE_BLOB:
     if (this->type() == Item::TYPE_HOLDER)
-      field= new Field_blob(max_length, maybe_null, item_name.ptr(),
-                            collation.collation, true);
+      field= new (*THR_MALLOC) Field_blob(
+        max_length, maybe_null, item_name.ptr(), collation.collation, true);
     else
-      field= new Field_blob(max_length, maybe_null, item_name.ptr(),
-                            collation.collation, false);
-    break;					// Blob handled outside of case
+      field= new (*THR_MALLOC) Field_blob(
+        max_length, maybe_null, item_name.ptr(), collation.collation, false);
+    break;                                        // Blob handled outside of case
   case MYSQL_TYPE_GEOMETRY:
-    field= new Field_geom(max_length, maybe_null,
-                          item_name.ptr(), get_geometry_type());
+    field= new (*THR_MALLOC) Field_geom(
+      max_length, maybe_null, item_name.ptr(), get_geometry_type());
     break;
   case MYSQL_TYPE_JSON:
-    field= new Field_json(max_length, maybe_null, item_name.ptr());
+    field= new (*THR_MALLOC) Field_json(max_length, maybe_null, item_name.ptr());
   }
   if (field)
     field->init(table);
@@ -9857,7 +9866,7 @@ longlong Item_cache_datetime::val_int()
 
 
 Item_cache_json::Item_cache_json()
-  : Item_cache(MYSQL_TYPE_JSON), m_value(new Json_wrapper())
+  : Item_cache(MYSQL_TYPE_JSON), m_value(new (*THR_MALLOC) Json_wrapper())
 {}
 
 
@@ -10626,19 +10635,21 @@ Field *Item_type_holder::make_field_by_type(TABLE *table)
   switch (data_type()) {
   case MYSQL_TYPE_ENUM:
     DBUG_ASSERT(enum_set_typelib);
-    field= new Field_enum((uchar *) 0, max_length, null_ptr, 0,
-                          Field::NONE, item_name.ptr(),
-                          get_enum_pack_length(enum_set_typelib->count),
-                          enum_set_typelib, collation.collation);
+    field= new (*THR_MALLOC)
+      Field_enum((uchar *) 0, max_length, null_ptr, 0,
+                 Field::NONE, item_name.ptr(),
+                 get_enum_pack_length(enum_set_typelib->count),
+                 enum_set_typelib, collation.collation);
     if (field)
       field->init(table);
     return field;
   case MYSQL_TYPE_SET:
     DBUG_ASSERT(enum_set_typelib);
-    field= new Field_set((uchar *) 0, max_length, null_ptr, 0,
-                         Field::NONE, item_name.ptr(),
-                         get_set_pack_length(enum_set_typelib->count),
-                         enum_set_typelib, collation.collation);
+    field= new (*THR_MALLOC) Field_set(
+      (uchar *) 0, max_length, null_ptr, 0,
+      Field::NONE, item_name.ptr(),
+      get_set_pack_length(enum_set_typelib->count),
+      enum_set_typelib, collation.collation);
     if (field)
       field->init(table);
     return field;

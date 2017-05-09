@@ -1433,7 +1433,8 @@ bool Sql_cmd_update::prepare_inner(THD *thd)
                                 OPTION_BUFFER_RESULT);
 
     Prepared_stmt_arena_holder ps_holder(thd);
-    result= new Query_result_update(thd, update_fields, update_value_list);
+    result= new (*THR_MALLOC) Query_result_update(thd, update_fields,
+                                                  update_value_list);
     if (result == NULL)
       DBUG_RETURN(true);            /* purecov: inspected */
 
@@ -1798,8 +1799,8 @@ bool Query_result_update::prepare(List<Item>&,
     DBUG_RETURN(true);
   for (uint i= 0; i < update_table_count; i++)
   {
-    fields_for_table[i]= new List_item;
-    values_for_table[i]= new List_item;
+    fields_for_table[i]= new (*THR_MALLOC) List_item;
+    values_for_table[i]= new (*THR_MALLOC) List_item;
   }
   if (thd->is_error())
     DBUG_RETURN(true);
@@ -1823,7 +1824,7 @@ bool Query_result_update::prepare(List<Item>&,
   for (uint i= 0; i < update_table_count; i++)
     set_if_bigger(max_fields,
                   fields_for_table[i]->elements + select->leaf_table_count);
-  copy_field= new Copy_field[max_fields];
+  copy_field= new (*THR_MALLOC) Copy_field[max_fields];
 
 
   for (TABLE_LIST *ref= leaves; ref != NULL; ref= ref->next_leaf)
@@ -2131,12 +2132,13 @@ loop_end:
       */
       tbl->prepare_for_position();
 
-      Field_string *field= new Field_string(tbl->file->ref_length, 0,
-                                            tbl->alias, &my_charset_bin);
+      Field_string *field= new (*THR_MALLOC) Field_string(tbl->file->ref_length,
+                                                          0, tbl->alias,
+                                                          &my_charset_bin);
       if (!field)
         DBUG_RETURN(1);
       field->init(tbl);
-      Item_field *ifield= new Item_field((Field *) field);
+      Item_field *ifield= new (*THR_MALLOC) Item_field((Field *) field);
       if (!ifield)
          DBUG_RETURN(1);
       ifield->maybe_null= 0;

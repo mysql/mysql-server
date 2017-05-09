@@ -11177,13 +11177,12 @@ get_quick_keys(PARAM *param,QUICK_RANGE_SELECT *quick,KEY_PART *key,
     flag= (flag & ~DESC_FLAG) | *desc_flag;
 
   /* Get range for retrieving rows in QUICK_SELECT::get_next */
-  if (!(range= new QUICK_RANGE(param->min_key,
-			       (uint) (tmp_min_key - param->min_key),
-                               min_part >=0 ? make_keypart_map(min_part) : 0,
-			       param->max_key,
-			       (uint) (tmp_max_key - param->max_key),
-                               max_part >=0 ? make_keypart_map(max_part) : 0,
-			       flag, key_tree->rkey_func_flag)))
+  if (!(range= new (*THR_MALLOC)
+        QUICK_RANGE(param->min_key, (uint) (tmp_min_key - param->min_key),
+                    min_part >=0 ? make_keypart_map(min_part) : 0,
+                    param->max_key, (uint) (tmp_max_key - param->max_key),
+                    max_part >=0 ? make_keypart_map(max_part) : 0, flag,
+                    key_tree->rkey_func_flag)))
     return 1;			// out of memory
 
   set_if_bigger(quick->max_used_key_length, range->min_length);
@@ -11497,9 +11496,9 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
     DBUG_EXECUTE_IF("only_one_Unique_may_be_created", 
                     DBUG_SET("+d,index_merge_may_not_create_a_Unique"); );
 
-    unique= new Unique(refpos_order_cmp, (void *)file,
-                       file->ref_length,
-                       thd->variables.sortbuff_size);
+    unique= new (*THR_MALLOC) Unique(refpos_order_cmp, (void *)file,
+                                     file->ref_length,
+                                     thd->variables.sortbuff_size);
   }
   else
   {
@@ -14186,14 +14185,14 @@ int QUICK_GROUP_MIN_MAX_SELECT::init()
   {
     if (have_min)
     {
-      if (!(min_functions= new List<Item_sum>))
+      if (!(min_functions= new (*THR_MALLOC) List<Item_sum>))
         return 1;
     }
     else
       min_functions= NULL;
     if (have_max)
     {
-      if (!(max_functions= new List<Item_sum>))
+      if (!(max_functions= new (*THR_MALLOC) List<Item_sum>))
         return 1;
     }
     else
@@ -14288,11 +14287,11 @@ bool QUICK_GROUP_MIN_MAX_SELECT::add_range(SEL_ARG *sel_range)
                     min_max_arg_len) == 0)
       range_flag|= EQ_RANGE;  /* equality condition */
   }
-  range= new QUICK_RANGE(sel_range->min_value, min_max_arg_len,
-                         make_keypart_map(sel_range->part),
-                         sel_range->max_value, min_max_arg_len,
-                         make_keypart_map(sel_range->part),
-                         range_flag, HA_READ_INVALID);
+  range= new (*THR_MALLOC) QUICK_RANGE(sel_range->min_value, min_max_arg_len,
+                                       make_keypart_map(sel_range->part),
+                                       sel_range->max_value, min_max_arg_len,
+                                       make_keypart_map(sel_range->part),
+                                       range_flag, HA_READ_INVALID);
   if (!range)
     return TRUE;
   if (min_max_ranges.push_back(range))

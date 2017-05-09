@@ -2524,7 +2524,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
     }
 
     DBUG_ASSERT(tmp_table_field->gcol_info== NULL && tmp_table_field->stored_in_db);
-    Create_field *cr_field= new Create_field(tmp_table_field, table_field);
+    Create_field *cr_field= new (*THR_MALLOC) Create_field(tmp_table_field, table_field);
 
     if (!cr_field)
       DBUG_RETURN(NULL);
