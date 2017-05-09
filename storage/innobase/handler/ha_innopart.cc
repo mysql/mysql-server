@@ -3356,6 +3356,14 @@ ha_innopart::truncate_partition_low(dd::Table *dd_table)
 		info->alias = NULL;
 		info->min_rows = 0;
 
+		if (file_per_table) {
+			error = ha_innobase::truncate_rename_tablespace<
+				dd::Partition>(name, dd_part);
+			if (error != 0) {
+				break;
+			}
+		}
+
 		error = ha_innobase::delete_table_impl<dd::Partition>(
 			name, dd_part, SQLCOM_TRUNCATE);
 		if (error == 0) {

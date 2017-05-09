@@ -171,7 +171,7 @@ private:
 };
 
 /** Release latches and decrement the buffer fix count.
-@param slot	memo slot */
+@param[in]	slot	memo slot */
 static
 void
 memo_slot_release(mtr_memo_slot_t* slot)
@@ -209,6 +209,20 @@ memo_slot_release(mtr_memo_slot_t* slot)
 
 	slot->object = NULL;
 }
+
+/** Release the latches acquired by the mini-transaction, leave all blocks
+as is */
+struct ReleaseLatches {
+	/** @return true always. */
+	bool operator()(mtr_memo_slot_t* slot) const
+	{
+		if (slot->object != NULL) {
+			memo_slot_release(slot);
+		}
+
+		return(true);
+	}
+};
 
 /** Release the latches and blocks acquired by the mini-transaction. */
 struct ReleaseAll {

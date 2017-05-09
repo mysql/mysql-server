@@ -630,7 +630,6 @@ trx_rollback_active(
 	que_fork_t*	fork;
 	que_thr_t*	thr;
 	roll_node_t*	roll_node;
-	dict_table_t*	table;
 	int64_t		rows_to_undo;
 	const char*	unit		= "";
 	ibool		dictionary_locked = FALSE;
@@ -691,33 +690,6 @@ trx_rollback_active(
 
 	ut_a(trx->lock.que_state == TRX_QUE_RUNNING);
 
-	if (trx_get_dict_operation(trx) != TRX_DICT_OP_NONE
-	    && trx->table_id != 0) {
-
-		ut_ad(dictionary_locked);
-
-		/* TODO: With Atomic DDL (WL#9536), this should not be
-		happening. Remove the code below */
-
-		/* If the transaction was for a dictionary operation,
-		we drop the relevant table only if it is not flagged
-		as DISCARDED. If it still exists. */
-		MDL_ticket*	mdl;
-
-		table = dd_table_open_on_id(
-			trx->table_id, current_thd, &mdl, false);
-
-		if (table && !dict_table_is_discarded(table)) {
-			ib::warn() << "Dropping table '" << table->name
-				<< "', with id " << trx->table_id
-				<< " in recovery";
-
-			dict_table_close_and_drop(trx, table);
-
-			trx_commit_for_mysql(trx);
-		}
-	}
-
 	if (dictionary_locked) {
 		row_mysql_unlock_data_dictionary(trx);
 	}
@@ -769,7 +741,7 @@ trx_rollback_resurrected(
 		trx_free_resurrected(trx);
 		return(TRUE);
 	case TRX_STATE_ACTIVE:
-		if (all || trx_get_dict_operation(trx) != TRX_DICT_OP_NONE) {
+		if (all || trx->ddl_operation) {
 			trx_sys_mutex_exit();
 			trx_rollback_active(trx);
 			trx_free_for_background(trx);

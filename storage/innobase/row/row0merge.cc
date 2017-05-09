@@ -3406,7 +3406,13 @@ row_merge_lock_table(
 	/* Trx for DDL should not be forced to rollback for now */
 	trx->in_innodb |= TRX_FORCE_ROLLBACK_DISABLE;
 
-	return(lock_table_for_trx(table, trx, mode));
+	dberr_t err = lock_table_for_trx(table, trx, mode);
+
+	if (err == DB_SUCCESS) {
+		table->ddl_lock_count++;
+	}
+
+	return(err);
 }
 
 /*********************************************************************//**
@@ -3427,7 +3433,7 @@ row_merge_drop_indexes(
 	ut_ad(!srv_read_only_mode);
 	ut_ad(mutex_own(&dict_sys->mutex));
 	ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH);
-	ut_ad(trx_get_dict_operation(trx) == TRX_DICT_OP_INDEX);
+//	ut_ad(trx_get_dict_operation(trx) == TRX_DICT_OP_INDEX);
 	ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
 
 	index = table->first_index();

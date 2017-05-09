@@ -2718,7 +2718,8 @@ static inline bool innodb_stats_tables(const char *db,
   return (!my_strcasecmp(charset_info, db, "mysql")) &&
           (!my_strcasecmp(charset_info, table, "innodb_table_stats") ||
            !my_strcasecmp(charset_info, table, "innodb_index_stats") ||
-           !my_strcasecmp(charset_info, table, "innodb_dynamic_metadata"));
+           !my_strcasecmp(charset_info, table, "innodb_dynamic_metadata") ||
+           !my_strcasecmp(charset_info, table, "innodb_ddl_log"));
 }
 
 /**

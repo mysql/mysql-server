@@ -190,17 +190,8 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
     /* Rename didn't succeed;  rename back the tables in reverse order */
     TABLE_LIST *table;
 
-#ifdef WORKAROUND_TO_BE_REMOVED_BY_WL7016_AND_WL7896
     if (int_commit_done)
     {
-#else
-    if (!thd->transaction_rollback_request)
-    {
-      Disable_gtid_state_update_guard disabler(thd);
-      trans_commit_stmt(thd);
-      trans_commit(thd);
-      int_commit_done= true;
-#endif
       /* Reverse the table list */
       table_list= reverse_table_list(table_list);
 

@@ -220,4 +220,37 @@ bool is_mysql_datadir_path(const char *path);
 
 int mysql_tmpfile_path(const char *path, const char *prefix);
 
+
+/**
+  Check if the server is in the process of being initialized.
+
+  Check the thread type of the THD. If this is a thread type
+  being used for initializing the DD or the server, return
+  true.
+
+  @param   thd    Needed since this is an opaque type in the SE.
+
+  @retval  true   The thread is a bootstrap thread.
+  @retval  false  The thread is not a bootstrap thread.
+*/
+
+bool thd_is_bootstrap_thread(THD *thd);
+
+/**
+  Is statement updating the data dictionary tables.
+
+  @details
+  The thread switches to the data dictionary tables update context using
+  the dd::Update_dictionary_tables_ctx while updating dictionary tables.
+  If thread is in this context then the method returns true otherwise
+  false.
+  This method is used by the InnoDB while updating the tables to mark
+  transaction as DDL if this method returns true.
+
+  @param  thd     Thread handle.
+
+  @retval true    Updates data dictionary tables.
+  @retval false   Otherwise.
+*/
+bool thd_is_dd_update_stmt(const THD *thd);
 #endif // SQL_THD_INTERNAL_API_INCLUDED

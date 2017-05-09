@@ -2551,7 +2551,12 @@ srv_dict_recover_on_restart()
 	The data dictionary latch should guarantee that there is at
 	most one data dictionary transaction active at a time. */
 	if (srv_force_recovery < SRV_FORCE_NO_TRX_UNDO) {
-		trx_rollback_or_clean_recovered(FALSE);
+		/* Fixme: only rollback ddl transacations. */
+		if (trx_sys_need_rollback()) {
+			trx_rollback_or_clean_recovered(FALSE);
+		}
+
+		log_ddl->recover();
 	}
 
 	if (srv_force_recovery < SRV_FORCE_NO_IBUF_MERGE) {
@@ -2570,9 +2575,6 @@ srv_dict_recover_on_restart()
 	been disabled. */
 	if (srv_force_recovery < SRV_FORCE_NO_TRX_UNDO
 	    && !srv_read_only_mode) {
-
-		/* Drop partially created indexes. */
-		row_merge_drop_temp_indexes();
 
 		/* Drop any auxiliary tables that were not
 		dropped when the parent table was
@@ -2854,6 +2856,7 @@ srv_shutdown()
 	btr_search_sys_free();
 	trx_sys_undo_spaces_deinit();
 
+	UT_DELETE(log_ddl);
 	UT_DELETE(srv_dict_metadata);
 
 	/* 3. Free all InnoDB's own mutexes and the os_fast_mutexes inside

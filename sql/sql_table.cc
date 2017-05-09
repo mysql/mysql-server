@@ -6618,9 +6618,7 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
       on failure and thus revert change to SE.
     */
     if (!(flags & NO_HA_TABLE)
-#ifdef WORKAROUND_TO_BE_REMOVED_BY_WL7016
         && !(flags & NO_DD_COMMIT)
-#endif
        )
       (void) file->ha_rename_table(to_base, from_base, to_table_def,
                                    const_cast<dd::Table*>(from_table_def));

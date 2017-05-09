@@ -154,7 +154,7 @@ private:
   // Stores state before DD operations
   Open_tables_backup m_open_tables_state_backup;
   bool m_saved_binlog_row_based;
-  ulonglong m_saved_binlog_options;
+  ulonglong m_saved_options;
   sql_mode_t m_saved_mode;
   long long m_latest_auto_incr_id;
   enum_check_fields m_saved_check_for_truncated_fields;

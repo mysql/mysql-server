@@ -163,7 +163,8 @@ struct innodb_dd_table_t {
 	const uint	n_indexes;
 };
 
-/** The hard-coded data dictionary tables */
+/** The hard-coded data dictionary tables. The number of tables should be
+consistent with dict_sys_t::NUM_HARD_CODED_TABLES */
 const innodb_dd_table_t innodb_dd_table[] = {
 	INNODB_DD_TABLE("dd_properties", 1),
 	INNODB_DD_TABLE("character_sets", 3),
@@ -194,6 +195,7 @@ const innodb_dd_table_t innodb_dd_table[] = {
 	INNODB_DD_TABLE("triggers", 6),
 	INNODB_DD_TABLE("innodb_table_stats", 1),
 	INNODB_DD_TABLE("innodb_index_stats", 1),
+	INNODB_DD_TABLE("innodb_ddl_log", 2),
 	INNODB_DD_TABLE("innodb_dynamic_metadata", 1)
 };
 
@@ -855,7 +857,6 @@ const char*
 get_row_format_name(
 	enum row_type row_format);
 
-#ifdef UNIV_DEBUG
 
 /** Get the file name of a tablespace.
 @param[in]	dd_space	Tablespace metadata
@@ -868,8 +869,6 @@ dd_tablespace_get_filename(const dd::Tablespace* dd_space)
 	ut_ad(dd_space->files().size() == 1);
 	return((*dd_space->files().begin())->filename().c_str());
 }
-
-#endif /* UNIV_DEBUG */
 
 /** WL#9536 TODO: Define this function in debug mode only.
 And just assert it on opening tables, instead of setting it as corrupted */

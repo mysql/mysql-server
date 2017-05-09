@@ -899,6 +899,11 @@ fts_drop_index(
 			fts_free(table);
 
 			return(err);
+		} else {
+			if (!(index->type & DICT_CORRUPT)) {
+				err = fts_empty_common_tables(trx, table);
+				ut_ad(err == DB_SUCCESS);
+			}
 		}
 
 		current_doc_id = table->fts->cache->next_doc_id;
@@ -1817,6 +1822,101 @@ fts_drop_index_tables(
 	return(error);
 }
 
+/** Write the default settings to the config table.
+@param[in,out]	trx		transaction
+@param[in]	fts_table	fts table
+@return	DB_SUCCESS or error code. */
+static
+dberr_t
+fts_init_config_table(
+	trx_t*		trx,
+	fts_table_t*	fts_table)
+{
+	pars_info_t*	info;
+	que_t*		graph;
+	char		table_name[MAX_FULL_NAME_LEN];
+	dberr_t		error = DB_SUCCESS;
+
+	info = pars_info_create();
+
+	fts_table->suffix = FTS_SUFFIX_CONFIG;
+	fts_get_table_name(fts_table, table_name);
+	pars_info_bind_id(info, true, "config_table", table_name);
+
+	graph = fts_parse_sql_no_dict_lock(
+		fts_table, info, fts_config_table_insert_values_sql);
+
+	error = fts_eval_sql(trx, graph);
+
+	que_graph_free(graph);
+
+	return(error);
+}
+
+/** Empty a common talbes.
+@param[in,out]	trx		transaction
+@param[in]	fts_table	fts table
+@return	DB_SUCCESS or error code. */
+static
+dberr_t
+fts_empty_table(
+	trx_t*		trx,
+	fts_table_t*	fts_table)
+{
+	pars_info_t*	info;
+	que_t*		graph;
+	char		table_name[MAX_FULL_NAME_LEN];
+	dberr_t		error = DB_SUCCESS;
+
+	info = pars_info_create();
+
+	fts_get_table_name(fts_table, table_name);
+	pars_info_bind_id(info, true, "table_name", table_name);
+
+	graph = fts_parse_sql_no_dict_lock(
+		fts_table,
+		info,
+		"BEGIN DELETE FROM $table_name;");
+
+	error = fts_eval_sql(trx, graph);
+
+	que_graph_free(graph);
+
+	return(error);
+}
+
+/** Empty all common talbes.
+@param[in,out]	trx	transaction
+@param[in]	table	dict table
+@return	DB_SUCCESS or error code. */
+dberr_t
+fts_empty_common_tables(
+	trx_t*		trx,
+	dict_table_t*	table)
+{
+	ulint		i;
+	fts_table_t	fts_table;
+	dberr_t		error = DB_SUCCESS;
+
+	FTS_INIT_FTS_TABLE(&fts_table, NULL, FTS_COMMON_TABLE, table);
+
+	for (i = 0; fts_common_tables[i] != NULL; ++i) {
+		dberr_t	err;
+
+		fts_table.suffix = fts_common_tables[i];
+
+		err = fts_empty_table(trx, &fts_table);
+
+		if (err != DB_SUCCESS) {
+			error = err;
+		}
+	}
+
+	error = fts_init_config_table(trx, &fts_table);
+
+	return(error);
+}
+
 /** Drops FTS ancillary tables needed for supporting an FTS index
 on the given table. row_mysql_lock_data_dictionary must have been called
 before this.
@@ -2118,13 +2218,47 @@ fts_create_one_common_table(
 
 	if (error != DB_SUCCESS) {
 		trx->error_state = error;
-		dict_mem_table_free(new_table);
 		new_table = NULL;
 		ib::warn() << "Failed to create FTS common table "
 			<< fts_table_name;
 	}
 
 	return(new_table);
+}
+
+/** Check if common tables already exist
+@param[in]	table	table with fts index
+@retrun true on success, false on failure */
+bool
+fts_check_common_tables_exist(
+	const dict_table_t*	table)
+{
+	fts_table_t	fts_table;
+	char		fts_name[MAX_FULL_NAME_LEN];
+
+	/* TODO: set a new flag for the situation table has hidden
+	FTS_DOC_ID but no FTS indexes. */
+	FTS_INIT_FTS_TABLE(&fts_table, NULL, FTS_COMMON_TABLE, table);
+	fts_table.suffix = FTS_SUFFIX_CONFIG;
+	fts_get_table_name(&fts_table, fts_name);
+
+	dict_table_t*	config_table;
+	THD*		thd = current_thd;
+	MDL_ticket*	mdl = reinterpret_cast<MDL_ticket*>(-1);
+
+	/* Check that the table exists in our data dictionary */
+	config_table = dd_table_open_on_name(
+		thd, &mdl, fts_name, true,
+		static_cast<dict_err_ignore_t>(
+                        DICT_ERR_IGNORE_INDEX_ROOT | DICT_ERR_IGNORE_CORRUPT));
+
+	bool	exist = false;
+	if (config_table != nullptr) {
+		dd_table_close(config_table, thd, &mdl, true);
+		exist = true;
+	}
+
+	return(exist);
 }
 
 /** Creates the common auxiliary tables needed for supporting an FTS index
@@ -2154,29 +2288,22 @@ fts_create_common_tables(
 	bool			skip_doc_id_index)
 {
 	dberr_t		error;
-	que_t*		graph;
 	fts_table_t	fts_table;
-	mem_heap_t*	heap = mem_heap_create(1024);
-	pars_info_t*	info;
-	char		fts_name[MAX_FULL_NAME_LEN];
 	char		full_name[sizeof(fts_common_tables) / sizeof(char*)]
 				[MAX_FULL_NAME_LEN];
+	dict_index_t*	index = NULL;
+	trx_dict_op_t	op;
 
-	dict_index_t*					index = NULL;
-	trx_dict_op_t					op;
+	ut_ad(!fts_check_common_tables_exist(table));
+
 	/* common_tables vector is used for dropping FTS common tables
 	on error condition. */
 	std::vector<dict_table_t*>			common_tables;
 	std::vector<dict_table_t*>::const_iterator	it;
 
+	mem_heap_t*	heap = mem_heap_create(1024);
+
 	FTS_INIT_FTS_TABLE(&fts_table, NULL, FTS_COMMON_TABLE, table);
-
-	error = fts_drop_common_tables(trx, &fts_table, nullptr);
-
-	if (error != DB_SUCCESS) {
-
-		goto func_exit;
-	}
 
 	/* Create the FTS tables that are common to an FTS index. */
 	for (ulint i = 0; fts_common_tables[i] != NULL; ++i) {
@@ -2204,18 +2331,7 @@ fts_create_common_tables(
 	}
 
 	/* Write the default settings to the config table. */
-	info = pars_info_create();
-
-	fts_table.suffix = FTS_SUFFIX_CONFIG;
-	fts_get_table_name(&fts_table, fts_name);
-	pars_info_bind_id(info, true, "config_table", fts_name);
-
-	graph = fts_parse_sql_no_dict_lock(
-		&fts_table, info, fts_config_table_insert_values_sql);
-
-	error = fts_eval_sql(trx, graph);
-
-	que_graph_free(graph);
+	error = fts_init_config_table(trx, &fts_table);
 
 	if (error != DB_SUCCESS || skip_doc_id_index) {
 
@@ -2324,7 +2440,6 @@ fts_create_one_index_table(
 
 	if (error != DB_SUCCESS) {
 		trx->error_state = error;
-		dict_mem_table_free(new_table);
 		new_table = NULL;
 		ib::warn() << "Failed to create FTS index table "
 			<< table_name;

@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 #
 #  List the test cases that are to be disabled temporarily.
 #
@@ -19,3 +18,5 @@ compatibility	:	wl#9530 make fts aux table name lowercased
 compatibility_win :	wl#9530 make fts aux table name lowercased
 
 innodb_fts.mecab_sjis : 2017-04-13 Allen Failing sporadically on PB2
+
+sync            :       parser reentrant issue

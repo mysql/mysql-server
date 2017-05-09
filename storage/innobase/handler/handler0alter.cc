@@ -92,6 +92,7 @@ Smart ALTER TABLE
 #include "ut0new.h"
 #include "ut0stage.h"
 #include "dict0dd.h"
+#include "lock0lock.h"
 
 /* For supporting Native InnoDB Partitioning. */
 #include "partition_info.h"
@@ -4909,19 +4910,25 @@ op_ok:
 
 		if (!ctx->new_table->fts
 		    || ib_vector_size(ctx->new_table->fts->indexes) == 0) {
-			error = fts_create_common_tables(
-				ctx->trx, ctx->new_table,
-				user_table->name.m_name, TRUE);
+			bool	exist_fts_common;
+			exist_fts_common = fts_check_common_tables_exist(
+				ctx->new_table);
 
-			DBUG_EXECUTE_IF(
-				"innodb_test_fail_after_fts_common_table",
-				error = DB_LOCK_WAIT_TIMEOUT;);
+			if (!exist_fts_common) {
+				error = fts_create_common_tables(
+					ctx->trx, ctx->new_table,
+					user_table->name.m_name, TRUE);
 
-			if (error != DB_SUCCESS) {
-				goto error_handling;
+				DBUG_EXECUTE_IF(
+					"innodb_test_fail_after_fts_common_table",
+					error = DB_LOCK_WAIT_TIMEOUT;);
+
+				if (error != DB_SUCCESS) {
+					goto error_handling;
+				}
+
+				build_fts_common = true;
 			}
-
-			build_fts_common = true;
 
 			ctx->new_table->fts->fts_status
 				|= TABLE_DICT_LOCKED;
@@ -5076,7 +5083,7 @@ err_exit:
 	ctx->trx->dict_operation_lock_mode = 0;
 
 	trx_free_for_mysql(ctx->trx);
-	trx_commit_for_mysql(ctx->prebuilt->trx);
+	lock_table_unlock_for_trx(ctx->prebuilt->trx);
 
 	delete ctx;
 	ha_alter_info->handler_ctx = NULL;
@@ -5302,6 +5309,7 @@ alter_fill_stored_column(
 }
 
 /** Implementation of prepare_inplace_alter_table()
+@tparam		Table		dd::Table or dd::Partition
 @param[in]	altered_table	TABLE object for new version of table.
 @param[in,out]	ha_alter_info	Structure describing changes to be done
 				by ALTER TABLE and holding data used
@@ -6123,6 +6131,7 @@ get_error_key_name(
 }
 
 /** Implementation of inplace_alter_table()
+@tparam		Table		dd::Table or dd::Partition
 @param[in]	altered_table	TABLE object for new version of table.
 @param[in,out]	ha_alter_info	Structure describing changes to be done
 				by ALTER TABLE and holding data used
@@ -7559,6 +7568,7 @@ do {								\
 #endif
 
 /** Implementation of commit_inplace_alter_table()
+@tparam		Table		dd::Table or dd::Partition
 @param[in]	altered_table	TABLE object for new version of table.
 @param[in,out]	ha_alter_info	Structure describing changes to be done
 by ALTER TABLE and holding data used during in-place alter.
@@ -7795,6 +7805,8 @@ ha_innobase::commit_inplace_alter_table_impl(
 				trx, table_share->table_name.str);
 
 			if (!fail) {
+				log_ddl->writeDropLog(trx, ctx->old_table->id);
+
 				/* Also check the DDTableBuffer and delete
 				the corresponding row for old table */
 				dberr_t		error;
@@ -8112,7 +8124,7 @@ ha_innobase::commit_inplace_alter_table_impl(
 			DBUG_RETURN(true);
 		}
 
-		trx_commit_for_mysql(m_prebuilt->trx);
+		lock_table_unlock_for_trx(m_prebuilt->trx);
 
 		char	tb_name[FN_REFLEN];
 		ut_strcpy(tb_name, m_prebuilt->table->name.m_name);
@@ -8146,7 +8158,7 @@ ha_innobase::commit_inplace_alter_table_impl(
 	}
 
 	/* Release the table locks. */
-	trx_commit_for_mysql(m_prebuilt->trx);
+	lock_table_unlock_for_trx(m_prebuilt->trx);
 
 	DBUG_EXECUTE_IF("ib_ddl_crash_after_user_trx_commit", DBUG_SUICIDE(););
 
@@ -8751,12 +8763,11 @@ alter_part::build_partition_name(
 	++table_name;
 
 	strcpy(name, table_name);
-#ifdef _WIN32
-	/* Adjust the '\' to '/' for Windows */
+#if OS_PATH_SEPARATOR != '/'
 	char*		slash = strchr(name, OS_PATH_SEPARATOR);
 	ut_a(slash != nullptr);
 	*slash = '/';
-#endif /* _WIN32 */
+#endif
 
 	len += strlen(table_name);
 	ut_ad(len < FN_REFLEN);
@@ -9118,19 +9129,39 @@ private:
 		alter_part_array&	to_drop,
 		alter_part_array&	all_news);
 
-	/** Check if the partition(and its subpartitions) conflicts with any
-	of the original ones, will create the alter_part_add objects here
+	/** Create alter_part_add object(s) along with checking if the
+	partition (and its subpartitions) conflicts with any of the original
+	ones.
+	This is only for REORGANIZE PARTITION
 	@param[in]	new_part	The new partition to check
-	@param[in,out]	all_news	To store the alter_part_add objects
 	@param[in,out]	new_part_id	Partition id for both partition and
 					subpartition, which would be increased
 					by number of subpartitions per
 					partition here
-	@return true if the names are same, otherwise false */
-	bool check_conflict_and_create(
+	@param[in,out]	all_news	To store the alter_part_add objects
+	@retval	false	On success
+	@retval	true	On failure */
+	bool create_new_checking_conflict(
 		partition_element*	new_part,
-		alter_part_array&	all_news,
-		uint&			new_part_id);
+		uint&			new_part_id,
+		alter_part_array&	all_news);
+
+	/** Create alter_part_drop object(s) along with checking if the
+	partition (and its subpartitions) conflicts with any of the to
+	be created ones.
+	This is only for REORGANIZE PARTITION
+	@param[in]	old_part	The old partition to check
+	@param[in,out]	old_part_id	Partition id for this partition or
+					the first subpartition, which would
+					be increased by number of subpartitions
+					per partition here
+	@param[in,out]	to_drop		To store the alter_part_drop objects
+	@retval	false	On success
+	@retval	true	On failure */
+	bool create_old_checking_conflict(
+		partition_element*	old_part,
+		uint&			old_part_id,
+		alter_part_array&	to_drop);
 
 	/** Check if the two (sub)partitions conflict with each other.
 	That is they have same name and both are innodb_file_per_table
@@ -9473,8 +9504,7 @@ public:
 	@param[in]	file_per_table	Current value of innodb_file_per_table
 	@param[in]	autoinc		Next autoinc value to use
 	@param[in]	conflict	True if there is already a partition
-					table with the same name, which is
-					innodb_file_per_table */
+					table with the same name */
 	alter_part_add(
 		uint				part_id,
 		partition_state			state,
@@ -9584,8 +9614,7 @@ private:
 	/** Next AUTOINC value to use */
 	const ib_uint64_t		m_autoinc;
 
-	/** True if there is already a file_per_table partition table
-	with the same name */
+	/** True if there is already a partition table with the same name */
 	const bool			m_conflict;
 
 	/** Tablespace of this partition */
@@ -9616,15 +9645,19 @@ public:
 	@param[in,out]	trx		InnoDB transaction
 	@param[in,out]	old		InnoDB table object for old partition,
 					default is nullptr, which means there
-					is no corresponding object */
+					is no corresponding object
+	@param[in]	conflict	True if there is already a partition
+					table with the same name */
 	alter_part_drop(
 		uint			part_id,
 		partition_state		state,
 		const char*		table_name,
 		trx_t*			trx,
-		dict_table_t*		old)
+		dict_table_t*		old,
+		bool			conflict)
 		:
-		alter_part(trx, part_id, state, table_name, old)
+		alter_part(trx, part_id, state, table_name, old),
+		m_conflict(conflict)
 	{}
 
 	/** Destructor */
@@ -9648,14 +9681,36 @@ public:
 
 		dd_table_close(m_old, nullptr, nullptr, false);
 
+		int	error;
 		char	part_name[FN_REFLEN];
 		build_partition_name(old_part, false, part_name);
 
-		int error = delete_table(
-			part_name, old_part, SQLCOM_DROP_TABLE);
+		if (!m_conflict) {
+			error = delete_table(
+				part_name, old_part, SQLCOM_DROP_TABLE);
+		} else {
+			/* Have to rename it to a temporary name to prevent
+			name conflict, because later deleting table doesn't
+			remove the data file at once. Also notice that don't
+			use the #tmp name, because it could be already used
+			by the corresponding new partition. */
+			mem_heap_t*	heap = mem_heap_create(FN_REFLEN);
+			char*	temp_name = dict_mem_create_temporary_tablename(
+				heap, m_old->name.m_name, m_old->id);
+			error = rename_table(part_name, temp_name, old_part);
+			if (error == 0) {
+				error = delete_table(
+					temp_name, old_part, SQLCOM_DROP_TABLE);
+			}
+			mem_heap_free(heap);
+		}
 
 		return(error);
 	}
+
+private:
+	/** True if there is already a partition table with the same name */
+	const bool			m_conflict;
 };
 
 /** Class which handles the partition of the state PART_CHANGED.
@@ -9812,6 +9867,9 @@ alter_part_change::try_commit(
 	ut_ad(old_part->level() == new_part->level());
 	ut_ad(old_part->name() == new_part->name());
 
+	char*	temp_old_name = dict_mem_create_temporary_tablename(
+		m_old->heap, m_old->name.m_name, m_old->id);
+
 	dd_table_close(m_old, nullptr, nullptr, false);
 
 	char	old_name[FN_REFLEN];
@@ -9820,12 +9878,11 @@ alter_part_change::try_commit(
 	build_partition_name(new_part, true, temp_name);
 
 	int	error;
-	error = rename_table(old_name, altered_table->s->path.str,
-			     old_part);
+	error = rename_table(old_name, temp_old_name, old_part);
 	if (error == 0) {
 		error = rename_table(temp_name, old_name, new_part);
 		if (error == 0) {
-			error = delete_table(altered_table->s->path.str,
+			error = delete_table(temp_old_name,
 					     old_part, SQLCOM_DROP_TABLE);
 		}
 	}
@@ -9942,8 +9999,8 @@ alter_part_factory::create_one_low(
 		alter_part = UT_NEW(alter_part_drop(
 			part_id, state,
 			m_part_share->get_table_share()->normalized_path.str,
-			m_trx, m_part_share->get_table_part(old_part_id)),
-			mem_key_partitioning);
+			m_trx, m_part_share->get_table_part(old_part_id),
+			conflict), mem_key_partitioning);
 		break;
 	case PART_CHANGED:
 		alter_part = UT_NEW(alter_part_change(
@@ -9962,19 +10019,21 @@ alter_part_factory::create_one_low(
 	return(alter_part);
 }
 
-/** Check if the partition(and its subpartitions) conflicts with any
-of the original ones, will create the alter_part_add objects here
+/** Create alter_part_add object(s) along with checking if the
+partition (and its subpartitions) conflicts with any of the original ones
+This is only for REORGANIZE PARTITION
 @param[in]	new_part	The new partition to check
-@param[in,out]	all_news	To store the alter_part_add objects here
 @param[in,out]	new_part_id	Partition id for both partition and
 				subpartition, which would be increased
 				by number of subpartitions per partition here
-@return true if the names are same, otherwise false */
+@param[in,out]	all_news	To store the alter_part_add objects here
+@retval	false	On success
+@retval	true	On failure */
 bool
-alter_part_factory::check_conflict_and_create(
+alter_part_factory::create_new_checking_conflict(
 	partition_element*	new_part,
-	alter_part_array&	all_news,
-	uint&			new_part_id)
+	uint&			new_part_id,
+	alter_part_array&	all_news)
 {
 	ut_ad((m_ha_alter_info->handler_flags
 	       & Alter_inplace_info::REORGANIZE_PARTITION) != 0);
@@ -9987,8 +10046,7 @@ alter_part_factory::check_conflict_and_create(
 	partition_element*			tmp_part_elem;
 
 	while ((tmp_part_elem = tmp_part_it++) != nullptr) {
-		if (my_strcasecmp(system_charset_info, new_part->partition_name,
-				  tmp_part_elem->partition_name) != 0) {
+		if (!is_conflict(new_part, tmp_part_elem)) {
 			continue;
 		}
 
@@ -10022,12 +10080,83 @@ alter_part_factory::check_conflict_and_create(
 			}
 		}
 
-		/* There should be only one match */
+		/* Once matched, all are done */
 		return(false);
 	}
 
 	return(create_one(all_news, new_part, new_part_id, 0,
 			  PART_TO_BE_ADDED, false));
+}
+
+/** Create alter_part_drop object(s) along with checking if the
+partition (and its subpartitions) conflicts with any of the to
+be created ones.
+This is only for REORGANIZE PARTITION
+@param[in]	old_part	The old partition to check
+@param[in,out]	old_part_id	Partition id for this partition or
+				the first subpartition, which would
+				be increased by number of subpartitions
+				per partition here
+@param[in,out]	to_drop		To store the alter_part_drop objects
+@retval	false	On success
+@retval	true	On failure */
+bool
+alter_part_factory::create_old_checking_conflict(
+	partition_element*	old_part,
+	uint&			old_part_id,
+	alter_part_array&	to_drop)
+{
+	ut_ad((m_ha_alter_info->handler_flags
+	       & Alter_inplace_info::REORGANIZE_PARTITION) != 0);
+
+	partition_info*		part_info = m_ha_alter_info->modified_part_info;
+	/* To compare with this partition list which contains all the
+	new to be added partitions */
+	List_iterator_fast <partition_element>	part_it(
+		part_info->partitions);
+	partition_element*			part_elem;
+
+	while ((part_elem = part_it++) != nullptr) {
+		if (!is_conflict(part_elem, old_part)) {
+			continue;
+		}
+
+		if (m_ha_alter_info->modified_part_info->is_sub_partitioned()) {
+			List_iterator_fast <partition_element>
+				sub_it(part_elem->subpartitions);
+			partition_element*	sub_elem;
+			List_iterator_fast <partition_element>
+				old_sub_it(old_part->subpartitions);
+			partition_element*	old_sub_elem;
+
+			while ((old_sub_elem = old_sub_it++) != nullptr) {
+				ut_ad(old_sub_elem->partition_name != nullptr);
+				sub_elem = sub_it++;
+				ut_ad(sub_elem != nullptr);
+				ut_ad(sub_elem->partition_name != nullptr);
+
+				bool	conflict = is_conflict(
+					sub_elem, old_sub_elem);
+				if (create_one(to_drop, old_sub_elem,
+					       old_part_id, old_part_id,
+					       PART_TO_BE_REORGED, conflict)) {
+					return(true);
+				}
+			}
+			ut_ad((sub_elem = sub_it++) == nullptr);
+		} else {
+			if (create_one(to_drop, old_part, old_part_id,
+				       old_part_id, PART_TO_BE_REORGED, true)) {
+				return(true);
+			}
+		}
+
+		/* Once matched, all are done */
+		return(false);
+	}
+
+	return(create_one(to_drop, old_part, old_part_id, old_part_id,
+			  PART_TO_BE_REORGED, false));
 }
 
 /** Check if the two (sub)partitions conflict with each other,
@@ -10127,9 +10256,8 @@ alter_part_factory::create_for_reorg(
 				 old_part_elem->partition_name) == 0) {
 			ut_ad(tmp_part_elem->part_state == PART_TO_BE_REORGED);
 
-			if (create_one(to_drop, old_part_elem,
-				       old_part_id, old_part_id,
-				       PART_TO_BE_REORGED, false)) {
+			if (create_old_checking_conflict(
+				old_part_elem, old_part_id, to_drop)) {
 				return(true);
 			}
 
@@ -10140,8 +10268,8 @@ alter_part_factory::create_for_reorg(
 		switch (part_elem->part_state) {
 		case PART_TO_BE_ADDED:
 
-			if (check_conflict_and_create(part_elem, all_news,
-						       new_part_id)) {
+			if (create_new_checking_conflict(part_elem, new_part_id,
+							 all_news)) {
 				return(true);
 			}
 

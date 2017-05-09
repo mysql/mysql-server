@@ -381,10 +381,12 @@ dict_table_rename_in_cache(
 /*=======================*/
 	dict_table_t*	table,		/*!< in/out: table */
 	const char*	new_name,	/*!< in: new name */
-	ibool		rename_also_foreigns)
+	ibool		rename_also_foreigns,
 					/*!< in: in ALTER TABLE we want
 					to preserve the original table name
 					in constraints which reference it */
+	bool		log_rename = false)
+					/*!< in: whether to log rename table */
 	MY_ATTRIBUTE((warn_unused_result));
 
 /** Removes an index from the dictionary cache.
@@ -1485,6 +1487,8 @@ struct dict_sys_t{
 	dict_table_t*	table_stats;
 	/** Permanent handle to mysql.innodb_index_stats */
 	dict_table_t*	index_stats;
+	/** Permanent handle to mysql.innodb_ddl_log */
+	dict_table_t*	ddl_log;
 	/** Permanent handle to mysql.innodb_dynamic_metadata */
 	dict_table_t*	dynamic_metadata;
 
@@ -1537,7 +1541,7 @@ struct dict_sys_t{
         }
 
 	/** Number of hard coded table */
-	static constexpr table_id_t	NUM_HARD_CODED_TABLES = 30;
+	static constexpr table_id_t	NUM_HARD_CODED_TABLES = 31;
 
 	/** The first ID of the redo log pseudo-tablespace */
 	static constexpr space_id_t	log_space_first_id = 0xFFFFFFF0UL;

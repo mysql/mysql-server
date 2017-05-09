@@ -2915,7 +2915,7 @@ row_mysql_unfreeze_data_dictionary(
 /*===============================*/
 	trx_t*	trx)	/*!< in/out: transaction */
 {
-	ut_ad(lock_trx_has_sys_table_locks(trx) == NULL);
+	//ut_ad(lock_trx_has_sys_table_locks(trx) == NULL);
 
 	ut_a(trx->dict_operation_lock_mode == RW_S_LATCH);
 
@@ -2953,7 +2953,7 @@ row_mysql_unlock_data_dictionary(
 /*=============================*/
 	trx_t*	trx)	/*!< in/out: transaction */
 {
-	ut_ad(lock_trx_has_sys_table_locks(trx) == NULL);
+	//ut_ad(lock_trx_has_sys_table_locks(trx) == NULL);
 
 	ut_a(trx->dict_operation_lock_mode == RW_X_LATCH);
 
@@ -3032,6 +3032,8 @@ row_create_table_for_mysql(
 
 		dict_table_add_system_columns(table, heap);
 		dict_table_add_to_cache(table, TRUE, heap);
+
+		log_ddl->writeRemoveLog(trx, table);
 
 		mem_heap_free(heap);
 	}
@@ -3793,7 +3795,7 @@ row_discard_tablespace_end(
 			log_make_checkpoint_at(LSN_MAX, TRUE);
 			DBUG_SUICIDE(););
 
-	trx_commit_for_mysql(trx);
+	lock_table_unlock_for_trx(trx);
 
 	DBUG_EXECUTE_IF("ib_discard_after_commit_crash",
 			log_make_checkpoint_at(LSN_MAX, TRUE);
@@ -4091,6 +4093,10 @@ run_again:
 	que_graph_free(thr->graph);
 	trx->op_info = "";
 
+	if (err == DB_SUCCESS) {
+		table->ddl_lock_count++;
+	}
+
 	return(err);
 }
 
@@ -4188,7 +4194,6 @@ This deletes the fil_space_t if found and the file on disk.
 @param[in]	tablename	Table name, same as the tablespace name
 @param[in]	filepath	File path of tablespace to delete
 @return error code or DB_SUCCESS */
-UNIV_INLINE
 dberr_t
 row_drop_single_table_tablespace(
 	space_id_t	space_id,
@@ -4536,6 +4541,14 @@ row_drop_table_for_mysql(
 		      != NULL);
 	}
 
+	if (!table->is_temporary() && !dict_table_is_file_per_table(table)) {
+		for (dict_index_t* index = table->first_index();
+		     index != NULL;
+		     index = index->next()) {
+			log_ddl->writeFreeLog(trx, index, true);
+		}
+	}
+
 	/* Mark all indexes unavailable in the data dictionary cache
 	before starting to drop the table. */
 
@@ -4565,16 +4578,6 @@ row_drop_table_for_mysql(
 	/* As we don't insert entries to SYSTEM TABLES for temp-tables
 	we need to avoid running removal of these entries. */
 	if (!table->is_temporary()) {
-		/* Note: do not need to write ddl log when
-		dict_table_is_file_per_table(table)) is true.
-		We have to drop index tree because of adaptive
-		hash index. */
-		page_no = page_nos;
-		for (dict_index_t* index = table->first_index();
-		     index != NULL;
-		     index = index->next()) {
-			dict_drop_index(index, *page_no++);
-		}
 		err = DB_SUCCESS;
 	} else {
 		page_no = page_nos;
@@ -4593,6 +4596,7 @@ row_drop_table_for_mysql(
 		bool		is_discarded;
 		bool		shared_tablespace;
 		table_id_t	table_id;
+		char*		table_name;
 		bool		is_encrypted;
 
 	case DB_SUCCESS:
@@ -4620,6 +4624,14 @@ row_drop_table_for_mysql(
 			}
 		}
 
+		/* Table space file name has been renamed in TRUNCATE. */
+		table_name = table->trunc_name.m_name;
+		if (table_name == nullptr) {
+			table_name = table->name.m_name;
+		} else {
+			table->trunc_name.m_name = nullptr;
+		}
+
 		/* Determine the tablespace filename before we drop
 		dict_table_t.  Free this memory before returning. */
 		if (DICT_TF_HAS_DATA_DIR(table->flags)) {
@@ -4627,11 +4639,15 @@ row_drop_table_for_mysql(
 
 			filepath = fil_make_filepath(
 				table->data_dir_path,
-				table->name.m_name, IBD, true);
+				table_name, IBD, true);
 		} else if (!shared_tablespace) {
 			filepath = fil_make_filepath(
-				NULL, table->name.m_name, IBD, false);
+				NULL, table_name, IBD, false);
 		}
+
+		/* Drop adaptive hash index entries before
+		dropping table from cache. */
+		btr_drop_ahi_for_table(table);
 
 		/* Free the dict_table_t object. */
 		err = row_drop_table_from_cache(tablename, table, trx);
@@ -4658,8 +4674,8 @@ row_drop_table_for_mysql(
 		}
 
 		/* We can now drop the single-table tablespace. */
-		err = row_drop_single_table_tablespace(
-			space_id, tablename, filepath);
+		log_ddl->writeDeleteLog(
+			trx, nullptr, space_id, filepath, true, true);
 
 		if (is_encrypted) {
 			mutex_exit(&master_key_id_mutex);
@@ -4668,6 +4684,8 @@ row_drop_table_for_mysql(
 		/* Finally, if it's not a temporary table,
 		let's try to delete the row in DDTableBuffer if exists */
 		if (!is_temp) {
+			log_ddl->writeDropLog(trx, table_id);
+
 			mutex_enter(&dict_persist->mutex);
 			err = dict_persist->table_buffer->remove(table_id);
 			ut_ad(err == DB_SUCCESS);
@@ -4794,6 +4812,7 @@ row_is_mysql_tmp_table_name(
 @param[in]	dd_table	dd::Table for new table
 @param[in,out]	trx		transaction
 @param[in]	commit		whether to commit trx
+@param[in]	log_rename	whether to log rename table
 @return error code or DB_SUCCESS */
 dberr_t
 row_rename_table_for_mysql(
@@ -4801,7 +4820,8 @@ row_rename_table_for_mysql(
 	const char*	new_name,
 	dd::Table*	dd_table,
 	trx_t*		trx,
-	bool		commit)
+	bool		commit,
+	bool		log_rename)
 {
 	dict_table_t*	table			= NULL;
 	ibool		dict_locked		= FALSE;
@@ -4927,7 +4947,7 @@ row_rename_table_for_mysql(
 		the table is stored in a single-table tablespace */
 
 		err = dict_table_rename_in_cache(
-			table, new_name, !new_is_tmp);
+			table, new_name, !new_is_tmp, log_rename);
 		if (err != DB_SUCCESS) {
 			trx->error_state = DB_SUCCESS;
 			trx_rollback_to_savepoint(trx, NULL);

@@ -1427,13 +1427,17 @@ RecLock::create(
 	lock_t*	lock = lock_alloc(trx, m_index, m_mode, m_rec_id, m_size);
 
 #ifdef UNIV_DEBUG
-	/* GAP lock shouldn't be taken on DD tables */
-	/* Give exemption to spatial_reference table & stats tables (table_id 43 & 44)*/
+	/* GAP lock shouldn't be taken on DD tables, but give exemption to
+	18 : spatial_reference table
+	38 & 39 : stats tables
+	40 : innodb_ddl_log */
 	if (m_index->table->is_dd_table
 	    && m_index->table->id != 18
 	    && m_index->table->id != 38
-	    && m_index->table->id != 39) {
-		ut_ad(((m_mode - (LOCK_MODE_MASK & m_mode)) - (LOCK_TYPE_MASK & m_mode) - (LOCK_WAIT & m_mode)) == LOCK_REC_NOT_GAP);
+	    && m_index->table->id != 39
+	    && m_index->table->id != 40) {
+		ut_ad(((m_mode - (LOCK_MODE_MASK & m_mode)) - (LOCK_TYPE_MASK & m_mode)
+		      - (LOCK_WAIT & m_mode)) == LOCK_REC_NOT_GAP);
 	}
 #endif /* UNIV_DEBUG */
 
@@ -4319,6 +4323,10 @@ lock_release(
 			dict_table_t*	table;
 
 			table = lock->un_member.tab_lock.table;
+			ut_ad(table->ddl_lock_count >= 0);
+			if (table->ddl_lock_count > 0) {
+				table->ddl_lock_count = 0;
+			}
 
 			if (lock_get_mode(lock) != LOCK_IS
 			    && trx->undo_no != 0) {
@@ -4346,6 +4354,68 @@ lock_release(
 
 		++count;
 	}
+}
+
+void
+lock_table_unlock_for_trx(
+	trx_t*		trx)
+{
+	ulint		count = 0;
+	trx_id_t	max_trx_id = trx_sys_get_max_trx_id();
+
+	lock_mutex_enter();
+
+	ut_ad(!trx_mutex_own(trx));
+	ut_ad(!trx->is_dd_trx);
+
+	lock_t*	lock = UT_LIST_GET_LAST(trx->lock.trx_locks);
+
+	while (lock != NULL) {
+		lock_t*	prev_lock = UT_LIST_GET_PREV(trx_locks, lock);
+
+		ut_d(lock_check_dict_lock(lock));
+
+		if (lock_get_type_low(lock) == LOCK_TABLE) {
+			dict_table_t*	table = lock->un_member.tab_lock.table;
+
+			if (table->ddl_lock_count == 0) {
+				lock = prev_lock;
+				continue;
+			} else {
+				ut_ad(table->ddl_lock_count > 0);
+				table->ddl_lock_count--;
+			}
+
+			if (lock_get_mode(lock) != LOCK_IS
+			    && trx->undo_no != 0) {
+
+				/* The trx may have modified the table. We
+				block the use of the MySQL query cache for
+				all currently active transactions. */
+
+				table->query_cache_inv_id = max_trx_id;
+			}
+
+			lock_table_dequeue(lock);
+		}
+
+		lock = prev_lock;
+
+		if (count == LOCK_RELEASE_INTERVAL) {
+			/* Release the mutex for a while, so that we
+			do not monopolize it */
+
+			lock_mutex_exit();
+
+			lock_mutex_enter();
+
+			count = 0;
+		}
+
+		++count;
+	}
+
+	lock_mutex_exit();
 }
 
 /* True if a lock mode is S or X */

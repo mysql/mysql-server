@@ -167,8 +167,11 @@ Update_dictionary_tables_ctx::Update_dictionary_tables_ctx(THD *thd)
     m_thd->clear_current_stmt_binlog_format_row();
 
   // Disable bin logging
-  m_saved_binlog_options= m_thd->variables.option_bits;
+  m_saved_options= m_thd->variables.option_bits;
   m_thd->variables.option_bits&= ~OPTION_BIN_LOG;
+
+  // Set bit to indicate that the thread is updating the data dictionary tables.
+  m_thd->variables.option_bits|= OPTION_DD_UPDATE_CONTEXT;
 
   /*
     In @@autocommit=1 mode InnoDB automatically commits its transaction when
@@ -208,7 +211,7 @@ Update_dictionary_tables_ctx::~Update_dictionary_tables_ctx()
   m_thd->check_for_truncated_fields= m_saved_check_for_truncated_fields;
   m_thd->variables.sql_mode= m_saved_mode;
 
-  m_thd->variables.option_bits= m_saved_binlog_options;
+  m_thd->variables.option_bits= m_saved_options;
 
   if (m_saved_binlog_row_based)
     m_thd->set_current_stmt_binlog_format_row();

@@ -74,16 +74,18 @@ dict_build_table_def(
 		dict_table_assign_new_id(table, trx);
 	}
 
-	err = dict_build_tablespace_for_table(table);
+	err = dict_build_tablespace_for_table(table, trx);
 
 	return(err);
 }
 
 /** Build a tablespace to store various objects.
+@param[in,out]	trx		DD transaction
 @param[in,out]	tablespace	Tablespace object describing what to build.
 @return DB_SUCCESS or error code. */
 dberr_t
 dict_build_tablespace(
+	trx_t*		trx,
 	Tablespace*	tablespace)
 {
 	dberr_t		err	= DB_SUCCESS;
@@ -103,6 +105,9 @@ dict_build_tablespace(
 	tablespace->set_space_id(space);
 
 	Datafile* datafile = tablespace->first_datafile();
+
+	log_ddl->writeDeleteLog(
+		trx, NULL, space, datafile->filepath(), false, true);
 
 	/* We create a new generic empty tablespace.
 	We initially let it be 4 pages:
@@ -146,10 +151,12 @@ dict_build_tablespace(
 
 /** Builds a tablespace to contain a table, using file-per-table=1.
 @param[in,out]	table	Table to build in its own tablespace.
+@param[in,out]	trx	Transaction
 @return DB_SUCCESS or error code */
 dberr_t
 dict_build_tablespace_for_table(
-	dict_table_t*	table)
+	dict_table_t*	table,
+	trx_t*		trx)
 {
 	dberr_t		err	= DB_SUCCESS;
 	mtr_t		mtr;
@@ -209,6 +216,9 @@ dict_build_tablespace_for_table(
 			filepath = fil_make_filepath(
 				NULL, table->name.m_name, IBD, false);
 		}
+
+		log_ddl->writeDeleteLog(
+			trx, table, space, filepath, false, true);
 
 		/* We create a new single-table tablespace for the table.
 		We initially let it be 4 pages:
@@ -333,7 +343,7 @@ dberr_t
 dict_create_index_tree_in_mem(
 /*==========================*/
 	dict_index_t*	index,	/*!< in/out: index */
-	const trx_t*	trx)	/*!< in: InnoDB transaction handle */
+	trx_t*		trx)	/*!< in: InnoDB transaction handle */
 {
 	mtr_t		mtr;
 	ulint		page_no = FIL_NULL;
@@ -357,7 +367,12 @@ dict_create_index_tree_in_mem(
 
 		return(DB_SUCCESS);
 	}
-
+#if 0
+	/* NewDD TODO: Try to remove this mutex completely */
+	if (!index->table->is_intrinsic()) {
+		mutex_exit(&dict_sys->mutex);
+	}
+#endif
 	mtr_start(&mtr);
 
 	if (index->table->is_temporary()) {
@@ -374,12 +389,22 @@ dict_create_index_tree_in_mem(
 	index->page = page_no;
 	index->trx_id = trx->id;
 
+	mtr_commit(&mtr);
 	if (page_no == FIL_NULL) {
 		err = DB_OUT_OF_FILE_SPACE;
+	} else {
+		/*Fixme: if it's part of create table, and is
+		file per table, skip ddl log. */
+		//if (!is_create_table
+		//    || !dict_table_is_file_per_table(index->table)) {
+		err = log_ddl->writeFreeLog(trx, index, false);
 	}
 
-	mtr_commit(&mtr);
-
+#if 0
+	if (!index->table->is_intrinsic()) {
+		mutex_enter(&dict_sys->mutex);
+	}
+#endif
 	return(err);
 }
 

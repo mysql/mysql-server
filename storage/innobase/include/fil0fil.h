@@ -1467,4 +1467,17 @@ fil_tablespace_open_for_recovery(space_id_t space_id);
 void
 fil_tablespace_open_clear();
 
+/** Replay a file rename operation if possible.
+@param[in]	page_id		Space ID and first page number in the file
+@param[in]	name		old file name
+@param[in]	new_name	new file name
+@return	whether the operation was successfully applied
+(the name did not exist, or new_name did not exist and
+name was successfully renamed to new_name)  */
+bool
+fil_op_replay_rename(
+	const page_id_t&	page_id,
+	const char*		name,
+	const char*		new_name);
+
 #endif /* fil0fil_h */

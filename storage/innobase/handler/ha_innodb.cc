@@ -1324,7 +1324,8 @@ innodb_remove_table_sdi(
 	const dd::Table*	table,
 	const dd::Schema*	schema);
 
-/** Perform post-commit/rollback cleanup after DDL statement. */
+/** Perform post-commit/rollback cleanup after DDL statement.
+@param[in,out]	thd	connection thread */
 static
 void
 innobase_post_ddl(
@@ -3879,9 +3880,18 @@ innobase_dict_recover(
 		dict_sys->index_stats = dd_table_open_on_name(
 			thd, NULL, "mysql/innodb_index_stats",
 			false, DICT_ERR_IGNORE_NONE);
+		/* Open this table first, to make sure the metadata of
+		this table would only be applied by metadata_applier and
+		dict_table_load_dynamic_metadata() would not be called
+		twice on this table */
+		dict_sys->ddl_log = dd_table_open_on_name(
+			thd, NULL, "mysql/innodb_ddl_log",
+			false, DICT_ERR_IGNORE_NONE);
 		dict_sys->dynamic_metadata = dd_table_open_on_name(
 			thd, NULL, "mysql/innodb_dynamic_metadata",
 			false, DICT_ERR_IGNORE_NONE);
+
+		log_ddl = UT_NEW_NOKEY(LogDDL());
 
 		dict_persist->table_buffer =
 			UT_NEW_NOKEY(DDTableBuffer());
@@ -4513,12 +4523,13 @@ innodb_init_params()
 }
 
 /** Perform post-commit/rollback cleanup after DDL statement
-(dummy implementation). */
+@param[in,out]	thd	connection thread */
 static
 void
 innobase_post_ddl(
 	THD*		thd)
 {
+	log_ddl->postDDL(thd);
 }
 
 /** Initialize the InnoDB storage engine plugin.
@@ -5149,7 +5160,7 @@ innobase_commit(
 	}
 
 	ut_ad(trx->dict_operation_lock_mode == 0);
-	ut_ad(trx->dict_operation == TRX_DICT_OP_NONE);
+//	ut_ad(trx->dict_operation == TRX_DICT_OP_NONE);
 
 	/* Transaction is deregistered only in a commit or a rollback. If
 	it is deregistered we know there cannot be resources to be freed
@@ -11333,7 +11344,7 @@ err_col:
 			dict_table_assign_new_id(table, m_trx);
 
 			/* Create temp tablespace if configured. */
-			err = dict_build_tablespace_for_table(table);
+			err = dict_build_tablespace_for_table(table, m_trx);
 
 			if (err == DB_SUCCESS) {
 				/* Temp-table are maintained in memory and so
@@ -12368,8 +12379,27 @@ innobase_dict_init(
 		" ENGINE=INNODB ROW_FORMAT=DYNAMIC "
 		" STATS_PERSISTENT=0");
 
+	static const Plugin_table innodb_ddl_log(
+		/* Name */
+		"innodb_ddl_log",
+		/* Definition */
+		" id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,\n"
+		" thread_id BIGINT UNSIGNED NOT NULL,\n"
+		" type INT UNSIGNED NOT NULL,\n"
+		" space_id INT UNSIGNED,\n"
+		" page_no INT UNSIGNED,\n"
+		" index_id BIGINT UNSIGNED,\n"
+		" table_id BIGINT UNSIGNED,\n"
+		" old_file_path VARCHAR(512) COLLATE UTF8_BIN,\n"
+		" new_file_path VARCHAR(512) COLLATE UTF8_BIN,\n"
+		" KEY(thread_id)\n",
+		/* Options */
+		" ENGINE=INNODB"
+		" STATS_PERSISTENT=0");
+
 	tables->push_back(&innodb_table_stats);
 	tables->push_back(&innodb_index_stats);
+	tables->push_back(&innodb_ddl_log);
 	tables->push_back(&innodb_dynamic_metadata);
 
 	DBUG_RETURN(innobase_init_files(dict_init_mode, tablespaces));
@@ -13887,6 +13917,7 @@ ha_innobase::get_se_private_data(
 }
 
 /** Create an InnoDB table.
+@tparam		Table		dd::Table or dd::Partition
 @param[in]	name		Table name, format: "db/table_name".
 @param[in]	form		Table format; columns and index information.
 @param[in]	create_info	Create info (including create statement string).
@@ -14178,7 +14209,7 @@ ha_innobase::discard_or_import_tablespace(
 	} else if (!dict_table->ibd_file_missing) {
 		/* Commit the transaction in order to
 		release the table lock. */
-		trx_commit_for_mysql(m_prebuilt->trx);
+		lock_table_unlock_for_trx(m_prebuilt->trx);
 
 		ib::error() << "Unable to import tablespace "
 			<< dict_table->name << " because it already"
@@ -14212,7 +14243,7 @@ ha_innobase::discard_or_import_tablespace(
 	}
 
 	/* Commit the transaction in order to release the table lock. */
-	trx_commit_for_mysql(m_prebuilt->trx);
+	lock_table_unlock_for_trx(m_prebuilt->trx);
 
 	if (err == DB_SUCCESS && !discard
 	    && dict_stats_is_persistent_enabled(dict_table)) {
@@ -14235,6 +14266,96 @@ ha_innobase::discard_or_import_tablespace(
 
 	DBUG_RETURN(convert_error_code_to_mysql(err, dict_table->flags, NULL));
 }
+
+/** Rename tablespace file name for truncate
+@tparam		Table		dd::Table or dd::Partition
+@param[in]	name		Table name
+@param[in]	dd_tab		dd::Table or dd::Partition of the table
+@return	0 on success, error code on failure */
+template<typename Table>
+int
+ha_innobase::truncate_rename_tablespace(
+	const char*		name,
+	const Table*		dd_tab)
+{
+	THD*			thd = ha_thd();
+	char			norm_name[FN_REFLEN];
+
+	dd::cache::Dictionary_client* client = dd::get_dd_client(thd);
+	dd::cache::Dictionary_client::Auto_releaser releaser(client);
+
+	dict_table_t*		table;
+
+	normalize_table_name(norm_name, name);
+
+	int error = dd_table_open_on_dd_obj(
+		client, dd_tab->table(),
+		(!dd_table_is_partitioned(dd_tab->table())
+		 ? NULL
+		 : reinterpret_cast<const dd::Partition*>(dd_tab)),
+		norm_name, table, thd);
+	ut_a(error == 0);
+	ut_a(table != NULL);
+
+	ut_ad(dict_table_is_file_per_table(table));
+
+	ut_ad(!table->is_temporary());
+	ut_ad(table->trunc_name.m_name == nullptr);
+
+	lint	old_size = mem_heap_get_size(table->heap);
+
+	char*	temp_name = nullptr;
+	temp_name =  dict_mem_create_temporary_tablename(
+		table->heap, table->name.m_name, table->id);
+
+	lint	new_size = mem_heap_get_size(table->heap);
+
+	mutex_enter(&dict_sys->mutex);
+	dict_sys->size += new_size - old_size;
+	mutex_exit(&dict_sys->mutex);
+
+	char*	new_path = nullptr;
+	char*	old_path = nullptr;
+
+	old_path = fil_space_get_first_path(table->space);
+
+	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
+		new_path = os_file_make_new_pathname(old_path, temp_name);
+	} else {
+		new_path = fil_make_filepath(nullptr, temp_name, IBD, false);
+	}
+
+	/* New filepath must not exist. */
+	dberr_t	err = fil_rename_tablespace_check(
+		table->space, old_path, new_path, false);
+	if (err == DB_SUCCESS) {
+
+		mutex_enter(&dict_sys->mutex);
+		bool	success = fil_rename_tablespace(
+			table->space, old_path, temp_name, new_path);
+		mutex_exit(&dict_sys->mutex);
+
+		if (!success) {
+			err = DB_ERROR;
+		}
+	}
+
+	if (err == DB_SUCCESS) {
+		table->trunc_name.m_name = temp_name;
+	}
+
+	ut_free(old_path);
+	ut_free(new_path);
+
+	dd_table_close(table, thd, NULL, false);
+
+	return(convert_error_code_to_mysql(err, table->flags, NULL));
+}
+
+template int ha_innobase::truncate_rename_tablespace<dd::Table>(
+	const char*, const dd::Table*);
+template int ha_innobase::truncate_rename_tablespace<dd::Partition>(
+	const char*, const dd::Partition*);
 
 /** DROP and CREATE an InnoDB table.
 @param[in,out]	table_def	dd::Table describing table to be
@@ -14303,7 +14424,16 @@ ha_innobase::truncate(dd::Table *table_def)
 
 	close();
 
-	int	error	= delete_table_impl(name, table_def, SQLCOM_TRUNCATE);
+	int	error = 0;
+
+	/* Rename tablespace file to avoid existing file in create.*/
+	if (file_per_table) {
+		error = truncate_rename_tablespace(name, table_def);
+	}
+
+	if (!error) {
+		error = delete_table_impl(name, table_def, SQLCOM_TRUNCATE);
+	}
 
 	if (!error) {
 		table_def->set_se_private_id(dd::INVALID_OBJECT_ID);
@@ -14389,6 +14519,7 @@ ha_innobase::delete_table(
 }
 
 /** Drop a table.
+@tparam		Table		dd::Table or dd::Partition
 @param[in]	name		table name
 @param[in]	dd_tab		dd::Table describing table to
 				be dropped
@@ -14784,7 +14915,7 @@ innobase_create_tablespace(
 		false);		/* Temporary General Tablespaces not allowed */
 	tablespace.set_flags(fsp_flags);
 
-	err = dict_build_tablespace(&tablespace);
+	err = dict_build_tablespace(trx, &tablespace);
 	if (err != DB_SUCCESS) {
 		error = convert_error_code_to_mysql(err, 0, NULL);
 		trx_rollback_for_mysql(trx);
@@ -14826,7 +14957,6 @@ innobase_drop_tablespace(
 	const dd::Tablespace*	dd_space)
 {
 	trx_t*		trx;
-	dberr_t		err;
 	int		error = 0;
 	space_id_t	space_id = SPACE_UNKNOWN;
 
@@ -14859,26 +14989,13 @@ innobase_drop_tablespace(
 	++trx->will_lock;
 
 	trx_start_if_not_started(trx, true);
-	row_mysql_lock_data_dictionary(trx);
 
-	/* Delete the physical files, fil_space_t & fil_node_t entries. */
-	err = fil_delete_tablespace(space_id, BUF_REMOVE_FLUSH_NO_WRITE);
-	switch (err) {
-	case DB_TABLESPACE_NOT_FOUND:
-		/* OK if the physical file is mising.
-		We deleted the metadata. */
-	case DB_SUCCESS:
-		innobase_commit_low(trx);
-		break;
-	default:
-		ib::error() << "Unable to delete the tablespace `"
-			<< dd_space->name()
-			<< "`, Space ID " << space_id;
-		error = convert_error_code_to_mysql(err, 0, NULL);
-		trx_rollback_for_mysql(trx);
-	}
+	log_ddl->writeDeleteLog(
+		trx, NULL, space_id, dd_tablespace_get_filename(dd_space),
+		true, false);
+	/* WL#9536 TODO: Only server should commit the trx */
+	innobase_commit_low(trx);
 
-	row_mysql_unlock_data_dictionary(trx);
 	trx_free_for_mysql(trx);
 
 	DBUG_RETURN(error);
@@ -15029,6 +15146,7 @@ innobase_drop_database(
 }
 
 /** Renames an InnoDB table.
+@tparam		Table		dd::Table or dd::Partition
 @param[in,out]	thd		THD object
 @param[in,out]	trx		transaction
 @param[in]	from		old name of the table
@@ -15075,7 +15193,7 @@ ha_innobase::rename_table_impl(
 	ut_a(trx->will_lock > 0);
 
 	error = row_rename_table_for_mysql(
-		norm_from, norm_to, &to_table->table(), trx, TRUE);
+		norm_from, norm_to, &to_table->table(), trx, TRUE, true);
 
 	row_mysql_unlock_data_dictionary(trx);
 
@@ -15174,6 +15292,8 @@ ha_innobase::rename_table(
 	if not yet created */
 
 	trx_t*	parent_trx = check_trx_exists(thd);
+
+	innobase_register_trx(ht, thd, parent_trx);
 
 	TrxInInnoDB	trx_in_innodb(parent_trx);
 

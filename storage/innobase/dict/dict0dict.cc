@@ -1738,9 +1738,10 @@ dict_table_rename_in_cache(
 /*=======================*/
 	dict_table_t*	table,		/*!< in/out: table */
 	const char*	new_name,	/*!< in: new name */
-	ibool		rename_also_foreigns)/*!< in: in ALTER TABLE we want
+	ibool		rename_also_foreigns,/*!< in: in ALTER TABLE we want
 					to preserve the original table name
 					in constraints which reference it */
+	bool		log_rename)	 /*< in: whether to log rename table */
 {
 	dberr_t		err;
 	dict_foreign_t*	foreign;
@@ -1852,6 +1853,8 @@ dict_table_rename_in_cache(
 			return(DB_ERROR);
 		}
 	}
+
+	log_ddl->writeRenameTableLog(NULL, table, new_name, table->name.m_name);
 
 	/* Remove table from the hash tables of tables */
 	HASH_DELETE(dict_table_t, name_hash, dict_sys->table_hash,
@@ -6430,6 +6433,9 @@ dict_close(void)
 	}
 	if (dict_sys->dynamic_metadata != NULL) {
 		dict_table_close(dict_sys->dynamic_metadata, true, false);
+	}
+	if (dict_sys->ddl_log) {
+		dict_table_close(dict_sys->ddl_log, true, false);
 	}
 
 	/* Free the hash elements. We don't remove them from the table

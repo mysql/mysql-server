@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -162,11 +162,6 @@ row_merge_drop_indexes(
 	dict_table_t*	table,	/*!< in/out: table containing the indexes */
 	ibool		locked);	/*!< in: TRUE=table locked,
 				FALSE=may need to do a lazy drop */
-/*********************************************************************//**
-Drop all partially created indexes during crash recovery. */
-void
-row_merge_drop_temp_indexes(void);
-/*=============================*/
 
 /**Create temporary merge files in the given paramater path, and if
 UNIV_PFS_IO defined, register the file descriptor with Performance Schema.

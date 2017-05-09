@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1094,6 +1094,9 @@ struct trx_t {
 					must has been released before exiting,
 					and this flag would be set to false */
 	trx_dict_op_t	dict_operation;	/**< @see enum trx_dict_op_t */
+
+	bool		ddl_operation; /*!< True if this trx involves dd table
+					change */
 
 	/* Fields protected by the srv_conc_mutex. */
 	bool		declared_to_be_inside_innodb;

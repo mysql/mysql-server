@@ -48,6 +48,7 @@ Created 10/10/1995 Heikki Tuuri
 #include "buf0checksum.h"
 #include "fil0fil.h"
 #include "log0log.h"
+#include "log0ddl.h"
 #include "os0event.h"
 #include "que0types.h"
 #include "srv0conc.h"
@@ -131,6 +132,8 @@ struct srv_stats_t {
 	/** Number of rows inserted */
 	ulint_ctr_64_t		n_rows_inserted;
 };
+
+extern LogDDL*		log_ddl;
 
 #ifdef INNODB_DD_TABLE
 extern bool	srv_is_upgrade_mode;

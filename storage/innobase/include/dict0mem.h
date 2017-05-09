@@ -1557,6 +1557,9 @@ struct dict_table_t {
 	/** Table name. */
 	table_name_t				name;
 
+	/** Truncate name. */
+	table_name_t				trunc_name;
+
 	/** NULL or the directory path specified by DATA DIRECTORY. */
 	char*					data_dir_path;
 
@@ -1939,6 +1942,9 @@ private:
 public:
 	/** List of locks on the table. Protected by lock_sys->mutex. */
 	table_lock_list_t			locks;
+
+	/** Count of ddl lock place on the table. */
+	lint					ddl_lock_count;
 
 	/** Timestamp of the last modification of this table. */
 	time_t					update_time;

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -587,7 +587,7 @@ page of an update undo log segment. */
 					means dropping the created or dropped
 					table, if it still exists */
 #define TRX_UNDO_TABLE_ID	22	/*!< Id of the table if the preceding
-					field is TRUE */
+					field is TRUE. Note: deprecated */
 #define	TRX_UNDO_NEXT_LOG	30	/*!< Offset of the next undo log header
 					on this page, 0 if none */
 #define	TRX_UNDO_PREV_LOG	32	/*!< Offset of the previous undo log

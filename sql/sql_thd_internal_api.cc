@@ -308,3 +308,29 @@ int mysql_tmpfile_path(const char *path, const char *prefix)
 
   return fd;
 }
+
+
+bool thd_is_bootstrap_thread(THD *thd)
+{
+  DBUG_ASSERT(thd);
+  return thd->is_bootstrap_system_thread();
+}
+
+
+bool thd_is_dd_update_stmt(const THD *thd)
+{
+  DBUG_ASSERT(thd != nullptr);
+
+  /*
+    OPTION_DD_UPDATE_CONTEXT flag is set when thread switches context to
+    update data dictionary tables for the
+      * DDL statements.
+      * Administration statements as ANALYZE TABLE.
+      * Event threads for next activation time of a event and to update status.
+      * SDI import.
+      ...
+    So verifying OPTION_DD_UPDATE_CONTEXT flag value to check if thread is
+    updating the data dictionary tables.
+  */
+  return (thd->variables.option_bits & OPTION_DD_UPDATE_CONTEXT);
+}

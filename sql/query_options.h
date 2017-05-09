@@ -114,4 +114,6 @@
 
 #define OPTION_SELECT_FOR_SHOW          (1ULL << 37) // SELECT for SHOW over DD.
 
+// Is set while thread is updating the data dictionary tables.
+#define OPTION_DD_UPDATE_CONTEXT        (1ULL << 37) // intern
 #endif  /* QUERY_OPTIONS_INCLUDED */

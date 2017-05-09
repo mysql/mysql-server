@@ -532,20 +532,38 @@ fts_trx_free(
 /*=========*/
 	fts_trx_t*	fts_trx);		/*!< in, own: FTS trx */
 
-/******************************************************************//**
-Creates the common ancillary tables needed for supporting an FTS index
-on the given table. row_mysql_lock_data_dictionary must have been
-called before this.
-@return DB_SUCCESS or error code */
+/** Check if common tables already exist
+@param[in]	table	table with fts index
+@retrun true on success, false on failure */
+bool
+fts_check_common_tables_exist(
+	const dict_table_t*	table);
+
+/** Creates the common auxiliary tables needed for supporting an FTS index
+on the given table. row_mysql_lock_data_dictionary must have been called
+before this.
+The following tables are created.
+CREATE TABLE $FTS_PREFIX_DELETED
+	(doc_id BIGINT UNSIGNED, UNIQUE CLUSTERED INDEX on doc_id)
+CREATE TABLE $FTS_PREFIX_DELETED_CACHE
+	(doc_id BIGINT UNSIGNED, UNIQUE CLUSTERED INDEX on doc_id)
+CREATE TABLE $FTS_PREFIX_BEING_DELETED
+	(doc_id BIGINT UNSIGNED, UNIQUE CLUSTERED INDEX on doc_id)
+CREATE TABLE $FTS_PREFIX_BEING_DELETED_CACHE
+	(doc_id BIGINT UNSIGNED, UNIQUE CLUSTERED INDEX on doc_id)
+CREATE TABLE $FTS_PREFIX_CONFIG
+	(key CHAR(50), value CHAR(200), UNIQUE CLUSTERED INDEX on key)
+@param[in,out]	trx			transaction
+@param[in]	table			table with FTS index
+@param[in]	name			table name normalized
+@param[in]	skip_doc_id_index	Skip index on doc id
+@return DB_SUCCESS if succeed */
 dberr_t
 fts_create_common_tables(
-/*=====================*/
-	trx_t*		trx,			/*!< in: transaction handle */
-	const dict_table_t*
-			table,			/*!< in: table with one FTS
-						index */
-	const char*	name,			/*!< in: table name */
-	bool		skip_doc_id_index)	/*!< in: Skip index on doc id */
+	trx_t*			trx,
+	const dict_table_t*	table,
+	const char*		name,
+	bool			skip_doc_id_index)
 	MY_ATTRIBUTE((warn_unused_result));
 
 /** Creates the column specific ancillary tables needed for supporting an
@@ -795,6 +813,15 @@ fts_drop_index_tables(
 	trx_t*			trx,
 	dict_index_t*		index,
 	aux_name_vec_t*		aux_vec);
+
+/** Empty all common talbes.
+@param[in,out]	trx	transaction
+@param[in]	table	dict table
+@return	DB_SUCCESS or error code. */
+dberr_t
+fts_empty_common_tables(
+	trx_t*		trx,
+	dict_table_t*	table);
 
 /******************************************************************//**
 Remove the table from the OPTIMIZER's list. We do wait for

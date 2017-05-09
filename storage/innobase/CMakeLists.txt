@@ -95,6 +95,7 @@ SET(INNOBASE_SOURCES
 	lock/lock0wait.cc
 	log/log0log.cc
 	log/log0recv.cc
+	log/log0ddl.cc
 	mach/mach0data.cc
 	mtr/mtr0log.cc
 	mtr/mtr0mtr.cc

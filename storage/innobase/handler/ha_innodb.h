@@ -598,6 +598,7 @@ protected:
 	int end_stmt();
 
 	/** Create an InnoDB table.
+	@tparam		Table		dd::Table or dd::Partition
 	@param[in]	name		table name in filename-safe encoding
 	@param[in]	form		table structure
 	@param[in]	create_info	more information
@@ -614,6 +615,7 @@ protected:
 		bool			file_per_table);
 
 	/** Implementation of dropping a table.
+	@tparam		Table		dd::Table or dd::Partition
 	@param[in]	name		table name
 	@param[in,out]	dd_tab		data dictionary table
 	@param[in]	sqlcom		type of operation that the DROP
@@ -627,6 +629,7 @@ protected:
 		enum enum_sql_command	sqlcom);
 
 	/** Renames an InnoDB table.
+	@tparam		Table		dd::Table or dd::Partition
 	@param[in,out]	thd		THD object
 	@param[in,out]	trx		transaction
 	@param[in]	from		old name of the table
@@ -646,7 +649,18 @@ protected:
 		const Table*		from_table,
 		Table*			to_table);
 
+	/** Rename tablespace file name for truncate
+	@tparam		Table		dd::Table or dd::Partition
+	@param[in]	name		table name
+	@param[in]	dd_tab		dd::Table or dd::Partition of the table
+	@return 0 on success, error code on failure */
+	template<typename Table>
+	int truncate_rename_tablespace(
+		const char*		name,
+		const Table*		dd_tab);
+
 	/** Implementation of prepare_inplace_alter_table()
+	@tparam		Table		dd::Table or dd::Partition
 	@param[in]	altered_table	TABLE object for new version of table.
 	@param[in,out]	ha_alter_info	Structure describing changes to be done
 					by ALTER TABLE and holding data used
@@ -666,6 +680,7 @@ protected:
 		Table*			new_dd_tab);
 
 	/** Implementation of inplace_alter_table()
+	@tparam		Table		dd::Table or dd::Partition
 	@param[in]	altered_table	TABLE object for new version of table.
 	@param[in,out]	ha_alter_info	Structure describing changes to be done
 					by ALTER TABLE and holding data used
@@ -685,6 +700,7 @@ protected:
 		Table*			new_dd_tab);
 
 	/** Implementation of commit_inplace_alter_table()
+	@tparam		Table		dd::Table or dd::Partition
 	@param[in]	altered_table	TABLE object for new version of table.
 	@param[in,out]	ha_alter_info	Structure describing changes to be done
 					by ALTER TABLE and holding data used

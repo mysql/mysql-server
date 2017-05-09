@@ -523,6 +523,10 @@ void
 lock_trx_release_locks(
 /*===================*/
 	trx_t*	trx);	/*!< in/out: transaction */
+void
+lock_table_unlock_for_trx(
+	trx_t*		trx);
+
 /*********************************************************************//**
 Removes locks on a table to be dropped.
 If remove_also_table_sx_locks is TRUE then table-level S and X locks are

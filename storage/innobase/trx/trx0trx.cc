@@ -28,6 +28,8 @@ Created 3/26/1996 Heikki Tuuri
 #include <new>
 #include <set>
 
+#include <sql_thd_internal_api.h>
+
 #include "btr0sea.h"
 #include "dict0dd.h"
 #include "fsp0sysspace.h"
@@ -149,6 +151,8 @@ trx_init(
 	trx->lock.n_rec_locks = 0;
 
 	trx->dict_operation = TRX_DICT_OP_NONE;
+
+	trx->ddl_operation = false;
 
 	trx->table_id = 0;
 
@@ -906,6 +910,8 @@ trx_resurrect_insert(
 		trx->start_time = ut_time();
 	}
 
+	trx->ddl_operation = undo->dict_operation;
+
 	if (undo->dict_operation) {
 		trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
 		trx->table_id = undo->table_id;
@@ -995,11 +1001,6 @@ trx_resurrect_update(
 	if (trx->state == TRX_STATE_ACTIVE
 	    || trx->state == TRX_STATE_PREPARED) {
 		trx->start_time = ut_time();
-	}
-
-	if (undo->dict_operation) {
-		trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
-		trx->table_id = undo->table_id;
 	}
 
 	if (!undo->empty && undo->top_undo_no >= trx->undo_no) {
@@ -1384,6 +1385,9 @@ trx_start_low(
 
 	if (trx->mysql_thd != NULL) {
 		trx->start_time = thd_start_time_in_secs(trx->mysql_thd);
+
+		ut_ad(!trx->ddl_operation);
+		trx->ddl_operation = thd_is_dd_update_stmt(trx->mysql_thd);
 	} else {
 		trx->start_time = ut_time();
 	}

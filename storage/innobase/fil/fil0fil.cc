@@ -2837,7 +2837,6 @@ fil_rename_validate(fil_space_t* space, const char* name, Datafile& file)
 @return	whether the operation was successfully applied
 (the name did not exist, or new_name did not exist and
 name was successfully renamed to new_name)  */
-static
 bool
 fil_op_replay_rename(
 	const page_id_t&	page_id,
@@ -3782,6 +3781,7 @@ fil_rename_tablespace(
 	fil_space_t*	space;
 	fil_node_t*	node;
 	ulint		count		= 0;
+	bool		write_ddl_log	= true;
 	ut_a(id != 0);
 
 	ut_ad(strchr(new_name, '/') != NULL);
@@ -3862,9 +3862,41 @@ retry:
 		}
 	}
 
-	/* We temporarily close the .ibd file because we do not trust that
-	operating systems can rename an open file. For the closing we have to
-	wait until there are no pending i/o's or flushes on the file. */
+	/* Don't write DDL log during recovery when log_ddl is not
+	initialized */
+	if (write_ddl_log && log_ddl != nullptr) {
+		/* Write ddl log when space->stop_ios is true can
+		cause deadlock:
+		a. buffer flush thread waits for rename thread to set
+		   stop_ios to false;
+		b. rename thread waits for buffer flush thread to flush
+		   a page and release page lock. The page is ready for
+		   flush in double write buffer. */
+		ut_ad(!space->stop_ios);
+
+		ut_a(UT_LIST_GET_LEN(space->chain) == 1);
+		node = UT_LIST_GET_FIRST(space->chain);
+
+		char*	new_file_name = new_path_in == NULL
+			? fil_make_filepath(NULL, new_name, IBD, false)
+			: mem_strdup(new_path_in);
+		char*	old_file_name = node->name;
+
+		ut_ad(strchr(old_file_name, OS_PATH_SEPARATOR) != NULL);
+		ut_ad(strchr(new_file_name, OS_PATH_SEPARATOR) != NULL);
+
+		mutex_exit(&fil_system->mutex);
+
+		/* Rename ddl log is for rollback, so we exchange old file
+		name with new file name. */
+		log_ddl->writeRenameLog(NULL, id, new_file_name, old_file_name);
+
+		ut_free(new_file_name);
+
+		write_ddl_log = false;
+
+		goto retry;
+	}
 
 	space->stop_ios = true;
 
@@ -3943,11 +3975,17 @@ retry:
 	DBUG_EXECUTE_IF("fil_rename_tablespace_failure_2",
 			goto skip_rename; );
 
+	DBUG_EXECUTE_IF("fil_rename_tablespace_crash_before",
+			DBUG_SUICIDE(); );
+
 	success = os_file_rename(
 		innodb_data_file_key, old_file_name, new_file_name);
 
 	DBUG_EXECUTE_IF("fil_rename_tablespace_failure_2",
 			skip_rename: success = false; );
+
+	DBUG_EXECUTE_IF("fil_rename_tablespace_crash_after",
+			DBUG_SUICIDE(); );
 
 	ut_ad(node->name == old_file_name);
 
@@ -4787,6 +4825,17 @@ fil_space_for_table_exists_in_mem(
 	/* Look if there is a space with the same id */
 
 	space = fil_space_get_by_id(id);
+
+	/* name is NULL when replay DELETE ddl log. */
+	if (name == NULL) {
+		mutex_exit(&fil_system->mutex);
+
+		if (space != NULL) {
+			return(true);
+		} else {
+			return(false);
+		}
+	}
 
 	if (space != NULL
 	    && FSP_FLAGS_GET_SHARED(space->flags)
@@ -8823,6 +8872,7 @@ fil_tablespace_name_recover(
 			std::string	to(
 				reinterpret_cast<const char*>(new_name));
 
+			/* Fixme: wl#9536 replay rename only by ddl log */
 			if (!fil_op_replay_rename(
 				page_id, from.c_str(), to.c_str())) {
 
