@@ -54,8 +54,6 @@
        capacity.
 */
 const int64 Flow_control_module::MAXTPS= INT_MAX32;
-const double Flow_control_module::HOLD_FACTOR= 0.9;
-const double Flow_control_module::RELEASE_FACTOR= 1.5;
 
 
 Pipeline_stats_member_message::Pipeline_stats_member_message(
@@ -409,7 +407,7 @@ Pipeline_member_stats::debug(const char *member, int64 quota_size,
 
 
 Flow_control_module::Flow_control_module()
-  : m_holds_in_period(0), m_quota_used(0), m_quota_size(0), m_stamp(0)
+  : m_holds_in_period(0), m_quota_used(0), m_quota_size(0), m_stamp(0), seconds_to_skip(1)
 {
   mysql_mutex_init(key_GR_LOCK_pipeline_stats_flow_control, &m_flow_control_lock, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_GR_COND_pipeline_stats_flow_control, &m_flow_control_cond);
@@ -426,6 +424,11 @@ Flow_control_module::~Flow_control_module()
 void
 Flow_control_module::flow_control_step()
 {
+  if (--seconds_to_skip > 0)
+    return;
+  else
+    seconds_to_skip= flow_control_period_var;
+
   m_stamp++;
   int32 holds= my_atomic_fas32(&m_holds_in_period, 0);
 
@@ -433,6 +436,13 @@ Flow_control_module::flow_control_step()
   {
     case FCM_QUOTA:
     {
+      double HOLD_FACTOR=
+        1.0 - static_cast<double>(flow_control_hold_percent_var) / 100.0;
+      double RELEASE_FACTOR=
+        1.0 + static_cast<double>(flow_control_release_percent_var) / 100.0;
+      double TARGET_FACTOR=
+        static_cast<double>(flow_control_member_quota_percent_var) / 100.0;
+
       /*
         Postponed transactions
       */
@@ -453,7 +463,7 @@ Flow_control_module::flow_control_step()
 
       if (holds > 0)
       {
-        uint num_writing_members= 0;
+        uint num_writing_members= 0, num_non_recovering_members= 0;
         int64 min_certifier_capacity= MAXTPS, min_applier_capacity= MAXTPS, safe_capacity= MAXTPS;
 
         Flow_control_module_info::iterator it= m_info.begin();
@@ -471,21 +481,32 @@ Flow_control_module::flow_control_step()
           {
             if (flow_control_certifier_threshold_var > 0
                 && it->second.get_delta_transactions_certified() > 0
-                && it->second.get_transactions_waiting_certification() - flow_control_certifier_threshold_var > 0
+                && it->second.get_transactions_waiting_certification()
+                   - flow_control_certifier_threshold_var > 0
                 && min_certifier_capacity > it->second.get_delta_transactions_certified())
+            {
               min_certifier_capacity= it->second.get_delta_transactions_certified();
+            }
 
             if (it->second.get_delta_transactions_certified() > 0)
-              safe_capacity= std::min(safe_capacity, it->second.get_delta_transactions_certified());
+              safe_capacity= std::min(safe_capacity,
+                                      it->second.get_delta_transactions_certified());
 
             if (flow_control_applier_threshold_var > 0
                 && it->second.get_delta_transactions_applied() > 0
-                && it->second.get_transactions_waiting_apply() - flow_control_applier_threshold_var > 0
-                && min_applier_capacity > it->second.get_delta_transactions_applied())
-              min_applier_capacity= it->second.get_delta_transactions_applied();
+                && it->second.get_transactions_waiting_apply()
+                   - flow_control_applier_threshold_var > 0)
+            {
+              if (min_applier_capacity > it->second.get_delta_transactions_applied())
+                min_applier_capacity= it->second.get_delta_transactions_applied();
+
+              if (it->second.get_delta_transactions_applied() > 0)
+                num_non_recovering_members++;
+            }
 
             if (it->second.get_delta_transactions_applied() > 0)
-              safe_capacity= std::min(safe_capacity, it->second.get_delta_transactions_applied());
+              safe_capacity= std::min(safe_capacity,
+                                      it->second.get_delta_transactions_applied());
 
             if (it->second.get_delta_transactions_local() > 0)
               num_writing_members++;
@@ -496,25 +517,66 @@ Flow_control_module::flow_control_step()
 
         // Avoid division by zero.
         num_writing_members= num_writing_members > 0 ? num_writing_members : 1;
-        int64 min_capacity= (min_certifier_capacity > 0 && min_certifier_capacity < min_applier_capacity)
+        int64 min_capacity= (min_certifier_capacity > 0
+                             && min_certifier_capacity < min_applier_capacity)
                              ? min_certifier_capacity : min_applier_capacity;
 
         // Minimum capacity will never be less than lim_throttle.
-        int64 lim_throttle= static_cast<int64>(0.05 * std::min(flow_control_certifier_threshold_var,
-                                            flow_control_applier_threshold_var));
+        int64 lim_throttle= static_cast<int64>
+                            (0.05 * std::min(flow_control_certifier_threshold_var,
+                                             flow_control_applier_threshold_var));
+        if (flow_control_min_recovery_quota_var > 0 && num_non_recovering_members == 0)
+          lim_throttle= flow_control_min_recovery_quota_var;
+        if (flow_control_min_quota_var > 0)
+          lim_throttle= flow_control_min_quota_var;
+
         min_capacity= std::max(std::min(min_capacity, safe_capacity), lim_throttle);
-        quota_size= static_cast<int64>((min_capacity * HOLD_FACTOR) / num_writing_members - extra_quota);
-        my_atomic_store64(&m_quota_size, quota_size > 1 ? quota_size : 1);
+        quota_size= static_cast<int64>(min_capacity * HOLD_FACTOR);
+
+        if (num_writing_members > 1)
+        {
+          if (flow_control_member_quota_percent_var == 0)
+            quota_size /= num_writing_members;
+          else
+            quota_size= static_cast<int64>
+                        (static_cast<double>(quota_size) * TARGET_FACTOR);
+        }
+
+        quota_size = quota_size - extra_quota > 1 ?  quota_size - extra_quota : 1;
+        my_atomic_store64(&m_quota_size, quota_size);
+
+#ifndef DBUG_OFF
+        log_message(MY_INFORMATION_LEVEL,
+                    "Flow control: throttling to %ld commits per %ld sec, "
+                    "with %d writing and %d non-recovering members, "
+                    "min capacity %lld, lim throttle %lld", quota_size,
+                    flow_control_period_var, num_writing_members,
+                     num_non_recovering_members,
+                    min_capacity, lim_throttle);
+#endif
       }
       else
       {
-        if (quota_size > 0 && (quota_size * RELEASE_FACTOR) < MAXTPS)
+        int64 max_quota= static_cast<int64>(flow_control_max_quota_var);
+
+        if (quota_size > 0 && flow_control_release_percent_var > 0
+            && (quota_size * RELEASE_FACTOR) < MAXTPS)
         {
           int64 quota_size_next= static_cast<int64>(quota_size * RELEASE_FACTOR);
           quota_size= quota_size_next > quota_size ? quota_size_next : quota_size + 1;
+
+          if (max_quota > 0)
+            quota_size= std::min(quota_size, max_quota);
+
+#ifndef DBUG_OFF
+        log_message(MY_INFORMATION_LEVEL,
+                    "Flow control: releasing throttle to %ld commits per %ld sec, "
+                    "with %lld maximum quota",
+                    quota_size, flow_control_period_var, max_quota);
+#endif
         }
         else
-          quota_size= 0;
+          quota_size= max_quota > 0 ? max_quota : 0;
 
         my_atomic_store64(&m_quota_size, quota_size);
       }

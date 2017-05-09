@@ -46,6 +46,18 @@ extern int flow_control_applier_threshold_var;
 
 
 /**
+  Options to fine-tune flow-control behaviour
+*/
+extern int flow_control_min_quota_var;
+extern int flow_control_min_recovery_quota_var;
+extern int flow_control_max_quota_var;
+extern int flow_control_member_quota_percent_var;
+extern int flow_control_period_var;
+extern int flow_control_hold_percent_var;
+extern int flow_control_release_percent_var;
+
+
+/**
   @class Pipeline_stats_member_message
 
   Describes all statistics sent by members.
@@ -331,8 +343,6 @@ class Flow_control_module
 {
 public:
   static const int64 MAXTPS;
-  static const double HOLD_FACTOR;
-  static const double RELEASE_FACTOR;
 
   /**
     Default constructor.
@@ -398,6 +408,11 @@ private:
     Counter incremented on every flow control step.
   */
   uint64 m_stamp;
+
+  /*
+    Remaining seconds to skip flow-control steps
+  */
+  int seconds_to_skip;
 };
 
 #endif /* PIPELINE_STATS_INCLUDED */

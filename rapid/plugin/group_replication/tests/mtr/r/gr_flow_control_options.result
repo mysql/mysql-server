@@ -6,6 +6,13 @@ Note	####	Storing MySQL user name or password information in the master info rep
 SET @group_replication_flow_control_mode_save= @@GLOBAL.group_replication_flow_control_mode;
 SET @group_replication_flow_control_certifier_threshold_save= @@GLOBAL.group_replication_flow_control_certifier_threshold;
 SET @group_replication_flow_control_applier_threshold_save= @@GLOBAL.group_replication_flow_control_applier_threshold;
+SET @group_replication_flow_control_min_quota_save= @@GLOBAL.group_replication_flow_control_min_quota;
+SET @group_replication_flow_control_min_recovery_quota_save= @@GLOBAL.group_replication_flow_control_min_recovery_quota;
+SET @group_replication_flow_control_max_quota_save= @@GLOBAL.group_replication_flow_control_max_quota;
+SET @group_replication_flow_control_member_quota_percent_save= @@GLOBAL.group_replication_flow_control_member_quota_percent;
+SET @group_replication_flow_control_period_save= @@GLOBAL.group_replication_flow_control_period;
+SET @group_replication_flow_control_hold_percent_save= @@GLOBAL.group_replication_flow_control_hold_percent;
+SET @group_replication_flow_control_release_percent_save= @@GLOBAL.group_replication_flow_control_release_percent;
 
 ############################################################
 # 1. Test group_replication_flow_control_mode option.
@@ -63,7 +70,132 @@ SET GLOBAL group_replication_flow_control_applier_threshold= 2147483647;
 include/assert.inc [group_replication_flow_control_applier_threshold is correct]
 
 ############################################################
-# 4. Change all group_replication_flow_control options while
+# 4. Test group_replication_flow_control_min_quota
+#    option.
+SET GLOBAL group_replication_flow_control_min_quota= "";
+ERROR 42000: Incorrect argument type to variable 'group_replication_flow_control_min_quota'
+SET GLOBAL group_replication_flow_control_min_quota= -1;
+Warnings:
+Warning	1292	Truncated incorrect group_replication_flow_control_m value: '-1'
+include/assert.inc [group_replication_flow_control_min_quota is truncated]
+SET GLOBAL group_replication_flow_control_min_quota= 2147483648;
+Warnings:
+Warning	1292	Truncated incorrect group_replication_flow_control_m value: '2147483648'
+include/assert.inc [group_replication_flow_control_min_quota is truncated]
+SET GLOBAL group_replication_flow_control_min_quota= 1;
+include/assert.inc [group_replication_flow_control_min_quota is correct]
+SET GLOBAL group_replication_flow_control_min_quota= 2147483647;
+include/assert.inc [group_replication_flow_control_min_quota is correct]
+
+############################################################
+# 5. Test group_replication_flow_control_min_recovery_quota
+#    option.
+SET GLOBAL group_replication_flow_control_min_recovery_quota= "";
+ERROR 42000: Incorrect argument type to variable 'group_replication_flow_control_min_recovery_quota'
+SET GLOBAL group_replication_flow_control_min_recovery_quota= -1;
+Warnings:
+Warning	1292	Truncated incorrect group_replication_flow_control_m value: '-1'
+include/assert.inc [group_replication_flow_control_min_recovery_quota is truncated]
+SET GLOBAL group_replication_flow_control_min_recovery_quota= 2147483648;
+Warnings:
+Warning	1292	Truncated incorrect group_replication_flow_control_m value: '2147483648'
+include/assert.inc [group_replication_flow_control_min_recovery_quota is truncated]
+SET GLOBAL group_replication_flow_control_min_recovery_quota= 1;
+include/assert.inc [group_replication_flow_control_min_recovery_quota is correct]
+SET GLOBAL group_replication_flow_control_min_recovery_quota= 2147483647;
+include/assert.inc [group_replication_flow_control_min_recovery_quota is correct]
+
+############################################################
+# 6. Test group_replication_flow_control_max_quota
+#    option.
+SET GLOBAL group_replication_flow_control_max_quota= "";
+ERROR 42000: Incorrect argument type to variable 'group_replication_flow_control_max_quota'
+SET GLOBAL group_replication_flow_control_max_quota= -1;
+Warnings:
+Warning	1292	Truncated incorrect group_replication_flow_control_m value: '-1'
+include/assert.inc [group_replication_flow_control_max_quota is truncated]
+SET GLOBAL group_replication_flow_control_max_quota= 2147483648;
+Warnings:
+Warning	1292	Truncated incorrect group_replication_flow_control_m value: '2147483648'
+include/assert.inc [group_replication_flow_control_max_quota is truncated]
+SET GLOBAL group_replication_flow_control_max_quota= 1;
+include/assert.inc [group_replication_flow_control_max_quota is correct]
+SET GLOBAL group_replication_flow_control_max_quota= 2147483647;
+include/assert.inc [group_replication_flow_control_max_quota is correct]
+
+############################################################
+# 7. Test group_replication_flow_control_member_quota_percent
+#    option.
+SET GLOBAL group_replication_flow_control_member_quota_percent= "";
+ERROR 42000: Incorrect argument type to variable 'group_replication_flow_control_member_quota_percent'
+SET GLOBAL group_replication_flow_control_member_quota_percent= -1;
+Warnings:
+Warning	1292	Truncated incorrect group_replication_flow_control_m value: '-1'
+include/assert.inc [group_replication_flow_control_member_quota_percent is truncated]
+SET GLOBAL group_replication_flow_control_member_quota_percent= 101;
+Warnings:
+Warning	1292	Truncated incorrect group_replication_flow_control_m value: '101'
+include/assert.inc [group_replication_flow_control_member_quota_percent is truncated]
+SET GLOBAL group_replication_flow_control_member_quota_percent= 1;
+include/assert.inc [group_replication_flow_control_member_quota_percent is correct]
+SET GLOBAL group_replication_flow_control_member_quota_percent= 100;
+include/assert.inc [group_replication_flow_control_member_quota_percent is correct]
+
+############################################################
+# 8. Test group_replication_flow_control_period option.
+SET GLOBAL group_replication_flow_control_period= "";
+ERROR 42000: Incorrect argument type to variable 'group_replication_flow_control_period'
+SET GLOBAL group_replication_flow_control_period= 0;
+Warnings:
+Warning	1292	Truncated incorrect group_replication_flow_control_p value: '0'
+include/assert.inc [group_replication_flow_control_period is truncated]
+SET GLOBAL group_replication_flow_control_period= 61;
+Warnings:
+Warning	1292	Truncated incorrect group_replication_flow_control_p value: '61'
+include/assert.inc [group_replication_flow_control_period is truncated]
+SET GLOBAL group_replication_flow_control_period= 1;
+include/assert.inc [group_replication_flow_control_period is correct]
+SET GLOBAL group_replication_flow_control_period= 60;
+include/assert.inc [group_replication_flow_control_period is correct]
+
+############################################################
+# 9. Test group_replication_flow_control_hold_percent
+#    option.
+
+SET GLOBAL group_replication_flow_control_hold_percent= "";
+ERROR 42000: Incorrect argument type to variable 'group_replication_flow_control_hold_percent'
+SET GLOBAL group_replication_flow_control_hold_percent= -1;
+Warnings:
+Warning	1292	Truncated incorrect group_replication_flow_control_h value: '-1'
+include/assert.inc [group_replication_flow_control_hold_percent is truncated]
+SET GLOBAL group_replication_flow_control_hold_percent= 101;
+Warnings:
+Warning	1292	Truncated incorrect group_replication_flow_control_h value: '101'
+include/assert.inc [group_replication_flow_control_hold_percent is truncated]
+SET GLOBAL group_replication_flow_control_hold_percent= 1;
+include/assert.inc [group_replication_flow_control_hold_percent is correct]
+SET GLOBAL group_replication_flow_control_hold_percent= 100;
+include/assert.inc [group_replication_flow_control_hold_percent is correct]
+############################################################
+# 10. Test group_replication_flow_control_release_percent
+#    option.
+SET GLOBAL group_replication_flow_control_release_percent= "";
+ERROR 42000: Incorrect argument type to variable 'group_replication_flow_control_release_percent'
+SET GLOBAL group_replication_flow_control_release_percent= -1;
+Warnings:
+Warning	1292	Truncated incorrect group_replication_flow_control_r value: '-1'
+include/assert.inc [group_replication_flow_control_release_percent is truncated]
+SET GLOBAL group_replication_flow_control_release_percent= 1001;
+Warnings:
+Warning	1292	Truncated incorrect group_replication_flow_control_r value: '1001'
+include/assert.inc [group_replication_flow_control_release_percent is truncated]
+SET GLOBAL group_replication_flow_control_release_percent= 1;
+include/assert.inc [group_replication_flow_control_release_percent is correct]
+SET GLOBAL group_replication_flow_control_release_percent= 1000;
+include/assert.inc [group_replication_flow_control_release_percent is correct]
+
+############################################################
+# 11. Change all group_replication_flow_control options while
 #    Group Replication is running.
 include/start_and_bootstrap_group_replication.inc
 SET GLOBAL group_replication_flow_control_mode= DISABLED;
@@ -74,10 +206,31 @@ SET GLOBAL group_replication_flow_control_certifier_threshold= 1000;
 include/assert.inc [group_replication_flow_control_certifier_threshold is correct]
 SET GLOBAL group_replication_flow_control_applier_threshold= 1000;
 include/assert.inc [group_replication_flow_control_applier_threshold is correct]
+SET GLOBAL group_replication_flow_control_min_quota= 1000;
+include/assert.inc [group_replication_flow_control_min_quota is correct]
+SET GLOBAL group_replication_flow_control_min_recovery_quota= 1000;
+include/assert.inc [group_replication_flow_control_min_recovery_quota is correct]
+SET GLOBAL group_replication_flow_control_max_quota= 2000;
+include/assert.inc [group_replication_flow_control_max_quota is correct]
+SET GLOBAL group_replication_flow_control_member_quota_percent= 50;
+include/assert.inc [group_replication_flow_control_member_quota_percent is correct]
+SET GLOBAL group_replication_flow_control_period= 10;
+include/assert.inc [group_replication_flow_control_period is correct]
+SET GLOBAL group_replication_flow_control_hold_percent= 15;
+include/assert.inc [group_replication_flow_control_hold_percent is correct]
+SET GLOBAL group_replication_flow_control_release_percent= 150;
+include/assert.inc [group_replication_flow_control_release_percent is correct]
 
 ############################################################
-# 5. Clean up.
+# 12. Clean up.
 SET GLOBAL group_replication_flow_control_mode= @group_replication_flow_control_mode_save;
 SET GLOBAL group_replication_flow_control_certifier_threshold= @group_replication_flow_control_certifier_threshold_save;
 SET GLOBAL group_replication_flow_control_applier_threshold= @group_replication_flow_control_applier_threshold_save;
+SET GLOBAL group_replication_flow_control_min_quota=@group_replication_flow_control_min_quota_save;
+SET GLOBAL group_replication_flow_control_min_recovery_quota=@group_replication_flow_control_min_recovery_quota_save;
+SET GLOBAL group_replication_flow_control_max_quota=@group_replication_flow_control_max_quota_save;
+SET GLOBAL group_replication_flow_control_member_quota_percent=@group_replication_flow_control_member_quota_percent_save;
+SET GLOBAL group_replication_flow_control_period=@group_replication_flow_control_period_save;
+SET GLOBAL group_replication_flow_control_hold_percent=@group_replication_flow_control_hold_percent_save;
+SET GLOBAL group_replication_flow_control_release_percent=@group_replication_flow_control_release_percent_save;
 include/group_replication_end.inc

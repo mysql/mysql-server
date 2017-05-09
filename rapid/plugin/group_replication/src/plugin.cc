@@ -187,6 +187,13 @@ ulong flow_control_mode_var= FCM_QUOTA;
 #define MIN_FLOW_CONTROL_THRESHOLD 0
 int flow_control_certifier_threshold_var= DEFAULT_FLOW_CONTROL_THRESHOLD;
 int flow_control_applier_threshold_var= DEFAULT_FLOW_CONTROL_THRESHOLD;
+int flow_control_min_quota_var= 0;
+int flow_control_min_recovery_quota_var= 0;
+int flow_control_max_quota_var= 0;
+int flow_control_member_quota_percent_var= 0;
+int flow_control_period_var= 1;
+int flow_control_hold_percent_var= 10;
+int flow_control_release_percent_var= 10;
 
 /* Transaction size limits */
 #define DEFAULT_TRANSACTION_SIZE_LIMIT 150000000
@@ -2569,6 +2576,104 @@ static MYSQL_SYSVAR_ULONG(
   0                                    /* block */
 );
 
+static MYSQL_SYSVAR_INT(
+  flow_control_min_quota,                /* name */
+  flow_control_min_quota_var,            /* var */
+  PLUGIN_VAR_OPCMDARG,                  /* optional var */
+  "Specifies the minimum flow-control quota that can be assigned to a node."
+  "Default: 0 (5% of thresholds)",
+  NULL,                                 /* check func. */
+  NULL,                                 /* update func. */
+  MIN_FLOW_CONTROL_THRESHOLD,           /* default */
+  MIN_FLOW_CONTROL_THRESHOLD,           /* min */
+  MAX_FLOW_CONTROL_THRESHOLD,           /* max */
+  0                                     /* block */
+);
+
+static MYSQL_SYSVAR_INT(
+  flow_control_min_recovery_quota,      /* name */
+  flow_control_min_recovery_quota_var,  /* var */
+  PLUGIN_VAR_OPCMDARG,                  /* optional var */
+  "Specifies the minimum flow-control quota that can be assigned to a node,"
+  "if flow control was needed due to a recovering node. Default: 0 (disabled)",
+  NULL,                                 /* check func. */
+  NULL,                                 /* update func. */
+  MIN_FLOW_CONTROL_THRESHOLD,           /* default */
+  MIN_FLOW_CONTROL_THRESHOLD,           /* min */
+  MAX_FLOW_CONTROL_THRESHOLD,           /* max */
+  0                                     /* block */
+);
+
+static MYSQL_SYSVAR_INT(
+  flow_control_max_quota,               /* name */
+  flow_control_max_quota_var,           /* var */
+  PLUGIN_VAR_OPCMDARG,                  /* optional var */
+  "Specifies the maximum cluster commit rate allowed when flow-control is active."
+  "Default: 0 (disabled)",
+  NULL,                                 /* check func. */
+  NULL,                                 /* update func. */
+  MIN_FLOW_CONTROL_THRESHOLD,           /* default */
+  MIN_FLOW_CONTROL_THRESHOLD,           /* min */
+  MAX_FLOW_CONTROL_THRESHOLD,           /* max */
+  0                                     /* block */
+);
+
+static MYSQL_SYSVAR_INT(
+  flow_control_member_quota_percent,    /* name */
+  flow_control_member_quota_percent_var,/* var */
+  PLUGIN_VAR_OPCMDARG,                  /* optional var */
+  "Specifies the proportion of the quota that is assigned to this member."
+  "Default: 0% (disabled)",
+  NULL,                                 /* check func. */
+  NULL,                                 /* update func. */
+  0,                                    /* default */
+  0,                                    /* min */
+  100,                                  /* max */
+  0                                     /* block */
+);
+
+static MYSQL_SYSVAR_INT(
+  flow_control_period,                  /* name */
+  flow_control_period_var,              /* var */
+  PLUGIN_VAR_OPCMDARG,                  /* optional var */
+  "Specifies how many seconds to wait between flow-control iterations."
+  "Default: 1",
+  NULL,                                 /* check func. */
+  NULL,                                 /* update func. */
+  1,                                    /* default */
+  1,                                    /* min */
+  60,                                   /* max */
+  0                                     /* block */
+);
+
+static MYSQL_SYSVAR_INT(
+  flow_control_hold_percent,            /* name */
+  flow_control_hold_percent_var,        /* var */
+  PLUGIN_VAR_OPCMDARG,                  /* optional var */
+  "Specifies the percentage of the quota that is reserved for catch-up."
+  "Default: 10%, 0 disables",
+  NULL,                                 /* check func. */
+  NULL,                                 /* update func. */
+  10,                                   /* default */
+  0,                                    /* min */
+  100,                                  /* max */
+  0                                     /* block */
+);
+
+static MYSQL_SYSVAR_INT(
+  flow_control_release_percent,         /* name */
+  flow_control_release_percent_var,     /* var */
+  PLUGIN_VAR_OPCMDARG,                  /* optional var */
+  "Specifies the percentage of the quota the can increase per iteration"
+  "when flow-control is released. Default: 10%, 0 disables",
+  NULL,                                 /* check func. */
+  NULL,                                 /* update func. */
+  50,                                   /* default */
+  0,                                    /* min */
+  1000,                                 /* max */
+  0                                     /* block */
+);
+
 static SYS_VAR* group_replication_system_vars[]= {
   MYSQL_SYSVAR(group_name),
   MYSQL_SYSVAR(start_on_boot),
@@ -2603,6 +2708,13 @@ static SYS_VAR* group_replication_system_vars[]= {
   MYSQL_SYSVAR(flow_control_certifier_threshold),
   MYSQL_SYSVAR(flow_control_applier_threshold),
   MYSQL_SYSVAR(transaction_size_limit),
+  MYSQL_SYSVAR(flow_control_min_quota),
+  MYSQL_SYSVAR(flow_control_min_recovery_quota),
+  MYSQL_SYSVAR(flow_control_max_quota),
+  MYSQL_SYSVAR(flow_control_member_quota_percent),
+  MYSQL_SYSVAR(flow_control_period),
+  MYSQL_SYSVAR(flow_control_hold_percent),
+  MYSQL_SYSVAR(flow_control_release_percent),
   NULL,
 };
 
