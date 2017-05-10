@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2046,8 +2046,8 @@ protected:
   virtual bool getParam(const char* name, Uint32* count);
   
 private:
-   Uint32 c_time_track_histogram_boundary[TIME_TRACK_HISTOGRAM_RANGES];
-   bool c_time_track_activated;
+  Uint32 c_time_track_histogram_boundary[TIME_TRACK_HISTOGRAM_RANGES];
+  bool c_time_track_activated;
   // Transit signals
 
 
@@ -2214,10 +2214,8 @@ private:
 
   UintR cscanFragrecFileSize;
 
-  BlockReference cdictblockref;
-  BlockReference cerrorBlockref;
-  BlockReference clqhblockref;
   BlockReference cndbcntrblockref;
+  BlockInstance cspjInstanceRR;    // SPJ instance round-robin counter
 
   Uint16 csignalKey;
   Uint16 csystemnodes;
@@ -2255,21 +2253,12 @@ private:
   BlockReference tblockref;
 
   Uint8 tcurrentReplicaNo;
-  Uint8 tpad1;
-
-  UintR tapplOprec;
 
   UintR tindex;
   UintR tmaxData;
-  UintR tmp;
 
-  UintR tnodes;
   BlockReference tusersblkref;
   UintR tuserpointer;
-  UintR tloadCode;
-
-  UintR tconfig1;
-  UintR tconfig2;
 
   UintR ctransidFailHash[TRANSID_FAIL_HASH_SIZE];
   UintR ctcConnectFailHash[TC_FAIL_HASH_SIZE];
