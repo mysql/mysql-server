@@ -216,7 +216,8 @@ inline int Cell::compare(const Field& field, const CHARSET_INFO* cs,
   /* If both cells' data is identical, then no need to use the expensive
    * comparisons below because we know that they will report equality. */
   if (lhs.m_data_length == rhs.m_data_length &&
-      memcmp(lhs.m_data, rhs.m_data, lhs.m_data_length) == 0) {
+      (lhs.m_data_length == 0 ||
+       memcmp(lhs.m_data, rhs.m_data, lhs.m_data_length) == 0)) {
     return 0;
   }
 
