@@ -5,7 +5,6 @@
 #include <stdio.h>
 #include <iostream>
 #include <sstream>
-#include <my_dbug.h>
 
 struct ldap_log_type {
   typedef enum {
@@ -40,44 +39,40 @@ private:
 
 template<ldap_log_type::ldap_type type>
 void Ldap_logger::log(std::string msg) {
-  std::stringstream header;
+  std::stringstream log_stream;
   switch (type) {
   case ldap_log_type::LDAP_LOG_DBG:
     if (LDAP_LOG_LEVEL_ALL > m_log_level) {
-      goto WRITE_DBG;
+      return;
     }
-    header << "[DBG] ";
+    log_stream << "[DBG] ";
     break;
   case ldap_log_type::LDAP_LOG_INFO:
     if (LDAP_LOG_LEVEL_ERROR_WARNING_INFO > m_log_level) {
-      goto WRITE_DBG;
+      return;
     }
-    header << "[Note] ";
+    log_stream << "[Note] ";
     break;
   case ldap_log_type::LDAP_LOG_WARNING:
     if (LDAP_LOG_LEVEL_ERROR_WARNING > m_log_level) {
-      goto WRITE_DBG;
+      return;
     }
-    header << "[Warning] ";
+    log_stream << "[Warning] ";
     break;
   case ldap_log_type::LDAP_LOG_ERROR:
     if (LDAP_LOG_LEVEL_NONE >= m_log_level) {
-      goto WRITE_DBG;
+      return;
     }
-    header << "[Error] ";
+    log_stream << "[Error] ";
     break;
   };
 
   /** We can write debug messages also in error log file if logging level is set to debug.
       For MySQL client this will come from environment variable */
   if (m_log_writer){
-    header << my_getsystime() << ": ";
-    m_log_writer->write(header.str());
-    m_log_writer->write(msg);
+    log_stream << ": " << msg;
+    m_log_writer->write(log_stream.str());
   }
-WRITE_DBG:
-  /** Log all the messages as debug messages as well. */
-  DBUG_PRINT("ldap/sasl auth client plug-in: ", (": %s", msg.c_str()));
 }
 
 extern Ldap_logger *g_logger_client;
