@@ -2686,7 +2686,7 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
     thd->pop_internal_handler();
   }
 
-  delete file;
+  destroy(file);
 
 #ifdef HAVE_PSI_TABLE_INTERFACE
   if (likely(error == 0))

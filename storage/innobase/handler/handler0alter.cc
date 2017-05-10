@@ -5543,7 +5543,7 @@ err_exit:
 	trx_free_for_mysql(ctx->trx);
 	trx_commit_for_mysql(ctx->prebuilt->trx);
 
-	delete ctx;
+	destroy(ctx);
 	ha_alter_info->handler_ctx = NULL;
 
 	DBUG_RETURN(true);

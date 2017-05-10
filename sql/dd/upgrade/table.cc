@@ -481,7 +481,7 @@ bool Trigger_loader::load_triggers(THD *thd,
     */
     if (triggers->push_back(t, mem_root))
     {
-      delete t;
+      destroy(t);
       DBUG_RETURN(true);
     }
   }
@@ -668,7 +668,7 @@ public:
 
     free_table_share(m_table->s);
 
-    delete m_handler;
+    destroy(m_handler);
     /*
       Make a copy of mem_root as TABLE object is allocated within its
       own mem_root and free_root() updates its argument.

@@ -321,9 +321,9 @@ bool prepare_default_value(THD *thd, uchar *buf, const TABLE &table,
   retval= false;
 
 err:
-  // Delete the field, despite being MEM_ROOT allocated, to avoid memory
+  // Destroy the field, despite being MEM_ROOT allocated, to avoid memory
   // leak for fields that allocate extra memory (e.g Field_blob::value).
-  delete regfield;
+  destroy(regfield);
   return retval;
 }
 
@@ -350,7 +350,7 @@ bool prepare_default_value_buffer_and_table_share(THD *thd,
   size_t extra_length= file->extra_rec_buf_length();
   size_t min_length= static_cast<size_t>(file->min_record_length(
           share->db_create_options));
-  delete file;
+  destroy(file);
 
   // Get the number of columns, record length etc.
   if (find_record_length(table, min_length, share))

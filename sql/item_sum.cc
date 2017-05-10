@@ -2351,8 +2351,7 @@ void Item_sum_hybrid::cleanup()
   DBUG_ENTER("Item_sum_hybrid::cleanup");
   Item_sum::cleanup();
   forced_const= FALSE;
-  if (cmp)
-    delete cmp;
+  destroy(cmp);
   cmp= 0;
   /*
     by default it is TRUE to avoid TRUE reporting by

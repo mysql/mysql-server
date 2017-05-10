@@ -111,7 +111,7 @@ TEST_F(JTSortTest, SortFoundRecordsTest)
 
   for (int i= 0; i < num_tables; i++)
   {
-    delete arr[i];
+    destroy(arr[i]);
   }
 }
 
@@ -148,7 +148,7 @@ TEST_F(JTSortTest, SortDependsTest)
 
   for (int i= 0; i < num_tables; i++)
   {
-    delete arr[i];
+    destroy(arr[i]);
   }
 }
 
@@ -183,7 +183,7 @@ TEST_F(JTSortTest, SortKeyDependsTest)
     EXPECT_TRUE(arr[i]->found_records < arr[i-1]->found_records);
 
   for (int i= 0; i < num_tables; i++)
-    delete arr[i];
+    destroy(arr[i]);
 }
 
 /*

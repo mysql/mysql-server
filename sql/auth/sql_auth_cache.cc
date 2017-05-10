@@ -2796,10 +2796,10 @@ static bool grant_load_procs_priv(TABLE *p_table)
 
       mem_check->privs= fix_rights_for_procedure(mem_check->privs);
       if (! mem_check->ok())
-        delete mem_check;
+        destroy(mem_check);
       else if (my_hash_insert(hash, (uchar*) mem_check))
       {
-        delete mem_check;
+        destroy(mem_check);
         goto end_unlock;
       }
       error= p_table->file->ha_index_next(p_table->record[0]);
@@ -2907,7 +2907,7 @@ static bool grant_load(THD *thd, TABLE_LIST *tables)
 
       if (mem_check->init(c_table))
       {
-        delete mem_check;
+        destroy(mem_check);
         goto end_unlock;
       }
 
@@ -2924,10 +2924,10 @@ static bool grant_load(THD *thd, TABLE_LIST *tables)
       }
 
       if (! mem_check->ok())
-        delete mem_check;
+        destroy(mem_check);
       else if (my_hash_insert(&column_priv_hash,(uchar*) mem_check))
       {
-        delete mem_check;
+        destroy(mem_check);
         goto end_unlock;
       }
       error= t_table->file->ha_index_next(t_table->record[0]);

@@ -1649,7 +1649,7 @@ innobase_create_handler(
 		ha_innopart* file = new (mem_root) ha_innopart(hton, table);
 		if (file && file->init_partitioning(mem_root))
 		{
-			delete file;
+			destroy(file);
 			return(NULL);
 		}
 		return(file);

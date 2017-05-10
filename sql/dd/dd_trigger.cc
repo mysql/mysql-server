@@ -405,7 +405,7 @@ bool load_triggers(THD *thd,
 
     if (triggers->push_back(trigger_to_add, mem_root))
     {
-      delete trigger_to_add;
+      destroy(trigger_to_add);
       DBUG_RETURN(true);
     }
   }

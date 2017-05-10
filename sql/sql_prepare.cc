@@ -2455,7 +2455,7 @@ Prepared_statement::Prepared_statement(THD *thd_arg)
 
 void Prepared_statement::close_cursor()
 {
-  delete result;
+  destroy(result);
   result= nullptr;
   delete cursor;
   cursor= nullptr;
@@ -2504,7 +2504,7 @@ Prepared_statement::~Prepared_statement()
   DBUG_ENTER("Prepared_statement::~Prepared_statement");
   DBUG_PRINT("enter",("stmt: %p  cursor: %p",
                       this, cursor));
-  delete result;
+  destroy(result);
   delete cursor;
   /*
     We have to call free on the items even if cleanup is called as some items,
@@ -2515,7 +2515,7 @@ Prepared_statement::~Prepared_statement()
   {
     DBUG_ASSERT(lex->sphead == NULL);
     lex_end(lex);
-    delete lex->result;
+    destroy(lex->result);
     delete (st_lex_local *) lex;                // TRASH memory
   }
   free_root(&main_mem_root, MYF(0));
@@ -3320,7 +3320,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
       else if ((error= mysql_open_cursor(thd, result, &cursor)))
       {
         // cursor is freed inside mysql_open_cursor
-        delete result;
+        destroy(result);
         result= nullptr;
       }
     }

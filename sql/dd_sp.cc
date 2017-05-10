@@ -175,7 +175,7 @@ static void prepare_type_string_from_dd_param(THD *thd,
   table.in_use= thd;
   table.s= &share;
 
-  std::unique_ptr<Field >
+  std::unique_ptr<Field, Destroy_only<Field>>
     field(::make_field(table.s, (uchar *)0, param->char_length(),
                        (uchar *)"", 0,
                        dd_get_old_field_type(param->data_type()),
