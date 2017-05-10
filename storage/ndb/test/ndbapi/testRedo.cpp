@@ -27,6 +27,10 @@
 #include <NdbMgmd.hpp>
 #include "../../src/ndbapi/NdbInfo.hpp"
 
+#ifndef UINT32_MAX
+#define UINT32_MAX (4294967295U)
+#endif 
+
 static NdbMutex* g_msgmutex = 0;
 
 #undef require
