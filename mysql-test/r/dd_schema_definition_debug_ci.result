@@ -51,7 +51,7 @@ id	name	type	engine	collation_id	comment	hidden	options	se_private_data	se_priva
 20	index_partitions	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	30	1
 28	innodb_table_stats	BASE TABLE	InnoDB	83		Visible	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	38	1
 29	innodb_index_stats	BASE TABLE	InnoDB	83		Visible	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	39	1
-31	character_sets	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=255;version=1;	12	1
+32	character_sets	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=255;version=1;	12	1
 #
 # Subset of definitions from columns, not including
 # default_values.
@@ -288,13 +288,13 @@ id	table_id	name	ordinal_position	type	is_nullable	is_zerofill	is_unsigned	char_
 341	29	stat_description	8	MYSQL_TYPE_VARCHAR	0	0	0	3072	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
 342	29	DB_TRX_ID	9	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	NULL
 343	29	DB_ROLL_PTR	10	MYSQL_TYPE_LONGLONG	0	0	0	7	0	NULL	NULL	63	NULL	NULL	0		1	NULL	NULL
-348	31	id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	8	NULL	NULL	1		0	interval_count=0;	table_id=12;
-349	31	name	2	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	33	NULL	NULL	0		0	interval_count=0;	table_id=12;
-350	31	default_collation_id	3	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	8	NULL	NULL	0		0	interval_count=0;	table_id=12;
-351	31	comment	4	MYSQL_TYPE_VARCHAR	0	0	0	6144	0	NULL	NULL	33	NULL	NULL	0		0	interval_count=0;	table_id=12;
-352	31	mb_max_length	5	MYSQL_TYPE_LONG	0	0	1	10	10	0	NULL	8	NULL	NULL	0		0	interval_count=0;	table_id=12;
-353	31	DB_TRX_ID	6	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=12;
-354	31	DB_ROLL_PTR	7	MYSQL_TYPE_LONGLONG	0	0	0	7	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=12;
+359	32	id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	8	NULL	NULL	1		0	interval_count=0;	table_id=12;
+360	32	name	2	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	33	NULL	NULL	0		0	interval_count=0;	table_id=12;
+361	32	default_collation_id	3	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	8	NULL	NULL	0		0	interval_count=0;	table_id=12;
+362	32	comment	4	MYSQL_TYPE_VARCHAR	0	0	0	6144	0	NULL	NULL	33	NULL	NULL	0		0	interval_count=0;	table_id=12;
+363	32	mb_max_length	5	MYSQL_TYPE_LONG	0	0	1	10	10	0	NULL	8	NULL	NULL	0		0	interval_count=0;	table_id=12;
+364	32	DB_TRX_ID	6	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=12;
+365	32	DB_ROLL_PTR	7	MYSQL_TYPE_LONGLONG	0	0	0	7	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=12;
 #
 # Definitions from indexes
 SELECT * FROM indexes
@@ -374,9 +374,9 @@ id	table_id	name	type	algorithm	is_algorithm_explicit	is_visible	is_generated	hi
 57	20	tablespace_id	MULTIPLE	BTREE	0	1	1	0	3		flags=0;	id=67;root=60;trx_id=0;	1	InnoDB
 81	28	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=32;	id=91;root=84;trx_id=0;	1	InnoDB
 82	29	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=32;	id=92;root=85;trx_id=0;	1	InnoDB
-84	31	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=12;root=4;space_id=4294967294;table_id=12;trx_id=769;	1	InnoDB
-85	31	name	UNIQUE	BTREE	0	1	0	0	2		flags=32;	id=13;root=5;space_id=4294967294;table_id=12;trx_id=769;	1	InnoDB
-86	31	default_collation_id	MULTIPLE	BTREE	0	1	0	0	3		flags=0;	id=14;root=6;space_id=4294967294;table_id=12;trx_id=769;	1	InnoDB
+86	32	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=12;root=4;space_id=4294967294;table_id=12;trx_id=769;	1	InnoDB
+87	32	name	UNIQUE	BTREE	0	1	0	0	2		flags=32;	id=13;root=5;space_id=4294967294;table_id=12;trx_id=769;	1	InnoDB
+88	32	default_collation_id	MULTIPLE	BTREE	0	1	0	0	3		flags=0;	id=14;root=6;space_id=4294967294;table_id=12;trx_id=769;	1	InnoDB
 #
 # Definitions from index_column_usage
 SELECT * FROM index_column_usage
@@ -699,15 +699,15 @@ index_id	ordinal_position	column_id	length	order	hidden
 82	10	341	NULL	ASC	1
 82	5	342	NULL	ASC	1
 82	6	343	NULL	ASC	1
-84	1	348	8	ASC	0
-84	4	349	NULL	ASC	1
-84	5	350	NULL	ASC	1
-84	6	351	NULL	ASC	1
-84	7	352	NULL	ASC	1
-84	2	353	NULL	ASC	1
-84	3	354	NULL	ASC	1
-85	2	348	NULL	ASC	1
-85	1	349	192	ASC	0
-86	2	348	NULL	ASC	1
-86	1	350	8	ASC	0
+86	1	359	8	ASC	0
+86	4	360	NULL	ASC	1
+86	5	361	NULL	ASC	1
+86	6	362	NULL	ASC	1
+86	7	363	NULL	ASC	1
+86	2	364	NULL	ASC	1
+86	3	365	NULL	ASC	1
+87	2	359	NULL	ASC	1
+87	1	360	192	ASC	0
+88	2	359	NULL	ASC	1
+88	1	360	8	ASC	0
 SET GLOBAL debug= '-d,skip_dd_table_access_check';
