@@ -1905,14 +1905,19 @@ fts_empty_common_tables(
 
 		fts_table.suffix = fts_common_tables[i];
 
+		/* "config" table should not be emptied, as it has the
+		last used DOC ID info */
+		if (i == 2) {
+			ut_ad(ut_strcmp(fts_table.suffix , "config") == 0);
+			continue;
+		}
+
 		err = fts_empty_table(trx, &fts_table);
 
 		if (err != DB_SUCCESS) {
 			error = err;
 		}
 	}
-
-	error = fts_init_config_table(trx, &fts_table);
 
 	return(error);
 }
