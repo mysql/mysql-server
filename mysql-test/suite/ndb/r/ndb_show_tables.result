@@ -74,9 +74,4 @@ XX    OrderedIndex         Online   No      sys          def      sys/defXX/PRIM
 
 NDBT_ProgramExit: 0 - OK
 
-id    type                 state    logging database     schema   name
-XX    OrderedIndex         Online   No      sys          def      sys/defXX/PRIMARY
-
-NDBT_ProgramExit: 0 - OK
-
 DROP TABLE test.t1;

@@ -31,7 +31,6 @@
 static Ndb_cluster_connection *ndb_cluster_connection= 0;
 static Ndb* ndb = 0;
 static const NdbDictionary::Dictionary * dic = 0;
-static int _unqualified = 0;
 static int _fully_qualified = 0;
 static int _parsable = 0;
 static int show_temp_status = 0;
@@ -83,9 +82,7 @@ list(const char * tabname,
      NdbDictionary::Object::Type type)
 {
     /**
-     * Display fully qualified table names if either
-     * --fully-qualified is set to 1 or --unqualified
-     * is set to 0.
+     * Display fully qualified table names if --fully-qualified is set to 1.
      *
      * useFq passed to listObjects() and listIndexes() below in this context
      * actually behaves like 'unqualified'.
@@ -94,7 +91,7 @@ list(const char * tabname,
      * useFq == false : Return the full name
      * (database/schema/[tableid/]indexname|tablename)
      */
-    bool useFq = _unqualified && !_fully_qualified;
+    bool useFq = !_fully_qualified;
 
     NdbDictionary::Dictionary::List list;
     if (tabname == 0) {
@@ -306,11 +303,6 @@ static struct my_option my_long_options[] =
   { "type", 't', "type",
     (uchar**) &_type, (uchar**) &_type, 0,
     GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 }, 
-  { "unqualified", 'u', "Show unqualified table names."
-    " This option is deprecated. Use --fully-qualified"
-    " instead to display fully qualified table names.",
-    (uchar**) &_unqualified, (uchar**) &_unqualified, 0,
-    GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0 },
   { "fully-qualified", 'f', "Show fully qualified table names",
     (uchar**) &_fully_qualified, (uchar**) &_fully_qualified, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
