@@ -448,6 +448,7 @@ protected:
   void execLCP_COMPLETE_REP(Signal*);
   void execWAIT_ALL_COMPLETE_LCP_REQ(Signal*);
   void execWAIT_COMPLETE_LCP_CONF(Signal*);
+  void execINFO_GCP_STOP_TIMER(Signal*);
 
   Uint32 m_outstanding_wait_lcp;
   BlockReference m_wait_all_lcp_sender;

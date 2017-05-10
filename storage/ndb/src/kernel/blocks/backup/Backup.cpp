@@ -11929,7 +11929,20 @@ Backup::finalize_lcp_processing(Signal *signal, BackupRecordPtr ptr)
 void
 Backup::execRESTORABLE_GCI_REP(Signal *signal)
 {
-  m_newestRestorableGci = signal->theData[0];
+  Uint32 restorable_gci = signal->theData[0];
+  if (restorable_gci > m_newestRestorableGci)
+  {
+    jam();
+    m_newestRestorableGci = restorable_gci;
+  }
+  else
+  {
+    jam();
+    DEB_LCP(("(%u)Already received this restorable gci: %u",
+             instance(),
+             restorable_gci));
+    return;
+  }
 #ifdef DEBUG_LCP
   DeleteLcpFilePtr deleteLcpFilePtr;
   LocalDeleteLcpFile_list queue(c_deleteLcpFilePool,
@@ -12766,7 +12779,7 @@ Backup::execLCP_STATUS_REQ(Signal* signal)
       if (ptr.p->m_wait_end_lcp)
       {
         jam();
-        state = LcpStatusConf::LCP_WAIT_GCI_TO_DELETE_FILES;
+        state = LcpStatusConf::LCP_WAIT_END_LCP;
       }
       else
       {
@@ -12906,6 +12919,20 @@ Backup::execLCP_STATUS_REQ(Signal* signal)
                    conf->completionStateHi,
                    conf->completionStateLo);
         }
+      }
+      else if (state == LcpStatusConf::LCP_WAIT_END_LCP)
+      {
+        jam();
+        DeleteLcpFilePtr deleteLcpFilePtr;
+        LocalDeleteLcpFile_list queue(c_deleteLcpFilePool,
+                                      m_delete_lcp_file_head);
+        ndbrequire(!queue.isEmpty());
+        queue.first(deleteLcpFilePtr);
+        Uint32 waitGCI = (deleteLcpFilePtr.i != RNIL) ? 
+           deleteLcpFilePtr.p->waitCompletedGci : 0;
+        ndbrequire(waitGCI >= m_newestRestorableGci);
+        conf->completionStateHi = 0;
+        conf->completionStateLo = m_newestRestorableGci;
       }
       
       failCode = 0;

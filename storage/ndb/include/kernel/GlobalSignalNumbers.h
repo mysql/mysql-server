@@ -24,7 +24,7 @@
  *
  * When adding a new signal, remember to update MAX_GSN and SignalNames.cpp
  */
-const GlobalSignalNumber MAX_GSN = 795;
+const GlobalSignalNumber MAX_GSN = 796;
 
 struct GsnName {
   GlobalSignalNumber gsn;
@@ -1128,4 +1128,6 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 
 #define GSN_INFORM_BACKUP_DROP_TAB_REQ  794
 #define GSN_INFORM_BACKUP_DROP_TAB_CONF 795
+
+#define GSN_INFO_GCP_STOP_TIMER         796
 #endif

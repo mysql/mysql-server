@@ -27438,14 +27438,20 @@ Dblqh::lcpStateString(LcpStatusConf::LcpState lcpState)
       return "LCP_PREPARE_READ_TABLE_DESC";
     case LcpStatusConf::LCP_PREPARE_ABORTING:
       return "LCP_PREPARE_ABORTING";
-    case LcpStatusConf::LCP_WAIT_GCI_TO_DELETE_FILES:
-      return "LCP_WAIT_GCI_TO_DELETE_FILES";
+    case LcpStatusConf::LCP_WAIT_END_LCP:
+      return "LCP_WAIT_END_LCP";
     case LcpStatusConf::LCP_PREPARE_WAIT_DROP_CASE:
       return "LCP_PREPARE_WAIT_DROP_CASE";
     default:
       return "LCP_UNKNOWN_STATE";
   }
   return NULL;
+}
+
+void
+Dblqh::execINFO_GCP_STOP_TIMER(Signal *signal)
+{
+  c_gcp_stop_timer = signal->theData[0];
 }
 
 /**
@@ -27524,9 +27530,17 @@ Dblqh::checkLcpFragWatchdog(Signal* signal)
              c_lcpFragWatchdog.completionStatus,
              completionStatusString,
              lcpStateString(c_lcpFragWatchdog.lcpState));
-    
-    if (c_lcpFragWatchdog.elapsedNoProgressMillis >=
-        c_lcpFragWatchdog.MaxElapsedWithNoProgressMillis)
+
+    Uint32 max_no_progress_time =
+      c_lcpFragWatchdog.MaxElapsedWithNoProgressMillis;
+
+    if ((c_lcpFragWatchdog.lcpState == LcpStatusConf::LCP_WAIT_END_LCP) &&
+        (max_no_progress_time < (2 * c_gcp_stop_timer)))
+    {
+      jam();
+      max_no_progress_time = 2 * c_gcp_stop_timer;
+    }
+    if (c_lcpFragWatchdog.elapsedNoProgressMillis >= max_no_progress_time)
     {
       jam();
       /* Too long with no progress... */

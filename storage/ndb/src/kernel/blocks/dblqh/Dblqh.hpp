@@ -3489,6 +3489,9 @@ private:
 #endif
 
 public:
+  void execINFO_GCP_STOP_TIMER(Signal*);
+  Uint32 c_gcp_stop_timer;
+
   bool is_same_trans(Uint32 opId, Uint32 trid1, Uint32 trid2);
   void get_op_info(Uint32 opId, Uint32 *hash, Uint32* gci_hi, Uint32* gci_lo,
                    Uint32* transId1, Uint32* transId2);

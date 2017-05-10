@@ -33,6 +33,7 @@ void Dblqh::initData()
   c_master_node_id = RNIL;
 #endif
 
+  c_gcp_stop_timer = 0;
   c_is_io_lag_reported = false;
   c_wait_lcp_surfacing = false;
 
@@ -471,6 +472,8 @@ Dblqh::Dblqh(Block_context& ctx, Uint32 instanceNumber):
 
   addRecSignal(GSN_LCP_STATUS_CONF, &Dblqh::execLCP_STATUS_CONF);
   addRecSignal(GSN_LCP_STATUS_REF, &Dblqh::execLCP_STATUS_REF);
+
+  addRecSignal(GSN_INFO_GCP_STOP_TIMER, &Dblqh::execINFO_GCP_STOP_TIMER);
 
   initData();
 
