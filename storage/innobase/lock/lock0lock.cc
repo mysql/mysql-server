@@ -4330,8 +4330,6 @@ lock_table_unlock_for_trx(
 	while (lock != NULL) {
 		lock_t*	prev_lock = UT_LIST_GET_PREV(trx_locks, lock);
 
-		ut_d(lock_check_dict_lock(lock));
-
 		if (lock_get_type_low(lock) == LOCK_TABLE) {
 			dict_table_t*	table = lock->un_member.tab_lock.table;
 
