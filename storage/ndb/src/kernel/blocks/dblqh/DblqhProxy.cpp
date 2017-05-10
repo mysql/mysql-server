@@ -113,6 +113,8 @@ DblqhProxy::DblqhProxy(Block_context& ctx) :
   addRecSignal(GSN_DROP_FRAG_CONF, &DblqhProxy::execDROP_FRAG_CONF);
   addRecSignal(GSN_DROP_FRAG_REF, &DblqhProxy::execDROP_FRAG_REF);
 
+  // GSN_INFO_GCP_STOP_TIMER
+  addRecSignal(GSN_INFO_GCP_STOP_TIMER, &DblqhProxy::execINFO_GCP_STOP_TIMER);
 }
 
 DblqhProxy::~DblqhProxy()
@@ -163,6 +165,18 @@ DblqhProxy::callREAD_CONFIG_REQ(Signal* signal)
   for (i = 0; i < c_tableRecSize; i++)
     c_tableRec[i] = 0;
   backREAD_CONFIG_REQ(signal);
+}
+
+// GSN_INFO_GCP_STOP_TIMER
+void
+DblqhProxy::execINFO_GCP_STOP_TIMER(Signal* signal)
+{
+  for (Uint32 i = 0; i < c_workers; i++)
+  {
+    jam();
+    sendSignal(workerRef(i), GSN_INFO_GCP_STOP_TIMER, signal,
+               signal->getLength(), JBB);
+  }
 }
 
 // GSN_CREATE_TAB_REQ

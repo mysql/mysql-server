@@ -1862,7 +1862,7 @@ Dbdih::execNODE_START_REP(Signal* signal)
       c_dictLockSlavePtrI_nodeRestart = RNIL;
     }
   }
-  setGCPStopTimeouts();
+  setGCPStopTimeouts(signal);
 }
 
 void
@@ -9495,7 +9495,7 @@ void Dbdih::execNODE_FAILREP(Signal* signal)
     setNodeRestartInfoBits(signal);
   }//if
 
-  setGCPStopTimeouts();
+  setGCPStopTimeouts(signal);
 }//Dbdih::execNODE_FAILREP()
 
 void Dbdih::checkCopyTab(Signal* signal, NodeRecordPtr failedNodePtr)
@@ -17501,6 +17501,11 @@ void Dbdih::execCOPY_GCICONF(Signal* signal)
     sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);    
 
     c_newest_restorable_gci = m_gcp_save.m_gci;
+
+    /* Make sure Backup block knows about GCI restorable ASAP */
+    signal->theData[0] = c_newest_restorable_gci;
+    sendSignal(BACKUP_REF, GSN_RESTORABLE_GCI_REP, signal, 1, JBB);
+
 #ifdef ERROR_INSERT
     /**
      * With changes in LCP handling it became rare that we come here when
@@ -22197,7 +22202,7 @@ void Dbdih::checkGcpStopLab(Signal* signal)
     */
     if (!done)
     {
-      setGCPStopTimeouts();
+      setGCPStopTimeouts(signal);
       done = true;
     }
   }
@@ -23280,7 +23285,7 @@ Dbdih::compute_max_failure_time()
   Calculate timeouts for detecting GCP stops. These must be set such that
   node failures are not falsely interpreted as GCP stops.
 */
-void Dbdih::setGCPStopTimeouts()
+void Dbdih::setGCPStopTimeouts(Signal *signal)
 {
   
   const ndb_mgm_configuration_iterator* cfgIter = 
@@ -23370,7 +23375,16 @@ void Dbdih::setGCPStopTimeouts()
       g_eventLogger->info("GCP Monitor: unlimited lags allowed");
     }
   }
+  sendINFO_GCP_STOP_TIMER(signal);
 } // setGCPStopTimeouts()
+
+void Dbdih::sendINFO_GCP_STOP_TIMER(Signal *signal)
+{
+  Uint32 gcp_stop_timer_in_ms = MAX(m_gcp_monitor.m_micro_gcp.m_max_lag_ms,
+                                    m_gcp_monitor.m_gcp_save.m_max_lag_ms);
+  signal->theData[0] = gcp_stop_timer_in_ms;
+  sendSignal(DBLQH_REF, GSN_INFO_GCP_STOP_TIMER, signal, 1, JBB);
+}
 
 void Dbdih::initCommonData()
 {
@@ -26546,6 +26560,7 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
                           signal->theData[2]);
       m_gcp_monitor.m_gcp_save.m_max_lag_ms = signal->theData[2];
     }
+    sendINFO_GCP_STOP_TIMER(signal);
   }
       
 

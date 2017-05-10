@@ -1611,7 +1611,8 @@ private:
   void checkCopyTab(Signal*, NodeRecordPtr failedNodePtr);
 
   Uint32 compute_max_failure_time();
-  void setGCPStopTimeouts();
+  void setGCPStopTimeouts(Signal*);
+  void sendINFO_GCP_STOP_TIMER(Signal*);
   void initCommonData();
   void initialiseRecordsLab(Signal *, Uint32 stepNo, Uint32, Uint32);
 
