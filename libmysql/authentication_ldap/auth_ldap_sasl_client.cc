@@ -276,16 +276,7 @@ EXIT:
   return rc_auth;
 }
 
-/**
-  Client plugin declaration. This is added to mysql_client_builtins[]
-  in sql-common/client.c
-*/
-
-//extern "C"
-st_mysql_client_plugin_AUTHENTICATION ldap_auth_client_plugin=
-{
-  MYSQL_CLIENT_AUTHENTICATION_PLUGIN,
-  MYSQL_CLIENT_AUTHENTICATION_PLUGIN_INTERFACE_VERSION,
+mysql_declare_client_plugin(AUTHENTICATION)
   "authentication_ldap_sasl_client",
   "Yashwant Sahu",
   "LDAP SASL Client Authentication Plugin",
@@ -296,4 +287,4 @@ st_mysql_client_plugin_AUTHENTICATION ldap_auth_client_plugin=
   NULL,
   NULL,
   sasl_authenticate
-};
+mysql_end_client_plugin;
