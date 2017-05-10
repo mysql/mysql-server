@@ -11818,7 +11818,6 @@ void free_pointer_array(POINTER_ARRAY *pa)
 void replace_dynstr_append_mem(DYNAMIC_STRING *ds,
                                const char *val, size_t len)
 {
-  char lower[512];
 #ifdef _WIN32
   fix_win_paths(val, len);
 #endif
@@ -11826,12 +11825,7 @@ void replace_dynstr_append_mem(DYNAMIC_STRING *ds,
   if (display_result_lower) 
   {
     /* Convert to lower case, and do this first */
-    char *c= lower;
-    for (const char *v= val;  *v;  v++)
-      *c++= my_tolower(charset_info, *v);
-    *c= '\0';
-    /* Copy from this buffer instead */
-    val= lower;
+    my_casedn_str(charset_info, (char*)val);
   }
   
   if (glob_replace_regex)

@@ -878,9 +878,9 @@ INSERT INTO t1 SELECT f1 - 256 FROM t1;
 INSERT INTO t1 SELECT f1 - 512 FROM t1;
 SELECT * FROM t1;
 DROP TABLE t1;
-select "500g blåbærsyltetøy" as "will be lower cased";
+select "500g blÃ¥bÃ¦rsyltetÃ¸y" as "will be lower cased";
 will be lower cased
-500g blåbærsyltetøy
+500g blÃ¥bÃ¦rsyltetÃ¸y
 SELECT "UPPER" AS "WILL NOT BE lower cased";
 WILL NOT BE lower cased
 UPPER
@@ -898,9 +898,11 @@ xyz
 select 1 as "some new text";
 some new text
 1
-select 0 as "will not lower case ÄËÐ";
-will not lower case ÄËÐ
+set names latin1;
+select 0 as "will lower case å";
+will lower case å
 0
+set names utf8mb4;
 CREATE TABLE t1(
 a int, b varchar(255), c datetime
 );
