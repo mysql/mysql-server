@@ -281,11 +281,13 @@ SHOW CREATE TABLE mysql.user;
 SHOW CREATE TABLE mysql.innodb_table_stats;
 SHOW CREATE TABLE mysql.innodb_index_stats;
 
+--disable_warnings
 SELECT COLUMN_NAME,CHARACTER_MAXIMUM_LENGTH
   FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME IN
   (SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES
      WHERE TABLE_NAME LIKE '%innodb_%_stats')
   AND COLUMN_NAME LIKE 'table_name';
+--enable_warnings
 
 SHOW CREATE TABLE test.t_compressed;
 SHOW CREATE TABLE test.t_compressed2;

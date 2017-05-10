@@ -121,6 +121,11 @@ dict_build_tablespace(
 		return(err);
 	}
 
+	DBUG_EXECUTE_IF(
+		"innodb_fail_to_update_tablespace_dict",
+		os_file_delete(innodb_data_file_key, datafile->filepath());
+		return(DB_INTERRUPTED););
+
 	mtr_start(&mtr);
 
 	/* Once we allow temporary general tablespaces, we must do this;
