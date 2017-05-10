@@ -8711,7 +8711,7 @@ i_s_innodb_cached_indexes_fill_table(
 
 		if (ret) {
 			i_s_fill_innodb_cached_indexes_row(
-				thd, index_id, space_id, tables->table);
+				thd, space_id, index_id, tables->table);
 		}
 
 		mem_heap_empty(heap);
