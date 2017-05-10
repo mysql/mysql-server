@@ -915,11 +915,8 @@ void Dbtc::intstartphase1x010Lab(Signal* signal, NodeId nodeId)
 {
   cownNodeid = nodeId;
   cownref =          reference();
-  clqhblockref =     calcLqhBlockRef(cownNodeid);
   cdihblockref =     calcDihBlockRef(cownNodeid);
-  cdictblockref =    calcDictBlockRef(cownNodeid);
   cndbcntrblockref = calcNdbCntrBlockRef(cownNodeid);
-  cerrorBlockref   = calcNdbCntrBlockRef(cownNodeid);
   coperationsize = 0;
   cfailure_nr = 0;
   ndbsttorry010Lab(signal);
@@ -3744,13 +3741,31 @@ void Dbtc::attrinfoDihReceivedLab(Signal* signal)
   {
     jam();
     arrGuard(Tnode, MAX_NDB_NODES);
-    Uint32 instanceKey = regTcPtr->lqhInstanceKey;
     BlockReference lqhRef;
-    if(regCachePtr->viaSPJFlag){
-      //ndbout << "TC:Choosing SPJ." << endl;
-      lqhRef = numberToRef(DBSPJ, instanceKey, Tnode);
-    }else{
-      //ndbout << "TC:Choosing LQH." << endl;
+    if(regCachePtr->viaSPJFlag)
+    {
+      if (Tnode == getOwnNodeId())
+      {
+        //Node local req; send to SPJ-instance in own block-thread
+        lqhRef = numberToRef(DBSPJ, instance(), Tnode);
+      }
+      else
+      {
+        /* Round robin the SPJ requests:
+         *
+         * Note that our protocol allows non existing block instances
+         * to be adressed, in which case the receiver will modulo fold
+         * among the existing SPJ instances.
+         * Distribute among 120 'virtual' SPJ blocks as this is divisible
+         * by most commom number of SPJ blocks (1,2,3,4,5,6,8,10...)
+         */
+        const Uint32 blockInstance = (cspjInstanceRR++ % 120) + 1;
+        lqhRef = numberToRef(DBSPJ, blockInstance, Tnode);
+      }
+    }
+    else
+    {
+      const Uint32 instanceKey = regTcPtr->lqhInstanceKey;
       lqhRef = numberToRef(DBLQH, instanceKey, Tnode);
     }
     packLqhkeyreq(signal, lqhRef);
@@ -12712,16 +12727,35 @@ void Dbtc::startFragScanLab(Signal* signal, Uint32 tableId,
     break;
   }//switch
   
-  /* Send SCANFRAGREQ to LQH block
-   * SCANFRAGREQ with optional KEYINFO and mandatory ATTRINFO are
-   * now sent to LQH
+  /* Send SCANFRAGREQ directly to LQH block, or 'viaSPJ'
+   * In the later case we may do a Round-Robin load distribution
+   * among the SPJ instances if multiple SPJ requests are needed.
+   */
+  Uint32 blockInstance;
+  if (scanptr.p->m_scan_block_no == DBLQH)
+  {
+    blockInstance = fragConf.instanceKey;
+  }
+  /* Else, it is a 'viaSPJ request': */
+  else if (nodeId == ownNodeId &&        //Request to ownNodeId
+           scanptr.p->scanNoFrag == 1)   //Pruned to single fragment
+  {
+    blockInstance = instance();          //Choose SPJ-instance in own block-thread
+  }
+  else
+  {
+    //See comment for other usage of 'cspjInstanceRR'
+    blockInstance = (cspjInstanceRR++ % 120) + 1;
+  }
+
+  /* SCANFRAGREQ with optional KEYINFO and mandatory ATTRINFO are
+   * now sent to LQH / SPJ
    * This starts the scan on the given fragment.
    * If this is the last SCANFRAGREQ, sendScanFragReq will release
    * the KeyInfo and AttrInfo sections when sending.
    */
-  Uint32 instanceKey = fragConf.instanceKey;
   scanFragptr.p->lqhBlockref = numberToRef(scanptr.p->m_scan_block_no,
-                                           instanceKey, nodeId);
+                                           blockInstance, nodeId);
 
   scanFragptr.p->m_connectCount = getNodeInfo(nodeId).m_connectCount;
 
