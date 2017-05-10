@@ -32,26 +32,26 @@ AND name IN ('innodb_table_stats',
 'dd_properties'))
 ORDER BY id;
 id	name	type	engine	collation_id	comment	hidden	options	se_private_data	se_private_id	tablespace_id
-1	dd_properties	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	11	1
-3	collations	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	13	1
-4	tablespaces	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	14	1
-5	tablespace_files	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	15	1
-6	catalogs	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	16	1
-7	schemata	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	17	1
-9	tables	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	19	1
-10	view_table_usage	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	20	1
-12	columns	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	22	1
-13	indexes	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	23	1
-14	index_column_usage	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	24	1
-15	column_type_elements	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	25	1
-16	foreign_keys	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	26	1
-17	foreign_key_column_usage	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	27	1
-18	table_partitions	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	28	1
-19	table_partition_values	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	29	1
-20	index_partitions	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	30	1
-28	innodb_table_stats	BASE TABLE	InnoDB	83		Visible	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	38	1
-29	innodb_index_stats	BASE TABLE	InnoDB	83		Visible	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	39	1
-32	character_sets	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=255;version=1;	12	1
+1	dd_properties	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	1	1
+3	collations	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	3	1
+4	tablespaces	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	4	1
+5	tablespace_files	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	5	1
+6	catalogs	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	6	1
+7	schemata	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	7	1
+9	tables	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	9	1
+10	view_table_usage	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	10	1
+12	columns	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	12	1
+13	indexes	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	13	1
+14	index_column_usage	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	14	1
+15	column_type_elements	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	15	1
+16	foreign_keys	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	16	1
+17	foreign_key_column_usage	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	17	1
+18	table_partitions	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	18	1
+19	table_partition_values	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	19	1
+20	index_partitions	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	20	1
+28	innodb_table_stats	BASE TABLE	InnoDB	83		Visible	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	28	1
+29	innodb_index_stats	BASE TABLE	InnoDB	83		Visible	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	29	1
+32	character_sets	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=255;version=1;	2	1
 #
 # Subset of definitions from columns, not including
 # default_values.
@@ -288,13 +288,13 @@ id	table_id	name	ordinal_position	type	is_nullable	is_zerofill	is_unsigned	char_
 341	29	stat_description	8	MYSQL_TYPE_VARCHAR	0	0	0	3072	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
 342	29	DB_TRX_ID	9	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	NULL
 343	29	DB_ROLL_PTR	10	MYSQL_TYPE_LONGLONG	0	0	0	7	0	NULL	NULL	63	NULL	NULL	0		1	NULL	NULL
-359	32	id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	8	NULL	NULL	1		0	interval_count=0;	table_id=12;
-360	32	name	2	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	33	NULL	NULL	0		0	interval_count=0;	table_id=12;
-361	32	default_collation_id	3	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	8	NULL	NULL	0		0	interval_count=0;	table_id=12;
-362	32	comment	4	MYSQL_TYPE_VARCHAR	0	0	0	6144	0	NULL	NULL	33	NULL	NULL	0		0	interval_count=0;	table_id=12;
-363	32	mb_max_length	5	MYSQL_TYPE_LONG	0	0	1	10	10	0	NULL	8	NULL	NULL	0		0	interval_count=0;	table_id=12;
-364	32	DB_TRX_ID	6	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=12;
-365	32	DB_ROLL_PTR	7	MYSQL_TYPE_LONGLONG	0	0	0	7	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=12;
+359	32	id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	8	NULL	NULL	1		0	interval_count=0;	table_id=2;
+360	32	name	2	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	33	NULL	NULL	0		0	interval_count=0;	table_id=2;
+361	32	default_collation_id	3	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	8	NULL	NULL	0		0	interval_count=0;	table_id=2;
+362	32	comment	4	MYSQL_TYPE_VARCHAR	0	0	0	6144	0	NULL	NULL	33	NULL	NULL	0		0	interval_count=0;	table_id=2;
+363	32	mb_max_length	5	MYSQL_TYPE_LONG	0	0	1	10	10	0	NULL	8	NULL	NULL	0		0	interval_count=0;	table_id=2;
+364	32	DB_TRX_ID	6	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=2;
+365	32	DB_ROLL_PTR	7	MYSQL_TYPE_LONGLONG	0	0	0	7	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=2;
 #
 # Definitions from indexes
 SELECT * FROM indexes
@@ -322,61 +322,61 @@ AND name IN ('innodb_table_stats',
 'dd_properties'))
 ORDER BY id;
 id	table_id	name	type	algorithm	is_algorithm_explicit	is_visible	is_generated	hidden	ordinal_position	comment	options	se_private_data	tablespace_id	engine
-1	1	PRIMARY	UNIQUE	BTREE	0	1	0	1	1		NULL	id=11;root=3;trx_id=0;	1	InnoDB
-5	3	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=15;root=7;trx_id=0;	1	InnoDB
-6	3	name	UNIQUE	BTREE	0	1	0	0	2		flags=32;	id=16;root=8;trx_id=0;	1	InnoDB
-7	3	character_set_id	MULTIPLE	BTREE	0	1	1	0	3		flags=0;	id=17;root=9;trx_id=0;	1	InnoDB
-8	4	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=18;root=10;trx_id=0;	1	InnoDB
-9	4	name	UNIQUE	BTREE	0	1	0	0	2		flags=32;	id=19;root=11;trx_id=0;	1	InnoDB
-10	5	tablespace_id	UNIQUE	BTREE	0	1	0	0	1		flags=0;	id=20;root=12;trx_id=0;	1	InnoDB
-11	5	file_name	UNIQUE	BTREE	0	1	0	0	2		flags=32;	id=21;root=13;trx_id=0;	1	InnoDB
-12	6	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=22;root=14;trx_id=0;	1	InnoDB
-13	6	name	UNIQUE	BTREE	0	1	0	0	2		flags=32;	id=23;root=15;trx_id=0;	1	InnoDB
-14	7	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=24;root=16;trx_id=0;	1	InnoDB
-15	7	catalog_id	UNIQUE	BTREE	0	1	0	0	2		flags=32;	id=25;root=17;trx_id=0;	1	InnoDB
-16	7	default_collation_id	MULTIPLE	BTREE	0	1	1	0	3		flags=0;	id=26;root=18;trx_id=0;	1	InnoDB
-19	9	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=29;root=21;trx_id=0;	1	InnoDB
-20	9	schema_id	UNIQUE	BTREE	0	1	0	0	2		flags=32;	id=30;root=22;trx_id=0;	1	InnoDB
-21	9	engine	UNIQUE	BTREE	0	1	0	0	3		flags=32;	id=31;root=23;trx_id=0;	1	InnoDB
-22	9	engine_2	MULTIPLE	BTREE	0	1	0	0	4		flags=32;	id=32;root=24;trx_id=0;	1	InnoDB
-23	9	collation_id	MULTIPLE	BTREE	0	1	1	0	5		flags=0;	id=33;root=25;trx_id=0;	1	InnoDB
-24	9	tablespace_id	MULTIPLE	BTREE	0	1	1	0	6		flags=0;	id=34;root=26;trx_id=0;	1	InnoDB
-25	10	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=32;	id=35;root=27;trx_id=0;	1	InnoDB
-26	10	table_catalog	MULTIPLE	BTREE	0	1	0	0	2		flags=32;	id=36;root=28;trx_id=0;	1	InnoDB
-29	12	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=39;root=31;trx_id=0;	1	InnoDB
-30	12	table_id	UNIQUE	BTREE	0	1	0	0	2		flags=32;	id=40;root=32;trx_id=0;	1	InnoDB
-31	12	table_id_2	UNIQUE	BTREE	0	1	0	0	3		flags=0;	id=41;root=33;trx_id=0;	1	InnoDB
-32	12	collation_id	MULTIPLE	BTREE	0	1	1	0	4		flags=0;	id=42;root=34;trx_id=0;	1	InnoDB
-33	13	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=43;root=35;trx_id=0;	1	InnoDB
-34	13	table_id	UNIQUE	BTREE	0	1	0	0	2		flags=32;	id=44;root=36;trx_id=0;	1	InnoDB
-35	13	tablespace_id	MULTIPLE	BTREE	0	1	1	0	3		flags=0;	id=45;root=37;trx_id=0;	1	InnoDB
-36	14	index_id	UNIQUE	BTREE	0	1	0	0	1		flags=0;	id=46;root=38;trx_id=0;	1	InnoDB
-37	14	index_id_2	UNIQUE	BTREE	0	1	0	0	2		flags=0;	id=47;root=39;trx_id=0;	1	InnoDB
-38	14	f2	MULTIPLE	BTREE	0	1	1	0	3		flags=0;	id=48;root=40;trx_id=0;	1	InnoDB
-39	15	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=49;root=41;trx_id=0;	1	InnoDB
-40	16	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=50;root=42;trx_id=0;	1	InnoDB
-41	16	schema_id	UNIQUE	BTREE	0	1	0	0	2		flags=32;	id=51;root=43;trx_id=0;	1	InnoDB
-42	16	table_id	UNIQUE	BTREE	0	1	0	0	3		flags=32;	id=52;root=44;trx_id=0;	1	InnoDB
-43	16	referenced_table_catalog	MULTIPLE	BTREE	0	1	0	0	4		flags=32;	id=53;root=45;trx_id=0;	1	InnoDB
-44	16	unique_constraint_id	MULTIPLE	BTREE	0	1	1	0	5		flags=0;	id=54;root=47;trx_id=0;	1	InnoDB
-45	17	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=55;root=48;trx_id=0;	1	InnoDB
-46	17	foreign_key_id	UNIQUE	BTREE	0	1	0	0	2		flags=32;	id=56;root=49;trx_id=0;	1	InnoDB
-47	17	column_id	MULTIPLE	BTREE	0	1	1	0	3		flags=0;	id=57;root=50;trx_id=0;	1	InnoDB
-48	18	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=58;root=51;trx_id=0;	1	InnoDB
-49	18	table_id	UNIQUE	BTREE	0	1	0	0	2		flags=32;	id=59;root=52;trx_id=0;	1	InnoDB
-50	18	table_id_2	UNIQUE	BTREE	0	1	0	0	3		flags=0;	id=60;root=53;trx_id=0;	1	InnoDB
-51	18	engine	UNIQUE	BTREE	0	1	0	0	4		flags=32;	id=61;root=54;trx_id=0;	1	InnoDB
-52	18	engine_2	MULTIPLE	BTREE	0	1	0	0	5		flags=32;	id=62;root=55;trx_id=0;	1	InnoDB
-53	18	tablespace_id	MULTIPLE	BTREE	0	1	1	0	6		flags=0;	id=63;root=56;trx_id=0;	1	InnoDB
-54	19	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=64;root=57;trx_id=0;	1	InnoDB
-55	20	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=65;root=58;trx_id=0;	1	InnoDB
-56	20	index_id	MULTIPLE	BTREE	0	1	1	0	2		flags=0;	id=66;root=59;trx_id=0;	1	InnoDB
-57	20	tablespace_id	MULTIPLE	BTREE	0	1	1	0	3		flags=0;	id=67;root=60;trx_id=0;	1	InnoDB
-81	28	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=32;	id=91;root=84;trx_id=0;	1	InnoDB
-82	29	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=32;	id=92;root=85;trx_id=0;	1	InnoDB
-86	32	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=12;root=4;space_id=4294967294;table_id=12;trx_id=769;	1	InnoDB
-87	32	name	UNIQUE	BTREE	0	1	0	0	2		flags=32;	id=13;root=5;space_id=4294967294;table_id=12;trx_id=769;	1	InnoDB
-88	32	default_collation_id	MULTIPLE	BTREE	0	1	0	0	3		flags=0;	id=14;root=6;space_id=4294967294;table_id=12;trx_id=769;	1	InnoDB
+1	1	PRIMARY	UNIQUE	BTREE	0	1	0	1	1		NULL	id=1;root=3;trx_id=0;	1	InnoDB
+5	3	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=5;root=7;trx_id=0;	1	InnoDB
+6	3	name	UNIQUE	BTREE	0	1	0	0	2		flags=32;	id=6;root=8;trx_id=0;	1	InnoDB
+7	3	character_set_id	MULTIPLE	BTREE	0	1	1	0	3		flags=0;	id=7;root=9;trx_id=0;	1	InnoDB
+8	4	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=8;root=10;trx_id=0;	1	InnoDB
+9	4	name	UNIQUE	BTREE	0	1	0	0	2		flags=32;	id=9;root=11;trx_id=0;	1	InnoDB
+10	5	tablespace_id	UNIQUE	BTREE	0	1	0	0	1		flags=0;	id=10;root=12;trx_id=0;	1	InnoDB
+11	5	file_name	UNIQUE	BTREE	0	1	0	0	2		flags=32;	id=11;root=13;trx_id=0;	1	InnoDB
+12	6	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=12;root=14;trx_id=0;	1	InnoDB
+13	6	name	UNIQUE	BTREE	0	1	0	0	2		flags=32;	id=13;root=15;trx_id=0;	1	InnoDB
+14	7	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=14;root=16;trx_id=0;	1	InnoDB
+15	7	catalog_id	UNIQUE	BTREE	0	1	0	0	2		flags=32;	id=15;root=17;trx_id=0;	1	InnoDB
+16	7	default_collation_id	MULTIPLE	BTREE	0	1	1	0	3		flags=0;	id=16;root=18;trx_id=0;	1	InnoDB
+19	9	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=19;root=21;trx_id=0;	1	InnoDB
+20	9	schema_id	UNIQUE	BTREE	0	1	0	0	2		flags=32;	id=20;root=22;trx_id=0;	1	InnoDB
+21	9	engine	UNIQUE	BTREE	0	1	0	0	3		flags=32;	id=21;root=23;trx_id=0;	1	InnoDB
+22	9	engine_2	MULTIPLE	BTREE	0	1	0	0	4		flags=32;	id=22;root=24;trx_id=0;	1	InnoDB
+23	9	collation_id	MULTIPLE	BTREE	0	1	1	0	5		flags=0;	id=23;root=25;trx_id=0;	1	InnoDB
+24	9	tablespace_id	MULTIPLE	BTREE	0	1	1	0	6		flags=0;	id=24;root=26;trx_id=0;	1	InnoDB
+25	10	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=32;	id=25;root=27;trx_id=0;	1	InnoDB
+26	10	table_catalog	MULTIPLE	BTREE	0	1	0	0	2		flags=32;	id=26;root=28;trx_id=0;	1	InnoDB
+29	12	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=29;root=31;trx_id=0;	1	InnoDB
+30	12	table_id	UNIQUE	BTREE	0	1	0	0	2		flags=32;	id=30;root=32;trx_id=0;	1	InnoDB
+31	12	table_id_2	UNIQUE	BTREE	0	1	0	0	3		flags=0;	id=31;root=33;trx_id=0;	1	InnoDB
+32	12	collation_id	MULTIPLE	BTREE	0	1	1	0	4		flags=0;	id=32;root=34;trx_id=0;	1	InnoDB
+33	13	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=33;root=35;trx_id=0;	1	InnoDB
+34	13	table_id	UNIQUE	BTREE	0	1	0	0	2		flags=32;	id=34;root=36;trx_id=0;	1	InnoDB
+35	13	tablespace_id	MULTIPLE	BTREE	0	1	1	0	3		flags=0;	id=35;root=37;trx_id=0;	1	InnoDB
+36	14	index_id	UNIQUE	BTREE	0	1	0	0	1		flags=0;	id=36;root=38;trx_id=0;	1	InnoDB
+37	14	index_id_2	UNIQUE	BTREE	0	1	0	0	2		flags=0;	id=37;root=39;trx_id=0;	1	InnoDB
+38	14	f2	MULTIPLE	BTREE	0	1	1	0	3		flags=0;	id=38;root=40;trx_id=0;	1	InnoDB
+39	15	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=39;root=41;trx_id=0;	1	InnoDB
+40	16	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=40;root=42;trx_id=0;	1	InnoDB
+41	16	schema_id	UNIQUE	BTREE	0	1	0	0	2		flags=32;	id=41;root=43;trx_id=0;	1	InnoDB
+42	16	table_id	UNIQUE	BTREE	0	1	0	0	3		flags=32;	id=42;root=44;trx_id=0;	1	InnoDB
+43	16	referenced_table_catalog	MULTIPLE	BTREE	0	1	0	0	4		flags=32;	id=43;root=45;trx_id=0;	1	InnoDB
+44	16	unique_constraint_id	MULTIPLE	BTREE	0	1	1	0	5		flags=0;	id=44;root=47;trx_id=0;	1	InnoDB
+45	17	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=45;root=48;trx_id=0;	1	InnoDB
+46	17	foreign_key_id	UNIQUE	BTREE	0	1	0	0	2		flags=32;	id=46;root=49;trx_id=0;	1	InnoDB
+47	17	column_id	MULTIPLE	BTREE	0	1	1	0	3		flags=0;	id=47;root=50;trx_id=0;	1	InnoDB
+48	18	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=48;root=51;trx_id=0;	1	InnoDB
+49	18	table_id	UNIQUE	BTREE	0	1	0	0	2		flags=32;	id=49;root=52;trx_id=0;	1	InnoDB
+50	18	table_id_2	UNIQUE	BTREE	0	1	0	0	3		flags=0;	id=50;root=53;trx_id=0;	1	InnoDB
+51	18	engine	UNIQUE	BTREE	0	1	0	0	4		flags=32;	id=51;root=54;trx_id=0;	1	InnoDB
+52	18	engine_2	MULTIPLE	BTREE	0	1	0	0	5		flags=32;	id=52;root=55;trx_id=0;	1	InnoDB
+53	18	tablespace_id	MULTIPLE	BTREE	0	1	1	0	6		flags=0;	id=53;root=56;trx_id=0;	1	InnoDB
+54	19	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=54;root=57;trx_id=0;	1	InnoDB
+55	20	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=55;root=58;trx_id=0;	1	InnoDB
+56	20	index_id	MULTIPLE	BTREE	0	1	1	0	2		flags=0;	id=56;root=59;trx_id=0;	1	InnoDB
+57	20	tablespace_id	MULTIPLE	BTREE	0	1	1	0	3		flags=0;	id=57;root=60;trx_id=0;	1	InnoDB
+81	28	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=32;	id=81;root=84;trx_id=0;	1	InnoDB
+82	29	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=32;	id=82;root=85;trx_id=0;	1	InnoDB
+86	32	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=2;root=4;space_id=4294967294;table_id=2;trx_id=769;	1	InnoDB
+87	32	name	UNIQUE	BTREE	0	1	0	0	2		flags=32;	id=3;root=5;space_id=4294967294;table_id=2;trx_id=769;	1	InnoDB
+88	32	default_collation_id	MULTIPLE	BTREE	0	1	0	0	3		flags=0;	id=4;root=6;space_id=4294967294;table_id=2;trx_id=769;	1	InnoDB
 #
 # Definitions from index_column_usage
 SELECT * FROM index_column_usage
