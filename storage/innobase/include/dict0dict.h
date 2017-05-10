@@ -1525,7 +1525,7 @@ struct dict_sys_t{
 	static bool is_reserved(space_id_t space)
 	{ return(space >= dict_sys_t::reserved_space_id); }
 
-	/** Check if a table is hardcoded.
+	/** Check if a table is hardcoded. it only includes the dd tables
         @param[in]      id      table ID
         @retval true    if the table is a persistent hard-coded table
                         (dict_table_t::is_temporary() will not hold)
@@ -1536,7 +1536,7 @@ struct dict_sys_t{
                 return(id < NUM_HARD_CODED_TABLES);
         }
 
-	/** Number of hard coded table */
+	/** Number of hard coded new dd tables */
 	static constexpr table_id_t	NUM_HARD_CODED_TABLES = 30;
 
 	/** The first ID of the redo log pseudo-tablespace */

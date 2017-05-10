@@ -13830,8 +13830,7 @@ ha_innobase::get_se_private_data(
 	uint		dd_version)
 {
 	static uint	n_tables = 0;
-	/* TODO: Once SYS_* tables have been removed, no need for 18 here */
-	static uint	n_indexes = DICT_HDR_FIRST_ID + 1;
+	static uint	n_indexes = 0;
 	static uint	n_pages = 3;
 
 #ifdef UNIV_DEBUG
@@ -13862,14 +13861,13 @@ ha_innobase::get_se_private_data(
 
 	DBUG_ASSERT(dd_table->name() == data.name);
 
-	/* TODO: Once SYS_* tables have been removed, no need for 16 here */
-	dd_table->set_se_private_id(DICT_HDR_FIRST_ID + 1 + n_tables++);
+	dd_table->set_se_private_id(++n_tables);
 	dd_table->set_tablespace_id(dict_sys_t::dd_space_id);
 
 	for (dd::Index* i : *dd_table->indexes()) {
 		i->set_tablespace_id(dict_sys_t::dd_space_id);
 
-		if (fsp_is_inode_page(n_pages)) {
+		if (fsp_is_inode_page(n_pages) && n_pages != 2) {
 			++n_pages;
 			ut_ad(!fsp_is_inode_page(n_pages));
 		}
@@ -13877,7 +13875,7 @@ ha_innobase::get_se_private_data(
 		dd::Properties& p = i->se_private_data();
 
 		p.set_uint32(dd_index_key_strings[DD_INDEX_ROOT], n_pages++);
-		p.set_uint64(dd_index_key_strings[DD_INDEX_ID], n_indexes++);
+		p.set_uint64(dd_index_key_strings[DD_INDEX_ID], ++n_indexes);
 		p.set_uint64(dd_index_key_strings[DD_INDEX_TRX_ID], 0);
 	}
 

@@ -53,7 +53,7 @@ class THD;
 class MDL_ticket;
 
 /** Max table id for DD table */
-static constexpr uint	INNODB_DD_TABLE_ID_MAX = 70;
+static constexpr uint	INNODB_DD_TABLE_ID_MAX = 60;
 
 /** Handler name for InnoDB */
 static constexpr char handler_name[] = "InnoDB";
@@ -86,14 +86,14 @@ enum dd_space_keys {
 
 /** enum that defines all system table IDs. @see SYSTEM_TABLE_NAME[] */
 enum dd_system_id_t {
-	DD_TABLESPACES = 14,
-	DD_DATAFILES = 15,
-	DD_TABLES = 19,
-	DD_COLUMNS = 22,
-	DD_INDEXES = 23,
-	DD_FOREIGN = 26,
-	DD_FOREIGN_COLS = 27,
-	DD_PARTITIONS = 28,
+	DD_TABLESPACES = 4,
+	DD_DATAFILES = 5,
+	DD_TABLES = 9,
+	DD_COLUMNS = 12,
+	DD_INDEXES = 13,
+	DD_FOREIGN = 16,
+	DD_FOREIGN_COLS = 17,
+	DD_PARTITIONS = 18,
 
 	/* This must be last item. Defines the number of system tables. */
 	DD_LAST_ID

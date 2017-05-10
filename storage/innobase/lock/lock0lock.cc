@@ -1428,11 +1428,11 @@ RecLock::create(
 
 #ifdef UNIV_DEBUG
 	/* GAP lock shouldn't be taken on DD tables */
-	/* Give exemption to spatial_reference table & stats tables (table_id 43 & 44)*/
+	/* Give exemption to spatial_reference table & stats tables (table_id 28 & 29)*/
 	if (m_index->table->is_dd_table
-	    && m_index->table->id != 18
-	    && m_index->table->id != 38
-	    && m_index->table->id != 39) {
+	    && m_index->table->id != 8
+	    && m_index->table->id != 28
+	    && m_index->table->id != 29) {
 		ut_ad(((m_mode - (LOCK_MODE_MASK & m_mode)) - (LOCK_TYPE_MASK & m_mode) - (LOCK_WAIT & m_mode)) == LOCK_REC_NOT_GAP);
 	}
 #endif /* UNIV_DEBUG */
@@ -4248,47 +4248,6 @@ released:
 	trx_mutex_exit(trx);
 }
 
-#ifdef UNIV_DEBUG
-/*********************************************************************//**
-Check if a transaction that has X or IX locks has set the dict_op
-code correctly. */
-static
-void
-lock_check_dict_lock(
-/*==================*/
-	const lock_t*	lock)	/*!< in: lock to check */
-{
-	if (lock_get_type_low(lock) == LOCK_REC) {
-
-		/* Check if the transcation locked a record
-		in a system table in X mode. It should have set
-		the dict_op code correctly if it did. */
-		if (lock->index->table->id < DICT_HDR_FIRST_ID
-		    && lock_get_mode(lock) == LOCK_X) {
-
-			ut_ad(lock_get_mode(lock) != LOCK_IX);
-			ut_ad(lock->trx->dict_operation != TRX_DICT_OP_NONE);
-		}
-	} else {
-		ut_ad(lock_get_type_low(lock) & LOCK_TABLE);
-
-		const dict_table_t*	table;
-
-		table = lock->un_member.tab_lock.table;
-
-		/* Check if the transcation locked a system table
-		in IX mode. It should have set the dict_op code
-		correctly if it did. */
-		if (table->id < DICT_HDR_FIRST_ID
-		    && (lock_get_mode(lock) == LOCK_X
-			|| lock_get_mode(lock) == LOCK_IX)) {
-
-			ut_ad(lock->trx->dict_operation != TRX_DICT_OP_NONE);
-		}
-	}
-}
-#endif /* UNIV_DEBUG */
-
 /*********************************************************************//**
 Releases transaction locks, and releases possible other transactions waiting
 because of these locks. */
@@ -4309,8 +4268,6 @@ lock_release(
 	for (lock = UT_LIST_GET_LAST(trx->lock.trx_locks);
 	     lock != NULL;
 	     lock = UT_LIST_GET_LAST(trx->lock.trx_locks)) {
-
-		ut_d(lock_check_dict_lock(lock));
 
 		if (lock_get_type_low(lock) == LOCK_REC) {
 
@@ -6970,71 +6927,6 @@ lock_set_timeout_event()
 }
 
 #ifdef UNIV_DEBUG
-/*******************************************************************//**
-Check if the transaction holds any locks on the sys tables
-or its records.
-@return the strongest lock found on any sys table or 0 for none */
-const lock_t*
-lock_trx_has_sys_table_locks(
-/*=========================*/
-	const trx_t*	trx)	/*!< in: transaction to check */
-{
-	const lock_t*	strongest_lock = 0;
-	lock_mode	strongest = LOCK_NONE;
-
-	lock_mutex_enter();
-
-	typedef lock_pool_t::const_reverse_iterator iterator;
-
-	iterator	end = trx->lock.table_locks.rend();
-	iterator	it = trx->lock.table_locks.rbegin();
-
-	/* Find a valid mode. Note: ib_vector_size() can be 0. */
-
-	for (/* No op */; it != end; ++it) {
-		const lock_t*	lock = *it;
-
-		if (lock != NULL
-		    && dict_is_sys_table(lock->un_member.tab_lock.table->id)) {
-
-			strongest = lock_get_mode(lock);
-			ut_ad(strongest != LOCK_NONE);
-			strongest_lock = lock;
-			break;
-		}
-	}
-
-	if (strongest == LOCK_NONE) {
-		lock_mutex_exit();
-		return(NULL);
-	}
-
-	for (/* No op */; it != end; ++it) {
-		const lock_t*	lock = *it;
-
-		if (lock == NULL) {
-			continue;
-		}
-
-		ut_ad(trx == lock->trx);
-		ut_ad(lock_get_type_low(lock) & LOCK_TABLE);
-		ut_ad(lock->un_member.tab_lock.table != NULL);
-
-		lock_mode	mode = lock_get_mode(lock);
-
-		if (dict_is_sys_table(lock->un_member.tab_lock.table->id)
-		    && lock_mode_stronger_or_eq(mode, strongest)) {
-
-			strongest = mode;
-			strongest_lock = lock;
-		}
-	}
-
-	lock_mutex_exit();
-
-	return(strongest_lock);
-}
-
 /*******************************************************************//**
 Check if the transaction holds an exclusive lock on a record.
 @return whether the locks are held */

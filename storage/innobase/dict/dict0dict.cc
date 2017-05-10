@@ -7755,17 +7755,14 @@ dict_table_change_id_sys_tables()
 		ut_a(system_table != nullptr);
 		ut_ad(dict_sys_table_id[i] == system_table->id);
 
-		if (system_table->id >= INNODB_SYS_TABLE_ID_MAX) {
+		/* During upgrade, table_id of user tables is also
+		moved by DICT_MAX_DD_TABLES. See dict_load_table_one()*/
+		table_id_t	new_table_id = system_table->id
+			+ DICT_MAX_DD_TABLES;
 
-			/* During upgrade, table_id of user tables is also
-			moved by DICT_MAX_DD_TABLES. See dict_load_table_one()*/
-			table_id_t	new_table_id = system_table->id
-				+ DICT_MAX_DD_TABLES;
+		dict_table_change_id_in_cache(system_table, new_table_id);
 
-			dict_table_change_id_in_cache(system_table, new_table_id);
-
-			dict_sys_table_id[i] = system_table->id;
-		}
+		dict_sys_table_id[i] = system_table->id;
 	}
 }
 

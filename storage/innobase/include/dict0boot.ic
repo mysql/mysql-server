@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -90,7 +90,10 @@ dict_is_sys_table(
 /*==============*/
 	table_id_t	id)		/*!< in: table id to check */
 {
-	return(id < DICT_HDR_FIRST_ID);
+	if (srv_is_upgrade_mode) {
+		return(id < DICT_HDR_FIRST_ID);
+	}
+	return(false);
 }
 
 

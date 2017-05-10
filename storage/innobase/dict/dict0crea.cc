@@ -60,7 +60,6 @@ dict_build_table_def(
 {
 	dberr_t		err = DB_SUCCESS;
 
-
 	if (srv_is_upgrade_mode) {
 		table->id = dd_upgrade_tables_num++;
 #ifdef UNIV_DEBUG

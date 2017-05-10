@@ -850,16 +850,6 @@ lock_check_trx_id_sanity(
 	const ulint*	offsets)	/*!< in: rec_get_offsets(rec, index) */
 	MY_ATTRIBUTE((warn_unused_result));
 /*******************************************************************//**
-Check if the transaction holds any locks on the sys tables
-or its records.
-@return the strongest lock found on any sys table or 0 for none */
-const lock_t*
-lock_trx_has_sys_table_locks(
-/*=========================*/
-	const trx_t*	trx)	/*!< in: transaction to check */
-	MY_ATTRIBUTE((warn_unused_result));
-
-/*******************************************************************//**
 Check if the transaction holds an exclusive lock on a record.
 @return whether the locks are held */
 bool
