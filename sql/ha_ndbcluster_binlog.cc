@@ -6935,8 +6935,6 @@ restart_cluster_failure:
       taking GSL lock as part of taking MDL lock
     */
     thd_ndb->set_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT);
-
-    thd->query_id= 0; // to keep valgrind quiet
   }
 
   schema_dist_data.init(g_ndb_cluster_connection);
