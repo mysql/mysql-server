@@ -14,6 +14,9 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "ndb_global.h" /* defines __STDC_LIMIT_MACROS for stdint.h */
+#include <stdint.h>
+
 #define DBACC_C
 #include "Dbacc.hpp"
 

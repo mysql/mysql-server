@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2016 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,6 +15,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "ndb_global.h" /* defines __STDC_LIMIT_MACROS for stdint.h */
+#include <stdint.h>
 #include <util/BaseString.hpp>
 #include <util/SparseBitmask.hpp>
 #include <ctype.h>

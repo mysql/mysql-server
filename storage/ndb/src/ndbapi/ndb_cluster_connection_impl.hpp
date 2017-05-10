@@ -19,6 +19,8 @@
 #ifndef CLUSTER_CONNECTION_IMPL_HPP
 #define CLUSTER_CONNECTION_IMPL_HPP
 
+#include "ndb_global.h" /* defines __STDC_LIMIT_MACROS for stdint.h */
+#include <stdint.h>
 #include <ndb_cluster_connection.hpp>
 #include <Vector.hpp>
 #include <NdbMutex.h>

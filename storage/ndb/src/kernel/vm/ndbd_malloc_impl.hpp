@@ -18,6 +18,8 @@
 #ifndef NDBD_MALLOC_IMPL_H
 #define NDBD_MALLOC_IMPL_H
 
+#include "ndb_global.h" /* defines __STDC_LIMIT_MACROS for stdint.h */
+#include <stdint.h>
 #include <kernel_types.h>
 #include <Bitmask.hpp>
 #include <assert.h>
