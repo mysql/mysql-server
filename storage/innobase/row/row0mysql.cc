@@ -2915,8 +2915,6 @@ row_mysql_unfreeze_data_dictionary(
 /*===============================*/
 	trx_t*	trx)	/*!< in/out: transaction */
 {
-	//ut_ad(lock_trx_has_sys_table_locks(trx) == NULL);
-
 	ut_a(trx->dict_operation_lock_mode == RW_S_LATCH);
 
 	rw_lock_s_unlock(dict_operation_lock);
@@ -2953,8 +2951,6 @@ row_mysql_unlock_data_dictionary(
 /*=============================*/
 	trx_t*	trx)	/*!< in/out: transaction */
 {
-	//ut_ad(lock_trx_has_sys_table_locks(trx) == NULL);
-
 	ut_a(trx->dict_operation_lock_mode == RW_X_LATCH);
 
 	/* Serialize data dictionary operations with dictionary mutex:
@@ -4343,7 +4339,6 @@ row_drop_table_for_mysql(
 		reacquire the data dictionary latches. */
 		if (table->fts) {
 			ut_ad(!table->fts->add_wq);
-			ut_ad(lock_trx_has_sys_table_locks(trx) == 0);
 
 			row_mysql_unlock_data_dictionary(trx);
 			fts_optimize_remove_table(table);

@@ -832,9 +832,6 @@ skip_secondaries:
 	row_purge_upd_exist_or_extern_func(node,undo_rec)
 #endif /* UNIV_DEBUG */
 
-/* Maximum table id for InnoDB system tables */
-#define	INNODB_SYS_TABLE_ID_MAX		16
-
 /***********************************************************//**
 Parses the row reference and other info in a modify undo log record.
 @param[in,out]	node			row undo node

@@ -34,8 +34,8 @@ from DICT_HDR during upgrade because unlike bootstrap case,
 the ids are moved after user table creation.  Since we
 want to create dictionary tables with fixed ids, we use
 in-memory counter for upgrade */
-uint	dd_upgrade_indexes_num = INNODB_SYS_INDEX_ID_MAX;
-uint	dd_upgrade_tables_num = INNODB_SYS_TABLE_ID_MAX;
+uint	dd_upgrade_indexes_num = 1;
+uint	dd_upgrade_tables_num = 1;
 
 /** Initialize an implicit tablespace name.
 @param[in,out]	dd_space	tablespace metadata
