@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,7 +17,8 @@
 #ifndef COUNTINGPOOL_HPP
 #define COUNTINGPOOL_HPP
 
-#include <ndb_global.h>
+#include <ndb_global.h>  /* defines __STDC_LIMIT_MACROS for stdint.h */
+#include <stdint.h>
 #include "blocks/diskpage.hpp"
 #include "blocks/dbtup/tuppage.hpp"
 #include "ndbd_malloc_impl.hpp"
@@ -26,10 +27,6 @@
 
 #define JAM_FILE_ID 332
 
-
-#ifndef UINT32_MAX
-#define UINT32_MAX (4294967295U)
-#endif
 
 // Implementation CountingPool
 
