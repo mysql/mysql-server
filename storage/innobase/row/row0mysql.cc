@@ -4205,8 +4205,7 @@ row_drop_single_table_tablespace(
 		/* Force a delete of any discarded or temporary files. */
 		fil_delete_file(filepath);
 
-		ib::info() << "Removed datafile " << filepath
-			<< " for table " << tablename;
+		ib::info() << "Removed datafile " << filepath;
 
 	} else if (fil_delete_tablespace(space_id, BUF_REMOVE_FLUSH_NO_WRITE)
 		   != DB_SUCCESS) {
