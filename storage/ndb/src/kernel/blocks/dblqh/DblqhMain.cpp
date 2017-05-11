@@ -17152,6 +17152,12 @@ Dblqh::is_disk_columns_in_table(Uint32 tableId)
   return c_tup->is_disk_columns_in_table(tableId);
 }
 
+Uint32
+Dblqh::get_current_local_lcp_id(void)
+{
+  return m_curr_local_lcp_id;
+}
+
 void
 Dblqh::get_lcp_frag_stats(Uint64 & row_count,
                           Uint64 & row_change_count,
