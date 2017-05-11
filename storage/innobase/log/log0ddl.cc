@@ -1034,41 +1034,6 @@ LogDDL::replayFreeLog(
 	return;	
 }
 
-static
-void
-filepath_to_tablename(
-	const char*	file_path,
-	char*		table_name)
-{
-	ut_ad(strlen(file_path) >= strlen("./a/b.ibd"));
-
-	const char*	dot;
-	const char*	slash;
-
-	table_name[0] = '\0';
-
-	dot = strrchr(file_path, '.');
-	if (dot == nullptr) {
-		return;
-	}
-
-	slash = strrchr(file_path, OS_PATH_SEPARATOR);
-	if (slash == nullptr || slash == file_path) {
-		return;
-	}
-	while (*(--slash) != OS_PATH_SEPARATOR && slash != file_path);
-	if (slash == file_path) {
-		return;
-	}
-	++slash;
-
-	memcpy(table_name, slash, dot - slash);
-	table_name[dot - slash] = '\0';
-
-	slash = strrchr(table_name, OS_PATH_SEPARATOR);
-	table_name[slash - table_name] = '/';
-}
-
 /** Replay DELETE log(delete file if exist)
 @param[in]	space_id	tablespace id
 @param[in]	file_path	file path */
@@ -1077,9 +1042,7 @@ LogDDL::replayDeleteLog(
 	space_id_t	space_id,
 	const char*	file_path)
 {
-	char		table_name[NAME_LEN + 1];
-	filepath_to_tablename(file_path, table_name);
-	row_drop_single_table_tablespace(space_id, table_name, file_path);
+	row_drop_single_table_tablespace(space_id, NULL, file_path);
 
 	ib::info() << "ddl log replay : DELETE space_id " << space_id
 		<< ", file_path " << file_path;
