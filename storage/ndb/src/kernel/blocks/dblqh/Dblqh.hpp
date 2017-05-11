@@ -2999,6 +2999,7 @@ public:
                           Uint64 & row_count,
                           Uint64 & memory_used_in_bytes,
                           Uint32 & max_page_cnt);
+  Uint32 get_current_local_lcp_id(void);
   void get_redo_size(Uint64 &size_in_bytes);
   void get_redo_usage(Uint64 &used_in_bytes);
 

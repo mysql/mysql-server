@@ -11440,7 +11440,7 @@ Backup::lcp_write_undo_log(Signal *signal,
     {
       Logfile_client lgman(this, c_lgman, 0);
       ptr.p->m_current_lcp_lsn = lgman.exec_lcp_frag_ord(signal,
-                                                         0);
+                               c_lqh->get_current_local_lcp_id());
       ndbrequire(ptr.p->m_current_lcp_lsn > Uint64(0));
     }
   }
@@ -11899,6 +11899,7 @@ Backup::lcp_write_ctl_file(Signal *signal, BackupRecordPtr ptr)
   /**
    * LcpId and LocalLcpId was set in prepare phase.
    */
+  ndbrequire(lcpCtlFilePtr->LocalLcpId == c_lqh->get_current_local_lcp_id());
   lcpCtlFilePtr->MaxPageCount = ptr.p->m_lcp_max_page_cnt;
   lcpCtlFilePtr->LastDataFileNumber = ptr.p->m_current_data_file_number;
   lcpCtlFilePtr->MaxNumberDataFiles =
