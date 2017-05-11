@@ -58,6 +58,60 @@
 #define SUCCEED_ABORT 4
 
 #define ndb_master_failure 1
+#define NO_NODE_GROUP int(-1)
+#define FREE_NODE_GROUP 65535
+#define MAX_NDB_NODES 49
+#define MAX_NDB_NODE_GROUPS 48
+
+static int numNodeGroups;
+static int numNoNodeGroups;
+static int nodeGroup[MAX_NDB_NODE_GROUPS];
+static int nodeGroupIds[MAX_NDB_NODE_GROUPS];
+
+void getNodeGroups(NdbRestarter & restarter)
+{
+  Uint32 nextFreeNodeGroup = 0;
+
+  numNoNodeGroups = 0;
+  for (Uint32 i = 0; i < MAX_NDB_NODE_GROUPS; i++)
+  {
+    nodeGroup[i] = NO_NODE_GROUP;
+    nodeGroupIds[i] = NO_NODE_GROUP;
+  }
+
+  int numDbNodes = restarter.getNumDbNodes();
+  for (int i = 0; i < numDbNodes; i++)
+  {
+    int nodeId = restarter.getDbNodeId(i);
+    ndbout_c("nodeId: %d", nodeId);
+    require(nodeId != -1);
+    int nodeGroupId = restarter.getNodeGroup(nodeId);
+    ndbout_c("nodeGroupId: %d", nodeGroupId);
+    require(nodeGroupId != -1);
+    nodeGroup[nodeId] = nodeGroupId;
+    if (nodeGroupId == FREE_NODE_GROUP)
+    {
+      numNoNodeGroups++;
+    }
+    else
+    {
+      bool found = false;
+      for (Uint32 i = 0; i < nextFreeNodeGroup; i++)
+      {
+        if (nodeGroupIds[i] == nodeGroupId)
+        {
+          found = true;
+          break;
+        }
+      }
+      if (!found)
+      {
+        nodeGroupIds[nextFreeNodeGroup++] = nodeGroupId;
+      }
+    }
+  }
+  numNodeGroups = nextFreeNodeGroup;
+}
 
 char f_tablename[256];
  
@@ -8196,7 +8250,10 @@ runBug46552(NDBT_Context* ctx, NDBT_Step* step)
   NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
 
   NdbRestarter res;
-  if (res.getNumDbNodes() < 2)
+  int numDbNodes = res.getNumDbNodes();
+  getNodeGroups(res);
+  int num_replicas = (numDbNodes - numNoNodeGroups) / numNodeGroups;
+  if (res.getNumDbNodes() < 2 || num_replicas != 2)
     return NDBT_OK;
 
   NdbDictionary::Table tab0 = *pTab;
