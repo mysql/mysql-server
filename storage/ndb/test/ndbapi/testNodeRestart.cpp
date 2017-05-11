@@ -6872,6 +6872,14 @@ runNodeFailGCPOpen(NDBT_Context* ctx, NDBT_Step* step)
    * then bring the cluster back up
    */
   NdbRestarter restarter;
+  int numDbNodes = restarter.getNumDbNodes();
+  getNodeGroups(restarter);
+  int num_replicas = (numDbNodes - numNoNodeGroups) / numNodeGroups;
+  if (num_replicas != 2)
+  {
+    return NDBT_OK;
+  }
+
   int i = 0;
   while (i < 10 &&
          !ctx->isTestStopped())
