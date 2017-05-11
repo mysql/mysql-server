@@ -10783,6 +10783,17 @@ Backup::lcp_copy_ctl_page(BackupRecordPtr ptr)
 }
 
 void
+Backup::setRestorableGci(Uint32 restorableGci)
+{
+  jam();
+  if (restorableGci > m_newestRestorableGci)
+  {
+    jam();
+    m_newestRestorableGci = restorableGci;
+  }
+}
+
+void
 Backup::lcp_update_ctl_page(BackupRecordPtr ptr,
                             Page32Ptr & page_ptr,
                             BackupFilePtr & file_ptr)

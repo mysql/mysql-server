@@ -853,6 +853,7 @@ Dblqh::execREAD_LOCAL_SYSFILE_CONF(Signal *signal)
   c_local_sysfile.m_node_restorable_on_its_own =
     conf->nodeRestorableOnItsOwn;
   c_local_sysfile.m_max_gci_restorable = conf->maxGCIRestorable;
+  c_backup->setRestorableGci(c_local_sysfile.m_max_gci_restorable);
   sendsttorryLab(signal);
 }
 
@@ -21281,6 +21282,7 @@ void Dblqh::execSTART_RECREQ(Signal* signal)
   ndbrequire(req->receivingNodeId == cownNodeid);
 
   cnewestCompletedGci = cnewestGci;
+  c_backup->setRestorableGci(crestartNewestGci);
   cstartRecReq = SRR_START_REC_REQ_ARRIVED; // StartRecReq has arrived
   
   if (signal->getLength() == StartRecReq::SignalLength)

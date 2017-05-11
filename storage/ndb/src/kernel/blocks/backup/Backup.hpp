@@ -1189,6 +1189,7 @@ public:
                      bool & skip_flag,
                      bool & changed_row_page_flag);
 
+  void setRestorableGci(Uint32);
 };
 
 inline
