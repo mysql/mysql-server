@@ -17322,13 +17322,40 @@ Dblqh::lcp_complete_scan(Uint32 & newestGci)
 }
 
 void
-Dblqh::lcp_max_completed_gci(Uint32 & completedGci)
+Dblqh::lcp_max_completed_gci(Uint32 & completedGci,
+                             Uint32 max_gci_written,
+                             Uint32 restorable_gci)
 {
   lcpPtr.i = 0;
   ptrCheckGuard(lcpPtr, clcpFileSize, lcpRecord);
   ndbrequire(lcpPtr.p->lcpRunState == LcpRecord::LCP_CHECKPOINTING);
   fragptr.i = lcpPtr.p->currentRunFragment.fragPtrI;
   c_fragment_pool.getPtr(fragptr);
+
+  if (max_gci_written <= restorable_gci &&
+      fragptr.p->maxGciCompletedInLcp > restorable_gci)
+  {
+    jam();
+    /**
+     * In this case we haven't written any transactions in the LCP
+     * that isn't restorable at this point in time. So the LCP
+     * is already restorable. We will only record a
+     * MaxGciCompleted that is at most the restorable GCI.
+     *
+     * The only repercussion of this decision is that we might need
+     * to execute one extra GCI in the REDO log for a fragment that
+     * we know won't have any writes there. So should be of no
+     * concern at all.
+     *
+     * It is important to record the changed maxGciCompletedInLcp
+     * to ensure that DIH doesn't record a higher MaxGciCompleted
+     * than we record in the local files.
+     *
+     * This also simplifies the recovery.
+     */
+    fragptr.p->maxGciCompletedInLcp = restorable_gci;
+  }
+
   completedGci = fragptr.p->maxGciCompletedInLcp;
   DEB_LCP(("maxGciCompletedInLcp = %u, tab(%u,%u)",
            completedGci,
