@@ -9928,7 +9928,8 @@ Backup::execLCP_PREPARE_REQ(Signal* signal)
      */
     ptr.p->noOfBytes = 0;
     ptr.p->noOfRecords = 0;
-    ptr.p->backupId= req.backupId;
+    ptr.p->backupId = req.backupId;
+    ptr.p->localLcpId = req.localLcpId;
     ndbrequire(ptr.p->m_first_fragment == false);
     ptr.p->m_first_fragment = true;
     ptr.p->m_is_lcp_scan_active = false;
@@ -9937,6 +9938,10 @@ Backup::execLCP_PREPARE_REQ(Signal* signal)
     LocalDeleteLcpFile_list queue(c_deleteLcpFilePool,
                                   m_delete_lcp_file_head);
     ndbrequire(queue.isEmpty())
+  }
+  else
+  {
+    ndbrequire(ptr.p->localLcpId == req.localLcpId);
   }
 
   /**
@@ -10182,7 +10187,6 @@ Backup::lcp_read_ctl_file_done(Signal* signal, BackupRecordPtr ptr)
     lcpCtlFilePtr1->LcpId = 0;
     lcpCtlFilePtr1->LocalLcpId = 0;
   }
-
   if (lcpCtlFilePtr0->LcpId > lcpCtlFilePtr1->LcpId ||
       (lcpCtlFilePtr0->LcpId == lcpCtlFilePtr1->LcpId &&
        lcpCtlFilePtr0->LcpId != 0 &&
@@ -10332,6 +10336,9 @@ Backup::lcp_read_ctl_file_done(Signal* signal, BackupRecordPtr ptr)
       return;
     }
   }
+  /* Initialise page to write to next CTL file with new LCP id */
+  lcp_set_lcp_id(ptr, lcpCtlFilePtr);
+
   DEB_LCP(("(%u)TAGC Use ctl file: %u, prev Lcp(%u,%u), curr Lcp(%u,%u)"
            ", next data file: %u, tab(%u,%u).%u"
            ", prevMaxGciCompleted: %u, createGci: %u",
@@ -10356,8 +10363,6 @@ Backup::lcp_read_ctl_file_done(Signal* signal, BackupRecordPtr ptr)
   ndbrequire(createTableVersion == lqhCreateTableVersion ||
              lqhCreateTableVersion == 0);
 
-  /* Initialise page to write to next CTL file with new LCP id */
-  lcp_set_lcp_id(ptr, lcpCtlFilePtr);
 
   /**
    * We close the file which was the previous LCP control file. We will
@@ -10742,33 +10747,19 @@ void
 Backup::lcp_set_lcp_id(BackupRecordPtr ptr,
                        struct BackupFormat::LCPCtlFile *lcpCtlFilePtr)
 {
-  if (ptr.p->backupId != RNIL)
+  jam();
+  lcpCtlFilePtr->fileHeader.BackupId = ptr.p->backupId;
+  lcpCtlFilePtr->LcpId = ptr.p->backupId;
+  lcpCtlFilePtr->LocalLcpId = ptr.p->localLcpId;
+  if (ptr.p->backupId == ptr.p->preparePrevLcpId)
   {
-    /* Normal LCP case */
     jam();
-    lcpCtlFilePtr->fileHeader.BackupId = ptr.p->backupId;
-    lcpCtlFilePtr->LcpId = ptr.p->backupId;
-    if (ptr.p->backupId == ptr.p->preparePrevLcpId)
-    {
-      jam();
-      lcpCtlFilePtr->LocalLcpId = ptr.p->preparePrevLocalLcpId + 1;
-    }
-    else
-    {
-      jam();
-      lcpCtlFilePtr->LocalLcpId = 0;
-    }
+    ndbrequire(ptr.p->localLcpId > ptr.p->preparePrevLocalLcpId);
   }
   else
   {
-    /**
-     * This is the restart LCP case, we run an LCP as part of
-     * a restart which is local and not controlled from DIH.
-     */
     jam();
-    lcpCtlFilePtr->fileHeader.BackupId = ptr.p->preparePrevLcpId;
-    lcpCtlFilePtr->LcpId = ptr.p->preparePrevLcpId;
-    lcpCtlFilePtr->LocalLcpId = ptr.p->preparePrevLocalLcpId + 1;
+    ndbrequire(ptr.p->backupId > ptr.p->preparePrevLcpId);
   }
 }
 
@@ -11899,6 +11890,13 @@ Backup::lcp_write_ctl_file(Signal *signal, BackupRecordPtr ptr)
   /**
    * LcpId and LocalLcpId was set in prepare phase.
    */
+  if (lcpCtlFilePtr->LocalLcpId != c_lqh->get_current_local_lcp_id())
+  {
+    g_eventLogger->info("(%u)LocalLcpId: %u, local_lcp_id: %u",
+     instance(),
+     lcpCtlFilePtr->LocalLcpId,
+     c_lqh->get_current_local_lcp_id());
+  }
   ndbrequire(lcpCtlFilePtr->LocalLcpId == c_lqh->get_current_local_lcp_id());
   lcpCtlFilePtr->MaxPageCount = ptr.p->m_lcp_max_page_cnt;
   lcpCtlFilePtr->LastDataFileNumber = ptr.p->m_current_data_file_number;

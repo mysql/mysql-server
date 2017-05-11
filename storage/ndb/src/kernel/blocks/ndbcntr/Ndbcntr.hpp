@@ -500,7 +500,7 @@ private:
   bool m_wait_cut_undo_log_tail;
   bool m_copy_fragment_in_progress;
   Uint32 m_distributed_lcp_id;
-  Uint32 m_outstanding_wait_get_local_lcp_id;
+  Uint32 m_set_local_lcp_id_reqs;
   Uint32 m_outstanding_wait_lcp;
   Uint32 m_outstanding_wait_cut_redo_log_tail;
   Uint32 m_max_gci_in_lcp;
@@ -518,7 +518,7 @@ private:
   void sendLCP_ALL_COMPLETE_CONF(Signal*);
   void sendSTART_FULL_LOCAL_LCP_ORD(Signal*);
   void sendSTART_LOCAL_LCP_ORD(Signal*);
-  void sendGET_LOCAL_LCP_ID_REQ(Signal*);
+  void sendSET_LOCAL_LCP_ID_CONF(Signal*);
   void sendWriteLocalSysfile_startLcp(Signal*, Uint32);
   void write_local_sysfile_start_lcp_done(Signal*);
   const char* get_restorable_flag_string(Uint32);
@@ -527,7 +527,7 @@ private:
   void execCOPY_FRAG_NOT_IN_PROGRESS_REP(Signal*);
   void execUNDO_LOG_LEVEL_REP(Signal*);
   void execSTART_LOCAL_LCP_ORD(Signal*);
-  void execGET_LOCAL_LCP_ID_CONF(Signal*);
+  void execSET_LOCAL_LCP_ID_REQ(Signal*);
   void execWAIT_ALL_COMPLETE_LCP_REQ(Signal*);
   void execWAIT_COMPLETE_LCP_CONF(Signal*);
 

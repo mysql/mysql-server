@@ -195,8 +195,9 @@ struct LcpPrepareReq
   Uint32 backupPtr;
   Uint32 backupId;
   Uint32 createGci;
+  Uint32 localLcpId;
 
-  STATIC_CONST( SignalLength = 9 );
+  STATIC_CONST( SignalLength = 10 );
 };
 
 struct LcpPrepareRef

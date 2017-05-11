@@ -6061,7 +6061,7 @@ void Ndbcntr::execUNDO_LOG_LEVEL_REP(Signal *signal)
       m_full_local_lcp_started = true;
       ndbrequire(!c_local_sysfile.m_initial_write_local_sysfile_ongoing);
       c_local_sysfile.m_initial_write_local_sysfile_ongoing = true;
-      sendGET_LOCAL_LCP_ID_REQ(signal);
+      sendWriteLocalSysfile_startLcp(signal, m_max_completed_gci);
       return;
     }
     if (!m_local_lcp_started)
@@ -6108,45 +6108,46 @@ void Ndbcntr::execSTART_LOCAL_LCP_ORD(Signal *signal)
    */
   ndbrequire(!c_local_sysfile.m_initial_write_local_sysfile_ongoing);
   c_local_sysfile.m_initial_write_local_sysfile_ongoing = true;
-  sendGET_LOCAL_LCP_ID_REQ(signal);
+  sendWriteLocalSysfile_startLcp(signal, m_max_completed_gci);
 }
 
-void Ndbcntr::sendGET_LOCAL_LCP_ID_REQ(Signal *signal)
+void Ndbcntr::execSET_LOCAL_LCP_ID_REQ(Signal *signal)
 {
-  ndbrequire(c_local_sysfile.m_initial_write_local_sysfile_ongoing);
-  DEB_LCP(("Send GET_LOCAL_LCP_ID_REQ"));
-  Uint32 ldm_workers = send_to_all_lqh(signal, GSN_GET_LOCAL_LCP_ID_REQ, 1);
-  m_outstanding_wait_get_local_lcp_id = ldm_workers;
-}
+  Uint32 ldm_workers = globalData.ndbMtLqhWorkers == 0 ?
+                       1 : globalData.ndbMtLqhWorkers;
+  Uint32 max_lcp_id = signal->theData[0];
+  Uint32 max_local_lcp_id = signal->theData[1];
 
-void Ndbcntr::execGET_LOCAL_LCP_ID_CONF(Signal *signal)
-{
-  GetLocalLcpIdConf *conf = (GetLocalLcpIdConf*)signal->getDataPtr();
-  Uint32 lcpId = conf->lcpId;
-  Uint32 localLcpId = conf->localLcpId;
-  jamEntry();
-
-  ndbrequire(m_outstanding_wait_get_local_lcp_id > 0);
-  m_outstanding_wait_get_local_lcp_id--;
-
-  if (lcpId > m_lcp_id)
+  if (max_lcp_id > m_lcp_id)
   {
     jam();
-    m_lcp_id = lcpId;
-    m_local_lcp_id = localLcpId + 1;
+    m_lcp_id = max_lcp_id;
+    m_local_lcp_id = max_local_lcp_id;
   }
-  if ((localLcpId + 1) > m_local_lcp_id)
+  else if (max_lcp_id == m_lcp_id &&
+           max_local_lcp_id > m_local_lcp_id)
   {
     jam();
-    m_local_lcp_id = localLcpId + 1;
+    m_local_lcp_id = max_local_lcp_id;
   }
-  if (m_outstanding_wait_get_local_lcp_id > 0)
+  m_set_local_lcp_id_reqs++;
+  if (ldm_workers > m_set_local_lcp_id_reqs)
   {
     jam();
     return;
   }
-  sendWriteLocalSysfile_startLcp(signal, m_max_completed_gci);
-  return;
+  DEB_LCP(("Maximum LCP id restored was LCP(%u,%u)",
+           m_lcp_id,
+           m_local_lcp_id));
+  if (ldm_workers == m_set_local_lcp_id_reqs)
+  {
+    jam();
+    signal->theData[0] = m_lcp_id;
+    signal->theData[1] = m_local_lcp_id;
+    send_to_all_lqh(signal, GSN_SET_LOCAL_LCP_ID_CONF, 2);
+    return;
+  }
+  ndbrequire(false);
 }
 
 void Ndbcntr::write_local_sysfile_start_lcp_done(Signal *signal)

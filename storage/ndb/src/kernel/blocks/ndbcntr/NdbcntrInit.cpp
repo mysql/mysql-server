@@ -43,7 +43,7 @@ void Ndbcntr::initData()
   m_distributed_lcp_id = 0;
   m_outstanding_wait_lcp = 0;
   m_outstanding_wait_cut_redo_log_tail = 0;
-  m_outstanding_wait_get_local_lcp_id = 0;
+  m_set_local_lcp_id_reqs = 0;
   m_received_wait_all = false;
   m_wait_cut_undo_log_tail = false;
   m_local_lcp_started = false;
@@ -168,7 +168,7 @@ Ndbcntr::Ndbcntr(Block_context& ctx):
   addRecSignal(GSN_CUT_REDO_LOG_TAIL_CONF, &Ndbcntr::execCUT_REDO_LOG_TAIL_CONF);
   addRecSignal(GSN_RESTORABLE_GCI_REP, &Ndbcntr::execRESTORABLE_GCI_REP);
   addRecSignal(GSN_UNDO_LOG_LEVEL_REP, &Ndbcntr::execUNDO_LOG_LEVEL_REP);
-  addRecSignal(GSN_GET_LOCAL_LCP_ID_CONF, &Ndbcntr::execGET_LOCAL_LCP_ID_CONF);
+  addRecSignal(GSN_SET_LOCAL_LCP_ID_REQ, &Ndbcntr::execSET_LOCAL_LCP_ID_REQ);
 
   addRecSignal(GSN_CREATE_NODEGROUP_IMPL_REQ, &Ndbcntr::execCREATE_NODEGROUP_IMPL_REQ);
   addRecSignal(GSN_DROP_NODEGROUP_IMPL_REQ, &Ndbcntr::execDROP_NODEGROUP_IMPL_REQ);

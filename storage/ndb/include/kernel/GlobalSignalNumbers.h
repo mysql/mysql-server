@@ -1156,8 +1156,8 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_COPY_FRAG_IN_PROGRESS_REP   814
 #define GSN_COPY_FRAG_NOT_IN_PROGRESS_REP 815
 
-#define GSN_GET_LOCAL_LCP_ID_REQ        816
-#define GSN_GET_LOCAL_LCP_ID_CONF       817
+#define GSN_SET_LOCAL_LCP_ID_REQ        816
+#define GSN_SET_LOCAL_LCP_ID_CONF       817
 
 #define GSN_START_NODE_LCP_REQ          818
 #define GSN_START_NODE_LCP_CONF         819
