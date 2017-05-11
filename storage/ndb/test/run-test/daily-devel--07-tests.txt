@@ -125,4 +125,7 @@ cmd: testRedo
 args: -n CheckNextRedoFileOpened T1
 max-time: 1440
 
+cmd: testNodeRestart
+args: -n NR_Disk_data_undo_log_local_lcp D1 D2
+max-time : 2000
 
