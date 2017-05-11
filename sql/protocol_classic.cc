@@ -248,7 +248,7 @@ static bool net_send_error_packet(NET *, uint, const char *, const char *, bool,
 static bool write_eof_packet(THD *, NET *, uint, uint);
 
 ulong get_ps_param_len(enum enum_field_types type, uchar *packet,
-                       ulong packet_len, ulong *header_len, bool *err);
+                       ulong packet_left_len, ulong *header_len, bool *err);
 bool Protocol_classic::net_store_data(const uchar *from, size_t length)
 {
   size_t packet_length=packet->length();
@@ -1333,13 +1333,14 @@ bool Protocol_classic::parse_packet(union COM_DATA *data,
     PS_PARAM *params= data->com_stmt_execute.parameters;
 
     /* Then comes the types byte. If set, new types are provided */
+    if (!packet_left)
+      goto malformed;
     bool has_new_types= static_cast<bool>(*read_pos++);
+    --packet_left;
     data->com_stmt_execute.has_new_types= has_new_types;
     if (has_new_types)
     {
       DBUG_PRINT("info", ("Types provided"));
-      --packet_left;
-
       for (uint i= 0; i < param_count; ++i)
       {
         if (packet_left < 2)
@@ -1397,10 +1398,13 @@ bool Protocol_classic::parse_packet(union COM_DATA *data,
       if (buffer_underrun)
         goto malformed;
 
+      read_pos+= header_len;
+      packet_left-= header_len;
+
       // Set parameter value
-      params[i].value= header_len + read_pos;
-      read_pos+= (header_len + params[i].length);
-      packet_left-= (header_len + params[i].length);
+      params[i].value= read_pos;
+      read_pos+= params[i].length;
+      packet_left-= params[i].length;
       data->com_stmt_execute.parameter_count++;
       DBUG_PRINT("info", ("param len %ul", (uint) params[i].length));
     }
@@ -2500,7 +2504,13 @@ get_param_length(uchar *packet, ulong packet_left_len, ulong *header_len)
     *header_len= 0;
     return 0;
   }
-  *header_len= 9; // Must be 254 when here
+  if (packet_left_len < 9)
+  {
+    *header_len= 0;
+    return 0;
+  }
+  DBUG_ASSERT(*packet == 254);
+  *header_len= 9;
   /*
     In our client-server protocol all numbers bigger than 2^24
     stored as 8 bytes with uint8korr. Here we always know that
@@ -2515,14 +2525,14 @@ get_param_length(uchar *packet, ulong packet_left_len, ulong *header_len)
 /**
   Returns the length of the encoded data
 
-   @param[in]  type          parameter data type
-   @param[in]  packet        network buffer
-   @param[in]  packet_len    number of bytes left in packet
-   @param[out] header_len    the size of the header(bytes to be skiped)
-   @param[out] err           boolean to store if an error occurred
+   @param[in]  type            parameter data type
+   @param[in]  packet          network buffer
+   @param[in]  packet_left_len number of bytes left in packet
+   @param[out] header_len      the size of the header(bytes to be skiped)
+   @param[out] err             boolean to store if an error occurred
 */
 ulong get_ps_param_len(enum enum_field_types type, uchar *packet,
-                       ulong packet_len, ulong *header_len, bool *err)
+                       ulong packet_left_len, ulong *header_len, bool *err)
 {
   DBUG_ENTER("get_ps_param_len");
   *header_len= 0;
@@ -2530,18 +2540,18 @@ ulong get_ps_param_len(enum enum_field_types type, uchar *packet,
   switch (type)
   {
     case MYSQL_TYPE_TINY:
-      *err= (packet_len < 1);
+      *err= (packet_left_len < 1);
       DBUG_RETURN(1);
     case MYSQL_TYPE_SHORT:
-      *err= (packet_len < 2);
+      *err= (packet_left_len < 2);
       DBUG_RETURN(2);
     case MYSQL_TYPE_FLOAT:
     case MYSQL_TYPE_LONG:
-      *err= (packet_len < 4);
+      *err= (packet_left_len < 4);
       DBUG_RETURN(4);
     case MYSQL_TYPE_DOUBLE:
     case MYSQL_TYPE_LONGLONG:
-      *err= (packet_len < 8);
+      *err= (packet_left_len < 8);
       DBUG_RETURN(8);
     case MYSQL_TYPE_DECIMAL:
     case MYSQL_TYPE_NEWDECIMAL:
@@ -2550,10 +2560,10 @@ ulong get_ps_param_len(enum enum_field_types type, uchar *packet,
     case MYSQL_TYPE_DATETIME:
     case MYSQL_TYPE_TIMESTAMP:
     {
-      ulong param_length= get_param_length(packet, packet_len, header_len);
+      ulong param_length= get_param_length(packet, packet_left_len, header_len);
       /* in case of error ret is 0 and header size is 0 */
-      *err= ((!param_length && !*header_len) ||
-          (packet_len < *header_len + param_length));
+      *err= ((param_length == 0 && *header_len == 0) ||
+          (packet_left_len < *header_len + param_length));
       DBUG_PRINT("info", ("ret=%lu ", param_length));
       DBUG_RETURN(param_length);
     }
@@ -2563,11 +2573,11 @@ ulong get_ps_param_len(enum enum_field_types type, uchar *packet,
     case MYSQL_TYPE_BLOB:
     default:
     {
-      ulong param_length= get_param_length(packet, packet_len, header_len);
+      ulong param_length= get_param_length(packet, packet_left_len, header_len);
       /* in case of error ret is 0 and header size is 0 */
-      *err= (!param_length && !*header_len);
-      if (param_length > packet_len - *header_len)
-        param_length= packet_len - *header_len;
+      *err= (param_length == 0 && *header_len == 0);
+      if (param_length > packet_left_len - *header_len)
+        param_length= packet_left_len - *header_len;
       DBUG_PRINT("info", ("ret=%lu", param_length));
       DBUG_RETURN(param_length);
     }
