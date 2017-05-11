@@ -1894,6 +1894,7 @@ missinglog:
   signal->theData[2] = 
     partitionedTimeout == Uint32(~0) ?
       Uint32(~0) : Uint32((partitionedTimeout - elapsed + 500) / 1000);
+  infoEvent("partitionedTimeout = %llu, elapsed = %llu", partitionedTimeout, elapsed);
   report_mask.assign(c_definedNodes);
   report_mask.bitANDC(c_start.m_starting_nodes);
   retVal = 0;
