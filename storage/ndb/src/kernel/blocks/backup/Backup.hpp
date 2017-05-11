@@ -533,6 +533,7 @@ public:
 
       {
         m_wait_end_lcp = false;
+        m_initial_lcp_started = false;
         /*
           report of backup status uses these variables to keep track
           if backup ia running and current state
@@ -548,6 +549,7 @@ public:
     NDB_TICKS m_prev_report;
 
     bool m_wait_end_lcp;
+    bool m_initial_lcp_started;
     Uint32 m_gsn;
     Uint32 m_lastSignalId;
     Uint32 m_prioA_scan_batches_to_execute;

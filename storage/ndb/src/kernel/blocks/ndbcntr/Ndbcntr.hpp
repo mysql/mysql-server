@@ -492,6 +492,7 @@ private:
   void send_restorable_gci_rep_to_backup(Signal*);
 
   bool m_received_wait_all;
+  bool m_initial_local_lcp_started;
   bool m_local_lcp_started;
   bool m_local_lcp_completed;
   bool m_full_local_lcp_started;

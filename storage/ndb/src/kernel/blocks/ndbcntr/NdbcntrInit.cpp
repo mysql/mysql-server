@@ -61,6 +61,7 @@ void Ndbcntr::initData()
    * to 2 from the start although it isn't really completed yet.
    */
   m_max_completed_gci = 2;
+  m_initial_local_lcp_started = false;
   m_lcp_id = 0;
   m_local_lcp_id = 0;
 }//Ndbcntr::initData()

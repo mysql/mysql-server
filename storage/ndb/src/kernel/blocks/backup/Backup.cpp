@@ -9915,7 +9915,8 @@ Backup::execLCP_PREPARE_REQ(Signal* signal)
   fragPtr.p->tableId = req.tableId;
   fragPtr.p->createGci = req.createGci;
 
-  if (req.backupId != ptr.p->backupId)
+  if (req.backupId != ptr.p->backupId ||
+      !ptr.p->m_initial_lcp_started)
   {
     jam();
     /**
@@ -9930,6 +9931,7 @@ Backup::execLCP_PREPARE_REQ(Signal* signal)
     ptr.p->noOfRecords = 0;
     ptr.p->backupId = req.backupId;
     ptr.p->localLcpId = req.localLcpId;
+    ptr.p->m_initial_lcp_started = true;
     ndbrequire(ptr.p->m_first_fragment == false);
     ptr.p->m_first_fragment = true;
     ptr.p->m_is_lcp_scan_active = false;

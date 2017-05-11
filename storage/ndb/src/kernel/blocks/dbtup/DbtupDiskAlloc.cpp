@@ -2127,14 +2127,16 @@ Dbtup::disk_restart_undo_lcp(Uint32 tableId,
          * Used before UNDO log execution starts to set
          * m_restore_lcp_id for the fragment.
          */
-        DEB_UNDO(("(%u)table(%u,%u) restore to lcp: %u",
+        DEB_UNDO(("(%u)table(%u,%u) restore to lcp(%u,%u)",
                   instance(),
                   tableId,
                   fragId,
-                  lcpId));
+                  lcpId,
+                  localLcpId));
 	ndbrequire(fragPtr.p->m_undo_complete == 0);
 	ndbrequire(fragPtr.p->m_restore_lcp_id == RNIL);
 	fragPtr.p->m_restore_lcp_id = lcpId;
+        fragPtr.p->m_restore_local_lcp_id = localLcpId;
 	return;
       }
       }
