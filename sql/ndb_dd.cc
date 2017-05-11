@@ -76,6 +76,36 @@ bool ndb_sdi_serialize(THD *thd,
 }
 
 
+/*
+  Workaround for BUG#25657041
+
+  During inplace alter table, the table has a temporary
+  tablename and is also marked as hidden. Since the temporary
+  name and hidden status is part of the serialized table
+  definition, there's a mismatch down the line when this is
+  stored as extra metadata in the NDB dictionary.
+
+  The workaround for now involves setting the table as a user
+  visible table and restoring the original table name
+*/
+
+void ndb_dd_fix_inplace_alter_table_def(dd::Table* table_def,
+                                        const char* proper_table_name)
+{
+  DBUG_ENTER("ndb_dd_fix_inplace_alter_table_def");
+  DBUG_PRINT("enter", ("table_name: %s", table_def->name().c_str()));
+  DBUG_PRINT("enter", ("proper_table_name: %s", proper_table_name));
+
+  // Check that the proper_table_name is not a temporary name
+  DBUG_ASSERT(!is_prefix(proper_table_name, tmp_file_prefix));
+
+  table_def->set_name(proper_table_name);
+  table_def->set_hidden(dd::Abstract_table::HT_VISIBLE);
+
+  DBUG_VOID_RETURN;
+}
+
+
 bool ndb_dd_serialize_table(class THD *thd,
                             const char* schema_name,
                             const char* table_name,
@@ -420,3 +450,4 @@ ndb_dd_rename_table(THD *thd,
 
   DBUG_RETURN(true); // OK
 }
+

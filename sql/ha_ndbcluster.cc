@@ -81,7 +81,6 @@
 #include "log.h"            // sql_print_error
 #include "sql_class.h"
 #include "ndb_dd.h"
-#include "dd/types/table.h"
 
 // ndb interface initialization/cleanup
 extern "C" void ndb_init_internal(Uint32);
@@ -18923,35 +18922,8 @@ inplace__set_sdi_and_alter_in_ndb(THD *thd,
 {
   DBUG_ENTER("inplace__set_sdi_and_alter_in_ndb");
 
-#ifndef BUG25487493
-  /*
-     The table has a temporary tablename and is also marked as
-     hidden. Since the temporary name and hidden status is
-     part of the serialized table definition, there's a mismatch
-     down the line as this is stored as extra metadata in
-     the NDB dictionary.
-
-     The workaround for now involves setting the table as a user
-     visible table and restoring the original table name manually
-   */
-
-  // Verify hidden status of the table
-  const char* new_table_name = (new_table_def->name()).c_str();
-  if (new_table_def->hidden() != dd::Abstract_table::HT_VISIBLE)
-  {
-    DBUG_PRINT("hack", ("Marking table: %s as not hidden",
-                        new_table_name));
-    new_table_def->set_hidden(dd::Abstract_table::HT_VISIBLE);
-  }
-
-  // Check if the tablename is temporary
-  if (IS_TMP_PREFIX(new_table_name))
-  {
-    DBUG_PRINT("hack", ("Renaming table %s to %s",
-                        new_table_name, alter_data->old_table->getName()));
-    new_table_def->set_name(alter_data->old_table->getName());
-  }
-#endif
+  ndb_dd_fix_inplace_alter_table_def(new_table_def,
+                                     alter_data->old_table->getName());
 
   dd::sdi_t sdi;
   if (!ndb_sdi_serialize(thd, *new_table_def, schema_name,
