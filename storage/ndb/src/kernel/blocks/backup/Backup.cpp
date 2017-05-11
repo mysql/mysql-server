@@ -5561,8 +5561,11 @@ Backup::execBACKUP_FRAGMENT_REQ(Signal* signal)
   /**
    * Init operation
    */
-  if(filePtr.p->tableId != tableId) {
+  if (filePtr.p->tableId != tableId)
+  {
     jam();
+    DEB_LCP(("Init new tab(%u): maxRecordSize: %u",
+              tableId, tabPtr.p->maxRecordSize));
     filePtr.p->operation.init(tabPtr);
     filePtr.p->tableId = tableId;
   }//if
@@ -6239,6 +6242,8 @@ Backup::execTRANSID_AI(Signal* signal)
   {
     g_eventLogger->info("dataLen: %u, op.maxRecordSize = %u, header: %u",
                         dataLen, op.maxRecordSize, header);
+    jamLine(dataLen);
+    jamLine(op.maxRecordSize);
     ndbrequire(false);
   }
 
