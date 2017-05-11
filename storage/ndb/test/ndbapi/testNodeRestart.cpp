@@ -5173,6 +5173,12 @@ int runRestartToDynamicOrder(NDBT_Context* ctx, NDBT_Step* step)
   Uint32 dynOrder = ctx->getProperty("DynamicOrder", Uint32(0));
   NdbRestarter restarter;
   Uint32 numNodes = restarter.getNumDbNodes();
+  getNodeGroups(restarter);
+  int num_replicas = (numNodes - numNoNodeGroups) / numNodeGroups;
+  if (num_replicas != 2)
+  {
+    return NDBT_OK;
+  }
 
   Vector<Uint32> currOrder;
   Vector<Uint32> newOrder;
@@ -5400,6 +5406,12 @@ int analyseDynamicOrder(NDBT_Context* ctx, NDBT_Step* step)
   Vector<Uint32> distanceToRemote;
   Vector<Uint32> nodeIdToDynamicIndex;
   Uint32 maxDistanceToRemoteLink = 0;
+  getNodeGroups(restarter);
+  int num_replicas = (numNodes - numNoNodeGroups) / numNodeGroups;
+  if (num_replicas != 2)
+  {
+    return NDBT_OK;
+  }
 
   /* TODO :
    * Refactor into :
@@ -5646,6 +5658,13 @@ int runSplitLatency25PctFail(NDBT_Context* ctx, NDBT_Step* step)
    * of the cluster, and can result in cluster failure
    */
   NdbRestarter restarter;
+  Uint32 numNodes = restarter.getNumDbNodes();
+  getNodeGroups(restarter);
+  int num_replicas = (numNodes - numNoNodeGroups) / numNodeGroups;
+  if (num_replicas != 2)
+  {
+    return NDBT_OK;
+  }
 
   /*
    * First set the ConnectCheckIntervalDelay to 1500
