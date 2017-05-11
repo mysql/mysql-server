@@ -2617,14 +2617,22 @@ Tsman::restart_undo_page_free_bits(Signal* signal,
              << *key << " " << (src & COMMITTED_MASK) 
              << " -> " << bits << endl;
     }
-    DEB_TSMAN_RESTART(("page(%u,%u) in tab(%u,%u):%u, bits = %u, extent: %u",
+#ifdef DEBUG_TSMAN_RESTART
+    Uint32 per_page = file_ptr.p->m_online.m_extent_headers_per_extent_page;
+    Uint32 extent_page_no = val.m_extent_page_no;
+    Uint32 extent_no = (per_page * extent_page_no) + val.m_extent_no;
+    DEB_TSMAN_RESTART(("page(%u,%u) in tab(%u,%u):%u, bits = %u, extent: %u"
+                       ", src: %u, page_no_in_extent: %u",
                        key->m_file_no,
                        key->m_page_no,
                        tableId,
                        fragId,
                        create_table_version,
                        bits,
-                       val.m_extent_no));
+                       extent_no,
+                       src,
+                       page_no_in_extent));
+#endif
     /* Toggle word */
     ext_data->update_free_bits(page_no_in_extent, 
 			       bits | (bits << UNCOMMITTED_SHIFT));
