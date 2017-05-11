@@ -5221,10 +5221,37 @@ Lgman::stop_run_undo_log(Signal* signal)
        * with finding the correct log head at a subsequent restart.
        *
        * Since UNDO log file is empty we will set tail and head equal
+       *
+       * In actuality the m_file_pos[HEAD].m_idx isn't used when writing log
+       * pages. Rather we use 1 + m_file_pos[HEAD].m_idx.
+       *
+       * The head and tail is set to the last executed log page. Thus we will
+       * start writing the next page after where head points to. Thus if the
+       * page last executed was the last executed in the file we need to move
+       * the head pointer forward to m_idx = 0 in the next file (thus skipping
+       * page 0 in all log files).
        */
-      lg_ptr.p->m_tail_pos[0] = head;
-      lg_ptr.p->m_tail_pos[1] = head;
-      lg_ptr.p->m_file_pos[TAIL] = head;
+      {
+        Buffer_idx head= lg_ptr.p->m_file_pos[HEAD];
+        Ptr<Undofile> file;
+        m_file_pool.getPtr(file, head.m_ptr_i);
+        if (head.m_idx == file.p->m_file_size - 1)
+        {
+          jam();
+          Local_undofile_list files(m_file_pool, lg_ptr.p->m_files);
+          if(!files.next(file))
+          {
+            jam();
+            files.first(file);
+          }
+          head.m_idx = 0;
+          head.m_ptr_i = file.i;
+          lg_ptr.p->m_file_pos[HEAD] = head;
+        }
+        lg_ptr.p->m_tail_pos[0] = head;
+        lg_ptr.p->m_tail_pos[1] = head;
+        lg_ptr.p->m_file_pos[TAIL] = head;
+      }
       
       lg_ptr.p->m_free_log_words = (Uint64)get_undo_page_words(lg_ptr) *
 	(Uint64)compute_free_file_pages(lg_ptr, jamBuffer());
