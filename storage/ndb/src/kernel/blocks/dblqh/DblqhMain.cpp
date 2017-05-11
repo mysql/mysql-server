@@ -16670,15 +16670,15 @@ void Dblqh::execSTART_NODE_LCP_REQ(Signal *signal)
   jamEntry();
   Uint32 current_gci = signal->theData[0];
   Uint32 restorable_gci = signal->theData[1];
-  c_keep_gci_for_distributed_lcp = restorable_gci;
+  c_keep_gci_for_distributed_lcp = MIN(restorable_gci,
+                                       cnewestCompletedGci);
   DEB_LCP(("c_keep_gci_for_distributed_lcp = %u,"
            " current_gci = %u, restorable_gci = %u",
             c_keep_gci_for_distributed_lcp,
             current_gci,
             restorable_gci));
-  c_max_keep_gci_in_lcp = restorable_gci;
+  c_max_keep_gci_in_lcp = c_keep_gci_for_distributed_lcp;
   c_first_set_min_keep_gci = true;
-
   BlockReference ref;
   if (isNdbMtLqh())
   {
@@ -16692,9 +16692,26 @@ void Dblqh::execSTART_NODE_LCP_REQ(Signal *signal)
   }
   signal->theData[0] = 1;
   sendSignal(ref, GSN_START_NODE_LCP_CONF, signal, 1, JBB);
+
+  if (getNodeState().startLevel >= NodeState::SL_STOPPING_4)
+  {
+    /**
+     * The restorable_gci is not restorable in our node,
+     * so don't update Backup's view of restorable GCI
+     * at this time since that would create an LCP that
+     * isn't restorable.
+     *
+     * By not updating the restorable GCI in Backup we
+     * ensure that the LCP won't complete if any updates
+     * have occurred in the LCP. Thus we don't risk that
+     * we overwrite all restorable LCP files.
+     */
+    jam();
+    return;
+  }
+  jam();
   signal->theData[0] = restorable_gci;
-  sendSignal(numberToRef(BACKUP, instance(), getOwnNodeId()),
-             GSN_RESTORABLE_GCI_REP, signal, 1, JBB);
+  EXECUTE_DIRECT(BACKUP, GSN_RESTORABLE_GCI_REP, signal, 1);
 }
 
 void Dblqh::set_min_keep_gci(Uint32 max_completed_gci)
@@ -18152,6 +18169,10 @@ void Dblqh::execGCP_SAVEREQ(Signal* signal)
     return;
   }
 
+  /**
+   * Cannot update cnewestCompletedGci during SL_STOPPING_4 since we
+   * no longer participate in GCPs.
+   */
   Uint32 saveNewestCompletedGci = cnewestCompletedGci;
   cnewestCompletedGci = gci;
 
