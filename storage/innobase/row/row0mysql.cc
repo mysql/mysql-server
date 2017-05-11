@@ -4211,9 +4211,7 @@ row_drop_single_table_tablespace(
 	} else if (fil_delete_tablespace(space_id, BUF_REMOVE_FLUSH_NO_WRITE)
 		   != DB_SUCCESS) {
 
-		ib::error() << "We removed the InnoDB internal data"
-			" dictionary entry of table " << tablename
-			<< " but we are not able to delete the tablespace "
+		ib::error() << "We are not able to delete the tablespace "
 			<< space_id << " file " << filepath << "!";
 
 		err = DB_ERROR;
