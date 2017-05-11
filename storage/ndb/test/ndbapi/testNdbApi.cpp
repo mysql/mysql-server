@@ -6792,6 +6792,40 @@ runFinaliseCheckTransIdMt(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int
+runTestColumnNameLookupPerf(NDBT_Context* ctx, NDBT_Step* step)
+{
+  const NdbDictionary::Table *tab = ctx->getTab();
+  
+  ndbout_c("Table lookups on columns in table %s",
+           tab->getName());
+
+  const char* colNames[512];
+  for (int c=0; c<tab->getNoOfColumns(); c++)
+  {
+    colNames[c] = tab->getColumn(c)->getName();
+    ndbout_c("  %d %s",
+             c, colNames[c]);
+  }
+
+  const Uint32 iterations=10000000;
+  for (int c=0; c < tab->getNoOfColumns(); c++)
+  {
+    const NDB_TICKS start = NdbTick_getCurrentTicks();
+    const char* name = colNames[c];
+    for (Uint32 i=0; i < iterations; i++)
+    {
+      const NdbDictionary::Column* col = tab->getColumn(colNames[c]);
+      (void) col;
+    };
+    const Uint64 time = NdbTick_Elapsed(start, NdbTick_getCurrentTicks()).milliSec();
+    ndbout_c("Col %u %s : %u iterations in %llu millis",
+             c, name, iterations, time);
+  }
+
+  return NDBT_OK;
+}
+
 
 void
 asyncCallback(int res, NdbTransaction* trans, void* obj)
@@ -7290,6 +7324,11 @@ TESTCASE("OldApiScanFinalise",
          "Test error during finalise behaviour")
 {
   VERIFIER(runTestOldApiScanFinalise);
+}
+TESTCASE("TestColumnNameLookupPerf",
+         "")
+{
+  INITIALIZER(runTestColumnNameLookupPerf);
 }
 
 NDBT_TESTSUITE_END(testNdbApi);
