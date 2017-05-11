@@ -2411,6 +2411,15 @@ thr_send_threads::assist_send_thread(Uint32 min_num_nodes,
                           watchdog_counter,
                           send_buffer_pool))
     {
+      /**
+       * Neighbour nodes are locked through setting
+       * m_node_state[node].m_thr_no_sender to thr_no while holding
+       * the mutex. This flag is set between start of send and end
+       * of send. In this case there was no send so the flag isn't
+       * set now, since we insert it back immediately it will simply
+       * remain unset. We assert on this just in case.
+       */
+      assert(m_node_state[node].m_thr_no_sender == NO_OWNER_THREAD);
       insert_node(node);
       break;
     }
@@ -2788,7 +2797,17 @@ thr_send_threads::run_send_thread(Uint32 instance_no)
      */
     if (node != 0)
     {
-      assert(m_node_state[node].m_thr_no_sender == NO_OWNER_THREAD);
+      /**
+       * The node was locked during our sleep. We now release the
+       * lock again such that we can acquire the lock again after
+       * a short sleep. For non-neighbour nodes the insert_node is
+       * sufficient. For neighbour nodes we need to ensure that
+       * m_node_state[node].m_thr_no_sender is set to NO_OWNER_THREAD
+       * since this is the manner in releasing the lock on those
+       * nodes.
+       */
+      assert(m_node_state[node].m_thr_no_sender == thr_no);
+      m_node_state[node].m_thr_no_sender = NO_OWNER_THREAD;
       insert_node(node);
       node = 0;
     }
@@ -2804,8 +2823,25 @@ thr_send_threads::run_send_thread(Uint32 instance_no)
                             this_send_thread->m_watchdog_counter,
                             this_send_thread->m_send_buffer_pool))
       {
+        /**
+         * Neighbour nodes are not locked by get_node and insert_node.
+         * They are locked by setting
+         * m_node_state[node].m_thr_no_sender to thr_no.
+         * Here we returned false from handle_send_node since we were
+         * not allowed to send to node at this time. We want to keep
+         * lock on node as get_node does for non-neighbour nodes, so
+         * we set this flag to retain lock even after we release mutex.
+         * We also use asserts to ensure the state transitions are ok.
+         */
+        assert(m_node_state[node].m_thr_no_sender == NO_OWNER_THREAD);
+        m_node_state[node].m_thr_no_sender = thr_no;
         break;
       }
+      /**
+       * We set node = 0 for the very rare case where theRestartFlag is set
+       * to perform_stop, we should never need this, but add it in just in
+       * case.
+       */
       node = 0;
     } // while (get_node()...)
 
