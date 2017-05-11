@@ -1535,7 +1535,7 @@ Dbtup::disk_page_free(Signal *signal,
                              alloc_size);
     
     ((Var_page*)pagePtr.p)->free_record(page_idx, 0);
-  }    
+  }
   
   Uint32 new_free = pagePtr.p->free_space;
   
