@@ -1377,7 +1377,6 @@ static const Uint32 UniBucket       = 0x00200000;
 static const Uint32 ColNameHashMask = 0x001FFFFF;
 static const Uint32 ColShift = 22;
 
-inline
 NdbColumnImpl *
 NdbTableImpl::getColumnByHash(const char * name) const
 {
