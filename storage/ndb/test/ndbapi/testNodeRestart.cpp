@@ -3585,32 +3585,56 @@ runMNF(NDBT_Context* ctx, NDBT_Step* step)
 {
   //int result = NDBT_OK;
   NdbRestarter res;
+  int numDbNodes = res.getNumDbNodes();
+  getNodeGroups(res);
+  int num_replicas = (numDbNodes - numNoNodeGroups) / numNodeGroups;
   
-  if (res.getNumDbNodes() < 2)
+  if (res.getNumDbNodes() < 2 || num_replicas < 2)
   {
     return NDBT_OK;
   }
 
   Vector<int> part0; // One node per ng
-  Vector<int> part1; // All other nodes
+  Vector<int> part1; // One node per ng
+  Vector<int> part2; // One node per ng
+  Vector<int> part3; // One node per ng
   Bitmask<255> part0mask;
   Bitmask<255> part1mask;
-  Bitmask<255> ngmask;
+  Bitmask<255> part2mask;
+  Bitmask<255> part3mask;
+  Uint32 ng_count[MAX_NDB_NODE_GROUPS];
+  memset(ng_count, 0, sizeof(ng_count));
+
   for (int i = 0; i<res.getNumDbNodes(); i++)
   {
     int nodeId = res.getDbNodeId(i);
     int ng = res.getNodeGroup(nodeId);
-    if (ngmask.get(ng))
+    if (ng_count[ng] == 0)
+    {
+      part0.push_back(nodeId);
+      part0mask.set(nodeId);
+    }
+    else if (ng_count[ng] == 1)
     {
       part1.push_back(nodeId);
       part1mask.set(nodeId);
     }
+    else if (ng_count[ng] == 2)
+    {
+      part2.push_back(nodeId);
+      part2mask.set(nodeId);
+    }
+    else if (ng_count[ng] == 3)
+    {
+      part3.push_back(nodeId);
+      part3mask.set(nodeId);
+    }
     else
     {
-      ngmask.set(ng);
-      part0.push_back(nodeId);
-      part0mask.set(nodeId);
+      ndbout_c("Too many replicas");
+      return NDBT_FAILED;
     }
+    ng_count[ng]++;
   }
 
   printf("part0: ");
@@ -3621,6 +3645,16 @@ runMNF(NDBT_Context* ctx, NDBT_Step* step)
   printf("part1: ");
   for (unsigned i = 0; i<part1.size(); i++)
     printf("%u ", part1[i]);
+  printf("\n");
+
+  printf("part2: ");
+  for (unsigned i = 0; i<part2.size(); i++)
+    printf("%u ", part2[i]);
+  printf("\n");
+
+  printf("part3: ");
+  for (unsigned i = 0; i<part3.size(); i++)
+    printf("%u ", part3[i]);
   printf("\n");
 
   int loops = ctx->getNumLoops();
@@ -3639,12 +3673,26 @@ runMNF(NDBT_Context* ctx, NDBT_Step* step)
       nodes = part0.getBase();
       printf("restarting part0");
     }
-    else if(part1mask.get(master) && part1mask.get(nextMaster))
+    else if (part1mask.get(master) && part1mask.get(nextMaster))
     {
       cmf = true;
       cnt = part1.size();
       nodes = part1.getBase();
       printf("restarting part1");
+    }
+    else if (part2mask.get(master) && part2mask.get(nextMaster))
+    {
+      cmf = true;
+      cnt = part2.size();
+      nodes = part2.getBase();
+      printf("restarting part2");
+    }
+    else if(part3mask.get(master) && part3mask.get(nextMaster))
+    {
+      cmf = true;
+      cnt = part3.size();
+      nodes = part3.getBase();
+      printf("restarting part3");
     }
     else
     {
@@ -3657,9 +3705,9 @@ runMNF(NDBT_Context* ctx, NDBT_Step* step)
       } 
       else 
       {
-        cnt = part0.size();
-        nodes = part0.getBase();
-        printf("restarting part0");
+        cnt = part1.size();
+        nodes = part1.getBase();
+        printf("restarting part1");
       }
     }
     
