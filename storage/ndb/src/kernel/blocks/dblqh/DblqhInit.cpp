@@ -518,8 +518,8 @@ Dblqh::Dblqh(Block_context& ctx, Uint32 instanceNumber):
                &Dblqh::execCUT_REDO_LOG_TAIL_REQ);
   addRecSignal(GSN_COPY_FRAG_NOT_IN_PROGRESS_REP,
                &Dblqh::execCOPY_FRAG_NOT_IN_PROGRESS_REP);
-  addRecSignal(GSN_GET_LOCAL_LCP_ID_REQ,
-               &Dblqh::execGET_LOCAL_LCP_ID_REQ);
+  addRecSignal(GSN_SET_LOCAL_LCP_ID_CONF,
+               &Dblqh::execSET_LOCAL_LCP_ID_CONF);
   addRecSignal(GSN_START_NODE_LCP_REQ,
                &Dblqh::execSTART_NODE_LCP_REQ);
   addRecSignal(GSN_START_LOCAL_LCP_ORD,

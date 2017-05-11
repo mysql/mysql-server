@@ -15638,13 +15638,6 @@ bool Dblqh::handle_lcp_fragment_first_phase(Signal *signal)
   return false;
 }
 
-void Dblqh::execGET_LOCAL_LCP_ID_REQ(Signal *signal)
-{
-  signal->theData[0] = c_restart_maxLcpId;
-  signal->theData[1] = c_restart_maxLocalLcpId;
-  sendSignal(NDBCNTR_REF, GSN_GET_LOCAL_LCP_ID_CONF, signal, 2, JBB);
-}
-
 void Dblqh::start_local_lcp(Signal *signal,
                             Uint32 lcpId,
                             Uint32 localLcpId)
@@ -15675,7 +15668,7 @@ void Dblqh::start_local_lcp(Signal *signal,
 
   m_curr_lcp_id = lcpId;
   m_curr_local_lcp_id = localLcpId;
-  c_localLcpId = localLcpId;
+  c_localLcpId = 1;
   if (!c_local_lcp_started)
   {
     jam();
@@ -15721,7 +15714,6 @@ Dblqh::execSTART_LOCAL_LCP_ORD(Signal *signal)
   ndbrequire(c_copy_fragment_in_progress);
   Uint32 lcpId = signal->theData[0];
   Uint32 localLcpId = signal->theData[1];
-  ndbrequire(m_curr_lcp_id == 0 && m_curr_local_lcp_id == 0);
   start_local_lcp(signal, lcpId, localLcpId);
 }
 
@@ -15788,7 +15780,7 @@ Dblqh::sendLCP_FRAG_ORD(Signal *signal, Uint32 fragPtrI)
   lcpFragOrd->tableId = fragptr.p->tabRef;
   lcpFragOrd->fragmentId = fragptr.p->fragId;
   lcpFragOrd->lcpNo = 0;
-  lcpFragOrd->lcpId = RNIL; /* Indicates Local LCP */
+  lcpFragOrd->lcpId = m_curr_lcp_id;
   lcpFragOrd->lastFragmentFlag = false;
   lcpFragOrd->keepGci = 0;
   sendSignal(reference(), GSN_LCP_FRAG_ORD, signal,
@@ -16755,19 +16747,40 @@ void Dblqh::execLCP_FRAG_ORD(Signal* signal)
 #endif
 
     c_lcpId = lcpFragOrd->lcpId;
-    g_eventLogger->info("c_lcpId = %u", c_lcpId);
     ndbrequire(lcpPtr.p->lcpPrepareState == LcpRecord::LCP_IDLE);
     ndbrequire(lcpPtr.p->lcpRunState == LcpRecord::LCP_IDLE);
     if (signal->getSendersBlockRef() != reference())
     {
       jam();
-      m_curr_lcp_id = c_lcpId;
-      m_curr_local_lcp_id = 0;
+      if (c_lcpId > m_curr_lcp_id)
+      {
+        jam();
+        m_curr_lcp_id = c_lcpId;
+        m_curr_local_lcp_id = 0;
+      }
+      else
+      {
+        m_curr_local_lcp_id++;
+        DEB_LCP(("(%u)Starting another distributed LCP with same id,"
+                 " stepping up local LCP id, LCP(%u,%u)",
+                 instance(),
+                 m_curr_lcp_id,
+                 m_curr_local_lcp_id));
+        ndbrequire(c_lcpId == m_curr_lcp_id);
+      }
+      g_eventLogger->info("(%u)Starting distributed LCP(%u,%u)",
+                          instance(),
+                          m_curr_lcp_id,
+                          m_curr_local_lcp_id);
       signal->theData[0] = c_lcpId;
       sendSignal(NDBCNTR_REF, GSN_START_DISTRIBUTED_LCP_ORD, signal, 1, JBB);
     }
     else
     {
+      g_eventLogger->info("(%u)Starting local LCP(%u,%u)",
+                          instance(),
+                          m_curr_lcp_id,
+                          m_curr_local_lcp_id);
       ndbrequire(lcpFragOrd->keepGci == 0);
     }
     ndbrequire(clcpCompletedState == LCP_IDLE);
@@ -17505,6 +17518,7 @@ restart:
   req->backupPtr = m_backup_ptr;
   req->backupId = lcpPtr.p->currentPrepareFragment.lcpFragOrd.lcpId;
   req->createGci = curr_fragptr.p->createGci;
+  req->localLcpId = m_curr_local_lcp_id;
   BlockReference backupRef = calcInstanceBlockRef(BACKUP);
   if (!ERROR_INSERTED(5053))
   {
@@ -21365,6 +21379,21 @@ void Dblqh::execSTART_RECCONF(Signal* signal)
   }
 
   jam();
+  signal->theData[0] = c_restart_maxLcpId;
+  signal->theData[0] = c_restart_maxLocalLcpId;
+  sendSignal(NDBCNTR_REF, GSN_SET_LOCAL_LCP_ID_REQ, signal,
+             2, JBB);
+}
+
+void
+Dblqh::execSET_LOCAL_LCP_ID_CONF(Signal *signal)
+{
+  jam();
+  c_restart_maxLcpId = signal->theData[0];
+  c_restart_maxLocalLcpId = signal->theData[1];
+  m_curr_lcp_id = c_restart_maxLcpId;
+  m_curr_local_lcp_id = c_restart_maxLocalLcpId;
+
   csrExecUndoLogState = EULS_COMPLETED;
 
   g_eventLogger->info("LDM(%u): Completed DD Undo log application",

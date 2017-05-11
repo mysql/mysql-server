@@ -3706,7 +3706,7 @@ public:
   void start_local_lcp(Signal*, Uint32 lcpId, Uint32 localLcpId);
 
   void execLCP_ALL_COMPLETE_CONF(Signal*);
-  void execGET_LOCAL_LCP_ID_REQ(Signal*);
+  void execSET_LOCAL_LCP_ID_CONF(Signal*);
   void execCOPY_FRAG_NOT_IN_PROGRESS_REP(Signal*);
   void execCUT_REDO_LOG_TAIL_REQ(Signal*);
 

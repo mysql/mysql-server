@@ -134,13 +134,15 @@ printLCP_PREPARE_REQ(FILE *output,
 
   fprintf(output, "senderData: %x, senderRef: %x, lcpNo: %u, tableId: %u, "
                   "fragmentId: %u\n"
-                  "lcpId: %u, backupPtr: %u, backupId: %u, createGci: %u\n",
+                  "lcpId: %u, localLcpId: %u, backupPtr: %u, backupId: %u,"
+                  " createGci: %u\n",
                   sig->senderData,
                   sig->senderRef,
                   sig->lcpNo,
                   sig->tableId,
                   sig->fragmentId,
                   sig->lcpId,
+                  sig->localLcpId,
                   sig->backupPtr,
                   sig->backupId,
                   sig->createGci);
