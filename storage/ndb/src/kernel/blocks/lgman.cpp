@@ -3620,11 +3620,11 @@ Lgman::alloc_log_space(Uint32 ref,
       validate_logfile_group(lg_ptr, "alloc_log_space", jamBuf);
       return 0;
     }
-    DEB_LGMAN(("Error 1501: free_file_words: %llu, space_limit: %llu"
+    DEB_LGMAN(("Error 1501: free_log_words: %llu, space_limit: %llu"
                " total_log_space: %llu",
-               ptr.p->m_free_file_words,
-               ptr.p->m_space_limit,
-               ptr.p->m_total_log_space));
+               lg_ptr.p->m_free_log_words,
+               lg_ptr.p->m_space_limit,
+               lg_ptr.p->m_total_log_space));
     thrjam(jamBuf);
     return 1501;
   }
