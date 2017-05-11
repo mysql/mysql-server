@@ -21380,7 +21380,7 @@ void Dblqh::execSTART_RECCONF(Signal* signal)
 
   jam();
   signal->theData[0] = c_restart_maxLcpId;
-  signal->theData[0] = c_restart_maxLocalLcpId;
+  signal->theData[1] = c_restart_maxLocalLcpId;
   sendSignal(NDBCNTR_REF, GSN_SET_LOCAL_LCP_ID_REQ, signal,
              2, JBB);
 }

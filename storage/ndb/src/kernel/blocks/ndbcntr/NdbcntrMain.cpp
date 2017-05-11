@@ -6053,10 +6053,10 @@ void Ndbcntr::execUNDO_LOG_LEVEL_REP(Signal *signal)
       return;
     }
     if (!m_local_lcp_started &&
-        m_lcp_id == 0 &&
-        m_local_lcp_id == 0)
+        !m_initial_local_lcp_started)
     {
       jam();
+      m_initial_local_lcp_started = true;
       m_local_lcp_started = true;
       m_full_local_lcp_started = true;
       ndbrequire(!c_local_sysfile.m_initial_write_local_sysfile_ongoing);
@@ -6101,11 +6101,11 @@ void Ndbcntr::execSTART_LOCAL_LCP_ORD(Signal *signal)
     return;
   }
   m_local_lcp_started = true;
-  ndbrequire(m_lcp_id == 0 && m_local_lcp_id == 0)
   /**
    * Haven't assigned first local LCP id yet. Time to do this
    * now.
    */
+  ndbrequire(!m_initial_local_lcp_started);
   ndbrequire(!c_local_sysfile.m_initial_write_local_sysfile_ongoing);
   c_local_sysfile.m_initial_write_local_sysfile_ongoing = true;
   sendWriteLocalSysfile_startLcp(signal, m_max_completed_gci);
@@ -6167,6 +6167,7 @@ void Ndbcntr::write_local_sysfile_start_lcp_done(Signal *signal)
     m_local_lcp_started = 0;
     return;
   }
+  m_local_lcp_id++;
   if (m_full_local_lcp_started)
   {
     jam();
