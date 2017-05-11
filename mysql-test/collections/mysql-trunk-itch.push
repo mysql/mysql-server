@@ -1,1 +1,0 @@
-perl mysql-test-run.pl --timer --debug-server --force --parallel=auto --comment=all-default-debug --vardir=var-all-default main.sp main.mix2_myisam sysschema.pr_diagnostics
