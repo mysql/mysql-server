@@ -1,3 +1,3 @@
-atomic_create_user : WL#9532 disables it, because it creates temporary table in DD tablespace.
-atomic_rename_user : WL#9532 disables it, because it cre
-ates temporary table in DD tablespace.
+#atomic_create_user : WL#9532 disables it, because it creates temporary table in DD tablespace.
+#atomic_rename_user : WL#9532 disables it, because it cre
+#ates temporary table in DD tablespace.
