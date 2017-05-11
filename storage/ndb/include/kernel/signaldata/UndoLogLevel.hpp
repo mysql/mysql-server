@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,32 +15,34 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#ifndef LGMAN_CONTINUEB_H
-#define LGMAN_CONTINUEB_H
+#ifndef UNDO_LOG_LEVEL_HPP
+#define UNDO_LOG_LEVEL_HPP
 
 #include "SignalData.hpp"
 
-#define JAM_FILE_ID 54
+#define JAM_FILE_ID 499
 
 
-struct LgmanContinueB {
+class UndoLogLevelRep {
+  /**
+   * Sender(s)
+   */
+  friend class Lgman;
+  friend class Ndbcntr;
 
-  enum {
-    CUT_LOG_TAIL = 0
-    ,FILTER_LOG = 1
-    ,FLUSH_LOG = 2
-    ,PROCESS_LOG_BUFFER_WAITERS = 3
-    ,FIND_LOG_HEAD = 4
-    ,EXECUTE_UNDO_RECORD = 5
-    ,READ_UNDO_LOG = 6
-    ,STOP_UNDO_LOG = 7
-    ,PROCESS_LOG_SYNC_WAITERS = 8
-    ,FORCE_LOG_SYNC = 9
-    ,DROP_FILEGROUP = 10
-    ,LEVEL_REPORT_THREAD = 11
-  };
+  /**
+   * Receiver(s)
+   */
+  friend class Dblqh;
+  friend class DblqhProxy;
+
+public:
+  STATIC_CONST( SignalLength = 1 );
+
+private:
+
+  Uint32 levelUsed; // in percent
 };
-
 
 #undef JAM_FILE_ID
 

@@ -24,7 +24,7 @@
  *
  * When adding a new signal, remember to update MAX_GSN and SignalNames.cpp
  */
-const GlobalSignalNumber MAX_GSN = 796;
+const GlobalSignalNumber MAX_GSN = 823;
 
 struct GsnName {
   GlobalSignalNumber gsn;
@@ -1118,7 +1118,7 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 
 #define GSN_RESTORABLE_GCI_REP          788
 
-#define GSN_LCP_START_REP               789
+#define GSN_LCP_START_REP               789 /* No longer used */
 
 #define GSN_WAIT_ALL_COMPLETE_LCP_REQ   790
 #define GSN_WAIT_ALL_COMPLETE_LCP_CONF  791
@@ -1129,5 +1129,43 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_INFORM_BACKUP_DROP_TAB_REQ  794
 #define GSN_INFORM_BACKUP_DROP_TAB_CONF 795
 
-#define GSN_INFO_GCP_STOP_TIMER         796
+#define GSN_HALT_COPY_FRAG_REQ          796
+#define GSN_HALT_COPY_FRAG_CONF         797
+#define GSN_HALT_COPY_FRAG_REF          798
+
+#define GSN_RESUME_COPY_FRAG_REQ        799
+#define GSN_RESUME_COPY_FRAG_CONF       800
+#define GSN_RESUME_COPY_FRAG_REF        801
+
+#define GSN_READ_LOCAL_SYSFILE_REQ      802
+#define GSN_READ_LOCAL_SYSFILE_CONF     803
+#define GSN_WRITE_LOCAL_SYSFILE_REQ     804
+#define GSN_WRITE_LOCAL_SYSFILE_CONF    805
+
+#define GSN_CUT_UNDO_LOG_TAIL_REQ       806
+#define GSN_CUT_UNDO_LOG_TAIL_CONF      807
+
+#define GSN_CUT_REDO_LOG_TAIL_REQ       808
+#define GSN_CUT_REDO_LOG_TAIL_CONF      809
+
+#define GSN_LCP_ALL_COMPLETE_REQ        810
+#define GSN_LCP_ALL_COMPLETE_CONF       811
+
+#define GSN_START_DISTRIBUTED_LCP_ORD   812
+#define GSN_START_FULL_LOCAL_LCP_ORD    813
+#define GSN_COPY_FRAG_IN_PROGRESS_REP   814
+#define GSN_COPY_FRAG_NOT_IN_PROGRESS_REP 815
+
+#define GSN_GET_LOCAL_LCP_ID_REQ        816
+#define GSN_GET_LOCAL_LCP_ID_CONF       817
+
+#define GSN_START_NODE_LCP_REQ          818
+#define GSN_START_NODE_LCP_CONF         819
+
+#define GSN_GET_LATEST_GCI_REQ          820
+
+#define GSN_UNDO_LOG_LEVEL_REP          821
+#define GSN_START_LOCAL_LCP_ORD         822
+
+#define GSN_INFO_GCP_STOP_TIMER         823
 #endif

@@ -232,6 +232,7 @@
 #define NO_LCP
 #define NO_GCP
 #endif
+#define ZUNDEFINED_GCI_LIMIT 1
 
 /**
  * Ndb kernel blocks assertion handling

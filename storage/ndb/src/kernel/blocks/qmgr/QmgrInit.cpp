@@ -245,6 +245,9 @@ Qmgr::Qmgr(Block_context& ctx)
   // Message from other blocks requesting node isolation
   addRecSignal(GSN_ISOLATE_ORD, &Qmgr::execISOLATE_ORD);
 
+  addRecSignal(GSN_READ_LOCAL_SYSFILE_CONF,
+               &Qmgr::execREAD_LOCAL_SYSFILE_CONF);
+
   initData();
 }//Qmgr::Qmgr()
 

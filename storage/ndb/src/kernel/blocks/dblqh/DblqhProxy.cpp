@@ -30,6 +30,9 @@ DblqhProxy::DblqhProxy(Block_context& ctx) :
   c_tableRec(0)
 {
   m_received_wait_all = false;
+  m_lcp_started = false;
+  m_outstanding_wait_lcp = 0;
+  m_outstanding_start_node_lcp_req = 0;
 
   // GSN_CREATE_TAB_REQ
   addRecSignal(GSN_CREATE_TAB_REQ, &DblqhProxy::execCREATE_TAB_REQ);
@@ -54,10 +57,6 @@ DblqhProxy::DblqhProxy(Block_context& ctx) :
   addRecSignal(GSN_LCP_FRAG_REP, &DblqhProxy::execLCP_FRAG_REP);
   addRecSignal(GSN_END_LCPCONF, &DblqhProxy::execEND_LCPCONF);
   addRecSignal(GSN_LCP_COMPLETE_REP, &DblqhProxy::execLCP_COMPLETE_REP);
-  addRecSignal(GSN_WAIT_ALL_COMPLETE_LCP_REQ,
-               &DblqhProxy::execWAIT_ALL_COMPLETE_LCP_REQ);
-  addRecSignal(GSN_WAIT_COMPLETE_LCP_CONF,
-               &DblqhProxy::execWAIT_COMPLETE_LCP_CONF);
 
   addRecSignal(GSN_EMPTY_LCP_REQ, &DblqhProxy::execEMPTY_LCP_REQ);
 
@@ -97,8 +96,14 @@ DblqhProxy::DblqhProxy(Block_context& ctx) :
   // GSN_SUB_GCP_COMPLETE_REP
   addRecSignal(GSN_SUB_GCP_COMPLETE_REP, &DblqhProxy::execSUB_GCP_COMPLETE_REP);
 
-  // GSN_LCP_START_REP
-  addRecSignal(GSN_LCP_START_REP, &DblqhProxy::execLCP_START_REP);
+  // GSN_UNDO_LOG_LEVEL_REP
+  addRecSignal(GSN_UNDO_LOG_LEVEL_REP, &DblqhProxy::execUNDO_LOG_LEVEL_REP);
+
+  // GSN_START_NODE_LCP_REQ
+  addRecSignal(GSN_START_NODE_LCP_REQ, &DblqhProxy::execSTART_NODE_LCP_REQ);
+
+  // GSN_START_NODE_LCP_CONF
+  addRecSignal(GSN_START_NODE_LCP_CONF, &DblqhProxy::execSTART_NODE_LCP_CONF);
 
   // GSN_EXEC_SRREQ
   addRecSignal(GSN_EXEC_SRREQ, &DblqhProxy::execEXEC_SRREQ);
@@ -883,61 +888,48 @@ DblqhProxy::execSUB_GCP_COMPLETE_REP(Signal* signal)
   }
 }
 
-// GSN_LCP_START_REP
+// GSN_UNDO_LOG_LEVEL_REP
 void
-DblqhProxy::execLCP_START_REP(Signal *signal)
+DblqhProxy::execUNDO_LOG_LEVEL_REP(Signal *signal)
 {
   jamEntry();
-  for (Uint32 i = 0; i<c_workers; i++)
+  for (Uint32 i = 0; i < c_workers; i++)
   {
     jam();
-    sendSignal(workerRef(i), GSN_LCP_START_REP, signal,
+    sendSignal(workerRef(i), GSN_UNDO_LOG_LEVEL_REP, signal,
                signal->getLength(), JBB);
   }
 }
 
-void DblqhProxy::execWAIT_ALL_COMPLETE_LCP_REQ(Signal* signal)
+// GSN_START_NODE_LCP_REQ
+void
+DblqhProxy::execSTART_NODE_LCP_REQ(Signal *signal)
 {
-  jamEntry();
-  if (m_received_wait_all)
-  {
-    /**
-     * Ignore, already received it from one of the LDMs.
-     * It is sufficient to receive it from one, then we
-     * will ensure that all receive the rest of the
-     * interaction.
-     */
-    jam();
-    return;
-  }
-  m_received_wait_all = true;
-  m_wait_all_lcp_sender = signal->theData[0];
-  m_outstanding_wait_lcp = c_workers;
+  Uint32 gci = signal->theData[0];
+  ndbrequire(m_outstanding_start_node_lcp_req == 0);
+  m_outstanding_start_node_lcp_req = c_workers;
   for (Uint32 i = 0; i < c_workers; i++)
   {
     jam();
-    sendSignal(workerRef(i), GSN_WAIT_COMPLETE_LCP_REQ, signal, 1, JBB);
+    signal->theData[0] = gci;
+    sendSignal(workerRef(i), GSN_START_NODE_LCP_REQ, signal,
+               signal->getLength(), JBB);
   }
 }
 
-void DblqhProxy::execWAIT_COMPLETE_LCP_CONF(Signal *signal)
+void
+DblqhProxy::execSTART_NODE_LCP_CONF(Signal *signal)
 {
   jamEntry();
-  ndbrequire(m_received_wait_all);
-  ndbrequire(m_outstanding_wait_lcp > 0);
-  m_outstanding_wait_lcp--;
-  if (m_outstanding_wait_lcp > 0)
+  ndbrequire(m_outstanding_start_node_lcp_req > 0);
+  m_outstanding_start_node_lcp_req--;
+  if (m_outstanding_start_node_lcp_req > 0)
   {
     jam();
     return;
   }
-  for (Uint32 i = 0; i < c_workers; i++)
-  {
-    jam();
-    signal->theData[0] = reference();
-    sendSignal(workerRef(i), GSN_WAIT_ALL_COMPLETE_LCP_CONF,
-               signal, 1, JBB);
-  }
+  signal->theData[0] = 1;
+  sendSignal(DBDIH_REF, GSN_START_NODE_LCP_CONF, signal, 1, JBB);
 }
 
 // GSN_PREP_DROP_TAB_REQ

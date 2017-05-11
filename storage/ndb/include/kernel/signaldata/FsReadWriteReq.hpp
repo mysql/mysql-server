@@ -54,6 +54,7 @@ class FsReadWriteReq {
   friend class Dblqh;
   friend class Backup;
   friend class Dbtup;
+  friend class Ndbcntr;
 
   /**
    * For printing

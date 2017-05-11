@@ -48,6 +48,15 @@
 
 #include <signaldata/FailRep.hpp>
 
+#include <signaldata/LocalSysfile.hpp>
+#include <signaldata/UndoLogLevel.hpp>
+#include <signaldata/LCP.hpp>
+#include <signaldata/FsOpenReq.hpp>
+#include <signaldata/FsRef.hpp>
+#include <signaldata/FsConf.hpp>
+#include <signaldata/FsReadWriteReq.hpp>
+#include <signaldata/FsCloseReq.hpp>
+
 #include <AttributeHeader.hpp>
 #include <Configuration.hpp>
 #include <DebuggerNames.hpp>
@@ -67,6 +76,27 @@
 
 
 extern EventLogger * g_eventLogger;
+
+#define DEBUG_LOCAL_SYSFILE 1
+#ifdef DEBUG_LOCAL_SYSFILE
+#define DEB_LOCAL_SYSFILE(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_LOCAL_SYSFILE(arglist) do { } while (0)
+#endif
+
+#define DEBUG_LCP 1
+#ifdef DEBUG_LCP
+#define DEB_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_LCP(arglist) do { } while (0)
+#endif
+
+#define DEBUG_UNDO 1
+#ifdef DEBUG_UNDO
+#define DEB_UNDO(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_UNDO(arglist) do { } while (0)
+#endif
 
 // used during shutdown for reporting current startphase
 // accessed from Emulator.cpp, NdbShutdown()
@@ -209,6 +239,7 @@ void Ndbcntr::execCONTINUEB(Signal* signal)
 void
 Ndbcntr::execAPI_START_REP(Signal* signal)
 {
+  jamEntry();
   if(refToBlock(signal->getSendersBlockRef()) == QMGR)
   {
     for(Uint32 i = 0; i<ALL_BLOCKS_SZ; i++){
@@ -1697,11 +1728,63 @@ void Ndbcntr::execDIH_RESTARTCONF(Signal* signal)
   const DihRestartConf * conf = CAST_CONSTPTR(DihRestartConf,
                                               signal->getDataPtrSend());
   c_start.m_lastGci = conf->latest_gci;
-  ctypeOfStart = NodeState::ST_SYSTEM_RESTART;
+
+  sendReadLocalSysfile(signal);
+}
+
+void
+Ndbcntr::sendReadLocalSysfile(Signal *signal)
+{
+  ReadLocalSysfileReq *req = (ReadLocalSysfileReq*)signal->getDataPtrSend();
+  req->userPointer = 0;
+  req->userReference = reference();
+  sendSignal(NDBCNTR_REF,
+             GSN_READ_LOCAL_SYSFILE_REQ,
+             signal,
+             ReadLocalSysfileReq::SignalLength,
+             JBB);
+}
+
+void
+Ndbcntr::execREAD_LOCAL_SYSFILE_CONF(Signal *signal)
+{
+  jamEntry();
+  /**
+   * No need to see results of the read since we have access to
+   * the c_local_sysfile struct and can read them directly.
+   * Set start type to SYSTEM_RESTART_NOT_RESTORABLE if not
+   * restorable on our own.
+   *
+   * We will not become master node unless we can restore on our
+   * own.
+   */
+  if (c_local_sysfile.m_restorable_flag ==
+      ReadLocalSysfileReq::NODE_RESTORABLE_ON_ITS_OWN)
+  {
+    jam();
+    ctypeOfStart = NodeState::ST_SYSTEM_RESTART;
+  }
+  else if (c_local_sysfile.m_restorable_flag ==
+           ReadLocalSysfileReq::NODE_NOT_RESTORABLE_ON_ITS_OWN)
+  {
+    jam();
+    ctypeOfStart = NodeState::ST_SYSTEM_RESTART_NOT_RESTORABLE;
+  }
+  else if (c_local_sysfile.m_restorable_flag ==
+           ReadLocalSysfileReq::NODE_REQUIRE_INITIAL_RESTART)
+  {
+    jam();
+    c_start.m_lastGci = 0;
+    ctypeOfStart = NodeState::ST_INITIAL_START;
+  }
+  else
+  {
+    ndbrequire(false);
+  }
   cdihStartType = ctypeOfStart;
   ph2ALab(signal);
   return;
-}//Ndbcntr::execDIH_RESTARTCONF()
+}
 
 /*******************************/
 /*  DIH_RESTARTREF             */
@@ -1711,9 +1794,39 @@ void Ndbcntr::execDIH_RESTARTREF(Signal* signal)
   jamEntry();
   ctypeOfStart = NodeState::ST_INITIAL_START;
   cdihStartType = ctypeOfStart;
+  sendWriteLocalSysfile_initial(signal);
+}
+
+void
+Ndbcntr::sendWriteLocalSysfile_initial(Signal *signal)
+{
+  WriteLocalSysfileReq *req = (WriteLocalSysfileReq*)signal->getDataPtrSend();
+  req->userReference = reference();
+  req->userPointer = 0;
+  req->nodeRestorableOnItsOwn =
+    ReadLocalSysfileReq::NODE_REQUIRE_INITIAL_RESTART;
+  req->maxGCIRestorable = 0;
+  req->lastWrite = 0;
+  sendSignal(NDBCNTR_REF,
+             GSN_WRITE_LOCAL_SYSFILE_REQ,
+             signal,
+             WriteLocalSysfileReq::SignalLength,
+             JBB);
+}
+
+void
+Ndbcntr::execWRITE_LOCAL_SYSFILE_CONF(Signal *signal)
+{
+  jamEntry();
+  if (m_local_lcp_started)
+  {
+    jam();
+    write_local_sysfile_start_lcp_done(signal);
+    return;
+  }
   ph2ALab(signal);
   return;
-}//Ndbcntr::execDIH_RESTARTREF()
+}
 
 void Ndbcntr::ph2ALab(Signal* signal) 
 {
@@ -1736,7 +1849,7 @@ setTimeout(Uint32 timeoutValue){
 /*******************************/
 /*  READ_NODESCONF             */
 /*******************************/
-void Ndbcntr::execREAD_NODESCONF(Signal* signal) 
+void Ndbcntr::execREAD_NODESCONF(Signal* signal)
 {
   jamEntry();
   const ReadNodesConf * readNodes = (ReadNodesConf *)&signal->theData[0];
@@ -1746,6 +1859,15 @@ void Ndbcntr::execREAD_NODESCONF(Signal* signal)
 
   /**
    * All defined nodes...
+   *
+   * QMGR have decided to start up using a set of nodes that
+   * was deemed as appropriate by QMGR. These are the nodes
+   * in c_clusterNodes. So all the nodes in c_clusterNodes
+   * have registered into the heartbeat service handled by
+   * QMGR.
+   *
+   * More nodes can arrive in the process in which case they
+   * are reported in CM_ADD_REP by QMGR.
    */
   c_allDefinedNodes.assign(NdbNodeBitmask::Size, readNodes->allNodes);
   c_clusterNodes.assign(NdbNodeBitmask::Size, readNodes->clusterNodes);
@@ -1789,16 +1911,24 @@ Ndbcntr::sendCntrStartReq(Signal * signal)
 
   if (getOwnNodeId() == cmasterNodeId)
   {
+    jam();
     g_eventLogger->info("Asking master node to accept our start "
                         "(we are master, GCI = %u)",
                         c_start.m_lastGci);
   }
   else
   {
+    jam();
     g_eventLogger->info("Asking master node to accept our start "
                         "(nodeId = %u is master), GCI = %u",
                         cmasterNodeId,
                         c_start.m_lastGci);
+  }
+
+  if (c_start.m_lastGci > m_max_completed_gci)
+  {
+    jam();
+    m_max_completed_gci = c_start.m_lastGci;
   }
 
   CntrStartReq * req = (CntrStartReq*)signal->getDataPtrSend();
@@ -1810,7 +1940,8 @@ Ndbcntr::sendCntrStartReq(Signal * signal)
 }
 
 void
-Ndbcntr::execCNTR_START_REF(Signal * signal){
+Ndbcntr::execCNTR_START_REF(Signal * signal)
+{
   jamEntry();
   const CntrStartRef * ref = (CntrStartRef*)signal->getDataPtr();
 
@@ -1832,6 +1963,7 @@ Ndbcntr::StartRecord::reset(){
   m_starting.clear();
   m_waiting.clear();
   m_withLog.clear();
+  m_withLogNotRestorable.clear();
   m_withoutLog.clear();
   m_waitTO.clear();
   m_lastGci = m_lastGciNodeId = 0;
@@ -1844,7 +1976,8 @@ Ndbcntr::StartRecord::reset(){
 }
 
 void
-Ndbcntr::execCNTR_START_CONF(Signal * signal){
+Ndbcntr::execCNTR_START_CONF(Signal * signal)
+{
   jamEntry();
   const CntrStartConf * conf = (CntrStartConf*)signal->getDataPtr();
 
@@ -1879,7 +2012,9 @@ Ndbcntr::execCNTR_START_CONF(Signal * signal){
     }
     case NodeState::ST_SYSTEM_RESTART:
     {
-      g_eventLogger->info("We are performing a restart of the cluster");
+      g_eventLogger->info("We are performing a restart of the cluster"
+                          ", restoring GCI = %u",
+                          c_start.m_lastGci);
       send_restorable_gci_rep_to_backup(signal);
       break;
     }
@@ -1892,27 +2027,9 @@ Ndbcntr::execCNTR_START_CONF(Signal * signal){
   ph2GLab(signal);
 }
 
-/**
- * Tried with parallell nr, but it crashed in DIH
- * so I turned it off, as I don't want to debug DIH now...
- * Jonas 19/11-03
- *
- * After trying for 2 hours, I gave up.
- * DIH is not designed to support it, and
- * it requires quite of lot of changes to
- * make it work
- * Jonas 5/12-03
- */
-#define PARALLELL_NR 0
-
-#if PARALLELL_NR
-const bool parallellNR = true;
-#else
-const bool parallellNR = false;
-#endif
-
 void
-Ndbcntr::execCNTR_START_REP(Signal* signal){
+Ndbcntr::execCNTR_START_REP(Signal* signal)
+{
   jamEntry();
   Uint32 nodeId = signal->theData[0];
 
@@ -1933,6 +2050,7 @@ Ndbcntr::execCNTR_START_REP(Signal* signal){
 void
 Ndbcntr::execSTART_PERMREP(Signal* signal)
 {
+  jamEntry();
   Uint32 nodeId = signal->theData[0];
   c_startedNodes.set(nodeId);
   c_start.m_starting.clear(nodeId);
@@ -1958,7 +2076,8 @@ Ndbcntr::execSTART_PERMREP(Signal* signal)
 }
 
 void
-Ndbcntr::execCNTR_START_REQ(Signal * signal){
+Ndbcntr::execCNTR_START_REQ(Signal * signal)
+{
   jamEntry();
   const CntrStartReq * req = (CntrStartReq*)signal->getDataPtr();
   
@@ -2011,24 +2130,49 @@ Ndbcntr::execCNTR_START_REQ(Signal * signal){
     jam();
     c_start.m_withoutLog.set(nodeId);
     break;
+  case NodeState::ST_SYSTEM_RESTART_NOT_RESTORABLE:
+    jam();
+    /**
+     * The node have done an unsuccessful attempt to restart.
+     * It can only be restarted by aid of other nodes. So
+     * it cannot be restored in first set of nodes in system
+     * restart that restarts from REDO log. It is restored
+     * later by synchronising with the other nodes in the
+     * same node group.
+     */
+    c_start.m_withLogNotRestorable.set(nodeId);
+    break;
   case NodeState::ST_SYSTEM_RESTART:
     jam();
     c_start.m_withLog.set(nodeId);
-    if(starting && lastGci > c_start.m_lastGci){
+    if (starting && lastGci > c_start.m_lastGci)
+    {
       jam();
       CntrStartRef * ref = (CntrStartRef*)signal->getDataPtrSend();
       ref->errorCode = CntrStartRef::NotMaster;
       ref->masterNodeId = nodeId;
       NodeReceiverGroup rg (NDBCNTR, c_start.m_waiting);
       sendSignal(rg, GSN_CNTR_START_REF, signal,
-		 CntrStartRef::SignalLength, JBB);
+                 CntrStartRef::SignalLength, JBB);
       return;
     }
-    if(starting){
+    if (starting)
+    {
       jam();
+      signal->theData[0] = nodeId;
+      EXECUTE_DIRECT(DBDIH, GSN_GET_LATEST_GCI_REQ, signal, 1);
+      Uint32 gci = signal->theData[0];
+      Uint32 lastGci = req->lastGci;
+      if (gci > lastGci)
+      {
+        jam();
+        g_eventLogger->info("Node had seen lastGci: %u, we saw %u",
+                            req->lastGci, gci);
+        lastGci = gci;
+      }
       Uint32 i = c_start.m_logNodesCount++;
       c_start.m_logNodes[i].m_nodeId = nodeId;
-      c_start.m_logNodes[i].m_lastGci = req->lastGci;
+      c_start.m_logNodes[i].m_lastGci = lastGci;
     }
     break;
   case NodeState::ST_NODE_RESTART:
@@ -2039,7 +2183,7 @@ Ndbcntr::execCNTR_START_REQ(Signal * signal){
 
   const bool startInProgress = !c_start.m_starting.isclear();
 
-  if ((starting && startInProgress) || (startInProgress && !parallellNR))
+  if (startInProgress)
   {
     jam();
     /**
@@ -2060,10 +2204,13 @@ Ndbcntr::execCNTR_START_REQ(Signal * signal){
     }
   }
   
-  if(starting){
+  if(starting)
+  {
     jam();
     trySystemRestart(signal);
-  } else {
+  }
+  else
+  {
     jam();
     startWaitingNodes(signal);
   }
@@ -2073,7 +2220,6 @@ Ndbcntr::execCNTR_START_REQ(Signal * signal){
 void
 Ndbcntr::startWaitingNodes(Signal * signal){
 
-#if ! PARALLELL_NR
   if (!c_start.m_waitTO.isclear())
   {
     jam();
@@ -2115,6 +2261,11 @@ Ndbcntr::startWaitingNodes(Signal * signal){
     nrType = NodeState::ST_INITIAL_NODE_RESTART;
     start_type_str = "initial node restart";
   }
+  else if (c_start.m_withLogNotRestorable.get(nodeId))
+  {
+    jam();
+    start_type_str = "node restart (node not restorable on its own)";
+  }
   
   /**
    * Let node perform restart
@@ -2145,47 +2296,9 @@ Ndbcntr::startWaitingNodes(Signal * signal){
 
   c_start.m_waiting.clear(nodeId);
   c_start.m_withLog.clear(nodeId);
+  c_start.m_withLogNotRestorable.clear(nodeId);
   c_start.m_withoutLog.clear(nodeId);
   c_start.m_starting.set(nodeId);
-#else
-  // Parallell nr
-  
-  c_start.m_starting = c_start.m_waiting;
-  c_start.m_waiting.clear();
-  
-  CntrStartConf * conf = (CntrStartConf*)signal->getDataPtrSend();
-  conf->noStartNodes = 1;
-  conf->startGci = ~0; // Not used
-  conf->masterNodeId = getOwnNodeId();
-  c_start.m_starting.copyto(NdbNodeBitmask::Size, conf->startingNodes);
-  c_startedNodes.copyto(NdbNodeBitmask::Size, conf->startedNodes);
-  
-  char buf[100];
-  if(!c_start.m_withLog.isclear()){
-    jam();
-    ndbout_c("Starting nodes w/ log: %s", c_start.m_withLog.getText(buf));
-
-    NodeReceiverGroup rg(NDBCNTR, c_start.m_withLog);
-    conf->startType = NodeState::ST_NODE_RESTART;
-    
-    sendSignal(rg, GSN_CNTR_START_CONF, signal, 
-	       CntrStartConf::SignalLength, JBB);
-  }
-
-  if(!c_start.m_withoutLog.isclear()){
-    jam();
-    ndbout_c("Starting nodes wo/ log: %s", c_start.m_withoutLog.getText(buf));
-    NodeReceiverGroup rg(NDBCNTR, c_start.m_withoutLog);
-    conf->startType = NodeState::ST_INITIAL_NODE_RESTART;
-    
-    sendSignal(rg, GSN_CNTR_START_CONF, signal, 
-	       CntrStartConf::SignalLength, JBB);
-  }
-
-  c_start.m_waiting.clear();
-  c_start.m_withLog.clear();
-  c_start.m_withoutLog.clear();
-#endif
 }
 
 void
@@ -2210,6 +2323,36 @@ Ndbcntr::checkNodeGroups(Signal* signal, const NdbNodeBitmask & mask){
   return (CheckNodeGroups::Output)sd->output;
 }
 
+void
+Ndbcntr::update_withLog(void)
+{
+  Uint32 latest_gci = c_start.m_lastGci;
+  for (Uint32 i = 0; i < c_start.m_logNodesCount; i++)
+  {
+    jam();
+    Uint32 nodeId = c_start.m_logNodes[i].m_nodeId;
+    jamLine(nodeId);
+    Uint32 node_last_gci = c_start.m_logNodes[i].m_lastGci;
+    ndbrequire(node_last_gci <= latest_gci);
+    if (node_last_gci < latest_gci)
+    {
+      jam();
+      /**
+       * Node cannot be restored from only its own REDO log.
+       * We use a node restart after completing the restart
+       * of the other nodes that have enough REDO log to
+       * restart.
+       *
+       * This code makes it possible to always avoid using
+       * the remote REDO log execution code by always using
+       * node restart in these cases.
+       */
+      c_start.m_withLog.clear(nodeId);
+      c_start.m_withLogNotRestorable.set(nodeId);
+    }
+  }
+}
+
 bool
 Ndbcntr::trySystemRestart(Signal* signal){
   /**
@@ -2218,20 +2361,27 @@ Ndbcntr::trySystemRestart(Signal* signal){
   const bool allNodes = c_start.m_waiting.equal(c_allDefinedNodes);
   const bool allClusterNodes = c_start.m_waiting.equal(c_clusterNodes);
 
-  if(!allClusterNodes){
+  if (!allClusterNodes)
+  {
     jam();
     return false;
   }
   
   NodeState::StartType srType = NodeState::ST_SYSTEM_RESTART;
-  if(c_start.m_waiting.equal(c_start.m_withoutLog))
+  if (c_start.m_waiting.equal(c_start.m_withoutLog))
   {
+    /**
+     * A normal Initial Cluster Start, all nodes are starting without
+     * any previous data.
+     */
     jam();
     srType = NodeState::ST_INITIAL_START;
     c_start.m_starting = c_start.m_withoutLog; // Used for starting...
     c_start.m_withoutLog.clear();
-  } else {
-
+  }
+  else
+  {
+    update_withLog();
     CheckNodeGroups::Output wLog = checkNodeGroups(signal, c_start.m_withLog);
 
     switch (wLog) {
@@ -2244,21 +2394,69 @@ Ndbcntr::trySystemRestart(Signal* signal){
       ndbrequire(!allNodes);
       return false;
     case CheckNodeGroups::Partitioning:
+    {
       jam();
-      bool allowPartition = (c_start.m_startPartitionedTimeout != (Uint64)~0);
-      
-      if(allNodes){
-	if(allowPartition){
-	  jam();
-	  break;
-	}
-	ndbrequire(false); // All nodes -> partitioning, which is not allowed
+      NdbNodeBitmask tmp = c_start.m_withLog;
+      tmp.bitOR(c_start.m_withLogNotRestorable);
+      tmp.bitOR(c_start.m_withoutLog);
+
+      /**
+       * tmp now contains all starting nodes. If we win the election with those
+       * nodes then a partitioning isn't possible, so we can safely continue the
+       * restart since we have enough nodes to get started.
+       */
+      CheckNodeGroups::Output wAll = checkNodeGroups(signal, tmp);
+      switch (wAll)
+      {
+        case CheckNodeGroups::Win:
+        {
+          /* Ok to continue start */
+          jam();
+          break;
+        }
+        case CheckNodeGroups::Lose:
+        {
+          ndbrequire(false); //Cannot happen
+        }
+        case CheckNodeGroups::Partitioning:
+        {
+          jam();
+          /**
+           * Even with all nodes accounted for we are still in a partitioned
+           * state. Only continue if we are ever allowed to start in a
+           * partitioned state. Otherwise fail reporting that partitioned
+           * start was only option and this wasn't allowed.
+           */
+          bool allowPartition =
+            (c_start.m_startPartitionedTimeout != (Uint64)~0);
+
+          if(allNodes)
+          {
+            if(allowPartition)
+            {
+              jam();
+              break;
+            }
+            progError(__LINE__,
+                      NDBD_EXIT_PARTITIONED_SHUTDOWN,
+                      "System restart not allowed in partitioned state");
+          }
+          break;
+        }
+        default:
+        {
+          ndbrequire(false);
+        }
       }
-      
       break;
-    }    
+    }
+    default:
+    {
+      ndbrequire(false);
+    }
+    }
     
-    // For now only with the "logged"-ones.
+    // For now start only with the "logged"-ones.
     // Let the others do node restart afterwards...
     c_start.m_starting = c_start.m_withLog;
     c_start.m_withLog.clear();
@@ -2281,9 +2479,18 @@ Ndbcntr::trySystemRestart(Signal* signal){
             conf->noStartNodes,
             conf->masterNodeId,
             conf->startGci);
+  g_eventLogger->info("System Restart: master node: %u, num starting: %u,"
+                      " gci: %u",
+            conf->noStartNodes,
+            conf->masterNodeId,
+            conf->startGci);
   char buf[100];
   infoEvent("CNTR_START_CONF: started: %s", c_startedNodes.getText(buf));
   infoEvent("CNTR_START_CONF: starting: %s", c_start.m_starting.getText(buf));
+  g_eventLogger->info("CNTR_START_CONF: started: %s",
+                      c_startedNodes.getText(buf));
+  g_eventLogger->info("CNTR_START_CONF: starting: %s",
+                       c_start.m_starting.getText(buf));
 
   NodeReceiverGroup rg(NDBCNTR, c_start.m_starting);
   sendSignal(rg, GSN_CNTR_START_CONF, signal, CntrStartConf::SignalLength,JBB);
@@ -2487,12 +2694,13 @@ Ndbcntr::waitpoint42To(Signal* signal)
 void
 Ndbcntr::execSTART_COPYREF(Signal* signal)
 {
-
+  jamEntry();
 }
 
 void
 Ndbcntr::execSTART_COPYCONF(Signal* signal)
 {
+  jamEntry();
   sendSttorry(signal);  
 }
 
@@ -2601,6 +2809,7 @@ void Ndbcntr::ph5ALab(Signal* signal)
       jam();
       break;
     case NodeState::ST_ILLEGAL_TYPE:
+    case NodeState::ST_SYSTEM_RESTART_NOT_RESTORABLE:
       jam();
       break;
     }
@@ -3058,6 +3267,7 @@ void Ndbcntr::execNODE_FAILREP(Signal* signal)
   c_start.m_waiting.bitANDC(allFailed);
   c_start.m_withLog.bitANDC(allFailed);
   c_start.m_withoutLog.bitANDC(allFailed);
+  c_start.m_withLogNotRestorable.bitANDC(allFailed);
   c_start.m_waitTO.bitANDC(allFailed);
   c_clusterNodes.bitANDC(allFailed);
   c_startedNodes.bitANDC(allFailed);
@@ -3311,6 +3521,7 @@ void Ndbcntr::beginSchemaTransLab(Signal* signal)
 
 void Ndbcntr::execSCHEMA_TRANS_BEGIN_CONF(Signal* signal)
 {
+  jamEntry();
   const SchemaTransBeginConf* conf =
     (SchemaTransBeginConf*)signal->getDataPtr();
   ndbrequire(conf->transId == c_schemaTransId);
@@ -3321,6 +3532,7 @@ void Ndbcntr::execSCHEMA_TRANS_BEGIN_CONF(Signal* signal)
 
 void Ndbcntr::execSCHEMA_TRANS_BEGIN_REF(Signal* signal)
 {
+  jamEntry();
   ndbrequire(false);
 }
 
@@ -3378,6 +3590,7 @@ void Ndbcntr::endSchemaTransLab(Signal* signal)
 
 void Ndbcntr::execSCHEMA_TRANS_END_CONF(Signal* signal)
 {
+  jamEntry();
   c_schemaTransId = 0;
   c_schemaTransKey = RNIL;
   startInsertTransactions(signal);
@@ -3956,6 +4169,7 @@ void Ndbcntr::sendSttorry(Signal* signal, Uint32 delayed)
 void
 Ndbcntr::execDUMP_STATE_ORD(Signal* signal)
 {
+  jamEntry();
   DumpStateOrd * const & dumpState = (DumpStateOrd *)&signal->theData[0];
   Uint32 arg = dumpState->args[0];
 
@@ -4039,7 +4253,8 @@ void Ndbcntr::updateNodeState(Signal* signal, const NodeState& newState) const{
 }
 
 void
-Ndbcntr::execRESUME_REQ(Signal* signal){
+Ndbcntr::execRESUME_REQ(Signal* signal)
+{
   //ResumeReq * const req = (ResumeReq *)&signal->theData[0];
   //ResumeRef * const ref = (ResumeRef *)&signal->theData[0];
   
@@ -4058,7 +4273,8 @@ Ndbcntr::execRESUME_REQ(Signal* signal){
 }
 
 void
-Ndbcntr::execSTOP_REQ(Signal* signal){
+Ndbcntr::execSTOP_REQ(Signal* signal)
+{
   StopReq * const req = (StopReq *)&signal->theData[0];
   StopRef * const ref = (StopRef *)&signal->theData[0];
   Uint32 singleuser  = req->singleuser;
@@ -4392,7 +4608,8 @@ Ndbcntr::StopRecord::checkTcTimeout(Signal* signal){
   cntr.sendSignalWithDelay(cntr.reference(), GSN_CONTINUEB, signal, 100, 1);
 }
 
-void Ndbcntr::execSTOP_PERM_REF(Signal* signal){
+void Ndbcntr::execSTOP_PERM_REF(Signal* signal)
+{
   //StopPermRef* const ref = (StopPermRef*)&signal->theData[0];
 
   jamEntry();
@@ -4401,7 +4618,8 @@ void Ndbcntr::execSTOP_PERM_REF(Signal* signal){
   sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 1);
 }
 
-void Ndbcntr::execSTOP_PERM_CONF(Signal* signal){
+void Ndbcntr::execSTOP_PERM_CONF(Signal* signal)
+{
   jamEntry();
   
   AbortAllReq * req = (AbortAllReq*)&signal->theData[0];
@@ -4411,7 +4629,8 @@ void Ndbcntr::execSTOP_PERM_CONF(Signal* signal){
 	     AbortAllReq::SignalLength, JBB);
 }
 
-void Ndbcntr::execABORT_ALL_CONF(Signal* signal){
+void Ndbcntr::execABORT_ALL_CONF(Signal* signal)
+{
   jamEntry();
   if(c_stopRec.stopReq.singleuser) {
     jam();
@@ -4448,7 +4667,8 @@ void Ndbcntr::execABORT_ALL_CONF(Signal* signal){
     }
 }
 
-void Ndbcntr::execABORT_ALL_REF(Signal* signal){
+void Ndbcntr::execABORT_ALL_REF(Signal* signal)
+{
   jamEntry();
 
   StopRef * const stopRef = (StopRef *)&signal->theData[0];
@@ -4496,13 +4716,15 @@ Ndbcntr::execCHANGE_NODE_STATE_CONF(Signal* signal)
   sendSignal(SUMA_REF, GSN_STOP_ME_REQ, signal, 2, JBB);
 }
 
-void Ndbcntr::execSTOP_ME_REF(Signal* signal){
+void Ndbcntr::execSTOP_ME_REF(Signal* signal)
+{
   jamEntry();
   ndbrequire(false);
 }
 
 
-void Ndbcntr::execSTOP_ME_CONF(Signal* signal){
+void Ndbcntr::execSTOP_ME_CONF(Signal* signal)
+{
   jamEntry();
 
   const StopMeConf * conf = CAST_CONSTPTR(StopMeConf, signal->getDataPtr());
@@ -4550,7 +4772,8 @@ Ndbcntr::StopRecord::checkLqhTimeout_2(Signal* signal){
   cntr.sendSignalWithDelay(cntr.reference(), GSN_CONTINUEB, signal, 100, 1);
 }
 
-void Ndbcntr::execWAIT_GCP_REF(Signal* signal){
+void Ndbcntr::execWAIT_GCP_REF(Signal* signal)
+{
   jamEntry();
   
   //WaitGCPRef* const ref = (WaitGCPRef*)&signal->theData[0];
@@ -4563,7 +4786,8 @@ void Ndbcntr::execWAIT_GCP_REF(Signal* signal){
 	     WaitGCPReq::SignalLength, JBB);
 }
 
-void Ndbcntr::execWAIT_GCP_CONF(Signal* signal){
+void Ndbcntr::execWAIT_GCP_CONF(Signal* signal)
+{
   jamEntry();
 
   WaitGCPConf* conf = (WaitGCPConf*)signal->getDataPtr();
@@ -4692,17 +4916,20 @@ Ndbcntr::execSTOP_CONF(Signal* signal)
   }
 }
 
-void Ndbcntr::execSTTORRY(Signal* signal){
+void Ndbcntr::execSTTORRY(Signal* signal)
+{
   jamEntry();
   c_missra.execSTTORRY(signal);
 }
 
-void Ndbcntr::execREAD_CONFIG_CONF(Signal* signal){
+void Ndbcntr::execREAD_CONFIG_CONF(Signal* signal)
+{
   jamEntry();
   c_missra.execREAD_CONFIG_CONF(signal);
 }
 
-void Ndbcntr::execSTART_ORD(Signal* signal){
+void Ndbcntr::execSTART_ORD(Signal* signal)
+{
   jamEntry();
   c_missra.execSTART_ORD(signal);
 }
@@ -4759,7 +4986,8 @@ Ndbcntr::clearFilesystem(Signal* signal)
 }
 
 void
-Ndbcntr::execFSREMOVECONF(Signal* signal){
+Ndbcntr::execFSREMOVECONF(Signal* signal)
+{
   jamEntry();
   if(c_fsRemoveCount == CLEAR_DX + CLEAR_LCP + CLEAR_DD){
     jam();
@@ -4832,7 +5060,7 @@ void Ndbcntr::Missra::execREAD_CONFIG_CONF(Signal* signal)
 void Ndbcntr::Missra::execSTTORRY(Signal* signal){
   const BlockReference ref = signal->senderBlockRef();
   ndbrequire(refToBlock(ref) == refToBlock(ALL_BLOCKS[currentBlockIndex].Ref));
-  
+ 
   /**
    * Update next start phase
    */
@@ -5173,5 +5401,1015 @@ Ndbcntr::send_restorable_gci_rep_to_backup(Signal *signal)
     jam();
     sendSignal(BACKUP_REF, GSN_RESTORABLE_GCI_REP, signal, 1, JBB);
   }
+}
+
+#define ZVAR_LOCAL_SYSFILE_BAT_INDEX 0
+void
+Ndbcntr::init_local_sysfile()
+{
+  c_local_sysfile.m_sender_ref = 0;
+  c_local_sysfile.m_state = LocalSysfile::NOT_USED;
+  c_local_sysfile.m_initial_read_done = false;
+  c_local_sysfile.m_last_write_done = false;
+  c_local_sysfile.m_queued_flag = false;
+  c_local_sysfile.m_initial_write_local_sysfile_ongoing = false;
+  memset(&c_local_sysfile.m_data[0], 0, sizeof(c_local_sysfile.m_data));
+
+  NewVARIABLE *bat = allocateBat(1);
+  bat[ZVAR_LOCAL_SYSFILE_BAT_INDEX].WA = &c_local_sysfile.m_data[0];
+  bat[ZVAR_LOCAL_SYSFILE_BAT_INDEX].nrr = 1;
+  bat[ZVAR_LOCAL_SYSFILE_BAT_INDEX].ClusterSize = sizeof(c_local_sysfile.m_data);
+  bat[ZVAR_LOCAL_SYSFILE_BAT_INDEX].bits.q = 7; /* 128 words 2^7 = 128 */
+  bat[ZVAR_LOCAL_SYSFILE_BAT_INDEX].bits.v = 5; /* Word size 32 bits, 2^5 = 32 */
+}
+
+void
+Ndbcntr::init_local_sysfile_vars()
+{
+  c_local_sysfile.m_sender_ref = 0;
+  c_local_sysfile.m_state = LocalSysfile::NOT_USED;
+}
+
+/**
+ * This signal is sent from various blocks during early phases of
+ * the restart. Only the first reader needs to actually read the
+ * files, the others read the local variables.
+ */
+void
+Ndbcntr::execREAD_LOCAL_SYSFILE_REQ(Signal *signal)
+{
+  jamEntry();
+  ReadLocalSysfileReq *req = (ReadLocalSysfileReq*)signal->getDataPtr();
+
+  if (c_local_sysfile.m_initial_read_done)
+  {
+    jam();
+    sendReadLocalSysfileConf(signal,
+                             req->userReference,
+                             req->userPointer);
+    return;
+  }
+  if (c_local_sysfile.m_sender_ref != 0)
+  {
+    /**
+     * Someone is already busy reading the local sysfile
+     * and haven't completed yet, we will simply wait until
+     * this read is done and then we will get the data
+     * immediately.
+     *
+     * This is normal since all LQH blocks asks for the
+     * same thing at the same time.
+     */
+    jam();
+    sendSignalWithDelay(reference(),
+                        GSN_READ_LOCAL_SYSFILE_REQ,
+                        signal,
+                        10,
+                        ReadLocalSysfileReq::SignalLength);
+    return;
+  }
+  c_local_sysfile.m_sender_data = req->userPointer;
+  c_local_sysfile.m_sender_ref = req->userReference;
+  ndbrequire(c_local_sysfile.m_state == LocalSysfile::NOT_USED);
+  c_local_sysfile.m_state = LocalSysfile::OPEN_READ_FILE_0;
+
+  /**
+   * Initialise data for response when no local sysfile is around.
+   * In this case we report that the node is restorable. The rest
+   * of the data is then of no specific value.
+   */
+  c_local_sysfile.m_restorable_flag =
+    ReadLocalSysfileReq::NODE_RESTORABLE_ON_ITS_OWN;
+  c_local_sysfile.m_max_gci_restorable = 0;
+
+  open_local_sysfile(signal, 0, true);
+}
+
+/**
+ * This is written at the following occasions:
+ *
+ * 1) Early phase writing that node requires initial restart
+ *    This is used for all types of initial restarts.
+ *    Sent by QMGR
+ *
+ * 2) Late phase (phase = 50) indicating that node is now
+ *    restorable on its own
+ *    Sent by DBLQH
+ *
+ * 3) Before starting a local LCP we need to set state to
+ *    not restorable on its own.
+ *    Sent by DBLQH
+ *
+ * 4) At each GCP_SAVEREQ after starting a local LCP we
+ *    need to send a new write with a new GCP that we
+ *    have seen completed.
+ *    Sent by DBLQH
+ */
+void
+Ndbcntr::execWRITE_LOCAL_SYSFILE_REQ(Signal *signal)
+{
+  jamEntry();
+  WriteLocalSysfileReq req = *(WriteLocalSysfileReq*)signal->getDataPtr();
+
+  ndbrequire(c_local_sysfile.m_initial_read_done);
+  if (c_local_sysfile.m_last_write_done)
+  {
+    jam();
+    /**
+     * We have already written the last write of the local sysfile
+     * in phase 50. So we can safely ignore the rest of the signals.
+     */
+    return;
+  }
+  if (c_local_sysfile.m_sender_ref != 0)
+  {
+    jam();
+    ndbrequire(!c_local_sysfile.m_queued_flag);
+    memcpy(&c_save_queued_write_local_sysfile_req,
+           &req,
+           sizeof(c_save_queued_write_local_sysfile_req));
+    c_local_sysfile.m_queued_flag = true;
+    return;
+  }
+  ndbrequire(c_local_sysfile.m_sender_ref == 0);
+  ndbrequire(c_local_sysfile.m_state == LocalSysfile::NOT_USED);
+
+  c_local_sysfile.m_sender_data = req.userPointer;
+  c_local_sysfile.m_sender_ref = req.userReference;
+
+  if (req.nodeRestorableOnItsOwn !=
+      ReadLocalSysfileReq::NODE_RESTORABLE_AS_IS)
+  {
+    jam();
+    c_local_sysfile.m_restorable_flag = req.nodeRestorableOnItsOwn;
+    if (req.lastWrite == 1)
+    {
+      jam();
+      c_local_sysfile.m_last_write_done = true;
+    }
+  }
+  else
+  {
+    jam();
+    ndbrequire(req.lastWrite == 0);
+  }
+  c_local_sysfile.m_max_gci_restorable = req.maxGCIRestorable;
+
+  c_local_sysfile.m_data[0] = NDBD_LOCAL_SYSFILE_VERSION;
+  c_local_sysfile.m_data[1] = c_local_sysfile.m_restorable_flag;
+  c_local_sysfile.m_data[2] = c_local_sysfile.m_max_gci_restorable;
+
+  c_local_sysfile.m_state = LocalSysfile::OPEN_WRITE_FILE_0;
+  open_local_sysfile(signal, 0, false);
+}
+
+void
+Ndbcntr::open_local_sysfile(Signal *signal,
+                            Uint32 sysfile_num,
+                            bool open_for_read)
+{
+  Uint32 fileName[4];
+  fileName[0] = Uint32(-1); /* T Directory not used */
+  fileName[1] = Uint32(-1); /* F Directory not used */
+  fileName[2] = Uint32(-1); /* S Directory not used */
+  Uint32 fileType = 1; /* File name version 1 */
+  fileType = (fileType << 8) + 6; /* .sysfile */
+  fileType = (fileType << 8) + (sysfile_num + 1); /* D1 = 1, D2 = 2 */
+  fileType = (fileType << 8) + 0; /* P0 file name */
+  /* The name becomes D1/NDBCNTR/P0.sysfile or D2/NDBCNTR/P0.sysfile */
+  fileName[3] = fileType;
+
+  FsOpenReq *req = (FsOpenReq*)signal->getDataPtr();
+  req->userReference = reference();
+  req->userPointer = 0;
+  req->fileNumber[0] = fileName[0];
+  req->fileNumber[1] = fileName[1];
+  req->fileNumber[2] = fileName[2];
+  req->fileNumber[3] = fileName[3];
+  if (open_for_read)
+  {
+    jam();
+    req->fileFlags = FsOpenReq::OM_READONLY;
+  }
+  else
+  {
+    jam();
+    req->fileFlags =
+      FsOpenReq::OM_READWRITE |
+      FsOpenReq::OM_CREATE |
+      FsOpenReq::OM_TRUNCATE;
+  }
+  sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, 7, JBA);
+}
+
+void
+Ndbcntr::execFSOPENREF(Signal *signal)
+{
+  jamEntry();
+  FsRef *ref = (FsRef*)signal->getDataPtr();
+  jam();
+  jamLine(ref->errorCode);
+  jamLine(ref->osErrorCode);
+  if (c_local_sysfile.m_state == LocalSysfile::OPEN_READ_FILE_0)
+  {
+    jam();
+    c_local_sysfile.m_state = LocalSysfile::OPEN_READ_FILE_1;
+    open_local_sysfile(signal, 1, true);
+    return;
+  }
+  else if (c_local_sysfile.m_state == LocalSysfile::OPEN_READ_FILE_1)
+  {
+    jam();
+    sendReadLocalSysfileConf(signal,
+                             c_local_sysfile.m_sender_ref,
+                             c_local_sysfile.m_sender_data);
+    return;
+  }
+  jamLine(c_local_sysfile.m_state);
+  ndbrequire(false);
+}
+
+void
+Ndbcntr::execFSOPENCONF(Signal *signal)
+{
+  jamEntry();
+  FsConf *conf = (FsConf*)signal->getDataPtr();
+  if (c_local_sysfile.m_state == LocalSysfile::OPEN_READ_FILE_0 ||
+      c_local_sysfile.m_state == LocalSysfile::OPEN_READ_FILE_1)
+  {
+    if (c_local_sysfile.m_state == LocalSysfile::OPEN_READ_FILE_0)
+    {
+      jam();
+      c_local_sysfile.m_state = LocalSysfile::READ_FILE_0;
+    }
+    else
+    {
+      jam();
+      c_local_sysfile.m_state = LocalSysfile::READ_FILE_1;
+    }
+    c_local_sysfile.m_file_pointer = conf->filePointer;
+    read_local_sysfile(signal);
+    return;
+  }
+  else if (c_local_sysfile.m_state == LocalSysfile::OPEN_WRITE_FILE_0 ||
+           c_local_sysfile.m_state == LocalSysfile::OPEN_WRITE_FILE_1)
+  {
+    if (c_local_sysfile.m_state == LocalSysfile::OPEN_WRITE_FILE_0)
+    {
+      jam();
+      c_local_sysfile.m_state = LocalSysfile::WRITE_FILE_0;
+    }
+    else
+    {
+      jam();
+      c_local_sysfile.m_state = LocalSysfile::WRITE_FILE_1;
+    }
+    c_local_sysfile.m_file_pointer = conf->filePointer;
+    write_local_sysfile(signal);
+    return;
+  }
+  jamLine(c_local_sysfile.m_state);
+  ndbrequire(false);
+}
+
+#define ZLIST_OF_PAIRS 0
+void
+Ndbcntr::read_local_sysfile(Signal *signal)
+{
+  FsReadWriteReq *req = (FsReadWriteReq*)signal->getDataPtr();
+  req->filePointer = c_local_sysfile.m_file_pointer;
+  req->userReference = reference();
+  req->userPointer = 0;
+  req->operationFlag = ZLIST_OF_PAIRS;
+  req->varIndex = ZVAR_LOCAL_SYSFILE_BAT_INDEX;
+  req->numberOfPages = 1;
+  req->data.pageData[0] = 0;
+  req->data.pageData[1] = 0;
+  sendSignal(NDBFS_REF, GSN_FSREADREQ, signal, 8, JBA);
+}
+
+void
+Ndbcntr::write_local_sysfile(Signal *signal)
+{
+  FsReadWriteReq *req = (FsReadWriteReq*)signal->getDataPtr();
+  req->filePointer = c_local_sysfile.m_file_pointer;
+  req->userReference = reference();
+  req->userPointer = 0;
+  req->operationFlag = ZLIST_OF_PAIRS;
+  req->varIndex = ZVAR_LOCAL_SYSFILE_BAT_INDEX;
+  req->numberOfPages = 1;
+  req->data.pageData[0] = 0;
+  req->data.pageData[1] = 0;
+  sendSignal(NDBFS_REF, GSN_FSWRITEREQ, signal, 8, JBA);
+}
+
+void
+Ndbcntr::execFSREADREF(Signal *signal)
+{
+  jamEntry();
+  if (c_local_sysfile.m_state == LocalSysfile::READ_FILE_0 ||
+      c_local_sysfile.m_state == LocalSysfile::READ_FILE_1)
+  {
+    jam();
+    handle_read_refuse(signal);
+  }
+  jamLine(c_local_sysfile.m_state);
+  ndbrequire(false);
+}
+
+const char*
+Ndbcntr::get_restorable_flag_string(Uint32 restorable_flag)
+{
+  switch (restorable_flag)
+  {
+    case ReadLocalSysfileReq::NODE_RESTORABLE_ON_ITS_OWN:
+      return "Node restorable on its own";
+    case ReadLocalSysfileReq::NODE_NOT_RESTORABLE_ON_ITS_OWN:
+      return "Node not restorable on its own";
+    case ReadLocalSysfileReq::NODE_REQUIRE_INITIAL_RESTART:
+      return "Node requires initial start";
+    default:
+      return "Invalid value of restorable flag in local sysfile";
+  }
+}
+
+void
+Ndbcntr::read_local_sysfile_data(Signal *signal)
+{
+  Uint32 version = c_local_sysfile.m_data[0];
+  Uint32 node_restorable_flag = c_local_sysfile.m_data[1];
+  Uint32 max_gci_restorable = c_local_sysfile.m_data[2];
+  c_local_sysfile.m_restorable_flag = node_restorable_flag;
+  c_local_sysfile.m_max_gci_restorable = max_gci_restorable;
+  g_eventLogger->info("Local sysfile: %s, gci: %u, version: %x",
+    get_restorable_flag_string(c_local_sysfile.m_restorable_flag),
+    c_local_sysfile.m_max_gci_restorable,
+    version);
+  jam();
+  jamLine(node_restorable_flag);
+  /**
+   * NODE_RESTORABLE_AS_IS is ok to use in protocol towards NDBCNTR,
+   * but it is not ok to store it in the local sysfile.
+   */
+  ndbrequire(node_restorable_flag <
+             ReadLocalSysfileReq::NODE_RESTORABLE_AS_IS);
+}
+
+
+void
+Ndbcntr::execFSREADCONF(Signal *signal)
+{
+  jamEntry();
+  if (c_local_sysfile.m_state == LocalSysfile::READ_FILE_0 ||
+      c_local_sysfile.m_state == LocalSysfile::READ_FILE_1)
+  {
+    jam();
+    read_local_sysfile_data(signal);
+    c_local_sysfile.m_state = LocalSysfile::CLOSE_READ_FILE;
+    close_local_sysfile(signal);
+    return;
+  }
+  jamLine(c_local_sysfile.m_state);
+  ndbrequire(false);
+}
+
+void
+Ndbcntr::execFSWRITEREF(Signal *signal)
+{
+  jamEntry();
+  jamLine(c_local_sysfile.m_state);
+  ndbrequire(false);
+}
+
+void
+Ndbcntr::execFSWRITECONF(Signal *signal)
+{
+  jamEntry();
+  if (c_local_sysfile.m_state == LocalSysfile::WRITE_FILE_0 ||
+      c_local_sysfile.m_state == LocalSysfile::WRITE_FILE_1)
+  {
+    if (c_local_sysfile.m_state == LocalSysfile::WRITE_FILE_0)
+    {
+      jam();
+      c_local_sysfile.m_state = LocalSysfile::CLOSE_WRITE_FILE_0;
+    }
+    else
+    {
+      jam();
+      c_local_sysfile.m_state = LocalSysfile::CLOSE_WRITE_FILE_1;
+    }
+    close_local_sysfile(signal);
+    return;
+  }
+  jamLine(c_local_sysfile.m_state);
+  ndbrequire(false);
+}
+
+void
+Ndbcntr::handle_read_refuse(Signal *signal)
+{
+  if (c_local_sysfile.m_state == LocalSysfile::READ_FILE_0)
+  {
+    jam();
+    c_local_sysfile.m_state = LocalSysfile::CLOSE_READ_REF_0;
+  }
+  else if (c_local_sysfile.m_state == LocalSysfile::READ_FILE_0)
+  {
+    jam();
+    c_local_sysfile.m_state = LocalSysfile::CLOSE_READ_REF_1;
+  }
+  else
+  {
+    ndbrequire(false);
+  }
+  close_local_sysfile(signal);
+}
+
+void
+Ndbcntr::close_local_sysfile(Signal *signal)
+{
+  FsCloseReq *req = (FsCloseReq*)signal->getDataPtr();
+  req->filePointer = c_local_sysfile.m_file_pointer;
+  req->userReference = reference();
+  req->userPointer = 0;
+  req->fileFlag = 0;
+  sendSignal(NDBFS_REF, GSN_FSCLOSEREQ, signal, 4, JBA);
+}
+
+void
+Ndbcntr::execFSCLOSEREF(Signal *signal)
+{
+  jamEntry();
+  ndbrequire(false);
+}
+
+void
+Ndbcntr::sendReadLocalSysfileConf(Signal *signal,
+                                  BlockReference ref,
+                                  Uint32 senderData)
+{
+  ReadLocalSysfileConf *conf = (ReadLocalSysfileConf*)
+    signal->getDataPtrSend();
+  conf->userPointer = senderData;
+  conf->nodeRestorableOnItsOwn = c_local_sysfile.m_restorable_flag;
+  conf->maxGCIRestorable = c_local_sysfile.m_max_gci_restorable;
+
+  sendSignal(ref,
+             GSN_READ_LOCAL_SYSFILE_CONF,
+             signal,
+             ReadLocalSysfileConf::SignalLength,
+             JBB);
+  c_local_sysfile.m_initial_read_done = true;
+  init_local_sysfile_vars();
+}
+
+void
+Ndbcntr::sendWriteLocalSysfileConf(Signal *signal)
+{
+  DEB_LOCAL_SYSFILE(("LocalSysfile write: m_restorable_flag: %u,"
+                     " m_max_gci_restorable: %u",
+                     c_local_sysfile.m_restorable_flag,
+                     c_local_sysfile.m_max_gci_restorable));
+
+  WriteLocalSysfileConf *conf = (WriteLocalSysfileConf*)
+    signal->getDataPtrSend();
+  conf->userPointer = c_local_sysfile.m_sender_data;
+  sendSignal(c_local_sysfile.m_sender_ref,
+             GSN_WRITE_LOCAL_SYSFILE_CONF,
+             signal,
+             WriteLocalSysfileConf::SignalLength,
+             JBB);
+  init_local_sysfile_vars();
+
+  if (c_local_sysfile.m_queued_flag)
+  {
+    jam();
+    c_local_sysfile.m_queued_flag = false;
+    WriteLocalSysfileReq *req =
+      (WriteLocalSysfileReq*)signal->getDataPtrSend();
+    memcpy(req,
+           &c_save_queued_write_local_sysfile_req,
+           sizeof(c_save_queued_write_local_sysfile_req));
+    execWRITE_LOCAL_SYSFILE_REQ(signal);
+  }
+}
+
+void
+Ndbcntr::execFSCLOSECONF(Signal *signal)
+{
+  jamEntry();
+  if (c_local_sysfile.m_state == LocalSysfile::CLOSE_READ_FILE)
+  {
+    jam();
+    sendReadLocalSysfileConf(signal,
+                             c_local_sysfile.m_sender_ref,
+                             c_local_sysfile.m_sender_data);
+    return;
+  }
+  else if (c_local_sysfile.m_state == LocalSysfile::CLOSE_READ_REF_0)
+  {
+    jam();
+    c_local_sysfile.m_state = LocalSysfile::OPEN_READ_FILE_1;
+    open_local_sysfile(signal, 1, true);
+    return;
+  }
+  else if (c_local_sysfile.m_state == LocalSysfile::CLOSE_READ_REF_1)
+  {
+    jam();
+    sendReadLocalSysfileConf(signal,
+                             c_local_sysfile.m_sender_ref,
+                             c_local_sysfile.m_sender_data);
+    return;
+  }
+  else if (c_local_sysfile.m_state == LocalSysfile::CLOSE_WRITE_FILE_0)
+  {
+    jam();
+    c_local_sysfile.m_state = LocalSysfile::OPEN_WRITE_FILE_1;
+    open_local_sysfile(signal, 1, false);
+    return;
+  }
+  else if (c_local_sysfile.m_state == LocalSysfile::CLOSE_WRITE_FILE_1)
+  {
+    jam();
+    sendWriteLocalSysfileConf(signal);
+    return;
+  }
+  jamLine(c_local_sysfile.m_state);
+  ndbrequire(false);
+}
+
+void
+Ndbcntr::sendWriteLocalSysfile_startLcp(Signal *signal, Uint32 gci)
+{
+  WriteLocalSysfileReq *req = (WriteLocalSysfileReq*)signal->getDataPtrSend();
+  req->userReference = reference();
+  req->userPointer = 0;
+  req->nodeRestorableOnItsOwn =
+    ReadLocalSysfileReq::NODE_NOT_RESTORABLE_ON_ITS_OWN;
+  req->maxGCIRestorable = gci;
+  req->lastWrite = 0;
+  sendSignal(NDBCNTR_REF,
+             GSN_WRITE_LOCAL_SYSFILE_REQ,
+             signal,
+             WriteLocalSysfileReq::SignalLength,
+             JBB);
+}
+
+void Ndbcntr::execCOPY_FRAG_IN_PROGRESS_REP(Signal *signal)
+{
+  jamEntry();
+  m_copy_fragment_in_progress = true;
+  DEB_LCP(("m_copy_fragment_in_progress: %u", m_copy_fragment_in_progress));
+}
+
+Uint32 Ndbcntr::send_to_all_lqh(Signal *signal,
+                                Uint32 gsn,
+                                Uint32 sig_len)
+{
+  Uint32 ldm_workers = globalData.ndbMtLqhWorkers == 0 ?
+                       1 : globalData.ndbMtLqhWorkers;
+  if (isNdbMtLqh())
+  {
+    jam();
+    for (Uint32 i = 1; i <= ldm_workers; i++)
+    {
+      jam();
+      BlockReference ref = numberToRef(DBLQH, i, getOwnNodeId());
+      sendSignal(ref, gsn, signal, sig_len, JBB);
+    }
+  }
+  else
+  {
+    jam();
+    sendSignal(DBLQH_REF, gsn, signal,
+               sig_len, JBB);
+  }
+  return ldm_workers;
+}
+
+void Ndbcntr::execCOPY_FRAG_NOT_IN_PROGRESS_REP(Signal *signal)
+{
+  jamEntry();
+  if (!m_copy_fragment_in_progress)
+  {
+    jam();
+    /**
+     * DIH master can start up to one COPY_ACTIVEREQ in parallel per
+     * LDM thread, so this can arrive multiple times. If so we only
+     * handle the first and ignore the rest.
+     */
+    return;
+  }
+  /**
+   * We need to report back to the LDM threads such that we
+   * are sure that no new local LCPs are started when we
+   * are in the process of waiting for the last one to complete.
+   */
+  send_to_all_lqh(signal, GSN_COPY_FRAG_NOT_IN_PROGRESS_REP, 1);
+  m_copy_fragment_in_progress = false;
+  DEB_LCP(("m_copy_fragment_in_progress: %u", m_copy_fragment_in_progress));
+
+}
+
+#define START_LCP_LEVEL 25
+void Ndbcntr::execUNDO_LOG_LEVEL_REP(Signal *signal)
+{
+  jamEntry();
+  UndoLogLevelRep *rep = (UndoLogLevelRep*)signal->getDataPtr();
+  Uint32 levelUsed = rep->levelUsed;
+  DEB_UNDO(("UNDO log level = %u", levelUsed));
+  if (m_copy_fragment_in_progress &&
+      !c_local_sysfile.m_initial_write_local_sysfile_ongoing &&
+      levelUsed >= START_LCP_LEVEL)
+  {
+    /**
+     * If no local LCP is ongoing we need to start one.
+     * We have reached a threshold where we consider it time to
+     * start an LCP to ensure that we don't run out of log space.
+     *
+     * We will only start a local LCP during the time Copy Fragment
+     * is ongoing. We will also not start a full local LCP while we
+     * are right now spinning up the first local LCP. We will be back
+     * here within 2 seconds to start a full local LCP later.
+     */
+    if (m_full_local_lcp_started)
+    {
+      jam();
+      DEB_LCP(("A full local LCP already started"));
+      return;
+    }
+    DEB_LCP(("Start a full local LCP"));
+    if (m_local_lcp_started &&
+        m_local_lcp_completed)
+    {
+      jam();
+      /**
+       * We are running a local LCP, but not yet a full local LCP.
+       * However the local LCP have already completed the LCP
+       * phase and is now merely waiting for cutting the log tail,
+       * so nothing extra to do.
+       */
+      DEB_LCP(("Start a full local LCP wasn't necessary"));
+      return;
+    }
+    if (!m_local_lcp_started &&
+        m_lcp_id == 0 &&
+        m_local_lcp_id == 0)
+    {
+      jam();
+      m_local_lcp_started = true;
+      m_full_local_lcp_started = true;
+      ndbrequire(!c_local_sysfile.m_initial_write_local_sysfile_ongoing);
+      c_local_sysfile.m_initial_write_local_sysfile_ongoing = true;
+      sendGET_LOCAL_LCP_ID_REQ(signal);
+      return;
+    }
+    if (!m_local_lcp_started)
+    {
+      jam();
+      m_local_lcp_started = true;
+      m_full_local_lcp_started = true;
+      m_local_lcp_id++;
+    }
+    jam();
+    sendSTART_FULL_LOCAL_LCP_ORD(signal);
+  }
+  return;
+}
+
+void Ndbcntr::sendSTART_FULL_LOCAL_LCP_ORD(Signal *signal)
+{
+  DEB_LCP(("Send START_FULL_LOCAL_LCP_ORD(%u,%u)",
+           m_lcp_id, m_local_lcp_id));
+  signal->theData[0] = m_lcp_id;
+  signal->theData[1] = m_local_lcp_id;
+  send_to_all_lqh(signal, GSN_START_FULL_LOCAL_LCP_ORD, 2);
+  m_local_lcp_started = true;
+  m_full_local_lcp_started = true;
+}
+
+void Ndbcntr::execSTART_LOCAL_LCP_ORD(Signal *signal)
+{
+  jamEntry();
+  if (m_local_lcp_started)
+  {
+    jam();
+    /**
+     * First START_LOCAL_LCP_ORD have already arrived, no need
+     * to start up again.
+     */
+    return;
+  }
+  m_local_lcp_started = true;
+  ndbrequire(m_lcp_id == 0 && m_local_lcp_id == 0)
+  /**
+   * Haven't assigned first local LCP id yet. Time to do this
+   * now.
+   */
+  ndbrequire(!c_local_sysfile.m_initial_write_local_sysfile_ongoing);
+  c_local_sysfile.m_initial_write_local_sysfile_ongoing = true;
+  sendGET_LOCAL_LCP_ID_REQ(signal);
+}
+
+void Ndbcntr::sendGET_LOCAL_LCP_ID_REQ(Signal *signal)
+{
+  ndbrequire(c_local_sysfile.m_initial_write_local_sysfile_ongoing);
+  DEB_LCP(("Send GET_LOCAL_LCP_ID_REQ"));
+  Uint32 ldm_workers = send_to_all_lqh(signal, GSN_GET_LOCAL_LCP_ID_REQ, 1);
+  m_outstanding_wait_get_local_lcp_id = ldm_workers;
+}
+
+void Ndbcntr::execGET_LOCAL_LCP_ID_CONF(Signal *signal)
+{
+  GetLocalLcpIdConf *conf = (GetLocalLcpIdConf*)signal->getDataPtr();
+  Uint32 lcpId = conf->lcpId;
+  Uint32 localLcpId = conf->localLcpId;
+  jamEntry();
+
+  ndbrequire(m_outstanding_wait_get_local_lcp_id > 0);
+  m_outstanding_wait_get_local_lcp_id--;
+
+  if (lcpId > m_lcp_id)
+  {
+    jam();
+    m_lcp_id = lcpId;
+    m_local_lcp_id = localLcpId + 1;
+  }
+  if ((localLcpId + 1) > m_local_lcp_id)
+  {
+    jam();
+    m_local_lcp_id = localLcpId + 1;
+  }
+  if (m_outstanding_wait_get_local_lcp_id > 0)
+  {
+    jam();
+    return;
+  }
+  sendWriteLocalSysfile_startLcp(signal, m_max_completed_gci);
+  return;
+}
+
+void Ndbcntr::write_local_sysfile_start_lcp_done(Signal *signal)
+{
+  ndbrequire(c_local_sysfile.m_initial_write_local_sysfile_ongoing);
+  c_local_sysfile.m_initial_write_local_sysfile_ongoing = false;
+  if (!m_copy_fragment_in_progress)
+  {
+    jam();
+    ndbrequire(m_full_local_lcp_started);
+    /**
+     * Copy fragment process completed before we had time to even start
+     * a local LCP. So we avoid starting one now. The restart is already
+     * progressing beyond this point so we simply don't do anything here.
+     */
+    m_full_local_lcp_started = false;
+    m_local_lcp_started = 0;
+    return;
+  }
+  if (m_full_local_lcp_started)
+  {
+    jam();
+    sendSTART_FULL_LOCAL_LCP_ORD(signal);
+  }
+  else
+  {
+    jam();
+    sendSTART_LOCAL_LCP_ORD(signal);
+  }
+}
+
+void Ndbcntr::sendSTART_LOCAL_LCP_ORD(Signal *signal)
+{
+  DEB_LCP(("Send START_LOCAL_LCP_ORD(%u,%u)",
+           m_lcp_id, m_local_lcp_id));
+  signal->theData[0] = m_lcp_id;
+  signal->theData[1] = m_local_lcp_id;
+  send_to_all_lqh(signal, GSN_START_LOCAL_LCP_ORD, 2);
+}
+
+void Ndbcntr::execWAIT_ALL_COMPLETE_LCP_REQ(Signal* signal)
+{
+  jamEntry();
+  ndbrequire(m_local_lcp_started);
+  if (m_received_wait_all)
+  {
+    /**
+     * Ignore, already received it from one of the LDMs.
+     * It is sufficient to receive it from one, then we
+     * will ensure that all receive the rest of the
+     * interaction.
+     */
+    jam();
+    return;
+  }
+  m_received_wait_all = true;
+  m_outstanding_wait_lcp = send_to_all_lqh(signal,
+                                           GSN_WAIT_COMPLETE_LCP_REQ,
+                                           1);
+  DEB_LCP(("WAIT_ALL_COMPLETE_LCP_REQ received, sent WAIT_COMPLETE_LCP_REQ"));
+}
+
+void Ndbcntr::execWAIT_COMPLETE_LCP_CONF(Signal *signal)
+{
+  WaitCompleteLcpConf *conf = (WaitCompleteLcpConf*)signal->getDataPtr();
+  jamEntry();
+  ndbrequire(m_received_wait_all);
+  ndbrequire(m_outstanding_wait_lcp > 0);
+  if (conf->maxGciInLcp > m_max_gci_in_lcp)
+  {
+    jam();
+    m_max_gci_in_lcp = conf->maxGciInLcp;
+  }
+  if (m_max_keep_gci == 0 ||
+      conf->maxKeepGci < m_max_keep_gci)
+  {
+    jam();
+    m_max_keep_gci = conf->maxKeepGci;
+  }
+  m_outstanding_wait_lcp--;
+  if (m_outstanding_wait_lcp > 0)
+  {
+    jam();
+    return;
+  }
+  DEB_LCP(("Received all WAIT_COMPLETE_LCP_CONF"));
+  m_local_lcp_completed = true;
+  m_ready_to_cut_log_tail = true;
+  if (!is_ready_to_cut_log_tail())
+  {
+    jam();
+    return;
+  }
+  send_cut_log_tail(signal);
+}
+
+void Ndbcntr::execRESTORABLE_GCI_REP(Signal *signal)
+{
+  jamEntry();
+  Uint32 gci = signal->theData[0];
+  m_max_completed_gci = gci;
+  DEB_LCP(("max_completed_gci: %u", gci));
+  if (is_ready_to_cut_log_tail())
+  {
+    jam();
+    send_cut_log_tail(signal);
+  }
+}
+
+void Ndbcntr::execSTART_DISTRIBUTED_LCP_ORD(Signal *signal)
+{
+  jamEntry();
+  Uint32 ldm_workers = globalData.ndbMtLqhWorkers == 0 ?
+                       1 : globalData.ndbMtLqhWorkers;
+  Uint32 lcpId = signal->theData[0];
+  if (!m_distributed_lcp_started)
+  {
+    jam();
+    DEB_LCP(("Start distributed LCP: lcpId = %u", lcpId));
+    ndbrequire(m_outstanding_wait_lcp == 0);
+    m_distributed_lcp_started = true;
+    m_outstanding_wait_lcp = ldm_workers;
+    m_distributed_lcp_id = lcpId;
+    m_max_gci_in_lcp = 0;
+    m_max_keep_gci = 0;
+    m_ready_to_cut_log_tail = false;
+  }
+}
+
+void Ndbcntr::execLCP_ALL_COMPLETE_REQ(Signal *signal)
+{
+  /**
+   * LQH Proxy will ensure that all LDMs will receive an LCP_FRAG_ORD
+   * with last fragment flag set. Thus we will expect to receive this
+   * signal from all LDMs.
+   */
+  jamEntry();
+  LcpAllCompleteReq *req = (LcpAllCompleteReq*)signal->getDataPtr();
+  Uint32 lcpId = req->lcpId;
+
+  ndbrequire(lcpId == m_distributed_lcp_id);
+  if (req->maxGciInLcp > m_max_gci_in_lcp)
+  {
+    jam();
+    m_max_gci_in_lcp = req->maxGciInLcp;
+  }
+  if (m_max_keep_gci == 0 ||
+      req->maxKeepGci < m_max_keep_gci)
+  {
+    jam();
+    m_max_keep_gci = req->maxKeepGci;
+  }
+  ndbrequire(m_distributed_lcp_started);
+  ndbrequire(m_outstanding_wait_lcp > 0);
+  m_outstanding_wait_lcp--;
+  if (m_outstanding_wait_lcp > 0)
+  {
+    /* Still waiting */
+    jam();
+    return;
+  }
+  DEB_LCP(("Received all LCP_ALL_COMPLETE_REQ"
+           " maxGciInLcp: %u, maxCompletedGci: %u",
+           m_max_gci_in_lcp,
+           m_max_completed_gci));
+
+  m_ready_to_cut_log_tail = true;
+  if (!is_ready_to_cut_log_tail())
+  {
+    jam();
+    return;
+  }
+  send_cut_log_tail(signal);
+}
+
+bool Ndbcntr::is_ready_to_cut_log_tail(void)
+{
+  if (m_ready_to_cut_log_tail &&
+      m_max_completed_gci >= m_max_gci_in_lcp)
+  {
+    jam();
+    return true;
+  }
+  jam();
+  return false;
+}
+
+void Ndbcntr::send_cut_log_tail(Signal *signal)
+{
+  DEB_LCP(("Sending CUT_LOG_REDO/UNDO_TAIL_REQ"));
+  m_wait_cut_undo_log_tail = true;
+  m_ready_to_cut_log_tail = false;
+  signal->theData[0] = m_max_keep_gci;
+  m_outstanding_wait_cut_redo_log_tail = send_to_all_lqh(signal,
+                                        GSN_CUT_REDO_LOG_TAIL_REQ,
+                                        1);
+  sendSignal(LGMAN_REF, GSN_CUT_UNDO_LOG_TAIL_REQ, signal, 1, JBB);
+}
+
+void Ndbcntr::execCUT_UNDO_LOG_TAIL_CONF(Signal *signal)
+{
+  jamEntry();
+  ndbrequire(m_wait_cut_undo_log_tail);
+  m_wait_cut_undo_log_tail = false;
+  check_cut_log_tail_completed(signal);
+}
+
+void Ndbcntr::execCUT_REDO_LOG_TAIL_CONF(Signal *signal)
+{
+  jamEntry();
+  ndbrequire(m_outstanding_wait_cut_redo_log_tail > 0);
+  m_outstanding_wait_cut_redo_log_tail--;
+  check_cut_log_tail_completed(signal);
+}
+
+void Ndbcntr::check_cut_log_tail_completed(Signal *signal)
+{
+  if (m_wait_cut_undo_log_tail ||
+      m_outstanding_wait_cut_redo_log_tail > 0)
+  {
+    jam();
+    return;
+  }
+  DEB_LCP(("Received all CUT_LOG_REDO/UNDO_TAIL_CONF"));
+  if (m_local_lcp_started)
+  {
+    jam();
+    ndbrequire(!m_distributed_lcp_started);
+    sendWAIT_ALL_COMPLETE_LCP_CONF(signal);
+  }
+  else
+  {
+    ndbrequire(m_distributed_lcp_started);
+    sendLCP_ALL_COMPLETE_CONF(signal);
+  }
+}
+
+void Ndbcntr::sendLCP_ALL_COMPLETE_CONF(Signal *signal)
+{
+  DEB_LCP(("Send LCP_ALL_COMPLETE_CONF"));
+  signal->theData[0] = m_distributed_lcp_id;
+  send_to_all_lqh(signal, GSN_LCP_ALL_COMPLETE_CONF, 1);
+  g_eventLogger->info("Distributed LCP id %u complete in this node,"
+                      " max GCI in LCP = %u, also cut UNDO log tail"
+                      " and REDO log tail to keepGCI = %u",
+                      m_distributed_lcp_id,
+                      m_max_gci_in_lcp,
+                      m_max_keep_gci);
+  m_distributed_lcp_started = false;
+  m_distributed_lcp_id = 0;
+  m_max_gci_in_lcp = 0;
+  m_max_keep_gci = 0;
+}
+
+void Ndbcntr::sendWAIT_ALL_COMPLETE_LCP_CONF(Signal *signal)
+{
+  DEB_LCP(("Send WAIT_ALL_COMPLETE_LCP_CONF"));
+  signal->theData[0] = reference();
+  send_to_all_lqh(signal, GSN_WAIT_ALL_COMPLETE_LCP_CONF, 1);
+  m_received_wait_all = false;
+  m_local_lcp_started = false;
+  m_local_lcp_completed = false;
+  m_full_local_lcp_started = false;
+  DEB_LCP(("m_lcp_started false again"));
 }
 template class Vector<ddentry>;
