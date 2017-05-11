@@ -217,13 +217,13 @@ Restore::execDUMP_STATE_ORD(Signal* signal){
  *
  * Here is a flow chart of what we perform here.
  * There are 5 main cases:
- * 1) Only valid LCP control file 0 exists
- * 2) Only valid LCP control file 1 exists
+ * Case 1) Only valid LCP control file 0 exists
+ * Case 2) Only valid LCP control file 1 exists
  *
  *    Perfectly normal cases and common cases. This LCP was completed
  *    and the previous one was both completed and removed from disk.
  *
- * 3) Both LCP control file 0 and 1 exists
+ * Case 3) Both LCP control file 0 and 1 exists
  *
  *    This case is perfectly normal but unusual. It happens when
  *    we had a crash before completing the removal of the old
@@ -238,11 +238,11 @@ Restore::execDUMP_STATE_ORD(Signal* signal){
  *    middle of writing the LCP control file (should be extremely
  *    rare or even never happening).
  *
- * 4) No LCP control file exists (restore of 7.4 and older LCP).
+ * Case 4) No LCP control file exists (restore of 7.4 and older LCP).
  *
  * This is the normal case for an upgrade case.
  *
- * 5) Only LCP control file 0 exists, but it still is empty or contains
+ * Case 5) Only LCP control file 0 exists, but it still is empty or contains
  *    invalid data. We could also have two invalid LCP control files here.
  *
  *    This case is also valid and can happen when we crash during running
@@ -256,6 +256,221 @@ Restore::execDUMP_STATE_ORD(Signal* signal){
  *    completing the GCP that was necessary to make the LCP recoverable.
  *    Even DIH could know about this LCP but also knows to not try to use
  *    it. Either way DIH will send lcpNo equal to ZNIL.
+ *
+ * Variable descriptions:
+ * ----------------------
+ * m_ctl_file_no:
+ * --------------
+ * This represents the number of the CTL file currently being processed.
+ * It is set to 0 when opening the first file and 1 when later opening
+ * the second CTL file. It is initialised to Uint32(~0). When an empty
+ * CTL file is created when no LCP is found it is set to 0.
+ *
+ * m_status:
+ * ---------
+ * This variable represents what we are currently doing.
+ * It is a bitmap, so more than one state is possible at any time.
+ *
+ * Initial state is READ_CTL_FILES, this represents reading both CTL
+ * files to discover the state of the LCP.
+ *
+ * FIRST_READ, FILE_THREAD_RUNNING, RESTORE_THREAD_RUNNING, FILE_EOF and
+ * READING_RECORDS are states used when reading data files.
+ * FIRST_READ is the initial state when starting to open the data file.
+ * FILE_THREAD_RUNNING is an indication that a CONTINUEB thread is running
+ * that reads the data file.
+ * RESTORE_THREAD_RUNNING is an indication that a CONTINUEB thread is
+ * running to restore using the data file.
+ * READING_RECORDS is an indication that we are now reading records of the
+ * data file.
+ * FILE_EOF is an indication that the read of the data file is completed.
+ * It is set when FILE_THREAD_RUNNING is reset.
+ *
+ * CREATE_CTL_FILE is a state used when creating a CTL file at times when
+ * no LCP files was found.
+ *
+ * REMOVE_LCP_DATA_FILE is a state used when deleting data files after
+ * reading the CTL files.
+ * REMOVE_LCP_CTL_FILE is a state used when deleting a CTL file after
+ * deleting data files.
+ *
+ * We start in state READ_CTL_FILES, after that we go CREATE_CTL_FILE
+ * if no LCP files were found. If LCP files were found we move to
+ * REMOVE_LCP_DATA_FILE if data files to delete was present, next we
+ * move to REMOVE_LCP_CTL_FILE if necessary to remove a CTL file.
+ * 
+ * Finally we move to restore using one or more data files. We restore
+ * one file at a time using the state variables described above for
+ * handling the data file.
+ * 
+ * m_outstanding_reads:
+ * --------------------
+ * Used during read of data file to keep track of number of outstanding
+ * FSREADREQ's.
+ *
+ * m_outstanding_operations:
+ * -------------------------
+ * It is used during remove files to keep track of number of outstanding
+ * remove data files that are currently outstanding (we can delete multiple
+ * files in parallel).
+ * It is used during restore to keep track of number of outstanding
+ * LQHKEYREQs.
+ *
+ * m_remove_ctl_file_no:
+ * ---------------------
+ * It is initialised to Uint32(~0). If set to this we won't delete any
+ * CTL files.
+ * When we find no CTL files we drop CTL file 0, we also drop all potential
+ * data files from 0 to max file number.
+ * If a CTL file that isn't restorable is found, then this file number is
+ * set in this variable.
+ * If we find that the other file is newer and restorable then we set this
+ * variable to this file number.
+ *
+ * m_used_ctl_file_no:
+ * -------------------
+ * This variable is set to the CTL file we will use for restore. As soon as
+ * we find a possible candidate it is set to the candidate, we might then
+ * find that the other CTL file is an even better candidate and move the
+ * variable to this number. As long as no CTL file have been found it
+ * remains set to the initial value Uint32(~0).
+ *
+ * m_current_page_ptr_i:
+ * ---------------------
+ * Set to i-value of page we are currently restoring from. We allocate a set
+ * of pages at start of restore and use those pages when reading from file
+ * into those pages.
+ *
+ * m_current_page_pos:
+ * -------------------
+ * Indicates index position on the current page we are restoring.
+ *
+ * m_current_page_index:
+ * ---------------------
+ * Indicates which of the allocated pages we are currently restoring, used
+ * to find the next page. The allocated pages are in an array. So getting
+ * to the next page can be easily accomplished by adding one to this variable.
+ * We use modulo page_count always when getting the page ptr, so this variable
+ * can be constantly incremented.
+ *
+ * m_current_file_page:
+ * --------------------
+ * Used by read file process, keeps track of which page number was the last
+ * one we issued a read on.
+ *
+ * m_bytes_left:
+ * -------------
+ * Incremented with number of bytes read from disk when FSREADCONF arrives.
+ * Decremented by length of record when restoring from file.
+ * Thus keeps track of number of bytes left already read from disk.
+ *
+ * m_rows_restored:
+ * ----------------
+ * Statistical variable, counts number of rows restored (counts LQHKEYCONF's
+ * received). Used to display various stats about the restore.
+ *
+ * m_restore_start_time:
+ * ---------------------
+ * Current millisecond when restore starts. Used to print stats on restore
+ * performance.
+ *
+ * m_restored_gcp_id:
+ * ------------------
+ * This variable keeps track of the GCI we are restoring, no LCP files that
+ * have a newer GCP written can be used. This is either retrieved from
+ * DIH sysfile or local sysfile (if recovering in a not restorable state).
+ * Can be used for upgrade case where we use it to write a CTL file for
+ * an existing LCP that had no CTL files.
+ *
+ * m_restored_lcp_id:
+ * m_restored_local_lcp_id:
+ * m_max_gci_completed:
+ * m_max_gci_written:
+ * m_max_page_cnt:
+ * ------------------------
+ * These five variables are set from the used CTL file. They are initialised
+ * from the RESTORE_LCP_REQ to be used in the upgrade case. In the upgrade
+ * case we will set MaxPageCnt to Uint32(~0).
+ * m_restored_lcp_id and m_restored_local_lcp_id is the id of the LCP used
+ * write the LCP.
+ * m_max_page_cnt is the number of pages that we have ROW ids for in the file.
+ * m_max_gci_written is the maximum GCI written in this LCP.
+ * m_max_gci_completed is the maximum GCI completed when writing this LCP.
+ * m_max_gci_completed can be bigger than m_max_gci_written.
+ *
+ * m_create_gci:
+ * -------------
+ * CreateGCI from RESTORE_LCP_REQ, not used.
+ *
+ * m_file_id:
+ * ----------
+ * File id as described in used CTL file. When multiple files are to be restored
+ * it starts at first and then moves forward. Is between 0 and
+ * BackupFormat::NDB_MAX_LCP_FILES - 1.
+ *
+ * m_max_parts:
+ * ------------
+ * Set from used CTL file. Set to 1 when performing upgrade variant.
+ *
+ * m_max_files:
+ * ------------
+ * Set from used CTL file, normally set to BackupFormat::NDB_MAX_LCP_FILES but
+ * could be set differently when performing downgrade or upgrade. Indicates
+ * maximum files that could be used, this is necessary to know what the file
+ * name is of the next file.
+ *
+ * m_num_files:
+ * ------------
+ * Set from used CTL file. Set to number of files (also number of part pairs)
+ * to restore in the LCP.
+ *
+ * m_current_file_index:
+ * ---------------------
+ * Number of file currently restored, starts at 0 and goes up to
+ * m_num_files - 1 before we're done.
+ *
+ * m_dih_lcp_no:
+ * -------------
+ * In pre-7.6 this indicates data file number, in 7.6 it indicates rather
+ * which CTL file number that DIH thinks should be restored. If this is set
+ * to ZNIL then DIH knows of no LCPs written for this fragment. In this case
+ * we don't really know anything about what we will find since we can even
+ * have both CTL files restorable in this case if local LCPs was executed
+ * as part of restart. However if it is set to 0 or 1, then we should not
+ * be able to not find any files at all. So if we find no CTL file in this
+ * it is an upgrade case.
+ *
+ * m_upgrade_case:
+ * ---------------
+ * Initialised to true, as soon as we find an CTL file whether correct or
+ * not we know that it isn't an upgrade from pre-7.6 versions.
+ *
+ * m_double_lcps_found:
+ * --------------------
+ * Both CTL files found and both were found to be restorable.
+ *
+ * m_found_not_restorable:
+ * -----------------------
+ * We have found one CTL file that wasn't restorable if true.
+ *
+ * m_old_max_files:
+ * ----------------
+ * This is the max files read from CTL file NOT used. It is used to
+ * delete LCP data from the old data files. It is possible that
+ * the new and old CTL files have different max files in an upgrade
+ * or downgrade situation.
+ *
+ * m_num_remove_data_files:
+ * ------------------------
+ * Number of data files to remove, calculated after finding new and old
+ * CTL file. If only one CTL file is found then we cleaned up already during
+ * execution of LCP, so no need to clean up. In this case it is set to 0.
+ *
+ * m_table_id, m_fragment_id, m_table_version:
+ * -------------------------------------------
+ * Triplet describing the partition we are restoring. m_table_id and
+ * m_fragment_id came from RESTORE_LCP_REQ, m_table_version read from
+ * data file.
  *
  * The flow chart for Case 1) is here:
  * -----------------------------------
@@ -836,7 +1051,7 @@ Restore::open_ctl_file_done_ref(Signal *signal, FilePtr file_ptr)
       if (file_ptr.p->m_upgrade_case)
       {
         jam();
-        DEB_RES(("(%u)Case 4 wth upgrade discovered", instance()));
+        DEB_RES(("(%u)Case 4 with upgrade discovered", instance()));
         lcp_create_ctl_open(signal, file_ptr);
       }
       else
@@ -1230,7 +1445,9 @@ Restore::read_ctl_file_done(Signal *signal, FilePtr file_ptr, Uint32 bytesRead)
      * This is a perfectly normal case although not so common. The LCP was
      * completed but had writes in it that rendered it useless. If this is
      * the very first LCP for this table it could even be that this is the
-     * only LCP control file we have.
+     * only LCP control file we have. But this can only happen for file 0.
+     * If it happens for file 1 and we have no useful CTL file in file 0
+     * then we are smoked since that is not supposed to be possible.
      *
      * It is also a normal case where we have written LCP control file
      * but not yet had time to sync the LSN for the LCP. This is flagged
@@ -1242,6 +1459,8 @@ Restore::read_ctl_file_done(Signal *signal, FilePtr file_ptr, Uint32 bytesRead)
                         file_ptr.p->m_fragment_id,
                         file_ptr.p->m_ctl_file_no,
                         validFlag);
+    ndbrequire(file_ptr.p->m_ctl_file_no == 0 ||
+               file_ptr.p->m_used_ctl_file_no != Uint32(~0));
     ndbrequire(!file_ptr.p->m_found_not_restorable);
     file_ptr.p->m_found_not_restorable = true;
     file_ptr.p->m_remove_ctl_file_no = file_ptr.p->m_ctl_file_no;
@@ -1401,7 +1620,7 @@ Restore::close_ctl_file_done(Signal *signal, FilePtr file_ptr)
       /**
        * Case 3) discovered
        * ------------------
-       * We start by removing potential data file still there.
+       * We start by removing potential data and CTL files still there.
        */
       DEB_RES(("(%u)Case 3 discovered after close", instance()));
       if (file_ptr.p->m_num_remove_data_files > 0)
@@ -2356,7 +2575,7 @@ Restore::parse_fragment_header(Signal* signal, FilePtr file_ptr,
     return;
   } 
   
-  if(ntohl(fh->ChecksumType) != 0)
+  if (ntohl(fh->ChecksumType) != 0)
   {
     parse_error(signal, file_ptr, __LINE__, ntohl(fh->SectionLength));
     return;
