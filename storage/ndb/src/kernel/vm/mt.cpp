@@ -2395,7 +2395,7 @@ thr_send_threads::assist_send_thread(Uint32 min_num_nodes,
   Uint32 num_nodes_sent = 0;
   Uint32 loop = 0;
   NDB_TICKS spin_ticks_dummy;
-  NodeId node;
+  NodeId node = 0;
 
   NdbMutex_Lock(send_thread_mutex);
 
