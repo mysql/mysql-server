@@ -26,6 +26,7 @@
 #include <unistd.h>
 #endif
 
+#include "map_helpers.h"
 #include "m_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -135,13 +136,14 @@ int my_realpath(char *to, const char *filename, myf MyFlags)
 {
 #ifndef _WIN32
   int result=0;
-  char buff[PATH_MAX];
-  char *ptr;
   DBUG_ENTER("my_realpath");
 
   DBUG_PRINT("info",("executing realpath"));
-  if ((ptr=realpath(filename,buff)))
-      strmake(to,ptr,FN_REFLEN-1);
+  unique_ptr_free<char> ptr(realpath(filename, nullptr));
+  if (ptr)
+  {
+    strmake(to, ptr.get(), FN_REFLEN-1);
+  }
   else
   {
     /*

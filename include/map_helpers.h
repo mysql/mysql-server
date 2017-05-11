@@ -84,6 +84,15 @@ struct My_free_deleter {
 template<class T>
 using unique_ptr_my_free = std::unique_ptr<T, My_free_deleter>;
 
+struct Free_deleter {
+  void operator() (void *ptr) const { free(ptr); }
+};
+
+/** std::unique_ptr, but with free as deleter. */
+template<class T>
+using unique_ptr_free = std::unique_ptr<T, Free_deleter>;
+
+
 /** A Hasher that hashes std::strings according to a MySQL collation. */
 class Collation_hasher
 {
