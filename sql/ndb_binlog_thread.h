@@ -39,7 +39,7 @@ private:
      written to the binlog thus allowing consumers of the binlog to
      notice that the recording is most likely not continuous.
   */
-  enum Incident_type {
+  enum Reconnect_type {
     // Incident occured because the mysqld was stopped and
     // is now starting up again
     MYSQLD_STARTUP,
@@ -48,7 +48,7 @@ private:
     CLUSTER_DISCONNECT
   };
   bool check_reconnect_incident(THD* thd, class injector* inj,
-                                Incident_type incident_id) const;
+                                Reconnect_type incident_id) const;
 
 };
 

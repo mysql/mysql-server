@@ -47,9 +47,9 @@ int cmp_unpacked_frm(const NdbDictionary::Table* ndbtab, const void* data,
 
 /**
    @brief ndb_get_extra_metadata_version, returns the version of the
-          extra metadaa attached to the table in NDB.
+          extra metadata attached to the table in NDB.
    @param ndbtab
-   @return version of extra metadat or 0 if none
+   @return version of extra metadata or 0 if none
  */
 Uint32 ndb_get_extra_metadata_version(const NdbDictionary::Table* ndbtab);
 

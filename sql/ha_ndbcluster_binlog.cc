@@ -1158,12 +1158,11 @@ class Ndb_binlog_setup {
 
 
   /*
-    Ndb has no representation of the database schema objects.
-    The mysql.ndb_schema table contains the latest schema operations
-    done via a mysqld, and thus reflects databases created/dropped/altered
-    while a mysqld was disconnected.  This function tries to recover
-    the correct state w.r.t created databases using the information in
-    that table.
+    Ndb has no representation of the database schema objects, but
+    the mysql.ndb_schema table contains the latest schema operations
+    done via a mysqld, and thus reflects databases created/dropped/altered.
+    This function tries to restore the correct state w.r.t created databases
+    using the information in that table.
   */
   static
   int find_all_databases(THD *thd, Thd_ndb* thd_ndb)
@@ -6657,7 +6656,7 @@ void Ndb_binlog_thread::do_wakeup()
 
 bool
 Ndb_binlog_thread::check_reconnect_incident(THD* thd, injector *inj,
-                                            Incident_type incident_id) const
+                                            Reconnect_type incident_id) const
 {
   log_verbose(1, "Check for incidents");
 
@@ -6750,7 +6749,7 @@ Ndb_binlog_thread::do_run()
   /* Controls that only one incident is written per reconnect */
   bool do_reconnect_incident = true;
   /* Controls message of the reconnnect incident */
-  Incident_type reconnect_incident_id = MYSQLD_STARTUP;
+  Reconnect_type reconnect_incident_id = MYSQLD_STARTUP;
 
   DBUG_ENTER("ndb_binlog_thread");
 

@@ -2209,7 +2209,7 @@ int ha_ndbcluster::get_metadata(THD *thd, const char* tablespace_name,
   Ndb *ndb= get_thd_ndb(thd)->ndb;
   NDBDICT *dict= ndb->getDictionary();
   const NDBTAB *tab;
-  DBUG_ENTER("get_metadata");
+  DBUG_ENTER("ha_ndbcluster::get_metadata");
   DBUG_PRINT("enter", ("m_tabname: %s", m_tabname));
 
   DBUG_ASSERT(m_table == NULL);
@@ -2243,7 +2243,7 @@ int ha_ndbcluster::get_metadata(THD *thd, const char* tablespace_name,
 
     // When returning HA_ERR_TABLE_DEF_CHANGED from handler::open()
     // the caller is intended to call ha_discover() in order to let
-    // the engine install the correct table defnition in the
+    // the engine install the correct table definition in the
     // data dictionary, then the open() will be retried and presumably
     // the table definition will be correct
     DBUG_RETURN(HA_ERR_TABLE_DEF_CHANGED);
@@ -12819,8 +12819,8 @@ int ha_ndbcluster::delete_table(const char *name, const dd::Table *)
   if (get_thd_ndb(thd)->check_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT))
   {
     /*
-      Table was dropped from another mysqld and is already dropped
-      from NDB.
+      Table was dropped from another mysqld and is already
+      dropped in NDB.
     */
     DBUG_PRINT("info", ("Table is already dropped in NDB"));
     delete_table_drop_share_from_path(name);
