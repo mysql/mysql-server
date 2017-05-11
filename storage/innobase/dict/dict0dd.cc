@@ -3730,6 +3730,7 @@ dd_startscan_system(
 @param[in,out]	rec		mysql.tables record
 @param[in,out]	table		dict_table_t to fill
 @param[in]	dd_tables	dict_table_t obj of dd system table
+@param[in]	mdl		mdl on the table
 @param[in]	mtr		the mini-transaction
 @retval error message, or NULL on success */
 const char*
@@ -3738,6 +3739,7 @@ dd_process_dd_tables_rec_and_mtr_commit(
 	const rec_t*	rec,
 	dict_table_t**	table,
 	dict_table_t*	dd_tables,
+	MDL_ticket**	mdl,
 	mtr_t*		mtr)
 {
 	ulint		len;
@@ -3782,14 +3784,11 @@ dd_process_dd_tables_rec_and_mtr_commit(
 	/* Commit before load the table again */
 	mtr_commit(mtr);
 	THD*		thd = current_thd;
-	MDL_ticket*	mdl = NULL;
 
-	*table = dd_table_open_on_id(table_id, thd, &mdl, true);
+	*table = dd_table_open_on_id(table_id, thd, mdl, true);
 
 	if (!(*table)) {
 		err_msg = "Table not found";
-	} else {
-		dd_table_close(*table, thd, &mdl, true);
 	}
 
 	if (err_msg) {
@@ -3804,6 +3803,7 @@ dd_process_dd_tables_rec_and_mtr_commit(
 @param[in,out]	rec		mysql.table_partitions record
 @param[in,out]	table		dict_table_t to fill
 @param[in]	dd_tables	dict_table_t obj of dd partition table
+@param[in]	mdl		mdl on the table
 @param[in]	mtr		the mini-transaction
 @retval error message, or NULL on success */
 const char*
@@ -3812,6 +3812,7 @@ dd_process_dd_partitions_rec_and_mtr_commit(
 	const rec_t*	rec,
 	dict_table_t**	table,
 	dict_table_t*	dd_tables,
+	MDL_ticket**	mdl,
 	mtr_t*		mtr)
 {
 	ulint		len;
@@ -3858,15 +3859,10 @@ dd_process_dd_partitions_rec_and_mtr_commit(
 	mtr_commit(mtr);
 	THD*		thd = current_thd;
 
-	*table = dd_table_open_on_id(table_id, thd, nullptr, true);
+	*table = dd_table_open_on_id(table_id, thd, mdl, true);
 
 	if (!(*table)) {
 		err_msg = "Table not found";
-	} else {
-		dd_table_close(*table, thd, nullptr, true);
-	}
-
-	if (err_msg) {
 		return(err_msg);
 	}
 
@@ -3970,6 +3966,9 @@ dd_process_dd_columns_rec(
 
 	/* Load the table and get the col. */
 	if (!p || !p->exists(dd_index_key_strings[DD_TABLE_ID])) {
+		if (p) {
+			delete p;
+		}
 		mtr_commit(mtr);
 		return(false);
 	}
@@ -3984,6 +3983,7 @@ dd_process_dd_columns_rec(
 		table = dd_table_open_on_id(*table_id, thd, &mdl, true);
 
 		if (!table) {
+			delete p;
 			return(false);
 		}
 
@@ -3996,8 +3996,9 @@ dd_process_dd_columns_rec(
 		col->len = t_col->len;
 
 		dd_table_close(table, thd, &mdl, true);
-
+		delete p;
 	} else {
+		delete p;
 		mtr_commit(mtr);
 		return(false);
 	}
@@ -4015,6 +4016,7 @@ dd_process_dd_columns_rec(
 @param[in,out]	rec		mysql.indexes record
 @param[in,out]	index		dict_index_t to fill
 @param[in]	dd_indexes	dict_table_t obj of mysql.indexes
+@param[in]	mdl		mdl on index->table
 @param[in]	mtr		the mini-transaction
 @retval true if index is filled */
 bool
@@ -4023,6 +4025,7 @@ dd_process_dd_indexes_rec(
 	const rec_t*		rec,
 	const dict_index_t**	index,
 	dict_table_t*		dd_indexes,
+	MDL_ticket**		mdl,
 	mtr_t*			mtr)
 {
 	ulint		len;
@@ -4060,11 +4063,15 @@ dd_process_dd_indexes_rec(
 
 	if (!p || !p->exists(dd_index_key_strings[DD_INDEX_ID])
 	    || !p->exists(dd_index_key_strings[DD_INDEX_SPACE_ID])) {
+		if (p) {
+			delete p;
+		}
 		mtr_commit(mtr);
 		return(false);
 	}
 
 	if (p->get_uint32(dd_index_key_strings[DD_INDEX_ID], &index_id)) {
+		delete p;
 		mtr_commit(mtr);
 		return(false);
 	}
@@ -4072,27 +4079,21 @@ dd_process_dd_indexes_rec(
 	/* Get the tablespace id. */
 	if (p->get_uint32(dd_index_key_strings[DD_INDEX_SPACE_ID],
 			  &space_id)) {
+		delete p;
 		mtr_commit(mtr);
 		return(false);
 	}
 
 	/* Skip mysql.* indexes. */
 	if (space_id == dict_sys->space_id) {
+		delete p;
 		mtr_commit(mtr);
 		return(false);
 	}
 
-	/* Try to find the index in the cache. */
-	index_id_t ind_id(space_id, index_id);
-
-	*index = dict_index_find(ind_id);
-	if (*index != nullptr) {
-		mtr_commit(mtr);
-		return(true);
-	}
-
 	/* Load the table and get the index. */
 	if (!p->exists(dd_index_key_strings[DD_TABLE_ID])) {
+		delete p;
 		mtr_commit(mtr);
 		return(false);
 	}
@@ -4100,13 +4101,13 @@ dd_process_dd_indexes_rec(
 	if (!p->get_uint32(dd_index_key_strings[DD_TABLE_ID], &table_id)) {
 		THD*		thd = current_thd;
 		dict_table_t*	table;
-		MDL_ticket*	mdl = NULL;
 
 		/* Commit before load the table */
 		mtr_commit(mtr);
-		table = dd_table_open_on_id(table_id, thd, &mdl, true);
+		table = dd_table_open_on_id(table_id, thd, mdl, true);
 
 		if (!table) {
+			delete p;
 			return(false);
 		}
 
@@ -4118,9 +4119,10 @@ dd_process_dd_indexes_rec(
 				*index = t_index;
 			}
 		}
-		dd_table_close(table, thd, &mdl, true);
 
+		delete p;
 	} else {
+		delete p;
 		mtr_commit(mtr);
 		return(false);
 	}
@@ -4166,15 +4168,20 @@ dd_process_dd_datafiles_rec(
 	dd::Properties* p = dd::Properties::parse_properties(prop);
 
 	if (!p || !p->exists(dd_space_key_strings[DD_SPACE_ID])) {
+		if (p) {
+			delete p;
+		}
 		return(false);
 	}
 
 	if (p->get_uint32(dd_space_key_strings[DD_SPACE_ID], space_id)) {
+		delete p;
 		return(false);
 	}
 
 	/* Skip temp tablespace. */
 	if (*space_id == dict_sys->temp_space_id) {
+		delete p;
 		return(false);
 	}
 
@@ -4184,6 +4191,7 @@ dd_process_dd_datafiles_rec(
 	memset(*path, 0, len + 1);
 	memcpy(*path, field, len);
 
+	delete p;
 	return(true);
 }
 
@@ -4229,17 +4237,24 @@ dd_process_dd_indexes_rec_simple(
 
 	if (!p || !p->exists(dd_index_key_strings[DD_INDEX_ID])
 	    || !p->exists(dd_index_key_strings[DD_INDEX_SPACE_ID])) {
+		if (p) {
+			delete p;
+		}
 		return(false);
 	}
 
 	if (p->get_uint32(dd_index_key_strings[DD_INDEX_ID], index_id)) {
+		delete p;
 		return(false);
 	}
 
 	/* Get the tablespace_id. */
 	if (p->get_uint32(dd_index_key_strings[DD_INDEX_SPACE_ID], space_id)) {
+		delete p;
 		return(false);
 	}
+
+	delete p;
 
 	return(true);
 }
@@ -4298,18 +4313,25 @@ dd_process_dd_tablespaces_rec(
 
 	if (!p || !p->exists(dd_space_key_strings[DD_SPACE_ID])
 	    || !p->exists(dd_index_key_strings[DD_SPACE_FLAGS])) {
+		if (p) {
+			delete p;
+		}
 		return(false);
 	}
 
 	/* Get space id. */
 	if (p->get_uint32(dd_space_key_strings[DD_SPACE_ID], space_id)) {
+		delete p;
 		return(false);
 	}
 
 	/* Get space flag. */
 	if (p->get_uint32(dd_space_key_strings[DD_SPACE_FLAGS], flags)) {
+		delete p;
 		return(false);
 	}
+
+	delete p;
 
 	return(true);
 }

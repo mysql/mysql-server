@@ -6016,21 +6016,16 @@ i_s_innodb_tables_fill_table(
 
 	while (rec) {
 		dict_table_t*	table_rec;
+		MDL_ticket*	mdl_on_tab = nullptr;
 
 		/* Fetch the dict_table_t structure corresponding to
 		this INNODB_TABLES record */
 		dd_process_dd_tables_rec_and_mtr_commit(
-			heap, rec, &table_rec, dd_tables, &mtr);
+			heap, rec, &table_rec, dd_tables, &mdl_on_tab, &mtr);
 
+		mutex_exit(&dict_sys->mutex);
 		if (table_rec != NULL) {
-			/* Protect the dict_table_t object by incrementing
-			the reference count. */
-			table_rec->acquire();
-			mutex_exit(&dict_sys->mutex);
-
 			i_s_dict_fill_innodb_tables(thd, table_rec, tables->table);
-		} else {
-			mutex_exit(&dict_sys->mutex);
 		}
 
 		mem_heap_empty(heap);
@@ -6039,7 +6034,7 @@ i_s_innodb_tables_fill_table(
 		mutex_enter(&dict_sys->mutex);
 
 		if (table_rec != NULL) {
-			dd_table_close(table_rec, thd, &mdl, true);
+			dd_table_close(table_rec, thd, &mdl_on_tab, true);
 		}
 
 		mtr_start(&mtr);
@@ -6049,28 +6044,24 @@ i_s_innodb_tables_fill_table(
 	mtr_commit(&mtr);
 	dd_table_close(dd_tables, thd, &mdl, true);
 
+	/* Scan mysql.partitions */
+	mem_heap_empty(heap);
 	mtr_start(&mtr);
 
 	rec = dd_startscan_system(thd, &mdl, &pcur, &mtr, DD_PARTITIONS, &dd_tables);
 
 	while (rec) {
 		dict_table_t*	table_rec;
+		MDL_ticket*	mdl_on_tab = nullptr;
 
 		/* Fetch the dict_table_t structure corresponding to
 		this INNODB_TABLES record */
 		dd_process_dd_partitions_rec_and_mtr_commit(
-			heap, rec, &table_rec, dd_tables, &mtr);
+			heap, rec, &table_rec, dd_tables, &mdl_on_tab, &mtr);
 
+		mutex_exit(&dict_sys->mutex);
 		if (table_rec != NULL) {
-			/* Protect the dict_table_t object by incrementing
-			the reference count. */
-			table_rec->acquire();
-
-			mutex_exit(&dict_sys->mutex);
-
 			i_s_dict_fill_innodb_tables(thd, table_rec, tables->table);
-		} else {
-			mutex_exit(&dict_sys->mutex);
 		}
 
 		mem_heap_empty(heap);
@@ -6079,7 +6070,7 @@ i_s_innodb_tables_fill_table(
 		mutex_enter(&dict_sys->mutex);
 
 		if (table_rec != NULL) {
-			dd_table_close(table_rec, thd, &mdl, true);
+			dd_table_close(table_rec, thd, &mdl_on_tab, true);
 		}
 
 		mtr_start(&mtr);
@@ -6360,27 +6351,33 @@ i_s_innodb_tables_fill_table_stats(
 
 	while (rec) {
 		dict_table_t*	table_rec;
+		MDL_ticket*	mdl_on_tab = nullptr;
 		ulint		ref_count = 0;
+#ifdef UNIV_DEBUG
+		bool		dd_closed;
+
+		dd_closed = false;
+#endif
 
 		/* Fetch the dict_table_t structure corresponding to
 		this INNODB_TABLES record */
 		dd_process_dd_tables_rec_and_mtr_commit(
-			heap, rec, &table_rec, dd_tables, &mtr);
-
+			heap, rec, &table_rec, dd_tables, &mdl_on_tab, &mtr);
 		if (table_rec != NULL) {
 			ref_count = table_rec->get_ref_count();
-
-			/* Protect the dict_table_t object by incrementing
-			the reference count. */
-			table_rec->acquire();
 		}
-
-		mutex_exit(&dict_sys->mutex);
 
 		DBUG_EXECUTE_IF("test_innodb_tablestats", {
 			if (table_rec && strcmp("test/t1", table_rec->name.m_name) == 0 ) {
+				dd_table_close(table_rec, thd, &mdl_on_tab, true);
+				dd_closed = true;
+				table_rec->acquire();
+				mutex_exit(&dict_sys->mutex);
 				DEBUG_SYNC_C("dict_table_not_protected");
+				mutex_enter(&dict_sys->mutex);
 			}});
+
+		mutex_exit(&dict_sys->mutex);
 
 		if (table_rec != NULL) {
 			i_s_dict_fill_innodb_tablestats(thd, table_rec, ref_count,
@@ -6391,9 +6388,17 @@ i_s_innodb_tables_fill_table_stats(
 
 		/* Get the next record */
 		mutex_enter(&dict_sys->mutex);
+		DBUG_EXECUTE_IF("test_innodb_tablestats", {
+			if (table_rec && strcmp("test/t1", table_rec->name.m_name) == 0 ) {
+				table_rec->release();
+			}});
 
-		if (table_rec != NULL) {
-			table_rec->release();
+		if (table_rec != NULL
+#ifdef UNIV_DEBUG
+		    && !dd_closed
+#endif
+		    ) {
+			dd_table_close(table_rec, thd, &mdl_on_tab, true);
 		}
 
 		mtr_start(&mtr);
@@ -6643,10 +6648,12 @@ i_s_innodb_indexes_fill_table(
 	/* Process each record in the table */
 	while (rec) {
 		const dict_index_t*	index_rec;
+		MDL_ticket*		mdl_on_tab = nullptr;
 
 		/* Populate a dict_index_t structure with information from
 		a INNODB_INDEXES row */
-		ret = dd_process_dd_indexes_rec(heap, rec, &index_rec, dd_indexes, &mtr);
+		ret = dd_process_dd_indexes_rec(heap, rec, &index_rec,
+						dd_indexes, &mdl_on_tab, &mtr);
 
 		mutex_exit(&dict_sys->mutex);
 
@@ -6658,6 +6665,11 @@ i_s_innodb_indexes_fill_table(
 
 		/* Get the next record */
 		mutex_enter(&dict_sys->mutex);
+
+		if (index_rec != NULL) {
+			dd_table_close(index_rec->table, thd, &mdl_on_tab, true);
+		}
+
 		mtr_start(&mtr);
 		rec = dd_getnext_system_rec(&pcur, &mtr);
 	}
