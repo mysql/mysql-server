@@ -218,8 +218,8 @@ dd_table_open_on_dd_obj(
 	to verify the MDL against the table name, because both the
 	database name and table name may be invalid for MDL */
 	if (tbl_name && !row_is_mysql_tmp_table_name(tbl_name)) {
-		char	db_buf[NAME_LEN + 1];
-		char	tbl_buf[NAME_LEN + 1];
+		char	db_buf[MAX_DATABASE_NAME_LEN];
+		char	tbl_buf[MAX_TABLE_NAME_LEN];
 
 		dd_parse_tbl_name(tbl_name, db_buf, tbl_buf, nullptr);
 		if (dd_part == nullptr) {
@@ -291,7 +291,7 @@ dd_table_open_on_dd_obj(
 					      0, OPEN_FRM_FILE_ONLY, 0,
 					      &td, false, &dd_table);
 		if (error == 0) {
-			char		tmp_name[2 * (NAME_LEN + 1)];
+			char		tmp_name[MAX_FULL_NAME_LEN];
 			const char*	tab_namep;
 
 			if (tbl_name) {
@@ -482,8 +482,8 @@ dd_check_corrupted(dict_table_t*& table)
 			my_error(ER_TABLE_CORRUPT, MYF(0),
 				 "", table->name.m_name);
 		} else {
-			char	db_buf[NAME_LEN + 1];
-			char	tbl_buf[NAME_LEN + 1];
+			char	db_buf[MAX_DATABASE_NAME_LEN];
+			char	tbl_buf[MAX_TABLE_NAME_LEN];
 
 			dd_parse_tbl_name(
 				table->name.m_name, db_buf, tbl_buf, nullptr);
@@ -531,9 +531,9 @@ dd_table_open_on_id(
 {
 	dict_table_t*   ib_table;
 	const ulint     fold = ut_fold_ull(table_id);
-	char		db_buf[NAME_LEN + 1];
-	char		tbl_buf[NAME_LEN + 1];
-	char		full_name[2 * (NAME_LEN + 1)];
+	char		db_buf[MAX_DATABASE_NAME_LEN];
+	char		tbl_buf[MAX_TABLE_NAME_LEN];
+	char		full_name[MAX_FULL_NAME_LEN];
 	ib_uint64_t	autoinc = 0;
 
 	if (!dict_locked) {
@@ -594,13 +594,8 @@ reopen:
 		for (;;) {
 			bool ret = dd_parse_tbl_name(
 				ib_table->name.m_name, db_buf, tbl_buf, nullptr);
-			memset(full_name, 0, 2 * (NAME_LEN + 1));
-			if (strlen(ib_table->name.m_name) > 2 * (NAME_LEN + 1)) {
-				memcpy(full_name, ib_table->name.m_name,
-				       2 * (NAME_LEN + 1));
-			} else {
-				strcpy(full_name, ib_table->name.m_name);
-			}
+			memset(full_name, 0, MAX_FULL_NAME_LEN);
+			strcpy(full_name, ib_table->name.m_name);
 
 			mutex_exit(&dict_sys->mutex);
 
@@ -631,9 +626,6 @@ reopen:
 
 			if (ib_table != nullptr) {
 				ulint	namelen = strlen(ib_table->name.m_name);
-				if (namelen > 2 * (NAME_LEN + 1)) {
-					namelen = 2 * (NAME_LEN + 1);
-				}
 
 				/* The table could have been renamed. After
 				we release dict mutex before the old table
@@ -771,8 +763,8 @@ dd_table_open_on_name(
 #endif
 	ut_ad(!srv_is_being_shutdown);
 
-	char		db_buf[NAME_LEN + 1];
-	char		tbl_buf[NAME_LEN + 1];
+	char		db_buf[MAX_DATABASE_NAME_LEN];
+	char		tbl_buf[MAX_TABLE_NAME_LEN];
 	bool		skip_mdl = !(thd && mdl);
 	dict_table_t*	table = nullptr;
 
@@ -2782,8 +2774,8 @@ dd_table_check_for_child(
 		std::vector<dd::String_type>	child_schema;
 		std::vector<dd::String_type>	child_name;
 
-		char    name_buf1[NAME_LEN + 1];
-		char    name_buf2[NAME_LEN + 1];
+		char    name_buf1[MAX_DATABASE_NAME_LEN];
+		char    name_buf2[MAX_TABLE_NAME_LEN];
 
 		dd_parse_tbl_name(m_table->name.m_name,
 					name_buf1, name_buf2, nullptr);
@@ -2970,8 +2962,8 @@ dd_get_first_path(
 	dd::cache::Dictionary_client::Auto_releaser	releaser(client);
 
 	if (dd_table == NULL) {
-		char		db_buf[NAME_LEN + 1];
-		char		tbl_buf[NAME_LEN + 1];
+		char		db_buf[MAX_DATABASE_NAME_LEN];
+		char		tbl_buf[MAX_TABLE_NAME_LEN];
 		const dd::Table*	table_def = nullptr;
 
 		if (!dd_parse_tbl_name(
@@ -3413,8 +3405,8 @@ dd_open_table_one(
 
 	/* Check if this is a DD system table */
 	if (m_table != nullptr) {
-		char db_buf[NAME_LEN + 1];
-		char tbl_buf[NAME_LEN + 1];
+		char db_buf[MAX_DATABASE_NAME_LEN];
+		char tbl_buf[MAX_TABLE_NAME_LEN];
 		dd_parse_tbl_name(m_table->name.m_name, db_buf, tbl_buf, NULL);
 		m_table->is_dd_table = dd::get_dictionary()->is_dd_table_name(
 			db_buf, tbl_buf);
@@ -3461,8 +3453,8 @@ dd_open_table_one_on_name(
 
 	if (!table) {
 		MDL_ticket*     mdl = nullptr;
-		char		db_buf[NAME_LEN + 1];
-		char		tbl_buf[NAME_LEN + 1];
+		char		db_buf[MAX_DATABASE_NAME_LEN];
+		char		tbl_buf[MAX_TABLE_NAME_LEN];
 
 		if (!dd_parse_tbl_name(
 			name, db_buf, tbl_buf, nullptr)) {
@@ -4333,8 +4325,8 @@ dd_get_fts_tablespace_id(
 	const dict_table_t*	table,
 	dd::Object_id&		dd_space_id)
 {
-	char	db_name[NAME_LEN + 1];
-	char	table_name[NAME_LEN + 1];
+	char	db_name[MAX_DATABASE_NAME_LEN];
+	char	table_name[MAX_TABLE_NAME_LEN];
 
 	dd_parse_tbl_name(parent_table->name.m_name, db_name,
 				table_name, NULL);
@@ -4460,8 +4452,8 @@ dd_create_fts_index_table(
 {
 	ut_ad(charset != nullptr);
 
-	char	db_name[NAME_LEN + 1];
-	char	table_name[NAME_LEN + 1];
+	char	db_name[MAX_DATABASE_NAME_LEN];
+	char	table_name[MAX_TABLE_NAME_LEN];
 
 	dd_parse_tbl_name(table->name.m_name, db_name, table_name, NULL);
 
@@ -4605,8 +4597,8 @@ dd_create_fts_common_table(
 	dict_table_t*		table,
 	bool			is_config)
 {
-	char	db_name[NAME_LEN + 1];
-	char	table_name[NAME_LEN + 1];
+	char	db_name[MAX_DATABASE_NAME_LEN];
+	char	table_name[MAX_TABLE_NAME_LEN];
 
 	dd_parse_tbl_name(table->name.m_name, db_name, table_name, NULL);
 
@@ -4741,8 +4733,8 @@ dd_drop_fts_table(
 	const char*	name,
 	bool		file_per_table)
 {
-	char	db_name[NAME_LEN + 1];
-	char	table_name[NAME_LEN + 1];
+	char	db_name[MAX_DATABASE_NAME_LEN];
+	char	table_name[MAX_TABLE_NAME_LEN];
 
 	dd_parse_tbl_name(name, db_name, table_name, NULL);
 
@@ -4807,10 +4799,10 @@ dd_rename_fts_table(
 	const dict_table_t*	table,
 	const char*		old_name)
 {
-	char	new_db_name[NAME_LEN + 1];
-	char	new_table_name[NAME_LEN + 1];
-	char	old_db_name[NAME_LEN + 1];
-	char	old_table_name[NAME_LEN + 1];
+	char	new_db_name[MAX_DATABASE_NAME_LEN];
+	char	new_table_name[MAX_TABLE_NAME_LEN];
+	char	old_db_name[MAX_DATABASE_NAME_LEN];
+	char	old_table_name[MAX_TABLE_NAME_LEN];
 	char*	new_name = table->name.m_name;
 
 	dd_parse_tbl_name(new_name, new_db_name, new_table_name, nullptr);
