@@ -2476,13 +2476,13 @@ Ndbcntr::trySystemRestart(Signal* signal){
   ndbrequire(c_start.m_lastGciNodeId == getOwnNodeId());
  
   infoEvent("System Restart: master node: %u, num starting: %u, gci: %u",
-            conf->noStartNodes,
             conf->masterNodeId,
+            conf->noStartNodes,
             conf->startGci);
   g_eventLogger->info("System Restart: master node: %u, num starting: %u,"
                       " gci: %u",
-            conf->noStartNodes,
             conf->masterNodeId,
+            conf->noStartNodes,
             conf->startGci);
   char buf[100];
   infoEvent("CNTR_START_CONF: started: %s", c_startedNodes.getText(buf));

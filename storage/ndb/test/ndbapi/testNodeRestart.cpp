@@ -32,6 +32,77 @@
 #include <BlockNumbers.h>
 #include <NdbConfig.hpp>
 
+static int
+changeStartPartitionedTimeout(NDBT_Context *ctx, NDBT_Step *step)
+{
+  int result = NDBT_FAILED;
+  Config conf;
+  NdbRestarter restarter;
+  Uint32 startPartitionedTimeout = ctx->getProperty("STARTPARTITIONTIMEOUT",
+                                                   (Uint32)60000);
+  Uint32 defaultValue = Uint32(~0);
+
+  do
+  {
+    NdbMgmd mgmd;
+    if (!mgmd.connect())
+    {
+      g_err << "Failed to connect to ndb_mgmd." << endl;
+      break;
+    }
+    if (!mgmd.get_config(conf))
+    {
+      g_err << "Failed to get config from ndb_mgmd." << endl;
+      break;
+    }
+    g_err << "Setting StartPartitionedTimeout to " << startPartitionedTimeout
+          << endl;
+    ConfigValues::Iterator iter(conf.m_configValues->m_config);
+    for (int nodeid = 1; nodeid < MAX_NODES; nodeid++)
+    {
+      if (!iter.openSection(CFG_SECTION_NODE, nodeid))
+        continue;
+      Uint32 oldValue = 0;
+      if (iter.get(CFG_DB_START_PARTITION_TIMEOUT, oldValue))
+      {
+        if (defaultValue == Uint32(~0))
+        {
+          defaultValue = oldValue;
+        }
+        else if (oldValue != defaultValue)
+        {
+          g_err << "StartPartitionedTimeout is not consistent across nodes" << endl;
+          break;
+        }
+      }
+      iter.set(CFG_DB_START_PARTITION_TIMEOUT, startPartitionedTimeout);
+      iter.closeSection();
+    }
+    /* Save old config value */
+    ctx->setProperty("STARTPARTITIONTIMEOUT", Uint32(defaultValue));
+
+    if (!mgmd.set_config(conf))
+    {
+      g_err << "Failed to set config in ndb_mgmd." << endl;
+      break;
+    }
+    g_err << "Restarting nodes to apply config change" << endl;
+    if (restarter.restartAll())
+    {
+      g_err << "Failed to restart nodes." << endl;
+      break;
+    }
+    if (restarter.waitClusterStarted(120) != 0)
+    {
+      g_err << "Failed waiting for nodes to start." << endl;
+      break;
+    }
+    g_err << "Nodes restarted with StartPartitionedTimeout = "
+          << startPartitionedTimeout << endl;
+    result = NDBT_OK;
+  } while (0);
+  return result;
+}
 
 int runLoadTable(NDBT_Context* ctx, NDBT_Step* step){
 
@@ -1638,6 +1709,8 @@ runBug18612SR(NDBT_Context* ctx, NDBT_Step* step){
 
   // Assume two replicas
   NdbRestarter restarter;
+
+  return NDBT_OK; /* Until we fix handling of partitioned clusters */
   if (restarter.getNumDbNodes() < 2)
   {
     ctx->stopTest();
@@ -8971,7 +9044,9 @@ TESTCASE("Bug31980", ""){
   INITIALIZER(runBug31980);
 }
 TESTCASE("Bug29364", ""){
+  INITIALIZER(changeStartPartitionedTimeout);
   INITIALIZER(runBug29364);
+  FINALIZER(changeStartPartitionedTimeout);
 }
 TESTCASE("GCP", ""){
   INITIALIZER(runLoadTable);
