@@ -2015,6 +2015,11 @@ Ndbcntr::execCNTR_START_CONF(Signal * signal)
       g_eventLogger->info("We are performing a restart of the cluster"
                           ", restoring GCI = %u",
                           c_start.m_lastGci);
+      if (c_start.m_lastGci > m_max_completed_gci)
+      {
+        jam();
+        m_max_completed_gci = c_start.m_lastGci;
+      }
       send_restorable_gci_rep_to_backup(signal);
       break;
     }
