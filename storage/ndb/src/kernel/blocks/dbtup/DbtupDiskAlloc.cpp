@@ -3033,6 +3033,18 @@ Dbtup::disk_restart_page_bits(EmulatedJamBuffer* jamBuf,
     // actually only to update free_space
     update_extent_pos(jamBuf, alloc, ext, size);
     ndbassert(ext.p->m_free_matrix_pos == RNIL);
+    DEB_EXTENT_BITS(("(%u)disk_restart_page_bits in tab(%u,%u):%u,"
+                     " page(%u,%u), bits: %u, ext.i: %u,"
+                     " extent_no: %u",
+                     instance(),
+                     tableId,
+                     fragId,
+                     create_table_version,
+                     key->m_file_no,
+                     key->m_page_no,
+                     bits,
+                     ext.i,
+                     key->m_page_idx));
   }
 }
 
