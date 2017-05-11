@@ -851,7 +851,7 @@ Dblqh::execREAD_LOCAL_SYSFILE_CONF(Signal *signal)
 {
   ReadLocalSysfileConf *conf = (ReadLocalSysfileConf*)signal->getDataPtr();
   c_local_sysfile.m_node_restorable_on_its_own =
-  conf->nodeRestorableOnItsOwn;
+    conf->nodeRestorableOnItsOwn;
   c_local_sysfile.m_max_gci_restorable = conf->maxGCIRestorable;
   sendsttorryLab(signal);
 }
@@ -17221,6 +17221,14 @@ Dblqh::get_lcp_frag_stats(Uint64 & row_count,
    *    start the fragment LCP in that case we can also set
    *    MaxGciCompleted to cnewestCompletedGci at the start of the
    *    fragment LCP.
+   *
+   * 3) If we find that RESTORE restored a newer version than
+   *    cnewestCompletedGci (can happen when RESTORE used an LCP
+   *    created during copy phase of restart) than we use this
+   *    GCI rather than the cnewestCompletedGci that represents
+   *    the GCI that DIH supposed we could restore (in reality
+   *    we are only able to restore using the other live node
+   *    in this state).
    */
   if ((!fragptr.p->m_copy_complete_flag) &&
       (cstartType == NodeState::ST_NODE_RESTART ||
@@ -17236,6 +17244,14 @@ Dblqh::get_lcp_frag_stats(Uint64 & row_count,
       jam();
       fragptr.p->maxGciCompletedInLcp = fragptr.p->m_completed_gci;
     }
+  }
+  else if (cstartType == NodeState::ST_NODE_RESTART &&
+           fragptr.p->m_completed_gci > cnewestCompletedGci)
+  {
+    jam();
+    ndbrequire(c_local_sysfile.m_node_restorable_on_its_own ==
+               ReadLocalSysfileReq::NODE_NOT_RESTORABLE_ON_ITS_OWN);
+    fragptr.p->maxGciCompletedInLcp = fragptr.p->m_completed_gci;
   }
   else
   {
