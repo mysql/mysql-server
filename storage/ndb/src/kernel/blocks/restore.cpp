@@ -1429,7 +1429,7 @@ Restore::read_ctl_file_done(Signal *signal, FilePtr file_ptr, Uint32 bytesRead)
     ndbrequire(false);
   }
   else if (maxGciWritten > file_ptr.p->m_restored_gcp_id ||
-      validFlag == 0)
+           validFlag == 0)
   {
     jam();
     /**

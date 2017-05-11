@@ -17882,7 +17882,8 @@ void Dbdih::execSTART_LCP_REQ(Signal* signal)
     c_save_startLcpReq = *req;
     c_start_node_lcp_req_outstanding = true;
     signal->theData[0] = (Uint32)(m_micro_gcp.m_current_gci >> 32);
-    sendSignal(DBLQH_REF, GSN_START_NODE_LCP_REQ, signal, 1, JBB);
+    signal->theData[1] = c_newest_restorable_gci;
+    sendSignal(DBLQH_REF, GSN_START_NODE_LCP_REQ, signal, 2, JBB);
     return;
   }
   handleStartLcpReq(signal, req);

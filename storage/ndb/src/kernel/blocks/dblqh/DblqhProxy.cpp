@@ -905,13 +905,15 @@ DblqhProxy::execUNDO_LOG_LEVEL_REP(Signal *signal)
 void
 DblqhProxy::execSTART_NODE_LCP_REQ(Signal *signal)
 {
-  Uint32 gci = signal->theData[0];
+  Uint32 current_gci = signal->theData[0];
+  Uint32 restorable_gci = signal->theData[1];
   ndbrequire(m_outstanding_start_node_lcp_req == 0);
   m_outstanding_start_node_lcp_req = c_workers;
   for (Uint32 i = 0; i < c_workers; i++)
   {
     jam();
-    signal->theData[0] = gci;
+    signal->theData[0] = current_gci;
+    signal->theData[1] = restorable_gci;
     sendSignal(workerRef(i), GSN_START_NODE_LCP_REQ, signal,
                signal->getLength(), JBB);
   }
