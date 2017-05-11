@@ -16670,13 +16670,13 @@ void Dblqh::execSTART_NODE_LCP_REQ(Signal *signal)
   jamEntry();
   Uint32 current_gci = signal->theData[0];
   Uint32 restorable_gci = signal->theData[1];
-  c_keep_gci_for_distributed_lcp = cnewestCompletedGci;
+  c_keep_gci_for_distributed_lcp = restorable_gci;
   DEB_LCP(("c_keep_gci_for_distributed_lcp = %u,"
            " current_gci = %u, restorable_gci = %u",
             c_keep_gci_for_distributed_lcp,
             current_gci,
             restorable_gci));
-  c_max_keep_gci_in_lcp = c_keep_gci_for_distributed_lcp;
+  c_max_keep_gci_in_lcp = restorable_gci;
   c_first_set_min_keep_gci = true;
 
   BlockReference ref;

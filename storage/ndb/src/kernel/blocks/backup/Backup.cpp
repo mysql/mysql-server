@@ -13196,10 +13196,6 @@ Backup::execLCP_STATUS_REQ(Signal* signal)
         LocalDeleteLcpFile_list queue(c_deleteLcpFilePool,
                                       m_delete_lcp_file_head);
         ndbrequire(!queue.isEmpty());
-        queue.first(deleteLcpFilePtr);
-        Uint32 waitGCI = (deleteLcpFilePtr.i != RNIL) ? 
-           deleteLcpFilePtr.p->waitCompletedGci : 0;
-        ndbrequire(waitGCI >= m_newestRestorableGci);
         conf->completionStateHi = 0;
         conf->completionStateLo = m_newestRestorableGci;
       }
