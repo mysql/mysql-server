@@ -1630,6 +1630,7 @@ struct KeyReqStruct {
   bool            interpreted_exec;
   bool            last_row;
   bool            m_use_rowid;
+  bool            m_nr_copy_or_redo;
   Uint8           m_reorg;
   Uint8           m_prio_a_flag;
   bool            m_deferred_constraints;
