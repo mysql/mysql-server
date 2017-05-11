@@ -1122,6 +1122,7 @@ public:
   void lcp_one_part_completed(Signal*, BackupRecordPtr);
   void lcp_write_undo_log(Signal *signal, BackupRecordPtr);
 
+  void check_wait_end_lcp(Signal*, BackupRecordPtr ptr);
   void delete_lcp_file_processing(Signal*, Uint32 ptrI);
   void finished_removing_files(Signal*, BackupRecordPtr);
   void sendEND_LCPCONF(Signal*, BackupRecordPtr);

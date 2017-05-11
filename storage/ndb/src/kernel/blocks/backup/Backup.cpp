@@ -11985,18 +11985,13 @@ Backup::delete_lcp_file_processing(Signal *signal, Uint32 ptrI)
   c_backupPool.getPtr(ptr, ptrI);
 
   ndbrequire(m_delete_lcp_files_ongoing);
+
   LocalDeleteLcpFile_list queue(c_deleteLcpFilePool,
                                 m_delete_lcp_file_head);
   if (queue.isEmpty())
   {
     jam();
-    if (ptr.p->m_wait_end_lcp)
-    {
-      jam();
-      ndbrequire(ptr.p->prepareState != PREPARE_DROP);
-      ptr.p->m_wait_end_lcp = false;
-      sendEND_LCPCONF(signal, ptr);
-    }
+    ndbrequire(!ptr.p->m_wait_end_lcp);
     m_delete_lcp_files_ongoing = false;
     if (ptr.p->prepareState == PREPARE_DROP)
     {
@@ -12385,19 +12380,39 @@ Backup::finished_removing_files(Signal *signal,
 {
   DeleteLcpFilePtr deleteLcpFilePtr;
   jam();
-  LocalDeleteLcpFile_list queue(c_deleteLcpFilePool,
-                                m_delete_lcp_file_head);
-  c_deleteLcpFilePool.getPtr(deleteLcpFilePtr, ptr.p->currentDeleteLcpFile);
-  queue.remove(deleteLcpFilePtr);
-  c_deleteLcpFilePool.release(deleteLcpFilePtr);
-  ptr.p->currentDeleteLcpFile = RNIL;
-  signal->theData[0] = BackupContinueB::ZDELETE_LCP_FILE;
-  signal->theData[1] = ptr.i;
-  sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+  {
+    LocalDeleteLcpFile_list queue(c_deleteLcpFilePool,
+                                  m_delete_lcp_file_head);
+    c_deleteLcpFilePool.getPtr(deleteLcpFilePtr, ptr.p->currentDeleteLcpFile);
+    queue.remove(deleteLcpFilePtr);
+    c_deleteLcpFilePool.release(deleteLcpFilePtr);
+    ptr.p->currentDeleteLcpFile = RNIL;
+  }
   if (ptr.p->m_informDropTabTableId != Uint32(~0))
   {
     jam();
     sendINFORM_BACKUP_DROP_TAB_CONF(signal, ptr);
+  }
+  else
+  {
+    jam();
+    check_wait_end_lcp(signal, ptr);
+  }
+  {
+    LocalDeleteLcpFile_list queue(c_deleteLcpFilePool,
+                                  m_delete_lcp_file_head);
+    if (!queue.isEmpty())
+    {
+      jam();
+      signal->theData[0] = BackupContinueB::ZDELETE_LCP_FILE;
+      signal->theData[1] = ptr.i;
+      sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+    }
+    else
+    {
+      jam();
+      delete_lcp_file_processing(signal, ptr.i);
+    }
   }
 }
 
@@ -12428,6 +12443,20 @@ Backup::execINFORM_BACKUP_DROP_TAB_REQ(Signal *signal)
 }
 
 void
+Backup::check_wait_end_lcp(Signal *signal, BackupRecordPtr ptr)
+{
+  LocalDeleteLcpFile_list queue(c_deleteLcpFilePool,
+                                m_delete_lcp_file_head);
+  if (queue.isEmpty() && ptr.p->m_wait_end_lcp)
+  {
+    jam();
+    ndbrequire(ptr.p->prepareState != PREPARE_DROP);
+    ptr.p->m_wait_end_lcp = false;
+    sendEND_LCPCONF(signal, ptr);
+  }
+}
+
+void
 Backup::sendINFORM_BACKUP_DROP_TAB_CONF(Signal *signal,
                                         BackupRecordPtr ptr)
 {
@@ -12439,6 +12468,9 @@ Backup::sendINFORM_BACKUP_DROP_TAB_CONF(Signal *signal,
    * while we were writing them.
    */
 
+  DEB_LCP(("(%u)Remove all delete file requests for table %u",
+           instance(),
+           ptr.p->m_informDropTabTableId));
   {
     DeleteLcpFilePtr deleteLcpFilePtr;
     DeleteLcpFilePtr nextDeleteLcpFilePtr;
@@ -12463,6 +12495,7 @@ Backup::sendINFORM_BACKUP_DROP_TAB_CONF(Signal *signal,
       deleteLcpFilePtr = nextDeleteLcpFilePtr;
     }
   }
+  check_wait_end_lcp(signal, ptr);
 
   /**
    * Now we have removed all entries from queue and we are ready to inform
@@ -12678,6 +12711,7 @@ Backup::sendEND_LCPCONF(Signal *signal, BackupRecordPtr ptr)
   DEB_LCP(("(%u)TAGE END_LCPREQ: lcpId: %u",
           instance(),
           ptr.p->backupId));
+  ndbrequire(!ptr.p->m_wait_end_lcp);
   ptr.p->backupId = 0; /* Ensure next LCP_PREPARE_REQ sees a new LCP id */
   EndLcpConf* conf= (EndLcpConf*)signal->getDataPtrSend();
   conf->senderData = ptr.p->senderData;
