@@ -7070,6 +7070,13 @@ Dblqh::acckeyconf_tupkeyreq(Signal* signal, TcConnectionrec* regTcPtr,
   TupKeyReq::setInterpretedFlag(Ttupreq, regTcPtr->opExec);
   TupKeyReq::setRowidFlag(Ttupreq, regTcPtr->m_use_rowid);
   TupKeyReq::setReorgFlag(Ttupreq, regTcPtr->m_reorg);
+  TupKeyReq::setNrCopyFlag(Ttupreq,
+                           (LqhKeyReq::getNrCopyFlag(regTcPtr->reqinfo) |
+                           c_executing_redo_log));
+#ifdef ERROR_INSERT
+  /* Ensure c_executing_redo_log isn't set when a read happens */
+  ndbrequire(op != ZREAD || c_executing_redo_log == 0);
+#endif
 
   /* --------------------------------------------------------------------- 
    * Clear interpreted mode bit since we do not want the next replica to
@@ -12681,6 +12688,7 @@ Dblqh::next_scanconf_tupkeyreq(Signal* signal,
   TupKeyReq::setOperation(reqinfo, regTcPtr->operation);
   TupKeyReq::setInterpretedFlag(reqinfo, regTcPtr->opExec);
   TupKeyReq::setReorgFlag(reqinfo, regTcPtr->m_reorg);
+  TupKeyReq::setNrCopyFlag(reqinfo, ZFALSE);
   tupKeyReq->disk_page= disk_page;
   tupKeyReq->attrInfoIVal= RNIL;
   tupKeyReq->attrBufLen = 0;
@@ -16441,7 +16449,7 @@ Dblqh::execRESUME_COPY_FRAG_CONF(Signal *signal)
 void
 Dblqh::execUNDO_LOG_LEVEL_REP(Signal *signal)
 {
-#define OVERLOAD_LEVEL 30
+#define OVERLOAD_LEVEL 90
   UndoLogLevelRep *rep = (UndoLogLevelRep*)signal->getDataPtr();
   Uint32 levelUsed = rep->levelUsed;
 
@@ -21372,7 +21380,7 @@ void Dblqh::execSTART_RECCONF(Signal* signal)
     rebuildOrderedIndexes(signal, 0);
     return;
   }
-
+  c_executing_redo_log = 1;
   g_eventLogger->info("LDM(%u): Starting REDO log execution"
                       " phase %u",
                       instance(), 
@@ -24066,6 +24074,7 @@ void Dblqh::srFourthComp(Signal* signal)
     logPartPtr.p->logPartState = LogPartRecord::IDLE;
   }//for
 
+  c_executing_redo_log = 0;
   g_eventLogger->info("LDM(%u): All redo actions complete (apply,"
                       " invalidate)",
                       instance());

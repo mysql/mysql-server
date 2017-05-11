@@ -229,7 +229,6 @@ public:
     Buffer_idx m_file_pos[2]; // 0 tail, 1 head = { file_ptr_i, page_no }
     Buffer_idx m_consumer_file_pos;
     Uint64 m_free_log_words;  // Free log words in logfile group 
-    Uint64 m_total_log_words; // Total log words in logfile group
     Uint32 m_last_log_level_reported;
     
     Undofile_list::Head m_files;     // Files in log
@@ -330,7 +329,7 @@ private:
 
   void level_report_thread(Signal*, Ptr<Logfile_group> ptr);
   void send_level_report_thread(Signal*, Ptr<Logfile_group> ptr);
-  Uint64 calc_total_log_words(Ptr<Logfile_group> ptr);
+  Uint64 calc_total_log_space(Ptr<Logfile_group> ptr);
 
   void cut_log_tail(Signal*, Ptr<Logfile_group> ptr);
   void open_file(Signal*, Ptr<Undofile>, Uint32, SectionHandle*);

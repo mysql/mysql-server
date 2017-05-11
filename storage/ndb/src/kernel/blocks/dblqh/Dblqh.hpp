@@ -3832,6 +3832,7 @@ public:
 
   AlterTabReq c_keep_alter_tab_req;
   Uint32 c_keep_alter_tab_req_len;
+  Uint32 c_executing_redo_log;
   bool c_wait_lcp_surfacing;
 #endif
 };

@@ -6011,7 +6011,7 @@ void Ndbcntr::execCOPY_FRAG_NOT_IN_PROGRESS_REP(Signal *signal)
 
 }
 
-#define START_LCP_LEVEL 25
+#define START_LCP_LEVEL 50
 void Ndbcntr::execUNDO_LOG_LEVEL_REP(Signal *signal)
 {
   jamEntry();

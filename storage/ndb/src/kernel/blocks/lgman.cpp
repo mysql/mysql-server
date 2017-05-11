@@ -365,7 +365,7 @@ extern EventLogger * g_eventLogger;
  * ----------------------------------
  * The amount of free space for an UNDO log file group is maintained by the
  * variable m_free_log_words on the struct Logfile_group. The amount of total
- * log space is maintained in the variable m_total_log_words.
+ * log space is maintained in the variable m_total_log_space.
  *
  * It gets its initial value from either creation of a new log file group
  * in which case this is calculated in create_file_commit. Otherwise it is
@@ -1041,7 +1041,7 @@ Lgman::execDUMP_STATE_ORD(Signal* signal){
 }
 
 Uint64
-Lgman::calc_total_log_words(Ptr<Logfile_group> lg_ptr)
+Lgman::calc_total_log_space(Ptr<Logfile_group> lg_ptr)
 {
   Uint64 total = 0;
   Local_undofile_list list(m_file_pool, lg_ptr.p->m_files);
@@ -1081,7 +1081,7 @@ Lgman::execDBINFO_SCANREQ(Signal *signal)
 
       Uint64 free = ptr.p->m_free_log_words*4;
 
-      Uint64 total = Uint64(4) * calc_total_log_words(ptr);
+      Uint64 total = Uint64(4) * calc_total_log_space(ptr);
       Uint64 high = 0; // TODO
 
       Ndbinfo::Row row(signal, req);
@@ -1922,7 +1922,7 @@ Lgman::create_file_commit(Signal* signal,
   
   Uint64 add= file_ptr.p->m_file_size - 1;
   lg_ptr.p->m_free_log_words += add * get_undo_page_words(lg_ptr);
-  lg_ptr.p->m_total_log_space = calc_total_log_words(lg_ptr);
+  lg_ptr.p->m_total_log_space = calc_total_log_space(lg_ptr);
   calculate_space_limit(lg_ptr);
   DEB_LGMAN(("Line(%u): free_log_words: %llu, total_log_space: %llu",
              __LINE__,
@@ -2048,7 +2048,6 @@ Lgman::Logfile_group::Logfile_group(const CreateFilegroupImplReq* req)
   m_file_pos[0].m_ptr_i= m_file_pos[1].m_ptr_i = RNIL;
 
   m_free_log_words = 0;
-  m_total_log_words = 0;
   m_total_buffer_words = 0;
   m_free_buffer_words = 0;
   m_callback_buffer_words = 0;
@@ -3412,17 +3411,26 @@ Lgman::level_report_thread(Signal *signal, Ptr<Logfile_group> lg_ptr)
     lg_ptr.p->m_state &= ~(Uint32)Logfile_group::LG_LEVEL_REPORT_THREAD;
     return;
   }
-  if (lg_ptr.p->m_total_log_words != Uint64(0))
+  if (lg_ptr.p->m_total_log_space != Uint64(0))
   {
     jam();
     lg_ptr.p->m_count_since_last_report++;
     /* Only report levels when logfile group is started. */
-    Uint64 total_bytes = Uint64(4) * lg_ptr.p->m_total_log_words;
+    Uint64 total_bytes = Uint64(4) * lg_ptr.p->m_total_log_space;
     Uint64 free_bytes = Uint64(4) * lg_ptr.p->m_free_log_words;
-    Uint64 free_level =
-      Uint64(100) - ((Uint64(100) * free_bytes) / total_bytes);
-    ndbassert(lg_ptr.p->m_total_log_words == calc_total_log_words(lg_ptr));
     ndbrequire(total_bytes >= free_bytes);
+    Uint64 space_limit_bytes = Uint64(4) * lg_ptr.p->m_space_limit;
+    Uint64 free_level = 100;
+    if (free_bytes > space_limit_bytes)
+    {
+      jam();
+      free_bytes -= space_limit_bytes;
+      ndbrequire(total_bytes > space_limit_bytes);
+      total_bytes -= space_limit_bytes;
+      free_level =
+        Uint64(100) - ((Uint64(100) * free_bytes) / total_bytes);
+    }
+    ndbassert(lg_ptr.p->m_total_log_space == calc_total_log_space(lg_ptr));
     if (lg_ptr.p->m_last_log_level_reported != Uint32(free_level) ||
         lg_ptr.p->m_count_since_last_report > 20)
     {

@@ -793,6 +793,7 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
      regOperPtr->op_type= TupKeyReq::getOperation(TrequestInfo);
      req_struct.m_disable_fk_checks = disable_fk_checks;
      req_struct.m_use_rowid = TupKeyReq::getRowidFlag(TrequestInfo);
+     req_struct.m_nr_copy_or_redo = TupKeyReq::getNrCopyFlag(TrequestInfo);
      req_struct.interpreted_exec= TupKeyReq::getInterpretedFlag(TrequestInfo);
      req_struct.dirty_op= TupKeyReq::getDirtyFlag(TrequestInfo);
    }
@@ -1423,7 +1424,7 @@ int Dbtup::handleUpdateReq(Signal* signal,
         Logfile_client lgman(this, c_lgman, regFragPtr->m_logfile_group_id);
         terrorCode= lgman.alloc_log_space(operPtrP->m_undo_buffer_space,
                                           true,
-                                          true,
+                                          !req_struct->m_nr_copy_or_redo,
                                           jamBuffer());
       }
       if(unlikely(terrorCode))
@@ -1997,7 +1998,7 @@ int Dbtup::handleInsertReq(Signal* signal,
       Logfile_client lgman(this, c_lgman, regFragPtr->m_logfile_group_id);
       res= lgman.alloc_log_space(regOperPtr.p->m_undo_buffer_space,
                                  true,
-                                 true,
+                                 !req_struct->m_nr_copy_or_redo,
                                  jamBuffer());
     }
     if(unlikely(res))
@@ -2405,7 +2406,7 @@ int Dbtup::handleDeleteReq(Signal* signal,
       Logfile_client lgman(this, c_lgman, regFragPtr->m_logfile_group_id);
       terrorCode= lgman.alloc_log_space(regOperPtr->m_undo_buffer_space,
                                         true,
-                                        true,
+                                        !req_struct->m_nr_copy_or_redo,
                                         jamBuffer());
     }
     if(unlikely(terrorCode))
