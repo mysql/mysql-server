@@ -10793,7 +10793,19 @@ Backup::lcp_update_ctl_page(BackupRecordPtr ptr,
   struct BackupFormat::LCPCtlFile *lcpCtlFilePtr =
     (struct BackupFormat::LCPCtlFile*)page_ptr.p;
 
-  c_lqh->lcp_max_completed_gci(maxCompletedGci);
+  /**
+   * An idle LCP cannot have written anything since last LCP. The
+   * last LCP was definitely restorable on disk, so there is no
+   * need to set MaxGciCompleted to an unrestorable GCI since we
+   * haven't written this anyways.
+   *
+   * Thus for idle LCPs we need not wait for a GCI to be restorable
+   * ever. We reflect this by sending max_gci_written equal to the
+   * restorable gci in the lcp_max_completed_gci call.
+   */
+  c_lqh->lcp_max_completed_gci(maxCompletedGci,
+                               m_newestRestorableGci,
+                               m_newestRestorableGci);
   lcpCtlFilePtr->MaxGciCompleted = maxCompletedGci;
   c_lqh->lcp_complete_scan(ptr.p->newestGci);
   if (ptr.p->newestGci != lcpCtlFilePtr->MaxGciWritten)
@@ -10822,20 +10834,6 @@ Backup::lcp_update_ctl_page(BackupRecordPtr ptr,
 
   ndbrequire(lcpCtlFilePtr->MaxGciWritten <= m_newestRestorableGci);
   ndbrequire(m_newestRestorableGci != 0);
-  if (lcpCtlFilePtr->MaxGciCompleted > m_newestRestorableGci)
-  {
-    jam();
-    /**
-     * An idle LCP cannot have written anything since last LCP. The
-     * last LCP was definitely restorable on disk, so there is no
-     * need to set MaxGciCompleted to an unrestorable GCI since we
-     * haven't written this anyways.
-     *
-     * Thus for idle LCPs we need not wait for a GCI to be restorable
-     * ever.
-     */
-    lcpCtlFilePtr->MaxGciCompleted = m_newestRestorableGci;
-  }
   /**
    * Also idle LCPs have to be careful to ensure that the LCP is valid before
    * we write it as valid. The reason is that otherwise we won't find the
@@ -11889,31 +11887,14 @@ Backup::lcp_write_ctl_file(Signal *signal, BackupRecordPtr ptr)
     c_lqh->getCreateSchemaVersion(tabPtr.p->tableId);
 
   Uint32 maxCompletedGci;
-  c_lqh->lcp_max_completed_gci(maxCompletedGci);
+  c_lqh->lcp_max_completed_gci(maxCompletedGci,
+                               ptr.p->newestGci,
+                               m_newestRestorableGci);
   lcpCtlFilePtr->CreateGci = fragPtr.p->createGci;
   lcpCtlFilePtr->MaxGciCompleted = maxCompletedGci;
   lcpCtlFilePtr->MaxGciWritten = ptr.p->newestGci;
 
   ndbrequire(m_newestRestorableGci != 0);
-  if (lcpCtlFilePtr->MaxGciWritten <= m_newestRestorableGci &&
-      lcpCtlFilePtr->MaxGciCompleted > m_newestRestorableGci)
-  {
-    jam();
-    /**
-     * In this case we haven't written any transactions in the LCP
-     * that isn't restorable at this point in time. So the LCP
-     * is already restorable. We will only record a
-     * MaxGciCompleted that is at most the completed one.
-     *
-     * The only repercussion of this decision is that we might need
-     * to execute one extra GCI in the REDO log for a fragment that
-     * we know won't have any writes there. So should be of no
-     * concern at all.
-     *
-     * This also simplifies the recovery.
-     */
-    lcpCtlFilePtr->MaxGciCompleted = m_newestRestorableGci;
-  }
   DEB_LCP(("(%u)tab(%u,%u).%u, use ctl file %u, GCI completed: %u,"
            " GCI written: %u, createGci: %u",
            instance(),

@@ -2992,7 +2992,9 @@ protected:
   virtual bool getParam(const char* name, Uint32* count);
 
 public:
-  void lcp_max_completed_gci(Uint32 & maxCompletedGci);
+  void lcp_max_completed_gci(Uint32 & maxCompletedGci,
+                             Uint32 max_gci_written,
+                             Uint32 restorable_gci);
   void lcp_complete_scan(Uint32 & newestGci);
   Uint32 get_lcp_newest_gci(void);
   void get_lcp_frag_stats(Uint64 & commit_count,
