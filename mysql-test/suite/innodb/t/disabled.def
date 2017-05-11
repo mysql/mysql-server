@@ -28,5 +28,6 @@ create_tablespace_partition : WL#9559 disables it, according to Dmitry, waiting 
 innodb.innodb_wl6560_debug : Bug#25804386 2017-04-06 Bin Failing sporadically on PB2
 innodb.skip_locked_nowait  : Bug#25886814 2017-04-13 Allen Failing sporadically on PB2
 
-#log_corruption            : WL9535 disable it, need to check it deeper
-#innodb-wl5980-discard     : WL9535 disable it, need to check it deeper
+log_corruption            : WL9535 disable it, need to check it deeper
+innodb-wl5980-discard     : WL9535 disable it, need to check it deeper
+tablespace_per_table_not_windows : WL9535 disable it, need to check it deeper
