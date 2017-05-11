@@ -20,7 +20,7 @@ InnMEM Table implementation. */
 #include <new>           /* new */
 #include <string>        /* std::string */
 #include <unordered_map> /* std::unordered_map */
-#include <utility>       /* std::pair, std::move */
+#include <utility>       /* std::pair */
 #include <vector>        /* std::vector */
 
 #include "field.h"                /* Field */
@@ -190,12 +190,12 @@ Result Table::update(const unsigned char* mysql_row_old,
   } else {
     Row* row = reinterpret_cast<Row*>(target_row);
 
-    *row = std::move(Row(mysql_row_new, &m_allocator));
+    *row = Row(mysql_row_new, &m_allocator);
 
     ret = row->copy_to_own_memory(m_columns, m_mysql_row_length);
 
     if (ret != Result::OK) {
-      *row = std::move(Row(mysql_row_old, &m_allocator));
+      *row = Row(mysql_row_old, &m_allocator);
       return ret;
     }
   }

@@ -35,8 +35,11 @@ ANALYZE TABLE table10000_innodb_int_autoinc;
 
 SET SESSION internal_tmp_mem_storage_engine = 'InnMEM';
 
-if ($is_debug) {
-  SET GLOBAL debug = "+d,innmem_api";
+# Several of the DBUG_PRINT calls give 'conditional jump'
+if (!$VALGRIND_TEST) {
+  if ($is_debug) {
+    SET GLOBAL debug = "+d,innmem_api";
+  }
 }
 
 -- enable_result_log

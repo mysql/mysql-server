@@ -1250,12 +1250,13 @@ static void check_counts(HUFF_COUNTS *huff_counts, uint trees,
 	goto found_pack;
       }
       /* Remeber the number of significant spaces. */
-      old_space_count=huff_counts->counts[' '];
+      old_space_count=huff_counts->counts[static_cast<int>(' ')];
       /* Add all leading and trailing spaces. */
-      huff_counts->counts[' ']+= (huff_counts->tot_end_space +
-                                  huff_counts->tot_pre_space +
-                                  huff_counts->empty_fields *
-                                  huff_counts->field_length);
+      huff_counts->counts[static_cast<int>(' ')]+= 
+        (huff_counts->tot_end_space +
+         huff_counts->tot_pre_space +
+         huff_counts->empty_fields *
+         huff_counts->field_length);
       /* Check, what the compressed length of this would be. */
       old_length=calc_packed_length(huff_counts,0)+records/8;
       /* Get the number of zero bytes. */
@@ -1273,7 +1274,7 @@ static void check_counts(HUFF_COUNTS *huff_counts, uint trees,
 	goto found_pack;
       }
       /* Remove the insignificant spaces, but keep the zeroes. */
-      huff_counts->counts[' ']=old_space_count;
+      huff_counts->counts[static_cast<int>(' ')]=old_space_count;
     }
     /* Check, what the compressed length of this column would be. */
     huff_counts->bytes_packed=calc_packed_length(huff_counts,0);
@@ -1320,12 +1321,12 @@ static void check_counts(HUFF_COUNTS *huff_counts, uint trees,
     */
     if (huff_counts->tot_end_space)
     {
-      huff_counts->counts[' ']+=huff_counts->tot_pre_space;
+      huff_counts->counts[static_cast<int>(' ')]+= huff_counts->tot_pre_space;
       if (test_space_compress(huff_counts,records,huff_counts->max_end_space,
 			      huff_counts->end_space,
 			      huff_counts->tot_end_space,FIELD_SKIP_ENDSPACE))
 	goto found_pack;
-      huff_counts->counts[' ']-=huff_counts->tot_pre_space;
+      huff_counts->counts[static_cast<int>(' ')]-= huff_counts->tot_pre_space;
     }
 
     /*
