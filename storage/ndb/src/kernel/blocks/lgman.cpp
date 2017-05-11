@@ -5209,74 +5209,22 @@ Lgman::stop_run_undo_log(Signal* signal)
        */
       ndbrequire(lg_ptr.p->m_state == 0);
       lg_ptr.p->m_state = Logfile_group::LG_ONLINE;
-      Buffer_idx tail= lg_ptr.p->m_file_pos[TAIL];
-      Uint32 pages= lg_ptr.p->m_pos[PRODUCER].m_current_pos.m_idx;
-      
-      while (pages)
-      {
-	Ptr<Undofile> file;
-	m_file_pool.getPtr(file, tail.m_ptr_i);
-	Uint32 page= tail.m_idx;
-	Uint32 size= file.p->m_file_size;
-	ndbrequire(size >= page);
-	Uint32 diff= size - page;
-	
-	if (pages >= diff)
-	{
-          jam();
-	  pages -= diff;
-	  Local_undofile_list files(m_file_pool, lg_ptr.p->m_files);
-	  if (!files.next(file))
-	    files.first(file);
-	  tail.m_idx = 1;
-	  tail.m_ptr_i= file.i;
-	}
-	else
-	{
-          jam();
-	  tail.m_idx += pages;
-	  pages= 0;
-	}
-      }
 
       init_logbuffer_pointers(lg_ptr);
 
-      {
-        /**
-         * At this point the UNDO log file is empty. We still though has to
-         * respect the log head. The reason is that we need to continue
-         * writing the log from where we are at the moment to avoid any issues
-         * with finding the correct log head at a subsequent restart.
-         *
-         * So we will keep head where it is currently and will put tail on the
-         * page behind the head page.
-         */
-        Buffer_idx head= lg_ptr.p->m_file_pos[HEAD];
-        Ptr<Undofile> file;
-        m_file_pool.getPtr(file, head.m_ptr_i);
-        if (head.m_idx != 0)
-        {
-          jam();
-          tail = head;
-          tail.m_idx = head.m_idx - 1;
-        }
-        else
-        {
-          jam();
-          Local_undofile_list files(m_file_pool, lg_ptr.p->m_files);
-          if (!files.prev(file))
-          {
-            jam();
-            files.first(file);
-          }
-          tail.m_ptr_i = file.i;
-          tail.m_idx = file.p->m_file_size - 1;
-        }
-        lg_ptr.p->m_file_pos[HEAD] = head;
-        lg_ptr.p->m_tail_pos[0] = tail;
-        lg_ptr.p->m_tail_pos[1] = tail;
-        lg_ptr.p->m_file_pos[TAIL] = tail;
-      }
+      Buffer_idx head= lg_ptr.p->m_file_pos[HEAD];
+      Buffer_idx tail= head;
+      /**
+       * At this point the UNDO log file is empty. We still though has to
+       * respect the log head. The reason is that we need to continue
+       * writing the log from where we are at the moment to avoid any issues
+       * with finding the correct log head at a subsequent restart.
+       *
+       * Since UNDO log file is empty we will set tail and head equal
+       */
+      lg_ptr.p->m_tail_pos[0] = head;
+      lg_ptr.p->m_tail_pos[1] = head;
+      lg_ptr.p->m_file_pos[TAIL] = head;
       
       lg_ptr.p->m_free_log_words = (Uint64)get_undo_page_words(lg_ptr) *
 	(Uint64)compute_free_file_pages(lg_ptr, jamBuffer());
