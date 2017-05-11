@@ -16667,12 +16667,17 @@ Dblqh::force_lcp(Signal* signal)
 void Dblqh::execSTART_NODE_LCP_REQ(Signal *signal)
 {
   jamEntry();
-  Uint32 gci = signal->theData[0];
+  Uint32 current_gci = signal->theData[0];
+  Uint32 restorable_gci = signal->theData[1];
   c_keep_gci_for_distributed_lcp = cnewestCompletedGci;
-  DEB_LCP(("c_keep_gci_for_distributed_lcp = %u, gci = %u",
-            c_keep_gci_for_distributed_lcp, gci));
+  DEB_LCP(("c_keep_gci_for_distributed_lcp = %u,"
+           " current_gci = %u, restorable_gci = %u",
+            c_keep_gci_for_distributed_lcp,
+            current_gci,
+            restorable_gci));
   c_max_keep_gci_in_lcp = c_keep_gci_for_distributed_lcp;
   c_first_set_min_keep_gci = true;
+
   BlockReference ref;
   if (isNdbMtLqh())
   {
@@ -16686,6 +16691,9 @@ void Dblqh::execSTART_NODE_LCP_REQ(Signal *signal)
   }
   signal->theData[0] = 1;
   sendSignal(ref, GSN_START_NODE_LCP_CONF, signal, 1, JBB);
+  signal->theData[0] = restorable_gci;
+  sendSignal(numberToRef(BACKUP, instance(), getOwnNodeId()),
+             GSN_RESTORABLE_GCI_REP, signal, 1, JBB);
 }
 
 void Dblqh::set_min_keep_gci(Uint32 max_completed_gci)

@@ -10820,6 +10820,22 @@ Backup::lcp_update_ctl_page(BackupRecordPtr ptr,
   lcpCtlFilePtr->MaxGciWritten = ptr.p->newestGci;
   lcp_set_lcp_id(ptr, lcpCtlFilePtr);
 
+  ndbrequire(lcpCtlFilePtr->MaxGciWritten <= m_newestRestorableGci);
+  ndbrequire(m_newestRestorableGci != 0);
+  if (lcpCtlFilePtr->MaxGciCompleted > m_newestRestorableGci)
+  {
+    jam();
+    /**
+     * An idle LCP cannot have written anything since last LCP. The
+     * last LCP was definitely restorable on disk, so there is no
+     * need to set MaxGciCompleted to an unrestorable GCI since we
+     * haven't written this anyways.
+     *
+     * Thus for idle LCPs we need not wait for a GCI to be restorable
+     * ever.
+     */
+    lcpCtlFilePtr->MaxGciCompleted = m_newestRestorableGci;
+  }
   /**
    * Also idle LCPs have to be careful to ensure that the LCP is valid before
    * we write it as valid. The reason is that otherwise we won't find the
@@ -11878,6 +11894,26 @@ Backup::lcp_write_ctl_file(Signal *signal, BackupRecordPtr ptr)
   lcpCtlFilePtr->MaxGciCompleted = maxCompletedGci;
   lcpCtlFilePtr->MaxGciWritten = ptr.p->newestGci;
 
+  ndbrequire(m_newestRestorableGci != 0);
+  if (lcpCtlFilePtr->MaxGciWritten <= m_newestRestorableGci &&
+      lcpCtlFilePtr->MaxGciCompleted > m_newestRestorableGci)
+  {
+    jam();
+    /**
+     * In this case we haven't written any transactions in the LCP
+     * that isn't restorable at this point in time. So the LCP
+     * is already restorable. We will only record a
+     * MaxGciCompleted that is at most the completed one.
+     *
+     * The only repercussion of this decision is that we might need
+     * to execute one extra GCI in the REDO log for a fragment that
+     * we know won't have any writes there. So should be of no
+     * concern at all.
+     *
+     * This also simplifies the recovery.
+     */
+    lcpCtlFilePtr->MaxGciCompleted = m_newestRestorableGci;
+  }
   DEB_LCP(("(%u)tab(%u,%u).%u, use ctl file %u, GCI completed: %u,"
            " GCI written: %u, createGci: %u",
            instance(),
