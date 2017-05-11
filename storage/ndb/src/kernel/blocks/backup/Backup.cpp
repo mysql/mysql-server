@@ -12209,8 +12209,8 @@ Backup::execRESTORABLE_GCI_REP(Signal *signal)
            ", waitGCI: %u, m_lcp_ptr_i = %u",
            instance(),
            m_newestRestorableGci,
-           m_lcp_ptr_i,
-           waitGCI));
+           waitGCI,
+           m_lcp_ptr_i));
   if (m_lcp_ptr_i != RNIL)
   {
     jam();
