@@ -17,7 +17,6 @@
 
 #include "ndb_dd.h"
 
-#include "dd/impl/sdi.h"
 #include "sql_class.h"
 #include "transaction.h"
 #include "mdl.h"            // MDL_*
@@ -36,6 +35,10 @@ bool ndb_sdi_serialize(THD *thd,
                        const char* tablespace_name,
                        dd::sdi_t& sdi)
 {
+  // Require the table to be visible or else have temporary name
+  DBUG_ASSERT(table_def.hidden() == dd::Abstract_table::HT_VISIBLE ||
+              is_prefix(table_def.name().c_str(), tmp_file_prefix));
+
   MDL_ticket *mdl_ticket = NULL;
   if (tablespace_name &&
       !thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLESPACE,

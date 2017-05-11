@@ -12348,29 +12348,6 @@ int ha_ndbcluster::rename_table(const char *from, const char *to,
   const bool old_is_temp = IS_TMP_PREFIX(m_tabname);
   const bool new_is_temp = IS_TMP_PREFIX(new_tabname);
 
-#ifndef BUG25487493
-  // Verify hidden status of the table
-  if (to_table_def->hidden())
-  {
-    // The table is marked as hidden. That makes sense when renaming
-    // to temporary table name but not when renaming to the real name
-    // Since the 'hidden' status is part of the serialized table definition
-    // there will be a mismatch when opening the table from NDB
-    // in case when the table is not also stored as hidden in the DD
-    // (which apparently it's not)
-
-    if (!new_is_temp)
-    {
-      // Hack the hidden status in order to workaround this problem
-      // while waiting for proper fix in alter/rename code, suspect
-      // one of the calls to dd::rename_table(..., <mark_as_hidden>)
-
-      DBUG_PRINT("hack", ("Marking table: %s as not hidden", new_tabname));
-      to_table_def->set_hidden(dd::Abstract_table::HT_VISIBLE);
-    }
-  }
-#endif
-
   switch (thd_sql_command(thd))
   {
   case SQLCOM_DROP_INDEX:
