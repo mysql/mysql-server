@@ -35,6 +35,7 @@
 #include <signaldata/LqhFrag.hpp>
 #include <signaldata/FsOpenReq.hpp>
 #include <signaldata/DropTab.hpp>
+#include <signaldata/CopyFrag.hpp>
 
 // primary key is stored in TUP
 #include "../dbtup/Dbtup.hpp"
@@ -259,6 +260,7 @@ class Lgman;
 #if defined ERROR_INSERT
 #define ZDELAY_FS_OPEN 27
 #endif
+#define ZSTART_LOCAL_LCP 28
 
 /* ------------------------------------------------------------------------- */
 /*        NODE STATE DURING SYSTEM RESTART, VARIABLES CNODES_SR_STATE        */
@@ -500,7 +502,8 @@ public:
       WAIT_CLOSE_COPY = 7,
       WAIT_TUPKEY_COPY = 8,
       WAIT_LQHKEY_COPY = 9,
-      IN_QUEUE = 10
+      IN_QUEUE = 10,
+      COPY_FRAG_HALTED = 11
     };
     enum ScanType {
       ST_IDLE = 0,
@@ -862,11 +865,6 @@ public:
      */
     Uint16 lqhInstanceKey;
     /**
-     *       This variable ensures that only one copy fragment is
-     *       active at a time on the fragment.
-     */
-    Uint8 copyFragState;
-    /**
      *       The number of fragment replicas that will execute the log
      *       records in this round of executing the fragment
      *       log.  Maximum four is possible.
@@ -1008,6 +1006,17 @@ public:
     Uint32 lcp_frag_ord_lcp_id;
     LcpExecutionState lcp_frag_ord_state;
     UsageStat m_useStat;
+    Uint8 m_copy_complete_flag;
+    /**
+     * To keep track of which fragment have started the
+     * current local LCP we have a value of 0 or 1. If
+     * current local LCP is 0 the fragment will have 0
+     * to indicate it has been started and 1 indicating
+     * that it hasn't started yet.
+     * The value is initialised to 0 and the value of the
+     * first local LCP is 1.
+     */
+    Uint8 m_local_lcp_instance_started;
   };
   typedef Ptr<Fragrecord> FragrecordPtr;
   typedef ArrayPool<Fragrecord> Fragrecord_pool;
@@ -2402,7 +2411,28 @@ public:
 
   Uint32 m_startup_report_frequency;
   NDB_TICKS m_last_report_time;
- 
+
+  struct LocalSysfileStruct
+  {
+    LocalSysfileStruct() {}
+    Uint32 m_node_restorable_on_its_own;
+    Uint32 m_max_gci_restorable;
+    Uint32 m_dihPtr;
+    Uint32 m_dihRef;
+    Uint32 m_save_gci;
+  } c_local_sysfile;
+  void send_read_local_sysfile(Signal*);
+  void write_local_sysfile_restore_complete(Signal*);
+  void write_local_sysfile_gcp_complete(Signal *signal, Uint32 gci);
+  void write_local_sysfile_restart_complete(Signal*);
+  void write_local_sysfile_restore_complete_done(Signal*);
+  void write_local_sysfile_gcp_complete_done(Signal *signal);
+
+  void write_local_sysfile_restart_complete_done(Signal*);
+
+  void write_local_sysfile(Signal*, Uint32, Uint32);
+  void sendLCP_FRAG_ORD(Signal*, Uint32 fragPtrI);
+
 public:
   Dblqh(Block_context& ctx, Uint32 instanceNumber = 0);
   virtual ~Dblqh();
@@ -2568,7 +2598,25 @@ private:
 
   void execFIRE_TRIG_REQ(Signal*);
 
+  void execREAD_LOCAL_SYSFILE_CONF(Signal*);
+  void execWRITE_LOCAL_SYSFILE_CONF(Signal*);
+
+  void execSTART_NODE_LCP_REQ(Signal*);
+  void execSTART_LOCAL_LCP_ORD(Signal*);
+  void execSTART_FULL_LOCAL_LCP_ORD(Signal*);
+  void execUNDO_LOG_LEVEL_REP(Signal*);
+  void execHALT_COPY_FRAG_REQ(Signal*);
+  void execHALT_COPY_FRAG_CONF(Signal*);
+  void execHALT_COPY_FRAG_REF(Signal*);
+  void execRESUME_COPY_FRAG_REQ(Signal*);
+  void execRESUME_COPY_FRAG_CONF(Signal*);
+  void execRESUME_COPY_FRAG_REF(Signal*);
   // Statement blocks
+
+  void send_halt_copy_frag(Signal*);
+  void send_resume_copy_frag(Signal*);
+  void send_halt_copy_frag_conf(Signal*, bool);
+  void send_resume_copy_frag_conf(Signal*);
 
   void sendLOCAL_RECOVERY_COMPLETE_REP(Signal *signal,
                 LocalRecoveryCompleteRep::PhaseIds);
@@ -2972,19 +3020,23 @@ private:
   void execINFORM_BACKUP_DROP_TAB_CONF(Signal *signal);
 
   Uint32 m_backup_ptr;
-  bool m_node_restart_lcp_first_phase_started;
   bool m_node_restart_lcp_second_phase_started;
+  bool m_node_restart_first_local_lcp_started;
   Uint32 m_first_activate_fragment_ptr_i;
+  Uint32 m_second_activate_fragment_ptr_i;
   Uint32 m_curr_lcp_id;
   Uint32 m_curr_local_lcp_id;
+  Uint32 m_next_local_lcp_id;
   Uint32 c_saveLcpId;
   Uint32 c_restart_localLcpId;
   Uint32 c_restart_lcpId;
+  Uint32 c_restart_maxLcpId;
+  Uint32 c_restart_maxLocalLcpId;
 
   void execWAIT_COMPLETE_LCP_REQ(Signal*);
   void execWAIT_ALL_COMPLETE_LCP_CONF(Signal*);
 
-  void handle_lcp_fragment_first_phase(Signal*);
+  bool handle_lcp_fragment_first_phase(Signal*);
   void activate_redo_log(Signal*, Uint32, Uint32);
   void start_lcp_second_phase(Signal*);
   void complete_local_lcp(Signal*);
@@ -3302,11 +3354,7 @@ private:
 /*AFTER THIS SYSTEM RESTART. USED TO FIND THE LOG HEAD.                      */
 /* ------------------------------------------------------------------------- */
   UintR crestartNewestGci;
-/**
- * We will not report the first GCP_SAVEREQ to Backup as completed the
- * last one since we can only trust that the previous one is completed
- * when we are starting the second.
- */
+
   bool c_is_first_gcp_save_started;
 /* ------------------------------------------------------------------------- */
 /*THE NUMBER OF LOG FILES. SET AS A PARAMETER WHEN NDB IS STARTED.           */
@@ -3648,6 +3696,110 @@ public:
   Uint64 c_totalCopyRowsDel;
   Uint64 c_totalBytesCopied;
 
+  bool is_first_instance();
+  bool is_copy_frag_in_progress();
+  bool is_scan_ok(ScanRecord*, Fragrecord::FragStatus);
+  void set_min_keep_gci(Uint32 max_completed_gci);
+
+  void sendRESTORABLE_GCI_REP(Signal*, Uint32 gci);
+  void start_local_lcp(Signal*, Uint32 lcpId, Uint32 localLcpId);
+
+  void execLCP_ALL_COMPLETE_CONF(Signal*);
+  void execGET_LOCAL_LCP_ID_REQ(Signal*);
+  void execCOPY_FRAG_NOT_IN_PROGRESS_REP(Signal*);
+  void execCUT_REDO_LOG_TAIL_REQ(Signal*);
+
+  /**
+   * Variable keeping track of which GCI to keep in REDO log
+   * after completing a distributed LCP.
+   */
+  Uint32 c_max_keep_gci_in_lcp;
+  Uint32 c_keep_gci_for_distributed_lcp;
+  bool c_first_set_min_keep_gci;
+
+  /**
+   * Variable that keeps track of maximum GCI that was recorded in the
+   * LCP. When this GCI is safe on disk the entire LCP is safe on disk.
+   */
+  Uint32 c_max_gci_in_lcp;
+
+  /* Have we sent WAIT_COMPLETE_LCP_CONF yet */
+  bool c_local_lcp_sent_wait_complete_conf;
+
+  /* Have we sent WAIT_ALL_COMPLETE_LCP_REQ yet */
+  bool c_local_lcp_sent_wait_all_complete_lcp_req;
+
+  /**
+   * Current ongoing local LCP id, == 0 means distributed LCP */
+  Uint32 c_localLcpId;
+
+  /* Counter for starting local LCP ordered by UNDO log overload */
+  Uint32 c_current_local_lcp_table_id;
+
+  /**
+   * 0/1 toggled for each local LCP executed to keep track of which
+   * fragments have been started as part of this local LCP and which
+   * haven't.
+   */
+  Uint8 c_current_local_lcp_instance;
+
+  /* Variable set when local LCP starts and when it stops it is reset */
+  bool c_local_lcp_started;
+
+  /**
+   * Variable set when local LCP is started due to UNDO log overload.
+   */
+  bool c_full_local_lcp_started;
+
+  /* Is Copy Fragment process currently ongoing */
+  bool c_copy_fragment_in_progress;
+
+  void start_lcp_on_table(Signal*);
+  void send_lastLCP_FRAG_ORD(Signal*);
+
+  /**
+   * Variables tracking state of Halt/Resume Copy Fragment process on
+   * Client side (starting node). Also methods.
+   * ------------------------------------------
+   */
+
+  /* Copy fragment process have been halted indicator */
+  bool c_copy_frag_halted;
+
+  /* Halt process is locked while waiting for response from live node */
+  bool c_copy_frag_halt_process_locked;
+
+  /* Is UNDO log currently overloaded */
+  bool c_undo_log_overloaded;
+
+  enum COPY_FRAG_HALT_STATE_TYPE
+  {
+    COPY_FRAG_HALT_STATE_IDLE = 0,
+    COPY_FRAG_HALT_WAIT_FIRST_LQHKEYREQ = 1,
+    PREPARE_COPY_FRAG_IS_HALTED = 2,
+    WAIT_RESUME_COPY_FRAG_CONF = 3,
+    WAIT_HALT_COPY_FRAG_CONF = 4,
+    COPY_FRAG_IS_HALTED = 5
+  };
+  /* State of halt copy fragment process */
+  COPY_FRAG_HALT_STATE_TYPE c_copy_frag_halt_state;
+
+  /* Save of PREPARE_COPY_FRAGREQ signal */
+  PrepareCopyFragReq c_prepare_copy_fragreq_save;
+
+  void send_prepare_copy_frag_conf(Signal*,
+                                   PrepareCopyFragReq&,
+                                   Uint32,
+                                   Uint32);
+  /**
+   * Variables tracking state of Halt/Resume Copy Fragment process on
+   * Server side (live node).
+   */
+  Uint32 c_tc_connect_rec_copy_frag;
+  bool c_copy_frag_live_node_halted;
+  bool c_copy_frag_live_node_performing_halt;
+  HaltCopyFragReq c_halt_copy_fragreq_save;
+
   inline bool getAllowRead() const {
     return getNodeState().startLevel < NodeState::SL_STOPPING_3;
   }
@@ -3804,6 +3956,16 @@ Dblqh::TRACE_OP_CHECK(const TcConnectionrec* regTcPtr)
 	  (regTcPtr->operation == ZINSERT ||
 	   regTcPtr->operation == ZDELETE)) ||
     ERROR_INSERTED(5713);
+}
+
+inline
+bool Dblqh::is_scan_ok(ScanRecord* scanPtrP, Fragrecord::FragStatus fragstatus)
+{
+  if (fragstatus == Fragrecord::FSACTIVE ||
+      (fragstatus == Fragrecord::ACTIVE_CREATION &&
+       scanPtrP->lcpScan))
+    return true;
+  return false;
 }
 #endif
 

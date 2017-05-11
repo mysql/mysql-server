@@ -9387,7 +9387,10 @@ Backup::execFSREMOVECONF(Signal* signal)
  * LCP. But we need to complete the Local LCP before allowing the
  * first COPY_ACTIVEREQ in the second phase to continue. If we didn't
  * do this we would run a much bigger chance of running out of UNDO
- * log.
+ * log. In some cases we might still run out of UNDO log and in this
+ * case we will ensure that the LCP gets higher priority and that the
+ * synchronisation process is blocked temporarily. We will do this
+ * when certain thresholds in UNDO log usage is reached.
  *
  * We will allow for two choices in how we perform Local LCPs. We will
  * perform 1 Local LCP for all node restarts before we allow the
@@ -9678,6 +9681,203 @@ Backup::execFSREMOVECONF(Signal* signal)
   actually fairly easy to handle as part of the recovery as we use the
   checkpoint files to restore, we can as part of that remove any old
   checkpoint files.
+
+  Local LCP execution
+  -------------------
+  Normally an LCP is executed as a distributed checkpoint where all nodes
+  perform the checkpoint in an synchronised manner. During restarts we might
+  execute extra local LCPs that can be used to cut the logs (REDO and UNDO
+  logs). We don't generate REDO logs until very late in the recovery process,
+  UNDO logs however we generate all the time, so it is mainly the UNDO log
+  we have to protect from being exhausted during a restart.
+
+  Such a local checkpoint can be used to recover a system, but it can normally
+  not be used to recover a node on its own. If the local LCP happens during a
+  system restart there are two options. If we have seen the GCP that we are
+  attempting to restore we have all checkpoints and REDO logs required and
+  a local LCP during restart should not be necessary normally. If our node is
+  behind and we rely on some other node to bring us the latest GCIs then we
+  might have to perform a checkpoint. In this case this local LCP will not
+  be recoverable on its own.
+
+  The reason why these local LCPs are not recoverable on their own is two
+  things. First the synchronisation of data with the other node might not
+  be completed yet when the local LCP starts. This means that the local LCP
+  isn't seeing a united view, some rows will see a very new version whereas
+  other rows will be seeing a very old view. To make a consistent state one
+  more node is required. Second even if the local LCP started after the
+  synchronisation was complete we don't have local REDO log records that
+  can bring the local LCP to a consistent state since we don't write to
+  the REDO log during the synchronisation phase. Even if we did write to
+  the REDO log during synchronisation the various fragments would still be
+  able to recover to different GCIs, thus a consistent restore of the node
+  is still not possible.
+
+  So when a node crashes the first time it is always recoverable on its
+  own from a certain GCI. The node with the highest such GCI per node
+  group is selected as the primary recovery node. Other nodes might have
+  to rely on this node for its further recovery. Obviously each node group
+  need to be restored from the same GCI to restore a consistent database.
+  As soon as we start executing a local LCP the node is no longer able to
+  be restored independent of other nodes. So before starting to execute a
+  local LCP we must first write something to the file system indicating that
+  this node is now not recoverable unless another node gives us assistance.
+
+  So independent of what GCI this can restore according to the system file
+  it cannot be used to recover data to other nodes without first recovering
+  its own data using another node as aid.
+
+  When a node is started we know of the GCI to restore for our node, it
+  is stored in DBLQH in the variable crestartNewestGci during recovery
+  and DBLQH gets it from DBDIH that got it from the system file stored
+  in the DIH blocks.
+
+  For distributed LCPs we use this GCI to restore to check if a fragment
+  LCP can be used for recovery. However for local LCPs this information
+  is normally not sufficient. For local LCPs we either have a fixed
+  new GCI that we need to handle (during system restart) or a moving
+  set of GCPs (during node start).
+
+  So for a restore we need to know the crestartNewestGci from DBLQH, but
+  we also need to know the GCIs that we can use from other nodes. This
+  information must be written into the local system file of this node.
+
+  The local system file is stored in NDBCNTR. It contains the following
+  information:
+  1) Flag whether node is restorable on its own
+  2) Flag whether node have already removed old LCP files
+  3) Last GCI of partial GCPs
+
+  When a node is starting up and we are recovering the data (executing
+  RESTORE_LCP_REQ from restore) we want to delete any files that isn't
+  usable for recovery since they have a MaxGCIWritten that is larger
+  than the above Last GCP of partial GCPs. Once we have completed
+  the RESTORE_LCP_REQ phase we know that we have deleted all old
+  LCP files that can no longer be used and we should only have one
+  copy of each fragment LCP stored at this point. At this point we
+  can set the flag above to indicate that we have already removed the
+  old LCP files.
+
+  The important parameters in the LCP metadata files stored here are
+  the parameters MaxGCIWritten and MaxGCICompleted.
+
+  When we write a local LCP the following holds for MaxGCIWritten.
+  During system restart the MaxGCIWritten will be set to the
+  GCI that the system restart is trying to restore. If the fragment
+  has been fully synchronised before the local LCP started it will
+  have the MaxGCICompleted set to the same GCI, otherwise it will
+  have its value set to the crestartNewestGci (the GCP that was
+  the last GCP we were part of the distributed protocol).
+
+  So for system restarts there are only two GCI values that can be
+  used during a local LCP. It is the GCI we are attempting to
+  restore in the cluster or it is the GCI we were last involved in
+  a distributed protocol for, crestartNewestGci).
+
+  For node restarts the MaxGCIWritten is set according to what
+  was set during the writing of the local LCP of the fragment.
+  It will never be set smaller than crestartNewestGci.
+
+  MaxGCICompleted is set dependent on the state at the start
+  of the local LCP. If the fragment was fully synchronized
+  before the start of the fragment LCP we set MaxGCICompleted
+  to the GCI that was recoverable in the cluster at the time
+  of the start of the local fragment LCP. If the fragment
+  wasn't fully synchronised before the start of the local LCP
+  we set it to crestartNewestGci or the maximum completed GCI
+  in the fragment LCP restored.
+
+  MaxGCIWritten is important during recovery to know whether
+  a local LCP is valid, if MaxGCIWritten is larger than the
+  GCP we have seen complete, the local LCP files cannot be
+  trusted and must be deleted.
+
+  MaxGCICompleted setting can ensure that we don't have to
+  re-execute the local REDO log any more. It also takes
+  into account that we don't have to synchronize more
+  than necessary with the starting node.
+
+  Information needed during restore for local LCP
+  ...............................................
+  We need to know about the crestartNewestGci. We also need
+  to know the maximum GCI that is allowed when we encounter
+  a local fragment LCP to understand which local fragment
+  LCPs to remove.
+  crestartNewestGci is sent as part of RESTORE_LCP_REQ for
+  each restored fragment. We also need to add the max
+  GCI restorable. Actually it is sufficient to send the
+  maximum of those two values. Thus if the local system
+  file says that we can recover on our own we will
+  continue sending crestartNewestGci. Otherwise we will
+  send the maximum of crestartNewestGci and the max GCI
+  found in local system file.
+
+  If any of the MaxGciWritten and MaxGciCompleted is set
+  higher than the max GCI restorable we are sending to
+  the restore block we need to remove that fragment LCP.
+
+  Information needed during write of local LCP
+  ............................................
+  We need to know the state of the synchronisation of the fragment.
+  If m_copy_started_state == AC_NORMAL &&
+     fragStatus == ACTIVE_CREATION in DBLQH then we have completed
+  the synchronisation of the fragment. Otherwise we haven't.
+  We'll get this information from DBLQH at start of write of LCP
+  in the Backup block.
+
+  The backup block is informed about the GCI that is currently
+  completed in the cluster through the signal RESTORABLE_GCI_REP
+  sent from DBLQH. This information DBLQH collects from
+  the GCP_SAVEREQ signal. This information is stored in the
+  Backup block in m_newestRestorableGci.
+
+  MaxGciCompleted is set by DBLQH and retrieved by Backup block
+  in the method lcp_max_completed_gci. For normal distributed
+  LCPs this method will simply set the MaxGciCompleted to the
+  last completed GCI that DBLQH knows of. DBLQH gets to know
+  of completion of a GCI through GCP_SAVEREQ. However for
+  local LCP the procedure is a bit more complicated.
+
+  It will first check if the fragment is fully synchronised.
+  If not it will set MaxGciCompleted to crestartNewestGci.
+  If it is synchronised we will use the same method as for
+  a distributed LCP given that we have completed the
+  GCI fully since the fragment contains the same data as the
+  live node although the data isn't yet recoverable.
+
+  Writing of local system file
+  ............................
+  Before we start a local LCP during recovery we write
+  the local system file to indicate that the node can
+  no longer be restored on its own until recovered again.
+  This sets the following information in the local system
+  file.
+  1) Node restorable on its own flag is set to 0 (false).
+  2) Flag indicating whether local LCPs removed is set to 0 (false).
+  3) max GCP recoverable value is set to
+  System Restart case: GCI cluster is restored to
+  Node Restart case: GCI recoverable at the moment in cluster
+
+  For node restarts we also write the local system file and update
+  the max GCI recoverable value each time a GCI have been made
+  recoverable.
+
+  During recovery we read the local system file to discover
+  whether we can be master in the system restart and also to
+  discover if we can recover on our own.
+
+  We propagate the max GCI recoverable value to DBLQH to ensure
+  that we drop old LCP files that are not of any value in
+  recovery any more.
+
+  After completing the restart we finally write the local system
+  file during phase 50. In this phase all recovery of data is
+  completed and only initialisation of SUMA clients remains, so
+  it is safe to write the local system file here again. This time
+  we set the values to:
+  1) Node restorable on its own flag is set to 1 (true)
+  2) Flag indicating whether local LCPs removed is set to 0 (ignorable)
+  3) max GCP recoverable value is set to 0 (ignorable)
 */
 void
 Backup::execLCP_PREPARE_REQ(Signal* signal)
@@ -12088,7 +12288,7 @@ Backup::sync_log_lcp_lsn(Signal *signal,
   req.m_callback.m_callbackIndex = SYNC_LOG_LCP_LSN;
   {
     Logfile_client lgman(this, c_lgman, 0);
-    ret = lgman.sync_lsn(signal, deleteLcpFilePtr.p->lcpLsn, &req, 0);
+    ret = lgman.sync_lsn(signal, deleteLcpFilePtr.p->lcpLsn, &req, 1);
     jamEntry();
   }
   switch (ret)

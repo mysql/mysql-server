@@ -109,6 +109,7 @@ Pgman::Pgman(Block_context& ctx, Uint32 instanceNumber) :
   m_stats_loop_on = false;
   m_busy_loop_on = false;
   m_cleanup_loop_on = false;
+  m_lcp_loop_ongoing = false;
 
   // LCP variables
   m_sync_extent_pages_ongoing = false;
@@ -1587,6 +1588,7 @@ Pgman::start_lcp_loop(Signal *signal)
     jam();
     return;
   }
+  jam();
   m_lcp_loop_ongoing = true;
   signal->theData[0] = PgmanContinueB::LCP_LOOP;
   sendSignal(reference(), GSN_CONTINUEB, signal, 1, JBB);

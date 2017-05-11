@@ -144,8 +144,11 @@ protected:
   // GSN_SUB_GCP_COMPLETE_REP
   void execSUB_GCP_COMPLETE_REP(Signal*);
 
-  // GSN_LCP_START_REP
-  void execLCP_START_REP(Signal*);
+  // GSN_START_LCP_ORD
+  void execSTART_LCP_ORD(Signal*);
+
+  // GSN_UNDO_LOG_LEVEL_REP
+  void execUNDO_LOG_LEVEL_REP(Signal*);
 
   // GSN_PREP_DROP_TAB_REQ
   struct Ss_PREP_DROP_TAB_REQ : SsParallel {
@@ -449,10 +452,14 @@ protected:
   void execWAIT_ALL_COMPLETE_LCP_REQ(Signal*);
   void execWAIT_COMPLETE_LCP_CONF(Signal*);
   void execINFO_GCP_STOP_TIMER(Signal*);
+  void execSTART_NODE_LCP_REQ(Signal*);
+  void execSTART_NODE_LCP_CONF(Signal*);
 
   Uint32 m_outstanding_wait_lcp;
   BlockReference m_wait_all_lcp_sender;
   bool m_received_wait_all;
+  bool m_lcp_started;
+  Uint32 m_outstanding_start_node_lcp_req;
 
   struct LcpRecord {
     enum {

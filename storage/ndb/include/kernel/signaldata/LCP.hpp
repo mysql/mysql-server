@@ -453,6 +453,36 @@ public:
   Uint32 startNodeId;
 };
 
+class WaitCompleteLcpConf
+{
+public:
+  STATIC_CONST (SignalLength = 5);
+
+  Uint32 senderRef;
+  Uint32 lcpId;
+  Uint32 localLcpId;
+  Uint32 maxGciInLcp;
+  Uint32 maxKeepGci;
+};
+class LcpAllCompleteReq
+{
+public:
+  STATIC_CONST (SignalLength = 4);
+
+  Uint32 senderRef;
+  Uint32 lcpId;
+  Uint32 maxGciInLcp;
+  Uint32 maxKeepGci;
+};
+
+class GetLocalLcpIdConf
+{
+public:
+  STATIC_CONST (SignalLength = 2);
+
+  Uint32 lcpId;
+  Uint32 localLcpId;
+};
 #undef JAM_FILE_ID
 
 #endif

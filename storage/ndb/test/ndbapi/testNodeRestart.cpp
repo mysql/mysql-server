@@ -6776,6 +6776,48 @@ runTestLcpFsErr(NDBT_Context* ctx, NDBT_Step* step)
 
 
 int
+runDelayedNodeFail(NDBT_Context *ctx, NDBT_Step *step)
+{
+  NdbRestarter restarter;
+  int i = 0;
+  int victim = restarter.getNode(NdbRestarter::NS_RANDOM);
+  while (i < 2 &&
+         !ctx->isTestStopped())
+  {
+    /* Wait a moment or two */
+    ndbout_c("Waiting 20 seconds...");
+    NdbSleep_SecSleep(20);
+    ndbout_c("Restart node: %d", victim);
+    if (restarter.insertErrorInNode(victim, 7008) != 0)
+    {
+      g_err << "Error insert 7008 failed." << endl;
+      ctx->stopTest();
+      return NDBT_FAILED;
+    }
+    NdbSleep_SecSleep(10);
+    ndbout_c("  start node");
+    if (restarter.startNodes(&victim, 1) != 0)
+    {
+      g_err << "startNodes failed" << endl;
+      ctx->stopTest();
+      return NDBT_FAILED;
+    }
+    ndbout_c("Wait for cluster to start up again");
+    if (restarter.waitClusterStarted() != 0)
+    {
+      g_err << "waitClusterStarted failed" << endl;
+      ctx->stopTest();
+      return NDBT_FAILED;
+    }
+    ndbout_c("Cluster up again");
+    i++;
+  }
+  ndbout_c("Stop test");
+  ctx->stopTest();
+  return NDBT_OK;
+}
+
+int
 runNodeFailGCPOpen(NDBT_Context* ctx, NDBT_Step* step)
 {
   /* Use an error insert to cause node failures, 
@@ -9087,6 +9129,14 @@ TESTCASE("LCPScanFragWatchdogIsolation",
 TESTCASE("Bug16834416", "")
 {
   INITIALIZER(runBug16834416);
+}
+TESTCASE("NR_Disk_data_undo_log_local_lcp",
+         "Test node restart when running out of UNDO log to perform"
+         " local LCP")
+{
+  INITIALIZER(runLoadTable);
+  STEP(runPkUpdateUntilStopped);
+  STEP(runDelayedNodeFail);
 }
 TESTCASE("NodeFailGCPOpen",
          "Test behaviour of code to keep GCP open for node failure "

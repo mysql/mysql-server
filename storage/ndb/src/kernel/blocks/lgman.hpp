@@ -199,15 +199,18 @@ public:
       ,LG_FLUSH_THREAD        = 0x200
       ,LG_DROPPING            = 0x400
       ,LG_STARTING            = 0x800
+      ,LG_LEVEL_REPORT_THREAD = 0x1000 // Level reporting to LQH thread active
     };
 
     static const Uint32 LG_THREAD_MASK = Logfile_group::LG_FORCE_SYNC_THREAD |
                                   Logfile_group::LG_SYNC_WAITERS_THREAD |
                                   Logfile_group::LG_CUT_LOG_THREAD |
                                   Logfile_group::LG_WAITERS_THREAD |
-                                  Logfile_group::LG_FLUSH_THREAD;
+                                  Logfile_group::LG_FLUSH_THREAD |
+                                  Logfile_group::LG_LEVEL_REPORT_THREAD;
    
     Uint32 m_applied;
+    Uint32 m_count_since_last_report;
 
     Uint64 m_space_limit;
     Uint64 m_total_log_space;
@@ -222,10 +225,12 @@ public:
     };
     Log_waiter_list::Head m_log_sync_waiters;
     
-    Buffer_idx m_tail_pos[3]; // 0 is cut, 1 is saved, 2 is current
+    Buffer_idx m_tail_pos[2]; // 0 is cut point, 1 is current LCP cut point
     Buffer_idx m_file_pos[2]; // 0 tail, 1 head = { file_ptr_i, page_no }
     Buffer_idx m_consumer_file_pos;
-    Uint64 m_free_file_words; // Free words in logfile group 
+    Uint64 m_free_log_words;  // Free log words in logfile group 
+    Uint64 m_total_log_words; // Total log words in logfile group
+    Uint32 m_last_log_level_reported;
     
     Undofile_list::Head m_files;     // Files in log
     Undofile_list::Head m_meta_files;// Files being created or dropped
@@ -299,6 +304,7 @@ private:
   Logfile_group_hash m_logfile_group_hash;
   Uint32 m_end_lcp_senderdata;
   bool m_node_restart_ongoing;
+  bool m_dropped_undo_log;
 
   Uint64 m_records_applied; // Track number of records applied
   Uint64 m_pages_applied; // Track number of pages applied
@@ -321,7 +327,11 @@ private:
 
   void force_log_sync(Signal*, Ptr<Logfile_group>, Uint32 lsnhi, Uint32 lnslo);
   void process_log_sync_waiters(Signal* signal, Ptr<Logfile_group>);
-  
+
+  void level_report_thread(Signal*, Ptr<Logfile_group> ptr);
+  void send_level_report_thread(Signal*, Ptr<Logfile_group> ptr);
+  Uint64 calc_total_log_words(Ptr<Logfile_group> ptr);
+
   void cut_log_tail(Signal*, Ptr<Logfile_group> ptr);
   void open_file(Signal*, Ptr<Undofile>, Uint32, SectionHandle*);
 
@@ -400,6 +410,8 @@ private:
   void completed_zero_page_read(Signal *signal, Ptr<Undofile> lg_ptr);
   void sendCREATE_FILE_IMPL_CONF(Signal *signal,
                                  Ptr<Undofile> file_ptr);
+  void sendCUT_UNDO_LOG_TAIL_CONF(Signal*);
+  void execCUT_UNDO_LOG_TAIL_REQ(Signal*);
 };
 
 class Logfile_client {

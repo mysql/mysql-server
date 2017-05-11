@@ -159,6 +159,75 @@ struct PrepareCopyFragConf
   Uint32 completedGci;
 };
 
+class HaltCopyFragReq
+{
+  friend class Dblqh;
+  STATIC_CONST( SignalLength = 4);
+
+  Uint32 senderRef;
+  Uint32 senderData;
+  Uint32 tableId;
+  Uint32 fragmentId;
+};
+
+class HaltCopyFragConf
+{
+  friend class Dblqh;
+  STATIC_CONST( SignalLength = 4);
+
+  enum
+  {
+    COPY_FRAG_HALTED = 0,
+    COPY_FRAG_COMPLETED = 1
+  };
+  Uint32 senderData;
+  Uint32 tableId;
+  Uint32 fragmentId;
+  Uint32 cause;
+};
+
+class HaltCopyFragRef
+{
+  friend class Dblqh;
+  STATIC_CONST( SignalLength = 4);
+
+  Uint32 senderData;
+  Uint32 tableId;
+  Uint32 fragmentId;
+  Uint32 errorCode;
+};
+
+class ResumeCopyFragReq
+{
+  friend class Dblqh;
+  STATIC_CONST( SignalLength = 4);
+
+  Uint32 senderRef;
+  Uint32 senderData;
+  Uint32 tableId;
+  Uint32 fragmentId;
+};
+
+class ResumeCopyFragConf
+{
+  friend class Dblqh;
+  STATIC_CONST( SignalLength = 3);
+
+  Uint32 senderData;
+  Uint32 tableId;
+  Uint32 fragmentId;
+};
+
+class ResumeCopyFragRef
+{
+  friend class Dblqh;
+  STATIC_CONST( SignalLength = 4);
+
+  Uint32 senderData;
+  Uint32 tableId;
+  Uint32 fragmentId;
+  Uint32 errorCode;
+};
 
 #undef JAM_FILE_ID
 

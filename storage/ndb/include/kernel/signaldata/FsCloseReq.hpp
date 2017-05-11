@@ -44,6 +44,7 @@ class FsCloseReq {
   friend class Dbdict;
   friend class Restore;
   friend class Dbtup;
+  friend class Ndbcntr;
 
   /**
    * For printing

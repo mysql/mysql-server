@@ -1278,6 +1278,7 @@ private:
   void execDICTSTARTCONF(Signal *);
   void execNDB_STARTREQ(Signal *);
   void execGETGCIREQ(Signal *);
+  void execGET_LATEST_GCI_REQ(Signal*);
   void execDIH_RESTARTREQ(Signal *);
   void execSTART_RECCONF(Signal *);
   void execSTART_FRAGREF(Signal *);
@@ -1323,6 +1324,11 @@ private:
 
   void execCREATE_NODEGROUP_IMPL_REQ(Signal*);
   void execDROP_NODEGROUP_IMPL_REQ(Signal*);
+
+  void execSTART_NODE_LCP_CONF(Signal *signal);
+  void handleStartLcpReq(Signal*, StartLcpReq*);
+  StartLcpReq c_save_startLcpReq;
+  bool c_start_node_lcp_req_outstanding;
 
   // Statement blocks
 //------------------------------------

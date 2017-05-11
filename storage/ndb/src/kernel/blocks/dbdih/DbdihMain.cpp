@@ -823,8 +823,6 @@ done:
     c_lcpState.setLcpStatus(LCP_COPY_GCI, __LINE__);
     c_lcpState.m_masterLcpDihRef = cmasterdihref;
     setNodeActiveStatus();
-    signal->theData[0] = SYSFILE->latestLCP_ID;
-    sendSignal(DBLQH_REF, GSN_LCP_START_REP, signal, 1, JBB);
     break;
   }
   case CopyGCIReq::RESTART: {
@@ -1519,14 +1517,15 @@ void Dbdih::execDIH_RESTARTREQ(Signal* signal)
         {
           ndbrequire(ng < MAX_NDB_NODE_GROUPS);
           Uint32 gci = node_gcis[i];
-          if (gci > 0 && gci + 1 == SYSFILE->lastCompletedGCI[i])
+          if (gci > ZUNDEFINED_GCI_LIMIT &&
+              gci + 1 == SYSFILE->lastCompletedGCI[i])
           {
             jam();
             /**
              * Handle case, where *I* know that node complete GCI
              *   but node does not...bug#29167
              *   i.e node died before it wrote own sysfile
-             *   and node it only one gci behind
+             *   and node is only one gci behind
              */
             gci = SYSFILE->lastCompletedGCI[i];
           }
@@ -1542,6 +1541,12 @@ void Dbdih::execDIH_RESTARTREQ(Signal* signal)
     for (i = 0; i<MAX_NDB_NODES && node_group_gcis[i] == 0; i++);
     
     Uint32 gci = node_group_gcis[i];
+    if (gci == ZUNDEFINED_GCI_LIMIT)
+    {
+      jam();
+      signal->theData[0] = i;
+      return;
+    }
     for (i++ ; i<MAX_NDB_NODES; i++)
     {
       jam();
@@ -1557,6 +1562,13 @@ void Dbdih::execDIH_RESTARTREQ(Signal* signal)
   }
   return;
 }//Dbdih::execDIH_RESTARTREQ()
+
+void Dbdih::execGET_LATEST_GCI_REQ(Signal *signal)
+{
+  Uint32 nodeId = signal->theData[0];
+  Uint32 latestGci = SYSFILE->lastCompletedGCI[nodeId];
+  signal->theData[0] = latestGci;
+}
 
 void Dbdih::execSTTOR(Signal* signal) 
 {
@@ -1817,6 +1829,19 @@ void Dbdih::execNDB_STTOR(Signal* signal)
       jam();
       if(isMaster()){
 	jam();
+        if (typestart == NodeState::ST_INITIAL_START)
+        {
+          /**
+           * Skip GCI 1 at initial start, has special meaning
+           * in CM_REGREQ protocol. Means node isn't restartable
+           * on its own. Setting it to 2 such that we will
+           * start preparing GCI 3 immediately.
+           *
+           * Only required to avoid restarting from GCI = 1.
+           */
+          jam();
+          m_micro_gcp.m_current_gci = ((Uint64(ZUNDEFINED_GCI_LIMIT + 1)) << 32);
+        }
 	startGcp(signal);
       }
       ndbsttorry10Lab(signal, __LINE__);
@@ -17835,11 +17860,36 @@ void Dbdih::writingCopyGciLab(Signal* signal, FileRecordPtr filePtr)
   return;
 }//Dbdih::writingCopyGciLab()
 
+void Dbdih::execSTART_NODE_LCP_CONF(Signal *signal)
+{
+  jamEntry();
+  ndbrequire(c_start_node_lcp_req_outstanding);
+  c_start_node_lcp_req_outstanding = false;
+  handleStartLcpReq(signal, &c_save_startLcpReq);
+}
+
 void Dbdih::execSTART_LCP_REQ(Signal* signal)
 {
   jamEntry();
   StartLcpReq * req = (StartLcpReq*)signal->getDataPtr();
+  ndbrequire(!c_start_node_lcp_req_outstanding);
 
+  if ((getNodeInfo(refToNode(req->senderRef)).m_version <
+       NDBD_SUPPORT_PAUSE_LCP) ||
+       req->pauseStart == StartLcpReq::NormalLcpStart)
+  {
+    jam();
+    c_save_startLcpReq = *req;
+    c_start_node_lcp_req_outstanding = true;
+    signal->theData[0] = (Uint32)(m_micro_gcp.m_current_gci >> 32);
+    sendSignal(DBLQH_REF, GSN_START_NODE_LCP_REQ, signal, 1, JBB);
+    return;
+  }
+  handleStartLcpReq(signal, req);
+}
+
+void Dbdih::handleStartLcpReq(Signal *signal, StartLcpReq *req)
+{
   if (getNodeInfo(refToNode(req->senderRef)).m_version >=
       NDBD_SUPPORT_PAUSE_LCP)
   {
@@ -23438,6 +23488,7 @@ void Dbdih::initCommonData()
   c_nodeStartMaster.wait = ZFALSE;
 
   memset(&sysfileData[0], 0, sizeof(sysfileData));
+  SYSFILE->latestLCP_ID = 1; /* Ensure that first LCP id is 1 */
 
   const ndb_mgm_configuration_iterator * p = 
     m_ctx.m_config.getOwnConfigIterator();
@@ -23632,7 +23683,7 @@ void Dbdih::initRestorableGciFiles()
   tirgTmp = (tirgTmp << 8) + 0; /* P0 FILE NAME          */
   filePtr.p->fileName[3] = tirgTmp;
   /* --------------------------------------------------------------------- */
-  /*       THE NAME BECOMES /D1/DBDICT/S0.SYSFILE                          */
+  /*       THE NAME BECOMES /D1/DBDIH/P0.SYSFILE                          */
   /* --------------------------------------------------------------------- */
   seizeFile(filePtr);
   filePtr.p->tabRef = RNIL;
@@ -23649,7 +23700,7 @@ void Dbdih::initRestorableGciFiles()
   tirgTmp = (tirgTmp << 8) + 0; /* P0 FILE NAME          */
   filePtr.p->fileName[3] = tirgTmp;
   /* --------------------------------------------------------------------- */
-  /*       THE NAME BECOMES /D2/DBDICT/P0.SYSFILE                          */
+  /*       THE NAME BECOMES /D2/DBDIH/P0.SYSFILE                          */
   /* --------------------------------------------------------------------- */
 }//Dbdih::initRestorableGciFiles()
 
