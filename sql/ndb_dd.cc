@@ -30,14 +30,14 @@
 
 
 bool ndb_sdi_serialize(THD *thd,
-                       const dd::Table &table_def,
+                       const dd::Table *table_def,
                        const char* schema_name,
                        const char* tablespace_name,
                        dd::sdi_t& sdi)
 {
   // Require the table to be visible or else have temporary name
-  DBUG_ASSERT(table_def.hidden() == dd::Abstract_table::HT_VISIBLE ||
-              is_prefix(table_def.name().c_str(), tmp_file_prefix));
+  DBUG_ASSERT(table_def->hidden() == dd::Abstract_table::HT_VISIBLE ||
+              is_prefix(table_def->name().c_str(), tmp_file_prefix));
 
   MDL_ticket *mdl_ticket = NULL;
   if (tablespace_name &&
@@ -65,7 +65,7 @@ bool ndb_sdi_serialize(THD *thd,
     mdl_ticket= mdl_request.ticket;
   }
 
-  sdi = dd::serialize(thd, table_def, dd::String_type(schema_name));
+  sdi = dd::serialize(thd, *table_def, dd::String_type(schema_name));
   if (sdi.empty())
     return false; // Failed to serialize
 
@@ -185,7 +185,7 @@ bool ndb_dd_serialize_table(class THD *thd,
 
     const bool serialize_res =
         ndb_sdi_serialize(thd,
-                          *existing,
+                          existing,
                           schema_name,
                           tablespace_name,
                           sdi);

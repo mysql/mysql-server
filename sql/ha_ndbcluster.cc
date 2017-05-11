@@ -2215,7 +2215,7 @@ int ha_ndbcluster::get_metadata(THD *thd, const char* tablespace_name,
   DBUG_ASSERT(m_table_info == NULL);
 
   dd::sdi_t sdi;
-  if (!ndb_sdi_serialize(thd, *table_def, m_dbname, tablespace_name, sdi))
+  if (!ndb_sdi_serialize(thd, table_def, m_dbname, tablespace_name, sdi))
   {
     DBUG_RETURN(1);
   }
@@ -11217,7 +11217,7 @@ int ha_ndbcluster::create(const char *name,
     */
 
     dd::sdi_t sdi;
-    if (!ndb_sdi_serialize(thd, *table_def, m_dbname,
+    if (!ndb_sdi_serialize(thd, table_def, m_dbname,
                            create_info->tablespace, sdi))
     {
       result= 1;
@@ -12087,7 +12087,7 @@ ha_ndbcluster::rename_table_impl(THD* thd, Ndb* ndb,
   // renamed since it contains the table name
   {
     dd::sdi_t sdi;
-    if (!ndb_sdi_serialize(thd, *to_table_def, new_dbname,
+    if (!ndb_sdi_serialize(thd, to_table_def, new_dbname,
                            orig_tab->getTablespaceName(),
                            sdi))
     {
@@ -12243,7 +12243,7 @@ check_table_def_match(THD* thd,
                       const NdbDictionary::Table* ndbtab)
 {
   dd::sdi_t sdi;
-  if (!ndb_sdi_serialize(thd, *table_def, schema_name, tablespace_name, sdi))
+  if (!ndb_sdi_serialize(thd, table_def, schema_name, tablespace_name, sdi))
   {
     return false;
   }
@@ -18926,7 +18926,7 @@ inplace__set_sdi_and_alter_in_ndb(THD *thd,
                                      alter_data->old_table->getName());
 
   dd::sdi_t sdi;
-  if (!ndb_sdi_serialize(thd, *new_table_def, schema_name,
+  if (!ndb_sdi_serialize(thd, new_table_def, schema_name,
                          alter_data->old_table->getTablespaceName(),
                          sdi))
   {

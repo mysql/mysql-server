@@ -26,7 +26,7 @@ namespace dd {
 }
 
 bool ndb_sdi_serialize(class THD *thd,
-                       const dd::Table &table_def,
+                       const dd::Table *table_def,
                        const char* schema_name,
                        const char* tablespace_name,
                        dd::sdi_t& sdi);
