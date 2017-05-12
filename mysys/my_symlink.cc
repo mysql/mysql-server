@@ -34,6 +34,7 @@
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "mysys_err.h"
+#include <my_dir.h>
 #ifndef _WIN32
 #include <sys/stat.h>
 #endif
@@ -114,11 +115,18 @@ int my_symlink(const char *content, const char *linkname, myf MyFlags)
 #endif /* !_WIN32 */
 
 
-int my_is_symlink(const char *filename)
+int my_is_symlink(const char *filename, ST_FILE_ID *file_id)
 {
 #ifndef _WIN32
   struct stat stat_buff;
-  return !lstat(filename, &stat_buff) && S_ISLNK(stat_buff.st_mode);
+  int result= !lstat(filename, &stat_buff) && S_ISLNK(stat_buff.st_mode);
+  if (file_id && !result)
+  {
+    file_id->st_dev= stat_buff.st_dev;
+    file_id->st_ino= stat_buff.st_ino;
+  }
+  return result;
+
 #else
   DWORD dwAttr = GetFileAttributes(filename);
   return (dwAttr != INVALID_FILE_ATTRIBUTES) &&
@@ -184,4 +192,21 @@ int my_realpath(char *to, const char *filename, myf MyFlags)
   }
   return 0;
 #endif
+}
+
+
+/**
+  Return non-zero if the file descriptor and a previously lstat-ed file
+  identified by file_id point to the same file.
+*/
+int my_is_same_file(File file, const ST_FILE_ID *file_id)
+{
+  MY_STAT stat_buf;
+  if (my_fstat(file, &stat_buf) == -1)
+  {
+    set_my_errno(errno);
+    return 0;
+  }
+  return (stat_buf.st_dev == file_id->st_dev)
+    && (stat_buf.st_ino == file_id->st_ino);
 }

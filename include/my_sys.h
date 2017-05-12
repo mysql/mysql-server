@@ -45,6 +45,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <time.h>
 
 #include "mysql/psi/mysql_cond.h"       /* mysql_cond_t */
@@ -491,6 +492,16 @@ typedef struct st_io_cache		/* Used when cacheing files */
 typedef int (*qsort_cmp)(const void *,const void *);
 typedef int (*qsort2_cmp)(const void *, const void *, const void *);
 
+/*
+  Subset of struct stat fields filled by stat/lstat/fstat that uniquely
+  identify a file
+*/
+typedef struct st_file_id
+{
+  dev_t st_dev;
+  ino_t st_ino;
+} ST_FILE_ID;
+
 typedef void (*my_error_reporter)(enum loglevel level, const char *format, ...)
   MY_ATTRIBUTE((format(printf, 2, 3)));
 
@@ -559,8 +570,9 @@ extern File my_create(const char *FileName,int CreateFlags,
 extern int my_close(File Filedes,myf MyFlags);
 extern int my_mkdir(const char *dir, int Flags, myf MyFlags);
 extern int my_readlink(char *to, const char *filename, myf MyFlags);
-extern int my_is_symlink(const char *filename);
+extern int my_is_symlink(const char *filename, ST_FILE_ID *file_id);
 extern int my_realpath(char *to, const char *filename, myf MyFlags);
+extern int my_is_same_file(File file, const ST_FILE_ID *file_id);
 extern File my_create_with_symlink(const char *linkname, const char *filename,
 				   int createflags, int access_flags,
 				   myf MyFlags);

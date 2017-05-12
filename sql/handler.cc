@@ -5762,7 +5762,7 @@ bool default_rm_tmp_tables(handlerton *hton, THD *thd, List<LEX_STRING> *files)
     {
       if (strcmp(file_ext, *ext) == 0)
       {
-        if (my_is_symlink(file_path->str) &&
+        if (my_is_symlink(file_path->str, NULL) &&
             test_if_data_home_dir(file_path->str))
         {
           /*
