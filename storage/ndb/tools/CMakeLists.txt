@@ -23,7 +23,6 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/storage/ndb/include/util
   ${CMAKE_BINARY_DIR}/storage/ndb/tools)
 
-IF(NOT WIN32)
 ADD_CONVENIENCE_LIBRARY(ndbtools
   NdbImport.cpp
   NdbImportImpl.cpp
@@ -50,7 +49,6 @@ RUN_BISON(
   ${CMAKE_CURRENT_BINARY_DIR}/NdbImportCsvGram.hpp
   NdbImportCsv_yy
 )
-ENDIF()
 
 MYSQL_ADD_EXECUTABLE(ndb_waiter
   waiter.cpp
@@ -102,7 +100,6 @@ MYSQL_ADD_EXECUTABLE(ndb_restore
   COMPONENT ClusterTools)
 TARGET_LINK_LIBRARIES(ndb_restore ndbclient_static ndbNDBT)
 
-IF(NOT WIN32)
 MYSQL_ADD_EXECUTABLE(ndb_import
   ndb_import.cpp
   COMPONENT ClusterTools)
@@ -113,7 +110,6 @@ NDB_ADD_TEST(NdbImportUtil-t NdbImportUtil.cpp
 
 NDB_ADD_TEST(NdbImportCsv-t NdbImportCsv.cpp
              LIBS ndbtools ndbclient_static regex)
-ENDIF()
 
 MYSQL_ADD_EXECUTABLE(ndb_config
   ndb_config.cpp
