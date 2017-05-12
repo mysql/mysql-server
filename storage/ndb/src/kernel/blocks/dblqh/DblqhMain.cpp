@@ -806,6 +806,31 @@ void Dblqh::execSTTOR(Signal* signal)
     init_elapsed_time(signal, c_latestTIME_SIGNAL);
     sendsttorryLab(signal);
     break;
+  case 49:
+    jam();
+    /**
+     * We add this wait phase to avoid having to handle multiple
+     * writers of the Local sysfile. We check here if we have an
+     * outstanding WRITE_LOCAL_SYSFILE_REQ signal, if that is the
+     * case we set a flag that we are waiting for this and send
+     * STTORRY when this is returned.
+     *
+     * WRITE_LOCAL_SYSFILE_REQ is only sent from first instance, so
+     * need to handle this for other instances.
+     */
+    ndbrequire(cstartRecReq == SRR_FIRST_LCP_DONE);
+    if (is_first_instance())
+    {
+      if (c_outstanding_write_local_sysfile)
+      {
+        jam();
+        c_start_phase_49_waiting = true;
+        DEB_LCP(("(%u)Start phase 49 wait started", instance()));
+        return;
+      }
+    }
+    sendsttorryLab(signal);
+    return;
   case 50:
     jam();
     if (is_first_instance())
@@ -828,6 +853,17 @@ void Dblqh::execSTTOR(Signal* signal)
   }//switch
 }//Dblqh::execSTTOR()
 
+void
+Dblqh::check_start_phase_49_waiting(Signal *signal)
+{
+  if (c_start_phase_49_waiting)
+  {
+    jam();
+    c_start_phase_49_waiting = false;
+    DEB_LCP(("(%u)Start phase 49 wait completed", instance()));
+    sendsttorryLab(signal);
+  }
+}
 void
 Dblqh::write_local_sysfile_restart_complete_done(Signal *signal)
 {
@@ -1355,10 +1391,11 @@ void Dblqh::sendsttorryLab(Signal* signal)
   signal->theData[3] = ZSTART_PHASE1;
   signal->theData[4] = 4;
   signal->theData[5] = 6;
-  signal->theData[6] = 50;
-  signal->theData[7] = 255;
+  signal->theData[6] = 49;
+  signal->theData[7] = 50;
+  signal->theData[8] = 255;
   BlockReference cntrRef = !isNdbMtLqh() ? NDBCNTR_REF : DBLQH_REF;
-  sendSignal(cntrRef, GSN_STTORRY, signal, 8, JBB);
+  sendSignal(cntrRef, GSN_STTORRY, signal, 9, JBB);
   return;
 }//Dblqh::sendsttorryLab()
 
@@ -15616,7 +15653,6 @@ bool Dblqh::handle_lcp_fragment_first_phase(Signal *signal)
   if (!m_node_restart_first_local_lcp_started)
   {
     jam();
-    m_node_restart_first_local_lcp_started = true;
     c_saveLcpId = c_lcpId;
     DEB_LCP(("(%u)c_lcpId = %u", instance(), c_lcpId));
     /**
@@ -16670,8 +16706,10 @@ void Dblqh::execSTART_NODE_LCP_REQ(Signal *signal)
   jamEntry();
   Uint32 current_gci = signal->theData[0];
   Uint32 restorable_gci = signal->theData[1];
-  c_keep_gci_for_distributed_lcp = MIN(restorable_gci,
-                                       cnewestCompletedGci);
+  Uint32 backup_restorable_gci = c_backup->getRestorableGci();
+  c_keep_gci_for_distributed_lcp = MIN(backup_restorable_gci,
+                                       MIN(restorable_gci,
+                                           cnewestCompletedGci));
   DEB_LCP(("c_keep_gci_for_distributed_lcp = %u,"
            " current_gci = %u, restorable_gci = %u",
             c_keep_gci_for_distributed_lcp,
@@ -16707,6 +16745,17 @@ void Dblqh::execSTART_NODE_LCP_REQ(Signal *signal)
      * we overwrite all restorable LCP files.
      */
     jam();
+    return;
+  }
+  if (cstartPhase != ZNIL)
+  {
+    jam();
+    /**
+     * The node is not yet complete with its restart.
+     * So we cannot yet guarantee that the restorable
+     * GCI is restorable in this node even if it is
+     * restorable in the cluster.
+     */
     return;
   }
   jam();
@@ -18235,27 +18284,6 @@ void Dblqh::execGCP_SAVEREQ(Signal* signal)
     cnewestGci = gci;
   }//if
 
-  if (c_is_first_gcp_save_started)
-  {
-    jam();
-    /**
-     * Report completed GCI (one less than the one we are now saving), to
-     * give the Backup block a chance to remove old LCP files.
-     * Without this signal arriving to Backup block the node restart will
-     * be blocked waiting for the proper GCI to delete the old files
-     * and also waiting for this to ensure that it will validate the
-     * LCP control files.
-     */
-    signal->theData[0] = gci - 1;
-    sendSignal(numberToRef(BACKUP, instance(), getOwnNodeId()),
-               GSN_RESTORABLE_GCI_REP, signal, 1, JBB);
-  }
-  else
-  {
-    DEB_GCP(("(%u)!c_first_gcp_save_started: gci = %u", instance(), gci));
-  }
-  c_is_first_gcp_save_started = true;
-
   if(cstartRecReq < SRR_FIRST_LCP_DONE)
   {
     /**
@@ -18266,6 +18294,7 @@ void Dblqh::execGCP_SAVEREQ(Signal* signal)
     c_local_sysfile.m_save_gci = gci;
     c_local_sysfile.m_dihPtr = dihPtr;
     c_local_sysfile.m_dihRef = dihBlockRef;
+    c_send_gcp_saveref_needed = true;
     if (m_node_restart_first_local_lcp_started &&
         is_first_instance())
     {
@@ -18286,7 +18315,24 @@ void Dblqh::execGCP_SAVEREQ(Signal* signal)
   globalData.gcp_timer_save[0] = NdbTick_getCurrentTicks();
 #endif
 
-  sendRESTORABLE_GCI_REP(signal, gci);
+  if (cstartPhase == ZNIL)
+  {
+    jam();
+    /**
+     * The node have completed its start at least up to phase 50 which
+     * means our node is fully restorable and we can treat this GCI
+     * as restorable.
+     *
+     * After completing the restart LCP but before the node restart
+     * is completed we won't send any writes to local sysfile, but
+     * also we won't report the GCI as restorable just yet.
+     * This will not have any major impact since after the restart LCP
+     * is completed a very short time should pass before we get to
+     * phase 50 where the LQH restart is fully completed and we know
+     * that we are restorable again.
+     */
+    sendRESTORABLE_GCI_REP(signal, gci);
+  }
 
   ccurrentGcprec = 0;
   gcpPtr.i = ccurrentGcprec;
@@ -18333,7 +18379,8 @@ void Dblqh::sendRESTORABLE_GCI_REP(Signal *signal, Uint32 gci)
 {
   /**
    * Report completed GCI (one less than the one we are now saving), to
-   * give the NDBCNTR block a chance to remove old LCP files.
+   * give the NDBCNTR block a chance to know when it is ready to cut the
+   * log tails.
    */
   signal->theData[0] = gci - 1;
   if (is_first_instance())
@@ -18341,33 +18388,38 @@ void Dblqh::sendRESTORABLE_GCI_REP(Signal *signal, Uint32 gci)
     jam();
     sendSignal(NDBCNTR_REF, GSN_RESTORABLE_GCI_REP, signal, 1, JBB);
   }
+  /**
+   * Report completed GCI (one less than the one we are now saving), to
+   * give the Backup block a chance to remove old LCP files.
+   * Without this signal arriving to Backup block the node restart will
+   * be blocked waiting for the proper GCI to delete the old files
+   * and also waiting for this to ensure that it will validate the
+   * LCP control files.
+   */
+  signal->theData[0] = gci - 1;
+  EXECUTE_DIRECT(BACKUP, GSN_RESTORABLE_GCI_REP, signal, 1);
 }
 
 void
 Dblqh::write_local_sysfile_gcp_complete_done(Signal *signal)
 {
-  /**
-   * First LCP has not been done, but we could still be running a
-   * local LCP or wait for deleted files from this local LCP.
-   */
-  if (m_node_restart_first_local_lcp_started)
+  if (c_send_gcp_saveref_needed)
   {
     jam();
-    sendRESTORABLE_GCI_REP(signal, c_local_sysfile.m_save_gci);
-  }
-
-  GCPSaveRef * const saveRef = (GCPSaveRef*)&signal->theData[0];
-  saveRef->dihPtr = c_local_sysfile.m_dihPtr;
-  saveRef->nodeId = getOwnNodeId();
-  saveRef->gci    = c_local_sysfile.m_save_gci;
-  saveRef->errorCode = GCPSaveRef::NodeRestartInProgress;
-  sendSignal(c_local_sysfile.m_dihRef, GSN_GCP_SAVEREF, signal, 
-             GCPSaveRef::SignalLength, JBB);
-  if (ERROR_INSERTED(5052))
-  {
-    jam();
-    signal->theData[0] = 9999;
-    sendSignalWithDelay(CMVMI_REF, GSN_NDB_TAMPER, signal, 300, 1);
+    c_send_gcp_saveref_needed = false;
+    GCPSaveRef * const saveRef = (GCPSaveRef*)&signal->theData[0];
+    saveRef->dihPtr = c_local_sysfile.m_dihPtr;
+    saveRef->nodeId = getOwnNodeId();
+    saveRef->gci    = c_local_sysfile.m_save_gci;
+    saveRef->errorCode = GCPSaveRef::NodeRestartInProgress;
+    sendSignal(c_local_sysfile.m_dihRef, GSN_GCP_SAVEREF, signal, 
+               GCPSaveRef::SignalLength, JBB);
+    if (ERROR_INSERTED(5052))
+    {
+      jam();
+      signal->theData[0] = 9999;
+      sendSignalWithDelay(CMVMI_REF, GSN_NDB_TAMPER, signal, 300, 1);
+    }
   }
 }
 
@@ -21222,6 +21274,7 @@ Dblqh::write_local_sysfile(Signal *signal, Uint32 type, Uint32 gci)
   req->userPointer = type;
   req->userReference = reference();
   Uint32 nodeRestorableFlag;
+  ndbrequire(is_first_instance());
   switch (type)
   {
     case WLS_GCP_COMPLETE:
@@ -21244,6 +21297,7 @@ Dblqh::write_local_sysfile(Signal *signal, Uint32 type, Uint32 gci)
       return; // Keep compiler quiet
     }
   }
+  c_outstanding_write_local_sysfile = true;
   req->nodeRestorableOnItsOwn = nodeRestorableFlag;
   req->maxGCIRestorable = gci;
   sendSignal(NDBCNTR_REF, GSN_WRITE_LOCAL_SYSFILE_REQ, signal,
@@ -21254,17 +21308,28 @@ void
 Dblqh::execWRITE_LOCAL_SYSFILE_CONF(Signal *signal)
 {
   WriteLocalSysfileConf *conf = (WriteLocalSysfileConf*)signal->getDataPtr();
+  ndbrequire(is_first_instance());
+  c_outstanding_write_local_sysfile = false;
   switch (conf->userPointer)
   {
     case WLS_GCP_COMPLETE:
     {
       jam();
+      /**
+       * This return signal is only sent to first instance and the only impact
+       * of it is to send GCP_SAVEREF. All sending of RESTORABLE_GCI_REP is
+       * taken care of by the NDBCNTR block in this case.
+       */
+      ndbrequire(cstartPhase != ZNIL);
+      check_start_phase_49_waiting(signal);
       write_local_sysfile_gcp_complete_done(signal);
       return;
     }
     case WLS_RESTART_COMPLETE:
     {
       jam();
+      ndbrequire(cstartPhase != ZNIL);
+      ndbrequire(!c_start_phase_49_waiting);
       g_eventLogger->info("Restart complete, updated local sysfile");
       write_local_sysfile_restart_complete_done(signal);
       return;

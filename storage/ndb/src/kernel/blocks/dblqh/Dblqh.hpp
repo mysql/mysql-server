@@ -3721,6 +3721,15 @@ public:
   bool c_first_set_min_keep_gci;
 
   /**
+   * Some code and variables to serialize access to NDBCNTR for
+   * writes of the local sysfile.
+   */
+  bool c_start_phase_49_waiting;
+  bool c_outstanding_write_local_sysfile;
+  bool c_send_gcp_saveref_needed;
+  void check_start_phase_49_waiting(Signal*);
+
+  /**
    * Variable that keeps track of maximum GCI that was recorded in the
    * LCP. When this GCI is safe on disk the entire LCP is safe on disk.
    */
