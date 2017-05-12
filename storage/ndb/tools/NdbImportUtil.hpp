@@ -243,10 +243,11 @@ public:
 
   struct Table {
     Table();
-    const Attr& get_attr(const char* attrname) const;
     void add_pseudo_attr(const char* name,
                          NdbDictionary::Column::Type type,
                          uint length = 1);
+    const Attr& get_attr(const char* attrname) const;
+    uint get_nodeid(uint fragid) const;
     uint m_tabid;
     const NdbDictionary::Table* m_tab;
     const NdbRecord* m_rec;
@@ -256,6 +257,8 @@ public:
     bool m_has_hidden_pk;
     Attrs m_attrs;
     std::vector<uint> m_blobids;
+    // map fragid to nodeid
+    std::vector<uint16> m_fragments;
   };
 
   // tables mapped by table id

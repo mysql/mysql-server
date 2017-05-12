@@ -16,6 +16,7 @@
 */
 
 #include <my_sys.h>
+#include <NdbDictionaryImpl.hpp>
 #include "NdbImportUtil.hpp"
 
 NdbImportUtil::NdbImportUtil() :
@@ -708,6 +709,14 @@ NdbImportUtil::Table::get_attr(const char* attrname) const
   return m_attrs[i];
 }
 
+uint
+NdbImportUtil::Table::get_nodeid(uint fragid) const
+{
+  require(fragid < m_fragments.size());
+  uint nodeid = m_fragments[fragid];
+  return nodeid;
+}
+
 int
 NdbImportUtil::add_table(NdbDictionary::Dictionary* dic,
                          const NdbDictionary::Table* tab,
@@ -885,6 +894,15 @@ NdbImportUtil::add_table(NdbDictionary::Dictionary* dic,
       break;
     }
     table.m_keyrec = keyrec;
+    {
+      NdbTableImpl& tabImpl = NdbTableImpl::getImpl(*tab);
+      const Vector<Uint16>& fragments = tabImpl.m_fragments;
+      for (uint i = 0; i < fragments.size(); i++)
+      {
+        uint16 nodeid = fragments[i];
+        table.m_fragments.push_back(nodeid);
+      }
+    }
     c_tables.m_tables.insert(std::pair<uint, Table>(tabid, table));
     return 0;
   } while (0);

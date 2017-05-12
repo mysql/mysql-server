@@ -1071,6 +1071,7 @@ NdbImportImpl::Worker::Worker(NdbImportImpl::Team& team, uint n) :
   m_idleslice = 0;
   m_idle = false;
   m_idlerun = 0;
+  m_seed = 0;
   // stats
   Stats& stats = m_team.m_job.m_stats;
   {
@@ -1122,6 +1123,7 @@ NdbImportImpl::Worker::do_start()
   {
     m_state = WorkerState::State_stop;
   }
+  m_seed = (unsigned)(getpid() ^ m_workerno);
   while (m_state != WorkerState::State_stopped)
   {
     log2("slice: " << m_slice);
@@ -1390,7 +1392,6 @@ void
 NdbImportImpl::RandomInputWorker::do_init()
 {
   log1("do_init");
-  m_seed = (unsigned)(getpid() ^ m_workerno);
 }
 
 void
@@ -2263,33 +2264,26 @@ NdbImportImpl::RelayOpWorker::do_run()
     m_idle = true;
     return;
   }
+  const Nodes& c = m_impl.c_nodes;
   const Table& table = m_util.get_table(row->m_tabid);
   const bool no_hint = opt.m_no_hint;
-  Tx* tx = 0;
+  uint nodeid = 0;
   if (no_hint)
-    tx = start_trans();
-  else
-    tx = start_trans(table.m_keyrec, (const char*)row->m_data,
-                     m_xfrmbuf, m_xfrmbuflen);
-  if (tx == 0)
   {
-    const NdbError& ndberror = m_ndb->getNdbError();
-    require(ndberror.code != 0);
-    if (ndberror.status == NdbError::TemporaryError)
-    {
-      log1("start trans: " << ndberror);
-      NdbSleep_MilliSleep(opt.m_tempdelay);
-      return;
-    }
-    m_util.set_error_ndb(m_error, __LINE__, ndberror);
-    return;
+    uint i = get_rand() % c.m_nodecnt;
+    nodeid = c.m_nodes[i].m_nodeid;
   }
-  uint nodeid = tx->m_trans->getConnectedNodeId();
-  close_trans(tx);
-  const Nodes& c = m_impl.c_nodes;
+  else
+  {
+    Uint32 hash;
+    m_ndb->computeHash(&hash, table.m_keyrec, (const char*)row->m_data,
+                       m_xfrmbuf, m_xfrmbuflen);
+    uint fragid = (uint)table.m_tab->getPartitionId(hash);
+    nodeid = table.get_nodeid(fragid);
+  }
   require(nodeid < g_max_nodes);
   uint nodeindex = c.m_index[nodeid];
-  require(nodeindex < g_max_nodes);
+  require(nodeindex < c.m_nodecnt);
   RowList& rows_out = *m_team.m_job.m_rows_exec[nodeindex];
   rows_out.lock();
   if (!rows_out.push_back(row))
