@@ -24,9 +24,6 @@
 #include "my_inttypes.h"
 #include "my_sharedlib.h"
 #include "mysql/psi/mysql_mutex.h"
-#ifndef WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY
-#include "prealloced_array.h"
-#endif
 
 class Alter_info;
 class Alter_table_ctx;
@@ -189,11 +186,7 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, bool if_exists,
 bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
                              bool drop_temporary, bool drop_database,
                              bool *dropped_non_atomic_flag,
-                             std::set<handlerton*> *post_ddl_htons
-#ifndef WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY
-                             , Prealloced_array<TABLE_LIST*, 1> *dropped_atomic
-#endif
-                             );
+                             std::set<handlerton*> *post_ddl_htons);
 bool quick_rm_table(THD *thd, handlerton *base, const char *db,
                     const char *table_name, uint flags);
 bool prepare_sp_create_field(THD *thd,

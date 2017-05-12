@@ -80,55 +80,49 @@ ERROR 42S02: Table 'test.tt_i' doesn't exist
 # 1.c) DROP TABLES which fails due to foreign key error might
 #      have side effect. This might change once WL#6049 is
 #      implemented and we support smarter checks while dropping
-#      tables with foreign keys. Also once InnoDB truly supports
-#      atomic DDL side-effect will be limited to non-atomic SEs
-#      only.
+#      tables with foreign keys. Until this side-effect is
+#      limited to non-atomic SEs only.
 CREATE TABLE t_m (t_m INT) ENGINE=MyISAM;
 CREATE TABLE t_i_1 (t_i_1 INT) ENGINE=InnoDB;
 CREATE TABLE t_i_2 (t_i_2 INT PRIMARY KEY) ENGINE=InnoDB;
 CREATE TABLE t_i_3 (t_i_3 INT, FOREIGN KEY(t_i_3) REFERENCES t_i_2(t_i_2)) ENGINE=InnoDB;
 DROP TABLES t_m, t_i_1, t_i_2;
 ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
-# Table t_m is gone, t_i_1 is gone too (this will change after
-# WL#6049 and once support for atomic DDL is implemented in InnoDB).
+# Table t_m is gone, t_i_1 and t_i_2 are still there.
 SELECT * FROM t_m;
 ERROR 42S02: Table 'test.t_m' doesn't exist
 SELECT * FROM t_i_1;
-ERROR 42S02: Table 'test.t_i_1' doesn't exist
+t_i_1
+SELECT * FROM t_i_2;
+t_i_2
 #
 # 1.d) DROP TABLES which fails due to SE error might have side
 #      effect. Tables in engines which do not support atomic DDL
 #      which we have managed to drop before error stay dropped.
-#      Once InnoDB supports atomic DDL removal of InnoDB tables
-#      should be rolled back (they are not now).
+#      Removal of InnoDB tables should be rolled back.
 CREATE TABLE t_m (t_m INT) ENGINE=MyISAM;
-CREATE TABLE t_i_1 (t_i_1 INT) ENGINE=InnoDB;
 SET SESSION DEBUG='+d,rm_table_no_locks_abort_after_atomic_tables';
 DROP TABLES t_m, t_i_1;
 ERROR HY000: Unknown error
 SET SESSION DEBUG='-d,rm_table_no_locks_abort_after_atomic_tables';
 SELECT * FROM t_m;
 ERROR 42S02: Table 'test.t_m' doesn't exist
-# Should change once InnoDB supports atomic DDL.
 SELECT * FROM t_i_1;
-ERROR 42S02: Table 'test.t_i_1' doesn't exist
+t_i_1
 #
 # 1.e) DROP TABLES which fails due to SE error and involves only
-#      tables in engines supporting atomic DDL (once InnoDB does
-#      this for real) should not have side effects/should be
-#      rolled back.
-CREATE TABLE t_i_1 (t_i_1 INT) ENGINE=InnoDB;
+#      tables in engines supporting atomic DDL should not have
+#      side effects/should be rolled back.
 SET SESSION DEBUG='+d,rm_table_no_locks_abort_after_atomic_tables';
 DROP TABLES t_i_1, t_i_3;
 ERROR HY000: Unknown error
 SET SESSION DEBUG='-d,rm_table_no_locks_abort_after_atomic_tables';
-# Should change once InnoDB supports atomic DDL.
 SELECT * FROM t_i_1;
-ERROR 42S02: Table 'test.t_i_1' doesn't exist
+t_i_1
 SELECT * FROM t_i_3;
-ERROR 42S02: Table 'test.t_i_3' doesn't exist
+t_i_3
 # Clean-up.
-DROP TABLEs t_i_2;
+DROP TABLES t_i_1, t_i_3, t_i_2;
 #
 # 2) Binary logging and GTID handling for DROP TABLES statements.
 #
@@ -164,11 +158,8 @@ Warning	1017	Can't find file: 't1' (errno: 2 - No such file or directory)
 #
 #
 # 4.a) DROP DATABASE which fails due to foreign key error might
-#      have side effect. This might change once WL#6049 is
-#      implemented and we support smarter checks while dropping
-#      tables with foreign keys. Also once InnoDB truly supports
-#      atomic DDL side-effect will be limited to non-atomic SEs
-#      only.
+#      have side effect. This  side-effect is limited to non-atomic
+#      SEs only.
 CREATE DATABASE mysqltest;
 CREATE TABLE mysqltest.t_m (t_m INT) ENGINE=MyISAM;
 CREATE TABLE mysqltest.t_i_1 (t_i_1 INT) ENGINE= InnoDB;
@@ -179,13 +170,12 @@ FOREIGN KEY (fk) REFERENCES mysqltest.t_i_2(t_i_2))
 ENGINE=InnoDB;
 DROP DATABASE mysqltest;
 ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
-# Table t_m is gone, t_i_1 is gone too (this will change after
-# WL#6049 and once support for atomic DDL is implemented in InnoDB).
+# Table t_m is gone.
 SELECT * FROM mysqltest.t_m;
 ERROR 42S02: Table 'mysqltest.t_m' doesn't exist
+# Database and tables t_i_1, t_i_2 are still there.
 SELECT * FROM mysqltest.t_i_1;
-ERROR 42S02: Table 'mysqltest.t_i_1' doesn't exist
-# Database and table t_i_2 are still there.
+t_i_1
 SELECT * FROM mysqltest.t_i_2;
 t_i_2
 # Stored function f1() is still there too.
@@ -196,64 +186,59 @@ mysqltest.f1()
 # 4.b) DROP DATABASE which fails due to SE error might have side
 #      effect. Tables in engines which do not support atomic DDL
 #      which we have managed to drop before error stay dropped.
-#      Once InnoDB supports atomic DDL removal of InnoDB tables
-#      should be rolled back (they are not now).
+#      Removal of InnoDB tables should be rolled back.
 DROP TABLE t1;
 CREATE TABLE mysqltest.t_m (t_m INT) ENGINE=MyISAM;
-CREATE TABLE mysqltest.t_i_1 (t_i_1 INT) ENGINE=InnoDB;
 SET SESSION DEBUG='+d,rm_db_fail_after_dropping_tables';
 DROP DATABASE mysqltest;
 ERROR HY000: Unknown error
 SET SESSION DEBUG='-d,rm_db_fail_after_dropping_tables';
 SELECT * FROM mysqltest.t_m;
 ERROR 42S02: Table 'mysqltest.t_m' doesn't exist
-# Should change once InnoDB supports atomic DDL.
+# Database and tables t_i_1, t_i_2 are still there.
 SELECT * FROM mysqltest.t_i_1;
-ERROR 42S02: Table 'mysqltest.t_i_1' doesn't exist
+t_i_1
 SELECT * FROM mysqltest.t_i_2;
-ERROR 42S02: Table 'mysqltest.t_i_2' doesn't exist
-# Database and stored function f1() are still there.
+t_i_2
+# Stored function f1() is still there too.
 SELECT mysqltest.f1();
 mysqltest.f1()
 0
 #
 # 4.c) DROP DATABASE which fails due to SE error and involves only
-#      tables in engines supporting atomic DDL (once InnoDB does
-#      this for real) should not have side effects/should be
-#      rolled back.
-CREATE TABLE mysqltest.t_i_1 (t_i_1 INT) ENGINE=InnoDB;
-CREATE TABLE mysqltest.t_i_2 (t_i_1 INT) ENGINE=InnoDB;
+#      tables in engines supporting atomic DDL should not have side
+#      effects/should be rolled back.
 SET SESSION DEBUG='+d,rm_db_fail_after_dropping_tables';
 DROP DATABASE mysqltest;
 ERROR HY000: Unknown error
 SET SESSION DEBUG='-d,rm_db_fail_after_dropping_tables';
-# Should change once InnoDB supports atomic DDL.
+# Database and tables t_i_1, t_i_2 are still there.
 SELECT * FROM mysqltest.t_i_1;
-ERROR 42S02: Table 'mysqltest.t_i_1' doesn't exist
+t_i_1
 SELECT * FROM mysqltest.t_i_2;
-ERROR 42S02: Table 'mysqltest.t_i_2' doesn't exist
-# Database and stored function f1() are still there.
+t_i_2
+# Stored function f1() is still there too.
 SELECT mysqltest.f1();
 mysqltest.f1()
 0
 #
 # 4.d) DROP DATABASE which fails due to failure to drop routine
 #      might have side effect. Tables in engines which do not
-#      support atomic DDL stay dropped. Once InnoDB supports
-#      atomic DDL removal of InnoDB tables should be rolled back
-# (they are not now).
+#      support atomic DDL stay dropped. Removal of InnoDB tables
+#      should be rolled back.
 CREATE TABLE mysqltest.t_m (t_m INT) ENGINE=MyISAM;
-CREATE TABLE mysqltest.t_i_1 (t_i_1 INT) ENGINE=InnoDB;
 SET SESSION DEBUG='+d,fail_drop_db_routines';
 DROP DATABASE mysqltest;
 ERROR HY000: Failed to DROP ROUTINE 
 SET SESSION DEBUG='-d,fail_drop_db_routines';
 SELECT * FROM mysqltest.t_m;
 ERROR 42S02: Table 'mysqltest.t_m' doesn't exist
-# Should change once InnoDB supports atomic DDL.
+# Database and tables t_i_1, t_i_2 are still there.
 SELECT * FROM mysqltest.t_i_1;
-ERROR 42S02: Table 'mysqltest.t_i_1' doesn't exist
-# Database and stored function f1() are still there.
+t_i_1
+SELECT * FROM mysqltest.t_i_2;
+t_i_2
+# Stored function f1() is still there too.
 SELECT mysqltest.f1();
 mysqltest.f1()
 0

@@ -95,58 +95,47 @@ SELECT * FROM tt_i;
 --echo # 1.c) DROP TABLES which fails due to foreign key error might
 --echo #      have side effect. This might change once WL#6049 is
 --echo #      implemented and we support smarter checks while dropping
---echo #      tables with foreign keys. Also once InnoDB truly supports
---echo #      atomic DDL side-effect will be limited to non-atomic SEs
---echo #      only.
+--echo #      tables with foreign keys. Until this side-effect is
+--echo #      limited to non-atomic SEs only.
 CREATE TABLE t_m (t_m INT) ENGINE=MyISAM;
 CREATE TABLE t_i_1 (t_i_1 INT) ENGINE=InnoDB;
 CREATE TABLE t_i_2 (t_i_2 INT PRIMARY KEY) ENGINE=InnoDB;
 CREATE TABLE t_i_3 (t_i_3 INT, FOREIGN KEY(t_i_3) REFERENCES t_i_2(t_i_2)) ENGINE=InnoDB;
 --error ER_ROW_IS_REFERENCED
 DROP TABLES t_m, t_i_1, t_i_2;
---echo # Table t_m is gone, t_i_1 is gone too (this will change after
---echo # WL#6049 and once support for atomic DDL is implemented in InnoDB).
+--echo # Table t_m is gone, t_i_1 and t_i_2 are still there.
 --error ER_NO_SUCH_TABLE
 SELECT * FROM t_m;
---error ER_NO_SUCH_TABLE
 SELECT * FROM t_i_1;
+SELECT * FROM t_i_2;
 
 --echo #
 --echo # 1.d) DROP TABLES which fails due to SE error might have side
 --echo #      effect. Tables in engines which do not support atomic DDL
 --echo #      which we have managed to drop before error stay dropped.
---echo #      Once InnoDB supports atomic DDL removal of InnoDB tables
---echo #      should be rolled back (they are not now).
+--echo #      Removal of InnoDB tables should be rolled back.
 CREATE TABLE t_m (t_m INT) ENGINE=MyISAM;
-CREATE TABLE t_i_1 (t_i_1 INT) ENGINE=InnoDB;
 SET SESSION DEBUG='+d,rm_table_no_locks_abort_after_atomic_tables';
 --error ER_UNKNOWN_ERROR
 DROP TABLES t_m, t_i_1;
 SET SESSION DEBUG='-d,rm_table_no_locks_abort_after_atomic_tables';
 --error ER_NO_SUCH_TABLE
 SELECT * FROM t_m;
---echo # Should change once InnoDB supports atomic DDL.
---error ER_NO_SUCH_TABLE
 SELECT * FROM t_i_1;
 
 --echo #
 --echo # 1.e) DROP TABLES which fails due to SE error and involves only
---echo #      tables in engines supporting atomic DDL (once InnoDB does
---echo #      this for real) should not have side effects/should be
---echo #      rolled back.
-CREATE TABLE t_i_1 (t_i_1 INT) ENGINE=InnoDB;
+--echo #      tables in engines supporting atomic DDL should not have
+--echo #      side effects/should be rolled back.
 SET SESSION DEBUG='+d,rm_table_no_locks_abort_after_atomic_tables';
 --error ER_UNKNOWN_ERROR
 DROP TABLES t_i_1, t_i_3;
 SET SESSION DEBUG='-d,rm_table_no_locks_abort_after_atomic_tables';
---echo # Should change once InnoDB supports atomic DDL.
---error ER_NO_SUCH_TABLE
 SELECT * FROM t_i_1;
---error ER_NO_SUCH_TABLE
 SELECT * FROM t_i_3;
 
 --echo # Clean-up.
-DROP TABLEs t_i_2;
+DROP TABLES t_i_1, t_i_3, t_i_2;
 
 --echo #
 --echo # 2) Binary logging and GTID handling for DROP TABLES statements.
@@ -190,11 +179,8 @@ DROP TABLE IF EXISTS t1;
 
 --echo #
 --echo # 4.a) DROP DATABASE which fails due to foreign key error might
---echo #      have side effect. This might change once WL#6049 is
---echo #      implemented and we support smarter checks while dropping
---echo #      tables with foreign keys. Also once InnoDB truly supports
---echo #      atomic DDL side-effect will be limited to non-atomic SEs
---echo #      only.
+--echo #      have side effect. This  side-effect is limited to non-atomic
+--echo #      SEs only.
 CREATE DATABASE mysqltest;
 CREATE TABLE mysqltest.t_m (t_m INT) ENGINE=MyISAM;
 CREATE TABLE mysqltest.t_i_1 (t_i_1 INT) ENGINE= InnoDB;
@@ -205,13 +191,11 @@ CREATE TABLE t1 (fk INT,
                  ENGINE=InnoDB;
 --error ER_ROW_IS_REFERENCED
 DROP DATABASE mysqltest;
---echo # Table t_m is gone, t_i_1 is gone too (this will change after
---echo # WL#6049 and once support for atomic DDL is implemented in InnoDB).
+--echo # Table t_m is gone.
 --error ER_NO_SUCH_TABLE
 SELECT * FROM mysqltest.t_m;
---error ER_NO_SUCH_TABLE
+--echo # Database and tables t_i_1, t_i_2 are still there.
 SELECT * FROM mysqltest.t_i_1;
---echo # Database and table t_i_2 are still there.
 SELECT * FROM mysqltest.t_i_2;
 --echo # Stored function f1() is still there too.
 SELECT mysqltest.f1();
@@ -220,62 +204,51 @@ SELECT mysqltest.f1();
 --echo # 4.b) DROP DATABASE which fails due to SE error might have side
 --echo #      effect. Tables in engines which do not support atomic DDL
 --echo #      which we have managed to drop before error stay dropped.
---echo #      Once InnoDB supports atomic DDL removal of InnoDB tables
---echo #      should be rolled back (they are not now).
+--echo #      Removal of InnoDB tables should be rolled back.
 DROP TABLE t1;
 CREATE TABLE mysqltest.t_m (t_m INT) ENGINE=MyISAM;
-CREATE TABLE mysqltest.t_i_1 (t_i_1 INT) ENGINE=InnoDB;
 SET SESSION DEBUG='+d,rm_db_fail_after_dropping_tables';
 --error ER_UNKNOWN_ERROR
 DROP DATABASE mysqltest;
 SET SESSION DEBUG='-d,rm_db_fail_after_dropping_tables';
 --error ER_NO_SUCH_TABLE
 SELECT * FROM mysqltest.t_m;
---echo # Should change once InnoDB supports atomic DDL.
---error ER_NO_SUCH_TABLE
+--echo # Database and tables t_i_1, t_i_2 are still there.
 SELECT * FROM mysqltest.t_i_1;
---error ER_NO_SUCH_TABLE
 SELECT * FROM mysqltest.t_i_2;
---echo # Database and stored function f1() are still there.
+--echo # Stored function f1() is still there too.
 SELECT mysqltest.f1();
 
 --echo #
 --echo # 4.c) DROP DATABASE which fails due to SE error and involves only
---echo #      tables in engines supporting atomic DDL (once InnoDB does
---echo #      this for real) should not have side effects/should be
---echo #      rolled back.
-CREATE TABLE mysqltest.t_i_1 (t_i_1 INT) ENGINE=InnoDB;
-CREATE TABLE mysqltest.t_i_2 (t_i_1 INT) ENGINE=InnoDB;
+--echo #      tables in engines supporting atomic DDL should not have side
+--echo #      effects/should be rolled back.
 SET SESSION DEBUG='+d,rm_db_fail_after_dropping_tables';
 --error ER_UNKNOWN_ERROR
 DROP DATABASE mysqltest;
 SET SESSION DEBUG='-d,rm_db_fail_after_dropping_tables';
---echo # Should change once InnoDB supports atomic DDL.
---error ER_NO_SUCH_TABLE
+--echo # Database and tables t_i_1, t_i_2 are still there.
 SELECT * FROM mysqltest.t_i_1;
---error ER_NO_SUCH_TABLE
 SELECT * FROM mysqltest.t_i_2;
---echo # Database and stored function f1() are still there.
+--echo # Stored function f1() is still there too.
 SELECT mysqltest.f1();
 
 --echo #
 --echo # 4.d) DROP DATABASE which fails due to failure to drop routine
 --echo #      might have side effect. Tables in engines which do not
---echo #      support atomic DDL stay dropped. Once InnoDB supports
---echo #      atomic DDL removal of InnoDB tables should be rolled back
---echo # (they are not now).
+--echo #      support atomic DDL stay dropped. Removal of InnoDB tables
+--echo #      should be rolled back.
 CREATE TABLE mysqltest.t_m (t_m INT) ENGINE=MyISAM;
-CREATE TABLE mysqltest.t_i_1 (t_i_1 INT) ENGINE=InnoDB;
 SET SESSION DEBUG='+d,fail_drop_db_routines';
 --error ER_SP_DROP_FAILED
 DROP DATABASE mysqltest;
 SET SESSION DEBUG='-d,fail_drop_db_routines';
 --error ER_NO_SUCH_TABLE
 SELECT * FROM mysqltest.t_m;
---echo # Should change once InnoDB supports atomic DDL.
---error ER_NO_SUCH_TABLE
+--echo # Database and tables t_i_1, t_i_2 are still there.
 SELECT * FROM mysqltest.t_i_1;
---echo # Database and stored function f1() are still there.
+SELECT * FROM mysqltest.t_i_2;
+--echo # Stored function f1() is still there too.
 SELECT mysqltest.f1();
 
 DROP DATABASE mysqltest;

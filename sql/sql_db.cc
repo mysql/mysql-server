@@ -540,9 +540,6 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
   TABLE_LIST *tables= NULL;
   TABLE_LIST *table;
   Drop_table_error_handler err_handler;
-#ifndef WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY
-  Prealloced_array<TABLE_LIST*, 1> dropped_atomic(PSI_INSTRUMENT_ME);
-#endif
   bool dropped_non_atomic= false;
   std::set<handlerton*> post_ddl_htons;
 
@@ -640,8 +637,7 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
     thd->push_internal_handler(&err_handler);
     if (tables)
       error= mysql_rm_table_no_locks(thd, tables, true, false, true,
-                                     &dropped_non_atomic, &post_ddl_htons,
-                                     &dropped_atomic);
+                                     &dropped_non_atomic, &post_ddl_htons);
 
     DBUG_EXECUTE_IF("rm_db_fail_after_dropping_tables",
                     {
@@ -699,9 +695,6 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
     */
     if (error)
     {
-#ifndef WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY
-      thd->skip_gtid_rollback= true;
-#endif
       trans_rollback_stmt(thd);
       /*
         Play safe to be sure that THD::transaction_rollback_request is
@@ -710,9 +703,6 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
         clear cache of uncommitted objects).
       */
       trans_rollback_implicit(thd);
-#ifndef WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY
-      thd->skip_gtid_rollback= false;
-#endif
     }
 
     /*
@@ -747,20 +737,14 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
     {
       if (mysql_bin_log.is_open())
       {
-        char *query, *query_pos, *query_end, *query_data_start;
-        char temp_identifier[ 2 * FN_REFLEN + 2];
-
         /*
           If GTID_NEXT=='UUID:NUMBER', we must not log an incomplete
           statement.  However, the incomplete DROP has already 'committed'
           (some tables were removed).  So we generate an error and let
           user fix the situation.
         */
-        if (thd->variables.gtid_next.type == GTID_GROUP
-#ifdef NEEDS_WL7016_TO_BE_READY
-            && dropped_non_atomic
-#endif
-            )
+        if (thd->variables.gtid_next.type == GTID_GROUP &&
+            dropped_non_atomic)
         {
           char gtid_buf[Gtid::MAX_TEXT_LENGTH + 1];
           thd->variables.gtid_next.gtid.to_string(global_sid_map, gtid_buf,
@@ -769,60 +753,6 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
                    path, gtid_buf, db.str);
           DBUG_RETURN(true);
         }
-
-#ifndef WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY
-        DBUG_PRINT("info", ("DROP DATABASE failed; generating DROP TABLE statement(s) in the binlog"));
-
-        if (!(query= (char*) thd->alloc(MAX_DROP_TABLE_Q_LEN)))
-        {
-          // @todo: abort on out of memory instead
-          /* not much else we can do */
-          DBUG_RETURN(true); /* purecov: inspected */
-        }
-        query_pos= query_data_start= my_stpcpy(query,"DROP TABLE IF EXISTS ");
-        query_end= query + MAX_DROP_TABLE_Q_LEN;
-
-        for (const TABLE_LIST *tbl : dropped_atomic)
-        {
-          /* 3 for the quotes and the comma*/
-          size_t tbl_name_len= strlen(tbl->table_name) + 3;
-          if (query_pos + tbl_name_len + 1 >= query_end)
-          {
-            DBUG_PRINT("info", ("Need multiple DROP TABLE statements in the binlog"));
-            thd->variables.gtid_next.dbug_print("gtid_next", true);
-            /*
-              These DDL methods and logging are protected with the exclusive
-              metadata lock on the schema.
-            */
-
-            thd->is_commit_in_middle_of_statement= true;
-            int ret= write_to_binlog(thd, query, query_pos -1 - query, db.str,
-                                     db.length);
-            thd->is_commit_in_middle_of_statement= false;
-            if (ret)
-              DBUG_RETURN(true);
-
-            query_pos= query_data_start;
-          }
-          size_t id_length= my_strmov_quoted_identifier(thd, temp_identifier,
-                                                        tbl->table_name, 0);
-          temp_identifier[id_length]= '\0';
-          query_pos= my_stpcpy(query_pos, (char*)&temp_identifier);
-          *query_pos++ = ',';
-        }
-
-        if (query_pos != query_data_start)
-        {
-          thd->add_to_binlog_accessed_dbs(db.str);
-          /*
-            These DDL methods and logging are protected with the exclusive
-            metadata lock on the schema.
-          */
-          if (write_to_binlog(thd, query, query_pos -1 - query, db.str,
-                              db.length))
-            DBUG_RETURN(true);
-        }
-#endif
       }
       DBUG_RETURN(true);
     }

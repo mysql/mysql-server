@@ -1253,14 +1253,12 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, bool if_exists,
     dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
     std::set<handlerton*> post_ddl_htons;
-    Prealloced_array<TABLE_LIST*, 1> dropped_atomic(PSI_INSTRUMENT_ME);
     bool not_used;
 
     /* mark for close and remove all cached entries */
     thd->push_internal_handler(&err_handler);
     error= mysql_rm_table_no_locks(thd, tables, if_exists, drop_temporary,
-                                   false, &not_used, &post_ddl_htons,
-                                   &dropped_atomic);
+                                   false, &not_used, &post_ddl_htons);
     thd->pop_internal_handler();
   }
 
@@ -2210,9 +2208,7 @@ drop_base_table(THD *thd, const Drop_tables_ctx &drop_ctx,
     Such situation should not be possible for SEs supporting atomic DDL,
     but we still play safe even in this case and allow table removal.
   */
-#ifdef ASSERT_TO_BE_ENABLED_ONCE_WL7016_IS_READY
-   DBUG_ASSERT(!atomic || (error != ENOENT && error != HA_ERR_NO_SUCH_TABLE));
-#endif
+  DBUG_ASSERT(!atomic || (error != ENOENT && error != HA_ERR_NO_SUCH_TABLE));
 
   if ((error == ENOENT || error == HA_ERR_NO_SUCH_TABLE) && drop_ctx.if_exists)
   {
@@ -2268,15 +2264,9 @@ drop_base_table(THD *thd, const Drop_tables_ctx &drop_ctx,
     return true;
   bool result= dd::drop_table(thd, table->db, table->table_name, *table_def);
 
-#ifndef WORKAROUND_TO_BE_REMOVED_BY_WL9536
-  if (!atomic || drop_ctx.drop_database)
-    result= trans_intermediate_ddl_commit(thd, result) ||
-            update_referencing_views_metadata(thd, table, true, nullptr);
-#else
   if (!atomic)
     result= trans_intermediate_ddl_commit(thd, result);
   result|= update_referencing_views_metadata(thd, table, !atomic, nullptr);
-#endif
 
   return result;
 }
@@ -2298,10 +2288,6 @@ drop_base_table(THD *thd, const Drop_tables_ctx &drop_ctx,
   @param[out] post_ddl_htons     Set of handlertons for tables in SEs supporting
                                  atomic DDL for which post-DDL hook needs to
                                  be called after statement commit or rollback.
-  @param[out] dropped_atomic     List of tables in SEs supporting atomic DDL
-                                 which we have managed to drop. This parameter
-                                 is a workaround used by DROP DATABASE until
-                                 WL#7016 is implemented.
 
   @retval  False - ok
   @retval  True  - error
@@ -2324,11 +2310,7 @@ drop_base_table(THD *thd, const Drop_tables_ctx &drop_ctx,
 bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
                              bool drop_temporary, bool drop_database,
                              bool *dropped_non_atomic_flag,
-                             std::set<handlerton*> *post_ddl_htons
-#ifndef WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY
-                             , Prealloced_array<TABLE_LIST*, 1> *dropped_atomic
-#endif
-                             )
+                             std::set<handlerton*> *post_ddl_htons)
 {
   Drop_tables_ctx drop_ctx(if_exists, drop_temporary, drop_database);
 
@@ -2556,64 +2538,13 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
                           table, true /* atomic */,
                           post_ddl_htons))
       {
-#ifndef WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY
-        if (thd->transaction_rollback_request)
-          goto err_with_rollback;
-
-        if (!drop_ctx.drop_database &&
-            (dropped_atomic->size() != 0 ||
-             (drop_ctx.has_gtid_many_table_groups() &&
-              drop_ctx.has_dropped_non_atomic())))
-        {
-          Drop_tables_query_builder built_query(thd, false /* no TEMPORARY */,
-                                                drop_ctx.if_exists,
-                                                /* stmt or trx cache. */
-                                                dropped_atomic->size() != 0,
-                                                false /* db exists */);
-          if (drop_ctx.has_gtid_many_table_groups() &&
-              drop_ctx.has_dropped_non_atomic())
-            built_query.add_array(drop_ctx.dropped_non_atomic);
-          built_query.add_array(*dropped_atomic);
-          built_query.write_bin_log();
-        }
-
-        if (drop_ctx.drop_database)
-        {
-          Disable_gtid_state_update_guard disabler(thd);
-          (void) trans_commit_stmt(thd);
-          (void) trans_commit_implicit(thd);
-        }
-        else
-        {
-          // We need to turn off updating of slave info here
-          // without conflicting with GTID update.
-          {
-            Disable_slave_info_update_guard disabler(thd);
-
-            (void) trans_commit_stmt(thd);
-            (void) trans_commit_implicit(thd);
-          }
-
-          for (TABLE_LIST *table : *dropped_atomic)
-            (void)update_referencing_views_metadata(thd, table, true, nullptr);
-        }
-        DBUG_RETURN(true);
-#else
         goto err_with_rollback;
-#endif
       }
-#ifndef WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY
-      dropped_atomic->push_back(table);
-#endif
     }
 
     DBUG_EXECUTE_IF("rm_table_no_locks_abort_after_atomic_tables",
                     {
                       my_error(ER_UNKNOWN_ERROR, MYF(0));
-                      /* WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY */
-                      (void) trans_commit_stmt(thd);
-                      (void) trans_commit_implicit(thd);
-                      /* WORKAROUND_ENDS */
                       goto err_with_rollback;
                     });
 
@@ -2682,10 +2613,6 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
 
         So do nothing here in all three cases described above.
       */
-#ifndef WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY
-      Disable_gtid_state_update_guard disabler(thd);
-      error= (trans_commit_stmt(thd) || trans_commit_implicit(thd));
-#endif
     }
     else if (!drop_ctx.has_gtid_many_table_groups())
     {
@@ -2738,14 +2665,6 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
         error= (trans_commit_stmt(thd) || trans_commit_implicit(thd));
         thd->is_commit_in_middle_of_statement= false;
       }
-#ifndef WORKAROUND_TO_BE_REMOVED_BY_WL9536
-      if (!error)
-      {
-        for (TABLE_LIST *table : drop_ctx.base_atomic_tables)
-          if (update_referencing_views_metadata(thd, table, true, nullptr))
-            goto err_with_rollback;
-      }
-#endif
     }
     else
     {
@@ -2810,14 +2729,6 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
     */
     if (trans_commit_stmt(thd) || trans_commit_implicit(thd))
       goto err_with_rollback;
-
-#ifndef WORKAROUND_TO_BE_REMOVED_BY_WL9536
-    for (TABLE_LIST *table : drop_ctx.base_atomic_tables)
-    {
-      if (update_referencing_views_metadata(thd, table, true, nullptr))
-        goto err_with_rollback;
-    }
-#endif
   }
 
   /*
