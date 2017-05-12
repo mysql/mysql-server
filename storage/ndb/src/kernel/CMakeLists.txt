@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -12,6 +12,18 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+
+
+# workaround for bug#25690926
+# see -flifetime-dse at https://gcc.gnu.org/gcc-6/porting_to.html
+# Memory allocation in NDB kernel relies on object properties that
+# are set before calling the object constructor.
+#
+IF(CMAKE_COMPILER_IS_GNUCXX
+   AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER "6.0.0")
+  STRING(TOUPPER "${CMAKE_BUILD_TYPE}" BTYPE)
+  SET(CMAKE_CXX_FLAGS_${BTYPE} "${CMAKE_CXX_FLAGS_${BTYPE}} -flifetime-dse=1")
+ENDIF()
 
 
 ADD_SUBDIRECTORY(error)
