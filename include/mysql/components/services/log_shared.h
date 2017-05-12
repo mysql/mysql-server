@@ -25,6 +25,17 @@
 #define LOG_SUBSYSTEM_TAG NULL
 #endif
 
+#ifndef MY_BASENAME
+constexpr int basename_index(const char * const path, const int index)
+{
+  return (path [index] == '/' || path [index] == '\\') ?
+    index + 1 : basename_index(path, index - 1);
+}
+
+#define MY_BASENAME __FILE__ + basename_index(__FILE__, sizeof(__FILE__) - 1)
+#endif
+
+
 /**
   The logging sub-system internally uses the log_line structure to pass
   data around. This header primarily the specifics and symbols of that
@@ -36,7 +47,7 @@
   where it is not). (see sql/log.h).
 
   (The legacy calls sql_print_(error|warning|information) have now
-  been #defined to use log_message().)
+  been defined to use log_message().)
 
   Finally, this header defines log types (error log etc.) as well
   as log item types (timestamp, message, ...) used by the logging

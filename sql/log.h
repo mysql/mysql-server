@@ -854,9 +854,13 @@ private:
 
 public:
   /**
-    @param window_usecs  ... in this many micro-seconds
-    @param logger        call this function to log a single line (our summary)
-    @param msg           use this template containing %lu as only non-literal
+    @param window_usecs  ... in this many micro-seconds (see Log_throttle)
+    @param lvl           severity of the incident (error, warning, info)
+    @param errcode       MySQL error code (e.g. ER_STARTUP)
+    @param subsystem     subsystem tag, or nullptr for none
+    @param msg           use this message template containing %lu as only
+                         non-literal (for "number of suppressed events",
+                         see Log_throttle)
   */
   Error_log_throttle(ulong window_usecs,
                      loglevel lvl, uint errcode, const char *subsystem,
@@ -893,14 +897,6 @@ extern Slow_log_throttle log_throttle_qni;
 //
 ////////////////////////////////////////////////////////////
 
-constexpr int basename_index(const char * const path, const int index)
-{
-  return (path [index] == '/' || path [index] == '\\') ?
-    index + 1 : basename_index(path, index - 1);
-}
-
-#define MY_BASENAME __FILE__ + basename_index(__FILE__, sizeof(__FILE__) - 1)
-
 /*
   Set up some convenience defines to help us while we change
   old-style ("sql_print_...()") calls to new-style ones
@@ -909,7 +905,7 @@ constexpr int basename_index(const char * const path, const int index)
 */
 
 /**
-  Set up basics, fetch message for <errcode>, insert any va_args,
+  Set up basics, fetch message for "errcode", insert any va_args,
   call the new error stack.  A helper for the transition to the
   new stack.
 */
@@ -1188,25 +1184,25 @@ int              log_item_wellknown_by_type(log_item_type t);
 
   @retval       name (NTBS)
 */
-const char      *log_item_wellknown_get_name(uint i);
+const char      *log_item_wellknown_get_name(uint idx);
 
 /**
   Accessor: from a record describing a wellknown key, get its type
 
-  @param i       index in array of wellknowns, see log_item_wellknown_by_...()
+  @param idx     index in array of wellknowns, see log_item_wellknown_by_...()
 
   @retval        the log item type for the wellknown key
 */
-log_item_type    log_item_wellknown_get_type(uint i);
+log_item_type    log_item_wellknown_get_type(uint idx);
 
 /**
   Accessor: from a record describing a wellknown key, get its class
 
-  @param i       index in array of wellknowns, see log_item_wellknown_by_...()
+  @param idx     index in array of wellknowns, see log_item_wellknown_by_...()
 
   @retval        the log item class for the wellknown key
 */
-log_item_class   log_item_wellknown_get_class(uint i);
+log_item_class   log_item_wellknown_get_class(uint idx);
 
 /**
   Release any of key and value on a log-item that were dynamically allocated.
@@ -1286,19 +1282,19 @@ void             log_line_item_free_all(log_line *ll);
   @param         ll    log_line
   @param         elem  index of the key/value pair to release
 */
-void             log_line_item_remove(log_line *li, int elem);
+void             log_line_item_remove(log_line *ll, int elem);
 
 /**
   Find the (index of the) first key/value pair of the given type
   in the log line.
 
-  @param         li   log line
+  @param         ll   log line
   @param         t    the log item type to look for
 
   @retval        <0:  none found
   @retval        >=0: index of the key/value pair in the log line
 */
-int              log_line_index_by_type(log_line *li, log_item_type t);
+int              log_line_index_by_type(log_line *ll, log_item_type t);
 
 /**
   Find the (index of the) first key/value pair of the given type
@@ -1309,8 +1305,8 @@ int              log_line_index_by_type(log_line *li, log_item_type t);
   generic string with key "foo" will a generic string, integer, or
   float with the key "foo".
 
-  @param         li   log line
-  @param         t    the log item type to look for
+  @param         ll   log line
+  @param         ref  a reference item of the log item type to look for
 
   @retval        <0:  none found
   @retval        >=0: index of the key/value pair in the log line

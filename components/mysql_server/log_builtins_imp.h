@@ -16,36 +16,62 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 #ifndef LOG_BUILTINS_IMP_H
 #define LOG_BUILTINS_IMP_H
 
+#ifdef IN_DOXYGEN
+#include <mysql/components/services/log_builtins.h>
+#endif
+
+/**
+  This defines built-in functions for use by logging services.
+  These helpers are organized into a number of APIs grouping
+  related functionality.
+
+  This file defines internals; to use the logger from a service,
+  include log_builtins.h instead.
+
+  For documentation of the individual functions, see log_builtins.cc
+*/
+
 #include <mysql/components/services/log_shared.h>
 
 
+/**
+  Maximum number of key/value pairs in a log event.
+  May be changed or abolished later.
+*/
 #define LOG_ITEM_MAX 64
 
 
+/**
+  Iterator over the key/value pairs of a log_line.
+  At present, only one iter may exist per log_line.
+*/
 typedef struct _log_item_iter
 {
-  struct _log_line *ll;
-  int               index;
+  struct _log_line *ll;      ///< log_line this is the iter for
+  int               index;   ///< index of current key/value pair
 } log_item_iter;
 
 
+/**
+  log_line ("log event")
+*/
 typedef struct _log_line
 {
-  log_item_type_mask  seen;
-  log_item_iter       iter;
-  int                 count;
-  log_item            item[LOG_ITEM_MAX];
+  log_item_type_mask  seen;  ///< bit field flagging item-types contained
+  log_item_iter       iter;  ///< iterator over key/value pairs
+  int                 count; ///< number of key/value pairs ("log items")
+  log_item            item[LOG_ITEM_MAX]; ///< log items
 } log_line;
 
 
 // see include/mysql/components/services/log_builtins.h
 
+/**
+  Primitives for services to interact with the structured logger:
+  functions pertaining to log_line and log_item data
+*/
 class log_builtins_imp
 {
-public:
-  static void init();
-  static void deinit();
-
 public: /* Service Implementations */
   static DEFINE_METHOD(int,              wellknown_by_type, (log_item_type t));
   static DEFINE_METHOD(int,              wellknown_by_name, (const char *key,
@@ -132,12 +158,11 @@ public: /* Service Implementations */
 };
 
 
+/**
+  String primitives for logging services.
+*/
 class log_builtins_string_imp
 {
-public:
-  static void init();
-  static void deinit();
-
 public: /* Service Implementations */
   static DEFINE_METHOD(void *,           malloc, (size_t len));
   static DEFINE_METHOD(char *,           strndup, (const char *fm, size_t len));
@@ -152,7 +177,7 @@ public: /* Service Implementations */
                                                     bool case_insensitive));
 
   static DEFINE_METHOD(size_t,           substitutev, (char *to, size_t n,
-                                                       const char* fmt,
+                                                       const char *fmt,
                                                        va_list ap));
 
   static DEFINE_METHOD(size_t,           substitute, (char *to, size_t n,
@@ -160,23 +185,21 @@ public: /* Service Implementations */
 };
 
 
+/**
+  Temporary primitives for logging services.
+*/
 class log_builtins_tmp_imp
 {
-public:
-  static void init();
-  static void deinit();
-
 public: /* Service Implementations */
   static DEFINE_METHOD(bool,             connection_loop_aborted, (void));
 };
 
 
+/**
+  Syslog/Eventlog functions for logging services.
+*/
 class log_builtins_syseventlog_imp
 {
-public:
-  static void init();
-  static void deinit();
-
 public: /* Service Implementations */
   static DEFINE_METHOD(int,              open,  (const char *name,
                                                 int option, int facility));

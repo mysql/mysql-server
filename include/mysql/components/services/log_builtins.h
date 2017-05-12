@@ -14,11 +14,11 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @brief
-
   This defines built-in functions for use by logging services.
   These helpers are organized into a number of APIs grouping
   related functionality.
+
+  For documentation of the individual functions, see log_builtins.cc
 */
 
 #ifndef LOG_BUILTINS_H
@@ -33,8 +33,9 @@
 #include <mysql/components/services/log_shared.h>
 
 
-/*
-  log_builtins contains functions pertaining to log_line and log_item data.
+/**
+  Primitives for services to interact with the structured logger:
+  functions pertaining to log_line and log_item data
 */
 BEGIN_SERVICE_DEFINITION(log_builtins)
   /**
@@ -446,9 +447,10 @@ BEGIN_SERVICE_DEFINITION(log_builtins)
     are added. Log item source services, log item filters, and log item
     writers are called.
 
+
     The variadic list accepts a list of "assignments" of the form
-    - <log_item_type>, <value>,         for well-known types, and
-    - <log_item_type>, <key>, <value>,  for ad-hoc types (LOG_ITEM_GEN_*)
+    - log_item_type, value,         for well-known types, and
+    - log_item_type, key, value,    for ad-hoc types (LOG_ITEM_GEN_*)
 
     As its last item, the list should have
     - an element of type LOG_ITEM_LOG_MESSAGE, containing a printf-style
@@ -570,6 +572,9 @@ BEGIN_SERVICE_DEFINITION(log_builtins)
 END_SERVICE_DEFINITION(log_builtins)
 
 
+/**
+  String primitives for logging services.
+*/
 BEGIN_SERVICE_DEFINITION(log_builtins_string)
   // alloc (len+1) bytes
   DECLARE_METHOD(void *,           malloc, (size_t len));
@@ -590,9 +595,20 @@ BEGIN_SERVICE_DEFINITION(log_builtins_string)
   DECLARE_METHOD(int,              compare, (const char *a, const char *b,
                                             size_t len, bool case_insensitive));
 
-  // replace all % in format string with variables from list (my_vsnprintf())
+
+  /**
+    Wrapper for my_vsnprintf()
+    Replace all % in format string with variables from list
+
+    @param  to    buffer to write the result to
+    @param  n     size of that buffer
+    @param  fmt   format string
+    @param  ap    va_list with valuables for all substitutions in format string
+
+    @retval       return value of my_vsnprintf
+  */
   DECLARE_METHOD(size_t,           substitutev, (char *to, size_t n,
-                                                 const char* fmt, va_list ap));
+                                                 const char *fmt, va_list ap));
 
   // replace all % in format string with variables from list (my_snprintf())
   DECLARE_METHOD(size_t,           substitute, (char *to, size_t n,
@@ -601,12 +617,18 @@ BEGIN_SERVICE_DEFINITION(log_builtins_string)
 END_SERVICE_DEFINITION(log_builtins_string)
 
 
+/**
+  Temporary primitives for logging services.
+*/
 BEGIN_SERVICE_DEFINITION(log_builtins_tmp)
   // Are we shutting down yet?  Windows EventLog needs to know.
   DECLARE_METHOD(bool,             connection_loop_aborted, (void));
 END_SERVICE_DEFINITION(log_builtins_tmp)
 
 
+/**
+  Syslog/Eventlog functions for logging services.
+*/
 BEGIN_SERVICE_DEFINITION(log_builtins_syseventlog)
   DECLARE_METHOD(int,              open,  (const char *name,
                                            int option, int facility));
@@ -614,7 +636,6 @@ BEGIN_SERVICE_DEFINITION(log_builtins_syseventlog)
                                            const char *msg));
   DECLARE_METHOD(int,              close, (void));
 END_SERVICE_DEFINITION(log_builtins_syseventlog)
-
 
 
 #  ifdef __cplusplus
@@ -770,15 +791,16 @@ public:
   }
 
   /**
-    Set log type.
+
+     Set log type.
 
     @param  val  the log type (LOG_TYPE_ERROR)
 
     @retval      the LogEvent, for easy fluent-style chaining.
   */
-  LogEvent &type(log_type t)
+  LogEvent &type(log_type val)
   {
-    log_set_int(log_line_item_set(this->ll, LOG_ITEM_LOG_TYPE), t);
+    log_set_int(log_line_item_set(this->ll, LOG_ITEM_LOG_TYPE), val);
     return *this;
   }
 
@@ -919,14 +941,14 @@ public:
   /**
     What user were we working for at the time of the issue?
 
-    @param  val  the user part (of "user@host").  LEX_CSTRING.
+    @param  val   the user part (of "user@host").  LEX_CSTRING.
 
-    @retval      the LogEvent, for easy fluent-style chaining.
+    @retval       the LogEvent, for easy fluent-style chaining.
   */
-  LogEvent &user(LEX_CSTRING user)
+  LogEvent &user(LEX_CSTRING val)
   {
     log_set_lexstring(log_line_item_set(this->ll, LOG_ITEM_MSC_USER),
-                       user.str, user.length);
+                      val.str, val.length);
     return *this;
   }
 
@@ -950,10 +972,10 @@ public:
 
     @retval      the LogEvent, for easy fluent-style chaining.
   */
-  LogEvent &host(LEX_CSTRING host)
+  LogEvent &host(LEX_CSTRING val)
   {
     log_set_lexstring(log_line_item_set(this->ll, LOG_ITEM_MSC_HOST),
-                      host.str, host.length);
+                      val.str, val.length);
     return *this;
   }
 
@@ -1012,7 +1034,7 @@ public:
   /**
     Set error severity / message priority
 
-    @param  prio  The priority for this LogEvent.
+    @param  val   The priority for this LogEvent.
 
     @retval       the LogEvent, for easy fluent-style chaining.
   */

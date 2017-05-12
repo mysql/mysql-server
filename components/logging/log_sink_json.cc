@@ -48,19 +48,19 @@ static int                          opened= 0;
 */
 enum enum_log_json_pretty_print
 {
-  JSON_NOSPACE=   0, //*<< emit no whitespace padding
-  JSON_PAD=       1, //*<< similar to systemd's journal
-  JSON_MULTILINE= 2  //*<< multi-line pretty-print
+  JSON_NOSPACE=   0, ///< emit no whitespace padding
+  JSON_PAD=       1, ///< similar to systemd's journal
+  JSON_MULTILINE= 2  ///< multi-line pretty-print
 };
 static enum_log_json_pretty_print   pretty= JSON_PAD;
 
 // This is private and specific to the component, and opaque to the server.
-typedef struct _instance
+typedef struct _my_state
 {
-  int   id;          //*<< stream-id
-  void *errstream;   //*<< pointer to errstream in the server
-  char *ext;         //*<< file extension of a given error stream
-} instance;
+  int   id;          ///< stream-id
+  void *errstream;   ///< pointer to errstream in the server
+  char *ext;         ///< file extension of a given error stream
+} my_state;
 
 
 /**
@@ -84,7 +84,7 @@ DEFINE_METHOD(int, log_service_imp::variable_check,
   per-component system variables. "update" is where we're told
   to update our state (if the variable concerns us to begin with).
 
-  @param   li  a list-item describing the variable (name, new value)
+  @param   ll  a list-item describing the variable (name, new value)
   @retval   0  for success (including when we don't feel the event is for us),
   @retval  -1  for failure
 */
@@ -102,11 +102,11 @@ DEFINE_METHOD(int, log_service_imp::variable_update,
   If you should not be able to specify a label, one will be generated
   for you from the line's priority field.
 
-  @param           inst                 instance
+  @param           instance             instance state
   @param           ll                   the log line to write
   @retval          int                  number of accepted fields, if any
 */
-DEFINE_METHOD(int, log_service_imp::run, (void *inst, log_line *ll))
+DEFINE_METHOD(int, log_service_imp::run, (void *instance, log_line *ll))
 {
   char                out_buff[LOG_BUFF_MAX];
   char                esc_buff[LOG_BUFF_MAX];
@@ -125,10 +125,7 @@ DEFINE_METHOD(int, log_service_imp::run, (void *inst, log_line *ll))
   log_item_iter      *it;
   log_item           *li;
 
-  if (inst == nullptr)
-    return out_fields;
-
-  if (inst == nullptr)
+  if (instance == nullptr)
     return out_fields;
 
   if (pretty == JSON_NOSPACE)
@@ -257,14 +254,14 @@ DEFINE_METHOD(int, log_service_imp::run, (void *inst, log_line *ll))
         We're multiplexing several JSON streams into the same output
         stream, so add a stream_id to they can be told apart.
       */
-      if ((log_bi->dedicated_errstream(((instance *) inst)->errstream) < 1) &&
-          (opened > 1))
+      if ((log_bi->dedicated_errstream(((my_state *) instance)->errstream) < 1)
+          && (opened > 1))
       {
         len= log_bs->substitute(out_writepos, out_left, "%s\"%s\"%s\"%d\"",
                                 comma,
                                 "stream_id",
                                 separator,
-                                ((instance *) inst)->id);
+                                ((my_state *) instance)->id);
         out_left-=     len;
         out_writepos+= len;
       }
@@ -274,7 +271,7 @@ DEFINE_METHOD(int, log_service_imp::run, (void *inst, log_line *ll))
       out_left-=     len;
       out_writepos+= len;
 
-      log_bi->write_errstream(((instance *) inst)->errstream,
+      log_bi->write_errstream(((my_state *) instance)->errstream,
                               out_buff, (size_t) LOG_BUFF_MAX - out_left);
     }
   }
@@ -288,25 +285,35 @@ DEFINE_METHOD(int, log_service_imp::run, (void *inst, log_line *ll))
 /**
   Open a new instance.
 
-  @param   ll   optional arguments
+  @param   ll        optional arguments
+  @param   instance  If state is needed, the service may allocate and
+                     initialize it and return a pointer to it here.
+                     (This of course is particularly pertinent to
+                     components that may be opened multiple times,
+                     such as the JSON log writer.)
+                     This state is for use of the log-service component
+                     in question only and can take any layout suitable
+                     to that component's need. The state is opaque to
+                     the server/logging framework. It must be released
+                     on close.
 
-  @retval  <0   a new instance could not be created
-  @retval  =0   success, returned hande is valid
+  @retval  <0        a new instance could not be created
+  @retval  =0        success, returned hande is valid
 */
 DEFINE_METHOD(int, log_service_imp::open, (log_line *ll MY_ATTRIBUTE((unused)),
-                                           void **inst))
+                                           void **instance))
 {
   int       rr;
-  instance *mi;
+  my_state *mi;
   char      buff[10];
   size_t    len;
 
-  if (inst == nullptr)
+  if (instance == nullptr)
     return -1;
 
-  *inst= nullptr;
+  *instance= nullptr;
 
-  if ((mi= (instance *) log_bs->malloc(sizeof(instance))) == nullptr)
+  if ((mi= (my_state *) log_bs->malloc(sizeof(my_state))) == nullptr)
   {
     rr= -2;
     goto fail;
@@ -325,7 +332,7 @@ DEFINE_METHOD(int, log_service_imp::open, (log_line *ll MY_ATTRIBUTE((unused)),
   if ((rr= log_bi->open_errstream(mi->ext, &mi->errstream)) >= 0)
   {
     opened++;
-    *inst= (void *) mi;
+    *instance= (void *) mi;
     return 0;
   }
 
@@ -343,20 +350,25 @@ fail:
 /**
   Close and release an instance. Flushes any buffers.
 
-  @retval  <0   an error occurred
-  @retval  =0   success
+  @param   instance  State-pointer that was returned on open.
+                     If memory was allocated for this state,
+                     it should be released, and the pointer
+                     set to nullptr.
+
+  @retval  <0        an error occurred
+  @retval  =0        success
 */
-DEFINE_METHOD(int, log_service_imp::close, (void **inst))
+DEFINE_METHOD(int, log_service_imp::close, (void **instance))
 {
-  instance *mi;
+  my_state *mi;
   int       rr;
 
-  if (inst == nullptr)
+  if (instance == nullptr)
     return -1;
 
-  mi= (instance *) *inst;
+  mi= (my_state *) *instance;
 
-  *inst= nullptr;
+  *instance= nullptr;
 
   opened--;
 
@@ -379,18 +391,21 @@ DEFINE_METHOD(int, log_service_imp::close, (void **inst))
   A service implementation may provide a nullptr if it does not
   wish to provide a flush function.
 
-  @retval  <0   an error occurred
-  @retval  =0   no work was done
-  @retval  >0   flush completed without incident
-*/
-DEFINE_METHOD(int, log_service_imp::flush, (void **inst))
-{
-  instance *mi;
+  @param   instance  State-pointer that was returned on open.
+                     Value may be changed in flush.
 
-  if (inst == nullptr)
+  @retval  <0        an error occurred
+  @retval  =0        no work was done
+  @retval  >0        flush completed without incident
+*/
+DEFINE_METHOD(int, log_service_imp::flush, (void **instance))
+{
+  my_state *mi;
+
+  if (instance == nullptr)
     return -1;
 
-  if ((mi= *((instance **) inst)) == nullptr)
+  if ((mi= *((my_state **) instance)) == nullptr)
     return -2;
 
   log_bi->close_errstream(&mi->errstream);

@@ -8590,7 +8590,7 @@ ER_DD_TRG_DB_COLLATION_MISSING
   eng "Database collation is missing for trigger of table %s. Using Default character set."
 
 ER_DD_TRG_DEFINER_OOM
-  eng "Error in Memory allocation for Definer %s for Trigger.";
+  eng "Error in Memory allocation for Definer %s for Trigger."
 
 # ER_TRG_CORRUPTED_FILE
 ER_DD_TRG_FILE_UNREADABLE
@@ -9999,6 +9999,12 @@ ER_NDB_BINLOG_NDB_LOG_APPLY_STATUS_FORCING_FULL_USE_WRITE
 
 ER_NDB_BINLOG_GENERIC_MESSAGE
   eng "NDB Binlog: %s"
+
+ER_NDB_CONFLICT_GENERIC_MESSAGE
+  eng "%s"
+
+ER_NDB_TRANS_DEPENDENCY_TRACKER_ERROR
+  eng "%s"
 
 ER_NDB_CONFLICT_FN_PARSE_ERROR
   eng "NDB Slave: Table %s.%s : Parse error on conflict fn : %s"
