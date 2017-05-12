@@ -17,6 +17,7 @@ explain extended select round(5.5),round(-5.5);
 select round(5.64,1),round(5.64,2),round(5.64,-1),round(5.64,-2);
 select abs(-10), sign(-5), sign(5), sign(0);
 explain extended select abs(-10), sign(-5), sign(5), sign(0);
+--replace_numeric_round 15
 select log(exp(10)),exp(log(sqrt(10))*2),log(-1),log(NULL),log(1,1),log(3,9),log(-1,2),log(NULL,2);
 explain extended select log(exp(10)),exp(log(sqrt(10))*2),log(-1),log(NULL),log(1,1),log(3,9),log(-1,2),log(NULL,2);
 select ln(exp(10)),exp(ln(sqrt(10))*2),ln(-1),ln(0),ln(NULL);
