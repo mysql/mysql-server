@@ -2778,6 +2778,11 @@ NdbImportImpl::ExecOpWorkerAsynch::state_define()
   // no transes yet
   require(tx_open.m_cnt == 0);
   m_errormap.clear();
+  /*
+   * Temporary errors can occur at auto-incr and start trans.  We
+   * don't want to get stuck here on "permanent" temporary errors.
+   * So we limit them by opt.m_tmperrors (counted per op).
+   */
   while (ops_in.m_cnt != 0)
   {
     Op* op = ops_in.pop_front();
@@ -2800,16 +2805,28 @@ NdbImportImpl::ExecOpWorkerAsynch::state_define()
         require(ndberror.code != 0);
         if (ndberror.status == NdbError::TemporaryError)
         {
-          log1("getAutoIncrementValue: " << ndberror);
-          log1("push back to input: rowid " << row->m_rowid);
-          ops_in.push_front(op);
-          NdbSleep_MilliSleep(opt.m_tempdelay);
-          continue;
+          m_errormap.add_one(ndberror.code);
+          uint temperrors = m_errormap.get_sum();
+          if (temperrors <= opt.m_temperrors)
+          {
+            log1("get autoincr try " << temperrors << ": " << ndberror);
+            ops_in.push_front(op);
+            NdbSleep_MilliSleep(opt.m_tempdelay);
+            continue;
+          }
+          m_util.set_error_gen(m_error, __LINE__,
+                               "number of transaction tries with"
+                               " temporary errors is %u (limit %u)",
+                               temperrors, opt.m_temperrors);
+          break;
         }
-        m_util.set_error_ndb(m_error, __LINE__, m_ndb->getNdbError(),
-                             "table %s: get autoincrement failed",
-                             table.m_tab->getName());
-        break;
+        else
+        {
+          m_util.set_error_ndb(m_error, __LINE__, ndberror,
+                               "table %s: get autoincrement failed",
+                               table.m_tab->getName());
+          break;
+        }
       }
       attr.set_value(row, &val, 8);
     }
@@ -2825,13 +2842,28 @@ NdbImportImpl::ExecOpWorkerAsynch::state_define()
       require(ndberror.code != 0);
       if (ndberror.status == NdbError::TemporaryError)
       {
-        log1("start trans: " << ndberror);
-        ops_in.push_front(op);
-        NdbSleep_MilliSleep(opt.m_tempdelay);
-        continue;
+        m_errormap.add_one(ndberror.code);
+        uint temperrors = m_errormap.get_sum();
+        if (temperrors <= opt.m_temperrors)
+        {
+          log1("start trans try " << temperrors << ": " << ndberror);
+          ops_in.push_front(op);
+          NdbSleep_MilliSleep(opt.m_tempdelay);
+          continue;
+        }
+        m_util.set_error_gen(m_error, __LINE__,
+                             "number of transaction tries with"
+                             " temporary errors is %u (limit %u)",
+                             temperrors, opt.m_temperrors);
+        break;
       }
-      m_util.set_error_ndb(m_error, __LINE__, ndberror);
-      break;
+      else
+      {
+        m_util.set_error_ndb(m_error, __LINE__, ndberror,
+                             "table %s: start transaction failed",
+                             table.m_tab->getName());
+        break;
+      }
     }
     NdbTransaction* trans = tx->m_trans;
     require(trans != 0);

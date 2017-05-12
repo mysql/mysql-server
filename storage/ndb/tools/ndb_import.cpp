@@ -122,9 +122,9 @@ my_long_options[] =
     &g_opt.m_continue, &g_opt.m_continue, 0,
     GET_BOOL, NO_ARG, false, 0, 0, 0, 0, 0 },
   { "resume", NDB_OPT_NOSHORT,
-    "If the job(s) are aborted due to e.g. temporary db error"
-    " or by user interrupt, add this option to try to resume"
-    " with rows not yet processed",
+    "If the job(s) are aborted due to e.g. too many rejects or"
+     " too many temporary NDB errors or user interrupt,"
+    " add this option to try to resume with rows not yet processed",
     &g_opt.m_resume, &g_opt.m_resume, 0,
     GET_BOOL, NO_ARG, false, 0, 0, 0, 0, 0 },
   { "monitor", NDB_OPT_NOSHORT,
@@ -196,11 +196,10 @@ my_long_options[] =
     &g_opt.m_polltimeout, &g_opt.m_polltimeout, 0,
     GET_UINT, REQUIRED_ARG, g_opt.m_polltimeout, 0, 0, 0, 0, 0 },
   { "temperrors", NDB_OPT_NOSHORT,
-    "Temporary error count is incremented by 1 each time a db execution"
-    " batch has any temporary errors."
-    " This option limits temporary error count."
-    " Default is 0 which means that any temporary error is fatal."
-    " These errors do not cause rows to be added to *.rej",
+    "Limit temporary NDB errors. Default is 0 which means that any"
+    " temporary error is fatal."
+    " The errors are counted per db execution batch, not per individual"
+    " operations, and do not cause rows to be rejected",
     &g_opt.m_temperrors, &g_opt.m_temperrors, 0,
     GET_UINT, REQUIRED_ARG, g_opt.m_temperrors, 0, 0, 0, 0, 0 },
   { "tempdelay", NDB_OPT_NOSHORT,
