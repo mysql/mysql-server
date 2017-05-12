@@ -3445,12 +3445,12 @@ public:
 
   virtual st_lex_user *get_user(THD *thd)
   {
-    thd->syntax_error_at(pos, "role or user name with the ON clause");
+    thd->syntax_error_at(pos, "Illegal authorization identifier");
     return NULL;
   }
   virtual Privilege *get_privilege(THD *thd)
   {
-    thd->syntax_error_at(pos, "privilege name without the ON clause");
+    thd->syntax_error_at(pos, "Illegal privilege identifier");
     return NULL;
   }
 };

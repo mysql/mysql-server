@@ -659,6 +659,19 @@ START SLAVE;
 ERROR HY000: The server is not configured as slave; fix in config file or with CHANGE MASTER TO
 START SLAVE;
 ERROR HY000: The server is not configured as slave; fix in config file or with CHANGE MASTER TO
+#
+# Bad privilege- or auth identifiers shouldn't crash the server
+#
+REVOKE 'C' @c06 ON c02.`z1` FROM 'C' @c03;
+ERROR 42000: Illegal privilege identifier near ''C' @c06 ON c02.`z1` FROM 'C' @c03' at line 1
+GRANT '' @c05 ON TABLE *.* TO ''@'' IDENTIFIED WITH c06 BY '' REQUIRE X509;
+ERROR 42000: Illegal privilege identifier near ''' @c05 ON TABLE *.* TO ''@'' IDENTIFIED WITH c06 BY '' REQUIRE X509' at line 1
+GRANT '' @c05 ON TABLE * TO CURRENT_USER()IDENTIFIED WITH c07 REQUIRE X509 WITH  MAX_QUERIES_PER_HOUR 0x2e3;
+ERROR 42000: Illegal privilege identifier near ''' @c05 ON TABLE * TO CURRENT_USER()IDENTIFIED WITH c07 REQUIRE X509 WITH  MAX_Q' at line 1
+GRANT WRAPPER @c04 ON FUNCTION c02.* TO CURRENT_USER IDENTIFIED WITH '' BY '?'  REQUIRE SSL;
+ERROR 42000: Illegal privilege identifier near 'WRAPPER @c04 ON FUNCTION c02.* TO CURRENT_USER IDENTIFIED WITH '' BY '?'  REQUIR' at line 1
+GRANT '' @c03 ON c05.* TO '' @ '';
+ERROR 42000: Illegal privilege identifier near ''' @c03 ON c05.* TO '' @ ''' at line 1
 # Cleanup
 DROP USER u1@localhost, u1, r2;
 DROP TABLE test.t1;

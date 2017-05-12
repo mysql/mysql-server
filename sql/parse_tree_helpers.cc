@@ -456,7 +456,7 @@ bool apply_privileges(THD *thd,
   for (PT_role_or_privilege *p : privs)
   {
     Privilege *privilege= p->get_privilege(thd);
-    if (p == NULL)
+    if (privilege == NULL)
       return true;
 
     if (privilege->type == Privilege::DYNAMIC)
