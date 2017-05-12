@@ -31,6 +31,8 @@ class Table;
 
 namespace sdi_file {
 const size_t FILENAME_PREFIX_CHARS= 16;
+const String_type EXT= ".sdi";
+
 template<typename T>
 String_type sdi_filename(const T *dd_object,
                          const String_type &schema);

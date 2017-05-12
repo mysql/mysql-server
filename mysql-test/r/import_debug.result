@@ -20,7 +20,7 @@ DROP TABLE t1;
 # Copy files back into datadir
 # Make import target commit fail
 SET SESSION debug= '+d,sdi_import_commit_fail';
-IMPORT TABLE FROM 't1_*.SDI';
+IMPORT TABLE FROM 't1_*.sdi';
 Warnings:
 Warning	6	Error on delete of 'no_such_file' ...
 SET SESSION debug= '-d,sdi_import_commit_fail';

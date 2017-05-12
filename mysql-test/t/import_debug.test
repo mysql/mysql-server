@@ -32,7 +32,7 @@ DROP TABLE t1;
 --echo # Make import target commit fail
 SET SESSION debug= '+d,sdi_import_commit_fail';
 --replace_regex /'no_such_file'.*/'no_such_file' .../
-IMPORT TABLE FROM 't1_*.SDI';
+IMPORT TABLE FROM 't1_*.sdi';
 SET SESSION debug= '-d,sdi_import_commit_fail';
 DROP TABLE t1;
 

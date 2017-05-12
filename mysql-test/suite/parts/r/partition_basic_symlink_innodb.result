@@ -103,10 +103,10 @@ t2	CREATE TABLE `t2` (
 ---- MYSQLD_DATADIR/test
 t1.MYD
 t1.MYI
-t1_XXX.SDI
+t1_XXX.sdi
 t2.MYD
 t2.MYI
-t2_XXX.SDI
+t2_XXX.sdi
 ---- MYSQLTEST_VARDIR/mysql-test-data-dir
 test
 ---- MYSQLTEST_VARDIR/mysql-test-idx-dir
@@ -161,17 +161,17 @@ ALTER TABLE test.t1 ENGINE= MyISAM REMOVE PARTITIONING;
 # datadir/test:
 t1.MYD
 t1.MYI
-t1_XXX.SDI
+t1_XXX.sdi
 # datadir/test2:
 ALTER TABLE test2.t1 ENGINE= MyISAM REMOVE PARTITIONING;
 # datadir/test:
 t1.MYD
 t1.MYI
-t1_XXX.SDI
+t1_XXX.sdi
 # datadir/test2:
 t1.MYD
 t1.MYI
-t1_XXX.SDI
+t1_XXX.sdi
 FLUSH TABLES;
 SELECT * FROM test.t1;
 a

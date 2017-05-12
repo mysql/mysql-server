@@ -35,6 +35,7 @@
 #include "dd/impl/sdi.h"                      // sdi::store()
 #include "dd/impl/system_registry.h"          // dd::System_tables
 #include "dd/info_schema/metadata.h"          // dd::info_schema::install_IS...
+#include "dd/sdi_file.h"                      // dd::sdi_file::EXT
 #include "error_handler.h"                    // Dummy_error_handler
 #include "log.h"                              // sql_print_warning
 #include "my_inttypes.h"
@@ -445,7 +446,7 @@ static void drop_sdi_files()
 
         String_type file_ext;
         file_ext.assign(file2.c_str() + file2.size() - 4);
-        if (file_ext.compare(0, 4, SDI_EXT) == 0)
+        if (file_ext.compare(0, 4, dd::sdi_file::EXT) == 0)
         {
           char to_path[FN_REFLEN];
           if (fn_format(to_path, file2.c_str(), dir_path, "",
@@ -468,7 +469,7 @@ static void drop_sdi_files()
         continue;
       file_ext.assign(file.c_str() + file.size() - 4);
       // Get the name without the file extension.
-      if (file_ext.compare(0, 4, SDI_EXT) == 0)
+      if (file_ext.compare(0, 4, dd::sdi_file::EXT) == 0)
       {
         char to_path[FN_REFLEN];
         if (fn_format(to_path, file.c_str(), path.c_str(), "",

@@ -5,17 +5,17 @@
 let $MYSQLD_DATADIR = `select @@datadir`;
 
 CREATE DATABASE db1;
---echo # List SDI files present after database creation
---replace_regex /_[0-9]+\.SDI/_XXX.SDI/
---list_files $MYSQLD_DATADIR db1*.SDI
+--echo # List .sdi files present after database creation
+--replace_regex /_[0-9]+\.sdi/_XXX.sdi/
+--list_files $MYSQLD_DATADIR db1*.sdi
 
 ALTER DATABASE db1 default charset gbk;
---echo # Verify that the schema (database) SDI file is still present
---replace_regex /_[0-9]+\.SDI/_XXX.SDI/
---list_files $MYSQLD_DATADIR db1*.SDI
+--echo # Verify that the schema (database) .sdi file is still present
+--replace_regex /_[0-9]+\.sdi/_XXX.sdi/
+--list_files $MYSQLD_DATADIR db1*.sdi
 
 --echo #
---echo # Verify that .SDI file is correctly deleted when renaming to
+--echo # Verify that .sdi file is correctly deleted when renaming to
 --echo # another schema (database)
 --echo #
 CREATE DATABASE db2;
@@ -23,10 +23,10 @@ CREATE DATABASE db2;
 CREATE TABLE db1.t1(i INT) ENGINE MYISAM;
 RENAME TABLE db1.t1 TO db2.t1;
 --echo # List files in db1 (should be empty)
---replace_regex /_[0-9]+\.SDI/_XXX.SDI/
+--replace_regex /_[0-9]+\.sdi/_XXX.sdi/
 --list_files $MYSQLD_DATADIR/db1 t1*
 --echo # List files in db2 (should have all t1 files)
---replace_regex /_[0-9]+\.SDI/_XXX.SDI/
+--replace_regex /_[0-9]+\.sdi/_XXX.sdi/
 --list_files $MYSQLD_DATADIR/db2 t1*
 
 DROP TABLE db2.t1;

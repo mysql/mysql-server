@@ -27,7 +27,6 @@ namespace upgrade {
 const String_type ISL_EXT= ".isl";
 const String_type PAR_EXT= ".par";
 const String_type OPT_EXT= ".opt";
-const String_type SDI_EXT= ".SDI";
 extern const char *TRN_EXT;
 extern const char *TRG_EXT;
 

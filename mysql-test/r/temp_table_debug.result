@@ -46,5 +46,5 @@ ERROR HY000: Lost connection to MySQL server during query
 # should still be around.
 t1.MYD
 t1.MYI
-t1_XXX.SDI
+t1_XXX.sdi
 drop database mysqltest;

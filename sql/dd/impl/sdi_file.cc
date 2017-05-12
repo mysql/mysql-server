@@ -288,7 +288,7 @@ String_type sdi_filename(const T *dd_object,
   bool was_truncated= false;
   build_table_filename(path, sizeof(path) - 1, schema.c_str(),
                        fnamestr.str().c_str(),
-                       ".SDI", 0, &was_truncated);
+                       EXT.c_str(), 0, &was_truncated);
   DBUG_ASSERT(!was_truncated);
 
   return String_type(path);
