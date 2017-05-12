@@ -1453,10 +1453,14 @@ Restore::read_ctl_file_done(Signal *signal, FilePtr file_ptr, Uint32 bytesRead)
      * but not yet had time to sync the LSN for the LCP. This is flagged
      * by the validFlag not being set in the LCP control file.
      */
-    g_eventLogger->info("LCP Control file ok, but not recoverable, tab(%u,%u)"
+    g_eventLogger->info("(%u)LCP Control file ok, but not recoverable,"
+                        " tab(%u,%u), maxGciWritten: %u, restoredGcpId: %u"
                         ", CTL file: %u, validFlag: %u",
+                        instance(),
                         file_ptr.p->m_table_id,
                         file_ptr.p->m_fragment_id,
+                        maxGciWritten,
+                        file_ptr.p->m_restored_gcp_id,
                         file_ptr.p->m_ctl_file_no,
                         validFlag);
     ndbrequire(file_ptr.p->m_ctl_file_no == 0 ||

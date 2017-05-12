@@ -1190,7 +1190,15 @@ public:
                      bool & changed_row_page_flag);
 
   void setRestorableGci(Uint32);
+  Uint32 getRestorableGci();
 };
+
+inline
+Uint32
+Backup::getRestorableGci()
+{
+  return m_newestRestorableGci;
+}
 
 inline
 void

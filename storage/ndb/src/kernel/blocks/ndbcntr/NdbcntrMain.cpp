@@ -1795,6 +1795,7 @@ void Ndbcntr::execDIH_RESTARTREF(Signal* signal)
   ctypeOfStart = NodeState::ST_INITIAL_START;
   cdihStartType = ctypeOfStart;
   sendWriteLocalSysfile_initial(signal);
+  send_restorable_gci_rep_to_backup(signal, 1);
 }
 
 void
@@ -2020,7 +2021,7 @@ Ndbcntr::execCNTR_START_CONF(Signal * signal)
         jam();
         m_max_completed_gci = c_start.m_lastGci;
       }
-      send_restorable_gci_rep_to_backup(signal);
+      send_restorable_gci_rep_to_backup(signal, c_start.m_lastGci);
       break;
     }
     default:
@@ -5375,7 +5376,7 @@ Ndbcntr::execDROP_NODEGROUP_IMPL_REQ(Signal* signal)
 }
 
 void
-Ndbcntr::send_restorable_gci_rep_to_backup(Signal *signal)
+Ndbcntr::send_restorable_gci_rep_to_backup(Signal *signal, Uint32 gci)
 {
   /**
    * During system restart we don't perform any GCP operations.
@@ -5386,8 +5387,10 @@ Ndbcntr::send_restorable_gci_rep_to_backup(Signal *signal)
    * Without this signal we are not able to perform deletes and
    * worse the entire system restart could hang due to a deletion
    * of a table during system restart.
+   *
+   * This method is also used at every write of the local sysfile
+   * to inform the backup block about the new restorable GCI.
    */
-  Uint32 gci = c_start.m_lastGci;
   Uint32 ldm_workers = globalData.ndbMtLqhWorkers == 0 ?
                        1 : globalData.ndbMtLqhWorkers;
   signal->theData[0] = gci;
@@ -5416,7 +5419,6 @@ Ndbcntr::init_local_sysfile()
   c_local_sysfile.m_state = LocalSysfile::NOT_USED;
   c_local_sysfile.m_initial_read_done = false;
   c_local_sysfile.m_last_write_done = false;
-  c_local_sysfile.m_queued_flag = false;
   c_local_sysfile.m_initial_write_local_sysfile_ongoing = false;
   memset(&c_local_sysfile.m_data[0], 0, sizeof(c_local_sysfile.m_data));
 
@@ -5485,7 +5487,7 @@ Ndbcntr::execREAD_LOCAL_SYSFILE_REQ(Signal *signal)
    */
   c_local_sysfile.m_restorable_flag =
     ReadLocalSysfileReq::NODE_RESTORABLE_ON_ITS_OWN;
-  c_local_sysfile.m_max_gci_restorable = 0;
+  c_local_sysfile.m_max_restorable_gci = 0;
 
   open_local_sysfile(signal, 0, true);
 }
@@ -5494,16 +5496,21 @@ Ndbcntr::execREAD_LOCAL_SYSFILE_REQ(Signal *signal)
  * This is written at the following occasions:
  *
  * 1) Early phase writing that node requires initial restart
- *    This is used for all types of initial restarts.
- *    Sent by QMGR
+ *    This is used for all types of initial restarts. Cannot
+ *    happen in parallel with other blocks. So no queueing
+ *    can happen here.
+ *    Sent by NDBCNTR
  *
  * 2) Late phase (phase = 50) indicating that node is now
- *    restorable on its own
+ *    restorable on its own. This signal can come in
+ *    parallel with a signal from 4).
  *    Sent by DBLQH
  *
  * 3) Before starting a local LCP we need to set state to
- *    not restorable on its own.
- *    Sent by DBLQH
+ *    not restorable on its own with a proper GCI.
+ *    Cannot happen in parallel with any other write of
+ *    the local sysfile.
+ *    Sent by NDBCNTR
  *
  * 4) At each GCP_SAVEREQ after starting a local LCP we
  *    need to send a new write with a new GCP that we
@@ -5517,52 +5524,24 @@ Ndbcntr::execWRITE_LOCAL_SYSFILE_REQ(Signal *signal)
   WriteLocalSysfileReq req = *(WriteLocalSysfileReq*)signal->getDataPtr();
 
   ndbrequire(c_local_sysfile.m_initial_read_done);
-  if (c_local_sysfile.m_last_write_done)
-  {
-    jam();
-    /**
-     * We have already written the last write of the local sysfile
-     * in phase 50. So we can safely ignore the rest of the signals.
-     */
-    return;
-  }
-  if (c_local_sysfile.m_sender_ref != 0)
-  {
-    jam();
-    ndbrequire(!c_local_sysfile.m_queued_flag);
-    memcpy(&c_save_queued_write_local_sysfile_req,
-           &req,
-           sizeof(c_save_queued_write_local_sysfile_req));
-    c_local_sysfile.m_queued_flag = true;
-    return;
-  }
+  ndbrequire(!c_local_sysfile.m_last_write_done);
   ndbrequire(c_local_sysfile.m_sender_ref == 0);
   ndbrequire(c_local_sysfile.m_state == LocalSysfile::NOT_USED);
 
   c_local_sysfile.m_sender_data = req.userPointer;
   c_local_sysfile.m_sender_ref = req.userReference;
 
-  if (req.nodeRestorableOnItsOwn !=
-      ReadLocalSysfileReq::NODE_RESTORABLE_AS_IS)
+  c_local_sysfile.m_restorable_flag = req.nodeRestorableOnItsOwn;
+  if (req.lastWrite == 1)
   {
     jam();
-    c_local_sysfile.m_restorable_flag = req.nodeRestorableOnItsOwn;
-    if (req.lastWrite == 1)
-    {
-      jam();
-      c_local_sysfile.m_last_write_done = true;
-    }
+    c_local_sysfile.m_last_write_done = true;
   }
-  else
-  {
-    jam();
-    ndbrequire(req.lastWrite == 0);
-  }
-  c_local_sysfile.m_max_gci_restorable = req.maxGCIRestorable;
+  c_local_sysfile.m_max_restorable_gci = req.maxGCIRestorable;
 
   c_local_sysfile.m_data[0] = NDBD_LOCAL_SYSFILE_VERSION;
   c_local_sysfile.m_data[1] = c_local_sysfile.m_restorable_flag;
-  c_local_sysfile.m_data[2] = c_local_sysfile.m_max_gci_restorable;
+  c_local_sysfile.m_data[2] = c_local_sysfile.m_max_restorable_gci;
 
   c_local_sysfile.m_state = LocalSysfile::OPEN_WRITE_FILE_0;
   open_local_sysfile(signal, 0, false);
@@ -5743,21 +5722,13 @@ Ndbcntr::read_local_sysfile_data(Signal *signal)
 {
   Uint32 version = c_local_sysfile.m_data[0];
   Uint32 node_restorable_flag = c_local_sysfile.m_data[1];
-  Uint32 max_gci_restorable = c_local_sysfile.m_data[2];
+  Uint32 max_restorable_gci = c_local_sysfile.m_data[2];
   c_local_sysfile.m_restorable_flag = node_restorable_flag;
-  c_local_sysfile.m_max_gci_restorable = max_gci_restorable;
+  c_local_sysfile.m_max_restorable_gci = max_restorable_gci;
   g_eventLogger->info("Local sysfile: %s, gci: %u, version: %x",
     get_restorable_flag_string(c_local_sysfile.m_restorable_flag),
-    c_local_sysfile.m_max_gci_restorable,
+    c_local_sysfile.m_max_restorable_gci,
     version);
-  jam();
-  jamLine(node_restorable_flag);
-  /**
-   * NODE_RESTORABLE_AS_IS is ok to use in protocol towards NDBCNTR,
-   * but it is not ok to store it in the local sysfile.
-   */
-  ndbrequire(node_restorable_flag <
-             ReadLocalSysfileReq::NODE_RESTORABLE_AS_IS);
 }
 
 
@@ -5857,7 +5828,7 @@ Ndbcntr::sendReadLocalSysfileConf(Signal *signal,
     signal->getDataPtrSend();
   conf->userPointer = senderData;
   conf->nodeRestorableOnItsOwn = c_local_sysfile.m_restorable_flag;
-  conf->maxGCIRestorable = c_local_sysfile.m_max_gci_restorable;
+  conf->maxGCIRestorable = c_local_sysfile.m_max_restorable_gci;
 
   sendSignal(ref,
              GSN_READ_LOCAL_SYSFILE_CONF,
@@ -5872,9 +5843,9 @@ void
 Ndbcntr::sendWriteLocalSysfileConf(Signal *signal)
 {
   DEB_LOCAL_SYSFILE(("LocalSysfile write: m_restorable_flag: %u,"
-                     " m_max_gci_restorable: %u",
+                     " m_max_restorable_gci: %u",
                      c_local_sysfile.m_restorable_flag,
-                     c_local_sysfile.m_max_gci_restorable));
+                     c_local_sysfile.m_max_restorable_gci));
 
   WriteLocalSysfileConf *conf = (WriteLocalSysfileConf*)
     signal->getDataPtrSend();
@@ -5885,17 +5856,27 @@ Ndbcntr::sendWriteLocalSysfileConf(Signal *signal)
              WriteLocalSysfileConf::SignalLength,
              JBB);
   init_local_sysfile_vars();
-
-  if (c_local_sysfile.m_queued_flag)
+  if (c_local_sysfile.m_restorable_flag ==
+      ReadLocalSysfileReq::NODE_NOT_RESTORABLE_ON_ITS_OWN)
   {
     jam();
-    c_local_sysfile.m_queued_flag = false;
-    WriteLocalSysfileReq *req =
-      (WriteLocalSysfileReq*)signal->getDataPtrSend();
-    memcpy(req,
-           &c_save_queued_write_local_sysfile_req,
-           sizeof(c_save_queued_write_local_sysfile_req));
-    execWRITE_LOCAL_SYSFILE_REQ(signal);
+    /**
+     * We have successfully updated the local sysfile with a new
+     * restorable GCI. Inform all backup blocks about this new
+     * restorable GCI and inform ourselves about it.
+     *
+     * Only the first LQH instance is sending the update request
+     * of the local sysfile request, the remainder will
+     * immediately respond to the GCP_SAVEREQ signal. The first
+     * instance will wait until the local sysfile have been
+     * written. Thus no message will leave this node until the
+     * local sysfile have been written informing the DIH master
+     * about the outcome of the GCP_SAVEREQ signal.
+     */
+    Uint32 restorable_gci = c_local_sysfile.m_max_restorable_gci;
+    send_restorable_gci_rep_to_backup(signal, restorable_gci);
+    signal->theData[0] = restorable_gci;
+    execRESTORABLE_GCI_REP(signal);
   }
 }
 

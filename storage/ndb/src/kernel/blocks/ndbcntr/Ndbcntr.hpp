@@ -114,7 +114,6 @@ public:
     Uint32 m_sender_ref;
     bool m_initial_read_done;
     bool m_last_write_done;
-    bool m_queued_flag;
     bool m_initial_write_local_sysfile_ongoing;
     enum
     {
@@ -134,9 +133,8 @@ public:
       CLOSE_WRITE_FILE_1 = 13
     } m_state;
     Uint32 m_restorable_flag;
-    Uint32 m_max_gci_restorable;
+    Uint32 m_max_restorable_gci;
   } c_local_sysfile;
-  WriteLocalSysfileReq c_save_queued_write_local_sysfile_req;
 
   struct NdbBlocksRec {
     BlockReference blockref;
@@ -489,7 +487,7 @@ private:
   void execSTART_ORD(Signal* signal);
   void execREAD_CONFIG_CONF(Signal*);
 
-  void send_restorable_gci_rep_to_backup(Signal*);
+  void send_restorable_gci_rep_to_backup(Signal*, Uint32);
 
   bool m_received_wait_all;
   bool m_initial_local_lcp_started;
