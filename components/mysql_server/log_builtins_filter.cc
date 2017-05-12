@@ -330,7 +330,7 @@ int log_builtins_filter_init()
   a part thereof, i.e. a "field"). At this point, we already know that
   the current log line matches the condition.
 
-  @param           ll[in,out]           the current log line
+  @param[in,out]   ll                   the current log line
   @param           ln                   index of the matching field,
                                         -1 for none (when a test for absence
                                         matched)

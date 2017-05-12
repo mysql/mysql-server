@@ -22,7 +22,9 @@
 // need to pass in a MYSQL_PLUGIN pointer. Presumably 'my_plugin_log_service'
 // can be extended with a my_log_message(level, prefix, message, ...) function
 #include "log.h"
+#include <mysql/components/services/log_builtins.h>
 #include "my_dbug.h"
+#include "mysqld_error.h"
 #include "mysqld_error.h"
 #include "mysql/service_my_snprintf.h"
 

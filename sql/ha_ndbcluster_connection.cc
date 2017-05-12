@@ -17,9 +17,10 @@
 
 #include "ha_ndbcluster_connection.h"
 
+#include "log.h"
+#include <mysql/components/services/log_builtins.h>
 #include <mysql/psi/mysql_thread.h>
 
-#include "log.h"
 #include "sql_class.h"
 #include "kernel/ndb_limits.h"
 #include "my_dbug.h"
@@ -29,13 +30,12 @@
 #include "util/BaseString.hpp"
 #include "util/Vector.hpp"
 #include "mysqld.h"         // server_id, connection_events_loop_aborted
+#include "mysqld_error.h"
 #ifndef _WIN32
 #include <netdb.h>          // getservbyname
 #endif
 
 #include "ndb_sleep.h"
-
-#include "log.h"            // sql_print_*
 
 extern char *my_bind_addr_str;
 

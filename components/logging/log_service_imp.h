@@ -120,7 +120,7 @@ public: /* Service Implementations */
     securing the all further calls to run() will be rejected.
     "log_sink_test" implements an example of this.
 
-    @param   instance  instance
+    @param   instance  State-pointer that was returned on open.
     @param   ll        The log_line collection of log_items.
 
     @retval  <0        an error occurred
@@ -137,27 +137,45 @@ public: /* Service Implementations */
     A service implementation may provide a nullptr if it does not
     wish to provide a flush function.
 
-    @retval  <0   an error occurred
-    @retval  =0   no work was done
-    @retval  >0   flush completed without incident
+    @param   instance  State-pointer that was returned on open.
+                       Value may be changed in flush.
+
+    @retval  <0        an error occurred
+    @retval  =0        no work was done
+    @retval  >0        flush completed without incident
   */
   static DEFINE_METHOD(int, flush,           (void **instance));
 
   /**
     Open a new instance.
 
-    @param   ll   optional arguments
+    @param   ll        optional arguments
+    @param   instance  If state is needed, the service may allocate and
+                       initialize it and return a pointer to it here.
+                       (This of course is particularly pertinent to
+                       components that may be opened multiple times,
+                       such as the JSON log writer.)
+                       This state is for use of the log-service component
+                       in question only and can take any layout suitable
+                       to that component's need. The state is opaque to
+                       the server/logging framework. It must be released
+                       on close.
 
-    @retval  <0   a new instance could not be created
-    @retval  =0   success, returned hande is valid
+    @retval  <0        a new instance could not be created
+    @retval  =0        success, returned hande is valid
   */
   static DEFINE_METHOD(int, open,            (log_line *ll, void **instance));
 
   /**
     Close and release an instance. Flushes any buffers.
 
-    @retval  <0   an error occurred
-    @retval  =0   success
+    @param   instance  State-pointer that was returned on open.
+                       If memory was allocated for this state,
+                       it should be released, and the pointer
+                       set to nullptr.
+
+    @retval  <0        an error occurred
+    @retval  =0        success
   */
   static DEFINE_METHOD(int, close,           (void **instance));
   /**

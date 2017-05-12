@@ -21,14 +21,19 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 */
 
 #include "current_thd.h"      // current_thd
-#include "log.h"
-#include "log_builtins_filter_imp.h"
-#include "log_builtins_imp.h"
+#include "log.h"              // make_iso8601_timestamp, log_write_errstream,
+                              // log_get_thread_id, mysql_errno_to_symbol,
+                              // mysql_symbol_to_errno, log_vmessage,
+                              // get_server_errmsgs, LogVar
+#include <mysql/components/services/log_shared.h>   // data types
 #include <mysql/components/services/log_service.h>
+#include "server_component.h"
+#include "log_builtins_filter_imp.h"
+#include "log_builtins_imp.h" // internal structs
 #include "mysqld.h"           // opt_log_(timestamps|error_services),
                               // connection_events_loop_aborted()
-#include "registry.h"
-#include "server_component.h" // imp_*
+#include "registry.h"         // mysql_registry_imp
+#include "server_component.h" // imp_mysql_server_registry
 #include "sql_class.h"        // THD
 
 #ifndef _WIN32
@@ -55,50 +60,106 @@ PSI_memory_key key_memory_log_error_stack;
   as looking them up is costly.
 */
 static HASH                        log_service_cache;
+
+/**
+  Lock for the log "stack" (i.e. the list of active log-services).
+  X-locked while stack is changed/configured.
+  S-locked while stack is used.
+*/
 static mysql_rwlock_t              THR_LOCK_log_stack;
+
+/**
+  Make sure only one instance of syslog/Eventlog code runs at a time.
+*/
 static mysql_mutex_t               THR_LOCK_log_syseventlog;
 
+/**
+  Subsystem initialized and ready to use?
+*/
 static int                         log_builtins_inited= 0;
+
+/**
+  Variable listeners: check or update?
+*/
 static const char                 *LOG_VAR_KEY_CHECK=   "check";
 
+
+/**
+  Name of the interface that log-services implements.
+*/
 #define LOG_SERVICES_PREFIX       "log_service"
+
+/**
+  Name of internal filtering engine (so we may recognize it when the
+  user refers to it by name in log_error_services).
+*/
 #define LOG_BUILTINS_FILTER       "log_filter_internal"
+
+/**
+  Name of internal log writer (so we may recognize it when the user
+  refers to it by name in log_error_services).
+*/
 #define LOG_BUILTINS_SINK         "log_sink_internal"
 
 
+/**
+  We have a built-in default filtering engine, and a built-in
+  log-writer (the "classic" MySQL server log). These are available
+  even without the component framework (before it's initialized,
+  or if it somehow fails). Since these two are special, we need
+  to be able to identify them.
+*/
 typedef enum enum_log_service_builtin_type
 {
-  LOG_SERVICE_BUILTIN_TYPE_NONE=   0,
-  LOG_SERVICE_BUILTIN_TYPE_FILTER= 1,
-  LOG_SERVICE_BUILTIN_TYPE_SINK=   2
+  LOG_SERVICE_BUILTIN_TYPE_NONE=   0, ///< not a built-in service
+  LOG_SERVICE_BUILTIN_TYPE_FILTER= 1, ///< built-in filtering engine
+  LOG_SERVICE_BUILTIN_TYPE_SINK=   2  ///< built-in default writer
 } log_service_builtin_type;
 
 
+/**
+  Finding and acquiring a service in the component framework is
+  expensive, and we may use services a log (depending on how many
+  events are logged per second), so we cache the relevant data.
+  This struct describes a given service.
+*/
 typedef struct _log_service_cache_entry
 {
-  char                            *name;       //*< name of this service
-  size_t                           name_len;   //*< service-name's length
-  my_h_service                     service;    //*< handle (service framework)
-  int                              opened;     //*< currently open instances
-  int                              requested;  //*< requested instances
-  bool                             multi_open; //*< multi-open supported?
-  log_service_builtin_type         type;       //*< regular, builtin filter/sink
+  char                            *name;       ///< name of this service
+  size_t                           name_len;   ///< service-name's length
+  my_h_service                     service;    ///< handle (service framework)
+  int                              opened;     ///< currently open instances
+  int                              requested;  ///< requested instances
+  bool                             multi_open; ///< multi-open supported?
+  log_service_builtin_type         type;       ///< regular, builtin filter/sink
 } log_service_cache_entry;
 
+
+/**
+  State of a given instance of a service. A service may support being
+  opened several times.
+*/
 typedef struct _log_service_instance
 {
-  log_service_cache_entry         *sce;
-  void                            *instance;   //*< instance handle (multi-open)
-  struct _log_service_instance    *next;
+  log_service_cache_entry         *sce;        ///< the service in question
+  void                            *instance;   ///< instance handle (multi-open)
+  struct _log_service_instance    *next;       ///< next instance (any service)
 } log_service_instance;
 
-static log_service_instance       *log_service_instances= nullptr;
+static log_service_instance       *log_service_instances= nullptr; ///< anchor
 
 
+/**
+  An error-stream.
+  Rather than implement its own file operations, a log-service may use
+  convenience functions defined in this file. These functions use the
+  log_errstream struct to describe their log-files. These structs are
+  opaque to the log-services.
+*/
 typedef struct _log_errstream
 {
-  FILE                            *file;
-  mysql_mutex_t                    LOCK_errstream;
+  FILE                            *file;           ///< file to log to
+  mysql_mutex_t                    LOCK_errstream; ///< lock for logging
 } log_errstream;
 
 
@@ -128,6 +189,19 @@ log_service_builtin_type log_service_builtin(char *name)
 
 
 /**
+  Pre-defined "well-known" keys, as opposed to ad hoc ones,
+  for key/value pairs in logging.
+*/
+typedef struct _log_item_wellknown_key
+{
+  const char    *name;         ///< key name
+  size_t         name_len;     ///< length of key's name
+  log_item_class item_class;   ///< item class (float/int/string)
+  log_item_type  item_type;    ///< exact type, 1:1 relationship with name
+} log_item_wellknown_key;
+
+
+/**
   We support a number of predefined keys, such as "error-code" or
   "message".  These are defined here.  We also support user-defined
   "ad hoc" (or "generic") keys that let users of the error stack
@@ -143,15 +217,6 @@ log_service_builtin_type log_service_builtin(char *name)
   fetch the associated registered error message string for that
   error code.  Et cetera!
 */
-typedef struct _log_item_wellknown_key
-{
-  const char    *name;
-  size_t         name_len;
-  log_item_class item_class;
-  log_item_type  item_type;
-} log_item_wellknown_key;
-
-
 static const log_item_wellknown_key log_item_wellknown_keys[] =
 {
   { C_STRING_WITH_LEN("--ERROR--"),    LOG_UNTYPED,    LOG_ITEM_END },
@@ -570,16 +635,16 @@ void log_line_item_free_all(log_line *ll)
   @param         ll    log_line
   @param         elem  index of the key/value pair to release
 */
-void log_line_item_remove(log_line *li, int elem)
+void log_line_item_remove(log_line *ll, int elem)
 {
-  DBUG_ASSERT(li->count > 0);
+  DBUG_ASSERT(ll->count > 0);
 
-  log_line_item_free(li, elem);
+  log_line_item_free(ll, elem);
 
-  if ((li->count > 1) && (elem < (li->count - 1)))
-    li->item[elem]= li->item[li->count - 1];
+  if ((ll->count > 1) && (elem < (ll->count - 1)))
+    ll->item[elem]= ll->item[ll->count - 1];
 
-  li->count--;
+  ll->count--;
 }
 
 
@@ -587,22 +652,22 @@ void log_line_item_remove(log_line *li, int elem)
   Find the (index of the) first key/value pair of the given type
   in the log line.
 
-  @param         li   log line
+  @param         ll   log line
   @param         t    the log item type to look for
 
   @retval        <0:  none found
   @retval        >=0: index of the key/value pair in the log line
 */
-int log_line_index_by_type(log_line *li, log_item_type t)
+int log_line_index_by_type(log_line *ll, log_item_type t)
 {
-  uint32 count= li->count;
+  uint32 count= ll->count;
 
   /*
     As later items overwrite earlier ones, return the rightmost match!
   */
   while (count > 0)
   {
-    if (li->item[--count].type == t)
+    if (ll->item[--count].type == t)
       return count;
   }
 
@@ -1106,9 +1171,10 @@ static int log_sink_trad(void *instance MY_ATTRIBUTE((unused)), log_line *ll)
 typedef int (*broadcast_callback_wrapper) (my_h_service service, log_line *ll);
 
 /**
-  Broadcast: Call all non-default services matching <mask> with <payload>.
+  Broadcast: Call "wrapper" on all non-default services matching "mask"
+  with "ll" for parameters.
 
-  @param   mask     select all non-default services matching <pattern>
+  @param   mask     select all non-default services matching "pattern"
                     Caveat:  due to a bug for now, we need to use
                     "pattern", then filter out the default below.
                     Later, we will be able to use "pattern." to
@@ -1604,7 +1670,7 @@ static const uchar *log_service_cache_get_key(const uchar *arg,
 
 
 /**
-  Release an entry in the hash of log services.  (callback)
+  Release an entry in the hash of log services.
 
   @param       arg     a pointer to a log_service_cache_entry
 */
@@ -1633,7 +1699,7 @@ static void log_service_cache_entry_free(void *arg)
 
   @param  name      Name of component that provides the service
   @param  name_len  Length of that name
-  @param  handle    The handle of the log_service
+  @param  srv       The handle of the log_service
 
   @retval           A new log_service_cache_entry on success
   @retval           nullptr on failure
@@ -1670,6 +1736,14 @@ static log_service_cache_entry *log_service_cache_entry_new(const char *name,
 }
 
 
+/**
+  Find out whether a given service is a singleton
+
+  @param  service  what service to examine
+
+  @retval true     multiple instances of the given service may be opened
+  @retval false    only one instance  of the given service may be opened
+*/
 static bool log_service_multi_open_capable(my_h_service service)
 {
   SERVICE_TYPE(log_service) *ls;
@@ -1681,6 +1755,14 @@ static bool log_service_multi_open_capable(my_h_service service)
 }
 
 
+/**
+  Allocate and open a new instance of a given service.
+
+  @param  sce  the cache-entry for the service
+  @param  ll   a log_line containing optional parameters, or nullptr
+
+  @return      a pointer to an instance record or success, nullptr otherwise
+*/
 log_service_instance *log_service_instance_new(log_service_cache_entry *sce,
                                                log_line *ll)
 {
@@ -1719,6 +1801,9 @@ fail:
 }
 
 
+/**
+  Close and release all instances of all log services.
+*/
 static void log_service_instance_release_all()
 {
   log_service_instance    *lsi, *lsi_next;
@@ -2584,8 +2669,8 @@ DEFINE_METHOD(int,              log_builtins_imp::line_submit, (log_line *ll))
   writers are called.
 
   The variadic list accepts a list of "assignments" of the form
-  - <log_item_type>, <value>,         for well-known types, and
-  - <log_item_type>, <key>, <value>,  for ad-hoc types (LOG_ITEM_GEN_*)
+  - log_item_type, value,         for well-known types, and
+  - log_item_type, key, value,    for ad-hoc types (LOG_ITEM_GEN_*)
 
   As its last item, the list should have
   - an element of type LOG_ITEM_LOG_MESSAGE, containing a printf-style
@@ -2749,22 +2834,22 @@ DEFINE_METHOD(const char *, log_builtins_imp::label_from_prio, (int prio))
 /**
   open an error log file
 
-  @param       file         if beginning with '.':
-                              @@global.log_error, except with this extension
-                            otherwise:
-                              use this as file name in the same location as
-                              @@global.log_error
+  @param       file          if beginning with '.':
+                               @@global.log_error, except with this extension
+                             otherwise:
+                               use this as file name in the same location as
+                               @@global.log_error
 
-                          Value not contain folder separators!
+                             Value not contain folder separators!
 
-  @param[out]  my_erstream  an error log handle, or nullptr on failure
+  @param[out]  my_errstream  an error log handle, or nullptr on failure
 
-  @retval      0            success
-  @retval     -1            EINVAL: my_errlog
-  @retval     -2            EINVAL: invalid file name / extension
-  @retval     -3            OOM: could not allocate file handle
-  @retval     -4            couldn't lock lock
-  @retval     -5            couldn't write to given location
+  @retval      0             success
+  @retval     -1             EINVAL: my_errlog
+  @retval     -2             EINVAL: invalid file name / extension
+  @retval     -3             OOM: could not allocate file handle
+  @retval     -4             couldn't lock lock
+  @retval     -5             couldn't write to given location
 */
 DEFINE_METHOD(int, log_builtins_imp::open_errstream,  (const char *file,
                                                        void **my_errstream))
@@ -2890,7 +2975,7 @@ DEFINE_METHOD(int, log_builtins_imp::write_errstream, (void *my_errstream,
 
   @param       my_errstream  a handle describing the log file
 
-  @Retval <0                 error
+  @retval <0                 error
   @retval  0                 not dedicated (multiplexed, stderr, ...)
   @retval  1                 dedicated
 */
@@ -3053,6 +3138,13 @@ DEFINE_METHOD(int,     log_builtins_string_imp::compare,
 /**
   Wrapper for my_vsnprintf()
   Replace all % in format string with variables from list
+
+  @param  to    buffer to write the result to
+  @param  n     size of that buffer
+  @param  fmt   format string
+  @param  ap    va_list with valuables for all substitutions in format string
+
+  @retval       return value of my_vsnprintf
 */
 DEFINE_METHOD(size_t, log_builtins_string_imp::substitutev, (char *to,
                                                              size_t n,
@@ -3299,9 +3391,6 @@ DEFINE_METHOD(int, log_builtins_syseventlog_imp::write, (enum loglevel level,
 /**
   Wrapper for mysys' my_closelog.
   Closes/de-registers the system logging handle.
-  Note: Its a thread-unsafe function. It should
-  either be invoked from the main thread or some
-  extra thread safety measures need to be taken.
 
   @retval   0 Success
   @retval <>0 Error

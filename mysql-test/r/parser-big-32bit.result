@@ -39,7 +39,7 @@ LENGTH(@terms)
 10709996
 SELECT @@global.thread_stack, @@global.max_allowed_packet;
 @@global.thread_stack	@@global.max_allowed_packet
-196608	16999424
+221184	16999424
 DROP FUNCTION f1;
 DROP PROCEDURE p1;
 DROP TABLE t1;

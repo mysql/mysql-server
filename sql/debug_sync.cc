@@ -246,10 +246,10 @@
 
   mysql_mutex_lock(&mutex);
   thd->enter_cond(&condition_variable, &mutex, new_message);
-  #if defined(ENABLE_DEBUG_SYNC)
+  # if defined(ENABLE_DEBUG_SYNC)
   if (!thd->killed && !end_of_wait_condition)
      DEBUG_SYNC(thd, "sync_point_name");
-  #endif
+  # endif
   while (!thd->killed && !end_of_wait_condition)
     mysql_cond_wait(&condition_variable, &mutex);
   mysql_mutex_unlock(&mutex);

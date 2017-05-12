@@ -17,10 +17,11 @@
 
 #include "sql/ndb_conflict.h"
 
-#include "log.h"            // sql_print_*
 #include "my_base.h"   // HA_ERR_ROWS_EVENT_APPLY
 #include "my_dbug.h"
+#include <mysql/components/services/log_builtins.h>
 #include "mysqld.h"   // lower_case_table_names
+#include "mysqld_error.h"
 #include "mysqld_error.h"
 #include "ndb_binlog_extra_row_info.h"
 #include "ndb_table_guard.h"
@@ -1500,7 +1501,8 @@ st_ndb_slave_state::atPrepareConflictDetection(const NdbDictionary::Table* table
                         transaction_id);
     if (res != 0)
     {
-      sql_print_error("%s", trans_dependency_tracker->get_error_text());
+      LogErr(ERROR_LEVEL, ER_NDB_TRANS_DEPENDENCY_TRACKER_ERROR,
+             trans_dependency_tracker->get_error_text());
       DBUG_RETURN(res);
     }
     /* Proceed as normal */
@@ -1597,7 +1599,9 @@ st_ndb_slave_state::atTransConflictDetected(Uint64 transaction_id)
 
     if (res != 0)
     {
-      sql_print_error("%s", trans_dependency_tracker->get_error_text());
+
+      LogErr(ERROR_LEVEL, ER_NDB_TRANS_DEPENDENCY_TRACKER_ERROR,
+             trans_dependency_tracker->get_error_text());
       DBUG_RETURN(res);
     }
     break;
@@ -2642,7 +2646,7 @@ slave_set_resolve_fn(Ndb* ndb,
 
         /* Table looked suspicious, warn user */
         if (msg)
-          sql_print_warning("%s", msg);
+          LogErr(WARNING_LEVEL, ER_NDB_CONFLICT_GENERIC_MESSAGE, msg);
 
         if (opt_ndb_extra_logging)
         {
@@ -2655,7 +2659,7 @@ slave_set_resolve_fn(Ndb* ndb,
       }
       else
       {
-        sql_print_warning("%s", msg);
+        LogErr(WARNING_LEVEL, ER_NDB_CONFLICT_GENERIC_MESSAGE, msg);
       }
       break;
     } /* if (ex_tab) */

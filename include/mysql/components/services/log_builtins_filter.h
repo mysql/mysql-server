@@ -106,10 +106,10 @@ typedef enum enum_log_filter_flags
 typedef struct _log_filter_rule
 {
   ulong             id;    /**< index may change; this will not */
-  log_item          match; /**< compare to this item type/class/key/value/... */
-  log_filter_cond   cond;  /**< how to compare: < > == regex ... */
-  log_filter_verb   verb;  /**< what to do: drop, upvote, ... */
-  log_item          aux;   /**< aux: item to add/prio to set/throttle rate/.. */
+  log_item          match; /**< compare to this item type/class/key/value etc */
+  log_filter_cond   cond;  /**< how to compare: < > == regex etc */
+  log_filter_verb   verb;  /**< what to do: drop, upvote, etc */
+  log_item          aux;   /**< aux: item to add/prio to set/throttle rate */
 
   // private state keeping
 
@@ -155,6 +155,7 @@ typedef enum enum_log_builtins_lock
   LOG_BUILTINS_LOCK_SHARED=          1, /**< read-only lock */
   LOG_BUILTINS_LOCK_EXCLUSIVE=       2  /**< read-write lock */
 } log_builtins_filter_lock;
+
 
 BEGIN_SERVICE_DEFINITION(log_builtins_filter)
   // run built-in filter, get/set its configuration

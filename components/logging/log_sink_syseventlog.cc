@@ -469,7 +469,7 @@ done:
   label will be ignored (one will be generated from priority by the syslogger).
   If the message is not \0 terminated, it will be terminated.
 
-  @param           instance             instance
+  @param           instance             instance's state
   @param           ll                   the log line to write
 
   @retval          >=0                  number of accepted fields, if any
@@ -639,12 +639,60 @@ DEFINE_METHOD(int, log_service_imp::flush,
 }
 
 
+/**
+  Open a new instance.
+
+  @param   ll        optional arguments
+  @param   instance  If state is needed, the service may allocate and
+                     initialize it and return a pointer to it here.
+                     (This of course is particularly pertinent to
+                     components that may be opened multiple times,
+                     such as the JSON log writer.)
+                     This state is for use of the log-service component
+                     in question only and can take any layout suitable
+                     to that component's need. The state is opaque to
+                     the server/logging framework. It must be released
+                     on close.
+
+  @retval  <0        a new instance could not be created
+  @retval  =0        success, returned hande is valid
+*/
+DEFINE_METHOD(int, log_service_imp::open, (log_line *ll MY_ATTRIBUTE((unused)),
+                                           void **instance))
+{
+  if (instance == nullptr)
+    return -1;
+
+  *instance= nullptr;
+
+  return 0;
+}
+
+
+/**
+  Close and release an instance. Flushes any buffers.
+
+  @param   instance  State-pointer that was returned on open.
+                     If memory was allocated for this state,
+                     it should be released, and the pointer
+                     set to nullptr.
+
+  @retval  <0        an error occurred
+  @retval  =0        success
+*/
+DEFINE_METHOD(int, log_service_imp::close,
+              (void **instance MY_ATTRIBUTE((unused))))
+{
+  return 0;
+}
+
+
 /* implementing a service: log_service */
 BEGIN_SERVICE_IMPLEMENTATION(log_sink_syseventlog, log_service)
   log_service_imp::run,
   log_service_imp::flush,
-  nullptr,
-  nullptr,
+  log_service_imp::open,
+  log_service_imp::close,
   log_service_imp::variable_check,
   log_service_imp::variable_update
 END_SERVICE_IMPLEMENTATION()
