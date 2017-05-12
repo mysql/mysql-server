@@ -516,6 +516,12 @@ public:
     Op* pop_front() {
       return static_cast<Op*>(List::pop_front());
     }
+    void push_back(Op* op) {
+      List::push_back(op);
+    }
+    void push_front(Op* op) {
+      List::push_front(op);
+    }
   };
 
   // tx
