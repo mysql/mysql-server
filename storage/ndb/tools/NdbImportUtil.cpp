@@ -18,6 +18,12 @@
 #include <my_sys.h>
 #include <NdbDictionaryImpl.hpp>
 #include "NdbImportUtil.hpp"
+// legacy
+#include <BaseString.hpp>
+#include <Vector.hpp>
+
+#define snprintf BaseString::snprintf
+#define vsnprintf BaseString::vsnprintf
 
 NdbImportUtil::NdbImportUtil() :
   m_util(*this),

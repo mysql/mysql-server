@@ -20,6 +20,10 @@
 #include <decimal_utils.hpp>
 #include "NdbImportCsv.hpp"
 #include "NdbImportCsvGram.hpp"
+// legacy
+#include <BaseString.hpp>
+
+#define snprintf BaseString::snprintf
 
 extern int NdbImportCsv_yyparse(NdbImportCsv::Parse& csvparse);
 #ifdef VM_TRACE
