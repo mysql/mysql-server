@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -92,6 +92,7 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
   ulong rec_per_key_part[HA_MAX_POSSIBLE_KEY*MI_MAX_KEY_SEG];
   my_off_t key_root[HA_MAX_POSSIBLE_KEY],key_del[MI_MAX_KEY_BLOCK_SIZE];
   ulonglong max_key_file_length, max_data_file_length;
+  ST_FILE_ID file_id= {0, 0};
   DBUG_ENTER("mi_open_share");
 
   m_info= NULL;
@@ -103,11 +104,15 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
 
   realpath_err= my_realpath(name_buff,
                   fn_format(org_name,name,"",MI_NAME_IEXT,4),MYF(0));
-  if (my_is_symlink(org_name) &&
-      (realpath_err || (*myisam_test_invalid_symlink)(name_buff)))
+  if (my_is_symlink(name_buff, &file_id))
   {
-    set_my_errno(HA_WRONG_CREATE_OPTION);
-    DBUG_RETURN (NULL);
+    if (realpath_err ||
+       (*myisam_test_invalid_symlink)(name_buff) ||
+       my_is_symlink(name_buff, &file_id))
+    {
+      set_my_errno(HA_WRONG_CREATE_OPTION);
+      DBUG_RETURN (NULL);
+    }
   }
 
   if (!internal_table)
@@ -137,17 +142,28 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
                       set_my_errno(HA_ERR_CRASHED);
                       goto err;
                     });
+    DEBUG_SYNC_C("before_opening_indexfile");
     if ((kfile= mysql_file_open(mi_key_file_kfile,
                                 name_buff,
-                                (open_mode= O_RDWR) | O_SHARE, MYF(0))) < 0)
+                                (open_mode= O_RDWR) | O_SHARE | O_NOFOLLOW,
+                                MYF(0))) < 0)
     {
       if ((errno != EROFS && errno != EACCES) ||
 	  mode != O_RDONLY ||
           (kfile= mysql_file_open(mi_key_file_kfile,
                                   name_buff,
-                                  (open_mode= O_RDONLY) | O_SHARE, MYF(0))) < 0)
+                                  (open_mode= O_RDONLY) | O_SHARE | O_NOFOLLOW,
+                                  MYF(0))) < 0)
 	goto err;
     }
+
+    if (!my_is_same_file(kfile, &file_id))
+    {
+      mysql_file_close(kfile, MYF(0));
+      set_my_errno(HA_WRONG_CREATE_OPTION);
+      goto err;
+    }
+
     share->mode=open_mode;
     errpos=1;
     if (mysql_file_read(kfile, share->state.header.file_version, head_length,
@@ -1225,14 +1241,16 @@ int mi_open_datafile(MI_INFO *info, MYISAM_SHARE *share, const char *org_name,
 {
   char *data_name= share->data_file_name;
   char real_data_name[FN_REFLEN];
+  ST_FILE_ID file_id= {0, 0};
 
   if (org_name)
   {
     fn_format(real_data_name,org_name,"",MI_NAME_DEXT,4);
-    if (my_is_symlink(real_data_name))
+    if (my_is_symlink(real_data_name, &file_id))
     {
       if (my_realpath(real_data_name, real_data_name, MYF(0)) ||
-          (*myisam_test_invalid_symlink)(real_data_name))
+          (*myisam_test_invalid_symlink)(real_data_name) ||
+          my_is_symlink(real_data_name, &file_id))
       {
         set_my_errno(HA_WRONG_CREATE_OPTION);
         return 1;
@@ -1240,9 +1258,19 @@ int mi_open_datafile(MI_INFO *info, MYISAM_SHARE *share, const char *org_name,
       data_name= real_data_name;
     }
   }
+  DEBUG_SYNC_C("before_opening_datafile");
   info->dfile= mysql_file_open(mi_key_file_dfile,
-                               data_name, share->mode | O_SHARE, MYF(MY_WME));
-  return info->dfile >= 0 ? 0 : 1;
+                               data_name, share->mode | O_SHARE | O_NOFOLLOW,
+                               MYF(MY_WME));
+  if (info->dfile < 0)
+    return 1;
+  if (org_name && !my_is_same_file(info->dfile, &file_id))
+  {
+    mysql_file_close(info->dfile, MYF(0));
+    set_my_errno(HA_WRONG_CREATE_OPTION);
+    return 1;
+  }
+  return 0;
 }
 
 
