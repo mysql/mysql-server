@@ -1189,16 +1189,17 @@ void make_table_privilege_statement(THD *thd, ACL_USER *role,
   }
 }
 
-void get_sp_access_map(ACL_USER *acl_user, SP_access_map *sp_map,
-                       HASH *hash)
+void get_sp_access_map
+  (ACL_USER *acl_user, SP_access_map *sp_map,
+   malloc_unordered_multimap<std::string, unique_ptr_destroy_only<GRANT_NAME>>
+     *hash)
 {
   DBUG_ASSERT(assert_acl_cache_read_lock(current_thd));
-  uint index;
   /* Add routine access */
-  for (index=0 ; index < hash->records ; index++)
+  for (const auto &key_and_value : *hash)
   {
+    GRANT_NAME *grant_proc= key_and_value.second.get();
     const char *user, *host;
-    GRANT_NAME *grant_proc= (GRANT_NAME*) my_hash_element(hash, index);
     if (!(user=grant_proc->user))
       user= "";
     if (!(host= grant_proc->host.get_host()))
@@ -1233,11 +1234,10 @@ void get_table_access_map(ACL_USER *acl_user,
 {
   DBUG_ENTER("get_table_access_map");
   DBUG_ASSERT(assert_acl_cache_read_lock(current_thd));
-  for (ulong index= 0 ; index < column_priv_hash.records ; ++index)
+  for (const auto &key_and_value : *column_priv_hash)
   {
+    GRANT_TABLE *grant_table= key_and_value.second.get();
     const char *user, *host;
-    GRANT_TABLE *grant_table= (GRANT_TABLE*)
-      my_hash_element(&column_priv_hash, index);
 
     if (!(user=grant_table->user))
       user= "";
@@ -1279,19 +1279,15 @@ void get_table_access_map(ACL_USER *acl_user,
         {
           DBUG_PRINT("info",("Collecting column privileges for %s@%s",
                              acl_user->user, acl_user->host.get_host()));
-          for (ulong col_idx= 0; col_idx < grant_table->hash_columns.records;
-               ++col_idx)
+          // Iterate over all column ACLs for this table.
+          for (const auto &key_and_value : grant_table->hash_columns)
           {
             String q_col_name;
-            // Iterate over all column ACLs for this table
-            GRANT_COLUMN *col=
-              (GRANT_COLUMN *)my_hash_element(&(grant_table->hash_columns),
-                                               col_idx);
+            GRANT_COLUMN *col= key_and_value.second;
             // TODO why can this be 0x0 ?!
             if (col)
             {
-              std::string str_column_name(col->column,
-                                          col->key_length);
+              std::string str_column_name(col->column);
               ulong col_access= agg.columns[str_column_name];
               col_access |= col->rights;
               agg.columns[str_column_name]= col_access;
@@ -1432,10 +1428,10 @@ public:
     get_table_access_map(&acl_user, m_table_map);
 
     /* Add stored procedure access */
-    get_sp_access_map(&acl_user, m_sp_map, &proc_priv_hash);
+    get_sp_access_map(&acl_user, m_sp_map, proc_priv_hash.get());
 
     /* Add user function access */
-    get_sp_access_map(&acl_user, m_sp_map, &func_priv_hash);
+    get_sp_access_map(&acl_user, m_sp_map, func_priv_hash.get());
 
     /* Add dynamic privileges */
     get_dynamic_privileges(&acl_user, m_dynamic_acl);
@@ -2709,12 +2705,14 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
       DBUG_EXECUTE_IF("mysql_table_grant_out_of_memory",
                       DBUG_SET("-d,simulate_out_of_memory"););
 
-      if (!grant_table ||
-        my_hash_insert(&column_priv_hash,(uchar*) grant_table))
+      if (!grant_table)
       {
         result= true;                           /* purecov: deadcode */
         break;                               /* purecov: deadcode */
       }
+      column_priv_hash->emplace
+        (grant_table->hash_key,
+          unique_ptr_destroy_only<GRANT_TABLE>(grant_table));
     }
 
     /* If revoke_grant, calculate the new column privilege for tables_priv */
@@ -2735,10 +2733,9 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
       }
       /* scan trough all columns to get new column grant */
       column_priv= 0;
-      for (uint idx=0 ; idx < grant_table->hash_columns.records ; idx++)
+      for (const auto &key_and_value : grant_table->hash_columns)
       {
-        grant_column= (GRANT_COLUMN*)
-          my_hash_element(&grant_table->hash_columns, idx);
+        grant_column= key_and_value.second;
         grant_column->rights&= ~rights;         // Fix other columns
         column_priv|= grant_column->rights;
       }
@@ -2750,7 +2747,10 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
 
     /* update table and columns */
 
-    if ((error= replace_table_table(thd, grant_table,
+    // Hold on to grant_table if it gets deleted, since we use it below.
+    std::unique_ptr<GRANT_TABLE, Destroy_only<GRANT_TABLE>> deleted_grant_table;
+
+    if ((error= replace_table_table(thd, grant_table, &deleted_grant_table,
                                     tables[ACL_TABLES::TABLE_TABLES_PRIV].table,
                                     *Str, db_name, table_name,
                                     rights, column_priv, revoke_grant)))
@@ -2918,13 +2918,17 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
       grant_name= new (*THR_MALLOC) GRANT_NAME(Str->host.str, db_name,
                                                Str->user.str, table_name,
                                                rights, TRUE);
-      if (!grant_name ||
-        my_hash_insert(is_proc ?
-                       &proc_priv_hash : &func_priv_hash,(uchar*) grant_name))
+      if (!grant_name)
       {
         result= true;
         break;
       }
+      if (is_proc)
+        proc_priv_hash->emplace(grant_name->hash_key,
+                                unique_ptr_destroy_only<GRANT_NAME>(grant_name));
+      else
+        func_priv_hash->emplace(grant_name->hash_key,
+                                unique_ptr_destroy_only<GRANT_NAME>(grant_name));
     }
 
     if ((error= replace_routine_table(thd, grant_name, tables[4].table, *Str,
@@ -4030,7 +4034,10 @@ err:
 }
 
 
-static bool check_grant_db_routine(THD *thd, const char *db, HASH *hash)
+static bool check_grant_db_routine
+  (THD *thd, const char *db,
+   malloc_unordered_multimap<std::string, unique_ptr_destroy_only<GRANT_NAME>>
+     *hash)
 {
   DBUG_ENTER("check_grant_db_routine");
   Security_context *sctx= thd->security_context();
@@ -4044,9 +4051,9 @@ static bool check_grant_db_routine(THD *thd, const char *db, HASH *hash)
   }
   else
   {
-    for (uint idx= 0; idx < hash->records; ++idx)
+    for (const auto &key_and_value : *hash)
     {
-      GRANT_NAME *item= (GRANT_NAME*) my_hash_element(hash, idx);
+      GRANT_NAME *item= key_and_value.second.get();
 
       if (strcmp(item->user, sctx->priv_user().str) == 0 &&
           strcmp(item->db, db) == 0 &&
@@ -4093,10 +4100,7 @@ bool check_grant_db(THD *thd,const char *db)
   DBUG_ENTER("check_table_and_sp_access");
   Security_context *sctx= thd->security_context();
   LEX_CSTRING priv_user= sctx->priv_user();
-  char helping [NAME_LEN+USERNAME_LENGTH+2];
-  uint len;
   bool error= true;
-  size_t copy_length;
 
   if (sctx->get_active_roles()->size() > 0)
   {
@@ -4107,30 +4111,20 @@ bool check_grant_db(THD *thd,const char *db)
     DBUG_RETURN(!has_any_table_acl(sctx, {db, db_len}) &&
                 !has_any_routine_acl(sctx, {db, db_len}));
   }
-  /* Added 1 at the end to avoid buffer overflow at strmov()*/
-  copy_length= ((priv_user.str ? strlen(priv_user.str) : 0) +
-                (db ? strlen(db) : 0)) + 1;
 
-  /*
-    Make sure that my_stpcpy() operations do not result in buffer overflow.
-  */
-  if (copy_length >= (NAME_LEN+USERNAME_LENGTH+2))
-    return true;
-
-  len= (uint) (my_stpcpy(my_stpcpy(helping, priv_user.str) + 1, db) -
-               helping) + 1;
+  std::string key= to_string(priv_user);
+  key.push_back('\0');
+  key.append(db);
+  key.push_back('\0');
 
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
   if (!acl_cache_lock.lock())
     return true;
 
-  for (uint idx=0 ; idx < column_priv_hash.records ; idx++)
+  for (const auto &key_and_value : *column_priv_hash)
   {
-    GRANT_TABLE *grant_table= (GRANT_TABLE*)
-      my_hash_element(&column_priv_hash,
-                      idx);
-    if (len < grant_table->key_length &&
-        !memcmp(grant_table->hash_key,helping,len) &&
+    GRANT_TABLE *grant_table= key_and_value.second.get();
+    if (grant_table->hash_key.compare(0, key.size(), key) == 0 &&
         grant_table->host.compare_hostname(sctx->host().str,
                                            sctx->ip().str))
     {
@@ -4144,8 +4138,8 @@ bool check_grant_db(THD *thd,const char *db)
   {
     DBUG_PRINT("info",("No table level acl in column_priv_hash; checking "
                        "for schema level acls"));
-    error= check_grant_db_routine(thd, db, &proc_priv_hash) &&
-           check_grant_db_routine(thd, db, &func_priv_hash);
+    error= check_grant_db_routine(thd, db, proc_priv_hash.get()) &&
+           check_grant_db_routine(thd, db, func_priv_hash.get());
   }
 
   DBUG_RETURN(error);
@@ -4585,9 +4579,9 @@ void get_privilege_access_maps(ACL_USER *acl_user,
   // Get table- and column privileges
   get_table_access_map(acl_user, table_map);
   // get stored procedure privileges
-  get_sp_access_map(acl_user, sp_map, &proc_priv_hash);
+  get_sp_access_map(acl_user, sp_map, proc_priv_hash.get());
   // get user function privileges
-  get_sp_access_map(acl_user, func_map, &func_priv_hash);
+  get_sp_access_map(acl_user, func_map, func_priv_hash.get());
   // get dynamic privileges
   get_dynamic_privileges(acl_user, dynamic_acl);
 
@@ -4934,7 +4928,8 @@ static int remove_column_access_privileges(THD *thd,
                                            TABLE *columns_priv_table,
                                            const LEX_USER &lex_user)
 {
-  int revoked, result= 0;
+  bool revoked= false;
+  int result= 0;
   /*
     Remove column access.
     Because column_priv_hash shrink and may re-order as privileges are removed,
@@ -4942,12 +4937,18 @@ static int remove_column_access_privileges(THD *thd,
   */
   do
   {
-    uint counter;
-    for (counter= 0, revoked= 0 ; counter < column_priv_hash.records ; )
+    revoked= false;
+    for (auto it= column_priv_hash->begin(), next_it= it;
+         it != column_priv_hash->end(); it= next_it)
     {
+      /*
+        Store an iterator pointing to the next element now, since
+        replace_table_table could delete elements, invalidating "it".
+      */
+      next_it= next(it);
+
       const char *user, *host;
-      GRANT_TABLE *grant_table=
-        (GRANT_TABLE*) my_hash_element(&column_priv_hash, counter);
+      GRANT_TABLE *grant_table= it->second.get();
       if (!(user= grant_table->user))
         user= "";
       if (!(host= grant_table->host.get_host()))
@@ -4956,12 +4957,16 @@ static int remove_column_access_privileges(THD *thd,
       if (!strcmp(lex_user.user.str, user) &&
           !strcmp(lex_user.host.str, host))
       {
-        int ret;
-        ret= replace_table_table(thd, grant_table, tables_priv_table,
-                                 lex_user,
-                                 grant_table->db,
-                                 grant_table->tname,
-                                 ~(ulong)0, 0, true);
+        // Hold on to grant_table if it gets deleted, since we use it below.
+        std::unique_ptr<GRANT_TABLE, Destroy_only<GRANT_TABLE>>
+          deleted_grant_table;
+
+        int ret= replace_table_table(thd, grant_table, &deleted_grant_table,
+                                     tables_priv_table,
+                                     lex_user,
+                                     grant_table->db,
+                                     grant_table->tname,
+                                     ~(ulong)0, 0, true);
         if (ret < 0)
         {
           return ret;
@@ -5002,7 +5007,6 @@ static int remove_column_access_privileges(THD *thd,
           return ret;
         }
       }
-      counter++;
     }
   }
   while (revoked);
@@ -5031,16 +5035,25 @@ static int remove_procedure_access_privileges(THD *thd,
                                               const LEX_USER &lex_user)
 {
   /* Remove procedure access */
-  int revoked, is_proc, result= 0;
-  for (is_proc=0; is_proc<2; is_proc++)
+  int result= 0;
+  bool revoked;
+  for (int is_proc=0; is_proc<2; is_proc++)
     do
     {
-      HASH *hash= is_proc ? &proc_priv_hash : &func_priv_hash;
-      uint counter;
-      for (counter= 0, revoked= 0 ; counter < hash->records ; )
+      malloc_unordered_multimap<std::string,
+                                unique_ptr_destroy_only<GRANT_NAME>> *hash=
+        is_proc ? proc_priv_hash.get() : func_priv_hash.get();
+      revoked= false;
+      for (auto it= hash->begin(), next_it= it; it != hash->end(); it= next_it)
       {
+        /*
+          Store an iterator pointing to the next element now, since
+          replace_routine_table could delete elements, invalidating "it".
+        */
+        next_it= next(it);
+
         const char *user,*host;
-        GRANT_NAME *grant_proc= (GRANT_NAME*) my_hash_element(hash, counter);
+        GRANT_NAME *grant_proc= it->second.get();
         if (!(user=grant_proc->user))
           user= "";
         if (!(host=grant_proc->host.get_host()))
@@ -5072,7 +5085,6 @@ static int remove_procedure_access_privileges(THD *thd,
             */
             result= 1;
         }
-        counter++;
       }
     } while (revoked);
 
@@ -5255,10 +5267,11 @@ private:
 bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
                           bool is_proc)
 {
-  uint counter, revoked;
+  bool revoked;
   int result= 0;
   TABLE_LIST tables[ACL_TABLES::LAST_ENTRY];
-  HASH *hash= is_proc ? &proc_priv_hash : &func_priv_hash;
+  malloc_unordered_multimap<std::string, unique_ptr_destroy_only<GRANT_NAME>>
+    *hash= is_proc ? proc_priv_hash.get() : func_priv_hash.get();
   Silence_routine_definer_errors error_handler;
   bool transactional_tables;
   DBUG_ENTER("sp_revoke_privileges");
@@ -5286,9 +5299,15 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
   /* Remove procedure access */
   do
   {
-    for (counter= 0, revoked= 0 ; counter < hash->records ; )
+    revoked= false;
+    for (auto it= hash->begin(), next_it= it; it != hash->end(); it= next_it)
     {
-      GRANT_NAME *grant_proc= (GRANT_NAME*) my_hash_element(hash, counter);
+      /*
+        Store an iterator pointing to the next element now, since
+        replace_routine_table could delete elements, invalidating "it".
+      */
+      next_it= next(it);
+      GRANT_NAME *grant_proc= it->second.get();
       if (!my_strcasecmp(&my_charset_utf8_bin, grant_proc->db, sp_db) &&
           !my_strcasecmp(system_charset_info, grant_proc->tname, sp_name))
       {
@@ -5312,11 +5331,10 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
         }
         else if (ret == 0)
         {
-          revoked= 1;
+          revoked= true;
           continue;
         }
       }
-      counter++;
     }
   } while (revoked);
 
@@ -5765,7 +5783,6 @@ err:
 int fill_schema_table_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
 {
   int error= 0;
-  uint index;
   char buff[USERNAME_LENGTH + HOSTNAME_LENGTH + 3];
   TABLE *table= tables->table;
   bool no_global_access= check_access(thd, SELECT_ACL, "mysql",
@@ -5777,11 +5794,13 @@ int fill_schema_table_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
   if (!acl_cache_lock.lock())
     DBUG_RETURN(1);
 
-  for (index=0 ; index < column_priv_hash.records ; index++)
+  if (column_priv_hash == nullptr)
+    DBUG_RETURN(error);
+
+  for (const auto &key_and_value : *column_priv_hash)
   {
     const char *user, *host, *is_grantable= "YES";
-    GRANT_TABLE *grant_table= (GRANT_TABLE*) my_hash_element(&column_priv_hash,
-                                                          index);
+    GRANT_TABLE *grant_table= key_and_value.second.get();
     if (!(user=grant_table->user))
       user= "";
     if (!(host= grant_table->host.get_host()))
@@ -5846,7 +5865,6 @@ err:
 int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
 {
   int error= 0;
-  uint index;
   char buff[USERNAME_LENGTH + HOSTNAME_LENGTH + 3];
   TABLE *table= tables->table;
   bool no_global_access= check_access(thd, SELECT_ACL, "mysql",
@@ -5858,11 +5876,13 @@ int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
   if (!acl_cache_lock.lock())
     DBUG_RETURN(1);
 
-  for (index=0 ; index < column_priv_hash.records ; index++)
+  if (column_priv_hash == nullptr)
+    DBUG_RETURN(error);
+
+  for (const auto &key_and_value : *column_priv_hash)
   {
     const char *user, *host, *is_grantable= "YES";
-    GRANT_TABLE *grant_table= (GRANT_TABLE*) my_hash_element(&column_priv_hash,
-                                                          index);
+    GRANT_TABLE *grant_table= key_and_value.second.get();
     if (!(user=grant_table->user))
       user= "";
     if (!(host= grant_table->host.get_host()))
@@ -5891,18 +5911,15 @@ int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
         {
           if (test_access & j)
           {
-            for (uint col_index=0 ;
-                 col_index < grant_table->hash_columns.records ;
-                 col_index++)
+            for (const auto &key_and_value : grant_table->hash_columns)
             {
-              GRANT_COLUMN *grant_column = (GRANT_COLUMN*)
-                my_hash_element(&grant_table->hash_columns,col_index);
+              GRANT_COLUMN *grant_column = key_and_value.second;
               if ((grant_column->rights & j) && (table_access & j))
               {
                 if (update_schema_privilege(thd, table, buff, grant_table->db,
                                             grant_table->tname,
-                                            grant_column->column,
-                                            grant_column->key_length,
+                                            grant_column->column.data(),
+                                            grant_column->column.size(),
                                             command_array[cnt],
                                             command_lengths[cnt], is_grantable))
                 {

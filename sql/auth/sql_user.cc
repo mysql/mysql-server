@@ -816,6 +816,78 @@ end:
   DBUG_RETURN(result);
 }
 
+namespace {
+
+// No need for a return value; the matcher sets its own state.
+template<class T, class Matcher>
+void search_for_matching_grant(const T *hash, Matcher &matches)
+{
+  for (auto it= hash->begin(); it != hash->end(); ++it)
+  {
+    const GRANT_NAME *grant_name= it->second.get();
+    if (matches(grant_name->user, grant_name->host.get_host()))
+      return;
+  }
+}
+
+template<class T, class Matcher>
+void remove_matching_grants(T *hash, Matcher &matches)
+{
+  for (auto it= hash->begin(); it != hash->end(); )
+  {
+    const GRANT_NAME *grant_name= it->second.get();
+    if (matches(grant_name->user, grant_name->host.get_host()))
+      it= hash->erase(it);
+    else
+      ++it;
+  }
+}
+
+template<class T, class Matcher>
+bool rename_matching_grants(T *hash, Matcher &matches, LEX_USER *user_to)
+{
+  DBUG_ENTER("rename_matching_grants");
+
+  using Elem = typename T::value_type::second_type::element_type;
+
+  /*
+    Inserting while traversing a hash table is not valid procedure and
+    hence we save pointers to GRANT_NAME objects for later processing.
+
+    Prealloced_array can't hold unique_ptr, so we'll need to take them
+    in and out here.
+  */
+  Prealloced_array<Elem *, 16> acl_grant_name(PSI_INSTRUMENT_ME);
+  for (auto it= hash->begin(); it != hash->end(); )
+  {
+    Elem *grant_name= it->second.get();
+    if (matches(grant_name->user, grant_name->host.get_host()))
+    {
+      if (acl_grant_name.push_back(it->second.release()))
+        DBUG_RETURN(true);
+      it= hash->erase(it);
+    }
+    else
+      ++it;
+  }
+
+  /*
+    Update the grant structures with the new user name and host name,
+    then insert them back.
+  */
+  for (Elem *grant_name : acl_grant_name)
+  {
+    grant_name->set_user_details(user_to->host.str, grant_name->db,
+                                 user_to->user.str, grant_name->tname,
+                                 TRUE);
+    hash->emplace(grant_name->hash_key,
+                  unique_ptr_destroy_only<Elem>(grant_name));
+  }
+  DBUG_RETURN(false);
+}
+
+}  // namespace
+
 /**
   Handle an in-memory privilege structure.
 
@@ -846,226 +918,148 @@ end:
 static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
                                LEX_USER *user_from, LEX_USER *user_to)
 {
-  int result= 0;
-  size_t idx;
-  size_t elements;
-  const char *user= NULL;
-  const char *host= NULL;
-  ACL_USER *acl_user= NULL;
-  ACL_DB *acl_db= NULL;
-  ACL_PROXY_USER *acl_proxy_user= NULL;
-  GRANT_NAME *grant_name= NULL;
-  /*
-    Dynamic array acl_grant_name used to store pointers to all
-    GRANT_NAME objects
-  */
-  Prealloced_array<GRANT_NAME *, 16> acl_grant_name(PSI_INSTRUMENT_ME);
-  HASH *grant_name_hash= NULL;
   DBUG_ENTER("handle_grant_struct");
   DBUG_PRINT("info",("scan struct: %u  search: '%s'@'%s'",
                      struct_no, user_from->user.str, user_from->host.str));
 
-  DBUG_ASSERT(assert_acl_cache_write_lock(current_thd));
-
-  /* Get the number of elements in the in-memory structure. */
-  switch (struct_no) {
-  case USER_ACL:
-    elements= acl_users->size();
-    break;
-  case DB_ACL:
-    elements= acl_dbs->size();
-    break;
-  case COLUMN_PRIVILEGES_HASH:
-    elements= column_priv_hash.records;
-    grant_name_hash= &column_priv_hash;
-    break;
-  case PROC_PRIVILEGES_HASH:
-    elements= proc_priv_hash.records;
-    grant_name_hash= &proc_priv_hash;
-    break;
-  case FUNC_PRIVILEGES_HASH:
-    elements= func_priv_hash.records;
-    grant_name_hash= &func_priv_hash;
-    break;
-  case PROXY_USERS_ACL:
-    elements= acl_proxy_users->size();
-    break;
-  default:
-    DBUG_RETURN(-1);
-  }
-
-#ifdef EXTRA_DEBUG
-    DBUG_PRINT("loop",("scan struct: %u  search    user: '%s'  host: '%s'",
-                       struct_no, user_from->user.str, user_from->host.str));
-#endif
-  /* Loop over all elements. */
-  for (idx= 0; idx < elements; idx++)
+  int result= 0;
+  auto matches= [user_from, &result](const char *user, const char *host)
   {
-    /*
-      Get a pointer to the element.
-    */
-    switch (struct_no) {
-    case USER_ACL:
-      acl_user= &acl_users->at(idx);
-      user= acl_user->user;
-      host= acl_user->host.get_host();
-    break;
-
-    case DB_ACL:
-      acl_db= &acl_dbs->at(idx);
-      user= acl_db->user;
-      host= acl_db->host.get_host();
-      break;
-
-    case COLUMN_PRIVILEGES_HASH:
-    case PROC_PRIVILEGES_HASH:
-    case FUNC_PRIVILEGES_HASH:
-      grant_name= (GRANT_NAME*) my_hash_element(grant_name_hash, idx);
-      user= grant_name->user;
-      host= grant_name->host.get_host();
-      break;
-
-    case PROXY_USERS_ACL:
-      acl_proxy_user= &acl_proxy_users->at(idx);
-      user= acl_proxy_user->get_user();
-      host= acl_proxy_user->host.get_host();
-      break;
-
-    default:
-      MY_ASSERT_UNREACHABLE();
-    }
     if (! user)
       user= "";
     if (! host)
       host= "";
+    bool match= strcmp(user_from->user.str, user) == 0 &&
+      my_strcasecmp(system_charset_info, user_from->host.str, host) == 0;
+    if (match)
+      result= 1;
+    return match;
+  };
 
-#ifdef EXTRA_DEBUG
-    DBUG_PRINT("loop",("scan struct: %u  index: %zu  user: '%s'  host: '%s'",
-                       struct_no, idx, user, host));
-#endif
-    if (strcmp(user_from->user.str, user) ||
-        my_strcasecmp(system_charset_info, user_from->host.str, host))
-      continue;
+  DBUG_ASSERT(assert_acl_cache_write_lock(current_thd));
 
-    result= 1; /* At least one element found. */
-    if ( drop )
+  switch (struct_no) {
+  case USER_ACL:
+    for (uint idx= 0; idx < acl_users->size(); idx++)
     {
-      switch ( struct_no ) {
-      case USER_ACL:
-        acl_users->erase(idx);
-        elements--;
-        /*
-        - If we are iterating through an array then we just have moved all
-          elements after the current element one position closer to its head.
-          This means that we have to take another look at the element at
-          current position as it is a new element from the array's tail.
-        - This is valid for case USER_ACL, DB_ACL and PROXY_USERS_ACL.
-        */
-        idx--;
-        break;
-
-      case DB_ACL:
-        acl_dbs->erase(idx);
-        elements--;
-        idx--;
-        break;
-
-      case COLUMN_PRIVILEGES_HASH:
-      case PROC_PRIVILEGES_HASH:
-      case FUNC_PRIVILEGES_HASH:
-        /*
-          Deleting while traversing a hash table is not valid procedure and
-          hence we save pointers to GRANT_NAME objects for later processing.
-        */
-        if (acl_grant_name.push_back(grant_name))
-          DBUG_RETURN(-1);
-        break;
-
-      case PROXY_USERS_ACL:
-        acl_proxy_users->erase(idx);
-        elements--;
-        idx--;
-        break;
-      }
-    }
-    else if ( user_to )
-    {
-      switch ( struct_no ) {
-      case USER_ACL:
-        acl_user->user= strdup_root(&global_acl_memory, user_to->user.str);
-        acl_user->host.update_hostname(strdup_root(&global_acl_memory, user_to->host.str));
-        break;
-
-      case DB_ACL:
-        acl_db->user= strdup_root(&global_acl_memory, user_to->user.str);
-        acl_db->host.update_hostname(strdup_root(&global_acl_memory, user_to->host.str));
-        break;
-
-      case COLUMN_PRIVILEGES_HASH:
-      case PROC_PRIVILEGES_HASH:
-      case FUNC_PRIVILEGES_HASH:
-        /*
-          Updating while traversing a hash table is not valid procedure and
-          hence we save pointers to GRANT_NAME objects for later processing.
-        */
-        if (acl_grant_name.push_back(grant_name))
-          DBUG_RETURN(-1);
-        break;
-
-      case PROXY_USERS_ACL:
-        acl_proxy_user->set_user(&global_acl_memory, user_to->user.str);
-        acl_proxy_user->host.update_hostname((user_to->host.str && *user_to->host.str) ?
-                                             strdup_root(&global_acl_memory, user_to->host.str) : NULL);
-        break;
-      }
-    }
-    else
-    {
-      /* If search is requested, we do not need to search further. */
-      break;
-    }
-  }
-
-  if (drop || user_to)
-  {
-    /*
-      Traversing the elements stored in acl_grant_name dynamic array
-      to either delete or update them.
-    */
-    for (GRANT_NAME **iter= acl_grant_name.begin();
-         iter != acl_grant_name.end(); ++iter)
-    {
-      grant_name= *iter;
+      ACL_USER *acl_user= &acl_users->at(idx);
+      if (!matches(acl_user->user, acl_user->host.get_host()))
+        continue;
 
       if (drop)
       {
-        my_hash_delete(grant_name_hash, (uchar *) grant_name);
+        acl_users->erase(idx);
+        /*
+           - If we are iterating through an array then we just have moved all
+           elements after the current element one position closer to its head.
+           This means that we have to take another look at the element at
+           current position as it is a new element from the array's tail.
+           - This is valid for case USER_ACL, DB_ACL and PROXY_USERS_ACL.
+         */
+        idx--;
+      }
+      else if (user_to)
+      {
+        acl_user->user= strdup_root(&global_acl_memory, user_to->user.str);
+        acl_user->host.update_hostname(strdup_root(&global_acl_memory, user_to->host.str));
       }
       else
       {
-        /*
-          Save old hash key and its length to be able properly update
-          element position in hash.
-        */
-        char *old_key= grant_name->hash_key;
-        size_t old_key_length= grant_name->key_length;
-
-        /*
-          Update the grant structure with the new user name and host name.
-        */
-        grant_name->set_user_details(user_to->host.str, grant_name->db,
-                                     user_to->user.str, grant_name->tname,
-                                     TRUE);
-
-        /*
-          Since username is part of the hash key, when the user name
-          is renamed, the hash key is changed. Update the hash to
-          ensure that the position matches the new hash key value
-        */
-        my_hash_update(grant_name_hash, (uchar*) grant_name, (uchar*) old_key,
-                       old_key_length);
+        /* If search is requested, we do not need to search further. */
+        break;
       }
     }
+    break;
+
+  case DB_ACL:
+    for (uint idx= 0; idx < acl_dbs->size(); idx++)
+    {
+      ACL_DB *acl_db= &acl_dbs->at(idx);
+      if (!matches(acl_db->user, acl_db->host.get_host()))
+        continue;
+
+      if (drop)
+      {
+        acl_dbs->erase(idx);
+        idx--;
+      }
+      else if (user_to)
+      {
+        acl_db->user= strdup_root(&global_acl_memory, user_to->user.str);
+        acl_db->host.update_hostname(strdup_root(&global_acl_memory, user_to->host.str));
+      }
+      else
+      {
+        /* If search is requested, we do not need to search further. */
+        break;
+      }
+    }
+    break;
+
+  case COLUMN_PRIVILEGES_HASH:
+    if (drop)
+      remove_matching_grants(column_priv_hash.get(), matches);
+    else if (user_to)
+    {
+      if (rename_matching_grants(column_priv_hash.get(), matches, user_to))
+        DBUG_RETURN(-1);
+    }
+    else
+      search_for_matching_grant(column_priv_hash.get(), matches);
+    break;
+
+  case PROC_PRIVILEGES_HASH:
+    if (drop)
+      remove_matching_grants(proc_priv_hash.get(), matches);
+    else if (user_to)
+    {
+      if (rename_matching_grants(proc_priv_hash.get(), matches, user_to))
+        DBUG_RETURN(-1);
+    }
+    else
+      search_for_matching_grant(proc_priv_hash.get(), matches);
+    break;
+
+  case FUNC_PRIVILEGES_HASH:
+    if (drop)
+      remove_matching_grants(func_priv_hash.get(), matches);
+    else if (user_to)
+    {
+      if (rename_matching_grants(func_priv_hash.get(), matches, user_to))
+        DBUG_RETURN(-1);
+    }
+    else
+      search_for_matching_grant(func_priv_hash.get(), matches);
+    break;
+
+  case PROXY_USERS_ACL:
+    for (uint idx= 0; idx < acl_proxy_users->size(); idx++)
+    {
+      ACL_PROXY_USER *acl_proxy_user= &acl_proxy_users->at(idx);
+      if (!matches(acl_proxy_user->get_user(), acl_proxy_user->host.get_host()))
+        continue;
+
+      if (drop)
+      {
+        acl_proxy_users->erase(idx);
+        idx--;
+      }
+      else if (user_to)
+      {
+        acl_proxy_user->set_user(&global_acl_memory, user_to->user.str);
+        acl_proxy_user->host.update_hostname((user_to->host.str && *user_to->host.str) ?
+                                             strdup_root(&global_acl_memory, user_to->host.str) : NULL);
+      }
+      else
+      {
+        /* If search is requested, we do not need to search further. */
+        break;
+      }
+    }
+    break;
+
+  default:
+    DBUG_RETURN(-1);
   }
 
 #ifdef EXTRA_DEBUG

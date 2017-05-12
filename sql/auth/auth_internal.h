@@ -161,11 +161,14 @@ int replace_column_table(THD *thd, GRANT_TABLE *g_t,
                          List <LEX_COLUMN> &columns,
                          const char *db, const char *table_name,
                          ulong rights, bool revoke_grant);
-int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
-                        TABLE *table, const LEX_USER &combo,
-                        const char *db, const char *table_name,
-                        ulong rights, ulong col_rights,
-                        bool revoke_grant);
+int replace_table_table(
+  THD *thd, GRANT_TABLE *grant_table,
+  std::unique_ptr<GRANT_TABLE, Destroy_only<GRANT_TABLE>>
+    *deleted_grant_table,
+  TABLE *table, const LEX_USER &combo,
+  const char *db, const char *table_name,
+  ulong rights, ulong col_rights,
+  bool revoke_grant);
 int replace_routine_table(THD *thd, GRANT_NAME *grant_name,
                           TABLE *table, const LEX_USER &combo,
                           const char *db, const char *routine_name,
