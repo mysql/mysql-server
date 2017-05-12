@@ -389,6 +389,11 @@ public:
     bool has_error() const {
       return m_team.has_error();
     }
+    // random for tests
+    uint get_rand() {
+      return (uint)ndb_rand_r(&m_seed);
+    }
+    unsigned m_seed;
     // stats
     Stat* m_stat_slice;         // slices
     Stat* m_stat_idleslice;     // slices which did no work
@@ -414,10 +419,6 @@ public:
     virtual void do_run();
     virtual void do_end();
     Row* create_row(uint64 rowid, const Table& t);
-    uint get_rand() {
-      return (uint)ndb_rand_r(&m_seed);
-    }
-    unsigned m_seed;
   };
 
   // csv input team
