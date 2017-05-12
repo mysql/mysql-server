@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,15 +16,16 @@
 #ifndef DD_TABLESPACE_INCLUDED
 #define DD_TABLESPACE_INCLUDED
 
-#include "my_global.h"
-
 #include "lock.h"                    // Tablespace_hash_set
 
-class st_alter_tablespace;
 class THD;
+class st_alter_tablespace;
 struct handlerton;
+typedef struct st_mem_root MEM_ROOT;
 
 namespace dd {
+
+class Tablespace;
 
 /**
   Fill Tablespace_hash_set with tablespace names used by the
@@ -69,41 +70,21 @@ bool get_tablespace_name(THD *thd, const T *obj,
   We now impose tablespace names to be unique accross SE's.
   Which was not the case earlier.
 
-  @param thd     - Thread executing the operation.
-  @param ts_info - Tablespace metadata from the DDL.
-  @param hton    - Handlerton in which tablespace reside.
+  @param thd                Thread executing the operation.
+  @param ts_info            Tablespace metadata from the DDL.
+  @param hton               Handlerton in which tablespace reside.
+
+  @note The caller must rollback both statement and transaction on
+        failure, before any further accesses to DD. This is because
+        such a failure might be caused by a deadlock, which requires
+        rollback before any other operations on SE (including reads
+        using attachable transactions) can be done.
 
   @return false - On success.
   @return true - On failure.
 */
 bool create_tablespace(THD *thd, st_alter_tablespace *ts_info,
                        handlerton *hton);
-
-/**
-  Drop Tablespace from Data Dictionary.
-
-  @param thd     - Thread executing the operation.
-  @param ts_info - Tablespace metadata from the DDL.
-  @param hton    - Handlerton in which tablespace reside.
-
-  @return false - On success.
-  @return true - On failure.
-*/
-bool drop_tablespace(THD *thd, st_alter_tablespace *ts_info,
-                     handlerton *hton);
-
-/**
-  Add/Drop Tablespace file for a tablespace from Data Dictionary.
-
-  @param thd     - Thread executing the operation.
-  @param ts_info - Tablespace metadata from the DDL.
-  @param hton    - Handlerton in which tablespace reside.
-
-  @return false - On success.
-  @return true - On failure.
-*/
-bool alter_tablespace(THD *thd, st_alter_tablespace *ts_info,
-                      handlerton *hton);
 
 } // namespace dd
 #endif // DD_TABLESPACE_INCLUDED

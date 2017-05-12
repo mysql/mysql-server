@@ -10,7 +10,6 @@
 #######################################################################
 
 
---source include/have_innodb.inc
 --source include/master-slave.inc
 --source include/count_sessions.inc
 
@@ -18,7 +17,7 @@
 # Use master connection
 --connection master
 
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 call mtr.add_suppression("Error parsing message of type 12: args");
 call mtr.add_suppression("Error handling message: args");
 

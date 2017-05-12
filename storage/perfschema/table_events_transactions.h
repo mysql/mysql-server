@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,11 +21,14 @@
   Table EVENTS_TRANSACTIONS_xxx (declarations).
 */
 
+#include <sys/types.h>
+
+#include "my_inttypes.h"
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"
 #include "pfs_events_transactions.h"
-#include "table_helper.h"
 #include "rpl_gtid.h"
+#include "table_helper.h"
 
 struct PFS_thread;
 
@@ -39,11 +42,14 @@ class PFS_index_events_transactions : public PFS_engine_index
 public:
   PFS_index_events_transactions()
     : PFS_engine_index(&m_key_1, &m_key_2),
-    m_key_1("THREAD_ID"), m_key_2("EVENT_ID")
-  {}
+      m_key_1("THREAD_ID"),
+      m_key_2("EVENT_ID")
+  {
+  }
 
   ~PFS_index_events_transactions()
-  {}
+  {
+  }
 
   bool match(PFS_thread *pfs);
   bool match(PFS_events *pfs);
@@ -115,20 +121,22 @@ struct row_events_transactions
 */
 struct pos_events_transactions_history : public PFS_double_index
 {
-  pos_events_transactions_history()
-    : PFS_double_index(0, 0)
-  {}
-
-  inline void reset(void)
+  pos_events_transactions_history() : PFS_double_index(0, 0)
   {
-    m_index_1= 0;
-    m_index_2= 0;
   }
 
-  inline void next_thread(void)
+  inline void
+  reset(void)
+  {
+    m_index_1 = 0;
+    m_index_2 = 0;
+  }
+
+  inline void
+  next_thread(void)
   {
     m_index_1++;
-    m_index_2= 0;
+    m_index_2 = 0;
   }
 };
 
@@ -144,26 +152,27 @@ protected:
                               Field **fields,
                               bool read_all);
 
-  table_events_transactions_common(const PFS_engine_table_share *share, void *pos);
+  table_events_transactions_common(const PFS_engine_table_share *share,
+                                   void *pos);
 
   ~table_events_transactions_common()
-  {}
+  {
+  }
 
-  void make_row(PFS_events_transactions *statement);
+  int make_row(PFS_events_transactions *statement);
 
   /** Current row. */
   row_events_transactions m_row;
-  /** True if the current row exists. */
-  bool m_row_exists;
 };
 
 /** Table PERFORMANCE_SCHEMA.EVENTS_TRANSACTIONS_CURRENT. */
-class table_events_transactions_current : public table_events_transactions_common
+class table_events_transactions_current
+  : public table_events_transactions_common
 {
 public:
   /** Table share */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table* create();
+  static PFS_engine_table *create();
   static int delete_all_rows();
   static ha_rows get_row_count();
 
@@ -181,7 +190,8 @@ protected:
 
 public:
   ~table_events_transactions_current()
-  {}
+  {
+  }
 
 private:
   friend class table_events_transactions_history;
@@ -205,12 +215,13 @@ private:
 };
 
 /** Table PERFORMANCE_SCHEMA.EVENTS_TRANSACTIONS_HISTORY. */
-class table_events_transactions_history : public table_events_transactions_common
+class table_events_transactions_history
+  : public table_events_transactions_common
 {
 public:
   /** Table share */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table* create();
+  static PFS_engine_table *create();
   static int delete_all_rows();
   static ha_rows get_row_count();
 
@@ -228,7 +239,8 @@ protected:
 
 public:
   ~table_events_transactions_history()
-  {}
+  {
+  }
 
 private:
   /** Table share lock. */
@@ -243,12 +255,13 @@ private:
 };
 
 /** Table PERFORMANCE_SCHEMA.EVENTS_TRANSACTIONS_HISTORY_LONG. */
-class table_events_transactions_history_long : public table_events_transactions_common
+class table_events_transactions_history_long
+  : public table_events_transactions_common
 {
 public:
   /** Table share */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table* create();
+  static PFS_engine_table *create();
   static int delete_all_rows();
   static ha_rows get_row_count();
 
@@ -262,7 +275,8 @@ protected:
 
 public:
   ~table_events_transactions_history_long()
-  {}
+  {
+  }
 
 private:
   /** Table share lock. */

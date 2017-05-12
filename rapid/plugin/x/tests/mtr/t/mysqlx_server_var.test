@@ -4,7 +4,7 @@
 ## Created: 2015-08-10  Lalit Choudhary
 ##
 
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 call mtr.add_suppression("Unsuccessful login attempt");
 ## Test starts here
 # "mysqlxsys"@localhost" user testing

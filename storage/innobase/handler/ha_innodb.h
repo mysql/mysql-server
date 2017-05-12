@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -16,7 +16,18 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
+#ifndef ha_innodb_h
+#define ha_innodb_h
+
 /* The InnoDB handler: the interface between MySQL and InnoDB. */
+
+#include <sys/types.h>
+
+#include "handler.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "trx0trx.h"
 
 /** "GEN_CLUST_INDEX" is the name reserved for InnoDB default
 system clustered index when there is no primary key. */
@@ -107,9 +118,11 @@ public:
 
 	uint max_supported_key_part_length() const;
 
-	const Key_map* keys_to_use_for_scanning();
-
-	int open(const char *name, int, uint);
+	int open(
+		const char *name,
+		int,
+		uint open_flags,
+		const dd::Table *table_def);
 
 	/** Opens dictionary table object using table name. For partition, we need to
 	try alternative lower/upper case names to support moving data files across
@@ -207,7 +220,9 @@ public:
 
 	int optimize(THD* thd,HA_CHECK_OPT* check_opt);
 
-	int discard_or_import_tablespace(my_bool discard);
+	int discard_or_import_tablespace(
+		bool		discard,
+		dd::Table*	table_def);
 
 	int extra(ha_extra_function operation);
 
@@ -252,23 +267,71 @@ public:
 		dd::Table*	dd_table,
 		uint		dd_version);
 
-	int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info);
-	int create(const char *name, TABLE* form, HA_CREATE_INFO* create_info,
-		   bool file_per_table);
-	int truncate();
+	/** Create an InnoDB table.
+	@param[in]	name		table name in filename-safe encoding
+	@param[in]	form		table structure
+	@param[in]	create_info	more information
+	@param[in,out]	table_def	dd::Table describing table to be created.
+	Can be adjusted by SE, the changes will be saved into data-dictionary at
+	statement commit time.
+	@param[in]	file_per_table	whether to create a tablespace too
+	@return error number
+	@retval 0 on success */
+	int create(
+		const char*		name,
+		TABLE*			form,
+		HA_CREATE_INFO*		create_info,
+		dd::Table*		table_def,
+		bool			file_per_table);
+
+	/** Create an InnoDB table.
+	@param[in]	name		table name in filename-safe encoding
+	@param[in]	form		table structure
+	@param[in]	create_info	more information on the table
+	@param[in,out]	table_def	dd::Table describing table to be created.
+	Can be adjusted by SE, the changes will be saved into data-dictionary at
+	statement commit time.
+	@return error number
+	@retval 0 on success */
+	int create(
+		const char*		name,
+		TABLE*			form,
+		HA_CREATE_INFO*		create_info,
+		dd::Table*		table_def);
 
 	/** Drop a table.
-	@param[in]	name	table name
-	@return error number */
-	int delete_table(const char* name);
+	@param[in]	name		table name
+	@param[in]	table_def	dd::Table describing table to
+	be dropped
+	@return	error number
+	@retval 0 on success */
+	int delete_table(
+		const char*		name,
+		const dd::Table*	table_def);
 protected:
 	/** Drop a table.
-	@param[in]	name	table name
+	@param[in]	name		table name
+	@param[in]	table_def	dd::Table describing table to
+	be dropped
 	@param[in]	sqlcom	type of operation that the DROP is part of
-	@return error number */
-	int delete_table(const char* name, enum enum_sql_command sqlcom);
+	@return	error number
+	@retval 0 on success */
+	int delete_table(
+		const char*		name,
+		const dd::Table*	table_def,
+		enum enum_sql_command	sqlcom);
 public:
-	int rename_table(const char* from, const char* to);
+	/** DROP and CREATE an InnoDB table.
+	@param[in,out]	table_def	dd::Table describing table to be
+	truncated. Can be adjusted by SE, the changes will be saved into
+	the data-dictionary at statement commit time.
+	@return	error number
+	@retval 0 on success */
+	int truncate(dd::Table *table_def);
+
+	int rename_table(const char* from, const char* to,
+		const dd::Table *from_table_def,
+		dd::Table *to_table_def);
 
 	int check(THD* thd, HA_CHECK_OPT* check_opt);
 
@@ -315,7 +378,7 @@ public:
 	/**
 	Ask handler about permission to cache table during query registration
 	*/
-	my_bool register_query_cache_table(
+	bool register_query_cache_table(
 		THD*			thd,
 		char*			table_key,
 		size_t			key_length,
@@ -352,8 +415,12 @@ public:
 	@param altered_table TABLE object for new version of table.
 	@param ha_alter_info Structure describing changes to be done
 	by ALTER TABLE and holding data used during in-place alter.
-	@param new_dd_tab dd::Table object for the new version of
-	the table. To be adjusted by this call.
+	@param old_table_def dd::Table object describing old version
+	of the table.
+	@param new_table_def dd::Table object for the new version of the
+	table. Can be adjusted by this call. Changes to the table
+	definition will be persisted in the data-dictionary at statement
+	commit time.
 
 	@retval true Failure
 	@retval false Success
@@ -361,7 +428,8 @@ public:
 	bool prepare_inplace_alter_table(
 		TABLE*			altered_table,
 		Alter_inplace_info*	ha_alter_info,
-		dd::Table		*new_dd_tab);
+		const dd::Table*	old_table_def,
+		dd::Table*		new_table_def);
 
 	/** Alter the table structure in-place with operations
 	specified using HA_ALTER_FLAGS and Alter_inplace_information.
@@ -371,13 +439,21 @@ public:
 	@param altered_table TABLE object for new version of table.
 	@param ha_alter_info Structure describing changes to be done
 	by ALTER TABLE and holding data used during in-place alter.
+	@param old_table_def dd::Table object describing old version
+	of the table.
+	@param new_table_def dd::Table object for the new version of the
+	table. Can be adjusted by this call. Changes to the table
+	definition will be persisted in the data-dictionary at statement
+	commit time.
 
 	@retval true Failure
 	@retval false Success
 	*/
 	bool inplace_alter_table(
 		TABLE*			altered_table,
-		Alter_inplace_info*	ha_alter_info);
+		Alter_inplace_info*	ha_alter_info,
+		const dd::Table*	old_table_def,
+		dd::Table*		new_table_def);
 
 	/** Commit or rollback the changes made during
 	prepare_inplace_alter_table() and inplace_alter_table() inside
@@ -390,13 +466,21 @@ public:
 	@param ha_alter_info Structure describing changes to be done
 	by ALTER TABLE and holding data used during in-place alter.
 	@param commit true => Commit, false => Rollback.
+	@param old_table_def dd::Table object describing old version
+	of the table.
+	@param new_table_def dd::Table object for the new version of the
+	table. Can be adjusted by this call. Changes to the table
+	definition will be persisted in the data-dictionary at statement
+	commit time.
 	@retval true Failure
 	@retval false Success
 	*/
 	bool commit_inplace_alter_table(
 		TABLE*			altered_table,
 		Alter_inplace_info*	ha_alter_info,
-		bool			commit);
+		bool			commit,
+		const dd::Table*	old_table_def,
+		dd::Table*		new_table_def);
 	/** @} */
 
 	bool check_if_incompatible_data(
@@ -924,17 +1008,6 @@ innodb_base_col_setup_for_stored(
 /** whether this is a computed virtual column */
 #define innobase_is_v_fld(field) ((field)->gcol_info && !(field)->stored_in_db)
 
-/** Release temporary latches.
-Call this function when mysqld passes control to the client. For more
-documentation, see handler.cc.
-@param[in]	hton	Handlerton.
-@param[in]	thd	MySQL thread.
-@return 0 */
-int
-innobase_release_temporary_latches(
-	handlerton*	hton,
-	THD*		thd);
-
 /** Always normalize table name to lower case on Windows */
 #ifdef _WIN32
 #define normalize_table_name(norm_name, name)           \
@@ -987,7 +1060,7 @@ void
 innobase_commit_low(
 	trx_t*	trx);
 
-extern my_bool	innobase_stats_on_metadata;
+extern bool	innobase_stats_on_metadata;
 
 /** Calculate Record Per Key value.
 Need to exclude the NULL value if innodb_stats_method is set to "nulls_ignored"
@@ -1031,3 +1104,4 @@ innobase_build_v_templ_callback(
 the table virtual columns' template */
 typedef void (*my_gcolumn_templatecallback_t)(const TABLE*, void*);
 
+#endif /* ha_innodb_h */

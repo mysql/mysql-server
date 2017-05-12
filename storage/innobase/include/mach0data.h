@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -16,6 +16,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
+#include "my_compiler.h"
+#include "my_inttypes.h"
+
 /******************************************************************//**
 @file include/mach0data.h
 Utilities for converting data from the database file
@@ -27,8 +30,8 @@ Created 11/28/1995 Heikki Tuuri
 #ifndef mach0data_h
 #define mach0data_h
 
-#include "univ.i"
 #include "mtr0types.h"
+#include "univ.i"
 
 /* The data and all fields are always stored in a database file
 in the same format: ascii, big-endian, ... .

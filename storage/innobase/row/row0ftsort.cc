@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2010, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,19 +23,21 @@ Create Full Text Index with (parallel) merge sort
 Created 10/13/2010 Jimmy Yang
 *******************************************************/
 
-#include "ha_prototypes.h"
+#include <sys/types.h>
 
+#include "btr0bulk.h"
+#include "btr0cur.h"
 #include "dict0dict.h"
-#include "row0merge.h"
+#include "fts0plugin.h"
+#include "ha_prototypes.h"
+#include "lob0lob.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "os0thread-create.h"
 #include "pars0pars.h"
 #include "row0ftsort.h"
 #include "row0merge.h"
 #include "row0row.h"
-#include "btr0cur.h"
-#include "btr0bulk.h"
-#include "fts0plugin.h"
-#include "lob0lob.h"
-#include "os0thread-create.h"
 
 /** Read the next record to buffer N.
 @param N index into array of merge info structure */
@@ -101,15 +103,12 @@ row_merge_create_fts_sort_index(
 	field = new_index->get_field(0);
 	field->name = NULL;
 	field->prefix_len = 0;
+	field->is_ascending = true;
 	field->col = static_cast<dict_col_t*>(
 		mem_heap_alloc(new_index->heap, sizeof(dict_col_t)));
 	field->col->len = FTS_MAX_WORD_LEN;
-
-	if (strcmp(charset->name, "latin1_swedish_ci") == 0) {
-		field->col->mtype = DATA_VARCHAR;
-	} else {
-		field->col->mtype = DATA_VARMYSQL;
-	}
+	field->col->mtype = (charset == &my_charset_latin1)
+		? DATA_VARCHAR : DATA_VARMYSQL;
 
 	field->col->prtype = idx_field->col->prtype | DATA_NOT_NULL;
 	field->col->mbminmaxlen = idx_field->col->mbminmaxlen;
@@ -119,6 +118,7 @@ row_merge_create_fts_sort_index(
 	field = new_index->get_field(1);
 	field->name = NULL;
 	field->prefix_len = 0;
+	field->is_ascending = true;
 	field->col = static_cast<dict_col_t*>(
 		mem_heap_alloc(new_index->heap, sizeof(dict_col_t)));
 	field->col->mtype = DATA_INT;
@@ -160,6 +160,7 @@ row_merge_create_fts_sort_index(
 	field = new_index->get_field(2);
 	field->name = NULL;
 	field->prefix_len = 0;
+	field->is_ascending = true;
 	field->col = static_cast<dict_col_t*>(
 		mem_heap_alloc(new_index->heap, sizeof(dict_col_t)));
 	field->col->mtype = DATA_INT;
@@ -745,6 +746,7 @@ fts_parallel_tokenization_thread(fts_psort_t* psort_info)
 	ulint			retried = 0;
 	dberr_t			error = DB_SUCCESS;
 
+	my_thread_init();
 	ut_ad(psort_info->psort_common->trx->mysql_thd != NULL);
 	const char*		path = thd_innodb_tmpdir(
 		psort_info->psort_common->trx->mysql_thd);
@@ -764,8 +766,8 @@ fts_parallel_tokenization_thread(fts_psort_t* psort_info)
 	idx_field = psort_info->psort_common->dup->index->get_field(0);
 	word_dtype.prtype = idx_field->col->prtype;
 	word_dtype.mbminmaxlen = idx_field->col->mbminmaxlen;
-	word_dtype.mtype = (strcmp(doc.charset->name, "latin1_swedish_ci") == 0)
-				? DATA_VARCHAR : DATA_VARMYSQL;
+	word_dtype.mtype = (doc.charset == &my_charset_latin1)
+		? DATA_VARCHAR : DATA_VARMYSQL;
 
 	block = psort_info->merge_block;
 
@@ -1019,6 +1021,8 @@ func_exit:
 	psort_info->child_status = FTS_CHILD_COMPLETE;
 	os_event_set(psort_info->psort_common->sort_event);
 	psort_info->child_status = FTS_CHILD_EXITING;
+
+	my_thread_end();
 }
 
 /** Start the parallel tokenization and parallel merge sort
@@ -1044,6 +1048,7 @@ void
 fts_parallel_merge_thread(fts_psort_t* psort_info)
 {
 	ulint	id = psort_info->psort_id;
+	my_thread_init();
 
 	row_fts_merge_insert(psort_info->psort_common->dup->index,
 			     psort_info->psort_common->new_table,
@@ -1052,6 +1057,8 @@ fts_parallel_merge_thread(fts_psort_t* psort_info)
 	psort_info->child_status = FTS_CHILD_COMPLETE;
 	os_event_set(psort_info->psort_common->merge_event);
 	psort_info->child_status = FTS_CHILD_EXITING;
+
+	my_thread_end();
 }
 
 /** Kick off the parallel merge and insert thread

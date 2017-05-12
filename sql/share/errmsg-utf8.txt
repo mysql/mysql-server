@@ -1176,29 +1176,29 @@ ER_TABLE_EXISTS_ERROR 42S01
         swe "Tabellen '%-.192s' finns redan"
         ukr "Таблиця '%-.192s' вже існує"
 ER_BAD_TABLE_ERROR 42S02 
-        cze "Neznámá tabulka '%-.100s'"
-        dan "Ukendt tabel '%-.100s'"
-        nla "Onbekende tabel '%-.100s'"
-        eng "Unknown table '%-.100s'"
-        est "Tundmatu tabel '%-.100s'"
-        fre "Table '%-.100s' inconnue"
-        ger "Unbekannte Tabelle '%-.100s'"
-        greek "Αγνωστος πίνακας '%-.100s'"
-        hun "Ervenytelen tabla: '%-.100s'"
-        ita "Tabella '%-.100s' sconosciuta"
-        jpn "'%-.100s' は不明な表です。"
-        kor "테이블 '%-.100s'는 알수 없음"
-        nor "Ukjent tabell '%-.100s'"
-        norwegian-ny "Ukjent tabell '%-.100s'"
-        pol "Nieznana tabela '%-.100s'"
-        por "Tabela '%-.100s' desconhecida"
-        rum "Tabela '%-.100s' este invalida"
-        rus "Неизвестная таблица '%-.100s'"
-        serbian "Nepoznata tabela '%-.100s'"
-        slo "Neznáma tabuľka '%-.100s'"
-        spa "Tabla '%-.100s' desconocida"
-        swe "Okänd tabell '%-.100s'"
-        ukr "Невідома таблиця '%-.100s'"
+        cze "Neznámá tabulka '%-.129s'"
+        dan "Ukendt tabel '%-.129s'"
+        nla "Onbekende tabel '%-.129s'"
+        eng "Unknown table '%-.129s'"
+        est "Tundmatu tabel '%-.129s'"
+        fre "Table '%-.129s' inconnue"
+        ger "Unbekannte Tabelle '%-.129s'"
+        greek "Αγνωστος πίνακας '%-.129s'"
+        hun "Ervenytelen tabla: '%-.129s'"
+        ita "Tabella '%-.129s' sconosciuta"
+        jpn "'%-.129s' は不明な表です。"
+        kor "테이블 '%-.129s'는 알수 없음"
+        nor "Ukjent tabell '%-.129s'"
+        norwegian-ny "Ukjent tabell '%-.129s'"
+        pol "Nieznana tabela '%-.129s'"
+        por "Tabela '%-.129s' desconhecida"
+        rum "Tabela '%-.129s' este invalida"
+        rus "Неизвестная таблица '%-.129s'"
+        serbian "Nepoznata tabela '%-.129s'"
+        slo "Neznáma tabuľka '%-.129s'"
+        spa "Tabla '%-.129s' desconocida"
+        swe "Okänd tabell '%-.129s'"
+        ukr "Невідома таблиця '%-.129s'"
 ER_NON_UNIQ_ERROR 23000 
         cze "Sloupec '%-.192s' v %-.192s není zcela jasný"
         dan "Felt: '%-.192s' i tabel %-.192s er ikke entydigt"
@@ -2791,7 +2791,8 @@ ER_STACK_OVERRUN
         spa "Sobrecarga de la pila de thread:  Usada: %ld de una %ld pila.  Use 'mysqld --thread_stack=#' para especificar una mayor pila si necesario"
         swe "Trådstacken tog slut:  Har använt %ld av %ld bytes.  Använd 'mysqld --thread_stack=#' ifall du behöver en större stack"
         ukr "Стек гілок переповнено:  Використано: %ld з %ld. Використовуйте 'mysqld --thread_stack=#' аби зазначити більший стек, якщо необхідно"
-ER_WRONG_OUTER_JOIN 42000 
+# Not used since 5.8 and probably earlier.
+ER_WRONG_OUTER_JOIN_UNUSED 42000
         cze "V OUTER JOIN byl nalezen křížový odkaz. Prověřte ON podmínky"
         dan "Krydsreferencer fundet i OUTER JOIN; check dine ON conditions"
         nla "Gekruiste afhankelijkheid gevonden in OUTER JOIN. Controleer uw ON-conditions"
@@ -7536,7 +7537,7 @@ ER_JSON_KEY_TOO_BIG 22032
   eng "The JSON object contains a key name that is too long."
 
 ER_JSON_USED_AS_KEY 42000
-  eng "JSON column '%-.192s' cannot be used in key specification."
+  eng "JSON column '%-.192s' supports indexing only via generated columns on a specified JSON path."
 
 ER_JSON_VACUOUS_PATH 42000
   eng "The path expression '$' is not allowed in this context."
@@ -7568,10 +7569,10 @@ ER_DISABLED_STORAGE_ENGINE
   eng "Storage engine %s is disabled (Table creation is disallowed)."
 
 ER_USER_DOES_NOT_EXIST
-  eng "User %s does not exist."
+  eng "Authorization ID %s does not exist."
 
 ER_USER_ALREADY_EXISTS
-  eng "User %s already exists."
+  eng "Authorization ID %s already exists."
 
 ER_AUDIT_API_ABORT
   eng "Aborted by Audit API ('%-.48s';%d)."
@@ -7848,7 +7849,136 @@ ER_NO_SYSTEM_TABLESPACE_ACCESS
   eng "Access to system tablespace '%.64s' is rejected."
 
 ER_NO_SYSTEM_TABLE_ACCESS
-  eng "Access to system table '%.64s.%.64s' is rejected."
+  eng "Access to %.64s '%.64s.%.64s' is rejected."
+
+ER_NO_SYSTEM_TABLE_ACCESS_FOR_DICTIONARY_TABLE
+  eng "data dictionary table"
+
+ER_NO_SYSTEM_TABLE_ACCESS_FOR_SYSTEM_TABLE
+  eng "system table"
+
+ER_NO_SYSTEM_TABLE_ACCESS_FOR_TABLE
+  eng "table"
+
+ER_INVALID_OPTION_KEY 22023
+  eng "Invalid option key '%.192s' in function %.192s."
+
+ER_INVALID_OPTION_VALUE 22023
+  eng "Invalid value '%.192s' for option '%.192s' in function '%.192s'."
+
+ER_INVALID_OPTION_KEY_VALUE_PAIR 22023
+  eng "The string '%.192s' is not a valid key %c value pair in function %.192s."
+
+ER_INVALID_OPTION_START_CHARACTER 22023
+  eng "The options argument in function %.192s starts with the invalid character '%c'."
+
+ER_INVALID_OPTION_END_CHARACTER 22023
+  eng "The options argument in function %.192s ends with the invalid character '%c'."
+
+ER_INVALID_OPTION_CHARACTERS 22023
+  eng "The options argument in function %.192s contains the invalid character sequence '%.192s'."
+
+ER_DUPLICATE_OPTION_KEY 22023
+  eng "Duplicate option key '%.192s' in funtion '%.192s'."
+
+ER_WARN_SRS_NOT_FOUND_AXIS_ORDER 01000
+  eng "There's no spatial reference system with SRID %u. The axis order is unknown."
+
+ER_NO_ACCESS_TO_NATIVE_FCT
+  eng "Access to native function '%.64s' is rejected."
+
+ER_RESET_MASTER_TO_VALUE_OUT_OF_RANGE
+  eng "The requested value '%lu' for the next binary log index is out of range. Please use a value between '1' and '%lu'."
+
+ER_UNRESOLVED_TABLE_LOCK
+  eng "Unresolved table name %s in locking clause."
+
+ER_DUPLICATE_TABLE_LOCK
+  eng "Table %s appears in multiple locking clauses."
+
+ER_BINLOG_UNSAFE_SKIP_LOCKED
+  eng "Statement is unsafe because it uses SKIP LOCKED. The set of inserted values is non-deterministic."
+
+ER_BINLOG_UNSAFE_NOWAIT
+  eng "Statement is unsafe because it uses NOWAIT. Whether the command will succeed or fail is not deterministic."
+
+ER_LOCK_NOWAIT
+  eng "Do not wait for lock."
+
+ER_CTE_RECURSIVE_REQUIRES_UNION
+  eng "Recursive Common Table Expression '%s' should contain a UNION"
+
+ER_CTE_RECURSIVE_REQUIRES_NONRECURSIVE_FIRST
+  eng "Recursive Common Table Expression '%s' should have one or more non-recursive query blocks followed by one or more recursive ones"
+
+ER_CTE_RECURSIVE_FORBIDS_AGGREGATION
+  eng "Recursive Common Table Expression '%s' cannot contain aggregation in recursive query block"
+
+ER_CTE_RECURSIVE_FORBIDDEN_JOIN_ORDER
+  eng "In recursive query block of Recursive Common Table Expression '%s', the recursive table must neither be in the right argument of a LEFT JOIN, nor be forced to be non-first with join order hints"
+
+ER_CTE_RECURSIVE_REQUIRES_SINGLE_REFERENCE
+  eng "In recursive query block of Recursive Common Table Expression '%s', the recursive table must be referenced only once, and not in any subquery"
+
+ER_SWITCH_TMP_ENGINE
+  eng "'%s' requires @@internal_tmp_disk_storage_engine=InnoDB"
+
+ER_INVALID_NO_OF_ARGS
+  eng "Too many arguments for function %s: %lu; maximum allowed is %s."
+
+ER_FIELD_IN_GROUPING_NOT_GROUP_BY
+  eng "Argument #%u of GROUPING function is not in GROUP BY"
+
+ER_TOO_LONG_TABLESPACE_COMMENT
+  eng "Comment for tablespace '%-.64s' is too long (max = %lu)"
+
+ER_ENGINE_CANT_DROP_TABLE
+  eng "Storage engine can't drop table '%-.129s'"
+
+ER_ENGINE_CANT_DROP_MISSING_TABLE
+  eng "Storage engine can't drop table '%-.129s' because it is missing. Use DROP TABLE IF EXISTS to remove it from data-dictionary."
+
+ER_TABLESPACE_DUP_FILENAME
+  eng "Duplicate file name for tablespace '%-.64s'"
+
+ER_DB_DROP_RMDIR2
+  eng "Problem while dropping database. Can't remove database directory (%s). Please remove it manually."
+
+ER_IMP_NO_FILES_MATCHED
+  eng "No SDI files matched the pattern '%s'"
+
+ER_IMP_SCHEMA_DOES_NOT_EXIST
+  eng "Schema '%.256s', referenced in SDI, does not exist."
+
+ER_IMP_TABLE_ALREADY_EXISTS
+  eng "Table '%.256s.%.256s', referenced in SDI, already exists."
+
+ER_IMP_INCOMPATIBLE_MYSQLD_VERSION
+  eng "Imported mysqld_version (%llu) is not compatible with current (%llu)"
+
+ER_IMP_INCOMPATIBLE_DD_VERSION
+  eng "Imported dd version (%u) is not compatible with current (%u)"
+
+ER_IMP_INCOMPATIBLE_SDI_VERSION
+  eng "Imported sdi version (%llu) is not compatible with current (%llu)"
+
+ER_WARN_INVALID_HINT
+  eng "Invalid number of arguments for hint %s"
+
+ER_VAR_DOES_NOT_EXIST
+  eng "Variable %s does not exist in persisted config file"
+
+ER_LONGITUDE_OUT_OF_RANGE 22S02
+  eng "Longitude %f is out of range in function %.192s. It must be within (%f, %f]."
+
+ER_LATITUDE_OUT_OF_RANGE 22S03
+  eng "Latitude %f is out of range in function %.192s. It must be within [%f, %f]."
+
+ER_NOT_IMPLEMENTED_FOR_GEOGRAPHIC_SRS 22S00
+  eng "%.192s(%.40s, %.40s) has not been implemented for geographic spatial reference systems."
+
+ER_ILLEGAL_PRIVILEGE_LEVEL
+  eng "Illegal privilege level specified for %s"
 
 #
 #  End of 8.0 error messages.

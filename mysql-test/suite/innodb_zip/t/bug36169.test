@@ -3,7 +3,6 @@
 # http://bugs.mysql.com/36169
 #
 
--- source include/have_innodb.inc
 -- source include/have_innodb_max_16k.inc
 
 let $file_per_table=`select @@innodb_file_per_table`;

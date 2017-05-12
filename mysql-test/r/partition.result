@@ -2646,7 +2646,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "5.83"
+      "query_cost": "2.66"
     },
     "table": {
       "table_name": "t1",
@@ -2668,9 +2668,9 @@ EXPLAIN
       "filtered": "100.00",
       "using_index": true,
       "cost_info": {
-        "read_cost": "3.43",
-        "eval_cost": "2.40",
-        "prefix_cost": "5.83",
+        "read_cost": "1.46",
+        "eval_cost": "1.20",
+        "prefix_cost": "2.66",
         "data_read_per_join": "96"
       },
       "used_columns": [

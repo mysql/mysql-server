@@ -2,7 +2,6 @@
 
 # Don't test this under valgrind, memory leaks will occur
 --source include/not_valgrind.inc
---source include/have_innodb.inc
 --source include/master-slave.inc
 
 # Don't test this under valgrind, memory leaks will occur
@@ -23,7 +22,7 @@ CREATE TABLE t1(id INT AUTO_INCREMENT PRIMARY KEY,
                 KEY msg_i(msg_prefix))
 ENGINE=INNODB
 ROW_FORMAT=COMPRESSED
-KEY_BLOCK_SIZE=1;
+KEY_BLOCK_SIZE=16;
 
 let $use_blob=1;
 let $do_crash=1;

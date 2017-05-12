@@ -1,5 +1,4 @@
 
---source include/not_gtid_enabled.inc
 --source include/not_embedded.inc
 
 --let $old_server_id= `SELECT @@GLOBAL.server_id`

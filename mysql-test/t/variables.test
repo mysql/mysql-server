@@ -1,9 +1,21 @@
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs311=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema default character set latin1;
+use test;
+--enable_query_log
+########################################
+
 #
 # test variables
 #
 --disable_warnings
 drop table if exists t1,t2;
 --enable_warnings
+
+SET @default_table_open_cache = @@table_open_cache;
 
 #
 # Bug#19263: variables.test doesn't clean up after itself (I/II -- save)
@@ -409,6 +421,7 @@ set tmp_table_size=100;
 set tx_isolation="READ-COMMITTED";
 set wait_timeout=100;
 set global log_warnings=1;
+set sort_buffer_size=default;
 
 #restore the variable, since it introduces a degree of unpredictability
 set global max_allowed_packet        =@my_max_allowed_packet;
@@ -578,7 +591,7 @@ SHOW VARIABLES LIKE 'table_open_cache';
 --disable_warnings
 SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME LIKE 'table_open_cache';
 --enable_warnings
-SET GLOBAL table_open_cache=DEFAULT;
+SET GLOBAL table_open_cache= @default_table_open_cache;
 
 #
 # Bugs12363: character_set_results is nullable,
@@ -1402,7 +1415,7 @@ SET @@sql_notes = ON;
 SELECT @@sql_notes;
 
 --echo
---error ER_WRONG_VALUE_FOR_VAR
+--error ER_PARSE_ERROR
 SET @@sql_notes = OF;
 SELECT @@sql_notes;
 
@@ -1422,7 +1435,7 @@ SET GLOBAL delay_key_write = ON;
 SELECT @@delay_key_write;
 
 --echo
---error ER_WRONG_VALUE_FOR_VAR
+--error ER_PARSE_ERROR
 SET GLOBAL delay_key_write = OF;
 SELECT @@delay_key_write;
 
@@ -1451,7 +1464,7 @@ SET @@sql_safe_updates = ON;
 SELECT @@sql_safe_updates;
 
 --echo
---error ER_WRONG_VALUE_FOR_VAR
+--error ER_PARSE_ERROR
 SET @@sql_safe_updates = OF;
 SELECT @@sql_safe_updates;
 
@@ -1471,7 +1484,7 @@ SET @@foreign_key_checks = ON;
 SELECT @@foreign_key_checks;
 
 --echo
---error ER_WRONG_VALUE_FOR_VAR
+--error ER_PARSE_ERROR
 SET @@foreign_key_checks = OF;
 SELECT @@foreign_key_checks;
 
@@ -1491,7 +1504,7 @@ SET @@unique_checks = ON;
 SELECT @@unique_checks;
 
 --echo
---error ER_WRONG_VALUE_FOR_VAR
+--error ER_PARSE_ERROR
 SET @@unique_checks = OF;
 SELECT @@unique_checks;
 
@@ -1511,7 +1524,7 @@ SET @@sql_buffer_result = ON;
 SELECT @@sql_buffer_result;
 
 --echo
---error ER_WRONG_VALUE_FOR_VAR
+--error ER_PARSE_ERROR
 SET @@sql_buffer_result = OF;
 SELECT @@sql_buffer_result;
 
@@ -1531,7 +1544,7 @@ SET @@sql_quote_show_create = ON;
 SELECT @@sql_quote_show_create;
 
 --echo
---error ER_WRONG_VALUE_FOR_VAR
+--error ER_PARSE_ERROR
 SET @@sql_quote_show_create = OF;
 SELECT @@sql_quote_show_create;
 
@@ -1618,7 +1631,7 @@ set session collation_database=2048;
 # the statement below will succeed.
 
 --error ER_WRONG_VALUE_FOR_VAR
-SET @@sql_mode= 4294967296;
+SET @@sql_mode= 8589934592;
 
 --echo #
 --echo # Bug #59860: log-slow-admin-statements and log-slow-slave-statements not displayed
@@ -1653,3 +1666,10 @@ set global log_slow_slave_statements = default;
 --echo # WL#7764 - Make STRICT mode for transactional SEs default in 5.7
 --echo #
 SHOW VARIABLES LIKE 'sql_mode';
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs311;
+--enable_query_log
+########################################

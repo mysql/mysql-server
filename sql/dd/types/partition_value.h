@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,10 +16,9 @@
 #ifndef DD__PARTITION_VALUE_INCLUDED
 #define DD__PARTITION_VALUE_INCLUDED
 
-#include "my_global.h"
-
 #include "dd/sdi_fwd.h"                // dd::Sdi_wcontext
 #include "dd/types/weak_object.h"      // dd::Weak_object
+#include "my_inttypes.h"
 
 namespace dd {
 
@@ -69,8 +68,8 @@ public:
   // value.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &value_utf8() const = 0;
-  virtual void set_value_utf8(const std::string &value) = 0;
+  virtual const String_type &value_utf8() const = 0;
+  virtual void set_value_utf8(const String_type &value) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // max_value.

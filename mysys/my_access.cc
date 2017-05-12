@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,10 +17,13 @@
   @file mysys/my_access.cc
 */
 
-#include "mysys_priv.h"
-#include "my_sys.h"
-#include <m_string.h>
-#include "my_thread_local.h"
+#include <errno.h>
+
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_sys.h"  // IWYU pragma: keep
 
 #ifdef _WIN32
 
@@ -170,7 +173,7 @@ int check_if_legal_tablename(const char *name)
  
   @return TRUE if the drive exists, FALSE otherwise.
 */
-static my_bool does_drive_exists(char drive_letter)
+static bool does_drive_exists(char drive_letter)
 {
   DWORD drive_mask= GetLogicalDrives();
   drive_letter= toupper(drive_letter);
@@ -192,9 +195,9 @@ static my_bool does_drive_exists(char drive_letter)
  
   @return TRUE if the file name is allowed, FALSE otherwise.
 */
-my_bool is_filename_allowed(const char *name MY_ATTRIBUTE((unused)),
-                            size_t length MY_ATTRIBUTE((unused)),
-                            my_bool allow_current_dir MY_ATTRIBUTE((unused)))
+bool is_filename_allowed(const char *name MY_ATTRIBUTE((unused)),
+                         size_t length MY_ATTRIBUTE((unused)),
+                         bool allow_current_dir MY_ATTRIBUTE((unused)))
 {
   /* 
     For Windows, check if the file name contains : character.

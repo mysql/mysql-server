@@ -2,6 +2,7 @@
 
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
+--source include/have_plugin_auth.inc
 
 --echo #
 --echo # WL#8688: Support ability to persist SET GLOBAL settings
@@ -11,6 +12,7 @@ CALL mtr.add_suppression("InnoDB: Resizing redo log from*");
 CALL mtr.add_suppression("InnoDB: Starting to delete and rewrite log files.");
 CALL mtr.add_suppression("InnoDB: New log files created, LSN=*");
 CALL mtr.add_suppression("Failed to set up SSL because of the following *");
+CALL mtr.add_suppression("One can only use the --user switch.*");
 
 --echo # Syntax check for PERSIST option
 # Integer type variables.
@@ -66,6 +68,15 @@ SET PERSIST innodb_thread_concurrency=32, PERSIST innodb_write_io_threads=32,
     PERSIST innodb_read_io_threads=invalid_val;
 --cat_file $MYSQLD_DATADIR/mysqld-auto.cnf
 
+# Set variables to be used in parameters of mysqld.
+let $MYSQLD_DATADIR= `SELECT @@datadir`;
+let $MYSQL_BASEDIR= `SELECT @@basedir`;
+let $MYSQL_SOCKET= `SELECT @@socket`;
+let $MYSQL_PIDFILE= `SELECT @@pid_file`;
+let $MYSQL_PORT= `SELECT @@port`;
+let $MYSQL_MESSAGESDIR= `SELECT @@lc_messages_dir`;
+let $MYSQL_HOME=`SELECT @@basedir`;
+
 --echo # Restart server with --no-defaults.
        # no config file read (including mysqld-auto.cnf)
 let $MYSQL_SERVER_ID= `SELECT @@server_id`;
@@ -73,7 +84,7 @@ let $MYSQL_SERVER_ID= `SELECT @@server_id`;
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server
 --source include/wait_until_disconnected.inc
---exec echo "restart:--no-defaults" --server-id=$MYSQL_SERVER_ID > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart:--no-defaults" --basedir=$MYSQL_BASEDIR --datadir=$MYSQLD_DATADIR --socket=$MYSQL_SOCKET --pid-file=$MYSQL_PIDFILE --port=$MYSQL_PORT --lc-messages-dir=$MYSQL_MESSAGESDIR --secure-file-priv="" --server-id=$MYSQL_SERVER_ID > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 
@@ -91,14 +102,6 @@ SELECT VARIABLE_NAME, VARIABLE_SOURCE
 
 --echo # Restart server with --defaults-file.
 # mysqld-auto.cnf file variables should apply in the last.
-# Set variables to be used in parameters of mysqld.
-let $MYSQLD_DATADIR= `SELECT @@datadir`;
-let $MYSQL_BASEDIR= `SELECT @@basedir`;
-let $MYSQL_SOCKET= `SELECT @@socket`;
-let $MYSQL_PIDFILE= `SELECT @@pid_file`;
-let $MYSQL_PORT= `SELECT @@port`;
-let $MYSQL_MESSAGESDIR= `SELECT @@lc_messages_dir`;
-let $MYSQL_HOME=`SELECT @@basedir`;
 # Creating sperate mysql configuration file.
 --write_file $MYSQLTEST_VARDIR/tmp/my.cnf
 [mysqld]
@@ -111,23 +114,31 @@ max_digest_length=2024
 disconnect_on_expired_password=OFF
 EOF
 
-# Creating sperate extra mysql configuration file.
---write_file $MYSQLTEST_VARDIR/tmp/my_user_extra.cnf
-[mysqld]
-flush_time=1
-innodb_tmpdir=$MYSQLTEST_VARDIR/tmp
-max_allowed_packet=16M
-join_buffer_size=262144
-EOF
- 
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server
 --source include/wait_until_disconnected.inc
 --exec echo "restart:--defaults-file=$MYSQLTEST_VARDIR/tmp/my.cnf --log-bin" --basedir=$MYSQL_BASEDIR --datadir=$MYSQLD_DATADIR --socket=$MYSQL_SOCKET --pid-file=$MYSQL_PIDFILE --port=$MYSQL_PORT --lc-messages-dir=$MYSQL_MESSAGESDIR --server-id=$MYSQL_SERVER_ID --sort_buffer_size=462144 --secure-file-priv="" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 
+
+# Creating sperate extra mysql configuration file.
+#--write_file $MYSQLTEST_VARDIR/tmp/my_user_extra.cnf
+#[mysqld]
+#flush_time=1
+#innodb_tmpdir=$MYSQLTEST_VARDIR/tmp
+#max_allowed_packet=16M
+#join_buffer_size=262144
+#EOF
+
 # MTR Bug#24337411
+# There might be global cnf files which contain deprecated variables on some
+# machines and when a defaults-extra-file is passed, global cnf file options
+# are added along with the options from the defaults-extra-file.
+# This causes the server to throw an "unknown variable" error, so this testcase
+# will be commented out.
 # Restart server with defaults-file and defaults-extra-file.
 #--exec echo "restart:--defaults-extra-file=$MYSQLTEST_VARDIR/tmp/my_user_extra.cnf" --basedir=$MYSQL_BASEDIR --datadir=$MYSQLD_DATADIR --socket=$MYSQL_SOCKET --pid-file=$MYSQL_PIDFILE --port=$MYSQL_PORT --lc-messages-dir=$MYSQL_MESSAGESDIR --secure-file-priv=""> $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+#--remove_file $MYSQLTEST_VARDIR/tmp/my_user_extra.cnf
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 
@@ -197,6 +208,7 @@ eval SET PERSIST slow_query_log_file='$slow_query_log_on';
 --echo # Check values after restart.
 # Slow_query_log_file cleanup.
 SET PERSIST slow_query_log_file=DEFAULT;
+RESET PERSIST slow_query_log_file;
 SET PERSIST slow_query_log=DEFAULT;
 # Global and dynamic Variables values should be taken from mysql-auto.cnf file.
 
@@ -224,7 +236,7 @@ SELECT @@global.innodb_flush_sync;
 SELECT @@global.autocommit;
 SELECT @@session.autocommit;
 
-SELECT VARIABLE_NAME, VARIABLE_SOURCE, MIN_VALUE, MAX_VALUE 
+SELECT VARIABLE_NAME, VARIABLE_SOURCE, MIN_VALUE, MAX_VALUE
   FROM performance_schema.variables_info
   WHERE VARIABLE_NAME IN ('innodb_fast_shutdown','sql_mode',
   'innodb_default_row_format','max_digest_length','max_connections',
@@ -232,19 +244,10 @@ SELECT VARIABLE_NAME, VARIABLE_SOURCE, MIN_VALUE, MAX_VALUE
   'autocommit','innodb_checksum_algorithm')
   ORDER BY VARIABLE_NAME;
 
-#--echo # Restart server --login-path 
-#--echo # Default login path (client)
-#--exec $MYSQL_CONFIG_EDITOR set --login-path=test-login-path1 --user=test_user1 --host=localhost
-#CREATE USER test_user1@localhost;
-#GRANT ALL PRIVILEGES ON *.* TO test_user1@localhost;
-
-#--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-#--shutdown_server
-#--source include/wait_until_disconnected.inc
-# MTR Bug#24337411
-#--exec echo "restart:--login-path=test-login-path1" --server-id=$MYSQL_SERVER_ID > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-#--enable_reconnect
-#--source include/wait_until_connected_again.inc
+#echo should return 0 rows now
+SELECT VARIABLE_NAME,VARIABLE_SOURCE
+  FROM performance_schema.variables_info
+  WHERE VARIABLE_SOURCE = 'LOGIN';
 
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server
@@ -291,7 +294,7 @@ SELECT argument FROM mysql.general_log WHERE argument LIKE 'SET PERSIST %';
 
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval SET PERSIST general_log_file = '$general_file_on';
-SET PERSIST general_log_file=DEFAULT;
+RESET PERSIST general_log_file;
 SET PERSIST log_output=DEFAULT ,PERSIST general_log=DEFAULT;
 
 --remove_file $general_file_on
@@ -311,7 +314,86 @@ SET PERSIST innodb_fast_shutdown=DEFAULT,PERSIST innodb_default_row_format=DEFAU
     PERSIST log_bin_trust_function_creators=DEFAULT, PERSIST autocommit=DEFAULT;
 --cat_file $MYSQLD_DATADIR/mysqld-auto.cnf
 
+--echo WL#9720 - SET PERSIST to capture user, host and timestamp
+# Verify new columns SET_TIME, SET_USER and SET_HOST added in
+# performance_schema.variables_info
+show create table performance_schema.variables_info;
+
+# performance_schema.variables_info.SET_USER column represents
+# which user has set the variable.
+# performance_schema.variables_info.SET_HOST column represents
+# host on which the variable is set.
+# Successful execution of SET statement will update these columns
+# (SET_USER,SET_HOST,SET_TIME) accordingly.
+--connection default
+CREATE USER 'user1'@'localhost' IDENTIFIED BY 'pass1';
+GRANT ALL ON *.* TO 'user1'@'localhost';
+
+--connect (con1,localhost,user1,pass1,)
+
+--connection con1
+SET @@global.max_connections = 100;
+SET @@persist.event_scheduler=DEFAULT;
+SET PERSIST auto_increment_increment=10;
+SET PERSIST innodb_checksum_algorithm=strict_crc32;
+
+--connection default
+SELECT VARIABLE_NAME, VARIABLE_SOURCE, SET_USER, SET_HOST
+FROM performance_schema.variables_info
+WHERE VARIABLE_NAME IN ('max_connections','event_scheduler',
+'auto_increment_increment','innodb_checksum_algorithm');
+
+# RESET PERSIST statement should have no effect on these new columns.
+
+--connection con1
+RESET PERSIST auto_increment_increment;
+RESET PERSIST innodb_checksum_algorithm;
+
+--connection default
+SELECT VARIABLE_NAME, VARIABLE_SOURCE, SET_USER, SET_HOST
+FROM performance_schema.variables_info
+WHERE VARIABLE_NAME IN ('auto_increment_increment',
+'innodb_checksum_algorithm');
+
+# Verify SET_USER, SET_HOST column for proxy_user:
+select @@global.max_connections into @saved_max_connections;
+select @@global.autocommit into @saved_autocommit;
+
+# Create proxied user:
+CREATE USER 'internal_proxied'@'%' IDENTIFIED BY 'proxy_password';
+
+# Create proxy user 1:
+CREATE USER 'external_u1'@'%' IDENTIFIED WITH test_plugin_server AS 'internal_proxied';
+
+# Create proxy user 2:
+CREATE USER 'external_u2'@'%' IDENTIFIED WITH test_plugin_server AS 'internal_proxied';
+
+GRANT PROXY ON 'internal_proxied'@'%' TO 'external_u1'@'%','external_u2'@'%';
+GRANT ALL ON *.* TO 'internal_proxied'@'%';
+
+--connect (con2,localhost,external_u1,internal_proxied,)
+--connect (con3,localhost,external_u2,internal_proxied,)
+
+--connection con2
+SET @@global.max_connections=50;
+
+--connection con3
+SET @@global.autocommit=1;
+
+--connection default
+--replace_column 4 #
+SELECT VARIABLE_NAME, SET_USER, SET_HOST, SET_TIME from
+performance_schema.variables_info where variable_name='max_connections' or
+variable_name='autocommit';
+
 --echo # Cleanup
 --remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
 --remove_file $MYSQLTEST_VARDIR/tmp/my.cnf
---remove_file $MYSQLTEST_VARDIR/tmp/my_user_extra.cnf
+drop USER 'internal_proxied'@'%';
+drop USER 'external_u1'@'%';
+drop USER 'external_u2'@'%';
+SET GLOBAL max_connections = @saved_max_connections;
+SET GLOBAL autocommit = @saved_autocommit;
+--disconnect con1
+--disconnect con2
+--disconnect con3

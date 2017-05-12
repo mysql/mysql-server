@@ -175,7 +175,7 @@ public:
 /**
   Create a Fake_TABLE object representing the schemata table.
 */
-Fake_TABLE *get_schema_table(THD *thd, handlerton *hton)
+inline Fake_TABLE *get_schema_table(THD *thd, handlerton *hton)
 {
   List<Field> m_field_list;
   Fake_TABLE *table= NULL;
@@ -230,14 +230,14 @@ Fake_TABLE *get_schema_table(THD *thd, handlerton *hton)
 
 // Overloaded functions for populating DD objects
 
-void set_attributes(dd::Schema *obj, const std::string &name)
+inline void set_attributes(dd::Schema *obj, const dd::String_type &name)
 {
   obj->set_name(name);
   obj->set_default_collation_id(1);
 }
 
 
-void set_attributes(dd::Tablespace *obj, const std::string &name)
+inline void set_attributes(dd::Tablespace *obj, const dd::String_type &name)
 {
   //
   // Create a new tablespacefile
@@ -249,8 +249,8 @@ void set_attributes(dd::Tablespace *obj, const std::string &name)
 }
 
 
-void set_attributes(dd::Table *obj, const std::string &name,
-                    const dd::Schema &schema)
+inline void set_attributes(dd::Table *obj, const dd::String_type &name,
+                           const dd::Schema &schema)
 {
   obj->set_name(name);
 
@@ -335,8 +335,8 @@ void set_attributes(dd::Table *obj, const std::string &name,
 }
 
 
-void set_attributes(dd::View *obj, const std::string &name,
-                    const dd::Schema &schema)
+inline void set_attributes(dd::View *obj, const dd::String_type &name,
+                           const dd::Schema &schema)
 {
   obj->set_name(name);
   obj->set_definer("definer_username", "definer_hostname");
@@ -363,9 +363,9 @@ void set_attributes(dd::View *obj, const std::string &name,
   vt_obj->set_table_name("t1");
 }
 
-void set_attributes(dd::Event *obj,
-                    const std::string &name,
-                    const dd::Schema &schema)
+inline void set_attributes(dd::Event *obj,
+                           const dd::String_type &name,
+                           const dd::Schema &schema)
 {
   obj->set_name(name);
   obj->set_definer("definer_username", "definer_hostname");
@@ -376,9 +376,9 @@ void set_attributes(dd::Event *obj,
 
 }
 
-void set_attributes(dd::Procedure *obj,
-                    const std::string &name,
-                    const dd::Schema &schema)
+inline void set_attributes(dd::Procedure *obj,
+                           const dd::String_type &name,
+                           const dd::Schema &schema)
 {
   obj->set_name(name);
   obj->set_definer("definer_username", "definer_hostname");
@@ -398,7 +398,7 @@ void set_attributes(dd::Procedure *obj,
 }
 
 
-void set_attributes(dd::Foreign_key *obj, const std::string &name)
+inline void set_attributes(dd::Foreign_key *obj, const dd::String_type &name)
 {
   obj->set_name(name);
   obj->set_match_option(dd::Foreign_key::OPTION_FULL);
@@ -412,13 +412,13 @@ void set_attributes(dd::Foreign_key *obj, const std::string &name)
   fke->referenced_column_name("EMPLOYEE");
 }
 
-void set_attributes(dd::Charset *obj, const std::string &name)
+inline void set_attributes(dd::Charset *obj, const dd::String_type &name)
 {
   obj->set_name(name);
   obj->set_default_collation_id(42);
 }
 
-void set_attributes(dd::Collation *obj, const std::string &name)
+inline void set_attributes(dd::Collation *obj, const dd::String_type &name)
 {
   obj->set_name(name);
   obj->set_charset_id(42);

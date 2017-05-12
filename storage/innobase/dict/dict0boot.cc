@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,18 +23,18 @@ Data dictionary creation and booting
 Created 4/18/1996 Heikki Tuuri
 *******************************************************/
 
-#include "ha_prototypes.h"
-
+#include "btr0btr.h"
+#include "buf0flu.h"
 #include "dict0boot.h"
 #include "dict0crea.h"
-#include "btr0btr.h"
 #include "dict0load.h"
-#include "trx0trx.h"
-#include "srv0srv.h"
+#include "ha_prototypes.h"
 #include "ibuf0ibuf.h"
-#include "buf0flu.h"
 #include "log0recv.h"
+#include "my_inttypes.h"
 #include "os0file.h"
+#include "srv0srv.h"
+#include "trx0trx.h"
 
 /** TRUE if we don't have DDTableBuffer in the system tablespace,
 this should be due to we run the server against old data files.
@@ -381,7 +381,7 @@ dict_boot(void)
 				      DICT_HDR_SPACE,
 				      DICT_UNIQUE | DICT_CLUSTERED, 1);
 
-	index->add_field("NAME", 0);
+	index->add_field("NAME", 0, true);
 
 	index->id = DICT_TABLES_ID;
 
@@ -395,7 +395,7 @@ dict_boot(void)
 	/*-------------------------*/
 	index = dict_mem_index_create("SYS_TABLES", "ID_IND",
 				      DICT_HDR_SPACE, DICT_UNIQUE, 1);
-	index->add_field("ID", 0);
+	index->add_field("ID", 0, true);
 
 	index->id = DICT_TABLE_IDS_ID;
 	error = dict_index_add_to_cache(table, index,
@@ -427,8 +427,8 @@ dict_boot(void)
 				      DICT_HDR_SPACE,
 				      DICT_UNIQUE | DICT_CLUSTERED, 2);
 
-	index->add_field("TABLE_ID", 0);
-	index->add_field("POS", 0);
+	index->add_field("TABLE_ID", 0, true);
+	index->add_field("POS", 0, true);
 
 	index->id = DICT_COLUMNS_ID;
 	error = dict_index_add_to_cache(table, index,
@@ -461,8 +461,8 @@ dict_boot(void)
 				      DICT_HDR_SPACE,
 				      DICT_UNIQUE | DICT_CLUSTERED, 2);
 
-	index->add_field("TABLE_ID", 0);
-	index->add_field("ID", 0);
+	index->add_field("TABLE_ID", 0, true);
+	index->add_field("ID", 0, true);
 
 	index->id = DICT_INDEXES_ID;
 	error = dict_index_add_to_cache(table, index,
@@ -489,8 +489,8 @@ dict_boot(void)
 				      DICT_HDR_SPACE,
 				      DICT_UNIQUE | DICT_CLUSTERED, 2);
 
-	index->add_field("INDEX_ID", 0);
-	index->add_field("POS", 0);
+	index->add_field("INDEX_ID", 0, true);
+	index->add_field("POS", 0, true);
 
 	index->id = DICT_FIELDS_ID;
 	error = dict_index_add_to_cache(table, index,
@@ -514,7 +514,8 @@ dict_boot(void)
 
 	dberr_t	err = DB_SUCCESS;
 
-	if (srv_read_only_mode && !ibuf_is_empty()) {
+	if (srv_force_recovery != SRV_FORCE_NO_LOG_REDO
+	    && srv_read_only_mode && !ibuf_is_empty()) {
 
 		ib::error() << "Change buffer must be empty when"
 			" --innodb-read-only is set!";

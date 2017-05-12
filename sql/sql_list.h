@@ -1,6 +1,6 @@
 #ifndef INCLUDES_MYSQL_SQL_LIST_H
 #define INCLUDES_MYSQL_SQL_LIST_H
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,12 +15,16 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "my_global.h"
-
-#include "sql_alloc.h"         // Sql_alloc
-
+#include <stddef.h>
+#include <sys/types.h>
 #include <algorithm>
 #include <type_traits>
+
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_sharedlib.h"
+#include "sql_alloc.h"         // Sql_alloc
+#include "thr_malloc.h"
 
 
 /**
@@ -327,6 +331,7 @@ public:
   inline list_node* last_node() { return *last; }
   inline list_node* first_node() { return first;}
   inline void *head() { return first->info; }
+  inline const void *head() const { return first->info; }
   inline void **head_ref() { return first != &end_of_list ? &first->info : 0; }
   inline void *back() { return (*last)->info; }
   inline bool is_empty() const { return first == &end_of_list ; }
@@ -545,7 +550,9 @@ public:
   {
     return base_list::push_front((void *) a, mem_root);
   }
-  inline T* head() {return (T*) base_list::head(); }
+  inline T* head() { return static_cast<T *>(base_list::head()); }
+  inline const T *head() const
+  { return static_cast<const T *>(base_list::head()); }
   inline T** head_ref() {return (T**) base_list::head_ref(); }
   inline T* back() {return (T*) base_list::back(); }
   inline T* pop()  {return (T*) base_list::pop(); }
@@ -563,13 +570,13 @@ public:
     empty();
   }
 
-  T *operator[] (int index) const
+  T *operator[] (uint index) const
   {
     DBUG_ASSERT(index < elements);
-    T *current= first;
-    for (int i= 0; i < index; ++i)
+    list_node *current= first;
+    for (uint i= 0; i < index; ++i)
       current= current->next;
-    return current->info;
+    return static_cast<T*>(current->info);
   }
 
   using base_list::sort;

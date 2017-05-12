@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -17,14 +17,14 @@
  * 02110-1301  USA
  */
 
-#if !defined(MYSQL_DYNAMIC_PLUGIN) && defined(WIN32) && !defined(XPLUGIN_UNIT_TESTS)
-// Needed for importing PERFORMANCE_SCHEMA plugin API.
-#define MYSQL_DYNAMIC_PLUGIN 1
-#endif // WIN32
-
 #include "ngs/thread.h"
-#include "my_thread.h"
+
+#include <time.h>
+
 #include "my_sys.h"                             // my_thread_stack_size
+#include "my_systime.h"
+#include "my_thread.h"
+#include "ngs/memory.h"
 
 
 void ngs::thread_create(PSI_thread_key key, Thread_t *thread,
@@ -135,3 +135,6 @@ void ngs::Cond::broadcast(Mutex& mutex)
 
   broadcast();
 }
+
+unsigned int ngs::x_psf_objects_key = 0;
+

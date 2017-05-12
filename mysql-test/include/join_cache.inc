@@ -5,7 +5,7 @@ DROP DATABASE IF EXISTS world;
 
 set names utf8;
 
-CREATE DATABASE world;
+CREATE DATABASE world character set utf8mb4;
 
 use world;
 
@@ -88,7 +88,7 @@ show variables like 'join_buffer_size';
 DROP DATABASE world; 
 
 
-CREATE DATABASE world;
+CREATE DATABASE world character set utf8mb4;
 
 use world;
 
@@ -230,7 +230,7 @@ SELECT city.Name, country.Name FROM city,country
   WHERE city.country=country.Code AND 
         country.Name LIKE 'L%' AND city.Population > 100000;
 
-ALTER TABLE country MODIFY Name varchar(300) NOT NULL default '';
+ALTER TABLE country MODIFY Name varchar(250) NOT NULL default '';
 
 --sorted_result
 SELECT city.Name, country.Name FROM city,country
@@ -328,7 +328,7 @@ CREATE TABLE t4(
   priority int NOT NULL default '0',
   canaddtocapability char(1) NOT NULL default 'Y',
   PRIMARY KEY  (formatid)
-);
+) charset utf8mb4;
 CREATE INDEX t4_formatclassid ON t4(formatclassid);
 CREATE INDEX t4_formats_idx ON t4(canaddtocapability);
 INSERT INTO t4 VALUES
@@ -530,7 +530,7 @@ explain
 select t1.a, count(t2.p) as count
   from t1 left join t2 on t1.a=t2.a and t2.p % 2 = 1 group by t1.a;
 select t1.a, count(t2.p) as count
-  from t1 left join t2 on t1.a=t2.a and t2.p % 2 = 1 group by t1.a;
+  from t1 left join t2 on t1.a=t2.a and t2.p % 2 = 1 group by t1.a asc;
 drop table t1, t2;
 
 --echo #
@@ -892,7 +892,7 @@ CREATE TABLE t5 (
   id2 bigint(20) NOT NULL DEFAULT '0',
   enum2 enum('Active','Deleted','Paused') DEFAULT NULL,
   PRIMARY KEY (id1,id2)
-);
+) charset utf8mb4;
 
 --disable_query_log
 --disable_result_log
@@ -1501,10 +1501,10 @@ INSERT INTO t1 VALUES (NULL),(NULL);
 DROP TABLE t1,t2;
 
 # test varchar keys
-CREATE TABLE t1 (b varchar(100));
+CREATE TABLE t1 (b varchar(100)) charset utf8mb4;
 INSERT INTO t1 VALUES (NULL),("some varchar");
 
-CREATE TABLE t2 (a int, b varchar(100), KEY (b));
+CREATE TABLE t2 (a int, b varchar(100), KEY (b)) charset utf8mb4;
 INSERT INTO t2 VALUES (100,NULL),(150,"varchar"),(200,NULL),(250,"long long varchar");
 
 explain SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
@@ -1555,6 +1555,7 @@ CREATE TABLE t1 (
 INSERT INTO t1 VALUES (2,'2003-02-11 21:19:41');
 INSERT INTO t1 VALUES (3,'2009-10-18 02:27:49');
 INSERT INTO t1 VALUES (0,'2000-09-26 07:45:57');
+INSERT INTO t1 VALUES (4,'2000-09-26 07:45:57');
 
 CREATE TABLE t2 (
   `col_int` int,
@@ -1791,7 +1792,7 @@ CREATE TABLE t1 (  col_int_key int(11) NOT NULL,
    col_varchar_key varchar(1) NOT NULL,    
    KEY col_int_key (col_int_key),
    KEY col_varchar_key (col_varchar_key,col_int_key)
-) ENGINE=innodb;
+) charset utf8mb4 ENGINE=innodb;
 
 INSERT INTO t1 VALUES (0,'j'),(4,'b'),(4,'d');
 
@@ -1799,7 +1800,7 @@ CREATE TABLE t2 (
    col_datetime_key datetime NOT NULL,
    col_varchar_key varchar(1) NOT NULL,
    KEY col_varchar_key (col_varchar_key)
-) ENGINE=innodb;
+) charset utf8mb4 ENGINE=innodb;
 
 INSERT INTO t2 VALUES ('2003-08-21 00:00:00','b');
 
@@ -2037,7 +2038,7 @@ CREATE TABLE t2 (
   col_datetime_nokey datetime NOT NULL,
   col_varchar_key varchar(1),
   KEY col_varchar_key (col_varchar_key)
-);
+) charset utf8mb4;
 
 INSERT INTO t2 VALUES (9, '2002-08-25 20:35:06', 'e'),
                       (9, '2002-08-25 20:35:06', 'e');

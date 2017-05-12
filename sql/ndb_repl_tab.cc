@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,11 +18,12 @@
 #include "ha_ndbcluster_tables.h"
 #include "ndb_repl_tab.h"
 
-#ifdef HAVE_NDB_BINLOG
-#include "ha_ndbcluster_glue.h"
-#include "ha_ndbcluster_connection.h"  /* do_retry_sleep() */
+#include "mf_wcomp.h"
 #include "ndb_table_guard.h"
 #include "ndb_share.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysqld.h"                    // system_charset_info
+#include "ndb_sleep.h"
 
 Ndb_rep_tab_key::Ndb_rep_tab_key(const char* _db,
                                  const char* _table_name,
@@ -234,7 +235,7 @@ Ndb_rep_tab_reader::scan_candidates(Ndb* ndb,
       {
         if (retries--)
         {
-          do_retry_sleep(retry_sleep);
+          ndb_retry_sleep(retry_sleep);
           continue;
         }
       }
@@ -272,7 +273,7 @@ Ndb_rep_tab_reader::scan_candidates(Ndb* ndb,
       {
         if (retries--)
         {
-          do_retry_sleep(retry_sleep);
+          ndb_retry_sleep(retry_sleep);
           continue;
         }
       }
@@ -358,7 +359,7 @@ Ndb_rep_tab_reader::scan_candidates(Ndb* ndb,
         if (retries--)
         {
           ndb->closeTransaction(trans);
-          do_retry_sleep(retry_sleep);
+          ndb_retry_sleep(retry_sleep);
           continue;
         }
       }
@@ -553,8 +554,3 @@ Ndb_rep_tab_reader::get_warning_message() const
 {
   return warning_msg;
 }
-
-
-/* #ifdef HAVE_NDB_BINLOG */
-
-#endif

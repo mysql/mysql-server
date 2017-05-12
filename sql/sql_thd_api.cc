@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,26 +15,55 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "my_global.h"
-#include "mysql/plugin.h"
-#include "mysql/service_thd_alloc.h"
-#include "mysql/service_thd_engine_lock.h"
-#include "mysql/service_thd_wait.h"
-#include "mysql/thread_pool_priv.h"
+#include <string.h>
+#include <sys/types.h>
+#include <algorithm>
 
+#include "binlog_event.h"
+#include "channel_info.h"
+#include "connection_handler_manager.h"
 #include "current_thd.h"                // current_thd
-#include "mysqld_thd_manager.h"         // Global_THD_manager
+#include "handler.h"
+#include "key.h"
+#include "lex_string.h"
+#include "m_ctype.h"
+#include "my_dbug.h"
+#include "my_io.h"
+#include "my_macros.h"
+#include "my_sqlcommand.h"
+#include "my_thread.h"
+#include "my_thread_local.h"
+#include "mysql/mysql_lex_string.h"
+#include "mysql/plugin.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/psi_stage.h"
+#include "mysql/psi/psi_thread.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql_com.h"
+#include "mysqld.h"                     // key_thread_one_connection
+#include "protocol_classic.h"
+#include "query_options.h"
 #include "rpl_rli.h"                    // is_mts_worker
 #include "rpl_slave_commit_order_manager.h"
+#include "session_tracker.h"
+#include "sql_alter.h"
                                         // commit_order_manager_check_deadlock
 #include "sql_cache.h"                  // query_cache
 #include "sql_callback.h"               // MYSQL_CALLBACK
 #include "sql_class.h"                  // THD
+#include "sql_error.h"
+#include "sql_lex.h"
 #include "sql_plugin.h"                 // plugin_unlock
+#include "sql_plugin_ref.h"
+#include "sql_security_ctx.h"
+#include "sql_string.h"
 #include "sql_table.h"                  // filename_to_tablename
-#include "mysqld.h"                     // key_thread_one_connection
+#include "sql_thd_internal_api.h"
+#include "system_variables.h"
+#include "transaction_info.h"
+#include "violite.h"
+#include "xa.h"
 
-#include <algorithm>
 using std::min;
 
 
@@ -130,7 +159,7 @@ void thd_set_killed(THD *thd)
   @param thd              THD object
 */
 
-void thd_clear_errors(THD *thd)
+void thd_clear_errors(THD *thd MY_ATTRIBUTE((unused)))
 {
   set_my_errno(0);
 }
@@ -679,7 +708,8 @@ void thd_mark_transaction_to_rollback(MYSQL_THD thd, int all)
 */
 extern "C"
 void mysql_query_cache_invalidate4(THD *thd,
-                                   const char *key, unsigned key_length,
+                                   const char *key,
+                                   unsigned key_length MY_ATTRIBUTE((unused)),
                                    int using_trx)
 {
   char qcache_key_name[2 * (NAME_LEN + 1)];
@@ -767,11 +797,10 @@ void *thd_memdup(MYSQL_THD thd, const void* str, size_t size)
 //
 //////////////////////////////////////////////////////////
 
-#ifndef EMBEDDED_LIBRARY
 /*
   Interface for MySQL Server, plugins and storage engines to report
   when they are going to sleep/stall.
-  
+
   SYNOPSIS
   thd_wait_begin()
   thd                     Thread object
@@ -806,19 +835,6 @@ extern "C" void thd_wait_end(MYSQL_THD thd)
   MYSQL_CALLBACK(Connection_handler_manager::event_functions,
                  thd_wait_end, (thd));
 }
-#else
-extern "C" void thd_wait_begin(MYSQL_THD thd, int wait_type)
-{
-  /* do NOTHING for the embedded library */
-  return;
-}
-
-extern "C" void thd_wait_end(MYSQL_THD thd)
-{
-  /* do NOTHING for the embedded library */
-  return;
-}
-#endif
 
 
 //////////////////////////////////////////////////////////
@@ -827,7 +843,6 @@ extern "C" void thd_wait_end(MYSQL_THD thd)
 //
 //////////////////////////////////////////////////////////
 
-#ifndef EMBEDDED_LIBRARY
 /**
    Interface for Engine to report row lock conflict.
    The caller should guarantee thd_wait_for does not be freed, when it is
@@ -844,11 +859,3 @@ void thd_report_row_lock_wait(THD* self, THD *wait_for)
 
   DBUG_VOID_RETURN;
 }
-#else
-extern "C"
-void thd_report_row_lock_wait(THD* self, THD *thd_wait_for)
-{
-  return;
-}
-#endif
-

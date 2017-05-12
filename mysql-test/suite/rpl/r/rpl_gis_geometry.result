@@ -195,7 +195,7 @@ geom_data	CREATE TABLE `geom_data` (
   `id` int(11) NOT NULL,
   `geom` geometry NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 [Connection Master]
 # Add spatial index to the column of GEOMETRY data type
 ALTER TABLE geom_data ADD SPATIAL INDEX(geom);
@@ -209,7 +209,7 @@ geom_data	CREATE TABLE `geom_data` (
   `geom` geometry NOT NULL,
   PRIMARY KEY (`id`),
   SPATIAL KEY `geom` (`geom`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 [Connection Master]
 # Add a column of GEOMETRY data type
 ALTER TABLE geom_data ADD COLUMN geom1 GEOMETRY;
@@ -278,7 +278,7 @@ geom_data	CREATE TABLE `geom_data` (
   `geom1` geometry DEFAULT NULL,
   PRIMARY KEY (`id`),
   SPATIAL KEY `geom` (`geom`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SELECT id, ST_ASTEXT(geom1), ST_GEOMETRYTYPE(geom1), ST_DIMENSION(geom1) FROM geom_data;
 id	ST_ASTEXT(geom1)	ST_GEOMETRYTYPE(geom1)	ST_DIMENSION(geom1)
 10	POINT(2 3)	POINT	0
@@ -327,7 +327,7 @@ geom_data	CREATE TABLE `geom_data` (
   `geom` geometry NOT NULL,
   PRIMARY KEY (`id`),
   SPATIAL KEY `geom` (`geom`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 [Connection Master]
 # Drop all the tables
 DROP TABLE point_geom;

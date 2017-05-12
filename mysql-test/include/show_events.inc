@@ -8,6 +8,13 @@
 # See include/show_binlog_events.inc
 
 --let $include_filename= show_events.inc
+if ($is_relay_log)
+{
+  if ($rpl_channel_name)
+  {
+    --let $include_filename= $include_filename [FOR CHANNEL $rpl_channel_name]
+  }
+}
 --source include/begin_include_file.inc
 
 --let $_se_old_statement= $statement
@@ -17,9 +24,9 @@
 if ($is_relay_log)
 {
   --let $statement= SHOW RELAYLOG EVENTS
-  if ($rpl_channel_name != '')
+  if ($rpl_channel_name)
   {
-    --let $_se_for_channel= FOR CHANNEL  '$rpl_channel_name'
+    --let $_se_for_channel= FOR CHANNEL $rpl_channel_name
   }
 }
 --let $statement_masked= $statement
@@ -89,7 +96,8 @@ if ($show_binlog_events_mask_columns == '')
   --let $mask_columns = 2,4,5
 }
 let $script=
-  s{/\* xid=.* \*/}{/\* XID \*/};
+  s{/\* xid=.* \*/}{/\* XID # \*/};
+  s{COMMIT /\* XID # \*/}{COMMIT /\* XID \*/};
   s{table_id: [0-9]+}{table_id: #};
   s{file_id=[0-9]+}{file_id=#};
   s{block_len=[0-9]+}{block_len=#};
@@ -130,6 +138,10 @@ if ($mask_anonymous_gtid_events)
 {
   --let $script= $script s{Anonymous_Gtid}{Gtid};
   --let $script= $script s{ANONYMOUS}{Gtid_set};
+}
+if (!$keep_ddl_xid)
+{
+  --let $script= $script s{ /\* XID # \*/}{};
 }
 --delimiter ;
 

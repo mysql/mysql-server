@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,9 +15,15 @@
 
 #include "dd/impl/raw/raw_record_set.h"
 
-#include "table.h"                          // TABLE
+#include <sys/types.h>
 
 #include "dd/impl/raw/raw_key.h"            // dd::Raw_key
+#include "handler.h"
+#include "my_base.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
+#include "table.h"                          // TABLE
 
 namespace dd {
 

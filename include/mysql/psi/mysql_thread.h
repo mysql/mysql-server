@@ -53,6 +53,7 @@
   This causes complexity with '#ifdef'-ery that can't be avoided.
 */
 
+#include "my_psi_config.h"  // IWYU pragma: keep
 #include "my_thread.h"
 #include "my_thread_local.h"
 #include "mysql/psi/psi_thread.h"
@@ -97,11 +98,10 @@
   @param P4 my_thread_create parameter 4
 */
 #ifdef HAVE_PSI_THREAD_INTERFACE
-  #define mysql_thread_create(K, P1, P2, P3, P4) \
-    inline_mysql_thread_create(K, P1, P2, P3, P4)
+#define mysql_thread_create(K, P1, P2, P3, P4) \
+  inline_mysql_thread_create(K, P1, P2, P3, P4)
 #else
-  #define mysql_thread_create(K, P1, P2, P3, P4) \
-    my_thread_create(P1, P2, P3, P4)
+#define mysql_thread_create(K, P1, P2, P3, P4) my_thread_create(P1, P2, P3, P4)
 #endif
 
 /**
@@ -110,9 +110,12 @@
   @param I The thread identifier
 */
 #ifdef HAVE_PSI_THREAD_INTERFACE
-  #define mysql_thread_set_psi_id(I) inline_mysql_thread_set_psi_id(I)
+#define mysql_thread_set_psi_id(I) inline_mysql_thread_set_psi_id(I)
 #else
-  #define mysql_thread_set_psi_id(I) do {} while (0)
+#define mysql_thread_set_psi_id(I) \
+  do                               \
+  {                                \
+  } while (0)
 #endif
 
 /**
@@ -121,22 +124,24 @@
   @param T The thread sql session
 */
 #ifdef HAVE_PSI_THREAD_INTERFACE
-  #define mysql_thread_set_psi_THD(T) inline_mysql_thread_set_psi_THD(T)
+#define mysql_thread_set_psi_THD(T) inline_mysql_thread_set_psi_THD(T)
 #else
-  #define mysql_thread_set_psi_THD(T) do {} while (0)
+#define mysql_thread_set_psi_THD(T) \
+  do                                \
+  {                                 \
+  } while (0)
 #endif
 
-static inline void inline_mysql_thread_register(
+static inline void
+inline_mysql_thread_register(
 #ifdef HAVE_PSI_THREAD_INTERFACE
-  const char *category,
-  PSI_thread_info *info,
-  int count
+  const char *category, PSI_thread_info *info, int count
 #else
-  const char *category MY_ATTRIBUTE ((unused)),
-  void *info MY_ATTRIBUTE ((unused)),
-  int count MY_ATTRIBUTE ((unused))
+  const char *category MY_ATTRIBUTE((unused)),
+  void *info MY_ATTRIBUTE((unused)),
+  int count MY_ATTRIBUTE((unused))
 #endif
-)
+  )
 {
 #ifdef HAVE_PSI_THREAD_INTERFACE
   PSI_THREAD_CALL(register_thread)(category, info, count);
@@ -144,27 +149,31 @@ static inline void inline_mysql_thread_register(
 }
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
-static inline int inline_mysql_thread_create(
-  PSI_thread_key key,
-  my_thread_handle *thread, const my_thread_attr_t *attr,
-  my_start_routine start_routine, void *arg)
+static inline int
+inline_mysql_thread_create(PSI_thread_key key,
+                           my_thread_handle *thread,
+                           const my_thread_attr_t *attr,
+                           my_start_routine start_routine,
+                           void *arg)
 {
   int result;
-  result= PSI_THREAD_CALL(spawn_thread)(key, thread, attr, start_routine, arg);
+  result = PSI_THREAD_CALL(spawn_thread)(key, thread, attr, start_routine, arg);
   return result;
 }
 
-static inline void inline_mysql_thread_set_psi_id(my_thread_id id)
+static inline void
+inline_mysql_thread_set_psi_id(my_thread_id id)
 {
-  struct PSI_thread *psi= PSI_THREAD_CALL(get_thread)();
+  struct PSI_thread *psi = PSI_THREAD_CALL(get_thread)();
   PSI_THREAD_CALL(set_thread_id)(psi, id);
 }
 
 #ifdef __cplusplus
 class THD;
-static inline void inline_mysql_thread_set_psi_THD(THD *thd)
+static inline void
+inline_mysql_thread_set_psi_THD(THD *thd)
 {
-  struct PSI_thread *psi= PSI_THREAD_CALL(get_thread)();
+  struct PSI_thread *psi = PSI_THREAD_CALL(get_thread)();
   PSI_THREAD_CALL(set_thread_THD)(psi, thd);
 }
 #endif /* __cplusplus */
@@ -174,4 +183,3 @@ static inline void inline_mysql_thread_set_psi_THD(THD *thd)
 /** @} (end of group psi_api_thread) */
 
 #endif
-

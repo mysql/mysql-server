@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,12 +13,13 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "psi_memory_key.h"
+#include "sql/psi_memory_key.h"
 
-#include "my_global.h"
-#include "my_thread.h"                          // Needed by mysql_memory.h
-#include "mysql/psi/psi_base.h"                 // PSI_FLAG_GLOBAL
+#include "my_macros.h"
+#include "my_psi_config.h"
 #include "mysql/psi/mysql_memory.h"
+#include "mysql/psi/psi_base.h"                 // PSI_FLAG_GLOBAL
+#include "mysql/psi/psi_memory.h"
 
 /*
   MAINTAINER: Please keep this list in order, to limit merge collisions.
@@ -27,6 +28,9 @@
 extern "C" {
 
 PSI_memory_key key_memory_DATE_TIME_FORMAT;
+PSI_memory_key key_memory_DD_default_values;
+PSI_memory_key key_memory_DD_import;
+PSI_memory_key key_memory_DD_String_type;
 PSI_memory_key key_memory_DDL_LOG_MEMORY_ENTRY;
 PSI_memory_key key_memory_Event_queue_element_for_exec_names;
 PSI_memory_key key_memory_Event_scheduler_scheduler_param;
@@ -102,10 +106,6 @@ PSI_memory_key key_memory_delegate;
 PSI_memory_key key_memory_errmsgs;
 PSI_memory_key key_memory_fill_schema_schemata;
 PSI_memory_key key_memory_native_functions;
-PSI_memory_key key_memory_frm;
-PSI_memory_key key_memory_frm_extra_segment_buff;
-PSI_memory_key key_memory_frm_form_pos;
-PSI_memory_key key_memory_frm_string;
 PSI_memory_key key_memory_gdl;
 PSI_memory_key key_memory_get_all_tables;
 PSI_memory_key key_memory_global_system_variables;
@@ -119,7 +119,6 @@ PSI_memory_key key_memory_locked_table_list;
 PSI_memory_key key_memory_locked_thread_list;
 PSI_memory_key key_memory_my_bitmap_map;
 PSI_memory_key key_memory_my_str_malloc;
-PSI_memory_key key_memory_new_frm_mem;
 PSI_memory_key key_memory_opt_bin_logname;
 PSI_memory_key key_memory_partition_syntax_buffer;
 PSI_memory_key key_memory_prepared_statement_map;
@@ -171,7 +170,6 @@ static PSI_memory_info all_server_memory[]=
   { &key_memory_acl_map_cache, "acl_map_cache", PSI_FLAG_GLOBAL },
   { &key_memory_thd_main_mem_root, "thd::main_mem_root", PSI_FLAG_THREAD},
   { &key_memory_help, "help", 0},
-  { &key_memory_new_frm_mem, "new_frm_mem", 0},
   { &key_memory_table_share, "TABLE_SHARE::mem_root", PSI_FLAG_GLOBAL},
   { &key_memory_gdl, "gdl", 0},
   { &key_memory_table_triggers_list, "Table_triggers_list", 0},
@@ -245,6 +243,7 @@ static PSI_memory_info all_server_memory[]=
   { &key_memory_Gtid_set_Interval_chunk, "Gtid_set::Interval_chunk", 0},
   { &key_memory_Owned_gtids_sidno_to_hash, "Owned_gtids::sidno_to_hash", 0},
   { &key_memory_Sid_map_Node, "Sid_map::Node", 0},
+  { &key_memory_Gtid_state_group_commit_sidno, "Gtid_state::group_commit_sidno_locks", 0},
   { &key_memory_Mutex_cond_array_Mutex_cond, "Mutex_cond_array::Mutex_cond", 0},
   { &key_memory_TABLE_RULE_ENT, "TABLE_RULE_ENT", 0},
 
@@ -262,15 +261,14 @@ static PSI_memory_info all_server_memory[]=
   { &key_memory_READ_INFO, "READ_INFO", 0},
   { &key_memory_JOIN_CACHE, "JOIN_CACHE", 0},
   { &key_memory_TABLE_sort_io_cache, "TABLE::sort_io_cache", 0},
-  { &key_memory_frm, "frm", 0},
+  { &key_memory_DD_default_values, "dd::default_values", 0},
+  { &key_memory_DD_import, "dd::import", 0},
   { &key_memory_Unique_sort_buffer, "Unique::sort_buffer", 0},
   { &key_memory_Unique_merge_buffer, "Unique::merge_buffer", 0},
   { &key_memory_TABLE, "TABLE", PSI_FLAG_GLOBAL},
-  { &key_memory_frm_extra_segment_buff, "frm::extra_segment_buff", 0},
-  { &key_memory_frm_form_pos, "frm::form_pos", 0},
-  { &key_memory_frm_string, "frm::string", 0},
   { &key_memory_LOG_name, "LOG_name", 0},
   { &key_memory_DATE_TIME_FORMAT, "DATE_TIME_FORMAT", 0},
+  { &key_memory_DD_String_type, "dd::String_type", 0},
   { &key_memory_DDL_LOG_MEMORY_ENTRY, "DDL_LOG_MEMORY_ENTRY", 0},
   { &key_memory_ST_SCHEMA_TABLE, "ST_SCHEMA_TABLE", 0},
   { &key_memory_ignored_db, "ignored_db", 0},
@@ -306,7 +304,7 @@ static PSI_memory_info all_server_memory[]=
 void register_server_memory_keys()
 {
   const char* category= "sql";
-  int count= array_elements(all_server_memory);
+  int count= static_cast<int>(array_elements(all_server_memory));
   mysql_memory_register(category, all_server_memory, count);
 }
 

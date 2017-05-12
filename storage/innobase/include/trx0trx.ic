@@ -124,11 +124,14 @@ trx_get_id_for_print(
 	/* Readonly and transactions whose intentions are unknown (whether
 	they will eventually do a WRITE) don't have trx_t::id assigned (it is
 	0 for those transactions). Transaction IDs in
-	innodb_trx.trx_id,
-	innodb_locks.lock_id,
-	innodb_locks.lock_trx_id,
-	innodb_lock_waits.requesting_trx_id,
-	innodb_lock_waits.blocking_trx_id should match because those tables
+	information_schema.innodb_trx.trx_id,
+	performance_schema.data_locks.engine_lock_id,
+	performance_schema.data_locks.engine_transaction_id,
+	performance_schema.data_lock_waits.requesting_engine_lock_id,
+	performance_schema.data_lock_waits.requesting_engine_transaction_id,
+	performance_schema.data_lock_waits.blocking_engine_lock_id,
+	performance_schema.data_lock_waits.blocking_engine_transaction_id
+	should match because those tables
 	could be used in an SQL JOIN on those columns. Also trx_t::id is
 	printed by SHOW ENGINE INNODB STATUS, and in logs, so we must have the
 	same value printed everywhere consistently. */
@@ -219,7 +222,7 @@ trx_is_redo_rseg_updated(
 Check if noredo rseg is modified for insert/update. */
 UNIV_INLINE
 bool
-trx_is_noredo_rseg_updated(
+trx_is_temp_rseg_updated(
 /*=======================*/
 	const trx_t*	   trx) /*!< in: transaction */
 {
@@ -236,7 +239,7 @@ trx_is_rseg_updated(
 	const trx_t*	   trx) /*!< in: transaction */
 {
 	return(trx_is_redo_rseg_updated(trx)
-	       || trx_is_noredo_rseg_updated(trx));
+	       || trx_is_temp_rseg_updated(trx));
 }
 
 /********************************************************************//**

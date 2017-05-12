@@ -130,7 +130,7 @@ SET @@global.new = test;
 SET @@session.new = ONN;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.new = ONF;
---Error ER_WRONG_VALUE_FOR_VAR
+--error ER_PARSE_ERROR
 SET @@session.new = OF;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.new = 'OFN';

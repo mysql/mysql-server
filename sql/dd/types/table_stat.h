@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
 #define DD__TABLE_STAT_INCLUDED
 
 
-#include "my_global.h"                    // ulonglong
+#include "my_inttypes.h"
 
 #include "dd/types/dictionary_object.h"   // dd::Dictionary_object
 
@@ -43,15 +43,15 @@ public:
   // schema name.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &schema_name() const = 0;
-  virtual void set_schema_name(const std::string &schema_name) = 0;
+  virtual const String_type &schema_name() const = 0;
+  virtual void set_schema_name(const String_type &schema_name) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // table name.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &table_name() const = 0;
-  virtual void set_table_name(const std::string &table_name) = 0;
+  virtual const String_type &table_name() const = 0;
+  virtual void set_table_name(const String_type &table_name) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // table_rows.

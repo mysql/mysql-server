@@ -19,11 +19,20 @@
 
 
 -- source include/no_valgrind_without_big.inc
--- source include/have_innodb.inc
 -- source include/have_myisam.inc
 -- source include/have_debug.inc
--- source include/master-slave.inc
 -- source include/have_binlog_format_statement.inc
+
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs79=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema test default character set latin1;
+--enable_query_log
+########################################
+
+-- source include/master-slave.inc
 
 -- echo #######################################################################
 -- echo ####################### PART 1: MASTER TESTS ##########################
@@ -85,7 +94,7 @@ eval SET GLOBAL debug=IF(LENGTH('$old_debug') > 0, CONCAT('$old_debug', ":d,erro
 -- error ER_NO_UNIQUE_LOGFILE
 FLUSH LOGS;
 -- echo # assert: must show one binlog
---list_files $MYSQLD_DATADIR *master-bin.0*
+--list_files $MYSQLD_DATADIR *master-bin.??????
 
 ### ACTION: clean up and move to next test
 --disable_query_log
@@ -549,3 +558,10 @@ RESET SLAVE;
 RESET MASTER;
 --let $rpl_only_running_threads= 1
 --source include/rpl_end.inc
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs79;
+--enable_query_log
+########################################

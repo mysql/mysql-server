@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -30,26 +30,36 @@ Database log
 Created 12/9/1995 Heikki Tuuri
 *******************************************************/
 
-#include "ha_prototypes.h"
 #include <debug_sync.h>
+#include <sys/types.h>
+#include <time.h>
 
+#include "ha_prototypes.h"
 #include "log0log.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
 #ifndef UNIV_HOTBACKUP
-#include "mem0mem.h"
+#include <mysqld.h>
+
 #include "buf0buf.h"
 #include "buf0flu.h"
-#include "srv0srv.h"
-#include "log0recv.h"
-#include "fil0fil.h"
 #include "dict0boot.h"
 #include "dict0stats_bg.h"
+#include "fil0fil.h"
+#include "log0recv.h"
+#include "mem0mem.h"
+#include "srv0mon.h"
+#include "srv0mon.h"
+#include "srv0srv.h"
 #include "srv0srv.h"
 #include "srv0start.h"
+#include "sync0sync.h"
+#include "sync0sync.h"
+#include "trx0roll.h"
+#include "trx0roll.h"
 #include "trx0sys.h"
 #include "trx0trx.h"
-#include "trx0roll.h"
-#include "srv0mon.h"
-#include "sync0sync.h"
 
 /*
 General philosophy of InnoDB redo-logs:
@@ -81,7 +91,7 @@ reduce the size of the log.
 log_t*	log_sys	= NULL;
 
 /** Whether to generate and require checksums on the redo log pages */
-my_bool	innodb_log_checksums;
+bool	innodb_log_checksums;
 
 /** Pointer to the log checksum calculation function */
 log_checksum_func_t log_checksum_algorithm_ptr;
@@ -106,12 +116,6 @@ extern bool	srv_missing_dd_table_buffer;
 /* Margins for free space in the log buffer after a log entry is catenated */
 #define LOG_BUF_FLUSH_RATIO	2
 #define LOG_BUF_FLUSH_MARGIN	(LOG_BUF_WRITE_MARGIN + 4 * UNIV_PAGE_SIZE)
-
-/* Margin for the free space in the smallest log group, before a new query
-step which modifies the database, is started */
-
-#define LOG_CHECKPOINT_FREE_PER_THREAD	(4 * UNIV_PAGE_SIZE)
-#define LOG_CHECKPOINT_EXTRA_FREE	(8 * UNIV_PAGE_SIZE)
 
 /* This parameter controls asynchronous making of a new checkpoint; the value
 should be bigger than LOG_POOL_PREFLUSH_RATIO_SYNC */
@@ -916,17 +920,16 @@ log_io_complete(
 			logs and cannot end up here! */
 }
 
-/******************************************************//**
-Writes a log file header to a log file space. */
+/** Writes a log file header to a log file space.
+@param[in]	group		log group
+@param[in]	nth_file	header to the nth file in the log file space
+@param[in]	start_lsn	log file data starts at this lsn */
 static
 void
 log_group_file_header_flush(
-/*========================*/
-	log_group_t*	group,		/*!< in: log group */
-	ulint		nth_file,	/*!< in: header to the nth file in the
-					log file space */
-	lsn_t		start_lsn)	/*!< in: log file data starts at this
-					lsn */
+	log_group_t*	group,
+	ulint		nth_file,
+	lsn_t		start_lsn)
 {
 	byte*	buf;
 	lsn_t	dest_offset;
@@ -945,6 +948,7 @@ log_group_file_header_flush(
 	       LOG_HEADER_CREATOR_CURRENT);
 	ut_ad(LOG_HEADER_CREATOR_END - LOG_HEADER_CREATOR
 	      >= sizeof LOG_HEADER_CREATOR_CURRENT);
+
 	log_block_set_checksum(buf, log_block_calc_checksum_crc32(buf));
 
 	dest_offset = nth_file * group->file_size;
@@ -971,6 +975,254 @@ log_group_file_header_flush(
 	       OS_FILE_LOG_BLOCK_SIZE, buf, group);
 
 	srv_stats.os_log_pending_writes.dec();
+}
+
+/* Read the first log file header to get the encryption. It's in the
+3rd block.
+@return true if success */
+bool
+log_read_encryption()
+{
+	ulint		log_space_id = SRV_LOG_SPACE_FIRST_ID;
+	const page_id_t	page_id(log_space_id, 0);
+	byte*		log_block_buf_ptr;
+	byte*		log_block_buf;
+	byte		key[ENCRYPTION_KEY_LEN];
+	byte		iv[ENCRYPTION_KEY_LEN];
+	fil_space_t*	space = fil_space_get(log_space_id);
+	dberr_t		err;
+
+	log_block_buf_ptr = static_cast<byte*>(ut_malloc_nokey(
+		2 * OS_FILE_LOG_BLOCK_SIZE));
+	memset(log_block_buf_ptr, 0, 2 * OS_FILE_LOG_BLOCK_SIZE);
+	log_block_buf = static_cast<byte*>(
+		ut_align(log_block_buf_ptr, OS_FILE_LOG_BLOCK_SIZE));
+
+	fil_io(IORequestLogRead, true, page_id, univ_page_size,
+	       LOG_CHECKPOINT_1 + OS_FILE_LOG_BLOCK_SIZE,
+	       OS_FILE_LOG_BLOCK_SIZE, log_block_buf, NULL);
+
+	if (memcmp(log_block_buf + LOG_HEADER_CREATOR_END,
+		   ENCRYPTION_KEY_MAGIC_V2, ENCRYPTION_MAGIC_SIZE) == 0) {
+
+		/* Make sure the keyring is loaded. */
+		if (!Encryption::check_keyring()) {
+			ut_free(log_block_buf_ptr);
+			ib::error()
+				<< "Redo log was encrypted,"
+				<< " but keyring plugin is not loaded.";
+			return(false);
+		}
+
+		if (Encryption::decode_encryption_info(
+				key, iv,
+				log_block_buf + LOG_HEADER_CREATOR_END)) {
+			/* If redo log encryption is enabled, set the
+			space flag. Otherwise, we just fill the encryption
+			information to space object for decrypting old
+			redo log blocks. */
+			space->flags |= FSP_FLAGS_MASK_ENCRYPTION;
+			err = fil_set_encryption(space->id,
+						 Encryption::AES,
+						 key, iv);
+
+			if (err == DB_SUCCESS) {
+				ut_free(log_block_buf_ptr);
+				ib::info() << "Read redo log encryption"
+					<< " metadata successful.";
+				return(true);
+			} else {
+				ut_free(log_block_buf_ptr);
+				ib::error()
+					<< "Can't set redo log tablespace"
+					<< " encryption metadata.";
+				return(false);
+			}
+		} else {
+			ut_free(log_block_buf_ptr);
+			ib::error() << "Cannot read the encryption"
+				" information in log file header, please"
+				" check if keyring plugin loaded and"
+				" the key file exists.";
+			return(false);
+		}
+	}
+
+	ut_free(log_block_buf_ptr);
+	return(true);
+}
+
+/** Writes encryption information to log header.
+@param[in,out]	buf	log file header
+@param[in]	key	encryption key
+@param[in]	iv	encryption iv
+@param[in]	is_boot	if it's for bootstrap */
+static
+bool
+log_file_header_fill_encryption(
+	byte*		buf,
+	byte*		key,
+	byte*		iv,
+	bool		is_boot)
+{
+	byte		encryption_info[ENCRYPTION_INFO_SIZE_V2];
+
+	if (!Encryption::fill_encryption_info(key,
+					      iv,
+					      encryption_info,
+					      is_boot)) {
+		return(false);
+	}
+
+	ut_ad(LOG_HEADER_CREATOR_END + ENCRYPTION_INFO_SIZE_V2
+	      < OS_FILE_LOG_BLOCK_SIZE);
+
+	memcpy(buf + LOG_HEADER_CREATOR_END,
+	       encryption_info,
+	       ENCRYPTION_INFO_SIZE_V2);
+
+	return(true);
+}
+
+/** Write the encryption info into the log file header(the 3rd block).
+It just need to flush the file header block with current master key.
+@param[in]	key	encryption key
+@param[in]	iv	encryption iv
+@param[in]	is_boot	if it is for bootstrap
+@return true if success. */
+bool
+log_write_encryption(
+	byte*	key,
+	byte*	iv,
+	bool	is_boot)
+{
+	const page_id_t	page_id(SRV_LOG_SPACE_FIRST_ID, 0);
+	byte*		log_block_buf_ptr;
+	byte*		log_block_buf;
+
+	log_block_buf_ptr = static_cast<byte*>(ut_malloc_nokey(
+		2 * OS_FILE_LOG_BLOCK_SIZE));
+	memset(log_block_buf_ptr, 0, 2 * OS_FILE_LOG_BLOCK_SIZE);
+	log_block_buf = static_cast<byte*>(
+		ut_align(log_block_buf_ptr, OS_FILE_LOG_BLOCK_SIZE));
+
+	if (key == NULL && iv == NULL) {
+		fil_space_t*	space = fil_space_get(SRV_LOG_SPACE_FIRST_ID);
+
+		key = space->encryption_key;
+		iv = space->encryption_iv;
+	}
+
+	log_write_mutex_enter();
+	if (!log_file_header_fill_encryption(log_block_buf,
+					     key,
+					     iv,
+					     is_boot)) {
+		ut_free(log_block_buf_ptr);
+		log_write_mutex_exit();
+		return(false);
+	}
+
+	log_sys->n_log_ios++;
+
+	MONITOR_INC(MONITOR_LOG_IO);
+
+	srv_stats.os_log_pending_writes.inc();
+
+	fil_io(IORequestLogWrite, true,
+	       page_id,
+	       univ_page_size,
+	       LOG_CHECKPOINT_1 + OS_FILE_LOG_BLOCK_SIZE,
+	       OS_FILE_LOG_BLOCK_SIZE, log_block_buf, NULL);
+
+	srv_stats.os_log_pending_writes.dec();
+	log_write_mutex_exit();
+
+	ut_free(log_block_buf_ptr);
+	return(true);
+}
+
+/** Rotate the redo log encryption
+It will re-encrypt the redo log encryption metadata and write it to
+redo log file header.
+@return true if success. */
+bool
+log_rotate_encryption() {
+	fil_space_t* space = fil_space_get(SRV_LOG_SPACE_FIRST_ID);
+
+	if (!FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
+		return(true);
+	}
+
+	/* Rotate log tablespace */
+	return(log_write_encryption(NULL, NULL, false));
+}
+
+/** Check the redo log encryption is enabled or not.
+It will try to enable the redo log encryption and write the metadata to
+redo log file header. */
+void
+log_enable_encryption_if_set()
+{
+	fil_space_t* space = fil_space_get(SRV_LOG_SPACE_FIRST_ID);
+
+	if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
+		return;
+	}
+
+	/* Check encryption for redo log is enabled or not. If it's
+	enabled, we will start to encrypt the redo log block from now on.
+	Note: We need the server_uuid initialized, otherwise, the keyname will
+	not contains server uuid. */
+	if (srv_redo_log_encrypt
+	    && !FSP_FLAGS_GET_ENCRYPTION(space->flags)
+	    && strlen(server_uuid) > 0) {
+		dberr_t err;
+		byte	key[ENCRYPTION_KEY_LEN];
+		byte	iv[ENCRYPTION_KEY_LEN];
+
+		if (srv_read_only_mode) {
+			srv_redo_log_encrypt = false;
+			ib::error() << "Can't set redo log tablespace to be"
+				<< " encrypted in read-only mode.";
+			return;
+		}
+
+		Encryption::random_value(key);
+		Encryption::random_value(iv);
+		if (!log_write_encryption(key, iv, false)) {
+			srv_redo_log_encrypt = false;
+			ib::error() << "Can't set redo log"
+				<< " tablespace to be"
+				<< " encrypted.";
+		} else {
+			space->flags |=
+				FSP_FLAGS_MASK_ENCRYPTION;
+			err = fil_set_encryption(
+				space->id, Encryption::AES,
+				key, iv);
+			if (err != DB_SUCCESS) {
+				srv_redo_log_encrypt = false;
+				ib::warn() << "Can't set redo log"
+					<< " tablespace to be"
+					<< " encrypted.";
+			} else {
+				ib::info() << "Redo log encryption is"
+					<< " enabled.";
+			}
+		}
+	}
+
+	/* If the redo log space is using default key, rotate it.
+	We also need the server_uuid initialized. */
+	if (space->encryption_type != Encryption::NONE
+	    && Encryption::master_key_id == ENCRYPTION_DEFAULT_MASTER_KEY_ID
+	    && !srv_read_only_mode
+	    && strlen(server_uuid) > 0) {
+		ut_ad(FSP_FLAGS_GET_ENCRYPTION(space->flags));
+
+		log_write_encryption(NULL, NULL, false);
+	}
 }
 
 /******************************************************//**
@@ -1823,7 +2075,7 @@ log_checkpoint(
 		if (write_always) {
 			DEBUG_SYNC_C("wa_checkpoint_middle");
 
-			const my_bool b = TRUE;
+			const bool b = TRUE;
 			buf_flush_page_cleaner_disabled_debug_update(
 				NULL, NULL, NULL, &b);
 			dict_stats_disabled_debug_update(
@@ -2220,7 +2472,15 @@ loop:
 
 	log_mutex_exit();
 
-	if (lsn != log_sys->last_checkpoint_lsn) {
+	/** If innodb_force_recovery is set to 6 then log_sys doesn't
+	have recent checkpoint information. So last checkpoint lsn
+	will never be equal to current lsn. */
+	const bool	is_last = ((srv_force_recovery == SRV_FORCE_NO_LOG_REDO
+				    && lsn == log_sys->last_checkpoint_lsn
+						+ LOG_BLOCK_HDR_SIZE)
+				   || lsn == log_sys->last_checkpoint_lsn);
+
+	if (!is_last) {
 		goto loop;
 	}
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,22 +16,34 @@
 #ifndef DD__INDEX_IMPL_INCLUDED
 #define DD__INDEX_IMPL_INCLUDED
 
-#include "my_global.h"
+#include <sys/types.h>
+#include <memory>
+#include <new>
+#include <string>
 
 #include "dd/impl/types/entity_object_impl.h" // dd::Entity_object_impl
+#include "dd/impl/types/weak_object_impl.h"
+#include "dd/object_id.h"
+#include "dd/sdi_fwd.h"
 #include "dd/types/index.h"                   // dd::Index
 #include "dd/types/index_element.h"           // dd::Index_element
 #include "dd/types/object_type.h"             // dd::Object_type
-
-#include <memory>
 
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
+class Open_dictionary_tables_ctx;
 class Raw_record;
 class Table_impl;
-class Open_dictionary_tables_ctx;
+class Column;
+class Index_element;
+class Object_table;
+class Properties;
+class Sdi_rcontext;
+class Sdi_wcontext;
+class Table;
+class Weak_object;
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -67,7 +79,7 @@ public:
 
   bool deserialize(Sdi_rcontext *rctx, const RJ_Value &val);
 
-  void debug_print(std::string &outb) const;
+  void debug_print(String_type &outb) const;
 
   virtual void set_ordinal_position(uint ordinal_position)
   { m_ordinal_position= ordinal_position; }
@@ -114,10 +126,10 @@ public:
   // comment.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &comment() const
+  virtual const String_type &comment() const
   { return m_comment; }
 
-  virtual void set_comment(const std::string &comment)
+  virtual void set_comment(const String_type &comment)
   { m_comment= comment; }
 
   /////////////////////////////////////////////////////////////////////////
@@ -130,7 +142,7 @@ public:
   virtual Properties &options()
   { return *m_options; }
 
-  virtual bool set_options_raw(const std::string &options_raw);
+  virtual bool set_options_raw(const String_type &options_raw);
 
   /////////////////////////////////////////////////////////////////////////
   // se_private_data.
@@ -142,7 +154,7 @@ public:
   virtual Properties &se_private_data()
   { return *m_se_private_data; }
 
-  virtual bool set_se_private_data_raw(const std::string &se_private_data_raw);
+  virtual bool set_se_private_data_raw(const String_type &se_private_data_raw);
   virtual void set_se_private_data(const Properties &se_private_data);
 
   /////////////////////////////////////////////////////////////////////////
@@ -159,10 +171,10 @@ public:
   // Engine.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &engine() const
+  virtual const String_type &engine() const
   { return m_engine; }
 
-  virtual void set_engine(const std::string &engine)
+  virtual void set_engine(const String_type &engine)
   { m_engine= engine; }
 
   /////////////////////////////////////////////////////////////////////////
@@ -204,6 +216,8 @@ public:
   virtual const Index_elements &elements() const
   { return m_elements; }
 
+  virtual bool is_candidate_key() const;
+
   // Fix "inherits ... via dominance" warnings
   virtual Weak_object_impl *impl()
   { return Weak_object_impl::impl(); }
@@ -213,9 +227,9 @@ public:
   { return Entity_object_impl::id(); }
   virtual bool is_persistent() const
   { return Entity_object_impl::is_persistent(); }
-  virtual const std::string &name() const
+  virtual const String_type &name() const
   { return Entity_object_impl::name(); }
-  virtual void set_name(const std::string &name)
+  virtual void set_name(const String_type &name)
   { Entity_object_impl::set_name(name); }
 
 public:
@@ -238,7 +252,7 @@ private:
 
   uint m_ordinal_position;
 
-  std::string m_comment;
+  String_type m_comment;
   std::unique_ptr<Properties> m_options;
   std::unique_ptr<Properties> m_se_private_data;
 
@@ -247,7 +261,7 @@ private:
   bool m_is_algorithm_explicit;
   bool m_is_visible;
 
-  std::string m_engine;
+  String_type m_engine;
 
   // References to tightly-coupled objects.
 

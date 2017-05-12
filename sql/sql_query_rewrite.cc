@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,20 +13,27 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_global.h"
+#include "sql/sql_query_rewrite.h"
+
+#include <stddef.h>
+
+#include "my_dbug.h"
+#include "my_sqlcommand.h"
 #include "mysql/plugin_audit.h"
+#include "mysql/service_mysql_alloc.h"
 #include "mysql/service_rules_table.h"
 #include "mysql/service_ssl_wrapper.h"
-#include "sql_error.h"
-#include "sql_parse.h"
-#include "sql_plugin.h"
-#include "sql_query_rewrite.h"
-#include "log.h"
-#include "sql_base.h"
-#include "sql_class.h"
+#include "mysqld_error.h"
+#include "session_tracker.h"
 #include "sql_audit.h"
+#include "sql_class.h"
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_parse.h"
 
-#ifndef EMBEDDED_LIBRARY
+class Parser_state;
+class THD;
+
 static void raise_query_rewritten_note(THD *thd,
                                        const char *original_query,
                                        const char *rewritten_query)
@@ -89,7 +96,7 @@ void enable_digest_if_any_plugin_needs_it(THD *thd, Parser_state *ps)
 }
 
 
-bool invoke_post_parse_rewrite_plugins(THD *thd, my_bool is_prepared)
+bool invoke_post_parse_rewrite_plugins(THD *thd, bool is_prepared)
 {
   Diagnostics_area *plugin_da= thd->get_query_rewrite_plugin_da();
   plugin_da->reset_diagnostics_area();
@@ -176,17 +183,3 @@ bool invoke_post_parse_rewrite_plugins(THD *thd, my_bool is_prepared)
 
   return err;
 }
-
-
-#else /* EMBEDDED_LIBRARY */
-
-void invoke_pre_parse_rewrite_plugins(THD *thd) {}
-
-void enable_digest_if_any_plugin_needs_it(THD *thd, Parser_state *ps) {}
-
-bool invoke_post_parse_rewrite_plugins(THD *thd, my_bool is_prepared)
-{
-  return false;
-}
-
-#endif /* EMBEDDED_LIBRARY */

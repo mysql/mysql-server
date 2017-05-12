@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2008 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -226,7 +225,7 @@ SqlClient::runQuery(const char* sql,
     Update max_length, making it possible to know how big
     buffers to allocate
   */
-  my_bool one= 1;
+  bool one= 1;
   mysql_stmt_attr_set(stmt, STMT_ATTR_UPDATE_MAX_LENGTH, (void*) &one);
 
   if (mysql_stmt_store_result(stmt))
@@ -250,12 +249,24 @@ SqlClient::runQuery(const char* sql,
       if (is_int_type(fields[i].type)){
         bind_result[i].buffer_type= MYSQL_TYPE_LONG;
         bind_result[i].buffer= malloc(sizeof(int));
+        if (bind_result[i].buffer == NULL)
+        {
+            g_err << "Unable to allocate memory for bind_result[].buffer " << endl;
+            mysql_stmt_close(stmt);
+            return false;
+        }
       }
       else
       {
         uint max_length= fields[i].max_length + 1;
         bind_result[i].buffer_type= MYSQL_TYPE_STRING;
         bind_result[i].buffer= malloc(max_length);
+        if (bind_result[i].buffer == NULL)
+        {
+            g_err << "Unable to allocate memory for bind_result[].buffer " << endl;
+            mysql_stmt_close(stmt);
+            return false;
+        }
         bind_result[i].buffer_length= max_length;
       }
     }

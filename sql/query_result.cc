@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,16 +15,37 @@
 
 #include "query_result.h"
 
+#include "my_config.h"
+
+#include <fcntl.h>
+#include <limits.h>
+#include <string.h>
+#include <sys/stat.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+#include <algorithm>
+
 #include "derror.h"            // ER_THD
+#include "item.h"
+#include "item_func.h"
+#include "lex_string.h"
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_dbug.h"
+#include "my_macros.h"
+#include "my_thread_local.h"
+#include "mysql/psi/mysql_file.h"
+#include "mysql_com.h"
+#include "mysqld.h"            // key_select_to_file
 #include "parse_tree_nodes.h"  // PT_select_var
+#include "protocol.h"
+#include "session_tracker.h"
 #include "sp_rcontext.h"       // sp_rcontext
 #include "sql_class.h"         // THD
-#include "mysqld.h"            // key_select_to_file
-
-#include "pfs_file_provider.h"
-#include "mysql/psi/mysql_file.h"
-
-#include <algorithm>
+#include "sql_const.h"
+#include "sql_error.h"
+#include "system_variables.h"
 
 using std::min;
 
@@ -71,13 +92,6 @@ bool Query_result_send::send_data(List<Item> &items)
     DBUG_RETURN(false);
   }
 
-  /*
-    We may be passing the control from mysqld to the client: release the
-    InnoDB adaptive hash S-latch to avoid thread deadlocks if it was reserved
-    by thd
-  */
-  ha_release_temporary_latches(thd);
-
   protocol->start_row();
   if (thd->send_result_set_row(&items))
   {
@@ -91,13 +105,6 @@ bool Query_result_send::send_data(List<Item> &items)
 
 bool Query_result_send::send_eof()
 {
-  /* 
-    We may be passing the control from mysqld to the client: release the
-    InnoDB adaptive hash S-latch to avoid thread deadlocks if it was reserved
-    by thd 
-  */
-  ha_release_temporary_latches(thd);
-
   /* 
     Don't send EOF if we're in error condition (which implies we've already
     sent or are sending an error)
@@ -185,16 +192,6 @@ void Query_result_to_file::cleanup()
 }
 
 
-Query_result_to_file::~Query_result_to_file()
-{
-  if (file >= 0)
-  {					// This only happens in case of error
-    (void) end_io_cache(&cache);
-    mysql_file_close(file, MYF(0));
-    file= -1;
-  }
-}
-
 /***************************************************************************
 ** Export of select to textfile
 ***************************************************************************/
@@ -263,13 +260,7 @@ static File create_file(THD *thd, char *path, sql_exchange *exchange,
 }
 
 
-Query_result_export::~Query_result_export()
-{
-  thd->set_sent_row_count(row_count);
-}
-
-
-int Query_result_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
+bool Query_result_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 {
   bool blob_flag= false;
   bool string_results= false, non_string_results= false;
@@ -279,8 +270,6 @@ int Query_result_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 
   write_cs= exchange->cs ? exchange->cs : &my_charset_bin;
 
-  if ((file= create_file(thd, path, exchange, &cache)) < 0)
-    return 1;
   /* Check if there is any blobs in data */
   {
     List_iterator_fast<Item> li(list);
@@ -361,9 +350,16 @@ int Query_result_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
   else
     is_ambiguous_field_term= false;
 
-  return 0;
+  return false;
 }
 
+
+bool Query_result_export::start_execution()
+{
+  if ((file= create_file(thd, path, exchange, &cache)) < 0)
+    return true;
+  return false;
+}
 
 #define NEED_ESCAPING(x) ((int) (uchar) (x) == escape_char    || \
                           (enclosed ? (int) (uchar) (x) == field_sep_char      \
@@ -701,16 +697,28 @@ err:
 }
 
 
+void Query_result_export::cleanup()
+{
+  thd->set_sent_row_count(row_count);
+  Query_result_to_file::cleanup();
+}
+
 /***************************************************************************
 ** Dump of query to a binary file
 ***************************************************************************/
 
 
-int Query_result_dump::prepare(List<Item> &list MY_ATTRIBUTE((unused)),
-                               SELECT_LEX_UNIT *u)
+bool Query_result_dump::prepare(List<Item> &, SELECT_LEX_UNIT *u)
 {
   unit= u;
-  return (int) ((file= create_file(thd, path, exchange, &cache)) < 0);
+  return false;
+}
+
+bool Query_result_dump::start_execution()
+{
+  if ((file= create_file(thd, path, exchange, &cache)) < 0)
+    return true;
+  return false;
 }
 
 
@@ -759,17 +767,17 @@ err:
   Dump of select to variables
 ***************************************************************************/
 
-int Query_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
+bool Query_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 {
   unit= u;
 
   if (var_list.elements != list.elements)
   {
     my_error(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT, MYF(0));
-    return 1;
+    return true;
   }
 
-  return 0;
+  return false;
 }
 
 

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -15,13 +15,23 @@
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 */
 
-#include "srs.h"
-#include "wkt_parser.h"
-#include "mysqld_error.h"                  // ER_*
-#include <m_ctype.h>                       // my_strcasecmp
-#include <vector>
-#include <map>
+#include "sql/gis/srs/srs.h"
+
+#include <boost/variant/get.hpp>
+#include <stddef.h>
 #include <cmath>
+#include <map>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "m_ctype.h"                       // my_strcasecmp
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
+#include "mysqld_error.h"                  // ER_*
+#include "wkt_parser.h"
 
 /**
   Extract projection parameter values from the parse tree and assign
@@ -45,7 +55,7 @@
   @retval true An error has occurred. The error has been flagged.
   @retval false Success
 */
-static bool set_parameters(srid_t srid,
+static bool set_parameters(gis::srid_t srid,
                            gis::srs::wkt_parser::Projected_cs *proj,
                            std::vector<std::pair<int, double *>> *params)
 {
@@ -161,7 +171,7 @@ static bool set_parameters(srid_t srid,
 namespace gis { namespace srs {
 
 
-bool Geographic_srs::init(srid_t srid, gis::srs::wkt_parser::Geographic_cs *g)
+bool Geographic_srs::init(gis::srid_t, gis::srs::wkt_parser::Geographic_cs *g)
 {
   m_semi_major_axis= g->datum.spheroid.semi_major_axis;
   m_inverse_flattening= g->datum.spheroid.inverse_flattening;
@@ -211,7 +221,8 @@ bool Geographic_srs::init(srid_t srid, gis::srs::wkt_parser::Geographic_cs *g)
 }
 
 
-bool Projected_srs::init(srid_t srid, gis::srs::wkt_parser::Projected_cs *p)
+bool Projected_srs::init(gis::srid_t srid,
+                         gis::srs::wkt_parser::Projected_cs *p)
 {
   bool res= false;
 
@@ -236,7 +247,7 @@ bool Projected_srs::init(srid_t srid, gis::srs::wkt_parser::Projected_cs *p)
 }
 
 
-bool Unknown_projected_srs::init(srid_t srid,
+bool Unknown_projected_srs::init(gis::srid_t srid,
                                  gis::srs::wkt_parser::Projected_cs *p)
 {
   return Projected_srs::init(srid, p);
@@ -244,7 +255,7 @@ bool Unknown_projected_srs::init(srid_t srid,
 
 
 bool Popular_visualisation_pseudo_mercator_srs::init(
-  srid_t srid,
+  gis::srid_t srid,
   gis::srs::wkt_parser::Projected_cs *p)
 {
   std::vector<std::pair<int, double *>> params;
@@ -262,7 +273,7 @@ bool Popular_visualisation_pseudo_mercator_srs::init(
 
 
 bool Lambert_azimuthal_equal_area_spherical_srs::init(
-  srid_t srid,
+  gis::srid_t srid,
   gis::srs::wkt_parser::Projected_cs *p)
 {
   std::vector<std::pair<int, double *>> params;
@@ -279,7 +290,7 @@ bool Lambert_azimuthal_equal_area_spherical_srs::init(
 }
 
 
-bool Equidistant_cylindrical_srs::init(srid_t srid,
+bool Equidistant_cylindrical_srs::init(gis::srid_t srid,
                                        gis::srs::wkt_parser::Projected_cs *p)
 {
   std::vector<std::pair<int, double *>> params;
@@ -297,7 +308,7 @@ bool Equidistant_cylindrical_srs::init(srid_t srid,
 
 
 bool Equidistant_cylindrical_spherical_srs::init(
-  srid_t srid,
+  gis::srid_t srid,
   gis::srs::wkt_parser::Projected_cs *p)
 {
   std::vector<std::pair<int, double *>> params;
@@ -314,7 +325,7 @@ bool Equidistant_cylindrical_spherical_srs::init(
 }
 
 
-bool Krovak_north_orientated_srs::init(srid_t srid,
+bool Krovak_north_orientated_srs::init(gis::srid_t srid,
                                        gis::srs::wkt_parser::Projected_cs *p)
 {
   std::vector<std::pair<int, double *>> params;
@@ -334,7 +345,7 @@ bool Krovak_north_orientated_srs::init(srid_t srid,
 }
 
 
-bool Krovak_modified_srs::init(srid_t srid,
+bool Krovak_modified_srs::init(gis::srid_t srid,
                                gis::srs::wkt_parser::Projected_cs *p)
 {
   std::vector<std::pair<int, double *>> params;
@@ -367,7 +378,7 @@ bool Krovak_modified_srs::init(srid_t srid,
 
 
 bool Krovak_modified_north_orientated_srs::init(
-  srid_t srid,
+  gis::srid_t srid,
   gis::srs::wkt_parser::Projected_cs *p)
 {
   std::vector<std::pair<int, double *>> params;
@@ -400,7 +411,7 @@ bool Krovak_modified_north_orientated_srs::init(
 
 
 bool Lambert_conic_conformal_2sp_michigan_srs::init(
-  srid_t srid,
+  gis::srid_t srid,
   gis::srs::wkt_parser::Projected_cs *p)
 {
   std::vector<std::pair<int, double *>> params;
@@ -420,7 +431,7 @@ bool Lambert_conic_conformal_2sp_michigan_srs::init(
 }
 
 
-bool Colombia_urban_srs::init(srid_t srid,
+bool Colombia_urban_srs::init(gis::srid_t srid,
                               gis::srs::wkt_parser::Projected_cs *p)
 {
   std::vector<std::pair<int, double *>> params;
@@ -439,7 +450,7 @@ bool Colombia_urban_srs::init(srid_t srid,
 
 
 bool Lambert_conic_conformal_1sp_srs::init(
-  srid_t srid,
+  gis::srid_t srid,
   gis::srs::wkt_parser::Projected_cs *p)
 {
   std::vector<std::pair<int, double *>> params;
@@ -458,7 +469,7 @@ bool Lambert_conic_conformal_1sp_srs::init(
 
 
 bool Lambert_conic_conformal_2sp_srs::init(
-  srid_t srid,
+  gis::srid_t srid,
   gis::srs::wkt_parser::Projected_cs *p)
 {
   std::vector<std::pair<int, double *>> params;
@@ -478,7 +489,7 @@ bool Lambert_conic_conformal_2sp_srs::init(
 
 
 bool Lambert_conic_conformal_2sp_belgium_srs::init(
-  srid_t srid,
+  gis::srid_t srid,
   gis::srs::wkt_parser::Projected_cs *p)
 {
   std::vector<std::pair<int, double *>> params;
@@ -497,7 +508,7 @@ bool Lambert_conic_conformal_2sp_belgium_srs::init(
 }
 
 
-bool Mercator_variant_a_srs::init(srid_t srid,
+bool Mercator_variant_a_srs::init(gis::srid_t srid,
                                   gis::srs::wkt_parser::Projected_cs *p)
 {
   std::vector<std::pair<int, double *>> params;
@@ -515,7 +526,7 @@ bool Mercator_variant_a_srs::init(srid_t srid,
 }
 
 
-bool Mercator_variant_b_srs::init(srid_t srid,
+bool Mercator_variant_b_srs::init(gis::srid_t srid,
                                   gis::srs::wkt_parser::Projected_cs *p)
 {
   std::vector<std::pair<int, double *>> params;
@@ -532,7 +543,7 @@ bool Mercator_variant_b_srs::init(srid_t srid,
 }
 
 
-bool Cassini_soldner_srs::init(srid_t srid,
+bool Cassini_soldner_srs::init(gis::srid_t srid,
                                gis::srs::wkt_parser::Projected_cs *p)
 {
   std::vector<std::pair<int, double *>> params;
@@ -549,7 +560,7 @@ bool Cassini_soldner_srs::init(srid_t srid,
 }
 
 
-bool Transverse_mercator_srs::init(srid_t srid,
+bool Transverse_mercator_srs::init(gis::srid_t srid,
                                    gis::srs::wkt_parser::Projected_cs *p)
 {
   std::vector<std::pair<int, double *>> params;
@@ -568,7 +579,7 @@ bool Transverse_mercator_srs::init(srid_t srid,
 
 
 bool Transverse_mercator_south_orientated_srs::init(
-  srid_t srid,
+  gis::srid_t srid,
   gis::srs::wkt_parser::Projected_cs *p)
 {
   std::vector<std::pair<int, double *>> params;
@@ -586,7 +597,7 @@ bool Transverse_mercator_south_orientated_srs::init(
 }
 
 
-bool Oblique_stereographic_srs::init(srid_t srid,
+bool Oblique_stereographic_srs::init(gis::srid_t srid,
                                      gis::srs::wkt_parser::Projected_cs *p)
 {
   std::vector<std::pair<int, double *>> params;
@@ -605,7 +616,7 @@ bool Oblique_stereographic_srs::init(srid_t srid,
 
 
 bool Polar_stereographic_variant_a_srs::init(
-  srid_t srid,
+  gis::srid_t srid,
   gis::srs::wkt_parser::Projected_cs *p)
 {
   std::vector<std::pair<int, double *>> params;
@@ -623,7 +634,7 @@ bool Polar_stereographic_variant_a_srs::init(
 }
 
 
-bool New_zealand_map_grid_srs::init(srid_t srid,
+bool New_zealand_map_grid_srs::init(gis::srid_t srid,
                                     gis::srs::wkt_parser::Projected_cs *p)
 {
   std::vector<std::pair<int, double *>> params;
@@ -641,7 +652,7 @@ bool New_zealand_map_grid_srs::init(srid_t srid,
 
 
 bool Hotine_oblique_mercator_variant_a_srs::init(
-  srid_t srid,
+  gis::srid_t srid,
   gis::srs::wkt_parser::Projected_cs *p)
 {
   std::vector<std::pair<int, double *>> params;
@@ -661,7 +672,7 @@ bool Hotine_oblique_mercator_variant_a_srs::init(
 }
 
 
-bool Laborde_oblique_mercator_srs::init(srid_t srid,
+bool Laborde_oblique_mercator_srs::init(gis::srid_t srid,
                                         gis::srs::wkt_parser::Projected_cs *p)
 {
   std::vector<std::pair<int, double *>> params;
@@ -681,7 +692,7 @@ bool Laborde_oblique_mercator_srs::init(srid_t srid,
 
 
 bool Hotine_oblique_mercator_variant_b_srs::init(
-  srid_t srid,
+  gis::srid_t srid,
   gis::srs::wkt_parser::Projected_cs *p)
 {
   std::vector<std::pair<int, double *>> params;
@@ -701,7 +712,7 @@ bool Hotine_oblique_mercator_variant_b_srs::init(
 }
 
 
-bool Tunisia_mining_grid_srs::init(srid_t srid,
+bool Tunisia_mining_grid_srs::init(gis::srid_t srid,
                                    gis::srs::wkt_parser::Projected_cs *p)
 {
   std::vector<std::pair<int, double *>> params;
@@ -719,7 +730,7 @@ bool Tunisia_mining_grid_srs::init(srid_t srid,
 
 
 bool Lambert_conic_near_conformal_srs::init(
-  srid_t srid,
+  gis::srid_t srid,
   gis::srs::wkt_parser::Projected_cs *p)
 {
   std::vector<std::pair<int, double *>> params;
@@ -737,7 +748,7 @@ bool Lambert_conic_near_conformal_srs::init(
 }
 
 
-bool American_polyconic_srs::init(srid_t srid,
+bool American_polyconic_srs::init(gis::srid_t srid,
                                   gis::srs::wkt_parser::Projected_cs *p)
 {
   std::vector<std::pair<int, double *>> params;
@@ -754,7 +765,7 @@ bool American_polyconic_srs::init(srid_t srid,
 }
 
 
-bool Krovak_srs::init(srid_t srid, gis::srs::wkt_parser::Projected_cs *p)
+bool Krovak_srs::init(gis::srid_t srid, gis::srs::wkt_parser::Projected_cs *p)
 {
   std::vector<std::pair<int, double *>> params;
 
@@ -774,7 +785,7 @@ bool Krovak_srs::init(srid_t srid, gis::srs::wkt_parser::Projected_cs *p)
 
 
 bool Lambert_azimuthal_equal_area_srs::init(
-  srid_t srid,
+  gis::srid_t srid,
   gis::srs::wkt_parser::Projected_cs *p)
 {
   std::vector<std::pair<int, double *>> params;
@@ -791,7 +802,7 @@ bool Lambert_azimuthal_equal_area_srs::init(
 }
 
 
-bool Albers_equal_area_srs::init(srid_t srid,
+bool Albers_equal_area_srs::init(gis::srid_t srid,
                                  gis::srs::wkt_parser::Projected_cs *p)
 {
   std::vector<std::pair<int, double *>> params;
@@ -811,7 +822,7 @@ bool Albers_equal_area_srs::init(srid_t srid,
 
 
 bool Transverse_mercator_zoned_grid_system_srs::init(
-  srid_t srid,
+  gis::srid_t srid,
   gis::srs::wkt_parser::Projected_cs *p)
 {
   std::vector<std::pair<int, double *>> params;
@@ -831,7 +842,7 @@ bool Transverse_mercator_zoned_grid_system_srs::init(
 
 
 bool Lambert_conic_conformal_west_orientated_srs::init(
-  srid_t srid,
+  gis::srid_t srid,
   gis::srs::wkt_parser::Projected_cs *p)
 {
   std::vector<std::pair<int, double *>> params;
@@ -849,7 +860,7 @@ bool Lambert_conic_conformal_west_orientated_srs::init(
 }
 
 
-bool Bonne_south_orientated_srs::init(srid_t srid,
+bool Bonne_south_orientated_srs::init(gis::srid_t srid,
                                       gis::srs::wkt_parser::Projected_cs *p)
 {
   std::vector<std::pair<int, double *>> params;
@@ -867,7 +878,7 @@ bool Bonne_south_orientated_srs::init(srid_t srid,
 
 
 bool Polar_stereographic_variant_b_srs::init(
-  srid_t srid,
+  gis::srid_t srid,
   gis::srs::wkt_parser::Projected_cs *p)
 {
   std::vector<std::pair<int, double *>> params;
@@ -885,7 +896,7 @@ bool Polar_stereographic_variant_b_srs::init(
 
 
 bool Polar_stereographic_variant_c_srs::init(
-  srid_t srid,
+  gis::srid_t srid,
   gis::srs::wkt_parser::Projected_cs *p)
 {
   std::vector<std::pair<int, double *>> params;
@@ -902,7 +913,7 @@ bool Polar_stereographic_variant_c_srs::init(
 }
 
 
-bool Guam_projection_srs::init(srid_t srid,
+bool Guam_projection_srs::init(gis::srid_t srid,
                                gis::srs::wkt_parser::Projected_cs *p)
 {
   std::vector<std::pair<int, double *>> params;
@@ -920,7 +931,7 @@ bool Guam_projection_srs::init(srid_t srid,
 
 
 bool Modified_azimuthal_equidistant_srs::init(
-  srid_t srid,
+  gis::srid_t srid,
   gis::srs::wkt_parser::Projected_cs *p)
 {
   std::vector<std::pair<int, double *>> params;
@@ -937,7 +948,7 @@ bool Modified_azimuthal_equidistant_srs::init(
 }
 
 
-bool Hyperbolic_cassini_soldner_srs::init(srid_t srid,
+bool Hyperbolic_cassini_soldner_srs::init(gis::srid_t srid,
                                           gis::srs::wkt_parser::Projected_cs *p)
 {
   std::vector<std::pair<int, double *>> params;
@@ -955,7 +966,7 @@ bool Hyperbolic_cassini_soldner_srs::init(srid_t srid,
 
 
 bool Lambert_cylindrical_equal_area_spherical_srs::init(
-  srid_t srid,
+  gis::srid_t srid,
   gis::srs::wkt_parser::Projected_cs *p)
 {
   std::vector<std::pair<int, double *>> params;
@@ -973,7 +984,7 @@ bool Lambert_cylindrical_equal_area_spherical_srs::init(
 
 
 bool Lambert_cylindrical_equal_area_srs::init(
-  srid_t srid,
+  gis::srid_t srid,
   gis::srs::wkt_parser::Projected_cs *p)
 {
   std::vector<std::pair<int, double *>> params;
@@ -1002,7 +1013,7 @@ bool Lambert_cylindrical_equal_area_srs::init(
   @retval true An error has occurred
   @retval false Success
 */
-static bool create_geographic_srs(srid_t srid,
+static bool create_geographic_srs(gis::srid_t srid,
                                   gis::srs::wkt_parser::Geographic_cs *geog,
                                   gis::srs::Geographic_srs **srs)
 {
@@ -1127,7 +1138,7 @@ static gis::srs::Projected_srs *new_projection(int epsg_code)
   @retval true An error has occurred
   @retval false Success
 */
-static bool create_projected_srs(srid_t srid,
+static bool create_projected_srs(gis::srid_t srid,
                                  gis::srs::wkt_parser::Projected_cs *proj,
                                  gis::srs::Projected_srs **srs)
 {
@@ -1151,10 +1162,10 @@ static bool create_projected_srs(srid_t srid,
 }
 
 
-bool gis::srs::parse_wkt(srid_t srid, std::string *str,
+bool gis::srs::parse_wkt(gis::srid_t srid, const char *begin, const char *end,
                          Spatial_reference_system **result)
 {
-  if (str == nullptr || str->empty())
+  if (begin == nullptr || begin == end)
   {
     my_error(ER_SRS_PARSE_ERROR, MYF(0), srid);
     return true;
@@ -1163,7 +1174,7 @@ bool gis::srs::parse_wkt(srid_t srid, std::string *str,
   namespace wp = gis::srs::wkt_parser;
 
   wp::Coordinate_system cs;
-  bool res= wp::parse_wkt(srid, str, &cs);
+  bool res= wp::parse_wkt(srid, begin, end, &cs);
 
   if (!res)
   {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,13 +13,25 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-// First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
-#include <gtest/gtest.h>
+
+#include <errno.h>
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
+#include <stddef.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+
+#include "my_inttypes.h"
+#include "my_sys.h"
 
 // Ignore test on windows, as we are mocking away a unix function, see below.
 #ifndef _WIN32
+
+// For testing my_write.
+extern ssize_t (*mock_write)(int fd, const void *buf, size_t count);
+
 namespace mysys_my_write_unittest {
 
 using ::testing::_;
@@ -36,25 +48,21 @@ public:
 
 MockWrite *mockfs= NULL;
 
-// We need to mock away write(2), do it with a macro:
-#define write(fd, buf, count) mockfs->mockwrite(fd, buf, count)
-
-/*
-  Include the source file, which will give us
-  mysys_my_write_unittest::my_write() for testing.
-*/
-#include "../../mysys/my_write.cc"
-
-#undef write
+ssize_t mockfs_write(int fd, const void *buf, size_t count)
+{
+  return mockfs->mockwrite(fd, buf, count);
+}
 
 class MysysMyWriteTest : public ::testing::Test
 {
   virtual void SetUp()
   {
+    mock_write= mockfs_write;
     mockfs= new MockWrite;
   }
   virtual void TearDown()
   {
+    mock_write= nullptr;
     delete mockfs;
     mockfs= NULL;
   }

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -35,16 +35,18 @@ Created July 17, 2007 Vasil Dimov
    From the symptoms, this is related to bug#46587 in the MySQL bug DB.
 */
 
-#include "ha_prototypes.h"
 #include <sql_class.h>
+#include <stdio.h>
 
 #include "buf0buf.h"
 #include "dict0dict.h"
 #include "ha0storage.h"
+#include "ha_prototypes.h"
 #include "hash0hash.h"
 #include "lock0iter.h"
 #include "lock0lock.h"
 #include "mem0mem.h"
+#include "my_inttypes.h"
 #include "page0page.h"
 #include "rem0rec.h"
 #include "row0row.h"
@@ -158,7 +160,6 @@ struct trx_i_s_cache_t {
 					rw_lock member */
 	i_s_table_cache_t innodb_trx;	/*!< innodb_trx table */
 	i_s_table_cache_t innodb_locks;	/*!< innodb_locks table */
-	i_s_table_cache_t innodb_lock_waits;/*!< innodb_lock_waits table */
 /** the hash table size is LOCKS_HASH_CELLS_NUM * sizeof(void*) bytes */
 #define LOCKS_HASH_CELLS_NUM		10000
 	hash_table_t*	locks_hash;	/*!< hash table used to eliminate
@@ -414,23 +415,12 @@ i_s_locks_row_validate(
 /*===================*/
 	const i_s_locks_row_t*	row)	/*!< in: row to validate */
 {
-	ut_ad(row->lock_mode != NULL);
-	ut_ad(row->lock_type != NULL);
-	ut_ad(row->lock_table != NULL);
 	ut_ad(row->lock_table_id != 0);
 
 	if (row->lock_space == SPACE_UNKNOWN) {
-		/* table lock */
-		ut_ad(!strcmp("TABLE", row->lock_type));
-		ut_ad(row->lock_index == NULL);
-		ut_ad(row->lock_data == NULL);
 		ut_ad(row->lock_page == FIL_NULL);
 		ut_ad(row->lock_rec == ULINT_UNDEFINED);
 	} else {
-		/* record lock */
-		ut_ad(!strcmp("RECORD", row->lock_type));
-		ut_ad(row->lock_index != NULL);
-		/* row->lock_data == NULL if buf_page_try_get() == NULL */
 		ut_ad(row->lock_page != FIL_NULL);
 		ut_ad(row->lock_rec != ULINT_UNDEFINED);
 	}
@@ -656,32 +646,30 @@ put_nth_field(
 	return(ret);
 }
 
-/*******************************************************************//**
-Fills the "lock_data" member of i_s_locks_row_t object.
-If memory can not be allocated then FALSE is returned.
-@return FALSE if allocation fails */
-static
-ibool
-fill_lock_data(
-/*===========*/
-	const char**		lock_data,/*!< out: "lock_data" to fill */
-	const lock_t*		lock,	/*!< in: lock used to find the data */
-	ulint			heap_no,/*!< in: rec num used to find the data */
-	trx_i_s_cache_t*	cache)	/*!< in/out: cache where to store
-					volatile data */
+/** Fill performance schema lock data.
+Create a string that represents the LOCK_DATA
+column, for a given lock record.
+@param[out]	lock_data	Lock data string
+@param[in]	lock		Lock to inspect
+@param[in]	heap_no		Lock heap number
+@param[in]	container	Data container to fill
+*/
+void
+p_s_fill_lock_data(
+	const char**			lock_data,
+	const lock_t*			lock,
+	ulint				heap_no,
+	PSI_server_data_lock_container*	container)
 {
 	ut_a(lock_get_type(lock) == LOCK_REC);
 
 	switch (heap_no) {
 	case PAGE_HEAP_NO_INFIMUM:
+		*lock_data = "infimum pseudo-record";
+		return;
 	case PAGE_HEAP_NO_SUPREMUM:
-		*lock_data = ha_storage_put_str_memlim(
-			cache->storage,
-			heap_no == PAGE_HEAP_NO_INFIMUM
-			? "infimum pseudo-record"
-			: "supremum pseudo-record",
-			MAX_ALLOWED_FOR_STORAGE(cache));
-		return(*lock_data != NULL);
+		*lock_data = "supremum pseudo-record";
+		return;
 	}
 
 	mtr_t			mtr;
@@ -710,7 +698,7 @@ fill_lock_data(
 
 		mtr_commit(&mtr);
 
-		return(TRUE);
+		return;
 	}
 
 	page = reinterpret_cast<const page_t*>(buf_block_get_frame(block));
@@ -741,9 +729,7 @@ fill_lock_data(
 			i, index, rec, offsets) - 1;
 	}
 
-	*lock_data = (const char*) ha_storage_put_memlim(
-		cache->storage, buf, buf_used + 1,
-		MAX_ALLOWED_FOR_STORAGE(cache));
+	*lock_data = container->cache_string(buf);
 
 	if (heap != NULL) {
 
@@ -755,13 +741,6 @@ fill_lock_data(
 	}
 
 	mtr_commit(&mtr);
-
-	if (*lock_data == NULL) {
-
-		return(FALSE);
-	}
-
-	return(TRUE);
 }
 
 /*******************************************************************//**
@@ -781,50 +760,20 @@ fill_locks_row(
 				volatile strings */
 {
 	row->lock_trx_id = lock_get_trx_id(lock);
-	row->lock_mode = lock_get_mode_str(lock);
-	row->lock_type = lock_get_type_str(lock);
-
-	row->lock_table = ha_storage_put_str_memlim(
-		cache->storage, lock_get_table_name(lock).m_name,
-		MAX_ALLOWED_FOR_STORAGE(cache));
-
-	/* memory could not be allocated */
-	if (row->lock_table == NULL) {
-
-		return(FALSE);
-	}
 
 	switch (lock_get_type(lock)) {
 	case LOCK_REC:
-		row->lock_index = ha_storage_put_str_memlim(
-			cache->storage, lock_rec_get_index_name(lock),
-			MAX_ALLOWED_FOR_STORAGE(cache));
-
-		/* memory could not be allocated */
-		if (row->lock_index == NULL) {
-
-			return(FALSE);
-		}
 
 		row->lock_space = lock_rec_get_space_id(lock);
 		row->lock_page = lock_rec_get_page_no(lock);
 		row->lock_rec = heap_no;
 
-		if (!fill_lock_data(&row->lock_data, lock, heap_no, cache)) {
-
-			/* memory could not be allocated */
-			return(FALSE);
-		}
-
 		break;
 	case LOCK_TABLE:
-		row->lock_index = NULL;
 
 		row->lock_space = SPACE_UNKNOWN;
 		row->lock_page = FIL_NULL;
 		row->lock_rec = ULINT_UNDEFINED;
-
-		row->lock_data = NULL;
 
 		break;
 	default:
@@ -833,171 +782,9 @@ fill_locks_row(
 
 	row->lock_table_id = lock_get_table_id(lock);
 
-	row->hash_chain.value = row;
 	ut_ad(i_s_locks_row_validate(row));
 
 	return(TRUE);
-}
-
-/*******************************************************************//**
-Fills i_s_lock_waits_row_t object. Returns its first argument.
-@return result object that's filled */
-static
-i_s_lock_waits_row_t*
-fill_lock_waits_row(
-/*================*/
-	i_s_lock_waits_row_t*	row,		/*!< out: result object
-						that's filled */
-	const i_s_locks_row_t*	requested_lock_row,/*!< in: pointer to the
-						relevant requested lock
-						row in innodb_locks */
-	const i_s_locks_row_t*	blocking_lock_row)/*!< in: pointer to the
-						relevant blocking lock
-						row in innodb_locks */
-{
-	ut_ad(i_s_locks_row_validate(requested_lock_row));
-	ut_ad(i_s_locks_row_validate(blocking_lock_row));
-
-	row->requested_lock_row = requested_lock_row;
-	row->blocking_lock_row = blocking_lock_row;
-
-	return(row);
-}
-
-/*******************************************************************//**
-Calculates a hash fold for a lock. For a record lock the fold is
-calculated from 4 elements, which uniquely identify a lock at a given
-point in time: transaction id, space id, page number, record number.
-For a table lock the fold is table's id.
-@return fold */
-static
-ulint
-fold_lock(
-/*======*/
-	const lock_t*	lock,	/*!< in: lock object to fold */
-	ulint		heap_no)/*!< in: lock's record number
-				or ULINT_UNDEFINED if the lock
-				is a table lock */
-{
-#ifdef TEST_LOCK_FOLD_ALWAYS_DIFFERENT
-	static ulint	fold = 0;
-
-	return(fold++);
-#else
-	ulint	ret;
-
-	switch (lock_get_type(lock)) {
-	case LOCK_REC:
-		ut_a(heap_no != ULINT_UNDEFINED);
-
-		ret = ut_fold_ulint_pair((ulint) lock_get_trx_id(lock),
-					 lock_rec_get_space_id(lock));
-
-		ret = ut_fold_ulint_pair(ret,
-					 lock_rec_get_page_no(lock));
-
-		ret = ut_fold_ulint_pair(ret, heap_no);
-
-		break;
-	case LOCK_TABLE:
-		/* this check is actually not necessary for continuing
-		correct operation, but something must have gone wrong if
-		it fails. */
-		ut_a(heap_no == ULINT_UNDEFINED);
-
-		ret = (ulint) lock_get_table_id(lock);
-
-		break;
-	default:
-		ut_error;
-	}
-
-	return(ret);
-#endif
-}
-
-/*******************************************************************//**
-Checks whether i_s_locks_row_t object represents a lock_t object.
-@return TRUE if they match */
-static
-ibool
-locks_row_eq_lock(
-/*==============*/
-	const i_s_locks_row_t*	row,	/*!< in: innodb_locks row */
-	const lock_t*		lock,	/*!< in: lock object */
-	ulint			heap_no)/*!< in: lock's record number
-					or ULINT_UNDEFINED if the lock
-					is a table lock */
-{
-	ut_ad(i_s_locks_row_validate(row));
-#ifdef TEST_NO_LOCKS_ROW_IS_EVER_EQUAL_TO_LOCK_T
-	return(0);
-#else
-	switch (lock_get_type(lock)) {
-	case LOCK_REC:
-		ut_a(heap_no != ULINT_UNDEFINED);
-
-		return(row->lock_trx_id == lock_get_trx_id(lock)
-		       && row->lock_space == lock_rec_get_space_id(lock)
-		       && row->lock_page == lock_rec_get_page_no(lock)
-		       && row->lock_rec == heap_no);
-
-	case LOCK_TABLE:
-		/* this check is actually not necessary for continuing
-		correct operation, but something must have gone wrong if
-		it fails. */
-		ut_a(heap_no == ULINT_UNDEFINED);
-
-		return(row->lock_trx_id == lock_get_trx_id(lock)
-		       && row->lock_table_id == lock_get_table_id(lock));
-
-	default:
-		ut_error;
-		return(FALSE);
-	}
-#endif
-}
-
-/*******************************************************************//**
-Searches for a row in the innodb_locks cache that has a specified id.
-This happens in O(1) time since a hash table is used. Returns pointer to
-the row or NULL if none is found.
-@return row or NULL */
-static
-i_s_locks_row_t*
-search_innodb_locks(
-/*================*/
-	trx_i_s_cache_t*	cache,	/*!< in: cache */
-	const lock_t*		lock,	/*!< in: lock to search for */
-	ulint			heap_no)/*!< in: lock's record number
-					or ULINT_UNDEFINED if the lock
-					is a table lock */
-{
-	i_s_hash_chain_t*	hash_chain;
-
-	HASH_SEARCH(
-		/* hash_chain->"next" */
-		next,
-		/* the hash table */
-		cache->locks_hash,
-		/* fold */
-		fold_lock(lock, heap_no),
-		/* the type of the next variable */
-		i_s_hash_chain_t*,
-		/* auxiliary variable */
-		hash_chain,
-		/* assertion on every traversed item */
-		ut_ad(i_s_locks_row_validate(hash_chain->value)),
-		/* this determines if we have found the lock */
-		locks_row_eq_lock(hash_chain->value, lock, heap_no));
-
-	if (hash_chain == NULL) {
-
-		return(NULL);
-	}
-	/* else */
-
-	return(hash_chain->value);
 }
 
 /*******************************************************************//**
@@ -1018,20 +805,6 @@ add_lock_to_cache(
 {
 	i_s_locks_row_t*	dst_row;
 
-#ifdef TEST_ADD_EACH_LOCKS_ROW_MANY_TIMES
-	ulint	i;
-	for (i = 0; i < 10000; i++) {
-#endif
-#ifndef TEST_DO_NOT_CHECK_FOR_DUPLICATE_ROWS
-	/* quit if this lock is already present */
-	dst_row = search_innodb_locks(cache, lock, heap_no);
-	if (dst_row != NULL) {
-
-		ut_ad(i_s_locks_row_validate(dst_row));
-		return(dst_row);
-	}
-#endif
-
 	dst_row = (i_s_locks_row_t*)
 		table_cache_create_empty_row(&cache->innodb_locks, cache);
 
@@ -1048,58 +821,8 @@ add_lock_to_cache(
 		return(NULL);
 	}
 
-#ifndef TEST_DO_NOT_INSERT_INTO_THE_HASH_TABLE
-	HASH_INSERT(
-		/* the type used in the hash chain */
-		i_s_hash_chain_t,
-		/* hash_chain->"next" */
-		next,
-		/* the hash table */
-		cache->locks_hash,
-		/* fold */
-		fold_lock(lock, heap_no),
-		/* add this data to the hash */
-		&dst_row->hash_chain);
-#endif
-#ifdef TEST_ADD_EACH_LOCKS_ROW_MANY_TIMES
-	} /* for()-loop */
-#endif
-
 	ut_ad(i_s_locks_row_validate(dst_row));
 	return(dst_row);
-}
-
-/*******************************************************************//**
-Adds new pair of locks to the lock waits cache.
-If memory can not be allocated then FALSE is returned.
-@return FALSE if allocation fails */
-static
-ibool
-add_lock_wait_to_cache(
-/*===================*/
-	trx_i_s_cache_t*	cache,		/*!< in/out: cache */
-	const i_s_locks_row_t*	requested_lock_row,/*!< in: pointer to the
-						relevant requested lock
-						row in innodb_locks */
-	const i_s_locks_row_t*	blocking_lock_row)/*!< in: pointer to the
-						relevant blocking lock
-						row in innodb_locks */
-{
-	i_s_lock_waits_row_t*	dst_row;
-
-	dst_row = (i_s_lock_waits_row_t*)
-		table_cache_create_empty_row(&cache->innodb_lock_waits,
-					     cache);
-
-	/* memory could not be allocated */
-	if (dst_row == NULL) {
-
-		return(FALSE);
-	}
-
-	fill_lock_waits_row(dst_row, requested_lock_row, blocking_lock_row);
-
-	return(TRUE);
 }
 
 /*******************************************************************//**
@@ -1175,16 +898,6 @@ add_trx_relevant_locks_to_cache(
 
 					return(FALSE);
 				}
-
-				/* add the relation between both locks
-				to innodb_lock_waits */
-				if (!add_lock_wait_to_cache(
-						cache, *requested_lock_row,
-						blocking_lock_row)) {
-
-					/* memory could not be allocated */
-					return(FALSE);
-				}
 			}
 		}
 	} else {
@@ -1241,7 +954,6 @@ trx_i_s_cache_clear(
 {
 	cache->innodb_trx.rows_used = 0;
 	cache->innodb_locks.rows_used = 0;
-	cache->innodb_lock_waits.rows_used = 0;
 
 	hash_table_clear(cache->locks_hash);
 
@@ -1414,8 +1126,6 @@ trx_i_s_cache_init(
 
 	table_cache_init(&cache->innodb_trx, sizeof(i_s_trx_row_t));
 	table_cache_init(&cache->innodb_locks, sizeof(i_s_locks_row_t));
-	table_cache_init(&cache->innodb_lock_waits,
-			 sizeof(i_s_lock_waits_row_t));
 
 	cache->locks_hash = hash_create(LOCKS_HASH_CELLS_NUM);
 
@@ -1444,7 +1154,6 @@ trx_i_s_cache_free(
 	ha_storage_free(cache->storage);
 	table_cache_free(&cache->innodb_trx);
 	table_cache_free(&cache->innodb_locks);
-	table_cache_free(&cache->innodb_lock_waits);
 }
 
 /*******************************************************************//**
@@ -1517,12 +1226,6 @@ cache_select_table(
 	switch (table) {
 	case I_S_INNODB_TRX:
 		table_cache = &cache->innodb_trx;
-		break;
-	case I_S_INNODB_LOCKS:
-		table_cache = &cache->innodb_locks;
-		break;
-	case I_S_INNODB_LOCK_WAITS:
-		table_cache = &cache->innodb_lock_waits;
 		break;
 	default:
 		ut_error;
@@ -1608,7 +1311,7 @@ trx_i_s_create_lock_id(
 		/* record lock */
 		res_len = snprintf(lock_id, lock_id_size,
 				TRX_ID_FMT ":" SPACE_ID_PF ":"
-				PAGE_NO_PF ":%lu",
+				PAGE_NO_PF ":" ULINTPF,
 				row->lock_trx_id, row->lock_space,
 				row->lock_page, row->lock_rec);
 	} else {

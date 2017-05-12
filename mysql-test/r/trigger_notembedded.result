@@ -19,6 +19,8 @@ GRANT INSERT, DROP ON mysqltest_db1.t2 TO mysqltest_dfn@localhost;
 
 ---> connection: default
 GRANT SUPER ON *.* TO mysqltest_dfn@localhost;
+Warnings:
+Warning	1287	The SUPER privilege identifier is deprecated
 
 ---> connection: wl2818_definer_con
 CREATE TRIGGER trg1 AFTER INSERT ON t1
@@ -56,6 +58,8 @@ TRUNCATE TABLE t2;
 
 ---> connection: default
 REVOKE SUPER ON *.* FROM mysqltest_dfn@localhost;
+Warnings:
+Warning	1287	The SUPER privilege identifier is deprecated
 
 ---> connection: wl2818_definer_con
 CREATE TRIGGER trg1 AFTER INSERT ON t1
@@ -116,11 +120,13 @@ CREATE DEFINER='mysqltest_inv'@'localhost'
   TRIGGER trg1 BEFORE INSERT ON t1
 FOR EACH ROW
 SET @new_sum = 0;
-ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SET_USER_ID privilege(s) for this operation
 
 ---> connection: default
 use mysqltest_db1;
 GRANT SUPER ON *.* TO mysqltest_dfn@localhost;
+Warnings:
+Warning	1287	The SUPER privilege identifier is deprecated
 
 ---> connection: wl2818_definer_con
 CREATE DEFINER='mysqltest_inv'@'localhost'
@@ -137,8 +143,8 @@ INSERT INTO t1 VALUES(6);
 ERROR HY000: The user specified as a definer ('mysqltest_nonexs'@'localhost') does not exist
 SHOW TRIGGERS;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
-trg1	INSERT	t1	SET @new_sum = 0	BEFORE	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	mysqltest_inv@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
-trg2	INSERT	t1	SET @new_sum = 0	AFTER	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	mysqltest_nonexs@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+trg1	INSERT	t1	SET @new_sum = 0	BEFORE	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	mysqltest_inv@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+trg2	INSERT	t1	SET @new_sum = 0	AFTER	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	mysqltest_nonexs@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 DROP TRIGGER trg1;
 DROP TRIGGER trg2;
 
@@ -431,7 +437,7 @@ REVOKE ALL ON *.* FROM 'no_rights'@'localhost';
 FLUSH PRIVILEGES;
 SELECT trigger_name FROM INFORMATION_SCHEMA.TRIGGERS
 WHERE trigger_schema = 'db1';
-trigger_name
+TRIGGER_NAME
 SHOW CREATE TRIGGER db1.trg;
 ERROR 42000: Access denied; you need (at least one of) the TRIGGER privilege(s) for this operation
 DROP USER 'no_rights'@'localhost';

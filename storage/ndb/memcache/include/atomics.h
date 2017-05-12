@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights
+ Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -31,7 +31,7 @@
 #define USE_SOLARIS_ATOMICS
 #elif defined HAVE_DARWIN_ATOMICS
 #define USE_DARWIN_ATOMICS 
-#elif defined HAVE_GCC_ATOMIC_BUILTINS || defined HAVE_GCC_ATOMICS_WITH_ARCH_FLAG
+#elif defined HAVE_GCC_ATOMIC_BUILTINS || defined HAVE_GCC_ATOMICS_WITH_ARCH_FLAG || defined HAVE_GCC_SYNC_BUILTINS
 #define USE_GCC_ATOMICS
 #else 
 #error No atomic functions available.

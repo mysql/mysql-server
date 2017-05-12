@@ -37,7 +37,7 @@ START SLAVE;
 include/rpl_for_each_connection.inc [include/wait_for_slave_io_to_start.inc]
 include/rpl_for_each_connection.inc [include/wait_for_slave_sql_to_start.inc]
 include/rpl_end.inc
-RESET SLAVE ALL FOR CHANNEL  'channel_1';
-RESET SLAVE ALL FOR CHANNEL  'channel_3';
-RESET SLAVE ALL FOR CHANNEL  'channel_4';
-RESET SLAVE ALL FOR CHANNEL  'channel_5';
+RESET SLAVE ALL FOR CHANNEL 'channel_1';
+RESET SLAVE ALL FOR CHANNEL 'channel_3';
+RESET SLAVE ALL FOR CHANNEL 'channel_4';
+RESET SLAVE ALL FOR CHANNEL 'channel_5';

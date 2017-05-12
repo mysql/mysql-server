@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,34 +17,40 @@
 
 /* Show databases, tables or columns */
 
-#define SHOW_VERSION "9.10"
-
-#include "client_priv.h"
-#include "my_default.h"
-#include <my_sys.h>
 #include <m_string.h>
+#include <my_sys.h>
 #include <mysql.h>
 #include <mysqld_error.h>
 #include <signal.h>
-#include <stdarg.h>
 #include <sslopt-vars.h>
+#include <stdarg.h>
+#include <stdlib.h>
+#include <sys/types.h>
 #include <welcome_copyright_notice.h>   /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
+
+#include "client_priv.h"
+#include "my_dbug.h"
+#include "my_default.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
+#include "print_version.h"
+#include "typelib.h"
 
 static char * host=0, *opt_password=0, *user=0;
-static my_bool opt_show_keys= 0, opt_compress= 0, opt_count=0, opt_status= 0;
-static my_bool tty_password= 0, opt_table_type= 0;
-static my_bool debug_info_flag= 0, debug_check_flag= 0;
+static bool opt_show_keys= 0, opt_compress= 0, opt_count=0, opt_status= 0;
+static bool tty_password= 0, opt_table_type= 0;
+static bool debug_info_flag= 0, debug_check_flag= 0;
 static uint my_end_arg= 0;
 static uint opt_verbose=0;
 static char *default_charset= (char*) MYSQL_AUTODETECT_CHARSET_NAME;
 static char *opt_plugin_dir= 0, *opt_default_auth= 0;
 static uint opt_enable_cleartext_plugin= 0;
-static my_bool using_opt_enable_cleartext_plugin= 0;
-static my_bool opt_secure_auth= TRUE;
+static bool using_opt_enable_cleartext_plugin= 0;
+static bool opt_secure_auth= TRUE;
 
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
 static char *shared_memory_base_name=0;
 #endif
 static uint opt_protocol=0;
@@ -70,7 +76,7 @@ static char * opt_mysql_unix_port=0;
 int main(int argc, char **argv)
 {
   int error;
-  my_bool first_argument_uses_wildcards=0;
+  bool first_argument_uses_wildcards=0;
   char *wild;
   MYSQL mysql;
   MY_INIT(argv[0]);
@@ -128,7 +134,7 @@ int main(int argc, char **argv)
     mysql_options(&mysql,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
   if (opt_bind_addr)
     mysql_options(&mysql,MYSQL_OPT_BIND,opt_bind_addr);
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
   if (shared_memory_base_name)
     mysql_options(&mysql,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
 #endif
@@ -174,7 +180,7 @@ int main(int argc, char **argv)
   }
   mysql_close(&mysql);			/* Close & free connection */
   my_free(opt_password);
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
   my_free(shared_memory_base_name);
 #endif
   mysql_server_end();
@@ -252,7 +258,7 @@ static struct my_option my_long_options[] =
   {"secure-auth", OPT_SECURE_AUTH, "Refuse client connecting to server if it"
     " uses old (pre-4.1.1) protocol. Deprecated. Always TRUE",
     &opt_secure_auth, &opt_secure_auth, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
    "Base name of shared memory.", &shared_memory_base_name,
    &shared_memory_base_name, 0, GET_STR_ALLOC, REQUIRED_ARG,
@@ -265,6 +271,7 @@ static struct my_option my_long_options[] =
    &opt_mysql_unix_port, &opt_mysql_unix_port, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #include <sslopt-longopts.h>
+
   {"user", 'u', "User for login if not current user.", &user,
    &user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"verbose", 'v',
@@ -275,14 +282,6 @@ static struct my_option my_long_options[] =
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
-
-
-static void print_version(void)
-{
-  printf("%s  Ver %s Distrib %s, for %s (%s)\n",my_progname,SHOW_VERSION,
-	 MYSQL_SERVER_VERSION,SYSTEM_TYPE,MACHINE_TYPE);
-}
-
 
 static void usage(void)
 {
@@ -318,7 +317,7 @@ are shown.");
 
 
 extern "C" {
-static my_bool
+static bool
 get_one_option(int optid, const struct my_option *opt,
 	       char *argument)
 {
@@ -360,6 +359,7 @@ get_one_option(int optid, const struct my_option *opt,
     debug_check_flag= 1;
     break;
 #include <sslopt-case.h>
+
   case 'V':
     print_version();
     exit(0);

@@ -10,7 +10,16 @@
 # Adding big test option for this test.
 --source include/big_test.inc
 
--- source include/have_innodb.inc
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs65=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema default character set latin1;
+use test;
+--enable_query_log
+########################################
+
 let $engine_type= InnoDB;
 let $other_engine_type= MEMORY;
 # InnoDB does support FOREIGN KEYs
@@ -82,7 +91,9 @@ CREATE TABLE bar (a int, b int, c char(10),
 
 INSERT INTO foo VALUES
    (1,2,'abcdefghij'), (2,3,''), (3,4,'klmnopqrst'),
-   (4,5,'uvwxyz'), (5,6,'meotnsyglt'), (4,5,'asfdewe');
+   (4,5,'uvwxyz'), (5,6,'meotnsyglt'), (4,5,'asfdewe'), (5,6,'trondheim'),
+   (6,7,'stockholm'), (7,8,'copenhagen'), (8,9,'helsinki'),
+   (9,10,'reykjavik');
 
 INSERT INTO bar SELECT * FROM foo;
 INSERT INTO foo2 SELECT * FROM foo;
@@ -1003,3 +1014,10 @@ DROP TABLE t1;
 
 
 --echo End of 6.0 tests
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs65;
+--enable_query_log
+########################################

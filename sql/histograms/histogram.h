@@ -1,7 +1,7 @@
 #ifndef HISTOGRAMS_HISTOGRAM_INCLUDED
 #define HISTOGRAMS_HISTOGRAM_INCLUDED
 
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,19 +33,18 @@
   name conflicts etc.
 */
 
-#include "my_global.h"
-
 #include <cstddef>               // size_t
 #include <map>                   // std::map
 #include <string>                // std::string
 #include <utility>               // std::pair
 
+#include "lex_string.h"
 #include "m_string.h"            // LEX_CSTRING
 #include "memroot_allocator.h"   // Memroot_allocator
-#include "my_alloc.h"            // MEM_ROOT
 #include "my_base.h"             // ha_rows
 #include "mysql_time.h"          // MYSQL_TIME
 #include "sql_alloc.h"           // Sql_alloc
+#include "thr_malloc.h"
 
 class Json_object;
 class String;
@@ -111,7 +110,7 @@ public:
 
 // Typedefs.
 template<typename T>
-using value_map_allocator = Memroot_allocator<std::pair<T, ha_rows> >;
+using value_map_allocator = Memroot_allocator<std::pair<const T, ha_rows>>;
 
 template<typename T>
 using value_map_type = std::map<T, ha_rows, Histogram_comparator,

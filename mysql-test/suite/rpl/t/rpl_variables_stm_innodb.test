@@ -1,4 +1,3 @@
---source include/have_innodb.inc
 
 # Separated testcases for MyISAM and InnoDB because
 # result file differs for autoincrement values.

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,19 +13,50 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql_partition_admin.h"
+#include "sql/sql_partition_admin.h"
 
+#include <limits.h>
+#include <string.h>
+#include <sys/types.h>
+
+#include "auth_acls.h"
 #include "auth_common.h"                    // check_access
-#include "mysqld.h"                         // opt_log_slow_admin_statements
-#include "sql_table.h"                      // mysql_alter_table, etc.
-#include "partition_info.h"                 // class partition_info etc.
-#include "sql_base.h"                       // open_and_lock_tables, etc
+#include "dd/cache/dictionary_client.h"     // dd::cache::Dictionary_client
+#include "dd/types/table.h"                 // dd::Table
 #include "debug_sync.h"                     // DEBUG_SYNC
+#include "handler.h"
+#include "lex_string.h"
 #include "log.h"
+#include "m_ctype.h"
+#include "mdl.h"
+#include "my_base.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_sys.h"
+#include "my_thread_local.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysqld.h"                         // opt_log_slow_admin_statements
+#include "mysqld_error.h"
+#include "partition_info.h"                 // class partition_info etc.
 #include "partitioning/partition_handler.h" // Partition_handler
-#include "sql_class.h"                      // THD
+#include "sql_base.h"                       // open_and_lock_tables, etc
 #include "sql_cache.h"                      // query_cache
+#include "sql_class.h"                      // THD
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_partition.h"
+#include "sql_plugin.h"
+#include "sql_string.h"
+#include "sql_table.h"                      // mysql_alter_table, etc.
+#include "system_variables.h"
+#include "table.h"
+#include "thr_lock.h"
+#include "transaction.h"    // trans_commit_stmt
 
+class partition_element;
 
 bool Sql_cmd_alter_table_exchange_partition::execute(THD *thd)
 {
@@ -302,7 +333,7 @@ static bool exchange_name_with_ddl_log(THD *thd,
   handler *file= NULL;
   DBUG_ENTER("exchange_name_with_ddl_log");
 
-  if (!(file= get_new_handler(NULL, thd->mem_root, ht)))
+  if (!(file= get_new_handler(NULL, false, thd->mem_root, ht)))
   {
     mem_alloc_error(sizeof(handler));
     DBUG_RETURN(TRUE);
@@ -350,7 +381,7 @@ static bool exchange_name_with_ddl_log(THD *thd,
                   error_set= TRUE;
                   goto err_rename;);
   DBUG_EXECUTE_IF("exchange_partition_abort_3", DBUG_SUICIDE(););
-  if (file->ha_rename_table(name, tmp_name))
+  if (file->ha_rename_table(name, tmp_name, NULL, NULL))
   {
     char errbuf[MYSYS_STRERROR_SIZE];
     my_error(ER_ERROR_ON_RENAME, MYF(0), name, tmp_name,
@@ -370,7 +401,7 @@ static bool exchange_name_with_ddl_log(THD *thd,
                   error_set= TRUE;
                   goto err_rename;);
   DBUG_EXECUTE_IF("exchange_partition_abort_5", DBUG_SUICIDE(););
-  if (file->ha_rename_table(from_name, name))
+  if (file->ha_rename_table(from_name, name, NULL, NULL))
   {
     char errbuf[MYSYS_STRERROR_SIZE];
     my_error(ER_ERROR_ON_RENAME, MYF(0), from_name, name,
@@ -390,7 +421,7 @@ static bool exchange_name_with_ddl_log(THD *thd,
                   error_set= TRUE;
                   goto err_rename;);
   DBUG_EXECUTE_IF("exchange_partition_abort_7", DBUG_SUICIDE(););
-  if (file->ha_rename_table(tmp_name, from_name))
+  if (file->ha_rename_table(tmp_name, from_name, NULL, NULL))
   {
     char errbuf[MYSYS_STRERROR_SIZE];
     my_error(ER_ERROR_ON_RENAME, MYF(0), tmp_name, from_name,
@@ -471,10 +502,7 @@ bool Sql_cmd_alter_table_exchange_partition::
   uint swap_part_id;
   size_t part_file_name_len;
   Alter_table_prelocking_strategy alter_prelocking_strategy;
-  MDL_ticket *swap_table_mdl_ticket= NULL;
-  MDL_ticket *part_table_mdl_ticket= NULL;
   uint table_counter;
-  bool error= TRUE;
   DBUG_ENTER("mysql_exchange_partition");
   DBUG_ASSERT(alter_info->flags & Alter_info::ALTER_EXCHANGE_PARTITION);
 
@@ -587,8 +615,16 @@ bool Sql_cmd_alter_table_exchange_partition::
     Get exclusive mdl lock on both tables, alway the non partitioned table
     first. Remember the tickets for downgrading locks later.
   */
-  swap_table_mdl_ticket= swap_table->mdl_ticket;
-  part_table_mdl_ticket= part_table->mdl_ticket;
+  auto downgrade_mdl_lambda =
+    [thd](MDL_ticket *ticket)
+    {
+      if (thd->locked_tables_mode)
+        ticket->downgrade_lock(MDL_SHARED_NO_READ_WRITE);
+    };
+  std::unique_ptr<MDL_ticket, decltype(downgrade_mdl_lambda)>
+    swap_tab_downgrade_mdl_guard(swap_table->mdl_ticket, downgrade_mdl_lambda);
+  std::unique_ptr<MDL_ticket, decltype(downgrade_mdl_lambda)>
+    part_tab_downgrade_mdl_guard(part_table->mdl_ticket, downgrade_mdl_lambda);
 
   /*
     No need to set used_partitions to only propagate
@@ -598,54 +634,175 @@ bool Sql_cmd_alter_table_exchange_partition::
   */
   if (wait_while_table_is_used(thd, swap_table, HA_EXTRA_PREPARE_FOR_RENAME) ||
       wait_while_table_is_used(thd, part_table, HA_EXTRA_PREPARE_FOR_RENAME))
-    goto err;
+    DBUG_RETURN(true);
 
   DEBUG_SYNC(thd, "swap_partition_after_wait");
 
-  close_all_tables_for_name(thd, swap_table->s, false, NULL);
-  close_all_tables_for_name(thd, part_table->s, false, NULL);
+  Partition_handler *part_handler;
 
-  DEBUG_SYNC(thd, "swap_partition_before_rename");
-
-  if (exchange_name_with_ddl_log(thd, swap_file_name, part_file_name,
-                                 temp_file_name, table_hton))
-    goto err;
-
-  /*
-    Reopen tables under LOCK TABLES. Ignore the return value for now. It's
-    better to keep master/slave in consistent state. Alternative would be to
-    try to revert the exchange operation and issue error.
-  */
-  (void) thd->locked_tables_list.reopen_tables(thd);
-
-  if ((error= write_bin_log(thd, true, thd->query().str, thd->query().length)))
+  if (!(part_handler= part_table->file->get_partition_handler()))
   {
-    /*
-      The error is reported in write_bin_log().
-      We try to revert to make it easier to keep the master/slave in sync.
-    */
-    (void) exchange_name_with_ddl_log(thd, part_file_name, swap_file_name,
-                                      temp_file_name, table_hton);
+    my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
+    DBUG_RETURN(true);
   }
 
-err:
-  if (thd->locked_tables_mode)
-  {
-    if (swap_table_mdl_ticket)
-      swap_table_mdl_ticket->downgrade_lock(MDL_SHARED_NO_READ_WRITE);
-    if (part_table_mdl_ticket)
-      part_table_mdl_ticket->downgrade_lock(MDL_SHARED_NO_READ_WRITE);
-  }
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  dd::Table *part_table_def= nullptr;
+  dd::Table *swap_table_def= nullptr;
 
-  if (!error)
-    my_ok(thd);
+  if (thd->dd_client()->acquire_for_modification<dd::Table>(table_list->db,
+                          table_list->table_name, &part_table_def) ||
+      thd->dd_client()->acquire_for_modification<dd::Table>(swap_table_list->db,
+                          swap_table_list->table_name, &swap_table_def))
+    DBUG_RETURN(true);
 
-  // For query cache
+  /* Tables were successfully opened above. */
+  DBUG_ASSERT(part_table_def != nullptr && swap_table_def != nullptr);
+
+  DEBUG_SYNC(thd, "swap_partition_before_exchange");
+
+  int ha_error= part_handler->exchange_partition(part_file_name,
+                                                 swap_file_name,
+                                                 swap_part_id,
+                                                 part_table_def,
+                                                 swap_table_def);
+
+  // Play safe. Invalidate query cache even in case of failure.
   table_list->table= NULL;
   table_list->next_local->table= NULL;
   query_cache.invalidate(thd, table_list, FALSE);
 
-  DBUG_RETURN(error);
+
+  if (ha_error == HA_ERR_WRONG_COMMAND)
+  {
+    /*
+      TODO: Legacy code to be removed once InnoDB supports exchange of
+            partitions using Partition_handler::exchange_partition API.
+    */
+    close_all_tables_for_name(thd, swap_table->s, false, NULL);
+    close_all_tables_for_name(thd, part_table->s, false, NULL);
+
+    if (exchange_name_with_ddl_log(thd, swap_file_name, part_file_name,
+                                   temp_file_name, table_hton))
+      DBUG_RETURN(true);
+
+    /*
+      Reopen tables under LOCK TABLES. Ignore the return value for now. It's
+      better to keep master/slave in consistent state. Alternative would be to
+      try to revert the exchange operation and issue error.
+    */
+    (void) thd->locked_tables_list.reopen_tables(thd);
+
+    if (write_bin_log(thd, true, thd->query().str, thd->query().length))
+    {
+      /*
+        The error is reported in write_bin_log().
+        We try to revert to make it easier to keep the master/slave in sync.
+      */
+      (void) exchange_name_with_ddl_log(thd, part_file_name, swap_file_name,
+                                        temp_file_name, table_hton);
+      DBUG_RETURN(true);
+    }
+  }
+  else if (ha_error)
+  {
+    /* purecov: begin deadcode */
+    part_table->file->print_error(ha_error, MYF(0));
+    // Close TABLE instances which marked as old earlier.
+    close_all_tables_for_name(thd, swap_table->s, false, NULL);
+    close_all_tables_for_name(thd, part_table->s, false, NULL);
+    /*
+      Rollback all possible changes to data-dictionary and SE which
+      Partition_handler::exchange_partitions() might have done before
+      reporting an error.
+      Do this before we downgrade metadata locks.
+    */
+    (void) trans_rollback_stmt(thd);
+    /*
+      Full rollback in case we have THD::transaction_rollback_request
+      and to synchronize DD state in cache and on disk (as statement
+      rollback doesn't clear DD cache of modified uncommitted objects).
+    */
+    (void) trans_rollback(thd);
+    if ((part_table->file->ht->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
+        part_table->file->ht->post_ddl)
+      part_table->file->ht->post_ddl(thd);
+    (void) thd->locked_tables_list.reopen_tables(thd);
+    DBUG_RETURN(true);
+    /* purecov: end */
+  }
+  else
+  {
+    /* purecov: begin deadcode */
+    if (part_table->file->ht->flags & HTON_SUPPORTS_ATOMIC_DDL)
+    {
+      handlerton *hton= part_table->file->ht;
+
+      // Close TABLE instances which marked as old earlier.
+      close_all_tables_for_name(thd, swap_table->s, false, NULL);
+      close_all_tables_for_name(thd, part_table->s, false, NULL);
+
+      /*
+        Ensure that we call post-DDL hook and re-open tables even
+        in case of error.
+      */
+      auto rollback_post_ddl_reopen_lambda =
+        [hton](THD *thd)
+        {
+          /*
+            Rollback all possible changes to data-dictionary and SE which
+            Partition_handler::exchange_partitions() might have done before
+            reporting an error. Do this before we downgrade metadata locks.
+          */
+          (void) trans_rollback_stmt(thd);
+          /*
+            Full rollback in case we have THD::transaction_rollback_request
+            and to synchronize DD state in cache and on disk (as statement
+            rollback doesn't clear DD cache of modified uncommitted objects).
+          */
+          (void) trans_rollback(thd);
+          /*
+            Call SE post DDL hook. This handles both rollback and commit cases.
+          */
+          if (hton->post_ddl)
+            hton->post_ddl(thd);
+          (void) thd->locked_tables_list.reopen_tables(thd);
+        };
+
+      std::unique_ptr<THD, decltype(rollback_post_ddl_reopen_lambda)>
+        rollback_post_ddl_reopen_guard(thd, rollback_post_ddl_reopen_lambda);
+
+      if (thd->dd_client()->update(part_table_def) ||
+          thd->dd_client()->update(swap_table_def) ||
+          write_bin_log(thd, true, thd->query().str, thd->query().length,
+                        true))
+      {
+        DBUG_RETURN(true);
+      }
+
+      if (trans_commit_stmt(thd) || trans_commit_implicit(thd))
+        DBUG_RETURN(true);
+    }
+    else
+    {
+      /*
+        Close TABLE instances which were marked as old earlier and reopen
+        tables. Ignore the fact that the statement might fail due to binlog
+        write failure.
+      */
+      close_all_tables_for_name(thd, swap_table->s, false, NULL);
+      close_all_tables_for_name(thd, part_table->s, false, NULL);
+      (void) thd->locked_tables_list.reopen_tables(thd);
+
+      if (write_bin_log(thd, true, thd->query().str, thd->query().length))
+        DBUG_RETURN(true);
+    }
+    /* purecov: end */
+  }
+
+  my_ok(thd);
+
+  DBUG_RETURN(false);
 }
 
 
@@ -725,6 +882,7 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
   Alter_info *alter_info= &thd->lex->alter_info;
   uint table_counter;
   Partition_handler *part_handler;
+  handlerton *hton;
   DBUG_ENTER("Sql_cmd_alter_table_truncate_partition::execute");
 
   /*
@@ -735,7 +893,7 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
                                Alter_info::ALTER_TRUNCATE_PARTITION;
 
   /* Fix the lock types (not the same as ordinary ALTER TABLE). */
-  first_table->lock_type= TL_WRITE;
+  first_table->set_lock({TL_WRITE, THR_DEFAULT});
   first_table->mdl_request.set_type(MDL_EXCLUSIVE);
 
   /*
@@ -759,6 +917,8 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
     DBUG_RETURN(true);
   }
 
+  hton= first_table->table->file->ht;
+
   /*
     Prune all, but named partitions,
     to avoid excessive calls to external_lock().
@@ -769,6 +929,16 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
 
   if (lock_tables(thd, first_table, table_counter, 0))
     DBUG_RETURN(true);
+
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  dd::Table *table_def= nullptr;
+
+  if (thd->dd_client()->acquire_for_modification<dd::Table>(first_table->db,
+                          first_table->table_name, &table_def))
+    DBUG_RETURN(true);
+
+  /* Table was successfully opened above. */
+  DBUG_ASSERT(table_def != nullptr);
 
   /*
     Under locked table modes this might still not be an exclusive
@@ -783,22 +953,73 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
                    first_table->table_name, FALSE);
 
   /* Invoke the handler method responsible for truncating the partition. */
-  if ((error= part_handler->truncate_partition()))
+  if ((error= part_handler->truncate_partition(table_def)))
   {
     first_table->table->file->print_error(error, MYF(0));
   }
 
-  /*
-    All effects of a truncate operation are committed even if the
-    operation fails. Thus, the query must be written to the binary
-    log. The exception is a unimplemented truncate method or failure
-    before any call to handler::truncate() is done.
-    Also, it is logged in statement format, regardless of the binlog format.
-  */
-  if (error != HA_ERR_WRONG_COMMAND)
+  if (hton->flags & HTON_SUPPORTS_ATOMIC_DDL)
   {
-    error|= write_bin_log(thd, !error, thd->query().str, thd->query().length);
+    /*
+      Storage engine supporting atomic DDL can fully rollback truncate
+      if any problem occurs. This will happen during statement rollback.
+
+      In case of success we need to save dd::Table object which might
+      have been updated by SE. If this step or subsequent write to binary
+      log fail then statement rollback will also restore status quo ante.
+
+      Note that Table Definition and Table Caches were invalidated above.
+    */
+    if (!error)
+    {
+      if (thd->dd_client()->update<dd::Table>(table_def) ||
+          write_bin_log(thd, true, thd->query().str, thd->query().length,
+                        true))
+        error= 1;
+    }
   }
+  else
+  {
+    /*
+      For engines which don't support atomic DDL all effects of a
+      truncate operation are committed even if the operation fails.
+      Thus, the query must be written to the binary log.
+      The exception is a unimplemented truncate method or failure
+      before any call to handler::truncate() is done.
+      Also, it is logged in statement format, regardless of the binlog format.
+    */
+    if (error != HA_ERR_WRONG_COMMAND)
+    {
+      error|= write_bin_log(thd, !error, thd->query().str, thd->query().length);
+    }
+  }
+
+  /*
+    Since we have updated table definition in the data-dictionary above
+    we need to remove its TABLE/TABLE_SHARE from TDC now.
+  */
+  close_all_tables_for_name(thd, first_table->table->s, false, NULL);
+  /* Query Cache invalidation should not access freed TABLE instance. */
+  first_table->table= NULL;
+
+  if (!error)
+    error= (trans_commit_stmt(thd) || trans_commit_implicit(thd));
+
+  if (error)
+  {
+    trans_rollback_stmt(thd);
+    /*
+      Full rollback in case we have THD::transaction_rollback_request
+      and to synchronize DD state in cache and on disk (as statement
+      rollback doesn't clear DD cache of modified uncommitted objects).
+    */
+    trans_rollback(thd);
+  }
+
+  if ((hton->flags & HTON_SUPPORTS_ATOMIC_DDL) && hton->post_ddl)
+    hton->post_ddl(thd);
+
+  (void) thd->locked_tables_list.reopen_tables(thd);
 
   /*
     A locked table ticket was upgraded to a exclusive lock. After the

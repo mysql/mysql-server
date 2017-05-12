@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@
 #include <NodeBitmask.hpp>
 #include <NdbEnv.h>
 
-extern "C" my_bool opt_core;
+extern "C" bool opt_core;
 
 #define DBG(x) \
   do { g_info << x << " at line " << __LINE__ << endl; } while (0)
@@ -1469,6 +1469,102 @@ runTransError(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+static
+int
+runAbortWithSlowChildScans(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /**
+   * FK parent update/delete causes child tables to be
+   * scanned.
+   * This scanning is not considered when the transaction
+   * is being aborted, so a transaction causing child-table
+   * scans can finish aborting before the child table scans
+   * are complete.
+   * This testcase gives some coverage to that scenario,
+   * by initiating some parent deletes, resulting in
+   * child table scans, then causing the scans to stall,
+   * the transaction to abort, and then the scans to resume.
+   */
+  const int rows = ctx->getNumRecords();
+  const int batchSize = ctx->getProperty("BatchSize", DEFAULT_BATCH_SIZE);
+
+  Ndb* pNdb = GETNDB(step);
+  const NdbDictionary::Table* pTab = ctx->getTab();
+ 
+  { 
+    HugoTransactions ht(*pTab);
+    if (ht.loadTable(pNdb, rows, batchSize) != 0)
+    {
+      g_err << "Load table failed" << endl;
+      return NDBT_FAILED;
+    }
+  }
+
+  /* Originally used a separate row lock to cause stall,
+   * but no need, as the blocking of the scans itself
+   * causes a transaction timeout eventually
+   */
+//   int lockedRow = rand() % rows;
+//   g_err << "Locking row " << lockedRow << endl;
+  
+//   HugoOperations ho(*pTab);
+//   if ((ho.startTransaction(pNdb) != 0) ||
+//       (ho.pkReadRecord(pNdb, 
+//                        lockedRow, 
+//                        1, 
+//                        NdbOperation::LM_Exclusive) != 0) ||
+//       (ho.execute_NoCommit(pNdb) != 0))
+//   {
+//     g_err << "Problem locking row : "
+//           << ho.getNdbError()
+//           << endl;
+//     return NDBT_FAILED;
+//   }
+  
+  /* Cause child table FK scans to block... */
+  NdbRestarter restarter;
+  /* Block FK-related child table scans... */
+  restarter.insertErrorInAllNodes(8109);
+
+  /* Now perform delete of parent rows in a separate connection
+   * Separate connection used as some validation is perfomed by
+   * TC at connection close time (TCRELEASEREQ)
+   */
+  
+  {
+    Ndb myNdb(&pNdb->get_ndb_cluster_connection());
+  
+    myNdb.init();
+
+    myNdb.setDatabaseName(pNdb->getDatabaseName());
+    
+    HugoTransactions ht(*pTab);
+  
+    /* Avoid lots of retries for the deletes... */
+    ht.setRetryMax(1);
+
+    /* Attempt to delete everything, will fail
+     * as triggered child table scans timeout
+     */
+    if (ht.pkDelRecords(&myNdb,
+                        rows) == 0)
+    {
+      g_err << "Unexpected success of ht!" << endl;
+      return NDBT_FAILED;
+    }
+    
+    /* Error is expected */
+    /* Now close Ndb object, causing some TCRELEASEREQ validation */
+  }
+
+  /* Unblock child scans */
+  restarter.insertErrorInAllNodes(0);
+  
+  return NDBT_OK;
+}
+
+
+
 NDBT_TESTSUITE(testFK);
 TESTCASE("CreateDrop",
 	 "Test random create/drop of FK")
@@ -1597,6 +1693,21 @@ TESTCASE("DropTableWithFKDuringRestart",
   INITIALIZER(runDropCascadeChild);
   STEP(runStartAllNodes);
   VERIFIER(runCheckAllNodesStarted);
+}
+TESTCASE("AbortWithSlowChildScans",
+         "Some coverage of transaction abort with "
+         "outstanding FK child table scans")
+{
+  TC_PROPERTY("IDX_UNIQ", Uint32(0));
+  TC_PROPERTY("IDX_MANY", Uint32(1));
+  TC_PROPERTY("IDX_RAND", Uint32(0));
+  TC_PROPERTY("FK_UNIQ", Uint32(0));
+  TC_PROPERTY("FK_MANY", Uint32(1));
+  TC_PROPERTY("FK_RAND", Uint32(0));
+  INITIALIZER(runDiscoverTable);
+  INITIALIZER(runCreateRandom);
+  INITIALIZER(runAbortWithSlowChildScans);
+  FINALIZER(runCleanupTable);
 }
 NDBT_TESTSUITE_END(testFK);
 

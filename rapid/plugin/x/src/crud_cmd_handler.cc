@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -22,197 +22,228 @@
 #include "ngs_common/protocol_protobuf.h"
 
 #include "xpl_log.h"
-#include "sql_data_context.h"
 #include "expr_generator.h"
 #include "xpl_error.h"
 #include "update_statement_builder.h"
 #include "find_statement_builder.h"
 #include "delete_statement_builder.h"
 #include "insert_statement_builder.h"
+#include "view_statement_builder.h"
 #include "notices.h"
-#include "xpl_server.h"
 #include "xpl_session.h"
+#include "xpl_resultset.h"
 
-namespace
-{
+namespace xpl {
 
-template<typename T>
-inline bool is_table_data_model(const T& msg)
-{
-  return msg.data_model() == Mysqlx::Crud::TABLE;
+template <typename B, typename M>
+ngs::Error_code Crud_command_handler::execute(
+    Session &session, const B &builder, const M &msg,
+    ngs::Resultset_interface &resultset, Status_variable variable,
+    bool (ngs::Protocol_encoder::*send_ok)()) {
+  session.update_status(variable);
+  m_qb.clear();
+  try {
+    builder.build(msg);
+  }
+  catch (const Expression_generator::Error &exc) {
+    return ngs::Error(exc.error(), "%s", exc.what());
+  }
+  catch (const ngs::Error_code &error) {
+    return error;
+  }
+
+  ngs::Error_code error = session.data_context().execute(
+      m_qb.get().data(), m_qb.get().length(), &resultset);
+  if (error) return error_handling(error, msg);
+
+  notice_handling(session, resultset.get_info(), msg);
+  (session.proto().*send_ok)();
+  return ngs::Success();
 }
 
-} // namespace
+template <typename M>
+void Crud_command_handler::notice_handling(
+    Session &session, const ngs::Resultset_interface::Info &info,
+    const M & /*msg*/) const {
+  notice_handling_common(session, info);
+}
 
-
-ngs::Error_code xpl::Crud_command_handler::execute_crud_insert(Session &session, const Mysqlx::Crud::Insert &msg)
-{
-  session.update_status<&Common_status_variables::inc_crud_insert>();
-
-  m_qb.clear();
-  ngs::Error_code error = Insert_statement_builder(msg, m_qb).build();
-  if (error)
-    return error;
-
-  Sql_data_context::Result_info info;
-  error = session.data_context().execute_sql_no_result(m_qb.get(), info);
-  if (error)
-    return error_handling_insert(error, msg);
-
+void Crud_command_handler::notice_handling_common(
+    Session &session, const ngs::Resultset_interface::Info &info) const {
   if (info.num_warnings > 0 && session.options().get_send_warnings())
     notices::send_warnings(session.data_context(), session.proto());
+
+  if (!info.message.empty())
+    notices::send_message(session.proto(), info.message);
+}
+
+// -- Insert
+ngs::Error_code Crud_command_handler::execute_crud_insert(
+    Session &session, const Mysqlx::Crud::Insert &msg) {
+  Expression_generator gen(m_qb, msg.args(), msg.collection().schema(),
+                           is_table_data_model(msg));
+  Empty_resultset rset;
+  return execute(session, Insert_statement_builder(gen), msg, rset,
+                 &Common_status_variables::m_crud_insert,
+                 &ngs::Protocol_encoder::send_exec_ok);
+}
+
+template <>
+ngs::Error_code Crud_command_handler::error_handling(
+    const ngs::Error_code &error, const Mysqlx::Crud::Insert &msg) const {
+  if (is_table_data_model(msg)) return error;
+
+  switch (error.error) {
+    case ER_BAD_NULL_ERROR:
+      return ngs::Error(ER_X_DOC_ID_MISSING,
+                        "Document is missing a required field");
+
+    case ER_BAD_FIELD_ERROR:
+      return ngs::Error(ER_X_DOC_REQUIRED_FIELD_MISSING,
+                        "Table '%s' is not a document collection",
+                        msg.collection().name().c_str());
+
+    case ER_DUP_ENTRY:
+      return ngs::Error(
+          ER_X_DOC_ID_DUPLICATE,
+          "Document contains a field value that is not unique but "
+          "required to be");
+  }
+  return error;
+}
+
+template <>
+void Crud_command_handler::notice_handling(
+    Session &session, const ngs::Resultset_interface::Info &info,
+    const Mysqlx::Crud::Insert &msg) const {
+  notice_handling_common(session, info);
   notices::send_rows_affected(session.proto(), info.affected_rows);
   if (is_table_data_model(msg))
     notices::send_generated_insert_id(session.proto(), info.last_insert_id);
-  if (!info.message.empty())
-    notices::send_message(session.proto(), info.message);
-  session.proto().send_exec_ok();
-  return ngs::Success();
 }
 
+// -- Update
+ngs::Error_code Crud_command_handler::execute_crud_update(
+    Session &session, const Mysqlx::Crud::Update &msg) {
+  Expression_generator gen(m_qb, msg.args(), msg.collection().schema(),
+                           is_table_data_model(msg));
+  Empty_resultset rset;
+  return execute(session, Update_statement_builder(gen), msg, rset,
+                 &Common_status_variables::m_crud_update,
+                 &ngs::Protocol_encoder::send_exec_ok);
+}
 
-ngs::Error_code xpl::Crud_command_handler::error_handling_insert(const ngs::Error_code &error,
-                                                                 const Mysqlx::Crud::Insert &msg) const
-{
-  if (is_table_data_model(msg))
-    return error;
+template <>
+ngs::Error_code Crud_command_handler::error_handling(
+    const ngs::Error_code &error, const Mysqlx::Crud::Update &msg) const {
+  if (is_table_data_model(msg)) return error;
 
-  //XXX do some work to find the column that's violating constraints and fix the error message (or just append the original error)
-  switch (error.error)
-  {
-  case ER_BAD_NULL_ERROR:
-    return ngs::Error(ER_X_DOC_ID_MISSING,
-                      "Document is missing a required field");
-
-  case ER_BAD_FIELD_ERROR:
-    return ngs::Error(ER_X_DOC_REQUIRED_FIELD_MISSING,
-                      "Table '%s' is not a document collection", msg.collection().name().c_str());
-
-  case ER_DUP_ENTRY:
-    return ngs::Error(ER_X_DOC_ID_DUPLICATE,
-                      "Document contains a field value that is not unique but required to be");
+  switch (error.error) {
+    case ER_INVALID_JSON_TEXT_IN_PARAM:
+      return ngs::Error(ER_X_BAD_UPDATE_DATA,
+                        "Invalid data for update operation on "
+                        "document collection table");
   }
   return error;
 }
 
-
-ngs::Error_code xpl::Crud_command_handler::execute_crud_update(Session &session, const Mysqlx::Crud::Update &msg)
-{
-  session.update_status<&Common_status_variables::inc_crud_update>();
-
-  m_qb.clear();
-  ngs::Error_code error = Update_statement_builder(msg, m_qb).build();
-  if (error)
-    return error;
-
-  Sql_data_context::Result_info info;
-  error = session.data_context().execute_sql_no_result(m_qb.get(), info);
-  if (error)
-    return error_handling_update(error, msg);
-
-  if (info.num_warnings > 0 && session.options().get_send_warnings())
-    notices::send_warnings(session.data_context(), session.proto());
+template <>
+void Crud_command_handler::notice_handling(
+    Session &session, const ngs::Resultset_interface::Info &info,
+    const Mysqlx::Crud::Update&) const {
+  notice_handling_common(session, info);
   notices::send_rows_affected(session.proto(), info.affected_rows);
-  if (!info.message.empty())
-    notices::send_message(session.proto(), info.message);
-  session.proto().send_exec_ok();
-  return ngs::Success();
 }
 
-
-ngs::Error_code xpl::Crud_command_handler::error_handling_update(const ngs::Error_code &error,
-                                                                 const Mysqlx::Crud::Update &msg) const
-{
-  if (is_table_data_model(msg))
-    return error;
-
-  switch (error.error)
-  {
-  case ER_INVALID_JSON_TEXT_IN_PARAM:
-    return ngs::Error(ER_X_BAD_UPDATE_DATA,
-                      "Invalid data for update operation on document collection table");
-  }
-  return error;
+// -- Delete
+ngs::Error_code Crud_command_handler::execute_crud_delete(
+    Session &session, const Mysqlx::Crud::Delete &msg) {
+  Expression_generator gen(m_qb, msg.args(), msg.collection().schema(),
+                           is_table_data_model(msg));
+  Empty_resultset rset;
+  return execute(session, Delete_statement_builder(gen), msg, rset,
+                 &Common_status_variables::m_crud_delete,
+                 &ngs::Protocol_encoder::send_exec_ok);
 }
 
-
-ngs::Error_code xpl::Crud_command_handler::execute_crud_delete(Session &session, const Mysqlx::Crud::Delete &msg)
-{
-  session.update_status<&Common_status_variables::inc_crud_delete>();
-
-  m_qb.clear();
-  ngs::Error_code error = Delete_statement_builder(msg, m_qb).build();
-  if (error)
-    return error;
-
-  Sql_data_context::Result_info info;
-  error = session.data_context().execute_sql_no_result(m_qb.get(), info);
-  if (error)
-    return error;
-
-  if (info.num_warnings > 0 && session.options().get_send_warnings())
-    notices::send_warnings(session.data_context(), session.proto());
+template <>
+void Crud_command_handler::notice_handling(
+    Session &session, const ngs::Resultset_interface::Info &info,
+    const Mysqlx::Crud::Delete&) const {
+  notice_handling_common(session, info);
   notices::send_rows_affected(session.proto(), info.affected_rows);
-  if (!info.message.empty())
-    notices::send_message(session.proto(), info.message);
-  session.proto().send_exec_ok();
-  return ngs::Success();
 }
 
-
-ngs::Error_code xpl::Crud_command_handler::execute_crud_find(Session &session, const Mysqlx::Crud::Find &msg)
-{
-  session.update_status<&Common_status_variables::inc_crud_find>();
-
-  m_qb.clear();
-  ngs::Error_code error = Find_statement_builder(msg, m_qb).build();
-  if (error)
-    return error;
-
-  Sql_data_context::Result_info info;
-  error = session.data_context().execute_sql_and_stream_results(m_qb.get(), false, info);
-  if (error)
-    return error_handling_find(error, msg);
-
-  if (info.num_warnings > 0 && session.options().get_send_warnings())
-    notices::send_warnings(session.data_context(), session.proto());
-  if (!info.message.empty())
-    notices::send_message(session.proto(), info.message);
-  session.proto().send_exec_ok();
-  return ngs::Success();
+// -- Find
+ngs::Error_code Crud_command_handler::execute_crud_find(
+    Session &session, const Mysqlx::Crud::Find &msg) {
+  Expression_generator gen(m_qb, msg.args(), msg.collection().schema(),
+                           is_table_data_model(msg));
+  Streaming_resultset rset(&session.proto(), false);
+  return execute(session, Find_statement_builder(gen), msg, rset,
+                 &Common_status_variables::m_crud_find,
+                 &ngs::Protocol_encoder::send_exec_ok);
 }
 
-
-namespace
-{
-
-inline bool check_message(const std::string &msg, const char *pattern, std::string::size_type &pos)
-{
+namespace {
+inline bool check_message(const std::string &msg, const char *pattern,
+                          std::string::size_type &pos) {
   return (pos = msg.find(pattern)) != std::string::npos;
 }
+}  // namespace
 
-} // namespace
+template <>
+ngs::Error_code Crud_command_handler::error_handling(
+    const ngs::Error_code &error, const Mysqlx::Crud::Find &msg) const {
+  if (is_table_data_model(msg)) return error;
 
-
-ngs::Error_code xpl::Crud_command_handler::error_handling_find(const ngs::Error_code &error,
-                                                               const Mysqlx::Crud::Find &msg) const
-{
-  if (is_table_data_model(msg))
-    return error;
-
-  switch (error.error)
-  {
-  case ER_BAD_FIELD_ERROR:
-    std::string::size_type pos = std::string::npos;
-    if (check_message(error.message, "having clause", pos))
-      return ngs::Error(ER_X_DOC_REQUIRED_FIELD_MISSING,
-                        "%sgrouping criteria", error.message.substr(0, pos-1).c_str());
-    if (check_message(error.message, "where clause", pos))
-      return ngs::Error(ER_X_DOC_REQUIRED_FIELD_MISSING,
-                        "%sselection criteria", error.message.substr(0, pos-1).c_str());
-    if (check_message(error.message, "field list", pos))
-      return ngs::Error(ER_X_DOC_REQUIRED_FIELD_MISSING,
-                        "%scollection", error.message.substr(0, pos-1).c_str());
+  switch (error.error) {
+    case ER_BAD_FIELD_ERROR:
+      std::string::size_type pos = std::string::npos;
+      if (check_message(error.message, "having clause", pos))
+        return ngs::Error(ER_X_DOC_REQUIRED_FIELD_MISSING,
+                          "%sgrouping criteria",
+                          error.message.substr(0, pos - 1).c_str());
+      if (check_message(error.message, "where clause", pos))
+        return ngs::Error(ER_X_DOC_REQUIRED_FIELD_MISSING,
+                          "%sselection criteria",
+                          error.message.substr(0, pos - 1).c_str());
+      if (check_message(error.message, "field list", pos))
+        return ngs::Error(ER_X_DOC_REQUIRED_FIELD_MISSING, "%scollection",
+                          error.message.substr(0, pos - 1).c_str());
   }
   return error;
 }
+
+// -- View
+ngs::Error_code Crud_command_handler::execute_create_view(
+    Session &session, const Mysqlx::Crud::CreateView &msg) {
+  Expression_generator gen(m_qb, Expression_generator::Args(),
+                           msg.collection().schema(), true);
+  Empty_resultset rset;
+  return execute(session, View_statement_builder(gen), msg, rset,
+                 &Common_status_variables::m_crud_create_view,
+                 &ngs::Protocol_encoder::send_ok);
+}
+
+ngs::Error_code Crud_command_handler::execute_modify_view(
+    Session &session, const Mysqlx::Crud::ModifyView &msg) {
+  Expression_generator gen(m_qb, Expression_generator::Args(),
+                           msg.collection().schema(), true);
+  Empty_resultset rset;
+  return execute(session, View_statement_builder(gen), msg, rset,
+                 &Common_status_variables::m_crud_modify_view,
+                 &ngs::Protocol_encoder::send_ok);
+}
+
+ngs::Error_code Crud_command_handler::execute_drop_view(
+    Session &session, const Mysqlx::Crud::DropView &msg) {
+  Expression_generator gen(m_qb, Expression_generator::Args(),
+                           msg.collection().schema(), true);
+  Empty_resultset rset;
+  return execute(session, View_statement_builder(gen), msg, rset,
+                 &Common_status_variables::m_crud_drop_view,
+                 &ngs::Protocol_encoder::send_ok);
+}
+
+}  // namespace xpl

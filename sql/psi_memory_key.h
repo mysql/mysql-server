@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -45,11 +45,15 @@ extern PSI_memory_key key_memory_Rows_query_log_event_rows_query;
 extern PSI_memory_key key_memory_Sid_map_Node;
 extern PSI_memory_key key_memory_String_value;
 extern PSI_memory_key key_memory_log_event;
+extern PSI_memory_key key_memory_Gtid_state_group_commit_sidno;
 
 /*
   These are defined in psi_memory_key.cc
  */
 extern PSI_memory_key key_memory_DATE_TIME_FORMAT;
+extern PSI_memory_key key_memory_DD_default_values;
+extern PSI_memory_key key_memory_DD_import;
+extern PSI_memory_key key_memory_DD_String_type;
 extern PSI_memory_key key_memory_DDL_LOG_MEMORY_ENTRY;
 extern PSI_memory_key key_memory_Event_queue_element_for_exec_names;
 extern PSI_memory_key key_memory_Event_scheduler_scheduler_param;
@@ -123,10 +127,6 @@ extern PSI_memory_key key_memory_delegate;
 extern PSI_memory_key key_memory_errmsgs;
 extern PSI_memory_key key_memory_fill_schema_schemata;
 extern PSI_memory_key key_memory_native_functions;
-extern PSI_memory_key key_memory_frm;
-extern PSI_memory_key key_memory_frm_extra_segment_buff;
-extern PSI_memory_key key_memory_frm_form_pos;
-extern PSI_memory_key key_memory_frm_string;
 extern PSI_memory_key key_memory_gdl;
 extern PSI_memory_key key_memory_get_all_tables;
 extern PSI_memory_key key_memory_global_system_variables;
@@ -140,7 +140,6 @@ extern PSI_memory_key key_memory_locked_table_list;
 extern PSI_memory_key key_memory_locked_thread_list;
 extern PSI_memory_key key_memory_my_bitmap_map;
 extern PSI_memory_key key_memory_my_str_malloc;
-extern PSI_memory_key key_memory_new_frm_mem;
 extern PSI_memory_key key_memory_opt_bin_logname;
 extern PSI_memory_key key_memory_partition_syntax_buffer;
 extern PSI_memory_key key_memory_prepared_statement_map;

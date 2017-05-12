@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,24 +18,67 @@
   "EXPLAIN <command>" implementation.
 */
 
-#include "opt_explain.h"
+#include "sql/opt_explain.h"
 
+#include <limits.h>
+#include <math.h>
+#include <string.h>
+#include <sys/types.h>
+
+#include "auth_acls.h"
 #include "current_thd.h"
-#include "sql_select.h"
-#include "sql_optimizer.h" // JOIN
-#include "sql_partition.h" // for make_used_partitions_str()
-#include "sql_join_buffer.h" // JOIN_CACHE
-#include "filesort.h"        // Filesort
-#include "opt_explain_format.h"
-#include "sql_base.h"      // lock_tables
-#include "sql_acl.h"       // check_global_access, PROCESS_ACL
 #include "debug_sync.h"    // DEBUG_SYNC
+#include "derror.h"              // ER_THD
+#include "enum_query_type.h"
+#include "field.h"
+#include "ft_global.h"
+#include "handler.h"
+#include "item.h"
+#include "item_func.h"
+#include "item_subselect.h"
+#include "key.h"
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_base.h"
+#include "my_bitmap.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
+#include "my_sqlcommand.h"
+#include "my_sys.h"
+#include "my_table_map.h"
+#include "my_thread_local.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql_com.h"
+#include "mysqld.h"        // stage_explaining
+#include "mysqld_error.h"
+#include "mysqld_thd_manager.h"  // Global_THD_manager
+#include "opt_costmodel.h"
+#include "opt_explain_format.h"
 #include "opt_range.h"     // QUICK_SELECT_I
 #include "opt_trace.h"     // Opt_trace_*
+#include "protocol.h"
+#include "sql_base.h"      // lock_tables
+#include "sql_bitmap.h"
+#include "sql_class.h"
+#include "sql_const.h"
+#include "sql_error.h"
+#include "sql_executor.h"
+#include "sql_join_buffer.h" // JOIN_CACHE
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_opt_exec_shared.h"
+#include "sql_optimizer.h" // JOIN
 #include "sql_parse.h"     // is_explainable_query
-#include "mysqld_thd_manager.h"  // Global_THD_manager
-#include "mysqld.h"        // stage_explaining
-#include "derror.h"              // ER_THD
+#include "sql_partition.h" // for make_used_partitions_str()
+#include "sql_plugin.h"
+#include "sql_security_ctx.h"
+#include "sql_select.h"
+#include "sql_string.h"
+#include "table.h"
+
+class Opt_trace_context;
 
 typedef qep_row::extra extra;
 
@@ -565,8 +608,26 @@ bool Explain::explain_subqueries()
     if (context == CTX_NONE)
       context= CTX_OPTIMIZED_AWAY_SUBQUERY;
 
+    uint derived_clone_id= 0;
+    bool is_derived_clone= false;
+    if (context == CTX_DERIVED)
+    {
+      TABLE_LIST *tl= unit->derived_table;
+      derived_clone_id= tl->query_block_id_for_explain();
+      DBUG_ASSERT(derived_clone_id);
+      is_derived_clone= derived_clone_id != tl->query_block_id();
+      if (is_derived_clone && !fmt->is_hierarchical())
+      {
+        // Don't show underlying tables of derived table clone
+        continue;
+      }
+    }
+
     if (fmt->begin_context(context, unit))
       return true;
+
+    if (is_derived_clone)
+      fmt->entry()->derived_clone_id= derived_clone_id;
 
     if (mysql_explain_unit(thd, unit))
       return true;
@@ -1031,6 +1092,10 @@ bool Explain_table_base::explain_extra_common(int quick_type,
           return true;
       }
     }
+    if (((quick_type >= 0 && tab->quick_optim()->reverse_sorted()) ||
+      tab->reversed_access()) &&
+      push_extra(ET_BACKWARD_SCAN))
+    return true;
   }
   if (table->reginfo.not_exists_optimize && push_extra(ET_NOT_EXISTS))
     return true;
@@ -1148,23 +1213,17 @@ bool Explain_join::explain_modify_flags()
     and thus are safe to read.
   */
   switch (query_plan->get_command()) {
+  case SQLCOM_UPDATE:
   case SQLCOM_UPDATE_MULTI:
-    if (!bitmap_is_clear_all(&table->def_write_set) &&
+    if (table->pos_in_table_list->updating &&
         table->s->table_category != TABLE_CATEGORY_TEMPORARY)
       fmt->entry()->mod_type= MT_UPDATE;
     break;
+  case SQLCOM_DELETE:
   case SQLCOM_DELETE_MULTI:
-    for (TABLE_LIST *at= query_plan->get_lex()->auxiliary_table_list.first;
-         at;
-         at= at->next_local)
-    {
-      if (at->correspondent_table->is_updatable() &&
-          at->correspondent_table->updatable_base_table()->table == table)
-      {
-        fmt->entry()->mod_type= MT_DELETE;
-        break;
-      }
-    }
+    if (table->pos_in_table_list->updating &&
+        table->s->table_category != TABLE_CATEGORY_TEMPORARY)
+      fmt->entry()->mod_type= MT_DELETE;
     break;
   case SQLCOM_INSERT_SELECT:
     if (table == query_plan->get_lex()->insert_table_leaf->table)
@@ -1225,6 +1284,17 @@ bool Explain_join::shallow_explain()
   qep_row *join_entry= fmt->entry();
 
   join_entry->col_read_cost.set(join->best_read);
+
+  if (select_lex->is_recursive())
+  {
+    /*
+      This will add the "recursive" word to:
+      - the block of the JOIN, in JSON format
+      - the first table of the JOIN, in TRADITIONAL format.
+    */
+    if (push_extra(ET_RECURSIVE))
+      return true;                              /* purecov: inspected */
+  }
 
   LEX const*query_lex= join->thd->query_plan.get_lex();
   if (query_lex->insert_table_leaf &&
@@ -1380,10 +1450,10 @@ bool Explain_join::explain_table_name()
   {
     /* Derived table name generation */
     char table_name_buffer[NAME_LEN];
-    const size_t len= my_snprintf(table_name_buffer,
-                                  sizeof(table_name_buffer) - 1,
-                                  "<derived%u>",
-                                  table->pos_in_table_list->query_block_id());
+    const size_t len=
+      my_snprintf(table_name_buffer, sizeof(table_name_buffer) - 1,
+                  "<derived%u>",
+                  table->pos_in_table_list->query_block_id_for_explain());
     return fmt->entry()->col_table_name.set(table_name_buffer, len);
   }
   else
@@ -1666,8 +1736,8 @@ bool Explain_join::explain_extra()
           char namebuf[NAME_LEN];
           /* Derived table name generation */
           size_t len= my_snprintf(namebuf, sizeof(namebuf)-1,
-              "<derived%u>",
-              prev_table->pos_in_table_list->query_block_id());
+                                  "<derived%u>",
+              prev_table->pos_in_table_list->query_block_id_for_explain());
           buff.append(namebuf, len);
         }
         else
@@ -1969,14 +2039,13 @@ bool explain_single_table_modification(THD *ethd,
     For queries with top-level JOIN the caller provides pre-allocated
     Query_result_send object. Then that JOIN object prepares the
     Query_result_send object calling result->prepare() in SELECT_LEX::prepare(),
-    result->initalize_tables() in JOIN::optimize() and result->prepare2()
+    result->optimize() in JOIN::optimize() and result->start_execution()
     in JOIN::exec().
     However without the presence of the top-level JOIN we have to
     prepare/initialize Query_result_send object manually.
   */
   List<Item> dummy;
-  if (result.prepare(dummy, ethd->lex->unit) ||
-      result.prepare2())
+  if (result.prepare(dummy, ethd->lex->unit))
     DBUG_RETURN(true); /* purecov: inspected */
 
   ethd->lex->explain_format->send_headers(&result);
@@ -2175,8 +2244,7 @@ bool explain_query(THD *ethd, SELECT_LEX_UNIT *unit)
     if (!((explain_result= new Query_result_send(ethd))))
       DBUG_RETURN(true); /* purecov: inspected */
     List<Item> dummy;
-    if (explain_result->prepare(dummy, ethd->lex->unit) ||
-        explain_result->prepare2())
+    if (explain_result->prepare(dummy, ethd->lex->unit))
       DBUG_RETURN(true); /* purecov: inspected */
   }
   else
@@ -2351,11 +2419,25 @@ void mysql_explain_other(THD *thd)
       1) Prepared statements
       2) EXPLAIN to avoid clash in EXPLAIN code
       3) statements of stored routine
+      4) Resolver has not finished (then data structures are changing too much
+        and are not safely readable).
+        m_sql_cmd is set during parsing and cleared in LEX::reset(), without
+        mutex. If we are here, the explained connection has set its qp to
+        something else than SQLCOM_END with set_query_plan(), so is in a phase
+        after parsing and before LEX::reset(). Thus we can read m_sql_cmd.
+        m_sql_cmd::m_prepared is set at end of resolution and cleared at end
+        of execution (before setting qp to SQLCOM_END), without mutex.
+        So if we see it false while it just changed to true, we'll bail out
+        which is ok; if we see it true while it just changed to false, we can
+        indeed explain as the plan is still valid and will remain so as we
+        hold the mutex.
     */
     if (!qp->is_ps_query() &&                                        // (1)
         is_explainable_query(qp->get_command()) &&
         !qp->get_lex()->describe &&                                  // (2)
-        qp->get_lex()->sphead == NULL)                               // (3)
+        qp->get_lex()->sphead == NULL &&                             // (3)
+        (!qp->get_lex()->m_sql_cmd ||
+         qp->get_lex()->m_sql_cmd->is_prepared()))                   // (4)
     {
       Security_context *tmp_sctx= query_thd->security_context();
       DBUG_ASSERT(tmp_sctx->user().str);
@@ -2374,6 +2456,11 @@ void mysql_explain_other(THD *thd)
     }
     else
     {
+      /*
+        Note that we send "not supported" for a supported stmt (e.g. SELECT)
+        which is in-parsing or in-preparation, which is a bit confusing, but
+        ok as the user is unlikely to try EXPLAIN in these short phases.
+      */
       my_error(ER_EXPLAIN_NOT_SUPPORTED, MYF(0));
       goto err;
     }
@@ -2384,28 +2471,12 @@ void mysql_explain_other(THD *thd)
     goto err;
   }
   DEBUG_SYNC(thd, "explain_other_got_thd");
-  // Get topmost query
-  switch(qp->get_command())
-  {
-    case SQLCOM_UPDATE_MULTI:
-    case SQLCOM_DELETE_MULTI:
-    case SQLCOM_REPLACE_SELECT:
-    case SQLCOM_INSERT_SELECT:
-    case SQLCOM_SELECT:
-      res= explain_query(thd, qp->get_lex()->unit);
-      break;
-    case SQLCOM_UPDATE:
-    case SQLCOM_DELETE:
-    case SQLCOM_INSERT:
-    case SQLCOM_REPLACE:
+
+  if (qp->is_single_table_plan())
       res= explain_single_table_modification(thd, qp->get_modification_plan(),
-                                             qp->get_lex()->unit->first_select());
-      break;
-    default:
-      DBUG_ASSERT(0); /* purecov: inspected */
-      send_ok= true; /* purecov: inspected */
-      break;
-  }
+             qp->get_lex()->unit->first_select());
+  else
+      res= explain_query(thd, qp->get_lex()->unit);
 
 err:
   if (unlock_thd_data)

@@ -1,7 +1,7 @@
 #ifndef SQL_OPTIMIZER_INCLUDED
 #define SQL_OPTIMIZER_INCLUDED
 
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,16 +30,38 @@
    Only such indexes are involved in range analysis.
 */
 
-#include "my_global.h"
-#include "opt_explain_format.h"                 // Explain_sort_clause
+#include <string.h>
+#include <sys/types.h>
+
+#include "field.h"
+#include "item.h"
+#include "item_subselect.h"
 #include "mem_root_array.h"
-#include "sql_select.h"                         // Key_use
+#include "my_base.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_table_map.h"
+#include "opt_explain_format.h"                 // Explain_sort_clause
+#include "sql_alloc.h"
+#include "sql_array.h"
+#include "sql_class.h"
 #include "sql_executor.h"                       // Next_select_func
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_opt_exec_shared.h"
+#include "sql_select.h"                         // Key_use
+#include "table.h"
+#include "temp_table_param.h"
+#include "template_utils.h"
+
+class COND_EQUAL;
+class Item_sum;
 
 typedef Bounds_checked_array<Item_null_result*> Item_null_array;
 
 // Key_use has a trivial destructor, no need to run it from Mem_root_array.
-typedef Mem_root_array<Key_use, true> Key_use_array;
+typedef Mem_root_array<Key_use> Key_use_array;
 
 class Cost_model_server;
 
@@ -59,6 +81,91 @@ typedef struct st_rollup
   Ref_item_array *ref_item_arrays;
   List<Item> *fields;
 } ROLLUP;
+
+/**
+  Wrapper for ORDER* pointer to trace origins of ORDER list 
+  
+  As far as ORDER is just a head object of ORDER expression
+  chain, we need some wrapper object to associate flags with
+  the whole ORDER list.
+*/
+class ORDER_with_src
+{
+  /**
+    Private empty class to implement type-safe NULL assignment
+
+    This private utility class allows us to implement a constructor
+    from NULL and only NULL (or 0 -- this is the same thing) and
+    an assignment operator from NULL.
+    Assignments from other pointers still prohibited since other
+    pointer types are incompatible with the "null" type, and the
+    casting is impossible outside of ORDER_with_src class, since
+    the "null" type is private.
+  */
+  struct null {};
+
+public:
+  ORDER *order;  ///< ORDER expression that we are wrapping with this class
+  Explain_sort_clause src; ///< origin of order list
+
+private:
+  /**
+    True means that sort direction (ASC/DESC) could be ignored. Used for
+    picking index for ordering dataset for DISTINCT or GROUP BY.
+  */
+  bool ignore_order;
+  int flags; ///< bitmap of Explain_sort_property
+
+public:
+  ORDER_with_src() { clean(); }
+
+  ORDER_with_src(ORDER *order_arg, Explain_sort_clause src_arg)
+  : order(order_arg), src(src_arg),
+    ignore_order(src_arg == ESC_ORDER_BY ? false : true),
+    flags(order_arg ? ESP_EXISTS : ESP_none)
+  { }
+
+  /**
+    Type-safe NULL assignment
+
+    See a commentary for the "null" type above.
+  */
+  ORDER_with_src &operator=(null *) { clean(); return *this; }
+
+  /**
+    Type-safe constructor from NULL
+
+    See a commentary for the "null" type above.
+  */
+  ORDER_with_src(null *) { clean(); }
+
+  /**
+    Transparent access to the wrapped order list
+
+    These operators are safe, since we don't do any conversion of
+    ORDER_with_src value, but just an access to the wrapped
+    ORDER pointer value. 
+    We can use ORDER_with_src objects instead ORDER pointers in
+    a transparent way without accessor functions.
+
+    @note     This operator also implements safe "operator bool()"
+              functionality.
+  */
+  operator       ORDER *()       { return order; }
+  operator const ORDER *() const { return order; }
+
+  ORDER* operator->() const { return order; }
+
+  void clean() { order= NULL; src= ESC_none; flags= ESP_none; }
+
+  int get_flags() const { DBUG_ASSERT(order); return flags; }
+  /**
+    Inform optimizer that ASC/DESC direction of this list should be
+    honored.
+  */
+  void force_order() { ignore_order= false; }
+  bool can_ignore_order() { return ignore_order; }
+};
 
 class JOIN :public Sql_alloc
 {
@@ -150,6 +257,7 @@ public:
       set_group_rpa(false),
       group_sent(false),
       calc_found_rows(false),
+      with_json_agg(select->json_agg_func_used()),
       optimized(false),
       executed(false),
       plan_state(NO_PLAN)
@@ -360,78 +468,6 @@ public:
   int error; ///< set in optimize(), exec(), prepare_result()
 
   /**
-    Wrapper for ORDER* pointer to trace origins of ORDER list 
-    
-    As far as ORDER is just a head object of ORDER expression
-    chain, we need some wrapper object to associate flags with
-    the whole ORDER list.
-  */
-  class ORDER_with_src
-  {
-    /**
-      Private empty class to implement type-safe NULL assignment
-
-      This private utility class allows us to implement a constructor
-      from NULL and only NULL (or 0 -- this is the same thing) and
-      an assignment operator from NULL.
-      Assignments from other pointers still prohibited since other
-      pointer types are incompatible with the "null" type, and the
-      casting is impossible outside of ORDER_with_src class, since
-      the "null" type is private.
-    */
-    struct null {};
-
-  public:
-    ORDER *order;  ///< ORDER expression that we are wrapping with this class
-    Explain_sort_clause src; ///< origin of order list
-
-  private:
-    int flags; ///< bitmap of Explain_sort_property
-
-  public:
-    ORDER_with_src() { clean(); }
-
-    ORDER_with_src(ORDER *order_arg, Explain_sort_clause src_arg)
-    : order(order_arg), src(src_arg), flags(order_arg ? ESP_EXISTS : ESP_none)
-    {}
-
-    /**
-      Type-safe NULL assignment
-
-      See a commentary for the "null" type above.
-    */
-    ORDER_with_src &operator=(null *) { clean(); return *this; }
-
-    /**
-      Type-safe constructor from NULL
-
-      See a commentary for the "null" type above.
-    */
-    ORDER_with_src(null *) { clean(); }
-
-    /**
-      Transparent access to the wrapped order list
-
-      These operators are safe, since we don't do any conversion of
-      ORDER_with_src value, but just an access to the wrapped
-      ORDER pointer value. 
-      We can use ORDER_with_src objects instead ORDER pointers in
-      a transparent way without accessor functions.
-
-      @note     This operator also implements safe "operator bool()"
-                functionality.
-    */
-    operator       ORDER *()       { return order; }
-    operator const ORDER *() const { return order; }
-
-    ORDER* operator->() const { return order; }
- 
-    void clean() { order= NULL; src= ESC_none; flags= ESP_none; }
-
-    int get_flags() const { DBUG_ASSERT(order); return flags; }
-  };
-
-  /**
     ORDER BY and GROUP BY lists, to transform with prepare,optimize and exec
   */
   ORDER_with_src order, group_list;
@@ -529,7 +565,15 @@ public:
   */
   uint current_ref_item_slice;
 
-  const char *zero_result_cause; ///< not 0 if exec must return zero result
+  /**
+    <> NULL if optimization has determined that execution will produce an
+    empty result before aggregation, contains a textual explanation on why
+    result is empty. Implicitly grouped queries may still produce an
+    aggregation row.
+    @todo - suggest to set to "Preparation determined that query is empty"
+            when SELECT_LEX::is_empty_query() is true.
+  */
+  const char *zero_result_cause;
 
   /**
      True if, at this stage of processing, subquery materialization is allowed
@@ -556,6 +600,15 @@ public:
   bool group_sent;
   /// If true, calculate found rows for this query block
   bool calc_found_rows;
+
+  /**
+    This will force tmp table to NOT use index + update for group
+    operation as it'll cause [de]serialization for each json aggregated
+    value and is very ineffective (times worse).
+    Server should use filesort, or tmp table + filesort to resolve GROUP BY
+    with JSON aggregate functions.
+  */
+  bool with_json_agg;
 
   /// True if plan is const, ie it will return zero or one rows.
   bool plan_is_const() const { return const_tables == primary_tables; }
@@ -642,8 +695,8 @@ public:
   /** Cleanup this JOIN. Not a full cleanup. reusable? */
   void cleanup();
 
-  MY_ATTRIBUTE((warn_unused_result))
-  bool clear();
+  bool clear_fields(table_map *save_nullinfo);
+  void restore_fields(table_map save_nullinfo);
 
   /**
     Return whether the caller should send a row even if the join 
@@ -664,7 +717,7 @@ public:
 
   bool cache_const_exprs();
   bool generate_derived_keys();
-  void drop_unused_derived_keys();
+  void finalize_derived_keys();
   bool get_best_combination();
   bool attach_join_conditions(plan_idx last_tab);
   bool update_equalities_for_sjm();
@@ -706,6 +759,12 @@ public:
   bool fts_index_access(JOIN_TAB *tab);
 
   Next_select_func get_end_select_func();
+  /**
+     Propagate dependencies between tables due to outer join relations.
+
+     @returns false if success, true if error
+  */
+  bool propagate_dependencies();
 
 private:
   bool optimized; ///< flag to avoid double optimization in EXPLAIN
@@ -748,6 +807,18 @@ private:
   bool optimize_fts_query();
 
   bool prune_table_partitions();
+  /**
+    Initialize key dependencies for join tables.
+
+    TODO figure out necessity of this method. Current test
+         suite passed without this intialization.
+  */
+  void init_key_dependencies()
+  {
+    JOIN_TAB *const tab_end= join_tab + tables;
+    for (JOIN_TAB *tab= join_tab; tab < tab_end; tab++)
+      tab->key_dependent= tab->dependent;
+  }
 
 private:
   void set_prefix_tables();
@@ -755,7 +826,6 @@ private:
   void set_semijoin_embedding();
   bool make_join_plan();
   bool init_planner_arrays();
-  bool propagate_dependencies();
   bool extract_const_tables();
   bool extract_func_dependent_tables();
   void update_sargable_from_const(SARGABLE_PARAM *sargables);
@@ -873,7 +943,10 @@ private:
   void test_skip_sort();
 };
 
-/// RAII class to ease the call of LEX::mark_broken() if error.
+/**
+  RAII class to ease the call of LEX::mark_broken() if error.
+  Used during preparation and optimization of DML queries.
+*/
 class Prepare_error_tracker
 {
 public:
@@ -902,7 +975,7 @@ bool build_equal_items(THD *thd, Item *cond, Item **retcond,
                        List<TABLE_LIST> *join_list,
                        COND_EQUAL **cond_equal_ref);
 bool is_indexed_agg_distinct(JOIN *join, List<Item_field> *out_args);
-Key_use_array *create_keyuse_for_table(THD *thd, TABLE *table, uint keyparts,
+Key_use_array *create_keyuse_for_table(THD *thd, uint keyparts,
                                        Item_field **fields,
                                        List<Item> outer_exprs);
 Item_field *get_best_field(Item_field *item_field, COND_EQUAL *cond_equal);

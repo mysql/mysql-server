@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,12 +16,18 @@
 #ifndef DD__PROPERTIES_IMPL_INCLUDED
 #define DD__PROPERTIES_IMPL_INCLUDED
 
-#include "my_global.h"
-#include "my_sys.h"                // strmake_root
+#include <map>
+#include <memory>
+#include <string>
+#include <utility>
 
 #include "dd/properties.h"         // dd::Properties
-
-#include <memory>
+#include "dd/string_type.h"        // dd::String_type
+#include "lex_string.h"
+#include "m_string.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_sys.h"                // strmake_root
 
 namespace dd {
 
@@ -34,7 +40,7 @@ namespace dd {
   The key=value pairs are stored in a std::map. An instance can be created
   either by means of the default constructor, which creates an object
   with an empty map, or alternatively, it can be created by means of the
-  static parse_properties function with a std::string argument. The string
+  static parse_properties function with a String_type argument. The string
   is supposed to contain a semicolon separated list of key=value pairs,
   where the characters '=' and ';' also may be part of key or value by
   escaping using the '\' as an escape character. The escape character
@@ -66,7 +72,7 @@ namespace dd {
 class Properties_impl : public Properties
 {
 public:
-  static Properties *parse_properties(const std::string &raw_properties);
+  static Properties *parse_properties(const String_type &raw_properties);
 
 public:
   Properties_impl();
@@ -96,10 +102,15 @@ public:
   virtual bool empty() const
   { return m_map->empty(); }
 
-  virtual bool exists(const std::string &key) const
+  /* purecov: begin deadcode */
+  virtual void clear()
+  { return m_map->clear(); }
+  /* purecov: end */
+
+  virtual bool exists(const String_type &key) const
   { return m_map->find(key) != m_map->end(); }
 
-  virtual bool remove(const std::string &key)
+  virtual bool remove(const String_type &key)
   {
     Properties::Iterator it= m_map->find(key);
 
@@ -110,7 +121,7 @@ public:
     return false;
   }
 
-  virtual const std::string raw_string() const;
+  virtual const String_type raw_string() const;
 
   /*
     The following methods value(), value_cstr(), get*() assert '
@@ -123,7 +134,7 @@ public:
     exists.
   */
 
-  virtual const std::string &value(const std::string &key) const
+  virtual const String_type &value(const String_type &key) const
   {
     Properties::Const_iterator it= m_map->find(key);
     if (it == m_map->end())
@@ -136,11 +147,11 @@ public:
     return it->second;
   }
 
-  virtual const char* value_cstr(const std::string &key) const
+  virtual const char* value_cstr(const String_type &key) const
   { return value(key).c_str(); }
 
-  virtual bool get(const std::string &key,
-                   std::string &value) const
+  virtual bool get(const String_type &key,
+                   String_type &value) const
   {
     if (exists(key))
     {
@@ -150,13 +161,13 @@ public:
     return true;
   }
 
-  virtual bool get(const std::string &key,
+  virtual bool get(const String_type &key,
                    LEX_STRING &value,
                    MEM_ROOT *mem_root) const
   {
     if (exists(key))
     {
-      std::string str= this->value(key);
+      String_type str= this->value(key);
       value.length= str.length();
       value.str= (char*) strmake_root(
                            mem_root,
@@ -167,9 +178,9 @@ public:
     return true;
   }
 
-  virtual bool get_int64(const std::string &key, int64 *value) const
+  virtual bool get_int64(const String_type &key, int64 *value) const
   {
-    std::string str= this->value(key);
+    String_type str= this->value(key);
 
     if (to_int64(str, value))
     {
@@ -180,9 +191,9 @@ public:
     return false;
   }
 
-  virtual bool get_uint64(const std::string &key, uint64 *value) const
+  virtual bool get_uint64(const String_type &key, uint64 *value) const
   {
-    std::string str= this->value(key);
+    String_type str= this->value(key);
 
     if (to_uint64(str, value))
     {
@@ -193,9 +204,9 @@ public:
     return false;
   }
 
-  virtual bool get_int32(const std::string &key, int32 *value) const
+  virtual bool get_int32(const String_type &key, int32 *value) const
   {
-    std::string str= this->value(key);
+    String_type str= this->value(key);
 
     if (to_int32(str, value))
     {
@@ -206,9 +217,9 @@ public:
     return false;
   }
 
-  virtual bool get_uint32(const std::string &key, uint32 *value) const
+  virtual bool get_uint32(const String_type &key, uint32 *value) const
   {
-    std::string str= this->value(key);
+    String_type str= this->value(key);
 
     if (to_uint32(str, value))
     {
@@ -219,9 +230,9 @@ public:
     return false;
   }
 
-  virtual bool get_bool(const std::string &key, bool *value) const
+  virtual bool get_bool(const String_type &key, bool *value) const
   {
-    std::string str= this->value(key);
+    String_type str= this->value(key);
 
     if (to_bool(str, value))
     {
@@ -235,25 +246,25 @@ public:
 
   // Set with implicit conversion from primitive types to string
 
-  virtual void set(const std::string &key, const std::string &value)
+  virtual void set(const String_type &key, const String_type &value)
   {
     if (key != "")
       (*m_map)[key]= value;
   }
 
-  virtual void set_int64(const std::string &key, int64 value)
+  virtual void set_int64(const String_type &key, int64 value)
   { set(key, from_int64(value)); }
 
-  virtual void set_uint64(const std::string &key, uint64 value)
+  virtual void set_uint64(const String_type &key, uint64 value)
   { set(key, from_uint64(value)); }
 
-  virtual void set_int32(const std::string &key, int32 value)
+  virtual void set_int32(const String_type &key, int32 value)
   { set(key, from_int32(value)); }
 
-  virtual void set_uint32(const std::string &key, uint32 value)
+  virtual void set_uint32(const String_type &key, uint32 value)
   { set(key, from_uint32(value)); }
 
-  virtual void set_bool(const std::string &key, bool value)
+  virtual void set_bool(const String_type &key, bool value)
   { set(key, from_bool(value)); }
 
   virtual Properties& assign(const Properties& properties)
@@ -266,7 +277,7 @@ public:
   }
 
 private:
-  static const std::string EMPTY_STR;
+  static const String_type EMPTY_STR;
 
 private:
   std::unique_ptr<Properties::Map> m_map;

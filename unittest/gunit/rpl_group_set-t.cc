@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -594,8 +594,8 @@ TEST_F(GroupTest, Group_containers)
   Gtid_specification *gtid_next= &thd->variables.gtid_next;
   thd->set_new_thread_id();
   gtid_next->type= Gtid_specification::AUTOMATIC;
-  my_bool &gtid_end= thd->variables.gtid_end;
-  my_bool &gtid_commit= thd->variables.gtid_commit;
+  bool &gtid_end= thd->variables.gtid_end;
+  bool &gtid_commit= thd->variables.gtid_commit;
   thd->server_status= 0;
   thd->system_thread= NON_SYSTEM_THREAD;
   thd->variables.gtid_next_list.gtid_set= &stage.set;

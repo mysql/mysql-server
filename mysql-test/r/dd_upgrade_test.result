@@ -12,13 +12,102 @@ call mtr.add_suppression("ACL DDLs will not work unless mysql_upgrade is execute
 call mtr.add_suppression("table is missing or has an incorrect definition");
 call mtr.add_suppression("is expected to be transactional");
 call mtr.add_suppression("Upgrading redo log");
-# Stop DB server which was created by MTR default
+call mtr.add_suppression("information_schema");
+call mtr.add_suppression("doesn't exist");
+call mtr.add_suppression("references invalid");
+call mtr.add_suppression("Creating routine without parsing routine body");
+call mtr.add_suppression(".*The privilege system failed to initialize correctly.*");
+call mtr.add_suppression("Resolving dependency for the view");
+call mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
+call mtr.add_suppression("Unknown system variable 'show_compatibility_56'");
+call mtr.add_suppression("Column count of mysql.* is wrong");
+call mtr.add_suppression("Column count of performance_schema.events_statements_summary_by_digest is wrong.*");
+call mtr.add_suppression(".*Missing system table mysql.global_grants.*");
+call mtr.add_suppression("InnoDB: Unable to delete statistics for table mysql.");
+call mtr.add_suppression("Column count of performance_schema.replication_applier_status_by_worker is wrong. Expected 16, found 8.");
+call mtr.add_suppression("Column count of performance_schema.replication_applier_status_by_coordinator is wrong. Expected 15, found 6.");
+call mtr.add_suppression("Column count of performance_schema.replication_connection_status is wrong. Expected 20, found 11.");
 # Copy the remote tablespace & DB zip files from suite location to working location.
 # Check that the file exists in the working folder.
 # Unzip the zip file.
+SET sql_mode='';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+CREATE TABLE test.proc (db char(64) collate utf8_bin DEFAULT '' NOT NULL,
+name char(64) DEFAULT '' NOT NULL,
+type enum('FUNCTION','PROCEDURE') NOT NULL,
+specific_name char(64) DEFAULT '' NOT NULL,
+language enum('SQL') DEFAULT 'SQL' NOT NULL,
+sql_data_access enum('CONTAINS_SQL',
+'NO_SQL',
+'READS_SQL_DATA',
+'MODIFIES_SQL_DATA')
+DEFAULT 'CONTAINS_SQL' NOT NULL,
+is_deterministic enum('YES','NO') DEFAULT 'NO' NOT NULL,
+security_type enum('INVOKER','DEFINER')
+DEFAULT 'DEFINER' NOT NULL,
+param_list blob NOT NULL,
+returns longblob DEFAULT '' NOT NULL,
+body longblob NOT NULL,
+definer char(93) collate utf8_bin DEFAULT '' NOT NULL,
+created timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+ON UPDATE CURRENT_TIMESTAMP,
+modified timestamp NOT NULL
+DEFAULT '0000-00-00 00:00:00',
+sql_mode set('REAL_AS_FLOAT', 'PIPES_AS_CONCAT',
+'ANSI_QUOTES', 'IGNORE_SPACE', 'NOT_USED',
+'ONLY_FULL_GROUP_BY',
+'NO_UNSIGNED_SUBTRACTION',
+'NO_DIR_IN_CREATE', 'POSTGRESQL', 'ORACLE',
+'MSSQL', 'DB2', 'MAXDB', 'NO_KEY_OPTIONS',
+'NO_TABLE_OPTIONS', 'NO_FIELD_OPTIONS',
+'MYSQL323', 'MYSQL40', 'ANSI',
+'NO_AUTO_VALUE_ON_ZERO',
+'NO_BACKSLASH_ESCAPES',
+'STRICT_TRANS_TABLES', 'STRICT_ALL_TABLES',
+'NO_ZERO_IN_DATE', 'NO_ZERO_DATE',
+'INVALID_DATES',
+'ERROR_FOR_DIVISION_BY_ZERO', 'TRADITIONAL',
+'NO_AUTO_CREATE_USER', 'HIGH_NOT_PRECEDENCE',
+'NO_ENGINE_SUBSTITUTION',
+'PAD_CHAR_TO_FULL_LENGTH') DEFAULT '' NOT NULL,
+comment text collate utf8_bin NOT NULL,
+character_set_client char(32) collate utf8_bin,
+collation_connection char(32) collate utf8_bin,
+db_collation char(32) collate utf8_bin, body_utf8 longblob,
+PRIMARY KEY (db,name,type)) engine=MyISAM character set utf8
+comment='Stored Procedures';
+Warnings:
+Warning	1101	BLOB, TEXT, GEOMETRY or JSON column 'returns' can't have a default value
+INSERT INTO test.proc VALUES ('sp','bug24805140','PROCEDURE','bug24805140','SQL',
+'CONTAINS_SQL','NO','DEFINER','out a int','',
+'begin select requesting_trx_id from '
+                              'information_schema.INNODB_LOCK_WAITS limit 1 into a; end',
+'root@localhost','2016-10-05 21:44:21',
+'2016-10-05 21:44:21',
+'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,'
+                              'NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,'
+                              'NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION',
+'','utf8','utf8_general_ci','latin1_swedish_ci',
+'begin select requesting_trx_id from '
+                              'information_schema.INNODB_LOCK_WAITS limit 1 into a; end'),
+('sp','proc2','PROCEDURE','proc2','SQL',
+'CONTAINS_SQL','NO','DEFINER','out b int','',
+'begin select   @@show_compatibility_56 into b; end',
+'root@localhost','2016-10-05 21:55:05',
+'2016-10-05 21:55:05','ONLY_FULL_GROUP_BY,'
+                              'STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,'
+                              'NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,'
+                              'NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION','',
+'utf8','utf8_general_ci','latin1_swedish_ci',
+'begin select   @@show_compatibility_56 into b; end');
+DROP TABLE test.proc;
+# Stop DB server which was created by MTR default
+# 1.1 Create db.opt file.
 #Files in 'test' dir
 auto.cnf
 aview
+db_charset_koi8r
 events
 foreign_keys
 ib_buffer_pool
@@ -35,8 +124,9 @@ test
 test_tablespace_2.ibd
 test_tablespace_3.ibd
 triggers
+view_with_column_names
 MYSQL_TMP_DIR/bootstrap.log
-# Start the DB server.
+# Start the DB server. Server will create and populate Dictionary tables.
 # Sanity Testing after Server start
 CREATE SCHEMA test123;
 CREATE TABLE test123.t1(a int);
@@ -55,6 +145,7 @@ mysql.engine_cost                                  OK
 mysql.event_backup_57                              OK
 mysql.func                                         OK
 mysql.general_log                                  OK
+mysql.global_grants                                OK
 mysql.gtid_executed                                OK
 mysql.help_category                                OK
 mysql.help_keyword                                 OK
@@ -116,6 +207,7 @@ tablespace.t2                                      OK
 tablespace.t3                                      OK
 tablespace.t4                                      OK
 test.geom                                          OK
+test.initial_t√º                                   OK
 test.jemp                                          OK
 test.jemp_myisam                                   OK
 test.opening_lines                                 OK
@@ -142,9 +234,11 @@ test.t_sc~!@#$%^&*(                                OK
 test.vt2                                           OK
 triggers.t1                                        OK
 triggers.t2                                        OK
+view_with_column_names.t1                          OK
 SHOW DATABASES;
 Database
 aview
+db_charset_koi8r
 events
 foreign_keys
 information_schema
@@ -156,6 +250,7 @@ sys
 tablespace
 test
 triggers
+view_with_column_names
 SHOW CREATE TABLE mysql.user;
 Table	Create Table
 user	CREATE TABLE `user` (
@@ -293,7 +388,7 @@ SHOW CREATE TABLE test.jemp;
 Table	Create Table
 jemp	CREATE TABLE `jemp` (
   `c` json DEFAULT NULL,
-  `g` int(11) GENERATED ALWAYS AS (json_extract(`c`,'$.id')) VIRTUAL,
+  `g` int(11) GENERATED ALWAYS AS (json_extract(`c`,_utf8mb4'$.id')) VIRTUAL,
   KEY `i` (`g`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SHOW CREATE TABLE test.t_gen_stored_myisam;
@@ -313,12 +408,14 @@ SHOW CREATE TABLE test.jemp_myisam;
 Table	Create Table
 jemp_myisam	CREATE TABLE `jemp_myisam` (
   `c` json DEFAULT NULL,
-  `g` int(11) GENERATED ALWAYS AS (json_extract(`c`,'$.id')) VIRTUAL
+  `g` int(11) GENERATED ALWAYS AS (json_extract(`c`,_utf8mb4'$.id')) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE, ENGINE, VERSION, ROW_FORMAT
 FROM INFORMATION_SCHEMA.tables WHERE table_schema='test';
 TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT
 test	geom	BASE TABLE	InnoDB	10	Dynamic
+test	initial_t¸	BASE TABLE	BLACKHOLE	10	Fixed
+test	initial_v¸	VIEW	NULL	NULL	NULL
 test	jemp	BASE TABLE	InnoDB	10	Dynamic
 test	jemp_myisam	BASE TABLE	MyISAM	10	Dynamic
 test	opening_lines	BASE TABLE	InnoDB	10	Dynamic
@@ -374,31 +471,52 @@ view_user2	CREATE ALGORITHM=UNDEFINED DEFINER=`abcd`@`localhost` SQL SECURITY IN
 SHOW CREATE VIEW aview.view_character_set;
 View	Create View	character_set_client	collation_connection
 view_character_set	CREATE ALGORITHM=UNDEFINED DEFINER=`jeffrey`@`localhost` SQL SECURITY DEFINER VIEW `aview`.`view_character_set` AS select 1 AS `1`	latin1	latin1_swedish_ci
+SHOW CREATE DATABASE db_charset_koi8r;
+Database	Create Database
+db_charset_koi8r	CREATE DATABASE `db_charset_koi8r` /*!40100 DEFAULT CHARACTER SET koi8r COLLATE koi8r_bin */
+SET names utf8;
+DESC `test`.`initial_v√º`;
+Field	Type	Null	Key	Default	Extra
+c√º	char(1)	YES		NULL	
+SELECT * FROM information_schema.tables WHERE table_schema = 'test' and table_type='VIEW';
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	AUTO_INCREMENT	CREATE_TIME	UPDATE_TIME	CHECK_TIME	TABLE_COLLATION	CHECKSUM	CREATE_OPTIONS	TABLE_COMMENT
+def	test	initial_v√º	VIEW	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	CREATE_TIME	NULL	NULL	NULL	NULL	NULL	VIEW
+SET names default;
 SHOW CREATE PROCEDURE sp.simpleproc;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 simpleproc	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `simpleproc`(OUT param1 INT)
 BEGIN
   SELECT COUNT(*) INTO param1 FROM t;
-END	latin1	latin1_swedish_ci	latin1_swedish_ci
+END	utf8mb4	utf8mb4_0900_ai_ci	latin1_swedish_ci
 SHOW CREATE PROCEDURE sp.proc_123;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 proc_123	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `proc_123`(OUT param1 INT)
     READS SQL DATA
     SQL SECURITY INVOKER
     COMMENT 'Procedure to test Upgrade'
-BEGIN   SELECT COUNT(*) INTO param1 FROM t; END	latin1	latin1_swedish_ci	latin1_swedish_ci
+BEGIN   SELECT COUNT(*) INTO param1 FROM t; END	utf8mb4	utf8mb4_0900_ai_ci	latin1_swedish_ci
 SHOW CREATE PROCEDURE sp.proc_456;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 proc_456	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `proc_456`(OUT param1 INT)
     MODIFIES SQL DATA
     DETERMINISTIC
     COMMENT 'Procedure to test Upgrade 2'
-BEGIN   SELECT COUNT(*) INTO param1 FROM t; END	latin1	latin1_swedish_ci	latin1_swedish_ci
+BEGIN   SELECT COUNT(*) INTO param1 FROM t; END	utf8mb4	utf8mb4_0900_ai_ci	latin1_swedish_ci
+SHOW CREATE PROCEDURE sp.bug24805140;
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bug24805140	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bug24805140`(out a int)
+begin select requesting_trx_id from information_schema.INNODB_LOCK_WAITS limit 1 into a; end	utf8mb4	utf8mb4_0900_ai_ci	latin1_swedish_ci
+call sp.bug24805140();
+ERROR HY000: Failed to load routine 'sp.bug24805140'.
+SHOW WARNINGS;
+Level	Code	Message
+Error	1109	Unknown table 'INNODB_LOCK_WAITS' in information_schema
+Error	3512	Failed to load routine 'sp.bug24805140'.
 SHOW CREATE FUNCTION sp.hello;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 hello	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `hello`(s CHAR(20)) RETURNS char(50) CHARSET latin1
     DETERMINISTIC
-RETURN CONCAT('Hello, ',s,'!')	latin1	latin1_swedish_ci	latin1_swedish_ci
+RETURN CONCAT('Hello, ',s,'!')	utf8mb4	utf8mb4_0900_ai_ci	latin1_swedish_ci
 SHOW CREATE EVENT events.e_totals;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
 e_totals	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `e_totals` ON SCHEDULE AT '2017-02-10 21:29:00' ON COMPLETION NOT PRESERVE ENABLE DO INSERT INTO events.event_table_2 VALUES (NOW())	utf8	utf8_general_ci	latin1_swedish_ci
@@ -493,7 +611,7 @@ Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connectio
 trg1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `trg1` AFTER DELETE ON `t1` FOR EACH ROW begin set@a=1; end	utf8	utf8_general_ci	latin1_swedish_ci	#
 SHOW CREATE TRIGGER triggers.t1_bi;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a:=_koi8r'¬Ã¡¬Ã¡¬Ã¡'	utf8	utf8_general_ci	latin1_swedish_ci	#
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a:=_koi8r'√Ç√å√Å√Ç√å√Å√Ç√å√Å'	utf8	utf8_general_ci	latin1_swedish_ci	#
 SELECT * FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS WHERE
 CONSTRAINT_SCHEMA='foreign_keys' ORDER BY CONSTRAINT_SCHEMA,CONSTRAINT_NAME;
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	UNIQUE_CONSTRAINT_CATALOG	UNIQUE_CONSTRAINT_SCHEMA	UNIQUE_CONSTRAINT_NAME	MATCH_OPTION	UPDATE_RULE	DELETE_RULE	TABLE_NAME	REFERENCED_TABLE_NAME
@@ -503,6 +621,35 @@ def	foreign_keys	t5_ibfk_1	def	foreign_keys	PRIMARY	NONE	RESTRICT	SET NULL	t5	t1
 def	foreign_keys	t6_ibfk_1	def	foreign_keys	PRIMARY	NONE	CASCADE	CASCADE	t6	t1
 def	foreign_keys	t7_ibfk_1	def	foreign_keys	PRIMARY	NONE	RESTRICT	RESTRICT	t7	t1
 def	foreign_keys	t8_ibfk_1	def	foreign_keys	PRIMARY	NONE	RESTRICT	CASCADE	t8	t2
+SHOW CREATE VIEW view_with_column_names.v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `view_with_column_names`.`v1` AS select `view_with_column_names`.`t1`.`x` AS `a`,`view_with_column_names`.`t1`.`y` AS `b` from `view_with_column_names`.`t1` where (`view_with_column_names`.`t1`.`y` = 5)	utf8	utf8_general_ci
+SELECT * FROM view_with_column_names.v1;
+a	b
+3	5
+SHOW CREATE VIEW view_with_column_names.v2;
+View	Create View	character_set_client	collation_connection
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `view_with_column_names`.`v2` AS select `view_with_column_names`.`t1`.`x` AS `e`,`view_with_column_names`.`t1`.`y` AS `f` from `view_with_column_names`.`t1` where (`view_with_column_names`.`t1`.`y` = 5)	utf8	utf8_general_ci
+SELECT * FROM view_with_column_names.v2;
+e	f
+3	5
+SHOW CREATE VIEW view_with_column_names.v3;
+View	Create View	character_set_client	collation_connection
+v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `view_with_column_names`.`v3` AS select `view_with_column_names`.`t1`.`x` AS `x`,`view_with_column_names`.`t1`.`y` AS `y` from `view_with_column_names`.`t1` where (`view_with_column_names`.`t1`.`y` = 5)	utf8	utf8_general_ci
+SELECT * FROM view_with_column_names.v3;
+x	y
+3	5
+SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE
+TABLE_SCHEMA='view_with_column_names';
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT	GENERATION_EXPRESSION
+def	view_with_column_names	t1	x	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
+def	view_with_column_names	t1	y	2	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
+def	view_with_column_names	v1	a	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
+def	view_with_column_names	v1	b	2	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
+def	view_with_column_names	v2	e	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
+def	view_with_column_names	v2	f	2	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
+def	view_with_column_names	v3	x	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
+def	view_with_column_names	v3	y	2	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
 # Stop the server
 # Restart the server with default options.
 # restart

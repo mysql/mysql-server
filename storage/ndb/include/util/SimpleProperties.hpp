@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2008 MySQL AB, 2008 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -52,11 +51,11 @@ public:
    */
   struct SP2StructMapping {
     Uint16 Key;
-    Uint32 Offset;
+    size_t Offset;
     ValueType Type;
     Uint32 minValue;
     Uint32 maxValue;
-    Uint32 Length_Offset; // Offset used for looking up length of 
+    size_t Length_Offset; // Offset used for looking up length of
                           // data if Type = BinaryValue
   };
 

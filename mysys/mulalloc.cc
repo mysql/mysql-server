@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,9 +17,16 @@
   @file mysys/mulalloc.cc
 */
 
-#include "mysys_priv.h"
-#include "my_sys.h"
 #include <stdarg.h>
+#include <stdarg.h>
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_pointer_arithmetic.h"
+#include "my_sys.h"  // IWYU pragma: keep
+#include "mysql/psi/psi_memory.h"
 #include "mysql/service_mysql_alloc.h"
 
 /*

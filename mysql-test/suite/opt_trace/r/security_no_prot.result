@@ -3,7 +3,7 @@ set global optimizer_trace_max_mem_size=1048576;
 select user();
 user()
 root@localhost
-create database somedb;
+create database somedb character set latin1;
 use somedb;
 create table t1(a varchar(100));
 insert into t1 values("first");
@@ -47,7 +47,8 @@ user1@localhost
 set optimizer_trace="enabled=on";
 show grants;
 Grants for user1@localhost
-GRANT ALL PRIVILEGES ON *.* TO `user1`@`localhost` WITH GRANT OPTION
+GRANT BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,REPLICATION_SLAVE_ADMIN,ROLE_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN ON *.* TO `user1`@`localhost` WITH GRANT OPTION
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `user1`@`localhost` WITH GRANT OPTION
 
 # ==========================================================
 # Part A.
@@ -64,7 +65,7 @@ call p1()	20	0
 set b@0 NULL	20	0
 jump_if_not 3(3) (select count(0) from `somedb`.`t1`)	706	0
 select 22 into b from dual	407	0
-select a into b from t1 limit 1	2164	0
+select a into b from t1 limit 1	2169	0
 insert into t1 values(current_user())	20	0
 # this SET always purges all remembered traces
 set optimizer_trace_offset=0,optimizer_trace_limit=100;
@@ -76,7 +77,7 @@ QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
 select f1()	413	0
 set b@0 NULL	20	0
 select 48 into b from dual	407	0
-select a into b from t1 limit 1	2164	0
+select a into b from t1 limit 1	2169	0
 insert into t1 values(current_user())	20	0
 freturn 3 36	20	0
 set optimizer_trace_offset=0,optimizer_trace_limit=100;
@@ -87,13 +88,13 @@ root@localhost
 root@localhost
 select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
-select * from v1	2831	0
+select * from v1	2836	0
 set optimizer_trace_offset=0,optimizer_trace_limit=100;
 insert into t2 values(current_user());
 select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
 insert into t2 values(current_user())	20	0
-insert into t3 select * from t3	2533	0
+insert into t3 select * from t3	2556	0
 
 # Show that really all global privileges are needed: let root
 # revoke just one from user1. Because user1 does not have all global
@@ -111,6 +112,7 @@ user1@localhost
 set optimizer_trace="enabled=on";
 show grants;
 Grants for user1@localhost
+GRANT BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,REPLICATION_SLAVE_ADMIN,ROLE_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN ON *.* TO `user1`@`localhost` WITH GRANT OPTION
 GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `user1`@`localhost` WITH GRANT OPTION
 set optimizer_trace_offset=0,optimizer_trace_limit=100;
 call p1();
@@ -246,7 +248,7 @@ call p1()	20	0
 set b@0 NULL	20	0
 jump_if_not 3(3) (select count(0) from `somedb`.`t1`)	706	0
 select 22 into b from dual	407	0
-select a into b from t1 limit 1	2164	0
+select a into b from t1 limit 1	2169	0
 insert into t1 values(current_user())	20	0
 set optimizer_trace_offset=0,optimizer_trace_limit=100;
 select f1();
@@ -257,7 +259,7 @@ QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
 select f1()	413	0
 set b@0 NULL	20	0
 select 48 into b from dual	407	0
-select a into b from t1 limit 1	2164	0
+select a into b from t1 limit 1	2169	0
 insert into t1 values(current_user())	20	0
 freturn 3 36	20	0
 set optimizer_trace_offset=0,optimizer_trace_limit=100;
@@ -268,7 +270,7 @@ user1@localhost
 user1@localhost
 select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
-select * from v1	2831	0
+select * from v1	2836	0
 set optimizer_trace_offset=2,optimizer_trace_limit=1;
 call p1();
 select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
@@ -425,7 +427,7 @@ user1@localhost
 user1@localhost
 select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
-select * from v1	2831	0
+select * from v1	2836	0
 # Trace exposed body of view, and content of t1, which we
 # could see anyway:
 show create view v1;
@@ -689,7 +691,7 @@ call p1()	20	0
 set b@0 NULL	20	0
 jump_if_not 3(3) (select count(0) from `somedb`.`t1`)	706	0
 select 22 into b from dual	407	0
-select a into b from t1 limit 1	2164	0
+select a into b from t1 limit 1	2169	0
 insert into t1 values(current_user())	20	0
 # Trace exposed body of routine, and content of t1, which we
 # could see anyway:
@@ -717,7 +719,7 @@ QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
 select f1()	413	0
 set b@0 NULL	20	0
 select 48 into b from dual	407	0
-select a into b from t1 limit 1	2164	0
+select a into b from t1 limit 1	2169	0
 insert into t1 values(current_user())	20	0
 freturn 3 36	20	0
 # Trace exposed body of routine, and content of t1, which we
@@ -740,7 +742,7 @@ user1@localhost
 user1@localhost
 select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
-select * from v1	2831	0
+select * from v1	2836	0
 # Trace exposed body of view, and content of t1, which we
 # could see anyway:
 show create view v1;
@@ -751,7 +753,7 @@ insert into t2 values(current_user());
 select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
 insert into t2 values(current_user())	20	0
-insert into t3 select * from t3	2533	0
+insert into t3 select * from t3	2556	0
 # Trace exposed body of trigger, and content of t2/t3, which we
 # could see anyway:
 show create trigger trg2;
@@ -769,7 +771,7 @@ a
 first
 select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
-select a from (select a from t1 where a like "f%") as tt where a like "fi%"	4063	0
+select a from (select a from t1 where a like "f%") as tt where a like "fi%"	4067	0
 
 # For routines, as they only use t1 and we added only one
 # privilege on t1, we have nothing to remove.

@@ -1,4 +1,4 @@
-/* Copyright (C) 2008 MySQL AB
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
    Use is subject to license terms
 
    This program is free software; you can redistribute it and/or modify
@@ -14,6 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
+#include "my_dbug.h"
 #include "myrg_def.h"
 
 ha_rows myrg_records(MYRG_INFO *info)

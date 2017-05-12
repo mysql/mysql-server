@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,7 +17,15 @@
   @file mysys/my_mmap.cc
 */
 
-#include "mysys_priv.h"
+#include "my_config.h"
+
+#include <stddef.h>
+#ifdef HAVE_SYS_MMAN_H
+#include <sys/mman.h>
+#endif
+
+#include "my_config.h"
+#include "my_inttypes.h"
 #include "my_sys.h"
 
 #ifdef HAVE_SYS_MMAN_H

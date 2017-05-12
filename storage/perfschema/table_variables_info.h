@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,10 +21,12 @@
   Table VARIABLES_INFO (declarations).
 */
 
+#include <sys/types.h>
+
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"
-#include "pfs_instr_class.h"
 #include "pfs_instr.h"
+#include "pfs_instr_class.h"
 #include "pfs_variable.h"
 #include "table_helper.h"
 
@@ -48,6 +50,14 @@ struct row_variables_info
   /** Column MAX_VALUE. */
   char m_max_value[COL_SOURCE_SIZE];
   uint m_max_value_length;
+  /** Column SET_TIME. */
+  ulonglong m_set_time;
+  /** Column SET_USER. */
+  char m_set_user_str[USERNAME_LENGTH];
+  uint m_set_user_str_length;
+  /** Column SET_HOST. */
+  char m_set_host_str[HOSTNAME_LENGTH];
+  uint m_set_host_str_length;
 };
 
 /** Table PERFORMANCE_SCHEMA.VARIABLES_INFO. */
@@ -58,7 +68,7 @@ class table_variables_info : public PFS_engine_table
 public:
   /** Table share */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table* create();
+  static PFS_engine_table *create();
   static ha_rows get_row_count();
 
   virtual int rnd_init(bool scan);
@@ -75,10 +85,11 @@ protected:
 
 public:
   ~table_variables_info()
-  {}
+  {
+  }
 
 protected:
-  void make_row(const System_variable *system_var);
+  int make_row(const System_variable *system_var);
 
 private:
   /** Table share lock. */
@@ -90,8 +101,6 @@ private:
   PFS_system_variable_info_cache m_sysvarinfo_cache;
   /** Current row. */
   row_variables_info m_row;
-  /** True if the current row exists. */
-  bool m_row_exists;
   /** Current position. */
   pos_t m_pos;
   /** Next position. */

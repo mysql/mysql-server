@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,18 +26,45 @@
 
 #include "sql_planner.h"
 
+#include <float.h>
+#include <limits.h>
+#include <string.h>
+#include <algorithm>
+
+#include "enum_query_type.h"
+#include "field.h"
+#include "handler.h"
+#include "item.h"
+#include "item_cmpfunc.h"
+#include "key.h"
+#include "merge_sort.h"         // merge_sort
 #include "my_base.h"            // key_part_map
 #include "my_bit.h"             // my_count_bits
-#include "merge_sort.h"         // merge_sort
+#include "my_bitmap.h"
+#include "my_compiler.h"
+#include "my_config.h"
+#include "my_dbug.h"
+#include "my_macros.h"
+#include "opt_costmodel.h"
 #include "opt_hints.h"          // hint_table_state
 #include "opt_range.h"          // QUICK_SELECT_I
 #include "opt_trace.h"          // Opt_trace_object
+#include "opt_trace_context.h"
+#include "query_options.h"
+#include "sql_bitmap.h"
 #include "sql_class.h"          // THD
+#include "sql_const.h"
+#include "sql_executor.h"
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_opt_exec_shared.h"
 #include "sql_optimizer.h"      // JOIN
 #include "sql_select.h"         // JOIN_TAB
+#include "sql_string.h"
 #include "sql_test.h"           // print_plan
+#include "system_variables.h"
+#include "table.h"
 
-#include <algorithm>
 using std::max;
 using std::min;
 
@@ -58,7 +85,6 @@ cache_record_length(JOIN *join,uint idx)
 {
   uint length=0;
   JOIN_TAB **pos,**end;
-  THD *thd=join->thd;
 
   for (pos=join->best_ref+join->const_tables,end=join->best_ref+idx ;
        pos != end ;
@@ -73,7 +99,7 @@ cache_record_length(JOIN *join,uint idx)
         (1) keep_current_rowid: we don't know if Duplicate Weedout may be
         used, length will thus be inaccurate, this is acceptable.
       */
-      calc_used_field_length(thd, join_tab->table(),
+      calc_used_field_length(join_tab->table(),
                              false,             // (1)
                              &used_fields, &join_tab->used_fieldlength,
                              &used_blobs, &used_null_fields,
@@ -149,6 +175,10 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
                                              table_map *ref_depend_map,
                                              uint *used_key_parts)
 {
+  // Skip finding best_ref if quick object is forced by hint.
+  if (tab->quick() && tab->quick()->forced_by_hint)
+    return NULL;
+
   // Return value - will point to Key_use of the index with cheapest ref access
   Key_use *best_ref= NULL;
 
@@ -531,7 +561,13 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
             if (!table_deps && table->quick_keys.is_set(key) &&     // (1)
                 table->quick_key_parts[key] > cur_used_keyparts &&  // (2)
                 cur_fanout < (double)table->quick_rows[key])        // (3)
-              cur_fanout= (double)table->quick_rows[key];
+            {
+              trace_access_idx.add("chosen", false).
+                add_alnum("cause",
+                          "unreliable_ref_cost_and_range_uses_more_keyparts");
+              continue;
+            }
+
 
             tmp_fanout= cur_fanout;
           }
@@ -3845,8 +3881,6 @@ void Optimize_table_order::semijoin_mat_lookup_access_paths(
 
   @param first_tab        The first tab to calculate access paths for
   @param last_tab         The last tab to calculate access paths for
-  @param remaining_tables Bitmap of tables that are not in the
-                          [0...last_tab] join prefix
   @param[out] newcount    New output row count
   @param[out] newcost     New join prefix cost
 
@@ -3864,8 +3898,7 @@ void Optimize_table_order::semijoin_mat_lookup_access_paths(
 */
 
 void Optimize_table_order::semijoin_dupsweedout_access_paths(
-                uint first_tab, uint last_tab, 
-                table_map remaining_tables, 
+                uint first_tab, uint last_tab,
                 double *newcount, double *newcost)
 {
   DBUG_ENTER("Optimize_table_order::semijoin_dupsweedout_access_paths");
@@ -4327,12 +4360,24 @@ void Optimize_table_order::advance_sj_state(
       The simple way to model this is to remove SJM-SCAN(...) fanout once
       we reach the point #2.
     */
-    pos->sjm_scan_need_tables=
-      emb_sj_nest->sj_inner_tables | 
-      emb_sj_nest->nested_join->sj_depends_on;
-    pos->sjm_scan_last_inner= idx;
-    Opt_trace_object(trace).add_alnum("strategy", "MaterializeScan").
-      add_alnum("choice", "deferred");
+    if (pos->sjm_scan_need_tables &&
+        emb_sj_nest != NULL &&
+        emb_sj_nest !=
+        join->positions[pos->sjm_scan_last_inner].table->emb_sj_nest)
+      /*
+        Prevent that inner tables of different semijoin nests are
+        interleaved for MatScan.
+      */
+      pos->sjm_scan_need_tables= 0;
+    else
+    {
+      pos->sjm_scan_need_tables=
+        emb_sj_nest->sj_inner_tables |
+        emb_sj_nest->nested_join->sj_depends_on;
+      pos->sjm_scan_last_inner= idx;
+      Opt_trace_object(trace).add_alnum("strategy", "MaterializeScan").
+        add_alnum("choice", "deferred");
+    }
   }
   else if (sjm_strategy == SJ_OPT_MATERIALIZE_LOOKUP)
   {
@@ -4442,7 +4487,7 @@ void Optimize_table_order::advance_sj_state(
       */
       double rowcount, cost;
       semijoin_dupsweedout_access_paths(pos->first_dupsweedout_table, idx,
-                                        remaining_tables, &rowcount, &cost);
+                                        &rowcount, &cost);
       /*
         Use the strategy if
          * it is cheaper then what we've had, and strategy is enabled, or

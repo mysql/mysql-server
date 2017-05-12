@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,10 +15,17 @@
 
 #include "dd/info_schema/show_query_builder.h" // Select_lex_builder
 
-#include "m_string.h"                          // C_STRING_WITH_LEN
 #include "item_cmpfunc.h"                      // Item_func_like
+#include "item_func.h"
+#include "m_string.h"                          // C_STRING_WITH_LEN
+#include "my_dbug.h"
+#include "parse_tree_helpers.h"
 #include "parse_tree_items.h"                  // PTI_simple_ident_ident
+#include "parse_tree_nodes.h"                  // PT_select_item_list
 #include "sql_lex.h"                           // Query_options
+#include "sql_string.h"
+
+class Item;
 
 
 namespace dd {
@@ -29,6 +36,34 @@ static const Query_options options=
   0, /* query_spec_options */
   SELECT_LEX::SQL_CACHE_UNSPECIFIED /* sql_cache */
 };
+
+
+Select_lex_builder::Select_lex_builder(const POS *pc, THD *thd)
+  :m_pos(pc),
+   m_thd(thd),
+   m_select_item_list(nullptr),
+   m_where_clause(nullptr),
+   m_order_by_list(nullptr)
+{
+  m_table_reference_list.init(m_thd->mem_root);
+}
+
+
+bool Select_lex_builder::add_to_select_item_list(Item *expr)
+{
+  // Prepare list if not exist.
+  if (!m_select_item_list)
+  {
+    m_select_item_list= new (m_thd->mem_root) PT_select_item_list();
+
+    if (m_select_item_list == nullptr)
+      return true;
+  }
+
+  m_select_item_list->push_back(expr);
+
+  return false;
+}
 
 
 // Add item representing star in "SELECT '*' ...".
@@ -253,7 +288,7 @@ bool Select_lex_builder::add_order_by(const LEX_STRING field_name)
     return true;
 
   PT_order_expr *expression= new (m_thd->mem_root)
-    PT_order_expr(ident_field, true);
+    PT_order_expr(ident_field, ORDER_ASC);
   m_order_by_list->push_back(expression);
 
   return expression == nullptr;
@@ -307,9 +342,11 @@ PT_derived_table* Select_lex_builder::prepare_derived_table(
   if (derived_table_name == nullptr)
     return nullptr;
 
+  Create_col_name_list column_names;
+  column_names.init(m_thd->mem_root);
   PT_derived_table *derived_table;
   derived_table= new (m_thd->mem_root)
-    PT_derived_table(sub_query, derived_table_name);
+    PT_derived_table(sub_query, derived_table_name, &column_names);
 
   return derived_table;
 }
@@ -352,8 +389,7 @@ SELECT_LEX* Select_lex_builder::prepare_select_lex()
   PT_query_expression *query_expression2;
   query_expression2= new (m_thd->mem_root)
     PT_query_expression(query_expression_body_primary2,
-                        pt_order_by, nullptr, nullptr,
-                        Default_constructible_locking_clause());
+                        pt_order_by, nullptr, nullptr);
   if (query_expression2 == nullptr)
     return nullptr;
 

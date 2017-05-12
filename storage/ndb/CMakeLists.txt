@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -86,19 +86,15 @@ SET(NDBCLUSTER_SOURCES
   ../../sql/ndb_binlog_thread.cc
   ../../sql/ndb_find_files_list.cc
   ../../sql/ndb_name_util.cc
+  ../../sql/ndb_bitmap.cc
+  ../../sql/ndb_table_map.cc
 )
 
 # Include directories used when building ha_ndbcluster
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include)
 
 IF(NOT MYSQL_CLUSTER_VERSION)
- # Global schema lock not supported in non
- # MySQL Cluster version yet, compile ndbcluster without it
- ADD_DEFINITIONS(-DNDB_WITHOUT_GLOBAL_SCHEMA_LOCK)
 ENDIF()
-
-# NDB needs replication
-ADD_DEFINITIONS(-DHAVE_REPLICATION)
 
 # NDB is DEFAULT plugin in MySQL Cluster
 SET(is_default_plugin "")
@@ -114,7 +110,7 @@ ENDIF()
 
 IF(NOT WITHOUT_SERVER)
   MYSQL_ADD_PLUGIN(ndbcluster ${NDBCLUSTER_SOURCES} STORAGE_ENGINE
-    ${is_default_plugin} STATIC_ONLY RECOMPILE_FOR_EMBEDDED
+    ${is_default_plugin} STATIC_ONLY
     LINK_LIBRARIES ndbclient_static)
 ENDIF()
 
@@ -137,7 +133,9 @@ IF(CMAKE_COMPILER_IS_GNUCXX)
           # Downgrade -Werror to warning for "may be used uninitialized"
           # and "is used uninitialized in this function"
           "error=maybe-uninitialized"
-          "error=uninitialized")
+          "error=uninitialized"
+          # Downgrade placement-new as part of Bug #24822203
+          "error=placement-new")
     STRING(REPLACE "-" "_" warning_ ${warning})
     STRING(TOUPPER ${warning_} WARNING)
     CHECK_CXX_COMPILER_FLAG("-Wno-${warning}" HAVE_${WARNING})
@@ -147,13 +145,6 @@ IF(CMAKE_COMPILER_IS_GNUCXX)
       SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-${warning}")
     ENDIF()
   ENDFOREACH()
-ENDIF()
-
-# Add HAVE_NDB_BINLOG to the list of compile definitions used when compiling
-# the ndbcluster plugin library(NOTE! there is also ndbcluster_embedded which
-# is compiled without this define)
-IF(NOT WITHOUT_SERVER)
-  NDB_ADD_TARGET_PROPERTY(ndbcluster COMPILE_DEFINITIONS "HAVE_NDB_BINLOG")
 ENDIF()
 
 IF(CMAKE_SIZEOF_VOID_P EQUAL 4)
@@ -203,6 +194,17 @@ ELSE()
   IF(WITH_VALGRIND)
     MESSAGE(STATUS "Building NDB test programs for improved valgrind coverage")
     SET(WITH_NDB_TEST ON)
+    MESSAGE(STATUS "Building NdbApi examples for improved valgrind coverage")
+    SET(WITH_NDBAPI_EXAMPLES ON)
+  ENDIF()
+  # Turn on NDB tests automatically for "-devbld" debug builds
+  # to increase test coverage
+  IF(PACKAGE_SUFFIX STREQUAL "-devbld" AND
+     CMAKE_BUILD_TYPE MATCHES "Debug")
+    MESSAGE(STATUS "Building NDB test programs for \"-devbld\" debug build")
+    SET(WITH_NDB_TEST ON)
+    MESSAGE(STATUS "Building NdbApi examples for \"-devbld\" debug build")
+    SET(WITH_NDBAPI_EXAMPLES ON)
   ENDIF()
 ENDIF()
 

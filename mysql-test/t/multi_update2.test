@@ -10,6 +10,10 @@
 #
 --source include/big_test.inc
 --source include/not_valgrind.inc
+# timeout in debug mode on sparc
+--source include/not_sparc_debug.inc
+# timeout with UBSAN
+--source include/not_ubsan.inc
 
 let $need_big= 0;
 --disable_query_log

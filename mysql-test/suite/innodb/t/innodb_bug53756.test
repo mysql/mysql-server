@@ -15,7 +15,6 @@
 --source include/not_valgrind.inc
 #
 # This test case needs InnoDB.
--- source include/have_innodb.inc
 
 # Avoid CrashReporter popup on Mac
 --source include/not_crashrep.inc

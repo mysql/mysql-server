@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,23 +13,30 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_global.h"
-#include "sql_bootstrap.h"
-#include "sql_initialize.h"
-#include "my_rnd.h"
-#include "m_ctype.h"
-#include "mysqld.h"
-#include <my_sys.h>
-#include "sql_authentication.h"
-#include "log.h"
-#include "sql_class.h"
-#include "current_thd.h"
-#include "sql_show.h"
+#include "sql/sql_initialize.h"
 
-#include "../scripts/sql_commands_system_tables.h"
-#include "../scripts/sql_commands_system_data.h"
+#include <fcntl.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+
 #include "../scripts/sql_commands_help_data.h"
 #include "../scripts/sql_commands_sys_schema.h"
+#include "../scripts/sql_commands_system_data.h"
+#include "../scripts/sql_commands_system_tables.h"
+#include "current_thd.h"
+#include "log.h"
+#include "m_ctype.h"
+#include "my_dir.h"
+#include "my_io.h"
+#include "my_rnd.h"
+#include "my_sys.h"
+#include "mysql_com.h"
+#include "mysqld.h"
+#include "sql_bootstrap.h"
+#include "sql_class.h"
+#include "sql_error.h"
 
 static const char *initialization_cmds[] =
 {
@@ -43,7 +50,7 @@ static const char *initialization_cmds[] =
 
 char insert_user_buffer[sizeof(INSERT_USER_CMD) + GENERATED_PASSWORD_LENGTH * 2];
 
-my_bool opt_initialize_insecure= FALSE;
+bool opt_initialize_insecure= FALSE;
 
 static const char *initialization_data[] =
 {

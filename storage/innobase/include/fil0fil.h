@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -205,7 +205,7 @@ struct fil_node_t {
 	/** whether this file is open */
 	bool		is_open;
 	/** file handle (valid if is_open) */
-	os_file_t	handle;
+	pfs_os_file_t	handle;
 	/** event that groups and serializes calls to fsync */
 	os_event_t	sync_event;
 	/** whether the file actually is a raw device or disk partition */
@@ -438,10 +438,10 @@ typedef	uint16_t	page_type_t;
 #define FIL_PAGE_ENCRYPTED_RTREE 17	/*!< Encrypted R-tree page */
 #define FIL_PAGE_SDI_BLOB	18	/*!< Uncompressed SDI BLOB page */
 #define FIL_PAGE_SDI_ZBLOB	19	/*!< Commpressed SDI BLOB page */
-
+#define FIL_PAGE_TYPE_ZBLOB3	20	/*!< Independently compressed LOB page*/
 
 /** Used by i_s.cc to index into the text description. */
-#define FIL_PAGE_TYPE_LAST	FIL_PAGE_SDI_ZBLOB
+#define FIL_PAGE_TYPE_LAST	FIL_PAGE_TYPE_ZBLOB3
 					/*!< Last page type */
 /* @} */
 
@@ -821,7 +821,7 @@ fil_space_system_check(
 
 /** Check if an undo tablespace was opened during crash recovery.
 Change name to undo_name if already opened during recovery.
-@param[in]	name		tablespace name
+@param[in]	file_name	undo tablespace file name
 @param[in]	undo_name	undo tablespace name
 @param[in]	space_id	undo tablespace id
 @retval DB_SUCCESS		if it was already opened
@@ -829,7 +829,7 @@ Change name to undo_name if already opened during recovery.
 @retval DB_ERROR		if the data is inconsistent */
 dberr_t
 fil_space_undo_check_if_opened(
-	const char*	name,
+	const char*	file_name,
 	const char*	undo_name,
 	space_id_t	space_id)
 	MY_ATTRIBUTE((warn_unused_result));
@@ -1253,14 +1253,14 @@ struct PageCallback {
 	@param block block read from file, note it is not from the buffer pool
 	@retval DB_SUCCESS or error code. */
 	virtual dberr_t operator()(
-		os_offset_t 	offset,
+		os_offset_t	offset,
 		buf_block_t*	block) UNIV_NOTHROW = 0;
 
 	/** Set the name of the physical file and the file handle that is used
 	to open it for the file that is being iterated over.
 	@param filename then physical name of the tablespace file.
 	@param file OS file handle */
-	void set_file(const char* filename, os_file_t file) UNIV_NOTHROW
+	void set_file(const char* filename, pfs_os_file_t file) UNIV_NOTHROW
 	{
 		m_file = file;
 		m_filepath = filename;
@@ -1289,7 +1289,7 @@ struct PageCallback {
 	page_size_t		m_page_size;
 
 	/** File handle to the tablespace */
-	os_file_t		m_file;
+	pfs_os_file_t		m_file;
 
 	/** Physical file path. */
 	const char*		m_filepath;
@@ -1503,7 +1503,7 @@ Try and enable FusionIO atomic writes.
 @param[in] file		OS file handle
 @return true if successful */
 bool
-fil_fusionio_enable_atomic_write(os_file_t file);
+fil_fusionio_enable_atomic_write(pfs_os_file_t file);
 #endif /* !NO_FALLOCATE && UNIV_LINUX */
 
 /** Note that the file system where the file resides doesn't support PUNCH HOLE

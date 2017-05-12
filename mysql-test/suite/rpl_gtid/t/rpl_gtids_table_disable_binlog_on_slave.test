@@ -12,9 +12,7 @@
 --source include/not_group_replication_plugin.inc
 
 # required by extra/rpl_tests/rpl_xa_gtid_next.inc
---source include/have_perfschema.inc
 
---source include/have_gtid.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 --source include/master-slave.inc
@@ -48,7 +46,7 @@ XA COMMIT '1';
 --echo # Verify that specified gtid for XA transaction can be reported
 --echo # from global.gtid_executed correctly.
 --echo #
---let $gno_1 = 16
+--let $gno_1 = 17
 --replace_result $master_uuid MASTER_UUID
 --eval SET @@SESSION.GTID_NEXT= '$master_uuid:$gno_1'
 XA START '1';
@@ -83,7 +81,7 @@ call mtr.add_suppression("You need to use --log-bin to make --binlog-format work
 call mtr.add_suppression("Slave SQL for channel '': Error in Xid_log_event: Commit could not "
                          "be completed, 'Got error -1 - 'Unknown error.*' from storage engine', "
                          "Error_code: 1030");
-call mtr.add_suppression("Slave: Got error -1 - 'Unknown error.*' from storage engine Error_code: 1030");
+call mtr.add_suppression("Slave.*Got error -1 .* from storage engine.*Error_code: 1030");
 call mtr.add_suppression("Slave: An error occured at storing the GTID value");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped");
 
@@ -190,8 +188,9 @@ DROP TABLE t3;
 --let $xa_error_simul = 1
 --source extra/rpl_tests/rpl_xa_gtid_next.inc
 
-# two more queries follow to affect $gno_root
---let $gno_0 = `SELECT $gno_0 + 2`
+# Three more GTIDs are generated in what follows, two of them from DROP
+# TABLE.
+--let $gno_0 = `SELECT $gno_0 + 3`
 DROP TABLE t1, t2;
 --source include/sync_slave_sql_with_master.inc
 
@@ -209,9 +208,7 @@ SET @@GLOBAL.DEBUG= '+d,simulate_err_on_write_gtid_into_table';
 --connection master
 INSERT INTO t3 VALUES(1);
 --connection slave
---let $errno_sts=convert_error(ER_GET_ERRNO),
---let $errno_mts=convert_error(ER_MTS_INCONSISTENT_DATA)
---let $slave_sql_errno=$errno_sts,$errno_mts
+--let $slave_sql_errno= convert_error(ER_GET_ERRNO)
 --source include/wait_for_slave_sql_error.inc
 SET GLOBAL DEBUG= @debug_save;
 --source include/stop_slave_io.inc

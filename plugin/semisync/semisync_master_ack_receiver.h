@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,10 +16,25 @@
 #ifndef SEMISYNC_MASTER_ACK_RECEIVER_DEFINED
 #define SEMISYNC_MASTER_ACK_RECEIVER_DEFINED
 
+#include <sys/types.h>
 #include <vector>
-#include "my_global.h"
+
+#include "my_inttypes.h"
+#include "my_io.h"
 #include "my_thread.h"
 #include "sql_class.h"
+
+struct Slave
+{
+  THD *thd;
+  Vio *vio;
+
+  my_socket sock_fd() const { return vio->mysql_socket.fd; }
+  uint server_id() const { return thd->server_id; }
+};
+
+typedef std::vector<Slave> Slave_vector;
+typedef Slave_vector::iterator Slave_vector_it;
 
 /**
   Ack_receiver is responsible to control ack receive thread and maintain
@@ -100,20 +115,7 @@ private:
   mysql_cond_t m_cond;
   /* If slave list is updated(add or remove). */
   bool m_slaves_changed;
-
-  struct Slave
-  {
-    THD *thd;
-    Vio *vio;
-
-    my_socket sock_fd() { return vio->mysql_socket.fd; }
-    uint server_id() { return thd->server_id; }
-  };
-
-  typedef std::vector<Slave> Slave_vector;
-  typedef Slave_vector::iterator Slave_vector_it;
   Slave_vector m_slaves;
-
   my_thread_handle m_pid;
 
 /* Declare them private, so no one can copy the object. */
@@ -122,7 +124,6 @@ private:
 
   void set_stage_info(const PSI_stage_info &stage);
   void wait_for_slave_connection();
-  my_socket get_slave_sockets(fd_set *fds);
 };
 
 extern Ack_receiver ack_receiver;

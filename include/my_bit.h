@@ -22,6 +22,12 @@
   Some useful bit functions.
 */
 
+#include <sys/types.h>
+
+#include "my_config.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
+
 C_MODE_START
 
 extern const char _my_bits_nbits[256];

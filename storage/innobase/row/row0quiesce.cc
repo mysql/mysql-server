@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,16 +23,18 @@ Quiesce a tablespace.
 Created 2012-02-08 by Sunny Bains.
 *******************************************************/
 
-#include "ha_prototypes.h"
+#include <errno.h>
+#include <my_aes.h>
 
-#include "row0quiesce.h"
-#include "row0mysql.h"
+#include "fsp0sysspace.h"
+#include "ha_prototypes.h"
 #include "ibuf0ibuf.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "row0mysql.h"
+#include "row0quiesce.h"
 #include "srv0start.h"
 #include "trx0purge.h"
-#include "fsp0sysspace.h"
-
-#include <my_aes.h>
 
 /*********************************************************************//**
 Write the meta data (index user fields) config file.
@@ -921,7 +923,7 @@ row_quiesce_set_state(
 			    ER_CANNOT_DISCARD_TEMPORARY_TABLE);
 
 		return(DB_UNSUPPORTED);
-	} else if (table->space == srv_sys_space.space_id()) {
+	} else if (table->space == TRX_SYS_SPACE) {
 
 		char	table_name[MAX_FULL_NAME_LEN + 1];
 

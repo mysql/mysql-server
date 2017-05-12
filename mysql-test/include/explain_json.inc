@@ -1,7 +1,6 @@
 # This file is a collection of regression and coverage tests
 # for WL#5855: Print EXPLAIN in JSON format
 
---source include/have_innodb.inc
 
 set @save_storage_engine= @@default_storage_engine;
 set default_storage_engine=MyISAM;
@@ -163,7 +162,7 @@ DROP TABLE t1, t2, t3, t4;
 CREATE TABLE t1 (
   i1 INTEGER NOT NULL,
   c1 VARCHAR(1) NOT NULL
-) ENGINE=InnoDB;
+) charset latin1 ENGINE=InnoDB;
 
 INSERT INTO t1 VALUES (2,'w');
 
@@ -172,14 +171,14 @@ CREATE TABLE t2 (
   c1 VARCHAR(1) NOT NULL,
   c2 VARCHAR(1) NOT NULL,
   KEY (c1, i1)
-) ENGINE=InnoDB;
+) charset latin1 ENGINE=InnoDB;
 
 INSERT INTO t2 VALUES (8,'d','d');
 INSERT INTO t2 VALUES (4,'v','v');
 
 CREATE TABLE t3 (
   c1 VARCHAR(1) NOT NULL
-) ENGINE=InnoDB;
+) charset latin1 ENGINE=InnoDB;
 
 INSERT INTO t3 VALUES ('v');
 
@@ -312,9 +311,9 @@ DROP TABLE t1;
 
 --echo #
 
-CREATE TABLE t1 (a INT NOT NULL, b CHAR(3) NOT NULL, PRIMARY KEY (a));
+CREATE TABLE t1 (a INT NOT NULL, b CHAR(3) NOT NULL, PRIMARY KEY (a)) charset utf8mb4;
 INSERT INTO t1 VALUES (1,'ABC'), (2,'EFG'), (3,'HIJ');
-CREATE TABLE t2 (a INT NOT NULL,b CHAR(3) NOT NULL,PRIMARY KEY (a, b));
+CREATE TABLE t2 (a INT NOT NULL,b CHAR(3) NOT NULL,PRIMARY KEY (a, b)) charset utf8mb4;
 INSERT INTO t2 VALUES (1,'a'),(1,'b'),(3,'F');
 
 EXPLAIN FORMAT=JSON SELECT t1.a, GROUP_CONCAT(t2.b) AS b FROM t1 LEFT JOIN t2 ON t1.a=t2.a GROUP BY t1.a ORDER BY t1.b;

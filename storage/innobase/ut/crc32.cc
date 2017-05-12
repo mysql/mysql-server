@@ -1,7 +1,7 @@
 /*****************************************************************************
 
 Copyright (c) 2009, 2010 Facebook, Inc. All Rights Reserved.
-Copyright (c) 2011, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -86,6 +86,10 @@ external tools. */
 #include "my_config.h"
 #include <string.h>
 
+#if defined(_WIN32)
+#include <intrin.h>
+#endif
+
 #include "univ.i"
 #include "ut0crc32.h"
 
@@ -125,6 +129,10 @@ The CRC32 instructions are part of the SSE4.2 instruction set. */
 bool	ut_crc32_cpu_enabled = false;
 
 #if defined(__GNUC__) && defined(__x86_64__)
+#define gnuc64
+#endif
+
+#if defined(gnuc64) || defined(_WIN32)
 /** Checks whether the CPU has the CRC32 instructions (part of the SSE4.2
 instruction set).
 @return true if CRC32 is available */
@@ -151,13 +159,25 @@ ut_crc32_check_cpu()
 	*/
 	return false;
 #else
-	uint32_t	sig;
+
 	uint32_t	features_ecx;
+
+#if defined(gnuc64)
+	uint32_t	sig;
 	uint32_t	features_edx;
 
 	asm("cpuid" : "=a" (sig), "=c" (features_ecx), "=d" (features_edx)
 	    : "a" (1)
 	    : "ebx");
+#elif defined(_WIN32)
+	int	cpu_info[4] = {-1, -1, -1, -1};
+
+	__cpuid(cpu_info, 1 /* function 1 */);
+
+	features_ecx = static_cast<uint32_t>(cpu_info[2]);
+#else
+#error Dont know how to handle non-gnuc64 and non-windows platforms.
+#endif
 
 	return features_ecx & (1 << 20);  // SSE4.2
 #endif /* UNIV_DEBUG_VALGRIND */
@@ -172,15 +192,21 @@ with 1 byte
 inline
 void
 ut_crc32_8_hw(
-	uint32_t*	crc,
+	uint64_t*	crc,
 	const byte**	data,
 	ulint*		len)
 {
+#if defined(gnuc64)
 	asm("crc32b %1, %0"
 	    /* output operands */
 	    : "+r" (*crc)
 	    /* input operands */
 	    : "rm" ((*data)[0]));
+#elif defined(_WIN32)
+	*crc = _mm_crc32_u8(*crc, (*data)[0]);
+#else
+#error Dont know how to handle non-gnuc64 and non-windows platforms.
+#endif
 
 	(*data)++;
 	(*len)--;
@@ -191,20 +217,26 @@ ut_crc32_8_hw(
 @param[in]	data	data to be checksummed
 @return resulting checksum of crc + crc(data) */
 inline
-uint32_t
+uint64_t
 ut_crc32_64_low_hw(
-	uint32_t	crc,
+	uint64_t	crc,
 	uint64_t	data)
 {
 	uint64_t	crc_64bit = crc;
 
+#if defined(gnuc64)
 	asm("crc32q %1, %0"
 	    /* output operands */
 	    : "+r" (crc_64bit)
 	    /* input operands */
 	    : "rm" (data));
+#elif defined(_WIN32)
+	crc_64bit = _mm_crc32_u64(crc_64bit, data);
+#else
+#error Dont know how to handle non-gnuc64 and non-windows platforms.
+#endif
 
-	return(static_cast<uint32_t>(crc_64bit));
+	return(crc_64bit);
 }
 
 /** Calculate CRC32 over 64-bit byte string using a hardware/CPU instruction.
@@ -216,7 +248,7 @@ with 8 bytes
 inline
 void
 ut_crc32_64_hw(
-	uint32_t*	crc,
+	uint64_t*	crc,
 	const byte**	data,
 	ulint*		len)
 {
@@ -248,7 +280,7 @@ with 8 bytes
 inline
 void
 ut_crc32_64_legacy_big_endian_hw(
-	uint32_t*	crc,
+	uint64_t*	crc,
 	const byte**	data,
 	ulint*		len)
 {
@@ -279,7 +311,7 @@ ut_crc32_hw(
 	const byte*	buf,
 	ulint		len)
 {
-	uint32_t	crc = 0xFFFFFFFFU;
+	uint64_t	crc = 0xFFFFFFFFU;
 
 	ut_a(ut_crc32_cpu_enabled);
 
@@ -356,7 +388,7 @@ ut_crc32_hw(
 		ut_crc32_8_hw(&crc, &buf, &len);
 	}
 
-	return(~crc);
+	return(~static_cast<uint32_t>(crc));
 }
 
 /** Calculates CRC32 using hardware/CPU instructions.
@@ -371,7 +403,7 @@ ut_crc32_legacy_big_endian_hw(
 	const byte*	buf,
 	ulint		len)
 {
-	uint32_t	crc = 0xFFFFFFFFU;
+	uint64_t	crc = 0xFFFFFFFFU;
 
 	ut_a(ut_crc32_cpu_enabled);
 
@@ -409,7 +441,7 @@ ut_crc32_legacy_big_endian_hw(
 		ut_crc32_8_hw(&crc, &buf, &len);
 	}
 
-	return(~crc);
+	return(~static_cast<uint32_t>(crc));
 }
 
 /** Calculates CRC32 using hardware/CPU instructions.
@@ -424,7 +456,7 @@ ut_crc32_byte_by_byte_hw(
 	const byte*	buf,
 	ulint		len)
 {
-	uint32_t	crc = 0xFFFFFFFFU;
+	uint64_t	crc = 0xFFFFFFFFU;
 
 	ut_a(ut_crc32_cpu_enabled);
 
@@ -432,9 +464,9 @@ ut_crc32_byte_by_byte_hw(
 		ut_crc32_8_hw(&crc, &buf, &len);
 	}
 
-	return(~crc);
+	return(~static_cast<uint32_t>(crc));
 }
-#endif /* defined(__GNUC__) && defined(__x86_64__) */
+#endif /* defined(gnuc64) || defined(_WIN32) */
 
 /* CRC32 software implementation. */
 
@@ -706,7 +738,7 @@ void
 ut_crc32_init()
 /*===========*/
 {
-#if defined(__GNUC__) && defined(__x86_64__)
+#if defined(gnuc64) || defined(_WIN32)
 	ut_crc32_cpu_enabled = ut_crc32_check_cpu();
 
 	if (ut_crc32_cpu_enabled) {
@@ -714,7 +746,7 @@ ut_crc32_init()
 		ut_crc32_legacy_big_endian = ut_crc32_legacy_big_endian_hw;
 		ut_crc32_byte_by_byte = ut_crc32_byte_by_byte_hw;
 	}
-#endif /* defined(__GNUC__) && defined(__x86_64__) */
+#endif /* defined(gnuc64) || defined(_WIN32) */
 
 	if (!ut_crc32_cpu_enabled) {
 		ut_crc32_slice8_table_init();

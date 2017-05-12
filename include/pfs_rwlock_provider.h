@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,11 +21,16 @@
   Performance schema instrumentation (declarations).
 */
 
+#include <sys/types.h>
+
+#include "my_psi_config.h"
+
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
 #ifdef MYSQL_SERVER
-#ifndef EMBEDDED_LIBRARY
 #ifndef MYSQL_DYNAMIC_PLUGIN
 
+#include "my_inttypes.h"
+#include "my_macros.h"
 #include "mysql/psi/psi_rwlock.h"
 
 #define PSI_RWLOCK_CALL(M) pfs_ ## M ## _v1
@@ -61,7 +66,6 @@ void pfs_end_rwlock_wrwait_v1(PSI_rwlock_locker* locker, int rc);
 
 C_MODE_END
 
-#endif /* EMBEDDED_LIBRARY */
 #endif /* MYSQL_DYNAMIC_PLUGIN */
 #endif /* MYSQL_SERVER */
 #endif /* HAVE_PSI_RWLOCK_INTERFACE */

@@ -15,9 +15,16 @@
 
 #include "dd/impl/tables/tablespaces.h"
 
-#include "dd/properties.h"                 // Needed for destructor
+#include <new>
+
 #include "dd/impl/raw/object_keys.h"       // dd::Global_name_key
+#include "dd/impl/types/object_table_definition_impl.h"
 #include "dd/impl/types/tablespace_impl.h" // dd::Tablespace_impl
+
+namespace dd {
+class Dictionary_object;
+class Raw_record;
+}  // namespace dd
 
 namespace dd {
 namespace tables {
@@ -69,7 +76,7 @@ Tablespaces::create_dictionary_object(const Raw_record &) const
 ///////////////////////////////////////////////////////////////////////////
 
 bool Tablespaces::update_object_key(Global_name_key *key,
-                                    const std::string &tablespace_name)
+                                    const String_type &tablespace_name)
 {
   key->update(FIELD_NAME, tablespace_name);
   return false;

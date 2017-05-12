@@ -2470,6 +2470,9 @@ SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON("{ \"type\": \"Point\", \"coordinates\": [42
 
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON("{ \"type\": \"Point\", \"coordinates\": [18446744073709551615, 9223372036854775807] }"));
 
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT ST_AsGeoJSON(ST_GeomFromGeoJSON('{"type":"Point","coordinates":[2e308,-0]}'));
+
 #####################################################################
 # BUG#19341961
 #####################################################################
@@ -3970,6 +3973,7 @@ SELECT ST_SRID(ST_GEOMFROMGEOJSON(
 INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
 organization, organization_coordsys_id, definition, description)
 VALUES (22222222, 1, 'TEST22222222', 'Foo', 22222222, 'FOOBAR', '');
+--error ER_SRS_PARSE_ERROR
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT('POINT(0 0)', 22222222));
 SELECT ST_SRID(ST_GEOMFROMGEOJSON(
 "  { \"type\": \"Point\", \"coordinates\": [10, 20],               "

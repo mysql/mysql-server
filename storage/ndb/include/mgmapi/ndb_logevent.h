@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -82,6 +82,8 @@ extern "C" {
     NDB_LE_NDBStopForced = 59,
     /** NDB_MGM_EVENT_CATEGORY_STARTUP */
     NDB_LE_NDBStopAborted = 18,
+    /** NDB_MGM_EVENT_CATEGORY_STARTUP */
+    NDB_LE_LCPRestored = 86,
     /** NDB_MGM_EVENT_CATEGORY_STARTUP */
     NDB_LE_StartREDOLog = 19,
     /** NDB_MGM_EVENT_CATEGORY_STARTUP */
@@ -218,6 +220,24 @@ extern "C" {
     ,NDB_LE_RunRedo = 79
     ,NDB_LE_RebuildIndex = 80
     ,NDB_LE_SavedEvent = 81
+    /* 82-84 used */
+
+    /** NDB_MGM_EVENT_CATEGORY_INFO */
+    /** NDB_LE_EventBufferStatus2 is an extension of
+     * NDB_LE_EventBufferStatus with new fields added,
+     * as well as the report text is improved.
+     * Though it would work to add more fields to NDB_LE_EventBufferStatus
+     * since the Data[] struct can accomodate 29 fields, it is cleaner
+     * to introduce a new struct.
+     * During an upgrade with incorrect order-
+     * old mgmd with newer other components :
+     * - extending NDB_LE_EventBufferStatus: new event consumer will
+     *   get the error NDB_LEH_UNKNOWN_EVENT_VARIABLE when requesting
+     *   new fields
+     * - introducing NDB_LE_EventBufferStatus2: the event buffer status
+     *   report will not be produced.
+     */
+    ,NDB_LE_EventBufferStatus2 = 85
   };
 
   /**
@@ -410,6 +430,9 @@ extern "C" {
   struct ndb_logevent_NDBStopAborted {
     unsigned _unused;
   };
+  struct ndb_logevent_LCPRestored {
+    unsigned restored_lcp_id;
+  };
   struct ndb_logevent_StartREDOLog {
     unsigned node;
     unsigned keep_gci;
@@ -504,6 +527,18 @@ extern "C" {
     unsigned reason;
     unsigned failed_node;
     unsigned source_node;
+  };
+
+  struct ndb_logevent_EventBufferStatus2 {
+    unsigned usage;
+    unsigned alloc;
+    unsigned max;
+    unsigned latest_consumed_epoch_l;
+    unsigned latest_consumed_epoch_h;
+    unsigned latest_buffered_epoch_l;
+    unsigned latest_buffered_epoch_h;
+    unsigned ndb_reference;
+    unsigned report_reason;
   };
 
   /* STATISTIC */
@@ -848,6 +883,7 @@ extern "C" {
       struct ndb_logevent_NDBStopCompleted NDBStopCompleted;
       struct ndb_logevent_NDBStopForced NDBStopForced;
       struct ndb_logevent_NDBStopAborted NDBStopAborted;
+      struct ndb_logevent_LCPRestored LCPRestored;
       struct ndb_logevent_StartREDOLog StartREDOLog;
       struct ndb_logevent_StartLog StartLog;
       struct ndb_logevent_UNDORecordsExecuted UNDORecordsExecuted;
@@ -891,6 +927,7 @@ extern "C" {
       struct ndb_logevent_InfoEvent InfoEvent;
       struct ndb_logevent_EventBufferStatus EventBufferStatus;
       struct ndb_logevent_SavedEvent SavedEvent;
+      struct ndb_logevent_EventBufferStatus2 EventBufferStatus2;
 
       /** Log event data for @ref NDB_LE_BackupStarted */
       struct ndb_logevent_BackupStarted BackupStarted;
@@ -949,6 +986,17 @@ enum ndb_logevent_handle_error {
   NDB_LEH_UNKNOWN_EVENT_TYPE,
   NDB_LEH_UNKNOWN_EVENT_VARIABLE,
   NDB_LEH_INTERNAL_ERROR
+};
+
+enum ndb_logevent_event_buffer_status_report_reason{
+  NO_REPORT,
+  COMPLETELY_BUFFERING,
+  PARTIALLY_DISCARDING,
+  COMPLETELY_DISCARDING,
+  PARTIALLY_BUFFERING,
+  BUFFERED_EPOCHS_OVER_THRESHOLD,
+  ENOUGH_FREE_EVENTBUFFER,
+  LOW_FREE_EVENTBUFFER
 };
 
 #ifdef __cplusplus

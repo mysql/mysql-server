@@ -1,7 +1,7 @@
 #ifndef ATOMIC_MSC_INCLUDED
 #define ATOMIC_MSC_INCLUDED
 
-/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +21,8 @@
 */
 
 #include <windows.h>
+
+#include "my_inttypes.h"
 
 static inline int my_atomic_cas32(int32 volatile *a, int32 *cmp, int32 set)
 {

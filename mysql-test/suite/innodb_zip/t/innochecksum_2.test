@@ -1,7 +1,6 @@
 #************************************************************
 # WL6045:Improve Innochecksum
 #************************************************************
---source include/have_innodb.inc
 --source include/have_innodb_max_16k.inc
 
 --source include/not_embedded.inc

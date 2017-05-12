@@ -2,7 +2,6 @@
 # Basic test for innodb_buffer_pool_dump_at_shutdown
 #
 
--- source include/have_innodb.inc
 # include/restart_mysqld.inc does not work in embedded mode
 -- source include/not_embedded.inc
 

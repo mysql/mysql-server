@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,12 +20,11 @@
 
 /* Common defines for all clients */
 
-#include <my_global.h>
-#include <my_sys.h>
-#include <m_string.h>
-#include <mysql.h>
 #include <errmsg.h>
+#include <m_string.h>
 #include <my_getopt.h>
+#include <my_sys.h>
+#include <mysql.h>
 
 #ifndef WEXITSTATUS
 # ifdef _WIN32
@@ -52,7 +51,7 @@ enum options_client
   OPT_PROMPT, OPT_IGN_LINES, OPT_TRANSACTION, OPT_MYSQL_PROTOCOL,
   OPT_SHARED_MEMORY_BASE_NAME, OPT_FRM, OPT_SKIP_OPTIMIZATION,
   OPT_COMPATIBLE, OPT_RECONNECT, OPT_DELIMITER, OPT_SECURE_AUTH,
-  OPT_OPEN_FILES_LIMIT, OPT_SET_CHARSET, OPT_SET_GTID_PURGED, OPT_SERVER_ARG,
+  OPT_OPEN_FILES_LIMIT, OPT_SET_CHARSET, OPT_SET_GTID_PURGED,
   OPT_STOP_POSITION, OPT_START_DATETIME, OPT_STOP_DATETIME,
   OPT_SIGINT_IGNORE, OPT_HEXBLOB, OPT_ORDER_BY_PRIMARY, OPT_COUNT,
   OPT_TRIGGERS,
@@ -107,6 +106,7 @@ enum options_client
   OPT_CONNECTION_SERVER_ID,
   OPT_TLS_VERSION,
   OPT_SSL_MODE,
+  OPT_PRINT_TABLE_METADATA,
   /* Add new option above this */
   OPT_MAX_CLIENT_OPTION
 };

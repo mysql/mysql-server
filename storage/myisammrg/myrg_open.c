@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,9 +15,16 @@
 
 /* open a MyISAM MERGE table */
 
-#include "myrg_def.h"
-#include <stddef.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "myrg_def.h"
+#include "typelib.h"
 
 /*
 	open a MyISAM MERGE table
@@ -43,7 +50,7 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
   MI_INFO *isam=0;
   uint found_merge_insert_method= 0;
   size_t name_buff_length;
-  my_bool bad_children= FALSE;
+  bool bad_children= FALSE;
   DBUG_ENTER("myrg_open");
 
   memset(&file, 0, sizeof(file));
@@ -377,7 +384,7 @@ MYRG_INFO *myrg_parent_open(const char *parent_name,
 
 int myrg_attach_children(MYRG_INFO *m_info, int handle_locking,
                          MI_INFO *(*callback)(void*),
-                         void *callback_param, my_bool *need_compat_check)
+                         void *callback_param, bool *need_compat_check)
 {
   ulonglong  file_offset;
   MI_INFO    *myisam;
@@ -387,8 +394,8 @@ int myrg_attach_children(MYRG_INFO *m_info, int handle_locking,
   uint       child_nr;
   uint       key_parts= 0;
   uint       min_keys;
-  my_bool    bad_children= FALSE;
-  my_bool    first_child= TRUE;
+  bool       bad_children= FALSE;
+  bool       first_child= TRUE;
   DBUG_ENTER("myrg_attach_children");
   DBUG_PRINT("myrg", ("handle_locking: %d", handle_locking));
 

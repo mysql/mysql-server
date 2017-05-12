@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,15 +15,18 @@
 
 #include "dd/impl/raw/object_keys.h"
 
-#include "my_base.h"                   // HA_WHOLE_KEY
-#include "field.h"                     // Field
-#include "key.h"                       // KEY
-#include "table.h"                     // TABLE
+#include <new>
+#include <sstream>
 
 #include "dd/impl/raw/raw_key.h"       // dd::Raw_key
 #include "dd/impl/raw/raw_table.h"     // dd::Raw_table
-
-#include <sstream>
+#include "dd/string_type.h"            // dd::String_type
+#include "field.h"                     // Field
+#include "key.h"                       // KEY
+#include "m_ctype.h"
+#include "my_base.h"                   // HA_WHOLE_KEY
+#include "my_dbug.h"
+#include "table.h"                     // TABLE
 
 namespace dd {
 
@@ -61,9 +64,9 @@ Raw_key *Primary_id_key::create_access_key(Raw_table *db_table) const
 ///////////////////////////////////////////////////////////////////////////
 
 /* purecov: begin inspected */
-std::string Primary_id_key::str() const
+String_type Primary_id_key::str() const
 {
-  std::stringstream ss;
+  dd::Stringstream_type ss;
   ss << m_object_id;
   return ss.str();
 }
@@ -80,6 +83,7 @@ Raw_key *Parent_id_range_key::create_access_key(Raw_table *db_table) const
   t->use_all_columns();
 
   t->field[m_id_column_no]->store(m_object_id, true);
+  t->field[m_id_column_no]->set_notnull();
 
   KEY *key_info= t->key_info + m_id_index_no;
 
@@ -95,10 +99,10 @@ Raw_key *Parent_id_range_key::create_access_key(Raw_table *db_table) const
 ///////////////////////////////////////////////////////////////////////////
 
 /* purecov: begin inspected */
-std::string Parent_id_range_key::str() const
+String_type Parent_id_range_key::str() const
 {
   // XXX: not needed
-  std::stringstream ss;
+  dd::Stringstream_type ss;
   ss << m_id_column_no << ":" << m_object_id;
   return ss.str();
 }
@@ -158,9 +162,9 @@ Raw_key *Item_name_key::create_access_key(Raw_table *db_table) const
 
 ///////////////////////////////////////////////////////////////////////////
 
-std::string Item_name_key::str() const
+String_type Item_name_key::str() const
 {
-  std::stringstream ss;
+  dd::Stringstream_type ss;
   ss << m_container_id << ":" << m_object_name;
   return ss.str();
 }
@@ -202,9 +206,9 @@ Raw_key *Se_private_id_key::create_access_key(Raw_table *db_table) const
 
 ///////////////////////////////////////////////////////////////////////////
 
-std::string Se_private_id_key::str() const
+String_type Se_private_id_key::str() const
 {
-  std::stringstream ss;
+  dd::Stringstream_type ss;
   ss << *m_engine << ":" << m_private_id;
   return ss.str();
 }
@@ -236,9 +240,9 @@ Raw_key *Composite_pk::create_access_key(Raw_table *db_table) const
 ///////////////////////////////////////////////////////////////////////////
 
 /* purecov: begin inspected */
-std::string Composite_pk::str() const
+String_type Composite_pk::str() const
 {
-  std::stringstream ss;
+  dd::Stringstream_type ss;
   ss << m_first_id << ":" << m_second_id;
   return ss.str();
 }
@@ -276,9 +280,9 @@ Raw_key *Routine_name_key::create_access_key(Raw_table *db_table) const
 ///////////////////////////////////////////////////////////////////////////
 
 /* purecov: begin inspected */
-std::string Routine_name_key::str() const
+String_type Routine_name_key::str() const
 {
-  std::stringstream ss;
+  dd::Stringstream_type ss;
   ss << m_container_id << ":" << m_type << ":" << m_object_name;
   return ss.str();
 }
@@ -329,9 +333,9 @@ Raw_key *Composite_char_key::create_access_key(Raw_table *db_table) const
 
 ///////////////////////////////////////////////////////////////////////////
 
-std::string Composite_char_key::str() const
+String_type Composite_char_key::str() const
 {
-  std::stringstream ss;
+  dd::Stringstream_type ss;
   ss << m_first_name << ":" << m_second_name;
   return ss.str();
 }
@@ -375,9 +379,9 @@ Raw_key *Composite_4char_key::create_access_key(Raw_table *db_table) const
 
 ///////////////////////////////////////////////////////////////////////////
 
-std::string Composite_4char_key::str() const
+String_type Composite_4char_key::str() const
 {
-  std::stringstream ss;
+  dd::Stringstream_type ss;
   ss << m_first_name << ":" << m_second_name << ":" <<
         m_third_name << ":" << m_fourth_name;
   return ss.str();
@@ -421,9 +425,9 @@ Composite_obj_id_3char_key::create_access_key(Raw_table *db_table) const
 
 ///////////////////////////////////////////////////////////////////////////
 
-std::string Composite_obj_id_3char_key::str() const
+String_type Composite_obj_id_3char_key::str() const
 {
-  std::stringstream ss;
+  dd::Stringstream_type ss;
   ss << m_id << m_first_name << ":"
      << m_second_name << ":" << m_third_name;
   return ss.str();
@@ -459,9 +463,9 @@ Raw_key *Index_stat_range_key::create_access_key(Raw_table *db_table) const
 
 ///////////////////////////////////////////////////////////////////////////
 
-std::string Index_stat_range_key::str() const
+String_type Index_stat_range_key::str() const
 {
-  std::stringstream ss;
+  dd::Stringstream_type ss;
   ss << m_schema_name_column_no << ":" << m_schema_name << ":"
      << m_table_name_column_no << ":" << m_table_name;
   return ss.str();
@@ -500,9 +504,9 @@ Raw_key *View_usage_range_key::create_access_key(Raw_table *db_table) const
 
 ///////////////////////////////////////////////////////////////////////////
 
-std::string View_usage_range_key::str() const
+String_type View_usage_range_key::str() const
 {
-  std::stringstream ss;
+  dd::Stringstream_type ss;
   ss << m_catalog_name_column_no << ":" << m_catalog_name
      << m_schema_name_column_no << ":" << m_schema_name << ":"
      << m_table_name_column_no << ":" << m_table_name;

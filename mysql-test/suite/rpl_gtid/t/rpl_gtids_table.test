@@ -9,9 +9,18 @@
 #
 
 --source include/not_group_replication_plugin.inc
---source include/have_gtid.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
+
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs83=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema test default character set latin1;
+--enable_query_log
+########################################
+
 --source include/master-slave.inc
 
 SET @debug_save= @@GLOBAL.DEBUG;
@@ -73,8 +82,10 @@ if (`SELECT @@BINLOG_FORMAT = 'ROW'`)
   INSERT INTO t3 VALUES(1);
   --enable_query_log
 }
+# The below statement is no-op as t3 is non-temporary.
 --error ER_BAD_TABLE_ERROR
 DROP TEMPORARY TABLE tmp1, t3;
+DROP TEMPORARY TABLE tmp1;
 DROP TABLE t3;
 --let $assert_text= committed gtids MASTER_UUID:1-8
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-8"
@@ -224,3 +235,10 @@ FLUSH LOGS;
 DROP TABLE t1, t2;
 
 --source include/rpl_end.inc
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs83;
+--enable_query_log
+########################################

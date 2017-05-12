@@ -15,16 +15,24 @@
 
 #include "dd/impl/dictionary_impl.h"
 
-#include "auth_common.h"                   // acl_init
-#include "bootstrap.h"                     // bootstrap::bootstrap_functor
-#include "opt_costconstantcache.h"         // init_optimizer_cost_module
-#include "sql_class.h"                     // THD
+#include <string.h>
+#include <memory>
 
-#include "dd/dd.h"                         // enum_dd_init_type
+#include "auth_common.h"                   // acl_init
+#include "binlog_event.h"
+#include "bootstrap.h"                     // bootstrap::bootstrap_functor
 #include "dd/cache/dictionary_client.h"    // dd::Dictionary_client
+#include "dd/dd.h"                         // enum_dd_init_type
 #include "dd/impl/bootstrapper.h"          // dd::Bootstrapper
 #include "dd/impl/system_registry.h"       // dd::System_tables
 #include "dd/impl/tables/version.h"        // get_actual_dd_version()
+#include "m_ctype.h"
+#include "mdl.h"
+#include "my_dbug.h"
+#include "mysql/thread_type.h"
+#include "opt_costconstantcache.h"         // init_optimizer_cost_module
+#include "sql_class.h"                     // THD
+#include "system_variables.h"
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -34,6 +42,8 @@ namespace dd {
 // Implementation details.
 ///////////////////////////////////////////////////////////////////////////
 
+class Object_table;
+
 Dictionary_impl *Dictionary_impl::s_instance= NULL;
 
 Dictionary_impl *Dictionary_impl::instance()
@@ -42,7 +52,7 @@ Dictionary_impl *Dictionary_impl::instance()
 }
 
 Object_id Dictionary_impl::DEFAULT_CATALOG_ID= 1;
-const std::string Dictionary_impl::DEFAULT_CATALOG_NAME("def");
+const String_type Dictionary_impl::DEFAULT_CATALOG_NAME("def");
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -61,9 +71,7 @@ bool Dictionary_impl::init(enum_dd_init_type dd_init)
     Dictionary_impl::s_instance= d.release();
   }
 
-#ifndef EMBEDDED_LIBRARY
   acl_init(true);
-#endif
 
   /*
     Initialize the cost model, but delete it after the dd is initialized.
@@ -112,9 +120,7 @@ bool Dictionary_impl::init(enum_dd_init_type dd_init)
   delete_optimizer_cost_module();
 
   // TODO: See above.
-#ifndef EMBEDDED_LIBRARY
   acl_free(true);
-#endif
   return result;
 }
 
@@ -165,13 +171,26 @@ uint Dictionary_impl::get_actual_dd_version(THD *thd, bool *not_used)
 ///////////////////////////////////////////////////////////////////////////
 
 const Object_table *Dictionary_impl::get_dd_table(
-  const std::string &schema_name,
-  const std::string &table_name) const
+  const String_type &schema_name,
+  const String_type &table_name) const
 {
   if (!is_dd_schema_name(schema_name))
     return NULL;
 
   return System_tables::instance()->find_table(schema_name, table_name);
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+int Dictionary_impl::table_type_error_code(
+  const String_type &schema_name,
+  const String_type &table_name) const
+{
+  const System_tables::Types *type= System_tables::instance()->
+                                      find_type(schema_name, table_name);
+  if (type != nullptr)
+    return System_tables::type_name_error_code(*type);
+  return ER_NO_SYSTEM_TABLE_ACCESS_FOR_TABLE;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -213,14 +232,14 @@ bool Dictionary_impl::is_dd_table_access_allowed(
     return true;
 
   // Now we need to get the table type.
-  const std::string schema_str(schema_name);
-  const std::string table_str(table_name);
+  const String_type schema_str(schema_name);
+  const String_type table_str(table_name);
   const System_tables::Types *table_type= System_tables::instance()->
                                find_type(schema_str, table_str);
 
   // Access allowed for external DD tables and for DML on DDSE tables.
   return (table_type == nullptr ||
-          (*table_type == System_tables::Types::DDSE && !is_ddl_statement));
+          (*table_type == System_tables::Types::SUPPORT && !is_ddl_statement));
 }
 
 ///////////////////////////////////////////////////////////////////////////

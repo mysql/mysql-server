@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -24,8 +24,10 @@ Compressed page interface
 Created June 2005 by Marko Makela
 *******************************************************/
 
-#include "page0size.h"
 #include "page0zip.h"
+
+#include "my_inttypes.h"
+#include "page0size.h"
 
 /** A BLOB field reference full of zero, for use in assertions and tests.
 Initially, BLOB field references are set to zero, in
@@ -37,17 +39,17 @@ const byte field_ref_zero[FIELD_REF_SIZE] = {
         0, 0, 0, 0, 0,
 };
 
-#include "page0page.h"
-#include "mtr0log.h"
-#include "dict0dict.h"
 #include "btr0cur.h"
-#include "page0types.h"
+#include "dict0dict.h"
 #include "log0recv.h"
+#include "mtr0log.h"
+#include "page0page.h"
+#include "page0types.h"
 #include "zlib.h"
 #ifndef UNIV_HOTBACKUP
+# include "btr0sea.h"
 # include "buf0buf.h"
 # include "buf0lru.h"
-# include "btr0sea.h"
 # include "dict0boot.h"
 # include "lock0lock.h"
 # include "srv0mon.h"
@@ -55,12 +57,13 @@ const byte field_ref_zero[FIELD_REF_SIZE] = {
 # include "ut0crc32.h"
 #else /* !UNIV_HOTBACKUP */
 # include "buf0checksum.h"
+
 # define lock_move_reorganize_page(block, temp_block)	((void) 0)
 # define buf_LRU_stat_inc_unzip()			((void) 0)
 #endif /* !UNIV_HOTBACKUP */
 
-#include <map>
 #include <algorithm>
+#include <map>
 
 #ifndef UNIV_HOTBACKUP
 /** Statistics on compression, indexed by page_zip_des_t::ssize - 1 */
@@ -74,7 +77,7 @@ uint	page_zip_level = DEFAULT_COMPRESSION_LEVEL;
 
 /* Whether or not to log compressed page images to avoid possible
 compression algorithm changes in zlib. */
-my_bool	page_zip_log_pages = true;
+bool	page_zip_log_pages = true;
 
 /* Please refer to ../include/page0zip.ic for a description of the
 compressed page format. */
@@ -1065,7 +1068,7 @@ page_zip_compress(
 	/* A local copy of srv_cmp_per_index_enabled to avoid reading that
 	variable multiple times in this function since it can be changed at
 	anytime. */
-	my_bool			cmp_per_index_enabled;
+	bool			cmp_per_index_enabled;
 	cmp_per_index_enabled	= srv_cmp_per_index_enabled;
 
 	ut_a(page_is_comp(page));

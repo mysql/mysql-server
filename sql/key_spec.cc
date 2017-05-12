@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,21 +15,28 @@
 
 #include "key_spec.h"
 
-#include "derror.h"      // ER_THD
-#include "field.h"       // Create_field
-#include "mysqld.h"      // system_charset_info
-#include "sql_class.h"   // THD
+#include <stddef.h>
+#include <algorithm>
 
 #include "dd/dd.h"         // dd::get_dictionary
 #include "dd/dictionary.h" // dd::Dictionary::check_dd...
-
-#include <algorithm>
+#include "derror.h"      // ER_THD
+#include "field.h"       // Create_field
+#include "m_ctype.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
+#include "mysqld_error.h"
+#include "sql_class.h"   // THD
+#include "sql_plugin.h"
+#include "sql_security_ctx.h"
 
 KEY_CREATE_INFO default_key_create_info;
 
 bool Key_part_spec::operator==(const Key_part_spec& other) const
 {
   return length == other.length &&
+         is_ascending == other.is_ascending &&
          !my_strcasecmp(system_charset_info, field_name.str,
                         other.field_name.str);
 }
@@ -82,7 +89,8 @@ bool foreign_key_prefix(const Key_spec *a, const Key_spec *b)
 }
 
 
-bool Foreign_key_spec::validate(THD *thd, List<Create_field> &table_fields) const
+bool Foreign_key_spec::validate(THD *thd, const char *table_name,
+                                List<Create_field> &table_fields) const
 {
   DBUG_ENTER("Foreign_key_spec::validate");
 
@@ -101,7 +109,11 @@ bool Foreign_key_spec::validate(THD *thd, List<Create_field> &table_fields) cons
                                thd->is_dd_system_thread(),
                                true, db_str, db_length, ref_table.str))
   {
-    my_error(ER_NO_SYSTEM_TABLE_ACCESS, MYF(0), db_str, ref_table.str);
+    my_error(ER_NO_SYSTEM_TABLE_ACCESS, MYF(0),
+             ER_THD(thd,
+                    dictionary->table_type_error_code(db_str,
+                                                      ref_table.str)),
+             db_str, ref_table.str);
     DBUG_RETURN(true);
   }
 
@@ -116,6 +128,13 @@ bool Foreign_key_spec::validate(THD *thd, List<Create_field> &table_fields) cons
   }
   for (const Key_part_spec *column : columns)
   {
+    // Index prefixes on foreign keys columns are not supported.
+    if (column->length > 0)
+    {
+      my_error(ER_CANNOT_ADD_FOREIGN, MYF(0), table_name);
+      DBUG_RETURN(true);
+    }
+
     it.rewind();
     while ((sql_field= it++) &&
            my_strcasecmp(system_charset_info,

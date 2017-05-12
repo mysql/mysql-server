@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,17 +14,21 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
-#include "sql_show_status.h"
+#include "sql/sql_show_status.h"
 
-#include "m_string.h"                  // C_STRING_WITH_LEN
-#include "mysql/mysql_lex_string.h"    // LEX_STRING
-#include "thr_lock.h"                  // TL_READ
+#include <stddef.h>
+
 #include "item_cmpfunc.h"              // Item_func_like
+#include "lex_string.h"
+#include "m_string.h"                  // C_STRING_WITH_LEN
+#include "mem_root_array.h"
+#include "my_sqlcommand.h"
+#include "mysqld.h"
 #include "parse_tree_items.h"          // PTI_simple_ident_ident
 #include "parse_tree_nodes.h"          // PT_select_item_list
 #include "sql_class.h"                 // THD
-#include "sql_cmd.h"                   // enum_sql_command
 #include "sql_lex.h"                   // Query_options
+#include "sql_string.h"
 
 
 /**
@@ -195,8 +199,12 @@ build_query(const POS &pos,
   LEX_STRING derived_table_name;
   if (!thd->make_lex_string(&derived_table_name, table_name.str, table_name.length, false))
     return NULL;
+  Create_col_name_list column_names;
+  column_names.init(thd->mem_root);
   PT_derived_table *derived_table;
-  derived_table= new (thd->mem_root) PT_derived_table(sub_query, &derived_table_name);
+  derived_table= new (thd->mem_root) PT_derived_table(sub_query,
+                                                      &derived_table_name,
+                                                      &column_names);
   if (derived_table == NULL)
    return NULL;
 

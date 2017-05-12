@@ -2,6 +2,8 @@
 # events, stored routines and triggers from 5.7 to 8.0.
 
 --source include/not_embedded.inc
+--source include/not_valgrind.inc
+#Zipped data directory was created with default 16K page size
 
 call mtr.add_suppression("Plugin * after shutdown");
 call mtr.add_suppression(".* Native table .* has the wrong structure");
@@ -17,14 +19,29 @@ call mtr.add_suppression("ACL DDLs will not work unless mysql_upgrade is execute
 call mtr.add_suppression("table is missing or has an incorrect definition");
 call mtr.add_suppression("is expected to be transactional");
 call mtr.add_suppression("Upgrading redo log");
-
+call mtr.add_suppression("information_schema");
+call mtr.add_suppression("doesn't exist");
+call mtr.add_suppression("references invalid");
+call mtr.add_suppression("Creating routine without parsing routine body");
+call mtr.add_suppression(".*The privilege system failed to initialize correctly.*");
+call mtr.add_suppression("Resolving dependency for the view");
+call mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
+call mtr.add_suppression("Unknown system variable 'show_compatibility_56'");
+call mtr.add_suppression("Column count of mysql.* is wrong");
+call mtr.add_suppression("Column count of performance_schema.events_statements_summary_by_digest is wrong.*");
+call mtr.add_suppression(".*Missing system table mysql.global_grants.*");
+# InnoDB reports "Lock wait timeout" warnings when it tries to drop persistent
+# statistics while persistent statistics table is altered during upgrade.
+# This issue doesn't seem to cause any further trouble (as there is no persistent
+# stats for persistent stats table anyway), so we ignore these warnings here.
+call mtr.add_suppression("InnoDB: Unable to delete statistics for table mysql.");
+# new columns were added to these tables
+call mtr.add_suppression("Column count of performance_schema.replication_applier_status_by_worker is wrong. Expected 16, found 8.");
+call mtr.add_suppression("Column count of performance_schema.replication_applier_status_by_coordinator is wrong. Expected 15, found 6.");
+call mtr.add_suppression("Column count of performance_schema.replication_connection_status is wrong. Expected 20, found 11.");
 # Set different paths for --datadir
 let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/data57;
 
---echo # Stop DB server which was created by MTR default
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server
---source include/wait_until_disconnected.inc
 
 --echo # Copy the remote tablespace & DB zip files from suite location to working location.
 --copy_file $MYSQLTEST_VARDIR/std_data/data57.zip $MYSQL_TMP_DIR/data57.zip
@@ -35,6 +52,108 @@ let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/data57;
 --echo # Unzip the zip file.
 --exec unzip -qo $MYSQL_TMP_DIR/data57.zip -d $MYSQL_TMP_DIR
 
+# Create a table as same as mysql.proc to repeat Bug#24805140
+# We need to add an entry in mysql.proc table of the zipped
+# data data directory before upgrade starts.
+# Without fix, data population for dictionary tables fail and
+# upgrade aborts.
+
+SET sql_mode='';
+# CREATE statement is same as mysql.proc in mysql-5.7.
+CREATE TABLE test.proc (db char(64) collate utf8_bin DEFAULT '' NOT NULL,
+                        name char(64) DEFAULT '' NOT NULL,
+                        type enum('FUNCTION','PROCEDURE') NOT NULL,
+                        specific_name char(64) DEFAULT '' NOT NULL,
+                        language enum('SQL') DEFAULT 'SQL' NOT NULL,
+                        sql_data_access enum('CONTAINS_SQL',
+                                             'NO_SQL',
+                                             'READS_SQL_DATA',
+                                             'MODIFIES_SQL_DATA')
+                                        DEFAULT 'CONTAINS_SQL' NOT NULL,
+                        is_deterministic enum('YES','NO') DEFAULT 'NO' NOT NULL,
+                        security_type enum('INVOKER','DEFINER')
+                                      DEFAULT 'DEFINER' NOT NULL,
+                        param_list blob NOT NULL,
+                        returns longblob DEFAULT '' NOT NULL,
+                        body longblob NOT NULL,
+                        definer char(93) collate utf8_bin DEFAULT '' NOT NULL,
+                        created timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+                                          ON UPDATE CURRENT_TIMESTAMP,
+                        modified timestamp NOT NULL
+                                 DEFAULT '0000-00-00 00:00:00',
+                        sql_mode set('REAL_AS_FLOAT', 'PIPES_AS_CONCAT',
+                                     'ANSI_QUOTES', 'IGNORE_SPACE', 'NOT_USED',
+                                     'ONLY_FULL_GROUP_BY',
+                                     'NO_UNSIGNED_SUBTRACTION',
+                                     'NO_DIR_IN_CREATE', 'POSTGRESQL', 'ORACLE',
+                                     'MSSQL', 'DB2', 'MAXDB', 'NO_KEY_OPTIONS',
+                                     'NO_TABLE_OPTIONS', 'NO_FIELD_OPTIONS',
+                                     'MYSQL323', 'MYSQL40', 'ANSI',
+                                     'NO_AUTO_VALUE_ON_ZERO',
+                                     'NO_BACKSLASH_ESCAPES',
+                                     'STRICT_TRANS_TABLES', 'STRICT_ALL_TABLES',
+                                     'NO_ZERO_IN_DATE', 'NO_ZERO_DATE',
+                                     'INVALID_DATES',
+                                     'ERROR_FOR_DIVISION_BY_ZERO', 'TRADITIONAL',
+                                     'NO_AUTO_CREATE_USER', 'HIGH_NOT_PRECEDENCE',
+                                     'NO_ENGINE_SUBSTITUTION',
+                                     'PAD_CHAR_TO_FULL_LENGTH') DEFAULT '' NOT NULL,
+                        comment text collate utf8_bin NOT NULL,
+                        character_set_client char(32) collate utf8_bin,
+                        collation_connection char(32) collate utf8_bin,
+                        db_collation char(32) collate utf8_bin, body_utf8 longblob,
+                        PRIMARY KEY (db,name,type)) engine=MyISAM character set utf8
+                        comment='Stored Procedures';
+
+--let $MYSQLD_DATADIR=`SELECT @@datadir`
+# Remove data and index files manually.
+--remove_file $MYSQLD_DATADIR/test/proc.MYD
+--remove_file $MYSQLD_DATADIR/test/proc.MYI
+
+# Copy data and index files from zipped data directory.
+--copy_file $MYSQL_TMP_DIR/data57/mysql/proc.MYD $MYSQLD_DATADIR/test/proc.MYD
+--copy_file $MYSQL_TMP_DIR/data57/mysql/proc.MYI $MYSQLD_DATADIR/test/proc.MYI
+
+# Insert data
+INSERT INTO test.proc VALUES ('sp','bug24805140','PROCEDURE','bug24805140','SQL',
+                              'CONTAINS_SQL','NO','DEFINER','out a int','',
+                              'begin select requesting_trx_id from '
+                              'information_schema.INNODB_LOCK_WAITS limit 1 into a; end',
+                              'root@localhost','2016-10-05 21:44:21',
+                              '2016-10-05 21:44:21',
+                              'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,'
+                              'NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,'
+                              'NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION',
+                              '','utf8','utf8_general_ci','latin1_swedish_ci',
+                              'begin select requesting_trx_id from '
+                              'information_schema.INNODB_LOCK_WAITS limit 1 into a; end'),
+                              ('sp','proc2','PROCEDURE','proc2','SQL',
+                              'CONTAINS_SQL','NO','DEFINER','out b int','',
+                              'begin select   @@show_compatibility_56 into b; end',
+                              'root@localhost','2016-10-05 21:55:05',
+                              '2016-10-05 21:55:05','ONLY_FULL_GROUP_BY,'
+                              'STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,'
+                              'NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,'
+                              'NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION','',
+                              'utf8','utf8_general_ci','latin1_swedish_ci',
+                              'begin select   @@show_compatibility_56 into b; end');
+
+# Remove  the original zipped data and index files.
+--remove_file $MYSQL_TMP_DIR/data57/mysql/proc.MYD
+--remove_file $MYSQL_TMP_DIR/data57/mysql/proc.MYI
+
+# Copy data and index files to zipped data directory.
+--copy_file $MYSQLD_DATADIR/test/proc.MYD $MYSQL_TMP_DIR/data57/mysql/proc.MYD
+--copy_file $MYSQLD_DATADIR/test/proc.MYI $MYSQL_TMP_DIR/data57/mysql/proc.MYI
+
+# Delete the table for cleanup
+DROP TABLE test.proc;
+
+--echo # Stop DB server which was created by MTR default
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
 # These files are added to test error scenario, delete from for upgrade testing.
 --remove_file $MYSQL_TMP_DIR/data57/test/55_temporal.frm
 --remove_file $MYSQL_TMP_DIR/data57/test/55_temporal.MYD
@@ -42,6 +161,20 @@ let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/data57;
 # Remove myisam partitioned tables. There are used for negative testing.
 --remove_files_wildcard $MYSQL_TMP_DIR/data57/partitions *
 --rmdir $MYSQL_TMP_DIR/data57/partitions
+
+#Copy table and view files as test case for Bug#24580586
+--copy_file $MYSQLTEST_VARDIR/std_data/initial_t@1o.frm $MYSQL_TMP_DIR/data57/test/initial_t@1o.frm
+--copy_file $MYSQLTEST_VARDIR/std_data/initial_v@1o.frm $MYSQL_TMP_DIR/data57/test/initial_v@1o.frm
+
+#Test case for Bug #25139901 : DB COLLATION CHANGED TO SERVER DEFAULT AFTER UPGRADE
+# Create a folder and db.opt file. Write a character set in db.opt file which is not default.
+--mkdir $MYSQL_TMP_DIR/data57/db_charset_koi8r/
+let DB_OPT_FILE= $MYSQL_TMP_DIR/data57/db_charset_koi8r/db.opt;
+--echo # 1.1 Create db.opt file.
+write_file $DB_OPT_FILE;
+default-character-set=koi8r
+default-collation=koi8r_bin
+EOF
 
 --echo #Files in 'test' dir
 --list_files $MYSQL_TMP_DIR/data57/
@@ -51,8 +184,8 @@ let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/data57;
 --exec echo $MYSQL_TMP_DIR/bootstrap.log
 
 
---echo # Start the DB server.
---exec echo "restart: --show_compatibility_56=1 --innodb_undo_tablespaces=0 --datadir=$MYSQLD_DATADIR1" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--echo # Start the DB server. Server will create and populate Dictionary tables.
+--exec echo "restart: --loose-skip-log-bin --innodb_undo_tablespaces=0 --datadir=$MYSQLD_DATADIR1" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 
@@ -117,11 +250,25 @@ SHOW CREATE VIEW aview.view_user2;
 #view with different character_set and connection collation
 SHOW CREATE VIEW aview.view_character_set;
 
+# Data check after upgrade for Bug#25139901
+SHOW CREATE DATABASE db_charset_koi8r;
+
+# Test case for Bug#24580586
+SET names utf8;
+DESC `test`.`initial_vü`;
+--replace_column 15 CREATE_TIME
+SELECT * FROM information_schema.tables WHERE table_schema = 'test' and table_type='VIEW';
+SET names default;
 
 #Check for SP/SF
 SHOW CREATE PROCEDURE sp.simpleproc;
 SHOW CREATE PROCEDURE sp.proc_123;
 SHOW CREATE PROCEDURE sp.proc_456;
+# Without fix, server start on 5.7 data directory above will fail.
+SHOW CREATE PROCEDURE sp.bug24805140;
+--error ER_SP_LOAD_FAILED
+call sp.bug24805140();
+SHOW WARNINGS;
 SHOW CREATE FUNCTION sp.hello;
 #Check for events
 SHOW CREATE EVENT events.e_totals;
@@ -165,6 +312,18 @@ SHOW CREATE TRIGGER triggers.t1_bi;
 #I_S query to check Foreign_keys
 SELECT * FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS WHERE
  CONSTRAINT_SCHEMA='foreign_keys' ORDER BY CONSTRAINT_SCHEMA,CONSTRAINT_NAME;
+
+#Check that views with column names are correct
+
+SHOW CREATE VIEW view_with_column_names.v1;
+SELECT * FROM view_with_column_names.v1;
+SHOW CREATE VIEW view_with_column_names.v2;
+SELECT * FROM view_with_column_names.v2;
+SHOW CREATE VIEW view_with_column_names.v3;
+SELECT * FROM view_with_column_names.v3;
+SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE
+TABLE_SCHEMA='view_with_column_names';
+
 --echo # Stop the server
 --source include/shutdown_mysqld.inc
 

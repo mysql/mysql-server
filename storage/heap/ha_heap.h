@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,20 +17,22 @@
 
 /* class for the the heap handler */
 
-#include "my_global.h"
-#include "heap.h"
+#include <sys/types.h>
+
 #include "handler.h"
+#include "heap.h"
+#include "my_inttypes.h"
 #include "table.h"
 
 class ha_heap: public handler
 {
   HP_INFO *file;
   HP_SHARE *internal_share;
-  Key_map btree_keys;
   /* number of records changed since last statistics update */
   uint    records_changed;
   uint    key_stat_version;
-  my_bool internal_table;
+  /// True if only one ha_heap is to exist for the table.
+  bool single_instance;
 public:
   ha_heap(handlerton *hton, TABLE_SHARE *table);
   ~ha_heap() {}
@@ -41,7 +43,7 @@ public:
   virtual bool is_index_algorithm_supported(enum ha_key_alg key_alg) const
   { return key_alg == HA_KEY_ALG_BTREE || key_alg == HA_KEY_ALG_HASH; }
   /* Rows also use a fixed-size format */
-  enum row_type get_real_row_type(const HA_CREATE_INFO *create_info) const
+  enum row_type get_real_row_type(const HA_CREATE_INFO*) const
   { return ROW_TYPE_FIXED; }
   ulonglong table_flags() const
   {
@@ -50,21 +52,21 @@ public:
             HA_REC_NOT_IN_SEQ | HA_NO_TRANSACTIONS |
             HA_HAS_RECORDS | HA_STATS_RECORDS_IS_EXACT);
   }
-  ulong index_flags(uint inx, uint part, bool all_parts) const
+  ulong index_flags(uint inx, uint, bool) const
   {
     return ((table_share->key_info[inx].algorithm == HA_KEY_ALG_BTREE) ?
             HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER | HA_READ_RANGE :
             HA_ONLY_WHOLE_INDEX | HA_KEY_SCAN_NOT_ROR);
   }
-  const Key_map *keys_to_use_for_scanning() { return &btree_keys; }
   uint max_supported_keys()          const { return MAX_KEY; }
   uint max_supported_key_part_length() const { return MAX_KEY_LENGTH; }
   double scan_time()
   { return (double) (stats.records+stats.deleted) / 20.0+10; }
-  double read_time(uint index, uint ranges, ha_rows rows)
+  double read_time(uint, uint, ha_rows rows)
   { return (double) rows /  20.0+1; }
 
-  int open(const char *name, int mode, uint test_if_locked);
+  int open(const char *name, int mode, uint test_if_locked,
+           const dd::Table *table_def);
   int close(void);
   void set_keys_for_scanning(void);
   int write_row(uchar * buf);
@@ -93,16 +95,17 @@ public:
   int reset();
   int external_lock(THD *thd, int lock_type);
   int delete_all_rows(void);
-  int truncate();
-  int reset_auto_increment(ulonglong value);
   int disable_indexes(uint mode);
   int enable_indexes(uint mode);
   int indexes_are_disabled(void);
   ha_rows records_in_range(uint inx, key_range *min_key, key_range *max_key);
-  int delete_table(const char *from);
+  int delete_table(const char *from, const dd::Table *table_def);
   void drop_table(const char *name);
-  int rename_table(const char * from, const char * to);
-  int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info);
+  int rename_table(const char * from, const char * to,
+                   const dd::Table *from_table_def,
+                   dd::Table *to_table_def);
+  int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info,
+             dd::Table *table_def);
   void update_create_info(HA_CREATE_INFO *create_info);
 
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,

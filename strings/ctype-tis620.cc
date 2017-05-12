@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -47,10 +47,14 @@
  * .configure. strxfrm_multiply_tis620=4
  */
 
-#include <my_global.h>
-#include <my_sys.h>
-#include "m_string.h"
+#include <string.h>
+#include <sys/types.h>
+
 #include "m_ctype.h"
+#include "m_string.h"
+#include "my_compiler.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
 #include "t_ctype.h"
 
 
@@ -528,7 +532,7 @@ static
 int my_strnncoll_tis620(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                         const uchar *s1, size_t len1, 
                         const uchar *s2, size_t len2,
-                        my_bool s2_is_prefix)
+                        bool s2_is_prefix)
 {
   uchar	buf[80] ;
   uchar *tc1, *tc2;
@@ -648,8 +652,8 @@ my_strnxfrm_tis620(const CHARSET_INFO *cs,
   len= thai2sortable(dst, len);
   set_if_smaller(dstlen, nweights);
   set_if_smaller(len, dstlen);
-  len= my_strxfrm_pad_desc_and_reverse(cs, dst, dst + len, dst + dstlen,
-                                       (uint)(dstlen - len), flags, 0);
+  len= my_strxfrm_pad(cs, dst, dst + len, dst + dstlen,
+                      (uint)(dstlen - len), flags);
   if ((flags & MY_STRXFRM_PAD_TO_MAXLEN) && len < dstlen0)
   {
     size_t fill_length= dstlen0 - len;
@@ -943,9 +947,9 @@ CHARSET_INFO my_charset_tis620_thai_ci=
     ' ',                /* pad char      */
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
-    1,                  /* levels_for_order   */
     &my_charset_handler,
-    &my_collation_ci_handler
+    &my_collation_ci_handler,
+    PAD_SPACE
 };
 
 CHARSET_INFO my_charset_tis620_bin=
@@ -978,7 +982,7 @@ CHARSET_INFO my_charset_tis620_bin=
     ' ',                /* pad char      */
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
-    1,                  /* levels_for_order   */
     &my_charset_handler,
-    &my_collation_8bit_bin_handler
+    &my_collation_8bit_bin_handler,
+    PAD_SPACE
 };

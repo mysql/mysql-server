@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,13 +16,14 @@
 #ifndef DD_TABLES__VIEW_TABLE_USAGE_INCLUDED
 #define DD_TABLES__VIEW_TABLE_USAGE_INCLUDED
 
-#include "my_global.h"
+#include <string>
 
-#include "dd/object_id.h"                    // dd::Object_id
 #include "dd/impl/types/object_table_impl.h" // dd::Object_table_impl
+#include "dd/object_id.h"                    // dd::Object_id
 
 namespace dd {
   class Object_key;
+
 namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
@@ -32,9 +33,9 @@ class View_table_usage : public Object_table_impl
 public:
   static const View_table_usage &instance();
 
-  static const std::string &table_name()
+  static const String_type &table_name()
   {
-    static std::string s_table_name("view_table_usage");
+    static String_type s_table_name("view_table_usage");
     return s_table_name;
   }
 
@@ -50,20 +51,20 @@ public:
 public:
   View_table_usage();
 
-  virtual const std::string &name() const
+  virtual const String_type &name() const
   { return View_table_usage::table_name(); }
 
 public:
   static Object_key *create_key_by_view_id(Object_id view_id);
 
   static Object_key *create_primary_key(Object_id view_id,
-                                        const std::string &table_catalog,
-                                        const std::string &table_schema,
-                                        const std::string &table_name);
+                                        const String_type &table_catalog,
+                                        const String_type &table_schema,
+                                        const String_type &table_name);
 
-  static Object_key *create_key_by_name(const std::string &table_catalog,
-                                        const std::string &table_schema,
-                                        const std::string &table_name);
+  static Object_key *create_key_by_name(const String_type &table_catalog,
+                                        const String_type &table_schema,
+                                        const String_type &table_name);
 };
 
 ///////////////////////////////////////////////////////////////////////////

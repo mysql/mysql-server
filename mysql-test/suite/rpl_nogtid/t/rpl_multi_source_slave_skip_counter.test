@@ -32,7 +32,6 @@
 #Skip on group replication runs
 --source include/not_group_replication_plugin.inc
 --source include/have_binlog_format_mixed.inc
---source include/not_gtid_enabled.inc
 
 --echo #
 --echo # set up masters server_1 and server_3 with server_2 being a slave.
@@ -73,7 +72,7 @@ STOP SLAVE SQL_THREAD;
 --source include/rpl_connection.inc
 --source include/stop_slave.inc
 
---let $rpl_channel_name= channel_1
+--let $rpl_channel_name= 'channel_1'
 --source include/start_slave.inc
 
 --let $skip_counter= query_get_value(SHOW SLAVE STATUS FOR CHANNEL 'channel_1', Skip_Counter, 1)

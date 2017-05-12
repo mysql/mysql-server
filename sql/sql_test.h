@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,17 +16,19 @@
 #ifndef SQL_TEST_INCLUDED
 #define SQL_TEST_INCLUDED
 
-#include "my_global.h"
-#include "thr_lock.h"           // TL_WRITE_ONLY
-#include "mem_root_array.h"     // Mem_root_array
+#include <sys/types.h>
+
 #include "enum_query_type.h"    // enum_query_type
+#include "mem_root_array.h"     // Mem_root_array
+#include "sql_select.h"
+#include "thr_lock.h"           // TL_WRITE_ONLY
 
 class Item;
 class JOIN;
-class Key_use;
-struct TABLE_LIST;
 class SELECT_LEX;
-typedef Mem_root_array<Key_use, true> Key_use_array;
+struct TABLE_LIST;
+
+typedef Mem_root_array<Key_use> Key_use_array;
 
 extern const char *lock_descriptions[TL_WRITE_ONLY + 1];
 
@@ -39,6 +41,7 @@ void dump_TABLE_LIST_graph(SELECT_LEX *select_lex, TABLE_LIST* tl);
 #endif
 void mysql_print_status();
 class Opt_trace_context;
+
 void print_keyuse_array(Opt_trace_context *trace,
                         const Key_use_array *keyuse_array);
 #endif /* SQL_TEST_INCLUDED */

@@ -130,6 +130,11 @@ struct lock_t {
 					LOCK_INSERT_INTENTION,
 					wait flag, ORed */
 
+	/** Performance schema thread that created the lock. */
+	ulonglong m_psi_internal_thread_id;
+	/** Performance schema event that created the lock. */
+	ulonglong m_psi_event_id;
+
 	/** Determine if the lock object is a record lock.
 	@return true if record lock, false otherwise. */
 	bool is_record_lock() const
@@ -954,7 +959,7 @@ static const ulint      lock_types = UT_ARR_SIZE(lock_compatibility_matrix);
 Gets the type of a lock.
 @return LOCK_TABLE or LOCK_REC */
 UNIV_INLINE
-ulint
+uint32_t
 lock_get_type_low(
 /*==============*/
 	const lock_t*	lock);	/*!< in: lock */

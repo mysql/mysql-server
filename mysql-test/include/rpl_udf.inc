@@ -8,8 +8,6 @@
 # 1) UDFs via loadable libraries, and 2) UDFs with a SQL body.      #
 #####################################################################
 
---source include/have_udf.inc
-
 #
 # To run this tests the "sql/udf_example.c" need to be compiled into
 # udf_example.so and LD_LIBRARY_PATH should be setup to point out where

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,10 +16,10 @@
 #ifndef DD__SPATIAL_REFERENCE_SYSTEM_INCLUDED
 #define DD__SPATIAL_REFERENCE_SYSTEM_INCLUDED
 
-#include "my_global.h"
-#include "gis/srs/srs.h"                  // srid_t
-
 #include "dd/types/dictionary_object.h"   // dd::Dictionary_object
+#include "gis/srid.h"
+#include "gis/srs/srs.h"                  // srid_t
+#include "my_inttypes.h"
 
 class THD;
 
@@ -59,9 +59,9 @@ public:
   virtual bool update_name_key(name_key_type *key) const
   { return update_name_key(key, name()); }
 
-  static bool update_name_key(name_key_type *key, const std::string &name);
+  static bool update_name_key(name_key_type *key, const String_type &name);
 
-  virtual bool update_aux_key(aux_key_type *key) const
+  virtual bool update_aux_key(aux_key_type*) const
   { return true; }
 
 public:
@@ -86,32 +86,49 @@ public:
   // organization
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &organization() const = 0;
-  virtual void set_organization(const std::string &organization) = 0;
+  virtual const String_type &organization() const = 0;
+  virtual void set_organization(const String_type &organization) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // organization_coordsys_id
   /////////////////////////////////////////////////////////////////////////
 
-  virtual srid_t organization_coordsys_id() const = 0;
+  virtual gis::srid_t organization_coordsys_id() const = 0;
   virtual void
-    set_organization_coordsys_id(srid_t organization_coordsys_id) = 0;
+    set_organization_coordsys_id(gis::srid_t organization_coordsys_id) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // definition
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &definition() const = 0;
-  virtual void set_definition(const std::string &definition) = 0;
+  virtual const String_type &definition() const = 0;
+  virtual void set_definition(const String_type &definition) = 0;
   virtual bool is_projected() const = 0;
   virtual bool is_cartesian() const = 0;
+  virtual bool is_geographic() const = 0;
+
+  /**
+    Check whether an SRS has latitude-longitude axis ordering.
+    
+    @retval true the axis order is latitude-longitude
+    @retval false the SRS is not geographic, or is geographic longitude-latitude
+  */
+  virtual bool is_lat_long() const = 0;
+
+  virtual double semi_major_axis() const = 0;
+  virtual double semi_minor_axis() const = 0;
+  virtual double angular_unit() const = 0;
+  virtual double prime_meridian() const = 0;
+  virtual bool positive_east() const = 0;
+  virtual bool positive_north() const = 0;
+  virtual double from_radians(double d) const = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // description
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &description() const = 0;
-  virtual void set_description(const std::string &description) = 0;
+  virtual const String_type &description() const = 0;
+  virtual void set_description(const String_type &description) = 0;
 
   /**
     Allocate a new object and invoke the copy constructor

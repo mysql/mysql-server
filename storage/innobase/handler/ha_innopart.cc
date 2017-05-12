@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -21,38 +21,45 @@ Code for native partitioning in InnoDB.
 
 Created Nov 22, 2013 Mattias Jonsson */
 
-#include "univ.i"
+#include "storage/innobase/handler/ha_innopart.h"
 
 /* Include necessary SQL headers */
 #include <debug_sync.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <limits.h>
 #include <log.h>
+#include <my_check_opt.h>
 #include <mysqld.h>
-#include <strfunc.h>
 #include <sql_acl.h>
 #include <sql_class.h>
 #include <sql_show.h>
 #include <sql_table.h>
-#include <my_check_opt.h>
+#include <strfunc.h>
+#include <new>
 
 /* Include necessary InnoDB headers */
 #include "btr0sea.h"
 #include "dict0dict.h"
 #include "dict0stats.h"
+#include "fsp0sysspace.h"
+#include "ha_innodb.h"
+#include "key.h"
+#include "lex_string.h"
 #include "lock0lock.h"
+#include "my_dbug.h"
+#include "my_io.h"
+#include "my_macros.h"
+#include "partition_info.h"
 #include "row0import.h"
+#include "row0ins.h"
 #include "row0merge.h"
 #include "row0mysql.h"
 #include "row0quiesce.h"
 #include "row0sel.h"
-#include "row0ins.h"
 #include "row0upd.h"
-#include "fsp0sysspace.h"
+#include "univ.i"
 #include "ut0ut.h"
-
-#include "ha_innodb.h"
-#include "ha_innopart.h"
-#include "partition_info.h"
-#include "key.h"
 
 /** TRUE if we don't have DDTableBuffer in the system tablespace,
 this should be due to we run the server against old data files.
@@ -1003,10 +1010,11 @@ done:
 
 /** Open a partitioned InnoDB table.
 @param[in]	name	table name
+@param[in]	table_def	dd::Table describing table to be opened
 @retval 1 if error
 @retval 0 if success */
 int
-ha_innopart::open(const char* name, int, uint)
+ha_innopart::open(const char* name, int, uint,const dd::Table* table_def)
 {
 	dict_table_t*	ib_table;
 	char		norm_name[FN_REFLEN];
@@ -1021,14 +1029,6 @@ ha_innopart::open(const char* name, int, uint)
 		m_part_info = table->part_info;
 	}
 	thd = ha_thd();
-
-	/* Under some cases MySQL seems to call this function while
-	holding search latch(es). This breaks the latching order as
-	we acquire dict_sys->mutex below and leads to a deadlock. */
-
-	if (thd != NULL) {
-		innobase_release_temporary_latches(ht, thd);
-	}
 
 	normalize_table_name(norm_name, name);
 
@@ -1381,6 +1381,8 @@ ha_innopart::clone(
 
 		new_handler->m_prebuilt->select_lock_type =
 			m_prebuilt->select_lock_type;
+		new_handler->m_prebuilt->select_mode =
+			m_prebuilt->select_mode;
 	}
 
 	DBUG_RETURN(new_handler);
@@ -1442,14 +1444,7 @@ void ha_innopart::clear_ins_upd_nodes()
 int
 ha_innopart::close()
 {
-	THD*	thd;
-
 	DBUG_ENTER("ha_innopart::close");
-
-	thd = ha_thd();
-	if (thd != NULL) {
-		innobase_release_temporary_latches(ht, thd);
-	}
 
 	ut_ad(m_pcur_parts == NULL);
 	ut_ad(m_clust_pcur_parts == NULL);
@@ -1914,7 +1909,7 @@ ha_innopart::print_error(
 	myf	errflag)
 {
 	DBUG_ENTER("ha_innopart::print_error");
-	if (print_partition_error(error, errflag)) {
+	if (print_partition_error(error)) {
 		ha_innobase::print_error(error, errflag);
 	}
 
@@ -2747,12 +2742,16 @@ create_table_info_t::set_remote_path_flags()
 partitions, columns and indexes etc.
 @param[in]	create_info	Additional create information, like
 create statement string.
+@param[in,out]	table_def	dd::Table object for table to be created.
+Can be adjusted by this call. Changes to the table definition will be
+persisted in the data-dictionary at statement commit time.
 @return	0 or error number. */
 int
 ha_innopart::create(
 	const char*	name,
 	TABLE*		form,
-	HA_CREATE_INFO*	create_info)
+	HA_CREATE_INFO*	create_info,
+	dd::Table*	table_def)
 {
 	int		error;
 	/** {database}/{tablename} */
@@ -2990,11 +2989,16 @@ cleanup:
 }
 
 /** Discards or imports an InnoDB tablespace.
-@param[in]	discard	True if discard, else import.
+@param[in]	discard		True if discard, else import.
+@param[in,out]	table_def	dd::Table describing table which
+tablespaces are to be imported or discarded. Can be adjusted by SE,
+the changes will be saved into the data-dictionary at statement
+commit time.
 @return	0 or error number. */
 int
 ha_innopart::discard_or_import_tablespace(
-	my_bool	discard)
+	bool		discard,
+	dd::Table*	table_def)
 {
 	int	error = 0;
 	uint	i;
@@ -3005,7 +3009,8 @@ ha_innopart::discard_or_import_tablespace(
 	     i= m_part_info->get_next_used_partition(i)) {
 
 		m_prebuilt->table = m_part_share->get_table_part(i);
-		error= ha_innobase::discard_or_import_tablespace(discard);
+		error= ha_innobase::discard_or_import_tablespace(discard,
+				table_def);
 		if (error != 0) {
 			break;
 		}
@@ -3109,20 +3114,27 @@ ha_innopart::extra(
 }
 
 /** Deletes all rows of a partitioned InnoDB table.
+@param[in,out]	table_def	dd::Table object for table to be truncated.
+Can be adjusted by this call. Changes to the table definition will be
+persisted in the data-dictionary at statement commit time.
 @return	0 or error number. */
 int
-ha_innopart::truncate()
+ha_innopart::truncate(dd::Table *table_def)
 {
 	ut_ad(m_part_info->num_partitions_used() == m_tot_parts);
-	return(truncate_partition_low());
+	return(truncate_partition_low(table_def));
 }
 
 /** Delete all rows in the requested partitions.
 Done by deleting the partitions and recreate them again.
 TODO: Add DDL_LOG handling to avoid missing partitions in case of crash.
+@param[in,out]	table_def	dd::Table object for partitioned table
+which partitions need to be truncated. Can be adjusted by this call.
+Changes to the table definition will be persisted in the data-dictionary
+at statement commit time.
 @return	0 or error number. */
 int
-ha_innopart::truncate_partition_low()
+ha_innopart::truncate_partition_low(dd::Table *table_def)
 {
 	int		error = 0;
 	const char*	table_name = table->s->normalized_path.str;
@@ -3246,16 +3258,17 @@ ha_innopart::truncate_partition_low()
 		const char*	name = info->alias;
 		info->alias = NULL;
 		/* TODO: Add DDL_LOG here to avoid missing partitions on crash. */
-		error = ha_innobase::delete_table(name, SQLCOM_TRUNCATE);
+		error = ha_innobase::delete_table(name, NULL, SQLCOM_TRUNCATE);
 		if (error == 0) {
-			error = ha_innobase::create(name, table, info, file_per_table);
+			error = ha_innobase::create(name, table, info, NULL,
+					file_per_table);
 		}
 		if (error != 0) {
 			break;
 		}
 	}
 	mem_heap_free(heap);
-	open(table_name, 0, 0);
+	open(table_name, 0, 0, NULL);
 	DBUG_RETURN(error);
 }
 
@@ -3660,7 +3673,8 @@ ha_innopart::info_low(
 			    && avail_space != ULINT_UNDEFINED) {
 
 				/* Only count system tablespace once! */
-				if (is_system_tablespace(ib_table->space)) {
+				if (fsp_is_system_or_temp_tablespace(
+						ib_table->space)) {
 					if (checked_sys_tablespace) {
 						continue;
 					}
@@ -4425,7 +4439,7 @@ ha_innopart::create_new_partition(
 		DBUG_RETURN(HA_WRONG_CREATE_OPTION);
 	}
 
-	error = ha_innobase::create(norm_name, table, create_info);
+	error = ha_innobase::create(norm_name, table, create_info, NULL);
 	create_info->tablespace = tablespace_name_backup;
 	create_info->data_file_name = data_file_name_backup;
 	if (error == HA_ERR_FOUND_DUPP_KEY) {

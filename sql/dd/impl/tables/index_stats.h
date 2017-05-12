@@ -16,12 +16,20 @@
 #ifndef DD_TABLES__INDEX_STATS_INCLUDED
 #define DD_TABLES__INDEX_STATS_INCLUDED
 
-#include "dd/impl/types/dictionary_object_table_impl.h"
-#include "dd/impl/types/index_stat_impl.h"
-
+#include <new>
 #include <string>
 
+#include "dd/impl/types/dictionary_object_table_impl.h"
+#include "dd/impl/types/index_stat_impl.h"
+#include "dd/string_type.h"                              // dd::String_type
+#include "dd/types/index_stat.h"
+
 namespace dd {
+
+class Dictionary_object;
+class Object_key;
+class Raw_record;
+
 namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
@@ -33,9 +41,9 @@ public:
 
   static const Index_stats &instance();
 
-  static const std::string &table_name()
+  static const String_type &table_name()
   {
-    static std::string s_table_name("index_stats");
+    static String_type s_table_name("index_stats");
     return s_table_name;
   }
 
@@ -49,7 +57,7 @@ public:
   };
 
 public:
-  virtual const std::string &name() const
+  virtual const String_type &name() const
   { return Index_stats::table_name(); }
 
   virtual Dictionary_object *create_dictionary_object(const Raw_record &) const
@@ -57,14 +65,14 @@ public:
 
 public:
   static Index_stat::name_key_type *create_object_key(
-                                      const std::string &schema_name,
-                                      const std::string &table_name,
-                                      const std::string &index_name,
-                                      const std::string &column_name);
+                                      const String_type &schema_name,
+                                      const String_type &table_name,
+                                      const String_type &index_name,
+                                      const String_type &column_name);
 
   static Object_key *create_range_key_by_table_name(
-                                       const std::string &schema_name,
-                                       const std::string &table_name);
+                                       const String_type &schema_name,
+                                       const String_type &table_name);
 };
 
 }

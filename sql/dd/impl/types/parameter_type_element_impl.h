@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +16,9 @@
 #ifndef DD__PARAMETER_TYPE_ELEMENT_IMPL_INCLUDED
 #define DD__PARAMETER_TYPE_ELEMENT_IMPL_INCLUDED
 
-#include "my_global.h"
+#include <sys/types.h>
+#include <new>
+#include <string>
 
 #include "dd/impl/types/weak_object_impl.h"   // dd::Weak_object_impl
 #include "dd/types/object_type.h"             // dd::Object_type
@@ -26,9 +28,13 @@ namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Raw_record;
 class Open_dictionary_tables_ctx;
 class Parameter_impl;
+class Raw_record;
+class Object_key;
+class Object_table;
+class Parameter;
+class Weak_object;
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -85,10 +91,10 @@ public:
   // Name.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &name() const
+  virtual const String_type &name() const
   { return m_name; }
 
-  virtual void set_name(const std::string &name)
+  virtual void set_name(const String_type &name)
   { m_name= name; }
 
   /////////////////////////////////////////////////////////////////////////
@@ -111,7 +117,7 @@ public:
   { return Weak_object_impl::impl(); }
 
 public:
-  virtual void debug_print(std::string &outb) const;
+  virtual void debug_print(String_type &outb) const;
 
 protected:
   virtual Object_key *create_primary_key() const;
@@ -119,7 +125,7 @@ protected:
 
 protected:
   // Fields
-  std::string m_name;
+  String_type m_name;
   uint m_index;
 
   // References to other objects

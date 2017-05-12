@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,14 +13,26 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
-#include <my_global.h>
-#include <m_string.h>
-#include <m_ctype.h>
 #include <fcntl.h>
+#include <m_ctype.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
+
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
-#include <my_xml.h>
+
+#include "my_config.h"
+
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_loglevel.h"
+#include "my_macros.h"
+#include "my_xml.h"
 
 #define ROW_LEN		16
 #define ROW16_LEN	8
@@ -119,7 +131,7 @@ static void simple_cs_copy_data(CHARSET_INFO *to, CHARSET_INFO *from)
   }
 }
 
-static my_bool simple_cs_is_full(CHARSET_INFO *cs)
+static bool simple_cs_is_full(CHARSET_INFO *cs)
 {
   return ((cs->csname && cs->tab_to_uni && cs->ctype && cs->to_upper &&
 	   cs->to_lower) &&
@@ -239,7 +251,8 @@ static void dispcset(FILE *f,CHARSET_INFO *cs)
     fprintf(f,"  NULL,                       /* cset name     */\n");
     fprintf(f,"  NULL,                       /* coll name     */\n");
     fprintf(f,"  NULL,                       /* comment       */\n");
-    fprintf(f,"  NULL,                       /* tailoging     */\n");
+    fprintf(f,"  NULL,                       /* tailoring     */\n");
+    fprintf(f,"  NULL,                       /* coll_param    */\n");
     fprintf(f,"  NULL,                       /* ctype         */\n");
     fprintf(f,"  NULL,                       /* lower         */\n");
     fprintf(f,"  NULL,                       /* upper         */\n");
@@ -263,7 +276,6 @@ static void dispcset(FILE *f,CHARSET_INFO *cs)
   fprintf(f,"  ' ',                        /* pad_char      */\n");
   fprintf(f,"  0,                          /* escape_with_backslash_is_dangerous */\n");
   fprintf(f,"  1,                          /* levels_for_compare */\n");
-  fprintf(f,"  1,                          /* levels_for_order   */\n");
   
   if (my_charset_is_8bit_pure_ascii(cs))
     fprintf(f,"  &my_charset_ascii_handler,\n");
@@ -281,7 +293,7 @@ static void
 fprint_copyright(FILE *file)
 {
   fprintf(file,
-"/* Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.\n"
+"/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.\n"
 "\n"
 "   This program is free software; you can redistribute it and/or modify\n"
 "   it under the terms of the GNU General Public License as published by\n"
@@ -342,8 +354,9 @@ main(int argc, char **argv  MY_ATTRIBUTE((unused)))
   fprintf(f, "    ./conf_to_src {CMAKE_SOURCE_DIR}/sql/share/charsets/ > ctype-extra.cc\n");
   fprintf(f, "*/\n\n");
   fprint_copyright(f);
-  fprintf(f,"#include <my_global.h>\n");
-  fprintf(f,"#include <m_ctype.h>\n\n");
+  fprintf(f,"#include <stddef.h>\n\n");
+  fprintf(f,"#include \"m_ctype.h\"\n");
+  fprintf(f,"#include \"my_inttypes.h\"\n\n");
   
   
   for (cs= all_charsets;

@@ -1,4 +1,4 @@
-# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -47,7 +47,7 @@ MACRO(MYSQL_CHECK_SYSTEMD)
                            Aborting cmake build.")
     ENDIF()
   ELSE()
-    MESSAGE(FATAL_ERROR, "Unable to detect systemd support on build machine,\
+    MESSAGE(FATAL_ERROR, "Unable to detect pkg-config support on build machine,\
                           Aborting cmake build.")
   ENDIF()
 

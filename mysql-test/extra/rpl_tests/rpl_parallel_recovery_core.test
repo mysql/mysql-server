@@ -81,7 +81,7 @@ CREATE TABLE t1m (a INT) ENGINE=myisam;
 
 if ($rpl_multi_source)
 {
-  --let $rpl_channel_name= channel_1
+  --let $rpl_channel_name= 'channel_1'
 }
 #--let $sync_slave_connection= server_2
 --let $sync_slave_connection= slave
@@ -159,7 +159,7 @@ while ($iter)
     if ($rpl_multi_source)
     {
       START SLAVE UNTIL SQL_AFTER_MTS_GAPS for channel 'channel_1';
-      --let $rpl_channel_name= channel_1
+      --let $rpl_channel_name= 'channel_1'
     }
     if (!$rpl_multi_source)
     {
@@ -182,7 +182,7 @@ while ($iter)
     if ($rpl_multi_source)
     {
       START SLAVE UNTIL SQL_AFTER_MTS_GAPS for channel 'channel_1';
-      --let $rpl_channel_name= channel_1
+      --let $rpl_channel_name= 'channel_1'
     }
     if (!$rpl_multi_source)
     {
@@ -193,7 +193,7 @@ while ($iter)
   LOCK TABLES t1m WRITE;
   if ($rpl_multi_source)
   {
-    --let $rpl_channel_name= channel_1
+    --let $rpl_channel_name= 'channel_1'
   }
   --source include/start_slave_sql.inc
 
@@ -208,7 +208,7 @@ while ($iter)
 --connection master
 if ($rpl_multi_source)
 {
-  --let $rpl_channel_name= channel_1
+  --let $rpl_channel_name= 'channel_1'
 }
 --let $sync_slave_connection= slave
 --source include/sync_slave_sql_with_master.inc

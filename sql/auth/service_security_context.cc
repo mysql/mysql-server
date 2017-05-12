@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,12 +16,19 @@
 #ifndef SQL_SECURITY_CTX_SERVICE_INCLUDED
 #define SQL_SECURITY_CTX_SERVICE_INCLUDED
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
+#include <string.h>
 
+#include "auth_acls.h"
 #include "auth_common.h"
-#include "sql_class.h"
-#include <mysql/service_security_context.h>
 #include "current_thd.h"
+#include "my_inttypes.h"
+#include "mysql/mysql_lex_string.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/service_locking.h"
+#include "mysql/service_security_context.h"
+#include "sql_class.h"
+#include "sql_plugin.h"
+#include "sql_security_ctx.h"
 #include "sql_thd_internal_api.h"  // create_thd
 
 #define MY_SVC_TRUE  1
@@ -180,7 +187,7 @@ my_svc_bool security_context_lookup(MYSQL_SECURITY_CONTEXT ctx,
                                     const char *ip, const char *db)
 {
   THD *tmp_thd= NULL;
-  my_bool retval;
+  bool retval;
   if (current_thd == NULL)
   {
     tmp_thd= create_thd(false, true, false, PSI_NOT_INSTRUMENTED);
@@ -345,18 +352,18 @@ my_svc_bool security_context_set_option(MYSQL_SECURITY_CONTEXT ctx,
     {
       my_svc_bool value= *(my_svc_bool *) pvalue;
       if (value)
-        ctx->set_master_access(ctx->master_access() | SUPER_ACL);
+        ctx->set_master_access(ctx->master_access() | (SUPER_ACL));
       else
-        ctx->set_master_access(ctx->master_access() & !(SUPER_ACL));
+        ctx->set_master_access(ctx->master_access() & ~(SUPER_ACL));
 
     }
     else if (!strcmp(name, "privilege_execute"))
     {
       my_svc_bool value= *(my_svc_bool *) pvalue;
       if (value)
-        ctx->set_master_access(ctx->master_access() | EXECUTE_ACL);
+        ctx->set_master_access(ctx->master_access() | (EXECUTE_ACL));
       else
-        ctx->set_master_access(ctx->master_access() & !(EXECUTE_ACL));
+        ctx->set_master_access(ctx->master_access() & ~(EXECUTE_ACL));
     }
     else
       return MY_SVC_TRUE; /* invalid option */
@@ -368,5 +375,4 @@ my_svc_bool security_context_set_option(MYSQL_SECURITY_CONTEXT ctx,
   }
 }
 
-#endif /* !NO_EMBEDDED_ACCESS_CHECKS */
 #endif /* !SQL_SECURITY_CTX_SERVICE_INCLUDED */

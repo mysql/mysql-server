@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,15 +21,16 @@
   @file include/typelib.h
 */
 
-#include "my_alloc.h"
+#include "mem_root_fwd.h"
+#include "my_inttypes.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-typedef struct st_typelib {	/* Different types saved here */
-  unsigned int count;		/* How many types */
-  const char *name;		/* Name of typelib */
+typedef struct st_typelib {     /* Different types saved here */
+  size_t count;                 /* How many types */
+  const char *name;             /* Name of typelib */
   const char **type_names;
   unsigned int *type_lengths;
 } TYPELIB;

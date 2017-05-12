@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,7 +15,7 @@
 
 #include "vio_priv.h"
 
-#if !defined(EMBEDDED_LIBRARY)
+#include "my_shm_defaults.h"
 
 size_t vio_read_shared_memory(Vio *vio, uchar *buf, size_t size)
 {
@@ -147,7 +147,7 @@ size_t vio_write_shared_memory(Vio *vio, const uchar *buf, size_t size)
 }
 
 
-my_bool vio_is_connected_shared_memory(Vio *vio)
+bool vio_is_connected_shared_memory(Vio *vio)
 {
   return (WaitForSingleObject(vio->event_conn_closed, 0) != WAIT_OBJECT_0);
 }
@@ -221,6 +221,3 @@ int vio_shutdown_shared_memory(Vio * vio)
 
   DBUG_RETURN(0);
 }
-
-#endif /* #if !defined(!EMBEDDED_LIBRARY) */
-

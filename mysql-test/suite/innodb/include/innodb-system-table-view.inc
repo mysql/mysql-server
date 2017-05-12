@@ -2,7 +2,6 @@
 # that displays the InnoDB system table content through
 # information schema tables.
 
---source include/have_innodb.inc
 --source include/have_innodb_max_16k.inc
 --source include/have_no_undo_tablespaces.inc
 
@@ -31,20 +30,22 @@ LET $INNODB_PAGE_SIZE = `select @@innodb_page_size`;
 --let $rep_table_3 = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/slave_worker_info'`
 # The sys_config table may not exist on embedded tests
 --let $sys_config = `SELECT IFNULL((SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'sys/sys_config'), 0)`
+# mysql.ndb_binlog_index is not created without cluster
+--let $ndb_binlog_idx = `SELECT IFNULL((SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/ndb_binlog_index'), 0)`
 
 --disable_query_log
---eval SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES WHERE table_id NOT IN ($table_stats_id, $index_stats_id, $help_table_1, $help_table_2, $help_table_3, $help_table_4, $rep_table_1, $rep_table_2, $rep_table_3, $sys_config) ORDER BY table_id;
+--eval SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES WHERE table_id NOT IN ($table_stats_id, $index_stats_id, $help_table_1, $help_table_2, $help_table_3, $help_table_4, $rep_table_1, $rep_table_2, $rep_table_3, $sys_config, $ndb_binlog_idx) ORDER BY table_id;
 
---eval SELECT table_id,pos,mtype,prtype,len,name FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE table_id NOT IN ($table_stats_id, $index_stats_id, $help_table_1, $help_table_2, $help_table_3, $help_table_4, $rep_table_1, $rep_table_2, $rep_table_3, $sys_config) ORDER BY table_id, pos;
+--eval SELECT table_id,pos,mtype,prtype,len,name FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE table_id NOT IN ($table_stats_id, $index_stats_id, $help_table_1, $help_table_2, $help_table_3, $help_table_4, $rep_table_1, $rep_table_2, $rep_table_3, $sys_config, $ndb_binlog_idx) ORDER BY table_id, pos;
 
 # The SELECT * version of the query below has been moved to innodb_4k,
 # innodb_8k & innodb_16k since the root page number changes with page size.
---eval SELECT index_id,table_id,type,n_fields,space,name FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES WHERE table_id NOT IN ($table_stats_id, $index_stats_id, $help_table_1, $help_table_2, $help_table_3, $help_table_4, $rep_table_1, $rep_table_2, $rep_table_3, $sys_config) ORDER BY index_id;
+--eval SELECT index_id,table_id,type,n_fields,space,name FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES WHERE table_id NOT IN ($table_stats_id, $index_stats_id, $help_table_1, $help_table_2, $help_table_3, $help_table_4, $rep_table_1, $rep_table_2, $rep_table_3, $sys_config, $ndb_binlog_idx) ORDER BY index_id;
 --enable_query_log
 
 SELECT index_id,pos,name FROM INFORMATION_SCHEMA.INNODB_SYS_FIELDS
        WHERE name NOT IN ('database_name', 'table_name', 'index_name', 'stat_name', 'id', 'host', 'port', 'variable',
-       	                  'name', 'help_topic_id', 'help_keyword_id', 'help_category_id')
+       	                  'name', 'help_topic_id', 'help_keyword_id', 'help_category_id', 'epoch', 'orig_server_id', 'orig_epoch')
        ORDER BY index_id, pos;
 
 --sorted_result
@@ -68,7 +69,7 @@ CREATE TABLE t_dynamic (a INT KEY, b TEXT) ROW_FORMAT=DYNAMIC ENGINE=innodb;
 DROP TABLE t_redundant, t_compact, t_compressed, t_dynamic;
 
 SELECT count(*) FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESTATS
- WHERE name NOT LIKE 'sys/%';
+ WHERE name NOT LIKE 'sys/%' AND name NOT LIKE 'mysql/ndb_binlog_index';
 
 # Create a foreign key constraint, and verify the information
 # in INFORMATION_SCHEMA.INNODB_SYS_FOREIGN and
@@ -99,7 +100,7 @@ WHERE name LIKE "%parent";
 
 --sorted_result
 SELECT NAME, FLAG, N_COLS FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
- WHERE name NOT LIKE 'sys/%';
+ WHERE name NOT LIKE 'sys/%' AND name NOT LIKE 'mysql/ndb_binlog_index';
 
 --sorted_result
 SELECT name, n_fields

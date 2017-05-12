@@ -1,3 +1,13 @@
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs293=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema default character set latin1;
+use test;
+--enable_query_log
+########################################
+
 # The include statement below is a temp one for tests that are yet to
 #be ported to run with InnoDB,
 #but needs to be kept for tests that would need MyISAM in future.
@@ -371,7 +381,7 @@ SHOW CREATE TABLE t1;
 
 # Should store the defaults
 INSERT INTO t1 (f1) VALUES (DEFAULT);
-# Should store 0's, not the default
+# Should store 0s, not the default
 INSERT INTO t1 VALUES (b'', b''); 
 
 SELECT HEX(f1), HEX(f2) FROM t1;
@@ -481,3 +491,19 @@ CREATE TEMPORARY TABLE t2(a BIT(60)) ENGINE=InnoDB SELECT a FROM t1
 GROUP BY a DESC HAVING a IS NULL;
 DROP TEMPORARY TABLE t2;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#24686658 BIN RETURN INCONSISTENT RESULTS WITH
+--echo #              PARAMS OF DATETYPE BIT
+--echo #
+
+select bin(0b11111111), oct(0b11111111), hex(0b11111111),
+       bin(0xFF), oct(0xFF), hex(0xFF);
+
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs293;
+--enable_query_log
+########################################

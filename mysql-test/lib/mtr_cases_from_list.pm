@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2005, 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@ package mtr_cases_from_list;
 use strict;
 use mtr_report;
 use base qw(Exporter);
+use My::File::Path qw / get_bld_path /;
 our @EXPORT= qw(collect_test_cases_from_list);
 
 ##############################################################################
@@ -39,6 +40,7 @@ sub collect_test_cases_from_list ($$$$) {
   if ($opt_do_test_list ne "") {
       $opt_do_test_list=~ s/^\~\//$ENV{HOME}\//;
   }
+  $opt_do_test_list= get_bld_path($opt_do_test_list);
   open(FILE, "<", $opt_do_test_list) or $ret= 1;
   if ($ret) {
     mtr_report("Cannot open \"$opt_do_test_list\".");
@@ -64,8 +66,9 @@ sub collect_test_cases_from_list ($$$$) {
         }
         # If not yet in list of suites add the suite to it.
         $$suites= $$suites.",".$suite if ($found);
-        # Add test to list of tests even if double.
-        push (@$opt_cases, $test);
+        # Passing the qualified test name so that if --no-reorder
+        # is passed, the test will not be looked for in all the suites.
+        push (@$opt_cases, $suite.".".$test);
         }
     }
     if (@$opt_cases == 0) {

@@ -2,6 +2,7 @@ SET @global_start_value = @@global.innodb_thread_concurrency;
 SELECT @global_start_value;
 @global_start_value
 0
+SET @default_innodb_thread_sleep_delay = @@global.innodb_thread_sleep_delay;
 '#--------------------FN_DYNVARS_046_01------------------------#'
 SET @@global.innodb_thread_concurrency = 0;
 SET @@global.innodb_thread_concurrency = DEFAULT;
@@ -109,3 +110,4 @@ SET @@global.innodb_thread_concurrency = @global_start_value;
 SELECT @@global.innodb_thread_concurrency;
 @@global.innodb_thread_concurrency
 0
+SET @@global.innodb_thread_sleep_delay = @default_innodb_thread_sleep_delay;

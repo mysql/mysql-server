@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,10 @@
 
 #include "xpl_system_variables.h"
 
+#include <stdlib.h>
+
+#include "my_inttypes.h"
+
 
 namespace xpl
 {
@@ -28,7 +32,8 @@ unsigned int Plugin_system_variables::idle_worker_thread_timeout;
 unsigned int Plugin_system_variables::max_allowed_packet;
 unsigned int Plugin_system_variables::connect_timeout;
 char        *Plugin_system_variables::socket;
-my_bool      Plugin_system_variables::named_pipe;
+unsigned int Plugin_system_variables::port_open_timeout;
+char        *Plugin_system_variables::bind_address;
 
 Ssl_config Plugin_system_variables::ssl_config;
 

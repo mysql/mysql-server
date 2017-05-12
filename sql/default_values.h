@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,18 +16,20 @@
 #ifndef DEFAULT_VALUES_INCLUDED
 #define DEFAULT_VALUES_INCLUDED
 
-#include "my_global.h"
-#include <string>
+#include <stddef.h>
+
+#include "my_inttypes.h"
 
 
 /** Forward declarations. */
 
-class THD;
 class Create_field;
+class THD;
 template <class T> class List;
+
 namespace dd {
-  class Table;
   class Column;
+  class Table;
 }
 struct TABLE;
 struct TABLE_SHARE;

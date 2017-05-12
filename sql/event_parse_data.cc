@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,12 +16,57 @@
 
 #include "event_parse_data.h"
 
+#include <string.h>
+
 #include "derror.h"                             // ER_THD
+#include "item.h"
 #include "item_timefunc.h"                      // get_interval_value
+#include "key.h"
+#include "my_dbug.h"
+#include "my_decimal.h"
+#include "my_sqlcommand.h"
+#include "my_sys.h"
+#include "mysql/thread_type.h"
 #include "mysqld.h"                             // server_id
+#include "mysqld_error.h"                       // ER_INVALID_CHARACTER_STRING
+#include "session_tracker.h"
 #include "sp_head.h"                            // sp_name
+#include "sql_admin.h"
 #include "sql_class.h"                          // THD
+#include "sql_const.h"
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_security_ctx.h"
+#include "sql_string.h"                         // validate_string
 #include "sql_time.h"                           // TIME_to_timestamp
+
+
+/**
+   Check if the given string is invalid using the system charset.
+
+   @param string_val Reference to the string.
+
+   @return true if the string has an invalid encoding using
+                the system charset else false.
+*/
+
+static bool is_invalid_string(const LEX_STRING &string_val)
+{
+  size_t valid_len;
+  bool len_error;
+
+  if (validate_string(system_charset_info, string_val.str, string_val.length,
+                      &valid_len, &len_error))
+  {
+    char hexbuf[7];
+    octet2hex(hexbuf, string_val.str + valid_len,
+              std::min<size_t>(string_val.length - valid_len, 3));
+    my_error(ER_INVALID_CHARACTER_STRING, MYF(0), system_charset_info->csname,
+             hexbuf);
+    return true;
+  }
+  return false;
+}
 
 
 /*
@@ -167,7 +212,7 @@ Event_parse_data::check_dates(THD *thd, int previous_on_completion)
 int
 Event_parse_data::init_execute_at(THD *thd)
 {
-  my_bool not_used;
+  bool not_used;
   MYSQL_TIME ltime;
   my_time_t ltime_utc;
 
@@ -337,7 +382,7 @@ wrong_value:
 int
 Event_parse_data::init_starts(THD *thd)
 {
-  my_bool not_used;
+  bool not_used;
   MYSQL_TIME ltime;
   my_time_t ltime_utc;
 
@@ -391,7 +436,7 @@ wrong_value:
 int
 Event_parse_data::init_ends(THD *thd)
 {
-  my_bool not_used;
+  bool not_used;
   MYSQL_TIME ltime;
   my_time_t ltime_utc;
 
@@ -467,6 +512,9 @@ Event_parse_data::check_parse_data(THD *thd)
   DBUG_PRINT("info", ("execute_at: %p  expr=%p  starts=%p  ends=%p",
                       item_execute_at, item_expression,
                       item_starts, item_ends));
+
+  if (is_invalid_string(comment))
+    DBUG_RETURN(true);
 
   init_name(thd, identifier);
 

@@ -1,7 +1,7 @@
 #ifndef SQL_EXECUTOR_INCLUDED
 #define SQL_EXECUTOR_INCLUDED
 
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights
  * reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -22,15 +22,33 @@
   Classes for query execution.
 */
 
-#include "my_global.h"
+#include <string.h>
+#include <sys/types.h>
+
+#include "item.h"
+#include "my_base.h"
+#include "my_compiler.h"
+#include "my_inttypes.h"
 #include "records.h"               // READ_RECORD
+#include "sql_alloc.h"
 #include "sql_class.h"             // THD
+#include "sql_lex.h"
 #include "sql_opt_exec_shared.h"   // QEP_shared_owner
+#include "sql_select.h"
+#include "table.h"
 #include "temp_table_param.h"      // Temp_table_param
 
+class Field;
+class Field_longlong;
+class Filesort;
+class Item_sum;
 class JOIN;
-class JOIN_TAB;
 class QEP_TAB;
+class QUICK_SELECT_I;
+struct st_cache_field;
+struct st_join_table;
+template <class T> class List;
+
 typedef struct st_columndef MI_COLUMNDEF;
 typedef struct st_table_ref TABLE_REF;
 typedef struct st_position POSITION;
@@ -365,7 +383,6 @@ public:
     found(false),
     not_null_compl(false),
     first_unmatched(NO_PLAN_IDX),
-    materialized(false),
     materialize_table(NULL),
     read_first_record(NULL),
     next_select(NULL),
@@ -390,7 +407,9 @@ public:
     quick_traced_before(false),
     m_condition_optim(NULL),
     m_quick_optim(NULL),
-    m_keyread_optim(false)
+    m_keyread_optim(false),
+    m_reversed_access(false),
+    m_fetched_rows(0)
   {
     /**
        @todo Add constructor to READ_RECORD.
@@ -417,6 +436,8 @@ public:
     if (table())
       m_keyread_optim= table()->key_read;
   }
+  bool reversed_access() const { return m_reversed_access; }
+  void set_reversed_access(bool arg) { m_reversed_access= arg; }
 
   void set_table(TABLE *t)
   {
@@ -557,9 +578,6 @@ public:
 
   plan_idx first_unmatched; /**< used for optimization purposes only   */
 
-  /// For a materializable derived or SJ table: true if has been materialized
-  bool materialized;
-
   READ_RECORD::Setup_func materialize_table;
   /**
      Initialize table for reading and fetch the first row from the table. If
@@ -666,6 +684,17 @@ public:
      optimizer's decision.
   */
   bool m_keyread_optim;
+
+  /**
+    True if reversed scan is used. This is the optimizer's decision.
+  */
+  bool m_reversed_access;
+
+  /**
+    Count of rows fetched from this table; maintained by sub_select() and
+    reset to 0 by JOIN::reset().
+  */
+  ha_rows m_fetched_rows;
 
   QEP_TAB(const QEP_TAB&);                      // not defined
   QEP_TAB& operator=(const QEP_TAB&);           // not defined

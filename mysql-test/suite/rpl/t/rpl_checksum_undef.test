@@ -20,7 +20,6 @@
 --source include/not_group_replication_plugin.inc
 --source include/have_debug.inc
 --source include/master-slave.inc
---source include/have_log_bin.inc
 
 connection slave;
 --echo [ON SLAVE]

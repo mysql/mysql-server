@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,18 +19,40 @@
 #ifndef _opt_range_h
 #define _opt_range_h
 
-#include "my_global.h"
+#include <stddef.h>
+#include <sys/types.h>
+#include <algorithm>
+#include <memory>
+#include <vector>
+
 #include "field.h"            // Field
+#include "handler.h"
+#include "key.h"
+#include "m_string.h"
+#include "malloc_allocator.h"  // IWYU pragma: keep
+#include "my_base.h"
+#include "my_bitmap.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
+#include "my_table_map.h"
 #include "prealloced_array.h" // Prealloced_array
 #include "priority_queue.h"   // Priority_queue
 #include "records.h"          // READ_RECORD
-#include "malloc_allocator.h"
+#include "sql_alloc.h"
+#include "sql_bitmap.h"
+#include "sql_const.h"
+#include "sql_list.h"
+#include "sql_string.h"
+#include "table.h"
+#include "typelib.h"
 
-#include <algorithm>
-
-class JOIN;
+class Item;
 class Item_sum;
+class JOIN;
 class Opt_trace_context;
+class THD;
 class Unique;
 
 typedef struct st_key_part {
@@ -42,7 +64,7 @@ typedef struct st_key_part {
     Keypart flags (0 when this structure is used by partition pruning code
     for fake partitioning index description)
   */
-  uint8 flag;
+  uint16 flag;
   Field            *field;
   Field::imagetype image_type;
 } KEY_PART;
@@ -227,6 +249,13 @@ public:
     For QUICK_GROUP_MIN_MAX_SELECT it includes MIN/MAX argument keyparts.
   */
   uint used_key_parts;
+  /**
+    true if creation of the object is forced by the hint.
+    The flag is used to skip ref evaluation in find_best_ref() function.
+    It also enables using of QUICK_SELECT object in
+    Optimize_table_order::best_access_path() regardless of the evaluation cost.
+  */
+  bool forced_by_hint;
 
   QUICK_SELECT_I();
   virtual ~QUICK_SELECT_I(){};
@@ -322,7 +351,7 @@ public:
       0     Ok
       other Error
   */
-  virtual int init_ror_merged_scan(bool reuse_handler)
+  virtual int init_ror_merged_scan(bool reuse_handler MY_ATTRIBUTE((unused)))
   { DBUG_ASSERT(0); return 1; }
 
   /*
@@ -344,7 +373,7 @@ public:
     This function is implemented only by quick selects that merge other quick
     selects output and/or can produce output suitable for merging.
   */
-  virtual void add_info_string(String *str) {};
+  virtual void add_info_string(String *str MY_ATTRIBUTE((unused))) {};
   /*
     Return 1 if any index used by this quick select
     uses field which is marked in passed bitmap.
@@ -379,8 +408,10 @@ public:
   /*
     Returns a QUICK_SELECT with reverse order of to the index.
   */
-  virtual QUICK_SELECT_I *make_reverse(uint used_key_parts_arg) { return NULL; }
-  virtual void set_handler(handler *file_arg) {}
+  virtual QUICK_SELECT_I*
+    make_reverse(uint used_key_parts_arg MY_ATTRIBUTE((unused)))
+  { return NULL; }
+  virtual void set_handler(handler *file_arg MY_ATTRIBUTE((unused))) {}
 
   /**
     Get the fields used by the range access method.
@@ -395,6 +426,7 @@ public:
 
 class PARAM;
 class SEL_ARG;
+class SEL_ROOT;
 
 
 typedef Prealloced_array<QUICK_RANGE*, 16> Quick_ranges;
@@ -437,9 +469,10 @@ protected:
                              QUICK_RANGE_SELECT *quick,KEY_PART *key,
                              SEL_ARG *key_tree,
                              uchar *min_key, uint min_key_flag,
-                             uchar *max_key, uint max_key_flag);
+                             uchar *max_key, uint max_key_flag,
+                             uint *desc_flag);
   friend QUICK_RANGE_SELECT *get_quick_select(PARAM*,uint idx,
-                                              SEL_ARG *key_tree,
+                                              SEL_ROOT *key_tree,
                                               uint mrr_flags,
                                               uint mrr_buf_size,
                                               MEM_ROOT *alloc);
@@ -476,7 +509,7 @@ protected:
   int cmp_prev(QUICK_RANGE *range);
   bool row_in_ranges();
 public:
-  MEM_ROOT alloc;
+  std::shared_ptr<MEM_ROOT> alloc;
 
   QUICK_RANGE_SELECT(THD *thd, TABLE *table,uint index_arg,bool no_alloc,
                      MEM_ROOT *parent_alloc, bool *create_error);
@@ -915,6 +948,10 @@ private:
     through index read 
   */
   bool is_index_scan; 
+  /**
+    Whether used part of the index has desc key parts
+  */
+  bool has_desc_keyparts;
 public:
   /*
     The following two members are public to allow easy access from
@@ -928,8 +965,8 @@ private:
   int  next_max_in_range();
   int  next_min();
   int  next_max();
-  void update_min_result();
-  void update_max_result();
+  void update_min_result(bool reset);
+  void update_max_result(bool reset);
 public:
   QUICK_GROUP_MIN_MAX_SELECT(TABLE *table, JOIN *join, bool have_min,
                              bool have_max, bool have_agg_distinct,
@@ -977,15 +1014,14 @@ public:
 class QUICK_SELECT_DESC: public QUICK_RANGE_SELECT
 {
 public:
-  QUICK_SELECT_DESC(QUICK_RANGE_SELECT *q, uint used_key_parts, 
-                    bool *create_err);
+  QUICK_SELECT_DESC(QUICK_RANGE_SELECT *q, uint used_key_parts);
   int get_next();
   bool reverse_sorted() const { return true; }
   bool reverse_sort_possible() const { return true; }
   int get_type() const { return QS_TYPE_RANGE_DESC; }
   virtual bool is_loose_index_scan() const { return false; }
   virtual bool is_agg_loose_index_scan() const { return false; }
-  QUICK_SELECT_I *make_reverse(uint used_key_parts_arg)
+  QUICK_SELECT_I *make_reverse(uint)
   {
     return this; // is already reverse sorted
   }
@@ -1002,7 +1038,7 @@ class QEP_shared_owner;
 
 int test_quick_select(THD *thd, Key_map keys, table_map prev_tables,
                       ha_rows limit, bool force_quick_range,
-                      const ORDER::enum_order interesting_order,
+                      const enum_order interesting_order,
                       const QEP_shared_owner *tab,
                       Item *cond,
                       Key_map *needed_reg,
@@ -1021,7 +1057,7 @@ public:
     return file->ft_init();
   }
   int reset() { return 0; }
-  int get_next() { return file->ft_read(record); }
+  int get_next() { return file->ha_ft_read(record); }
   int get_type() const { return QS_TYPE_FULLTEXT; }
   virtual bool is_loose_index_scan() const { return false; }
   virtual bool is_agg_loose_index_scan() const { return false; }
@@ -1035,5 +1071,11 @@ bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond);
 void store_key_image_to_rec(Field *field, uchar *ptr, uint len);
 
 extern String null_string;
+
+/// Global initialization of the null_element. Call on server start.
+void range_optimizer_init();
+
+/// Global destruction of the null_element. Call on server stop.
+void range_optimizer_free();
 
 #endif

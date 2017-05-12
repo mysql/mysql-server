@@ -10,6 +10,15 @@
 # Restart not supported in embedded server
 --source include/not_embedded.inc
 
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4. opt file added too.
+--disable_query_log
+let $testdbcs46=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema test default character set latin1;
+--enable_query_log
+########################################
+
 SET DEFAULT_STORAGE_ENGINE=InnoDB;
 
 LET MYSQLD_DATADIR = `SELECT @@datadir`;
@@ -424,3 +433,10 @@ eval SET GLOBAL INNODB_FILE_PER_TABLE=$prev_innodb_strict_mode;
 SET DEBUG='-d,ignore_punch_hole';
 SET DEBUG='-d,ignore_punch_hole_size';
 
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs46;
+--enable_query_log
+########################################

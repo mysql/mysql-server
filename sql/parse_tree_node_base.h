@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,18 +16,24 @@
 #ifndef PARSE_TREE_NODE_BASE_INCLUDED
 #define PARSE_TREE_NODE_BASE_INCLUDED
 
-#include "my_config.h"
-#include "parse_error.h"
-#include "check_stack.h"
+#include <stdarg.h>
 #include <cstdlib>
-#include <cstring>
-#include "my_sys.h"
-#include "sql_const.h"
-#include "mem_root_array.h"
-#include "sql_alloc.h"
+#include <new>
 
-class THD;
+#include "check_stack.h"
+#include "mem_root_array.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
+#include "parse_error.h"
+#include "parse_location.h"
+#include "sql_const.h"
+#include "thr_malloc.h"
+
 class SELECT_LEX;
+class Sql_alloc;
+class THD;
 
 /**
   Sql_alloc-ed version of Mem_root_array with a trivial destructor of elements
@@ -36,7 +42,7 @@ class SELECT_LEX;
                        Elements must be copyable.
 */
 template<typename Element_type> using Trivial_array=
-  Mem_root_array<Element_type, true, Sql_alloc>;
+  Mem_root_array<Element_type, Sql_alloc>;
 
 // uncachable cause
 #define UNCACHEABLE_DEPENDENT   1

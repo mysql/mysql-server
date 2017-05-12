@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,16 +22,18 @@
    The code below should hopefully be (mostly) self-explanatory.
  */
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
 #include <gtest/gtest.h>
+#include <stddef.h>
+#include <sys/types.h>
 
 #include "mdl.h"
-#include <mysqld_error.h>
-
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "mysqld.h"
+#include "mysqld_error.h"
+#include "test_mdl_context_owner.h"
 #include "thr_malloc.h"
 #include "thread_utils.h"
-#include "test_mdl_context_owner.h"
 
 /*
   Mock thd_wait_begin/end functions
@@ -4089,8 +4091,10 @@ protected:
     MDLTest::TearDown();
   }
 
-  virtual bool notify_hton_pre_acquire_exclusive(const MDL_key *mdl_key)
+  virtual bool notify_hton_pre_acquire_exclusive(const MDL_key *mdl_key,
+                                                 bool *victimized)
   {
+    *victimized = false;
     m_pre_acquire_count++;
     m_pre_acquire_key.mdl_key_init(mdl_key);
     return m_refuse_acquire;

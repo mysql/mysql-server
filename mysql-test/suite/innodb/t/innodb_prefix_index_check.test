@@ -1,4 +1,3 @@
---source include/have_innodb.inc
 
 --echo #Bug #22445211   GCOLS: SIMPLE DML, FAILING ASSERTION:
 --echo #!CURSOR->INDEX->IS_COMMITTED()

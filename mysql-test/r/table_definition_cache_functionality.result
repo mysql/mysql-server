@@ -78,7 +78,7 @@ TRUE Expected
 '#---------------------WL6372_VAR_5_07----------------------#'
 flush tables;
 flush status;
-set @dd_definitions = 15;
+set @dd_definitions = 13;
 set @Open_table_definitions = (select variable_value from performance_schema.session_status where variable_name ='Open_table_definitions') + @dd_definitions;
 set @Opened_table_definitions = (select variable_value from performance_schema.session_status where variable_name ='Opened_table_definitions') + @dd_definitions;
 # create 2 tables 
@@ -126,12 +126,12 @@ select (select variable_value from performance_schema.session_status where varia
 1
 1 Expected
 DROP TABLE IF EXISTS tab1;
-select (select variable_value from performance_schema.session_status where variable_name ='Open_table_definitions') = @Open_table_definitions + 3;
-(select variable_value from performance_schema.session_status where variable_name ='Open_table_definitions') = @Open_table_definitions + 3
+select (select variable_value from performance_schema.session_status where variable_name ='Open_table_definitions') = @Open_table_definitions + 1 + 2;
+(select variable_value from performance_schema.session_status where variable_name ='Open_table_definitions') = @Open_table_definitions + 1 + 2
 1
 1 Expected
-select (select variable_value from performance_schema.session_status where variable_name ='Opened_table_definitions') = @Opened_table_definitions + 6;
-(select variable_value from performance_schema.session_status where variable_name ='Opened_table_definitions') = @Opened_table_definitions + 6
+select (select variable_value from performance_schema.session_status where variable_name ='Opened_table_definitions') = @Opened_table_definitions + 4 + 2;
+(select variable_value from performance_schema.session_status where variable_name ='Opened_table_definitions') = @Opened_table_definitions + 4 + 2
 1
 1 Expected
 DROP TABLE IF EXISTS tab2;
@@ -141,8 +141,8 @@ performance_schema.session_status where variable_name ='Open_table_definitions')
 performance_schema.session_status where variable_name ='Open_table_definitions') = @Open_table_definitions + 2
 1
 1 Expected
-select (select variable_value from performance_schema.session_status where variable_name ='Opened_table_definitions') = @Opened_table_definitions + 6;
-(select variable_value from performance_schema.session_status where variable_name ='Opened_table_definitions') = @Opened_table_definitions + 6
+select (select variable_value from performance_schema.session_status where variable_name ='Opened_table_definitions') = @Opened_table_definitions + 4 + 2;
+(select variable_value from performance_schema.session_status where variable_name ='Opened_table_definitions') = @Opened_table_definitions + 4 + 2
 1
 1 Expected
 #cleanup

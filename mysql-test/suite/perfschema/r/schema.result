@@ -9,6 +9,8 @@ show tables;
 Tables_in_performance_schema
 accounts
 cond_instances
+data_lock_waits
+data_locks
 events_errors_summary_by_account_by_error
 events_errors_summary_by_host_by_error
 events_errors_summary_by_thread_by_error
@@ -23,6 +25,8 @@ events_stages_summary_by_thread_by_event_name
 events_stages_summary_by_user_by_event_name
 events_stages_summary_global_by_event_name
 events_statements_current
+events_statements_histogram_by_digest
+events_statements_histogram_global
 events_statements_history
 events_statements_history_long
 events_statements_summary_by_account_by_event_name
@@ -65,8 +69,11 @@ metadata_locks
 mutex_instances
 objects_summary_global_by_type
 performance_timers
+persisted_variables
 prepared_statements_instances
 replication_applier_configuration
+replication_applier_filters
+replication_applier_global_filters
 replication_applier_status
 replication_applier_status_by_coordinator
 replication_applier_status_by_worker
@@ -396,6 +403,9 @@ events_statements_summary_by_digest	CREATE TABLE `events_statements_summary_by_d
   `SUM_NO_GOOD_INDEX_USED` bigint(20) unsigned NOT NULL,
   `FIRST_SEEN` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   `LAST_SEEN` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `QUANTILE_95` bigint(20) unsigned NOT NULL,
+  `QUANTILE_99` bigint(20) unsigned NOT NULL,
+  `QUANTILE_999` bigint(20) unsigned NOT NULL,
   UNIQUE KEY `SCHEMA_NAME` (`SCHEMA_NAME`,`DIGEST`)
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
 show create table events_statements_summary_by_host_by_event_name;
@@ -1137,6 +1147,50 @@ performance_timers	CREATE TABLE `performance_timers` (
   `TIMER_FREQUENCY` bigint(20) DEFAULT NULL,
   `TIMER_RESOLUTION` bigint(20) DEFAULT NULL,
   `TIMER_OVERHEAD` bigint(20) DEFAULT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+show create table data_locks;
+Table	Create Table
+data_locks	CREATE TABLE `data_locks` (
+  `ENGINE` varchar(32) NOT NULL,
+  `ENGINE_LOCK_ID` varchar(128) NOT NULL,
+  `ENGINE_TRANSACTION_ID` bigint(20) unsigned DEFAULT NULL,
+  `THREAD_ID` bigint(20) unsigned DEFAULT NULL,
+  `EVENT_ID` bigint(20) unsigned DEFAULT NULL,
+  `OBJECT_SCHEMA` varchar(64) DEFAULT NULL,
+  `OBJECT_NAME` varchar(64) DEFAULT NULL,
+  `PARTITION_NAME` varchar(64) DEFAULT NULL,
+  `SUBPARTITION_NAME` varchar(64) DEFAULT NULL,
+  `INDEX_NAME` varchar(64) DEFAULT NULL,
+  `OBJECT_INSTANCE_BEGIN` bigint(20) unsigned NOT NULL,
+  `LOCK_TYPE` varchar(32) NOT NULL,
+  `LOCK_MODE` varchar(32) NOT NULL,
+  `LOCK_STATUS` varchar(32) NOT NULL,
+  `LOCK_DATA` varchar(8192) CHARACTER SET utf8mb4 DEFAULT NULL,
+  PRIMARY KEY (`ENGINE_LOCK_ID`,`ENGINE`),
+  KEY `ENGINE_TRANSACTION_ID` (`ENGINE_TRANSACTION_ID`,`ENGINE`),
+  KEY `THREAD_ID` (`THREAD_ID`,`EVENT_ID`),
+  KEY `OBJECT_SCHEMA` (`OBJECT_SCHEMA`,`OBJECT_NAME`,`PARTITION_NAME`,`SUBPARTITION_NAME`)
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+show create table data_lock_waits;
+Table	Create Table
+data_lock_waits	CREATE TABLE `data_lock_waits` (
+  `ENGINE` varchar(32) NOT NULL,
+  `REQUESTING_ENGINE_LOCK_ID` varchar(128) NOT NULL,
+  `REQUESTING_ENGINE_TRANSACTION_ID` bigint(20) unsigned DEFAULT NULL,
+  `REQUESTING_THREAD_ID` bigint(20) unsigned DEFAULT NULL,
+  `REQUESTING_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
+  `REQUESTING_OBJECT_INSTANCE_BEGIN` bigint(20) unsigned NOT NULL,
+  `BLOCKING_ENGINE_LOCK_ID` varchar(128) NOT NULL,
+  `BLOCKING_ENGINE_TRANSACTION_ID` bigint(20) unsigned DEFAULT NULL,
+  `BLOCKING_THREAD_ID` bigint(20) unsigned DEFAULT NULL,
+  `BLOCKING_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
+  `BLOCKING_OBJECT_INSTANCE_BEGIN` bigint(20) unsigned NOT NULL,
+  KEY `REQUESTING_ENGINE_LOCK_ID` (`REQUESTING_ENGINE_LOCK_ID`,`ENGINE`),
+  KEY `BLOCKING_ENGINE_LOCK_ID` (`BLOCKING_ENGINE_LOCK_ID`,`ENGINE`),
+  KEY `REQUESTING_ENGINE_TRANSACTION_ID` (`REQUESTING_ENGINE_TRANSACTION_ID`,`ENGINE`),
+  KEY `BLOCKING_ENGINE_TRANSACTION_ID` (`BLOCKING_ENGINE_TRANSACTION_ID`,`ENGINE`),
+  KEY `REQUESTING_THREAD_ID` (`REQUESTING_THREAD_ID`,`REQUESTING_EVENT_ID`),
+  KEY `BLOCKING_THREAD_ID` (`BLOCKING_THREAD_ID`,`BLOCKING_EVENT_ID`)
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
 show create table rwlock_instances;
 Table	Create Table

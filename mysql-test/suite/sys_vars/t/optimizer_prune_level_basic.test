@@ -140,6 +140,7 @@ SET @@session.optimizer_prune_level = ONF;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.optimizer_prune_level = ON;
 --Error ER_WRONG_TYPE_FOR_VAR
+--error ER_PARSE_ERROR
 SET @@session.optimizer_prune_level = OF;
 
 --Error ER_WRONG_TYPE_FOR_VAR

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,7 +14,10 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "bounded_queue_boost.h"
+
 #include <boost/heap/skew_heap.hpp>
+
+#include "my_dbug.h"
 
 namespace bh = boost::heap;
 
@@ -103,7 +106,7 @@ int Bounded_queue_boost<Element_type, Key_type, Key_generator, Key_compare>
          Key_type *sort_keys)
 {
   m_sort_keys=      sort_keys;
-  m_compare_length= sort_param->compare_length();
+  m_compare_length= sort_param->max_compare_length();
   m_sort_param=     sort_param;
 
   m_max_elements= max_elements + 1;

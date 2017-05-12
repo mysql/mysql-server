@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,24 +25,27 @@
   @{
 */
 
-#include "my_global.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
+#include "my_psi_config.h"  // IWYU pragma: keep
+#include "my_sharedlib.h"
+#include "my_thread.h"      /* my_thread_handle */
 #include "psi_base.h"
-#include "my_thread.h" /* my_thread_handle */
 
 C_MODE_START
 
 #ifdef __cplusplus
-  class THD;
+class THD;
 #else
-  /*
-    Phony declaration when compiling C code.
-    This is ok, because the C code will never have a THD anyway.
-  */
-  struct opaque_THD
-  {
-    int dummy;
-  };
-  typedef struct opaque_THD THD;
+/*
+  Phony declaration when compiling C code.
+  This is ok, because the C code will never have a THD anyway.
+*/
+struct opaque_THD
+{
+  int dummy;
+};
+typedef struct opaque_THD THD;
 #endif
 
 #ifdef HAVE_PSI_INTERFACE
@@ -93,7 +96,7 @@ struct PSI_thread_bootstrap
     @sa PSI_THREAD_VERSION_2
     @sa PSI_CURRENT_THREAD_VERSION
   */
-  void* (*get_interface)(int version);
+  void *(*get_interface)(int version);
 };
 typedef struct PSI_thread_bootstrap PSI_thread_bootstrap;
 
@@ -111,7 +114,7 @@ typedef struct PSI_thread PSI_thread;
 
 /**
   Thread instrument information.
-  @since PSI_VERSION_1
+  @since PSI_THREAD_VERSION_1
   This structure is used to register an instrumented thread.
 */
 struct PSI_thread_info_v1
@@ -138,8 +141,9 @@ typedef struct PSI_thread_info_v1 PSI_thread_info_v1;
   @param info an array of thread info to register
   @param count the size of the info array
 */
-typedef void (*register_thread_v1_t)
-  (const char *category, struct PSI_thread_info_v1 *info, int count);
+typedef void (*register_thread_v1_t)(const char *category,
+                                     struct PSI_thread_info_v1 *info,
+                                     int count);
 
 /**
   Spawn a thread.
@@ -153,7 +157,8 @@ typedef void (*register_thread_v1_t)
 typedef int (*spawn_thread_v1_t)(PSI_thread_key key,
                                  my_thread_handle *thread,
                                  const my_thread_attr_t *attr,
-                                 void *(*start_routine)(void*), void *arg);
+                                 void *(*start_routine)(void *),
+                                 void *arg);
 
 /**
   Create instrumentation for a thread.
@@ -161,24 +166,23 @@ typedef int (*spawn_thread_v1_t)(PSI_thread_key key,
   @param identity an address typical of the thread
   @return an instrumented thread
 */
-typedef struct PSI_thread* (*new_thread_v1_t)
-  (PSI_thread_key key, const void *identity, ulonglong thread_id);
+typedef struct PSI_thread *(*new_thread_v1_t)(PSI_thread_key key,
+                                              const void *identity,
+                                              ulonglong thread_id);
 
 /**
   Assign a THD to an instrumented thread.
   @param thread the instrumented thread
   @param thd the sql layer THD to assign
 */
-typedef void (*set_thread_THD_v1_t)(struct PSI_thread *thread,
-                                    THD *thd);
+typedef void (*set_thread_THD_v1_t)(struct PSI_thread *thread, THD *thd);
 
 /**
   Assign an id to an instrumented thread.
   @param thread the instrumented thread
   @param id the id to assign
 */
-typedef void (*set_thread_id_v1_t)(struct PSI_thread *thread,
-                                   ulonglong id);
+typedef void (*set_thread_id_v1_t)(struct PSI_thread *thread, ulonglong id);
 
 /**
   Assign the current operating system thread id to an instrumented thread.
@@ -194,7 +198,7 @@ typedef void (*set_thread_os_id_v1_t)(struct PSI_thread *thread);
   running thread using @c set_thread()
   @return the instrumentation for the running thread
 */
-typedef struct PSI_thread* (*get_thread_v1_t)(void);
+typedef struct PSI_thread *(*get_thread_v1_t)(void);
 
 /**
   Assign a user name to the instrumented thread.
@@ -210,15 +214,17 @@ typedef void (*set_thread_user_v1_t)(const char *user, int user_len);
   @param host the host name
   @param host_len the host name length
 */
-typedef void (*set_thread_account_v1_t)(const char *user, int user_len,
-                                        const char *host, int host_len);
+typedef void (*set_thread_account_v1_t)(const char *user,
+                                        int user_len,
+                                        const char *host,
+                                        int host_len);
 
 /**
   Assign a current database to the instrumented thread.
   @param db the database name
   @param db_len the database name length
 */
-typedef void (*set_thread_db_v1_t)(const char* db, int db_len);
+typedef void (*set_thread_db_v1_t)(const char *db, int db_len);
 
 /**
   Assign a current command to the instrumented thread.
@@ -242,14 +248,14 @@ typedef void (*set_thread_start_time_v1_t)(time_t start_time);
   Assign a state to the instrumented thread.
   @param state the thread state
 */
-typedef void (*set_thread_state_v1_t)(const char* state);
+typedef void (*set_thread_state_v1_t)(const char *state);
 
 /**
   Assign a process info to the instrumented thread.
   @param info the process into string
   @param info_len the process into string length
 */
-typedef void (*set_thread_info_v1_t)(const char* info, uint info_len);
+typedef void (*set_thread_info_v1_t)(const char *info, uint info_len);
 
 /**
   Attach a thread instrumentation to the running thread.
@@ -278,8 +284,17 @@ typedef void (*delete_thread_v1_t)(struct PSI_thread *thread);
     @retval  non_0    attributes truncated
     @retval  0        stored the attribute
 */
-typedef int (*set_thread_connect_attrs_v1_t)(const char *buffer, uint length,
+typedef int (*set_thread_connect_attrs_v1_t)(const char *buffer,
+                                             uint length,
                                              const void *from_cs);
+
+/**
+  Get the current event.
+  @param [out] thread_internal_id The thread internal id
+  @param [out] event_id The per thread event id.
+*/
+typedef void (*get_thread_event_id_v1_t)(ulonglong *thread_internal_id,
+                                         ulonglong *event_id);
 
 /**
   Performance Schema Thread Interface, version 1.
@@ -325,6 +340,8 @@ struct PSI_thread_service_v1
   delete_thread_v1_t delete_thread;
   /** @sa set_thread_connect_attrs_v1_t. */
   set_thread_connect_attrs_v1_t set_thread_connect_attrs;
+  /** @sa get_thread_event_id_v1_t. */
+  get_thread_event_id_v1_t get_thread_event_id;
 };
 
 #endif /* HAVE_PSI_THREAD_1 */
@@ -347,4 +364,3 @@ extern MYSQL_PLUGIN_IMPORT PSI_thread_service_t *psi_thread_service;
 C_MODE_END
 
 #endif /* MYSQL_PSI_THREAD_H */
-

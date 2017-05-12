@@ -1,4 +1,3 @@
---source include/have_innodb.inc
 --source include/not_embedded.inc
 
 eval SET GLOBAL innodb_file_per_table=$file_per_table;

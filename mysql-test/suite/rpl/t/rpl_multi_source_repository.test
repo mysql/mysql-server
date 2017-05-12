@@ -129,7 +129,7 @@ SET @@GLOBAL.relay_log_info_repository = "TABLE";
 # Delete channel_3 and restart server with FILE
 #
 # Stop slave for channel_3
---let $rpl_channel_name= channel_3
+--let $rpl_channel_name= 'channel_3'
 --source include/stop_slave.inc
 
 # Reset slave for channel_3
@@ -143,6 +143,7 @@ RESET SLAVE ALL FOR CHANNEL 'channel_3';
 
 #End MSR setup
 --let $rpl_only_running_threads= 1
+--let $rpl_group_replication= 1
 --source include/rpl_end.inc
 
 

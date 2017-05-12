@@ -3,7 +3,6 @@
 #
 
 -- source include/have_debug.inc
--- source include/have_innodb.inc
 
 CREATE TABLE bug11754376 (c INT) ENGINE=INNODB;
 

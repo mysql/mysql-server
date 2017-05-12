@@ -73,7 +73,6 @@
 --source include/not_embedded.inc
 --source include/not_windows.inc
 --source include/have_debug.inc
---source include/have_gtid.inc
 --source include/master-slave.inc
 
 --disable_warnings

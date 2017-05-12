@@ -6,6 +6,16 @@ TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	INDEX_TYPE	INDEX_COMMENT
 accounts	0	performance_schema	ACCOUNT	HASH	
 cond_instances	1	performance_schema	NAME	HASH	
 cond_instances	0	performance_schema	PRIMARY	HASH	
+data_locks	1	performance_schema	ENGINE_TRANSACTION_ID	HASH	
+data_locks	1	performance_schema	OBJECT_SCHEMA	HASH	
+data_locks	0	performance_schema	PRIMARY	HASH	
+data_locks	1	performance_schema	THREAD_ID	HASH	
+data_lock_waits	1	performance_schema	BLOCKING_ENGINE_LOCK_ID	HASH	
+data_lock_waits	1	performance_schema	BLOCKING_ENGINE_TRANSACTION_ID	HASH	
+data_lock_waits	1	performance_schema	BLOCKING_THREAD_ID	HASH	
+data_lock_waits	1	performance_schema	REQUESTING_ENGINE_LOCK_ID	HASH	
+data_lock_waits	1	performance_schema	REQUESTING_ENGINE_TRANSACTION_ID	HASH	
+data_lock_waits	1	performance_schema	REQUESTING_THREAD_ID	HASH	
 events_errors_summary_by_account_by_error	0	performance_schema	ACCOUNT	HASH	
 events_errors_summary_by_host_by_error	0	performance_schema	HOST	HASH	
 events_errors_summary_by_thread_by_error	0	performance_schema	THREAD_ID	HASH	
@@ -19,6 +29,8 @@ events_stages_summary_by_thread_by_event_name	0	performance_schema	PRIMARY	HASH
 events_stages_summary_by_user_by_event_name	0	performance_schema	USER	HASH	
 events_stages_summary_global_by_event_name	0	performance_schema	PRIMARY	HASH	
 events_statements_current	0	performance_schema	PRIMARY	HASH	
+events_statements_histogram_by_digest	0	performance_schema	SCHEMA_NAME	HASH	
+events_statements_histogram_global	0	performance_schema	PRIMARY	HASH	
 events_statements_history	0	performance_schema	PRIMARY	HASH	
 events_statements_summary_by_account_by_event_name	0	performance_schema	ACCOUNT	HASH	
 events_statements_summary_by_digest	0	performance_schema	SCHEMA_NAME	HASH	
@@ -66,6 +78,7 @@ mutex_instances	1	performance_schema	LOCKED_BY_THREAD_ID	HASH
 mutex_instances	1	performance_schema	NAME	HASH	
 mutex_instances	0	performance_schema	PRIMARY	HASH	
 objects_summary_global_by_type	0	performance_schema	OBJECT	HASH	
+persisted_variables	0	performance_schema	PRIMARY	HASH	
 prepared_statements_instances	1	performance_schema	OWNER_OBJECT_TYPE	HASH	
 prepared_statements_instances	0	performance_schema	OWNER_THREAD_ID	HASH	
 prepared_statements_instances	0	performance_schema	PRIMARY	HASH	
@@ -128,6 +141,28 @@ accounts	0	performance_schema	ACCOUNT	1	USER	NULL	YES
 accounts	0	performance_schema	ACCOUNT	2	HOST	NULL	YES
 cond_instances	1	performance_schema	NAME	1	NAME	NULL	
 cond_instances	0	performance_schema	PRIMARY	1	OBJECT_INSTANCE_BEGIN	NULL	
+data_locks	1	performance_schema	ENGINE_TRANSACTION_ID	1	ENGINE_TRANSACTION_ID	NULL	YES
+data_locks	1	performance_schema	ENGINE_TRANSACTION_ID	2	ENGINE	NULL	
+data_locks	1	performance_schema	OBJECT_SCHEMA	1	OBJECT_SCHEMA	NULL	YES
+data_locks	1	performance_schema	OBJECT_SCHEMA	2	OBJECT_NAME	NULL	YES
+data_locks	1	performance_schema	OBJECT_SCHEMA	3	PARTITION_NAME	NULL	YES
+data_locks	1	performance_schema	OBJECT_SCHEMA	4	SUBPARTITION_NAME	NULL	YES
+data_locks	0	performance_schema	PRIMARY	1	ENGINE_LOCK_ID	NULL	
+data_locks	0	performance_schema	PRIMARY	2	ENGINE	NULL	
+data_locks	1	performance_schema	THREAD_ID	1	THREAD_ID	NULL	YES
+data_locks	1	performance_schema	THREAD_ID	2	EVENT_ID	NULL	YES
+data_lock_waits	1	performance_schema	BLOCKING_ENGINE_LOCK_ID	1	BLOCKING_ENGINE_LOCK_ID	NULL	
+data_lock_waits	1	performance_schema	BLOCKING_ENGINE_LOCK_ID	2	ENGINE	NULL	
+data_lock_waits	1	performance_schema	BLOCKING_ENGINE_TRANSACTION_ID	1	BLOCKING_ENGINE_TRANSACTION_ID	NULL	YES
+data_lock_waits	1	performance_schema	BLOCKING_ENGINE_TRANSACTION_ID	2	ENGINE	NULL	
+data_lock_waits	1	performance_schema	BLOCKING_THREAD_ID	1	BLOCKING_THREAD_ID	NULL	YES
+data_lock_waits	1	performance_schema	BLOCKING_THREAD_ID	2	BLOCKING_EVENT_ID	NULL	YES
+data_lock_waits	1	performance_schema	REQUESTING_ENGINE_LOCK_ID	1	REQUESTING_ENGINE_LOCK_ID	NULL	
+data_lock_waits	1	performance_schema	REQUESTING_ENGINE_LOCK_ID	2	ENGINE	NULL	
+data_lock_waits	1	performance_schema	REQUESTING_ENGINE_TRANSACTION_ID	1	REQUESTING_ENGINE_TRANSACTION_ID	NULL	YES
+data_lock_waits	1	performance_schema	REQUESTING_ENGINE_TRANSACTION_ID	2	ENGINE	NULL	
+data_lock_waits	1	performance_schema	REQUESTING_THREAD_ID	1	REQUESTING_THREAD_ID	NULL	YES
+data_lock_waits	1	performance_schema	REQUESTING_THREAD_ID	2	REQUESTING_EVENT_ID	NULL	YES
 events_errors_summary_by_account_by_error	0	performance_schema	ACCOUNT	1	USER	NULL	YES
 events_errors_summary_by_account_by_error	0	performance_schema	ACCOUNT	2	HOST	NULL	YES
 events_errors_summary_by_account_by_error	0	performance_schema	ACCOUNT	3	ERROR_NUMBER	NULL	YES
@@ -154,6 +189,10 @@ events_stages_summary_by_user_by_event_name	0	performance_schema	USER	2	EVENT_NA
 events_stages_summary_global_by_event_name	0	performance_schema	PRIMARY	1	EVENT_NAME	NULL	
 events_statements_current	0	performance_schema	PRIMARY	1	THREAD_ID	NULL	
 events_statements_current	0	performance_schema	PRIMARY	2	EVENT_ID	NULL	
+events_statements_histogram_by_digest	0	performance_schema	SCHEMA_NAME	1	SCHEMA_NAME	NULL	YES
+events_statements_histogram_by_digest	0	performance_schema	SCHEMA_NAME	2	DIGEST	NULL	YES
+events_statements_histogram_by_digest	0	performance_schema	SCHEMA_NAME	3	BUCKET_NUMBER	NULL	
+events_statements_histogram_global	0	performance_schema	PRIMARY	1	BUCKET_NUMBER	NULL	
 events_statements_history	0	performance_schema	PRIMARY	1	THREAD_ID	NULL	
 events_statements_history	0	performance_schema	PRIMARY	2	EVENT_ID	NULL	
 events_statements_summary_by_account_by_event_name	0	performance_schema	ACCOUNT	1	USER	NULL	YES
@@ -234,6 +273,7 @@ mutex_instances	0	performance_schema	PRIMARY	1	OBJECT_INSTANCE_BEGIN	NULL
 objects_summary_global_by_type	0	performance_schema	OBJECT	1	OBJECT_TYPE	NULL	YES
 objects_summary_global_by_type	0	performance_schema	OBJECT	2	OBJECT_SCHEMA	NULL	YES
 objects_summary_global_by_type	0	performance_schema	OBJECT	3	OBJECT_NAME	NULL	YES
+persisted_variables	0	performance_schema	PRIMARY	1	VARIABLE_NAME	NULL	
 prepared_statements_instances	1	performance_schema	OWNER_OBJECT_TYPE	1	OWNER_OBJECT_TYPE	NULL	YES
 prepared_statements_instances	1	performance_schema	OWNER_OBJECT_TYPE	2	OWNER_OBJECT_SCHEMA	NULL	YES
 prepared_statements_instances	1	performance_schema	OWNER_OBJECT_TYPE	3	OWNER_OBJECT_NAME	NULL	YES

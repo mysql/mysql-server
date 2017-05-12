@@ -12,7 +12,6 @@
 # are expected within result sets.
 --source include/not_embedded.inc
 
---source include/have_innodb.inc
 let $engine_type= InnoDB;
 SET @@session.sql_mode = 'NO_ENGINE_SUBSTITUTION';
 USE test;

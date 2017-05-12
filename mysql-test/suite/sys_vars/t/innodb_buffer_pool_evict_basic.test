@@ -1,4 +1,3 @@
--- source include/have_innodb.inc
 # This is a debug variable for now
 -- source include/have_debug.inc
 

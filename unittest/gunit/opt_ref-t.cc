@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,14 +15,16 @@
 
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
-#include <gtest/gtest.h>
 
-#include "test_utils.h"
+#include <gtest/gtest.h>
+#include <stddef.h>
+#include <sys/types.h>
 
 #include "fake_table.h"
 #include "mock_field_long.h"
-#include "sql_optimizer.cc"
 #include "parse_tree_helpers.h"
+#include "sql_optimizer.cc"
+#include "test_utils.h"
 
 
 // Unit tests of the ref optimizer.
@@ -80,7 +82,7 @@ public:
   virtual void SetUp()
   {
     // We do some pointer arithmetic on these
-    compile_time_assert(sizeof(Fake_key_field) == sizeof(Key_field));
+    static_assert(sizeof(Fake_key_field) == sizeof(Key_field), "");
     initializer.SetUp();
 
     item_zero= new Item_int(0);

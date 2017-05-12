@@ -52,10 +52,10 @@ Variable_name	Value
 tx_isolation	REPEATABLE-READ
 SHOW SESSION VARIABLES like 'character_set_client';
 Variable_name	Value
-character_set_client	latin1
+character_set_client	utf8mb4
 SHOW SESSION VARIABLES like 'character_set_connection';
 Variable_name	Value
-character_set_connection	latin1
+character_set_connection	utf8mb4
 SHOW SESSION VARIABLES like 'max_join_size';
 Variable_name	Value
 max_join_size	18446744073709551615
@@ -89,10 +89,10 @@ Variable_name	Value
 tx_isolation	REPEATABLE-READ
 SHOW SESSION VARIABLES like 'character_set_client';
 Variable_name	Value
-character_set_client	latin1
+character_set_client	utf8mb4
 SHOW SESSION VARIABLES like 'character_set_connection';
 Variable_name	Value
-character_set_connection	latin1
+character_set_connection	utf8mb4
 SHOW SESSION VARIABLES like 'max_join_size';
 Variable_name	Value
 max_join_size	18446744073709551615

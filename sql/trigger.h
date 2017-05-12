@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,23 +17,28 @@
 #ifndef TRIGGER_H_INCLUDED
 #define TRIGGER_H_INCLUDED
 
-///////////////////////////////////////////////////////////////////////////
+#include "my_config.h"
 
-#include "my_global.h"
-#include "m_string.h"                 // LEX_CSTRING
+#include <string.h>
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
+#include <sys/types.h>
+
+#include "my_inttypes.h"
 #include "mysql/mysql_lex_string.h"   // LEX_STRING
+#include "mysql_com.h"
 #include "sql_alloc.h"                // Sql_alloc
-#include "sql_string.h"
 #include "table.h"                    // GRANT_INFO
 #include "trigger_def.h"              // enum_trigger_event_type
+#include "typelib.h"
 
 class Query_tables_list;
-class sp_head;
-class Stored_program_creation_ctx;
 class String;
+class THD;
+class sp_head;
+
 typedef ulonglong sql_mode_t;
-typedef struct st_mysql_lex_string LEX_STRING;
-typedef struct st_mysql_const_lex_string LEX_CSTRING;
 
 
 /**

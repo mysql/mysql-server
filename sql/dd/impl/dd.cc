@@ -15,12 +15,9 @@
 
 #include "dd/dd.h"
 
-#include "table.h"                                  // MYSQL_SCHEMA_NAME
-
+#include "dd/impl/cache/shared_dictionary_cache.h"  // dd::cache::Shared_...
 #include "dd/impl/dictionary_impl.h"                // dd::Dictionary_impl
 #include "dd/impl/system_registry.h"                // dd::System_tables
-#include "dd/impl/cache/shared_dictionary_cache.h"  // dd::cache::Shared_...
-#include "dd/impl/types/schema_impl.h"              // dd::Schema_impl
 
 namespace dd {
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -17,15 +17,14 @@
  * 02110-1301  USA
  */
 
-#if !defined(MYSQL_DYNAMIC_PLUGIN) && defined(WIN32) && !defined(XPLUGIN_UNIT_TESTS)
-// Needed for importing PERFORMANCE_SCHEMA plugin API.
-#define MYSQL_DYNAMIC_PLUGIN 1
-#endif // WIN32
-
 #include "ngs/client_session.h"
+
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "ngs/interface/authentication_interface.h"
 #include "ngs/interface/client_interface.h"
 #include "ngs/interface/server_interface.h"
-#include "ngs/protocol_authentication.h"
 #include "ngs/log.h"
 #include "ngs/ngs_error.h"
 
@@ -148,7 +147,7 @@ void Session::stop_auth()
 
 bool Session::handle_auth_message(ngs::Request &command)
 {
-  Authentication_handler::Response r;
+  Authentication_interface::Response r;
   int8_t type = command.get_type();
 
   if (type == Mysqlx::ClientMessages::SESS_AUTHENTICATE_START && m_auth_handler.get() == NULL)
@@ -182,6 +181,7 @@ bool Session::handle_auth_message(ngs::Request &command)
   }
   else
   {
+    m_encoder->get_protocol_monitor().on_error_unknown_msg_type();
     log_info("%s: Unexpected message of type %i received during authentication", m_client.client_id(), type);
     m_encoder->send_init_error(ngs::Fatal(ER_X_BAD_MESSAGE, "Invalid message"));
     stop_auth();
@@ -190,11 +190,11 @@ bool Session::handle_auth_message(ngs::Request &command)
 
   switch (r.status)
   {
-  case Authentication_handler::Succeeded:
+  case Authentication_interface::Succeeded:
     on_auth_success(r);
     break;
 
-  case Authentication_handler::Failed:
+  case Authentication_interface::Failed:
     on_auth_failure(r);
     break;
 
@@ -206,7 +206,7 @@ bool Session::handle_auth_message(ngs::Request &command)
 }
 
 
-void Session::on_auth_success(const Authentication_handler::Response &response)
+void Session::on_auth_success(const Authentication_interface::Response &response)
 {
   log_debug("%s.%u: Login succeeded", m_client.client_id(), m_id);
   m_auth_handler.reset();
@@ -216,7 +216,7 @@ void Session::on_auth_success(const Authentication_handler::Response &response)
 }
 
 
-void Session::on_auth_failure(const Authentication_handler::Response &responce)
+void Session::on_auth_failure(const Authentication_interface::Response &responce)
 {
   log_error("%s.%u: Unsuccessful login attempt: %s", m_client.client_id(), m_id, responce.data.c_str());
   m_encoder->send_init_error(ngs::Fatal(ER_ACCESS_DENIED_ERROR, "%s", responce.data.c_str()));

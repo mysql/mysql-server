@@ -1,5 +1,3 @@
-select @@global.show_compatibility_56 into @show_compatibility_56_save;
-set @@global.show_compatibility_56=ON;
 set @orig_sql_mode= @@sql_mode;
 set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
 Warnings:
@@ -13,8 +11,8 @@ SET SESSION information_schema_stats=latest;
 select table_name, data_type, column_type from information_schema.columns  where column_name = 'numeric_precision' and table_schema = 'information_schema';
 TABLE_NAME	DATA_TYPE	COLUMN_TYPE
 COLUMNS	bigint	bigint(10) unsigned
-PARAMETERS	bigint	bigint(21)
-ROUTINES	bigint	bigint(21)
+PARAMETERS	int	int(10) unsigned
+ROUTINES	int	int(10) unsigned
 show variables where variable_name like "skip_show_database";
 Variable_name	Value
 skip_show_database	OFF
@@ -28,11 +26,11 @@ create user mysqltest_3@localhost;
 create user mysqltest_3;
 select * from information_schema.SCHEMATA where schema_name > 'm' ORDER BY SCHEMA_NAME;
 CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
-def	mtr	latin1	latin1_swedish_ci	NULL
-def	mysql	latin1	latin1_swedish_ci	NULL
+def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
+def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	performance_schema	utf8	utf8_general_ci	NULL
 def	sys	utf8	utf8_general_ci	NULL
-def	test	latin1	latin1_swedish_ci	NULL
+def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 select schema_name from information_schema.schemata ORDER BY schema_name;
 SCHEMA_NAME
 information_schema
@@ -76,8 +74,6 @@ COLUMN_PRIVILEGES
 ENGINES
 EVENTS
 FILES
-GLOBAL_STATUS
-GLOBAL_VARIABLES
 KEY_COLUMN_USAGE
 OPTIMIZER_TRACE
 PARAMETERS
@@ -89,13 +85,13 @@ REFERENTIAL_CONSTRAINTS
 ROUTINES
 SCHEMATA
 SCHEMA_PRIVILEGES
-SESSION_STATUS
-SESSION_VARIABLES
 SHOW_STATISTICS
 SHOW_STATISTICS_DYNAMIC
 STATISTICS
 STATISTICS_BASE
 STATISTICS_DYNAMIC
+ST_GEOMETRY_COLUMNS
+ST_SPATIAL_REFERENCE_SYSTEMS
 TABLES
 TABLESPACES
 TABLES_DYNAMIC
@@ -112,6 +108,7 @@ default_roles
 engine_cost
 func
 general_log
+global_grants
 gtid_executed
 help_category
 help_keyword
@@ -191,9 +188,9 @@ test.t3	analyze	status	OK
 test.t5	analyze	status	OK
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t2	InnoDB	10	Dynamic	0	#	#	#	#	0	NULL	#	#	NULL	latin1_swedish_ci	NULL		
-t3	InnoDB	10	Dynamic	0	#	#	#	#	0	NULL	#	#	NULL	latin1_swedish_ci	NULL		
-t5	InnoDB	10	Dynamic	1	#	#	#	#	0	11	#	#	NULL	latin1_swedish_ci	NULL		
+t2	InnoDB	10	Dynamic	0	#	#	#	#	0	NULL	#	#	NULL	utf8mb4_0900_ai_ci	NULL		
+t3	InnoDB	10	Dynamic	0	#	#	#	#	0	NULL	#	#	NULL	utf8mb4_0900_ai_ci	NULL		
+t5	InnoDB	10	Dynamic	1	#	#	#	#	0	11	#	#	NULL	utf8mb4_0900_ai_ci	NULL		
 v1	NULL	NULL	NULL	0	#	#	#	#	0	NULL	#	#	NULL	NULL	NULL	NULL	VIEW
 show full columns from t3 like "a%";
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
@@ -242,35 +239,35 @@ Charset	Description	Default collation	Maxlen
 latin1	cp1252 West European	latin1_swedish_ci	1
 select * from information_schema.COLLATIONS
 where COLLATION_NAME like 'latin1%' order by collation_name;
-COLLATION_NAME	CHARACTER_SET_NAME	ID	IS_DEFAULT	IS_COMPILED	SORTLEN
-latin1_bin	latin1	47		#	1
-latin1_danish_ci	latin1	15		#	1
-latin1_general_ci	latin1	48		#	1
-latin1_general_cs	latin1	49		#	1
-latin1_german1_ci	latin1	5		#	1
-latin1_german2_ci	latin1	31		#	2
-latin1_spanish_ci	latin1	94		#	1
-latin1_swedish_ci	latin1	8	Yes	#	1
+COLLATION_NAME	CHARACTER_SET_NAME	ID	IS_DEFAULT	IS_COMPILED	SORTLEN	PAD_ATTRIBUTE
+latin1_bin	latin1	47		#	1	PAD SPACE
+latin1_danish_ci	latin1	15		#	1	PAD SPACE
+latin1_general_ci	latin1	48		#	1	PAD SPACE
+latin1_general_cs	latin1	49		#	1	PAD SPACE
+latin1_german1_ci	latin1	5		#	1	PAD SPACE
+latin1_german2_ci	latin1	31		#	2	PAD SPACE
+latin1_spanish_ci	latin1	94		#	1	PAD SPACE
+latin1_swedish_ci	latin1	8	Yes	#	1	PAD SPACE
 SHOW COLLATION LIKE 'latin1%';
-Collation	Charset	Id	Default	Compiled	Sortlen
-latin1_bin	latin1	47		#	1
-latin1_danish_ci	latin1	15		#	1
-latin1_general_ci	latin1	48		#	1
-latin1_general_cs	latin1	49		#	1
-latin1_german1_ci	latin1	5		#	1
-latin1_german2_ci	latin1	31		#	2
-latin1_spanish_ci	latin1	94		#	1
-latin1_swedish_ci	latin1	8	Yes	#	1
+Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
+latin1_bin	latin1	47		#	1	PAD SPACE
+latin1_danish_ci	latin1	15		#	1	PAD SPACE
+latin1_general_ci	latin1	48		#	1	PAD SPACE
+latin1_general_cs	latin1	49		#	1	PAD SPACE
+latin1_german1_ci	latin1	5		#	1	PAD SPACE
+latin1_german2_ci	latin1	31		#	2	PAD SPACE
+latin1_spanish_ci	latin1	94		#	1	PAD SPACE
+latin1_swedish_ci	latin1	8	Yes	#	1	PAD SPACE
 SHOW COLLATION WHERE collation like 'latin1%';
-Collation	Charset	Id	Default	Compiled	Sortlen
-latin1_bin	latin1	47		#	1
-latin1_danish_ci	latin1	15		#	1
-latin1_general_ci	latin1	48		#	1
-latin1_general_cs	latin1	49		#	1
-latin1_german1_ci	latin1	5		#	1
-latin1_german2_ci	latin1	31		#	2
-latin1_spanish_ci	latin1	94		#	1
-latin1_swedish_ci	latin1	8	Yes	#	1
+Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
+latin1_bin	latin1	47		#	1	PAD SPACE
+latin1_danish_ci	latin1	15		#	1	PAD SPACE
+latin1_general_ci	latin1	48		#	1	PAD SPACE
+latin1_general_cs	latin1	49		#	1	PAD SPACE
+latin1_german1_ci	latin1	5		#	1	PAD SPACE
+latin1_german2_ci	latin1	31		#	2	PAD SPACE
+latin1_spanish_ci	latin1	94		#	1	PAD SPACE
+latin1_swedish_ci	latin1	8	Yes	#	1	PAD SPACE
 select * from information_schema.COLLATION_CHARACTER_SET_APPLICABILITY
 where COLLATION_NAME like 'latin1%' ORDER BY COLLATION_NAME;
 COLLATION_NAME	CHARACTER_SET_NAME
@@ -294,32 +291,21 @@ select * from t2;
 end|
 select parameter_style, sql_data_access, dtd_identifier
 from information_schema.routines where routine_schema='test';
-parameter_style	sql_data_access	dtd_identifier
+PARAMETER_STYLE	SQL_DATA_ACCESS	DTD_IDENTIFIER
 SQL	CONTAINS SQL	int(11)
 SQL	CONTAINS SQL	NULL
 show procedure status where db='test';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-test	sel2	PROCEDURE	root@localhost	#	#	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+test	sel2	PROCEDURE	root@localhost	#	#	DEFINER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 show function status where db='test';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-test	sub1	FUNCTION	root@localhost	#	#	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+test	sub1	FUNCTION	root@localhost	#	#	DEFINER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 select a.ROUTINE_NAME from information_schema.ROUTINES a,
 information_schema.SCHEMATA b where
-a.ROUTINE_SCHEMA = CONVERT(b.SCHEMA_NAME USING UTF8) AND b.SCHEMA_NAME='test';
+a.ROUTINE_SCHEMA = b.SCHEMA_NAME AND b.SCHEMA_NAME='test';
 ROUTINE_NAME
 sub1
 sel2
-explain select a.ROUTINE_NAME from information_schema.ROUTINES a,
-information_schema.SCHEMATA b where
-a.ROUTINE_SCHEMA = CONVERT(b.SCHEMA_NAME USING UTF8);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	#	NULL	index	PRIMARY	name	194	NULL	#	#	Using index
-1	SIMPLE	#	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using join buffer (Block Nested Loop)
-1	SIMPLE	#	NULL	ALL	catalog_id,default_collation_id	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	#	NULL	eq_ref	PRIMARY,character_set_id	PRIMARY	8	mysql.sch.default_collation_id	#	#	NULL
-1	SIMPLE	#	NULL	eq_ref	PRIMARY	PRIMARY	8	mysql.col.character_set_id	#	#	Using index
-Warnings:
-Note	1003	#
 select count(*) from information_schema.ROUTINES where routine_schema='test';
 count(*)
 2
@@ -330,39 +316,39 @@ routine_schema	routine_name
 test	sel2
 test	sub1
 drop view v1;
-select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES;
+select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES WHERE ROUTINE_SCHEMA='test';
 ROUTINE_NAME	ROUTINE_DEFINITION
 show create function sub1;
 ERROR 42000: FUNCTION sub1 does not exist
-select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES;
+select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES WHERE ROUTINE_SCHEMA='test';
 ROUTINE_NAME	ROUTINE_DEFINITION
 sub1	NULL
 sel2	NULL
 grant all privileges on test.* to mysqltest_1@localhost;
-select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES;
+select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES WHERE ROUTINE_SCHEMA='test';
 ROUTINE_NAME	ROUTINE_DEFINITION
 sub1	NULL
 sel2	NULL
 create function sub2(i int) returns int
 return i+1;
-select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES;
+select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES WHERE ROUTINE_SCHEMA='test';
 ROUTINE_NAME	ROUTINE_DEFINITION
 sub1	NULL
 sub2	return i+1
 sel2	NULL
 show create procedure sel2;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-sel2	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	NULL	latin1	latin1_swedish_ci	latin1_swedish_ci
+sel2	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	NULL	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 show create function sub1;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-sub1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	NULL	latin1	latin1_swedish_ci	latin1_swedish_ci
+sub1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	NULL	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 show create function sub2;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 sub2	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`mysqltest_1`@`localhost` FUNCTION `sub2`(i int) RETURNS int(11)
-return i+1	latin1	latin1_swedish_ci	latin1_swedish_ci
+return i+1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 show function status like "sub2";
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-test	sub2	FUNCTION	mysqltest_1@localhost	#	#	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+test	sub2	FUNCTION	mysqltest_1@localhost	#	#	DEFINER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 drop function sub2;
 show create procedure sel2;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
@@ -370,7 +356,7 @@ sel2	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_F
 begin
 select * from t1;
 select * from t2;
-end	latin1	latin1_swedish_ci	latin1_swedish_ci
+end	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 create view v0 (c) as select schema_name from information_schema.schemata order by schema_name;
 select * from v0;
 c
@@ -486,7 +472,7 @@ t1	CREATE TABLE `t1` (
   UNIQUE KEY `constraint_1` (`a`),
   UNIQUE KEY `key_1` (`a`),
   UNIQUE KEY `key_2` (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 select * from information_schema.TABLE_CONSTRAINTS where
 TABLE_SCHEMA= "test" order by constraint_name;
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE
@@ -523,9 +509,9 @@ create view v3 (c) as select a from t1 WITH CASCADED CHECK OPTION;
 select * from information_schema.views where table_schema !=
 'sys' order by table_name;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE	CHARACTER_SET_CLIENT	COLLATION_CONNECTION
-def	test	v1	select `test`.`t1`.`a` AS `c` from `test`.`t1`	CASCADED	YES	root@localhost	DEFINER	latin1	latin1_swedish_ci
-def	test	v2	select `test`.`t1`.`a` AS `c` from `test`.`t1`	LOCAL	YES	root@localhost	DEFINER	latin1	latin1_swedish_ci
-def	test	v3	select `test`.`t1`.`a` AS `c` from `test`.`t1`	CASCADED	YES	root@localhost	DEFINER	latin1	latin1_swedish_ci
+def	test	v1	select `test`.`t1`.`a` AS `a` from `test`.`t1`	CASCADED	YES	root@localhost	DEFINER	latin1	latin1_swedish_ci
+def	test	v2	select `test`.`t1`.`a` AS `a` from `test`.`t1`	LOCAL	YES	root@localhost	DEFINER	latin1	latin1_swedish_ci
+def	test	v3	select `test`.`t1`.`a` AS `a` from `test`.`t1`	CASCADED	YES	root@localhost	DEFINER	latin1	latin1_swedish_ci
 grant select (a) on test.t1 to joe@localhost with grant option;
 Warnings:
 Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
@@ -723,12 +709,12 @@ where table_schema='test' order by constraint_name;
 constraint_name
 show create view v2;
 View	Create View	character_set_client	collation_connection
-v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `t1`.`f1` AS `c` from `t1`	latin1	latin1_swedish_ci
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` (`c`) AS select `t1`.`f1` AS `f1` from `t1`	latin1	latin1_swedish_ci
 Warnings:
 Warning	1356	View 'test.v2' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 show create table v3;
 View	Create View	character_set_client	collation_connection
-v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS select `sub1`(1) AS `c`	latin1	latin1_swedish_ci
+v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` (`c`) AS select `sub1`(1) AS `sub1(1)`	latin1	latin1_swedish_ci
 Warnings:
 Warning	1356	View 'test.v3' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 drop view v2;
@@ -781,16 +767,21 @@ and data_type = 'longtext' order by table_name, column_name;
 TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME
 information_schema	COLUMNS	DATA_TYPE
 information_schema	COLUMNS	GENERATION_EXPRESSION
+information_schema	EVENTS	EVENT_DEFINITION
+information_schema	PARAMETERS	DATA_TYPE
+information_schema	ROUTINES	DATA_TYPE
+information_schema	ROUTINES	DTD_IDENTIFIER
+information_schema	ROUTINES	ROUTINE_DEFINITION
+information_schema	ST_GEOMETRY_COLUMNS	GEOMETRY_TYPE_NAME
+information_schema	TRIGGERS	ACTION_STATEMENT
 information_schema	VIEWS	VIEW_DEFINITION
 select table_name, column_name, data_type from information_schema.columns
 where table_schema not in ('performance_schema', 'sys')
 and data_type = 'datetime'
   and table_name COLLATE utf8_general_ci not like 'innodb_%' order by table_name, column_name;
 TABLE_NAME	COLUMN_NAME	DATA_TYPE
-EVENTS	CREATED	datetime
 EVENTS	ENDS	datetime
 EVENTS	EXECUTE_AT	datetime
-EVENTS	LAST_ALTERED	datetime
 EVENTS	LAST_EXECUTED	datetime
 EVENTS	STARTS	datetime
 FILES	CHECK_TIME	datetime
@@ -802,11 +793,8 @@ FILES	UPDATE_TIME	datetime
 PARTITIONS	CHECK_TIME	datetime
 PARTITIONS	CREATE_TIME	datetime
 PARTITIONS	UPDATE_TIME	datetime
-ROUTINES	CREATED	datetime
-ROUTINES	LAST_ALTERED	datetime
 TABLES_DYNAMIC	CHECK_TIME	datetime
 TABLES_DYNAMIC	UPDATE_TIME	datetime
-TRIGGERS	CREATED	datetime
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES A
 WHERE NOT EXISTS
 (SELECT * FROM INFORMATION_SCHEMA.COLUMNS B
@@ -855,6 +843,7 @@ REFERENTIAL_CONSTRAINTS	TABLE_NAME	select
 STATISTICS	TABLE_NAME	select
 STATISTICS_BASE	TABLE_NAME	select
 STATISTICS_DYNAMIC	TABLE_NAME	select
+ST_GEOMETRY_COLUMNS	TABLE_NAME	select
 TABLES	TABLE_NAME	select
 TABLES_DYNAMIC	TABLE_NAME	select
 TABLE_CONSTRAINTS	TABLE_NAME	select
@@ -868,8 +857,8 @@ table_schema IN ('mysql', 'information_schema', 'test', 'mysqltest')
 AND table_name not like 'ndb%' AND table_name COLLATE utf8_general_ci not like 'innodb_%'
 GROUP BY TABLE_SCHEMA;
 TABLE_SCHEMA	count(*)
-information_schema	36
-mysql	30
+information_schema	34
+mysql	31
 create table t1 (i int, j int);
 create trigger trg1 before insert on t1 for each row
 begin
@@ -895,34 +884,34 @@ trg1	INSERT	t1	begin
 if new.j > 10 then
 set new.j := 10;
 end if;
-end	BEFORE	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+end	BEFORE	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 trg2	UPDATE	t1	begin
 if old.i % 2 = 0 then
 set new.j := -1;
 end if;
-end	BEFORE	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+end	BEFORE	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 trg3	UPDATE	t1	begin
 if new.j = -1 then
 set @fired:= "Yes";
 end if;
-end	AFTER	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+end	AFTER	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 select * from information_schema.triggers where trigger_schema in ('mysql', 'information_schema', 'test', 'mysqltest');
 TRIGGER_CATALOG	TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_MANIPULATION	EVENT_OBJECT_CATALOG	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_ORDER	ACTION_CONDITION	ACTION_STATEMENT	ACTION_ORIENTATION	ACTION_TIMING	ACTION_REFERENCE_OLD_TABLE	ACTION_REFERENCE_NEW_TABLE	ACTION_REFERENCE_OLD_ROW	ACTION_REFERENCE_NEW_ROW	CREATED	SQL_MODE	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
 def	test	trg1	INSERT	def	test	t1	1	NULL	begin
 if new.j > 10 then
 set new.j := 10;
 end if;
-end	ROW	BEFORE	NULL	NULL	OLD	NEW	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+end	ROW	BEFORE	NULL	NULL	OLD	NEW	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 def	test	trg2	UPDATE	def	test	t1	1	NULL	begin
 if old.i % 2 = 0 then
 set new.j := -1;
 end if;
-end	ROW	BEFORE	NULL	NULL	OLD	NEW	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+end	ROW	BEFORE	NULL	NULL	OLD	NEW	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 def	test	trg3	UPDATE	def	test	t1	1	NULL	begin
 if new.j = -1 then
 set @fired:= "Yes";
 end if;
-end	ROW	AFTER	NULL	NULL	OLD	NEW	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+end	ROW	AFTER	NULL	NULL	OLD	NEW	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 drop trigger trg1;
 drop trigger trg2;
 drop trigger trg3;
@@ -1015,7 +1004,7 @@ create procedure p1 () modifies sql data set @a = 5;
 create procedure p2 () set @a = 5;
 select sql_data_access from information_schema.routines
 where specific_name like 'p%' and ROUTINE_SCHEMA != 'sys';
-sql_data_access
+SQL_DATA_ACCESS
 MODIFIES SQL DATA
 CONTAINS SQL
 drop procedure p1;
@@ -1051,7 +1040,7 @@ create trigger tr1 after insert on t1 for each row set @test_var=42;
 use information_schema;
 select trigger_schema, trigger_name from triggers where
 trigger_name='tr1';
-trigger_schema	trigger_name
+TRIGGER_SCHEMA	TRIGGER_NAME
 test	tr1
 use test;
 drop table t1;
@@ -1078,8 +1067,8 @@ SHOW TABLE STATUS FROM test
 WHERE name IN ( SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES
 WHERE TABLE_SCHEMA='test' AND TABLE_TYPE='BASE TABLE');
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	InnoDB	10	Dynamic	0	0	#	#	0	0	NULL	#	#	NULL	latin1_swedish_ci	NULL		
-t2	InnoDB	10	Dynamic	0	0	#	#	0	0	NULL	#	#	NULL	latin1_swedish_ci	NULL		
+t1	InnoDB	10	Dynamic	0	0	#	#	0	0	NULL	#	#	NULL	utf8mb4_0900_ai_ci	NULL		
+t2	InnoDB	10	Dynamic	0	0	#	#	0	0	NULL	#	#	NULL	utf8mb4_0900_ai_ci	NULL		
 DROP TABLE t1,t2;
 create table t1(f1 int);
 create view v1 (c) as select f1 from t1;
@@ -1175,8 +1164,8 @@ table_schema='information_schema' AND
  OR column_type = 'varchar(30)')
 GROUP BY column_type ORDER BY num;
 COLUMN_TYPE	GROUP_CONCAT(table_schema, '.', table_name)	num
+varchar(7)	information_schema.VIEWS	1
 varchar(30)	information_schema.PROFILING,information_schema.PROFILING	2
-varchar(7)	information_schema.ROUTINES,information_schema.VIEWS	2
 varchar(20)	information_schema.FILES,information_schema.FILES,information_schema.PLUGINS,information_schema.PLUGINS,information_schema.PLUGINS,information_schema.PROFILING	6
 create table t1(f1 char(1) not null, f2 char(9) not null)
 default character set utf8;
@@ -1224,21 +1213,21 @@ p1	SET @a= 1
 SHOW CREATE PROCEDURE p1;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
-SET @a= 1	latin1	latin1_swedish_ci	latin1_swedish_ci
+SET @a= 1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 SHOW CREATE FUNCTION f1;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 f1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f1`() RETURNS int(11)
-RETURN @a + 1	latin1	latin1_swedish_ci	latin1_swedish_ci
+RETURN @a + 1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 SELECT ROUTINE_NAME, ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA='test';
 ROUTINE_NAME	ROUTINE_DEFINITION
 f1	NULL
 p1	NULL
 SHOW CREATE PROCEDURE p1;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	NULL	latin1	latin1_swedish_ci	latin1_swedish_ci
+p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	NULL	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 SHOW CREATE FUNCTION f1;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	NULL	latin1	latin1_swedish_ci	latin1_swedish_ci
+f1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	NULL	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 CALL p1();
 SELECT f1();
 f1()
@@ -1323,8 +1312,6 @@ COLUMN_PRIVILEGES	information_schema.COLUMN_PRIVILEGES	1
 ENGINES	information_schema.ENGINES	1
 EVENTS	information_schema.EVENTS	1
 FILES	information_schema.FILES	1
-GLOBAL_STATUS	information_schema.GLOBAL_STATUS	1
-GLOBAL_VARIABLES	information_schema.GLOBAL_VARIABLES	1
 KEY_COLUMN_USAGE	information_schema.KEY_COLUMN_USAGE	1
 OPTIMIZER_TRACE	information_schema.OPTIMIZER_TRACE	1
 PARAMETERS	information_schema.PARAMETERS	1
@@ -1336,13 +1323,13 @@ REFERENTIAL_CONSTRAINTS	information_schema.REFERENTIAL_CONSTRAINTS	1
 ROUTINES	information_schema.ROUTINES	1
 SCHEMATA	information_schema.SCHEMATA	1
 SCHEMA_PRIVILEGES	information_schema.SCHEMA_PRIVILEGES	1
-SESSION_STATUS	information_schema.SESSION_STATUS	1
-SESSION_VARIABLES	information_schema.SESSION_VARIABLES	1
 SHOW_STATISTICS	information_schema.SHOW_STATISTICS	1
 SHOW_STATISTICS_DYNAMIC	information_schema.SHOW_STATISTICS_DYNAMIC	1
 STATISTICS	information_schema.STATISTICS	1
 STATISTICS_BASE	information_schema.STATISTICS_BASE	1
 STATISTICS_DYNAMIC	information_schema.STATISTICS_DYNAMIC	1
+ST_GEOMETRY_COLUMNS	information_schema.ST_GEOMETRY_COLUMNS	1
+ST_SPATIAL_REFERENCE_SYSTEMS	information_schema.ST_SPATIAL_REFERENCE_SYSTEMS	1
 TABLES	information_schema.TABLES	1
 TABLESPACES	information_schema.TABLESPACES	1
 TABLES_DYNAMIC	information_schema.TABLES_DYNAMIC	1
@@ -1375,11 +1362,11 @@ Warnings:
 Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 select trigger_name from information_schema.triggers
 where event_object_table='t1';
-trigger_name
+TRIGGER_NAME
 t1_ai
 show triggers from mysqltest;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
-t1_ai	INSERT	t1	set @a = new.a + new.b + new.c	AFTER	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+t1_ai	INSERT	t1	set @a = new.a + new.b + new.c	AFTER	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
 b	int(11)	YES		NULL	
@@ -1390,7 +1377,7 @@ show triggers;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
 select trigger_name from information_schema.triggers
 where event_object_table='t1';
-trigger_name
+TRIGGER_NAME
 drop user mysqltest_1@localhost;
 drop database mysqltest;
 create table t1 (
@@ -1435,7 +1422,7 @@ SELECT *
 FROM tables ta
 JOIN collations co ON ( co.collation_name = CONVERT(ta.table_catalog using utf8))
 JOIN character_sets cs ON ( cs.character_set_name = CONVERT(ta.table_catalog using utf8));
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	AUTO_INCREMENT	CREATE_TIME	UPDATE_TIME	CHECK_TIME	TABLE_COLLATION	CHECKSUM	CREATE_OPTIONS	TABLE_COMMENT	COLLATION_NAME	CHARACTER_SET_NAME	ID	IS_DEFAULT	IS_COMPILED	SORTLEN	CHARACTER_SET_NAME	DEFAULT_COLLATE_NAME	DESCRIPTION	MAXLEN
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	AUTO_INCREMENT	CREATE_TIME	UPDATE_TIME	CHECK_TIME	TABLE_COLLATION	CHECKSUM	CREATE_OPTIONS	TABLE_COMMENT	COLLATION_NAME	CHARACTER_SET_NAME	ID	IS_DEFAULT	IS_COMPILED	SORTLEN	PAD_ATTRIBUTE	CHARACTER_SET_NAME	DEFAULT_COLLATE_NAME	DESCRIPTION	MAXLEN
 DROP TABLE test.t1;
 SET max_heap_table_size = DEFAULT;
 USE test;
@@ -1460,14 +1447,14 @@ DO
 BEGIN
 CREATE TABLE server_status
 SELECT variable_name
-FROM information_schema.global_status
+FROM performance_schema.global_status
 WHERE variable_name LIKE 'ABORTED_CONNECTS' OR
 variable_name LIKE 'BINLOG_CACHE_DISK_USE';
 END$$
 SELECT variable_name FROM server_status;
 variable_name
-ABORTED_CONNECTS
-BINLOG_CACHE_DISK_USE
+Aborted_connects
+Binlog_cache_disk_use
 DROP TABLE server_status;
 SET GLOBAL event_scheduler=0;
 SELECT * FROM INFORMATION_SCHEMA.SCHEMATA
@@ -1479,7 +1466,7 @@ CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_P
 SELECT * FROM INFORMATION_SCHEMA.SCHEMATA
 WHERE SCHEMA_NAME = 'test';
 CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
-def	test	latin1	latin1_swedish_ci	NULL
+def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 select count(*) from INFORMATION_SCHEMA.TABLES where TABLE_SCHEMA='mysql' AND TABLE_NAME='nonexisting';
 count(*)
 0
@@ -1594,9 +1581,9 @@ drop table if exists t1;drop table if exists t1;\
 drop table if exists t1;drop table if exists t1;\
 drop table if exists t1;drop table if exists t1;\
 drop table if exists t1;drop table if exists t1;";
-select * from information_schema.global_variables where variable_name='init_connect';
+select * from performance_schema.global_variables where variable_name='init_connect';
 VARIABLE_NAME	VARIABLE_VALUE
-INIT_CONNECT	drop table if exists t1;drop table if exists t1;
+init_connect	drop table if exists t1;drop table if exists t1;
 drop table if exists t1;drop table if exists t1;
 drop table if exists t1;drop table if exists t1;
 drop table if exists t1;drop table if exists t1;
@@ -1617,18 +1604,14 @@ drop table if exists t1;drop table if exists t1;
 drop table if exists t1;drop table if exists t1;
 drop table if exists t1;drop table if exists t1;
 drop table if exists t1;drop table if exists
-Warnings:
-Warning	1287	'INFORMATION_SCHEMA.GLOBAL_VARIABLES' is deprecated and will be removed in a future release. Please use performance_schema.global_variables instead
-Warning	1406	Data too long for column 'VARIABLE_VALUE' at row 1
 set global init_connect="";
-create table t0 select * from information_schema.global_status where VARIABLE_NAME='COM_SELECT';
+create table t0 select * from performance_schema.global_status where VARIABLE_NAME='COM_SELECT';
 SELECT 1;
 1
 1
-select a.VARIABLE_VALUE - b.VARIABLE_VALUE from t0 b, information_schema.global_status a
+select a.VARIABLE_VALUE - b.VARIABLE_VALUE from t0 b, performance_schema.global_status a
 where a.VARIABLE_NAME = b.VARIABLE_NAME;
 a.VARIABLE_VALUE - b.VARIABLE_VALUE
-2
 drop table t0;
 CREATE TABLE t1(a INT) KEY_BLOCK_SIZE=1;
 SELECT CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='t1';
@@ -1695,23 +1678,23 @@ create procedure p1 (p1 float(8,5), p2 char(32), p3 varchar(10)) begin end;
 create procedure p2 (p1 enum('c', 's'), p2 blob, p3 text) begin end;
 select * from information_schema.parameters where specific_schema='test';
 SPECIFIC_CATALOG	SPECIFIC_SCHEMA	SPECIFIC_NAME	ORDINAL_POSITION	PARAMETER_MODE	PARAMETER_NAME	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER	ROUTINE_TYPE
-def	test	f1	0	NULL	NULL	char	10	10	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(10)	FUNCTION
+def	test	f1	0	NULL	NULL	char	10	40	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	char(10)	FUNCTION
 def	test	f1	1	IN	p1	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)	FUNCTION
 def	test	f1	2	IN	p2	datetime	NULL	NULL	NULL	NULL	0	NULL	NULL	datetime	FUNCTION
 def	test	f1	3	IN	p3	decimal	NULL	NULL	10	2	NULL	NULL	NULL	decimal(10,2)	FUNCTION
 def	test	p1	1	IN	p1	float	NULL	NULL	8	5	NULL	NULL	NULL	float(8,5)	PROCEDURE
-def	test	p1	2	IN	p2	char	32	32	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(32)	PROCEDURE
-def	test	p1	3	IN	p3	varchar	10	10	NULL	NULL	NULL	latin1	latin1_swedish_ci	varchar(10)	PROCEDURE
-def	test	p2	1	IN	p1	enum	1	1	NULL	NULL	NULL	latin1	latin1_swedish_ci	enum('c','s')	PROCEDURE
+def	test	p1	2	IN	p2	char	32	128	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	char(32)	PROCEDURE
+def	test	p1	3	IN	p3	varchar	10	40	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(10)	PROCEDURE
+def	test	p2	1	IN	p1	enum	1	4	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	enum('c','s')	PROCEDURE
 def	test	p2	2	IN	p2	blob	65535	65535	NULL	NULL	NULL	NULL	NULL	blob	PROCEDURE
-def	test	p2	3	IN	p3	text	65535	65535	NULL	NULL	NULL	latin1	latin1_swedish_ci	text	PROCEDURE
+def	test	p2	3	IN	p3	text	65535	65535	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	text	PROCEDURE
 select data_type, character_maximum_length,
 character_octet_length, numeric_precision,
 numeric_scale, character_set_name,
 collation_name, dtd_identifier
 from information_schema.routines where routine_schema='test';
-data_type	character_maximum_length	character_octet_length	numeric_precision	numeric_scale	character_set_name	collation_name	dtd_identifier
-char	10	10	NULL	NULL	latin1	latin1_swedish_ci	char(10)
+DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER
+char	10	40	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	char(10)
 	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 drop procedure p1;
@@ -1765,12 +1748,6 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	REFERENTIAL_CONSTRAINTS	NULL	ALL	NULL	CONSTRAINT_SCHEMA	NULL	NULL	NULL	NULL	Using where; Open_full_table; Scanned 1 database
 Warnings:
 Note	1003	/* select#1 */ select `information_schema`.`REFERENTIAL_CONSTRAINTS`.`CONSTRAINT_CATALOG` AS `CONSTRAINT_CATALOG`,`information_schema`.`REFERENTIAL_CONSTRAINTS`.`CONSTRAINT_SCHEMA` AS `CONSTRAINT_SCHEMA`,`information_schema`.`REFERENTIAL_CONSTRAINTS`.`CONSTRAINT_NAME` AS `CONSTRAINT_NAME`,`information_schema`.`REFERENTIAL_CONSTRAINTS`.`UNIQUE_CONSTRAINT_CATALOG` AS `UNIQUE_CONSTRAINT_CATALOG`,`information_schema`.`REFERENTIAL_CONSTRAINTS`.`UNIQUE_CONSTRAINT_SCHEMA` AS `UNIQUE_CONSTRAINT_SCHEMA`,`information_schema`.`REFERENTIAL_CONSTRAINTS`.`UNIQUE_CONSTRAINT_NAME` AS `UNIQUE_CONSTRAINT_NAME`,`information_schema`.`REFERENTIAL_CONSTRAINTS`.`MATCH_OPTION` AS `MATCH_OPTION`,`information_schema`.`REFERENTIAL_CONSTRAINTS`.`UPDATE_RULE` AS `UPDATE_RULE`,`information_schema`.`REFERENTIAL_CONSTRAINTS`.`DELETE_RULE` AS `DELETE_RULE`,`information_schema`.`REFERENTIAL_CONSTRAINTS`.`TABLE_NAME` AS `TABLE_NAME`,`information_schema`.`REFERENTIAL_CONSTRAINTS`.`REFERENCED_TABLE_NAME` AS `REFERENCED_TABLE_NAME` from `information_schema`.`REFERENTIAL_CONSTRAINTS` where (`information_schema`.`REFERENTIAL_CONSTRAINTS`.`CONSTRAINT_SCHEMA` = 'test')
-EXPLAIN SELECT * FROM information_schema.TRIGGERS
-WHERE EVENT_OBJECT_SCHEMA='test';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	TRIGGERS	NULL	ALL	NULL	EVENT_OBJECT_SCHEMA	NULL	NULL	NULL	NULL	Using where; Open_frm_only; Scanned 1 database
-Warnings:
-Note	1003	/* select#1 */ select `information_schema`.`TRIGGERS`.`TRIGGER_CATALOG` AS `TRIGGER_CATALOG`,`information_schema`.`TRIGGERS`.`TRIGGER_SCHEMA` AS `TRIGGER_SCHEMA`,`information_schema`.`TRIGGERS`.`TRIGGER_NAME` AS `TRIGGER_NAME`,`information_schema`.`TRIGGERS`.`EVENT_MANIPULATION` AS `EVENT_MANIPULATION`,`information_schema`.`TRIGGERS`.`EVENT_OBJECT_CATALOG` AS `EVENT_OBJECT_CATALOG`,`information_schema`.`TRIGGERS`.`EVENT_OBJECT_SCHEMA` AS `EVENT_OBJECT_SCHEMA`,`information_schema`.`TRIGGERS`.`EVENT_OBJECT_TABLE` AS `EVENT_OBJECT_TABLE`,`information_schema`.`TRIGGERS`.`ACTION_ORDER` AS `ACTION_ORDER`,`information_schema`.`TRIGGERS`.`ACTION_CONDITION` AS `ACTION_CONDITION`,`information_schema`.`TRIGGERS`.`ACTION_STATEMENT` AS `ACTION_STATEMENT`,`information_schema`.`TRIGGERS`.`ACTION_ORIENTATION` AS `ACTION_ORIENTATION`,`information_schema`.`TRIGGERS`.`ACTION_TIMING` AS `ACTION_TIMING`,`information_schema`.`TRIGGERS`.`ACTION_REFERENCE_OLD_TABLE` AS `ACTION_REFERENCE_OLD_TABLE`,`information_schema`.`TRIGGERS`.`ACTION_REFERENCE_NEW_TABLE` AS `ACTION_REFERENCE_NEW_TABLE`,`information_schema`.`TRIGGERS`.`ACTION_REFERENCE_OLD_ROW` AS `ACTION_REFERENCE_OLD_ROW`,`information_schema`.`TRIGGERS`.`ACTION_REFERENCE_NEW_ROW` AS `ACTION_REFERENCE_NEW_ROW`,`information_schema`.`TRIGGERS`.`CREATED` AS `CREATED`,`information_schema`.`TRIGGERS`.`SQL_MODE` AS `SQL_MODE`,`information_schema`.`TRIGGERS`.`DEFINER` AS `DEFINER`,`information_schema`.`TRIGGERS`.`CHARACTER_SET_CLIENT` AS `CHARACTER_SET_CLIENT`,`information_schema`.`TRIGGERS`.`COLLATION_CONNECTION` AS `COLLATION_CONNECTION`,`information_schema`.`TRIGGERS`.`DATABASE_COLLATION` AS `DATABASE_COLLATION` from `information_schema`.`TRIGGERS` where (`information_schema`.`TRIGGERS`.`EVENT_OBJECT_SCHEMA` = 'test')
 create table information_schema.t1 (f1 INT);
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
 drop table information_schema.t1;
@@ -1812,7 +1789,7 @@ DROP TABLE t1;
 create function f1() returns int return 1;
 select routine_name, routine_type from information_schema.routines
 where routine_schema = 'test';
-routine_name	routine_type
+ROUTINE_NAME	ROUTINE_TYPE
 f1	FUNCTION
 drop function f1;
 SELECT *
@@ -1874,6 +1851,11 @@ drop view v1;
 # performance problems in cases when big number of tables (.FRMs
 # or .TRG files) were scanned as cost of new lock acquisition has
 # increased linearly.
+#
+# With WL#9494, queries using I_S.TRIGGERS will not open the under
+# lying tables. The I_S query will not take metadata locks on
+# table owning the triggers and hence the query will not be blocked.
+#
 drop database if exists mysqltest;
 create database mysqltest;
 use mysqltest;
@@ -1899,8 +1881,10 @@ rename table t1 to t3, t2 to t1, t3 to t2;
 #
 # Wait while the above RENAME is blocked.
 SET SESSION information_schema_stats=latest;
-# Issue query to I_S which will open 't0' and get
-# blocked on 't1' because of RENAME.
+# Without WL9494, issuing a query to I_S will open 't0' and get
+# blocked on 't1' because of RENAME. With WL9494, I_S query is just
+# a scan over dictionary tables and do not really open the table,
+# so the below query does not block.
 select event_object_table, trigger_name from information_schema.triggers where event_object_schema='mysqltest';
 #
 # Switching to connection 'con12828477_3'. 
@@ -1923,7 +1907,7 @@ unlock tables;
 # Switching to connection 'con12828477_2'. 
 #
 # Reap SELECT to I_S.
-event_object_table	trigger_name
+EVENT_OBJECT_TABLE	TRIGGER_NAME
 #
 # Switching to connection 'default'.
 #
@@ -1993,11 +1977,11 @@ use test;
 #                           CACHE; OPENED_TABLES INCREASES"
 #
 SELECT * FROM INFORMATION_SCHEMA.TABLES;
-SELECT VARIABLE_VALUE INTO @val1 FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE
+SELECT VARIABLE_VALUE INTO @val1 FROM performance_schema.global_status WHERE
 VARIABLE_NAME LIKE 'Opened_tables';
 SELECT ENGINE FROM INFORMATION_SCHEMA.TABLES;
 # The below SELECT query should give same output as above SELECT query.
-SELECT VARIABLE_VALUE INTO @val2 FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE
+SELECT VARIABLE_VALUE INTO @val2 FROM performance_schema.global_status WHERE
 VARIABLE_NAME LIKE 'Opened_tables';
 # The below select should return '1'
 SELECT @val1 = @val2;
@@ -2099,7 +2083,6 @@ SET SESSION information_schema_stats=cached;
 set sql_mode= @orig_sql_mode;
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-set @@global.show_compatibility_56=@show_compatibility_56_save;
 #
 # WL#6599: New Data Dictionary and I_S Integration.
 #
@@ -2154,9 +2137,9 @@ WHERE TABLE_SCHEMA='test';
 COLUMN_NAME	IS_NULLABLE	DATA_TYPE	COLLATION_NAME	COLUMN_KEY
 c1	NO	int	NULL	PRI
 c2	YES	int	NULL	MUL
-c3	YES	char	latin1_swedish_ci	MUL
-c4	YES	char	latin1_swedish_ci	MUL
-c5	YES	char	latin1_swedish_ci	
+c3	YES	char	utf8mb4_0900_ai_ci	MUL
+c4	YES	char	utf8mb4_0900_ai_ci	MUL
+c5	YES	char	utf8mb4_0900_ai_ci	
 c6	NO	point	NULL	PRI
 c7	NO	geometry	NULL	MUL
 SHOW COLUMNS FROM t1;
@@ -2168,4 +2151,217 @@ c4	char(255)	YES	MUL	NULL
 c5	char(255)	YES		NULL	
 c6	point	NO	PRI	NULL	
 c7	geometry	NO	MUL	NULL	
+DROP TABLE t1;
+#
+# Bug#24749248 - NATIVE METHODS INTRODUCED FOR I_S SHOULD NOT BE USED BY A USER DIRECTLY.
+#
+# Case 1: Invoking I_S native methods directly by a user should not be
+#         allowed.
+SELECT INTERNAL_TABLE_ROWS(NULL, NULL, NULL, NULL);
+ERROR HY000: Access to native function 'INTERNAL_TABLE_ROWS' is rejected.
+SELECT INTERNAL_AVG_ROW_LENGTH(NULL, NULL, NULL, NULL);
+ERROR HY000: Access to native function 'INTERNAL_AVG_ROW_LENGTH' is rejected.
+SELECT INTERNAL_DATA_LENGTH(NULL, NULL, NULL, NULL);
+ERROR HY000: Access to native function 'INTERNAL_DATA_LENGTH' is rejected.
+SELECT INTERNAL_MAX_DATA_LENGTH(NULL, NULL, NULL, NULL);
+ERROR HY000: Access to native function 'INTERNAL_MAX_DATA_LENGTH' is rejected.
+SELECT INTERNAL_INDEX_LENGTH(NULL, NULL, NULL, NULL);
+ERROR HY000: Access to native function 'INTERNAL_INDEX_LENGTH' is rejected.
+SELECT INTERNAL_DATA_FREE(NULL, NULL, NULL, NULL);
+ERROR HY000: Access to native function 'INTERNAL_DATA_FREE' is rejected.
+SELECT INTERNAL_AUTO_INCREMENT(NULL, NULL, NULL, NULL);
+ERROR HY000: Access to native function 'INTERNAL_AUTO_INCREMENT' is rejected.
+SELECT INTERNAL_UPDATE_TIME(NULL, NULL, NULL, NULL);
+ERROR HY000: Access to native function 'INTERNAL_UPDATE_TIME' is rejected.
+SELECT INTERNAL_CHECK_TIME(NULL, NULL, NULL, NULL);
+ERROR HY000: Access to native function 'INTERNAL_CHECK_TIME' is rejected.
+SELECT INTERNAL_CHECKSUM(NULL, NULL, NULL, NULL);
+ERROR HY000: Access to native function 'INTERNAL_CHECKSUM' is rejected.
+SELECT INTERNAL_DD_CHAR_LENGTH(NULL, NULL, NULL, NULL);
+ERROR HY000: Access to native function 'INTERNAL_DD_CHAR_LENGTH' is rejected.
+SELECT INTERNAL_INDEX_COLUMN_CARDINALITY(NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+ERROR HY000: Access to native function 'INTERNAL_INDEX_COLUMN_CARDINALITY' is rejected.
+SELECT GET_DD_INDEX_SUB_PART_LENGTH(NULL, NULL, NULL, NULL, NULL);
+ERROR HY000: Access to native function 'GET_DD_INDEX_SUB_PART_LENGTH' is rejected.
+SELECT GET_DD_COLUMN_PRIVILEGES(NULL, NULL, NULL);
+ERROR HY000: Access to native function 'GET_DD_COLUMN_PRIVILEGES' is rejected.
+SELECT INTERNAL_GET_VIEW_WARNING_OR_ERROR(NULL, NULL, NULL, NULL);
+ERROR HY000: Access to native function 'INTERNAL_GET_VIEW_WARNING_OR_ERROR' is rejected.
+SELECT INTERNAL_GET_COMMENT_OR_ERROR(NULL, NULL, NULL, NULL, NULL);
+ERROR HY000: Access to native function 'INTERNAL_GET_COMMENT_OR_ERROR' is rejected.
+SELECT INTERNAL_KEYS_DISABLED(NULL);
+ERROR HY000: Access to native function 'INTERNAL_KEYS_DISABLED' is rejected.
+SELECT CAN_ACCESS_DATABASE(NULL);
+ERROR HY000: Access to native function 'CAN_ACCESS_DATABASE' is rejected.
+SELECT CAN_ACCESS_TABLE(NULL, NULL);
+ERROR HY000: Access to native function 'CAN_ACCESS_TABLE' is rejected.
+SELECT CAN_ACCESS_VIEW(NULL, NULL, NULL, NULL);
+ERROR HY000: Access to native function 'CAN_ACCESS_VIEW' is rejected.
+SELECT CAN_ACCESS_COLUMN(NULL, NULL, NULL);
+ERROR HY000: Access to native function 'CAN_ACCESS_COLUMN' is rejected.
+SELECT GET_DD_CREATE_OPTIONS(NULL, NULL);
+ERROR HY000: Access to native function 'GET_DD_CREATE_OPTIONS' is rejected.
+SELECT CAN_ACCESS_TRIGGER(NULL, NULL);
+ERROR HY000: Access to native function 'CAN_ACCESS_TRIGGER' is rejected.
+SELECT CAN_ACCESS_ROUTINE(NULL, NULL, NULL, NULL, NULL);
+ERROR HY000: Access to native function 'CAN_ACCESS_ROUTINE' is rejected.
+SELECT CAN_ACCESS_EVENT(NULL);
+ERROR HY000: Access to native function 'CAN_ACCESS_EVENT' is rejected.
+CREATE TABLE t1(f1 INT);
+CREATE TABLE t3 AS SELECT CAN_ACCESS_TABLE("test", "t1");
+ERROR HY000: Access to native function 'CAN_ACCESS_TABLE' is rejected.
+CREATE VIEW v2 AS SELECT CAN_ACCESS_TABLE("test", "t1");
+ERROR HY000: Access to native function 'CAN_ACCESS_TABLE' is rejected.
+SELECT * FROM t1 WHERE CAN_ACCESS_TABLE("test", "t1") = 1;
+ERROR HY000: Access to native function 'CAN_ACCESS_TABLE' is rejected.
+SELECT * FROM INFORMARTION_SCHEMA.TABLES WHERE CAN_ACCESS_TABLE("test", "t1") = 1;
+ERROR HY000: Access to native function 'CAN_ACCESS_TABLE' is rejected.
+SELECT CAN_ACCESS_TABLE("test", "t1") AS f1, COLUMN_NAME AS F2  FROM INFORMATION_SCHEMA.COLUMNS;
+ERROR HY000: Access to native function 'CAN_ACCESS_TABLE' is rejected.
+PREPARE stmt FROM 'SELECT CAN_ACCESS_TABLE("test", "t1") AS f1, COLUMN_NAME AS F2  FROM INFORMATION_SCHEMA.COLUMNS';
+ERROR HY000: Access to native function 'CAN_ACCESS_TABLE' is rejected.
+# Case 2: Invoking I_S native methods should be allowed through I_S queries.
+SELECT * FROM INFORMATION_SCHEMA.TABLES where table_name='t1';
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	AUTO_INCREMENT	CREATE_TIME	UPDATE_TIME	CHECK_TIME	TABLE_COLLATION	CHECKSUM	CREATE_OPTIONS	TABLE_COMMENT
+def	test	t1	BASE TABLE	InnoDB	#	#	#	#	#	#	#	#	#	#	#	#	#	#	#	#
+SELECT t.table_schema, t.table_name, c.column_name
+FROM INFORMATION_SCHEMA.TABLES t,
+INFORMATION_SCHEMA.COLUMNS c
+WHERE t.table_schema = c.table_schema
+AND t.table_name = c.table_name
+AND t.table_name = 't1' limit 1;
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME
+test	t1	f1
+CREATE VIEW v1 AS
+SELECT t.table_schema, t.table_name, c.column_name
+FROM INFORMATION_SCHEMA.TABLES t,
+INFORMATION_SCHEMA.COLUMNS c
+WHERE t.table_schema = c.table_schema
+AND t.table_name = c.table_name
+AND t.table_name = 't1' limit 1;
+SHOW CREATE VIEW v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t`.`TABLE_SCHEMA` AS `table_schema`,`t`.`TABLE_NAME` AS `table_name`,`c`.`COLUMN_NAME` AS `column_name` from (`information_schema`.`TABLES` `t` join `information_schema`.`COLUMNS` `c`) where ((`t`.`TABLE_SCHEMA` = `c`.`TABLE_SCHEMA`) and (`t`.`TABLE_NAME` = `c`.`TABLE_NAME`) and (`t`.`TABLE_NAME` = 't1')) limit 1	utf8mb4	utf8mb4_0900_ai_ci
+CREATE TABLE t2 AS
+SELECT t.table_schema, t.table_name, c.column_name
+FROM INFORMATION_SCHEMA.TABLES t,
+INFORMATION_SCHEMA.COLUMNS c
+WHERE t.table_schema = c.table_schema
+AND t.table_name = c.table_name
+AND t.table_name = 't1' limit 1;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `TABLE_SCHEMA` varchar(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
+  `TABLE_NAME` varchar(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
+  `COLUMN_NAME` varchar(64) CHARACTER SET utf8 COLLATE utf8_tolower_ci DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+DROP TABLE t1, t2;
+DROP VIEW v1;
+#
+# WL#8582 INFORMATION_SCHEMA.ST_GEOMETRY_COLUMNS
+#
+SELECT * FROM information_schema.ST_GEOMETRY_COLUMNS
+WHERE TABLE_SCHEMA='test' AND TABLE_NAME='t1';
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	SRS_NAME	SRS_ID	GEOMETRY_TYPE_NAME
+CREATE TABLE t1(g GEOMETRY, pt POINT, ls LINESTRING, py POLYGON, mpt MULTIPOINT,
+mls MULTILINESTRING, mpy MULTIPOLYGON, gc GEOMETRYCOLLECTION);
+SELECT * FROM information_schema.ST_GEOMETRY_COLUMNS
+WHERE TABLE_SCHEMA='test' AND TABLE_NAME='t1'
+  ORDER BY COLUMN_NAME;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	SRS_NAME	SRS_ID	GEOMETRY_TYPE_NAME
+def	test	t1	g	NULL	NULL	geometry
+def	test	t1	gc	NULL	NULL	geometrycollection
+def	test	t1	ls	NULL	NULL	linestring
+def	test	t1	mls	NULL	NULL	multilinestring
+def	test	t1	mpt	NULL	NULL	multipoint
+def	test	t1	mpy	NULL	NULL	multipolygon
+def	test	t1	pt	NULL	NULL	point
+def	test	t1	py	NULL	NULL	polygon
+DROP TABLE t1;
+#
+# BUG#24751177: ASSERTION `STRLEN(DB_NAME) <= (64*3) &&
+#               STRLEN(TABLE_NAME) <= (64*3)' FAILED
+#
+# Without patch, the below queries triggers an assertion.
+DESCRIBE `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaa`;
+ERROR 42000: Incorrect table name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+EXPLAIN `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaa`;
+ERROR 42000: Incorrect table name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+SHOW KEYS FROM `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaa`;
+ERROR 42000: Identifier name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' is too long
+SHOW COLUMNS FROM `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaa`;
+ERROR 42000: Identifier name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' is too long
+DESCRIBE `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaa`.`t1`;
+ERROR 42000: Incorrect database name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+EXPLAIN `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaa`.`t1`;
+ERROR 42000: Incorrect database name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+SHOW KEYS FROM `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaa`.`t1`;
+ERROR 42000: Identifier name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' is too long
+SHOW COLUMNS FROM `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaa`.`t1`;
+ERROR 42000: Identifier name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' is too long
+#
+# Bug#25583588 `M_PREBUILT->TABLE->N_REF_COUNT > 0' AT
+# HA_INNOBASE::UPDATE_THD IN HANDLER
+#
+# This test would crash especially with a FULLTEXT
+# index and hidden FTS tables that are created by InnoDB.
+#
+CREATE TABLE t1 (a VARCHAR(200), b TEXT, FULLTEXT (a,b))
+ENGINE = InnoDB charset utf8mb4;
+SELECT * FROM INFORMATION_SCHEMA.`REFERENTIAL_CONSTRAINTS`;
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	UNIQUE_CONSTRAINT_CATALOG	UNIQUE_CONSTRAINT_SCHEMA	UNIQUE_CONSTRAINT_NAME	MATCH_OPTION	UPDATE_RULE	DELETE_RULE	TABLE_NAME	REFERENCED_TABLE_NAME
+DROP TABLE t1;
+#
+# Bug#25576205 WRONG COLUMN CARDINALITY PASSED TO GET STATS
+#
+# The test case crashes if server requests for cardinality for
+# InnoDB SE even for hidden index.
+#
+set information_schema_stats=latest;
+SELECT INDEX_NAME FROM INFORMATION_SCHEMA.`STATISTICS` WHERE `TABLE_NAME` = 'innodb_table_stats' AND Cardinality ;
+INDEX_NAME
+PRIMARY
+PRIMARY
+#
+# Bug#25188540 FIELD_TINY::VAL_INT(): ASSERTION `!TABLE || (!TABLE->READ_SET |......)' FAILED
+#
+CREATE TABLE t1 (a INT);
+SET SESSION optimizer_switch='derived_merge=off';
+SHOW FIELDS FROM t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+SET SESSION optimizer_switch=DEFAULT;
 DROP TABLE t1;

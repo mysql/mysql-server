@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,9 +20,18 @@
   the file descriptior.
 */
 
-#include "vio_priv.h"
+#include <sys/types.h>
+#include <new>
+
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_psi_config.h"
 #include "mysql/psi/mysql_memory.h"
+#include "mysql/psi/psi_memory.h"  // IWYU pragma: keep
 #include "mysql/service_mysql_alloc.h"
+#include "vio_priv.h"
 
 #ifdef HAVE_OPENSSL
 PSI_memory_key key_memory_vio_ssl_fd;
@@ -80,7 +89,7 @@ static int no_io_wait(Vio *vio MY_ATTRIBUTE((unused)),
 #endif
 
 extern "C" {
-static my_bool has_no_data(Vio *vio MY_ATTRIBUTE((unused)))
+static bool has_no_data(Vio *vio MY_ATTRIBUTE((unused)))
 {
   return FALSE;
 }
@@ -155,7 +164,6 @@ static bool vio_init(Vio *vio, enum enum_vio_type type,
     vio->has_data       =has_no_data;
     return false;
   }
-#ifndef EMBEDDED_LIBRARY
   if (type == VIO_TYPE_SHARED_MEMORY)
   {
     vio->viodelete	=vio_delete_shared_memory;
@@ -173,7 +181,6 @@ static bool vio_init(Vio *vio, enum enum_vio_type type,
     vio->has_data       =has_no_data;
     return false;
   }
-#endif /* !EMBEDDED_LIBRARY */
 #endif /* _WIN32 */
 #ifdef HAVE_OPENSSL
   if (type == VIO_TYPE_SSL)
@@ -240,8 +247,8 @@ static bool vio_init(Vio *vio, enum enum_vio_type type,
   @return Return value is zero on success.
 */
 
-my_bool vio_reset(Vio* vio, enum enum_vio_type type,
-                  my_socket sd, void *ssl MY_ATTRIBUTE((unused)), uint flags)
+bool vio_reset(Vio* vio, enum enum_vio_type type,
+               my_socket sd, void *ssl MY_ATTRIBUTE((unused)), uint flags)
 {
   int ret= FALSE;
   Vio new_vio(flags);
@@ -381,7 +388,6 @@ Vio *vio_new_win32pipe(HANDLE hPipe)
   DBUG_RETURN(vio);
 }
 
-#ifndef EMBEDDED_LIBRARY
 Vio *vio_new_win32shared_memory(HANDLE handle_file_map, HANDLE handle_map,
                                 HANDLE event_server_wrote, HANDLE event_server_read,
                                 HANDLE event_client_wrote, HANDLE event_client_read,
@@ -409,7 +415,6 @@ Vio *vio_new_win32shared_memory(HANDLE handle_file_map, HANDLE handle_map,
   DBUG_RETURN(vio);
 }
 #endif
-#endif
 
 
 /**
@@ -431,7 +436,7 @@ Vio *vio_new_win32shared_memory(HANDLE handle_file_map, HANDLE handle_map,
 int vio_timeout(Vio *vio, uint which, int timeout_sec)
 {
   int timeout_ms;
-  my_bool old_mode;
+  bool old_mode;
 
   /*
     Vio timeouts are measured in milliseconds. Check for a possible

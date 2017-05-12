@@ -6,6 +6,11 @@
 --source include/have_plugin_server.inc
 --source include/not_embedded.inc
 
+# Official builds include separate debug enabled plugins to be used by
+# the debug enabled server. But the non-debug *client* should not use them.
+
+let PLUGIN_AUTH_OPT=`SELECT TRIM(TRAILING '/debug' FROM '$PLUGIN_AUTH_OPT')`;
+
 CREATE DATABASE test_user_db;
 
 CREATE USER qa_test_11_user IDENTIFIED WITH qa_auth_server AS 'qa_test_11_dest';

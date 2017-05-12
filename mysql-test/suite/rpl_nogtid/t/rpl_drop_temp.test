@@ -5,7 +5,6 @@
 # Purpose: According to TU in 16552 This is how
 # to work around NDB's issue with temp tables
 ##############################################
---source include/not_gtid_enabled.inc
 source include/master-slave.inc;
 source include/have_myisam.inc;
 source include/have_binlog_format_mixed_or_statement.inc;
@@ -39,10 +38,14 @@ sync_slave_with_master;
 #
 # Bug#49137
 # This test verifies if DROP MULTI TEMPORARY TABLE 
-# will cause different errors on master and slave, 
-# when one or more of these tables do not exist. 
+# causes different errors on master and slave and breaks
+# replication, when one or more of these tables do not
+# exist.
 #
-
+# Nowadays, we don't drop any tables in multi-table DROP
+# TABLE (without IF EXISTS clause) if one of them does not
+# exist. So the first part is less relevant currently.
+#
 connection master;
 DROP TEMPORARY TABLE IF EXISTS tmp1;
 CREATE TEMPORARY TABLE t1 ( a int );
@@ -52,6 +55,16 @@ DROP TEMPORARY TABLE t1, t2;
 DROP TEMPORARY TABLE tmp2;
 sync_slave_with_master;
 
+# Clean-up.
+connection master;
+DROP TEMPORARY TABLE t1;
+sync_slave_with_master;
+
+#
+# However, we still can end-up in situation when some temporary
+# table dropped on master and logged as such, does not exist
+# on slave. The second part of the test covers this situation.
+#
 connection slave;
 stop slave;
 wait_for_slave_to_stop;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -68,7 +68,7 @@ Dbtup::execACC_SCANREQ(Signal* signal)
     else
     {
       // seize from pool and link to per-fragment list
-      LocalDLList<ScanOp> list(c_scanOpPool, frag.m_scanList);
+      Local_ScanOp_list list(c_scanOpPool, frag.m_scanList);
       if (! list.seizeFirst(scanPtr)) {
 	jam();
 	break;
@@ -1036,9 +1036,10 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
 	{
           D("Tablespace_client - scanNext");
 	  Tablespace_client tsman(signal, this, c_tsman,
-				  frag.fragTableId, 
-				  frag.fragmentId, 
-				  frag.m_tablespace_id);
+                         frag.fragTableId, 
+                         frag.fragmentId,
+                         c_lqh->getCreateSchemaVersion(frag.fragTableId),
+                         frag.m_tablespace_id);
 	  unsigned uncommitted, committed;
 	  uncommitted = committed = ~(unsigned)0;
 	  int ret = tsman.get_page_free_bits(&key, &uncommitted, &committed);
@@ -1194,7 +1195,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
             key_mm = pos.m_key;
             // real page id is already set
           } else {
-	    key_mm.assref(th->m_base_record_ref);
+            th->get_base_record_ref(key_mm);
             // recompute for each disk tuple
             pos.m_realpid_mm = getRealpid(fragPtr.p, key_mm.m_page_no);
           }
@@ -1220,7 +1221,10 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
 	  // caller has already set pos.m_get to next tuple
 	  // real page id is already set
 	} else {
-	  key_mm.assref(th->m_base_record_ref);
+          th->get_base_record_ref(key_mm);
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
+          ndbrequire(!"Looking for test coverage - found it!");
+#endif
 	  // recompute for each disk tuple
 	  pos.m_realpid_mm = getRealpid(fragPtr.p, key_mm.m_page_no);
 	  
@@ -1381,7 +1385,7 @@ Dbtup::scanClose(Signal* signal, ScanOpPtr scanPtr)
      * EXECUTE_DIRECT on NEXT_SCANCONF which might end up
      * creating the same object further down the stack.
      */
-    LocalDLFifoList<ScanLock> list(c_scanLockPool, scan.m_accLockOps);
+    Local_ScanLock_fifo list(c_scanLockPool, scan.m_accLockOps);
     ScanLockPtr lockPtr;
     while (list.first(lockPtr)) {
       jam();
@@ -1412,7 +1416,7 @@ Dbtup::scanClose(Signal* signal, ScanOpPtr scanPtr)
 void
 Dbtup::addAccLockOp(ScanOp& scan, Uint32 accLockOp)
 {
-  LocalDLFifoList<ScanLock> list(c_scanLockPool, scan.m_accLockOps);
+  Local_ScanLock_fifo list(c_scanLockPool, scan.m_accLockOps);
   ScanLockPtr lockPtr;
 #ifdef VM_TRACE
   list.first(lockPtr);
@@ -1429,7 +1433,7 @@ Dbtup::addAccLockOp(ScanOp& scan, Uint32 accLockOp)
 void
 Dbtup::removeAccLockOp(ScanOp& scan, Uint32 accLockOp)
 {
-  LocalDLFifoList<ScanLock> list(c_scanLockPool, scan.m_accLockOps);
+  Local_ScanLock_fifo list(c_scanLockPool, scan.m_accLockOps);
   ScanLockPtr lockPtr;
   list.first(lockPtr);
   while (lockPtr.i != RNIL) {
@@ -1459,7 +1463,7 @@ Dbtup::releaseScanOp(ScanOpPtr& scanPtr)
   else
   {
     jam();
-    LocalDLList<ScanOp> list(c_scanOpPool, fragPtr.p->m_scanList);    
+    Local_ScanOp_list list(c_scanOpPool, fragPtr.p->m_scanList);
     list.release(scanPtr);
   }
 }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,12 +16,19 @@
 #ifndef DD__SYSTEM_REGISTRY_INCLUDED
 #define DD__SYSTEM_REGISTRY_INCLUDED
 
-#include "my_global.h"
-
-#include <vector>
+#include <stdio.h>
 #include <map>
-#include <utility>
+#include <new>
 #include <string>
+#include <utility>
+#include <vector>
+
+#include "dd/string_type.h"                    // dd::String_type
+#include "dd/types/object_table.h"
+#include "my_dbug.h"
+#include "mysqld_error.h"                      // ER_NO_SYSTEM_TABLE_...
+
+class Plugin_tablespace;
 
 namespace dd {
 
@@ -110,7 +117,7 @@ public:
   @tparam   P   Property type.
   @tparam   F   Function to map from property to name.
   @tparam   D   Boolean flag to decide whether the wrapped objects
-                are owned externally.
+                are owned by the registry.
 */
 
 template <typename K, typename T, typename P, const char *F(P), bool D>
@@ -161,7 +168,7 @@ public:
     @param entity       Entity which is classified and registered.
   */
 
-  void add(const std::string &schema_name, const std::string &entity_name,
+  void add(const String_type &schema_name, const String_type &entity_name,
            P property, T *entity)
   {
     // Create a new key and make sure it does not already exist.
@@ -194,8 +201,8 @@ public:
                          object pointed to by the wrapper element.
   */
 
-  const T *find_entity(const std::string &schema_name,
-                       const std::string &entity_name) const
+  const T *find_entity(const String_type &schema_name,
+                       const String_type &entity_name) const
   {
     // Create a new key. This is only used for lookup, so it is allocated
     // on the stack.
@@ -225,8 +232,8 @@ public:
                          the property associated with the key.
   */
 
-  const P *find_property(const std::string &schema_name,
-                         const std::string &entity_name) const
+  const P *find_property(const String_type &schema_name,
+                         const String_type &entity_name) const
   {
     // Create a new key. This is only used for lookup, so it is allocated
     // on the stack.
@@ -356,11 +363,24 @@ public:
 class System_tables
 {
 public:
-  // Classification of system tables.
+  /*
+    Classification of tables based on WL#6391.
+
+    - An INERT table can never change.
+    - The dd::Table objects representing the CORE tables must be present
+      to handle a cache miss for an arbitrary table.
+    - The dd::Table objects representing the SECOND order tables can be
+      fetched from the dd tables as long as the core table objects are
+      present.
+    - The SUPPORT tables are not needed by the data dictionary, but the
+      server manages these based on requests from e.g. storage engines.
+  */
   enum class Types
   {
+    INERT,
     CORE,
-    DDSE
+    SECOND,
+    SUPPORT
   };
 
   // Map from system table type to string description, e.g. for debugging.
@@ -368,16 +388,31 @@ public:
   {
     switch (type)
     {
-      case Types::CORE: return "CORE";
-      case Types::DDSE: return "DDSE";
-      default:          return "";
+      case Types::INERT:   return "INERT";
+      case Types::CORE:    return "CORE";
+      case Types::SECOND:  return "SECOND";
+      case Types::SUPPORT: return "SUPPORT";
+      default:             return "";
     }
+  }
+
+  // Map from system table type to error code for localized error messages.
+  static int type_name_error_code(Types type)
+  {
+    if (type == Types::INERT || type == Types::CORE || type == Types::SECOND)
+      return ER_NO_SYSTEM_TABLE_ACCESS_FOR_DICTIONARY_TABLE;
+
+    if (type == Types::SUPPORT)
+      return ER_NO_SYSTEM_TABLE_ACCESS_FOR_SYSTEM_TABLE;
+
+    DBUG_ASSERT(false);
+    return ER_NO_SYSTEM_TABLE_ACCESS_FOR_TABLE;
   }
 
 private:
   // The actual registry is referred and delegated to rather than
   // being inherited from.
-  typedef Entity_registry<std::pair<const std::string, const std::string>,
+  typedef Entity_registry<std::pair<const String_type, const String_type>,
           const Object_table, Types,
           type_name, true> System_table_registry_type;
   System_table_registry_type m_registry;
@@ -392,18 +427,18 @@ public:
   void init();
 
   // Add a new system table by delegation to the wrapped registry.
-  void add(const std::string &schema_name, const std::string &table_name,
+  void add(const String_type &schema_name, const String_type &table_name,
            Types type, const Object_table *table)
   { m_registry.add(schema_name, table_name, type, table); }
 
   // Find a system table by delegation to the wrapped registry.
-  const Object_table *find_table(const std::string &schema_name,
-                           const std::string &table_name) const
+  const Object_table *find_table(const String_type &schema_name,
+                           const String_type &table_name) const
   { return m_registry.find_entity(schema_name, table_name); }
 
-  // Find a system table by delegation to the wrapped registry.
-  const Types *find_type(const std::string &schema_name,
-                         const std::string &table_name) const
+  // Find a system table type by delegation to the wrapped registry.
+  const Types *find_type(const String_type &schema_name,
+                         const String_type &table_name) const
   { return m_registry.find_property(schema_name, table_name); }
 
   Const_iterator begin() const
@@ -464,7 +499,7 @@ public:
 private:
   // The actual registry is referred and delegated to rather than
   // being inherited from.
-  typedef Entity_registry<std::pair<const std::string, const std::string>,
+  typedef Entity_registry<std::pair<const String_type, const String_type>,
           System_view, Types, type_name, true> System_view_registry_type;
   System_view_registry_type m_registry;
 
@@ -478,7 +513,7 @@ public:
   void init();
 
   // Add a new system view by delegation to the wrapped registry.
-  void add(const std::string &schema_name, const std::string &view_name,
+  void add(const String_type &schema_name, const String_type &view_name,
            Types type)
   {
     m_registry.add(schema_name, view_name, type,
@@ -486,8 +521,8 @@ public:
   }
 
   // Find a system view by delegation to the wrapped registry.
-  const System_view *find(const std::string &schema_name,
-                          const std::string &view_name) const
+  const System_view *find(const String_type &schema_name,
+                          const String_type &view_name) const
   { return m_registry.find_entity(schema_name, view_name); }
 
   Const_iterator begin() const
@@ -516,22 +551,15 @@ public:
   tablespaces, i.e., the tablespaces that are predefined in the DDSE, or
   needed by the SQL layer.
 
-  @note The registry currently only stores the tablespace names and their
-        (dummy) classification.
-
   The singleton contains an instance of the Entity_registry class, and
   has methods that mostly delegate to this instance.
- */
+*/
 
 class System_tablespaces
 {
 public:
-  // Dummy class acting as meta data placeholder.
-  class System_tablespace
-  { };
-
   // Classification of system tablespaces.
-  enum Types
+  enum class Types
   {
     DD,                 // For storing the DD tables.
     PREDEFINED_DDSE     // Needed by the DDSE.
@@ -551,9 +579,9 @@ public:
 private:
   // The actual registry is referred and delegated to rather than
   // being inherited from.
-  typedef Entity_registry<std::pair<const std::string, const std::string>,
-          System_tablespace, Types,
-          type_name, true> System_tablespace_registry_type;
+  typedef Entity_registry<std::pair<const String_type, const String_type>,
+          const Plugin_tablespace, Types,
+          type_name, false> System_tablespace_registry_type;
   System_tablespace_registry_type m_registry;
 
 public:
@@ -563,14 +591,12 @@ public:
   static System_tablespaces *instance();
 
   // Add a new system tablespace by delegation to the wrapped registry.
-  void add(const std::string &tablespace_name, Types type)
-  {
-    m_registry.add("", tablespace_name, type,
-                   new (std::nothrow) System_tablespace());
-  }
+  void add(const String_type &tablespace_name, Types type,
+           const Plugin_tablespace *space)
+  { m_registry.add("", tablespace_name, type, space); }
 
   // Find a system tablespace by delegation to the wrapped registry.
-  const System_tablespace *find(const std::string &tablespace_name) const
+  const Plugin_tablespace *find(const String_type &tablespace_name) const
   { return m_registry.find_entity("", tablespace_name); }
 
   Const_iterator begin() const

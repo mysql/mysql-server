@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,12 +18,13 @@
 #ifndef NDB_SHARE_H
 #define NDB_SHARE_H
 
-#include <my_global.h>
-#include <my_alloc.h>        // MEM_ROOT
-#include <thr_lock.h>        // THR_LOCK
-#include <my_bitmap.h>       // MY_BITMAP
+#include <stdio.h>           // FILE, stderr
 
-#include <ndbapi/Ndb.hpp>    // Ndb::TupleIdRange
+#include "my_alloc.h"        // MEM_ROOT
+#include "my_bitmap.h"       // MY_BITMAP
+#include "mysql/psi/mysql_thread.h"
+#include "ndbapi/Ndb.hpp"    // Ndb::TupleIdRange
+#include "thr_lock.h"        // THR_LOCK
 
 enum NDB_SHARE_STATE {
   NSS_INITIAL= 0,
@@ -31,7 +32,7 @@ enum NDB_SHARE_STATE {
   NSS_ALTERED 
 };
 
-#ifdef HAVE_NDB_BINLOG
+
 enum Ndb_binlog_type
 {
   NBT_DEFAULT                   = 0
@@ -42,7 +43,6 @@ enum Ndb_binlog_type
   ,NBT_UPDATED_ONLY_USE_UPDATE  = NBT_UPDATED_ONLY | NBT_USE_UPDATE
   ,NBT_FULL_USE_UPDATE          = NBT_FULL         | NBT_USE_UPDATE
 };
-#endif
 
 
 /*
@@ -59,9 +59,10 @@ struct Ndb_statistics {
 
 
 struct NDB_SHARE {
+  MY_BITMAP stored_columns;
   NDB_SHARE_STATE state;
   THR_LOCK lock;
-  native_mutex_t mutex;
+  mysql_mutex_t mutex;
   struct NDB_SHARE_KEY* key;
   uint use_count;
   uint commit_count_lock;
@@ -73,9 +74,7 @@ struct NDB_SHARE {
   struct Ndb_index_stat* index_stat_list;
   bool util_thread; // if opened by util thread
   uint32 flags;
-#ifdef HAVE_NDB_BINLOG
   struct NDB_CONFLICT_FN_SHARE *m_cfn_share;
-#endif
   class Ndb_event_data *event_data; // Place holder before NdbEventOperation is created
   class NdbEventOperation *op;
   class NdbEventOperation *new_op;
@@ -85,7 +84,7 @@ struct NDB_SHARE {
   static void destroy(NDB_SHARE* share);
 
   class Ndb_event_data* get_event_data_ptr() const;
-
+  void set_binlog_flags_for_table(struct TABLE *);
   void print(const char* where, FILE* file = stderr) const;
 
   /*
@@ -114,9 +113,9 @@ NDB_SHARE_STATE
 get_ndb_share_state(NDB_SHARE *share)
 {
   NDB_SHARE_STATE state;
-  native_mutex_lock(&share->mutex);
+  mysql_mutex_lock(&share->mutex);
   state= share->state;
-  native_mutex_unlock(&share->mutex);
+  mysql_mutex_unlock(&share->mutex);
   return state;
 }
 
@@ -125,9 +124,9 @@ inline
 void
 set_ndb_share_state(NDB_SHARE *share, NDB_SHARE_STATE state)
 {
-  native_mutex_lock(&share->mutex);
+  mysql_mutex_lock(&share->mutex);
   share->state= state;
-  native_mutex_unlock(&share->mutex);
+  mysql_mutex_unlock(&share->mutex);
 }
 
 
@@ -148,7 +147,7 @@ inline void set_binlog_nologging(NDB_SHARE *share)
   DBUG_PRINT("info", ("set_binlog_nologging"));
   share->flags|= NSF_NO_BINLOG;
 }
-inline my_bool get_binlog_nologging(NDB_SHARE *share)
+inline bool get_binlog_nologging(NDB_SHARE *share)
 { return (share->flags & NSF_NO_BINLOG) != 0; }
 inline void set_binlog_updated_only(NDB_SHARE *share)
 {
@@ -160,7 +159,7 @@ inline void set_binlog_full(NDB_SHARE *share)
   DBUG_PRINT("info", ("set_binlog_full"));
   share->flags|= NSF_BINLOG_FULL;
 }
-inline my_bool get_binlog_full(NDB_SHARE *share)
+inline bool get_binlog_full(NDB_SHARE *share)
 { return (share->flags & NSF_BINLOG_FULL) != 0; }
 inline void set_binlog_use_write(NDB_SHARE *share)
 {
@@ -172,7 +171,7 @@ inline void set_binlog_use_update(NDB_SHARE *share)
   DBUG_PRINT("info", ("set_binlog_use_update"));
   share->flags|= NSF_BINLOG_USE_UPDATE;
 }
-inline my_bool get_binlog_use_update(NDB_SHARE *share)
+inline bool get_binlog_use_update(NDB_SHARE *share)
 { return (share->flags & NSF_BINLOG_USE_UPDATE) != 0; }
 
 

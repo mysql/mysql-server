@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,6 +15,9 @@
 
 /* Support rutiner with are using with dbug */
 
+#include <sys/types.h>
+
+#include "my_inttypes.h"
 #include "myisamdef.h"
 
 	/* Print a key in user understandable format */
@@ -176,7 +179,7 @@ void _mi_print_key(FILE *stream, HA_KEYSEG *keyseg,
   this mutex is locked by this thread already.
 */
 
-my_bool check_table_is_closed(const char *name, const char *where)
+bool check_table_is_closed(const char *name, const char *where)
 {
   char filename[FN_REFLEN];
   LIST *pos;

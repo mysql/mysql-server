@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,7 +32,7 @@ static int create_flag=0;
 static uint insert_count, update_count, remove_count;
 static uint pack_keys=0, pack_seg=0, key_length;
 static uint unique_key=HA_NOSAME;
-static my_bool key_cacheing, null_fields, silent, skip_update, opt_unique,
+static bool key_cacheing, null_fields, silent, skip_update, opt_unique,
                verbose;
 static MI_COLUMNDEF recinfo[4];
 static MI_KEYDEF keyinfo[10];
@@ -51,7 +51,7 @@ static void update_record(uchar *record);
   the result length == len. If the string is longer than len it's
   trunked. The des+len character is allways set to NULL.
 */
-static inline void strappend(char *s, size_t len, pchar fill)
+static inline void strappend(char *s, size_t len, char fill)
 {
   char *endpos;
 
@@ -605,7 +605,7 @@ static struct my_option my_long_options[] =
 };
 
 
-static my_bool
+static bool
 get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
 	       char *argument MY_ATTRIBUTE((unused)))
 {

@@ -1,0 +1,57 @@
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs8=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema default character set latin1;
+use test;
+--enable_query_log
+########################################
+
+################################################################################
+# t/gcol_bugfixes_latin1.test                                                  #
+#                                                                              #
+# Purpose:                                                                     #
+#  Bug fixes that only need one storage engine, and latin1 encoding            #
+#                                                                              #
+################################################################################
+
+SET NAMES latin1;
+
+--echo #
+--echo # Bug#22991924 GCOLS: UTF16 STRING OPERATIONS GIVE DOUBLED \0\0 STRINGS
+--echo # ON EACH TABLE REBUILD
+--echo #
+
+CREATE TABLE t1 ( gc VARCHAR( 20 ) GENERATED ALWAYS AS ( 'Å' ) );
+
+INSERT INTO t1 VALUES ();
+
+SHOW CREATE TABLE t1;
+SELECT HEX( gc ) FROM t1;
+OPTIMIZE TABLE t1;
+SELECT HEX( gc ) FROM t1;
+SHOW CREATE TABLE t1;
+
+SET NAMES utf8;
+
+SHOW CREATE TABLE t1;
+SELECT HEX( gc ) FROM t1;
+OPTIMIZE TABLE t1;
+SELECT HEX( gc ) FROM t1;
+
+
+SHOW CREATE TABLE t1;
+
+SET NAMES latin1;
+SHOW CREATE TABLE t1;
+
+SET NAMES DEFAULT;
+DROP TABLE t1;
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs8;
+--enable_query_log
+########################################

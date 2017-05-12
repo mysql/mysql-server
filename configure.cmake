@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -25,24 +25,6 @@ INCLUDE (CheckCXXSourceRuns)
 INCLUDE (CheckSymbolExists)
 
 
-# WITH_PIC options.Not of much use, PIC is taken care of on platforms
-# where it makes sense anyway.
-IF(UNIX)
-  IF(APPLE)  
-    # OSX  executable are always PIC
-    SET(WITH_PIC ON)
-  ELSE()
-    OPTION(WITH_PIC "Generate PIC objects" OFF)
-    IF(WITH_PIC)
-      SET(CMAKE_C_FLAGS 
-        "${CMAKE_C_FLAGS} ${CMAKE_SHARED_LIBRARY_C_FLAGS}")
-      SET(CMAKE_CXX_FLAGS 
-        "${CMAKE_CXX_FLAGS} ${CMAKE_SHARED_LIBRARY_CXX_FLAGS}")
-    ENDIF()
-  ENDIF()
-ENDIF()
-
-
 IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_COMPILER_IS_GNUCXX)
   ## We will be using gcc to generate .so files
   ## Add C flags (e.g. -m64) to CMAKE_SHARED_LIBRARY_C_FLAGS
@@ -66,16 +48,6 @@ ENDIF()
 IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND
     SIZEOF_VOIDP EQUAL 8 AND CMAKE_SYSTEM_PROCESSOR MATCHES "sparc")
   ADD_DEFINITIONS(-DSOLARIS_64BIT_ENABLED)
-ENDIF()
-
-# Add explicit dependencies when building shared libraries
-IF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
-  IF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro")
-      SET(CMAKE_SHARED_LIBRARY_C_FLAGS
-        "${CMAKE_SHARED_LIBRARY_C_FLAGS} -lc")
-      SET(CMAKE_SHARED_LIBRARY_CXX_FLAGS
-        "${CMAKE_SHARED_LIBRARY_CXX_FLAGS} -lstdc++ -lgcc_s -lCrunG3 -lc")
-  ENDIF()
 ENDIF()
 
 # Check to see if we are using LLVM's libc++ rather than e.g. libstd++
@@ -113,15 +85,13 @@ MACRO(EXTEND_CXX_LINK_FLAGS LIBRARY_PATH)
   # on a path relative to the executable:
   # We need an extra backslash to pass $ORIGIN to the mysql_config script...
   SET(QUOTED_CMAKE_CXX_LINK_FLAGS
-    "${CMAKE_CXX_LINK_FLAGS} -R'\\$ORIGIN/../lib' -R${LIBRARY_PATH}")
+    "${CMAKE_CXX_LINK_FLAGS} -R'\\$ORIGIN/../lib' -R${LIBRARY_PATH} ")
   SET(CMAKE_CXX_LINK_FLAGS
     "${CMAKE_CXX_LINK_FLAGS} -R'\$ORIGIN/../lib' -R${LIBRARY_PATH}")
   MESSAGE(STATUS "CMAKE_CXX_LINK_FLAGS ${CMAKE_CXX_LINK_FLAGS}")
 ENDMACRO()
 
 MACRO(EXTEND_C_LINK_FLAGS LIBRARY_PATH)
-  SET(QUOTED_CMAKE_C_LINK_FLAGS
-    "${CMAKE_C_LINK_FLAGS} -R'\\$ORIGIN/../lib' -R${LIBRARY_PATH}")
   SET(CMAKE_C_LINK_FLAGS
     "${CMAKE_C_LINK_FLAGS} -R'\$ORIGIN/../lib' -R${LIBRARY_PATH}")
   MESSAGE(STATUS "CMAKE_C_LINK_FLAGS ${CMAKE_C_LINK_FLAGS}")
@@ -130,9 +100,9 @@ MACRO(EXTEND_C_LINK_FLAGS LIBRARY_PATH)
 ENDMACRO()
 
 # We assume that the client code is built with -std=c++11
-# which means that the necessary gcc libraries must be available.
-# Hence we disable the extra link flags, as well as installation of libraries.
-IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND DISABLED_CMAKE_COMPILER_IS_GNUCC)
+# Both compilers will use libstdc++.so but possibly different version.
+# Hence we install the gcc version here, for use by the server and plugins.
+IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_COMPILER_IS_GNUCC)
   DIRNAME(${CMAKE_CXX_COMPILER} CXX_PATH)
   SET(LIB_SUFFIX "lib")
   IF(SIZEOF_VOIDP EQUAL 8 AND CMAKE_SYSTEM_PROCESSOR MATCHES "sparc")
@@ -181,16 +151,41 @@ IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND DISABLED_CMAKE_COMPILER_IS_GNUCC)
   ENDIF()
 ENDIF()
 
-IF(CMAKE_COMPILER_IS_GNUCXX)
-  IF (CMAKE_EXE_LINKER_FLAGS MATCHES " -static " 
-     OR CMAKE_EXE_LINKER_FLAGS MATCHES " -static$")
-     SET(WITHOUT_DYNAMIC_PLUGINS TRUE)
-  ENDIF()
-ENDIF()
 
-IF(WITHOUT_DYNAMIC_PLUGINS)
-  MESSAGE("Dynamic plugins are disabled.")
-ENDIF(WITHOUT_DYNAMIC_PLUGINS)
+# We assume that developer studio runtime libraries are installed.
+IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND
+   CMAKE_CXX_COMPILER_ID STREQUAL "SunPro")
+  DIRNAME(${CMAKE_CXX_COMPILER} CXX_PATH)
+
+  SET(LIBRARY_SUFFIX "lib/compilers/CC-gcc/lib")
+  IF(SIZEOF_VOIDP EQUAL 8 AND CMAKE_SYSTEM_PROCESSOR MATCHES "sparc")
+    SET(LIBRARY_SUFFIX "${LIBRARY_SUFFIX}/sparcv9")
+  ENDIF()
+  IF(SIZEOF_VOIDP EQUAL 8 AND CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
+    SET(LIBRARY_SUFFIX "${LIBRARY_SUFFIX}/amd64")
+  ENDIF()
+  FIND_LIBRARY(STL_LIBRARY_NAME
+    NAMES "stdc++"
+    PATHS ${CXX_PATH}/../${LIBRARY_SUFFIX}
+    NO_DEFAULT_PATH
+  )
+  MESSAGE(STATUS "STL_LIBRARY_NAME ${STL_LIBRARY_NAME}")
+  IF(STL_LIBRARY_NAME)
+    DIRNAME(${STL_LIBRARY_NAME} STL_LIBRARY_PATH)
+    SET(QUOTED_CMAKE_CXX_LINK_FLAGS
+      "${CMAKE_CXX_LINK_FLAGS} -L${STL_LIBRARY_PATH} -R${STL_LIBRARY_PATH}")
+    SET(CMAKE_CXX_LINK_FLAGS
+      "${CMAKE_CXX_LINK_FLAGS} -L${STL_LIBRARY_PATH} -R${STL_LIBRARY_PATH}")
+    SET(CMAKE_C_LINK_FLAGS
+      "${CMAKE_C_LINK_FLAGS} -L${STL_LIBRARY_PATH} -R${STL_LIBRARY_PATH}")
+  ENDIF()
+  SET(CMAKE_C_LINK_FLAGS
+    "${CMAKE_C_LINK_FLAGS} -lc")
+  SET(CMAKE_CXX_LINK_FLAGS
+    "${CMAKE_CXX_LINK_FLAGS} -lstdc++ -lgcc_s -lCrunG3 -lc")
+  SET(QUOTED_CMAKE_CXX_LINK_FLAGS
+    "${QUOTED_CMAKE_CXX_LINK_FLAGS} -lstdc++ -lgcc_s -lCrunG3 -lc ")
+ENDIF()
 
 # Same for structs, setting HAVE_STRUCT_<name> instead
 FUNCTION(MY_CHECK_STRUCT_SIZE type defbase)
@@ -276,6 +271,20 @@ IF(UNIX)
       hosts_access(0);
     }"
     HAVE_LIBWRAP)
+
+    IF(HAVE_LIBWRAP)
+      CHECK_CXX_SOURCE_COMPILES(
+      "
+      #include <tcpd.h>
+      int main()
+      {
+        struct request_info req;
+        if (req.sink)
+          (req.sink)(req.fd);
+      }"
+      HAVE_LIBWRAP_PROTOTYPES)
+    ENDIF()
+
     SET(CMAKE_REQUIRED_LIBRARIES ${SAVE_CMAKE_REQUIRED_LIBRARIES})
     IF(HAVE_LIBWRAP)
       SET(LIBWRAP "wrap")
@@ -296,6 +305,7 @@ INCLUDE (CheckIncludeFiles)
 CHECK_INCLUDE_FILES (alloca.h HAVE_ALLOCA_H)
 CHECK_INCLUDE_FILES (arpa/inet.h HAVE_ARPA_INET_H)
 CHECK_INCLUDE_FILES (dlfcn.h HAVE_DLFCN_H)
+CHECK_INCLUDE_FILES (endian.h HAVE_ENDIAN_H)
 CHECK_INCLUDE_FILES (execinfo.h HAVE_EXECINFO_H)
 CHECK_INCLUDE_FILES (fpu_control.h HAVE_FPU_CONTROL_H)
 CHECK_INCLUDE_FILES (grp.h HAVE_GRP_H)
@@ -339,7 +349,6 @@ CHECK_FUNCTION_EXISTS (_aligned_malloc HAVE_ALIGNED_MALLOC)
 CHECK_FUNCTION_EXISTS (backtrace HAVE_BACKTRACE)
 CHECK_FUNCTION_EXISTS (printstack HAVE_PRINTSTACK)
 CHECK_FUNCTION_EXISTS (index HAVE_INDEX)
-CHECK_FUNCTION_EXISTS (clock_gettime HAVE_CLOCK_GETTIME)
 CHECK_FUNCTION_EXISTS (chown HAVE_CHOWN)
 CHECK_FUNCTION_EXISTS (cuserid HAVE_CUSERID)
 CHECK_FUNCTION_EXISTS (directio HAVE_DIRECTIO)
@@ -367,7 +376,6 @@ CHECK_FUNCTION_EXISTS (getuid HAVE_GETUID)
 CHECK_FUNCTION_EXISTS (geteuid HAVE_GETEUID)
 CHECK_FUNCTION_EXISTS (getgid HAVE_GETGID)
 CHECK_FUNCTION_EXISTS (getegid HAVE_GETEGID)
-CHECK_FUNCTION_EXISTS (lstat HAVE_LSTAT)
 CHECK_FUNCTION_EXISTS (madvise HAVE_MADVISE)
 CHECK_FUNCTION_EXISTS (malloc_info HAVE_MALLOC_INFO)
 CHECK_FUNCTION_EXISTS (memrchr HAVE_MEMRCHR)
@@ -380,8 +388,6 @@ CHECK_FUNCTION_EXISTS (posix_memalign HAVE_POSIX_MEMALIGN)
 CHECK_FUNCTION_EXISTS (pread HAVE_PREAD) # Used by NDB
 CHECK_FUNCTION_EXISTS (pthread_condattr_setclock HAVE_PTHREAD_CONDATTR_SETCLOCK)
 CHECK_FUNCTION_EXISTS (pthread_sigmask HAVE_PTHREAD_SIGMASK)
-CHECK_FUNCTION_EXISTS (readlink HAVE_READLINK)
-CHECK_FUNCTION_EXISTS (realpath HAVE_REALPATH)
 CHECK_FUNCTION_EXISTS (setfd HAVE_SETFD) # Used by libevent (never true)
 CHECK_FUNCTION_EXISTS (sigaction HAVE_SIGACTION)
 CHECK_FUNCTION_EXISTS (sleep HAVE_SLEEP)
@@ -399,7 +405,6 @@ CHECK_FUNCTION_EXISTS (memalign HAVE_MEMALIGN)
 CHECK_FUNCTION_EXISTS (nl_langinfo HAVE_NL_LANGINFO)
 CHECK_FUNCTION_EXISTS (ntohll HAVE_HTONLL)
 
-CHECK_FUNCTION_EXISTS (clock_gettime DNS_USE_CPU_CLOCK_FOR_ID)
 CHECK_FUNCTION_EXISTS (epoll_create HAVE_EPOLL)
 # Temperarily  Quote event port out as we encounter error in port_getn
 # on solaris x86
@@ -503,9 +508,10 @@ FUNCTION(MY_CHECK_TYPE_SIZE type defbase)
 ENDFUNCTION()
 
 # We are only interested in presence for these
-MY_CHECK_TYPE_SIZE(uint UINT)
 MY_CHECK_TYPE_SIZE(ulong ULONG)
 MY_CHECK_TYPE_SIZE(u_int32_t U_INT32_T)
+SET(CMAKE_EXTRA_INCLUDE_FILES sys/socket.h)
+MY_CHECK_TYPE_SIZE(socklen_t SOCKLEN_T) # needed for libevent
 
 IF(HAVE_IEEEFP_H)
   SET(CMAKE_EXTRA_INCLUDE_FILES ieeefp.h)
@@ -520,6 +526,16 @@ MY_CHECK_CXX_COMPILER_FLAG("-fvisibility=hidden" HAVE_VISIBILITY_HIDDEN)
 #
 # Code tests
 #
+
+CHECK_C_SOURCE_RUNS("
+#include <time.h>
+int main()
+{
+  struct timespec ts;
+  return clock_gettime(CLOCK_MONOTONIC, &ts);
+}" HAVE_CLOCK_GETTIME)
+# For libevent
+SET(DNS_USE_CPU_CLOCK_FOR_ID CACHE ${HAVE_CLOCK_GETTIME} INTERNAL "")
 
 IF(NOT STACK_DIRECTION)
   IF(CMAKE_CROSSCOMPILING)
@@ -804,22 +820,10 @@ CHECK_STRUCT_HAS_MEMBER("struct sockaddr_in6" sin6_len
 
 SET(CMAKE_EXTRA_INCLUDE_FILES)
 
-# needed for libevent
-CHECK_TYPE_SIZE("socklen_t" SIZEOF_SOCKLEN_T)
-IF(SIZEOF_SOCKLEN_T)
-  SET(HAVE_SOCKLEN_T 1)
-ENDIF()
-
 CHECK_INCLUDE_FILES(numa.h HAVE_NUMA_H)
 CHECK_INCLUDE_FILES(numaif.h HAVE_NUMAIF_H)
 
 IF(HAVE_NUMA_H AND HAVE_NUMAIF_H)
-  OPTION(WITH_NUMA "Explicitly set NUMA memory allocation policy" ON)
-ELSE()
-  OPTION(WITH_NUMA "Explicitly set NUMA memory allocation policy" OFF)
-ENDIF()
-
-IF(WITH_NUMA AND HAVE_NUMA_H AND HAVE_NUMAIF_H)
     SET(SAVE_CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES})
     SET(CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES} numa)
     CHECK_C_SOURCE_COMPILES(
@@ -838,8 +842,23 @@ ELSE()
     SET(HAVE_LIBNUMA 0)
 ENDIF()
 
+IF(NOT HAVE_LIBNUMA)
+  MESSAGE(STATUS "NUMA library missing or required version not available")
+ENDIF()
+
+IF(HAVE_LIBNUMA AND HAVE_NUMA_H AND HAVE_NUMAIF_H)
+   OPTION(WITH_NUMA "Explicitly set NUMA memory allocation policy" ON)
+ELSE()
+   OPTION(WITH_NUMA "Explicitly set NUMA memory allocation policy" OFF)
+ENDIF()
+
 IF(WITH_NUMA AND NOT HAVE_LIBNUMA)
   # Forget it in cache, abort the build.
   UNSET(WITH_NUMA CACHE)
   MESSAGE(FATAL_ERROR "Could not find numa headers/libraries")
+ENDIF()
+
+IF(HAVE_LIBNUMA AND NOT WITH_NUMA)
+   SET(HAVE_LIBNUMA 0)
+   MESSAGE(STATUS "Disabling NUMA on user's request")
 ENDIF()

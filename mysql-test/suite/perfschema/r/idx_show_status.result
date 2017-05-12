@@ -7,23 +7,6 @@ FROM performance_schema.threads
 WHERE processlist_id = connection_id();
 CREATE USER user1@localhost;
 GRANT ALL ON *.* to 'user1'@localhost;
-
-## SHOW COMPATIBILITY ON
-
-SELECT @@global.show_compatibility_56 INTO @show_compatibility_56_save;
-SET global show_compatibility_56 = ON;
-SELECT * FROM performance_schema.status_by_account WHERE user = 'user1' AND variable_name = 'Opened_tables';
-USER	HOST	VARIABLE_NAME	VARIABLE_VALUE
-SELECT * FROM performance_schema.status_by_host WHERE host = 'localhost' AND variable_name = 'Opened_tables';
-HOST	VARIABLE_NAME	VARIABLE_VALUE
-SELECT * FROM performance_schema.status_by_user WHERE user = 'user1' AND variable_name = 'Opened_tables';
-USER	VARIABLE_NAME	VARIABLE_VALUE
-SELECT * FROM performance_schema.status_by_thread WHERE thread_id = @my_thread_id AND variable_name = 'Opened_tables';
-THREAD_ID	VARIABLE_NAME	VARIABLE_VALUE
-
-## SHOW COMPATIBILITY OFF
-
-SET global show_compatibility_56 = OFF;
 SELECT * FROM performance_schema.status_by_account WHERE user = 'user1' AND variable_name = 'Opened_tables';
 USER	HOST	VARIABLE_NAME	VARIABLE_VALUE
 user1	localhost	#	0
@@ -36,5 +19,4 @@ user1	Opened_tables	#
 SELECT * FROM performance_schema.status_by_thread WHERE thread_id = @my_thread_id AND variable_name = 'Opened_tables';
 THREAD_ID	VARIABLE_NAME	VARIABLE_VALUE
 tid	Opened_tables	#
-SET @@global.show_compatibility_56 = @show_compatibility_56_save;
 DROP USER user1@localhost;

@@ -1,8 +1,5 @@
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 #setup
 let $select_column = HOST;
 let $table = performance_schema.replication_connection_configuration;

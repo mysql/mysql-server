@@ -9,7 +9,6 @@ int factorial(int value) {
 
 #else
 
-#include <my_global.h>
 
 int factorial (
 int value)

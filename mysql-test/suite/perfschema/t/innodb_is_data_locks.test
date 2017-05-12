@@ -1,0 +1,30 @@
+--echo #Test for Intention Shared lock
+
+-- connect (con1,localhost,root,,)
+-- connect (con2,localhost,root,,)
+
+--disable_warnings
+drop table if exists t1_is;
+--enable_warnings
+
+--connection con1
+use test;
+create table t1_is (id integer, x integer, PRIMARY KEY (id)) engine=INNODB;
+insert into t1_is values (0,0),(1,1);
+SET autocommit=0;
+select * from t1_is where id=0 lock in share mode;
+
+--connection con2
+
+select object_schema, object_name, lock_type, lock_mode, lock_status, lock_data
+  from performance_schema.data_locks
+  where object_name="t1_is"
+  order by lock_type, lock_mode, lock_status, lock_data;
+
+--connection con1
+unlock tables;
+drop table t1_is;
+
+--disconnect con1
+--disconnect con2
+

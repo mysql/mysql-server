@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,6 +16,8 @@
 */
 
 #include "ndb_thd_ndb.h"
+
+#include "my_dbug.h"
 #include "mysql/plugin.h"          // thd_get_thread_id
 
 /*
@@ -94,6 +96,9 @@ Thd_ndb::recycle_ndb(void)
   /* Reset last commit epoch for this 'session'. */
   m_last_commit_epoch_session = 0;
 
+  /* Update m_connect_count to avoid false failures of ::valid_ndb() */
+  m_connect_count= connection->get_connect_count();
+
   DBUG_RETURN(true);
 }
 
@@ -124,6 +129,20 @@ Thd_ndb::init_open_tables()
   count= 0;
   m_error= FALSE;
   my_hash_reset(&open_tables);
+}
+
+
+bool
+Thd_ndb::check_option(Options option) const
+{
+  return (options & option);
+}
+
+
+void
+Thd_ndb::set_option(Options option)
+{
+  options |= option;
 }
 
 

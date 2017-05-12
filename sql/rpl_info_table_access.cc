@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,13 +13,30 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "rpl_info_table_access.h"
+#include "sql/rpl_info_table_access.h"
+
+#include <stddef.h>
 
 #include "current_thd.h"
+#include "field.h"
+#include "handler.h"
+#include "key.h"
+#include "m_ctype.h"
+#include "my_base.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
+#include "mysql/thread_type.h"
+#include "mysqld_error.h"
 #include "rpl_info_values.h" // Rpl_info_values
+#include "rpl_rli.h"
 #include "sql_base.h"       // MYSQL_OPEN_IGNORE_FLUSH
+#include "sql_bitmap.h"
 #include "sql_class.h"      // THD
+#include "sql_const.h"
+#include "sql_lex.h"
 #include "sql_parse.h"      // mysql_reset_thd_for_next_command
+#include "sql_string.h"
 #include "table.h"          // TABLE
 
 
@@ -36,8 +53,18 @@ void Rpl_info_table_access::before_open(THD *thd)
   /*
     This is equivalent to a new "statement". For that reason, we call both
     lex_start() and mysql_reset_thd_for_next_command.
+    Notice in case of atomic DDL the new statement has to be initiated
+    with a special care to preserve LEX of the top level statement.
+    On the other hand non-atomic DDL behaves "natively" to reset.
   */
-  if (thd->slave_thread || !current_thd)
+  if (!current_thd ||
+      (thd->slave_thread &&
+       ((!thd->rli_slave || !thd->rli_slave->current_event ||
+         thd->rli_slave->current_event->get_type_code() !=
+         binary_log::QUERY_EVENT)
+        ||
+        !static_cast<Query_log_event*>(thd->rli_slave->current_event)->
+        has_ddl_committed)))
   {
     lex_start(thd);
     mysql_reset_thd_for_next_command(thd);
@@ -71,6 +98,21 @@ void Rpl_info_table_access::close_table(THD *thd, TABLE* table,
 {
   DBUG_ENTER("Rpl_info_table_access::close_table");
   System_table_access::close_table(thd, table, backup, error, thd_created);
+
+  DBUG_EXECUTE_IF("slave_crash_after_commit_no_atomic_ddl",
+  {
+    if (thd->slave_thread && thd->rli_slave &&
+        thd->rli_slave->current_event &&
+        thd->rli_slave->current_event->get_type_code() ==
+        binary_log::QUERY_EVENT &&
+        !static_cast<Query_log_event*>(thd->rli_slave->current_event)->
+        has_ddl_committed)
+    {
+      DBUG_ASSERT(thd->lex->sql_command == SQLCOM_END);
+      DBUG_SUICIDE();
+    }
+  });
+
   DBUG_VOID_RETURN;
 }
 

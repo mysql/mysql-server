@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,11 +13,21 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#include "error_handler.h"
+#include "sql/error_handler.h"
 
+#include <errno.h>
+
+#include "key.h"
+#include "my_inttypes.h"
+#include "my_sqlcommand.h"
+#include "my_sys.h"
+#include "my_thread_local.h"
 #include "mysys_err.h"           // EE_*
 #include "sql_class.h"           // THD
+#include "sql_lex.h"
+#include "system_variables.h"
 #include "table.h"               // TABLE_LIST
+#include "transaction_info.h"
 
 
 /**
@@ -30,11 +40,11 @@
 
   @return true if the condition is handled.
 */
-bool Drop_table_error_handler::handle_condition(THD *thd,
+bool Drop_table_error_handler::handle_condition(THD*,
                                                 uint sql_errno,
-                                                const char* sqlstate,
-                                                Sql_condition::enum_severity_level *level,
-                                                const char* msg)
+                                                const char*,
+                                                Sql_condition::enum_severity_level*,
+                                                const char*)
 {
   return (sql_errno == EE_DELETE && my_errno() == ENOENT);
 }
@@ -50,9 +60,9 @@ bool Drop_table_error_handler::handle_condition(THD *thd,
 */
 bool Ignore_error_handler::handle_condition(THD *thd,
                                             uint sql_errno,
-                                            const char *sqlstate,
+                                            const char*,
                                             Sql_condition::enum_severity_level *level,
-                                            const char *msg)
+                                            const char*)
 {
   /*
     If a statement is executed with IGNORE keyword then this handler
@@ -98,8 +108,8 @@ bool View_error_handler::handle_condition(
                                 THD *thd,
                                 uint sql_errno,
                                 const char *,
-                                Sql_condition::enum_severity_level *level,
-                                const char *message)
+                                Sql_condition::enum_severity_level*,
+                                const char*)
 {
   /*
     Error will be handled by Show_create_error_handler for
@@ -143,9 +153,9 @@ bool View_error_handler::handle_condition(
 */
 bool Strict_error_handler::handle_condition(THD *thd,
                                             uint sql_errno,
-                                            const char *sqlstate,
+                                            const char*,
                                             Sql_condition::enum_severity_level *level,
-                                            const char *msg)
+                                            const char*)
 {
   /*
     STRICT error handler should not be effective if we have changed the
@@ -202,6 +212,7 @@ bool Strict_error_handler::handle_condition(THD *thd,
   case ER_CUT_VALUE_GROUP_CONCAT:
   case ER_DATETIME_FUNCTION_OVERFLOW:
   case ER_WARN_TOO_FEW_RECORDS:
+  case ER_WARN_TOO_MANY_RECORDS:
   case ER_INVALID_ARGUMENT_FOR_LOGARITHM:
   case ER_NUMERIC_JSON_VALUE_OUT_OF_RANGE:
   case ER_INVALID_JSON_VALUE_FOR_CAST:
@@ -233,11 +244,11 @@ public:
     : m_handled_errors(false), m_unhandled_errors(false)
   {}
 
-  virtual bool handle_condition(THD *thd,
+  virtual bool handle_condition(THD*,
                                 uint sql_errno,
-                                const char* sqlstate,
-                                Sql_condition::enum_severity_level *level,
-                                const char* msg)
+                                const char*,
+                                Sql_condition::enum_severity_level*,
+                                const char*)
   {
     if (sql_errno == ER_NO_SUCH_TABLE || sql_errno == ER_WRONG_MRG_TABLE)
     {

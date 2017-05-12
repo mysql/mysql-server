@@ -18,7 +18,7 @@
 --echo ================================================================================
 --echo PREAMBLE
 --echo ================================================================================
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 create user insertsqluser@localhost identified by 'insertsqluser';
 grant all on *.* to insertsqluser@localhost;
 

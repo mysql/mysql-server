@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,10 +14,20 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#include "sql/sql_component.h"
+
+#include <stddef.h>
+#include <vector>
+
 #include "../components/mysql_server/server_component.h" // imp_*
-#include <mysql/components/my_service.h>
+#include "my_inttypes.h"
+#include "my_sys.h"
+#include "mysql/components/my_service.h"
+#include "mysql/components/service.h"
+#include "mysql/components/services/persistent_dynamic_loader.h"
+#include "mysql/mysql_lex_string.h"
+#include "mysqld_error.h"
 #include "sql_class.h"         // THD
-#include "sql_component.h"
 
 bool Sql_cmd_install_component::execute(THD *thd)
 {

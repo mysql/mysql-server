@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,9 +21,12 @@
   Stored Program data structures (declarations).
 */
 
-#include "pfs_stat.h"
+#include <sys/types.h>
+
 #include "include/mysql/psi/mysql_ps.h"
+#include "my_inttypes.h"
 #include "pfs_program.h"
+#include "pfs_stat.h"
 
 #define PS_NAME_LENGTH NAME_LEN
 
@@ -60,13 +63,13 @@ struct PFS_ALIGNED PFS_prepared_stmt : public PFS_instr
   char m_owner_object_name[COL_OBJECT_NAME_SIZE];
   uint m_owner_object_name_length;
 
-  /** COLUMN TIMER_PREPARE. Prepared stmt prepare stat. */
+  /** COLUMN TIMER_PREPARE. Prepared statement prepare stat. */
   PFS_single_stat m_prepare_stat;
 
-  /** COLUMN COUNT_REPREPARE. Prepared stmt reprepare stat. */
+  /** COLUMN COUNT_REPREPARE. Prepared statement re-prepare stat. */
   PFS_single_stat m_reprepare_stat;
 
-  /** Prepared stmt execution stat. */
+  /** Prepared statement execution stat. */
   PFS_statement_stat m_execute_stat;
 
   /** Reset data for this record. */
@@ -78,11 +81,14 @@ void cleanup_prepared_stmt(void);
 
 void reset_prepared_stmt_instances();
 
-PFS_prepared_stmt*
-create_prepared_stmt(void *identity,
-                     PFS_thread *thread, PFS_program *pfs_program,
-                     PFS_events_statements *pfs_stmt, uint stmt_id,
-                     const char* stmt_name, uint stmt_name_length,
-                     const char* sqltext, uint sqltext_length);
+PFS_prepared_stmt *create_prepared_stmt(void *identity,
+                                        PFS_thread *thread,
+                                        PFS_program *pfs_program,
+                                        PFS_events_statements *pfs_stmt,
+                                        uint stmt_id,
+                                        const char *stmt_name,
+                                        uint stmt_name_length,
+                                        const char *sqltext,
+                                        uint sqltext_length);
 void delete_prepared_stmt(PFS_prepared_stmt *pfs_ps);
 #endif

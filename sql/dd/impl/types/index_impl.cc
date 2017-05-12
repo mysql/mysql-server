@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,25 +15,39 @@
 
 #include "dd/impl/types/index_impl.h"
 
-#include "mysqld_error.h"                       // ER_*
-
-#include "dd/impl/properties_impl.h"            // Properties_impl
-#include "dd/impl/sdi_impl.h"                   // sdi read/write functions
-#include "dd/impl/transaction_impl.h"           // Open_dictionary_tables_ctx
-#include "dd/impl/raw/raw_record.h"             // Raw_record
-#include "dd/impl/tables/indexes.h"             // Indexes
-#include "dd/impl/tables/index_column_usage.h"  // Index_column_usage
-#include "dd/impl/types/index_element_impl.h"   // Index_element_impl
-#include "dd/impl/types/table_impl.h"           // Table_impl
-#include "dd/types/column.h"                    // Column::name()
-
+#include <stddef.h>
 #include <sstream>
 
+#include "dd/impl/properties_impl.h"            // Properties_impl
+#include "dd/impl/raw/raw_record.h"             // Raw_record
+#include "dd/impl/sdi_impl.h"                   // sdi read/write functions
+#include "dd/impl/tables/index_column_usage.h"  // Index_column_usage
+#include "dd/impl/tables/indexes.h"             // Indexes
+#include "dd/impl/transaction_impl.h"           // Open_dictionary_tables_ctx
+#include "dd/impl/types/index_element_impl.h"   // Index_element_impl
+#include "dd/impl/types/table_impl.h"           // Table_impl
+#include "dd/properties.h"
+#include "dd/string_type.h"                     // dd::String_type
+#include "dd/types/index_element.h"
+#include "dd/types/object_table.h"
+#include "dd/types/weak_object.h"
+#include "m_string.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
+#include "mysqld_error.h"                       // ER_*
+#include "rapidjson/document.h"
+#include "rapidjson/prettywriter.h"
+#include "sql_table.h"                          // MAX_LEN_GEOM_POINT_FIELD
 
 using dd::tables::Indexes;
 using dd::tables::Index_column_usage;
 
 namespace dd {
+
+class Column;
+class Sdi_rcontext;
+class Sdi_wcontext;
+class Table;
 
 ///////////////////////////////////////////////////////////////////////////
 // Index implementation.
@@ -103,7 +117,7 @@ Table &Index_impl::table()
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Index_impl::set_options_raw(const std::string &options_raw)
+bool Index_impl::set_options_raw(const String_type &options_raw)
 {
   Properties *properties=
     Properties_impl::parse_properties(options_raw);
@@ -122,7 +136,7 @@ void Index_impl::set_se_private_data(const Properties &se_private_data)
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Index_impl::set_se_private_data_raw(const std::string &se_private_data_raw)
+bool Index_impl::set_se_private_data_raw(const String_type &se_private_data_raw)
 {
   Properties *properties=
     Properties_impl::parse_properties(se_private_data_raw);
@@ -322,9 +336,9 @@ Index_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val)
 
 ///////////////////////////////////////////////////////////////////////////
 
-void Index_impl::debug_print(std::string &outb) const
+void Index_impl::debug_print(String_type &outb) const
 {
-  std::stringstream ss;
+  dd::Stringstream_type ss;
   ss
     << "INDEX OBJECT: { "
     << "id: {OID: " << id() << "}; "
@@ -348,7 +362,7 @@ void Index_impl::debug_print(std::string &outb) const
   {
     for (const Index_element *c : elements())
     {
-      std::string ob;
+      String_type ob;
       c->debug_print(ob);
       ss << ob;
     }
@@ -368,6 +382,64 @@ Index_element *Index_impl::add_element(Column *c)
   m_elements.push_back(e);
   return e;
 }
+
+//////////////////////////////////////////////////////////////////////////
+
+/**
+  Check if index represents candidate key.
+
+  @note This function is in sync with how we evaluate TABLE_SHARE::primary_key.
+*/
+
+/* purecov: begin deadcode */
+bool Index_impl::is_candidate_key() const
+{
+  if (type() != Index::IT_PRIMARY && type() != Index::IT_UNIQUE)
+    return false;
+
+  for (const Index_element *idx_elem_obj : elements())
+  {
+    // Skip hidden index elements
+    if (idx_elem_obj->is_hidden())
+      continue;
+
+    if (idx_elem_obj->column().is_nullable())
+      return false;
+
+    if (idx_elem_obj->column().is_virtual())
+      return false;
+
+    /*
+      Probably we should adjust is_prefix() to take these two scenarios
+      into account. But this also means that we probably need avoid
+      setting HA_PART_KEY_SEG in them.
+    */
+
+    if ((idx_elem_obj->column().type() == enum_column_types::TINY_BLOB &&
+         idx_elem_obj->length() == 255) ||
+        (idx_elem_obj->column().type() == enum_column_types::BLOB &&
+         idx_elem_obj->length() == 65535) ||
+        (idx_elem_obj->column().type() == enum_column_types::MEDIUM_BLOB &&
+         idx_elem_obj->length() == (1 << 24) - 1) ||
+        (idx_elem_obj->column().type() == enum_column_types::LONG_BLOB &&
+         idx_elem_obj->length() == (1LL << 32) - 1))
+      continue;
+
+    if (idx_elem_obj->column().type() == enum_column_types::GEOMETRY)
+    {
+      uint32 sub_type;
+      idx_elem_obj->column().options().get_uint32("geom_type", &sub_type);
+      if (sub_type ==  Field::GEOM_POINT &&
+          idx_elem_obj->length() == MAX_LEN_GEOM_POINT_FIELD)
+        continue;
+    }
+
+    if (idx_elem_obj->is_prefix())
+      return false;
+  }
+  return true;
+}
+/* purecov: end */
 
 ///////////////////////////////////////////////////////////////////////////
 

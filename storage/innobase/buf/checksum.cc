@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,15 +23,18 @@ Buffer pool checksum functions, also linked from /extra/innochecksum.cc
 Created Aug 11, 2011 Vasil Dimov
 *******************************************************/
 
-#include "univ.i"
+#include <sys/types.h>
+
+#include "buf0buf.h"
+#include "buf0types.h"
 #include "fil0fil.h"
+#include "mach0data.h"
+#include "my_dbug.h"
+#include "page0size.h"
+#include "srv0srv.h"
+#include "univ.i"
 #include "ut0crc32.h"
 #include "ut0rnd.h"
-#include "buf0types.h"
-#include "page0size.h"
-#include "buf0buf.h"
-#include "mach0data.h"
-#include "srv0srv.h"
 #include "zlib.h"
 
 /** the macro MYSQL_SYSVAR_ENUM() requires "long unsigned int" and if we

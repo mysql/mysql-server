@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,15 +16,20 @@
 #ifndef KEY_INCLUDED
 #define KEY_INCLUDED
 
-#include "my_global.h"                          /* uchar */
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "key_spec.h"                  /* fk_option */
 #include "my_base.h"                   /* ha_rows, ha_key_alg */
+#include "my_dbug.h"
+#include "my_inttypes.h"
 #include "mysql/mysql_lex_string.h"    /* LEX_CSTRING */
 #include "sql_plugin_ref.h"            /* plugin_ref */
-#include "key_spec.h"                  /* fk_option */
 
 class Field;
 class String;
 struct TABLE;
+
 typedef struct st_bitmap MY_BITMAP;
 typedef struct st_mysql_const_lex_string LEX_CSTRING;
 
@@ -33,6 +38,8 @@ class FOREIGN_KEY
 {
 public:
   const char *name;
+  const char *orig_name; // Holds the original name during ALTER TABLE
+  const char *unique_index_name;
   uint key_parts;
   LEX_CSTRING *key_part;
   LEX_CSTRING *fk_key_part;
@@ -178,9 +185,6 @@ public:
   */
   bool is_visible;
 
-  union {
-    int  bdb_return_if_eq;
-  } handler;
   TABLE *table;
   LEX_CSTRING comment;
 
@@ -332,8 +336,7 @@ void key_restore(uchar *to_record, uchar *from_key, KEY *key_info,
                  uint key_length);
 bool key_cmp_if_same(TABLE *form,const uchar *key,uint index,uint key_length);
 void key_unpack(String *to, TABLE *table, KEY *key);
-void field_unpack(String *to, Field *field, const uchar *rec, uint max_length,
-                  bool prefix_key);
+void field_unpack(String *to, Field *field, uint max_length, bool prefix_key);
 bool is_key_used(TABLE *table, uint idx, const MY_BITMAP *fields);
 int key_cmp(KEY_PART_INFO *key_part, const uchar *key, uint key_length);
 int key_cmp2(KEY_PART_INFO *key_part,

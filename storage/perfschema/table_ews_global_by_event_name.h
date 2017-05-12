@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,10 +21,12 @@
   Table EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME (declarations).
 */
 
+#include <sys/types.h>
+
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"
-#include "pfs_instr_class.h"
 #include "pfs_instr.h"
+#include "pfs_instr_class.h"
 #include "table_helper.h"
 
 /**
@@ -36,12 +38,13 @@ class PFS_index_ews_global_by_event_name : public PFS_engine_index
 {
 public:
   PFS_index_ews_global_by_event_name()
-    : PFS_engine_index(&m_key),
-    m_key("EVENT_NAME")
-  {}
+    : PFS_engine_index(&m_key), m_key("EVENT_NAME")
+  {
+  }
 
   ~PFS_index_ews_global_by_event_name()
-  {}
+  {
+  }
 
   virtual bool match_view(uint view);
   virtual bool match(PFS_instr_class *instr_class);
@@ -68,26 +71,31 @@ struct row_ews_global_by_event_name
   Index 1 on instrument view
   Index 2 on instrument class (1 based)
 */
-struct pos_ews_global_by_event_name
-: public PFS_double_index, public PFS_instrument_view_constants
+struct pos_ews_global_by_event_name : public PFS_double_index,
+                                      public PFS_instrument_view_constants
 {
-  pos_ews_global_by_event_name()
-    : PFS_double_index(FIRST_VIEW, 1)
-  {}
-
-  inline void reset(void)
+  pos_ews_global_by_event_name() : PFS_double_index(FIRST_VIEW, 1)
   {
-    m_index_1= FIRST_VIEW;
-    m_index_2= 1;
   }
 
-  inline bool has_more_view(void)
-  { return (m_index_1 <= LAST_VIEW); }
+  inline void
+  reset(void)
+  {
+    m_index_1 = FIRST_VIEW;
+    m_index_2 = 1;
+  }
 
-  inline void next_view(void)
+  inline bool
+  has_more_view(void)
+  {
+    return (m_index_1 <= LAST_VIEW);
+  }
+
+  inline void
+  next_view(void)
   {
     m_index_1++;
-    m_index_2= 1;
+    m_index_2 = 1;
   }
 };
 
@@ -97,7 +105,7 @@ class table_ews_global_by_event_name : public PFS_engine_table
 public:
   /** Table share */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table* create();
+  static PFS_engine_table *create();
   static int delete_all_rows();
   static ha_rows get_row_count();
 
@@ -119,18 +127,19 @@ protected:
 
 public:
   ~table_ews_global_by_event_name()
-  {}
+  {
+  }
 
 protected:
-  void make_mutex_row(PFS_mutex_class *klass);
-  void make_rwlock_row(PFS_rwlock_class *klass);
-  void make_cond_row(PFS_cond_class *klass);
-  void make_file_row(PFS_file_class *klass);
-  void make_table_io_row(PFS_instr_class *klass);
-  void make_table_lock_row(PFS_instr_class *klass);
-  void make_socket_row(PFS_socket_class *klass);
-  void make_idle_row(PFS_instr_class *klass);
-  void make_metadata_row(PFS_instr_class *klass);
+  int make_mutex_row(PFS_mutex_class *klass);
+  int make_rwlock_row(PFS_rwlock_class *klass);
+  int make_cond_row(PFS_cond_class *klass);
+  int make_file_row(PFS_file_class *klass);
+  int make_table_io_row(PFS_instr_class *klass);
+  int make_table_lock_row(PFS_instr_class *klass);
+  int make_socket_row(PFS_socket_class *klass);
+  int make_idle_row(PFS_instr_class *klass);
+  int make_metadata_row(PFS_instr_class *klass);
 
 private:
   /** Table share lock. */
@@ -140,8 +149,6 @@ private:
 
   /** Current row. */
   row_ews_global_by_event_name m_row;
-  /** True is the current row exists. */
-  bool m_row_exists;
   /** Current position. */
   pos_ews_global_by_event_name m_pos;
   /** Next position. */

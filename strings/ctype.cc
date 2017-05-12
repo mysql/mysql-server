@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights
  * reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -14,10 +14,17 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <my_global.h>
 #include <m_ctype.h>
 #include <my_xml.h>
-#include <m_string.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
+
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_loglevel.h"
+#include "my_macros.h"
 
 
 /*
@@ -780,12 +787,12 @@ static int cs_value(MY_XML_PARSER *st,const char *attr, size_t len)
 } // extern "C"
 
 
-my_bool
+bool
 my_parse_charset_xml(MY_CHARSET_LOADER *loader, const char *buf, size_t len)
 {
   MY_XML_PARSER p;
   struct my_cs_file_info info;
-  my_bool rc;
+  bool rc;
   
   my_charset_file_init(&info);
   my_xml_parser_create(&p);
@@ -880,7 +887,7 @@ uint my_charset_repertoire(const CHARSET_INFO *cs)
   This function is Ok for 5.0 and 5.1, because we're not going
   to introduce new tricky character sets between 5.0 and 5.2.
 */
-my_bool
+bool
 my_charset_is_ascii_based(const CHARSET_INFO *cs)
 {
   return 
@@ -897,7 +904,7 @@ my_charset_is_ascii_based(const CHARSET_INFO *cs)
   This functions is shared between "conf_to_src"
   and dynamic charsets loader in "mysqld".
 */
-my_bool
+bool
 my_charset_is_8bit_pure_ascii(const CHARSET_INFO *cs)
 {
   size_t code;
@@ -917,7 +924,7 @@ my_charset_is_8bit_pure_ascii(const CHARSET_INFO *cs)
   Check if a 8bit character set is compatible with
   ascii on the range 0x00..0x7F.
 */
-my_bool
+bool
 my_charset_is_ascii_compatible(const CHARSET_INFO *cs)
 {
   uint i;

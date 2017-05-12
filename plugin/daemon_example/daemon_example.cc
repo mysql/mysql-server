@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,17 +13,24 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#include <my_global.h>
-#include <stdlib.h>
 #include <ctype.h>
-#include <mysql_version.h>
-#include <mysql/plugin.h>
+#include <fcntl.h>
 #include <my_dir.h>
-#include "my_thread.h"
-#include "my_sys.h"                             // my_write, my_malloc
+#include <mysql/plugin.h>
+#include <mysql_version.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+
 #include "m_string.h"                           // strlen
-#include "sql_plugin.h"                         // st_plugin_int
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_psi_config.h"
+#include "my_sys.h"                             // my_write, my_malloc
+#include "my_thread.h"
 #include "mysql/psi/mysql_memory.h"
+#include "sql_plugin.h"                         // st_plugin_int
 
 PSI_memory_key key_memory_mysql_heartbeat_context;
 
@@ -39,7 +46,7 @@ static void init_deamon_example_psi_keys()
   const char* category= "deamon_example";
   int count;
 
-  count= array_elements(all_deamon_example_memory);
+  count= static_cast<int>(array_elements(all_deamon_example_memory));
   mysql_memory_register(category, all_deamon_example_memory, count);
 }
 #endif /* HAVE_PSI_INTERFACE */

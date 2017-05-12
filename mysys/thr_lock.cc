@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -67,12 +67,35 @@ The lock algorithm allows one to have one TL_WRITE_CONCURRENT_INSERT
 lock at the same time as multiple read locks.
 */
 
-#include "mysys_priv.h"
-#include "my_sys.h"
-#include "thr_lock.h"
-#include "mysql/psi/mysql_table.h"
-#include <m_string.h>
+#include "my_config.h"
+
 #include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
+#include <time.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_list.h"
+#include "my_macros.h"
+#include "my_systime.h"
+#include "my_thread.h"
+#include "my_thread_local.h"
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/mysql_table.h"
+#include "mysql/psi/mysql_thread.h"
+#include "mysql/psi/psi_stage.h"
+#include "mysql/psi/psi_table.h"
+#include "mysys_priv.h"
+#include "thr_lock.h"
+#include "thr_mutex.h"
 
 ulong locks_immediate = 0L, locks_waited = 0L;
 enum thr_lock_type thr_upgraded_concurrent_insert_lock = TL_WRITE;
@@ -98,7 +121,7 @@ void thr_set_lock_wait_callback(void (*before_wait)(void),
 } // extern C
 
 
-static inline my_bool
+static inline bool
 thr_lock_owner_equal(THR_LOCK_INFO *rhs, THR_LOCK_INFO *lhs)
 {
   return rhs == lhs;
@@ -110,7 +133,7 @@ thr_lock_owner_equal(THR_LOCK_INFO *rhs, THR_LOCK_INFO *lhs)
 static uint found_errors=0;
 
 static int check_lock(struct st_lock_list *list, const char* lock_type,
-                      const char *where, my_bool same_owner, my_bool no_cond)
+                      const char *where, bool same_owner, bool no_cond)
 {
   THR_LOCK_DATA *data,**prev;
   uint count=0;
@@ -167,7 +190,7 @@ static int check_lock(struct st_lock_list *list, const char* lock_type,
 
 
 static void check_locks(THR_LOCK *lock, const char *where,
-			my_bool allow_no_locks)
+			bool allow_no_locks)
 {
   uint old_found_errors=found_errors;
   DBUG_ENTER("check_locks");
@@ -341,7 +364,7 @@ void thr_lock_data_init(THR_LOCK *lock,THR_LOCK_DATA *data, void *param)
 }
 
 
-static inline my_bool
+static inline bool
 has_old_lock(THR_LOCK_DATA *data, THR_LOCK_INFO *owner)
 {
   for ( ; data ; data=data->next)
@@ -358,7 +381,7 @@ static void wake_up_waiters(THR_LOCK *lock);
 static enum enum_thr_lock_result
 wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
               THR_LOCK_INFO *owner,
-              my_bool in_wait_list, ulong lock_wait_timeout)
+              bool in_wait_list, ulong lock_wait_timeout)
 {
   struct timespec wait_timeout;
   enum enum_thr_lock_result result= THR_LOCK_ABORTED;
@@ -435,7 +458,7 @@ wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
       DBUG_PRINT("thr_lock", ("lock granted/aborted"));
       break;
     }
-    if (rc == ETIMEDOUT || rc == ETIME)
+    if (is_timeout(rc))
     {
       /* purecov: begin inspected */
       DBUG_PRINT("thr_lock", ("lock timed out"));
@@ -674,7 +697,7 @@ thr_lock(THR_LOCK_DATA *data, THR_LOCK_INFO *owner,
                           lock->write_wait.data));
       if (!lock->write_wait.data)
       {						/* no scheduled write locks */
-        my_bool concurrent_insert= 0;
+        bool concurrent_insert= 0;
 	if (lock_type == TL_WRITE_CONCURRENT_INSERT)
         {
           concurrent_insert= 1;
@@ -719,7 +742,7 @@ end:
 
 
 static inline void free_all_read_locks(THR_LOCK *lock,
-				       my_bool using_concurrent_insert)
+				       bool using_concurrent_insert)
 {
   THR_LOCK_DATA *data=lock->read_wait.data;
 
@@ -1329,7 +1352,7 @@ static void test_copy_status(void* to MY_ATTRIBUTE((unused)) ,
 {
 }
 
-static my_bool test_check_status(void* param MY_ATTRIBUTE((unused)))
+static bool test_check_status(void* param MY_ATTRIBUTE((unused)))
 {
   return 0;
 }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,15 +13,28 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "rpl_record.h"
+#include "sql/rpl_record.h"
 
+#include <stddef.h>
+#include <algorithm>
+
+#include "binary_log_types.h"
 #include "current_thd.h"
-#include "my_bitmap.h"        // MY_BITMAP
 #include "derror.h"           // ER_THD
 #include "field.h"            // Field
+#include "my_base.h"
+#include "my_bitmap.h"        // MY_BITMAP
+#include "my_dbug.h"
+#include "my_sys.h"
+#include "mysql_com.h"
 #include "mysqld.h"           // ER
+#include "mysqld_error.h"
 #include "rpl_rli.h"          // Relay_log_info
 #include "rpl_utility.h"      // table_def
+#include "sql_const.h"
+#include "sql_error.h"
+#include "sql_security_ctx.h"
+#include "sql_string.h"
 #include "table.h"            // TABLE
 #include "template_utils.h"   // down_cast
 
@@ -61,7 +74,7 @@ using std::max;
 
    @return The number of bytes written at @c row_data.
  */
-#if !defined(MYSQL_CLIENT)
+
 size_t
 pack_row(TABLE *table, MY_BITMAP const* cols,
          uchar *row_data, const uchar *record)
@@ -157,10 +170,8 @@ pack_row(TABLE *table, MY_BITMAP const* cols,
   DBUG_DUMP("row_data", row_data, pack_ptr - row_data);
   DBUG_RETURN(static_cast<size_t>(pack_ptr - row_data));
 }
-#endif
 
 
-#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
 /**
    Unpack a row into @c table->record[0].
 
@@ -508,11 +519,30 @@ int prepare_record(TABLE *const table, const MY_BITMAP *cols, const bool check)
   */
   
   DBUG_PRINT_BITSET("debug", "cols: %s", cols);
+  /**
+    Save a reference to the original write set bitmaps.
+    We will need this to restore the bitmaps at the end.
+  */
+  MY_BITMAP *old_write_set= table->write_set;
+  /**
+    Just to be sure that tmp_set is currently not in use as
+    the read_set already.
+  */
+  DBUG_ASSERT(table->write_set != &table->tmp_set);
+  /* set the temporary write_set */
+  table->column_bitmaps_set_no_signal(table->read_set,
+                                      &table->tmp_set);
+  /**
+    Set table->write_set bits for all the columns as they
+    will be checked in set_default() function.
+  */
+  bitmap_set_all(table->write_set);
+
   for (Field **field_ptr= table->field; *field_ptr; ++field_ptr)
   {
-    if ((uint) (field_ptr - table->field) >= cols->n_bits ||
-        !bitmap_is_set(cols, field_ptr - table->field))
-    {   
+    uint field_index= (uint) (field_ptr - table->field);
+    if (field_index >= cols->n_bits || !bitmap_is_set(cols, field_index))
+    {
       Field *const f= *field_ptr;
       if ((f->flags &  NO_DEFAULT_VALUE_FLAG) &&
           (f->real_type() != MYSQL_TYPE_ENUM))
@@ -524,10 +554,16 @@ int prepare_record(TABLE *const table, const MY_BITMAP *cols, const bool check)
                             ER_THD(current_thd, ER_NO_DEFAULT_FOR_FIELD),
                             f->field_name);
       }
+      else if (f->has_insert_default_function())
+      {
+        f->set_default();
+      }
     }
   }
 
+  /* set the write_set back to original*/
+  table->column_bitmaps_set_no_signal(table->read_set,
+                                      old_write_set);
+
   DBUG_RETURN(0);
 }
-
-#endif // HAVE_REPLICATION

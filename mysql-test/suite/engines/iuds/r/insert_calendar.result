@@ -436,14 +436,10 @@ Warnings:
 Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
 Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c1' at row 1
 Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c1' at row 1
-SELECT * FROM t1 WHERE c1 BETWEEN '0000-00-00 00:00:00' AND '1998-12-29 00:00:00' ORDER BY c1 DESC LIMIT 2;
+SELECT * FROM t1 WHERE c1 BETWEEN '1900-01-01 00:00:00' AND '1998-12-29 00:00:00' ORDER BY c1 DESC LIMIT 2;
 c1	c2	c3	c4
 1998-12-29	1998-12-29	1998-12-29 00:00:00	1998-12-29 00:00:00
 1998-12-28	1998-12-28	1998-12-28 00:00:00	1998-12-28 00:00:00
-Warnings:
-Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
-Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c1' at row 1
-Warning	1292	Incorrect date value: '0000-00-00 00:00:00' for column 'c1' at row 1
 SELECT * FROM t1 WHERE c1 IN ('0000-00-00 00:00:00','1998-12-29 00:00:00') ORDER BY c1 DESC;
 c1	c2	c3	c4
 1998-12-29	1998-12-29	1998-12-29 00:00:00	1998-12-29 00:00:00

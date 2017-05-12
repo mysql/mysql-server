@@ -1,7 +1,7 @@
 DROP DATABASE IF EXISTS test1;
 DROP DATABASE IF EXISTS test2;
-CREATE DATABASE test1;
-CREATE DATABASE test2;
+CREATE DATABASE test1 charset latin1;
+CREATE DATABASE test2 charset latin1;
 CREATE TABLE test1.t1  (f1 VARCHAR(20)) ENGINE = <engine_to_be_used>;
 CREATE TABLE test1.t2  (f1 VARCHAR(20)) ENGINE = <engine_to_be_used>;
 CREATE TABLE test2.t1 (f1 VARCHAR(20)) ENGINE = <engine_to_be_used>;

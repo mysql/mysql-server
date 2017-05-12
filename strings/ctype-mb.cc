@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,9 +13,15 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <my_global.h>
+#include <string.h>
+#include <sys/types.h>
+
 #include "m_ctype.h"
 #include "m_string.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
 
 
 size_t my_caseup_str_mb(const CHARSET_INFO *cs, char *str)
@@ -483,7 +489,7 @@ int
 my_strnncoll_mb_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                     const uchar *s, size_t slen,
                     const uchar *t, size_t tlen,
-                    my_bool t_is_prefix)
+                    bool t_is_prefix)
 {
   size_t len= MY_MIN(slen,tlen);
   int cmp= memcmp(s,t,len);
@@ -653,7 +659,7 @@ my_strnxfrm_mb(const CHARSET_INFO *cs,
   }
 
 pad:
-  return my_strxfrm_pad_desc_and_reverse(cs, d0, dst, de, nweights, flags, 0);
+  return my_strxfrm_pad(cs, d0, dst, de, nweights, flags);
 }
 
 
@@ -776,12 +782,12 @@ static void pad_max_char(const CHARSET_INFO *cs, char *str, char *end)
 ** optimized !
 */
 
-my_bool my_like_range_mb(const CHARSET_INFO *cs,
-			 const char *ptr,size_t ptr_length,
-			 pbool escape, pbool w_one, pbool w_many,
-			 size_t res_length,
-			 char *min_str,char *max_str,
-			 size_t *min_length,size_t *max_length)
+bool my_like_range_mb(const CHARSET_INFO *cs,
+                      const char *ptr,size_t ptr_length,
+                      char escape, char w_one, char w_many,
+                      size_t res_length,
+                      char *min_str,char *max_str,
+                      size_t *min_length,size_t *max_length)
 {
   uint mb_len;
   const char *end= ptr + ptr_length;
@@ -789,7 +795,7 @@ my_bool my_like_range_mb(const CHARSET_INFO *cs,
   char *min_end= min_str + res_length;
   char *max_end= max_str + res_length;
   size_t maxcharlen= res_length / cs->mbmaxlen;
-  const MY_CONTRACTIONS *contractions= my_charset_get_contractions(cs, 0);
+  const MY_CONTRACTIONS *contractions= my_charset_get_contractions(cs);
 
   for (; ptr != end && min_str != min_end && maxcharlen ; maxcharlen--)
   {
@@ -800,24 +806,34 @@ my_bool my_like_range_mb(const CHARSET_INFO *cs,
     {      
 fill_max_and_min:
       /*
-        Calculate length of keys:
-        'a\0\0... is the smallest possible string when we have space expand
-        a\ff\ff... is the biggest possible string
+        For LIKE 'a%', assuming min_sort_char='\0' and max_sort_char='\xff':
+
+        "a" is the smallest possible string for NO PAD.
+        "a\0\0..." is the smallest possible string for PAD SPACE.
+        "a\xff\xff..." is the biggest possible string.
       */
-      *min_length= ((cs->state & MY_CS_BINSORT) ? (size_t) (min_str - min_org) :
-                    res_length);
-      *max_length= res_length;
-      /* Create min key  */
-      do
+      if ((cs->state & MY_CS_BINSORT) || cs->pad_attribute == NO_PAD)
       {
-	*min_str++= (char) cs->min_sort_char;
-      } while (min_str != min_end);
+        *min_length= static_cast<size_t>(min_str - min_org);
+
+        /*
+          Pad with spaces, because for CHAR searches, our returned min_length
+          is ignored and min_str is put directly into the value to search for.
+        */
+        do
+        {
+          *min_str++= ' ';
+        } while (min_str != min_end);
+      }
+      else
+      {
+        *min_length= res_length;
+        do
+        {
+          *min_str++= static_cast<char>(cs->min_sort_char);
+        } while (min_str != min_end);
+      }
       
-      /* 
-        Write max key: create a buffer with multibyte
-        representation of the max_sort_char character,
-        and copy it into max_str in a loop. 
-      */
       *max_length= res_length;
       pad_max_char(cs, max_str, max_end);
       return 0;
@@ -931,10 +947,10 @@ fill_max_and_min:
    @retval FALSE if LIKE pattern can be optimized
    @retval TRUE if LIKE can't be optimized.
 */
-my_bool
+bool
 my_like_range_generic(const CHARSET_INFO *cs,
                       const char *ptr, size_t ptr_length,
-                      pbool escape, pbool w_one, pbool w_many,
+                      char escape, char w_one, char w_many,
                       size_t res_length,
                       char *min_str,char *max_str,
                       size_t *min_length,size_t *max_length)
@@ -946,7 +962,7 @@ my_like_range_generic(const CHARSET_INFO *cs,
   char *max_end= max_str + res_length;
   size_t charlen= res_length / cs->mbmaxlen;
   size_t res_length_diff;
-  const MY_CONTRACTIONS *contractions= my_charset_get_contractions(cs, 0);
+  const MY_CONTRACTIONS *contractions= my_charset_get_contractions(cs);
 
   for ( ; charlen > 0; charlen--)
   {

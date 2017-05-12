@@ -16,6 +16,9 @@
 #ifndef DD_TABLES__VERSION_INCLUDED
 #define DD_TABLES__VERSION_INCLUDED
 
+#include <sys/types.h>
+#include <string>
+
 #include "dd/impl/types/object_table_impl.h"
 
 class THD;
@@ -39,9 +42,9 @@ public:
 
   static const Version &instance();
 
-  static const std::string &table_name()
+  static const String_type &table_name()
   {
-    static std::string s_table_name("version");
+    static String_type s_table_name("version");
     return s_table_name;
   }
 
@@ -54,7 +57,7 @@ public:
 public:
   Version();
 
-  virtual const std::string &name() const
+  virtual const String_type &name() const
   { return Version::table_name(); }
 
   static uint get_target_dd_version()

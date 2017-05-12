@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +16,6 @@
 #ifndef DD__VIEW_ROUTINE_INCLUDED
 #define DD__VIEW_ROUTINE_INCLUDED
 
-#include "my_global.h"
 
 #include "dd/types/weak_object.h"    // dd::Weak_object
 
@@ -51,22 +50,22 @@ public:
   // View routine catalog name.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &routine_catalog() const = 0;
-  virtual void set_routine_catalog(const std::string &sf_catalog) = 0;
+  virtual const String_type &routine_catalog() const = 0;
+  virtual void set_routine_catalog(const String_type &sf_catalog) = 0;
 
   ///////////////////////////////////////////////////////////////////////// View
   // View routine schema name.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &routine_schema() const = 0;
-  virtual void set_routine_schema(const std::string &sf_schema) = 0;
+  virtual const String_type &routine_schema() const = 0;
+  virtual void set_routine_schema(const String_type &sf_schema) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // View routine name.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &routine_name() const = 0;
-  virtual void set_routine_name(const std::string &sf_name) = 0;
+  virtual const String_type &routine_name() const = 0;
+  virtual void set_routine_name(const String_type &sf_name) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // Parent view.

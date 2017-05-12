@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -98,14 +98,17 @@
 */
 
 #include <decimal.h>
-
-#include <my_global.h>
+#include <limits.h>
 #include <m_ctype.h>
-#include <myisampack.h>
-#include <my_sys.h> /* for my_alloca */
 #include <m_string.h>
-
+#include <math.h>
+#include <my_sys.h> /* for my_alloca */
+#include <myisampack.h>
+#include <string.h>
 #include <algorithm>
+
+#include "my_compiler.h"
+#include "my_dbug.h"
 
 /*
   Internally decimal numbers are stored base 10^9 (see DIG_BASE below)
@@ -227,16 +230,16 @@ static inline int count_leading_zeroes(int i, dec1 val)
   switch (i)
   {
   /* @note Intentional fallthrough in all case labels */
-  case 9: if (val >= 1000000000) break; ++ret;
-  case 8: if (val >= 100000000) break; ++ret;
-  case 7: if (val >= 10000000) break; ++ret;
-  case 6: if (val >= 1000000) break; ++ret;
-  case 5: if (val >= 100000) break; ++ret;
-  case 4: if (val >= 10000) break; ++ret;
-  case 3: if (val >= 1000) break; ++ret;
-  case 2: if (val >= 100) break; ++ret;
-  case 1: if (val >= 10) break; ++ret;
-  case 0: if (val >= 1) break; ++ret;
+  case 9: if (val >= 1000000000) break; ++ret;  // Fall through.
+  case 8: if (val >= 100000000) break; ++ret;  // Fall through.
+  case 7: if (val >= 10000000) break; ++ret;  // Fall through.
+  case 6: if (val >= 1000000) break; ++ret;  // Fall through.
+  case 5: if (val >= 100000) break; ++ret;  // Fall through.
+  case 4: if (val >= 10000) break; ++ret;  // Fall through.
+  case 3: if (val >= 1000) break; ++ret;  // Fall through.
+  case 2: if (val >= 100) break; ++ret;  // Fall through.
+  case 1: if (val >= 10) break; ++ret;  // Fall through.
+  case 0: if (val >= 1) break; ++ret;  // Fall through.
   default: { DBUG_ASSERT(FALSE); }
   }
   return ret;
@@ -260,16 +263,16 @@ static inline int count_trailing_zeroes(int i, dec1 val)
   switch(i)
   {
   /* @note Intentional fallthrough in all case labels */
-  case 0: if ((val % 1) != 0) break; ++ret;
-  case 1: if ((val % 10) != 0) break; ++ret;
-  case 2: if ((val % 100) != 0) break; ++ret;
-  case 3: if ((val % 1000) != 0) break; ++ret;
-  case 4: if ((val % 10000) != 0) break; ++ret;
-  case 5: if ((val % 100000) != 0) break; ++ret;
-  case 6: if ((val % 1000000) != 0) break; ++ret;
-  case 7: if ((val % 10000000) != 0) break; ++ret;
-  case 8: if ((val % 100000000) != 0) break; ++ret;
-  case 9: if ((val % 1000000000) != 0) break; ++ret;
+  case 0: if ((val % 1) != 0) break; ++ret;  // Fall through.
+  case 1: if ((val % 10) != 0) break; ++ret;  // Fall through.
+  case 2: if ((val % 100) != 0) break; ++ret;  // Fall through.
+  case 3: if ((val % 1000) != 0) break; ++ret;  // Fall through.
+  case 4: if ((val % 10000) != 0) break; ++ret;  // Fall through.
+  case 5: if ((val % 100000) != 0) break; ++ret;  // Fall through.
+  case 6: if ((val % 1000000) != 0) break; ++ret;  // Fall through.
+  case 7: if ((val % 10000000) != 0) break; ++ret;  // Fall through.
+  case 8: if ((val % 100000000) != 0) break; ++ret;  // Fall through.
+  case 9: if ((val % 1000000000) != 0) break; ++ret;  // Fall through.
   default: { DBUG_ASSERT(FALSE); }
   }
   return ret;
@@ -859,7 +862,7 @@ int decimal_shift(decimal_t *dec, int shift)
 */
 
 int
-internal_str2dec(const char *from, decimal_t *to, char **end, my_bool fixed)
+internal_str2dec(const char *from, decimal_t *to, char **end, bool fixed)
 {
   const char *s= from, *s1, *endp, *end_of_string= *end;
   int i, intg, frac, error, intg1, frac1;
@@ -2666,9 +2669,3 @@ int decimal_mod(const decimal_t *from1, const decimal_t *from2, decimal_t *to)
 {
   return do_div_mod(from1, from2, 0, to, 0);
 }
-
-#ifdef MAIN
-/*
-  The main() program has been converted into a unit test.
- */
-#endif

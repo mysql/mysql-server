@@ -1,5 +1,4 @@
-
-/* Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -18,12 +17,14 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
-#include "ngs/capabilities/handler_tls.h"
-#include "ngs/capabilities/handler_auth_mech.h"
-#include "mock/session.h"
+#include "account_verification_handler.h"
 #include "mock/capabilities.h"
-#include "mock/connection.h"
+#include "mock/ngs_general.h"
+#include "mock/session.h"
 #include "my_config.h"
+#include "ngs/capabilities/handler_auth_mech.h"
+#include "ngs/capabilities/handler_tls.h"
+#include "sql_user_require.h"
 
 namespace ngs
 {
@@ -57,7 +58,7 @@ public:
   }
 
   StrictMock<Mock_connection>        mock_connection;
-  boost::shared_ptr<Mock_options_session>    mock_options;
+  ngs::shared_ptr<Mock_options_session>    mock_options;
   StrictMock<xpl::test::Mock_client> mock_client;
 
   Capability_tls                     sut;
@@ -176,7 +177,6 @@ public:
 }
 
 
-
 class SuccessSetCapabilityHanderTlsTestSuite : public CapabilityHanderTlsTestSuite , public WithParamInterface<Set_params>
 {
 public:
@@ -272,13 +272,13 @@ public:
   CapabilityHanderAuthMechTestSuite()
   : sut(mock_client)
   {
-    mock_server = boost::make_shared< StrictMock<Mock_server> >();
+    mock_server = ngs::make_shared< StrictMock<Mock_server> >();
 
     EXPECT_CALL(mock_client, connection()).WillRepeatedly(ReturnRef(mock_connection));
     EXPECT_CALL(mock_client, server()).WillRepeatedly(ReturnRef(*mock_server));
   }
 
-  boost::shared_ptr<StrictMock<Mock_server> > mock_server;
+  ngs::shared_ptr<StrictMock<Mock_server> > mock_server;
 
   StrictMock<Mock_connection>        mock_connection;
   StrictMock<xpl::test::Mock_client> mock_client;

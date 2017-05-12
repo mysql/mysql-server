@@ -5,7 +5,7 @@ use strict;
 open(FILE, $ENV{FILE}) or die;
 $_ = <FILE>;
 close(FILE);
-my $debug = /innochecksum-debug /;
+my $debug = /innochecksum.*debug /;
 open(FILE, ">$ENV{FILE}") or die;
 print FILE "let \$debug= $debug;\n";
 close(FILE);

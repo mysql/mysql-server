@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,17 +13,41 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "debug_sync.h"
-#include "rpl_mts_submode.h"
+#include "sql/rpl_mts_submode.h"
 
+#include <assert.h>
+#include <limits.h>
+#include <string.h>
+#include <time.h>
+
+#include "debug_sync.h"
+#include "handler.h"
 #include "hash.h"                           // HASH
+#include "lex_string.h"
 #include "log.h"                            // sql_print_information
 #include "log_event.h"                      // Query_log_event
+#include "m_string.h"
+#include "mdl.h"
+#include "my_byteorder.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_systime.h"
+#include "my_thread.h"
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/psi_stage.h"
 #include "mysqld.h"                         // stage_worker_....
+#include "mysqld_error.h"
+#include "query_options.h"
+#include "rpl_filter.h"
 #include "rpl_rli.h"                        // Relay_log_info
 #include "rpl_rli_pdb.h"                    // db_worker_hash_entry
+#include "rpl_slave.h"
 #include "rpl_slave_commit_order_manager.h" // Commit_order_manager
 #include "sql_class.h"                      // THD
+#include "sql_plugin_ref.h"
+#include "system_variables.h"
+#include "table.h"
 
 
 /**
@@ -32,7 +56,7 @@
           0 no error
 */
 int
-Mts_submode_database::schedule_next_event(Relay_log_info *rli, Log_event *ev)
+Mts_submode_database::schedule_next_event(Relay_log_info*, Log_event*)
 {
   /*nothing to do here*/
   return 0;
@@ -42,7 +66,7 @@ Mts_submode_database::schedule_next_event(Relay_log_info *rli, Log_event *ev)
   Logic to attach temporary tables.
 */
 void
-Mts_submode_database::attach_temp_tables(THD *thd, const Relay_log_info* rli,
+Mts_submode_database::attach_temp_tables(THD *thd, const Relay_log_info*,
                                          Query_log_event* ev)
 {
   int i, parts;
@@ -171,7 +195,7 @@ Mts_submode_database::wait_for_workers_to_finish(Relay_log_info *rli,
  Logic to detach the temporary tables from the worker threads upon
  event execution.
  @param thd THD instance
- @param rli Relay_log_info instance
+ @param rli Relay_log_info pointer
  @param ev  Query_log_event that is being applied
 */
 void
@@ -200,6 +224,8 @@ Mts_submode_database::detach_temp_tables(THD *thd, const Relay_log_info* rli,
   {
     ev->mts_assigned_partitions[i]->temporary_tables= NULL;
   }
+
+  Rpl_filter *rpl_filter= rli->rpl_filter;
   for (TABLE *table= thd->temporary_tables; table;)
   {
     int i;
@@ -215,7 +241,8 @@ Mts_submode_database::detach_temp_tables(THD *thd, const Relay_log_info* rli,
       if (!rpl_filter->is_rewrite_empty() && !strcmp(ev->get_db(), db_name))
       {
         size_t dummy_len;
-        const char *db_filtered= rpl_filter->get_rewrite_db(db_name, &dummy_len);
+        const char *db_filtered=
+          rpl_filter->get_rewrite_db(db_name, &dummy_len);
         // db_name != db_filtered means that db_name is rewritten.
         if (strcmp(db_name, db_filtered))
           db_name= (char*)db_filtered;
@@ -255,15 +282,13 @@ Mts_submode_database::detach_temp_tables(THD *thd, const Relay_log_info* rli,
 
 /**
   Logic to get least occupied worker when the sql mts_submode= database
-  @param rli relay log info of coordinator
   @param ws  array of worker threads
-  @param ev  event for which we are searching for a worker.
   @return slave worker thread
  */
 Slave_worker *
-Mts_submode_database::get_least_occupied_worker(Relay_log_info *rli,
+Mts_submode_database::get_least_occupied_worker(Relay_log_info*,
                                                 Slave_worker_array *ws,
-                                                Log_event *ev)
+                                                Log_event*)
 {
  long usage= LONG_MAX;
   Slave_worker **ptr_current_worker= NULL, *worker= NULL;
@@ -584,7 +609,7 @@ Mts_submode_logical_clock::schedule_next_event(Relay_log_info* rli,
       wait for all ealier that were scheduled to finish. It's marked
       as gap successor now.
     */
-    compile_time_assert(SEQ_UNINIT == 0);
+    static_assert(SEQ_UNINIT == 0, "");
     if (unlikely(sequence_number > last_sequence_number + 1))
     {
       /*
@@ -778,11 +803,10 @@ Mts_submode_logical_clock::attach_temp_tables(THD *thd, const Relay_log_info* rl
  event execution.
  @param thd THD instance
  @param rli Relay_log_info instance
- @param ev  Query_log_event that is being applied
 */
 void
-Mts_submode_logical_clock::detach_temp_tables( THD *thd, const Relay_log_info* rli,
-                                        Query_log_event * ev)
+Mts_submode_logical_clock::detach_temp_tables(THD *thd, const Relay_log_info* rli,
+                                              Query_log_event*)
 {
   DBUG_ENTER("Mts_submode_logical_clock::detach_temp_tables");
   if (!is_mts_worker(thd))
@@ -978,7 +1002,7 @@ Mts_submode_logical_clock::
   DBUG_PRINT("info",("delegated %d, jobs_done %d, Workers have finished their"
                      " jobs", delegated_jobs, jobs_done));
   rli->mts_group_status= Relay_log_info::MTS_NOT_IN_GROUP;
-  DBUG_RETURN(0);
+  DBUG_RETURN(!thd->killed && !is_error ? 0 : -1);
 }
 
 /**

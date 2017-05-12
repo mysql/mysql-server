@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,7 +25,10 @@
   @{
 */
 
-#include "my_global.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
+#include "my_psi_config.h"  // IWYU pragma: keep
+#include "my_sharedlib.h"
 #include "psi_base.h"
 
 C_MODE_START
@@ -78,7 +81,7 @@ struct PSI_statement_bootstrap
     @sa PSI_STATEMENT_VERSION_2
     @sa PSI_CURRENT_STATEMENT_VERSION
   */
-  void* (*get_interface)(int version);
+  void *(*get_interface)(int version);
 };
 typedef struct PSI_statement_bootstrap PSI_statement_bootstrap;
 
@@ -121,7 +124,7 @@ typedef struct PSI_sp_locker PSI_sp_locker;
 
 /**
   Statement instrument information.
-  @since PSI_VERSION_1
+  @since PSI_STATEMENT_VERSION_1
   This structure is used to register an instrumented statement.
 */
 struct PSI_statement_info_v1
@@ -151,9 +154,9 @@ typedef struct PSI_statement_info_v1 PSI_statement_info_v1;
 struct PSI_statement_locker_state_v1
 {
   /** Discarded flag. */
-  my_bool m_discarded;
+  bool m_discarded;
   /** In prepare flag. */
-  my_bool m_in_prepare;
+  bool m_in_prepare;
   /** Metric, no index used flag. */
   uchar m_no_index_used;
   /** Metric, no good index used flag. */
@@ -222,7 +225,7 @@ struct PSI_sp_locker_state_v1
   /** Timer function. */
   ulonglong (*m_timer)(void);
   /** Stored Procedure share. */
-  PSI_sp_share* m_sp_share;
+  PSI_sp_share *m_sp_share;
 };
 typedef struct PSI_sp_locker_state_v1 PSI_sp_locker_state_v1;
 
@@ -232,8 +235,9 @@ typedef struct PSI_sp_locker_state_v1 PSI_sp_locker_state_v1;
   @param info an array of statement info to register
   @param count the size of the info array
 */
-typedef void (*register_statement_v1_t)
-  (const char *category, struct PSI_statement_info_v1 *info, int count);
+typedef void (*register_statement_v1_t)(const char *category,
+                                        struct PSI_statement_info_v1 *info,
+                                        int count);
 
 /**
   Get a statement instrumentation locker.
@@ -242,9 +246,11 @@ typedef void (*register_statement_v1_t)
   @param charset client character set
   @return a statement locker, or NULL
 */
-typedef struct PSI_statement_locker* (*get_thread_statement_locker_v1_t)
-  (struct PSI_statement_locker_state_v1 *state,
-   PSI_statement_key key, const void *charset, PSI_sp_share *sp_share);
+typedef struct PSI_statement_locker *(*get_thread_statement_locker_v1_t)(
+  struct PSI_statement_locker_state_v1 *state,
+  PSI_statement_key key,
+  const void *charset,
+  PSI_sp_share *sp_share);
 
 /**
   Refine a statement locker to a more specific key.
@@ -253,9 +259,8 @@ typedef struct PSI_statement_locker* (*get_thread_statement_locker_v1_t)
   @param key the new key for the event
   @sa PSI_FLAG_MUTABLE
 */
-typedef struct PSI_statement_locker* (*refine_statement_v1_t)
-  (struct PSI_statement_locker *locker,
-   PSI_statement_key key);
+typedef struct PSI_statement_locker *(*refine_statement_v1_t)(
+  struct PSI_statement_locker *locker, PSI_statement_key key);
 
 /**
   Start a new statement event.
@@ -265,10 +270,11 @@ typedef struct PSI_statement_locker* (*refine_statement_v1_t)
   @param src_file source file name
   @param src_line source line number
 */
-typedef void (*start_statement_v1_t)
-  (struct PSI_statement_locker *locker,
-   const char *db, uint db_length,
-   const char *src_file, uint src_line);
+typedef void (*start_statement_v1_t)(struct PSI_statement_locker *locker,
+                                     const char *db,
+                                     uint db_length,
+                                     const char *src_file,
+                                     uint src_line);
 
 /**
   Set the statement text for a statement event.
@@ -276,135 +282,135 @@ typedef void (*start_statement_v1_t)
   @param text the statement text
   @param text_len the statement text length
 */
-typedef void (*set_statement_text_v1_t)
-  (struct PSI_statement_locker *locker,
-   const char *text, uint text_len);
+typedef void (*set_statement_text_v1_t)(struct PSI_statement_locker *locker,
+                                        const char *text,
+                                        uint text_len);
 
 /**
   Set a statement event lock time.
   @param locker the statement locker
   @param lock_time the locked time, in microseconds
 */
-typedef void (*set_statement_lock_time_t)
-  (struct PSI_statement_locker *locker, ulonglong lock_time);
+typedef void (*set_statement_lock_time_t)(struct PSI_statement_locker *locker,
+                                          ulonglong lock_time);
 
 /**
   Set a statement event rows sent metric.
   @param locker the statement locker
   @param count the number of rows sent
 */
-typedef void (*set_statement_rows_sent_t)
-  (struct PSI_statement_locker *locker, ulonglong count);
+typedef void (*set_statement_rows_sent_t)(struct PSI_statement_locker *locker,
+                                          ulonglong count);
 
 /**
   Set a statement event rows examined metric.
   @param locker the statement locker
   @param count the number of rows examined
 */
-typedef void (*set_statement_rows_examined_t)
-  (struct PSI_statement_locker *locker, ulonglong count);
+typedef void (*set_statement_rows_examined_t)(
+  struct PSI_statement_locker *locker, ulonglong count);
 
 /**
   Increment a statement event "created tmp disk tables" metric.
   @param locker the statement locker
   @param count the metric increment value
 */
-typedef void (*inc_statement_created_tmp_disk_tables_t)
-  (struct PSI_statement_locker *locker, ulong count);
+typedef void (*inc_statement_created_tmp_disk_tables_t)(
+  struct PSI_statement_locker *locker, ulong count);
 
 /**
   Increment a statement event "created tmp tables" metric.
   @param locker the statement locker
   @param count the metric increment value
 */
-typedef void (*inc_statement_created_tmp_tables_t)
-  (struct PSI_statement_locker *locker, ulong count);
+typedef void (*inc_statement_created_tmp_tables_t)(
+  struct PSI_statement_locker *locker, ulong count);
 
 /**
   Increment a statement event "select full join" metric.
   @param locker the statement locker
   @param count the metric increment value
 */
-typedef void (*inc_statement_select_full_join_t)
-  (struct PSI_statement_locker *locker, ulong count);
+typedef void (*inc_statement_select_full_join_t)(
+  struct PSI_statement_locker *locker, ulong count);
 
 /**
   Increment a statement event "select full range join" metric.
   @param locker the statement locker
   @param count the metric increment value
 */
-typedef void (*inc_statement_select_full_range_join_t)
-  (struct PSI_statement_locker *locker, ulong count);
+typedef void (*inc_statement_select_full_range_join_t)(
+  struct PSI_statement_locker *locker, ulong count);
 
 /**
   Increment a statement event "select range join" metric.
   @param locker the statement locker
   @param count the metric increment value
 */
-typedef void (*inc_statement_select_range_t)
-  (struct PSI_statement_locker *locker, ulong count);
+typedef void (*inc_statement_select_range_t)(
+  struct PSI_statement_locker *locker, ulong count);
 
 /**
   Increment a statement event "select range check" metric.
   @param locker the statement locker
   @param count the metric increment value
 */
-typedef void (*inc_statement_select_range_check_t)
-  (struct PSI_statement_locker *locker, ulong count);
+typedef void (*inc_statement_select_range_check_t)(
+  struct PSI_statement_locker *locker, ulong count);
 
 /**
   Increment a statement event "select scan" metric.
   @param locker the statement locker
   @param count the metric increment value
 */
-typedef void (*inc_statement_select_scan_t)
-  (struct PSI_statement_locker *locker, ulong count);
+typedef void (*inc_statement_select_scan_t)(struct PSI_statement_locker *locker,
+                                            ulong count);
 
 /**
   Increment a statement event "sort merge passes" metric.
   @param locker the statement locker
   @param count the metric increment value
 */
-typedef void (*inc_statement_sort_merge_passes_t)
-  (struct PSI_statement_locker *locker, ulong count);
+typedef void (*inc_statement_sort_merge_passes_t)(
+  struct PSI_statement_locker *locker, ulong count);
 
 /**
   Increment a statement event "sort range" metric.
   @param locker the statement locker
   @param count the metric increment value
 */
-typedef void (*inc_statement_sort_range_t)
-  (struct PSI_statement_locker *locker, ulong count);
+typedef void (*inc_statement_sort_range_t)(struct PSI_statement_locker *locker,
+                                           ulong count);
 
 /**
   Increment a statement event "sort rows" metric.
   @param locker the statement locker
   @param count the metric increment value
 */
-typedef void (*inc_statement_sort_rows_t)
-  (struct PSI_statement_locker *locker, ulong count);
+typedef void (*inc_statement_sort_rows_t)(struct PSI_statement_locker *locker,
+                                          ulong count);
 
 /**
   Increment a statement event "sort scan" metric.
   @param locker the statement locker
   @param count the metric increment value
 */
-typedef void (*inc_statement_sort_scan_t)
-  (struct PSI_statement_locker *locker, ulong count);
+typedef void (*inc_statement_sort_scan_t)(struct PSI_statement_locker *locker,
+                                          ulong count);
 
 /**
   Set a statement event "no index used" metric.
   @param locker the statement locker
 */
-typedef void (*set_statement_no_index_used_t)
-  (struct PSI_statement_locker *locker);
+typedef void (*set_statement_no_index_used_t)(
+  struct PSI_statement_locker *locker);
 
 /**
   Set a statement event "no good index used" metric.
   @param locker the statement locker
 */
-typedef void (*set_statement_no_good_index_used_t)
-  (struct PSI_statement_locker *locker);
+typedef void (*set_statement_no_good_index_used_t)(
+  struct PSI_statement_locker *locker);
 
 /**
   End a statement event.
@@ -412,54 +418,56 @@ typedef void (*set_statement_no_good_index_used_t)
   @param stmt_da the statement diagnostics area.
   @sa Diagnostics_area
 */
-typedef void (*end_statement_v1_t)
-  (struct PSI_statement_locker *locker, void *stmt_da);
+typedef void (*end_statement_v1_t)(struct PSI_statement_locker *locker,
+                                   void *stmt_da);
 
 /**
   Get a prepare statement.
   @param locker a statement locker for the running thread.
 */
-typedef PSI_prepared_stmt* (*create_prepared_stmt_v1_t)
-  (void *identity, uint stmt_id, PSI_statement_locker *locker,
-   const char *stmt_name, size_t stmt_name_length,
-   const char *name, size_t length);
+typedef PSI_prepared_stmt *(*create_prepared_stmt_v1_t)(
+  void *identity,
+  uint stmt_id,
+  PSI_statement_locker *locker,
+  const char *stmt_name,
+  size_t stmt_name_length,
+  const char *name,
+  size_t length);
 
 /**
   destroy a prepare statement.
   @param prepared_stmt prepared statement.
 */
-typedef void (*destroy_prepared_stmt_v1_t)
-  (PSI_prepared_stmt *prepared_stmt);
+typedef void (*destroy_prepared_stmt_v1_t)(PSI_prepared_stmt *prepared_stmt);
 
 /**
   repreare a prepare statement.
   @param prepared_stmt prepared statement.
 */
-typedef void (*reprepare_prepared_stmt_v1_t)
-  (PSI_prepared_stmt *prepared_stmt);
+typedef void (*reprepare_prepared_stmt_v1_t)(PSI_prepared_stmt *prepared_stmt);
 
 /**
   Record a prepare statement instrumentation execute event.
   @param locker a statement locker for the running thread.
   @param prepared_stmt prepared statement.
 */
-typedef void (*execute_prepared_stmt_v1_t)
-  (PSI_statement_locker *locker, PSI_prepared_stmt* prepared_stmt);
+typedef void (*execute_prepared_stmt_v1_t)(PSI_statement_locker *locker,
+                                           PSI_prepared_stmt *prepared_stmt);
 
 /**
   Get a digest locker for the current statement.
   @param locker a statement locker for the running thread
 */
-typedef struct PSI_digest_locker * (*digest_start_v1_t)
-  (struct PSI_statement_locker *locker);
+typedef struct PSI_digest_locker *(*digest_start_v1_t)(
+  struct PSI_statement_locker *locker);
 
 /**
   Add a computed digest to the current digest instrumentation.
   @param locker a digest locker for the current statement
   @param digest the computed digest
 */
-typedef void (*digest_end_v1_t)
-  (struct PSI_digest_locker *locker, const struct sql_digest_storage *digest);
+typedef void (*digest_end_v1_t)(struct PSI_digest_locker *locker,
+                                const struct sql_digest_storage *digest);
 
 /**
   Acquire a sp share instrumentation.
@@ -470,10 +478,11 @@ typedef void (*digest_end_v1_t)
   @param object_name_length length of object_name
   @return a stored program share instrumentation, or NULL
 */
-typedef struct PSI_sp_share* (*get_sp_share_v1_t)
-  (uint object_type,
-   const char *schema_name, uint schema_name_length,
-   const char *object_name, uint object_name_length);
+typedef struct PSI_sp_share *(*get_sp_share_v1_t)(uint object_type,
+                                                  const char *schema_name,
+                                                  uint schema_name_length,
+                                                  const char *object_name,
+                                                  uint object_name_length);
 
 /**
   Release a stored program share.
@@ -481,16 +490,16 @@ typedef struct PSI_sp_share* (*get_sp_share_v1_t)
 */
 typedef void (*release_sp_share_v1_t)(struct PSI_sp_share *share);
 
-typedef PSI_sp_locker* (*start_sp_v1_t)
-  (struct PSI_sp_locker_state_v1 *state, struct PSI_sp_share* sp_share);
+typedef PSI_sp_locker *(*start_sp_v1_t)(struct PSI_sp_locker_state_v1 *state,
+                                        struct PSI_sp_share *sp_share);
 
-typedef void (*end_sp_v1_t)
-  (struct PSI_sp_locker *locker);
+typedef void (*end_sp_v1_t)(struct PSI_sp_locker *locker);
 
-typedef void (*drop_sp_v1_t)
-  (uint object_type,
-   const char *schema_name, uint schema_name_length,
-   const char *object_name, uint object_name_length);
+typedef void (*drop_sp_v1_t)(uint object_type,
+                             const char *schema_name,
+                             uint schema_name_length,
+                             const char *object_name,
+                             uint object_name_length);
 
 /**
   Performance Schema Statement Interface, version 1.
@@ -593,4 +602,3 @@ extern MYSQL_PLUGIN_IMPORT PSI_statement_service_t *psi_statement_service;
 C_MODE_END
 
 #endif /* MYSQL_PSI_STATEMENT_H */
-

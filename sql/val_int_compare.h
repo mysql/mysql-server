@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,8 +16,10 @@
 #ifndef VAL_INT_COMPARE_INCLUDED
 #define VAL_INT_COMPARE_INCLUDED
 
-#include "my_global.h"
 #include <functional>
+
+#include "my_dbug.h"
+#include "my_inttypes.h"
 
 /**
   Holds value/unsigned_flag for the result of val_int(),

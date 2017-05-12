@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 *
 * This program is free software; you can redistribute it and/or
 * modify it under the terms of the GNU General Public License as
@@ -21,6 +21,8 @@
 #define _NGS_MESSAGE_BUILDER_H_
 
 #include "m_ctype.h"
+#include "my_inttypes.h"
+#include "ngs/memory.h"
 #include "ngs_common/protocol_protobuf.h"
 
 namespace ngs
@@ -41,7 +43,7 @@ namespace ngs
     void end_message();
 
     Output_buffer     *m_out_buffer;
-    CodedOutputStream *m_out_stream;
+    ngs::Memory_instrumented<CodedOutputStream>::Unique_ptr m_out_stream;
 
     int m_size_addr2_size;
 

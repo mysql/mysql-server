@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -47,9 +47,35 @@
   (assuming a index for column d of table t2 is defined)
 */
 
-#include "key.h"                                // key_cmp_if_same
-#include "sql_select.h"
+#include <limits.h>
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "field.h"
+#include "ft_global.h"
+#include "handler.h"
+#include "item.h"
+#include "item_cmpfunc.h"
+#include "item_func.h"
 #include "item_sum.h"                           // Item_sum
+#include "key.h"                                // key_cmp_if_same
+#include "my_base.h"
+#include "my_bitmap.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
+#include "my_sys.h"
+#include "my_table_map.h"
+#include "mysql_com.h"
+#include "sql_bitmap.h"
+#include "sql_class.h"
+#include "sql_const.h"
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_opt_exec_shared.h"
+#include "sql_select.h"
+#include "table.h"
 
 static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
                                 Item_field *item_field, Item *cond,
@@ -260,6 +286,7 @@ int opt_sum_query(THD *thd,
   if (where_tables & OUTER_REF_TABLE_BIT)
     DBUG_RETURN(0);
 
+  bool force_index= false;
   /*
     Analyze outer join dependencies, and, if possible, compute the number
     of returned rows.
@@ -310,6 +337,7 @@ int opt_sum_query(THD *thd,
                                    HA_HAS_RECORDS));
       is_exact_count= FALSE;
       count= 1;                                 // ensure count != 0
+      force_index|= tl->table->force_index;
     }
   }
 
@@ -322,6 +350,11 @@ int opt_sum_query(THD *thd,
   {
     if (item->type() == Item::SUM_FUNC_ITEM)
     {
+      if (item->used_tables() & OUTER_REF_TABLE_BIT)
+      {
+        const_result= 0;
+        continue;
+      }
       Item_sum *item_sum= (((Item_sum*) item));
       switch (item_sum->sum_func()) {
       case Item_sum::COUNT_FUNC:
@@ -329,9 +362,11 @@ int opt_sum_query(THD *thd,
           If the expr in COUNT(expr) can never be null we can change this
           to the number of rows in the tables if this number is exact and
           there are no outer joins.
+          Don't apply this optimization when there is a FORCE INDEX on any of
+          the tables.
         */
         if (!conds && !((Item_sum_count*) item)->get_arg(0)->maybe_null &&
-            !outer_tables && maybe_exact_count)
+            !outer_tables && maybe_exact_count && !force_index)
         {
           if (!is_exact_count)
           {
@@ -409,6 +444,18 @@ int opt_sum_query(THD *thd,
           Item_field *item_field= (Item_field*) (expr->real_item());
           TABLE *table= item_field->field->table;
 
+          /*
+            We must not have accessed this table instance yet, because
+            it must be private to this subquery, as we already ensured
+            that OUTER_REF_TABLE_BIT is not set.
+          */
+          DBUG_ASSERT(!table->file->inited);
+          /*
+            Because the table handle has not been opened yet, we cannot have
+            determined yet if the table contains 1 record.
+           */
+          DBUG_ASSERT(!table->const_table);
+
           /* 
             Look for a partial key that can be used for optimization.
             If we succeed, ref.key_length will contain the length of
@@ -417,8 +464,7 @@ int opt_sum_query(THD *thd,
             Type of range for the key part for this field will be
             returned in range_fl.
           */
-          if (table->file->inited ||
-              (outer_tables & item_field->table_ref->map()) ||
+          if ((outer_tables & item_field->table_ref->map()) ||
               !find_key_for_maxmin(is_max, &ref, item_field, conds,
                                    &range_fl, &prefix_len))
           {
@@ -452,12 +498,12 @@ int opt_sum_query(THD *thd,
                                      prefix_len);
 
           /*
-            Set TABLE::status to STATUS_GARBAGE since original and
+            Set table row status to "not started" since original and
             real read_set are different, i.e. some field values
             from original read set could be unread.
           */
           if (!bitmap_is_subset(&table->def_read_set, &table->tmp_set))
-            table->status|= STATUS_GARBAGE;
+            table->set_not_started();
 
           table->read_set= &table->def_read_set;
           bitmap_clear_all(&table->tmp_set);
@@ -968,6 +1014,9 @@ static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
     {
       if (!(table->file->index_flags(idx, jdx, 0) & HA_READ_ORDER))
         DBUG_RETURN(false);
+      // Due to lack of time, currently only ASC keyparts are supported.
+      if (part->key_part_flag & HA_REVERSE_SORT)
+        break;
 
       /* Check whether the index component is partial */
       Field *part_field= table->field[part->fieldnr-1];

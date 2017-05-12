@@ -386,7 +386,8 @@ SELECT t2.name, t1.name FROM information_schema.innodb_sys_columns t1, informati
 name	name
 test/child	a1
 test/child	a2
-SELECT NAME FROM information_schema.INNODB_SYS_TABLES WHERE NAME not like 'sys\/%';
+SELECT NAME FROM information_schema.INNODB_SYS_TABLES WHERE NAME not like 'sys\/%'
+  AND name NOT LIKE 'mysql/ndb_binlog_index';
 NAME
 SYS_DATAFILES
 SYS_FOREIGN
@@ -408,6 +409,7 @@ mysql/events
 mysql/foreign_key_column_usage
 mysql/foreign_keys
 mysql/func
+mysql/global_grants
 mysql/gtid_executed
 mysql/help_category
 mysql/help_keyword
@@ -1082,7 +1084,8 @@ SELECT t2.name, t1.name FROM information_schema.innodb_sys_columns t1, informati
 name	name
 test/child	a1
 test/child	a2
-SELECT NAME FROM information_schema.INNODB_SYS_TABLES WHERE NAME not like 'sys\/%';
+SELECT NAME FROM information_schema.INNODB_SYS_TABLES WHERE NAME not like 'sys\/%'
+  AND name NOT LIKE 'mysql/ndb_binlog_index';
 NAME
 SYS_DATAFILES
 SYS_FOREIGN
@@ -1104,6 +1107,7 @@ mysql/events
 mysql/foreign_key_column_usage
 mysql/foreign_keys
 mysql/func
+mysql/global_grants
 mysql/gtid_executed
 mysql/help_category
 mysql/help_keyword
@@ -1252,7 +1256,8 @@ SELECT t2.name, t1.name FROM information_schema.innodb_sys_columns t1, informati
 name	name
 test/child	a2
 test/child	a3
-SELECT NAME FROM information_schema.INNODB_SYS_TABLES WHERE NAME not like 'sys\/%';
+SELECT NAME FROM information_schema.INNODB_SYS_TABLES WHERE NAME not like 'sys\/%'
+  AND name NOT LIKE 'mysql/ndb_binlog_index';
 NAME
 SYS_DATAFILES
 SYS_FOREIGN
@@ -1274,6 +1279,7 @@ mysql/events
 mysql/foreign_key_column_usage
 mysql/foreign_keys
 mysql/func
+mysql/global_grants
 mysql/gtid_executed
 mysql/help_category
 mysql/help_keyword
@@ -1433,7 +1439,8 @@ SELECT t2.name, t1.name FROM information_schema.innodb_sys_columns t1, informati
 name	name
 test/child	a1
 test/child	a2
-SELECT NAME FROM information_schema.INNODB_SYS_TABLES WHERE NAME not like 'sys\/%';
+SELECT NAME FROM information_schema.INNODB_SYS_TABLES WHERE NAME not like 'sys\/%'
+  AND name NOT LIKE 'mysql/ndb_binlog_index';
 NAME
 SYS_DATAFILES
 SYS_FOREIGN
@@ -1455,6 +1462,7 @@ mysql/events
 mysql/foreign_key_column_usage
 mysql/foreign_keys
 mysql/func
+mysql/global_grants
 mysql/gtid_executed
 mysql/help_category
 mysql/help_keyword
@@ -1614,7 +1622,8 @@ SELECT t2.name, t1.name FROM information_schema.innodb_sys_columns t1, informati
 name	name
 test/child	a2
 test/child	a3
-SELECT NAME FROM information_schema.INNODB_SYS_TABLES WHERE NAME not like 'sys\/%';
+SELECT NAME FROM information_schema.INNODB_SYS_TABLES WHERE NAME not like 'sys\/%'
+  AND name NOT LIKE 'mysql/ndb_binlog_index';
 NAME
 SYS_DATAFILES
 SYS_FOREIGN
@@ -1636,6 +1645,7 @@ mysql/events
 mysql/foreign_key_column_usage
 mysql/foreign_keys
 mysql/func
+mysql/global_grants
 mysql/gtid_executed
 mysql/help_category
 mysql/help_keyword

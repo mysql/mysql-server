@@ -1,4 +1,3 @@
--- source include/have_innodb.inc
 -- source include/have_ssl_crypto_functs.inc
 
 CREATE TABLE t1(a int) engine=innodb;

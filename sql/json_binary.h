@@ -1,7 +1,7 @@
 #ifndef JSON_BINARY_INCLUDED
 #define JSON_BINARY_INCLUDED
 
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -133,11 +133,15 @@
   @endverbatim
 */
 
-#include "my_global.h"
+#include <stddef.h>
+#include <new>
+
 #include "binary_log_types.h"                   // enum_field_types
+#include "my_inttypes.h"
 
 class Json_dom;
 class String;
+class THD;
 
 namespace json_binary
 {
@@ -147,12 +151,13 @@ namespace json_binary
   the destination string, replacing any content already in the
   destination string.
 
+  @param[in]     thd   THD handle
   @param[in]     dom   the input DOM tree
   @param[in,out] dest  the destination string
   @retval false on success
   @retval true if an error occurred
 */
-bool serialize(const Json_dom *dom, String *dest);
+bool serialize(const THD *thd, const Json_dom *dom, String *dest);
 
 /**
   Class used for reading JSON values that are stored in the binary
@@ -189,7 +194,8 @@ public:
   Value key(size_t pos) const;
   enum_field_types field_type() const;
   Value lookup(const char *key, size_t len) const;
-  bool raw_binary(String *buf) const;
+  bool is_backed_by(const String *str) const;
+  bool raw_binary(const THD *thd, String *buf) const;
 
   /** Constructor for values that represent literals or errors. */
   explicit Value(enum_type t);

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -88,14 +88,6 @@ typedef	struct matched_rec {
 					dropped) */
 	bool		locked;		/*!< whether these recs locked */
 } matched_rec_t;
-
-/* In memory representation of a minimum bounding rectangle */
-typedef struct rtr_mbr {
-	double	xmin;			/*!< minimum on x */
-	double	xmax;			/*!< maximum on x */
-	double	ymin;			/*!< minimum on y */
-	double	ymax;			/*!< maximum on y */
-} rtr_mbr_t;
 
 /* Maximum index level for R-Tree, this is consistent with BTR_MAX_LEVELS */
 #define RTR_MAX_LEVELS		100

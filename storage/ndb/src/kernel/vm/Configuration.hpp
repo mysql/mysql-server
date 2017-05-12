@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -100,6 +100,7 @@ public:
   void setAllRealtimeScheduler();
   void setAllLockCPU(bool exec_thread);
   int setLockCPU(NdbThread*, enum ThreadTypes type);
+  int setThreadPrio(NdbThread*, enum ThreadTypes type);
   int setRealtimeScheduler(NdbThread*,
                            enum ThreadTypes type,
                            bool real_time,
@@ -186,6 +187,7 @@ private:
   bool _initialStart;
 
   void calcSizeAlt(class ConfigValues * );
+  const char *get_type_string(enum ThreadTypes type);
 };
 
 inline

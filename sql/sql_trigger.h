@@ -2,7 +2,7 @@
 #define SQL_TRIGGER_INCLUDED
 
 /*
-   Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,19 +30,16 @@
 
 ///////////////////////////////////////////////////////////////////////////
 
+#include "lex_string.h"
 #include "m_string.h"
 #include "mdl.h"              // enum_mdl_type
-#include "sql_cmd.h"          // Sql_cmd
 #include "my_sqlcommand.h"    // SQLCOM_CREATE_TRIGGER, SQLCOM_DROP_TRIGGER
-#include "sql_list.h"         // List
+#include "sql_cmd.h"          // Sql_cmd
 
-class THD;
-class MDL_ticket;
-
-struct TABLE_LIST;
-struct TABLE;
 class String;
-class Trigger;
+class THD;
+struct TABLE;
+struct TABLE_LIST;
 ///////////////////////////////////////////////////////////////////////////
 
 /**
@@ -244,8 +241,6 @@ protected:
   bool check_trg_priv_on_subj_table(THD *thd, TABLE_LIST *table) const;
   TABLE* open_and_lock_subj_table(THD *thd, TABLE_LIST *tables,
                                   MDL_ticket **mdl_ticket) const;
-  bool cleanup_on_success(THD *thd, const char *db_name,
-                          TABLE *table, const String &stmt_query) const;
 
 
   /**

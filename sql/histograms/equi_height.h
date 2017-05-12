@@ -67,21 +67,23 @@
   }
 */
 
-#include "my_global.h"
-#include "histogram.h"          // Histogram, value_map_type
-
 #include <cstddef>              // size_t
 #include <string>               // std::string
 #include <vector>               // std::vector
 
-#include "equi_height_bucket.h" // equi_height::Bucket
-#include "memroot_allocator.h"  // Memroot_allocator
-#include "my_alloc.h"           // MEM_ROOT
+#include "equi_height_bucket.h" // equi_height::Bucket, IWYU pragma: keep
+#include "histogram.h"          // Histogram, value_map_type
 #include "my_base.h"            // ha_rows
+#include "thr_malloc.h"
 
 class Json_object;
+template <class T> class Memroot_allocator;
 
 namespace histograms {
+
+namespace equi_height {
+template <class T> class Bucket;
+}  // namespace equi_height
 
 template <class T>
 class Equi_height : public Histogram

@@ -1,7 +1,7 @@
 #ifndef SESSION_TRACKER_INCLUDED
 #define SESSION_TRACKER_INCLUDED
 
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,17 +16,18 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_global.h"
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "lex_string.h"
 #include "mysql/mysql_lex_string.h" // LEX_STRING
 #include "thr_lock.h"               // thr_lock_type
 
-/* forward declarations */
+class String;
 class THD;
 class set_var;
-class String;
+
 typedef struct charset_info_st CHARSET_INFO;
-typedef struct st_mysql_lex_string LEX_STRING;
-typedef struct st_mysql_const_lex_string LEX_CSTRING;
 
 
 enum enum_session_tracker
@@ -189,9 +190,9 @@ public:
   bool check(THD*, set_var*)
   { return false; }
   bool update(THD *thd);
-  bool store(THD *thd, String &buf);
+  bool store(THD*, String &buf);
   void mark_as_changed(THD *thd, LEX_CSTRING *tracked_item_name);
-  bool is_state_changed(THD*);
+  bool is_state_changed();
 };
 
 
@@ -272,7 +273,7 @@ public:
   void end_trx(THD *thd);
 
   /** Helper function: turn table info into table access flag */
-  enum_tx_state calc_trx_state(THD *thd, thr_lock_type l, bool has_trx);
+  enum_tx_state calc_trx_state(thr_lock_type l, bool has_trx);
 
 private:
   enum enum_tx_changed {

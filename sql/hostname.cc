@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,26 +24,38 @@
   doesn't resemble an IP address.
 */
 
-#include "my_global.h"
-#include "hostname.h"
+#include "sql/hostname.h"
+
+#include "my_config.h"
+
+#ifndef _WIN32
+#include <netdb.h>
+#endif
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+#ifdef HAVE_SYS_SOCKET_H
+#include <sys/socket.h>
+#endif
+
 #include "hash_filo.h"
-#include <m_ctype.h>
-#include "mysqld.h"                             // specialflag
 #include "log.h"                                // sql_print_warning,
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_sys.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysqld.h"                             // specialflag
                                                 // sql_print_information
 #include "psi_memory_key.h"
-#include "violite.h"                            // vio_getnameinfo,
                                                 // vio_get_normalized_ip_string
 #include "template_utils.h"
+#include "violite.h"                            // vio_getnameinfo,
 
 #ifdef HAVE_ARPA_INET_H
 #include <arpa/inet.h>
-#endif
-#ifdef HAVE_SYS_UN_H
-#include <sys/un.h>
-#endif
-#if !defined(_WIN32)
-#include <sys/utsname.h>
 #endif
 
 Host_errors::Host_errors()

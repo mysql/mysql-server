@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,21 +16,27 @@
 #ifndef DD__TABLE_STAT_IMPL_INCLUDED
 #define DD__TABLE_STAT_IMPL_INCLUDED
 
+#include <memory>
+#include <new>
+#include <string>
+
+#include "dd/impl/raw/raw_record.h"
 #include "dd/impl/types/entity_object_impl.h" // dd::Entity_object_impl
 #include "dd/types/dictionary_object_table.h" // dd::Dictionary_object_table
 #include "dd/types/object_type.h"             // dd::Object_type
 #include "dd/types/table_stat.h"              // dd::Table_stat
-
-#include <memory>
+#include "my_inttypes.h"
 
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
+class Charset;
 class Raw_table;
 class Transaction;
-
-class Charset;
+class Object_key;
+class Open_dictionary_tables_ctx;
+class Weak_object;
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -52,7 +58,7 @@ public:
   { }
 
 public:
-  virtual void debug_print(std::string &outb) const;
+  virtual void debug_print(String_type &outb) const;
 
   virtual const Dictionary_object_table &object_table() const
   { return Table_stat::OBJECT_TABLE(); }
@@ -68,20 +74,20 @@ public:
   // schema name.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &schema_name() const
+  virtual const String_type &schema_name() const
   { return m_schema_name; }
 
-  virtual void set_schema_name(const std::string &schema_name)
+  virtual void set_schema_name(const String_type &schema_name)
   { m_schema_name= schema_name; }
 
   /////////////////////////////////////////////////////////////////////////
   // table name.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &table_name() const
+  virtual const String_type &table_name() const
   { return m_table_name; }
 
-  virtual void set_table_name(const std::string &table_name)
+  virtual void set_table_name(const String_type &table_name)
   { m_table_name= table_name; }
 
   /////////////////////////////////////////////////////////////////////////
@@ -189,10 +195,24 @@ public:
   virtual Object_key *create_primary_key() const;
   virtual bool has_new_primary_key() const;
 
+  // Fix "inherits ... via dominance" warnings
+  virtual Weak_object_impl *impl()
+  { return Weak_object_impl::impl(); }
+  virtual const Weak_object_impl *impl() const
+  { return Weak_object_impl::impl(); }
+  virtual Object_id id() const
+  { return Entity_object_impl::id(); }
+  virtual bool is_persistent() const
+  { return Entity_object_impl::is_persistent(); }
+  virtual const String_type &name() const
+  { return Entity_object_impl::name(); }
+  virtual void set_name(const String_type &name)
+  { Entity_object_impl::set_name(name); }
+
 private:
   // Fields
-  std::string m_schema_name;
-  std::string m_table_name;
+  String_type m_schema_name;
+  String_type m_table_name;
 
   ulonglong m_table_rows;
   ulonglong m_avg_row_length;

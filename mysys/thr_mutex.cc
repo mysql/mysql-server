@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,14 +18,19 @@
 */
 
 #include "thr_mutex.h"
-#include "my_thread_local.h"
 
+#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+
+#include "my_dbug.h"
+#include "my_thread_local.h"
 
 #if defined(SAFE_MUTEX)
 /* This makes a wrapper for mutex handling to make it easier to debug mutex */
 
-static my_bool safe_mutex_inited= FALSE;
+static bool safe_mutex_inited= FALSE;
 
 /**
   While it looks like this function is pointless, it makes it possible to
@@ -53,7 +58,7 @@ int safe_mutex_init(my_mutex_t *mp, const native_mutexattr_t *attr,
 }
 
 
-int safe_mutex_lock(my_mutex_t *mp, my_bool try_lock,
+int safe_mutex_lock(my_mutex_t *mp, bool try_lock,
                     const char *file, uint line)
 {
   int error;

@@ -1,6 +1,6 @@
 #ifndef _EVENT_H_
 #define _EVENT_H_
-/* Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,12 +25,17 @@
   A public interface of Events_Scheduler module.
 */
 
-#include "my_global.h"
-#include "mysql/mysql_lex_string.h"             // LEX_STRING
-#include "mysql/psi/mysql_thread.h"             // PSI_mutex_key
-#include "mysql/psi/psi_stage.h"                // PSI_stage_info
-#include "mysql/psi/psi_memory.h"               // PSI_memory_key
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "lex_string.h"
+#include "my_inttypes.h"
+#include "my_psi_config.h"
 #include "my_time.h"                            /* interval_type */
+#include "mysql/mysql_lex_string.h"             // LEX_STRING
+#include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_memory.h"               // PSI_memory_key
+#include "mysql/psi/psi_stage.h"                // PSI_stage_info
 
 class Event_db_repository;
 class Event_parse_data;
@@ -38,10 +43,14 @@ class Event_queue;
 class Event_scheduler;
 class Item;
 class String;
-struct TABLE_LIST;
 class THD;
+struct TABLE_LIST;
+
+namespace dd {
+  class Schema;
+}
+
 typedef struct charset_info_st CHARSET_INFO;
-typedef struct st_mysql_lex_string LEX_STRING;
 
 #ifdef HAVE_PSI_INTERFACE
 extern PSI_mutex_key key_event_scheduler_LOCK_scheduler_state;
@@ -109,7 +118,7 @@ public:
   /* A hack needed for Event_queue_element */
   static Event_db_repository *get_db_repository() { return db_repository; }
 
-  static bool init(my_bool opt_noacl);
+  static bool init(bool opt_noacl);
 
   static void deinit();
 
@@ -124,9 +133,9 @@ public:
   static bool drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name,
                          bool if_exists);
 
-  static bool lock_schema_events(THD *thd, const char *db);
+  static bool lock_schema_events(THD *thd, const dd::Schema &schema);
 
-  static bool drop_schema_events(THD *thd, const char *db);
+  static bool drop_schema_events(THD *thd, const dd::Schema &schema);
 
   static bool show_create_event(THD *thd, LEX_STRING dbname, LEX_STRING name);
 
@@ -134,9 +143,6 @@ public:
   static int reconstruct_interval_expression(String *buf,
                                              interval_type interval,
                                              longlong expression);
-
-  static int fill_schema_events(THD *thd, TABLE_LIST *tables,
-                                Item * /* cond */);
 
   static void dump_internal_status();
 

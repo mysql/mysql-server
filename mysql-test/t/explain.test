@@ -9,7 +9,7 @@
 --disable_warnings
 drop table if exists t1;
 --enable_warnings
-create table t1 (id int not null, str char(10), unique(str));
+create table t1 (id int not null, str char(10), unique(str)) charset utf8mb4;
 explain select * from t1;
 insert into t1 values (1, null),(2, null),(3, "foo"),(4, "bar");
 select * from t1 where str is null;
@@ -336,7 +336,7 @@ EXPLAIN
 --echo #            index is not used due to type conversion
 --echo #
 
-CREATE TABLE t1 (url char(1) PRIMARY KEY);
+CREATE TABLE t1 (url char(1) PRIMARY KEY) charset latin1;
 INSERT INTO t1 VALUES ('1'),('2'),('3'),('4'),('5');       
 
 --echo

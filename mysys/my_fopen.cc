@@ -17,12 +17,20 @@
   @file mysys/my_fopen.cc
 */
 
-#include "mysys_priv.h"
-#include "my_static.h"
 #include <errno.h>
-#include "mysys_err.h"
+#include <fcntl.h>
+#include <stdio.h>
+#include <sys/types.h>
+
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_sys.h"
 #include "my_thread_local.h"
+#include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysys_err.h"
+#include "mysys_priv.h"
 
 
 static void make_ftype(char * to,int flag);

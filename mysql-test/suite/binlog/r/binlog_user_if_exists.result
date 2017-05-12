@@ -16,7 +16,7 @@ log_builtin_as_identified_by_password	OFF
 CREATE USER u1@localhost;
 CREATE USER IF NOT EXISTS u1@localhost, u2@localhost;
 Warnings:
-Note	3163	User 'u1'@'localhost' already exists.
+Note	3163	Authorization ID 'u1'@'localhost' already exists.
 ALTER USER IF EXISTS u1@localhost ACCOUNT LOCK;
 DROP USER u1@localhost;
 DROP USER IF EXISTS u2@localhost;
@@ -26,11 +26,11 @@ DROP USER IF EXISTS u2@localhost;
 CREATE USER IF NOT EXISTS b21807286@localhost IDENTIFIED BY 'haha';
 CREATE USER IF NOT EXISTS b21807286@localhost IDENTIFIED BY 'haha2';
 Warnings:
-Note	3163	User 'b21807286'@'localhost' already exists.
+Note	3163	Authorization ID 'b21807286'@'localhost' already exists.
 ALTER USER IF EXISTS b21807286@localhost IDENTIFIED BY 'haha3';
 ALTER USER IF EXISTS b21807286_not_exists@localhost IDENTIFIED BY 'haha4';
 Warnings:
-Note	3162	User 'b21807286_not_exists'@'localhost' does not exist.
+Note	3162	Authorization ID 'b21807286_not_exists'@'localhost' does not exist.
 DROP USER b21807286@localhost;
 include/sync_slave_sql_with_master.inc
 [On Slave]

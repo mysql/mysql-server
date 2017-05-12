@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,10 +23,12 @@ Full Text Search configuration table.
 Created 2007/5/9 Sunny Bains
 ***********************************************************************/
 
-#include "trx0roll.h"
-#include "row0sel.h"
+#include <stdlib.h>
 
 #include "fts0priv.h"
+#include "my_inttypes.h"
+#include "row0sel.h"
+#include "trx0roll.h"
 
 /******************************************************************//**
 Callback function for fetching the config value.

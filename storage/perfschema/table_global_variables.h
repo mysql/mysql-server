@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,10 +21,13 @@
   Table GLOBAL_VARIABLES (declarations).
 */
 
+#include <sys/types.h>
+
+#include "my_inttypes.h"
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"
-#include "pfs_instr_class.h"
 #include "pfs_instr.h"
+#include "pfs_instr_class.h"
 #include "pfs_variable.h"
 #include "table_helper.h"
 /**
@@ -36,12 +39,13 @@ class PFS_index_global_variables : public PFS_engine_index
 {
 public:
   PFS_index_global_variables()
-    : PFS_engine_index(&m_key),
-    m_key("VARIABLE_NAME")
-  {}
+    : PFS_engine_index(&m_key), m_key("VARIABLE_NAME")
+  {
+  }
 
   ~PFS_index_global_variables()
-  {}
+  {
+  }
 
   virtual bool match(const System_variable *pfs);
 
@@ -56,8 +60,10 @@ private:
 class table_global_variables_context : public PFS_table_context
 {
 public:
-  table_global_variables_context(ulonglong hash_version, bool restore) :
-    PFS_table_context(hash_version, restore, THR_PFS_VG)  {}
+  table_global_variables_context(ulonglong hash_version, bool restore)
+    : PFS_table_context(hash_version, restore, THR_PFS_VG)
+  {
+  }
 };
 
 /**
@@ -80,7 +86,7 @@ class table_global_variables : public PFS_engine_table
 public:
   /** Table share */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table* create();
+  static PFS_engine_table *create();
   static ha_rows get_row_count();
 
   virtual void reset_position(void);
@@ -101,10 +107,11 @@ protected:
 
 public:
   ~table_global_variables()
-  {}
+  {
+  }
 
 protected:
-  void make_row(const System_variable *system_var);
+  int make_row(const System_variable *system_var);
 
 private:
   /** Table share lock. */
@@ -116,8 +123,6 @@ private:
   PFS_system_variable_cache m_sysvar_cache;
   /** Current row. */
   row_global_variables m_row;
-  /** True if the current row exists. */
-  bool m_row_exists;
   /** Current position. */
   pos_t m_pos;
   /** Next position. */

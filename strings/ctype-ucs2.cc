@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -16,12 +16,20 @@
 
 /* UCS2 support. Written by Alexander Barkov <bar@mysql.com> */
 
-#include <my_global.h>
-#include <my_sys.h>
-#include "m_string.h"
-#include "m_ctype.h"
 #include <errno.h>
+#include <limits.h>
+#include <my_sys.h>
 #include <stdarg.h>
+#include <string.h>
+#include <sys/types.h>
+
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_byteorder.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
 
 
 
@@ -802,9 +810,9 @@ my_strtoll10_mb2(const CHARSET_INFO *cs,
     res= cs->cset->mb_wc(cs, &wc, (const uchar *) s, (const uchar *) n_end);
     if (res <= 0)
       break;
-    s+= res;
     if ((c= (wc - '0')) > 9)
       goto end_i;
+    s+= res;
     i= i*10+c;
   }
   if (s == end)
@@ -821,9 +829,9 @@ my_strtoll10_mb2(const CHARSET_INFO *cs,
     res= cs->cset->mb_wc(cs, &wc, (const uchar *) s, (const uchar *) end);
     if (res <= 0)
       goto no_conv;
-    s+= res;
     if ((c= (wc - '0')) > 9)
       goto end_i_and_j;
+    s+= res;
     j= j*10+c;
   } while (s != n_end);
   if (s == end)
@@ -835,9 +843,9 @@ my_strtoll10_mb2(const CHARSET_INFO *cs,
   res= cs->cset->mb_wc(cs, &wc, (const uchar *) s, (const uchar *) end);
   if (res <= 0)
     goto no_conv;
-  s+= res;
   if ((c= (wc - '0')) > 9)
     goto end3;
+  s+= res;
 
   /* Handle the next 1 or 2 digits and store them in k */
   k=c;
@@ -846,9 +854,9 @@ my_strtoll10_mb2(const CHARSET_INFO *cs,
   res= cs->cset->mb_wc(cs, &wc, (const uchar *) s, (const uchar *) end);
   if (res <= 0)
     goto no_conv;
-  s+= res;
   if ((c= (wc - '0')) > 9)
     goto end4;
+  s+= res;
   k= k*10+c;
   *endptr= (char*) s;
 
@@ -1272,7 +1280,7 @@ static int
 my_strnncoll_utf16(const CHARSET_INFO *cs, 
                    const uchar *s, size_t slen, 
                    const uchar *t, size_t tlen,
-                   my_bool t_is_prefix)
+                   bool t_is_prefix)
 {
   int s_res, t_res;
   my_wc_t s_wc= 0, t_wc= 0;
@@ -1496,7 +1504,7 @@ static int
 my_strnncoll_utf16_bin(const CHARSET_INFO *cs, 
                        const uchar *s, size_t slen,
                        const uchar *t, size_t tlen,
-                       my_bool t_is_prefix)
+                       bool t_is_prefix)
 {
   int s_res,t_res;
   my_wc_t s_wc= 0, t_wc= 0;
@@ -1705,9 +1713,9 @@ CHARSET_INFO my_charset_utf16_general_ci=
   ' ',                 /* pad char      */
   0,                   /* escape_with_backslash_is_dangerous */
   1,                   /* levels_for_compare */
-  1,                   /* levels_for_order   */
   &my_charset_utf16_handler,
-  &my_collation_utf16_general_ci_handler
+  &my_collation_utf16_general_ci_handler,
+  PAD_SPACE
 };
 
 
@@ -1741,9 +1749,9 @@ CHARSET_INFO my_charset_utf16_bin=
   ' ',                 /* pad char      */
   0,                   /* escape_with_backslash_is_dangerous */
   1,                   /* levels_for_compare */
-  1,                   /* levels_for_order   */
   &my_charset_utf16_handler,
-  &my_collation_utf16_bin_handler
+  &my_collation_utf16_bin_handler,
+  PAD_SPACE
 };
 
 
@@ -1879,9 +1887,9 @@ CHARSET_INFO my_charset_utf16le_general_ci=
   ' ',                 /* pad char      */
   0,                   /* escape_with_backslash_is_dangerous */
   1,                   /* levels_for_compare */
-  1,                   /* levels_for_order   */
   &my_charset_utf16le_handler,
-  &my_collation_utf16_general_ci_handler
+  &my_collation_utf16_general_ci_handler,
+  PAD_SPACE
 };
 
 
@@ -1915,9 +1923,9 @@ CHARSET_INFO my_charset_utf16le_bin=
   ' ',                 /* pad char      */
   0,                   /* escape_with_backslash_is_dangerous */
   1,                   /* levels_for_compare */
-  1,                   /* levels_for_order   */
   &my_charset_utf16le_handler,
-  &my_collation_utf16_bin_handler
+  &my_collation_utf16_bin_handler,
+  PAD_SPACE
 };
 
 
@@ -2083,7 +2091,7 @@ static int
 my_strnncoll_utf32(const CHARSET_INFO *cs, 
                    const uchar *s, size_t slen, 
                    const uchar *t, size_t tlen,
-                   my_bool t_is_prefix)
+                   bool t_is_prefix)
 {
   my_wc_t s_wc= 0, t_wc= 0;
   const uchar *se= s + slen;
@@ -2618,7 +2626,7 @@ static int
 my_strnncoll_utf32_bin(const CHARSET_INFO *cs, 
                        const uchar *s, size_t slen,
                        const uchar *t, size_t tlen,
-                       my_bool t_is_prefix)
+                       bool t_is_prefix)
 {
   my_wc_t s_wc= 0, t_wc= 0;
   const uchar *se= s + slen;
@@ -2824,9 +2832,9 @@ CHARSET_INFO my_charset_utf32_general_ci=
   ' ',                 /* pad char      */
   0,                   /* escape_with_backslash_is_dangerous */
   1,                   /* levels_for_compare */
-  1,                   /* levels_for_order   */
   &my_charset_utf32_handler,
-  &my_collation_utf32_general_ci_handler
+  &my_collation_utf32_general_ci_handler,
+  PAD_SPACE
 };
 
 
@@ -2860,9 +2868,9 @@ CHARSET_INFO my_charset_utf32_bin=
   ' ',                 /* pad char      */
   0,                   /* escape_with_backslash_is_dangerous */
   1,                   /* levels_for_compare */
-  1,                   /* levels_for_order   */
   &my_charset_utf32_handler,
-  &my_collation_utf32_bin_handler
+  &my_collation_utf32_bin_handler,
+  PAD_SPACE
 };
 
 
@@ -3070,7 +3078,7 @@ my_fill_ucs2(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 static int my_strnncoll_ucs2(const CHARSET_INFO *cs, 
 			     const uchar *s, size_t slen, 
                              const uchar *t, size_t tlen,
-                             my_bool t_is_prefix)
+                             bool t_is_prefix)
 {
   int s_res,t_res;
   my_wc_t s_wc= 0, t_wc= 0;
@@ -3253,7 +3261,7 @@ static
 int my_strnncoll_ucs2_bin(const CHARSET_INFO *cs, 
                           const uchar *s, size_t slen,
                           const uchar *t, size_t tlen,
-                          my_bool t_is_prefix)
+                          bool t_is_prefix)
 {
   int s_res,t_res;
   my_wc_t s_wc= 0, t_wc= 0;
@@ -3450,9 +3458,9 @@ CHARSET_INFO my_charset_ucs2_general_ci=
     ' ',                /* pad char      */
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
-    1,                  /* levels_for_order   */
     &my_charset_ucs2_handler,
-    &my_collation_ucs2_general_ci_handler
+    &my_collation_ucs2_general_ci_handler,
+    PAD_SPACE
 };
 
 
@@ -3486,9 +3494,9 @@ CHARSET_INFO my_charset_ucs2_general_mysql500_ci=
   ' ',                                             /* pad char         */
   0,                          /* escape_with_backslash_is_dangerous    */
   1,                                               /* levels_for_compare */
-  1,                                               /* levels_for_order   */
   &my_charset_ucs2_handler,
-  &my_collation_ucs2_general_ci_handler
+  &my_collation_ucs2_general_ci_handler,
+  PAD_SPACE
 };
 
 
@@ -3522,7 +3530,7 @@ CHARSET_INFO my_charset_ucs2_bin=
     ' ',                /* pad char      */
     0,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
-    1,                  /* levels_for_order   */
     &my_charset_ucs2_handler,
-    &my_collation_ucs2_bin_handler
+    &my_collation_ucs2_bin_handler,
+    PAD_SPACE
 };

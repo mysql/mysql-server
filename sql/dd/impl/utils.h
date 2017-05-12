@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,10 +16,10 @@
 #ifndef DD__UTILS_INCLUDED
 #define DD__UTILS_INCLUDED
 
-#include "my_global.h"
-
-#include <string>
 #include <ostream>
+#include <string>
+
+#include "dd/string_type.h"                    // dd::String_type
 
 namespace dd {
 
@@ -29,7 +29,7 @@ class Properties;
 
 
 /**
-  Escaping of a std::string. Escapable characters are '\', '=' and
+  Escaping of a String_type. Escapable characters are '\', '=' and
   ';'. Escape character is '\'. Iterate over all characters of src,
   precede all escapable characters by the escape character and append
   to dst. The source string is not modified.
@@ -37,11 +37,11 @@ class Properties;
   @param[out] dst string to which escaped result will be appended.
   @param[in] src source string for escaping
 */
-void escape(std::string *dst, const std::string &src);
+void escape(String_type *dst, const String_type &src);
 
 
 /**
-  In place unescaping of std::string. Escapable characters are '\', '='
+  In place unescaping of String_type. Escapable characters are '\', '='
   and ';'. Escape character is '\'. Iterate over all characters, remove
   escape character if it precedes an escapable character.
 
@@ -50,7 +50,7 @@ void escape(std::string *dst, const std::string &src);
     @retval true      if an escapable character is not escaped
     @retval false     if success
 */
-bool unescape(std::string &dest);
+bool unescape(String_type &dest);
 
 
 /**
@@ -73,8 +73,8 @@ bool unescape(std::string &dest);
     @retval true     if an error occurred
     @retval false    if success
 */
-bool eat_to(std::string::const_iterator &it,
-            std::string::const_iterator end,
+bool eat_to(String_type::const_iterator &it,
+            String_type::const_iterator end,
             char c);
 
 
@@ -97,8 +97,8 @@ bool eat_to(std::string::const_iterator &it,
     @retval true      if an error occurred
     @retval false     if success
 */
-bool eat_str(std::string &dest, std::string::const_iterator &it,
-             std::string::const_iterator end, char c);
+bool eat_str(String_type &dest, String_type::const_iterator &it,
+             String_type::const_iterator end, char c);
 
 
 /**
@@ -115,8 +115,8 @@ bool eat_str(std::string &dest, std::string::const_iterator &it,
     @retval true      if an error occurred
     @retval false     if success
 */
-bool eat_pairs(std::string::const_iterator &it,
-               std::string::const_iterator end,
+bool eat_pairs(String_type::const_iterator &it,
+               String_type::const_iterator end,
                dd::Properties *props);
 
 

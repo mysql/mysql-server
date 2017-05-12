@@ -1,3 +1,13 @@
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs382=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema default character set latin1;
+use test;
+--enable_query_log
+########################################
+
 ############# mysql-test\t\max_sort_length_func.test ###########################
 #                                                                              #
 # Variable Name: sql_warnings                                                  #
@@ -189,12 +199,14 @@ SELECT c from t ORDER BY c, id;
 ###########################################
 --echo Testing type BLOB
 # Setting global value of variable and inserting data in table
+# Note that after subtracting the length byte for the tinyblob, it will be
+# rounded down to the closest even value, which is 28.
 SET @@global.max_sort_length = 30;
 SELECT @@global.max_sort_length;
-INSERT INTO t1 set c = repeat('x',29);
-INSERT INTO t1 set c = concat(repeat('x',28),'r','x');
-INSERT INTO t1 set c = concat(repeat('x',28),'s','y');
-INSERT INTO t1 set c = concat(repeat('x',28),'g','w');
+INSERT INTO t1 set c = repeat('x',28);
+INSERT INTO t1 set c = concat(repeat('x',27),'r','x');
+INSERT INTO t1 set c = concat(repeat('x',27),'s','y');
+INSERT INTO t1 set c = concat(repeat('x',27),'g','w');
 SELECT c from t1 ORDER BY c, id;
 --echo ** Results should be sorted **
 
@@ -255,3 +267,10 @@ DROP TABLE IF EXISTS t2;
 
 SET @@global.max_sort_length= @start_value;
 
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs382;
+--enable_query_log
+########################################

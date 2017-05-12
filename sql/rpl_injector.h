@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,14 +16,19 @@
 #ifndef INJECTOR_H
 #define INJECTOR_H
 
-#include "my_global.h"
-#include "table.h"          // TABLE
-#include "control_events.h" // enum_incidents
+#include <stddef.h>
 
-/* Forward declarations */
-class handler;
+#include "control_events.h" // enum_incidents
+#include "lex_string.h"
+#include "my_bitmap.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "sql_plugin_ref.h"
+#include "table.h"          // TABLE
+
 class MYSQL_BIN_LOG;
 class THD;
+
 typedef struct st_bitmap MY_BITMAP;
 
 
@@ -203,32 +208,32 @@ public:
         Add a 'write row' entry to the transaction.
       */
       int write_row (server_id_type sid, table tbl, 
-                     MY_BITMAP const *cols, size_t colcnt,
+                     MY_BITMAP const *cols,
                      record_type record,
                      const uchar* extra_row_info);
       int write_row (server_id_type sid, table tbl,
-                      MY_BITMAP const *cols, size_t colcnt,
+                      MY_BITMAP const *cols,
                       record_type record);
 
       /*
         Add a 'delete row' entry to the transaction.
       */
       int delete_row(server_id_type sid, table tbl, 
-                     MY_BITMAP const *cols, size_t colcnt,
+                     MY_BITMAP const *cols,
                      record_type record,
                      const uchar* extra_row_info);
       int delete_row(server_id_type sid, table tbl,
-                     MY_BITMAP const *cols, size_t colcnt,
+                     MY_BITMAP const *cols,
                      record_type record);
       /*
         Add an 'update row' entry to the transaction.
       */
       int update_row(server_id_type sid, table tbl, 
-                     MY_BITMAP const *cols, size_t colcnt,
+                     MY_BITMAP const *cols,
                      record_type before, record_type after,
                      const uchar* extra_row_info);
       int update_row(server_id_type sid, table tbl,
-                     MY_BITMAP const *cols, size_t colcnt,
+                     MY_BITMAP const *cols,
                      record_type before, record_type after);
 
       /*

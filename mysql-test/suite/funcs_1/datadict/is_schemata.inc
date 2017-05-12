@@ -78,8 +78,8 @@ WHERE catalog_name IS NOT NULL or sql_path IS NOT NULL;
 DROP DATABASE IF EXISTS db_datadict_1;
 DROP DATABASE IF EXISTS db_datadict_2;
 --enable_warnings
-CREATE DATABASE db_datadict_1;
-CREATE DATABASE db_datadict_2;
+CREATE DATABASE db_datadict_1 charset latin1;
+CREATE DATABASE db_datadict_2 charset latin1;
 
 --error 0,ER_CANNOT_USER
 DROP   USER 'testuser1'@'localhost';

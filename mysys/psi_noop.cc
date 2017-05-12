@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,22 +21,37 @@
 #define USE_PSI_V1
 #define HAVE_PSI_INTERFACE
 
-#include "my_global.h"
+#ifdef HAVE_SYS_SOCKET_H
+#include <sys/socket.h>
+#endif
+#include <sys/types.h>
+#include <time.h>
+
+#include "my_compiler.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_macros.h"
+#include "my_sys.h"  // IWYU pragma: keep
 #include "my_thread.h"
-#include "my_sys.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_cond.h"
+#include "mysql/psi/psi_data_lock.h"
+#include "mysql/psi/psi_error.h"
+#include "mysql/psi/psi_file.h"
+#include "mysql/psi/psi_idle.h"
+#include "mysql/psi/psi_mdl.h"
+#include "mysql/psi/psi_memory.h"
 #include "mysql/psi/psi_mutex.h"
 #include "mysql/psi/psi_rwlock.h"
-#include "mysql/psi/psi_cond.h"
-#include "mysql/psi/psi_file.h"
 #include "mysql/psi/psi_socket.h"
-#include "mysql/psi/psi_table.h"
-#include "mysql/psi/psi_mdl.h"
-#include "mysql/psi/psi_idle.h"
 #include "mysql/psi/psi_stage.h"
 #include "mysql/psi/psi_statement.h"
+#include "mysql/psi/psi_table.h"
+#include "mysql/psi/psi_thread.h"
 #include "mysql/psi/psi_transaction.h"
-#include "mysql/psi/psi_memory.h"
-#include "mysql/psi/psi_error.h"
+
+class THD;
+struct MDL_key;
 
 C_MODE_START
 
@@ -151,6 +166,13 @@ set_thread_connect_attrs_noop(const char *buffer MY_ATTRIBUTE((unused)),
   return 0;
 }
 
+static void get_thread_event_id_noop(ulonglong *thread_internal_id,
+                                     ulonglong *event_id)
+{
+  *thread_internal_id= 0;
+  *event_id= 0;
+}
+
 static PSI_thread_service_t psi_thread_noop=
 {
   register_thread_noop,
@@ -171,7 +193,8 @@ static PSI_thread_service_t psi_thread_noop=
   set_thread_noop,
   delete_current_thread_noop,
   delete_thread_noop,
-  set_thread_connect_attrs_noop
+  set_thread_connect_attrs_noop,
+  get_thread_event_id_noop
 };
 
 struct PSI_thread_bootstrap *psi_thread_hook= NULL;
@@ -574,7 +597,7 @@ void set_psi_socket_service(PSI_socket_service_t *psi)
 // ===========================================================================
 
 static PSI_table_share*
-get_table_share_noop(my_bool temporary NNN, struct TABLE_SHARE *share NNN)
+get_table_share_noop(bool temporary NNN, struct TABLE_SHARE *share NNN)
 {
   return NULL;
 }
@@ -585,7 +608,7 @@ static void release_table_share_noop(PSI_table_share* share NNN)
 }
 
 static void
-drop_table_share_noop(my_bool temporary NNN, const char *schema_name NNN,
+drop_table_share_noop(bool temporary NNN, const char *schema_name NNN,
                       int schema_name_length NNN, const char *table_name NNN,
                       int table_name_length NNN)
 {
@@ -1069,8 +1092,8 @@ get_thread_transaction_locker_noop(PSI_transaction_locker_state *state NNN,
                                    const void *xid NNN,
                                    const ulonglong *trxid NNN,
                                    int isolation_level NNN,
-                                   my_bool read_only NNN,
-                                   my_bool autocommit NNN)
+                                   bool read_only NNN,
+                                   bool autocommit NNN)
 {
   return NULL;
 }
@@ -1126,7 +1149,7 @@ static void inc_transaction_release_savepoint_noop(PSI_transaction_locker *locke
 }
 
 static void end_transaction_noop(PSI_transaction_locker *locker NNN,
-                                 my_bool commit NNN)
+                                 bool commit NNN)
 {
   return;
 }
@@ -1223,6 +1246,33 @@ void set_psi_memory_service(PSI_memory_service_t *psi)
   psi_memory_service= psi;
 }
 
+C_MODE_END
+
 // ===========================================================================
 
-C_MODE_END
+static void register_data_lock_noop(PSI_engine_data_lock_inspector *inspector NNN)
+{
+  return;
+}
+
+static void unregister_data_lock_noop(PSI_engine_data_lock_inspector *inspector NNN)
+{
+  return;
+}
+
+static PSI_data_lock_service_t psi_data_lock_noop=
+{
+  register_data_lock_noop,
+  unregister_data_lock_noop
+};
+
+struct PSI_data_lock_bootstrap *psi_data_lock_hook= NULL;
+PSI_data_lock_service_t *psi_data_lock_service= & psi_data_lock_noop;
+
+void set_psi_data_lock_service(PSI_data_lock_service_t *psi)
+{
+  psi_data_lock_service= psi;
+}
+
+// ===========================================================================
+

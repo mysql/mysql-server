@@ -1,4 +1,4 @@
-# Copyright (c) 2013, 2016 Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2017 Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -77,11 +77,7 @@ MACRO(MYSQL_ADD_COMPONENT)
     SET(MYSQLD_STATIC_COMPONENT_LIBS ${MYSQLD_STATIC_COMPONENT_LIBS}
         ${target} ${ARG_LINK_LIBRARIES} CACHE INTERNAL "" FORCE)
 
-    # Update mysqld dependencies (embedded)
-    SET(MYSQLD_STATIC_EMBEDDED_COMPONENT_LIBS
-      ${MYSQLD_STATIC_EMBEDDED_COMPONENT_LIBS}
-      ${target} ${ARG_LINK_LIBRARIES} CACHE INTERNAL "" FORCE)
-  ELSEIF(ARG_MODULE)
+  ELSEIF(ARG_MODULE AND NOT DISABLE_SHARED)
     SET(kind MODULE)
     SET(BUILD_COMPONENT 1)
   ELSE()
@@ -91,8 +87,6 @@ MACRO(MYSQL_ADD_COMPONENT)
   IF(BUILD_COMPONENT)
     ADD_VERSION_INFO(${target} ${kind} SOURCES)
     ADD_LIBRARY(${target} ${kind} ${SOURCES})
-
-    DTRACE_INSTRUMENT(${target})
 
     # For internal testing in PB2, append collections files
     IF(DEFINED ENV{PB2WORKDIR})
@@ -107,36 +101,25 @@ MACRO(MYSQL_ADD_COMPONENT)
     ADD_DEPENDENCIES(${target} GenError)
 
     IF (ARG_MODULE)
-      # Add common link flags
-      GET_TARGET_PROPERTY(LINK_FLAGS ${target} LINK_FLAGS)
-      IF(NOT LINK_FLAGS)
-        # Avoid LINK_FLAGS-NOTFOUND
-        SET(LINK_FLAGS)
-      ENDIF()
+      # Store all components in the same directory, for easier testing.
       SET_TARGET_PROPERTIES(${target} PROPERTIES
-        LINK_FLAGS "${CMAKE_SHARED_LIBRARY_C_FLAGS} ${LINK_FLAGS} "
-      )
+        LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/component_output_directory
+        )
+      IF(NOT ARG_NO_INSTALL)
+        # Install dynamic library.
+        IF(NOT ARG_TEST_ONLY)
+          SET(INSTALL_COMPONENT Server)
+        ELSE()
+          SET(INSTALL_COMPONENT Test)
+        ENDIF()
 
-    IF(NOT ARG_NO_INSTALL)
-      # Install dynamic library.
-      IF(NOT ARG_TEST_ONLY)
-      SET(INSTALL_COMPONENT Server)
-      ELSE()
-      SET(INSTALL_COMPONENT Test)
+        MYSQL_INSTALL_TARGETS(${target}
+          DESTINATION ${INSTALL_PLUGINDIR}
+          COMPONENT ${INSTALL_COMPONENT})
+        INSTALL_DEBUG_TARGET(${target}
+          DESTINATION ${INSTALL_PLUGINDIR}/debug
+          COMPONENT ${INSTALL_COMPONENT})
       ENDIF()
-
-      MYSQL_INSTALL_TARGETS(${target}
-      DESTINATION ${INSTALL_PLUGINDIR}
-      COMPONENT ${INSTALL_COMPONENT})
-      INSTALL_DEBUG_TARGET(${target}
-      DESTINATION ${INSTALL_PLUGINDIR}/debug
-      COMPONENT ${INSTALL_COMPONENT})
-
-      # Add installed files to list for RPMs
-      FILE(APPEND ${CMAKE_BINARY_DIR}/support-files/plugins.files
-      "%attr(755, root, root) %{_prefix}/${INSTALL_COMPONENTDIR}/${target}.so\n"
-      "%attr(755, root, root) %{_prefix}/${INSTALL_COMPONENTDIR}/debug/${target}.so\n")
-    ENDIF()
     ENDIF()
   ENDIF()
 ENDMACRO()

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,11 +15,16 @@
 
 /* Functions to check if a row is unique */
 
-#include "myisamdef.h"
 #include <m_ctype.h>
+#include <sys/types.h>
 
-my_bool mi_check_unique(MI_INFO *info, MI_UNIQUEDEF *def, uchar *record,
-			ha_checksum unique_hash, my_off_t disk_pos)
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
+#include "myisamdef.h"
+
+bool mi_check_unique(MI_INFO *info, MI_UNIQUEDEF *def, uchar *record,
+                     ha_checksum unique_hash, my_off_t disk_pos)
 {
   my_off_t lastpos=info->lastpos;
   MI_KEYDEF *key= &info->s->keyinfo[def->key];
@@ -144,7 +149,7 @@ ha_checksum mi_unique_hash(MI_UNIQUEDEF *def, const uchar *record)
 */
 
 int mi_unique_comp(MI_UNIQUEDEF *def, const uchar *a, const uchar *b,
-		   my_bool null_are_equal)
+		   bool null_are_equal)
 {
   uchar *pos_a, *pos_b;
   const uchar *end;

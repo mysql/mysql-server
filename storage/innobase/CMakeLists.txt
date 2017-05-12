@@ -83,7 +83,9 @@ SET(INNOBASE_SOURCES
 	handler/ha_innopart.cc
 	handler/handler0alter.cc
 	handler/i_s.cc
+	handler/p_s.cc
 	ibuf/ibuf0ibuf.cc
+	lob/lob0fit.cc
 	lob/lob0lob.cc
 	lock/lock0iter.cc
 	lock/lock0prdt.cc
@@ -173,8 +175,6 @@ MYSQL_ADD_PLUGIN(innobase
   MODULE_OUTPUT_NAME ha_innodb
   LINK_LIBRARIES ${ZLIB_LIBRARY} ${LZ4_LIBRARY} ${NUMA_LIBRARY})
 
-# Remove -DMYSQL_SERVER, it breaks embedded build
-SET_TARGET_PROPERTIES(innobase PROPERTIES COMPILE_DEFINITIONS "")
 
 IF(WITH_INNOBASE_STORAGE_ENGINE)
   ADD_DEPENDENCIES(innobase GenError)

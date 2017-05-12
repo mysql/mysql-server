@@ -26,6 +26,8 @@ Created 2012-03-24 Sunny Bains.
 #ifndef ut0mutex_h
 #define ut0mutex_h
 
+#include "my_inttypes.h"
+
 extern ulong	srv_spin_wait_delay;
 extern ulong	srv_n_spin_wait_rounds;
 extern ulong	srv_force_recovery_crash;

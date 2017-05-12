@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -24,16 +24,20 @@ Created 12/21/1997 Heikki Tuuri
 *******************************************************/
 
 #include "pars0opt.h"
-#include "row0sel.h"
-#include "row0ins.h"
-#include "row0upd.h"
+
+#include <stddef.h>
+
 #include "dict0boot.h"
 #include "dict0dict.h"
 #include "dict0mem.h"
-#include "que0que.h"
+#include "lock0lock.h"
+#include "my_inttypes.h"
 #include "pars0grm.h"
 #include "pars0pars.h"
-#include "lock0lock.h"
+#include "que0que.h"
+#include "row0ins.h"
+#include "row0sel.h"
+#include "row0upd.h"
 
 #define OPT_EQUAL	1	/* comparison by = */
 #define OPT_COMPARISON	2	/* comparison by <, >, <=, or >= */
@@ -356,6 +360,12 @@ opt_calc_index_goodness(
 
 	for (j = 0; j < n_fields; j++) {
 
+		if (!index->get_field(j)->is_ascending) {
+			/* The internal InnoDB SQL parser does not
+			work on indexes with descending order. */
+			return(0);
+		}
+
 		col_no = index->get_col_no(j);
 
 		exp = opt_look_for_col_in_cond_before(
@@ -573,8 +583,7 @@ opt_search_plan_for_table(
 	best_index = index; /* Eliminate compiler warning */
 	best_goodness = 0;
 
-	/* should be do ... until ? comment by Jani */
-	while (index) {
+	do {
 		goodness = opt_calc_index_goodness(index, sel_node, i,
 						   index_plan, &last_op);
 		if (goodness > best_goodness) {
@@ -589,7 +598,7 @@ opt_search_plan_for_table(
 		}
 
 		dict_table_next_uncorrupted_index(index);
-	}
+	} while (index);
 
 	plan->index = best_index;
 

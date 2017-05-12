@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,22 +22,56 @@
 */
 #include "item_geofunc.h"
 
-#include "current_thd.h"
-#include "gstream.h"      // Gis_read_stream
-#include "psi_memory_key.h"
-#include "sql_class.h"    // THD
-#include "gis_bg_traits.h"
-#include "derror.h"       // ER_THD
+#include <boost/concept/usage.hpp>
+#include <boost/geometry/algorithms/area.hpp>
+#include <boost/geometry/algorithms/centroid.hpp>
+#include <boost/geometry/algorithms/convex_hull.hpp>
+#include <boost/geometry/algorithms/is_simple.hpp>
+#include <boost/geometry/algorithms/is_valid.hpp>
+#include <boost/geometry/algorithms/simplify.hpp>
+#include <boost/geometry/core/cs.hpp>
+#include <boost/geometry/strategies/spherical/distance_haversine.hpp>
+#include <boost/iterator/iterator_facade.hpp>
+#include <boost/move/utility_core.hpp>
+#include <float.h>
+#include <string.h>
+#include <algorithm>
+#include <cmath>          // std::isfinite, std::isnan
+#include <map>
+#include <new>
+#include <stack>
+#include <string>
+#include <utility>
 
-#include "parse_tree_helpers.h"
+#include "binlog_config.h"
+#include "current_thd.h"
+#include "dd/cache/dictionary_client.h"
+#include "dd/types/spatial_reference_system.h"
+#include "derror.h"       // ER_THD
+#include "gis_bg_traits.h"
+#include "gis/distance.h"
+#include "gis/geometries.h"
+#include "gis/srid.h"
+#include "gis/wkb_parser.h"
+#include "gstream.h"      // Gis_read_stream
 #include "item_geofunc_internal.h"
 #include "json_dom.h"     // Json_wrapper
+#include "lex_string.h"
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_byteorder.h"
+#include "my_dbug.h"
+#include "options_parser.h"
+#include "psi_memory_key.h"
+#include "sql_class.h"    // THD
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_udf.h"
+#include "system_variables.h"
+#include "template_utils.h"
 
-#include "dd/types/spatial_reference_system.h"
-
-#include <cmath>          // isfinite
-#include <stack>
-
+class PT_item_list;
+struct TABLE;
 
 static int check_geometry_valid(Geometry *geom);
 
@@ -61,13 +95,13 @@ static int check_geometry_valid(Geometry *geom);
 */
 static bool is_item_null(Item *item)
 {
-  if (item->field_type() == MYSQL_TYPE_NULL || item->type() == Item::NULL_ITEM)
+  if (item->data_type() == MYSQL_TYPE_NULL || item->type() == Item::NULL_ITEM)
     return true;
 
   // The following will detect the usage of SQL NULL in user-defined variables.
   bool is_binary_charset= (item->collation.collation == &my_charset_bin);
   if (is_binary_charset && item->type() == Item::FUNC_ITEM &&
-      item->field_type() == MYSQL_TYPE_MEDIUM_BLOB)
+      item->data_type() == MYSQL_TYPE_MEDIUM_BLOB)
   {
     return true;
   }
@@ -94,7 +128,7 @@ static bool is_item_geometry_type(Item *item)
 {
   if (is_item_null(item))
     return true;
-  else if (item->field_type() == MYSQL_TYPE_GEOMETRY)
+  else if (item->data_type() == MYSQL_TYPE_GEOMETRY)
     return true;
   else if (item->type() == Item::PARAM_ITEM)
     return true;
@@ -156,8 +190,8 @@ bool is_colinear(const Point_range &ls)
   @retval true An error has occurred
   @retval false Success
 */
-static bool validate_srid_arg(Item *arg, Geometry::srid_t *srid,
-                              my_bool *null_value, const char *func_name)
+static bool validate_srid_arg(Item *arg, gis::srid_t *srid,
+                              bool *null_value, const char *func_name)
 {
   longlong arg_srid= arg->val_int();
 
@@ -172,7 +206,7 @@ static bool validate_srid_arg(Item *arg, Geometry::srid_t *srid,
     return true;
   }
 
-  *srid= static_cast<Geometry::srid_t>(arg_srid);
+  *srid= static_cast<gis::srid_t>(arg_srid);
   return false;
 }
 
@@ -192,10 +226,10 @@ Field *Item_geometry_func::tmp_table_field(TABLE *t_arg)
 }
 
 
-bool Item_geometry_func::resolve_type(THD *thd)
+bool Item_geometry_func::resolve_type(THD *)
 {
+  set_data_type(MYSQL_TYPE_GEOMETRY);
   collation.set(&my_charset_bin);
-  decimals=0;
   max_length= 0xFFFFFFFFU;
   maybe_null= true;
   return false;
@@ -208,7 +242,7 @@ bool Item_func_geometry_from_text::itemize(Parse_context *pc, Item **res)
     return false;
   if (super::itemize(pc, res))
     return true;
-  DBUG_ASSERT(arg_count == 1 || arg_count == 2);
+  DBUG_ASSERT(arg_count == 1 || arg_count == 2 || arg_count == 3);
   if (arg_count == 1)
     pc->thd->lex->set_uncacheable(pc->select, UNCACHEABLE_RAND);
   return false;
@@ -328,14 +362,32 @@ String *Item_func_geometry_from_text::val_str(String *str)
   Geometry_buffer buffer;
   String arg_val;
   String *wkt= args[0]->val_str_ascii(&arg_val);
+  bool reverse= false;
+  bool srid_default_ordering= true;
+  bool is_geographic= false;
+  bool lat_long= false;
 
-  if ((null_value= (!wkt || args[0]->null_value)))
+  if ((null_value= (args[0]->null_value)))
+  {
+    DBUG_ASSERT(maybe_null);
     return nullptr;
+  }
+
+  if (!wkt)
+  {
+    /*
+      We've already found out that args[0]->null_value is false.
+      Therefore, wkt should never be null.
+    */
+    DBUG_ASSERT(false);
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    return error_str();
+  }
 
   Gis_read_stream trs(wkt->charset(), wkt->ptr(), wkt->length());
-  Geometry::srid_t srid= 0;
+  gis::srid_t srid= 0;
 
-  if (arg_count == 2)
+  if (arg_count >= 2)
   {
     if (validate_srid_arg(args[1], &srid, &null_value, func_name()))
       return error_str();
@@ -346,12 +398,91 @@ String *Item_func_geometry_from_text::val_str(String *str)
     }
   }
 
-  str->set_charset(&my_charset_bin);
-  if (str->reserve(GEOM_HEADER_SIZE, 512))
-    return error_str();
-  str->length(0);
-  str->q_append(srid);
-  Geometry *g= Geometry::create_from_wkt(&buffer, &trs, str, 0);
+  if (srid != 0)
+  {
+    Srs_fetcher fetcher(current_thd);
+    const dd::Spatial_reference_system *srs= nullptr;
+    dd::cache::Dictionary_client::Auto_releaser m_releaser(current_thd->dd_client());
+    if (fetcher.acquire(srid, &srs))
+    {
+      return error_str();
+    }
+
+    if (srs == nullptr)
+    {
+      push_warning_printf(current_thd,
+                          Sql_condition::SL_WARNING,
+                          ER_WARN_SRS_NOT_FOUND_AXIS_ORDER,
+                          ER_THD(current_thd, ER_WARN_SRS_NOT_FOUND_AXIS_ORDER),
+                          srid,
+                          func_name());
+    }
+    else if (srs->is_geographic())
+    {
+      is_geographic= true;
+      lat_long= srs->is_lat_long();
+    }
+  }
+
+  if (arg_count == 3)
+  {
+    String axis_ordering_tmp;
+    String *axis_order= args[2]->val_str_ascii(&axis_ordering_tmp);
+    null_value= (args[2]->null_value);
+    if (null_value)
+    {
+      DBUG_ASSERT(maybe_null);
+      return nullptr;
+    }
+    std::map<std::string, std::string> options;
+    if (options_parser::parse_string(axis_order, &options, func_name()))
+    {
+      return error_str();
+    }
+
+    for (auto pair : options)
+    {
+      const std::string key= pair.first;
+      const std::string value= pair.second;
+
+      if (key == "axis-order")
+      {
+        if (value == "lat-long")
+        {
+          reverse= true;
+          srid_default_ordering= false;
+        }
+        else if (value == "long-lat")
+        {
+          reverse= false;
+          srid_default_ordering= false;
+        }
+        else if (value == "srid-defined")
+        {
+          // This is the default.
+        }
+        else
+        {
+          my_error(ER_INVALID_OPTION_VALUE, MYF(0), value.c_str(), key.c_str(),
+                   func_name());
+          return error_str();
+        }
+      }
+      else
+      {
+        my_error(ER_INVALID_OPTION_KEY, MYF(0), key.c_str(), func_name());
+        return error_str();
+      }
+    }
+  }
+
+  if (srid_default_ordering && is_geographic && lat_long)
+  {
+    reverse= true;
+  }
+  String temp(wkt->length());
+
+  Geometry *g= Geometry::create_from_wkt(&buffer, &trs, &temp, true);
   if (g == nullptr)
   {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
@@ -364,6 +495,22 @@ String *Item_func_geometry_from_text::val_str(String *str)
     return error_str();
   }
 
+  if (reverse && is_geographic)
+  {
+    if (g->reverse_coordinates())
+    {
+      my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+      return error_str();
+    }
+  }
+
+  str->set_charset(&my_charset_bin);
+  if (str->reserve(SRID_SIZE + temp.length()))
+    return error_str();
+  str->length(0);
+  str->q_append(srid);
+  str->append(temp);
+
   return str;
 }
 
@@ -374,7 +521,7 @@ bool Item_func_geometry_from_wkb::itemize(Parse_context *pc, Item **res)
     return false;
   if (super::itemize(pc, res))
     return true;
-  DBUG_ASSERT(arg_count == 1 || arg_count == 2);
+  DBUG_ASSERT(arg_count == 1 || arg_count == 2 || arg_count == 3);
   if (arg_count == 1)
     pc->thd->lex->set_uncacheable(pc->select, UNCACHEABLE_RAND);
   return false;
@@ -479,7 +626,7 @@ Item_func_geometry_from_wkb::is_allowed_wkb_type(Geometry::wkbType type) const
 
 
 /**
-  Parses a WKT string to produce a geometry encoded with an SRID prepending
+  Parses a WKB string to produce a geometry encoded with an SRID prepending
   its WKB bytes, namely a byte string of GEOMETRY format.
   @param str buffer to hold result, may not be filled.
   @return the buffer that hold the GEOMETRY byte string result, may or may
@@ -488,9 +635,13 @@ Item_func_geometry_from_wkb::is_allowed_wkb_type(Geometry::wkbType type) const
 String *Item_func_geometry_from_wkb::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  Geometry::srid_t srid= 0;
+  gis::srid_t srid= 0;
+  bool reverse= false;
+  bool srid_default_ordering= true;
+  bool is_geographic= false;
+  bool lat_long= false;
 
-  if (arg_count == 2)
+  if (arg_count >= 2)
   {
     if (validate_srid_arg(args[1], &srid, &null_value, func_name()))
       return error_str();
@@ -501,67 +652,101 @@ String *Item_func_geometry_from_wkb::val_str(String *str)
     }
   }
 
+  if (srid != 0)
+  {
+    Srs_fetcher fetcher(current_thd);
+    const dd::Spatial_reference_system *srs= nullptr;
+    dd::cache::Dictionary_client::Auto_releaser
+      m_releaser(current_thd->dd_client());
+    if (fetcher.acquire(srid, &srs))
+    {
+      return error_str();
+    }
+
+    if (srs == nullptr)
+    {
+      push_warning_printf(current_thd,
+                          Sql_condition::SL_WARNING,
+                          ER_WARN_SRS_NOT_FOUND_AXIS_ORDER,
+                          ER_THD(current_thd, ER_WARN_SRS_NOT_FOUND_AXIS_ORDER),
+                          srid,
+                          func_name());
+    }
+    else if (srs->is_geographic())
+    {
+      is_geographic= true;
+      lat_long= srs->is_lat_long();
+    }
+  }
+
+  if (arg_count == 3)
+  {
+    String axis_ordering_tmp;
+    String *axis_order= args[2]->val_str_ascii(&axis_ordering_tmp);
+    null_value= (args[2]->null_value);
+    if (null_value)
+    {
+      DBUG_ASSERT(maybe_null);
+      return nullptr;
+    }
+    std::map<std::string, std::string> options;
+    if (options_parser::parse_string(axis_order, &options, func_name()))
+    {
+      return error_str();
+    }
+
+    for (auto pair : options)
+    {
+      const std::string key= pair.first;
+      const std::string value= pair.second;
+
+      if (key == "axis-order")
+      {
+        if (value == "lat-long")
+        {
+          reverse= true;
+          srid_default_ordering= false;
+        }
+        else if (value == "long-lat")
+        {
+          reverse= false;
+          srid_default_ordering= false;
+        }
+        else if (value == "srid-defined")
+        {
+          // This is the default.
+        }
+        else
+        {
+          my_error(ER_INVALID_OPTION_VALUE, MYF(0), value.c_str(), key.c_str(),
+                   func_name());
+          return error_str();
+        }
+      }
+      else
+      {
+        my_error(ER_INVALID_OPTION_KEY, MYF(0), key.c_str(), func_name());
+        return error_str();
+      }
+    }
+  }
+
+  if (srid_default_ordering && is_geographic && lat_long)
+  {
+    reverse= true;
+  }
+
   String *wkb= args[0]->val_str(&tmp_value);
+  String temp(SRID_SIZE);
   if ((null_value= (!wkb || args[0]->null_value)))
   {
     DBUG_ASSERT(maybe_null);
     return nullptr;
   }
 
-  /*
-    GeometryFromWKB(wkb [,srid]) understands both WKB (without SRID) and
-    Geometry (with SRID) values in the "wkb" argument.
-    In case if a Geometry type value is passed, we assume that the value
-    is well-formed and can directly return it without going through
-    Geometry::create_from_wkb(), and consequently such WKB data must be
-    MySQL standard (little) endian. Note that users can pass via client
-    any WKB/Geometry byte string, including those of big endianess.
-  */
-  if (args[0]->field_type() == MYSQL_TYPE_GEOMETRY)
-  {
-    Geometry_buffer buff;
-    Geometry *g= Geometry::construct(&buff, wkb->ptr(), wkb->length());
-    if (g == nullptr)
-    {
-      my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
-      return error_str();
-    }
-    if (!is_allowed_wkb_type(g->get_type()))
-    {
-      my_error(ER_UNEXPECTED_GEOMETRY_TYPE, MYF(0), "WKB",
-               g->get_class_info()->m_name.str, func_name());
-      return error_str();
-    }
-
-    /*
-      Check if SRID embedded into the Geometry value differs
-      from the SRID value passed in the second argument.
-    */
-    if (srid == uint4korr(wkb->ptr()))
-      return wkb; // Do not differ
-
-    /*
-      Replace SRID to the one passed in the second argument.
-      Note, we cannot replace SRID directly in wkb->ptr(),
-      because wkb can point to some value that we should not touch,
-      e.g. to a SP variable value. So we need to copy to "str".
-    */
-    if (str->copy(*wkb))
-      return error_str();
-    str->write_at_position(0, srid);
-    return str;
-  }
-
-  str->set_charset(&my_charset_bin);
-  if (str->reserve(GEOM_HEADER_SIZE, 512))
-  {
-    return error_str();
-  }
-  str->length(0);
-  str->q_append(srid);
-  Geometry_buffer buffer;
-  Geometry *g= Geometry::create_from_wkb(&buffer, wkb->ptr(), wkb->length(),
-                                         str, false /* Don't init stream. */);
+  Geometry_buffer buff;
+  Geometry *g= Geometry::create_from_wkb(&buff, wkb->ptr(), wkb->length(),
+                                         &temp, true);
   if (g == nullptr)
   {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
@@ -574,6 +759,23 @@ String *Item_func_geometry_from_wkb::val_str(String *str)
     return error_str();
   }
 
+  if (reverse && is_geographic)
+  {
+    if (g->reverse_coordinates())
+    {
+      my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+      return error_str();
+    }
+  }
+
+  str->set_charset(&my_charset_bin);
+  if (str->reserve(SRID_SIZE + wkb->length()))
+  {
+    return error_str();
+  }
+  str->length(0);
+  str->q_append(srid);
+  str->append(temp);
   return str;
 }
 
@@ -1638,7 +1840,7 @@ bool Item_func_geomfromgeojson::check_argument_valid_integer(Item *argument)
   bool is_binary_charset= (argument->collation.collation == &my_charset_bin);
   bool is_parameter_marker= (argument->type() == PARAM_ITEM);
 
-  switch (argument->field_type())
+  switch (argument->data_type())
   {
   case MYSQL_TYPE_NULL:
     return true;
@@ -1675,6 +1877,7 @@ bool Item_func_geomfromgeojson::fix_fields(THD *thd, Item **ref)
         return true;
       }
     }
+    // Fall through.
   case 2:
     {
       // Validate options argument
@@ -1684,6 +1887,7 @@ bool Item_func_geomfromgeojson::fix_fields(THD *thd, Item **ref)
         return true;
       }
     }
+    // Fall through.
   case 1:
     {
       /*
@@ -1692,7 +1896,7 @@ bool Item_func_geomfromgeojson::fix_fields(THD *thd, Item **ref)
       */
       bool is_binary_charset= (args[0]->collation.collation == &my_charset_bin);
       bool is_parameter_marker= (args[0]->type() == PARAM_ITEM);
-      switch (args[0]->field_type())
+      switch (args[0]->data_type())
       {
       case MYSQL_TYPE_NULL:
         break;
@@ -1785,9 +1989,6 @@ wkbtype_to_geojson_type(Geometry::wkbType type)
   @param calling_function Name of user-invoked function
   @param max_decimal_digits Max length of decimal numbers
   @param add_bounding_box True if a bounding box should be added
-  @param add_short_crs_urn True if we should add short format CRS URN
-  @param add_long_crs_urn True if we should add long format CRS URN
-  @param geometry_srid Spacial Reference System Identifier being used
 
   @return false on success, true otherwise.
 */
@@ -1795,10 +1996,7 @@ static bool
 append_coordinates(Geometry::wkb_parser *parser, Json_array *array, MBR *mbr,
                    const char *calling_function,
                    int max_decimal_digits,
-                   bool add_bounding_box,
-                   bool add_short_crs_urn,
-                   bool add_long_crs_urn,
-                   uint32 geometry_srid)
+                   bool add_bounding_box)
 {
   point_xy coordinates;
   if (parser->scan_xy(&coordinates))
@@ -1837,9 +2035,6 @@ append_coordinates(Geometry::wkb_parser *parser, Json_array *array, MBR *mbr,
   @param calling_function Name of user-invoked function
   @param max_decimal_digits Max length of decimal numbers
   @param add_bounding_box True if a bounding box should be added
-  @param add_short_crs_urn True if we should add short format CRS URN
-  @param add_long_crs_urn True if we should add long format CRS URN
-  @param geometry_srid Spacial Reference System Identifier being used
 
   @return false on success, true otherwise.
 */
@@ -1847,10 +2042,7 @@ static bool
 append_linestring(Geometry::wkb_parser *parser, Json_array *points, MBR *mbr,
                   const char *calling_function,
                   int max_decimal_digits,
-                  bool add_bounding_box,
-                  bool add_short_crs_urn,
-                  bool add_long_crs_urn,
-                  uint32 geometry_srid)
+                  bool add_bounding_box)
 {
   uint32 num_points= 0;
   if (parser->scan_non_zero_uint4(&num_points))
@@ -1865,10 +2057,7 @@ append_linestring(Geometry::wkb_parser *parser, Json_array *points, MBR *mbr,
     if (point == NULL || points->append_alias(point) ||
         append_coordinates(parser, point, mbr, calling_function,
                            max_decimal_digits,
-                           add_bounding_box,
-                           add_short_crs_urn,
-                           add_long_crs_urn,
-                           geometry_srid))
+                           add_bounding_box))
     {
       return true;
     }
@@ -1890,9 +2079,6 @@ append_linestring(Geometry::wkb_parser *parser, Json_array *points, MBR *mbr,
   @param calling_function Name of user-invoked function
   @param max_decimal_digits Max length of decimal numbers
   @param add_bounding_box True if a bounding box should be added
-  @param add_short_crs_urn True if we should add short format CRS URN
-  @param add_long_crs_urn True if we should add long format CRS URN
-  @param geometry_srid Spacial Reference System Identifier being used
 
   @return false on success, true otherwise.
 */
@@ -1900,10 +2086,7 @@ static
 bool append_polygon(Geometry::wkb_parser *parser,
                     Json_array *polygon_rings, MBR *mbr, const char *calling_function,
                     int max_decimal_digits,
-                    bool add_bounding_box,
-                    bool add_short_crs_urn,
-                    bool add_long_crs_urn,
-                    uint32 geometry_srid)
+                    bool add_bounding_box)
 {
   uint32 num_inner_rings= 0;
   if (parser->scan_non_zero_uint4(&num_inner_rings))
@@ -1931,10 +2114,7 @@ bool append_polygon(Geometry::wkb_parser *parser,
       if (point == NULL || polygon_ring->append_alias(point) ||
           append_coordinates(parser, point, mbr, calling_function,
                              max_decimal_digits,
-                             add_bounding_box,
-                             add_short_crs_urn,
-                             add_long_crs_urn,
-                             geometry_srid))
+                             add_bounding_box))
       {
         return true;
       }
@@ -1982,8 +2162,6 @@ static bool append_bounding_box(MBR *mbr, Json_object *geometry)
   over legacy identifiers such as "EPSG:4326""
 
   @param geometry The JSON object to append the CRS object to.
-  @param max_decimal_digits Max length of decimal numbers
-  @param add_bounding_box True if a bounding box should be added
   @param add_short_crs_urn True if we should add short format CRS URN
   @param add_long_crs_urn True if we should add long format CRS URN
   @param geometry_srid Spacial Reference System Identifier being used
@@ -1991,8 +2169,6 @@ static bool append_bounding_box(MBR *mbr, Json_object *geometry)
   @return false on success, true otherwise.
 */
 static bool append_crs(Json_object *geometry,
-                       int max_decimal_digits,
-                       bool add_bounding_box,
                        bool add_short_crs_urn,
                        bool add_long_crs_urn,
                        uint32 geometry_srid)
@@ -2094,10 +2270,7 @@ append_geometry(Geometry::wkb_parser *parser, Json_object *geometry,
       if (point == NULL || geometry->add_alias("coordinates", point) ||
           append_coordinates(parser, point, mbr, calling_function,
                              max_decimal_digits,
-                             add_bounding_box,
-                             add_short_crs_urn,
-                             add_long_crs_urn,
-                             geometry_srid))
+                             add_bounding_box))
       {
         return true;
       }
@@ -2109,10 +2282,7 @@ append_geometry(Geometry::wkb_parser *parser, Json_object *geometry,
       if (points == NULL || geometry->add_alias("coordinates", points) ||
           append_linestring(parser, points, mbr, calling_function,
                             max_decimal_digits,
-                            add_bounding_box,
-                            add_short_crs_urn,
-                            add_long_crs_urn,
-                            geometry_srid))
+                            add_bounding_box))
       {
         return true;
       }
@@ -2125,10 +2295,7 @@ append_geometry(Geometry::wkb_parser *parser, Json_object *geometry,
           geometry->add_alias("coordinates", polygon_rings) ||
           append_polygon(parser, polygon_rings, mbr, calling_function,
                          max_decimal_digits,
-                         add_bounding_box,
-                         add_short_crs_urn,
-                         add_long_crs_urn,
-                         geometry_srid))
+                         add_bounding_box))
       {
         return true;
       }
@@ -2166,24 +2333,15 @@ append_geometry(Geometry::wkb_parser *parser, Json_object *geometry,
           if (header.wkb_type == Geometry::wkb_multipoint)
             result= append_coordinates(parser, points, mbr, calling_function,
                                        max_decimal_digits,
-                                       add_bounding_box,
-                                       add_short_crs_urn,
-                                       add_long_crs_urn,
-                                       geometry_srid);
+                                       add_bounding_box);
           else if (header.wkb_type == Geometry::wkb_multipolygon)
             result= append_polygon(parser, points, mbr, calling_function,
                                    max_decimal_digits,
-                                   add_bounding_box,
-                                   add_short_crs_urn,
-                                   add_long_crs_urn,
-                                   geometry_srid);
-          else if (Geometry::wkb_multilinestring)
+                                   add_bounding_box);
+          else if (header.wkb_type == Geometry::wkb_multilinestring)
             result= append_linestring(parser, points, mbr, calling_function,
                                       max_decimal_digits,
-                                      add_bounding_box,
-                                      add_short_crs_urn,
-                                      add_long_crs_urn,
-                                      geometry_srid);
+                                      add_bounding_box);
           else
             DBUG_ASSERT(false);
 
@@ -2244,8 +2402,6 @@ append_geometry(Geometry::wkb_parser *parser, Json_object *geometry,
       geometry_srid > 0)
   {
     append_crs(geometry,
-               max_decimal_digits,
-               add_bounding_box,
                add_short_crs_urn,
                add_long_crs_urn,
                geometry_srid);
@@ -2298,8 +2454,7 @@ bool geometry_to_json(Json_wrapper *wr, Item *geometry_arg, const char *calling_
     return true;
   }
 
-  Json_wrapper w(geojson_object);
-  wr->steal(&w);
+  *wr= Json_wrapper(geojson_object);
   return false;
 }
 
@@ -2496,7 +2651,7 @@ bool Item_func_geohash::check_valid_latlong_type(Item *arg)
   */
   bool is_binary_charset= (arg->collation.collation == &my_charset_bin);
   bool is_field_type_valid= false;
-  switch (arg->field_type())
+  switch (arg->data_type())
   {
   case MYSQL_TYPE_DECIMAL:
   case MYSQL_TYPE_NEWDECIMAL:
@@ -2523,14 +2678,14 @@ bool Item_func_geohash::check_valid_latlong_type(Item *arg)
 
   /*
     Parameters and parameter markers always have
-    field_type() == MYSQL_TYPE_VARCHAR. type() is dependent on if it's a
+    data_type() == MYSQL_TYPE_VARCHAR. type() is dependent on if it's a
     parameter marker or parameter (PREPARE or EXECUTE, respectively).
   */
   bool is_parameter= (arg->type() == INT_ITEM || arg->type() == DECIMAL_ITEM ||
                       arg->type() == REAL_ITEM || arg->type() == STRING_ITEM) &&
-                     (arg->field_type() == MYSQL_TYPE_VARCHAR);
+                     (arg->data_type() == MYSQL_TYPE_VARCHAR);
   bool is_parameter_marker= (arg->type() == PARAM_ITEM &&
-                             arg->field_type() == MYSQL_TYPE_VARCHAR);
+                             arg->data_type() == MYSQL_TYPE_VARCHAR);
 
   if (is_field_type_valid || is_parameter_marker || is_parameter)
     return true;
@@ -2708,10 +2863,10 @@ String *Item_func_geohash::val_str_ascii(String *str)
 }
 
 
-bool Item_func_geohash::resolve_type(THD *thd)
+bool Item_func_geohash::resolve_type(THD *)
 {
-  fix_length_and_charset(Item_func_geohash::upper_limit_output_length,
-                         default_charset());
+  set_data_type_string(Item_func_geohash::upper_limit_output_length,
+                       default_charset());
   return false;
 }
 
@@ -2787,7 +2942,7 @@ bool Item_func_geohash::fix_fields(THD *thd, Item **ref)
     (args[geohash_length_arg_index]->type() == PARAM_ITEM ||
      args[geohash_length_arg_index]->type() == INT_ITEM);
 
-  switch (args[geohash_length_arg_index]->field_type())
+  switch (args[geohash_length_arg_index]->data_type())
   {
   case MYSQL_TYPE_TINY:
   case MYSQL_TYPE_SHORT:
@@ -2923,13 +3078,13 @@ Item_func_latlongfromgeohash::check_geohash_argument_valid_type(Item *item)
     return true;
 
   /*
-    If charset is not binary and field_type() is BLOB,
+    If charset is not binary and data_type() is BLOB,
     we have a TEXT column (which is allowed).
   */
   bool is_binary_charset= (item->collation.collation == &my_charset_bin);
   bool is_parameter_marker= (item->type() == PARAM_ITEM);
 
-  switch (item->field_type())
+  switch (item->data_type())
   {
   case MYSQL_TYPE_VARCHAR:
   case MYSQL_TYPE_VAR_STRING:
@@ -3181,32 +3336,147 @@ double Item_func_latlongfromgeohash::val_real()
 String *Item_func_as_wkt::val_str_ascii(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  String arg_val;
-  String *swkb= args[0]->val_str(&arg_val);
+
+  String swkb_tmp;
+  String *swkb= args[0]->val_str(&swkb_tmp);
+
   Geometry_buffer buffer;
-  Geometry *geom= NULL;
+  Geometry *g;
+  bool reverse= false;
+  bool srid_default_ordering= true;
+  bool is_geographic= false;
+  bool lat_long= false;
 
-  if ((null_value= (!swkb || args[0]->null_value)))
-    return 0;
+  if ((null_value= args[0]->null_value))
+  {
+    DBUG_ASSERT(maybe_null);
+    return nullptr;
+  }
 
-  if (!(geom= Geometry::construct(&buffer, swkb)))
+  // Even if args[0]->val_str didn't return swkb_tmp, it may still
+  // have modified it, so clean it up first.
+  if (swkb != &swkb_tmp)
+  {
+    swkb_tmp.set(static_cast<const char *>(nullptr), 0, swkb_tmp.charset());
+  }
+  swkb_tmp.copy(*swkb);
+  swkb= &swkb_tmp;
+
+  if (!(g= Geometry::construct(&buffer, swkb)))
   {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     return error_str();
   }
 
+  if (g->get_srid() != 0)
+  {
+    THD *thd= current_thd;
+    dd::cache::Dictionary_client::Auto_releaser m_releaser(thd->dd_client());
+    Srs_fetcher fetcher(thd);
+    const dd::Spatial_reference_system *srs= nullptr;
+    if (fetcher.acquire(g->get_srid(), &srs))
+      return error_str();
+
+    if (srs == nullptr)
+    {
+      push_warning_printf(thd,
+                          Sql_condition::SL_WARNING,
+                          ER_WARN_SRS_NOT_FOUND_AXIS_ORDER,
+                          ER_THD(thd, ER_WARN_SRS_NOT_FOUND_AXIS_ORDER),
+                          g->get_srid());
+    }
+    else if (srs->is_geographic())
+    {
+      is_geographic= true;
+      lat_long= srs->is_lat_long();
+    }
+  }
+
+  if (this->arg_count == 2)
+  {
+    String options_arg_tmp;
+    String *options_arg= args[1]->val_str_ascii(&options_arg_tmp);
+    null_value= args[1]->null_value;
+    if (null_value)
+    {
+      DBUG_ASSERT(maybe_null);
+      return nullptr;
+    }
+
+    std::map<std::string, std::string> options;
+
+    if (options_parser::parse_string(options_arg, &options, func_name()))
+    {
+      return error_str(); // Error has already been raised;
+    }
+
+    for (const auto &pair : options)
+    {
+      const std::string &key= pair.first;
+      const std::string &value= pair.second;
+
+      if (key == "axis-order")
+      {
+        if (value == "lat-long")
+        {
+          reverse= true;
+          srid_default_ordering= false;
+        }
+        else if (value == "long-lat")
+        {
+          reverse= false;
+          srid_default_ordering= false;
+        }
+        else if (value == "srid-defined")
+        {
+          // This is the default.
+        }
+        else
+        {
+          my_error(ER_INVALID_OPTION_VALUE, MYF(0), value.c_str(), key.c_str(),
+                   func_name());
+          return error_str();
+        }
+      }
+      else
+      {
+        my_error(ER_INVALID_OPTION_KEY, MYF(0), key.c_str(), func_name());
+        return error_str();
+      }
+    }
+  }
+
+  // The SRS default axis order is lat-long. The storage axis
+  // order is long-lat, so we must reverse coordinates.
+  if (srid_default_ordering && is_geographic && lat_long)
+  {
+    reverse= true;
+  }
+
+  if (reverse && is_geographic)
+  {
+    if (g->reverse_coordinates())
+    {
+      my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+      return error_str();
+    }
+  }
+
   str->length(0);
-  if ((null_value= geom->as_wkt(str)))
-    return 0;
+  if ((null_value= g->as_wkt(str)))
+  {
+    DBUG_ASSERT(maybe_null);
+    return nullptr;    
+  }
 
   return str;
 }
 
 
-bool Item_func_as_wkt::resolve_type(THD *thd)
+bool Item_func_as_wkt::resolve_type(THD *)
 {
   collation.set(default_charset(), DERIVATION_COERCIBLE, MY_REPERTOIRE_ASCII);
-  max_length=MAX_BLOB_WIDTH;
+  set_data_type_string(uint32(MAX_BLOB_WIDTH));
   maybe_null= true;
   return false;
 }
@@ -3215,21 +3485,132 @@ bool Item_func_as_wkt::resolve_type(THD *thd)
 String *Item_func_as_wkb::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  String arg_val;
-  String *swkb= args[0]->val_str(&arg_val);
+
+  String swkb_tmp;
+  String *swkb= args[0]->val_str(&swkb_tmp);
+
   Geometry_buffer buffer;
+  Geometry *g;
+  bool reverse= false;
+  bool srid_default_ordering= true;
+  bool is_geographic= false;
+  bool lat_long= false;
 
-  if ((null_value= (!swkb || args[0]->null_value)))
-    return 0;
+  if ((null_value= args[0]->null_value))
+  {
+    DBUG_ASSERT(maybe_null);
+    return nullptr;
+  }
 
-  if (!(Geometry::construct(&buffer, swkb)))
+  // swkb may not point to swkb_tmp, but to another string that shouldn't be
+  // modified, so the following procedure is necessary to be sure to have a
+  // string that can be altered.
+  swkb_tmp.copy(*swkb);
+  swkb= &swkb_tmp;
+
+  if (!(g= Geometry::construct(&buffer, swkb)))
   {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     return error_str();
   }
 
+  if (g->get_srid() != 0)
+  {
+    dd::cache::Dictionary_client::Auto_releaser m_releaser(current_thd->dd_client());
+    Srs_fetcher fetcher(current_thd);
+    const dd::Spatial_reference_system *srs= nullptr;
+    if (fetcher.acquire(g->get_srid(), &srs))
+      return error_str();
+
+    if (srs == nullptr)
+    {
+      push_warning_printf(current_thd,
+                          Sql_condition::SL_WARNING,
+                          ER_WARN_SRS_NOT_FOUND_AXIS_ORDER,
+                          ER_THD(current_thd, ER_WARN_SRS_NOT_FOUND_AXIS_ORDER),
+                          g->get_srid());
+    }
+    else if (srs->is_geographic())
+    {
+      is_geographic= true;
+      lat_long= srs->is_lat_long();
+    }
+  }
+
+  if (this->arg_count == 2)
+  {
+    String options_arg_tmp;
+    String *options_arg= args[1]->val_str_ascii(&options_arg_tmp);
+    null_value= args[1]->null_value;
+    if (null_value)
+    {
+      DBUG_ASSERT(maybe_null);
+      return nullptr;
+    }
+
+    std::map<std::string, std::string> options;
+
+    if (options_parser::parse_string(options_arg, &options, func_name()))
+    {
+      return error_str(); // Error has already been raised;
+    }
+
+    for (auto pair : options)
+    {
+      const std::string key= pair.first;
+      const std::string value= pair.second;
+
+      if (key == "axis-order")
+      {
+        if (value == "lat-long")
+        {
+          reverse= true;
+          srid_default_ordering= false;
+        }
+        else if (value == "long-lat")
+        {
+          reverse= false;
+          srid_default_ordering= false;
+        }
+        else if (value == "srid-defined")
+        {
+          // This is the default.
+        }
+        else
+        {
+          my_error(ER_INVALID_OPTION_VALUE, MYF(0), value.c_str(), key.c_str(),
+                   func_name());
+          return error_str();
+        }
+      }
+      else
+      {
+        my_error(ER_INVALID_OPTION_KEY, MYF(0), key.c_str(), func_name());
+        return error_str();
+      }
+    }
+  }
+
+  // The SRS default axis order is lat-long. The storage axis
+  // order is long-lat, so we must reverse coordinates.
+  if (srid_default_ordering && is_geographic && lat_long)
+  {
+    reverse= true;
+  }
+
+  if (reverse && is_geographic)
+  {
+    if (g->reverse_coordinates())
+    {
+      my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+      return error_str();
+    }
+  }
+
   str->copy(swkb->ptr() + SRID_SIZE, swkb->length() - SRID_SIZE,
-	    &my_charset_bin);
+            &my_charset_bin);
+
+
   return str;
 }
 
@@ -3257,7 +3638,7 @@ String *Item_func_geometry_type::val_str_ascii(String *str)
 }
 
 
-String *Item_func_validate::val_str(String *str)
+String *Item_func_validate::val_str(String*)
 {
   DBUG_ASSERT(fixed == 1);
   String *swkb= args[0]->val_str(&arg_val);
@@ -3271,7 +3652,9 @@ String *Item_func_validate::val_str(String *str)
 
   if (geom->get_srid() != 0)
   {
-    Srs_fetcher fetcher(current_thd);
+    THD *thd= current_thd;
+    dd::cache::Dictionary_client::Auto_releaser m_releaser(thd->dd_client());
+    Srs_fetcher fetcher(thd);
     const dd::Spatial_reference_system *srs= nullptr;
     if (fetcher.acquire(geom->get_srid(), &srs))
       return error_str(); // Error has already been flagged.
@@ -3319,7 +3702,7 @@ String *Item_func_make_envelope::val_str(String *str)
   String *pt2= args[1]->val_str(&arg_val2);
   Geometry_buffer buffer1, buffer2;
   Geometry *geom1= NULL, *geom2= NULL;
-  uint32 srid;
+  gis::srid_t srid;
 
   if ((null_value= (!pt1 || !pt2 ||
                     args[0]->null_value || args[1]->null_value)))
@@ -3340,7 +3723,9 @@ String *Item_func_make_envelope::val_str(String *str)
 
   if (geom1->get_srid() != 0)
   {
-    Srs_fetcher fetcher(current_thd);
+    THD *thd= current_thd;
+    dd::cache::Dictionary_client::Auto_releaser m_releaser(thd->dd_client());
+    Srs_fetcher fetcher(thd);
     const dd::Spatial_reference_system *srs= nullptr;
     if (fetcher.acquire(geom1->get_srid(), &srs))
       return error_str(); // Error has already been flagged.
@@ -3479,7 +3864,7 @@ String *Item_func_envelope::val_str(String *str)
   String *swkb= args[0]->val_str(&arg_val);
   Geometry_buffer buffer;
   Geometry *geom= NULL;
-  uint32 srid;
+  gis::srid_t srid;
 
   if ((null_value= (!swkb || args[0]->null_value)))
   {
@@ -3495,12 +3880,11 @@ String *Item_func_envelope::val_str(String *str)
 
   if (geom->get_srid() != 0)
   {
-    Srs_fetcher fetcher(current_thd);
-    const dd::Spatial_reference_system *srs= nullptr;
-    if (fetcher.acquire(geom->get_srid(), &srs))
+    bool srs_exists= false;
+    if (Srs_fetcher::srs_exists(current_thd, geom->get_srid(), &srs_exists))
       return error_str(); // Error has already been flagged.
 
-    if (srs == nullptr)
+    if (!srs_exists)
     {
       push_warning_printf(current_thd,
                           Sql_condition::SL_WARNING,
@@ -3561,12 +3945,11 @@ String *Item_func_centroid::val_str(String *str)
 
   if (geom->get_srid() != 0)
   {
-    Srs_fetcher fetcher(current_thd);
-    const dd::Spatial_reference_system *srs= nullptr;
-    if (fetcher.acquire(geom->get_srid(), &srs))
+    bool srs_exists= false;
+    if (Srs_fetcher::srs_exists(current_thd, geom->get_srid(), &srs_exists))
       return error_str(); // Error has already been flagged.
 
-    if (srs == nullptr)
+    if (!srs_exists)
     {
       push_warning_printf(current_thd,
                           Sql_condition::SL_WARNING,
@@ -3599,9 +3982,9 @@ public:
   {
   }
 
-  virtual void on_wkb_start(Geometry::wkbByteOrder bo,
+  virtual void on_wkb_start(Geometry::wkbByteOrder,
                             Geometry::wkbType geotype,
-                            const void *wkb, uint32 len, bool has_hdr)
+                            const void *wkb, uint32 len, bool)
   {
     if (geotype == Geometry::wkb_point)
     {
@@ -3675,9 +4058,9 @@ public:
   }
 
 
-  virtual void on_wkb_start(Geometry::wkbByteOrder bo,
+  virtual void on_wkb_start(Geometry::wkbByteOrder,
                             Geometry::wkbType geotype,
-                            const void *wkb, uint32 len, bool has_hdr)
+                            const void *wkb, uint32, bool)
   {
     m_types.push_back(geotype);
     m_ptrs.push_back(wkb);
@@ -3747,7 +4130,7 @@ public:
 template <typename Coordsys>
 bool geometry_collection_centroid(const Geometry *geom,
                                   typename BG_models<Coordsys>::
-                                  Point *respt, my_bool *null_value)
+                                  Point *respt, bool *null_value)
 {
   typename BG_models<Coordsys>::Multipolygon mplgn;
   Geometry_grouper<typename BG_models<Coordsys>::Polygon>
@@ -3921,12 +4304,11 @@ String *Item_func_convex_hull::val_str(String *str)
 
   if (geom->get_srid() != 0)
   {
-    Srs_fetcher fetcher(current_thd);
-    const dd::Spatial_reference_system *srs= nullptr;
-    if (fetcher.acquire(geom->get_srid(), &srs))
+    bool srs_exists= false;
+    if (Srs_fetcher::srs_exists(current_thd, geom->get_srid(), &srs_exists))
       return error_str(); // Error has already been flagged.
 
-    if (srs == nullptr)
+    if (!srs_exists)
     {
       push_warning_printf(current_thd,
                           Sql_condition::SL_WARNING,
@@ -4138,12 +4520,11 @@ String *Item_func_simplify::val_str(String *str)
 
   if (geom->get_srid() != 0)
   {
-    Srs_fetcher fetcher(current_thd);
-    const dd::Spatial_reference_system *srs= nullptr;
-    if (fetcher.acquire(geom->get_srid(), &srs))
+    bool srs_exists= false;
+    if (Srs_fetcher::srs_exists(current_thd, geom->get_srid(), &srs_exists))
       return error_str(); // Error has already been flagged.
 
-    if (srs == nullptr)
+    if (!srs_exists)
     {
       push_warning_printf(current_thd,
                           Sql_condition::SL_WARNING,
@@ -4154,7 +4535,7 @@ String *Item_func_simplify::val_str(String *str)
     }
   }
 
-  if (max_dist <= 0 || boost::math::isnan(max_dist))
+  if (max_dist <= 0 || std::isnan(max_dist))
   {
     my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
     return error_str();
@@ -4301,7 +4682,7 @@ String *Item_func_spatial_decomp::val_str(String *str)
   String *swkb= args[0]->val_str(&arg_val);
   Geometry_buffer buffer;
   Geometry *geom= NULL;
-  uint32 srid;
+  gis::srid_t srid;
 
   if ((null_value= (!swkb || args[0]->null_value)))
     return NULL;
@@ -4352,7 +4733,7 @@ String *Item_func_spatial_decomp_n::val_str(String *str)
   long n= (long) args[1]->val_int();
   Geometry_buffer buffer;
   Geometry *geom= NULL;
-  uint32 srid;
+  gis::srid_t srid;
 
   if ((null_value= (!swkb || args[0]->null_value || args[1]->null_value)))
     return NULL;
@@ -4420,8 +4801,8 @@ String *Item_func_point::val_str(String *str)
     The coordinates of a point can't be another geometry, but other types
     are allowed as before.
   */
-  if ((null_value= (args[0]->field_type() == MYSQL_TYPE_GEOMETRY ||
-                    args[1]->field_type() == MYSQL_TYPE_GEOMETRY)))
+  if ((null_value= (args[0]->data_type() == MYSQL_TYPE_GEOMETRY ||
+                    args[1]->data_type() == MYSQL_TYPE_GEOMETRY)))
   {
     my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
     return error_str();
@@ -4429,7 +4810,7 @@ String *Item_func_point::val_str(String *str)
 
   double x= args[0]->val_real();
   double y= args[1]->val_real();
-  uint32 srid= 0;
+  gis::srid_t srid= 0;
 
   if ((null_value= (args[0]->null_value ||
                     args[1]->null_value ||
@@ -4481,7 +4862,7 @@ bool Item_func_pointfromgeohash::fix_fields(THD *thd, Item **ref)
     return true;
   }
 
-  switch (args[1]->field_type())
+  switch (args[1]->data_type())
   {
   case MYSQL_TYPE_STRING:
   case MYSQL_TYPE_VARCHAR:
@@ -4506,7 +4887,7 @@ String *Item_func_pointfromgeohash::val_str(String *str)
 
   String argument_value;
   String *geohash= args[0]->val_str_ascii(&argument_value);
-  Geometry::srid_t srid= 0;
+  gis::srid_t srid= 0;
 
   if (validate_srid_arg(args[1], &srid, &null_value, func_name()))
     return error_str();
@@ -4595,7 +4976,7 @@ String *Item_func_spatial_collection::val_str(String *str)
   DBUG_ASSERT(fixed == 1);
   String arg_value;
   uint i;
-  uint32 srid= 0;
+  gis::srid_t srid= 0;
 
   str->set_charset(&my_charset_bin);
   str->length(0);
@@ -4640,6 +5021,12 @@ String *Item_func_spatial_collection::val_str(String *str)
 	In the case of named collection we must check that items
 	are of specific type, let's do this checking now
       */
+
+      if (!Geometry::is_valid_opengis_geotype(uint4korr(data)))
+      {
+        my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+        return error_str();
+      }
 
       wkb_type= get_wkb_geotype(data);
       data+= 4;
@@ -4945,12 +5332,11 @@ longlong Item_func_issimple::val_int()
 
   if (arg->get_srid() != 0)
   {
-    Srs_fetcher fetcher(current_thd);
-    const dd::Spatial_reference_system *srs= nullptr;
-    if (fetcher.acquire(arg->get_srid(), &srs))
+    bool srs_exists= false;
+    if (Srs_fetcher::srs_exists(current_thd, arg->get_srid(), &srs_exists))
       DBUG_RETURN(error_int()); // Error has already been flagged.
 
-    if (srs == nullptr)
+    if (!srs_exists)
     {
       push_warning_printf(current_thd,
                           Sql_condition::SL_WARNING,
@@ -5105,17 +5491,17 @@ longlong Item_func_isclosed::val_int()
 class Geomcoll_validity_checker: public WKB_scanner_event_handler
 {
   bool m_isvalid;
-  Geometry::srid_t m_srid;
+  gis::srid_t m_srid;
   std::stack<Geometry::wkbType> types;
 public:
-  explicit Geomcoll_validity_checker(Geometry::srid_t srid)
+  explicit Geomcoll_validity_checker(gis::srid_t srid)
     :m_isvalid(true), m_srid(srid)
   {
   }
 
   bool is_valid() const { return m_isvalid; }
 
-  virtual void on_wkb_start(Geometry::wkbByteOrder bo,
+  virtual void on_wkb_start(Geometry::wkbByteOrder,
                             Geometry::wkbType geotype,
                             const void *wkb, uint32 len, bool has_hdr)
   {
@@ -5157,7 +5543,7 @@ public:
   }
 
 
-  virtual void on_wkb_end(const void *wkb)
+  virtual void on_wkb_end(const void*)
   {
     if (types.size() > 0)
       types.pop();
@@ -5285,7 +5671,9 @@ longlong Item_func_isvalid::val_int()
 
   if (geom->get_srid() != 0)
   {
-    Srs_fetcher fetcher(current_thd);
+    THD *thd= current_thd;
+    dd::cache::Dictionary_client::Auto_releaser m_releaser(thd->dd_client());
+    Srs_fetcher fetcher(thd);
     const dd::Spatial_reference_system *srs= nullptr;
     if (fetcher.acquire(geom->get_srid(), &srs))
       return error_int(); // Error has already been flagged.
@@ -5423,7 +5811,7 @@ String *Item_func_set_x::val_str(String *str)
     return error_str();
   }
 
-  if (std::isnan(x_coordinate) || std::isinf(x_coordinate))
+  if (!std::isfinite(x_coordinate))
   {
     my_error(ER_DATA_OUT_OF_RANGE, MYF(0), func_name());
     return error_str();
@@ -5471,7 +5859,7 @@ String *Item_func_set_y::val_str(String *str)
     return error_str();
   }
 
-  if (std::isnan(y_coordinate) || std::isinf(y_coordinate))
+  if (!std::isfinite(y_coordinate))
   {
     my_error(ER_DATA_OUT_OF_RANGE, MYF(0), func_name());
     return error_str();
@@ -5513,7 +5901,7 @@ double Item_func_get_x::val_real()
 
   if (!swkb)
   {
-    /* 
+    /*
     We've already found out that args[0]->null_value is false.
     Therefore, swkb should never be null.
     */
@@ -5577,6 +5965,42 @@ double Item_func_get_y::val_real()
   }
   null_value= geom->get_y(&res);
   return res;
+}
+
+
+String *Item_func_swap_xy::val_str(String *str)
+{
+  DBUG_ASSERT(maybe_null);
+  String *swkb= args[0]->val_str(str);
+
+  if ((null_value= (args[0]->null_value)))
+  {
+    return nullptr;
+  }
+
+  if (!swkb)
+  {
+    /*
+      We've already found out that args[0]->null_value is false.
+      Therefore, swkb should never be null.
+    */
+    DBUG_ASSERT(false);
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    return error_str();
+  }
+
+  Geometry *geom= nullptr;
+  Geometry_buffer buffer;
+  str->copy(*swkb);
+  if (!(geom= Geometry::construct(&buffer, str)))
+  {
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    return error_str();
+  }
+
+  geom->reverse_coordinates();
+
+  return str;
 }
 
 
@@ -5689,12 +6113,11 @@ double Item_func_area::val_real()
 
   if (geom->get_srid() != 0)
   {
-    Srs_fetcher fetcher(current_thd);
-    const dd::Spatial_reference_system *srs= nullptr;
-    if (fetcher.acquire(geom->get_srid(), &srs))
+    bool srs_exists= false;
+    if (Srs_fetcher::srs_exists(current_thd, geom->get_srid(), &srs_exists))
       return error_real(); // Error has already been flagged.
 
-    if (srs == nullptr)
+    if (!srs_exists)
     {
       push_warning_printf(current_thd,
                           Sql_condition::SL_WARNING,
@@ -5737,12 +6160,11 @@ double Item_func_glength::val_real()
 
   if (geom->get_srid() != 0)
   {
-    Srs_fetcher fetcher(current_thd);
-    const dd::Spatial_reference_system *srs= nullptr;
-    if (fetcher.acquire(geom->get_srid(), &srs))
+    bool srs_exists= false;
+    if (Srs_fetcher::srs_exists(current_thd, geom->get_srid(), &srs_exists))
       return error_real(); // Error has already been flagged.
 
-    if (srs == nullptr)
+    if (!srs_exists)
     {
       push_warning_printf(current_thd,
                           Sql_condition::SL_WARNING,
@@ -5786,14 +6208,14 @@ String *Item_func_set_srid::val_str(String *str)
 {
   String *geometry_str= args[0]->val_str(str);
 
-  Geometry::srid_t srid= 0;
+  gis::srid_t srid= 0;
   // Check that the SRID-argument is within range.
   if (validate_srid_arg(args[1], &srid, &null_value, func_name()))
   {
     return error_str();
   }
 
-  null_value|= args[0]->null_value; 
+  null_value|= args[0]->null_value;
 
   // Check if either argument is null.
   if (null_value)
@@ -5816,14 +6238,13 @@ String *Item_func_set_srid::val_str(String *str)
 
   if (srid != 0)
   {
-    Srs_fetcher fetcher(current_thd);
-    const dd::Spatial_reference_system *srs= nullptr;
-    if (fetcher.acquire(srid, &srs))
+    bool srs_exists= false;
+    if (Srs_fetcher::srs_exists(current_thd, srid, &srs_exists))
     {
       return error_str();
     }
 
-    if (srs == nullptr)
+    if (!srs_exists)
     {
       my_error(ER_SRS_NOT_FOUND, MYF(0), srid);
       return error_str();
@@ -5833,52 +6254,6 @@ String *Item_func_set_srid::val_str(String *str)
   str->write_at_position(0, srid);
 
   return str;
-}
-
-
-/**
-  Compact a geometry collection, making all its points/multipoints into a
-  single multipoint object, and all its linestrings/multilinestrings into a
-  single multilinestring object; leave polygons and multipolygons as they were.
-
-  @param g the input geometry collection.
-  @param gbuf the place to create the new result geometry collection.
-  @param str the String buffer to hold data of the result geometry collection.
- */
-static const Geometry *
-compact_collection(const Geometry *g, Geometry_buffer *gbuf, String *str)
-{
-  if (g->get_geotype() != Geometry::wkb_geometrycollection)
-    return g;
-
-  uint32 wkb_len, wkb_len0;
-  char *wkb_start= g->get_cptr();
-
-  wkb_len= wkb_len0= g->get_data_size();
-  BG_models<bgcs::cartesian>::Multilinestring mls;
-  Geometry_grouper<BG_models<bgcs::cartesian>::Linestring>
-    ls_grouper(&mls);
-  wkb_scanner(wkb_start, &wkb_len,
-              Geometry::wkb_geometrycollection, false, &ls_grouper);
-
-  BG_models<bgcs::cartesian>::Multipoint mpts;
-  wkb_len= wkb_len0;
-  Geometry_grouper<BG_models<bgcs::cartesian>::Point>
-    pt_grouper(&mpts);
-  wkb_scanner(wkb_start, &wkb_len,
-              Geometry::wkb_geometrycollection, false, &pt_grouper);
-
-  Gis_geometry_collection *ret= new (gbuf) Gis_geometry_collection();
-  wkb_len= wkb_len0;
-  Geometry_grouper<BG_models<bgcs::cartesian>::Polygon>
-    mplgn_grouper(ret, str);
-  wkb_scanner(wkb_start, &wkb_len,
-              Geometry::wkb_geometrycollection, false, &mplgn_grouper);
-
-  ret->append_geometry(&mls, str);
-  ret->append_geometry(&mpts, str);
-
-  return ret;
 }
 
 
@@ -5975,9 +6350,9 @@ public:
     :has_invalid(false), x_val(x_range), y_val(y_range)
   {}
 
-  virtual void on_wkb_start(Geometry::wkbByteOrder bo,
+  virtual void on_wkb_start(Geometry::wkbByteOrder,
                             Geometry::wkbType geotype,
-                            const void *wkb, uint32 len, bool has_hdr)
+                            const void *wkb, uint32 len, bool)
   {
     if (geotype == Geometry::wkb_point)
     {
@@ -6004,7 +6379,7 @@ public:
   }
 
 
-  virtual void on_wkb_end(const void *wkb)
+  virtual void on_wkb_end(const void*)
   {
   }
 
@@ -6012,46 +6387,80 @@ public:
 };
 
 
-template <typename CoordinateSystem>
-struct BG_distance
-{};
-
-
-template <>
-struct BG_distance<bg::cs::cartesian>
-{
-  static double apply(Item_func_distance *item, Geometry *g1, Geometry *g2)
-  {
-    // Do the actual computation here for the cartesian CS.
-    return item->bg_distance<bgcs::cartesian>(g1, g2);
-  }
-};
-
-
-template <>
-struct BG_distance<bg::cs::spherical_equatorial<bg::degree> >
-{
-  static double apply(Item_func_distance *item, Geometry *g1, Geometry *g2)
-  {
-    // Do the actual computation here for the spherical equatorial CS
-    // with degree units.
-    return item->bg_distance_spherical(g1, g2);
-  }
-};
-
-
 double Item_func_distance::val_real()
 {
-  typedef bgcs::spherical_equatorial<bg::degree> bgcssed;
-  double distance= 0;
-
   DBUG_ENTER("Item_func_distance::val_real");
   DBUG_ASSERT(fixed == 1);
 
+  String tmp_value1;
+  String tmp_value2;
+  String *res1= args[0]->val_str(&tmp_value1);
+  String *res2= args[1]->val_str(&tmp_value2);
+
+  if ((null_value= (!res1 || args[0]->null_value ||
+                    !res2 || args[1]->null_value)))
+  {
+    DBUG_ASSERT(maybe_null);
+    DBUG_RETURN(0.0);
+  }
+
+  if (res1 == nullptr || res2 == nullptr)
+  {
+    DBUG_ASSERT(false);
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    DBUG_RETURN(error_real());
+  }
+
+  const dd::Spatial_reference_system *srs1= nullptr;
+  const dd::Spatial_reference_system *srs2= nullptr;
+  std::unique_ptr<gis::Geometry> g1;
+  std::unique_ptr<gis::Geometry> g2;
+  dd::cache::Dictionary_client::Auto_releaser m_releaser(current_thd->dd_client());
+  if (gis::parse_geometry(current_thd, func_name(), res1, &srs1, &g1) ||
+      gis::parse_geometry(current_thd, func_name(), res2, &srs2, &g2))
+  {
+    DBUG_RETURN(error_real());
+  }
+
+  gis::srid_t srid1= srs1 == nullptr ? 0 : srs1->id();
+  gis::srid_t srid2= srs2 == nullptr ? 0 : srs2->id();
+  if (srid1 != srid2)
+  {
+    my_error(ER_GIS_DIFFERENT_SRIDS, MYF(0), func_name(), srid1, srid2);
+    DBUG_RETURN(error_real());
+  }
+
+  double distance;
+  bool null;
+  if (gis::distance(srs1, g1.get(), g2.get(), &distance, &null))
+    DBUG_RETURN(error_real());
+
+  if (null)
+  {
+    DBUG_ASSERT(maybe_null);
+    null_value= true;
+    DBUG_RETURN(0.0);
+  }
+
+  DBUG_RETURN(distance);
+}
+
+
+double Item_func_distance_sphere::val_real()
+{
+  typedef bgcs::spherical_equatorial<bg::degree> bgcssed;
+
+  DBUG_ENTER("Item_func_distance_sphere::val_real");
+  DBUG_ASSERT(fixed);
+
+  String tmp_value1;
+  String tmp_value2;
   String *res1= args[0]->val_str(&tmp_value1);
   String *res2= args[1]->val_str(&tmp_value2);
   Geometry_buffer buffer1, buffer2;
   Geometry *g1, *g2;
+  // Earth radius in meters.
+  double earth_radius= 6370986.0;
 
   if ((null_value= (!res1 || args[0]->null_value ||
                     !res2 || args[1]->null_value)))
@@ -6073,98 +6482,62 @@ double Item_func_distance::val_real()
     DBUG_RETURN(error_real());
   }
 
-  if ((g1->get_geotype() != Geometry::wkb_geometrycollection &&
-       g1->normalize_ring_order() == NULL) ||
-      (g2->get_geotype() != Geometry::wkb_geometrycollection &&
-       g2->normalize_ring_order() == NULL))
+  // Normally, we would have called normalize_ring_order() here, but
+  // it's not necessary since we only support points and multipoints.
+
+  Geometry::wkbType gt1= g1->get_geotype();
+  Geometry::wkbType gt2= g2->get_geotype();
+  if (!((gt1 == Geometry::wkb_point || gt1 == Geometry::wkb_multipoint) &&
+        (gt2 == Geometry::wkb_point || gt2 == Geometry::wkb_multipoint)))
   {
-    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    my_error(ER_GIS_UNSUPPORTED_ARGUMENT, MYF(0), func_name());
     DBUG_RETURN(error_real());
   }
 
-  if (g1->get_srid() != 0 && !is_spherical_equatorial)
+  if (arg_count == 3)
   {
-    Srs_fetcher fetcher(current_thd);
-    const dd::Spatial_reference_system *srs= nullptr;
-    if (fetcher.acquire(g1->get_srid(), &srs))
-      DBUG_RETURN(error_real()); // Error has already been flagged.
-
-    if (srs == nullptr)
-    {
-      push_warning_printf(current_thd,
-                          Sql_condition::SL_WARNING,
-                          ER_WARN_SRS_NOT_FOUND,
-                          ER_THD(current_thd, ER_WARN_SRS_NOT_FOUND),
-                          g1->get_srid(),
-                          func_name());
-    }
-  }
-
-  if (is_spherical_equatorial)
-  {
-    Geometry::wkbType gt1= g1->get_geotype();
-    Geometry::wkbType gt2= g2->get_geotype();
-    if (!((gt1 == Geometry::wkb_point || gt1 == Geometry::wkb_multipoint) &&
-          (gt2 == Geometry::wkb_point || gt2 == Geometry::wkb_multipoint)))
-    {
-      my_error(ER_GIS_UNSUPPORTED_ARGUMENT, MYF(0), func_name());
-      DBUG_RETURN(error_real());
-    }
-
-    if (arg_count == 3)
-    {
-      earth_radius= args[2]->val_real();
-      if (args[2]->null_value)
-        DBUG_RETURN(error_real());
-      if (earth_radius <= 0)
-      {
-        my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
-        DBUG_RETURN(error_real());
-      }
-    }
-
-    /*
-      Make sure all points' coordinates are valid:
-      x in (-180, 180], y in [-90, 90].
-    */
-    Numeric_interval<double> x_range(-180, true, 180, false);   // (-180, 180]
-    Numeric_interval<double> y_range(-90, false, 90, false);    // [-90, 90]
-    Point_coordinate_checker checker(x_range, y_range);
-
-    uint32 wkblen= res1->length() - 4;
-    wkb_scanner(res1->ptr() + 4, &wkblen, Geometry::wkb_invalid_type,
-                true, &checker);
-    if (checker.has_invalid_point())
-    {
-      my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
-      DBUG_RETURN(error_real());
-    }
-
-    wkblen= res2->length() - 4;
-    wkb_scanner(res2->ptr() + 4, &wkblen, Geometry::wkb_invalid_type,
-                true, &checker);
-    if (checker.has_invalid_point())
+    earth_radius= args[2]->val_real();
+    if ((null_value= args[2]->null_value))
+      DBUG_RETURN(0.0);
+    if (earth_radius <= 0.0)
     {
       my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
       DBUG_RETURN(error_real());
     }
   }
 
-  if (g1->get_type() != Geometry::wkb_geometrycollection &&
-      g2->get_type() != Geometry::wkb_geometrycollection)
+  /*
+    Make sure all points' coordinates are valid:
+    x in (-180, 180], y in [-90, 90].
+  */
+  Numeric_interval<double> x_range(-180.0, true, 180.0, false);   // (-180, 180]
+  Numeric_interval<double> y_range(-90.0, false, 90.0, false);    // [-90, 90]
+  Point_coordinate_checker checker(x_range, y_range);
+
+  uint32 wkblen= res1->length() - SRID_SIZE;
+  wkb_scanner(res1->ptr() + SRID_SIZE, &wkblen, Geometry::wkb_invalid_type,
+              true, &checker);
+  if (checker.has_invalid_point())
   {
-    if (is_spherical_equatorial)
-      distance= BG_distance<bgcssed>::apply(this, g1, g2);
-    else
-      distance= BG_distance<bgcs::cartesian>::apply(this, g1, g2);
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
+    DBUG_RETURN(error_real());
   }
-  else
-    distance= geometry_collection_distance(g1, g2);
+
+  wkblen= res2->length() - SRID_SIZE;
+  wkb_scanner(res2->ptr() + SRID_SIZE, &wkblen, Geometry::wkb_invalid_type,
+              true, &checker);
+  if (checker.has_invalid_point())
+  {
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
+    DBUG_RETURN(error_real());
+  }
+
+  double distance= bg_distance_spherical(g1, g2, earth_radius);
 
   if (null_value)
     DBUG_RETURN(error_real());
 
-  if (!std::isfinite(distance) || distance < 0)
+  if (!std::isfinite(distance) || distance < 0.0)
   {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     DBUG_RETURN(error_real());
@@ -6173,97 +6546,12 @@ double Item_func_distance::val_real()
 }
 
 
-/*
-  Calculate the distance of two geometry collections. BG has optimized
-  algorithm to calculate distance among multipoints, multilinestrings
-  and polygons, so we compact the collection to make a single multipoint,
-  a single multilinestring, and the rest are all polygons and multipolygons,
-  and do a nested loop to calculate the minimum distances among such
-  compacted components as the final result.
- */
-double Item_func_distance::
-geometry_collection_distance(const Geometry *g1, const Geometry *g2)
-{
-  BG_geometry_collection bggc1, bggc2;
-  bool initialized= false, all_normalized= false;
-  double min_distance= DBL_MAX, dist= DBL_MAX;
-  String gcstr1, gcstr2;
-  Geometry_buffer buf1, buf2;
-  const Geometry *g11, *g22;
-
-  g11= compact_collection(g1, &buf1, &gcstr1);
-  g22= compact_collection(g2, &buf2, &gcstr2);
-
-  bggc1.fill(g11);
-  bggc2.fill(g22);
-  for (BG_geometry_collection::Geometry_list::iterator
-       i= bggc1.get_geometries().begin();
-       i != bggc1.get_geometries().end(); ++i)
-  {
-    /* Normalize polygon rings, do only once for each component. */
-    if ((*i)->get_geotype() != Geometry::wkb_geometrycollection &&
-        (*i)->normalize_ring_order() == NULL)
-    {
-      my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
-      return error_real();
-    }
-
-    for (BG_geometry_collection::Geometry_list::iterator
-         j= bggc2.get_geometries().begin();
-         j != bggc2.get_geometries().end(); ++j)
-    {
-      /* Normalize polygon rings, do only once for each component. */
-      if (!all_normalized &&
-          (*j)->get_geotype() != Geometry::wkb_geometrycollection &&
-          (*j)->normalize_ring_order() == NULL)
-      {
-        my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
-        return error_real();
-      }
-
-      if (is_spherical_equatorial)
-      {
-        // For now this is never reached because we only support
-        // distance([multi]point, [multi]point) for spherical.
-        DBUG_ASSERT(false);
-      }
-      else
-        dist= BG_distance<bgcs::cartesian>::apply(this, *i, *j);
-      if (null_value)
-        return error_real();
-      if (dist < 0 || boost::math::isnan(dist))
-        return dist;
-
-      if (!initialized)
-      {
-        min_distance= dist;
-        initialized= true;
-      }
-      else if (min_distance > dist)
-        min_distance= dist;
-
-    }
-
-    all_normalized= true;
-    if (!initialized)
-      break;                                  // bggc2 is empty.
-  }
-
-  /*
-    If at least one of the collections is empty, we have NULL result.
-  */
-  if (!initialized)
-    return error_real();
-
-  return min_distance;
-}
-
-
-double Item_func_distance::
-distance_point_geometry_spherical(const Geometry *g1, const Geometry *g2)
+double Item_func_distance_sphere::
+distance_point_geometry_spherical(const Geometry *g1, const Geometry *g2,
+                                  double earth_radius)
 {
   typedef bgcs::spherical_equatorial<bg::degree> bgcssed;
-  double res= 0;
+  double res= 0.0;
   bg::strategy::distance::haversine<double, double>
     dist_strategy(earth_radius);
 
@@ -6298,11 +6586,12 @@ distance_point_geometry_spherical(const Geometry *g1, const Geometry *g2)
 }
 
 
-double Item_func_distance::
-distance_multipoint_geometry_spherical(const Geometry *g1, const Geometry *g2)
+double Item_func_distance_sphere::
+distance_multipoint_geometry_spherical(const Geometry *g1, const Geometry *g2,
+                                       double earth_radius)
 {
   typedef bgcs::spherical_equatorial<bg::degree> bgcssed;
-  double res= 0;
+  double res= 0.0;
   bg::strategy::distance::haversine<double, double>
     dist_strategy(earth_radius);
 
@@ -6337,20 +6626,21 @@ distance_multipoint_geometry_spherical(const Geometry *g1, const Geometry *g2)
 }
 
 
-double Item_func_distance::
-bg_distance_spherical(const Geometry *g1, const Geometry *g2)
+double Item_func_distance_sphere::bg_distance_spherical(const Geometry *g1,
+                                                        const Geometry *g2,
+                                                        double earth_radius)
 {
-  double res= 0;
+  double res= 0.0;
 
   try
   {
     switch (g1->get_type())
     {
     case Geometry::wkb_point:
-      res= distance_point_geometry_spherical(g1, g2);
+      res= distance_point_geometry_spherical(g1, g2, earth_radius);
       break;
     case Geometry::wkb_multipoint:
-      res= distance_multipoint_geometry_spherical(g1, g2);
+      res= distance_multipoint_geometry_spherical(g1, g2, earth_radius);
       break;
     default:
       DBUG_ASSERT(false);
@@ -6365,150 +6655,3 @@ bg_distance_spherical(const Geometry *g1, const Geometry *g2)
 
   return res;
 }
-
-
-template <typename Coordsys, typename BG_geometry>
-double Item_func_distance::
-distance_dispatch_second_geometry(const BG_geometry& bg1, const Geometry* g2)
-{
-  double res= 0;
-  switch (g2->get_type())
-  {
-  case Geometry::wkb_point:
-    {
-      typename BG_models<Coordsys>::Point
-        bg2(g2->get_data_ptr(), g2->get_data_size(),
-            g2->get_flags(), g2->get_srid());
-      res= bg::distance(bg1, bg2);
-    }
-    break;
-  case Geometry::wkb_multipoint:
-    {
-      typename BG_models<Coordsys>::Multipoint
-        bg2(g2->get_data_ptr(), g2->get_data_size(),
-            g2->get_flags(), g2->get_srid());
-      res= bg::distance(bg1, bg2);
-    }
-    break;
-  case Geometry::wkb_linestring:
-    {
-      typename BG_models<Coordsys>::Linestring
-        bg2(g2->get_data_ptr(), g2->get_data_size(),
-            g2->get_flags(), g2->get_srid());
-      res= bg::distance(bg1, bg2);
-    }
-    break;
-  case Geometry::wkb_multilinestring:
-    {
-      typename BG_models<Coordsys>::Multilinestring
-        bg2(g2->get_data_ptr(), g2->get_data_size(),
-            g2->get_flags(), g2->get_srid());
-      res= bg::distance(bg1, bg2);
-    }
-    break;
-  case Geometry::wkb_polygon:
-    {
-      typename BG_models<Coordsys>::Polygon
-        bg2(g2->get_data_ptr(), g2->get_data_size(),
-            g2->get_flags(), g2->get_srid());
-      res= bg::distance(bg1, bg2);
-    }
-    break;
-  case Geometry::wkb_multipolygon:
-    {
-      typename BG_models<Coordsys>::Multipolygon
-        bg2(g2->get_data_ptr(), g2->get_data_size(),
-            g2->get_flags(), g2->get_srid());
-      res= bg::distance(bg1, bg2);
-    }
-    break;
-  default:
-    DBUG_ASSERT(false);
-    break;
-  }
-  return res;
-}
-
-
-/*
-  Calculate distance of g1 and g2 using Boost.Geometry. We split the
-  implementation into 6 smaller functions according to the type of g1, to
-  make all functions smaller in size. Because distance is symmetric, we swap
-  parameters if the swapped type combination is already implemented.
- */
-template <typename Coordsys>
-double Item_func_distance::bg_distance(const Geometry *g1, const Geometry *g2)
-{
-  double res= 0;
-  bool had_except= false;
-
-  try
-  {
-    switch (g1->get_type())
-    {
-    case Geometry::wkb_point:
-      {
-        typename BG_models<Coordsys>::Point
-          bg1(g1->get_data_ptr(), g1->get_data_size(),
-              g1->get_flags(), g1->get_srid());
-        res= distance_dispatch_second_geometry<Coordsys>(bg1, g2);
-      }
-      break;
-    case Geometry::wkb_multipoint:
-      {
-        typename BG_models<Coordsys>::Multipoint
-          bg1(g1->get_data_ptr(), g1->get_data_size(),
-              g1->get_flags(), g1->get_srid());
-        res= distance_dispatch_second_geometry<Coordsys>(bg1, g2);
-      }
-      break;
-    case Geometry::wkb_linestring:
-      {
-        typename BG_models<Coordsys>::Linestring
-          bg1(g1->get_data_ptr(), g1->get_data_size(),
-              g1->get_flags(), g1->get_srid());
-        res= distance_dispatch_second_geometry<Coordsys>(bg1, g2);
-      }
-      break;
-    case Geometry::wkb_multilinestring:
-      {
-        typename BG_models<Coordsys>::Multilinestring
-          bg1(g1->get_data_ptr(), g1->get_data_size(),
-              g1->get_flags(), g1->get_srid());
-        res= distance_dispatch_second_geometry<Coordsys>(bg1, g2);
-      }
-      break;
-    case Geometry::wkb_polygon:
-      {
-        typename BG_models<Coordsys>::Polygon
-          bg1(g1->get_data_ptr(), g1->get_data_size(),
-              g1->get_flags(), g1->get_srid());
-        res= distance_dispatch_second_geometry<Coordsys>(bg1, g2);
-      }
-      break;
-    case Geometry::wkb_multipolygon:
-      {
-        typename BG_models<Coordsys>::Multipolygon
-          bg1(g1->get_data_ptr(), g1->get_data_size(),
-              g1->get_flags(), g1->get_srid());
-        res= distance_dispatch_second_geometry<Coordsys>(bg1, g2);
-      }
-      break;
-    default:
-      DBUG_ASSERT(false);
-      break;
-    }
-  }
-  catch (...)
-  {
-    had_except= true;
-    handle_gis_exception("st_distance");
-  }
-
-  if (had_except)
-    return error_real();
-
-  return res;
-}
-
-

@@ -1,5 +1,3 @@
---source include/have_innodb.inc
---source include/have_innodb_4k.inc
 
 let $MYSQLD_DATADIR =`SELECT @@datadir`;
 

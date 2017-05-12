@@ -1,0 +1,36 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Start one member with GCS SSL enabled.
+[connection server1]
+SET @group_replication_ssl_mode_save= @@GLOBAL.group_replication_ssl_mode;
+SET GLOBAL group_replication_ssl_mode= VERIFY_IDENTITY;
+include/start_and_bootstrap_group_replication.inc
+Occurrences of 'Group communication SSL configuration: group_replication_ssl_mode: "VERIFY_IDENTITY"' in the input file: 1
+
+############################################################
+# 2. Start the second member with GCS SSL enabled and
+#    validating server certificate against the CA plus
+#    validating that server hostname matches server
+#    certificate hostname, the member will not be able to
+#    join the group, since the certificate does contain the
+#    hostname 'localhost' and the hostname is '127.0.0.1'.
+[connection server2]
+SET @group_replication_ssl_mode_save= @@GLOBAL.group_replication_ssl_mode;
+SET GLOBAL group_replication_ssl_mode= VERIFY_IDENTITY;
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+Occurrences of 'Group communication SSL configuration: group_replication_ssl_mode: "VERIFY_IDENTITY"' in the input file: 1
+Pattern found.
+
+############################################################
+# 3. Clean up.
+[connection server1]
+SET GLOBAL group_replication_ssl_mode= @group_replication_ssl_mode_save;
+[connection server2]
+SET GLOBAL group_replication_ssl_mode= @group_replication_ssl_mode_save;
+include/group_replication_end.inc

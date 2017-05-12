@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,13 +16,14 @@
 #ifndef DD_TABLES__PARAMETER_TYPE_ELEMENTS_INCLUDED
 #define DD_TABLES__PARAMETER_TYPE_ELEMENTS_INCLUDED
 
-#include "my_global.h"
+#include <string>
 
-#include "dd/object_id.h"                    // dd::Object_id
 #include "dd/impl/types/object_table_impl.h" // dd::Object_table_impl
+#include "dd/object_id.h"                    // dd::Object_id
 
 namespace dd {
   class Object_key;
+
 namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
@@ -32,9 +33,9 @@ class Parameter_type_elements : public Object_table_impl
 public:
   static const Parameter_type_elements &instance();
 
-  static const std::string &table_name()
+  static const String_type &table_name()
   {
-    static std::string s_table_name("parameter_type_elements");
+    static String_type s_table_name("parameter_type_elements");
     return s_table_name;
   }
 
@@ -49,7 +50,7 @@ public:
 public:
   Parameter_type_elements();
 
-  virtual const std::string &name() const
+  virtual const String_type &name() const
   { return Parameter_type_elements::table_name(); }
 
 public:

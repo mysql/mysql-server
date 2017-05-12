@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,10 +23,12 @@
 
 #define MY_BIT_NONE (~(uint) 0)
 
-#include "my_global.h"
-#include "mysql/psi/mysql_mutex.h"   /* mysql_mutex_t */
-
 #include <string.h>
+#include <sys/types.h>
+
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "mysql/psi/mysql_mutex.h"   /* mysql_mutex_t */
 
 typedef uint32 my_bitmap_map;
 
@@ -48,17 +50,17 @@ typedef struct st_bitmap
 extern "C" {
 #endif
 extern void create_last_word_mask(MY_BITMAP *map);
-extern my_bool bitmap_init(MY_BITMAP *map, my_bitmap_map *buf, uint n_bits,
-                           my_bool thread_safe);
-extern my_bool bitmap_is_clear_all(const MY_BITMAP *map);
-extern my_bool bitmap_is_prefix(const MY_BITMAP *map, uint prefix_size);
-extern my_bool bitmap_is_set_all(const MY_BITMAP *map);
-extern my_bool bitmap_is_subset(const MY_BITMAP *map1, const MY_BITMAP *map2);
-extern my_bool bitmap_is_overlapping(const MY_BITMAP *map1,
-                                     const MY_BITMAP *map2);
-extern my_bool bitmap_test_and_set(MY_BITMAP *map, uint bitmap_bit);
-extern my_bool bitmap_test_and_clear(MY_BITMAP *map, uint bitmap_bit);
-extern my_bool bitmap_fast_test_and_set(MY_BITMAP *map, uint bitmap_bit);
+extern bool bitmap_init(MY_BITMAP *map, my_bitmap_map *buf, uint n_bits,
+                        bool thread_safe);
+extern bool bitmap_is_clear_all(const MY_BITMAP *map);
+extern bool bitmap_is_prefix(const MY_BITMAP *map, uint prefix_size);
+extern bool bitmap_is_set_all(const MY_BITMAP *map);
+extern bool bitmap_is_subset(const MY_BITMAP *map1, const MY_BITMAP *map2);
+extern bool bitmap_is_overlapping(const MY_BITMAP *map1,
+                                  const MY_BITMAP *map2);
+extern bool bitmap_test_and_set(MY_BITMAP *map, uint bitmap_bit);
+extern bool bitmap_test_and_clear(MY_BITMAP *map, uint bitmap_bit);
+extern bool bitmap_fast_test_and_set(MY_BITMAP *map, uint bitmap_bit);
 extern uint bitmap_set_next(MY_BITMAP *map);
 extern uint bitmap_get_first(const MY_BITMAP *map);
 extern uint bitmap_get_first_set(const MY_BITMAP *map);
@@ -102,7 +104,7 @@ static inline void bitmap_clear_bit(MY_BITMAP *map, uint bit)
 }
 
 
-static inline my_bool bitmap_is_set(const MY_BITMAP *map, uint bit)
+static inline bool bitmap_is_set(const MY_BITMAP *map, uint bit)
 {
   DBUG_ASSERT(bit < map->n_bits);
   return ((uchar*)map->bitmap)[bit / 8] & (1 << (bit & 7));
@@ -116,7 +118,7 @@ static inline my_bool bitmap_is_set(const MY_BITMAP *map, uint bit)
    @retval true The bitmaps are equal.
    @retval false The bitmaps differ.
  */
-static inline my_bool bitmap_cmp(const MY_BITMAP *map1, const MY_BITMAP *map2)
+static inline bool bitmap_cmp(const MY_BITMAP *map1, const MY_BITMAP *map2)
 {
   DBUG_ASSERT(map1->n_bits > 0);
   DBUG_ASSERT(map2->n_bits > 0);

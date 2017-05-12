@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -22,7 +22,6 @@
 
 #include <string>
 #include <vector>
-#include <boost/scoped_ptr.hpp>
 #include "ngs/client_session.h"
 
 #include "sql_data_context.h"
@@ -65,25 +64,31 @@ public:
   virtual ~Session();
 
 public: // impl ngs::Session_interface
-  ngs::Error_code init();
-  virtual void on_auth_success(const ngs::Authentication_handler::Response &response);
-  virtual void on_auth_failure(const ngs::Authentication_handler::Response &response);
+  ngs::Error_code init() override;
+  virtual void on_auth_success(const ngs::Authentication_interface::Response &response) override;
+  virtual void on_auth_failure(const ngs::Authentication_interface::Response &response) override;
 
-  virtual void mark_as_tls_session();
-  virtual bool is_handled_by(const void *handler) const;
+  virtual void mark_as_tls_session() override;
+  virtual bool is_handled_by(const void *handler) const override;
+  ngs::Sql_session_interface &data_context() override { return m_sql; }
 
 public:
-  virtual Sql_data_context &data_context() { return m_sql; }
   Session_options &options() { return m_options; }
   Session_status_variables &get_status_variables() { return m_status_variables; }
 
-  bool can_see_user(const char *user) const;
+  bool can_see_user(const std::string &user) const;
 
-  template<void (Common_status_variables::*method)()> void update_status();
+  template<Common_status_variables::Variable Common_status_variables::*variable>
+  void update_status();
+  template<Common_status_variables::Variable Common_status_variables::*variable>
+  void update_status(long param);
+
+  void update_status(Common_status_variables::Variable
+                     Common_status_variables::*variable);
 
 private: // reimpl ngs::Session
-  virtual void on_kill();
-  virtual bool handle_ready_message(ngs::Request &command);
+  virtual void on_kill() override;
+  virtual bool handle_ready_message(ngs::Request &command) override;
 
 private:
   Sql_data_context m_sql;
@@ -97,6 +102,20 @@ private:
 };
 
 
+template<Common_status_variables::Variable Common_status_variables::*variable>
+void Session::update_status()
+{
+  ++(m_status_variables.*variable);
+  ++(Global_status_variables::instance().*variable);
+}
+
+
+template<Common_status_variables::Variable Common_status_variables::*variable>
+void Session::update_status(long param)
+{
+  (m_status_variables.*variable) += param;
+  (Global_status_variables::instance().*variable) += param;
+}
 } // namespace xpl
 
 #endif  // _XPL_SESSION_H_

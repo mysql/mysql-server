@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,9 +16,24 @@
 #ifndef TABLE_CACHE_INCLUDED
 #define TABLE_CACHE_INCLUDED
 
-#include "my_global.h"
-#include "sql_class.h"
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "handler.h"
+#include "hash.h"
+#include "lex_string.h"
+#include "my_base.h"
+#include "my_dbug.h"
+#include "my_psi_config.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_mutex.h"
 #include "sql_base.h"
+#include "sql_class.h"
+#include "sql_plist.h"
+#include "sql_plugin_ref.h"
+#include "system_variables.h"
+#include "table.h"
 
 extern ulong table_cache_size_per_instance, table_cache_instances;
 

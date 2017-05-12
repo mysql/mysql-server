@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,12 +16,12 @@
 #ifndef DD__ENTITY_OBJECT_INCLUDED
 #define DD__ENTITY_OBJECT_INCLUDED
 
-#include "my_global.h"
 
 #include "dd/object_id.h"             // dd::Object_id
+#include "dd/string_type.h"           // dd::String_type
 #include "dd/types/weak_object.h"     // dd::Weak_object
 
-#include <string>
+
 
 namespace dd {
 
@@ -88,8 +88,8 @@ public:
   /// Is dictionary object persistent in dictionary tables ?
   virtual bool is_persistent() const = 0;
 
-  virtual const std::string &name() const = 0;
-  virtual void set_name(const std::string &name) = 0;
+  virtual const String_type &name() const = 0;
+  virtual void set_name(const String_type &name) = 0;
 };
 
 ///////////////////////////////////////////////////////////////////////////

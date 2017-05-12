@@ -6,7 +6,6 @@
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
 
-
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 
 #
@@ -70,7 +69,7 @@ while ($1)
   let $2=10;
   while ($2)
   {
-    eval DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(Point($1 * 10 - 9, $2 * 10 - 9), Point($1 * 10, $2 * 10))));
+    eval DELETE FROM t2 WHERE ST_Within(g, ST_Envelope(ST_GeometryFromWKB(ST_AsWKB(Point($1 * 10 - 9, $2 * 10 - 9)), ST_AsWKB(Point($1 * 10, $2 * 10)))));
     SELECT count(*) FROM t2;
     dec $2;
   }

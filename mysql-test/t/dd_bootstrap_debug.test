@@ -52,19 +52,15 @@ perl;
   use strict;
   my $log= $ENV{'MYSQLD_LOG'} or die;
   open(FILE, "$log") or die;
-  my $c_w= grep(/.Warning. Data Dictionary version/gi,<FILE>);
-  print "#     Dictionary version warning found $c_w times.\n";
+  my $c_w= grep(/.ERROR. Data Dictionary initialization failed./gi,<FILE>);
+  print "#     Data Dictionary initialization error found $c_w times.\n";
   close(FILE);
 EOF
 
 --echo # 1.5 Delete bootstrap file, log file and datadir.
 remove_file $BOOTSTRAP_SQL;
 remove_file $MYSQLD_LOG;
---perl
-  use File::Path 'rmtree';
-  $DDIR=$ENV{"DDIR"};
-  rmtree([ "$DDIR" ]);
-EOF
+--force-rmdir $DDIR
 
 --echo #
 --echo # 2. Try restart after dropping the version table.
@@ -78,25 +74,14 @@ write_file $BOOTSTRAP_SQL;
   SET SESSION debug= '-d,skip_dd_table_access_check';
 EOF
 
---echo # 2.2 First start the server with --initialize, and drop the version table: Should fail.
---error 1
+--echo # 2.2 First start the server with --initialize, and drop the version table. Succeeds.
 --exec $MYSQLD $extra_args --initialize-insecure --datadir=$DDIR --init-file=$BOOTSTRAP_SQL
 
---echo # 2.3 Look for error.
-perl;
-  use strict;
-  my $log= $ENV{'MYSQLD_LOG'} or die;
-  open(FILE, "$log") or die;
-  my $c_e= grep(/.ERROR. ....  Unknown table 'mysql.version'/gi,<FILE>);
-  print "#     Drop table error found $c_e times.\n";
-  close(FILE);
-EOF
-
---echo # 2.4 Restart the server against DDIR - should fail.
+--echo # 2.3 Restart the server against DDIR - should fail.
 --error 1
 --exec $MYSQLD $extra_args --datadir=$DDIR
 
---echo # 2.5 Look for error.
+--echo # 2.4 Look for error.
 perl;
   use strict;
   my $log= $ENV{'MYSQLD_LOG'} or die;
@@ -106,14 +91,10 @@ perl;
   close(FILE);
 EOF
 
---echo # 2.6 Delete bootstrap file, log file and datadir.
+--echo # 2.5 Delete bootstrap file, log file and datadir.
 remove_file $BOOTSTRAP_SQL;
 remove_file $MYSQLD_LOG;
---perl
-  use File::Path 'rmtree';
-  $DDIR=$ENV{"DDIR"};
-  rmtree([ "$DDIR" ]);
-EOF
+--force-rmdir $DDIR
 
 --echo #
 --echo # 3. Try restart after dropping the tables table.
@@ -132,21 +113,11 @@ EOF
 --error 1
 --exec $MYSQLD $extra_args --initialize-insecure --datadir=$DDIR --init-file=$BOOTSTRAP_SQL
 
---echo # 3.3 Look for error.
-perl;
-  use strict;
-  my $log= $ENV{'MYSQLD_LOG'} or die;
-  open(FILE, "$log") or die;
-  my $c_e= grep(/.ERROR. ....  Unknown table 'mysql.tables'/gi,<FILE>);
-  print "#     Drop table error found $c_e times.\n";
-  close(FILE);
-EOF
-
---echo # 3.4 Restart the server against DDIR - should fail.
+--echo # 3.3 Restart the server against DDIR - should fail.
 --error 1
 --exec $MYSQLD $extra_args --datadir=$DDIR
 
---echo # 3.5 Look for error.
+--echo # 3.4 Look for error.
 perl;
   use strict;
   my $log= $ENV{'MYSQLD_LOG'} or die;
@@ -156,14 +127,10 @@ perl;
   close(FILE);
 EOF
 
---echo # 3.6 Delete bootstrap file, log file and datadir.
+--echo # 3.5 Delete bootstrap file, log file and datadir.
 remove_file $BOOTSTRAP_SQL;
 remove_file $MYSQLD_LOG;
---perl
-  use File::Path 'rmtree';
-  $DDIR=$ENV{"DDIR"};
-  rmtree([ "$DDIR" ]);
-EOF
+--force-rmdir $DDIR
 
 --echo #
 --echo # 4. Try restart after altering the schemata table.
@@ -208,11 +175,7 @@ disconnect root_con;
 --echo # 4.8 Delete bootstrap file, log file and datadir.
 remove_file $BOOTSTRAP_SQL;
 remove_file $MYSQLD_LOG;
---perl
-  use File::Path 'rmtree';
-  $DDIR=$ENV{"DDIR"};
-  rmtree([ "$DDIR" ]);
-EOF
+--force-rmdir $DDIR
 
 --echo #
 --echo # Cleanup: Restarting the server against default datadir.

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -16,6 +16,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
+#include "my_compiler.h"
+
 /**************************************************//**
 @file include/row0purge.h
 Purge obsolete records
@@ -26,14 +28,14 @@ Created 3/14/1997 Heikki Tuuri
 #ifndef row0purge_h
 #define row0purge_h
 
-#include "univ.i"
-#include "data0data.h"
-#include "btr0types.h"
 #include "btr0pcur.h"
+#include "btr0types.h"
+#include "data0data.h"
 #include "dict0types.h"
-#include "trx0types.h"
 #include "que0types.h"
 #include "row0types.h"
+#include "trx0types.h"
+#include "univ.i"
 #include "ut0vec.h"
 
 /** Create a purge node to a query graph.

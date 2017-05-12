@@ -106,9 +106,9 @@ t1	CREATE TABLE `t1` (
   `b` int(11) DEFAULT NULL,
   `c` int(11) DEFAULT NULL,
   KEY `a` (`a`),
-  KEY `b` (`b`) /*!50800 INVISIBLE */,
+  KEY `b` (`b`) /*!80000 INVISIBLE */,
   KEY `c` (`c`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 # Test that primary key indexes can't be made invisible.
 CREATE TABLE t1 ( a INT, PRIMARY KEY (a) INVISIBLE );
@@ -216,18 +216,16 @@ t1	1	b	1	b	A	3	NULL	NULL	YES	BTREE			YES
 ALTER TABLE t1 ADD INDEX ab(a, b), ALTER INDEX ab INVISIBLE;
 ERROR 42000: Key 'ab' doesn't exist in table 't1'
 DROP TABLE t1;
+#
 # Test that constraints implemented by the indexes are still enforced
-# While the index is invisible.
+# while the index is invisible.
+#
 CREATE TABLE t1 ( a INT, UNIQUE KEY (a) INVISIBLE );
 CREATE TABLE t2 ( a INT UNIQUE );
 CREATE TABLE t3 ( a INT NOT NULL, KEY (a) INVISIBLE, b INT PRIMARY KEY );
 CREATE TABLE t4 ( a INT NOT NULL, UNIQUE KEY (a) INVISIBLE,
 b INT PRIMARY KEY AUTO_INCREMENT );
 CREATE TABLE t5 ( a INT, b INT, c INT, UNIQUE KEY (a, b, c) INVISIBLE );
-CREATE TABLE t6p ( a INT KEY );
-CREATE TABLE t6c ( t6p_a INT );
-ALTER TABLE t6c ADD CONSTRAINT FOREIGN KEY (t6p_a) REFERENCES t6p(a);
-ALTER TABLE t6c ALTER INDEX t6p_a INVISIBLE;
 INSERT INTO t1 VALUES (1);
 INSERT INTO t1 VALUES (1);
 ERROR 23000: Duplicate entry '1' for key 'a'
@@ -245,10 +243,7 @@ ERROR 23000: Duplicate entry '1' for key 'a'
 INSERT INTO t5 VALUES (1, 2, 3);
 INSERT INTO t5 VALUES (1, 2, 3);
 ERROR 23000: Duplicate entry '1-2-3' for key 'a'
-INSERT INTO t6c VALUES (1);
-SELECT * FROM t6c;
-t6p_a
-DROP TABLE t1, t2, t3, t4, t5, t6c, t6p;
+DROP TABLE t1, t2, t3, t4, t5;
 #
 # Bug#23256900: WL#8697: ASSERTION
 # `TABLE_SHARE->IS_MISSING_PRIMARY_KEY() ...` FAILED.
@@ -304,7 +299,7 @@ DROP TABLE t1, t2;
 CREATE TEMPORARY TABLE t1 ( a INT, KEY (a) INVISIBLE );
 SHOW INDEXES FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	1	a	1	a	A	0	NULL	NULL	YES	BTREE	disabled		NO
+t1	1	a	1	a	A	0	NULL	NULL	YES	BTREE			NO
 EXPLAIN SELECT a FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
@@ -347,7 +342,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`fid` AS `fid`,`test`.`t1`.`g` AS `g` from `test`.`t1` where st_within(`test`.`t1`.`g`,<cache>(st_geomfromtext('Polygon((140 140,160 140,160 160,140 140))')))
 DROP TABLE t1;
 #
-# Invisible fulltext indexes.
+# Test of invisible fulltext indexes.
 #
 CREATE TABLE t1 (a VARCHAR(200), b TEXT, FULLTEXT (a,b));
 INSERT INTO t1 VALUES('Some data', 'for full-text search');
@@ -359,12 +354,23 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	fulltext	a	a	0	const	1	100.00	Using where; Ft_hints: sorted
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (match `test`.`t1`.`a`,`test`.`t1`.`b` against ('collections'))
+EXPLAIN SELECT * FROM t1 WHERE MATCH(a, b) AGAINST ("collections" IN BOOLEAN MODE);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	fulltext	a	a	0	const	1	100.00	Using where; Ft_hints: no_ranking
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (match `test`.`t1`.`a`,`test`.`t1`.`b` against ('collections' in boolean mode))
 ALTER TABLE t1 ALTER INDEX a INVISIBLE;
 SHOW INDEXES FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	1	a	1	a	NULL	1	NULL	NULL	YES	FULLTEXT			NO
-t1	1	a	2	b	NULL	1	1	NULL	YES	FULLTEXT			NO
+t1	1	a	2	b	NULL	1	0	NULL	YES	FULLTEXT			NO
 EXPLAIN SELECT * FROM t1 WHERE MATCH(a, b) AGAINST ("collections");
+ERROR HY000: Can't find FULLTEXT index matching the column list
+EXPLAIN SELECT * FROM t1 WHERE MATCH(a, b) AGAINST ("collections" IN BOOLEAN MODE);
+ERROR HY000: Can't find FULLTEXT index matching the column list
+SELECT * FROM t1 WHERE MATCH(a, b) AGAINST ("collections");
+ERROR HY000: Can't find FULLTEXT index matching the column list
+SELECT * FROM t1 WHERE MATCH(a, b) AGAINST ("collections" IN BOOLEAN MODE);
 ERROR HY000: Can't find FULLTEXT index matching the column list
 DROP TABLE t1;
 #
@@ -390,6 +396,39 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
 DROP TABLE t1;
+#
+# Bug#24660093: REMOVING AN INVISIBLE INDEX BREAKS EXPLAIN
+#
+CREATE TABLE t1 ( a INT, KEY(a) INVISIBLE );
+SELECT * FROM t1 FORCE INDEX(a);
+ERROR 42000: Key 'a' doesn't exist in table 't1'
+SELECT * FROM t1 FORCE INDEX FOR JOIN (a);
+ERROR 42000: Key 'a' doesn't exist in table 't1'
+SELECT * FROM t1 FORCE INDEX FOR ORDER BY (a);
+ERROR 42000: Key 'a' doesn't exist in table 't1'
+SELECT * FROM t1 FORCE INDEX FOR GROUP BY (a);
+ERROR 42000: Key 'a' doesn't exist in table 't1'
+SELECT * FROM t1 USE INDEX(a);
+ERROR 42000: Key 'a' doesn't exist in table 't1'
+SELECT * FROM t1 USE INDEX FOR JOIN (a);
+ERROR 42000: Key 'a' doesn't exist in table 't1'
+SELECT * FROM t1 USE INDEX FOR ORDER BY (a);
+ERROR 42000: Key 'a' doesn't exist in table 't1'
+SELECT * FROM t1 USE INDEX FOR GROUP BY (a);
+ERROR 42000: Key 'a' doesn't exist in table 't1'
+SELECT * FROM t1 IGNORE INDEX(a);
+ERROR 42000: Key 'a' doesn't exist in table 't1'
+SELECT * FROM t1 IGNORE INDEX FOR JOIN (a);
+ERROR 42000: Key 'a' doesn't exist in table 't1'
+SELECT * FROM t1 IGNORE INDEX FOR ORDER BY (a);
+ERROR 42000: Key 'a' doesn't exist in table 't1'
+SELECT * FROM t1 IGNORE INDEX FOR GROUP BY (a);
+ERROR 42000: Key 'a' doesn't exist in table 't1'
+DROP TABLE t1;
+#
+# Tests that don't work on MyISAM ( native partitioning, indexes on
+# generated columns, etc.)
+#
 #
 # Partitioning on keys with an invisible index, invisible indexes over
 # partitioned tables.
@@ -428,23 +467,23 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
 EXPLAIN SELECT b FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12,p13,p14,p15,p16,p17,p18,p19	index	NULL	b	2	NULL	14	100.00	Using index
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12,p13,p14,p15,p16,p17,p18,p19	index	NULL	b	8	NULL	14	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`b` AS `b` from `test`.`t1`
 EXPLAIN SELECT * FROM t1 WHERE a = '04';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p9	ALL	NULL	NULL	NULL	NULL	8	33.33	Using where
+1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t1`.`e` AS `e` from `test`.`t1` where (`test`.`t1`.`a` = '04')
 ALTER TABLE t1 ALTER INDEX a VISIBLE;
 EXPLAIN SELECT a FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12,p13,p14,p15,p16,p17,p18,p19	index	NULL	a	2	NULL	14	100.00	Using index
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12,p13,p14,p15,p16,p17,p18,p19	index	NULL	a	8	NULL	14	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
 EXPLAIN SELECT * FROM t1 WHERE a = '04';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p9	ref	a	a	2	const	2	100.00	NULL
+1	SIMPLE	t1	p0	ref	a	a	8	const	2	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t1`.`e` AS `e` from `test`.`t1` where (`test`.`t1`.`a` = '04')
 ALTER TABLE t1 ALTER INDEX b INVISIBLE;
@@ -464,3 +503,16 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
 DROP TABLE t1;
+#
+# Test that referential constraints implemented by the indexes are still
+# enforced while the index is invisible.
+#
+CREATE TABLE t1p ( a INT KEY );
+CREATE TABLE t1c ( t1p_a INT );
+ALTER TABLE t1c ADD CONSTRAINT FOREIGN KEY ( t1p_a ) REFERENCES t1p( a );
+ALTER TABLE t1c ALTER INDEX t1p_a INVISIBLE;
+INSERT INTO t1c VALUES ( 1 );
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t1c`, CONSTRAINT `t1c_ibfk_1` FOREIGN KEY (`t1p_a`) REFERENCES `t1p` (`a`))
+SELECT * FROM t1c;
+t1p_a
+DROP TABLE t1c, t1p;

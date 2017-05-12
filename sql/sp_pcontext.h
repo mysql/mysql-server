@@ -1,5 +1,5 @@
 /* -*- C++ -*- */
-/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,10 +17,24 @@
 #ifndef _SP_PCONTEXT_H_
 #define _SP_PCONTEXT_H_
 
-#include "my_global.h"
-#include "mysql/mysql_lex_string.h"             // LEX_STRING
+#include <string.h>
+#include <sys/types.h>
+
+#include "binary_log_types.h"
 #include "field.h"                              // Create_field
+#include "lex_string.h"
 #include "mem_root_array.h"                     // Mem_root_array
+#include "my_dbug.h"
+#include "mysql_com.h"
+#include "sql_alloc.h"
+#include "sql_error.h"
+#include "sql_list.h"
+#include "sql_plugin_ref.h"
+
+class Item;
+class String;
+class THD;
+class sp_pcontext;
 
 
 /// This class represents a stored program variable or a parameter
@@ -562,25 +576,25 @@ private:
   int m_num_case_exprs;
 
   /// SP parameters/variables.
-  Mem_root_array<sp_variable *, true> m_vars;
+  Mem_root_array<sp_variable *> m_vars;
 
   /// Stack of CASE expression ids.
-  Mem_root_array<int, true> m_case_expr_ids;
+  Mem_root_array<int> m_case_expr_ids;
 
   /// Stack of SQL-conditions.
-  Mem_root_array<sp_condition *, true> m_conditions;
+  Mem_root_array<sp_condition *> m_conditions;
 
   /// Stack of cursors.
-  Mem_root_array<LEX_STRING, true> m_cursors;
+  Mem_root_array<LEX_STRING> m_cursors;
 
   /// Stack of SQL-handlers.
-  Mem_root_array<sp_handler *, true> m_handlers;
+  Mem_root_array<sp_handler *> m_handlers;
 
   /// List of labels.
   List<sp_label> m_labels;
 
   /// Children contexts, used for destruction.
-  Mem_root_array<sp_pcontext *, true> m_children;
+  Mem_root_array<sp_pcontext *> m_children;
 
   /// Scope of this parsing context.
   enum_scope m_scope;

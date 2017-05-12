@@ -26,7 +26,6 @@ if (!$require_case_insensitive_file_system)
   --source include/have_case_sensitive_file_system.inc
 }
 
---source include/have_innodb.inc
 let $engine_type       = InnoDB;
 let $other_engine_type = InnoDB;
 
@@ -84,9 +83,11 @@ eval SHOW COLUMNS FROM information_schema.$is_table;
 #       information_schema.statistics is in is_columns_is.test.
 
 # Show that TABLE_CATALOG is always NULL.
+--sorted_result
 SELECT table_catalog, table_schema, table_name, index_schema, index_name
 FROM information_schema.statistics WHERE table_catalog IS NOT NULL AND
-     table_name != 'ndb_binlog_index';
+     table_name != 'ndb_binlog_index'
+ORDER BY table_schema, table_name, index_schema, index_name;
 
 
 --echo ####################################################################################

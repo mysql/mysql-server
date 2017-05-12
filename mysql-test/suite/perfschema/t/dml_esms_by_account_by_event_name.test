@@ -1,8 +1,5 @@
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 --disable_result_log 
 select * from performance_schema.events_statements_summary_by_account_by_event_name
   where event_name like 'statement/%' limit 1;

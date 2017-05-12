@@ -24,12 +24,11 @@
   attached to WL#7909.
  */
 
-#include "my_global.h"
-#include "prealloced_array.h"                   // Prealloced_array
-
+#include <stddef.h>
 #include <string>
 
-class Json_string;
+#include "prealloced_array.h"                   // Prealloced_array
+
 class String;
 
 enum enum_json_path_leg_type
@@ -146,7 +145,7 @@ public:
 class Json_path : public Json_seekable_path
 {
 private:
-  typedef Prealloced_array<Json_path_leg, 8, false> Path_leg_vector;
+  typedef Prealloced_array<Json_path_leg, 8> Path_leg_vector;
   Path_leg_vector m_path_legs;
 
   /**
@@ -298,7 +297,7 @@ public:
 class Json_path_clone : public Json_seekable_path
 {
 private:
-  typedef Prealloced_array<const Json_path_leg *, 8, false> Path_leg_pointers;
+  using Path_leg_pointers= Prealloced_array<const Json_path_leg *, 8>;
   Path_leg_pointers m_path_legs;
 
 public:

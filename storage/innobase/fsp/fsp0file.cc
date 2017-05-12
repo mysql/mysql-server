@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -83,7 +83,7 @@ Datafile::open_or_create(bool read_only_mode)
 {
 	bool success;
 	ut_a(m_filepath != NULL);
-	ut_ad(m_handle == OS_FILE_CLOSED);
+	ut_ad(m_handle.m_file == OS_FILE_CLOSED);
 
 	m_handle = os_file_create(
 		innodb_data_file_key, m_filepath, m_open_flags,
@@ -106,7 +106,7 @@ dberr_t
 Datafile::open_read_only(bool strict)
 {
 	bool	success = false;
-	ut_ad(m_handle == OS_FILE_CLOSED);
+	ut_ad(m_handle.m_file == OS_FILE_CLOSED);
 
 	/* This function can be called for file objects that do not need
 	to be opened, which is the case when the m_filepath is NULL */
@@ -143,7 +143,7 @@ dberr_t
 Datafile::open_read_write(bool read_only_mode)
 {
 	bool	success = false;
-	ut_ad(m_handle == OS_FILE_CLOSED);
+	ut_ad(m_handle.m_file == OS_FILE_CLOSED);
 
 	/* This function can be called for file objects that do not need
 	to be opened, which is the case when the m_filepath is NULL */
@@ -175,9 +175,9 @@ void
 Datafile::init_file_info()
 {
 #ifdef _WIN32
-	GetFileInformationByHandle(m_handle, &m_file_info);
+	GetFileInformationByHandle(m_handle.m_file, &m_file_info);
 #else
-	fstat(m_handle, &m_file_info);
+	fstat(m_handle.m_file, &m_file_info);
 #endif	/* WIN32 */
 }
 
@@ -186,11 +186,11 @@ Datafile::init_file_info()
 dberr_t
 Datafile::close()
 {
-	if (m_handle != OS_FILE_CLOSED) {
+	if (m_handle.m_file != OS_FILE_CLOSED) {
 		ibool	success = os_file_close(m_handle);
 		ut_a(success);
 
-		m_handle = OS_FILE_CLOSED;
+		m_handle.m_file = OS_FILE_CLOSED;
 	}
 
 	return(DB_SUCCESS);
@@ -308,7 +308,7 @@ datafile.  The Datafile must already be open.
 dberr_t
 Datafile::read_first_page(bool read_only_mode)
 {
-	if (m_handle == OS_FILE_CLOSED) {
+	if (m_handle.m_file == OS_FILE_CLOSED) {
 
 		dberr_t err = open_or_create(read_only_mode);
 
@@ -539,7 +539,7 @@ Datafile::validate_first_page(lsn_t*	flush_lsn,
 
 	/* Check if the whole page is blank. */
 	if (error_txt == NULL
-	    && m_space_id == srv_sys_space.space_id()
+	    && m_space_id == TRX_SYS_SPACE
 	    && !m_flags) {
 		const byte*	b		= m_first_page;
 		ulint		nonzero_bytes	= UNIV_PAGE_SIZE;
@@ -637,6 +637,11 @@ Datafile::validate_first_page(lsn_t*	flush_lsn,
 			m_encryption_key = NULL;
 			m_encryption_iv = NULL;
 			return(DB_CORRUPTION);
+		} else {
+			ib::info()
+				<< "Read encryption metadata from "
+				<< m_filepath << " successfully, encryption"
+				<< " of this tablespace enabled.";
 		}
 
 		if (recv_recovery_is_on()
@@ -688,7 +693,7 @@ Datafile::find_space_id()
 {
 	os_offset_t	file_size;
 
-	ut_ad(m_handle != OS_FILE_CLOSED);
+	ut_ad(m_handle.m_file != OS_FILE_CLOSED);
 
 	file_size = os_file_get_size(m_handle);
 

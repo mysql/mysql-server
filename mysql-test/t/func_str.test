@@ -390,7 +390,7 @@ select collation(insert(_latin2'abcd',2,3,_latin2'ef')), coercibility(insert(_la
 select collation(replace(_latin2'abcd',_latin2'b',_latin2'B')), coercibility(replace(_latin2'abcd',_latin2'b',_latin2'B'));
 select collation(encode('abcd','ab')), coercibility(encode('abcd','ab'));
 
-create table t1 
+create table t1 charset latin1
 select
   bin(130),
   oct(130),
@@ -465,7 +465,7 @@ select SUBSTR('abcdefg',1,-1) FROM DUAL;
 # Test that fix_fields doesn't follow to upper level (to comparison)
 # when an error on a lower level (in concat) has accured:
 #
-create table t7 (s1 char);
+create table t7 (s1 char) charset latin1;
 --error 1267
 select * from t7
 where concat(s1 collate latin1_general_ci,s1 collate latin1_swedish_ci) = 'AA';
@@ -615,7 +615,7 @@ SELECT CHAR_LENGTH(CHAR(NULL,121,83,81,'76')) as my_column;
 # Test case for bug #8669: null aes_decrypt result in order by query
 #
 
-CREATE TABLE t1 (id int PRIMARY KEY, str char(255) NOT NULL);
+CREATE TABLE t1 (id int PRIMARY KEY, str char(255) NOT NULL) charset latin1;
 CREATE TABLE t2 (id int NOT NULL UNIQUE);
 INSERT INTO t2 VALUES (1),(2);
 INSERT INTO t1 VALUES (1, aes_encrypt('foo', 'bar'));
@@ -741,7 +741,7 @@ drop table t1;
 #
 
 select load_file("lkjlkj");
-select ifnull(load_file("lkjlkj"),"it's null");
+select ifnull(load_file("lkjlkj"),"it is null");
 
 #
 # Bug#15351: Wrong collation used for comparison of md5() and sha()
@@ -846,19 +846,20 @@ select "18383815659218730760" + 0;
 # Bug #21698: substitution of a string field for a constant under a function 
 #
 
-CREATE TABLE t1 (code varchar(10));
+CREATE TABLE t1 (code varchar(10)) charset utf8mb4;
 INSERT INTO t1 VALUES ('a12'), ('A12'), ('a13');
 
 SELECT ASCII(code), code FROM t1 WHERE code='A12';
 SELECT ASCII(code), code FROM t1 WHERE code='A12' AND ASCII(code)=65;
 
-INSERT INTO t1 VALUES ('a12 '), ('A12  ');
+# a12<BEL> and A12<BEL><BEL>, respectively.
+INSERT INTO t1 VALUES (_utf16 0x0061003100320007), (_utf16 0x00410031003200070007);
 
 SELECT LENGTH(code), code FROM t1 WHERE code='A12';
 SELECT LENGTH(code), code FROM t1 WHERE code='A12' AND LENGTH(code)=5;
 
 ALTER TABLE t1 ADD INDEX (code);
-CREATE TABLE t2 (id varchar(10) PRIMARY KEY);
+CREATE TABLE t2 (id varchar(10) PRIMARY KEY) charset utf8mb4;
 INSERT INTO t2 VALUES ('a11'), ('a12'), ('a13'), ('a14');
 
 SELECT * FROM t1 INNER JOIN t2 ON t1.code=t2.id 
@@ -1381,7 +1382,7 @@ TRUNCATE TABLE t2;
 INSERT INTO t1 VALUES ('EDF', 3), ('BCD', 2), ('ABC', 1);
 INSERT INTO t2 VALUES ('EDF', 3), ('BCD', 2), ('ABC', 1);
 
-SELECT DECODE((SELECT ENCODE('secret', t1.a) FROM t1,t2 WHERE t1.a = t2.a GROUP BY t1.b LIMIT 1), t2.a)
+SELECT DECODE((SELECT ENCODE('secret', t1.a) FROM t1,t2 WHERE t1.a = t2.a GROUP BY t1.b ASC LIMIT 1), t2.a)
   FROM t2 WHERE t2.b = 1 GROUP BY t2.b;
 
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
@@ -1428,7 +1429,7 @@ SELECT REPEAT('1', DAY(FROM_UNIXTIME(-1)));
 SELECT RPAD('hi', DAY(FROM_UNIXTIME(-1)),'?');
 SELECT LPAD('hi', DAY(FROM_UNIXTIME(-1)),'?');
 
-CREATE TABLE t1
+CREATE TABLE t1 charset utf8mb4
 SELECT SUBSTRING('1', DAY(FROM_UNIXTIME(-1))) AS f1,
        LEFT('1', DAY(FROM_UNIXTIME(-1))) AS f2,
        RIGHT('1', DAY(FROM_UNIXTIME(-1))) AS f3,
@@ -1500,7 +1501,7 @@ SELECT format(123, 1, 'Non-existent-locale');
 --echo #
 SELECT FORMAT(123.33, 2, 'no_NO'), FORMAT(1123.33, 2, 'no_NO');
 SELECT FORMAT(12333e-2, 2, 'no_NO'), FORMAT(112333e-2, 2, 'no_NO');
-CREATE TABLE t1 AS SELECT format(123,2,'no_NO');
+CREATE TABLE t1 charset utf8mb4 AS SELECT format(123,2,'no_NO');
 SHOW CREATE TABLE t1;
 SELECT * FROM t1;
 DROP TABLE t1;
@@ -1585,10 +1586,10 @@ let $1=64;
 while($1)
 {
   dec $1;
-  eval CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',$1)) AS to_base64;
+  eval CREATE TABLE t1 charset utf8mb4 AS SELECT TO_BASE64(REPEAT('a',$1)) AS to_base64;
   SHOW CREATE TABLE t1;
   SELECT to_base64, LENGTH(to_base64) FROM t1;
-  CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+  CREATE TABLE t2 charset utf8mb4 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
   SHOW CREATE TABLE t2;
   SELECT from_base64, LENGTH(from_base64) FROM t2;
   DROP TABLE t2;
@@ -2050,3 +2051,31 @@ DROP PROCEDURE sub1;
 DROP VIEW view1;
 DROP VIEW view2;
 DROP TABLE dd_table;
+
+--echo #
+--echo # Bug#24911350 LOCATE('HE','HELLO',NULL) SHOULD RETURN NULL INSTEAD OF 0
+--echo #
+select locate('he','hello',null),locate('he',null,2),locate(null,'hello',2);
+select locate(null,'hello',null),locate('he',null,null);
+select left('hello',null),left(null,1),left(null,null);
+select right('hello',null),right(null,1),right(null,null);
+select mid('hello',1,null),mid('hello',null,1),mid(null,1,1);
+select substr('hello',null,2),substr('hello',2,null),substr(null,1,2);
+select substr(null,null,null),mid(null,null,null);
+select substring_index('the king of the the null','the',null);
+select substring_index('the king of the the null',null,3);
+select substring_index(null,'the',3);
+select substring_index(null,null,3);
+select substring_index(null,null,null);
+select insert(null,2,1,'hi'),insert('txs',null,1,'hi');
+select insert('txs',2,null,'hi'),insert('txs',2,1,null);
+select insert('txs',null,null,'hi'),insert(null,null,null,null);
+
+--echo #
+--echo # Bug #24930038 BITWISE SHIFT: ASSERTION FAILED: NULL_VALUE OR LOST CONNECTION TO SERVER ERROR
+--echo #
+SET @orig_sql_mode = @@SQL_MODE;
+SET SQL_MODE='';
+SELECT REPEAT(0x1111, 2100000) >> 1;
+SELECT (~(REPEAT(0xb822, 0x6fc221)));
+SET SQL_MODE=@orig_sql_mode;

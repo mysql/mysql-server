@@ -13,11 +13,19 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/impl/tables/table_stats.h"    // Table_stats
+#include <ostream>
 
+#include "dd/impl/raw/object_keys.h"
+#include "dd/impl/raw/raw_record.h"        // Raw_record
+#include "dd/impl/tables/table_stats.h"    // Table_stats
 #include "dd/impl/transaction_impl.h"      // Open_dictionary_tables_ctx
 #include "dd/impl/types/table_stat_impl.h" // Table_stat_impl
-#include "dd/impl/raw/raw_record.h"        // Raw_record
+#include "my_sys.h"
+#include "mysqld_error.h"
+
+namespace dd {
+class Object_key;
+}  // namespace dd
 
 
 using dd::tables::Table_stats;
@@ -106,9 +114,9 @@ bool Table_stat_impl::store_attributes(Raw_record *r)
 
 ///////////////////////////////////////////////////////////////////////////
 
-void Table_stat_impl::debug_print(std::string &outb) const
+void Table_stat_impl::debug_print(String_type &outb) const
 {
-  std::stringstream ss;
+  dd::Stringstream_type ss;
   ss
     << "TABLE STAT OBJECT: { "
     << "m_schema_name: " <<  m_schema_name << "; "

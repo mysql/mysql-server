@@ -1,7 +1,7 @@
 #ifndef HISTOGRAMS_SINGLETON_INCLUDED
 #define HISTOGRAMS_SINGLETON_INCLUDED
 
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -63,17 +63,21 @@
 */
 
 #include "histogram.h"        // Histogram, Histogram_comparator,
+#include "my_decimal.h"
+#include "sql_string.h"
+#include "thr_malloc.h"
                               // value_map_allocator, value_map_type
 
-#include <utility>            // std::pair
+#include <stddef.h>
 #include <map>                // std::map
 #include <string>             // std::string
+#include <utility>            // std::pair
 
-#include "my_alloc.h"         // MEM_ROOT
 #include "my_base.h"          // ha_rows
 
 class Json_array;
 class Json_object;
+template <class T> class Memroot_allocator;
 
 namespace histograms {
 
@@ -89,7 +93,7 @@ private:
 
   /// The buckets for this histogram [key, cumulative frequency].
   std::map<const T, double, Histogram_comparator,
-           Memroot_allocator<std::pair<T, double> > > m_buckets;
+           Memroot_allocator<std::pair<const T, double>>> m_buckets;
 public:
   /**
     Singleton constructor.

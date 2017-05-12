@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -13,15 +13,20 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 
-#include <map>
-#include <unordered_set>
-#include <string>
+#include "my_config.h"
+
 #include <mysql/components/service_implementation.h>
 #include <mysql/components/services/dynamic_loader.h>
 #include <mysql/components/services/dynamic_loader_scheme_file.h>
 #include <rwlock_scoped_lock.h>
 #include <scope_guard.h>
+#include <string.h>
+#include <map>
+#include <string>
+#include <unordered_set>
+
 #include "dynamic_loader_scheme_file.h"
+#include "my_psi_config.h"
 #include "server_component.h"
 
 #ifdef HAVE_DLFCN_H
@@ -227,7 +232,8 @@ static void init_dynamic_loader_scheme_file_psi_keys(void)
   const char *category= "components";
   int count;
 
-  count= array_elements(all_dynamic_loader_scheme_file_rwlocks);
+  count=
+    static_cast<int>(array_elements(all_dynamic_loader_scheme_file_rwlocks));
   mysql_rwlock_register(
     category, all_dynamic_loader_scheme_file_rwlocks, count);
 }

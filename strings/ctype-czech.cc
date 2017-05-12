@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -59,9 +59,12 @@
  * .configure. strxfrm_multiply_czech=4
  */
 
-#include <my_global.h>
-#include "m_string.h"
+#include <string.h>
+#include <sys/types.h>
+
 #include "m_ctype.h"
+#include "my_compiler.h"
+#include "my_inttypes.h"
 
 
 /*
@@ -229,7 +232,7 @@ extern "C" {
 static int my_strnncoll_czech(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 			      const uchar *s1, size_t len1, 
 			      const uchar *s2, size_t len2,
-                              my_bool s2_is_prefix)
+                              bool s2_is_prefix)
 {
   int v1, v2;
   const uchar *p1, * p2, * store1, * store2;
@@ -366,12 +369,12 @@ my_strnxfrm_czech(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 
 
 extern "C" {
-static my_bool my_like_range_czech(const CHARSET_INFO *cs,
-				   const char *ptr,size_t ptr_length,
-				   pbool escape, pbool w_one, pbool w_many,
-				   size_t res_length, char *min_str,
-				   char *max_str,
-				   size_t *min_length,size_t *max_length)
+static bool my_like_range_czech(const CHARSET_INFO *cs,
+                                const char *ptr,size_t ptr_length,
+                                char escape, char w_one, char w_many,
+                                size_t res_length, char *min_str,
+                                char *max_str,
+                                size_t *min_length,size_t *max_length)
 {
   uchar value;
   const char *end=ptr+ptr_length;
@@ -628,7 +631,7 @@ CHARSET_INFO my_charset_latin2_czech_ci =
     ' ',                /* pad char      */
     0,                  /* escape_with_backslash_is_dangerous */
     4,                  /* levels_for_compare */
-    4,                  /* levels_for_order   */
     &my_charset_8bit_handler,
-    &my_collation_latin2_czech_ci_handler
+    &my_collation_latin2_czech_ci_handler,
+    PAD_SPACE
 };

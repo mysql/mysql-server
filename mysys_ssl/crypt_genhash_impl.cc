@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,27 +20,35 @@
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
 
+#include <sys/types.h>
+
 #ifdef HAVE_OPENSSL
 
 #ifdef HAVE_YASSL
-#include <sha.hpp>
 #include <openssl/ssl.h>
+#include <sha.hpp>
 #else
-#include <openssl/sha.h>
 #include <openssl/rand.h>
+#include <openssl/sha.h>
 #endif
 
-#include "crypt_genhash_impl.h"
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
 
+#include "crypt_genhash_impl.h"
 #include "m_string.h"
 #include "mysql/service_my_snprintf.h"
 
-#include <stdint.h>
-#include <time.h>
-#include <string.h>
-
 #ifdef HAVE_ALLOCA_H
 #include <alloca.h>
+#endif
+
+#include <errno.h>
+
+#ifdef _WIN32
+#include <malloc.h>
 #endif
 
 #ifndef HAVE_YASSL
@@ -247,7 +255,7 @@ my_crypt_genhash(char *ctbuffer,
                    const char *plaintext,
                    size_t plaintext_len,
                    const char *switchsalt,
-                   const char **params)
+                   const char **)
 {
   int salt_len;
   size_t i;

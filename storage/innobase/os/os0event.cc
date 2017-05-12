@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -24,8 +24,12 @@ Created 2012-09-23 Sunny Bains
 *******************************************************/
 
 #include "os0event.h"
-#include "ut0mutex.h"
+
+#include <errno.h>
+#include <time.h>
+
 #include "ha_prototypes.h"
+#include "ut0mutex.h"
 #include "ut0new.h"
 
 #ifdef _WIN32

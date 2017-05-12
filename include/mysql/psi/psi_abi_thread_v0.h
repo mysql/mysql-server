@@ -21,5 +21,5 @@
 */
 #define MY_GLOBAL_INCLUDED
 #define MY_THREAD_INCLUDED
+#define MY_PSI_CONFIG_INCLUDED
 #include "mysql/psi/psi_thread.h"
-

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,14 +23,18 @@ Insert buffer
 Created 7/19/1997 Heikki Tuuri
 *******************************************************/
 
-#include "ha_prototypes.h"
+#include <sys/types.h>
 
-#include "ibuf0ibuf.h"
-#include "sync0sync.h"
 #include "btr0sea.h"
+#include "ha_prototypes.h"
+#include "ibuf0ibuf.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "sync0sync.h"
 
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
-my_bool	srv_ibuf_disable_background_merge;
+bool	srv_ibuf_disable_background_merge;
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 
 /** Number of bits describing a single page */
@@ -43,24 +47,24 @@ my_bool	srv_ibuf_disable_background_merge;
 
 #ifndef UNIV_HOTBACKUP
 
-#include "buf0buf.h"
-#include "buf0rea.h"
-#include "fsp0fsp.h"
-#include "trx0sys.h"
-#include "fil0fil.h"
-#include "rem0rec.h"
+#include "btr0btr.h"
 #include "btr0cur.h"
 #include "btr0pcur.h"
-#include "btr0btr.h"
-#include "row0upd.h"
+#include "buf0buf.h"
+#include "buf0rea.h"
 #include "dict0boot.h"
+#include "fil0fil.h"
+#include "fsp0fsp.h"
+#include "fsp0sysspace.h"
 #include "fut0lst.h"
 #include "lock0lock.h"
 #include "log0recv.h"
 #include "que0que.h"
-#include "srv0start.h" /* srv_shutdown_state */
-#include "fsp0sysspace.h"
 #include "rem0cmp.h"
+#include "rem0rec.h"
+#include "row0upd.h"
+#include "srv0start.h" /* srv_shutdown_state */
+#include "trx0sys.h"
 
 /*	STRUCTURE OF AN INSERT BUFFER RECORD
 
@@ -1495,7 +1499,7 @@ ibuf_dummy_index_add_col(
 			       dtype_get_prtype(type),
 			       dtype_get_len(type));
 	dict_index_add_col(index, index->table,
-			   index->table->get_col(i), len);
+			   index->table->get_col(i), len, true);
 }
 /********************************************************************//**
 Deallocates a dummy index for inserting a record to a non-clustered index. */
@@ -3692,7 +3696,7 @@ ibuf_insert(
 			    op, page_id.space(), page_id.page_no()));
 
 	ut_ad(dtuple_check_typed(entry));
-	ut_ad(page_id.space() != srv_tmp_space.space_id());
+	ut_ad(!fsp_is_system_temporary(page_id.space()));
 
 	ut_a(!index->is_clustered());
 
@@ -3793,10 +3797,12 @@ skip_watch:
 	}
 
 	if (err == DB_SUCCESS) {
-#ifdef UNIV_IBUF_DEBUG
-		/* fprintf(stderr, "Ibuf insert for page no %lu of index %s\n",
-		page_no, index->name); */
+/*
+#if defined(UNIV_IBUF_DEBUG)
+		fprintf(stderr, "Ibuf insert for page no %lu of index %s\n",
+			page_no, index->name);
 #endif
+*/
 		DBUG_RETURN(TRUE);
 
 	} else {
@@ -3910,7 +3916,11 @@ ibuf_insert_to_index_page(
 	ut_ad(!dict_index_is_online_ddl(index));// this is an ibuf_dummy index
 	ut_ad(ibuf_inside(mtr));
 	ut_ad(dtuple_check_typed(entry));
+	/* A change buffer merge must occur before users are granted
+	any access to the page. No adaptive hash index entries may
+	point to a freshly read page. */
 	ut_ad(!block->index);
+	assert_block_ahi_empty(block);
 	ut_ad(mtr->is_named_space(block->page.id.space()));
 
 	if (UNIV_UNLIKELY(dict_table_is_comp(index->table)
@@ -4042,10 +4052,10 @@ dump:
 		page_cur_delete_rec(&page_cur, index, offsets, mtr);
 		page_cur_move_to_prev(&page_cur);
 		rec = ibuf_insert_to_index_page_low(entry, block, index,
-				      		    &offsets, heap, mtr,
+						    &offsets, heap, mtr,
 						    &page_cur);
 
-		ut_ad(!cmp_dtuple_rec(entry, rec, offsets));
+		ut_ad(!cmp_dtuple_rec(entry, rec, index, offsets));
 		lock_rec_restore_from_page_infimum(block, rec, block);
 	} else {
 		offsets = NULL;

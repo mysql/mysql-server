@@ -1,10 +1,19 @@
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs73=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema default character set latin1;
+use test;
+--enable_query_log
+########################################
+
 #
 # A series of tests to show the correct tablespace behavior.
 # See also; parts.partition_basic_symlink_innodb.test for
 # partition related tests with remote tablespaces.
 # See innodb.innodb-restart for tablespace migration tests.
 #
---source include/have_innodb.inc
 SET default_storage_engine=InnoDB;
 
 --echo #
@@ -421,3 +430,10 @@ FLUSH TABLES t1 FOR EXPORT;
 UNLOCK TABLES;
 DROP TABLE t1;
 
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs73;
+--enable_query_log
+########################################

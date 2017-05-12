@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,10 +16,9 @@
 #ifndef REPLICATION_H
 #define REPLICATION_H
 
-#include "my_global.h"
+#include "handler.h"                  // enum_tx_isolation
 #include "my_thread_local.h"          // my_thread_id
 #include "mysql/psi/mysql_thread.h"   // mysql_mutex_t
-#include "handler.h"                  // enum_tx_isolation
 
 typedef struct st_mysql MYSQL;
 typedef struct st_io_cache IO_CACHE;
@@ -125,6 +124,11 @@ typedef struct Trans_param {
   IO_CACHE *trx_cache_log;
   IO_CACHE *stmt_cache_log;
   ulonglong cache_log_max_size;
+  /*
+    The flag designates the transaction is a DDL contained is
+    the transactional cache.
+  */
+  bool      is_atomic_ddl;
 
   /*
    This is the list of tables that are involved in this transaction and its
@@ -137,6 +141,9 @@ typedef struct Trans_param {
    Context information about system variables in the transaction
    */
   Trans_context_info trans_ctx_info;
+
+  /// pointer to the status var original_commit_timestamp
+  uint64 *original_commit_timestamp;
 
 } Trans_param;
 
@@ -503,6 +510,9 @@ enum Binlog_relay_IO_flags {
 typedef struct Binlog_relay_IO_param {
   uint32 server_id;
   my_thread_id thread_id;
+
+  /* Channel name */
+  char* channel_name;
 
   /* Master host, user and port */
   char *host;

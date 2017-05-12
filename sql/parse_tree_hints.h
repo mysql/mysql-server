@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,16 +21,18 @@
 #ifndef PARSE_TREE_HINTS_INCLUDED
 #define PARSE_TREE_HINTS_INCLUDED
 
-#include "my_config.h"
-#include "parse_tree_node_base.h"
-#include "sql_alloc.h"
-#include "sql_list.h"
-#include "mem_root_array.h"
-#include "sql_string.h"
-#include "sql_show.h"
-#include "opt_hints.h"
+#include <sys/types.h>
 
-struct LEX;
+#include "mem_root_array.h"
+#include "my_compiler.h"
+#include "opt_hints.h"
+#include "parse_tree_node_base.h"
+#include "sql_plugin.h"
+#include "sql_show.h"
+#include "sql_string.h"
+#include "typelib.h"
+
+class THD;
 
 
 struct Hint_param_table
@@ -40,8 +42,8 @@ struct Hint_param_table
 };
 
 
-typedef Mem_root_array_YY<LEX_CSTRING, true> Hint_param_index_list;
-typedef Mem_root_array_YY<Hint_param_table, true> Hint_param_table_list;
+typedef Mem_root_array_YY<LEX_CSTRING> Hint_param_index_list;
+typedef Mem_root_array_YY<Hint_param_table> Hint_param_table_list;
 
 
 /**
@@ -91,7 +93,7 @@ class PT_hint_list : public Parse_tree_node
 {
   typedef Parse_tree_node super;
 
-  Mem_root_array<PT_hint *, true> hints;
+  Mem_root_array<PT_hint *> hints;
 
 public:
   explicit PT_hint_list(MEM_ROOT *mem_root) : hints(mem_root) {}
@@ -121,6 +123,8 @@ class PT_qb_level_hint : public PT_hint
   const LEX_CSTRING qb_name;
   /** Bit mask of arguments to hint. */
   uint args;
+  /** List of tables specified in join order hint */
+  Hint_param_table_list table_list;
 
   typedef PT_hint super;
 public:
@@ -128,6 +132,13 @@ public:
                    enum opt_hints_enum hint_type_arg, uint arg)
     : PT_hint(hint_type_arg, switch_state_arg),
       qb_name(qb_name_arg), args(arg)
+  {}
+
+  PT_qb_level_hint(const LEX_CSTRING qb_name_arg, bool switch_state_arg,
+                   enum opt_hints_enum hint_type_arg,
+                   const Hint_param_table_list &table_list_arg)
+    : PT_hint(hint_type_arg, switch_state_arg),
+    qb_name(qb_name_arg), args(0), table_list(table_list_arg)
   {}
 
   uint get_args() const { return args; }
@@ -150,6 +161,10 @@ public:
     @param str             Pointer to String object
   */
   virtual void append_args(THD *thd, String *str) const;
+  virtual Hint_param_table_list *get_table_list()
+  {
+    return &table_list;
+  }
 };
 
 
@@ -216,7 +231,8 @@ public:
     @return  true in case of error,
              false otherwise
   */
-  virtual bool contextualize(Parse_context *pc);
+  virtual bool contextualize(Parse_context *pc) override;
+  void append_args(THD *thd, String *str) const override;
 };
 
 

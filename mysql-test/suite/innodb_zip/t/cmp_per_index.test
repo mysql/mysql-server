@@ -2,22 +2,26 @@
 # Test information_schema.innodb_cmp_per_index
 #
 
--- source include/have_innodb.inc
+# numbers read in this test depend on the page size
+# include/restart_mysqld.inc does not work in embedded mode
+-- source include/not_embedded.inc
+
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs101=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema default character set latin1;
+use test;
+--enable_query_log
+########################################
 
 # Using innodb_log_compressed=0 leads to a larger number of page
 # compressions, because page_cur_insert_rec_zip() will reorganize the
 # page before attempting an insert followed by page compression and
 # page_zip_compress_write_log_no_data().
-
-if (`SELECT @@innodb_log_compressed_pages = 0`)
-{
-  --skip Needs innodb_log_compressed_pages
-}
-
-# numbers read in this test depend on the page size
--- source include/have_innodb_16k.inc
-# include/restart_mysqld.inc does not work in embedded mode
--- source include/not_embedded.inc
+select @@global.innodb_log_compressed_pages into @save_innodb_log_compressed_pages;
+SET @@global.innodb_log_compressed_pages=1;
 
 -- vertical_results
 
@@ -93,6 +97,8 @@ uncompress_ops
 FROM information_schema.innodb_cmp_per_index
 ORDER BY 1, 2, 3;
 
+SET GLOBAL innodb_log_compressed_pages=@save_innodb_log_compressed_pages;
+
 # restart mysqld and see that uncompress ops also gets increased when
 # selecting from the table again
 
@@ -116,3 +122,10 @@ ORDER BY 1, 2, 3;
 DROP TABLE t;
 
 SET GLOBAL innodb_cmp_per_index_enabled=default;
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs101;
+--enable_query_log
+########################################

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +16,8 @@
 #ifndef SQL_GET_DIAGNOSTICS_H
 #define SQL_GET_DIAGNOSTICS_H
 
-#include "my_global.h"
+#include "my_dbug.h"
+#include "my_sqlcommand.h"
 #include "sql_alloc.h"   // Sql_alloc
 #include "sql_cmd.h"     // Sql_cmd
 
@@ -285,7 +286,7 @@ private:
   Name m_name;
 
   /** Create an string item to represent a condition item string. */
-  Item *make_utf8_string_item(THD *thd, const String *str);
+  Item *make_utf8_string_item(const String *str);
 };
 
 

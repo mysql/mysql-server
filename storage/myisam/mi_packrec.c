@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,7 +15,17 @@
 
 	/* Functions to compressed records */
 
+#include "my_config.h"
+
+#include <sys/types.h>
+
 #include "fulltext.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_macros.h"
+#include "my_pointer_arithmetic.h"
 
 #define IS_CHAR ((uint) 32768)		/* Bit if char (not offset) in tree */
 
@@ -131,7 +141,7 @@ static mi_bit_type mask[]=
 
 	/* Read all packed info, allocate memory and fix field structs */
 
-my_bool _mi_read_pack_info(MI_INFO *info, pbool fix_keys)
+bool _mi_read_pack_info(MI_INFO *info, bool fix_keys)
 {
   File file;
   int diff_length;
@@ -1299,7 +1309,7 @@ static uint decode_pos(MI_BIT_BUFF *bit_buff, MI_DECODE_TREE *decode_tree)
 
 int _mi_read_rnd_pack_record(MI_INFO *info, uchar *buf,
 			     my_off_t filepos,
-			     my_bool skip_deleted_blocks)
+			     bool skip_deleted_blocks)
 {
   uint b_type;
   MI_BLOCK_INFO block_info;
@@ -1488,12 +1498,12 @@ static uint max_bit(uint value)
 #endif
 
 static int _mi_read_mempack_record(MI_INFO *info,my_off_t filepos,uchar *buf);
-static int _mi_read_rnd_mempack_record(MI_INFO*, uchar *,my_off_t, my_bool);
+static int _mi_read_rnd_mempack_record(MI_INFO*, uchar *,my_off_t, bool);
 
-my_bool _mi_memmap_file(MI_INFO *info)
+bool _mi_memmap_file(MI_INFO *info)
 {
   MYISAM_SHARE *share=info->s;
-  my_bool eom;
+  bool eom;
 
   DBUG_ENTER("mi_memmap_file");
 
@@ -1608,7 +1618,7 @@ static int _mi_read_mempack_record(MI_INFO *info, my_off_t filepos, uchar *buf)
 /*ARGSUSED*/
 static int _mi_read_rnd_mempack_record(MI_INFO *info, uchar *buf,
 				       my_off_t filepos,
-				       my_bool skip_deleted_blocks
+				       bool skip_deleted_blocks
 				       MY_ATTRIBUTE((unused)))
 {
   MI_BLOCK_INFO block_info;

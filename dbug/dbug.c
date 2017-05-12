@@ -79,15 +79,28 @@
  *
  */
 
-#include <my_global.h>
-#include "my_sys.h"
-#include <m_string.h>
-#include <errno.h>
+#include "my_config.h"
+
+#include <assert.h>
 #include <ctype.h>
-#include "thr_mutex.h"
-#include "thr_rwlock.h"
+#include <errno.h>
+#include <m_string.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <time.h>
+
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_macros.h"
+#include "my_sys.h"
 #include "my_thread_local.h"
 #include "mysql/service_my_snprintf.h"
+#include "thr_mutex.h"
+#include "thr_rwlock.h"
 
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
@@ -141,12 +154,6 @@
 #define PROFILING (cs->stack->flags & PROFILE_ON)
 
 /*
- *      Typedefs to make things more obvious.
- */
-
-#define BOOLEAN my_bool
-
-/*
  *      The user may specify a list of functions to trace or
  *      debug.  These lists are kept in a linear linked list,
  *      a very simple implementation.
@@ -198,7 +205,7 @@ struct settings {
  */
 
 
-static BOOLEAN init_done= FALSE; /* Set to TRUE when initialization done */
+static bool init_done= FALSE; /* Set to TRUE when initialization done */
 /**
   Global debugging settings.
   This structure shared between all threads,
@@ -271,7 +278,7 @@ static int DoTrace(CODE_STATE *cs);
 #define DISABLE_TRACE   4
 
 static void DoPrefix(CODE_STATE *cs, uint line);
-static BOOLEAN Writable(const char *pathname);
+static bool Writable(const char *pathname);
 
 static char *DbugMalloc(size_t size);
 static const char *BaseName(const char *pathname);
@@ -1860,7 +1867,7 @@ FILE *_db_fp_(void)
 
 int _db_keyword_(CODE_STATE *cs, const char *keyword, int strict)
 {
-  BOOLEAN result;
+  bool result;
   get_code_state_if_not_set_or_return FALSE;
 
   /* Dirty read, for DBUG_EXECUTE(), DBUG_EXECUTE_IF() ... performance. */
@@ -2213,7 +2220,7 @@ static const char *BaseName(const char *pathname)
  *
  *  SYNOPSIS
  *
- *      static BOOLEAN Writable(pathname)
+ *      static bool Writable(pathname)
  *      char *pathname;
  *
  *  DESCRIPTION
@@ -2230,9 +2237,9 @@ static const char *BaseName(const char *pathname)
  */
 
 
-static BOOLEAN Writable(const char *pathname)
+static bool Writable(const char *pathname)
 {
-  BOOLEAN granted;
+  bool granted;
   char *lastslash;
 
   granted= FALSE;

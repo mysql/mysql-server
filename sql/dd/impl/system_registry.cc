@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,9 +15,8 @@
 
 #include "dd/impl/system_registry.h"
 
-#include "table.h"                                   // MYSQL_SYSTEM_SCHEMA
+#include <stddef.h>
 
-#include "dd/properties.h"                           // Needed for destructor
 #include "dd/impl/tables/catalogs.h"                 // Catalog
 #include "dd/impl/tables/character_sets.h"           // Character_sets
 #include "dd/impl/tables/collations.h"               // Collations
@@ -30,8 +29,8 @@
 #include "dd/impl/tables/index_partitions.h"         // Index_partitions
 #include "dd/impl/tables/index_stats.h"              // Index_stats
 #include "dd/impl/tables/indexes.h"                  // Indexes
-#include "dd/impl/tables/parameters.h"               // Parameters
 #include "dd/impl/tables/parameter_type_elements.h"  // Parameter_type_elements
+#include "dd/impl/tables/parameters.h"               // Parameters
 #include "dd/impl/tables/routines.h"                 // Routines
 #include "dd/impl/tables/schemata.h"                 // Schemata
 #include "dd/impl/tables/spatial_reference_systems.h"// Spatial_reference_systems
@@ -45,6 +44,9 @@
 #include "dd/impl/tables/version.h"                  // Version
 #include "dd/impl/tables/view_routine_usage.h"       // View_routine_usage
 #include "dd/impl/tables/view_table_usage.h"         // View_table_usage
+#include "lex_string.h"
+#include "m_string.h"
+#include "table.h"                                   // MYSQL_SYSTEM_SCHEMA
 
 using namespace dd::tables;
 
@@ -52,12 +54,11 @@ using namespace dd::tables;
 
 namespace {
 template <typename X>
-void register_system_table()
+void register_table(dd::System_tables::Types type)
 {
   dd::System_tables::instance()->add(MYSQL_SCHEMA_NAME.str,
                                      X::instance().table_name(),
-                                     dd::System_tables::Types::CORE,
-                                     &X::instance());
+                                     type, &X::instance());
 }
 }
 
@@ -82,37 +83,43 @@ System_tablespaces * System_tablespaces::instance()
 }
 
 
-
 void System_tables::init()
 {
-  // Order is dictated by the foreign key constraints
-  register_system_table<Version>();
-  register_system_table<Character_sets>();
-  register_system_table<Collations>();
-  register_system_table<Tablespaces>();
-  register_system_table<Tablespace_files>();
-  register_system_table<Catalogs>();
-  register_system_table<Schemata>();
-  register_system_table<Spatial_reference_systems>();
-  register_system_table<Tables>();
-  register_system_table<View_table_usage>();
-  register_system_table<View_routine_usage>();
-  register_system_table<Columns>();
-  register_system_table<Indexes>();
-  register_system_table<Index_column_usage>();
-  register_system_table<Column_type_elements>();
-  register_system_table<Foreign_keys>();
-  register_system_table<Foreign_key_column_usage>();
-  register_system_table<Table_partitions>();
-  register_system_table<Table_partition_values>();
-  register_system_table<Index_partitions>();
-  register_system_table<Table_stats>();
-  register_system_table<Index_stats>();
-  register_system_table<Events>();
-  register_system_table<Routines>();
-  register_system_table<Parameters>();
-  register_system_table<Parameter_type_elements>();
-  register_system_table<Triggers>();
+  // Se header file for explanation of table categories.
+  dd::System_tables::Types inert=  dd::System_tables::Types::INERT;
+  dd::System_tables::Types core=   dd::System_tables::Types::CORE;
+  dd::System_tables::Types second= dd::System_tables::Types::SECOND;
+
+  // Order below is dictated by the foreign key constraints.
+  register_table<Version>(inert);
+
+  register_table<Character_sets>(core);
+  register_table<Collations>(core);
+  register_table<Tablespaces>(core);
+  register_table<Tablespace_files>(core);
+  register_table<Catalogs>(core);
+  register_table<Schemata>(core);
+  register_table<Spatial_reference_systems>(second);
+  register_table<Tables>(core);
+  register_table<View_table_usage>(core);
+  register_table<View_routine_usage>(core);
+  register_table<Columns>(core);
+  register_table<Indexes>(core);
+  register_table<Index_column_usage>(core);
+  register_table<Column_type_elements>(core);
+  register_table<Foreign_keys>(core);
+  register_table<Foreign_key_column_usage>(core);
+  register_table<Table_partitions>(core);
+  register_table<Table_partition_values>(core);
+  register_table<Index_partitions>(core);
+
+  register_table<Table_stats>(second);
+  register_table<Index_stats>(second);
+  register_table<Events>(second);
+  register_table<Routines>(second);
+  register_table<Parameters>(second);
+  register_table<Parameter_type_elements>(second);
+  register_table<Triggers>(core);
 }
 
 void System_views::init()
@@ -130,10 +137,16 @@ void System_views::init()
     "STATISTICS_BASE",
     "STATISTICS_DYNAMIC",
     "STATISTICS",
+    "ST_GEOMETRY_COLUMNS",
+    "ST_SPATIAL_REFERENCE_SYSTEMS",
     "TABLE_CONSTRAINTS",
     "TABLES",
     "TABLES_DYNAMIC",
     "VIEWS",
+    "TRIGGERS",
+    "ROUTINES",
+    "PARAMETERS",
+    "EVENTS",
     nullptr
   };
   for (int i= 0; system_view_names[i] != NULL; ++i)

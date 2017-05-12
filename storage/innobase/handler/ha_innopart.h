@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -21,7 +21,14 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef ha_innopart_h
 #define ha_innopart_h
 
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "ha_innodb.h"
+#include "my_compiler.h"
+#include "my_inttypes.h"
 #include "partitioning/partition_handler.h"
+#include "row0mysql.h"
 
 /* Forward declarations */
 class Altered_partitions;
@@ -213,7 +220,7 @@ public:
 	has changed.
 	@param[in,out]	engine_data	Data for call_back (not used).
 	@return TRUE if query caching of the table is permitted. */
-	my_bool
+	bool
 	register_query_cache_table(
 		THD*			thd,
 		char*			table_key,
@@ -254,15 +261,20 @@ public:
 	@param[in]	altered_table	TABLE object for new version of table.
 	@param[in,out]	ha_alter_info	Structure describing changes to be done
 	by ALTER TABLE and holding data used during in-place alter.
-	@param[in,out]	new_dd_tab	dd::Table object for the new version of
-	the table. To be adjusted by this call.
+	@param[in]	old_table_def	dd::Table object describing old
+	version of the table.
+	@param[in,out]	new_table_def	dd::Table object for the new version
+	of the table. Can be adjusted by this call. Changes to the table
+	definition will be persisted in the data-dictionary at statement
+	commit time.
 	@retval	true	Failure.
 	@retval	false	Success. */
 	bool
 	prepare_inplace_alter_table(
 		TABLE*			altered_table,
 		Alter_inplace_info*	ha_alter_info,
-		dd::Table		*new_dd_tab);
+		const dd::Table*	old_table_def,
+		dd::Table*		new_table_def);
 
 	/** Alter the table structure in-place.
 	Alter the table structure in-place with operations
@@ -272,12 +284,20 @@ public:
 	@param[in]	altered_table	TABLE object for new version of table.
 	@param[in,out]	ha_alter_info	Structure describing changes to be done
 	by ALTER TABLE and holding data used during in-place alter.
+	@param[in]	old_table_def	dd::Table object describing old
+	version of the table.
+	@param[in,out]	new_table_def	dd::Table object for the new version
+	of the table. Can be adjusted by this call. Changes to the table
+	definition will be persisted in the data-dictionary at statement
+	commit time.
 	@retval	true	Failure.
 	@retval	false	Success. */
 	bool
 	inplace_alter_table(
 		TABLE*			altered_table,
-		Alter_inplace_info*	ha_alter_info);
+		Alter_inplace_info*	ha_alter_info,
+		const dd::Table*	old_table_def,
+		dd::Table*		new_table_def);
 
 	/** Commit or rollback.
 	Commit or rollback the changes made during
@@ -288,16 +308,24 @@ public:
 	prepare_inplace_alter_table(). (E.g concurrent writes were
 	blocked during prepare, but might not be during commit).
 	@param[in]	altered_table	TABLE object for new version of table.
-	@param[in]	ha_alter_info	Structure describing changes to be done
+	@param[in,out]	ha_alter_info	Structure describing changes to be done
 	by ALTER TABLE and holding data used during in-place alter.
-	@param[in,out]	commit		true => Commit, false => Rollback.
+	@param[in]	commit		true => Commit, false => Rollback.
+	@param[in]	old_table_def	dd::Table object describing old
+	version of the table.
+	@param[in,out]	new_table_def	dd::Table object for the new version
+	of the table. Can be adjusted by this call. Changes to the table
+	definition will be persisted in the data-dictionary at statement
+	commit time.
 	@retval	true	Failure.
 	@retval	false	Success. */
 	bool
 	commit_inplace_alter_table(
 		TABLE*			altered_table,
 		Alter_inplace_info*	ha_alter_info,
-		bool			commit);
+		bool			commit,
+		const dd::Table*	old_table_def,
+		dd::Table*		new_table_def);
 	/** @} */
 
 	// TODO: should we implement init_table_handle_for_HANDLER() ?
@@ -309,7 +337,8 @@ public:
 
 	int
 	discard_or_import_tablespace(
-		my_bool	discard);
+		bool		discard,
+		dd::Table*	table_def);
 
 	/** Compare key and rowid.
 	Helper function for sorting records in the priority queue.
@@ -370,12 +399,13 @@ public:
 
 	int
 	create(
-		const char*	name,
-		TABLE*		form,
-		HA_CREATE_INFO*	create_info);
+		const char*		name,
+		TABLE*			form,
+		HA_CREATE_INFO*		create_info,
+		dd::Table*		table_def);
 
 	int
-	truncate();
+	truncate(dd::Table *table_def);
 
 	int
 	check(
@@ -1046,13 +1076,15 @@ private:
 	@param[in]	name		table name
 	@param[in]	mode		access mode
 	@param[in]	test_if_locked	test if the file to be opened is locked
+	@param[in]	table_def	dd::Table describing table to be opened
 	@retval 1 if error
 	@retval 0 if success */
 	int
 	open(
 		const char*	name,
 		int		mode,
-		uint		test_if_locked);
+		uint		test_if_locked,
+		const dd::Table*	table_def);
 
 	int
 	close();
@@ -1149,7 +1181,7 @@ private:
 	/** Truncate partition.
 	Called from Partition_handler::trunctate_partition(). */
 	int
-	truncate_partition_low();
+	truncate_partition_low(dd::Table *table_def);
 
 	/** Change partitions according to ALTER TABLE ... PARTITION ...
 	Called from Partition_handler::change_partitions().
@@ -1173,7 +1205,6 @@ private:
 		return(Partition_helper::change_partitions(
 						create_info,
 						path,
-						copied,
 						deleted));
 	}
 
@@ -1253,10 +1284,10 @@ protected:
 	int
 	index_next_same(
 		uchar*		record,
-		const uchar*	key,
+		const uchar*	,
 		uint		keylen)
 	{
-		return(Partition_helper::ph_index_next_same(record, key, keylen));
+		return(Partition_helper::ph_index_next_same(record, keylen));
 	}
 
 	int

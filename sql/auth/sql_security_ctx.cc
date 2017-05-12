@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; version 2 of the License.
@@ -13,10 +13,28 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql_security_ctx.h"
+
+#include <map>
+#include <string>
+#include <unordered_set>
+#include <utility>
+#include <vector>
+
+#include "auth_acls.h"
 #include "auth_common.h"
-#include "sql_class.h"
-#include "sql_authorization.h"
+#include "auth_internal.h"
+#include "m_ctype.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
+#include "mysql/mysql_lex_string.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/service_mysql_alloc.h"
 #include "mysqld.h"
+#include "mysqld_error.h"
+#include "sql_auth_cache.h"
+#include "sql_authorization.h"
+#include "sql_class.h"
 #include "current_thd.h"
 
 void Security_context::init()
@@ -31,18 +49,15 @@ void Security_context::init()
   m_priv_user[0]= m_priv_host[0]= m_proxy_user[0]= '\0';
   m_priv_user_length= m_priv_host_length= m_proxy_user_length= 0;
   m_master_access= 0;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   m_db_access= NO_ACCESS;
   m_acl_map= 0;
   m_map_checkout_count= 0;
-#endif
   m_password_expired= false;
   DBUG_VOID_RETURN;
 }
 
 void Security_context::logout()
 {
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (m_acl_map)
   {
     DBUG_PRINT("info",("(logout) Security_context for %s@%s returns Acl_map to cache. "
@@ -52,13 +67,11 @@ void Security_context::logout()
     m_acl_map= 0;
     clear_active_roles();
   }
-#endif
 }
 
 void Security_context::destroy()
 {
   DBUG_ENTER("Security_context::destroy");
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (m_acl_map)
   {
     DBUG_PRINT("info",("(destroy) Security_context for %s@%s returns Acl_map to cache. "
@@ -68,7 +81,6 @@ void Security_context::destroy()
     clear_active_roles();
   }
   m_acl_map= 0;
-#endif
   if (m_user.length())
     m_user.set((const char *) 0, 0, system_charset_info);
 
@@ -132,14 +144,11 @@ void Security_context::copy_security_ctx (const Security_context &src_sctx)
   m_db_access= src_sctx.m_db_access;
   m_master_access= src_sctx.m_master_access;
   m_password_expired= src_sctx.m_password_expired;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   m_acl_map= 0; // acl maps are reference counted we can't copy or share them!
-#endif
   DBUG_VOID_RETURN;
 }
 
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
 /**
   Initialize this security context from the passed in credentials
   and activate it in the current thread.
@@ -235,7 +244,6 @@ Security_context::restore_security_context(THD *thd,
   if (backup)
     thd->set_security_context(backup);
 }
-#endif
 
 
 bool Security_context::user_matches(Security_context *them)
@@ -248,21 +256,15 @@ bool Security_context::user_matches(Security_context *them)
               !strcmp(m_user.ptr(), them_user));
 }
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
+
 bool Security_context::check_access(ulong want_access, bool match_any)
 {
   DBUG_ENTER("Security_context::check_access");
   DBUG_RETURN((match_any ? (m_master_access & want_access) :
               ((m_master_access & want_access) == want_access)));
 }
-#else
-bool Security_context::check_access(ulong want_access, bool match_any)
-{
-  return true;
-}
-#endif
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
+
 /**
   This method pushes a role to the list of active roles. It requires
   Acl_cache_lock_guard.
@@ -362,14 +364,12 @@ void Security_context::clear_active_roles(void)
     it->second.length= 0;
   }
   m_active_roles.clear();
-#if defined(HAVE_VALGRIND) || defined(HAVE_ASAN)
   /*
     Clear does not actually free the memory as an optimization for reuse.
     This confuses valgrind, so we swap with an empty vector to ensure the
     memory is freed when testing with valgrind
   */
   List_of_auth_id_refs().swap(m_active_roles);
-#endif
 }
 
 List_of_auth_id_refs *
@@ -543,8 +543,36 @@ bool Security_context::any_table_acl(const LEX_CSTRING &db)
   return false;
 }
 
+std::pair<bool, bool>
+Security_context::has_global_grant(const char *priv, size_t priv_len)
+{
+  std::string privilege(priv, priv_len);
+  if (m_acl_map == 0)
+  {
+    Acl_cache_lock_guard acl_cache_lock(current_thd,
+                                        Acl_cache_lock_mode::READ_MODE);
+    if (!acl_cache_lock.lock(false))
+      return std::make_pair(false, false);
+    Role_id key(&m_priv_user[0], m_priv_user_length, &m_priv_host[0],
+                m_priv_host_length);
+    User_to_dynamic_privileges_map::iterator it, it_end;
+    std::tie(it, it_end)= get_dynamic_privileges_map()->equal_range(key);
+    it= std::find(it, it_end, privilege);
+    if (it != it_end)
+    {
+      return std::make_pair(true, it->second.second);
+    }
+    return std::make_pair(false, false);
+  }
+  Dynamic_privileges::iterator it=
+    m_acl_map->dynamic_privileges()->find(privilege);
+  if (it != m_acl_map->dynamic_privileges()->end())
+  {
+    return std::make_pair(true, it->second);
+  }
 
-#endif
+  return std::make_pair(false, false);
+}
 
 LEX_CSTRING Security_context::priv_user() const
 {

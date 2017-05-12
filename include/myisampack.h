@@ -1,7 +1,7 @@
 #ifndef MYISAMPACK_INCLUDED
 #define MYISAMPACK_INCLUDED
 
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,6 +23,15 @@
   Integer keys and file pointers are stored with high byte first to get
   better compression.
 */
+
+#include "my_config.h"
+
+#ifdef HAVE_ENDIAN_H
+#include <endian.h>
+#endif
+#include <sys/types.h>
+
+#include "my_inttypes.h"
 
 /* these two are for uniformity */
 

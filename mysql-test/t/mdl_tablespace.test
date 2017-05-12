@@ -1,9 +1,18 @@
 #
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
---source include/have_perfschema.inc
 # test uses performance_schema.metadata_locks
 --source include/not_embedded.inc
+
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs65=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema test default character set latin1;
+--enable_query_log
+########################################
+
 --enable_connect_log
 
 --echo ###########################################################
@@ -716,7 +725,7 @@ CREATE TABLE t1 (pk INTEGER PRIMARY KEY) TABLESPACE ts1;
 
 --echo #
 --echo # Dropping ts1 should fail.
---error ER_DROP_FILEGROUP_FAILED
+--error ER_TABLESPACE_IS_NOT_EMPTY
 DROP TABLESPACE ts1;
 
 --echo #
@@ -768,7 +777,7 @@ LET $wait_condition=
 --connection con2
 --reap
 --connection default
---error ER_DROP_FILEGROUP_FAILED
+--error ER_TABLESPACE_MISSING_WITH_NAME
 DROP TABLESPACE ts1;
 SET DEBUG_SYNC= 'RESET';
 
@@ -1050,7 +1059,8 @@ LET $wait_condition=
 
 SELECT object_type, object_name, lock_type, lock_duration, lock_status
   FROM performance_schema.metadata_locks
-  WHERE object_type LIKE 'TABLESPACE';
+  WHERE object_type LIKE 'TABLESPACE'
+  ORDER BY lock_status;
 
 LET $wait_condition=
   SELECT COUNT(*) = 1 FROM performance_schema.events_waits_current
@@ -1080,12 +1090,12 @@ LET $wait_condition=
 --source include/wait_condition.inc
 
 LET $wait_condition=
-  SELECT COUNT(*) = 1 FROM performance_schema.events_waits_history
+  SELECT COUNT(*) = 1 FROM performance_schema.events_waits_history_long
     WHERE object_type LIKE 'TABLESPACE' AND object_name LIKE 'ts1';
 --source include/wait_condition.inc
 
 SELECT event_name, object_name, object_type, operation
-  FROM performance_schema.events_waits_history
+  FROM performance_schema.events_waits_history_long
   WHERE object_type LIKE 'TABLESPACE' AND object_name LIKE 'ts1';
 
 --echo #
@@ -1340,3 +1350,10 @@ DROP TABLE t3;
 DROP TABLE t4;
 DROP TABLESPACE ts1;
 DROP TABLESPACE ts2;
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs65;
+--enable_query_log
+########################################

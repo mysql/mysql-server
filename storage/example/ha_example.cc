@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -87,13 +87,16 @@
     -Brian
 */
 
-#include "sql_class.h"           // MYSQL_HANDLERTON_INTERFACE_VERSION
 #include "ha_example.h"
-#include "probes_mysql.h"
+
+#include "my_dbug.h"
+#include "sql_class.h"           // MYSQL_HANDLERTON_INTERFACE_VERSION
 #include "sql_plugin.h"
+#include "typelib.h"
 
 static handler *example_create_handler(handlerton *hton,
-                                       TABLE_SHARE *table, 
+                                       TABLE_SHARE *table,
+                                       bool partitioned,
                                        MEM_ROOT *mem_root);
 
 handlerton *example_hton;
@@ -153,7 +156,8 @@ err:
 
 
 static handler* example_create_handler(handlerton *hton,
-                                       TABLE_SHARE *table, 
+                                       TABLE_SHARE *table,
+                                       bool,
                                        MEM_ROOT *mem_root)
 {
   return new (mem_root) ha_example(hton, table);
@@ -229,7 +233,7 @@ static bool example_is_supported_system_table(const char *db,
   handler::ha_open() in handler.cc
 */
 
-int ha_example::open(const char *name, int mode, uint test_if_locked)
+int ha_example::open(const char*, int, uint, const dd::Table*)
 {
   DBUG_ENTER("ha_example::open");
 
@@ -293,7 +297,7 @@ int ha_example::close(void)
   sql_insert.cc, sql_select.cc, sql_table.cc, sql_udf.cc and sql_update.cc
 */
 
-int ha_example::write_row(uchar *buf)
+int ha_example::write_row(uchar*)
 {
   DBUG_ENTER("ha_example::write_row");
   /*
@@ -329,7 +333,7 @@ int ha_example::write_row(uchar *buf)
   @see
   sql_select.cc, sql_acl.cc, sql_update.cc and sql_insert.cc
 */
-int ha_example::update_row(const uchar *old_data, uchar *new_data)
+int ha_example::update_row(const uchar*, uchar*)
 {
 
   DBUG_ENTER("ha_example::update_row");
@@ -357,7 +361,7 @@ int ha_example::update_row(const uchar *old_data, uchar *new_data)
   sql_acl.cc, sql_udf.cc, sql_delete.cc, sql_insert.cc and sql_select.cc
 */
 
-int ha_example::delete_row(const uchar *buf)
+int ha_example::delete_row(const uchar*)
 {
   DBUG_ENTER("ha_example::delete_row");
   DBUG_RETURN(HA_ERR_WRONG_COMMAND);
@@ -371,16 +375,12 @@ int ha_example::delete_row(const uchar *buf)
   index.
 */
 
-int ha_example::index_read_map(uchar *buf, const uchar *key,
-                               key_part_map keypart_map MY_ATTRIBUTE((unused)),
-                               enum ha_rkey_function find_flag
-                               MY_ATTRIBUTE((unused)))
+int ha_example::index_read_map(uchar*, const uchar*, key_part_map,
+                               enum ha_rkey_function)
 {
   int rc;
   DBUG_ENTER("ha_example::index_read");
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   rc= HA_ERR_WRONG_COMMAND;
-  MYSQL_INDEX_READ_ROW_DONE(rc);
   DBUG_RETURN(rc);
 }
 
@@ -390,13 +390,11 @@ int ha_example::index_read_map(uchar *buf, const uchar *key,
   Used to read forward through the index.
 */
 
-int ha_example::index_next(uchar *buf)
+int ha_example::index_next(uchar*)
 {
   int rc;
   DBUG_ENTER("ha_example::index_next");
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   rc= HA_ERR_WRONG_COMMAND;
-  MYSQL_INDEX_READ_ROW_DONE(rc);
   DBUG_RETURN(rc);
 }
 
@@ -406,13 +404,11 @@ int ha_example::index_next(uchar *buf)
   Used to read backwards through the index.
 */
 
-int ha_example::index_prev(uchar *buf)
+int ha_example::index_prev(uchar*)
 {
   int rc;
   DBUG_ENTER("ha_example::index_prev");
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   rc= HA_ERR_WRONG_COMMAND;
-  MYSQL_INDEX_READ_ROW_DONE(rc);
   DBUG_RETURN(rc);
 }
 
@@ -427,13 +423,11 @@ int ha_example::index_prev(uchar *buf)
   @see
   opt_range.cc, opt_sum.cc, sql_handler.cc and sql_select.cc
 */
-int ha_example::index_first(uchar *buf)
+int ha_example::index_first(uchar*)
 {
   int rc;
   DBUG_ENTER("ha_example::index_first");
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   rc= HA_ERR_WRONG_COMMAND;
-  MYSQL_INDEX_READ_ROW_DONE(rc);
   DBUG_RETURN(rc);
 }
 
@@ -448,13 +442,11 @@ int ha_example::index_first(uchar *buf)
   @see
   opt_range.cc, opt_sum.cc, sql_handler.cc and sql_select.cc
 */
-int ha_example::index_last(uchar *buf)
+int ha_example::index_last(uchar*)
 {
   int rc;
   DBUG_ENTER("ha_example::index_last");
-  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   rc= HA_ERR_WRONG_COMMAND;
-  MYSQL_INDEX_READ_ROW_DONE(rc);
   DBUG_RETURN(rc);
 }
 
@@ -472,7 +464,7 @@ int ha_example::index_last(uchar *buf)
   @see
   filesort.cc, records.cc, sql_handler.cc, sql_select.cc, sql_table.cc and sql_update.cc
 */
-int ha_example::rnd_init(bool scan)
+int ha_example::rnd_init(bool)
 {
   DBUG_ENTER("ha_example::rnd_init");
   DBUG_RETURN(0);
@@ -499,14 +491,11 @@ int ha_example::rnd_end()
   @see
   filesort.cc, records.cc, sql_handler.cc, sql_select.cc, sql_table.cc and sql_update.cc
 */
-int ha_example::rnd_next(uchar *buf)
+int ha_example::rnd_next(uchar*)
 {
   int rc;
   DBUG_ENTER("ha_example::rnd_next");
-  MYSQL_READ_ROW_START(table_share->db.str, table_share->table_name.str,
-                       TRUE);
   rc= HA_ERR_END_OF_FILE;
-  MYSQL_READ_ROW_DONE(rc);
   DBUG_RETURN(rc);
 }
 
@@ -532,7 +521,7 @@ int ha_example::rnd_next(uchar *buf)
   @see
   filesort.cc, sql_select.cc, sql_delete.cc and sql_update.cc
 */
-void ha_example::position(const uchar *record)
+void ha_example::position(const uchar*)
 {
   DBUG_ENTER("ha_example::position");
   DBUG_VOID_RETURN;
@@ -552,14 +541,11 @@ void ha_example::position(const uchar *record)
   @see
   filesort.cc, records.cc, sql_insert.cc, sql_select.cc and sql_update.cc
 */
-int ha_example::rnd_pos(uchar *buf, uchar *pos)
+int ha_example::rnd_pos(uchar*, uchar*)
 {
   int rc;
   DBUG_ENTER("ha_example::rnd_pos");
-  MYSQL_READ_ROW_START(table_share->db.str, table_share->table_name.str,
-                       TRUE);
   rc= HA_ERR_WRONG_COMMAND;
-  MYSQL_READ_ROW_DONE(rc);
   DBUG_RETURN(rc);
 }
 
@@ -602,7 +588,7 @@ int ha_example::rnd_pos(uchar *buf, uchar *pos)
   sql_select.cc, sql_show.cc, sql_show.cc, sql_show.cc, sql_show.cc, sql_table.cc,
   sql_union.cc and sql_update.cc
 */
-int ha_example::info(uint flag)
+int ha_example::info(uint)
 {
   DBUG_ENTER("ha_example::info");
   DBUG_RETURN(0);
@@ -618,7 +604,7 @@ int ha_example::info(uint flag)
     @see
   ha_innodb.cc
 */
-int ha_example::extra(enum ha_extra_function operation)
+int ha_example::extra(enum ha_extra_function)
 {
   DBUG_ENTER("ha_example::extra");
   DBUG_RETURN(0);
@@ -653,29 +639,6 @@ int ha_example::delete_all_rows()
 
 /**
   @brief
-  Used for handler specific truncate table.  The table is locked in
-  exclusive mode and handler is responsible for reseting the auto-
-  increment counter.
-
-  @details
-  Called from Truncate_statement::handler_truncate.
-  Not used if the handlerton supports HTON_CAN_RECREATE, unless this
-  engine can be used as a partition. In this case, it is invoked when
-  a particular partition is to be truncated.
-
-  @see
-  Truncate_statement in sql_truncate.cc
-  Remarks in handler::truncate.
-*/
-int ha_example::truncate()
-{
-  DBUG_ENTER("ha_example::truncate");
-  DBUG_RETURN(HA_ERR_WRONG_COMMAND);
-}
-
-
-/**
-  @brief
   This create a lock on the table. If you are implementing a storage engine
   that can handle transacations look at ha_berkely.cc to see how you will
   want to go about doing this. Otherwise you should consider calling flock()
@@ -691,7 +654,7 @@ int ha_example::truncate()
   the section "locking functions for mysql" in lock.cc;
   copy_data_between_tables() in sql_table.cc.
 */
-int ha_example::external_lock(THD *thd, int lock_type)
+int ha_example::external_lock(THD*, int)
 {
   DBUG_ENTER("ha_example::external_lock");
   DBUG_RETURN(0);
@@ -735,7 +698,7 @@ int ha_example::external_lock(THD *thd, int lock_type)
   @see
   get_lock_data() in lock.cc
 */
-THR_LOCK_DATA **ha_example::store_lock(THD *thd,
+THR_LOCK_DATA **ha_example::store_lock(THD*,
                                        THR_LOCK_DATA **to,
                                        enum thr_lock_type lock_type)
 {
@@ -765,7 +728,7 @@ THR_LOCK_DATA **ha_example::store_lock(THD *thd,
   @see
   delete_table and ha_create_table() in handler.cc
 */
-int ha_example::delete_table(const char *name)
+int ha_example::delete_table(const char*, const dd::Table*)
 {
   DBUG_ENTER("ha_example::delete_table");
   /* This is not implemented but we want someone to be able that it works. */
@@ -787,7 +750,8 @@ int ha_example::delete_table(const char *name)
   @see
   mysql_rename_table() in sql_table.cc
 */
-int ha_example::rename_table(const char * from, const char * to)
+int ha_example::rename_table(const char*, const char*,
+                             const dd::Table*, dd::Table*)
 {
   DBUG_ENTER("ha_example::rename_table ");
   DBUG_RETURN(HA_ERR_WRONG_COMMAND);
@@ -807,8 +771,7 @@ int ha_example::rename_table(const char * from, const char * to)
   @see
   check_quick_keys() in opt_range.cc
 */
-ha_rows ha_example::records_in_range(uint inx, key_range *min_key,
-                                     key_range *max_key)
+ha_rows ha_example::records_in_range(uint, key_range*, key_range*)
 {
   DBUG_ENTER("ha_example::records_in_range");
   DBUG_RETURN(10);                         // low number to force index usage
@@ -854,8 +817,8 @@ static MYSQL_THDVAR_UINT(
   ha_create_table() in handle.cc
 */
 
-int ha_example::create(const char *name, TABLE *table_arg,
-                       HA_CREATE_INFO *create_info)
+int ha_example::create(const char *name, TABLE*,
+                       HA_CREATE_INFO*, dd::Table*)
 {
   DBUG_ENTER("ha_example::create");
   /*
@@ -954,7 +917,7 @@ static struct st_mysql_sys_var* example_system_variables[]= {
 };
 
 // this is an example of SHOW_FUNC and of my_snprintf() service
-static int show_func_example(MYSQL_THD thd, struct st_mysql_show_var *var,
+static int show_func_example(MYSQL_THD, struct st_mysql_show_var *var,
                              char *buf)
 {
   var->type= SHOW_CHAR;

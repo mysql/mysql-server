@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -53,13 +53,14 @@ void store_zero_in_sql_mode(Field_temporal *field,
 
 void test_store_string(Field_temporal *field,
                        const char *store_value, const int length,
+                       const sql_mode_t modes,
                        const char *expected_result,
                        const int expected_error_no,
                        const type_conversion_status expected_status)
 {
   THD *thd= field->table->in_use;
   sql_mode_t save_mode= thd->variables.sql_mode;
-  thd->variables.sql_mode= MODE_NO_ENGINE_SUBSTITUTION;
+  thd->variables.sql_mode= MODE_NO_ENGINE_SUBSTITUTION | modes;
   char buff[MAX_FIELD_WIDTH];
   String str(buff, sizeof(buff), &my_charset_bin);
   String unused;
@@ -75,7 +76,6 @@ void test_store_string(Field_temporal *field,
   EXPECT_EQ((expected_error_no == 0 ? 0 : 1), error_handler.handle_called());
   thd->variables.sql_mode= save_mode;
 }
-
 
 }
 

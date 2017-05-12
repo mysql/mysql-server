@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,23 +26,70 @@
 
 #include "log.h"
 
+#include "my_config.h"
+
+#include <errno.h>
+#include <fcntl.h>
+#include <limits.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/stat.h>
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
+#include <time.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+#include <algorithm>
+#include <new>
+#include <sstream>
+#include <string>
+
+#include "auth_acls.h"
+#include "binary_log_types.h"
 #include "current_thd.h"    // current_thd
 #include "derror.h"         // ER_DEFAULT
+#include "discrete_interval.h"
 #include "error_handler.h"  // Internal_error_handler
+#include "field.h"
+#include "handler.h"
+#include "key.h"
+#include "lex_string.h"
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_base.h"
+#include "my_dbug.h"
+#include "my_decimal.h"
+#include "my_dir.h"
+#include "my_double2ulonglong.h"
+#include "my_time.h"
+#include "mysql/plugin.h"
+#include "mysql/psi/mysql_file.h"
+#include "mysql/psi/mysql_statement.h"
+#include "mysql/service_my_plugin_log.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql_version.h"
 #include "mysqld.h"         // opt_log_syslog_enable
+#include "mysqld_error.h"
 #include "psi_memory_key.h" // key_memory_File_query_log_name
+#include "query_options.h"
+#include "session_tracker.h"
 #include "sql_audit.h"      // mysql_audit_general_log
 #include "sql_base.h"       // close_log_table
 #include "sql_class.h"      // THD
+#include "sql_error.h"
+#include "sql_lex.h"
 #include "sql_parse.h"      // sql_command_flags
+#include "sql_plugin_ref.h"
+#include "sql_security_ctx.h"
 #include "sql_time.h"       // calc_time_from_sec
+#include "system_variables.h"
 #include "table.h"          // TABLE_FIELD_TYPE
-
-#include "pfs_file_provider.h"
-#include "mysql/psi/mysql_file.h"
-
-#include <string>
-#include <sstream>
+#include "thr_lock.h"
+#include "thr_mutex.h"
 #ifdef _WIN32
 #include <message.h>
 #else
@@ -231,10 +278,10 @@ class Silence_log_table_errors : public Internal_error_handler
 public:
   Silence_log_table_errors() { m_message[0]= '\0'; }
 
-  virtual bool handle_condition(THD *thd,
-                                uint sql_errno,
-                                const char* sql_state,
-                                Sql_condition::enum_severity_level *level,
+  virtual bool handle_condition(THD*,
+                                uint,
+                                const char*,
+                                Sql_condition::enum_severity_level*,
                                 const char* msg)
   {
     strmake(m_message, msg, sizeof(m_message)-1);
@@ -536,6 +583,100 @@ File_query_log::File_query_log(enum_log_table_type log_type)
 }
 
 
+bool is_valid_log_name(const char *name, size_t len)
+{
+  if (len > 3)
+  {
+    const char *tail= name + len - 4;
+    if (my_strcasecmp(system_charset_info, tail, ".ini") == 0 ||
+        my_strcasecmp(system_charset_info, tail, ".cnf") == 0)
+    {
+      return false;
+    }
+  }
+  return true;
+}
+
+
+/**
+  Get the real log file name, and possibly reopen file.
+
+  The implementation is platform dependent due to differences in how this is
+  supported:
+
+  On Windows, we get the actual path based on the file descriptor. This path is
+  copied into the supplied buffer. The 'file' parameter is returned without
+  re-opening.
+
+  On other platforms, we use realpath() to get the path with symbolic links
+  expanded. Then, we close the file, and reopen the real path using the
+  O_NOFOLLOW flag. This will reject folowing symbolic links.
+
+  @param          file                  File descriptor.
+  @param          log_file_key          Key for P_S instrumentation.
+  @param          open_flags            Flags to use for opening the file.
+  @param          opened_file_name      Name of the open fd.
+  @param [out]    real_file_name        Buffer for actual name of the fd.
+
+  @retval file descriptor to open file with 'real_file_name', or '-1'
+          in case of errors.
+*/
+
+static File mysql_file_real_name_reopen(File file,
+#ifdef HAVE_PSI_INTERFACE
+                                        PSI_file_key log_file_key,
+#endif
+                                        int open_flags,
+                                        const char *opened_file_name,
+                                        char *real_file_name)
+{
+  DBUG_ASSERT(file);
+  DBUG_ASSERT(opened_file_name);
+  DBUG_ASSERT(real_file_name);
+
+#ifdef _WIN32
+  /* On Windows, O_NOFOLLOW is not supported. Verify real path from fd. */
+  DWORD real_length= GetFinalPathNameByHandle(my_get_osfhandle(file),
+                                              real_file_name,
+                                              FN_REFLEN,
+                                              FILE_NAME_OPENED);
+
+  /* May ret 0 if e.g. on a ramdisk. Ignore - return open file and name. */
+  if (real_length == 0)
+  {
+    strcpy(real_file_name, opened_file_name);
+    return file;
+  }
+
+  if (real_length > FN_REFLEN)
+  {
+    mysql_file_close(file, MYF(0));
+    return -1;
+  }
+
+  return file;
+#else
+  /* On *nix, get realpath, open realpath with O_NOFOLLOW. */
+  if (realpath(opened_file_name, real_file_name) == NULL)
+  {
+    (void) mysql_file_close(file, MYF(0));
+    return -1;
+  }
+
+  if (mysql_file_close(file, MYF(0)))
+    return -1;
+
+  /* Make sure the real path is not too long. */
+  if (strlen(real_file_name) > FN_REFLEN)
+    return -1;
+
+  return mysql_file_open(log_file_key, real_file_name,
+                         open_flags | O_NOFOLLOW,
+                         MYF(MY_WME));
+#endif //_WIN32
+}
+
+
 bool File_query_log::open()
 {
   File file= -1;
@@ -569,11 +710,35 @@ bool File_query_log::open()
 
   db[0]= 0;
 
+  /* First, open the file to make sure it exists. */
   if ((file= mysql_file_open(m_log_file_key,
                              log_file_name,
                              O_CREAT | O_WRONLY | O_APPEND,
                              MYF(MY_WME))) < 0)
     goto err;
+
+#ifdef _WIN32
+  char real_log_file_name[FN_REFLEN];
+#else
+  /* File name must have room for PATH_MAX. Checked against F_REFLEN later. */
+  char real_log_file_name[PATH_MAX];
+#endif // _Win32
+
+  /* Reopen and get real path. */
+  if ((file= mysql_file_real_name_reopen(file,
+#ifdef HAVE_PSI_INTERFACE
+                                         m_log_file_key,
+#endif
+                                         O_CREAT | O_WRONLY | O_APPEND,
+                                         log_file_name, real_log_file_name)) < 0)
+    goto err;
+
+  if (!is_valid_log_name(real_log_file_name, strlen(real_log_file_name)))
+  {
+    sql_print_error("Invalid log file name after expanding symlinks: '%s'",
+                    real_log_file_name);
+    goto err;
+  }
 
   if ((pos= mysql_file_tell(file, MYF(MY_WME))) == MY_FILEPOS_ERROR)
   {
@@ -590,10 +755,7 @@ bool File_query_log::open()
   {
     char *end;
     size_t len=my_snprintf(buff, sizeof(buff), "%s, Version: %s (%s). "
-#ifdef EMBEDDED_LIBRARY
-                        "embedded library\n",
-                        my_progname, server_version, MYSQL_COMPILATION_COMMENT
-#elif defined(_WIN32)
+#if defined(_WIN32)
                         "started with:\nTCP Port: %d, Named Pipe: %s\n",
                         my_progname, server_version, MYSQL_COMPILATION_COMMENT,
                         mysqld_port, mysqld_unix_port
@@ -677,8 +839,6 @@ void File_query_log::check_and_print_write_error()
 
 
 bool File_query_log::write_general(ulonglong event_utime,
-                                   const char *user_host,
-                                   size_t user_host_len,
                                    my_thread_id thread_id,
                                    const char *command_type,
                                    size_t command_type_len,
@@ -731,9 +891,8 @@ err:
 
 
 bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
-                                ulonglong query_start_arg,
                                 const char *user_host,
-                                size_t user_host_len, ulonglong query_utime,
+                                size_t, ulonglong query_utime,
                                 ulonglong lock_utime, bool is_command,
                                 const char *sql_text, size_t sql_text_len)
 {
@@ -982,7 +1141,7 @@ bool Log_to_csv_event_handler::log_slow(THD *thd, ulonglong current_utime,
                                         const char *user_host,
                                         size_t user_host_len,
                                         ulonglong query_utime,
-                                        ulonglong lock_utime, bool is_command,
+                                        ulonglong lock_utime, bool,
                                         const char *sql_text,
                                         size_t sql_text_len)
 {
@@ -1190,7 +1349,7 @@ bool Log_to_csv_event_handler::activate_log(THD *thd,
 
 
 bool Log_to_file_event_handler::log_slow(THD *thd, ulonglong current_utime,
-                                         ulonglong query_start_arg,
+                                         ulonglong,
                                          const char *user_host,
                                          size_t user_host_len,
                                          ulonglong query_utime,
@@ -1204,7 +1363,7 @@ bool Log_to_file_event_handler::log_slow(THD *thd, ulonglong current_utime,
 
   Silence_log_table_errors error_handler;
   thd->push_internal_handler(&error_handler);
-  bool retval= mysql_slow_log.write_slow(thd, current_utime, query_start_arg,
+  bool retval= mysql_slow_log.write_slow(thd, current_utime,
                                          user_host, user_host_len,
                                          query_utime, lock_utime, is_command,
                                          sql_text, sql_text_len);
@@ -1214,22 +1373,21 @@ bool Log_to_file_event_handler::log_slow(THD *thd, ulonglong current_utime,
 
 
 bool Log_to_file_event_handler::log_general(THD *thd, ulonglong event_utime,
-                                            const char *user_host,
-                                            size_t user_host_len,
+                                            const char*,
+                                            size_t,
                                             my_thread_id thread_id,
                                             const char *command_type,
                                             size_t command_type_len,
                                             const char *sql_text,
                                             size_t sql_text_len,
-                                            const CHARSET_INFO *client_cs)
+                                            const CHARSET_INFO*)
 {
   if (!mysql_general_log.is_open())
     return false;
 
   Silence_log_table_errors error_handler;
   thd->push_internal_handler(&error_handler);
-  bool retval= mysql_general_log.write_general(event_utime, user_host,
-                                               user_host_len, thread_id,
+  bool retval= mysql_general_log.write_general(event_utime, thread_id,
                                                command_type, command_type_len,
                                                sql_text, sql_text_len);
   thd->pop_internal_handler();
@@ -1343,11 +1501,10 @@ static bool log_command(THD *thd, enum_server_command command)
 {
   if (what_to_log & (1L << (uint) command))
   {
-    if ((thd->variables.option_bits & OPTION_LOG_OFF)
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-         && (thd->security_context()->check_access(SUPER_ACL))
-#endif
-       )
+    Security_context *sctx= thd->security_context();
+    if ((thd->variables.option_bits & OPTION_LOG_OFF) &&
+        (sctx->check_access(SUPER_ACL) ||
+         sctx->has_global_grant(STRING_WITH_LEN("CONNECTION_ADMIN")).first))
     {
       /* No logging */
       return false;
@@ -1361,11 +1518,9 @@ static bool log_command(THD *thd, enum_server_command command)
 bool Query_logger::general_log_write(THD *thd, enum_server_command command,
                                      const char *query, size_t query_length)
 {
-#ifndef EMBEDDED_LIBRARY
   /* Send a general log message to the audit API. */
   mysql_audit_general_log(thd, command_name[(uint) command].str,
                           command_name[(uint) command].length);
-#endif
 
   /*
     Do we want to log this kind of command?
@@ -1412,11 +1567,9 @@ bool Query_logger::general_log_print(THD *thd, enum_server_command command,
       !opt_general_log ||
       !(*general_log_handler_list))
   {
-#ifndef EMBEDDED_LIBRARY
     /* Send a general log message to the audit API. */
     mysql_audit_general_log(thd, command_name[(uint) command].str,
                             command_name[(uint) command].length);
-#endif
     return false;
   }
 
@@ -1646,7 +1799,6 @@ void log_slow_statement(THD *thd)
 }
 
 
-#ifdef MYSQL_SERVER
 void Log_throttle::new_window(ulonglong now)
 {
   count= 0;
@@ -1856,7 +2008,7 @@ Slow_log_throttle log_throttle_qni(&opt_log_throttle_queries_not_using_indexes,
                                    slow_log_write,
                                    "throttle: %10lu 'index "
                                    "not used' warning(s) suppressed.");
-#endif // MYSQL_SERVER
+
 
 ////////////////////////////////////////////////////////////
 //
@@ -1929,10 +2081,8 @@ bool open_error_log(const char *filename)
     errors= 0;
     if (!my_freopen(filename, "a", stderr))
       errors++;
-#ifndef EMBEDDED_LIBRARY
     if (!my_freopen(filename, "a", stdout))
       errors++;
-#endif
   }
   while (retries-- && errors);
 
@@ -1978,7 +2128,6 @@ bool reopen_error_log()
 }
 
 
-#ifndef EMBEDDED_LIBRARY
 static void print_buffer_to_file(enum loglevel level, const char *buffer,
                                  size_t length)
 {
@@ -2064,7 +2213,6 @@ void error_log_print(enum loglevel level, const char *format, va_list args)
 
   DBUG_VOID_RETURN;
 }
-#endif /* EMBEDDED_LIBRARY */
 
 
 void sql_print_error(const char *format, ...)

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,17 +16,36 @@
 #ifndef DD_CACHE__SHARED_MULTI_MAP_INCLUDED
 #define DD_CACHE__SHARED_MULTI_MAP_INCLUDED
 
-#include "my_global.h"
-#include "malloc_allocator.h"                // Malloc_allocator.
-#include "mysql/psi/mysql_thread.h"          // mysql_mutex_t, mysql_cond_t
-#include "mysqld.h"                          // max_connections
+#include <stdio.h>
+#include <vector>                            // std::vector
 
 #include "cache_element.h"                   // Cache_element
-#include "free_list.h"                       // Free_list
 #include "dd/cache/multi_map_base.h"         // Multi_map_base
+#include "dd/types/abstract_table.h"
+#include "dd/types/charset.h"
+#include "dd/types/collation.h"
 #include "dd/types/dictionary_object_table.h"
+#include "dd/types/event.h"
+#include "dd/types/routine.h"
+#include "dd/types/schema.h"
+#include "dd/types/spatial_reference_system.h"
+#include "dd/types/tablespace.h"
+#include "free_list.h"                       // Free_list
+#include "malloc_allocator.h"                // Malloc_allocator.
+#include "my_psi_config.h"
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/mysql_thread.h"          // mysql_mutex_t, mysql_cond_t
+#include "mysql/psi/psi_base.h"
+#include "mysqld.h"                          // max_connections
+#include "thr_mutex.h"
 
-#include <vector>                            // std::vector
+namespace dd {
+namespace cache {
+template <typename K, typename E> class Element_map;
+template <typename T> class Cache_element;
+}  // namespace cache
+}  // namespace dd
 
 #ifdef HAVE_PSI_INTERFACE
 extern PSI_mutex_key key_object_cache_mutex;
@@ -253,7 +272,7 @@ private:
 
 
   /**
-    Helper function to evict all unused and sticky elements from the free list
+    Helper function to evict all unused elements from the free list
     and the cache. Used during e.g. shutdown.
 
     @param  lock      Autolocker to use for signing up for auto delete.
@@ -303,6 +322,19 @@ public:
     Autolocker lock(this);
     m_capacity= capacity;
     rectify_free_list(&lock);
+  }
+
+  /**
+    Check if an element with the given key is available.
+  */
+
+  template <typename K>
+  bool available(const K &key)
+  {
+    Autolocker lock(this);
+    Cache_element<T> *e= nullptr;
+    m_map<K>()->get(key, &e);
+    return (e != nullptr);
   }
 
 
@@ -405,6 +437,23 @@ public:
 
 
   /**
+    Delete an object corresponding to the key from the map if exists.
+
+    This function will find the element corresponding to the key if
+    it exists. After that it will remove the element from all maps, using
+    remove(), and delete the object pointed to. This means that all keys
+    associated with the element will be removed from the maps, and the
+    cache element wrapper will be deleted.
+
+    @tparam  K         Key type.
+    @param   key       Key to be checked.
+  */
+
+  template <typename K>
+  void drop_if_present(const K &key);
+
+
+  /**
     Replace the object and re-generate the keys for an element.
 
     The element must be present and in use. The keys by which it is hashed
@@ -416,16 +465,6 @@ public:
   */
 
   void replace(Cache_element<T> *element, const T* object);
-
-
-  /**
-    Alter stickiness of an element.
-
-    @param   element   Element pointer.
-    @param   sticky    New stickiness.
-  */
-
-  void set_sticky(Cache_element<T> *element, bool sticky);
 
 
   /**

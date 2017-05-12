@@ -2,7 +2,7 @@
 #define _EVENT_DB_REPOSITORY_H_
 
 /*
-   Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,15 +18,19 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "my_global.h"
-#include "mysql/mysql_lex_string.h"             // LEX_STRING
+#include "lex_string.h"
+#include "my_inttypes.h"
+#include "mysql/mysql_lex_string.h"
 
 class Event_basic;
 class Event_parse_data;
 class THD;
 struct TABLE_LIST;
-typedef struct st_mysql_lex_string LEX_STRING;
 typedef long my_time_t;
+
+namespace dd {
+  class Schema;
+}
 
 /*
   Fields in mysql.event table in 5.7. This enum is used to
@@ -91,12 +95,10 @@ public:
   bool drop_event(THD *thd, LEX_STRING db, LEX_STRING name,
                   bool drop_if_exists);
 
-  bool drop_schema_events(THD *thd, LEX_STRING schema);
+  bool drop_schema_events(THD *thd, const dd::Schema &schema);
 
   bool load_named_event(THD *thd, LEX_STRING dbname, LEX_STRING name,
                         Event_basic *et);
-
-  bool fill_schema_events(THD *thd, TABLE_LIST *tables, const char *db);
 
   bool update_timing_fields_for_event(THD *thd,
                                       LEX_STRING event_db_name,

@@ -21,11 +21,15 @@
   Performance schema instrumentation (declarations).
 */
 
+#include "my_psi_config.h"
+
 #ifdef HAVE_PSI_IDLE_INTERFACE
 #ifdef MYSQL_SERVER
-#ifndef EMBEDDED_LIBRARY
 #ifndef MYSQL_DYNAMIC_PLUGIN
 
+#include <sys/types.h>
+
+#include "my_macros.h"
 #include "mysql/psi/psi_idle.h"
 
 #define PSI_IDLE_CALL(M) pfs_ ## M ## _v1
@@ -40,7 +44,6 @@ void pfs_end_idle_wait_v1(PSI_idle_locker* locker);
 C_MODE_END
 
 #endif /* MYSQL_DYNAMIC_PLUGIN */
-#endif /* EMBEDDED_LIBRARY */
 #endif /* MYSQL_SERVER */
 #endif /* HAVE_PSI_IDLE_INTERFACE */
 

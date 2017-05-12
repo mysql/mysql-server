@@ -2,7 +2,6 @@
 # Test fetching from stats tables while there are no stats
 #
 
--- source include/have_innodb.inc
 
 -- vertical_results
 

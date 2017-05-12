@@ -24,6 +24,7 @@
 #include "dd/types/schema.h"                  // Schema
 #include "dd/types/spatial_reference_system.h"// Spatial_reference_system
 #include "dd/types/tablespace.h"              // Tablespace
+#include "my_dbug.h"
 
 namespace dd {
 namespace cache {

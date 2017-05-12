@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,10 +16,14 @@
 #ifndef SQL_LOCALE_INCLUDED
 #define SQL_LOCALE_INCLUDED
 
-#include "my_global.h"                          /* uint */
+#include <sys/types.h>
+
+#include "my_inttypes.h"
+#include "my_sharedlib.h"
 
 class MY_LOCALE_ERRMSGS;
 class THD;
+
 typedef struct st_typelib TYPELIB;
 
 class MY_LOCALE

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,8 +19,24 @@
   a shared library.
 */
 
-#include "mysys_priv.h"
+#include "my_config.h"
+
+#include <stdarg.h>
+#include <stdarg.h>
+#include <stddef.h>
+
+#include "my_compiler.h"
+#include "my_loglevel.h"
 #include "my_static.h"
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_memory.h"
+#include "mysql/psi/psi_stage.h"
+#include "mysys_priv.h"  // IWYU pragma: keep
+
+/* get memory in hunks */
+constexpr uint ONCE_ALLOC_INIT= 4096 - MALLOC_OVERHEAD;
 
 PSI_memory_key key_memory_charset_file;
 PSI_memory_key key_memory_charset_loader;
@@ -38,7 +54,6 @@ PSI_memory_key key_memory_my_file_info;
 PSI_memory_key key_memory_max_alloca;
 PSI_memory_key key_memory_MY_DIR;
 PSI_memory_key key_memory_MY_TMPDIR_full_list;
-PSI_memory_key key_memory_QUEUE;
 PSI_memory_key key_memory_DYNAMIC_STRING;
 PSI_memory_key key_memory_TREE;
 
@@ -66,19 +81,14 @@ struct st_my_file_info *my_file_info= my_file_info_default;
 	/* from mf_reccache.c */
 ulong my_default_record_cache_size=RECORD_CACHE_SIZE;
 
-	/* from soundex.c */
-				/* ABCDEFGHIJKLMNOPQRSTUVWXYZ */
-				/* :::::::::::::::::::::::::: */
-const char *soundex_map=	  "01230120022455012623010202";
-
 	/* from my_malloc */
 USED_MEM* my_once_root_block=0;			/* pointer to first block */
 uint	  my_once_extra=ONCE_ALLOC_INIT;	/* Memory to alloc / block */
 
 	/* from my_largepage.c */
 #ifdef HAVE_LINUX_LARGE_PAGES
-my_bool my_use_large_pages= 0;
-uint    my_large_page_size= 0;
+bool my_use_large_pages= 0;
+uint my_large_page_size= 0;
 #endif
 
 	/* from errors.c */
@@ -142,6 +152,6 @@ ulonglong query_performance_frequency, query_performance_offset,
 #endif
 
 	/* How to disable options */
-my_bool my_disable_locking=0;
-my_bool my_enable_symlinks= 1;
+bool my_disable_locking=0;
+bool my_enable_symlinks= 1;
 

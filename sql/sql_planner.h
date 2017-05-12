@@ -1,7 +1,7 @@
 #ifndef SQL_PLANNER_INCLUDED
 #define SQL_PLANNER_INCLUDED
 
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,7 +21,10 @@
   Join planner classes.
 */
 
-#include "my_global.h"
+#include <sys/types.h>
+
+#include "my_inttypes.h"
+#include "my_table_map.h"
 
 class JOIN;
 class JOIN_TAB;
@@ -29,6 +32,7 @@ class Key_use;
 class Opt_trace_object;
 class THD;
 struct TABLE_LIST;
+
 typedef ulonglong nested_join_map;
 typedef struct st_position POSITION;
 
@@ -157,8 +161,7 @@ private:
                 uint last_inner, TABLE_LIST *sjm_nest,
                 double *newcount, double *newcost);
   void semijoin_dupsweedout_access_paths(
-                uint first_tab, uint last_tab, 
-                table_map remaining_tables, 
+                uint first_tab, uint last_tab,
                 double *newcount, double *newcost);
 
   static uint determine_search_depth(uint search_depth, uint table_count);

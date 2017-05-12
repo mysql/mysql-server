@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -55,7 +55,7 @@
 #
 #===========================================================================
 
-# Doxyfile 1.8.11
+# Doxyfile 1.8.12
 
 # This file describes the settings to be used by the documentation system
 # doxygen (www.doxygen.org) for a project.
@@ -95,7 +95,7 @@ PROJECT_NAME           = MySQL
 # could be handy for archiving the generated documentation or if some version
 # control system is used.
 
-PROJECT_NUMBER         = 8.0.0
+PROJECT_NUMBER         = 8.0.1
 
 # Using the PROJECT_BRIEF tag one can provide an optional one line description
 # for a project that appears at the top of each page and should give viewer a
@@ -352,6 +352,15 @@ EXTENSION_MAPPING      =
 # The default value is: YES.
 
 MARKDOWN_SUPPORT       = YES
+
+# When the TOC_INCLUDE_HEADINGS tag is set to a non-zero value, all headings up
+# to that level are automatically included in the table of contents, even if
+# they do not have an id attribute.
+# Note: This feature currently applies only to Markdown headings.
+# Minimum value: 0, maximum value: 99, default value: 0.
+# This tag requires that the tag MARKDOWN_SUPPORT is set to YES.
+
+TOC_INCLUDE_HEADINGS   = 0
 
 # When enabled doxygen tries to link words that correspond to documented
 # classes, or namespaces to their corresponding documentation. Such a link can
@@ -846,6 +855,7 @@ INPUT                  = ./client \
                          ./libbinlogevents \
                          ./libbinlogstandalone \
                          ./libservices \
+                         ./mysql-test/mysql-test-run.dox \
                          ./mysys \
                          ./mysys_ssl \
                          ./plugin/audit_null \
@@ -888,8 +898,8 @@ INPUT_ENCODING         = UTF-8
 # If left blank the following patterns are tested:*.c, *.cc, *.cxx, *.cpp,
 # *.c++, *.java, *.ii, *.ixx, *.ipp, *.i++, *.inl, *.idl, *.ddl, *.odl, *.h,
 # *.hh, *.hxx, *.hpp, *.h++, *.cs, *.d, *.php, *.php4, *.php5, *.phtml, *.inc,
-# *.m, *.markdown, *.md, *.mm, *.dox, *.py, *.pyw, *.f90, *.f, *.for, *.tcl,
-# *.vhd, *.vhdl, *.ucf, *.qsf, *.as and *.js.
+# *.m, *.markdown, *.md, *.mm, *.dox, *.py, *.pyw, *.f90, *.f95, *.f03, *.f08,
+# *.f, *.for, *.tcl, *.vhd, *.vhdl, *.ucf and *.qsf.
 
 FILE_PATTERNS          = *.c \
                          *.cc \
@@ -919,7 +929,7 @@ RECURSIVE              = YES
 
 ## Please keep this list sorted alphabetically.
 ## To resolve:
-## client/mysqlbinlog.cc : MYSQL_CLIENT / MYSQL_SERVER build options
+## client/mysqlbinlog.cc : MYSQL_SERVER build options
 
 EXCLUDE                = cmd-line-utils \
                          client/mysqlbinlog.cc \
@@ -932,9 +942,7 @@ EXCLUDE                = cmd-line-utils \
                          libevent \
                          libmysql \
                          libmysql_r \
-                         libmysqld \
-                         mysql-test \
-                         plugin \
+                         plugin/innodb_memcached/daemon_memcached/include/memcached \
                          source_downloads \
                          sql/sql_hints.cc \
                          sql/sql_yacc.cc \
@@ -943,7 +951,15 @@ EXCLUDE                = cmd-line-utils \
                          storage/innobase/include/fts0tlex.h \
                          storage/innobase/fts/fts0blex.cc \
                          storage/innobase/fts/fts0tlex.cc \
-                         storage/ndb \
+                         storage/ndb/clusterj \
+                         storage/ndb/include \
+                         storage/ndb/mcc \
+                         storage/ndb/memcache \
+                         storage/ndb/ndbapi-examples \
+                         storage/ndb/nodejs \
+                         storage/ndb/src \
+                         storage/ndb/test \
+                         storage/ndb/tools \
                          support-files \
                          unittest \
                          zlib
@@ -1039,7 +1055,7 @@ INPUT_FILTER           =
 # need to set EXTENSION_MAPPING for the extension otherwise the files are not
 # properly processed by doxygen.
 
-FILTER_PATTERNS        =
+FILTER_PATTERNS        = "*/sql/mysqld.cc=./doxygen_resources/doxygen-filter-mysqld"
 
 # If the FILTER_SOURCE_FILES tag is set to YES, the input filter (if set using
 # INPUT_FILTER) will also be used to filter the input files that are used for
@@ -2164,6 +2180,7 @@ INCLUDE_FILE_PATTERNS  =
 
 PREDEFINED             = WITH_PERFSCHEMA_STORAGE_ENGINE \
                          IN_DOXYGEN \
+                         __cplusplus \
                          HAVE_REPLICATION \
                          HAVE_COMPRESS \
                          HAVE_MYSYS \
@@ -2184,6 +2201,7 @@ PREDEFINED             = WITH_PERFSCHEMA_STORAGE_ENGINE \
                          HAVE_PSI_STATEMENT_DIGEST_INTERFACE \
                          __attribute__(X)= \
                          MY_ATTRIBUTE(X)= \
+                         ALWAYS_INLINE(X)=X \
                          UNIV_DEBUG \
                          UNIV_NOTHROW \
                          __cplusplus

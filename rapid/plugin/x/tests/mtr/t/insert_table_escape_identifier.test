@@ -1,7 +1,7 @@
 ## generated
 ## Rel: Attempt to break identifier quoting
 
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 ## Test starts here
 --write_file $MYSQL_TMP_DIR/insert_table_escape_identifier.tmp
 ## Test data

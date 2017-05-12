@@ -8,7 +8,6 @@
 #Want to skip this test from daily Valgrind execution.
 --source include/no_valgrind_without_big.inc
 
---source include/have_innodb.inc
 
 let $engine_type= InnoDB;
 --source suite/funcs_2/charset/charset_master.test

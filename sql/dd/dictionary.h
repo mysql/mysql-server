@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,8 +16,8 @@
 #ifndef DD__DICTIONARY_INCLUDED
 #define DD__DICTIONARY_INCLUDED
 
-#include "my_global.h"
-#include <string>
+
+#include "dd/string_type.h"                    // dd::String_type
 
 class THD;
 class MDL_ticket;
@@ -49,8 +49,8 @@ public:
              dictionary table name, else NULL.
   */
   virtual const Object_table *get_dd_table(
-    const std::string &schema_name,
-    const std::string &table_name) const = 0;
+    const String_type &schema_name,
+    const String_type &table_name) const = 0;
 
   /**
     Store metadata of plugin's information schema tables into
@@ -75,7 +75,7 @@ public:
     @returns true - If schema_name is 'mysql'
     @returns false - If schema_name is not 'mysql'
   */
-  virtual bool is_dd_schema_name(const std::string &schema_name) const = 0;
+  virtual bool is_dd_schema_name(const String_type &schema_name) const = 0;
 
   /**
     Check if given table name is a dictionary table name.
@@ -86,8 +86,23 @@ public:
     @returns true -  If given table name is a dictionary table.
     @returns false - If table name is not a dictionary table.
   */
-  virtual bool is_dd_table_name(const std::string &schema_name,
-                                const std::string &table_name) const = 0;
+  virtual bool is_dd_table_name(const String_type &schema_name,
+                                const String_type &table_name) const = 0;
+
+  /**
+    Get the error code representing the type name string for a dictionary
+    or system table.
+
+    Necessary to support localization of error messages.
+
+    @param schema_name    Schema name to check.
+    @param table_name     Table name to check.
+
+    @returns The error code representing the type name associated with the table,
+             for being used in error messages.
+  */
+  virtual int table_type_error_code(const String_type &schema_name,
+                                    const String_type &table_name) const = 0;
 
   /**
     Check if given table name can be accessed by the given thread type.

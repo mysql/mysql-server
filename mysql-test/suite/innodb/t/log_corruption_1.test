@@ -1,6 +1,3 @@
---source include/have_innodb.inc
---source include/have_innodb_16k.inc
-
 # This test case tests if we handle the corrupted redo logs for dynamic metadata
 # of tables(corrupted index bit in this case) correctly.
 # Since we save the data and log files in advance, anything that will modify

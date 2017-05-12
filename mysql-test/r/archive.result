@@ -12732,8 +12732,9 @@ CREATE TABLE t1(a INT) ENGINE=ARCHIVE;
 FLUSH TABLE t1;
 SELECT * FROM t1;
 ERROR HY000: Can't find file: 't1' (errno: 2 - No such file or directory)
-DROP TABLE t1;
-ERROR 42S02: Unknown table 'test.t1'
+DROP TABLE IF EXISTS t1;
+Warnings:
+Warning	1017	Can't find file: 't1' (errno: 2 - No such file or directory)
 #
 # Ensure that TRUNCATE fails for non-empty archive tables.
 #

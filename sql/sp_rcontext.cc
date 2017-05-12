@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,14 +15,25 @@
 
 #include "sp_rcontext.h"
 
+#include <new>
+
 #include "derror.h"            // ER_THD
+#include "field.h"
+#include "my_dbug.h"
+#include "my_sys.h"
+#include "mysql/psi/psi_base.h"
+#include "mysqld_error.h"
+#include "protocol.h"
 #include "sp.h"                // sp_eval_instr
 #include "sp_instr.h"          // sp_instr
 #include "sp_pcontext.h"       // sp_pcontext
 #include "sql_class.h"         // THD
 #include "sql_cursor.h"        // mysql_open_cursor
+#include "sql_list.h"
 #include "sql_tmp_table.h"     // create_virtual_tmp_table
 #include "template_utils.h"    // delete_container_pointers
+
+class SELECT_LEX_UNIT;
 
 extern "C" void sql_alloc_error_handler(void);
 
@@ -523,7 +534,7 @@ bool sp_cursor::open(THD *thd)
 }
 
 
-bool sp_cursor::close(THD *thd)
+bool sp_cursor::close()
 {
   if (! m_server_side_cursor)
   {
@@ -590,7 +601,7 @@ bool sp_cursor::fetch(THD *thd, List<sp_variable> *vars)
 ///////////////////////////////////////////////////////////////////////////
 
 
-int sp_cursor::Query_fetch_into_spvars::prepare(List<Item> &fields,
+bool sp_cursor::Query_fetch_into_spvars::prepare(List<Item> &fields,
                                                 SELECT_LEX_UNIT *u)
 {
   /*

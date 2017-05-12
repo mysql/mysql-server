@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,17 +17,16 @@
 #ifndef AUTH_INTERNAL_INCLUDED
 #define AUTH_INTERNAL_INCLUDED
 
-#include "my_global.h"                  /* NO_EMBEDDED_ACCESS_CHECKS */
-#include "violite.h"                    /* SSL_type */
-#include "mysql_time.h"                 /* MYSQL_TIME */
-#include "partitioned_rwlock.h"
-#include "auth_common.h"
-#include "table.h"                      /* LEX_ALTER */
-
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
+#include <string>
 #include <unordered_map>
 #include <unordered_set>
-#include <string>
+
+#include "auth_common.h"
+#include "mysql_time.h"                 /* MYSQL_TIME */
+#include "partitioned_rwlock.h"
+#include "table.h"
+#include "violite.h"                    /* SSL_type */
+#include "dynamic_privilege_table.h"
 
 
 
@@ -82,8 +81,6 @@ std::string create_authid_str_from(const Auth_id_ref &user);
 Auth_id_ref create_authid_from(const LEX_USER *user);
 Auth_id_ref create_authid_from(const ACL_USER *user);
 
-#endif
-
 /* sql_authentication */
 void optimize_plugin_compare_by_pointer(LEX_CSTRING *plugin_name);
 bool auth_plugin_is_built_in(const char *plugin_name);
@@ -99,9 +96,6 @@ ulong get_sort(uint count,...);
 bool assert_acl_cache_read_lock(THD *thd);
 bool assert_acl_cache_write_lock(THD *thd);
 
-
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-
 /*sql_authentication */
 bool rsa_auth_status();
 
@@ -109,7 +103,7 @@ bool rsa_auth_status();
 void rebuild_check_host(void);
 ACL_USER * find_acl_user(const char *host,
                          const char *user,
-                         my_bool exact);
+                         bool exact);
 ACL_PROXY_USER * acl_find_proxy_user(const char *user,
                                      const char *host,
                                      const char *ip,
@@ -151,7 +145,7 @@ void clear_and_init_db_cache();
 
 /* sql_user_table */
 ulong get_access(TABLE *form,uint fieldnr, uint *next_field);
-int replace_db_table(TABLE *table, const char *db,
+int replace_db_table(THD *thd, TABLE *table, const char *db,
                      const LEX_USER &combo,
                      ulong rights, bool revoke_grant);
 int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
@@ -160,7 +154,7 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
 int replace_proxies_priv_table(THD *thd, TABLE *table, const LEX_USER *user,
                                const LEX_USER *proxied_user,
                                bool with_grant_arg, bool revoke_grant);
-int replace_column_table(GRANT_TABLE *g_t,
+int replace_column_table(THD *thd, GRANT_TABLE *g_t,
                          TABLE *table, const LEX_USER &combo,
                          List <LEX_COLUMN> &columns,
                          const char *db, const char *table_name,
@@ -193,7 +187,6 @@ bool is_privileged_user_for_credential_change(THD *thd);
 void rebuild_vertex_index(THD *thd);
 void roles_init_graph(void);
 void roles_delete_graph(void);
-
 /**
   Storage container for default role ids. Default roles are only weakly
   depending on ACL_USERs. You can retain a default role even if the
@@ -270,12 +263,32 @@ private:
   String m_auth_str;
 };
 
+void dynamic_privileges_init(void);
+void dynamic_privileges_delete(void);
+bool grant_dynamic_privilege(const LEX_CSTRING &str_priv,
+                             const LEX_CSTRING &str_user,
+                             const LEX_CSTRING &str_host,
+                             bool with_grant_option,
+                             Update_dynamic_privilege_table &func);
+bool revoke_dynamic_privilege(const LEX_CSTRING &str_priv,
+                              const LEX_CSTRING &str_user,
+                              const LEX_CSTRING &str_host,
+                              Update_dynamic_privilege_table &update_table);
+bool revoke_all_dynamic_privileges(const LEX_CSTRING &user,
+                                   const LEX_CSTRING &host,
+                                   Update_dynamic_privilege_table &func);
+bool rename_dynamic_grant(const LEX_CSTRING &old_user,
+                          const LEX_CSTRING &old_host,
+                          const LEX_CSTRING &new_user,
+                          const LEX_CSTRING &new_host,
+                          Update_dynamic_privilege_table &update_table);
 bool operator==(const Role_id &a, const Auth_id_ref &b);
 bool operator==(const Auth_id_ref &a, const Role_id &b);
 bool operator==(const std::pair<const Role_id, const Role_id> &a,
                 const Auth_id_ref &b);
 bool operator==(const Role_id &a, const Role_id &b);
-
+bool operator==(std::pair<const Role_id, std::pair<std::string, bool> > &a,
+                const std::string &b);
 typedef std::vector<std::pair<Role_id, bool> > List_of_granted_roles;
 
 struct role_id_hash
@@ -291,6 +304,7 @@ struct role_id_hash
 
 typedef std::unordered_multimap<const Role_id, const Role_id, role_id_hash>
   Default_roles;
+typedef std::map<std::string, bool> Dynamic_privileges;
 
 void get_privilege_access_maps(ACL_USER *acl_user,
                                const List_of_auth_id_refs *using_roles,
@@ -301,7 +315,8 @@ void get_privilege_access_maps(ACL_USER *acl_user,
                                SP_access_map *sp_map,
                                SP_access_map *func_map,
                                List_of_granted_roles *granted_roles,
-                               Grant_acl_set *with_admin_acl);
+                               Grant_acl_set *with_admin_acl,
+                               Dynamic_privileges *dynamic_acl);
 bool clear_default_roles(THD *thd, TABLE *table,
                          const Auth_id_ref &user_auth_id,
                          std::vector<Role_id > *default_roles);
@@ -320,6 +335,17 @@ bool modify_role_edges_in_table(THD *thd, TABLE *table,
 Auth_id_ref create_authid_from(const Role_id &user);
 bool roles_rename_authid(THD *thd, TABLE *edge_table, TABLE *defaults_table,
                          LEX_USER *user_from, LEX_USER *user_to);
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
-
+bool set_and_validate_user_attributes(THD *thd,
+                                      LEX_USER *Str,
+                                      ulong &what_to_set,
+                                      bool is_privileged_user,
+                                      bool is_role);
+typedef std::pair<std::string, bool> Grant_privilege;
+typedef std::unordered_multimap<const Role_id, Grant_privilege,
+                                role_id_hash >
+  User_to_dynamic_privileges_map;
+User_to_dynamic_privileges_map *get_dynamic_privileges_map();
+User_to_dynamic_privileges_map *
+swap_dynamic_privileges_map(User_to_dynamic_privileges_map *map);
+bool populate_roles_caches(THD *thd, TABLE_LIST * tablelst);
 #endif /* AUTH_INTERNAL_INCLUDED */

@@ -17,14 +17,23 @@
   @file mysys/my_symlink.cc
 */
 
-#include "mysys_priv.h"
-#include "my_sys.h"
-#include "mysys_err.h"
-#include <m_string.h>
+#include "my_config.h"
+
 #include <errno.h>
+#include <limits.h>
+#include <stdlib.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+
+#include "m_string.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_sys.h"
 #include "my_thread_local.h"
-#ifdef HAVE_REALPATH
-#include <sys/param.h>
+#include "mysys_err.h"
+#ifndef _WIN32
 #include <sys/stat.h>
 #endif
 
@@ -40,7 +49,7 @@
 
 int my_readlink(char *to, const char *filename, myf MyFlags)
 {
-#ifndef HAVE_READLINK
+#ifdef _WIN32
   my_stpcpy(to,filename);
   return 1;
 #else
@@ -72,17 +81,15 @@ int my_readlink(char *to, const char *filename, myf MyFlags)
     to[length]=0;
   DBUG_PRINT("exit" ,("result: %d", result));
   DBUG_RETURN(result);
-#endif /* HAVE_READLINK */
+#endif /* !_WIN32 */
 }
 
 
 /* Create a symbolic link */
 
+#ifndef _WIN32
 int my_symlink(const char *content, const char *linkname, myf MyFlags)
 {
-#ifndef HAVE_READLINK
-  return 0;
-#else
   int result;
   DBUG_ENTER("my_symlink");
   DBUG_PRINT("enter",("content: %s  linkname: %s", content, linkname));
@@ -102,29 +109,22 @@ int my_symlink(const char *content, const char *linkname, myf MyFlags)
   else if ((MyFlags & MY_SYNC_DIR) && my_sync_dir_by_file(linkname, MyFlags))
     result= -1;
   DBUG_RETURN(result);
-#endif /* HAVE_READLINK */
 }
-
-#if defined(MAXPATHLEN)
-#define BUFF_LEN MAXPATHLEN
-#else
-#define BUFF_LEN FN_LEN
-#endif
+#endif /* !_WIN32 */
 
 
-int my_is_symlink(const char *filename MY_ATTRIBUTE((unused)))
+int my_is_symlink(const char *filename)
 {
-#if defined (HAVE_LSTAT) && defined (S_ISLNK)
+#ifndef _WIN32
   struct stat stat_buff;
   return !lstat(filename, &stat_buff) && S_ISLNK(stat_buff.st_mode);
-#elif defined (_WIN32)
+#else
   DWORD dwAttr = GetFileAttributes(filename);
   return (dwAttr != INVALID_FILE_ATTRIBUTES) &&
     (dwAttr & FILE_ATTRIBUTE_REPARSE_POINT);
-#else  /* No symlinks */
-  return 0;
 #endif
 }
+
 
 /*
   Resolve all symbolic links in path
@@ -133,9 +133,9 @@ int my_is_symlink(const char *filename MY_ATTRIBUTE((unused)))
 
 int my_realpath(char *to, const char *filename, myf MyFlags)
 {
-#if defined(HAVE_REALPATH)
+#ifndef _WIN32
   int result=0;
-  char buff[BUFF_LEN];
+  char buff[PATH_MAX];
   char *ptr;
   DBUG_ENTER("my_realpath");
 
@@ -161,7 +161,7 @@ int my_realpath(char *to, const char *filename, myf MyFlags)
     result= -1;
   }
   DBUG_RETURN(result);
-#elif defined(_WIN32)
+#else
   int ret= GetFullPathName(filename,FN_REFLEN, to, NULL);
   if (ret == 0 || ret > FN_REFLEN)
   {
@@ -180,8 +180,6 @@ int my_realpath(char *to, const char *filename, myf MyFlags)
     my_load_path(to, filename, NullS);
     return -1;
   }
-#else
-  my_load_path(to, filename, NullS);
-#endif
   return 0;
+#endif
 }

@@ -1,7 +1,7 @@
 ## Using Mysqlx::Expr::OBJECT in collection 
 
 ## Preamble
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 ## Test starts here
 --write_file $MYSQL_TMP_DIR/crud_table_expr_object.tmp
 

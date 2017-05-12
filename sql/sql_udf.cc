@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,22 +29,45 @@
 
 #include "sql_udf.h"
 
-#include "hash.h"               // HASH
-#include "m_string.h"           // my_stpcpy
+#include <string.h>
+#include <new>
+
 #include "derror.h"             // ER_DEFAULT
+#include "field.h"
+#include "handler.h"
+#include "hash.h"               // HASH
+#include "item_create.h"
 #include "log.h"                // sql_print_error
+#include "m_ctype.h"
+#include "m_string.h"           // my_stpcpy
+#include "mdl.h"
+#include "my_base.h"
+#include "my_config.h"
+#include "my_dbug.h"
+#include "my_io.h"
+#include "my_psi_config.h"
+#include "my_sharedlib.h"
+#include "my_sys.h"
+#include "my_thread_local.h"
+#include "mysql/psi/mysql_memory.h"
+#include "mysql/psi/mysql_rwlock.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_memory.h"
+#include "mysql/psi/psi_rwlock.h"
 #include "mysqld.h"             // opt_allow_suspicious_udfs
 #include "mysqld_error.h"       // ER_*
 #include "records.h"            // READ_RECORD
 #include "sql_base.h"           // close_mysql_tables
 #include "sql_class.h"          // THD
+#include "sql_const.h"
 #include "sql_parse.h"          // check_string_char_length
 #include "sql_plugin.h"         // check_valid_path
+#include "sql_servers.h"
 #include "sql_table.h"          // write_bin_log
 #include "table.h"              // TABLE_LIST
+#include "thr_lock.h"
+#include "thr_malloc.h"
 #include "transaction.h"        // trans_*
-
-#include "mysql/psi/mysql_memory.h"
 
 #ifdef HAVE_DLFCN_H
 #include <dlfcn.h>
@@ -135,10 +158,10 @@ static void init_udf_psi_keys(void)
   const char* category= "sql";
   int count;
 
-  count= array_elements(all_udf_rwlocks);
+  count= static_cast<int>(array_elements(all_udf_rwlocks));
   mysql_rwlock_register(category, all_udf_rwlocks, count);
 
-  count= array_elements(all_udf_memory);
+  count= static_cast<int>(array_elements(all_udf_memory));
   mysql_memory_register(category, all_udf_memory, count);
 }
 #endif

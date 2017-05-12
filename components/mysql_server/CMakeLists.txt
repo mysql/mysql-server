@@ -29,6 +29,7 @@ SET(MYSQL_SERVER_COMPONENT_SOURCES
   mysql_component.cc
   mysql_service_implementation.cc
   dynamic_loader_scheme_file.cc
+  plugin_registry_service.cc
 )
 
 MYSQL_ADD_COMPONENT(mysql_server

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,8 +17,13 @@
 
 /* functions to work with full-text indices */
 
-#include "ftdefs.h"
 #include <math.h>
+#include <sys/types.h>
+
+#include "ftdefs.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
 
 void _mi_ft_segiterator_init(MI_INFO *info, uint keynr, const uchar *record,
 			     FT_SEG_ITERATOR *ftsi)

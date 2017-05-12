@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,14 +16,19 @@
 #ifndef SQL_TABLE_MAINTENANCE_H
 #define SQL_TABLE_MAINTENANCE_H
 
-#include "my_global.h"
+#include <stddef.h>
+
+#include "lex_string.h"
+#include "my_dbug.h"
+#include "my_sqlcommand.h"
+#include "mysql/mysql_lex_string.h"
 #include "sql_cmd.h"       // Sql_cmd
-#include "sql_list.h"
 
 class THD;
 struct TABLE_LIST;
+template <class T> class List;
+
 typedef struct st_key_cache KEY_CACHE;
-typedef struct st_mysql_lex_string LEX_STRING;
 typedef struct st_lex_user LEX_USER;
 
 /* Must be able to hold ALTER TABLE t PARTITION BY ... KEY ALGORITHM = 1 ... */
@@ -224,8 +229,6 @@ public:
 */
 class Sql_cmd_grant_roles : public Sql_cmd
 {
-  friend class PT_grant_roles;
-
   const List<LEX_USER> *roles;
   const List<LEX_USER> *users;
   const bool with_admin_option;
@@ -248,8 +251,6 @@ public:
 */
 class Sql_cmd_revoke_roles : public Sql_cmd
 {
-  friend class PT_revoke_roles;
-
   const List<LEX_USER> *roles;
   const List<LEX_USER> *users;
 
@@ -339,5 +340,23 @@ public:
 
   virtual bool execute(THD *thd);
   virtual enum_sql_command sql_command_code() const { return SQLCOM_ALTER_INSTANCE; }
+};
+
+
+/**
+  Sql_cmd_show represents the SHOW COLUMNS/SHOW INDEX statements.
+*/
+class Sql_cmd_show : public Sql_cmd
+{
+public:
+  Sql_cmd_show(enum_sql_command sql_command)
+    : m_sql_command(sql_command)
+  {}
+  virtual bool execute(THD *thd);
+  virtual enum_sql_command sql_command_code() const { return m_sql_command; }
+  virtual bool prepare(THD *thd);
+
+private:
+  enum_sql_command m_sql_command;
 };
 #endif

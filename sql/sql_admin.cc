@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,36 +13,70 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql_admin.h"
+#include "sql/sql_admin.h"
 
-#include "sql_class.h"                       // THD
-#include "keycaches.h"                       // get_key_cache
-#include "sql_base.h"                        // Open_table_context
-#include "lock.h"                            // MYSQL_OPEN_*
-#include "partition_element.h"               // PART_ADMIN
-#include "sql_partition.h"                   // set_part_state
-#include "transaction.h"                     // trans_rollback_stmt
-#include "sql_view.h"                        // view_checksum
-#include "sql_table.h"                       // mysql_recreate_table
-#include "debug_sync.h"                      // DEBUG_SYNC
+#include <limits.h>
+#include <string.h>
+#include <sys/types.h>
+#include <utility>
+
+#include "auth_acls.h"
 #include "auth_common.h"                     // *_ACL
+#include "dd/dd_table.h"                     // dd::recreate_table
+#include "dd/info_schema/stats.h"            // dd::info_schema::update_*
+#include "dd/types/abstract_table.h"         // dd::enum_table_type
+#include "debug_sync.h"                      // DEBUG_SYNC
+#include "derror.h"                          // ER_THD
+#include "handler.h"
+#include "hash.h"
+#include "item.h"
+#include "key.h"
+#include "keycache.h"
+#include "keycaches.h"                       // get_key_cache
+#include "log.h"
+#include "m_string.h"
+#include "mdl.h"
+#include "my_base.h"
+#include "my_dbug.h"
+#include "my_dir.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_macros.h"
+#include "my_sys.h"
+#include "myisam.h"                          // TT_USEFRM
+#include "mysql/psi/mysql_file.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql_com.h"
+#include "mysqld.h"                          // key_file_misc
+#include "mysqld_error.h"
+#include "partition_element.h"               // PART_ADMIN
+#include "protocol.h"
+#include "rpl_gtid.h"
 #include "sp.h"                              // Sroutine_hash_entry
 #include "sp_rcontext.h"                     // sp_rcontext
-#include "sql_parse.h"                       // check_table_access
-#include "table_trigger_dispatcher.h"        // Table_trigger_dispatcher
-#include "dd/info_schema/stats.h"            // dd::info_schema::update_*
-#include "log.h"
-#include "myisam.h"                          // TT_USEFRM
-#include "mysqld.h"                          // key_file_misc
-#include "derror.h"                          // ER_THD
-#include "sql_cache.h"                       // query_cache
-
-#include "dd/dd_table.h"                     // dd::recreate_table
-#include "dd/types/abstract_table.h"         // dd::enum_table_type
+#include "sql_alter.h"
 #include "sql_alter_instance.h"              // Alter_instance
-
-#include "pfs_file_provider.h"
-#include "mysql/psi/mysql_file.h"
+#include "sql_base.h"                        // Open_table_context
+#include "sql_cache.h"                       // query_cache
+#include "sql_class.h"                       // THD
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_parse.h"                       // check_table_access
+#include "sql_partition.h"                   // set_part_state
+#include "sql_plugin.h"
+#include "sql_plugin_ref.h"
+#include "sql_prepare.h"                     // mysql_test_show
+#include "sql_security_ctx.h"
+#include "sql_string.h"
+#include "sql_table.h"                       // mysql_recreate_table
+#include "system_variables.h"
+#include "table.h"
+#include "table_trigger_dispatcher.h"        // Table_trigger_dispatcher
+#include "thr_lock.h"
+#include "transaction.h"                     // trans_rollback_stmt
+#include "violite.h"
 
 static int send_check_errmsg(THD *thd, TABLE_LIST* table,
 			     const char* operator_name, const char* errmsg)
@@ -111,12 +145,14 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
 
     hash_value= my_calc_hash(&table_def_cache, (uchar*) key, key_length);
     mysql_mutex_lock(&LOCK_open);
-    share= get_table_share(thd, table_list, key, key_length, false, hash_value);
+    share= get_table_share(thd, table_list, key, key_length, false,
+                           hash_value);
     mysql_mutex_unlock(&LOCK_open);
     if (share == NULL)
       DBUG_RETURN(0);				// Can't open frm file
 
-    if (open_table_from_share(thd, share, "", 0, 0, 0, &tmp_table, FALSE))
+    if (open_table_from_share(thd, share, "", 0, 0, 0, &tmp_table, FALSE,
+                              NULL))
     {
       mysql_mutex_lock(&LOCK_open);
       release_table_share(share);
@@ -148,6 +184,16 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
 
   /* A MERGE table must not come here. */
   DBUG_ASSERT(table->file->ht->db_type != DB_TYPE_MRG_MYISAM);
+
+  /*
+    Storage engines supporting atomic DDL do not come here either.
+
+    If we are to have storage engine which supports atomic DDL on one
+    hand and REPAIR ... USE_FRM on another then the below code related
+    to table re-creation in SE needs to be adjusted to at least
+    commit the transaction.
+  */
+  DBUG_ASSERT(!(table->file->ht->flags & HTON_SUPPORTS_ATOMIC_DDL));
 
   // Name of data file
   strxmov(from, table->s->normalized_path.str, ext[1], NullS);
@@ -335,7 +381,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     DBUG_PRINT("admin", ("extra_open_options: %u", extra_open_options));
     strxmov(table_name, db, ".", table->table_name, NullS);
     thd->open_options|= extra_open_options;
-    table->lock_type= lock_type;
+    table->set_lock({lock_type, THR_DEFAULT});
     /*
       To make code safe for re-execution we need to reset type of MDL
       request as code below may change it.
@@ -517,12 +563,6 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
         push_warning(thd, Sql_condition::SL_WARNING,
                      ER_CHECK_NO_SUCH_TABLE,
                      ER_THD(thd, ER_CHECK_NO_SUCH_TABLE));
-      /* if it was a view will check md5 sum */
-      if (table->is_view() &&
-          view_checksum(table) == HA_ADMIN_WRONG_CHECKSUM)
-        push_warning(thd, Sql_condition::SL_WARNING,
-                     ER_VIEW_CHECKSUM,
-                     ER_THD(thd, ER_VIEW_CHECKSUM));
       if (thd->get_stmt_da()->is_error() &&
           table_not_corrupt_error(thd->get_stmt_da()->mysql_errno()))
         result_code= HA_ADMIN_FAILED;
@@ -689,6 +729,9 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       if (dd::info_schema::update_table_stats(thd, table) ||
           dd::info_schema::update_index_stats(thd, table))
       {
+        // Play safe, rollback possible changes to the data-dictionary.
+        trans_rollback_stmt(thd);
+        trans_rollback_implicit(thd);
         result_code= HA_ADMIN_STATS_UPD_ERR;
         goto send_result;
       }
@@ -1268,11 +1311,7 @@ bool Sql_cmd_shutdown::execute(THD *thd)
 {
   DBUG_ENTER("Sql_cmd_shutdown::execute");
   bool res= TRUE;
-#ifndef EMBEDDED_LIBRARY
   res= !shutdown(thd, SHUTDOWN_DEFAULT);
-#else
-  my_error(ER_UNKNOWN_COM_ERROR, MYF(0));
-#endif
 
   DBUG_RETURN(res);
 }
@@ -1317,7 +1356,6 @@ bool Sql_cmd_alter_instance::execute(THD *thd)
 bool Sql_cmd_create_role::execute(THD *thd)
 {
   DBUG_ENTER("Sql_cmd_set_create_role::execute");
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   // TODO: Execution-time processing of the CREATE ROLE statement
   if (check_global_access(thd, CREATE_ROLE_ACL | CREATE_USER_ACL))
     DBUG_RETURN(true);
@@ -1353,6 +1391,8 @@ bool Sql_cmd_create_role::execute(THD *thd)
     role->alter_status.update_password_expired_fields= true;
     role->alter_status.use_default_password_lifetime= true;
     role->alter_status.update_password_expired_column= true;
+    role->auth.str= 0;
+    role->auth.length= 0;
   }
   if (!(mysql_create_user(thd, *const_cast<List<LEX_USER > * >(roles),
                           if_not_exists, true)))
@@ -1360,7 +1400,6 @@ bool Sql_cmd_create_role::execute(THD *thd)
     my_ok(thd);
     DBUG_RETURN(false);
   }
-#endif
   DBUG_RETURN(true);
 }
 
@@ -1368,14 +1407,12 @@ bool Sql_cmd_create_role::execute(THD *thd)
 bool Sql_cmd_drop_role::execute(THD *thd)
 {
   DBUG_ENTER("Sql_cmd_drop_role::execute");
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (check_global_access(thd, DROP_ROLE_ACL | CREATE_USER_ACL))
     DBUG_RETURN(true);
   if (mysql_drop_user(thd, const_cast<List<LEX_USER > &>(*roles),
                       ignore_errors))
     DBUG_RETURN(true);
   my_ok(thd);
-#endif
   DBUG_RETURN(false);
 }
 
@@ -1383,7 +1420,6 @@ bool Sql_cmd_set_role::execute(THD *thd)
 {
   DBUG_ENTER("Sql_cmd_set_role::execute");
   int ret= 0;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   switch (role_type)
   {
     case ROLE_NONE:
@@ -1399,7 +1435,6 @@ bool Sql_cmd_set_role::execute(THD *thd)
       ret= mysql_set_active_role(thd, role_list);
     break;
   }
-#endif
   DBUG_RETURN(ret != 0);
 }
 
@@ -1407,40 +1442,34 @@ bool Sql_cmd_set_role::execute(THD *thd)
 bool Sql_cmd_grant_roles::execute(THD *thd)
 {
   DBUG_ENTER("Sql_cmd_grant_roles::execute");
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   List_iterator<LEX_USER> it(*(const_cast<List<LEX_USER > *>(roles)));
   while(LEX_USER *role= it++)
   {
     if (!has_grant_role_privilege(thd, role->user,role->host))
     {
-      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "WITH ADMIN, SUPER");
+      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+               "WITH ADMIN, ROLE_ADMIN, SUPER");
       DBUG_RETURN(true);
     }
   }
   DBUG_RETURN(mysql_grant_role(thd, users, roles, this->with_admin_option));
-#else
-  DBUG_RETURN(false);
-#endif
 }
 
 
 bool Sql_cmd_revoke_roles::execute(THD *thd)
 {
   DBUG_ENTER("Sql_cmd_revoke_roles::execute");
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   List_iterator<LEX_USER> it(*(const_cast<List<LEX_USER > *>(roles)));
   while(LEX_USER *role= it++)
   {
     if (!has_grant_role_privilege(thd, role->user,role->host))
     {
-      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "WITH ADMIN, SUPER");
+      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+               "WITH ADMIN, ROLE_ADMIN, SUPER");
       DBUG_RETURN(true);
     }
   }
   DBUG_RETURN(mysql_revoke_role(thd, users, roles));
-#else
-  DBUG_RETURN(false);
-#endif
 }
 
 
@@ -1448,13 +1477,14 @@ bool Sql_cmd_alter_user_default_role::execute(THD *thd)
 {
   DBUG_ENTER("Sql_cmd_alter_user_default_role::execute");
   bool ret= false;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   {
     List<LEX_USER> *tmp_users= const_cast<List<LEX_USER > * >(users);
     List_iterator<LEX_USER > it(*tmp_users);
     LEX_USER *user;
     while((user= it++))
     {
+      /* Check for CURRENT_USER token */
+      user= get_current_user(thd, user);
       if (strcmp(thd->security_context()->priv_user().str,
                  user->user.str)  != 0)
       {
@@ -1498,9 +1528,9 @@ bool Sql_cmd_alter_user_default_role::execute(THD *thd)
              }
           }
         }
-      }
-    }
-  }
+      } // end else
+    } // end while
+  } // end scope
   List_of_auth_id_refs authids;
   if (roles != 0)
   {
@@ -1528,7 +1558,6 @@ bool Sql_cmd_alter_user_default_role::execute(THD *thd)
   }
   if (!ret)
     my_ok(thd);
-#endif
   DBUG_RETURN(ret);
 }
 
@@ -1536,7 +1565,6 @@ bool Sql_cmd_alter_user_default_role::execute(THD *thd)
 bool Sql_cmd_show_privileges::execute(THD *thd)
 {
   DBUG_ENTER("Sql_cmd_show_privileges::execute");
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (for_user == 0 || for_user->user.str == 0)
   {
 	  /* SHOW PRIVILEGE FOR CURRENT_USER */
@@ -1584,8 +1612,30 @@ bool Sql_cmd_show_privileges::execute(THD *thd)
   LEX_USER *tmp_user= const_cast<LEX_USER *>(for_user);
   tmp_user= get_current_user(thd, tmp_user);
   DBUG_RETURN(mysql_show_grants(thd, tmp_user, authid_list));
-#else
-  my_ok(thd);
-  DBUG_RETURN(false);
-#endif
+}
+
+
+bool Sql_cmd_show::execute(THD *thd)
+{
+  DBUG_ENTER("Sql_cmd_show::execute");
+
+  thd->clear_current_query_costs();
+  bool res= show_precheck(thd, thd->lex, true);
+  if (!res)
+    res= execute_show(thd, thd->lex->query_tables);
+  thd->save_current_query_costs();
+
+  DBUG_RETURN(res);
+}
+
+
+bool Sql_cmd_show::prepare(THD *thd)
+{
+  DBUG_ENTER("Sql_cmd_show::prepare");
+
+  if (Sql_cmd::prepare(thd))
+    DBUG_RETURN(true);
+
+  bool rc= mysql_test_show(get_owner(), thd->lex->query_tables);
+  DBUG_RETURN(rc);
 }

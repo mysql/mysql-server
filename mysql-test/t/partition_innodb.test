@@ -1,5 +1,14 @@
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs240=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema default character set latin1;
+use test;
+--enable_query_log
+########################################
+
 --source include/not_embedded.inc
---source include/have_innodb.inc
 
 --disable_warnings
 drop table if exists t1, t2;
@@ -1219,3 +1228,10 @@ DROP TABLESPACE ts1;
 --rmdir $MYSQL_TMP_DIR/temp_dir/test
 --rmdir $MYSQL_TMP_DIR/temp_dir
 
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs240;
+--enable_query_log
+########################################

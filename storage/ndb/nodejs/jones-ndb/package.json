@@ -1,0 +1,40 @@
+
+{
+  "name"            : "jones-ndb"
+  ,
+  "version"         : "1.0.9"
+  ,  
+  "description"     : "Native NDB (MySQL Cluster) Service Provider for Database Jones"
+  ,
+  "keywords"        : ["mysql", "cluster", "mysql cluster", "ndb", "mapping" ]
+  ,
+  "license"         : "GPL-2.0"
+  ,
+  "homepage"        : "http://github.com/mysql/mysql-js/"
+  ,
+  "main"            : "impl/ndb/ndb_service_provider"
+  ,
+  "bugs"            : { "url" : "http://github.com/mysql/mysql-js/issues"}
+  ,
+  "contributors"    : [ "John David Duncan <john.duncan@oracle.com>" ,
+                        "Craig Russell <craig.russell@oracle.com>" ]
+  ,
+  "scripts"         : { "preinstall" : "node configure && node-gyp rebuild"
+                      }
+  ,
+  "dependencies"    : { "unified_debug" : "*"
+                      }
+  ,
+  "devDependencies" : { "jones-test" : "*"
+                      }
+  ,
+  "peerDependencies": { "database-jones" : "1.x",
+                        "jones-mysql"    : "*"
+                      }
+  ,
+  "repository"      : { "type" : "git",
+                        "url": "https://github.com/mysql/mysql-js.git"
+                      }
+}
+
+

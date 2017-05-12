@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -46,7 +46,8 @@ IF(CMAKE_SIZEOF_VOID_P MATCHES 8)
   SET(SYSTEM_TYPE "Win64")
   SET(MYSQL_MACHINE_TYPE "x86_64")
 ELSE()
-  SET(SYSTEM_TYPE "Win32")
+  MESSAGE(FATAL_ERROR "32 bit Windows builds are not supported. "
+       "Clean the build dir and rebuild using -G \"${CMAKE_GENERATOR} Win64\"")
 ENDIF()
 
 # Target Windows 7 / Windows Server 2008 R2 or later, i.e _WIN32_WINNT_WIN7
@@ -67,6 +68,7 @@ ENDIF()
 OPTION(WIN_DEBUG_NO_INLINE "Disable inlining for debug builds on Windows" OFF)
 
 IF(MSVC)
+  OPTION(LINK_STATIC_RUNTIME_LIBRARIES "Link with /MT" OFF)
   # Enable debug info also in Release build,
   # and create PDB to be able to analyze crashes.
   FOREACH(type EXE SHARED MODULE)
@@ -75,7 +77,6 @@ IF(MSVC)
   ENDFOREACH()
   
   # For release types Debug Release RelWithDebInfo (but not MinSizeRel):
-  # - Force static runtime libraries
   # - Choose C++ exception handling:
   #     If /EH is not specified, the compiler will catch structured and
   #     C++ exceptions, but will not destroy C++ objects that will go out of
@@ -98,20 +99,21 @@ IF(MSVC)
   FOREACH(lang C CXX)
     SET(CMAKE_${lang}_FLAGS_RELEASE "${CMAKE_${lang}_FLAGS_RELEASE} /Z7")
   ENDFOREACH()
-  IF(NOT WINDOWS_RUNTIME_MD)
+
     FOREACH(flag 
      CMAKE_C_FLAGS_RELEASE    CMAKE_C_FLAGS_RELWITHDEBINFO 
      CMAKE_C_FLAGS_DEBUG      CMAKE_C_FLAGS_DEBUG_INIT 
      CMAKE_CXX_FLAGS_RELEASE  CMAKE_CXX_FLAGS_RELWITHDEBINFO
      CMAKE_CXX_FLAGS_DEBUG    CMAKE_CXX_FLAGS_DEBUG_INIT)
-     STRING(REPLACE "/MD"  "/MT" "${flag}" "${${flag}}")
+     IF(LINK_STATIC_RUNTIME_LIBRARIES)
+       STRING(REPLACE "/MD"  "/MT" "${flag}" "${${flag}}")
+     ENDIF()
      STRING(REPLACE "/Zi"  "/Z7" "${flag}" "${${flag}}")
      IF (NOT WIN_DEBUG_NO_INLINE)
        STRING(REPLACE "/Ob0"  "/Ob1" "${flag}" "${${flag}}")
      ENDIF()
      SET("${flag}" "${${flag}} /EHsc")
     ENDFOREACH()
-  ENDIF()
   
   FOREACH(type EXE SHARED MODULE)
     SET(CMAKE_${type}_LINKER_FLAGS_DEBUG
@@ -119,12 +121,6 @@ IF(MSVC)
     SET(CMAKE_${type}_LINKER_FLAGS_RELWITHDEBINFO
 	    "${CMAKE_${type}_LINKER_FLAGS_RELWITHDEBINFO} /INCREMENTAL:NO")
   ENDFOREACH()
-  
-  # Mark 32 bit executables large address aware so they can 
-  # use > 2GB address space
-  IF(CMAKE_SIZEOF_VOID_P MATCHES 4)
-    SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /LARGEADDRESSAWARE")
-  ENDIF()
   
   # Speed up multiprocessor build
   SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /MP")

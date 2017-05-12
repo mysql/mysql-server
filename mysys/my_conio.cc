@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,9 +17,12 @@
   @file mysys/my_conio.cc
 */
 
+#include "my_dbug.h"
 #include "mysys_priv.h"
 
 #ifdef _WIN32
+
+extern CHARSET_INFO my_charset_utf16le_bin;
 
 
 /* Windows console handling */
@@ -47,7 +50,7 @@
   @retval  0 if file is not Windows console
   @retval  1 if file is Windows console
 */
-my_bool
+bool
 my_win_is_console(FILE *file)
 {
   DWORD mode;

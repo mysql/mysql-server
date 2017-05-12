@@ -16,6 +16,11 @@
 #include "dd/impl/tables/index_stats.h"
 
 #include "dd/impl/raw/object_keys.h"
+#include "dd/impl/types/object_table_definition_impl.h"
+
+namespace dd {
+class Object_key;
+}  // namespace dd
 
 namespace dd {
 namespace tables {
@@ -54,10 +59,10 @@ const Index_stats &Index_stats::instance()
 ///////////////////////////////////////////////////////////////////////////
 
 Index_stat::name_key_type *Index_stats::create_object_key(
-  const std::string &schema_name,
-  const std::string &table_name,
-  const std::string &index_name,
-  const std::string &column_name)
+  const String_type &schema_name,
+  const String_type &table_name,
+  const String_type &index_name,
+  const String_type &column_name)
 {
   const int INDEX_NO= 0;
 
@@ -72,8 +77,8 @@ Index_stat::name_key_type *Index_stats::create_object_key(
 ///////////////////////////////////////////////////////////////////////////
 
 Object_key *Index_stats::create_range_key_by_table_name(
-                           const std::string &schema_name,
-                           const std::string &table_name)
+                           const String_type &schema_name,
+                           const String_type &table_name)
 {
   const int INDEX_NO= 0;
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,21 +13,19 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA */
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
-#include "my_decimal.h"
-#include "sql_string.h"
-#include "sql_time.h"
+#include <gtest/gtest.h>
+#include <cstring>
+#include <memory>
+
+#include "base64.h"
 #include "json_binary.h"
 #include "json_dom.h"
-#include "base64.h"
+#include "my_decimal.h"
+#include "my_inttypes.h"
+#include "sql_string.h"
+#include "sql_time.h"
 #include "template_utils.h"     // down_cast
-
-#include <gtest/gtest.h>
 #include "test_utils.h"
-
-#include <memory>
-#include <cstring>
 
 /**
  Test Json_dom class hierarchy API, cf. json_dom.h
@@ -386,7 +384,8 @@ TEST_F(JsonDomTest, BasicTest)
   EXPECT_EQ(null_dom, dom.get());
 }
 
-void vet_wrapper_length(char * text, size_t expected_length )
+void vet_wrapper_length(const THD *thd, const char *text,
+                        size_t expected_length)
 {
   const char *msg;
   size_t msg_offset;
@@ -397,7 +396,7 @@ void vet_wrapper_length(char * text, size_t expected_length )
     << "Wrapped DOM: " << text << "\n";
 
   String  serialized_form;
-  EXPECT_FALSE(json_binary::serialize(dom, &serialized_form));
+  EXPECT_FALSE(json_binary::serialize(thd, dom, &serialized_form));
   json_binary::Value binary=
     json_binary::parse_binary(serialized_form.ptr(),
                               serialized_form.length());
@@ -438,7 +437,7 @@ TEST_F(JsonDomTest, WrapperTest)
 
   Json_wrapper w_4(d); // give d a new owner
   Json_wrapper w_5;
-  w_5.steal(&w_4); // takes over d
+  w_5= std::move(w_4); // takes over d
   EXPECT_EQ(w_4.to_dom(thd), w_5.to_dom(thd));
 
   Json_wrapper w_6;
@@ -448,30 +447,30 @@ TEST_F(JsonDomTest, WrapperTest)
 
   Json_dom *i= new (std::nothrow) Json_int(1);
   Json_wrapper w_7(i);
-  w_5.steal(&w_7); // should deallocate w_5's original
+  w_5= std::move(w_7); // should deallocate w_5's original
 
   // scalars
-  vet_wrapper_length((char *) "false", 1);
-  vet_wrapper_length((char *) "true", 1);
-  vet_wrapper_length((char *) "null", 1);
-  vet_wrapper_length((char *) "1.1", 1);
-  vet_wrapper_length((char *) "\"hello world\"", 1);
+  vet_wrapper_length(thd, "false", 1);
+  vet_wrapper_length(thd, "true", 1);
+  vet_wrapper_length(thd, "null", 1);
+  vet_wrapper_length(thd, "1.1", 1);
+  vet_wrapper_length(thd, "\"hello world\"", 1);
 
   // objects
-  vet_wrapper_length((char *) "{}", 0);
-  vet_wrapper_length((char *) "{ \"a\" : 100 }", 1);
-  vet_wrapper_length((char *) "{ \"a\" : 100, \"b\" : 200 }", 2);
+  vet_wrapper_length(thd, "{}", 0);
+  vet_wrapper_length(thd, "{ \"a\" : 100 }", 1);
+  vet_wrapper_length(thd, "{ \"a\" : 100, \"b\" : 200 }", 2);
 
   // arrays
-  vet_wrapper_length((char *) "[]", 0);
-  vet_wrapper_length((char *) "[ 100 ]", 1);
-  vet_wrapper_length((char *) "[ 100, 200 ]", 2);
+  vet_wrapper_length(thd, "[]", 0);
+  vet_wrapper_length(thd, "[ 100 ]", 1);
+  vet_wrapper_length(thd, "[ 100, 200 ]", 2);
 
   // nested objects
-  vet_wrapper_length((char *) "{ \"a\" : 100, \"b\" : { \"c\" : 300 } }", 2);
+  vet_wrapper_length(thd, "{ \"a\" : 100, \"b\" : { \"c\" : 300 } }", 2);
 
   // nested arrays
-  vet_wrapper_length((char *) "[ 100, [ 200, 300 ] ]", 2);
+  vet_wrapper_length(thd, "[ 100, [ 200, 300 ] ]", 2);
 }
 
 void vet_merge(char * left_text, char * right_text, std::string expected )

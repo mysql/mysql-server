@@ -33,15 +33,24 @@
 # BUG#26395: if crash during autocommit update to transactional table on master, slave fails
 
 --source include/not_group_replication_plugin.inc
-source include/have_innodb.inc;
+
 # have_debug is needed since we use the @@debug variable on master
-source include/have_debug.inc;
-source include/master-slave.inc;
+--source include/have_debug.inc
 
 # test adapts simulation of incomplete transaction that MTS does not tolerate
 # when is stopped. So it reacts with an error whereas the single-threaded is fine.
--- source include/not_mts_slave_parallel_workers.inc
+--source include/not_mts_slave_parallel_workers.inc
 
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs80=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema test default character set latin1;
+--enable_query_log
+########################################
+
+--source include/master-slave.inc
 
 --echo ==== Initialize ====
 
@@ -106,3 +115,10 @@ DROP TABLE tinnodb;
 # Warning: do not add more tests here. The binlog is in a bad state.
 --let $rpl_only_running_threads= 1
 --source include/rpl_end.inc
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs80;
+--enable_query_log
+########################################

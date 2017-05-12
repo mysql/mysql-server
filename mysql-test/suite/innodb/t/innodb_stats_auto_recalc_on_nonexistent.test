@@ -2,7 +2,6 @@
 # Test the persistent stats auto recalc when persistent stats do not exist
 #
 
--- source include/have_innodb.inc
 
 -- vertical_results
 

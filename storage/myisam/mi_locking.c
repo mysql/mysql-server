@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,7 +20,16 @@
   isamdatabase.
 */
 
+#include <errno.h>
+#include <fcntl.h>
+#include <sys/types.h>
+
 #include "ftdefs.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_macros.h"
+#include "myisam_sys.h"
 
 	/* lock table by F_UNLCK, F_RDLCK or F_WRLCK */
 
@@ -367,7 +376,7 @@ void mi_copy_status(void* to,void *from)
     1  not ok
 */
 
-my_bool mi_check_status(void *param)
+bool mi_check_status(void *param)
 {
   MI_INFO *info=(MI_INFO*) param;
   /*
@@ -378,7 +387,7 @@ my_bool mi_check_status(void *param)
   DBUG_PRINT("info",("dellink: %ld  r_locks: %u  w_locks: %u",
                      (long) info->s->state.dellink, (uint) info->s->r_locks,
                      (uint) info->s->w_locks));
-  return (my_bool) !(info->s->state.dellink == HA_OFFSET_ERROR ||
+  return (bool) !(info->s->state.dellink == HA_OFFSET_ERROR ||
                      (myisam_concurrent_insert == 2 && info->s->r_locks &&
                       info->s->w_locks == 1));
 }

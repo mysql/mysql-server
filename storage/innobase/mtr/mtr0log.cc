@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -24,11 +24,13 @@ Created 12/7/1995 Heikki Tuuri
 *******************************************************/
 
 #include "mtr0log.h"
+
 #include "buf0buf.h"
+#include "buf0dblwr.h"
 #include "dict0dict.h"
 #include "log0recv.h"
+#include "my_inttypes.h"
 #include "page0page.h"
-#include "buf0dblwr.h"
 
 #ifndef UNIV_HOTBACKUP
 # include "dict0boot.h"
@@ -621,7 +623,11 @@ mlog_parse_index(
 				len & 0x8000 ? DATA_NOT_NULL : 0,
 				len & 0x7fff);
 
-			dict_index_add_col(ind, table, table->get_col(i), 0);
+			/* The is_ascending flag does not matter during
+			redo log apply, because we do not compare for
+			"less than" or "greater than". */
+			dict_index_add_col(ind, table, table->get_col(i), 0,
+					   true);
 		}
 		dict_table_add_system_columns(table, table->heap);
 		if (n_uniq != n) {

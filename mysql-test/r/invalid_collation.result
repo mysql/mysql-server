@@ -12,14 +12,15 @@ character_sets_dir	MYSQL_TEST_DIR/std_data/
 #
 # Show new collation available in the new character sets dir:
 SHOW COLLATION LIKE 'utf8_phone_ci';
-Collation	Charset	Id	Default	Compiled	Sortlen
-utf8_phone_ci	utf8	352			8
+Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
+utf8_phone_ci	utf8	352			8	PAD SPACE
 #
 # Create a table using the new collation:
 CREATE TABLE t1 (i INTEGER) COLLATE utf8_phone_ci;
 #
 # Restart server with original character sets dir:
 # restart:--character-sets-dir=MYSQL_CHARSETSDIR
+SET @@global.log_error_verbosity = 1;
 #
 # Reverted to old character sets dir:
 SHOW VARIABLES LIKE 'character_sets_dir%';
@@ -28,7 +29,7 @@ character_sets_dir	MYSQL_CHARSETSDIR/
 #
 # The newly added collation has been deleted:
 SHOW COLLATION LIKE 'utf8_phone_ci';
-Collation	Charset	Id	Default	Compiled	Sortlen
+Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
 #
 # Check behavior of CHECK TABLE (succeed, but report error):
 CHECK TABLE t1;
@@ -58,3 +59,4 @@ ERROR HY000: invalid collation id 352 for table t1, column i
 #
 # Check behavior of DROP TABLE (succeed):
 DROP TABLE t1;
+SET @@global.log_error_verbosity = 3;

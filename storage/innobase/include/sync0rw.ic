@@ -665,7 +665,7 @@ pfs_rw_lock_create_func(
 	ut_d(new(lock) rw_lock_t());
 
 	/* Initialize the rwlock for performance schema */
-	lock->pfs_psi = PSI_RWLOCK_CALL(init_rwlock)(key, lock);
+	lock->pfs_psi = PSI_RWLOCK_CALL(init_rwlock)(key.m_value, lock);
 
 	/* The actual function to initialize an rwlock */
 	rw_lock_create_func(lock,

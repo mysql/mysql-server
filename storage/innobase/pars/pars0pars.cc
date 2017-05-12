@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -26,24 +26,26 @@ Created 11/19/1996 Heikki Tuuri
 /* Historical note: Innobase executed its first SQL string (CREATE TABLE)
 on 1/27/1998 */
 
-#include "ha_prototypes.h"
-
-#include "pars0pars.h"
-#include "row0sel.h"
-#include "row0ins.h"
-#include "row0upd.h"
-#include "dict0dict.h"
-#include "dict0mem.h"
-#include "dict0crea.h"
-#include "que0que.h"
-#include "pars0grm.h"
-#include "pars0opt.h"
 #include "data0data.h"
 #include "data0type.h"
-#include "trx0trx.h"
-#include "trx0roll.h"
-#include "lock0lock.h"
+#include "dict0crea.h"
+#include "dict0dict.h"
+#include "dict0mem.h"
 #include "eval0eval.h"
+#include "ha_prototypes.h"
+#include "lock0lock.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "pars0grm.h"
+#include "pars0opt.h"
+#include "pars0pars.h"
+#include "que0que.h"
+#include "row0ins.h"
+#include "row0sel.h"
+#include "row0upd.h"
+#include "trx0roll.h"
+#include "trx0trx.h"
 
 /* Global variable used while parsing a single procedure or query : the code is
 NOT re-entrant */
@@ -1906,7 +1908,8 @@ pars_create_index(
 	column = column_list;
 
 	while (column) {
-		index->add_field(column->name, 0);
+		/* The internal parser only supports ascending indexes. */
+		index->add_field(column->name, 0, true);
 
 		column->resolved = TRUE;
 		column->token_type = SYM_COLUMN;

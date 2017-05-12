@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,22 +13,27 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "dd_schema.h"
-
-#include "debug_sync.h"                       // DEBUG_SYNC
-#include "handler.h"                          // HA_CREATE_INFO
-#include "mysqld.h"                           // lower_case_table_names
-#include "sql_class.h"                        // THD
-#include "transaction.h"                      // trans_commit
-
-#include "dd/dd.h"                            // dd::get_dictionary
-#include "dd/dictionary.h"                    // dd::Dictionary
-#include "dd/sdi.h"                           // dd::store_sdi
-#include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
-#include "dd/types/object_type.h"             // dd::Object_type
-#include "dd/types/schema.h"                  // dd::Schema
+#include "sql/dd/dd_schema.h"
 
 #include <memory>                             // unique_ptr
+
+#include "auth_common.h"
+#include "binlog_event.h"
+#include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
+#include "dd/dd.h"                            // dd::get_dictionary
+#include "dd/dictionary.h"                    // dd::Dictionary
+#include "dd/types/schema.h"                  // dd::Schema
+#include "debug_sync.h"                       // DEBUG_SYNC
+#include "m_ctype.h"
+#include "m_string.h"
+#include "mdl.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
+#include "mysqld.h"                           // lower_case_table_names
+#include "mysqld_error.h"
+#include "sql_class.h"                        // THD
+#include "system_variables.h"
 
 namespace dd {
 
@@ -41,7 +46,7 @@ bool schema_exists(THD *thd, const char *schema_name, bool *exists)
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   const dd::Schema *sch= NULL;
   bool error= mdl_handler.ensure_locked(schema_name) ||
-              thd->dd_client()->acquire<dd::Schema>(schema_name, &sch);
+              thd->dd_client()->acquire(schema_name, &sch);
   DBUG_ASSERT(exists);
   *exists= (sch != NULL);
   // Error has been reported by the dictionary subsystem.
@@ -53,155 +58,17 @@ bool create_schema(THD *thd, const char *schema_name,
                    const CHARSET_INFO *charset_info)
 {
   // Create dd::Schema object.
-  dd::Schema *sch_obj= dd::create_object<dd::Schema>();
+  std::unique_ptr<dd::Schema> schema(dd::create_object<dd::Schema>());
 
   // Set schema name and collation id.
-  sch_obj->set_name(schema_name);
+  schema->set_name(schema_name);
   DBUG_ASSERT(charset_info);
-  sch_obj->set_default_collation_id(charset_info->number);
+  schema->set_default_collation_id(charset_info->number);
 
   Disable_gtid_state_update_guard disabler(thd);
-
-  // If this is the dd schema, "store" it temporarily in the shared cache.
-  if (get_dictionary()->is_dd_schema_name(schema_name))
-  {
-    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-
-    // Always reset id to 1 if we are creating DD schema from bootstrap thread
-    bool reset_id= thd->is_dd_system_thread();
-
-    thd->dd_client()->add_and_reset_id(sch_obj, reset_id);
-    thd->dd_client()->set_sticky(sch_obj, true);
-    // Note that the object is now owned by the shared cache, so we cannot
-    // delete it here.
-    return false;
-  }
-
-  // Wrap the pointer in a unique_ptr to ease memory management.
-  std::unique_ptr<dd::Schema> wrapped_sch_obj(sch_obj);
 
   // Store the schema. Error will be reported by the dictionary subsystem.
-  if (thd->dd_client()->store(wrapped_sch_obj.get()) ||
-      dd::store_sdi(thd, wrapped_sch_obj.get()))
-
-  {
-    trans_rollback_stmt(thd);
-    // Full rollback in case we have THD::transaction_rollback_request.
-    trans_rollback(thd);
-    return true;
-  }
-
-  return trans_commit_stmt(thd) ||
-         trans_commit(thd);
-}
-
-
-bool alter_schema(THD *thd, const char *schema_name,
-                  const CHARSET_INFO *charset_info)
-{
-  dd::cache::Dictionary_client *client= thd->dd_client();
-  dd::cache::Dictionary_client::Auto_releaser releaser(client);
-
-  // Get dd::Schema object.
-  const dd::Schema *sch_obj= NULL;
-  if (client->acquire<dd::Schema>(schema_name, &sch_obj))
-  {
-    // Error is reported by the dictionary subsystem.
-    return true;
-  }
-
-  if (!sch_obj)
-  {
-    my_error(ER_NO_SUCH_DB, MYF(0), schema_name);
-    return true;
-  }
-
-  Sdi_updater update_sdi= make_sdi_updater(sch_obj);
-
-  // Clone the schema object. The clone is owned here, and must be deleted
-  // eventually.
-  std::unique_ptr<dd::Schema> new_sch_obj(sch_obj->clone());
-
-  // Set new collation ID.
-  new_sch_obj->set_default_collation_id(charset_info->number);
-
-  Disable_gtid_state_update_guard disabler(thd);
-
-  // Update schema.
-  if (client->update(&sch_obj, new_sch_obj.get()))
-  {
-    trans_rollback_stmt(thd);
-    // Full rollback in case we have THD::transaction_rollback_request.
-    trans_rollback(thd);
-    return true;
-  }
-
-  if (update_sdi(thd, new_sch_obj.get()))
-  {
-    // At this point the cache already contains the new value, and
-    // aborting the transaction will not undo this automatically. To
-    // remedy this the schema is dropped to remove it from the
-    // cache. This will obviously also remove it from the DD
-    // tables, but this is ok since the removal will be rolled back
-    // when the transaction aborts. Since there is exclusive MDL on
-    // the schema, other threads will not see the removal, but will
-    // have to reload the schema into the cache when they get MDL.
-#ifndef DBUG_OFF
-    bool drop_error=
-#endif /* DBUG_OFF */
-      client->drop(sch_obj);
-    DBUG_ASSERT(drop_error == false);
-
-    trans_rollback_stmt(thd);
-    // Full rollback in case we have THD::transaction_rollback_request.
-    trans_rollback(thd);
-    return true;
-  }
-
-  return trans_commit_stmt(thd) ||
-         trans_commit(thd);
-}
-
-
-bool drop_schema(THD *thd, const char *schema_name)
-{
-  dd::cache::Dictionary_client *client= thd->dd_client();
-
-  dd::cache::Dictionary_client::Auto_releaser releaser(client);
-  // Get the schema.
-  const dd::Schema *sch_obj= NULL;
-  DEBUG_SYNC(thd, "before_acquire_in_drop_schema");
-  if (client->acquire<dd::Schema>(schema_name, &sch_obj))
-  {
-    // Error is reported by the dictionary subsystem.
-    return true;
-  }
-
-  DBUG_EXECUTE_IF("pretend_no_schema_in_drop_schema",
-  {
-    sch_obj= NULL;
-  });
-
-  if (!sch_obj)
-  {
-    my_error(ER_BAD_DB_ERROR, MYF(0), schema_name);
-    return true;
-  }
-
-  Disable_gtid_state_update_guard disabler(thd);
-
-  // Drop the schema.
-  if (dd::remove_sdi(thd, sch_obj) ||
-      client->drop(sch_obj))
-  {
-    trans_rollback_stmt(thd);
-    // Full rollback in case we have THD::transaction_rollback_request.
-    trans_rollback(thd);
-    return true;
-  }
-
-  return trans_commit_stmt(thd) ||
-         trans_commit(thd);
+  return thd->dd_client()->store(schema.get());
 }
 
 

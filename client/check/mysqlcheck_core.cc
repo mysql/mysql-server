@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,15 +15,17 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "client_priv.h"
-#include "my_default.h"
-#include "mysqlcheck.h"
 #include <m_ctype.h>
 #include <mysql_version.h>
 #include <mysqld_error.h>
-
+#include <sys/types.h>
 #include <string>
 #include <vector>
+
+#include "client_priv.h"
+#include "my_default.h"
+#include "my_inttypes.h"
+#include "mysqlcheck.h"
 
 using namespace Mysql::Tools::Check;
 
@@ -36,12 +38,12 @@ using std::vector;
 #define KEY_PARTITIONING_CHANGED_STR "KEY () partitioning changed"
 
 static MYSQL *sock= 0;
-static my_bool opt_alldbs= 0, opt_check_only_changed= 0, opt_extended= 0,
-               opt_databases= 0, opt_fast= 0,
-               opt_medium_check = 0, opt_quick= 0, opt_all_in_1= 0,
-               opt_silent= 0, opt_auto_repair= 0, ignore_errors= 0,
-               opt_frm= 0, opt_fix_table_names= 0, opt_fix_db_names= 0, opt_upgrade= 0,
-               opt_write_binlog= 1;
+static bool opt_alldbs= 0, opt_check_only_changed= 0, opt_extended= 0,
+            opt_databases= 0, opt_fast= 0,
+            opt_medium_check = 0, opt_quick= 0, opt_all_in_1= 0,
+            opt_silent= 0, opt_auto_repair= 0, ignore_errors= 0,
+            opt_frm= 0, opt_fix_table_names= 0, opt_fix_db_names= 0, opt_upgrade= 0,
+            opt_write_binlog= 1;
 static uint verbose = 0;
 static string opt_skip_database;
 int what_to_do = 0;
@@ -306,7 +308,7 @@ static void print_result()
   char prev_alter[MAX_ALTER_STR_SIZE];
   uint i;
   size_t dot_pos;
-  my_bool found_error=0, table_rebuild=0;
+  bool found_error=0, table_rebuild=0;
 
   res = mysql_use_result(sock);
   dot_pos= strlen(sock->db) + 1;
@@ -317,7 +319,7 @@ static void print_result()
   for (i = 0; (row = mysql_fetch_row(res)); i++)
   {
     int changed = strcmp(prev, row[0]);
-    my_bool status = !strcmp(row[2], "status");
+    bool status = !strcmp(row[2], "status");
 
     if (status)
     {
@@ -413,15 +415,15 @@ static void print_result()
 }
 
 void Mysql::Tools::Check::mysql_check(MYSQL* connection, int what_to_do,
-                my_bool opt_alldbs,
-                my_bool opt_check_only_changed, my_bool opt_extended,
-                my_bool opt_databases, my_bool opt_fast,
-                my_bool opt_medium_check, my_bool opt_quick,
-                my_bool opt_all_in_1, my_bool opt_silent,
-                my_bool opt_auto_repair, my_bool ignore_errors,
-                my_bool opt_frm, my_bool opt_fix_table_names,
-                my_bool opt_fix_db_names, my_bool opt_upgrade,
-                my_bool opt_write_binlog, uint verbose,
+                bool opt_alldbs,
+                bool opt_check_only_changed, bool opt_extended,
+                bool opt_databases, bool opt_fast,
+                bool opt_medium_check, bool opt_quick,
+                bool opt_all_in_1, bool opt_silent,
+                bool opt_auto_repair, bool ignore_errors,
+                bool opt_frm, bool opt_fix_table_names,
+                bool opt_fix_db_names, bool opt_upgrade,
+                bool opt_write_binlog, uint verbose,
                 std::string opt_skip_database,
                 std::vector<std::string> arguments,
                 void (*dberror)(MYSQL *mysql, std::string when))

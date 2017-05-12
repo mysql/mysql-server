@@ -19,7 +19,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 #include <cstddef> // NULL
 #include <mysql/components/services/registry.h>
 #include <mysql/components/services/dynamic_loader.h>
-#include "service.h"
+#include "service_implementation.h"
 
 /**
   @page PAGE_COMPONENTS_COMPONENT A Component
@@ -173,13 +173,14 @@ mysql_component_t mysql_component_ ## source_name = { \
 /**
   Declare a Service Implementation provided by a Component. It assumes standard
   Service Implementation name to be referenced.
+  @sa SERVICE_IMPLEMENTATION
 
   @param component Component name.
   @param service A Service name for which the Service Implementation will be
     added.
 */
 #define PROVIDES_SERVICE(component, service) \
-  { #service "." #component, (void*)&imp_ ## component ## _ ## service },
+  { #service "." #component, (void*)&SERVICE_IMPLEMENTATION(component, service) },
 
 /**
   A macro to end the last declaration started with the BEGIN_COMPONENT_PROVIDES.

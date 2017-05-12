@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -15,17 +15,20 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <boost/date_time.hpp>
+#include <stddef.h>
+#include <functional>
+
 #include "abstract_crawler.h"
 #include "dump_end_dump_task.h"
 #include "this_thread.h"
-#include <boost/date_time.hpp>
 
 using namespace Mysql::Tools::Dump;
 
 my_boost::atomic_uint64_t Abstract_crawler::next_chain_id;
 
 Abstract_crawler::Abstract_crawler(
-  Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
+  std::function<bool(const Mysql::Tools::Base::Message_data&)>*
     message_handler, Simple_id_generator* object_id_generator,
     Mysql::Tools::Base::Abstract_program* program)
   : Abstract_chain_element(message_handler, object_id_generator),
@@ -53,6 +56,10 @@ Mysql::Tools::Base::Abstract_program* Abstract_crawler::get_program()
 
 void Abstract_crawler::process_dump_task(I_dump_task* new_dump_task)
 {
+  /* in case of error stop all further processing */
+  if (get_program()->get_error_code())
+    return;
+
   m_dump_tasks_created.push_back(new_dump_task);
 
   Item_processing_data* main_item_processing_data=

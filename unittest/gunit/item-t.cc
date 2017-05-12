@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,23 +13,26 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
-#include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
+#include <limits.h>
+#include <stddef.h>
+#include <sys/types.h>
 
-#include "test_utils.h"
-
+#include "fake_table.h"
 #include "item.h"
 #include "item_cmpfunc.h"
 #include "item_create.h"
 #include "item_strfunc.h"
 #include "item_timefunc.h"
-#include "sql_class.h"
-#include "tztime.h"
-
-#include "fake_table.h"
+#include "lex_string.h"
 #include "mock_field_timestamp.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
+#include "my_table_map.h"
+#include "sql_class.h"
+#include "test_utils.h"
+#include "tztime.h"
 
 namespace item_unittest {
 
@@ -106,10 +109,10 @@ public:
     bitmap_set_bit(m_fake_tbl->write_set, 0);
 
     /*
-      count_cuted_fields must be set in order for producing
+      check_for_truncated_fields must be set in order for producing
       warning/error for Item_string::save_in_field().
     */
-    m_fake_tbl->in_use->count_cuted_fields= CHECK_FIELD_WARN;
+    m_fake_tbl->in_use->check_for_truncated_fields= CHECK_FIELD_WARN;
   }
 
   ~Mock_field_string()
@@ -149,10 +152,10 @@ public:
     bitmap_set_bit(m_fake_tbl->write_set, 0);
 
     /*
-      count_cuted_fields must be set in order for producing
+      check_for_truncated_fields must be set in order for producing
       warning/error for Item_string::save_in_field().
     */
-    m_fake_tbl->in_use->count_cuted_fields= CHECK_FIELD_WARN;
+    m_fake_tbl->in_use->check_for_truncated_fields= CHECK_FIELD_WARN;
   }
 
   ~Mock_field_varstring()
@@ -177,7 +180,7 @@ TEST_F(ItemTest, ItemInt)
 
   EXPECT_EQ(Item::INT_ITEM,      item_int->type());
   EXPECT_EQ(INT_RESULT,          item_int->result_type());
-  EXPECT_EQ(MYSQL_TYPE_LONGLONG, item_int->field_type());
+  EXPECT_EQ(MYSQL_TYPE_LONGLONG, item_int->data_type());
   EXPECT_EQ(val,                 item_int->val_int());
   EXPECT_DOUBLE_EQ((double) val, item_int->val_real());
   EXPECT_TRUE(item_int->basic_const_item());
@@ -228,6 +231,7 @@ TEST_F(ItemTest, ItemString)
   const char long_str[]= "abcd";
   const char space_str[]= "abc ";
   const char bad_char[]= "𝌆abc";
+  const char bad_char_end[]= "abc𝌆";
 
   Item_string *item_short_string=
     new Item_string(STRING_WITH_LEN(short_str), &my_charset_latin1);
@@ -237,6 +241,8 @@ TEST_F(ItemTest, ItemString)
     new Item_string(STRING_WITH_LEN(space_str), &my_charset_latin1);
   Item_string *item_bad_char=
     new Item_string(STRING_WITH_LEN(bad_char), &my_charset_bin);
+  Item_string *item_bad_char_end=
+    new Item_string(STRING_WITH_LEN(bad_char_end), &my_charset_bin);
 
   /* 
     Bug 16407965 ITEM::SAVE_IN_FIELD_NO_WARNING() DOES NOT RETURN CORRECT 
@@ -247,8 +253,9 @@ TEST_F(ItemTest, ItemString)
   Mock_field_string field_string(3);
   EXPECT_EQ(MYSQL_TYPE_STRING, field_string.type());
 
-  Mock_field_string field_string_utf8(3, &my_charset_utf8_general_ci);
-  EXPECT_EQ(MYSQL_TYPE_STRING, field_string.type());
+  // CHAR field for testing strings with illegal values
+  Mock_field_string field_string_utf8(20, &my_charset_utf8_general_ci);
+  EXPECT_EQ(MYSQL_TYPE_STRING, field_string_utf8.type());
 
   /*
     Tests of Item_string::save_in_field() when storing into a CHAR field.
@@ -260,8 +267,11 @@ TEST_F(ItemTest, ItemString)
   EXPECT_EQ(TYPE_OK,
             item_space_string->save_in_field(&field_string, true));
   // When the first character invalid, the whole string is truncated.
-  EXPECT_EQ(TYPE_WARN_ALL_TRUNCATED,
+  EXPECT_EQ(TYPE_WARN_INVALID_STRING,
             item_bad_char->save_in_field(&field_string_utf8, true));
+  // If the string contains an invalid character, the entire string is invalid
+  EXPECT_EQ(TYPE_WARN_INVALID_STRING,
+            item_bad_char_end->save_in_field(&field_string_utf8, true));
 
   /*
     Tests of Item_string::save_in_field_no_warnings() when storing into
@@ -274,8 +284,12 @@ TEST_F(ItemTest, ItemString)
   // Field_string does not consider trailing spaces when truncating a string
   EXPECT_EQ(TYPE_OK,
             item_space_string->save_in_field_no_warnings(&field_string, true));
-  EXPECT_EQ(TYPE_WARN_ALL_TRUNCATED,
+  EXPECT_EQ(TYPE_WARN_INVALID_STRING,
             item_bad_char->save_in_field_no_warnings(&field_string_utf8, true));
+  // If the string contains an invalid character, the entire string is invalid
+  EXPECT_EQ(TYPE_WARN_INVALID_STRING,
+            item_bad_char_end->save_in_field_no_warnings(&field_string_utf8,
+                                                         true));
 
   /*
     Create a VARCHAR field that can store short_str but not long_str.
@@ -286,7 +300,8 @@ TEST_F(ItemTest, ItemString)
   Mock_field_varstring field_varstring(3, &table_share);
   EXPECT_EQ(MYSQL_TYPE_VARCHAR, field_varstring.type());
 
-  Mock_field_varstring field_varstring_utf8(3, &table_share,
+  // VARCHAR field for testing strings with illegal values
+  Mock_field_varstring field_varstring_utf8(20, &table_share,
                                             &my_charset_utf8_general_ci);
   EXPECT_EQ(MYSQL_TYPE_VARCHAR, field_varstring_utf8.type());
 
@@ -301,8 +316,11 @@ TEST_F(ItemTest, ItemString)
   EXPECT_EQ(TYPE_NOTE_TRUNCATED,
             item_space_string->save_in_field(&field_varstring, true));
   // When the first character invalid, the whole string is truncated.
-  EXPECT_EQ(TYPE_WARN_ALL_TRUNCATED,
+  EXPECT_EQ(TYPE_WARN_INVALID_STRING,
             item_bad_char->save_in_field(&field_varstring_utf8, true));
+  // If the string contains an invalid character, the entire string is invalid
+  EXPECT_EQ(TYPE_WARN_INVALID_STRING,
+            item_bad_char_end->save_in_field(&field_varstring_utf8, true));
 
   /*
     Tests of Item_string::save_in_field_no_warnings() when storing into
@@ -316,8 +334,11 @@ TEST_F(ItemTest, ItemString)
   // trailing spaces
   EXPECT_EQ(TYPE_NOTE_TRUNCATED,
          item_space_string->save_in_field_no_warnings(&field_varstring, true));
-  EXPECT_EQ(TYPE_WARN_ALL_TRUNCATED,
+  EXPECT_EQ(TYPE_WARN_INVALID_STRING,
          item_bad_char->save_in_field_no_warnings(&field_varstring_utf8, true));
+  // If the string contains an invalid character, the entire string is invalid
+  EXPECT_EQ(TYPE_WARN_INVALID_STRING,
+         item_bad_char_end->save_in_field_no_warnings(&field_varstring_utf8, true));
 }
 
 

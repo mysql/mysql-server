@@ -1,7 +1,7 @@
 #ifndef SQL_PARTITION_INCLUDED
 #define SQL_PARTITION_INCLUDED
 
-/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,29 +16,37 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_global.h"
+#include <stddef.h>
+#include <sys/types.h>
 
+#include "handler.h"
+#include "lex_string.h"
+#include "m_ctype.h"
+#include "my_base.h"
+#include "my_bitmap.h"
+#include "my_inttypes.h"
+#include "mysql/mysql_lex_string.h"
 #include "partition_element.h"       // partition_state
+#include "typelib.h"
 
 class Alter_info;
 class Alter_table_ctx;
+class Create_field;
 class Field;
 class Item;
 class String;
-class handler;
-class partition_info;
-class Create_field;
 class THD;
-struct handlerton;
+class partition_info;
 struct TABLE;
-struct TABLE_SHARE;
 struct TABLE_LIST;
+struct TABLE_SHARE;
+
 typedef struct charset_info_st CHARSET_INFO;
 typedef struct st_bitmap MY_BITMAP;
 typedef struct st_ha_create_information HA_CREATE_INFO;
 class KEY;
+
 typedef struct st_key_range key_range;
-typedef struct st_mysql_lex_string LEX_STRING;
 template <class T> class List;
 
 /* Flags for partition handlers */
@@ -85,9 +93,7 @@ typedef struct st_lock_param_type
   KEY *key_info_buffer;
   const char *db;
   const char *table_name;
-  uchar *pack_frm_data;
   uint key_count;
-  size_t pack_frm_len;
   partition_info *part_info;
 } ALTER_PARTITION_PARAM_TYPE;
 
@@ -159,6 +165,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
                            HA_CREATE_INFO *create_info,
                            Alter_table_ctx *alter_ctx,
                            bool *partition_changed,
+                           bool *fast_alter_part_table,
                            partition_info **new_part_info);
 int expr_to_string(String *val_conv,
                    Item *item_expr,

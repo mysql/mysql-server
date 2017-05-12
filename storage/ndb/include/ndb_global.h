@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,7 +25,13 @@
 #endif
 #endif
 
-#include <my_global.h>
+#include <errno.h>
+#include <math.h>
+#include <stddef.h>
+#include <stdio.h>
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_systime.h"
 #include <mysql/service_my_snprintf.h>
 #include <mysql/service_mysql_alloc.h>
 #ifdef HAVE_UNISTD_H
@@ -37,6 +43,21 @@
 #ifdef _WIN32
 #include <process.h>
 #endif
+
+/*
+  Custom version of standard offsetof() macro which can be used to get
+  offsets of members in class for non-POD types (according to the current
+  version of C++ standard offsetof() macro can't be used in such cases and
+  attempt to do so causes warnings to be emitted, OTOH in many cases it is
+  still OK to assume that all instances of the class has the same offsets
+  for the same members).
+
+  This is temporary solution which should be removed once File_parser class
+  and related routines are refactored.
+*/
+
+#define my_offsetof(TYPE, MEMBER) \
+        ((size_t)((char *)&(((TYPE *)0x10)->MEMBER) - (char*)0x10))
 
 #if defined __GNUC__
 # define ATTRIBUTE_FORMAT(style, m, n) MY_ATTRIBUTE((format(style, m, n)))
@@ -164,6 +185,10 @@ extern "C" {
 }
 #endif
 
+#ifdef  __cplusplus
+#include <new>
+#endif
+
 #include "ndb_init.h"
 
 #ifndef PATH_MAX
@@ -216,25 +241,7 @@ extern "C" {
      if the expression is false.
 */
 
-#if (defined(_WIN32) && _MSC_VER > 1500) || (defined __GXX_EXPERIMENTAL_CXX0X__)
-
-/*
-  Prefer to use the 'static_assert' function from C++0x
-  to get best error message
-*/
 #define NDB_STATIC_ASSERT(expr) static_assert(expr, #expr)
-
-#else
-
-/*
-  Fallback to use home grown solution
-  (i.e use mysys version)
-*/
-
-#define NDB_STATIC_ASSERT(expr) compile_time_assert(expr)
-
-#endif
-
 
 #if defined(_WIN32) && (_MSC_VER > 1500)
 #define HAVE___HAS_TRIVIAL_CONSTRUCTOR

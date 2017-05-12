@@ -1,8 +1,5 @@
 ############# suite/perfschema/t/ees.test ####################
 
---source include/have_perfschema.inc
---source include/not_embedded.inc
---source include/have_innodb.inc
 --source include/no_protocol.inc
 
 --echo

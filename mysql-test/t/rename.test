@@ -109,3 +109,37 @@ SET GLOBAL innodb_file_per_table = @orig_innodb_file_per_table;
 
 --source include/wait_until_count_sessions.inc
 
+--echo #
+--echo # Bug#24807594 SDI FILE LOSTS AFTER ALTERING DATABASE
+--echo # Verify that SDI files are cleaned up correctly
+--echo #
+let $MYSQLD_DATADIR = `select @@datadir`;
+
+CREATE TABLE t1(i INT) ENGINE MYISAM;
+RENAME TABLE t1 TO tt1;
+--echo # Should only see tt1_XXX.SDI
+--replace_regex /_[0-9]+\.SDI/_XXX.SDI/
+--list_files $MYSQLD_DATADIR/test *.SDI
+
+RENAME TABLE tt1 TO tt1tt1;
+--echo # Should only see tt1tt1_XXX.SDI
+--replace_regex /_[0-9]+\.SDI/_XXX.SDI/
+--list_files $MYSQLD_DATADIR/test *.SDI
+
+RENAME TABLE tt1tt1 TO ttt1ttt1ttt1ttt1_xyz;
+--echo # Should only see ttt1ttt1ttt1ttt1_XXX.SDI
+--replace_regex /_[0-9]+\.SDI/_XXX.SDI/
+--list_files $MYSQLD_DATADIR/test *.SDI
+
+RENAME TABLE ttt1ttt1ttt1ttt1_xyz TO tttttttttttttttt1_abc;
+--echo # Should only see tttttttttttttttt_XXX.SDI
+--replace_regex /_[0-9]+\.SDI/_XXX.SDI/
+--list_files $MYSQLD_DATADIR/test *.SDI
+
+RENAME TABLE tttttttttttttttt1_abc TO t1;
+--echo # Should only see t1_XXX.SDI
+--replace_regex /_[0-9]+\.SDI/_XXX.SDI/
+--list_files $MYSQLD_DATADIR/test *.SDI
+
+DROP TABLE t1;
+

@@ -743,7 +743,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(10) DEFAULT NULL,
   `b` varchar(10) DEFAULT NULL,
-  `c` varchar(20) GENERATED ALWAYS AS (concat_ws(',',`a`,`b`)) VIRTUAL
+  `c` varchar(20) GENERATED ALWAYS AS (concat_ws(_latin1',',`a`,`b`)) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 insert into t1 values ('value1','value2',default);
 select * from t1;
@@ -759,7 +759,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(10) DEFAULT NULL,
   `b` varchar(10) DEFAULT NULL,
-  `c` varchar(20) GENERATED ALWAYS AS (concat(`a`,',',`b`)) VIRTUAL
+  `c` varchar(20) GENERATED ALWAYS AS (concat(`a`,_latin1',',`b`)) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 insert into t1 values ('value1','value2',default);
 select * from t1;
@@ -793,7 +793,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
-  `b` varchar(10) GENERATED ALWAYS AS (export_set(`a`,'1','0','',10)) VIRTUAL
+  `b` varchar(10) GENERATED ALWAYS AS (export_set(`a`,_latin1'1',_latin1'0',_latin1'',10)) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 insert into t1 values (6,default);
 select * from t1;
@@ -809,7 +809,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(10) DEFAULT NULL,
   `b` varchar(10) DEFAULT NULL,
-  `c` int(11) GENERATED ALWAYS AS (field('aa',`a`,`b`)) VIRTUAL
+  `c` int(11) GENERATED ALWAYS AS (field(_latin1'aa',`a`,`b`)) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 insert into t1 values ('aa','bb',default);
 insert into t1 values ('bb','aa',default);
@@ -967,7 +967,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(10) DEFAULT NULL,
-  `b` tinyint(1) GENERATED ALWAYS AS ((`a` like 'H%o')) VIRTUAL
+  `b` tinyint(1) GENERATED ALWAYS AS ((`a` like _latin1'H%o')) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 insert into t1 values ('Hello',default);
 insert into t1 values ('MySQL',default);
@@ -984,7 +984,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(10) DEFAULT NULL,
-  `b` varchar(10) GENERATED ALWAYS AS (locate('bar',`a`)) VIRTUAL
+  `b` varchar(10) GENERATED ALWAYS AS (locate(_latin1'bar',`a`)) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 insert into t1 values ('foobarbar',default);
 select * from t1;
@@ -1014,7 +1014,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(10) DEFAULT NULL,
-  `b` varchar(10) GENERATED ALWAYS AS (lpad(`a`,4,' ')) VIRTUAL
+  `b` varchar(10) GENERATED ALWAYS AS (lpad(`a`,4,_latin1' ')) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 insert into t1 values ('MySQL',default);
 insert into t1 values ('M',default);
@@ -1082,7 +1082,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(10) DEFAULT NULL,
-  `b` tinyint(1) GENERATED ALWAYS AS ((not((`a` like 'H%o')))) VIRTUAL
+  `b` tinyint(1) GENERATED ALWAYS AS ((not((`a` like _latin1'H%o')))) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 insert into t1 values ('Hello',default);
 insert into t1 values ('MySQL',default);
@@ -1099,7 +1099,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(10) DEFAULT NULL,
-  `b` tinyint(1) GENERATED ALWAYS AS ((not((`a` regexp 'H.+o')))) VIRTUAL
+  `b` tinyint(1) GENERATED ALWAYS AS ((not((`a` regexp _latin1'H.+o')))) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 insert into t1 values ('Hello',default);
 insert into t1 values ('hello',default);
@@ -1146,7 +1146,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(10) DEFAULT NULL,
-  `b` varchar(10) GENERATED ALWAYS AS (locate('bar',`a`)) VIRTUAL
+  `b` varchar(10) GENERATED ALWAYS AS (locate(_latin1'bar',`a`)) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 insert into t1 values ('foobarbar',default);
 select * from t1;
@@ -1163,7 +1163,7 @@ t1	CREATE TABLE `t1` (
   `a` varchar(10) DEFAULT NULL,
   `b` varchar(10) GENERATED ALWAYS AS (quote(`a`)) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
-insert into t1 values ('Don\'t',default);
+insert into t1 values ('Don''t',default);
 select * from t1;
 a	b
 Don't	'Don\'t'
@@ -1176,7 +1176,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(10) DEFAULT NULL,
-  `b` tinyint(1) GENERATED ALWAYS AS ((`a` regexp 'H.+o')) VIRTUAL
+  `b` tinyint(1) GENERATED ALWAYS AS ((`a` regexp _latin1'H.+o')) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 insert into t1 values ('Hello',default);
 insert into t1 values ('hello',default);
@@ -1208,7 +1208,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(10) DEFAULT NULL,
-  `b` varchar(30) GENERATED ALWAYS AS (replace(`a`,'aa','bb')) VIRTUAL
+  `b` varchar(30) GENERATED ALWAYS AS (replace(`a`,_latin1'aa',_latin1'bb')) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 insert into t1 values ('maa',default);
 select * from t1;
@@ -1253,7 +1253,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(10) DEFAULT NULL,
-  `b` tinyint(1) GENERATED ALWAYS AS ((`a` regexp 'H.+o')) VIRTUAL
+  `b` tinyint(1) GENERATED ALWAYS AS ((`a` regexp _latin1'H.+o')) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 insert into t1 values ('Hello',default);
 insert into t1 values ('MySQL',default);
@@ -1270,7 +1270,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(10) DEFAULT NULL,
-  `b` varchar(10) GENERATED ALWAYS AS (rpad(`a`,4,'??')) VIRTUAL
+  `b` varchar(10) GENERATED ALWAYS AS (rpad(`a`,4,_latin1'??')) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 insert into t1 values ('He',default);
 select * from t1;
@@ -1383,7 +1383,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(15) DEFAULT NULL,
-  `b` varchar(10) GENERATED ALWAYS AS (substring_index(`a`,'.',2)) VIRTUAL
+  `b` varchar(10) GENERATED ALWAYS AS (substring_index(`a`,_latin1'.',2)) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 insert into t1 values ('www.mysql.com',default);
 select * from t1;
@@ -1473,7 +1473,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(5) DEFAULT NULL,
-  `b` varchar(10) GENERATED ALWAYS AS (weight_string(`a` as char(4) level 1)) VIRTUAL
+  `b` varchar(10) GENERATED ALWAYS AS (weight_string(`a` as char(4))) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 insert into t1 values ('MySQL',default);
 select * from t1;
@@ -1491,7 +1491,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(10) DEFAULT NULL,
-  `b` varchar(16) GENERATED ALWAYS AS ((case `a` when NULL then 'asd' when 'b' then 'B' else `a` end)) VIRTUAL
+  `b` varchar(16) GENERATED ALWAYS AS ((case `a` when NULL then _latin1'asd' when _latin1'b' then _latin1'B' else `a` end)) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 insert into t1 values (NULL,default);
 insert into t1 values ('b',default);
@@ -1529,7 +1529,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(10) DEFAULT NULL,
   `b` varchar(10) DEFAULT NULL,
-  `c` varchar(10) GENERATED ALWAYS AS (ifnull(`a`,'DEFAULT')) VIRTUAL
+  `c` varchar(10) GENERATED ALWAYS AS (ifnull(`a`,_latin1'DEFAULT')) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 insert into t1 values (NULL,'adf',default);
 insert into t1 values ('a','adf',default);
@@ -1546,7 +1546,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(10) DEFAULT NULL,
-  `b` varchar(10) GENERATED ALWAYS AS (nullif(`a`,'DEFAULT')) VIRTUAL
+  `b` varchar(10) GENERATED ALWAYS AS (nullif(`a`,_latin1'DEFAULT')) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 insert into t1 values ('DEFAULT',default);
 insert into t1 values ('a',default);
@@ -1996,7 +1996,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` datetime DEFAULT NULL,
-  `b` datetime GENERATED ALWAYS AS (addtime(`a`,'02:00:00')) VIRTUAL
+  `b` datetime GENERATED ALWAYS AS (addtime(`a`,_latin1'02:00:00')) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 insert into t1 values ('2008-08-31',default);
 select * from t1;
@@ -2011,7 +2011,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` datetime DEFAULT NULL,
-  `b` datetime GENERATED ALWAYS AS (convert_tz(`a`,'MET','UTC')) VIRTUAL
+  `b` datetime GENERATED ALWAYS AS (convert_tz(`a`,_latin1'MET',_latin1'UTC')) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 insert into t1 values ('2008-08-31',default);
 select * from t1;
@@ -2041,7 +2041,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` datetime DEFAULT NULL,
-  `b` varchar(64) GENERATED ALWAYS AS (date_format(`a`,'%W %M %D')) VIRTUAL
+  `b` varchar(64) GENERATED ALWAYS AS (date_format(`a`,_latin1'%W %M %D')) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 insert into t1 values ('2008-08-31',default);
 select * from t1;
@@ -2086,7 +2086,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` datetime DEFAULT NULL,
-  `b` bigint(20) GENERATED ALWAYS AS ((to_days(`a`) - to_days('2000-01-01'))) VIRTUAL
+  `b` bigint(20) GENERATED ALWAYS AS ((to_days(`a`) - to_days(_latin1'2000-01-01'))) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 insert into t1 values ('2008-08-31',default);
 select * from t1;
@@ -2221,7 +2221,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` datetime DEFAULT NULL,
-  `b` varchar(32) GENERATED ALWAYS AS (date_format(`a`,get_format(DATE, 'EUR'))) VIRTUAL
+  `b` varchar(32) GENERATED ALWAYS AS (date_format(`a`,get_format(DATE, _latin1'EUR'))) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 insert into t1 values ('2008-08-31',default);
 select * from t1;
@@ -2435,7 +2435,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(64) DEFAULT NULL,
-  `b` datetime GENERATED ALWAYS AS (str_to_date(`a`,'%m/%d/%Y')) VIRTUAL
+  `b` datetime GENERATED ALWAYS AS (str_to_date(`a`,_latin1'%m/%d/%Y')) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 insert into t1 values ('04/30/2004',default);
 select * from t1;
@@ -2465,7 +2465,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` datetime DEFAULT NULL,
-  `b` datetime GENERATED ALWAYS AS (subtime(`a`,'02:00:00')) VIRTUAL
+  `b` datetime GENERATED ALWAYS AS (subtime(`a`,_latin1'02:00:00')) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 insert into t1 values ('2008-08-31',default);
 select * from t1;
@@ -2480,7 +2480,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` datetime DEFAULT NULL,
-  `b` varchar(32) GENERATED ALWAYS AS (time_format(`a`,'%r')) VIRTUAL
+  `b` varchar(32) GENERATED ALWAYS AS (time_format(`a`,_latin1'%r')) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 insert into t1 values ('2008-08-31 02:03:04',default);
 select * from t1;
@@ -2720,7 +2720,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(1024) DEFAULT NULL,
-  `b` varchar(1024) GENERATED ALWAYS AS (extractvalue(`a`,'/b')) VIRTUAL
+  `b` varchar(1024) GENERATED ALWAYS AS (extractvalue(`a`,_latin1'/b')) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 insert into t1 values ('<b>text</b>',default);
 select * from t1;
@@ -2729,6 +2729,24 @@ a	b
 drop table t1;
 set sql_warnings = 0;
 # None.
+#
+# JSON functions
+#
+# JSON_PRETTY()
+set sql_warnings = 1;
+create table t1 (a varchar(1024), b varchar(1024) generated always as (JSON_PRETTY(a)) virtual);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` varchar(1024) DEFAULT NULL,
+  `b` varchar(1024) GENERATED ALWAYS AS (json_pretty(`a`)) VIRTUAL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+insert into t1 values ('{}', default);
+select * from t1;
+a	b
+{}	{}
+drop table t1;
+set sql_warnings = 0;
 #
 # OTHER FUNCTIONS
 #
@@ -2739,7 +2757,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(1024) DEFAULT NULL,
-  `b` varchar(1024) GENERATED ALWAYS AS (aes_encrypt(aes_decrypt(`a`,'adf'),'adf')) VIRTUAL
+  `b` varchar(1024) GENERATED ALWAYS AS (aes_encrypt(aes_decrypt(`a`,_latin1'adf'),_latin1'adf')) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 insert into t1 values ('MySQL',default);
 select * from t1;
@@ -2829,7 +2847,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(1024) DEFAULT NULL,
-  `b` varchar(1024) GENERATED ALWAYS AS (decode(encode(`a`,'abc'),'abc')) VIRTUAL
+  `b` varchar(1024) GENERATED ALWAYS AS (decode(encode(`a`,_latin1'abc'),_latin1'abc')) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 insert into t1 values ('MySQL',default);
 Warnings:
@@ -2864,7 +2882,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(1024) DEFAULT NULL,
-  `b` varchar(1024) GENERATED ALWAYS AS (des_encrypt(des_decrypt(`a`,'adf'),'adf')) VIRTUAL
+  `b` varchar(1024) GENERATED ALWAYS AS (des_encrypt(des_decrypt(`a`,_latin1'adf'),_latin1'adf')) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 insert into t1 values ('MySQL',default);
 select * from t1;

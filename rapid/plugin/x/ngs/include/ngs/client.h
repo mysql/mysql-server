@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -20,16 +20,15 @@
 #ifndef _NGS_CLIENT_H_
 #define _NGS_CLIENT_H_
 
-#include "ngs/ngs_types.h"
-#include "ngs/protocol_encoder.h"
-#include "ngs/protocol_decoder.h"
+#include "my_inttypes.h"
+#include "ngs/capabilities/configurator.h"
+#include "ngs/interface/client_interface.h"
 #include "ngs/memory.h"
 #include "ngs/protocol/message.h"
-#include "ngs/interface/client_interface.h"
-#include "ngs/capabilities/configurator.h"
-
-#include <boost/atomic.hpp>
-
+#include "ngs/protocol_decoder.h"
+#include "ngs/protocol_encoder.h"
+#include "ngs_common/atomic.h"
+#include "ngs_common/chrono.h"
 #include "ngs_common/connection_vio.h"
 
 #ifndef WIN32
@@ -41,9 +40,7 @@ namespace ngs
 {
   class Server_interface;
 
-  class Client : public Client_interface,
-                 //public Session_interface::Session_delegate,
-                 private boost::noncopyable
+  class Client : public Client_interface
   {
   public:
     Client(Connection_ptr connection,
@@ -52,36 +49,46 @@ namespace ngs
            Protocol_monitor_interface &pmon);
     virtual ~Client();
 
-    Mutex &get_session_exit_mutex() { return m_session_exit_mutex; }
-    boost::shared_ptr<Session_interface> session() { return m_session; }
+    Mutex &get_session_exit_mutex() override { return m_session_exit_mutex; }
+    ngs::shared_ptr<Session_interface> session() override { return m_session; }
 
   public: // impl ngs::Client_interface
-    virtual void run(const bool skip_resolve_name);
+    void run(const bool skip_resolve_name) override;
 
-    virtual void activate_tls();
+    void activate_tls() override;
 
-    virtual void reset_accept_time(const Client_state new_state = Client_accepted);
+    void reset_accept_time() override;
 
-    virtual void on_auth_timeout();
-    virtual void on_server_shutdown();
+    void on_auth_timeout() override;
+    void on_server_shutdown() override;
 
-    virtual Server_interface &server() const { return m_server; }
-    virtual Connection_vio  &connection() { return *m_connection; };
+    Server_interface &server() const override { return m_server; }
+    Connection_vio  &connection() override { return *m_connection; };
 
-    virtual void on_session_auth_success(Session_interface &s);
-    virtual void on_session_close(Session_interface &s);
-    virtual void on_session_reset(Session_interface &s);
+    void on_session_auth_success(Session_interface &s) override;
+    void on_session_close(Session_interface &s) override;
+    void on_session_reset(Session_interface &s) override;
 
-    virtual void disconnect_and_trigger_close();
+    void disconnect_and_trigger_close() override;
 
-    virtual const char *client_address() const { return m_client_addr.c_str(); }
-    virtual const char *client_hostname() const { return m_client_host.c_str(); }
-    virtual const char *client_id() const { return m_id; }
-    virtual Client_id client_id_num() const { return m_client_id; }
-    virtual int       client_port() const { return m_client_port; }
+    const char *client_address() const override { return m_client_addr.c_str(); }
+    const char *client_hostname() const override { return m_client_host.c_str(); }
+    const char *client_id() const override { return m_id; }
+    Client_id client_id_num() const override { return m_client_id; }
+    int client_port() const override { return m_client_port; }
 
-    virtual Client_state  get_state() const { return m_state.load(); };
-    virtual ptime         get_accept_time() const;
+    Client_state  get_state() const override { return m_state.load(); };
+    chrono::time_point get_accept_time() const override;
+
+    void set_supports_expired_passwords(bool flag)
+    {
+      m_supports_expired_passwords = flag;
+    }
+
+    bool supports_expired_passwords() const override
+    {
+      return m_supports_expired_passwords;
+    }
 
   protected:
     char m_id[2+sizeof(Client_id)*2+1]; // 64bits in hex, plus 0x plus \0
@@ -91,16 +98,16 @@ namespace ngs
 
     Message_decoder m_decoder;
 
-    boost::posix_time::ptime m_accept_time;
+    ngs::chrono::time_point m_accept_time;
 
-    Protocol_encoder *m_encoder;
+    ngs::Memory_instrumented<Protocol_encoder>::Unique_ptr m_encoder;
     std::string m_client_addr;
     std::string m_client_host;
     uint16      m_client_port;
-    boost::atomics::atomic<Client_state> m_state;
-    boost::atomics::atomic<bool> m_removed;
+    ngs::atomic<Client_state> m_state;
+    ngs::atomic<bool> m_removed;
 
-    boost::shared_ptr<Session_interface> m_session;
+    ngs::shared_ptr<Session_interface> m_session;
 
     Protocol_monitor_interface &m_protocol_monitor;
 
@@ -115,7 +122,11 @@ namespace ngs
       Close_connect_timeout
     } m_close_reason;
 
-    Request_unique_ptr read_one_message(Error_code &ret_error);
+    char* m_msg_buffer;
+    size_t m_msg_buffer_size;
+    bool m_supports_expired_passwords;
+
+    Request *read_one_message(Error_code &ret_error);
 
     virtual ngs::Capabilities_configurator *capabilities_configurator();
     void get_capabilities(const Mysqlx::Connection::CapabilitiesGet &msg);
@@ -124,12 +135,16 @@ namespace ngs
     void remove_client_from_server();
 
     void handle_message(Request &message);
-    virtual std::string resolve_hostname(const std::string &ip) = 0;
+    virtual std::string resolve_hostname() = 0;
     virtual void on_network_error(int error);
 
     Protocol_monitor_interface &get_protocol_monitor();
 
   private:
+    Client(const Client &) = delete;
+    Client &operator=(const Client &) = delete;
+
+    void get_last_error(int &error_code, std::string &message);
     void shutdown_connection();
 
     void on_client_addr(const bool skip_resolve_name);

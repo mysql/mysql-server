@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,8 +13,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <my_global.h>
-#include "m_string.h"
+#include <stddef.h>
+#include <sys/types.h>
+
 #include "m_ctype.h"
 
 
@@ -32,7 +33,7 @@
 */
 
 char *my_strchr(const CHARSET_INFO *cs, const char *str, const char *end,
-                pchar c)
+                char c)
 {
   while (str < end)
   {

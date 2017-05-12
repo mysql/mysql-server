@@ -47,14 +47,6 @@ ADD_DEFINITIONS(-D_GNU_SOURCE)
 # 64 bit file offset support flag
 ADD_DEFINITIONS(-D_FILE_OFFSET_BITS=64)
 
-# Fix CMake (< 2.8) flags. -rdynamic exports too many symbols.
-FOREACH(LANG C CXX)
-  STRING(REPLACE "-rdynamic" "" 
-  CMAKE_SHARED_LIBRARY_LINK_${LANG}_FLAGS
-  ${CMAKE_SHARED_LIBRARY_LINK_${LANG}_FLAGS}  
-  )
-ENDFOREACH()
-
 # Ensure we have clean build for shared libraries
 # without unresolved symbols
 # Not supported with Sanitizers

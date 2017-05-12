@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,9 +18,15 @@
   Handling of arrays that can grow dynamically.
 */
 
-#include "mysys_priv.h"
-#include "m_string.h"
+#include <string.h>
+#include <sys/types.h>
+
+#include "my_alloc.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
 #include "my_sys.h"
+#include "mysql/psi/psi_memory.h"
 #include "mysql/service_mysql_alloc.h"
 
 /*
@@ -45,12 +51,12 @@
     FALSE	Ok
 */
 
-my_bool my_init_dynamic_array(DYNAMIC_ARRAY *array,
-                              PSI_memory_key psi_key,
-                              uint element_size,
-                              void *init_buffer,
-                              uint init_alloc,
-                              uint alloc_increment)
+bool my_init_dynamic_array(DYNAMIC_ARRAY *array,
+                           PSI_memory_key psi_key,
+                           uint element_size,
+                           void *init_buffer,
+                           uint init_alloc,
+                           uint alloc_increment)
 {
   DBUG_ENTER("my_init_dynamic_array");
   if (!alloc_increment)
@@ -96,7 +102,7 @@ my_bool my_init_dynamic_array(DYNAMIC_ARRAY *array,
     FALSE	Ok
 */
 
-my_bool insert_dynamic(DYNAMIC_ARRAY *array, const void *element)
+bool insert_dynamic(DYNAMIC_ARRAY *array, const void *element)
 {
   uchar* buffer;
   if (array->elements == array->max_element)

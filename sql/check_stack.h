@@ -16,8 +16,6 @@
 #ifndef SQL_CHECK_STACK_H_INCLUDED
 #define SQL_CHECK_STACK_H_INCLUDED
 
-#include "my_config.h"
-
 class THD;
 
 extern "C" bool check_stack_overrun(const THD *thd,

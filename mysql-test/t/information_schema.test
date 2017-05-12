@@ -4,10 +4,6 @@ if (!$require_case_insensitive_file_system)
   --source include/have_case_sensitive_file_system.inc
 }
 
-# Running test with show_compatibility_56=ON to retain I_S compatibility until it is permanently removed.
-select @@global.show_compatibility_56 into @show_compatibility_56_save;
-set @@global.show_compatibility_56=ON;
-
 --source include/no_valgrind_without_big.inc
 
 # This test  uses grants, which can't get tested for embedded server
@@ -178,11 +174,7 @@ show procedure status where db='test';
 show function status where db='test';
 select a.ROUTINE_NAME from information_schema.ROUTINES a,
 information_schema.SCHEMATA b where
-a.ROUTINE_SCHEMA = CONVERT(b.SCHEMA_NAME USING UTF8) AND b.SCHEMA_NAME='test';
---replace_column 3 # 10 # 11 #
-explain select a.ROUTINE_NAME from information_schema.ROUTINES a,
-information_schema.SCHEMATA b where
-a.ROUTINE_SCHEMA = CONVERT(b.SCHEMA_NAME USING UTF8);
+a.ROUTINE_SCHEMA = b.SCHEMA_NAME AND b.SCHEMA_NAME='test';
 
 select count(*) from information_schema.ROUTINES where routine_schema='test';
 
@@ -193,19 +185,19 @@ drop view v1;
 
 connect (user1,localhost,mysqltest_1,,);
 connection user1;
-select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES;
+select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES WHERE ROUTINE_SCHEMA='test';
 --error ER_SP_DOES_NOT_EXIST
 show create function sub1;
 connection user3;
-select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES;
+select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES WHERE ROUTINE_SCHEMA='test';
 connection default;
 grant all privileges on test.* to mysqltest_1@localhost;
 connect (user2,localhost,mysqltest_1,,);
 connection user2;
-select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES;
+select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES WHERE ROUTINE_SCHEMA='test';
 create function sub2(i int) returns int
   return i+1;
-select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES;
+select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES WHERE ROUTINE_SCHEMA='test';
 show create procedure sel2;
 show create function sub1;
 show create function sub2;
@@ -975,7 +967,7 @@ CREATE FUNCTION get_value()
   DETERMINISTIC
 BEGIN
   DECLARE col1, col2, col3, col4, col6 CHAR(255);
-  DECLARE default_val VARCHAR(65532);
+  DECLARE default_val VARCHAR(65532) CHARACTER SET latin1;
   DECLARE done INT DEFAULT 0;
   DECLARE cur1 CURSOR FOR SELECT COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE, COLUMN_KEY, COLUMN_DEFAULT, EXTRA FROM INFORMATION_SCHEMA.COLUMNS where TABLE_NAME='bug23037';
   DECLARE CONTINUE HANDLER FOR SQLSTATE '02000' SET done = 1;
@@ -1191,7 +1183,7 @@ CREATE EVENT event_status
 BEGIN
   CREATE TABLE server_status
   SELECT variable_name
-  FROM information_schema.global_status
+  FROM performance_schema.global_status
   WHERE variable_name LIKE 'ABORTED_CONNECTS' OR
   variable_name LIKE 'BINLOG_CACHE_DISK_USE';
 END$$
@@ -1379,7 +1371,7 @@ drop table if exists t1;drop table if exists t1;\
 drop table if exists t1;drop table if exists t1;\
 drop table if exists t1;drop table if exists t1;\
 drop table if exists t1;drop table if exists t1;";
-select * from information_schema.global_variables where variable_name='init_connect';
+select * from performance_schema.global_variables where variable_name='init_connect';
 set global init_connect="";
 
 #
@@ -1387,9 +1379,9 @@ set global init_connect="";
 #
 
 --disable_warnings
-create table t0 select * from information_schema.global_status where VARIABLE_NAME='COM_SELECT';
+create table t0 select * from performance_schema.global_status where VARIABLE_NAME='COM_SELECT';
 SELECT 1;
-select a.VARIABLE_VALUE - b.VARIABLE_VALUE from t0 b, information_schema.global_status a
+select a.VARIABLE_VALUE - b.VARIABLE_VALUE from t0 b, performance_schema.global_status a
    where a.VARIABLE_NAME = b.VARIABLE_NAME;
 --enable_warnings
 drop table t0;
@@ -1536,9 +1528,6 @@ EXPLAIN SELECT * FROM information_schema.PARTITIONS WHERE TABLE_NAME='t1';
 --replace_result referential_constraints REFERENTIAL_CONSTRAINTS
 EXPLAIN SELECT * FROM information_schema.REFERENTIAL_CONSTRAINTS
   WHERE CONSTRAINT_SCHEMA='test';
---replace_result triggers TRIGGERS
-EXPLAIN SELECT * FROM information_schema.TRIGGERS
-  WHERE EVENT_OBJECT_SCHEMA='test';
 
 #
 # Bug#24062 Incorrect error msg after execute DROP TABLE IF EXISTS on information_schema
@@ -1663,6 +1652,11 @@ drop view v1;
 --echo # performance problems in cases when big number of tables (.FRMs
 --echo # or .TRG files) were scanned as cost of new lock acquisition has
 --echo # increased linearly.
+--echo #
+--echo # With WL#9494, queries using I_S.TRIGGERS will not open the under
+--echo # lying tables. The I_S query will not take metadata locks on
+--echo # table owning the triggers and hence the query will not be blocked.
+--echo #
 --disable_warnings
 drop database if exists mysqltest;
 --enable_warnings
@@ -1702,8 +1696,10 @@ let $wait_condition=
 --source include/wait_condition.inc
 
 SET SESSION information_schema_stats=latest;
---echo # Issue query to I_S which will open 't0' and get
---echo # blocked on 't1' because of RENAME.
+--echo # Without WL9494, issuing a query to I_S will open 't0' and get
+--echo # blocked on 't1' because of RENAME. With WL9494, I_S query is just
+--echo # a scan over dictionary tables and do not really open the table,
+--echo # so the below query does not block.
 --send select event_object_table, trigger_name from information_schema.triggers where event_object_schema='mysqltest'
 
 --echo #
@@ -1712,7 +1708,7 @@ SET SESSION information_schema_stats=latest;
 connect (con12828477_3, localhost, root,,mysqltest);
 --echo # Wait while the above SELECT is blocked.
 let $wait_condition=
-  select count(*) = 1 from information_schema.processlist
+  select count(*) = 0 from information_schema.processlist
   where state = "Waiting for table metadata lock" and
         info = "select event_object_table, trigger_name from information_schema.triggers where event_object_schema='mysqltest'";
 --source include/wait_condition.inc
@@ -1783,7 +1779,7 @@ use test;
 SELECT * FROM INFORMATION_SCHEMA.TABLES;
 --enable_result_log
 --disable_warnings
-SELECT VARIABLE_VALUE INTO @val1 FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE
+SELECT VARIABLE_VALUE INTO @val1 FROM performance_schema.global_status WHERE
   VARIABLE_NAME LIKE 'Opened_tables';
 --enable_warnings
 --disable_result_log
@@ -1791,7 +1787,7 @@ SELECT ENGINE FROM INFORMATION_SCHEMA.TABLES;
 --enable_result_log
 --disable_warnings
 --echo # The below SELECT query should give same output as above SELECT query.
-SELECT VARIABLE_VALUE INTO @val2 FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE
+SELECT VARIABLE_VALUE INTO @val2 FROM performance_schema.global_status WHERE
   VARIABLE_NAME LIKE 'Opened_tables';
 --enable_warnings
 --echo # The below select should return '1'
@@ -1912,8 +1908,6 @@ set names default;
 
 SET SESSION information_schema_stats=cached;
 set sql_mode= @orig_sql_mode;
-set @@global.show_compatibility_56=@show_compatibility_56_save;
-
 
 --echo #
 --echo # WL#6599: New Data Dictionary and I_S Integration.
@@ -1986,4 +1980,238 @@ SELECT COLUMN_NAME, IS_NULLABLE,
   WHERE TABLE_SCHEMA='test';
 SHOW COLUMNS FROM t1;
 
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#24749248 - NATIVE METHODS INTRODUCED FOR I_S SHOULD NOT BE USED BY A USER DIRECTLY.
+--echo #
+
+--echo # Case 1: Invoking I_S native methods directly by a user should not be
+--echo #         allowed.
+--error ER_NO_ACCESS_TO_NATIVE_FCT
+SELECT INTERNAL_TABLE_ROWS(NULL, NULL, NULL, NULL);
+
+--error ER_NO_ACCESS_TO_NATIVE_FCT
+SELECT INTERNAL_AVG_ROW_LENGTH(NULL, NULL, NULL, NULL);
+
+--error ER_NO_ACCESS_TO_NATIVE_FCT
+SELECT INTERNAL_DATA_LENGTH(NULL, NULL, NULL, NULL);
+
+--error ER_NO_ACCESS_TO_NATIVE_FCT
+SELECT INTERNAL_MAX_DATA_LENGTH(NULL, NULL, NULL, NULL);
+
+--error ER_NO_ACCESS_TO_NATIVE_FCT
+SELECT INTERNAL_INDEX_LENGTH(NULL, NULL, NULL, NULL);
+
+--error ER_NO_ACCESS_TO_NATIVE_FCT
+SELECT INTERNAL_DATA_FREE(NULL, NULL, NULL, NULL);
+
+--error ER_NO_ACCESS_TO_NATIVE_FCT
+SELECT INTERNAL_AUTO_INCREMENT(NULL, NULL, NULL, NULL);
+
+--error ER_NO_ACCESS_TO_NATIVE_FCT
+SELECT INTERNAL_UPDATE_TIME(NULL, NULL, NULL, NULL);
+
+--error ER_NO_ACCESS_TO_NATIVE_FCT
+SELECT INTERNAL_CHECK_TIME(NULL, NULL, NULL, NULL);
+
+--error ER_NO_ACCESS_TO_NATIVE_FCT
+SELECT INTERNAL_CHECKSUM(NULL, NULL, NULL, NULL);
+
+--error ER_NO_ACCESS_TO_NATIVE_FCT
+SELECT INTERNAL_DD_CHAR_LENGTH(NULL, NULL, NULL, NULL);
+
+--error ER_NO_ACCESS_TO_NATIVE_FCT
+SELECT INTERNAL_INDEX_COLUMN_CARDINALITY(NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+
+--error ER_NO_ACCESS_TO_NATIVE_FCT
+SELECT GET_DD_INDEX_SUB_PART_LENGTH(NULL, NULL, NULL, NULL, NULL);
+
+--error ER_NO_ACCESS_TO_NATIVE_FCT
+SELECT GET_DD_COLUMN_PRIVILEGES(NULL, NULL, NULL);
+
+--error ER_NO_ACCESS_TO_NATIVE_FCT
+SELECT INTERNAL_GET_VIEW_WARNING_OR_ERROR(NULL, NULL, NULL, NULL);
+
+--error ER_NO_ACCESS_TO_NATIVE_FCT
+SELECT INTERNAL_GET_COMMENT_OR_ERROR(NULL, NULL, NULL, NULL, NULL);
+
+--error ER_NO_ACCESS_TO_NATIVE_FCT
+SELECT INTERNAL_KEYS_DISABLED(NULL);
+
+--error ER_NO_ACCESS_TO_NATIVE_FCT
+SELECT CAN_ACCESS_DATABASE(NULL);
+
+--error ER_NO_ACCESS_TO_NATIVE_FCT
+SELECT CAN_ACCESS_TABLE(NULL, NULL);
+
+--error ER_NO_ACCESS_TO_NATIVE_FCT
+SELECT CAN_ACCESS_VIEW(NULL, NULL, NULL, NULL);
+
+--error ER_NO_ACCESS_TO_NATIVE_FCT
+SELECT CAN_ACCESS_COLUMN(NULL, NULL, NULL);
+
+--error ER_NO_ACCESS_TO_NATIVE_FCT
+SELECT GET_DD_CREATE_OPTIONS(NULL, NULL);
+
+--error ER_NO_ACCESS_TO_NATIVE_FCT
+SELECT CAN_ACCESS_TRIGGER(NULL, NULL);
+
+--error ER_NO_ACCESS_TO_NATIVE_FCT
+SELECT CAN_ACCESS_ROUTINE(NULL, NULL, NULL, NULL, NULL);
+
+--error ER_NO_ACCESS_TO_NATIVE_FCT
+SELECT CAN_ACCESS_EVENT(NULL);
+
+CREATE TABLE t1(f1 INT);
+--error ER_NO_ACCESS_TO_NATIVE_FCT
+CREATE TABLE t3 AS SELECT CAN_ACCESS_TABLE("test", "t1");
+
+--error ER_NO_ACCESS_TO_NATIVE_FCT
+CREATE VIEW v2 AS SELECT CAN_ACCESS_TABLE("test", "t1");
+
+--error ER_NO_ACCESS_TO_NATIVE_FCT
+SELECT * FROM t1 WHERE CAN_ACCESS_TABLE("test", "t1") = 1;
+
+--error ER_NO_ACCESS_TO_NATIVE_FCT
+SELECT * FROM INFORMARTION_SCHEMA.TABLES WHERE CAN_ACCESS_TABLE("test", "t1") = 1;
+
+--error ER_NO_ACCESS_TO_NATIVE_FCT
+SELECT CAN_ACCESS_TABLE("test", "t1") AS f1, COLUMN_NAME AS F2  FROM INFORMATION_SCHEMA.COLUMNS;
+
+--error ER_NO_ACCESS_TO_NATIVE_FCT
+PREPARE stmt FROM 'SELECT CAN_ACCESS_TABLE("test", "t1") AS f1, COLUMN_NAME AS F2  FROM INFORMATION_SCHEMA.COLUMNS';
+
+--echo # Case 2: Invoking I_S native methods should be allowed through I_S queries.
+--replace_column 6 # 7 # 8 # 9 # 10 # 11 # 12 # 13 # 14 # 15 # 16 # 17 # 18 # 19 # 20 # 21 #
+SELECT * FROM INFORMATION_SCHEMA.TABLES where table_name='t1';
+
+SELECT t.table_schema, t.table_name, c.column_name
+  FROM INFORMATION_SCHEMA.TABLES t,
+       INFORMATION_SCHEMA.COLUMNS c
+       WHERE t.table_schema = c.table_schema
+       AND t.table_name = c.table_name
+       AND t.table_name = 't1' limit 1;
+
+CREATE VIEW v1 AS
+SELECT t.table_schema, t.table_name, c.column_name
+  FROM INFORMATION_SCHEMA.TABLES t,
+       INFORMATION_SCHEMA.COLUMNS c
+       WHERE t.table_schema = c.table_schema
+       AND t.table_name = c.table_name
+       AND t.table_name = 't1' limit 1;
+SHOW CREATE VIEW v1;
+
+CREATE TABLE t2 AS
+SELECT t.table_schema, t.table_name, c.column_name
+  FROM INFORMATION_SCHEMA.TABLES t,
+       INFORMATION_SCHEMA.COLUMNS c
+       WHERE t.table_schema = c.table_schema
+       AND t.table_name = c.table_name
+       AND t.table_name = 't1' limit 1;
+SHOW CREATE TABLE t2;
+
+# Cleanup
+DROP TABLE t1, t2;
+DROP VIEW v1;
+
+--echo #
+--echo # WL#8582 INFORMATION_SCHEMA.ST_GEOMETRY_COLUMNS
+--echo #
+
+SELECT * FROM information_schema.ST_GEOMETRY_COLUMNS
+  WHERE TABLE_SCHEMA='test' AND TABLE_NAME='t1';
+CREATE TABLE t1(g GEOMETRY, pt POINT, ls LINESTRING, py POLYGON, mpt MULTIPOINT,
+  mls MULTILINESTRING, mpy MULTIPOLYGON, gc GEOMETRYCOLLECTION);
+SELECT * FROM information_schema.ST_GEOMETRY_COLUMNS
+  WHERE TABLE_SCHEMA='test' AND TABLE_NAME='t1'
+  ORDER BY COLUMN_NAME;
+DROP TABLE t1;
+
+--echo #
+--echo # BUG#24751177: ASSERTION `STRLEN(DB_NAME) <= (64*3) &&
+--echo #               STRLEN(TABLE_NAME) <= (64*3)' FAILED
+--echo #
+
+--echo # Without patch, the below queries triggers an assertion.
+--error ER_WRONG_TABLE_NAME
+DESCRIBE `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaa`;
+
+--error ER_WRONG_TABLE_NAME
+EXPLAIN `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaa`;
+
+--error ER_TOO_LONG_IDENT
+SHOW KEYS FROM `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaa`;
+
+--error ER_TOO_LONG_IDENT
+SHOW COLUMNS FROM `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaa`;
+
+--error ER_WRONG_DB_NAME
+DESCRIBE `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaa`.`t1`;
+
+--error ER_WRONG_DB_NAME
+EXPLAIN `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaa`.`t1`;
+
+--error ER_TOO_LONG_IDENT
+SHOW KEYS FROM `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaa`.`t1`;
+
+--error ER_TOO_LONG_IDENT
+SHOW COLUMNS FROM `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaa`.`t1`;
+
+--echo #
+--echo # Bug#25583588 `M_PREBUILT->TABLE->N_REF_COUNT > 0' AT
+--echo # HA_INNOBASE::UPDATE_THD IN HANDLER
+--echo #
+--echo # This test would crash especially with a FULLTEXT
+--echo # index and hidden FTS tables that are created by InnoDB.
+--echo #
+
+CREATE TABLE t1 (a VARCHAR(200), b TEXT, FULLTEXT (a,b))
+ENGINE = InnoDB charset utf8mb4;
+SELECT * FROM INFORMATION_SCHEMA.`REFERENTIAL_CONSTRAINTS`;
+DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#25576205 WRONG COLUMN CARDINALITY PASSED TO GET STATS
+--echo #
+--echo # The test case crashes if server requests for cardinality for
+--echo # InnoDB SE even for hidden index.
+--echo #
+
+set information_schema_stats=latest;
+SELECT INDEX_NAME FROM INFORMATION_SCHEMA.`STATISTICS` WHERE `TABLE_NAME` = 'innodb_table_stats' AND Cardinality ;
+
+--echo #
+--echo # Bug#25188540 FIELD_TINY::VAL_INT(): ASSERTION `!TABLE || (!TABLE->READ_SET |......)' FAILED
+--echo #
+
+CREATE TABLE t1 (a INT);
+SET SESSION optimizer_switch='derived_merge=off';
+SHOW FIELDS FROM t1;
+SET SESSION optimizer_switch=DEFAULT;
 DROP TABLE t1;

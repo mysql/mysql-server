@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -263,16 +263,33 @@ ParserImpl::parseArg(Context * ctx,
     ctx->m_status = Parser<Dummy>::InvalidArgumentFormat;
     return false;
   }
+  const bool append = (name[0] == '+');
+  if (append)
+  {
+    // skip passed the plus sign
+    name++;
+  }
   const DummyRow * arg = matchArg(ctx, name, rows);
   if(arg == 0){
     ctx->m_status = Parser<Dummy>::UnknownArgument;
     return false;
   }
-  
+
+  if (append && arg->argType != DummyRow::LongString)
+  {
+    // only LongString supports append
+    ctx->m_status = Parser<Dummy>::TypeMismatch;
+    return false;
+  }
   switch(arg->argType){
+  case DummyRow::LongString:
+    if (append)
+      return p->append(arg->name, value);
+    else
+      return p->put(arg->name, value);
+    break;
   case DummyRow::String:
-    if(p->put(arg->name, value))
-      return true;
+    return p->put(arg->name, value);
     break;
   case DummyRow::Int:{
     Uint32 i;

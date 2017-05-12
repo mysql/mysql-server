@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,13 +16,17 @@
 #ifndef DD__TABLESPACE_FILES_IMPL_INCLUDED
 #define DD__TABLESPACE_FILES_IMPL_INCLUDED
 
-#include "my_global.h"
+#include <sys/types.h>
+#include <memory>   // std::unique_ptr
+#include <new>
+#include <string>
 
+#include "dd/impl/raw/raw_record.h"
 #include "dd/impl/types/weak_object_impl.h" // dd::Weak_object_impl
+#include "dd/properties.h"
+#include "dd/sdi_fwd.h"
 #include "dd/types/object_type.h"           // dd::Object_type
 #include "dd/types/tablespace_file.h"       // dd::Tablespace_file
-
-#include <memory>   // std::unique_ptr
 
 namespace dd {
 
@@ -30,6 +34,12 @@ namespace dd {
 
 class Tablespace;
 class Tablespace_impl;
+class Object_key;
+class Object_table;
+class Open_dictionary_tables_ctx;
+class Sdi_rcontext;
+class Sdi_wcontext;
+class Weak_object;
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -51,6 +61,8 @@ public:
   virtual const Object_table &object_table() const
   { return Tablespace_file::OBJECT_TABLE(); }
 
+  virtual bool store(Open_dictionary_tables_ctx *otx);
+
   virtual bool validate() const;
 
   virtual bool store_attributes(Raw_record *r);
@@ -61,7 +73,7 @@ public:
 
   bool deserialize(Sdi_rcontext *rctx, const RJ_Value &val);
 
-  virtual void debug_print(std::string &outb) const;
+  virtual void debug_print(String_type &outb) const;
 
   void set_ordinal_position(uint ordinal_position)
   { m_ordinal_position= ordinal_position; }
@@ -78,10 +90,10 @@ public:
   // filename.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &filename() const
+  virtual const String_type &filename() const
   { return m_filename; }
 
-  virtual void set_filename(const std::string &filename)
+  virtual void set_filename(const String_type &filename)
   { m_filename= filename; }
 
   /////////////////////////////////////////////////////////////////////////
@@ -95,7 +107,7 @@ public:
   { return *m_se_private_data; }
 
   virtual bool set_se_private_data_raw(
-    const std::string &se_private_data_raw);
+    const String_type &se_private_data_raw);
 
   // Fix "inherits ... via dominance" warnings
   virtual Weak_object_impl *impl()
@@ -131,7 +143,7 @@ private:
   // Fields
   uint m_ordinal_position;
 
-  std::string m_filename;
+  String_type m_filename;
   std::unique_ptr<Properties> m_se_private_data;
 
   // References to other objects

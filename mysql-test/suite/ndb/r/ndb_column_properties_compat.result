@@ -1,0 +1,52 @@
+DROP DATABASE IF EXISTS BANK;
+CREATE DATABASE BANK default charset=latin1 default collate=latin1_bin;
+USE BANK;
+ALTER TABLE ACCOUNT MODIFY`OWNER` int(11) unsigned NOT NULL COLUMN_FORMAT FIXED;
+Now there should be two warnings of implicit COLUMN_FORMAT conversion
+SHOW WARNINGS;
+Level	Code	Message
+ALTER TABLE BANK.ACCOUNT RENAME test.t1;
+Attributes:
+ACCOUNT_ID Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+OWNER Unsigned NOT NULL AT=FIXED ST=MEMORY
+BALANCE Unsigned NOT NULL AT=FIXED ST=MEMORY
+ACCOUNT_TYPE Unsigned NOT NULL AT=FIXED ST=MEMORY
+DROP TABLE test.t1;
+ALTER TABLE ACCOUNT_TYPE algorithm=inplace, MODIFY `DESCRIPTION` char(65);
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Altering default value is not supported. Try ALGORITHM=COPY.
+ALTER TABLE ACCOUNT_TYPE DROP `DESCRIPTION`;
+Now there should be no warning
+SHOW WARNINGS;
+Level	Code	Message
+ALTER TABLE SYSTEM_VALUES MODIFY `VALUE` bigint(21);
+Now there should be one warning of implicit COLUMN_FORMAT conversion
+SHOW WARNINGS;
+Level	Code	Message
+ALTER TABLE SYSTEM_VALUES MODIFY `VALUE` bigint(22);
+Now there should be no warning
+SHOW WARNINGS;
+Level	Code	Message
+ALTER TABLE SYSTEM_VALUES MODIFY `VALUE` bigint(23);
+set @old_acat = @@session.ndb_allow_copying_alter_table;
+set @@session.ndb_allow_copying_alter_table = off;
+ALTER TABLE SYSTEM_VALUES MODIFY `VALUE` bigint(24);
+ERROR 0A000: Implicit copying alter is not supported. Reason: ndb_allow_copying_alter_table=0. Try ALGORITHM=COPY to force the alter.
+set @@session.ndb_allow_copying_alter_table = @old_acat;
+set @old_ndcf = @@global.ndb_default_column_format;
+set @@global.ndb_default_column_format = FIXED;
+ALTER TABLE TRANSACTION MODIFY `ACCOUNT_TYPE` int(11) unsigned NOT NULL;
+Now there should be no warning
+SHOW WARNINGS;
+Level	Code	Message
+ALTER TABLE BANK.TRANSACTION RENAME test.t1;
+Attributes:
+TRANSACTION_ID Bigunsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+ACCOUNT Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+ACCOUNT_TYPE Unsigned NOT NULL AT=FIXED ST=MEMORY
+OTHER_ACCOUNT Unsigned NOT NULL AT=FIXED ST=MEMORY
+TRANSACTION_TYPE Unsigned NOT NULL AT=FIXED ST=MEMORY
+TIME Bigunsigned NOT NULL AT=FIXED ST=MEMORY
+AMOUNT Unsigned NOT NULL AT=FIXED ST=MEMORY
+DROP TABLE test.t1;
+set @@global.ndb_default_column_format = @old_ndcf;
+DROP DATABASE BANK;

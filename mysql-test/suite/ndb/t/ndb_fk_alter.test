@@ -23,19 +23,27 @@ alter table child algorithm=inplace, add constraint fk1 foreign key (a) referenc
 alter table child algorithm=inplace, add constraint fk2 foreign key (b) references parent(a);
 alter table child algorithm=inplace, add constraint fk3 foreign key (c) references parent(a);
 
+--disable_warnings
 show create table child;
+--enable_warnings
 
 alter table child algorithm=inplace, drop foreign key fk1;
 
+--disable_warnings
 show create table child;
+--enable_warnings
 
 alter table child algorithm=inplace, drop foreign key fk2;
 
+--disable_warnings
 show create table child;
+--enable_warnings
 
 alter table child algorithm=inplace, drop foreign key fk3;
 
+--disable_warnings
 show create table child;
+--enable_warnings
 
 drop table parent, child;
 
@@ -160,21 +168,35 @@ CREATE TABLE t2
 )
 ENGINE = NDB;
 
+--disable_warnings
 SHOW CREATE TABLE t1;
 SHOW CREATE TABLE t2;
+--enable_warnings
 ALTER TABLE t1 PARTITION BY KEY ();
+--disable_warnings
 SHOW CREATE TABLE t1;
+--enable_warnings
 ALTER TABLE t1 PARTITION BY KEY (col1);
+--disable_warnings
 SHOW CREATE TABLE t1;
+--enable_warnings
 ALTER TABLE t1 REMOVE PARTITIONING;
+--disable_warnings
 SHOW CREATE TABLE t1;
+--enable_warnings
 
 ALTER TABLE t2 PARTITION BY KEY ();
+--disable_warnings
 SHOW CREATE TABLE t2;
+--enable_warnings
 ALTER TABLE t2 PARTITION BY KEY (col1);
+--disable_warnings
 SHOW CREATE TABLE t2;
+--enable_warnings
 ALTER TABLE t2 REMOVE PARTITIONING;
+--disable_warnings
 SHOW CREATE TABLE t2;
+--enable_warnings
 
 DROP TABLE t2, t1;
 

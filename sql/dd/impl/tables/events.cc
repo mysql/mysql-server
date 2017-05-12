@@ -15,12 +15,19 @@
 
 #include "dd/impl/tables/events.h"
 
-#include "dd/dd.h"                     // dd::create_object
-#include "dd/properties.h"             // Needed for destructor
+#include <new>
+
 #include "dd/impl/raw/object_keys.h"   // dd::Global_name_key
 #include "dd/impl/raw/raw_record.h"    // dd::Raw_record
-#include "dd/impl/raw/object_keys.h"   // dd::Item_name_keyB
 #include "dd/impl/types/event_impl.h"  // dd::Event_impl
+#include "dd/impl/types/object_table_definition_impl.h"
+#include "m_ctype.h"
+#include "m_string.h"
+#include "mysql_com.h"
+
+namespace dd {
+class Dictionary_object;
+}  // namespace dd
 
 namespace dd {
 namespace tables {
@@ -100,7 +107,8 @@ Events::Events()
                          "'NO_AUTO_CREATE_USER',\n"
                          "'HIGH_NOT_PRECEDENCE',\n"
                          "'NO_ENGINE_SUBSTITUTION',\n"
-                         "'PAD_CHAR_TO_FULL_LENGTH') NOT NULL");
+                         "'PAD_CHAR_TO_FULL_LENGTH',\n"
+                         "'TIME_TRUNCATE_FRACTIONAL') NOT NULL");
   m_target_def.add_field(FIELD_STARTS,
                          "FIELD_STARTS",
                          "starts DATETIME");
@@ -156,7 +164,7 @@ Events::Events()
 
 bool Events::update_object_key(Item_name_key *key,
                                Object_id schema_id,
-                               const std::string &event_name)
+                               const String_type &event_name)
 {
   char buf[NAME_LEN + 1];
   my_stpcpy(buf, event_name.c_str());

@@ -1,8 +1,5 @@
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 # Several selects so the output is readable
 
 # Note that TABLE_NAME is in uppercase is some platforms,

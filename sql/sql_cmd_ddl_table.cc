@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,20 +13,40 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql_cmd_ddl_table.h"
-#include "sql_lex.h"
-#include "sql_class.h"
+#include "sql/sql_cmd_ddl_table.h"
+
+#include <string.h>
+#include <sys/types.h>
+
 #include "auth/auth_common.h"   // create_table_precheck()
-#include "sql_tablespace.h"     // check_tablespace_name()
-#include "partition_info.h"     // check_partition_tablespace_names()
-#include "sql_parse.h"          // prepare_index_and_data_dir_path()
 #include "binlog.h"             // mysql_bin_log
-#include "sql_base.h"           // open_tables_for_query()
+#include "dd/cache/dictionary_client.h"
 #include "derror.h"             // ER_THD
-#include "sql_insert.h"         // Query_result_create
 #include "error_handler.h"      // Ignore_error_handler
+#include "handler.h"
+#include "item.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
+#include "mysqld_error.h"
+#include "partition_info.h"     // check_partition_tablespace_names()
+#include "query_options.h"
+#include "query_result.h"
+#include "session_tracker.h"
+#include "sql_alter.h"
+#include "sql_base.h"           // open_tables_for_query()
+#include "sql_class.h"
+#include "sql_data_change.h"
+#include "sql_error.h"
+#include "sql_insert.h"         // Query_result_create
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_parse.h"          // prepare_index_and_data_dir_path()
 #include "sql_select.h"         // handle_query()
 #include "sql_table.h"          // mysql_create_like_table()
+#include "sql_tablespace.h"     // validate_tablespace_name()
+#include "system_variables.h"
+#include "table.h"
+#include "thr_lock.h"
 
 
 bool Sql_cmd_create_table::execute(THD *thd)
@@ -62,6 +82,14 @@ bool Sql_cmd_create_table::execute(THD *thd)
     return true;
   }
 
+  if (((lex->create_info->used_fields & HA_CREATE_USED_DATADIR) != 0 ||
+       (lex->create_info->used_fields & HA_CREATE_USED_INDEXDIR) != 0) &&
+      check_access(thd, FILE_ACL, any_db, NULL, NULL, FALSE, FALSE))
+  {
+    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "FILE");
+    return true;
+  }
+
   if (create_table_precheck(thd, select_tables, create_table))
     return true;
 
@@ -69,12 +97,22 @@ bool Sql_cmd_create_table::execute(THD *thd)
   create_info.alias= create_table->alias;
 
   /*
+    If no engine type was given, work out the default now
+    rather than at parse-time.
+  */
+  if (!(create_info.used_fields & HA_CREATE_USED_ENGINE))
+    create_info.db_type= create_info.options & HA_LEX_CREATE_TMP_TABLE ?
+            ha_default_temp_handlerton(thd) : ha_default_handlerton(thd);
+
+  /*
     Assign target tablespace name to enable locking in lock_table_names().
     Reject invalid names.
   */
   if (create_info.tablespace)
   {
-    if (check_tablespace_name(create_info.tablespace) != Ident_name_check::OK)
+    if (validate_tablespace_name_length(create_info.tablespace) ||
+        validate_tablespace_name(false, create_info.tablespace,
+                                 create_info.db_type))
       return true;
 
     if (!thd->make_lex_string(&create_table->target_tablespace_name,
@@ -84,7 +122,9 @@ bool Sql_cmd_create_table::execute(THD *thd)
   }
 
   // Reject invalid tablespace names specified for partitions.
-  if (check_partition_tablespace_names(thd->lex->part_info))
+  if (validate_partition_tablespace_name_lengths(thd->lex->part_info) ||
+      validate_partition_tablespace_names(thd->lex->part_info,
+                                          create_info.db_type))
     return true;
 
   /* Fix names if symlinked or relocated tables */
@@ -93,13 +133,6 @@ bool Sql_cmd_create_table::execute(THD *thd)
                                       create_table->table_name))
     return true;
 
-  /*
-    If no engine type was given, work out the default now
-    rather than at parse-time.
-  */
-  if (!(create_info.used_fields & HA_CREATE_USED_ENGINE))
-    create_info.db_type= create_info.options & HA_LEX_CREATE_TMP_TABLE ?
-            ha_default_temp_handlerton(thd) : ha_default_handlerton(thd);
   /*
     If we are using SET CHARSET without DEFAULT, add an implicit
     DEFAULT to not confuse old users. (This may change).
@@ -116,6 +149,11 @@ bool Sql_cmd_create_table::execute(THD *thd)
 
   {
     partition_info *part_info= thd->lex->part_info;
+    if (part_info != NULL && has_external_data_or_index_dir(*part_info) &&
+        check_access(thd, FILE_ACL, any_db, NULL, NULL, FALSE, FALSE))
+    {
+      return true;
+    }
     if (part_info && !(part_info= thd->lex->part_info->get_clone(true)))
       return true;
     thd->work_part_info= part_info;
@@ -177,7 +215,8 @@ bool Sql_cmd_create_table::execute(THD *thd)
 "section of the manual.");
     }
     
-    unit->set_limit(select_lex);
+    if (unit->set_limit(thd, select_lex))
+      return true;
 
     /*
       Disable non-empty MERGE tables with CREATE...SELECT. Too
@@ -224,7 +263,7 @@ bool Sql_cmd_create_table::execute(THD *thd)
     for (TABLE_LIST *table= lex->query_tables; table;
          table= table->next_global)
     {
-      if (table->lock_type >= TL_WRITE_ALLOW_WRITE)
+      if (table->lock_descriptor().type >= TL_WRITE_ALLOW_WRITE)
       {
         lex->link_first_table_back(create_table, link_to_local);
 
@@ -246,6 +285,9 @@ bool Sql_cmd_create_table::execute(THD *thd)
                                                          lex->duplicates,
                                                          select_tables)))
     {
+      // For objects acquired during table creation.
+      dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+
       Ignore_error_handler ignore_handler;
       Strict_error_handler strict_handler;
       if (thd->lex->is_ignore())

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,19 +16,21 @@
 #ifndef DD__OBJECT_KEYS_INCLUDED
 #define DD__OBJECT_KEYS_INCLUDED
 
-#include "my_global.h"
+#include <stddef.h>
+#include <sys/types.h>
+#include <string>
 
-#include "m_ctype.h"
-
-#include "dd/object_id.h"        // dd::Object_id
 #include "dd/impl/object_key.h"  // dd::Object_key
+#include "dd/object_id.h"        // dd::Object_id
+#include "m_ctype.h"
+#include "my_inttypes.h"
 
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
-struct Raw_key;
 class Raw_table;
+struct Raw_key;
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -52,7 +54,7 @@ public:
   /* purecov: end */
 
   /* purecov: begin inspected */
-  virtual std::string str() const
+  virtual String_type str() const
   { return ""; }
   /* purecov: end */
 
@@ -84,7 +86,7 @@ public:
 public:
   virtual Raw_key *create_access_key(Raw_table *db_table) const;
 
-  virtual std::string str() const;
+  virtual String_type str() const;
 
   bool operator <(const Primary_id_key &rhs) const
   { return m_object_id < rhs.m_object_id; }
@@ -110,7 +112,7 @@ public:
 public:
   virtual Raw_key *create_access_key(Raw_table *db_table) const;
 
-  virtual std::string str() const;
+  virtual String_type str() const;
 
 private:
   int m_id_index_no;
@@ -128,14 +130,14 @@ public:
   { }
 
   Global_name_key(int name_column_no,
-                  const std::string &object_name)
+                  const String_type &object_name)
    :m_name_column_no(name_column_no),
     m_object_name(object_name)
   { }
 
   // Update a preallocated instance.
   void update(int name_column_no,
-              const std::string &object_name)
+              const String_type &object_name)
   {
     m_name_column_no= name_column_no;
     m_object_name= object_name;
@@ -145,7 +147,7 @@ public:
   virtual Raw_key *create_access_key(Raw_table *db_table) const;
 
   /* purecov: begin inspected */
-  virtual std::string str() const
+  virtual String_type str() const
   { return m_object_name; }
   /* purecov: end */
 
@@ -154,7 +156,7 @@ public:
 
 private:
   int m_name_column_no;
-  std::string m_object_name;
+  String_type m_object_name;
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -169,7 +171,7 @@ public:
   Item_name_key(int container_id_column_no,
                 Object_id container_id,
                 int name_column_no,
-                const std::string &object_name)
+                const String_type &object_name)
    :m_container_id_column_no(container_id_column_no),
     m_name_column_no(name_column_no),
     m_container_id(container_id),
@@ -180,7 +182,7 @@ public:
   void update(int container_id_column_no,
               Object_id container_id,
               int name_column_no,
-              const std::string &object_name)
+              const String_type &object_name)
   {
     m_container_id_column_no= container_id_column_no;
     m_name_column_no= name_column_no;
@@ -191,7 +193,7 @@ public:
 public:
   virtual Raw_key *create_access_key(Raw_table *db_table) const;
 
-  virtual std::string str() const;
+  virtual String_type str() const;
 
   bool operator <(const Item_name_key &rhs) const
   {
@@ -205,7 +207,7 @@ private:
   int m_name_column_no;
 
   Object_id m_container_id;
-  std::string m_object_name;
+  String_type m_object_name;
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -220,7 +222,7 @@ public:
 /* purecov: begin deadcode */
   Se_private_id_key(int index_no,
                     int engine_column_no,
-                    const std::string &engine,
+                    const String_type &engine,
                     int private_id_column_no,
                     Object_id private_id)
    :m_index_no(index_no),
@@ -234,7 +236,7 @@ public:
   // Update a preallocated instance.
   void update(int index_no,
               int engine_column_no,
-              const std::string &engine,
+              const String_type &engine,
               int private_id_column_no,
               Object_id private_id)
   {
@@ -248,7 +250,7 @@ public:
 public:
   virtual Raw_key *create_access_key(Raw_table *db_table) const;
 
-  virtual std::string str() const;
+  virtual String_type str() const;
 
   bool operator <(const Se_private_id_key &rhs) const
   { return m_private_id < rhs.m_private_id; }
@@ -257,7 +259,7 @@ private:
   int m_index_no;
 
   int m_engine_column_no;
-  const std::string *m_engine;
+  const String_type *m_engine;
 
   int m_private_id_column_no;
   Object_id m_private_id;
@@ -284,7 +286,7 @@ public:
 public:
   virtual Raw_key *create_access_key(Raw_table *db_table) const;
 
-  virtual std::string str() const;
+  virtual String_type str() const;
 
 private:
   int m_index_no;
@@ -303,9 +305,9 @@ class Composite_char_key : public Object_key
 public:
   Composite_char_key(int index_no,
                     uint first_column_no,
-                    std::string first_name,
+                    String_type first_name,
                     uint second_column_no,
-                    std::string second_name
+                    String_type second_name
                    )
    :m_index_no(index_no),
     m_first_column_no(first_column_no),
@@ -317,16 +319,16 @@ public:
 public:
   virtual Raw_key *create_access_key(Raw_table *db_table) const;
 
-  virtual std::string str() const;
+  virtual String_type str() const;
 
 private:
   int m_index_no;
 
   int m_first_column_no;
-  std::string m_first_name;
+  String_type m_first_name;
 
   int m_second_column_no;
-  std::string m_second_name;
+  String_type m_second_name;
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -336,13 +338,13 @@ class Composite_4char_key : public Object_key
 public:
   Composite_4char_key(int index_no,
                     uint first_column_no,
-                    std::string first_name,
+                    String_type first_name,
                     uint second_column_no,
-                    std::string second_name,
+                    String_type second_name,
                     uint third_column_no,
-                    std::string third_name,
+                    String_type third_name,
                     uint fourth_column_no,
-                    std::string fourth_name
+                    String_type fourth_name
                    )
    :m_index_no(index_no),
     m_first_column_no(first_column_no),
@@ -358,22 +360,22 @@ public:
 public:
   virtual Raw_key *create_access_key(Raw_table *db_table) const;
 
-  virtual std::string str() const;
+  virtual String_type str() const;
 
 private:
   int m_index_no;
 
   int m_first_column_no;
-  std::string m_first_name;
+  String_type m_first_name;
 
   int m_second_column_no;
-  std::string m_second_name;
+  String_type m_second_name;
 
   int m_third_column_no;
-  std::string m_third_name;
+  String_type m_third_name;
 
   int m_fourth_column_no;
-  std::string m_fourth_name;
+  String_type m_fourth_name;
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -385,11 +387,11 @@ public:
                              uint id_column_no,
                              Object_id id,
                              uint first_column_no,
-                             const std::string &first_name,
+                             const String_type &first_name,
                              uint second_column_no,
-                             const std::string &second_name,
+                             const String_type &second_name,
                              uint third_column_no,
-                             const std::string &third_name
+                             const String_type &third_name
                             )
    :m_index_no(index_no),
     m_id_column_no(id_column_no),
@@ -405,7 +407,7 @@ public:
 public:
   virtual Raw_key *create_access_key(Raw_table *db_table) const;
 
-  virtual std::string str() const;
+  virtual String_type str() const;
 
 private:
   int m_index_no;
@@ -414,13 +416,13 @@ private:
   Object_id m_id;
 
   int m_first_column_no;
-  std::string m_first_name;
+  String_type m_first_name;
 
   int m_second_column_no;
-  std::string m_second_name;
+  String_type m_second_name;
 
   int m_third_column_no;
-  std::string m_third_name;
+  String_type m_third_name;
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -432,9 +434,9 @@ class Index_stat_range_key : public Object_key
 public:
   Index_stat_range_key(int index_no,
                        int schema_name_column_no,
-                       const std::string &schema_name,
+                       const String_type &schema_name,
                        int table_name_column_no,
-                       const std::string &table_name)
+                       const String_type &table_name)
    :m_index_no(index_no),
     m_schema_name_column_no(schema_name_column_no),
     m_schema_name(schema_name),
@@ -445,16 +447,16 @@ public:
 public:
   virtual Raw_key *create_access_key(Raw_table *db_table) const;
 
-  virtual std::string str() const;
+  virtual String_type str() const;
 
 private:
   int m_index_no;
 
   int m_schema_name_column_no;
-  std::string m_schema_name;
+  String_type m_schema_name;
 
   int m_table_name_column_no;
-  std::string m_table_name;
+  String_type m_table_name;
 };
 
 
@@ -471,7 +473,7 @@ public:
                    int type_column_no,
                    uint type,
                    int name_column_no,
-                   const std::string &object_name)
+                   const String_type &object_name)
    :m_container_id_column_no(container_id_column_no),
     m_type_column_no(type_column_no),
     m_name_column_no(name_column_no),
@@ -486,7 +488,7 @@ public:
               int type_column_no,
               uint type,
               int name_column_no,
-              const std::string &object_name)
+              const String_type &object_name)
   {
     m_container_id_column_no= container_id_column_no;
     m_type_column_no= type_column_no;
@@ -499,7 +501,7 @@ public:
 public:
   virtual Raw_key *create_access_key(Raw_table *db_table) const;
 
-  virtual std::string str() const;
+  virtual String_type str() const;
 
   bool operator <(const Routine_name_key &rhs) const;
 
@@ -510,7 +512,7 @@ private:
 
   Object_id m_container_id;
   uint m_type;
-  std::string m_object_name;
+  String_type m_object_name;
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -522,11 +524,11 @@ class View_usage_range_key : public Object_key
 public:
   View_usage_range_key(int index_no,
                        int catalog_name_column_no,
-                       const std::string &catalog_name,
+                       const String_type &catalog_name,
                        int schema_name_column_no,
-                       const std::string &schema_name,
+                       const String_type &schema_name,
                        int table_name_column_no,
-                       const std::string &table_name)
+                       const String_type &table_name)
     :m_index_no(index_no),
      m_catalog_name_column_no(catalog_name_column_no),
      m_catalog_name(catalog_name),
@@ -539,19 +541,19 @@ public:
 public:
   virtual Raw_key *create_access_key(Raw_table *db_table) const;
 
-  virtual std::string str() const;
+  virtual String_type str() const;
 
 private:
   int m_index_no;
 
   int m_catalog_name_column_no;
-  std::string m_catalog_name;
+  String_type m_catalog_name;
 
   int m_schema_name_column_no;
-  std::string m_schema_name;
+  String_type m_schema_name;
 
   int m_table_name_column_no;
-  std::string m_table_name;
+  String_type m_table_name;
 };
 
 ///////////////////////////////////////////////////////////////////////////

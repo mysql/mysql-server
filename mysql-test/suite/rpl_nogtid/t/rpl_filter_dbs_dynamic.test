@@ -3,14 +3,13 @@
 #
 
 --source include/not_group_replication_plugin.inc
-source include/not_gtid_enabled.inc;
 source include/have_binlog_format_statement.inc;
 source include/master-slave.inc;
 
 connection slave;
---error ER_SLAVE_SQL_THREAD_MUST_STOP
+--error ER_SLAVE_CHANNEL_SQL_THREAD_MUST_STOP
 CHANGE REPLICATION FILTER replicate_do_db=(db1);
---error ER_SLAVE_SQL_THREAD_MUST_STOP
+--error ER_SLAVE_CHANNEL_SQL_THREAD_MUST_STOP
 CHANGE REPLICATION FILTER replicate_ignore_db=(db2);
 
 connection slave;

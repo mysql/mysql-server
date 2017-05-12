@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,22 +13,48 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql_truncate.h"
+#include "sql/sql_truncate.h"
 
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "auth_acls.h"
 #include "auth_common.h"    // DROP_ACL
+#include "dd/cache/dictionary_client.h"// dd::cache::Dictionary_client
+#include "dd/dd_schema.h"   // dd::Schema_MDL_locker
+#include "dd/dd_table.h"    // dd::recreate_table
+#include "dd/types/abstract_table.h" // dd::enum_table_type
+#include "dd/types/table.h" // dd::Table
 #include "debug_sync.h"     // DEBUG_SYNC
+#include "handler.h"
+#include "lex_string.h"
 #include "lock.h"           // MYSQL_OPEN_* flags
+#include "m_ctype.h"
+#include "mdl.h"
+#include "my_base.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysqld_error.h"
+#include "query_options.h"
+#include "sql_audit.h"      // mysql_audit_table_access_notify
 #include "sql_base.h"       // open_and_lock_tables
 #include "sql_cache.h"      // query_cache
 #include "sql_class.h"      // THD
-#include "sql_parse.h"      // check_one_table_access()
+#include "sql_const.h"
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_plugin.h"
+#include "sql_plugin_ref.h"
 #include "sql_show.h"       // append_identifier()
+#include "sql_string.h"
 #include "sql_table.h"      // write_bin_log
+#include "system_variables.h"
 #include "table.h"          // TABLE, FOREIGN_KEY_INFO
-#include "sql_audit.h"      // mysql_audit_table_access_notify
-
-#include "dd/dd_table.h"    // dd::recreate_table
-#include "dd/types/abstract_table.h" // dd::enum_table_type
+#include "thr_lock.h"
+#include "transaction.h"    // trans_commit_stmt()
+#include "transaction_info.h"
 
 
 /**
@@ -244,7 +270,25 @@ Sql_cmd_truncate_table::handler_truncate(THD *thd, TABLE_LIST *table_ref,
     if (fk_truncate_illegal_if_parent(thd, table_ref->table))
       DBUG_RETURN(TRUNCATE_FAILED_SKIP_BINLOG);
 
-  error= table_ref->table->file->ha_truncate();
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+
+  dd::Table *non_tmp_table_def= nullptr;
+
+  if (!is_tmp_table)
+  {
+    if (thd->dd_client()->acquire_for_modification<dd::Table>(table_ref->db,
+                            table_ref->table_name, &non_tmp_table_def))
+      DBUG_RETURN(TRUNCATE_FAILED_SKIP_BINLOG);
+
+    /* Table should be present as it was successfully opened above. */
+    DBUG_ASSERT(non_tmp_table_def != nullptr);
+  }
+
+  error= table_ref->table->file->ha_truncate(is_tmp_table ?
+                                   table_ref->table->s->tmp_table_def :
+                                   non_tmp_table_def);
+
+
   if (error)
   {
     table_ref->table->file->print_error(error, MYF(0));
@@ -259,6 +303,15 @@ Sql_cmd_truncate_table::handler_truncate(THD *thd, TABLE_LIST *table_ref,
       DBUG_RETURN(TRUNCATE_FAILED_SKIP_BINLOG);
     else
       DBUG_RETURN(TRUNCATE_FAILED_BUT_BINLOG);
+  }
+  else if (!is_tmp_table &&
+           (table_ref->table->file->ht->flags & HTON_SUPPORTS_ATOMIC_DDL))
+  {
+    if (thd->dd_client()->update<dd::Table>(non_tmp_table_def))
+    {
+      /* Statement rollback will revert effect of handler::truncate() as well. */
+      DBUG_RETURN(TRUNCATE_FAILED_SKIP_BINLOG);
+    }
   }
   DBUG_RETURN(TRUNCATE_OK);
 }
@@ -316,7 +369,7 @@ static bool recreate_temporary_table(THD *thd, TABLE *table)
     thd->thread_specific_used= TRUE;
   }
   else
-    rm_temporary_table(thd, table_type, share->path.str);
+    rm_temporary_table(thd, table_type, share->path.str, share->tmp_table_def);
 
   free_table_share(share);
   my_free(table);
@@ -331,21 +384,21 @@ static bool recreate_temporary_table(THD *thd, TABLE *table)
   @param[in]  thd               Thread context.
   @param[in]  table_ref         Table list element for the table to
                                 be truncated.
-  @param[out] hton_can_recreate Set to TRUE if table can be dropped
-                                and recreated.
+  @param[out] hton              Pointer to handlerton object for the
+                                table's storage engine.
 
   @retval  FALSE  Success.
   @retval  TRUE   Error.
 */
 
 bool Sql_cmd_truncate_table::lock_table(THD *thd, TABLE_LIST *table_ref,
-                                        bool *hton_can_recreate)
+                                        handlerton **hton)
 {
   TABLE *table= NULL;
   DBUG_ENTER("Sql_cmd_truncate_table::lock_table");
 
   /* Lock types are set in the parser. */
-  DBUG_ASSERT(table_ref->lock_type == TL_WRITE);
+  DBUG_ASSERT(table_ref->lock_descriptor().type == TL_WRITE);
   /* The handler truncate protocol dictates a exclusive lock. */
   DBUG_ASSERT(table_ref->mdl_request.type == MDL_EXCLUSIVE);
 
@@ -368,8 +421,8 @@ bool Sql_cmd_truncate_table::lock_table(THD *thd, TABLE_LIST *table_ref,
                                             table_ref->table_name, FALSE)))
       DBUG_RETURN(TRUE);
 
-    *hton_can_recreate= ha_check_storage_engine_flag(table->s->db_type(),
-                                                     HTON_CAN_RECREATE);
+    *hton= table->s->db_type();
+
     table_ref->mdl_request.ticket= table->mdl_ticket;
   }
   else
@@ -380,8 +433,7 @@ bool Sql_cmd_truncate_table::lock_table(THD *thd, TABLE_LIST *table_ref,
                          thd->variables.lock_wait_timeout, 0))
       DBUG_RETURN(TRUE);
 
-    if (dd::check_storage_engine_flag(thd, table_ref,
-                                      HTON_CAN_RECREATE, hton_can_recreate))
+    if (dd::table_storage_engine(thd, table_ref, hton))
       DBUG_RETURN(TRUE);
   }
 
@@ -398,7 +450,7 @@ bool Sql_cmd_truncate_table::lock_table(THD *thd, TABLE_LIST *table_ref,
       DBUG_RETURN(TRUE);
     m_ticket_downgrade= table->mdl_ticket;
     /* Close if table is going to be recreated. */
-    if (*hton_can_recreate)
+    if ((*hton)->flags & HTON_CAN_RECREATE)
       close_all_tables_for_name(thd, table->s, false, NULL);
   }
   else
@@ -430,16 +482,24 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
 {
   int error;
   bool binlog_stmt;
+  bool binlog_is_trans;
+  handlerton *hton= nullptr;
+  bool is_temporary;
   DBUG_ENTER("Sql_cmd_truncate_table::truncate_table");
 
   DBUG_ASSERT((!table_ref->table) ||
               (table_ref->table && table_ref->table->s));
 
+  dd::Schema_MDL_locker mdl_locker(thd);
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+
   /* Initialize, or reinitialize in case of reexecution (SP). */
   m_ticket_downgrade= NULL;
 
   /* If it is a temporary table, no need to take locks. */
-  if (is_temporary_table(table_ref))
+  is_temporary= is_temporary_table(table_ref);
+
+  if (is_temporary)
   {
     TABLE *tmp_table= table_ref->table;
 
@@ -454,6 +514,13 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
 
       DBUG_ASSERT(! thd->get_transaction()->cannot_safely_rollback(
         Transaction_ctx::STMT));
+
+      /*
+        There is no point in writing to transaction cache and do 2pc with
+        binary log even for engines supporting atomic DDL as rollback won't
+        revert recreation of temporary table.
+      */
+      binlog_is_trans= false;
     }
     else
     {
@@ -464,6 +531,8 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
         table.
       */
       error= handler_truncate(thd, table_ref, TRUE);
+
+      binlog_is_trans= table_ref->table->file->has_transactions();
     }
 
     /*
@@ -475,30 +544,32 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
   }
   else /* It's not a temporary table. */
   {
-    bool hton_can_recreate;
+    if (mdl_locker.ensure_locked(table_ref->db))
+      DBUG_RETURN(true);
 
-    if (lock_table(thd, table_ref, &hton_can_recreate))
+    if (lock_table(thd, table_ref, &hton))
       DBUG_RETURN(TRUE);
 
-    if (hton_can_recreate)
+    if (hton->flags & HTON_CAN_RECREATE)
     {
-#ifndef EMBEDDED_LIBRARY
-      if (mysql_audit_table_access_notify(thd, table_ref))
-      {
-        DBUG_RETURN(true);
-      }
-#endif /* !EMBEDDED_LIBRARY */
-     /*
+      error= mysql_audit_table_access_notify(thd, table_ref);
+      /*
         The storage engine can truncate the table by creating an
         empty table with the same structure.
-      */
-      error= dd::recreate_table(thd, table_ref->db, table_ref->table_name);
 
-      if (thd->locked_tables_mode && thd->locked_tables_list.reopen_tables(thd))
-          thd->locked_tables_list.unlink_all_closed_tables(thd, NULL, 0);
+        Such engines are not supposed to support atomic DDL, if it is
+        the below code needs to be adjusted to reopen tables only after
+        statement commit or rollback, and to write statement to the
+        binlog transaction cache.
+      */
+      DBUG_ASSERT(!(hton->flags & HTON_SUPPORTS_ATOMIC_DDL));
+
+      if (!error)
+        error= dd::recreate_table(thd, table_ref->db, table_ref->table_name);
 
       /* No need to binlog a failed truncate-by-recreate. */
       binlog_stmt= !error;
+      binlog_is_trans= false;
     }
     else
     {
@@ -517,9 +588,20 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
         unimplemented truncate method.
       */
       if (error == TRUNCATE_OK || error == TRUNCATE_FAILED_BUT_BINLOG)
+      {
         binlog_stmt= true;
+        binlog_is_trans= table_ref->table->file->has_transactions();
+        /*
+          Call to handler_truncate() might have updated table definition
+          in the data-dictionary, let us remove TABLE_SHARE from the TDC.
+        */
+        close_all_tables_for_name(thd, table_ref->table->s, false, NULL);
+      }
       else
+      {
         binlog_stmt= false;
+        binlog_is_trans= false; // Safety.
+      }
     }
 
     /*
@@ -534,7 +616,31 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
 
   /* DDL is logged in statement format, regardless of binlog format. */
   if (binlog_stmt)
-    error|= write_bin_log(thd, !error, thd->query().str, thd->query().length);
+    error|= write_bin_log(thd, !error, thd->query().str, thd->query().length,
+                          binlog_is_trans);
+
+  /* Commit or rollback statement before downgrading metadata lock. */
+  if (!error)
+    error= (trans_commit_stmt(thd) || trans_commit_implicit(thd));
+
+  if (error)
+  {
+    trans_rollback_stmt(thd);
+    /*
+      Full rollback in case we have THD::transaction_rollback_request
+      and to synchronize DD state in cache and on disk (as statement
+      rollback doesn't clear DD cache of modified uncommitted objects).
+    */
+    trans_rollback(thd);
+  }
+
+  if (thd->locked_tables_mode && thd->locked_tables_list.reopen_tables(thd))
+    thd->locked_tables_list.unlink_all_closed_tables(thd, NULL, 0);
+
+  if (!is_temporary &&
+      (hton->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
+      hton->post_ddl)
+    hton->post_ddl(thd);
 
   /*
     A locked table ticket was upgraded to a exclusive lock. After the

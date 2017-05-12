@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -23,8 +23,6 @@ INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/cmake_parse_arguments.cmake)
 # [STATIC_ONLY|MODULE_ONLY]
 # [MODULE_OUTPUT_NAME module_name]
 # [STATIC_OUTPUT_NAME static_name]
-# [NOT_FOR_EMBEDDED]
-# [RECOMPILE_FOR_EMBEDDED]
 # [LINK_LIBRARIES lib1...libN]
 # [DEPENDENCIES target1...targetN]
 
@@ -52,7 +50,7 @@ ENDMACRO()
 MACRO(MYSQL_ADD_PLUGIN)
   MYSQL_PARSE_ARGUMENTS(ARG
     "LINK_LIBRARIES;DEPENDENCIES;MODULE_OUTPUT_NAME;STATIC_OUTPUT_NAME"
-    "STORAGE_ENGINE;STATIC_ONLY;MODULE_ONLY;MANDATORY;DEFAULT;DISABLED;NOT_FOR_EMBEDDED;RECOMPILE_FOR_EMBEDDED;TEST_ONLY"
+    "STORAGE_ENGINE;STATIC_ONLY;MODULE_ONLY;MANDATORY;DEFAULT;DISABLED;TEST_ONLY;SKIP_INSTALL"
     ${ARGN}
   )
   
@@ -124,23 +122,10 @@ MACRO(MYSQL_ADD_PLUGIN)
     ADD_CONVENIENCE_LIBRARY(${target} STATIC ${SOURCES})
     SET_TARGET_PROPERTIES(${target}
       PROPERTIES COMPILE_DEFINITIONS "MYSQL_SERVER")
+    SET_TARGET_PROPERTIES(${target}
+      PROPERTIES COMPILE_FLAGS ${SSL_DEFINES})
 
-    DTRACE_INSTRUMENT(${target})
     ADD_DEPENDENCIES(${target} GenError ${ARG_DEPENDENCIES})
-    IF(WITH_EMBEDDED_SERVER AND NOT ARG_NOT_FOR_EMBEDDED)
-      # Embedded library should contain PIC code and be linkable
-      # to shared libraries (on systems that need PIC)
-      IF(ARG_RECOMPILE_FOR_EMBEDDED OR NOT _SKIP_PIC)
-        # Recompile some plugins for embedded
-        ADD_CONVENIENCE_LIBRARY(${target}_embedded ${SOURCES})
-        DTRACE_INSTRUMENT(${target}_embedded)   
-        IF(ARG_RECOMPILE_FOR_EMBEDDED)
-          SET_TARGET_PROPERTIES(${target}_embedded 
-            PROPERTIES COMPILE_DEFINITIONS "MYSQL_SERVER;EMBEDDED_LIBRARY")
-        ENDIF()
-        ADD_DEPENDENCIES(${target}_embedded GenError)
-      ENDIF()
-    ENDIF()
     
     IF(ARG_STATIC_OUTPUT_NAME)
       SET_TARGET_PROPERTIES(${target} PROPERTIES 
@@ -151,12 +136,6 @@ MACRO(MYSQL_ADD_PLUGIN)
     SET (MYSQLD_STATIC_PLUGIN_LIBS ${MYSQLD_STATIC_PLUGIN_LIBS} 
       ${target} ${ARG_LINK_LIBRARIES} CACHE INTERNAL "" FORCE)
 
-    # Update mysqld dependencies (embedded)
-    IF(NOT ARG_NOT_FOR_EMBEDDED)
-      SET (MYSQLD_STATIC_EMBEDDED_PLUGIN_LIBS ${MYSQLD_STATIC_EMBEDDED_PLUGIN_LIBS} 
-        ${target} ${ARG_LINK_LIBRARIES} CACHE INTERNAL "" FORCE)
-    ENDIF()
-
     IF(ARG_MANDATORY)
       SET(${with_var} ON CACHE INTERNAL "Link ${plugin} statically to the server" 
        FORCE)
@@ -166,13 +145,6 @@ MACRO(MYSQL_ADD_PLUGIN)
     ENDIF()
 
     SET(THIS_PLUGIN_REFERENCE " builtin_${target}_plugin,")
-    IF(ARG_NOT_FOR_EMBEDDED)
-      SET(THIS_PLUGIN_REFERENCE "
-#ifndef EMBEDDED_LIBRARY
-  ${THIS_PLUGIN_REFERENCE}
-#endif
-")
-    ENDIF()
     SET(PLUGINS_IN_THIS_SCOPE
       "${PLUGINS_IN_THIS_SCOPE}${THIS_PLUGIN_REFERENCE}")
 
@@ -186,7 +158,7 @@ MACRO(MYSQL_ADD_PLUGIN)
         PARENT_SCOPE)
     ENDIF()
 
-  ELSEIF(NOT WITHOUT_${plugin} AND NOT ARG_STATIC_ONLY  AND NOT WITHOUT_DYNAMIC_PLUGINS)
+  ELSEIF(NOT WITHOUT_${plugin} AND NOT ARG_STATIC_ONLY  AND NOT DISABLE_SHARED)
     IF(NOT ARG_MODULE_OUTPUT_NAME)
       IF(ARG_STORAGE_ENGINE)
         SET(ARG_MODULE_OUTPUT_NAME "ha_${target}")
@@ -197,19 +169,9 @@ MACRO(MYSQL_ADD_PLUGIN)
 
     ADD_VERSION_INFO(${target} MODULE SOURCES)
     ADD_LIBRARY(${target} MODULE ${SOURCES}) 
-    DTRACE_INSTRUMENT(${target})
     SET_TARGET_PROPERTIES (${target} PROPERTIES PREFIX ""
       COMPILE_DEFINITIONS "MYSQL_DYNAMIC_PLUGIN")
     TARGET_LINK_LIBRARIES (${target} mysqlservices)
-
-    GET_TARGET_PROPERTY(LINK_FLAGS ${target} LINK_FLAGS)
-    IF(NOT LINK_FLAGS)
-      # Avoid LINK_FLAGS-NOTFOUND
-      SET(LINK_FLAGS)
-    ENDIF()
-    SET_TARGET_PROPERTIES(${target} PROPERTIES
-      LINK_FLAGS "${CMAKE_SHARED_LIBRARY_C_FLAGS} ${LINK_FLAGS} "
-    )
 
     # Plugin uses symbols defined in mysqld executable.
     # Some operating systems like Windows and OSX and are pretty strict about 
@@ -219,7 +181,7 @@ MACRO(MYSQL_ADD_PLUGIN)
     # Thus we skip TARGET_LINK_LIBRARIES on Linux, as it would only generate
     # an additional dependency.
     # Use MYSQL_PLUGIN_IMPORT for static data symbols to be exported.
-    IF(NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    IF(WIN32 OR APPLE)
       TARGET_LINK_LIBRARIES (${target} mysqld ${ARG_LINK_LIBRARIES})
     ENDIF()
     ADD_DEPENDENCIES(${target} GenError ${ARG_DEPENDENCIES})
@@ -231,24 +193,28 @@ MACRO(MYSQL_ADD_PLUGIN)
      ENDIF()
     SET_TARGET_PROPERTIES(${target} PROPERTIES 
       OUTPUT_NAME "${ARG_MODULE_OUTPUT_NAME}")  
+
+    # Store all plugins in the same directory, for easier testing.
+    SET_TARGET_PROPERTIES(${target} PROPERTIES
+      LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/plugin_output_directory
+      )
+
     # Install dynamic library
-    SET(INSTALL_COMPONENT Server)
-    IF(ARG_TEST_ONLY)
-      SET(INSTALL_COMPONENT Test)
-    ENDIF()
-    MYSQL_INSTALL_TARGETS(${target}
-      DESTINATION ${INSTALL_PLUGINDIR}
-      COMPONENT ${INSTALL_COMPONENT})
-    INSTALL_DEBUG_TARGET(${target}
-      DESTINATION ${INSTALL_PLUGINDIR}/debug
-      COMPONENT ${INSTALL_COMPONENT})
-    # Add installed files to list for RPMs
-    FILE(APPEND ${CMAKE_BINARY_DIR}/support-files/plugins.files
-            "%attr(755, root, root) %{_prefix}/${INSTALL_PLUGINDIR}/${ARG_MODULE_OUTPUT_NAME}.so\n"
-            "%attr(755, root, root) %{_prefix}/${INSTALL_PLUGINDIR}/debug/${ARG_MODULE_OUTPUT_NAME}.so\n")
-    # For internal testing in PB2, append collections files
-    IF(DEFINED ENV{PB2WORKDIR})
-      PLUGIN_APPEND_COLLECTIONS(${plugin})
+    IF(NOT ARG_SKIP_INSTALL)
+      SET(INSTALL_COMPONENT Server)
+      IF(ARG_TEST_ONLY)
+        SET(INSTALL_COMPONENT Test)
+      ENDIF()
+      MYSQL_INSTALL_TARGETS(${target}
+        DESTINATION ${INSTALL_PLUGINDIR}
+        COMPONENT ${INSTALL_COMPONENT})
+      INSTALL_DEBUG_TARGET(${target}
+        DESTINATION ${INSTALL_PLUGINDIR}/debug
+        COMPONENT ${INSTALL_COMPONENT})
+      # For internal testing in PB2, append collections files
+      IF(DEFINED ENV{PB2WORKDIR})
+        PLUGIN_APPEND_COLLECTIONS(${plugin})
+      ENDIF()
     ENDIF()
   ELSE()
     IF(WITHOUT_${plugin})
@@ -271,10 +237,12 @@ ENDMACRO()
 # subdirectories, configure sql_builtin.cc
 MACRO(CONFIGURE_PLUGINS)
   FILE(GLOB dirs_storage ${CMAKE_SOURCE_DIR}/storage/*)
-  FILE(GLOB dirs_plugin ${CMAKE_SOURCE_DIR}/plugin/*)
-  IF(WITH_RAPID)
-    FILE(GLOB dirs_rapid_plugin ${CMAKE_SOURCE_DIR}/rapid/plugin/*)
-  ENDIF(WITH_RAPID)
+  IF(NOT DISABLE_SHARED)
+    FILE(GLOB dirs_plugin ${CMAKE_SOURCE_DIR}/plugin/*)
+    IF(WITH_RAPID)
+      FILE(GLOB dirs_rapid_plugin ${CMAKE_SOURCE_DIR}/rapid/plugin/*)
+    ENDIF(WITH_RAPID)
+  ENDIF()
   
   FOREACH(dir ${dirs_storage} ${dirs_plugin} ${dirs_rapid_plugin})
     IF (EXISTS ${dir}/CMakeLists.txt)

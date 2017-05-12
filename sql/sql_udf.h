@@ -1,7 +1,7 @@
 #ifndef SQL_UDF_INCLUDED
 #define SQL_UDF_INCLUDED
 
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,16 +19,21 @@
 
 /* This file defines structures needed by udf functions */
 
-#include "my_global.h"
-#include "mysql_com.h"               // Item_result
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "lex_string.h"
+#include "my_inttypes.h"
+#include "my_table_map.h"
 #include "mysql/mysql_lex_string.h"  // LEX_STRING
+#include "mysql_com.h"               // Item_result
 #include "sql_alloc.h"               // Sql_alloc
 
 class Item;
 class Item_result_field;
-class my_decimal;
 class String;
-typedef struct st_mysql_lex_string LEX_STRING;
+class THD;
+class my_decimal;
 
 
 enum Item_udftype {UDFTYPE_FUNCTION=1,UDFTYPE_AGGREGATE};
@@ -36,7 +41,7 @@ enum Item_udftype {UDFTYPE_FUNCTION=1,UDFTYPE_AGGREGATE};
 typedef void (*Udf_func_clear)(UDF_INIT *, uchar *, uchar *);
 typedef void (*Udf_func_add)(UDF_INIT *, UDF_ARGS *, uchar *, uchar *);
 typedef void (*Udf_func_deinit)(UDF_INIT*);
-typedef my_bool (*Udf_func_init)(UDF_INIT *, UDF_ARGS *,  char *);
+typedef bool (*Udf_func_init)(UDF_INIT *, UDF_ARGS *,  char *);
 typedef void (*Udf_func_any)();
 typedef double (*Udf_func_double)(UDF_INIT *, UDF_ARGS *, uchar *, uchar *);
 typedef longlong (*Udf_func_longlong)(UDF_INIT *, UDF_ARGS *, uchar *,
@@ -82,9 +87,9 @@ class udf_handler :public Sql_alloc
   { return u_d	? u_d->returns : STRING_RESULT;}
   bool get_arguments();
   bool fix_fields(THD *thd, Item_result_field *item,
-		  uint arg_count, Item **args);
+                  uint arg_count, Item **args);
   void cleanup();
-  double val(my_bool *null_value)
+  double val(bool *null_value)
   {
     is_null= 0;
     if (get_arguments())
@@ -102,7 +107,7 @@ class udf_handler :public Sql_alloc
     *null_value=0;
     return tmp;
   }
-  longlong val_int(my_bool *null_value)
+  longlong val_int(bool *null_value)
   {
     is_null= 0;
     if (get_arguments())
@@ -120,14 +125,14 @@ class udf_handler :public Sql_alloc
     *null_value=0;
     return tmp;
   }
-  my_decimal *val_decimal(my_bool *null_value, my_decimal *dec_buf);
+  my_decimal *val_decimal(bool *null_value, my_decimal *dec_buf);
   void clear()
   {
     is_null= 0;
     Udf_func_clear func= u_d->func_clear;
     func(&initid, &is_null, &error);
   }
-  void add(my_bool *null_value)
+  void add(bool *null_value)
   {
     if (get_arguments())
     {
@@ -136,7 +141,7 @@ class udf_handler :public Sql_alloc
     }
     Udf_func_add func= u_d->func_add;
     func(&initid, &f_args, &is_null, &error);
-    *null_value= (my_bool) (is_null || error);
+    *null_value= (bool) (is_null || error);
   }
   String *val_str(String *str,String *save_str);
 };

@@ -3,7 +3,6 @@
 #  2010-01-27 OBN - Added (this variable is also covered in innodb_file_io_threads_basic.test)
 #
 
---source include/have_innodb.inc
 
 #
 # show the global and session values;

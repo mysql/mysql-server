@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,10 +16,9 @@
 #ifndef DD__TABLESPACE_FILES_INCLUDED
 #define DD__TABLESPACE_FILES_INCLUDED
 
-#include "my_global.h"
-
 #include "dd/sdi_fwd.h"             // dd::Sdi_wcontext
 #include "dd/types/weak_object.h"   // dd::Weak_object
+#include "my_inttypes.h"
 
 namespace dd {
 
@@ -54,8 +53,8 @@ public:
   // filename.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &filename() const = 0;
-  virtual void set_filename(const std::string &filename) = 0;
+  virtual const String_type &filename() const = 0;
+  virtual void set_filename(const String_type &filename) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // se_private_data.
@@ -64,7 +63,7 @@ public:
   virtual const Properties &se_private_data() const = 0;
 
   virtual Properties &se_private_data() = 0;
-  virtual bool set_se_private_data_raw(const std::string &se_private_data_raw) = 0;
+  virtual bool set_se_private_data_raw(const String_type &se_private_data_raw) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // tablespace.

@@ -30,6 +30,13 @@ DELETE FROM t1 WHERE a = 0;
 # No support for SQL HANDLER statement
 HANDLER t1 OPEN;
 ERROR HY000: Table storage engine for 't1' doesn't have this option
+# Try to delete table when plugin is not loaded.
+# Remove table from TDC to allow plugin unload.
+FLUSH TABLE t1;
+UNINSTALL PLUGIN example;
+DROP TABLE t1;
+ERROR HY000: Storage engine for table 'test'.'t1' is not loaded.
+INSTALL PLUGIN example SONAME 'ha_example.so';
 DROP TABLE t1;
 set global example_ulong_var=500;
 set global example_enum_var= e1;
@@ -273,3 +280,16 @@ SELECT @@SESSION.example_last_create_thdvar;
 Last creation 't20'
 DROP TABLE t10, t20;
 UNINSTALL PLUGIN example;
+#
+# BUG#24344026 - SIG 11 IN MY_VALID_MBCHARLEN_UTF8 AT STRINGS/CTYPE-UTF8.CC:9437
+#
+SET GLOBAL DEBUG='+d,set_uninstall_sync_point';
+INSTALL PLUGIN example SONAME 'ha_example.so';
+SET DEBUG_SYNC='before_store_plugin_name SIGNAL uninstall_plugin WAIT_FOR plugin_uninstalled';
+SELECT * FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME='example';;
+SET DEBUG_SYNC='now WAIT_FOR uninstall_plugin';
+UNINSTALL PLUGIN example;
+SET DEBUG_SYNC='now SIGNAL plugin_uninstalled';
+PLUGIN_NAME	PLUGIN_VERSION	PLUGIN_STATUS	PLUGIN_TYPE	PLUGIN_TYPE_VERSION	PLUGIN_LIBRARY	PLUGIN_LIBRARY_VERSION	PLUGIN_AUTHOR	PLUGIN_DESCRIPTION	PLUGIN_LICENSE	LOAD_OPTION
+SET DEBUG_SYNC='RESET';
+SET GLOBAL DEBUG='-d,set_uninstall_sync_point';

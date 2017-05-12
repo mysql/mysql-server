@@ -1,9 +1,6 @@
 
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 SELECT * FROM performance_schema.setup_consumers ORDER BY name;
 
 #

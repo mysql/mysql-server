@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,15 +15,20 @@
 
 #include "dd/impl/tables/table_partition_values.h"
 
-#include "my_base.h"                        // HA_WHOLE_KEY
-#include "field.h"                          // Field
+#include <new>
+#include <sstream>      // std::stringstream
 
 #include "dd/impl/object_key.h"             // dd::Object_key
 #include "dd/impl/raw/object_keys.h"        // dd::Parent_id_range_key
 #include "dd/impl/raw/raw_key.h"            // dd::Raw_key
 #include "dd/impl/raw/raw_table.h"          // dd::Raw_table
-
-#include <sstream>      // std::stringstream
+#include "dd/impl/types/object_table_definition_impl.h"
+#include "dd/string_type.h"                 // dd::String_type
+#include "field.h"                          // Field
+#include "key.h"
+#include "my_base.h"                        // HA_WHOLE_KEY
+#include "my_inttypes.h"
+#include "table.h"
 
 namespace dd {
 namespace tables {
@@ -81,7 +86,7 @@ public:
 public:
   virtual Raw_key *create_access_key(Raw_table *db_table) const;
 
-  virtual std::string str() const;
+  virtual String_type str() const;
 
 private:
   int  m_partition_id;
@@ -136,9 +141,9 @@ Raw_key *Table_partition_values_pk::create_access_key(Raw_table *db_table) const
 ///////////////////////////////////////////////////////////////////////////
 
 /* purecov: begin inspected */
-std::string Table_partition_values_pk::str() const
+String_type Table_partition_values_pk::str() const
 {
-  std::stringstream ss;
+  dd::Stringstream_type ss;
   ss << m_partition_id << ":"
      << m_list_num << ":"
      << m_column_num;

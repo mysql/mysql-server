@@ -1,9 +1,15 @@
+########################################
+
 # ==== Purpose ====
 #
 # Verify that a partially failed statement can consume
 # its gtid and save the gtid into @@GLOBAL.GTID_EXECUTED
 # and mysql.gtid_executed table when binlog is disabled
 # if it did the same when binlog is enabled.
+#
+# Also provides coverage for changes to GTID handling for failed
+# DROP TABLES, which were implemented as part of WL#7743 "New data
+# dictionary: changes to DDL-related parts of SE API".
 #
 # ==== Implementation ====
 #
@@ -27,6 +33,8 @@
 --source include/not_embedded.inc
 # Should be tested against "binlog disabled" server
 --source include/not_log_bin.inc
+# Requires debug server to simulate failure to drop table in SE
+--source include/have_debug.inc
 
 # Make sure the test is repeatable
 RESET MASTER;
@@ -35,20 +43,52 @@ RESET MASTER;
 
 --replace_result $master_uuid MASTER_UUID
 --eval SET SESSION GTID_NEXT='$master_uuid:1'
-CREATE TABLE t1 (a int);
-
-# Check-1: DROP TABLE
+CREATE TABLE t1 (a int) ENGINE=MyISAM;
 --replace_result $master_uuid MASTER_UUID
 --eval SET SESSION GTID_NEXT='$master_uuid:2'
+CREATE TABLE t5 (a int) ENGINE=InnoDB;
+
+# Check-1: DROP TABLE
+
+--replace_result $master_uuid MASTER_UUID
+--eval SET SESSION GTID_NEXT='$master_uuid:3'
 --echo #
---echo # Execute a partially failed DROP TABLE statement.
+--echo # Original test case.
+--echo #
+--echo # The below DROP TABLE has partially failed before WL#7743.
+--echo # Now if fails without side-effects and thus should not consume gitd.
 --echo #
 --error ER_BAD_TABLE_ERROR
-DROP TABLE t1, t2;
+DROP TABLE t1, t3;
 
 --echo #
---echo # The table t1 was dropped, which means DROP TABLE
---echo # can be failed partially.
+--echo # The table t1 was not dropped.
+--echo #
+SHOW CREATE TABLE t1;
+
+--echo #
+--echo # Verify that the above DROP TABLE statement has not consumed gtid.
+--echo #
+--let $assert_text= Committed gtid MASTER_UUID:2 into @@GLOBAL.GTID_EXECUTED
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-2"
+--source include/assert.inc
+--let $assert_text= Saved gtid MASTER_UUID:2 into mysql.gtid_executed table
+--let $assert_cond= "[SELECT COUNT(*) FROM mysql.gtid_executed WHERE interval_end = 2]" = 1
+--source include/assert.inc
+
+--echo #
+--echo # Now we simulate error after dropping MyISAM table. In this case
+--echo # DROP TABLE is partially executed/failed and should consume gtid.
+--echo #
+SET @@debug="+d,rm_table_no_locks_abort_before_atomic_tables";
+--replace_result $master_uuid MASTER_UUID
+--eval SET SESSION GTID_NEXT='$master_uuid:3'
+--error ER_UNKNOWN_ERROR
+DROP TABLE t1, t5;
+SET @@debug="-d,rm_table_no_locks_abort_before_atomic_tables";
+
+--echo #
+--echo # The above DROP TABLE should have deleted t1.
 --echo #
 --error ER_NO_SUCH_TABLE
 SHOW CREATE TABLE t1;
@@ -60,30 +100,32 @@ SHOW CREATE TABLE t1;
 --echo # binlog is enabled.
 --echo #
 --let $assert_text= Committed gtid MASTER_UUID:2 into @@GLOBAL.GTID_EXECUTED
---let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-2"
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-3"
 --source include/assert.inc
 --let $assert_text= Saved gtid MASTER_UUID:2 into mysql.gtid_executed table
---let $assert_cond= "[SELECT COUNT(*) FROM mysql.gtid_executed WHERE interval_end = 2]" = 1
+--let $assert_cond= "[SELECT COUNT(*) FROM mysql.gtid_executed WHERE interval_end = 3]" = 1
 --source include/assert.inc
 
-
 --replace_result $master_uuid MASTER_UUID
---eval SET SESSION GTID_NEXT='$master_uuid:3'
+--eval SET SESSION GTID_NEXT='$master_uuid:4'
 CREATE TEMPORARY TABLE tmp1 (a int);
 
 # Check-2: DROP TEMPORARY TABLE
 --replace_result $master_uuid MASTER_UUID
---eval SET SESSION GTID_NEXT='$master_uuid:4'
+--eval SET SESSION GTID_NEXT='$master_uuid:5'
 --echo #
---echo # Execute a partially failed DROP TEMPORARY TABLE statement.
+--echo # The below DROP TEMPORARY TABLE has partially failed before WL#7743.
+--echo # Now if fails without side-effects and thus should not consume gitd.
 --echo #
+--echo # There is no way for DROP TEMPORARY TABLE to partially fail now,
+--echo # so unlike for DROP TABLE, there is no way to test scenario with
+--echo # partial failure for it.
 --error ER_BAD_TABLE_ERROR
 DROP TEMPORARY TABLE tmp1, t2;
+
 --echo #
---echo # Verify that the partially failed DROP TEMPORARY TABLE statement can
---echo # consume its gtid and save the gtid into @@GLOBAL.GTID_EXECUTED and
---echo # mysql.gtid_executed table when binlog is disabled as it did when
---echo # binlog is enabled.
+--echo # Verify that failed DROP TEMPORARY TABLE statement has not
+--echo # consumed its gtid.
 --echo #
 --let $assert_text= Committed gtid MASTER_UUID:4 into @@GLOBAL.GTID_EXECUTED
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-4"
@@ -341,11 +383,61 @@ CHECKSUM TABLE t1, t_non_existent;
 --let $assert_cond= "[SELECT COUNT(*) FROM mysql.gtid_executed WHERE interval_end = 12]" = 0
 --source include/assert.inc
 
-# Clean up
+# Check-13: RENAME USER
+--replace_result $master_uuid MASTER_UUID
+--eval SET SESSION GTID_NEXT='$master_uuid:13'
+--error ER_CANNOT_USER
+RENAME USER u1@h TO u11@h, u3@h TO u33@h;
+--echo #
+--echo # The u1 is not renamed on mysql.user which means that RENAME USER
+--echo # cannot be failed partially.
+--echo #
+SELECT user FROM mysql.user where user='u1';
+--echo #
+--echo # Verify that the failed RENAME USER statement does not save
+--echo # the specified gtid into @@GLOBAL.GTID_EXECUTED and
+--echo # mysql.gtid_executed table.
+--echo #
+--replace_result $master_uuid MASTER_UUID
+--let $assert_text= Did not commit gtid MASTER_UUID:13 into @@GLOBAL.GTID_EXECUTED
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-11"
+--source include/assert.inc
+--let $assert_text= Did not save gtid MASTER_UUID:13 and :14 into mysql.gtid_executed table
+--let $assert_cond= "[SELECT COUNT(*) FROM mysql.gtid_executed WHERE interval_end = 13]" = 0
+--source include/assert.inc
+
+# Check-14: ALTER USER
+SELECT password_expired FROM mysql.user where user='u1';
 --replace_result $master_uuid MASTER_UUID
 --eval SET SESSION GTID_NEXT='$master_uuid:15'
-DROP TABLE t1;
+--error ER_CANNOT_USER
+ALTER USER u1@h, u3@h PASSWORD EXPIRE;
+--echo #
+--echo # The u1 is not altered on mysql.user which means that ALTER USER
+--echo # cannot be failed partially.
+--echo #
+SELECT password_expired FROM mysql.user where user='u1';
+--echo #
+--echo # Verify that the failed ALTER USER statement does not save
+--echo # the specified gtid into @@GLOBAL.GTID_EXECUTED and
+--echo # mysql.gtid_executed table.
+--echo #
+--replace_result $master_uuid MASTER_UUID
+--let $assert_text= Did not commit gtid MASTER_UUID:15 into @@GLOBAL.GTID_EXECUTED
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-11"
+--source include/assert.inc
+--let $assert_text= Did not save gtid MASTER_UUID:15 into mysql.gtid_executed table
+--let $assert_cond= "[SELECT COUNT(*) FROM mysql.gtid_executed WHERE interval_end = 15]" = 0
+--source include/assert.inc
+
+# Clean up
 --replace_result $master_uuid MASTER_UUID
 --eval SET SESSION GTID_NEXT='$master_uuid:16'
-DROP USER u1@h;
+DROP TABLE t1;
+--replace_result $master_uuid MASTER_UUID
+--eval SET SESSION GTID_NEXT='$master_uuid:17'
+DROP TABLE t5;
 
+--replace_result $master_uuid MASTER_UUID
+--eval SET SESSION GTID_NEXT='$master_uuid:18'
+DROP USER u1@h;

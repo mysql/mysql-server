@@ -4,7 +4,6 @@
 -- echo # correctly for InnoDB tables.
 -- echo #
 
--- source include/have_innodb.inc
 -- source include/have_innodb_max_16k.inc
 # restart does not work with embedded
 -- source include/not_embedded.inc
@@ -27,24 +26,10 @@ AND update_time IS NOT NULL;
 SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 't'
 AND TIMESTAMPDIFF(SECOND, update_time, NOW()) < 120;
 
-CREATE TABLE big (a TEXT) ENGINE=INNODB;
-
 SELECT COUNT(*) FROM information_schema.innodb_buffer_page
 WHERE table_name = '`test`.`t`';
 
-# evict table 't' by inserting as much data as the BP size itself
--- echo # INSERT lots of data in table 'big': begin
--- disable_query_log
-BEGIN;
--- let $i = 10240
-while ($i)
-{
-	INSERT INTO big VALUES (REPEAT('a', 1024));
-	dec $i;
-}
-COMMIT;
--- enable_query_log
--- echo # INSERT lots of data in table 'big': end
+-- source suite/innodb/include/evict_everything_from_buffer_pool.inc
 
 # confirm that table 't' has been evicted
 SELECT COUNT(*) FROM information_schema.innodb_buffer_page
@@ -55,8 +40,6 @@ WHERE table_name = '`test`.`t`';
 ANALYZE TABLE t;
 SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 't'
 AND update_time IS NOT NULL;
-
-DROP TABLE big;
 
 -- echo # Test the behavior after restart with a prepared XA transaction
 

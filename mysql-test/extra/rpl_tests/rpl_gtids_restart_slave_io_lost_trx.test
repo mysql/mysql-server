@@ -10,8 +10,9 @@
 # IO thread right after queuing an event of a given type, starting the IO
 # thread again to fully retrieve the partially received transaction.
 #
+####
+# param: $using_mts   1 if the test is running with multi-threaded slave
 
---source include/have_gtid.inc
 
 # As this test depends on the use of a User_var_log_event in a DML statement
 # we have to use statement based replication.
@@ -89,6 +90,20 @@ while ($i <= 5)
   SET GLOBAL DEBUG= @save_debug;
 
   --source include/start_slave_io.inc
+
+  if ($i == 2)
+  {
+    if ($using_mts == 1)
+    {
+      --source include/rpl_connection_master.inc
+      --source include/sync_slave_sql_with_master.inc
+      --let $applied_trxs_gtid= query_get_value(SELECT COUNT(LAST_APPLIED_TRANSACTION) FROM performance_schema.replication_applier_status_by_worker WHERE CHAR_LENGTH(LAST_APPLIED_TRANSACTION) > 0, COUNT(LAST_APPLIED_TRANSACTION), 1)
+      --let $assert_text= Assert that the monitoring recorded the transaction applied by only one worker
+      --let $assert_cond= "$applied_trxs_gtid" = 1
+      --source include/assert.inc
+    }
+  }
+
   if ($i == 3)
   {
     --source include/start_slave_sql.inc

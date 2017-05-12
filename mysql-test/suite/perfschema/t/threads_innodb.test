@@ -3,10 +3,6 @@
 #
 # Show InnoDB related content in performance_schema.threads
 
---source include/not_embedded.inc
---source include/have_innodb.inc
---source include/have_perfschema.inc
-
 --source include/turn_off_only_full_group_by.inc
 
 # There are several InnoDB io_handler_threads servicing for read IO, write IO etc.

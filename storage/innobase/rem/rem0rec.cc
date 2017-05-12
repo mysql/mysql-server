@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -24,13 +24,18 @@ Created 5/30/1994 Heikki Tuuri
 *************************************************************************/
 
 #include "rem0rec.h"
-#include "page0page.h"
-#include "mtr0mtr.h"
-#include "mtr0log.h"
+
+#include <sys/types.h>
+
 #include "fts0fts.h"
 #include "gis0geo.h"
-#include "trx0sys.h"
 #include "mach0data.h"
+#include "mtr0log.h"
+#include "mtr0mtr.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "page0page.h"
+#include "trx0sys.h"
 
 /*			PHYSICAL RECORD (OLD STYLE)
 			===========================
@@ -1155,6 +1160,7 @@ rec_copy_prefix_to_buf(
 	ulint		prefix_len;
 	ulint		null_mask;
 	ulint		status;
+	bool		is_rtr_node_ptr = false;
 
 	UNIV_PREFETCH_RW(*buf);
 
@@ -1176,6 +1182,7 @@ rec_copy_prefix_to_buf(
 		/* For R-tree, we need to copy the child page number field. */
 		if (dict_index_is_spatial(index)) {
 			ut_ad(n_fields == DICT_INDEX_SPATIAL_NODEPTR_SIZE + 1);
+			is_rtr_node_ptr = true;
 		} else {
 			/* it doesn't make sense to copy the child page number
 			field */
@@ -1220,7 +1227,11 @@ rec_copy_prefix_to_buf(
 			null_mask <<= 1;
 		}
 
-		if (field->fixed_len) {
+		if (is_rtr_node_ptr && i == 1) {
+			/* For rtree node ptr rec, we need to
+			copy the page no field with 4 bytes len. */
+			prefix_len += 4;
+		} else if (field->fixed_len) {
 			prefix_len += field->fixed_len;
 		} else {
 			ulint	len = *lens--;

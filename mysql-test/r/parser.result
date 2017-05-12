@@ -284,14 +284,14 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) NOT NULL,
   PRIMARY KEY (`i`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 CREATE TABLE t2 (i INT UNIQUE);
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `i` int(11) DEFAULT NULL,
   UNIQUE KEY `i` (`i`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 CREATE TABLE t3 (i INT UNIQUE KEY);
 # Should output "UNIQUE KEY `i` (`i`)" only:
 SHOW CREATE TABLE t3;
@@ -299,7 +299,7 @@ Table	Create Table
 t3	CREATE TABLE `t3` (
   `i` int(11) DEFAULT NULL,
   UNIQUE KEY `i` (`i`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1, t2, t3;
 #
 DROP TABLE IF EXISTS table_25930_a;
@@ -472,6 +472,7 @@ select master_pos_wait();
 ERROR 42000: Incorrect parameter count in the call to native function 'master_pos_wait'
 select master_pos_wait(1);
 ERROR 42000: Incorrect parameter count in the call to native function 'master_pos_wait'
+select master_pos_wait('master-bin.999999', 4, -1);
 select rand(1, 2, 3);
 ERROR 42000: Incorrect parameter count in the call to native function 'rand'
 select round(1, 2, 3);
@@ -727,54 +728,27 @@ SELECT 1 FROM DUAL WHERE 1 GROUP BY 1 HAVING 1 ORDER BY 1
 FOR UPDATE;
 1
 1
-SELECT 1 FROM DUAL WHERE 1 GROUP BY 1 HAVING 1 ORDER BY 1
-PROCEDURE ANALYSE() FOR UPDATE;
-Field_name	Min_value	Max_value	Min_length	Max_length	Empties_or_zeros	Nulls	Avg_value_or_avg_length	Std	Optimal_fieldtype
-1	1	1	1	1	0	0	1.0000	0.0000	ENUM('1') NOT NULL
 SELECT 1 FROM
 (SELECT 1 FROM DUAL WHERE 1 GROUP BY 1 HAVING 1 ORDER BY 1
 FOR UPDATE) a;
 1
 1
-SELECT 1 FROM
-(SELECT 1 FROM DUAL WHERE 1 GROUP BY 1 HAVING 1 ORDER BY 1
-PROCEDURE ANALYSE() FOR UPDATE) a;
-ERROR HY000: Incorrect usage of PROCEDURE and subquery
 SELECT 1 FROM t1
 WHERE EXISTS(SELECT 1 FROM DUAL WHERE 1 GROUP BY 1 HAVING 1 ORDER BY 1
 FOR UPDATE);
 1
-SELECT 1 FROM t1
-WHERE EXISTS(SELECT 1 FROM DUAL WHERE 1 GROUP BY 1 HAVING 1 ORDER BY 1
-PROCEDURE ANALYSE() FOR UPDATE);
-ERROR HY000: Incorrect usage of PROCEDURE and subquery
 SELECT 1 FROM t1
 UNION
 SELECT 1 FROM DUAL WHERE 1 GROUP BY 1 HAVING 1 ORDER BY 1
 FOR UPDATE;
 1
 1
-SELECT 1 FROM t1
-UNION
-SELECT 1 FROM DUAL WHERE 1 GROUP BY 1 HAVING 1 ORDER BY 1
-PROCEDURE ANALYSE() FOR UPDATE;
-ERROR HY000: Incorrect usage of PROCEDURE and UNION
-SELECT 1 FROM DUAL PROCEDURE ANALYSE() 
-UNION
-SELECT 1 FROM t1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION
-SELECT 1 FROM t1' at line 2
 (SELECT 1 FROM t1)
 UNION 
 (SELECT 1 FROM DUAL WHERE 1 GROUP BY 1 HAVING 1 ORDER BY 1
 FOR UPDATE);
 1
 1
-(SELECT 1 FROM t1)
-UNION 
-(SELECT 1 FROM DUAL WHERE 1 GROUP BY 1 HAVING 1 ORDER BY 1
-PROCEDURE ANALYSE() FOR UPDATE);
-ERROR HY000: Incorrect usage of PROCEDURE and subquery
 # "FOR UPDATE" tests
 SELECT 1 FROM t1 UNION SELECT 1 FROM t1 ORDER BY 1 LIMIT 1;
 1
@@ -822,10 +796,6 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 SELECT 1 FROM t1 UNION SELECT 1 FROM t1 INTO @var17727401;
 Warnings:
 Warning	1329	No data - zero rows fetched, selected, or processed
-SELECT 1 INTO @var17727401 FROM t1 PROCEDURE ANALYSE();
-ERROR HY000: Incorrect usage of PROCEDURE and INTO
-SELECT 1 FROM t1 PROCEDURE ANALYSE() INTO @var17727401;
-ERROR HY000: Incorrect usage of PROCEDURE and INTO
 # ORDER and LIMIT clause combinations
 (SELECT 1 FROM t1 ORDER BY 1) ORDER BY 1;
 1
@@ -1097,7 +1067,7 @@ FROM t1
 )
 FROM t2 GROUP BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary; Using filesort
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary
 2	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
 Note	1276	Field or reference 'test.t2.c' of SELECT #2 was resolved in SELECT #1
@@ -1357,18 +1327,6 @@ CREATE PROCEDURE p1() BEGIN IF whatever THEN SELECT 1; END IF; END|
 CALL p1();
 ERROR 42S22: Unknown column 'whatever' in 'field list'
 DROP PROCEDURE p1;
-SELECT 1 PROCEDURE ANALYSE() UNION SELECT 1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT 1' at line 1
-SELECT 1 UNION SELECT 1 PROCEDURE ANALYSE() ;
-ERROR HY000: Incorrect usage of PROCEDURE and UNION
-(SELECT 1 PROCEDURE ANALYSE()) UNION SELECT 1;
-ERROR HY000: Incorrect usage of UNION and SELECT ... PROCEDURE ANALYSE()
-(SELECT 1 PROCEDURE ANALYSE()) UNION (SELECT 1);
-ERROR HY000: Incorrect usage of UNION and SELECT ... PROCEDURE ANALYSE()
-SELECT 1 UNION (SELECT 1 PROCEDURE ANALYSE());
-ERROR HY000: Incorrect usage of PROCEDURE and subquery
-(SELECT 1) UNION (SELECT 1 PROCEDURE ANALYSE());
-ERROR HY000: Incorrect usage of PROCEDURE and subquery
 #
 # Part 2: Test of changed (fixed) behavior.
 #
@@ -1752,16 +1710,6 @@ SELECT * FROM (SELECT a INTO @v FROM t1) t1a;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(SELECT a INTO @v FROM t1) t1a' at line 1
 SELECT * FROM (SELECT a INTO @v) t1a;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(SELECT a INTO @v) t1a' at line 1
-SELECT 1 PROCEDURE ANALYSE() INTO @v;
-ERROR HY000: Incorrect usage of PROCEDURE and INTO
-(SELECT 1 PROCEDURE ANALYSE() INTO @v);
-ERROR HY000: Incorrect usage of PROCEDURE and INTO
-(SELECT 1 UNION SELECT 1) ORDER BY 1 PROCEDURE ANALYSE();
-ERROR HY000: Incorrect usage of PROCEDURE and UNION
-(SELECT 1 UNION SELECT 1) LIMIT 1 PROCEDURE ANALYSE();
-ERROR HY000: Incorrect usage of PROCEDURE and UNION
-SELECT ( SELECT 1 PROCEDURE ANALYSE() ) a;
-ERROR HY000: Incorrect usage of PROCEDURE and subquery
 DROP TABLE t1;
 #
 # Part 4: The <joined table> syntax.

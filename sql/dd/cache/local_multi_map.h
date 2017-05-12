@@ -1,4 +1,4 @@
-/* Copyright (c) 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,18 +16,19 @@
 #ifndef DD_CACHE__LOCAL_MULTI_MAP_INCLUDED
 #define DD_CACHE__LOCAL_MULTI_MAP_INCLUDED
 
-#include "my_global.h"                        // DBUG_ASSERT() etc.
-#include "multi_map_base.h"                   // Multi_map_base
+#include <stdio.h>
+
 #include "dd/types/dictionary_object_table.h" // dd::Dictionary_object_table
+#include "multi_map_base.h"                   // Multi_map_base
+#include "my_dbug.h"
 
 namespace dd {
 namespace cache {
 
-template <typename T>
-class Cache_element;
-
 template <typename K, typename E>
 class Element_map;
+template <typename T>
+class Cache_element;
 
 
 /**
@@ -146,6 +147,24 @@ public:
   */
 
   void remove(Cache_element<T> *element);
+
+
+  /**
+    Remove and delete all objects from the map. This includes
+    Cache_elements and the Dictionary objects themselves.
+  */
+
+  void erase();
+
+
+  /**
+    Get the number of elements in the map.
+
+    @return  Number of elements.
+  */
+
+  size_t size() const
+  { return m_map<const T*>()->size(); }
 
 
   /**

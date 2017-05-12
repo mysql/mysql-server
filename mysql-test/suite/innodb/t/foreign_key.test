@@ -1,4 +1,14 @@
---source include/have_innodb.inc
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs43=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema default character set latin1;
+use test;
+--enable_query_log
+########################################
+
+--source include/not_embedded.inc
 
 --echo #
 --echo # Bug #19027905 ASSERT RET.SECOND DICT_CREATE_FOREIGN_CONSTRAINTS_LOW
@@ -119,3 +129,35 @@ ALTER TABLE t1 ADD CONSTRAINT fi_b FOREIGN KEY(b) REFERENCES ti2(b);
 DROP TABLE t1;
 eval set @@foreign_key_checks= $SAVED_foreign_key_checks;
 
+--echo # bug#25126722 FOREIGN KEY CONSTRAINT NAME IS NULL AFTER RESTART
+--echo # base bug#24818604 [GR]
+--echo #
+
+CREATE TABLE t1 (c1 INT PRIMARY KEY);
+CREATE TABLE t2 (c1 INT PRIMARY KEY, FOREIGN KEY (c1) REFERENCES t1(c1));
+
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+
+SELECT unique_constraint_name FROM information_schema.referential_constraints
+WHERE table_name = 't2';
+
+--source include/restart_mysqld.inc
+
+SELECT unique_constraint_name FROM information_schema.referential_constraints
+WHERE table_name = 't2';
+
+SELECT * FROM t1;
+
+SELECT unique_constraint_name FROM information_schema.referential_constraints
+WHERE table_name = 't2';
+
+DROP TABLE t2;
+DROP TABLE t1;
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs43;
+--enable_query_log
+########################################

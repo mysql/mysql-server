@@ -87,8 +87,6 @@ Database: information_schema
 | ENGINES                               |
 | EVENTS                                |
 | FILES                                 |
-| GLOBAL_STATUS                         |
-| GLOBAL_VARIABLES                      |
 | INNODB_BUFFER_PAGE                    |
 | INNODB_BUFFER_PAGE_LRU                |
 | INNODB_BUFFER_POOL_STATS              |
@@ -105,8 +103,6 @@ Database: information_schema
 | INNODB_FT_DELETED                     |
 | INNODB_FT_INDEX_CACHE                 |
 | INNODB_FT_INDEX_TABLE                 |
-| INNODB_LOCK_WAITS                     |
-| INNODB_LOCKS                          |
 | INNODB_METRICS                        |
 | INNODB_SYS_COLUMNS                    |
 | INNODB_SYS_DATAFILES                  |
@@ -131,10 +127,10 @@ Database: information_schema
 | ROUTINES                              |
 | SCHEMA_PRIVILEGES                     |
 | SCHEMATA                              |
-| SESSION_STATUS                        |
-| SESSION_VARIABLES                     |
 | SHOW_STATISTICS                       |
 | SHOW_STATISTICS_DYNAMIC               |
+| ST_GEOMETRY_COLUMNS                   |
+| ST_SPATIAL_REFERENCE_SYSTEMS          |
 | STATISTICS                            |
 | STATISTICS_BASE                       |
 | STATISTICS_DYNAMIC                    |
@@ -159,8 +155,6 @@ Database: INFORMATION_SCHEMA
 | ENGINES                               |
 | EVENTS                                |
 | FILES                                 |
-| GLOBAL_STATUS                         |
-| GLOBAL_VARIABLES                      |
 | INNODB_BUFFER_PAGE                    |
 | INNODB_BUFFER_PAGE_LRU                |
 | INNODB_BUFFER_POOL_STATS              |
@@ -177,8 +171,6 @@ Database: INFORMATION_SCHEMA
 | INNODB_FT_DELETED                     |
 | INNODB_FT_INDEX_CACHE                 |
 | INNODB_FT_INDEX_TABLE                 |
-| INNODB_LOCK_WAITS                     |
-| INNODB_LOCKS                          |
 | INNODB_METRICS                        |
 | INNODB_SYS_COLUMNS                    |
 | INNODB_SYS_DATAFILES                  |
@@ -203,10 +195,10 @@ Database: INFORMATION_SCHEMA
 | ROUTINES                              |
 | SCHEMA_PRIVILEGES                     |
 | SCHEMATA                              |
-| SESSION_STATUS                        |
-| SESSION_VARIABLES                     |
 | SHOW_STATISTICS                       |
 | SHOW_STATISTICS_DYNAMIC               |
+| ST_GEOMETRY_COLUMNS                   |
+| ST_SPATIAL_REFERENCE_SYSTEMS          |
 | STATISTICS                            |
 | STATISTICS_BASE                       |
 | STATISTICS_DYNAMIC                    |

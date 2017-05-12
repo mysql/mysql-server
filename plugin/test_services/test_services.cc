@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,11 +13,15 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#include <my_global.h>
-#include <mysql_version.h>
+#include <fcntl.h>
 #include <mysql/plugin.h>
-#include "my_sys.h"                             // my_write, my_malloc
+#include <mysql_version.h>
+
 #include "m_string.h"                           // strlen
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_sys.h"                             // my_write, my_malloc
 //#include "sql_plugin.h"                         // st_plugin_int
 
 #define STRING_BUFFER 100
@@ -48,9 +52,16 @@ static int     with_log_message_val= 0;
 static MYSQL_SYSVAR_INT  (with_log_message, with_log_message_val, PLUGIN_VAR_RQCMDARG, 
 		"Switch on/off test of log message service", NULL, NULL, 1, 0, 1, 0);
 
+static int non_default_variable_value= 0;
+static MYSQL_SYSVAR_INT(non_default_variable, non_default_variable_value,
+                        PLUGIN_VAR_NOCMDOPT | PLUGIN_VAR_NODEFAULT,
+                        "A variable that won't accept SET DEFAULT", NULL, NULL,
+                        1, 0, 100, 0);
+
 static struct st_mysql_sys_var *test_services_sysvars[]= {
   MYSQL_SYSVAR(with_snprintf),
   MYSQL_SYSVAR(with_log_message),
+  MYSQL_SYSVAR(non_default_variable),
   NULL
 };
 
@@ -134,7 +145,7 @@ static int test_services_plugin_init(void *p)
 }
 
 /* There is nothing to clean up when UNINSTALL PLUGIN. */
-static int test_services_plugin_deinit(void *p)
+static int test_services_plugin_deinit(void*)
 {
   DBUG_ENTER("test_services_plugin_deinit");
   DBUG_RETURN(0);

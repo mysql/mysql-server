@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -19,14 +19,16 @@
 
 #include "streaming_command_delegate.h"
 
-#include "xpl_log.h"
-#include "ngs/protocol/row_builder.h"
-#include "ngs_common/protocol_protobuf.h"
-#include "ngs_common/protocol_const.h"
-
-#include "decimal.h"
+#include <stddef.h>
 #include <iostream>
 #include <string>
+
+#include "decimal.h"
+#include "my_dbug.h"
+#include "ngs/protocol/row_builder.h"
+#include "ngs_common/protocol_const.h"
+#include "ngs_common/protocol_protobuf.h"
+#include "xpl_log.h"
 
 using namespace xpl;
 
@@ -61,6 +63,7 @@ int Streaming_command_delegate::start_result_metadata(uint num_cols, uint flags,
   m_resultcs = resultcs;
   return false;
 }
+
 
 int Streaming_command_delegate::field_metadata(struct st_send_field *field,
                                                    const CHARSET_INFO *charset)
@@ -204,23 +207,19 @@ int Streaming_command_delegate::field_metadata(struct st_send_field *field,
   }
   DBUG_ASSERT(xtype != (Mysqlx::Resultset::ColumnMetaData::FieldType)0);
 
-  if (compact_metadata())
-    m_proto->send_column_metadata(xcollation, xtype, field->decimals, xflags, field->length, ctype);
-  else
-    m_proto->send_column_metadata("def", field->db_name,
-      field->table_name, field->org_table_name,
-      field->col_name, field->org_col_name,
-      xcollation, xtype, field->decimals, xflags, field->length, ctype);
 
-  return false;
+  if (send_column_metadata(xcollation, xtype, xflags, ctype, field))
+    return false;
+
+  my_message(ER_IO_WRITE_ERROR, "Connection reset by peer", MYF(0));
+  return true;
 }
 
 
 int Streaming_command_delegate::end_result_metadata(uint server_status,
-                                                        uint warn_count)
+                                                    uint warn_count)
 {
   Command_delegate::end_result_metadata(server_status, warn_count);
-
   return false;
 }
 
@@ -233,9 +232,14 @@ int Streaming_command_delegate::start_row()
 
 int Streaming_command_delegate::end_row()
 {
-  if (!m_streaming_metadata)
-    m_proto->send_row();
-  return false;
+  if (m_streaming_metadata)
+    return false;
+
+  if (m_proto->send_row())
+    return false;
+
+  my_message(ER_IO_WRITE_ERROR, "Connection reset by peer", MYF(0));
+  return true;
 }
 
 void Streaming_command_delegate::abort_row()
@@ -260,7 +264,7 @@ int Streaming_command_delegate::get_null()
 
 int Streaming_command_delegate::get_integer(longlong value)
 {
-  my_bool unsigned_flag = (m_field_types[m_proto->row_builder().get_num_fields()].flags & UNSIGNED_FLAG) != 0;
+  bool unsigned_flag = (m_field_types[m_proto->row_builder().get_num_fields()].flags & UNSIGNED_FLAG) != 0;
 
   return get_longlong(value, unsigned_flag);
 }
@@ -295,7 +299,7 @@ int Streaming_command_delegate::get_decimal(const decimal_t * value)
   return false;
 }
 
-int Streaming_command_delegate::get_double(double value, uint32 decimals)
+int Streaming_command_delegate::get_double(double value, uint32)
 {
   if (m_field_types[m_proto->row_builder().get_num_fields()].type == MYSQL_TYPE_FLOAT)
     m_proto->row_builder().add_float_field(static_cast<float>(value));
@@ -369,4 +373,15 @@ void Streaming_command_delegate::handle_ok(uint server_status, uint statement_wa
       m_proto->send_result_fetch_done();
   }
   Command_delegate::handle_ok(server_status, statement_warn_count, affected_rows, last_insert_id, message);
+}
+
+
+bool Streaming_command_delegate::send_column_metadata(uint64_t xcollation, const Mysqlx::Resultset::ColumnMetaData::FieldType &xtype,
+                                                      uint32_t xflags, uint32_t ctype, const st_send_field *field)
+{
+  if (compact_metadata())
+    return m_proto->send_column_metadata(xcollation, xtype, field->decimals, xflags, field->length, ctype);
+  return m_proto->send_column_metadata("def", field->db_name, field->table_name, field->org_table_name,
+                                       field->col_name, field->org_col_name, xcollation, xtype, field->decimals,
+                                       xflags, field->length, ctype);
 }

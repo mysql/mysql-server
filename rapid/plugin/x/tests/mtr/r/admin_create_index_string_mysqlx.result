@@ -30,7 +30,7 @@ Got expected error (code 0)
 
 command ok
 Got expected error (code 0)
-in main, line 58:in macro Create_index, line 3:ERROR: Got unexpected error: Invalid value for argument 'member', expected path to document member (code 5017); expected was 5016 
+Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
 Got expected error: Argument value '' for index name is invalid (code 5017)
 Got expected error: Invalid or unsupported type specification 'text(20);drop table' (code 5017)
 Got expected error: Invalid or unsupported type specification 'varchar(20)' (code 5017)
@@ -50,9 +50,9 @@ command ok
 Table	Create Table
 books0	CREATE TABLE `books0` (
   `doc` json DEFAULT NULL,
-  `_id` varchar(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,'$._id'))) STORED NOT NULL,
-  `$ix_t80_27B323C313AA758D7F01480F94271D0B13D88CE7` text GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,'$.isbn'))) VIRTUAL,
-  `$ix_i_94F8A4D3704392CE73A5A69F07681271C98C8CB2` int(11) GENERATED ALWAYS AS (json_extract(`doc`,'$.pages')) VIRTUAL,
+  `_id` varchar(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
+  `$ix_t80_27B323C313AA758D7F01480F94271D0B13D88CE7` text GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$.isbn'))) VIRTUAL,
+  `$ix_i_94F8A4D3704392CE73A5A69F07681271C98C8CB2` int(11) GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.pages')) VIRTUAL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `mix` (`$ix_t80_27B323C313AA758D7F01480F94271D0B13D88CE7`(80),`$ix_i_94F8A4D3704392CE73A5A69F07681271C98C8CB2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4

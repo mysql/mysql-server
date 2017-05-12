@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,22 +13,58 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "dd_tablespace.h"
+#include "sql/dd/dd_tablespace.h"
 
-#include "sql_class.h"                        // THD
-#include "transaction.h"                      // trans_commit
+#include <stddef.h>
+#include <memory>
+#include <string>
 
+#include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
 #include "dd/dd.h"                            // dd::create_object
 #include "dd/dictionary.h"                    // dd::Dictionary::is_dd_table...
-#include "dd/properties.h"                    // dd::Properties
-#include "dd/sdi.h"                           // dd::store_sdi
-#include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
 #include "dd/impl/system_registry.h"          // dd::System_tablespaces
-#include "dd/types/object_type.h"             // dd::Object_type
+#include "dd/object_id.h"
+#include "dd/properties.h"                    // dd::Properties
+#include "dd/types/index.h"                   // dd::Index
 #include "dd/types/partition.h"               // dd::Partition
+#include "dd/types/partition_index.h"         // dd::Partition_index
 #include "dd/types/table.h"                   // dd::Table
-#include "dd/types/tablespace_file.h"         // dd::Tablespace_file
 #include "dd/types/tablespace.h"              // dd::Tablespace
+#include "dd/types/tablespace_file.h"         // dd::Tablespace_file
+#include "handler.h"
+#include "lex_string.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_sys.h"
+#include "mysqld_error.h"
+#include "sql_class.h"                        // THD
+#include "sql_plugin_ref.h"
+#include "sql_table.h"                        // validate_comment_length
+#include "table.h"
+
+namespace {
+template <typename T>
+bool get_and_store_tablespace_name(THD *thd, const T *obj,
+                                   Tablespace_hash_set *tablespace_set)
+{
+  const char *tablespace_name= nullptr;
+  if(get_tablespace_name(thd, obj, &tablespace_name, thd->mem_root))
+  {
+    return true;
+  }
+
+  if (tablespace_name &&
+      tablespace_set->insert(const_cast<char*>(tablespace_name)))
+  {
+    return true;
+  }
+
+  return false;
+}
+
+} // anonymous namespace
+
 
 namespace dd {
 
@@ -41,10 +77,10 @@ fill_table_and_parts_tablespace_names(THD *thd,
   // Get hold of the dd::Table object.
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   const dd::Table *table_obj= NULL;
-  if (thd->dd_client()->acquire<dd::Table>(db_name, table_name, &table_obj))
+  if (thd->dd_client()->acquire(db_name, table_name, &table_obj))
   {
     // Error is reported by the dictionary subsystem.
-    return(true);
+    return true;
   }
 
   if (table_obj == NULL)
@@ -58,37 +94,36 @@ fill_table_and_parts_tablespace_names(THD *thd,
   }
 
   // Add the tablespace name used by dd::Table.
-  const char *tablespace= NULL;
-  if(!get_tablespace_name<dd::Table>(
-       thd, table_obj, &tablespace, thd->mem_root))
+  if (get_and_store_tablespace_name(thd, table_obj, tablespace_set))
   {
-    if (tablespace &&
-        tablespace_set->insert(const_cast<char*>(tablespace)))
-      return true;
+    return true;
   }
 
   /*
-    Add tablespaces used by partition/subpartition definitions
+    Add tablespaces used by partition/subpartition definitions.
     Note that dd::Table::partitions() gives use both partitions
     and sub-partitions.
    */
   if (table_obj->partition_type() != dd::Table::PT_NONE)
   {
-    // Iterate through tablespace names used by partition.
-    std::string ts_name;
+    // Iterate through tablespace names used by partitions/indexes.
     for (const dd::Partition *part_obj : table_obj->partitions())
     {
-      const char *tablespace= NULL;
-      if(!get_tablespace_name<dd::Partition>(
-           thd, part_obj, &tablespace, thd->mem_root))
-      {
-        if (tablespace &&
-            tablespace_set->insert(const_cast<char*>(tablespace)))
-          return true;
-      }
+      if (get_and_store_tablespace_name(thd, part_obj, tablespace_set))
+        return true;
 
+      for (const dd::Partition_index *part_idx_obj : part_obj->indexes())
+        if (get_and_store_tablespace_name(thd, part_idx_obj, tablespace_set))
+          return true;
     }
   }
+
+  // Add tablespaces used by indexes.
+  for (const dd::Index *idx_obj : table_obj->indexes())
+    if (get_and_store_tablespace_name(thd, idx_obj, tablespace_set))
+      return true;
+
+  // TODO WL#7156: Add tablespaces used by individual columnns.
 
   return false;
 }
@@ -102,7 +137,7 @@ bool get_tablespace_name(THD *thd, const T *obj,
   //
   // Read Tablespace
   //
-  std::string name;
+  String_type name;
 
   if (System_tablespaces::instance()->find(MYSQL_TABLESPACE_NAME.str) &&
       dd::get_dictionary()->is_dd_table_name(MYSQL_SCHEMA_NAME.str,
@@ -127,9 +162,8 @@ bool get_tablespace_name(THD *thd, const T *obj,
       lock on tablespace (similarly to how it happens for schemas).
     */
     dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-    const dd::Tablespace* tablespace= NULL;
-    if (thd->dd_client()->acquire_uncached<dd::Tablespace>(
-                            obj->tablespace_id(), &tablespace))
+    dd::Tablespace* tablespace= NULL;
+    if (thd->dd_client()->acquire_uncached(obj->tablespace_id(), &tablespace))
     {
       // acquire() always fails with a error being reported.
       return true;
@@ -143,7 +177,6 @@ bool get_tablespace_name(THD *thd, const T *obj,
     }
 
     name= tablespace->name();
-    delete tablespace;
   }
   else
   {
@@ -175,8 +208,7 @@ bool create_tablespace(THD *thd, st_alter_tablespace *ts_info,
   // Check if same tablespace already exists.
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   const dd::Tablespace* ts= NULL;
-  if (thd->dd_client()->acquire<dd::Tablespace>(
-                          ts_info->tablespace_name, &ts))
+  if (thd->dd_client()->acquire(ts_info->tablespace_name, &ts))
   {
     // Error is reported by the dictionary subsystem.
     DBUG_RETURN(true);
@@ -196,133 +228,40 @@ bool create_tablespace(THD *thd, st_alter_tablespace *ts_info,
   // Engine type
   tablespace->set_engine(ha_resolve_storage_engine_name(hton));
 
+  // TODO: Move below checks out from dd/dd_tablespace.cc like it was done
+  //       for ALTER TABLESPACE case.
+
   // Comment
   if (ts_info->ts_comment)
-    tablespace->set_comment(ts_info->ts_comment);
+  {
+    LEX_CSTRING comment= { ts_info->ts_comment, strlen(ts_info->ts_comment) };
+
+    if (validate_comment_length(thd, comment.str, &comment.length,
+                                TABLESPACE_COMMENT_MAXLEN,
+                                ER_TOO_LONG_TABLESPACE_COMMENT,
+                                ts_info->tablespace_name))
+      DBUG_RETURN(true);
+
+    tablespace->set_comment(String_type(comment.str, comment.length));
+  }
+
+  if (strlen(ts_info->data_file_name) > FN_REFLEN)
+  {
+    my_error(ER_PATH_LENGTH, MYF(0), "DATAFILE");
+    DBUG_RETURN(true);
+  }
 
   // Add datafile
   dd::Tablespace_file *tsf_obj= tablespace->add_file();
   tsf_obj->set_filename(ts_info->data_file_name);
 
-  Disable_gtid_state_update_guard disabler(thd);
-
   // Write changes to dictionary.
-  if (thd->dd_client()->store(tablespace.get()) ||
-      dd::store_sdi(thd, tablespace.get()))
+  if (thd->dd_client()->store(tablespace.get()))
   {
-    trans_rollback_stmt(thd);
-    // Full rollback in case we have THD::transaction_rollback_request.
-    trans_rollback(thd);
     DBUG_RETURN(true);
   }
 
-  DBUG_RETURN(trans_commit_stmt(thd) ||
-              trans_commit(thd));
+  DBUG_RETURN(false);
 }
-
-
-bool drop_tablespace(THD *thd, st_alter_tablespace *ts_info,
-                     handlerton *hton)
-{
-  DBUG_ENTER("dd_drop_tablespace");
-
-  // Acquire tablespace.
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-  const dd::Tablespace* tablespace= NULL;
-  if (thd->dd_client()->acquire<dd::Tablespace>(
-                          ts_info->tablespace_name, &tablespace))
-  {
-    // Error is reported by the dictionary subsystem.
-    DBUG_RETURN(true);
-  }
-  if (!tablespace)
-  {
-    my_error(ER_TABLESPACE_MISSING_WITH_NAME, MYF(0), ts_info->tablespace_name);
-    DBUG_RETURN(true);
-  }
-
-  Disable_gtid_state_update_guard disabler(thd);
-
-  // Drop tablespace
-  if (remove_sdi(thd, tablespace) ||
-      thd->dd_client()->drop(tablespace))
-  {
-    trans_rollback_stmt(thd);
-    // Full rollback in case we have THD::transaction_rollback_request.
-    trans_rollback(thd);
-    DBUG_RETURN(true);
-  }
-
-  DBUG_RETURN(trans_commit_stmt(thd) ||
-              trans_commit(thd));
-}
-
-// ALTER TABLESPACE is only supported by NDB for now.
-/* purecov: begin deadcode */
-bool alter_tablespace(THD *thd, st_alter_tablespace *ts_info,
-                      handlerton *hton)
-{
-  DBUG_ENTER("dd_alter_tablespace");
-
-  // Acquire tablespace.
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-  const dd::Tablespace* tablespace= NULL;
-  if (thd->dd_client()->acquire<dd::Tablespace>(
-                          ts_info->tablespace_name, &tablespace))
-  {
-    // Error is reported by the dictionary subsystem.
-    DBUG_RETURN(true);
-  }
-  if (!tablespace)
-  {
-    my_error(ER_TABLESPACE_MISSING_WITH_NAME, MYF(0), ts_info->tablespace_name);
-    DBUG_RETURN(true);
-  }
-
-  switch (ts_info->ts_alter_tablespace_type)
-  {
-
-  // Add data file into a tablespace.
-  case ALTER_TABLESPACE_ADD_FILE:
-  {
-    dd::Tablespace_file *tsf_obj=
-      const_cast<dd::Tablespace*>(tablespace)->add_file();
-
-    tsf_obj->set_filename(ts_info->data_file_name);
-    break;
-  }
-
-  // Drop data file from a tablespace.
-  case ALTER_TABLESPACE_DROP_FILE:
-    if (const_cast<dd::Tablespace*>(tablespace)->remove_file(
-                                                   ts_info->data_file_name))
-    {
-      my_error(ER_WRONG_FILE_NAME, MYF(0), ts_info->data_file_name, 0, "");
-      DBUG_RETURN(true);
-    }
-    break;
-
-  default:
-    my_error(ER_UNKNOWN_ERROR, MYF(0));
-    DBUG_RETURN(true);
-  }
-
-  Disable_gtid_state_update_guard disabler(thd);
-
-  // Write changes to dictionary.
-  if (thd->dd_client()->store(
-             const_cast<dd::Tablespace*>(tablespace)) ||
-      dd::store_sdi(thd, tablespace))
-  {
-    trans_rollback_stmt(thd);
-    // Full rollback in case we have THD::transaction_rollback_request.
-    trans_rollback(thd);
-    DBUG_RETURN(true);
-  }
-
-  DBUG_RETURN(trans_commit_stmt(thd) ||
-              trans_commit(thd));
-}
-/* purecov: end */
 
 } // namespace dd

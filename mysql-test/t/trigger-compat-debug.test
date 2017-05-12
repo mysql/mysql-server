@@ -1,3 +1,12 @@
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs71=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema test default character set latin1;
+--enable_query_log
+########################################
+
 
 # Test case(s) in this file contain(s) GRANT/REVOKE statements, which are not
 # supported in embedded server. So, this test should not be run on embedded
@@ -214,10 +223,18 @@ CREATE DEFINER=`root`@`localhost` TRIGGER tr14 AFTER DELETE ON t1 FOR EACH ROW S
 CREATE DEFINER=`root`@`localhost` TRIGGER tr15 BEFORE UPDATE ON t1 FOR EACH ROW SET @a=1;
 
 SET SESSION debug= '+d,skip_dd_table_access_check';
-UPDATE mysql.triggers SET action_statement = 'DELETE FROM t1 a USING t1 a' WHERE name = 'tr13';
-UPDATE mysql.triggers SET action_statement = 'DELETE FROM non_existing_table'  WHERE name = 'tr14';
-UPDATE mysql.triggers SET action_statement = 'DELETE FROM non_existing_table a USING non_existing_table a' WHERE name = 'tr15';
+UPDATE mysql.triggers SET action_statement = 'DELETE FROM t1 a USING t1 a',
+  action_statement_utf8 = 'DELETE FROM t1 a USING t1 a'
+  WHERE name = 'tr13';
+UPDATE mysql.triggers SET action_statement = 'DELETE FROM non_existing_table',
+  action_statement_utf8 = 'DELETE FROM non_existing_table'
+  WHERE name = 'tr14';
+UPDATE mysql.triggers SET action_statement = 'DELETE FROM non_existing_table a USING non_existing_table a',
+  action_statement_utf8= 'DELETE FROM non_existing_table a USING non_existing_table a'
+  WHERE name = 'tr15';
 COMMIT;
+--replace_column 6 #
+SHOW TRIGGERS;
 SET SESSION debug= '-d,skip_dd_table_access_check';
 --echo "Now we restart the server"
 --source include/restart_mysqld.inc
@@ -260,3 +277,10 @@ DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;
 
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs71;
+--enable_query_log
+########################################

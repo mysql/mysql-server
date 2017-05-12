@@ -1,6 +1,6 @@
 #ifndef MYSQL_SERVICE_COMMAND_INCLUDED
 #define MYSQL_SERVICE_COMMAND_INCLUDED
-/*  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License as
@@ -33,6 +33,7 @@ extern "C" {
 #include "mysql_time.h"
 #include "decimal.h"
 #ifndef MYSQL_ABI_CHECK
+#include "binary_log_types.h"
 #include "m_ctype.h"
 #include <stdint.h>                    /* uint32_t */
 #endif

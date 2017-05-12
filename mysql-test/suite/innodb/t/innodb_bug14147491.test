@@ -9,7 +9,6 @@ source include/not_crashrep.inc;
 # Restarting is not supported under embedded
 source include/not_embedded.inc;
 # Require InnoDB
-source include/have_innodb.inc;
 # Require Debug for SET DEBUG
 source include/have_debug.inc;
 

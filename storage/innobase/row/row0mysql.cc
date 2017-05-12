@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -24,20 +24,22 @@ Contains also create table and other data dictionary operations.
 Created 9/17/2000 Heikki Tuuri
 *******************************************************/
 
-#include "ha_prototypes.h"
 #include <debug_sync.h>
 #include <gstream.h>
 #include <spatial.h>
+#include <sql_const.h>
+#include <sys/types.h>
+#include <algorithm>
+#include <deque>
+#include <new>
+#include <vector>
 
-#include "row0mysql.h"
 #include "btr0sea.h"
 #include "dict0boot.h"
 #include "dict0crea.h"
-#include <sql_const.h>
 #include "dict0dict.h"
-#include "dict0priv.h"
-#include "dict0crea.h"
 #include "dict0load.h"
+#include "dict0priv.h"
 #include "dict0stats.h"
 #include "dict0stats_bg.h"
 #include "fil0fil.h"
@@ -45,15 +47,22 @@ Created 9/17/2000 Heikki Tuuri
 #include "fsp0sysspace.h"
 #include "fts0fts.h"
 #include "fts0types.h"
+#include "ha_prototypes.h"
 #include "ibuf0ibuf.h"
 #include "lock0lock.h"
 #include "log0log.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
 #include "pars0pars.h"
 #include "que0que.h"
 #include "rem0cmp.h"
+#include "row0ext.h"
 #include "row0import.h"
 #include "row0ins.h"
 #include "row0merge.h"
+#include "row0mysql.h"
 #include "row0row.h"
 #include "row0sel.h"
 #include "row0upd.h"
@@ -61,12 +70,7 @@ Created 9/17/2000 Heikki Tuuri
 #include "trx0rec.h"
 #include "trx0roll.h"
 #include "trx0undo.h"
-#include "row0ext.h"
 #include "ut0new.h"
-
-#include <algorithm>
-#include <deque>
-#include <vector>
 
 /** TRUE if we don't have DDTableBuffer in the system tablespace,
 this should be due to we run the server against old data files.
@@ -737,6 +741,7 @@ handle_new_error:
 	case DB_INTERRUPTED:
 	case DB_CANT_CREATE_GEOMETRY_OBJECT:
 	case DB_COMPUTE_VALUE_FAILED:
+	case DB_LOCK_NOWAIT:
 		DBUG_EXECUTE_IF("row_mysql_crash_if_error", {
 					log_buffer_flush_to_disk();
 					DBUG_SUICIDE(); });
@@ -945,6 +950,7 @@ row_create_prebuilt(
 	btr_pcur_reset(prebuilt->clust_pcur);
 
 	prebuilt->select_lock_type = LOCK_NONE;
+	prebuilt->select_mode = SELECT_ORDINARY;
 
 	prebuilt->search_tuple = dtuple_create(heap, search_tuple_n_fields);
 
@@ -975,6 +981,7 @@ row_create_prebuilt(
 	prebuilt->blob_heap = NULL;
 
 	prebuilt->skip_serializable_dd_view = false;
+	prebuilt->no_autoinc_locking = false;
 
 	prebuilt->m_no_prefetch = false;
 	prebuilt->m_read_virtual_key = false;
@@ -1702,6 +1709,8 @@ run_again:
 
 	row_ins_step(thr);
 
+	DEBUG_SYNC_C("ib_after_row_insert_step");
+
 	err = trx->error_state;
 
 	if (err != DB_SUCCESS) {
@@ -2103,7 +2112,7 @@ row_delete_for_mysql_using_cursor(
 
 		ut_ad(!cmp_dtuple_rec(
 			entry, btr_cur_get_rec(btr_pcur_get_btr_cur(&pcur)),
-			offsets));
+			index, offsets));
 #endif /* UNIV_DEBUG */
 
 		ut_ad(!rec_get_deleted_flag(
@@ -2267,7 +2276,9 @@ row_update_for_mysql_using_cursor(
 				node->upd_ext ? node->upd_ext->n_ext : 0,
 				false);
 			/* Commit the open mtr as we are processing UPDATE. */
-			index->last_ins_cur->release();
+			if (index->last_ins_cur) {
+				index->last_ins_cur->release();
+			}
 		} else {
 			err = row_ins_sec_index_entry(index, entry, thr, false);
 		}
@@ -2311,7 +2322,10 @@ row_del_upd_for_mysql_using_cursor(
 	to change. */
 	thr = que_fork_get_first_thr(prebuilt->upd_graph);
 	clust_index = prebuilt->table->first_index();
-	clust_index->last_ins_cur->release();
+
+	if(clust_index->last_ins_cur) {
+		clust_index->last_ins_cur->release();
+	}
 
 	/* Step-1: Select the appropriate cursor that will help build
 	the original row and updated row. */
@@ -2712,9 +2726,14 @@ row_delete_all_rows(
 	dict_table_t*	table)
 {
 	ut_ad(table->is_temporary());
+	dict_index_t*	index;
+
+	index = table->first_index();
 	/* Step-0: If there is cached insert position along with mtr
 	commit it before starting delete/update action. */
-	table->first_index()->last_ins_cur->release();
+	if (index->last_ins_cur) {
+		index->last_ins_cur->release();
+	}
 
 	bool			found;
 	const page_size_t	page_size(
@@ -2724,7 +2743,7 @@ row_delete_all_rows(
 	/* Step-1: Now truncate all the indexes and re-create them.
 	Note: This is ddl action even though delete all rows is
 	DML action. Any error during this action is ir-reversible. */
-	for (dict_index_t* index = UT_LIST_GET_FIRST(table->indexes);
+	for (index = UT_LIST_GET_FIRST(table->indexes);
 	     index != NULL;
 	     index = UT_LIST_GET_NEXT(indexes, index)) {
 
@@ -3685,7 +3704,7 @@ row_discard_tablespace_begin(
 
 	if (table) {
 		dict_stats_wait_bg_to_stop_using_table(table, trx);
-		ut_a(!is_system_tablespace(table->space));
+		ut_a(dict_table_is_file_per_table(table));
 		ut_a(table->n_foreign_key_checks_running == 0);
 	}
 
@@ -3950,7 +3969,7 @@ row_discard_tablespace_for_mysql(
 
 		err = DB_ERROR;
 
-	} else if (table->space == srv_sys_space.space_id()) {
+	} else if (table->space == TRX_SYS_SPACE) {
 		char	table_name[MAX_FULL_NAME_LEN + 1];
 
 		innobase_format_name(
@@ -4705,7 +4724,7 @@ row_drop_table_for_mysql(
 		/* Do not attempt to drop known-to-be-missing tablespaces,
 		nor system or shared general tablespaces. */
 		if (is_discarded || ibd_file_missing || is_temp || shared_tablespace
-		    || is_system_tablespace(space_id)) {
+		    || fsp_is_system_or_temp_tablespace(space_id)) {
 			/* For encrypted table, if ibd file can not be decrypt,
 			we also set ibd_file_missing. We still need to try to
 			remove the ibd file for this. */
@@ -5709,8 +5728,8 @@ loop:
 		const char* doing = check_keys? "CHECK TABLE" : "COUNT(*)";
 		ib::warn() << doing << " on index " << index->name << " of"
 			" table " << index->table->name << " returned " << ret;
-		/* fall through (this error is ignored by CHECK TABLE) */
 	}
+	/* fall through (this error is ignored by CHECK TABLE) */
 	case DB_END_OF_INDEX:
 		ret = DB_SUCCESS;
 func_exit:
@@ -5739,8 +5758,8 @@ func_exit:
 	if (prev_entry != NULL) {
 		matched_fields = 0;
 
-		cmp = cmp_dtuple_rec_with_match(prev_entry, rec, offsets,
-						&matched_fields);
+		cmp = cmp_dtuple_rec_with_match(
+			prev_entry, rec, index, offsets, &matched_fields);
 		contains_null = FALSE;
 
 		/* In a unique secondary index we allow equal key values if

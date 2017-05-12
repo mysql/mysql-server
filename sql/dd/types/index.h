@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,10 +16,9 @@
 #ifndef DD__INDEX_INCLUDED
 #define DD__INDEX_INCLUDED
 
-#include "my_global.h"
-
 #include "dd/collection.h"             // dd::Collection
 #include "dd/types/entity_object.h"    // dd::Entity_object
+#include "my_inttypes.h"
 
 namespace dd {
 
@@ -66,6 +65,16 @@ public:
   virtual ~Index()
   { };
 
+  /**
+    Dummy method to be able to use Partition_index and Index interchangeably
+    in templates.
+  */
+  const Index &index() const
+  { return *this; }
+
+  Index &index()
+  { return *this; }
+
   /////////////////////////////////////////////////////////////////////////
   // Table.
   /////////////////////////////////////////////////////////////////////////
@@ -92,8 +101,8 @@ public:
   // comment.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &comment() const = 0;
-  virtual void set_comment(const std::string &comment) = 0;
+  virtual const String_type &comment() const = 0;
+  virtual void set_comment(const String_type &comment) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // Options.
@@ -102,7 +111,7 @@ public:
   virtual const Properties &options() const = 0;
 
   virtual Properties &options() = 0;
-  virtual bool set_options_raw(const std::string &options_raw) = 0;
+  virtual bool set_options_raw(const String_type &options_raw) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // se_private_data.
@@ -111,7 +120,7 @@ public:
   virtual const Properties &se_private_data() const = 0;
 
   virtual Properties &se_private_data() = 0;
-  virtual bool set_se_private_data_raw(const std::string &se_private_data_raw) = 0;
+  virtual bool set_se_private_data_raw(const String_type &se_private_data_raw) = 0;
   virtual void set_se_private_data(const Properties &se_private_data)= 0;
 
   /////////////////////////////////////////////////////////////////////////
@@ -125,8 +134,8 @@ public:
   // Engine.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &engine() const = 0;
-  virtual void set_engine(const std::string &engine) = 0;
+  virtual const String_type &engine() const = 0;
+  virtual void set_engine(const String_type &engine) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // Index type.
@@ -192,6 +201,12 @@ public:
   */
 
   virtual bool deserialize(Sdi_rcontext *rctx, const RJ_Value &val) = 0;
+
+
+  /**
+    Check if index represents candidate key.
+  */
+  virtual bool is_candidate_key() const = 0;
 };
 
 ///////////////////////////////////////////////////////////////////////////

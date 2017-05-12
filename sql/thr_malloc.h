@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
 #ifndef THR_MALLOC_INCLUDED
 #define THR_MALLOC_INCLUDED
 
-#include "my_global.h"
+#include <stddef.h>
 
 typedef struct charset_info_st CHARSET_INFO;
 typedef struct st_mem_root MEM_ROOT;

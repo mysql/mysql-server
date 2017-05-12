@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights
    reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -16,8 +16,13 @@
 
 /* Written by Sergei A. Golubchik, who has a shared copyright to this code */
 
-#include "ftdefs.h"
+#include <sys/types.h>
+
 #include "ctype.h"
+#include "ftdefs.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
 
 typedef struct st_ft_docstat {
   FT_WORD *list;
@@ -83,7 +88,7 @@ FT_WORD * ft_linearize(TREE *wtree, MEM_ROOT *mem_root)
   DBUG_RETURN(wlist);
 }
 
-my_bool ft_boolean_check_syntax_string(const uchar *str)
+bool ft_boolean_check_syntax_string(const uchar *str)
 {
   uint i, j;
 
@@ -206,7 +211,7 @@ ret:
 
 uchar ft_simple_get_word(const CHARSET_INFO *cs, uchar **start,
                          const uchar *end,
-                         FT_WORD *word, my_bool skip_stopwords)
+                         FT_WORD *word, bool skip_stopwords)
 {
   uchar *doc= *start;
   uint mwc, length;

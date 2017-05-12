@@ -100,7 +100,7 @@ FROM information_schema.tables WHERE table_catalog IS NULL OR table_catalog <> '
 --disable_warnings
 DROP DATABASE IF EXISTS db_datadict;
 --enable_warnings
-CREATE DATABASE db_datadict;
+CREATE DATABASE db_datadict charset latin1;
 
 --error 0,ER_CANNOT_USER
 DROP   USER 'testuser1'@'localhost';
@@ -249,7 +249,7 @@ DROP DATABASE db_datadict;
 DROP TABLE IF EXISTS test.t1_my_table;
 DROP DATABASE IF EXISTS db_datadict;
 --enable_warnings
-CREATE DATABASE db_datadict;
+CREATE DATABASE db_datadict charset latin1;
 
 SELECT table_name FROM information_schema.tables
 WHERE table_name LIKE 't1_my_table%';
@@ -448,7 +448,7 @@ WHERE table_name = 't1_my_tablex';
 --disable_warnings
 DROP DATABASE IF EXISTS db_datadict;
 --enable_warnings
-CREATE DATABASE db_datadict;
+CREATE DATABASE db_datadict charset latin1;
 --replace_result $engine_type <engine_type>
 eval
 CREATE TABLE db_datadict.t1 (f1 BIGINT)

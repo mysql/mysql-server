@@ -1,4 +1,5 @@
 drop table if exists t1,t2;
+SET @default_table_open_cache = @@table_open_cache;
 set @my_log_error_verbosity       =@@global.log_error_verbosity;
 set @my_connect_timeout           =@@global.connect_timeout;
 set @my_delayed_insert_timeout    =@@global.delayed_insert_timeout;
@@ -594,6 +595,7 @@ set wait_timeout=100;
 set global log_warnings=1;
 Warnings:
 Warning	1287	'@@log_warnings' is deprecated and will be removed in a future release. Please use log_error_verbosity instead
+set sort_buffer_size=default;
 set global max_allowed_packet        =@my_max_allowed_packet;
 select @@session.insert_id;
 @@session.insert_id
@@ -780,7 +782,7 @@ table_open_cache	1
 SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME LIKE 'table_open_cache';
 VARIABLE_NAME	VARIABLE_VALUE
 table_open_cache	1
-SET GLOBAL table_open_cache=DEFAULT;
+SET GLOBAL table_open_cache= @default_table_open_cache;
 set character_set_results=NULL;
 select ifnull(@@character_set_results,"really null");
 ifnull(@@character_set_results,"really null")
@@ -1604,7 +1606,7 @@ SELECT @@sql_notes;
 1
 
 SET @@sql_notes = OF;
-ERROR 42000: Variable 'sql_notes' can't be set to the value of 'OF'
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'OF' at line 1
 SELECT @@sql_notes;
 @@sql_notes
 1
@@ -1625,7 +1627,7 @@ SELECT @@delay_key_write;
 ON
 
 SET GLOBAL delay_key_write = OF;
-ERROR 42000: Variable 'delay_key_write' can't be set to the value of 'OF'
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'OF' at line 1
 SELECT @@delay_key_write;
 @@delay_key_write
 ON
@@ -1657,7 +1659,7 @@ SELECT @@sql_safe_updates;
 1
 
 SET @@sql_safe_updates = OF;
-ERROR 42000: Variable 'sql_safe_updates' can't be set to the value of 'OF'
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'OF' at line 1
 SELECT @@sql_safe_updates;
 @@sql_safe_updates
 1
@@ -1678,7 +1680,7 @@ SELECT @@foreign_key_checks;
 1
 
 SET @@foreign_key_checks = OF;
-ERROR 42000: Variable 'foreign_key_checks' can't be set to the value of 'OF'
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'OF' at line 1
 SELECT @@foreign_key_checks;
 @@foreign_key_checks
 1
@@ -1699,7 +1701,7 @@ SELECT @@unique_checks;
 1
 
 SET @@unique_checks = OF;
-ERROR 42000: Variable 'unique_checks' can't be set to the value of 'OF'
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'OF' at line 1
 SELECT @@unique_checks;
 @@unique_checks
 1
@@ -1720,7 +1722,7 @@ SELECT @@sql_buffer_result;
 1
 
 SET @@sql_buffer_result = OF;
-ERROR 42000: Variable 'sql_buffer_result' can't be set to the value of 'OF'
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'OF' at line 1
 SELECT @@sql_buffer_result;
 @@sql_buffer_result
 1
@@ -1741,7 +1743,7 @@ SELECT @@sql_quote_show_create;
 1
 
 SET @@sql_quote_show_create = OF;
-ERROR 42000: Variable 'sql_quote_show_create' can't be set to the value of 'OF'
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'OF' at line 1
 SELECT @@sql_quote_show_create;
 @@sql_quote_show_create
 1
@@ -1803,8 +1805,8 @@ End of 5.5 tests
 # Bug#57035 'ulonglong sql_mode' stored into ulong, is risky and causes
 #           compiler warning
 #
-SET @@sql_mode= 4294967296;
-ERROR 42000: Variable 'sql_mode' can't be set to the value of '4294967296'
+SET @@sql_mode= 8589934592;
+ERROR 42000: Variable 'sql_mode' can't be set to the value of '8589934592'
 #
 # Bug #59860: log-slow-admin-statements and log-slow-slave-statements not displayed
 #

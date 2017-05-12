@@ -1,7 +1,6 @@
 #************************************************************
 # WL6045:Improve Innochecksum
 #************************************************************
---source include/have_innodb.inc
 --source include/have_innodb_max_16k.inc
 --source include/no_valgrind_without_big.inc
 # Embedded server does not support crashing.
@@ -160,7 +159,7 @@ let SEARCH_PATTERN= Error while setting value \'no\' to \'strict-check\';
 --exec $INNOCHECKSUM --strict-check=innodb $MYSQLD_DATADIR/test/tab1.ibd
 
 --echo # start the server with innodb_checksum_algorithm=InnoDB
---let restart_options= : --innodb_checksum_algorithm=innodb
+--let restart_parameters= restart: --innodb_checksum_algorithm=innodb
 --source include/start_mysqld.inc
 
 INSERT INTO tab1 VALUES(2, 'Innochecksum CRC32');
@@ -178,7 +177,7 @@ SELECT c1,c2 FROM tab1 order by c1,c2;
 --exec $INNOCHECKSUM --strict-check=none $MYSQLD_DATADIR/test/t1.ibd
 
 --echo # Start the server with checksum algorithm=none
---let restart_options= : --innodb_checksum_algorithm=none
+--let restart_parameters=restart: --innodb_checksum_algorithm=none
 --source include/start_mysqld.inc
 
 INSERT INTO tab1 VALUES(3, 'Innochecksum None');
@@ -192,7 +191,7 @@ DROP TABLE t1;
 --exec $INNOCHECKSUM --no-check --write=crc32 $MYSQLD_DATADIR/test/tab1.ibd
 
 --echo # Restart the DB server with  innodb_checksum_algorithm=crc32
---let restart_options= : --innodb_checksum_algorithm=crc32 --innodb_file_per_table=on
+--let restart_parameters=restart: --innodb_checksum_algorithm=crc32 --innodb_file_per_table=on
 --source include/start_mysqld.inc
 
 SELECT * FROM tab1;
@@ -206,7 +205,7 @@ SELECT c1,c2 FROM tab1 order by c1,c2;
 --exec $INNOCHECKSUM --no-check --write=InnoDB $MYSQLD_DATADIR/test/tab1.ibd
 
 --echo # Restart the DB server with innodb_checksum_algorithm=InnoDB
---let restart_options= : --innodb_checksum_algorithm=innodb --innodb_file_per_table=on
+--let restart_parameters=restart: --innodb_checksum_algorithm=innodb --innodb_file_per_table=on
 --source include/start_mysqld.inc
 
 DELETE FROM tab1 where c1=2;

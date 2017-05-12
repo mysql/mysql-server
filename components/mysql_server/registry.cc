@@ -13,16 +13,18 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 
+#include <c_string_less.h>
+#include <mysql/components/my_service.h>
+#include <mysql/components/service_implementation.h>
+#include <mysql/components/services/registry.h>
+#include <rwlock_scoped_lock.h>
 #include <map>
 #include <memory>
-#include <c_string_less.h>
-#include <mysql/components/services/registry.h>
-#include <mysql/components/service_implementation.h>
-#include <mysql/components/my_service.h>
-#include <rwlock_scoped_lock.h>
-#include "server_component.h"
+
+#include "my_psi_config.h"
 #include "mysql_service_implementation.h"
 #include "registry.h"
+#include "server_component.h"
 
 /**
   @page PAGE_COMPONENTS_REGISTRY The Service Registry Service
@@ -747,7 +749,7 @@ static void init_registry_psi_keys(void)
   const char *category= "components";
   int count;
 
-  count= array_elements(all_registry_rwlocks);
+  count= static_cast<int>(array_elements(all_registry_rwlocks));
   mysql_rwlock_register(category, all_registry_rwlocks, count);
 }
 #endif

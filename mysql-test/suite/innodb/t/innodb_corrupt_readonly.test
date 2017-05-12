@@ -1,7 +1,6 @@
 #
 # Test for set corrupt bit for corrupted index in read only mode
 #
--- source include/have_innodb.inc
 --source include/not_embedded.inc
 
 # This test needs debug server

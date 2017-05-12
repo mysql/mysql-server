@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -275,7 +275,7 @@ ClusterMgr::startup()
   for (Uint32 i = 0; i<3000; i++)
   {
     theFacade.request_connection_check();
-    start_poll();
+    prepare_poll();
     do_poll(0);
     complete_poll();
 
@@ -324,7 +324,7 @@ ClusterMgr::threadMain()
       NdbSleep_MilliSleep(minHeartBeatInterval/5);
       {
         /**
-         * start_poll does lock the trp_client and complete_poll
+         * prepare_poll does lock the trp_client and complete_poll
          * releases this lock. This means that this protects
          * against concurrent calls to send signals in ArbitMgr.
          * We do however need to protect also against concurrent
@@ -333,7 +333,7 @@ ClusterMgr::threadMain()
          * poll.
          */
         Guard g(clusterMgrThreadMutex);
-        start_poll();
+        prepare_poll();
         do_poll(0);
         complete_poll();
       }
@@ -532,7 +532,22 @@ ClusterMgr::trp_deliver_signal(const NdbApiSignal* sig,
       tSignal.theReceiversBlockNumber= refToBlock(ref);
       tSignal.theVerId_signalNumber= GSN_SUB_GCP_COMPLETE_ACK;
       tSignal.theSendersBlockRef = API_CLUSTERMGR;
-      safe_noflush_sendSignal(&tSignal, aNodeId);
+
+      // Send signal without delay, otherwise, Suma buffers may
+      // overflow, resulting into the API node being disconnected.
+      // SUB_GCP_COMPLETE_ACK will be sent per node per epoch, with
+      // minimum interval of TimeBetweenEpochs.
+      safe_sendSignal(&tSignal, aNodeId);
+
+      /**
+       * Note:
+       * After fixing #Bug#22705935 'sendSignal() flush optimization isses',
+       * we could likely just as well have used safe_noflush_sendSignal() above.
+       * (and several other places)
+       * That patch ensures that any buffered signals sent while 
+       * delivering signals are flushed as soon as we have processed the 
+       * chunk of signals to be delivered.
+       */ 
     }
     break;
   }
@@ -937,7 +952,7 @@ ClusterMgr::reportConnected(NodeId nodeId)
   signal.theTrace  = 0;
   signal.theLength = 1;
   signal.getDataPtrSend()[0] = nodeId;
-  raw_sendSignal(&signal, getOwnNodeId());
+  safe_sendSignal(&signal, getOwnNodeId());
   DBUG_VOID_RETURN;
 }
 
@@ -980,7 +995,7 @@ ClusterMgr::reportDisconnected(NodeId nodeId)
   DisconnectRep * rep = CAST_PTR(DisconnectRep, signal.getDataPtrSend());
   rep->nodeId = nodeId;
   rep->err = 0;
-  raw_sendSignal(&signal, getOwnNodeId());
+  safe_sendSignal(&signal, getOwnNodeId());
 }
 
 void

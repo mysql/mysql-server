@@ -1,11 +1,5 @@
 # Tests for PERFORMANCE_SCHEMA
 
-# Verify that indexes for STATUS_BY_* tables honor SHOW_COMPATIBILITY_56 = ON
-# by returning zero rows.
-
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 truncate performance_schema.status_by_account;
 truncate performance_schema.status_by_host;
 truncate performance_schema.status_by_user;
@@ -22,25 +16,6 @@ connect(con1, localhost, user1,,);
 
 --connection default
 
---echo
---echo ## SHOW COMPATIBILITY ON
---echo
-SELECT @@global.show_compatibility_56 INTO @show_compatibility_56_save;
-SET global show_compatibility_56 = ON;
-
-SELECT * FROM performance_schema.status_by_account WHERE user = 'user1' AND variable_name = 'Opened_tables';
-
-SELECT * FROM performance_schema.status_by_host WHERE host = 'localhost' AND variable_name = 'Opened_tables';
-
-SELECT * FROM performance_schema.status_by_user WHERE user = 'user1' AND variable_name = 'Opened_tables';
-
-SELECT * FROM performance_schema.status_by_thread WHERE thread_id = @my_thread_id AND variable_name = 'Opened_tables';
-
---echo
---echo ## SHOW COMPATIBILITY OFF
---echo
-SET global show_compatibility_56 = OFF;
-
 --replace_column 3 #
 SELECT * FROM performance_schema.status_by_account WHERE user = 'user1' AND variable_name = 'Opened_tables';
 
@@ -53,7 +28,5 @@ SELECT * FROM performance_schema.status_by_user WHERE user = 'user1' AND variabl
 --replace_column 1 tid 3 #
 SELECT * FROM performance_schema.status_by_thread WHERE thread_id = @my_thread_id AND variable_name = 'Opened_tables';
 
-
-SET @@global.show_compatibility_56 = @show_compatibility_56_save;
 DROP USER user1@localhost;
 --disconnect con1

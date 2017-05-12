@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -15,15 +15,27 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
    02110-1301 USA */
 
-#include "rpl_gtid.h"
+#include <string.h>
+#include <sys/types.h>
 
+#include "lex_string.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_psi_config.h"
+#include "my_sqlcommand.h"
+#include "my_sys.h"
+#include "my_thread_local.h"
+#include "mysql/psi/mysql_transaction.h"
+#include "mysql/thread_type.h"
+#include "mysqld.h"                           // connection_events_loop_aborted
+#include "mysqld_error.h"
+#include "rpl_gtid.h"
 #include "rpl_rli.h"                          // Relay_log_info
 #include "sql_class.h"                        // THD
+#include "sql_lex.h"
 #include "sql_parse.h"                        // stmt_causes_implicit_commit
-#include "mysqld.h"                           // connection_events_loop_aborted
-
-#include "pfs_transaction_provider.h"
-#include "mysql/psi/mysql_transaction.h"
+#include "sql_plugin.h"
+#include "system_variables.h"
 
 
 
@@ -140,7 +152,6 @@ bool set_gtid_next(THD *thd, const Gtid_specification &spec)
         {
           goto err;
         }
-#ifdef HAVE_REPLICATION
         // If this thread is a slave SQL thread or slave SQL worker
         // thread, we need this additional condition to determine if it
         // has been stopped by STOP SLAVE [SQL_THREAD].
@@ -155,7 +166,6 @@ bool set_gtid_next(THD *thd, const Gtid_specification &spec)
             goto err;
           }
         }
-#endif // HAVE_REPLICATION
         global_sid_lock->rdlock();
         lock_count= 1;
       }
@@ -239,7 +249,6 @@ int gtid_acquire_ownership_multiple(THD *thd)
     // read lock that was held when this function was invoked
     if (thd->killed || connection_events_loop_aborted())
       DBUG_RETURN(1);
-#ifdef HAVE_REPLICATION
     // If this thread is a slave SQL thread or slave SQL worker
     // thread, we need this additional condition to determine if it
     // has been stopped by STOP SLAVE [SQL_THREAD].
@@ -251,7 +260,6 @@ int gtid_acquire_ownership_multiple(THD *thd)
       if (c_rli->abort_slave)
         DBUG_RETURN(1);
     }
-#endif // HAVE_REPLICATION
   }
 
   // global_sid_lock is now held
@@ -406,9 +414,7 @@ bool gtid_reacquire_ownership_if_anonymous(THD *thd)
       // this can happen if gtid_mode=on
       DBUG_RETURN(true);
 
-#ifdef HAVE_REPLICATION
-    thd->set_currently_executing_gtid_for_slave_thread();
-#endif
+    thd->set_original_commit_timestamp_for_slave_thread();
   }
   DBUG_RETURN(false);
 }

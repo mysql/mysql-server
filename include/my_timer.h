@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,20 +20,25 @@
   @file include/my_timer.h
 */
 
-#include "my_global.h"    /* C_MODE_START, C_MODE_END */
+#include "my_config.h"
+#include "my_macros.h"
+
+struct st_my_timer;
 
 /* POSIX timers API. */
 #ifdef HAVE_POSIX_TIMERS
 # include <time.h>  /* timer_t */
+
   typedef timer_t   os_timer_t;
 #elif defined(HAVE_KQUEUE_TIMERS)
 # include <sys/types.h> /* uintptr_t */
+
   typedef uintptr_t os_timer_t;
 #elif defined(_WIN32)
   typedef struct st_os_timer
   {
     HANDLE timer_handle;
-    my_bool timer_state;
+    bool timer_state;
   } os_timer_t;
 #endif
 

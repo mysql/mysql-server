@@ -11,7 +11,6 @@
 # Passes with rbr no problem, removed statement include [jbm]
 
 --source include/not_group_replication_plugin.inc
-source include/not_gtid_enabled.inc;
 source include/master-slave.inc;
 call mtr.add_suppression ("Slave I/O for channel '': Got fatal error 1236 from master when reading data from binary");
 source include/show_master_status.inc;

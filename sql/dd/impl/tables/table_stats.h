@@ -17,14 +17,20 @@
 #define DD_TABLES__TABLE_STATS_INCLUDED
 
 
+#include <new>
+#include <string>
+
+#include "dd/impl/raw/object_keys.h"          // Composite_char_key
 #include "dd/impl/types/dictionary_object_table_impl.h"
                                               // Dictionary_object_table_impl
 #include "dd/impl/types/table_stat_impl.h"    // Table_stat
-#include "dd/impl/raw/object_keys.h"          // Composite_char_key
-
-#include <string>
+#include "dd/types/table_stat.h"
 
 namespace dd {
+
+class Dictionary_object;
+class Raw_record;
+
 namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
@@ -36,9 +42,9 @@ public:
 
   static const Table_stats &instance();
 
-  static const std::string &table_name()
+  static const String_type &table_name()
   {
-    static std::string s_table_name("table_stats");
+    static String_type s_table_name("table_stats");
     return s_table_name;
   }
 
@@ -60,15 +66,15 @@ public:
 
 public:
 
-  virtual const std::string &name() const
+  virtual const String_type &name() const
   { return Table_stats::table_name(); }
 
   virtual Dictionary_object *create_dictionary_object(const Raw_record &) const
   { return new (std::nothrow) Table_stat_impl(); }
 
 public:
-  static Table_stat::name_key_type *create_object_key(const std::string &schema_name,
-                                                      const std::string &table_name);
+  static Table_stat::name_key_type *create_object_key(const String_type &schema_name,
+                                                      const String_type &table_name);
 };
 
 }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,19 +16,29 @@
 #ifndef SQL_AUTHENTICATION_INCLUDED
 #define SQL_AUTHENTICATION_INCLUDED
 
-#include "my_global.h"
-#include "m_string.h"                   // LEX_CSTRING
-#include "my_thread_local.h"            // my_thread_id
-#include "mysql/plugin_auth.h"          // MYSQL_SERVER_AUTH_INFO
-#include "sql_plugin_ref.h"             // plugin_ref
+#include "my_config.h"
 
-/* Forward declarations */
-class String;
+#include <sys/types.h>
+
+#include "lex_string.h"
+#include "m_ctype.h"
+#include "my_thread_local.h"            // my_thread_id
+#include "mysql/plugin.h"
+#include "mysql/plugin_auth.h"          // MYSQL_SERVER_AUTH_INFO
+#include "mysql/plugin_auth_common.h"
+#include "mysql_com.h"
+#include "sql_plugin.h"
+#include "sql_plugin_ref.h"             // plugin_ref
+#include "thr_malloc.h"
+
 class THD;
+
 typedef struct charset_info_st CHARSET_INFO;
 typedef struct st_mysql_show_var SHOW_VAR;
 class ACL_USER;
 class Protocol_classic;
+class String;
+
 typedef struct st_net NET;
 
 /* Classes */
@@ -139,9 +149,7 @@ extern LEX_CSTRING sha256_password_plugin_name;
 extern LEX_CSTRING validate_password_plugin_name;
 extern LEX_CSTRING default_auth_plugin_name;
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
 extern bool allow_all_hosts;
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
 
 extern plugin_ref native_password_plugin;
 

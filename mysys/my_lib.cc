@@ -20,15 +20,25 @@
 
 /* TODO: check for overun of memory for names. */
 
-#include "mysys_priv.h"
-#include "my_sys.h"
+#include <errno.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <new>
+
 #include "m_string.h"
+#include "my_alloc.h"
+#include "my_dbug.h"
 #include "my_dir.h"	/* Structs used by my_dir,includes sys/types */
-#include "mysys_err.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_pointer_arithmetic.h"
+#include "my_sys.h"
 #include "my_thread_local.h"
 #include "mysql/service_mysql_alloc.h"
-#include "template_utils.h"
+#include "mysys_err.h"
+#include "mysys_priv.h"
 #include "prealloced_array.h"
+#include "template_utils.h"
 #if !defined(_WIN32)
 # include <dirent.h>
 #endif
@@ -36,7 +46,7 @@
 /*
   Allocate space for 100 FILEINFO structs up-front.
 */
-typedef Prealloced_array<FILEINFO, 100, true> Entries_array;
+typedef Prealloced_array<FILEINFO, 100> Entries_array;
 
 #define NAMES_START_SIZE   32768
 
@@ -198,11 +208,7 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
   struct _finddata_t find;
   ushort	mode;
   char		tmp_path[FN_REFLEN],*tmp_file,attrib;
-#ifdef _WIN64
   __int64       handle;
-#else
-  long		handle;
-#endif
   void          *rawmem= NULL;
 
   DBUG_ENTER("my_dir");

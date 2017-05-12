@@ -19,7 +19,7 @@ CREATE EVENT test.justonce ON SCHEDULE EVERY 2 SECOND DO
 INSERT IGNORE INTO t1 (id, c) VALUES (2, 'from justonce');
 "Checking event is active on master"
 SELECT event_schema, event_name, status, originator FROM information_schema.events WHERE event_name = 'justonce';
-event_schema	event_name	status	originator
+EVENT_SCHEMA	EVENT_NAME	STATUS	ORIGINATOR
 test	justonce	ENABLED	1
 "Checking event data on the master"
 ONE
@@ -29,7 +29,7 @@ ZERO
 0
 "Checking event is inactive on slave"
 SELECT event_name, status, originator FROM information_schema.events WHERE  event_name = 'justonce';
-event_name	status	originator
+EVENT_NAME	STATUS	ORIGINATOR
 justonce	SLAVESIDE_DISABLED	1
 "Dropping event test.slave_once on the slave"
 DROP EVENT IF EXISTS test.slave_once;
@@ -37,7 +37,7 @@ CREATE EVENT test.slave_once ON SCHEDULE EVERY 5 MINUTE STARTS CURRENT_TIMESTAMP
 INSERT IGNORE INTO t1(id, c) VALUES (3, 'from slave_once');
 "Checking event status on the slave for originator value = slave's server_id"
 SELECT event_name, status, originator FROM information_schema.events WHERE event_name = 'slave_once';
-event_name	status	originator
+EVENT_NAME	STATUS	ORIGINATOR
 slave_once	ENABLED	2
 "Dropping event test.slave_once on the slave"
 DROP EVENT IF EXISTS test.slave_once;
@@ -48,37 +48,37 @@ CREATE EVENT test.er ON SCHEDULE EVERY 3 SECOND STARTS CURRENT_TIMESTAMP + INTER
 INSERT IGNORE INTO t1(id, c) VALUES (4, 'from er');
 "Checking event status on the master"
 SELECT event_name, status, originator, event_definition FROM information_schema.events WHERE  event_name = 'er';
-event_name	status	originator	event_definition
+EVENT_NAME	STATUS	ORIGINATOR	EVENT_DEFINITION
 er	ENABLED	1	INSERT IGNORE INTO t1(id, c) VALUES (4, 'from er')
 "Checking event status on the slave"
 SELECT event_name, status, originator, event_definition FROM information_schema.events WHERE event_name = 'er';
-event_name	status	originator	event_definition
+EVENT_NAME	STATUS	ORIGINATOR	EVENT_DEFINITION
 er	SLAVESIDE_DISABLED	1	INSERT IGNORE INTO t1(id, c) VALUES (4, 'from er')
 "Altering event test.er on the master"
 ALTER EVENT test.er ON SCHEDULE EVERY 5 SECOND STARTS CURRENT_TIMESTAMP + INTERVAL 1 HOUR DO 
 INSERT IGNORE INTO t1(id, c) VALUES (5, 'from alter er');
 "Checking event status on the master"
 SELECT event_name, status, originator, event_definition FROM information_schema.events WHERE event_name = 'er';
-event_name	status	originator	event_definition
+EVENT_NAME	STATUS	ORIGINATOR	EVENT_DEFINITION
 er	ENABLED	1	INSERT IGNORE INTO t1(id, c) VALUES (5, 'from alter er')
 "Checking event status on the slave"
 SELECT event_name, status, originator, event_definition FROM information_schema.events WHERE event_name = 'er';
-event_name	status	originator	event_definition
+EVENT_NAME	STATUS	ORIGINATOR	EVENT_DEFINITION
 er	SLAVESIDE_DISABLED	1	INSERT IGNORE INTO t1(id, c) VALUES (5, 'from alter er')
 "Dropping event test.er on the master"
 DROP EVENT test.er;
 "Checking event status on the master"
 SELECT  event_name, status, originator FROM information_schema.events;
-event_name	status	originator
+EVENT_NAME	STATUS	ORIGINATOR
 "Checking event status on the slave"
 SELECT event_name, status, originator FROM information_schema.events;
-event_name	status	originator
+EVENT_NAME	STATUS	ORIGINATOR
 "Creating event test.slave_terminate on the slave"
 CREATE EVENT test.slave_terminate ON SCHEDULE EVERY 3 SECOND STARTS CURRENT_TIMESTAMP + INTERVAL 1 HOUR DO 
 INSERT IGNORE INTO t1(id, c) VALUES (6, 'from slave_terminate');
 "Checking event status on the slave"
 SELECT event_name, status, originator FROM information_schema.events WHERE event_name = 'slave_terminate';
-event_name	status	originator
+EVENT_NAME	STATUS	ORIGINATOR
 slave_terminate	ENABLED	2
 "Dropping event test.slave_terminate on the slave"
 DROP EVENT test.slave_terminate;
@@ -87,7 +87,7 @@ CREATE EVENT test.slave_terminate ON SCHEDULE EVERY 3 SECOND DISABLE ON SLAVE DO
 INSERT IGNORE INTO t1(c) VALUES (7, 'from slave_terminate');
 "Checking event status on the slave"
 SELECT  event_name, status, originator FROM information_schema.events WHERE event_name = 'slave_terminate';
-event_name	status	originator
+EVENT_NAME	STATUS	ORIGINATOR
 slave_terminate	SLAVESIDE_DISABLED	2
 "Dropping event test.slave_terminate on the slave"
 DROP EVENT test.slave_terminate;

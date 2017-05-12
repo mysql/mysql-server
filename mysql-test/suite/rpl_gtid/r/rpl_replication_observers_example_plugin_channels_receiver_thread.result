@@ -7,7 +7,7 @@ Note	1760	Storing MySQL user name or password information in the master info rep
 include/start_slave.inc
 include/assert.inc ['The example_channel is ON']
 CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
-include/sync_slave_sql_with_master.inc
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'example_channel']
 include/install_replication_observers_example.inc
 SET @debug_saved= @@GLOBAL.DEBUG;
 SET @@GLOBAL.DEBUG= '+d,validate_replication_observers_plugin_server_channel_io_thread';

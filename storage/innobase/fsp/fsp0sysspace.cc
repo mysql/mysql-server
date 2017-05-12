@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -24,21 +24,23 @@ Created 2012-11-16 by Sunny Bains as srv/srv0space.cc
 Refactored 2013-7-26 by Kevin Lewis
 *******************************************************/
 
-#include "ha_prototypes.h"
+#include <stdlib.h>
+#include <sys/types.h>
 
-#include "fsp0sysspace.h"
 #include "dict0load.h"
+#include "fsp0sysspace.h"
+#include "ha_prototypes.h"
 #include "mem0mem.h"
+#include "my_inttypes.h"
+/** The server header file is included to access opt_initialize global variable.
+If server passes the option for create/open DB to SE, we should remove such
+direct reference to server header and global variable */
+#include "mysqld.h"
 #include "os0file.h"
 #include "row0mysql.h"
 #include "srv0start.h"
 #include "trx0sys.h"
 #include "ut0new.h"
-
-/** The server header file is included to access opt_initialize global variable.
-If server passes the option for create/open DB to SE, we should remove such
-direct reference to server header and global variable */
-#include "mysqld.h"
 
 /** The control info of the system tablespace. */
 SysTablespace srv_sys_space;
@@ -541,7 +543,7 @@ SysTablespace::check_dd_table_buffer()
 	files_t::iterator it = m_files.begin();
 	ut_a(it->m_exists);
 
-	if (it->m_handle == OS_FILE_CLOSED) {
+	if (it->m_handle.m_file == OS_FILE_CLOSED) {
 
 		err = it->open_or_create(true);
 
@@ -612,7 +614,7 @@ SysTablespace::read_lsn_and_check_flags(lsn_t* flushed_lsn)
 	files_t::iterator it = m_files.begin();
 
 	ut_a(it->m_exists);
-	ut_ad(it->m_handle != OS_FILE_CLOSED);
+	ut_ad(it->m_handle.m_file != OS_FILE_CLOSED);
 
 	err = it->read_first_page(
 		m_ignore_read_only ?  false : srv_read_only_mode);

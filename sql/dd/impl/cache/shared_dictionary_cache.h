@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,10 +16,9 @@
 #ifndef DD_CACHE__SHARED_DICTIONARY_CACHE_INCLUDED
 #define DD_CACHE__SHARED_DICTIONARY_CACHE_INCLUDED
 
-#include "my_global.h"                      // DBUG_ASSERT() etc.
-#include "handler.h"                        // enum_tx_isolation
-#include "shared_multi_map.h"               // Shared_multi_map
+#include <stdio.h>
 
+#include "dd/types/abstract_table.h"
 #include "dd/types/charset.h"               // Charset
 #include "dd/types/collation.h"             // Collation
 #include "dd/types/event.h"                 // Event
@@ -28,6 +27,11 @@
 #include "dd/types/spatial_reference_system.h" // Spatial_reference_system
 #include "dd/types/table.h"                 // Table
 #include "dd/types/tablespace.h"            // Tablespace
+#include "handler.h"                        // enum_tx_isolation
+#include "my_dbug.h"
+#include "shared_multi_map.h"               // Shared_multi_map
+
+class THD;
 
 namespace dd {
 namespace cache {
@@ -46,10 +50,12 @@ namespace cache {
   shared multi map.
 */
 
+template <typename T> class Cache_element;
+
 class Shared_dictionary_cache
 {
 private:
-  // We have 223 collations, 41 character sets and 4535 spatial
+  // We have 223 collations, 41 character sets and 4906 spatial
   // reference systems after initializing the server, as of MySQL
   // 8.0.0.
   static const size_t collation_capacity= 256;
@@ -144,8 +150,23 @@ public:
   // Shutdown the shared maps.
   static void shutdown();
 
-  // Reset dd::Schema and dd::Table cache
-  static void reset_schema_cache();
+  // Reset the shared cache. Optionally keep the core DD table meta data.
+  static void reset(bool keep_dd_entities);
+
+
+  /**
+    Check if an element with the given key is available.
+
+    @param key   Key to check for presence.
+
+    @retval true   The key exist.
+    @retval false  The key does not exist.
+  */
+
+  template <typename K, typename T>
+  bool available(const K &key)
+  { return m_map<T>()->available(key); }
+
 
   /**
     Get an element from the cache, given the key.
@@ -248,6 +269,27 @@ public:
 
 
   /**
+    Delete an element corresponding to the key from the cache if exists.
+
+    This function will find the element corresponding to the key if
+    it exists. After that it will remove the element from the cache
+    i.e. all maps, and delete the object pointed to. This means that
+    all keys associated with the element will be removed from the maps,
+    and the cache element wrapper will be deleted.
+
+    @tparam  K         Key type.
+    @tparam  T         Dictionary object type.
+    @param   key       Key to be checked.
+  */
+
+  template <typename K, typename T>
+  void drop_if_present(const K &key)
+  {
+     m_map<T>()->drop_if_present(key);
+  }
+
+
+  /**
     Replace the object and re-create the keys for an element.
 
     The operation removes the current keys from the internal maps in the
@@ -263,19 +305,6 @@ public:
   template <typename T>
   void replace(Cache_element<T> *element, const T *object)
   { m_map<T>()->replace(element, object); }
-
-
-  /**
-    Alter stickiness of an element.
-
-    @tparam  T         Dictionary object type.
-    @param   element   Element pointer.
-    @param   sticky    New stickiness to assign.
-  */
-
-  template <typename T>
-  void set_sticky(Cache_element<T> *element, bool sticky)
-  { m_map<T>()->set_sticky(element, sticky); }
 
 
   /**

@@ -2,7 +2,7 @@
 ## Simple collection
 ## Added tests to verify data from performance schema.
 
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 
 ## Test starts here
 --append_file $MYSQL_TMP_DIR/admin_create_collection.tmp

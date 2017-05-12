@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,11 +16,16 @@
 #ifndef MYSQLD_THD_MANAGER_INCLUDED
 #define MYSQLD_THD_MANAGER_INCLUDED
 
-#include "my_global.h"
-#include "my_thread_local.h"   // my_thread_id
-#include "prealloced_array.h"
-
+#include <stddef.h>
+#include <sys/types.h>
 #include <atomic>
+
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_thread_local.h"   // my_thread_id
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "prealloced_array.h"
 
 class THD;
 
@@ -266,11 +271,11 @@ private:
   static Global_THD_manager *thd_manager;
 
   // Array of current THDs. Protected by LOCK_thd_list.
-  typedef Prealloced_array<THD*, 60, true> THD_array;
+  typedef Prealloced_array<THD*, 60> THD_array;
   THD_array thd_list[NUM_PARTITIONS];
 
   // Array of thread ID in current use. Protected by LOCK_thread_ids.
-  typedef Prealloced_array<my_thread_id, 1000, true> Thread_id_array;
+  typedef Prealloced_array<my_thread_id, 1000> Thread_id_array;
   Thread_id_array thread_ids;
 
   mysql_cond_t COND_thd_list[NUM_PARTITIONS];

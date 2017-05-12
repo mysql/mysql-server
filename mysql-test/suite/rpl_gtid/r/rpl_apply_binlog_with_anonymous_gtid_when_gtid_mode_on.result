@@ -21,6 +21,8 @@ START SLAVE;
 # Wait for SQL thread error.
 #
 call mtr.add_suppression("Slave.* @@SESSION.GTID_NEXT cannot be set to ANONYMOUS when @@GLOBAL.GTID_MODE = ON.");
+call mtr.add_suppression("Slave worker thread has failed to apply an event");
+call mtr.add_suppression("The slave coordinator and worker threads are stopped");
 include/wait_for_slave_sql_error.inc [errno=1782]
 include/stop_slave.inc
 RESET MASTER;

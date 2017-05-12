@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,50 +16,68 @@
 #ifndef SQL_UPDATE_INCLUDED
 #define SQL_UPDATE_INCLUDED
 
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "my_base.h"
+#include "my_sqlcommand.h"
 #include "query_result.h"    // Query_result_interceptor
 #include "sql_cmd_dml.h"     // Sql_cmd_dml
-#include "sql_data_change.h" // enum_duplicates
+#include "sql_lex.h"
+#include "sql_list.h"
 
+class COPY_INFO;
+class Copy_field;
 class Item;
-class Query_result_update;
+class JOIN;
+class THD;
+class Temp_table_param;
+struct TABLE;
 struct TABLE_LIST;
 
-class SELECT_LEX;
-
-bool mysql_update_prepare_table(THD *thd, SELECT_LEX *select);
-bool mysql_prepare_update(THD *thd, const TABLE_LIST *update_table_ref,
-                          Key_map *covering_keys_for_cond,
-                          List<Item> &update_value_list);
-bool mysql_multi_update(THD *thd,
-                        List<Item> *fields, List<Item> *values,
-                        enum enum_duplicates handle_duplicates,
-                        SELECT_LEX *select_lex,
-                        Query_result_update **result);
 bool records_are_comparable(const TABLE *table);
 bool compare_records(const TABLE *table);
 
-class Query_result_update :public Query_result_interceptor
+class Query_result_update final : public Query_result_interceptor
 {
-  TABLE_LIST *all_tables; /* query/update command tables */
-  TABLE_LIST *leaves;     /* list of leves of join table tree */
+  /// Number of tables being updated
+  uint update_table_count;
+  /// Pointer to list of updated tables, linked via 'next_local'
   TABLE_LIST *update_tables;
-  TABLE **tmp_tables, *main_table, *table_to_update;
+  /// Array of references to temporary tables used to store cached updates
+  TABLE **tmp_tables;
+  /// Array of parameter structs for creation of temporary tables
   Temp_table_param *tmp_table_param;
-  ha_rows updated, found;
-  List <Item> *fields, *values;
-  List <Item> **fields_for_table, **values_for_table;
-  uint table_count;
-  /*
+  /// The first table in the join operation
+  TABLE *main_table;
+  /// ???
+  TABLE *table_to_update;
+  /// Number of rows found that matches join and WHERE conditions
+  ha_rows found_rows;
+  /// Number of rows actually updated, in all affected tables
+  ha_rows updated_rows;
+  /// List of pointers to fields to update, in order from statement
+  List <Item> *fields;
+  /// List of pointers to values to update with, in order from statement
+  List <Item> *values;
+  /// The fields list decomposed into separate lists per table
+  List <Item> **fields_for_table;
+  /// The values list decomposed into separate lists per table
+  List <Item> **values_for_table;
+  /**
    List of tables referenced in the CHECK OPTION condition of
    the updated view excluding the updated table. 
   */
   List <TABLE> unupdated_check_opt_tables;
+  /// ???
   Copy_field *copy_field;
-  enum enum_duplicates handle_duplicates;
-  bool do_update, trans_safe;
-  /* True if the update operation has made a change in a transactional table */
+  /// True if the full update operation is complete
+  bool update_completed;
+  /// True if all tables to be updated are transactional.
+  bool trans_safe;
+  /// True if the update operation has made a change in a transactional table
   bool transactional_tables;
-  /* 
+  /**
      error handling (rollback and binlogging) can happen in send_eof()
      so that afterward send_error() needs to find out that.
   */
@@ -82,56 +100,56 @@ class Query_result_update :public Query_result_interceptor
   COPY_INFO **update_operations;
 
 public:
-  Query_result_update(THD *thd, TABLE_LIST *table_list, TABLE_LIST *leaves_list,
-                      List<Item> *field_list, List<Item> *value_list,
-                      enum_duplicates handle_duplicates_arg)
+  Query_result_update(THD *thd, List<Item> *field_list, List<Item> *value_list)
   :Query_result_interceptor(thd),
-   all_tables(table_list), leaves(leaves_list), update_tables(0),
-   tmp_tables(0), updated(0), found(0), fields(field_list),
-   values(value_list), table_count(0), copy_field(0),
-   handle_duplicates(handle_duplicates_arg), do_update(1), trans_safe(1),
-   transactional_tables(0), error_handled(0), update_operations(NULL)
+   update_table_count(0),
+   update_tables(NULL), tmp_tables(NULL),
+   main_table(NULL), table_to_update(NULL),
+   found_rows(0), updated_rows(0),
+   fields(field_list), values(value_list),
+   copy_field(NULL),
+   update_completed(false), trans_safe(true),
+   transactional_tables(false), error_handled(false),
+   update_operations(NULL)
   {}
-  ~Query_result_update();
-  virtual bool need_explain_interceptor() const { return true; }
-  int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
-  bool send_data(List<Item> &items);
-  bool initialize_tables (JOIN *join);
-  void send_error(uint errcode,const char *err);
-  int  do_updates();
-  bool send_eof();
-  inline ha_rows num_found()
-  {
-    return found;
-  }
-  inline ha_rows num_updated()
-  {
-    return updated;
-  }
-  virtual void abort_result_set();
+  ~Query_result_update()
+  {}
+  bool need_explain_interceptor() const override { return true; }
+  bool prepare(List<Item> &list, SELECT_LEX_UNIT *u) override;
+  bool optimize() override;
+  bool start_execution() override
+  { update_completed= false; return false; }
+  bool send_data(List<Item> &items) override;
+  void send_error(uint errcode, const char *err) override;
+  bool do_updates();
+  bool send_eof() override;
+  void abort_result_set() override;
+  void cleanup() override;
 };
 
-class Sql_cmd_update : public Sql_cmd_dml
+class Sql_cmd_update final : public Sql_cmd_dml
 {
 public:
-  enum_sql_command sql_command;
-  List<Item> update_value_list;
+  Sql_cmd_update(bool multitable_arg, List<Item> *update_values)
+  : multitable(multitable_arg), update_value_list(update_values) {}
 
-  explicit Sql_cmd_update() : sql_command(SQLCOM_UPDATE) {}
+  enum_sql_command sql_command_code() const override
+  { return lex->sql_command; }
 
-  virtual enum_sql_command sql_command_code() const { return sql_command; }
+  bool is_single_table_plan() const override { return !multitable; }
 
-  virtual bool execute(THD *thd);
-  virtual bool prepare(THD *thd) { return mysql_multi_update_prepare(thd); }
-  virtual bool prepared_statement_test(THD *thd);
+protected:
+  bool precheck(THD *thd) override;
+
+  bool prepare_inner(THD *thd) override;
+
+  bool execute_inner(THD *thd) override;
 
 private:
-  bool try_single_table_update(THD *thd, bool *switch_to_multitable);
-  bool execute_multi_table_update(THD *thd);
-  int mysql_multi_update_prepare(THD *thd);
-  int mysql_test_update(THD *thd);
-  bool multi_update_precheck(THD *thd, TABLE_LIST *tables);
-  bool update_precheck(THD *thd, TABLE_LIST *tables);
+  bool update_single_table(THD *thd);
+
+  bool multitable;
+  List<Item> *update_value_list;
 };
 
 #endif /* SQL_UPDATE_INCLUDED */

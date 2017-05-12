@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,19 +16,21 @@
 #ifndef DD_CACHE__STORAGE_ADAPTER_INCLUDED
 #define DD_CACHE__STORAGE_ADAPTER_INCLUDED
 
-#include "my_global.h"                       // DBUG_ASSERT() etc.
-#include "handler.h"                         // enum_tx_isolation
-#include "dd/impl/types/entity_object_impl.h" // set_id()
+#include <stddef.h>
 
-#ifndef DBUG_OFF
-// Only needed for unit testing
-#include "sql_class.h"                       // THD
-#include "mysqld_error.h"                    // my_error
-#include "mysql/psi/mysql_thread.h"          // mysql_mutex_t, mysql_cond_t
 #include "dd/cache/object_registry.h"        // Object_registry
 #include "dd/impl/cache/cache_element.h"     // Cache_element
-
-#endif /* DBUG_OFF */
+#include "dd/impl/types/entity_object_impl.h" // set_id()
+#include "dd/object_id.h"
+#include "handler.h"                         // enum_tx_isolation
+#include "my_dbug.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/mysql_thread.h"          // mysql_mutex_t, mysql_cond_t
+#include "mysql/psi/psi_base.h"
+#include "mysql_com.h"
+#include "mysqld_error.h"                    // my_error
+#include "sql_class.h"                       // THD
+#include "thr_mutex.h"
 
 class THD;
 
@@ -38,8 +40,8 @@ namespace dd_cache_unittest {
 
 namespace dd {
 
-class Table_stat;
 class Index_stat;
+class Table_stat;
 
 namespace cache {
 
@@ -48,109 +50,103 @@ namespace cache {
   Handling of access to persistent storage.
 
   This class provides static template functions that manipulates an object on
-  persistent storage based on the submitted key and object type.
+  persistent storage based on the submitted key and object type. There is also
+  an object registry instance to keep the core DD objects that are needed to handle
+  cache misses for table meta data. The storage adapter owns the objects in the
+  core registry. When adding objects to the registry using core_store(), the
+  storage adapter will clone the object and take ownership of the clone. When
+  retrieving objects from the registry using core_get(), a clone of the object
+  will be returned, and this is therefore owned by the caller.
 */
-
-#ifndef DBUG_OFF
-// Simulate auto increment column in unit tests
-static Object_id next_oid= 10000;
-#endif /* !DBUG_OFF */
 
 class Storage_adapter
 {
-#ifndef DBUG_OFF
 friend class dd_cache_unittest::CacheStorageTest;
+
 private:
-  Object_registry m_storage;               // Fake storage.
-  mysql_mutex_t m_lock;                    // Single mutex to sync threads.
-  static bool s_use_fake_storage;          // Whether to use the fake adapter.
+
+
+  /**
+    Use an id not starting at 1 to make it easy to recognize ids generated
+    before objects are stored persistently.
+  */
+
+  static const Object_id FIRST_OID= 10001;
+
+
+  /**
+    Generate a new object id for a registry partition.
+
+    Simulate an auto increment column. Used when the server is starting,
+    while the scaffolding is being built.
+
+    @tparam T      Object registry partition.
+
+    @return Next object id to be used.
+  */
+
+  template <typename T>
+  Object_id next_oid();
+
+
+  /**
+    Get a dictionary object from core storage.
+
+    A clone of the registry object will be returned, owned by the caller.
+
+    @tparam      K         Key type.
+    @tparam      T         Dictionary object type.
+    @param       key       Key for which to get the object.
+    @param [out] object    Object retrieved, possibly nullptr if not present.
+  */
+
+  template <typename K, typename T>
+  void core_get(const K &key, const T **object);
+
+
+  Object_registry m_core_registry;   // Object registry storing core DD objects.
+  mysql_mutex_t m_lock;              // Single mutex to protect the registry.
+  static bool s_use_fake_storage;    // Whether to use the core registry to
+                                     // simulate the storage engine.
 
   Storage_adapter()
   { mysql_mutex_init(PSI_NOT_INSTRUMENTED, &m_lock, MY_MUTEX_INIT_FAST); }
 
   ~Storage_adapter()
-  { mysql_mutex_destroy(&m_lock); }
-
-  static Storage_adapter *fake_instance();
-
-  // Fake get for unit testing.
-  template <typename K, typename T>
-  bool fake_get(THD *thd, const K &key, const T **object)
   {
-    Cache_element<typename T::cache_partition_type> *element= NULL;
-    bool ret= true;
     mysql_mutex_lock(&m_lock);
-    m_storage.get(key, &element);
-    if (element)
-    {
-      // We absolutely need to clone the object here,
-      // otherwise there will be only one copy present, and
-      // e.g. evicting the object from the cache will also
-      // make it vanish from the fake storage.
-      *object= dynamic_cast<const T*>(element->object())->clone();
-      ret= false;
-    }
+    m_core_registry.erase_all();
     mysql_mutex_unlock(&m_lock);
-    if (ret)
-    {
-      // Can't use my_error() in unit tests as da will not be set and
-      // asserts fill fire
-      thd->get_stmt_da()->
-        set_error_status(ER_INVALID_DD_OBJECT,
-                         ("No mapping for key '"+key.str()+"' in fake store").c_str(),
-                         mysql_errno_to_sqlstate(ER_INVALID_DD_OBJECT));
-    }
-    return ret;
+    mysql_mutex_destroy(&m_lock);
   }
 
-  // Fake drop for unit testing.
-  template <typename T>
-  bool fake_drop(THD *thd, T *object)
-  {
-    Cache_element<typename T::cache_partition_type> *element= NULL;
-    mysql_mutex_lock(&m_lock);
-    m_storage.get(typename T::id_key_type(object->id()), &element);
-    m_storage.remove(element);
-    delete element->object();
-    delete element;
-    mysql_mutex_unlock(&m_lock);
-    return false;
-  }
-
-
-  // Fake store for unit testing.
-  template <typename T>
-  bool fake_store(THD *thd, T *object)
-  {
-    Cache_element<typename T::cache_partition_type> *element=
-      new Cache_element<typename T::cache_partition_type>();
-    mysql_mutex_lock(&m_lock);
-    // Fake auto inc col
-    dynamic_cast<dd::Entity_object_impl*>(object)->set_id(next_oid++);
-    // Need to clone as registry takes ownership
-    element->set_object(object->clone());
-    element->recreate_keys();
-    m_storage.put(element);
-    mysql_mutex_unlock(&m_lock);
-    return false;
-  }
-
-  /*
-    DD objects dd::Table_stat and dd::Index_stat are not cached,
-    because these objects are only updated and never read by DD
-    API's. Information schema system views use these DD tables
-    to project table/index statistics. As these objects are
-    not in DD cache, it cannot make it to fake store also and
-    hence cannot be tested in gunit framework too.
-  */
-  bool fake_store(THD *thd, Table_stat *object)
-  { return true; }
-
-  bool fake_store(THD *thd, Index_stat *object)
-  { return true; }
-#endif
 
 public:
+
+  static Storage_adapter *instance();
+
+
+  /**
+    Get the number of core objects in a registry partition.
+
+    @tparam      T         Dictionary object type.
+    @return      Number of elements.
+  */
+
+  template <typename T>
+  size_t core_size();
+
+
+  /**
+    Get a dictionary object id from core storage.
+
+    @tparam      T         Dictionary object type.
+    @param       key       Name key for which to get the object id.
+    @return      Object id, INVALID_OBJECT_ID if the object is not present.
+  */
+
+  template <typename T>
+  Object_id core_get_id(const typename T::name_key_type &key);
 
 
   /**
@@ -179,6 +175,18 @@ public:
 
 
   /**
+    Drop a dictionary object from core storage.
+
+    @tparam  T       Dictionary object type.
+    @param   thd     Thread context.
+    @param   object  Object to be dropped.
+  */
+
+  template <typename T>
+  void core_drop(THD *thd, const T *object);
+
+
+  /**
     Drop a dictionary object from persistent storage.
 
     @tparam  T       Dictionary object type.
@@ -194,6 +202,22 @@ public:
 
 
   /**
+    Store a dictionary object to core storage.
+
+    A clone of the submitted object will be added to the core
+    storage. The caller is still the owner of the submitted
+    objecct.
+
+    @tparam  T       Dictionary object type.
+    @param   thd     Thread context.
+    @param   object  Object to be stored.
+  */
+
+  template <typename T>
+  void core_store(THD *thd, T *object);
+
+
+  /**
     Store a dictionary object to persistent storage.
 
     @tparam  T       Dictionary object type.
@@ -206,6 +230,34 @@ public:
 
   template <typename T>
   static bool store(THD *thd, T *object);
+
+
+  /**
+    Sync a dictionary object from persistent to core storage.
+
+    @tparam      K         Key type.
+    @tparam      T         Dictionary object type.
+    @param       thd       Thread context.
+    @param       key       Key for object to get from persistent storage.
+    @param       object    Object to drop from the core registry.
+  */
+
+  template <typename T>
+  bool core_sync(THD *thd, const typename T::name_key_type &key, const T *object);
+
+
+  /**
+    Remove and delete all elements and objects from core storage.
+  */
+
+  void erase_all();
+
+
+  /**
+    Dump the contents of the core storage.
+  */
+
+  void dump();
 };
 
 } // namespace cache

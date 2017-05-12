@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,18 +16,34 @@
 
 #include "table_trigger_dispatcher.h"
 
+#include <sys/types.h>
+
+#include "auth_acls.h"
 #include "auth_common.h"            // check_global_access
+#include "dd/dd_trigger.h"          // dd::create_trigger
 #include "derror.h"                 // ER_THD
+#include "field.h"
+#include "handler.h"
+#include "key.h"
+#include "m_ctype.h"
+#include "my_dbug.h"
+#include "my_sqlcommand.h"
 #include "mysqld.h"                 // table_alias_charset
 #include "psi_memory_key.h"
 #include "sp_head.h"                // sp_head
+#include "sql_admin.h"
+#include "sql_class.h"
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_list.h"
 #include "sql_parse.h"              // create_default_definer
-#include "sql_show.h"               // append_definer
-
-#include "trigger_chain.h"
+#include "sql_plugin.h"
+#include "sql_plugin_ref.h"
+#include "sql_security_ctx.h"
+#include "thr_lock.h"
+#include "thr_malloc.h"
 #include "trigger.h"
-
-#include "dd/dd_trigger.h"          // dd::create_trigger
+#include "trigger_chain.h"
 
 ///////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////
@@ -249,14 +265,16 @@ bool Table_trigger_dispatcher::create_trigger(
                      lex->definer->host.str,
                      thd->security_context()->priv_host().str)))
   {
-    if (check_global_access(thd, SUPER_ACL))
+    Security_context *sctx= thd->security_context();
+    if (!sctx->check_access(SUPER_ACL) &&
+        !sctx->has_global_grant(STRING_WITH_LEN("SET_USER_ID")).first)
     {
-      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER");
+      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+               "SUPER or SET_USER_ID");
       return true;
     }
   }
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (lex->definer && !is_acl_user(thd, lex->definer->host.str,
                                    lex->definer->user.str))
   {
@@ -270,7 +288,6 @@ bool Table_trigger_dispatcher::create_trigger(
     if (thd->get_stmt_da()->is_error())
       return true;
   }
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
 
   /*
     Check if all references to fields in OLD/NEW-rows in this trigger are valid.
@@ -773,7 +790,7 @@ bool Table_trigger_dispatcher::add_tables_and_routines_for_triggers(
   Query_tables_list *prelocking_ctx,
   TABLE_LIST *table_list)
 {
-  DBUG_ASSERT(static_cast<int>(table_list->lock_type) >=
+  DBUG_ASSERT(static_cast<int>(table_list->lock_descriptor().type) >=
               static_cast<int>(TL_WRITE_ALLOW_WRITE));
 
   for (int i= 0; i < (int) TRG_EVENT_MAX; ++i)
@@ -796,7 +813,7 @@ bool Table_trigger_dispatcher::add_tables_and_routines_for_triggers(
 
 /**
   Mark all trigger fields as "temporary nullable" and remember the current
-  THD::count_cuted_fields value.
+  THD::check_for_truncated_fields value.
 
   @param thd Thread context.
 */
@@ -808,7 +825,8 @@ void Table_trigger_dispatcher::enable_fields_temporary_nullability(THD *thd)
   for (Field **next_field= m_subject_table->field; *next_field; ++next_field)
   {
     (*next_field)->set_tmp_nullable();
-    (*next_field)->set_count_cuted_fields(thd->count_cuted_fields);
+    (*next_field)->set_check_for_truncated_fields(
+      thd->check_for_truncated_fields);
 
     /*
       For statement LOAD INFILE we set field values during parsing of data file

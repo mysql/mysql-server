@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,8 +16,9 @@
 #ifndef DD_UPGRADE_INCLUDED
 #define DD_UPGRADE_INCLUDED
 
-#include "my_global.h"
-#include "sql_class.h"
+#include "dd/impl/system_registry.h"          // dd::System_tables
+
+class THD;
 
 namespace dd {
 
@@ -64,24 +65,12 @@ bool find_files_with_metadata(THD *thd, const char *dbname,
   Find all the directories inside data directory. Every directory will be
   treated as a schema. These directories are in filename-encoded form.
 
-  @param[in]  thd        Thread handle.
   @param[out] db_name    An std::vector containing all database name.
 
   @retval false  ON SUCCESS
   @retval true   ON FAILURE
 */
-bool find_schema_from_datadir(THD *thd, std::vector<std::string> *db_name);
-
-/**
-  Get collation id for database collation from db.opt file.
-
-  @param[out] collation_id  Store collation id.
-  @param[in]  db_opt_path   Path of db.opt file.
-
-  @retval false  ON SUCCESS
-  @retval true   ON FAILURE
-*/
-bool load_db_schema_collation(uint *collation_id, const LEX_STRING *db_opt_path);
+bool find_schema_from_datadir(std::vector<String_type> *db_name);
 
 /**
   Create entry in mysql.schemata for all the folders found in data directory.
@@ -96,7 +85,6 @@ bool load_db_schema_collation(uint *collation_id, const LEX_STRING *db_opt_path)
 */
 bool migrate_schema_to_dd(THD *thd, const char *dbname);
 
-#ifndef EMBEDDED_LIBRARY
 /**
   Migrate all events from mysql.event to mysql.events table.
 
@@ -106,7 +94,6 @@ bool migrate_schema_to_dd(THD *thd, const char *dbname);
   @retval true   ON FAILURE
 */
 bool migrate_events_to_dd(THD *thd);
-#endif
 
 /**
   Migrate all SP/SF from mysql.proc to mysql.routines dd table.
@@ -141,9 +128,11 @@ void create_metadata_backup(THD *thd);
   mysql.innodb_table_stats and mysql.innodb_index_stats tables
   are not deleted in case upgrade fails.
 
-  @param[in]  thd        Thread handle.
+  @param[in] thd         Thread handle.
+  @param[in] last_table  iterator bound to delete dictionary tables.
 */
-void drop_dd_tables_and_sdi_files(THD *thd);
+void drop_dd_tables_and_sdi_files(THD *thd,
+       const System_tables::Const_iterator &last_table);
 
 } // namespace dd
 #endif // DD_UPGRADE_INCLUDED

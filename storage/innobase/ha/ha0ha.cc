@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -25,12 +25,22 @@ Created 8/22/1994 Heikki Tuuri
 
 #include "ha0ha.h"
 
+#include <sys/types.h>
+
+#include "my_inttypes.h"
+
 #ifndef UNIV_HOTBACKUP
 #ifdef UNIV_DEBUG
 # include "buf0buf.h"
 #endif /* UNIV_DEBUG */
 # include "btr0sea.h"
 #include "page0page.h"
+
+#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
+/** Maximum number of records in a page */
+static const ulint MAX_N_POINTERS
+	= UNIV_PAGE_SIZE_MAX / REC_N_NEW_EXTRA_BYTES;
+#endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 
 /*************************************************************//**
 Creates a hash table with at least n array cells.  The actual number
@@ -233,9 +243,12 @@ ha_insert_for_fold_func(
 				buf_block_t* prev_block = prev_node->block;
 				ut_a(prev_block->frame
 				     == page_align(prev_node->data));
-				ut_a(prev_block->n_pointers > 0);
-				prev_block->n_pointers--;
-				block->n_pointers++;
+				ut_a(os_atomic_decrement_ulint(
+					     &prev_block->n_pointers, 1)
+				     < MAX_N_POINTERS);
+				ut_a(os_atomic_increment_ulint(
+					     &block->n_pointers, 1)
+				     < MAX_N_POINTERS);
 			}
 
 			prev_node->block = block;
@@ -266,7 +279,8 @@ ha_insert_for_fold_func(
 
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 	if (table->adaptive) {
-		block->n_pointers++;
+		ut_a(os_atomic_increment_ulint(&block->n_pointers, 1)
+		     < MAX_N_POINTERS);
 	}
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 
@@ -327,8 +341,8 @@ ha_delete_hash_node(
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 	if (table->adaptive) {
 		ut_a(del_node->block->frame = page_align(del_node->data));
-		ut_a(del_node->block->n_pointers > 0);
-		del_node->block->n_pointers--;
+		ut_a(os_atomic_decrement_ulint(&del_node->block->n_pointers, 1)
+		     < MAX_N_POINTERS);
 	}
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 
@@ -370,9 +384,10 @@ ha_search_and_update_if_found_func(
 	if (node) {
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 		if (table->adaptive) {
-			ut_a(node->block->n_pointers > 0);
-			node->block->n_pointers--;
-			new_block->n_pointers++;
+			ut_a(os_atomic_decrement_ulint(&node->block->n_pointers, 1)
+			     < MAX_N_POINTERS);
+			ut_a(os_atomic_increment_ulint(&new_block->n_pointers, 1)
+			     < MAX_N_POINTERS);
 		}
 
 		node->block = new_block;

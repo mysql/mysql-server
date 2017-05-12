@@ -28,6 +28,9 @@ COMMIT;
 include/wait_for_slave_io_to_stop.inc
 SET GLOBAL DEBUG= @save_debug;
 include/start_slave_io.inc
+[connection master]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [Assert that the monitoring recorded the transaction applied by only one worker]
 INSERT INTO t1 VALUES (2);
 include/sync_slave_sql_with_master.inc
 include/diff_tables.inc [master:t1, slave:t1]

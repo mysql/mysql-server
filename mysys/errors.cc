@@ -17,10 +17,17 @@
   @file mysys/errors.cc
 */
 
-#include "mysys_priv.h"
-#include "mysys_err.h"
+#include "my_config.h"
+#include "my_loglevel.h"
+
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+
+#include "my_dbug.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
+#include "mysys_err.h"
 
 const char *globerrs[GLOBERRS]=
 {
@@ -75,7 +82,7 @@ void wait_for_free_space(const char *filename, int errors)
   {
     char errbuf[MYSYS_STRERROR_SIZE];
     my_message_local(ERROR_LEVEL, EE(EE_DISK_FULL),
-                     filename,my_errno,
+                     filename, my_errno(),
                      my_strerror(errbuf, sizeof(errbuf), my_errno()));
     my_message_local(ERROR_LEVEL,
                      "Retry in %d secs. Message reprinted in %d secs",

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,9 +21,13 @@
   Events waits data structures (declarations).
 */
 
+#include <sys/types.h>
+
+#include "my_inttypes.h"
 #include "pfs_column_types.h"
-#include "pfs_lock.h"
 #include "pfs_events.h"
+#include "pfs_global.h"
+#include "pfs_lock.h"
 
 struct PFS_mutex;
 struct PFS_rwlock;
@@ -42,7 +46,7 @@ struct PFS_metadata_lock;
 /** Class of a wait event. */
 enum events_waits_class
 {
-  NO_WAIT_CLASS= 0,
+  NO_WAIT_CLASS = 0,
   WAIT_CLASS_MUTEX,
   WAIT_CLASS_RWLOCK,
   WAIT_CLASS_COND,
@@ -76,7 +80,7 @@ struct PFS_events_waits : public PFS_events
   PFS_file *m_weak_file;
   /** Socket, for socket operations only. */
   PFS_socket *m_weak_socket;
-  /** Metadata lock, for mdl operations only. */
+  /** Metadata lock, for MDL operations only. */
   PFS_metadata_lock *m_weak_metadata_lock;
   /** For weak pointers, target object version. */
   uint32 m_weak_version;
@@ -86,13 +90,14 @@ struct PFS_events_waits : public PFS_events
   enum_operation_type m_operation;
   /**
     Number of bytes/rows read/written.
-    This member is populated for FILE READ/WRITE operations, with a number of bytes.
-    This member is populated for TABLE IO operations, with a number of rows.
+    This member is populated for FILE READ/WRITE operations, with a number of
+    bytes.
+    This member is populated for TABLE I/O operations, with a number of rows.
   */
   size_t m_number_of_bytes;
   /**
     Index used.
-    This member is populated for TABLE IO operations only.
+    This member is populated for TABLE I/O operations only.
   */
   uint m_index;
   /** Flags */
@@ -100,13 +105,13 @@ struct PFS_events_waits : public PFS_events
 };
 
 /** TIMED bit in the state flags bitfield. */
-#define STATE_FLAG_TIMED (1<<0)
+#define STATE_FLAG_TIMED (1 << 0)
 /** THREAD bit in the state flags bitfield. */
-#define STATE_FLAG_THREAD (1<<1)
+#define STATE_FLAG_THREAD (1 << 1)
 /** EVENT bit in the state flags bitfield. */
-#define STATE_FLAG_EVENT (1<<2)
+#define STATE_FLAG_EVENT (1 << 2)
 /** DIGEST bit in the state flags bitfield. */
-#define STATE_FLAG_DIGEST (1<<3)
+#define STATE_FLAG_DIGEST (1 << 3)
 
 void insert_events_waits_history(PFS_thread *thread, PFS_events_waits *wait);
 
@@ -146,4 +151,3 @@ void reset_table_io_waits_by_table_handle();
 void reset_table_lock_waits_by_table_handle();
 
 #endif
-

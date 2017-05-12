@@ -1,9 +1,5 @@
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-#Run with sc_56=ON for perfschema.start_server_no_account until Bug#22131713 is fixed.
-set @@global.show_compatibility_56=ON;
 --source ../include/start_server_common.inc
 
 # Expect no records
@@ -16,4 +12,3 @@ select count(*) from performance_schema.accounts;
 select variable_value > 0 from performance_schema.global_status
   where variable_name like 'PERFORMANCE_SCHEMA_ACCOUNTS_LOST';
 --enable_warnings
-set @@global.show_compatibility_56=OFF;

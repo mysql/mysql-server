@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,15 +13,40 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "dd_sp.h"
+#include "sql/dd_sp.h"
 
-#include "dd_table_share.h"                    // dd_get_mysql_charset
-#include "sp.h"                                // SP_DEFAULT_ACCESS_MAPPING
-#include "sql_class.h"                         // THD
+#include <string.h>
+#include <sys/types.h>
+#include <memory>
+#include <ostream>
+#include <string>
 
+#include "dd/collection.h"
 #include "dd/properties.h"                     // Properties
+#include "dd/string_type.h"                    // dd::Stringstream_type
+#include "dd/types/column.h"
 #include "dd/types/parameter.h"                // dd::Parameter
 #include "dd/types/parameter_type_element.h"   // dd::Parameter_type_element
+#include "dd/types/view.h"
+#include "dd_table_share.h"                    // dd_get_mysql_charset
+#include "field.h"
+#include "lex_string.h"
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
+#include "mysql_com.h"
+#include "sp.h"                                // SP_DEFAULT_ACCESS_MAPPING
+#include "sql_class.h"                         // THD
+#include "sql_lex.h"
+#include "sql_plugin.h"
+#include "sql_security_ctx.h"
+#include "sql_show.h"
+#include "sql_string.h"
+#include "system_variables.h"
+#include "table.h"
+#include "typelib.h"
 
 
 void prepare_sp_chistics_from_dd_routine(const dd::Routine *routine,
@@ -121,7 +146,7 @@ static void prepare_type_string_from_dd_param(THD *thd,
     for (const dd::Parameter_type_element *pe : param->elements())
     {
       // Read the enum/set element name
-      std::string element_name= pe->name();
+      dd::String_type element_name= pe->name();
 
       uint pos= pe->index() - 1;
       interval->type_lengths[pos]=
@@ -178,7 +203,7 @@ static void prepare_type_string_from_dd_param(THD *thd,
 
 void prepare_return_type_string_from_dd_routine(THD *thd,
                                                 const dd::Routine *routine,
-                                                std::string *return_type_str)
+                                                dd::String_type *return_type_str)
 {
   DBUG_ENTER("prepare_return_type_string_from_dd_routine");
 
@@ -213,13 +238,13 @@ void prepare_return_type_string_from_dd_routine(THD *thd,
 
 void prepare_params_string_from_dd_routine(THD *thd,
                                            const dd::Routine *routine,
-                                           std::string *params_str)
+                                           dd::String_type *params_str)
 {
   DBUG_ENTER("prepare_params_string_from_dd_routine");
 
   *params_str= "";
 
-  std::stringstream params_ss;
+  dd::Stringstream_type params_ss;
 
   for (const dd::Parameter *param : routine->parameters())
   {

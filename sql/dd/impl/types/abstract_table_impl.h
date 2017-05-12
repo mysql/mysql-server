@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,18 +16,32 @@
 #ifndef DD__ABSTRACT_TABLE_IMPL_INCLUDED
 #define DD__ABSTRACT_TABLE_IMPL_INCLUDED
 
-#include "my_global.h"
+#include <stddef.h>
+#include <sys/types.h>
+#include <memory>   // std::unique_ptr
+#include <string>
 
-#include "dd/types/abstract_table.h"          // dd::Abstract_table
-#include "dd/types/object_type.h"             // dd::Object_type
+#include "dd/impl/raw/raw_record.h"
 #include "dd/impl/types/column_impl.h"        // dd::Column_impl
 #include "dd/impl/types/entity_object_impl.h" // dd::Entity_object_impl
-
-#include <memory>   // std::unique_ptr
+#include "dd/impl/types/weak_object_impl.h"
+#include "dd/object_id.h"
+#include "dd/properties.h"
+#include "dd/sdi_fwd.h"
+#include "dd/types/abstract_table.h"          // dd::Abstract_table
+#include "dd/types/object_type.h"             // dd::Object_type
+#include "my_dbug.h"
+#include "my_inttypes.h"
 
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
+
+class Column;
+class Open_dictionary_tables_ctx;
+class Sdi_rcontext;
+class Sdi_wcontext;
+class Weak_object;
 
 class Abstract_table_impl : public Entity_object_impl,
                             virtual public Abstract_table
@@ -51,7 +65,7 @@ protected:
   bool deserialize(Sdi_rcontext *rctx, const RJ_Value &val);
 
 public:
-  virtual void debug_print(std::string &outb) const;
+  virtual void debug_print(String_type &outb) const;
 
 public:
   /////////////////////////////////////////////////////////////////////////
@@ -90,7 +104,7 @@ public:
   virtual Properties &options()
   { return *m_options; }
 
-  virtual bool set_options_raw(const std::string &options_raw);
+  virtual bool set_options_raw(const String_type &options_raw);
 
   /////////////////////////////////////////////////////////////////////////
   // created.
@@ -112,6 +126,15 @@ public:
   virtual void set_last_altered(ulonglong last_altered)
   { m_last_altered= last_altered; }
 
+  /////////////////////////////////////////////////////////////////////////
+  // hidden.
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual bool hidden() const
+  { return m_hidden; }
+
+  virtual void set_hidden(bool hidden)
+  { m_hidden= hidden; }
 
   /////////////////////////////////////////////////////////////////////////
   // Column collection.
@@ -122,13 +145,16 @@ public:
   virtual const Column_collection &columns() const
   { return m_columns; }
 
+  virtual Column_collection *columns()
+  { return &m_columns; }
+
   const Column *get_column(Object_id column_id) const;
 
   Column *get_column(Object_id column_id);
 
-  const Column *get_column(const std::string name) const;
+  const Column *get_column(const String_type name) const;
 
-  Column *get_column(const std::string name);
+  Column *get_column(const String_type name);
 
   // Fix "inherits ... via dominance" warnings
   virtual Weak_object_impl *impl()
@@ -139,9 +165,9 @@ public:
   { return Entity_object_impl::id(); }
   virtual bool is_persistent() const
   { return Entity_object_impl::is_persistent(); }
-  virtual const std::string &name() const
+  virtual const String_type &name() const
   { return Entity_object_impl::name(); }
-  virtual void set_name(const std::string &name)
+  virtual void set_name(const String_type &name)
   { Entity_object_impl::set_name(name); }
 
 protected:
@@ -160,6 +186,8 @@ private:
 
   ulonglong m_created;
   ulonglong m_last_altered;
+
+  bool m_hidden;
 
   std::unique_ptr<Properties> m_options;
 

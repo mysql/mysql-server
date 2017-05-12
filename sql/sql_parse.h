@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,9 +16,20 @@
 #ifndef SQL_PARSE_INCLUDED
 #define SQL_PARSE_INCLUDED
 
-#include "my_global.h"
+#include <stddef.h>
+#include <sys/types.h>
+
 #include "handler.h"                 // enum_schema_tables
+#include "key.h"
+#include "lex_string.h"
+#include "m_string.h"
+#include "my_command.h"
+#include "my_sqlcommand.h"
+#include "mysql/psi/mysql_rwlock.h"
 #include "mysql_com.h"               // enum_server_command
+#include "system_variables.h"
+
+template <typename T> class SQL_I_List;
 
 /**
   @addtogroup GROUP_PARSER
@@ -26,19 +37,18 @@
 */
 
 class Comp_creator;
-class Generated_column;
 class Item;
 class Object_creation_ctx;
 class Parser_state;
+class THD;
 class Table_ident;
 struct LEX;
 struct Parse_context;
 struct TABLE_LIST;
-class THD;
 union COM_DATA;
+
 typedef struct st_lex_user LEX_USER;
 typedef struct st_order ORDER;
-class SELECT_LEX;
 
 
 extern "C" int test_if_data_home_dir(const char *dir);
@@ -85,9 +95,8 @@ bool is_log_table_write_query(enum enum_sql_command command);
 bool alloc_query(THD *thd, const char *packet, size_t packet_length);
 void mysql_parse(THD *thd, Parser_state *parser_state);
 void mysql_reset_thd_for_next_command(THD *thd);
-void create_select_for_variable(Parse_context *pc, const char *var_name);
+bool create_select_for_variable(Parse_context *pc, const char *var_name);
 void create_table_set_open_action_and_adjust_tables(LEX *lex);
-void mysql_init_multi_delete(LEX *lex);
 int mysql_execute_command(THD *thd, bool first_level= false);
 bool do_command(THD *thd);
 bool dispatch_command(THD *thd, const COM_DATA *com_data,
@@ -109,14 +118,12 @@ Item *negate_expression(Parse_context *pc, Item *expr);
 const CHARSET_INFO *get_bin_collation(const CHARSET_INFO *cs);
 void killall_non_super_threads(THD *thd);
 bool shutdown(THD *thd, enum mysql_enum_shutdown_level level);
+bool show_precheck(THD *thd, LEX *lex, bool lock);
 
 /* Variables */
 
 extern uint sql_command_flags[];
 extern const LEX_STRING command_name[];
-
-// Statement timeout function(s)
-void reset_statement_timer(THD *thd);
 
 inline bool is_supported_parser_charset(const CHARSET_INFO *cs)
 {
@@ -125,10 +132,10 @@ inline bool is_supported_parser_charset(const CHARSET_INFO *cs)
 
 bool sqlcom_can_generate_row_events(enum enum_sql_command command);
 
-#ifdef HAVE_REPLICATION
 bool all_tables_not_ok(THD *thd, TABLE_LIST *tables);
-#endif /*HAVE_REPLICATION*/
 bool some_non_temp_table_to_be_updated(THD *thd, TABLE_LIST *tables);
+
+bool execute_show(THD *thd, TABLE_LIST *all_tables);
 
 /* Bits in sql_command_flags */
 
@@ -236,8 +243,31 @@ bool some_non_temp_table_to_be_updated(THD *thd, TABLE_LIST *tables);
   @note This is necessary to prevent InnoDB from automatically committing
         InnoDB transaction each time data-dictionary tables are closed
         after being updated.
+
+  @note This is also necessary for ACL DDL, so the code which
+        saves GTID state or slave state in the system tables at the
+        commit time works correctly. This code does statement commit
+        on low-level (see System_table_access:: close_table()) and
+        thus can pre-maturely commit DDL if @@autocommit=1.
 */
 #define CF_NEEDS_AUTOCOMMIT_OFF   (1U << 17)
+
+/**
+  Identifies statements which can return rows of data columns (SELECT, SHOW ...)
+*/
+#define CF_HAS_RESULT_SET         (1U << 18)
+
+/**
+  Identifies DDL statements which can be atomic.
+  Having the bit ON does not yet define an atomic.
+  The property is used both on the master and slave.
+  On the master atomicity infers the binlog and gtid_executed system table.
+  On the slave it more involves the slave info table.
+
+  @note At the momemnt of declaration the covered DDL subset coincides
+        with the of CF_NEEDS_AUTOCOMMIT_OFF.
+*/
+#define CF_POTENTIAL_ATOMIC_DDL   (1U << 19)
 
 /* Bits in server_command_flags */
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -16,8 +16,10 @@
 #ifndef HA_PERFSCHEMA_H
 #define HA_PERFSCHEMA_H
 
-#include "handler.h"                            /* class handler */
+#include <sys/types.h>
 
+#include "handler.h" /* class handler */
+#include "my_inttypes.h"
 
 /**
   @file storage/perfschema/ha_perfschema.h
@@ -45,14 +47,19 @@ public:
 
   ~ha_perfschema();
 
-  const char *table_type(void) const { return pfs_engine_name; }
+  const char *
+  table_type(void) const
+  {
+    return pfs_engine_name;
+  }
 
   const char *index_type(uint key_number);
 
   const char **bas_ext(void) const;
 
   /** Capabilities of the performance schema tables. */
-  ulonglong table_flags(void) const
+  ulonglong
+  table_flags(void) const
   {
     /*
       About HA_FAST_KEY_READ:
@@ -75,7 +82,8 @@ public:
       records.
     */
     return HA_NO_TRANSACTIONS | HA_REC_NOT_IN_SEQ | HA_NO_AUTO_INCREMENT |
-      HA_PRIMARY_KEY_REQUIRED_FOR_DELETE | HA_NULL_IN_KEY | HA_NULL_PART_KEY;
+           HA_PRIMARY_KEY_REQUIRED_FOR_DELETE | HA_NULL_IN_KEY |
+           HA_NULL_PART_KEY;
   }
 
   /**
@@ -83,52 +91,75 @@ public:
   */
   ulong index_flags(uint idx, uint part, bool all_parts) const;
 
-  const Key_map *keys_to_use_for_scanning()
-  {
-    return(&key_map_full);
-  }
-
-  enum ha_key_alg get_default_index_algorithm() const
+  enum ha_key_alg
+  get_default_index_algorithm() const
   {
     return HA_KEY_ALG_HASH;
   }
 
-  uint max_supported_record_length(void) const
-  { return HA_MAX_REC_LENGTH; }
+  uint
+  max_supported_record_length(void) const
+  {
+    return HA_MAX_REC_LENGTH;
+  }
 
-  uint max_supported_keys(void) const
-  { return MAX_KEY; }
+  uint
+  max_supported_keys(void) const
+  {
+    return MAX_KEY;
+  }
 
-  uint max_supported_key_parts(void) const
-  { return MAX_REF_PARTS; }
+  uint
+  max_supported_key_parts(void) const
+  {
+    return MAX_REF_PARTS;
+  }
 
-  uint max_supported_key_length(void) const
-  { return MAX_KEY_LENGTH; }
+  uint
+  max_supported_key_length(void) const
+  {
+    return MAX_KEY_LENGTH;
+  }
 
-  uint max_supported_key_part_length() const
-  { return MAX_KEY_LENGTH; }
+  uint
+  max_supported_key_part_length() const
+  {
+    return MAX_KEY_LENGTH;
+  }
 
   int index_init(uint index, bool sorted);
   int index_end();
-  int index_read(uchar *buf, const uchar *key,
-                 uint key_len, enum ha_rkey_function find_flag);
+  int index_read(uchar *buf,
+                 const uchar *key,
+                 uint key_len,
+                 enum ha_rkey_function find_flag);
   int index_next(uchar *buf);
   int index_next_same(uchar *buf, const uchar *key, uint keylen);
 
-  ha_rows estimate_rows_upper_bound(void)
-  { return HA_POS_ERROR; }
+  ha_rows
+  estimate_rows_upper_bound(void)
+  {
+    return HA_POS_ERROR;
+  }
 
-  double scan_time(void)
-  { return 1.0; }
+  double
+  scan_time(void)
+  {
+    return 1.0;
+  }
 
   /**
     Open a performance schema table.
     @param name the table to open
     @param mode unused
     @param test_if_locked unused
+    @param table_def unused
     @return 0 on success
   */
-  int open(const char *name, int mode, uint test_if_locked);
+  int open(const char *name,
+           int mode,
+           uint test_if_locked,
+           const dd::Table *table_def);
 
   /**
     Close a table handle.
@@ -193,25 +224,35 @@ public:
 
   int delete_all_rows(void);
 
-  int truncate();
+  int truncate(dd::Table *table_def);
 
-  int delete_table(const char *from);
+  int delete_table(const char *from, const dd::Table *table_def);
 
-  int rename_table(const char * from, const char * to);
+  int rename_table(const char *from,
+                   const char *to,
+                   const dd::Table *from_table_def,
+                   dd::Table *to_table_def);
 
-  int create(const char *name, TABLE *form,
-             HA_CREATE_INFO *create_info);
+  int create(const char *name,
+             TABLE *form,
+             HA_CREATE_INFO *create_info,
+             dd::Table *table_def);
 
-  THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
+  THR_LOCK_DATA **store_lock(THD *thd,
+                             THR_LOCK_DATA **to,
                              enum thr_lock_type lock_type);
 
-  virtual uint8 table_cache_type(void)
-  { return HA_CACHE_TBL_NOCACHE; }
-
-  virtual my_bool register_query_cache_table
-    (THD *, char *, size_t , qc_engine_callback *engine_callback, ulonglong *)
+  virtual uint8
+  table_cache_type(void)
   {
-    *engine_callback= 0;
+    return HA_CACHE_TBL_NOCACHE;
+  }
+
+  virtual bool
+  register_query_cache_table(
+    THD *, char *, size_t, qc_engine_callback *engine_callback, ulonglong *)
+  {
+    *engine_callback = 0;
     return FALSE;
   }
 
@@ -220,12 +261,13 @@ public:
 private:
   /**
      Check if the caller is a replication thread or the caller is called
-     by a client thread executing base64 encoded BINLOG'... statement.
+     by a client thread executing base64 encoded BINLOG statement.
 
      In theory, performance schema tables are not supposed to be replicated.
      This is true and enforced starting with MySQL 5.6.10.
      In practice, in previous versions such as MySQL 5.5 (GA) or earlier 5.6
-     (non GA) DML on performance schema tables could end up written in the binlog,
+     (non GA) DML on performance schema tables could end up written in the
+     binlog,
      both in STATEMENT and ROW format.
      While these records are not supposed to be there, they are found when:
      - performing replication from a 5.5 master to a 5.6 slave during
@@ -235,8 +277,8 @@ private:
      - performing point in time recovery in 5.6 with old archived logs.
 
      This API detects when the code calling the performance schema storage
-     engine is a slave thread or whether the code calling isthe client thread
-     executing a BINLOG'.. statement.
+     engine is a slave thread or whether the code calling is the client thread
+     executing a BINLOG statement.
 
      This API acts as a late filter for the above mentioned cases.
 
@@ -255,4 +297,3 @@ private:
 
 /** @} (end of group performance_schema_engine) */
 #endif
-

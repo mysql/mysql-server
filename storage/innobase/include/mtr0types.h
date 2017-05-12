@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -106,8 +106,8 @@ enum mlog_id_t {
 	/** initialize a page in an undo log */
 	MLOG_UNDO_INIT = 22,
 
-	/** discard an update undo log header */
-	MLOG_UNDO_HDR_DISCARD = 23,
+	/* discard an update undo log header (unused already in 3.23.53) */
+	//MLOG_UNDO_HDR_DISCARD = 23,
 
 	/** reuse an insert undo log header */
 	MLOG_UNDO_HDR_REUSE = 24,

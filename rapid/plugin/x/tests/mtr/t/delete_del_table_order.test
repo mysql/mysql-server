@@ -2,7 +2,7 @@
 ## Rel: Delete a valid rows in order and limit
 
 ## Preamble
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 ## Test starts here
 --write_file $MYSQL_TMP_DIR/delete_del_table_order.tmp
 ## Test data

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,10 +21,13 @@
   Table EVENTS_WAITS_SUMMARY_BY_xxx (declarations).
 */
 
+#include <sys/types.h>
+
+#include "my_inttypes.h"
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"
-#include "pfs_instr_class.h"
 #include "pfs_instr.h"
+#include "pfs_instr_class.h"
 #include "table_all_instr.h"
 #include "table_helper.h"
 
@@ -50,12 +53,13 @@ class PFS_index_events_waits_summary_by_instance : public PFS_index_all_instr
 {
 public:
   PFS_index_events_waits_summary_by_instance()
-    : PFS_index_all_instr(&m_key),
-    m_key("OBJECT_INSTANCE_BEGIN")
-  {}
+    : PFS_index_all_instr(&m_key), m_key("OBJECT_INSTANCE_BEGIN")
+  {
+  }
 
   ~PFS_index_events_waits_summary_by_instance()
-  {}
+  {
+  }
 
   virtual bool match(PFS_mutex *pfs);
   virtual bool match(PFS_rwlock *pfs);
@@ -71,12 +75,13 @@ class PFS_index_events_waits_summary_by_event_name : public PFS_index_all_instr
 {
 public:
   PFS_index_events_waits_summary_by_event_name()
-    : PFS_index_all_instr(&m_key),
-    m_key("EVENT_NAME")
-  {}
+    : PFS_index_all_instr(&m_key), m_key("EVENT_NAME")
+  {
+  }
 
   ~PFS_index_events_waits_summary_by_event_name()
-  {}
+  {
+  }
 
   virtual bool match(PFS_mutex *pfs);
   virtual bool match(PFS_rwlock *pfs);
@@ -95,19 +100,20 @@ class table_events_waits_summary_by_instance : public table_all_instr
 public:
   /** Table share */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table* create();
+  static PFS_engine_table *create();
   static int delete_all_rows();
   int index_init(uint idx, bool sorted);
 
 protected:
-  void make_instr_row(PFS_instr *pfs, PFS_instr_class *klass,
-                      const void *object_instance_begin,
-                      PFS_single_stat *pfs_stat);
-  virtual void make_mutex_row(PFS_mutex *pfs);
-  virtual void make_rwlock_row(PFS_rwlock *pfs);
-  virtual void make_cond_row(PFS_cond *pfs);
-  virtual void make_file_row(PFS_file *pfs);
-  virtual void make_socket_row(PFS_socket *pfs);
+  int make_instr_row(PFS_instr *pfs,
+                     PFS_instr_class *klass,
+                     const void *object_instance_begin,
+                     PFS_single_stat *pfs_stat);
+  virtual int make_mutex_row(PFS_mutex *pfs);
+  virtual int make_rwlock_row(PFS_rwlock *pfs);
+  virtual int make_cond_row(PFS_cond *pfs);
+  virtual int make_file_row(PFS_file *pfs);
+  virtual int make_socket_row(PFS_socket *pfs);
 
   virtual int read_row_values(TABLE *table,
                               unsigned char *buf,
@@ -118,7 +124,8 @@ protected:
 
 public:
   ~table_events_waits_summary_by_instance()
-  {}
+  {
+  }
 
 private:
   /** Table share lock. */
@@ -128,8 +135,6 @@ private:
 
   /** Current row. */
   row_events_waits_summary_by_instance m_row;
-  /** True if the current row exists. */
-  bool m_row_exists;
 };
 
 /** @} */

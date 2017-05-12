@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,20 +20,10 @@
   @file include/mysql/group_replication_priv.h
 */
 
-#ifndef MYSQL_SERVER
-#define MYSQL_SERVER
-#endif
-
-#ifndef HAVE_REPLICATION
-#define HAVE_REPLICATION
-#endif
-
-#include <my_global.h>
-#include <my_thread.h>
-#include <my_sys.h>
-
 #include <debug_sync.h>
 #include <log_event.h>
+#include <my_sys.h>
+#include <my_thread.h>
 #include <replication.h>
 #include <rpl_channel_service_interface.h>
 #include <rpl_gtid.h>

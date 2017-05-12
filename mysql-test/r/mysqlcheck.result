@@ -12,6 +12,7 @@ mysql.engine_cost                                  OK
 mysql.func                                         OK
 mysql.general_log
 note     : The storage engine for the table doesn't support analyze
+mysql.global_grants                                OK
 mysql.gtid_executed                                OK
 mysql.help_category                                OK
 mysql.help_keyword                                 OK
@@ -63,6 +64,9 @@ note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
 mysql.general_log
 note     : The storage engine for the table doesn't support optimize
+mysql.global_grants
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
 mysql.gtid_executed
 Warning  : Please do not modify the gtid_executed table. This is a mysql internal system table to store GTIDs for committed transactions. Modifying it can lead to an inconsistent GTID state.
 note     : Table does not support optimize, doing recreate + analyze instead
@@ -83,6 +87,8 @@ mysql.innodb_index_stats
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
 mysql.innodb_table_stats
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
 mysql.plugin
@@ -147,6 +153,7 @@ mysql.engine_cost                                  OK
 mysql.func                                         OK
 mysql.general_log
 note     : The storage engine for the table doesn't support analyze
+mysql.global_grants                                OK
 mysql.gtid_executed                                OK
 mysql.help_category                                OK
 mysql.help_keyword                                 OK
@@ -195,6 +202,9 @@ note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
 mysql.general_log
 note     : The storage engine for the table doesn't support optimize
+mysql.global_grants
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
 mysql.gtid_executed
 Warning  : Please do not modify the gtid_executed table. This is a mysql internal system table to store GTIDs for committed transactions. Modifying it can lead to an inconsistent GTID state.
 note     : Table does not support optimize, doing recreate + analyze instead
@@ -215,6 +225,8 @@ mysql.innodb_index_stats
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
 mysql.innodb_table_stats
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
 mysql.plugin
@@ -319,8 +331,10 @@ use test;
 create view v1 as select * from information_schema.routines;
 check table v1, information_schema.routines;
 Table	Op	Msg_type	Msg_text
-test.v1	check	status	OK
-information_schema.ROUTINES	check	note	The storage engine for the table doesn't support check
+test.v1	check	Error	Information schema queries do not support the 'FOR UPDATE' clause.
+test.v1	check	error	Corrupt
+information_schema.ROUTINES	check	Error	Information schema queries do not support the 'FOR UPDATE' clause.
+information_schema.ROUTINES	check	error	Corrupt
 drop view v1;
 End of 5.0 tests
 End of 5.1 tests

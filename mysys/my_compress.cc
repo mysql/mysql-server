@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,14 +19,18 @@
   @file mysys/my_compress.cc
 */
 
-#include <my_global.h>
-#include <mysys_priv.h>
-#include <my_sys.h>
-#include <m_string.h>
+#include <string.h>
+#include <sys/types.h>
 #include <zlib.h>
-#include "mysql/service_mysql_alloc.h"
-
 #include <algorithm>
+
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysys_priv.h"
+#include "zconf.h"
 
 /*
    This replaces the packet with a compressed packet
@@ -42,7 +46,7 @@
      0   ok.  In this case 'len' contains the size of the compressed packet
 */
 
-my_bool my_compress(uchar *packet, size_t *len, size_t *complen)
+bool my_compress(uchar *packet, size_t *len, size_t *complen)
 {
   DBUG_ENTER("my_compress");
   if (*len < MIN_COMPRESS_LENGTH)
@@ -112,7 +116,7 @@ uchar *my_compress_alloc(const uchar *packet, size_t *len, size_t *complen)
               real data.
 */
 
-my_bool my_uncompress(uchar *packet, size_t len, size_t *complen)
+bool my_uncompress(uchar *packet, size_t len, size_t *complen)
 {
   uLongf tmp_complen;
   DBUG_ENTER("my_uncompress");
@@ -143,51 +147,3 @@ my_bool my_uncompress(uchar *packet, size_t len, size_t *complen)
   DBUG_RETURN(0);
 }
 
-
-/**
-  Compress meta data.
-
-  @note Not implemented yet. Will probably be needed by NDB.
-
-  @param       meta_data                   Meta data to be compressed.
-  @param       meta_data_length            Length of meta data.
-  @param [out] compressed_meta_data        Compressed meta data.
-  @param [out] compressed_meta_data_length Length of compressed meta data.
-*/
-/* purecov: begin deadcode */
-my_bool compress_serialized_meta_data(
-          uchar *meta_data MY_ATTRIBUTE((unused)) ,
-          size_t meta_data_length MY_ATTRIBUTE((unused)),
-          uchar **compressed_meta_data,
-          size_t *compressed_meta_data_length)
-{
-  // TODO: This function is currently not implemented
-  // TODO: Add new P_S key for allocation
-  *compressed_meta_data= NULL;
-  *compressed_meta_data_length= 0;
-  return 0;
-}
-
-
-/**
-  Uncompress meta data.
-
-  @note Not implemented yet. Will probably be needed by NDB.
-
-  @param       compressed_meta_data        Compressed meta data.
-  @param       compressed_meta_data_length Length of compressed meta data.
-  @param [out] meta_data                   Meta data to be compressed.
-  @param [out] meta_data_length            Length of meta data.
-*/
-my_bool uncompress_serialized_meta_data(
-          uchar *compressed_meta_data MY_ATTRIBUTE((unused)),
-          size_t compressed_meta_data_length MY_ATTRIBUTE((unused)),
-          uchar **meta_data,
-          size_t *meta_data_length)
-{
-  // TODO: This function is currently not implemented.
-  *meta_data= NULL;
-  *meta_data_length= 0;
-  return 0;
-}
-/* purecov: end */

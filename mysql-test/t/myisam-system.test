@@ -13,14 +13,22 @@ drop table if exists t1,t2;
 create table t1 (a int) engine=myisam;
 let $MYSQLD_DATADIR= `select @@datadir`;
 --remove_file $MYSQLD_DATADIR/test/t1.MYI
+# DROP TABLE sans IF EXISTS clause no longer drops such table.
+--error ER_ENGINE_CANT_DROP_MISSING_TABLE
+drop table t1;
+--error ER_FILE_NOT_FOUND
+select * from t1;
+# DROP TABLE IF EXISTS should drop such table successfully.
 drop table if exists t1;
 create table t1 (a int) engine=myisam;
 --remove_file $MYSQLD_DATADIR/test/t1.MYI
---error ER_BAD_TABLE_ERROR,6
+# DROP TABLE sans IF EXISTS clause no longer drops such table.
+--error ER_ENGINE_CANT_DROP_MISSING_TABLE
 drop table t1;
-create table t1 (a int) engine=myisam;
---remove_file $MYSQLD_DATADIR/test/t1.MYD
---error ER_BAD_TABLE_ERROR,6,29
-drop table t1;
+--error ER_FILE_NOT_FOUND
+select * from t1;
+# DROP TABLE IF EXISTS should drop such table successfully.
+drop table if exists t1;
 --error ER_BAD_TABLE_ERROR
 drop table t1;
+--remove_file $MYSQLD_DATADIR/test/t1.MYD 

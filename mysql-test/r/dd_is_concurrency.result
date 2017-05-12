@@ -95,12 +95,12 @@ SELECT table_name, table_comment
 FROM INFORMATION_SCHEMA.TABLES
 WHERE table_name='t1'
   LOCK IN SHARE MODE;
-ERROR HY000: Information schema queries do not support the 'LOCK IN SHARE MODE' clause.
+ERROR 42000: SELECT with locking clause command denied to user 'root'@'localhost' for table 'TABLES'
 SELECT table_name, table_comment
 FROM INFORMATION_SCHEMA.TABLES
 WHERE table_name='t1'
   FOR UPDATE;
-ERROR HY000: Information schema queries do not support the 'FOR UPDATE' clause.
+ERROR 42000: SELECT with locking clause command denied to user 'root'@'localhost' for table 'TABLES'
 connection con1;
 rollback;
 connection default;
@@ -108,12 +108,12 @@ SELECT table_name, table_comment
 FROM INFORMATION_SCHEMA.TABLES
 WHERE table_name='t1'
   LOCK IN SHARE MODE;
-ERROR HY000: Information schema queries do not support the 'LOCK IN SHARE MODE' clause.
+ERROR 42000: SELECT with locking clause command denied to user 'root'@'localhost' for table 'TABLES'
 SELECT table_name, table_comment
 FROM INFORMATION_SCHEMA.TABLES
 WHERE table_name='t1'
   FOR UPDATE;
-ERROR HY000: Information schema queries do not support the 'FOR UPDATE' clause.
+ERROR 42000: SELECT with locking clause command denied to user 'root'@'localhost' for table 'TABLES'
 SELECT table_name, comment
 FROM not_system_view
 WHERE table_name='t1'

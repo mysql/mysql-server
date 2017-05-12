@@ -13,18 +13,18 @@ create table t1 on server_1
 SET @@SESSION.BINLOG_ROWS_QUERY_LOG_EVENTS=1;
 use test;
 CREATE TABLE t1(a int, PRIMARY KEY (a));
-include/sync_slave_sql_with_master.inc
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
 create table t1 on server_3
 [connection server_3]
 SET @@SESSION.BINLOG_ROWS_QUERY_LOG_EVENTS=1;
 use test;
 CREATE TABLE if not exists t1 (a int);
-include/sync_slave_sql_with_master.inc
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
 [connection server_2]
 stop slave sql_thread for channel_1
-include/stop_slave_sql.inc
+include/stop_slave_sql.inc [FOR CHANNEL 'channel_1']
 stop slave sql_thread for channel_3
-include/stop_slave_sql.inc
+include/stop_slave_sql.inc [FOR CHANNEL 'channel_3']
 [connection server_2]
 set debug point on slave
 # Adding debug point 'dbug.rpl_apply_sync_barrier' to @@GLOBAL.debug
@@ -42,7 +42,7 @@ DELETE FROM t1 WHERE a=2;
 Commit;
 [connection server_2]
 check on channel_1
-include/start_slave_sql.inc
+include/start_slave_sql.inc [FOR CHANNEL 'channel_1']
 SET debug_sync= 'now WAIT_FOR signal.rpl_row_apply_progress_updated';
 include/assert.inc [PERFORMANCE_SCHEMA.threads reports: state=Applying batch of row changes (write), db=test, info LIKE "INSERT INTO t1 VALUES (1)", Query]
 include/assert.inc [INFORMATION_SCHEMA.processlist reports: db=test, info LIKE "INSERT INTO t1 VALUES (1)", command=Query]
@@ -59,7 +59,7 @@ include/assert.inc [INFORMATION_SCHEMA.processlist reports: db=test, info LIKE "
 [SHOW PROCESSLIST reports: db=test, info LIKE "DELETE FROM t1 WHERE a=2", command=Query]
 SET debug_sync= 'now SIGNAL signal.rpl_row_apply_process_next_row';
 check on channel_3
-include/start_slave_sql.inc
+include/start_slave_sql.inc [FOR CHANNEL 'channel_3']
 SET debug_sync= 'now WAIT_FOR signal.rpl_row_apply_progress_updated';
 include/assert.inc [PERFORMANCE_SCHEMA.threads reports: state=Applying batch of row changes (write), db=test, info LIKE "INSERT INTO t1 VALUES (1)", Query]
 include/assert.inc [INFORMATION_SCHEMA.processlist reports: db=test, info LIKE "INSERT INTO t1 VALUES (1)", command=Query]
@@ -79,11 +79,11 @@ SET debug_sync= 'now SIGNAL signal.rpl_row_apply_process_next_row';
 [connection server_1]
 Drop table t1;
 SET @@SESSION.BINLOG_ROWS_QUERY_LOG_EVENTS=0;
-include/sync_slave_sql_with_master.inc
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
 [connection server_3]
 Drop table if exists t1;
 SET @@SESSION.BINLOG_ROWS_QUERY_LOG_EVENTS=0;
-include/sync_slave_sql_with_master.inc
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
 include/rpl_end.inc
-RESET SLAVE ALL FOR CHANNEL  'channel_1';
-RESET SLAVE ALL FOR CHANNEL  'channel_3';
+RESET SLAVE ALL FOR CHANNEL 'channel_1';
+RESET SLAVE ALL FOR CHANNEL 'channel_3';

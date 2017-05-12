@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,9 +35,9 @@ extern "C" {
 
 #define NONE
 OPT_EXTERN(int,opt_ndb_nodeid,NONE);
-OPT_EXTERN(my_bool,opt_ndb_endinfo,=0);
-OPT_EXTERN(my_bool,opt_core,NONE);
-OPT_EXTERN(my_bool,opt_ndb_optimized_node_selection,NONE);
+OPT_EXTERN(bool,opt_ndb_endinfo,=0);
+OPT_EXTERN(bool,opt_core,NONE);
+OPT_EXTERN(bool,opt_ndb_optimized_node_selection,NONE);
 OPT_EXTERN(const char *,opt_ndb_connectstring,=0);
 OPT_EXTERN(int, opt_connect_retry_delay,NONE);
 OPT_EXTERN(int, opt_connect_retries,NONE);
@@ -135,7 +135,7 @@ enum ndb_std_options {
 
 void ndb_opt_set_usage_funcs(void (*short_usage)(void),
                              void (*usage)(void));
-my_bool
+bool
 ndb_std_get_one_option(int optid,
 		       const struct my_option *opt MY_ATTRIBUTE((unused)),
                        char *argument);
@@ -144,7 +144,7 @@ void ndb_usage(void (*usagefunc)(void), const char *load_default_groups[],
                struct my_option *my_long_options);
 void ndb_short_usage_sub(const char* extra);
 
-my_bool ndb_is_load_default_arg_separator(const char* arg);
+bool ndb_is_load_default_arg_separator(const char* arg);
 
 /* Read the given [groups] from <conf_file> and return in argc/argv */
 int ndb_load_defaults(const char* conf_file,

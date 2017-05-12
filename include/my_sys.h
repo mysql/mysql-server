@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,9 +20,17 @@
   @file include/my_sys.h
 */
 
-#include "my_global.h"
+#include "my_config.h"
+
 #include "m_ctype.h"                    /* CHARSET_INFO */
+#include "m_string.h"                   /* STRING_WITH_LEN */
 #include "my_alloc.h"                   /* USED_MEM */
+#include "my_compiler.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_macros.h"
+#include "my_psi_config.h"              /* IWYU pragma: keep */
+#include "my_sharedlib.h"
 
 #ifdef HAVE_ALLOCA_H
 #include <alloca.h>
@@ -33,37 +41,37 @@
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
+#include <stdarg.h>
+#include <stdio.h>
 #include <string.h>
+#include <sys/types.h>
+#include <time.h>
 
-#include "pfs_thread_provider.h"        /* build time optimization for mysql_thread_t */
-#include "mysql/psi/mysql_thread.h"     /* mysql_thread_t */
-
-#include "pfs_mutex_provider.h"         /* build time optimization for mysql_mutex_t */
-#include "mysql/psi/mysql_mutex.h"      /* mysql_mutex_t */
-
-#include "pfs_rwlock_provider.h"        /* build time optimization for mysql_rwlock_t */
-#include "mysql/psi/mysql_rwlock.h"     /* mysql_rwlock_t */
-
-#include "pfs_cond_provider.h"          /* build time optimization for mysql_cond_t */
 #include "mysql/psi/mysql_cond.h"       /* mysql_cond_t */
-
+#include "mysql/psi/mysql_mutex.h"      /* mysql_mutex_t */
+#include "mysql/psi/mysql_rwlock.h"     /* mysql_rwlock_t */
+#include "mysql/psi/mysql_thread.h"     /* mysql_thread_t */
+#include "mysql/psi/psi_data_lock.h"    /* PSI_data_lock_service_t */
+#include "mysql/psi/psi_error.h"        /* PSI_error_service_t */
 #include "mysql/psi/psi_file.h"         /* PSI_file_service_t */
+#include "mysql/psi/psi_idle.h"         /* PSI_idle_service_t */
+#include "mysql/psi/psi_mdl.h"          /* PSI_mdl_service_t */
+#include "mysql/psi/psi_memory.h"       /* PSI_memory_service_t */
 #include "mysql/psi/psi_socket.h"       /* PSI_socket_service_t */
 #include "mysql/psi/psi_stage.h"        /* PSI_stage_info */
 #include "mysql/psi/psi_statement.h"    /* PSI_statement_service_t */
-#include "mysql/psi/psi_transaction.h"  /* PSI_transaction_service_t */
 #include "mysql/psi/psi_table.h"        /* PSI_table_service_t */
-#include "mysql/psi/psi_mdl.h"          /* PSI_mdl_service_t */
-#include "mysql/psi/psi_idle.h"         /* PSI_idle_service_t */
-#include "mysql/psi/psi_error.h"        /* PSI_error_service_t */
+#include "mysql/psi/psi_transaction.h"  /* PSI_transaction_service_t */
 
 C_MODE_START
 
 #ifdef HAVE_VALGRIND
 # include <valgrind/valgrind.h>
+
 # define MEM_MALLOCLIKE_BLOCK(p1, p2, p3, p4) VALGRIND_MALLOCLIKE_BLOCK(p1, p2, p3, p4)
 # define MEM_FREELIKE_BLOCK(p1, p2) VALGRIND_FREELIKE_BLOCK(p1, p2)
 # include <valgrind/memcheck.h>
+
 # define MEM_UNDEFINED(a,len) VALGRIND_MAKE_MEM_UNDEFINED(a,len)
 # define MEM_NOACCESS(a,len) VALGRIND_MAKE_MEM_NOACCESS(a,len)
 # define MEM_CHECK_ADDRESSABLE(a,len) VALGRIND_CHECK_MEM_IS_ADDRESSABLE(a,len)
@@ -108,7 +116,6 @@ C_MODE_START
 #define MY_DELETE_OLD	256	/* my_create_with_symlink() */
 #define MY_RESOLVE_LINK 128	/* my_realpath(); Only resolve links */
 #define MY_HOLD_ORIGINAL_MODES 128  /* my_copy() holds to file modes */
-#define MY_REDEL_MAKE_BACKUP 256
 #define MY_SEEK_NOT_DONE 32	/* my_lock may have to do a seek */
 #define MY_DONT_WAIT	64	/* my_lock() don't wait if can't lock */
 #define MY_ZEROFILL	32	/* my_malloc(), fill array with zero */
@@ -217,7 +224,7 @@ extern void (*debug_sync_C_callback_ptr)(const char *, size_t);
 extern uint my_get_large_page_size(void);
 extern uchar * my_large_malloc(PSI_memory_key key, size_t size, myf my_flags);
 extern void my_large_free(uchar *ptr);
-extern my_bool my_use_large_pages;
+extern bool my_use_large_pages;
 extern uint    my_large_page_size;
 #else
 #define my_get_large_page_size() (0)
@@ -271,15 +278,15 @@ extern CHARSET_INFO compiled_charsets[];
 /* statistics */
 extern ulong	my_file_opened,my_stream_opened, my_tmp_file_created;
 extern ulong    my_file_total_opened;
-extern my_bool	my_init_done;
+extern bool	my_init_done;
 
 extern MYSQL_PLUGIN_IMPORT int my_umask;		/* Default creation mask  */
 extern int my_umask_dir;
 
 extern ulong	my_default_record_cache_size;
-extern my_bool  my_disable_locking,
+extern bool     my_disable_locking,
                 my_enable_symlinks;
-extern char	wild_many,wild_one,wild_prefix;
+
 extern const char *charsets_dir;
 
 enum cache_type
@@ -474,7 +481,7 @@ typedef struct st_io_cache		/* Used when cacheing files */
     Currently READ_NET is the only one that will use a buffer allocated
     somewhere else
   */
-  my_bool alloced_buffer;
+  bool alloced_buffer;
 } IO_CACHE;
 
 typedef int (*qsort_cmp)(const void *,const void *);
@@ -535,7 +542,6 @@ extern int my_copy(const char *from,const char *to,myf MyFlags);
 extern int my_delete(const char *name,myf MyFlags);
 extern int my_getwd(char * buf,size_t size,myf MyFlags);
 extern int my_setwd(const char *dir,myf MyFlags);
-extern int my_lock(File fd,int op,my_off_t start, my_off_t length,myf MyFlags);
 extern void *my_once_alloc(size_t Size,myf MyFlags);
 extern void my_once_free(void);
 extern char *my_once_strdup(const char *src,myf myflags);
@@ -556,7 +562,9 @@ extern File my_create_with_symlink(const char *linkname, const char *filename,
 				   myf MyFlags);
 extern int my_delete_with_symlink(const char *name, myf MyFlags);
 extern int my_rename_with_symlink(const char *from,const char *to,myf MyFlags);
+#ifndef _WIN32
 extern int my_symlink(const char *content, const char *linkname, myf MyFlags);
+#endif
 extern size_t my_read(File Filedes,uchar *Buffer,size_t Count,myf MyFlags);
 extern size_t my_pread(File Filedes,uchar *Buffer,size_t Count,my_off_t offset,
 		     myf MyFlags);
@@ -590,11 +598,6 @@ int my_openlog(const char *eventSourceName, int option, int facility);
 int my_closelog();
 int my_syslog(const CHARSET_INFO *cs, enum loglevel level, const char *msg);
 
-/* implemented in my_memmem.c */
-extern void *my_memmem(const void *haystack, size_t haystacklen,
-                       const void *needle, size_t needlelen);
-
-
 #ifdef _WIN32
 extern int      my_access(const char *path, int amode);
 #else
@@ -605,8 +608,8 @@ extern int check_if_legal_filename(const char *path);
 extern int check_if_legal_tablename(const char *path);
 
 #ifdef _WIN32
-extern my_bool is_filename_allowed(const char *name, size_t length,
-                   my_bool allow_current_dir);
+extern bool is_filename_allowed(const char *name, size_t length,
+                   bool allow_current_dir);
 #else /* _WIN32 */
 # define is_filename_allowed(name, length, allow_cwd) (TRUE)
 #endif /* _WIN32 */ 
@@ -647,19 +650,17 @@ extern void my_printv_error(uint error, const char *format, myf MyFlags,
                             va_list ap);
 extern int my_error_register(const char* (*get_errmsg) (int),
                              int first, int last);
-extern my_bool my_error_unregister(int first, int last);
+extern bool my_error_unregister(int first, int last);
 extern void my_message(uint my_err, const char *str,myf MyFlags);
 extern void my_message_stderr(uint my_err, const char *str, myf MyFlags);
 void my_message_local_stderr(enum loglevel ll,
                              const char *format, va_list args);
 extern void my_message_local(enum loglevel ll, const char *format, ...);
-extern my_bool my_init(void);
+extern bool my_init(void);
 extern void my_end(int infoflag);
-extern int my_redel(const char *from, const char *to, int MyFlags);
-extern int my_copystat(const char *from, const char *to, int MyFlags);
 extern char * my_filename(File fd);
 extern MY_MODE get_file_perm(ulong perm_flags);
-extern my_bool my_chmod(const char *filename, ulong perm_flags, myf my_flags);
+extern bool my_chmod(const char *filename, ulong perm_flags, myf my_flags);
 
 #ifdef EXTRA_DEBUG
 void my_print_open_files(void);
@@ -667,7 +668,7 @@ void my_print_open_files(void);
 #define my_print_open_files()
 #endif
 
-extern my_bool init_tmpdir(MY_TMPDIR *tmpdir, const char *pathlist);
+extern bool init_tmpdir(MY_TMPDIR *tmpdir, const char *pathlist);
 extern char *my_tmpdir(MY_TMPDIR *tmpdir);
 extern void free_tmpdir(MY_TMPDIR *tmpdir);
 
@@ -675,7 +676,7 @@ extern size_t dirname_part(char * to,const char *name, size_t *to_res_length);
 extern size_t dirname_length(const char *name);
 #define base_name(A) (A+dirname_length(A))
 extern int test_if_hard_path(const char *dir_name);
-extern my_bool has_path(const char *name);
+extern bool has_path(const char *name);
 extern char *convert_dirname(char *to, const char *from, const char *from_end);
 extern void to_unix_path(char * name);
 extern char * fn_ext(const char *name);
@@ -695,15 +696,11 @@ extern char * my_path(char * to,const char *progname,
 			 const char *own_pathname_part);
 extern char * my_load_path(char * to, const char *path,
 			      const char *own_path_prefix);
-extern int wild_compare(const char *str,const char *wildstr,
-                        pbool str_is_pattern);
-extern my_bool array_append_string_unique(const char *str,
+extern bool array_append_string_unique(const char *str,
                                           const char **array, size_t size);
 extern void get_date(char * to,int timeflag,time_t use_time);
-extern void soundex(CHARSET_INFO *, char * out_pntr, char * in_pntr,
-                    pbool remove_garbage);
 
-extern my_bool radixsort_is_appliccable(uint n_items, size_t size_of_element);
+extern bool radixsort_is_appliccable(uint n_items, size_t size_of_element);
 extern void radixsort_for_str_ptr(uchar* base[], uint number_of_elements,
 				  size_t size_of_element,uchar *buffer[]);
 extern void my_qsort(void *base_ptr, size_t total_elems, size_t size,
@@ -714,14 +711,14 @@ void my_store_ptr(uchar *buff, size_t pack_length, my_off_t pos);
 my_off_t my_get_ptr(uchar *ptr, size_t pack_length);
 extern int init_io_cache_ext(IO_CACHE *info,File file,size_t cachesize,
                              enum cache_type type,my_off_t seek_offset,
-                             pbool use_async_io, myf cache_myflags,
+                             bool use_async_io, myf cache_myflags,
                              PSI_file_key file_key);
 extern int init_io_cache(IO_CACHE *info,File file,size_t cachesize,
                          enum cache_type type,my_off_t seek_offset,
-                         pbool use_async_io, myf cache_myflags);
-extern my_bool reinit_io_cache(IO_CACHE *info,enum cache_type type,
-                               my_off_t seek_offset,pbool use_async_io,
-                               pbool clear_cache);
+                         bool use_async_io, myf cache_myflags);
+extern bool reinit_io_cache(IO_CACHE *info,enum cache_type type,
+                            my_off_t seek_offset,bool use_async_io,
+                            bool clear_cache);
 extern void setup_io_cache(IO_CACHE* info);
 extern int _my_b_read(IO_CACHE *info,uchar *Buffer,size_t Count);
 extern int _my_b_read_r(IO_CACHE *info,uchar *Buffer,size_t Count);
@@ -749,28 +746,28 @@ extern my_off_t my_b_filelength(IO_CACHE *info);
 extern size_t my_b_printf(IO_CACHE *info, const char* fmt, ...)
   MY_ATTRIBUTE((format(printf, 2, 3)));
 extern size_t my_b_vprintf(IO_CACHE *info, const char* fmt, va_list ap);
-extern my_bool open_cached_file(IO_CACHE *cache,const char *dir,
-				 const char *prefix, size_t cache_size,
-				 myf cache_myflags);
-extern my_bool real_open_cached_file(IO_CACHE *cache);
+extern bool open_cached_file(IO_CACHE *cache,const char *dir,
+			     const char *prefix, size_t cache_size,
+			     myf cache_myflags);
+extern bool real_open_cached_file(IO_CACHE *cache);
 extern void close_cached_file(IO_CACHE *cache);
 File create_temp_file(char *to, const char *dir, const char *pfx,
 		      int mode, myf MyFlags);
 
 // Use Prealloced_array or std::vector or something similar in C++
-extern my_bool my_init_dynamic_array(DYNAMIC_ARRAY *array,
-                                     PSI_memory_key key,
-                                     uint element_size,
-                                     void *init_buffer,
-                                     uint init_alloc,
-                                     uint alloc_increment);
+extern bool my_init_dynamic_array(DYNAMIC_ARRAY *array,
+                                  PSI_memory_key key,
+                                  uint element_size,
+                                  void *init_buffer,
+                                  uint init_alloc,
+                                  uint alloc_increment);
 /* init_dynamic_array() function is deprecated */
 
 #define dynamic_element(array,array_index,type) \
   ((type)((array)->buffer) +(array_index))
 
 /* Some functions are still in use in C++, because HASH uses DYNAMIC_ARRAY */
-extern my_bool insert_dynamic(DYNAMIC_ARRAY *array, const void *element);
+extern bool insert_dynamic(DYNAMIC_ARRAY *array, const void *element);
 extern void *alloc_dynamic(DYNAMIC_ARRAY *array);
 extern void *pop_dynamic(DYNAMIC_ARRAY*);
 extern void claim_dynamic(DYNAMIC_ARRAY *array);
@@ -781,16 +778,16 @@ static inline void reset_dynamic(DYNAMIC_ARRAY *array)
   array->elements= 0;
 }
 
-extern my_bool init_dynamic_string(DYNAMIC_STRING *str, const char *init_str,
-				   size_t init_alloc,size_t alloc_increment);
-extern my_bool dynstr_append(DYNAMIC_STRING *str, const char *append);
-my_bool dynstr_append_mem(DYNAMIC_STRING *str, const char *append,
-			  size_t length);
-extern my_bool dynstr_append_os_quoted(DYNAMIC_STRING *str, const char *append,
-                                       ...);
-extern my_bool dynstr_set(DYNAMIC_STRING *str, const char *init_str);
-extern my_bool dynstr_realloc(DYNAMIC_STRING *str, size_t additional_size);
-extern my_bool dynstr_trunc(DYNAMIC_STRING *str, size_t n);
+extern bool init_dynamic_string(DYNAMIC_STRING *str, const char *init_str,
+				size_t init_alloc,size_t alloc_increment);
+extern bool dynstr_append(DYNAMIC_STRING *str, const char *append);
+bool dynstr_append_mem(DYNAMIC_STRING *str, const char *append,
+                       size_t length);
+extern bool dynstr_append_os_quoted(DYNAMIC_STRING *str, const char *append,
+                                    ...);
+extern bool dynstr_set(DYNAMIC_STRING *str, const char *init_str);
+extern bool dynstr_realloc(DYNAMIC_STRING *str, size_t additional_size);
+extern bool dynstr_trunc(DYNAMIC_STRING *str, size_t n);
 extern void dynstr_free(DYNAMIC_STRING *str);
 #define alloc_root_inited(A) ((A)->min_malloc != 0)
 #define ALLOC_ROOT_MIN_BLOCK_SIZE (MALLOC_OVERHEAD + sizeof(USED_MEM) + 8)
@@ -810,55 +807,11 @@ extern char *strmake_root(MEM_ROOT *root,const char *str,size_t len);
 extern void *memdup_root(MEM_ROOT *root,const void *str, size_t len);
 extern void set_memroot_max_capacity(MEM_ROOT *mem_root, size_t size);
 extern void set_memroot_error_reporting(MEM_ROOT *mem_root,
-                                       my_bool report_error);
-extern my_bool my_compress(uchar *, size_t *, size_t *);
-extern my_bool my_uncompress(uchar *, size_t , size_t *);
+                                       bool report_error);
+extern bool my_compress(uchar *, size_t *, size_t *);
+extern bool my_uncompress(uchar *, size_t , size_t *);
 extern uchar *my_compress_alloc(const uchar *packet, size_t *len,
                                 size_t *complen);
-
-
-/**
-  This function takes the submitted serialized meta data and compresses it.
-
-  @param[in] meta_data                    The serialized meta data
-  @param[in] meta_data_length             The size of the meta data blob
-  @param[out] compressed_meta_data        The compressed serialized
-                                          meta data
-  @param[out] compressed_meta_data_length The size of the compressed
-                                          meta data blob
-
-  @retval 0 Success
-  @retval 1 Error
-*/
-
-extern my_bool compress_serialized_meta_data(uchar *meta_data,
-                                      size_t meta_data_length,
-                                      uchar **compressed_meta_data,
-                                      size_t *compressed_meta_data_length);
-
-
-/**
-  This function takes the submitted compressed serialized meta data and
-  uncompresses it.
-
-  @param[in] compressed_meta_data         The compressed serialized
-                                          meta data
-  @param[in] compressed_meta_data_length  The size of the compressed
-                                          meta data blob
-  @param[out] meta_data                   The uncompressed serialized
-                                          meta data
-  @param[out] meta_data_length            The size of the uncompressed
-                                          meta data blob
-
-  @retval 0 Success
-  @retval 1 Error
-*/
-
-extern my_bool uncompress_serialized_meta_data(uchar *compressed_meta_data,
-                                        size_t compressed_meta_data_length,
-                                        uchar **meta_data,
-                                        size_t *meta_data_length);
-
 extern ha_checksum my_checksum(ha_checksum crc, const uchar *mem,
                                size_t count);
 
@@ -880,13 +833,22 @@ void my_free_open_file_info(void);
 
 extern time_t my_time(myf flags);
 extern ulonglong my_micro_time();
-extern my_bool my_gethwaddr(uchar *to);
+extern ulonglong my_micro_time_ntp();
+extern bool my_gethwaddr(uchar *to);
 
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
 
 #ifndef MAP_NOSYNC
 #define MAP_NOSYNC      0
+#endif
+
+/*
+  Not defined in FreeBSD 11.
+  Was never implemented in FreeBSD, so we just set it to 0.
+*/
+#ifndef MAP_NORESERVE
+#define MAP_NORESERVE 0
 #endif
 
 #ifdef HAVE_MMAP64
@@ -940,17 +902,17 @@ extern CHARSET_INFO *get_charset_by_csname(const char *cs_name,
 extern CHARSET_INFO *my_charset_get_by_name(MY_CHARSET_LOADER *loader,
                                             const char *name,
                                             uint cs_flags, myf my_flags);
-extern my_bool resolve_charset(const char *cs_name,
-                               const CHARSET_INFO *default_cs,
-                               const CHARSET_INFO **cs);
-extern my_bool resolve_collation(const char *cl_name,
-                                 const CHARSET_INFO *default_cl,
-                                 const CHARSET_INFO **cl);
+extern bool resolve_charset(const char *cs_name,
+                            const CHARSET_INFO *default_cs,
+                            const CHARSET_INFO **cs);
+extern bool resolve_collation(const char *cl_name,
+                              const CHARSET_INFO *default_cl,
+                              const CHARSET_INFO **cl);
 extern void free_charsets(void);
 extern char *get_charsets_dir(char *buf);
-extern my_bool my_charset_same(const CHARSET_INFO *cs1,
-                               const CHARSET_INFO *cs2);
-extern my_bool init_compiled_charsets(myf flags);
+extern bool my_charset_same(const CHARSET_INFO *cs1,
+                            const CHARSET_INFO *cs2);
+extern bool init_compiled_charsets(myf flags);
 extern void add_compiled_collation(CHARSET_INFO *cs);
 extern size_t escape_string_for_mysql(const CHARSET_INFO *charset_info,
                                       char *to, size_t to_length,
@@ -963,7 +925,7 @@ extern size_t escape_quotes_for_mysql(CHARSET_INFO *charset_info,
                                   char *to, size_t to_length,
                                   const char *from, size_t length, char quote);
 #ifdef _WIN32
-extern my_bool have_tcpip;		/* Is set if tcpip is used */
+extern bool have_tcpip;		/* Is set if tcpip is used */
 
 /* implemented in my_windac.c */
 
@@ -973,7 +935,7 @@ int my_security_attr_create(SECURITY_ATTRIBUTES **psa, const char **perror,
 void my_security_attr_free(SECURITY_ATTRIBUTES *sa);
 
 /* implemented in my_conio.c */
-my_bool my_win_is_console(FILE *file);
+bool my_win_is_console(FILE *file);
 char *my_win_console_readline(const CHARSET_INFO *cs, char *mbbuf, size_t mbbufsize,
                               size_t *nread);
 void my_win_console_write(const CHARSET_INFO *cs, const char *data, size_t datalen);
@@ -1016,6 +978,8 @@ extern MYSQL_PLUGIN_IMPORT struct PSI_memory_bootstrap *psi_memory_hook;
 extern void set_psi_memory_service(PSI_memory_service_t *psi);
 extern MYSQL_PLUGIN_IMPORT struct PSI_error_bootstrap *psi_error_hook;
 extern void set_psi_error_service(PSI_error_service_t *psi);
+extern MYSQL_PLUGIN_IMPORT struct PSI_data_lock_bootstrap *psi_data_lock_hook;
+extern void set_psi_data_lock_service(PSI_data_lock_service_t *psi);
 #endif /* HAVE_PSI_INTERFACE */
 
 struct st_mysql_file;

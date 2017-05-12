@@ -1,7 +1,4 @@
-#ifndef SQL_SECURITY_CTX_INCLUDED
-#define SQL_SECURITY_CTX_INCLUDED
-
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,20 +12,25 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+#ifndef SQL_SECURITY_CTX_INCLUDED
+#define SQL_SECURITY_CTX_INCLUDED
+#include <string.h>
+#include <sys/types.h>
+#include <algorithm>
 
-#include "my_global.h"
-#include "sql_string.h"
+#include "auth/auth_common.h"
+#include "lex_string.h"
+#include "m_string.h"
+#include "my_dbug.h"
+#include "my_sharedlib.h"
 #include "mysql_com.h"
 #include "sql_const.h"
-#include "auth/auth_acls.h"
-#include "auth/auth_common.h"
-
-#include <algorithm>
-#include <utility>
-#include <list>
+#include "sql_string.h"
+#include "thr_malloc.h"
 
 /* Forward declaration. Depends on sql_auth_cache.h (which depends on this file) */
 class Acl_map;
+class THD;
 struct Grant_table_aggregate;
 
 extern "C" MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
@@ -85,7 +87,7 @@ public:
 
   inline void assign_user(const char *user_arg, const size_t user_arg_length);
 
- #ifndef NO_EMBEDDED_ACCESS_CHECKS
+  std::pair<bool, bool> has_global_grant(const char *priv, size_t priv_len);
   int activate_role(LEX_CSTRING user, LEX_CSTRING host,
                     bool validate_access= false);
   void clear_active_roles(void);
@@ -101,7 +103,6 @@ public:
                           const LEX_CSTRING &role_host);
   bool any_sp_acl(const LEX_CSTRING &db);
   bool any_table_acl(const LEX_CSTRING &db);
-#endif
 
   /**
     Getter method for member m_host.
@@ -394,7 +395,6 @@ public:
     m_password_expired= password_expired;
   }
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   bool
   change_security_context(THD *thd,
                           const LEX_CSTRING &definer_user,
@@ -405,7 +405,6 @@ public:
   void
   restore_security_context(THD *thd, Security_context *backup);
 
-#endif
   bool user_matches(Security_context *);
 
   void logout();
@@ -466,11 +465,9 @@ private:
     effective user.
   */
   bool m_password_expired;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   List_of_auth_id_refs m_active_roles;
   Acl_map *m_acl_map;
   int m_map_checkout_count;
-#endif
 };
 
 

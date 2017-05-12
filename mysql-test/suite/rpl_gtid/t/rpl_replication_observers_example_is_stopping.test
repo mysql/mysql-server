@@ -53,7 +53,6 @@
 --source include/have_binlog_format_mixed.inc
 # This test cannot run with MTS
 --source include/not_mts_slave_parallel_workers.inc
---source include/have_gtid.inc
 --let $rpl_skip_start_slave= 1
 --source include/master-slave.inc
 
@@ -120,7 +119,7 @@ SET DEBUG_SYNC='now WAIT_FOR reached_sql_thread_started';
 
 # Wait until the SQL thread has failed
 --let $slave_sql_errno= convert_error(ER_TABLE_EXISTS_ERROR)
---let $rpl_channel_name= example_channel
+--let $rpl_channel_name= 'example_channel'
 --source include/wait_for_slave_sql_error.inc
 
 # Remove debug instrumentation
@@ -185,7 +184,7 @@ SET SESSION sql_log_bin= 0;
 SET DEBUG_SYNC='now WAIT_FOR reached_io_thread_started';
 
 --let $slave_io_errno= convert_error(ER_MASTER_FATAL_ERROR_READING_BINLOG)
---let $rpl_channel_name= example_channel
+--let $rpl_channel_name= 'example_channel'
 --source include/wait_for_slave_io_error.inc
 
 # Remove debug instrumentation

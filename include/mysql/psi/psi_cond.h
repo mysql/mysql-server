@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,7 +25,10 @@
   @{
 */
 
-#include "my_global.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
+#include "my_psi_config.h"  // IWYU pragma: keep
+#include "my_sharedlib.h"
 #include "psi_base.h"
 
 C_MODE_START
@@ -85,7 +88,7 @@ struct PSI_cond_bootstrap
     @sa PSI_COND_VERSION_2
     @sa PSI_CURRENT_COND_VERSION
   */
-  void* (*get_interface)(int version);
+  void *(*get_interface)(int version);
 };
 typedef struct PSI_cond_bootstrap PSI_cond_bootstrap;
 
@@ -102,15 +105,15 @@ typedef struct PSI_cond_locker PSI_cond_locker;
 enum PSI_cond_operation
 {
   /** Wait. */
-  PSI_COND_WAIT= 0,
+  PSI_COND_WAIT = 0,
   /** Wait, with timeout. */
-  PSI_COND_TIMEDWAIT= 1
+  PSI_COND_TIMEDWAIT = 1
 };
 typedef enum PSI_cond_operation PSI_cond_operation;
 
 /**
   Condition information.
-  @since PSI_VERSION_1
+  @since PSI_COND_VERSION_1
   This structure is used to register an instrumented cond.
 */
 struct PSI_cond_info_v1
@@ -167,8 +170,9 @@ typedef struct PSI_cond_locker_state_v1 PSI_cond_locker_state_v1;
   @param info an array of cond info to register
   @param count the size of the info array
 */
-typedef void (*register_cond_v1_t)
-  (const char *category, struct PSI_cond_info_v1 *info, int count);
+typedef void (*register_cond_v1_t)(const char *category,
+                                   struct PSI_cond_info_v1 *info,
+                                   int count);
 
 /**
   Cond instrumentation initialisation API.
@@ -176,8 +180,8 @@ typedef void (*register_cond_v1_t)
   @param identity the address of the cond itself
   @return an instrumented cond
 */
-typedef struct PSI_cond* (*init_cond_v1_t)
-  (PSI_cond_key key, const void *identity);
+typedef struct PSI_cond *(*init_cond_v1_t)(PSI_cond_key key,
+                                           const void *identity);
 
 /**
   Cond instrumentation destruction API.
@@ -189,15 +193,13 @@ typedef void (*destroy_cond_v1_t)(struct PSI_cond *cond);
   Record a condition instrumentation signal event.
   @param cond the cond instrumentation
 */
-typedef void (*signal_cond_v1_t)
-  (struct PSI_cond *cond);
+typedef void (*signal_cond_v1_t)(struct PSI_cond *cond);
 
 /**
   Record a condition instrumentation broadcast event.
   @param cond the cond instrumentation
 */
-typedef void (*broadcast_cond_v1_t)
-  (struct PSI_cond *cond);
+typedef void (*broadcast_cond_v1_t)(struct PSI_cond *cond);
 
 /**
   Record a condition instrumentation wait start event.
@@ -208,20 +210,20 @@ typedef void (*broadcast_cond_v1_t)
   @param src_line the source line number
   @return a cond locker, or NULL
 */
-typedef struct PSI_cond_locker* (*start_cond_wait_v1_t)
-  (struct PSI_cond_locker_state_v1 *state,
-   struct PSI_cond *cond,
-   struct PSI_mutex *mutex,
-   enum PSI_cond_operation op,
-   const char *src_file, uint src_line);
+typedef struct PSI_cond_locker *(*start_cond_wait_v1_t)(
+  struct PSI_cond_locker_state_v1 *state,
+  struct PSI_cond *cond,
+  struct PSI_mutex *mutex,
+  enum PSI_cond_operation op,
+  const char *src_file,
+  uint src_line);
 
 /**
   Record a condition instrumentation wait end event.
   @param locker a thread locker for the running thread
   @param rc the wait operation return code
 */
-typedef void (*end_cond_wait_v1_t)
-  (struct PSI_cond_locker *locker, int rc);
+typedef void (*end_cond_wait_v1_t)(struct PSI_cond_locker *locker, int rc);
 
 /**
   Performance Schema Cond Interface, version 1.
@@ -253,9 +255,9 @@ typedef struct PSI_cond_service_v1 PSI_cond_service_t;
 typedef struct PSI_cond_info_v1 PSI_cond_info;
 typedef struct PSI_cond_locker_state_v1 PSI_cond_locker_state;
 #else
-typedef struct PSI_placeholder PSI_mutex_service_t;
-typedef struct PSI_placeholder PSI_mutex_info;
-typedef struct PSI_placeholder PSI_mutex_locker_state;
+typedef struct PSI_placeholder PSI_cond_service_t;
+typedef struct PSI_placeholder PSI_cond_info;
+typedef struct PSI_placeholder PSI_cond_locker_state;
 #endif
 
 extern MYSQL_PLUGIN_IMPORT PSI_cond_service_t *psi_cond_service;
@@ -267,4 +269,3 @@ extern MYSQL_PLUGIN_IMPORT PSI_cond_service_t *psi_cond_service;
 C_MODE_END
 
 #endif /* MYSQL_PSI_MUTEX_H */
-

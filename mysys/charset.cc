@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,15 +17,30 @@
   @file mysys/charset.cc
 */
 
-#include "mysys_priv.h"
+#include <fcntl.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_compiler.h"
+#include "my_config.h"
+#include "my_dbug.h"
+#include "my_dir.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_loglevel.h"
+#include "my_macros.h"
 #include "my_sys.h"
-#include "mysys_err.h"
-#include <m_ctype.h>
-#include <m_string.h>
-#include <my_dir.h>
-#include <my_xml.h>
-#include "mysql/service_my_snprintf.h"
+#include "my_thread.h"
+#include "my_xml.h"
 #include "mysql/psi/mysql_file.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysys_err.h"
+#include "mysys_priv.h"
 #include "sql_chars.h"
 
 /*
@@ -38,7 +53,13 @@
     - Setting server default character set
 */
 
-my_bool my_charset_same(const CHARSET_INFO *cs1, const CHARSET_INFO *cs2)
+extern CHARSET_INFO my_charset_ucs2_unicode_ci;
+extern CHARSET_INFO my_charset_utf8mb4_unicode_ci;
+extern CHARSET_INFO my_charset_utf16_unicode_ci;
+extern CHARSET_INFO my_charset_utf32_unicode_ci;
+extern CHARSET_INFO my_charset_cp932_japanese_ci;
+
+bool my_charset_same(const CHARSET_INFO *cs1, const CHARSET_INFO *cs2)
 {
   return ((cs1 == cs2) || !strcmp(cs1->csname,cs2->csname));
 }
@@ -135,7 +156,7 @@ err:
 
 
 
-static my_bool simple_cs_is_full(CHARSET_INFO *cs)
+static bool simple_cs_is_full(CHARSET_INFO *cs)
 {
   return ((cs->csname && cs->tab_to_uni && cs->ctype && cs->to_upper &&
 	   cs->to_lower) &&
@@ -192,7 +213,6 @@ static int add_collation(CHARSET_INFO *cs)
 
       newcs->caseup_multiply= newcs->casedn_multiply= 1;
       newcs->levels_for_compare= 1;
-      newcs->levels_for_order= 1;
       
       if (!strcmp(cs->csname,"ucs2") )
       {
@@ -258,7 +278,7 @@ static int add_collation(CHARSET_INFO *cs)
         and get_charset_number() working even if a
         character set has not been really incompiled.
         The above functions are used for example
-        in error message compiler extra/comp_err.c.
+        in error message compiler utilities/comp_err.cc.
         If a character set was compiled, this information
         will get lost and overwritten in add_compiled_collation().
       */
@@ -348,7 +368,7 @@ my_charset_loader_init_mysys(MY_CHARSET_LOADER *loader)
 const char *charsets_dir= NULL;
 
 
-static my_bool
+static bool
 my_read_charset_file(MY_CHARSET_LOADER *loader,
                      const char *filename,
                      myf myflags)
@@ -707,9 +727,9 @@ get_charset_by_csname(const char *cs_name, uint cs_flags, myf flags)
   is no character set with given name.
 */
 
-my_bool resolve_charset(const char *cs_name,
-                        const CHARSET_INFO *default_cs,
-                        const CHARSET_INFO **cs)
+bool resolve_charset(const char *cs_name,
+                     const CHARSET_INFO *default_cs,
+                     const CHARSET_INFO **cs)
 {
   *cs= get_charset_by_csname(cs_name, MY_CS_PRIMARY, MYF(0));
 
@@ -739,9 +759,9 @@ my_bool resolve_charset(const char *cs_name,
   collation with given name.
 */
 
-my_bool resolve_collation(const char *cl_name,
-                          const CHARSET_INFO *default_cl,
-                          const CHARSET_INFO **cl)
+bool resolve_collation(const char *cl_name,
+                       const CHARSET_INFO *default_cl,
+                       const CHARSET_INFO **cl)
 {
   *cl= get_charset_by_name(cl_name, MYF(0));
 
@@ -786,8 +806,8 @@ size_t escape_string_for_mysql(const CHARSET_INFO *charset_info,
 {
   const char *to_start= to;
   const char *end, *to_end=to_start + (to_length ? to_length-1 : 2*length);
-  my_bool overflow= FALSE;
-  my_bool use_mb_flag= use_mb(charset_info);
+  bool overflow= FALSE;
+  bool use_mb_flag= use_mb(charset_info);
   for (end= from + length; from < end; from++)
   {
     char escape= 0;
@@ -925,8 +945,8 @@ size_t escape_quotes_for_mysql(CHARSET_INFO *charset_info,
 {
   const char *to_start= to;
   const char *end, *to_end=to_start + (to_length ? to_length-1 : 2*length);
-  my_bool overflow= FALSE;
-  my_bool use_mb_flag= use_mb(charset_info);
+  bool overflow= FALSE;
+  bool use_mb_flag= use_mb(charset_info);
   for (end= from + length; from < end; from++)
   {
     int tmp_length;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -37,11 +37,11 @@
   call has no problems.
 */
 
-#include <my_global.h>
-#include "m_string.h"
-#include "m_ctype.h"
-#include "my_sys.h"			/* defines errno */
 #include <errno.h>
+#include <limits.h>
+
+#include "m_ctype.h"
+#include "m_string.h"  // IWYU pragma: keep
 
 #define char_val(X) (X >= '0' && X <= '9' ? X-'0' :\
 		     X >= 'A' && X <= 'Z' ? X-'A'+10 :\

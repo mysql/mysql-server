@@ -1,0 +1,30 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--source include/no_protocol.inc
+
+#setup
+let $select_column = COUNT_BUCKET;
+let $table = performance_schema.events_statements_histogram_global;
+
+let $olddb = `select database()`;
+create database explain_test_db;
+use explain_test_db;
+
+# truncate table performance_schema.events_statements_histogram_global;
+
+select 1;
+
+eval use $olddb;
+
+###########################################################################
+# Test index on BUCKET_NUMBER
+###########################################################################
+
+let $column_count = 1;
+let $col1 = BUCKET_NUMBER;
+let $col1_act = 12;
+
+--source ../include/idx_explain_test.inc
+
+# Cleanup
+drop database explain_test_db;

@@ -235,30 +235,217 @@ Error	1528	Failed to create TABLESPACE ts6
 Error	1114	The table 'ts6' is full
 SET SESSION debug="-d,out_of_tablespace_disk";
 #
-# Bug #21625393 ASSERT(E->USAGE() == 1) FAILURE IN DD::CACHE::SHARED_MULTI_MAP<T>::::REMOVE()
+# Additional coverage for WL#7743 "New data dictionary: changes
+# to DDL-related parts of SE API".
 #
+# Check that limits on tablespace comment and datafile path lengths
+# are enforced.
 #
-# Create a tablespace, and drop it, but make drop fail
-# before the object is deleted from the dd tables. Now,
-# the object exists in the global data dictionary, but
-# not in the SE not in the SE private data dictionary.
-CREATE TABLESPACE ts ADD DATAFILE 'ts.ibd';
-connect  con1, localhost, root;
-SET SESSION DEBUG='+d,fail_while_dropping_dd_object';
+CREATE TABLESPACE ts ADD DATAFILE 'ts.ibd' COMMENT="TOO_LONG_COMMENT" ENGINE=InnoDB;
+ERROR HY000: Comment for tablespace 'ts' is too long (max = 2048)
+CREATE TABLESPACE ts ADD DATAFILE 'TOO_LONG_PATH' ENGINE=InnoDB;
+ERROR HY000: The path specified for DATAFILE is too long.
+# Also coverage for ALTER TABLESPACE case.
+ALTER TABLESPACE no_such_ts ADD DATAFILE 'ts.ibd';
+ERROR HY000: Tablespace no_such_ts doesn't exist.
+CREATE TABLESPACE ts ADD DATAFILE 'ts.ibd' ENGINE=InnoDB;
+ALTER TABLESPACE ts ADD DATAFILE 'TOO_LONG_PATH';
+ERROR HY000: The path specified for DATAFILE is too long.
+ALTER TABLESPACE ts DROP DATAFILE 'no_such_file.ibd';
+ERROR HY000: Incorrect File Name 'no_such_file.ibd'.
 DROP TABLESPACE ts;
-ERROR HY000: Lock wait timeout exceeded; try restarting transaction
-SET SESSION DEBUG='-d,fail_while_dropping_dd_object';
 #
-# Without the patch, the next create statement will acquire the
-# tablespace object without using an auto releaser, because the
-# tablespace with the same name already exists in the global DD,
-# but not in the SE. If it existed in the SE, the fact that it
-# alrady exists would be caught differently. This will give an
-# assert when the thd is deleted, when the connection is closed.
-# The fix is simply to add an auto releaser at the right place.
-CREATE TABLESPACE ts ADD DATAFILE 'ts.ibd';
-ERROR HY000: Tablespace 'ts' exists.
-disconnect con1;
-connection default;
-# Drop the tablespace for real.
+# Validate tablespace names in the SE.
+#
+# 1. Tablespace DDL.
+# 1.1 Create/drop predefined tablespaces.
+CREATE TABLESPACE innodb_system ADD DATAFILE 'f.ibd' ENGINE InnoDB;
+ERROR 42000: InnoDB: `innodb_system` is a reserved tablespace name.
+CREATE TABLESPACE innodb_file_per_table ADD DATAFILE 'f.ibd' ENGINE InnoDB;
+ERROR 42000: InnoDB: `innodb_file_per_table` is a reserved tablespace name.
+CREATE TABLESPACE innodb_temporary ADD DATAFILE 'f.ibd' ENGINE InnoDB;
+ERROR 42000: InnoDB: `innodb_temporary` is a reserved tablespace name.
+CREATE TABLESPACE mysql ADD DATAFILE 'f.ibd' ENGINE InnoDB;
+ERROR 42000: InnoDB: `mysql` is a reserved tablespace name.
+DROP TABLESPACE innodb_system;
+ERROR 42000: InnoDB: `innodb_system` is a reserved tablespace name.
+DROP TABLESPACE innodb_file_per_table;
+ERROR 42000: InnoDB: `innodb_file_per_table` is a reserved tablespace name.
+DROP TABLESPACE innodb_temporary;
+ERROR 42000: InnoDB: `innodb_temporary` is a reserved tablespace name.
+DROP TABLESPACE mysql;
+ERROR 42000: InnoDB: `mysql` is a reserved tablespace name.
+# 1.2 Create/drop implicit tablespaces.
+CREATE TABLESPACE `innodb_file_per_table.2` ADD DATAFILE 'f.ibd' ENGINE InnoDB;
+ERROR 42000: InnoDB: A general tablespace name cannot start with `innodb_`.
+DROP TABLESPACE `innodb_file_per_table.2`;
+ERROR 42000: InnoDB: A general tablespace name cannot start with `innodb_`.
+CREATE TABLESPACE innodb_file_per_table_whatever ADD DATAFILE 'f.ibd' ENGINE InnoDB;
+ERROR 42000: InnoDB: A general tablespace name cannot start with `innodb_`.
+DROP TABLESPACE innodb_file_per_table_whatever;
+ERROR 42000: InnoDB: A general tablespace name cannot start with `innodb_`.
+CREATE TABLESPACE innodb_file_per_table ADD DATAFILE 'f.ibd' ENGINE InnoDB;
+ERROR 42000: InnoDB: `innodb_file_per_table` is a reserved tablespace name.
+DROP TABLESPACE innodb_file_per_table;
+ERROR 42000: InnoDB: `innodb_file_per_table` is a reserved tablespace name.
+# 2. Non partitioned table DDL.
+# 2.1 Create table.
+CREATE TABLE t1 (i INTEGER) TABLESPACE innodb_file_per_table ENGINE InnoDB;
+CREATE TABLE t2 (i INTEGER) TABLESPACE innodb_system ENGINE InnoDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `i` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+CREATE TABLE t_bad (i INTEGER) TABLESPACE `innodb_file_per_table.2` ENGINE InnoDB;
+ERROR 42000: InnoDB: A general tablespace name cannot start with `innodb_`.
+# 2.2 Alter table.
+ALTER TABLE t2 TABLESPACE `innodb_file_per_table.2`;
+ERROR 42000: InnoDB: A general tablespace name cannot start with `innodb_`.
+# This is valid since MyISAM does not care:
+ALTER TABLE t2 TABLESPACE `innodb_file_per_table.2` ENGINE MyISAM;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `i` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table.2` */ ENGINE=MyISAM DEFAULT CHARSET=latin1
+# Table t1 is carried over to MyISAM using the dummy 'innodb_file_per_table':
+ALTER TABLE t1 ENGINE MyISAM;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=MyISAM DEFAULT CHARSET=latin1
+# Changing only engine back to InnoDB now will be rejected for t2:
+ALTER TABLE t2 ENGINE InnoDB;
+ERROR 42000: InnoDB: A general tablespace name cannot start with `innodb_`.
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `i` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table.2` */ ENGINE=MyISAM DEFAULT CHARSET=latin1
+# For t1, changing engine back to InnoDB will re-establish usage of the implicit tablespace:
+ALTER TABLE t1 ENGINE InnoDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+# Changing both engine and tablespace works:
+ALTER TABLE t1 TABLESPACE innodb_system ENGINE InnoDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+ALTER TABLE t2 TABLESPACE innodb_file_per_table ENGINE InnoDB;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `i` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+# Keeping a valid tablespace through ALTER TABLE:
+ALTER TABLE t1 ADD COLUMN (j INTEGER);
+CREATE TABLESPACE ts ADD DATAFILE 'f.ibd' ENGINE InnoDB;
+ALTER TABLE t1 TABLESPACE ts;
+ALTER TABLE t1 ENGINE MyISAM;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) DEFAULT NULL,
+  `j` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `ts` */ ENGINE=MyISAM DEFAULT CHARSET=latin1
+ALTER TABLE t1 ENGINE InnoDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) DEFAULT NULL,
+  `j` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `ts` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+DROP TABLE t1;
+DROP TABLE t2;
 DROP TABLESPACE ts;
+# 3. Partitioned table DDL.
+# 3.1 Create table.
+CREATE TABLE t_part_bad (i INTEGER) PARTITION BY RANGE(i)
+PARTITIONS 2 (
+PARTITION p0 VALUES LESS THAN(100) TABLESPACE `innodb_file_per_table.2`,
+PARTITION p1 VALUES LESS THAN(200));
+ERROR 42000: InnoDB: A general tablespace name cannot start with `innodb_`.
+CREATE TABLE t_part (i INTEGER) TABLESPACE innodb_file_per_table PARTITION BY RANGE(i)
+PARTITIONS 2 (
+PARTITION p0 VALUES LESS THAN(100),
+PARTITION p1 VALUES LESS THAN(200));
+SHOW CREATE TABLE t_part;
+Table	Create Table
+t_part	CREATE TABLE `t_part` (
+  `i` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (i)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB) */
+CREATE TABLE t_subpart (i INTEGER) PARTITION BY RANGE(i)
+PARTITIONS 2 SUBPARTITION BY HASH(i) (
+PARTITION p0 VALUES LESS THAN(100) (
+SUBPARTITION sp00,
+SUBPARTITION sp01),
+PARTITION p1 VALUES LESS THAN(200) (
+SUBPARTITION sp10,
+SUBPARTITION sp11));
+SHOW CREATE TABLE t_subpart;
+Table	Create Table
+t_subpart	CREATE TABLE `t_subpart` (
+  `i` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (i)
+SUBPARTITION BY HASH (i)
+(PARTITION p0 VALUES LESS THAN (100)
+ (SUBPARTITION sp00 ENGINE = InnoDB,
+  SUBPARTITION sp01 ENGINE = InnoDB),
+ PARTITION p1 VALUES LESS THAN (200)
+ (SUBPARTITION sp10 ENGINE = InnoDB,
+  SUBPARTITION sp11 ENGINE = InnoDB)) */
+# 2.3 Alter table.
+ALTER TABLE t_part TABLESPACE innodb_system;
+SHOW CREATE TABLE t_part;
+Table	Create Table
+t_part	CREATE TABLE `t_part` (
+  `i` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (i)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB) */
+ALTER TABLE t_subpart TABLESPACE innodb_file_per_table;
+SHOW CREATE TABLE t_subpart;
+Table	Create Table
+t_subpart	CREATE TABLE `t_subpart` (
+  `i` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (i)
+SUBPARTITION BY HASH (i)
+(PARTITION p0 VALUES LESS THAN (100)
+ (SUBPARTITION sp00 ENGINE = InnoDB,
+  SUBPARTITION sp01 ENGINE = InnoDB),
+ PARTITION p1 VALUES LESS THAN (200)
+ (SUBPARTITION sp10 ENGINE = InnoDB,
+  SUBPARTITION sp11 ENGINE = InnoDB)) */
+ALTER TABLE t_part TABLESPACE `innodb_file_per_table.2`;
+ERROR 42000: InnoDB: A general tablespace name cannot start with `innodb_`.
+ALTER TABLE t_subpart TABLESPACE `innodb_file_per_table.2`;
+ERROR 42000: InnoDB: A general tablespace name cannot start with `innodb_`.
+ALTER TABLE t_part REORGANIZE PARTITION p1 INTO
+(PARTITION p1 VALUES LESS THAN (300) TABLESPACE `innodb_file_per_table.2`);
+ERROR 42000: InnoDB: A general tablespace name cannot start with `innodb_`.
+ALTER TABLE t_subpart REORGANIZE PARTITION p1 INTO
+(PARTITION p1 VALUES LESS THAN (300) TABLESPACE `innodb_file_per_table.2`);
+ERROR 42000: InnoDB: A general tablespace name cannot start with `innodb_`.
+ALTER TABLE t_subpart REORGANIZE PARTITION s11 INTO
+(PARTITION s11 TABLESPACE `innodb_file_per_table.2`);
+ERROR 42000: InnoDB: A general tablespace name cannot start with `innodb_`.
+DROP TABLE t_part;
+DROP TABLE t_subpart;

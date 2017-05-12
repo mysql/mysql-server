@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,13 +15,28 @@
 
 #include "mysqld_thd_manager.h"
 
-#include "mysql/thread_pool_priv.h"  // inc_thread_created
-#include "mutex_lock.h"              // Mutex_lock
-#include "debug_sync.h"              // DEBUG_SYNC_C
-#include "sql_class.h"               // THD
+#include "my_config.h"
 
-#include <functional>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
 #include <algorithm>
+#include <functional>
+#include <new>
+#include <utility>
+
+#include "mutex_lock.h"              // Mutex_lock
+#include "my_command.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_psi_config.h"
+#include "my_sys.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_cond.h"
+#include "mysql/psi/psi_mutex.h"
+#include "mysql/thread_pool_priv.h"  // inc_thread_created
+#include "sql_class.h"               // THD
+#include "thr_mutex.h"
 
 
 std::atomic<uint> Global_THD_manager::atomic_global_thd_count { 0U };
@@ -130,10 +145,10 @@ Global_THD_manager::Global_THD_manager()
     unit_test(false)
 {
 #ifdef HAVE_PSI_INTERFACE
-  int count= array_elements(all_thd_manager_mutexes);
+  int count= static_cast<int>(array_elements(all_thd_manager_mutexes));
   mysql_mutex_register("sql", all_thd_manager_mutexes, count);
 
-  count= array_elements(all_thd_manager_conds);
+  count= static_cast<int>(array_elements(all_thd_manager_conds));
   mysql_cond_register("sql", all_thd_manager_conds, count);
 #endif
 

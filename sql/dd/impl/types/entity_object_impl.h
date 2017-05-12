@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,15 +16,22 @@
 #ifndef DD__ENTITY_OBJECT_IMPL_INCLUDED
 #define DD__ENTITY_OBJECT_IMPL_INCLUDED
 
-#include "my_global.h"
+#include <string>
 
-#include "dd/sdi_fwd.h"
+#include "dd/impl/raw/raw_record.h"
 #include "dd/impl/types/weak_object_impl.h" // Weak_object_impl
+#include "dd/object_id.h"
+#include "dd/sdi_fwd.h"
 #include "dd/types/entity_object.h"         // Entity_object
+#include "dd/types/weak_object.h"
 
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
+
+class Object_key;
+class Sdi_rcontext;
+class Sdi_wcontext;
 
 class Entity_object_impl : virtual public Entity_object,
                            public Weak_object_impl
@@ -52,10 +59,10 @@ public:
   { return (m_id != INVALID_OBJECT_ID); }
   /* purecov: end */
 
-  virtual const std::string &name() const override
+  virtual const String_type &name() const override
   { return m_name; }
 
-  virtual void set_name(const std::string &name) override
+  virtual void set_name(const String_type &name) override
   { m_name= name; }
 
   virtual Object_key *create_primary_key() const override;
@@ -91,7 +98,7 @@ private:
 
   Object_id m_id;
 
-  std::string m_name;
+  String_type m_name;
 
   /**
     Indicates that object is guaranteed to have ID which doesn't exist in

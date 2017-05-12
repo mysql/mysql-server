@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,11 +16,22 @@
 #ifndef PARSE_TREE_PARTITIONS_INCLUDED
 #define PARSE_TREE_PARTITIONS_INCLUDED
 
-#include "my_config.h"
-#include "partition_info.h"
-#include "parse_tree_helpers.h"
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "lex_string.h"
 #include "mem_root_array.h"
-#include "derror.h"
+#include "my_base.h"
+#include "my_inttypes.h"
+#include "parse_tree_helpers.h"
+#include "parse_tree_node_base.h"
+#include "partition_element.h"
+#include "partition_info.h"
+#include "sql_udf.h"
+
+class Item;
+class THD;
+template <class T> class List;
 
 /**
   Parse context for partitioning-specific parse tree nodes.

@@ -66,7 +66,6 @@
 # ========================================
 
 --source include/not_embedded.inc
---source include/have_perfschema.inc
 # Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
 --source include/no_protocol.inc
 --source ../include/wait_for_pfs_thread_count.inc
@@ -96,6 +95,9 @@ drop table if exists test.t1;
 --enable_warnings
 
 create table test.t1(a varchar(64));
+# Warm up DD cache
+select count(*) into @dummy from test.t1;
+
 create function test.f(a int, b int) returns int
 return a+b;
 

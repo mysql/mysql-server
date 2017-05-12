@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,17 +17,29 @@
   @file mysys/posix_timers.cc
 */
 
-#include "my_global.h"
-#include "my_thread.h"      /* my_thread_init, my_thread_end */
+#include <errno.h>
+#include <signal.h>
+#include <string.h>         /* memset */
+#include <sys/time.h>
+
+#include "my_config.h"
+#ifdef __linux__
+#include <syscall.h>
+#endif
+#include <time.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+
+#include "my_dbug.h"
+#include "my_loglevel.h"
 #include "my_sys.h"         /* my_message_local */
+#include "my_thread.h"      /* my_thread_init, my_thread_end */
 #include "my_timer.h"       /* my_timer_t */
+#include "mysql/psi/mysql_thread.h"
 #include "mysys_priv.h"     /* key_thread_timer_notifier */
 
-#include <string.h>         /* memset */
-#include <signal.h>
-
 #if defined(HAVE_SIGEV_THREAD_ID)
-#include <sys/syscall.h>    /* SYS_gettid */
 
 #ifndef sigev_notify_thread_id
 #define sigev_notify_thread_id   _sigev_un._tid

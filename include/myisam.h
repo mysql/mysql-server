@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,12 +22,20 @@
 #ifndef _myisam_h
 #define _myisam_h
 
-#include "my_base.h"
-#include "m_ctype.h"
+#include "my_config.h"
+
+#include <sys/types.h>
+#include <time.h>
+
 #include "keycache.h"
-#include "my_compare.h"
-#include "my_check_opt.h"
+#include "m_ctype.h"
 #include "m_string.h"
+#include "my_base.h"
+#include "my_check_opt.h"
+#include "my_compare.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_macros.h"
 
 #ifdef	__cplusplus
 extern "C" {
@@ -161,7 +169,7 @@ typedef struct st_mi_create_info
   ulonglong key_file_length;
   uint old_options;
   uint16 language;
-  my_bool with_auto_increment;
+  bool with_auto_increment;
 } MI_CREATE_INFO;
 
 struct st_myisam_info;			/* For referense */
@@ -190,7 +198,7 @@ typedef struct st_mi_keydef		/* Key definition with open & info */
   int (*bin_search)(struct st_myisam_info *info,struct st_mi_keydef *keyinfo,
 		    uchar *page,uchar *key,
 		    uint key_len,uint comp_flag,uchar * *ret_pos,
-		    uchar *buff, my_bool *was_last_key);
+		    uchar *buff, bool *was_last_key);
   uint (*get_key)(struct st_mi_keydef *keyinfo,uint nod_flag,uchar * *page,
 		  uchar *key);
   int (*pack_key)(struct st_mi_keydef *keyinfo,uint nod_flag,uchar *next_key,
@@ -248,7 +256,7 @@ typedef struct st_columndef		/* column information */
 extern char * myisam_log_filename;		/* Name of logfile */
 extern ulong myisam_block_size;
 extern ulong myisam_concurrent_insert;
-extern my_bool myisam_flush,myisam_delay_key_write,myisam_single_user;
+extern bool myisam_flush,myisam_delay_key_write,myisam_single_user;
 extern my_off_t myisam_max_temp_length;
 extern ulong myisam_data_pointer_size;
 
@@ -260,7 +268,7 @@ extern mysql_mutex_t THR_LOCK_myisam_mmap;
 
 	/* Prototypes for myisam-functions */
 
-extern int mi_close_share(struct st_myisam_info *file, my_bool *closed_share);
+extern int mi_close_share(struct st_myisam_info *file, bool *closed_share);
 #define mi_close(file) mi_close_share(file, NULL)
 extern int mi_delete(struct st_myisam_info *file,const uchar *buff);
 extern struct st_myisam_info *mi_open_share(const char *name,
@@ -370,8 +378,8 @@ typedef struct st_mi_check_param
   uint opt_sort_key,total_files,max_level;
   uint testflag, key_cache_block_size;
   uint16 language;
-  my_bool using_global_keycache, opt_follow_links;
-  my_bool retry_repair, force_sort;
+  bool using_global_keycache, opt_follow_links;
+  bool retry_repair, force_sort;
   char temp_filename[FN_REFLEN],*isam_file_name;
   MY_TMPDIR *tmpdir;
   int tmpfile_createflag;
@@ -392,7 +400,7 @@ typedef struct st_mi_check_param
   const char *op_name;
   enum_mi_stats_method stats_method;
   mysql_mutex_t print_msg_mutex;
-  my_bool need_print_msg_lock;
+  bool need_print_msg_lock;
 } MI_CHECK;
 
 typedef struct st_sort_ft_buf
@@ -428,19 +436,20 @@ int chk_size(MI_CHECK *param, MI_INFO *info);
 int chk_key(MI_CHECK *param, MI_INFO *info);
 int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend);
 int mi_repair(MI_CHECK *param, MI_INFO *info,
-	      char * name, int rep_quick);
-int mi_sort_index(MI_CHECK *param, MI_INFO *info, char * name);
+	      char * name, int rep_quick, bool no_copy_stat);
+int mi_sort_index(MI_CHECK *param, MI_INFO *info, char * name,
+                  bool no_copy_stat);
 int mi_repair_by_sort(MI_CHECK *param, MI_INFO *info,
-		      const char * name, int rep_quick);
+		      const char * name, int rep_quick, bool no_copy_stat);
 int mi_repair_parallel(MI_CHECK *param, MI_INFO *info,
-		      const char * name, int rep_quick);
+                       const char * name, int rep_quick, bool no_copy_stat);
 int change_to_newfile(const char * filename, const char * old_ext,
 		      const char * new_ext, myf myflags);
 int lock_file(MI_CHECK *param, File file, my_off_t start, int lock_type,
 	      const char *filetype, const char *filename);
 void lock_memory(MI_CHECK *param);
 void update_auto_increment_key(MI_CHECK *param, MI_INFO *info,
-			       my_bool repair);
+			       bool repair);
 int update_state_info(MI_CHECK *param, MI_INFO *info,uint update);
 void update_key_parts(MI_KEYDEF *keyinfo, ulong *rec_per_key_part,
                       ulonglong *unique, ulonglong *notnull, 
@@ -449,12 +458,12 @@ int filecopy(MI_CHECK *param, File to,File from,my_off_t start,
 	     my_off_t length, const char *type);
 int movepoint(MI_INFO *info,uchar *record,my_off_t oldpos,
 	      my_off_t newpos, uint prot_key);
-int write_data_suffix(SORT_INFO *sort_info, my_bool fix_datafile);
+int write_data_suffix(SORT_INFO *sort_info, bool fix_datafile);
 int test_if_almost_full(MI_INFO *info);
 int recreate_table(MI_CHECK *param, MI_INFO **org_info, char *filename);
 void mi_disable_non_unique_index(MI_INFO *info, ha_rows rows);
-my_bool mi_test_if_sort_rep(MI_INFO *info, ha_rows rows, ulonglong key_map,
-			    my_bool force);
+bool mi_test_if_sort_rep(MI_INFO *info, ha_rows rows, ulonglong key_map,
+                         bool force);
 
 int mi_init_bulk_insert(MI_INFO *info, ulong cache_size, ha_rows rows);
 void mi_flush_bulk_insert(MI_INFO *info, uint inx);
@@ -463,7 +472,7 @@ int mi_assign_to_key_cache(MI_INFO *info, ulonglong key_map,
 			   KEY_CACHE *key_cache);
 void mi_change_key_cache(KEY_CACHE *old_key_cache,
 			 KEY_CACHE *new_key_cache);
-int mi_preload(MI_INFO *info, ulonglong key_map, my_bool ignore_leaves);
+int mi_preload(MI_INFO *info, ulonglong key_map, bool ignore_leaves);
 
 extern st_keycache_thread_var main_thread_keycache_var;
 st_keycache_thread_var *keycache_thread_var();

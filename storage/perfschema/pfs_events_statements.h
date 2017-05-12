@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,9 +21,12 @@
   Events statements data structures (declarations).
 */
 
+#include <sys/types.h>
+
+#include "my_inttypes.h"
 #include "pfs_column_types.h"
-#include "pfs_events.h"
 #include "pfs_digest.h"
+#include "pfs_events.h"
 
 struct PFS_thread;
 struct PFS_account;
@@ -48,10 +51,10 @@ struct PFS_events_statements : public PFS_events
   ulonglong m_lock_time;
 
   /** Diagnostics area, message text. */
-  char m_message_text[MYSQL_ERRMSG_SIZE+1];
+  char m_message_text[MYSQL_ERRMSG_SIZE + 1];
   /** Diagnostics area, error number. */
   uint m_sql_errno;
-  /** Diagnostics area, SQLSTATE. */
+  /** Diagnostics area, @c SQLSTATE. */
   char m_sqlstate[SQLSTATE_LENGTH];
   /** Diagnostics area, error count. */
   uint m_error_count;
@@ -91,7 +94,7 @@ struct PFS_events_statements : public PFS_events
   /** Optimizer metric, number of 'no good index used'. */
   ulonglong m_no_good_index_used;
 
-  /** True if sqltext was truncated. */
+  /** True if @c SQL_TEXT was truncated. */
   bool m_sqltext_truncated;
   /** Statement character set number. */
   uint m_sqltext_cs_number;
@@ -102,7 +105,7 @@ struct PFS_events_statements : public PFS_events
     and always point to pre allocated memory.
   */
   char *m_sqltext;
-  /** Length of @ m_info. */
+  /** Length of @c m_sqltext. */
   uint m_sqltext_length;
   /**
     Statement digest.
@@ -112,7 +115,8 @@ struct PFS_events_statements : public PFS_events
   sql_digest_storage m_digest_storage;
 };
 
-void insert_events_statements_history(PFS_thread *thread, PFS_events_statements *statement);
+void insert_events_statements_history(PFS_thread *thread,
+                                      PFS_events_statements *statement);
 void insert_events_statements_history_long(PFS_events_statements *statement);
 
 extern ulong nested_statement_lost;
@@ -126,7 +130,8 @@ extern PFS_ALIGNED PFS_cacheline_uint32 events_statements_history_long_index;
 extern PFS_events_statements *events_statements_history_long_array;
 extern size_t events_statements_history_long_size;
 
-int init_events_statements_history_long(size_t events_statements_history_long_sizing);
+int init_events_statements_history_long(
+  size_t events_statements_history_long_sizing);
 void cleanup_events_statements_history_long();
 
 void reset_events_statements_current();
@@ -142,4 +147,3 @@ void aggregate_user_statements(PFS_user *user);
 void aggregate_host_statements(PFS_host *host);
 
 #endif
-

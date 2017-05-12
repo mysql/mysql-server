@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -340,19 +340,51 @@
   See also worklog entry WL#4259 - Test Synchronization Facility
 */
 
-#include "debug_sync.h"
+#include "sql/debug_sync.h"
+
+#include <boost/algorithm/string/classification.hpp>
+#include <boost/algorithm/string/split.hpp>
+#include <boost/algorithm/string/trim.hpp>
+#include <boost/concept/usage.hpp>
+#include <boost/iterator/iterator_facade.hpp>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <algorithm>
+#include <vector>
+
+#include "m_ctype.h"
+#include "my_dbug.h"
+#include "my_macros.h"
+#include "my_psi_config.h"
+#include "my_sys.h"
+#include "my_systime.h"
+#include "my_thread.h"
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_cond.h"
+#include "mysql/psi/psi_memory.h"
+#include "mysql/psi/psi_mutex.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysqld_error.h"
+#include "sql_error.h"
+#include "sql_string.h"
+#include "table.h"
+#include "thr_malloc.h"
+#include "thr_mutex.h"
 
 #if defined(ENABLED_DEBUG_SYNC)
 
-#include "log.h"
-#include "current_thd.h"
-#include "sql_class.h"
-#include "derror.h"
-#include "mysql/psi/mysql_memory.h"
-
 #include <set>
 #include <string>
-#include <boost/algorithm/string.hpp>
+
+#include "current_thd.h"
+#include "derror.h"
+#include "log.h"
+#include "mysql/psi/mysql_memory.h"
+#include "sql_class.h"
 
 using std::max;
 using std::min;
@@ -498,13 +530,13 @@ static void init_debug_sync_psi_keys(void)
   const char* category= "sql";
   int count;
 
-  count= array_elements(all_debug_sync_mutexes);
+  count= static_cast<int>(array_elements(all_debug_sync_mutexes));
   mysql_mutex_register(category, all_debug_sync_mutexes, count);
 
-  count= array_elements(all_debug_sync_conds);
+  count= static_cast<int>(array_elements(all_debug_sync_conds));
   mysql_cond_register(category, all_debug_sync_conds, count);
 
-  count= array_elements(all_debug_sync_memory);
+  count= static_cast<int>(array_elements(all_debug_sync_memory));
   mysql_memory_register(category, all_debug_sync_memory, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
@@ -1991,7 +2023,7 @@ static void debug_sync_execute(THD *thd, st_debug_sync_action *action)
             DBUG_PRINT("debug_sync",
                        ("awoke from %s error: %d", sig_wait, error)); });
 
-        if (error == ETIMEDOUT || error == ETIME)
+        if (is_timeout(error))
         {
           // We should not make the statement fail, even if in strict mode.
           push_warning(thd, Sql_condition::SL_WARNING,

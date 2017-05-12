@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,16 +30,34 @@
  *
  **/
 
-#include "client_priv.h"
-#include "my_default.h"
+#include "my_config.h"
+
+#include <errno.h>
+#include <fcntl.h>
 #include <m_ctype.h>
-#include <stdarg.h>
+#include <math.h>
+#include <mf_wcomp.h>                  // wild_prefix, wild_one, wild_any
 #include <my_dir.h>
-#include "my_readline.h"
 #include <signal.h>
+#include <stdarg.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <time.h>
 #include <violite.h>
-#include "prealloced_array.h"
+
+#include "client_priv.h"
+#include "lex_string.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_default.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_loglevel.h"
+#include "my_macros.h"
+#include "my_readline.h"
 #include "mysql/service_my_snprintf.h"
+#include "prealloced_array.h"
+#include "typelib.h"
 
 #ifdef HAVE_SYS_IOCTL_H
 #include <sys/ioctl.h>
@@ -60,21 +78,26 @@
 
 #if defined(_WIN32)
 #include <conio.h>
+
 // Not using syslog but EventLog on Win32, so a dummy facility is enough.
 #define LOG_USER 0
 #else
-#include <syslog.h>
 #include <readline.h>
+#include <syslog.h>
+
 #define HAVE_READLINE
 #define USE_POPEN
 #endif
 
-#include <algorithm>
-#include <sql_common.h>
 #include <mysqld_error.h>
+#include <sql_common.h>
+#include <algorithm>
+#include <new>
 
 using std::min;
 using std::max;
+
+extern CHARSET_INFO my_charset_utf16le_bin;
 
 const char *VER= "14.14";
 
@@ -98,8 +121,10 @@ static char *server_version= NULL;
 #define cmp_database(cs,A,B) strcmp((A),(B))
 #endif
 
-#include "completion_hash.h"
 #include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
+
+#include "completion_hash.h"
+#include "print_version.h"
 
 #define PROMPT_CHAR '\\'
 #define DEFAULT_DELIMITER ";"
@@ -123,31 +148,31 @@ enum enum_info_type { INFO_INFO,INFO_ERROR,INFO_RESULT};
 typedef enum enum_info_type INFO_TYPE;
 
 static MYSQL mysql;			/* The connection */
-static my_bool ignore_errors=0,wait_flag=0,quick=0,
-               connected=0,opt_raw_data=0,unbuffered=0,output_tables=0,
-	       opt_rehash=1,skip_updates=0,safe_updates=0,one_database=0,
-	       opt_compress=0, using_opt_local_infile=0,
-	       vertical=0, line_numbers=1, column_names=1,opt_html=0,
-               opt_xml=0,opt_nopager=1, opt_outfile=0, named_cmds= 0,
-	       tty_password= 0, opt_nobeep=0, opt_reconnect=1,
-	       opt_secure_auth= TRUE,
-               default_pager_set= 0, opt_sigint_ignore= 0,
-               auto_vertical_output= 0,
-               show_warnings= 0, executing_query= 0, interrupted_query= 0,
-               ignore_spaces= 0, sigint_received= 0, opt_syslog= 0;
-static my_bool debug_info_flag, debug_check_flag;
-static my_bool column_types_flag;
-static my_bool preserve_comments= 0;
+static bool ignore_errors=0,wait_flag=0,quick=0,
+            connected=0,opt_raw_data=0,unbuffered=0,output_tables=0,
+            opt_rehash=1,skip_updates=0,safe_updates=0,one_database=0,
+            opt_compress=0, using_opt_local_infile=0,
+            vertical=0, line_numbers=1, column_names=1,opt_html=0,
+            opt_xml=0,opt_nopager=1, opt_outfile=0, named_cmds= 0,
+            tty_password= 0, opt_nobeep=0, opt_reconnect=1,
+            opt_secure_auth= TRUE,
+            default_pager_set= 0, opt_sigint_ignore= 0,
+            auto_vertical_output= 0,
+            show_warnings= 0, executing_query= 0, interrupted_query= 0,
+            ignore_spaces= 0, sigint_received= 0, opt_syslog= 0;
+static bool debug_info_flag, debug_check_flag;
+static bool column_types_flag;
+static bool preserve_comments= 0;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static uint verbose=0,opt_silent=0,opt_mysql_port=0, opt_local_infile=0;
 static uint opt_enable_cleartext_plugin= 0;
-static my_bool using_opt_enable_cleartext_plugin= 0;
+static bool using_opt_enable_cleartext_plugin= 0;
 static uint my_end_arg;
 static char * opt_mysql_unix_port=0;
 static char *opt_bind_addr = NULL;
 static int connect_flag=CLIENT_INTERACTIVE;
-static my_bool opt_binary_mode= FALSE;
-static my_bool opt_connect_expired_password= FALSE;
+static bool opt_binary_mode= FALSE;
+static bool opt_connect_expired_password= FALSE;
 static char *current_host,*current_db,*current_user=0,*opt_password=0,
             *current_prompt=0, *delimiter_str= 0,
             *default_charset= (char*) MYSQL_AUTODETECT_CHARSET_NAME,
@@ -189,7 +214,7 @@ static char delimiter[16]= DEFAULT_DELIMITER;
 static size_t delimiter_length= 1;
 unsigned short terminal_width= 80;
 
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
 static char *shared_memory_base_name=0;
 #endif
 static uint opt_protocol=0;
@@ -215,7 +240,7 @@ const char *default_dbug_option="d:t:o,/tmp/mysql.trace";
   For using this feature in test case, we add the option in debug code.
 */
 #ifndef DBUG_OFF
-static my_bool opt_build_completion_hash = FALSE;
+static bool opt_build_completion_hash = FALSE;
 #endif
 
 #ifdef _WIN32
@@ -223,7 +248,7 @@ static my_bool opt_build_completion_hash = FALSE;
   A flag that indicates if --execute buffer has already been converted,
   to avoid double conversion on reconnect.
 */
-static my_bool execute_buffer_conversion_done= 0;
+static bool execute_buffer_conversion_done= 0;
 
 /*
   my_win_is_console(...) is quite slow.
@@ -240,7 +265,7 @@ static uint win_is_console_cache=
   (MY_TEST(my_win_is_console(stdout)) * (1 << _fileno(stdout))) |
   (MY_TEST(my_win_is_console(stderr)) * (1 << _fileno(stderr)));
 
-static inline my_bool
+static inline bool
 my_win_is_console_cached(FILE *file)
 {
   return win_is_console_cache & (1 << _fileno(file));
@@ -263,8 +288,8 @@ void tee_putc(int c, FILE *file);
 static void tee_print_sized_data(const char *, unsigned int, unsigned int, bool);
 /* The names of functions that actually do the manipulation. */
 static int get_options(int argc,char **argv);
-extern "C" my_bool get_one_option(int optid, const struct my_option *opt,
-                                  char *argument);
+extern "C" bool get_one_option(int optid, const struct my_option *opt,
+                               char *argument);
 static int com_quit(String *str,char*),
 	   com_go(String *str,char*), com_ego(String *str,char*),
 	   com_print(String *str,char*),
@@ -298,7 +323,7 @@ static void init_tee(const char *);
 static void end_tee();
 static const char* construct_prompt();
 static inline void reset_prompt(char *in_string, bool *ml_comment);
-static char *get_arg(char *line, my_bool get_next_arg);
+static char *get_arg(char *line, bool get_next_arg);
 static void init_username();
 static void add_int_to_prompt(int toadd);
 static int get_result_width(MYSQL_RES *res);
@@ -309,9 +334,9 @@ static int get_quote_count(const char *line);
 typedef Prealloced_array<LEX_STRING, 16> Histignore_patterns;
 Histignore_patterns *histignore_patterns;
 
-static my_bool check_histignore(const char *string);
-static my_bool parse_histignore();
-static my_bool init_hist_patterns();
+static bool check_histignore(const char *string);
+static bool parse_histignore();
+static bool init_hist_patterns();
 static void free_hist_patterns();
 
 static void add_filtered_history(const char *string);
@@ -1118,11 +1143,6 @@ static COMMANDS commands[] = {
 
 static const char *load_default_groups[]= { "mysql","client",0 };
 
-static int         embedded_server_arg_count= 0;
-static char       *embedded_server_args[MAX_SERVER_ARGS];
-static const char *embedded_server_groups[]=
-{ "server", "embedded", "mysql_SERVER", 0 };
-
 #ifdef HAVE_READLINE
 /*
  HIST_ENTRY is defined for libedit, but not for the real readline
@@ -1307,8 +1327,7 @@ int main(int argc,char *argv[])
     my_end(0);
     exit(1);
   }
-  if (mysql_server_init(embedded_server_arg_count, embedded_server_args, 
-                        (char**) embedded_server_groups))
+  if (mysql_server_init(0, nullptr, nullptr))
   {
     put_error(NULL);
     free_defaults(defaults_argv);
@@ -1505,12 +1524,10 @@ void mysql_end(int sig)
   my_free(full_username);
   my_free(part_username);
   my_free(default_prompt);
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
   my_free(shared_memory_base_name);
 #endif
   my_free(current_prompt);
-  while (embedded_server_arg_count > 1)
-    my_free(embedded_server_args[--embedded_server_arg_count]);
   mysql_server_end();
   free_defaults(defaults_argv);
   my_end(my_end_arg);
@@ -1600,7 +1617,7 @@ void kill_query(const char *reason)
     goto err;
   }
 
-  interrupted_query ++;
+  interrupted_query= true;
 
   /* mysqld < 5 does not understand KILL QUERY, skip to KILL CONNECTION */
   sprintf(kill_buffer, "KILL %s%lu",
@@ -1798,7 +1815,7 @@ static struct my_option my_long_options[] =
    &opt_reconnect, &opt_reconnect, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"silent", 's', "Be more silent. Print results with a tab as separator, "
    "each row on new line.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
    "Base name of shared memory.", &shared_memory_base_name,
    &shared_memory_base_name, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -1807,6 +1824,7 @@ static struct my_option my_long_options[] =
    &opt_mysql_unix_port, &opt_mysql_unix_port, 0, GET_STR_ALLOC,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #include "sslopt-longopts.h"
+
   {"table", 't', "Output in table format.", &output_tables,
    &output_tables, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"tee", OPT_TEE,
@@ -1852,8 +1870,6 @@ static struct my_option my_long_options[] =
   {"secure-auth", OPT_SECURE_AUTH, "Refuse client connecting to server if it"
     " uses old (pre-4.1.1) protocol. Deprecated. Always TRUE",
     &opt_secure_auth, &opt_secure_auth, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
-  {"server-arg", OPT_SERVER_ARG, "Send embedded server this as a parameter.",
-   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"show-warnings", OPT_SHOW_WARNINGS, "Show warnings after every statement.",
     &show_warnings, &show_warnings, 0, GET_BOOL, NO_ARG,
     0, 0, 0, 0, 0, 0},
@@ -1898,20 +1914,8 @@ static struct my_option my_long_options[] =
 
 static void usage(int version)
 {
-#if defined(USE_LIBEDIT_INTERFACE)
-  const char* readline= "";
-#else
-  const char* readline= "readline";
-#endif
 
-#ifdef HAVE_READLINE
-  printf("%s  Ver %s Distrib %s, for %s (%s) using %s %s\n",
-	 my_progname, VER, MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE,
-         readline, rl_library_version);
-#else
-  printf("%s  Ver %s Distrib %s, for %s (%s)\n", my_progname, VER,
-	MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
-#endif
+  print_version();
 
   if (version)
     return;
@@ -1936,7 +1940,7 @@ static void usage(int version)
 }
 
 
-my_bool
+bool
 get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
 	       char *argument)
 {
@@ -2000,10 +2004,8 @@ get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
     }
     break;
   case OPT_MYSQL_PROTOCOL:
-#ifndef EMBEDDED_LIBRARY
     opt_protocol= find_type_or_exit(argument, &sql_protocol_typelib,
                                     opt->name);
-#endif
     break;
   case OPT_SECURE_AUTH:
     /* --secure-auth is a zombie option. */
@@ -2014,30 +2016,6 @@ get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
     }
     else
       CLIENT_WARN_DEPRECATED_NO_REPLACEMENT("--secure-auth");
-    break;
-  case OPT_SERVER_ARG:
-#ifdef EMBEDDED_LIBRARY
-    /*
-      When the embedded server is being tested, the client needs to be
-      able to pass command-line arguments to the embedded server so it can
-      locate the language files and data directory.
-    */
-    if (!embedded_server_arg_count)
-    {
-      embedded_server_arg_count= 1;
-      embedded_server_args[0]= (char*) "";
-    }
-    if (embedded_server_arg_count == MAX_SERVER_ARGS-1 ||
-        !(embedded_server_args[embedded_server_arg_count++]=
-          my_strdup(PSI_NOT_INSTRUMENTED,
-                    argument, MYF(MY_FAE))))
-    {
-        put_info("Can't use server argument", INFO_ERROR);
-        return 0;
-    }
-#else /*EMBEDDED_LIBRARY */
-    printf("WARNING: --server-arg option not supported in this configuration.\n");
-#endif
     break;
   case 'A':
     opt_rehash= 0;
@@ -2113,6 +2091,7 @@ get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
 #endif
     break;
 #include <sslopt-case.h>
+
   case 'V':
     usage(1);
     exit(0);
@@ -3211,7 +3190,7 @@ static void add_filtered_history(const char *string)
 */
 
 static
-my_bool check_histignore(const char *string)
+bool check_histignore(const char *string)
 {
   int rc;
 
@@ -3242,7 +3221,7 @@ my_bool check_histignore(const char *string)
 */
 
 static
-my_bool parse_histignore()
+bool parse_histignore()
 {
   LEX_STRING pattern;
 
@@ -3267,7 +3246,7 @@ my_bool parse_histignore()
 }
 
 static
-my_bool init_hist_patterns()
+bool init_hist_patterns()
 {
   histignore_patterns=
     new (std::nothrow) Histignore_patterns(PSI_NOT_INSTRUMENTED);
@@ -4871,10 +4850,10 @@ com_nowarnings(String *buffer MY_ATTRIBUTE((unused)),
   items in the array to zero first.
 */
 
-char *get_arg(char *line, my_bool get_next_arg)
+char *get_arg(char *line, bool get_next_arg)
 {
   char *ptr, *start;
-  my_bool quoted= 0, valid_arg= 0;
+  bool quoted= 0, valid_arg= 0;
   char qtype= 0;
 
   ptr= line;
@@ -5029,11 +5008,7 @@ sql_real_connect(char *host,char *database,char *user,char *password,
   charset_info= mysql.charset;
   
   connected=1;
-#ifndef EMBEDDED_LIBRARY
   mysql.reconnect= debug_info_flag; // We want to know if this happens
-#else
-  mysql.reconnect= 1;
-#endif
 #ifdef HAVE_READLINE
   build_completion_hash(opt_rehash, 1);
 #endif
@@ -5045,7 +5020,7 @@ sql_real_connect(char *host,char *database,char *user,char *password,
 static void
 init_connection_options(MYSQL *mysql)
 {
-  my_bool handle_expired= (opt_connect_expired_password || !status.batch) ?
+  bool handle_expired= (opt_connect_expired_password || !status.batch) ?
     TRUE : FALSE;
 
   if (opt_init_command)
@@ -5071,7 +5046,7 @@ init_connection_options(MYSQL *mysql)
   if (opt_protocol)
     mysql_options(mysql, MYSQL_OPT_PROTOCOL, (char*) &opt_protocol);
 
-#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+#if defined (_WIN32)
   if (shared_memory_base_name)
     mysql_options(mysql, MYSQL_SHARED_MEMORY_BASE_NAME, shared_memory_base_name);
 #endif
@@ -5175,12 +5150,12 @@ com_status(String *buffer MY_ATTRIBUTE((unused)),
     mysql_free_result(result);
   }
 
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+#if defined(HAVE_OPENSSL)
   if ((status_str= mysql_get_ssl_cipher(&mysql)))
     tee_fprintf(stdout, "SSL:\t\t\tCipher in use is %s\n",
                 status_str);
   else
-#endif /* HAVE_OPENSSL && !EMBEDDED_LIBRARY */
+#endif /* HAVE_OPENSSL */
     tee_puts("SSL:\t\t\tNot in use", stdout);
 
   if (skip_updates)
@@ -5225,14 +5200,12 @@ com_status(String *buffer MY_ATTRIBUTE((unused)),
     tee_fprintf(stdout, "Server characterset:\t%s\n", mysql.charset->csname);
   }
 
-#ifndef EMBEDDED_LIBRARY
   if (strstr(mysql_get_host_info(&mysql),"TCP/IP") || ! mysql.unix_socket)
     tee_fprintf(stdout, "TCP port:\t\t%d\n", mysql.port);
   else
     tee_fprintf(stdout, "UNIX socket:\t\t%s\n", mysql.unix_socket);
   if (mysql.net.compress)
     tee_fprintf(stdout, "Protocol:\t\tCompressed\n");
-#endif
 
   if ((status_str= mysql_stat(&mysql)) && !mysql_error(&mysql)[0])
   {
@@ -5402,7 +5375,7 @@ static void remove_cntrl(String &buffer)
 void tee_write(FILE *file, const char *s, size_t slen, int flags)
 {
 #ifdef _WIN32
-  my_bool is_console= my_win_is_console_cached(file);
+  bool is_console= my_win_is_console_cached(file);
 #endif
   const char *se;
   for (se= s + slen; s < se; s++)
@@ -5639,7 +5612,6 @@ static const char* construct_prompt()
       }
       case 'p':
       {
-#ifndef EMBEDDED_LIBRARY
 	if (!connected)
 	{
 	  processed_prompt.append("not_connected");
@@ -5659,7 +5631,6 @@ static const char* construct_prompt()
 	  char *pos=strrchr(mysql.unix_socket,'/');
  	  processed_prompt.append(pos ? pos+1 : mysql.unix_socket);
 	}
-#endif
       }
 	break;
       case 'U':

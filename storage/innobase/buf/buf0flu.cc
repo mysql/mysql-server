@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,37 +23,42 @@ The database buffer buf_pool flush algorithm
 Created 11/11/1995 Heikki Tuuri
 *******************************************************/
 
-#include "ha_prototypes.h"
-#include <mysql/service_thd_wait.h>
+#include <math.h>
 #include <my_dbug.h>
+#include <mysql/service_thd_wait.h>
+#include <sys/types.h>
+#include <time.h>
 
-#include "buf0flu.h"
 #include "buf0buf.h"
 #include "buf0checksum.h"
-#include "srv0start.h"
-#include "srv0srv.h"
+#include "buf0flu.h"
+#include "ha_prototypes.h"
+#include "my_inttypes.h"
 #include "page0zip.h"
+#include "srv0srv.h"
+#include "srv0start.h"
 #ifndef UNIV_HOTBACKUP
-#include "ut0byte.h"
-#include "page0page.h"
-#include "fil0fil.h"
 #include "buf0lru.h"
 #include "buf0rea.h"
+#include "fil0fil.h"
+#include "fsp0sysspace.h"
 #include "ibuf0ibuf.h"
 #include "log0log.h"
 #include "os0file.h"
-#include "trx0sys.h"
-#include "srv0mon.h"
-#include "fsp0sysspace.h"
-#include "ut0stage.h"
 #include "os0thread-create.h"
+#include "page0page.h"
+#include "srv0mon.h"
+#include "trx0sys.h"
+#include "ut0byte.h"
+#include "ut0stage.h"
 
 #ifdef UNIV_LINUX
 /* include defs for CPU time priority settings */
-#include <unistd.h>
+#include <sys/resource.h>
 #include <sys/syscall.h>
 #include <sys/time.h>
-#include <sys/resource.h>
+#include <unistd.h>
+
 static const int buf_flush_page_cleaner_priority = -20;
 #endif /* UNIV_LINUX */
 
@@ -187,7 +192,7 @@ struct page_cleaner_t {
 static page_cleaner_t*	page_cleaner = NULL;
 
 #ifdef UNIV_DEBUG
-my_bool innodb_page_cleaner_disabled_debug;
+bool innodb_page_cleaner_disabled_debug;
 #endif /* UNIV_DEBUG */
 
 /** If LRU list of a buf_pool is less than this size then LRU eviction
@@ -884,6 +889,7 @@ buf_flush_init_for_writing(
 			/* fall through */
 		case FIL_PAGE_TYPE_ZBLOB:
 		case FIL_PAGE_TYPE_ZBLOB2:
+		case FIL_PAGE_TYPE_ZBLOB3:
 		case FIL_PAGE_SDI_ZBLOB:
 		case FIL_PAGE_INDEX:
 		case FIL_PAGE_SDI:
@@ -943,6 +949,7 @@ buf_flush_init_for_writing(
 				case FIL_PAGE_TYPE_BLOB:
 				case FIL_PAGE_TYPE_ZBLOB:
 				case FIL_PAGE_TYPE_ZBLOB2:
+				case FIL_PAGE_TYPE_ZBLOB3:
 				case FIL_PAGE_SDI_BLOB:
 				case FIL_PAGE_SDI_ZBLOB:
 					break;
@@ -3077,7 +3084,7 @@ buf_flush_page_cleaner_disabled_debug_update(
 		return;
 	}
 
-	if (!*static_cast<const my_bool*>(save)) {
+	if (!*static_cast<const bool*>(save)) {
 		if (!innodb_page_cleaner_disabled_debug) {
 			return;
 		}
@@ -3145,6 +3152,8 @@ buf_flush_page_coordinator_thread(size_t n_page_cleaners)
 	ulint	n_flushed = 0;
 	ulint	last_activity = srv_get_activity_count();
 	ulint	last_pages = 0;
+
+	my_thread_init();
 
 #ifdef UNIV_LINUX
 	/* linux might be able to set different setting for each thread.
@@ -3497,6 +3506,8 @@ thread_exit:
 	buf_flush_page_cleaner_close();
 
 	buf_page_cleaner_is_active = false;
+
+	my_thread_end();
 }
 
 /** Worker thread of page_cleaner. */
@@ -3504,6 +3515,7 @@ static
 void
 buf_flush_page_cleaner_thread()
 {
+	my_thread_init();
 	mutex_enter(&page_cleaner->mutex);
 	++page_cleaner->n_workers;
 	mutex_exit(&page_cleaner->mutex);
@@ -3534,6 +3546,7 @@ buf_flush_page_cleaner_thread()
 	mutex_enter(&page_cleaner->mutex);
 	--page_cleaner->n_workers;
 	mutex_exit(&page_cleaner->mutex);
+	my_thread_end();
 }
 
 /*******************************************************************//**

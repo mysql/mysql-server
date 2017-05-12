@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,14 +16,20 @@
 #ifndef DD_TABLES__TABLES_INCLUDED
 #define DD_TABLES__TABLES_INCLUDED
 
-#include "my_global.h"
+#include <string>
 
-#include "dd/object_id.h"                               // dd::Object_id
+#include "dd/impl/raw/raw_record.h"
 #include "dd/impl/types/dictionary_object_table_impl.h" // dd::Dictionary_obj...
+#include "dd/object_id.h"                               // dd::Object_id
+#include "my_inttypes.h"
 
 namespace dd {
 
 class Object_key;
+class Dictionary_object;
+class Item_name_key;
+class Open_dictionary_tables_ctx;
+class Se_private_id_key;
 
 namespace tables {
 
@@ -34,9 +40,9 @@ class Tables : public Dictionary_object_table_impl
 public:
   static const Tables &instance();
 
-  static const std::string &table_name()
+  static const String_type &table_name()
   {
-    static std::string s_table_name("tables");
+    static String_type s_table_name("tables");
     return s_table_name;
   }
 
@@ -73,13 +79,14 @@ public:
     FIELD_VIEW_SECURITY_TYPE,
     FIELD_VIEW_DEFINER,
     FIELD_VIEW_CLIENT_COLLATION_ID,
-    FIELD_VIEW_CONNECTION_COLLATION_ID
+    FIELD_VIEW_CONNECTION_COLLATION_ID,
+    FIELD_VIEW_COLUMN_NAMES
   };
 
 public:
   Tables();
 
-  virtual const std::string &name() const
+  virtual const String_type &name() const
   { return Tables::table_name(); }
 
   virtual Dictionary_object *create_dictionary_object(
@@ -88,19 +95,21 @@ public:
 public:
   static bool update_object_key(Item_name_key *key,
                                 Object_id schema_id,
-                                const std::string &table_name);
+                                const String_type &table_name);
 
   static bool update_aux_key(Se_private_id_key *key,
-                             const std::string &engine,
+                             const String_type &engine,
                              ulonglong se_private_id);
 
-  static Object_key *create_se_private_key(const std::string &engine,
+  static Object_key *create_se_private_key(const String_type &engine,
                                            Object_id se_private_id);
 
   static Object_key *create_key_by_schema_id(Object_id schema_id);
 
+  static Object_key *create_key_by_tablespace_id(Object_id tablespace_id);
+
   static bool max_se_private_id(Open_dictionary_tables_ctx *otx,
-                                const std::string &engine,
+                                const String_type &engine,
                                 ulonglong *max_id);
 
   static ulonglong read_se_private_id(const Raw_record &r);

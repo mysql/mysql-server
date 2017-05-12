@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,8 @@
    get by MI_INFO. The next record can be read with pos= MI_POS_ERROR */
 
 
+#include "my_dbug.h"
+#include "my_inttypes.h"
 #include "myisamdef.h"
 
 /*
@@ -31,7 +33,7 @@
 
 int mi_rrnd(MI_INFO *info, uchar *buf, my_off_t filepos)
 {
-  my_bool skip_deleted_blocks;
+  bool skip_deleted_blocks;
   DBUG_ENTER("mi_rrnd");
 
   skip_deleted_blocks=0;

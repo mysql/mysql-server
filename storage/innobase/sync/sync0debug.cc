@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -29,21 +29,22 @@ Debug checks for latches.
 Created 2012-08-21 Sunny Bains
 *******************************************************/
 
-#include "sync0sync.h"
 #include "sync0debug.h"
 
-#include "ut0new.h"
-#include "srv0start.h"
-
-#include <map>
-#include <vector>
-#include <string>
+#include <stddef.h>
 #include <algorithm>
 #include <iostream>
+#include <map>
+#include <string>
+#include <vector>
+
+#include "my_inttypes.h"
+#include "srv0start.h"
+#include "ut0new.h"
 
 #ifdef UNIV_DEBUG
 
-my_bool		srv_sync_debug;
+bool		srv_sync_debug;
 
 /** The global mutex which protects debug info lists of all rw-locks.
 To modify the debug info list of an rw-lock, this mutex has to be
@@ -129,7 +130,7 @@ struct LatchDebug {
 		os_thread_id_t,
 		Latches*,
 		os_thread_id_less,
-		ut_allocator<std::pair<const std::string, latch_meta_t> > >
+		ut_allocator<std::pair<const os_thread_id_t, Latches*> > >
 		ThreadMap;
 
 	/** Constructor */
@@ -425,7 +426,7 @@ private:
 		latch_level_t,
 		std::string,
 		latch_level_less,
-		ut_allocator<std::pair<latch_level_t, std::string> > >
+		ut_allocator<std::pair<const latch_level_t, std::string> > >
 		Levels;
 
 	/** Mutex protecting the deadlock detector data structures. */
@@ -514,8 +515,8 @@ LatchDebug::LatchDebug()
 	LEVEL_MAP_INSERT(SYNC_TRX_UNDO_PAGE);
 	LEVEL_MAP_INSERT(SYNC_RSEG_HEADER);
 	LEVEL_MAP_INSERT(SYNC_RSEG_HEADER_NEW);
-	LEVEL_MAP_INSERT(SYNC_NOREDO_RSEG);
-	LEVEL_MAP_INSERT(SYNC_REDO_RSEG);
+	LEVEL_MAP_INSERT(SYNC_TEMP_SPACE_RSEG);
+	LEVEL_MAP_INSERT(SYNC_TRX_SYS_RSEG);
 	LEVEL_MAP_INSERT(SYNC_TRX_UNDO);
 	LEVEL_MAP_INSERT(SYNC_PURGE_LATCH);
 	LEVEL_MAP_INSERT(SYNC_TREE_NODE);
@@ -758,9 +759,8 @@ LatchDebug::check_order(
 	case SYNC_TRX_SYS_HEADER:
 
 		if (srv_is_being_started) {
-			/* This is violated during trx_sys_create_rsegs()
-			when creating additional rollback segments when
-			upgrading in innobase_start_or_create_for_mysql(). */
+			/* This is violated during single-threaded srv_start()
+			by trx_sys_create_additional_rsegs(). */
 			break;
 		}
 
@@ -786,8 +786,8 @@ LatchDebug::check_order(
 	case SYNC_LOCK_WAIT_SYS:
 	case SYNC_TRX_SYS:
 	case SYNC_IBUF_BITMAP_MUTEX:
-	case SYNC_REDO_RSEG:
-	case SYNC_NOREDO_RSEG:
+	case SYNC_TEMP_SPACE_RSEG:
+	case SYNC_TRX_SYS_RSEG:
 	case SYNC_TRX_UNDO:
 	case SYNC_PURGE_LATCH:
 	case SYNC_PURGE_QUEUE:
@@ -884,9 +884,8 @@ LatchDebug::check_order(
 
 		} else if (!srv_is_being_started) {
 
-			/* This is violated during trx_sys_create_rsegs()
-			when creating additional rollback segments during
-			upgrade. */
+			/* This is violated during single-threaded srv_start()
+			by trx_sys_create_additional_rsegs(). */
 
 			basic_check(latches, level, SYNC_IBUF_BITMAP);
 		}
@@ -909,15 +908,15 @@ LatchDebug::check_order(
 		mutex. */
 
 		ut_a(find(latches, SYNC_TRX_UNDO) != 0
-		     || find(latches, SYNC_REDO_RSEG) != 0
-		     || find(latches, SYNC_NOREDO_RSEG) != 0
+		     || find(latches, SYNC_TEMP_SPACE_RSEG) != 0
+		     || find(latches, SYNC_TRX_SYS_RSEG) != 0
 		     || basic_check(latches, level, level - 1));
 		break;
 
 	case SYNC_RSEG_HEADER:
 
-		ut_a(find(latches, SYNC_REDO_RSEG) != 0
-		     || find(latches, SYNC_NOREDO_RSEG) != 0);
+		ut_a(find(latches, SYNC_TEMP_SPACE_RSEG) != 0
+		     || find(latches, SYNC_TRX_SYS_RSEG) != 0);
 		break;
 
 	case SYNC_RSEG_HEADER_NEW:
@@ -1368,242 +1367,268 @@ sync_latch_meta_init()
 	/* The latches should be ordered on latch_id_t. So that we can
 	index directly into the vector to update and fetch meta-data. */
 
-	LATCH_ADD(LOCK_FREE_HASH, SYNC_LOCK_FREE_HASH,
-		  lock_free_hash_mutex_key);
+	LATCH_ADD_MUTEX(LOCK_FREE_HASH, SYNC_LOCK_FREE_HASH,
+			lock_free_hash_mutex_key);
 
-	LATCH_ADD(AUTOINC, SYNC_DICT_AUTOINC_MUTEX, autoinc_mutex_key);
+	LATCH_ADD_MUTEX(AUTOINC, SYNC_DICT_AUTOINC_MUTEX, autoinc_mutex_key);
 
-#if defined PFS_SKIP_BUFFER_MUTEX_RWLOCK || defined PFS_GROUP_BUFFER_SYNC
-	LATCH_ADD(BUF_BLOCK_MUTEX, SYNC_BUF_BLOCK, PFS_NOT_INSTRUMENTED);
+#ifdef PFS_SKIP_BUFFER_MUTEX_RWLOCK
+	LATCH_ADD_MUTEX(BUF_BLOCK_MUTEX, SYNC_BUF_BLOCK, PFS_NOT_INSTRUMENTED);
 #else
-	LATCH_ADD(BUF_BLOCK_MUTEX, SYNC_BUF_BLOCK, buffer_block_mutex_key);
-#endif /* PFS_SKIP_BUFFER_MUTEX_RWLOCK || PFS_GROUP_BUFFER_SYNC */
+	LATCH_ADD_MUTEX(BUF_BLOCK_MUTEX, SYNC_BUF_BLOCK,
+			buffer_block_mutex_key);
+#endif /* PFS_SKIP_BUFFER_MUTEX_RWLOCK */
 
-	LATCH_ADD(BUF_POOL_LRU_LIST,
-		  SYNC_BUF_LRU_LIST,
-		  buf_pool_LRU_list_mutex_key);
+	LATCH_ADD_MUTEX(BUF_POOL_LRU_LIST, SYNC_BUF_LRU_LIST,
+			buf_pool_LRU_list_mutex_key);
 
-	LATCH_ADD(BUF_POOL_FREE_LIST,
-		  SYNC_BUF_FREE_LIST,
-		  buf_pool_free_list_mutex_key);
+	LATCH_ADD_MUTEX(BUF_POOL_FREE_LIST, SYNC_BUF_FREE_LIST,
+			buf_pool_free_list_mutex_key);
 
-	LATCH_ADD(BUF_POOL_ZIP_FREE,
-		  SYNC_BUF_ZIP_FREE,
-		  buf_pool_zip_free_mutex_key);
+	LATCH_ADD_MUTEX(BUF_POOL_ZIP_FREE, SYNC_BUF_ZIP_FREE,
+			buf_pool_zip_free_mutex_key);
 
-	LATCH_ADD(BUF_POOL_ZIP_HASH,
-		  SYNC_BUF_ZIP_HASH,
-		  buf_pool_zip_free_mutex_key);
+	LATCH_ADD_MUTEX(BUF_POOL_ZIP_HASH, SYNC_BUF_ZIP_HASH,
+			buf_pool_zip_free_mutex_key);
 
-	LATCH_ADD(BUF_POOL_FLUSH_STATE,
-		  SYNC_BUF_FLUSH_STATE,
-		  buf_pool_flush_state_mutex_key);
+	LATCH_ADD_MUTEX(BUF_POOL_FLUSH_STATE, SYNC_BUF_FLUSH_STATE,
+			buf_pool_flush_state_mutex_key);
 
-	LATCH_ADD(BUF_POOL_ZIP, SYNC_BUF_BLOCK, buf_pool_zip_mutex_key);
+	LATCH_ADD_MUTEX(BUF_POOL_ZIP, SYNC_BUF_BLOCK, buf_pool_zip_mutex_key);
 
-	LATCH_ADD(CACHE_LAST_READ, SYNC_TRX_I_S_LAST_READ,
-		  cache_last_read_mutex_key);
+	LATCH_ADD_MUTEX(CACHE_LAST_READ, SYNC_TRX_I_S_LAST_READ,
+			cache_last_read_mutex_key);
 
-	LATCH_ADD(DICT_FOREIGN_ERR, SYNC_NO_ORDER_CHECK,
-		  dict_foreign_err_mutex_key);
+	LATCH_ADD_MUTEX(DICT_FOREIGN_ERR, SYNC_NO_ORDER_CHECK,
+			dict_foreign_err_mutex_key);
 
-	LATCH_ADD(PERSIST_METADATA_BUFFER,
-		  SYNC_PERSIST_METADATA_BUFFER,
-		  index_tree_rw_lock_key);
+	LATCH_ADD_RWLOCK(PERSIST_METADATA_BUFFER,
+			 SYNC_PERSIST_METADATA_BUFFER,
+			 index_tree_rw_lock_key);
 
-	LATCH_ADD(DICT_PERSIST_DIRTY_TABLES,
-		  SYNC_PERSIST_DIRTY_TABLES,
-		  dict_persist_dirty_tables_mutex_key);
+	LATCH_ADD_MUTEX(DICT_PERSIST_DIRTY_TABLES,
+			SYNC_PERSIST_DIRTY_TABLES,
+			dict_persist_dirty_tables_mutex_key);
 
-	LATCH_ADD(PERSIST_AUTOINC,
-		  SYNC_PERSIST_AUTOINC,
-		  autoinc_persisted_mutex_key);
+	LATCH_ADD_MUTEX(PERSIST_AUTOINC, SYNC_PERSIST_AUTOINC,
+			autoinc_persisted_mutex_key);
 
-	LATCH_ADD(DICT_PERSIST_CHECKPOINT,
-		  SYNC_PERSIST_CHECKPOINT,
-		  dict_persist_checkpoint_key);
+	LATCH_ADD_RWLOCK(DICT_PERSIST_CHECKPOINT, SYNC_PERSIST_CHECKPOINT,
+			 dict_persist_checkpoint_key);
 
-	LATCH_ADD(DICT_SYS, SYNC_DICT, dict_sys_mutex_key);
+	LATCH_ADD_MUTEX(DICT_SYS, SYNC_DICT, dict_sys_mutex_key);
 
-	LATCH_ADD(FIL_SYSTEM, SYNC_ANY_LATCH, fil_system_mutex_key);
+	LATCH_ADD_MUTEX(FIL_SYSTEM, SYNC_ANY_LATCH, fil_system_mutex_key);
 
-	LATCH_ADD(FLUSH_LIST, SYNC_BUF_FLUSH_LIST, flush_list_mutex_key);
+	LATCH_ADD_MUTEX(FLUSH_LIST, SYNC_BUF_FLUSH_LIST, flush_list_mutex_key);
 
-	LATCH_ADD(FTS_BG_THREADS, SYNC_FTS_BG_THREADS,
-		  fts_bg_threads_mutex_key);
+	LATCH_ADD_MUTEX(FTS_BG_THREADS, SYNC_FTS_BG_THREADS,
+			fts_bg_threads_mutex_key);
 
-	LATCH_ADD(FTS_DELETE, SYNC_FTS_OPTIMIZE, fts_delete_mutex_key);
+	LATCH_ADD_MUTEX(FTS_DELETE, SYNC_FTS_OPTIMIZE, fts_delete_mutex_key);
 
-	LATCH_ADD(FTS_OPTIMIZE, SYNC_FTS_OPTIMIZE, fts_optimize_mutex_key);
+	LATCH_ADD_MUTEX(FTS_OPTIMIZE, SYNC_FTS_OPTIMIZE,
+			fts_optimize_mutex_key);
 
-	LATCH_ADD(FTS_DOC_ID, SYNC_FTS_OPTIMIZE, fts_doc_id_mutex_key);
+	LATCH_ADD_MUTEX(FTS_DOC_ID, SYNC_FTS_OPTIMIZE, fts_doc_id_mutex_key);
 
-	LATCH_ADD(FTS_PLL_TOKENIZE, SYNC_FTS_TOKENIZE,
-		  fts_pll_tokenize_mutex_key);
+	LATCH_ADD_MUTEX(FTS_PLL_TOKENIZE, SYNC_FTS_TOKENIZE,
+			fts_pll_tokenize_mutex_key);
 
-	LATCH_ADD(HASH_TABLE_MUTEX, SYNC_BUF_PAGE_HASH, hash_table_mutex_key);
+	LATCH_ADD_MUTEX(HASH_TABLE_MUTEX, SYNC_BUF_PAGE_HASH,
+			hash_table_mutex_key);
 
-	LATCH_ADD(IBUF_BITMAP, SYNC_IBUF_BITMAP_MUTEX, ibuf_bitmap_mutex_key);
+	LATCH_ADD_MUTEX(IBUF_BITMAP, SYNC_IBUF_BITMAP_MUTEX,
+			ibuf_bitmap_mutex_key);
 
-	LATCH_ADD(IBUF, SYNC_IBUF_MUTEX, ibuf_mutex_key);
+	LATCH_ADD_MUTEX(IBUF, SYNC_IBUF_MUTEX, ibuf_mutex_key);
 
-	LATCH_ADD(IBUF_PESSIMISTIC_INSERT, SYNC_IBUF_PESS_INSERT_MUTEX,
-		  ibuf_pessimistic_insert_mutex_key);
+	LATCH_ADD_MUTEX(IBUF_PESSIMISTIC_INSERT, SYNC_IBUF_PESS_INSERT_MUTEX,
+			ibuf_pessimistic_insert_mutex_key);
 
-	LATCH_ADD(LOG_SYS, SYNC_LOG, log_sys_mutex_key);
+	LATCH_ADD_MUTEX(LOG_SYS, SYNC_LOG, log_sys_mutex_key);
 
-	LATCH_ADD(LOG_WRITE, SYNC_LOG_WRITE, log_sys_write_mutex_key);
+	LATCH_ADD_MUTEX(LOG_WRITE, SYNC_LOG_WRITE, log_sys_write_mutex_key);
 
-	LATCH_ADD(LOG_FLUSH_ORDER, SYNC_LOG_FLUSH_ORDER,
-		  log_flush_order_mutex_key);
+	LATCH_ADD_MUTEX(LOG_FLUSH_ORDER, SYNC_LOG_FLUSH_ORDER,
+			log_flush_order_mutex_key);
 
-	LATCH_ADD(PAGE_CLEANER, SYNC_PAGE_CLEANER, page_cleaner_mutex_key);
+	LATCH_ADD_MUTEX(PAGE_CLEANER, SYNC_PAGE_CLEANER,
+			page_cleaner_mutex_key);
 
-	LATCH_ADD(PURGE_SYS_PQ, SYNC_PURGE_QUEUE, purge_sys_pq_mutex_key);
+	LATCH_ADD_MUTEX(PURGE_SYS_PQ, SYNC_PURGE_QUEUE,
+			purge_sys_pq_mutex_key);
 
-	LATCH_ADD(RECALC_POOL, SYNC_STATS_AUTO_RECALC,
-		  recalc_pool_mutex_key);
+	LATCH_ADD_MUTEX(RECALC_POOL, SYNC_STATS_AUTO_RECALC,
+			recalc_pool_mutex_key);
 
-	LATCH_ADD(RECV_SYS, SYNC_RECV, recv_sys_mutex_key);
+	LATCH_ADD_MUTEX(RECV_SYS, SYNC_RECV, recv_sys_mutex_key);
 
-	LATCH_ADD(RECV_WRITER, SYNC_RECV_WRITER, recv_writer_mutex_key);
+	LATCH_ADD_MUTEX(RECV_WRITER, SYNC_RECV_WRITER, recv_writer_mutex_key);
 
-	LATCH_ADD(REDO_RSEG, SYNC_REDO_RSEG, redo_rseg_mutex_key);
+	LATCH_ADD_MUTEX(TEMP_SPACE_RSEG, SYNC_TEMP_SPACE_RSEG,
+			temp_space_rseg_mutex_key);
 
-	LATCH_ADD(NOREDO_RSEG, SYNC_NOREDO_RSEG, noredo_rseg_mutex_key);
+	LATCH_ADD_MUTEX(TRX_SYS_RSEG, SYNC_TRX_SYS_RSEG,
+			trx_sys_rseg_mutex_key);
 
 #ifdef UNIV_DEBUG
 	/* Mutex names starting with '.' are not tracked. They are assumed
 	to be diagnostic mutexes used in debugging. */
 	latch_meta[LATCH_ID_RW_LOCK_DEBUG] =
-		LATCH_ADD(RW_LOCK_DEBUG,
-			SYNC_NO_ORDER_CHECK,
-			rw_lock_debug_mutex_key);
+		LATCH_ADD_MUTEX(RW_LOCK_DEBUG,
+				SYNC_NO_ORDER_CHECK,
+				rw_lock_debug_mutex_key);
 #endif /* UNIV_DEBUG */
 
-	LATCH_ADD(RTR_SSN_MUTEX, SYNC_ANY_LATCH, rtr_ssn_mutex_key);
+	LATCH_ADD_MUTEX(RTR_SSN_MUTEX, SYNC_ANY_LATCH, rtr_ssn_mutex_key);
 
-	LATCH_ADD(RTR_ACTIVE_MUTEX, SYNC_ANY_LATCH, rtr_active_mutex_key);
+	LATCH_ADD_MUTEX(RTR_ACTIVE_MUTEX, SYNC_ANY_LATCH,
+			rtr_active_mutex_key);
 
-	LATCH_ADD(RTR_MATCH_MUTEX, SYNC_ANY_LATCH, rtr_match_mutex_key);
+	LATCH_ADD_MUTEX(RTR_MATCH_MUTEX, SYNC_ANY_LATCH, rtr_match_mutex_key);
 
-	LATCH_ADD(RTR_PATH_MUTEX, SYNC_ANY_LATCH, rtr_path_mutex_key);
+	LATCH_ADD_MUTEX(RTR_PATH_MUTEX, SYNC_ANY_LATCH, rtr_path_mutex_key);
 
-	LATCH_ADD(RW_LOCK_LIST, SYNC_NO_ORDER_CHECK, rw_lock_list_mutex_key);
+	LATCH_ADD_MUTEX(RW_LOCK_LIST, SYNC_NO_ORDER_CHECK,
+			rw_lock_list_mutex_key);
 
-	LATCH_ADD(RW_LOCK_MUTEX, SYNC_NO_ORDER_CHECK, rw_lock_mutex_key);
+	LATCH_ADD_MUTEX(RW_LOCK_MUTEX, SYNC_NO_ORDER_CHECK, rw_lock_mutex_key);
 
-	LATCH_ADD(SRV_DICT_TMPFILE, SYNC_DICT_OPERATION,
-		  srv_dict_tmpfile_mutex_key);
+	LATCH_ADD_MUTEX(SRV_DICT_TMPFILE, SYNC_DICT_OPERATION,
+			srv_dict_tmpfile_mutex_key);
 
-	LATCH_ADD(SRV_INNODB_MONITOR, SYNC_NO_ORDER_CHECK,
-		  srv_innodb_monitor_mutex_key);
+	LATCH_ADD_MUTEX(SRV_INNODB_MONITOR, SYNC_NO_ORDER_CHECK,
+			srv_innodb_monitor_mutex_key);
 
-	LATCH_ADD(SRV_MISC_TMPFILE, SYNC_ANY_LATCH,
-		  srv_misc_tmpfile_mutex_key);
+	LATCH_ADD_MUTEX(SRV_MISC_TMPFILE, SYNC_ANY_LATCH,
+			srv_misc_tmpfile_mutex_key);
 
-	LATCH_ADD(SRV_MONITOR_FILE, SYNC_NO_ORDER_CHECK,
-		  srv_monitor_file_mutex_key);
+	LATCH_ADD_MUTEX(SRV_MONITOR_FILE, SYNC_NO_ORDER_CHECK,
+			srv_monitor_file_mutex_key);
 
 #ifdef UNIV_DEBUG
-	LATCH_ADD(SYNC_THREAD, SYNC_NO_ORDER_CHECK, sync_thread_mutex_key);
+	LATCH_ADD_MUTEX(SYNC_THREAD, SYNC_NO_ORDER_CHECK,
+			sync_thread_mutex_key);
+#else
+	LATCH_ADD_MUTEX(SYNC_THREAD, SYNC_NO_ORDER_CHECK, PFS_NOT_INSTRUMENTED);
 #endif /* UNIV_DEBUG */
 
-	LATCH_ADD(BUF_DBLWR, SYNC_DOUBLEWRITE, buf_dblwr_mutex_key);
+	LATCH_ADD_MUTEX(BUF_DBLWR, SYNC_DOUBLEWRITE, buf_dblwr_mutex_key);
 
-	LATCH_ADD(TRX_UNDO, SYNC_TRX_UNDO, trx_undo_mutex_key);
+	LATCH_ADD_MUTEX(TRX_UNDO, SYNC_TRX_UNDO, trx_undo_mutex_key);
 
-	LATCH_ADD(TRX_POOL, SYNC_POOL, trx_pool_mutex_key);
+	LATCH_ADD_MUTEX(TRX_POOL, SYNC_POOL, trx_pool_mutex_key);
 
-	LATCH_ADD(TRX_POOL_MANAGER, SYNC_POOL_MANAGER,
-		  trx_pool_manager_mutex_key);
+	LATCH_ADD_MUTEX(TRX_POOL_MANAGER, SYNC_POOL_MANAGER,
+			trx_pool_manager_mutex_key);
 
-	LATCH_ADD(TRX, SYNC_TRX, trx_mutex_key);
+	LATCH_ADD_MUTEX(TRX, SYNC_TRX, trx_mutex_key);
 
-	LATCH_ADD(LOCK_SYS, SYNC_LOCK_SYS, lock_mutex_key);
+	LATCH_ADD_MUTEX(LOCK_SYS, SYNC_LOCK_SYS, lock_mutex_key);
 
-	LATCH_ADD(LOCK_SYS_WAIT, SYNC_LOCK_WAIT_SYS, lock_wait_mutex_key);
+	LATCH_ADD_MUTEX(LOCK_SYS_WAIT, SYNC_LOCK_WAIT_SYS,
+			lock_wait_mutex_key);
 
-	LATCH_ADD(TRX_SYS, SYNC_TRX_SYS, trx_sys_mutex_key);
+	LATCH_ADD_MUTEX(TRX_SYS, SYNC_TRX_SYS, trx_sys_mutex_key);
 
-	LATCH_ADD(SRV_SYS, SYNC_THREADS, srv_sys_mutex_key);
+	LATCH_ADD_MUTEX(SRV_SYS, SYNC_THREADS, srv_sys_mutex_key);
 
-	LATCH_ADD(SRV_SYS_TASKS, SYNC_ANY_LATCH, srv_threads_mutex_key);
+	LATCH_ADD_MUTEX(SRV_SYS_TASKS, SYNC_ANY_LATCH, srv_threads_mutex_key);
 
-	LATCH_ADD(PAGE_ZIP_STAT_PER_INDEX, SYNC_ANY_LATCH,
-		  page_zip_stat_per_index_mutex_key);
+	LATCH_ADD_MUTEX(PAGE_ZIP_STAT_PER_INDEX, SYNC_ANY_LATCH,
+			page_zip_stat_per_index_mutex_key);
 
 #ifndef PFS_SKIP_EVENT_MUTEX
-	LATCH_ADD(EVENT_MANAGER, SYNC_NO_ORDER_CHECK, event_manager_mutex_key);
+	LATCH_ADD_MUTEX(EVENT_MANAGER, SYNC_NO_ORDER_CHECK,
+			event_manager_mutex_key);
+	LATCH_ADD_MUTEX(EVENT_MUTEX, SYNC_NO_ORDER_CHECK, event_mutex_key);
 #else
-	LATCH_ADD(EVENT_MANAGER, SYNC_NO_ORDER_CHECK, PFS_NOT_INSTRUMENTED);
+	LATCH_ADD_MUTEX(EVENT_MANAGER, SYNC_NO_ORDER_CHECK,
+			PFS_NOT_INSTRUMENTED);
+	LATCH_ADD_MUTEX(EVENT_MUTEX, SYNC_NO_ORDER_CHECK, PFS_NOT_INSTRUMENTED);
 #endif /* !PFS_SKIP_EVENT_MUTEX */
 
-	LATCH_ADD(EVENT_MUTEX, SYNC_NO_ORDER_CHECK, event_mutex_key);
+	LATCH_ADD_MUTEX(SYNC_ARRAY_MUTEX, SYNC_NO_ORDER_CHECK,
+			sync_array_mutex_key);
 
-	LATCH_ADD(SYNC_ARRAY_MUTEX, SYNC_NO_ORDER_CHECK,
-		  sync_array_mutex_key);
+	LATCH_ADD_MUTEX(THREAD_MUTEX, SYNC_NO_ORDER_CHECK, thread_mutex_key);
 
-	LATCH_ADD(THREAD_MUTEX, SYNC_NO_ORDER_CHECK, thread_mutex_key);
+	LATCH_ADD_MUTEX(ZIP_PAD_MUTEX, SYNC_NO_ORDER_CHECK, zip_pad_mutex_key);
 
-	LATCH_ADD(ZIP_PAD_MUTEX, SYNC_NO_ORDER_CHECK, zip_pad_mutex_key);
+	LATCH_ADD_MUTEX(OS_AIO_READ_MUTEX, SYNC_NO_ORDER_CHECK,
+			PFS_NOT_INSTRUMENTED);
 
-	LATCH_ADD(OS_AIO_READ_MUTEX, SYNC_NO_ORDER_CHECK, PFS_NOT_INSTRUMENTED);
+	LATCH_ADD_MUTEX(OS_AIO_WRITE_MUTEX, SYNC_NO_ORDER_CHECK,
+			PFS_NOT_INSTRUMENTED);
 
-	LATCH_ADD(OS_AIO_WRITE_MUTEX, SYNC_NO_ORDER_CHECK,
-		  PFS_NOT_INSTRUMENTED);
+	LATCH_ADD_MUTEX(OS_AIO_LOG_MUTEX, SYNC_NO_ORDER_CHECK,
+			PFS_NOT_INSTRUMENTED);
 
-	LATCH_ADD(OS_AIO_LOG_MUTEX, SYNC_NO_ORDER_CHECK, PFS_NOT_INSTRUMENTED);
+	LATCH_ADD_MUTEX(OS_AIO_IBUF_MUTEX, SYNC_NO_ORDER_CHECK,
+			PFS_NOT_INSTRUMENTED);
 
-	LATCH_ADD(OS_AIO_IBUF_MUTEX, SYNC_NO_ORDER_CHECK, PFS_NOT_INSTRUMENTED);
+	LATCH_ADD_MUTEX(OS_AIO_SYNC_MUTEX, SYNC_NO_ORDER_CHECK,
+			PFS_NOT_INSTRUMENTED);
 
-	LATCH_ADD(OS_AIO_SYNC_MUTEX, SYNC_NO_ORDER_CHECK, PFS_NOT_INSTRUMENTED);
+	LATCH_ADD_MUTEX(ROW_DROP_LIST, SYNC_NO_ORDER_CHECK,
+			row_drop_list_mutex_key);
 
-	LATCH_ADD(ROW_DROP_LIST, SYNC_NO_ORDER_CHECK, row_drop_list_mutex_key);
+	LATCH_ADD_RWLOCK(INDEX_ONLINE_LOG, SYNC_INDEX_ONLINE_LOG,
+			 index_online_log_key);
 
-	LATCH_ADD(INDEX_ONLINE_LOG, SYNC_INDEX_ONLINE_LOG,
-		  index_online_log_key);
-
-	LATCH_ADD(WORK_QUEUE, SYNC_WORK_QUEUE, PFS_NOT_INSTRUMENTED);
+	LATCH_ADD_MUTEX(WORK_QUEUE, SYNC_WORK_QUEUE, PFS_NOT_INSTRUMENTED);
 
 	// Add the RW locks
-	LATCH_ADD(BTR_SEARCH, SYNC_SEARCH_SYS, btr_search_latch_key);
+	LATCH_ADD_RWLOCK(BTR_SEARCH, SYNC_SEARCH_SYS, btr_search_latch_key);
 
-	LATCH_ADD(BUF_BLOCK_LOCK, SYNC_LEVEL_VARYING, buf_block_lock_key);
+#ifndef PFS_SKIP_BUFFER_MUTEX_RWLOCK
+	LATCH_ADD_RWLOCK(BUF_BLOCK_LOCK, SYNC_LEVEL_VARYING,
+			 buf_block_lock_key);
+#else
+	LATCH_ADD_RWLOCK(BUF_BLOCK_LOCK, SYNC_LEVEL_VARYING, PFS_NOT_INSTRUMENTED);
+#endif /* !PFS_SKIP_BUFFER_MUTEX_RWLOCK */
 
 #ifdef UNIV_DEBUG
-	LATCH_ADD(BUF_BLOCK_DEBUG, SYNC_NO_ORDER_CHECK,
-		  buf_block_debug_latch_key);
+	LATCH_ADD_RWLOCK(BUF_BLOCK_DEBUG, SYNC_NO_ORDER_CHECK,
+			 buf_block_debug_latch_key);
+#else
+	LATCH_ADD_RWLOCK(BUF_BLOCK_DEBUG, SYNC_NO_ORDER_CHECK,
+			 PFS_NOT_INSTRUMENTED);
 #endif /* UNIV_DEBUG */
 
-	LATCH_ADD(DICT_OPERATION, SYNC_DICT, dict_operation_lock_key);
+	LATCH_ADD_RWLOCK(DICT_OPERATION, SYNC_DICT, dict_operation_lock_key);
 
-	LATCH_ADD(CHECKPOINT, SYNC_NO_ORDER_CHECK, checkpoint_lock_key);
+	LATCH_ADD_RWLOCK(CHECKPOINT, SYNC_NO_ORDER_CHECK, checkpoint_lock_key);
 
-	LATCH_ADD(FIL_SPACE, SYNC_FSP, fil_space_latch_key);
+	LATCH_ADD_RWLOCK(FIL_SPACE, SYNC_FSP, fil_space_latch_key);
 
-	LATCH_ADD(FTS_CACHE, SYNC_FTS_CACHE, fts_cache_rw_lock_key);
+	LATCH_ADD_RWLOCK(FTS_CACHE, SYNC_FTS_CACHE, fts_cache_rw_lock_key);
 
-	LATCH_ADD(FTS_CACHE_INIT, SYNC_FTS_CACHE_INIT,
-		  fts_cache_init_rw_lock_key);
+	LATCH_ADD_RWLOCK(FTS_CACHE_INIT, SYNC_FTS_CACHE_INIT,
+			 fts_cache_init_rw_lock_key);
 
-	LATCH_ADD(TRX_I_S_CACHE, SYNC_TRX_I_S_RWLOCK, trx_i_s_cache_lock_key);
+	LATCH_ADD_RWLOCK(TRX_I_S_CACHE, SYNC_TRX_I_S_RWLOCK,
+			 trx_i_s_cache_lock_key);
 
-	LATCH_ADD(TRX_PURGE, SYNC_PURGE_LATCH, trx_purge_latch_key);
+	LATCH_ADD_RWLOCK(TRX_PURGE, SYNC_PURGE_LATCH, trx_purge_latch_key);
 
-	LATCH_ADD(IBUF_INDEX_TREE, SYNC_IBUF_INDEX_TREE,
-		  index_tree_rw_lock_key);
+	LATCH_ADD_RWLOCK(IBUF_INDEX_TREE, SYNC_IBUF_INDEX_TREE,
+			 index_tree_rw_lock_key);
 
-	LATCH_ADD(INDEX_TREE, SYNC_INDEX_TREE, index_tree_rw_lock_key);
+	LATCH_ADD_RWLOCK(INDEX_TREE, SYNC_INDEX_TREE, index_tree_rw_lock_key);
 
-	LATCH_ADD(DICT_TABLE_STATS, SYNC_INDEX_TREE, dict_table_stats_key);
+	LATCH_ADD_RWLOCK(DICT_TABLE_STATS, SYNC_INDEX_TREE,
+			 dict_table_stats_key);
 
-	LATCH_ADD(HASH_TABLE_RW_LOCK, SYNC_BUF_PAGE_HASH,
-		  hash_table_locks_key);
+	LATCH_ADD_RWLOCK(HASH_TABLE_RW_LOCK, SYNC_BUF_PAGE_HASH,
+			 hash_table_locks_key);
 
-	LATCH_ADD(SYNC_DEBUG_MUTEX, SYNC_NO_ORDER_CHECK, PFS_NOT_INSTRUMENTED);
+	LATCH_ADD_RWLOCK(SYNC_DEBUG_MUTEX, SYNC_NO_ORDER_CHECK,
+			 PFS_NOT_INSTRUMENTED);
 
-	LATCH_ADD(MASTER_KEY_ID_MUTEX, SYNC_NO_ORDER_CHECK, master_key_id_mutex_key);
+	LATCH_ADD_MUTEX(MASTER_KEY_ID_MUTEX, SYNC_NO_ORDER_CHECK,
+			master_key_id_mutex_key);
 
 	latch_id_t	id = LATCH_ID_NONE;
 
@@ -1769,7 +1794,7 @@ private:
 		const void*,
 		File,
 		std::less<const void*>,
-		ut_allocator<std::pair<const void*, File> > >
+		ut_allocator<std::pair<const void* const, File> > >
 		Files;
 
 	typedef OSMutex	Mutex;

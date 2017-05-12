@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,14 +20,20 @@
 
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
+
 #include <gtest/gtest.h>
+#include <sys/types.h>
+
+#include "my_inttypes.h"
+#include "my_macros.h"
 
 #ifdef OPTIMIZER_TRACE
 
-#include <opt_trace.h>
 #include <mysys_err.h>                          // for testing of OOM
-#include "mysqld.h"                             // system_charset_info
+#include <opt_trace.h>
+
 #include "m_string.h"                           // llstr
+#include "mysqld.h"                             // system_charset_info
 #ifdef HAVE_SYS_WAIT_H
 #include <sys/wait.h>                           // for WEXITSTATUS
 #endif
@@ -98,14 +104,22 @@ protected:
   }
   virtual void SetUp()
   {
+    /* Save original and install our custom error hook. */
+    m_old_error_handler_hook= error_handler_hook;
     error_handler_hook= my_error_handler;
     oom= false;
     // Setting debug flags triggers enter/exit trace, so redirect to /dev/null
     DBUG_SET("o," IF_WIN("NUL", "/dev/null"));
   }
+  virtual void TearDown()
+  {
+    error_handler_hook= m_old_error_handler_hook;
+  }
 
+  static void (*m_old_error_handler_hook)(uint, const char *, myf);
 };
 bool TraceContentTest::oom;
+void (*TraceContentTest::m_old_error_handler_hook)(uint, const char *, myf);
 
 
 void my_error_handler(uint error, const char *str, myf MyFlags)

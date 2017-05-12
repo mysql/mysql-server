@@ -1,0 +1,63 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server1]
+CREATE TABLE test.t1 ( a int primary key);
+include/rpl_sync.inc
+USE test;
+CREATE PROCEDURE insert_into_t1()
+BEGIN
+declare x INT;
+set x=1;
+while x<500 do
+insert into t1 values (x);
+set x=x+1;
+end  while;
+end$$
+
+[connection server_1_1]
+----call procedure----
+call insert_into_t1();
+
+[connection server1]
+####### Wait for atleast 50 records to be inserted from the parallel client #######
+###### Stop the group replication from the parallel client on Server 1 ######
+include/stop_group_replication.inc
+[connection server_1_1]
+####### Performing a reap for send operation #######
+[connection server2]
+####### Checking the member count having online status #######
+[connection server3]
+####### Checking the member count having online status #######
+[connection server2]
+include/stop_group_replication.inc
+[connection server3]
+include/stop_group_replication.inc
+
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_group_replication.inc
+[connection server3]
+include/start_group_replication.inc
+
+[connection server1]
+CREATE TABLE test.t2 ( a int primary key);
+# Validating the records in server1 #
+include/assert.inc ['Checking the number of records in test.t1']
+include/assert.inc ['Checking the number of records in test.t2']
+
+[connection server3]
+include/assert.inc ['Checking the number of records in test.t1']
+####### Wait till the number of records in t2 becomes 10 #######
+[connection server2]
+# Validating the records in server2 #
+include/assert.inc ['Checking the number of records in test.t1']
+####### Wait till the number of records in t2 becomes 10 #######
+#cleanup#
+DROP TABLE test.t2;
+DROP PROCEDURE insert_into_t1;
+DROP TABLE test.t1;
+include/group_replication_end.inc

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 Copyright (c) 2012, Facebook Inc.
 
@@ -43,29 +43,34 @@ Created 10/16/1994 Heikki Tuuri
 *******************************************************/
 
 #include "btr0cur.h"
+
+#include <assert.h>
+
+#include "my_dbug.h"
+#include "my_inttypes.h"
 #include "row0upd.h"
 #ifndef UNIV_HOTBACKUP
+#include "btr0btr.h"
+#include "btr0sea.h"
+#include "buf0lru.h"
+#include "ibuf0ibuf.h"
+#include "lob0lob.h"
+#include "lock0lock.h"
 #include "mtr0log.h"
 #include "page0page.h"
 #include "page0zip.h"
-#include "rem0rec.h"
+#include "que0que.h"
 #include "rem0cmp.h"
-#include "buf0lru.h"
-#include "btr0btr.h"
-#include "btr0sea.h"
+#include "rem0rec.h"
 #include "row0log.h"
 #include "row0purge.h"
+#include "row0row.h"
 #include "row0upd.h"
+#include "srv0srv.h"
+#include "srv0start.h"
 #include "trx0rec.h"
 #include "trx0roll.h"
-#include "que0que.h"
-#include "row0row.h"
-#include "srv0srv.h"
-#include "ibuf0ibuf.h"
-#include "lock0lock.h"
 #include "zlib.h"
-#include "srv0start.h"
-#include "lob0lob.h"
 
 /** Buffered B-tree operation types, introduced as part of delete buffering. */
 enum btr_op_t {
@@ -3810,6 +3815,7 @@ btr_cur_update_in_place(
 		rw_lock_x_lock(btr_get_search_latch(index));
 	}
 
+	assert_block_ahi_valid(block);
 	row_upd_rec_in_place(rec, index, offsets, update, page_zip);
 
 	if (is_hashed) {

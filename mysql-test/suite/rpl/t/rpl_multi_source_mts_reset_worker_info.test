@@ -55,7 +55,7 @@ eval CHANGE MASTER TO MASTER_HOST='localhost', MASTER_USER='root', MASTER_PORT=$
 --let $assert_cond= `SELECT COUNT(*) = 0 FROM mysql.slave_worker_info`
 --source include/assert.inc
 
---let $rpl_channel_name= ch_b
+--let $rpl_channel_name= 'ch_b'
 --source include/start_slave.inc
 
 #

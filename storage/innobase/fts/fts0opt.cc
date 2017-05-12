@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -25,19 +25,25 @@ Completed 2011/7/10 Sunny and Jimmy Yang
 
 ***********************************************************************/
 
-#include "ha_prototypes.h"
+#include <math.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <time.h>
 
-#include "fts0opt.h"
 #include "fts0fts.h"
-#include "row0sel.h"
-#include "que0types.h"
+#include "fts0opt.h"
 #include "fts0priv.h"
 #include "fts0types.h"
-#include "ut0wqueue.h"
+#include "ha_prototypes.h"
+#include "my_compiler.h"
+#include "my_inttypes.h"
+#include "os0thread-create.h"
+#include "que0types.h"
+#include "row0sel.h"
 #include "srv0start.h"
 #include "ut0list.h"
+#include "ut0wqueue.h"
 #include "zlib.h"
-#include "os0thread-create.h"
 
 /** The FTS optimize thread's work queue. */
 static ib_wqueue_t* fts_optimize_wq;
@@ -233,7 +239,7 @@ struct fts_msg_t {
 ulong	fts_num_word_optimize;
 
 // FIXME
-char	fts_enable_diag_print;
+bool	fts_enable_diag_print;
 
 /** ZLib compressed block size.*/
 static ulint FTS_ZIP_BLOCK_SIZE	= 1024;
@@ -580,9 +586,6 @@ fts_zip_read_word(
 	fts_zip_t*	zip,		/*!< in: Zip state + data */
 	fts_string_t*	word)		/*!< out: uncompressed word */
 {
-#ifdef UNIV_DEBUG
-	ulint		i;
-#endif
 	short		len = 0;
 	void*		null = NULL;
 	byte*		ptr = word->f_str;
@@ -658,10 +661,9 @@ fts_zip_read_word(
 		}
 	}
 
-#ifdef UNIV_DEBUG
 	/* All blocks must be freed at end of inflate. */
 	if (zip->status != Z_OK) {
-		for (i = 0; i < ib_vector_size(zip->blocks); ++i) {
+		for (ulint i = 0; i < ib_vector_size(zip->blocks); ++i) {
 			if (ib_vector_getp(zip->blocks, i)) {
 				ut_free(ib_vector_getp(zip->blocks, i));
 				ib_vector_set(zip->blocks, i, &null);
@@ -672,7 +674,6 @@ fts_zip_read_word(
 	if (ptr != NULL) {
 		ut_ad(word->f_len == strlen((char*) ptr));
 	}
-#endif /* UNIV_DEBUG */
 
 	return(zip->status == Z_OK || zip->status == Z_STREAM_END ? ptr : NULL);
 }
@@ -2993,6 +2994,7 @@ fts_optimize_thread(ib_wqueue_t* wq)
 	ulint		n_tables = 0;
 	ulint		n_optimize = 0;
 
+	my_thread_init();
 	ut_ad(!srv_read_only_mode);
 
 	heap = mem_heap_create(sizeof(dict_table_t*) * 64);
@@ -3134,6 +3136,8 @@ fts_optimize_thread(ib_wqueue_t* wq)
 	ib::info() << "FTS optimize thread exiting.";
 
 	os_event_set(fts_opt_shutdown_event);
+
+	my_thread_end();
 }
 
 /**********************************************************************//**

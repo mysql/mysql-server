@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,14 +16,22 @@
 #ifndef DD__DICTIONARY_OBJECT_TABLE_IMPL_INCLUDED
 #define DD__DICTIONARY_OBJECT_TABLE_IMPL_INCLUDED
 
-#include "my_global.h"
+#include <sys/types.h>
 
 #include "dd/impl/types/object_table_impl.h"  // Object_table_impl
 #include "dd/types/dictionary_object_table.h" // dd::Dictionary_object_table
+#include "my_compiler.h"
+
+class THD;
 
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
+
+class Dictionary_object;
+class Object_table_definition;
+class Open_dictionary_tables_ctx;
+class Raw_record;
 
 class Dictionary_object_table_impl : public Object_table_impl,
                                      public Dictionary_object_table

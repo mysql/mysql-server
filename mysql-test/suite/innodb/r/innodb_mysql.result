@@ -451,6 +451,34 @@ a
 2
 5
 drop table t1;
+End of 5.0 tests
+#
+# Bug#23753319: !M_THD->TRANSACTION_ROLLBACK_REQUEST' AT
+# THD::ATTACHABLE_TRX::INIT IN SQL/SQL_C
+#
+create table t1 (i int);
+insert into t1 values (42);
+# Grab locks which will block another con from doing select in RR
+BEGIN;
+select * from t1 for update;
+i
+42
+# Create competing connection using RR
+BEGIN;
+set session transaction isolation level repeatable read;
+# Will fail and request rollback due to blocking for update
+# (prior to fix this would trigger the assert).
+create table t2 as select * from t1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+# Additional coverage for WL#7743 "New data dictionary: changes
+# to DDL-related parts of SE API". Check how rollback is handled
+# by similar CTS for non-transactional table.
+BEGIN;
+create table t2 engine=myisam as select * from t1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+# Cleanup
+COMMIT;
+drop table t1;
 set @save_qcache_size=@@global.query_cache_size;
 set @save_qcache_type=@@global.query_cache_type;
 set global query_cache_size=10*1024*1024;
@@ -513,6 +541,34 @@ a
 1
 2
 5
+drop table t1;
+End of 5.0 tests
+#
+# Bug#23753319: !M_THD->TRANSACTION_ROLLBACK_REQUEST' AT
+# THD::ATTACHABLE_TRX::INIT IN SQL/SQL_C
+#
+create table t1 (i int);
+insert into t1 values (42);
+# Grab locks which will block another con from doing select in RR
+BEGIN;
+select * from t1 for update;
+i
+42
+# Create competing connection using RR
+BEGIN;
+set session transaction isolation level repeatable read;
+# Will fail and request rollback due to blocking for update
+# (prior to fix this would trigger the assert).
+create table t2 as select * from t1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+# Additional coverage for WL#7743 "New data dictionary: changes
+# to DDL-related parts of SE API". Check how rollback is handled
+# by similar CTS for non-transactional table.
+BEGIN;
+create table t2 engine=myisam as select * from t1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+# Cleanup
+COMMIT;
 drop table t1;
 create table t1(
 id int auto_increment,
@@ -849,6 +905,34 @@ a
 1
 2
 5
+drop table t1;
+End of 5.0 tests
+#
+# Bug#23753319: !M_THD->TRANSACTION_ROLLBACK_REQUEST' AT
+# THD::ATTACHABLE_TRX::INIT IN SQL/SQL_C
+#
+create table t1 (i int);
+insert into t1 values (42);
+# Grab locks which will block another con from doing select in RR
+BEGIN;
+select * from t1 for update;
+i
+42
+# Create competing connection using RR
+BEGIN;
+set session transaction isolation level repeatable read;
+# Will fail and request rollback due to blocking for update
+# (prior to fix this would trigger the assert).
+create table t2 as select * from t1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+# Additional coverage for WL#7743 "New data dictionary: changes
+# to DDL-related parts of SE API". Check how rollback is handled
+# by similar CTS for non-transactional table.
+BEGIN;
+create table t2 engine=myisam as select * from t1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+# Cleanup
+COMMIT;
 drop table t1;
 drop table if exists t1;
 create table t1 (a int) engine=innodb;
@@ -1238,7 +1322,7 @@ UNIQUE KEY (c,b)
 INSERT INTO t1 VALUES (1,1,1,50), (1,2,3,40), (2,1,3,4);
 EXPLAIN SELECT c,b,d FROM t1 GROUP BY c,b,d;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c` AS `c`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`d` AS `d` from `test`.`t1` group by `test`.`t1`.`c`,`test`.`t1`.`b`,`test`.`t1`.`d`
 SELECT c,b,d FROM t1 GROUP BY c,b,d;
@@ -1268,7 +1352,7 @@ c	b	d
 3	2	40
 EXPLAIN SELECT c,b,d FROM t1 GROUP BY c,b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	c	c	8	NULL	3	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	c	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c` AS `c`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`d` AS `d` from `test`.`t1` group by `test`.`t1`.`c`,`test`.`t1`.`b`
 SELECT c,b,d FROM t1 GROUP BY c,b;
@@ -1305,7 +1389,7 @@ Extra	Using where; Using index
 Warnings:
 Level	Note
 Code	1003
-Message	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` = 2) order by `test`.`t1`.`a`
+Message	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` = 2) order by `test`.`t1`.`a` asc
 SELECT * FROM t1 WHERE b=2 ORDER BY a ASC;
 a	b
 2	2
@@ -1322,7 +1406,7 @@ key_len	5
 ref	const
 rows	2
 filtered	100.00
-Extra	Using where; Using index
+Extra	Using where; Backward index scan; Using index
 Warnings:
 Level	Note
 Code	1003
@@ -1347,7 +1431,7 @@ Extra	Using index
 Warnings:
 Level	Note
 Code	1003
-Message	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` order by `test`.`t1`.`b`,`test`.`t1`.`a`
+Message	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` order by `test`.`t1`.`b` asc,`test`.`t1`.`a` asc
 SELECT * FROM t1 ORDER BY b ASC, a ASC;
 a	b
 1	1
@@ -1365,7 +1449,7 @@ key_len	5
 ref	NULL
 rows	3
 filtered	100.00
-Extra	Using index
+Extra	Backward index scan; Using index
 Warnings:
 Level	Note
 Code	1003
@@ -1391,7 +1475,7 @@ Extra	Using index; Using filesort
 Warnings:
 Level	Note
 Code	1003
-Message	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` order by `test`.`t1`.`b`,`test`.`t1`.`a` desc
+Message	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` order by `test`.`t1`.`b` asc,`test`.`t1`.`a` desc
 SELECT * FROM t1 ORDER BY b ASC, a DESC;
 a	b
 1	1
@@ -1413,7 +1497,7 @@ Extra	Using index; Using filesort
 Warnings:
 Level	Note
 Code	1003
-Message	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` order by `test`.`t1`.`b` desc,`test`.`t1`.`a`
+Message	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` order by `test`.`t1`.`b` desc,`test`.`t1`.`a` asc
 SELECT * FROM t1 ORDER BY b DESC, a ASC;
 a	b
 2	2
@@ -1471,10 +1555,13 @@ t1	CREATE TABLE `t1` (
 drop table t1;
 CREATE TABLE t1 (id int, type char(6), d int, INDEX idx(id,d)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES 
-(191, 'member', 1), (NULL, 'member', 3), (NULL, 'member', 4), (201, 'member', 2);
+(191, 'member', 1), (NULL, 'member', 3), (NULL, 'member', 4),
+(201, 'member', 2), (NULL, 'member', 5), (191, 'member', 6),
+(191, 'member', 7), (191, 'member', 8), (191, 'member', 9),
+(191, 'member', 10);
 EXPLAIN SELECT * FROM t1 WHERE id=191 OR id IS NULL ORDER BY d;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	idx	NULL	NULL	NULL	4	75.00	Using where; Using filesort
+1	SIMPLE	t1	NULL	ALL	idx	NULL	NULL	NULL	10	90.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`type` AS `type`,`test`.`t1`.`d` AS `d` from `test`.`t1` where ((`test`.`t1`.`id` = 191) or isnull(`test`.`t1`.`id`)) order by `test`.`t1`.`d`
 SELECT * FROM t1 WHERE id=191 OR id IS NULL ORDER BY d;
@@ -1482,6 +1569,12 @@ id	type	d
 191	member	1
 NULL	member	3
 NULL	member	4
+NULL	member	5
+191	member	6
+191	member	7
+191	member	8
+191	member	9
+191	member	10
 DROP TABLE t1;
 set @my_innodb_autoextend_increment=@@global.innodb_autoextend_increment;
 set global innodb_autoextend_increment=8;
@@ -1493,18 +1586,19 @@ CREATE TABLE t1 (a int, b int, c int, PRIMARY KEY (a), KEY t1_b (b))
 ENGINE=InnoDB;
 INSERT INTO t1 (a,b,c) VALUES (1,1,1), (2,1,1), (3,1,1), (4,1,1);
 INSERT INTO t1 (a,b,c) SELECT a+4,b,c FROM t1;
+INSERT INTO t1 (a,b,c) SELECT a+8,b,c FROM t1;
 EXPLAIN SELECT a, b, c FROM t1 WHERE b = 1 ORDER BY a DESC LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	t1_b	t1_b	5	NULL	8	100.00	Using index condition
+1	SIMPLE	t1	NULL	range	t1_b	t1_b	5	NULL	16	100.00	Using index condition; Backward index scan
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (`test`.`t1`.`b` = 1) order by `test`.`t1`.`a` desc limit 5
 SELECT a, b, c FROM t1 WHERE b = 1 ORDER BY a DESC LIMIT 5;
 a	b	c
-8	1	1
-7	1	1
-6	1	1
-5	1	1
-4	1	1
+16	1	1
+15	1	1
+14	1	1
+13	1	1
+12	1	1
 DROP TABLE t1;
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (a char(50)) ENGINE=InnoDB;
@@ -1845,7 +1939,7 @@ INSERT INTO t1 VALUES
 (2,1,4,'c_extra',NULL),(3,1,4,'c_extra',NULL);
 EXPLAIN SELECT * FROM t1 FORCE INDEX (PRIMARY) WHERE tid = 1 AND vid = 3 ORDER BY idx DESC;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	NULL	PRIMARY	12	NULL	16	6.25	Using where
+1	SIMPLE	t1	NULL	index	NULL	PRIMARY	12	NULL	16	6.25	Using where; Backward index scan
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`vid` AS `vid`,`test`.`t1`.`tid` AS `tid`,`test`.`t1`.`idx` AS `idx`,`test`.`t1`.`name` AS `name`,`test`.`t1`.`type` AS `type` from `test`.`t1` FORCE INDEX (PRIMARY) where ((`test`.`t1`.`vid` = 3) and (`test`.`t1`.`tid` = 1)) order by `test`.`t1`.`idx` desc
 SELECT * FROM t1 FORCE INDEX (PRIMARY) WHERE tid = 1 AND vid = 3 ORDER BY idx DESC;
@@ -2028,7 +2122,9 @@ KEY b (b)
 ) engine=myisam;
 INSERT INTO foo VALUES
 (1,2,'abcdefghij'), (2,3,''), (3,4,'klmnopqrst'),
-(4,5,'uvwxyz'), (5,6,'meotnsyglt'), (4,5,'asfdewe');
+(4,5,'uvwxyz'), (5,6,'meotnsyglt'), (4,5,'asfdewe'), (5,6,'trondheim'),
+(6,7,'stockholm'), (7,8,'copenhagen'), (8,9,'helsinki'),
+(9,10,'reykjavik');
 INSERT INTO bar SELECT * FROM foo;
 INSERT INTO foo2 SELECT * FROM foo;
 ANALYZE TABLE bar;
@@ -2044,8 +2140,8 @@ possible_keys	b
 key	NULL
 key_len	NULL
 ref	NULL
-rows	6
-filtered	83.33
+rows	11
+filtered	90.91
 Extra	Using where
 Warnings:
 Level	Note
@@ -2061,8 +2157,8 @@ possible_keys	b
 key	NULL
 key_len	NULL
 ref	NULL
-rows	6
-filtered	83.33
+rows	11
+filtered	90.91
 Extra	Using where
 Warnings:
 Level	Note
@@ -2078,7 +2174,7 @@ possible_keys	b
 key	b
 key_len	5
 ref	NULL
-rows	5
+rows	10
 filtered	100.00
 Extra	Using where; Using index
 Warnings:
@@ -2095,7 +2191,7 @@ possible_keys	PRIMARY
 key	NULL
 key_len	NULL
 ref	NULL
-rows	6
+rows	11
 filtered	33.33
 Extra	Using where
 Warnings:
@@ -2115,7 +2211,7 @@ possible_keys	PRIMARY
 key	NULL
 key_len	NULL
 ref	NULL
-rows	6
+rows	11
 filtered	33.33
 Extra	Using where
 Warnings:
@@ -2135,7 +2231,7 @@ possible_keys	PRIMARY
 key	b
 key_len	5
 ref	NULL
-rows	6
+rows	11
 filtered	33.33
 Extra	Using where; Using index
 Warnings:
@@ -2776,7 +2872,7 @@ EXPLAIN SELECT * FROM t1 WHERE f1 IN
 3784744,4180925,4559596,3963734,3856391,4494153)
 AND f5 = 'abcdefghijklmnopwrst' AND f2 = 1221457 AND f4 = 0 ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	PRIMARY,idx1,idx2	idx1	60	const,const,const	18	3.30	Using index condition
+1	SIMPLE	t1	NULL	range	PRIMARY,idx1,idx2	PRIMARY	4	NULL	18	0.28	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3`,`test`.`t1`.`f4` AS `f4`,`test`.`t1`.`f5` AS `f5` from `test`.`t1` where ((`test`.`t1`.`f4` = 0) and (`test`.`t1`.`f2` = 1221457) and (`test`.`t1`.`f5` = 'abcdefghijklmnopwrst') and (`test`.`t1`.`f1` in (3305028,3353871,3772880,3346860,4228206,3336022,3470988,3305175,3329875,3817277,3856380,3796193,3784744,4180925,4559596,3963734,3856391,4494153)))
 DROP TABLE t1;
@@ -2810,7 +2906,7 @@ f1	f2	f3	f4
 EXPLAIN SELECT * FROM t1 WHERE f2 = 1 AND f4 = TRUE
 ORDER BY f1 DESC LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	f2,f4	f4	1	NULL	22	100.00	Using index condition; Using where
+1	SIMPLE	t1	NULL	range	f2,f4	f4	1	NULL	22	100.00	Using index condition; Using where; Backward index scan
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3`,`test`.`t1`.`f4` AS `f4` from `test`.`t1` where ((`test`.`t1`.`f4` = TRUE) and (`test`.`t1`.`f2` = 1)) order by `test`.`t1`.`f1` desc limit 5
 DROP TABLE t1;

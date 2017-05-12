@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -24,8 +24,8 @@
 #ifndef _MYSQLX_CONNECTION_H_
 #define _MYSQLX_CONNECTION_H_
 
+#include "my_io.h"
 #include "mysqlx_error.h"
-
 #include "violite.h"
 
 #ifdef WIN32
@@ -72,8 +72,7 @@ public:
   ~Connection();
 
   Error connect_to_localhost(const std::string &named_pipe_or_unix_socket);
-  Error connect(sockaddr_in *sockaddr, const std::size_t addr_size);
-  Error connect(sockaddr_un *sockaddr, const std::size_t addr_size);
+  Error connect(sockaddr *sockaddr, const std::size_t addr_size);
   Error connect(my_socket s, sockaddr *sockaddr, const std::size_t addr_size);
 
   Error activate_tls();

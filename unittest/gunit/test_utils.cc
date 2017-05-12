@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,19 +13,28 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
-#include <gtest/gtest.h>
+#include "unittest/gunit/test_utils.h"
 
-#include "test_utils.h"
-#include "rpl_handler.h"                        // delegates_init()
-#include "mysqld_thd_manager.h"                 // Global_THD_manager
-#include "opt_costconstantcache.h"              // optimizer cost constant cache
-#include "my_dbug.h"                            // DBUG_ASSERT
-#include "mysqld.h"                             // set_remaining_args
-#include "log.h"                                // query_logger
+#include <gtest/gtest.h>
+#include <new>
+#include <ostream>
 
 #include "dd/impl/dictionary_impl.h"            // dd::Dictionary_impl
+#include "gtest/gtest-message.h"
+#include "log.h"                                // query_logger
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_dbug.h"                            // DBUG_ASSERT
+#include "my_decimal.h"
+#include "my_inttypes.h"
+#include "mysql_com.h"
+#include "mysqld.h"                             // set_remaining_args
+#include "opt_costconstantcache.h"              // optimizer cost constant cache
+#include "rpl_handler.h"                        // delegates_init()
+#include "set_var.h"
+#include "sql_class.h"
+#include "sql_lex.h"
+#include "xa.h"
 
 
 namespace my_testing {

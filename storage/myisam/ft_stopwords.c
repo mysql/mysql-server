@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,8 +15,14 @@
 
 /* Written by Sergei A. Golubchik, who has a shared copyright to this code */
 
+#include <fcntl.h>
+#include <sys/types.h>
+
 #include "ftdefs.h"
 #include "my_compare.h"
+#include "my_compiler.h"
+#include "my_inttypes.h"
+#include "my_io.h"
 
 
 static CHARSET_INFO *ft_stopword_cs= NULL;

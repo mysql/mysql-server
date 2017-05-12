@@ -15,12 +15,13 @@
 
 /**
   @file include/mysql/psi/psi_abi_transaction_v2.h
-  ABI check for mysql/psi/psi_transaction.h, when using PSI_TRANSACTION_VERSION_2.
+  ABI check for mysql/psi/psi_transaction.h, when using
+  PSI_TRANSACTION_VERSION_2.
   This file is only used to automate detection of changes between versions.
   Do not include this file, include mysql/psi/psi_transaction.h instead.
 */
 #define USE_PSI_TRANSACTION_2
 #define HAVE_PSI_INTERFACE
 #define MY_GLOBAL_INCLUDED
+#define MY_PSI_CONFIG_INCLUDED
 #include "mysql/psi/psi_transaction.h"
-

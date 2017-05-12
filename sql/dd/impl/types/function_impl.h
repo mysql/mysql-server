@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,15 +16,31 @@
 #ifndef DD__FUNCTION_IMPL_INCLUDED
 #define DD__FUNCTION_IMPL_INCLUDED
 
-#include "my_global.h"
+#include <stddef.h>
+#include <sys/types.h>
+#include <new>
+#include <string>
 
+#include "dd/impl/raw/raw_record.h"
+#include "dd/impl/types/entity_object_impl.h"
 #include "dd/impl/types/routine_impl.h"        // dd::Routine_impl
+#include "dd/impl/types/weak_object_impl.h"
+#include "dd/object_id.h"
+#include "dd/types/column.h"
 #include "dd/types/function.h"                 // dd::Function
 #include "dd/types/object_type.h"              // dd::Object_type
+#include "dd/types/routine.h"
+#include "dd/types/view.h"
+#include "my_inttypes.h"
 
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
+
+class Dictionary_object_table;
+class Open_dictionary_tables_ctx;
+class Parameter;
+class Weak_object;
 
 class Function_impl : public Routine_impl,
                       public Function
@@ -37,7 +53,7 @@ public:
 
   virtual bool update_routine_name_key(name_key_type *key,
                                        Object_id schema_id,
-                                       const std::string &name) const;
+                                       const String_type &name) const;
 
 public:
   virtual bool validate() const;
@@ -46,7 +62,7 @@ public:
 
   virtual bool store_attributes(Raw_record *r);
 
-  virtual void debug_print(std::string &outb) const;
+  virtual void debug_print(String_type &outb) const;
 
 public:
   /////////////////////////////////////////////////////////////////////////
@@ -64,6 +80,17 @@ public:
 
   virtual void set_result_data_type_null(bool is_null)
   { m_result_data_type_null= is_null; }
+
+  /////////////////////////////////////////////////////////////////////////
+  // Result display type
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual const String_type &result_data_type_utf8() const
+  { return m_result_data_type_utf8; }
+
+  virtual void set_result_data_type_utf8(
+                 const String_type &result_data_type_utf8)
+  { m_result_data_type_utf8= result_data_type_utf8; }
 
   /////////////////////////////////////////////////////////////////////////
   // result_is_zerofill.
@@ -103,7 +130,16 @@ public:
   { return m_result_numeric_precision; }
 
   virtual void set_result_numeric_precision(uint result_numeric_precision)
-  { m_result_numeric_precision= result_numeric_precision; }
+  {
+    m_result_numeric_precision_null= false;
+    m_result_numeric_precision= result_numeric_precision;
+  }
+
+  virtual void set_result_numeric_precision_null(bool is_null)
+  { m_result_numeric_precision_null= is_null; }
+
+  virtual bool is_result_numeric_precision_null() const
+  { return m_result_numeric_precision_null; }
 
   /////////////////////////////////////////////////////////////////////////
   // result_numeric_scale.
@@ -132,7 +168,16 @@ public:
   { return m_result_datetime_precision; }
 
   virtual void set_result_datetime_precision(uint result_datetime_precision)
-  { m_result_datetime_precision= result_datetime_precision; }
+  {
+    m_result_datetime_precision_null= false;
+    m_result_datetime_precision= result_datetime_precision;
+  }
+
+  virtual void set_result_datetime_precision_null(bool is_null)
+  { m_result_datetime_precision_null= is_null; }
+
+  virtual bool is_result_datetime_precision_null() const
+  { return m_result_datetime_precision_null; }
 
   /////////////////////////////////////////////////////////////////////////
   // result_collation.
@@ -153,9 +198,9 @@ public:
   { return Entity_object_impl::id(); }
   virtual bool is_persistent() const
   { return Entity_object_impl::is_persistent(); }
-  virtual const std::string &name() const
+  virtual const String_type &name() const
   { return Entity_object_impl::name(); }
-  virtual void set_name(const std::string &name)
+  virtual void set_name(const String_type &name)
   { Entity_object_impl::set_name(name); }
   virtual const Dictionary_object_table &object_table() const
   { return Routine_impl::object_table(); }
@@ -165,17 +210,17 @@ public:
   { Routine_impl::set_schema_id(schema_id); }
   virtual enum_routine_type type() const
   { return Routine_impl::type(); }
-  virtual const std::string &definition() const
+  virtual const String_type &definition() const
   { return Routine_impl::definition(); }
-  virtual void set_definition(const std::string &definition)
+  virtual void set_definition(const String_type &definition)
   { Routine_impl::set_definition(definition); }
-  virtual const std::string &definition_utf8() const
+  virtual const String_type &definition_utf8() const
   { return Routine_impl::definition_utf8(); }
-  virtual void set_definition_utf8(const std::string &definition_utf8)
+  virtual void set_definition_utf8(const String_type &definition_utf8)
   { Routine_impl::set_definition_utf8(definition_utf8); }
-  virtual const std::string &parameter_str() const
+  virtual const String_type &parameter_str() const
   { return Routine_impl::parameter_str(); }
-  virtual void set_parameter_str(const std::string &parameter_str)
+  virtual void set_parameter_str(const String_type &parameter_str)
   { Routine_impl::set_parameter_str(parameter_str); }
   virtual bool is_deterministic() const
   { return Routine_impl::is_deterministic(); }
@@ -193,12 +238,12 @@ public:
   { return Routine_impl::sql_mode(); }
   virtual void set_sql_mode(ulonglong sm)
   { Routine_impl::set_sql_mode(sm); }
-  virtual const std::string &definer_user() const
+  virtual const String_type &definer_user() const
   { return Routine_impl::definer_user(); }
-  virtual const std::string &definer_host() const
+  virtual const String_type &definer_host() const
   { return Routine_impl::definer_host(); }
-  virtual void set_definer(const std::string &username,
-                           const std::string &hostname)
+  virtual void set_definer(const String_type &username,
+                           const String_type &hostname)
   { Routine_impl::set_definer(username, hostname); }
   virtual Object_id client_collation_id() const
   { return Routine_impl::client_collation_id(); }
@@ -220,9 +265,9 @@ public:
   { return Routine_impl::last_altered(); }
   virtual void set_last_altered(ulonglong last_altered)
   { Routine_impl::set_last_altered(last_altered); }
-  virtual const std::string &comment() const
+  virtual const String_type &comment() const
   { return Routine_impl::comment(); }
-  virtual void set_comment(const std::string &comment)
+  virtual void set_comment(const String_type &comment)
   { Routine_impl::set_comment(comment); }
   virtual Parameter *add_parameter()
   { return Routine_impl::add_parameter(); }
@@ -233,11 +278,15 @@ public:
 
 private:
   enum_column_types m_result_data_type;
+  String_type m_result_data_type_utf8;
 
   bool m_result_data_type_null;
   bool m_result_is_zerofill;
   bool m_result_is_unsigned;
+
+  bool m_result_numeric_precision_null;
   bool m_result_numeric_scale_null;
+  bool m_result_datetime_precision_null;
 
   uint m_result_numeric_precision;
   uint m_result_numeric_scale;

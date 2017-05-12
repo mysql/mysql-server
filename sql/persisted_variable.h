@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,11 +16,18 @@
 #ifndef PERSISTED_VARIABLE_H_INCLUDED
 #define PERSISTED_VARIABLE_H_INCLUDED
 
-#include "my_global.h"
-#include "sys_vars.h"
-#include <mysql/psi/mysql_file.h>
-#include <string>
+#include <stddef.h>
 #include <map>
+#include <string>
+
+#include "my_inttypes.h"
+#include "my_psi_config.h"
+#include "mysql/psi/mysql_file.h"
+#include "mysql/psi/mysql_mutex.h"
+
+class THD;
+class set_var;
+class sys_var;
 
 using std::string;
 using std::map;
@@ -71,6 +78,14 @@ public:
     Set persisted options
   */
   bool set_persist_options(bool what_options= FALSE);
+  /**
+    Reset persisted options
+  */
+  bool reset_persisted_variables(THD *thd, const char* name, bool if_exists);
+  /**
+    Get persist hash
+  */
+  map<string,string>* get_persist_hash();
 
   void cleanup();
 

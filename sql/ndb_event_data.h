@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,8 +18,9 @@
 #ifndef NDB_EVENT_DATA_H
 #define NDB_EVENT_DATA_H
 
-#include <my_global.h> // my_alloc.h
-#include <my_alloc.h> // MEM_ROOT
+#include <stdio.h>
+
+#include "my_alloc.h" // MEM_ROOT
 
 class Ndb_event_data
 {

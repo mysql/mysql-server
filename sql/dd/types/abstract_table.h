@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,11 +16,10 @@
 #ifndef DD__ABSTRACT_TABLE_INCLUDED
 #define DD__ABSTRACT_TABLE_INCLUDED
 
-#include "my_global.h"
-
 #include "dd/collection.h"                // dd::Collection
 #include "dd/object_id.h"                 // dd::Object_id
 #include "dd/types/dictionary_object.h"   // dd::Dictionary_object
+#include "my_inttypes.h"
 
 namespace dd {
 
@@ -83,9 +82,9 @@ public:
   { return update_name_key(key, schema_id(), name()); }
 
   static bool update_name_key(name_key_type *key, Object_id schema_id,
-                              const std::string &name);
+                              const String_type &name);
 
-  virtual bool update_aux_key(aux_key_type *key) const
+  virtual bool update_aux_key(aux_key_type*) const
   { return true; }
 
 public:
@@ -114,7 +113,7 @@ public:
   virtual const Properties &options() const = 0;
 
   virtual Properties &options() = 0;
-  virtual bool set_options_raw(const std::string &options_raw) = 0;
+  virtual bool set_options_raw(const String_type &options_raw) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // created.
@@ -133,6 +132,13 @@ public:
   virtual enum_table_type type() const = 0;
 
   /////////////////////////////////////////////////////////////////////////
+  // hidden.
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual bool hidden() const = 0;
+  virtual void set_hidden(bool hidden) = 0;
+
+  /////////////////////////////////////////////////////////////////////////
   // Column collection.
   /////////////////////////////////////////////////////////////////////////
 
@@ -140,7 +146,9 @@ public:
 
   virtual const Column_collection &columns() const = 0;
 
-  virtual const Column *get_column(const std::string name) const = 0;
+  virtual Column_collection *columns() = 0;
+
+  virtual const Column *get_column(const String_type name) const = 0;
 
   /**
     Allocate a new object graph and invoke the copy contructor for

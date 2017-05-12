@@ -1501,7 +1501,7 @@ DROP TABLE t1,t2,t3;
 CREATE TABLE t1 (
   carrier char(2) default NULL,
   id int NOT NULL auto_increment PRIMARY KEY
-);
+) CHARSET utf8mb4;
 INSERT INTO t1 VALUES
   ('CO',235371754),('CO',235376554),('CO',235376884),('CO',235377874),
   ('CO',231060394),('CO',231059224),('CO',231059314),('CO',231060484),
@@ -1569,7 +1569,7 @@ CREATE TABLE t4 (
   carrier char(2) NOT NULL default '' PRIMARY KEY,
   id int(11) default NULL,
   INDEX id(id)
-);
+) CHARSET utf8mb4;
 INSERT INTO t4 VALUES
   ('99',6),('SK',456),('UA',486),('AI',1081),('OS',1111),('VS',1510);
 
@@ -1609,3 +1609,78 @@ DROP TABLE t1,t2,t3,t4,t5;
 
 --echo End of 5.0 tests
 
+--echo #
+--echo # Bug#24909223: EXCESSIVE MEMORY USAGE BY QUERY
+--echo #
+
+CREATE TABLE t (
+  a INT,
+  b CHAR(255),
+  c CHAR(255),
+  d INT,
+  e INT,
+  PRIMARY KEY (e),
+  KEY (d)
+) ENGINE=InnoDB;
+
+INSERT INTO t VALUES
+(1, '14effca2', 'cffa3819', 98927, 8767),
+(1, '2f7cbd33', '421aff88', 87613, 70956),
+(1, '5c44507d', '05fd27d3', 36002, 5146),
+(1, '6542ee43', 'c09ee30f', 3673, 91467),
+(1, '786737dd', '6ac95ccb', 46890, 62953),
+(1, '8929d195', '64102e63', 50531, 9712),
+(1, '8cc0c106', '17283316', 16399, 26119),
+(1, '8f3063de', 'ce5d0f35', 21769, 76667),
+(1, 'c32c9202', 'c9525fe8', 12704, 43998),
+(1, 'c5567e1c', 'bc2e97e6', 85805, 84174),
+(1, 'c7acb4d4', '6d67fea7', 58347, 51235),
+(1, 'dbd66341', '03b59a03', 46577, 52495),
+(1, 'f8e0354e', '41a6e523', 36055, 32646),
+(1, 'fb66b513', '10f3de43', 41297, 74334),
+(1, 'ffec6d1b', '2fca4073', 12896, 95807),
+(1, 'aa3fcff8', 'f4981ed8', 99211, 18778);
+
+ANALYZE TABLE t;
+
+let $query=
+SELECT a.c AS c FROM (
+  SELECT a.c AS c FROM (
+    SELECT a.a AS c FROM t AS a
+    INNER JOIN t AS b ON a.b > b.b
+  ) AS a
+  INNER JOIN t AS b ON a.c >= b.a
+) AS a
+INNER JOIN t AS b ON a.c >= b.d;
+--eval EXPLAIN $query
+TRUNCATE TABLE performance_schema.memory_summary_by_thread_by_event_name;
+--eval $query
+
+# Before the bug was fixed, the query allocated 17MB in the THD memory
+# root. After the fix it allocated 90KB. Verify that the memory leak
+# is plugged by checking that it doesn't allocate more than 1MB in the
+# memory root. The query against the performance schema table below
+# returns an empty result if the memory usage is OK, or one row if the
+# memory usage was too high.
+#
+# The sys.ps_thread_id function is not available on the embedded
+# server, so we need a couple of tricks to make the test pass on
+# embedded:
+#
+# 1) Accept and ignore the ER_SP_DOES_NOT_EXIST error that we get on
+#    embedded.
+#
+# 2) Use the backtick operator to evaluate the query, so that the
+#    column names are not printed on successful execution of the
+#    query. Printing the column names on successful execution would
+#    lead to different output on server (where it is successful) and
+#    embedded (where it is not successful).
+--error 0, ER_SP_DOES_NOT_EXIST
+let $res=
+`SELECT * FROM performance_schema.memory_summary_by_thread_by_event_name
+WHERE event_name = 'memory/sql/thd::main_mem_root'
+AND thread_id = sys.ps_thread_id(connection_id())
+AND sum_number_of_bytes_alloc > 1000000`;
+--echo $res
+
+DROP TABLE t;

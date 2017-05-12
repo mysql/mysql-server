@@ -2,7 +2,6 @@
 # Tests with the utf8 character set
 #
 
---source include/have_innodb.inc
 
 --disable_warnings
 drop table if exists t1,t2;
@@ -1179,7 +1178,6 @@ drop table t1;
 #
 
 SET CHARACTER SET utf8;
-SHOW VARIABLES LIKE 'character\_set\_%';
 CREATE DATABASE crashtest DEFAULT CHARACTER SET utf8 COLLATE utf8_bin;
 USE crashtest;
 CREATE TABLE crashtest (crash char(10)) DEFAULT CHARSET=utf8;
@@ -1530,7 +1528,7 @@ CREATE TABLE t1 (
   clipid INT NOT NULL,
   Tape TINYTEXT,
   PRIMARY KEY (clipid),
-  KEY tape(Tape(255))
+  KEY tape(Tape(85))
 ) CHARACTER SET=utf8;
 ALTER TABLE t1 ADD mos TINYINT DEFAULT 0 AFTER clipid;
 SHOW CREATE TABLE t1;
@@ -1639,12 +1637,10 @@ ORDER BY l DESC;
 set names utf8;
 --source include/weight_string.inc
 --source include/weight_string_euro.inc
---source include/weight_string_l1.inc
 
 set @@collation_connection=utf8_bin;
 --source include/weight_string.inc
 --source include/weight_string_euro.inc
---source include/weight_string_l1.inc
 
 --echo #
 --echo # Checking strnxfrm() with odd length

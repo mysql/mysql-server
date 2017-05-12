@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,12 +21,21 @@
   Performance schema instrumentation (declarations).
 */
 
+#include <sys/types.h>
+
+#include "my_psi_config.h"
+
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
 #ifdef MYSQL_SERVER
-#ifndef EMBEDDED_LIBRARY
 #ifndef MYSQL_DYNAMIC_PLUGIN
 
+#include "my_inttypes.h"
+#include "my_macros.h"
 #include "mysql/psi/psi_statement.h"
+#include "sql_digest.h"
+
+struct PSI_digest_locker;
+struct sql_digest_storage;
 
 #define PSI_STATEMENT_CALL(M) pfs_ ## M ## _v1
 #define PSI_DIGEST_CALL(M) pfs_ ## M ## _v1
@@ -110,7 +119,6 @@ void pfs_digest_end_v1(PSI_digest_locker *locker,
 C_MODE_END
 
 #endif /* MYSQL_DYNAMIC_PLUGIN */
-#endif /* EMBEDDED_LIBRARY */
 #endif /* MYSQL_SERVER */
 #endif /* HAVE_PSI_STATEMENT_INTERFACE */
 

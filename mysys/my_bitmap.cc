@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,12 +35,21 @@
   Kindahl.
 */
 
-#include "mysys_priv.h"
+#include <string.h>
+#include <sys/types.h>
+
+#include "my_bit.h"
+#include "my_bitmap.h"
+#include "my_byteorder.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
+#include "my_pointer_arithmetic.h"
 #include "my_sys.h"
-#include <my_bitmap.h>
-#include <m_string.h>
-#include <my_bit.h>
+#include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysys_priv.h"
+#include "thr_mutex.h"
 
 void create_last_word_mask(MY_BITMAP *map)
 {
@@ -142,8 +151,8 @@ static inline uint get_first_not_set(uint32 value, uint word_pos)
 }
 
 
-my_bool bitmap_init(MY_BITMAP *map, my_bitmap_map *buf, uint n_bits,
-		    my_bool thread_safe)
+bool bitmap_init(MY_BITMAP *map, my_bitmap_map *buf, uint n_bits,
+                 bool thread_safe)
 {
   DBUG_ENTER("bitmap_init");
   if (!buf)
@@ -213,7 +222,7 @@ void bitmap_free(MY_BITMAP *map)
     !=0  bit was set
 */
 
-my_bool bitmap_fast_test_and_set(MY_BITMAP *map, uint bitmap_bit)
+bool bitmap_fast_test_and_set(MY_BITMAP *map, uint bitmap_bit)
 {
   uchar *value= ((uchar*) map->bitmap) + (bitmap_bit / 8);
   uchar bit= 1 << ((bitmap_bit) & 7);
@@ -236,9 +245,9 @@ my_bool bitmap_fast_test_and_set(MY_BITMAP *map, uint bitmap_bit)
     !=0  bit was set
 */
 
-my_bool bitmap_test_and_set(MY_BITMAP *map, uint bitmap_bit)
+bool bitmap_test_and_set(MY_BITMAP *map, uint bitmap_bit)
 {
-  my_bool res;
+  bool res;
   DBUG_ASSERT(map->bitmap && bitmap_bit < map->n_bits);
   bitmap_lock(map);
   res= bitmap_fast_test_and_set(map, bitmap_bit);
@@ -259,7 +268,7 @@ my_bool bitmap_test_and_set(MY_BITMAP *map, uint bitmap_bit)
     !=0  bit was set
 */
 
-static my_bool bitmap_fast_test_and_clear(MY_BITMAP *map, uint bitmap_bit)
+static bool bitmap_fast_test_and_clear(MY_BITMAP *map, uint bitmap_bit)
 {
   uchar *byte= (uchar*) map->bitmap + (bitmap_bit / 8);
   uchar bit= 1 << ((bitmap_bit) & 7);
@@ -269,9 +278,9 @@ static my_bool bitmap_fast_test_and_clear(MY_BITMAP *map, uint bitmap_bit)
 }
 
 
-my_bool bitmap_test_and_clear(MY_BITMAP *map, uint bitmap_bit)
+bool bitmap_test_and_clear(MY_BITMAP *map, uint bitmap_bit)
 {
-  my_bool res;
+  bool res;
   DBUG_ASSERT(map->bitmap && bitmap_bit < map->n_bits);
   bitmap_lock(map);
   res= bitmap_fast_test_and_clear(map, bitmap_bit);
@@ -318,7 +327,7 @@ void bitmap_set_prefix(MY_BITMAP *map, uint prefix_size)
 }
 
 
-my_bool bitmap_is_prefix(const MY_BITMAP *map, uint prefix_size)
+bool bitmap_is_prefix(const MY_BITMAP *map, uint prefix_size)
 {
   uint prefix_bits= prefix_size % 32;
   my_bitmap_map *word_ptr= map->bitmap, last_word;
@@ -361,7 +370,7 @@ my_bool bitmap_is_prefix(const MY_BITMAP *map, uint prefix_size)
 }
 
 
-my_bool bitmap_is_set_all(const MY_BITMAP *map)
+bool bitmap_is_set_all(const MY_BITMAP *map)
 {
   my_bitmap_map *data_ptr= map->bitmap;
   my_bitmap_map *end= map->last_word_ptr;
@@ -376,7 +385,7 @@ my_bool bitmap_is_set_all(const MY_BITMAP *map)
 }
 
 
-my_bool bitmap_is_clear_all(const MY_BITMAP *map)
+bool bitmap_is_clear_all(const MY_BITMAP *map)
 {
   my_bitmap_map *data_ptr= map->bitmap;
   my_bitmap_map *end= map->last_word_ptr;
@@ -392,7 +401,7 @@ my_bool bitmap_is_clear_all(const MY_BITMAP *map)
 
 /* Return TRUE if map1 is a subset of map2 */
 
-my_bool bitmap_is_subset(const MY_BITMAP *map1, const MY_BITMAP *map2)
+bool bitmap_is_subset(const MY_BITMAP *map1, const MY_BITMAP *map2)
 {
   my_bitmap_map *m1= map1->bitmap, *m2= map2->bitmap, *end;
 
@@ -415,7 +424,7 @@ my_bool bitmap_is_subset(const MY_BITMAP *map1, const MY_BITMAP *map2)
 
 /* True if bitmaps has any common bits */
 
-my_bool bitmap_is_overlapping(const MY_BITMAP *map1, const MY_BITMAP *map2)
+bool bitmap_is_overlapping(const MY_BITMAP *map1, const MY_BITMAP *map2)
 {
   my_bitmap_map *m1= map1->bitmap, *m2= map2->bitmap, *end;
 

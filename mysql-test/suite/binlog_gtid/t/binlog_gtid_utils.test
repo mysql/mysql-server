@@ -10,6 +10,9 @@
 
 # Only need to test under one binlog format
 --source include/have_binlog_format_row.inc
+# Thread stack overrun in debug mode on sparc
+--source include/not_sparc_debug.inc
+
 --source include/gtid_utils.inc
 
 eval SELECT GTID_IS_EQUAL('$uuida:1,$uuidb:3:2:1', '$uuidb:1-3,$uuida:1');

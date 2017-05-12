@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,12 +18,17 @@
   Functions to handle typelib
 */
 
-#include "mysys_priv.h"
-#include "typelib.h"
-#include "my_sys.h"
-#include <m_string.h>
-#include <m_ctype.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
 
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
+#include "my_sys.h"
+#include "typelib.h"
 
 #define is_field_separator(X) ((X) == ',' || (X) == '=')
 
@@ -328,7 +333,7 @@ my_ulonglong find_set_from_flags(const TYPELIB *lib, uint default_name,
 {
   const char *end= str + length;
   my_ulonglong flags_to_set= 0, flags_to_clear= 0, res;
-  my_bool set_defaults= 0;
+  bool set_defaults= 0;
 
   *err_pos= 0;                  /* No error yet */
   if (str != end)

@@ -3,6 +3,7 @@
 # This WL can be tested by checking if session state which is sent
 # as part of OK packet is displayed as part of SELECT sql statement.
 #
+SET @save_query_cache_size=@@query_cache_size;
 CREATE DATABASE wl7766;
 USE wl7766;
 CREATE TABLE t1 (a int);
@@ -169,12 +170,12 @@ SELECT f1();
 f1()
 6
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
--- character_set_results
--- big5
--- character_set_client
--- latin1
 -- character_set_connection
 -- latin1
+-- character_set_client
+-- latin1
+-- character_set_results
+-- big5
 
 -- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
@@ -184,12 +185,12 @@ SELECT * FROM v1;
 f1()
 6
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
--- character_set_results
--- big5
--- character_set_client
--- latin1
 -- character_set_connection
 -- latin1
+-- character_set_client
+-- latin1
+-- character_set_results
+-- big5
 
 -- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
@@ -242,12 +243,12 @@ SELECT f4();
 f4()
 1
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
--- character_set_results
--- utf8
--- character_set_client
--- latin1
 -- character_set_connection
 -- latin1
+-- character_set_client
+-- latin1
+-- character_set_results
+-- utf8
 
 -- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
@@ -428,7 +429,7 @@ a
 SHOW STATUS LIKE 'Qcache_queries_in_cache';
 Variable_name	Value
 Qcache_queries_in_cache	1
-SET GLOBAL query_cache_size= default;
+SET GLOBAL query_cache_size= @save_query_cache_size;
 #cleanup
 DROP DATABASE bug19550875;
 -- Tracker : SESSION_TRACK_SCHEMA

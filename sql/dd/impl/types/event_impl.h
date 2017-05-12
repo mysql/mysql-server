@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,16 +16,25 @@
 #ifndef DD__EVENT_IMPL_INCLUDED
 #define DD__EVENT_IMPL_INCLUDED
 
-#include "my_global.h"
+#include <sys/types.h>
+#include <new>
+#include <string>
 
+#include "dd/impl/raw/raw_record.h"
 #include "dd/impl/types/entity_object_impl.h"  // dd::Entity_object_impl
+#include "dd/impl/types/weak_object_impl.h"
+#include "dd/object_id.h"
 #include "dd/types/dictionary_object_table.h"  // dd::Dictionary_object_table
 #include "dd/types/event.h"                    // dd::Event
 #include "dd/types/object_type.h"              // dd::Object_type
+#include "my_inttypes.h"
 
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
+
+class Open_dictionary_tables_ctx;
+class Weak_object;
 
 class Event_impl : public Entity_object_impl,
                    public Event
@@ -47,7 +56,7 @@ public:
 
   virtual bool store_attributes(Raw_record *r);
 
-  virtual void debug_print(std::string &outb) const;
+  virtual void debug_print(String_type &outb) const;
 
 public:
   /////////////////////////////////////////////////////////////////////////
@@ -64,14 +73,14 @@ public:
   // definer.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &definer_user() const
+  virtual const String_type &definer_user() const
   { return m_definer_user; }
 
-  virtual const std::string &definer_host() const
+  virtual const String_type &definer_host() const
   { return m_definer_host; }
 
-  virtual void set_definer(const std::string &username,
-                           const std::string &hostname)
+  virtual void set_definer(const String_type &username,
+                           const String_type &hostname)
   {
     m_definer_user= username;
     m_definer_host= hostname;
@@ -81,26 +90,26 @@ public:
   // time_zone
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &time_zone() const
+  virtual const String_type &time_zone() const
   { return m_time_zone; }
 
-  virtual void set_time_zone(const std::string &time_zone)
+  virtual void set_time_zone(const String_type &time_zone)
   { m_time_zone= time_zone; }
 
   /////////////////////////////////////////////////////////////////////////
   // definition/utf8.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &definition() const
+  virtual const String_type &definition() const
   { return m_definition; }
 
-  virtual void set_definition(const std::string &definition)
+  virtual void set_definition(const String_type &definition)
   { m_definition= definition; }
 
-  virtual const std::string &definition_utf8() const
+  virtual const String_type &definition_utf8() const
   { return m_definition_utf8; }
 
-  virtual void set_definition_utf8(const std::string &definition_utf8)
+  virtual void set_definition_utf8(const String_type &definition_utf8)
   { m_definition_utf8= definition_utf8; }
 
   /////////////////////////////////////////////////////////////////////////
@@ -247,7 +256,10 @@ public:
   { return m_last_executed; }
 
   virtual void set_last_executed(my_time_t last_executed)
-  { m_last_executed= last_executed; }
+  {
+    m_is_last_executed_null= false;
+    m_last_executed= last_executed;
+  }
 
   virtual void set_last_executed_null(bool is_null)
   { m_is_last_executed_null= is_null; }
@@ -259,10 +271,10 @@ public:
   // comment.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &comment() const
+  virtual const String_type &comment() const
   { return m_comment; }
 
-  virtual void set_comment(const std::string &comment)
+  virtual void set_comment(const String_type &comment)
   { m_comment= comment; }
 
   /////////////////////////////////////////////////////////////////////////
@@ -306,9 +318,9 @@ public:
   { return Entity_object_impl::id(); }
   virtual bool is_persistent() const
   { return Entity_object_impl::is_persistent(); }
-  virtual const std::string &name() const
+  virtual const String_type &name() const
   { return Entity_object_impl::name(); }
-  virtual void set_name(const std::string &name)
+  virtual void set_name(const String_type &name)
   { Entity_object_impl::set_name(name); }
 
 private:
@@ -335,12 +347,12 @@ private:
   bool m_is_event_status_null;
   bool m_is_last_executed_null;
 
-  std::string m_time_zone;
-  std::string m_definition;
-  std::string m_definition_utf8;
-  std::string m_definer_user;
-  std::string m_definer_host;
-  std::string m_comment;
+  String_type m_time_zone;
+  String_type m_definition;
+  String_type m_definition_utf8;
+  String_type m_definer_user;
+  String_type m_definer_host;
+  String_type m_comment;
 
   // References.
 

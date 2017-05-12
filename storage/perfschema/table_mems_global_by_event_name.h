@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,10 +21,12 @@
   Table MEMORY_SUMMARY_GLOBAL_BY_EVENT_NAME (declarations).
 */
 
+#include <sys/types.h>
+
+#include "pfs_builtin_memory.h"
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"
 #include "pfs_instr_class.h"
-#include "pfs_builtin_memory.h"
 #include "table_helper.h"
 
 /**
@@ -36,12 +38,13 @@ class PFS_index_mems_global_by_event_name : public PFS_engine_index
 {
 public:
   PFS_index_mems_global_by_event_name()
-    : PFS_engine_index(&m_key),
-    m_key("EVENT_NAME")
-  {}
+    : PFS_engine_index(&m_key), m_key("EVENT_NAME")
+  {
+  }
 
   ~PFS_index_mems_global_by_event_name()
-  {}
+  {
+  }
 
   virtual bool match(PFS_instr_class *instr_class);
 
@@ -66,28 +69,33 @@ struct row_mems_global_by_event_name
 */
 struct pos_mems_global_by_event_name : public PFS_double_index
 {
-  static const uint FIRST_VIEW= 1;
-  static const uint VIEW_BUILTIN_MEMORY= 1;
-  static const uint VIEW_MEMORY= 2;
-  static const uint LAST_VIEW= 2;
+  static const uint FIRST_VIEW = 1;
+  static const uint VIEW_BUILTIN_MEMORY = 1;
+  static const uint VIEW_MEMORY = 2;
+  static const uint LAST_VIEW = 2;
 
-  pos_mems_global_by_event_name()
-    : PFS_double_index(FIRST_VIEW, 1)
-  {}
-
-  inline void reset(void)
+  pos_mems_global_by_event_name() : PFS_double_index(FIRST_VIEW, 1)
   {
-    m_index_1= FIRST_VIEW;
-    m_index_2= 1;
   }
 
-  inline bool has_more_view(void)
-  { return (m_index_1 <= LAST_VIEW); }
+  inline void
+  reset(void)
+  {
+    m_index_1 = FIRST_VIEW;
+    m_index_2 = 1;
+  }
 
-  inline void next_view(void)
+  inline bool
+  has_more_view(void)
+  {
+    return (m_index_1 <= LAST_VIEW);
+  }
+
+  inline void
+  next_view(void)
   {
     m_index_1++;
-    m_index_2= 1;
+    m_index_2 = 1;
   }
 };
 
@@ -99,7 +107,7 @@ class table_mems_global_by_event_name : public PFS_engine_table
 public:
   /** Table share */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table* create();
+  static PFS_engine_table *create();
   static int delete_all_rows();
   static ha_rows get_row_count();
 
@@ -121,11 +129,12 @@ private:
 
 public:
   ~table_mems_global_by_event_name()
-  {}
+  {
+  }
 
 private:
-  void make_row(PFS_builtin_memory_class *klass);
-  void make_row(PFS_memory_class *klass);
+  int make_row(PFS_builtin_memory_class *klass);
+  int make_row(PFS_memory_class *klass);
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
@@ -134,8 +143,6 @@ private:
 
   /** Current row. */
   row_mems_global_by_event_name m_row;
-  /** True is the current row exists. */
-  bool m_row_exists;
   /** Current position. */
   pos_t m_pos;
   /** Next position. */

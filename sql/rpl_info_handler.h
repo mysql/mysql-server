@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +16,10 @@
 #ifndef RPL_INFO_HANDLER_H
 #define RPL_INFO_HANDLER_H
 
-#include "my_global.h"
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "my_inttypes.h"
 
 class Rpl_info_values;
 class Server_ids;

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -28,8 +28,8 @@ other files in library. The code in this file is used to make a library for
 external tools. */
 
 #include "ha_prototypes.h"
-
 #include "mem0mem.h"
+#include "my_inttypes.h"
 #ifndef UNIV_LIBRARY
 #include "buf0buf.h"
 #include "srv0srv.h"
@@ -329,6 +329,11 @@ mem_heap_create_block_func(
 			<< len << ".";
 	}
 
+	/* Make only the header part of the block accessible. If it is a block
+	from the buffer pool, the len will be UNIV_PAGE_SIZE already. */
+	UNIV_MEM_FREE(block, len);
+	UNIV_MEM_ALLOC(block, MEM_BLOCK_HEADER_SIZE);
+
 	block->buf_block = buf_block;
 	block->free_block = NULL;
 
@@ -345,8 +350,8 @@ mem_heap_create_block_func(
 	block->magic_n = MEM_BLOCK_MAGIC_N;
 	mem_block_set_len(block, len);
 	mem_block_set_type(block, type);
-	mem_block_set_free(block, MEM_BLOCK_HEADER_SIZE);
 	mem_block_set_start(block, MEM_BLOCK_HEADER_SIZE);
+	mem_block_set_free(block, MEM_BLOCK_HEADER_SIZE);
 
 	if (UNIV_UNLIKELY(heap == NULL)) {
 		/* This is the first block of the heap. The field
@@ -354,10 +359,10 @@ mem_heap_create_block_func(
 		block->total_size = len;
 	} else {
 		/* Not the first allocation for the heap. This block's
-		total_length field should be set to undefined. */
+		total_length field should be set to undefined and never
+		actually used. */
 		ut_d(block->total_size = ULINT_UNDEFINED);
-		UNIV_MEM_INVALID(&block->total_size,
-				 sizeof block->total_size);
+		UNIV_MEM_FREE(&block->total_size, sizeof block->total_size);
 
 		heap->total_size += len;
 	}
@@ -449,9 +454,17 @@ mem_heap_block_free(
 
 	block->magic_n = MEM_FREED_BLOCK_MAGIC_N;
 
-#ifndef UNIV_LIBRARY
-	UNIV_MEM_ASSERT_W(block, len);
-#endif /* !UNIV_LIBRARY */
+#ifdef UNIV_DEBUG
+	if (mem_block_get_start(block) != mem_block_get_free(block)) {
+		validate_no_mans_land(
+			(byte*)block + mem_block_get_start(block),
+			MEM_NO_MANS_LAND_BEFORE_BYTE);
+		validate_no_mans_land(
+			(byte*)block + mem_block_get_free(block)
+			- MEM_NO_MANS_LAND,
+			MEM_NO_MANS_LAND_AFTER_BYTE);
+	}
+#endif
 
 #ifndef UNIV_LIBRARY
 	if (type == MEM_HEAP_DYNAMIC || len < UNIV_PAGE_SIZE / 2) {
@@ -461,6 +474,9 @@ mem_heap_block_free(
 	} else {
 		ut_ad(type & MEM_HEAP_BUFFER);
 
+		/* Make memory available again for buffer pool, as we set parts
+		of block to "free" state in heap allocator. */
+		UNIV_MEM_ALLOC(block, UNIV_PAGE_SIZE);
 		buf_block_free(buf_block);
 	}
 #else /* !UNIV_LIBRARY */
@@ -477,6 +493,14 @@ mem_heap_free_block_free(
 	mem_heap_t*	heap)	/*!< in: heap */
 {
 	if (UNIV_LIKELY_NULL(heap->free_block)) {
+
+#ifdef UNIV_DEBUG_VALGRIND
+		void* block = static_cast<buf_block_t*>(heap->free_block)->frame;
+		/* Make memory available again for the buffer pool, since
+		we previously set parts of the block to "free" state in
+		heap allocator. */
+		UNIV_MEM_ALLOC(block, UNIV_PAGE_SIZE);
+#endif
 
 		buf_block_free(static_cast<buf_block_t*>(heap->free_block));
 

@@ -49,7 +49,7 @@ while ($rpl_connection_number <= $rpl_connection_count)
   --let $rpl_channel_name=
   if ($rpl_multi_source)
   {
-    --let $rpl_channel_name= channel_$rpl_master
+    --let $rpl_channel_name= 'channel_$rpl_master'
   }
 
   if ($rpl_debug)

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +16,6 @@
 #ifndef DD__FOREIGN_KEY_INCLUDED
 #define DD__FOREIGN_KEY_INCLUDED
 
-#include "my_global.h"
 
 #include "dd/collection.h"             // dd::Collection
 #include "dd/sdi_fwd.h"                // dd::Sdi_wcontext
@@ -104,22 +103,22 @@ public:
   // the catalog name of the referenced table.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &referenced_table_catalog_name() const = 0;
-  virtual void referenced_table_catalog_name(const std::string &name) = 0;
+  virtual const String_type &referenced_table_catalog_name() const = 0;
+  virtual void referenced_table_catalog_name(const String_type &name) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // the schema name of the referenced table.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &referenced_table_schema_name() const = 0;
-  virtual void referenced_table_schema_name(const std::string &name) = 0;
+  virtual const String_type &referenced_table_schema_name() const = 0;
+  virtual void referenced_table_schema_name(const String_type &name) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // the name of the referenced table.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &referenced_table_name() const = 0;
-  virtual void referenced_table_name(const std::string &name) = 0;
+  virtual const String_type &referenced_table_name() const = 0;
+  virtual void referenced_table_name(const String_type &name) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // Foreign key element collection.

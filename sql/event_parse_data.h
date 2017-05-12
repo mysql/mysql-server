@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,7 +17,11 @@
 #ifndef _EVENT_PARSE_DATA_H_
 #define _EVENT_PARSE_DATA_H_
 
-#include "my_global.h"
+#include <stddef.h>
+
+#include "lex_string.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
 #include "my_time.h"                 // interval_type
 #include "mysql/mysql_lex_string.h"  // LEX_STRING
 #include "sql_alloc.h"               // Sql_alloc
@@ -25,7 +29,6 @@
 class Item;
 class THD;
 class sp_name;
-typedef struct st_mysql_lex_string LEX_STRING;
 
 #define EVEX_GET_FIELD_FAILED   -2
 #define EVEX_BAD_PARAMS         -5
@@ -82,9 +85,9 @@ public:
   my_time_t starts;
   my_time_t ends;
   my_time_t execute_at;
-  my_bool starts_null;
-  my_bool ends_null;
-  my_bool execute_at_null;
+  bool starts_null;
+  bool ends_null;
+  bool execute_at_null;
 
   sp_name *identifier;
   Item* item_expression;

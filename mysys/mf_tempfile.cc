@@ -17,12 +17,26 @@
   @file mysys/mf_tempfile.cc
 */
 
-#include "mysys_priv.h"
-#include <m_string.h>
-#include "my_static.h"
-#include "mysys_err.h"
+#include "my_config.h"
+
 #include <errno.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+
+#include "m_string.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_sys.h"
 #include "my_thread_local.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysys_err.h"
+#include "mysys_priv.h"
 
 
 /*
@@ -53,7 +67,7 @@
 */
 
 File create_temp_file(char *to, const char *dir, const char *prefix,
-		      int mode, myf MyFlags)
+		      int mode MY_ATTRIBUTE((unused)), myf MyFlags)
 {
   File file= -1;
 #ifdef _WIN32

@@ -3,7 +3,6 @@
 # Access type: Static
 # Data type: numeric
 
---source include/have_innodb.inc
 
 SELECT COUNT(@@GLOBAL.innodb_page_cleaners);
 --echo 1 Expected

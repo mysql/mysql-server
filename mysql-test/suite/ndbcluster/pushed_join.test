@@ -1,4 +1,5 @@
 --source include/have_ndb.inc
+--source include/not_embedded.inc
 
 #
 # Test integration of pushed joins in ha_ndbcluster
@@ -7,22 +8,6 @@
 # in order to determine if some parts of the queries can be executed by
 # the storage engine natively.
 #
-
-#
-# This test need to read the session_status table.
-# - It's not possible to switch to use performance_schema.session_status since
-#   performance_schema is not yet available in embedded mode.
-# - The "show_compatibility_56" option does not exist in embedded
-#   server but fortunately that has information_schema.session_status
-#   turned on by default.
-# - Fix by turning on "show_compatibility_56" for non embedded server
-#
-if (!`select version() like '%embedded%'`)
-{
-  --disable_query_log ONCE
-  set @@global.show_compatibility_56=ON;
-}
-
 
 echo Check that ndb_join_pushdown variable exists and is enabled;
 if (!`select @@ndb_join_pushdown`)
@@ -111,12 +96,4 @@ let $push_message =
 --source pushed_join.inc
 
 drop table t1;
-
-if (!`select version() like '%embedded%'`)
-{
-  # Restore value of show_compatibility_56
-  --disable_query_log ONCE
-  set @@global.show_compatibility_56=default;
-}
-
 

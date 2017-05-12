@@ -54,7 +54,7 @@ page	CREATE TABLE `page` (
   `page_title` varchar(255) CHARACTER SET sjis NOT NULL DEFAULT '',
   PRIMARY KEY (`page_id`),
   FULLTEXT KEY `page_title` (`page_title`) /*!50100 WITH PARSER `mecab` */ 
-) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=latin1
+) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4
 SELECT * FROM page WHERE MATCH(page_title) AGAINST("ﾚﾓﾅ" IN BOOLEAN MODE);
 page_id	page_title
 1	ﾚﾓﾅ
@@ -160,7 +160,7 @@ page	CREATE TABLE `page` (
   `page_title` varchar(255) CHARACTER SET cp932 NOT NULL DEFAULT '',
   PRIMARY KEY (`page_id`),
   FULLTEXT KEY `page_title` (`page_title`) /*!50100 WITH PARSER `mecab` */ 
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4
 SELECT * FROM page WHERE MATCH(page_title) AGAINST("ﾚﾓﾅ" IN BOOLEAN MODE);
 page_id	page_title
 1	ⅰﾚﾓﾅ

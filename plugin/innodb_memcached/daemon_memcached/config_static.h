@@ -12,6 +12,7 @@
 #define get_socket_error() WSAGetLastError()
 extern void initialize_sockets(void);
 #else
+#include <errno.h>
 #define closesocket(a) close(a)
 #define SOCKET int
 #define SOCKETPAIR_AF AF_UNIX

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,36 +15,37 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "client_priv.h"
+#include <functional>
 #include <vector>
+
+#include "client_priv.h"
+#include "my_compiler.h"
 #include "mysql_connection_options.h"
 #include "sslopt-vars.h"
-#include "instance_callback.h"
+#include "typelib.h"
 
 using namespace Mysql::Tools::Base::Options;
+using std::placeholders::_1;
 
 void Mysql_connection_options::Ssl_options::create_options()
 {
-  Instance_callback<void, char*, Mysql_connection_options::Ssl_options>
-    callback(this, &Mysql_connection_options::Ssl_options::mode_option_callback);
+  std::function<void(char*)> callback(
+    std::bind(&Mysql_connection_options::Ssl_options::mode_option_callback, this, _1));
 
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+#if defined(HAVE_OPENSSL)
   this->create_new_option(&this->m_ssl_mode_string, "ssl-mode",
       "SSL connection mode.")
-#ifdef MYSQL_CLIENT
-    ->add_callback(new Instance_callback<void, char*,
-      Mysql_connection_options::Ssl_options>(
-        this, &Mysql_connection_options::Ssl_options::mode_option_callback))
-#endif
-    ;
+    ->add_callback(new std::function<void(char*)>(
+      std::bind(
+        &Mysql_connection_options::Ssl_options::mode_option_callback, this, _1)));
   this->create_new_option(&::opt_ssl_ca, "ssl-ca", "CA file in PEM format.")
-    ->add_callback(new Instance_callback<void, char*,
-      Mysql_connection_options::Ssl_options>(
-        this, &Mysql_connection_options::Ssl_options::ca_option_callback));
+    ->add_callback(new std::function<void(char*)>(
+      std::bind(
+        &Mysql_connection_options::Ssl_options::ca_option_callback, this, _1)));
   this->create_new_option(&::opt_ssl_capath, "ssl-capath", "CA directory.")
-    ->add_callback(new Instance_callback<void, char*,
-      Mysql_connection_options::Ssl_options>(
-        this, &Mysql_connection_options::Ssl_options::ca_option_callback));
+    ->add_callback(new std::function<void(char*)>(
+      std::bind(
+        &Mysql_connection_options::Ssl_options::ca_option_callback, this, _1)));
   this->create_new_option(&::opt_ssl_cert, "ssl-cert",
       "X509 cert in PEM format.");
   this->create_new_option(&::opt_ssl_cipher, "ssl-cipher",

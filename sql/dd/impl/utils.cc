@@ -21,10 +21,10 @@ namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
-void escape(std::string *sp, const std::string &src)
+void escape(String_type *sp, const String_type &src)
 {
-  const std::string::const_iterator src_end= src.end();
-  for (std::string::const_iterator s= src.begin(); s != src_end; ++s)
+  const String_type::const_iterator src_end= src.end();
+  for (String_type::const_iterator s= src.begin(); s != src_end; ++s)
   {
     if (*s == '\\' || *s == '=' || *s == ';')
     {
@@ -36,9 +36,9 @@ void escape(std::string *sp, const std::string &src)
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool unescape(std::string &dest)
+bool unescape(String_type &dest)
 {
-  for (std::string::iterator d= dest.begin(); d != dest.end(); d++)
+  for (String_type::iterator d= dest.begin(); d != dest.end(); d++)
     if (*d == '\\')
     {
       // An escape character preceeding end is an error, it must be succeeded
@@ -55,8 +55,8 @@ bool unescape(std::string &dest)
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool eat_to(std::string::const_iterator &it,
-            std::string::const_iterator end,
+bool eat_to(String_type::const_iterator &it,
+            String_type::const_iterator end,
             char c)
 {
   // Verify valid stop characters
@@ -89,18 +89,18 @@ bool eat_to(std::string::const_iterator &it,
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool eat_str(std::string &dest, std::string::const_iterator &it,
-             std::string::const_iterator end, char c)
+bool eat_str(String_type &dest, String_type::const_iterator &it,
+             String_type::const_iterator end, char c)
 {
   // Save starting point for later copying
-  std::string::const_iterator start= it;
+  String_type::const_iterator start= it;
 
   // Find the first unescaped occurrence of c, or the end
   if (eat_to(it, end, c))
     return true;
 
   // Create destination string up to, but not including c
-  dest= std::string(start, it);
+  dest= String_type(start, it);
 
   // Remove escape characters
   if (unescape(dest))
@@ -115,12 +115,12 @@ bool eat_str(std::string &dest, std::string::const_iterator &it,
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool eat_pairs(std::string::const_iterator &it,
-               std::string::const_iterator end,
+bool eat_pairs(String_type::const_iterator &it,
+               String_type::const_iterator end,
                dd::Properties *props)
 {
-  std::string key("");
-  std::string val("");
+  String_type key("");
+  String_type val("");
 
   if (it == end) return false;
 

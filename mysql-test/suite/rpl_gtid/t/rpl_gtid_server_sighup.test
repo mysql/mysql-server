@@ -30,11 +30,19 @@
 --source include/linux.inc
 
 # Problem appears only with gtid
---source include/have_gtid.inc
 
 # Testing SIGHUP behaviour with one mode is enough
 --source include/have_binlog_format_statement.inc
 --source include/master-slave.inc
+
+# Bug#23297190 :RPL_GTID_SERVER_SIGHUP AND RPL_MASTER_POS_WAIT_AFTER_STARTUP FAILS
+# IN VALGRIND : Increased the time interval between the connection retries.
+--connection slave
+--source include/stop_slave.inc
+CHANGE MASTER TO MASTER_CONNECT_RETRY=30, MASTER_RETRY_COUNT=30;
+--source include/start_slave.inc
+
+--connection master
 CREATE TABLE pid_table(pid_no INT);
 
 

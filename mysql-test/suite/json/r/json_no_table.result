@@ -879,7 +879,7 @@ select json_type('3.14');
 json_type('3.14')
 DOUBLE
 select json_type(CAST(CAST('2015-01-15' AS DATE) as CHAR CHARACTER SET 'utf8'));
-ERROR 22032: Invalid JSON text in argument 1 to function json_type: "The document root must not follow by other values." at position 4.
+ERROR 22032: Invalid JSON text in argument 1 to function json_type: "The document root must not be followed by other values." at position 4.
 # ----------------------------------------------------------------------
 # Test of CAST(literal AS JSON)
 # ----------------------------------------------------------------------
@@ -1016,7 +1016,7 @@ cast(3.14e0 as json)
 3.14
 select cast(cast('10101abcde' as binary) as json);
 cast(cast('10101abcde' as binary) as json)
-"base64:type253:MTAxMDFhYmNkZQ=="
+"base64:type15:MTAxMDFhYmNkZQ=="
 select cast(ST_GeomFromText('POINT(1 1)') as json);
 cast(ST_GeomFromText('POINT(1 1)') as json)
 {"type": "Point", "coordinates": [1, 1]}
@@ -3289,3 +3289,63 @@ Warning	1235	This version of MySQL doesn't yet support 'comparison of JSON in th
 SELECT JSON_SET(JSON_ARRAY(JSON_MERGE('{"a":1}', '{"a":2}')), '$[0].a', 123);
 JSON_SET(JSON_ARRAY(JSON_MERGE('{"a":1}', '{"a":2}')), '$[0].a', 123)
 [{"a": 123}]
+#
+# Bug#22887227: ASSERTION FAILED: THIS_TYPE != JSON_DOM::J_ERROR
+#
+SELECT NULLIF(CASE WHEN 1 THEN NULL ELSE JSON_ARRAY() END, 1);
+NULLIF(CASE WHEN 1 THEN NULL ELSE JSON_ARRAY() END, 1)
+NULL
+SELECT JSON_TYPE(CASE WHEN 1 THEN NULL ELSE JSON_ARRAY() END);
+JSON_TYPE(CASE WHEN 1 THEN NULL ELSE JSON_ARRAY() END)
+NULL
+SELECT MIN(CASE 0 WHEN 1 THEN JSON_ARRAY() ELSE NULL END);
+MIN(CASE 0 WHEN 1 THEN JSON_ARRAY() ELSE NULL END)
+NULL
+#
+# Bug #24930829 BITWISE OPERATORS: CRASH IN ITEM_FUNC_BIT_COUNT::VAL_INT
+# Test case does not fail anymore after Bug#24930038 fix was pushed
+# since a check for null return value was added.
+#
+DO BIT_COUNT(COMPRESS(1) << JSON_DEPTH(1));
+ERROR 22032: Invalid data type for JSON data in argument 1 to function json_depth; a JSON string or JSON type is required.
+#
+# Bug#25516881: JSON_UNQUOTE RETURNS WRONG RESULT WHEN INPUT IS UTF-16
+#
+SELECT JSON_UNQUOTE(CAST('"abc"' AS CHAR CHARSET utf16));
+JSON_UNQUOTE(CAST('"abc"' AS CHAR CHARSET utf16))
+abc
+SELECT JSON_UNQUOTE(CAST('ABCD' AS BINARY));
+ERROR 22032: Cannot create a JSON value from a string with CHARACTER SET 'binary'.
+SELECT HEX(JSON_UNQUOTE(CAST('"abc"' AS CHAR CHARSET utf16))),
+HEX(JSON_UNQUOTE(CAST('abc' AS CHAR CHARSET utf16)));
+HEX(JSON_UNQUOTE(CAST('"abc"' AS CHAR CHARSET utf16)))	HEX(JSON_UNQUOTE(CAST('abc' AS CHAR CHARSET utf16)))
+616263	616263
+#
+# Bug#25516960: JSON_SEARCH AND JSON_CONTAINS_PATH REJECT ONE-OR-ALL
+#               ARGUMENT IF IT IS UTF-16
+#
+SELECT JSON_SEARCH('["a", "a"]', CAST('one' AS CHAR CHARSET utf16), 'a') AS c1,
+JSON_SEARCH('["a", "a"]', CAST('all' AS CHAR CHARSET utf16), 'a') AS c2,
+JSON_CONTAINS_PATH('{"a":"x"}', CAST('one' AS CHAR CHARSET utf16),
+'$.a', '$.b') AS c3,
+JSON_CONTAINS_PATH('{"a":"x"}', CAST('all' AS CHAR CHARSET utf16),
+'$.a', '$.b') AS c4;
+c1	c2	c3	c4
+"$[0]"	["$[0]", "$[1]"]	1	0
+#
+# Bug#25530204: THE RESULT OF SUM ON JSON_EXTRACT LOST THE DECIMAL PART
+#
+SELECT SUM(CAST('5.45' AS JSON));
+SUM(CAST('5.45' AS JSON))
+5.45
+#
+# Bug#25518504: SOME BIG NUMBERS IN JSON DOCUMENTS BECOME ZERO
+#
+SELECT CAST('2e308' AS JSON);
+ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "Terminate parsing due to Handler error." at position 0.
+SELECT CAST('-2e308' AS JSON);
+ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "Terminate parsing due to Handler error." at position 0.
+SELECT CAST('2e309' AS JSON);
+ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "Number too big to be stored in double." at position 0.
+SELECT CAST('-2e309' AS JSON);
+ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "Number too big to be stored in double." at position 0.

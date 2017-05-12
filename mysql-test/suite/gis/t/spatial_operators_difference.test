@@ -254,10 +254,13 @@ SELECT ST_ASTEXT(ST_DIFFERENCE(g,ST_GEOMFROMTEXT(@star))) FROM gis_geometrycolle
 --echo #====================================================================================
 --echo # point,multipolygon
 --echo #====================================================================================
+--echo # Invalid geometry in input
 SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_of_elems)));
 
+--echo # Invalid geometry in input
 SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_top_3),ST_GEOMFROMTEXT(@star_of_elems)));
 
+--echo # Invalid geometry in input
 SELECT ST_ASTEXT(ST_DIFFERENCE(g,ST_GEOMFROMTEXT(@star_of_elems))) FROM gis_geometrycollection WHERE fid=104;
 
 --echo #====================================================================================
@@ -329,10 +332,13 @@ SELECT ST_ASTEXT(ST_DIFFERENCE(g,ST_GEOMFROMTEXT(@star_elem_horizontal))) FROM g
 --echo #====================================================================================
 --echo # multipoint,multipolygon
 --echo #====================================================================================
+--echo # Invalid geometry in input
 SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT('MULTIPOINT(0 0,0 30,30 25)'),ST_GEOMFROMTEXT(@star_of_elems)));
 
+--echo # Invalid geometry in input
 SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_of_elems)));
 
+--echo # Invalid geometry in input
 SELECT ST_ASTEXT(ST_DIFFERENCE(g,ST_GEOMFROMTEXT(@star_of_elems))) FROM gis_geometrycollection WHERE fid=109;
 
 --echo #====================================================================================
@@ -406,6 +412,7 @@ SELECT ST_ASTEXT(ST_DIFFERENCE(g,ST_GEOMFROMTEXT('POLYGON((11 15,19 15,19 10,11 
 --echo #====================================================================================
 SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,19 25,11 15)))')));
 
+--echo # Invalid geometry in input
 SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_of_elems)));
 
 SELECT ST_ASTEXT(ST_DIFFERENCE(g,ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,19 25,11 15)),((25 0,0 15,25 10,25 0)))'))) FROM gis_geometrycollection WHERE fid=110;
@@ -483,8 +490,10 @@ SELECT ST_ASTEXT(ST_DIFFERENCE(g,ST_GEOMFROMTEXT(@star_elem_vertical))) FROM gis
 --echo #====================================================================================
 SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT('MULTILINESTRING((0 25,25 0,25 30))'),ST_GEOMFROMTEXT(@star_elem_vertical)));
 
+--echo # Invalid geometry in input
 SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_of_elems)));
 
+--echo # Invalid geometry in input
 SELECT ST_ASTEXT(ST_DIFFERENCE(g,ST_GEOMFROMTEXT(@star_of_elems))) FROM gis_geometrycollection WHERE fid=114;
 
 --echo #====================================================================================
@@ -557,10 +566,13 @@ SELECT ST_ASTEXT(ST_DIFFERENCE(g,ST_GEOMFROMTEXT(@star_elem_vertical))) FROM gis
 --echo #====================================================================================
 --echo # polygon,multipolygon
 --echo #====================================================================================
+--echo # Invalid geometry in input
 SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_of_elems)));
 
+--echo # Invalid geometry in input
 SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_of_elems_3)));
 
+--echo # Invalid geometry in input
 SELECT ST_ASTEXT(ST_DIFFERENCE(g,ST_GEOMFROMTEXT(@star_of_elems))) FROM gis_geometrycollection WHERE fid=100;
 
 --echo #====================================================================================
@@ -585,53 +597,70 @@ SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT('POLYGON((4 4,4 6,6 6,6 4,4 4),(0
 --echo #====================================================================================
 --echo # multipolygon,point
 --echo #====================================================================================
+--echo # Invalid geometry in input
 SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_top)));
 
+--echo # Invalid geometry in input
 SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('POINT(30 30)')));
 
+--echo # Invalid geometry in input
 SELECT ST_ASTEXT(ST_DIFFERENCE(g,ST_GEOMFROMTEXT(@star_top))) FROM gis_geometrycollection WHERE fid=103;
 
 --echo #====================================================================================
 --echo # multipolygon,multipoint
 --echo #====================================================================================
+--echo # Invalid geometry in input
 SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_bottom_points)));
 
+--echo # Invalid geometry in input
 SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('MULTIPOINT(30 30,0 35)')));
 
+--echo # Invalid geometry in input
 SELECT ST_ASTEXT(ST_DIFFERENCE(g,ST_GEOMFROMTEXT(@star_bottom_points))) FROM gis_geometrycollection WHERE fid=103;
 
 --echo #====================================================================================
 --echo # multipolygon,linestring
 --echo #====================================================================================
+--echo # Invalid geometry in input
 SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_top_to_center)));
 
+--echo # Invalid geometry in input
 SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('LINESTRING(30 30,0 35)')));
 
+--echo # Invalid geometry in input
 SELECT ST_ASTEXT(ST_DIFFERENCE(g,ST_GEOMFROMTEXT(@star_top_to_center))) FROM gis_geometrycollection WHERE fid=103;
 
 --echo #====================================================================================
 --echo # multipolygon,multilinestring
 --echo #====================================================================================
+--echo # Invalid geometry in input
 SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_lines_near_vertical)));
 
+--echo # Invalid geometry in input
 SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('MULTILINESTRING((0 30,30 30,0 35))')));
 
+--echo # Invalid geometry in input
 SELECT ST_ASTEXT(ST_DIFFERENCE(g,ST_GEOMFROMTEXT(@star_lines_near_vertical))) FROM gis_geometrycollection WHERE fid=103;
 
 --echo #====================================================================================
 --echo # multipolygon,polygon
 --echo #====================================================================================
+--echo # Invalid geometry in input
 SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_elem_vertical)));
 
+--echo # Invalid geometry in input
 SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star)));
 
+--echo # Invalid geometry in input
 SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))')));
 
+--echo # Invalid geometry in input
 SELECT ST_ASTEXT(ST_DIFFERENCE(g,ST_GEOMFROMTEXT(@star_elem_vertical))) FROM gis_geometrycollection WHERE fid=103;
 
 --echo #====================================================================================
 --echo # multipolygon,multipolygon
 --echo #====================================================================================
+--echo # Invalid geometry in input
 SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 -10,-10 -10,-10 0,0 0)))')));
 
 SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 5,5 5,5 0,0 0)))'),
@@ -643,14 +672,18 @@ SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 5,5 5,5 0,0
 --echo #====================================================================================
 --echo # multipolygon,geometrycollectionn
 --echo #====================================================================================
+--echo # Invalid geometry in input
 SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_elems_3)));
 
+--echo # Invalid geometry in input
 SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_elems)));
 
+--echo # Invalid geometry in input
 SELECT ST_ASTEXT(ST_DIFFERENCE(g,ST_GEOMFROMTEXT(@star_collection_elems))) FROM gis_geometrycollection WHERE fid=103;
 
 SELECT ST_ASTEXT(ST_DIFFERENCE(g,g2)) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=115 and fid2=115;
 
+--echo # Invalid geometry in input
 SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_multilinestr)));
 
 SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)))'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()')));
@@ -717,6 +750,7 @@ SELECT ST_ASTEXT(ST_DIFFERENCE(g,ST_GEOMFROMTEXT(@star_elem_vertical))) FROM gis
 --echo #====================================================================================
 SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 5,5 5,5 0,0 0)))')));
 
+--echo # Invalid geometry in input
 SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_of_elems)));
 
 SELECT ST_ASTEXT(ST_DIFFERENCE(g,ST_GEOMFROMTEXT(@star_collection_elems))) FROM gis_geometrycollection WHERE fid=115;
@@ -804,17 +838,22 @@ SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@st
 
 SELECT ST_ASTEXT(ST_DIFFERENCE(NULL,ST_GEOMFROMTEXT(@star_top)));
 
+--echo # Invalid geometry in input
 SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_of_elems),NULL));
 
+--echo # Invalid geometry in input
 SELECT ST_ASTEXT(ST_DIFFERENCE(g,NULL)) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
 
 SELECT ST_ASTEXT(ST_DIFFERENCE(NULL,NULL));
 
+--echo # Invalid geometry in input
 SELECT ST_ASTEXT(ST_DIFFERENCE(fid,NULL)) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
 
+--echo # Invalid geometry in input
 --error ER_GIS_INVALID_DATA
 SELECT ST_ASTEXT(ST_DIFFERENCE(fid,ST_GEOMFROMTEXT(@star_top))) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
 
+--echo # Invalid geometry in input
 --error ER_GIS_INVALID_DATA
 SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_of_elems),fid)) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
 
@@ -860,31 +899,32 @@ SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT('POLYGON((12,34 0,10 10,10 0,0 0)
 --error ER_PARSE_ERROR
 SELECT ST_ASTEXT(ST_DIFFERENCE(,));
 
+--echo # Invalid geometry in input
 --error ER_PARSE_ERROR
 SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_of_elems),));
 
 --error ER_PARSE_ERROR
 SELECT ST_ASTEXT(ST_DIFFERENCE(,ST_GEOMFROMTEXT(@star_top)));
 
---error ER_BOOST_GEOMETRY_OVERLAY_INVALID_INPUT_EXCEPTION
+--echo # Invalid geometry in input
 SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_of_elems)));
 
 SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_collection_elems)));
 
---error ER_BOOST_GEOMETRY_OVERLAY_INVALID_INPUT_EXCEPTION
+--echo # Invalid geometry in input
 SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_of_elems)));
 
---error ER_BOOST_GEOMETRY_OVERLAY_INVALID_INPUT_EXCEPTION
+--echo # Invalid geometry in input
 SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_of_elems),
                                ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,15 25,35 0,0 0)),((5 0,15 25,25 0,15 5,5 0)))')));
 
---error ER_BOOST_GEOMETRY_OVERLAY_INVALID_INPUT_EXCEPTION
+--echo # Invalid geometry in input
 SELECT ST_ASTEXT(ST_DIFFERENCE(g,ST_GEOMFROMTEXT(@star_of_elems))) FROM gis_geometrycollection WHERE fid=103;
 
---error ER_BOOST_GEOMETRY_OVERLAY_INVALID_INPUT_EXCEPTION
+--echo # Invalid geometry in input
 SELECT ST_ASTEXT(ST_DIFFERENCE(g,g2)) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
 
---error ER_BOOST_GEOMETRY_OVERLAY_INVALID_INPUT_EXCEPTION
+--echo # Invalid geometry in input
 SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_collection_elems),
                                ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,15 25,35 0,0 0)),((5 0,15 25,25 0,15 5,5 0)))')));
 

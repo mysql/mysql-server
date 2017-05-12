@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,15 +16,25 @@
 #ifndef SQL_ERROR_H
 #define SQL_ERROR_H
 
-#include "sql_list.h"
-#include "sql_string.h"                        /* String */
-#include "sql_plist.h" /* I_P_List */
-#include "mysql_com.h" /* MYSQL_ERRMSG_SIZE */
+#include <string.h>
+#include <sys/types.h>
+
+#include "lex_string.h"
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "mysql/mysql_lex_string.h"
 #include "mysql/service_my_snprintf.h"
+#include "mysql_com.h" /* MYSQL_ERRMSG_SIZE */
+#include "sql_alloc.h"
+#include "sql_list.h"
+#include "sql_plist.h" /* I_P_List */
+#include "sql_string.h"                        /* String */
 
 class THD;
 class my_decimal;
-typedef struct st_mysql_lex_string LEX_STRING;
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -213,7 +223,7 @@ class ErrConvString
   char err_buffer[MYSQL_ERRMSG_SIZE];
   size_t buf_length;
 public:
-  explicit ErrConvString(String *str)
+  explicit ErrConvString(const String *str)
   {
     buf_length= err_conv(err_buffer, sizeof(err_buffer), str->ptr(),
                          str->length(), str->charset());

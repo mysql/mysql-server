@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +16,9 @@
 #ifndef ERROR_HANDLER_INCLUDED
 #define ERROR_HANDLER_INCLUDED
 
-#include "my_global.h"
+#include <stddef.h>
+#include <sys/types.h>
+
 #include "mysqld_error.h"  // ER_*
 #include "sql_error.h"     // Sql_condition
 
@@ -85,11 +87,11 @@ private:
 class Dummy_error_handler : public Internal_error_handler
 {
 public:
-  virtual bool handle_condition(THD *thd,
-                                uint sql_errno,
-                                const char* sqlstate,
-                                Sql_condition::enum_severity_level *level,
-                                const char* msg)
+  virtual bool handle_condition(THD*,
+                                uint,
+                                const char*,
+                                Sql_condition::enum_severity_level*,
+                                const char*)
   {
     /* Ignore error */
     return true;
@@ -124,11 +126,11 @@ public:
 class MDL_deadlock_and_lock_abort_error_handler: public Internal_error_handler
 {
 public:
-  virtual bool handle_condition(THD *thd,
+  virtual bool handle_condition(THD*,
                                 uint sql_errno,
-                                const char *sqlstate,
-                                Sql_condition::enum_severity_level *level,
-                                const char* msg)
+                                const char*,
+                                Sql_condition::enum_severity_level*,
+                                const char*)
   {
     if (sql_errno == ER_LOCK_ABORTED || sql_errno == ER_LOCK_DEADLOCK)
       m_need_reopen= true;
@@ -188,11 +190,11 @@ public:
     : m_handled_errors(0), m_unhandled_errors(0)
   {}
 
-  virtual bool handle_condition(THD *thd,
+  virtual bool handle_condition(THD*,
                                 uint sql_errno,
-                                const char* sqlstate,
-                                Sql_condition::enum_severity_level *level,
-                                const char* msg)
+                                const char*,
+                                Sql_condition::enum_severity_level*,
+                                const char*)
   {
     if (sql_errno == ER_NO_SUCH_TABLE)
     {
@@ -283,7 +285,7 @@ private:
 /**
   After retrieving the tablespace name, the tablespace name is validated.
   If the name is invalid, it is ignored. The function used to validate
-  the name, 'check_tablespace_name()', emits errors. In the context of
+  the name, 'validate_tablespace_name()', emits errors. In the context of
   retrieving tablespace names, the errors must be ignored. This error handler
   makes sure this is done.
 */
@@ -291,14 +293,33 @@ private:
 class Tablespace_name_error_handler : public Internal_error_handler
 {
 public:
-  bool handle_condition(THD *thd,
+  bool handle_condition(THD*,
                         uint sql_errno,
-                        const char *sqlstate,
-                        Sql_condition::enum_severity_level *level,
-                        const char *msg)
+                        const char*,
+                        Sql_condition::enum_severity_level*,
+                        const char*)
   {
     return (sql_errno == ER_WRONG_TABLESPACE_NAME ||
             sql_errno == ER_TOO_LONG_IDENT);
+  }
+};
+
+
+/*
+  Disable ER_TOO_LONG_KEY for creation of system tables.
+  TODO: This is a Workaround due to bug#20629014.
+  Remove this internal error handler when the bug is fixed.
+*/
+class Key_length_error_handler : public Internal_error_handler
+{
+public:
+  virtual bool handle_condition(THD *,
+                                uint sql_errno,
+                                const char*,
+                                Sql_condition::enum_severity_level *,
+                                const char*)
+  {
+    return (sql_errno == ER_TOO_LONG_KEY);
   }
 };
 

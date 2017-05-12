@@ -5,7 +5,8 @@ SET optimizer_trace="enabled=on,one_line=off";
 # WL#1393 - Optimizing filesort with small limit
 # WL#5834 - Add optimizer traces for sorting
 #
-CREATE TABLE t1(f0 int auto_increment primary key, f1 int, f2 varchar(200));
+CREATE TABLE t1(f0 int auto_increment primary key, f1 int, f2 varchar(200))
+charset latin1;
 INSERT INTO t1(f1, f2) VALUES 
 (0,"0"),(1,"1"),(2,"2"),(3,"3"),(4,"4"),(5,"5"),
 (6,"6"),(7,"7"),(8,"8"),(9,"9"),(10,"10"),
@@ -138,7 +139,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 100	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by `t1`.`f1`,`t1`.`f0` limit 100"
+            "expanded_query": "/* select#1 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by `t1`.`f1` asc,`t1`.`f0` limit 100"
           }
         ]
       }
@@ -168,7 +169,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 100	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 100,
-                  "cost": 2
+                  "cost": 0.6221
                 }
               }
             ]
@@ -185,7 +186,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 100	{
                       "rows_to_scan": 100,
                       "access_type": "scan",
                       "resulting_rows": 100,
-                      "cost": 22.488,
+                      "cost": 10.622,
                       "chosen": true,
                       "use_tmp_table": true
                     }
@@ -193,9 +194,9 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 100	{
                 },
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 100,
-                "cost_for_plan": 22.488,
+                "cost_for_plan": 10.622,
                 "sort_cost": 100,
-                "new_cost_for_plan": 122.49,
+                "new_cost_for_plan": 110.62,
                 "chosen": true
               }
             ]
@@ -216,7 +217,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 100	{
           {
             "clause_processing": {
               "clause": "ORDER BY",
-              "original_clause": "`t1`.`f1`,`t1`.`f0`",
+              "original_clause": "`t1`.`f1` asc,`t1`.`f0`",
               "items": [
                 {
                   "item": "`t1`.`f1`"
@@ -226,7 +227,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 100	{
                 }
               ],
               "resulting_clause_is_simple": true,
-              "resulting_clause": "`t1`.`f1`,`t1`.`f0`"
+              "resulting_clause": "`t1`.`f1` asc,`t1`.`f0`"
             }
           },
           {
@@ -258,20 +259,23 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 100	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 100,
-              "rows_estimate": 110,
-              "row_size": 219,
-              "memory_available": 262144,
               "chosen": false,
-              "cause": "quicksort_is_cheaper"
+              "cause": "sort_is_cheaper"
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 100,
-              "examined_rows": 100,
-              "number_of_tmp_files": 0,
+              "memory_available": 262144,
+              "key_size": 9,
+              "row_size": 221,
+              "max_rows_per_buffer": 110,
+              "num_rows_estimate": 110,
+              "num_rows_found": 100,
+              "num_examined_rows": 100,
+              "num_tmp_files": 0,
               "sort_buffer_size": 25192,
-              "sort_mode": "<sort_key, packed_additional_fields>"
+              "sort_algorithm": "std::sort",
+              "sort_mode": "<fixed_sort_key, packed_additional_fields>"
             }
           }
         ]
@@ -320,7 +324,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by `t1`.`f1`,`t1`.`f0` limit 30"
+            "expanded_query": "/* select#1 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by `t1`.`f1` asc,`t1`.`f0` limit 30"
           }
         ]
       }
@@ -350,7 +354,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 100,
-                  "cost": 2
+                  "cost": 0.6221
                 }
               }
             ]
@@ -367,14 +371,14 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
                       "rows_to_scan": 100,
                       "access_type": "scan",
                       "resulting_rows": 100,
-                      "cost": 22.488,
+                      "cost": 10.622,
                       "chosen": true
                     }
                   ]
                 },
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 100,
-                "cost_for_plan": 22.488,
+                "cost_for_plan": 10.622,
                 "chosen": true
               }
             ]
@@ -395,7 +399,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
           {
             "clause_processing": {
               "clause": "ORDER BY",
-              "original_clause": "`t1`.`f1`,`t1`.`f0`",
+              "original_clause": "`t1`.`f1` asc,`t1`.`f0`",
               "items": [
                 {
                   "item": "`t1`.`f1`"
@@ -405,7 +409,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
                 }
               ],
               "resulting_clause_is_simple": true,
-              "resulting_clause": "`t1`.`f1`,`t1`.`f0`"
+              "resulting_clause": "`t1`.`f1` asc,`t1`.`f0`"
             }
           },
           {
@@ -437,19 +441,23 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 30,
-              "rows_estimate": 110,
-              "row_size": 219,
-              "memory_available": 262144,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 31,
-              "examined_rows": 100,
-              "number_of_tmp_files": 0,
+              "memory_available": 262144,
+              "key_size": 9,
+              "row_size": 219,
+              "max_rows_per_buffer": 31,
+              "num_rows_estimate": 110,
+              "num_rows_found": 31,
+              "num_examined_rows": 100,
+              "num_tmp_files": 0,
               "sort_buffer_size": 7040,
-              "sort_mode": "<sort_key, additional_fields>"
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_priority_queue",
+              "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
         ]
@@ -468,7 +476,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 0	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by `t1`.`f1`,`t1`.`f0` limit 0"
+            "expanded_query": "/* select#1 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by `t1`.`f1` asc,`t1`.`f0` limit 0"
           }
         ]
       }
@@ -563,7 +571,7 @@ SELECT * FROM t1 ORDER BY f2 DESC, f0 LIMIT 30	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 100,
-                  "cost": 2
+                  "cost": 0.6221
                 }
               }
             ]
@@ -580,14 +588,14 @@ SELECT * FROM t1 ORDER BY f2 DESC, f0 LIMIT 30	{
                       "rows_to_scan": 100,
                       "access_type": "scan",
                       "resulting_rows": 100,
-                      "cost": 22.488,
+                      "cost": 10.622,
                       "chosen": true
                     }
                   ]
                 },
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 100,
-                "cost_for_plan": 22.488,
+                "cost_for_plan": 10.622,
                 "chosen": true
               }
             ]
@@ -650,19 +658,23 @@ SELECT * FROM t1 ORDER BY f2 DESC, f0 LIMIT 30	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 30,
-              "rows_estimate": 110,
-              "row_size": 415,
-              "memory_available": 262144,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 31,
-              "examined_rows": 100,
-              "number_of_tmp_files": 0,
+              "memory_available": 262144,
+              "key_size": 205,
+              "row_size": 415,
+              "max_rows_per_buffer": 31,
+              "num_rows_estimate": 110,
+              "num_rows_found": 31,
+              "num_examined_rows": 100,
+              "num_tmp_files": 0,
               "sort_buffer_size": 13120,
-              "sort_mode": "<sort_key, additional_fields>"
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_priority_queue",
+              "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
         ]
@@ -790,7 +802,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 20	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 100,
-                  "cost": 2
+                  "cost": 0.6221
                 }
               }
             ]
@@ -807,14 +819,14 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 20	{
                       "rows_to_scan": 100,
                       "access_type": "scan",
                       "resulting_rows": 33.33,
-                      "cost": 22.488,
+                      "cost": 10.622,
                       "chosen": true
                     }
                   ]
                 },
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 33.33,
-                "cost_for_plan": 22.488,
+                "cost_for_plan": 10.622,
                 "chosen": true
               }
             ]
@@ -877,19 +889,23 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 20	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 20,
-              "rows_estimate": 110,
-              "row_size": 415,
-              "memory_available": 262144,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 21,
-              "examined_rows": 100,
-              "number_of_tmp_files": 0,
+              "memory_available": 262144,
+              "key_size": 205,
+              "row_size": 415,
+              "max_rows_per_buffer": 21,
+              "num_rows_estimate": 110,
+              "num_rows_found": 21,
+              "num_examined_rows": 100,
+              "num_tmp_files": 0,
               "sort_buffer_size": 8888,
-              "sort_mode": "<sort_key, additional_fields>"
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_priority_queue",
+              "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
         ]
@@ -1007,7 +1023,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 100,
-                  "cost": 2
+                  "cost": 0.6221
                 }
               }
             ]
@@ -1024,14 +1040,14 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
                       "rows_to_scan": 100,
                       "access_type": "scan",
                       "resulting_rows": 33.33,
-                      "cost": 22.488,
+                      "cost": 10.622,
                       "chosen": true
                     }
                   ]
                 },
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 33.33,
-                "cost_for_plan": 22.488,
+                "cost_for_plan": 10.622,
                 "chosen": true
               }
             ]
@@ -1094,19 +1110,23 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 20,
-              "rows_estimate": 110,
-              "row_size": 415,
-              "memory_available": 262144,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 21,
-              "examined_rows": 100,
-              "number_of_tmp_files": 0,
+              "memory_available": 262144,
+              "key_size": 205,
+              "row_size": 415,
+              "max_rows_per_buffer": 21,
+              "num_rows_estimate": 110,
+              "num_rows_found": 21,
+              "num_examined_rows": 100,
+              "num_tmp_files": 0,
               "sort_buffer_size": 8888,
-              "sort_mode": "<sort_key, additional_fields>"
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_priority_queue",
+              "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
         ]
@@ -1179,7 +1199,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 100,
-                  "cost": 2
+                  "cost": 0.6221
                 }
               }
             ]
@@ -1196,14 +1216,14 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
                       "rows_to_scan": 100,
                       "access_type": "scan",
                       "resulting_rows": 33.33,
-                      "cost": 22.488,
+                      "cost": 10.622,
                       "chosen": true
                     }
                   ]
                 },
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 33.33,
-                "cost_for_plan": 22.488,
+                "cost_for_plan": 10.622,
                 "chosen": true
               }
             ]
@@ -1266,19 +1286,23 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 10,
-              "rows_estimate": 110,
-              "row_size": 415,
-              "memory_available": 262144,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 11,
-              "examined_rows": 100,
-              "number_of_tmp_files": 0,
+              "memory_available": 262144,
+              "key_size": 205,
+              "row_size": 415,
+              "max_rows_per_buffer": 11,
+              "num_rows_estimate": 110,
+              "num_rows_found": 11,
+              "num_examined_rows": 100,
+              "num_tmp_files": 0,
               "sort_buffer_size": 4656,
-              "sort_mode": "<sort_key, additional_fields>"
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_priority_queue",
+              "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
         ]
@@ -1329,7 +1353,7 @@ SELECT CONCAT("hello ", f2) AS foo FROM t1 ORDER BY foo LIMIT 2	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 100,
-                  "cost": 2
+                  "cost": 0.6221
                 }
               }
             ]
@@ -1346,14 +1370,14 @@ SELECT CONCAT("hello ", f2) AS foo FROM t1 ORDER BY foo LIMIT 2	{
                       "rows_to_scan": 100,
                       "access_type": "scan",
                       "resulting_rows": 100,
-                      "cost": 22.488,
+                      "cost": 10.622,
                       "chosen": true
                     }
                   ]
                 },
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 100,
-                "cost_for_plan": 22.488,
+                "cost_for_plan": 10.622,
                 "chosen": true
               }
             ]
@@ -1407,19 +1431,23 @@ SELECT CONCAT("hello ", f2) AS foo FROM t1 ORDER BY foo LIMIT 2	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 2,
-              "rows_estimate": 110,
-              "row_size": 409,
-              "memory_available": 262144,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 3,
-              "examined_rows": 100,
-              "number_of_tmp_files": 0,
+              "memory_available": 262144,
+              "key_size": 207,
+              "row_size": 409,
+              "max_rows_per_buffer": 3,
+              "num_rows_estimate": 110,
+              "num_rows_found": 3,
+              "num_examined_rows": 100,
+              "num_tmp_files": 0,
               "sort_buffer_size": 1256,
-              "sort_mode": "<sort_key, additional_fields>"
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_priority_queue",
+              "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
         ]
@@ -1467,7 +1495,7 @@ SELECT * from t1 ORDER BY rand(2) LIMIT 2	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 100,
-                  "cost": 2
+                  "cost": 0.6221
                 }
               }
             ]
@@ -1484,14 +1512,14 @@ SELECT * from t1 ORDER BY rand(2) LIMIT 2	{
                       "rows_to_scan": 100,
                       "access_type": "scan",
                       "resulting_rows": 100,
-                      "cost": 22.488,
+                      "cost": 10.622,
                       "chosen": true
                     }
                   ]
                 },
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 100,
-                "cost_for_plan": 22.488,
+                "cost_for_plan": 10.622,
                 "chosen": true
               }
             ]
@@ -1558,19 +1586,23 @@ SELECT * from t1 ORDER BY rand(2) LIMIT 2	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 2,
-              "rows_estimate": 110,
-              "row_size": 16,
-              "memory_available": 262144,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 3,
-              "examined_rows": 100,
-              "number_of_tmp_files": 0,
+              "memory_available": 262144,
+              "key_size": 16,
+              "row_size": 16,
+              "max_rows_per_buffer": 3,
+              "num_rows_estimate": 110,
+              "num_rows_found": 3,
+              "num_examined_rows": 100,
+              "num_tmp_files": 0,
               "sort_buffer_size": 72,
-              "sort_mode": "<sort_key, rowid>"
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_priority_queue",
+              "sort_mode": "<fixed_sort_key, rowid>"
             }
           }
         ]
@@ -1620,7 +1652,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by `t1`.`f1`,`t1`.`f0` limit 30"
+            "expanded_query": "/* select#1 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by `t1`.`f1` asc,`t1`.`f0` limit 30"
           }
         ]
       }
@@ -1650,7 +1682,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 100,
-                  "cost": 2
+                  "cost": 0.6221
                 }
               }
             ]
@@ -1667,14 +1699,14 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
                       "rows_to_scan": 100,
                       "access_type": "scan",
                       "resulting_rows": 100,
-                      "cost": 22.488,
+                      "cost": 10.622,
                       "chosen": true
                     }
                   ]
                 },
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 100,
-                "cost_for_plan": 22.488,
+                "cost_for_plan": 10.622,
                 "chosen": true
               }
             ]
@@ -1695,7 +1727,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
           {
             "clause_processing": {
               "clause": "ORDER BY",
-              "original_clause": "`t1`.`f1`,`t1`.`f0`",
+              "original_clause": "`t1`.`f1` asc,`t1`.`f0`",
               "items": [
                 {
                   "item": "`t1`.`f1`"
@@ -1705,7 +1737,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
                 }
               ],
               "resulting_clause_is_simple": true,
-              "resulting_clause": "`t1`.`f1`,`t1`.`f0`"
+              "resulting_clause": "`t1`.`f1` asc,`t1`.`f0`"
             }
           },
           {
@@ -1737,19 +1769,23 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 30,
-              "rows_estimate": 110,
-              "row_size": 219,
-              "memory_available": 32768,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 31,
-              "examined_rows": 100,
-              "number_of_tmp_files": 0,
+              "memory_available": 32768,
+              "key_size": 9,
+              "row_size": 219,
+              "max_rows_per_buffer": 31,
+              "num_rows_estimate": 110,
+              "num_rows_found": 31,
+              "num_examined_rows": 100,
+              "num_tmp_files": 0,
               "sort_buffer_size": 7040,
-              "sort_mode": "<sort_key, additional_fields>"
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_priority_queue",
+              "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
         ]
@@ -1768,7 +1804,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 0	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by `t1`.`f1`,`t1`.`f0` limit 0"
+            "expanded_query": "/* select#1 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by `t1`.`f1` asc,`t1`.`f0` limit 0"
           }
         ]
       }
@@ -1863,7 +1899,7 @@ SELECT * FROM t1 ORDER BY f2 DESC, f0 LIMIT 30	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 100,
-                  "cost": 2
+                  "cost": 0.6221
                 }
               }
             ]
@@ -1880,14 +1916,14 @@ SELECT * FROM t1 ORDER BY f2 DESC, f0 LIMIT 30	{
                       "rows_to_scan": 100,
                       "access_type": "scan",
                       "resulting_rows": 100,
-                      "cost": 22.488,
+                      "cost": 10.622,
                       "chosen": true
                     }
                   ]
                 },
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 100,
-                "cost_for_plan": 22.488,
+                "cost_for_plan": 10.622,
                 "chosen": true
               }
             ]
@@ -1950,19 +1986,23 @@ SELECT * FROM t1 ORDER BY f2 DESC, f0 LIMIT 30	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 30,
-              "rows_estimate": 110,
-              "row_size": 415,
-              "memory_available": 32768,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 31,
-              "examined_rows": 100,
-              "number_of_tmp_files": 0,
+              "memory_available": 32768,
+              "key_size": 205,
+              "row_size": 415,
+              "max_rows_per_buffer": 31,
+              "num_rows_estimate": 110,
+              "num_rows_found": 31,
+              "num_examined_rows": 100,
+              "num_tmp_files": 0,
               "sort_buffer_size": 13120,
-              "sort_mode": "<sort_key, additional_fields>"
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_priority_queue",
+              "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
         ]
@@ -2090,7 +2130,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 20	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 100,
-                  "cost": 2
+                  "cost": 0.6221
                 }
               }
             ]
@@ -2107,14 +2147,14 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 20	{
                       "rows_to_scan": 100,
                       "access_type": "scan",
                       "resulting_rows": 33.33,
-                      "cost": 22.488,
+                      "cost": 10.622,
                       "chosen": true
                     }
                   ]
                 },
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 33.33,
-                "cost_for_plan": 22.488,
+                "cost_for_plan": 10.622,
                 "chosen": true
               }
             ]
@@ -2177,19 +2217,23 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 20	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 20,
-              "rows_estimate": 110,
-              "row_size": 415,
-              "memory_available": 32768,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 21,
-              "examined_rows": 100,
-              "number_of_tmp_files": 0,
+              "memory_available": 32768,
+              "key_size": 205,
+              "row_size": 415,
+              "max_rows_per_buffer": 21,
+              "num_rows_estimate": 110,
+              "num_rows_found": 21,
+              "num_examined_rows": 100,
+              "num_tmp_files": 0,
               "sort_buffer_size": 8888,
-              "sort_mode": "<sort_key, additional_fields>"
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_priority_queue",
+              "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
         ]
@@ -2307,7 +2351,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 100,
-                  "cost": 2
+                  "cost": 0.6221
                 }
               }
             ]
@@ -2324,14 +2368,14 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
                       "rows_to_scan": 100,
                       "access_type": "scan",
                       "resulting_rows": 33.33,
-                      "cost": 22.488,
+                      "cost": 10.622,
                       "chosen": true
                     }
                   ]
                 },
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 33.33,
-                "cost_for_plan": 22.488,
+                "cost_for_plan": 10.622,
                 "chosen": true
               }
             ]
@@ -2394,19 +2438,23 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 20,
-              "rows_estimate": 110,
-              "row_size": 415,
-              "memory_available": 32768,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 21,
-              "examined_rows": 100,
-              "number_of_tmp_files": 0,
+              "memory_available": 32768,
+              "key_size": 205,
+              "row_size": 415,
+              "max_rows_per_buffer": 21,
+              "num_rows_estimate": 110,
+              "num_rows_found": 21,
+              "num_examined_rows": 100,
+              "num_tmp_files": 0,
               "sort_buffer_size": 8888,
-              "sort_mode": "<sort_key, additional_fields>"
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_priority_queue",
+              "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
         ]
@@ -2479,7 +2527,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 100,
-                  "cost": 2
+                  "cost": 0.6221
                 }
               }
             ]
@@ -2496,14 +2544,14 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
                       "rows_to_scan": 100,
                       "access_type": "scan",
                       "resulting_rows": 33.33,
-                      "cost": 22.488,
+                      "cost": 10.622,
                       "chosen": true
                     }
                   ]
                 },
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 33.33,
-                "cost_for_plan": 22.488,
+                "cost_for_plan": 10.622,
                 "chosen": true
               }
             ]
@@ -2566,19 +2614,23 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 10,
-              "rows_estimate": 110,
-              "row_size": 415,
-              "memory_available": 32768,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 11,
-              "examined_rows": 100,
-              "number_of_tmp_files": 0,
+              "memory_available": 32768,
+              "key_size": 205,
+              "row_size": 415,
+              "max_rows_per_buffer": 11,
+              "num_rows_estimate": 110,
+              "num_rows_found": 11,
+              "num_examined_rows": 100,
+              "num_tmp_files": 0,
               "sort_buffer_size": 4656,
-              "sort_mode": "<sort_key, additional_fields>"
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_priority_queue",
+              "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
         ]
@@ -2665,7 +2717,7 @@ ORDER BY f1, f0 LIMIT 30	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 100,
-                  "cost": 2
+                  "cost": 0.6221
                 }
               }
             ]
@@ -2682,14 +2734,14 @@ ORDER BY f1, f0 LIMIT 30	{
                       "rows_to_scan": 100,
                       "access_type": "scan",
                       "resulting_rows": 100,
-                      "cost": 22.488,
+                      "cost": 10.622,
                       "chosen": true
                     }
                   ]
                 },
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 100,
-                "cost_for_plan": 22.488,
+                "cost_for_plan": 10.622,
                 "chosen": true
               }
             ]
@@ -2752,19 +2804,23 @@ ORDER BY f1, f0 LIMIT 30	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 30,
-              "rows_estimate": 110,
-              "row_size": 219,
-              "memory_available": 32768,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 31,
-              "examined_rows": 100,
-              "number_of_tmp_files": 0,
+              "memory_available": 32768,
+              "key_size": 9,
+              "row_size": 219,
+              "max_rows_per_buffer": 31,
+              "num_rows_estimate": 110,
+              "num_rows_found": 31,
+              "num_examined_rows": 100,
+              "num_tmp_files": 0,
               "sort_buffer_size": 7040,
-              "sort_mode": "<sort_key, additional_fields>"
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_priority_queue",
+              "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
         ]
@@ -2818,7 +2874,7 @@ ORDER BY f1, f0 LIMIT 0	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 100,
-                  "cost": 2
+                  "cost": 0.6221
                 }
               }
             ]
@@ -2835,14 +2891,14 @@ ORDER BY f1, f0 LIMIT 0	{
                       "rows_to_scan": 100,
                       "access_type": "scan",
                       "resulting_rows": 100,
-                      "cost": 22.488,
+                      "cost": 10.622,
                       "chosen": true
                     }
                   ]
                 },
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 100,
-                "cost_for_plan": 22.488,
+                "cost_for_plan": 10.622,
                 "chosen": true
               }
             ]
@@ -2905,19 +2961,23 @@ ORDER BY f1, f0 LIMIT 0	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 0,
-              "rows_estimate": 110,
-              "row_size": 219,
-              "memory_available": 32768,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 1,
-              "examined_rows": 100,
-              "number_of_tmp_files": 0,
+              "memory_available": 32768,
+              "key_size": 9,
+              "row_size": 219,
+              "max_rows_per_buffer": 1,
+              "num_rows_estimate": 110,
+              "num_rows_found": 1,
+              "num_examined_rows": 100,
+              "num_tmp_files": 0,
               "sort_buffer_size": 232,
-              "sort_mode": "<sort_key, additional_fields>"
+              "sort_algorithm": "none",
+              "unpacked_addon_fields": "using_priority_queue",
+              "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
         ]
@@ -3015,7 +3075,7 @@ ORDER BY f2, f0 LIMIT 20	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 100,
-                  "cost": 2
+                  "cost": 0.6221
                 }
               }
             ]
@@ -3032,14 +3092,14 @@ ORDER BY f2, f0 LIMIT 20	{
                       "rows_to_scan": 100,
                       "access_type": "scan",
                       "resulting_rows": 33.33,
-                      "cost": 22.488,
+                      "cost": 10.622,
                       "chosen": true
                     }
                   ]
                 },
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 33.33,
-                "cost_for_plan": 22.488,
+                "cost_for_plan": 10.622,
                 "chosen": true
               }
             ]
@@ -3102,19 +3162,23 @@ ORDER BY f2, f0 LIMIT 20	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 20,
-              "rows_estimate": 110,
-              "row_size": 415,
-              "memory_available": 32768,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 21,
-              "examined_rows": 100,
-              "number_of_tmp_files": 0,
+              "memory_available": 32768,
+              "key_size": 205,
+              "row_size": 415,
+              "max_rows_per_buffer": 21,
+              "num_rows_estimate": 110,
+              "num_rows_found": 21,
+              "num_examined_rows": 100,
+              "num_tmp_files": 0,
               "sort_buffer_size": 8888,
-              "sort_mode": "<sort_key, additional_fields>"
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_priority_queue",
+              "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
         ]
@@ -3192,7 +3256,7 @@ ORDER BY f2, f0 LIMIT 0	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 100,
-                  "cost": 2
+                  "cost": 0.6221
                 }
               }
             ]
@@ -3209,14 +3273,14 @@ ORDER BY f2, f0 LIMIT 0	{
                       "rows_to_scan": 100,
                       "access_type": "scan",
                       "resulting_rows": 33.33,
-                      "cost": 22.488,
+                      "cost": 10.622,
                       "chosen": true
                     }
                   ]
                 },
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 33.33,
-                "cost_for_plan": 22.488,
+                "cost_for_plan": 10.622,
                 "chosen": true
               }
             ]
@@ -3279,19 +3343,23 @@ ORDER BY f2, f0 LIMIT 0	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 0,
-              "rows_estimate": 110,
-              "row_size": 415,
-              "memory_available": 32768,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 1,
-              "examined_rows": 100,
-              "number_of_tmp_files": 0,
+              "memory_available": 32768,
+              "key_size": 205,
+              "row_size": 415,
+              "max_rows_per_buffer": 1,
+              "num_rows_estimate": 110,
+              "num_rows_found": 1,
+              "num_examined_rows": 100,
+              "num_tmp_files": 0,
               "sort_buffer_size": 424,
-              "sort_mode": "<sort_key, additional_fields>"
+              "sort_algorithm": "none",
+              "unpacked_addon_fields": "using_priority_queue",
+              "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
         ]
@@ -3379,7 +3447,7 @@ ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 100,
-                  "cost": 2
+                  "cost": 0.6221
                 }
               }
             ]
@@ -3396,14 +3464,14 @@ ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
                       "rows_to_scan": 100,
                       "access_type": "scan",
                       "resulting_rows": 33.33,
-                      "cost": 22.488,
+                      "cost": 10.622,
                       "chosen": true
                     }
                   ]
                 },
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 33.33,
-                "cost_for_plan": 22.488,
+                "cost_for_plan": 10.622,
                 "chosen": true
               }
             ]
@@ -3466,19 +3534,23 @@ ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 20,
-              "rows_estimate": 110,
-              "row_size": 415,
-              "memory_available": 32768,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 21,
-              "examined_rows": 100,
-              "number_of_tmp_files": 0,
+              "memory_available": 32768,
+              "key_size": 205,
+              "row_size": 415,
+              "max_rows_per_buffer": 21,
+              "num_rows_estimate": 110,
+              "num_rows_found": 21,
+              "num_examined_rows": 100,
+              "num_tmp_files": 0,
               "sort_buffer_size": 8888,
-              "sort_mode": "<sort_key, additional_fields>"
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_priority_queue",
+              "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
         ]
@@ -3556,7 +3628,7 @@ ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 100,
-                  "cost": 2
+                  "cost": 0.6221
                 }
               }
             ]
@@ -3573,14 +3645,14 @@ ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
                       "rows_to_scan": 100,
                       "access_type": "scan",
                       "resulting_rows": 33.33,
-                      "cost": 22.488,
+                      "cost": 10.622,
                       "chosen": true
                     }
                   ]
                 },
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 33.33,
-                "cost_for_plan": 22.488,
+                "cost_for_plan": 10.622,
                 "chosen": true
               }
             ]
@@ -3643,19 +3715,23 @@ ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 10,
-              "rows_estimate": 110,
-              "row_size": 415,
-              "memory_available": 32768,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 11,
-              "examined_rows": 100,
-              "number_of_tmp_files": 0,
+              "memory_available": 32768,
+              "key_size": 205,
+              "row_size": 415,
+              "max_rows_per_buffer": 11,
+              "num_rows_estimate": 110,
+              "num_rows_found": 11,
+              "num_examined_rows": 100,
+              "num_tmp_files": 0,
               "sort_buffer_size": 4656,
-              "sort_mode": "<sort_key, additional_fields>"
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_priority_queue",
+              "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
         ]
@@ -3666,7 +3742,7 @@ ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
 set sort_buffer_size= 327680;
 set optimizer_trace_limit=1;
 set optimizer_trace_offset=-1;
-CREATE TEMPORARY TABLE tmp (f1 int, f2 varchar(20));
+CREATE TEMPORARY TABLE tmp (f1 int, f2 varchar(20)) charset latin1;
 INSERT INTO tmp SELECT f1, f2 FROM t1;
 INSERT INTO t1(f1, f2) SELECT * FROM tmp;
 INSERT INTO tmp SELECT f1, f2 FROM t1;
@@ -3784,14 +3860,14 @@ ORDER BY tmp.f1, f0 LIMIT 30	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 500,
-                  "cost": 4
+                  "cost": 1.1104
                 }
               },
               {
                 "table": "`tmp`",
                 "table_scan": {
                   "rows": 300,
-                  "cost": 3
+                  "cost": 0.8662
                 }
               }
             ]
@@ -3808,14 +3884,14 @@ ORDER BY tmp.f1, f0 LIMIT 30	{
                       "rows_to_scan": 300,
                       "access_type": "scan",
                       "resulting_rows": 300,
-                      "cost": 63.465,
+                      "cost": 30.866,
                       "chosen": true
                     }
                   ]
                 },
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 300,
-                "cost_for_plan": 63.465,
+                "cost_for_plan": 30.866,
                 "rest_of_plan": [
                   {
                     "plan_prefix": [
@@ -3830,14 +3906,14 @@ ORDER BY tmp.f1, f0 LIMIT 30	{
                           "using_join_cache": true,
                           "buffers_needed": 1,
                           "resulting_rows": 500,
-                          "cost": 30005,
+                          "cost": 15001,
                           "chosen": true
                         }
                       ]
                     },
                     "condition_filtering_pct": 10,
                     "rows_for_plan": 15000,
-                    "cost_for_plan": 30068,
+                    "cost_for_plan": 15032,
                     "chosen": true
                   }
                 ]
@@ -3852,14 +3928,14 @@ ORDER BY tmp.f1, f0 LIMIT 30	{
                       "rows_to_scan": 500,
                       "access_type": "scan",
                       "resulting_rows": 500,
-                      "cost": 104.44,
+                      "cost": 51.11,
                       "chosen": true
                     }
                   ]
                 },
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 500,
-                "cost_for_plan": 104.44,
+                "cost_for_plan": 51.11,
                 "pruned_by_heuristic": true
               }
             ]
@@ -3941,19 +4017,23 @@ ORDER BY tmp.f1, f0 LIMIT 30	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 30,
-              "rows_estimate": 1510,
-              "row_size": 17,
-              "memory_available": 327680,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 31,
-              "examined_rows": 1500,
-              "number_of_tmp_files": 0,
+              "memory_available": 327680,
+              "key_size": 17,
+              "row_size": 17,
+              "max_rows_per_buffer": 31,
+              "num_rows_estimate": 1510,
+              "num_rows_found": 31,
+              "num_examined_rows": 1500,
+              "num_tmp_files": 0,
               "sort_buffer_size": 776,
-              "sort_mode": "<sort_key, rowid>"
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_priority_queue",
+              "sort_mode": "<fixed_sort_key, rowid>"
             }
           }
         ]
@@ -4074,14 +4154,14 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 500,
-                  "cost": 4
+                  "cost": 1.1104
                 }
               },
               {
                 "table": "`tmp`",
                 "table_scan": {
                   "rows": 300,
-                  "cost": 3
+                  "cost": 0.8662
                 }
               }
             ]
@@ -4098,14 +4178,14 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
                       "rows_to_scan": 300,
                       "access_type": "scan",
                       "resulting_rows": 300,
-                      "cost": 63.465,
+                      "cost": 30.866,
                       "chosen": true
                     }
                   ]
                 },
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 300,
-                "cost_for_plan": 63.465,
+                "cost_for_plan": 30.866,
                 "rest_of_plan": [
                   {
                     "plan_prefix": [
@@ -4120,14 +4200,14 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
                           "using_join_cache": true,
                           "buffers_needed": 1,
                           "resulting_rows": 500,
-                          "cost": 30005,
+                          "cost": 15001,
                           "chosen": true
                         }
                       ]
                     },
                     "condition_filtering_pct": 10,
                     "rows_for_plan": 15000,
-                    "cost_for_plan": 30068,
+                    "cost_for_plan": 15032,
                     "chosen": true
                   }
                 ]
@@ -4142,14 +4222,14 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
                       "rows_to_scan": 500,
                       "access_type": "scan",
                       "resulting_rows": 500,
-                      "cost": 104.44,
+                      "cost": 51.11,
                       "chosen": true
                     }
                   ]
                 },
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 500,
-                "cost_for_plan": 104.44,
+                "cost_for_plan": 51.11,
                 "pruned_by_heuristic": true
               }
             ]
@@ -4231,19 +4311,23 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 60,
-              "rows_estimate": 1510,
-              "row_size": 17,
-              "memory_available": 327680,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 61,
-              "examined_rows": 1500,
-              "number_of_tmp_files": 0,
+              "memory_available": 327680,
+              "key_size": 17,
+              "row_size": 17,
+              "max_rows_per_buffer": 61,
+              "num_rows_estimate": 1510,
+              "num_rows_found": 61,
+              "num_examined_rows": 1500,
+              "num_tmp_files": 0,
               "sort_buffer_size": 1528,
-              "sort_mode": "<sort_key, rowid>"
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_priority_queue",
+              "sort_mode": "<fixed_sort_key, rowid>"
             }
           }
         ]
@@ -4369,14 +4453,14 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 500,
-                  "cost": 4
+                  "cost": 1.1104
                 }
               },
               {
                 "table": "`tmp`",
                 "table_scan": {
                   "rows": 300,
-                  "cost": 3
+                  "cost": 0.8662
                 }
               }
             ]
@@ -4393,14 +4477,14 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
                       "rows_to_scan": 300,
                       "access_type": "scan",
                       "resulting_rows": 300,
-                      "cost": 63.465,
+                      "cost": 30.866,
                       "chosen": true
                     }
                   ]
                 },
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 300,
-                "cost_for_plan": 63.465,
+                "cost_for_plan": 30.866,
                 "rest_of_plan": [
                   {
                     "plan_prefix": [
@@ -4415,14 +4499,14 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
                           "using_join_cache": true,
                           "buffers_needed": 1,
                           "resulting_rows": 500,
-                          "cost": 30005,
+                          "cost": 15001,
                           "chosen": true
                         }
                       ]
                     },
                     "condition_filtering_pct": 10,
                     "rows_for_plan": 15000,
-                    "cost_for_plan": 30068,
+                    "cost_for_plan": 15032,
                     "chosen": true
                   }
                 ]
@@ -4437,14 +4521,14 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
                       "rows_to_scan": 500,
                       "access_type": "scan",
                       "resulting_rows": 500,
-                      "cost": 104.44,
+                      "cost": 51.11,
                       "chosen": true
                     }
                   ]
                 },
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 500,
-                "cost_for_plan": 104.44,
+                "cost_for_plan": 51.11,
                 "pruned_by_heuristic": true
               }
             ]
@@ -4526,19 +4610,23 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 60,
-              "rows_estimate": 1510,
-              "row_size": 17,
-              "memory_available": 327680,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 61,
-              "examined_rows": 1500,
-              "number_of_tmp_files": 0,
+              "memory_available": 327680,
+              "key_size": 17,
+              "row_size": 17,
+              "max_rows_per_buffer": 61,
+              "num_rows_estimate": 1510,
+              "num_rows_found": 61,
+              "num_examined_rows": 1500,
+              "num_tmp_files": 0,
               "sort_buffer_size": 1528,
-              "sort_mode": "<sort_key, rowid>"
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_priority_queue",
+              "sort_mode": "<fixed_sort_key, rowid>"
             }
           }
         ]
@@ -4692,14 +4780,14 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 500,
-                  "cost": 4
+                  "cost": 1.1104
                 }
               },
               {
                 "table": "`tmp`",
                 "table_scan": {
                   "rows": 300,
-                  "cost": 3
+                  "cost": 0.8662
                 }
               }
             ]
@@ -4716,14 +4804,14 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
                       "rows_to_scan": 300,
                       "access_type": "scan",
                       "resulting_rows": 300,
-                      "cost": 63.465,
+                      "cost": 30.866,
                       "chosen": true
                     }
                   ]
                 },
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 300,
-                "cost_for_plan": 63.465,
+                "cost_for_plan": 30.866,
                 "rest_of_plan": [
                   {
                     "plan_prefix": [
@@ -4738,14 +4826,14 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
                           "using_join_cache": true,
                           "buffers_needed": 1,
                           "resulting_rows": 166.65,
-                          "cost": 10072,
+                          "cost": 5035,
                           "chosen": true
                         }
                       ]
                     },
                     "condition_filtering_pct": 10,
                     "rows_for_plan": 4999.5,
-                    "cost_for_plan": 10136,
+                    "cost_for_plan": 5065.8,
                     "chosen": true
                   }
                 ]
@@ -4760,14 +4848,14 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
                       "rows_to_scan": 500,
                       "access_type": "scan",
                       "resulting_rows": 166.65,
-                      "cost": 104.44,
+                      "cost": 51.11,
                       "chosen": true
                     }
                   ]
                 },
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 166.65,
-                "cost_for_plan": 104.44,
+                "cost_for_plan": 51.11,
                 "rest_of_plan": [
                   {
                     "plan_prefix": [
@@ -4782,14 +4870,14 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
                           "using_join_cache": true,
                           "buffers_needed": 1,
                           "resulting_rows": 300,
-                          "cost": 10003,
+                          "cost": 5000.5,
                           "chosen": true
                         }
                       ]
                     },
                     "condition_filtering_pct": 10,
                     "rows_for_plan": 4999.5,
-                    "cost_for_plan": 10107,
+                    "cost_for_plan": 5051.6,
                     "chosen": true
                   }
                 ]
@@ -4873,19 +4961,23 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 60,
-              "rows_estimate": 1195,
-              "row_size": 17,
-              "memory_available": 327680,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 61,
-              "examined_rows": 1185,
-              "number_of_tmp_files": 0,
+              "memory_available": 327680,
+              "key_size": 17,
+              "row_size": 17,
+              "max_rows_per_buffer": 61,
+              "num_rows_estimate": 1195,
+              "num_rows_found": 61,
+              "num_examined_rows": 1185,
+              "num_tmp_files": 0,
               "sort_buffer_size": 1528,
-              "sort_mode": "<sort_key, rowid>"
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_priority_queue",
+              "sort_mode": "<fixed_sort_key, rowid>"
             }
           }
         ]
@@ -5017,7 +5109,7 @@ SELECT * FROM v1	{
                       "table": "`t1`",
                       "table_scan": {
                         "rows": 500,
-                        "cost": 4
+                        "cost": 1.1104
                       }
                     }
                   ]
@@ -5034,14 +5126,14 @@ SELECT * FROM v1	{
                             "rows_to_scan": 500,
                             "access_type": "scan",
                             "resulting_rows": 500,
-                            "cost": 104.44,
+                            "cost": 51.11,
                             "chosen": true
                           }
                         ]
                       },
                       "condition_filtering_pct": 100,
                       "rows_for_plan": 500,
-                      "cost_for_plan": 104.44,
+                      "cost_for_plan": 51.11,
                       "chosen": true
                     }
                   ]
@@ -5102,7 +5194,7 @@ SELECT * FROM v1	{
                 "table": "`v1`",
                 "table_scan": {
                   "rows": 30,
-                  "cost": 11
+                  "cost": 2.875
                 }
               }
             ]
@@ -5119,14 +5211,14 @@ SELECT * FROM v1	{
                       "rows_to_scan": 30,
                       "access_type": "scan",
                       "resulting_rows": 30,
-                      "cost": 17.5,
+                      "cost": 5.875,
                       "chosen": true
                     }
                   ]
                 },
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 30,
-                "cost_for_plan": 17.5,
+                "cost_for_plan": 5.875,
                 "chosen": true
               }
             ]
@@ -5189,19 +5281,23 @@ SELECT * FROM v1	{
                   ],
                   "filesort_priority_queue_optimization": {
                     "limit": 30,
-                    "rows_estimate": 510,
-                    "row_size": 219,
-                    "memory_available": 327680,
                     "chosen": true
                   },
                   "filesort_execution": [
                   ],
                   "filesort_summary": {
-                    "rows": 31,
-                    "examined_rows": 500,
-                    "number_of_tmp_files": 0,
+                    "memory_available": 327680,
+                    "key_size": 9,
+                    "row_size": 219,
+                    "max_rows_per_buffer": 31,
+                    "num_rows_estimate": 510,
+                    "num_rows_found": 31,
+                    "num_examined_rows": 500,
+                    "num_tmp_files": 0,
                     "sort_buffer_size": 7040,
-                    "sort_mode": "<sort_key, additional_fields>"
+                    "sort_algorithm": "std::sort",
+                    "unpacked_addon_fields": "using_priority_queue",
+                    "sort_mode": "<fixed_sort_key, additional_fields>"
                   }
                 }
               ]
@@ -5306,7 +5402,7 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
                       "table": "`t1`",
                       "table_scan": {
                         "rows": 500,
-                        "cost": 4
+                        "cost": 1.1104
                       }
                     }
                   ]
@@ -5323,14 +5419,14 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
                             "rows_to_scan": 500,
                             "access_type": "scan",
                             "resulting_rows": 500,
-                            "cost": 104.44,
+                            "cost": 51.11,
                             "chosen": true
                           }
                         ]
                       },
                       "condition_filtering_pct": 100,
                       "rows_for_plan": 500,
-                      "cost_for_plan": 104.44,
+                      "cost_for_plan": 51.11,
                       "chosen": true
                     }
                   ]
@@ -5395,7 +5491,7 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
                 "table": "`v1`",
                 "table_scan": {
                   "rows": 100,
-                  "cost": 15
+                  "cost": 3.75
                 }
               }
             ]
@@ -5412,14 +5508,14 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
                       "rows_to_scan": 100,
                       "access_type": "scan",
                       "resulting_rows": 100,
-                      "cost": 35,
+                      "cost": 13.75,
                       "chosen": true
                     }
                   ]
                 },
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 100,
-                "cost_for_plan": 35,
+                "cost_for_plan": 13.75,
                 "chosen": true
               }
             ]
@@ -5498,19 +5594,23 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
                   ],
                   "filesort_priority_queue_optimization": {
                     "limit": 100,
-                    "rows_estimate": 510,
-                    "row_size": 219,
-                    "memory_available": 327680,
                     "chosen": true
                   },
                   "filesort_execution": [
                   ],
                   "filesort_summary": {
-                    "rows": 101,
-                    "examined_rows": 500,
-                    "number_of_tmp_files": 0,
+                    "memory_available": 327680,
+                    "key_size": 9,
+                    "row_size": 219,
+                    "max_rows_per_buffer": 101,
+                    "num_rows_estimate": 510,
+                    "num_rows_found": 101,
+                    "num_examined_rows": 500,
+                    "num_tmp_files": 0,
                     "sort_buffer_size": 22928,
-                    "sort_mode": "<sort_key, additional_fields>"
+                    "sort_algorithm": "std::stable_sort",
+                    "unpacked_addon_fields": "using_priority_queue",
+                    "sort_mode": "<fixed_sort_key, additional_fields>"
                   }
                 }
               ]
@@ -5531,19 +5631,23 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 30,
-              "rows_estimate": 110,
-              "row_size": 213,
-              "memory_available": 327680,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 31,
-              "examined_rows": 100,
-              "number_of_tmp_files": 0,
+              "memory_available": 327680,
+              "key_size": 213,
+              "row_size": 213,
+              "max_rows_per_buffer": 31,
+              "num_rows_estimate": 110,
+              "num_rows_found": 31,
+              "num_examined_rows": 100,
+              "num_tmp_files": 0,
               "sort_buffer_size": 6856,
-              "sort_mode": "<sort_key, rowid>"
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_priority_queue",
+              "sort_mode": "<fixed_sort_key, rowid>"
             }
           }
         ]
@@ -5672,7 +5776,7 @@ LIMIT 30	{
                       "table": "`t1`",
                       "table_scan": {
                         "rows": 500,
-                        "cost": 4
+                        "cost": 1.1104
                       }
                     }
                   ]
@@ -5689,14 +5793,14 @@ LIMIT 30	{
                             "rows_to_scan": 500,
                             "access_type": "scan",
                             "resulting_rows": 500,
-                            "cost": 104.44,
+                            "cost": 51.11,
                             "chosen": true
                           }
                         ]
                       },
                       "condition_filtering_pct": 100,
                       "rows_for_plan": 500,
-                      "cost_for_plan": 104.44,
+                      "cost_for_plan": 51.11,
                       "chosen": true
                     }
                   ]
@@ -5765,7 +5869,7 @@ LIMIT 30	{
                       "table": "`t1`",
                       "table_scan": {
                         "rows": 500,
-                        "cost": 4
+                        "cost": 1.1104
                       }
                     }
                   ]
@@ -5782,14 +5886,14 @@ LIMIT 30	{
                             "rows_to_scan": 500,
                             "access_type": "scan",
                             "resulting_rows": 500,
-                            "cost": 104.44,
+                            "cost": 51.11,
                             "chosen": true
                           }
                         ]
                       },
                       "condition_filtering_pct": 100,
                       "rows_for_plan": 500,
-                      "cost_for_plan": 104.44,
+                      "cost_for_plan": 51.11,
                       "chosen": true
                     }
                   ]
@@ -5909,14 +6013,14 @@ LIMIT 30	{
                 "table": "`v1`",
                 "table_scan": {
                   "rows": 100,
-                  "cost": 15
+                  "cost": 3.75
                 }
               },
               {
                 "table": "`v2`",
                 "table_scan": {
                   "rows": 100,
-                  "cost": 15
+                  "cost": 3.75
                 }
               }
             ]
@@ -5945,14 +6049,14 @@ LIMIT 30	{
                       "rows_to_scan": 100,
                       "access_type": "scan",
                       "resulting_rows": 100,
-                      "cost": 35,
+                      "cost": 13.75,
                       "chosen": true
                     }
                   ]
                 },
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 100,
-                "cost_for_plan": 35,
+                "cost_for_plan": 13.75,
                 "rest_of_plan": [
                   {
                     "plan_prefix": [
@@ -5965,14 +6069,14 @@ LIMIT 30	{
                           "access_type": "ref",
                           "index": "<auto_key0>",
                           "rows": 10,
-                          "cost": 1200,
+                          "cost": 350,
                           "chosen": true
                         },
                         {
                           "access_type": "ref",
                           "index": "<auto_key1>",
                           "rows": 10,
-                          "cost": 1200,
+                          "cost": 350,
                           "chosen": false
                         },
                         {
@@ -5981,14 +6085,14 @@ LIMIT 30	{
                           "using_join_cache": true,
                           "buffers_needed": 1,
                           "resulting_rows": 100,
-                          "cost": 2016.2,
+                          "cost": 1004.1,
                           "chosen": false
                         }
                       ]
                     },
                     "condition_filtering_pct": 100,
                     "rows_for_plan": 1000,
-                    "cost_for_plan": 1235,
+                    "cost_for_plan": 363.75,
                     "chosen": true
                   }
                 ]
@@ -6015,14 +6119,14 @@ LIMIT 30	{
                       "rows_to_scan": 100,
                       "access_type": "scan",
                       "resulting_rows": 100,
-                      "cost": 35,
+                      "cost": 13.75,
                       "chosen": true
                     }
                   ]
                 },
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 100,
-                "cost_for_plan": 35,
+                "cost_for_plan": 13.75,
                 "rest_of_plan": [
                   {
                     "plan_prefix": [
@@ -6035,14 +6139,14 @@ LIMIT 30	{
                           "access_type": "ref",
                           "index": "<auto_key0>",
                           "rows": 10,
-                          "cost": 1200,
+                          "cost": 350,
                           "chosen": true
                         },
                         {
                           "access_type": "ref",
                           "index": "<auto_key1>",
                           "rows": 10,
-                          "cost": 1200,
+                          "cost": 350,
                           "chosen": false
                         },
                         {
@@ -6051,14 +6155,14 @@ LIMIT 30	{
                           "using_join_cache": true,
                           "buffers_needed": 1,
                           "resulting_rows": 100,
-                          "cost": 2016.2,
+                          "cost": 1004.1,
                           "chosen": false
                         }
                       ]
                     },
                     "condition_filtering_pct": 100,
                     "rows_for_plan": 1000,
-                    "cost_for_plan": 1235,
+                    "cost_for_plan": 363.75,
                     "pruned_by_cost": true
                   }
                 ]
@@ -6161,19 +6265,23 @@ LIMIT 30	{
                   ],
                   "filesort_priority_queue_optimization": {
                     "limit": 100,
-                    "rows_estimate": 510,
-                    "row_size": 219,
-                    "memory_available": 327680,
                     "chosen": true
                   },
                   "filesort_execution": [
                   ],
                   "filesort_summary": {
-                    "rows": 101,
-                    "examined_rows": 500,
-                    "number_of_tmp_files": 0,
+                    "memory_available": 327680,
+                    "key_size": 9,
+                    "row_size": 219,
+                    "max_rows_per_buffer": 101,
+                    "num_rows_estimate": 510,
+                    "num_rows_found": 101,
+                    "num_examined_rows": 500,
+                    "num_tmp_files": 0,
                     "sort_buffer_size": 22928,
-                    "sort_mode": "<sort_key, additional_fields>"
+                    "sort_algorithm": "std::stable_sort",
+                    "unpacked_addon_fields": "using_priority_queue",
+                    "sort_mode": "<fixed_sort_key, additional_fields>"
                   }
                 }
               ]
@@ -6198,19 +6306,23 @@ LIMIT 30	{
                   ],
                   "filesort_priority_queue_optimization": {
                     "limit": 100,
-                    "rows_estimate": 510,
-                    "row_size": 415,
-                    "memory_available": 327680,
                     "chosen": true
                   },
                   "filesort_execution": [
                   ],
                   "filesort_summary": {
-                    "rows": 101,
-                    "examined_rows": 500,
-                    "number_of_tmp_files": 0,
+                    "memory_available": 327680,
+                    "key_size": 205,
+                    "row_size": 415,
+                    "max_rows_per_buffer": 101,
+                    "num_rows_estimate": 510,
+                    "num_rows_found": 101,
+                    "num_examined_rows": 500,
+                    "num_tmp_files": 0,
                     "sort_buffer_size": 42728,
-                    "sort_mode": "<sort_key, additional_fields>"
+                    "sort_algorithm": "std::stable_sort",
+                    "unpacked_addon_fields": "using_priority_queue",
+                    "sort_mode": "<fixed_sort_key, additional_fields>"
                   }
                 }
               ]
@@ -6248,19 +6360,23 @@ LIMIT 30	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 30,
-              "rows_estimate": 335,
-              "row_size": 217,
-              "memory_available": 327680,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 31,
-              "examined_rows": 325,
-              "number_of_tmp_files": 0,
+              "memory_available": 327680,
+              "key_size": 217,
+              "row_size": 217,
+              "max_rows_per_buffer": 31,
+              "num_rows_estimate": 335,
+              "num_rows_found": 31,
+              "num_examined_rows": 325,
+              "num_tmp_files": 0,
               "sort_buffer_size": 6976,
-              "sort_mode": "<sort_key, rowid>"
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_priority_queue",
+              "sort_mode": "<fixed_sort_key, rowid>"
             }
           }
         ]
@@ -6316,7 +6432,7 @@ GROUP BY 1 ORDER BY 2,1 LIMIT 5	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 500,
-                  "cost": 4
+                  "cost": 1.1104
                 }
               }
             ]
@@ -6333,14 +6449,14 @@ GROUP BY 1 ORDER BY 2,1 LIMIT 5	{
                       "rows_to_scan": 500,
                       "access_type": "scan",
                       "resulting_rows": 500,
-                      "cost": 104.44,
+                      "cost": 51.11,
                       "chosen": true
                     }
                   ]
                 },
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 500,
-                "cost_for_plan": 104.44,
+                "cost_for_plan": 51.11,
                 "chosen": true
               }
             ]
@@ -6428,19 +6544,23 @@ GROUP BY 1 ORDER BY 2,1 LIMIT 5	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 5,
-              "rows_estimate": 20,
-              "row_size": 25,
-              "memory_available": 327680,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 6,
-              "examined_rows": 10,
-              "number_of_tmp_files": 0,
+              "memory_available": 327680,
+              "key_size": 25,
+              "row_size": 25,
+              "max_rows_per_buffer": 6,
+              "num_rows_estimate": 20,
+              "num_rows_found": 6,
+              "num_examined_rows": 10,
+              "num_tmp_files": 0,
               "sort_buffer_size": 200,
-              "sort_mode": "<sort_key, rowid>"
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_priority_queue",
+              "sort_mode": "<fixed_sort_key, rowid>"
             }
           }
         ]
@@ -6592,7 +6712,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 30	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 500,
-                  "cost": 4
+                  "cost": 1.1104
                 }
               }
             ]
@@ -6609,14 +6729,14 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 30	{
                       "rows_to_scan": 500,
                       "access_type": "scan",
                       "resulting_rows": 166.65,
-                      "cost": 104.44,
+                      "cost": 51.11,
                       "chosen": true
                     }
                   ]
                 },
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 166.65,
-                "cost_for_plan": 104.44,
+                "cost_for_plan": 51.11,
                 "chosen": true
               }
             ]
@@ -6679,19 +6799,23 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 30	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 30,
-              "rows_estimate": 510,
-              "row_size": 415,
-              "memory_available": 327680,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 31,
-              "examined_rows": 500,
-              "number_of_tmp_files": 0,
+              "memory_available": 327680,
+              "key_size": 205,
+              "row_size": 415,
+              "max_rows_per_buffer": 31,
+              "num_rows_estimate": 510,
+              "num_rows_found": 31,
+              "num_examined_rows": 500,
+              "num_tmp_files": 0,
               "sort_buffer_size": 13120,
-              "sort_mode": "<sort_key, additional_fields>"
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_priority_queue",
+              "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
         ]
@@ -6777,7 +6901,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 15 OFFSET 15	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 500,
-                  "cost": 4
+                  "cost": 1.1104
                 }
               }
             ]
@@ -6794,14 +6918,14 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 15 OFFSET 15	{
                       "rows_to_scan": 500,
                       "access_type": "scan",
                       "resulting_rows": 166.65,
-                      "cost": 104.44,
+                      "cost": 51.11,
                       "chosen": true
                     }
                   ]
                 },
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 166.65,
-                "cost_for_plan": 104.44,
+                "cost_for_plan": 51.11,
                 "chosen": true
               }
             ]
@@ -6864,19 +6988,23 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 15 OFFSET 15	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 30,
-              "rows_estimate": 510,
-              "row_size": 415,
-              "memory_available": 327680,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 31,
-              "examined_rows": 500,
-              "number_of_tmp_files": 0,
+              "memory_available": 327680,
+              "key_size": 205,
+              "row_size": 415,
+              "max_rows_per_buffer": 31,
+              "num_rows_estimate": 510,
+              "num_rows_found": 31,
+              "num_examined_rows": 500,
+              "num_tmp_files": 0,
               "sort_buffer_size": 13120,
-              "sort_mode": "<sort_key, additional_fields>"
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_priority_queue",
+              "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
         ]
@@ -6963,7 +7091,7 @@ ORDER BY f2, f0 LIMIT 15 OFFSET 15	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 500,
-                  "cost": 4
+                  "cost": 1.1104
                 }
               }
             ]
@@ -6980,14 +7108,14 @@ ORDER BY f2, f0 LIMIT 15 OFFSET 15	{
                       "rows_to_scan": 500,
                       "access_type": "scan",
                       "resulting_rows": 166.65,
-                      "cost": 104.44,
+                      "cost": 51.11,
                       "chosen": true
                     }
                   ]
                 },
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 166.65,
-                "cost_for_plan": 104.44,
+                "cost_for_plan": 51.11,
                 "chosen": true
               }
             ]
@@ -7050,19 +7178,23 @@ ORDER BY f2, f0 LIMIT 15 OFFSET 15	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 30,
-              "rows_estimate": 510,
-              "row_size": 415,
-              "memory_available": 327680,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 31,
-              "examined_rows": 500,
-              "number_of_tmp_files": 0,
+              "memory_available": 327680,
+              "key_size": 205,
+              "row_size": 415,
+              "max_rows_per_buffer": 31,
+              "num_rows_estimate": 510,
+              "num_rows_found": 31,
+              "num_examined_rows": 500,
+              "num_tmp_files": 0,
               "sort_buffer_size": 13120,
-              "sort_mode": "<sort_key, additional_fields>"
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_priority_queue",
+              "sort_mode": "<fixed_sort_key, additional_fields>"
             }
           }
         ]
@@ -7162,7 +7294,7 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
                       "table": "`t1`",
                       "table_scan": {
                         "rows": 500,
-                        "cost": 4
+                        "cost": 1.1104
                       }
                     }
                   ]
@@ -7179,14 +7311,14 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
                             "rows_to_scan": 500,
                             "access_type": "scan",
                             "resulting_rows": 500,
-                            "cost": 104.44,
+                            "cost": 51.11,
                             "chosen": true
                           }
                         ]
                       },
                       "condition_filtering_pct": 100,
                       "rows_for_plan": 500,
-                      "cost_for_plan": 104.44,
+                      "cost_for_plan": 51.11,
                       "chosen": true
                     }
                   ]
@@ -7251,7 +7383,7 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
                 "table": "`v1`",
                 "table_scan": {
                   "rows": 100,
-                  "cost": 15
+                  "cost": 3.75
                 }
               }
             ]
@@ -7268,14 +7400,14 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
                       "rows_to_scan": 100,
                       "access_type": "scan",
                       "resulting_rows": 100,
-                      "cost": 35,
+                      "cost": 13.75,
                       "chosen": true
                     }
                   ]
                 },
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 100,
-                "cost_for_plan": 35,
+                "cost_for_plan": 13.75,
                 "chosen": true
               }
             ]
@@ -7354,19 +7486,23 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
                   ],
                   "filesort_priority_queue_optimization": {
                     "limit": 100,
-                    "rows_estimate": 510,
-                    "row_size": 219,
-                    "memory_available": 327680,
                     "chosen": true
                   },
                   "filesort_execution": [
                   ],
                   "filesort_summary": {
-                    "rows": 101,
-                    "examined_rows": 500,
-                    "number_of_tmp_files": 0,
+                    "memory_available": 327680,
+                    "key_size": 9,
+                    "row_size": 219,
+                    "max_rows_per_buffer": 101,
+                    "num_rows_estimate": 510,
+                    "num_rows_found": 101,
+                    "num_examined_rows": 500,
+                    "num_tmp_files": 0,
                     "sort_buffer_size": 22928,
-                    "sort_mode": "<sort_key, additional_fields>"
+                    "sort_algorithm": "std::stable_sort",
+                    "unpacked_addon_fields": "using_priority_queue",
+                    "sort_mode": "<fixed_sort_key, additional_fields>"
                   }
                 }
               ]
@@ -7387,19 +7523,23 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 30,
-              "rows_estimate": 110,
-              "row_size": 213,
-              "memory_available": 327680,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 31,
-              "examined_rows": 100,
-              "number_of_tmp_files": 0,
+              "memory_available": 327680,
+              "key_size": 213,
+              "row_size": 213,
+              "max_rows_per_buffer": 31,
+              "num_rows_estimate": 110,
+              "num_rows_found": 31,
+              "num_examined_rows": 100,
+              "num_tmp_files": 0,
               "sort_buffer_size": 6856,
-              "sort_mode": "<sort_key, rowid>"
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_priority_queue",
+              "sort_mode": "<fixed_sort_key, rowid>"
             }
           }
         ]
@@ -7512,7 +7652,7 @@ ORDER BY d1.f2 DESC LIMIT 30	{
                       "table": "`t1`",
                       "table_scan": {
                         "rows": 500,
-                        "cost": 4
+                        "cost": 1.1104
                       }
                     }
                   ]
@@ -7529,14 +7669,14 @@ ORDER BY d1.f2 DESC LIMIT 30	{
                             "rows_to_scan": 500,
                             "access_type": "scan",
                             "resulting_rows": 500,
-                            "cost": 104.44,
+                            "cost": 51.11,
                             "chosen": true
                           }
                         ]
                       },
                       "condition_filtering_pct": 100,
                       "rows_for_plan": 500,
-                      "cost_for_plan": 104.44,
+                      "cost_for_plan": 51.11,
                       "chosen": true
                     }
                   ]
@@ -7634,14 +7774,14 @@ ORDER BY d1.f2 DESC LIMIT 30	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 500,
-                  "cost": 4
+                  "cost": 1.1104
                 }
               },
               {
                 "table": " `d1`",
                 "table_scan": {
                   "rows": 30,
-                  "cost": 11
+                  "cost": 2.875
                 }
               }
             ]
@@ -7658,14 +7798,14 @@ ORDER BY d1.f2 DESC LIMIT 30	{
                       "rows_to_scan": 500,
                       "access_type": "scan",
                       "resulting_rows": 500,
-                      "cost": 104.44,
+                      "cost": 51.11,
                       "chosen": true
                     }
                   ]
                 },
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 500,
-                "cost_for_plan": 104.44,
+                "cost_for_plan": 51.11,
                 "rest_of_plan": [
                   {
                     "plan_prefix": [
@@ -7678,14 +7818,14 @@ ORDER BY d1.f2 DESC LIMIT 30	{
                           "access_type": "ref",
                           "index": "<auto_key0>",
                           "rows": 3,
-                          "cost": 1800,
+                          "cost": 525,
                           "chosen": true
                         },
                         {
                           "access_type": "ref",
                           "index": "<auto_key1>",
                           "rows": 3,
-                          "cost": 1800,
+                          "cost": 525,
                           "chosen": false
                         },
                         {
@@ -7694,16 +7834,16 @@ ORDER BY d1.f2 DESC LIMIT 30	{
                           "using_join_cache": true,
                           "buffers_needed": 1,
                           "resulting_rows": 30,
-                          "cost": 3011.6,
+                          "cost": 1502.9,
                           "chosen": false
                         }
                       ]
                     },
                     "condition_filtering_pct": 100,
                     "rows_for_plan": 1500,
-                    "cost_for_plan": 1904.4,
+                    "cost_for_plan": 576.11,
                     "sort_cost": 1500,
-                    "new_cost_for_plan": 3404.4,
+                    "new_cost_for_plan": 2076.1,
                     "chosen": true
                   }
                 ]
@@ -7787,19 +7927,23 @@ ORDER BY d1.f2 DESC LIMIT 30	{
                   ],
                   "filesort_priority_queue_optimization": {
                     "limit": 30,
-                    "rows_estimate": 510,
-                    "row_size": 215,
-                    "memory_available": 327680,
                     "chosen": true
                   },
                   "filesort_execution": [
                   ],
                   "filesort_summary": {
-                    "rows": 31,
-                    "examined_rows": 500,
-                    "number_of_tmp_files": 0,
+                    "memory_available": 327680,
+                    "key_size": 5,
+                    "row_size": 215,
+                    "max_rows_per_buffer": 31,
+                    "num_rows_estimate": 510,
+                    "num_rows_found": 31,
+                    "num_examined_rows": 500,
+                    "num_tmp_files": 0,
                     "sort_buffer_size": 6920,
-                    "sort_mode": "<sort_key, additional_fields>"
+                    "sort_algorithm": "std::sort",
+                    "unpacked_addon_fields": "using_priority_queue",
+                    "sort_mode": "<fixed_sort_key, additional_fields>"
                   }
                 }
               ]
@@ -7827,19 +7971,23 @@ ORDER BY d1.f2 DESC LIMIT 30	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 30,
-              "rows_estimate": 630,
-              "row_size": 209,
-              "memory_available": 327680,
               "chosen": true
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 31,
-              "examined_rows": 620,
-              "number_of_tmp_files": 0,
+              "memory_available": 327680,
+              "key_size": 209,
+              "row_size": 209,
+              "max_rows_per_buffer": 31,
+              "num_rows_estimate": 630,
+              "num_rows_found": 31,
+              "num_examined_rows": 620,
+              "num_tmp_files": 0,
               "sort_buffer_size": 6728,
-              "sort_mode": "<sort_key, rowid>"
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_priority_queue",
+              "sort_mode": "<fixed_sort_key, rowid>"
             }
           }
         ]
@@ -7929,7 +8077,7 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 1)	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 500,
-                  "cost": 4
+                  "cost": 1.1104
                 }
               }
             ]
@@ -7946,14 +8094,14 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 1)	{
                       "rows_to_scan": 500,
                       "access_type": "scan",
                       "resulting_rows": 500,
-                      "cost": 104.44,
+                      "cost": 51.11,
                       "chosen": true
                     }
                   ]
                 },
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 500,
-                "cost_for_plan": 104.44,
+                "cost_for_plan": 51.11,
                 "chosen": true
               }
             ]
@@ -8006,7 +8154,7 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 1)	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 500,
-                  "cost": 4
+                  "cost": 1.1104
                 }
               }
             ]
@@ -8023,14 +8171,14 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 1)	{
                       "rows_to_scan": 500,
                       "access_type": "scan",
                       "resulting_rows": 500,
-                      "cost": 104.44,
+                      "cost": 51.11,
                       "chosen": true
                     }
                   ]
                 },
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 500,
-                "cost_for_plan": 104.44,
+                "cost_for_plan": 51.11,
                 "chosen": true
               }
             ]
@@ -8093,19 +8241,23 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 1)	{
                         ],
                         "filesort_priority_queue_optimization": {
                           "limit": 1,
-                          "rows_estimate": 510,
-                          "row_size": 10,
-                          "memory_available": 327680,
                           "chosen": true
                         },
                         "filesort_execution": [
                         ],
                         "filesort_summary": {
-                          "rows": 2,
-                          "examined_rows": 500,
-                          "number_of_tmp_files": 0,
+                          "memory_available": 327680,
+                          "key_size": 5,
+                          "row_size": 10,
+                          "max_rows_per_buffer": 2,
+                          "num_rows_estimate": 510,
+                          "num_rows_found": 2,
+                          "num_examined_rows": 500,
+                          "num_tmp_files": 0,
                           "sort_buffer_size": 40,
-                          "sort_mode": "<sort_key, additional_fields>"
+                          "sort_algorithm": "std::sort",
+                          "unpacked_addon_fields": "using_priority_queue",
+                          "sort_mode": "<fixed_sort_key, additional_fields>"
                         }
                       }
                     ]
@@ -11689,7 +11841,7 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 2)	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 500,
-                  "cost": 4
+                  "cost": 1.1104
                 }
               }
             ]
@@ -11706,14 +11858,14 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 2)	{
                       "rows_to_scan": 500,
                       "access_type": "scan",
                       "resulting_rows": 500,
-                      "cost": 104.44,
+                      "cost": 51.11,
                       "chosen": true
                     }
                   ]
                 },
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 500,
-                "cost_for_plan": 104.44,
+                "cost_for_plan": 51.11,
                 "chosen": true
               }
             ]
@@ -11766,7 +11918,7 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 2)	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 500,
-                  "cost": 4
+                  "cost": 1.1104
                 }
               }
             ]
@@ -11783,14 +11935,14 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 2)	{
                       "rows_to_scan": 500,
                       "access_type": "scan",
                       "resulting_rows": 500,
-                      "cost": 104.44,
+                      "cost": 51.11,
                       "chosen": true
                     }
                   ]
                 },
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 500,
-                "cost_for_plan": 104.44,
+                "cost_for_plan": 51.11,
                 "chosen": true
               }
             ]
@@ -11853,19 +12005,23 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 2)	{
                         ],
                         "filesort_priority_queue_optimization": {
                           "limit": 2,
-                          "rows_estimate": 510,
-                          "row_size": 10,
-                          "memory_available": 327680,
                           "chosen": true
                         },
                         "filesort_execution": [
                         ],
                         "filesort_summary": {
-                          "rows": 3,
-                          "examined_rows": 500,
-                          "number_of_tmp_files": 0,
+                          "memory_available": 327680,
+                          "key_size": 5,
+                          "row_size": 10,
+                          "max_rows_per_buffer": 3,
+                          "num_rows_estimate": 510,
+                          "num_rows_found": 3,
+                          "num_examined_rows": 500,
+                          "num_tmp_files": 0,
                           "sort_buffer_size": 56,
-                          "sort_mode": "<sort_key, additional_fields>"
+                          "sort_algorithm": "std::sort",
+                          "unpacked_addon_fields": "using_priority_queue",
+                          "sort_mode": "<fixed_sort_key, additional_fields>"
                         }
                       }
                     ]
@@ -11879,7 +12035,7 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 2)	{
     }
   ]
 }	0	0
-CREATE TEMPORARY TABLE tmp (f1 int, f2 varchar(20));
+CREATE TEMPORARY TABLE tmp (f1 int, f2 varchar(20) charset latin1);
 INSERT INTO tmp SELECT f1,f2 FROM t1;
 INSERT INTO t1(f1,f2) SELECT * FROM tmp;
 INSERT INTO tmp SELECT f1,f2 FROM t1;
@@ -12037,7 +12193,7 @@ SELECT * FROM t1 ORDER BY f2 LIMIT 100	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 438500,
-                  "cost": 2143
+                  "cost": 535.78
                 }
               }
             ]
@@ -12054,14 +12210,14 @@ SELECT * FROM t1 ORDER BY f2 LIMIT 100	{
                       "rows_to_scan": 438500,
                       "access_type": "scan",
                       "resulting_rows": 438500,
-                      "cost": 89843,
+                      "cost": 44386,
                       "chosen": true
                     }
                   ]
                 },
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 438500,
-                "cost_for_plan": 89843,
+                "cost_for_plan": 44386,
                 "chosen": true
               }
             ]
@@ -12116,24 +12272,28 @@ SELECT * FROM t1 ORDER BY f2 LIMIT 100	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 100,
-              "rows_estimate": 438510,
-              "row_size": 411,
-              "memory_available": 32768,
               "strip_additional_fields": {
                 "row_size": 215,
-                "sort_merge_cost": 909261,
-                "priority_queue_cost": 714335,
+                "sort_merge_cost": 546700,
+                "priority_queue_cost": 330379,
                 "chosen": true
               }
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
-              "rows": 101,
-              "examined_rows": 438500,
-              "number_of_tmp_files": 0,
+              "memory_available": 32768,
+              "key_size": 207,
+              "row_size": 207,
+              "max_rows_per_buffer": 101,
+              "num_rows_estimate": 438510,
+              "num_rows_found": 101,
+              "num_examined_rows": 438500,
+              "num_tmp_files": 0,
               "sort_buffer_size": 21720,
-              "sort_mode": "<sort_key, rowid>"
+              "sort_algorithm": "std::stable_sort",
+              "unpacked_addon_fields": "using_priority_queue",
+              "sort_mode": "<fixed_sort_key, rowid>"
             }
           }
         ]
@@ -12145,3 +12305,526 @@ DROP TABLE t1, tmp;
 DROP VIEW v1, v2;
 # end of WL#1393 - Optimizing filesort with small limit
 # end of WL#5834 - Add optimizer traces for sorting
+# WL#8741 Varlen keys for sorting JSON values
+CREATE TABLE t(id INT PRIMARY KEY AUTO_INCREMENT, j JSON);
+INSERT INTO t(j) VALUES
+(NULL), ('true'), ('false'),
+('"abc"'), ('""'), ('"abcd"'), ('"bc"'),
+('"abc\\u0000\\u0000"'),
+('"abc\\u0000"'),
+('0.0'), ('-0.0'), ('9223372036854776000'),
+('1.0e-1'), ('1.0e-2')
+;
+SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j, id;
+j	tp
+NULL	NULL
+0	DOUBLE
+-0	DOUBLE
+0.01	DOUBLE
+0.1	DOUBLE
+9223372036854776000	UNSIGNED INTEGER
+""	STRING
+"abc"	STRING
+"abc\u0000"	STRING
+"abc\u0000\u0000"	STRING
+"abcd"	STRING
+"bc"	STRING
+false	BOOLEAN
+true	BOOLEAN
+SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j, id limit 2 offset 2;
+j	tp
+-0	DOUBLE
+0.01	DOUBLE
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
+SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j, id limit 2 offset 2	{
+  "steps": [
+    {
+      "join_preparation": {
+        "select#": 1,
+        "steps": [
+          {
+            "expanded_query": "/* select#1 */ select `t`.`j` AS `j`,json_type(`t`.`j`) AS `tp` from `t` order by `t`.`j`,`t`.`id` limit 2,2"
+          }
+        ]
+      }
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
+          {
+            "substitute_generated_columns": {
+            }
+          },
+          {
+            "table_dependencies": [
+              {
+                "table": "`t`",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
+            "rows_estimation": [
+              {
+                "table": "`t`",
+                "table_scan": {
+                  "rows": 14,
+                  "cost": 0.5183
+                }
+              }
+            ]
+          },
+          {
+            "considered_execution_plans": [
+              {
+                "plan_prefix": [
+                ],
+                "table": "`t`",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "rows_to_scan": 14,
+                      "access_type": "scan",
+                      "resulting_rows": 14,
+                      "cost": 1.9183,
+                      "chosen": true
+                    }
+                  ]
+                },
+                "condition_filtering_pct": 100,
+                "rows_for_plan": 14,
+                "cost_for_plan": 1.9183,
+                "chosen": true
+              }
+            ]
+          },
+          {
+            "attaching_conditions_to_tables": {
+              "original_condition": null,
+              "attached_conditions_computation": [
+              ],
+              "attached_conditions_summary": [
+                {
+                  "table": "`t`",
+                  "attached": null
+                }
+              ]
+            }
+          },
+          {
+            "clause_processing": {
+              "clause": "ORDER BY",
+              "original_clause": "`t`.`j`,`t`.`id`",
+              "items": [
+                {
+                  "item": "`t`.`j`"
+                },
+                {
+                  "item": "`t`.`id`"
+                }
+              ],
+              "resulting_clause_is_simple": true,
+              "resulting_clause": "`t`.`j`,`t`.`id`"
+            }
+          },
+          {
+            "refine_plan": [
+              {
+                "table": "`t`"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "join_execution": {
+        "select#": 1,
+        "steps": [
+          {
+            "filesort_information": [
+              {
+                "direction": "asc",
+                "table": "`t`",
+                "field": "j"
+              },
+              {
+                "direction": "asc",
+                "table": "`t`",
+                "field": "id"
+              }
+            ],
+            "filesort_priority_queue_optimization": {
+              "limit": 4,
+              "chosen": true
+            },
+            "filesort_execution": [
+            ],
+            "filesort_summary": {
+              "memory_available": 32768,
+              "key_size": 1047,
+              "row_size": 1047,
+              "max_rows_per_buffer": 5,
+              "num_rows_estimate": 24,
+              "num_rows_found": 5,
+              "num_examined_rows": 14,
+              "num_tmp_files": 0,
+              "sort_buffer_size": 5280,
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_priority_queue",
+              "sort_mode": "<varlen_sort_key, rowid>"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}	0	0
+SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j DESC, id;
+j	tp
+true	BOOLEAN
+false	BOOLEAN
+"bc"	STRING
+"abcd"	STRING
+"abc\u0000\u0000"	STRING
+"abc\u0000"	STRING
+"abc"	STRING
+""	STRING
+9223372036854776000	UNSIGNED INTEGER
+0.1	DOUBLE
+0.01	DOUBLE
+0	DOUBLE
+-0	DOUBLE
+NULL	NULL
+SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j DESC, id limit 2 offset 2;
+j	tp
+"bc"	STRING
+"abcd"	STRING
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
+SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j DESC, id limit 2 offset 2	{
+  "steps": [
+    {
+      "join_preparation": {
+        "select#": 1,
+        "steps": [
+          {
+            "expanded_query": "/* select#1 */ select `t`.`j` AS `j`,json_type(`t`.`j`) AS `tp` from `t` order by `t`.`j` desc,`t`.`id` limit 2,2"
+          }
+        ]
+      }
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
+          {
+            "substitute_generated_columns": {
+            }
+          },
+          {
+            "table_dependencies": [
+              {
+                "table": "`t`",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
+            "rows_estimation": [
+              {
+                "table": "`t`",
+                "table_scan": {
+                  "rows": 14,
+                  "cost": 0.5183
+                }
+              }
+            ]
+          },
+          {
+            "considered_execution_plans": [
+              {
+                "plan_prefix": [
+                ],
+                "table": "`t`",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "rows_to_scan": 14,
+                      "access_type": "scan",
+                      "resulting_rows": 14,
+                      "cost": 1.9183,
+                      "chosen": true
+                    }
+                  ]
+                },
+                "condition_filtering_pct": 100,
+                "rows_for_plan": 14,
+                "cost_for_plan": 1.9183,
+                "chosen": true
+              }
+            ]
+          },
+          {
+            "attaching_conditions_to_tables": {
+              "original_condition": null,
+              "attached_conditions_computation": [
+              ],
+              "attached_conditions_summary": [
+                {
+                  "table": "`t`",
+                  "attached": null
+                }
+              ]
+            }
+          },
+          {
+            "clause_processing": {
+              "clause": "ORDER BY",
+              "original_clause": "`t`.`j` desc,`t`.`id`",
+              "items": [
+                {
+                  "item": "`t`.`j`"
+                },
+                {
+                  "item": "`t`.`id`"
+                }
+              ],
+              "resulting_clause_is_simple": true,
+              "resulting_clause": "`t`.`j` desc,`t`.`id`"
+            }
+          },
+          {
+            "refine_plan": [
+              {
+                "table": "`t`"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "join_execution": {
+        "select#": 1,
+        "steps": [
+          {
+            "filesort_information": [
+              {
+                "direction": "desc",
+                "table": "`t`",
+                "field": "j"
+              },
+              {
+                "direction": "asc",
+                "table": "`t`",
+                "field": "id"
+              }
+            ],
+            "filesort_priority_queue_optimization": {
+              "limit": 4,
+              "chosen": true
+            },
+            "filesort_execution": [
+            ],
+            "filesort_summary": {
+              "memory_available": 32768,
+              "key_size": 1047,
+              "row_size": 1047,
+              "max_rows_per_buffer": 5,
+              "num_rows_estimate": 24,
+              "num_rows_found": 5,
+              "num_examined_rows": 14,
+              "num_tmp_files": 0,
+              "sort_buffer_size": 5280,
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_priority_queue",
+              "sort_mode": "<varlen_sort_key, rowid>"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}	0	0
+SELECT JSON_EXTRACT(j, '$') AS je, JSON_TYPE(j) AS tp FROM t ORDER BY je, id;
+je	tp
+NULL	NULL
+0	DOUBLE
+-0	DOUBLE
+0.01	DOUBLE
+0.1	DOUBLE
+9223372036854776000	UNSIGNED INTEGER
+""	STRING
+"abc"	STRING
+"abc\u0000"	STRING
+"abc\u0000\u0000"	STRING
+"abcd"	STRING
+"bc"	STRING
+false	BOOLEAN
+true	BOOLEAN
+SELECT JSON_EXTRACT(j, '$') AS je, JSON_TYPE(j) AS tp FROM t ORDER BY je, id
+limit 2 offset 2;
+je	tp
+-0	DOUBLE
+0.01	DOUBLE
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
+SELECT JSON_EXTRACT(j, '$') AS je, JSON_TYPE(j) AS tp FROM t ORDER BY je, id
+limit 2 offset 2	{
+  "steps": [
+    {
+      "join_preparation": {
+        "select#": 1,
+        "steps": [
+          {
+            "expanded_query": "/* select#1 */ select json_extract(`t`.`j`,'$') AS `je`,json_type(`t`.`j`) AS `tp` from `t` order by `je`,`t`.`id` limit 2,2"
+          }
+        ]
+      }
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
+          {
+            "substitute_generated_columns": {
+            }
+          },
+          {
+            "table_dependencies": [
+              {
+                "table": "`t`",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
+            "rows_estimation": [
+              {
+                "table": "`t`",
+                "table_scan": {
+                  "rows": 14,
+                  "cost": 0.5183
+                }
+              }
+            ]
+          },
+          {
+            "considered_execution_plans": [
+              {
+                "plan_prefix": [
+                ],
+                "table": "`t`",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "rows_to_scan": 14,
+                      "access_type": "scan",
+                      "resulting_rows": 14,
+                      "cost": 1.9183,
+                      "chosen": true
+                    }
+                  ]
+                },
+                "condition_filtering_pct": 100,
+                "rows_for_plan": 14,
+                "cost_for_plan": 1.9183,
+                "chosen": true
+              }
+            ]
+          },
+          {
+            "attaching_conditions_to_tables": {
+              "original_condition": null,
+              "attached_conditions_computation": [
+              ],
+              "attached_conditions_summary": [
+                {
+                  "table": "`t`",
+                  "attached": null
+                }
+              ]
+            }
+          },
+          {
+            "clause_processing": {
+              "clause": "ORDER BY",
+              "original_clause": "`je`,`t`.`id`",
+              "items": [
+                {
+                  "item": "json_extract(`t`.`j`,'$')"
+                },
+                {
+                  "item": "`t`.`id`"
+                }
+              ],
+              "resulting_clause_is_simple": true,
+              "resulting_clause": "`je`,`t`.`id`"
+            }
+          },
+          {
+            "refine_plan": [
+              {
+                "table": "`t`"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "join_execution": {
+        "select#": 1,
+        "steps": [
+          {
+            "filesort_information": [
+              {
+                "direction": "asc",
+                "expression": "json_extract(`t`.`j`,'$')"
+              },
+              {
+                "direction": "asc",
+                "table": "`t`",
+                "field": "id"
+              }
+            ],
+            "filesort_priority_queue_optimization": {
+              "limit": 4,
+              "chosen": true
+            },
+            "filesort_execution": [
+            ],
+            "filesort_summary": {
+              "memory_available": 32768,
+              "key_size": 791,
+              "row_size": 791,
+              "max_rows_per_buffer": 5,
+              "num_rows_estimate": 24,
+              "num_rows_found": 5,
+              "num_examined_rows": 14,
+              "num_tmp_files": 0,
+              "sort_buffer_size": 4000,
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_priority_queue",
+              "sort_mode": "<varlen_sort_key, rowid>"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}	0	0
+DROP TABLE t;
+# --end of WL#8741 Varlen keys for sorting JSON values

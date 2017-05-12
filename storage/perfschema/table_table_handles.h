@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,10 +21,13 @@
   Table TABLE_HANDLES (declarations).
 */
 
+#include <sys/types.h>
+
+#include "my_inttypes.h"
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"
-#include "pfs_instr_class.h"
 #include "pfs_instr.h"
+#include "pfs_instr_class.h"
 #include "table_helper.h"
 
 /**
@@ -55,23 +58,25 @@ struct row_table_handles
 class PFS_index_table_handles : public PFS_engine_index
 {
 public:
-  PFS_index_table_handles(PFS_engine_key *key_1)
-    : PFS_engine_index(key_1)
-  {}
+  PFS_index_table_handles(PFS_engine_key *key_1) : PFS_engine_index(key_1)
+  {
+  }
 
-  PFS_index_table_handles(PFS_engine_key *key_1,
-                          PFS_engine_key *key_2)
+  PFS_index_table_handles(PFS_engine_key *key_1, PFS_engine_key *key_2)
     : PFS_engine_index(key_1, key_2)
-  {}
+  {
+  }
 
   PFS_index_table_handles(PFS_engine_key *key_1,
                           PFS_engine_key *key_2,
                           PFS_engine_key *key_3)
     : PFS_engine_index(key_1, key_2, key_3)
-  {}
+  {
+  }
 
   ~PFS_index_table_handles()
-  {}
+  {
+  }
 
   virtual bool match(PFS_table *table) = 0;
 };
@@ -81,11 +86,15 @@ class PFS_index_table_handles_by_object : public PFS_index_table_handles
 public:
   PFS_index_table_handles_by_object()
     : PFS_index_table_handles(&m_key_1, &m_key_2, &m_key_3),
-    m_key_1("OBJECT_TYPE"), m_key_2("OBJECT_SCHEMA"), m_key_3("OBJECT_NAME")
-  {}
+      m_key_1("OBJECT_TYPE"),
+      m_key_2("OBJECT_SCHEMA"),
+      m_key_3("OBJECT_NAME")
+  {
+  }
 
   ~PFS_index_table_handles_by_object()
-  {}
+  {
+  }
 
   virtual bool match(PFS_table *table);
 
@@ -99,12 +108,13 @@ class PFS_index_table_handles_by_instance : public PFS_index_table_handles
 {
 public:
   PFS_index_table_handles_by_instance()
-    : PFS_index_table_handles(&m_key),
-    m_key("OBJECT_INSTANCE_BEGIN")
-  {}
+    : PFS_index_table_handles(&m_key), m_key("OBJECT_INSTANCE_BEGIN")
+  {
+  }
 
   ~PFS_index_table_handles_by_instance()
-  {}
+  {
+  }
 
   virtual bool match(PFS_table *table);
 
@@ -117,11 +127,14 @@ class PFS_index_table_handles_by_owner : public PFS_index_table_handles
 public:
   PFS_index_table_handles_by_owner()
     : PFS_index_table_handles(&m_key_1, &m_key_2),
-    m_key_1("OWNER_THREAD_ID"), m_key_2("OWNER_EVENT_ID")
-  {}
+      m_key_1("OWNER_THREAD_ID"),
+      m_key_2("OWNER_EVENT_ID")
+  {
+  }
 
   ~PFS_index_table_handles_by_owner()
-  {}
+  {
+  }
 
   virtual bool match(PFS_table *table);
 
@@ -136,7 +149,7 @@ class table_table_handles : public PFS_engine_table
 public:
   /** Table share */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table* create();
+  static PFS_engine_table *create();
   static ha_rows get_row_count();
 
   virtual void reset_position(void);
@@ -157,10 +170,11 @@ protected:
 
 public:
   ~table_table_handles()
-  {}
+  {
+  }
 
 protected:
-  void make_row(PFS_table *table);
+  int make_row(PFS_table *table);
 
 private:
   /** Table share lock. */
@@ -170,8 +184,6 @@ private:
 
   /** Current row. */
   row_table_handles m_row;
-  /** True is the current row exists. */
-  bool m_row_exists;
   /** Current position. */
   PFS_simple_index m_pos;
   /** Next position. */

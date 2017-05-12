@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -768,6 +768,7 @@ struct dict_field_t{
 	unsigned	fixed_len:10;	/*!< 0 or the fixed length of the
 					column if smaller than
 					DICT_ANTELOPE_MAX_INDEX_COL_LEN */
+	unsigned	is_ascending:1;	/*!< 0=DESC, 1=ASC */
 };
 
 /**********************************************************************//**
@@ -917,10 +918,6 @@ public:
 /** "GEN_CLUST_INDEX" is the name reserved for InnoDB default
 system clustered index when there is no primary key. */
 const char innobase_index_reserve_name[] = "GEN_CLUST_INDEX";
-
-/* Estimated number of offsets in records (based on columns)
-to start with. */
-#define OFFS_IN_REC_NORMAL_SIZE		100
 
 /** Data structure for an index.  Most fields will be
 initialized to 0, NULL or FALSE in dict_mem_index_create(). */
@@ -1147,8 +1144,9 @@ struct dict_index_t{
 	by the column name may be released only after publishing the index.
 	@param[in] name		column name
 	@param[in] prefix_len	0 or the column prefix length in a MySQL index
-				like INDEX (textcol(25)) */
-	void add_field(const char* name, ulint prefix_len)
+				like INDEX (textcol(25))
+	@param[in] is_ascending	true=ASC, false=DESC */
+	void add_field(const char* name, ulint prefix_len, bool	is_ascending)
 	{
 		dict_field_t*	field;
 
@@ -1160,6 +1158,7 @@ struct dict_index_t{
 
 		field->name = name;
 		field->prefix_len = (unsigned int) prefix_len;
+		field->is_ascending = is_ascending;
 	}
 
 	/** Gets the nth field of an index.
@@ -1510,6 +1509,10 @@ enum table_dirty_status {
 	for this table in DDTableBuffer table */
 	METADATA_CLEAN
 };
+
+/** A vector to collect prebuilt from different readers working on the same
+temp table */
+typedef	std::vector<row_prebuilt_t*>		temp_prebuilt_vec;
 
 /** Data structure for a database table.  Most fields will be
 initialized to 0, NULL or FALSE in dict_mem_table_create(). */
@@ -1949,6 +1952,14 @@ public:
 
 	/** encryption iv, it's only for export/import */
 	byte*					encryption_iv;
+
+	/** multiple cursors can be active on this temporary table */
+	temp_prebuilt_vec*			temp_prebuilt;
+
+	/** TRUE only for dictionary tables like mysql/tables,
+	mysql/columns, mysql/tablespaces, etc. This flag is used
+	to do non-locking reads on DD tables. */
+	bool					is_dd_table;
 
 	/** @return the clustered index */
 	const dict_index_t* first_index() const

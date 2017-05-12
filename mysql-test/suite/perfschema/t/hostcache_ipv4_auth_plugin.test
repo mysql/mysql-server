@@ -8,9 +8,7 @@
 # - column COUNT_PROXY_USER_ERRORS
 # - column COUNT_PROXY_USER_ACL_ERRORS
 
---source include/not_embedded.inc
 --source include/have_debug.inc
---source include/have_perfschema.inc
 --source include/have_plugin_auth.inc
 
 # Enforce a clean state

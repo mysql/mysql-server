@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,20 +15,32 @@
 
 #include "dd/impl/types/tablespace_file_impl.h"
 
-#include "mysqld_error.h"                    // ER_*
+#include <sstream>
 
 #include "dd/impl/properties_impl.h"         // Properties_impl
-#include "dd/impl/sdi_impl.h"                // sdi read/write functions
-#include "dd/impl/transaction_impl.h"        // Open_dictionary_tables_ctx
 #include "dd/impl/raw/raw_record.h"          // Raw_record
+#include "dd/impl/sdi_impl.h"                // sdi read/write functions
 #include "dd/impl/tables/tablespace_files.h" // Tablespace_files
+#include "dd/impl/transaction_impl.h"        // Open_dictionary_tables_ctx
 #include "dd/impl/types/tablespace_impl.h"   // Tablespace_impl
-
-#include <sstream>
+#include "dd/string_type.h"                  // dd::String_type
+#include "dd/types/object_table.h"
+#include "dd/types/weak_object.h"
+#include "error_handler.h"                   // Internal_error_handler
+#include "m_string.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
+#include "mysqld_error.h"                    // ER_*
+#include "rapidjson/document.h"
+#include "rapidjson/prettywriter.h"
 
 using dd::tables::Tablespace_files;
 
 namespace dd {
+
+class Object_key;
+class Sdi_rcontext;
+class Sdi_wcontext;
 
 ///////////////////////////////////////////////////////////////////////////
 // Tablespace_file implementation.
@@ -77,7 +89,7 @@ Tablespace &Tablespace_file_impl::tablespace()
 ///////////////////////////////////////////////////////////////////////////
 
 bool Tablespace_file_impl::set_se_private_data_raw(
-  const std::string &se_private_data_raw)
+  const String_type &se_private_data_raw)
 {
   Properties *properties=
     Properties_impl::parse_properties(se_private_data_raw);
@@ -87,6 +99,46 @@ bool Tablespace_file_impl::set_se_private_data_raw(
 
   m_se_private_data.reset(properties);
   return false;
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+class Tablespace_filename_error_handler : public Internal_error_handler
+{
+  const char *name;
+public:
+  Tablespace_filename_error_handler(const char *name_arg)
+    : name(name_arg)
+  { }
+
+  virtual bool handle_condition(THD*,
+                                uint sql_errno,
+                                const char*,
+                                Sql_condition::enum_severity_level*,
+                                const char*)
+  {
+    if (sql_errno == ER_DUP_ENTRY)
+    {
+      my_error(ER_TABLESPACE_DUP_FILENAME, MYF(0), name);
+      return true;
+    }
+    return false;
+  }
+};
+
+
+bool Tablespace_file_impl::store(Open_dictionary_tables_ctx *otx)
+{
+  /*
+    Translate ER_DUP_ENTRY errors to the more user-friendly
+    ER_TABLESPACE_DUP_FILENAME. We should not report ER_DUP_ENTRY
+    in any other cases (that would be a code bug).
+  */
+  Tablespace_filename_error_handler error_handler(m_tablespace->name().c_str());
+  otx->get_thd()->push_internal_handler(&error_handler);
+  bool error= Weak_object_impl::store(otx);
+  otx->get_thd()->pop_internal_handler();
+  return error;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -161,9 +213,9 @@ Tablespace_file_impl::deserialize(Sdi_rcontext*, const RJ_Value &val)
 
 ///////////////////////////////////////////////////////////////////////////
 
-void Tablespace_file_impl::debug_print(std::string &outb) const
+void Tablespace_file_impl::debug_print(String_type &outb) const
 {
-  std::stringstream ss;
+  dd::Stringstream_type ss;
   ss
     << "TABLESPACE FILE OBJECT: { "
     << "m_ordinal_position: " << m_ordinal_position << "; "

@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -22,9 +22,11 @@
   This code organization helps a lot maintenance of the unit tests.
 */
 
-#include "my_global.h"
-#include "pfs_server.h"
+#include <stddef.h>
+
+#include "my_dbug.h"
 #include "pfs_engine_table.h"
+#include "pfs_server.h"
 #include "sql_class.h"
 
 /**
@@ -40,15 +42,18 @@
   In case of discrepancies, later attempt to perform DML against
   the performance schema will be rejected with an error.
 */
-void check_performance_schema()
+void
+check_performance_schema()
 {
   DBUG_ENTER("check_performance_schema");
 
-  THD *thd= new THD();
+  THD *thd = new THD();
   if (thd == NULL)
+  {
     DBUG_VOID_RETURN;
+  }
 
-  thd->thread_stack= (char*) &thd;
+  thd->thread_stack = (char *)&thd;
   thd->store_globals();
 
   PFS_engine_table_share::check_all_tables(thd);
@@ -65,4 +70,3 @@ void check_performance_schema()
   delete thd;
   DBUG_VOID_RETURN;
 }
-

@@ -1,6 +1,5 @@
 # This file contains tests involving update operations on blob data type.
 
---source include/have_innodb.inc
 --source include/have_debug.inc
 
 --echo #

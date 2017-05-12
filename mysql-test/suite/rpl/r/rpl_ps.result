@@ -48,8 +48,8 @@ EXECUTE stmt_d_1;
 include/sync_slave_sql_with_master.inc
 SELECT * FROM t1;
 db_name	db_col_name
-test	latin1_swedish_ci
-test	latin1_swedish_ci
+test	utf8mb4_0900_ai_ci
+test	utf8mb4_0900_ai_ci
 # Connection: master
 DROP DATABASE mysqltest1;
 use test;

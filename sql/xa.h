@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,16 +17,22 @@
 #ifndef XA_H_INCLUDED
 #define XA_H_INCLUDED
 
-#include "my_global.h"
+#include <string.h>
+#include <sys/types.h>
+
+#include "lex_string.h"
+#include "m_string.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_sqlcommand.h"
 #include "sql_cmd.h"          // Sql_cmd
 #include "sql_plugin_ref.h"   // plugin_ref
 #include "xa_aux.h"           // serialize_xid
 
-#include <string.h>
-
 class Protocol;
 class THD;
 struct xid_t;
+
 typedef int64 query_id_t;
 
 enum xa_option_words {XA_NONE, XA_JOIN, XA_RESUME, XA_ONE_PHASE,
@@ -203,10 +209,9 @@ typedef ulonglong my_xid; // this line is the same as in log_event.h
 
 /*
  Same as MYSQL_XIDDATASIZE but we do not want to include plugin.h here
- See compile_time_assert in .cc file.
+ See static_assert in .cc file.
 */
 #define XIDDATASIZE 128
-class XID_STATE;
 
 /**
   struct xid_t is binary compatible with the XID structure as
@@ -642,11 +647,31 @@ struct st_plugin_int *plugin_find_by_type(const LEX_CSTRING &plugin, int type);
 
   @param[in,out]     thd     Thread context
   @param             plugin  Reference to handlerton
-  @param             unused  Unused
 
   @return    FALSE   on success, TRUE otherwise.
 */
 
-my_bool detach_native_trx(THD *thd, plugin_ref plugin,
-                                      void *unused);
+bool detach_native_trx(THD *thd, plugin_ref plugin, void *);
+
+/**
+  Reset some transaction state information and delete corresponding
+  Transaction_ctx object from cache.
+
+  @param thd    Current thread
+*/
+
+void cleanup_trans_state(THD *thd);
+
+
+/**
+  Rollback the active XA transaction.
+
+  @note Resets rm_error before calling ha_rollback(), so
+        the thd->transaction.xid structure gets reset
+        by ha_rollback() / THD::transaction::cleanup().
+
+  @return true if the rollback failed, false otherwise.
+*/
+
+bool xa_trans_force_rollback(THD *thd);
 #endif

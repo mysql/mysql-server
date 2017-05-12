@@ -1,5 +1,5 @@
 
-/* Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -15,14 +15,13 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 
+#include <gtest/gtest.h>
+#include <sys/types.h>
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
-#include <string>
 #include <iostream>
-
-#include <boost/shared_ptr.hpp>
-#include <gtest/gtest.h>
+#include <string>
 
 #include "ngs/protocol/output_buffer.h"
 
@@ -33,13 +32,13 @@ namespace im
   const ngs::Pool_config default_pool_config = { 0, 0, BUFFER_PAGE_SIZE };
 
   namespace tests {
-    std::vector<boost::shared_ptr<Page> > page_del;
+    std::vector<ngs::shared_ptr<Page> > page_del;
 
     static void add_pages(Output_buffer &ob, const size_t no_of_pages, const size_t page_size)
     {
       for (size_t i = 0; i < no_of_pages; i++)
       {
-        page_del.push_back(boost::shared_ptr<Page>(new Page(static_cast<uint32_t>(page_size))));
+        page_del.push_back(ngs::shared_ptr<Page>(new Page(static_cast<uint32_t>(page_size))));
         ob.push_back(page_del.back().get());
       }
     }

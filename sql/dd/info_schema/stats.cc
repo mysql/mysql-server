@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,26 +15,42 @@
 
 #include "dd/info_schema/stats.h"             // dd::info_schema::*
 
-#include "error_handler.h"                    // Internal_error_handler
-#include "debug_sync.h"                       // DEBUG_SYNC
-#include "table.h"                            // TABLE_LIST
-#include "mysql_time.h"                       // MYSQL_TIME
-#include "mysqld.h"                           // lower_case_table_names
-#include "my_time.h"                          // TIME_to_ulonglong_datetime
-#include "my_time.h"                          // TIME_to_ulonglong_datetime
-#include "sql_class.h"                        // THD
-#include "tztime.h"                           // Time_zone
-#include "transaction.h"                      // trans_commit_implicit
-#include "sql_show.h"                         // make_table_list
-#include "sql_base.h"                         // open_tables_for_query
-
-#include "dd/dd.h"                            // dd::create_object
-#include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
-#include "dd/types/object_type.h"             // dd:Object_type
-#include "dd/types/table_stat.h"              // dd::Table_stat
-#include "dd/types/index_stat.h"              // dd::Index_stat
-
+#include <string.h>
+#include <cmath>
 #include <memory>                             // unique_ptr
+
+#include "auth_common.h"
+#include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
+#include "dd/dd.h"                            // dd::create_object
+#include "dd/types/abstract_table.h"
+#include "dd/types/event.h"
+#include "dd/types/index_stat.h"              // dd::Index_stat
+#include "dd/types/table_stat.h"              // dd::Table_stat
+#include "debug_sync.h"                       // DEBUG_SYNC
+#include "error_handler.h"                    // Internal_error_handler
+#include "field.h"
+#include "key.h"
+#include "m_ctype.h"
+#include "mdl.h"
+#include "my_base.h"
+#include "my_dbug.h"
+#include "my_decimal.h"
+#include "my_sqlcommand.h"
+#include "my_sys.h"
+#include "my_time.h"                          // TIME_to_ulonglong_datetime
+#include "mysqld_error.h"
+#include "session_tracker.h"
+#include "sql_base.h"                         // open_tables_for_query
+#include "sql_class.h"                        // THD
+#include "sql_const.h"
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_security_ctx.h"
+#include "sql_show.h"                         // make_table_list
+#include "system_variables.h"
+#include "table.h"                            // TABLE_LIST
+#include "tztime.h"                           // Time_zone
 
 namespace dd {
   namespace info_schema {
@@ -58,8 +74,8 @@ bool update_table_stats(THD *thd, TABLE_LIST *table)
   // Create a object to be stored.
   std::unique_ptr<Table_stat> ts_obj(create_object<Table_stat>());
 
-  ts_obj->set_schema_name(std::string(table->db, strlen(table->db)));
-  ts_obj->set_table_name(std::string(table->alias, strlen(table->alias)));
+  ts_obj->set_schema_name(String_type(table->db, strlen(table->db)));
+  ts_obj->set_table_name(String_type(table->alias, strlen(table->alias)));
   ts_obj->set_table_rows(file->stats.records);
   ts_obj->set_avg_row_length(file->stats.mean_rec_length);
   ts_obj->set_data_length(file->stats.data_file_length);
@@ -137,10 +153,10 @@ bool update_index_stats(THD *thd, TABLE_LIST *table)
       else
         records= -1; // Treated as NULL
 
-      obj->set_schema_name(std::string(table->db, strlen(table->db)));
-      obj->set_table_name(std::string(table->alias, strlen(table->alias)));
-      obj->set_index_name(std::string(key_info->name, strlen(key_info->name)));
-      obj->set_column_name(std::string(str, strlen(str)));
+      obj->set_schema_name(String_type(table->db, strlen(table->db)));
+      obj->set_table_name(String_type(table->alias, strlen(table->alias)));
+      obj->set_index_name(String_type(key_info->name, strlen(key_info->name)));
+      obj->set_column_name(String_type(str, strlen(str)));
       obj->set_cardinality((ulonglong) records);
 
       // Store the object
@@ -178,7 +194,7 @@ bool convert_table_name_case(char *db, char *table_name)
   Error handler class to convert ER_LOCK_DEADLOCK error to
   ER_WARN_I_S_SKIPPED_TABLE error.
 
-  Handler is pushed for opening a table or acquiring a MDL lock on 
+  Handler is pushed for opening a table or acquiring a MDL lock on
   tables for INFORMATION_SCHEMA views(system views) operations.
 */
 class MDL_deadlock_error_handler : public Internal_error_handler
@@ -191,11 +207,11 @@ public:
       m_table_name(table_name)
   {}
 
-  virtual bool handle_condition(THD *thd,
+  virtual bool handle_condition(THD*,
                                 uint sql_errno,
-                                const char* sqlstate,
-                                Sql_condition::enum_severity_level *level,
-                                const char* msg)
+                                const char*,
+                                Sql_condition::enum_severity_level*,
+                                const char*)
   {
     if (sql_errno == ER_LOCK_DEADLOCK && m_can_deadlock)
     {
@@ -314,7 +330,6 @@ ulonglong Statistics_cache::read_stat(
                               index_name_ptr,
                               index_ordinal_position,
                               column_ordinal_position,
-                              engine_name_ptr,
                               se_private_id,
                               stype);
   else
@@ -359,7 +374,6 @@ ulonglong Statistics_cache::read_stat_from_SE(
             const String &index_name_ptr,
             uint index_ordinal_position,
             uint column_ordinal_position,
-            const String &engine_name_ptr,
             Object_id se_private_id,
             enum_statistics_type stype)
 {

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,10 +15,14 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <stddef.h>
+#include <functional>
+
 #include "client_priv.h"
 #include "password_option.h"
 
 using namespace Mysql::Tools::Base::Options;
+using std::placeholders::_1;
 using Mysql::Nullable;
 using std::string;
 
@@ -27,8 +31,8 @@ Password_option::Password_option(Nullable<string>* value, string name, string de
 {
   this->value_optional()
     ->add_callback(
-    new Instance_callback<void, char*, Password_option>(
-      this, &Password_option::password_callback));
+      new std::function<void(char*)>(
+        std::bind(&Password_option::password_callback, this, _1)));
 }
 
 void Password_option::password_callback(char* argument)

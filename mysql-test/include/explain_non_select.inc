@@ -212,7 +212,7 @@ DROP TABLE t1, t2;
 --echo #21
 CREATE TABLE t1 (a1 INT);
 INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
-CREATE TABLE t2 (a2 VARCHAR(10));
+CREATE TABLE t2 (a2 VARCHAR(10)) charset utf8mb4;
 INSERT INTO t2 VALUES (1), (2), (3), (4), (5);
 SET @save_optimizer_switch= @@optimizer_switch;
 --disable_query_log
@@ -316,7 +316,7 @@ INSERT INTO t1 (i) VALUES (10),(11),(12),(13),(14),(15),(16),(17),(18),(19),
 DROP TABLE t1;
 
 --echo #30
-CREATE TABLE t1(a INT, i CHAR(2), INDEX(i(1)));
+CREATE TABLE t1(a INT, i CHAR(2), INDEX(i(1))) charset utf8mb4;
 INSERT INTO t1 (i) VALUES (10),(11),(12),(13),(14),(15),(16),(17),(18),(19),
                           (20),(21),(22),(23),(24),(25),(26),(27),(28),(29),
                           (30),(31),(32),(33),(34),(35);
@@ -356,7 +356,8 @@ CREATE TABLE t1 (i INT);
 INSERT INTO t1 (i) VALUES (10),(11),(12),(13),(14),(15),(16),(17),(18),(19),
                           (20),(21),(22),(23),(24),(25),(26),(27),(28),(29),
                           (30),(31),(32),(33),(34),(35);
-CREATE TABLE t2 (a CHAR(2), b CHAR(2), c CHAR(2), d CHAR(2), INDEX (a,b(1),c));
+CREATE TABLE t2 (a CHAR(2), b CHAR(2), c CHAR(2), d CHAR(2), INDEX (a,b(1),c))
+charset utf8mb4;
 INSERT INTO t2 SELECT i, i, i, i FROM t1;
 --let $query =  DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5
 --let $select = SELECT * FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5
@@ -369,7 +370,7 @@ INSERT INTO t1 (i) VALUES (10),(11),(12),(13),(14),(15),(16),(17),(18),(19),
                           (20),(21),(22),(23),(24),(25),(26),(27),(28),(29),
                           (30),(31),(32),(33),(34),(35);
 CREATE TABLE t2 (a CHAR(2), b CHAR(2), c CHAR(2), d CHAR(2), INDEX (a,b,c))
-  ENGINE=HEAP;
+charset utf8mb4  ENGINE=HEAP;
 INSERT INTO t2 SELECT i, i, i, i FROM t1;
 --let $query =  DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5
 --let $select = SELECT * FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5
@@ -410,7 +411,7 @@ CREATE TABLE t1 (i INT);
 INSERT INTO t1 (i) VALUES (10),(11),(12),(13),(14),(15),(16),(17),(18),(19),
                           (20),(21),(22),(23),(24),(25),(26),(27),(28),(29),
                           (30),(31),(32),(33),(34),(35);
-CREATE TABLE t2 (a CHAR(2), b CHAR(2), c CHAR(2), INDEX (a, b));
+CREATE TABLE t2 (a CHAR(2), b CHAR(2), c CHAR(2), INDEX (a, b)) charset utf8mb4;
 INSERT INTO t2 SELECT i, i, i FROM t1;
 --let $query =  DELETE   FROM t2 ORDER BY a, b DESC LIMIT 5
 --let $select = SELECT * FROM t2 ORDER BY a, b DESC LIMIT 5
@@ -422,7 +423,7 @@ CREATE TABLE t1 (i INT);
 INSERT INTO t1 VALUES (10),(11),(12),(13),(14),(15),(16),(17),(18),(19),
                       (20),(21),(22),(23),(24),(25),(26),(27),(28),(29),
                       (30),(31),(32),(33),(34),(35);
-CREATE TABLE t2 (a CHAR(2), b CHAR(2), c INT, INDEX (a, b));
+CREATE TABLE t2 (a CHAR(2), b CHAR(2), c INT, INDEX (a, b)) charset utf8mb4;
 INSERT INTO t2 (a, b) SELECT i, i FROM t1;
 INSERT INTO t2 (a, b) SELECT t1.i, t1.i FROM t1, t1 x1, t1 x2;
 --let $query =  DELETE   FROM t2 ORDER BY a DESC, b DESC LIMIT 5
@@ -449,7 +450,7 @@ CREATE TABLE t1 (i INT);
 INSERT INTO t1 VALUES (10),(11),(12),(13),(14),(15),(16),(17),(18),(19),
                       (20),(21),(22),(23),(24),(25),(26),(27),(28),(29),
                       (30),(31),(32),(33),(34),(35);
-CREATE TABLE t2(a INT, i CHAR(2), INDEX(i(1)));
+CREATE TABLE t2(a INT, i CHAR(2), INDEX(i(1))) charset utf8mb4;
 INSERT INTO t2 (i) SELECT i FROM t1;
 --let $query =  UPDATE t2 SET a = 10 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5
 --let $select = SELECT * FROM t2     WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5
@@ -487,7 +488,8 @@ CREATE TABLE t1 (i INT);
 INSERT INTO t1 VALUES (10),(11),(12),(13),(14),(15),(16),(17),(18),(19),
                       (20),(21),(22),(23),(24),(25),(26),(27),(28),(29),
                       (30),(31),(32),(33),(34),(35);
-CREATE TABLE t2 (a CHAR(2), b CHAR(2), c CHAR(2), d CHAR(2), INDEX (a,b(1),c));
+CREATE TABLE t2 (a CHAR(2), b CHAR(2), c CHAR(2), d CHAR(2), INDEX (a,b(1),c))
+charset utf8mb4;
 INSERT INTO t2 SELECT i, i, i, i FROM t1;
 --let $query =  UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 5
 --let $select = SELECT * FROM t2     WHERE b = 10 ORDER BY a, c LIMIT 5
@@ -500,7 +502,7 @@ INSERT INTO t1 VALUES (10),(11),(12),(13),(14),(15),(16),(17),(18),(19),
                       (20),(21),(22),(23),(24),(25),(26),(27),(28),(29),
                       (30),(31),(32),(33),(34),(35);
 CREATE TABLE t2 (a CHAR(2), b CHAR(2), c CHAR(2), d CHAR(2), INDEX (a,b,c))
-  ENGINE=HEAP;
+charset utf8mb4  ENGINE=HEAP;
 INSERT INTO t2 SELECT i, i, i, i FROM t1;
 --let $query =  UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 5
 --let $select = SELECT * FROM t2     WHERE b = 10 ORDER BY a, c LIMIT 5
@@ -541,7 +543,7 @@ CREATE TABLE t1 (i INT);
 INSERT INTO t1 VALUES (10),(11),(12),(13),(14),(15),(16),(17),(18),(19),
                       (20),(21),(22),(23),(24),(25),(26),(27),(28),(29),
                       (30),(31),(32),(33),(34),(35);
-CREATE TABLE t2 (a CHAR(2), b CHAR(2), c CHAR(2), INDEX (a, b));
+CREATE TABLE t2 (a CHAR(2), b CHAR(2), c CHAR(2), INDEX (a, b)) charset utf8mb4;
 INSERT INTO t2 SELECT i, i, i FROM t1;
 --let $query =  UPDATE t2 SET c = 10 ORDER BY a, b DESC LIMIT 5
 --let $select = SELECT * FROM t2     ORDER BY a, b DESC LIMIT 5
@@ -553,7 +555,7 @@ CREATE TABLE t1 (i INT);
 INSERT INTO t1 VALUES (10),(11),(12),(13),(14),(15),(16),(17),(18),(19),
                       (20),(21),(22),(23),(24),(25),(26),(27),(28),(29),
                       (30),(31),(32),(33),(34),(35);
-CREATE TABLE t2 (a CHAR(2), b CHAR(2), c INT, INDEX (a, b));
+CREATE TABLE t2 (a CHAR(2), b CHAR(2), c INT, INDEX (a, b)) charset utf8mb4;
 INSERT INTO t2 (a, b) SELECT i, i FROM t1;
 INSERT INTO t2 (a, b) SELECT t1.i, t1.i FROM t1, t1 x1, t1 x2;
 --let $query =  UPDATE t2 SET c = 10 ORDER BY a DESC, b DESC LIMIT 5
@@ -569,7 +571,7 @@ CREATE TABLE t1 (
   c2 INT,
   PRIMARY KEY (pk),
   INDEX c1_idx (c1_idx)
-);
+) charset utf8mb4;
 INSERT INTO t1 VALUES (1,'y',1), (2,'n',2), (3,'y',3), (4,'n',4);
 --let $query =  UPDATE t1 SET c2 = 0 WHERE c1_idx = 'y' ORDER BY pk DESC LIMIT 2
 --let $select = SELECT * FROM t1     WHERE c1_idx = 'y' ORDER BY pk DESC LIMIT 2

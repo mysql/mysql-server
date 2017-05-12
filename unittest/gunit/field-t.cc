@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,16 +13,15 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
 #include <gtest/gtest.h>
-
-#include "test_utils.h"
-#include "fake_table.h"
-
-#include "field.h"
-#include "sql_time.h"
 #include <my_decimal.h>
+#include <sys/types.h>
+
+#include "fake_table.h"
+#include "field.h"
+#include "my_inttypes.h"
+#include "sql_time.h"
+#include "test_utils.h"
 
 namespace field_unittests {
 
@@ -106,13 +105,22 @@ public:
   bool start_result_metadata(uint num_cols, uint flags,
                              const CHARSET_INFO *resultcs)
   { return false; }
+
+  bool store_ps_status(ulong stmt_id, uint column_count,
+                       uint param_count, ulong cond_count)
+  { return false; }
+  virtual bool send_parameters(List<Item_param> *parameters,
+                               bool is_sql_prepare)
+  { return false; }
+
   void send_num_fields(uint) {}
   void send_num_rows(uint) {}
   bool send_field_metadata(Send_field *field,
                            const CHARSET_INFO *charset) { return false; }
   virtual bool send_ok(uint server_status, uint statement_warn_count,
                        ulonglong affected_rows, ulonglong last_insert_id,
-                       const char *message) { return false; }
+                       const char *message)
+  { return false; }
 
   virtual bool send_eof(uint server_status,
                         uint statement_warn_count) { return false; }
@@ -140,6 +148,7 @@ public:
   virtual enum enum_vio_type connection_type() { return NO_VIO_TYPE; }
   virtual int get_command(COM_DATA *com_data, enum_server_command *cmd)
   { return -1; }
+  virtual bool flush() { return true; }
 };
 
 
@@ -523,7 +532,14 @@ class Mock_charset : public CHARSET_INFO
   Mock_collation mock_collation;
 public:
   mutable bool strnxfrm_called;
-  Mock_charset() { strnxfrm_called= false; coll= &mock_collation; mbmaxlen= 1; }
+  Mock_charset()
+    : strnxfrm_called(false)
+  {
+    cset= &my_charset_8bit_handler;
+    coll= &mock_collation;
+    mbmaxlen= 1;
+    pad_attribute= PAD_SPACE;
+  }
   ~Mock_charset() { EXPECT_TRUE(strnxfrm_called); }
 };
 
@@ -602,7 +618,7 @@ TEST_F(FieldTest, MakeSortKey)
     Field_double fd(NULL, 0, NULL, '\0', Field::NONE, "", 0, false, false);
     double from= 0.0;
     uchar expected []= { 128, 0, 0, 0, 0, 0, 0, 0 };
-    test_make_sort_key(&fd, reinterpret_cast<uchar*>(&from), expected, 1);
+    test_make_sort_key(&fd, reinterpret_cast<uchar*>(&from), expected, 8);
   }
   {
     SCOPED_TRACE("Field_null");

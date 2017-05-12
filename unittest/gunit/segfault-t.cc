@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,14 +13,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-// Always include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
 #include <gtest/gtest.h>
+#include <limits.h>
 
-#include "test_utils.h"
-#include "my_stacktrace.h"
-#include "m_string.h"
 #include "hash_filo.h"
+#include "m_string.h"
+#include "my_inttypes.h"
+#include "my_stacktrace.h"
+#include "test_utils.h"
 
 namespace segfault_unittest {
 
@@ -74,21 +74,13 @@ TEST_F(FatalSignalDeathTest, Segfault)
 }
 
 
-// A simple helper function to determine array size.
-template <class T, int size>
-int array_size(const T (&)[size])
-{
-  return size;
-}
-
-
 // Verifies that my_safe_utoa behaves like sprintf(_, "%llu", _)
 TEST(PrintUtilities, Utoa)
 {
   char buff[22];
   ulonglong intarr[]= { 0, 1, 8, 12, 1234, 88888, ULONG_MAX, ULLONG_MAX };
   char sprintbuff[22];
-  for (int ix= 0; ix < array_size(intarr); ++ix)
+  for (size_t ix= 0; ix < array_elements(intarr); ++ix)
   {
     char *my_res;
     sprintf(sprintbuff, "%llu", intarr[ix]);
@@ -112,7 +104,7 @@ TEST(PrintUtilities, Itoa)
   char sprintbuff[22];
   longlong intarr[]= { 0, 1, 8, 12, 1234, 88888, LONG_MAX, LLONG_MAX };
 
-  for (int ix= 0; ix < array_size(intarr); ++ix)
+  for (size_t ix= 0; ix < array_elements(intarr); ++ix)
   {
     char *my_res;
     sprintf(sprintbuff, "%lld", intarr[ix]);

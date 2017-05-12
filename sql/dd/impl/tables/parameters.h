@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,13 +16,14 @@
 #ifndef DD_TABLES__PARAMETERS_INCLUDED
 #define DD_TABLES__PARAMETERS_INCLUDED
 
-#include "my_global.h"
+#include <string>
 
-#include "dd/object_id.h"                    // dd::Object_id
 #include "dd/impl/types/object_table_impl.h" // dd::Object_table_impl
+#include "dd/object_id.h"                    // dd::Object_id
 
 namespace dd {
   class Object_key;
+
 namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
@@ -32,9 +33,9 @@ class Parameters : public Object_table_impl
 public:
   static const Parameters &instance();
 
-  static const std::string &table_name()
+  static const String_type &table_name()
   {
-    static std::string s_table_name("parameters");
+    static String_type s_table_name("parameters");
     return s_table_name;
   }
 
@@ -47,6 +48,7 @@ public:
     FIELD_MODE,
     FIELD_NAME,
     FIELD_DATA_TYPE,
+    FIELD_DATA_TYPE_UTF8,
     FIELD_IS_ZEROFILL,
     FIELD_IS_UNSIGNED,
     FIELD_CHAR_LENGTH,
@@ -60,7 +62,7 @@ public:
 public:
   Parameters();
 
-  virtual const std::string &name() const
+  virtual const String_type &name() const
   { return Parameters::table_name(); }
 
 public:

@@ -20,11 +20,9 @@
   service_srv_session.h and service_command.h use proper extern "C" for
   their exported symbols.
 */
-#ifndef EMBEDDED_LIBRARY
 #include <mysql/service_srv_session.h>
 #include <mysql/service_srv_session_info.h>
 #include <mysql/service_command.h>
-#endif
 
 /**
   @file include/mysql/services.h
@@ -48,6 +46,7 @@ extern "C" {
 #include <mysql/service_security_context.h>
 #include <mysql/service_locking.h>
 #include <mysql/service_mysql_keyring.h>
+#include <mysql/service_plugin_registry.h>
 
 #ifdef __cplusplus
 }

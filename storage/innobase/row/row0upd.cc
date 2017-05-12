@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,36 +23,41 @@ Update of a row
 Created 12/27/1996 Heikki Tuuri
 *******************************************************/
 
-#include "ha_prototypes.h"
+#include <sys/types.h>
 
-#include "row0upd.h"
 #include "dict0dict.h"
-#include "trx0undo.h"
+#include "ha_prototypes.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
 #include "rem0rec.h"
+#include "row0upd.h"
+#include "trx0undo.h"
 #ifndef UNIV_HOTBACKUP
-#include "dict0boot.h"
-#include "dict0crea.h"
-#include "mach0data.h"
+#include <algorithm>
+
 #include "btr0btr.h"
 #include "btr0cur.h"
+#include "buf0lru.h"
+#include "current_thd.h"
+#include "dict0boot.h"
+#include "dict0crea.h"
+#include "eval0eval.h"
+#include "fts0fts.h"
+#include "fts0types.h"
+#include "lob0lob.h"
+#include "lock0lock.h"
+#include "log0log.h"
+#include "mach0data.h"
+#include "pars0sym.h"
 #include "que0que.h"
+#include "rem0cmp.h"
 #include "row0ext.h"
 #include "row0ins.h"
 #include "row0log.h"
 #include "row0row.h"
 #include "row0sel.h"
-#include "rem0cmp.h"
-#include "lock0lock.h"
-#include "log0log.h"
-#include "pars0sym.h"
-#include "eval0eval.h"
-#include "buf0lru.h"
 #include "trx0rec.h"
-#include "fts0fts.h"
-#include "fts0types.h"
-#include "lob0lob.h"
-#include <algorithm>
-#include "current_thd.h"
 
 /* What kind of latch and lock can we assume when the control comes to
    -------------------------------------------------------------------
@@ -1643,10 +1648,8 @@ row_upd_changes_ord_field_binary_func(
 				dlen = dfield->len;
 			}
 
-			rtree_mbr_from_wkb(dptr + GEO_DATA_HEADER_SIZE,
-					   static_cast<uint>(dlen
-					   - GEO_DATA_HEADER_SIZE),
-					   SPDIMS, mbr1);
+			get_mbr_from_store(
+				dptr, static_cast<uint>(dlen), SPDIMS, mbr1);
 			old_mbr = reinterpret_cast<rtr_mbr_t*>(mbr1);
 
 			/* Get the new mbr. */
@@ -1684,17 +1687,16 @@ row_upd_changes_ord_field_binary_func(
 				dptr = static_cast<uchar*>(upd_field->new_val.data);
 				dlen = upd_field->new_val.len;
 			}
-			rtree_mbr_from_wkb(dptr + GEO_DATA_HEADER_SIZE,
-					   static_cast<uint>(dlen
-					   - GEO_DATA_HEADER_SIZE),
-					   SPDIMS, mbr2);
+			get_mbr_from_store(
+				dptr, static_cast<uint>(dlen), SPDIMS, mbr2);
+
 			new_mbr = reinterpret_cast<rtr_mbr_t*>(mbr2);
 
 			if (temp_heap) {
 				mem_heap_free(temp_heap);
 			}
 
-			if (!MBR_EQUAL_CMP(old_mbr, new_mbr)) {
+			if (!mbr_equal_cmp(old_mbr, new_mbr, 0)) {
 				return(TRUE);
 			} else {
 				continue;

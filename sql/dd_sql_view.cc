@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,27 +13,51 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "dd_sql_view.h"
+#include "sql/dd_sql_view.h"
 
+#include <string.h>
+#include <sys/types.h>
+#include <set>
+#include <vector>
+
+#include "auth_common.h"
+#include "dd/cache/dictionary_client.h" // dd::cache::Dictionary_client
+#include "dd/dd.h"                      // dd::get_dictionary
+#include "dd/dd_view.h"                 // dd::update_view_status
+#include "dd/dictionary.h"              // is_dd_schema_name
+#include "dd/object_id.h"
+#include "dd/string_type.h"
+#include "dd/types/schema.h"
+#include "dd/types/view.h"
 #include "derror.h"                     // ER_THD
-#include "debug_sync.h"                 // debug_sync
 #include "error_handler.h"              // Internal_error_handler
 #include "handler.h"                    // HA_LEX_CREATE_TMP_TABLE
+#include "lex_string.h"
+#include "mdl.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_sqlcommand.h"
+#include "my_sys.h"
+#include "mysqld_error.h"
+#include "set_var.h"
 #include "sp_head.h"                    // sp_name
 #include "sql_alter.h"                  // Alter_info
 #include "sql_base.h"                   // open_tables
+#include "sql_class.h"
+#include "sql_const.h"
+#include "sql_error.h"
 #include "sql_lex.h"                    // LEX
+#include "sql_plugin.h"
 #include "sql_view.h"                   // mysql_register_view
+#include "system_variables.h"
 #include "table.h"                      // TABLE_LIST
+#include "thr_lock.h"
+#include "transaction.h"
 
-#include "dd/cache/dictionary_client.h" // dd::cache::Dictionary_client
-#include "dd/dd.h"                      // dd::get_dictionary
-#include "dd/dd_table.h"                // dd::table_exists
-#include "dd/dd_view.h"                 // dd::update_view_status
-#include "dd/dictionary.h"              // is_dd_schema_name
-#include "dd/properties.h"              // dd::Properties
-#include "dd/types/view_routine.h"      // View_routine
-#include "dd/types/view_table.h"        // View_table
+namespace dd {
+class View_routine;
+class View_table;
+}  // namespace dd
 
 /**
   RAII class to set the context for View_metadata_updater.
@@ -107,11 +131,11 @@ private:
 class View_metadata_updater_error_handler final : public Internal_error_handler
 {
 public:
-  virtual bool handle_condition(THD *thd,
+  virtual bool handle_condition(THD*,
                                 uint sql_errno,
-                                const char *sqlstate,
-                                Sql_condition::enum_severity_level *level,
-                                const char *msg)
+                                const char*,
+                                Sql_condition::enum_severity_level*,
+                                const char*)
   {
     bool retval= true;
 
@@ -120,6 +144,7 @@ public:
     case ER_LOCK_WAIT_TIMEOUT:
     case ER_LOCK_DEADLOCK:
       retval= false;
+      // Fall through.
     case ER_NO_SUCH_USER:
       m_sql_errno= sql_errno;
       break;
@@ -151,6 +176,16 @@ private:
   // Member to store errno.
   uint m_sql_errno= 0;
 };
+
+
+Uncommitted_tables_guard::~Uncommitted_tables_guard()
+{
+  for (const TABLE_LIST* table : m_uncommitted_tables)
+  {
+    tdc_remove_table(m_thd, TDC_RT_REMOVE_ALL, table->get_db_name(),
+                     table->get_table_name(), false);
+  }
+}
 
 
 /**
@@ -185,31 +220,28 @@ static bool prepare_view_tables_list(THD *thd, const char *db,
 
   for (uint idx= 0; idx < view_ids.size(); idx++)
   {
-    std::string view_name;
-    std::string schema_name;
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+    dd::String_type view_name;
+    dd::String_type schema_name;
     // Get schema name and view name from the object id of the view.
     {
-      const dd::View *view= nullptr;
-      if (thd->dd_client()->acquire_uncached(view_ids.at(idx), &view))
+      dd::View *view= nullptr;
+      // We need to use READ_UNCOMMITTED here as the view could be changed
+      // by the same statement (e.g. RENAME TABLE).
+      if (thd->dd_client()->acquire_uncached_uncommitted(view_ids.at(idx),
+                                                         &view))
         DBUG_RETURN(true);
       if (!view)
         continue;
 
-      const dd::Schema *schema= nullptr;
-      if (thd->dd_client()->acquire_uncached(view->schema_id(), &schema))
-      {
-        delete view;
+      dd::Schema *schema= nullptr;
+      if (thd->dd_client()->acquire_uncached_uncommitted(view->schema_id(),
+                                                         &schema))
         DBUG_RETURN(true);
-      }
       if (!schema)
-      {
-        delete view;
         continue;
-      }
       view_name= view->name();
       schema_name= schema->name();
-      delete schema;
-      delete view;
     }
 
     // If TABLE_LIST object is already prepared for view name then skip it.
@@ -259,8 +291,15 @@ static bool prepare_view_tables_list(THD *thd, const char *db,
     - Open all the views from the TABLE_LIST vector and
       recreates the view metadata.
 
-  @param      thd              Thread handle.
-  @param      views            TABLE_LIST objects of the views.
+  @param          thd                 Thread handle.
+  @param          views               TABLE_LIST objects of the views.
+  @param          commit_dd_changes   Indicates whether changes to DD need
+                                      to be committed.
+  @param[in,out]  uncommitted_tables  Helper class to store list of views
+                                      which shares need to be removed from
+                                      TDC if we fail to commit changes to
+                                      DD. Only used if commit_dd_changes
+                                      is false.
 
   @retval     false            Success.
   @retval     true             Failure.
@@ -268,9 +307,42 @@ static bool prepare_view_tables_list(THD *thd, const char *db,
 
 static bool open_views_and_update_metadata(
   THD *thd,
-  const std::vector<TABLE_LIST *> *views)
+  const std::vector<TABLE_LIST *> *views,
+  bool commit_dd_changes,
+  Uncommitted_tables_guard *uncommitted_tables)
 {
   DBUG_ENTER("open_views_and_update_metadata");
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+
+  if (!commit_dd_changes)
+  {
+    /*
+      If we don't plan to commit changes to the data-dictionary in this
+      function we need to keep locks on views to be updated until the
+      statement end. Because of this we need to acquire them before
+      View_metadata_updater_context takes effect.
+    */
+    for (auto view : *views)
+    {
+      MDL_request view_request, schema_request;
+
+      MDL_REQUEST_INIT(&schema_request,
+                       MDL_key::SCHEMA, view->db, "",
+                       MDL_INTENTION_EXCLUSIVE,
+                       MDL_STATEMENT);
+      if (thd->mdl_context.acquire_lock(&schema_request,
+                                        thd->variables.lock_wait_timeout))
+          DBUG_RETURN(true);
+
+      MDL_REQUEST_INIT_BY_KEY(&view_request,
+                              &view->mdl_request.key,
+                              MDL_EXCLUSIVE,
+                              MDL_STATEMENT);
+      if (thd->mdl_context.acquire_lock(&view_request,
+                                        thd->variables.lock_wait_timeout))
+          DBUG_RETURN(true);
+    }
+  }
 
   for (auto view : *views)
   {
@@ -293,7 +365,8 @@ static bool open_views_and_update_metadata(
 
       // Update Table.options.view_valid as false(invalid)
       if (dd::update_view_status(thd, view->get_db_name(),
-                                 view->get_table_name(), false))
+                                 view->get_table_name(), false,
+                                 commit_dd_changes))
         DBUG_RETURN(true);
 
       continue;
@@ -302,11 +375,20 @@ static bool open_views_and_update_metadata(
     View_metadata_updater_error_handler error_handler;
     thd->push_internal_handler(&error_handler);
 
-    // Open view
+    /*
+      Open view.
+
+      Do not open tables which are not already in Table Cache in SE,
+      as this might mean that, for example, this table is in the
+      process of being ALTERed (by the thread which called our
+      function), so its definition which we are going to use for
+      opening is not committed/usable with SE.
+    */
     uint counter= 0;
     DML_prelocking_strategy prelocking_strategy;
     view->select_lex= thd->lex->select_lex;
-    if (open_tables(thd, &view, &counter, 0, &prelocking_strategy))
+    if (open_tables(thd, &view, &counter, MYSQL_OPEN_NO_NEW_TABLE_IN_SE,
+                    &prelocking_strategy))
     {
       thd->pop_internal_handler();
       if (error_handler.is_view_invalid())
@@ -315,7 +397,8 @@ static bool open_views_and_update_metadata(
         {
           // Update view status in tables.options.view_valid.
           if (dd::update_view_status(thd, view->get_db_name(),
-                                     view->get_table_name(), false))
+                                     view->get_table_name(), false,
+                                     commit_dd_changes))
             DBUG_RETURN(true);
         }
       }
@@ -346,7 +429,8 @@ static bool open_views_and_update_metadata(
       {
         // Update view status in tables.options.view_valid.
         if (dd::update_view_status(thd, view->get_db_name(),
-                                   view->get_table_name(), false))
+                                   view->get_table_name(), false,
+                                   commit_dd_changes))
           DBUG_RETURN(true);
       }
       else if (error_handler.is_view_error_handled() == false)
@@ -363,17 +447,43 @@ static bool open_views_and_update_metadata(
     view_lex->create_view_suid= view->view_suid;
     view_lex->create_view_check= view->with_check;
 
+    /*
+      If we are not going commit changes immediately we need to ensure
+      that entries for uncommitted views are removed from TDC on error/
+      rollback. Add view which we about to update to the helper class
+      for TDC invalidation.
+    */
+    if (!commit_dd_changes)
+      uncommitted_tables->add_table(view);
+
+    Disable_gtid_state_update_guard disabler(thd);
+
     // Update view metadata. mysql_register_view with VIEW_ALTER mode, drops
     // old view object and recreates the new one with the new definition.
-    if (mysql_register_view(thd, view, enum_view_create_mode::VIEW_ALTER))
+    bool res= mysql_register_view(thd, view, enum_view_create_mode::VIEW_ALTER);
+    if (commit_dd_changes)
+    {
+      if (res)
+      {
+        trans_rollback_stmt(thd);
+        // Full rollback in case we have THD::transaction_rollback_request.
+        trans_rollback(thd);
+      }
+      else
+        res= trans_commit_stmt(thd) || trans_commit(thd);
+    }
+    if (res)
     {
       view_lex->unit->cleanup(true);
+      lex_end(view_lex);
       thd->lex= org_lex;
       DBUG_RETURN(true);
     }
     tdc_remove_table(thd, TDC_RT_REMOVE_ALL, view->get_db_name(),
                      view->get_table_name(), false);
+
     view_lex->unit->cleanup(true);
+    lex_end(view_lex);
     thd->lex= org_lex;
   }
 
@@ -455,11 +565,18 @@ static bool is_view_metadata_update_needed(THD *thd, const char *db,
 /**
   Helper method to update referencing view's metadata.
 
-  @tparam     T               Type of object (View_table/View_routine) to fetch
-                              referencing view names.
-  @param      thd             Current thread.
-  @param      db              Database name.
-  @param      tbl_or_sf_name  Base table/ View/ Stored function name.
+  @tparam         T                   Type of object (View_table/View_routine)
+                                      to fetch referencing view names.
+  @param          thd                 Current thread.
+  @param          db                  Database name.
+  @param          tbl_or_sf_name      Base table/ View/ Stored function name.
+  @param          commit_dd_changes   Indicates whether changes to DD need
+                                      to be committed.
+  @param[in,out]  uncommitted_tables  Helper class to store list of views
+                                      which shares need to be removed from
+                                      TDC if we fail to commit changes to
+                                      DD. Only used if commit_dd_changes
+                                      is false.
 
   @retval     false           Success.
   @retval     true            Failure.
@@ -468,8 +585,10 @@ static bool is_view_metadata_update_needed(THD *thd, const char *db,
 
 template <typename T>
 static bool update_view_metadata(THD *thd,
-                                 const char *db,
-                                 const char *tbl_or_sf_name)
+                const char *db,
+                const char *tbl_or_sf_name,
+                bool commit_dd_changes,
+                Uncommitted_tables_guard *uncommitted_tables)
 {
   if (is_view_metadata_update_needed(thd, db, tbl_or_sf_name))
   {
@@ -480,12 +599,16 @@ static bool update_view_metadata(THD *thd,
 
     /*
        Open views and update views metadata.
-       Note: DDL operations extended to update view columns are not automic.
-             There is a possibility of things going out of sync in fatal error
-             or crash scenarios. Making these operations automic or aligned with
-             WL7743 goals is handled as part of WL9446.
+
+       Note that these updates will be done atomically with the main part of
+       DDL statement only if main part DDL statement itself is atomic (i.e.
+       storage engine involved supports atomic DDL).
+       Otherwise, there is a possibility of things going out of sync in fatal
+       error or crash scenarios. We will consider handling this case atomically
+       as part of WL#9446.
     */
-    if (open_views_and_update_metadata(thd, &views))
+    if (open_views_and_update_metadata(thd, &views, commit_dd_changes,
+                                       uncommitted_tables))
       return true;
   }
 
@@ -494,8 +617,9 @@ static bool update_view_metadata(THD *thd,
 
 
 bool update_referencing_views_metadata(THD *thd, const TABLE_LIST *table,
-                                       const char *new_db,
-                                       const char *new_table_name)
+        const char *new_db, const char *new_table_name,
+        bool commit_dd_changes,
+        Uncommitted_tables_guard *uncommitted_tables)
 {
   DBUG_ENTER("update_referencing_views_metadata");
   DBUG_ASSERT(table != nullptr);
@@ -505,23 +629,30 @@ bool update_referencing_views_metadata(THD *thd, const TABLE_LIST *table,
                                      table->get_table_name()))
   {
     // Prepare list of all views referencing the table.
-    std::vector<TABLE_LIST *> views;
     if (update_view_metadata<dd::View_table>(thd, table->get_db_name(),
-                                             table->get_table_name()))
+                                             table->get_table_name(),
+                                             commit_dd_changes,
+                                             uncommitted_tables))
       DBUG_RETURN(true);
 
     // Open views and update views metadata.
     if (new_db != nullptr && new_table_name != nullptr &&
-        update_view_metadata<dd::View_table>(thd, new_db, new_table_name))
+        update_view_metadata<dd::View_table>(thd, new_db, new_table_name,
+                                             commit_dd_changes,
+                                             uncommitted_tables))
       DBUG_RETURN(true);
   }
   DBUG_RETURN(false);
 }
 
 
-bool update_referencing_views_metadata(THD *thd, const TABLE_LIST *table)
+bool update_referencing_views_metadata(THD *thd, const TABLE_LIST *table,
+        bool commit_dd_changes,
+        Uncommitted_tables_guard *uncommitted_tables)
 {
-  return update_referencing_views_metadata(thd, table, nullptr, nullptr);
+  return update_referencing_views_metadata(thd, table, nullptr, nullptr,
+                                           commit_dd_changes,
+                                           uncommitted_tables);
 }
 
 
@@ -532,7 +663,8 @@ bool update_referencing_views_metadata(THD *thd, const sp_name *spname)
 
   DBUG_RETURN(update_view_metadata<dd::View_routine>(thd,
                                                      spname->m_db.str,
-                                                     spname->m_name.str));
+                                                     spname->m_name.str,
+                                                     true, nullptr));
 }
 
 

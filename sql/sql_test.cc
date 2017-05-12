@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,28 +16,55 @@
 
 /* Write some debug info */
 
+#include "sql/sql_test.h"
 
-#include "sql_test.h"
-#include "sql_base.h" // table_def_cache, table_cache_count, unused_tables
-#include "sql_show.h" // calc_sum_of_all_status
-#include "sql_select.h"
-#include "opt_trace.h"
-#include "keycaches.h"
-#include "mysqld.h"         // LOCK_status
-#include "psi_memory_key.h"
-#include "sql_optimizer.h"  // JOIN
-#include "opt_explain.h"    // join_type_str
-#include "opt_range.h"      // QUICK_SELECT_I
-#include <hash.h>
-#ifndef EMBEDDED_LIBRARY
-#include "events.h"
-#endif
-#include "table_cache.h" // table_cache_manager
-#include "mysqld_thd_manager.h"  // Global_THD_manager
-#include "prealloced_array.h"
+#include "my_config.h"
 
+#include <float.h>
+#include <stdio.h>
+#include <string.h>
 #include <algorithm>
 #include <functional>
+
+#include "events.h"
+#include "field.h"
+#include "hash.h"
+#include "item.h"
+#include "key.h"
+#include "keycache.h"
+#include "keycaches.h"
+#include "lex_string.h"
+#include "m_string.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_list.h"
+#include "my_macros.h"
+#include "my_sys.h"
+#include "my_thread_local.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysqld.h"         // LOCK_status
+#include "mysqld_thd_manager.h"  // Global_THD_manager
+#include "opt_explain.h"    // join_type_str
+#include "opt_range.h"      // QUICK_SELECT_I
+#include "opt_trace.h"
+#include "opt_trace_context.h"
+#include "prealloced_array.h"
+#include "psi_memory_key.h"
+#include "sql_base.h" // table_def_cache, table_cache_count, unused_tables
+#include "sql_bitmap.h"
+#include "sql_class.h"
+#include "sql_const.h"
+#include "sql_executor.h"
+#include "sql_opt_exec_shared.h"
+#include "sql_optimizer.h"  // JOIN
+#include "sql_select.h"
+#include "sql_show.h" // calc_sum_of_all_status
+#include "sql_string.h"
+#include "system_variables.h"
+#include "table.h"
+#include "table_cache.h" // table_cache_manager
 
 #if defined(HAVE_MALLOC_INFO) && defined(HAVE_MALLOC_H)
 #include <malloc.h>
@@ -507,9 +534,7 @@ Open streams:  %10lu\n",
   malloc_info(0, stdout);
 #endif
 
-#ifndef EMBEDDED_LIBRARY
   Events::dump_internal_status();
-#endif
   puts("");
   fflush(stdout);
 }

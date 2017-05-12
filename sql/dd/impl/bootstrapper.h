@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,8 +16,8 @@
 #ifndef DD__BOOTSTRAPPER_INCLUDED
 #define DD__BOOTSTRAPPER_INCLUDED
 
-#include "my_global.h"
-#include <string>
+
+#include "dd/string_type.h"                    // dd::String_type
 
 class THD;
 
@@ -31,7 +31,7 @@ class THD;
   @retval false  Success.
   @retval true   Error.
 */
-bool execute_query(THD *thd, const std::string &q_buf);
+bool execute_query(THD *thd, const dd::String_type &q_buf);
 
 
 /**
@@ -58,14 +58,27 @@ bool execute_query(THD *thd, const std::string &q_buf);
   3. Fake caching: As a consequence of keeping instrumentation at a minimum,
      we provide uniform behavior of the caching layer in the data dictionary
      also in the scaffolding phase. This means that as seen from the outside,
-     dictionary objects can be retrieved from the cache. Internally, in the
-     caching layer, the objects are only kept in the cache until all the
-     required tables are created physically, at which point we also have the
-     necessary meta data to open them.
+     dictionary objects can be retrieved from the cache. Internally, below the
+     caching layer, the objects are only kept in a separate buffer until all
+     the required scaffolding is built. At that point, we can start using the
+     underlying physical tables, depending on the circumstances:
+
+     - For first time start (initialization), we can flush the meta data
+       generated in the scaffolding phase, to the DD tables.
+     - For ordinary restart, we can use the scaffolding to open the physical
+       tables, and then sync up the real meta data that is stored persistently.
+
+     After the scaffolding has been flushed or synced, what should be left is
+     a collection of the core DD meta data objects. This collection is located
+     in the storage adapter, and allows the DD cache to evict core DD objects
+     in the same way as other DD objects.
 
   Please note that dictionary initialization is only a small part of server
   initialization. There is a lot going on before and after dictionary
   initialization while starting the server.
+
+  Please see more elaborated descriptions for the initialize() and restart()
+  methods below.
 */
 
 namespace dd {
@@ -106,19 +119,19 @@ enum_bootstrap_stage stage();
       the SQL layer along with the meta data for the DD tables required by
       the DDSE. The tables are not yet created physically.
   1.2 Prepare the dd::Tablespace objects reflecting the predefined tablespace
-      objects and add them to the shared DD cache.
+      objects and add them to the core registry in the storage adapter.
 
   2. Scaffolding phase
 
   2.1 Create and use the dictionary schema by executing SQL statements.
       The schema is created physically since this is the first time start,
-      and the meta data is generated and stored in the shared dictionary
-      cache without being written to disk.
+      and the meta data is generated and stored in the core registry of
+      the storage adapter without being written to disk.
   2.2 Create tables by executing SQL statements. Like for the schema, the
       tables are created physically, and the meta data is generated
-      and stored in the shared dictionary cache without being written to
-      disk. This is done to prepare enough meta data to actually be able
-      to open the DD tables.
+      and stored in the core registry without being written to disk.
+      This is done to prepare enough meta data to actually be able to
+      open the DD tables.
 
   3. Synchronization phase
 
@@ -137,11 +150,11 @@ enum_bootstrap_stage stage();
       Non-cyclic foreign keys are defined as part of the create table
       statements, but the cyclic keys must be added by ALTER TABLE statements
       afterwards.
-  3.4 Verify that the dictionary objects representing the DD table meta data
-      are sticky in the shared cache. If an object representing the meta data
-      of a DD table is evicted from the cache, then we loose access to the DD
-      tables, and we will not be able to handle cache misses or updates to the
-      meta data.
+  3.4 Verify that the dictionary objects representing the core DD table meta
+      data are present in the core registry of the storage adapter. If an
+      object representing the meta data of a core DD table is not available,
+      then we loose access to the DD tables, and we will not be able to handle
+      cache misses or updates to the meta data.
 
   @param thd    Thread context.
 
@@ -164,28 +177,27 @@ bool initialize(THD *thd);
       Both the tables and the tablespaces are already created physically, the
       point here is just to get hold of enough meta data to start using the DD.
   1.2 Prepare the dd::Tablespace objects reflecting the predefined tablespace
-      objects and add them to the shared DD cache.
+      objects and add them to the core registry in the storage adapter.
 
   2. Scaffolding phase
 
   2.1 Create and use the dictionary schema by executing SQL statements.
       The schema is not created physically, but the meta data is generated
-      and stored in the shared dictionary cache without being written to
-      disk.
+      and stored in the core registry without being written to disk.
   2.2 Create tables by executing SQL statements. Like for the schema, the
       tables are not created physically, but the meta data is generated
-      and stored in the shared dictionary cache without being written to
-      disk. This is done to prepare enough meta data to actually be able
-      to open the DD tables.
+      and stored in the core registry without being written to disk.
+      This is done to prepare enough meta data to actually be able to
+      open the DD tables.
 
   3. Synchronization phase
 
   3.1 Read meta data for the DD tables from the DD tables. Here, we use the
       meta data from the scaffolding phase for the schema, tablespace and the
       DD tables to open the physical DD tables. We read the stored objects,
-      and update the in-memory copies in the cache with the real meta data from
-      the objects that are retrieved form persistent storage. Finally, we
-      flush the tables to empty the table definition cache to make sure the
+      and update the in-memory copies in the core registry with the real meta
+      data from the objects that are retrieved form persistent storage. Finally,
+      we flush the tables to empty the table definition cache to make sure the
       table share structures for the DD tables are re-created based on the
       actual meta data that was read from disk rather than the temporary meta
       data from the scaffolding phase.
@@ -195,11 +207,11 @@ bool initialize(THD *thd);
       in turn, used to populate the corresponding DD tables. The tables must
       be re-populated on each server start if new character sets or collations
       have been added. However, we can not do this if in read only mode.
-  3.3 Verify that the dictionary objects representing the DD table meta data
-      are sticky in the shared cache. If an object representing the meta data
-      of a DD table is evicted from the cache, then we loose access to the DD
-      tables, and we will not be able to handle cache misses or updates to the
-      meta data.
+  3.3 Verify that the dictionary objects representing the core DD table meta
+      data are present in the core registry of the storage adapter. If an
+      object representing the meta data of a core DD table is not available,
+      then we loose access to the DD tables, and we will not be able to handle
+      cache misses or updates to the meta data.
 
   @param thd            Thread context.
 
@@ -261,14 +273,12 @@ bool upgrade_fill_dd_and_finalize(THD *thd);
 
 /**
   Drop all DD tables in case there is an error while upgrading server.
-  See initialize_dd() and upgrade_dd() for further details.
 
-  @param thd    Thread context.
+  @param[in] thd               Thread context.
 
   @return       Upon failure, return true, otherwise false.
 */
 bool delete_dictionary_and_cleanup(THD *thd);
-
 }
 }
 

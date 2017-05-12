@@ -374,6 +374,7 @@ trx_undo_free_prepared(
 
 /* Forward declaration. */
 namespace undo {
+	struct Tablespace;
 	class Truncate;
 }
 
@@ -409,16 +410,6 @@ trx_undo_parse_page_header(
 	const byte*	end_ptr,
 	page_t*		page,
 	mtr_t*		mtr);
-/***********************************************************//**
-Parses the redo log entry of an undo log page header discard.
-@return end of log record or NULL */
-byte*
-trx_undo_parse_discard_latest(
-/*==========================*/
-	byte*	ptr,	/*!< in: buffer */
-	byte*	end_ptr,/*!< in: buffer end */
-	page_t*	page,	/*!< in: page or NULL */
-	mtr_t*	mtr);	/*!< in: mtr or NULL */
 /************************************************************************
 Frees an undo log memory copy. */
 void

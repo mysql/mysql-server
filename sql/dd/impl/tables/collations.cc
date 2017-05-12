@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,12 +15,30 @@
 
 #include "dd/impl/tables/collations.h"
 
-#include "sql_class.h"                            // THD
+#include <stddef.h>
+#include <new>
+#include <set>
+#include <vector>
 
-#include "dd/dd.h"                                // dd::create_object
 #include "dd/cache/dictionary_client.h"           // dd::cache::Dictionary_...
+#include "dd/dd.h"                                // dd::create_object
+#include "dd/impl/cache/storage_adapter.h"        // Storage_adapter
 #include "dd/impl/raw/object_keys.h"              // Global_name_key
 #include "dd/impl/types/collation_impl.h"         // dd::Collation_impl
+#include "dd/impl/types/object_table_definition_impl.h"
+#include "dd/object_id.h"
+#include "dd/types/collation.h"
+#include "m_ctype.h"
+#include "my_dbug.h"
+#include "my_sys.h"
+#include "mysql/psi/mysql_statement.h"
+#include "sql_class.h"                            // THD
+#include "template_utils.h"
+
+namespace dd {
+class Dictionary_object;
+class Raw_record;
+}  // namespace dd
 
 namespace dd {
 namespace tables {
@@ -53,6 +71,9 @@ Collations::Collations()
   m_target_def.add_field(FIELD_SORT_LENGTH,
                          "FIELD_SORT_LENGTH",
                          "sort_length INT UNSIGNED NOT NULL");
+  m_target_def.add_field(FIELD_PAD_ATTRIBUTE,
+                         "FIELD_PAD_ATTRIBUTE",
+                         "pad_attribute VARCHAR(9) NOT NULL");
 
   m_target_def.add_index("PRIMARY KEY(id)");
   m_target_def.add_index("UNIQUE KEY(name)");
@@ -127,10 +148,14 @@ bool Collations::populate(THD *thd) const
           new_collation->set_charset_id(cs->number);
           new_collation->set_is_compiled((cl->state & MY_CS_COMPILED));
           new_collation->set_sort_length(cl->strxfrm_multiply);
+          if (cl->pad_attribute == PAD_SPACE)
+            new_collation->set_pad_attribute("PAD SPACE");
+          else
+            new_collation->set_pad_attribute("NO PAD");
 
           // If the collation exists, it will be updated; otherwise,
           // it will be inserted.
-          error= thd->dd_client()->store(
+          error= cache::Storage_adapter::instance()->store(thd,
                   static_cast<Collation*>(new_collation));
         }
       }
@@ -153,8 +178,6 @@ bool Collations::populate(THD *thd) const
       return true;
   }
 
-  delete_container_pointers(prev_coll);
-
   return error;
 }
 
@@ -170,7 +193,7 @@ Collations::create_dictionary_object(const Raw_record &) const
 
 bool Collations::update_object_key(
   Global_name_key *key,
-  const std::string &collation_name)
+  const String_type &collation_name)
 {
   key->update(FIELD_NAME, collation_name);
   return false;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,11 +15,23 @@
 
 #include "dd/impl/types/parameter_type_element_impl.h"
 
-#include "dd/impl/transaction_impl.h"              // Open_dictionary_tables_ctx
+#include <stdio.h>
+
 #include "dd/impl/raw/raw_record.h"                // Raw_record
 #include "dd/impl/tables/parameter_type_elements.h"// Parameter_type_elements
+#include "dd/impl/transaction_impl.h"              // Open_dictionary_tables_ctx
 #include "dd/impl/types/parameter_impl.h"          // Parameter_impl
+#include "dd/types/object_table.h"
 #include "dd/types/parameter_type_element.h"       // Parameter_type_element
+#include "dd/types/weak_object.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
+#include "mysqld_error.h"
+
+namespace dd {
+class Object_key;
+class Parameter;
+}  // namespace dd
 
 using dd::tables::Parameter_type_elements;
 
@@ -95,14 +107,14 @@ bool Parameter_type_element_impl::store_attributes(Raw_record *r)
 ///////////////////////////////////////////////////////////////////////////
 
 /* purecov: begin deadcode */
-void Parameter_type_element_impl::debug_print(std::string &outb) const
+void Parameter_type_element_impl::debug_print(String_type &outb) const
 {
   char outbuf[1024];
   sprintf(outbuf, "%s: "
     "name=%s, parameter_id={OID: %lld}, ordinal_position= %u",
     object_table().name().c_str(),
     m_name.c_str(), m_parameter->id(), m_index);
-  outb= std::string(outbuf);
+  outb= String_type(outbuf);
 }
 /* purecov: end */
 

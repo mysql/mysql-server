@@ -1,0 +1,4 @@
+--loose-mysqlx-idle-worker-thread-timeout=1
+--performance_schema=ON
+--performance-schema-instrument='%/mysqlx/%=COUNTED'
+--performance-schema-events-waits-history-long-size=600000

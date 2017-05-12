@@ -21,7 +21,11 @@
 #define _XPL_PERFORMANCE_SCHEMA_H_
 
 #include <my_sys.h>
+#include <mysql/psi/mysql_memory.h>
+#include <mysql/psi/mysql_socket.h>
 #include <mysql/psi/mysql_thread.h>
+
+#include "my_psi_config.h"
 
 
 #ifdef HAVE_PSI_INTERFACE
@@ -38,6 +42,14 @@ extern PSI_cond_key KEY_cond_x_scheduler_dynamic_worker_pending;
 extern PSI_cond_key KEY_cond_x_scheduler_dynamic_thread_exit;
 
 extern PSI_rwlock_key KEY_rwlock_x_client_list_clients;
+
+extern PSI_socket_key KEY_socket_x_tcpip;
+extern PSI_socket_key KEY_socket_x_unix;
+extern PSI_socket_key KEY_socket_x_client_connection;
+
+extern PSI_memory_key KEY_memory_x_objects;
+extern PSI_memory_key KEY_memory_x_recv_buffer;
+extern PSI_memory_key KEY_memory_x_send_buffer;
 
 #endif // HAVE_PSI_INTERFACE
 

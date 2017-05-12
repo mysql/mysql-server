@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,35 +14,54 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "rpl_utility.h"
-#include "binary_log_funcs.h"
-#include "my_byteorder.h"
 
-#ifndef MYSQL_CLIENT
+#include <string.h>
+
+#include "binary_log_funcs.h"
+#include "lex_string.h"
+#include "my_byteorder.h"
+#include "my_dbug.h"
+#include "my_loglevel.h"
+#include "my_sys.h"
+#include "mysql/service_mysql_alloc.h"
+#include "thr_malloc.h"
+
+#ifdef MYSQL_SERVER
+
+#include <algorithm>
 
 #include "binlog_event.h"                // checksum_crv32
+#include "dd/dd.h"                       // get_dictionary
+#include "dd/dictionary.h"               // is_dd_table_access_allowed
 #include "derror.h"                      // ER_THD
-#include "template_utils.h"              // delete_container_pointers
 #include "field.h"                       // Field
 #include "log.h"                         // sql_print_error
 #include "log_event.h"                   // Log_event
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_base.h"
+#include "my_bitmap.h"
+#include "my_decimal.h"
+#include "mysql/psi/psi_memory.h"
 #include "mysqld.h"                      // slave_type_conversions_options
+#include "mysqld_error.h"
 #include "psi_memory_key.h"
 #include "rpl_rli.h"                     // Relay_log_info
-#include "sql_class.h"                   // THD
-#include "sql_tmp_table.h"               // create_virtual_tmp_table
-#include "template_utils.h"
 #include "rpl_slave.h"
-
-#include "dd/dd.h"                       // get_dictionary
-#include "dd/dictionary.h"               // is_dd_table_access_allowed
-
-#include <algorithm>
+#include "sql_class.h"                   // THD
+#include "sql_const.h"
+#include "sql_list.h"
+#include "sql_plugin_ref.h"
+#include "sql_string.h"
+#include "sql_tmp_table.h"               // create_virtual_tmp_table
+#include "template_utils.h"              // delete_container_pointers
+#include "typelib.h"
 
 using std::min;
 using std::max;
 using binary_log::checksum_crc32;
 
-#endif //MYSQL_CLIENT
+#endif //MYSQL_SERVER
 
 /*********************************************************************
  *                   table_def member definitions                    *
@@ -59,7 +78,7 @@ uint32 table_def::calc_field_size(uint col, uchar *master_data) const
   return length;
 }
 
-#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+#if defined(MYSQL_SERVER)
 /**
    Function to compare two size_t integers for their relative
    order. Used below.
@@ -101,8 +120,7 @@ static int compare_lengths(Field *field, enum_field_types source_type,
   DBUG_RETURN(result);
 }
 
-static void show_sql_type(enum_field_types type, uint16 metadata, String *str,
-                          const CHARSET_INFO *field_cs)
+static void show_sql_type(enum_field_types type, uint16 metadata, String *str)
 {
   DBUG_ENTER("show_sql_type");
   DBUG_PRINT("enter", ("type: %d, metadata: 0x%x", type, metadata));
@@ -171,7 +189,7 @@ static void show_sql_type(enum_field_types type, uint16 metadata, String *str,
       const CHARSET_INFO *cs= str->charset();
       size_t length=
         cs->cset->snprintf(cs, (char*) str->ptr(), str->alloced_length(),
-                           "varchar(%u)", metadata);
+                           "varchar(%u(bytes))", metadata);
       str->length(length);
     }
     break;
@@ -221,22 +239,22 @@ static void show_sql_type(enum_field_types type, uint16 metadata, String *str,
       it is necessary to check the pack length to figure out what kind
       of blob it really is.
      */
-    switch (get_blob_type_from_length(metadata))
+    switch (metadata)
     {
-    case MYSQL_TYPE_TINY_BLOB:
+    case 1:
       str->set_ascii(STRING_WITH_LEN("tinyblob"));
       break;
 
-    case MYSQL_TYPE_MEDIUM_BLOB:
+    case 2:
+      str->set_ascii(STRING_WITH_LEN("blob"));
+      break;
+
+    case 3:
       str->set_ascii(STRING_WITH_LEN("mediumblob"));
       break;
 
-    case MYSQL_TYPE_LONG_BLOB:
+    case 4:
       str->set_ascii(STRING_WITH_LEN("longblob"));
-      break;
-
-    case MYSQL_TYPE_BLOB:
-      str->set_ascii(STRING_WITH_LEN("blob"));
       break;
 
     default:
@@ -254,7 +272,7 @@ static void show_sql_type(enum_field_types type, uint16 metadata, String *str,
       uint bytes= (((metadata >> 4) & 0x300) ^ 0x300) + (metadata & 0x00ff);
       size_t length=
         cs->cset->snprintf(cs, (char*) str->ptr(), str->alloced_length(),
-                           "char(%d)", bytes / field_cs->mbmaxlen);
+                           "char(%d(bytes))", bytes);
       str->length(length);
     }
     break;
@@ -279,9 +297,8 @@ static void show_sql_type(enum_field_types type, uint16 metadata, String *str,
    acceptable according to the current settings.
 
    @param order  The computed order of the conversion needed.
-   @param rli    The relay log info data structure: for error reporting.
  */
-static bool is_conversion_ok(int order, Relay_log_info *rli)
+static bool is_conversion_ok(int order)
 {
   DBUG_ENTER("is_conversion_ok");
   bool allow_non_lossy, allow_lossy;
@@ -418,7 +435,7 @@ can_convert_field_to(Field *field,
 
     DBUG_PRINT("debug", ("Base types are identical, doing field size comparison"));
     if (field->compatible_field_size(metadata, rli, mflags, order_var))
-      DBUG_RETURN(is_conversion_ok(*order_var, rli));
+      DBUG_RETURN(is_conversion_ok(*order_var));
     else
       DBUG_RETURN(false);
   }
@@ -476,7 +493,7 @@ can_convert_field_to(Field *field,
         DECIMAL, so we require lossy conversion.
       */
       *order_var= 1;
-      DBUG_RETURN(is_conversion_ok(*order_var, rli));
+      DBUG_RETURN(is_conversion_ok(*order_var));
       
     case MYSQL_TYPE_DECIMAL:
     case MYSQL_TYPE_FLOAT:
@@ -488,7 +505,7 @@ can_convert_field_to(Field *field,
       else
         *order_var= compare_lengths(field, source_type, metadata);
       DBUG_ASSERT(*order_var != 0);
-      DBUG_RETURN(is_conversion_ok(*order_var, rli));
+      DBUG_RETURN(is_conversion_ok(*order_var));
     }
 
     default:
@@ -514,7 +531,7 @@ can_convert_field_to(Field *field,
     case MYSQL_TYPE_LONGLONG:
       *order_var= compare_lengths(field, source_type, metadata);
       DBUG_ASSERT(*order_var != 0);
-      DBUG_RETURN(is_conversion_ok(*order_var, rli));
+      DBUG_RETURN(is_conversion_ok(*order_var));
 
     default:
       DBUG_RETURN(false);
@@ -559,7 +576,7 @@ can_convert_field_to(Field *field,
        */
       if (*order_var == 0)
         *order_var= -1;
-      DBUG_RETURN(is_conversion_ok(*order_var, rli));
+      DBUG_RETURN(is_conversion_ok(*order_var));
 
     default:
       DBUG_RETURN(false);
@@ -635,6 +652,9 @@ table_def::compatible_with(THD *thd, Relay_log_info *rli,
                          table->s->db.str, table->s->table_name.str));
     rli->report(ERROR_LEVEL, ER_NO_SYSTEM_TABLE_ACCESS,
                 ER_THD(thd, ER_NO_SYSTEM_TABLE_ACCESS),
+                ER_THD(thd, dictionary->
+                              table_type_error_code(table->s->db.str,
+                                                    table->s->table_name.str)),
                 table->s->db.str, table->s->table_name.str);
     return false;
   }
@@ -690,10 +710,11 @@ table_def::compatible_with(THD *thd, Relay_log_info *rli,
       const char *tbl_name= table->s->table_name.str;
       char source_buf[MAX_FIELD_WIDTH];
       char target_buf[MAX_FIELD_WIDTH];
+      String field_sql_type;
       enum loglevel report_level= INFORMATION_LEVEL;
       String source_type(source_buf, sizeof(source_buf), &my_charset_latin1);
       String target_type(target_buf, sizeof(target_buf), &my_charset_latin1);
-      show_sql_type(type(col), field_metadata(col), &source_type, field->charset());
+      show_sql_type(type(col), field_metadata(col), &source_type);
       field->sql_type(target_type);
       if (!ignored_error_code(ER_SLAVE_CONVERSION_FAILED))
       {
@@ -703,6 +724,24 @@ table_def::compatible_with(THD *thd, Relay_log_info *rli,
       /* In case of ignored errors report warnings only if log_warnings > 1. */
       else if (log_warnings > 1)
         report_level= WARNING_LEVEL;
+
+      if (field->has_charset() &&
+          (field->type() == MYSQL_TYPE_VARCHAR ||
+           field->type() == MYSQL_TYPE_STRING))
+      {
+        field_sql_type.append((field->type() == MYSQL_TYPE_VARCHAR) ?
+                              "varchar" : "char");
+        const CHARSET_INFO *cs= field->charset();
+        size_t length= cs->cset->snprintf(cs, (char*) target_type.ptr(),
+                                          target_type.alloced_length(),
+                                          "%s(%u(bytes) %s)",
+                                          field_sql_type.c_ptr_safe(),
+                                          field->field_length,
+                                          field->charset()->csname);
+        target_type.length(length);
+      }
+      else
+        field->sql_type(target_type);
 
       if (report_level != INFORMATION_LEVEL)
         rli->report(report_level, ER_SLAVE_CONVERSION_FAILED,
@@ -878,7 +917,7 @@ err:
   DBUG_RETURN(conv_table);
 }
 
-#endif /* MYSQL_CLIENT */
+#endif /* MYSQL_SERVER */
 
 extern "C" {
 PSI_memory_key key_memory_table_def_memory;
@@ -992,7 +1031,7 @@ table_def::~table_def()
 #endif
 }
 
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
 
 #define HASH_ROWS_POS_SEARCH_INVALID -1
 
@@ -1339,9 +1378,9 @@ Hash_slave_rows::make_hash_key(TABLE *table, MY_BITMAP *cols)
 
 #endif
 
-#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+#if defined(MYSQL_SERVER)
 
-Deferred_log_events::Deferred_log_events(Relay_log_info *rli)
+Deferred_log_events::Deferred_log_events()
   : m_array(key_memory_table_def_memory)
 {
 }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,10 +16,37 @@
 #ifndef _SP_HEAD_H_
 #define _SP_HEAD_H_
 
-#include "my_global.h"
-#include "mem_root_array.h"    // Mem_root_array
-#include "sql_class.h"         // Query_arena
+#include <stddef.h>
+#include <sys/types.h>
 
+#include "field.h"
+#include "handler.h"
+#include "lex_string.h"
+#include "mem_root_array.h"    // Mem_root_array
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
+#include "my_psi_config.h"
+#include "my_sqlcommand.h"
+#include "my_sys.h"
+#include "mysql/psi/mysql_statement.h"
+#include "mysqld_error.h"
+#include "set_var.h"
+#include "sql_alloc.h"
+#include "sql_class.h"         // Query_arena
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_plugin.h"
+#include "sql_security_ctx.h"
+#include "sql_servers.h"
+#include "system_variables.h"
+#include "table.h"
+
+class Item;
+class Item_trigger_field;
+class Table_trigger_field_support;
+class sp_head;
+struct MDL_key;
 struct PSI_sp_share;
 
 /**
@@ -879,7 +906,6 @@ public:
   */
   bool check_show_access(THD *thd, bool *full_access);
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   /**
     Change routine security context, and check if there is an EXECUTE privilege in
     new context. If there is no EXECUTE privilege, change the context back and
@@ -895,11 +921,10 @@ public:
     @return Error status.
   */
   bool set_security_ctx(THD *thd, Security_context **save_ctx);
-#endif
 
 private:
   /// Use sp_start_parsing() to create instances of sp_head.
-  sp_head(MEM_ROOT mem_root, enum_sp_type type);
+  sp_head(MEM_ROOT &&mem_root, enum_sp_type type);
 
   /// Use destroy() to destoy instances of sp_head.
   ~sp_head();
@@ -911,7 +936,7 @@ private:
   sp_pcontext *m_root_parsing_ctx;
 
   /// The SP-instructions.
-  Mem_root_array<sp_instr *, true> m_instructions;
+  Mem_root_array<sp_instr *> m_instructions;
 
   /**
     Multi-set representing optimized list of tables to be locked by this

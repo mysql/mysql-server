@@ -480,14 +480,10 @@ DROP TABLE tbl1, tbl2;
 
 connection default;
 
---disable_warnings
-DROP TABLE IF EXISTS t1, t2;
---enable_warnings
-
 create table t1(a char(10) charset latin1, key(a)) engine=innodb;
 create table t2(a binary(10), key(a)) engine=innodb;
 
-insert into t1 values('1'),('2'),('3');
+insert into t1 values('1'),('2'),('3'),('4');
 insert into t2 values('1'),('2'),('s');
 analyze table t1,t2;
 
@@ -559,11 +555,28 @@ connection cq;
 --echo # Connection default
 connection default;
 DROP TABLE t1, t2;
-SET DEBUG_SYNC= 'RESET';
-disconnect cq;
-disconnect ce;
 --echo # End of test Bug#19822146
 
+--echo #
+--echo # Bug#25422034 CRASH IN TABLE_LIST::QUERY_BLOCK_ID_FOR_EXPLAIN DURING EXPLAIN FOR CONNECTION
+--echo #
+
+connection default;
+create table t1(a int);
+insert into t1 values(1),(2);
+let $query= select * from (select * from t1) dt;
+let $point= derived_not_set;
+let $format= traditional;
+# Stmt is of a supported type, but cannot be explained while in resolution
+let $err= ER_EXPLAIN_NOT_SUPPORTED;
+--source include/explain_other.inc
+let $err=0;
+DROP TABLE t1;
+
+SET DEBUG_SYNC= 'RESET';
 USE test;
 DROP DATABASE mysqltest1;
 --echo # End of test
+
+disconnect cq;
+disconnect ce;

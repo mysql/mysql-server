@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,7 +25,10 @@
   @{
 */
 
-#include "my_global.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
+#include "my_psi_config.h"  // IWYU pragma: keep
+#include "my_sharedlib.h"
 #include "psi_base.h"
 
 C_MODE_START
@@ -78,7 +81,7 @@ struct PSI_mdl_bootstrap
     @sa PSI_MDL_VERSION_2
     @sa PSI_CURRENT_MDL_VERSION
   */
-  void* (*get_interface)(int version);
+  void *(*get_interface)(int version);
 };
 typedef struct PSI_mdl_bootstrap PSI_mdl_bootstrap;
 
@@ -135,27 +138,28 @@ struct PSI_metadata_locker_state_v1
 };
 typedef struct PSI_metadata_locker_state_v1 PSI_metadata_locker_state_v1;
 
-typedef PSI_metadata_lock* (*create_metadata_lock_v1_t)
-  (void *identity,
-   const struct MDL_key *key,
-   opaque_mdl_type mdl_type,
-   opaque_mdl_duration mdl_duration,
-   opaque_mdl_status mdl_status,
-   const char *src_file,
-   uint src_line);
+typedef PSI_metadata_lock *(*create_metadata_lock_v1_t)(
+  void *identity,
+  const struct MDL_key *key,
+  opaque_mdl_type mdl_type,
+  opaque_mdl_duration mdl_duration,
+  opaque_mdl_status mdl_status,
+  const char *src_file,
+  uint src_line);
 
 typedef void (*set_metadata_lock_status_v1_t)(PSI_metadata_lock *lock,
                                               opaque_mdl_status mdl_status);
 
 typedef void (*destroy_metadata_lock_v1_t)(PSI_metadata_lock *lock);
 
-typedef struct PSI_metadata_locker* (*start_metadata_wait_v1_t)
-  (struct PSI_metadata_locker_state_v1 *state,
-   struct PSI_metadata_lock *mdl,
-   const char *src_file, uint src_line);
+typedef struct PSI_metadata_locker *(*start_metadata_wait_v1_t)(
+  struct PSI_metadata_locker_state_v1 *state,
+  struct PSI_metadata_lock *mdl,
+  const char *src_file,
+  uint src_line);
 
-typedef void (*end_metadata_wait_v1_t)
-  (struct PSI_metadata_locker *locker, int rc);
+typedef void (*end_metadata_wait_v1_t)(struct PSI_metadata_locker *locker,
+                                       int rc);
 
 /**
   Performance Schema Metadata Lock Interface, version 1.
@@ -190,4 +194,3 @@ extern MYSQL_PLUGIN_IMPORT PSI_mdl_service_t *psi_mdl_service;
 C_MODE_END
 
 #endif /* MYSQL_PSI_MDL_H */
-

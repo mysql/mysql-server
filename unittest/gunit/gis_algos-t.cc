@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,14 +13,15 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#include "my_config.h"
 #include <gtest/gtest.h>
-
-#include "my_global.h"
-#include "gstream.h"
-#include "spatial.h"
-
+#include <stddef.h>
 #include <cmath>
+
+#include "gis/srid.h"
+#include "gstream.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "spatial.h"
 
 namespace gis_algo_unittest {
 
@@ -40,7 +41,7 @@ public:
                              bool want_ccw= true);
 
 
-  const static uint32 srid= 0;
+  const static gis::srid_t srid= 0;
   CHARSET_INFO *latincc;
   String str, str2, wkt, wkt2;
   Geometry_buffer buffer, buffer2;
@@ -307,7 +308,7 @@ TEST_F(GeometryManipulationTest, PolygonManipulationTest)
 
 TEST_F(GeometryManipulationTest, ResizeAssignmentTest)
 {
-  Gis_polygon_ring ring1;
+  Gis_polygon_ring ring1, ring6, ring7, ring8;
   Gis_line_string ls4, ls5, ls6, ls7, ls8;
   for (int i = 0; i < 5; i++)
   {
@@ -318,8 +319,13 @@ TEST_F(GeometryManipulationTest, ResizeAssignmentTest)
     ls4.push_back(pt);
     ls6.push_back(pt);
     ls7.push_back(pt);
+    ring6.push_back(pt);
+    ring7.push_back(pt);
     if (i != 4)
+    {
       ls8.push_back(pt);
+      ring8.push_back(pt);
+    }
   }
   Gis_point pt;
   pt.set<0>(0);
@@ -332,9 +338,9 @@ TEST_F(GeometryManipulationTest, ResizeAssignmentTest)
   plgn3.inners().push_back(ring1);
   plgn3.inners().resize(plgn3.inners().size());
 
-  plgn5.outer() = *((Gis_polygon_ring *)(&ls8));
-  plgn5.inners().push_back(*((Gis_polygon_ring *)(&ls7)));
-  plgn5.inners().push_back(*((Gis_polygon_ring *)(&ls6)));
+  plgn5.outer() = ring8;
+  plgn5.inners().push_back(ring7);
+  plgn5.inners().push_back(ring6);
 
   Gis_multi_polygon mplgn3, mplgn4;
   mplgn3.push_back(plgn3);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,14 +16,23 @@
 #ifndef DD__DICTIONARY_IMPL_INCLUDED
 #define DD__DICTIONARY_IMPL_INCLUDED
 
-#include "my_global.h"
-#include "table.h"                   // MYSQL_SCHEMA_NAME
+#include <stddef.h>
+#include <sys/types.h>
+#include <memory>
+#include <memory>
+#include <string>
 
 #include "dd/dictionary.h"           // dd::Dictionary
 #include "dd/object_id.h"            // dd::Object_id
+#include "dd/string_type.h"          // dd::String_type
+#include "lex_string.h"
+#include "m_string.h"
+#include "table.h"                   // MYSQL_SCHEMA_NAME
 
-#include <string>
-#include <memory>
+class THD;
+namespace dd {
+class Object_table;
+}  // namespace dd
 
 namespace dd_schema_unittest {
   class SchemaTest;
@@ -78,17 +87,20 @@ public:
   virtual uint get_actual_dd_version(THD *thd, bool *exists);
 
   virtual const Object_table *get_dd_table(
-    const std::string &schema_name, const std::string &table_name) const;
+    const String_type &schema_name, const String_type &table_name) const;
 
   virtual bool install_plugin_IS_table_metadata();
 
 public:
-  virtual bool is_dd_schema_name(const std::string &schema_name) const
+  virtual bool is_dd_schema_name(const String_type &schema_name) const
   { return (schema_name == MYSQL_SCHEMA_NAME.str); }
 
-  virtual bool is_dd_table_name(const std::string &schema_name,
-                               const std::string &table_name) const
+  virtual bool is_dd_table_name(const String_type &schema_name,
+                               const String_type &table_name) const
   { return (get_dd_table(schema_name, table_name) != NULL); }
+
+  virtual int table_type_error_code(const String_type &schema_name,
+                                    const String_type &table_name) const;
 
   virtual bool is_dd_table_access_allowed(bool is_dd_internal_thread,
                                           bool is_ddl_statement,
@@ -103,12 +115,12 @@ public:
   static Object_id default_catalog_id()
   { return DEFAULT_CATALOG_ID; }
 
-  static const std::string &default_catalog_name()
+  static const String_type &default_catalog_name()
   { return DEFAULT_CATALOG_NAME; }
 
 private:
   static Object_id DEFAULT_CATALOG_ID;
-  static const std::string DEFAULT_CATALOG_NAME;
+  static const String_type DEFAULT_CATALOG_NAME;
 };
 
 ///////////////////////////////////////////////////////////////////////////

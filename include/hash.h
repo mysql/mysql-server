@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,8 +22,15 @@
 */
 
 
-#include "my_global.h"                          /* uchar */
+#include <stddef.h>
+#include <sys/types.h>
+#include <new>
+
+#include "m_ctype.h"
+#include "my_inttypes.h"
 #include "my_sys.h"                             /* DYNAMIC_ARRAY */
+#include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_memory.h"
 
 typedef struct charset_info_st CHARSET_INFO;
 
@@ -107,12 +114,12 @@ uchar *my_hash_first_from_hash_value(const HASH *info,
                                      HASH_SEARCH_STATE *state);
 uchar *my_hash_next(const HASH *info, const uchar *key, size_t length,
                     HASH_SEARCH_STATE *state);
-my_bool my_hash_insert(HASH *info, const uchar *data);
-my_bool my_hash_delete(HASH *hash, uchar *record);
-my_bool my_hash_update(HASH *hash, uchar *record, uchar *old_key,
-                       size_t old_key_length);
+bool my_hash_insert(HASH *info, const uchar *data);
+bool my_hash_delete(HASH *hash, uchar *record);
+bool my_hash_update(HASH *hash, uchar *record, uchar *old_key,
+                    size_t old_key_length);
 void my_hash_replace(HASH *hash, HASH_SEARCH_STATE *state, uchar *new_row);
-my_bool my_hash_check(HASH *hash); /* Only in debug library */
+bool my_hash_check(HASH *hash); /* Only in debug library */
 
 inline void my_hash_clear(HASH *h) { new(h) st_hash(); }
 inline bool my_hash_inited(const HASH *h) { return h->blength != 0; }

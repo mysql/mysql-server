@@ -1,8 +1,5 @@
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 #setup
 let $select_column = ENABLED;
 let $table = performance_schema.setup_instruments;

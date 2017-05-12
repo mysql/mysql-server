@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,9 +17,6 @@
   @file mysys/mf_arr_appstr.cc
 */
 
-#include "mysys_priv.h"
-#include <m_string.h>                           /* strcmp() */
-
 
 /**
   Append str to array, or move to the end if it already exists
@@ -34,8 +31,13 @@
   @retval TRUE   Failure, array is full
 */
 
-extern "C" my_bool array_append_string_unique(const char *str,
-                                              const char **array, size_t size)
+#include <string.h>
+
+#include "my_dbug.h"
+#include "my_inttypes.h"
+
+extern "C" bool array_append_string_unique(const char *str,
+                                           const char **array, size_t size)
 {
   const char **p;
   /* end points at the terminating NULL element */

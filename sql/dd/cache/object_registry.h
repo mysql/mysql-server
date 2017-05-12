@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,9 +16,6 @@
 #ifndef DD_CACHE__OBJECT_REGISTRY_INCLUDED
 #define DD_CACHE__OBJECT_REGISTRY_INCLUDED
 
-#include "my_global.h"                        // DBUG_ASSERT() etc.
-#include "local_multi_map.h"                  // Local_multi_map
-
 #include "dd/types/abstract_table.h"          // Abstract_table
 #include "dd/types/charset.h"                 // Charset
 #include "dd/types/collation.h"               // Collation
@@ -27,6 +24,8 @@
 #include "dd/types/schema.h"                  // Schema
 #include "dd/types/spatial_reference_system.h"// Spatial_reference_system
 #include "dd/types/tablespace.h"              // Tablespace
+#include "local_multi_map.h"                  // Local_multi_map
+#include "my_dbug.h"
 
 namespace dd {
 namespace cache {
@@ -236,6 +235,69 @@ public:
   template <typename T>
   void remove(Cache_element<T> *element)
   { m_map<T>()->remove(element); }
+
+
+  /**
+    Remove and delete all objects of a given type from the registry.
+
+    @tparam  T        Dictionary object type.
+  */
+
+  template <typename T>
+  void erase()
+  {
+    m_map<T>()->erase();
+  }
+
+
+  /**
+    Remove and delete all objects from the registry.
+  */
+
+  void erase_all()
+  {
+    m_abstract_table_map.erase();
+    m_charset_map.erase();
+    m_collation_map.erase();
+    m_event_map.erase();
+    m_routine_map.erase();
+    m_schema_map.erase();
+    m_spatial_reference_system_map.erase();
+    m_tablespace_map.erase();
+  }
+
+
+  /**
+    Get the number of objects of a given type in the registry.
+
+    @tparam  T        Dictionary object type.
+    @return  Number of objects.
+  */
+
+  template <typename T>
+  size_t size() const
+  {
+    return m_map<T>()->size();
+  }
+
+
+  /**
+    Get the total number of objects in the registry.
+
+    @return  Number of objects.
+  */
+
+  size_t size_all() const
+  {
+    return m_abstract_table_map.size() +
+      m_charset_map.size() +
+      m_collation_map.size() +
+      m_event_map.size() +
+      m_routine_map.size() +
+      m_schema_map.size() +
+      m_spatial_reference_system_map.size() +
+      m_tablespace_map.size();
+  }
 
 
   /**

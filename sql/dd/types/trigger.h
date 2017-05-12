@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,10 +16,15 @@
 #ifndef DD__TRIGGER_INCLUDED
 #define DD__TRIGGER_INCLUDED
 
-#include "my_global.h"
+#include <time.h>
+
+#ifdef _WIN32
+#include <winsock2.h>                 // timeval
+#endif
 
 #include "dd/sdi_fwd.h"               // dd::Sdi_wcontext
 #include "dd/types/entity_object.h"   // dd::Entity_object
+#include "my_inttypes.h"
 
 namespace dd {
 
@@ -94,11 +99,11 @@ public:
   // action_statement
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &action_statement() const = 0;
-  virtual void set_action_statement(const std::string &action_statement) = 0;
+  virtual const String_type &action_statement() const = 0;
+  virtual void set_action_statement(const String_type &action_statement) = 0;
 
-  virtual const std::string &action_statement_utf8() const = 0;
-  virtual void set_action_statement_utf8(const std::string
+  virtual const String_type &action_statement_utf8() const = 0;
+  virtual void set_action_statement_utf8(const String_type
                                          &action_statement_utf8) = 0;
 
   /////////////////////////////////////////////////////////////////////////
@@ -126,10 +131,10 @@ public:
   // definer.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &definer_user() const = 0;
-  virtual const std::string &definer_host() const = 0;
-  virtual void set_definer(const std::string &username,
-                           const std::string &hostname) = 0;
+  virtual const String_type &definer_user() const = 0;
+  virtual const String_type &definer_host() const = 0;
+  virtual void set_definer(const String_type &username,
+                           const String_type &hostname) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // collations.

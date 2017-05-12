@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,29 +16,39 @@
 #ifndef DD_TABLE_INCLUDED
 #define DD_TABLE_INCLUDED
 
-#include "my_global.h"
+#include <sys/types.h>
+#include <memory>                    // std:unique_ptr
+#include <string>
 
 #include "binary_log_types.h"        // enum_field_types
-#include "handler.h"                 // legacy_db_type
-
-#include "sql_alter.h"               // Alter_info::enum_enable_or_disable
-#include "table.h"                   // ST_FIELD_INFO
 #include "dd/types/column.h"         // dd::enum_column_types
+#include "handler.h"                 // legacy_db_type
+#include "my_inttypes.h"
+#include "prealloced_array.h"        // Prealloced_array
+#include "sql_alter.h"               // Alter_info::enum_enable_or_disable
+
 
 class Create_field;
-class THD;
-typedef struct st_ha_create_information HA_CREATE_INFO;
 class KEY;
+class FOREIGN_KEY;
+class THD;
+struct TABLE_LIST;
+struct TABLE_SHARE;
+typedef struct st_ha_create_information HA_CREATE_INFO;
 template <class T> class List;
 
 namespace dd {
+  class Abstract_table;
+  class Trigger;
   class Table;
+
   enum class enum_table_type;
   namespace cache {
     class Dictionary_client;
   }
 
 static const char FIELD_NAME_SEPARATOR_CHAR = ';';
+static const char FOREIGN_KEY_NAME_SUBSTR[]= "_ibfk_";
 
 /**
   Prepares a dd::Table object from mysql_prepare_create_table() output
@@ -56,13 +66,23 @@ static const char FIELD_NAME_SEPARATOR_CHAR = ';';
   @param fk_keyinfo     Array with descriptions of foreign keys for the table.
   @param fk_keys        Number of foreign keys.
   @param file           handler instance for the table.
+  @param commit_dd_changes  Indicates whether changes to DD need to be
+                            committed.
 
-  @retval 0 on success.
-  @retval 1 on failure.
+  @note In case when commit_dd_changes is false, the caller must rollback
+        both statement and transaction on failure, before any further
+        accesses to DD. This is because such a failure might be caused by
+        a deadlock, which requires rollback before any other operations on
+        SE (including reads using attachable transactions) can be done.
+        If case when commit_dd_changes is true this function will handle
+        transaction rollback itself.
+
+  @retval False - Success.
+  @retval True  - Error.
 */
 bool create_dd_user_table(THD *thd,
-                          const std::string &schema_name,
-                          const std::string &table_name,
+                          const dd::String_type &schema_name,
+                          const dd::String_type &table_name,
                           HA_CREATE_INFO *create_info,
                           const List<Create_field> &create_fields,
                           const KEY *keyinfo,
@@ -70,36 +90,49 @@ bool create_dd_user_table(THD *thd,
                           Alter_info::enum_enable_or_disable keys_onoff,
                           const FOREIGN_KEY *fk_keyinfo,
                           uint fk_keys,
-                          handler *file);
+                          handler *file,
+                          bool commit_dd_changes);
 
 /**
   Prepares a dd::Table object from mysql_prepare_create_table() output
   and updates DD tables accordingly.
 
-  @param thd            Thread handle
-  @param schema_name    Schema name.
-  @param table_name     Table name.
-  @param create_info    HA_CREATE_INFO describing the table to be created.
-  @param create_fields  List of fields for the table.
-  @param keyinfo        Array with descriptions of keys for the table.
-  @param keys           Number of keys.
-  @param keys_onoff     Enable or disable keys.
-  @param fk_keyinfo     Array with descriptions of foreign keys for the table.
-  @param fk_keys        Number of foreign keys.
-  @param file           handler instance for the table.
+  @param thd                Thread handle
+  @param schema_name        Schema name.
+  @param table_name         Table name.
+  @param create_info        HA_CREATE_INFO describing the table to be created.
+  @param create_fields      List of fields for the table.
+  @param keyinfo            Array with descriptions of keys for the table.
+  @param keys               Number of keys.
+  @param keys_onoff         Enable or disable keys.
+  @param fk_keyinfo         Array with descriptions of foreign keys for the table.
+  @param fk_keys            Number of foreign keys.
+  @param file               handler instance for the table.
+  @param commit_dd_changes  Indicates whether changes to DD need to be
+                            committed.
 
-  @retval 0 on success.
-  @retval ER_CANT_CREATE_TABLE, ER_TABLE_EXISTS_ERROR on failure.
+  @note In case when commit_dd_changes is false, the caller must rollback
+        both statement and transaction on failure, before any further
+        accesses to DD. This is because such a failure might be caused by
+        a deadlock, which requires rollback before any other operations on
+        SE (including reads using attachable transactions) can be done.
+        If case when commit_dd_changes is true this function will handle
+        transaction rollback itself.
+
+  @retval False - Success.
+  @retval True  - Error.
 */
 bool create_table(THD *thd,
-                  const std::string &schema_name,
-                  const std::string &table_name,
+                  const dd::String_type &schema_name,
+                  const dd::String_type &table_name,
                   HA_CREATE_INFO *create_info,
                   const List<Create_field> &create_fields,
                   const KEY *keyinfo, uint keys,
                   Alter_info::enum_enable_or_disable keys_onoff,
-                  const FOREIGN_KEY *fk_keyinfo, uint fk_keys,
-                  handler *file);
+                  const FOREIGN_KEY *fk_keyinfo,
+                  uint fk_keys,
+                  handler *file,
+                  bool commit_dd_changes);
 
 /**
   Prepares a dd::Table object for a temporary table from
@@ -116,46 +149,97 @@ bool create_table(THD *thd,
   @param keys_onoff     Enable or disable keys.
   @param file           handler instance for the table.
 
-  @returns constructed dd::Table object, or NULL in case of an error.
+  @returns Constructed dd::Table object, or nullptr in case of an error.
 */
-dd::Table *create_tmp_table(THD *thd,
-                            const std::string &schema_name,
-                            const std::string &table_name,
-                            HA_CREATE_INFO *create_info,
-                            const List<Create_field> &create_fields,
-                            const KEY *keyinfo, uint keys,
-                            Alter_info::enum_enable_or_disable keys_onoff,
-                            handler *file);
+std::unique_ptr<dd::Table> create_tmp_table(THD *thd,
+                             const dd::String_type &schema_name,
+                             const dd::String_type &table_name,
+                             HA_CREATE_INFO *create_info,
+                             const List<Create_field> &create_fields,
+                             const KEY *keyinfo, uint keys,
+                             Alter_info::enum_enable_or_disable keys_onoff,
+                             handler *file);
 
 /**
-  Add foreign keys to a given table. This is used by ALTER TABLE
-  to restore existing foreign keys towards the end of the statement.
-  This is needed to avoid problems with duplicate foreign key names
-  while we have to definitions of the same table.
+  Add triggers to a given table. This is used by
+  ALTER TABLE to restore existing triggers towards
+  the end of the statement. This is needed to avoid problems with
+  duplicate trigger names while we have two definitions
+  of the same table.
 
   @param thd            Thread handle.
   @param schema_name    Database name.
   @param table_name     Table name.
-  @param fk_keyinfo     Array of foreign key information
-  @param fk_keys        Number of foreign keys to add.
+  @param trg_info       Array of triggers to be added to the table.
+  @param commit_dd_changes  Indicates whether change should be committed.
+
+  @note In case when commit_dd_changes is false, the caller must rollback
+        both statement and transaction on failure, before any further
+        accesses to DD. This is because such a failure might be caused by
+        a deadlock, which requires rollback before any other operations on
+        SE (including reads using attachable transactions) can be done.
+        If case when commit_dd_changes is true this function will handle
+        transaction rollback itself.
 
   @retval false on success
   @retval true on failure
 */
-bool add_foreign_keys(THD *thd,
-                      const std::string &schema_name,
-                      const std::string &table_name,
-                      const FOREIGN_KEY *fk_keyinfo, uint fk_keys);
+bool add_triggers(THD *thd,
+                  const dd::String_type &schema_name,
+                  const dd::String_type &table_name,
+                  Prealloced_array<dd::Trigger*, 1> *trg_info,
+                  bool commit_dd_changes);
 
 //////////////////////////////////////////////////////////////////////////
 // Function common to 'table' and 'view' objects
 //////////////////////////////////////////////////////////////////////////
 
-/* Remove table metadata from dd.tables */
-template <typename T>
+/*
+  Remove table metadata from the data dictionary.
+
+  @param thd                Thread context.
+  @param schema_name        Schema of the table to be removed.
+  @param table_name         Name of the table to be removed.
+  @param commit_dd_changes  Indicates whether change needs to be committed.
+
+  @note In case when commit_dd_changes is false, the caller must rollback
+        both statement and transaction on failure, before any further
+        accesses to DD. This is because such a failure might be caused by
+        a deadlock, which requires rollback before any other operations on
+        SE (including reads using attachable transactions) can be done.
+        If case when commit_dd_changes is true this function will handle
+        transaction rollback itself.
+
+  @retval false on success
+  @retval true on failure
+*/
 bool drop_table(THD *thd,
                 const char *schema_name,
-                const char *table_name);
+                const char *table_name,
+                bool commit_dd_changes);
+
+/*
+  Remove table metadata from the data dictionary.
+
+  @param thd                Thread context.
+  @param schema_name        Schema of the table to be removed.
+  @param name               Name of the table to be removed.
+  @param table_def          dd::Table object for the table to be removed.
+  @param commit_dd_changes  Indicates whether change needs to be committed.
+
+  @note In case when commit_dd_changes is false, the caller must rollback
+        both statement and transaction on failure, before any further
+        accesses to DD. This is because such a failure might be caused by
+        a deadlock, which requires rollback before any other operations on
+        SE (including reads using attachable transactions) can be done.
+        If case when commit_dd_changes is true this function will handle
+        transaction rollback itself.
+
+  @retval false on success
+  @retval true on failure
+*/
+bool drop_table(THD *thd, const char *schema_name, const char *name,
+                const dd::Table *table_def, bool commit_dd_changes);
 
 /**
   Check if a table or view exists
@@ -188,27 +272,89 @@ bool table_exists(dd::cache::Dictionary_client *client,
                   const char *name,
                   bool *exists);
 
-/* Rename table name in dd.tables */
-template <typename T>
+/**
+  Rename a table in the data-dictionary.
+
+  @param  thd                  The dictionary client.
+  @param  from_schema_name     Schema of table to rename.
+  @param  from_name            Table name to rename.
+  @param  to_schema_name       New schema name.
+  @param  to_name              New table name.
+  @param  mark_as_hidden       Mark the new table as hidden, if true.
+  @param  commit_dd_changes    Indicates whether change to the data
+                               dictionary needs to be committed.
+
+  @note In case when commit_dd_changes is false, the caller must rollback
+        both statement and transaction on failure, before any further
+        accesses to DD. This is because such a failure might be caused by
+        a deadlock, which requires rollback before any other operations on
+        SE (including reads using attachable transactions) can be done.
+        If case when commit_dd_changes is true this function will handle
+        transaction rollback itself.
+
+  @retval      true         Failure (error has been reported).
+  @retval      false        Success.
+*/
 bool rename_table(THD *thd,
                   const char *from_schema_name,
                   const char *from_name,
                   const char *to_schema_name,
                   const char *to_name,
-                  bool no_foreign_key_check);
+                  bool mark_as_hidden,
+                  bool commit_dd_changes);
 
-template <typename T>
-inline bool rename_table(THD *thd,
-                         const char *from_schema_name,
-                         const char *from_name,
-                         const char *to_schema_name,
-                         const char *to_name)
-{
-  return dd::rename_table<T>(thd,
-                             from_schema_name, from_name,
-                             to_schema_name, to_name,
-                             false);
-}
+/**
+  Rename a table in the data-dictionary.
+
+  @param  thd                  The dictionary client.
+  @param  from_table_name      The table name we are renaming from.
+  @param  to_table_def         dd::Table for table after rename.
+  @param  commit_dd_changes    Indicates whether change to the data
+                               dictionary needs to be committed.
+
+  @note In case when commit_dd_changes is false, the caller must rollback
+        both statement and transaction on failure, before any further
+        accesses to DD. This is because such a failure might be caused by
+        a deadlock, which requires rollback before any other operations on
+        SE (including reads using attachable transactions) can be done.
+        If case when commit_dd_changes is true this function will handle
+        transaction rollback itself.
+
+  @retval      true         Failure (error has been reported).
+  @retval      false        Success.
+*/
+bool rename_table(THD *thd, const char *from_table_name,
+                  dd::Table *to_table_def,
+                  bool commit_dd_changes);
+
+/**
+  Rename a view in the data-dictionary.
+
+  @param  thd                  The dictionary client.
+  @param  from_schema_name     Schema of view to rename.
+  @param  from_name            View name to rename.
+  @param  to_schema_name       New schema name.
+  @param  to_name              New view name.
+  @param  commit_dd_changes    Indicates whether change to the data
+                               dictionary needs to be committed.
+
+  @note In case when commit_dd_changes is false, the caller must rollback
+        both statement and transaction on failure, before any further
+        accesses to DD. This is because such a failure might be caused by
+        a deadlock, which requires rollback before any other operations on
+        SE (including reads using attachable transactions) can be done.
+        If case when commit_dd_changes is true this function will handle
+        transaction rollback itself.
+
+  @retval      true         Failure (error has been reported).
+  @retval      false        Success.
+*/
+bool rename_view(THD *thd,
+                 const char *from_schema_name,
+                 const char *from_name,
+                 const char *to_schema_name,
+                 const char *to_name,
+                 bool commit_dd_changes);
 
 
 //////////////////////////////////////////////////////////////////////////
@@ -258,10 +404,7 @@ bool table_legacy_db_type(THD *thd, const char *schema_name,
                           enum legacy_db_type *db_type);
 
 /**
-  Get the storage engine handlerton for the given table. If the
-  table object contains a valid (i.e., not dynamically assigned)
-  legacy_db_type as one of the options, use it to get hold of the
-  handlerton. Otherwise, use the engine name directly.
+  Get the storage engine handlerton for the given table.
 
   This function sets explicit error codes if:
   - The table is not found: ER_NO_SUCH_TABLE
@@ -277,8 +420,28 @@ bool table_legacy_db_type(THD *thd, const char *schema_name,
                               valid engine specified. In this case, the
                               value of hton is undefined.
   @retval     false           Success
- */
+*/
 bool table_storage_engine(THD *thd, const TABLE_LIST *table_list,
+                          handlerton **hton);
+
+
+/**
+  Get the storage engine handlerton for the given table.
+
+  This function sets explicit error codes if:
+  - The SE is invalid:      ER_STORAGE_ENGINE_NOT_LOADED
+
+  @param[in]  thd             Thread context
+  @param[in]  schema_name     Database of the table.
+  @param[in]  table_name      Name of the table.
+  @param[in]  table           dd::Table object describing the table.
+  @param[out] hton            Handlerton for the table's storage engine
+
+  @retval     true            Error
+  @retval     false           Success
+*/
+bool table_storage_engine(THD *thd, const char *schema_name,
+                          const char *table_name, const dd::Table *table,
                           handlerton **hton);
 
 /**
@@ -308,9 +471,9 @@ bool check_storage_engine_flag(THD *thd, const TABLE_LIST *table_list,
 
   @pre There must be an exclusive MDL lock on the table.
 
-  @param[in]    thd         Thread context
-  @param[in]    schema_name Name of the schema
-  @param[in]    table_name  Name of the table
+  @param[in]    thd                 Thread context
+  @param[in]    schema_name         Name of the schema
+  @param[in]    table_name          Name of the table
 
   @retval       false       Success
   @retval       true        Error
@@ -327,6 +490,18 @@ bool recreate_table(THD *thd, const char *schema_name,
   @param[in]    schema_name Name of the schema
   @param[in]    table_name  Name of the table
   @param[in]    keys_onoff  Wheather keys are enabled or disabled.
+  @param[in]    commit_dd_changes   Indicates whether change to the data
+                                    dictionary needs to be committed.
+
+  @note Assumes that table exists.
+
+  @note In case when commit_dd_changes is false, the caller must rollback
+        both statement and transaction on failure, before any further
+        accesses to DD. This is because such a failure might be caused by
+        a deadlock, which requires rollback before any other operations on
+        SE (including reads using attachable transactions) can be done.
+        If case when commit_dd_changes is true this function will handle
+        transaction rollback itself.
 
   @retval       false       Success
   @retval       true        Error
@@ -335,13 +510,14 @@ bool recreate_table(THD *thd, const char *schema_name,
 bool update_keys_disabled(THD *thd,
                           const char *schema_name,
                           const char *table_name,
-                          Alter_info::enum_enable_or_disable keys_onoff);
+                          Alter_info::enum_enable_or_disable keys_onoff,
+                          bool commit_dd_changes);
 
 /**
   Function prepares string representing columns data type.
   This is required for IS implementation which uses views on DD tables
 */
-std::string get_sql_type_by_field_info(THD *thd,
+String_type get_sql_type_by_field_info(THD *thd,
                                        enum_field_types field_type,
                                        uint32 field_length,
                                        const CHARSET_INFO *field_charset);
@@ -395,10 +571,20 @@ bool fix_row_type(THD *thd, TABLE_SHARE *share, row_type correct_row_type);
   @param[in]    from_name        Name of the table
   @param[in]    to_schema_name   Name of the schema
   @param[in]    to_name          Name of the table
+  @param[in]    commit_dd_changes   Indicates whether change to the data
+                                    dictionary needs to be committed.
 
   Triggers from from_schema_name.from_table_name will be moved
   into to_schema_name.to_table_name. And the transaction will be
   committed.
+
+  @note In case when commit_dd_changes is false, the caller must rollback
+        both statement and transaction on failure, before any further
+        accesses to DD. This is because such a failure might be caused by
+        a deadlock, which requires rollback before any other operations on
+        SE (including reads using attachable transactions) can be done.
+        If case when commit_dd_changes is true this function will handle
+        transaction rollback itself.
 
   @retval       false       Success
   @retval       true        Error
@@ -408,7 +594,8 @@ bool move_triggers(THD *thd,
                    const char *from_schema_name,
                    const char *from_name,
                    const char *to_schema_name,
-                   const char *to_name);
+                   const char *to_name,
+                   bool commit_dd_changes);
 
 /**
   Add column objects to dd::Abstract_table objects according to the
@@ -429,5 +616,63 @@ fill_dd_columns_from_create_fields(THD *thd,
                                    Abstract_table *tab_obj,
                                    const List<Create_field> &create_fields,
                                    handler *file);
+
+/**
+  @brief Function returns string representing column type by Create_field.
+         This is required for the IS implementation which uses views on DD
+         tables
+
+  @param[in]   table           TABLE object.
+  @param[in]   field           Column information.
+
+  @return dd::String_type representing column type.
+*/
+
+dd::String_type get_sql_type_by_create_field(TABLE *table,
+                                             Create_field *field);
+
+
+/**
+  Helper method to get numeric scale for types using Create_field type
+  object.
+
+  @param[in]  field      Field object.
+  @param[out] scale      numeric scale value for types.
+
+  @retval false  If numeric scale is calculated.
+  @retval true   If numeric scale is not calculated;
+*/
+
+bool get_field_numeric_scale(Create_field *field, uint *scale);
+
+
+/**
+  Helper method to get numeric precision for types using Create_field type
+  object.
+
+  @param[in]  field             Field object.
+  @param[out] numeric_precision numeric precision value for types.
+
+  @retval false  If numeric precision is calculated.
+  @retval true   If numeric precision is not calculated;
+*/
+
+bool get_field_numeric_precision(Create_field *field,
+                                 uint *numeric_precision);
+
+
+/**
+  Helper method to get datetime precision for types using Create_field type
+  object.
+
+  @param[in]  field              Field object.
+  @param[out] datetime_precision datetime precision value for types.
+
+  @retval false  If datetime precision is calculated.
+  @retval true   If datetime precision is not calculated;
+*/
+
+bool get_field_datetime_precision(Create_field *field,
+                                  uint *datetime_precision);
 } // namespace dd
 #endif // DD_TABLE_INCLUDED

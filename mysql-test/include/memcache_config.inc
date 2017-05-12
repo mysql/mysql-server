@@ -1,4 +1,4 @@
-create database innodb_memcache;
+create database innodb_memcache character set latin1;
 
 use innodb_memcache;
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,10 +18,13 @@
 #ifndef SQL_CHANNEL_INFO_INCLUDED
 #define SQL_CHANNEL_INFO_INCLUDED
 
-#include "my_global.h"         // uint
+#include <sys/types.h>
+
+#include "my_inttypes.h"
 #include "my_sys.h"            // my_micro_time
 
 class THD;
+
 typedef struct st_vio Vio;
 
 

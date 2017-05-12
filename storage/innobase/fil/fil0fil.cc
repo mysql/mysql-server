@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,7 +23,11 @@ The tablespace memory cache
 Created 10/25/1995 Heikki Tuuri
 *******************************************************/
 
-#include "ha_prototypes.h"
+#include "my_config.h"
+
+#include <errno.h>
+#include <fcntl.h>
+#include <sys/types.h>
 
 #include "btr0btr.h"
 #include "buf0buf.h"
@@ -34,11 +38,14 @@ Created 10/25/1995 Heikki Tuuri
 #include "fsp0fsp.h"
 #include "fsp0space.h"
 #include "fsp0sysspace.h"
+#include "ha_prototypes.h"
 #include "hash0hash.h"
 #include "log0recv.h"
 #include "mach0data.h"
 #include "mem0mem.h"
 #include "mtr0log.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
 #include "os0file.h"
 #include "page0zip.h"
 #include "row0mysql.h"
@@ -50,6 +57,7 @@ Created 10/25/1995 Heikki Tuuri
 # include "os0event.h"
 # include "sync0sync.h"
 #else /* !UNIV_HOTBACKUP */
+# include "log0log.h"
 # include "srv0srv.h"
 #endif /* !UNIV_HOTBACKUP */
 
@@ -226,17 +234,6 @@ static ulint	srv_data_written;
 # define fil_buffering_disabled(s)	(0)
 #endif /* __WIN32 */
 
-/** Determine if the space id is a user tablespace id or not.
-@param[in]	space_id	Space ID to check
-@return true if it is a user tablespace ID */
-UNIV_INLINE
-bool
-fil_is_user_tablespace_id(space_id_t space_id)
-{
-	return(!srv_is_undo_tablespace(space_id)
-	       && !is_system_tablespace(space_id));
-}
-
 #ifdef UNIV_DEBUG
 /** Try fil_validate() every this many times */
 # define FIL_VALIDATE_SKIP	17
@@ -280,7 +277,7 @@ fil_space_belongs_in_lru(
 	case FIL_TYPE_LOG:
 		return(false);
 	case FIL_TYPE_TABLESPACE:
-		return(fil_is_user_tablespace_id(space->id));
+		return(fsp_is_ibd_tablespace(space->id));
 	case FIL_TYPE_IMPORT:
 		return(true);
 	}
@@ -431,7 +428,6 @@ fil_space_get(space_id_t id)
 	mutex_enter(&fil_system->mutex);
 	fil_space_t*	space = fil_space_get_by_id(id);
 	mutex_exit(&fil_system->mutex);
-	ut_ad(space == NULL || space->purpose != FIL_TYPE_LOG);
 	return(space);
 }
 /** Returns the latch of a file space.
@@ -536,6 +532,7 @@ fil_space_is_flushed(
 #if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
 
 #include <sys/ioctl.h>
+
 /** FusionIO atomic write control info */
 #define DFS_IOCTL_ATOMIC_WRITE_SET	_IOW(0x95, 2, uint)
 
@@ -544,15 +541,13 @@ Try and enable FusionIO atomic writes.
 @param[in] file		OS file handle
 @return true if successful */
 bool
-fil_fusionio_enable_atomic_write(os_file_t file)
+fil_fusionio_enable_atomic_write(pfs_os_file_t file)
 {
 	if (srv_unix_file_flush_method == SRV_UNIX_O_DIRECT) {
 
 		uint	atomic = 1;
-
-		ut_a(file != -1);
-
-		if (ioctl(file, DFS_IOCTL_ATOMIC_WRITE_SET, &atomic) != -1) {
+		ut_a(file.m_file != -1);
+		if (ioctl(file.m_file, DFS_IOCTL_ATOMIC_WRITE_SET, &atomic) != -1) {
 
 			return(true);
 		}
@@ -715,7 +710,7 @@ fil_node_open_file(
 	if (node->size == 0
 	    || (space->purpose == FIL_TYPE_TABLESPACE
 		&& node == UT_LIST_GET_FIRST(space->chain)
-		&& !undo::Truncate::was_tablespace_truncated(space->id)
+		&& !undo::is_under_construction(space->id)
 		&& srv_startup_is_before_trx_rollback_phase)) {
 		/* We do not know the size of the file yet. First we
 		open the file in the normal mode, no async I/O here,
@@ -2088,7 +2083,8 @@ fil_name_write_rename(
 	const char*	new_name,
 	mtr_t*		mtr)
 {
-	ut_ad(!is_predefined_tablespace(space_id));
+	ut_ad(!fsp_is_system_or_temp_tablespace(space_id));
+	ut_ad(!fsp_is_undo_tablespace(space_id));
 
 	fil_op_write_log(
 		MLOG_FILE_RENAME2,
@@ -2315,7 +2311,7 @@ fil_check_pending_operations(
 {
 	ulint		count = 0;
 
-	ut_a(!is_system_tablespace(id));
+	ut_ad(!fsp_is_system_or_temp_tablespace(id));
 	ut_ad(space);
 
 	*space = 0;
@@ -2439,7 +2435,7 @@ fil_space_system_check(
 
 /** Check if an undo tablespace was opened during crash recovery.
 Change name to undo_name if already opened during recovery.
-@param[in]	name		tablespace name
+@param[in]	file_name	undo tablespace file name
 @param[in]	undo_name	undo tablespace name
 @param[in]	space_id	undo tablespace id
 @retval DB_SUCCESS		if it was already opened
@@ -2448,57 +2444,50 @@ Change name to undo_name if already opened during recovery.
 
 dberr_t
 fil_space_undo_check_if_opened(
-	const char*	name,
+	const char*	file_name,
 	const char*	undo_name,
 	space_id_t	space_id)
 {
-	dberr_t		err	= DB_SUCCESS;
-
 	mutex_enter(&fil_system->mutex);
 
 	fil_space_t*	space	= fil_space_get_by_id(space_id);
-	ut_ad(space == NULL || space->purpose == FIL_TYPE_TABLESPACE);
-	ut_ad(space == NULL || UT_LIST_GET_LEN(space->chain) == 1);
 
-	if (space == NULL) {
-		err = DB_TABLESPACE_NOT_FOUND;
-	} else if (space->flags
-		   != fsp_flags_set_page_size(0, univ_page_size)
-		   || strcmp(space->name, name)) {
-		ib::error()
-			<< "Cannot load UNDO tablespace '" << name
-			<< "' (" << space_id
-			<< ") because tablespace '"
-			<< UT_LIST_GET_FIRST(space->chain)->name
-			<< "' was loaded during redo log apply with flags "
-			<< space->flags;
-		err = DB_ERROR;
-	} else {
-		if (fil_space_belongs_in_lru(space)) {
-			fil_node_t*	node = UT_LIST_GET_FIRST(space->chain);
-
-			if (node->is_open) {
-				ut_a(UT_LIST_GET_LEN(fil_system->LRU) > 0);
-				ut_d(UT_LIST_CHECK(fil_system->LRU));
-
-				/* The node is in the LRU list, remove it */
-				UT_LIST_REMOVE(fil_system->LRU, node);
-				ut_d(UT_LIST_CHECK(fil_system->LRU));
-			}
-		}
-		/* Correct undo tablespace name loaded during recovery. */
-		HASH_DELETE(fil_space_t, name_hash, fil_system->name_hash,
-			    ut_fold_string(space->name), space);
-		ut_free(space->name);
-
-		space->name = mem_strdup(undo_name);
-		HASH_INSERT(fil_space_t, name_hash, fil_system->name_hash,
-			    ut_fold_string(space->name), space);
+	if (space == nullptr) {
+		mutex_exit(&fil_system->mutex);
+		return(DB_TABLESPACE_NOT_FOUND);
 	}
+
+	/* The file_name that we opened before must be the same as what we
+	need to open now.  If not, maybe the srv_undo_directory has changed. */
+	if (strcmp(space->name, file_name)) {
+		ib::error() << "Cannot load UNDO tablespace. '"
+			<< space->name
+			<< "' was discovered during REDO recovery, but '"
+			<< file_name
+			<< "' should be opened instead.";
+		mutex_exit(&fil_system->mutex);
+		return(DB_ERROR);
+	}
+
+	if (space->flags != fsp_flags_set_page_size(0, univ_page_size)
+	    && !FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
+		ib::error() << "Cannot load UNDO tablespace '"
+			<< file_name << "' with flags=" << space->flags;
+		mutex_exit(&fil_system->mutex);
+		return(DB_ERROR);
+	}
+	ut_ad(space->purpose == FIL_TYPE_TABLESPACE);
+	ut_ad(UT_LIST_GET_LEN(space->chain) == 1);
 
 	mutex_exit(&fil_system->mutex);
 
-	return(err);
+	/* Flush and close the REDO recovery handle. Also, free up the
+	memory object because it was not created as an undo tablespace. */
+	fil_flush(space_id);
+	fil_space_close(space_id);
+	fil_space_free(space_id, false);
+
+	return(DB_TABLESPACE_NOT_FOUND);
 }
 
 /*******************************************************************//**
@@ -2515,7 +2504,8 @@ fil_close_tablespace(
 	fil_space_t*	space = 0;
 	dberr_t		err;
 
-	ut_a(!is_system_tablespace(id));
+	ut_ad(!fsp_is_system_or_temp_tablespace(id));
+	ut_ad(!fsp_is_undo_tablespace(id));
 
 	err = fil_check_pending_operations(id, FIL_OPERATION_CLOSE,
 					   &space, &path);
@@ -2584,7 +2574,8 @@ fil_delete_tablespace(
 	char*		path = 0;
 	fil_space_t*	space = 0;
 
-	ut_a(!is_system_tablespace(id));
+	ut_ad(!fsp_is_system_or_temp_tablespace(id));
+	ut_ad(!fsp_is_undo_tablespace(id));
 
 	dberr_t err = fil_check_pending_operations(
 		id, FIL_OPERATION_DELETE, &space, &path);
@@ -2718,7 +2709,8 @@ fil_prepare_for_truncate(
 	char*		path = 0;
 	fil_space_t*	space = 0;
 
-	ut_a(!is_system_tablespace(id));
+	ut_ad(!fsp_is_system_or_temp_tablespace(id));
+	ut_ad(fsp_is_undo_tablespace(id));
 
 	dberr_t err = fil_check_pending_operations(
 		id, FIL_OPERATION_CLOSE, &space, &path);
@@ -3246,7 +3238,7 @@ fil_ibd_create(
 	ulint		flags,
 	page_no_t	size)
 {
-	os_file_t	file;
+	pfs_os_file_t	file;
 	dberr_t		err;
 	byte*		buf2;
 	byte*		page;
@@ -3254,7 +3246,7 @@ fil_ibd_create(
 	bool		has_shared_space = FSP_FLAGS_GET_SHARED(flags);
 	fil_space_t*	space = NULL;
 
-	ut_ad(!is_system_tablespace(space_id));
+	ut_ad(!fsp_is_system_or_temp_tablespace(space_id));
 	ut_ad(!srv_read_only_mode);
 	ut_a(space_id < SRV_LOG_SPACE_FIRST_ID);
 	ut_a(size >= FIL_IBD_FILE_INITIAL_SIZE);
@@ -3312,8 +3304,7 @@ fil_ibd_create(
 #if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
 	if (fil_fusionio_enable_atomic_write(file)) {
 
-		/* This is required by FusionIO HW/Firmware */
-		int	ret = posix_fallocate(file, 0, size * UNIV_PAGE_SIZE);
+		int     ret = posix_fallocate(file.m_file, 0, size * UNIV_PAGE_SIZE);
 
 		if (ret != 0) {
 
@@ -3365,8 +3356,7 @@ fil_ibd_create(
 	if (punch_hole) {
 
 		dberr_t	punch_err;
-
-		punch_err = os_file_punch_hole(file, 0, size * UNIV_PAGE_SIZE);
+		punch_err = os_file_punch_hole(file.m_file, 0, size * UNIV_PAGE_SIZE);
 
 		if (punch_err != DB_SUCCESS) {
 			punch_hole = false;
@@ -3406,7 +3396,7 @@ fil_ibd_create(
 			fsp_is_checksum_disabled(space_id));
 
 		err = os_file_write(
-			request, path, file, page, 0, page_size.physical());
+		request, path, file, page, 0, page_size.physical());
 
 		ut_ad(err != DB_IO_NO_PUNCH_HOLE);
 
@@ -3459,6 +3449,8 @@ fil_ibd_create(
 	}
 
 	space = fil_space_create(name, space_id, flags, FIL_TYPE_TABLESPACE);
+
+	DEBUG_SYNC_C("fil_ibd_created_space");
 
 	err = fil_node_create_low(
 		path, size, space, false, punch_hole, atomic_write)
@@ -4169,7 +4161,7 @@ fil_write_zeros(
 			request, node->name, node->handle, buf, offset,
 			n_bytes);
 #else
-		err = os_aio(
+		err = os_aio_func(
 			request, OS_AIO_SYNC, node->name,
 			node->handle, buf, offset, n_bytes, read_only_mode,
 			NULL, NULL);
@@ -4288,7 +4280,7 @@ retry:
 
 #if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
 		/* This is required by FusionIO HW/Firmware */
-		int	ret = posix_fallocate(node->handle, node_start, len);
+		int     ret = posix_fallocate(node->handle.m_file, node_start, len);
 
 		/* We already pass the valid offset and len in, if EINVAL
 		is returned, it could only mean that the file system doesn't
@@ -4366,9 +4358,9 @@ retry:
 	page_no_t	size_in_pages = ((node->size / pages_per_mb)
 					 * pages_per_mb);
 
-	if (space->id == srv_sys_space.space_id()) {
+	if (space->id == TRX_SYS_SPACE) {
 		srv_sys_space.set_last_file_size(size_in_pages);
-	} else if (space->id == srv_tmp_space.space_id()) {
+	} else if (fsp_is_system_temporary(space->id)) {
 		srv_tmp_space.set_last_file_size(size_in_pages);
 	}
 #endif /* !UNIV_HOTBACKUP */
@@ -4664,18 +4656,34 @@ fil_io_set_encryption(
 	const page_id_t&	page_id,
 	fil_space_t*		space)
 {
-	/* Don't encrypt the log, page 0 of all tablespaces, all pages
-	from the system tablespace. */
-	if (!req_type.is_log() && page_id.page_no() > 0
-	    && space->encryption_type != Encryption::NONE)
-	{
-		req_type.encryption_key(space->encryption_key,
-					space->encryption_klen,
-					space->encryption_iv);
-		req_type.encryption_algorithm(Encryption::AES);
-	} else {
+	/* Don't encrypt page 0 of all tablespaces except redo log
+	tablespace, all pages from the system tablespace. */
+	if (space->encryption_type == Encryption::NONE
+	    || (page_id.page_no() == 0 && !req_type.is_log())) {
 		req_type.clear_encrypted();
+		return;
 	}
+
+	/* For writting redo log, if encryption for redo log is disabled,
+	skip set encryption. */
+	if (req_type.is_log() && req_type.is_write()
+	    && !srv_redo_log_encrypt) {
+		req_type.clear_encrypted();
+		return;
+	}
+
+	/* For writting undo log, if encryption for undo log is disabled,
+	skip set encryption. */
+	if (fsp_is_undo_tablespace(space->id)
+	    && !srv_undo_log_encrypt && req_type.is_write()) {
+		req_type.clear_encrypted();
+		return;
+	}
+
+	req_type.encryption_key(space->encryption_key,
+				space->encryption_klen,
+				space->encryption_iv);
+	req_type.encryption_algorithm(Encryption::AES);
 }
 
 /** Read or write data. This operation could be asynchronous (aio).
@@ -4827,7 +4835,7 @@ fil_io(
 				space->name, byte_offset, len,
 				req_type.is_read());
 
-		} else if (fil_is_user_tablespace_id(space->id)
+		} else if (fsp_is_ibd_tablespace(space->id)
 			   && node->size == 0) {
 
 			/* We do not know the size of a single-table tablespace
@@ -4839,17 +4847,14 @@ fil_io(
 			break;
 
 		} else {
-			if (space->id != srv_sys_space.space_id()
+			if (space->id != TRX_SYS_SPACE
 			    && UT_LIST_GET_LEN(space->chain) == 1
 			    && req_type.is_read()
-			    && (undo::Truncate::is_tablespace_truncated(
-				    space->id)
-				|| undo::Truncate::was_tablespace_truncated(
-				    space->id))) {
+			    && undo::is_under_construction(space->id)) {
 
 				/* Handle page which is outside the truncated
 				tablespace bounds when recovering from a crash
-				happened during a truncation */
+				that happened during a truncation */
 				mutex_exit(&fil_system->mutex);
 				return(DB_TABLESPACE_DELETED);
 			}
@@ -4862,7 +4867,7 @@ fil_io(
 	/* Open file if closed */
 	if (!fil_node_prepare_for_io(node, fil_system, space)) {
 		if (fil_type_is_data(space->purpose)
-		    && fil_is_user_tablespace_id(space->id)) {
+		    && fsp_is_ibd_tablespace(space->id)) {
 			mutex_exit(&fil_system->mutex);
 
 			if (!req_type.ignore_missing()) {
@@ -4891,7 +4896,7 @@ fil_io(
 	/* Check that at least the start offset is within the bounds of a
 	single-table tablespace, including rollback tablespaces. */
 	if (node->size <= cur_page_no
-	    && space->id != srv_sys_space.space_id()
+	    && space->id != TRX_SYS_SPACE
 	    && fil_type_is_data(space->purpose)) {
 
 		if (req_type.ignore_missing()) {
@@ -5112,7 +5117,7 @@ fil_flush(
 					the database) */
 {
 	fil_node_t*	node;
-	os_file_t	file;
+	pfs_os_file_t	file;
 
 	mutex_enter(&fil_system->mutex);
 
@@ -5495,7 +5500,7 @@ fil_buf_block_init(
 }
 
 struct fil_iterator_t {
-	os_file_t	file;			/*!< File handle */
+	pfs_os_file_t	file;			/*!< File handle */
 	const char*	filepath;		/*!< File path name */
 	os_offset_t	start;			/*!< From where to start */
 	os_offset_t	end;			/*!< Where to stop */
@@ -5676,7 +5681,7 @@ fil_tablespace_iterate(
 	PageCallback&	callback)
 {
 	dberr_t		err;
-	os_file_t	file;
+	pfs_os_file_t	file;
 	char*		filepath;
 	bool		success;
 
@@ -5965,9 +5970,12 @@ fil_node_next(
 			space->n_pending_ops--;
 			space = UT_LIST_GET_NEXT(space_list, space);
 
-			/* Skip spaces that are being dropped. */
+			/* Skip spaces that are being
+			created by fil_ibd_create(),
+			or dropped. */
 			while (space != NULL
-			       && space->stop_new_ops) {
+			       && (UT_LIST_GET_LEN(space->chain) == 0
+				   || space->stop_new_ops)) {
 				space = UT_LIST_GET_NEXT(space_list, space);
 			}
 
@@ -6000,12 +6008,10 @@ fil_mtr_rename_log(
 	dberr_t	err;
 
 	bool	old_is_file_per_table =
-		!is_system_tablespace(old_table->space)
-		&& !DICT_TF_HAS_SHARED_SPACE(old_table->flags);
+		dict_table_is_file_per_table(old_table);
 
 	bool	new_is_file_per_table =
-		!is_system_tablespace(new_table->space)
-		&& !DICT_TF_HAS_SHARED_SPACE(new_table->flags);
+		dict_table_is_file_per_table(new_table);
 
 	/* If neither table is file-per-table,
 	there will be no renaming of files. */
@@ -6185,6 +6191,7 @@ fil_names_clear(
 	bool	do_write)
 {
 	mtr_t	mtr;
+	ulint	mtr_checkpoint_size = LOG_CHECKPOINT_FREE_PER_THREAD;
 
 	ut_ad(log_mutex_own());
 
@@ -6218,11 +6225,24 @@ fil_names_clear(
 		fil_names_write(space, &mtr);
 		do_write = true;
 
+		const mtr_buf_t* mtr_log = mtr_get_log(&mtr);
+
+		/** If the mtr buffer size exceeds the size of
+		LOG_CHECKPOINT_FREE_PER_THREAD then commit the multi record
+		mini-transaction, start the new mini-transaction to
+		avoid the parsing buffer overflow error during recovery. */
+
+		if (mtr_log->size() > mtr_checkpoint_size) {
+			ut_ad(mtr_log->size() < (RECV_PARSING_BUF_SIZE / 2));
+			mtr.commit_checkpoint(lsn, false);
+			mtr.start();
+		}
+
 		space = next;
 	}
 
 	if (do_write) {
-		mtr.commit_checkpoint(lsn);
+		mtr.commit_checkpoint(lsn, true);
 	} else {
 		ut_ad(!mtr.has_modifications());
 	}
@@ -6344,9 +6364,9 @@ fil_set_encryption(
 	byte*			key,
 	byte*			iv)
 {
-	ut_ad(!is_system_or_undo_tablespace(space_id));
+	ut_ad(space_id != TRX_SYS_SPACE);
 
-	if (is_system_tablespace(space_id)) {
+	if (fsp_is_system_or_temp_tablespace(space_id)) {
 		return(DB_IO_NO_ENCRYPT_TABLESPACE);
 	}
 
@@ -6359,8 +6379,6 @@ fil_set_encryption(
 		return(DB_NOT_FOUND);
 	}
 
-	ut_ad(algorithm != Encryption::NONE);
-	space->encryption_type = algorithm;
 	if (key == NULL) {
 		Encryption::random_value(space->encryption_key);
 	} else {
@@ -6375,6 +6393,9 @@ fil_set_encryption(
 		memcpy(space->encryption_iv,
 		       iv, ENCRYPTION_KEY_LEN);
 	}
+
+	ut_ad(algorithm != Encryption::NONE);
+	space->encryption_type = algorithm;
 
 	mutex_exit(&fil_system->mutex);
 
@@ -6393,13 +6414,26 @@ fil_encryption_rotate()
 	for (space = UT_LIST_GET_FIRST(fil_system->space_list);
 	     space != NULL; ) {
 		/* Skip unencypted tablespaces. */
-		if (is_system_or_undo_tablespace(space->id)
-		    || fsp_is_system_temporary(space->id)
+		/* Encrypted redo log tablespaces is handled in function
+		log_rotate_encryption. */
+		if (fsp_is_system_or_temp_tablespace(space->id)
 		    || space->purpose == FIL_TYPE_LOG) {
 			space = UT_LIST_GET_NEXT(space_list, space);
 			continue;
 		}
 
+		/* Skip the undo tablespace when it's in default
+		key status, since it's the first server startup
+		after bootstrap, and the server uuid is not ready
+		yet. */
+		if (fsp_is_undo_tablespace(space->id)
+		    && Encryption::master_key_id ==
+			ENCRYPTION_DEFAULT_MASTER_KEY_ID) {
+			space = UT_LIST_GET_NEXT(space_list, space);
+			continue;
+		}
+
+		/* Rotate the encrypted tablespaces. */
 		if (space->encryption_type != Encryption::NONE) {
 			mtr_start(&mtr);
 			mtr.set_named_space(space->id);

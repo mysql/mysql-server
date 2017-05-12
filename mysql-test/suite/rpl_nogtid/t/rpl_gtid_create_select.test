@@ -1,7 +1,6 @@
 # ==== See rpl_gtid_split_statements.test ====
 
 --source include/have_binlog_format_row.inc
---source include/not_gtid_enabled.inc
 --source include/master-slave.inc
 
 --echo ---- GTID_NEXT=AUTOMATIC -----

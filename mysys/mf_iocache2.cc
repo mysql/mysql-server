@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,11 +18,20 @@
   More functions to be used with IO_CACHE files
 */
 
-#include "mysys_priv.h"
-#include "my_sys.h"
-#include <m_string.h>
 #include <stdarg.h>
-#include <m_ctype.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/types.h>
+
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_sys.h"
+#include "mysql/psi/mysql_mutex.h"
 
 /*
   Copy contents of an IO_CACHE to a file.
@@ -316,7 +325,7 @@ size_t my_b_vprintf(IO_CACHE *info, const char* fmt, va_list args)
   uint minimum_width; /* as yet unimplemented */
   uint minimum_width_sign;
   uint precision; /* as yet unimplemented for anything but %b */
-  my_bool is_zero_padded;
+  bool is_zero_padded;
 
   /*
     Store the location of the beginning of a format directive, for the

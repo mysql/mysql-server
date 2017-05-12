@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -15,10 +15,32 @@
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 */
 
-#include "wkt_parser.h"
-#include "mysqld_error.h"                  // ER_*
-#include <m_ctype.h>                       // my_strcasecmp
+#include "sql/gis/srs/wkt_parser.h"
+
+#include <boost/concept/usage.hpp>
+#include <boost/fusion/adapted/struct/adapt_struct.hpp>
+#include <boost/fusion/iterator/deref.hpp>
+#include <boost/preprocessor/arithmetic/dec.hpp>
+#include <boost/preprocessor/arithmetic/inc.hpp>
+#include <boost/preprocessor/comparison/not_equal.hpp>
+#include <boost/preprocessor/control/expr_iif.hpp>
+#include <boost/preprocessor/control/iif.hpp>
+#include <boost/preprocessor/logical/bool.hpp>
+#include <boost/preprocessor/repetition/for.hpp>
+#include <boost/preprocessor/seq/elem.hpp>
+#include <boost/preprocessor/seq/size.hpp>
+#include <boost/preprocessor/tuple/elem.hpp>
+#include <boost/preprocessor/tuple/to_seq.hpp>
+#include <boost/preprocessor/variadic/elem.hpp>
+#include <boost/proto/operators.hpp>
 #include <boost/spirit/include/qi.hpp>
+#include <cctype>
+
+#include "gis/srs/srs.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
+#include "mysqld_error.h"                  // ER_*
 
 BOOST_FUSION_ADAPT_STRUCT(
   gis::srs::wkt_parser::Authority,
@@ -315,24 +337,24 @@ struct Grammar : qi::grammar<Iterator, Coordinate_system(), Skipper>
 
 bool gis::srs::wkt_parser::parse_wkt(
   srid_t srid,
-  std::string *str,
+  const char *begin,
+  const char *end,
   gis::srs::wkt_parser::Coordinate_system *cs)
 {
   // gis::srs::parse_wkt() should have filtered these out already
-  DBUG_ASSERT(str != nullptr && !str->empty());
+  DBUG_ASSERT(begin != nullptr && begin != end);
 
   namespace wp= gis::srs::wkt_parser;
 
   bool res= false;
-  std::string::iterator it= str->begin();
-  std::string::iterator end= str->end();
+  const char *it= begin;
 
-  std::string::iterator delimiter= str->end();
+  const char *delimiter= end;
   delimiter--;
-  while (delimiter > str->begin() && std::isspace(*delimiter))
+  while (delimiter > begin && std::isspace(*delimiter))
     delimiter--;
 
-  wp::Grammar<std::string::iterator,
+  wp::Grammar<decltype(delimiter),
               boost::spirit::ascii::space_type> g(*delimiter);
 
   try

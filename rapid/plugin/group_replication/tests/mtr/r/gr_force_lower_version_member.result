@@ -1,0 +1,54 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+#
+# Setup a member in a way that his version is higher than member 2
+#
+server1
+SET @debug_saved= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_higher_major_version';
+include/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+#
+# Try to add a new member that has a lower version than member 1
+#
+server2
+SET session sql_log_bin=0;
+call mtr.add_suppression("Member version is incompatible with the group");
+SET session sql_log_bin=1;
+SET GLOBAL group_replication_group_name= "6f6932e0-03d9-11e5-b939-0800200c9a12";
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+SET GLOBAL group_replication_allow_local_lower_version_join= NULL;
+ERROR 42000: Variable 'group_replication_allow_local_lower_version_join' can't be set to the value of 'NULL'
+SET GLOBAL group_replication_allow_local_lower_version_join= "a";
+ERROR 42000: Variable 'group_replication_allow_local_lower_version_join' can't be set to the value of 'a'
+SET GLOBAL group_replication_allow_local_lower_version_join= 1.2;
+ERROR 42000: Incorrect argument type to variable 'group_replication_allow_local_lower_version_join'
+SET GLOBAL group_replication_allow_local_lower_version_join= ON;
+include/start_group_replication.inc
+INSERT INTO t1 VALUES (2);
+include/rpl_sync.inc
+#
+# Check all is fine
+#
+server1
+include/assert.inc [GTID_EXECUTED must contain all committed GTIDs]
+include/assert.inc ['There is a value 1 in table t1']
+include/assert.inc ['There is a value 2 in table t1']
+server2
+include/assert.inc [GTID_EXECUTED must contain all committed GTIDs]
+include/assert.inc ['There is a value 1 in table t1']
+include/assert.inc ['There is a value 2 in table t1']
+#
+# Clean up
+#
+DROP TABLE t1;
+SET @@GLOBAL.DEBUG= @debug_save;
+include/stop_group_replication.inc
+include/start_group_replication.inc
+SET GLOBAL group_replication_allow_local_lower_version_join= OFF;
+include/group_replication_end.inc

@@ -1,7 +1,7 @@
 # Tests for setting innodb-page-size=8k
 
---source include/have_innodb.inc
---source include/have_innodb_8k.inc
+# WL#7554: Added setting --bootstrap --character-set-server=latin1
+# in the opt file. This test should be migrated to utf8mb4.
 SET default_storage_engine=InnoDB;
 
 --disable_query_log
@@ -42,6 +42,7 @@ SELECT	t.name table_name, t.n_cols, t.flag table_flags,
 		INFORMATION_SCHEMA.INNODB_SYS_INDEXES i
 	WHERE	t.table_id = i.table_id
 	AND	t.name LIKE 'mysql%'
+        AND     t.name NOT LIKE 'mysql/ndb_binlog_index' 
 	ORDER BY t.name, i.index_id;
 
 CREATE TABLE t1 (a INT KEY, b TEXT) ROW_FORMAT=REDUNDANT ENGINE=innodb;

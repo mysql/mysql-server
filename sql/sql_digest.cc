@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -17,16 +17,23 @@
   This code needs extra visibility in the lexer structures
 */
 
-#include "sql_digest.h"
+#include "sql/sql_digest.h"
 
+#include "item_create.h"
+#include "lex_string.h"
+#include "m_ctype.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
 #include "my_md5.h"                 // compute_md5_hash
-#include "mysqld.h"                 // max_digest_length
+#include "my_sys.h"
+#include "mysql_com.h"
 #include "sql_digest_stream.h"      // sql_digest_state
 #include "sql_lex.h"                // LEX_YYSTYPE
 #include "sql_string.h"             // String
-
+#include "sql_udf.h"
 /* Generated code */
 #include "sql_yacc.h"
+
 #define LEX_TOKEN_WITH_DEFINITION
 #include "lex_token.h"
 
@@ -71,6 +78,7 @@ inline uint read_token(const sql_digest_storage *digest_storage,
 */
 inline void store_token(sql_digest_storage* digest_storage, uint token)
 {
+  /* WRITE: ok to assert, storing a token is race free. */
   DBUG_ASSERT(digest_storage->m_byte_count <= digest_storage->m_token_array_length);
 
   if (digest_storage->m_byte_count + SIZE_OF_A_TOKEN <= digest_storage->m_token_array_length)
@@ -95,8 +103,7 @@ inline uint read_identifier(const sql_digest_storage* digest_storage,
   uint new_index;
   uint safe_byte_count= digest_storage->m_byte_count;
 
-  DBUG_ASSERT(index <= safe_byte_count);
-  DBUG_ASSERT(safe_byte_count <= digest_storage->m_token_array_length);
+  /* READ: never assert on data, reading can be racy when used concurrently (pfs). */
 
   /*
     token + length + string are written in an atomic way,
@@ -105,7 +112,8 @@ inline uint read_identifier(const sql_digest_storage* digest_storage,
 
   uint bytes_needed= SIZE_OF_A_TOKEN;
   /* If we can read token and identifier length */
-  if ((index + bytes_needed) <= safe_byte_count)
+  if ((safe_byte_count <= digest_storage->m_token_array_length) &&
+      (index + bytes_needed) <= safe_byte_count)
   {
     const unsigned char *src= & digest_storage->m_token_array[index];
     /* Read the length of identifier */
@@ -118,7 +126,6 @@ inline uint read_identifier(const sql_digest_storage* digest_storage,
       *id_length= length;
 
       new_index= index + bytes_needed;
-      DBUG_ASSERT(new_index <= safe_byte_count);
       return new_index;
     }
   }
@@ -134,6 +141,7 @@ inline void store_token_identifier(sql_digest_storage* digest_storage,
                                    uint token,
                                    size_t id_length, const char *id_name)
 {
+  /* WRITE: ok to assert, storing a token is race free. */
   DBUG_ASSERT(digest_storage->m_byte_count <= digest_storage->m_token_array_length);
 
   size_t bytes_needed= 2 * SIZE_OF_A_TOKEN + id_length;
@@ -609,6 +617,16 @@ sql_digest_state* digest_add_token(sql_digest_state *state,
 
       /* Update the index of last identifier found. */
       state->m_last_id_index= digest_storage->m_byte_count;
+      break;
+    }
+    case 0:
+    {
+      unsigned int temp_tok;
+      read_token(digest_storage,
+                 digest_storage->m_byte_count-SIZE_OF_A_TOKEN,
+                 & temp_tok);
+      if (temp_tok == ';')
+        digest_storage->m_byte_count-= SIZE_OF_A_TOKEN;
       break;
     }
     default:

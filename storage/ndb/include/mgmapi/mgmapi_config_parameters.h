@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -218,6 +218,8 @@
 
 #define CFG_DB_SCHED_SCAN_PRIORITY    647
 
+#define CFG_DB_DISK_DATA_FORMAT       648
+
 #define CFG_NODE_ARBIT_RANK           200
 #define CFG_NODE_ARBIT_DELAY          201
 #define CFG_EXTRA_SEND_BUFFER_MEMORY  203
@@ -300,6 +302,7 @@
 #define CFG_DEFAULT_HASHMAP_SIZE      806
 #define CFG_CONNECT_BACKOFF_MAX_TIME 807
 #define CFG_START_CONNECT_BACKOFF_MAX_TIME 808
+#define CFG_API_VERBOSE               809
 
 /**
  * Internal

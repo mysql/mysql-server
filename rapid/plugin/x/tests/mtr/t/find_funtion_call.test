@@ -20,7 +20,7 @@
 --echo ================================================================================
 --echo PREAMBLE
 --echo ================================================================================
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 create user crudfinduser@localhost identified by 'crudfinduser';
 grant all on *.* to crudfinduser@localhost;
 

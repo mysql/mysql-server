@@ -16,9 +16,10 @@
 #ifndef PARSE_ERROR_INCLUDED_H
 #define PARSE_ERROR_INCLUDED_H
 
-#include "my_config.h"
-#include "parse_location.h"
+#include <stddef.h>
 #include <cstdarg>
+
+#include "parse_location.h"
 
 class THD;
 

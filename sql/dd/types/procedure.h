@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +16,6 @@
 #ifndef DD__PROCEDURE_INCLUDED
 #define DD__PROCEDURE_INCLUDED
 
-#include "my_global.h"
 
 #include "dd/types/routine.h"    // Routine
 
@@ -38,7 +37,7 @@ public:
 
   static bool update_name_key(name_key_type *key,
                               Object_id schema_id,
-                              const std::string &name);
+                              const String_type &name);
 
 public:
   virtual ~Procedure()

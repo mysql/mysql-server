@@ -33,7 +33,7 @@ let BOOTSTRAP_SQL=$MYSQL_TMP_DIR/boot.sql;
 
 --echo # create bootstrap file
 write_file $BOOTSTRAP_SQL;
-CREATE DATABASE test;
+CREATE DATABASE test DEFAULT CHARACTER SET latin1;
 EOF
 
 # Note: we add the following parameters: "--innodb_log_file_size=5M
@@ -161,8 +161,7 @@ DROP DATABASE test;
 --source include/shutdown_mysqld.inc
 
 # Remove residue files and data folder of page size 32K
-let CLEANUP_FOLDER=$MYSQL_TMP_DIR/datadir1/data;
---source include/cleanup_folder.inc
+--force-rmdir $MYSQL_TMP_DIR/datadir1/data
 
 # Create datadir path,rathan than mtr defaults path
 --mkdir $MYSQL_TMP_DIR/datadir1/data
@@ -222,8 +221,7 @@ DROP DATABASE test;
 --source include/shutdown_mysqld.inc
 
 # Remove residue files and data folder of page size 16K
-let CLEANUP_FOLDER=$MYSQL_TMP_DIR/datadir1/data;
---source include/cleanup_folder.inc
+--force-rmdir $MYSQL_TMP_DIR/datadir1/data
 
 # Create datadir path,rathan than mtr defaults path
 --mkdir $MYSQL_TMP_DIR/datadir1/data
@@ -274,6 +272,5 @@ call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot add field.*");
 --enable_query_log
 --remove_file $BOOTSTRAP_SQL
 # Remove residue files and data folder of page size 32K
-let CLEANUP_FOLDER=$MYSQL_TMP_DIR/datadir1;
---source include/cleanup_folder.inc
+--force-rmdir $MYSQL_TMP_DIR/datadir1
 --remove_file $MYSQLTEST_VARDIR/tmp/wl5757.sql

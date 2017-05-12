@@ -36,12 +36,22 @@ if (!$TABLE)
   --let $TABLE= indexes
   --source dd_table_access.test
 
-  DROP TABLE t;
+  --echo # Turn off innodb_stats_auto_recalc to avoid conflicting updates.
+  SET @@global.innodb_stats_auto_recalc= OFF;
 
   --echo # Check that we may query and update mysql.innodb_index_stats.
-  SELECT stat_description FROM mysql.innodb_index_stats LIMIT 1;
-  UPDATE mysql.innodb_index_stats SET stat_description='Updated';
-  SELECT stat_description FROM mysql.innodb_index_stats LIMIT 1;
+  SELECT @old_description:= stat_description FROM  mysql.innodb_index_stats
+    WHERE database_name= 'mysql' AND table_name= 't' AND
+          index_name= 'PRIMARY' AND stat_name= 'size';
+  UPDATE mysql.innodb_index_stats SET stat_description= 'Updated'
+    WHERE database_name= 'mysql' AND table_name= 't' AND
+          index_name= 'PRIMARY' AND stat_name= 'size';
+  SELECT stat_description FROM mysql.innodb_index_stats
+    WHERE database_name= 'mysql' AND table_name= 't' AND
+          index_name= 'PRIMARY' AND stat_name= 'size';
+  UPDATE mysql.innodb_index_stats SET stat_description= @old_description
+    WHERE database_name= 'mysql' AND table_name= 't' AND
+          index_name= 'PRIMARY' AND stat_name= 'size';
 
   --echo # Check that we may not DROP or CREATE mysql.innodb_index_stats.
   --error ER_NO_SYSTEM_TABLE_ACCESS
@@ -75,6 +85,11 @@ if (!$TABLE)
 
   --echo # Test CHECK TABLE mysql.innodb_index_stats.
   CHECK TABLE mysql.innodb_index_stats;
+
+  --echo # Reset innodb_stats_auto_recalc.
+  SET @@global.innodb_stats_auto_recalc= default;
+
+  DROP TABLE t;
 
   --exit
 }

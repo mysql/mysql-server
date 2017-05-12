@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -67,8 +67,9 @@ int          g_restart = 0;
 const char * g_cwd = 0;
 const char * g_basedir = 0;
 const char * g_my_cnf = 0;
-const char * g_prefix = 0;
-const char * g_prefix1 = 0;
+const char * g_prefix = NULL;
+const char * g_prefix0 = NULL;
+const char * g_prefix1 = NULL;
 const char * g_clusters = 0;
 const char * g_site = NULL;
 BaseString g_replicate;
@@ -151,8 +152,11 @@ static struct my_option g_options[] =
   { "baseport", 256, "Base port",
     (uchar **) &g_baseport, (uchar **) &g_baseport,
     0, GET_INT, REQUIRED_ARG, g_baseport, 0, 0, 0, 0, 0},
-  { "prefix", 256, "mysql install dir",
+  { "prefix", 256, "atrt install dir",
     (uchar **) &g_prefix, (uchar **) &g_prefix,
+    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  { "prefix0", 256, "mysql install dir",
+    (uchar **) &g_prefix0, (uchar **) &g_prefix0,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { "prefix1", 256, "mysql install dir 1",
     (uchar **) &g_prefix1, (uchar **) &g_prefix1,
@@ -594,7 +598,7 @@ main(int argc, char ** argv)
 }
 
 extern "C"
-my_bool 
+bool 
 get_one_option(int arg, const struct my_option * opt, char * value)
 {
   if (arg == 1024)
@@ -745,9 +749,28 @@ parse_args(int argc, char** argv)
     g_logger.info("basedir, %s", g_basedir);
   }
 
-  if (!g_prefix)
+  const char* default_prefix;
+  if (g_prefix != NULL)
+  {
+    default_prefix = g_prefix;
+  }
+  else if (g_prefix0 != NULL)
+  {
+    default_prefix = g_prefix0;
+  }
+  else
+  {
+    default_prefix = DEFAULT_PREFIX;
+  }
+
+  if (g_prefix == NULL)
   {
     g_prefix = DEFAULT_PREFIX;
+  }
+
+  if (g_prefix0 == NULL)
+  {
+    g_prefix0 = DEFAULT_PREFIX;
   }
 
   /**
@@ -838,8 +861,6 @@ parse_args(int argc, char** argv)
     g_my_cnf = strdup(mycnf.c_str());
   }
   
-  g_logger.info("Using --prefix=\"%s\"", g_prefix);
-
   if (g_prefix1)
   {
     g_logger.info("Using --prefix1=\"%s\"", g_prefix1);
@@ -1086,14 +1107,67 @@ start_process(atrt_process & proc){
     return false;
   }
   
+  /**
+   * For MySQL server program we need to pass the correct basedir.
+   */
+  const bool mysqld = proc.m_type & atrt_process::AP_MYSQLD;
+  if (mysqld)
+  {
+    BaseString basedir;
+    /**
+     * If MYSQL_BASE_DIR is set use that for basedir.
+     */
+    ssize_t pos = proc.m_proc.m_env.indexOf("MYSQL_BASE_DIR=");
+    if (pos > 0)
+    {
+      pos = proc.m_proc.m_env.indexOf(" MYSQL_BASE_DIR=");
+      if (pos != -1) pos ++;
+    }
+    if (pos >= 0)
+    {
+      pos += strlen("MYSQL_BASE_DIR=");
+      ssize_t endpos = proc.m_proc.m_env.indexOf(' ', pos);
+      if (endpos == -1) endpos = proc.m_proc.m_env.length();
+      basedir = proc.m_proc.m_env.substr(pos, endpos);
+    }
+    else
+    {
+      /**
+       * If no MYSQL_BASE_DIR set, derive basedir from program path.
+       * Assumming that program path is on the form
+       *   <basedir>/{bin,sql}/mysqld
+       */
+      const BaseString sep("/");
+      Vector<BaseString> dir_parts;
+      int num_of_parts = proc.m_proc.m_path.split(dir_parts, sep);
+      dir_parts.erase(num_of_parts - 1); // remove trailing /mysqld
+      dir_parts.erase(num_of_parts - 2); // remove trailing /bin
+      num_of_parts -= 2;
+      basedir.assign(dir_parts, sep);
+    }
+    if (proc.m_proc.m_args.indexOf("--basedir=") == -1)
+    {
+      proc.m_proc.m_args.appfmt(" --basedir=%s", basedir.c_str());
+      g_logger.info("appended '--basedir=%s' to mysqld process", basedir.c_str());
+    }
+  }
+  BaseString save_args(proc.m_proc.m_args);
   {
     Properties reply;
     if(proc.m_host->m_cpcd->define_process(proc.m_proc, reply) != 0){
       BaseString msg;
       reply.get("errormessage", msg);
-      g_logger.error("Unable to define process: %s", msg.c_str());      
+      g_logger.error("Unable to define process: %s", msg.c_str());
+      if (mysqld)
+      {
+        proc.m_proc.m_args = save_args; /* restore args */
+      }
       return false;
     }
+  }
+  if (mysqld)
+  {
+    proc.m_proc.m_args = save_args; /* restore args */
   }
   {
     Properties reply;
@@ -1590,7 +1664,7 @@ deploy(int d, atrt_config & config)
 
     if (d & 2)
     {
-      if (!do_rsync(g_prefix, config.m_hosts[i]->m_hostname.c_str()))
+      if (!do_rsync(g_prefix0, config.m_hosts[i]->m_hostname.c_str()))
         return false;
     
       if (g_prefix1 && 

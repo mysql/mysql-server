@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -18,7 +18,9 @@
 #ifndef RPL_SESSION_H
 #define RPL_SESSION_H
 
-#include "my_global.h"
+#include <sys/types.h>
+
+#include "my_inttypes.h"
 
 class Gtid_set;
 class Sid_map;
@@ -198,6 +200,29 @@ private:
 };
 
 /*
+  This object encapsulates the state kept between transactions of the same client in
+  order to compute logical timestamps based on WRITESET_SESSION.
+*/
+class Dependency_tracker_ctx
+{
+public:
+  Dependency_tracker_ctx(): m_last_session_sequence_number(0) { }
+
+  void set_last_session_sequence_number(int64 sequence_number)
+  {
+    m_last_session_sequence_number= sequence_number;
+  }
+
+  int64 get_last_session_sequence_number()
+  {
+    return m_last_session_sequence_number;
+  }
+
+private:
+  int64 m_last_session_sequence_number;
+};
+
+/*
   This class SHALL encapsulate the replication context associated with the THD
   object.
  */
@@ -205,6 +230,7 @@ class Rpl_thd_context
 {
 private:
   Session_consistency_gtids_ctx m_session_gtids_ctx;
+  Dependency_tracker_ctx m_dependency_tracker_ctx;
 
   // make these private
   Rpl_thd_context(const Rpl_thd_context& rsc);
@@ -216,6 +242,11 @@ public:
   inline Session_consistency_gtids_ctx& session_gtids_ctx()
   {
     return m_session_gtids_ctx;
+  }
+
+  inline Dependency_tracker_ctx& dependency_tracker_ctx()
+  {
+    return m_dependency_tracker_ctx;
   }
 };
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,29 +15,50 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
-#include "my_global.h"                // NO_EMBEDDED_ACCESS_CHECKS
-#include "sql_trigger.h"
+#include "sql/sql_trigger.h"
 
+#include <stddef.h>
+
+#include "auth_acls.h"
 #include "auth_common.h"              // check_table_access
+#include "binlog.h"
+#include "dd/cache/dictionary_client.h"
+#include "dd/dd_schema.h"
+#include "dd/dd_trigger.h"            // dd::table_has_triggers
+#include "dd/string_type.h"
+#include "dd/types/abstract_table.h"  // dd::enum_table_type
+#include "debug_sync.h"               // DEBUG_SYNC
+#include "derror.h"                   // ER_THD
+#include "m_ctype.h"
+#include "my_base.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_psi_config.h"
+#include "my_sys.h"
+#include "mysql/psi/mysql_sp.h"
+#include "mysql_com.h"
 #include "mysqld.h"                   // trust_function_creators
+#include "mysqld_error.h"
 #include "sp.h"                       // sp_add_to_query_tables()
+#include "sp_cache.h"                 // sp_invalidate_cache()
+#include "sp_head.h"                  // sp_name
 #include "sql_base.h"                 // find_temporary_table()
-#include "sql_table.h"                // build_table_filename()
+#include "sql_class.h"
+#include "sql_error.h"
                                       // write_bin_log()
 #include "sql_handler.h"              // mysql_ha_rm_tables()
-#include "sp_cache.h"                 // sp_invalidate_cache()
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_plugin.h"
+#include "sql_security_ctx.h"
+#include "sql_string.h"
+#include "sql_table.h"                // build_table_filename()
+#include "system_variables.h"
+#include "table.h"
 #include "table_trigger_dispatcher.h" // Table_trigger_dispatcher
+#include "thr_lock.h"
 #include "transaction.h"              // trans_commit_stmt, trans_commit
 #include "trigger.h"                  // Trigger
-#include "binlog.h"
-#include "sp_head.h"                  // sp_name
-#include "derror.h"                   // ER_THD
-
-#include "dd/types/abstract_table.h"  // dd::enum_table_type
-#include "dd/dd_trigger.h"            // dd::table_has_triggers
-
-#include "mysql/psi/mysql_sp.h"
-#include "debug_sync.h"               // DEBUG_SYNC
 ///////////////////////////////////////////////////////////////////////////
 
 bool add_table_for_trigger(THD *thd,
@@ -50,7 +71,7 @@ bool add_table_for_trigger(THD *thd,
 
   DBUG_ENTER("add_table_for_trigger");
 
-  std::string table_name;
+  dd::String_type table_name;
   bool trigger_found;
   if (dd::get_table_name_for_trigger(thd, db_name.str,
                                      trigger_name.str,
@@ -76,7 +97,16 @@ bool add_table_for_trigger(THD *thd,
     DBUG_RETURN(true);
   }
 
-  *table= sp_add_to_query_tables(thd, lex, db_name.str, table_name.c_str());
+  char lc_table_name[NAME_LEN + 1];
+  const char *table_name_ptr= table_name.c_str();
+  if (lower_case_table_names == 2)
+  {
+    my_stpncpy(lc_table_name, table_name.c_str(), NAME_LEN);
+    my_casedn_str(files_charset_info, lc_table_name);
+    lc_table_name[NAME_LEN]= '\0';
+    table_name_ptr= lc_table_name;
+  }
+  *table= sp_add_to_query_tables(thd, lex, db_name.str, table_name_ptr);
 
   DBUG_RETURN(*table ? false : true);
 }
@@ -344,23 +374,25 @@ TABLE* Sql_cmd_ddl_trigger_common::open_and_lock_subj_table(
 
 /**
   Close all open instances of a trigger's table, reopen it if needed,
-  invalidate SP-cache and write a statement to binlog.
+  invalidate SP-cache and possibly write a statement to binlog.
 
   @param[in] thd         Current thread context
   @param[in] db_name     Database name where trigger's table defined
   @param[in] table       Table associated with a trigger
   @param[in] stmt_query  Query string to write to binlog
+  @param[in] binlog_stmt Should the statement be binlogged?
 
   @return Operation status.
     @retval false Success
     @retval true  Failure
 */
 
-bool Sql_cmd_ddl_trigger_common::cleanup_on_success(
+static bool finalize_trigger_ddl(
   THD *thd,
   const char *db_name,
   TABLE *table,
-  const String &stmt_query) const
+  const String &stmt_query,
+  bool binlog_stmt)
 {
   close_all_tables_for_name(thd, table->s, false, nullptr);
   /*
@@ -375,10 +407,13 @@ bool Sql_cmd_ddl_trigger_common::cleanup_on_success(
   */
   sp_cache_invalidate();
 
+  if (!binlog_stmt)
+    return false;
+
   thd->add_to_binlog_accessed_dbs(db_name);
 
   DEBUG_SYNC(thd, "trigger_ddl_stmt_before_write_to_binlog");
-  return write_bin_log(thd, true, stmt_query.ptr(), stmt_query.length());
+  return write_bin_log(thd, true, stmt_query.ptr(), stmt_query.length(), true);
 }
 
 
@@ -421,8 +456,14 @@ bool Sql_cmd_create_trigger::execute(THD *thd)
   String stmt_query;
   MDL_ticket *mdl_ticket= nullptr;
   Query_tables_list backup;
+  Security_context *sctx= thd->security_context();
 
   DBUG_ENTER("mysql_create_trigger");
+
+  // This auto releaser will own the DD objects that we commit
+  // at the bottom of this function.
+  dd::Schema_MDL_locker schema_mdl_locker(thd);
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   /* Charset of the buffer for statement must be system one. */
   stmt_query.set_charset(system_charset_info);
@@ -432,6 +473,9 @@ bool Sql_cmd_create_trigger::execute(THD *thd)
     my_error(ER_NO_DB_ERROR, MYF(0));
     DBUG_RETURN(true);
   }
+
+  if (schema_mdl_locker.ensure_locked(m_trigger_table->db))
+    DBUG_RETURN(true);
 
   /*
     We don't allow creating triggers on tables in the 'mysql' schema
@@ -453,7 +497,8 @@ bool Sql_cmd_create_trigger::execute(THD *thd)
     applies to them too.
   */
   if (!trust_function_creators && mysql_bin_log.is_open() &&
-      !(thd->security_context()->check_access(SUPER_ACL)))
+      !(sctx->check_access(SUPER_ACL) ||
+        sctx->has_global_grant(STRING_WITH_LEN("SET_USER_ID")).first))
   {
     my_error(ER_BINLOG_CREATE_ROUTINE_NEED_SUPER, MYF(0));
     DBUG_RETURN(true);
@@ -475,7 +520,10 @@ bool Sql_cmd_create_trigger::execute(THD *thd)
 
   if (acquire_exclusive_mdl_for_trigger(thd, thd->lex->spname->m_db.str,
                                         thd->lex->spname->m_name.str))
+  {
+    restore_original_mdl_state(thd, mdl_ticket);
     DBUG_RETURN(true);
+  }
 
   DEBUG_SYNC(thd, "create_trigger_has_acquired_mdl");
 
@@ -488,8 +536,8 @@ bool Sql_cmd_create_trigger::execute(THD *thd)
 
   result= table->triggers->create_trigger(thd, &stmt_query);
 
-  if (!result)
-    result= cleanup_on_success(thd, m_trigger_table->db, table, stmt_query);
+  result|= finalize_trigger_ddl(thd, m_trigger_table->db, table, stmt_query,
+                                !result);
 
   if (!result)
   {
@@ -544,6 +592,10 @@ bool Sql_cmd_drop_trigger::execute(THD *thd)
   TABLE_LIST *tables= nullptr;
 
   DBUG_ENTER("Sql_cmd_drop_trigger::execute");
+
+  // This auto releaser will own the DD objects that we commit
+  // at the bottom of this function.
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   /* Charset of the buffer for statement must be system one. */
   stmt_query.set_charset(system_charset_info);
@@ -606,7 +658,7 @@ bool Sql_cmd_drop_trigger::execute(THD *thd)
 
     /* Still, we need to log the query ... */
     stmt_query.append(thd->query().str, thd->query().length);
-    result= write_bin_log(thd, true, stmt_query.ptr(), stmt_query.length());
+    result= write_bin_log(thd, true, stmt_query.ptr(), stmt_query.length(), false);
 
     thd->lex->restore_backup_query_tables_list(&backup);
 
@@ -647,8 +699,7 @@ bool Sql_cmd_drop_trigger::execute(THD *thd)
   if (!result && trigger_found)
     result= stmt_query.append(thd->query().str, thd->query().length);
 
-  if (!result)
-    result= cleanup_on_success(thd, tables->db, table, stmt_query);
+  result|= finalize_trigger_ddl(thd, tables->db, table, stmt_query, !result);
 
   /* Restore the query table list. */
   thd->lex->restore_backup_query_tables_list(&backup);

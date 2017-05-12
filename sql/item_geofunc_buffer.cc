@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,24 +13,63 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-
 /**
   @file
-
   @brief
   This file defines ST_Buffer function.
 */
-#include "my_config.h"
-#include "item_geofunc.h"
 
-#include "sql_class.h"    // THD
+#include <boost/concept/usage.hpp>
+#include <boost/geometry/algorithms/buffer.hpp>
+#include <boost/geometry/strategies/agnostic/buffer_distance_symmetric.hpp>
+#include <boost/geometry/strategies/buffer.hpp>
+#include <boost/geometry/strategies/cartesian/buffer_end_flat.hpp>
+#include <boost/geometry/strategies/cartesian/buffer_end_round.hpp>
+#include <boost/geometry/strategies/cartesian/buffer_join_miter.hpp>
+#include <boost/geometry/strategies/cartesian/buffer_join_round.hpp>
+#include <boost/geometry/strategies/cartesian/buffer_point_circle.hpp>
+#include <boost/geometry/strategies/cartesian/buffer_point_square.hpp>
+#include <boost/geometry/strategies/cartesian/buffer_side_straight.hpp>
+#include <boost/iterator/iterator_facade.hpp>
+#include <ctype.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
+#include <algorithm>
+#include <cmath>
+#include <vector>
+
 #include "current_thd.h"
-
-#include "item_geofunc_internal.h"
-#include "gis_bg_traits.h"
 #include "derror.h"                            // ER_THD
-#include "dd/types/spatial_reference_system.h"
-#include "dd/cache/dictionary_client.h"
+#include "item.h"
+#include "item_geofunc.h"
+#include "item_geofunc_internal.h"
+#include "item_strfunc.h"
+#include "m_ctype.h"
+#include "my_byteorder.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
+#include "mysqld_error.h"
+#include "parse_tree_node_base.h"
+#include "spatial.h"
+#include "sql_class.h"    // THD
+#include "sql_error.h"
+#include "sql_string.h"
+#include "system_variables.h"
+#include "template_utils.h"
+
+class PT_item_list;
+namespace boost {
+namespace geometry {
+namespace cs {
+struct cartesian;
+}  // namespace cs
+}  // namespace geometry
+}  // namespace boost
+namespace dd {
+class Spatial_reference_system;
+}  // namespace dd
 
 
 static const char *const buffer_strategy_names []=
@@ -145,7 +184,7 @@ Item_func_buffer_strategy(const POS &pos, PT_item_list *ilist)
 }
 
 
-bool Item_func_buffer_strategy::resolve_type(THD *thd)
+bool Item_func_buffer_strategy::resolve_type(THD *)
 {
   collation.set(&my_charset_bin);
   decimals=0;
@@ -389,12 +428,11 @@ String *Item_func_buffer::val_str(String *str_value_arg)
 
   if (geom->get_srid() != 0)
   {
-    Srs_fetcher fetcher(current_thd);
-    const dd::Spatial_reference_system *srs= nullptr;
-    if (fetcher.acquire(geom->get_srid(), &srs))
+    bool srs_exists= false;
+    if (Srs_fetcher::srs_exists(current_thd, geom->get_srid(), &srs_exists))
       DBUG_RETURN(error_str()); // Error has already been flagged.
 
-    if (srs == nullptr)
+    if (!srs_exists)
     {
       push_warning_printf(current_thd,
                           Sql_condition::SL_WARNING,

@@ -99,7 +99,7 @@ SET @@session.sql_buffer_result = 0.4;
 SET @@session.sql_buffer_result = TRÜE;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.sql_buffer_result = ÕN;
---Error ER_WRONG_VALUE_FOR_VAR
+--error ER_PARSE_ERROR
 SET @@session.sql_buffer_result = OF;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.sql_buffer_result = ÓFF;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,16 +17,26 @@
   @file mysys/my_largepage.cc
 */
 
-#include "mysys_priv.h"
-#include "my_sys.h"
-#include "mysql/psi/mysql_file.h"
-
+#include <errno.h>
+#include <fcntl.h>
+#include <stdio.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
+#include <sys/types.h>
+
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_loglevel.h"
+#include "my_pointer_arithmetic.h"
+#include "my_sys.h"
+#include "mysql/psi/mysql_file.h"
+#include "mysql/psi/psi_memory.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysys_priv.h"
 
 static uint my_get_large_page_size_int(void);
 static uchar* my_large_malloc_int(size_t size, myf my_flags);
-static my_bool my_large_free_int(uchar* ptr);
+static bool my_large_free_int(uchar* ptr);
 
 /* Gets the size of large pages from the OS */
 
@@ -155,7 +165,7 @@ uchar* my_large_malloc_int(size_t size, myf my_flags)
 
 /* Linux-specific large pages deallocator */
 
-my_bool my_large_free_int(uchar *ptr)
+bool my_large_free_int(uchar *ptr)
 {
   DBUG_ENTER("my_large_free_int");
   DBUG_RETURN(shmdt(ptr) == 0);

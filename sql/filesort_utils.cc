@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,16 +14,22 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "filesort_utils.h"
-#include "opt_costmodel.h"
-#include "psi_memory_key.h"
-#include "sql_const.h"
-#include "sql_sort.h"
-#include "table.h"
 
+#include <string.h>
 #include <algorithm>
 #include <cmath>
 #include <functional>
-#include <vector>
+#include <memory>
+#include <new>
+
+#include "cmp_varlen_keys.h"
+#include "my_dbug.h"
+#include "my_io.h"
+#include "my_pointer_arithmetic.h"
+#include "my_sys.h"
+#include "opt_costmodel.h"
+#include "sql_sort.h"
+#include "thr_malloc.h"
 
 extern "C" {
 PSI_memory_key key_memory_Filesort_buffer_sort_keys;
@@ -170,8 +176,7 @@ inline bool my_mem_compare_longkey(const uchar *s1, const uchar *s2, size_t len)
 }
 
 
-class Mem_compare :
-  public std::binary_function<const uchar*, const uchar*, bool>
+class Mem_compare
 {
 public:
   Mem_compare(size_t n) : m_size(n) {}
@@ -188,8 +193,7 @@ private:
   size_t m_size;
 };
 
-class Mem_compare_longkey :
-  public std::binary_function<const uchar*, const uchar*, bool>
+class Mem_compare_longkey
 {
 public:
   Mem_compare_longkey(size_t n) : m_size(n) {}
@@ -206,6 +210,24 @@ private:
   size_t m_size;
 };
 
+
+class Mem_compare_varlen_key
+{
+public:
+  Mem_compare_varlen_key(const Bounds_checked_array<st_sort_field> sfa)
+    : sort_field_array(sfa.array(), sfa.size())
+  {
+  }
+
+  bool operator()(const uchar *s1, const uchar *s2) const
+  {
+    return cmp_varlen_keys(sort_field_array, s1, s2);
+  }
+private:
+  Bounds_checked_array<st_sort_field> sort_field_array;
+};
+
+
 template <typename type>
 size_t try_reserve(std::pair<type*, ptrdiff_t> *buf, ptrdiff_t size)
 {
@@ -220,13 +242,14 @@ size_t try_reserve(std::pair<type*, ptrdiff_t> *buf, ptrdiff_t size)
 
 } // namespace
 
-void Filesort_buffer::sort_buffer(const Sort_param *param, uint count)
+void Filesort_buffer::sort_buffer(Sort_param *param, uint count)
 {
   m_sort_keys= get_sort_keys();
+  param->m_sort_algorithm= Sort_param::FILESORT_ALG_NONE;
 
   if (count <= 1)
     return;
-  if (param->sort_length == 0)
+  if (param->max_compare_length() == 0)
     return;
 
   // For priority queue we have already reversed the pointers.
@@ -234,11 +257,22 @@ void Filesort_buffer::sort_buffer(const Sort_param *param, uint count)
   {
     reverse_record_pointers();
   }
+
+  if (param->using_varlen_keys())
+  {
+    param->m_sort_algorithm= Sort_param::FILESORT_ALG_STD_SORT;
+    std::sort(m_sort_keys, m_sort_keys + count,
+              Mem_compare_varlen_key(param->local_sortorder));
+    return;
+  }
+
   std::pair<uchar**, ptrdiff_t> buffer;
-  if (radixsort_is_appliccable(count, param->sort_length) &&
+  if (radixsort_is_appliccable(count, param->max_compare_length()) &&
       try_reserve(&buffer, count))
   {
-    radixsort_for_str_ptr(m_sort_keys, count, param->sort_length, buffer.first);
+    param->m_sort_algorithm= Sort_param::FILESORT_ALG_RADIX;
+    radixsort_for_str_ptr(m_sort_keys, count,
+                          param->max_compare_length(), buffer.first);
     std::return_temporary_buffer(buffer.first);
     return;
   }
@@ -250,23 +284,29 @@ void Filesort_buffer::sort_buffer(const Sort_param *param, uint count)
   */
   if (count <= 100)
   {
-    if (param->sort_length < 10)
+    if (param->max_compare_length() < 10)
     {
+      param->m_sort_algorithm= Sort_param::FILESORT_ALG_STD_SORT;
       std::sort(m_sort_keys, m_sort_keys + count,
-                Mem_compare(param->sort_length));
+                Mem_compare(param->max_compare_length()));
       return;
     }
+    param->m_sort_algorithm= Sort_param::FILESORT_ALG_STD_SORT;
     std::sort(m_sort_keys, m_sort_keys + count,
-              Mem_compare_longkey(param->sort_length));
+              Mem_compare_longkey(param->max_compare_length()));
     return;
   }
+
   // Heuristics here: avoid function overhead call for short keys.
-  if (param->sort_length < 10)
+  if (param->max_compare_length() < 10)
   {
+    param->m_sort_algorithm= Sort_param::FILESORT_ALG_STD_STABLE;
     std::stable_sort(m_sort_keys, m_sort_keys + count,
-                     Mem_compare(param->sort_length));
+                     Mem_compare(param->max_compare_length()));
     return;
   }
+
+  param->m_sort_algorithm= Sort_param::FILESORT_ALG_STD_STABLE;
   std::stable_sort(m_sort_keys, m_sort_keys + count,
-                   Mem_compare_longkey(param->sort_length));
+                   Mem_compare_longkey(param->max_compare_length()));
 }

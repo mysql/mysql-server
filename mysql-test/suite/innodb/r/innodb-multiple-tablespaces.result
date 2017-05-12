@@ -315,6 +315,7 @@ INSERT INTO yy VALUES (1, 'yy');
 #
 # Crash the server, copy and remove files.
 #
+SET GLOBAL innodb_master_thread_disabled_debug=1;
 BEGIN;
 INSERT INTO ny VALUES (2, 'ny');
 INSERT INTO wy VALUES (2, 'wy');

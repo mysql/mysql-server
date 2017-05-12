@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,9 +17,12 @@
 
 #include "sql_string.h"
 
-#include "mysql_com.h"    // MAX_BIGINT_WIDTH
-
 #include <algorithm>
+
+#include "my_dbug.h"
+#include "my_macros.h"
+#include "my_pointer_arithmetic.h"
+#include "mysql_com.h"    // MAX_BIGINT_WIDTH
 
 using std::min;
 using std::max;
@@ -574,7 +577,7 @@ bool String::append_ulonglong(ulonglong val)
 */
 bool String::append_longlong(longlong val)
 {
-  if (mem_realloc(m_length + MAX_BIGINT_WIDTH + 2))
+  if (mem_realloc_exp(m_length + MAX_BIGINT_WIDTH + 2))
     return true;                              /* purecov: inspected */
   char *end= longlong10_to_str(val, m_ptr + m_length, -10);
   m_length= end - m_ptr;
@@ -677,14 +680,14 @@ size_t String::numchars() const
   return m_charset->cset->numchars(m_charset, m_ptr, m_ptr + m_length);
 }
 
-size_t String::charpos(size_t i, size_t offset)
+size_t String::charpos(size_t i, size_t offset) const
 {
   if (i <= 0)
     return i;
   return m_charset->cset->charpos(m_charset, m_ptr + offset, m_ptr + m_length, i);
 }
 
-int String::strstr(const String &s, size_t offset)
+int String::strstr(const String &s, size_t offset) const
 {
   if (s.length()+offset <= m_length)
   {
@@ -715,7 +718,7 @@ skip:
 ** Search string from end. Offset is offset to the end of string
 */
 
-int String::strrstr(const String &s, size_t offset)
+int String::strrstr(const String &s, size_t offset) const
 {
   if (s.length() <= offset && offset <= m_length)
   {
@@ -1346,5 +1349,48 @@ bool validate_string(const CHARSET_INFO *cs, const char *str, uint32 length,
     from+= cnvres;
   }
   *valid_length= length;
+  return false;
+}
+
+
+/**
+  Appends from_str to to_str, escaping certain characters.
+
+  @param [in,out] to_str   The destination string.
+  @param [in]     from_str The source string.
+
+  @return false on success, true on error.
+*/
+
+bool append_escaped(String *to_str, const String *from_str)
+{
+  if (to_str->mem_realloc(to_str->length() + from_str->length()))
+    return true; // OOM
+
+  const char *from= from_str->ptr();
+  const char *end= from + from_str->length();
+  for (; from < end; from++)
+  {
+    char c= *from;
+    switch (c) {
+    case '\0':
+      c= '0';
+      break;
+    case '\032':
+      c= 'Z';
+      break;
+    case '\\':
+    case '\'':
+      break;
+    default:
+      goto normal_character;
+    }
+    if (to_str->append('\\'))
+      return true; // OOM
+
+  normal_character:
+    if (to_str->append(c))
+      return true; // OOM
+  }
   return false;
 }

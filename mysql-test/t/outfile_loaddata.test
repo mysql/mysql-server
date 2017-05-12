@@ -14,13 +14,16 @@ INSERT INTO t1 VALUES (101, 202, '-r-', '=raker=');
 --let $clauses=FIELDS TERMINATED BY 'raker'
 --echo # $clauses, warning:
 
+# Disabled by WL#5094
+--disable_warnings
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --eval SELECT $fields INTO OUTFILE '$MYSQLTEST_VARDIR/tmp/bug31663.txt' $clauses FROM t1
+--enable_warnings
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --eval SELECT LOAD_FILE('$MYSQLTEST_VARDIR/tmp/bug31663.txt')
 --eval CREATE TABLE t2 SELECT $fields FROM t1
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/bug31663.txt' INTO TABLE t2 $clauses
+--eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/bug31663.txt' IGNORE INTO TABLE t2 $clauses
 --eval SELECT $fields FROM t2
 --remove_file $MYSQLTEST_VARDIR/tmp/bug31663.txt
 DROP TABLE t2;
@@ -44,13 +47,16 @@ DROP TABLE t2;
 --let $clauses=FIELDS TERMINATED BY '0'
 --echo # $clauses, warning:
 
+# Disabled by WL#5094
+--disable_warnings
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --eval SELECT $fields INTO OUTFILE '$MYSQLTEST_VARDIR/tmp/bug31663.txt' $clauses FROM t1
+--enable_warnings
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --eval SELECT LOAD_FILE('$MYSQLTEST_VARDIR/tmp/bug31663.txt')
 --eval CREATE TABLE t2 SELECT $fields FROM t1
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/bug31663.txt' INTO TABLE t2 $clauses
+--eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/bug31663.txt' IGNORE INTO TABLE t2 $clauses
 --eval SELECT $fields FROM t2
 --remove_file $MYSQLTEST_VARDIR/tmp/bug31663.txt
 DROP TABLE t2;
@@ -59,13 +65,16 @@ DROP TABLE t2;
 --let $clauses=FIELDS OPTIONALLY ENCLOSED BY '"' TERMINATED BY '0'
 --echo # $clauses, warning:
 
+# Disabled by WL#5094
+--disable_warnings
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --eval SELECT $fields INTO OUTFILE '$MYSQLTEST_VARDIR/tmp/bug31663.txt' $clauses FROM t1
+--enable_warnings
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --eval SELECT LOAD_FILE('$MYSQLTEST_VARDIR/tmp/bug31663.txt')
 --eval CREATE TABLE t2 SELECT $fields FROM t1
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/bug31663.txt' INTO TABLE t2 $clauses
+--eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/bug31663.txt' IGNORE INTO TABLE t2 $clauses
 --eval SELECT $fields FROM t2
 --remove_file $MYSQLTEST_VARDIR/tmp/bug31663.txt
 DROP TABLE t2;
@@ -80,7 +89,7 @@ DROP TABLE t2;
 --eval SELECT LOAD_FILE('$MYSQLTEST_VARDIR/tmp/bug31663.txt')
 --eval CREATE TABLE t2 SELECT $fields FROM t1
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/bug31663.txt' INTO TABLE t2 $clauses
+--eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/bug31663.txt' IGNORE INTO TABLE t2 $clauses
 --eval SELECT $fields FROM t2
 --remove_file $MYSQLTEST_VARDIR/tmp/bug31663.txt
 DROP TABLE t2;
@@ -91,21 +100,27 @@ DROP TABLE t1;
 --echo # Bug#32533: SELECT INTO OUTFILE never escapes multibyte character
 --echo #
 
-CREATE TABLE t1 (c1 VARCHAR(256));
+CREATE TABLE t1 (c1 VARCHAR(256) charset latin1);
 INSERT INTO t1 VALUES (0xC3);
 SELECT HEX(c1) FROM t1;
 
 --let $file=$MYSQLTEST_VARDIR/tmp/bug32533.txt
 
+# Disabled by WL#5094
+--disable_warnings
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --eval SELECT * INTO OUTFILE '$file' FIELDS ENCLOSED BY 0xC3 FROM t1
+--enable_warnings
 TRUNCATE t1;
 
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --eval SELECT HEX(LOAD_FILE('$file'))
 
+# Disabled by WL#5094
+--disable_warnings
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---eval LOAD DATA INFILE '$file' INTO TABLE t1 FIELDS ENCLOSED BY 0xC3
+--eval LOAD DATA INFILE '$file' INTO TABLE t1 CHARACTER SET latin1 FIELDS ENCLOSED BY 0xC3
+--enable_warnings
 SELECT HEX(c1) FROM t1;
 
 --remove_file $file
@@ -133,48 +148,60 @@ INSERT INTO t1 VALUES (1, 'ABC-АБВ', 'DEF-ÂÃÄ'), (2, NULL, NULL);
 --echo # Error on multi-character ENCLOSED/ESCAPED BY
 
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---error 1083
+--error ER_WRONG_FIELD_TERMINATORS
 --eval SELECT * FROM t1 INTO OUTFILE '$file' FIELDS ENCLOSED BY '12345'
---remove_file $file
 
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---error 1083
+--error ER_WRONG_FIELD_TERMINATORS
 --eval SELECT * FROM t1 INTO OUTFILE '$file' FIELDS ESCAPED BY '12345'
---remove_file $file
-
 
 --echo # "Not implemented" warning on multibyte  ENCLOSED/ESCAPED BY character,
 --echo # LOAD DATA rises error or has unpredictable result -- to be fixed later
 
+# Disabled by WL#5094
+--disable_warnings
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --eval SELECT * FROM t1 INTO OUTFILE '$file' FIELDS ENCLOSED BY 'ъ'
+--enable_warnings
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---error 1083 # backward compatibility
+--error ER_WRONG_FIELD_TERMINATORS # backward compatibility
 --eval LOAD DATA INFILE '$file' INTO TABLE t2 CHARACTER SET binary FIELDS ENCLOSED BY 'ъ'
 --remove_file $file
 
+# Disabled by WL#5094
+--disable_warnings
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --eval SELECT * FROM t1 INTO OUTFILE '$file' FIELDS ESCAPED BY 'ъ'
+--enable_warnings
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---error 1083 # backward compatibility
+--error ER_WRONG_FIELD_TERMINATORS # backward compatibility
 --eval LOAD DATA INFILE '$file' INTO TABLE t2 CHARACTER SET binary FIELDS ESCAPED BY 'ъ'
 --remove_file $file
 
+# Disabled by WL#5094
+--disable_warnings
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --eval SELECT * FROM t1 INTO OUTFILE '$file' FIELDS TERMINATED BY 'ъ'
+--enable_warnings
 --echo ##################################################
 --cat_file $file
 --echo ##################################################
 TRUNCATE t2;
+# Disabled by WL#5094
+--disable_warnings
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --eval LOAD DATA INFILE '$file' INTO TABLE t2 CHARACTER SET binary FIELDS TERMINATED BY 'ъ'
+--enable_warnings
 --remove_file $file
 SELECT * FROM t1 UNION SELECT * FROM t2 ORDER BY a, b, c;
 SELECT * FROM t1;
 SELECT * FROM t2;
 
+# Disabled by WL#5094
+--disable_warnings
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --eval SELECT * FROM t1 INTO OUTFILE '$file' LINES STARTING BY 'ъ'
+--enable_warnings
 --echo ##################################################
 --cat_file $file
 --echo ##################################################
@@ -184,8 +211,11 @@ TRUNCATE t2;
 --remove_file $file
 SELECT * FROM t1 UNION SELECT * FROM t2 ORDER BY a, b, c;
 
+# Disabled by WL#5094
+--disable_warnings
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --eval SELECT * FROM t1 INTO OUTFILE '$file' LINES TERMINATED BY 'ъ'
+--enable_warnings
 --echo ##################################################
 --cat_file $file
 --echo ##################################################
@@ -293,3 +323,25 @@ DROP TABLE t1, t2;
 
 ###########################################################################
 --echo # End of 5.1 tests.
+
+
+--echo #
+--echo # Bug#24577194 - LOAD DATA ERROR 1262 BEHAVIOUR DIFFERENT
+--echo #                 BETWEEN 5.6 AND 5.7 UNDER STRICT SQLMOD
+--echo #
+CREATE TABLE t1(c1 VARCHAR(10), c2 VARCHAR(10));
+INSERT INTO t1 VALUES('aaaaa', 'bbbbb');
+
+let $file= '$MYSQLTEST_VARDIR/tmp/bug24577194.txt';
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT * FROM t1 INTO OUTFILE $file FIELDS TERMINATED BY ','
+
+CREATE TABLE t2(c1 VARCHAR(10));
+SET sql_mode='STRICT_ALL_TABLES';
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--error ER_WARN_TOO_MANY_RECORDS
+--eval LOAD DATA INFILE $file INTO TABLE t2 FIELDS TERMINATED BY ','
+DROP TABLE t1,t2;
+--remove_file $MYSQLTEST_VARDIR/tmp/bug24577194.txt
+SET sql_mode=default;

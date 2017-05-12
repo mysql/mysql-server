@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,8 +13,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "vio_priv.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_loglevel.h"
 #include "mysql/service_mysql_alloc.h"
+#include "vio_priv.h"
 
 #ifdef HAVE_OPENSSL
 
@@ -72,7 +75,7 @@ static const char tls_cipher_blocked[]= "!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!R
                                         "!ECDHE-RSA-DES-CBC3-SHA:!ECDHE-ECDSA-DES-CBC3-SHA:";
 #endif
 
-static my_bool     ssl_initialized         = FALSE;
+static bool     ssl_initialized         = FALSE;
 
 /*
   Diffie-Hellman key.
@@ -358,7 +361,7 @@ static void init_ssl_locks()
   int i= 0;
 #ifdef HAVE_PSI_INTERFACE
   const char* category= "sql";
-  int count= array_elements(openssl_rwlocks);
+  int count= static_cast<int>(array_elements(openssl_rwlocks));
   mysql_rwlock_register(category, openssl_rwlocks, count);
 #endif
 
@@ -372,7 +375,7 @@ static void init_ssl_locks()
 #endif
 }
 
-static void set_lock_callback_functions(my_bool init)
+static void set_lock_callback_functions(bool init)
 {
   CRYPTO_set_locking_callback(init ? openssl_lock_function : NULL);
   CRYPTO_set_id_callback(init ? openssl_id_function : NULL);
@@ -484,7 +487,7 @@ long process_tls_version(const char *tls_version)
 static struct st_VioSSLFd *
 new_VioSSLFd(const char *key_file, const char *cert_file,
              const char *ca_file, const char *ca_path,
-             const char *cipher, my_bool is_client,
+             const char *cipher, bool is_client,
              enum enum_ssl_init_error *error,
              const char *crl_file, const char *crl_path, const long ssl_ctx_flags)
 {

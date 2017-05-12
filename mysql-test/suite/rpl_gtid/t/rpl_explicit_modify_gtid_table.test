@@ -13,7 +13,6 @@
 # to rerun them for every format.
 --source include/have_binlog_format_statement.inc
 --source include/master-slave.inc
---source include/have_gtid.inc
 --let $uuida=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
 --echo #
 --echo # Verify that explicit insert into mysql.gtid_executed

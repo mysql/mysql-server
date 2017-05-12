@@ -1,7 +1,7 @@
 ## generated
 ## Rel: Delete on a table with expression on invalid columns
 
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 ## Test starts here
 --write_file $MYSQL_TMP_DIR/delete_del_table_doc.tmp
 ## Test data

@@ -122,9 +122,10 @@ SELECT @@global.long_query_time;
 @@global.long_query_time
 2.999999
 # reset persisted variables
-SET PERSIST sort_buffer_size=DEFAULT;
-SET PERSIST max_heap_table_size=DEFAULT;
-SET @@persist.max_execution_time=DEFAULT, @@persist.max_user_connections=DEFAULT;
+RESET PERSIST sort_buffer_size;
+RESET PERSIST max_heap_table_size;
+RESET PERSIST max_execution_time;
+RESET PERSIST max_user_connections;
 # Restart server
 # after restart
 SELECT @@global.sort_buffer_size;
@@ -155,10 +156,10 @@ SELECT @@global.concurrent_insert;
 @@global.concurrent_insert
 AUTO
 # reset persisted variables and add new
-SET @@persist.slave_net_timeout= DEFAULT;
+RESET PERSIST slave_net_timeout;
 SET PERSIST server_id=47, @@persist.general_log=0;
 SET PERSIST concurrent_insert=NEVER;
-SET PERSIST max_connections=DEFAULT;
+RESET PERSIST max_connections;
 # Restart server
 # after restart
 SELECT @@global.sort_buffer_size;
@@ -211,17 +212,18 @@ SELECT @@global.session_track_system_variables;
 autocommit
 # check contents of persistent config file
 { "mysql_server": {"concurrent_insert": "NEVER" , "general_log": "OFF" , "long_query_time": "2.999999" , "max_connections": "88" , "server_id": "9" , "session_track_system_variables": "autocommit" } }
-SET PERSIST server_id=DEFAULT, @@persist.general_log=DEFAULT;
+RESET PERSIST server_id;
+RESET PERSIST general_log;
 SET PERSIST max_connections=77;
 SET PERSIST session_track_system_variables='max_connections';
 { "mysql_server": {"concurrent_insert": "NEVER" , "long_query_time": "2.999999" , "max_connections": "77" , "session_track_system_variables": "max_connections" } }
 SET PERSIST max_connections=99;
-SET PERSIST session_track_system_variables=DEFAULT;
+RESET PERSIST session_track_system_variables;
 SET PERSIST concurrent_insert=ALWAYS;
 { "mysql_server": {"concurrent_insert": "ALWAYS" , "long_query_time": "2.999999" , "max_connections": "99" } }
-SET PERSIST max_connections=DEFAULT;
+RESET PERSIST max_connections;
 SET PERSIST concurrent_insert=AUTO;
-{ "mysql_server": {"long_query_time": "2.999999" } }
+{ "mysql_server": {"concurrent_insert": "AUTO" , "long_query_time": "2.999999" } }
 # negative tests persist session only variables
 SET @@persist.sql_log_bin=0;
 ERROR 42000: Variable 'sql_log_bin' can't be set to the value of '0'
@@ -259,7 +261,7 @@ SELECT @@global.foreign_key_checks;
 1
 SET PERSIST foreign_key_checks=0;
 SET PERSIST flush_time=2;
-{ "mysql_server": {"flush_time": "2" , "foreign_key_checks": "OFF" , "long_query_time": "2.999999" , "max_heap_table_size": "999424" , "slave_net_timeout": "124" , "sort_buffer_size": "256000" } }# Restart server with persisted-globals-load=0
+{ "mysql_server": {"concurrent_insert": "AUTO" , "flush_time": "2" , "foreign_key_checks": "OFF" , "long_query_time": "2.999999" , "max_heap_table_size": "999424" , "slave_net_timeout": "124" , "sort_buffer_size": "256000" } }# Restart server with persisted-globals-load=0
 # should have default values
 SELECT @@global.sort_buffer_size;
 @@global.sort_buffer_size
@@ -279,8 +281,8 @@ SELECT @@global.flush_time;
 @@global.flush_time
 0
 # reset some persisted values
-SET PERSIST sort_buffer_size=DEFAULT;
-SET PERSIST slave_net_timeout=DEFAULT;
+RESET PERSIST sort_buffer_size;
+RESET PERSIST slave_net_timeout;
 # Restart server with persisted-globals-load=1
 # should have default values
 SELECT @@global.sort_buffer_size;
@@ -308,6 +310,40 @@ SELECT @@global.persisted_globals_load;
 @@global.persisted_globals_load
 0
 # Restart server with persisted-globals-load=1
+#
+# Bug24569624: "SET PERSIST GENERAL_LOG=1" DOES NOT RESUME ON RESTART.
+#
+SET PERSIST general_log=ON;
+SET PERSIST autocommit= 0, innodb_deadlock_detect= OFF;
+SET PERSIST enforce_gtid_consistency=ON;
+SELECT @@global.general_log, @@global.autocommit,
+@@global.innodb_deadlock_detect, @@global.enforce_gtid_consistency;
+@@global.general_log	@@global.autocommit	@@global.innodb_deadlock_detect	@@global.enforce_gtid_consistency
+1	0	0	ON
+# Restart server
+SELECT @@global.general_log, @@global.autocommit,
+@@global.innodb_deadlock_detect, @@global.enforce_gtid_consistency;
+@@global.general_log	@@global.autocommit	@@global.innodb_deadlock_detect	@@global.enforce_gtid_consistency
+1	0	0	ON
+#
+# Bug#24613005: SET PERSIST STORES PREVIOUS VALUE OF
+#               INNODB_BUFFER_POOL_SIZE TO MYSQLD-AUTO.CNF
+#
+SELECT @@global.innodb_buffer_pool_size;
+@@global.innodb_buffer_pool_size
+25165824
+SET PERSIST innodb_buffer_pool_size=10*1024*1024;
+SELECT @@global.innodb_buffer_pool_size;
+@@global.innodb_buffer_pool_size
+25165824
+# Restart server
+# restart
+SELECT @@global.innodb_buffer_pool_size;
+@@global.innodb_buffer_pool_size
+25165824
+# Check mysqld-auto.cnf file.
+{ "mysql_server": {"autocommit": "OFF" , "enforce_gtid_consistency": "ON" , "general_log": "ON" , "innodb_buffer_pool_size": "25165824" , "innodb_deadlock_detect": "OFF" } }# Restart server with all defaults
+# restart
 SELECT 'END OF TEST';
 END OF TEST
 END OF TEST

@@ -21,9 +21,9 @@
   Instrumentation helpers for conditions.
 */
 
-#include "thr_cond.h"
-#include "mysql/psi/psi_cond.h"
 #include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/psi_cond.h"
+#include "thr_cond.h"
 #ifdef MYSQL_SERVER
 #ifndef MYSQL_DYNAMIC_PLUGIN
 #include "pfs_cond_provider.h"
@@ -68,15 +68,13 @@ struct st_mysql_cond
 */
 typedef struct st_mysql_cond mysql_cond_t;
 
-
 #ifndef DISABLE_MYSQL_THREAD_H
 
 /**
   @def mysql_cond_register(P1, P2, P3)
   Cond registration.
 */
-#define mysql_cond_register(P1, P2, P3) \
-  inline_mysql_cond_register(P1, P2, P3)
+#define mysql_cond_register(P1, P2, P3) inline_mysql_cond_register(P1, P2, P3)
 
 /**
   @def mysql_cond_init(K, C)
@@ -88,9 +86,9 @@ typedef struct st_mysql_cond mysql_cond_t;
 
 */
 #ifdef HAVE_PSI_COND_INTERFACE
-  #define mysql_cond_init(K, C) inline_mysql_cond_init(K, C)
+#define mysql_cond_init(K, C) inline_mysql_cond_init(K, C)
 #else
-  #define mysql_cond_init(K, C) inline_mysql_cond_init(C)
+#define mysql_cond_init(K, C) inline_mysql_cond_init(C)
 #endif
 
 /**
@@ -106,11 +104,9 @@ typedef struct st_mysql_cond mysql_cond_t;
   @c mysql_cond_wait is a drop-in replacement for @c native_cond_wait.
 */
 #if defined(SAFE_MUTEX) || defined(HAVE_PSI_COND_INTERFACE)
-  #define mysql_cond_wait(C, M) \
-    inline_mysql_cond_wait(C, M, __FILE__, __LINE__)
+#define mysql_cond_wait(C, M) inline_mysql_cond_wait(C, M, __FILE__, __LINE__)
 #else
-  #define mysql_cond_wait(C, M) \
-    inline_mysql_cond_wait(C, M)
+#define mysql_cond_wait(C, M) inline_mysql_cond_wait(C, M)
 #endif
 
 /**
@@ -120,11 +116,10 @@ typedef struct st_mysql_cond mysql_cond_t;
   for @c native_cond_timedwait.
 */
 #if defined(SAFE_MUTEX) || defined(HAVE_PSI_COND_INTERFACE)
-  #define mysql_cond_timedwait(C, M, W) \
-    inline_mysql_cond_timedwait(C, M, W, __FILE__, __LINE__)
+#define mysql_cond_timedwait(C, M, W) \
+  inline_mysql_cond_timedwait(C, M, W, __FILE__, __LINE__)
 #else
-  #define mysql_cond_timedwait(C, M, W) \
-    inline_mysql_cond_timedwait(C, M, W)
+#define mysql_cond_timedwait(C, M, W) inline_mysql_cond_timedwait(C, M, W)
 #endif
 
 /**
@@ -142,57 +137,59 @@ typedef struct st_mysql_cond mysql_cond_t;
 */
 #define mysql_cond_broadcast(C) inline_mysql_cond_broadcast(C)
 
-static inline void inline_mysql_cond_register(
+static inline void
+inline_mysql_cond_register(
 #ifdef HAVE_PSI_COND_INTERFACE
-  const char *category,
-  PSI_cond_info *info,
-  int count
+  const char *category, PSI_cond_info *info, int count
 #else
-  const char *category MY_ATTRIBUTE ((unused)),
-  void *info MY_ATTRIBUTE ((unused)),
-  int count MY_ATTRIBUTE ((unused))
+  const char *category MY_ATTRIBUTE((unused)),
+  void *info MY_ATTRIBUTE((unused)),
+  int count MY_ATTRIBUTE((unused))
 #endif
-)
+  )
 {
 #ifdef HAVE_PSI_COND_INTERFACE
   PSI_COND_CALL(register_cond)(category, info, count);
 #endif
 }
 
-static inline int inline_mysql_cond_init(
+static inline int
+inline_mysql_cond_init(
 #ifdef HAVE_PSI_COND_INTERFACE
   PSI_cond_key key,
 #endif
   mysql_cond_t *that)
 {
 #ifdef HAVE_PSI_COND_INTERFACE
-  that->m_psi= PSI_COND_CALL(init_cond)(key, &that->m_cond);
+  that->m_psi = PSI_COND_CALL(init_cond)(key, &that->m_cond);
 #else
-  that->m_psi= NULL;
+  that->m_psi = NULL;
 #endif
   return native_cond_init(&that->m_cond);
 }
 
-static inline int inline_mysql_cond_destroy(
-  mysql_cond_t *that)
+static inline int
+inline_mysql_cond_destroy(mysql_cond_t *that)
 {
 #ifdef HAVE_PSI_COND_INTERFACE
   if (that->m_psi != NULL)
   {
     PSI_COND_CALL(destroy_cond)(that->m_psi);
-    that->m_psi= NULL;
+    that->m_psi = NULL;
   }
 #endif
   return native_cond_destroy(&that->m_cond);
 }
 
-static inline int inline_mysql_cond_wait(
-  mysql_cond_t *that,
-  mysql_mutex_t *mutex
+static inline int
+inline_mysql_cond_wait(mysql_cond_t *that,
+                       mysql_mutex_t *mutex
 #if defined(SAFE_MUTEX) || defined(HAVE_PSI_COND_INTERFACE)
-  , const char *src_file, uint src_line
+                       ,
+                       const char *src_file,
+                       uint src_line
 #endif
-  )
+                       )
 {
   int result;
 
@@ -202,42 +199,52 @@ static inline int inline_mysql_cond_wait(
     /* Instrumentation start */
     PSI_cond_locker *locker;
     PSI_cond_locker_state state;
-    locker= PSI_COND_CALL(start_cond_wait)(&state, that->m_psi, mutex->m_psi,
-                                      PSI_COND_WAIT, src_file, src_line);
+    locker = PSI_COND_CALL(start_cond_wait)(
+      &state, that->m_psi, mutex->m_psi, PSI_COND_WAIT, src_file, src_line);
 
     /* Instrumented code */
-    result= my_cond_wait(&that->m_cond, &mutex->m_mutex
+    result = my_cond_wait(&that->m_cond,
+                          &mutex->m_mutex
 #ifdef SAFE_MUTEX
-                         , src_file, src_line
+                          ,
+                          src_file,
+                          src_line
 #endif
-                         );
+                          );
 
     /* Instrumentation end */
     if (locker != NULL)
+    {
       PSI_COND_CALL(end_cond_wait)(locker, result);
+    }
 
     return result;
   }
 #endif
 
   /* Non instrumented code */
-  result= my_cond_wait(&that->m_cond, &mutex->m_mutex
+  result = my_cond_wait(&that->m_cond,
+                        &mutex->m_mutex
 #ifdef SAFE_MUTEX
-                       , src_file, src_line
+                        ,
+                        src_file,
+                        src_line
 #endif
-                       );
+                        );
 
   return result;
 }
 
-static inline int inline_mysql_cond_timedwait(
-  mysql_cond_t *that,
-  mysql_mutex_t *mutex,
-  const struct timespec *abstime
+static inline int
+inline_mysql_cond_timedwait(mysql_cond_t *that,
+                            mysql_mutex_t *mutex,
+                            const struct timespec *abstime
 #if defined(SAFE_MUTEX) || defined(HAVE_PSI_COND_INTERFACE)
-  , const char *src_file, uint src_line
+                            ,
+                            const char *src_file,
+                            uint src_line
 #endif
-  )
+                            )
 {
   int result;
 
@@ -247,55 +254,73 @@ static inline int inline_mysql_cond_timedwait(
     /* Instrumentation start */
     PSI_cond_locker *locker;
     PSI_cond_locker_state state;
-    locker= PSI_COND_CALL(start_cond_wait)(&state, that->m_psi, mutex->m_psi,
-                                      PSI_COND_TIMEDWAIT, src_file, src_line);
+    locker = PSI_COND_CALL(start_cond_wait)(&state,
+                                            that->m_psi,
+                                            mutex->m_psi,
+                                            PSI_COND_TIMEDWAIT,
+                                            src_file,
+                                            src_line);
 
     /* Instrumented code */
-    result= my_cond_timedwait(&that->m_cond, &mutex->m_mutex, abstime
+    result = my_cond_timedwait(&that->m_cond,
+                               &mutex->m_mutex,
+                               abstime
 #ifdef SAFE_MUTEX
-                              , src_file, src_line
+                               ,
+                               src_file,
+                               src_line
 #endif
-                              );
+                               );
 
     /* Instrumentation end */
     if (locker != NULL)
+    {
       PSI_COND_CALL(end_cond_wait)(locker, result);
+    }
 
     return result;
   }
 #endif
 
   /* Non instrumented code */
-  result= my_cond_timedwait(&that->m_cond, &mutex->m_mutex, abstime
+  result = my_cond_timedwait(&that->m_cond,
+                             &mutex->m_mutex,
+                             abstime
 #ifdef SAFE_MUTEX
-                            , src_file, src_line
+                             ,
+                             src_file,
+                             src_line
 #endif
-                            );
+                             );
 
   return result;
 }
 
-static inline int inline_mysql_cond_signal(
-  mysql_cond_t *that)
+static inline int
+inline_mysql_cond_signal(mysql_cond_t *that)
 {
   int result;
 #ifdef HAVE_PSI_COND_INTERFACE
   if (that->m_psi != NULL)
+  {
     PSI_COND_CALL(signal_cond)(that->m_psi);
+  }
 #endif
-  result= native_cond_signal(&that->m_cond);
+  result = native_cond_signal(&that->m_cond);
   return result;
 }
 
-static inline int inline_mysql_cond_broadcast(
-  mysql_cond_t *that)
+static inline int
+inline_mysql_cond_broadcast(mysql_cond_t *that)
 {
   int result;
 #ifdef HAVE_PSI_COND_INTERFACE
   if (that->m_psi != NULL)
+  {
     PSI_COND_CALL(broadcast_cond)(that->m_psi);
+  }
 #endif
-  result= native_cond_broadcast(&that->m_cond);
+  result = native_cond_broadcast(&that->m_cond);
   return result;
 }
 
@@ -304,4 +329,3 @@ static inline int inline_mysql_cond_broadcast(
 /** @} (end of group psi_api_cond) */
 
 #endif
-

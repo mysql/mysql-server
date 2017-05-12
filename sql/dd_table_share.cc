@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,35 +15,66 @@
 
 #include "dd_table_share.h"
 
-#include "default_values.h"                   // prepare_default_value_buffer...
-#include "log.h"                              // sql_print_error
-#include "partition_element.h"                // partition_element
-#include "partition_info.h"                   // partition_info
-#include "sql_class.h"                        // THD
-#include "sql_partition.h"                    // generate_partition_syntax
-#include "sql_plugin.h"                       // plugin_unlock
-#include "sql_table.h"                        // primary_key_name
+#include <string.h>
+#include <algorithm>
+#include <string>
+#include <vector>
 
-#include "dd/dd.h"                            // dd::get_dictionary
+#include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
+#include "dd/collection.h"
+#include "dd/dd_schema.h"                     // dd::schema_exists
 #include "dd/dd_table.h"                      // dd::abstract_table_type
 #include "dd/dd_tablespace.h"                 // dd::get_tablespace_name
-#include "dd/dd_schema.h"                     // dd::schema_exists
-#include "dd/dictionary.h"                    // dd::Dictionary
+// TODO: Avoid exposing dd/impl headers in public files.
+#include "dd/impl/utils.h"                    // dd::eat_str
 #include "dd/properties.h"                    // dd::Properties
-#include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
+#include "dd/string_type.h"
+#include "dd/types/abstract_table.h"
 #include "dd/types/column.h"                  // dd::enum_column_types
 #include "dd/types/column_type_element.h"     // dd::Column_type_element
 #include "dd/types/index.h"                   // dd::Index
 #include "dd/types/index_element.h"           // dd::Index_element
-#include "dd/types/object_table_definition.h" // dd::Object_table_definition
 #include "dd/types/partition.h"               // dd::Partition
 #include "dd/types/partition_value.h"         // dd::Partition_value
 #include "dd/types/table.h"                   // dd::Table
+#include "default_values.h"                   // prepare_default_value_buffer...
+#include "field.h"
+#include "handler.h"
+#include "hash.h"
+#include "key.h"
+#include "lex_string.h"
+#include "log.h"                              // sql_print_error
+#include "my_base.h"
+#include "my_bitmap.h"
+#include "my_compare.h"
+#include "my_compiler.h"
+#include "my_config.h"
+#include "my_dbug.h"
+#include "my_macros.h"
+#include "mysql/plugin.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql_com.h"
+#include "mysqld_error.h"
+#include "partition_element.h"                // partition_element
+#include "partition_info.h"                   // partition_info
+#include "session_tracker.h"
+#include "sql_bitmap.h"
+#include "sql_class.h"                        // THD
+#include "sql_const.h"
+#include "sql_error.h"
+#include "sql_list.h"
+#include "sql_partition.h"                    // generate_partition_syntax
+#include "sql_plugin.h"                       // plugin_unlock
+#include "sql_plugin_ref.h"
+#include "sql_table.h"                        // primary_key_name
+#include "strfunc.h"                          // lex_cstring_handle
+#include "system_variables.h"
+#include "table.h"
+#include "typelib.h"
 
-// TODO: Avoid exposing dd/impl headers in public files.
-#include "dd/impl/utils.h"                    // dd::eat_str
-
-#include <memory>                             // unique_ptr
+namespace dd {
+class View;
+}  // namespace dd
 
 
 enum_field_types dd_get_old_field_type(dd::enum_column_types type)
@@ -267,8 +298,8 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share)
 
   // Setup other fields =====================================================
   /* Allocate handler */
-  if (!(handler_file= get_new_handler(share, &share->mem_root,
-                                      share->db_type())))
+  if (!(handler_file= get_new_handler(share, (share->m_part_info != NULL),
+                                      &share->mem_root, share->db_type())))
   {
     my_error(ER_INVALID_DD_OBJECT, MYF(0),  share->path.str,
              "Failed to initialize handler.");
@@ -351,7 +382,7 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share)
                 keyinfo->flags|= HA_VIRTUAL_GEN_KEY;
 
               setup_key_part_field(share, handler_file, primary_key,
-                             keyinfo, key, i, &usable_parts);
+                                   keyinfo, key, i, &usable_parts, true);
 
               field->flags|= PART_KEY_FLAG;
               if (key == primary_key)
@@ -553,7 +584,8 @@ static row_type dd_get_old_row_format(dd::Table::enum_row_format new_format)
 static bool fill_share_from_dd(THD *thd, TABLE_SHARE *share, const dd::Table *tab_obj)
 {
   // Read table engine type
-  plugin_ref tmp_plugin= ha_resolve_by_name_raw(thd, tab_obj->engine());
+  plugin_ref tmp_plugin=
+    ha_resolve_by_name_raw(thd, lex_cstring_handle(tab_obj->engine()));
   if (tmp_plugin)
   {
 #ifndef DBUG_OFF
@@ -712,7 +744,7 @@ static bool fill_share_from_dd(THD *thd, TABLE_SHARE *share, const dd::Table *ta
     return true;
 
   // Read comment
-  std::string comment= tab_obj->comment();
+  dd::String_type comment= tab_obj->comment();
   if (comment.length())
   {
     share->comment.str= strmake_root(&share->mem_root,
@@ -792,7 +824,7 @@ static bool fill_column_from_dd(TABLE_SHARE *share,
   //
 
   // Column name
-  std::string s= col_obj->name();
+  dd::String_type s= col_obj->name();
   DBUG_ASSERT(!s.empty());
   name= strmake_root(&share->mem_root, s.c_str(), s.length());
   name[s.length()]= '\0';
@@ -910,7 +942,7 @@ static bool fill_column_from_dd(TABLE_SHARE *share,
     for (const dd::Column_type_element *ce : col_obj->elements())
     {
       // Read the enum/set element name
-      std::string element_name= ce->name();
+      dd::String_type element_name= ce->name();
 
       uint pos= ce->index() - 1;
       interval->type_lengths[pos]= static_cast<uint>(element_name.length());
@@ -931,7 +963,7 @@ static bool fill_column_from_dd(TABLE_SHARE *share,
     gcol_info->set_field_stored(!col_obj->is_virtual());
 
     // Read generation expression.
-    std::string gc_expr= col_obj->generation_expression();
+    dd::String_type gc_expr= col_obj->generation_expression();
 
     /*
       Place the expression's text into the TABLE_SHARE. Field objects of
@@ -1003,7 +1035,7 @@ static bool fill_column_from_dd(TABLE_SHARE *share,
   reg_field->set_column_format(field_column_format);
 
   // Comments
-  std::string comment= col_obj->comment();
+  dd::String_type comment= col_obj->comment();
   reg_field->comment.length= comment.length();
   if (reg_field->comment.length)
   {
@@ -1157,16 +1189,11 @@ static void fill_index_element_from_dd(TABLE_SHARE *share,
   keypart->bin_cmp= ((field->real_type() != MYSQL_TYPE_VARCHAR &&
                       field->real_type() != MYSQL_TYPE_STRING) ||
                      (field->charset()->state & MY_CS_BINSORT));
-
   //
   // Read index order
   //
 
-  /*
-    Currently no SE supports descending index. Still we set HA_REVERSE_SORT
-    flag here based on the INDEX_COLUMN_USAGE.ORDER value to be future
-    proof.
-  */
+  // key part order
   if (idx_elem_obj->order() == dd::Index_element::ORDER_DESC)
     keypart->key_part_flag|= HA_REVERSE_SORT;
 
@@ -1177,8 +1204,7 @@ static void fill_index_element_from_dd(TABLE_SHARE *share,
 /** Fill KEY::key_part array according to metadata from dd::Index object. */
 static void fill_index_elements_from_dd(TABLE_SHARE *share,
                                         const dd::Index *idx_obj,
-                                        int key_nr,
-                                        bool use_extended_sk)
+                                        int key_nr)
 {
   //
   // Iterate through all index elements
@@ -1219,7 +1245,7 @@ static bool fill_index_from_dd(TABLE_SHARE *share, const dd::Index *idx_obj,
   KEY *keyinfo= share->key_info + key_nr;
 
   // Read index name
-  const std::string &name= idx_obj->name();
+  const dd::String_type &name= idx_obj->name();
   if (!name.empty())
   {
     if (name.length())
@@ -1320,7 +1346,7 @@ static bool fill_index_from_dd(TABLE_SHARE *share, const dd::Index *idx_obj,
   if (idx_options->exists("parser_name"))
   {
     LEX_CSTRING parser_name;
-    std::string pn= idx_options->value_cstr("parser_name");
+    dd::String_type pn= idx_options->value_cstr("parser_name");
 
     DBUG_ASSERT(!pn.empty());
 
@@ -1341,7 +1367,7 @@ static bool fill_index_from_dd(TABLE_SHARE *share, const dd::Index *idx_obj,
   }
 
   // Read comment
-  std::string comment= idx_obj->comment();
+  dd::String_type comment= idx_obj->comment();
   keyinfo->comment.length= comment.length();
 
   if (keyinfo->comment.length)
@@ -1400,6 +1426,7 @@ static bool fill_indexes_from_dd(TABLE_SHARE *share, const dd::Table *tab_obj)
 
   share->keys_for_keyread.init(0);
   share->keys_in_use.init();
+  share->visible_indexes.init();
 
   // Allocate and fill KEY objects.
   if (share->keys)
@@ -1472,8 +1499,9 @@ static bool fill_indexes_from_dd(TABLE_SHARE *share, const dd::Table *tab_obj)
 
       index_at_pos[key_nr]= idx_obj;
 
+      share->keys_in_use.set_bit(key_nr);
       if (idx_obj->is_visible())
-        share->keys_in_use.set_bit(key_nr);
+        share->visible_indexes.set_bit(key_nr);
 
       key_nr++;
     }
@@ -1490,8 +1518,7 @@ static bool fill_indexes_from_dd(TABLE_SHARE *share, const dd::Table *tab_obj)
 
       fill_index_elements_from_dd(share,
                                   index_at_pos[key_nr],
-                                  key_nr,
-                                  use_extended_sk);
+                                  key_nr);
 
       key_part+=keyinfo->user_defined_key_parts;
       rec_per_key+=keyinfo->user_defined_key_parts;
@@ -1534,9 +1561,9 @@ static bool fill_indexes_from_dd(TABLE_SHARE *share, const dd::Table *tab_obj)
 
 static char *copy_option_string(MEM_ROOT *mem_root,
                                 const dd::Properties &options,
-                                const std::string &key)
+                                const dd::String_type &key)
 {
-  std::string tmp_str;
+  dd::String_type tmp_str;
   options.get(key, tmp_str);
   if (tmp_str.length())
   {
@@ -1668,7 +1695,7 @@ static bool setup_partition_from_dd(THD *thd,
                                     const dd::Partition *part_obj,
                                     bool is_subpart)
 {
-  std::string comment= part_obj->comment();
+  dd::String_type comment= part_obj->comment();
   if (comment.length())
   {
     part_elem->part_comment= strdup_root(mem_root, comment.c_str());
@@ -1847,12 +1874,12 @@ static bool setup_partition_from_dd(THD *thd,
 */
 
 static bool set_field_list(MEM_ROOT *mem_root,
-                           std::string &str,
+                           dd::String_type &str,
                            List<char> *field_list)
 {
-  std::string field_name;
-  std::string::const_iterator it(str.begin());
-  std::string::const_iterator end(str.end());
+  dd::String_type field_name;
+  dd::String_type::const_iterator it(str.begin());
+  dd::String_type::const_iterator end(str.end());
 
   while (it != end)
   {
@@ -1871,19 +1898,6 @@ static bool set_field_list(MEM_ROOT *mem_root,
   }
   return false;
 }
-
-
-// Used to compare two partition elements
-struct Partition_order_comparator
-{
-  bool operator() (const dd::Partition* p1, const dd::Partition* p2) const
-  {
-    if (p1->level() == p2->level())
-      return p1->number() < p2->number();
-
-    return p1->level() < p2->level();
-  }
-};
 
 
 /**
@@ -1924,8 +1938,9 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
   part_info= new (&share->mem_root) partition_info;
 
   handlerton *hton=
-    plugin_data<handlerton *>(ha_resolve_by_name_raw(thd,
-                                                     tab_obj->engine()));
+    plugin_data<handlerton *>
+    (ha_resolve_by_name_raw(thd,
+                            lex_cstring_handle(tab_obj->engine())));
   DBUG_ASSERT(hton && ha_storage_engine_is_enabled(hton));
   part_info->default_engine_type= hton;
   if (!part_info->default_engine_type)
@@ -2016,7 +2031,7 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
     return true;
   }
 
-  std::string part_expr= tab_obj->partition_expression();
+  dd::String_type part_expr= tab_obj->partition_expression();
   if (part_info->list_of_part_fields)
   {
     if (set_field_list(&share->mem_root,
@@ -2034,7 +2049,7 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
                                              part_expr.c_str());
     part_info->part_func_len= part_expr.length();
   }
-  std::string subpart_expr= tab_obj->subpartition_expression();
+  dd::String_type subpart_expr= tab_obj->subpartition_expression();
   part_info->subpart_func_len= subpart_expr.length();
   if (part_info->subpart_func_len)
   {
@@ -2061,32 +2076,13 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
   //
 
   partition_element *curr_part= NULL, *curr_part_elem;
-  uint num_subparts= 0, tot_partitions, part_id= 0, level= 0;
+  uint num_subparts= 0, part_id= 0, level= 0;
   bool is_subpart;
   List_iterator<partition_element> part_elem_it;
 
-  /*
-    Copy the partitions into a vector and sort them first on level and
-    then on number. To calculate the number of subpartitions we then look
-    at the last element in the collection.
-  */
+  /* Partitions are sorted first on level and then on number. */
 
-  std::vector<const dd::Partition*> partitions;
-  partitions.reserve(tab_obj->partitions().size());
   for (const dd::Partition *part_obj : tab_obj->partitions())
-    partitions.push_back(part_obj);
-
-  Partition_order_comparator c;
-  std::sort(partitions.begin(), partitions.end(), c);
-
-  {
-    const dd::Partition *part_obj= partitions.back();
-    tot_partitions= part_obj->number() + 1;
-    DBUG_ASSERT(part_obj->level() == 0 ||
-                part_info->subpart_type == partition_type::HASH);
-  }
-
-  for (const dd::Partition *part_obj : partitions)
   {
     /* Must be in sorted order (sorted by level first and then on number). */
     DBUG_ASSERT(part_obj->level() >= level);
@@ -2126,8 +2122,9 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
           number of subpartitions per partition.
         */
         part_elem_it.init(part_info->partitions);
-	num_subparts= tot_partitions / part_info->partitions.elements;
-	DBUG_ASSERT((tot_partitions % part_info->partitions.elements) == 0);
+	num_subparts= (tab_obj->partitions().size() -
+                       part_info->partitions.elements) /
+                      part_info->partitions.elements;
       }
       /* Increment partition iterator for first subpartition in the partition. */
       if ((part_id % num_subparts) == 0)
@@ -2136,7 +2133,6 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
         return true;
     }
   }
-  DBUG_ASSERT((part_id + 1) == tot_partitions);
   part_info->num_parts= part_info->partitions.elements;
   if (curr_part)
   {
@@ -2220,10 +2216,6 @@ bool open_table_def(THD *thd, TABLE_SHARE *share, bool open_view,
 
   if (!table_def)
   {
-    // No special handling needed for system tables like timezones, help etc.
-    // because their meta data objects are sticky in the cache. Previously,
-    // these objects had to be retrieved from a separate registry.
-
     // Make sure the schema exists.
     bool exists= false;
     if (dd::schema_exists(thd, share->db.str, &exists))
@@ -2257,28 +2249,31 @@ bool open_table_def(THD *thd, TABLE_SHARE *share, bool open_view,
         Read it from DD
       */
       share->is_view= true;
-      if (thd->dd_client()->acquire_uncached<dd::View>(share->db.str,
-                                                       share->table_name.str,
-                                                       &share->view_object))
+      const dd::View *tmp_view= nullptr;
+      if (thd->dd_client()->acquire(share->db.str,
+                                    share->table_name.str,
+                                    &tmp_view))
       {
         DBUG_ASSERT(thd->is_error() || thd->killed);
         DBUG_RETURN(true);
       }
 
-      if (!share->view_object)
+      if (!tmp_view)
       {
         my_error(ER_NO_SUCH_TABLE, MYF(0), share->db.str, share->table_name.str);
         DBUG_RETURN(true);
       }
+      share->view_object= tmp_view->clone();
+
       share->table_category= get_table_category(share->db, share->table_name);
       thd->status_var.opened_shares++;
       DBUG_RETURN(false);
     }
     else // BASE_TABLE
     {
-      (void) thd->dd_client()->acquire<dd::Table>(share->db.str,
-                                                  share->table_name.str,
-                                                  &table_def);
+      (void) thd->dd_client()->acquire(share->db.str,
+                                       share->table_name.str,
+                                       &table_def);
     }
   }
 
@@ -2311,3 +2306,4 @@ bool open_table_def(THD *thd, TABLE_SHARE *share, bool open_view,
   }
   DBUG_RETURN(true);
 }
+

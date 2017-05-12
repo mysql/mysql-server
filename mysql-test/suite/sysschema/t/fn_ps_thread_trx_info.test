@@ -20,6 +20,13 @@ SELECT JSON_VALID(sys.ps_thread_trx_info(sys.ps_thread_id(NULL)));
 CREATE DATABASE trx;
 CREATE TABLE trx.info (id INT PRIMARY KEY, info VARCHAR(20));
 
+--echo # Warm-up data-dictionary cache.
+--disable_query_log
+--disable_result_log
+SELECT * FROM trx.info;
+--enable_result_log
+--enable_query_log
+
 --connect(con1,localhost,root,,)
 connection con1;
 let $NEW_TRX_ID=`SELECT thread_id FROM performance_schema.threads

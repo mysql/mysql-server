@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,13 +16,18 @@
 #ifndef DD_TABLES__ROUTINES_INCLUDED
 #define DD_TABLES__ROUTINES_INCLUDED
 
-#include "my_global.h"
+#include <string>
 
+#include "dd/impl/raw/raw_record.h"
 #include "dd/impl/types/dictionary_object_table_impl.h" // dd::Dictionary_obj...
+#include "dd/object_id.h"
 #include "dd/types/routine.h"                           // dd::Routine
 
 namespace dd {
-  class Object_key;
+class Object_key;
+class Dictionary_object;
+class Routine_name_key;
+
 namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
@@ -32,9 +37,9 @@ class Routines : public Dictionary_object_table_impl
 public:
   static const Routines &instance();
 
-  static const std::string &table_name()
+  static const String_type &table_name()
   {
-    static std::string s_table_name("routines");
+    static String_type s_table_name("routines");
     return s_table_name;
   }
 
@@ -46,6 +51,7 @@ public:
     FIELD_NAME,
     FIELD_TYPE,
     FIELD_RESULT_DATA_TYPE,
+    FIELD_RESULT_DATA_TYPE_UTF8,
     FIELD_RESULT_IS_ZEROFILL,
     FIELD_RESULT_IS_UNSIGNED,
     FIELD_RESULT_CHAR_LENGTH,
@@ -72,7 +78,7 @@ public:
 public:
   Routines();
 
-  virtual const std::string &name() const
+  virtual const String_type &name() const
   { return Routines::table_name(); }
 
   virtual Dictionary_object *create_dictionary_object(
@@ -82,7 +88,7 @@ public:
   static bool update_object_key(Routine_name_key *key,
                                 Object_id schema_id,
                                 Routine::enum_routine_type type,
-                                const std::string &routine_name);
+                                const String_type &routine_name);
 
   static Object_key *create_key_by_schema_id(Object_id schema_id);
 };

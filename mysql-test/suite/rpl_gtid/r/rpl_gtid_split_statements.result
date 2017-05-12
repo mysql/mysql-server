@@ -240,145 +240,94 @@ DROP FUNCTION create_tables_func;
 DROP PROCEDURE create_tables;
 DROP PROCEDURE drop_tables;
 DROP TABLE dummy;
-==== Case 3: DROP DATABASE ====
----- Initialize ----
-# db1, db2, db3: no tables.
-CREATE DATABASE db1;
-CREATE DATABASE db2;
-CREATE DATABASE db3;
+==== Case 2C: DROP TABLES for base tables in engines with and without atomic DDL support ====
+CREATE TABLE base_1_n (a INT) ENGINE = MyISAM;
+CREATE TABLE base_2_n (a INT) ENGINE = MyISAM;
+CREATE TABLE base_3_a (a INT) ENGINE = InnoDB;
+CREATE TABLE base_4_a (a INT) ENGINE = InnoDB;
 include/rpl_sync.inc
-# db4, db5, db6: one table.
-CREATE DATABASE db4;
-CREATE DATABASE db5;
-CREATE DATABASE db6;
-CREATE TABLE db4.t1 (a INT);
-CREATE TABLE db5.t1 (a INT);
-CREATE TABLE db6.t1 (a INT);
+---- GTID_MODE=AUTOMATIC ----
+include/gtid_step_reset.inc
+DROP TABLES base_1_n, base_2_n, base_3_a, base_4_a;
+# In AUTOMATIC mode the above statement should be split into three:
+# two statements for each of MyISAM tables and single statement
+# dropping both of InnoDB tables.
+include/gtid_step_assert.inc [count=3, only_count=0]
+CREATE TABLE base_1_n (a INT) ENGINE = MyISAM;
+CREATE TABLE base_2_n (a INT) ENGINE = MyISAM;
+CREATE TABLE base_3_a (a INT) ENGINE = InnoDB;
+CREATE TABLE base_4_a (a INT) ENGINE = InnoDB;
 include/rpl_sync.inc
-# db7, db8, db9: many tables with long names.
-CREATE DATABASE db7;
-CREATE DATABASE db8;
-CREATE DATABASE db9;
+---- GTID_NEXT=non-automatic ----
+include/gtid_step_reset.inc
+SET GTID_NEXT = '#';
+DROP TABLES base_1_n, base_2_n, base_3_a, base_4_a;
+SET GTID_NEXT= 'AUTOMATIC';
+# With GTID assigned the above statement should not be split.
+include/gtid_step_assert.inc [count=1, only_count=0]
+==== Case 2D: Failing DROP TABLES for base tables with and without atomic DDL support ====
+CREATE TABLE base_1_n (a INT) ENGINE = MyISAM;
+CREATE TABLE base_2_n (a INT) ENGINE = MyISAM;
+CREATE TABLE base_3_a (a INT) ENGINE = InnoDB;
+CREATE TABLE base_4_a (pk INT PRIMARY KEY) ENGINE = InnoDB;
+CREATE TABLE base_5_a (fk INT, FOREIGN KEY (fk) REFERENCES base_4_a(pk)) ENGINE = InnoDB;
 include/rpl_sync.inc
-# db10, db11: not a database, but the directory and the entry exist.
-# db12 is not a database, but the empty directory exists on master.
+---- GTID_MODE=AUTOMATIC ----
+include/gtid_step_reset.inc
+DROP TABLES base_1_n, base_2_n, base_3_a, base_4_a;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+# In AUTOMATIC mode the above statement should be split into three:
+# two statements for each of MyISAM tables and single statement
+# dropping base_3_a. Note that this will change once InnoDB really
+# supports atomic DDL.
+include/gtid_step_assert.inc [count=3, only_count=0]
+# base_4_a should still be there on master
+SHOW CREATE TABLE base_4_a;
+Table	Create Table
+base_4_a	CREATE TABLE `base_4_a` (
+  `pk` int(11) NOT NULL,
+  PRIMARY KEY (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 include/rpl_sync.inc
----- DROP DATABASE is split on master; GTID_NEXT=AUTOMATIC ----
-# db1: no table.
-include/save_binlog_position.inc
-SET GTID_NEXT = 'AUTOMATIC';
-DROP DATABASE db1;
-ERROR HY000: Error dropping database (can't rmdir './db1/', errno: ## - ...)
-include/assert_binlog_events.inc
-# db4: one table.
-include/save_binlog_position.inc
-SET GTID_NEXT = 'AUTOMATIC';
-DROP DATABASE db4;
-ERROR HY000: Error dropping database (can't rmdir './db4/', errno: ## - ...)
-include/assert_binlog_events.inc
-# db7: many tables with long names.
-include/save_binlog_position.inc
-SET GTID_NEXT = 'AUTOMATIC';
-DROP DATABASE db7;
-ERROR HY000: Error dropping database (can't rmdir './db7/', errno: ## - ...)
-include/assert_binlog_events.inc
-# db10: not a database, but directory exists.
-include/save_binlog_position.inc
-SET GTID_NEXT = 'AUTOMATIC';
-DROP DATABASE db10;
-ERROR HY000: Can't drop database 'db10'; database doesn't exist
-include/assert_binlog_events.inc
-# db13: not a database.
-include/save_binlog_position.inc
-SET GTID_NEXT = 'AUTOMATIC';
-DROP DATABASE db13;
-ERROR HY000: Can't drop database 'db13'; database doesn't exist
-include/assert_binlog_events.inc
----- DROP DATABASE is split on master; GTID_NEXT=non-automatic ----
-# db2: no table.
-include/save_binlog_position.inc
+# base_4_a should still be there on slave
+SHOW CREATE TABLE base_4_a;
+Table	Create Table
+base_4_a	CREATE TABLE `base_4_a` (
+  `pk` int(11) NOT NULL,
+  PRIMARY KEY (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+CREATE TABLE base_1_n (a INT) ENGINE = MyISAM;
+CREATE TABLE base_2_n (a INT) ENGINE = MyISAM;
+CREATE TABLE base_3_a (a INT) ENGINE = InnoDB;
+include/rpl_sync.inc
+---- GTID_NEXT=non-automatic ----
+include/gtid_step_reset.inc
 SET GTID_NEXT = '#';
-DROP DATABASE db2;
-ERROR HY000: DROP DATABASE failed; some tables may have been dropped but the database directory remains. The GTID has not been added to GTID_EXECUTED and the statement was not written to the binary log. Fix this as follows: (1) remove all files from the database directory ./db2/; (2) SET GTID_NEXT='MASTER_UUID:80'; (3) DROP DATABASE `db2`.
-include/assert_binlog_events.inc
-SET GTID_NEXT = 'AUTOMATIC';
-# db5: one table.
-include/save_binlog_position.inc
-SET GTID_NEXT = '#';
-DROP DATABASE db5;
-ERROR HY000: DROP DATABASE failed; some tables may have been dropped but the database directory remains. The GTID has not been added to GTID_EXECUTED and the statement was not written to the binary log. Fix this as follows: (1) remove all files from the database directory ./db5/; (2) SET GTID_NEXT='MASTER_UUID:80'; (3) DROP DATABASE `db5`.
-include/assert_binlog_events.inc
-SET GTID_NEXT = 'AUTOMATIC';
-# db8: many tables with long names.
-include/save_binlog_position.inc
-SET GTID_NEXT = '#';
-DROP DATABASE db8;
-ERROR HY000: DROP DATABASE failed; some tables may have been dropped but the database directory remains. The GTID has not been added to GTID_EXECUTED and the statement was not written to the binary log. Fix this as follows: (1) remove all files from the database directory ./db8/; (2) SET GTID_NEXT='MASTER_UUID:80'; (3) DROP DATABASE `db8`.
-include/assert_binlog_events.inc
-SET GTID_NEXT = 'AUTOMATIC';
-# db11: not a database, but directory exists.
-include/save_binlog_position.inc
-SET GTID_NEXT = '#';
-DROP DATABASE db11;
-ERROR HY000: Can't drop database 'db11'; database doesn't exist
-include/assert_binlog_events.inc
-SET GTID_NEXT = 'AUTOMATIC';
-# db14: not a database.
-include/save_binlog_position.inc
-SET GTID_NEXT = '#';
-DROP DATABASE db14;
-ERROR HY000: Can't drop database 'db14'; database doesn't exist
-include/assert_binlog_events.inc
-SET GTID_NEXT = 'AUTOMATIC';
----- DROP DATABASE is split on slave ----
-SET GTID_NEXT = 'AUTOMATIC';
-# db3: no table.
-DROP DATABASE db3;
-include/sync_slave_io_with_master.inc
-include/wait_for_slave_sql_error.inc [errno=3091]
-include/include/rpl_skip_to_end_of_relay_log.inc
-[connection master]
-# db6: one table.
-DROP DATABASE db6;
-include/sync_slave_io_with_master.inc
-include/wait_for_slave_sql_error.inc [errno=3091]
-include/include/rpl_skip_to_end_of_relay_log.inc
-[connection master]
-# db9: many tables with long names.
-DROP DATABASE db9;
-include/sync_slave_io_with_master.inc
-include/wait_for_slave_sql_error.inc [errno=3091]
-include/include/rpl_skip_to_end_of_relay_log.inc
-[connection master]
-# db12: not a database, but an empty directory exists.
-DROP DATABASE db12;
-ERROR HY000: Can't drop database 'db12'; database doesn't exist
+DROP TABLES base_1_n, base_2_n, base_3_a, base_4_a;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+SET GTID_NEXT= 'AUTOMATIC';
+# With GTID assigned the above statement should not be split.
+include/gtid_step_assert.inc [count=1, only_count=0]
+# base_4_a should still be there on master
+SHOW CREATE TABLE base_4_a;
+Table	Create Table
+base_4_a	CREATE TABLE `base_4_a` (
+  `pk` int(11) NOT NULL,
+  PRIMARY KEY (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+include/rpl_sync.inc
+# base_4_a should still be there on slave
+SHOW CREATE TABLE base_4_a;
+Table	Create Table
+base_4_a	CREATE TABLE `base_4_a` (
+  `pk` int(11) NOT NULL,
+  PRIMARY KEY (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 ---- Clean up ----
-DROP DATABASE db1;
-DROP DATABASE db2;
-DROP DATABASE IF EXISTS db3;
-Warnings:
-Note	1008	Can't drop database 'db3'; database doesn't exist
-DROP DATABASE db4;
-DROP DATABASE db5;
-DROP DATABASE IF EXISTS db6;
-Warnings:
-Note	1008	Can't drop database 'db6'; database doesn't exist
-DROP DATABASE db7;
-DROP DATABASE db8;
-DROP DATABASE IF EXISTS db9;
-Warnings:
-Note	1008	Can't drop database 'db9'; database doesn't exist
-DROP DATABASE IF EXISTS db10;
-Warnings:
-Note	1008	Can't drop database 'db10'; database doesn't exist
-DROP DATABASE IF EXISTS db11;
-Warnings:
-Note	1008	Can't drop database 'db11'; database doesn't exist
-DROP DATABASE IF EXISTS db12;
-Warnings:
-Note	1008	Can't drop database 'db12'; database doesn't exist
+DROP TABLE base_5_a, base_4_a;
 include/rpl_sync.inc
+==== Case 3: DROP DATABASE ====
+See rpl_split_statements_debug.test
 ==== Case 4: CREATE TABLE ... SELECT ====
 See rpl_gtid_create_select.test
 include/rpl_end.inc

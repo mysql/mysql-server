@@ -1,0 +1,24 @@
+--echo #Test for Shared lock
+
+-- connect (con1,localhost,root,,)
+-- connect (con2,localhost,root,,)
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+--connection con1
+create table t1 (id integer, x integer) engine=INNODB;
+insert into t1 values(0, 0);
+set autocommit=0;
+lock table t1 READ;
+
+--connection con2
+select object_schema, object_name, lock_type, lock_mode, lock_status, lock_data from performance_schema.data_locks;
+
+--connection con1
+unlock tables;
+drop table t1;
+
+--disconnect con1
+--disconnect con2

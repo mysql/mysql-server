@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -310,8 +310,8 @@ Dbtux::execTUX_BOUND_INFO(Signal* signal)
     scanBound.m_side = side;
     // save data words in segmented memory
     {
-      DataBuffer<ScanBoundSegmentSize>::Head& head = scanBound.m_head;
-      LocalDataBuffer<ScanBoundSegmentSize> b(c_scanBoundPool, head);
+      ScanBoundBuffer::Head& head = scanBound.m_head;
+      LocalScanBoundBuffer b(c_scanBoundPool, head);
       const Uint32* data = (const Uint32*)searchBoundData.get_data_buf();
       Uint32 size = (searchBoundData.get_data_len() + 3) / 4;
       bool ok = b.append(data, size);
@@ -1211,7 +1211,7 @@ Dbtux::abortAccLockOps(Signal* signal, ScanOpPtr scanPtr)
     debugOut << "Abort locks in scan " << scanPtr.i << " " << scan << endl;
   }
 #endif
-  LocalDLFifoList<ScanLock> list(c_scanLockPool, scan.m_accLockOps);
+  Local_ScanLock_fifo list(c_scanLockPool, scan.m_accLockOps);
   ScanLockPtr lockPtr;
   while (list.first(lockPtr)) {
     jam();
@@ -1236,7 +1236,7 @@ Dbtux::addAccLockOp(ScanOpPtr scanPtr, Uint32 accLockOp)
              << " to scan " << scanPtr.i << " " << scan << endl;
   }
 #endif
-  LocalDLFifoList<ScanLock> list(c_scanLockPool, scan.m_accLockOps);
+  Local_ScanLock_fifo list(c_scanLockPool, scan.m_accLockOps);
   ScanLockPtr lockPtr;
 #ifdef VM_TRACE
   list.first(lockPtr);
@@ -1261,7 +1261,7 @@ Dbtux::removeAccLockOp(ScanOpPtr scanPtr, Uint32 accLockOp)
              << " from scan " << scanPtr.i << " " << scan << endl;
   }
 #endif
-  LocalDLFifoList<ScanLock> list(c_scanLockPool, scan.m_accLockOps);
+  Local_ScanLock_fifo list(c_scanLockPool, scan.m_accLockOps);
   ScanLockPtr lockPtr;
   list.first(lockPtr);
   while (lockPtr.i != RNIL) {
@@ -1289,8 +1289,8 @@ Dbtux::releaseScanOp(ScanOpPtr& scanPtr)
   Frag& frag = *c_fragPool.getPtr(scanPtr.p->m_fragPtrI);
   for (unsigned i = 0; i <= 1; i++) {
     ScanBound& scanBound = scanPtr.p->m_scanBound[i];
-    DataBuffer<ScanBoundSegmentSize>::Head& head = scanBound.m_head;
-    LocalDataBuffer<ScanBoundSegmentSize> b(c_scanBoundPool, head);
+    ScanBoundBuffer::Head& head = scanBound.m_head;
+    LocalScanBoundBuffer b(c_scanBoundPool, head);
     b.release();
   }
   if (unlikely(scanPtr.p->m_statOpPtrI != RNIL)) {

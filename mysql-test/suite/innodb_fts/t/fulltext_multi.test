@@ -1,4 +1,3 @@
---source include/have_innodb.inc
 
 # several FULLTEXT indexes in one table test
 --disable_warnings

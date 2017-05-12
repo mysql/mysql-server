@@ -1,8 +1,8 @@
 #************************************************************
 # WL6045:Improve Innochecksum
 #************************************************************
---source include/have_innodb.inc
 --source include/have_innodb_max_16k.inc
+--source include/have_no_undo_tablespaces.inc
 
 # Valgrind would complain about memory leaks when we crash on purpose.
 --source include/not_valgrind.inc
@@ -78,7 +78,7 @@ foreach (glob("$ENV{MYSQLD_DATADIR}/*/*.ibd")) {
 EOF
 
 --echo : start the server with innodb_checksum_algorithm=strict_innodb
---let restart_options= : --innodb_checksum_algorithm=strict_innodb --default_storage_engine=InnoDB
+--let restart_parameters=restart: --innodb_checksum_algorithm=strict_innodb --default_storage_engine=InnoDB
 --source include/start_mysqld.inc
 
 INSERT INTO tab1 (pk, linestring_key, linestring_nokey)
@@ -118,7 +118,7 @@ foreach (glob("$ENV{MYSQLD_DATADIR}/*/*.ibd")) {
 EOF
 
 --echo # start the server with innodb_checksum_algorithm=strict_crc32
---let restart_options= : --innodb_checksum_algorithm=strict_crc32 --default_storage_engine=InnoDB
+--let restart_parameters=restart: --innodb_checksum_algorithm=strict_crc32 --default_storage_engine=InnoDB
 --source include/start_mysqld.inc
 
 # check the table status is GOOD with DML

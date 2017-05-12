@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -64,6 +64,9 @@ NDB_GET_CONFIG_VALUE(NDB_SHARED_LIB_VERSION_MAJOR major)
 NDB_GET_CONFIG_VALUE(NDB_SHARED_LIB_VERSION_MINOR minor)
 NDB_GET_CONFIG_VALUE(NDB_SHARED_LIB_VERSION_BUILD build)
 SET(NDB_SHARED_LIB_VERSION "${major}.${minor}.${build}")
+
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/libndbclient.ver.in
+               ${CMAKE_CURRENT_BINARY_DIR}/libndbclient.ver)
 
 ADD_LIBRARY(ndbclient_so SHARED ndbclient_exports.cpp)
 TARGET_LINK_LIBRARIES(ndbclient_so ${NDBCLIENT_SO_LIBS})
@@ -143,8 +146,16 @@ ELSE()
     # Avoid LINK_FLAGS-NOTFOUND
     SET(ndbclient_so_link_flags)
   ENDIF()
-  SET_TARGET_PROPERTIES(ndbclient_so PROPERTIES
-    LINK_FLAGS "${CMAKE_SHARED_LIBRARY_C_FLAGS} ${ndbclient_so_link_flags}")
+  SET(ndbclient_so_link_flags
+    "${CMAKE_SHARED_LIBRARY_C_FLAGS} ${ndbclient_so_link_flags}")
+  IF(LINK_FLAG_NO_UNDEFINED)
+    SET(ndbclient_so_link_flags
+      "${ndbclient_so_link_flags} ${LINK_FLAG_NO_UNDEFINED}")
+    SET(ndbclient_so_link_flags
+      "${ndbclient_so_link_flags} -Wl,--version-script=${CMAKE_CURRENT_BINARY_DIR}/libndbclient.ver")
+  ENDIF()
+  SET_TARGET_PROPERTIES(ndbclient_so
+    PROPERTIES LINK_FLAGS "${ndbclient_so_link_flags}")
 ENDIF()
 
 

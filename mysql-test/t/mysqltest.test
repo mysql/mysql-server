@@ -1023,7 +1023,7 @@ let $var2= `failing query`;
 echo $var2;
 EOF
 
-create table t1 (a varchar(100));
+create table t1 (a varchar(100)) charset utf8mb4;
 insert into t1 values ('`select 42`');
 let $a= `select * from t1`;
 # This should output `select 42`, not evaluate it again to 42
@@ -3237,7 +3237,7 @@ DROP TABLE t1;
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TEMP_TABLE_INFO;
 
 # Should create a temporary table
-CREATE /*! TEMPORARY */ TABLE t1 /* shouldn't fail */ (a INT);
+CREATE /*! TEMPORARY */ TABLE t1 /* shouldn't fail */ (a INT) CHARSET utf8mb4;
 
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TEMP_TABLE_INFO;
 SHOW CREATE TABLE t1;
@@ -3319,3 +3319,407 @@ connection default;
 # Directory doesn't exist, should fail
 --error 1
 --force-rmdir $MYSQLTEST_VARDIR/bug24316799
+
+--echo #
+--echo # Bug#21046241 : MTR CONNECT() NOT WORKING FOR TCP AND SOCKET PROTOCOL OPTIONS
+--echo #
+
+# TCP protocol, should pass
+--connect(tcp_con,localhost,root,,,,,TCP)
+
+# Disabling the query log and result log to make the test run on
+# both non-windows and windows platforms without any result mismatch.
+--disable_query_log
+--disable_result_log
+--let $os_version = `SELECT CONVERT(@@version_compile_os using latin1) NOT IN ("Win32","Win64","Windows")`
+
+# Socket protocol on non-windows platform, should pass
+if ($os_version)
+{
+  --connect(sock_con,localhost,root,,,,$MASTER_MYSOCK,SOCKET)
+}
+
+# Socket protocol on windows, should fail
+if (!$os_version)
+{
+  --error CR_CONN_UNKNOW_PROTOCOL
+  --connect(sock_con,localhost,root,,,,$MASTER_MYSOCK,SOCKET)
+}
+
+# Checking windows connection protocols on non-windows platforms
+# Should throw 'Wrong protocol' error
+if ($os_version)
+{
+  --let $shm_name= query_get_value("SHOW GLOBAL VARIABLES LIKE 'shared_memory_base_name'", Value, 1)
+  --error CR_CONN_UNKNOW_PROTOCOL
+  --connect(shm_con,localhost,root,,,,$shm_name,SHM)
+
+  --error CR_CONN_UNKNOW_PROTOCOL
+  --connect(pipe_con,localhost,root,,,,,PIPE)
+}
+
+--enable_result_log
+--enable_query_log
+
+--echo #
+--echo # Bug#24466969 : MTR CONNECT() ACCEPTS CONNECTION OPTIONS WITH ADDITIONAL TRAILING CHARACTERS
+--echo #
+
+--error 1
+--exec echo "connect(invalid_con,localhost,root,,,,,SOCKETNEW);" | $MYSQL_TEST 2>&1
+
+--error 1
+--exec echo "connect(tcp_ssl_con,localhost,root,,,,,TCP SSL3 COMPRESS);" | $MYSQL_TEST 2>&1
+
+--echo #
+--echo # Bug#24806681 : MTR: INTRODUCE COMMAND TO COPY DIRECTORIES RECURSIVELY
+--echo #
+
+--echo # Destination directory doesn't exist and is created, should pass
+--force-cpdir $MYSQLTEST_VARDIR/std_data/ $MYSQLTEST_VARDIR/bug24806681
+--list_files $MYSQLTEST_VARDIR/bug24806681/Europe
+--force-rmdir $MYSQLTEST_VARDIR/bug24806681
+
+--echo # Destination directory exists, should pass
+--mkdir $MYSQLTEST_VARDIR/bug24806681
+--force-cpdir $MYSQLTEST_VARDIR/std_data/ $MYSQLTEST_VARDIR/bug24806681
+--list_files $MYSQLTEST_VARDIR/bug24806681/std_data/Europe
+--force-rmdir $MYSQLTEST_VARDIR/bug24806681
+
+--echo # Destination contains a subdirectory with the same name as a
+--echo # subdirectory in source, should pass
+--mkdir $MYSQLTEST_VARDIR/bug24806681
+--mkdir $MYSQLTEST_VARDIR/bug24806681/std_data
+--mkdir $MYSQLTEST_VARDIR/bug24806681/std_data/Europe
+--write_file $MYSQLTEST_VARDIR/bug24806681/std_data/Europe/Italy
+Test case for "force-cpdir <source> <destination>" command
+EOF
+--force-cpdir $MYSQLTEST_VARDIR/std_data/ $MYSQLTEST_VARDIR/bug24806681
+--list_files $MYSQLTEST_VARDIR/bug24806681/std_data/Europe
+--force-rmdir $MYSQLTEST_VARDIR/bug24806681
+
+--echo # Source directory doesn't exist, should fail
+--error 1
+--force-cpdir $MYSQLTEST_VARDIR/bug24806681 $MYSQLTEST_VARDIR/bug24806681_1
+
+--echo # Destination contains a file with the same name as a
+--echo # subdirectory in source, should fail
+--mkdir $MYSQLTEST_VARDIR/bug24806681
+--mkdir $MYSQLTEST_VARDIR/bug24806681/std_data
+--write_file $MYSQLTEST_VARDIR/bug24806681/std_data/Europe
+Test case for "force-cpdir <source> <destination>" command
+EOF
+--error 1
+--force-cpdir $MYSQLTEST_VARDIR/std_data/ $MYSQLTEST_VARDIR/bug24806681
+--force-rmdir $MYSQLTEST_VARDIR/bug24806681
+
+--echo # Source directory path and destination directory path are same, should fail
+--error 1
+--force-cpdir $MYSQLTEST_VARDIR/std_data/ $MYSQLTEST_VARDIR/std_data/
+
+--echo #
+--echo # BUG#24806741 : MTR: INTRODUCE "EXPR" COMMAND
+--echo #
+
+--let $var1= 10
+--let $var2= 20
+--let $var3= -10
+--let $var4= 10.5
+--let $var5= -3.5
+--let $var6= 1e10
+--let $var7= 1e8
+--let $var8= 0
+--let $var9= 2
+--let $var10= 3
+
+--echo #
+--echo # Arithmetic operation
+--echo #
+
+--echo # Addition operation
+--echo expr \$res= $var1 + $var2
+--expr $res= $var1 + $var2
+--echo $res
+
+--echo expr \$res= $var2 + ($var3)
+--expr $res= $var2 + $var3
+--echo $res
+
+--echo expr \$res= $var3 + $var4
+--expr $res= $var3 + $var4
+--echo $res
+
+--echo expr \$res= $var5 + $var4
+--expr $res= $var5 + $var4
+--echo $res
+
+--echo expr \$res= $var6 + $var6
+--expr $res= $var6 + $var6
+--echo $res
+
+--echo expr \$res= $var6 + $var7
+--expr $res= $var6 + $var7
+--echo $res
+
+--echo # Subtraction operation
+--echo expr \$res= $var1 - $var2
+--expr $res= $var1 - $var2
+--echo $res
+
+--echo expr \$res= $var2 - ($var3)
+--expr $res= $var2 - $var3
+--echo $res
+
+--echo expr \$res= $var3 - $var1
+--expr $res= $var3 - $var1
+--echo $res
+
+--echo expr \$res= $var4 - $var1
+--expr $res= $var4 - $var1
+--echo $res
+
+--echo expr \$res= $var6 - $var7
+--expr $res= $var6 - $var7
+--echo $res
+
+--echo expr \$res= $var7 - $var6
+--expr $res= $var7 - $var6
+--echo $res
+
+--echo # Multiplication operation
+--echo expr \$res= $var1 * $var2
+--expr $res= $var1 * $var2
+--echo $res
+
+--echo expr \$res= $var1 * ($var3)
+--expr $res= $var1 * $var3
+--echo $res
+
+--echo expr \$res= $var3 * $var4
+--expr $res= $var3 * $var4
+--echo $res
+
+--echo expr \$res= $var4 * ($var5)
+--expr $res= $var4 * $var5
+--echo $res
+
+--echo expr \$res= $var6 * $var7
+--expr $res= $var6 * $var7
+--echo $res
+
+--echo # Division operation
+--echo expr \$res= $var1 / $var2
+--expr $res= $var1 / $var2
+--echo $res
+
+--echo expr \$res= $var2 / ($var3)
+--expr $res= $var2 / $var3
+--echo $res
+
+--echo expr \$res= $var4 / ($var5)
+--expr $res= $var4 / $var5
+--echo $res
+
+--echo expr \$res= $var6 / $var7
+--expr $res= $var6 / $var7
+--echo $res
+
+--echo # Modulo operation
+--echo expr \$res= $var1 % $var2
+--expr $res= $var1 % $var2
+--echo $res
+
+--echo expr \$res= $var2 % ($var3)
+--expr $res= $var2 % $var3
+--echo $res
+
+--echo expr \$res= $var4 % $var5
+--expr $res= $var4 % $var5
+--echo $res
+
+--echo #
+--echo # Logical operation
+--echo #
+
+--echo # Logical AND operation
+--echo expr \$res= $var1 && $var2
+--expr $res= $var1 && $var2
+--echo $res
+
+--echo expr \$res= $var3 && $var8
+--expr $res= $var3 && $var8
+--echo $res
+
+--echo expr \$res= $var2 && $var3
+--expr $res= $var2 && $var3
+--echo $res
+
+--echo expr \$res= $var4 && $var5
+--expr $res= $var4 && $var5
+--echo $res
+
+--echo expr \$res= $var5 && $var8
+--expr $res= $var5 && $var8
+--echo $res
+
+--echo expr \$res= $var8 && $var8
+--expr $res= $var8 && $var8
+--echo $res
+
+--echo # Logical OR operation
+--echo expr \$res= $var1 || $var2
+--expr $res= $var1 || $var2
+--echo $res
+
+--echo expr \$res= $var3 || $var8
+--expr $res= $var3 || $var8
+--echo $res
+
+--echo expr \$res= $var3 || $var5
+--expr $res= $var3 || $var5
+--echo $res
+
+--echo expr \$res= $var4 || $var8
+--expr $res= $var4 || $var8
+--echo $res
+
+--echo expr \$res= $var8 || $var8
+--expr $res= $var8 || $var8
+--echo $res
+
+--echo #
+--echo # Bitwise operation
+--echo #
+
+--echo # Binary AND operation
+--echo expr \$res= $var1 & $var2
+--expr $res= $var1 & $var2
+--echo $res
+
+--echo expr \$res= $var2 & $var4
+--expr $res= $var2 & $var4
+--echo $res
+
+--echo expr \$res= $var2 & $var8
+--expr $res= $var2 & $var8
+--echo $res
+
+--echo expr \$res= $var1 & $var9
+--expr $res= $var1 & $var9
+--echo $res
+
+--echo # Binary OR operation
+--echo expr \$res= $var1 | $var2
+--expr $res= $var1 | $var2
+--echo $res
+
+--echo expr \$res= $var2 | $var4
+--expr $res= $var2 | $var4
+--echo $res
+
+--echo expr \$res= $var2 | $var8
+--expr $res= $var2 | $var8
+--echo $res
+
+--echo expr \$res= $var8 | $var8
+--expr $res= $var8 | $var8
+--echo $res
+
+--echo # Binary XOR operation
+--echo expr \$res= $var1 ^ $var2
+--expr $res= $var1 ^ $var2
+--echo $res
+
+--echo expr \$res= $var2 ^ $var4
+--expr $res= $var2 ^ $var4
+--echo $res
+
+--echo expr \$res= $var2 ^ $var8
+--expr $res= $var2 ^ $var8
+--echo $res
+
+--echo # Binary right shift operation
+--echo expr \$res= $var1 >> $var9
+--expr $res= $var1 >> $var9
+--echo $res
+
+--echo expr \$res= $var2 >> $var10
+--expr $res= $var2 >> $var10
+--echo $res
+
+--echo expr \$res= $var2 >> $var8
+--expr $res= $var2 >> $var8
+--echo $res
+
+--echo # Binary left shift operation
+--echo expr \$res= $var1 << $var9
+--expr $res= $var1 << $var9
+--echo $res
+
+--echo expr \$res= $var2 << $var10
+--expr $res= $var2 << $var10
+--echo $res
+
+--echo expr \$res= $var2 << $var8
+--expr $res= $var2 << $var8
+--echo $res
+
+--echo # Infinite result
+--let $var= 1e308
+--echo expr \$res= $var + $var
+--expr $res= $var + $var
+--echo $res
+
+--echo # Division by 0, result will be an infinite value and MTR will print 'inf' keyword.
+--echo expr \$res= $var1 / $var8
+--expr $res= $var1 / $var8
+--echo $res
+
+--echo # Invalid mathematical expressions
+--echo expr
+--error 1
+--exec echo "expr;" | $MYSQL_TEST 2>&1
+
+--echo expr \$res
+--error 1
+--exec echo "expr $res;" | $MYSQL_TEST 2>&1
+
+--echo expr \$res= \$a
+--error 1
+--exec echo "expr \$res= \$a;" | $MYSQL_TEST 2>&1
+
+--echo expr \$res= \$b + \$a
+--error 1
+--exec echo "let \$a= 1; expr \$res= \$b + \$a;" | $MYSQL_TEST 2>&1
+
+--echo expr \$res= \$a + \$c
+--error 1
+--exec echo "let \$a= 1; expr \$res= \$a + \$c;" | $MYSQL_TEST 2>&1
+
+--echo expr \$res= \$a + \$c
+--error 1
+--exec echo "let \$a= 1; let \$c= -a; expr \$res= \$a + \$c;" | $MYSQL_TEST 2>&1
+
+--echo expr \$res= \$a + \$
+--error 1
+--exec echo "let \$a= 1; expr \$res= \$a + \$;" | $MYSQL_TEST 2>&1
+
+--echo expr \$re@s= \$a + \$a
+--error 1
+--exec echo "expr \$re@s= \$a + \$a;" | $MYSQL_TEST 2>&1
+
+--echo expr \$res= \$a + \$a**
+--error 1
+--exec echo "let \$a= 1; expr \$res= \$a + \$a**;" | $MYSQL_TEST 2>&1
+
+--echo expr \$res= \$a + \$b + \$c
+--error 1
+--exec echo "let \$a= 1; let \$b= 2; let \$c= 3; expr \$res= \$a + \$b + \$c;" | $MYSQL_TEST 2>&1
+
+--echo expr \$res= \$a + b
+--error 1
+--exec echo "let \$a= 1; expr \$res= \$a + b; echo \$res;" | $MYSQL_TEST 2>&1
+
+--echo expr \$res= \$a ++ \$b
+--error 1
+--exec echo "let \$a= 1; let \$b= 1; expr \$res= \$a ++ \$b; echo \$res;" | $MYSQL_TEST 2>&1

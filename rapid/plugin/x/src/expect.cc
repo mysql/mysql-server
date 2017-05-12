@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017 Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -224,7 +224,7 @@ ngs::Error_code Expectation::set(uint32_t key, const std::string &value)
       break;
     }
     case EXPECT_GTID_WAIT_LESS_THAN:
-      m_gtid_wait_less_than = atoi(value.c_str());
+      m_gtid_wait_less_than = ngs::stoi(value);
       for (std::list<Expect_condition*>::iterator cond = m_conditions.begin();
            cond != m_conditions.end(); ++cond)
       {
@@ -341,7 +341,7 @@ ngs::Error_code Expectation_stack::pre_client_stmt(int8_t msgid)
 
 
 // called after executing client statements
-void Expectation_stack::post_client_stmt(int8_t msgid, const ngs::Error_code &error)
+void Expectation_stack::post_client_stmt(int8_t, const ngs::Error_code &error)
 {
   if (error && !m_expect_stack.empty() && m_expect_stack.back().fail_on_error())
     m_expect_stack.back().set_failed("no_error");

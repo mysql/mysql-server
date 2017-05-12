@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,12 +16,11 @@
 #ifndef HANDLER_T_INCLUDED
 #define HANDLER_T_INCLUDED
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
-#include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
 #include "base_mock_handler.h"
+#include "my_inttypes.h"
 
 /**
   A mock handler extending Base_mock_HANDLER
@@ -35,6 +34,28 @@ public:
   Mock_HANDLER(handlerton *ht_arg, TABLE_SHARE *share_arg)
     : Base_mock_HANDLER(ht_arg, share_arg)
   {}
+};
+
+
+/**
+  A mock handler for testing the sampling handler.
+*/
+class Mock_SAMPLING_HANDLER : public Base_mock_HANDLER
+{
+public:
+  /*
+    Declare the members we actually want to test. These are the members that
+    should be called by the "default" sampling implementation.
+  */
+  MOCK_METHOD1(rnd_init, int(bool scan));
+  MOCK_METHOD1(rnd_next, int(::uchar *buf));
+  MOCK_METHOD0(rnd_end, int());
+
+  Mock_SAMPLING_HANDLER(handlerton *ht_arg, TABLE *table, TABLE_SHARE *share)
+    : Base_mock_HANDLER(ht_arg, share)
+  {
+    this->table= table;
+  }
 };
 
 

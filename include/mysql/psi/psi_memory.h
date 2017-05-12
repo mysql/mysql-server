@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -15,6 +15,13 @@
 
 #ifndef MYSQL_PSI_MEMORY_H
 #define MYSQL_PSI_MEMORY_H
+
+#ifndef MYSQL_ABI_CHECK
+#include <sys/types.h>
+#endif
+
+#include "my_psi_config.h"  // IWYU pragma: keep
+#include "my_sharedlib.h"
 
 /*
   MAINTAINER:
@@ -98,7 +105,7 @@ struct PSI_memory_bootstrap
     @sa PSI_MEMORY_VERSION_2
     @sa PSI_CURRENT_MEMORY_VERSION
   */
-  void* (*get_interface)(int version);
+  void *(*get_interface)(int version);
 };
 typedef struct PSI_memory_bootstrap PSI_memory_bootstrap;
 
@@ -106,7 +113,7 @@ typedef struct PSI_memory_bootstrap PSI_memory_bootstrap;
 
 /**
   Memory instrument information.
-  @since PSI_VERSION_1
+  @since PSI_MEMORY_VERSION_1
   This structure is used to register instrumented memory.
 */
 struct PSI_memory_info_v1
@@ -129,8 +136,9 @@ typedef struct PSI_memory_info_v1 PSI_memory_info_v1;
   @param info an array of memory info to register
   @param count the size of the info array
 */
-typedef void (*register_memory_v1_t)
-  (const char *category, struct PSI_memory_info_v1 *info, int count);
+typedef void (*register_memory_v1_t)(const char *category,
+                                     struct PSI_memory_info_v1 *info,
+                                     int count);
 
 /**
   Instrument memory allocation.
@@ -139,8 +147,9 @@ typedef void (*register_memory_v1_t)
   @param[out] owner the memory owner
   @return the effective memory instrument key
 */
-typedef PSI_memory_key (*memory_alloc_v1_t)
-  (PSI_memory_key key, size_t size, struct PSI_thread ** owner);
+typedef PSI_memory_key (*memory_alloc_v1_t)(PSI_memory_key key,
+                                            size_t size,
+                                            struct PSI_thread **owner);
 
 /**
   Instrument memory re allocation.
@@ -150,8 +159,10 @@ typedef PSI_memory_key (*memory_alloc_v1_t)
   @param[in, out] owner the memory owner
   @return the effective memory instrument key
 */
-typedef PSI_memory_key (*memory_realloc_v1_t)
-  (PSI_memory_key key, size_t old_size, size_t new_size, struct PSI_thread ** owner);
+typedef PSI_memory_key (*memory_realloc_v1_t)(PSI_memory_key key,
+                                              size_t old_size,
+                                              size_t new_size,
+                                              struct PSI_thread **owner);
 
 /**
   Instrument memory claim.
@@ -160,8 +171,9 @@ typedef PSI_memory_key (*memory_realloc_v1_t)
   @param[in, out] owner the memory owner
   @return the effective memory instrument key
 */
-typedef PSI_memory_key (*memory_claim_v1_t)
-  (PSI_memory_key key, size_t size, struct PSI_thread ** owner);
+typedef PSI_memory_key (*memory_claim_v1_t)(PSI_memory_key key,
+                                            size_t size,
+                                            struct PSI_thread **owner);
 
 /**
   Instrument memory free.
@@ -169,8 +181,9 @@ typedef PSI_memory_key (*memory_claim_v1_t)
   @param size the size of memory allocated
   @param owner the memory owner
 */
-typedef void (*memory_free_v1_t)
-  (PSI_memory_key key, size_t size, struct PSI_thread * owner);
+typedef void (*memory_free_v1_t)(PSI_memory_key key,
+                                 size_t size,
+                                 struct PSI_thread *owner);
 
 /**
   Performance Schema Memory Interface, version 1.
@@ -211,4 +224,3 @@ extern MYSQL_PLUGIN_IMPORT PSI_memory_service_t *psi_memory_service;
 #endif /* HAVE_PSI_MEMORY_INTERFACE */
 
 #endif /* MYSQL_PSI_MEMORY_H */
-

@@ -1,5 +1,2 @@
---let CLEANUP_FOLDER=$bugdir/data
---source include/cleanup_folder.inc
---let SRC=$bugdir/data_backup
---let DEST=$bugdir/data
---source include/copy_dir.inc
+--force-rmdir $bugdir/data
+--force-cpdir $bugdir/data_backup $bugdir/data

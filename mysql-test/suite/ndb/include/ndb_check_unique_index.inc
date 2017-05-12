@@ -20,7 +20,7 @@ open MAIN, "$cmd|";
 print "Table: $db.$tbl\n";
 while (<MAIN>)
 {
-  if (/FragmentCount: (\S+).*/)
+  if (/FragmentCount: (\S+).*/ || /PartitionCount: (\S+).*/)
   {
     # print previous tables indices fragment counts
     foreach my $i (sort keys %idxfragcnts)

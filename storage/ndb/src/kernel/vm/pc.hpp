@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -222,7 +222,7 @@
   if(likely(check)){ \
   } else {     \
     jamNoBlock(); \
-    progError(__LINE__, NDBD_EXIT_NDBASSERT, __FILE__); \
+    progError(__LINE__, NDBD_EXIT_NDBASSERT, __FILE__, #check); \
   }
 #else
 #define ndbassert(check) do { } while(0)
@@ -232,7 +232,7 @@
   if(likely(check)){ \
   } else {     \
     jamNoBlock(); \
-    progError(__LINE__, error, __FILE__); \
+    progError(__LINE__, error, __FILE__, #check); \
   }
 
 #define ndbrequire(check) \

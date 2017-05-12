@@ -1,7 +1,5 @@
 # Tests for PERFORMANCE_SCHEMA table io
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
 --source ../include/table_io_setup_helper.inc
 
 # Remove "deleted" records from mysql.* that may come from previous tests,
@@ -26,11 +24,12 @@ optimize table mysql.servers;
 # fetch from dictionary tables does not pollute the result.
 flush privileges;
 
-# Execute two show statements to make sure the corresponding
+# Execute show statements to make sure the corresponding
 # dd::Table objects are acquired and present in the dictionary
 # cache. This is necessary to avoid nondeterminism due to
 # the caching behavior.
 
+show create table test.marker;
 show global status;
 show global variables;
 

@@ -1,6 +1,27 @@
 #include "mysql/psi/psi_rwlock.h"
-#include "my_global.h"
+#include "my_inttypes.h"
+#include "my_config.h"
+typedef unsigned char uchar;
+typedef signed char int8;
+typedef unsigned char uint8;
+typedef short int16;
+typedef unsigned short uint16;
+typedef int int32;
+typedef unsigned int uint32;
+typedef unsigned long long int ulonglong;
+typedef long long int longlong;
+typedef longlong int64;
+typedef ulonglong uint64;
+typedef unsigned long long my_ulonglong;
+typedef intptr_t intptr;
+typedef ulonglong my_off_t;
+typedef ptrdiff_t my_ptrdiff_t;
+typedef int myf;
+#include "my_macros.h"
+#include "my_psi_config.h"
+#include "my_sharedlib.h"
 #include "psi_base.h"
+#include "my_psi_config.h"
 typedef unsigned int PSI_mutex_key;
 typedef unsigned int PSI_rwlock_key;
 typedef unsigned int PSI_cond_key;
@@ -13,16 +34,14 @@ struct PSI_placeholder
 {
   int m_placeholder;
 };
-C_MODE_START
 struct PSI_rwlock;
 typedef struct PSI_rwlock PSI_rwlock;
 struct PSI_rwlock_bootstrap
 {
-  void* (*get_interface)(int version);
+  void *(*get_interface)(int version);
 };
 typedef struct PSI_rwlock_bootstrap PSI_rwlock_bootstrap;
 typedef struct PSI_placeholder PSI_rwlock_service_t;
 typedef struct PSI_placeholder PSI_rwlock_info;
 typedef struct PSI_placeholder PSI_rwlock_locker_state;
-extern MYSQL_PLUGIN_IMPORT PSI_rwlock_service_t *psi_rwlock_service;
-C_MODE_END
+extern PSI_rwlock_service_t *psi_rwlock_service;

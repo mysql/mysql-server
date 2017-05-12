@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,32 +15,33 @@
 
 #include "dd/collection.h"
 
+#include <memory>     // std::unique_ptr
+
 #include "dd/impl/object_key.h"         // Needed for destructor
+#include "dd/impl/raw/raw_record.h"
 #include "dd/impl/raw/raw_record_set.h" // dd::Raw_record_set
 #include "dd/impl/raw/raw_table.h"      // dd::Raw_table
-
-#include "dd/impl/types/abstract_table_impl.h"
-#include "dd/impl/types/column_impl.h"
-#include "dd/impl/types/column_type_element_impl.h"
-#include "dd/impl/types/foreign_key_impl.h"
-#include "dd/impl/types/foreign_key_element_impl.h"
-#include "dd/impl/types/index_impl.h"
-#include "dd/impl/types/index_element_impl.h"
-#include "dd/impl/types/parameter_impl.h"
-#include "dd/impl/types/parameter_type_element_impl.h"
-#include "dd/impl/types/partition_impl.h"
-#include "dd/impl/types/partition_index_impl.h"
-#include "dd/impl/types/partition_value_impl.h"
-#include "dd/impl/types/routine_impl.h"
-#include "dd/impl/types/table_impl.h"
-#include "dd/impl/types/tablespace_impl.h"
-#include "dd/impl/types/tablespace_file_impl.h"
-#include "dd/impl/types/view_impl.h"
-#include "dd/impl/types/view_routine_impl.h"
-#include "dd/impl/types/view_table_impl.h"
-#include "dd/impl/types/trigger_impl.h"
-
-#include <memory>     // std::unique_ptr
+#include "dd/impl/types/abstract_table_impl.h"  // IWYU pragma: keep
+#include "dd/impl/types/column_impl.h"  // IWYU pragma: keep
+#include "dd/impl/types/column_type_element_impl.h"  // IWYU pragma: keep
+#include "dd/impl/types/foreign_key_element_impl.h"  // IWYU pragma: keep
+#include "dd/impl/types/foreign_key_impl.h"  // IWYU pragma: keep
+#include "dd/impl/types/index_element_impl.h"  // IWYU pragma: keep
+#include "dd/impl/types/index_impl.h"  // IWYU pragma: keep
+#include "dd/impl/types/parameter_impl.h"  // IWYU pragma: keep
+#include "dd/impl/types/parameter_type_element_impl.h"  // IWYU pragma: keep
+#include "dd/impl/types/partition_impl.h"  // IWYU pragma: keep
+#include "dd/impl/types/partition_index_impl.h"  // IWYU pragma: keep
+#include "dd/impl/types/partition_value_impl.h"  // IWYU pragma: keep
+#include "dd/impl/types/routine_impl.h"  // IWYU pragma: keep
+#include "dd/impl/types/table_impl.h"  // IWYU pragma: keep
+#include "dd/impl/types/tablespace_file_impl.h"  // IWYU pragma: keep
+#include "dd/impl/types/tablespace_impl.h"  // IWYU pragma: keep
+#include "dd/impl/types/trigger_impl.h"  // IWYU pragma: keep
+#include "dd/impl/types/view_impl.h"  // IWYU pragma: keep
+#include "dd/impl/types/view_routine_impl.h"  // IWYU pragma: keep
+#include "dd/impl/types/view_table_impl.h"  // IWYU pragma: keep
+#include "my_dbug.h"
 
 namespace dd {
 
@@ -113,18 +114,13 @@ void Collection<T>::remove(typename Collection<T>::impl_type *item)
 */
 
 template <typename T>
-static bool item_compare(const T *a,
-                         const T *b)
-{ return a->ordinal_position() < b->ordinal_position(); }
-
-
-template <typename T>
-template <typename Parent_item>
+template <typename Parent_item, typename Compare>
 bool Collection<T>::restore_items(
   Parent_item *parent,
   Open_dictionary_tables_ctx *otx,
   Raw_table *table,
-  Object_key *key)
+  Object_key *key,
+  Compare comp)
 {
   DBUG_ENTER("Collection::restore_items");
 
@@ -163,11 +159,27 @@ bool Collection<T>::restore_items(
   // The record fetched from DB may not be ordered based on ordinal position,
   // since some elements store their ordinal position persistently.
   // So we need to sort the elements in m_item based on ordinal position.
-  std::sort(m_items.begin(), m_items.end(), item_compare<Collection<T>::impl_type>);
+  std::sort(m_items.begin(), m_items.end(), comp);
 
   DBUG_RETURN(false);
 }
 
+template <typename T>
+static bool item_compare(const T *a,
+                         const T *b)
+{ return a->ordinal_position() < b->ordinal_position(); }
+
+
+template <typename T>
+template <typename Parent_item>
+bool Collection<T>::restore_items(
+  Parent_item *parent,
+  Open_dictionary_tables_ctx *otx,
+  Raw_table *table,
+  Object_key *key)
+{
+  return restore_items(parent, otx, table, key, item_compare<Collection<T>::impl_type>);
+}
 
 template <typename T>
 bool Collection<T>::store_items(Open_dictionary_tables_ctx *otx)
@@ -274,6 +286,8 @@ template Column*&
 Collection<Column*>::Collection_iterator::operator*();
 template Column_type_element*&
 Collection<Column_type_element*>::Collection_iterator::operator*();
+template Foreign_key*&
+Collection<Foreign_key*>::Collection_iterator::operator*();
 template Index*&
 Collection<Index*>::Collection_iterator::operator*();
 template Index_element*&
@@ -282,6 +296,8 @@ template Parameter_type_element*&
 Collection<Parameter_type_element*>::Collection_iterator::operator*();
 template Partition*&
 Collection<Partition*>::Collection_iterator::operator*();
+template dd::Partition_index*&
+Collection<dd::Partition_index*>::Collection_iterator::operator*();
 template Tablespace_file*&
 Collection<Tablespace_file*>::Collection_iterator::operator*();
 template Trigger*&
@@ -354,6 +370,11 @@ template bool Collection<Partition*>::
 restore_items<Table_impl>(Table_impl*,
                           Open_dictionary_tables_ctx*,
                           Raw_table*, Object_key*);
+template bool Collection<Partition*>::
+restore_items<Table_impl, Partition_order_comparator>(Table_impl*,
+                          Open_dictionary_tables_ctx*,
+                          Raw_table*, Object_key*,
+                          Partition_order_comparator);
 template bool Collection<Partition_index*>::
 restore_items<Partition_impl>(Partition_impl*,
                               Open_dictionary_tables_ctx*,

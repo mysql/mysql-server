@@ -1,13 +1,21 @@
 # Bug#20205934 - ENABLE VALGRIND FOR MEMCACHED TESTS
 source include/not_valgrind.inc;
 source include/have_memcached_plugin.inc;
-source include/have_innodb.inc;
 # Memcached SDI APIs are enabled only for debug version
 source include/have_debug.inc;
 # This test uses external $MYSQL client tool to create table
 # with large number of columns(999) from a .sql file.
 # This will not work in embedded mode
 source include/not_embedded.inc;
+
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs73=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema test default character set latin1;
+--enable_query_log
+########################################
 
 --disable_query_log
 CALL mtr.add_suppression("daemon-memcached-w-batch-size': unsigned");
@@ -82,3 +90,10 @@ DROP DATABASE innodb_memcache;
 # Stop plugin before innodb_memcached configuration
 UNINSTALL PLUGIN daemon_memcached;
 SET GLOBAL innodb_file_per_table = default;
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs73;
+--enable_query_log
+########################################

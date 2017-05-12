@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,10 +15,17 @@
 
 #include "dd/impl/tables/version.h"
 
-#include "dd/impl/dictionary_impl.h"
-#include "dd/impl/transaction_impl.h"
+#include <ostream>
+
 #include "dd/impl/raw/raw_table.h"
+#include "dd/impl/transaction_impl.h"
+#include "dd/impl/types/object_table_definition_impl.h"
+#include "dd/string_type.h"           // dd::String_type, dd::Stringstream_type
 #include "field.h"
+#include "handler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "table.h"
 
 namespace dd {
 namespace tables {
@@ -43,7 +50,7 @@ Version::Version()
   m_target_def.add_index("PRIMARY KEY(version)");
 
   // Insert the target dictionary version
-  std::stringstream ss;
+  dd::Stringstream_type ss;
   ss << get_target_dd_version();
   m_target_def.add_populate_statement("INSERT INTO version (version)"
                                       "VALUES (" + ss.str() + ")");

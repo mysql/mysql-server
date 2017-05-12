@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 #define SQL_OPT_EXEC_SHARED_INCLUDED
 
 #include "my_base.h"
+#include "my_dbug.h"
 #include "sql_alloc.h"          // Sql_alloc
 
 class JOIN;
@@ -103,7 +104,6 @@ typedef struct st_table_ref : public Sql_alloc
 
   st_table_ref()
     : key_err(TRUE),
-      has_record(FALSE),
       key_parts(0),
       key_length(0),
       key(-1),

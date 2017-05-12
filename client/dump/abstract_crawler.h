@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -18,11 +18,14 @@
 #ifndef ABSTRACT_CRAWLER_INCLUDED
 #define ABSTRACT_CRAWLER_INCLUDED
 
-#include "i_crawler.h"
+#include <functional>
+
 #include "abstract_chain_element.h"
-#include "i_chain_maker.h"
-#include "i_dump_task.h"
 #include "base/abstract_program.h"
+#include "i_chain_maker.h"
+#include "i_crawler.h"
+#include "i_dump_task.h"
+#include "my_inttypes.h"
 
 namespace Mysql{
 namespace Tools{
@@ -51,7 +54,7 @@ public:
 
 protected:
   Abstract_crawler(
-    Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
+    std::function<bool(const Mysql::Tools::Base::Message_data&)>*
       message_handler, Simple_id_generator* object_id_generator,
       Mysql::Tools::Base::Abstract_program* program);
   /**

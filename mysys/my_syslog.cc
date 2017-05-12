@@ -19,11 +19,19 @@
   @file mysys/my_syslog.cc
 */
 
-#include "mysys_priv.h"
+#include <stddef.h>
+
+#include "m_ctype.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_loglevel.h"
 #include "my_sys.h"
+#if defined(_WIN32)
 #include "mysql/service_my_snprintf.h"
-#include <m_string.h>
-#include <stdarg.h>
+#include "mysys_priv.h"
+#endif
+
+extern CHARSET_INFO my_charset_utf16le_bin;
 
 #ifndef _WIN32
 #include <syslog.h>

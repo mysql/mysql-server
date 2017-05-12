@@ -15,6 +15,11 @@
 
 #include "dd/cache/local_multi_map.h"
 
+#include <stddef.h>
+
+#include "dd/cache/multi_map_base.h"
+#include "my_dbug.h"
+
 #include "cache_element.h"                    // Cache_element
 #include "dd/types/abstract_table.h"          // Abstract_table
 #include "dd/types/charset.h"                 // Charset
@@ -83,6 +88,29 @@ void Local_multi_map<T>::remove(Cache_element<T> *element)
 
   // Remove the keys and the element from the maps.
   Multi_map_base<T>::remove_single_element(element);
+}
+
+
+// Remove and delete all elements and objects from the map.
+template <typename T>
+void Local_multi_map<T>::erase()
+{
+  typename Multi_map_base<T>::Const_iterator it;
+  for (it= begin(); it != end();)
+  {
+    DBUG_ASSERT(it->second);
+    DBUG_ASSERT(it->second->object());
+
+    // Make sure we handle iterator invalidation: Increment
+    // before erasing.
+    Cache_element<T> *element= it->second;
+    ++it;
+
+    // Remove the element from the multi map, delete the wrapped object.
+    remove(element);
+    delete element->object();
+    delete element;
+  }
 }
 
 

@@ -9,7 +9,7 @@ if (!$rpl_reset_slave_all)
   }
   if ($rpl_multi_source)
   {
-    eval RESET SLAVE FOR CHANNEL '$rpl_channel_name';
+    eval RESET SLAVE FOR CHANNEL $rpl_channel_name;
   }
 }
 
@@ -21,7 +21,7 @@ if ($rpl_reset_slave_all)
   }
   if ($rpl_multi_source)
   {
-    eval RESET SLAVE ALL FOR CHANNEL  '$rpl_channel_name';
+    eval RESET SLAVE ALL FOR CHANNEL $rpl_channel_name;
   }
 }
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -61,14 +61,14 @@ public:
     return Dictionary_impl::instance()->get_actual_dd_version(thd);
   }
 
-  virtual bool populate(THD *thd) const
+  virtual bool populate(THD*) const
   { return false; }
 
   virtual bool hidden() const
   { return false; }
 
-  Plugin_table_impl(const std::string &name, const std::string &definition,
-                    const std::string &options, uint version)
+  Plugin_table_impl(const String_type &name, const String_type &definition,
+                    const String_type &options, uint version)
   {
     m_target_def.set_table_name(name);
     m_target_def.set_table_definition(definition);
@@ -79,7 +79,7 @@ public:
   virtual ~Plugin_table_impl()
   { }
 
-  virtual const std::string &name() const
+  virtual const String_type &name() const
   { return m_target_def.get_table_name(); }
 };
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,16 +16,18 @@
 #ifndef DD__RAW_RECORD_SET_INCLUDED
 #define DD__RAW_RECORD_SET_INCLUDED
 
-#include "my_global.h"
+#include <stddef.h>
 
 #include "dd/impl/raw/raw_record.h"       // dd::Raw_record
+
+struct TABLE;
 
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
-struct Raw_key;
 class Raw_table;
+struct Raw_key;
 
 ///////////////////////////////////////////////////////////////////////////
 

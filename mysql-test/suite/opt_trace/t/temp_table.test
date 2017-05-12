@@ -8,6 +8,7 @@
 SET optimizer_trace_max_mem_size=1048576; # 1MB
 SET optimizer_trace="enabled=on,one_line=off";
 SET end_markers_in_json="on";
+SET max_length_for_sort_data=1024;
 
 CREATE TABLE tmp (
   pk INT PRIMARY KEY AUTO_INCREMENT,
@@ -20,7 +21,7 @@ CREATE TABLE t1 (
   uniq VARCHAR(10),
   col1 VARCHAR(10),
   col2 VARCHAR(1024)
-);
+) CHARSET utf8mb4;
 
 INSERT INTO t1 SELECT pk, col1, col1 FROM tmp;
 
@@ -89,3 +90,5 @@ SELECT * FROM information_schema.OPTIMIZER_TRACE;
 DROP TABLE t1;
 --echo #
 
+# Clean up.
+SET max_length_for_sort_data=DEFAULT;

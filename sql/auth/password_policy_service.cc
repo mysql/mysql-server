@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License as
@@ -14,14 +14,19 @@
     along with this program; if not, write to the Free Software
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA */
 
-#include "m_ctype.h"  /* my_charset_utf8_bin */
-#include "my_dbug.h"   /* DBUG_ASSERT */
-#include <mysqld_error.h> /* To get ER_NOT_VALID_PASSWORD */
-#include <mysql/plugin_validate_password.h> /* validate_password plugin */
+#include <stddef.h>
 
-#include "strfunc.h"
-#include "sql_string.h"
+#include "m_ctype.h"  /* my_charset_utf8_bin */
+#include "m_string.h"
+#include "my_dbug.h"   /* DBUG_ASSERT */
+#include "my_inttypes.h"
+#include "my_sys.h"
+#include "mysql/plugin.h"
+#include "mysql/plugin_validate_password.h" /* validate_password plugin */
+#include "mysqld_error.h" /* To get ER_NOT_VALID_PASSWORD */
 #include "sql_plugin.h"
+#include "sql_plugin_ref.h"
+#include "sql_string.h"
 
 
 /**

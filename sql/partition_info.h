@@ -1,7 +1,7 @@
 #ifndef PARTITION_INFO_INCLUDED
 #define PARTITION_INFO_INCLUDED
 
-/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,19 +16,32 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "handler.h"
 #include "lock.h"                             // Tablespace_hash_set
+#include "my_bitmap.h"
+#include "my_inttypes.h"
 #include "partition_element.h"
+#include "sql_alloc.h"
 #include "sql_bitmap.h"                       // Bitmap
 #include "sql_data_change.h"                  // enum_duplicates
+#include "sql_list.h"
+
+class Field;
+class Item;
+class Partition_handler;
+class String;
+class THD;
+struct TABLE;
 
 #define NOT_A_PARTITION_ID UINT_MAX32
 
-class partition_info;
-class Partition_share;
-class COPY_INFO;
 class Create_field;
-struct st_partition_iter;
+class partition_info;
 struct TABLE_LIST;
+struct st_partition_iter;
 
 /**
   A "Get next" function for partition iterator.
@@ -96,8 +109,6 @@ typedef struct st_partition_iter
   partition_info *part_info;
 } PARTITION_ITERATOR;
 
-
-struct st_ddl_log_memory_entry;
 
 typedef struct {
   longlong list_value;
@@ -578,6 +589,48 @@ bool fill_partition_tablespace_names(
        partition_info *part_info,
        Tablespace_hash_set *tablespace_set);
 
-bool check_partition_tablespace_names(partition_info *part_info);
+
+/**
+  Check if all tablespace names specified for partitions have a valid length.
+
+  @param part_info    Partition info that could be using tablespaces.
+
+  @return true        One of the tablespace names specified has invalid length
+                      and an error is reported.
+  @return false       All the tablespace names specified for partitions have
+                      a valid length.
+*/
+
+bool validate_partition_tablespace_name_lengths(partition_info *part_info);
+
+
+/**
+  Check if all tablespace names specified for partitions are valid.
+
+  Do the validation by invoking the SE specific validation function.
+
+  @param part_info        Partition info that could be using tablespaces.
+  @param default_engine   Table level engine.
+
+  @return true            One of the tablespace names specified is invalid
+                          and an error is reported.
+  @return false           All the tablespace names specified for
+                          partitions are valid.
+*/
+
+bool validate_partition_tablespace_names(partition_info *part_info,
+                                         const handlerton *default_engine);
+
+
+/**
+  Predicate which returns true if any partition or subpartition uses
+  an external data directory or external index directory.
+
+  @param pi partitioning information
+  @retval true if any partition or subpartition has an external
+  data directory or external index directory.
+  @retval false otherwise
+ */
+bool has_external_data_or_index_dir(partition_info &pi);
 
 #endif /* PARTITION_INFO_INCLUDED */

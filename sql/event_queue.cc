@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,18 +13,27 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "event_queue.h"
+#include "sql/event_queue.h"
+
+#include <stdio.h>
+#include <new>
 
 #include "event_db_repository.h"  // Event_db_repository
 #include "events.h"               // Events
 #include "lock.h"                 // lock_object_name
 #include "log.h"                  // sql_print_error
+#include "malloc_allocator.h"
+#include "mdl.h"
+#include "my_dbug.h"
+#include "my_decimal.h"
+#include "my_systime.h"
+#include "mysql/psi/mysql_sp.h"
 #include "psi_memory_key.h"       // key_memory_Event_scheduler_scheduler_param
 #include "sql_audit.h"            // mysql_audit_release
 #include "sql_class.h"            // THD
+#include "sql_lex.h"
+#include "thr_mutex.h"
 #include "tztime.h"               // my_tz_OFFSET0
-
-#include "mysql/psi/mysql_sp.h"
 
 /**
   @addtogroup Event_Scheduler
@@ -89,7 +98,7 @@ Event_queue::~Event_queue()
 */
 
 bool
-Event_queue::init_queue(THD *thd)
+Event_queue::init_queue()
 {
   DBUG_ENTER("Event_queue::init_queue");
   DBUG_PRINT("enter", ("this: %p", this));
@@ -268,7 +277,6 @@ Event_queue::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name)
 
   SYNOPSIS
     Event_queue::drop_matching_events()
-      thd            THD
       pattern        A pattern string
       comparator     The function to use for comparing
 
@@ -280,8 +288,8 @@ Event_queue::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name)
 */
 
 void
-Event_queue::drop_matching_events(THD *thd, LEX_STRING pattern,
-                           bool (*comparator)(LEX_STRING, Event_basic *))
+Event_queue::drop_matching_events(LEX_STRING pattern,
+                                  bool (*comparator)(LEX_STRING, Event_basic *))
 {
   size_t i= 0;
   DBUG_ENTER("Event_queue::drop_matching_events");
@@ -334,16 +342,15 @@ Event_queue::drop_matching_events(THD *thd, LEX_STRING pattern,
 
   SYNOPSIS
     Event_queue::drop_schema_events()
-      thd        HD
       schema    The schema name
 */
 
 void
-Event_queue::drop_schema_events(THD *thd, LEX_STRING schema)
+Event_queue::drop_schema_events(LEX_STRING schema)
 {
   DBUG_ENTER("Event_queue::drop_schema_events");
   LOCK_QUEUE_DATA();
-  drop_matching_events(thd, schema, event_basic_db_equal);
+  drop_matching_events(schema, event_basic_db_equal);
   UNLOCK_QUEUE_DATA();
   DBUG_VOID_RETURN;
 }

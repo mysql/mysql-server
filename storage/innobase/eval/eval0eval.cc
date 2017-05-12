@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -25,9 +25,11 @@ Created 12/29/1997 Heikki Tuuri
 *******************************************************/
 
 #include "eval0eval.h"
+
 #include "data0data.h"
-#include "row0sel.h"
+#include "my_inttypes.h"
 #include "rem0cmp.h"
+#include "row0sel.h"
 
 /** Dummy adress used when we should allocate a buffer of size 0 in
 eval_node_alloc_val_buf */
@@ -143,11 +145,11 @@ eval_cmp_like(
 	switch (op) {
 	case IB_LIKE_PREFIX:
 		arg4 = que_node_get_next(arg3);
-		return(!cmp_dfield_dfield_like_prefix(que_node_get_val(arg1),
-						      que_node_get_val(arg4)));
+		return(cmp_dfield_dfield_eq_prefix(que_node_get_val(arg1),
+						   que_node_get_val(arg4)));
 	case IB_LIKE_EXACT:
 		return(!cmp_dfield_dfield(que_node_get_val(arg1),
-					  que_node_get_val(arg2)));
+					  que_node_get_val(arg2), true));
 	}
 
 	ut_error;
@@ -180,7 +182,7 @@ eval_cmp(
 	case PARS_NE_TOKEN:
 	case PARS_GE_TOKEN:
 		res = cmp_dfield_dfield(
-			que_node_get_val(arg1), que_node_get_val(arg2));
+			que_node_get_val(arg1), que_node_get_val(arg2), true);
 
 		switch (cmp_node->func) {
 		case '<':

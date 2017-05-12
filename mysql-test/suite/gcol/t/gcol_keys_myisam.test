@@ -1,3 +1,18 @@
+# General not engine specific settings and requirements
+--source suite/gcol/inc/gcol_init_vars.pre
+# Skipping the test when log-bin is enabled due to Bug#22508362
+--source include/not_log_bin.inc
+
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs12=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema default character set latin1;
+use test;
+--enable_query_log
+########################################
+
 ################################################################################
 # t/gcol_keys_myisam.test                                                      #
 #                                                                              #
@@ -21,10 +36,6 @@
 #
 
 #------------------------------------------------------------------------------#
-# General not engine specific settings and requirements
---source suite/gcol/inc/gcol_init_vars.pre
-# Skipping the test when log-bin is enabled due to Bug#22508362
---source include/not_log_bin.inc
 
 #------------------------------------------------------------------------------#
 # Engine specific settings and requirements
@@ -47,3 +58,10 @@ let $support_virtual_index= 0;
 #------------------------------------------------------------------------------#
 # Cleanup
 --source suite/gcol/inc/gcol_cleanup.inc
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs12;
+--enable_query_log
+########################################

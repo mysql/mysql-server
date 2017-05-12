@@ -2,9 +2,7 @@
 # Verify the orthogonality of iterators (table*::rnd_next()),
 # for every table and instruments.
 
---source include/not_embedded.inc
 --source include/no_valgrind_without_big.inc
---source include/have_perfschema.inc
 
 --disable_warnings
 drop procedure if exists check_instrument;

@@ -1480,7 +1480,7 @@ from customer1 left join customer2 on customer1.a=customer2.b
 where customer2.pk in (7,9)
 group by customer2.b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	customer1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
+1	SIMPLE	customer1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary
 1	SIMPLE	customer2	NULL	range	PRIMARY	PRIMARY	4	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`customer1`.`a` AS `a`,count(0) AS `count(*)` from `test`.`customer1` join `test`.`customer2` where ((`test`.`customer2`.`b` = `test`.`customer1`.`a`) and (`test`.`customer2`.`pk` in (7,9))) group by `test`.`customer2`.`b`
@@ -1625,8 +1625,8 @@ select d.m,d.c
 from t1 left join (select max(a) as m, count(a) as c from t1) as d
 on t1.b+d.c>0 group by d.c;
 m	c
-NULL	NULL
 NULL	0
+NULL	NULL
 SELECT show_json_object('"functional_dependencies_of_GROUP_columns": {', TRACE)
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 show_json_object('"functional_dependencies_of_GROUP_columns": {', TRACE)
@@ -1770,7 +1770,7 @@ EXPLAIN SELECT dname, COUNT(*)
 FROM empdept
 GROUP BY deptno;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	emp	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary; Using filesort
+1	SIMPLE	emp	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary
 1	SIMPLE	dept	NULL	eq_ref	PRIMARY	PRIMARY	4	test.emp.deptno	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`dept`.`dname` AS `dname`,count(0) AS `COUNT(*)` from `test`.`emp` left join `test`.`dept` on((`test`.`dept`.`deptno` = `test`.`emp`.`deptno`)) where 1 group by `test`.`dept`.`deptno`
@@ -1789,7 +1789,7 @@ EXPLAIN SELECT dname, COUNT(*)
 FROM empdept
 GROUP BY deptno;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary
 2	DERIVED	emp	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 2	DERIVED	dept	NULL	eq_ref	PRIMARY	PRIMARY	4	test.emp.deptno	1	100.00	NULL
 Warnings:
@@ -2048,4 +2048,15 @@ NULL	NULL
 SELECT t.a,t.c FROM u LEFT JOIN t ON u.a>0 GROUP BY t.a;
 ERROR 42000: Expression #2 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t.c' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 DROP TABLE t,u;
+#
+# Bug #22924183 	GROUP BY ON DERIVED TABLE, EXPRESSION OF AGGREGATE AND GROUP COLUMN: ERROR
+#
+CREATE TABLE coll (
+doc text
+) ENGINE=InnoDB;
+SELECT (je+1)+count(*) FROM (SELECT doc+1 AS je FROM coll) AS dt GROUP BY je;
+(je+1)+count(*)
+SELECT je+(1+count(*)) FROM (SELECT doc+1 AS je FROM coll) AS dt GROUP BY je;
+je+(1+count(*))
+DROP TABLE coll;
 DROP FUNCTION show_json_object;

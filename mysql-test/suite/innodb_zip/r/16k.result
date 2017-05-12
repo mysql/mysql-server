@@ -18,6 +18,7 @@ FROM	INFORMATION_SCHEMA.INNODB_SYS_TABLES  t,
 INFORMATION_SCHEMA.INNODB_SYS_INDEXES i
 WHERE	t.table_id = i.table_id
 AND	t.name LIKE 'mysql%'
+        AND     t.name NOT LIKE 'mysql/ndb_binlog_index'
 	ORDER BY t.name, i.index_id;
 table_name	n_cols	table_flags	index_name	root_page	type	n_fields	merge_threshold
 mysql/catalogs	7	33	PRIMARY	5	3	1	50
@@ -25,9 +26,9 @@ mysql/catalogs	7	33	name	6	2	1	50
 mysql/character_sets	8	33	PRIMARY	5	3	1	50
 mysql/character_sets	8	33	name	6	2	1	50
 mysql/character_sets	8	33	default_collation_id	7	0	1	50
-mysql/collations	8	33	PRIMARY	5	3	1	50
-mysql/collations	8	33	name	6	2	1	50
-mysql/collations	8	33	character_set_id	7	0	1	50
+mysql/collations	9	33	PRIMARY	5	3	1	50
+mysql/collations	9	33	name	6	2	1	50
+mysql/collations	9	33	character_set_id	7	0	1	50
 mysql/columns	31	33	PRIMARY	5	3	1	50
 mysql/columns	31	33	table_id	6	2	2	50
 mysql/columns	31	33	table_id_2	7	2	2	50
@@ -53,6 +54,7 @@ mysql/foreign_key_column_usage	7	33	PRIMARY	5	3	2	50
 mysql/foreign_key_column_usage	7	33	foreign_key_id	6	2	3	50
 mysql/foreign_key_column_usage	7	33	column_id	7	0	1	50
 mysql/func	7	33	PRIMARY	5	3	1	50
+mysql/global_grants	7	33	PRIMARY	5	3	3	50
 mysql/gtid_executed	6	33	PRIMARY	5	3	2	50
 mysql/help_category	7	33	PRIMARY	5	3	1	50
 mysql/help_category	7	33	name	6	2	1	50
@@ -73,9 +75,9 @@ mysql/index_partitions	8	33	tablespace_id	7	0	1	50
 mysql/index_stats	8	33	schema_name	5	3	4	50
 mysql/innodb_index_stats	11	33	PRIMARY	5	3	4	50
 mysql/innodb_table_stats	9	33	PRIMARY	5	3	2	50
-mysql/parameters	17	33	PRIMARY	5	3	1	50
-mysql/parameters	17	33	routine_id	6	2	2	50
-mysql/parameters	17	33	collation_id	7	0	1	50
+mysql/parameters	18	33	PRIMARY	5	3	1	50
+mysql/parameters	18	33	routine_id	6	2	2	50
+mysql/parameters	18	33	collation_id	7	0	1	50
 mysql/parameter_type_elements	6	33	PRIMARY	5	3	2	50
 mysql/plugin	5	33	PRIMARY	5	3	1	50
 mysql/procs_priv	11	33	PRIMARY	5	3	5	50
@@ -83,12 +85,12 @@ mysql/procs_priv	11	33	Grantor	6	0	1	50
 mysql/proxies_priv	10	33	PRIMARY	5	3	4	50
 mysql/proxies_priv	10	33	Grantor	6	0	1	50
 mysql/role_edges	8	33	PRIMARY	5	3	4	50
-mysql/routines	29	33	PRIMARY	5	3	1	50
-mysql/routines	29	33	schema_id	6	2	3	50
-mysql/routines	29	33	result_collation_id	7	0	1	50
-mysql/routines	29	33	client_collation_id	8	0	1	50
-mysql/routines	29	33	connection_collation_id	9	0	1	50
-mysql/routines	29	33	schema_collation_id	10	0	1	50
+mysql/routines	30	33	PRIMARY	5	3	1	50
+mysql/routines	30	33	schema_id	6	2	3	50
+mysql/routines	30	33	result_collation_id	7	0	1	50
+mysql/routines	30	33	client_collation_id	8	0	1	50
+mysql/routines	30	33	connection_collation_id	9	0	1	50
+mysql/routines	30	33	schema_collation_id	10	0	1	50
 mysql/schemata	9	33	PRIMARY	5	3	1	50
 mysql/schemata	9	33	catalog_id	6	2	2	50
 mysql/schemata	9	33	default_collation_id	7	0	1	50
@@ -99,12 +101,12 @@ mysql/slave_relay_log_info	12	33	PRIMARY	5	3	1	50
 mysql/slave_worker_info	16	33	PRIMARY	5	3	2	50
 mysql/st_spatial_reference_systems	12	33	PRIMARY	5	3	1	50
 mysql/st_spatial_reference_systems	12	33	catalog_id	6	2	2	50
-mysql/tables	34	33	PRIMARY	5	3	1	50
-mysql/tables	34	33	schema_id	6	2	2	50
-mysql/tables	34	33	engine	7	2	2	50
-mysql/tables	34	33	engine_2	8	0	1	50
-mysql/tables	34	33	collation_id	9	0	1	50
-mysql/tables	34	33	tablespace_id	10	0	1	50
+mysql/tables	35	33	PRIMARY	5	3	1	50
+mysql/tables	35	33	schema_id	6	2	2	50
+mysql/tables	35	33	engine	7	2	2	50
+mysql/tables	35	33	engine_2	8	0	1	50
+mysql/tables	35	33	collation_id	9	0	1	50
+mysql/tables	35	33	tablespace_id	10	0	1	50
 mysql/tablespaces	9	33	PRIMARY	5	3	1	50
 mysql/tablespaces	9	33	name	6	2	1	50
 mysql/tablespace_files	7	33	tablespace_id	5	3	2	50

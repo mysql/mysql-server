@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,18 +27,27 @@
   There is no reference counting and no unloading either.
 */
 
-#include <my_global.h>
-#include "mysql.h"
-#include <my_sys.h>
-#include <m_string.h>
-#include <my_thread.h>
-#include "sql_common.h"
+#include "my_config.h"
 
-#include <sql_common.h>
-#include "errmsg.h"
+#include <m_string.h>
+#include <my_sys.h>
+#include <my_thread.h>
 #include <mysql/client_plugin.h>
+#include <sql_common.h>
+#include <stdarg.h>
+#include <stdlib.h>
+#include <sys/types.h>
+
+#include "errmsg.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_macros.h"
+#include "my_psi_config.h"
+#include "mysql.h"
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/service_mysql_alloc.h"
+#include "sql_common.h"
 
 #ifdef HAVE_DLFCN_H
 #include <dlfcn.h>
@@ -84,7 +93,7 @@ struct st_client_plugin_int {
   struct st_mysql_client_plugin *plugin;
 };
 
-static my_bool initialized= 0;
+static bool initialized= 0;
 static MEM_ROOT mem_root;
 
 static const char *plugin_declarations_sym= "_mysql_client_plugin_declaration_";

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -47,10 +47,13 @@
 
 #ifdef _WIN32
 
-#include "mysys_priv.h"
-#include "my_thread_local.h"
+#include <errno.h>
 #include <share.h>
 #include <sys/stat.h>
+
+#include "my_dbug.h"
+#include "my_thread_local.h"
+#include "mysys_priv.h"
 
 /* Associates a file descriptor with an existing operating-system file handle.*/
 File my_open_osfhandle(HANDLE handle, int oflag)
@@ -303,10 +306,8 @@ size_t my_win_pread(File Filedes, uchar *Buffer, size_t Count, my_off_t offset)
 
   if(!Count)
     DBUG_RETURN(0);
-#ifdef _WIN64
   if(Count > UINT_MAX)
     Count= UINT_MAX;
-#endif
 
   hFile=         (HANDLE)my_get_osfhandle(Filedes);
   li.QuadPart=   offset;
@@ -337,10 +338,8 @@ size_t my_win_read(File Filedes, uchar *Buffer, size_t Count)
   DBUG_ENTER("my_win_read");
   if(!Count)
     DBUG_RETURN(0);
-#ifdef _WIN64
   if(Count > UINT_MAX)
     Count= UINT_MAX;
-#endif
 
   hFile= (HANDLE)my_get_osfhandle(Filedes);
 
@@ -375,10 +374,8 @@ size_t my_win_pwrite(File Filedes, const uchar *Buffer, size_t Count,
   if(!Count)
     DBUG_RETURN(0);
 
-#ifdef _WIN64
   if(Count > UINT_MAX)
     Count= UINT_MAX;
-#endif
 
   hFile=         (HANDLE)my_get_osfhandle(Filedes);
   li.QuadPart=   offset;
@@ -402,9 +399,9 @@ my_off_t my_win_lseek(File fd, my_off_t pos, int whence)
 
   DBUG_ENTER("my_win_lseek");
 
-  /* Check compatibility of Windows and Posix seek constants */
-  compile_time_assert(FILE_BEGIN == SEEK_SET && FILE_CURRENT == SEEK_CUR 
-    && FILE_END == SEEK_END);
+  static_assert(FILE_BEGIN == SEEK_SET && FILE_CURRENT == SEEK_CUR
+                  && FILE_END == SEEK_END,
+                "Windows and POSIX seek constants must be compatible.");
 
   offset.QuadPart= pos;
   if(!SetFilePointerEx(my_get_osfhandle(fd), offset, &newpos, whence))
@@ -433,10 +430,8 @@ size_t my_win_write(File fd, const uchar *Buffer, size_t Count)
   if(!Count)
     DBUG_RETURN(0);
 
-#ifdef _WIN64
   if(Count > UINT_MAX)
     Count= UINT_MAX;
-#endif
 
   if(my_get_open_flags(fd) & _O_APPEND)
   {

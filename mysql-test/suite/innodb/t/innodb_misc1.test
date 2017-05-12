@@ -1,8 +1,17 @@
 # Performance Schema is partially supported by embedded server. Hence skip when test runs with embedded mode.
 -- source include/not_embedded.inc
 
--- source include/have_innodb.inc
 -- source include/have_innodb_max_16k.inc
+
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs64=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema default character set latin1;
+use test;
+--enable_query_log
+########################################
 
 let $MYSQLD_DATADIR= `select @@datadir`;
 # Save the original values of some variables in order to be able to
@@ -1202,3 +1211,10 @@ SET GLOBAL innodb_thread_concurrency = @innodb_thread_concurrency_orig;
 
 -- enable_query_log
 -- source suite/innodb/include/check_pfs_mem_other_is_zero.inc
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs64;
+--enable_query_log
+########################################

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -160,9 +160,14 @@ public:
   const char * getName() const;
   void setFragmentCount(Uint32 count);
   Uint32 getFragmentCount() const;
+  Uint32 getPartitionCount() const;
   int setFrm(const void* data, Uint32 len);
   const void * getFrmData() const;
   Uint32 getFrmLength() const;
+  int setExtraMetadata(Uint32 version,
+                       const void* data, Uint32 data_length);
+  int getExtraMetadata(Uint32& extra_metadata_version,
+                       void** data, Uint32* data_length) const;
 
   int setFragmentData(const Uint32* data, Uint32 cnt);
   const Uint32 * getFragmentData() const;
@@ -231,11 +236,15 @@ public:
   bool m_row_checksum;
   bool m_force_var_part;
   bool m_has_default_values; 
+  bool m_read_backup;
+  bool m_fully_replicated;
   int m_kvalue;
   int m_minLoadFactor;
   int m_maxLoadFactor;
   Uint16 m_keyLenInWords;
+  Uint16 m_partitionCount;
   Uint16 m_fragmentCount;
+  NdbDictionary::Object::PartitionBalance m_partitionBalance;
   Uint8 m_single_user_mode;
   Uint8 m_storageType;  // NDB_STORAGETYPE_MEMORY or _DISK or DEFAULT
   Uint8 m_extra_row_gci_bits;
@@ -763,7 +772,10 @@ public:
 					 NdbTableImpl* index_table,
 					 const NdbTableImpl* primary_table);
 
-  int create_hashmap(const NdbHashMapImpl&, NdbDictObjectImpl*, Uint32 flags);
+  int create_hashmap(const NdbHashMapImpl&,
+                     NdbDictObjectImpl*,
+                     Uint32 flags,
+                     Uint32 partitionBalance_Count);
   int get_hashmap(NdbHashMapImpl&, Uint32 id);
   int get_hashmap(NdbHashMapImpl&, const char * name);
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,15 +19,31 @@
   thread variables.
 */
 
-#include "mysys_priv.h"
-#include "my_sys.h"
-#include <m_string.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#ifdef _WIN32
 #include <signal.h>
+#endif
+#include <time.h>
+
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_loglevel.h"
+#include "my_macros.h"
+#include "my_psi_config.h"
+#include "my_sys.h"
+#include "my_systime.h"
 #include "my_thread.h"
 #include "my_thread_local.h"
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/mysql_thread.h"
+#include "mysql/psi/psi_thread.h"
+#include "mysys_priv.h"
+#include "thr_mutex.h"
 
-static my_bool THR_KEY_mysys_initialized= FALSE;
-static my_bool my_thread_global_init_done= FALSE;
+static bool THR_KEY_mysys_initialized= FALSE;
+static bool my_thread_global_init_done= FALSE;
 #ifndef DBUG_OFF
 static uint    THR_thread_count= 0;
 static uint    my_thread_end_wait_time= 5;
@@ -139,7 +155,7 @@ void my_thread_global_reinit()
   @retval  TRUE   error (Couldn't create THR_KEY_mysys)
 */
 
-my_bool my_thread_global_init()
+bool my_thread_global_init()
 {
   int pth_ret;
 
@@ -224,7 +240,7 @@ void my_thread_global_end()
 {
 #ifndef DBUG_OFF
   struct timespec abstime;
-  my_bool all_threads_killed= TRUE;
+  bool all_threads_killed= TRUE;
 
   set_timespec(&abstime, my_thread_end_wait_time);
   mysql_mutex_lock(&THR_LOCK_threads);
@@ -232,7 +248,7 @@ void my_thread_global_end()
   {
     int error= mysql_cond_timedwait(&THR_COND_threads, &THR_LOCK_threads,
                                     &abstime);
-    if (error == ETIMEDOUT || error == ETIME)
+    if (is_timeout(error))
     {
 #ifndef _WIN32
       /*
@@ -298,7 +314,7 @@ void my_thread_global_end()
   @retval TRUE   Fatal error; mysys/dbug functions can't be used
 */
 
-my_bool my_thread_init()
+bool my_thread_init()
 {
 #ifndef DBUG_OFF
   struct st_my_thread_var *tmp;

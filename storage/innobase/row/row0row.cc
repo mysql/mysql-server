@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,29 +23,31 @@ General row routines
 Created 4/20/1996 Heikki Tuuri
 *******************************************************/
 
-#include "ha_prototypes.h"
-
 #include "row0row.h"
-#include "data0type.h"
-#include "dict0dict.h"
-#include "dict0boot.h"
+
+#include <sys/types.h>
+
 #include "btr0btr.h"
+#include "data0type.h"
+#include "dict0boot.h"
+#include "dict0dict.h"
+#include "ha_prototypes.h"
+#include "lob0lob.h"
 #include "mach0data.h"
-#include "trx0rseg.h"
-#include "trx0trx.h"
-#include "trx0roll.h"
-#include "trx0undo.h"
+#include "my_inttypes.h"
+#include "que0que.h"
+#include "read0read.h"
+#include "rem0cmp.h"
+#include "row0ext.h"
+#include "row0mysql.h"
+#include "row0upd.h"
 #include "trx0purge.h"
 #include "trx0rec.h"
-#include "que0que.h"
-#include "row0ext.h"
-#include "row0upd.h"
-#include "rem0cmp.h"
-#include "read0read.h"
+#include "trx0roll.h"
+#include "trx0rseg.h"
+#include "trx0trx.h"
+#include "trx0undo.h"
 #include "ut0mem.h"
-#include "gis0geo.h"
-#include "row0mysql.h"
-#include "lob0lob.h"
 
 /*****************************************************************//**
 When an insert or purge to a table is performed, this function builds
@@ -254,10 +256,9 @@ row_build_index_entry_low(
 						tmp_mbr[i * 2 + 1] = -DBL_MAX;
 					}
 				} else {
-					rtree_mbr_from_wkb(dptr + GEO_DATA_HEADER_SIZE,
-							   static_cast<uint>(dlen
-							   - GEO_DATA_HEADER_SIZE),
-							   SPDIMS, tmp_mbr);
+					get_mbr_from_store(
+						dptr, static_cast<uint>(dlen),
+						SPDIMS, tmp_mbr);
 				}
 				dfield_write_mbr(dfield, tmp_mbr);
 				if (temp_heap) {

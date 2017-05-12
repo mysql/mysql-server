@@ -1,9 +1,11 @@
-disable_query_log;
--- source include/test_outfile.inc
-# Server are started in "var/master-data", so "../../tmp" will be "var/tmp"
-eval set @tmpdir="../../tmp";
-enable_query_log;
--- source include/have_outfile.inc
+--source include/not_embedded.inc
+
+--disable_query_log
+--eval SELECT "Outfile OK" INTO OUTFILE "$MYSQLTEST_VARDIR/tmp/outfile.test"
+# Server is started in "var/master-data", so "../../tmp" will be "var/tmp"
+--eval set @tmpdir="../../tmp"
+--enable_query_log
+--source include/have_outfile.inc
 
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,7 +13,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "mysys_priv.h"
+#include "m_ctype.h"
+#include "my_compiler.h"
+#include "my_inttypes.h"
 #include "my_sys.h"
 
 /**
@@ -22,11 +24,39 @@
 
 /*
   Include all compiled character sets into the client
-  If a client don't want to use all of them, he can define his own
-  init_compiled_charsets() that only adds those that he wants
+  If a client don't want to use all of them, they can define their own
+  init_compiled_charsets() that only adds those that they want
 */
 
+extern CHARSET_INFO my_charset_latin1_bin;
+extern CHARSET_INFO my_charset_latin1_german2_ci;
+extern CHARSET_INFO my_charset_big5_chinese_ci;
+extern CHARSET_INFO my_charset_big5_bin;
+extern CHARSET_INFO my_charset_cp1250_czech_ci;
+extern CHARSET_INFO my_charset_cp932_japanese_ci;
+extern CHARSET_INFO my_charset_cp932_bin;
+extern CHARSET_INFO my_charset_latin2_czech_ci;
+extern CHARSET_INFO my_charset_eucjpms_japanese_ci;
+extern CHARSET_INFO my_charset_eucjpms_bin;
+extern CHARSET_INFO my_charset_euckr_korean_ci;
+extern CHARSET_INFO my_charset_euckr_bin;
+extern CHARSET_INFO my_charset_gb2312_chinese_ci;
+extern CHARSET_INFO my_charset_gb2312_bin;
+extern CHARSET_INFO my_charset_gbk_chinese_ci;
+extern CHARSET_INFO my_charset_gbk_bin;
+extern CHARSET_INFO my_charset_gb18030_chinese_ci;
+extern CHARSET_INFO my_charset_gb18030_bin;
+extern CHARSET_INFO my_charset_sjis_japanese_ci;
+extern CHARSET_INFO my_charset_sjis_bin;
+extern CHARSET_INFO my_charset_tis620_thai_ci;
+extern CHARSET_INFO my_charset_tis620_bin;
+extern CHARSET_INFO my_charset_ujis_japanese_ci;
+extern CHARSET_INFO my_charset_ujis_bin;
 
+extern CHARSET_INFO my_charset_ucs2_general_ci;
+extern CHARSET_INFO my_charset_ucs2_unicode_ci;
+extern CHARSET_INFO my_charset_ucs2_bin;
+extern CHARSET_INFO my_charset_ucs2_general_mysql500_ci;
 extern CHARSET_INFO my_charset_ucs2_german2_uca_ci;
 extern CHARSET_INFO my_charset_ucs2_icelandic_uca_ci;
 extern CHARSET_INFO my_charset_ucs2_latvian_uca_ci;
@@ -52,6 +82,8 @@ extern CHARSET_INFO my_charset_ucs2_unicode_520_ci;
 extern CHARSET_INFO my_charset_ucs2_vietnamese_ci;
 
 
+extern CHARSET_INFO my_charset_utf32_general_ci;
+extern CHARSET_INFO my_charset_utf32_bin;
 extern CHARSET_INFO my_charset_utf32_german2_uca_ci;
 extern CHARSET_INFO my_charset_utf32_icelandic_uca_ci;
 extern CHARSET_INFO my_charset_utf32_latvian_uca_ci;
@@ -77,6 +109,11 @@ extern CHARSET_INFO my_charset_utf32_unicode_520_ci;
 extern CHARSET_INFO my_charset_utf32_vietnamese_ci;
 
 
+extern CHARSET_INFO my_charset_utf16_general_ci;
+extern CHARSET_INFO my_charset_utf16_unicode_ci;
+extern CHARSET_INFO my_charset_utf16_bin;
+extern CHARSET_INFO my_charset_utf16le_general_ci;
+extern CHARSET_INFO my_charset_utf16le_bin;
 extern CHARSET_INFO my_charset_utf16_german2_uca_ci;
 extern CHARSET_INFO my_charset_utf16_icelandic_uca_ci;
 extern CHARSET_INFO my_charset_utf16_latvian_uca_ci;
@@ -102,6 +139,9 @@ extern CHARSET_INFO my_charset_utf16_unicode_520_ci;
 extern CHARSET_INFO my_charset_utf16_vietnamese_ci;
 
 
+extern CHARSET_INFO my_charset_utf8_tolower_ci;
+extern CHARSET_INFO my_charset_utf8_bin;
+extern CHARSET_INFO my_charset_utf8_general_mysql500_ci;
 extern CHARSET_INFO my_charset_utf8_german2_uca_ci;
 extern CHARSET_INFO my_charset_utf8_icelandic_uca_ci;
 extern CHARSET_INFO my_charset_utf8_latvian_uca_ci;
@@ -127,6 +167,9 @@ extern CHARSET_INFO my_charset_utf8_unicode_520_ci;
 extern CHARSET_INFO my_charset_utf8_vietnamese_ci;
 
 
+extern CHARSET_INFO my_charset_utf8mb4_general_ci;
+extern CHARSET_INFO my_charset_utf8mb4_unicode_ci;
+extern CHARSET_INFO my_charset_utf8mb4_bin;
 extern CHARSET_INFO my_charset_utf8mb4_german2_uca_ci;
 extern CHARSET_INFO my_charset_utf8mb4_icelandic_uca_ci;
 extern CHARSET_INFO my_charset_utf8mb4_latvian_uca_ci;
@@ -171,11 +214,33 @@ extern CHARSET_INFO my_charset_utf8mb4_eo_0900_ai_ci;
 extern CHARSET_INFO my_charset_utf8mb4_hu_0900_ai_ci;
 extern CHARSET_INFO my_charset_utf8mb4_hr_0900_ai_ci;
 extern CHARSET_INFO my_charset_utf8mb4_vi_0900_ai_ci;
+extern CHARSET_INFO my_charset_utf8mb4_0900_as_cs;
+extern CHARSET_INFO my_charset_utf8mb4_de_pb_0900_as_cs;
+extern CHARSET_INFO my_charset_utf8mb4_is_0900_as_cs;
+extern CHARSET_INFO my_charset_utf8mb4_lv_0900_as_cs;
+extern CHARSET_INFO my_charset_utf8mb4_ro_0900_as_cs;
+extern CHARSET_INFO my_charset_utf8mb4_sl_0900_as_cs;
+extern CHARSET_INFO my_charset_utf8mb4_pl_0900_as_cs;
+extern CHARSET_INFO my_charset_utf8mb4_et_0900_as_cs;
+extern CHARSET_INFO my_charset_utf8mb4_es_0900_as_cs;
+extern CHARSET_INFO my_charset_utf8mb4_sv_0900_as_cs;
+extern CHARSET_INFO my_charset_utf8mb4_tr_0900_as_cs;
+extern CHARSET_INFO my_charset_utf8mb4_cs_0900_as_cs;
+extern CHARSET_INFO my_charset_utf8mb4_da_0900_as_cs;
+extern CHARSET_INFO my_charset_utf8mb4_lt_0900_as_cs;
+extern CHARSET_INFO my_charset_utf8mb4_sk_0900_as_cs;
+extern CHARSET_INFO my_charset_utf8mb4_es_trad_0900_as_cs;
+extern CHARSET_INFO my_charset_utf8mb4_la_0900_as_cs;
+extern CHARSET_INFO my_charset_utf8mb4_eo_0900_as_cs;
+extern CHARSET_INFO my_charset_utf8mb4_hu_0900_as_cs;
+extern CHARSET_INFO my_charset_utf8mb4_hr_0900_as_cs;
+extern CHARSET_INFO my_charset_utf8mb4_vi_0900_as_cs;
+extern CHARSET_INFO my_charset_utf8mb4_ja_0900_as_cs;
 
 extern CHARSET_INFO my_charset_gb18030_unicode_520_ci;
 
 
-my_bool init_compiled_charsets(myf flags MY_ATTRIBUTE((unused)))
+bool init_compiled_charsets(myf flags MY_ATTRIBUTE((unused)))
 {
   CHARSET_INFO *cs;
 
@@ -325,6 +390,28 @@ my_bool init_compiled_charsets(myf flags MY_ATTRIBUTE((unused)))
   add_compiled_collation(&my_charset_utf8mb4_hu_0900_ai_ci);
   add_compiled_collation(&my_charset_utf8mb4_hr_0900_ai_ci);
   add_compiled_collation(&my_charset_utf8mb4_vi_0900_ai_ci);
+  add_compiled_collation(&my_charset_utf8mb4_0900_as_cs);
+  add_compiled_collation(&my_charset_utf8mb4_de_pb_0900_as_cs);
+  add_compiled_collation(&my_charset_utf8mb4_is_0900_as_cs);
+  add_compiled_collation(&my_charset_utf8mb4_lv_0900_as_cs);
+  add_compiled_collation(&my_charset_utf8mb4_ro_0900_as_cs);
+  add_compiled_collation(&my_charset_utf8mb4_sl_0900_as_cs);
+  add_compiled_collation(&my_charset_utf8mb4_pl_0900_as_cs);
+  add_compiled_collation(&my_charset_utf8mb4_et_0900_as_cs);
+  add_compiled_collation(&my_charset_utf8mb4_es_0900_as_cs);
+  add_compiled_collation(&my_charset_utf8mb4_sv_0900_as_cs);
+  add_compiled_collation(&my_charset_utf8mb4_tr_0900_as_cs);
+  add_compiled_collation(&my_charset_utf8mb4_cs_0900_as_cs);
+  add_compiled_collation(&my_charset_utf8mb4_da_0900_as_cs);
+  add_compiled_collation(&my_charset_utf8mb4_lt_0900_as_cs);
+  add_compiled_collation(&my_charset_utf8mb4_sk_0900_as_cs);
+  add_compiled_collation(&my_charset_utf8mb4_es_trad_0900_as_cs);
+  add_compiled_collation(&my_charset_utf8mb4_la_0900_as_cs);
+  add_compiled_collation(&my_charset_utf8mb4_eo_0900_as_cs);
+  add_compiled_collation(&my_charset_utf8mb4_hu_0900_as_cs);
+  add_compiled_collation(&my_charset_utf8mb4_hr_0900_as_cs);
+  add_compiled_collation(&my_charset_utf8mb4_vi_0900_as_cs);
+  add_compiled_collation(&my_charset_utf8mb4_ja_0900_as_cs);
 
   add_compiled_collation(&my_charset_utf16_general_ci);
   add_compiled_collation(&my_charset_utf16_bin);

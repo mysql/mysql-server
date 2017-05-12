@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,13 +15,23 @@
 
 #include "dd/impl/types/spatial_reference_system_impl.h"
 
-#include "gis/srs/srs.h"                   // gis::srs::parse_wkt
+#include <stdint.h>
+
 #include "dd/impl/dictionary_impl.h"       // Dictionary_impl
-#include "dd/impl/sdi_impl.h"              // sdi read/write functions
-#include "dd/impl/transaction_impl.h"      // Open_dictionary_tables_ctx
 #include "dd/impl/raw/object_keys.h"       // id_key_type
 #include "dd/impl/raw/raw_record.h"        // Raw_record
+#include "dd/impl/sdi_impl.h"              // sdi read/write functions
 #include "dd/impl/tables/spatial_reference_systems.h" // Spatial_reference_sy...
+#include "dd/impl/transaction_impl.h"      // Open_dictionary_tables_ctx
+#include "gis/srs/srs.h"                   // gis::srs::parse_wkt
+#include "m_string.h"
+#include "rapidjson/document.h"
+#include "rapidjson/prettywriter.h"
+
+namespace dd {
+class Sdi_rcontext;
+class Sdi_wcontext;
+}  // namespace dd
 
 using dd::tables::Spatial_reference_systems;
 
@@ -55,12 +65,20 @@ bool Spatial_reference_system_impl::validate() const
   return id() > UINT32_MAX;
 }
 
+
+bool Spatial_reference_system_impl::is_lat_long() const
+{
+  return (is_geographic() &&
+          (m_parsed_definition->axis_direction(0) ==
+           gis::srs::Axis_direction::NORTH ||
+           m_parsed_definition->axis_direction(0) ==
+           gis::srs::Axis_direction::SOUTH));
+}
+
 ///////////////////////////////////////////////////////////////////////////
 
 bool Spatial_reference_system_impl::restore_attributes(const Raw_record &r)
 {
-  bool error= false;
-
   restore_id(r, Spatial_reference_systems::FIELD_ID);
   restore_name(r, Spatial_reference_systems::FIELD_NAME);
 
@@ -72,13 +90,7 @@ bool Spatial_reference_system_impl::restore_attributes(const Raw_record &r)
   m_definition= r.read_str(Spatial_reference_systems::FIELD_DEFINITION);
   m_description= r.read_str(Spatial_reference_systems::FIELD_DESCRIPTION);
 
-  gis::srs::Spatial_reference_system *srs= nullptr;
-  // parse_wkt() will only allocate memory if successful.
-  error= gis::srs::parse_wkt(id(), &m_definition, &srs);
-  if (!error)
-    m_parsed_definition.reset(srs);
-
-  return error;
+  return parse_definition();
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -132,13 +144,25 @@ bool Spatial_reference_system_impl::deserialize(Sdi_rcontext *rctx,
   read(&m_definition, val, "definition");
   read(&m_description, val, "description");
 
+  return parse_definition();
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+bool Spatial_reference_system_impl::parse_definition()
+{
   gis::srs::Spatial_reference_system *srs= nullptr;
   // parse_wkt() will only allocate memory if successful.
-  bool error= gis::srs::parse_wkt(id(), &m_definition, &srs);
-  if (!error)
+  if (!gis::srs::parse_wkt(id(),
+                          &m_definition.front(),
+                          &m_definition.back()+1,
+                          &srs))
+  {
     m_parsed_definition.reset(srs);
+    return false;
+  }
 
-  return error;
+  return true;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -152,7 +176,7 @@ bool Spatial_reference_system::update_id_key(id_key_type *key, Object_id id)
 ///////////////////////////////////////////////////////////////////////////
 
 bool Spatial_reference_system::update_name_key(name_key_type *key,
-                                               const std::string &name)
+                                               const String_type &name)
 {
   return Spatial_reference_systems::update_object_key(key,
                       Dictionary_impl::instance()->default_catalog_id(),

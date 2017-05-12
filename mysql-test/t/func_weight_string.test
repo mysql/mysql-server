@@ -49,41 +49,18 @@ select hex(weight_string('aa' as binary(3)));
 select hex(weight_string(cast('aa' as binary(3))));
 
 #
-# If and only if one specifies "LEVEL numeric-list" (not "range"),
-# one may follow any "number" with [ASC|DESC][REVERSE]
-#
---error 1064
-select hex(weight_string('ab' level 1-1 ASC));
---error 1064
-select hex(weight_string('ab' level 1-1 DESC));
---error 1064
-select hex(weight_string('ab' level 1-1 REVERSE));
-
-#
-# If one says "DESC", then the weights come out NOTed
-# or negated for that level. 
-# If one says "REVERSE", then the weights come out in
-# reverse order for that level, that is, starting with
-# the last character and ending with the first character.
-#
-select hex(weight_string('ab' level 1 ASC));
-select hex(weight_string('ab' level 1 DESC));
-select hex(weight_string('ab' level 1 REVERSE));
-select hex(weight_string('ab' level 1 DESC REVERSE));
-
-#
 # If the result length is less than or equal to the
 # maximum possible length for the VARBINARY data type,
 # then the result data type is VARBINARY. Otherwise
 # the result data type is BLOB.
 #
-create table t1 select weight_string('test') as w;
+create table t1 charset latin1 select weight_string('test') as w;
 
 #Replace default engine value with static engine string 
 --replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 drop table t1;
-create table t1 select weight_string(repeat('t',66000)) as w;
+create table t1 charset latin1 select weight_string(repeat('t',66000)) as w;
 
 #Replace default engine value with static engine string 
 --replace_result $DEFAULT_ENGINE ENGINE
@@ -110,7 +87,7 @@ select coercibility(weight_string('test' collate latin1_swedish_ci));
 # Bug#33663 Character sets: weight_string function,
 # varchar column, wrong result
 #
-create table t1 (s1 varchar(5));
+create table t1 (s1 varchar(5)) charset latin1;
 insert into t1 values ('a'),(null);
 select hex(weight_string(s1)) from t1 order by s1;
 drop table t1;
@@ -131,34 +108,16 @@ CREATE TABLE t1 (a VARCHAR(10) CHARACTER SET latin2 COLLATE latin2_czech_cs);
 INSERT INTO t1 VALUES ('abcd');
 INSERT INTO t1 VALUES ('dcba');
 CREATE VIEW v1 AS SELECT WEIGHT_STRING(_latin1 'ab') AS b;
-CREATE VIEW v2 AS SELECT WEIGHT_STRING(a LEVEL 1) AS b FROM t1;
-CREATE VIEW v3 AS SELECT WEIGHT_STRING(a AS CHAR(2) LEVEL 1) AS b FROM t1;
-CREATE VIEW v4 AS SELECT WEIGHT_STRING(a AS CHAR(6) LEVEL 2) AS b FROM t1;
 CREATE VIEW v5 AS SELECT WEIGHT_STRING(a AS BINARY(2)) AS b FROM t1;
 CREATE VIEW v6 AS SELECT WEIGHT_STRING(a AS BINARY(6)) AS b FROM t1;
-CREATE VIEW v7 AS SELECT WEIGHT_STRING(a AS CHAR(2) LEVEL 1 ASC) AS b FROM t1;
-CREATE VIEW v8 AS SELECT WEIGHT_STRING(a AS CHAR(2) LEVEL 1 DESC) AS b FROM t1;
-CREATE VIEW v9 AS SELECT WEIGHT_STRING(a AS CHAR(2) LEVEL 1,3 REVERSE) AS b FROM t1;
 SHOW CREATE VIEW v1;
-SHOW CREATE VIEW v2;
-SHOW CREATE VIEW v3;
-SHOW CREATE VIEW v4;
 SHOW CREATE VIEW v5;
 SHOW CREATE VIEW v6;
-SHOW CREATE VIEW v7;
-SHOW CREATE VIEW v8;
-SHOW CREATE VIEW v9;
 DROP VIEW v1;
-DROP VIEW v2;
-DROP VIEW v3;
-DROP VIEW v4;
 DROP VIEW v5;
 DROP VIEW v6;
-DROP VIEW v7;
-DROP VIEW v8;
-DROP VIEW v9;
 DROP TABLE t1;
-CREATE TABLE t1 (a VARCHAR(10));
+CREATE TABLE t1 (a VARCHAR(10)) charset latin1;
 INSERT INTO t1 VALUES ('abcd');
 INSERT INTO t1 VALUES ('dcba');
 CREATE VIEW v1 AS SELECT WEIGHT_STRING(_latin1 'ab') AS b;
@@ -167,43 +126,25 @@ CREATE VIEW v3 AS SELECT WEIGHT_STRING(a AS CHAR(2)) AS b FROM t1;
 CREATE VIEW v4 AS SELECT WEIGHT_STRING(a AS CHAR(6)) AS b FROM t1;
 CREATE VIEW v5 AS SELECT WEIGHT_STRING(a AS BINARY(2)) AS b FROM t1;
 CREATE VIEW v6 AS SELECT WEIGHT_STRING(a AS BINARY(6)) AS b FROM t1;
-CREATE VIEW v7 AS SELECT WEIGHT_STRING(a AS CHAR(2) LEVEL 1 ASC) AS b FROM t1;
-CREATE VIEW v8 AS SELECT WEIGHT_STRING(a AS CHAR(2) LEVEL 1 DESC) AS b FROM t1;
-CREATE VIEW v9 AS SELECT WEIGHT_STRING(a AS CHAR(2) LEVEL 1 REVERSE) AS b FROM t1;
 SHOW CREATE VIEW v1;
 SHOW CREATE VIEW v2;
 SHOW CREATE VIEW v3;
 SHOW CREATE VIEW v4;
 SHOW CREATE VIEW v5;
 SHOW CREATE VIEW v6;
-SHOW CREATE VIEW v7;
-SHOW CREATE VIEW v8;
-SHOW CREATE VIEW v9;
 SELECT HEX(b) FROM v1;
 SELECT HEX(WEIGHT_STRING(_latin1 'ab'));
 SELECT HEX(b) FROM v2;
-SELECT HEX(WEIGHT_STRING(a LEVEL 1)) FROM t1;
 SELECT HEX(b) FROM v3;
-SELECT HEX(WEIGHT_STRING(a AS CHAR(2) LEVEL 1)) FROM t1;
 SELECT HEX(b) FROM v4;
-SELECT HEX(WEIGHT_STRING(a AS CHAR(6) LEVEL 2)) FROM t1;
 SELECT HEX(b) FROM v5;
 SELECT HEX(WEIGHT_STRING(a AS BINARY(2))) FROM t1;
 SELECT HEX(b) FROM v6;
 SELECT HEX(WEIGHT_STRING(a AS BINARY(6))) FROM t1;
-SELECT HEX(b) FROM v7;
-SELECT HEX(WEIGHT_STRING(a AS CHAR(2) LEVEL 1 ASC)) FROM t1;
-SELECT HEX(b) FROM v8;
-SELECT HEX(WEIGHT_STRING(a AS CHAR(2) LEVEL 1 DESC)) FROM t1;
-SELECT HEX(b) FROM v9;
-SELECT HEX(WEIGHT_STRING(a AS CHAR(2) LEVEL 1 REVERSE)) FROM t1;
 DROP VIEW v1;
 DROP VIEW v2;
 DROP VIEW v3;
 DROP VIEW v4;
 DROP VIEW v5;
 DROP VIEW v6;
-DROP VIEW v7;
-DROP VIEW v8;
-DROP VIEW v9;
 DROP TABLE t1;

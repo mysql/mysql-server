@@ -26,14 +26,6 @@ SELECT b FROM t1 WHERE b LIKE "MySQL%";
 DELETE FROM t1 ORDER BY b DESC;
 DROP TABLE t1;
 
-
---echo #
---echo # WL#6599: New Data Dictionary and I_S Integration.
---echo #
---echo # Test case to check if ndbinfo schema is listed by I_S when ndbcluster
---echo # is running.
---echo #
-#'ndbinfo' schema should be listed when ndbcluster is running.
-SELECT schema_name FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = 'ndbinfo';
-# tables of ndbinfo schema should be listed.
-SELECT table_name FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'ndbinfo';
+#
+# NOTE! Don't add any more tests here, this is the basic test
+#

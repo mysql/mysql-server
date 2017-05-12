@@ -85,7 +85,7 @@ connect (test_con1, localhost, root,,);
 connection test_con1;
 
 --echo ## Setting value of max_join_size ## 
-SET @@session.max_join_size=8;
+SET @@session.max_join_size=2;
 
 --echo ## Since total joins are more than max_join_size value so error will occur ##
 --Error ER_TOO_BIG_SELECT
@@ -98,7 +98,7 @@ SELECT * FROM t1 INNER JOIN t2 ON t1.id = t2.id;
 ##########################################################
 
 --echo ## Setting global value of variable ##
-SET @@global.max_join_size=8;
+SET @@global.max_join_size=2;
 
 --echo ## Creating and switching to new connection test_con2 ## 
 connect (test_con2, localhost, root,,);

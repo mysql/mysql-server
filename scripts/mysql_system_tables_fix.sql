@@ -1,4 +1,4 @@
--- Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -670,6 +670,12 @@ ALTER TABLE slave_worker_info
 # The Tls_version field at slave_master_info should be added after the Channel_name field
 ALTER TABLE slave_master_info ADD Tls_version TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'Tls version';
 
+# If the order of columns Channel_name and Tls_version is wrong, this will correct the order
+# in slave_master_info table.
+ALTER TABLE slave_master_info
+  MODIFY COLUMN Tls_version TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'Tls version'
+  AFTER Channel_name;
+
 SET @have_innodb= (SELECT COUNT(engine) FROM information_schema.engines WHERE engine='InnoDB' AND support != 'NO');
 SET @str=IF(@have_innodb <> 0, "ALTER TABLE innodb_table_stats STATS_PERSISTENT=0", "SET @dummy = 0");
 PREPARE stmt FROM @str;
@@ -695,6 +701,14 @@ DROP PREPARE stmt;
 
 SET @cmd="ALTER TABLE ndb_binlog_index
   ADD COLUMN next_file VARCHAR(255) NOT NULL";
+
+SET @str = IF(@have_ndb_binlog_index = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @cmd="ALTER TABLE ndb_binlog_index
+  ENGINE=InnoDB STATS_PERSISTENT=0";
 
 SET @str = IF(@have_ndb_binlog_index = 1, @cmd, 'SET @dummy = 0');
 PREPARE stmt FROM @str;
@@ -808,4 +822,95 @@ ALTER TABLE user MODIFY Create_role_priv enum('N','Y') COLLATE utf8_general_ci D
 ALTER TABLE user ADD Drop_role_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL AFTER Create_role_priv;
 ALTER TABLE user MODIFY Drop_role_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL AFTER Create_role_priv;
 UPDATE user SET Create_role_priv= 'Y', Drop_role_priv= 'Y' WHERE Create_user_priv = 'Y';
+
+--
+-- Change engine of the firewall tables to InnoDB
+--
+SET @had_firewall_whitelist =
+  (SELECT COUNT(table_name) FROM information_schema.tables
+     WHERE table_schema = 'mysql' AND table_name = 'firewall_whitelist' AND
+           table_type = 'BASE TABLE');
+SET @cmd="ALTER TABLE mysql.firewall_whitelist ENGINE=InnoDB";
+SET @str = IF(@had_firewall_whitelist > 0, @cmd, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @had_firewall_users =
+  (SELECT COUNT(table_name) FROM information_schema.tables
+     WHERE table_schema = 'mysql' AND table_name = 'firewall_users' AND
+           table_type = 'BASE TABLE');
+SET @cmd="ALTER TABLE mysql.firewall_users ENGINE=InnoDB";
+SET @str = IF(@had_firewall_users > 0, @cmd, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- Change engine of the audit log tables to InnoDB
+--
+SET @had_audit_log_filter =
+  (SELECT COUNT(table_name) FROM information_schema.tables
+     WHERE table_schema = 'mysql' AND table_name = 'audit_log_filter' AND
+           table_type = 'BASE TABLE');
+SET @cmd="ALTER TABLE mysql.audit_log_filter ENGINE=InnoDB";
+SET @str = IF(@had_audit_log_filter > 0, @cmd, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @had_audit_log_user =
+  (SELECT COUNT(table_name) FROM information_schema.tables
+     WHERE table_schema = 'mysql' AND table_name = 'audit_log_user' AND
+           table_type = 'BASE TABLE');
+SET @cmd="ALTER TABLE mysql.audit_log_user ENGINE=InnoDB";
+SET @str = IF(@had_audit_log_user > 0, @cmd, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+
+--
+-- Update default_value column for cost tables to new defaults
+-- Note: Column definition must be updated if a default value is changed
+-- (Must check if column exists to determine whether to add or modify column)
+--
+
+-- Update column definition for mysql.server_cost.default_value
+SET @have_server_cost_default =
+  (SELECT COUNT(column_name) FROM information_schema.columns
+     WHERE table_schema = 'mysql' AND table_name = 'server_cost' AND
+           column_name = 'default_value');
+SET @op = IF(@have_server_cost_default > 0, "MODIFY COLUMN ", "ADD COLUMN ");
+SET @str = CONCAT("ALTER TABLE mysql.server_cost ", @op,
+   "default_value FLOAT GENERATED ALWAYS AS
+    (CASE cost_name
+       WHEN 'disk_temptable_create_cost' THEN 20.0
+       WHEN 'disk_temptable_row_cost' THEN 0.5
+       WHEN 'key_compare_cost' THEN 0.05
+       WHEN 'memory_temptable_create_cost' THEN 1.0
+       WHEN 'memory_temptable_row_cost' THEN 0.1
+       WHEN 'row_evaluate_cost' THEN 0.1
+       ELSE NULL
+     END) VIRTUAL");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+-- Update column definition for mysql.engine_cost.default_value
+SET @have_engine_cost_default =
+  (SELECT COUNT(column_name) FROM information_schema.columns
+     WHERE table_schema = 'mysql' AND table_name = 'engine_cost' AND
+           column_name = 'default_value');
+SET @op = IF(@have_engine_cost_default > 0, "MODIFY COLUMN ", "ADD COLUMN ");
+SET @str = CONCAT("ALTER TABLE mysql.engine_cost ", @op,
+   "default_value FLOAT GENERATED ALWAYS AS
+    (CASE cost_name
+       WHEN 'io_block_read_cost' THEN 1.0
+       WHEN 'memory_block_read_cost' THEN 0.25
+       ELSE NULL
+     END) VIRTUAL");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
 

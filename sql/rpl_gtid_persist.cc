@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -15,15 +15,48 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
    02110-1301 USA */
 
-#include "rpl_gtid_persist.h"
+#include "sql/rpl_gtid_persist.h"
 
+#include "my_config.h"
+
+#include <assert.h>
+#include <stddef.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+#include <list>
+
+#include "control_events.h"
 #include "current_thd.h"
 #include "debug_sync.h"       // debug_sync_set_action
+#include "field.h"
+#include "handler.h"
+#include "key.h"
 #include "log.h"              // sql_print_error
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_base.h"
+#include "my_command.h"
+#include "my_dbug.h"
+#include "my_sqlcommand.h"
+#include "my_sys.h"
+#include "my_thread.h"
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/mysql_thread.h"
+#include "mysql/thread_type.h"
+#include "mysql_com.h"
+#include "mysqld.h"           // gtid_executed_compression_period
+#include "query_options.h"
 #include "replication.h"      // THD_ENTER_COND
 #include "sql_base.h"         // MYSQL_OPEN_IGNORE_GLOBAL_READ_LOCK
+#include "sql_const.h"
+#include "sql_error.h"
+#include "sql_lex.h"
 #include "sql_parse.h"        // mysql_reset_thd_for_next_command
-#include "mysqld.h"           // gtid_executed_compression_period
+#include "sql_security_ctx.h"
+#include "sql_string.h"
+#include "system_variables.h"
 
 using std::list;
 using std::string;
@@ -140,7 +173,7 @@ THD *Gtid_table_access_context::create_thd()
 }
 
 
-void Gtid_table_access_context::before_open(THD* thd)
+void Gtid_table_access_context::before_open(THD *)
 {
   DBUG_ENTER("Gtid_table_access_context::before_open");
   /*
@@ -405,10 +438,10 @@ int Gtid_table_persistor::save(THD *thd, const Gtid *gtid)
 end:
   table_access_ctx.deinit(thd, table, 0 != error, false);
 
-  /* Do not protect m_count for improving transactions' concurrency */
+  /* Do not protect m_atomic_count for improving transactions' concurrency */
   if (error == 0 && gtid_executed_compression_period != 0)
   {
-    uint32 count= (uint32)m_count.atomic_add(1);
+    uint32 count= (uint32)m_atomic_count++;
     if (count == gtid_executed_compression_period ||
         DBUG_EVALUATE_IF("compress_gtid_table", 1, 0))
     {
@@ -546,7 +579,7 @@ int Gtid_table_persistor::compress(THD *thd)
   while (!is_complete && !error)
     error= compress_in_single_transaction(thd, is_complete);
 
-  m_count.atomic_set(0);
+  m_atomic_count= 0;
 
   DBUG_EXECUTE_IF("compress_gtid_table",
                   {

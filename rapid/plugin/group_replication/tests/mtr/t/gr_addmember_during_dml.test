@@ -1,0 +1,107 @@
+################################################################################
+# Add a member to GR group when some DML's are happenning on the GR group
+#
+# 0. Start 3 servers, and add 2 among them to GR
+# 1. Start an insert operation on a server in the GR group
+# 2. Parallely, add one more member to the GR group
+# 3. Validate the record counts on different tables
+# 4. Check the number of servers online and status of servers
+# 5. Cleanup
+################################################################################
+
+--source include/big_test.inc
+--source ../inc/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count= 3
+--source ../inc/group_replication.inc
+
+# Start group replication on two servers
+
+--echo
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source ../inc/start_and_bootstrap_group_replication.inc
+
+--echo
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+
+# Make sure number of servers in the group is 2
+--let $group_replication_number_of_members= 2
+--source ../inc/gr_wait_for_number_of_members.inc
+
+# Make 3rd member ready for starting GR
+--echo
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
+
+# Connect to server1, create a table and also define a procedure to insert data
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+CREATE TABLE test.t1 ( a int primary key);
+--source include/rpl_sync.inc
+USE test;
+delimiter $$;
+CREATE PROCEDURE insert_into_t1()
+     BEGIN
+     declare x INT;
+     set x=0;
+     while x<100 do
+     insert into t1 values (x);
+     set x=x+1;
+     end  while;
+     end$$
+delimiter ;$$
+--echo
+
+# Call the procedure to insert data on server1
+--echo ----call procedure----
+--send call insert_into_t1()
+--echo
+
+# Add 3rd member parallely while the insertion is in progress
+--echo
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--source include/start_group_replication_command.inc
+
+# Reap the insert call
+--echo
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--reap
+
+# Make sure that all the servers in the group are ONLINE
+--echo
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $wait_timeout= 600
+let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
+--source include/wait_condition.inc
+
+--echo
+--echo #Validating the records in server3#
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--let $wait_condition= SELECT COUNT(*)=100 FROM test.t1;
+--source include/wait_condition.inc
+--source include/rpl_sync.inc
+
+# Verify the consistency of number of records on all the servers
+--echo
+--echo #Validating the records in server2#
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $assert_text= 'Checking the number of records in test.t1'
+--let $assert_cond= [SELECT COUNT(*) as count FROM test.t1,count, 1] = 100
+--source include/assert.inc
+
+# Drop the tables created and the procedures defined
+--echo
+DROP TABLE test.t1;
+DROP PROCEDURE insert_into_t1;
+
+--source ../inc/group_replication_end.inc

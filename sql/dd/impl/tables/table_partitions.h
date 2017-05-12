@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,14 +16,18 @@
 #ifndef DD_TABLES__TABLE_PARTITIONS_INCLUDED
 #define DD_TABLES__TABLE_PARTITIONS_INCLUDED
 
-#include "my_global.h"
+#include <string>
 
-#include "dd/object_id.h"                    // dd::Object_id
 #include "dd/impl/types/object_table_impl.h" // dd::Object_table_impl
+#include "dd/object_id.h"                    // dd::Object_id
+#include "my_inttypes.h"
+
+class THD;
 
 namespace dd {
   class Object_key;
   class Raw_record;
+
 namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
@@ -33,9 +37,9 @@ class Table_partitions : public Object_table_impl
 public:
   static const Table_partitions &instance();
 
-  static const std::string &table_name()
+  static const String_type &table_name()
   {
-    static std::string s_table_name("table_partitions");
+    static String_type s_table_name("table_partitions");
     return s_table_name;
   }
 
@@ -58,7 +62,7 @@ public:
 public:
   Table_partitions();
 
-  virtual const std::string &name() const
+  virtual const String_type &name() const
   { return Table_partitions::table_name(); }
 
 public:
@@ -67,12 +71,12 @@ public:
   static ulonglong read_table_id(const Raw_record &r);
 
   static Object_key *create_se_private_key(
-    const std::string &engine,
+    const String_type &engine,
     Object_id se_private_id);
 
   static bool get_partition_table_id(
     THD *thd,
-    const std::string &engine,
+    const String_type &engine,
     ulonglong se_private_id,
     Object_id *oid);
 

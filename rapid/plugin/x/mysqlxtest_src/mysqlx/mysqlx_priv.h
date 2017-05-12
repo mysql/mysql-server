@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -37,7 +37,7 @@ typedef struct st_mysql
   int last_error_no;
   char *last_error;
 
-  my_bool free_me;		/* If free in mysql_close */
+  bool free_me;		/* If free in mysql_close */
 #if 0
   NET		net;			/* Communication parameters */
   unsigned char	*connector_fd;		/* ConnectorFd for SSL */
@@ -61,7 +61,7 @@ typedef struct st_mysql
   struct st_mysql_options options;
   enum mysql_status status;
 
-  my_bool	reconnect;		/* set to 1 if automatic reconnect */
+  bool	reconnect;		/* set to 1 if automatic reconnect */
 
 
   LIST  *stmts;                     /* list of all statements */
@@ -71,7 +71,7 @@ typedef struct st_mysql
    Points to boolean flag in MYSQL_RES  or MYSQL_STMT. We set this flag
    from mysql_stmt_close if close had to cancel result set of this object.
    */
-  my_bool *unbuffered_fetch_owner;
+  bool *unbuffered_fetch_owner;
   /* needed for embedded server - no net buffer to store the 'info' */
   char *info_buffer;
   void *extension;

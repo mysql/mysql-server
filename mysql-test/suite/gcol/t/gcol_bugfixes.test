@@ -1,3 +1,13 @@
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs7=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema default character set latin1;
+use test;
+--enable_query_log
+########################################
+
 ################################################################################
 # t/gcol_bugfixes.test                                                         #
 #                                                                              #
@@ -653,10 +663,93 @@ SELECT 1 FROM t a RIGHT JOIN t USING(b)
 WHERE 1 NOT LIKE(SELECT a FROM t WHERE a.b);
 DROP TABLE t;
 
---echo # Bug#2748217 gcols: assert in Item_func_in::resolve_type
+--echo # Bug#22748217 gcols: assert in Item_func_in::resolve_type
 
+SET @old_sql_mode= @@sql_mode;
 SET sql_mode="";
 CREATE TABLE t (a TIMESTAMP AS (0) VIRTUAL) engine=innodb;
 --error ER_TRUNCATED_WRONG_VALUE
 ALTER TABLE t ADD COLUMN b JSON AS (a NOT IN (1,1)) STORED;
 DROP TABLE t;
+SET sql_mode= @old_sql_mode;
+
+
+--echo #
+--echo # Bug#22987899: ALTER TABLE MODIFY COLUMN DOES NOT SET
+--echo #               ALTER_CHANGE_COLUMN_DEFAULT FLAG
+--echo #
+
+CREATE TABLE t1(
+  a INTEGER DEFAULT 5,
+  b INTEGER NOT NULL,
+  gc1 INTEGER AS (a + DEFAULT(a)) VIRTUAL,
+  gc2 INTEGER AS (a + DEFAULT(a)) STORED,
+  KEY k1(gc1)
+);
+
+INSERT INTO t1(a, b) VALUES (1 ,1);
+SELECT * FROM t1;
+SELECT gc1 FROM t1;
+
+# Test 1: Change the default value for a column, this should trigger rebuild
+
+# Check how many rows are accessed: >0 = COPY
+--enable_info
+ALTER TABLE t1 MODIFY COLUMN a INT DEFAULT 6;
+--disable_info
+SELECT * FROM t1;
+SELECT gc1 FROM t1;
+
+# Test 2: Change the NULL property for a column, should not trigger rebuild
+
+# Check how many rows are accessed: >0 = COPY
+--enable_info
+ALTER TABLE t1 MODIFY COLUMN b INTEGER NULL;
+--disable_info
+SELECT * FROM t1;
+SELECT gc1 FROM t1;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#22991924 GCOLS: UTF16 STRING OPERATIONS GIVE DOUBLED \0\0 STRINGS
+--echo # ON EACH TABLE REBUILD
+--echo #
+CREATE TABLE t1 (
+  a TEXT CHARSET utf16,
+  b BLOB GENERATED ALWAYS AS ( concat( 'ABC', a ) ) VIRTUAL
+);
+
+--echo # Results change due to bug fix.
+INSERT INTO t1 ( a ) VALUES ( 'abc' );
+
+SHOW CREATE TABLE t1;
+SELECT HEX(b) FROM t1;
+OPTIMIZE TABLE t1;
+SELECT HEX(b) FROM t1;
+SHOW CREATE TABLE t1;
+
+
+SELECT
+  length( convert( b USING utf8 ) ),
+  char_length ( convert( b USING utf8 ) )
+FROM t1;
+
+SELECT
+  length( convert( b USING utf16 ) ),
+  char_length ( convert( b USING utf16 ) )
+FROM t1;
+
+SELECT
+  length( convert( b USING latin1 ) ),
+  char_length ( convert( b USING latin1 ) )
+FROM t1;
+
+DROP TABLE t1;
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs7;
+--enable_query_log
+########################################

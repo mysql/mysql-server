@@ -1,0 +1,81 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+CHANGE MASTER TO MASTER_DELAY= 7;
+include/start_slave.inc
+include/assert.inc [Assert that the desired delay from performance_schema is same as set in the Change master to command.]
+include/assert.inc [Assert that the sql_delay in show slave status is same as set in the Change master to command.]
+[connection master]
+CREATE TABLE t1 (a INT);
+[connection slave]
+include/assert.inc [Assert that the REMAINING_DELAY from performance_schema is same as SQL_Remaining_Delay in the output of show slave status.]
+[connection master]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [Status should not be 'Waiting until MASTER_DELAY seconds after master executed event']
+[connection master]
+[connection slave]
+include/assert.inc [The difference between the immediate_commit_timestamp should be at least the SQL_Delay]
+[connection master]
+INSERT INTO t1 VALUES (1);
+[connection slave]
+include/assert.inc [Assert that the REMAINING_DELAY from performance_schema is same as SQL_Remaining_Delay in the output of show slave status.]
+[connection master]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [Status should not be 'Waiting until MASTER_DELAY seconds after master executed event']
+[connection master]
+[connection slave]
+include/assert.inc [The difference between the immediate_commit_timestamp should be at least the SQL_Delay]
+[connection master]
+UPDATE t1 SET a=2;
+[connection slave]
+include/assert.inc [Assert that the REMAINING_DELAY from performance_schema is same as SQL_Remaining_Delay in the output of show slave status.]
+[connection master]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [Status should not be 'Waiting until MASTER_DELAY seconds after master executed event']
+[connection master]
+[connection slave]
+include/assert.inc [The difference between the immediate_commit_timestamp should be at least the SQL_Delay]
+[connection master]
+DELETE FROM t1 WHERE a=2;
+[connection slave]
+include/assert.inc [Assert that the REMAINING_DELAY from performance_schema is same as SQL_Remaining_Delay in the output of show slave status.]
+[connection master]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [Status should not be 'Waiting until MASTER_DELAY seconds after master executed event']
+[connection master]
+[connection slave]
+include/assert.inc [The difference between the immediate_commit_timestamp should be at least the SQL_Delay]
+[connection master]
+START TRANSACTION;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+COMMIT;
+[connection slave]
+include/assert.inc [Assert that the REMAINING_DELAY from performance_schema is same as SQL_Remaining_Delay in the output of show slave status.]
+[connection master]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [Status should not be 'Waiting until MASTER_DELAY seconds after master executed event']
+[connection master]
+[connection slave]
+include/assert.inc [The difference between the immediate_commit_timestamp should be at least the SQL_Delay]
+[connection master]
+DROP TABLE t1;
+[connection slave]
+include/assert.inc [Assert that the REMAINING_DELAY from performance_schema is same as SQL_Remaining_Delay in the output of show slave status.]
+[connection master]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [Status should not be 'Waiting until MASTER_DELAY seconds after master executed event']
+[connection master]
+[connection slave]
+include/assert.inc [The difference between the immediate_commit_timestamp should be at least the SQL_Delay]
+[connection master]
+[connection slave]
+include/stop_slave_sql.inc
+CHANGE MASTER TO MASTER_DELAY= 0;
+include/start_slave_sql.inc
+[connection master]
+include/rpl_end.inc

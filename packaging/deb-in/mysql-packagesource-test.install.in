@@ -15,16 +15,12 @@
 
 # binaries
 usr/bin/mysql_client_test
-usr/bin/mysql_client_test_embedded
 usr/bin/mysqltest
-usr/bin/mysqltest_embedded
 usr/bin/mysqlxtest
 # manpages
 usr/share/man/man1/mysql_client_test.1
-usr/share/man/man1/mysql_client_test_embedded.1
 usr/share/man/man1/mysql-test-run.pl.1
 usr/share/man/man1/mysqltest.1
-usr/share/man/man1/mysqltest_embedded.1
 # plugins
 usr/lib/mysql/plugin/auth.so
 usr/lib/mysql/plugin/auth_test_plugin.so
@@ -50,6 +46,7 @@ usr/lib/mysql/plugin/libtest_sql_lock.so
 usr/lib/mysql/plugin/libtest_sql_processlist.so
 usr/lib/mysql/plugin/libtest_sql_replication.so
 usr/lib/mysql/plugin/libtest_sql_shutdown.so
+usr/lib/mysql/plugin/libtest_sql_stmt.so
 usr/lib/mysql/plugin/libtest_sql_sqlmode.so
 usr/lib/mysql/plugin/libtest_sql_stored_procedures_functions.so
 usr/lib/mysql/plugin/libtest_sql_views_triggers.so
@@ -62,6 +59,7 @@ usr/lib/mysql/plugin/replication_observers_example_plugin.so
 usr/lib/mysql/plugin/rewrite_example.so
 usr/lib/mysql/plugin/test_udf_services.so
 usr/lib/mysql/plugin/test_security_context.so
+usr/lib/mysql/plugin/test_services_plugin_registry.so
 usr/lib/mysql/plugin/debug/auth.so
 usr/lib/mysql/plugin/debug/auth_test_plugin.so
 usr/lib/mysql/plugin/debug/component_example_component1.so
@@ -86,6 +84,7 @@ usr/lib/mysql/plugin/debug/libtest_sql_lock.so
 usr/lib/mysql/plugin/debug/libtest_sql_processlist.so
 usr/lib/mysql/plugin/debug/libtest_sql_replication.so
 usr/lib/mysql/plugin/debug/libtest_sql_shutdown.so
+usr/lib/mysql/plugin/debug/libtest_sql_stmt.so
 usr/lib/mysql/plugin/debug/libtest_sql_sqlmode.so
 usr/lib/mysql/plugin/debug/libtest_sql_stored_procedures_functions.so
 usr/lib/mysql/plugin/debug/libtest_sql_views_triggers.so
@@ -98,6 +97,7 @@ usr/lib/mysql/plugin/debug/replication_observers_example_plugin.so
 usr/lib/mysql/plugin/debug/rewrite_example.so
 usr/lib/mysql/plugin/debug/test_udf_services.so
 usr/lib/mysql/plugin/debug/test_security_context.so
+usr/lib/mysql/plugin/debug/test_services_plugin_registry.so
 # test suite
 usr/lib/mysql-test/*
 # legal

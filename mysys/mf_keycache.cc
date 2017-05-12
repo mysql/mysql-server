@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -104,18 +104,29 @@
   I/O finished.
 */
 
-#include "mysys_priv.h"
-#include "mysys_err.h"
-#include <keycache.h>
-#include "my_static.h"
-#include <m_string.h>
-#include <my_bit.h>
 #include <errno.h>
-#include <stdarg.h>
-#include "probes_mysql.h"
+#include <stddef.h>
+#include <string.h>
+#include <sys/types.h>
+
+#include "keycache.h"
+#include "my_bit.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_loglevel.h"
+#include "my_macros.h"
+#include "my_pointer_arithmetic.h"
+#include "my_sys.h"
 #include "my_thread_local.h"
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysys_err.h"
+#include "mysys_priv.h"
 #include "template_utils.h"
+#include "thr_mutex.h"
 
 #define STRUCT_PTR(TYPE, MEMBER, a)                                           \
           (TYPE *) ((char *) (a) - offsetof(TYPE, MEMBER))
@@ -615,7 +626,7 @@ static void change_key_cache_param(KEY_CACHE *keycache,
     none
 */
 
-void end_key_cache(KEY_CACHE *keycache, my_bool cleanup)
+void end_key_cache(KEY_CACHE *keycache, bool cleanup)
 {
   DBUG_ENTER("end_key_cache");
   DBUG_PRINT("enter", ("key_cache: %p", keycache));
@@ -894,7 +905,7 @@ static inline void link_changed(BLOCK_LINK *block, BLOCK_LINK **phead)
 
 static void link_to_file_list(KEY_CACHE *keycache,
                               BLOCK_LINK *block, int file,
-                              my_bool unlink_block)
+                              bool unlink_block)
 {
   DBUG_ASSERT(block->status & BLOCK_IN_USE);
   DBUG_ASSERT(block->hash_link && block->hash_link->block == block);
@@ -988,8 +999,8 @@ static void link_to_changed_list(KEY_CACHE *keycache,
     not linked in the LRU ring.
 */
 
-static void link_block(KEY_CACHE *keycache, BLOCK_LINK *block, my_bool hot,
-                       my_bool at_end)
+static void link_block(KEY_CACHE *keycache, BLOCK_LINK *block, bool hot,
+                       bool at_end)
 {
   BLOCK_LINK *ins;
   BLOCK_LINK **pins;
@@ -1196,7 +1207,7 @@ static void unreg_request(KEY_CACHE *keycache,
   */
   if (!--block->requests && !(block->status & BLOCK_ERROR))
   {
-    my_bool hot;
+    bool hot;
     if (block->hits_left)
       block->hits_left--;
     hot= !block->hits_left && at_end &&
@@ -1207,7 +1218,7 @@ static void unreg_request(KEY_CACHE *keycache,
         keycache->warm_blocks--;
       block->temperature= BLOCK_HOT;
     }
-    link_block(keycache, block, hot, (my_bool)at_end);
+    link_block(keycache, block, hot, at_end);
     block->last_hit_time= keycache->keycache_time;
     keycache->keycache_time++;
     /*
@@ -2169,7 +2180,7 @@ restart:
 static void read_block(KEY_CACHE *keycache,
                        st_keycache_thread_var *thread_var,
                        BLOCK_LINK *block, uint read_length,
-                       uint min_length, my_bool primary)
+                       uint min_length, bool primary)
 {
   size_t got_length;
 
@@ -2281,7 +2292,7 @@ uchar *key_cache_read(KEY_CACHE *keycache,
                       uint block_length,
                       int return_buffer MY_ATTRIBUTE((unused)))
 {
-  my_bool locked_and_incremented= FALSE;
+  bool locked_and_incremented= FALSE;
   int error=0;
   uchar *start= buff;
   DBUG_ENTER("key_cache_read");
@@ -2296,15 +2307,6 @@ uchar *key_cache_read(KEY_CACHE *keycache,
     uint offset;
     int page_st;
 
-    if (MYSQL_KEYCACHE_READ_START_ENABLED())
-    {
-      MYSQL_KEYCACHE_READ_START(my_filename(file), length,
-                                (ulong) (keycache->blocks_used *
-                                         keycache->key_cache_block_size),
-                                (ulong) (keycache->blocks_unused *
-                                         keycache->key_cache_block_size));
-    }
-  
     /*
       When the key cache is once initialized, we use the cache_lock to
       reliably distinguish the cases of normal operation, resizing, and
@@ -2355,8 +2357,6 @@ uchar *key_cache_read(KEY_CACHE *keycache,
       /* Request the cache block that matches file/pos. */
       keycache->global_cache_r_requests++;
 
-      MYSQL_KEYCACHE_READ_BLOCK(keycache->key_cache_block_size);
-
       block= find_key_block(keycache, thread_var, file, filepos, level, 0,
                             &page_st);
       if (!block)
@@ -2377,11 +2377,10 @@ uchar *key_cache_read(KEY_CACHE *keycache,
       {
         if (page_st != PAGE_READ)
         {
-          MYSQL_KEYCACHE_READ_MISS();
           /* The requested page is to be read into the block buffer */
           read_block(keycache, thread_var, block,
                      keycache->key_cache_block_size, read_length+offset,
-                     (my_bool)(page_st == PAGE_TO_BE_READ));
+                     page_st == PAGE_TO_BE_READ);
           /*
             A secondary request must now have the block assigned to the
             requested file block. It does not hurt to check it for
@@ -2401,10 +2400,6 @@ uchar *key_cache_read(KEY_CACHE *keycache,
           */
           set_my_errno(-1);
           block->status|= BLOCK_ERROR;
-        }
-        else
-        {
-          MYSQL_KEYCACHE_READ_HIT();
         }
       }
 
@@ -2451,13 +2446,6 @@ uchar *key_cache_read(KEY_CACHE *keycache,
       offset= 0;
 
     } while ((length-= read_length));
-    if (MYSQL_KEYCACHE_READ_DONE_ENABLED())
-    {
-      MYSQL_KEYCACHE_READ_DONE((ulong) (keycache->blocks_used *
-                                        keycache->key_cache_block_size),
-                               (ulong) (keycache->blocks_unused *
-                                        keycache->key_cache_block_size));
-    }
     goto end;
   }
 
@@ -2523,7 +2511,7 @@ int key_cache_insert(KEY_CACHE *keycache,
     uint read_length;
     uint offset;
     int page_st;
-    my_bool locked_and_incremented= FALSE;
+    bool locked_and_incremented= FALSE;
 
     /*
       When the keycache is once initialized, we use the cache_lock to
@@ -2758,7 +2746,7 @@ int key_cache_write(KEY_CACHE *keycache,
                     uint block_length  MY_ATTRIBUTE((unused)),
                     int dont_write)
 {
-  my_bool locked_and_incremented= FALSE;
+  bool locked_and_incremented= FALSE;
   int error=0;
   DBUG_ENTER("key_cache_write");
   DBUG_PRINT("enter",
@@ -2786,15 +2774,6 @@ int key_cache_write(KEY_CACHE *keycache,
     uint read_length;
     uint offset;
     int page_st;
-
-    if (MYSQL_KEYCACHE_WRITE_START_ENABLED())
-    {
-      MYSQL_KEYCACHE_WRITE_START(my_filename(file), length,
-                                 (ulong) (keycache->blocks_used *
-                                          keycache->key_cache_block_size),
-                                 (ulong) (keycache->blocks_unused *
-                                          keycache->key_cache_block_size));
-    }
 
     /*
       When the key cache is once initialized, we use the cache_lock to
@@ -2833,7 +2812,6 @@ int key_cache_write(KEY_CACHE *keycache,
       if (!keycache->can_be_used)
 	goto no_key_cache;
 
-      MYSQL_KEYCACHE_WRITE_BLOCK(keycache->key_cache_block_size);
       /* Start writing at the beginning of the cache block. */
       filepos-= offset;
       /* Do not write beyond the end of the cache block. */
@@ -3043,14 +3021,6 @@ end:
     mysql_mutex_unlock(&keycache->cache_lock);
   }
   
-  if (MYSQL_KEYCACHE_WRITE_DONE_ENABLED())
-  {
-    MYSQL_KEYCACHE_WRITE_DONE((ulong) (keycache->blocks_used *
-                                       keycache->key_cache_block_size),
-                              (ulong) (keycache->blocks_unused *
-                                       keycache->key_cache_block_size));
-  }
-
   DBUG_RETURN(error);
 }
 

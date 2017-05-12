@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,11 +20,18 @@
   !! This file is built from my_locale.pl !!
 */
 
-#include "sql_locale.h"
+#include "sql/sql_locale.h"
+
+#include <stddef.h>
+
 #include "derror.h"                             // MY_LOCALE_ERRMSGS
-#include "sql_class.h"                          // THD
-#include "my_sys.h"                             // MY_*, NullS, NULL
 #include "log.h"
+#include "m_ctype.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "mysqld_error.h"
+#include "sql_error.h"
+#include "typelib.h"
 
 
 enum err_msgs_index

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,25 +15,62 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "socket_connection.h"
+#include "sql/conn_handler/socket_connection.h"
 
-#include "violite.h"                    // Vio
-#include "channel_info.h"               // Channel_info
-#include "connection_handler_manager.h" // Connection_handler_manager
-#include "derror.h"                     // ER_DEFAULT
-#include "mysqld.h"                     // key_socket_tcpip
-#include "log.h"                        // sql_print_error
-#include "sql_class.h"                  // THD
-#include "init_net_server_extension.h"  // init_net_server_extension
+#include "my_config.h"
 
-#include <algorithm>
+#include <errno.h>
+#include <fcntl.h>
+#ifndef _WIN32
+#include <netdb.h>
+#endif
+#ifdef HAVE_NETINET_IN_H
+#include <netinet/in.h>
+#endif
 #include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#ifdef HAVE_SYS_SOCKET_H
+#include <sys/socket.h>
+#endif
+#include <sys/stat.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+#include <algorithm>
+#include <new>
+#include <utility>
+
+#include "channel_info.h"               // Channel_info
+#include "derror.h"                     // ER_DEFAULT
+#include "init_net_server_extension.h"  // init_net_server_extension
+#include "log.h"                        // sql_print_error
+#include "m_string.h"
+#include "my_dbug.h"
+#include "my_io.h"
+#include "my_sys.h"
+#include "my_thread.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql_com.h"
+#include "mysqld.h"                     // key_socket_tcpip
+#include "mysqld_error.h"
+#include "sql_class.h"                  // THD
+#include "sql_const.h"
+#include "sql_security_ctx.h"
+#include "violite.h"                    // Vio
 #ifdef HAVE_SYS_UN_H
 #include <sys/un.h>
 #endif
 #ifdef HAVE_LIBWRAP
-#include <tcpd.h>
 #include <syslog.h>
+#ifndef HAVE_LIBWRAP_PROTOTYPES
+extern "C" {
+#include <tcpd.h>
+}
+#else
+#include <tcpd.h>
+#endif
 #endif
 
 using std::max;
@@ -578,7 +615,7 @@ bool Unix_socket::create_lockfile()
   pid_t cur_pid= getpid();
   std::string lock_filename= m_unix_sockname + ".lock";
 
-  compile_time_assert(sizeof(pid_t) == 4);
+  static_assert(sizeof(pid_t) == 4, "");
   int retries= 3;
   while (true)
   {
@@ -667,6 +704,11 @@ bool Unix_socket::create_lockfile()
     close(fd);
     sql_print_error("Could not write unix socket lock file %s errno %d.",
                     lock_filename.c_str(), errno);
+
+    if (unlink(lock_filename.c_str()) == -1)
+      sql_print_error("Could not remove unix socket lock file %s errno %d.",
+                      lock_filename.c_str(), errno);
+
     return true;
   }
 
@@ -675,6 +717,11 @@ bool Unix_socket::create_lockfile()
     close(fd);
     sql_print_error("Could not sync unix socket lock file %s errno %d.",
                     lock_filename.c_str(), errno);
+
+    if (unlink(lock_filename.c_str()) == -1)
+      sql_print_error("Could not remove unix socket lock file %s errno %d.",
+                      lock_filename.c_str(), errno);
+
     return true;
   }
 
@@ -682,6 +729,11 @@ bool Unix_socket::create_lockfile()
   {
     sql_print_error("Could not close unix socket lock file %s errno %d.",
                     lock_filename.c_str(), errno);
+
+    if (unlink(lock_filename.c_str()) == -1)
+      sql_print_error("Could not remove unix socket lock file %s errno %d.",
+                      lock_filename.c_str(), errno);
+
     return true;
   }
   return false;
@@ -867,9 +919,15 @@ Channel_info* Mysqld_socket_listener::listen_for_connection_event()
       syslog(LOG_AUTH | m_deny_severity,
              "refused connect from %s", eval_client(&req));
 
+#ifdef HAVE_LIBWRAP_PROTOTYPES
+      // Some distros have patched tcpd.h to have proper prototypes
       if (req.sink)
         (req.sink)(req.fd);
-
+#else
+      // Some distros have not patched tcpd.h
+      if (req.sink)
+        ((void (*)(int))req.sink)(req.fd);
+#endif
       mysql_socket_shutdown(listen_sock, SHUT_RDWR);
       mysql_socket_close(listen_sock);
       /*

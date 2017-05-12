@@ -1,5 +1,4 @@
-/*
-   Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,188 +15,37 @@
 
 #include "event_db_repository.h"
 
-#include "dd/dd_event.h"
-#include "dd/cache/dictionary_client.h" // fetch_schema_components
-#include "dd/dd_schema.h"
+#include <vector>
 
-#include "sql_base.h"                   // close_thread_tables
-#include "key.h"                        // key_copy
-#include "sql_db.h"                     // get_default_db_collation
-#include "sql_time.h"                   // interval_type_to_name
-#include "tztime.h"                     // struct Time_zone
-#include "auth_common.h"                // SUPER_ACL
-#include "sp_head.h"
+#include "auth_acls.h"
+#include "dd/cache/dictionary_client.h" // fetch_schema_components
+#include "dd/dd_event.h"
+#include "dd/dd_schema.h"
+#include "dd/string_type.h"
+#include "dd/types/event.h"
+#include "dd/types/schema.h"
+#include "derror.h"
 #include "event_data_objects.h"
 #include "event_parse_data.h"
-#include "events.h"
+#include "lex_string.h"
+#include "my_dbug.h"
+#include "my_sys.h"
+#include "mysqld_error.h"
+#include "sp_head.h"
+#include "sql_class.h"
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_security_ctx.h"
 #include "sql_show.h"
-#include "log.h"
-#include "lock.h"                       // lock_object_name
-#include "derror.h"
+#include "table.h"
+#include "template_utils.h"
 #include "transaction.h"
+#include "tztime.h"                     // struct Time_zone
 
 /**
   @addtogroup Event_Scheduler
   @{
 */
-
-
-/**
-  Fetch the events which are defined under the schema
-  using the Data Dictionary API fetch_schema_components
-  and fill the Information Schema Events table.
-
-  The DD API fetch_schema_components does a index scan of the underlying
-  meta table mysql.events.
-
-  @param       thd          THD context.
-  @param       schema_table The I_S.EVENTS table
-  @param       db           For which schema to do an index scan.
-
-  @returns     false on success and true on error.
-*/
-
-static bool index_read_for_db_for_i_s(THD *thd, TABLE *schema_table,
-                                      const char *db)
-{
-  DBUG_ENTER("index_read_for_db_for_i_s");
-
-  dd::Schema_MDL_locker mdl_locker(thd);
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-  const dd::Schema *sch_obj= nullptr;
-
-  // Acquire schema object by name.
-  if (mdl_locker.ensure_locked(db))
-    DBUG_RETURN(true);
-
-  if (thd->dd_client()->acquire<dd::Schema>(db, &sch_obj))
-  {
-    /*
-      Ignore any error so that information schema display a empty row.
-      Clear any diagnostics area set.
-    */
-    thd->clear_error();
-    DBUG_RETURN(false);
-  }
-
-  if (sch_obj == nullptr)
-    DBUG_RETURN(false);
-
-  std::vector<const dd::Event*> events;
-  if (thd->dd_client()->fetch_schema_components(sch_obj, &events))
-  {
-    /*
-      Ignore any error so that information schema displays a empty row.
-      Clear any diagnostics area set.
-    */
-    thd->clear_error();
-    DBUG_RETURN(false);
-  }
-
-  for (const dd::Event *event_obj : events)
-  {
-    /*
-      Fill meta information from the DD Event object
-      to Information Schema Events Table.
-    */
-    bool res= copy_event_to_schema_table(thd, schema_table, *event_obj, db);
-    if (res)
-    {
-      /*
-        If no meta information can't be loaded to schema table
-        proceed to fetch information for other events.
-        Clear any diagnostics area set.
-      */
-      thd->clear_error();
-    }
-  }
-
-  delete_container_pointers(events);
-
-  DBUG_RETURN(false);
-}
-
-
-/**
-  Fetch all events and fill the Information Schema Events table.
-  The DD API fetch_all_schema_events does a table scan of the
-  underlying meta table mysql.events.
-
-  @param thd          THD context.
-  @param schema_table The I_S.EVENTS in memory table
-
-  @returns  false on success and true on error.
-*/
-
-static bool table_scan_all_for_i_s(THD *thd, TABLE *schema_table)
-{
-  DBUG_ENTER("table_scan_all_for_i_s");
-
-  // Fetch all Schemas
-  std::vector<const dd::Schema*> schemas;
-  if (thd->dd_client()->fetch_global_components(&schemas))
-    DBUG_RETURN(true);
-
-  for (const dd::Schema *schema_obj : schemas)
-  {
-    // Fetch all DD Event Objects.
-    std::vector<const dd::Event*> events;
-    if (thd->dd_client()->fetch_schema_components(schema_obj, &events))
-      DBUG_RETURN(true);
-
-    for (const dd::Event *event_obj : events)
-    {
-      /*
-        Fill meta information from the DD Event object
-        to Information Schema Events Table.
-      */
-      bool res= copy_event_to_schema_table(thd, schema_table, *event_obj,
-                                           schema_obj->name().c_str());
-      if (res)
-      {
-        /*
-          If no meta information can't be loaded to schema table
-          proceed to fetch information for other events.
-          Clear any diagnostics area set.
-        */
-        thd->clear_error();
-      }
-    }
-
-    delete_container_pointers(events);
-  }
-
-  delete_container_pointers(schemas);
-
-  DBUG_RETURN(false);
-}
-
-
-/**
-   Fills I_S.EVENTS with Events information obtained from Data Dictionary.
-   Also used by SHOW EVENTS.
-
-   @retval false  success
-   @retval true   error
-*/
-
-bool
-Event_db_repository::fill_schema_events(THD *thd, TABLE_LIST *i_s_table,
-                                        const char *db)
-{
-  bool res= false;
-
-  DBUG_ENTER("Event_db_repository::fill_schema_events");
-  DBUG_PRINT("info",("db=%s", db != nullptr? db:"(null)"));
-
-  if (db)
-    res= index_read_for_db_for_i_s(thd, i_s_table->table, db);
-  else
-    res= table_scan_all_for_i_s(thd, i_s_table->table);
-
-  DBUG_PRINT("info", ("Return code=%d", res));
-  DBUG_RETURN(res);
-}
 
 
 /**
@@ -228,9 +76,21 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
 
   DBUG_ASSERT(sp);
 
-  if (dd::event_exists(thd->dd_client(), parse_data->dbname.str,
-                       parse_data->name.str, event_already_exists))
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  const dd::Schema *schema= nullptr;
+  const dd::Event *event= nullptr;
+  if (thd->dd_client()->acquire(parse_data->dbname.str, &schema) ||
+      thd->dd_client()->acquire(parse_data->dbname.str,
+                                parse_data->name.str, &event))
     DBUG_RETURN(true);
+
+  if (schema == nullptr)
+  {
+    my_error(ER_BAD_DB_ERROR, MYF(0), parse_data->dbname.str);
+    DBUG_RETURN(true);
+  }
+
+  *event_already_exists= (event != nullptr);
 
   if (*event_already_exists)
   {
@@ -246,11 +106,19 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
     DBUG_RETURN(true);
   }
 
-  DBUG_RETURN(dd::create_event(thd, parse_data->dbname.str,
-                               parse_data->name.str,
-                               sp->m_body.str, sp->m_body_utf8.str,
-                               thd->lex->definer,
-                               parse_data));
+  if (dd::create_event(thd, *schema,
+                       parse_data->name.str,
+                       sp->m_body.str, sp->m_body_utf8.str,
+                       thd->lex->definer,
+                       parse_data))
+  {
+    trans_rollback_stmt(thd);
+    // Full rollback we have THD::transaction_rollback_request.
+    trans_rollback(thd);
+    DBUG_RETURN(true);
+  }
+
+  DBUG_RETURN(trans_commit_stmt(thd) || trans_commit(thd));
 }
 
 
@@ -293,21 +161,33 @@ Event_db_repository::update_event(THD *thd, Event_parse_data *parse_data,
   {
     DBUG_PRINT("info", ("rename to: %s@%s", new_dbname->str, new_name->str));
 
-    bool exists= false;
-    if (dd::event_exists(thd->dd_client(), new_dbname->str,
-                         new_name->str, &exists))
+    const dd::Event *new_event= nullptr;
+    if (thd->dd_client()->acquire(new_dbname->str, new_name->str, &new_event))
       DBUG_RETURN(true);
 
-    if (exists)
+    if (new_event != nullptr)
     {
       my_error(ER_EVENT_ALREADY_EXISTS, MYF(0), new_name->str);
       DBUG_RETURN(true);
     }
   }
 
-  const dd::Event *event= nullptr;
-  if (thd->dd_client()->acquire<dd::Event>(parse_data->dbname.str,
-                                           parse_data->name.str, &event))
+  const dd::Schema *new_schema= nullptr;
+  if (new_dbname != nullptr)
+  {
+    if (thd->dd_client()->acquire(new_dbname->str, &new_schema))
+      DBUG_RETURN(true);
+
+    if (new_schema == nullptr)
+    {
+      my_error(ER_BAD_DB_ERROR, MYF(0), new_dbname->str);
+      DBUG_RETURN(true);
+    }
+  }
+
+  dd::Event *event= nullptr;
+  if (thd->dd_client()->acquire_for_modification(parse_data->dbname.str,
+                                                 parse_data->name.str, &event))
     DBUG_RETURN(true);
 
   if (event == nullptr)
@@ -317,16 +197,19 @@ Event_db_repository::update_event(THD *thd, Event_parse_data *parse_data,
   }
 
   // Update Event in the data dictionary with altered event object attributes.
-  if (dd::update_event(thd, event, new_dbname != nullptr ? new_dbname->str : "",
+  if (dd::update_event(thd, event, new_schema,
                        new_name != nullptr ? new_name->str : "",
                        (parse_data->body_changed) ? sp->m_body.str : event->definition(),
                        (parse_data->body_changed) ? sp->m_body_utf8.str :
                                                     event->definition_utf8(),
                        thd->lex->definer, parse_data))
   {
+    trans_rollback_stmt(thd);
+    // Full rollback we have THD::transaction_rollback_request.
+    trans_rollback(thd);
     DBUG_RETURN(true);
   }
-  DBUG_RETURN(false);
+  DBUG_RETURN(trans_commit_stmt(thd) || trans_commit(thd));
 }
 
 
@@ -363,26 +246,38 @@ Event_db_repository::drop_event(THD *thd, LEX_STRING db, LEX_STRING name,
 
   const dd::Event *event_ptr= nullptr;
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-  if (thd->dd_client()->acquire<dd::Event>(db.str, name.str, &event_ptr))
+  if (thd->dd_client()->acquire(db.str, name.str, &event_ptr))
   {
     // Error is reported by the dictionary subsystem.
     DBUG_RETURN(true);
   }
 
-  if (event_ptr != nullptr)
-    DBUG_RETURN(dd::drop_event(thd, event_ptr));
-
-  // Event not found
-  if (!drop_if_exists)
+  if (event_ptr == nullptr)
   {
-    my_error(ER_EVENT_DOES_NOT_EXIST, MYF(0), name.str);
+    // Event not found
+    if (!drop_if_exists)
+    {
+      my_error(ER_EVENT_DOES_NOT_EXIST, MYF(0), name.str);
+      DBUG_RETURN(true);
+    }
+
+    push_warning_printf(thd, Sql_condition::SL_NOTE,
+                        ER_SP_DOES_NOT_EXIST, ER_THD(thd, ER_SP_DOES_NOT_EXIST),
+                        "Event", name.str);
+    DBUG_RETURN(false);
+  }
+
+  Disable_gtid_state_update_guard disabler(thd);
+
+  if (thd->dd_client()->drop(event_ptr))
+  {
+    trans_rollback_stmt(thd);
+    // Full rollback in case we have THD::transaction_rollback_request.
+    trans_rollback(thd);
     DBUG_RETURN(true);
   }
 
-  push_warning_printf(thd, Sql_condition::SL_NOTE,
-                      ER_SP_DOES_NOT_EXIST, ER_THD(thd, ER_SP_DOES_NOT_EXIST),
-                      "Event", name.str);
-  DBUG_RETURN(false);
+  DBUG_RETURN(trans_commit_stmt(thd) || trans_commit(thd));
 }
 
 
@@ -396,50 +291,25 @@ Event_db_repository::drop_event(THD *thd, LEX_STRING db, LEX_STRING name,
 */
 
 bool
-Event_db_repository::drop_schema_events(THD *thd, LEX_STRING schema)
+Event_db_repository::drop_schema_events(THD *thd, const dd::Schema &schema)
 {
   DBUG_ENTER("Event_db_repository::drop_schema_events");
-  DBUG_PRINT("enter", ("schema=%s", schema.str));
 
-  // Turn off autocommit.
-  Disable_autocommit_guard autocommit_guard(thd);
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-  const dd::Schema *sch_obj= nullptr;
-
-  if (thd->dd_client()->acquire<dd::Schema>(schema.str, &sch_obj))
-    DBUG_RETURN(true);
-  if (sch_obj == nullptr)
-  {
-    my_error(ER_BAD_DB_ERROR, MYF(0), schema.str);
-    DBUG_RETURN(true);
-  }
 
   std::vector<const dd::Event*> events;
-  if (thd->dd_client()->fetch_schema_components(sch_obj, &events))
+  if (thd->dd_client()->fetch_schema_components(&schema, &events))
     DBUG_RETURN(true);
 
   for (const dd::Event *event_obj : events)
   {
-     /*
-       TODO: This extra acquire is required for now as Dictionary_client::drop()
-       requires the object to be present in the DD cache. Since fetch_schema_components()
-       bypasses the cache, the object is not there.
-       Remove this code once either fetch_schema_components() uses the cache or
-       Dictionary_client::drop() works with uncached objects.
-    */
-    const dd::Event *event_obj2;
-    if (thd->dd_client()->acquire<dd::Event>(schema.str, event_obj->name(), &event_obj2))
-      DBUG_RETURN(true);
-
-    if (dd::drop_event(thd, event_obj2))
+    if (thd->dd_client()->drop(event_obj))
     {
       my_error(ER_SP_DROP_FAILED, MYF(0),
                "Drop failed for Event: %s", event_obj->name().c_str());
       DBUG_RETURN(true);
     }
   }
-
-  delete_container_pointers(events);
 
   DBUG_RETURN(false);
 }
@@ -466,7 +336,7 @@ Event_db_repository::load_named_event(THD *thd, LEX_STRING dbname,
 
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
-  if (thd->dd_client()->acquire<dd::Event>(dbname.str, name.str, &event_obj))
+  if (thd->dd_client()->acquire(dbname.str, name.str, &event_obj))
   {
     // Error is reported by the dictionary subsystem.
     DBUG_RETURN(true);
@@ -513,17 +383,23 @@ update_timing_fields_for_event(THD *thd, LEX_STRING event_db_name,
 
   DBUG_ASSERT(thd->security_context()->check_access(SUPER_ACL));
 
-  const dd::Event *event_ptr= nullptr;
+  dd::Event *event= nullptr;
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-  if (thd->dd_client()->acquire<dd::Event>(event_db_name.str, event_name.str, &event_ptr))
+  if (thd->dd_client()->acquire_for_modification(event_db_name.str, event_name.str,
+                                                 &event))
     DBUG_RETURN(true);
-  if (event_ptr == nullptr)
+  if (event == nullptr)
     DBUG_RETURN(true);
 
-  bool res= dd::update_event_time_and_status(thd, event_ptr, last_executed,
-                                        status);
+  if (dd::update_event_time_and_status(thd, event, last_executed, status))
+  {
+    trans_rollback_stmt(thd);
+    // Full rollback in case we have THD::transaction_rollback_request.
+    trans_rollback(thd);
+    DBUG_RETURN(true);
+  }
 
-  DBUG_RETURN(res);
+  DBUG_RETURN(trans_commit_stmt(thd) || trans_commit(thd));
 }
 
 /**

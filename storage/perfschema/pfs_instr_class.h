@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -16,22 +16,28 @@
 #ifndef PFS_INSTR_CLASS_H
 #define PFS_INSTR_CLASS_H
 
-#include "my_global.h"
-#include "mysql_com.h"                          /* NAME_LEN */
+#include "my_config.h"
+
+#include <sys/types.h>
+
 #include "lf.h"
-#include "pfs_global.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "mysql_com.h" /* NAME_LEN */
+#include "mysqld_error.h"
 #include "pfs_atomic.h"
-#include "prealloced_array.h"
+#include "pfs_column_types.h"
+#include "pfs_global.h"
 #include "pfs_lock.h"
 #include "pfs_stat.h"
-#include "pfs_column_types.h"
-#include "mysqld_error.h"
+#include "prealloced_array.h"
 
 struct TABLE_SHARE;
 
 /**
   @file storage/perfschema/pfs_instr_class.h
-  Performance schema instruments meta data (declarations).
+  Performance schema instruments metadata (declarations).
 */
 
 /**
@@ -58,7 +64,7 @@ class PFS_opaque_container_page;
   @{
 */
 
-extern my_bool pfs_enabled;
+extern bool pfs_enabled;
 extern enum_timer_name *class_timers[];
 
 /** Key, naming a synch instrument (mutex, rwlock, cond). */
@@ -80,24 +86,24 @@ typedef unsigned int PFS_memory_key;
 
 enum PFS_class_type
 {
-  PFS_CLASS_NONE=        0,
-  PFS_CLASS_MUTEX=       1,
-  PFS_CLASS_RWLOCK=      2,
-  PFS_CLASS_COND=        3,
-  PFS_CLASS_FILE=        4,
-  PFS_CLASS_TABLE=       5,
-  PFS_CLASS_STAGE=       6,
-  PFS_CLASS_STATEMENT=   7,
-  PFS_CLASS_TRANSACTION= 8,
-  PFS_CLASS_SOCKET=      9,
-  PFS_CLASS_TABLE_IO=   10,
-  PFS_CLASS_TABLE_LOCK= 11,
-  PFS_CLASS_IDLE=       12,
-  PFS_CLASS_MEMORY=     13,
-  PFS_CLASS_METADATA=   14,
-  PFS_CLASS_ERROR=      15,
-  PFS_CLASS_LAST=       PFS_CLASS_ERROR,
-  PFS_CLASS_MAX=        PFS_CLASS_LAST + 1
+  PFS_CLASS_NONE = 0,
+  PFS_CLASS_MUTEX = 1,
+  PFS_CLASS_RWLOCK = 2,
+  PFS_CLASS_COND = 3,
+  PFS_CLASS_FILE = 4,
+  PFS_CLASS_TABLE = 5,
+  PFS_CLASS_STAGE = 6,
+  PFS_CLASS_STATEMENT = 7,
+  PFS_CLASS_TRANSACTION = 8,
+  PFS_CLASS_SOCKET = 9,
+  PFS_CLASS_TABLE_IO = 10,
+  PFS_CLASS_TABLE_LOCK = 11,
+  PFS_CLASS_IDLE = 12,
+  PFS_CLASS_MEMORY = 13,
+  PFS_CLASS_METADATA = 14,
+  PFS_CLASS_ERROR = 15,
+  PFS_CLASS_LAST = PFS_CLASS_ERROR,
+  PFS_CLASS_MAX = PFS_CLASS_LAST + 1
 };
 
 /** User-defined instrument configuration. */
@@ -113,7 +119,7 @@ struct PFS_instr_config
   bool m_timed;
 };
 
-typedef Prealloced_array<PFS_instr_config*, 10> Pfs_instr_config_array;
+typedef Prealloced_array<PFS_instr_config *, 10> Pfs_instr_config_array;
 extern Pfs_instr_config_array *pfs_instr_config_array;
 
 struct PFS_thread;
@@ -154,23 +160,27 @@ struct PFS_instr_class
   /** Timer associated with this class. */
   enum_timer_name *m_timer;
 
-  bool is_singleton() const
+  bool
+  is_singleton() const
   {
     return m_flags & PSI_FLAG_GLOBAL;
   }
 
-  bool is_mutable() const
+  bool
+  is_mutable() const
   {
     return m_flags & PSI_FLAG_MUTABLE;
   }
 
-  bool is_progress() const
+  bool
+  is_progress() const
   {
     DBUG_ASSERT(m_type == PFS_CLASS_STAGE);
     return m_flags & PSI_FLAG_STAGE_PROGRESS;
   }
 
-  bool is_shared_exclusive() const
+  bool
+  is_shared_exclusive() const
   {
     DBUG_ASSERT(m_type == PFS_CLASS_RWLOCK);
     return m_flags & PSI_RWLOCK_FLAG_SX;
@@ -179,16 +189,17 @@ struct PFS_instr_class
   static void set_enabled(PFS_instr_class *pfs, bool enabled);
   static void set_timed(PFS_instr_class *pfs, bool timed);
 
-  bool is_deferred() const
+  bool
+  is_deferred() const
   {
-    switch(m_type)
+    switch (m_type)
     {
-      case PFS_CLASS_SOCKET:
-        return true;
-        break;
-      default:
-        return false;
-        break;
+    case PFS_CLASS_SOCKET:
+      return true;
+      break;
+    default:
+      return false;
+      break;
     };
   }
 };
@@ -197,7 +208,7 @@ struct PFS_mutex;
 
 #define PFS_MUTEX_PARTITIONS 2
 
-/** Instrumentation metadata for a MUTEX. */
+/** Instrumentation metadata for a mutex. */
 struct PFS_ALIGNED PFS_mutex_class : public PFS_instr_class
 {
   /** Mutex usage statistics. */
@@ -208,7 +219,7 @@ struct PFS_ALIGNED PFS_mutex_class : public PFS_instr_class
 
 struct PFS_rwlock;
 
-/** Instrumentation metadata for a RWLOCK. */
+/** Instrumentation metadata for a read write lock. */
 struct PFS_ALIGNED PFS_rwlock_class : public PFS_instr_class
 {
   /** Rwlock usage statistics. */
@@ -219,7 +230,7 @@ struct PFS_ALIGNED PFS_rwlock_class : public PFS_instr_class
 
 struct PFS_cond;
 
-/** Instrumentation metadata for a COND. */
+/** Instrumentation metadata for a condition. */
 struct PFS_ALIGNED PFS_cond_class : public PFS_instr_class
 {
   /**
@@ -249,8 +260,8 @@ struct PFS_table_share_key
 {
   /**
     Hash search key.
-    This has to be a string for LF_HASH,
-    the format is "<enum_object_type><schema_name><0x00><object_name><0x00>"
+    This has to be a string for @c LF_HASH,
+    the format is @c "<enum_object_type><schema_name><0x00><object_name><0x00>"
     @see create_table_def_key
   */
   char m_hash_key[1 + NAME_LEN + 1 + NAME_LEN + 1];
@@ -276,7 +287,7 @@ struct PFS_table_share_index
   /** The index stat */
   PFS_table_io_stat m_stat;
   /** Owner table share. To be used later. */
-  PFS_table_share* m_owner;
+  PFS_table_share *m_owner;
   /** Container page. */
   PFS_opaque_container_page *m_page;
 };
@@ -288,7 +299,7 @@ struct PFS_table_share_lock
   /** Lock stats. */
   PFS_table_lock_stat m_stat;
   /** Owner table share. To be used later. */
-  PFS_table_share* m_owner;
+  PFS_table_share *m_owner;
   /** Container page. */
   PFS_opaque_container_page *m_page;
 };
@@ -297,12 +308,16 @@ struct PFS_table_share_lock
 struct PFS_ALIGNED PFS_table_share
 {
 public:
-  uint32 get_version()
-  { return m_lock.get_version(); }
-
-  enum_object_type get_object_type()
+  uint32
+  get_version()
   {
-    return (enum_object_type) m_key.m_hash_key[0];
+    return m_lock.get_version();
+  }
+
+  enum_object_type
+  get_object_type()
+  {
+    return (enum_object_type)m_key.m_hash_key[0];
   }
 
   void aggregate_io(void);
@@ -312,30 +327,35 @@ public:
   void sum_lock(PFS_single_stat *result);
   void sum(PFS_single_stat *result, uint key_count);
 
-  inline void aggregate(void)
+  inline void
+  aggregate(void)
   {
     aggregate_io();
     aggregate_lock();
   }
 
-  inline void init_refcount(void)
+  inline void
+  init_refcount(void)
   {
-    PFS_atomic::store_32(& m_refcount, 1);
+    PFS_atomic::store_32(&m_refcount, 1);
   }
 
-  inline int get_refcount(void)
+  inline int
+  get_refcount(void)
   {
-    return PFS_atomic::load_32(& m_refcount);
+    return PFS_atomic::load_32(&m_refcount);
   }
 
-  inline void inc_refcount(void)
+  inline void
+  inc_refcount(void)
   {
-    PFS_atomic::add_32(& m_refcount, 1);
+    PFS_atomic::add_32(&m_refcount, 1);
   }
 
-  inline void dec_refcount(void)
+  inline void
+  dec_refcount(void)
   {
-    PFS_atomic::add_32(& m_refcount, -1);
+    PFS_atomic::add_32(&m_refcount, -1);
   }
 
   void refresh_setup_object_flags(PFS_thread *thread);
@@ -373,7 +393,8 @@ public:
   void destroy_lock_stat();
 
   PFS_table_share_index *find_index_stat(uint index) const;
-  PFS_table_share_index *find_or_create_index_stat(const TABLE_SHARE *server_share, uint index);
+  PFS_table_share_index *find_or_create_index_stat(
+    const TABLE_SHARE *server_share, uint index);
   void destroy_index_stats();
 
 private:
@@ -381,13 +402,13 @@ private:
   int m_refcount;
   /** Table locks statistics. */
   PFS_table_share_lock *m_race_lock_stat;
-  /** Table indexes' stats. */
+  /** Table indexes stats. */
   PFS_table_share_index *m_race_index_stat[MAX_INDEXES + 1];
 };
 
 /** Statistics for the IDLE instrument. */
 extern PFS_single_stat global_idle_stat;
-/** Statistics for dropped table io. */
+/** Statistics for dropped table I/O. */
 extern PFS_table_io_stat global_table_io_stat;
 /** Statistics for dropped table lock. */
 extern PFS_table_lock_stat global_table_lock_stat;
@@ -398,10 +419,13 @@ extern PFS_transaction_stat global_transaction_stat;
 /** Statistics for the error instrument. */
 extern PFS_error_stat global_error_stat;
 
-inline uint sanitize_index_count(uint count)
+inline uint
+sanitize_index_count(uint count)
 {
   if (likely(count <= MAX_INDEXES))
+  {
     return count;
+  }
   return 0;
 }
 
@@ -418,7 +442,7 @@ inline uint sanitize_index_count(uint count)
 #define GLOBAL_ERROR_INDEX 0
 
 /**
-  Instrument controlling all table io.
+  Instrument controlling all table I/O.
   This instrument is used with table SETUP_OBJECTS.
 */
 extern PFS_instr_class global_table_io_class;
@@ -448,7 +472,6 @@ struct PFS_ALIGNED PFS_error_class : public PFS_instr_class
 */
 extern PFS_error_class global_error_class;
 
-
 struct PFS_file;
 
 /** Instrumentation metadata for a file. */
@@ -464,8 +487,8 @@ struct PFS_ALIGNED PFS_file_class : public PFS_instr_class
 struct PFS_ALIGNED PFS_stage_class : public PFS_instr_class
 {
   /**
-    Length of the 'stage/\<component\>/' prefix.
-    This is to extract 'foo' from 'stage/sql/foo'.
+    Length of the @c "stage/\<component\>/" prefix.
+    This is to extract @c "foo" from @c "stage/sql/foo".
   */
   uint m_prefix_length;
   /** Stage usage statistics. */
@@ -498,12 +521,14 @@ struct PFS_ALIGNED PFS_socket_class : public PFS_instr_class
 /** Instrumentation metadata for a memory. */
 struct PFS_ALIGNED PFS_memory_class : public PFS_instr_class
 {
-  bool is_global() const
+  bool
+  is_global() const
   {
     return m_flags & PSI_FLAG_GLOBAL;
   }
 
-  bool is_transferable() const
+  bool
+  is_transferable() const
   {
     return m_flags & PSI_FLAG_TRANSFER;
   }
@@ -525,12 +550,13 @@ void cleanup_table_share();
 
 int init_table_share_lock_stat(uint table_stat_sizing);
 void cleanup_table_share_lock_stat();
-PFS_table_share_lock* create_table_share_lock_stat();
+PFS_table_share_lock *create_table_share_lock_stat();
 void release_table_share_lock_stat(PFS_table_share_lock *pfs);
 
 int init_table_share_index_stat(uint index_stat_sizing);
 void cleanup_table_share_index_stat();
-PFS_table_share_index* create_table_share_index_stat(const TABLE_SHARE *share, uint index);
+PFS_table_share_index *create_table_share_index_stat(const TABLE_SHARE *share,
+                                                     uint index);
 void release_table_share_index_stat(PFS_table_share_index *pfs);
 
 int init_table_share_hash(const PFS_global_param *param);
@@ -546,19 +572,24 @@ void cleanup_socket_class();
 int init_memory_class(uint memory_class_sizing);
 void cleanup_memory_class();
 
-PFS_sync_key register_mutex_class(const char *name, uint name_length,
+PFS_sync_key register_mutex_class(const char *name,
+                                  uint name_length,
                                   PSI_mutex_info *info);
 
-PFS_sync_key register_rwlock_class(const char *name, uint name_length,
+PFS_sync_key register_rwlock_class(const char *name,
+                                   uint name_length,
                                    PSI_rwlock_info *info);
 
-PFS_sync_key register_cond_class(const char *name, uint name_length,
+PFS_sync_key register_cond_class(const char *name,
+                                 uint name_length,
                                  PSI_cond_info *info);
 
-PFS_thread_key register_thread_class(const char *name, uint name_length,
+PFS_thread_key register_thread_class(const char *name,
+                                     uint name_length,
                                      PSI_thread_info *info);
 
-PFS_file_key register_file_class(const char *name, uint name_length,
+PFS_file_key register_file_class(const char *name,
+                                 uint name_length,
                                  PSI_file_info *info);
 
 PFS_stage_key register_stage_class(const char *name,
@@ -566,13 +597,16 @@ PFS_stage_key register_stage_class(const char *name,
                                    uint name_length,
                                    PSI_stage_info *info);
 
-PFS_statement_key register_statement_class(const char *name, uint name_length,
+PFS_statement_key register_statement_class(const char *name,
+                                           uint name_length,
                                            PSI_statement_info *info);
 
-PFS_socket_key register_socket_class(const char *name, uint name_length,
+PFS_socket_key register_socket_class(const char *name,
+                                     uint name_length,
                                      PSI_socket_info *info);
 
-PFS_memory_key register_memory_class(const char *name, uint name_length,
+PFS_memory_key register_memory_class(const char *name,
+                                     uint name_length,
                                      PSI_memory_info *info);
 
 PFS_mutex_class *find_mutex_class(PSI_mutex_key key);
@@ -602,7 +636,8 @@ PFS_instr_class *sanitize_metadata_class(PFS_instr_class *unsafe);
 PFS_error_class *find_error_class(uint index);
 PFS_error_class *sanitize_error_class(PFS_instr_class *unsafe);
 PFS_transaction_class *find_transaction_class(uint index);
-PFS_transaction_class *sanitize_transaction_class(PFS_transaction_class *unsafe);
+PFS_transaction_class *sanitize_transaction_class(
+  PFS_transaction_class *unsafe);
 
 PFS_table_share *find_or_create_table_share(PFS_thread *thread,
                                             bool temporary,
@@ -610,8 +645,10 @@ PFS_table_share *find_or_create_table_share(PFS_thread *thread,
 void release_table_share(PFS_table_share *pfs);
 void drop_table_share(PFS_thread *thread,
                       bool temporary,
-                      const char *schema_name, uint schema_name_length,
-                      const char *table_name, uint table_name_length);
+                      const char *schema_name,
+                      uint schema_name_length,
+                      const char *table_name,
+                      uint table_name_length);
 
 PFS_table_share *sanitize_table_share(PFS_table_share *unsafe);
 
@@ -657,4 +694,3 @@ extern LF_HASH table_share_hash;
 
 /** @} */
 #endif
-

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,16 +16,19 @@
 
 #include "transaction_info.h"
 
-#include "mysys_err.h"          // EE_OUTOFMEMORY
+#include <string.h>
+
 #include "derror.h"             // ER_THD
+#include "my_dbug.h"
+#include "my_pointer_arithmetic.h"
 #include "mysqld.h"             // global_system_variables
 #include "mysqld_error.h"       // ER_*
 #include "psi_memory_key.h"     // key_memory_thd_transactions
 #include "sql_cache.h"          // query_cache
 #include "sql_class.h"          // THD_STAGE_INFO
 #include "sql_error.h"          // Sql_condition
+#include "sql_servers.h"
 #include "system_variables.h"   // System_variables
-#include "table.h"              // TABLE_LIST
 
 
 typedef struct st_changed_table_list

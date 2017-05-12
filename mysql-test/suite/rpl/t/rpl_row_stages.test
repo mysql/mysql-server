@@ -5,7 +5,6 @@
 # in the worklog.
 #
 --source include/have_binlog_format_row.inc
---source include/have_perfschema.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 

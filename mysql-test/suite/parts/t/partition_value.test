@@ -1,0 +1,65 @@
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs362=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema default character set latin1;
+use test;
+--enable_query_log
+########################################
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+ CREATE TABLE t1 ( c1  SMALLINT, c2 INT) PARTITION BY RANGE (c1) (
+    PARTITION p0 VALUES LESS THAN (1991),
+    PARTITION p1 VALUES LESS THAN (1995),
+    PARTITION p2 VALUES LESS THAN (1999),
+    PARTITION p3 VALUES LESS THAN (2002),
+    PARTITION p4 VALUES LESS THAN (2006),
+    PARTITION p5 VALUES LESS THAN MAXVALUE);
+SHOW TABLES; 
+ SHOW CREATE TABLE t1; DROP TABLE t1; SHOW TABLES;
+ CREATE TABLE t1 ( c1  MEDIUMINT, c2 INT) PARTITION BY RANGE (c1) (
+    PARTITION p0 VALUES LESS THAN (1991),
+    PARTITION p1 VALUES LESS THAN (1995),
+    PARTITION p2 VALUES LESS THAN (1999),
+    PARTITION p3 VALUES LESS THAN (2002),
+    PARTITION p4 VALUES LESS THAN (2006),
+    PARTITION p5 VALUES LESS THAN MAXVALUE);
+SHOW TABLES; 
+ SHOW CREATE TABLE t1; DROP TABLE t1; SHOW TABLES;
+ CREATE TABLE t1 ( c1  INT, c2 INT) PARTITION BY RANGE (c1) (
+    PARTITION p0 VALUES LESS THAN (1991),
+    PARTITION p1 VALUES LESS THAN (1995),
+    PARTITION p2 VALUES LESS THAN (1999),
+    PARTITION p3 VALUES LESS THAN (2002),
+    PARTITION p4 VALUES LESS THAN (2006),
+    PARTITION p5 VALUES LESS THAN MAXVALUE);
+SHOW TABLES; 
+ SHOW CREATE TABLE t1; DROP TABLE t1; SHOW TABLES;
+ CREATE TABLE t1 ( c1  INTEGER, c2 INT) PARTITION BY RANGE (c1) (
+    PARTITION p0 VALUES LESS THAN (1991),
+    PARTITION p1 VALUES LESS THAN (1995),
+    PARTITION p2 VALUES LESS THAN (1999),
+    PARTITION p3 VALUES LESS THAN (2002),
+    PARTITION p4 VALUES LESS THAN (2006),
+    PARTITION p5 VALUES LESS THAN MAXVALUE);
+SHOW TABLES; 
+ SHOW CREATE TABLE t1; DROP TABLE t1; SHOW TABLES;
+ CREATE TABLE t1 ( c1  BIGINT, c2 INT) PARTITION BY RANGE (c1) (
+    PARTITION p0 VALUES LESS THAN (1991),
+    PARTITION p1 VALUES LESS THAN (1995),
+    PARTITION p2 VALUES LESS THAN (1999),
+    PARTITION p3 VALUES LESS THAN (2002),
+    PARTITION p4 VALUES LESS THAN (2006),
+    PARTITION p5 VALUES LESS THAN MAXVALUE);
+SHOW TABLES; 
+ SHOW CREATE TABLE t1; DROP TABLE t1; SHOW TABLES;
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs362;
+--enable_query_log
+########################################

@@ -11,7 +11,7 @@
 
 /**
  * Try to connect to the server
- * @param host the name of the server
+ * @param hostname the name of the server
  * @param port the port to connect to
  * @return a socket descriptor connected to host:port for success, -1 otherwise
  */

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,37 +23,42 @@ InnoDB INFORMATION SCHEMA tables interface to MySQL.
 Created July 18, 2007 Vasil Dimov
 *******************************************************/
 
-#include "ha_prototypes.h"
+#include "storage/innobase/handler/i_s.h"
+
 #include <field.h>
 #include <sql_acl.h>
 #include <sql_show.h>
 #include <sql_time.h>
+#include <sys/types.h>
+#include <time.h>
 
-#include "i_s.h"
+#include "btr0btr.h"
 #include "btr0pcur.h"
 #include "btr0types.h"
-#include "dict0dict.h"
-#include "dict0load.h"
 #include "buf0buddy.h"
 #include "buf0buf.h"
 #include "buf0stats.h"
-#include "ibuf0ibuf.h"
+#include "dict0crea.h"
+#include "dict0dict.h"
+#include "dict0load.h"
 #include "dict0mem.h"
 #include "dict0types.h"
+#include "fsp0sysspace.h"
+#include "fts0opt.h"
+#include "fts0priv.h"
+#include "fts0types.h"
+#include "fut0fut.h"
+#include "ha_prototypes.h"
+#include "ibuf0ibuf.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "page0zip.h"
+#include "pars0pars.h"
+#include "srv0mon.h"
 #include "srv0start.h"
 #include "trx0i_s.h"
 #include "trx0trx.h"
-#include "srv0mon.h"
-#include "fut0fut.h"
-#include "pars0pars.h"
-#include "fts0types.h"
-#include "fts0opt.h"
-#include "fts0priv.h"
-#include "btr0btr.h"
-#include "page0zip.h"
-#include "fsp0sysspace.h"
 #include "ut0new.h"
-#include "dict0crea.h"
 
 /** structure associates a name string with a file page type and/or buffer
 page state. */
@@ -110,6 +115,7 @@ static buf_page_desc_t	i_s_page_type[] = {
 	{"ENCRYPTED_RTREE", FIL_PAGE_ENCRYPTED_RTREE},
 	{"SDI_BLOB", FIL_PAGE_SDI_BLOB},
 	{"SDI_COMPRESSED_BLOB", FIL_PAGE_SDI_ZBLOB},
+	{"COMPRESSED_BLOB3", FIL_PAGE_TYPE_ZBLOB3},
 	{"RTREE_INDEX", I_S_PAGE_TYPE_RTREE},
 	{"IBUF_INDEX", I_S_PAGE_TYPE_IBUF},
 	{"SDI_INDEX", I_S_PAGE_TYPE_SDI}
@@ -207,8 +213,6 @@ time_t			MYSQL_TYPE_DATETIME
 /*******************************************************************//**
 Common function to fill any of the dynamic tables:
 INFORMATION_SCHEMA.innodb_trx
-INFORMATION_SCHEMA.innodb_locks
-INFORMATION_SCHEMA.innodb_lock_waits
 @return 0 on success */
 static
 int
@@ -805,462 +809,9 @@ struct st_mysql_plugin	i_s_innodb_trx =
 	STRUCT_FLD(flags, 0UL),
 };
 
-/* Fields of the dynamic table INFORMATION_SCHEMA.innodb_locks */
-static ST_FIELD_INFO	innodb_locks_fields_info[] =
-{
-#define IDX_LOCK_ID		0
-	{STRUCT_FLD(field_name,		"lock_id"),
-	 STRUCT_FLD(field_length,	TRX_I_S_LOCK_ID_MAX_LEN + 1),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
-	 STRUCT_FLD(value,		0),
-	 STRUCT_FLD(field_flags,	0),
-	 STRUCT_FLD(old_name,		""),
-	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
-
-#define IDX_LOCK_TRX_ID		1
-	{STRUCT_FLD(field_name,		"lock_trx_id"),
-	 STRUCT_FLD(field_length,	TRX_ID_MAX_LEN + 1),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
-	 STRUCT_FLD(value,		0),
-	 STRUCT_FLD(field_flags,	0),
-	 STRUCT_FLD(old_name,		""),
-	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
-
-#define IDX_LOCK_MODE		2
-	{STRUCT_FLD(field_name,		"lock_mode"),
-	 /* S[,GAP] X[,GAP] IS[,GAP] IX[,GAP] AUTO_INC UNKNOWN */
-	 STRUCT_FLD(field_length,	32),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
-	 STRUCT_FLD(value,		0),
-	 STRUCT_FLD(field_flags,	0),
-	 STRUCT_FLD(old_name,		""),
-	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
-
-#define IDX_LOCK_TYPE		3
-	{STRUCT_FLD(field_name,		"lock_type"),
-	 STRUCT_FLD(field_length,	32 /* RECORD|TABLE|UNKNOWN */),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
-	 STRUCT_FLD(value,		0),
-	 STRUCT_FLD(field_flags,	0),
-	 STRUCT_FLD(old_name,		""),
-	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
-
-#define IDX_LOCK_TABLE		4
-	{STRUCT_FLD(field_name,		"lock_table"),
-	 STRUCT_FLD(field_length,	1024),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
-	 STRUCT_FLD(value,		0),
-	 STRUCT_FLD(field_flags,	0),
-	 STRUCT_FLD(old_name,		""),
-	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
-
-#define IDX_LOCK_INDEX		5
-	{STRUCT_FLD(field_name,		"lock_index"),
-	 STRUCT_FLD(field_length,	1024),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
-	 STRUCT_FLD(value,		0),
-	 STRUCT_FLD(field_flags,	MY_I_S_MAYBE_NULL),
-	 STRUCT_FLD(old_name,		""),
-	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
-
-#define IDX_LOCK_SPACE		6
-	{STRUCT_FLD(field_name,		"lock_space"),
-	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
-	 STRUCT_FLD(value,		0),
-	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED | MY_I_S_MAYBE_NULL),
-	 STRUCT_FLD(old_name,		""),
-	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
-
-#define IDX_LOCK_PAGE		7
-	{STRUCT_FLD(field_name,		"lock_page"),
-	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
-	 STRUCT_FLD(value,		0),
-	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED | MY_I_S_MAYBE_NULL),
-	 STRUCT_FLD(old_name,		""),
-	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
-
-#define IDX_LOCK_REC		8
-	{STRUCT_FLD(field_name,		"lock_rec"),
-	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
-	 STRUCT_FLD(value,		0),
-	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED | MY_I_S_MAYBE_NULL),
-	 STRUCT_FLD(old_name,		""),
-	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
-
-#define IDX_LOCK_DATA		9
-	{STRUCT_FLD(field_name,		"lock_data"),
-	 STRUCT_FLD(field_length,	TRX_I_S_LOCK_DATA_MAX_LEN),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
-	 STRUCT_FLD(value,		0),
-	 STRUCT_FLD(field_flags,	MY_I_S_MAYBE_NULL),
-	 STRUCT_FLD(old_name,		""),
-	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
-
-	END_OF_ST_FIELD_INFO
-};
-
-/*******************************************************************//**
-Read data from cache buffer and fill the INFORMATION_SCHEMA.innodb_locks
-table with it.
-@return 0 on success */
-static
-int
-fill_innodb_locks_from_cache(
-/*=========================*/
-	trx_i_s_cache_t*	cache,	/*!< in: cache to read from */
-	THD*			thd,	/*!< in: MySQL client connection */
-	TABLE*			table)	/*!< in/out: fill this table */
-{
-	Field**	fields;
-	ulint	rows_num;
-	char	lock_id[TRX_I_S_LOCK_ID_MAX_LEN + 1];
-	ulint	i;
-
-	DBUG_ENTER("fill_innodb_locks_from_cache");
-
-	fields = table->field;
-
-	rows_num = trx_i_s_cache_get_rows_used(cache,
-					       I_S_INNODB_LOCKS);
-
-	for (i = 0; i < rows_num; i++) {
-
-		i_s_locks_row_t*	row;
-		char			buf[MAX_FULL_NAME_LEN + 1];
-		const char*		bufend;
-
-		char			lock_trx_id[TRX_ID_MAX_LEN + 1];
-
-		row = (i_s_locks_row_t*)
-			trx_i_s_cache_get_nth_row(
-				cache, I_S_INNODB_LOCKS, i);
-
-		/* lock_id */
-		trx_i_s_create_lock_id(row, lock_id, sizeof(lock_id));
-		OK(field_store_string(fields[IDX_LOCK_ID],
-				      lock_id));
-
-		/* lock_trx_id */
-		snprintf(lock_trx_id, sizeof(lock_trx_id),
-			    TRX_ID_FMT, row->lock_trx_id);
-		OK(field_store_string(fields[IDX_LOCK_TRX_ID], lock_trx_id));
-
-		/* lock_mode */
-		OK(field_store_string(fields[IDX_LOCK_MODE],
-				      row->lock_mode));
-
-		/* lock_type */
-		OK(field_store_string(fields[IDX_LOCK_TYPE],
-				      row->lock_type));
-
-		/* lock_table */
-		bufend = innobase_convert_name(buf, sizeof(buf),
-					       row->lock_table,
-					       strlen(row->lock_table),
-					       thd);
-		OK(fields[IDX_LOCK_TABLE]->store(
-			buf, static_cast<size_t>(bufend - buf),
-			system_charset_info));
-
-		/* lock_index */
-		if (row->lock_index != NULL) {
-			OK(field_store_index_name(fields[IDX_LOCK_INDEX],
-						  row->lock_index));
-		} else {
-			fields[IDX_LOCK_INDEX]->set_null();
-		}
-
-		/* lock_space */
-		OK(field_store_ulint(fields[IDX_LOCK_SPACE],
-				     row->lock_space));
-
-		/* lock_page */
-		OK(field_store_ulint(fields[IDX_LOCK_PAGE],
-				     row->lock_page));
-
-		/* lock_rec */
-		OK(field_store_ulint(fields[IDX_LOCK_REC],
-				     row->lock_rec));
-
-		/* lock_data */
-		OK(field_store_string(fields[IDX_LOCK_DATA],
-				      row->lock_data));
-
-		OK(schema_table_store_record(thd, table));
-	}
-
-	DBUG_RETURN(0);
-}
-
-/*******************************************************************//**
-Bind the dynamic table INFORMATION_SCHEMA.innodb_locks
-@return 0 on success */
-static
-int
-innodb_locks_init(
-/*==============*/
-	void*	p)	/*!< in/out: table schema object */
-{
-	ST_SCHEMA_TABLE*	schema;
-
-	DBUG_ENTER("innodb_locks_init");
-
-	schema = (ST_SCHEMA_TABLE*) p;
-
-	schema->fields_info = innodb_locks_fields_info;
-	schema->fill_table = trx_i_s_common_fill_table;
-
-	DBUG_RETURN(0);
-}
-
-struct st_mysql_plugin	i_s_innodb_locks =
-{
-	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
-	/* int */
-	STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
-
-	/* pointer to type-specific plugin descriptor */
-	/* void* */
-	STRUCT_FLD(info, &i_s_info),
-
-	/* plugin name */
-	/* const char* */
-	STRUCT_FLD(name, "INNODB_LOCKS"),
-
-	/* plugin author (for SHOW PLUGINS) */
-	/* const char* */
-	STRUCT_FLD(author, plugin_author),
-
-	/* general descriptive text (for SHOW PLUGINS) */
-	/* const char* */
-	STRUCT_FLD(descr, "InnoDB conflicting locks"),
-
-	/* the plugin license (PLUGIN_LICENSE_XXX) */
-	/* int */
-	STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
-
-	/* the function to invoke when plugin is loaded */
-	/* int (*)(void*); */
-	STRUCT_FLD(init, innodb_locks_init),
-
-	/* the function to invoke when plugin is unloaded */
-	/* int (*)(void*); */
-	STRUCT_FLD(deinit, i_s_common_deinit),
-
-	/* plugin version (for SHOW PLUGINS) */
-	/* unsigned int */
-	STRUCT_FLD(version, INNODB_VERSION_SHORT),
-
-	/* struct st_mysql_show_var* */
-	STRUCT_FLD(status_vars, NULL),
-
-	/* struct st_mysql_sys_var** */
-	STRUCT_FLD(system_vars, NULL),
-
-	/* reserved for dependency checking */
-	/* void* */
-	STRUCT_FLD(__reserved1, NULL),
-
-	/* Plugin flags */
-	/* unsigned long */
-	STRUCT_FLD(flags, 0UL),
-};
-
-/* Fields of the dynamic table INFORMATION_SCHEMA.innodb_lock_waits */
-static ST_FIELD_INFO	innodb_lock_waits_fields_info[] =
-{
-#define IDX_REQUESTING_TRX_ID	0
-	{STRUCT_FLD(field_name,		"requesting_trx_id"),
-	 STRUCT_FLD(field_length,	TRX_ID_MAX_LEN + 1),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
-	 STRUCT_FLD(value,		0),
-	 STRUCT_FLD(field_flags,	0),
-	 STRUCT_FLD(old_name,		""),
-	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
-
-#define IDX_REQUESTED_LOCK_ID	1
-	{STRUCT_FLD(field_name,		"requested_lock_id"),
-	 STRUCT_FLD(field_length,	TRX_I_S_LOCK_ID_MAX_LEN + 1),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
-	 STRUCT_FLD(value,		0),
-	 STRUCT_FLD(field_flags,	0),
-	 STRUCT_FLD(old_name,		""),
-	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
-
-#define IDX_BLOCKING_TRX_ID	2
-	{STRUCT_FLD(field_name,		"blocking_trx_id"),
-	 STRUCT_FLD(field_length,	TRX_ID_MAX_LEN + 1),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
-	 STRUCT_FLD(value,		0),
-	 STRUCT_FLD(field_flags,	0),
-	 STRUCT_FLD(old_name,		""),
-	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
-
-#define IDX_BLOCKING_LOCK_ID	3
-	{STRUCT_FLD(field_name,		"blocking_lock_id"),
-	 STRUCT_FLD(field_length,	TRX_I_S_LOCK_ID_MAX_LEN + 1),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
-	 STRUCT_FLD(value,		0),
-	 STRUCT_FLD(field_flags,	0),
-	 STRUCT_FLD(old_name,		""),
-	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
-
-	END_OF_ST_FIELD_INFO
-};
-
-/*******************************************************************//**
-Read data from cache buffer and fill the
-INFORMATION_SCHEMA.innodb_lock_waits table with it.
-@return 0 on success */
-static
-int
-fill_innodb_lock_waits_from_cache(
-/*==============================*/
-	trx_i_s_cache_t*	cache,	/*!< in: cache to read from */
-	THD*			thd,	/*!< in: used to call
-					schema_table_store_record() */
-	TABLE*			table)	/*!< in/out: fill this table */
-{
-	Field**	fields;
-	ulint	rows_num;
-	char	requested_lock_id[TRX_I_S_LOCK_ID_MAX_LEN + 1];
-	char	blocking_lock_id[TRX_I_S_LOCK_ID_MAX_LEN + 1];
-	ulint	i;
-
-	DBUG_ENTER("fill_innodb_lock_waits_from_cache");
-
-	fields = table->field;
-
-	rows_num = trx_i_s_cache_get_rows_used(cache,
-					       I_S_INNODB_LOCK_WAITS);
-
-	for (i = 0; i < rows_num; i++) {
-
-		i_s_lock_waits_row_t*	row;
-
-		char	requesting_trx_id[TRX_ID_MAX_LEN + 1];
-		char	blocking_trx_id[TRX_ID_MAX_LEN + 1];
-
-		row = (i_s_lock_waits_row_t*)
-			trx_i_s_cache_get_nth_row(
-				cache, I_S_INNODB_LOCK_WAITS, i);
-
-		/* requesting_trx_id */
-		snprintf(requesting_trx_id, sizeof(requesting_trx_id),
-			    TRX_ID_FMT, row->requested_lock_row->lock_trx_id);
-		OK(field_store_string(fields[IDX_REQUESTING_TRX_ID],
-				      requesting_trx_id));
-
-		/* requested_lock_id */
-		OK(field_store_string(
-			   fields[IDX_REQUESTED_LOCK_ID],
-			   trx_i_s_create_lock_id(
-				   row->requested_lock_row,
-				   requested_lock_id,
-				   sizeof(requested_lock_id))));
-
-		/* blocking_trx_id */
-		snprintf(blocking_trx_id, sizeof(blocking_trx_id),
-			    TRX_ID_FMT, row->blocking_lock_row->lock_trx_id);
-		OK(field_store_string(fields[IDX_BLOCKING_TRX_ID],
-				      blocking_trx_id));
-
-		/* blocking_lock_id */
-		OK(field_store_string(
-			   fields[IDX_BLOCKING_LOCK_ID],
-			   trx_i_s_create_lock_id(
-				   row->blocking_lock_row,
-				   blocking_lock_id,
-				   sizeof(blocking_lock_id))));
-
-		OK(schema_table_store_record(thd, table));
-	}
-
-	DBUG_RETURN(0);
-}
-
-/*******************************************************************//**
-Bind the dynamic table INFORMATION_SCHEMA.innodb_lock_waits
-@return 0 on success */
-static
-int
-innodb_lock_waits_init(
-/*===================*/
-	void*	p)	/*!< in/out: table schema object */
-{
-	ST_SCHEMA_TABLE*	schema;
-
-	DBUG_ENTER("innodb_lock_waits_init");
-
-	schema = (ST_SCHEMA_TABLE*) p;
-
-	schema->fields_info = innodb_lock_waits_fields_info;
-	schema->fill_table = trx_i_s_common_fill_table;
-
-	DBUG_RETURN(0);
-}
-
-struct st_mysql_plugin	i_s_innodb_lock_waits =
-{
-	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
-	/* int */
-	STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
-
-	/* pointer to type-specific plugin descriptor */
-	/* void* */
-	STRUCT_FLD(info, &i_s_info),
-
-	/* plugin name */
-	/* const char* */
-	STRUCT_FLD(name, "INNODB_LOCK_WAITS"),
-
-	/* plugin author (for SHOW PLUGINS) */
-	/* const char* */
-	STRUCT_FLD(author, plugin_author),
-
-	/* general descriptive text (for SHOW PLUGINS) */
-	/* const char* */
-	STRUCT_FLD(descr, "InnoDB which lock is blocking which"),
-
-	/* the plugin license (PLUGIN_LICENSE_XXX) */
-	/* int */
-	STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
-
-	/* the function to invoke when plugin is loaded */
-	/* int (*)(void*); */
-	STRUCT_FLD(init, innodb_lock_waits_init),
-
-	/* the function to invoke when plugin is unloaded */
-	/* int (*)(void*); */
-	STRUCT_FLD(deinit, i_s_common_deinit),
-
-	/* plugin version (for SHOW PLUGINS) */
-	/* unsigned int */
-	STRUCT_FLD(version, INNODB_VERSION_SHORT),
-
-	/* struct st_mysql_show_var* */
-	STRUCT_FLD(status_vars, NULL),
-
-	/* struct st_mysql_sys_var** */
-	STRUCT_FLD(system_vars, NULL),
-
-	/* reserved for dependency checking */
-	/* void* */
-	STRUCT_FLD(__reserved1, NULL),
-
-	/* Plugin flags */
-	/* unsigned long */
-	STRUCT_FLD(flags, 0UL),
-};
-
 /*******************************************************************//**
 Common function to fill any of the dynamic tables:
 INFORMATION_SCHEMA.innodb_trx
-INFORMATION_SCHEMA.innodb_locks
-INFORMATION_SCHEMA.innodb_lock_waits
 @return 0 on success */
 static
 int
@@ -1308,22 +859,6 @@ trx_i_s_common_fill_table(
 	if (innobase_strcasecmp(table_name, "innodb_trx") == 0) {
 
 		if (fill_innodb_trx_from_cache(
-			cache, thd, tables->table) != 0) {
-
-			ret = 1;
-		}
-
-	} else if (innobase_strcasecmp(table_name, "innodb_locks") == 0) {
-
-		if (fill_innodb_locks_from_cache(
-			cache, thd, tables->table) != 0) {
-
-			ret = 1;
-		}
-
-	} else if (innobase_strcasecmp(table_name, "innodb_lock_waits") == 0) {
-
-		if (fill_innodb_lock_waits_from_cache(
 			cache, thd, tables->table) != 0) {
 
 			ret = 1;
@@ -5410,6 +4945,7 @@ i_s_innodb_set_page_type(
 	switch (page_info->page_type) {
 	case FIL_PAGE_TYPE_ZBLOB:
 	case FIL_PAGE_TYPE_ZBLOB2:
+	case FIL_PAGE_TYPE_ZBLOB3:
 	case FIL_PAGE_SDI_ZBLOB:
 		page_info->page_num = mach_read_from_4(
 			frame + FIL_PAGE_OFFSET);
@@ -5490,6 +5026,10 @@ i_s_innodb_buffer_page_get_info(
 
 			block = reinterpret_cast<const buf_block_t*>(bpage);
 			frame = block->frame;
+			/* Note: this may be a false positive, that
+			is, block->index will not always be set to
+			NULL when the last adaptive hash index
+			reference is dropped. */
 			page_info->hashed = (block->index != NULL);
 		} else {
 			ut_ad(page_info->zip_ssize);
@@ -6380,7 +5920,7 @@ i_s_dict_fill_sys_tables(
 		row_format = "Dynamic";
 	}
 
-	if (is_system_tablespace(table->space)) {
+	if (fsp_is_system_or_temp_tablespace(table->space)) {
 		space_type = "System";
 	} else if (DICT_TF_HAS_SHARED_SPACE(table->flags)) {
 		space_type = "General";
@@ -8385,7 +7925,7 @@ i_s_dict_fill_sys_tablespaces(
 
 	DBUG_ENTER("i_s_dict_fill_sys_tablespaces");
 
-	if (is_system_tablespace(space)) {
+	if (fsp_is_system_or_temp_tablespace(space)) {
 		row_format = "Compact or Redundant";
 	} else if (fsp_is_shared_tablespace(flags) && !is_compressed) {
 		row_format = "Any";
@@ -8397,7 +7937,7 @@ i_s_dict_fill_sys_tablespaces(
 		row_format = "Compact or Redundant";
 	}
 
-	if (is_system_tablespace(space)) {
+	if (fsp_is_system_or_temp_tablespace(space)) {
 		space_type = "System";
 	} else if (fsp_is_shared_tablespace(flags)) {
 		space_type = "General";
@@ -8868,7 +8408,7 @@ i_s_files_table_fill(
 			space = NULL;
 			continue;
 		case FIL_TYPE_TABLESPACE:
-			if (srv_is_undo_tablespace(space()->id)) {
+			if (fsp_is_undo_tablespace(space()->id)) {
 				type = "UNDO LOG";
 				break;
 			} /* else fall through for TABLESPACE */
@@ -8883,8 +8423,7 @@ i_s_files_table_fill(
 		page_size_t	page_size(space()->flags);
 
 		/* Single-table tablespaces are assigned to a schema. */
-		if (!is_predefined_tablespace(space()->id)
-		    && !FSP_FLAGS_GET_SHARED(space()->flags)) {
+		if (fsp_is_file_per_table(space()->id, space()->flags)) {
 			/* Their names will be like "test/t1" */
 			ut_ad(NULL != strchr(space()->name, '/'));
 
@@ -8905,7 +8444,7 @@ i_s_files_table_fill(
 			space_name = file_per_table_name;
 		} else {
 			/* Only file-per-table space names contain '/'.
-                        This is not file-per-table . */
+			This is not file-per-table . */
 			ut_ad(NULL == strchr(space()->name, '/'));
 
 			space_name = space()->name;
@@ -8941,9 +8480,9 @@ i_s_files_table_fill(
 			OK(field_store_ulint(fields[IS_FILES_MAXIMUM_SIZE],
 				node->max_size * page_size.physical()));
 		}
-		if (space()->id == srv_sys_space.space_id()) {
+		if (space()->id == TRX_SYS_SPACE) {
 			extend_pages = srv_sys_space.get_increment();
-		} else if (space()->id == srv_tmp_space.space_id()) {
+		} else if (fsp_is_system_temporary(space()->id)) {
 			extend_pages = srv_tmp_space.get_increment();
 		} else {
 			extend_pages = fsp_get_pages_to_extend_ibd(

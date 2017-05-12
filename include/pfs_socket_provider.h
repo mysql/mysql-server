@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,11 +21,22 @@
   Performance schema instrumentation (declarations).
 */
 
+#include "my_config.h"
+
+#include "my_psi_config.h"
+
 #ifdef HAVE_PSI_SOCKET_INTERFACE
 #ifdef MYSQL_SERVER
-#ifndef EMBEDDED_LIBRARY
 #ifndef MYSQL_DYNAMIC_PLUGIN
 
+#include <stddef.h>
+#ifdef HAVE_SYS_SOCKET_H
+#include <sys/socket.h>
+#endif
+#include <sys/types.h>
+
+#include "my_io.h"
+#include "my_macros.h"
 #include "mysql/psi/psi_socket.h"
 
 #define PSI_SOCKET_CALL(M) pfs_ ## M ## _v1
@@ -62,7 +73,6 @@ void pfs_set_socket_thread_owner_v1(PSI_socket *socket);
 
 C_MODE_END
 
-#endif /* EMBEDDED_LIBRARY */
 #endif /* MYSQL_DYNAMIC_PLUGIN */
 #endif /* MYSQL_SERVER */
 #endif /* HAVE_PSI_SOCKET_INTERFACE */

@@ -1,6 +1,3 @@
-# Temporarily skipped with binary logging due to Bug#24343582
---source include/not_log_bin.inc
-
 --source include/not_embedded.inc
 --source include/have_example_component.inc
 
@@ -196,3 +193,18 @@ UNINSTALL COMPONENT "file://dynamic_loader_test_lib1", "http://dynamic_loader_te
 --error ER_COMPONENTS_UNLOAD_NOT_LOADED
 UNINSTALL COMPONENT "http://dynamic_loader_test_lib2";
 
+--echo #
+--echo # Bug #24528148 UNPRIVILEGED USER ABLE TO LOAD COMPONENTS TO
+--echo #               MYSQL.COMPONENT
+--echo #
+CREATE USER mysqltest_u1@localhost;
+connect (conn1, localhost, mysqltest_u1, ,);
+
+--error ER_TABLEACCESS_DENIED_ERROR
+INSTALL COMPONENT "file://component_example_component1";
+--error ER_TABLEACCESS_DENIED_ERROR
+UNINSTALL COMPONENT "file://component_example_component1";
+
+disconnect conn1;
+connection default;
+DROP USER mysqltest_u1@localhost;

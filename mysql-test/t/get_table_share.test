@@ -1,6 +1,5 @@
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
---source include/have_perfschema.inc
 # Test uses performance_schema.events_waits_current
 --source include/not_embedded.inc
 --enable_connect_log
@@ -59,6 +58,17 @@
 --echo # Create two tables:
 CREATE TABLE ta (pk integer primary key);
 CREATE TABLE tb (pk integer primary key);
+
+--echo #
+--echo # Warm-up data-dictionary cache but keep Table Definition Cache intact.
+--echo #
+--disable_result_log
+--disable_query_log
+SHOW CREATE TABLE ta;
+SHOW CREATE TABLE tb;
+FLUSH TABLE ta, tb;
+--enable_query_log
+--enable_result_log
 
 --echo #
 --connection con_TA1
@@ -159,6 +169,17 @@ CREATE TABLE ta (pk integer primary key);
 CREATE TABLE tb (pk integer primary key);
 
 --echo #
+--echo # Warm-up data-dictionary cache but keep Table Definition Cache intact.
+--echo #
+--disable_result_log
+--disable_query_log
+SHOW CREATE TABLE ta;
+SHOW CREATE TABLE tb;
+FLUSH TABLE ta, tb;
+--enable_query_log
+--enable_result_log
+
+--echo #
 --connection con_TA1
 --echo # Wait after releasing LOCK_open for ta, and make sure we never
 --echo # end up at the 'found_share' sync point:
@@ -244,6 +265,16 @@ DROP TABLE ta, tb;
 CREATE TABLE tb (pk integer primary key);
 
 --echo #
+--echo # Warm-up data-dictionary cache but keep Table Definition Cache intact.
+--echo #
+--disable_result_log
+--disable_query_log
+SHOW CREATE TABLE tb;
+FLUSH TABLE tb;
+--enable_query_log
+--enable_result_log
+
+--echo #
 --connection con_TB1
 --echo # Wait after releasing LOCK_open when opening table tb.
 --echo # Set up a debug label to make the code simulate an error when
@@ -323,6 +354,16 @@ DROP TABLE tb;
 CREATE TABLE tb (pk integer primary key);
 
 --echo #
+--echo # Warm-up data-dictionary cache but keep Table Definition Cache intact.
+--echo #
+--disable_result_log
+--disable_query_log
+SHOW CREATE TABLE tb;
+FLUSH TABLE tb;
+--enable_query_log
+--enable_result_log
+
+--echo #
 --connection con_TB1
 --echo # Do an insert, wait after releasing LOCK_open for tb. Due to
 --echo # a concurrent pending FLUSH TABLES, the first share will be
@@ -381,6 +422,16 @@ DROP TABLE tb;
 --connection default
 --echo # Create one table:
 CREATE TABLE tb (pk integer primary key);
+
+--echo #
+--echo # Warm-up data-dictionary cache but keep Table Definition Cache intact.
+--echo #
+--disable_result_log
+--disable_query_log
+SHOW CREATE TABLE tb;
+FLUSH TABLE tb;
+--enable_query_log
+--enable_result_log
 
 --echo #
 --connection con_TB1
@@ -453,6 +504,16 @@ DROP TABLE tb;
 --connection default
 --echo # Create one table:
 CREATE TABLE tb (pk integer primary key);
+
+--echo #
+--echo # Warm-up data-dictionary cache but keep Table Definition Cache intact.
+--echo #
+--disable_result_log
+--disable_query_log
+SHOW CREATE TABLE tb;
+FLUSH TABLE tb;
+--enable_query_log
+--enable_result_log
 
 --echo #
 --connection con_TB1
@@ -620,6 +681,16 @@ DROP TABLE tb;
 --echo # Create two tables:
 CREATE TABLE ta (pk integer primary key);
 CREATE TABLE tb (pk integer primary key);
+
+--echo #
+--echo # Warm-up data-dictionary cache but keep Table Definition Cache intact.
+--echo #
+--disable_result_log
+--disable_query_log
+SHOW CREATE TABLE tb;
+FLUSH TABLE tb;
+--enable_query_log
+--enable_result_log
 
 --echo #
 --echo # Insert into ta to make sure it is open and in the cache:

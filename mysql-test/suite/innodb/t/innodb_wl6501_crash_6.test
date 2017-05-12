@@ -6,7 +6,6 @@
 # non-compressed non-temp table residing in single tablespace
 # with row-format = redundant
 
---source include/have_innodb.inc
 --source include/have_debug.inc
 --source include/big_test.inc
 

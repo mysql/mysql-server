@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,14 +15,19 @@
 
 #include "dd/impl/types/dictionary_object_table_impl.h"
 
-#include "dd/types/dictionary_object.h"     // Dictionary_object
-#include "dd/impl/types/weak_object_impl.h" // Weak_object_impl
-
+#include <stddef.h>
 #include <memory>
+
+#include "dd/impl/types/weak_object_impl.h" // Weak_object_impl
+#include "dd/types/dictionary_object.h"     // Dictionary_object
+#include "my_dbug.h"
 
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
+
+class Open_dictionary_tables_ctx;
+class Raw_record;
 
 /**
   @brief

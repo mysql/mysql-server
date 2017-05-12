@@ -22,8 +22,6 @@
 #include <my_config.h>
 
 /* System headers */
-/* C++ files must define __STDC_FORMAT_MACROS in order to get PRIu64 */
-#define __STDC_FORMAT_MACROS 
 #include <inttypes.h>
 #include <stdio.h>
 

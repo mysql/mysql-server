@@ -2,7 +2,7 @@
 #define GIS__SRS__SRS_H_INCLUDED
 
 /*
-  Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -18,12 +18,11 @@
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 */
 
-#include <sql_string.h>
-#include <string>
 #include <cmath>
 #include <cstdint>
 
-typedef std::uint32_t srid_t;
+#include "gis/srid.h"
+#include "my_dbug.h"
 
 namespace gis { namespace srs {
 
@@ -107,10 +106,40 @@ public:
     @return A new Spatial_reference_system object
   */
   virtual Spatial_reference_system *clone() = 0;
+
+  /**
+    Retrieve the axis direction of the spatial
+    reference system.
+
+    @param axis axis number, zero indexed
+    @return Axis direction
+  */
+  virtual Axis_direction axis_direction(const int axis) const= 0;
+
+  /**
+    Retrieve the angular unit relative to radians.
+
+    @return Conversion factor.
+   */
+  virtual double angular_unit() const = 0;
+
+  /**
+    Retrieve the prime meridian relative to Greenwich.
+
+    The prime meridian is returned in the angular unit of the
+    SRS. Positive numbers are East of Greenwich.
+
+    @see angular_unit
+
+    @return Prime meridian.
+   */
+  virtual double prime_meridian() const = 0;
 };
 
 
-namespace wkt_parser { struct Geographic_cs; }
+namespace wkt_parser {
+struct Geographic_cs;
+}  // namespace wkt_parser
 
 
 /// A geographic (longitude-latitude) spatial reference system.
@@ -124,7 +153,8 @@ private:
   /// Bursa Wolf transformation parameters used to transform to WGS84.
   double m_towgs84[7];
   /// Longitude of the prime meridian relative to the Greenwich
-  /// Meridian.
+  /// Meridian (measured in m_angular_unit). Positive values are East
+  /// of Greenwich.
   double m_prime_meridian;
   /// Conversion factor for the angular unit relative to radians.
   double m_angular_unit;
@@ -188,10 +218,38 @@ public:
 
     return m_axes[0] != Axis_direction::UNSPECIFIED;
   }
+
+  Axis_direction axis_direction(const int axis) const override
+  {
+    DBUG_ASSERT(axis >= 0 && axis <= 1);
+    return m_axes[axis];
+  }
+
+  double semi_major_axis() const
+  {
+    return m_semi_major_axis;
+  }
+
+  double inverse_flattening() const
+  {
+    return m_inverse_flattening;
+  }
+
+  double angular_unit() const override
+  {
+    return m_angular_unit;
+  }
+
+  double prime_meridian() const override
+  {
+    return m_prime_meridian;
+  }
 };
 
 
-namespace wkt_parser { struct Projected_cs; }
+namespace wkt_parser {
+struct Projected_cs;
+}  // namespace wkt_parser
 
 
 /// A projected spatial reference system.
@@ -231,6 +289,22 @@ public:
     @return Projection type
   */
   virtual Projection_type projection_type()= 0;
+
+  Axis_direction axis_direction(const int axis) const override
+  {
+    DBUG_ASSERT(axis >= 0 && axis <= 1);
+    return m_axes[axis];
+  }
+
+  double angular_unit() const override
+  {
+    return m_geographic_srs.angular_unit();
+  }
+
+  double prime_meridian() const override
+  {
+    return m_geographic_srs.prime_meridian();
+  }
 };
 
 
@@ -1798,15 +1872,16 @@ public:
   If an error occurs, no object is allocated.
 
   @param[in] srid Spatial reference system ID to use when reporting errors
-  @param[in] str WKT string in UTF-8
+  @param[in] begin Start of WKT string in UTF-8
+  @param[in] end End of WKT string
   @param[out] result Spatial reference system
 
   @retval true An error has occurred
   @retval false Success
 */
-bool parse_wkt(srid_t srid, std::string *str,
+bool parse_wkt(srid_t srid, const char *begin, const char *end,
                Spatial_reference_system **result);
 
-}}
+}} // gis::srs
 
 #endif // GIS__SRS__SRS_H_INCLUDED

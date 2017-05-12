@@ -58,9 +58,9 @@ truncate performance_schema.events_waits_summary_global_by_event_name;
 truncate performance_schema.events_waits_history_long;
 show global variables like "performance_schema%table%";
 Variable_name	Value
-performance_schema_max_table_handles	1000
-performance_schema_max_table_instances	500
-performance_schema_max_table_lock_stat	500
+performance_schema_max_table_handles	-1
+performance_schema_max_table_instances	-1
+performance_schema_max_table_lock_stat	-1
 show global status like "performance_schema%table%_lost";
 Variable_name	Value
 Performance_schema_table_handles_lost	0

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -50,10 +50,12 @@
   elapsed_time= (time2 - time1) - overhead
 */
 
-#include "my_global.h"
-#include "my_rdtsc.h"
-
+#include <atomic>
 #include <stdio.h>
+
+#include "my_config.h"
+#include "my_inttypes.h"
+#include "my_rdtsc.h"
 #if defined(_WIN32)
 #include "windows.h"
 #endif
@@ -113,8 +115,6 @@ ulonglong my_timer_cycles(void)
                         "orq %%rdx,%%rax"
                         : "=a" (result) :: "%edx");
   return result;
-#elif defined(_WIN32) && defined(_M_IX86)
-  __asm {rdtsc};
 #elif defined(_WIN64) && defined(_M_X64)
   /* For 64-bit Windows: unsigned __int64 __rdtsc(); */
   return __rdtsc();
@@ -234,10 +234,10 @@ ulonglong my_timer_microseconds(void)
 {
 #if defined(HAVE_GETTIMEOFDAY)
   {
-    static ulonglong last_value= 0;
+    static std::atomic<ulonglong> atomic_last_value { 0 };
     struct timeval tv;
     if (gettimeofday(&tv, NULL) == 0)
-      last_value= (ulonglong) tv.tv_sec * 1000000 + (ulonglong) tv.tv_usec;
+      atomic_last_value= (ulonglong) tv.tv_sec * 1000000 + (ulonglong) tv.tv_usec;
     else
     {
       /*
@@ -246,9 +246,9 @@ ulonglong my_timer_microseconds(void)
         We are not trying again or looping, just returning the best value possible
         under the circumstances ...
       */
-      last_value++;
+      atomic_last_value++;
     }
-    return last_value;
+    return atomic_last_value;
   }
 #elif defined(_WIN32)
   {
@@ -464,8 +464,6 @@ extern "C" void my_timer_init(MY_TIMER_INFO *mti)
   mti->cycles.routine= MY_TIMER_ROUTINE_ASM_X86;
 #elif defined(__GNUC__) && defined(__x86_64__)
   mti->cycles.routine= MY_TIMER_ROUTINE_ASM_X86_64;
-#elif defined(_WIN32) && defined(_M_IX86)
-  mti->cycles.routine= MY_TIMER_ROUTINE_ASM_X86_WIN;
 #elif defined(_WIN64) && defined(_M_X64)
   mti->cycles.routine= MY_TIMER_ROUTINE_RDTSC;
 #elif defined(__GNUC__) && defined(__ia64__)

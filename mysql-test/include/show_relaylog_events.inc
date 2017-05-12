@@ -9,9 +9,13 @@
 # One additional parameter is supported:
 #
 #   $rpl_channel_name
-#     If set, the clause FOR CHANNEL  '$rpl_channel_name' is added.
+#     If set, the clause FOR CHANNEL $rpl_channel_name is added.
 
 --let $include_filename= show_relaylog_events.inc
+if ($rpl_channel_name)
+{
+  --let $include_filename= $include_filename [FOR CHANNEL $rpl_channel_name]
+}
 --source include/begin_include_file.inc
 
 --let $is_relay_log= 1

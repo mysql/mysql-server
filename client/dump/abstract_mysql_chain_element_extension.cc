@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -15,16 +15,19 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "abstract_mysql_chain_element_extension.h"
 #include <boost/algorithm/string.hpp>
 #include <boost/bind.hpp>
+#include <stddef.h>
+#include <functional>
 #include <sstream>
+
+#include "abstract_mysql_chain_element_extension.h"
 
 using namespace Mysql::Tools::Dump;
 
 Abstract_mysql_chain_element_extension::Abstract_mysql_chain_element_extension(
   I_connection_provider* connection_provider,
-  Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
+  std::function<bool(const Mysql::Tools::Base::Message_data&)>*
     message_handler, const Mysql_chain_element_options* options)
   : m_connection_provider(connection_provider),
   m_message_handler(message_handler),

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,20 +15,28 @@
 
 #include "dd/impl/types/view_impl.h"
 
-#include "my_user.h"                          // parse_user
-#include "mysqld_error.h"                     // ER_*
+#include <sstream>
 
-#include "dd/properties.h"                     // Needed for destructor
-#include "dd/impl/transaction_impl.h"          // Open_dictionary_tables_ctx
+#include "dd/impl/properties_impl.h"          // Properties_impl
 #include "dd/impl/raw/raw_record.h"            // Raw_record
 #include "dd/impl/tables/tables.h"             // Tables
 #include "dd/impl/tables/view_routine_usage.h" // View_routine_usage
 #include "dd/impl/tables/view_table_usage.h"   // View_table_usage
+#include "dd/impl/transaction_impl.h"          // Open_dictionary_tables_ctx
 #include "dd/impl/types/view_routine_impl.h"   // View_routine_impl
 #include "dd/impl/types/view_table_impl.h"     // View_table_impl
+#include "dd/properties.h"                     // Needed for destructor
+#include "dd/string_type.h"                    // dd::String_type
 #include "dd/types/column.h"                   // Column
-
-#include <sstream>
+#include "dd/types/view_routine.h"
+#include "dd/types/view_table.h"
+#include "dd/types/weak_object.h"
+#include "lex_string.h"
+#include "my_sys.h"
+#include "my_user.h"                          // parse_user
+#include "mysql_com.h"
+#include "mysqld.h"
+#include "mysqld_error.h"                     // ER_*
 
 using dd::tables::Tables;
 using dd::tables::View_table_usage;
@@ -65,6 +73,7 @@ View_impl::View_impl()
   m_check_option(CO_NONE),
   m_algorithm(VA_UNDEFINED),
   m_security_type(ST_INVOKER),
+  m_column_names(new Properties_impl()),
   m_tables(),
   m_routines(),
   m_client_collation_id(INVALID_OBJECT_ID),
@@ -141,6 +150,29 @@ bool View_impl::drop_children(Open_dictionary_tables_ctx *otx) const
          Abstract_table_impl::drop_children(otx);
 }
 
+///////////////////////////////////////////////////////////////////////////
+
+void View_impl::remove_children()
+{
+  columns()->remove_all();
+  column_names().clear();
+  m_tables.remove_all();
+  m_routines.remove_all();
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+bool View_impl::set_column_names_raw(const String_type &column_names_raw)
+{
+  Properties *properties=
+    Properties_impl::parse_properties(column_names_raw);
+
+  if (!properties)
+    return true;                                /* purecov: inspected */
+
+  m_column_names.reset(properties);
+  return false;
+}
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -165,7 +197,7 @@ bool View_impl::restore_attributes(const Raw_record &r)
   m_definition_utf8= r.read_str(Tables::FIELD_VIEW_DEFINITION_UTF8);
 
   {
-    std::string definer= r.read_str(Tables::FIELD_VIEW_DEFINER);
+    String_type definer= r.read_str(Tables::FIELD_VIEW_DEFINER);
 
     // NOTE: this is a copy/paste from sp_head::set_definer().
 
@@ -192,6 +224,8 @@ bool View_impl::restore_attributes(const Raw_record &r)
   m_client_collation_id= r.read_ref_id(Tables::FIELD_VIEW_CLIENT_COLLATION_ID);
   m_connection_collation_id= r.read_ref_id(Tables::FIELD_VIEW_CONNECTION_COLLATION_ID);
 
+  set_column_names_raw(r.read_str(Tables::FIELD_VIEW_COLUMN_NAMES));
+
   return false;
 }
 
@@ -203,7 +237,7 @@ bool View_impl::store_attributes(Raw_record *r)
   // Store view attributes
   //
 
-  std::stringstream definer;
+  dd::Stringstream_type definer;
   definer << m_definer_user << '@' << m_definer_host;
 
   return
@@ -217,16 +251,17 @@ bool View_impl::store_attributes(Raw_record *r)
     r->store(Tables::FIELD_VIEW_SECURITY_TYPE, m_security_type) ||
     r->store(Tables::FIELD_VIEW_DEFINER, definer.str()) ||
     r->store_ref_id(Tables::FIELD_VIEW_CLIENT_COLLATION_ID, m_client_collation_id) ||
-    r->store_ref_id(Tables::FIELD_VIEW_CONNECTION_COLLATION_ID, m_connection_collation_id);
+    r->store_ref_id(Tables::FIELD_VIEW_CONNECTION_COLLATION_ID, m_connection_collation_id) ||
+    r->store(Tables::FIELD_VIEW_COLUMN_NAMES, *m_column_names);
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
-void View_impl::debug_print(std::string &outb) const
+void View_impl::debug_print(String_type &outb) const
 {
-  std::stringstream ss;
+  dd::Stringstream_type ss;
 
-  std::string s;
+  String_type s;
   Abstract_table_impl::debug_print(s);
 
   ss
@@ -242,11 +277,12 @@ void View_impl::debug_print(std::string &outb) const
     << "m_definer_host: " << m_definer_host << "; "
     << "m_client_collation: {OID: " << m_client_collation_id << "}; "
     << "m_connection_collation: {OID: " << m_connection_collation_id << "}; "
+    << "m_column_names: " << m_column_names->raw_string() << "; "
     << "m_tables: " << m_tables.size() << " [ ";
 
   for (const View_table *f : tables())
   {
-    std::string ob;
+    String_type ob;
     f->debug_print(ob);
     ss << ob;
   }
@@ -255,7 +291,7 @@ void View_impl::debug_print(std::string &outb) const
   ss << "m_routines:" << m_routines.size() << " [ ";
   for (const View_routine *r : routines())
   {
-    std::string ob;
+    String_type ob;
     r->debug_print(ob);
     ss << ob;
   }
@@ -306,6 +342,7 @@ View_impl::View_impl(const View_impl &src)
     m_security_type(src.m_security_type), m_definition(src.m_definition),
     m_definition_utf8(src.m_definition_utf8),
     m_definer_user(src.m_definer_user), m_definer_host(src.m_definer_host),
+    m_column_names(Properties_impl::parse_properties(src.m_column_names->raw_string())),
     m_tables(),
     m_routines(),
     m_client_collation_id(src.m_client_collation_id),

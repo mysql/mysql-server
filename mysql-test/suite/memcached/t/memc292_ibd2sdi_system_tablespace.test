@@ -5,7 +5,6 @@
 # Bug#20205934 - ENABLE VALGRIND FOR MEMCACHED TESTS
 source include/not_valgrind.inc;
 source include/have_memcached_plugin.inc;
-source include/have_innodb.inc;
 # Memcached SDI APIs are enabled only for debug version
 source include/have_debug.inc;
 
@@ -126,16 +125,7 @@ SET GLOBAL innodb_limit_optimistic_insert_debug = default;
 --echo # Bug#23036141 - IBD2SDI DOESN'T WORK IF ANY DATAFILE IS SMALLER THAN PREVIOUS DATAFILE
 --echo #
 
-let CLEANUP_FOLDER=$MYSQL_TMP_DIR/datadir1/;
-perl;
-use File::Path;
-my $tempdir= $ENV{'CLEANUP_FOLDER'};
-die "usage: $0 dir ..\n" unless $tempdir;
-foreach $dir ($tempdir) {
-    rmtree($dir);
-}
-EOF
-
+--force-rmdir $MYSQL_TMP_DIR/datadir1/
 --mkdir $MYSQL_TMP_DIR/datadir1
 
 # Create bootstrap file
@@ -190,12 +180,4 @@ INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
 --remove_file $MYSQLTEST_VARDIR/log/large_ibd2sdi.err
 let $restart_parameters=;
 --source include/start_mysqld.inc
-let CLEANUP_FOLDER=$MYSQL_TMP_DIR/datadir1/;
-perl;
-use File::Path;
-my $tempdir= $ENV{'CLEANUP_FOLDER'};
-die "usage: $0 dir ..\n" unless $tempdir;
-foreach $dir ($tempdir) {
-    rmtree($dir);
-}
-EOF
+--force-rmdir $MYSQL_TMP_DIR/datadir1/

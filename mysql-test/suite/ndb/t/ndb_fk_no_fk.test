@@ -146,7 +146,9 @@ create table t1 (
   constraint fk6 foreign key(c) references t4 (b)
 ) engine=ndbcluster;
 
+--disable_warnings
 show create table t1;
+--enable_warnings
 
 create table t2 (
   a int primary key,
@@ -156,11 +158,15 @@ create table t2 (
   index(c)
 ) engine = ndb;
 
+--disable_warnings
 show create table t1;
+--enable_warnings
 
+--disable_warnings
 set @@ndb_show_foreign_key_mock_tables= 1;
 --replace_regex /FKM_[0-9]+_[0-9]+_/FKM_<child_id>_<id>_/
 show create table t1;
+--enable_warnings
 set @@ndb_show_foreign_key_mock_tables= 0;
 
 drop table t1, t2;
@@ -173,7 +179,7 @@ drop table t1, t2;
 
 # Suppress the warning this test case generates
 --disable_query_log ONCE
-call mtr.add_suppression("NDB FK: .* have all the referenced columns");
+call mtr.add_suppression("NDB: .* have all the referenced columns");
 
 create table t1 (
   pk int not null primary key,
@@ -200,7 +206,7 @@ drop table t1, t2;
 
 # Suppress the warning this test case generates
 --disable_query_log ONCE
-call mtr.add_suppression("NDB FK: .* no matching index could be found");
+call mtr.add_suppression("NDB: .* no matching index could be found");
 
 create table t1 (
   pk int not null primary key,
@@ -696,8 +702,10 @@ set @@ndb_show_foreign_key_mock_tables= 0;
 
 # Rename table referenced by foreign key -> t1 references t3
 alter table t2 rename t3;
+--disable_warnings
 --replace_regex /(FK|fk)_[0-9]+_[0-9]+/FK_<child_id>_<id>/
 show create table t1;
+--enable_warnings
 
 drop table t3;
 create table t2 (
@@ -738,7 +746,9 @@ set @@ndb_show_foreign_key_mock_tables= 1;
 truncate table t1;
 set @@ndb_show_foreign_key_mock_tables= 0;
 
+--disable_warnings
 show create table t1;
+--enable_warnings
 
 drop table t1;
 
@@ -818,7 +828,9 @@ set foreign_key_checks=0;
 truncate table t1;
 set @@ndb_show_foreign_key_mock_tables= 0;
 
+--disable_warnings
 show create table t1;
+--enable_warnings
 
 drop table t1, t2;
 
@@ -849,7 +861,9 @@ set foreign_key_checks=0;
 truncate table t1;
 set @@ndb_show_foreign_key_mock_tables= 0;
 
+--disable_warnings
 show create table t1;
+--enable_warnings
 
 drop table t1, t2;
 

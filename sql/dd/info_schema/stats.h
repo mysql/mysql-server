@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +16,13 @@
 #ifndef DD_INFO_SCHEMA_INCLUDED
 #define DD_INFO_SCHEMA_INCLUDED
 
+#include <sys/types.h>
+#include <string>
+
+#include "dd/object_id.h"
+#include "dd/string_type.h"                 // dd::String_type
 #include "handler.h"                        // ha_statistics
+#include "my_inttypes.h"
 #include "sql_string.h"                     // String
 
 class THD;
@@ -220,7 +226,7 @@ public:
 
 
   // Get error string. Its empty if a error is not reported.
-  inline std::string error()
+  inline String_type error()
   { return m_error; }
 
 
@@ -236,7 +242,6 @@ private:
     @param index_name_ptr          - Index name of which we need stats.
     @param index_ordinal_position  - Ordinal position of index in table.
     @param column_ordinal_position - Ordinal position of column in table.
-    @param engine_name_ptr         - Engine of the table.
     @param se_private_id           - se_private_id of the table.
     @param stype                   - Enum specifying the stat we are
                                      interested to read.
@@ -249,7 +254,6 @@ private:
                               const String &index_name_ptr,
                               uint index_ordinal_position,
                               uint column_ordinal_position,
-                              const String &engine_name_ptr,
                               dd::Object_id se_private_id,
                               enum_statistics_type stype);
 
@@ -295,13 +299,13 @@ private:
     @param db_name     Database name.
     @param table_name  Table name.
 
-    @returns std::string representing the key.
+    @returns String_type representing the key.
   */
-  std::string form_key(const String &db_name,
+  String_type form_key(const String &db_name,
                        const String &table_name)
   {
-    return std::string(db_name.ptr()) + "." +
-           std::string(table_name.ptr());
+    return String_type(db_name.ptr()) + "." +
+           String_type(table_name.ptr());
   }
 
 
@@ -340,10 +344,10 @@ private:
 private:
 
   // The cache key
-  std::string m_key; // Format '<db_name>.<table_name>'
+  String_type m_key; // Format '<db_name>.<table_name>'
 
   // Error found when reading statistics.
-  std::string m_error;
+  String_type m_error;
 
 
 public:

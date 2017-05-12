@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or modify it
     under the terms of the GNU General Public License as published by the
@@ -15,20 +15,25 @@
     02110-1301  USA */
 
 #include "my_config.h"
-#include "rewriter_plugin.h"
-#include "rule.h" // Rewrite_result
-#include "rewriter.h"
 
-#include <my_global.h>
+#include <my_atomic.h>
+#include <my_sys.h>
 #include <mysql/plugin_audit.h>
 #include <mysql/psi/mysql_thread.h>
 #include <mysql/service_my_plugin_log.h>
-#include <my_atomic.h>
-#include <my_sys.h>
-#include "services.h"
-#include "mysqld_error.h"
-#include "template_utils.h"
+#include <stddef.h>
 #include <algorithm>
+#include <new>
+
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_psi_config.h"
+#include "mysqld_error.h"
+#include "rewriter.h"
+#include "rewriter_plugin.h"
+#include "rule.h" // Rewrite_result
+#include "services.h"
+#include "template_utils.h"
 
 using std::string;
 
@@ -99,7 +104,7 @@ static st_mysql_show_var rewriter_plugin_status_vars[]=
 static int sys_var_verbose;
 
 /// Enabled.
-static my_bool sys_var_enabled;
+static bool sys_var_enabled;
 
 /// Updater function for the status variable ..._verbose.
 static void update_verbose(MYSQL_THD, struct st_mysql_sys_var *, void *,
@@ -112,7 +117,7 @@ static void update_verbose(MYSQL_THD, struct st_mysql_sys_var *, void *,
 static void update_enabled(MYSQL_THD, struct st_mysql_sys_var *, void *,
                            const void *value)
 {
-  sys_var_enabled= *static_cast<const int*>(value);
+  sys_var_enabled= *static_cast<const bool*>(value);
 }
 
 
@@ -203,7 +208,7 @@ static void init_rewriter_psi_keys()
   const char* category= "rewriter";
   int count;
 
-  count= array_elements(all_rewrite_rwlocks);
+  count= static_cast<int>(array_elements(all_rewrite_rwlocks));
   mysql_rwlock_register(category, all_rewrite_rwlocks, count);
 }
 #endif

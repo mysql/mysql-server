@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,15 +15,36 @@
 
 #include "sql_alter.h"
 
+#include <limits.h>
+#include <string.h>
+
+#include "auth_acls.h"
 #include "auth_common.h"                     // check_access
+#include "dd/types/trigger.h"                // dd::Trigger
 #include "derror.h"                          // ER_THD
 #include "error_handler.h"                   // Strict_error_handler
-#include "sql_table.h"                       // mysql_alter_table,
+#include "field.h"
+#include "handler.h"
                                              // mysql_exchange_partition
 #include "log.h"
-#include "sql_class.h"                       // THD
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
+#include "my_sys.h"
+#include "mysql/plugin.h"
+#include "mysql/service_my_snprintf.h"
 #include "mysqld.h"                          // lower_case_table_names
-
+#include "mysqld_error.h"
+#include "sql_class.h"                       // THD
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_servers.h"
+#include "sql_table.h"                       // mysql_alter_table,
+#include "sql_udf.h"
+#include "table.h"
+#include "template_utils.h"                  // delete_container_pointers
 
 Alter_info::Alter_info(const Alter_info &rhs, MEM_ROOT *mem_root)
  :drop_list(PSI_INSTRUMENT_ME, rhs.drop_list.begin(), rhs.drop_list.end()),
@@ -97,7 +118,7 @@ Alter_table_ctx::Alter_table_ctx()
     tables_opened(0),
     db(NULL), table_name(NULL), alias(NULL),
     new_db(NULL), new_name(NULL), new_alias(NULL),
-    fk_info(NULL), fk_count(0)
+    fk_info(NULL), fk_count(0), trg_info(PSI_INSTRUMENT_ME)
 #ifndef DBUG_OFF
     , tmp_table(false)
 #endif
@@ -111,8 +132,8 @@ Alter_table_ctx::Alter_table_ctx(THD *thd, TABLE_LIST *table_list,
                                  const char *new_name_arg)
   : datetime_field(NULL), error_if_not_empty(false),
     tables_opened(tables_opened_arg),
-    new_db(new_db_arg), new_name(new_name_arg), 
-    fk_info(NULL), fk_count(0)
+    new_db(new_db_arg), new_name(new_name_arg),
+    fk_info(NULL), fk_count(0), trg_info(PSI_INSTRUMENT_ME)
 #ifndef DBUG_OFF
     , tmp_table(false)
 #endif
@@ -196,6 +217,12 @@ Alter_table_ctx::Alter_table_ctx(THD *thd, TABLE_LIST *table_list,
   }
 }
 
+Alter_table_ctx::~Alter_table_ctx()
+{
+  // If there was a failure after the triggers were cloned, and before they
+  // were moved into the destination table, they must be deleted.
+  delete_container_pointers(trg_info);
+}
 
 bool Sql_cmd_alter_table::execute(THD *thd)
 {

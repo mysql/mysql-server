@@ -3,9 +3,18 @@
 # http://bugs.mysql.com/56143
 #
 
--- source include/have_innodb.inc
 # This test uses performance_schema.memory_summary_global_by_event_name
 -- source include/not_embedded.inc
+
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs60=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema default character set latin1;
+use test;
+--enable_query_log
+########################################
 
 -- disable_query_log
 -- disable_result_log
@@ -590,3 +599,10 @@ DROP TABLE bug56143_2;
 -- enable_query_log
 -- enable_result_log
 -- source suite/innodb/include/check_pfs_mem_other_is_zero.inc
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs60;
+--enable_query_log
+########################################

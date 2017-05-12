@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -43,9 +43,33 @@ This file contains the implementation of error and warnings related
 
 #include "sql_error.h"
 
+#include <float.h>
+#include <stdarg.h>
+#include <algorithm>
+
+#include "binary_log_types.h"
+#include "decimal.h"
 #include "derror.h"       // ER_THD
+#include "item.h"
 #include "log.h"          // sql_print_warning
+#include "my_dbug.h"
+#include "my_decimal.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
+#include "my_sys.h"
+#include "my_time.h"
+#include "mysql/psi/mysql_statement.h"
+#include "mysql/psi/psi_base.h"
+#include "mysqld_error.h"
+#include "protocol.h"
 #include "sql_class.h"    // THD
+#include "sql_const.h"
+#include "sql_lex.h"
+#include "sql_plugin.h"
+#include "sql_servers.h"
+#include "system_variables.h"
+#include "table.h"
+#include "thr_malloc.h"
 
 using std::min;
 using std::max;
@@ -852,7 +876,7 @@ bool mysqld_show_warnings(THD *thd, ulong levels_to_show)
   ulonglong idx= 0;
   Protocol *protocol=thd->get_protocol();
 
-  unit->set_limit(sel);
+  unit->set_limit(thd, sel);
 
   Diagnostics_area::Sql_condition_iterator it= first_da->sql_conditions();
   while (!rc && (err= it++))

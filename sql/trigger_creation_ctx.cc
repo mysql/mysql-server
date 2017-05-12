@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,11 +15,20 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "my_global.h"
-#include "trigger_creation_ctx.h"
-#include "sql_db.h" // get_default_db_collation()
-#include "log.h"
+#include "sql/trigger_creation_ctx.h"
+
+#include <stddef.h>
+
 #include "derror.h"
+#include "log.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
+#include "mysqld_error.h"
+#include "sql_class.h"
+#include "sql_db.h" // get_default_db_collation()
+#include "sql_error.h"
+#include "system_variables.h"
 
 Trigger_creation_ctx *
 Trigger_creation_ctx::create(THD *thd,

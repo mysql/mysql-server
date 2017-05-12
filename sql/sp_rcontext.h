@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,18 +16,33 @@
 #ifndef _SP_RCONTEXT_H_
 #define _SP_RCONTEXT_H_
 
-#include "my_global.h"
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "item.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
 #include "prealloced_array.h"             // Prealloced_array
 #include "query_result.h"                 // Query_result_interceptor
+#include "sql_alloc.h"
+#include "sql_array.h"
+#include "sql_error.h"
+#include "table.h"
 
+class Field;
+class Query_arena;
+class SELECT_LEX_UNIT;
+class Server_side_cursor;
+class THD;
 class sp_cursor;
 class sp_handler;
 class sp_head;
+class sp_instr;
 class sp_instr_cpush;
+class sp_pcontext;
 class sp_variable;
-class Query_arena;
-class Item_cache;
-class Server_side_cursor;
+template <class T> class List;
 
 ///////////////////////////////////////////////////////////////////////////
 // sp_rcontext declaration.
@@ -409,7 +424,7 @@ private:
 
     virtual bool send_eof() { return FALSE; }
     virtual bool send_data(List<Item> &items);
-    virtual int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
+    virtual bool prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   };
 
 public:
@@ -424,7 +439,7 @@ public:
 
   bool open(THD *thd);
 
-  bool close(THD *thd);
+  bool close();
 
   bool is_open() const
   { return MY_TEST(m_server_side_cursor); }

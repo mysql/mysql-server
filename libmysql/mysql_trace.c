@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -41,11 +41,13 @@
   hooks within libmysql code.
 */
 
-#include <my_global.h>
-#include "mysql.h"
-#include "mysql_trace.h"
-#include "mysql/service_mysql_alloc.h"
+
+#include "my_dbug.h"
+#include "my_inttypes.h"
 #include "my_sys.h"
+#include "mysql.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql_trace.h"
 
 /*
   Definition of the global trace_plugin pointer - see plugin_trace.h
@@ -154,7 +156,7 @@ void mysql_trace_trace(struct st_mysql  *m,
       by setting trace data pointer to NULL. Also, set reconnect
       flag to 0 in case plugin executes any queries.
     */
-    my_bool saved_reconnect_flag= m->reconnect;
+    bool saved_reconnect_flag= m->reconnect;
 
     TRACE_DATA(m)= NULL;
     m->reconnect=  0;

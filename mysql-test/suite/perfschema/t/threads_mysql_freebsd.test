@@ -4,8 +4,6 @@
 # Show MySQL server related content in performance_schema.threads
 
 --source include/freebsd.inc
---source include/not_embedded.inc
---source include/have_perfschema.inc
 
 # Every thread should be bound to an operating system thread
 # (this test is not using the thread_pool)

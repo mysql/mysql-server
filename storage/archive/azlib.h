@@ -37,7 +37,8 @@
   (zlib format), rfc1951.txt (deflate format) and rfc1952.txt (gzip format).
 */
 
-#include <my_dir.h>
+#include "my_dir.h"
+#include "my_io.h"
 #include <zlib.h>
 
 #ifdef  __cplusplus

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -51,8 +51,7 @@ log_block_get_flush_bit(
 	return(FALSE);
 }
 
-/************************************************************//**
-Sets the log block flush bit. */
+/** Sets the log block encryption bit. */
 UNIV_INLINE
 void
 log_block_set_flush_bit(
@@ -71,6 +70,44 @@ log_block_set_flush_bit(
 	}
 
 	mach_write_to_4(log_block + LOG_BLOCK_HDR_NO, field);
+}
+
+/** Gets a log block encrypt bit.
+@param[in]	log_block	log block
+@return TRUE if this block was encrypted */
+UNIV_INLINE
+bool
+log_block_get_encrypt_bit(
+	const byte*	log_block)
+{
+	if (LOG_BLOCK_ENCRYPT_BIT_MASK
+	    & mach_read_from_2(log_block + LOG_BLOCK_HDR_DATA_LEN)) {
+		return(true);
+	}
+
+	return(false);
+}
+
+/** Sets the log block encrypt bit.
+@param[in,out]	log_block	log block
+@param[in]	val		value to set */
+UNIV_INLINE
+void
+log_block_set_encrypt_bit(
+	byte*	log_block,
+	ibool	val)
+{
+	ulint	field;
+
+	field = mach_read_from_2(log_block + LOG_BLOCK_HDR_DATA_LEN);
+
+	if (val) {
+		field = field | LOG_BLOCK_ENCRYPT_BIT_MASK;
+	} else {
+		field = field & ~LOG_BLOCK_ENCRYPT_BIT_MASK;
+	}
+
+	mach_write_to_2(log_block + LOG_BLOCK_HDR_DATA_LEN, field);
 }
 
 /************************************************************//**

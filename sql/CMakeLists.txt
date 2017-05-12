@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,12 +15,13 @@
 
 
 INCLUDE_DIRECTORIES(
+  ${CMAKE_SOURCE_DIR}
   ${CMAKE_SOURCE_DIR}/include 
   ${CMAKE_SOURCE_DIR}/sql/conn_handler
   ${CMAKE_SOURCE_DIR}/libbinlogevents/include
   ${CMAKE_SOURCE_DIR}/sql 
   ${CMAKE_SOURCE_DIR}/sql/auth
-  ${CMAKE_SOURCE_DIR}/regex 
+  ${CMAKE_SOURCE_DIR}/extra/regex
   ${ZLIB_INCLUDE_DIR}
   ${SSL_INCLUDE_DIRS}
   ${CMAKE_BINARY_DIR}/sql
@@ -57,7 +58,7 @@ ADD_CUSTOM_COMMAND(
   DEPENDS gen_lex_token
 )
 
-ADD_DEFINITIONS(-DMYSQL_SERVER -DHAVE_REPLICATION)
+ADD_DEFINITIONS(-DMYSQL_SERVER)
 IF(SSL_DEFINES)
  ADD_DEFINITIONS(${SSL_DEFINES})
 ENDIF()
@@ -81,8 +82,10 @@ SET(DD_SOURCES
   dd/impl/transaction_impl.cc
   dd/impl/utils.cc
   dd/impl/sdi.cc
+  dd/impl/sdi_api.cc
   dd/impl/sdi_file.cc
   dd/impl/sdi_tablespace.cc
+  dd/impl/string_type.cc
 
   dd/impl/cache/dictionary_client.cc
   dd/impl/cache/local_multi_map.cc
@@ -161,9 +164,28 @@ SET(DD_SOURCES
   dd/info_schema/stats.cc
 )
 
+SET(SQL_GIS_SOURCES
+  geometry_rtree.cc
+  gis/distance.cc
+  gis/geometries.cc
+  gis/ring_direction.cc
+  gis/srs/srs.cc
+  gis/srs/wkt_parser.cc
+  gis/srs/rtree_support.cc
+  gis/wkb_parser.cc
+  item_geofunc.cc
+  item_geofunc_buffer.cc
+  item_geofunc_internal.cc
+  item_geofunc_relchecks.cc
+  item_geofunc_relchecks_bgwrap.cc
+  item_geofunc_setops.cc
+)
+
 SET(SQL_SHARED_SOURCES
   abstract_query_plan.cc
   auth/auth_common.cc
+  auth/dynamic_privileges_impl.cc
+  auth/dynamic_privilege_table.cc
   auth/sql_authentication.cc
   auth/sql_auth_cache.cc
   auth/sql_authorization.cc
@@ -194,9 +216,6 @@ SET(SQL_SHARED_SOURCES
   filesort.cc
   filesort_utils.cc
   aggregate_check.cc
-  geometry_rtree.cc
-  gis/srs/srs.cc
-  gis/srs/wkt_parser.cc
   gstream.cc
   handler.cc
   histograms/equi_height.cc
@@ -210,12 +229,6 @@ SET(SQL_SHARED_SOURCES
   item_cmpfunc.cc 
   item_create.cc
   item_func.cc
-  item_geofunc.cc
-  item_geofunc_buffer.cc
-  item_geofunc_internal.cc
-  item_geofunc_relchecks.cc
-  item_geofunc_relchecks_bgwrap.cc
-  item_geofunc_setops.cc
   item_json_func.cc
   item_row.cc 
   item_strfunc.cc
@@ -237,7 +250,6 @@ SET(SQL_SHARED_SOURCES
   my_decimal.cc
   mysqld.cc
   mysqld_thd_manager.cc
-  net_serv.cc
   opt_costconstantcache.cc
   opt_costconstants.cc
   opt_costmodel.cc
@@ -251,6 +263,7 @@ SET(SQL_SHARED_SOURCES
   opt_sum.cc 
   opt_trace.cc
   opt_trace2server.cc
+  options_parser.cc
   parse_error.cc
   parse_file.cc
   parse_tree_helpers.cc
@@ -273,6 +286,7 @@ SET(SQL_SHARED_SOURCES
   rpl_handler.cc
   rpl_transaction_ctx.cc
   rpl_transaction_write_set_ctx.cc
+  rpl_trx_tracking.cc
   rpl_write_set_handler.cc
   rules_table_service.cc
   rwlock_scoped_lock.cc
@@ -291,11 +305,11 @@ SET(SQL_SHARED_SOURCES
   sql_alloc_error_handler.cc
   sql_alter.cc
   sql_alter_instance.cc
-  sql_analyse.cc
   sql_base.cc 
   sql_bootstrap.cc
   sql_initialize.cc
   sql_cache.cc
+  sql_call.cc
   sql_class.cc
   sql_component.cc
   sql_cmd_ddl_table.cc
@@ -309,10 +323,12 @@ SET(SQL_SHARED_SOURCES
   sql_digest.cc
   sql_do.cc 
   sql_error.cc
+  sql_exception_handler.cc
   sql_executor.cc
   sql_get_diagnostics.cc
   sql_handler.cc
   sql_help.cc
+  sql_import.cc
   sql_insert.cc
   sql_join_buffer.cc
   sql_lex.cc 
@@ -340,7 +356,7 @@ SET(SQL_SHARED_SOURCES
   sql_show.cc
   sql_show_status.cc
   sql_signal.cc
-  sql_state.c
+  sql_state.cc
   sql_table.cc
   sql_tablespace.cc
   sql_test.cc
@@ -355,6 +371,7 @@ SET(SQL_SHARED_SOURCES
   sql_union.cc
   sql_update.cc
   sql_view.cc
+  stateless_allocator.cc
   strfunc.cc
   sys_vars.cc
   sys_vars_resource_mgr.cc
@@ -375,21 +392,17 @@ SET(SQL_SHARED_SOURCES
   ${DD_SOURCES}
 )
 
-SET(SQL_EXPORTED_SOURCES ${SQL_SHARED_SOURCES} PARENT_SCOPE)
-
 SET(SQL_SOURCE
   ${GEN_SOURCES}
   ${GEN_DIGEST_SOURCES}
   ${CONF_SOURCES}
   ${SQL_SHARED_SOURCES}
   ../extra/lz4/xxhash.c
-  ../libmysql/errmsg.c
+  ../libmysql/errmsg.cc
   ../sql-common/client.cc
   ../sql-common/client_plugin.c
-  ../sql-common/my_time.c
-  ../sql-common/my_user.c 
-  ../sql-common/pack.c
   ../sql-common/client_authentication.cc
+  ../sql-common/net_serv.cc
   ../sql-common/sql_string.cc 
   command_service.cc
   conn_handler/channel_info.cc
@@ -429,30 +442,19 @@ ENDIF()
 # Source files that use Boost
 SET(SQL_BOOST_SOURCES
   debug_sync.cc
-  auth/auth_common.cc
   auth/sql_authentication.cc
   auth/sql_auth_cache.cc
   auth/sql_authorization.cc
   auth/sql_user_table.cc
   auth/sql_user.cc
-  auth/password.c
-  auth/password_policy_service.cc
   auth/sql_security_ctx.cc
-  auth/service_security_context.cc
   auth/role_tables.cc
-  sql_reload.cc
+  auth/dynamic_privilege_table.cc
+  auth/dynamic_privileges_impl.cc
   handler.cc
-  geometry_rtree.cc
-  gis/srs/srs.cc
-  gis/srs/wkt_parser.cc
-  item_geofunc.cc
-  item_geofunc_buffer.cc
-  item_geofunc_internal.cc
-  item_geofunc_relchecks.cc
-  item_geofunc_relchecks_bgwrap.cc
-  item_geofunc_setops.cc
-  item_json_func.cc
+  ${SQL_GIS_SOURCES}
   spatial.cc
+  sql_exception_handler.cc
 )
 SET(SQL_EXPORTED_BOOST_SOURCES ${SQL_BOOST_SOURCES} PARENT_SCOPE)
 
@@ -460,15 +462,57 @@ INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 ADD_COMPILE_FLAGS(${SQL_BOOST_SOURCES}
   COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR})
 
+# warning C4348
+# boost::spirit::terminal<boost::spirit::tag::lit>::result_helper': 
+#       redefinition of default parameter
+IF(WIN32)
+  ADD_COMPILE_FLAGS(
+    gis/srs/srs.cc
+    gis/srs/wkt_parser.cc
+    COMPILE_FLAGS "/wd4348")
+ENDIF()
+
+# warning 4244 4267
+# conversion from 'coordinate_type' to 'const promoted_type
+# conversion from 'boost::geometry::signed_size_type' to 'int'
+# etc. etc.
+IF(WIN32)
+  ADD_COMPILE_FLAGS(
+    item_geofunc.cc
+    item_geofunc_buffer.cc
+    item_geofunc_internal.cc
+    item_geofunc_setops.cc
+    COMPILE_FLAGS "/wd4244" "/wd4267")
+ENDIF()
+
+# Segfault in boost::geometry code at high optimization levels
+IF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro")
+  STRING(TOUPPER "${CMAKE_BUILD_TYPE}" CMAKEBT)
+  IF(CMAKEBT MATCHES "^REL")
+    ADD_COMPILE_FLAGS(item_geofunc_buffer.cc COMPILE_FLAGS "-xO2")
+  ENDIF()
+ENDIF()
+
+# Assertion in Developer Studio 12.5 (fixed in 12.6 beta).
+IF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro")
+  ADD_COMPILE_FLAGS(
+    gis/srs/srs.cc
+    gis/srs/wkt_parser.cc
+    COMPILE_FLAGS "-DBOOST_NO_CXX11_VARIADIC_TEMPLATES"
+  )
+ENDIF()
+
 ADD_COMPILE_FLAGS(
   ../extra/lz4/xxhash.c
   COMPILE_FLAGS -DXXH_NAMESPACE=MY_
 )
 
-# Fixes "C1128: number of sections exceeded object file format limit" in MSVC /MD
-# The flag /bigobj is not added if the build is not WINDOWS_RUNTIME_MD (/MD)
-IF(WINDOWS_RUNTIME_MD AND CMAKE_SIZEOF_VOID_P MATCHES 8)
-  ADD_COMPILE_FLAGS(item_geofunc_setops.cc COMPILE_FLAGS "/bigobj")
+# Fixes "C1128: number of sections exceeded object file format limit" in MSVC
+IF(WIN32)
+  ADD_COMPILE_FLAGS(
+    item_geofunc.cc
+    item_geofunc_setops.cc
+    COMPILE_FLAGS "/bigobj")
 ENDIF()
 
 #
@@ -489,6 +533,8 @@ IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   # Boost source use auto_ptr, deprecated in C++11
   ADD_COMPILE_FLAGS(${SQL_BOOST_SOURCES}
                     COMPILE_FLAGS "-Wno-deprecated-declarations")
+  # Boost source has unused parameters
+  ADD_COMPILE_FLAGS(${SQL_BOOST_SOURCES} COMPILE_FLAGS "-Wno-unused-parameter")
 
   # Only for some versions of GCC/Clang
 
@@ -547,22 +593,22 @@ IF (WIN32 AND OPENSSL_APPLINK_C)
   )
 ENDIF()
 
-# Basically we should add $DD_SOURCE to SQL_SOURCE.
-# But, if there are two .cc file with same name in $SQL_SOURCE,
-# e.g., sql/table.cc and sql/dd/table.cc the cmake commands 
-# ADD_LIBRARY or even ADD_CONVENIENCE_LIBRARY picks one and ignores
-# another. And hence some symbol gets lost. The solution is to
-# build a static library 'dd' and add then to library.
-
-ADD_CONVENIENCE_LIBRARY(sql ${SQL_SOURCE})
-ADD_DEPENDENCIES(sql GenServerSource)
-ADD_DEPENDENCIES(sql GenDigestServerSource)
-ADD_DEPENDENCIES(sql GenBootstrapPriv)
-ADD_DEPENDENCIES(sql GenSysSchema)
-DTRACE_INSTRUMENT(sql)
-TARGET_LINK_LIBRARIES(sql ${MYSQLD_STATIC_PLUGIN_LIBS} 
+ADD_CONVENIENCE_LIBRARY(sql_rtree gis/srs/rtree_support.cc)
+ADD_CONVENIENCE_LIBRARY(sql_main ${SQL_SOURCE})
+ADD_DEPENDENCIES(sql_main GenServerSource)
+ADD_DEPENDENCIES(sql_main GenDigestServerSource)
+ADD_DEPENDENCIES(sql_main GenBootstrapPriv)
+ADD_DEPENDENCIES(sql_main GenSysSchema)
+TARGET_LINK_LIBRARIES(sql_main ${MYSQLD_STATIC_PLUGIN_LIBS} 
   ${MYSQLD_STATIC_COMPONENT_LIBS}  mysys mysys_ssl dbug strings vio regex
-  binlogevents_static  ${LIBWRAP} ${LIBCRYPT} ${LIBDL} ${SSL_LIBRARIES})
+  binlogevents_static sql_rtree ${LIBWRAP} ${LIBCRYPT} ${LIBDL} ${SSL_LIBRARIES})
+
+ADD_CONVENIENCE_LIBRARY(sql_gis ${SQL_GIS_SOURCES})
+ADD_DEPENDENCIES(sql_gis GenServerSource)
+ADD_DEPENDENCIES(sql_gis GenDigestServerSource)
+ADD_DEPENDENCIES(sql_gis GenBootstrapPriv)
+ADD_DEPENDENCIES(sql_gis GenSysSchema)
+ADD_DEPENDENCIES(sql_gis GenError)
 
 #
 # On Windows platform we compile in the clinet-side Windows Native Authentication
@@ -570,7 +616,7 @@ TARGET_LINK_LIBRARIES(sql ${MYSQLD_STATIC_PLUGIN_LIBS}
 #
 IF(WIN32)
   ADD_DEFINITIONS(-DAUTHENTICATION_WIN)
-  TARGET_LINK_LIBRARIES(sql auth_win_client)
+  TARGET_LINK_LIBRARIES(sql_main auth_win_client)
 ENDIF()
 
 SET (BINLOG_SOURCE rpl_gtid_misc.cc
@@ -578,7 +624,7 @@ SET (BINLOG_SOURCE rpl_gtid_misc.cc
                    rpl_gtid_state.cc rpl_gtid_owned.cc rpl_gtid_execution.cc
                    rpl_gtid_mutex_cond_array.cc rpl_gtid_persist.cc
                    log_event.cc binlog.cc sql_binlog.cc
-                   rpl_filter.cc rpl_record.cc
+                   rpl_filter.cc rpl_record.cc rpl_trx_tracking.cc
                    rpl_utility.cc rpl_injector.cc rpl_table_access.cc)
 ADD_CONVENIENCE_LIBRARY(binlog ${BINLOG_SOURCE})
 TARGET_LINK_LIBRARIES(binlog binlogevents_static)
@@ -605,10 +651,11 @@ ADD_DEPENDENCIES(slave GenError)
 IF(WIN32)
   SET(MYSQLD_SOURCE main.cc nt_servc.cc nt_servc.h message.rc)
 ELSE()
-  SET(MYSQLD_SOURCE main.cc ${DTRACE_PROBES_ALL})
+  SET(MYSQLD_SOURCE main.cc)
 ENDIF()
 
-MYSQL_ADD_EXECUTABLE(mysqld ${MYSQLD_SOURCE} DESTINATION ${INSTALL_SBINDIR} COMPONENT Server)
+MYSQL_ADD_EXECUTABLE(mysqld
+  ${MYSQLD_SOURCE} DESTINATION ${INSTALL_SBINDIR} COMPONENT Server)
 
 OPTION(DEBUG_EXTNAME "Build server as mysqld-debug (debug builds only)" OFF)
 MARK_AS_ADVANCED(DEBUG_EXTNAME)
@@ -625,20 +672,17 @@ IF(APPLE)
   ENDIF() 
 ENDIF() 
 
-IF(NOT WITHOUT_DYNAMIC_PLUGINS)
+IF(NOT DISABLE_SHARED)
   SET_TARGET_PROPERTIES(mysqld PROPERTIES ENABLE_EXPORTS TRUE)
   GET_TARGET_PROPERTY(mysqld_link_flags mysqld LINK_FLAGS)
   IF(NOT mysqld_link_flags)
     SET(mysqld_link_flags)
   ENDIF()
-  IF (MINGW)
-    SET_TARGET_PROPERTIES(mysqld PROPERTIES LINK_FLAGS "${mysqld_link_flags} -Wl,--export-all-symbols")
-  ENDIF()
   IF(MSVC)
     # Set module definition file.
     SET_TARGET_PROPERTIES(mysqld PROPERTIES LINK_FLAGS "${mysqld_link_flags} /DEF:mysqld.def")
 
-    FOREACH (CORELIB sql binlog slave mysys mysys_ssl dbug regex strings
+    FOREACH (CORELIB sql_main binlog slave mysys mysys_ssl dbug regex strings
         vio binlogevents_static)
       GET_TARGET_PROPERTY(LOC ${CORELIB} LOCATION)
       IF (NOT LOC)
@@ -649,33 +693,22 @@ IF(NOT WITHOUT_DYNAMIC_PLUGINS)
       FILE(TO_NATIVE_PATH ${LOC} LOC)
       SET (LIB_LOCATIONS ${LIB_LOCATIONS} ${LOC}) 
     ENDFOREACH (CORELIB ${MYSQLD_CORE_LIBS})
-    SET(_PLATFORM x86)
-    IF(CMAKE_SIZEOF_VOID_P EQUAL 8)
-      SET(_PLATFORM  x64)
-    ENDIF()
+    SET(_PLATFORM  x64)
     ADD_CUSTOM_COMMAND(TARGET mysqld PRE_LINK
       COMMAND echo ${_PLATFORM} && cscript ARGS //nologo ${PROJECT_SOURCE_DIR}/win/create_def_file.js
                   ${_PLATFORM}  ${LIB_LOCATIONS} > mysqld.def 
       WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-    ADD_DEPENDENCIES(sql GenError)
+    ADD_DEPENDENCIES(sql_main GenError)
   ENDIF()
 ENDIF()
 
 SET_TARGET_PROPERTIES(mysqld PROPERTIES ENABLE_EXPORTS TRUE) 
-TARGET_LINK_LIBRARIES(mysqld sql binlog rpl master slave sql mysys mysys_ssl binlogevents_static)
+TARGET_LINK_LIBRARIES(mysqld
+  sql_main sql_gis binlog rpl master slave sql_main sql_gis mysys mysys_ssl
+  binlogevents_static)
 
-# Provide plugins with minimal set of libraries
-SET(INTERFACE_LIBS ${LIBRT})
-IF(INTERFACE_LIBS)
- SET_TARGET_PROPERTIES(mysqld PROPERTIES LINK_INTERFACE_LIBRARIES 
-  "${INTERFACE_LIBS}")
-ENDIF()
-
-# On Solaris, some extra effort is required in order to get dtrace probes
-# from static libraries
-DTRACE_INSTRUMENT_STATIC_LIBS(mysqld 
- "sql;mysys;mysys_ssl;${MYSQLD_STATIC_PLUGIN_LIBS};${MYSQLD_STATIC_COMPONENT_LIBS}")
- 
+# Remove transitive link dependencies when linking plugins
+SET_TARGET_PROPERTIES(mysqld PROPERTIES INTERFACE_LINK_LIBRARIES "")
 
 SET(WITH_MYSQLD_LDFLAGS "" CACHE STRING "Additional linker flags for mysqld")
 MARK_AS_ADVANCED(WITH_MYSQLD_LDFLAGS)
@@ -751,6 +784,7 @@ ADD_CUSTOM_COMMAND(
 MYSQL_ADD_EXECUTABLE(mysql_tzinfo_to_sql tztime.cc)
 SET_TARGET_PROPERTIES(mysql_tzinfo_to_sql PROPERTIES COMPILE_FLAGS "-DTZINFO2SQL")
 TARGET_LINK_LIBRARIES(mysql_tzinfo_to_sql mysys mysys_ssl)
+ADD_DEPENDENCIES(mysql_tzinfo_to_sql GenError)
 
 ADD_CUSTOM_TARGET( 
         GenServerSource
@@ -763,21 +797,13 @@ ADD_CUSTOM_TARGET(
 )
 
 
+MYSQL_ADD_PLUGIN(udf_example udf_example.cc
+                 MODULE_ONLY SKIP_INSTALL MODULE_OUTPUT_NAME "udf_example")
 IF(NOT DISABLE_SHARED)
-  ADD_LIBRARY(udf_example MODULE udf_example.cc)
-  SET_TARGET_PROPERTIES(udf_example PROPERTIES PREFIX "")
-  # udf_example depends on strings 
   IF(WIN32)
-    IF(MSVC)
-     SET_TARGET_PROPERTIES(udf_example
-       PROPERTIES LINK_FLAGS "/DEF:${CMAKE_CURRENT_SOURCE_DIR}/udf_example.def")
-    ENDIF()
-    TARGET_LINK_LIBRARIES(udf_example strings)
-  ELSE()
-    # udf_example is using safemutex exported by mysqld
-    TARGET_LINK_LIBRARIES(udf_example mysqld)
     SET_TARGET_PROPERTIES(udf_example
-      PROPERTIES LINK_FLAGS "${CMAKE_SHARED_LIBRARY_C_FLAGS}")
+      PROPERTIES LINK_FLAGS
+      "/DEF:${CMAKE_CURRENT_SOURCE_DIR}/udf_example.def")
   ENDIF()
 ENDIF()
 
@@ -788,17 +814,13 @@ IF(NOT DISABLE_SHARED)
     SET_TARGET_PROPERTIES(locking_service
       PROPERTIES LINK_FLAGS
       "/DEF:${CMAKE_CURRENT_SOURCE_DIR}/locking_service.def")
-  ELSE()
-    SET_TARGET_PROPERTIES(locking_service
-      PROPERTIES LINK_FLAGS "${CMAKE_SHARED_LIBRARY_C_FLAGS}")
   ENDIF()
 ENDIF()
 
-FOREACH(tool glibtoolize libtoolize aclocal autoconf autoheader automake gtar 
- tar git)
- STRING(TOUPPER ${tool}  TOOL)
- FIND_PROGRAM(${TOOL}_EXECUTABLE ${tool} DOC "path to the executable")
- MARK_AS_ADVANCED(${TOOL}_EXECUTABLE)
+FOREACH(tool gtar tar git)
+  STRING(TOUPPER ${tool}  TOOL)
+  FIND_PROGRAM(${TOOL}_EXECUTABLE ${tool} DOC "path to the executable")
+  MARK_AS_ADVANCED(${TOOL}_EXECUTABLE)
 ENDFOREACH()
 
 CONFIGURE_FILE(

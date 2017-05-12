@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,7 +14,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-
 #ifndef TABLE_REPLICATION_APPLIER_STATUS_BY_WORKER_H
 #define TABLE_REPLICATION_APPLIER_STATUS_BY_WORKER_H
 
@@ -23,36 +22,33 @@
   Table replication_applier_status_by_worker (declarations).
 */
 
+#include <sys/types.h>
+
+#include "my_inttypes.h"
+#include "mysql_com.h"
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"
-#include "table_helper.h"
-
-#ifdef HAVE_REPLICATION
-
-#include "rpl_mi.h"
-#include "mysql_com.h"
-#include "rpl_rli_pdb.h"
-#include "rpl_msr.h"
 #include "rpl_info.h" /*CHANNEL_NAME_LENGTH*/
+#include "rpl_mi.h"
+#include "rpl_msr.h"
+#include "rpl_rli_pdb.h"
+#include "table_helper.h"
 
 class Slave_worker;
 class Master_info;
-
-#endif /* HAVE_REPLICATION */
 
 /**
   @addtogroup performance_schema_tables
   @{
 */
 
-#ifdef HAVE_REPLICATION
-
 #ifndef ENUM_RPL_YES_NO
 #define ENUM_RPL_YES_NO
 /** enumerated values for service_state of worker thread*/
-enum enum_rpl_yes_no {
-  PS_RPL_YES= 1, /* service_state= on */
-  PS_RPL_NO /* service_state= off */
+enum enum_rpl_yes_no
+{
+  PS_RPL_YES = 1, /* service_state= on */
+  PS_RPL_NO       /* service_state= off */
 };
 #endif
 
@@ -60,8 +56,8 @@ enum enum_rpl_yes_no {
   A row in worker's table. The fields with string values have an additional
   length field denoted by <field_name>_length.
 */
-struct st_row_worker {
-
+struct st_row_worker
+{
   char channel_name[CHANNEL_NAME_LENGTH];
   uint channel_name_length;
   /*
@@ -73,40 +69,51 @@ struct st_row_worker {
   ulonglong thread_id;
   uint thread_id_is_null;
   enum_rpl_yes_no service_state;
-  char last_seen_transaction[Gtid::MAX_TEXT_LENGTH+1];
-  uint last_seen_transaction_length;
   uint last_error_number;
   char last_error_message[MAX_SLAVE_ERRMSG];
   uint last_error_message_length;
   ulonglong last_error_timestamp;
+  char last_applied_trx[Gtid::MAX_TEXT_LENGTH+1];
+  uint last_applied_trx_length;
+  ulonglong last_applied_trx_original_commit_timestamp;
+  ulonglong last_applied_trx_immediate_commit_timestamp;
+  ulonglong last_applied_trx_start_apply_timestamp;
+  ulonglong last_applied_trx_end_apply_timestamp;
+  char applying_trx[Gtid::MAX_TEXT_LENGTH+1];
+  uint applying_trx_length;
+  ulonglong applying_trx_original_commit_timestamp;
+  ulonglong applying_trx_immediate_commit_timestamp;
+  ulonglong applying_trx_start_apply_timestamp;
 };
-
-#endif /* HAVE_REPLICATION */
 
 /**
   Index 1 for replication channel
   Index 2 for worker
 */
-struct workers_per_channel
-:public PFS_double_index
+struct workers_per_channel : public PFS_double_index
 {
-  workers_per_channel()
-    :PFS_double_index(0,0)
-  {}
-
-  inline void reset(void)
+  workers_per_channel() : PFS_double_index(0, 0)
   {
-    m_index_1= 0;
-    m_index_2= 0;
   }
 
-  inline bool has_more_channels(uint num)
-  { return (m_index_1 < num); }
+  inline void
+  reset(void)
+  {
+    m_index_1 = 0;
+    m_index_2 = 0;
+  }
 
-  inline void next_channel(void)
+  inline bool
+  has_more_channels(uint num)
+  {
+    return (m_index_1 < num);
+  }
+
+  inline void
+  next_channel(void)
   {
     m_index_1++;
-    m_index_2= 0;
+    m_index_2 = 0;
   }
 };
 
@@ -115,14 +122,14 @@ class PFS_index_rpl_applier_status_by_worker : public PFS_engine_index
 public:
   PFS_index_rpl_applier_status_by_worker(PFS_engine_key *key)
     : PFS_engine_index(key)
-  {}
+  {
+  }
 
   ~PFS_index_rpl_applier_status_by_worker()
-  {}
+  {
+  }
 
-#ifdef HAVE_REPLICATION
   virtual bool match(Master_info *mi) = 0;
-#endif
 };
 
 class PFS_index_rpl_applier_status_by_worker_by_channel
@@ -130,16 +137,16 @@ class PFS_index_rpl_applier_status_by_worker_by_channel
 {
 public:
   PFS_index_rpl_applier_status_by_worker_by_channel()
-    : PFS_index_rpl_applier_status_by_worker(&m_key),
-    m_key("CHANNEL_NAME")
-  {}
+    : PFS_index_rpl_applier_status_by_worker(&m_key), m_key("CHANNEL_NAME")
+  {
+  }
 
   ~PFS_index_rpl_applier_status_by_worker_by_channel()
-  {}
+  {
+  }
 
-#ifdef HAVE_REPLICATION
   virtual bool match(Master_info *mi);
-#endif
+
 private:
   PFS_key_name m_key;
 };
@@ -149,43 +156,38 @@ class PFS_index_rpl_applier_status_by_worker_by_thread
 {
 public:
   PFS_index_rpl_applier_status_by_worker_by_thread()
-    : PFS_index_rpl_applier_status_by_worker(&m_key),
-    m_key("THREAD_ID")
-  {}
+    : PFS_index_rpl_applier_status_by_worker(&m_key), m_key("THREAD_ID")
+  {
+  }
 
   ~PFS_index_rpl_applier_status_by_worker_by_thread()
-  {}
+  {
+  }
 
-#ifdef HAVE_REPLICATION
   virtual bool match(Master_info *mi);
-#endif
+
 private:
   PFS_key_thread_id m_key;
 };
 
 /** Table PERFORMANCE_SCHEMA.replication_applier_status_by_worker */
-class table_replication_applier_status_by_worker: public PFS_engine_table
+class table_replication_applier_status_by_worker : public PFS_engine_table
 {
 private:
-#ifdef HAVE_REPLICATION
-  void make_row(Slave_worker *);
+  int make_row(Slave_worker *);
   /*
     Master_info to construct a row to display SQL Thread's status
     information in STS mode
   */
-  void make_row(Master_info *);
-#endif /* HAVE_REPLICATION */
+  int make_row(Master_info *);
+  void populate_trx_info(trx_monitoring_info *, trx_monitoring_info *);
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
   /** Fields definition. */
   static TABLE_FIELD_DEF m_field_def;
-#ifdef HAVE_REPLICATION
   /** current row*/
   st_row_worker m_row;
-#endif /* HAVE_REPLICATION */
-  /** True is the current row exists. */
-  bool m_row_exists;
   /** Current position. */
   workers_per_channel m_pos;
   /** Next position. */
@@ -216,7 +218,7 @@ public:
 
   /** Table share. */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table* create();
+  static PFS_engine_table *create();
   static ha_rows get_row_count();
   virtual void reset_position(void);
 

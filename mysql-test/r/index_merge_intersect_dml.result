@@ -84,10 +84,10 @@ INSERT INTO t2 SELECT * FROM t1;
 ANALYZE TABLE t2;
 Table	Op	Msg_type	Msg_text
 test.t2	analyze	status	OK
-EXPLAIN UPDATE t2 SET a=2 WHERE pk<2492 AND d=1;
+EXPLAIN UPDATE t2 SET a=2 WHERE pk<2492 AND d<=1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t2	NULL	range	PRIMARY,idx_d	PRIMARY	3	const	#	100.00	Using where
-UPDATE t2 SET a=2 WHERE pk<2492 AND d=1;
+UPDATE t2 SET a=2 WHERE pk<2492 AND d<=1;
 CREATE TABLE t3(
 a INT NOT NULL,
 b INT NOT NULL,

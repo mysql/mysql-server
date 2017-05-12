@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,8 +20,15 @@
 
 #ifndef _mysql_com_h
 #define _mysql_com_h
-#include "binary_log_types.h"
+
+#ifndef MYSQL_ABI_CHECK
+#include <stdbool.h>
+#endif
+
 #include "my_command.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+
 #define HOSTNAME_LENGTH 60
 #define SYSTEM_CHARSET_MBMAXLEN 3
 #define FILENAME_CHARSET_MBMAXLEN 5
@@ -32,6 +39,7 @@
 #define NAME_LEN                (NAME_CHAR_LEN*SYSTEM_CHARSET_MBMAXLEN)
 #endif
 #define USERNAME_LENGTH         (USERNAME_CHAR_LENGTH*SYSTEM_CHARSET_MBMAXLEN)
+#define CONNECT_STRING_MAXLEN 1024
 
 #define MYSQL_AUTODETECT_CHARSET_NAME "auto"
 
@@ -48,6 +56,7 @@
 #define COLUMN_COMMENT_MAXLEN 1024
 #define INDEX_COMMENT_MAXLEN 1024
 #define TABLE_PARTITION_COMMENT_MAXLEN 1024
+#define TABLESPACE_COMMENT_MAXLEN 2048
 
 /**
   Maximum length of protocol packet.
@@ -167,6 +176,7 @@
 #define REFRESH_USER_RESOURCES	0x80000L
 #define REFRESH_FOR_EXPORT      0x100000L /** FLUSH TABLES ... FOR EXPORT */
 #define REFRESH_OPTIMIZER_COSTS 0x200000L /** FLUSH OPTIMIZER_COSTS */
+#define REFRESH_PERSIST         0x400000L /** RESET PERSIST */
 
 /**
    @defgroup group_cs_capabilities_flags Capabilities Flags
@@ -782,10 +792,7 @@ typedef struct st_net {
   unsigned int *return_status;
   unsigned char reading_or_writing;
   char save_char;
-  my_bool unused1; /**< Please remove with the next incompatible ABI change */
-  my_bool unused2; /**< Please remove with the next incompatible ABI change */
-  my_bool compress;
-  my_bool unused3; /**< Please remove with the next incompatible ABI change. */
+  bool compress;
   /**
     Pointer to query object in query cache, do not equal NULL (0) for
     queries in cache that have not stored its results yet
@@ -795,8 +802,6 @@ typedef struct st_net {
   unsigned char *unused;
   unsigned int last_errno;
   unsigned char error; 
-  my_bool unused4; /**< Please remove with the next incompatible ABI change. */
-  my_bool unused5; /**< Please remove with the next incompatible ABI change. */
   /** Client library error message buffer. Actually belongs to struct MYSQL. */
   char last_error[MYSQL_ERRMSG_SIZE];
   /** Client library sqlstate buffer. Set along with the error message. */
@@ -941,25 +946,23 @@ enum enum_session_state_type
 extern "C" {
 #endif
 
-my_bool	my_net_init(NET *net, MYSQL_VIO vio);
+bool	my_net_init(NET *net, MYSQL_VIO vio);
 void my_net_local_init(NET *net);
 void net_end(NET *net);
-void net_clear(NET *net, my_bool check_buffer);
+void net_clear(NET *net, bool check_buffer);
 void net_claim_memory_ownership(NET *net);
-my_bool net_realloc(NET *net, size_t length);
-my_bool	net_flush(NET *net);
-my_bool	my_net_write(NET *net,const unsigned char *packet, size_t len);
-my_bool	net_write_command(NET *net,unsigned char command,
+bool net_realloc(NET *net, size_t length);
+bool	net_flush(NET *net);
+bool	my_net_write(NET *net,const unsigned char *packet, size_t len);
+bool	net_write_command(NET *net,unsigned char command,
 			  const unsigned char *header, size_t head_len,
 			  const unsigned char *packet, size_t len);
-my_bool net_write_packet(NET *net, const unsigned char *packet, size_t length);
+bool net_write_packet(NET *net, const unsigned char *packet, size_t length);
 unsigned long my_net_read(NET *net);
 
-#ifdef MY_GLOBAL_INCLUDED
 void my_net_set_write_timeout(NET *net, uint timeout);
 void my_net_set_read_timeout(NET *net, uint timeout);
 void my_net_set_retry_count(NET *net, uint retry_count);
-#endif
 
 struct rand_struct {
   unsigned long seed1,seed2,max_value;
@@ -996,11 +999,11 @@ typedef struct st_udf_args
 */
 typedef struct st_udf_init
 {
-  my_bool maybe_null;          /** 1 if function can return NULL */
+  bool maybe_null;             /** 1 if function can return NULL */
   unsigned int decimals;       /** for real functions */
   unsigned long max_length;    /** For string functions */
   char *ptr;                   /** free pointer for function data */
-  my_bool const_item;          /** 1 if function always returns the same value */
+  bool const_item;             /** 1 if function always returns the same value */
   void *extension;
 } UDF_INIT;
 
@@ -1032,15 +1035,15 @@ void create_random_string(char *to, unsigned int length, struct rand_struct *ran
 void hash_password(unsigned long *to, const char *password, unsigned int password_len);
 void make_scrambled_password_323(char *to, const char *password);
 void scramble_323(char *to, const char *message, const char *password);
-my_bool check_scramble_323(const unsigned char *reply, const char *message,
-                           unsigned long *salt);
+bool check_scramble_323(const unsigned char *reply, const char *message,
+                        unsigned long *salt);
 void get_salt_from_password_323(unsigned long *res, const char *password);
 void make_password_from_salt_323(char *to, const unsigned long *salt);
 
 void make_scrambled_password(char *to, const char *password);
 void scramble(char *to, const char *message, const char *password);
-my_bool check_scramble(const unsigned char *reply, const char *message,
-                       const unsigned char *hash_stage2);
+bool check_scramble(const unsigned char *reply, const char *message,
+                    const unsigned char *hash_stage2);
 void get_salt_from_password(unsigned char *res, const char *password);
 void make_password_from_salt(char *to, const unsigned char *hash_stage2);
 char *octet2hex(char *to, const char *str, unsigned int len);
@@ -1052,15 +1055,15 @@ const char *mysql_errno_to_sqlstate(unsigned int mysql_errno);
 
 /* Some other useful functions */
 
-my_bool my_thread_init(void);
+bool my_thread_init(void);
 void my_thread_end(void);
 
-#ifdef MY_GLOBAL_INCLUDED
+#ifdef STDCALL
 ulong STDCALL net_field_length(uchar **packet);
+#endif
 my_ulonglong net_field_length_ll(uchar **packet);
 uchar *net_store_length(uchar *pkg, ulonglong length);
 unsigned int net_length_size(ulonglong num);
-#endif
 
 #ifdef __cplusplus
 }

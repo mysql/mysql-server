@@ -1,6 +1,5 @@
 # 2010-01-27 - Added
 
---source include/have_innodb.inc
 
 # Exists as global only
 #

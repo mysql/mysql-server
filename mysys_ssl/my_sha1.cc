@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,8 +20,9 @@
   Compatibility layer to make available YaSSL's SHA1 implementation.
 */
 
-#include <my_global.h>
 #include <sha1.h>
+
+#include "my_inttypes.h"
 
 #if defined(HAVE_YASSL)
 #include "sha.hpp"

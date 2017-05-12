@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -662,6 +662,16 @@ ulint
 dict_index_is_ibuf(
 /*===============*/
 	const dict_index_t*	index)	/*!< in: index */
+	MY_ATTRIBUTE((warn_unused_result));
+
+/** Check whether the index consists of descending columns only.
+@param[in]	index  index tree
+@retval true if index has any descending column
+@retval false if index has only ascending columns */
+UNIV_INLINE
+bool
+dict_index_has_desc(
+	const dict_index_t*	index)
 	MY_ATTRIBUTE((warn_unused_result));
 /********************************************************************//**
 Check whether the index is a secondary index or the insert buffer tree.
@@ -1923,7 +1933,7 @@ dict_sdi_get_table(
 	bool		dict_locked);
 
 /** Remove the SDI table from table cache.
-@param[in]	space_id	InnoDB tablesapce_id
+@param[in]	space_id	InnoDB tablespace_id
 @param[in,out]	sdi_tables	Array of sdi table
 @param[in]	dict_locked	true if dict_sys mutex acquired */
 void
@@ -1956,6 +1966,12 @@ uint32_t
 dict_sdi_get_copy_num(
 	table_id_t	table_id);
 
+/** Allocate memory for intrinsic cache elements in the index
+ * @param[in]      index   index object */
+UNIV_INLINE
+void
+dict_allocate_mem_intrinsic_cache(
+                dict_index_t*           index);
 #endif /* !UNIV_HOTBACKUP */
 
 #include "dict0dict.ic"

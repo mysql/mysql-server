@@ -1,7 +1,6 @@
 #
 # Cost model tests that requires performance schema
 #
---source include/have_perfschema.inc
 --source include/not_embedded.inc
 
 --echo #

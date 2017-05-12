@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,15 +28,37 @@
   - "profiling_history_size", integer, session + global, "Num queries stored?"
 */
 
+#include <string.h>
 
-#include "sql_profile.h"
-#include "my_sys.h"
-#include "psi_memory_key.h"
-#include "sql_show.h"                     // schema_table_store_record
-#include "sql_class.h"                    // THD
-#include "log.h"
-
+#include "my_config.h"
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
 #include <algorithm>
+
+#include "binary_log_types.h"
+#include "decimal.h"
+#include "field.h"
+#include "item.h"
+#include "my_base.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_decimal.h"
+#include "my_sqlcommand.h"
+#include "my_sys.h"
+#include "my_systime.h"
+#include "protocol.h"
+#include "psi_memory_key.h"
+#include "query_options.h"
+#include "sql_class.h"                    // THD
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_profile.h"
+#include "sql_security_ctx.h"
+#include "sql_show.h"                     // schema_table_store_record
+#include "sql_string.h"
+#include "system_variables.h"
 
 using std::min;
 using std::max;
@@ -51,8 +73,7 @@ static const size_t MAX_QUERY_LENGTH= 300;
 /**
   Connects Information_Schema and Profiling.
 */
-int fill_query_profile_statistics_info(THD *thd, TABLE_LIST *tables,
-                                       Item *cond)
+int fill_query_profile_statistics_info(THD *thd, TABLE_LIST *tables, Item*)
 {
 #if defined(ENABLED_PROFILING)
   const char *old= thd->lex->sql_command == SQLCOM_SHOW_PROFILE ?
@@ -61,7 +82,7 @@ int fill_query_profile_statistics_info(THD *thd, TABLE_LIST *tables,
   DBUG_ASSERT(thd->lex->sql_command != SQLCOM_SHOW_PROFILES);
 
   push_deprecated_warn(thd, old, "Performance Schema");
-  return(thd->profiling.fill_statistics_info(thd, tables, cond));
+  return(thd->profiling.fill_statistics_info(thd, tables));
 #else
   my_error(ER_FEATURE_DISABLED, MYF(0), "SHOW PROFILE", "enable-profiling");
   return(1);
@@ -472,7 +493,7 @@ bool PROFILING::show_profiles()
   ha_rows idx= 0;
   Protocol *protocol= thd->get_protocol();
 
-  unit->set_limit(sel);
+  unit->set_limit(thd, sel);
 
   void *iterator;
   for (iterator= history.new_iterator();
@@ -532,7 +553,7 @@ void PROFILING::set_query_source(const char *query_source_arg, size_t query_leng
   There are two ways to get to this function:  Selecting from the information
   schema, and a SHOW command.
 */
-int PROFILING::fill_statistics_info(THD *thd_arg, TABLE_LIST *tables, Item *cond)
+int PROFILING::fill_statistics_info(THD *thd_arg, TABLE_LIST *tables)
 {
   DBUG_ENTER("PROFILING::fill_statistics_info");
   TABLE *table= tables->table;

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -24,27 +24,31 @@ Created 3/14/1997 Heikki Tuuri
 *******************************************************/
 
 #include "row0purge.h"
+
+#include <stddef.h>
+
 #include "fsp0fsp.h"
+#include "ha_innodb.h"
+#include "handler.h"
+#include "lob0lob.h"
+#include "log0log.h"
 #include "mach0data.h"
-#include "trx0rseg.h"
-#include "trx0trx.h"
-#include "trx0roll.h"
-#include "trx0undo.h"
-#include "trx0purge.h"
-#include "trx0rec.h"
+#include "my_inttypes.h"
+#include "mysqld.h"
 #include "que0que.h"
+#include "row0log.h"
+#include "row0mysql.h"
 #include "row0row.h"
 #include "row0upd.h"
 #include "row0vers.h"
-#include "row0mysql.h"
-#include "row0log.h"
-#include "log0log.h"
 #include "srv0mon.h"
 #include "srv0start.h"
-#include "handler.h"
-#include "ha_innodb.h"
-#include "mysqld.h"
-#include "lob0lob.h"
+#include "trx0purge.h"
+#include "trx0rec.h"
+#include "trx0roll.h"
+#include "trx0rseg.h"
+#include "trx0trx.h"
+#include "trx0undo.h"
 
 /*************************************************************************
 IMPORTANT NOTE: Any operation that generates redo MUST check that there
@@ -765,11 +769,8 @@ skip_secondaries:
 
 			/* If table is temp then it can't have its undo log
 			residing in rollback segment with REDO log enabled. */
-			bool is_redo_rseg =
-				node->table->is_temporary()
-				? false : true;
-			rseg = trx_sys_get_nth_rseg(
-				trx_sys, rseg_id, is_redo_rseg);
+			bool is_temp = node->table->is_temporary();
+			rseg = trx_rseg_get_on_id(rseg_id, is_temp);
 
 			ut_a(rseg != NULL);
 			ut_a(rseg->id == rseg_id);
@@ -782,7 +783,7 @@ skip_secondaries:
 			index = node->table->first_index();
 			mtr_sx_lock(dict_index_get_lock(index), &mtr);
 
-			mtr.set_undo_space(rseg->space);
+			mtr.set_undo_space(rseg->space_id);
 			mtr.set_named_space(index->space);
 
 			/* NOTE: we must also acquire an X-latch to the
@@ -797,7 +798,7 @@ skip_secondaries:
 			btr_root_get(index, &mtr);
 
 			block = buf_page_get(
-				page_id_t(rseg->space, page_no),
+				page_id_t(rseg->space_id, page_no),
 				univ_page_size, RW_X_LATCH, &mtr);
 
 			buf_block_dbg_add_level(block, SYNC_TRX_UNDO_PAGE);
@@ -813,7 +814,7 @@ skip_secondaries:
 				- BTR_EXTERN_FIELD_REF_SIZE;
 
 			lob::BtrContext	btr_ctx(
-				&mtr, NULL, index, NULL, NULL, NULL);
+				&mtr, NULL, index, NULL, NULL, block);
 
 			lob::DeleteContext ctx(btr_ctx,
 				field_ref, 0, false);
@@ -1202,7 +1203,7 @@ purge_node_t::validate_pcur()
 	part in persistent cursor. Both cases we store n_uniq fields of the
 	cluster index and so it is fine to do the comparison. We note this
 	dependency here as pcur and ref belong to different modules. */
-	int st = cmp_dtuple_rec(ref, pcur.old_rec, offsets);
+	int st = cmp_dtuple_rec(ref, pcur.old_rec, clust_index, offsets);
 
 	if (st != 0) {
 		ib::error() << "Purge node pcur validation failed";

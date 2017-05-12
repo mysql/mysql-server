@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +16,6 @@
 #ifndef DD__VIEW_INCLUDED
 #define DD__VIEW_INCLUDED
 
-#include "my_global.h"
 
 #include "dd/types/abstract_table.h"       // dd::Abstract_table
 
@@ -88,11 +87,11 @@ public:
   // definition/utf8.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &definition() const = 0;
-  virtual void set_definition(const std::string &definition) = 0;
+  virtual const String_type &definition() const = 0;
+  virtual void set_definition(const String_type &definition) = 0;
 
-  virtual const std::string &definition_utf8() const = 0;
-  virtual void set_definition_utf8(const std::string &definition_utf8) = 0;
+  virtual const String_type &definition_utf8() const = 0;
+  virtual void set_definition_utf8(const String_type &definition_utf8) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // check_option.
@@ -126,10 +125,19 @@ public:
   // definer.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &definer_user() const = 0;
-  virtual const std::string &definer_host() const = 0;
-  virtual void set_definer(const std::string &username,
-                           const std::string &hostname) = 0;
+  virtual const String_type &definer_user() const = 0;
+  virtual const String_type &definer_host() const = 0;
+  virtual void set_definer(const String_type &username,
+                           const String_type &hostname) = 0;
+
+  /////////////////////////////////////////////////////////////////////////
+  // Explicit list of column names.
+  // It is a dictionary of string=>string, where the key is the number of the
+  // column ("1", "2", etc) and the value is the column's name.
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual const Properties &column_names() const = 0;
+  virtual Properties &column_names() = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // View-table collection.
@@ -154,6 +162,11 @@ public:
     @return pointer to dynamically allocated copy
   */
   virtual View *clone() const = 0;
+
+  /**
+    Clear View columns, View_tables and View_routines collections.
+  */
+  virtual void remove_children() = 0;
 };
 
 ///////////////////////////////////////////////////////////////////////////

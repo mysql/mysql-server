@@ -26,7 +26,7 @@ let $inplace_query =
    `select REPLACE('$query', 't1', 't1 ALGORITHM=INPLACE')`;
 #echo $inplace_query;
 
---error ER_ALTER_OPERATION_NOT_SUPPORTED
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 eval $inplace_query;
 
 

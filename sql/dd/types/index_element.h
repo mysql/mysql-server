@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,10 +16,9 @@
 #ifndef DD__INDEX_ELEMENT_INCLUDED
 #define DD__INDEX_ELEMENT_INCLUDED
 
-#include "my_global.h"
-
 #include "dd/sdi_fwd.h"                // dd::Sdi_wcontext
 #include "dd/types/weak_object.h"      // dd::Weak_object
+#include "my_inttypes.h"
 
 namespace dd {
 
@@ -126,6 +125,11 @@ public:
   */
 
   virtual bool deserialize(Sdi_rcontext *rctx, const RJ_Value &val) = 0;
+
+  /**
+    Check if index element (a.k.a. key part) is a prefix of the column used.
+  */
+  virtual bool is_prefix() const = 0;
 };
 
 ///////////////////////////////////////////////////////////////////////////

@@ -528,7 +528,7 @@ CREATE TABLE t1 (pk INTEGER PRIMARY KEY) TABLESPACE ts1;
 #
 # Dropping ts1 should fail.
 DROP TABLESPACE ts1;
-ERROR HY000: Failed to drop TABLESPACE ts1
+ERROR HY000: Tablespace `ts1` is not empty.
 #
 # Initiate a drop of table t1 and park it after
 # acquiring IX lock on ts1.
@@ -558,7 +558,7 @@ connection con1;
 connection con2;
 connection default;
 DROP TABLESPACE ts1;
-ERROR HY000: Failed to drop TABLESPACE ts1
+ERROR HY000: Tablespace ts1 doesn't exist.
 SET DEBUG_SYNC= 'RESET';
 ###########################################################
 # TC12. Verify that the tablespace name length is checked
@@ -766,7 +766,8 @@ ALTER TABLESPACE ts1 ADD DATAFILE 'ts1_2.ibd';
 connection default;
 SELECT object_type, object_name, lock_type, lock_duration, lock_status
 FROM performance_schema.metadata_locks
-WHERE object_type LIKE 'TABLESPACE';
+WHERE object_type LIKE 'TABLESPACE'
+  ORDER BY lock_status;
 object_type	object_name	lock_type	lock_duration	lock_status
 TABLESPACE	ts1	EXCLUSIVE	TRANSACTION	GRANTED
 TABLESPACE	ts1	EXCLUSIVE	TRANSACTION	PENDING
@@ -781,7 +782,7 @@ SET DEBUG_SYNC= 'now SIGNAL cont_con1';
 # gone from both I_S and P_S, except it will remain in the
 # P_S event wait history.
 SELECT event_name, object_name, object_type, operation
-FROM performance_schema.events_waits_history
+FROM performance_schema.events_waits_history_long
 WHERE object_type LIKE 'TABLESPACE' AND object_name LIKE 'ts1';
 event_name	object_name	object_type	operation
 wait/lock/metadata/sql/mdl	ts1	TABLESPACE	metadata lock

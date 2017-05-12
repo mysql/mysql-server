@@ -1,6 +1,9 @@
 #include "mysql/psi/psi_error.h"
-#include "my_global.h"
+#include "my_macros.h"
+#include "my_psi_config.h"
+#include "my_sharedlib.h"
 #include "psi_base.h"
+#include "my_psi_config.h"
 typedef unsigned int PSI_mutex_key;
 typedef unsigned int PSI_rwlock_key;
 typedef unsigned int PSI_cond_key;
@@ -13,5 +16,3 @@ struct PSI_placeholder
 {
   int m_placeholder;
 };
-C_MODE_START
-C_MODE_END

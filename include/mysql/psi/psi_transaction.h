@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,7 +25,10 @@
   @{
 */
 
-#include "my_global.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
+#include "my_psi_config.h"  // IWYU pragma: keep
+#include "my_sharedlib.h"
 #include "psi_base.h"
 
 C_MODE_START
@@ -78,7 +81,7 @@ struct PSI_transaction_bootstrap
     @sa PSI_TRANSACTION_VERSION_2
     @sa PSI_CURRENT_TRANSACTION_VERSION
   */
-  void* (*get_interface)(int version);
+  void *(*get_interface)(int version);
 };
 typedef struct PSI_transaction_bootstrap PSI_transaction_bootstrap;
 
@@ -116,9 +119,9 @@ struct PSI_transaction_locker_state_v1
   /** Internal data. */
   void *m_transaction;
   /** True if read-only transaction, false if read-write. */
-  my_bool m_read_only;
+  bool m_read_only;
   /** True if transaction is autocommit. */
-  my_bool m_autocommit;
+  bool m_autocommit;
   /** Number of statements. */
   ulong m_statement_count;
   /** Total number of savepoints. */
@@ -140,10 +143,13 @@ typedef struct PSI_transaction_locker_state_v1 PSI_transaction_locker_state_v1;
   @param autocommit true if transaction is autocommit
   @return a transaction locker, or NULL
 */
-typedef struct PSI_transaction_locker* (*get_thread_transaction_locker_v1_t)
-  (struct PSI_transaction_locker_state_v1 *state, const void *xid,
-   const ulonglong *trxid, int isolation_level, my_bool read_only,
-   my_bool autocommit);
+typedef struct PSI_transaction_locker *(*get_thread_transaction_locker_v1_t)(
+  struct PSI_transaction_locker_state_v1 *state,
+  const void *xid,
+  const ulonglong *trxid,
+  int isolation_level,
+  bool read_only,
+  bool autocommit);
 
 /**
   Start a new transaction event.
@@ -151,9 +157,9 @@ typedef struct PSI_transaction_locker* (*get_thread_transaction_locker_v1_t)
   @param src_file source file name
   @param src_line source line number
 */
-typedef void (*start_transaction_v1_t)
-  (struct PSI_transaction_locker *locker,
-   const char *src_file, uint src_line);
+typedef void (*start_transaction_v1_t)(struct PSI_transaction_locker *locker,
+                                       const char *src_file,
+                                       uint src_line);
 
 /**
   Set the transaction xid.
@@ -161,18 +167,17 @@ typedef void (*start_transaction_v1_t)
   @param xid the id of the XA transaction
   @param xa_state the state of the XA transaction
 */
-typedef void (*set_transaction_xid_v1_t)
-  (struct PSI_transaction_locker *locker,
-   const void *xid, int xa_state);
+typedef void (*set_transaction_xid_v1_t)(struct PSI_transaction_locker *locker,
+                                         const void *xid,
+                                         int xa_state);
 
 /**
   Set the state of the XA transaction.
   @param locker the transaction locker for this event
   @param xa_state the new state of the xa transaction
 */
-typedef void (*set_transaction_xa_state_v1_t)
-  (struct PSI_transaction_locker *locker,
-   int xa_state);
+typedef void (*set_transaction_xa_state_v1_t)(
+  struct PSI_transaction_locker *locker, int xa_state);
 
 /**
   Set the transaction gtid.
@@ -180,51 +185,49 @@ typedef void (*set_transaction_xa_state_v1_t)
   @param sid the source id for the transaction, mapped from sidno
   @param gtid_spec the gtid specifier for the transaction
 */
-typedef void (*set_transaction_gtid_v1_t)
-  (struct PSI_transaction_locker *locker,
-   const void *sid, const void *gtid_spec);
+typedef void (*set_transaction_gtid_v1_t)(struct PSI_transaction_locker *locker,
+                                          const void *sid,
+                                          const void *gtid_spec);
 
 /**
   Set the transaction trx_id.
   @param locker the transaction locker for this event
   @param trxid the storage engine transaction ID
 */
-typedef void (*set_transaction_trxid_v1_t)
-  (struct PSI_transaction_locker *locker,
-   const ulonglong *trxid);
+typedef void (*set_transaction_trxid_v1_t)(
+  struct PSI_transaction_locker *locker, const ulonglong *trxid);
 
 /**
   Increment a transaction event savepoint count.
   @param locker the transaction locker
   @param count the increment value
 */
-typedef void (*inc_transaction_savepoints_v1_t)
-  (struct PSI_transaction_locker *locker, ulong count);
+typedef void (*inc_transaction_savepoints_v1_t)(
+  struct PSI_transaction_locker *locker, ulong count);
 
 /**
   Increment a transaction event rollback to savepoint count.
   @param locker the transaction locker
   @param count the increment value
 */
-typedef void (*inc_transaction_rollback_to_savepoint_v1_t)
-  (struct PSI_transaction_locker *locker, ulong count);
+typedef void (*inc_transaction_rollback_to_savepoint_v1_t)(
+  struct PSI_transaction_locker *locker, ulong count);
 
 /**
   Increment a transaction event release savepoint count.
   @param locker the transaction locker
   @param count the increment value
 */
-typedef void (*inc_transaction_release_savepoint_v1_t)
-  (struct PSI_transaction_locker *locker, ulong count);
+typedef void (*inc_transaction_release_savepoint_v1_t)(
+  struct PSI_transaction_locker *locker, ulong count);
 
 /**
   Commit or rollback the transaction.
   @param locker the transaction locker for this event
   @param commit true if transaction was committed, false if rolled back
 */
-typedef void (*end_transaction_v1_t)
-  (struct PSI_transaction_locker *locker,
-   my_bool commit);
+typedef void (*end_transaction_v1_t)(struct PSI_transaction_locker *locker,
+                                     bool commit);
 
 /**
   Performance Schema Transaction Interface, version 1.
@@ -247,7 +250,8 @@ struct PSI_transaction_service_v1
   /** @sa inc_transaction_savepoints_v1_t. */
   inc_transaction_savepoints_v1_t inc_transaction_savepoints;
   /** @sa inc_transaction_rollback_to_savepoint_v1_t. */
-  inc_transaction_rollback_to_savepoint_v1_t inc_transaction_rollback_to_savepoint;
+  inc_transaction_rollback_to_savepoint_v1_t
+    inc_transaction_rollback_to_savepoint;
   /** @sa inc_transaction_release_savepoint_v1_t. */
   inc_transaction_release_savepoint_v1_t inc_transaction_release_savepoint;
   /** @sa end_transaction_v1_t. */
@@ -274,4 +278,3 @@ extern MYSQL_PLUGIN_IMPORT PSI_transaction_service_t *psi_transaction_service;
 C_MODE_END
 
 #endif /* MYSQL_PSI_TRANSACTION_H */
-

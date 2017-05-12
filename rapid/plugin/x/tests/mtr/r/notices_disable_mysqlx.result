@@ -91,13 +91,13 @@ length(a)
 0 rows affected
 checking directly from IS tables
 VARIABLE_NAME	VARIABLE_VALUE
-MAX_JOIN_SIZE	18446744073709551615
+max_join_size	18446744073709551615
 0 rows affected
 VARIABLE_NAME	VARIABLE_VALUE
-CONCURRENT_INSERT	AUTO
+concurrent_insert	AUTO
 0 rows affected
 VARIABLE_NAME	VARIABLE_VALUE
-DEFAULT_STORAGE_ENGINE	InnoDB
+default_storage_engine	InnoDB
 0 rows affected
 checking errors and warnings with duplicate table
 
@@ -567,38 +567,5 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-# restart: --show_compatibility_56=ON
-Disable warnings notice and observe stats
-
-command ok
-expect Mysqlx_notice_other_sent=0,Mysqlx_stmt_disable_notices=1 with xconnection
-Variable_name	Value
-Mysqlx_notice_other_sent	1
-Mysqlx_notice_warning_sent	0
-Mysqlx_stmt_disable_notices	1
-Mysqlx_stmt_enable_notices	0
-Mysqlx_stmt_list_notices	0
-0 rows affected
-Disable account_expired notice and observe stats
-Got expected error: Cannot disable notice account_expired (code 5164)
-expect Mysqlx_notice_other_sent=0,Mysqlx_stmt_disable_notices=2 with xconnection
-Variable_name	Value
-Mysqlx_notice_other_sent	2
-Mysqlx_notice_warning_sent	0
-Mysqlx_stmt_disable_notices	2
-Mysqlx_stmt_enable_notices	0
-Mysqlx_stmt_list_notices	0
-0 rows affected
-Mysqlx.Ok {
-  msg: "bye!"
-}
-ok
-show status like 'Mysqlx%notice%';
-Variable_name	Value
-Mysqlx_notice_other_sent	3
-Mysqlx_notice_warning_sent	0
-Mysqlx_stmt_disable_notices	2
-Mysqlx_stmt_enable_notices	0
-Mysqlx_stmt_list_notices	0
 drop user xplugin@localhost;
 uninstall plugin mysqlx;

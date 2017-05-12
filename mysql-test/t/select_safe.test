@@ -11,8 +11,8 @@
 drop table if exists t1;
 --enable_warnings
 
-SET SQL_SAFE_UPDATES=1,SQL_SELECT_LIMIT=4, MAX_JOIN_SIZE=9;
-create table t1 (a int auto_increment primary key, b char(20));
+SET SQL_SAFE_UPDATES=1,SQL_SELECT_LIMIT=4, MAX_JOIN_SIZE=8;
+create table t1 (a int auto_increment primary key, b char(20)) charset utf8mb4;
 insert into t1 values(1,"test");
 SELECT SQL_BUFFER_RESULT * from t1;
 update t1 set b="a" where a=1;
@@ -33,7 +33,7 @@ delete from t1;
 delete from t1 where b="test";
 --error 1175
 delete from t1 where a+0=1;
---error 1104
+--error ER_TOO_BIG_SELECT
 select 1 from t1,t1 as t2,t1 as t3,t1 as t4,t1 as t5;
 
 # The following should be ok:
@@ -45,15 +45,15 @@ delete from t1 where a+0=1 limit 2;
 # Test SQL_BIG_SELECTS
 
 alter table t1 add key b (b);
-SET MAX_JOIN_SIZE=2;
+SET MAX_JOIN_SIZE=1;
 SELECT @@MAX_JOIN_SIZE, @@SQL_BIG_SELECTS;
 insert into t1 values (null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a");
---error 1104
+--error ER_TOO_BIG_SELECT
 SELECT * from t1 order by a;
 SET SQL_BIG_SELECTS=1;
 SELECT * from t1 order by a;
-SET MAX_JOIN_SIZE=2;
---error 1104
+SET MAX_JOIN_SIZE=1;
+--error ER_TOO_BIG_SELECT
 SELECT * from t1;
 SET MAX_JOIN_SIZE=DEFAULT;
 SELECT * from t1;
@@ -77,16 +77,16 @@ insert into t1 select * from t1;
 insert into t1 select * from t1;
 insert into t1 select * from t1;
 
-set local  max_join_size=8;
---error 1104
+set local  max_join_size=4;
+--error ER_TOO_BIG_SELECT
 select * from (select * from t1) x;
 
 set local  max_join_size=1;
---error 1104
+--error ER_TOO_BIG_SELECT
 select * from (select a.a as aa, b.a as ba from t1 a, t1 b) x;
 
 set local  max_join_size=1;
---error 1104
+--error ER_TOO_BIG_SELECT
 select * from (select 1 union select 2 union select 3) x;
 drop table t1;
 

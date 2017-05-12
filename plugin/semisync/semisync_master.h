@@ -1,5 +1,5 @@
 /* Copyright (C) 2007 Google Inc.
-   Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,12 @@
 #ifndef SEMISYNC_MASTER_H
 #define SEMISYNC_MASTER_H
 
+#include <sys/types.h>
+
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_psi_config.h"
 #include "semisync.h"
 
 extern PSI_memory_key key_ss_memory_TranxNodeAllocator_block;
@@ -466,6 +472,7 @@ public:
      if it is full.
 
      @param[in] size size of the container.
+     @param ackinfo Acknowledgement information
 
      @return 0 if succeeds, otherwise fails.
   */
@@ -792,13 +799,12 @@ public:
    * 
    * Input:
    *  net          - (IN)  the connection to master
-   *  server_id    - (IN)  master server id number
    *  event_buf    - (IN)  pointer to the event packet
    *
    * Return:
    *  0: success;  non-zero: error
    */
-  int readSlaveReply(NET *net, uint32 server_id, const char *event_buf);
+  int readSlaveReply(NET *net, const char *event_buf);
 
   /* In semi-sync replication, this method simulates the reception of
    * an reply and executes reportReplyBinlog directly when a transaction
@@ -865,7 +871,7 @@ public:
 };
 
 /* System and status variables for the master component */
-extern char rpl_semi_sync_master_enabled;
+extern bool rpl_semi_sync_master_enabled;
 extern char rpl_semi_sync_master_status;
 extern unsigned long rpl_semi_sync_master_clients;
 extern unsigned long rpl_semi_sync_master_timeout;
@@ -891,5 +897,5 @@ extern unsigned long long rpl_semi_sync_master_trx_wait_time;
      0           : stop waiting if detected no avaialable semi-sync slave.
      1 (default) : keep waiting until timeout even no available semi-sync slave.
 */
-extern char rpl_semi_sync_master_wait_no_slave;
+extern bool rpl_semi_sync_master_wait_no_slave;
 #endif /* SEMISYNC_MASTER_H */

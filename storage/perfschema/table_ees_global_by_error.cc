@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -18,20 +18,24 @@
   Table EVENTS_ERRORS_SUMMARY_GLOBAL_BY_EVENT_NAME (implementation).
 */
 
-#include "my_global.h"
+#include "storage/perfschema/table_ees_global_by_error.h"
+
+#include <stddef.h>
+
+#include "field.h"
+#include "my_dbug.h"
 #include "my_thread.h"
-#include "pfs_instr_class.h"
 #include "pfs_column_types.h"
 #include "pfs_column_values.h"
-#include "table_ees_global_by_error.h"
 #include "pfs_global.h"
 #include "pfs_instr.h"
+#include "pfs_instr_class.h"
 #include "pfs_timer.h"
 #include "pfs_visitor.h"
-#include "field.h"
 
 THR_LOCK table_ees_global_by_error::m_table_lock;
 
+/* clang-format off */
 static const TABLE_FIELD_TYPE field_types[]=
 {
   {
@@ -70,15 +74,13 @@ static const TABLE_FIELD_TYPE field_types[]=
     { NULL, 0}
   }
 };
+/* clang-format on */
 
 TABLE_FIELD_DEF
-table_ees_global_by_error::m_field_def=
-{ 7, field_types };
+table_ees_global_by_error::m_field_def = {7, field_types};
 
-PFS_engine_table_share
-table_ees_global_by_error::m_share=
-{
-  { C_STRING_WITH_LEN("events_errors_summary_global_by_error") },
+PFS_engine_table_share table_ees_global_by_error::m_share = {
+  {C_STRING_WITH_LEN("events_errors_summary_global_by_error")},
   &pfs_truncatable_acl,
   table_ees_global_by_error::create,
   NULL, /* write_row */
@@ -91,17 +93,20 @@ table_ees_global_by_error::m_share=
   false  /* perpetual */
 };
 
-bool PFS_index_ees_global_by_error::match_error_index(uint error_index)
+bool
+PFS_index_ees_global_by_error::match_error_index(uint error_index)
 {
   if (m_fields >= 1)
   {
     if (!m_key.match_error_index(error_index))
+    {
       return false;
+    }
   }
   return true;
 }
 
-PFS_engine_table*
+PFS_engine_table *
 table_ees_global_by_error::create(void)
 {
   return new table_ees_global_by_error();
@@ -125,32 +130,35 @@ table_ees_global_by_error::get_row_count(void)
 }
 
 table_ees_global_by_error::table_ees_global_by_error()
-  : PFS_engine_table(&m_share, &m_pos),
-    m_row_exists(false), m_pos(), m_next_pos()
-{}
+  : PFS_engine_table(&m_share, &m_pos), m_pos(), m_next_pos()
+{
+}
 
-void table_ees_global_by_error::reset_position(void)
+void
+table_ees_global_by_error::reset_position(void)
 {
   m_pos.reset();
   m_next_pos.reset();
 }
 
-int table_ees_global_by_error::rnd_init(bool scan)
+int
+table_ees_global_by_error::rnd_init(bool)
 {
   return 0;
 }
 
-int table_ees_global_by_error::rnd_next(void)
+int
+table_ees_global_by_error::rnd_next(void)
 {
   m_pos.set_at(&m_next_pos);
 
-  for ( ;
-       m_pos.has_more_error();
-       m_pos.next_error())
+  for (; m_pos.has_more_error(); m_pos.next_error())
   {
-    make_row(m_pos.m_index);
-    m_next_pos.set_after(&m_pos);
-    return 0;
+    if (!make_row(m_pos.m_index))
+    {
+      m_next_pos.set_after(&m_pos);
+      return 0;
+    }
   }
 
   return HA_ERR_END_OF_FILE;
@@ -161,51 +169,52 @@ table_ees_global_by_error::rnd_pos(const void *pos)
 {
   set_position(pos);
 
-  for ( ;
-       m_pos.has_more_error();
-       m_pos.next_error())
+  for (; m_pos.has_more_error(); m_pos.next_error())
   {
-    make_row(m_pos.m_index);
-    return 0;
+    if (!make_row(m_pos.m_index))
+    {
+      return 0;
+    }
   }
 
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_ees_global_by_error::index_init(uint idx, bool sorted)
+int
+table_ees_global_by_error::index_init(uint idx, bool)
 {
-  PFS_index_ees_global_by_error *result= NULL;
+  PFS_index_ees_global_by_error *result = NULL;
   DBUG_ASSERT(idx == 0);
-  result= PFS_NEW(PFS_index_ees_global_by_error);
-  m_opened_index= result;
-  m_index= result;
+  result = PFS_NEW(PFS_index_ees_global_by_error);
+  m_opened_index = result;
+  m_index = result;
   return 0;
 }
 
-int table_ees_global_by_error::index_next(void)
+int
+table_ees_global_by_error::index_next(void)
 {
   m_pos.set_at(&m_next_pos);
 
-  for ( ;
-       m_pos.has_more_error();
-       m_pos.next_error())
+  for (; m_pos.has_more_error(); m_pos.next_error())
   {
     if (m_opened_index->match_error_index(m_pos.m_index))
     {
-      make_row(m_pos.m_index);
-      m_next_pos.set_after(&m_pos);
-      return 0;
+      if (!make_row(m_pos.m_index))
+      {
+        m_next_pos.set_after(&m_pos);
+        return 0;
+      }
     }
   }
 
   return HA_ERR_END_OF_FILE;
 }
 
-void table_ees_global_by_error
-::make_row(int error_index)
+int
+table_ees_global_by_error::make_row(int error_index)
 {
-  PFS_error_class *klass= & global_error_class;
-  m_row_exists= false;
+  PFS_error_class *klass = &global_error_class;
 
   PFS_connection_error_visitor visitor(klass, error_index);
   PFS_connection_iterator::visit_global(true,  /* hosts */
@@ -213,35 +222,36 @@ void table_ees_global_by_error
                                         true,  /* accounts */
                                         true,  /* threads */
                                         false, /* THDs */
-                                        & visitor);
+                                        &visitor);
 
-  m_row_exists= true;
+  m_row.m_stat.set(&visitor.m_stat, error_index);
 
-  m_row.m_stat.set(& visitor.m_stat, error_index);
+  return 0;
 }
 
-int table_ees_global_by_error
-::read_row_values(TABLE *table, unsigned char *buf, Field **fields,
-                  bool read_all)
+int
+table_ees_global_by_error::read_row_values(TABLE *table,
+                                           unsigned char *buf,
+                                           Field **fields,
+                                           bool read_all)
 {
   Field *f;
-  server_error *temp_error= NULL;
-
-  if (unlikely(! m_row_exists))
-    return HA_ERR_RECORD_DELETED;
+  server_error *temp_error = NULL;
 
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 1);
-  buf[0]= 0;
+  buf[0] = 0;
 
-  if (m_row.m_stat.m_error_index > 0 && m_row.m_stat.m_error_index < PFS_MAX_SERVER_ERRORS)
-    temp_error= & error_names_array[pfs_to_server_error_map[m_row.m_stat.m_error_index]];
+  if (m_row.m_stat.m_error_index > 0 &&
+      m_row.m_stat.m_error_index < PFS_MAX_SERVER_ERRORS)
+    temp_error =
+      &error_names_array[pfs_to_server_error_map[m_row.m_stat.m_error_index]];
 
-  for (; (f= *fields) ; fields++)
+  for (; (f = *fields); fields++)
   {
     if (read_all || bitmap_is_set(table->read_set, f->field_index))
     {
-      switch(f->field_index)
+      switch (f->field_index)
       {
       case 0: /* ERROR NUMBER */
       case 1: /* ERROR NAME */
@@ -263,4 +273,3 @@ int table_ees_global_by_error
 
   return 0;
 }
-

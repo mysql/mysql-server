@@ -1,6 +1,6 @@
 #ifndef DD_TABLE_SHARE_INCLUDED
 #define DD_TABLE_SHARE_INCLUDED
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,18 +15,19 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_global.h"
+#include <sys/types.h>
 
-#include "my_sys.h"                  // get_charset
 #include "binary_log_types.h"        // enum_field_types
-
 #include "dd/object_id.h"            // dd::Object_id
+#include "m_ctype.h"
+#include "my_inttypes.h"
+#include "my_sys.h"                  // get_charset
 
 class THD;
 struct TABLE_SHARE;
+
 typedef struct charset_info_st CHARSET_INFO;
 namespace dd {
-  class Column;
   class Table;
   enum class enum_column_types;
 }
@@ -67,6 +68,7 @@ static inline CHARSET_INFO *dd_get_mysql_charset(dd::Object_id dd_cs_id)
 
 class Field;
 class KEY_PART_INFO;
+
 /*
   Check if the given key_part is suitable to be promoted as part of
   primary key.

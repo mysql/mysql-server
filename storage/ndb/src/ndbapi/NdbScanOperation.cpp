@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1925,6 +1925,9 @@ NdbScanOperation::nextResultNdbRecord(const char * & out_row,
         last+= cnt;
         theImpl->incClientStat(Ndb::ScanBatchCount, cnt);
         m_conf_receivers_count= 0;
+        if (sent > 0) {
+          theImpl->flush_send_buffers();
+        }
       }
       else if (retVal == 2 && sent > 0)
       {
@@ -2341,6 +2344,7 @@ int NdbScanOperation::prepareSendScan(Uint32 aTC_ConnectPtr,
   Uint32 reqInfo = req->requestInfo;
   ScanTabReq::setKeyinfoFlag(reqInfo, keyInfo);
   ScanTabReq::setNoDiskFlag(reqInfo, (m_flags & OF_NO_DISK) != 0);
+  ScanTabReq::setReadCommittedBaseFlag(reqInfo, theReadCommittedBaseIndicator);
 
   /* Set distribution key info if required */
   ScanTabReq::setDistributionKeyFlag(reqInfo, theDistrKeyIndicator_);
@@ -2515,7 +2519,9 @@ NdbScanOperation::doSendScan(int aProcessorId)
     Uint32 attrInfoLen = secs[1].sz;
     Uint32 keyInfoLen = (numSections == 3)? secs[2].sz : 0;
 
-    ScanTabReq* scanTabReq = (ScanTabReq*) theSCAN_TABREQ->getDataPtrSend();
+    ScanTabReq * scanTabReq = CAST_PTR(ScanTabReq,
+                                theSCAN_TABREQ->getDataPtrSend());
+
     Uint32 connectPtr = scanTabReq->apiConnectPtr;
     Uint32 transId1 = scanTabReq->transId1;
     Uint32 transId2 = scanTabReq->transId2;
@@ -2824,7 +2830,7 @@ NdbScanOperation::takeOverScanOpNdbRecord(OperationType opType,
   AttributeMask readMask;
   record->copyMask(readMask.rep.data, mask);
 
-  if (opType == ReadRequest)
+  if (opType == ReadRequest || opType == ReadExclusive)
   {
     op->theLockMode= theLockMode;
     /*
@@ -2860,6 +2866,7 @@ NdbScanOperation::takeOverScanOpNdbRecord(OperationType opType,
   switch (opType)
   {
   case ReadRequest:
+  case ReadExclusive:
   case UpdateRequest:
     if (unlikely(record->flags & NdbRecord::RecHasBlob))
     {
@@ -4138,7 +4145,14 @@ NdbScanOperation::lockCurrentTuple(NdbTransaction *takeOverTrans,
     bzero(empty_mask, sizeof(empty_mask));
     result_mask= &empty_mask[0];
   }
-  return takeOverScanOpNdbRecord(NdbOperation::ReadRequest, takeOverTrans,
+  OperationType takeoverOpType = NdbOperation::ReadRequest;
+
+  if (theLockMode == LM_Exclusive)
+  {
+    takeoverOpType = NdbOperation::ReadExclusive;
+  }
+    
+  return takeOverScanOpNdbRecord(takeoverOpType, takeOverTrans,
                                  result_rec, result_row, 
                                  result_mask, opts, sizeOfOptions);
 }

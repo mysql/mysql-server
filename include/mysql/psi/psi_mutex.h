@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,7 +25,10 @@
   @{
 */
 
-#include "my_global.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
+#include "my_psi_config.h"  // IWYU pragma: keep
+#include "my_sharedlib.h"
 #include "psi_base.h"
 
 /*
@@ -92,7 +95,7 @@ struct PSI_mutex_bootstrap
     @sa PSI_MUTEX_VERSION_2
     @sa PSI_CURRENT_MUTEX_VERSION
   */
-  void* (*get_interface)(int version);
+  void *(*get_interface)(int version);
 };
 typedef struct PSI_mutex_bootstrap PSI_mutex_bootstrap;
 
@@ -109,9 +112,9 @@ typedef struct PSI_mutex_locker PSI_mutex_locker;
 enum PSI_mutex_operation
 {
   /** Lock. */
-  PSI_MUTEX_LOCK= 0,
+  PSI_MUTEX_LOCK = 0,
   /** Lock attempt. */
-  PSI_MUTEX_TRYLOCK= 1
+  PSI_MUTEX_TRYLOCK = 1
 };
 typedef enum PSI_mutex_operation PSI_mutex_operation;
 
@@ -173,8 +176,9 @@ typedef struct PSI_mutex_locker_state_v1 PSI_mutex_locker_state_v1;
   @param info an array of mutex info to register
   @param count the size of the info array
 */
-typedef void (*register_mutex_v1_t)
-  (const char *category, struct PSI_mutex_info_v1 *info, int count);
+typedef void (*register_mutex_v1_t)(const char *category,
+                                    struct PSI_mutex_info_v1 *info,
+                                    int count);
 
 /**
   Mutex instrumentation initialisation API.
@@ -182,8 +186,8 @@ typedef void (*register_mutex_v1_t)
   @param identity the address of the mutex itself
   @return an instrumented mutex
 */
-typedef struct PSI_mutex* (*init_mutex_v1_t)
-  (PSI_mutex_key key, const void *identity);
+typedef struct PSI_mutex *(*init_mutex_v1_t)(PSI_mutex_key key,
+                                             const void *identity);
 
 /**
   Mutex instrumentation destruction API.
@@ -195,8 +199,7 @@ typedef void (*destroy_mutex_v1_t)(struct PSI_mutex *mutex);
   Record a mutex instrumentation unlock event.
   @param mutex the mutex instrumentation
 */
-typedef void (*unlock_mutex_v1_t)
-  (struct PSI_mutex *mutex);
+typedef void (*unlock_mutex_v1_t)(struct PSI_mutex *mutex);
 
 /**
   Record a mutex instrumentation wait start event.
@@ -207,19 +210,19 @@ typedef void (*unlock_mutex_v1_t)
   @param src_line the source line number
   @return a mutex locker, or NULL
 */
-typedef struct PSI_mutex_locker* (*start_mutex_wait_v1_t)
-  (struct PSI_mutex_locker_state_v1 *state,
-   struct PSI_mutex *mutex,
-   enum PSI_mutex_operation op,
-   const char *src_file, uint src_line);
+typedef struct PSI_mutex_locker *(*start_mutex_wait_v1_t)(
+  struct PSI_mutex_locker_state_v1 *state,
+  struct PSI_mutex *mutex,
+  enum PSI_mutex_operation op,
+  const char *src_file,
+  uint src_line);
 
 /**
   Record a mutex instrumentation wait end event.
   @param locker a thread locker for the running thread
   @param rc the wait operation return code
 */
-typedef void (*end_mutex_wait_v1_t)
-  (struct PSI_mutex_locker *locker, int rc);
+typedef void (*end_mutex_wait_v1_t)(struct PSI_mutex_locker *locker, int rc);
 
 /**
   Performance Schema Mutex Interface, version 1.
@@ -268,4 +271,3 @@ extern MYSQL_PLUGIN_IMPORT PSI_mutex_service_t *psi_mutex_service;
 C_MODE_END
 
 #endif /* MYSQL_PSI_MUTEX_H */
-

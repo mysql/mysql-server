@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,10 +16,17 @@
 #ifndef STRFUNC_INCLUDED
 #define STRFUNC_INCLUDED
 
-#include "my_global.h"                          /* ulonglong, uint */
+#include <stddef.h>
+#include <sys/types.h>
+#include <utility>
+
+#include "lex_string.h"
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_inttypes.h"
+#include "mysql/mysql_lex_string.h"             // MYSQL_LEX_CSTRING
 
 typedef struct charset_info_st CHARSET_INFO;
-typedef struct st_mysql_lex_string LEX_STRING;
 typedef struct st_typelib TYPELIB;
 class THD;
 
@@ -53,6 +60,58 @@ inline int hexchar_to_int(char c)
   if (c <= 'f' && c >= 'a')
     return c-'a'+10;
   return -1;
+}
+
+
+/**
+  Return a LEX_CSTRING handle to a std::string like (meaning someting
+  which has the c_str() and length() member functions). Note that the
+  std::string-like object retains ownership of the character array,
+  and consquently the returned LEX_CSTRING is only valid as long as the
+  std::string-like object is valid.
+
+  @param s std::string-like object
+
+  @return LEX_CSTRING handle to string
+*/
+template <class STDSTRINGLIKE_TYPE>
+MYSQL_LEX_CSTRING lex_cstring_handle(const STDSTRINGLIKE_TYPE &s)
+{
+  return { s.c_str(), s.length() };
+}
+
+
+/**
+  Lowercase a string according to charset.
+
+  @param ci pointer to charset for conversion
+  @param s string to lower-case
+  @retval modified argument if r-value
+  @retval copy of modified argument if lvalue (meaningless, don't use)
+ */
+template <class STRLIKE_TYPE>
+STRLIKE_TYPE casedn(const CHARSET_INFO *ci,
+                    STRLIKE_TYPE &&s)
+{
+  s.resize(ci->casedn_multiply * s.size());
+  s.resize(my_casedn_str(ci, &s.front()));
+  return std::forward<STRLIKE_TYPE>(s);
+}
+
+
+/**
+  Lowercase a string according to charset. Overload for const T& which
+  copies argument and forwards to T&& overload.
+
+  @param ci pointer to charset for conversion
+  @param src string to lower-case
+  @retval modified copy of argument
+ */
+
+template <class STRLIKE_TYPE>
+STRLIKE_TYPE casedn(const CHARSET_INFO *ci, const STRLIKE_TYPE &src)
+{
+  return casedn(ci, STRLIKE_TYPE {src});
 }
 
 #endif /* STRFUNC_INCLUDED */

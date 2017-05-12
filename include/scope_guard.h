@@ -16,9 +16,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 #ifndef SCOPE_GUARD_H
 #define SCOPE_GUARD_H
 
-#include <memory>
-#include <vector>
-
 template <typename TLambda>
 class Scope_guard
 {
@@ -58,7 +55,7 @@ private:
 template <typename TLambda>
 Scope_guard<TLambda> create_scope_guard(const TLambda rollback_lambda)
 {
-  return std::move(Scope_guard<TLambda>(rollback_lambda));
+  return Scope_guard<TLambda>(rollback_lambda);
 }
 
 #endif /* SCOPE_GUARD_H */

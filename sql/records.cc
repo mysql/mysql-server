@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,14 +20,31 @@
   Functions for easy reading of records, possible through a cache
 */
 
-#include "records.h"
-#include "sql_list.h"
+#include "sql/records.h"
+
+#include <string.h>
+
+#include "field.h"
 #include "filesort.h"            // filesort_free_buffers
+#include "handler.h"
+#include "item.h"
+#include "my_byteorder.h"
+#include "my_dbug.h"
+#include "my_pointer_arithmetic.h"
+#include "my_sys.h"
+#include "my_thread_local.h"
+#include "mysql/service_mysql_alloc.h"
 #include "opt_range.h"           // QUICK_SELECT_I
-#include "sql_class.h"           // THD
-#include "sql_executor.h"        // QEP_TAB
-#include "sql_select.h"          // JOIN_TAB
 #include "psi_memory_key.h"
+#include "sort_param.h"
+#include "sql_class.h"           // THD
+#include "sql_const.h"
+#include "sql_executor.h"        // QEP_TAB
+#include "sql_sort.h"
+#include "sql_string.h"
+#include "system_variables.h"
+#include "table.h"
+#include "thr_lock.h"
 
 static int rr_quick(READ_RECORD *info);
 static int rr_from_tempfile(READ_RECORD *info);
@@ -74,7 +91,6 @@ bool init_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table,
   info->print_error= print_error;
   info->unlock_row= rr_unlock_row;
 
-  table->status=0;			/* And it's always found */
   if (!table->file->inited &&
       (error= table->file->ha_index_init(idx, 1)))
   {
@@ -216,8 +232,8 @@ bool init_read_record(READ_RECORD *info,THD *thd,
   info->print_error=print_error;
   info->unlock_row= rr_unlock_row;
   info->ignore_not_found_rows= 0;
-  table->status=0;			/* And it's always found */
 
+  // Initialize for a scan over a set of rows
   if (info->quick && info->quick->clustered_pk_range())
   {
     /*
@@ -655,6 +671,10 @@ static int rr_from_pointers(READ_RECORD *info)
   @tparam Packed_addon_fields Are the addon fields packed?
      This is a compile-time constant, to avoid if (....) tests during execution.
 
+  TODO: consider templatizing on is_varlen as well.
+  Variable / Fixed size key is currently handled by
+  Filesort_info::get_start_of_payload
+
   @retval
     0   Record successfully read.
   @retval
@@ -668,8 +688,8 @@ static int rr_unpack_from_buffer(READ_RECORD *info)
 
   uchar *record= info->table->sort.get_sorted_record(
     static_cast<uint>(info->unpack_counter));
-  uchar *plen= record + info->table->sort.get_sort_length();
-  info->table->sort.unpack_addon_fields<Packed_addon_fields>(plen);
+  uchar *payload= get_start_of_payload(&info->table->sort, record);
+  info->table->sort.unpack_addon_fields<Packed_addon_fields>(payload);
   info->unpack_counter++;
   return 0;
 }

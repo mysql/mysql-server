@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -43,10 +43,11 @@ protected:
 
 public:
   ~table_session_account_connect_attrs()
-  {}
+  {
+  }
 
 protected:
-  virtual bool thread_fits(PFS_thread *thread);
+  virtual bool thread_fits(PFS_thread* thread);
 
 private:
   /** Table share lock. */

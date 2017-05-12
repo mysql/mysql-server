@@ -1,7 +1,7 @@
 #ifndef SQL_AUDIT_INCLUDED
 #define SQL_AUDIT_INCLUDED
 
-/* Copyright (c) 2007, 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,9 +16,16 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_global.h"
+#include <string.h>
+
+#include "m_string.h"
+#include "my_command.h"
 #include "mysql/plugin_audit.h"
+#include "sql_plugin.h"
 #include "sql_security_ctx.h"       // Security_context
+
+class THD;
+struct TABLE_LIST;
 
 static const size_t MAX_USER_HOST_SIZE= 512;
 
@@ -47,7 +54,6 @@ static inline size_t make_user_name(Security_context *sctx, char *buf)
                              - buf);
 }
 
-#ifndef EMBEDDED_LIBRARY
 struct st_plugin_int;
 
 int initialize_audit_plugin(st_plugin_int *plugin);
@@ -67,32 +73,16 @@ void mysql_audit_release(THD *thd);
 
   @param[in] thd              Current thread data.
   @param[in] subclass         Type of general audit event.
+  @param[in] subclass_name    Subclass name.
   @param[in] error_code       Error code
   @param[in] msg              Message
-  @param[in] msg_len          Message length
+  @param[in] msg_len          Message length.
 
   @return Value returned is not taken into consideration by the server.
 */
 int mysql_audit_notify(THD *thd, mysql_event_general_subclass_t subclass,
+                       const char* subclass_name,
                        int error_code, const char *msg, size_t msg_len);
-/**
-  Call audit plugins of GENERAL audit class.
-
-  @param[in] thd              Current thread data.
-  @param[in] event_subtype    Type of general audit event.
-  @param[in] error_code       Error code
-  @param[in] msg              Message
-
-  @return Value returned is not taken into consideration by the server.
-*/
-inline static
-int mysql_audit_general(THD *thd, mysql_event_general_subclass_t event_subtype,
-                        int error_code, const char *msg)
-{
-  return mysql_audit_notify(thd, event_subtype, error_code,
-                            msg, msg ? strlen(msg) : 0);
-}
-
 /**
   Call audit plugins of GENERAL LOG audit class.
 
@@ -105,7 +95,8 @@ int mysql_audit_general(THD *thd, mysql_event_general_subclass_t event_subtype,
 inline static
 int mysql_audit_general_log(THD *thd, const char *cmd, size_t cmdlen)
 {
-  return mysql_audit_notify(thd, MYSQL_AUDIT_GENERAL_LOG, 0, cmd, cmdlen);
+  return mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_GENERAL_LOG),
+                            0, cmd, cmdlen);
 }
 
 /**
@@ -298,5 +289,4 @@ int mysql_audit_notify(THD *thd,
                        const char *name,
                        void *parameters);
 
-#endif /* !EMBEDDED_LIBRARY */
 #endif /* SQL_AUDIT_INCLUDED */

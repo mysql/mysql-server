@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,9 +16,8 @@
 #ifndef DD__OBJECT_TABLE_INCLUDED
 #define DD__OBJECT_TABLE_INCLUDED
 
-#include "my_global.h"
-
-#include <string>
+#include "dd/string_type.h"                    // dd::String_type
+#include "my_inttypes.h"
 
 class THD;
 
@@ -44,7 +43,7 @@ class Object_table_definition;
 class Object_table
 {
 public:
-  virtual const std::string &name() const = 0;
+  virtual const String_type &name() const = 0;
 
   /**
     Get the definition for the dictionary table for the submitted

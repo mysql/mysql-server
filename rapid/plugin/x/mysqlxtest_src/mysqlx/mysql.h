@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -20,7 +20,8 @@
 #ifndef _MYSQLX_H_
 #define _MYSQLX_H_
 
-typedef char my_bool;
+#include <stdbool.h>
+
 #if !defined(_WIN32)
 #define STDCALL
 #else
@@ -98,8 +99,8 @@ typedef struct st_mysql_res {
   MYSQL_ROW     row;
   MYSQL_ROW     current_row;
   unsigned int  field_count, current_field;
-  my_bool       eof;
-  my_bool       unbuffered_fetch_cancelled;
+  bool       eof;
+  bool       unbuffered_fetch_cancelled;
 } MYSQL_RES;
 
 
@@ -110,7 +111,7 @@ typedef struct st_mysql_res {
 unsigned int STDCALL mysql_num_fields(MYSQL_RES *res);
 my_ulonglong STDCALL mysql_num_rows(MYSQL_RES *res);
 unsigned int STDCALL mysql_num_fields(MYSQL_RES *res);
-my_bool STDCALL mysql_eof(MYSQL_RES *res);
+bool STDCALL mysql_eof(MYSQL_RES *res);
 MYSQL_FIELD *STDCALL mysql_fetch_field_direct(MYSQL_RES *res,
                                               unsigned int fieldnr);
 MYSQL_FIELD * STDCALL mysql_fetch_fields(MYSQL_RES *res);
@@ -134,12 +135,12 @@ int          STDCALL mysql_set_character_set(MYSQL *mysql, const char *csname);
 
 
 MYSQL *         STDCALL mysql_init(MYSQL *mysql);
-my_bool         STDCALL mysql_ssl_set(MYSQL *mysql, const char *key,
-                                      const char *cert, const char *ca,
-                                      const char *capath, const char *cipher);
+bool         STDCALL mysql_ssl_set(MYSQL *mysql, const char *key,
+                                   const char *cert, const char *ca,
+                                   const char *capath, const char *cipher);
 const char *    STDCALL mysql_get_ssl_cipher(MYSQL *mysql);
-my_bool         STDCALL mysql_change_user(MYSQL *mysql, const char *user,
-                                          const char *passwd, const char *db);
+bool         STDCALL mysql_change_user(MYSQL *mysql, const char *user,
+                                       const char *passwd, const char *db);
 MYSQL *         STDCALL mysql_real_connect(MYSQL *mysql, const char *host,
                                            const char *user,
                                            const char *passwd,

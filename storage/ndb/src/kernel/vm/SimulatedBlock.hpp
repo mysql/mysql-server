@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -40,7 +40,6 @@
 #include <ErrorHandlingMacros.hpp>
 
 #include "IntrusiveList.hpp"
-#include "ArrayPool.hpp"
 #include "DLHashTable.hpp"
 #include "WOPool.hpp"
 #include "RWPool.hpp"
@@ -119,6 +118,16 @@ struct PackedWordsContainer
   Uint32 noOfPackedWords;
   Uint32 packedWords[30];
 }; // 128 bytes
+
+#define LIGHT_LOAD_CONST 0
+#define MEDIUM_LOAD_CONST 1
+#define OVERLOAD_CONST 2
+enum OverloadStatus
+{
+  LIGHT_LOAD = LIGHT_LOAD_CONST,
+  MEDIUM_LOAD = MEDIUM_LOAD_CONST,
+  OVERLOAD = OVERLOAD_CONST
+};
 
 /**
   Description of NDB Software Architecture
@@ -485,6 +494,7 @@ public:
     EmulatedJamBuffer* jamBuffer;
     Uint32 * watchDogCounter;
     SectionSegmentPool::Cache * sectionPoolCache;
+    NDB_TICKS* pHighResTimer;
   };
   /* Setup state of a block object for executing in a particular thread. */
   void assignToThread(ThreadContext ctx);
@@ -531,6 +541,7 @@ public:
    * via DI*GET*NODES*REQ signals.
    */
   static Uint32 getInstanceKey(Uint32 tabId, Uint32 fragId);
+  static Uint32 getInstanceKeyCanFail(Uint32 tabId, Uint32 fragId);
   static Uint32 getInstanceFromKey(Uint32 instanceKey); // local use only
 
   /**
@@ -571,7 +582,9 @@ private:
     Uint32 m_cnt;
     Uint32 nextPool;
   };
-  ArrayPool<SyncThreadRecord> c_syncThreadPool;
+  typedef ArrayPool<SyncThreadRecord> SyncThreadRecord_pool;
+
+  SyncThreadRecord_pool c_syncThreadPool;
   void execSYNC_THREAD_REQ(Signal*);
   void execSYNC_THREAD_CONF(Signal*);
 
@@ -584,6 +597,7 @@ public:
 
   void EXECUTE_DIRECT(ExecFunction f,
                       Signal *signal);
+
 protected:
   static Callback TheEmptyCallback;
   void TheNULLCallbackFunction(class Signal*, Uint32, Uint32);
@@ -591,10 +605,45 @@ protected:
   void execute(Signal* signal, Callback & c, Uint32 returnCode);
   
 
+  /**
+   * Various methods to get data from ndbd/ndbmtd such as time
+   * spent in sleep, sending and executing, number of signals
+   * in queue, and send buffer level.
+   *
+   * Also retrieving a thread name (this name must be pointing to a
+   * static pointer since it will be stored and kept for a long
+   * time. So the pointer cannot be changed.
+   *
+   * Finally also the ability to query for send thread information.
+   */
   void getSendBufferLevel(NodeId node, SB_LevelType &level);
   Uint32 getSignalsInJBB();
+  void setOverloadStatus(OverloadStatus new_status);
+  void setWakeupThread(Uint32 wakeup_instance);
+  void setNodeOverloadStatus(OverloadStatus new_status);
+  void setSendNodeOverloadStatus(OverloadStatus new_status);
+  void setNeighbourNode(NodeId node);
+  void getPerformanceTimers(Uint64 &micros_sleep,
+                            Uint64 &spin_time,
+                            Uint64 &buffer_full_micros_sleep,
+                            Uint64 &micros_send);
+  void getSendPerformanceTimers(Uint32 send_instance,
+                                Uint64 & exec_time,
+                                Uint64 & sleep_time,
+                                Uint64 & spin_time,
+                                Uint64 & user_time_os,
+                                Uint64 & kernel_time_os,
+                                Uint64 & elapsed_time_os);
+  Uint32 getSpintime();
+  Uint32 getNumSendThreads();
+  Uint32 getNumThreads();
+  const char * getThreadName();
+  const char * getThreadDescription();
 
-  NDB_TICKS getHighResTimer();
+  NDB_TICKS getHighResTimer() const 
+  {
+    return *m_pHighResTimer;
+  }
 
   /**********************************************************
    * Send signal - dialects
@@ -877,7 +926,9 @@ protected:
               ( m_sectionPtrI[2] == RNIL ) );
     }
   }; // sizeof() = 32 bytes
-  
+  typedef ArrayPool<FragmentInfo> FragmentInfo_pool;
+  typedef DLHashTable<FragmentInfo_pool, FragmentInfo> FragmentInfo_hash;
+
   /**
    * Struct used when sending fragmented signals
    */
@@ -916,6 +967,8 @@ protected:
     };
     Uint32 prevList;
   };
+  typedef ArrayPool<FragmentSendInfo> FragmentSendInfo_pool;
+  typedef DLList<FragmentSendInfo, FragmentSendInfo_pool> FragmentSendInfo_list;
   
   /**
    * sendFirstFragment
@@ -979,7 +1032,7 @@ protected:
    * If the cause of the shutdown is known use extradata to add an 
    * errormessage describing the problem
    */
-  void progError(int line, int err_code, const char* extradata=NULL) const
+  void progError(int line, int err_code, const char* extradata=NULL, const char* check="") const
     ATTRIBUTE_NORETURN;
 private:
   void  signal_error(Uint32, Uint32, Uint32, const char*, int) const
@@ -1011,6 +1064,9 @@ private:
   EmulatedJamBuffer *m_jamBuffer;
   /* For multithreaded ndb, the thread-specific watchdog counter. */
   Uint32 *m_watchDogCounter;
+
+  /* Read-only high res timer pointer */
+  const NDB_TICKS* m_pHighResTimer;
 
   SectionSegmentPool::Cache * m_sectionPoolCache;
   
@@ -1166,8 +1222,8 @@ private:
   Uint16       theBATSize;     /* # entries in BAT */
 
 protected:  
-  SafeArrayPool<GlobalPage>& m_global_page_pool;
-  ArrayPool<GlobalPage>& m_shared_page_pool;
+  GlobalPage_safepool& m_global_page_pool;
+  GlobalPage_pool& m_shared_page_pool;
   
   void execNDB_TAMPER(Signal * signal);
   void execNODE_STATE_REP(Signal* signal);
@@ -1187,13 +1243,13 @@ private:
   NodeState theNodeState;
 
   Uint32 c_fragmentIdCounter;
-  ArrayPool<FragmentInfo> c_fragmentInfoPool;
-  DLHashTable<FragmentInfo> c_fragmentInfoHash;
+  FragmentInfo_pool c_fragmentInfoPool;
+  FragmentInfo_hash c_fragmentInfoHash;
   
   bool c_fragSenderRunning;
-  ArrayPool<FragmentSendInfo> c_fragmentSendPool;
-  DLList<FragmentSendInfo> c_linearFragmentSendList;
-  DLList<FragmentSendInfo> c_segmentedFragmentSendList;
+  FragmentSendInfo_pool c_fragmentSendPool;
+  FragmentSendInfo_list c_linearFragmentSendList;
+  FragmentSendInfo_list c_segmentedFragmentSendList;
 
 protected:
   Uint32 debugPrintFragmentCounts();
@@ -1225,11 +1281,13 @@ public:
       Uint32 prevList;
     };
     typedef Ptr<ActiveMutex> ActiveMutexPtr;
+    typedef ArrayPool<ActiveMutex> ActiveMutex_pool;
+    typedef DLList<ActiveMutex, ActiveMutex_pool> ActiveMutex_list;
     
     bool seize(ActiveMutexPtr& ptr);
     void release(Uint32 activeMutexPtrI);
     
-    void getPtr(ActiveMutexPtr& ptr);
+    void getPtr(ActiveMutexPtr& ptr) const;
     
     void create(Signal*, ActiveMutexPtr&);
     void destroy(Signal*, ActiveMutexPtr&);
@@ -1247,13 +1305,14 @@ public:
     void execUTIL_UNLOCK_CONF(Signal* signal);
     
     SimulatedBlock & m_block;
-    ArrayPool<ActiveMutex> m_mutexPool;
-    DLList<ActiveMutex> m_activeMutexes;
+    ActiveMutex_pool m_mutexPool;
+    ActiveMutex_list m_activeMutexes;
     
     BlockReference reference() const;
     void progError(int line,
                    int err_code,
-                   const char* extra = 0) ATTRIBUTE_NORETURN;
+                   const char* extra = 0,
+                   const char* check = "") ATTRIBUTE_NORETURN;
   };
   
   friend class MutexManager;
@@ -1356,6 +1415,32 @@ public:
   void debugOutUnlock() { globalSignalLoggers.unlock(); }
   const char* debugOutTag(char* buf, int line);
 #endif
+
+  const char* getPartitionBalanceString(Uint32 fct)
+  {
+    switch (fct)
+    {
+      case NDB_PARTITION_BALANCE_SPECIFIC:
+        return "NDB_PARTITION_BALANCE_SPECIFIC";
+      case NDB_PARTITION_BALANCE_FOR_RA_BY_NODE:
+        return "NDB_PARTITION_BALANCE_FOR_RA_BY_NODE";
+      case NDB_PARTITION_BALANCE_FOR_RP_BY_NODE:
+        return "NDB_PARTITION_BALANCE_FOR_RP_BY_NODE";
+      case NDB_PARTITION_BALANCE_FOR_RP_BY_LDM:
+        return "NDB_PARTITION_BALANCE_FOR_RP_BY_LDM";
+      case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM:
+        return "NDB_PARTITION_BALANCE_FOR_RA_BY_LDM";
+      case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_2:
+        return "NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_2";
+      case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_3:
+        return "NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_3";
+      case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_4:
+        return "NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_4";
+      default:
+        ndbrequire(false);
+    }
+    return NULL;
+  }
 
   void ndbinfo_send_row(Signal* signal,
                         const DbinfoScanReq& req,
@@ -1841,10 +1926,10 @@ BLOCK::addRecSignal(GlobalSignalNumber gsn, ExecSignalLocal f, bool force){ \
 
 #ifdef ERROR_INSERT
 #define RSS_AP_SNAPSHOT(x) Uint32 rss_##x
-#define RSS_AP_SNAPSHOT_SAVE(x) rss_##x = x.getNoOfFree()
-#define RSS_AP_SNAPSHOT_CHECK(x) ndbrequire(rss_##x == x.getNoOfFree())
-#define RSS_AP_SNAPSHOT_SAVE2(x,y) rss_##x = x.getNoOfFree()+(y)
-#define RSS_AP_SNAPSHOT_CHECK2(x,y) ndbrequire(rss_##x == x.getNoOfFree()+(y))
+#define RSS_AP_SNAPSHOT_SAVE(x) rss_##x = x.getUsed()
+#define RSS_AP_SNAPSHOT_CHECK(x) ndbrequire(rss_##x == x.getUsed())
+#define RSS_AP_SNAPSHOT_SAVE2(x,y) rss_##x = x.getUsed()-(y)
+#define RSS_AP_SNAPSHOT_CHECK2(x,y) ndbrequire(rss_##x == x.getUsed()-(y))
 
 #define RSS_OP_COUNTER(x) Uint32 x
 #define RSS_OP_COUNTER_INIT(x) x = 0
@@ -1892,8 +1977,9 @@ struct Hash2FragmentMap
   Uint32 nextPool;
   Uint32 m_object_id;
 };
+typedef ArrayPool<Hash2FragmentMap> Hash2FragmentMap_pool;
 
-extern ArrayPool<Hash2FragmentMap> g_hash_map;
+extern Hash2FragmentMap_pool g_hash_map;
 
 /**
  * Guard class for auto release of segmentedsectionptr's

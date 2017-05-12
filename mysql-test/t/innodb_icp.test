@@ -1,5 +1,3 @@
---source include/have_innodb.inc
-
 set optimizer_switch='index_condition_pushdown=on';
 
 --disable_query_log

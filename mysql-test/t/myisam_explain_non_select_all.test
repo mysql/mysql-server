@@ -4,10 +4,6 @@
 --source include/have_myisam.inc
 # 
 # Run explain_non_select.inc on MyISAM with all of the so-called 6.0 features.
-# Test is temporarily run with show_compatibility_56=ON until Bug#21783883 is fixed.
-
-select @@global.show_compatibility_56 into @show_compatibility_56_save;
-set @@global.show_compatibility_56=ON;
 
 set optimizer_switch='semijoin=on,materialization=on,firstmatch=on,loosescan=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=off';
 
@@ -18,4 +14,3 @@ set session default_storage_engine = MyISAM;
 set default_storage_engine= @save_storage_engine;
 
 set optimizer_switch=default;
-set @@global.show_compatibility_56=@show_compatibility_56_save;

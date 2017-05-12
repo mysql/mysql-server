@@ -117,7 +117,7 @@ DROP DATABASE IF EXISTS db_datadict;
 DROP DATABASE IF EXISTS db_datadict_2;
 --enable_warnings
 
-CREATE DATABASE db_datadict;
+CREATE DATABASE db_datadict charset latin1;
 USE db_datadict;
 --replace_result $other_engine_type <other_engine_type>
 eval
@@ -135,7 +135,7 @@ BEGIN
 END//
 delimiter ;//
 
-CREATE DATABASE db_datadict_2;
+CREATE DATABASE db_datadict_2 charset latin1;
 USE db_datadict_2;
 --replace_result $other_engine_type <other_engine_type>
 eval
@@ -228,7 +228,7 @@ DROP DATABASE db_datadict_2;
 --disable_warnings
 DROP DATABASE IF EXISTS db_datadict;
 --enable_warnings
-CREATE DATABASE db_datadict;
+CREATE DATABASE db_datadict charset latin1;
 
 SELECT * FROM information_schema.routines WHERE routine_schema = 'db_datadict';
 USE db_datadict;
@@ -275,7 +275,7 @@ SELECT * FROM information_schema.routines WHERE routine_schema = 'db_datadict';
 --disable_warnings
 DROP DATABASE IF EXISTS db_datadict;
 --enable_warnings
-CREATE DATABASE db_datadict;
+CREATE DATABASE db_datadict charset latin1;
 USE db_datadict;
 #
 --replace_result $other_engine_type <other_engine_type>
@@ -432,7 +432,7 @@ DROP DATABASE db_datadict;
 --disable_warnings
 DROP DATABASE IF EXISTS db_datadict;
 --enable_warnings
-CREATE DATABASE db_datadict;
+CREATE DATABASE db_datadict charset latin1;
 USE db_datadict;
 CREATE PROCEDURE sp_for_routines() SELECT 'db_datadict';
 USE test;

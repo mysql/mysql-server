@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,34 +23,38 @@ Insert into a table
 Created 4/20/1996 Heikki Tuuri
 *******************************************************/
 
-#include "ha_prototypes.h"
+#include <sys/types.h>
 
-#include "row0ins.h"
-#include "dict0dict.h"
-#include "dict0boot.h"
-#include "trx0rec.h"
-#include "trx0undo.h"
 #include "btr0btr.h"
 #include "btr0cur.h"
-#include "mach0data.h"
-#include "que0que.h"
-#include "row0upd.h"
-#include "row0sel.h"
-#include "row0row.h"
-#include "row0log.h"
-#include "rem0cmp.h"
-#include "lock0lock.h"
-#include "log0log.h"
-#include "eval0eval.h"
-#include "data0data.h"
-#include "usr0sess.h"
 #include "buf0lru.h"
+#include "current_thd.h"
+#include "data0data.h"
+#include "dict0boot.h"
+#include "dict0dict.h"
+#include "eval0eval.h"
 #include "fts0fts.h"
 #include "fts0types.h"
-#include "m_string.h"
 #include "gis0geo.h"
+#include "ha_prototypes.h"
 #include "lob0lob.h"
-#include "current_thd.h"
+#include "lock0lock.h"
+#include "log0log.h"
+#include "m_string.h"
+#include "mach0data.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "que0que.h"
+#include "rem0cmp.h"
+#include "row0ins.h"
+#include "row0log.h"
+#include "row0row.h"
+#include "row0sel.h"
+#include "row0upd.h"
+#include "trx0rec.h"
+#include "trx0undo.h"
+#include "usr0sess.h"
 
 /*************************************************************************
 IMPORTANT NOTE: Any operation that generates redo MUST check that there
@@ -1492,10 +1496,12 @@ row_ins_set_shared_rec_lock(
 
 	if (index->is_clustered()) {
 		err = lock_clust_rec_read_check_and_lock(
-			0, block, rec, index, offsets, LOCK_S, type, thr);
+			0, block, rec, index, offsets,
+			SELECT_ORDINARY, LOCK_S, type, thr);
 	} else {
 		err = lock_sec_rec_read_check_and_lock(
-			0, block, rec, index, offsets, LOCK_S, type, thr);
+			0, block, rec, index, offsets,
+			SELECT_ORDINARY, LOCK_S, type, thr);
 	}
 
 	return(err);
@@ -1523,10 +1529,12 @@ row_ins_set_exclusive_rec_lock(
 
 	if (index->is_clustered()) {
 		err = lock_clust_rec_read_check_and_lock(
-			0, block, rec, index, offsets, LOCK_X, type, thr);
+			0, block, rec, index, offsets,
+			SELECT_ORDINARY, LOCK_X, type, thr);
 	} else {
 		err = lock_sec_rec_read_check_and_lock(
-			0, block, rec, index, offsets, LOCK_X, type, thr);
+			0, block, rec, index, offsets,
+			SELECT_ORDINARY, LOCK_X, type, thr);
 	}
 
 	return(err);
@@ -1574,6 +1582,13 @@ row_ins_check_foreign_constraint(
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
+
+	bool		skip_gap_lock;
+
+	/* GAP locks are not needed on DD tables because serializability between different
+	DDL statements is achieved using metadata locks. So no concurrent changes to DD tables
+	when MDL is taken. */
+	skip_gap_lock = (trx->isolation_level <= TRX_ISO_READ_COMMITTED) || table->is_dd_table;
 
 	DBUG_ENTER("row_ins_check_foreign_constraint");
 
@@ -1702,6 +1717,11 @@ row_ins_check_foreign_constraint(
 
 		if (page_rec_is_supremum(rec)) {
 
+			if (skip_gap_lock) {
+
+				continue;
+			}
+
 			err = row_ins_set_shared_rec_lock(LOCK_ORDINARY, block,
 							  rec, check_index,
 							  offsets, thr);
@@ -1714,13 +1734,20 @@ row_ins_check_foreign_constraint(
 			}
 		}
 
-		cmp = cmp_dtuple_rec(entry, rec, offsets);
+		cmp = cmp_dtuple_rec(entry, rec, check_index, offsets);
 
 		if (cmp == 0) {
+
+			ulint	lock_type;
+
+			lock_type = skip_gap_lock
+				? LOCK_REC_NOT_GAP
+				: LOCK_ORDINARY;
+
 			if (rec_get_deleted_flag(rec,
 						 rec_offs_comp(offsets))) {
 				err = row_ins_set_shared_rec_lock(
-					LOCK_ORDINARY, block,
+					lock_type, block,
 					rec, check_index, offsets, thr);
 				switch (err) {
 				case DB_SUCCESS_LOCKED_REC:
@@ -1794,9 +1821,13 @@ row_ins_check_foreign_constraint(
 		} else {
 			ut_a(cmp < 0);
 
-			err = row_ins_set_shared_rec_lock(
-				LOCK_GAP, block,
-				rec, check_index, offsets, thr);
+			err = DB_SUCCESS;
+
+			if (!skip_gap_lock) {
+				err = row_ins_set_shared_rec_lock(
+					LOCK_GAP, block,
+					rec, check_index, offsets, thr);
+			}
 
 			switch (err) {
 			case DB_SUCCESS_LOCKED_REC:
@@ -1976,7 +2007,7 @@ row_ins_dupl_error_with_rec(
 
 	matched_fields = 0;
 
-	cmp_dtuple_rec_with_match(entry, rec, offsets, &matched_fields);
+	cmp_dtuple_rec_with_match(entry, rec, index, offsets, &matched_fields);
 
 	if (matched_fields < n_unique) {
 
@@ -2065,7 +2096,14 @@ row_ins_scan_sec_index_for_duplicate(
 	do {
 		const rec_t*		rec	= btr_pcur_get_rec(&pcur);
 		const buf_block_t*	block	= btr_pcur_get_block(&pcur);
-		const ulint		lock_type = LOCK_ORDINARY;
+
+		/* For DD tables, We don't use next-key locking for duplicates
+		found. This means it is possible for another transaction to
+		insert a duplicate key value but MDL protection on DD tables
+		will prevent insertion of duplicates into unique secondary indexes*/
+		const ulint		lock_type = index->table->is_dd_table
+			? LOCK_REC_NOT_GAP
+			: LOCK_ORDINARY;
 
 		if (page_rec_is_infimum(rec)) {
 
@@ -2080,14 +2118,35 @@ row_ins_scan_sec_index_for_duplicate(
 			in online table rebuild. */
 		} else if (allow_duplicates) {
 
+#if 0 // TODO: Enable this assert after WL#9509. REPLACE will not be allowed on DD tables
+			/* This assert means DD tables should not use REPLACE
+			or INSERT INTO table.. ON DUPLCIATE KEY */
+			ut_ad(!index->table->is_dd_table);
+#endif
+
+#if 1 // TODO: Remove this code after WL#9509. REPLACE will not be allowed on DD tables
+			if (index->table->is_dd_table) {
+				/* Only GAP lock is possible on supremum. */
+				if (page_rec_is_supremum(rec)) {
+					continue;
+				}
+			}
+#endif
+
 			/* If the SQL-query will update or replace
 			duplicate key we will take X-lock for
 			duplicates ( REPLACE, LOAD DATAFILE REPLACE,
 			INSERT ON DUPLICATE KEY UPDATE). */
-
 			err = row_ins_set_exclusive_rec_lock(
 				lock_type, block, rec, index, offsets, thr);
 		} else {
+
+			if (index->table->is_dd_table) {
+				/* Only GAP lock is possible on supremum. */
+				if (page_rec_is_supremum(rec)) {
+					continue;
+				}
+			}
 
 			err = row_ins_set_shared_rec_lock(
 				lock_type, block, rec, index, offsets, thr);
@@ -2107,7 +2166,7 @@ row_ins_scan_sec_index_for_duplicate(
 			continue;
 		}
 
-		cmp = cmp_dtuple_rec(entry, rec, offsets);
+		cmp = cmp_dtuple_rec(entry, rec, index, offsets);
 
 		if (cmp == 0 && !index->allow_duplicates) {
 			if (row_ins_dupl_error_with_rec(rec, entry,
@@ -2144,6 +2203,11 @@ end_scan:
 }
 
 /** Checks for a duplicate when the table is being rebuilt online.
+@param[in]	n_uniq	offset of DB_TRX_ID
+@param[in]	entry	entry being inserted
+@param[in]	rec	clustered index record at insert position
+@param[in]	index	clustered index
+@param[in,out]	offsets	rec_get_offsets(rec)
 @retval DB_SUCCESS when no duplicate is detected
 @retval DB_SUCCESS_LOCKED_REC when rec is an exact match of entry or
 a newer version of entry (the entry should not be inserted)
@@ -2151,11 +2215,11 @@ a newer version of entry (the entry should not be inserted)
 static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 row_ins_duplicate_online(
-/*=====================*/
-	ulint		n_uniq,	/*!< in: offset of DB_TRX_ID */
-	const dtuple_t*	entry,	/*!< in: entry that is being inserted */
-	const rec_t*	rec,	/*!< in: clustered index record */
-	ulint*		offsets)/*!< in/out: rec_get_offsets(rec) */
+	ulint			n_uniq,
+	const dtuple_t*		entry,
+	const rec_t*		rec,
+	const dict_index_t*	index,
+	ulint*			offsets)
 {
 	ulint	fields	= 0;
 
@@ -2167,7 +2231,7 @@ row_ins_duplicate_online(
 	/* Compare the PRIMARY KEY fields and the
 	DB_TRX_ID, DB_ROLL_PTR. */
 	cmp_dtuple_rec_with_match_low(
-		entry, rec, offsets, n_uniq + 2, &fields);
+		entry, rec, index, offsets, n_uniq + 2, &fields);
 
 	if (fields < n_uniq) {
 		/* Not a duplicate. */
@@ -2203,7 +2267,8 @@ row_ins_duplicate_error_in_clust_online(
 	if (cursor->low_match >= n_uniq && !page_rec_is_infimum(rec)) {
 		*offsets = rec_get_offsets(rec, cursor->index, *offsets,
 					   ULINT_UNDEFINED, heap);
-		err = row_ins_duplicate_online(n_uniq, entry, rec, *offsets);
+		err = row_ins_duplicate_online(
+			n_uniq, entry, rec, cursor->index, *offsets);
 		if (err != DB_SUCCESS) {
 			return(err);
 		}
@@ -2214,7 +2279,8 @@ row_ins_duplicate_error_in_clust_online(
 	if (cursor->up_match >= n_uniq && !page_rec_is_supremum(rec)) {
 		*offsets = rec_get_offsets(rec, cursor->index, *offsets,
 					   ULINT_UNDEFINED, heap);
-		err = row_ins_duplicate_online(n_uniq, entry, rec, *offsets);
+		err = row_ins_duplicate_online(
+			n_uniq, entry, rec, cursor->index, *offsets);
 	}
 
 	return(err);
@@ -2477,6 +2543,27 @@ row_ins_index_entry_big_rec_func(
 	row_ins_index_entry_big_rec_func(e,big,ofs,heap,thd,index)
 #endif /* UNIV_DEBUG */
 
+/** Update all the prebuilts working on this temporary table
+@param[in,out]	table	dict_table_t for the table */
+static
+void
+row_ins_temp_prebuilt_tree_modified(
+	dict_table_t*	table)
+{
+	if (table->temp_prebuilt == NULL) {
+		return;
+	}
+
+	std::vector<row_prebuilt_t*>::const_iterator      it;
+
+	for (it = table->temp_prebuilt->begin();
+	     it != table->temp_prebuilt->end(); ++it) {
+		if ((*it)->m_temp_read_shared) {
+			(*it)->m_temp_tree_modified = true;
+		}
+	}
+}
+
 /***************************************************************//**
 Tries to insert an entry into a clustered index, ignoring foreign key
 constraints. If a record with the same unique key is found, the other
@@ -2662,7 +2749,9 @@ err_exit:
 		doesn't fit the provided slot then existing record is added
 		to free list and new record is inserted. This also means
 		cursor that we have cached for SELECT is now invalid. */
-		index->last_sel_cur->invalid = true;
+		if(index->last_sel_cur) {
+			index->last_sel_cur->invalid = true;
+		}
 
 		ut_ad(thr != NULL);
 		err = row_ins_clust_index_entry_by_modify(
@@ -2707,6 +2796,12 @@ err_exit:
 					&offsets, &offsets_heap,
 					entry, &insert_rec, &big_rec,
 					n_ext, thr, autoinc_mtr.get_mtr());
+
+				if (index->table->is_intrinsic()
+				    && err == DB_SUCCESS) {
+					row_ins_temp_prebuilt_tree_modified(
+						index->table);
+				}
 			}
 		}
 
@@ -2846,6 +2941,11 @@ row_ins_sorted_clust_index_entry(
 					flags, &cursor, &offsets, &offsets_heap,
 					entry, &insert_rec, &big_rec, n_ext,
 					thr, mtr);
+				if (index->table->is_intrinsic()
+				    && err == DB_SUCCESS) {
+					row_ins_temp_prebuilt_tree_modified(
+						index->table);
+				}
 			}
 		}
 
@@ -3217,7 +3317,9 @@ row_ins_sec_index_entry_low(
 		is doesn't fit the provided slot then existing record is added
 		to free list and new record is inserted. This also means
 		cursor that we have cached for SELECT is now invalid. */
-		index->last_sel_cur->invalid = true;
+		if(index->last_sel_cur) {
+			index->last_sel_cur->invalid = true;
+		}
 
 		/* There is already an index entry with a long enough common
 		prefix, we must convert the insert into a modify of an
@@ -3350,6 +3452,10 @@ row_ins_clust_index_entry(
 
 	if (index->table->is_intrinsic()
 	    && dict_index_is_auto_gen_clust(index)) {
+		/* Check if the memory allocated for intrinsic cache*/
+		if(!index->last_ins_cur) {
+			dict_allocate_mem_intrinsic_cache(index);
+		}
 		err = row_ins_sorted_clust_index_entry(
 			BTR_MODIFY_LEAF, index, entry, n_ext, thr);
 	} else {
@@ -3370,6 +3476,9 @@ row_ins_clust_index_entry(
 	/* Try then pessimistic descent to the B-tree */
 	if (!index->table->is_intrinsic()) {
 		log_free_check();
+	} else if(!index->last_sel_cur) {
+		dict_allocate_mem_intrinsic_cache(index);
+		index->last_sel_cur->invalid = true;
 	} else {
 		index->last_sel_cur->invalid = true;
 	}
@@ -3457,6 +3566,9 @@ row_ins_sec_index_entry(
 
 		if (!index->table->is_intrinsic()) {
 			log_free_check();
+		} else if(!index->last_sel_cur) {
+			dict_allocate_mem_intrinsic_cache(index);
+			index->last_sel_cur->invalid = true;
 		} else {
 			index->last_sel_cur->invalid = true;
 		}
@@ -3521,9 +3633,7 @@ row_ins_spatial_index_entry_set_mbr_field(
 	dlen = dfield_get_len(row_field);
 
 	/* obtain the MBR */
-	rtree_mbr_from_wkb(dptr + GEO_DATA_HEADER_SIZE,
-			   static_cast<uint>(dlen - GEO_DATA_HEADER_SIZE),
-			   SPDIMS, mbr);
+	get_mbr_from_store(dptr, static_cast<uint>(dlen), SPDIMS, mbr);
 
 	/* Set mbr as index entry data */
 	dfield_write_mbr(field, mbr);

@@ -21,9 +21,7 @@
 # For crash recovery test on default change please run the ibtest             #
 ###############################################################################
 
--- source include/have_innodb.inc
 -- source include/not_embedded.inc
--- source include/have_innodb_16k.inc
 
 echo '#________________________VAR_03_query_cache_type__________________#'
 echo '##'
@@ -47,7 +45,7 @@ let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --exec echo "wait" > $restart_file
 --shutdown_server 
 --source include/wait_until_disconnected.inc
--- exec echo "restart:--query_cache_type=1  " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+-- exec echo "restart:--query_cache_type=1  --query_cache_size=1048576" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 -- enable_reconnect
 -- source include/wait_until_connected_again.inc
 
@@ -209,7 +207,7 @@ let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --exec echo "wait" > $restart_file
 --shutdown_server 
 --source include/wait_until_disconnected.inc
--- exec echo "restart:--query_cache_type=1  " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+-- exec echo "restart:--query_cache_type=1  --query_cache_size=1048576" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 -- enable_reconnect
 -- source include/wait_until_connected_again.inc
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -28,8 +28,11 @@ Created 1/8/1996 Heikki Tuuri
 other files in library. The code in this file is used to make a library for
 external tools. */
 
+#include <new>
+
 #include "dict0dict.h"
 #include "lock0lock.h"
+#include "my_inttypes.h"
 
 /****************************************************************//**
 Append 'name' to 'col_names'.  @see dict_table_t::col_names
@@ -125,6 +128,11 @@ dict_mem_table_free(
 		UT_DELETE(table->s_cols);
 	}
 
+	if (table->temp_prebuilt != NULL) {
+		ut_ad(table->is_intrinsic());
+		UT_DELETE(table->temp_prebuilt);
+	}
+
 	mem_heap_free(table->heap);
 }
 
@@ -218,6 +226,7 @@ dict_mem_table_create(
 	new(&table->referenced_set) dict_foreign_set();
 
 #endif /* !UNIV_LIBRARY */
+	table->is_dd_table = false;
 
 	return(table);
 }

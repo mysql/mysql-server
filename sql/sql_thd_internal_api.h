@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,14 +22,18 @@
   guarantees.
 */
 
-#include "my_global.h"
-#include "my_thread.h"
-#include "mysql/psi/psi_base.h"
+#include <stddef.h>
+#include <sys/types.h>
+
 #include "dur_prop.h"      // durability_properties
 #include "handler.h"       // enum_tx_isolation
+#include "key.h"
+#include "m_ctype.h"
+#include "mysql/psi/psi_base.h"
 
-class partition_info;
 class THD;
+class partition_info;
+
 typedef struct charset_info_st CHARSET_INFO;
 
 /**

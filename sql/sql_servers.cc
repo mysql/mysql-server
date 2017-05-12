@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,20 +33,42 @@
   currently running transactions etc will not be disrupted.
 */
 
-#include "sql_servers.h"
-#include "sql_base.h"                           // close_mysql_tables
-#include "records.h"          // init_read_record, end_read_record
-#include "hash_filo.h"
-#include <m_ctype.h>
-#include <stdarg.h>
-#include "log.h"
+#include "sql/sql_servers.h"
+
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
+
+#include "auth_acls.h"
 #include "auth_common.h"
-#include "sql_parse.h"
-#include "lock.h"                               // MYSQL_LOCK_IGNORE_TIMEOUT
-#include "transaction.h"      // trans_rollback_stmt, trans_commit_stmt
-#include "sql_class.h"
+#include "field.h"
+#include "handler.h"
+#include "hash.h"
+#include "log.h"
+#include "m_string.h"
+#include "my_base.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_psi_config.h"
+#include "my_sys.h"
 #include "mysql/psi/mysql_memory.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/mysql_rwlock.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_memory.h"
+#include "mysql/psi/psi_rwlock.h"
+#include "mysqld_error.h"
+#include "records.h"          // init_read_record, end_read_record
+#include "sql_base.h"                           // close_mysql_tables
+#include "sql_class.h"
+#include "sql_const.h"
+#include "sql_error.h"
+#include "table.h"
 #include "template_utils.h"
+#include "thr_lock.h"
+#include "thr_malloc.h"
+#include "transaction.h"      // trans_rollback_stmt, trans_commit_stmt
+#include "typelib.h"
 
 /*
   We only use 1 mutex to guard the data structures - THR_LOCK_servers.
@@ -102,10 +124,10 @@ static void init_servers_cache_psi_keys(void)
   const char* category= "sql";
   int count;
 
-  count= array_elements(all_servers_cache_rwlocks);
+  count= static_cast<int>(array_elements(all_servers_cache_rwlocks));
   mysql_rwlock_register(category, all_servers_cache_rwlocks, count);
 
-  count= array_elements(all_servers_cache_memory);
+  count= static_cast<int>(array_elements(all_servers_cache_memory));
   mysql_memory_register(category, all_servers_cache_memory, count);
 }
 #endif /* HAVE_PSI_INTERFACE */

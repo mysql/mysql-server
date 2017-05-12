@@ -19,12 +19,11 @@
 ###############################################################################
 --source include/not_group_replication_plugin.inc
 --source include/have_binlog_format_row.inc
---source include/have_innodb.inc
 --source include/master-slave.inc
 
 --connection master
 DROP TABLE IF EXISTS t1;
-CREATE TABLE t1(a varchar(40000))ENGINE=INNODB;
+CREATE TABLE t1(a varchar(40000))ENGINE=INNODB CHARACTER SET latin1;
 INSERT INTO t1 VALUES (REPEAT('a',37000));
 INSERT INTO t1 VALUES (REPEAT('b',32543));
 --source include/sync_slave_sql_with_master.inc

@@ -1,4 +1,4 @@
-# Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -228,6 +228,23 @@ def handle_appendFileReq(req, body):
 
     return make_rep(req)
 
+def handle_checkFileReq(req, body):
+    """Handler function for checkFileReq commands. Check if a file exists on a remote host.
+    req - top level message object
+    body - shortcut to the body part of the message
+    """
+    
+    (user, pwd) = get_cred(body)
+    f = body['file']
+
+    with produce_ABClusterHost(f['hostName'], user, pwd) as ch:
+        sp = ch.path_module.join(f['path'], f['name'])
+        
+        assert (ch.file_exists(sp)), 'File ' + sp + ' does not exist on host ' + ch.host        
+                
+    _logger.debug('pathname ' + sp + ' checked')
+
+    return  make_rep(req)
 
 def handle_shutdownServerReq(req, body):
     """x"""
@@ -326,8 +343,19 @@ class ConfiguratorHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header('Content-type', 'text/json')
         self.end_headers()
-        self.server.logger.debug('Will send: %s', json.dumps(obj, indent=2, cls=ReplyJsonEncoder))
-        json.dump(obj, self.wfile, cls=ReplyJsonEncoder)       
+        for possible_encoding in ["utf-8", "cp1252"]:
+          try:
+            # obj can contain messages from the OS that could be encoded
+            # in cp1252 character set.
+            json_str = json.dumps(obj, indent=2, cls=ReplyJsonEncoder, encoding=possible_encoding)
+            break
+          except UnicodeDecodeError:
+            self.server.logger.debug('%s encoding failed', possible_encoding)
+            pass
+        if json_str is None:
+          raise UnicodeDecodeError
+        self.server.logger.debug('Will send: %s', json.dumps(obj, indent=2, cls=ReplyJsonEncoder, encoding=possible_encoding))
+        json.dump(obj, self.wfile, cls=ReplyJsonEncoder, encoding=possible_encoding)       
         
     def _do_file_req(self, rt):
         """Handles file requests. Attempts to guess 
@@ -449,12 +477,14 @@ class ConfiguratorServer(SocketServer.ThreadingMixIn, BaseHTTPServer.HTTPServer)
 configdir = None
 basedir = None
 deathkey = None
-        
+from util import is_port_available
+
 def main(prefix, cfgdir):
     """Server's main-function which parses the command line and starts up the server accordingly.
     """
     global configdir 
     global basedir 
+    true_port_val = 0
     configdir = cfgdir
     basedir = prefix
     frontend = os.path.join(cfgdir, 'frontend')
@@ -505,6 +535,17 @@ def main(prefix, cfgdir):
     else:
         logging.basicConfig(level=dbglvl, format=fmt, filename=options.server_log_file)
 
+    for port_val in range(options.port, options.port + 20):
+        if is_port_available(options.server_name, port_val):
+            true_port_val = port_val
+            break
+    if true_port_val == 0:
+        # no available port in range :-/
+        print("No available port in range[{},{}]!".format(options.port, options.port + 20))
+        sys.exit()
+
+    options.port = true_port_val
+
     srvopts = { 'server' : options.server_name,
                'port': options.port,
                'cdir': cfgdir,
@@ -515,7 +556,23 @@ def main(prefix, cfgdir):
         srvopts['certfile'] = options.cert_file
         srvopts['keyfile'] = options.key_file
         srvopts['ca_certs'] = options.ca_certs_file
-        
+
+    flags = os.O_CREAT | os.O_EXCL | os.O_WRONLY
+    try:
+        file_handle = os.open('mcc.pid', flags)
+    except OSError as e:
+        if e.errno == errno.EEXIST:  # Failed as the file already exists.
+            sys.exit("Web server already running!")
+        else:  # Something unexpected went wrong so reraise the exception.
+            raise
+    else:  # No exception, so the file must have been created successfully.
+        with os.fdopen(file_handle, 'w') as file_obj:
+            # Using `os.fdopen` converts the handle to an object that acts like a
+            # regular Python file object, and the `with` context manager means the
+            # file will be automatically closed when we're done with it.
+            file_obj.write("MCC running.")
+            file_obj.close()
+
     print 'Starting web server on port ' + repr(options.port)
     url_host = options.server_name
     if url_host == '':
@@ -529,6 +586,7 @@ def main(prefix, cfgdir):
     global deathkey
     deathkey = random.randint(100000, 1000000)
     print 'deathkey='+str(deathkey)
+    print 'Press CTRL+C to stop web server.'
 #    dkf = open('deathkey.txt','w')
 #    dkf.write(str(deathkey))
 #    dkf.close()
@@ -555,4 +613,4 @@ def main(prefix, cfgdir):
         if httpsrv:
             httpsrv.socket.close()
         #os.remove('deathkey.txt')
-
+        os.remove('mcc.pid')

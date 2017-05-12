@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -41,20 +41,22 @@ TODO:
  -Brian
 */
 
-#include "ha_tina.h"
-#include "my_global.h"
+#include "storage/csv/ha_tina.h"
+
+#include <fcntl.h>
 #include <mysql/plugin.h>
 #include <mysql/psi/mysql_file.h>
-#include "probes_mysql.h"
-#include "hash.h"
-#include "table.h"
-#include "field.h"
-#include "system_variables.h"
-#include "sql_class.h"
-#include "mysql/psi/mysql_memory.h"
-#include "template_utils.h"
-
 #include <algorithm>
+
+#include "field.h"
+#include "hash.h"
+#include "my_dbug.h"
+#include "my_psi_config.h"
+#include "mysql/psi/mysql_memory.h"
+#include "sql_class.h"
+#include "system_variables.h"
+#include "table.h"
+#include "template_utils.h"
 
 using std::min;
 using std::max;
@@ -80,13 +82,14 @@ static int write_meta_file(File meta_file, ha_rows rows, bool dirty);
 
 extern "C" void tina_get_status(void* param, int concurrent_insert);
 extern "C" void tina_update_status(void* param);
-extern "C" my_bool tina_check_status(void* param);
+extern "C" bool tina_check_status(void* param);
 
 /* Stuff for shares */
 mysql_mutex_t tina_mutex;
 static HASH tina_open_tables;
 static handler *tina_create_handler(handlerton *hton,
-                                    TABLE_SHARE *table, 
+                                    TABLE_SHARE *table,
+                                    bool partitioned,
                                     MEM_ROOT *mem_root);
 
 
@@ -154,13 +157,13 @@ static void init_tina_psi_keys(void)
   const char* category= "csv";
   int count;
 
-  count= array_elements(all_tina_mutexes);
+  count= static_cast<int>(array_elements(all_tina_mutexes));
   mysql_mutex_register(category, all_tina_mutexes, count);
 
-  count= array_elements(all_tina_files);
+  count= static_cast<int>(array_elements(all_tina_files));
   mysql_file_register(category, all_tina_files, count);
 
-  count= array_elements(all_tina_memory);
+  count= static_cast<int>(array_elements(all_tina_memory));
   mysql_memory_register(category, all_tina_memory, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
@@ -200,7 +203,7 @@ static int tina_init_func(void *p)
   return 0;
 }
 
-static int tina_done_func(void *p)
+static int tina_done_func(void*)
 {
   my_hash_free(&tina_open_tables);
   mysql_mutex_destroy(&tina_mutex);
@@ -212,7 +215,7 @@ static int tina_done_func(void *p)
 /*
   Simple lock controls.
 */
-static TINA_SHARE *get_share(const char *table_name, TABLE *table)
+static TINA_SHARE *get_share(const char *table_name, TABLE*)
 {
   TINA_SHARE *share;
   char meta_file_name[FN_REFLEN];
@@ -513,7 +516,8 @@ static my_off_t find_eoln_buff(Transparent_file *data_buff, my_off_t begin,
 
 
 static handler *tina_create_handler(handlerton *hton,
-                                    TABLE_SHARE *table, 
+                                    TABLE_SHARE *table,
+                                    bool,
                                     MEM_ROOT *mem_root)
 {
   return new (mem_root) ha_tina(hton, table);
@@ -543,7 +547,7 @@ ha_tina::ha_tina(handlerton *hton, TABLE_SHARE *table_arg)
   Encode a buffer into the quoted format.
 */
 
-int ha_tina::encode_quote(uchar *buf)
+int ha_tina::encode_quote(uchar*)
 {
   char attribute_buffer[1024];
   String attribute(attribute_buffer, sizeof(attribute_buffer),
@@ -870,7 +874,7 @@ err:
   for CSV engine. For more details see mysys/thr_lock.c
 */
 
-void tina_get_status(void* param, int concurrent_insert)
+void tina_get_status(void* param, int)
 {
   ha_tina *tina= (ha_tina*) param;
   tina->get_status();
@@ -883,7 +887,7 @@ void tina_update_status(void* param)
 }
 
 /* this should exist and return 0 for concurrent insert to work */
-my_bool tina_check_status(void* param)
+bool tina_check_status(void*)
 {
   return 0;
 }
@@ -950,7 +954,8 @@ void ha_tina::update_status()
   this will not be called for every request. Any sort of positions
   that need to be reset should be kept in the ::extra() call.
 */
-int ha_tina::open(const char *name, int mode, uint open_options)
+int ha_tina::open(const char *name, int, uint open_options,
+                  const dd::Table*)
 {
   DBUG_ENTER("ha_tina::open");
 
@@ -1069,7 +1074,7 @@ int ha_tina::open_update_temp_file_if_needed()
   This will be called in a table scan right before the previous ::rnd_next()
   call.
 */
-int ha_tina::update_row(const uchar * old_data, uchar * new_data)
+int ha_tina::update_row(const uchar*, uchar * new_data)
 {
   int size;
   int rc= -1;
@@ -1116,7 +1121,7 @@ err:
   The table will then be deleted/positioned based on the ORDER (so RANDOM,
   DESC, ASC).
 */
-int ha_tina::delete_row(const uchar * buf)
+int ha_tina::delete_row(const uchar*)
 {
   DBUG_ENTER("ha_tina::delete_row");
   ha_statistic_increment(&System_status_var::ha_delete_count);
@@ -1198,7 +1203,7 @@ int ha_tina::init_data_file()
 
 */
 
-int ha_tina::rnd_init(bool scan)
+int ha_tina::rnd_init(bool)
 {
   DBUG_ENTER("ha_tina::rnd_init");
 
@@ -1232,8 +1237,6 @@ int ha_tina::rnd_next(uchar *buf)
 {
   int rc;
   DBUG_ENTER("ha_tina::rnd_next");
-  MYSQL_READ_ROW_START(table_share->db.str, table_share->table_name.str,
-                       TRUE);
 
   if (share->crashed)
   {
@@ -1258,7 +1261,6 @@ int ha_tina::rnd_next(uchar *buf)
   stats.records++;
   rc= 0;
 end:
-  MYSQL_READ_ROW_DONE(rc);
   DBUG_RETURN(rc);
 }
 
@@ -1271,7 +1273,7 @@ end:
   its just a position. Look at the bdb code if you want to see a case
   where something other then a number is stored.
 */
-void ha_tina::position(const uchar *record)
+void ha_tina::position(const uchar*)
 {
   DBUG_ENTER("ha_tina::position");
   my_store_ptr(ref, ref_length, current_position);
@@ -1288,12 +1290,9 @@ int ha_tina::rnd_pos(uchar * buf, uchar *pos)
 {
   int rc;
   DBUG_ENTER("ha_tina::rnd_pos");
-  MYSQL_READ_ROW_START(table_share->db.str, table_share->table_name.str,
-                       FALSE);
   ha_statistic_increment(&System_status_var::ha_read_rnd_count);
   current_position= my_get_ptr(pos,ref_length);
   rc= find_current_row(buf);
-  MYSQL_READ_ROW_DONE(rc);
   DBUG_RETURN(rc);
 }
 
@@ -1302,7 +1301,7 @@ int ha_tina::rnd_pos(uchar * buf, uchar *pos)
   Currently this table handler doesn't implement most of the fields
   really needed. SHOW also makes use of this data
 */
-int ha_tina::info(uint flag)
+int ha_tina::info(uint)
 {
   DBUG_ENTER("ha_tina::info");
   /* This is a lie, but you don't want the optimizer to see zero or 1 */
@@ -1486,7 +1485,6 @@ error:
   SYNOPSIS
     repair()
     thd         The thread, performing repair
-    check_opt   The options for repair. We do not use it currently.
 
   DESCRIPTION
     If the file is empty, change # of rows in the file and complete recovery.
@@ -1498,7 +1496,7 @@ error:
          rows (after the first bad one) as well.
 */
 
-int ha_tina::repair(THD* thd, HA_CHECK_OPT* check_opt)
+int ha_tina::repair(THD* thd, HA_CHECK_OPT*)
 {
   char repaired_fname[FN_REFLEN];
   uchar *buf;
@@ -1663,7 +1661,7 @@ int ha_tina::delete_all_rows()
   Called by the database to lock the table. Keep in mind that this
   is an internal lock.
 */
-THR_LOCK_DATA **ha_tina::store_lock(THD *thd,
+THR_LOCK_DATA **ha_tina::store_lock(THD *,
                                     THR_LOCK_DATA **to,
                                     enum thr_lock_type lock_type)
 {
@@ -1679,7 +1677,7 @@ THR_LOCK_DATA **ha_tina::store_lock(THD *thd,
 */
 
 int ha_tina::create(const char *name, TABLE *table_arg,
-                    HA_CREATE_INFO *create_info)
+                    HA_CREATE_INFO*, dd::Table*)
 {
   char name_buff[FN_REFLEN];
   File create_file;
@@ -1718,7 +1716,7 @@ int ha_tina::create(const char *name, TABLE *table_arg,
   DBUG_RETURN(0);
 }
 
-int ha_tina::check(THD* thd, HA_CHECK_OPT* check_opt)
+int ha_tina::check(THD* thd, HA_CHECK_OPT*)
 {
   int rc= 0;
   uchar *buf;
@@ -1767,8 +1765,7 @@ int ha_tina::check(THD* thd, HA_CHECK_OPT* check_opt)
 }
 
 
-bool ha_tina::check_if_incompatible_data(HA_CREATE_INFO *info,
-					   uint table_changes)
+bool ha_tina::check_if_incompatible_data(HA_CREATE_INFO *, uint)
 {
   return COMPATIBLE_DATA_YES;
 }

@@ -20,5 +20,5 @@
   Do not include this file, include mysql/psi/psi_idle.h instead.
 */
 #define MY_GLOBAL_INCLUDED
+#define MY_PSI_CONFIG_INCLUDED
 #include "mysql/psi/psi_idle.h"
-

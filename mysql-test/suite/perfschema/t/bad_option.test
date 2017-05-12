@@ -4,9 +4,6 @@
 # The current test unites and replaces all suite/perfschema/t/bad_option_*.test
 # which were developed by Marc.
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 #Plugin 'MEMORY' has ref_count=1 after shutdown
 call mtr.add_suppression("Plugin \'MEMORY\'");
 

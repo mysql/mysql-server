@@ -15,7 +15,11 @@
 
 #include "dd/impl/tables/foreign_keys.h"
 
+#include <new>
+
 #include "dd/impl/raw/object_keys.h"  // Parent_id_range_key
+#include "dd/impl/types/object_table_definition_impl.h"
+#include "system_variables.h"
 
 namespace dd {
 namespace tables {
@@ -68,19 +72,19 @@ Foreign_keys::Foreign_keys()
                          "FIELD_REFERENCED_CATALOG",
                          "referenced_table_catalog "
                          "VARCHAR(64) NOT NULL COLLATE " +
-                         std::string(Object_table_definition_impl::
+                         String_type(Object_table_definition_impl::
                                      fs_name_collation()->name));
   m_target_def.add_field(FIELD_REFERENCED_SCHEMA,
                          "FIELD_REFERENCED_SCHEMA",
                          "referenced_table_schema "
                          "VARCHAR(64) NOT NULL COLLATE " +
-                         std::string(Object_table_definition_impl::
+                         String_type(Object_table_definition_impl::
                                      fs_name_collation()->name));
   m_target_def.add_field(FIELD_REFERENCED_TABLE,
                          "FIELD_REFERENCED_TABLE",
                          "referenced_table_name "
                          "VARCHAR(64) NOT NULL COLLATE " +
-                         std::string(Object_table_definition_impl::
+                         String_type(Object_table_definition_impl::
                                      fs_name_collation()->name));
 
   m_target_def.add_index("PRIMARY KEY (id)");

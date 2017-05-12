@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,27 +15,39 @@
 
 #include "dd/impl/types/foreign_key_impl.h"
 
-#include "mysqld_error.h"                            // ER_*
-#include "error_handler.h"                           // Internal_error_handler
-
-#include "dd/properties.h"                           // Needed for destructor
-#include "dd/impl/sdi_impl.h"                        // sdi read/write functions
-#include "dd/impl/transaction_impl.h"                // Open_dictionary_tables_ctx
-#include "dd/impl/raw/raw_record.h"                  // Raw_record
-#include "dd/impl/tables/foreign_keys.h"             // Foreign_keys
-#include "dd/impl/tables/foreign_key_column_usage.h" // Foreign_key_column_usage
-#include "dd/impl/types/foreign_key_element_impl.h"  // Foreign_key_element_impl
-#include "dd/impl/types/table_impl.h"                // Table_impl
-#include "dd/types/index.h"                          // Index
-#include "dd/types/column.h"                         // Column::name()
-
+#include <stddef.h>
 #include <sstream>
 
+#include "dd/impl/raw/raw_record.h"                  // Raw_record
+#include "dd/impl/sdi_impl.h"                        // sdi read/write functions
+#include "dd/impl/tables/foreign_key_column_usage.h" // Foreign_key_column_usage
+#include "dd/impl/tables/foreign_keys.h"             // Foreign_keys
+#include "dd/impl/transaction_impl.h"                // Open_dictionary_tables_ctx
+#include "dd/impl/types/foreign_key_element_impl.h"  // Foreign_key_element_impl
+#include "dd/impl/types/table_impl.h"                // Table_impl
+#include "dd/properties.h"                           // Needed for destructor
+#include "dd/string_type.h"                          // dd::String_type
+#include "dd/types/foreign_key_element.h"
+#include "dd/types/index.h"                          // Index
+#include "dd/types/object_table.h"
+#include "dd/types/weak_object.h"
+#include "error_handler.h"                           // Internal_error_handler
+#include "m_string.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
+#include "mysqld_error.h"                            // ER_*
+#include "rapidjson/document.h"
+#include "rapidjson/prettywriter.h"
+#include "sql_class.h"
+#include "sql_error.h"
 
 using dd::tables::Foreign_keys;
 using dd::tables::Foreign_key_column_usage;
 
 namespace dd {
+
+class Sdi_rcontext;
+class Sdi_wcontext;
 
 ///////////////////////////////////////////////////////////////////////////
 // Foreign_key implementation.
@@ -98,11 +110,11 @@ public:
     : name(name_arg)
   { }
 
-  virtual bool handle_condition(THD *thd,
+  virtual bool handle_condition(THD*,
                                 uint sql_errno,
-                                const char* sqlstate,
-                                Sql_condition::enum_severity_level *level,
-                                const char* msg)
+                                const char*,
+                                Sql_condition::enum_severity_level*,
+                                const char*)
   {
     if (sql_errno == ER_DUP_ENTRY)
     {
@@ -297,9 +309,9 @@ Foreign_key_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val)
 ///////////////////////////////////////////////////////////////////////////
 
 /* purecov: begin inspected */
-void Foreign_key_impl::debug_print(std::string &outb) const
+void Foreign_key_impl::debug_print(String_type &outb) const
 {
-  std::stringstream ss;
+  dd::Stringstream_type ss;
   ss
     << "FOREIGN_KEY OBJECT: { "
     << "m_id: {OID: " << id() << "}; "
@@ -312,7 +324,7 @@ void Foreign_key_impl::debug_print(std::string &outb) const
   {
     for (const Foreign_key_element *e : elements())
     {
-      std::string ob;
+      String_type ob;
       e->debug_print(ob);
       ss << ob;
     }

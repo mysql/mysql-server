@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,8 +16,18 @@
 #ifndef DEFINED_RPL_BINLOG_SENDER
 #define DEFINED_RPL_BINLOG_SENDER
 
-#ifdef HAVE_REPLICATION
-#include "my_global.h"
+#include <string.h>
+#include <sys/types.h>
+#include <time.h>
+
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "mysql_com.h"
+#include "sql_string.h"
+
+class Gtid_set;
+class THD;
+
 #include "binlog.h"           // LOG_INFO
 #include "binlog_event.h"     // enum_binlog_checksum_alg, Log_event_type
 #include "mysqld_error.h"     // ER_*
@@ -28,7 +38,7 @@
   The major logic of dump thread is implemented in this class. It sends
   required binlog events to clients according to their requests.
 */
-class Binlog_sender
+class Binlog_sender : Gtid_mode_copy
 {
 public:
   Binlog_sender(THD *thd, const char *start_file, my_off_t start_pos,
@@ -324,12 +334,11 @@ private:
   inline int before_send_hook(const char *log_file, my_off_t log_pos);
   inline int after_send_hook(const char *log_file, my_off_t log_pos);
   /*
-    Reset thread transmit packet buffer for event sending
+    Reset the thread transmit packet buffer for event sending.
 
-    This function reserves header bytes for event transmission, and
-    should be called before store the event data to the packet buffer.
+    This function reserves the bytes for event transmission, and
+    should be called before storing the event data to the packet buffer.
 
-    @param[inout] packet  The buffer where a event will be stored.
     @param[in] flags      The flag used in reset_transmit hook.
     @param[in] event_len  If the caller already knows the event length, then
                           it can pass this value so that reset_transmit_packet
@@ -433,18 +442,21 @@ private:
   inline bool shrink_packet();
 
   /**
-   * Helper function to recalculate a new size for the buffer.
-   *
-   * @param current_size The baseline (for instance, the current buffer size).
-   * @param min_size The resulting buffer size, needs to be at least as large
-   *                 as this parameter states.
-   * @param factor The multiplier factor on the baseline.
-   * @param [out] new_val The placeholder where the new value will be stored.
-   * @return true in case of an error.
-   */
-  inline bool calc_buffer_size(size_t current_size, size_t min_size,
-                               float factor, size_t *new_val);
+   Helper function to recalculate a new size for the growing buffer.
+
+   @param current_size The baseline (for instance, the current buffer size).
+   @param min_size The resulting buffer size, needs to be at least as large
+                   as this parameter states.
+   @return The new buffer size, or 0 in the case of an error.
+  */
+  inline size_t calc_grow_buffer_size(size_t current_size, size_t min_size);
+
+  /**
+   Helper function to recalculate the new size for the m_new_shrink_size.
+
+   @param current_size The baseline (for instance, the current buffer size).
+  */
+  void calc_shrink_buffer_size(size_t current_size);
 };
 
-#endif // HAVE_REPLICATION
 #endif // DEFINED_RPL_BINLOG_SENDER

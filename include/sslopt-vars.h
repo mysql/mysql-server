@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,11 +20,28 @@
   @file include/sslopt-vars.h
 */
 
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+#include <stdio.h>
 
-#ifndef MYSQL_CLIENT
+#include "m_string.h"
+#include "my_inttypes.h"
+#include "mysql.h"
+#include "typelib.h"
+
+#if defined(HAVE_OPENSSL)
+
+#ifdef MYSQL_SERVER
 #error This header is supposed to be used only in the client
 #endif 
+
+#include <stddef.h>
+#include <stdio.h>
+#include <sys/types.h>
+
+#include "m_string.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
+#include "mysql.h"
+#include "typelib.h"
 
 const char *ssl_mode_names_lib[] =
   {"DISABLED", "PREFERRED", "REQUIRED", "VERIFY_CA", "VERIFY_IDENTITY",
@@ -41,7 +58,7 @@ static char *opt_ssl_key     = 0;
 static char *opt_ssl_crl     = 0;
 static char *opt_ssl_crlpath = 0;
 static char *opt_tls_version = 0;
-static my_bool ssl_mode_set_explicitly= FALSE;
+static bool ssl_mode_set_explicitly= FALSE;
 
 static void set_client_ssl_options(MYSQL *mysql)
 {

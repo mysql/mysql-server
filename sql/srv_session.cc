@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,27 +14,51 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "srv_session.h"
-#include "my_dbug.h"
-#include "my_thread.h"
-#include "sql_class.h"
-#include "sql_base.h"            // close_mysql_tables
-#include "sql_connect.h"         // thd_init_client_charset
-#include "mysqld_thd_manager.h"  // Global_THD_manager
-#include "sql_audit.h"           // MYSQL_AUDIT_NOTIFY_CONNECTION_CONNECT
-#include "log.h"                 // Query log
-#include "my_thread_local.h"     // my_get_thread_local & my_set_thread_local
-#include "mysqld.h"              // current_thd
-#include "sql_parse.h"           // dispatch_command()
-#include "sql_thd_internal_api.h" // thd_set_thread_stack
-#include "rwlock_scoped_lock.h"
-#include "mutex_lock.h"
-#include "conn_handler/connection_handler_manager.h"
-#include "sql_plugin.h"
-#include "current_thd.h"
-#include "derror.h"             // ER_DEFAULT
+#include "sql/srv_session.h"
 
+#include <stddef.h>
+#include <sys/types.h>
+#include <list>
 #include <map>
+#include <new>
+#include <utility>
+
+#include "conn_handler/connection_handler_manager.h"
+#include "current_thd.h"
+#include "decimal.h"
+#include "derror.h"             // ER_DEFAULT
+#include "lex_string.h"
+#include "log.h"                 // Query log
+#include "m_ctype.h"
+#include "mutex_lock.h"
+#include "my_dbug.h"
+#include "my_decimal.h"
+#include "my_inttypes.h"
+#include "my_psi_config.h"
+#include "my_thread.h"
+#include "my_thread_local.h"     // my_get_thread_local & my_set_thread_local
+#include "mysql/plugin_audit.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/mysql_rwlock.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_mutex.h"
+#include "mysql/psi/psi_rwlock.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysqld.h"              // current_thd
+#include "mysqld_error.h"
+#include "mysqld_thd_manager.h"  // Global_THD_manager
+#include "rwlock_scoped_lock.h"
+#include "sql_audit.h"           // MYSQL_AUDIT_NOTIFY_CONNECTION_CONNECT
+#include "sql_base.h"            // close_mysql_tables
+#include "sql_class.h"
+#include "sql_connect.h"         // thd_init_client_charset
+#include "sql_list.h"
+#include "sql_parse.h"           // dispatch_command()
+#include "sql_plugin_ref.h"
+#include "sql_security_ctx.h"
+#include "sql_thd_internal_api.h" // thd_set_thread_stack
+#include "system_variables.h"
+#include "thr_mutex.h"
 
 /**
   @file
@@ -81,7 +105,8 @@ public:
 #ifdef HAVE_PSI_INTERFACE
     psi_initted= true;
 
-    mysql_mutex_register(category, all_mutexes, array_elements(all_mutexes));
+    mysql_mutex_register(category, all_mutexes,
+                         static_cast<int>(array_elements(all_mutexes)));
 #endif
     mysql_mutex_init(key_LOCK_collection, &LOCK_collection, MY_MUTEX_INIT_FAST);
 
@@ -303,7 +328,8 @@ public:
 #ifdef HAVE_PSI_INTERFACE
     psi_initted= true;
 
-    mysql_rwlock_register(category, all_rwlocks, array_elements(all_rwlocks));
+    mysql_rwlock_register(category, all_rwlocks,
+                          static_cast<int>(array_elements(all_rwlocks)));
 #endif
     mysql_rwlock_init(key_LOCK_collection, &LOCK_collection);
 
@@ -463,22 +489,15 @@ static Thread_to_plugin_map server_session_threads;
   @param sess Session to backup
 */
 Srv_session::
-Session_backup_and_attach::Session_backup_and_attach(Srv_session *sess,
-                                                     bool is_close_session)
-  :session(sess),
-   old_session(NULL),
-   in_close_session(is_close_session)
+Session_backup_and_attach::Session_backup_and_attach(Srv_session *sess)
+  :session(sess), old_session(nullptr), backup_thd(nullptr)
 {
-  THD *c_thd= current_thd;
-  const void *is_srv_session_thread= my_get_thread_local(THR_srv_session_thread);
-  backup_thd= is_srv_session_thread? NULL:c_thd;
-
-  if (is_srv_session_thread && c_thd && c_thd != &session->thd)
-  {
-    if ((old_session= server_session_list.find(c_thd)))
-      old_session->detach();
-  }
-
+  THD *thd= current_thd;
+  // If it is a srv_session thread and there's another session attached
+  if ((old_session= server_session_list.find(thd)))
+    old_session->detach();
+  else
+    backup_thd= thd;
   attach_error= session->attach();
 }
 
@@ -499,13 +518,10 @@ Srv_session::Session_backup_and_attach::~Session_backup_and_attach()
       PSI_THREAD_CALL(set_connection_type)(vio_type);
 #endif /* HAVE_PSI_THREAD_INTERFACE */
   }
-  else if (in_close_session)
+  else
   {
-    /*
-      We should restore the old session only in case of close.
-      In case of execute we should stay attached.
-    */
     session->detach();
+    // If previously there was another session attached, then attach it back.
     if (old_session)
       old_session->attach();
   }
@@ -594,7 +610,7 @@ static int err_get_string(void*, const char*, size_t,const CHARSET_INFO*)
 
 static void err_handle_ok(void * ctx, uint server_status, uint warn_count,
                           ulonglong affected_rows, ulonglong last_insert_id,
-                          const char * const message)
+                          const char * const)
 {
   Srv_session::st_err_protocol_ctx *pctx=
              static_cast<Srv_session::st_err_protocol_ctx*>(ctx);
@@ -609,7 +625,7 @@ static void err_handle_ok(void * ctx, uint server_status, uint warn_count,
 }
 
 static void err_handle_error(void * ctx, uint err_errno, const char * err_msg,
-                             const char * sqlstate)
+                             const char*)
 {
   Srv_session::st_err_protocol_ctx *pctx=
              static_cast<Srv_session::st_err_protocol_ctx*>(ctx);
@@ -617,7 +633,7 @@ static void err_handle_error(void * ctx, uint err_errno, const char * err_msg,
     pctx->handler(pctx->handler_context, err_errno, err_msg);
 }
 
-static void err_shutdown(void*, int server_shutdown){}
+static void err_shutdown(void*, int) {}
 
 
 const struct st_command_service_cbs error_protocol_callbacks=
@@ -845,9 +861,7 @@ bool Srv_session::module_deinit()
 */
 bool Srv_session::is_valid(const Srv_session *session)
 {
-  const THD *thd= session?
-    reinterpret_cast<const THD*>(session + my_offsetof(Srv_session, thd)):
-    NULL;
+  const THD *thd= session ? &session->thd : nullptr;
   return thd? (bool) server_session_list.find(thd) : false;
 }
 
@@ -884,7 +898,7 @@ bool Srv_session::open()
   DBUG_PRINT("info",("Session=%p  THD=%p  DA=%p", this, &thd, &da));
   DBUG_ASSERT(state == SRV_SESSION_CREATED || state == SRV_SESSION_CLOSED);
 
-  thd.set_protocol(&protocol_error);
+  thd.push_protocol(&protocol_error);
   thd.push_diagnostics_area(&da);
   /*
     thd.stack_start will be set once we start attempt to attach.
@@ -1106,7 +1120,7 @@ bool Srv_session::close()
     The destructor will attach the session we detached.
   */
 
-  Srv_session::Session_backup_and_attach backup(this, true);
+  Srv_session::Session_backup_and_attach backup(this);
 
   if (backup.attach_error)
     DBUG_RETURN(true);
@@ -1126,6 +1140,7 @@ bool Srv_session::close()
   close_mysql_tables(&thd);
 
   thd.pop_diagnostics_area();
+  thd.pop_protocol();
 
   thd.get_stmt_da()->reset_diagnostics_area();
 
@@ -1164,8 +1179,6 @@ void Srv_session::set_detached()
   thd_set_thread_stack(&thd, NULL);
 }
 
-#include "auth_common.h"
-
 int Srv_session::execute_command(enum enum_server_command command,
                                  const union COM_DATA * data,
                                  const CHARSET_INFO * client_cs,
@@ -1196,7 +1209,7 @@ int Srv_session::execute_command(enum enum_server_command command,
   DBUG_ASSERT(thd.get_protocol() == &protocol_error);
 
   // RAII:the destructor restores the state
-  Srv_session::Session_backup_and_attach backup(this, false);
+  Srv_session::Session_backup_and_attach backup(this);
 
   if (backup.attach_error)
     DBUG_RETURN(1);
@@ -1209,7 +1222,7 @@ int Srv_session::execute_command(enum enum_server_command command,
   /* Switch to different callbacks */
   Protocol_callback client_proto(callbacks, text_or_binary, callbacks_context);
 
-  thd.set_protocol(&client_proto);
+  thd.push_protocol(&client_proto);
 
   mysql_audit_release(&thd);
 
@@ -1222,7 +1235,8 @@ int Srv_session::execute_command(enum enum_server_command command,
 
   int ret= dispatch_command(&thd, data, command);
 
-  thd.set_protocol(&protocol_error);
+  thd.pop_protocol();
+  DBUG_ASSERT(thd.get_protocol() == &protocol_error);
   DBUG_RETURN(ret);
 }
 

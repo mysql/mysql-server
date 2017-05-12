@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,15 +15,30 @@
 
 #include "dd/impl/types/index_element_impl.h"
 
-#include "mysqld_error.h"                       // ER_*
+#include <ostream>
 
-#include "dd/properties.h"                      // Needed for destructor
-#include "dd/impl/sdi_impl.h"                   // sdi read/write functions
-#include "dd/impl/transaction_impl.h"           // Open_dictionary_tables_ctx
 #include "dd/impl/raw/raw_record.h"             // Raw_record
+#include "dd/impl/sdi_impl.h"                   // sdi read/write functions
 #include "dd/impl/tables/index_column_usage.h"  // Index_column_usage
+#include "dd/impl/transaction_impl.h"           // Open_dictionary_tables_ctx
+#include "dd/impl/types/entity_object_impl.h"
 #include "dd/impl/types/table_impl.h"           // Table_impl
 #include "dd/types/column.h"                    // Column
+#include "dd/types/object_table.h"
+#include "dd/types/weak_object.h"
+#include "dd_table_share.h"                     // dd_get_old_field_type()
+#include "m_string.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
+#include "mysqld_error.h"                       // ER_*
+#include "rapidjson/document.h"
+#include "rapidjson/prettywriter.h"
+
+namespace dd {
+class Object_key;
+class Sdi_rcontext;
+class Sdi_wcontext;
+}  // namespace dd
 
 using dd::tables::Index_column_usage;
 
@@ -111,7 +126,7 @@ bool Index_element_impl::store_attributes(Raw_record *r)
 static_assert(Index_column_usage::FIELD_HIDDEN==5,
               "Index_column_usage definition has changed, review (de)ser memfuns!");
 void
-Index_element_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const
+Index_element_impl::serialize(Sdi_wcontext*, Sdi_writer *w) const
 {
   w->StartObject();
   write(w, m_ordinal_position, STRING_WITH_LEN("ordinal_position"));
@@ -135,9 +150,9 @@ Index_element_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val)
 
 ///////////////////////////////////////////////////////////////////////////
 
-void Index_element_impl::debug_print(std::string &outb) const
+void Index_element_impl::debug_print(String_type &outb) const
 {
-  std::stringstream ss;
+  dd::Stringstream_type ss;
   ss
     << "INDEX ELEMENT OBJECT: { "
     << "m_index: {OID: " << m_index->id() << "}; "
@@ -164,6 +179,35 @@ bool Index_element_impl::has_new_primary_key() const
 {
   return m_index->has_new_primary_key();
 }
+
+///////////////////////////////////////////////////////////////////////////
+
+/**
+  Check if index element represents prefix key part on the column.
+
+  @note This function is in sync with how we evaluate HA_PART_KEY_SEG.
+        As result it returns funny results for BLOB/GIS types.
+*/
+
+/* purecov: begin deadcode */
+bool Index_element_impl::is_prefix() const
+{
+  uint interval_parts;
+  const Column& col= column();
+  enum_field_types field_type= dd_get_old_field_type(col.type());
+
+  if (field_type == MYSQL_TYPE_ENUM || field_type == MYSQL_TYPE_SET)
+    interval_parts= col.elements_count();
+  else
+    interval_parts= 0;
+
+  return calc_key_length(field_type,
+                         col.char_length(),
+                         col.numeric_scale(),
+                         col.is_unsigned(),
+                         interval_parts) != length();
+}
+/* purecov: end */
 
 ///////////////////////////////////////////////////////////////////////////
 

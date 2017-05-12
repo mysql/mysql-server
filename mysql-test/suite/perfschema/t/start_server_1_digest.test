@@ -1,0 +1,13 @@
+# -----------------------------------------------------------------------
+# Tests for the performance schema statement Digests.
+# -----------------------------------------------------------------------
+
+--source include/no_protocol.inc
+
+SELECT "Digest table has a size 1 and is full already." as use_case;
+
+select SCHEMA_NAME, DIGEST, DIGEST_TEXT
+  from performance_schema.events_statements_summary_by_digest;
+
+
+

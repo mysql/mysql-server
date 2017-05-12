@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,12 +17,25 @@
   @file mysys/my_copy.cc
 */
 
-#include "mysys_priv.h"
-#include "my_sys.h"
+#include "my_config.h"
+
+#include <errno.h>
+#include <fcntl.h>
 #include <my_dir.h> /* for stat */
-#include <m_string.h>
-#include "mysys_err.h"
+#include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_macros.h"
+#include "my_sys.h"
 #include "my_thread_local.h"
+#include "mysys_err.h"
 
 #ifndef _WIN32
 #include <utime.h>
@@ -52,7 +65,7 @@
 int my_copy(const char *from, const char *to, myf MyFlags)
 {
   size_t Count;
-  my_bool new_file_stat= 0; /* 1 if we could stat "to" */
+  bool new_file_stat= 0; /* 1 if we could stat "to" */
   int create_flag;
   File from_file,to_file;
   uchar buff[IO_SIZE];

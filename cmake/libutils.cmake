@@ -18,9 +18,7 @@
 # on Unix systems. One such feature is convenience libraries. In this context,
 # convenience library is a static library that can be linked to shared library
 # On systems that force position-independent code, linking into shared library
-# normally requires compilation with a special flag (often -fPIC). To enable 
-# linking static libraries to shared, we compile source files that come into 
-# static library with the PIC flag (${CMAKE_SHARED_LIBRARY_C_FLAGS} in CMake)
+# normally requires compilation with a special flag (often -fPIC).
 # Some systems, like Windows or OSX do not need special compilation (Windows 
 # never uses PIC and OSX always uses it). 
 #
@@ -44,16 +42,13 @@
 # library from several convenience libraries
 
 # Important global flags 
-# - WITH_PIC : If set, it is assumed that everything is compiled as position
-# independent code (that is CFLAGS/CMAKE_C_FLAGS contain -fPIC or equivalent)
-# If defined, ADD_CONVENIENCE_LIBRARY does not add PIC flag to compile flags
 #
 # - DISABLE_SHARED: If set, it is assumed that shared libraries are not produced
 # during the build. ADD_CONVENIENCE_LIBRARY does not add anything to compile flags
 
 
 GET_FILENAME_COMPONENT(MYSQL_CMAKE_SCRIPT_DIR ${CMAKE_CURRENT_LIST_FILE} PATH)
-IF(WIN32 OR APPLE OR WITH_PIC OR DISABLE_SHARED OR NOT CMAKE_SHARED_LIBRARY_C_FLAGS)
+IF(WIN32 OR APPLE OR DISABLE_SHARED)
  SET(_SKIP_PIC 1)
 ENDIF()
 
@@ -101,10 +96,6 @@ MACRO(ADD_CONVENIENCE_LIBRARY)
   SET(SOURCES ${ARGN})
   LIST(REMOVE_AT SOURCES 0)
   ADD_LIBRARY(${TARGET} STATIC ${SOURCES})
-  IF(NOT _SKIP_PIC)
-    SET_TARGET_PROPERTIES(${TARGET} PROPERTIES  COMPILE_FLAGS
-    "${CMAKE_SHARED_LIBRARY_C_FLAGS}")
-  ENDIF()
 ENDMACRO()
 
 
@@ -244,8 +235,6 @@ MACRO(MERGE_LIBRARIES)
         GET_TARGET_PROPERTY(${LIB} TYPE LIBTYPE)
         IF(LIBTYPE STREQUAL "STATIC_LIBRARY")
           GET_TARGET_PROPERTY(LIB COMPILE_FLAGS LIB_COMPILE_FLAGS)
-          STRING(REPLACE "${CMAKE_SHARED_LIBRARY_C_FLAGS}" 
-          "<PIC_FLAG>" LIB_COMPILE_FLAGS ${LIB_COMPILE_FLAG})
           IF(NOT LIB_COMPILE_FLAGS MATCHES "<PIC_FLAG>")
             MESSAGE(FATAL_ERROR 
             "Attempted to link non-PIC static library ${LIB} to shared library ${TARGET}\n"
@@ -275,7 +264,6 @@ MACRO(MERGE_LIBRARIES)
       MYSQL_INSTALL_TARGETS(${TARGET} DESTINATION "${INSTALL_LIBDIR}" ${COMP})
     ENDIF()
   ENDIF()
-  SET_TARGET_PROPERTIES(${TARGET} PROPERTIES LINK_INTERFACE_LIBRARIES "")
 ENDMACRO()
 
 FUNCTION(GET_DEPENDEND_OS_LIBS target result)

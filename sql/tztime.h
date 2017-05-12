@@ -1,7 +1,7 @@
 #ifndef TZTIME_INCLUDED
 #define TZTIME_INCLUDED
 
-/* Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,12 +16,20 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "my_global.h"
+#include "my_config.h"
+
+#include "my_inttypes.h"
+
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
+
 #include "mysql_time.h"     // MYSQL_TIME
 #include "sql_alloc.h"      // Sql_alloc
 
 class String;
 class THD;
+
 typedef long my_time_t;
 
 #if !defined(TESTTIME) && !defined(TZINFO2SQL)
@@ -43,7 +51,7 @@ public:
     falls into spring time-gap (or lefts it untouched otherwise).
   */
   virtual my_time_t TIME_to_gmt_sec(const MYSQL_TIME *t, 
-                                    my_bool *in_dst_time_gap) const = 0;
+                                    bool *in_dst_time_gap) const = 0;
   /**
     Converts time in my_time_t representation to local time in
     broken down MYSQL_TIME representation.
@@ -79,7 +87,7 @@ extern Time_zone * my_tz_UTC;
 extern Time_zone * my_tz_SYSTEM;
 extern Time_zone * my_tz_OFFSET0;
 extern Time_zone * my_tz_find(THD *thd, const String *name);
-extern my_bool     my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap);
+extern bool        my_tz_init(THD *org_thd, const char *default_tzname, bool bootstrap);
 extern void        my_tz_free();
 extern my_time_t   sec_since_epoch_TIME(MYSQL_TIME *t);
 

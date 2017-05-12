@@ -8,10 +8,8 @@
 # - reported in SUM_CONNECT_ERRORS
 # - reported in COUNT_HOST_BLOCKED_ERRORS
 
---source include/not_embedded.inc
 --source include/have_debug.inc
 --source include/have_ipv6.inc
---source include/have_perfschema.inc
 
 # Enforce a clean state
 --source ../include/wait_for_pfs_thread_count.inc

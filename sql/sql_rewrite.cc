@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -65,18 +65,44 @@
   user where to cut & paste it without filling in the real password.
 */
 
-#include "sql_rewrite.h"
+#include "sql/sql_rewrite.h"
 
+#include <string.h>
+#include <sys/types.h>
+#include <set>
+
+#include "auth_acls.h"
 #include "auth_common.h"    // GRANT_ACL
+#include "handler.h"
+#include "key.h"
+#include "lex_string.h"
+#include "log_event.h"      // append_query_string
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_sqlcommand.h"
+#include "mysql/service_my_snprintf.h"
 #include "mysqld.h"         // opt_log_builtin_as_identified_by_password
+#include "prealloced_array.h"
 #include "rpl_slave.h"      // SLAVE_SQL, SLAVE_IO
+#include "set_var.h"
 #include "sql_class.h"      // THD
+#include "sql_connect.h"
 #include "sql_lex.h"        // LEX
+#include "sql_list.h"
 #include "sql_parse.h"      // get_current_user
+#include "sql_plugin.h"
+#include "sql_servers.h"
 #include "sql_show.h"       // append_identifier
 #include "sql_string.h"     // String
-#include "log_event.h"      // append_query_string
+#include "table.h"
+#include "violite.h"
 
+#ifndef DBUG_OFF
+#define HASH_STRING_WITH_QUOTE \
+        "$5$BVZy9O>'a+2MH]_?$fpWyabcdiHjfCVqId/quykZzjaA7adpkcen/uiQrtmOK4p4"
+#endif
 
 /**
   Append a comma to given string if item wasn't the first to be added.
@@ -298,6 +324,17 @@ void mysql_rewrite_grant(THD *thd, String *rlb)
           rlb->append(cols);
       }
     }
+    /* List extended global privilege IDs */
+    if (!first_table && !lex->current_select()->db)
+    {
+      List_iterator<LEX_CSTRING> it(lex->dynamic_privileges);
+      LEX_CSTRING *priv;
+      while ((priv= it++))
+      {
+        comma_maybe(rlb, &comma);
+        rlb->append(priv->str, priv->length);
+      }
+    }
     if (!comma)                                // no privs, default to USAGE
       rlb->append(STRING_WITH_LEN("USAGE"));
   }
@@ -403,6 +440,14 @@ void mysql_rewrite_set_password(THD *thd, String *rlb,
                                 std::set<LEX_USER *> *users,
                                 bool for_binlog) /* = false */
 {
+  bool set_temp_string= false;
+  /*
+    Setting this flag will generate the password hash string which
+    contains a single quote.
+  */
+  DBUG_EXECUTE_IF("force_hash_string_with_quote",
+                   set_temp_string= true;
+                 );
   if (!for_binlog)
     mysql_rewrite_set(thd, rlb);
   else
@@ -414,6 +459,19 @@ void mysql_rewrite_set_password(THD *thd, String *rlb,
       LEX_USER * user= *(users->begin());
       String current_user(user->user.str, user->user.length, system_charset_info);
       String current_host(user->host.str, user->host.length, system_charset_info);
+      String auth_str;
+      if (set_temp_string)
+      {
+#ifndef DBUG_OFF
+        auth_str= String(HASH_STRING_WITH_QUOTE,
+                         strlen(HASH_STRING_WITH_QUOTE),
+                         system_charset_info);
+#endif
+      }
+      else
+      {
+        auth_str= String(user->auth.str, user->auth.length, system_charset_info);
+      }
       if (opt_log_builtin_as_identified_by_password)
       {
         /* Construct : SET PASSWORD FOR '<user>'@'<host'>='<HASH>' */
@@ -421,9 +479,8 @@ void mysql_rewrite_set_password(THD *thd, String *rlb,
         append_query_string(thd, system_charset_info, &current_user, rlb);
         rlb->append(STRING_WITH_LEN("@"));
         append_query_string(thd, system_charset_info, &current_host, rlb);
-        rlb->append(STRING_WITH_LEN("='"));
-        rlb->append(user->auth.str, user->auth.length);
-        rlb->append(STRING_WITH_LEN("'"));
+        rlb->append(STRING_WITH_LEN("="));
+        append_query_string(thd, system_charset_info, &auth_str, rlb);
       }
       else
       {
@@ -437,9 +494,8 @@ void mysql_rewrite_set_password(THD *thd, String *rlb,
         append_query_string(thd, system_charset_info, &current_host, rlb);
         rlb->append(STRING_WITH_LEN(" IDENTIFIED WITH '"));
         rlb->append(user->plugin.str);
-        rlb->append(STRING_WITH_LEN("' AS '"));
-        rlb->append(user->auth.str, user->auth.length);
-        rlb->append(STRING_WITH_LEN("'"));
+        rlb->append(STRING_WITH_LEN("' AS "));
+        append_query_string(thd, system_charset_info, &auth_str, rlb);
       }
     }
   }

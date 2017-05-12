@@ -42,7 +42,7 @@ REFERENCED_TABLE_NAME	binary(0)	YES		NULL
 REFERENCED_COLUMN_NAME	binary(0)	YES		NULL	
 SHOW CREATE TABLE information_schema.KEY_COLUMN_USAGE;
 View	Create View	character_set_client	collation_connection
-KEY_COLUMN_USAGE	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `information_schema`.`KEY_COLUMN_USAGE` AS (select `cat`.`name` AS `CONSTRAINT_CATALOG`,`sch`.`name` AS `CONSTRAINT_SCHEMA`,convert(`idx`.`name` using utf8) AS `CONSTRAINT_NAME`,`cat`.`name` AS `TABLE_CATALOG`,`sch`.`name` AS `TABLE_SCHEMA`,`tbl`.`name` AS `TABLE_NAME`,(`col`.`name` collate utf8_tolower_ci) AS `COLUMN_NAME`,`icu`.`ordinal_position` AS `ORDINAL_POSITION`,NULL AS `POSITION_IN_UNIQUE_CONSTRAINT`,NULL AS `REFERENCED_TABLE_SCHEMA`,NULL AS `REFERENCED_TABLE_NAME`,NULL AS `REFERENCED_COLUMN_NAME` from (((((`mysql`.`indexes` `idx` join `mysql`.`tables` `tbl` on((`idx`.`table_id` = `tbl`.`id`))) join `mysql`.`schemata` `sch` on((`tbl`.`schema_id` = `sch`.`id`))) join `mysql`.`catalogs` `cat` on((`cat`.`id` = `sch`.`catalog_id`))) join `mysql`.`index_column_usage` `icu` on((`icu`.`index_id` = `idx`.`id`))) join `mysql`.`columns` `col` on(((`icu`.`column_id` = `col`.`id`) and (`idx`.`type` in ('PRIMARY','UNIQUE'))))) where (can_access_column(`sch`.`name`,`tbl`.`name`,`col`.`name`) and (not(`tbl`.`hidden`)))) union (select `cat`.`name` AS `CONSTRAINT_CATALOG`,`sch`.`name` AS `CONSTRAINT_SCHEMA`,convert(`fk`.`name` using utf8) AS `CONSTRAINT_NAME`,`cat`.`name` AS `TABLE_CATALOG`,`sch`.`name` AS `TABLE_SCHEMA`,`tbl`.`name` AS `TABLE_NAME`,(`col`.`name` collate utf8_tolower_ci) AS `COLUMN_NAME`,`fkcu`.`ordinal_position` AS `ORDINAL_POSITION`,`icu`.`ordinal_position` AS `POSITION_IN_UNIQUE_CONSTRAINT`,`fk`.`referenced_table_schema` AS `REFERENCED_TABLE_SCHEMA`,`fk`.`referenced_table_name` AS `REFERENCED_TABLE_NAME`,`fkcu`.`referenced_column_name` AS `REFERENCED_COLUMN_NAME` from (((((((`mysql`.`foreign_keys` `fk` join `mysql`.`tables` `tbl` on((`fk`.`table_id` = `tbl`.`id`))) join `mysql`.`foreign_key_column_usage` `fkcu` on((`fkcu`.`foreign_key_id` = `fk`.`id`))) join `mysql`.`schemata` `sch` on((`fk`.`schema_id` = `sch`.`id`))) join `mysql`.`catalogs` `cat` on((`cat`.`id` = `sch`.`catalog_id`))) join `mysql`.`columns` `col` on((`fkcu`.`column_id` = `col`.`id`))) join `mysql`.`indexes` `idx` on((`fk`.`unique_constraint_id` = `idx`.`id`))) join `mysql`.`index_column_usage` `icu` on(((`idx`.`id` = `icu`.`index_id`) and (`icu`.`column_id` = `col`.`id`)))) where (can_access_column(`sch`.`name`,`tbl`.`name`,`col`.`name`) and (not(`tbl`.`hidden`))))	utf8	utf8_general_ci
+KEY_COLUMN_USAGE	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `information_schema`.`KEY_COLUMN_USAGE` AS (select `cat`.`name` AS `CONSTRAINT_CATALOG`,`sch`.`name` AS `CONSTRAINT_SCHEMA`,convert(`idx`.`name` using utf8) AS `CONSTRAINT_NAME`,`cat`.`name` AS `TABLE_CATALOG`,`sch`.`name` AS `TABLE_SCHEMA`,`tbl`.`name` AS `TABLE_NAME`,(`col`.`name` collate utf8_tolower_ci) AS `COLUMN_NAME`,`icu`.`ordinal_position` AS `ORDINAL_POSITION`,NULL AS `POSITION_IN_UNIQUE_CONSTRAINT`,NULL AS `REFERENCED_TABLE_SCHEMA`,NULL AS `REFERENCED_TABLE_NAME`,NULL AS `REFERENCED_COLUMN_NAME` from (((((`mysql`.`indexes` `idx` join `mysql`.`tables` `tbl` on((`idx`.`table_id` = `tbl`.`id`))) join `mysql`.`schemata` `sch` on((`tbl`.`schema_id` = `sch`.`id`))) join `mysql`.`catalogs` `cat` on((`cat`.`id` = `sch`.`catalog_id`))) join `mysql`.`index_column_usage` `icu` on((`icu`.`index_id` = `idx`.`id`))) join `mysql`.`columns` `col` on(((`icu`.`column_id` = `col`.`id`) and (`idx`.`type` in ('PRIMARY','UNIQUE'))))) where (can_access_column(`sch`.`name`,`tbl`.`name`,`col`.`name`) and (not(`tbl`.`hidden`)))) union (select `cat`.`name` AS `CONSTRAINT_CATALOG`,`sch`.`name` AS `CONSTRAINT_SCHEMA`,convert(`fk`.`name` using utf8) AS `CONSTRAINT_NAME`,`cat`.`name` AS `TABLE_CATALOG`,`sch`.`name` AS `TABLE_SCHEMA`,`tbl`.`name` AS `TABLE_NAME`,(`col`.`name` collate utf8_tolower_ci) AS `COLUMN_NAME`,`fkcu`.`ordinal_position` AS `ORDINAL_POSITION`,`fkcu`.`ordinal_position` AS `POSITION_IN_UNIQUE_CONSTRAINT`,`fk`.`referenced_table_schema` AS `REFERENCED_TABLE_SCHEMA`,`fk`.`referenced_table_name` AS `REFERENCED_TABLE_NAME`,`fkcu`.`referenced_column_name` AS `REFERENCED_COLUMN_NAME` from (((((`mysql`.`foreign_keys` `fk` join `mysql`.`tables` `tbl` on((`fk`.`table_id` = `tbl`.`id`))) join `mysql`.`foreign_key_column_usage` `fkcu` on((`fkcu`.`foreign_key_id` = `fk`.`id`))) join `mysql`.`schemata` `sch` on((`fk`.`schema_id` = `sch`.`id`))) join `mysql`.`catalogs` `cat` on((`cat`.`id` = `sch`.`catalog_id`))) join `mysql`.`columns` `col` on((`fkcu`.`column_id` = `col`.`id`))) where (can_access_column(`sch`.`name`,`tbl`.`name`,`col`.`name`) and (not(`tbl`.`hidden`))))	utf8	utf8_general_ci
 SHOW COLUMNS FROM information_schema.KEY_COLUMN_USAGE;
 Field	Type	Null	Key	Default	Extra
 CONSTRAINT_CATALOG	varchar(64)	NO		NULL	
@@ -134,6 +134,8 @@ def	mysql	PRIMARY	def	mysql	columns_priv	Table_name
 def	mysql	PRIMARY	def	mysql	columns_priv	User
 def	mysql	PRIMARY	def	mysql	component	component_id
 def	performance_schema	PRIMARY	def	performance_schema	cond_instances	OBJECT_INSTANCE_BEGIN
+def	performance_schema	PRIMARY	def	performance_schema	data_locks	ENGINE
+def	performance_schema	PRIMARY	def	performance_schema	data_locks	ENGINE_LOCK_ID
 def	mysql	PRIMARY	def	mysql	db	Db
 def	mysql	PRIMARY	def	mysql	db	Host
 def	mysql	PRIMARY	def	mysql	db	User
@@ -153,6 +155,7 @@ def	performance_schema	PRIMARY	def	performance_schema	events_stages_summary_by_t
 def	performance_schema	PRIMARY	def	performance_schema	events_stages_summary_global_by_event_name	EVENT_NAME
 def	performance_schema	PRIMARY	def	performance_schema	events_statements_current	EVENT_ID
 def	performance_schema	PRIMARY	def	performance_schema	events_statements_current	THREAD_ID
+def	performance_schema	PRIMARY	def	performance_schema	events_statements_histogram_global	BUCKET_NUMBER
 def	performance_schema	PRIMARY	def	performance_schema	events_statements_history	EVENT_ID
 def	performance_schema	PRIMARY	def	performance_schema	events_statements_history	THREAD_ID
 def	performance_schema	PRIMARY	def	performance_schema	events_statements_summary_by_program	OBJECT_NAME
@@ -180,6 +183,9 @@ def	performance_schema	PRIMARY	def	performance_schema	file_instances	FILE_NAME
 def	performance_schema	PRIMARY	def	performance_schema	file_summary_by_event_name	EVENT_NAME
 def	performance_schema	PRIMARY	def	performance_schema	file_summary_by_instance	OBJECT_INSTANCE_BEGIN
 def	mysql	PRIMARY	def	mysql	func	name
+def	mysql	PRIMARY	def	mysql	global_grants	HOST
+def	mysql	PRIMARY	def	mysql	global_grants	PRIV
+def	mysql	PRIMARY	def	mysql	global_grants	USER
 def	performance_schema	PRIMARY	def	performance_schema	global_status	VARIABLE_NAME
 def	performance_schema	PRIMARY	def	performance_schema	global_variables	VARIABLE_NAME
 def	mysql	PRIMARY	def	mysql	gtid_executed	interval_start
@@ -201,6 +207,7 @@ def	performance_schema	PRIMARY	def	performance_schema	memory_summary_by_thread_b
 def	performance_schema	PRIMARY	def	performance_schema	memory_summary_global_by_event_name	EVENT_NAME
 def	performance_schema	PRIMARY	def	performance_schema	metadata_locks	OBJECT_INSTANCE_BEGIN
 def	performance_schema	PRIMARY	def	performance_schema	mutex_instances	OBJECT_INSTANCE_BEGIN
+def	performance_schema	PRIMARY	def	performance_schema	persisted_variables	VARIABLE_NAME
 def	mysql	PRIMARY	def	mysql	plugin	name
 def	performance_schema	PRIMARY	def	performance_schema	prepared_statements_instances	OBJECT_INSTANCE_BEGIN
 def	mysql	PRIMARY	def	mysql	procs_priv	Db
@@ -267,6 +274,9 @@ def	performance_schema	PRIMARY	def	performance_schema	user_variables_by_thread	T
 def	performance_schema	PRIMARY	def	performance_schema	user_variables_by_thread	VARIABLE_NAME
 def	performance_schema	PRIMARY	def	performance_schema	variables_by_thread	THREAD_ID
 def	performance_schema	PRIMARY	def	performance_schema	variables_by_thread	VARIABLE_NAME
+def	performance_schema	SCHEMA_NAME	def	performance_schema	events_statements_histogram_by_digest	BUCKET_NUMBER
+def	performance_schema	SCHEMA_NAME	def	performance_schema	events_statements_histogram_by_digest	DIGEST
+def	performance_schema	SCHEMA_NAME	def	performance_schema	events_statements_histogram_by_digest	SCHEMA_NAME
 def	performance_schema	SCHEMA_NAME	def	performance_schema	events_statements_summary_by_digest	DIGEST
 def	performance_schema	SCHEMA_NAME	def	performance_schema	events_statements_summary_by_digest	SCHEMA_NAME
 def	performance_schema	THREAD_ID	def	performance_schema	events_errors_summary_by_thread_by_error	ERROR_NUMBER

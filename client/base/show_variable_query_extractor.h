@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,11 +18,12 @@
 #ifndef SHOW_VARIABLE_QUERY_EXTRACTOR_INCLUDED
 #define SHOW_VARIABLE_QUERY_EXTRACTOR_INCLUDED
 
-#include "i_callable.h"
+#include <string>
+#include <vector>
+
 #include "base/mysql_query_runner.h"
+#include "my_inttypes.h"
 #include "mysql.h"
-#include<string>
-#include<vector>
 
 namespace Mysql{
 namespace Tools{

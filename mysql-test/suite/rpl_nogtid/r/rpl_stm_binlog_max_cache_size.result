@@ -24,9 +24,9 @@ SET GLOBAL max_binlog_stmt_cache_size = 4096;
 Warnings:
 Warning	1745	Option binlog_stmt_cache_size (32768) is greater than max_binlog_stmt_cache_size (4096); setting binlog_stmt_cache_size equal to max_binlog_stmt_cache_size.
 SET GLOBAL binlog_stmt_cache_size = 4096;
-CREATE TABLE t1(a INT PRIMARY KEY, data VARCHAR(30000)) ENGINE=Innodb;
-CREATE TABLE t2(a INT PRIMARY KEY, data VARCHAR(30000)) ENGINE=MyIsam;
-CREATE TABLE t3(a INT PRIMARY KEY, data VARCHAR(30000)) ENGINE=Innodb;
+CREATE TABLE t1(a INT PRIMARY KEY, data VARCHAR(30000)) ENGINE=Innodb CHARACTER SET latin1;
+CREATE TABLE t2(a INT PRIMARY KEY, data VARCHAR(30000)) ENGINE=MyIsam CHARACTER SET latin1;
+CREATE TABLE t3(a INT PRIMARY KEY, data VARCHAR(30000)) ENGINE=Innodb CHARACTER SET latin1;
 ###### 1 - SINGLE STATEMENT  ######
 *** Single statement on transactional table ***
 Got one of the listed errors
@@ -78,7 +78,7 @@ include/diff_tables.inc [master:t1,slave:t1]
 TRUNCATE TABLE t1;
 TRUNCATE TABLE t2;
 TRUNCATE TABLE t3;
-CREATE PROCEDURE p1(pd VARCHAR(30000))
+CREATE PROCEDURE p1(pd VARCHAR(30000) CHARACTER SET latin1)
 BEGIN
 INSERT INTO t1 (a, data) VALUES (1, pd);
 INSERT INTO t1 (a, data) VALUES (2, pd);

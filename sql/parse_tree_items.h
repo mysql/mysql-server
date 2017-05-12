@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,14 +16,44 @@
 #ifndef PARSE_TREE_ITEMS_INCLUDED
 #define PARSE_TREE_ITEMS_INCLUDED
 
-#include "my_global.h"
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "binary_log_types.h"
+#include "field.h"
+#include "item.h"
 #include "item_create.h"        // Create_func
+#include "item_func.h"
+#include "item_strfunc.h"
+#include "item_subselect.h"
 #include "item_sum.h"           // Item_sum_count
 #include "item_timefunc.h"      // Item_func_now_local
+#include "lex_string.h"
+#include "m_ctype.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
+#include "my_time.h"
+#include "mysql/psi/mysql_statement.h"
+#include "mysql_com.h"
+#include "mysqld_error.h"
+#include "parse_location.h"
 #include "parse_tree_helpers.h" // Parse_tree_item
-#include "sp.h"                 // sp_check_name
+#include "parse_tree_node_base.h"
+#include "protocol.h"
+#include "set_var.h"
 #include "sp_head.h"            // sp_head
+#include "sql_class.h"
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_list.h"
 #include "sql_parse.h"          // negate_expression
+#include "sql_security_ctx.h"
+#include "sql_string.h"
+#include "sql_udf.h"
+#include "system_variables.h"
+
+class PT_subquery;
 
 class PTI_table_wild : public Parse_tree_item
 {
@@ -213,16 +243,16 @@ public:
 };
 
 
-class PTI_function_call_nonkeyword_now : public Item_func_now_local
+class PTI_function_call_nonkeyword_now final : public Item_func_now_local
 {
   typedef Item_func_now_local super;
 
 public:
-  explicit PTI_function_call_nonkeyword_now(const POS &pos, uint8 dec_arg)
+  PTI_function_call_nonkeyword_now(const POS &pos, uint8 dec_arg)
   : super(pos, dec_arg)
   {}
 
-  virtual bool itemize(Parse_context *pc, Item **res)
+  bool itemize(Parse_context *pc, Item **res) override
   {
     if (super::itemize(pc, res))
       return true;
@@ -544,7 +574,7 @@ public:
 };
 
 
-class PTI_variable_aux_set_var : public Item_func_set_user_var
+class PTI_variable_aux_set_var final : public Item_func_set_user_var
 {
   typedef Item_func_set_user_var super;
 
@@ -571,7 +601,7 @@ public:
 };
 
 
-class PTI_variable_aux_ident_or_text : public Item_func_get_user_var
+class PTI_variable_aux_ident_or_text final : public Item_func_get_user_var
 {
   typedef Item_func_get_user_var super;
 

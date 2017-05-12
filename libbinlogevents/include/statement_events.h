@@ -33,6 +33,11 @@
 
 namespace binary_log
 {
+/**
+  The following constant represents the maximum of MYSQL_XID domain.
+  The maximum XID value practically is never supposed to grow beyond UINT64 range.
+*/
+const uint64_t INVALID_XID= -1ULL;
 
 /**
   @class Query_event
@@ -212,7 +217,8 @@ namespace binary_log
     MODE_NO_AUTO_CREATE_USER==0x20000000
     MODE_HIGH_NOT_PRECEDENCE==0x40000000
     MODE_PAD_CHAR_TO_FULL_LENGTH==0x80000000
-    </pre>
+    MODE_TIME_TRUNCATE_FRACTIONAL==0x100000000
+   </pre>
     All these flags are replicated from the server.  However, all
     flags except @c MODE_NO_DIR_IN_CREATE are honored by the slave;
     the slave always preserves its old value of @c
@@ -390,12 +396,18 @@ namespace binary_log
     </td>
   </tr>
   <tr>
-    <td>commit_seq_no</td>
-    <td>Q_COMMIT_TS</td>
+    <td>explicit_defaults_ts</td>
+    <td>Q_EXPLICIT_DEFAULTS_FOR_TIMESTAMP</td>
+    <td>1 byte boolean</td>
+    <td>Stores master connection @@session.explicit_defaults_for_timestamp when
+        CREATE and ALTER operate on a table with a TIMESTAMP column. </td>
+  </tr>
+  <tr>
+    <td>ddl_xid</td>
+    <td>Q_DDL_LOGGED_WITH_XID</td>
     <td>8 byte integer</td>
-    <td>Stores the logical timestamp when the transaction
-        entered the commit phase. This wll be used to apply transactions
-        in parallel on the slave.  </td>
+    <td>Stores variable carrying xid info of 2pc-aware (recoverable) DDL
+        queries. </td>
   </tr>
   </table>
 
@@ -471,7 +483,8 @@ public:
    */
     Q_COMMIT_TS,
     /*
-     A code for Query_log_event status, similar to G_COMMIT_TS2.
+     An old (unused after migration to Gtid_event) code for
+     Query_log_event status, similar to G_COMMIT_TS2.
    */
     Q_COMMIT_TS2,
     /*
@@ -480,7 +493,11 @@ public:
       a TIMESTAMP column, that are dependent on that feature.
       For pre-WL6292 master's the associated with this code value is zero.
     */
-    Q_EXPLICIT_DEFAULTS_FOR_TIMESTAMP
+    Q_EXPLICIT_DEFAULTS_FOR_TIMESTAMP,
+    /*
+      The variable carries xid info of 2pc-aware (recoverable) DDL queries.
+    */
+    Q_DDL_LOGGED_WITH_XID
   };
   const char* query;
   const char* db;
@@ -601,7 +618,8 @@ public:
   */
   unsigned char mts_accessed_dbs;
   char mts_accessed_db_names[MAX_DBS_IN_EVENT_MTS][NAME_LEN];
-
+  /* XID value when the event is a 2pc-capable DDL */
+  uint64_t ddl_xid;
   /**
     The constructor will be used while creating a Query_event, to be
     written to the binary log.
@@ -614,8 +632,7 @@ public:
               unsigned long auto_increment_offset_arg,
               unsigned int number,
               unsigned long long table_map_for_update_arg,
-              int errcode,
-              unsigned int db_arg_len, unsigned int catalog_arg_len);
+              int errcode);
 
   /**
     The constructor receives a buffer and instantiates a Query_event filled in

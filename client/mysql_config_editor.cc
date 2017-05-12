@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,19 +22,29 @@
   MySQL Configuration Utility
 */
 
-/* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 #include "my_config.h"
-#include <welcome_copyright_notice.h>
+
+#include <errno.h>
+#include <fcntl.h>
 #include <signal.h>
-#include <my_dir.h>
-#include <my_rnd.h>
-#include "my_aes.h"
+#include <stdarg.h>
+#include <stdlib.h>
+#include <sys/types.h>
+
 #include "client_priv.h"
+#include "my_aes.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
 #include "my_default.h"
 #include "my_default_priv.h"
+#include "my_dir.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_rnd.h"
 #include "mysql/service_mysql_alloc.h"
+#include "print_version.h"
+#include "welcome_copyright_notice.h"
 
-#define MYSQL_CONFIG_EDITOR_VERSION "1.0"
 #define MY_LINE_MAX 4096
 #define MAX_COMMAND_LIMIT 100
 /*
@@ -56,9 +66,9 @@ static const char *opt_user= NULL, *opt_password= NULL, *opt_host=NULL,
 static char my_login_file[FN_REFLEN];
 static char my_key[LOGIN_KEY_LEN];
 
-static my_bool opt_verbose, opt_all, tty_password= 0, opt_warn,
-               opt_remove_host, opt_remove_pass, opt_remove_user,
-               opt_remove_socket, opt_remove_port, login_path_specified= FALSE;
+static bool opt_verbose, opt_all, tty_password= 0, opt_warn,
+            opt_remove_host, opt_remove_pass, opt_remove_user,
+            opt_remove_socket, opt_remove_port, login_path_specified= FALSE;
 
 static int execute_commands(int command);
 static int set_command(void);
@@ -67,7 +77,7 @@ static int print_command(void);
 static void print_login_path(DYNAMIC_STRING *file_buf, const char *path_name);
 static void remove_login_path(DYNAMIC_STRING *file_buf, const char *path_name);
 static char* locate_login_path(DYNAMIC_STRING *file_buf, const char *path_name);
-static my_bool check_and_create_login_file(void);
+static bool check_and_create_login_file(void);
 static void mask_password_and_print(char *buf);
 static int reset_login_file(bool gen_key);
 
@@ -86,11 +96,10 @@ static void my_perror(const char *msg);
 
 static void verbose_msg(const char *fmt, ...)
   MY_ATTRIBUTE((format(printf, 1, 2)));
-static void print_version(void);
 static void usage_program(void);
 static void usage_command(int command);
-extern "C" my_bool get_one_option(int optid, const struct my_option *opt,
-                                  char *argument);
+extern "C" bool get_one_option(int optid, const struct my_option *opt,
+                               char *argument);
 
 enum commands {
   MY_CONFIG_SET,
@@ -106,9 +115,9 @@ struct my_command_data {
   const char *name;
   const char *description;
   my_option *options;
-  my_bool (*get_one_option_func)(int optid,
-                                 const struct my_option *opt,
-                                 char *argument);
+  bool (*get_one_option_func)(int optid,
+                              const struct my_option *opt,
+                              char *argument);
 };
 }
 
@@ -215,7 +224,7 @@ static struct my_option my_help_command_options[]=
 };
 
 extern "C" {
-static my_bool
+static bool
 my_program_get_one_option(int optid,
                           const struct my_option *opt MY_ATTRIBUTE((unused)),
                           char *argument)
@@ -236,7 +245,7 @@ my_program_get_one_option(int optid,
   return 0;
 }
 
-static my_bool
+static bool
 my_set_command_get_one_option(int optid,
                               const struct my_option *opt MY_ATTRIBUTE((unused)),
                               char *argument)
@@ -263,7 +272,7 @@ my_set_command_get_one_option(int optid,
   return 0;
 }
 
-static my_bool
+static bool
 my_remove_command_get_one_option(int optid,
                                  const struct my_option *opt MY_ATTRIBUTE((unused)),
                                  char *argument)
@@ -287,7 +296,7 @@ my_remove_command_get_one_option(int optid,
   return 0;
 }
 
-static my_bool
+static bool
 my_print_command_get_one_option(int optid,
                                 const struct my_option *opt MY_ATTRIBUTE((unused)),
                                 char *argument)
@@ -311,7 +320,7 @@ my_print_command_get_one_option(int optid,
   return 0;
 }
 
-static my_bool
+static bool
 my_reset_command_get_one_option(int optid,
                                 const struct my_option *opt MY_ATTRIBUTE((unused)),
                                 char *argument)
@@ -710,7 +719,7 @@ error:
            FALSE          Success
 */
 
-static my_bool check_and_create_login_file(void)
+static bool check_and_create_login_file(void)
 {
   DBUG_ENTER("check_and_create_login_file");
 
@@ -1169,7 +1178,7 @@ static int encrypt_and_write_file(DYNAMIC_STRING *file_buf)
 {
   DBUG_ENTER("encrypt_and_write_file");
 
-  my_bool done= FALSE;
+  bool done= FALSE;
   char cipher[MY_LINE_MAX], *tmp= NULL;
   uint bytes_read=0, len= 0;
   int enc_len= 0;                               // Can be negative.
@@ -1483,12 +1492,5 @@ static void usage_program(void)
                                  login path.\n\
        reset [command options]   Deletes the contents of the login file.\n\
        help                      Display this usage/help information.\n");
-}
-
-
-static void print_version(void) {
-  printf ("%s Ver %s Distrib %s, for %s on %s\n", my_progname,
-          MYSQL_CONFIG_EDITOR_VERSION, MYSQL_SERVER_VERSION,
-          SYSTEM_TYPE, MACHINE_TYPE);
 }
 

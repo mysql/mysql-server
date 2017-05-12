@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,13 +16,31 @@
 #ifndef DD__VIEW_IMPL_INCLUDED
 #define DD__VIEW_IMPL_INCLUDED
 
-#include "my_global.h"
+#include <sys/types.h>
+#include <new>
+#include <string>
 
+#include "dd/impl/raw/raw_record.h"
 #include "dd/impl/types/abstract_table_impl.h" // dd::Abstract_table_impl
+#include "dd/impl/types/entity_object_impl.h"
+#include "dd/impl/types/weak_object_impl.h"
+#include "dd/object_id.h"
+#include "dd/types/abstract_table.h"
 #include "dd/types/dictionary_object_table.h"  // dd::Dictionary_object_table
+#include "dd/types/object_type.h"
 #include "dd/types/view.h"                     // dd::View
 #include "dd/types/view_routine.h"             // dd::View_routine
 #include "dd/types/view_table.h"               // dd::View_table
+#include "my_inttypes.h"
+
+namespace dd {
+class Column;
+class Open_dictionary_tables_ctx;
+class Properties;
+class View_routine;
+class View_table;
+class Weak_object;
+}  // namespace dd
 
 typedef struct charset_info_st CHARSET_INFO;
 
@@ -51,11 +69,13 @@ public:
 
   virtual bool drop_children(Open_dictionary_tables_ctx *otx) const;
 
+  virtual void remove_children();
+
   virtual bool restore_attributes(const Raw_record &r);
 
   virtual bool store_attributes(Raw_record *r);
 
-  virtual void debug_print(std::string &outb) const;
+  virtual void debug_print(String_type &outb) const;
 
 public:
   /////////////////////////////////////////////////////////////////////////
@@ -96,16 +116,16 @@ public:
   // definition/utf8.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &definition() const
+  virtual const String_type &definition() const
   { return m_definition; }
 
-  virtual void set_definition(const std::string &definition)
+  virtual void set_definition(const String_type &definition)
   { m_definition= definition; }
 
-  virtual const std::string &definition_utf8() const
+  virtual const String_type &definition_utf8() const
   { return m_definition_utf8; }
 
-  virtual void set_definition_utf8(const std::string &definition_utf8)
+  virtual void set_definition_utf8(const String_type &definition_utf8)
   { m_definition_utf8= definition_utf8; }
 
   /////////////////////////////////////////////////////////////////////////
@@ -152,18 +172,28 @@ public:
   // definer.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &definer_user() const
+  virtual const String_type &definer_user() const
   { return m_definer_user; }
 
-  virtual const std::string &definer_host() const
+  virtual const String_type &definer_host() const
   { return m_definer_host; }
 
-  virtual void set_definer(const std::string &username,
-                           const std::string &hostname)
+  virtual void set_definer(const String_type &username,
+                           const String_type &hostname)
   {
     m_definer_user= username;
     m_definer_host= hostname;
   }
+
+  /////////////////////////////////////////////////////////////////////////
+  // Explicit list of column names.
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual const Properties &column_names() const
+  { return *m_column_names; }
+
+  virtual Properties &column_names()
+  { return *m_column_names; }
 
   /////////////////////////////////////////////////////////////////////////
   // View_table collection.
@@ -192,9 +222,9 @@ public:
   { return Entity_object_impl::id(); }
   virtual bool is_persistent() const
   { return Entity_object_impl::is_persistent(); }
-  virtual const std::string &name() const
+  virtual const String_type &name() const
   { return Entity_object_impl::name(); }
-  virtual void set_name(const std::string &name)
+  virtual void set_name(const String_type &name)
   { Entity_object_impl::set_name(name); }
   virtual Object_id schema_id() const
   { return Abstract_table_impl::schema_id(); }
@@ -206,8 +236,9 @@ public:
   { return Abstract_table_impl::options(); }
   virtual Properties &options()
   { return Abstract_table_impl::options(); }
-  virtual bool set_options_raw(const std::string &options_raw)
+  virtual bool set_options_raw(const String_type &options_raw)
   { return Abstract_table_impl::set_options_raw(options_raw); }
+  virtual bool set_column_names_raw(const String_type &column_names_raw);
   virtual ulonglong created() const
   { return Abstract_table_impl::created(); }
   virtual void set_created(ulonglong created)
@@ -220,10 +251,16 @@ public:
   { return Abstract_table_impl::add_column(); }
   virtual const Column_collection &columns() const
   { return Abstract_table_impl::columns(); }
-  const Column *get_column(const std::string name) const
+  virtual Column_collection *columns()
+  { return Abstract_table_impl::columns(); }
+  const Column *get_column(const String_type name) const
   { return Abstract_table_impl::get_column(name); }
-  Column *get_column(const std::string name)
+  Column *get_column(const String_type name)
   { return Abstract_table_impl::get_column(name); }
+  virtual bool hidden() const
+  { return Abstract_table_impl::hidden(); }
+  virtual void set_hidden(bool hidden)
+  { Abstract_table_impl::set_hidden(hidden); }
 
 private:
   enum_table_type    m_type;
@@ -232,10 +269,14 @@ private:
   enum_algorithm     m_algorithm;
   enum_security_type m_security_type;
 
-  std::string m_definition;
-  std::string m_definition_utf8;
-  std::string m_definer_user;
-  std::string m_definer_host;
+  String_type m_definition;
+  String_type m_definition_utf8;
+  String_type m_definer_user;
+  String_type m_definer_host;
+
+  std::unique_ptr<Properties> m_column_names;
+
+  // Collections.
 
   View_tables   m_tables;
   View_routines m_routines;

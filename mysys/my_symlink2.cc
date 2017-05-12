@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,15 +21,42 @@
   rename files and symlinks like they would be one unit.
 */
 
-#include "mysys_priv.h"
-#include "my_sys.h"
-#include "mysys_err.h"
+#include "my_config.h"
+
+#include <errno.h>
 #include <m_string.h>
+#include <string.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_sys.h"
 #include "my_thread_local.h"
+#include "mysys_err.h"
 
 File my_create_with_symlink(const char *linkname, const char *filename,
 			    int createflags, int access_flags, myf MyFlags)
 {
+#ifdef _WIN32
+  if (linkname)
+    filename= linkname;
+  if (!(MyFlags & MY_DELETE_OLD))
+  {
+    if (!access(filename,F_OK))
+    {
+      char errbuf[MYSYS_STRERROR_SIZE];
+      errno= EEXIST;
+      set_my_errno(EEXIST);
+      my_error(EE_CANTCREATEFILE, MYF(0), filename,
+               EEXIST, my_strerror(errbuf, sizeof(errbuf), EEXIST));
+      return -1;
+    }
+  }
+  return my_create(filename, createflags, access_flags, MyFlags);
+#else
   File file;
   int tmp_errno;
   /* Test if we should create a link */
@@ -97,6 +124,7 @@ File my_create_with_symlink(const char *linkname, const char *filename,
     }
   }
   DBUG_RETURN(file);
+#endif // !_WIN32
 }
 
 /*
@@ -106,6 +134,9 @@ File my_create_with_symlink(const char *linkname, const char *filename,
 
 int my_delete_with_symlink(const char *name, myf MyFlags)
 {
+#ifdef _WIN32
+  return my_delete(name, MyFlags);
+#else
   char link_name[FN_REFLEN];
   int was_symlink= (my_enable_symlinks &&
 		    !my_readlink(link_name, name, MYF(0)));
@@ -118,6 +149,7 @@ int my_delete_with_symlink(const char *name, myf MyFlags)
       result=my_delete(link_name, MyFlags);
   }
   DBUG_RETURN(result);
+#endif // _WIN32
 }
 
 /*
@@ -132,7 +164,7 @@ int my_delete_with_symlink(const char *name, myf MyFlags)
 
 int my_rename_with_symlink(const char *from, const char *to, myf MyFlags)
 {
-#ifndef HAVE_READLINK
+#ifdef _WIN32
   return my_rename(from, to, MyFlags);
 #else
   char link_name[FN_REFLEN], tmp_name[FN_REFLEN];
@@ -192,5 +224,5 @@ int my_rename_with_symlink(const char *from, const char *to, myf MyFlags)
     result= 1;
   }
   DBUG_RETURN(result);
-#endif /* HAVE_READLINK */
+#endif /* !_WIN32 */
 }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,19 +13,19 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
 #include <gtest/gtest.h>
+#include <stddef.h>
+#include <algorithm>
+#include <deque>
+#include <list>
+#include <memory>
+#include <vector>
 
 #include "malloc_allocator.h"
 #include "memroot_allocator.h"
+#include "my_inttypes.h"
 #include "psi_memory_key.h"
 #include "stateless_allocator.h"
-
-#include <vector>
-#include <list>
-#include <deque>
-#include <algorithm>
 
 using std::vector;
 using std::list;
@@ -71,6 +71,19 @@ public:
     m_mem_root.error_handler= NULL;
   }
 
+  /*
+    Allocators before C++17 need to be copy-constructible, and libc++ enforces
+    this (libstdc++ is fine with them being move-only). As a hack, we implement
+    copying the MEM_ROOT here; this type is never used outside of unit tests.
+
+    Note that this will stop working if MEM_ROOT grows a destructor.
+  */
+  Memroot_allocator_wrapper(const Memroot_allocator_wrapper &other)
+    : Memroot_allocator<T>(&m_mem_root)
+  {
+    memcpy(&m_mem_root, &other.m_mem_root, sizeof(m_mem_root));
+  }
+
   ~Memroot_allocator_wrapper()
   {
     free_root(&m_mem_root, MYF(0));
@@ -79,12 +92,25 @@ public:
 
 
 /*
+  Flag for turning on allocation failure simulation.
+*/
+static bool simulate_failed_allocation= false;
+
+/*
+  Custom std::unique_ptr "Deleter" to reset flag. Allows unique_ptr to be used
+  as scope guard which ensures that the flag is reset.
+*/
+static auto reset_sfa= [](bool *sfap) { *sfap= false; };
+
+
+/*
   Local utility function which calls my_malloc with the standard MYF flags.
- */
+*/
 
 static void *my_malloc_(PSI_memory_key k, size_t s)
 {
-  return my_malloc(k, s, MYF(MY_WME | ME_FATALERROR));
+  return simulate_failed_allocation ? nullptr :
+    my_malloc(k, s, MYF(MY_WME | ME_FATALERROR));
 }
 
 /* Functor for un-instrumented my_malloc */
@@ -138,7 +164,11 @@ struct Init_alloc
 {
   void *operator()(size_t s) const
   {
-    DBUG_EXECUTE_IF("simulate_out_of_memory", {return nullptr;} );
+    if (simulate_failed_allocation ||
+        DBUG_EVALUATE_IF("simulate_out_of_memory", true, false))
+    {
+      return nullptr;
+    }
 
     char *buf= static_cast<char*>(operator new(s));
     memset(buf, INIT, s);
@@ -357,9 +387,8 @@ TYPED_TEST(STLAllocTestNested, NestedContainers)
 /*
   Template alias for basic_string with char.
  */
-template < class Allocator >
-using default_string= std::basic_string<char, std::char_traits<char>,
-                                        Allocator>;
+template <class A>
+using default_string= std::basic_string<char, std::char_traits<char>, A>;
 
 
 template <class A>
@@ -378,9 +407,8 @@ class STLAllocTestBasicStringTemplate : public ::testing::Test
    MA_string_type y("bar", Malloc_allocator<char>(42));
 */
 typedef ::testing::Types<Not_instr_allocator<char>,
-                         PSI_42_allocator<char>,
-                         Init_aa_allocator<char> >
-         AllocatorTypesBasicStringTemplate;
+                        PSI_42_allocator<char>,
+                        Init_aa_allocator<char> > AllocatorTypesBasicStringTemplate;
 
 TYPED_TEST_CASE(STLAllocTestBasicStringTemplate,
                 AllocatorTypesBasicStringTemplate);
@@ -400,20 +428,23 @@ TYPED_TEST(STLAllocTestBasicStringTemplate, BasicTest)
 
 }
 
-//#ifndef DBUG_OFF
 //
 // Verify that std::bad_alloc is thrown in out-of-memory conditions
 //
-//TYPED_TEST(STLAllocTestBasicStringTemplate, OutOfMemTest)
-//{
-//  typedef default_string<TypeParam> String_type;
+TYPED_TEST(STLAllocTestBasicStringTemplate, OutOfMemTest)
+{
+  // Scope guard which ensures flag is reset
+  std::unique_ptr<bool, decltype(reset_sfa)>
+    sg(&simulate_failed_allocation, reset_sfa);
 
-//  String_type x("foobar");
-//  DBUG_SET("+d,simulate_out_of_memory");
-//  ASSERT_THROW(x.reserve(1000), std::bad_alloc);
-//  DBUG_SET("-d,simulate_out_of_memory");
-//}
-//#endif /* !DBUG_OFF */
+  typedef default_string<TypeParam> String_type;
+
+  String_type x("foobar");
+
+  // Set flag to force allocation failure
+  simulate_failed_allocation= true;
+  ASSERT_THROW(x.reserve(1000), std::bad_alloc);
+}
 
 } // namespace stlalloc_unittest
 

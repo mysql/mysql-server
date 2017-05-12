@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,12 +22,21 @@
      for non-unique hash, count only _distinct_ values
      (but how to do it in lf_hash_delete ?)
 */
-#include <my_global.h>
-#include <m_string.h>
-#include <my_sys.h>
-#include <mysys_priv.h>
-#include <my_bit.h>
-#include <lf.h>
+#include <stddef.h>
+#include <string.h>
+#include <sys/types.h>
+
+#include "hash.h"
+#include "lf.h"
+#include "m_ctype.h"
+#include "my_atomic.h"
+#include "my_bit.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysys_priv.h"
 
 LF_REQUIRE_PINS(3)
 

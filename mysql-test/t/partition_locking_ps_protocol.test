@@ -4,7 +4,6 @@
 #
 
 --source include/have_ps_protocol.inc
---source include/have_innodb.inc
 
 --echo #
 --echo # Test CREATE SELECT

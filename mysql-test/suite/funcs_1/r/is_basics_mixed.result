@@ -127,7 +127,8 @@ CREATE USER 'testuser1'@'localhost';
 GRANT ALL ON *.* TO testuser1@localhost;
 SHOW GRANTS FOR testuser1@localhost;
 Grants for testuser1@localhost
-GRANT ALL PRIVILEGES ON *.* TO `testuser1`@`localhost`
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `testuser1`@`localhost`
+GRANT BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,REPLICATION_SLAVE_ADMIN,ROLE_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN ON *.* TO `testuser1`@`localhost`
 # Establish connection testuser1 (user=testuser1)
 USE information_schema;
 CREATE TABLE schemata                              ( c1 INT );
@@ -443,7 +444,7 @@ WHERE constraint_schema LIKE 'db_data%' OR table_schema LIKE 'db_data%';
 constraint_schema	table_schema
 SELECT DISTINCT routine_schema FROM information_schema.routines
 WHERE routine_schema LIKE 'db_data%';
-routine_schema
+ROUTINE_SCHEMA
 SELECT DISTINCT schema_name FROM information_schema.schemata
 WHERE schema_name LIKE 'db_data%';
 SCHEMA_NAME
@@ -466,7 +467,7 @@ table_schema
 SELECT DISTINCT trigger_schema,event_object_schema
 FROM information_schema.triggers
 WHERE trigger_schema LIKE 'db_data%' OR event_object_schema LIKE 'db_data%';
-trigger_schema	event_object_schema
+TRIGGER_SCHEMA	EVENT_OBJECT_SCHEMA
 SELECT DISTINCT table_schema FROM information_schema.views
 WHERE table_schema LIKE 'db_data%';
 TABLE_SCHEMA
@@ -496,7 +497,7 @@ constraint_schema	table_schema
 db_datadict	db_datadict
 SELECT DISTINCT routine_schema FROM information_schema.routines
 WHERE routine_schema LIKE 'db_data%';
-routine_schema
+ROUTINE_SCHEMA
 db_datadict
 SELECT DISTINCT schema_name FROM information_schema.schemata
 WHERE schema_name LIKE 'db_data%';
@@ -524,7 +525,7 @@ table_schema
 SELECT DISTINCT trigger_schema,event_object_schema
 FROM information_schema.triggers
 WHERE trigger_schema LIKE 'db_data%' OR event_object_schema LIKE 'db_data%';
-trigger_schema	event_object_schema
+TRIGGER_SCHEMA	EVENT_OBJECT_SCHEMA
 db_datadict	db_datadict
 SELECT DISTINCT table_schema FROM information_schema.views
 WHERE table_schema LIKE 'db_data%';
@@ -546,7 +547,7 @@ WHERE constraint_schema LIKE 'db_data%' OR table_schema LIKE 'db_data%';
 constraint_schema	table_schema
 SELECT DISTINCT routine_schema FROM information_schema.routines
 WHERE routine_schema LIKE 'db_data%';
-routine_schema
+ROUTINE_SCHEMA
 SELECT DISTINCT schema_name FROM information_schema.schemata
 WHERE schema_name LIKE 'db_data%';
 SCHEMA_NAME
@@ -569,7 +570,7 @@ table_schema
 SELECT DISTINCT trigger_schema,event_object_schema
 FROM information_schema.triggers
 WHERE trigger_schema LIKE 'db_data%' OR event_object_schema LIKE 'db_data%';
-trigger_schema	event_object_schema
+TRIGGER_SCHEMA	EVENT_OBJECT_SCHEMA
 SELECT DISTINCT table_schema FROM information_schema.views
 WHERE table_schema LIKE 'db_data%';
 TABLE_SCHEMA

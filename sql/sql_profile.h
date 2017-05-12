@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,17 +16,25 @@
 #ifndef _SQL_PROFILE_H
 #define _SQL_PROFILE_H
 
-#include "my_global.h"
+#include "my_config.h"
+
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "lex_string.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
 
 class Item;
 struct TABLE_LIST;
 class THD;
+
 typedef struct st_field_info ST_FIELD_INFO;
 typedef struct st_schema_table ST_SCHEMA_TABLE;
 typedef int64 query_id_t;
 
 extern ST_FIELD_INFO query_profile_statistics_info[];
-int fill_query_profile_statistics_info(THD *thd, TABLE_LIST *tables, Item *cond);
+int fill_query_profile_statistics_info(THD *thd, TABLE_LIST *tables, Item*);
 int make_profile_table_for_show(THD *thd, ST_SCHEMA_TABLE *schema_table);
 
 
@@ -44,7 +52,6 @@ int make_profile_table_for_show(THD *thd, ST_SCHEMA_TABLE *schema_table);
 
 #if defined(ENABLED_PROFILING)
 #include "mysql/mysql_lex_string.h"         // LEX_STRING
-typedef struct st_mysql_lex_string LEX_STRING;
 
 #ifdef HAVE_SYS_RESOURCE_H
 #include <sys/resource.h>
@@ -57,9 +64,8 @@ extern "C" {
 extern PSI_memory_key key_memory_queue_item;
 }
 
-class PROF_MEASUREMENT;
-class QUERY_PROFILE;
 class PROFILING;
+class QUERY_PROFILE;
 
 
 /**
@@ -281,7 +287,7 @@ public:
   bool show_profiles();
 
   /* ... from INFORMATION_SCHEMA.PROFILING ... */
-  int fill_statistics_info(THD *thd, TABLE_LIST *tables, Item *cond);
+  int fill_statistics_info(THD *thd, TABLE_LIST *tables);
   void cleanup();
 };
 

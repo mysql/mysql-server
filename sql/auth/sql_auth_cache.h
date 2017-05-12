@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,26 +15,40 @@
 #ifndef SQL_USER_CACHE_INCLUDED
 #define SQL_USER_CACHE_INCLUDED
 
-#include "my_global.h"
-#include "my_sys.h"                     // wild_many, wild_one, wild_prefix
-#include "m_string.h"                   // LEX_CSTRING
+#include <string.h>
+#include <sys/types.h>
+#include <string>
+#include <unordered_map>
+
+#include "auth_common.h"
+#include "auth_internal.h"       // List_of_authid, Authid
+#include "handler.h"
+#include "hash.h"                       // HASH
+#include "key.h"
+#include "lex_string.h"
+#include "lf.h"
+#include "mf_wcomp.h"                   // wild_many, wild_one, wild_prefix
+#include "my_atomic.h"
+#include "my_inttypes.h"
+#include "mysql/mysql_lex_string.h"
+#include "mysql/psi/mysql_mutex.h"
 #include "mysql_com.h"                  // SCRAMBLE_LENGTH
 #include "mysql_time.h"                 // MYSQL_TIME
 #include "prealloced_array.h"           // Prealloced_array
-#include "violite.h"                    // SSL_type
-#include "hash.h"                       // HASH
-#include "partitioned_rwlock.h"         // Partitioned_rwlock
 #include "sql_alloc.h"                  // Sql_alloc
 #include "sql_connect.h"                // USER_RESOURCES
-#include "sql_security_ctx.h"
-#include "auth_internal.h"       // List_of_authid, Authid
-#include "lf.h"
-#include <unordered_map>
-#include <utility>
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
+#include "sql_plugin_ref.h"
+#include "typelib.h"
+#include "violite.h"                    // SSL_type
+
+class Security_context;
+class THD;
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/breadth_first_search.hpp>
-#endif
+#include <boost/graph/graph_selectors.hpp>
+#include <boost/graph/graph_traits.hpp>
+#include <boost/graph/properties.hpp>
+#include <boost/pending/property.hpp>
 
 /* Forward Declarations */
 class String;
@@ -214,8 +228,6 @@ public:
                                const char *grantor);
 };
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-
 class acl_entry
 {
 public:
@@ -269,12 +281,8 @@ public:
 };
 
 
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
-
-
 /* Data Structures */
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
 extern MEM_ROOT global_acl_memory;
 extern MEM_ROOT memex; 
 const size_t ACL_PREALLOC_SIZE = 10U;
@@ -389,6 +397,7 @@ public:
   SP_access_map *sp_acls();
   SP_access_map *func_acls();
   Grant_acl_set *grant_acls();
+  Dynamic_privileges *dynamic_privileges();
   uint64 version() { return m_version; }
   uint32 reference_count()
   {
@@ -404,6 +413,7 @@ private:
   SP_access_map m_sp_acls;
   SP_access_map m_func_acls;
   Grant_acl_set m_with_admin_acls;
+  Dynamic_privileges m_dynamic_privileges;
 };
 
 typedef LF_HASH Acl_cache_internal;
@@ -474,7 +484,7 @@ private:
 };
 
 Acl_cache *get_global_acl_cache();
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
+
 
 /**
   Enum for specifying lock type over Acl cache

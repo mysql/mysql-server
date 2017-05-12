@@ -1,8 +1,5 @@
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 #setup
 let $select_column = SUM_ERROR_RAISED;
 let $table = performance_schema.events_errors_summary_by_account_by_error;

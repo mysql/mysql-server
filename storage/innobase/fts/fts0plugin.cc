@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,11 +23,11 @@ Full Text Search plugin support.
 Created 2013/06/04 Shaohua Wang
 ***********************************************************************/
 
+#include "ft_global.h"
 #include "fts0ast.h"
 #include "fts0plugin.h"
 #include "fts0tokenize.h"
-
-#include "ft_global.h"
+#include "my_inttypes.h"
 
 /******************************************************************//**
 FTS default parser init
@@ -130,6 +130,7 @@ fts_query_add_word_for_parser(
 		if (cur_node->type != FTS_AST_PARSER_PHRASE_LIST) {
 			break;
 		}
+		// Fall through.
 
 	case FT_TOKEN_WORD:
 		term_node = fts_ast_create_node_term_for_parser(

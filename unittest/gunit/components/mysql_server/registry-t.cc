@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,17 +13,24 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 
-#include <my_global.h>
-#include <m_ctype.h>
 #include <gtest/gtest.h>
-#include <mysql/mysql_lex_string.h>
+#include <m_ctype.h>
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/my_service.h>
 #include <mysql/components/service_implementation.h>
+#include <mysql/mysql_lex_string.h>
+#include <stddef.h>
+
+typedef int mysql_mutex_t; // mock to load persistent_dynamic_loader imp header
 #include <mysql/components/services/persistent_dynamic_loader.h>
+#include <auth/dynamic_privileges_impl.h>
 #include <persistent_dynamic_loader.h>
 #include <scope_guard.h>
 #include <server_component.h>
+
+#include "lex_string.h"
+#include "my_compiler.h"
+#include "my_io.h"
 
 extern mysql_component_t COMPONENT_REF(mysql_server);
 
@@ -45,11 +52,40 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::unload,
   return true;
 }
 
+DEFINE_BOOL_METHOD(register_privilege,
+  (const char *, size_t))
+{
+  return true;
+}
+
+DEFINE_BOOL_METHOD(unregister_privilege,
+  (const char *, size_t))
+{
+  return true;
+}
+
+DEFINE_BOOL_METHOD(dynamic_privilege_services_impl::register_privilege,
+  (const char *privilege_str, size_t privilege_str_len))
+{
+  return true;
+}
+
+DEFINE_BOOL_METHOD(dynamic_privilege_services_impl::unregister_privilege,
+  (const char *privilege_str, size_t privilege_str_len))
+{
+  return true;
+}
+
+DEFINE_BOOL_METHOD(dynamic_privilege_services_impl::has_global_grant,
+  (Security_context_handle handle, const char *privilege_str,
+   size_t privilege_str_len))
+{
+  return true;
+}
+
 /* TODO following code resembles symbols used in sql library, these should be
   some day extracted to be reused both in sql library and server component unit
   tests. */
-typedef struct st_mysql_lex_string LEX_STRING;
-typedef struct st_mysql_const_lex_string LEX_CSTRING;
 typedef struct charset_info_st CHARSET_INFO;
 
 extern "C"

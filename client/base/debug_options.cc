@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,12 +15,18 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "client_priv.h"
-#include "debug_options.h"
+#include "client/base/debug_options.h"
+
+#include <stdlib.h>
+#include <sys/types.h>
+#include <functional>
+
 #include "abstract_program.h"
-#include "instance_callback.h"
+#include "client_priv.h"
+#include "my_dbug.h"
 
 using namespace Mysql::Tools::Base::Options;
+using std::placeholders::_1;
 using Mysql::Tools::Base::Abstract_program;
 
 static Debug_options* primary_debug_options= NULL;
@@ -61,8 +67,8 @@ void Debug_options::create_options()
     ->set_short_character('#')
     ->value_optional()
     ->set_value("d:t:O,/tmp/" + this->m_program->get_name() + ".trace")
-    ->add_callback(new Instance_callback<void, char*, Debug_options>(
-      this, &Debug_options::debug_option_callback));
+    ->add_callback(new std::function<void(char*)>(
+      std::bind(&Debug_options::debug_option_callback, this, _1)));
   this->create_new_option(&this->m_debug_check_flag, "debug-check",
       "Check memory and open file usage at exit.");
   this->create_new_option(&this->m_debug_info_flag, "debug-info",

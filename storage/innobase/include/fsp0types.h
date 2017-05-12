@@ -155,8 +155,9 @@ every XDES_DESCRIBED_PER_PAGE pages in every tablespace. */
 				multiple of XDES_DESCRIBED_PER_PAGE */
 
 #define FSP_FIRST_INODE_PAGE_NO		2	/*!< in every tablespace */
-				/* The following pages exist
-				in the system tablespace (space 0). */
+
+/* The following pages exist in the system tablespace (space 0). */
+
 #define FSP_IBUF_HEADER_PAGE_NO		3	/*!< insert buffer
 						header page, in
 						tablespace 0 */
@@ -193,28 +194,23 @@ fsp_flags_is_valid(
 	ulint	flags)
 	MY_ATTRIBUTE((warn_unused_result, const));
 
-/** Check if tablespace is system temporary.
-@param[in]      space_id        verify is checksum is enabled for given space.
+/** Check whether a space id is an undo tablespace ID
+@param[in]	space_id	space id to check
+@return true if it is undo tablespace else false. */
+bool
+fsp_is_undo_tablespace(space_id_t space_id);
+
+/** Check if a space_id is the system temporary space ID.
+@param[in]	space_id	tablespace ID
 @return true if tablespace is system temporary. */
 bool
-fsp_is_system_temporary(
-	space_id_t	space_id);
+fsp_is_system_temporary(space_id_t space_id);
 
 /** Check if checksum is disabled for the given space.
 @param[in]	space_id	verify is checksum is enabled for given space.
 @return true if checksum is disabled for given space. */
 bool
-fsp_is_checksum_disabled(
-	space_id_t	space_id);
-
-/** Check if tablespace is file-per-table.
-@param[in]	space_id	Tablespace ID
-@param[in]	fsp_flags	Tablespace Flags
-@return true if tablespace is file-per-table. */
-bool
-fsp_is_file_per_table(
-	space_id_t	space_id,
-	ulint		fsp_flags);
+fsp_is_checksum_disabled(space_id_t space_id);
 
 #ifdef UNIV_DEBUG
 /** Skip some of the sanity checks that are time consuming even in debug mode

@@ -1,7 +1,7 @@
 ## This is test file for verification of disabiling warning,password_expired,generated_insert_id,rows_affected,produced_message notices and their functionality
 
 ## Preamble
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 ## Test starts here
 --write_file $MYSQL_TMP_DIR/stmtexecute_query_result.tmp
 
@@ -192,19 +192,22 @@ Mysqlx.Sql.StmtExecute {
 
 -->echo checking directly from IS tables
 Mysqlx.Sql.StmtExecute {
-  stmt: "select * from information_schema.session_variables where variable_name like 'max_join_size';"
+  stmt: "select * from performance_schema.session_variables where variable_name like 'max_join_size';"
 }
--->recvuntil Mysqlx.Sql.StmtExecuteOk
+-->recvuntil Mysqlx.Notice.Frame do_not_show_intermediate
+-->recvtype Mysqlx.Sql.StmtExecuteOk
 
 Mysqlx.Sql.StmtExecute {
-  stmt: "select * from information_schema.session_variables where variable_name like 'concurrent_insert';"
+  stmt: "select * from performance_schema.session_variables where variable_name like 'concurrent_insert';"
 }
--->recvuntil Mysqlx.Sql.StmtExecuteOk
+-->recvuntil Mysqlx.Notice.Frame do_not_show_intermediate
+-->recvtype Mysqlx.Sql.StmtExecuteOk
 
 Mysqlx.Sql.StmtExecute {
-  stmt: "select * from information_schema.session_variables where variable_name like 'default_storage_engine';"
+  stmt: "select * from performance_schema.session_variables where variable_name like 'default_storage_engine';"
 }
--->recvuntil Mysqlx.Sql.StmtExecuteOk
+-->recvuntil Mysqlx.Notice.Frame do_not_show_intermediate
+-->recvtype Mysqlx.Sql.StmtExecuteOk
 
 -->echo checking errors and warnings with duplicate table
 Mysqlx.Sql.StmtExecute {
@@ -272,7 +275,8 @@ Mysqlx.Sql.StmtExecute {
 Mysqlx.Sql.StmtExecute {
   stmt: "show status like \"Opened_tables\";"
 }
--->recvuntil Mysqlx.Sql.StmtExecuteOk
+-->recvuntil Mysqlx.Notice.Frame do_not_show_intermediate
+-->recvtype Mysqlx.Sql.StmtExecuteOk
 
 Mysqlx.Sql.StmtExecute {
   stmt: "select * from t1;"
@@ -336,7 +340,8 @@ Mysqlx.Sql.StmtExecute {
 Mysqlx.Sql.StmtExecute {
  stmt: "show variables like 'max_error_count';"
 }
--->recvuntil Mysqlx.Sql.StmtExecuteOk
+-->recvuntil Mysqlx.Notice.Frame do_not_show_intermediate
+-->recvtype Mysqlx.Sql.StmtExecuteOk
 
 Mysqlx.Sql.StmtExecute {
  stmt: "set max_error_count=64;"
@@ -1243,14 +1248,6 @@ create user xplugin@localhost identified by 'xplugin';
 
 ## Disable multiple notices both read-only and read-write with single StmtExecute,expect error from the first error is sees
 --exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/disable_multiple_notices.tmp 2>&1
-
-##verify Mysqlx_notice_other_sent,Mysqlx_stmt_disable_notices with show_compatibility_56=ON
-let $restart_parameters = restart: --show_compatibility_56=ON;
---source include/restart_mysqld.inc
-##expect Mysqlx_notice_other_sent=0,Mysqlx_stmt_disable_notices=2 with both native and xconnection
-##change result file once Bug#21781263 is fixed
---exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/stats_disablenoti.tmp 2>&1
-show status like 'Mysqlx%notice%';
 
 --remove_file $MYSQL_TMP_DIR/stmtexecute_query_result.tmp
 --remove_file $MYSQL_TMP_DIR/disable_notices_readonly.tmp

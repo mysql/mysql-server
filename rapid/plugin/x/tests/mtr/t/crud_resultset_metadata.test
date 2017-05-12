@@ -1,5 +1,5 @@
 ## Check column metadata 
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 
 DROP SCHEMA IF EXISTS xtest;
 CREATE SCHEMA xtest;

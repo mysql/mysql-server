@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -24,19 +24,24 @@ Data dictionary system
 Created 1/8/1996 Heikki Tuuri
 ***********************************************************************/
 
-#include "ha_prototypes.h"
-#include "current_thd.h"
-#include "mysqld.h"                             // system_charset_info
-#include <strfunc.h>
+#include "my_config.h"
 
-#include "dict0dict.h"
-#include "fts0fts.h"
-#include "fil0fil.h"
+#include <stdlib.h>
+#include <strfunc.h>
+#include <sys/types.h>
 #include <algorithm>
 #include <string>
 
-#include "row0sel.h"
+#include "current_thd.h"
+#include "dict0dict.h"
+#include "fil0fil.h"
+#include "fts0fts.h"
+#include "ha_prototypes.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "mysqld.h"                             // system_charset_info
 #include "que0types.h"
+#include "row0sel.h"
 
 /** dummy index for ROW_FORMAT=REDUNDANT supremum and infimum records */
 dict_index_t*	dict_ind_redundant;
@@ -47,6 +52,9 @@ extern uint	ibuf_debug;
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 
 #ifndef UNIV_HOTBACKUP
+#include <algorithm>
+#include <vector>
+
 #include "btr0btr.h"
 #include "btr0cur.h"
 #include "btr0sea.h"
@@ -70,19 +78,16 @@ extern uint	ibuf_debug;
 #include "pars0sym.h"
 #include "que0que.h"
 #include "rem0cmp.h"
+#include "row0ins.h"
 #include "row0log.h"
 #include "row0merge.h"
 #include "row0mysql.h"
 #include "row0upd.h"
-#include "row0ins.h"
 #include "srv0mon.h"
 #include "srv0start.h"
 #include "sync0sync.h"
 #include "trx0undo.h"
 #include "ut0new.h"
-
-#include <vector>
-#include <algorithm>
 
 /** TRUE if we don't have DDTableBuffer in the system tablespace,
 this should be due to we run the server against old data files.
@@ -3005,7 +3010,7 @@ dict_index_copy(
 		field = index2->get_field(i);
 
 		dict_index_add_col(index1, table, field->col,
-				   field->prefix_len);
+				   field->prefix_len, field->is_ascending);
 	}
 }
 
@@ -3184,14 +3189,13 @@ dict_index_build_internal_clust(
 
 	if (!dict_index_is_unique(index)) {
 		dict_index_add_col(new_index, table,
-				   table->get_sys_col(DATA_ROW_ID),
-				   0);
+				   table->get_sys_col(DATA_ROW_ID), 0, true);
 		trx_id_pos++;
 	}
 
 	dict_index_add_col(
 		new_index, table,
-		table->get_sys_col(DATA_TRX_ID), 0);
+		table->get_sys_col(DATA_TRX_ID), 0, true);
 
 
 	for (i = 0; i < trx_id_pos; i++) {
@@ -3235,8 +3239,7 @@ dict_index_build_internal_clust(
 
 		dict_index_add_col(
 			new_index, table,
-			table->get_sys_col(DATA_ROLL_PTR),
-			0);
+			table->get_sys_col(DATA_ROLL_PTR), 0, true);
 	}
 
 	/* Remember the table columns already contained in new_index */
@@ -3266,7 +3269,7 @@ dict_index_build_internal_clust(
 		ut_ad(col->mtype != DATA_SYS);
 
 		if (!indexed[col->ind]) {
-			dict_index_add_col(new_index, table, col, 0);
+			dict_index_add_col(new_index, table, col, 0, true);
 		}
 	}
 
@@ -3356,12 +3359,14 @@ dict_index_build_internal_non_clust(
 
 		if (!indexed[field->col->ind]) {
 			dict_index_add_col(new_index, table, field->col,
-					   field->prefix_len);
+					   field->prefix_len,
+					   field->is_ascending);
 		} else if (dict_index_is_spatial(index)) {
 			/*For spatial index, we still need to add the
 			field to index. */
 			dict_index_add_col(new_index, table, field->col,
-					   field->prefix_len);
+					   field->prefix_len,
+					   field->is_ascending);
 		}
 	}
 
@@ -3549,7 +3554,6 @@ dict_foreign_find_index(
 		if (types_idx != index
 		    && !(index->type & DICT_FTS)
 		    && !dict_index_is_spatial(index)
-		    && !dict_index_has_virtual(index)
 		    && !index->to_be_dropped
 		    && dict_foreign_qualify_index(
 			    table, col_names, columns, n_cols,
@@ -6162,7 +6166,8 @@ dict_ind_init(void)
 
 	dict_ind_redundant = dict_mem_index_create("SYS_DUMMY1", "SYS_DUMMY1",
 						   DICT_HDR_SPACE, 0, 1);
-	dict_index_add_col(dict_ind_redundant, table, table->get_col(0), 0);
+	dict_index_add_col(dict_ind_redundant, table, table->get_col(0), 0,
+			   true);
 	dict_ind_redundant->table = table;
 	/* avoid ut_ad(index->cached) in dict_index_get_n_unique_in_tree */
 	dict_ind_redundant->cached = TRUE;
@@ -6645,8 +6650,6 @@ dict_foreign_qualify_index(
 		field = index->get_field(i);
 		col_no = dict_col_get_no(field->col);
 
-		ut_ad(!field->col->is_virtual());
-
 		if (field->prefix_len != 0) {
 			/* We do not accept column prefix
 			indexes here */
@@ -7127,9 +7130,9 @@ DDTableBuffer::init()
 					DICT_HDR_SPACE,
 					DICT_CLUSTERED | DICT_UNIQUE, 2);
 
-	m_index->add_field("TABLE_ID", 0);
+	m_index->add_field("TABLE_ID", 0, true);
 
-	m_index->add_field("METADATA", 0);
+	m_index->add_field("METADATA", 0, true);
 
 	bool	found;
 	found = dict_index_find_cols(table, m_index, NULL);
@@ -7892,7 +7895,7 @@ altogether. If purge or rollback needs to access the SDI table, it can create
 the SDI table object for the table_id on demand. */
 
 /** Remove the SDI table from table cache.
-@param[in]	space_id	InnoDB tablesapce_id
+@param[in]	space_id	InnoDB tablespace_id
 @param[in,out]	sdi_tables	Array of sdi table
 @param[in]	dict_locked	true if dict_sys mutex acquired */
 void

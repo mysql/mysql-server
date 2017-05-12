@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,10 +22,13 @@
 #ifndef _thr_lock_h
 #define _thr_lock_h
 
-#include <my_thread.h>
 #include <my_list.h>
+#include <sys/types.h>
+
+#include "my_inttypes.h"
+#include "my_thread_local.h"
 #include "mysql/psi/mysql_cond.h"
-#include "mysql/psi/mysql_thread.h"
+#include "mysql/psi/mysql_mutex.h"
 
 extern mysql_mutex_t THR_LOCK_lock;
 
@@ -34,6 +37,7 @@ extern "C" {
 #endif
 
 struct st_thr_lock;
+
 extern ulong locks_immediate,locks_waited ;
 
 /*
@@ -84,6 +88,14 @@ enum thr_lock_type { TL_IGNORE=-1,
 		     /* Abort new lock request with an error */
 		     TL_WRITE_ONLY};
 
+enum thr_locked_row_action { THR_DEFAULT, THR_WAIT, THR_NOWAIT, THR_SKIP };
+
+struct Lock_descriptor
+{
+  enum thr_lock_type type;
+  enum thr_locked_row_action action;
+};
+
 enum enum_thr_lock_result { THR_LOCK_SUCCESS= 0, THR_LOCK_ABORTED= 1,
                             THR_LOCK_WAIT_TIMEOUT= 2, THR_LOCK_DEADLOCK= 3 };
 
@@ -132,7 +144,7 @@ typedef struct st_thr_lock {
   void (*copy_status)(void*,void*);
   void (*update_status)(void*);		/* Before release of write */
   void (*restore_status)(void*);         /* Before release of read */
-  my_bool (*check_status)(void *);
+  bool (*check_status)(void *);
 } THR_LOCK;
 
 

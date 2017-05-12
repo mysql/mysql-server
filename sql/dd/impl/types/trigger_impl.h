@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,16 +16,33 @@
 #ifndef DD__TRIGGER_IMPL_INCLUDED
 #define DD__TRIGGER_IMPL_INCLUDED
 
-#include "my_global.h"
+#include "my_config.h"
 
+#include "my_inttypes.h"
+
+#if HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
+#include <sys/types.h>
+#include <new>
+#include <string>
+
+#include "dd/impl/raw/raw_record.h"
 #include "dd/impl/types/entity_object_impl.h"  // dd::Entity_object_impl
+#include "dd/impl/types/table_impl.h"          // dd::Table_impl
+#include "dd/impl/types/weak_object_impl.h"
+#include "dd/object_id.h"
 #include "dd/types/object_type.h"              // dd::Object_type
 #include "dd/types/trigger.h"                  // dd::Trigger
-#include "dd/impl/types/table_impl.h"          // dd::Table_impl
 
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
+
+class Object_table;
+class Open_dictionary_tables_ctx;
+class Table;
+class Weak_object;
 
 class Trigger_impl : virtual public Entity_object_impl,
                      virtual public Trigger
@@ -50,7 +67,7 @@ public:
 
   virtual bool store_attributes(Raw_record *r) override;
 
-  virtual void debug_print(std::string &outb) const override;
+  virtual void debug_print(String_type &outb) const override;
 
   void set_ordinal_position(uint ordinal_position)
   {
@@ -68,6 +85,9 @@ public:
   virtual const Table &table() const;
 
   virtual Table &table();
+
+  /* non-virtual */ void set_table(Table_impl *parent)
+  { m_table= parent; }
 
   /* non-virtual */ const Table_impl &table_impl() const
   { return *m_table; }
@@ -126,17 +146,17 @@ public:
   // action_statement/utf8.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &action_statement() const override
+  virtual const String_type &action_statement() const override
   { return m_action_statement; }
 
-  virtual void set_action_statement(const std::string
+  virtual void set_action_statement(const String_type
                                     &action_statement) override
   { m_action_statement= action_statement; }
 
-  virtual const std::string &action_statement_utf8() const override
+  virtual const String_type &action_statement_utf8() const override
   { return m_action_statement_utf8; }
 
-  virtual void set_action_statement_utf8(const std::string
+  virtual void set_action_statement_utf8(const String_type
                                          &action_statement_utf8) override
   { m_action_statement_utf8= action_statement_utf8; }
 
@@ -174,14 +194,14 @@ public:
   // definer.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &definer_user() const override
+  virtual const String_type &definer_user() const override
   { return m_definer_user; }
 
-  virtual const std::string &definer_host() const override
+  virtual const String_type &definer_host() const override
   { return m_definer_host; }
 
-  virtual void set_definer(const std::string &username,
-                           const std::string &hostname) override
+  virtual void set_definer(const String_type &username,
+                           const String_type &hostname) override
   {
     m_definer_user= username;
     m_definer_host= hostname;
@@ -225,10 +245,10 @@ public:
   virtual bool is_persistent() const override
   { return Entity_object_impl::is_persistent(); }
 
-  virtual const std::string &name() const override
+  virtual const String_type &name() const override
   { return Entity_object_impl::name(); }
 
-  virtual void set_name(const std::string &name) override
+  virtual void set_name(const String_type &name) override
   { Entity_object_impl::set_name(name); }
 
 public:
@@ -260,10 +280,10 @@ private:
   timeval m_created;
   timeval m_last_altered;
 
-  std::string m_action_statement_utf8;
-  std::string m_action_statement;
-  std::string m_definer_user;
-  std::string m_definer_host;
+  String_type m_action_statement_utf8;
+  String_type m_action_statement;
+  String_type m_definer_user;
+  String_type m_definer_host;
 
   // References to tightly-coupled objects.
 

@@ -6,6 +6,7 @@ JSON_VALID(sys.ps_thread_trx_info(sys.ps_thread_id(NULL)))
 1
 CREATE DATABASE trx;
 CREATE TABLE trx.info (id INT PRIMARY KEY, info VARCHAR(20));
+# Warm-up data-dictionary cache.
 USE trx;
 START TRANSACTION;
 INSERT INTO info VALUES (1, 'foo');

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +16,6 @@
 #ifndef DD__PARTITION_INDEX_INCLUDED
 #define DD__PARTITION_INDEX_INCLUDED
 
-#include "my_global.h"
 
 #include "dd/sdi_fwd.h"               // dd::Sdi_wcontext
 #include "dd/types/index.h"           // dd::Index
@@ -62,7 +61,7 @@ public:
 
   virtual Index &index() = 0;
 
-  const std::string &name() const
+  const String_type &name() const
   { return index().name(); }
 
   /////////////////////////////////////////////////////////////////////////
@@ -72,7 +71,7 @@ public:
   virtual const Properties &options() const = 0;
 
   virtual Properties &options() = 0;
-  virtual bool set_options_raw(const std::string &options_raw) = 0;
+  virtual bool set_options_raw(const String_type &options_raw) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // se_private_data.
@@ -82,7 +81,7 @@ public:
 
   virtual Properties &se_private_data() = 0;
   virtual bool set_se_private_data_raw(
-                 const std::string &se_private_data_raw) = 0;
+                 const String_type &se_private_data_raw) = 0;
 
   virtual void set_se_private_data(const Properties &se_private_data)= 0;
 

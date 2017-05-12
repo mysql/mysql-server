@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1257,6 +1257,18 @@ public:
    * and thus should be avoided.
    */
   void get_event_buffer_memory_usage(EventBufferMemoryUsage&);
+
+  void setEventBufferQueueEmptyEpoch(bool queue_empty_epoch);
+  
+  /** Note: The getter function getEventBufferQueueEmptyEpoch() is
+   * not provided intentionally to avoid wrong usage, for e.g.,
+   * consuming empty epochs based on the getter. Reason:
+   * setter option applies to queuing *newer* epochs
+   * and the queue may reflect the state before the setting.
+   * Therefore, during a transition period, consumption may find
+   * an empty epoch in the queue even if the getter shows that
+   * the queuing is turned off.
+   */
 
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
   /**

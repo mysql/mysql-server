@@ -6,8 +6,6 @@
 # compressed non-temp table residing in single tablespace
 # with page-size=16k
 
---source include/have_innodb.inc
---source include/have_innodb_16k.inc
 --source include/have_debug.inc
 --source include/big_test.inc
 

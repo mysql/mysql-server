@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,22 +24,22 @@
 
 // stats options
 static const char* _dbname = 0;
-static my_bool _delete = false;
-static my_bool _update = false;
-static my_bool _dump = false;
+static bool _delete = false;
+static bool _update = false;
+static bool _dump = false;
 static int _query = 0;
 static int _stats_any = 0;
 // sys options
-static my_bool _sys_drop = false;
-static my_bool _sys_create = false;
-static my_bool _sys_create_if_not_exist = false;
-static my_bool _sys_create_if_not_valid = false;
-static my_bool _sys_check = false;
-static my_bool _sys_skip_tables = false;
-static my_bool _sys_skip_events = false;
+static bool _sys_drop = false;
+static bool _sys_create = false;
+static bool _sys_create_if_not_exist = false;
+static bool _sys_create_if_not_valid = false;
+static bool _sys_check = false;
+static bool _sys_skip_tables = false;
+static bool _sys_skip_events = false;
 static int _sys_any = 0;
 // other
-static my_bool _verbose = false;
+static bool _verbose = false;
 static int _loops = 1;
 
 static Ndb_cluster_connection* g_ncc = 0;
@@ -70,6 +70,12 @@ static const NdbDictionary::Index* g_ind = 0;
     ret = -1; \
     break; \
   }
+
+inline void ndb_end_and_exit(int exitcode)
+{
+  ndb_end(0);
+  exit(exitcode);
+}
 
 static NdbError
 getNdbError(Ndb_cluster_connection* ncc)
@@ -709,8 +715,9 @@ main(int argc, char** argv)
   ndb_opt_set_usage_funcs(short_usage_sub, usage);
   ret = handle_options(&argc, &argv, my_long_options, ndb_std_get_one_option);
   if (ret != 0 || checkopts(argc, argv) != 0)
-    return NDBT_ProgramExit(NDBT_WRONGARGS);
-
+  {
+    ndb_end_and_exit(NDBT_ProgramExit(NDBT_WRONGARGS));
+  }
   setOutputLevel(_verbose ? 2 : 0);
 
   unsigned seed = (unsigned)time(0);
@@ -719,6 +726,8 @@ main(int argc, char** argv)
 
   ret = doall();
   if (ret == -1)
-    return NDBT_ProgramExit(NDBT_FAILED);
-  return NDBT_ProgramExit(NDBT_OK);
+  {
+    ndb_end_and_exit(NDBT_ProgramExit(NDBT_FAILED));
+  }
+  ndb_end_and_exit(NDBT_ProgramExit(NDBT_OK));
 }

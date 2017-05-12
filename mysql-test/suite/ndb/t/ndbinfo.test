@@ -109,6 +109,7 @@ SELECT count(*) >= 20 FROM blocks;
 
 # Test incompatible table definition between NDB and MySQL Server
 # using the ndb$test table which originally looks like
+show create table ndb$test;
 # CREATE TABLE `ndb$test` (
 #   `node_id` int unsigned DEFAULT NULL,
 #   `block_number` int unsigned DEFAULT NULL,
@@ -195,6 +196,16 @@ CREATE TABLE ndb$test (node_id int, block_number blob) ENGINE = ndbinfo;
 --error ER_TABLE_CANT_HANDLE_AUTO_INCREMENT
 CREATE TABLE ndb$test (node_id int AUTO_INCREMENT) ENGINE = ndbinfo;
 
+## Restore original ndb$test table to avoid test side-effects
+CREATE TABLE ndb$test (
+  node_id int(10) unsigned DEFAULT NULL,
+  block_number int(10) unsigned DEFAULT NULL,
+  block_instance int(10) unsigned DEFAULT NULL,
+  counter int(10) unsigned DEFAULT NULL,
+  counter2 bigint(20) unsigned DEFAULT NULL
+) ENGINE=NDBINFO DEFAULT CHARSET=latin1 COMMENT='for testing';
+
+
 # wl#5567 - exercise table...
 #   only node_id is guranteed to be same...
 #   (unless we change cluster config for test)
@@ -244,10 +255,25 @@ select * from restart_info;
 desc tc_time_track_stats;
 select distinct node_id from tc_time_track_stats;
 
+desc threads;
+
 desc cluster_transactions;
 desc server_transactions;
 desc cluster_operations;
 desc server_operations;
+
+select count(*) from table_distribution_status;
+select count(*) from ndb$table_distribution_status_all;
+select count(*) from table_fragments;
+select count(*) from ndb$table_fragments_all;
+select count(*) from table_replicas;
+select count(*) from ndb$table_replicas_all;
+desc table_distribution_status;
+desc ndb$table_distribution_status_all;
+desc table_fragments;
+desc ndb$table_fragments_all;
+desc table_replicas;
+desc ndb$table_replicas_all;
 
 create table t1 (a int primary key) engine = ndb;
 begin;
@@ -321,6 +347,66 @@ eval $q1;
 select table_schema, table_name, definer from information_schema.views
   where table_schema = 'ndbinfo' and
         definer != 'root@localhost';
+
+
+#
+# Test buffered joining
+#
+# BUG#20075747 RND_INIT() ON AN OPEN SCAN IS USED TO REPOSITION THE CURSOR
+# - rnd_init() on an open scan is used to reposition the "cursor"
+#   back to first row
+#
+set @@optimizer_switch='block_nested_loop=off';
+
+
+--disable_result_log
+
+select @a:=0;
+
+select
+  @a:=@a+1,
+  a.node_id, b.node_id,
+  a.block_name, b.block_name,
+  a.block_instance, b.block_instance,
+  a.counter_id, b.counter_id,
+  a.counter_name, b.counter_name,
+  a.val, b.val
+from
+  ndbinfo.counters a join
+  ndbinfo.counters b
+on
+  a.node_id = b.node_id;
+
+select @b:=0;
+
+select
+  @b:=@b+1,
+  a.node_id, b.node_id,
+  a.block_name, b.block_name,
+  a.block_instance, b.block_instance,
+  a.counter_id, b.counter_id,
+  a.counter_name, b.counter_name,
+  a.val, b.val
+from
+  ndbinfo.counters a join
+  ndbinfo.counters b
+on
+  a.node_id = b.node_id;
+
+--enable_result_log
+
+--echo Expect both joins to give same row count
+--echo (0 diff)
+select @a - @b;
+
+
+create temporary table old_count
+       select counter_name, sum(val) as val
+       from ndbinfo.counters
+       where block_name='DBSPJ'
+       group by counter_name;
+drop table old_count;
+set @@optimizer_switch=default;
 
 # ################################
 # Test memory_per_fragment table.
@@ -527,8 +613,14 @@ create view frag_ops as select
   sum(tot_scan_bytes_returned) as tot_scan_bytes_returned, 
   sum(tot_scan_prog_bytes) as tot_scan_prog_bytes,
   sum(tot_scan_bound_bytes) as tot_scan_bound_bytes,
-  sum(tot_scan_inst_exec) as tot_scan_inst_exec, 
-  sum(conc_frag_scans) as conc_frag_scans,
+  sum(tot_scan_inst_exec) as tot_scan_inst_exec,
+  # Ignore concurrent frag_scans, as all tests below expect them to be 0
+  # but this is not stable as LCP scans are counted as concurrent
+  # frag scans while they are running (but not counted as tot_frag_scans
+  # when they complete).
+  # Arguably it is useful to see a live LCP scan, and this test has no
+  # use for conc_frag_scans!=0, so avoid looking at it for determinism
+  #sum(conc_frag_scans) as conc_frag_scans,
   sum(conc_qd_frag_scans) as conc_qd_frag_scans, 
   sum(tot_commits) as tot_commits
   from ndbinfo.operations_per_fragment
@@ -688,6 +780,7 @@ drop table t1;
 drop table t2;
 
 
+
 #
 # WL#7575 Remove ndbinfo's usage of other engine
 # - the five lookup tables which resided in another engine
@@ -714,20 +807,6 @@ select type_name from ndb$dict_obj_types where type_id = 3;
 ## All tables in ndbinfo/ should now be using engine=NDBINFO
 select count(*) from information_schema.tables
   where table_schema = 'ndbinfo' and engine != 'ndbinfo';
-
-#
-# BUG#20075747 RND_INIT() ON AN OPEN SCAN IS USED TO REPOSITION THE CURSOR
-# - rnd_init() on an open scan is used to reposition the "cursor"
-#   back to first row
-#
-set @@optimizer_switch='block_nested_loop=off';
-create temporary table old_count
-       select counter_name, sum(val) as val
-       from ndbinfo.counters
-       where block_name='DBSPJ'
-       group by counter_name;
-drop table old_count;
-set @@optimizer_switch=default;
 
 #
 # Bug#16731538 MYSQLD CRITICAL FAILURE DURING ORDERED SELECT FROM NDBINFO.CLUSTER_OPERATIONS

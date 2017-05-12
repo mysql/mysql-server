@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,20 +16,24 @@
 #ifndef RPL_REPORTING_H
 #define RPL_REPORTING_H
 
-#include "my_global.h"
-#include "my_sys.h"                   // my_time
-#include "mysql/psi/mysql_thread.h"   // mysql_mutex_t
+#include <stdarg.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <sys/types.h>
+#include <time.h>
 
+#include "my_compiler.h"
+#include "my_inttypes.h"
+#include "my_loglevel.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "my_systime.h"              //my_getsystime
 
 /**
    Maximum size of an error message from a slave thread.
  */
 #define MAX_SLAVE_ERRMSG      1024
 
-// todo: consider to remove rpl_reporting.cc,h from building embedded
-#if !defined(EMBEDDED_LIBRARY)
 class THD;
-#endif
 
 /**
    Mix-in to handle the message logging and reporting for relay log
@@ -75,13 +79,11 @@ public:
     mysql_mutex_unlock(&err_lock);
   }
 
-#if !defined(EMBEDDED_LIBRARY)
   /**
      Check if the current error is of temporary nature or not.
   */
   int has_temporary_error(THD *thd, uint error_arg= 0, bool* silent= 0) const;
-#endif // EMBEDDED_LIBRARY
-  
+
   /**
      Error information structure.
    */
@@ -105,12 +107,14 @@ public:
     {
       struct tm tm_tmp;
       struct tm *start;
+      time_t tt_tmp;
 
-      skr= my_time(0);
-      localtime_r(&skr, &tm_tmp);
+      skr= my_getsystime()/10;
+      tt_tmp= skr/1000000;
+      localtime_r(&tt_tmp, &tm_tmp);
       start=&tm_tmp;
 
-      sprintf(timestamp, "%02d%02d%02d %02d:%02d:%02d",
+      snprintf(timestamp, sizeof(timestamp), "%02d%02d%02d %02d:%02d:%02d",
               start->tm_year % 100,
               start->tm_mon+1,
               start->tm_mday,
@@ -125,9 +129,9 @@ public:
     /** Error message */
     char message[MAX_SLAVE_ERRMSG];
     /** Error timestamp as string */
-    char timestamp[16];
-    /** Error timestamp as time_t variable. Used in performance_schema */
-    time_t skr;
+    char timestamp[64];
+    /** Error timestamp in microseconds. Used in performance_schema */
+    ulonglong skr;
 
   };
 

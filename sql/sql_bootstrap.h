@@ -17,6 +17,8 @@
 #ifndef SQL_BOOTSTRAP_H
 #define SQL_BOOTSTRAP_H
 
+#include <stddef.h>
+
 /**
   The maximum size of a bootstrap query.
   Increase this size if parsing a longer query during bootstrap is necessary.

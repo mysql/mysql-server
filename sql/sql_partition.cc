@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -47,30 +47,68 @@
 
 #include "sql_partition.h"
 
+#include <assert.h>
+#include <limits.h>
+#include <string.h>
+#include <algorithm>
+
+#include "binary_log_types.h"
 #include "current_thd.h"
 #include "debug_sync.h"                 // DEBUG_SYNC
 #include "derror.h"                     // ER_THD
+#include "field.h"
 #include "item.h"                       // enum_monotoncity_info
 #include "item_func.h"                  // Item_func
+#include "key.h"
 #include "lock.h"                       // mysql_lock_remove
 #include "log.h"                        // sql_print_warning
+#include "m_string.h"
+#include "mdl.h"
+#include "my_byteorder.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_decimal.h"
+#include "my_io.h"
+#include "my_macros.h"
+#include "my_sqlcommand.h"
+#include "my_sys.h"
+#include "my_table_map.h"
+#include "mysql/plugin.h"
+#include "mysql/psi/mysql_file.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql_com.h"
 #include "mysqld.h"                     // mysql_tmpdir
+#include "mysqld_error.h"
 #include "opt_range.h"                  // store_key_image_to_rec
-#include "sql_analyse.h"                // append_escaped
+#include "parse_tree_node_base.h"
 #include "partition_info.h"             // partition_info
 #include "partitioning/partition_handler.h" // Partition_handler
 #include "psi_memory_key.h"
+#include "query_options.h"
+#include "session_tracker.h"
+#include "sql_alter.h"
 #include "sql_base.h"                   // wait_while_table_is_used
+#include "sql_bitmap.h"
 #include "sql_cache.h"                  // query_cache
 #include "sql_class.h"                  // THD
+#include "sql_const.h"
+#include "sql_digest_stream.h"
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_list.h"
 #include "sql_parse.h"                  // parse_sql
+#include "sql_show.h"
+#include "sql_string.h"
 #include "sql_table.h"                  // build_table_filename
-#include "sql_tablespace.h"             // check_tablespace_name
+#include "sql_tablespace.h"             // validate_tablespace_name
+#include "system_variables.h"
+#include "table.h"
+#include "thr_malloc.h"
 
-#include "pfs_file_provider.h"
-#include "mysql/psi/mysql_file.h"
+struct PSI_statement_locker;
 
-#include <algorithm>
 using std::max;
 using std::min;
 
@@ -914,11 +952,9 @@ static int check_signed_flag(partition_info *part_info)
     stack for resolving of fields from a single table.
 */
 
-static int
+static bool
 init_lex_with_single_table(THD *thd, TABLE *table, LEX *lex)
 {
-  TABLE_LIST *table_list;
-  Table_ident *table_ident;
   SELECT_LEX *select_lex= lex->select_lex;
   Name_resolution_context *context= &select_lex->context;
   /*
@@ -930,14 +966,17 @@ init_lex_with_single_table(THD *thd, TABLE *table, LEX *lex)
     we're working with to the Name_resolution_context.
   */
   thd->lex= lex;
-  if ((!(table_ident= new Table_ident(thd->get_protocol(),
-                                      to_lex_cstring(table->s->table_name),
-                                      to_lex_cstring(table->s->db), TRUE))) ||
-      (!(table_list= select_lex->add_table_to_list(thd,
-                                                   table_ident,
-                                                   NULL,
-                                                   0))))
-    return TRUE;
+  auto table_ident= new Table_ident(thd->get_protocol(),
+                                    to_lex_cstring(table->s->table_name),
+                                    to_lex_cstring(table->s->db), true);
+  if (table_ident == nullptr)
+    return true;
+
+  TABLE_LIST *table_list=
+    select_lex->add_table_to_list(thd, table_ident, nullptr, 0);
+  if (table_list == nullptr)
+    return true;
+
   context->resolve_in_table_list_only(table_list);
   lex->use_only_table_context= TRUE;
   table->get_fields_in_item_tree= TRUE;
@@ -1016,7 +1055,7 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
   LEX *old_lex= thd->lex;
   LEX lex;
   SELECT_LEX_UNIT unit(CTX_NONE);
-  SELECT_LEX select(NULL, NULL, NULL, NULL, NULL, NULL);
+  SELECT_LEX select(nullptr, nullptr);
   lex.new_static_query(&unit, &select);
 
   DBUG_ENTER("fix_fields_part_func");
@@ -1241,13 +1280,12 @@ static bool check_unique_keys(TABLE *table)
 
   SYNOPSIS
     check_range_capable_PF()
-    table                TABLE object for which partition fields are set-up
 
   DESCRIPTION
     Support for this is not implemented yet.
 */
 
-static void check_range_capable_PF(TABLE *table)
+static void check_range_capable_PF(TABLE*)
 {
   DBUG_ENTER("check_range_capable_PF");
 
@@ -1258,7 +1296,6 @@ static void check_range_capable_PF(TABLE *table)
 /**
   Set up partition bitmaps
 
-    @param thd           Thread object
     @param part_info     Reference to partitioning data structure
 
   @return Operation status
@@ -1269,7 +1306,7 @@ static void check_range_capable_PF(TABLE *table)
     and initialise it.
 */
 
-static bool set_up_partition_bitmaps(THD *thd, partition_info *part_info)
+static bool set_up_partition_bitmaps(partition_info *part_info)
 {
   uint32 *bitmap_buf;
   uint bitmap_bits= part_info->num_subparts?
@@ -1814,7 +1851,7 @@ bool fix_partition_func(THD *thd, TABLE *table,
       (table->s->db_type()->partition_flags() & HA_CAN_PARTITION_UNIQUE))) &&
                check_unique_keys(table)))
     goto end;
-  if (unlikely(set_up_partition_bitmaps(thd, part_info)))
+  if (unlikely(set_up_partition_bitmaps(part_info)))
     goto end;
   if (unlikely(part_info->set_up_charset_field_preps()))
   {
@@ -3256,7 +3293,7 @@ static int get_part_id_charset_func_subpart(partition_info *part_info,
 
 static int get_partition_id_list_col(partition_info *part_info,
                                      uint32 *part_id,
-                                     longlong *func_value)
+                                     longlong*)
 {
   part_column_list_val *list_col_array= part_info->list_col_array;
   uint num_columns= part_info->part_field_list.elements;
@@ -3510,7 +3547,7 @@ notfound:
 
 static int get_partition_id_range_col(partition_info *part_info,
                                       uint32 *part_id,
-                                      longlong *func_value)
+                                      longlong*)
 {
   part_column_list_val *range_col_array= part_info->range_col_array;
   uint num_columns= part_info->part_field_list.elements;
@@ -4490,7 +4527,7 @@ bool mysql_unpack_partition(THD *thd,
   LEX *old_lex= thd->lex;
   LEX lex;
   SELECT_LEX_UNIT unit(CTX_NONE);
-  SELECT_LEX select(NULL, NULL, NULL, NULL, NULL, NULL);
+  SELECT_LEX select(nullptr, nullptr);
   lex.new_static_query(&unit, &select);
 
   sql_digest_state *parent_digest= thd->m_digest;
@@ -4923,8 +4960,12 @@ bool compare_partition_options(HA_CREATE_INFO *table_create_info,
   @param[in,out] create_info     Create info for CREATE TABLE
   @param[in]  alter_ctx          ALTER TABLE runtime context
   @param[out] partition_changed  Boolean indicating whether partition changed
+  @param[out] fast_alter_part_table  Indicates that fast partition alter
+                                     is possible.
   @param[out] new_part_info      New partition_info object if fast partition
-                                 alter is possible. (NULL if not possible).
+                                 alter or in-place alter which requires mark-up
+                                 in partition_info is possible (NULL if neither
+                                 is possible).
 
   @return Operation status
     @retval TRUE                 Error
@@ -4944,6 +4985,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
                            HA_CREATE_INFO *create_info,
                            Alter_table_ctx *alter_ctx,
                            bool *partition_changed,
+                           bool *fast_alter_part_table,
                            partition_info **new_part_info)
 {
   DBUG_ENTER("prep_alter_part_table");
@@ -5048,8 +5090,9 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
           without any changes at all.
         */
         flags= part_handler->alter_flags(alter_info->flags);
-        if ((flags & HA_FAST_CHANGE_PARTITION) != 0)
+        if (flags & (HA_FAST_CHANGE_PARTITION | HA_INPLACE_CHANGE_PARTITION))
         {
+          *fast_alter_part_table= (flags & HA_FAST_CHANGE_PARTITION);
           *new_part_info= tab_part_info;
           /* Force table re-open for consistency with the main case. */
           table->m_needs_reopen= true;
@@ -5082,14 +5125,15 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
       my_error(ER_PARTITION_FUNCTION_FAILURE, MYF(0));
       goto err;
     }
-    if ((flags & HA_FAST_CHANGE_PARTITION) != 0)
+    if (flags & (HA_FAST_CHANGE_PARTITION | HA_INPLACE_CHANGE_PARTITION))
     {
       /*
-        "Fast" change of partitioning is supported in this case.
-        We will change TABLE::part_info (as this is how we pass
+        "Fast" or "inplace" change of partitioning is supported in this
+        case. We will change TABLE::part_info (as this is how we pass
         information to storage engine in this case), so the table
         must be reopened.
       */
+      *fast_alter_part_table= (flags & HA_FAST_CHANGE_PARTITION);
       *new_part_info= tab_part_info;
       table->m_needs_reopen= true;
     }
@@ -6881,8 +6925,6 @@ bool fast_alter_partition_table(THD *thd,
   lpt->table_name= table_name;
   lpt->copied= 0;
   lpt->deleted= 0;
-  lpt->pack_frm_data= NULL;
-  lpt->pack_frm_len= 0;
 
   if (!part_handler)
   {
@@ -7195,7 +7237,7 @@ void append_row_to_str(String &str, const uchar *row, TABLE *table)
     str.append(" ");
     str.append(field->field_name);
     str.append(":");
-    field_unpack(&str, field, rec, 0, false);
+    field_unpack(&str, field, 0, false);
   }
 
   if (!is_rec0)
@@ -7631,7 +7673,7 @@ static uint32 get_partition_id_cols_range_for_endpoint(partition_info *part_info
 
 
 static int get_part_iter_for_interval_cols_via_map(partition_info *part_info,
-                                                   bool is_subpart,
+                                                   bool,
                                                    uint32 *store_length_array,
                                                    uchar *min_value, uchar *max_value,
                                                    uint min_len, uint max_len,
@@ -7639,7 +7681,7 @@ static int get_part_iter_for_interval_cols_via_map(partition_info *part_info,
                                                    PARTITION_ITERATOR *part_iter)
 {
   uint32 nparts;
-  get_col_endpoint_func  get_col_endpoint;
+  get_col_endpoint_func get_col_endpoint;
   DBUG_ENTER("get_part_iter_for_interval_cols_via_map");
 
   if (part_info->part_type == partition_type::RANGE)
@@ -7655,7 +7697,10 @@ static int get_part_iter_for_interval_cols_via_map(partition_info *part_info,
     DBUG_ASSERT(part_info->num_list_values);
   }
   else
+  {
     assert(0);
+    get_col_endpoint= nullptr;
+  }
 
   if (flags & NO_MIN_RANGE)
     part_iter->part_nums.start= part_iter->part_nums.cur= 0;
@@ -8332,10 +8377,12 @@ bool set_up_table_before_create(THD *thd,
   }
   if (part_elem->tablespace_name != NULL)
   {
-    if (check_tablespace_name(part_elem->tablespace_name) !=
-        Ident_name_check::OK)
+    if (validate_tablespace_name_length(part_elem->tablespace_name) ||
+        validate_tablespace_name(false,
+                                 part_elem->tablespace_name,
+                                 part_elem->engine_type))
     {
-	    DBUG_RETURN(true);
+      DBUG_RETURN(true);
     }
     info->tablespace= part_elem->tablespace_name;
   }

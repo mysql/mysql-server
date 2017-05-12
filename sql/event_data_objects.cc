@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,27 +15,55 @@
 
 #include "event_data_objects.h"
 
+#include <string.h>
+
+#include "auth_acls.h"
+                                               // struct Time_zone
+#include "auth_common.h"                       // EVENT_ACL, SUPER_ACL
+#include "dd/dd_event.h"                       // dd::get_old_interval_type
+#include "dd/dd_schema.h"                      // dd::get_schema_name
+#include "dd/string_type.h"
+#include "dd/types/event.h"
+#include "derror.h"
+#include "event_parse_data.h"
+#include "events.h"
+#include "lex_string.h"
+                                               // append_identifier
+#include "log.h"
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_dbug.h"
+#include "my_decimal.h"
+#include "my_sys.h"
+#include "mysql/psi/mysql_sp.h"
+#include "mysql/psi/mysql_statement.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysqld_error.h"
 #include "psi_memory_key.h"
+#include "sp_head.h"
+#include "sql_alloc.h"
+#include "sql_class.h"
+#include "sql_const.h"
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_list.h"
 #include "sql_parse.h"                         // parse_sql
-#include "sql_db.h"                            // get_default_db_collation
+#include "sql_plugin.h"
+#include "sql_security_ctx.h"
+#include "sql_servers.h"
+#include "sql_show.h"                          // append_definer,
+#include "sql_string.h"
 #include "sql_time.h"                          // interval_type_to_name
+#include "system_variables.h"
+#include "table.h"
+#include "thr_malloc.h"
                                                // date_add_interval,
                                                // calc_time_diff.
 #include "tztime.h"                            // my_tz_find, my_tz_OFFSET0
-                                               // struct Time_zone
-#include "auth_common.h"                       // EVENT_ACL, SUPER_ACL
-#include "events.h"
-#include "event_db_repository.h"
-#include "event_parse_data.h"
-#include "sp_head.h"
-#include "sql_show.h"                          // append_definer,
-                                               // append_identifier
-#include "log.h"
-#include "derror.h"
-#include "dd/dd_event.h"                       // dd::get_old_interval_type
-#include "dd/dd_schema.h"                      // dd::get_schema_name
 
-#include "mysql/psi/mysql_sp.h"
+class Item;
+struct PSI_statement_locker;
+struct sql_digest_state;
 
 /**
   @addtogroup Event_Scheduler
@@ -65,7 +93,7 @@ static inline LEX_STRING make_lex_string(MEM_ROOT *mem_root, const char *str)
 
 
 static inline LEX_STRING make_lex_string(MEM_ROOT *mem_root,
-                                         const std::string &str)
+                                         const dd::String_type &str)
 {
   LEX_STRING lex_str;
   lex_str.str= strmake_root(mem_root, str.c_str(), str.length());
@@ -75,7 +103,7 @@ static inline LEX_STRING make_lex_string(MEM_ROOT *mem_root,
 
 
 static inline LEX_CSTRING make_lex_cstring(MEM_ROOT *mem_root,
-                                           const std::string &str)
+                                           const dd::String_type &str)
 {
   LEX_CSTRING lex_cstr;
   lex_cstr.str= strmake_root(mem_root, str.c_str(), str.length());
@@ -94,9 +122,7 @@ class Event_creation_ctx :public Stored_program_creation_ctx,
                           public Sql_alloc
 {
 public:
-  static bool create_event_creation_ctx(THD *thd,
-                                        const char *schema_name,
-                                        const dd::Event &event_obj,
+  static bool create_event_creation_ctx(const dd::Event &event_obj,
                                         Stored_program_creation_ctx **ctx);
 
 public:
@@ -107,7 +133,7 @@ public:
   }
 
 protected:
-  virtual Object_creation_ctx *create_backup_ctx(THD *thd) const
+  virtual Object_creation_ctx *create_backup_ctx(THD*) const
   {
     /*
       We can avoid usual backup/restore employed in stored programs since we
@@ -130,9 +156,7 @@ private:
 
 // Prepare a event creation context object.
 bool
-Event_creation_ctx::create_event_creation_ctx(THD *thd,
-                                              const char *schema_name,
-                                              const dd::Event &event_obj,
+Event_creation_ctx::create_event_creation_ctx(const dd::Event &event_obj,
                                               Stored_program_creation_ctx **ctx)
 {
   const CHARSET_INFO *client_cs= nullptr;
@@ -347,33 +371,32 @@ Event_job_data::fill_event_info(THD *thd, const dd::Event &event_obj,
   m_schema_name= make_lex_string(&mem_root, schema_name);
   m_event_name= make_lex_string(&mem_root, event_obj.name());
 
-  std::string tmp(event_obj.definer_user());
+  dd::String_type tmp(event_obj.definer_user());
   tmp.append("@");
   tmp.append(event_obj.definer_host());
   m_definer= make_lex_string(&mem_root, tmp);
 
   String str(event_obj.time_zone().c_str(), &my_charset_latin1);
   m_time_zone= my_tz_find(thd, &str);
-  
+
   m_definition= make_lex_string(&mem_root,event_obj.definition());
-  
+
   if (m_time_zone == NULL)
     DBUG_RETURN(true);
-  
-  Event_creation_ctx::create_event_creation_ctx(thd, m_schema_name.str,
-                                                event_obj, &m_creation_ctx);
+
+  Event_creation_ctx::create_event_creation_ctx(event_obj, &m_creation_ctx);
   if (m_creation_ctx == nullptr)
       DBUG_RETURN(true);
-  
+
   m_definer_user= make_lex_cstring(&mem_root, event_obj.definer_user());
   m_definer_host= make_lex_cstring(&mem_root, event_obj.definer_host());
-    
+
   m_sql_mode= event_obj.sql_mode();
-  
+
   DBUG_RETURN(false);
 }
-  
-  
+
+
 // Fill the Event_queue_element members from the Data Dictionary Event Object.
 bool
 Event_queue_element::fill_event_info(THD *thd, const dd::Event &event_obj,
@@ -384,7 +407,7 @@ Event_queue_element::fill_event_info(THD *thd, const dd::Event &event_obj,
   m_schema_name= make_lex_string(&mem_root, schema_name);
   m_event_name=make_lex_string(&mem_root, event_obj.name());
 
-  std::string tmp(event_obj.definer_user());
+  dd::String_type tmp(event_obj.definer_user());
   tmp.append("@");
   tmp.append(event_obj.definer_host());
 
@@ -449,8 +472,7 @@ Event_timed::fill_event_info(THD *thd, const dd::Event &event_obj,
   m_definition=make_lex_string(&mem_root, event_obj.definition());
   m_definition_utf8=make_lex_string(&mem_root, event_obj.definition_utf8());
 
-  if (Event_creation_ctx::create_event_creation_ctx(thd, m_schema_name.str,
-                                                    event_obj, &m_creation_ctx))
+  if (Event_creation_ctx::create_event_creation_ctx(event_obj, &m_creation_ctx))
     {
       push_warning_printf(thd,
                           Sql_condition::SL_WARNING,
@@ -489,7 +511,7 @@ add_interval(MYSQL_TIME *ltime, const Time_zone *time_zone,
   if (date_add_interval(ltime, scale, interval))
     return 0;
 
-  my_bool not_used;
+  bool not_used;
   return time_zone->TIME_to_gmt_sec(ltime, &not_used);
 }
 
@@ -1151,9 +1173,7 @@ bool
 Event_job_data::execute(THD *thd, bool drop)
 {
   String sp_sql;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   Security_context event_sctx, *save_sctx= NULL;
-#endif
   List<Item> empty_item_list;
   bool ret= true;
   sql_digest_state *parent_digest= thd->m_digest;
@@ -1183,7 +1203,6 @@ Event_job_data::execute(THD *thd, bool drop)
 
   lex_start(thd);
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (event_sctx.change_security_context(thd,
                                          m_definer_user, m_definer_host,
                                          &m_schema_name, &save_sctx))
@@ -1195,7 +1214,6 @@ Event_job_data::execute(THD *thd, bool drop)
                     m_event_name.str);
     goto end;
   }
-#endif
 
   if (check_access(thd, EVENT_ACL, m_schema_name.str, NULL, NULL, 0, 0))
   {
@@ -1323,10 +1341,8 @@ end:
       thd->security_context()->set_master_access(saved_master_access);
     }
   }
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (save_sctx)
     event_sctx.restore_security_context(thd, save_sctx);
-#endif
   thd->lex->unit->cleanup(true);
   thd->end_statement();
   thd->cleanup_after_query();

@@ -14,9 +14,19 @@
    51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA */
 
 #include "rpl_slave_until_options.h"
+
+#include <stdlib.h>
+#include <string.h>
+
+#include "binlog_event.h"
 #include "log.h"
-#include "rpl_rli.h"
+#include "log_event.h"
+#include "m_string.h"
+#include "my_sys.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysqld_error.h"
 #include "rpl_group_replication.h"
+#include "rpl_rli.h"
 
 int Until_position::init(const char *log_name, my_off_t log_pos)
 {
@@ -152,7 +162,7 @@ bool Until_relay_position::check_at_start_slave()
                         m_rli->get_group_relay_log_pos());
 }
 
-bool Until_relay_position::check_before_dispatching_event(const Log_event *ev)
+bool Until_relay_position::check_before_dispatching_event(const Log_event*)
 {
   return false;
 }
@@ -238,7 +248,7 @@ bool Until_after_gtids::check_at_start_slave()
   return false;
 }
 
-bool Until_after_gtids::check_before_dispatching_event(const Log_event *ev)
+bool Until_after_gtids::check_before_dispatching_event(const Log_event*)
 {
   return false;
 }
@@ -309,7 +319,7 @@ bool Until_mts_gap::check_at_start_slave()
   return false;
 }
 
-bool Until_mts_gap::check_before_dispatching_event(const Log_event *ev)
+bool Until_mts_gap::check_before_dispatching_event(const Log_event*)
 {
   if (m_rli->mts_recovery_group_cnt == 0)
   {

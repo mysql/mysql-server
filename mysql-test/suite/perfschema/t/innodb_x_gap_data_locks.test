@@ -1,0 +1,70 @@
+--echo #Test for Exclusive, GAP locks
+
+-- connect (con1,localhost,root,,)
+-- connect (con2,localhost,root,,)
+-- connect (con3,localhost,root,,)
+
+--disable_warnings
+drop table if exists t1_x_gap;
+--enable_warnings
+
+--connection con1
+use test;
+create table t1_x_gap (id int(10) primary key, x int(10)) engine=INNODB;
+insert into t1_x_gap values (1,10),(2,20),(3,30),(4,40),(5,50);
+
+start transaction;
+select * from t1_x_gap where id<5 for update;
+
+--connection con3
+select object_schema, object_name, lock_type, lock_mode, lock_status, lock_data
+  from performance_schema.data_locks
+  where object_name="t1_x_gap"
+  order by lock_type, lock_mode, lock_status, lock_data;
+
+--connection con2
+start transaction;
+-- send
+insert into t1_x_gap values (0,0);
+
+-- connection default
+let $wait_condition= SELECT COUNT(*)>=1 FROM performance_schema.data_locks
+  where OBJECT_NAME='t1_x_gap' and LOCK_STATUS='WAITING';
+--source include/wait_condition.inc
+
+--connection con3
+# Do not display LOCK_DATA, it can be NULL,
+# upon eviction from the innodb buffer pool
+select object_schema, object_name, lock_type, lock_mode, lock_status
+  from performance_schema.data_locks
+  where object_name="t1_x_gap"
+  order by lock_type, lock_mode, lock_status;
+
+--connection con1
+commit;
+
+# Wait for the con2 waiting lock to be granted, now that con1 is gone.
+-- connection default
+let $wait_condition= SELECT COUNT(*)=0 FROM performance_schema.data_locks
+  where OBJECT_NAME='t1_x_gap' and LOCK_STATUS='WAITING';
+--source include/wait_condition.inc
+
+--connection con3
+select object_schema, object_name, lock_type, lock_mode, lock_status
+  from performance_schema.data_locks
+  where object_name="t1_x_gap";
+
+--connection con2
+-- reap
+commit;
+
+--connection con1
+drop table t1_x_gap;
+
+--connection default
+--disconnect con1
+--disconnect con2
+--disconnect con3
+
+let $count_sessions= 1;
+--source include/wait_until_count_sessions.inc

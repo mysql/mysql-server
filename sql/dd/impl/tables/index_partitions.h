@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,13 +16,14 @@
 #ifndef DD_TABLES__INDEX_PARTITIONS_INCLUDED
 #define DD_TABLES__INDEX_PARTITIONS_INCLUDED
 
-#include "my_global.h"
+#include <string>
 
-#include "dd/object_id.h"                    // dd::Object_id
 #include "dd/impl/types/object_table_impl.h" // dd::Object_table_impl
+#include "dd/object_id.h"                    // dd::Object_id
 
 namespace dd {
   class Object_key;
+
 namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
@@ -32,9 +33,9 @@ class Index_partitions : public Object_table_impl
 public:
   static const Index_partitions &instance();
 
-  static const std::string &table_name()
+  static const String_type &table_name()
   {
-    static std::string s_table_name("index_partitions");
+    static String_type s_table_name("index_partitions");
     return s_table_name;
   }
 
@@ -51,7 +52,7 @@ public:
 public:
   Index_partitions();
 
-  virtual const std::string &name() const
+  virtual const String_type &name() const
   { return Index_partitions::table_name(); }
 
 public:

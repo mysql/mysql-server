@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,8 +15,19 @@
 
 #include "dd/impl/tables/spatial_reference_systems.h"
 
+#include <string.h>
+#include <new>
+
 #include "dd/impl/raw/object_keys.h"                    // Parent_id_range_key
+#include "dd/impl/types/object_table_definition_impl.h"
 #include "dd/impl/types/spatial_reference_system_impl.h"// dd::Spatial_refere...
+#include "m_ctype.h"
+
+namespace dd {
+class Dictionary_object;
+class Object_key;
+class Raw_record;
+}  // namespace dd
 
 namespace dd {
 namespace tables {
@@ -42,7 +53,7 @@ Spatial_reference_systems::Spatial_reference_systems()
                          "catalog_id BIGINT UNSIGNED NOT NULL");
   m_target_def.add_field(FIELD_NAME,
                          "FIELD_NAME",
-                         "name CHARACTER VARYING(256)\n"
+                         "name CHARACTER VARYING(80)\n"
                          "NOT NULL COLLATE utf8_general_ci");
   m_target_def.add_field(FIELD_LAST_ALTERED,
                          "FIELD_LAST_ALTERED",
@@ -87,7 +98,7 @@ Spatial_reference_systems::create_dictionary_object(const Raw_record &) const
 
 bool Spatial_reference_systems::update_object_key(Item_name_key *key,
                                                   Object_id catalog_id,
-                                                  const std::string &name)
+                                                  const String_type &name)
 {
   // Construct a lowercase version of the key. The collation of the
   // name column is also accent insensitive, but we don't have a

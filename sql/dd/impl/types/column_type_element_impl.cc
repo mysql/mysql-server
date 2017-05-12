@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,13 +15,29 @@
 
 #include "dd/impl/types/column_type_element_impl.h"
 
-#include "mysqld_error.h"                         // ER_*
+#include <stdio.h>
 
-#include "dd/impl/sdi_impl.h"                     // sdi read/write functions
-#include "dd/impl/transaction_impl.h"             // Open_dictionary_tables_ctx
 #include "dd/impl/raw/raw_record.h"               // Raw_record
+#include "dd/impl/sdi_impl.h"                     // sdi read/write functions
 #include "dd/impl/tables/column_type_elements.h"  // Column_type_elements
+#include "dd/impl/transaction_impl.h"             // Open_dictionary_tables_ctx
 #include "dd/impl/types/column_impl.h"            // Column_impl
+#include "dd/impl/types/entity_object_impl.h"
+#include "dd/types/object_table.h"
+#include "dd/types/weak_object.h"
+#include "m_string.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
+#include "mysqld_error.h"                         // ER_*
+#include "rapidjson/document.h"
+#include "rapidjson/prettywriter.h"
+
+namespace dd {
+class Column;
+class Object_key;
+class Sdi_rcontext;
+class Sdi_wcontext;
+}  // namespace dd
 
 
 using dd::tables::Column_type_elements;
@@ -118,14 +134,14 @@ Column_type_element_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val)
 
 ///////////////////////////////////////////////////////////////////////////
 
-void Column_type_element_impl::debug_print(std::string &outb) const
+void Column_type_element_impl::debug_print(String_type &outb) const
 {
   char outbuf[1024];
   sprintf(outbuf, "%s: "
     "name=%s, column_id={OID: %lld}, ordinal_position= %u",
     object_table().name().c_str(),
     m_name.c_str(), m_column->id(), m_index);
-  outb= std::string(outbuf);
+  outb= String_type(outbuf);
 }
 
 ///////////////////////////////////////////////////////////////////////////

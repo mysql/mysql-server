@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,20 +13,19 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
 #include <gtest/gtest.h>
-#include "test_utils.h"
+#include <stddef.h>
 
 #include "dd.h"
-
-#include "dd/types/object_type.h"
-#include "dd/impl/transaction_impl.h"
-#include "dd/impl/types/schema_impl.h"
 #include "dd/impl/dictionary_impl.h"
+#include "dd/impl/raw/object_keys.h"
 #include "dd/impl/raw/raw_record.h"
 #include "dd/impl/raw/raw_table.h"
-#include "dd/impl/raw/object_keys.h"
+#include "dd/impl/transaction_impl.h"
+#include "dd/impl/types/schema_impl.h"
+#include "dd/types/object_type.h"
+#include "my_inttypes.h"
+#include "test_utils.h"
 
 
 /*

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,17 +16,23 @@
 #ifndef DD__TRANSACTION_IMPL_INCLUDED
 #define DD__TRANSACTION_IMPL_INCLUDED
 
-#include "my_global.h"
-
-#include "sql_class.h"                // THD::killed_state
-
-#include "dd/types/object_type.h"     // dd::Object_type
-#include "dd/dd_kill_immunizer.h"     // dd::DD_kill_immunizer
-
-#include <string>
+#include <sys/types.h>
 #include <map>
+#include <string>
+
+#include "dd/dd_kill_immunizer.h"     // dd::DD_kill_immunizer
+#include "dd/string_type.h"           // dd::String_type
+#include "dd/types/object_type.h"     // dd::Object_type
+#include "discrete_interval.h"
+#include "field.h"
+#include "handler.h"
+#include "my_inttypes.h"
+#include "set_var.h"
+#include "sql_class.h"                // THD::killed_state
+#include "thr_lock.h"
 
 class THD;
+struct LEX;
 
 namespace dd {
 
@@ -48,7 +54,7 @@ public:
 
   ~Open_dictionary_tables_ctx();
 
-  Raw_table *get_table(const std::string &name) const;
+  Raw_table *get_table(const String_type &name) const;
 
   template <typename T>
   Raw_table *get_table() const
@@ -70,7 +76,7 @@ public:
   */
   bool open_tables();
 
-  void add_table(const std::string &name);
+  void add_table(const String_type &name);
 
   THD *get_thd() const { return m_thd; }
 
@@ -89,7 +95,7 @@ private:
   THD *m_thd;
   thr_lock_type m_lock_type;
   bool m_ignore_global_read_lock;
-  typedef std::map<std::string, Raw_table *> Object_table_map;
+  typedef std::map<String_type, Raw_table *> Object_table_map;
   Object_table_map m_tables;
 };
 
@@ -151,7 +157,7 @@ private:
   ulonglong m_saved_binlog_options;
   sql_mode_t m_saved_mode;
   long long m_latest_auto_incr_id;
-  enum_check_fields m_saved_count_cuted_fields;
+  enum_check_fields m_saved_check_for_truncated_fields;
   uint m_saved_in_sub_stmt;
   bool m_saved_time_zone_used;
 

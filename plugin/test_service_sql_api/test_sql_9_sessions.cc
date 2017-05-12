@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,7 +14,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 #include <stdlib.h>
-#include <my_global.h>
 #include "my_sys.h"                             // my_write, my_malloc
 #include <mysql/plugin.h>
 
@@ -54,7 +53,7 @@ st_send_field_n sql_field[64];
 MYSQL_SESSION session[9];
 void *plugin_ctx=NULL;
 bool session_ret= false;
-my_bool fail= false; 
+bool fail= false; 
 COM_DATA cmd;
 
   int row_count= 0;
@@ -155,7 +154,7 @@ static int sql_get_longlong(void * ctx, longlong value, uint is_unsigned){
 
 struct st_test_decimal_t {
   int    intg, frac, len;
-  my_bool sign;
+  bool sign;
   decimal_digit_t buf[256];
 } test_decimal[64][64];
 char test_dec_str[256][64][64];
@@ -188,7 +187,7 @@ struct st_test_date
 {
   unsigned int  year, month, day, hour, minute, second;
   unsigned long second_part;  /**< microseconds */
-  my_bool       neg;
+  bool          neg;
   enum enum_mysql_timestamp_type time_type;
 } test_date[64][64];
 
@@ -211,7 +210,7 @@ struct st_my_time
 {
   unsigned int  year, month, day, hour, minute, second;
   unsigned long second_part;  /**< microseconds */
-  my_bool       neg;
+  bool          neg;
   enum enum_mysql_timestamp_type time_type;
   uint decimals;
 } test_time[64][64];
@@ -236,7 +235,7 @@ struct st_my_datetime
 {
   unsigned int  year, month, day, hour, minute, second;
   unsigned long second_part;  /**< microseconds */
-  my_bool       neg;
+  bool       neg;
   enum enum_mysql_timestamp_type time_type;
   uint decimals;
 } test_datetime[64][64];

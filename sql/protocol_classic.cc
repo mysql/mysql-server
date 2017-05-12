@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -209,21 +209,46 @@
 
 
 #include "protocol_classic.h"
+
+#include <string.h>
+#include <algorithm>
+
+#include "decimal.h"
+#include "field.h"
+#include "item.h"
 #include "item_func.h"                          // Item_func_set_user_var
-#include "sql_class.h"                          // THD
+#include "lex_string.h"
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_byteorder.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_loglevel.h"
+#include "my_sys.h"
+#include "my_time.h"
+#include "mysql/com_data.h"
+#include "mysql/psi/mysql_socket.h"
 #include "mysqld.h"                             // global_system_variables
+#include "mysqld_error.h"
+#include "session_tracker.h"
+#include "sql_class.h"                          // THD
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_prepare.h"                        // Prepared_statement
+#include "system_variables.h"
+
 
 using std::min;
 using std::max;
 
 static const unsigned int PACKET_BUFFER_EXTRA_ALLOC= 1024;
-#ifndef EMBEDDED_LIBRARY
 static bool net_send_error_packet(NET *, uint, const char *, const char *, bool,
                                   ulong, const CHARSET_INFO*);
 static bool write_eof_packet(THD *, NET *, uint, uint);
-#endif
 
-#ifndef EMBEDDED_LIBRARY
+ulong get_ps_param_len(enum enum_field_types type, uchar *packet,
+                       ulong packet_len, ulong *header_len, bool *err);
 bool Protocol_classic::net_store_data(const uchar *from, size_t length)
 {
   size_t packet_length=packet->length();
@@ -240,7 +265,6 @@ bool Protocol_classic::net_store_data(const uchar *from, size_t length)
   packet->length((uint) (to+length-(uchar *) packet->ptr()));
   return 0;
 }
-#endif
 
 
 /**
@@ -255,7 +279,6 @@ bool Protocol_classic::net_store_data(const uchar *from, size_t length)
   because column, table, database names fit into this limit.
 */
 
-#ifndef EMBEDDED_LIBRARY
 bool Protocol_classic::net_store_data(const uchar *from, size_t length,
                                       const CHARSET_INFO *from_cs,
                                       const CHARSET_INFO *to_cs)
@@ -297,7 +320,6 @@ bool Protocol_classic::net_store_data(const uchar *from, size_t length,
   packet->length((uint) (to - packet->ptr()));
   return 0;
 }
-#endif
 
 
 /**
@@ -364,7 +386,6 @@ bool net_send_error(THD *thd, uint sql_errno, const char *err)
     @retval TRUE  An error occurred and the message wasn't sent properly
 */
 
-#ifndef EMBEDDED_LIBRARY
 bool net_send_error(NET *net, uint sql_errno, const char *err)
 {
   DBUG_ENTER("net_send_error");
@@ -982,7 +1003,6 @@ static bool net_send_error_packet(NET* net, uint sql_errno, const char *err,
   DBUG_RETURN(net_write_command(net,(uchar) 255, (uchar *) "", 0,
               (uchar *) buff, length));
 }
-#endif /* EMBEDDED_LIBRARY */
 
 
 /**
@@ -1097,14 +1117,12 @@ bool Protocol_classic::send_eof(uint server_status, uint statement_warn_count)
     of binlog dump request an EOF packet is sent instead. Also, old clients
     expect EOF packet instead of OK
   */
-#ifndef EMBEDDED_LIBRARY
   if (has_client_capability(CLIENT_DEPRECATE_EOF) &&
       (m_thd->get_command() != COM_BINLOG_DUMP &&
        m_thd->get_command() != COM_BINLOG_DUMP_GTID))
     retval= net_send_ok(m_thd, server_status, statement_warn_count, 0, 0, NULL,
                         true);
   else
-#endif
     retval= net_send_eof(m_thd, server_status, statement_warn_count);
   DBUG_RETURN(retval);
 }
@@ -1156,12 +1174,6 @@ void Protocol_classic::end_net()
 }
 
 
-bool Protocol_classic::flush_net()
-{
-  return net_flush(&m_thd->net);
-}
-
-
 bool Protocol_classic::write(const uchar *ptr, size_t len)
 {
   return my_net_write(&m_thd->net, ptr, len);
@@ -1203,19 +1215,19 @@ void Protocol_classic::set_vio(Vio *vio)
 }
 
 
-void Protocol_classic::set_pkt_nr(uint pkt_nr)
+void Protocol_classic::set_output_pkt_nr(uint pkt_nr)
 {
   m_thd->net.pkt_nr= pkt_nr;
 }
 
 
-uint Protocol_classic::get_pkt_nr()
+uint Protocol_classic::get_output_pkt_nr()
 {
   return m_thd->net.pkt_nr;
 }
 
 
-String *Protocol_classic::get_packet()
+String *Protocol_classic::get_output_packet()
 {
   return &m_thd->packet;
 }
@@ -1224,12 +1236,12 @@ String *Protocol_classic::get_packet()
 int Protocol_classic::read_packet()
 {
   int ret;
-  if ((packet_length= my_net_read(&m_thd->net)) &&
-      packet_length != packet_error)
+  if ((input_packet_length= my_net_read(&m_thd->net)) &&
+       input_packet_length != packet_error)
   {
     DBUG_ASSERT(!m_thd->net.error);
     bad_packet= false;
-    raw_packet= m_thd->net.read_pos;
+    input_raw_packet= m_thd->net.read_pos;
     return 0;
   }
   else if (m_thd->net.error == 3)
@@ -1244,96 +1256,204 @@ int Protocol_classic::read_packet()
 bool Protocol_classic::parse_packet(union COM_DATA *data,
                                     enum_server_command cmd)
 {
+  DBUG_ENTER("Protocol_classic::parse_packet");
   switch(cmd)
   {
   case COM_INIT_DB:
   {
-    data->com_init_db.db_name= reinterpret_cast<const char*>(raw_packet);
-    data->com_init_db.length= packet_length;
+    data->com_init_db.db_name= reinterpret_cast<const char*>(input_raw_packet);
+    data->com_init_db.length= input_packet_length;
     break;
   }
   case COM_REFRESH:
   {
-    if (packet_length < 1)
+    if (input_packet_length < 1)
       goto malformed;
-    data->com_refresh.options= raw_packet[0];
+    data->com_refresh.options= input_raw_packet[0];
     break;
   }
   case COM_PROCESS_KILL:
   {
-    if (packet_length < 4)
+    if (input_packet_length < 4)
       goto malformed;
-    data->com_kill.id= (ulong) uint4korr(raw_packet);
+    data->com_kill.id= (ulong) uint4korr(input_raw_packet);
     break;
   }
   case COM_SET_OPTION:
   {
-    if (packet_length < 2)
+    if (input_packet_length < 2)
       goto malformed;
-    data->com_set_option.opt_command= uint2korr(raw_packet);
+    data->com_set_option.opt_command= uint2korr(input_raw_packet);
     break;
   }
   case COM_STMT_EXECUTE:
   {
-    if (packet_length < 9)
+    if (input_packet_length < 9)
       goto malformed;
-    data->com_stmt_execute.stmt_id= uint4korr(raw_packet);
-    data->com_stmt_execute.flags= (ulong) raw_packet[4];
-    /* stmt_id + 5 bytes of flags */
+    uchar *read_pos= input_raw_packet;
+    size_t packet_left= input_packet_length;
+
+    // Get the statement id
+    data->com_stmt_execute.stmt_id= uint4korr(read_pos);
+    read_pos+= 4;
+    packet_left-= 4;
+    // Get execution flags
+    data->com_stmt_execute.open_cursor= static_cast<bool>(*read_pos);
+    read_pos+= 5;
+    packet_left-= 5;
+    DBUG_PRINT("info", ("stmt %lu", data->com_stmt_execute.stmt_id));
+    DBUG_PRINT("info", ("Flags %lu", data->com_stmt_execute.open_cursor));
+
+    // Get the statement by id
+    Prepared_statement *stmt=
+      m_thd->stmt_map.find(data->com_stmt_execute.stmt_id);
+    data->com_stmt_execute.parameter_count= 0;
+
     /*
-      FIXME: params have to be parsed into an array/structure
-      by protocol too
+      If no statement found there's no need to generate error.
+      It will be generated in sql_parse.cc which will check again for the id.
     */
-    data->com_stmt_execute.params= raw_packet + 9;
-    data->com_stmt_execute.params_length= packet_length - 9;
+    if (!stmt || stmt->param_count < 1)
+      break;
+
+    uint param_count= stmt->param_count;
+    data->com_stmt_execute.parameters=
+        static_cast<PS_PARAM *>(m_thd->alloc(param_count * sizeof(PS_PARAM)));
+    if (!data->com_stmt_execute.parameters)
+      goto malformed;              /* purecov: inspected */
+
+    /* Then comes the null bits */
+    const uint null_bits_packet_len= (param_count + 7) / 8;
+    if (packet_left < null_bits_packet_len)
+      goto malformed;
+    unsigned char *null_bits= read_pos;
+    read_pos += null_bits_packet_len;
+    packet_left-= null_bits_packet_len;
+
+    PS_PARAM *params= data->com_stmt_execute.parameters;
+
+    /* Then comes the types byte. If set, new types are provided */
+    bool has_new_types= static_cast<bool>(*read_pos++);
+    data->com_stmt_execute.has_new_types= has_new_types;
+    if (has_new_types)
+    {
+      DBUG_PRINT("info", ("Types provided"));
+      --packet_left;
+
+      for (uint i= 0; i < param_count; ++i)
+      {
+        if (packet_left < 2)
+          goto malformed;
+
+        ushort type_code= sint2korr(read_pos);
+        read_pos+= 2;
+        packet_left-= 2;
+
+        const uint signed_bit= 1 << 15;
+        params[i].type=
+          static_cast<enum enum_field_types>(type_code & ~signed_bit);
+        params[i].unsigned_type= static_cast<bool>(type_code & signed_bit);
+        DBUG_PRINT("info", ("type=%u", (uint) params[i].type));
+        DBUG_PRINT("info", ("flags=%u", (uint) params[i].unsigned_type));
+      }
+    }
+    /*
+      No check for packet_left here or in case of only long data
+      we will return malformed, although the packet will be correct
+    */
+
+    /* Here comes the real data */
+    for (uint i= 0; i < param_count; ++i)
+    {
+      params[i].null_bit=
+          static_cast<bool> (null_bits[i / 8] & (1 << (i & 7)));
+      // Check if parameter is null
+      if (params[i].null_bit)
+      {
+        DBUG_PRINT("info", ("null param"));
+        params[i].value= nullptr;
+        params[i].length= 0;
+        data->com_stmt_execute.parameter_count++;
+        continue;
+      }
+      enum enum_field_types type= has_new_types ? params[i].type :
+                                  stmt->param_array[i]->data_type();
+      if (stmt->param_array[i]->state == Item_param::LONG_DATA_VALUE)
+      {
+        DBUG_PRINT("info", ("long data"));
+        if (!((type >= MYSQL_TYPE_TINY_BLOB) && (type <= MYSQL_TYPE_STRING)))
+          goto malformed;
+        data->com_stmt_execute.parameter_count++;
+
+        continue;
+      }
+
+      bool buffer_underrun= false;
+      ulong header_len;
+
+      // Set parameter length.
+      params[i].length= get_ps_param_len(type, read_pos, packet_left,
+                                         &header_len, &buffer_underrun);
+      if (buffer_underrun)
+        goto malformed;
+
+      // Set parameter value
+      params[i].value= header_len + read_pos;
+      read_pos+= (header_len + params[i].length);
+      packet_left-= (header_len + params[i].length);
+      data->com_stmt_execute.parameter_count++;
+      DBUG_PRINT("info", ("param len %ul", (uint) params[i].length));
+    }
+    DBUG_PRINT("info", ("param count %ul",
+                        (uint) data->com_stmt_execute.parameter_count));
     break;
   }
   case COM_STMT_FETCH:
   {
-    if (packet_length < 8)
+    if (input_packet_length < 8)
       goto malformed;
-    data->com_stmt_fetch.stmt_id= uint4korr(raw_packet);
-    data->com_stmt_fetch.num_rows= uint4korr(raw_packet + 4);
+    data->com_stmt_fetch.stmt_id= uint4korr(input_raw_packet);
+    data->com_stmt_fetch.num_rows= uint4korr(input_raw_packet + 4);
     break;
   }
   case COM_STMT_SEND_LONG_DATA:
   {
-#ifndef EMBEDDED_LIBRARY
-    if (packet_length < MYSQL_LONG_DATA_HEADER)
+    if (input_packet_length < MYSQL_LONG_DATA_HEADER)
       goto malformed;
-#endif
-    data->com_stmt_send_long_data.stmt_id= uint4korr(raw_packet);
-    data->com_stmt_send_long_data.param_number= uint2korr(raw_packet + 4);
-    data->com_stmt_send_long_data.longdata= raw_packet + 6;
-    data->com_stmt_send_long_data.length= packet_length - 6;
+    data->com_stmt_send_long_data.stmt_id= uint4korr(input_raw_packet);
+    data->com_stmt_send_long_data.param_number=
+      uint2korr(input_raw_packet + 4);
+    data->com_stmt_send_long_data.longdata= input_raw_packet + 6;
+    data->com_stmt_send_long_data.length= input_packet_length - 6;
     break;
   }
   case COM_STMT_PREPARE:
   {
-    data->com_stmt_prepare.query= reinterpret_cast<const char*>(raw_packet);
-    data->com_stmt_prepare.length= packet_length;
+    data->com_stmt_prepare.query=
+      reinterpret_cast<const char*>(input_raw_packet);
+    data->com_stmt_prepare.length= input_packet_length;
     break;
   }
   case COM_STMT_CLOSE:
   {
-    if (packet_length < 4)
+    if (input_packet_length < 4)
       goto malformed;
 
-    data->com_stmt_close.stmt_id= uint4korr(raw_packet);
+    data->com_stmt_close.stmt_id= uint4korr(input_raw_packet);
     break;
   }
   case COM_STMT_RESET:
   {
-    if (packet_length < 4)
+    if (input_packet_length < 4)
       goto malformed;
 
-    data->com_stmt_reset.stmt_id= uint4korr(raw_packet);
+    data->com_stmt_reset.stmt_id= uint4korr(input_raw_packet);
     break;
   }
   case COM_QUERY:
   {
-    data->com_query.query= reinterpret_cast<const char*>(raw_packet);
-    data->com_query.length= packet_length;
+    data->com_query.query= reinterpret_cast<const char*>(input_raw_packet);
+    data->com_query.length= input_packet_length;
     break;
   }
   case COM_FIELD_LIST:
@@ -1341,33 +1461,36 @@ bool Protocol_classic::parse_packet(union COM_DATA *data,
     /*
       We have name + wildcard in packet, separated by endzero
     */
-    data->com_field_list.table_name= raw_packet;
-    uint len= data->com_field_list.table_name_length=
-        strend((char *)raw_packet) - (char *)raw_packet;
-    if (len >= packet_length || len > NAME_LEN)
+    ulong len= strend((char *)input_raw_packet) - (char *)input_raw_packet;
+
+    if (len >= input_packet_length || len > NAME_LEN)
       goto malformed;
-    data->com_field_list.query= raw_packet + len + 1;
-    data->com_field_list.query_length= packet_length - len;
+
+    data->com_field_list.table_name= input_raw_packet;
+    data->com_field_list.table_name_length= len;
+
+    data->com_field_list.query= input_raw_packet + len + 1;
+    data->com_field_list.query_length= input_packet_length - len;
     break;
   }
   default:
     break;
   }
 
-  return false;
+  DBUG_RETURN(false);
 
-  malformed:
+malformed:
   my_error(ER_MALFORMED_PACKET, MYF(0));
   bad_packet= true;
-  return true;
+  DBUG_RETURN(true);
 }
 
 bool Protocol_classic::create_command(COM_DATA *com_data,
                                       enum_server_command cmd,
                                       uchar *pkt, size_t length)
 {
-  raw_packet= pkt;
-  packet_length= length;
+  input_raw_packet= pkt;
+  input_packet_length= length;
 
   return parse_packet(com_data, cmd);
 }
@@ -1379,31 +1502,31 @@ int Protocol_classic::get_command(COM_DATA *com_data, enum_server_command *cmd)
     return rc;
 
   /*
-    'packet_length' contains length of data, as it was stored in packet
+    'input_packet_length' contains length of data, as it was stored in packet
     header. In case of malformed header, my_net_read returns zero.
-    If packet_length is not zero, my_net_read ensures that the returned
+    If input_packet_length is not zero, my_net_read ensures that the returned
     number of bytes was actually read from network.
     There is also an extra safety measure in my_net_read:
-    it sets packet[packet_length]= 0, but only for non-zero packets.
+    it sets packet[input_packet_length]= 0, but only for non-zero packets.
   */
-  if (packet_length == 0)                       /* safety */
+  if (input_packet_length == 0)                       /* safety */
   {
     /* Initialize with COM_SLEEP packet */
-    raw_packet[0]= (uchar) COM_SLEEP;
-    packet_length= 1;
+    input_raw_packet[0]= (uchar) COM_SLEEP;
+    input_packet_length= 1;
   }
   /* Do not rely on my_net_read, extra safety against programming errors. */
-  raw_packet[packet_length]= '\0';                  /* safety */
+  input_raw_packet[input_packet_length]= '\0';        /* safety */
 
-  *cmd= (enum enum_server_command) raw_packet[0];
+  *cmd= (enum enum_server_command) (uchar) input_raw_packet[0];
 
   if (*cmd >= COM_END)
     *cmd= COM_END;				// Wrong command
 
-  DBUG_ASSERT(packet_length);
+  DBUG_ASSERT(input_packet_length);
   // Skip 'command'
-  packet_length--;
-  raw_packet++;
+  input_packet_length--;
+  input_raw_packet++;
 
   return parse_packet(com_data, *cmd);
 }
@@ -1428,15 +1551,26 @@ void Protocol_classic::end_partial_result_set()
 
 bool Protocol_classic::flush()
 {
-#ifndef EMBEDDED_LIBRARY
-  bool error;
-  m_thd->get_stmt_da()->set_overwrite_status(true);
-  error= net_flush(&m_thd->net);
-  m_thd->get_stmt_da()->set_overwrite_status(false);
-  return error;
-#else
-  return 0;
-#endif
+  return net_flush(&m_thd->net);
+}
+
+
+bool Protocol_classic::store_ps_status(ulong stmt_id, uint column_count,
+                                       uint param_count, ulong cond_count)
+{
+  DBUG_ENTER("Protocol_classic::store_ps_status");
+
+  uchar buff[12];
+  buff[0]= 0;                                   /* OK packet indicator */
+  int4store(buff + 1, stmt_id);
+  int2store(buff + 5, column_count);
+  int2store(buff + 7, param_count);
+  buff[9]= 0;                                   // Guard against a 4.1 client
+  uint16 tmp= min(static_cast<uint16>(cond_count),
+                  std::numeric_limits<uint16>::max());
+  int2store(buff + 10, tmp);
+
+  DBUG_RETURN(my_net_write(&m_thd->net, buff, sizeof(buff)));
 }
 
 
@@ -1446,7 +1580,6 @@ bool Protocol_classic::get_compression()
 }
 
 
-#ifndef EMBEDDED_LIBRARY
 bool
 Protocol_classic::start_result_metadata(uint num_cols, uint flags,
                                         const CHARSET_INFO *cs)
@@ -1611,7 +1744,6 @@ bool Protocol_classic::end_row()
                              packet->length()));
   DBUG_RETURN(0);
 }
-#endif /* EMBEDDED_LIBRARY */
 
 
 /**
@@ -1645,8 +1777,6 @@ bool store(Protocol *prot, I_List<i_string>* str_list)
   All data are sent as 'packed-string-length' followed by 'string-data'
 ****************************************************************************/
 
-#ifndef EMBEDDED_LIBRARY
-
 bool Protocol_classic::connection_alive()
 {
   return m_thd->net.vio != NULL;
@@ -1670,7 +1800,6 @@ bool Protocol_text::store_null()
   buff[0]= (char)251;
   return packet->append(buff, sizeof(buff), PACKET_BUFFER_EXTRA_ALLOC);
 }
-#endif
 
 
 /**
@@ -1705,7 +1834,7 @@ SSL_handle Protocol_classic::get_ssl()
 }
 
 
-int Protocol_classic::shutdown(bool server_shutdown)
+int Protocol_classic::shutdown(bool)
 {
   return m_thd->net.vio ? vio_shutdown(m_thd->net.vio) : 0;
 }
@@ -1888,51 +2017,122 @@ bool Protocol_text::store_time(MYSQL_TIME *tm, uint decimals)
 
 
 /**
-  Assign OUT-parameters to user variables.
+  Sends OUT-parameters by writing the values to the protocol.
 
-  @param sp_params  List of PS/SP parameters (both input and output).
+
+  @param parameters       List of PS/SP parameters (both input and output).
+  @param is_sql_prepare  If it's an sql prepare then
+                         text protocol wil be used.
 
   @return Error status.
-    @retval FALSE Success.
-    @retval TRUE  Error.
+    @retval false Success.
+    @retval true  Error.
 */
-
-bool Protocol_text::send_out_parameters(List<Item_param> *sp_params)
+bool Protocol_binary::send_parameters(List<Item_param> *parameters,
+                                      bool is_sql_prepare)
 {
-  DBUG_ASSERT(sp_params->elements == m_thd->lex->prepared_stmt_params.elements);
+  if (is_sql_prepare)
+    return Protocol_text::send_parameters(parameters, is_sql_prepare);
 
-  List_iterator_fast<Item_param> item_param_it(*sp_params);
+  List_iterator_fast<Item_param> item_param_it(*parameters);
+
+  if (!has_client_capability(CLIENT_PS_MULTI_RESULTS))
+    // The client does not support OUT-parameters.
+    return false;
+
+  List<Item> out_param_lst;
+  Item_param *item_param;
+  while ((item_param= item_param_it++))
+  {
+    // Skip it as it's just an IN-parameter.
+    if (!item_param->get_out_param_info())
+      continue;
+
+    if (out_param_lst.push_back(item_param))
+      return true;                 /* purecov: inspected */
+  }
+
+  // Empty list
+  if (!out_param_lst.elements)
+    return false;
+
+  /*
+    We have to set SERVER_PS_OUT_PARAMS in THD::server_status, because it
+    is used in send_result_metadata().
+  */
+  m_thd->server_status|= SERVER_PS_OUT_PARAMS | SERVER_MORE_RESULTS_EXISTS;
+
+  // Send meta-data.
+  if (m_thd->send_result_metadata(&out_param_lst,
+                                  Protocol::SEND_NUM_ROWS|Protocol::SEND_EOF))
+    return true;
+
+  // Send data.
+  start_row();
+  if (m_thd->send_result_set_row(&out_param_lst))
+    return true;
+  if (end_row())
+    return true;
+
+  // Restore THD::server_status.
+  m_thd->server_status&= ~SERVER_PS_OUT_PARAMS;
+  m_thd->server_status&= ~SERVER_MORE_RESULTS_EXISTS;
+
+  if (has_client_capability(CLIENT_DEPRECATE_EOF))
+    return net_send_ok(m_thd,
+                       (m_thd->server_status | SERVER_PS_OUT_PARAMS |
+                        SERVER_MORE_RESULTS_EXISTS),
+                       m_thd->get_stmt_da()->current_statement_cond_count(),
+                       0, 0, nullptr, true);
+  else
+    /*
+      In case of old clients send EOF packet.
+      @ref page_protocol_basic_eof_packet is deprecated as of MySQL 5.7.5.
+    */
+    return send_eof(m_thd->server_status, 0);
+}
+
+
+/**
+  Sets OUT-parameters to user variables.
+
+  @param parameters  List of PS/SP parameters (both input and output).
+
+  @return Error status.
+    @retval false Success.
+    @retval true  Error.
+*/
+bool Protocol_text::send_parameters(List<Item_param> *parameters, bool)
+{
+  List_iterator_fast<Item_param> item_param_it(*parameters);
   List_iterator_fast<LEX_STRING> user_var_name_it(
     m_thd->lex->prepared_stmt_params);
 
-  while (true)
+  Item_param *item_param;
+  LEX_STRING *user_var_name;
+  while ((item_param= item_param_it++) && (user_var_name= user_var_name_it++))
   {
-    Item_param *item_param= item_param_it++;
-    LEX_STRING *user_var_name= user_var_name_it++;
-
-    if (!item_param || !user_var_name)
-      break;
-
+    // Skip if it as it's just an IN-parameter.
     if (!item_param->get_out_param_info())
-      continue; // It's an IN-parameter.
+      continue;
 
     Item_func_set_user_var *suv=
       new Item_func_set_user_var(*user_var_name, item_param, false);
     /*
-      Item_func_set_user_var is not fixed after construction, call
-      fix_fields().
+      Item_func_set_user_var is not fixed after construction,
+      call fix_fields().
     */
-    if (suv->fix_fields(m_thd, NULL))
-      return TRUE;
+    if (suv->fix_fields(m_thd, nullptr))
+      return true;
 
-    if (suv->check(FALSE))
-      return TRUE;
+    if (suv->check(false))
+      return true;
 
     if (suv->update())
-      return TRUE;
+      return true;
   }
 
-  return FALSE;
+  return false;
 }
 
 
@@ -1963,7 +2163,6 @@ bool Protocol_binary::start_result_metadata(uint num_cols, uint flags,
 }
 
 
-#ifndef EMBEDDED_LIBRARY
 void Protocol_binary::start_row()
 {
   if (send_metadata)
@@ -1972,7 +2171,6 @@ void Protocol_binary::start_row()
   memset(const_cast<char*>(packet->ptr()), 0, 1+bit_fields);
   field_pos=0;
 }
-#endif
 
 
 bool Protocol_binary::store(const char *from, size_t length,
@@ -2242,97 +2440,136 @@ bool Protocol_binary::store_time(MYSQL_TIME *tm, uint precision)
 
 
 /**
-  Send a result set with OUT-parameter values by means of PS-protocol.
-
-  @param sp_params  List of PS/SP parameters (both input and output).
-
-  @return Error status.
-    @retval FALSE Success.
-    @retval TRUE  Error.
-*/
-
-bool Protocol_binary::send_out_parameters(List<Item_param> *sp_params)
-{
-  bool ret;
-  if (!has_client_capability(CLIENT_PS_MULTI_RESULTS))
-  {
-    /* The client does not support OUT-parameters. */
-    return FALSE;
-  }
-
-  List<Item> out_param_lst;
-
-  {
-    List_iterator_fast<Item_param> item_param_it(*sp_params);
-
-    while (true)
-    {
-      Item_param *item_param= item_param_it++;
-
-      if (!item_param)
-        break;
-
-      if (!item_param->get_out_param_info())
-        continue; // It's an IN-parameter.
-
-      if (out_param_lst.push_back(item_param))
-        return TRUE;
-    }
-  }
-
-  if (!out_param_lst.elements)
-    return FALSE;
-
-  /*
-    We have to set SERVER_PS_OUT_PARAMS in THD::server_status, because it
-    is used in send_result_metadata().
-  */
-
-  m_thd->server_status|= SERVER_PS_OUT_PARAMS | SERVER_MORE_RESULTS_EXISTS;
-
-  /* Send meta-data. */
-  if (m_thd->send_result_metadata(&out_param_lst,
-                                  SEND_NUM_ROWS | SEND_EOF))
-    return TRUE;
-
-  /* Send data. */
-
-  this->start_row();
-
-  if (m_thd->send_result_set_row(&out_param_lst))
-    return TRUE;
-
-  if (this->end_row())
-    return TRUE;
-
-  /* Restore THD::server_status. */
-  m_thd->server_status&= ~SERVER_PS_OUT_PARAMS;
-
-  /*
-    Reset SERVER_MORE_RESULTS_EXISTS bit, because for sure this is the last
-    result set we are sending.
-  */
-
-  m_thd->server_status&= ~SERVER_MORE_RESULTS_EXISTS;
-
-  if (has_client_capability(CLIENT_DEPRECATE_EOF))
-    ret= net_send_ok(m_thd,
-                     (m_thd->server_status | SERVER_PS_OUT_PARAMS |
-                       SERVER_MORE_RESULTS_EXISTS),
-                     m_thd->get_stmt_da()->current_statement_cond_count(),
-                     0, 0, NULL, true);
-  else
-    /* In case of old clients send EOF packet. */
-    ret= net_send_eof(m_thd, m_thd->server_status, 0);
-  return ret ? FALSE : TRUE;
-}
-
-
-/**
   @returns: the file descriptor of the socket.
 */
 
 my_socket Protocol_classic::get_socket()
 {
   return get_vio()->mysql_socket.fd;
+}
+
+
+/**
+  Read the length of the parameter data and return it back to
+  the caller.
+
+  @param packet             a pointer to the data
+  @param packet_left_len    remaining packet length
+  @param header_len         size of the header stored at the beginning of the
+                            packet and used to specify the length of the data.
+
+  @return
+    Length of data piece.
+*/
+
+static ulong
+get_param_length(uchar *packet, ulong packet_left_len, ulong *header_len)
+{
+  if (packet_left_len < 1)
+  {
+    *header_len= 0;
+    return 0;
+  }
+  if (*packet < 251)
+  {
+    *header_len= 1;
+    return (ulong) *packet;
+  }
+  if (packet_left_len < 3)
+  {
+    *header_len= 0;
+    return 0;
+  }
+  if (*packet == 252)
+  {
+    *header_len= 3;
+    return (ulong) uint2korr(packet + 1);
+  }
+  if (packet_left_len < 4)
+  {
+    *header_len= 0;
+    return 0;
+  }
+  if (*packet == 253)
+  {
+    *header_len= 4;
+    return (ulong) uint3korr(packet + 1);
+  }
+  if (packet_left_len < 5)
+  {
+    *header_len= 0;
+    return 0;
+  }
+  *header_len= 9; // Must be 254 when here
+  /*
+    In our client-server protocol all numbers bigger than 2^24
+    stored as 8 bytes with uint8korr. Here we always know that
+    parameter length is less than 2^4 so don't look at the second
+    4 bytes. But still we need to obey the protocol hence 9 in the
+    assignment above.
+  */
+  return (ulong) uint4korr(packet + 1);
+}
+
+
+/**
+  Returns the length of the encoded data
+
+   @param[in]  type          parameter data type
+   @param[in]  packet        network buffer
+   @param[in]  packet_len    number of bytes left in packet
+   @param[out] header_len    the size of the header(bytes to be skiped)
+   @param[out] err           boolean to store if an error occurred
+*/
+ulong get_ps_param_len(enum enum_field_types type, uchar *packet,
+                       ulong packet_len, ulong *header_len, bool *err)
+{
+  DBUG_ENTER("get_ps_param_len");
+  *header_len= 0;
+
+  switch (type)
+  {
+    case MYSQL_TYPE_TINY:
+      *err= (packet_len < 1);
+      DBUG_RETURN(1);
+    case MYSQL_TYPE_SHORT:
+      *err= (packet_len < 2);
+      DBUG_RETURN(2);
+    case MYSQL_TYPE_FLOAT:
+    case MYSQL_TYPE_LONG:
+      *err= (packet_len < 4);
+      DBUG_RETURN(4);
+    case MYSQL_TYPE_DOUBLE:
+    case MYSQL_TYPE_LONGLONG:
+      *err= (packet_len < 8);
+      DBUG_RETURN(8);
+    case MYSQL_TYPE_DECIMAL:
+    case MYSQL_TYPE_NEWDECIMAL:
+    case MYSQL_TYPE_DATE:
+    case MYSQL_TYPE_TIME:
+    case MYSQL_TYPE_DATETIME:
+    case MYSQL_TYPE_TIMESTAMP:
+    {
+      ulong param_length= get_param_length(packet, packet_len, header_len);
+      /* in case of error ret is 0 and header size is 0 */
+      *err= ((!param_length && !*header_len) ||
+          (packet_len < *header_len + param_length));
+      DBUG_PRINT("info", ("ret=%lu ", param_length));
+      DBUG_RETURN(param_length);
+    }
+    case MYSQL_TYPE_TINY_BLOB:
+    case MYSQL_TYPE_MEDIUM_BLOB:
+    case MYSQL_TYPE_LONG_BLOB:
+    case MYSQL_TYPE_BLOB:
+    default:
+    {
+      ulong param_length= get_param_length(packet, packet_len, header_len);
+      /* in case of error ret is 0 and header size is 0 */
+      *err= (!param_length && !*header_len);
+      if (param_length > packet_len - *header_len)
+        param_length= packet_len - *header_len;
+      DBUG_PRINT("info", ("ret=%lu", param_length));
+      DBUG_RETURN(param_length);
+    }
+  }
 }

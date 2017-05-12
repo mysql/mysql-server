@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,11 +22,18 @@
 */
 
 #include "init.h"
-#include "my_sys.h"
-#include "mysqld.h"                    // connection_events_loop_aborted(), ...
-#include "my_time.h"                   // my_init_time
+
+#include "my_config.h"
+
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+
 #include "m_string.h"                  // my_stpcpy
-#include <m_ctype.h>
+#include "my_dbug.h"
+#include "my_sys.h"
+#include "my_time.h"                   // my_init_time
+#include "mysqld.h"                    // connection_events_loop_aborted(), ...
 
 #ifdef _WIN32
 #include <process.h> // getpid
@@ -38,8 +45,6 @@ void unireg_init(ulong options)
 
   error_handler_hook = my_message_stderr;
   set_connection_events_loop_aborted(false);
-
-  wild_many='%'; wild_one='_'; wild_prefix='\\'; /* Change to sql syntax */
 
   current_pid=(ulong) getpid();		/* Save for later ref */
   my_init_time();			/* Init time-functions (read zone) */

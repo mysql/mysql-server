@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,13 +15,21 @@
 
 #include "dd/impl/types/view_table_impl.h"
 
-#include "mysqld_error.h"                     // ER_*
+#include <ostream>
 
-#include "dd/properties.h"                    // Needed for destructor
-#include "dd/impl/transaction_impl.h"         // Open_dictionary_tables_ctx
 #include "dd/impl/raw/raw_record.h"           // Raw_record
 #include "dd/impl/tables/view_table_usage.h"  // View_table_usage
+#include "dd/impl/transaction_impl.h"         // Open_dictionary_tables_ctx
 #include "dd/impl/types/view_impl.h"          // View_impl
+#include "dd/types/object_table.h"
+#include "dd/types/weak_object.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
+#include "mysqld_error.h"                     // ER_*
+
+namespace dd {
+class Object_key;
+}  // namespace dd
 
 using dd::tables::View_table_usage;
 
@@ -110,9 +118,9 @@ bool View_table_impl::store_attributes(Raw_record *r)
 
 ///////////////////////////////////////////////////////////////////////////
 
-void View_table_impl::debug_print(std::string &outb) const
+void View_table_impl::debug_print(String_type &outb) const
 {
-  std::stringstream ss;
+  dd::Stringstream_type ss;
   ss
     << "VIEW TABLE OBJECT: { "
     << "m_view: {OID: " << m_view->id() << "}; "

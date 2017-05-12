@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,6 +16,11 @@
 #ifndef DD__VIEW_TABLE_IMPL_INCLUDED
 #define DD__VIEW_TABLE_IMPL_INCLUDED
 
+#include <sys/types.h>
+#include <new>
+#include <string>
+
+#include "dd/impl/raw/raw_record.h"
 #include "dd/impl/types/weak_object_impl.h"  // dd::Weak_object_impl
 #include "dd/types/object_type.h"            // dd::Object_type
 #include "dd/types/view_table.h"             // dd::View_table
@@ -26,6 +31,10 @@ namespace dd {
 
 class View;
 class View_impl;
+class Object_key;
+class Object_table;
+class Open_dictionary_tables_ctx;
+class Weak_object;
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -52,9 +61,9 @@ public:
 
   virtual bool restore_attributes(const Raw_record &r);
 
-  virtual void debug_print(std::string &outb) const;
+  virtual void debug_print(String_type &outb) const;
 
-  void set_ordinal_position(uint ordinal_position)
+  void set_ordinal_position(uint)
   { }
 
   virtual uint ordinal_position() const
@@ -65,30 +74,30 @@ public:
   //table_catalog.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &table_catalog() const
+  virtual const String_type &table_catalog() const
   { return m_table_catalog; }
 
-  virtual void set_table_catalog(const std::string &table_catalog)
+  virtual void set_table_catalog(const String_type &table_catalog)
   { m_table_catalog= table_catalog; }
 
   /////////////////////////////////////////////////////////////////////////
   //table_schema.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &table_schema() const
+  virtual const String_type &table_schema() const
   { return m_table_schema; }
 
-  virtual void set_table_schema(const std::string &table_schema)
+  virtual void set_table_schema(const String_type &table_schema)
   { m_table_schema= table_schema; }
 
   /////////////////////////////////////////////////////////////////////////
   //table_name.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &table_name() const
+  virtual const String_type &table_name() const
   { return m_table_name; }
 
-  virtual void set_table_name(const std::string &table_name)
+  virtual void set_table_name(const String_type &table_name)
   { m_table_name= table_name; }
 
   /////////////////////////////////////////////////////////////////////////
@@ -122,9 +131,9 @@ public:
   virtual bool has_new_primary_key() const;
 
 private:
-  std::string m_table_catalog;
-  std::string m_table_schema;
-  std::string m_table_name;
+  String_type m_table_catalog;
+  String_type m_table_schema;
+  String_type m_table_name;
 
   // References to other objects
   View_impl *m_view;

@@ -14,7 +14,6 @@
 
 # Restarting is not supported in embedded
 --source include/not_embedded.inc
---source include/have_innodb.inc
 
 # This test takes long time, so only run it with the --big-test mtr-flag.
 --source include/big_test.inc
@@ -196,8 +195,7 @@ SELECT COUNT(*) FROM testdb_wl6445.t1;
 
 #
 
-let $restart_parameters = restart: --innodb-read-only;
---source include/restart_mysqld.inc
+--source include/restart_innodb_read_only.inc
 
 USE testdb_wl6445;
 --ERROR ER_CANT_LOCK
@@ -377,8 +375,7 @@ SELECT * FROM t3;
 
 #
 
-let $restart_parameters = restart: --innodb-read-only;
---source include/restart_mysqld.inc
+--source include/restart_innodb_read_only.inc
 
 SET GLOBAL innodb_file_per_table = 1;
 USE testdb_wl6445;
@@ -447,6 +444,10 @@ let $innodb_change_buffering_orig = `select @@innodb_change_buffering`;
 let $innodb_print_all_deadlocks_orig = `select @@innodb_print_all_deadlocks`;
 
 
+SET GLOBAL innodb_fast_shutdown = 0;
+--disable_query_log
+CALL mtr.add_suppression("Skip re-populating collations and character sets tables in InnoDB read-only mode.");
+--enable_query_log
 let $restart_parameters = restart: --innodb-read-only --innodb_purge_threads=5 --innodb_buffer_pool_size=16M;
 --source include/restart_mysqld.inc
 
@@ -519,6 +520,10 @@ INSERT INTO t1 VALUES (4,'mysql database'),(5,'mysql database innodb support'),(
 SELECT * FROM t1 WHERE MATCH (j) AGAINST ('mysql (+database -innodb)' IN BOOLEAN MODE) ;
 SELECT * FROM t1 WHERE MATCH (j) AGAINST ('innodb') ;
 
+SET GLOBAL innodb_fast_shutdown = 0;
+--disable_query_log
+CALL mtr.add_suppression("Skip re-populating collations and character sets tables in InnoDB read-only mode.");
+--enable_query_log
 let $restart_parameters = restart: --innodb-read-only --read-only;
 --source include/restart_mysqld.inc
 USE testdb_wl6445;
@@ -584,8 +589,7 @@ SELECT i FROM t1 ORDER BY i;
 EOF
 
 
-let $restart_parameters = restart: --innodb-read-only;
---source include/restart_mysqld.inc
+--source include/restart_innodb_read_only.inc
 
 USE testdb_wl6445;
 # try mysql import
@@ -658,8 +662,7 @@ commit;
 check table t1 extended;
 #
 #
-let $restart_parameters = restart: --innodb-read-only;
---source include/restart_mysqld.inc
+--source include/restart_innodb_read_only.inc
 #
 check table t1 extended;
 

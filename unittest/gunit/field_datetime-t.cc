@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -68,6 +68,37 @@ public:
     initialize();
   }
 
+
+  void make_writable() { bitmap_set_bit(table->write_set, field_index); }
+  void make_readable() { bitmap_set_bit(table->read_set, field_index); }
+};
+
+class Mock_field_datetimef : public Field_datetimef
+{
+  uchar null_byte;
+
+  void initialize()
+  {
+    ptr= buffer;
+    memset(buffer, 0, 8);
+    null_byte= '\0';
+    set_null_ptr(&null_byte, 1);
+  }
+
+public:
+  uchar buffer[8];
+  Mock_field_datetimef(uint scale)
+    : Field_datetimef(0,                         // ptr_arg
+                     NULL,                      // null_ptr_arg
+                     1,                         // null_bit_arg
+                     Field::NONE,               // unireg_check_arg
+                     "field_name",              // field_name_arg
+                     scale)
+  {
+    initialize();
+  }
+
+
   void make_writable() { bitmap_set_bit(table->write_set, field_index); }
   void make_readable() { bitmap_set_bit(table->read_set, field_index); }
 };
@@ -84,25 +115,86 @@ TEST_F(FieldDatetimeTest, StoreLegalStringValues)
   table.in_use= thd();
   field_dt.make_writable();
   field_dt.make_readable();
-  thd()->count_cuted_fields= CHECK_FIELD_WARN;
+  thd()->check_for_truncated_fields= CHECK_FIELD_WARN;
 
   {
     SCOPED_TRACE("");
-    test_store_string(&field_dt, STRING_WITH_LEN("2001-01-01 00:00:01"),
+    test_store_string(&field_dt, STRING_WITH_LEN("2001-01-01 00:00:01"), 0,
                       "2001-01-01 00:00:01", 0, TYPE_OK);
   }
   {
     SCOPED_TRACE("");
-    test_store_string(&field_dt, STRING_WITH_LEN("0000-00-00 00:00:00"),
+    test_store_string(&field_dt, STRING_WITH_LEN("0000-00-00 00:00:00"), 0,
                       "0000-00-00 00:00:00", 0, TYPE_OK);
   }
   {
     SCOPED_TRACE("");
-    test_store_string(&field_dt, STRING_WITH_LEN("0001-00-00 00:00:00"),
+    test_store_string(&field_dt, STRING_WITH_LEN("0001-00-00 00:00:00"), 0,
                       "0001-00-00 00:00:00", 0, TYPE_OK);
   }
 }
 
+// Test for MODE_TIME_TRUNCATE_FRACTIONAL.
+TEST_F(FieldDatetimeTest, TestTruncFrational)
+{
+  char buff[MAX_FIELD_WIDTH];
+  String str(buff, sizeof(buff), &my_charset_bin);
+  String unused;
+  //fsp=6
+  Mock_field_datetimef field_dt(6);
+  Fake_TABLE table(&field_dt);
+  table.in_use= thd();
+  field_dt.make_writable();
+  field_dt.make_readable();
+
+  //fsp=0
+  Mock_field_datetimef field_dt0(0);
+  Fake_TABLE table0(&field_dt0);
+  table0.in_use= thd();
+  field_dt0.make_writable();
+  field_dt0.make_readable();
+
+  thd()->check_for_truncated_fields= CHECK_FIELD_WARN;
+
+  {
+    SCOPED_TRACE("");
+    test_store_string(&field_dt, STRING_WITH_LEN("2001-01-01 00:00:01.9999999"),
+                      MODE_TIME_TRUNCATE_FRACTIONAL, "2001-01-01 00:00:01.999999",
+                      0, TYPE_OK);
+  }
+  {
+    SCOPED_TRACE("");
+    test_store_string(&field_dt, STRING_WITH_LEN("2001-01-01 00:00:01.999995"),
+                      MODE_TIME_TRUNCATE_FRACTIONAL, "2001-01-01 00:00:01.999995",
+                      0, TYPE_OK);
+  }
+  {
+    SCOPED_TRACE("");
+    test_store_string(&field_dt, STRING_WITH_LEN("0001-00-00 00:00:00"),
+                      MODE_TIME_TRUNCATE_FRACTIONAL, "0001-00-00 00:00:00.000000",
+                      0, TYPE_OK);
+  }
+
+
+  {
+    SCOPED_TRACE("");
+    test_store_string(&field_dt0, STRING_WITH_LEN("2001-01-01 00:00:01.9999999"),
+                      MODE_TIME_TRUNCATE_FRACTIONAL, "2001-01-01 00:00:01",
+                      0, TYPE_OK);
+  }
+  {
+    SCOPED_TRACE("");
+    test_store_string(&field_dt0, STRING_WITH_LEN("2001-01-01 00:00:01.9"),
+                      MODE_TIME_TRUNCATE_FRACTIONAL, "2001-01-01 00:00:01",
+                      0, TYPE_OK);
+  }
+  {
+    SCOPED_TRACE("");
+    test_store_string(&field_dt0, STRING_WITH_LEN("0001-00-00 00:00:00.99"),
+                      MODE_TIME_TRUNCATE_FRACTIONAL, "0001-00-00 00:00:00",
+                      0, TYPE_OK);
+  }
+}
 
 TEST_F(FieldDatetimeTest, StoreIllegalStringValues)
 {
@@ -111,12 +203,12 @@ TEST_F(FieldDatetimeTest, StoreIllegalStringValues)
   table.in_use= thd();
   field_dt.make_writable();
   field_dt.make_readable();
-  thd()->count_cuted_fields= CHECK_FIELD_WARN;
+  thd()->check_for_truncated_fields= CHECK_FIELD_WARN;
 
   // Bad year
   {
     SCOPED_TRACE("");
-    test_store_string(&field_dt, STRING_WITH_LEN("99999-01-01 00:00:01"),
+    test_store_string(&field_dt, STRING_WITH_LEN("99999-01-01 00:00:01"), 0,
                       "0000-00-00 00:00:00",
                       WARN_DATA_TRUNCATED, TYPE_ERR_BAD_VALUE);
   }
@@ -124,7 +216,7 @@ TEST_F(FieldDatetimeTest, StoreIllegalStringValues)
   // Bad month
   {
     SCOPED_TRACE("");
-    test_store_string(&field_dt, STRING_WITH_LEN("2001-13-01 00:00:01"),
+    test_store_string(&field_dt, STRING_WITH_LEN("2001-13-01 00:00:01"), 0,
                       "0000-00-00 00:00:00",
                       WARN_DATA_TRUNCATED, TYPE_ERR_BAD_VALUE);
   }
@@ -132,7 +224,7 @@ TEST_F(FieldDatetimeTest, StoreIllegalStringValues)
   // Bad day
   {
     SCOPED_TRACE("");
-    test_store_string(&field_dt, STRING_WITH_LEN("2001-01-32 00:00:01"),
+    test_store_string(&field_dt, STRING_WITH_LEN("2001-01-32 00:00:01"), 0,
                       "0000-00-00 00:00:00",
                       WARN_DATA_TRUNCATED, TYPE_ERR_BAD_VALUE);
   }
@@ -140,7 +232,7 @@ TEST_F(FieldDatetimeTest, StoreIllegalStringValues)
   // Bad hour
   {
     SCOPED_TRACE("");
-    test_store_string(&field_dt, STRING_WITH_LEN("2001-01-01 72:00:01"),
+    test_store_string(&field_dt, STRING_WITH_LEN("2001-01-01 72:00:01"), 0,
                       "0000-00-00 00:00:00",
                       WARN_DATA_TRUNCATED, TYPE_ERR_BAD_VALUE);
   }
@@ -148,7 +240,7 @@ TEST_F(FieldDatetimeTest, StoreIllegalStringValues)
   // Bad minute
   {
     SCOPED_TRACE("");
-    test_store_string(&field_dt, STRING_WITH_LEN("2001-01-01 00:72:01"),
+    test_store_string(&field_dt, STRING_WITH_LEN("2001-01-01 00:72:01"), 0,
                       "0000-00-00 00:00:00",
                       WARN_DATA_TRUNCATED, TYPE_ERR_BAD_VALUE);
   }
@@ -156,7 +248,7 @@ TEST_F(FieldDatetimeTest, StoreIllegalStringValues)
   // Bad second
   {
     SCOPED_TRACE("");
-    test_store_string(&field_dt, STRING_WITH_LEN("2001-01-01 00:00:72"),
+    test_store_string(&field_dt, STRING_WITH_LEN("2001-01-01 00:00:72"), 0,
                       "0000-00-00 00:00:00",
                       WARN_DATA_TRUNCATED, TYPE_ERR_BAD_VALUE);
   }
@@ -164,7 +256,8 @@ TEST_F(FieldDatetimeTest, StoreIllegalStringValues)
   // Not a day
   {
     SCOPED_TRACE("");
-    test_store_string(&field_dt, STRING_WITH_LEN("foo"), "0000-00-00 00:00:00",
+    test_store_string(&field_dt, STRING_WITH_LEN("foo"), 0,
+                      "0000-00-00 00:00:00",
                       WARN_DATA_TRUNCATED, TYPE_ERR_BAD_VALUE);
   }
 }
@@ -194,7 +287,7 @@ TEST_F(FieldDatetimeTest, StoreZeroDateSqlModeNoZeroRestrictions)
   table.in_use= thd();
   field_dt.make_writable();
   field_dt.make_readable();
-  thd()->count_cuted_fields= CHECK_FIELD_WARN;
+  thd()->check_for_truncated_fields= CHECK_FIELD_WARN;
 
   for (int i= 0; i < no_modes; i++)
   {
@@ -255,7 +348,7 @@ TEST_F(FieldDatetimeTest, StoreZeroDateSqlModeNoZeroDate)
   table.in_use= thd();
   field_dt.make_writable();
   field_dt.make_readable();
-  thd()->count_cuted_fields= CHECK_FIELD_WARN;
+  thd()->check_for_truncated_fields= CHECK_FIELD_WARN;
 
   // With "MODE_NO_ZERO_DATE" set - Errors if date is all null
   for (int i= 0; i < no_modes; i++)
@@ -317,7 +410,7 @@ TEST_F(FieldDatetimeTest, StoreZeroDateSqlModeNoZeroInDate)
   table.in_use= thd();
   field_dt.make_writable();
   field_dt.make_readable();
-  thd()->count_cuted_fields= CHECK_FIELD_WARN;
+  thd()->check_for_truncated_fields= CHECK_FIELD_WARN;
 
   // With "MODE_NO_ZERO_IN_DATE" set - Entire date zero is ok
   for (int i= 0; i < no_modes; i++)

@@ -1,3 +1,13 @@
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs301=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema default character set latin1;
+use test;
+--enable_query_log
+########################################
+
 
  #Get deafult engine value
 --let $DEFAULT_ENGINE = `select @@global.default_storage_engine`
@@ -1856,3 +1866,10 @@ SELECT CAST(0.996 AS DECIMAL(14,3)) *
 1.056448745601382294204817708678199647327125723403005048300399553 AS RESULT;
 SELECT CAST(0.996 AS DECIMAL(14,3)) *
 1.0564487456013822942048177086781996473271257234030050483003995531 AS RESULT;
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs301;
+--enable_query_log
+########################################

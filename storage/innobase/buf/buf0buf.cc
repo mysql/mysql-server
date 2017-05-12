@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -30,41 +30,50 @@ The database buffer buf_pool
 Created 11/5/1995 Heikki Tuuri
 *******************************************************/
 
-#include "ha_prototypes.h"
+#include "my_config.h"
 
-#include "page0size.h"
-#include "buf0buf.h"
-#include "mem0mem.h"
 #include "btr0btr.h"
+#include "buf0buf.h"
 #include "fil0fil.h"
 #include "fsp0sysspace.h"
+#include "ha_prototypes.h"
+#include "mem0mem.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "page0size.h"
 #ifndef UNIV_HOTBACKUP
+#include "btr0sea.h"
 #include "buf0buddy.h"
 #include "buf0stats.h"
-#include "lock0lock.h"
-#include "sync0rw.h"
-#include "btr0sea.h"
-#include "ibuf0ibuf.h"
-#include "trx0undo.h"
-#include "trx0purge.h"
-#include "log0log.h"
 #include "dict0stats_bg.h"
+#include "ibuf0ibuf.h"
+#include "lock0lock.h"
+#include "log0log.h"
+#include "sync0rw.h"
+#include "trx0purge.h"
+#include "trx0undo.h"
 #endif /* !UNIV_HOTBACKUP */
-#include "srv0srv.h"
-#include "srv0start.h"
+
+#include <errno.h>
+#include <stdarg.h>
+#include <sys/types.h>
+#include <time.h>
+#include <map>
+#include <new>
+#include <sstream>
+
+#include "buf0checksum.h"
+#include "buf0dump.h"
 #include "dict0dict.h"
 #include "log0recv.h"
-#include "srv0mon.h"
-#include "fsp0sysspace.h"
-#include "page0zip.h"
-#include "buf0checksum.h"
-#include "sync0sync.h"
-#include "buf0dump.h"
-#include "ut0new.h"
 #include "os0thread-create.h"
-#include <new>
-#include <map>
-#include <sstream>
+#include "page0zip.h"
+#include "srv0mon.h"
+#include "srv0srv.h"
+#include "srv0start.h"
+#include "sync0sync.h"
+#include "ut0new.h"
 
 #ifdef HAVE_LIBNUMA
 #include <numa.h>
@@ -296,7 +305,7 @@ typedef std::map<
 	const byte*,
 	buf_chunk_t*,
 	std::less<const byte*>,
-	ut_allocator<std::pair<const byte*, buf_chunk_t*> > >
+	ut_allocator<std::pair<const byte* const, buf_chunk_t*> > >
 	buf_pool_chunk_map_t;
 
 static buf_pool_chunk_map_t*			buf_chunk_map_reg;
@@ -314,7 +323,7 @@ static ulint	buf_dbg_counter	= 0;
 #ifdef UNIV_DEBUG
 /** This is used to enable multiple buffer pool instances
 with small buffer pool size. */
-my_bool	srv_buf_pool_debug;
+bool	srv_buf_pool_debug;
 #endif /* UNIV_DEBUG */
 
 #if defined UNIV_PFS_MUTEX || defined UNIV_PFS_RWLOCK
@@ -694,6 +703,7 @@ buf_page_print(
 		break;
 	case FIL_PAGE_TYPE_ZBLOB:
 	case FIL_PAGE_TYPE_ZBLOB2:
+	case FIL_PAGE_TYPE_ZBLOB3:
 		fputs("InnoDB: Page may be a compressed BLOB page\n",
 		      stderr);
 		break;
@@ -709,7 +719,10 @@ buf_page_print(
 #ifndef UNIV_HOTBACKUP
 
 # ifdef PFS_GROUP_BUFFER_SYNC
+
+#  ifndef PFS_SKIP_BUFFER_MUTEX_RWLOCK
 extern mysql_pfs_key_t	buffer_block_mutex_key;
+#  endif /* !PFS_SKIP_BUFFER_MUTEX_RWLOCK */
 
 /********************************************************************//**
 This function registers mutexes and rwlocks in buffer blocks with
@@ -736,7 +749,11 @@ pfs_register_buffer_block(
 		BPageMutex*	mutex;
 
 		mutex = &block->mutex;
+
+#ifndef PFS_SKIP_BUFFER_MUTEX_RWLOCK
 		mutex->pfs_add(buffer_block_mutex_key);
+#endif /* !PFS_SKIP_BUFFER_MUTEX_RWLOCK */
+
 #  endif /* UNIV_PFS_MUTEX */
 
 		rw_lock_t*	rwlock;
@@ -744,9 +761,16 @@ pfs_register_buffer_block(
 #  ifdef UNIV_PFS_RWLOCK
 		rwlock = &block->lock;
 		ut_a(!rwlock->pfs_psi);
+
+#ifndef PFS_SKIP_BUFFER_MUTEX_RWLOCK
 		rwlock->pfs_psi = (PSI_server)
 			? PSI_server->init_rwlock(buf_block_lock_key, rwlock)
 			: NULL;
+#else
+		rwlock->pfs_psi = (PSI_server)
+			? PSI_server->init_rwlock(PFS_NOT_INSTRUMENTED, rwlock)
+			: NULL;
+#endif /* !PFS_SKIP_BUFFER_MUTEX_RWLOCK */
 
 #   ifdef UNIV_DEBUG
 		rwlock = &block->debug_latch;
@@ -775,6 +799,10 @@ buf_block_init(
 {
 	UNIV_MEM_DESC(frame, UNIV_PAGE_SIZE);
 
+	/* This function should only be executed at database startup or by
+	buf_pool_resize(). Either way, adaptive hash index must not exist. */
+	assert_block_ahi_empty_on_init(block);
+
 	block->frame = frame;
 
 	block->page.buf_pool_index = buf_pool_index(buf_pool);
@@ -799,9 +827,6 @@ buf_block_init(
 	ut_d(block->in_unzip_LRU_list = FALSE);
 	ut_d(block->in_withdraw_list = FALSE);
 
-#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
-	block->n_pointers = 0;
-#endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 	page_zip_des_init(&block->page.zip);
 
 	mutex_create(LATCH_ID_BUF_BLOCK_MUTEX, &block->mutex);
@@ -1466,6 +1491,10 @@ buf_page_realloc(
 
 		/* set other flags of buf_block_t */
 
+		/* This code should only be executed by buf_pool_resize(),
+		while the adaptive hash index is disabled. */
+		assert_block_ahi_empty(block);
+		assert_block_ahi_empty_on_init(new_block);
 		ut_ad(!block->index);
 		new_block->index	= NULL;
 		new_block->n_hash_helps	= 0;
@@ -2400,6 +2429,7 @@ void
 buf_resize_thread()
 {
 	srv_buf_resize_thread_active = true;
+	my_thread_init();
 
 	while (srv_shutdown_state == SRV_SHUTDOWN_NONE) {
 		os_event_wait(srv_buf_resize_event);
@@ -2424,6 +2454,8 @@ buf_resize_thread()
 	}
 
 	srv_buf_resize_thread_active = false;
+
+	my_thread_end();
 }
 
 /********************************************************************//**
@@ -2438,6 +2470,8 @@ buf_pool_clear_hash_index(void)
 	ut_ad(!buf_pool_resizing);
 	ut_ad(!btr_search_enabled);
 
+	DEBUG_SYNC_C("purge_wait_for_btr_search_latch");
+
 	for (p = 0; p < srv_buf_pool_instances; p++) {
 		buf_pool_t*	buf_pool = buf_pool_from_array(p);
 		buf_chunk_t*	chunks	= buf_pool->chunks;
@@ -2449,20 +2483,21 @@ buf_pool_clear_hash_index(void)
 
 			for (; i--; block++) {
 				dict_index_t*	index	= block->index;
+				assert_block_ahi_valid(block);
 
 				/* We can set block->index = NULL
-				when we have an x-latch on search latch;
-				see the comment in buf0buf.h */
+				and block->n_pointers = 0
+				when btr_search_own_all(RW_LOCK_X);
+				see the comments in buf0buf.h */
 
 				if (!index) {
-					/* Not hashed */
 					continue;
 				}
 
-				block->index = NULL;
 # if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 				block->n_pointers = 0;
 # endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
+				block->index = NULL;
 			}
 		}
 	}
@@ -3146,6 +3181,9 @@ buf_block_init_low(
 /*===============*/
 	buf_block_t*	block)	/*!< in: block to init */
 {
+	/* No adaptive hash index entries may point to a previously
+	unused (and now freshly allocated) block. */
+	assert_block_ahi_empty_on_init(block);
 	block->index		= NULL;
 	block->made_dirty_with_no_latch = false;
 	block->skip_flush_check = false;
@@ -3217,6 +3255,7 @@ buf_zip_decompress(
 	case FIL_PAGE_TYPE_XDES:
 	case FIL_PAGE_TYPE_ZBLOB:
 	case FIL_PAGE_TYPE_ZBLOB2:
+	case FIL_PAGE_TYPE_ZBLOB3:
 	case FIL_PAGE_SDI_ZBLOB:
 		/* Copy to uncompressed storage. */
 		memcpy(block->frame, frame, block->page.size.physical());
@@ -4363,7 +4402,7 @@ buf_page_init(
 	buf_block_set_file_page(block, page_id);
 
 #ifdef UNIV_DEBUG_VALGRIND
-	if (is_system_tablespace(page_id.space())) {
+	if (fsp_is_system_or_temp_tablespace(page_id.space())) {
 		/* Silence valid Valgrind warnings about uninitialized
 		data being written to data files.  There are some unused
 		bytes on some pages that InnoDB does not initialize. */
@@ -5134,8 +5173,8 @@ corrupt:
 		    && !recv_no_ibuf_operations
 		    && fil_page_get_type(frame) == FIL_PAGE_INDEX
 		    && page_is_leaf(frame)
-		    && bpage->id.space() != srv_tmp_space.space_id()
-		    && !Tablespace::is_undo_tablespace(bpage->id.space())) {
+		    && !fsp_is_system_temporary(bpage->id.space())
+		    && !fsp_is_undo_tablespace(bpage->id.space())) {
 			ibuf_merge_or_delete_for_page(
 				(buf_block_t*) bpage, bpage->id,
 				&bpage->size, TRUE);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved. 
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved. 
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,14 +19,15 @@
 
 #include "tap.h"
 
-#include "my_global.h"
-#include "my_stacktrace.h"
+#include "my_config.h"
 
-#include <stdlib.h>
+#include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-#include <signal.h>
+
+#include "my_stacktrace.h"
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif

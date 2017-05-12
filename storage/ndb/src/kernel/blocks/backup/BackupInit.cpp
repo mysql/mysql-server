@@ -145,9 +145,6 @@ Backup::~Backup()
 
 BLOCK_FUNCTIONS(Backup)
 
-template class ArrayPool<Backup::Page32>;
-template class ArrayPool<Backup::Fragment>;
-
 void
 Backup::execREAD_CONFIG_REQ(Signal* signal)
 {
@@ -169,7 +166,7 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
   c_defaults.m_o_direct = true;
   c_defaults.m_backup_disk_write_pct = 50;
 
-  Uint32 noBackups = 0, noTables = 0, noAttribs = 0, noFrags = 0;
+  Uint32 noBackups = 0, noTables = 0, noFrags = 0;
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_DISCLESS, 
 					&c_defaults.m_diskless));
   ndb_mgm_get_int_parameter(p, CFG_DB_O_DIRECT,
@@ -205,10 +202,7 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
   ndb_mgm_get_int_parameter(p, CFG_DB_PARALLEL_BACKUPS, &noBackups);
   //  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_NO_TABLES, &noTables));
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DICT_TABLE, &noTables));
-  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_NO_ATTRIBUTES, &noAttribs));
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DIH_FRAG_CONNECT, &noFrags));
-
-  noAttribs++; //RT 527 bug fix
 
   c_nodePool.setSize(MAX_NDB_NODES);
   c_backupPool.setSize(noBackups + 1);
@@ -259,7 +253,16 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
   }
 
   /**
+   * Data buffer size must at least be big enough for a max-sized 
+   * scan batch.
+   */
+  ndbrequire(szDataBuf >= (BACKUP_MIN_BUFF_WORDS * 4));
+    
+  /**
    * add min writesize to buffer size...and the alignment added here and there
+   * Need buffer size to be >= max-sized scan batch + min write size
+   * to avoid 'deadlock' where there's not enough buffered bytes to
+   * write, and too many bytes to fit another batch...
    */
   Uint32 extra = szWrite + 4 * (/* align * 512b */ 128);
 
@@ -299,7 +302,7 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
   jam();
 
   { // Init all tables
-    SLList<Table> tables(c_tablePool);
+    Table_list tables(c_tablePool);
     TablePtr ptr;
     while (tables.seizeFirst(ptr)){
       new (ptr.p) Table(c_fragmentPool);
@@ -315,7 +318,7 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
   }
 
   {
-    SLList<BackupFile> ops(c_backupFilePool);
+    BackupFile_list ops(c_backupFilePool);
     BackupFilePtr ptr;
     while (ops.seizeFirst(ptr)){
       new (ptr.p) BackupFile(* this, c_pagePool);
@@ -329,7 +332,7 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
   }
   
   {
-    SLList<BackupRecord> recs(c_backupPool);
+    BackupRecord_sllist recs(c_backupPool);
     BackupRecordPtr ptr;
     while (recs.seizeFirst(ptr)){
       new (ptr.p) BackupRecord(* this, c_tablePool, 

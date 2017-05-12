@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify it under
    the terms of the GNU General Public License as published by the Free Software
@@ -16,11 +16,10 @@
 #ifndef DD__TABLE_INCLUDED
 #define DD__TABLE_INCLUDED
 
-#include "my_global.h"
-
+#include "dd/sdi_fwd.h"                // Sdi_wcontext
 #include "dd/types/abstract_table.h"   // dd::Abstract_table
 #include "dd/types/trigger.h"          // dd::Trigger::enum_*
-#include "dd/sdi_fwd.h"                // Sdi_wcontext
+#include "prealloced_array.h"
 
 namespace dd {
 
@@ -49,7 +48,7 @@ public:
   { return update_aux_key(key, engine(), se_private_id()); }
 
   static bool update_aux_key(aux_key_type *key,
-                             const std::string &engine,
+                             const String_type &engine,
                              Object_id se_private_id);
 
 public:
@@ -124,8 +123,8 @@ public:
   // engine.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &engine() const = 0;
-  virtual void set_engine(const std::string &engine) = 0;
+  virtual const String_type &engine() const = 0;
+  virtual void set_engine(const String_type &engine) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // row_format
@@ -137,15 +136,8 @@ public:
   // comment
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &comment() const = 0;
-  virtual void set_comment(const std::string &comment) = 0;
-
-  /////////////////////////////////////////////////////////////////////////
-  // hidden.
-  /////////////////////////////////////////////////////////////////////////
-
-  virtual bool hidden() const = 0;
-  virtual void set_hidden(bool hidden) = 0;
+  virtual const String_type &comment() const = 0;
+  virtual void set_comment(const String_type &comment) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // se_private_data.
@@ -154,7 +146,7 @@ public:
   virtual const Properties &se_private_data() const = 0;
 
   virtual Properties &se_private_data() = 0;
-  virtual bool set_se_private_data_raw(const std::string &se_private_data_raw) = 0;
+  virtual bool set_se_private_data_raw(const String_type &se_private_data_raw) = 0;
   virtual void set_se_private_data(const Properties &se_private_data)= 0;
 
   /////////////////////////////////////////////////////////////////////////
@@ -175,9 +167,9 @@ public:
   virtual void set_default_partitioning(
     enum_default_partitioning default_partitioning) = 0;
 
-  virtual const std::string &partition_expression() const = 0;
+  virtual const String_type &partition_expression() const = 0;
   virtual void set_partition_expression(
-    const std::string &partition_expression) = 0;
+    const String_type &partition_expression) = 0;
 
   virtual enum_subpartition_type subpartition_type() const = 0;
   virtual void set_subpartition_type(
@@ -187,9 +179,16 @@ public:
   virtual void set_default_subpartitioning(
     enum_default_partitioning default_subpartitioning) = 0;
 
-  virtual const std::string &subpartition_expression() const = 0;
+  virtual const String_type &subpartition_expression() const = 0;
   virtual void set_subpartition_expression(
-    const std::string &subpartition_expression) = 0;
+    const String_type &subpartition_expression) = 0;
+
+  /** Dummy method to be able to use Partition and Table interchangeably
+  in templates. */
+  const Table &table() const
+  { return *this; }
+  Table &table()
+  { return *this; }
 
   /////////////////////////////////////////////////////////////////////////
   //Index collection.
@@ -211,6 +210,8 @@ public:
 
   virtual const Foreign_key_collection &foreign_keys() const = 0;
 
+  virtual Foreign_key_collection *foreign_keys() = 0;
+
   /////////////////////////////////////////////////////////////////////////
   // Partition collection.
   /////////////////////////////////////////////////////////////////////////
@@ -218,6 +219,15 @@ public:
   virtual Partition *add_partition() = 0;
 
   virtual const Partition_collection &partitions() const = 0;
+
+  virtual Partition_collection *partitions() = 0;
+
+  /**
+    Find and set parent partitions for subpartitions.
+
+    TODO: Adjust API and code to avoid need for this method.
+  */
+  virtual void fix_partitions() = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // Trigger collection.
@@ -252,13 +262,31 @@ public:
 
 
   /**
+    Clone all the triggers from a dd::Table object into an array.
+
+    @param [out] triggers - Pointer to trigger array to clone into.
+  */
+
+  virtual void clone_triggers(Prealloced_array<Trigger*, 1> *triggers) const= 0;
+
+
+  /**
+    Move all the triggers from an array into the table object.
+
+    @param triggers       Pointer to trigger array to move triggers from.
+  */
+
+  virtual void move_triggers(Prealloced_array<Trigger*, 1> *triggers)= 0;
+
+
+  /**
     Copy all the triggers from another dd::Table object.
 
     @param tab_obj* - Pointer to Table from which the triggers
                       are copied.
   */
 
-  virtual void copy_triggers(Table *tab_obj) = 0;
+  virtual void copy_triggers(const Table *tab_obj) = 0;
 
 
   /**

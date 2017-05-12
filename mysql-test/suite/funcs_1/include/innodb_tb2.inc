@@ -55,9 +55,9 @@ f106 year(4) not null default 2000,
 f107 year(4) not null default 2000,
 f108 enum("1enum","2enum") not null default "1enum",
 f109 set("1set","2set") not null default "1set"
-) engine = innodb;
+) charset latin1 engine = innodb;
 
 --replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>
 eval
 load data infile '$MYSQLTEST_VARDIR/std_data/funcs_1/innodb_tb2.txt'
-into table tb2;
+into table tb2 CHARACTER SET latin1 ;

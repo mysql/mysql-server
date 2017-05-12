@@ -1,4 +1,13 @@
---source include/have_innodb.inc
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs46=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema default character set latin1;
+use test;
+--enable_query_log
+########################################
+
 
 CREATE TABLE t1 (a INT) ENGINE=InnoDB;
 INSERT INTO t1 VALUES(347),(33101),(123),(45),(6);
@@ -99,3 +108,10 @@ SELECT * FROM t1;
 SHOW CREATE TABLE t1;
 
 DROP TABLE t1;
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs46;
+--enable_query_log
+########################################

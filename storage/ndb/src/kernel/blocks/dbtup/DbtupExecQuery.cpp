@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -331,6 +331,12 @@ Dbtup::setup_read(KeyReqStruct *req_struct,
     if (! ((req_struct->m_reorg == ScanFragReq::REORG_NOT_MOVED && moved == 0) ||
            (req_struct->m_reorg == ScanFragReq::REORG_MOVED && moved != 0)))
     {
+      /**
+       * We're either scanning to only find moved rows (used when scanning
+       * for rows to delete in reorg delete phase or we're scanning for
+       * only non-moved rows and this happens also in reorg delete phase,
+       * but it is done for normal scans in this phase.
+       */
       terrorCode= ZTUPLE_DELETED_ERROR;
       return false;
     }
@@ -437,7 +443,7 @@ Dbtup::load_diskpage(Signal* signal,
   Fragrecord * regFragPtr= prepare_fragptr.p;
   Tablerec* regTabPtr = prepare_tabptr.p;
 
-  if (Local_key::ref(lkey1, lkey2) == ~(Uint32)0)
+  if (Local_key::isInvalid(lkey1, lkey2))
   {
     jam();
     regOperPtr->op_struct.bit_field.m_wait_log_buffer= 1;
@@ -457,7 +463,8 @@ Dbtup::load_diskpage(Signal* signal,
   }
   
   jam();
-  Uint32 page_idx= lkey2;
+  ndbassert(Uint16(lkey2) == lkey2);
+  Uint16 page_idx= Uint16(lkey2);
   Uint32 frag_page_id= lkey1;
   regOperPtr->m_tuple_location.m_page_no= getRealpid(regFragPtr,
 						     frag_page_id);
@@ -759,16 +766,16 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
      op_struct.op_bit_fields = regOperPtr->op_struct.op_bit_fields;
      const Uint32 TrequestInfo= tupKeyReq->request;
      const Uint32 disable_fk_checks = tupKeyReq->disable_fk_checks;
-     const Uint32 primaryReplica = tupKeyReq->primaryReplica;
+     const Uint32 triggers = tupKeyReq->triggers;
 
      regOperPtr->m_copy_tuple_location.setNull();
      op_struct.bit_field.delete_insert_flag = false;
-     op_struct.bit_field.tupVersion= ZNIL;
-     op_struct.bit_field.m_physical_only_op = 0;
      op_struct.bit_field.m_gci_written = 0;
+     op_struct.bit_field.m_triggers = triggers;
      op_struct.bit_field.m_disable_fk_checks = disable_fk_checks;
-     op_struct.bit_field.primary_replica= primaryReplica;
      op_struct.bit_field.m_reorg = TupKeyReq::getReorgFlag(TrequestInfo);
+     op_struct.bit_field.tupVersion= ZNIL;
+
      req_struct.m_prio_a_flag = TupKeyReq::getPrioAFlag(TrequestInfo);
      req_struct.m_reorg = TupKeyReq::getReorgFlag(TrequestInfo);
      regOperPtr->op_struct.op_bit_fields = op_struct.op_bit_fields;
@@ -995,39 +1002,40 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
                                          regTabPtr,
                                          disk_page != RNIL);
 
-       if (unlikely(terrorCode != 0))
+       if (likely(terrorCode == 0))
        {
-         tupkeyErrorLab(&req_struct);
-         return false;
-       }
-
-       if (!regTabPtr->tuxCustomTriggers.isEmpty()) 
-       {
-         jam();
-         if (unlikely(executeTuxInsertTriggers(signal,
-                                               regOperPtr,
-                                               regFragPtr,
-                                               regTabPtr) != 0))
+         if (!regTabPtr->tuxCustomTriggers.isEmpty()) 
          {
            jam();
-           /*
-            * TUP insert succeeded but add of TUX entries failed.  All
-            * TUX changes have been rolled back at this point.
-            *
-            * We will abort via tupkeyErrorLab() as usual.  This routine
-            * however resets the operation to ZREAD.  The TUP_ABORTREQ
-            * arriving later cannot then undo the insert.
-            *
-            * Therefore we call TUP_ABORTREQ already now.  Diskdata etc
-            * should be in memory and timeslicing cannot occur.  We must
-            * skip TUX abort triggers since TUX is already aborted.  We
-            * will dealloc the fixed and var parts if necessary.
-            */
-           signal->theData[0] = operPtr.i;
-           do_tup_abortreq(signal, ZSKIP_TUX_TRIGGERS | ZABORT_DEALLOC);
-           tupkeyErrorLab(&req_struct);
-           return false;
+           
+           executeTuxInsertTriggers(signal,
+                                    regOperPtr,
+                                    regFragPtr,
+                                    regTabPtr);
          }
+       }
+
+       if (unlikely(terrorCode != 0))
+       {
+         jam();
+         /*
+          * TUP insert succeeded but immediate trigger firing or
+          * add of TUX entries failed.  
+          * All TUX changes have been rolled back at this point.
+          *
+          * We will abort via tupkeyErrorLab() as usual.  This routine
+          * however resets the operation to ZREAD.  The TUP_ABORTREQ
+          * arriving later cannot then undo the insert.
+          *
+          * Therefore we call TUP_ABORTREQ already now.  Diskdata etc
+          * should be in memory and timeslicing cannot occur.  We must
+          * skip TUX abort triggers since TUX is already aborted.  We
+          * will dealloc the fixed and var parts if necessary.
+          */
+         signal->theData[0] = operPtr.i;
+         do_tup_abortreq(signal, ZSKIP_TUX_TRIGGERS | ZABORT_DEALLOC);
+         tupkeyErrorLab(&req_struct);
+           return false;
        }
 
        if (accminupdateptr)
@@ -2187,13 +2195,6 @@ int Dbtup::handleInsertReq(Signal* signal,
       goto disk_prealloc_error;
     }
 
-    if (!Local_key::isShort(frag_page_id))
-    {
-      jam();
-      terrorCode = 1603;
-      goto disk_prealloc_error;
-    }
-
     int ret= disk_page_prealloc(signal, fragPtr, &tmp, size);
     if (unlikely(ret < 0))
     {
@@ -2205,7 +2206,7 @@ int Dbtup::handleInsertReq(Signal* signal,
     regOperPtr.p->op_struct.bit_field.m_disk_preallocated= 1;
     tmp.m_page_idx= size;
     memcpy(tuple_ptr->get_disk_ref_ptr(regTabPtr), &tmp, sizeof(tmp));
-    
+
     /**
      * Set ref from disk to mm
      */
@@ -2213,8 +2214,7 @@ int Dbtup::handleInsertReq(Signal* signal,
     ref.m_page_no = frag_page_id;
     
     Tuple_header* disk_ptr= req_struct->m_disk_ptr;
-    disk_ptr->m_header_bits = 0;
-    disk_ptr->m_base_record_ref= ref.ref();
+    disk_ptr->set_base_record_ref(ref);
   }
 
   if (req_struct->m_reorg != ScanFragReq::REORG_ALL)
@@ -3752,7 +3752,8 @@ Dbtup::expand_tuple(KeyReqStruct* req_struct,
 		    Uint32 sizes[2],
 		    Tuple_header* src, 
 		    const Tablerec* tabPtrP,
-		    bool disk)
+		    bool disk,
+                    bool from_lcp_keep)
 {
   Uint32 bits= src->m_header_bits;
   Uint32 extra_bits = bits;
@@ -3798,18 +3799,38 @@ Dbtup::expand_tuple(KeyReqStruct* req_struct,
         Ptr<Page> var_page;
         src_data= get_ptr(&var_page, *var_ref);
         src_len= get_len(&var_page, *var_ref);
+
+        jam();
+        /**
+         * Coming here with MM_GROWN set is possible if we are coming here
+         * from handle_lcp_keep_commit. In this case we are currently
+         * performing a DELETE operation. This operation is the final
+         * operation that will be committed. It could very well have
+         * been preceeded by an UPDATE operation that did set the
+         * MM_GROWN bit. In this case it is important to get the original
+         * length from the end of the varsize part and not the page
+         * entry length which is essentially the meaning of the MM_GROWN
+         * bit.
+         *
+         * An original tuple can't have grown as we're expanding it...
+         * else we would be "re-expanding". This is the case when coming
+         * here as part of INSERT/UPDATE/REFRESH. We assert on that we
+         * don't do any "re-expanding".
+         */
+        if (bits & Tuple_header::MM_GROWN)
+        {
+          jam();
+          ndbrequire(from_lcp_keep);
+          ndbassert(src_len>0);
+          src_len= src_data[src_len-1];
+        }
         sizes[MM]= src_len;
         step= 0;
         req_struct->m_varpart_page_ptr = var_page;
-        
-        /* An original tuple cant have grown as we're expanding it...
-         * else we would be "re-expand"*/
-        ndbassert(! (bits & Tuple_header::MM_GROWN));
       }
       else
       {
         /* This is for the re-expansion of a shrunken row (update2 ...) */
-
         Varpart_copy* vp = (Varpart_copy*)src_ptr;
         src_len = vp->m_len;
         src_data= vp->m_data;
@@ -3869,9 +3890,6 @@ Dbtup::expand_tuple(KeyReqStruct* req_struct,
     src_ptr = src_ptr + step;
   }
 
-  src->m_header_bits= bits & 
-    ~(Uint32)(Tuple_header::MM_SHRINK | Tuple_header::MM_GROWN);
- 
   /**
    * The source tuple only touches the header parts. The updates of the
    * tuple is applied on the new copy tuple. We still need to ensure that
@@ -4242,9 +4260,14 @@ Dbtup::validate_page(Tablerec* regTabPtr, Var_page* p)
 	  if(! (ptr->m_header_bits & Tuple_header::COPY_TUPLE))
 	  {
 	    ndbrequire(len == fix_sz + 1);
-	    Local_key tmp; tmp.assref(*part);
+            Local_key tmp;
+            Var_part_ref* vpart = reinterpret_cast<Var_part_ref*>(part);
+            vpart->copyout(&tmp);
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
+            ndbrequire(!"Looking for test coverage - found it!");
+#endif
 	    Ptr<Page> tmpPage;
-	    part= get_ptr(&tmpPage, *(Var_part_ref*)part);
+	    part= get_ptr(&tmpPage, *vpart);
 	    len= ((Var_page*)tmpPage.p)->get_entry_len(tmp.m_page_idx);
 	    Uint32 sz= ((mm_vars + 1) << 1) + (((Uint16*)part)[mm_vars]);
 	    ndbrequire(len >= ((sz + 3) >> 2));
@@ -4304,14 +4327,15 @@ Dbtup::handle_size_change_after_update(KeyReqStruct* req_struct,
   Uint32 copy_bits= req_struct->m_tuple_ptr->m_header_bits;
   
   if(sizes[2+MM] == sizes[MM])
-    ;
+    jam();
   else if(sizes[2+MM] < sizes[MM])
   {
     if(0) ndbout_c("shrink");
-    req_struct->m_tuple_ptr->m_header_bits= copy_bits|Tuple_header::MM_SHRINK;
+    jam();
   }
   else
   {
+    jam();
     if(0) printf("grow - ");
     Ptr<Page> pagePtr = req_struct->m_varpart_page_ptr;
     Var_page* pageP= (Var_page*)pagePtr.p;
@@ -4359,6 +4383,7 @@ Dbtup::handle_size_change_after_update(KeyReqStruct* req_struct,
     {
       //ndbassert(!regOperPtr->is_first_operation());
       if (0) ndbout_c(" no grow");
+      jam();
       return 0;
     }
     Uint32 *new_var_part=realloc_var_part(&terrorCode,

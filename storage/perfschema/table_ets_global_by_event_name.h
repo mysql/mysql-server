@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,10 +21,12 @@
   Table EVENTS_TRANSACTIONS_SUMMARY_GLOBAL_BY_EVENT_NAME (declarations).
 */
 
+#include <sys/types.h>
+
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"
-#include "pfs_instr_class.h"
 #include "pfs_instr.h"
+#include "pfs_instr_class.h"
 #include "table_helper.h"
 
 /**
@@ -36,12 +38,13 @@ class PFS_index_ets_global_by_event_name : public PFS_engine_index
 {
 public:
   PFS_index_ets_global_by_event_name()
-    : PFS_engine_index(&m_key),
-    m_key("EVENT_NAME")
-  {}
+    : PFS_engine_index(&m_key), m_key("EVENT_NAME")
+  {
+  }
 
   ~PFS_index_ets_global_by_event_name()
-  {}
+  {
+  }
 
   virtual bool match(PFS_instr_class *instr_class);
 
@@ -65,13 +68,14 @@ struct row_ets_global_by_event_name
   PFS_transaction_stat_row m_stat;
 };
 
-/** Table PERFORMANCE_SCHEMA.EVENTS_TRANSACTIONS_SUMMARY_GLOBAL_BY_EVENT_NAME. */
+/** Table PERFORMANCE_SCHEMA.EVENTS_TRANSACTIONS_SUMMARY_GLOBAL_BY_EVENT_NAME.
+ */
 class table_ets_global_by_event_name : public PFS_engine_table
 {
 public:
   /** Table share */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table* create();
+  static PFS_engine_table *create();
   static int delete_all_rows();
   static ha_rows get_row_count();
 
@@ -94,10 +98,11 @@ protected:
 
 public:
   ~table_ets_global_by_event_name()
-  {}
+  {
+  }
 
 protected:
-  void make_row(PFS_transaction_class *klass);
+  int make_row(PFS_transaction_class *klass);
 
 private:
   /** Table share lock. */
@@ -107,8 +112,6 @@ private:
 
   /** Current row. */
   row_ets_global_by_event_name m_row;
-  /** True is the current row exists. */
-  bool m_row_exists;
   /** Current position. */
   PFS_simple_index m_pos;
   /** Next position. */

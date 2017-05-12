@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,10 +26,24 @@
   environment. MEMORY internal temporary tables are optimized similarly.
 */
 
-#include "fulltext.h"
-#include "sp_defs.h"
-#include "rt_index.h"
+#include "my_config.h"
+
+#include <errno.h>
+#include <fcntl.h>
 #include <m_ctype.h>
+#include <sys/types.h>
+#include <time.h>
+
+#include "fulltext.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_macros.h"
+#include "my_pointer_arithmetic.h"
+#include "myisam_sys.h"
+#include "rt_index.h"
+#include "sp_defs.h"
 
 #ifdef _WIN32
 #include <fcntl.h>
@@ -509,7 +523,7 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
       share->options|= HA_OPTION_READ_ONLY_DATA;
       info.s=share;
       if (_mi_read_pack_info(&info,
-			     (pbool)
+			     (bool)
 			     MY_TEST(!(share->options &
                                        (HA_OPTION_PACK_RECORD |
                                         HA_OPTION_TEMP_COMPRESS_RECORD)))))
@@ -984,7 +998,7 @@ uchar *mi_state_info_read(uchar *ptr, MI_STATE_INFO *state)
 }
 
 
-uint mi_state_info_read_dsk(File file, MI_STATE_INFO *state, my_bool pRead)
+uint mi_state_info_read_dsk(File file, MI_STATE_INFO *state, bool pRead)
 {
   uchar	buff[MI_STATE_INFO_SIZE + MI_STATE_EXTRA_SIZE];
 

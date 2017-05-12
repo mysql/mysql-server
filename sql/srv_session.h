@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License as
@@ -17,10 +17,21 @@
 #ifndef SRV_SESSION_H
 #define SRV_SESSION_H
 
+#include <stdint.h>
+
+#include "key.h"
+#include "lex_string.h"
+#include "my_command.h"
+#include "my_thread_local.h"
+#include "mysql/psi/mysql_statement.h"
+#include "mysql/service_command.h"
+#include "mysql/service_srv_session.h"
 #include "protocol_callback.h"
 #include "sql_class.h"
-#include "my_thread.h"           /* my_thread_id */
+#include "sql_error.h"
 #include "violite.h"             /* enum_vio_type */
+
+struct st_plugin_int;
 
 /**
   @file
@@ -287,9 +298,8 @@ private:
       Uses RAII.
 
       @param sess Session to backup
-      @param is_close_session
     */
-    Session_backup_and_attach(Srv_session *sess, bool is_close_session);
+    Session_backup_and_attach(Srv_session *sess);
 
     /**
       Destructs the session state object. In other words it restores to
@@ -301,7 +311,6 @@ private:
     Srv_session *session;
     Srv_session *old_session; /* used in srv_session threads */
     THD *backup_thd;
-    bool in_close_session;
   public:
     bool attach_error;
   };

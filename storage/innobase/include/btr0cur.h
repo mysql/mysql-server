@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -16,6 +16,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "my_compiler.h"
+
 /**************************************************//**
 @file include/btr0cur.h
 The index tree cursor
@@ -26,11 +31,11 @@ Created 10/16/1994 Heikki Tuuri
 #ifndef btr0cur_h
 #define btr0cur_h
 
-#include "univ.i"
-#include "dict0dict.h"
-#include "page0cur.h"
 #include "btr0types.h"
+#include "dict0dict.h"
 #include "gis0type.h"
+#include "page0cur.h"
+#include "univ.i"
 
 /** Mode flags for btr_cur operations; these can be ORed */
 enum {
@@ -61,9 +66,9 @@ struct btr_latch_leaves_t {
 };
 
 #ifndef UNIV_HOTBACKUP
+#include "ha0ha.h"
 #include "que0types.h"
 #include "row0types.h"
-#include "ha0ha.h"
 
 #define BTR_CUR_ADAPT
 #define BTR_CUR_HASH_ADAPT

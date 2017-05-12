@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,36 +17,66 @@
   @file mysys/my_init.cc
 */
 
-#include "mysys_priv.h"
-#include "my_sys.h"
-#include "my_static.h"
-#include "mysys_err.h"
+#include "my_config.h"
+
+#ifdef MY_MSCRT_DEBUG
+#include <crtdbg.h>
+#endif
+#include <limits.h>
+#include <stdio.h>
+#include <stdlib.h>
+#if HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
+#include <sys/types.h>
+
+#include "m_ctype.h"
 #include "m_string.h"
-#include "my_timer.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
+#include "my_psi_config.h"
+#include "my_static.h"
+#include "my_sys.h"
+#include "my_thread.h"
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_file.h"
+#include "mysql/psi/mysql_memory.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_rwlock.h"
 #include "mysql/psi/mysql_stage.h"
-#include "mysql/psi/mysql_file.h"
+#include "mysql/psi/mysql_thread.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_cond.h"
+#include "mysql/psi/psi_file.h"
+#include "mysql/psi/psi_memory.h"
+#include "mysql/psi/psi_mutex.h"
+#include "mysql/psi/psi_rwlock.h"
+#include "mysql/psi/psi_stage.h"
+#include "mysql/psi/psi_thread.h"
 #include "mysql/service_my_snprintf.h"
-#include "mysql/psi/mysql_memory.h"
+#include "mysys_err.h"
+#include "mysys_priv.h"
 
 #ifdef HAVE_SYS_RESOURCE_H
 #include <sys/resource.h>
 #endif
 
 #ifdef _WIN32
-#include <locale.h>
 #include <crtdbg.h>
+#include <locale.h>
+
 /* WSAStartup needs winsock library*/
 #pragma comment(lib, "ws2_32")
-my_bool have_tcpip=0;
+bool have_tcpip=0;
 static void my_win_init();
 #endif
 
 #define SCALE_SEC       100
 #define SCALE_USEC      10000
 
-my_bool my_init_done= FALSE;
+bool my_init_done= FALSE;
 ulong  my_thread_stack_size= 65536;
 MYSQL_FILE *mysql_stdin= NULL;
 static MYSQL_FILE instrumented_stdin;
@@ -93,7 +123,7 @@ int set_crt_report_leaks()
     @retval FALSE Success
     @retval TRUE  Error. Couldn't initialize environment
 */
-my_bool my_init()
+bool my_init()
 {
   char *str;
 
@@ -367,7 +397,7 @@ static void win_init_registry()
 #define WINSOCK2KEY "SYSTEM\\CurrentControlSet\\Services\\Winsock2\\Parameters"
 #define WINSOCKKEY  "SYSTEM\\CurrentControlSet\\Services\\Winsock\\Parameters"
 
-static my_bool win32_have_tcpip()
+static bool win32_have_tcpip()
 {
   HKEY hTcpipRegKey;
   if (RegOpenKeyEx ( HKEY_LOCAL_MACHINE, TCPIPKEY, 0, KEY_READ,
@@ -387,7 +417,7 @@ static my_bool win32_have_tcpip()
 }
 
 
-static my_bool win32_init_tcp_ip()
+static bool win32_init_tcp_ip()
 {
   if (win32_have_tcpip())
   {
@@ -547,7 +577,6 @@ static PSI_memory_info all_mysys_memory[]=
   { &key_memory_my_err_head, "my_err_head", 0},
   { &key_memory_my_file_info, "my_file_info", 0},
   { &key_memory_MY_DIR, "MY_DIR", 0},
-  { &key_memory_QUEUE, "QUEUE", 0},
   { &key_memory_DYNAMIC_STRING, "DYNAMIC_STRING", 0},
   { &key_memory_TREE, "TREE", 0}
 };

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,20 +16,37 @@
 
 #include "trigger.h"
 
-#include "mysys_err.h"            // EE_OUTOFMEMORY
 #include "derror.h"               // ER_THD
 #include "error_handler.h"        // Internal_error_handler
-#include "mysqld.h"               // table_alias_charset
+#include "lex_string.h"
+#include "m_string.h"
+#include "mdl.h"
+#include "my_dbug.h"
+#include "my_psi_config.h"
+#include "mysql/psi/mysql_sp.h"
+#include "mysql/psi/mysql_statement.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysqld_error.h"
+#include "mysys_err.h"            // EE_OUTOFMEMORY
 #include "sp.h"                   // sp_add_used_routine
 #include "sp_head.h"              // sp_name
+#include "sql_admin.h"
 #include "sql_class.h"            // THD
 #include "sql_db.h"               // get_default_db_collation
 #include "sql_error.h"            // Sql_condition
+#include "sql_lex.h"
 #include "sql_parse.h"            // parse_sql
+#include "sql_plugin_ref.h"
+#include "sql_security_ctx.h"
+#include "sql_servers.h"
 #include "sql_show.h"             // append_identifier
+#include "sql_string.h"
+#include "system_variables.h"
 #include "trigger_creation_ctx.h" // Trigger_creation_ctx
 
-#include "mysql/psi/mysql_sp.h"
+class sp_rcontext;
+struct PSI_statement_locker;
+struct sql_digest_state;
 
 
 ///////////////////////////////////////////////////////////////////////////
@@ -54,8 +71,8 @@ public:
 
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
-                                const char *sqlstate,
-                                Sql_condition::enum_severity_level *level,
+                                const char*,
+                                Sql_condition::enum_severity_level*,
                                 const char *message)
   {
     if (sql_errno != EE_OUTOFMEMORY &&
@@ -135,7 +152,6 @@ static bool construct_definer_value(MEM_ROOT *mem_root, LEX_CSTRING *definer,
       execution order on master and slave will be the same.
 
   @param thd                thread context
-  @param mem_root           mem-root where needed strings will be allocated
   @param[out] binlog_query  well-formed CREATE TRIGGER statement for putting
                             into binlog (after successful execution)
   @param def_user           user part of a definer value
@@ -148,7 +164,6 @@ static bool construct_definer_value(MEM_ROOT *mem_root, LEX_CSTRING *definer,
 
 static bool construct_create_trigger_stmt_with_definer(
   THD *thd,
-  MEM_ROOT *mem_root,
   String *binlog_query,
   const LEX_CSTRING &def_user,
   const LEX_CSTRING &def_host)
@@ -279,7 +294,6 @@ Trigger *Trigger::create_from_parser(THD *thd,
   definer_host= lex->definer->host;
 
   if (construct_create_trigger_stmt_with_definer(thd,
-                                                 &subject_table->mem_root,
                                                  binlog_create_trigger_stmt,
                                                  definer_user,
                                                  definer_host))

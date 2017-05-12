@@ -1,3 +1,13 @@
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs176=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema default character set latin1;
+use test;
+--enable_query_log
+########################################
+
  #Get deafult engine value
 --let $DEFAULT_ENGINE = `select @@global.default_storage_engine`
 
@@ -178,6 +188,7 @@ if (!` SELECT (@sleep_time_per_result_row * @row_count - @max_acceptable_delay >
                @sleep_time_per_result_row, @row_count, @max_acceptable_delay;
    exit;
 }
+SET @save_query_cache_size=@@query_cache_size;
 SET @@global.query_cache_size = 1024 * 64;
 --disable_warnings
 DROP TEMPORARY TABLE IF EXISTS t_history;
@@ -263,7 +274,7 @@ if (`SELECT @aux1 + @aux2 + @aux3 <> 3`)
 }
 DROP TABLE t1;
 DROP TEMPORARY TABLE t_history;
-SET @@global.query_cache_size = default;
+SET @@global.query_cache_size = @save_query_cache_size;
 
 #
 # Bug #21466: INET_ATON() returns signed, not unsigned
@@ -874,3 +885,10 @@ select inet_aton("255.255.255.2551");
 --echo #
 --echo # End of tests
 --echo #
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs176;
+--enable_query_log
+########################################

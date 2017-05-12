@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,10 +15,13 @@
 
 #include "dd/impl/types/charset_impl.h"
 
-#include "dd/impl/transaction_impl.h"      // Open_dictionary_tables_ctx
 #include "dd/impl/raw/object_keys.h"       // Primary_id_key
 #include "dd/impl/raw/raw_record.h"        // Raw_record
 #include "dd/impl/tables/character_sets.h" // Character_sets
+#include "dd/impl/transaction_impl.h"      // Open_dictionary_tables_ctx
+#include "my_inttypes.h"
+#include "my_sys.h"
+#include "mysqld_error.h"
 
 using dd::tables::Character_sets;
 
@@ -96,7 +99,7 @@ bool Charset::update_id_key(id_key_type *key, Object_id id)
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Charset::update_name_key(name_key_type *key, const std::string &name)
+bool Charset::update_name_key(name_key_type *key, const String_type &name)
 { return Character_sets::update_object_key(key, name); }
 
 ///////////////////////////////////////////////////////////////////////////

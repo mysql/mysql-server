@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,21 +13,18 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <my_global.h>
+#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <mysql/plugin_keyring.h>
 #include <sql_plugin_ref.h>
-#include "keyring_key.h"
+
 #include "buffered_file_io.h"
+#include "keyring_key.h"
+#include "lex_string.h"
+#include "mock_logger.h"
+#include "my_inttypes.h"
 
 #if defined(HAVE_PSI_INTERFACE)
-#if !defined(MERGE_UNITTESTS)
-namespace keyring
-{
-  PSI_memory_key key_memory_KEYRING = PSI_NOT_INSTRUMENTED;
-  PSI_memory_key key_LOCK_keyring = PSI_NOT_INSTRUMENTED;
-}
-#endif
 namespace keyring
 {
   extern PSI_file_key keyring_file_data_key;
@@ -38,6 +35,7 @@ namespace keyring
 namespace keyring_buffered_file_io_unittest
 {
   using namespace keyring;
+  using ::testing::StrEq;
 
   class Buffered_file_io_test : public ::testing::Test
   {
@@ -46,7 +44,7 @@ namespace keyring_buffered_file_io_unittest
     {
       keyring_file_data_key = PSI_NOT_INSTRUMENTED;
       keyring_backup_file_data_key = PSI_NOT_INSTRUMENTED;
-      logger= new Logger(logger);
+      logger= new Mock_logger;
     }
 
     virtual void TearDown()
@@ -58,7 +56,7 @@ namespace keyring_buffered_file_io_unittest
 
   protected:
     st_plugin_int fake_mysql_plugin;
-    ILogger *logger;
+    Mock_logger *logger;
   };
 
   TEST_F(Buffered_file_io_test, InitWithNotExisitingKeyringFile)
@@ -204,5 +202,52 @@ namespace keyring_buffered_file_io_unittest
     delete serialized_keys;
     delete buffered_io_2;
     remove(file_name.c_str());
+  }
+
+  TEST_F(Buffered_file_io_test, RemoveKeyringFileBetweenStoreToBackupAndStoreToKeyring)
+  {
+    std::string file_name("./sample_keyring");
+    Buffered_file_io *buffered_io= new Buffered_file_io(logger);
+    remove(file_name.c_str());
+    EXPECT_EQ(buffered_io->init(&file_name), 0);
+    std::string sample_key_data1("Robi1");
+    std::string sample_key_data2("Robi2");
+
+    Key key_to_add1("Robert_add_key1", "AES", "Roberts_add_key1_type", sample_key_data1.c_str(), sample_key_data1.length()+1);
+    Key key_to_add2("Robert_add_key2", "AES", "Roberts_add_key2_type", sample_key_data2.c_str(), sample_key_data2.length()+1);
+
+    Buffer *empty_serialized_object= new Buffer;
+    empty_serialized_object->set_key_operation(NONE);
+    Buffer *serialized_object_with_keys_to_add= new Buffer(key_to_add1.get_key_pod_size() +
+                                                           key_to_add2.get_key_pod_size());
+    key_to_add1.store_in_buffer(serialized_object_with_keys_to_add->data,
+                                &(serialized_object_with_keys_to_add->position));
+    key_to_add2.store_in_buffer(serialized_object_with_keys_to_add->data,
+                                &(serialized_object_with_keys_to_add->position));
+    serialized_object_with_keys_to_add->position= 0; //rewind buffer
+    serialized_object_with_keys_to_add->set_key_operation(STORE_KEY);
+
+    EXPECT_EQ(buffered_io->flush_to_backup(empty_serialized_object), 0);
+    //flush to keyring expects backup file to exist
+    EXPECT_EQ(buffered_io->flush_to_storage(serialized_object_with_keys_to_add), 0);
+    delete empty_serialized_object;
+
+    std::string sample_key_data3("Robi3");
+    Key key_to_add3("Robert_add_key3", "AES", "Roberts_add_key3_type", sample_key_data3.c_str(), sample_key_data3.length()+1);
+    Buffer *serialized_object_with_key3_to_add= new Buffer(key_to_add3.get_key_pod_size());
+    serialized_object_with_key3_to_add->position= 0; //rewind buffer
+    serialized_object_with_key3_to_add->set_key_operation(STORE_KEY);
+
+    EXPECT_EQ(buffered_io->flush_to_backup(serialized_object_with_keys_to_add), 0);
+    remove("./sample_keyring");
+    EXPECT_CALL(*logger, log(MY_ERROR_LEVEL, StrEq("Incorrect Keyring file")));
+
+    //keyring was removed between flush to backup and flush to storage operations
+    //thus flush to storage should fail
+    EXPECT_EQ(buffered_io->flush_to_storage(serialized_object_with_key3_to_add), 1);
+
+    delete serialized_object_with_keys_to_add;
+    delete serialized_object_with_key3_to_add;
+    delete buffered_io;
   }
 }

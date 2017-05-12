@@ -16,6 +16,7 @@ drop table if exists t1,t2;
 --enable_warnings
 SET SQL_WARNINGS=1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+SET @default_table_open_cache = @@table_open_cache;
 #
 # Test problem with CHECK TABLE;
 #
@@ -23,7 +24,7 @@ SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (
   STRING_DATA char(255) default NULL,
   KEY string_data (STRING_DATA)
-) ENGINE=MyISAM;
+) charset latin1 ENGINE=MyISAM;
 
 INSERT INTO t1 VALUES ('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA');
 INSERT INTO t1 VALUES ('DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD');
@@ -412,7 +413,7 @@ drop table t1;
 #
 # two bugs in myisam-space-stripping feature
 #
-create table t1 ( a text not null, key a (a(20)));
+create table t1 ( a text collate latin1_swedish_ci not null, key a (a(20)));
 insert into t1 values ('aaa   '),('aaa'),('aa');
 check table t1;
 repair table t1;
@@ -436,8 +437,7 @@ drop table t1;
 #
 # space-stripping in _mi_prefix_search: BUG#5284
 #
-DROP TABLE IF EXISTS t1;
-CREATE TABLE t1 (a varchar(150) NOT NULL, KEY (a)); 
+CREATE TABLE t1 (a varchar(150) NOT NULL, KEY (a)) charset latin1; 
 INSERT t1 VALUES ("can \tcan"); 
 INSERT t1 VALUES ("can   can"); 
 INSERT t1 VALUES ("can"); 
@@ -463,9 +463,9 @@ drop table t1;
 create table t1 (a int not null auto_increment primary key, b text not null, unique b (b(20)));
 insert into t1 (b) values ('a'),('b'),('c');
 select concat(b,'.') from t1;
-update t1 set b='b ' where a=2;
+update t1 set b='b\b' where a=2;
 --error ER_DUP_ENTRY
-update t1 set b='b  ' where a > 1;
+update t1 set b='B' where a > 1;
 --error ER_DUP_ENTRY
 insert into t1 (b) values ('b');
 select * from t1;
@@ -600,7 +600,7 @@ select count(*) from t1 where a is null;
 drop table t1;
 
 #
-# bug9188 - Corruption Can't open file: 'table.MYI' (errno: 145)
+# bug9188 - Corruption Cannot open file: 'table.MYI' (errno: 145)
 #
 create table t1 (c1 int, c2 varchar(4) not null default '',
                  key(c2(3))) default charset=utf8;
@@ -884,7 +884,7 @@ DROP TABLE t1;
 # Bug#26231 - select count(*) on myisam table returns wrong value
 #             when index is used
 #
-CREATE TABLE t1 (c1 TEXT NOT NULL, KEY c1 (c1(10))) ENGINE=MyISAM;
+CREATE TABLE t1 (c1 TEXT NOT NULL, KEY c1 (c1(10))) charset latin1 ENGINE=MyISAM;
 # Fill at least two key blocks. "Tab, A" must be in both blocks. 
 INSERT INTO t1 VALUES
   (CHAR(9,65)), (CHAR(9,65)), (CHAR(9,65)), (CHAR(9,65)),
@@ -1038,7 +1038,7 @@ source include/varchar.inc;
 # Some errors/warnings on create
 #
 
-create table t1 (v varchar(65530), key(v));
+create table t1 (v varchar(65530), key(v)) charset latin1;
 drop table if exists t1;
 create table t1 (v varchar(65536));
 show create table t1;
@@ -1049,7 +1049,7 @@ drop table t1;
 
 # MyISAM specific varchar tests
 --error 1118
-create table t1 (v varchar(65535));
+create table t1 (v varchar(65535)) charset latin1;
 
 eval set default_storage_engine=$default;
 
@@ -1247,7 +1247,7 @@ ANALYZE TABLE t1;
 SELECT TABLE_ROWS, DATA_LENGTH FROM INFORMATION_SCHEMA.TABLES
   WHERE TABLE_SCHEMA='test' AND TABLE_NAME='t1';
 DROP TABLE t1;
-SET GLOBAL table_open_cache=DEFAULT;
+SET GLOBAL table_open_cache= @default_table_open_cache;
 
 --echo End of 5.0 tests
 
@@ -1323,7 +1323,7 @@ CREATE TABLE t1 (
   c2 VARCHAR(300),
   KEY (c1) KEY_BLOCK_SIZE 1024,
   KEY (c2) KEY_BLOCK_SIZE 8192
-  );
+  ) charset latin1;
 INSERT INTO t1 VALUES (10, REPEAT('a', CEIL(RAND(10) * 300))),
   (11, REPEAT('b', CEIL(RAND() * 300))),
   (12, REPEAT('c', CEIL(RAND() * 300))),
@@ -1590,7 +1590,7 @@ drop table t1,t2,t3;
 # BUG#47073 - valgrind errs, corruption,failed repair of partition,
 #             low myisam_sort_buffer_size
 #
-CREATE TABLE t1(a INT, b CHAR(10), KEY(a), KEY(b));
+CREATE TABLE t1(a INT, b CHAR(10), KEY(a), KEY(b)) charset latin1;
 INSERT INTO t1 VALUES(1,'0'),(2,'0'),(3,'0'),(4,'0'),(5,'0'),
                      (6,'0'),(7,'0');
 INSERT INTO t1 SELECT a+10,b FROM t1;
@@ -1645,7 +1645,7 @@ DROP TABLE t1, t2;
 --echo #
 --echo # BUG#51307 - widespread corruption with partitions and insert...select
 --echo #
-CREATE TABLE t1(a CHAR(255), KEY(a));
+CREATE TABLE t1(a CHAR(255), KEY(a)) charset latin1;
 SELECT * FROM t1, t1 AS a1;
 SET myisam_sort_buffer_size=4;
 INSERT INTO t1 VALUES
@@ -1676,7 +1676,7 @@ DROP TABLE t1;
 --echo #
 SET myisam_repair_threads=2;
 SET myisam_sort_buffer_size=4096;
-CREATE TABLE t1(a CHAR(255), KEY(a), KEY(a), KEY(a));
+CREATE TABLE t1(a CHAR(255), KEY(a), KEY(a), KEY(a)) charset latin1;
 INSERT INTO t1 VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9),(0),(1),(2),(3);
 REPAIR TABLE t1;
 ANALYZE TABLE t1;
@@ -1793,7 +1793,7 @@ CREATE TABLE t1 (
   col1_id INT(11) DEFAULT NULL,
   KEY col1 (col1),
   KEY col1_id (col1_id)
-) ENGINE=MyISAM;
+) charset latin1 ENGINE=MyISAM;
 
 INSERT INTO t1 (col1, col1_id) VALUES
   ('5cm', 10000), ('people', 10000), ('king', 10000), ('queen', 10000),
@@ -1826,7 +1826,7 @@ CREATE TABLE t1 (
 
   KEY col1 (col1, col1_dummy),
   KEY col1_id (col1, col1_id_dummy)
-) ENGINE=MyISAM;
+) charset latin1 ENGINE=MyISAM;
 
 INSERT INTO t1 (col1, col1_dummy, col1_id, col1_id_dummy) VALUES
   ('5cm', '5cm' , 10000, 100), ('people', 'people', 10000, 100),

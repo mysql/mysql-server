@@ -1,4 +1,4 @@
-/*  Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License as
@@ -14,13 +14,16 @@
     along with this program; if not, write to the Free Software
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA */
 
-#include "m_ctype.h"  /* my_charset_utf8_bin */
-#include <mysql/plugin_keyring.h> /* keyring plugin */
+#include <stddef.h>
 
-#include "strfunc.h"
-#include "sql_string.h"
-#include "sql_plugin.h"
 #include "current_thd.h"
+#include "my_inttypes.h"
+#include "mysql/plugin.h"
+#include "mysql/plugin_keyring.h" /* keyring plugin */
+#include "sql_plugin.h"
+#include "sql_plugin_ref.h"
+
+class THD;
 
 struct Key_data
 {
@@ -35,10 +38,10 @@ struct Key_data
   void **key_to_fetch;
   size_t key_len_to_store;
   size_t *key_len_to_fetch;
-  my_bool result;
+  bool result;
 };
 
-static my_bool key_fetch(THD *thd, plugin_ref plugin, void *arg)
+static bool key_fetch(THD*, plugin_ref plugin, void *arg)
 {
   Key_data *key_data= reinterpret_cast<Key_data*>(arg);
   plugin= my_plugin_lock(NULL, &plugin);
@@ -55,7 +58,7 @@ static my_bool key_fetch(THD *thd, plugin_ref plugin, void *arg)
   return TRUE;
 }
 
-static my_bool key_store(THD *thd, plugin_ref plugin, void *arg)
+static bool key_store(THD*, plugin_ref plugin, void *arg)
 {
   Key_data *key_data= reinterpret_cast<Key_data*>(arg);
   plugin= my_plugin_lock(NULL, &plugin);
@@ -72,7 +75,7 @@ static my_bool key_store(THD *thd, plugin_ref plugin, void *arg)
   return TRUE;
 }
 
-static my_bool key_remove(THD *thd, plugin_ref plugin, void *arg)
+static bool key_remove(THD*, plugin_ref plugin, void *arg)
 {
   Key_data *key_data= reinterpret_cast<Key_data*>(arg);
   plugin= my_plugin_lock(NULL, &plugin);
@@ -88,7 +91,7 @@ static my_bool key_remove(THD *thd, plugin_ref plugin, void *arg)
   return TRUE;
 }
 
-static my_bool key_generate(THD *thd, plugin_ref plugin, void *arg)
+static bool key_generate(THD*, plugin_ref plugin, void *arg)
 {
   Key_data *key_data= reinterpret_cast<Key_data*>(arg);
   plugin= my_plugin_lock(NULL, &plugin);

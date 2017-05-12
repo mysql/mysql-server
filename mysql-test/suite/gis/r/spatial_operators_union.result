@@ -222,12 +222,15 @@ POLYGON((5 0,15 5,25 0,22 10,30 15,20 15,15 25,10 15,0 15,7 10,5 0))
 #====================================================================================
 # point,multipolygon
 #====================================================================================
+# Invalid geometry in input
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_of_elems)));
 ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_of_elems)))
 MULTIPOLYGON(((5 0,15 5,25 0,15 25,5 0)),((25 0,22 10,30 15,0 15,25 0)))
+# Invalid geometry in input
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_top_3),ST_GEOMFROMTEXT(@star_of_elems)));
 ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_top_3),ST_GEOMFROMTEXT(@star_of_elems)))
 GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 5,25 0,15 25,5 0)),((25 0,22 10,30 15,0 15,25 0))),POINT(75 25))
+# Invalid geometry in input
 SELECT ST_ASTEXT(ST_UNION(g,ST_GEOMFROMTEXT(@star_of_elems))) FROM gis_geometrycollection WHERE fid=104;
 ST_ASTEXT(ST_UNION(g,ST_GEOMFROMTEXT(@star_of_elems)))
 MULTIPOLYGON(((5 0,15 5,25 0,15 25,5 0)),((25 0,22 10,30 15,0 15,25 0)))
@@ -318,12 +321,15 @@ GEOMETRYCOLLECTION(POLYGON((25 0,0 15,30 15,22 10,25 0)),POINT(5 0),POINT(15 25)
 #====================================================================================
 # multipoint,multipolygon
 #====================================================================================
+# Invalid geometry in input
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('MULTIPOINT(0 0,0 30,30 25)'),ST_GEOMFROMTEXT(@star_of_elems)));
 ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('MULTIPOINT(0 0,0 30,30 25)'),ST_GEOMFROMTEXT(@star_of_elems)))
 GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0))),POINT(0 0),POINT(0 30),POINT(30 25))
+# Invalid geometry in input
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_of_elems)));
 ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_of_elems)))
 MULTIPOLYGON(((5 0,15 5,25 0,15 25,5 0)),((25 0,22 10,30 15,0 15,25 0)))
+# Invalid geometry in input
 SELECT ST_ASTEXT(ST_UNION(g,ST_GEOMFROMTEXT(@star_of_elems))) FROM gis_geometrycollection WHERE fid=109;
 ST_ASTEXT(ST_UNION(g,ST_GEOMFROMTEXT(@star_of_elems)))
 MULTIPOLYGON(((5 0,15 5,25 0,15 25,5 0)),((25 0,22 10,30 15,0 15,25 0)))
@@ -423,6 +429,7 @@ GEOMETRYCOLLECTION(POLYGON((11 15,19 15,11 25,11 15)),MULTILINESTRING((10 15,11 
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 25,11 15)))')));
 ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 25,11 15)))')))
 GEOMETRYCOLLECTION(POLYGON((11 15,19 15,11 25,11 15)),MULTILINESTRING((10 15,11 15),(19 15,20 15)))
+# Invalid geometry in input
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_of_elems)));
 ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_of_elems)))
 GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 5,25 0,15 25,5 0)),((25 0,22 10,30 15,0 15,25 0))),MULTILINESTRING((10 15,11 15),(19 15,20 15)))
@@ -522,9 +529,11 @@ GEOMETRYCOLLECTION(POLYGON((5 0,15 5,25 0,15 25,5 0)),LINESTRING(0 5,15 25,0 25)
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('MULTILINESTRING((0 25,25 0,25 30))'),ST_GEOMFROMTEXT(@star_elem_vertical)));
 ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('MULTILINESTRING((0 25,25 0,25 30))'),ST_GEOMFROMTEXT(@star_elem_vertical)))
 GEOMETRYCOLLECTION(POLYGON((5 0,15 5,25 0,15 25,5 0)),MULTILINESTRING((0 25,10.714285714285715 14.285714285714286),(25 0,25 30)))
+# Invalid geometry in input
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_of_elems)));
 ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_of_elems)))
 GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 5,25 0,15 25,5 0)),((25 0,22 10,30 15,0 15,25 0))),MULTILINESTRING((0 5,5.172413793103448 11.89655172413793),(7.5 15,15 25,0 25)))
+# Invalid geometry in input
 SELECT ST_ASTEXT(ST_UNION(g,ST_GEOMFROMTEXT(@star_of_elems))) FROM gis_geometrycollection WHERE fid=114;
 ST_ASTEXT(ST_UNION(g,ST_GEOMFROMTEXT(@star_of_elems)))
 GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 5,25 0,15 25,5 0)),((25 0,22 10,30 15,0 15,25 0))),MULTILINESTRING((0 5,5.172413793103448 11.89655172413793),(7.5 15,15 25,0 25)))
@@ -625,15 +634,18 @@ POLYGON((15 25,10 15,0 15,7 10,5 0,15 5,25 0,22 10,30 15,20 15,15 25))
 #====================================================================================
 # polygon,multipolygon
 #====================================================================================
+# Invalid geometry in input
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_of_elems)));
 ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_of_elems)))
 POLYGON((0 15,7 10,5 0,15 5,25 0,22 10,30 15,20 15,15 25,10 15,0 15))
+# Invalid geometry in input
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_of_elems_3)));
 ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_of_elems_3)))
 MULTIPOLYGON(((5 0,15 5,25 0,22 10,30 15,20 15,15 25,10 15,0 15,7 10,5 0)),((65 0,75 5,85 0,75 25,65 0)),((85 0,82 10,90 15,60 15,85 0)))
+# Invalid geometry in input
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_of_elems)));
-ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_of_elems)))
-POLYGON((15 25,11 15,0 15,8.870967741935484 9.67741935483871,5 0,15 5,25 0,22 10,30 15,19 15,15 25))
+ERROR 22023: Invalid GIS data provided to function st_union.
+# Invalid geometry in input
 SELECT ST_ASTEXT(ST_UNION(g,ST_GEOMFROMTEXT(@star_of_elems))) FROM gis_geometrycollection WHERE fid=100;
 ST_ASTEXT(ST_UNION(g,ST_GEOMFROMTEXT(@star_of_elems)))
 POLYGON((0 15,7 10,5 0,15 5,25 0,22 10,30 15,20 15,15 25,10 15,0 15))
@@ -646,9 +658,9 @@ POLYGON((5 0,15 5,25 0,22 10,30 15,20 15,15 25,10 15,0 15,7 10,5 0))
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_collection_elems_3)));
 ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_collection_elems_3)))
 GEOMETRYCOLLECTION(POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0)),POLYGON((65 0,75 5,85 0,82 10,90 15,80 15,75 25,70 15,60 15,67 10,65 0)))
+# Invalid geometry in input
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_collection_elems)));
-ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_collection_elems)))
-POLYGON((5 0,15 5,25 0,22 10,30 15,20 15,15 25,10 15,0 15,7 10,5 0))
+ERROR 22023: Invalid GIS data provided to function st_union.
 SELECT ST_ASTEXT(ST_UNION(g,ST_GEOMFROMTEXT(@star_collection_elems))) FROM gis_geometrycollection WHERE fid=100;
 ST_ASTEXT(ST_UNION(g,ST_GEOMFROMTEXT(@star_collection_elems)))
 POLYGON((5 0,15 5,25 0,22 10,30 15,20 15,15 25,10 15,0 15,7 10,5 0))
@@ -664,72 +676,87 @@ POLYGON((0 0,10 0,10 10,0 0),(4 4,4 6,6 6,4 4))
 #====================================================================================
 # multipolygon,point
 #====================================================================================
+# Invalid geometry in input
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_top)));
 ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_top)))
 MULTIPOLYGON(((5 0,15 5,25 0,15 25,5 0)),((25 0,22 10,30 15,0 15,25 0)))
+# Invalid geometry in input
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('POINT(30 30)')));
 ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('POINT(30 30)')))
 GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 5,25 0,15 25,5 0)),((25 0,22 10,30 15,0 15,25 0))),POINT(30 30))
+# Invalid geometry in input
 SELECT ST_ASTEXT(ST_UNION(g,ST_GEOMFROMTEXT(@star_top))) FROM gis_geometrycollection WHERE fid=103;
 ST_ASTEXT(ST_UNION(g,ST_GEOMFROMTEXT(@star_top)))
 MULTIPOLYGON(((5 0,15 5,25 0,15 25,5 0)),((25 0,22 10,30 15,0 15,25 0)))
 #====================================================================================
 # multipolygon,multipoint
 #====================================================================================
+# Invalid geometry in input
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_bottom_points)));
 ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_bottom_points)))
 MULTIPOLYGON(((5 0,15 5,25 0,15 25,5 0)),((25 0,22 10,30 15,0 15,25 0)))
+# Invalid geometry in input
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('MULTIPOINT(30 30,0 35)')));
 ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('MULTIPOINT(30 30,0 35)')))
 GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0))),POINT(0 35),POINT(30 30))
+# Invalid geometry in input
 SELECT ST_ASTEXT(ST_UNION(g,ST_GEOMFROMTEXT(@star_bottom_points))) FROM gis_geometrycollection WHERE fid=103;
 ST_ASTEXT(ST_UNION(g,ST_GEOMFROMTEXT(@star_bottom_points)))
 MULTIPOLYGON(((5 0,15 5,25 0,15 25,5 0)),((25 0,22 10,30 15,0 15,25 0)))
 #====================================================================================
 # multipolygon,linestring
 #====================================================================================
+# Invalid geometry in input
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_top_to_center)));
 ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_top_to_center)))
 GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 5,25 0,15 25,5 0)),((25 0,22 10,30 15,0 15,25 0))),LINESTRING(15 25,15 15))
+# Invalid geometry in input
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('LINESTRING(30 30,0 35)')));
 ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('LINESTRING(30 30,0 35)')))
 GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 5,25 0,15 25,5 0)),((25 0,22 10,30 15,0 15,25 0))),LINESTRING(30 30,0 35))
+# Invalid geometry in input
 SELECT ST_ASTEXT(ST_UNION(g,ST_GEOMFROMTEXT(@star_top_to_center))) FROM gis_geometrycollection WHERE fid=103;
 ST_ASTEXT(ST_UNION(g,ST_GEOMFROMTEXT(@star_top_to_center)))
 GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 5,25 0,15 25,5 0)),((25 0,22 10,30 15,0 15,25 0))),LINESTRING(15 25,15 15))
 #====================================================================================
 # multipolygon,multilinestring
 #====================================================================================
+# Invalid geometry in input
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_lines_near_vertical)));
 ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_lines_near_vertical)))
 GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 5,25 0,15 25,5 0)),((25 0,22 10,30 15,0 15,25 0))),MULTILINESTRING((0 5,5.172413793103448 11.89655172413793),(7.5 15,15 25,0 25)))
+# Invalid geometry in input
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('MULTILINESTRING((0 30,30 30,0 35))')));
 ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('MULTILINESTRING((0 30,30 30,0 35))')))
 GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 5,25 0,15 25,5 0)),((25 0,22 10,30 15,0 15,25 0))),LINESTRING(0 30,30 30,0 35))
+# Invalid geometry in input
 SELECT ST_ASTEXT(ST_UNION(g,ST_GEOMFROMTEXT(@star_lines_near_vertical))) FROM gis_geometrycollection WHERE fid=103;
 ST_ASTEXT(ST_UNION(g,ST_GEOMFROMTEXT(@star_lines_near_vertical)))
 GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 5,25 0,15 25,5 0)),((25 0,22 10,30 15,0 15,25 0))),MULTILINESTRING((0 5,5.172413793103448 11.89655172413793),(7.5 15,15 25,0 25)))
 #====================================================================================
 # multipolygon,polygon
 #====================================================================================
+# Invalid geometry in input
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_elem_vertical)));
-ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_elem_vertical)))
-POLYGON((15 25,11 15,0 15,8.870967741935484 9.67741935483871,5 0,15 5,25 0,22 10,30 15,19 15,15 25))
+ERROR 22023: Invalid GIS data provided to function st_union.
+# Invalid geometry in input
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star)));
 ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star)))
 POLYGON((0 15,7 10,5 0,15 5,25 0,22 10,30 15,20 15,15 25,10 15,0 15))
+# Invalid geometry in input
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))')));
 ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))')))
 POLYGON((15 25,9 15,0 15,6.617647058823529 11.029411764705882,0 0,5 0,25 0,35 0,25.333333333333332 12.083333333333334,30 15,23 15,15 25))
+# Invalid geometry in input
 SELECT ST_ASTEXT(ST_UNION(g,ST_GEOMFROMTEXT(@star_elem_vertical))) FROM gis_geometrycollection WHERE fid=103;
-ST_ASTEXT(ST_UNION(g,ST_GEOMFROMTEXT(@star_elem_vertical)))
-POLYGON((15 25,11 15,0 15,8.870967741935484 9.67741935483871,5 0,15 5,25 0,22 10,30 15,19 15,15 25))
+ERROR 22023: Invalid GIS data provided to function st_union.
 #====================================================================================
 # multipolygon,multipolygon
 #====================================================================================
+# Invalid geometry in input
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 5,5 5,5 0,0 0)))')));
 ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 5,5 5,5 0,0 0)))')))
-MULTIPOLYGON(((5 0,15 5,25 0,15 25,5 0)),((25 0,22 10,30 15,0 15,25 0)),((0 0,5 0,5 5,0 5,0 0)))
+MULTIPOLYGON(((25 0,22 10,30 15,0 15,25 0)),((5 0,15 5,25 0,15 25,5 0)),((5 0,5 5,0 5,0 0,5 0)))
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 5,5 5,5 0,0 0)),((5 5,5 10,10 10,10 5,5 5)))'),
 ST_GEOMFROMTEXT('MULTIPOLYGON(((3 3,3 7,7 7,7 3,3 3)),((9 9,9 15,15 15,15 9,9 9)))')));
 ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 5,5 5,5 0,0 0)),((5 5,5 10,10 10,10 5,5 5)))'),
@@ -738,18 +765,22 @@ POLYGON((3 5,0 5,0 0,5 0,5 3,7 3,7 5,10 5,10 9,15 9,15 15,9 15,9 10,5 10,5 7,3 7
 #====================================================================================
 # multipolygon,geometrycollectionn
 #====================================================================================
+# Invalid geometry in input
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_elems)));
 ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_elems)))
 POLYGON((5 0,15 5,25 0,22 10,30 15,20 15,15 25,10 15,0 15,7 10,5 0))
+# Invalid geometry in input
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_elems_3)));
 ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_elems_3)))
 GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0))),POLYGON((65 0,75 5,85 0,82 10,90 15,80 15,75 25,70 15,60 15,67 10,65 0)))
+# Invalid geometry in input
 SELECT ST_ASTEXT(ST_UNION(g,ST_GEOMFROMTEXT(@star_collection_elems))) FROM gis_geometrycollection WHERE fid=103;
 ST_ASTEXT(ST_UNION(g,ST_GEOMFROMTEXT(@star_collection_elems)))
 POLYGON((5 0,15 5,25 0,22 10,30 15,20 15,15 25,10 15,0 15,7 10,5 0))
 SELECT ST_ASTEXT(ST_UNION(g,g2)) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=115 and fid2=115;
 ST_ASTEXT(ST_UNION(g,g2))
 POLYGON((5 0,15 5,25 0,22 10,30 15,20 15,15 25,10 15,0 15,7 10,5 0))
+# Invalid geometry in input
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_multilinestr)));
 ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_multilinestr)))
 GEOMETRYCOLLECTION(POLYGON((5 0,15 5,25 0,22 10,30 15,20 15,15 25,10 15,0 15,7 10,5 0)),MULTILINESTRING((0 15,15 30,6 15),(4.2 12,0 5)))
@@ -827,11 +858,13 @@ POLYGON((5 0,15 5,25 0,22 10,30 15,20 15,15 25,10 15,0 15,7 10,5 0))
 #====================================================================================
 # geometrycollection,multipolygon
 #====================================================================================
+# Invalid geometry in input
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_of_elems)));
 ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_of_elems)))
 POLYGON((5 0,15 5,25 0,22 10,30 15,20 15,15 25,10 15,0 15,7 10,5 0))
+# Invalid geometry in input
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,15 25,35 0,0 0)),((5 0,15 25,25 0,15 5,5 0)))')));
-ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_union.
+ERROR 22023: Invalid GIS data provided to function st_union.
 SELECT ST_ASTEXT(ST_UNION(g,ST_GEOMFROMTEXT(@star_collection_elems))) FROM gis_geometrycollection WHERE fid=115;
 ST_ASTEXT(ST_UNION(g,ST_GEOMFROMTEXT(@star_collection_elems)))
 POLYGON((5 0,15 5,25 0,22 10,30 15,20 15,15 25,10 15,0 15,7 10,5 0))
@@ -876,27 +909,42 @@ SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(@star_c
 ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(@star_center,100)))
 MULTIPOINT((15 10),(15 25))
 Warnings:
+Warning	3565	There's no spatial reference system with SRID 100. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 100. The axis order is unknown.
 Warning	3519	There's no spatial reference system with SRID 100. Calculations in function st_union will be done in SRID 0.
+Warning	3565	There's no spatial reference system with SRID 100. The axis order is unknown.
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_top,20000),ST_GEOMFROMTEXT(@star_center,20000)));
 ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_top,20000),ST_GEOMFROMTEXT(@star_center,20000)))
 MULTIPOINT((15 10),(15 25))
 Warnings:
+Warning	3565	There's no spatial reference system with SRID 20000. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 20000. The axis order is unknown.
 Warning	3519	There's no spatial reference system with SRID 20000. Calculations in function st_union will be done in SRID 0.
+Warning	3565	There's no spatial reference system with SRID 20000. The axis order is unknown.
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_top,123456),ST_GEOMFROMTEXT(@star_center,123456)));
 ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_top,123456),ST_GEOMFROMTEXT(@star_center,123456)))
 MULTIPOINT((15 10),(15 25))
 Warnings:
+Warning	3565	There's no spatial reference system with SRID 123456. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 123456. The axis order is unknown.
 Warning	3519	There's no spatial reference system with SRID 123456. Calculations in function st_union will be done in SRID 0.
+Warning	3565	There's no spatial reference system with SRID 123456. The axis order is unknown.
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575)));
 ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575)))
 MULTIPOINT((15 10),(15 25))
 Warnings:
+Warning	3565	There's no spatial reference system with SRID 1048575. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 1048575. The axis order is unknown.
 Warning	3519	There's no spatial reference system with SRID 1048575. Calculations in function st_union will be done in SRID 0.
+Warning	3565	There's no spatial reference system with SRID 1048575. The axis order is unknown.
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295)));
 ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295)))
 MULTIPOINT((15 10),(15 25))
 Warnings:
+Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
 Warning	3519	There's no spatial reference system with SRID 4294967295. Calculations in function st_union will be done in SRID 0.
+Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1)));
 ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-1024)));
@@ -914,12 +962,18 @@ SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_top,1048576),ST_GEOMFROMTEXT(@st
 ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_top,1048576),ST_GEOMFROMTEXT(@star_center,1048576)))
 MULTIPOINT((15 10),(15 25))
 Warnings:
+Warning	3565	There's no spatial reference system with SRID 1048576. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 1048576. The axis order is unknown.
 Warning	3519	There's no spatial reference system with SRID 1048576. Calculations in function st_union will be done in SRID 0.
+Warning	3565	There's no spatial reference system with SRID 1048576. The axis order is unknown.
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575)));
 ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575)))
 MULTIPOINT((15 10),(15 25))
 Warnings:
+Warning	3565	There's no spatial reference system with SRID 1048575. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 1048575. The axis order is unknown.
 Warning	3519	There's no spatial reference system with SRID 1048575. Calculations in function st_union will be done in SRID 0.
+Warning	3565	There's no spatial reference system with SRID 1048575. The axis order is unknown.
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0)));
 ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0)))
 MULTIPOINT((15 10),(15 25))
@@ -928,20 +982,25 @@ ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_ASTEXT(ST_UNION(NULL,ST_GEOMFROMTEXT(@star_top)));
 ST_ASTEXT(ST_UNION(NULL,ST_GEOMFROMTEXT(@star_top)))
 NULL
+# Invalid geometry in input
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_of_elems),NULL));
 ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_of_elems),NULL))
 NULL
+# Invalid geometry in input
 SELECT ST_ASTEXT(ST_UNION(g,NULL)) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
 ST_ASTEXT(ST_UNION(g,NULL))
 NULL
 SELECT ST_ASTEXT(ST_UNION(NULL,NULL));
 ST_ASTEXT(ST_UNION(NULL,NULL))
 NULL
+# Invalid geometry in input
 SELECT ST_ASTEXT(ST_UNION(fid,NULL)) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
 ST_ASTEXT(ST_UNION(fid,NULL))
 NULL
+# Invalid geometry in input
 SELECT ST_ASTEXT(ST_UNION(fid,ST_GEOMFROMTEXT(@star_top))) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
 ERROR 22023: Invalid GIS data provided to function st_union.
+# Invalid geometry in input
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_of_elems),fid)) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
 ERROR 22023: Invalid GIS data provided to function st_union.
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('POINT(a 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)')));
@@ -978,18 +1037,23 @@ SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('POLYGON((0 0,10 10,0 0))'),ST_GEOMFRO
 ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(ST_UNION(,));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '))' at line 1
+# Invalid geometry in input
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_of_elems),));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '))' at line 1
 SELECT ST_ASTEXT(ST_UNION(,ST_GEOMFROMTEXT(@star_top)));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ST_GEOMFROMTEXT(@star_top)))' at line 1
+# Invalid geometry in input
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_of_elems)));
-ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_union.
+ERROR 22023: Invalid GIS data provided to function st_union.
+# Invalid geometry in input
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,15 25,35 0,0 0)),((5 0,15 25,25 0,15 5,5 0)))')));
-ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_union.
+ERROR 22023: Invalid GIS data provided to function st_union.
+# Invalid geometry in input
 SELECT ST_ASTEXT(ST_UNION(g,ST_GEOMFROMTEXT(@star_of_elems))) FROM gis_geometrycollection WHERE fid=103;
-ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_union.
+ERROR 22023: Invalid GIS data provided to function st_union.
+# Invalid geometry in input
 SELECT ST_ASTEXT(ST_UNION(g,g2)) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
-ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_union.
+ERROR 22023: Invalid GIS data provided to function st_union.
 CREATE TABLE t1 (pk INT PRIMARY KEY, g GEOMETRY NOT NULL);
 INSERT INTO t1 VALUES (1, ST_GEOMFROMTEXT('POINT(1 1)'));
 INSERT INTO t1 VALUES (2, ST_GEOMFROMTEXT('LINESTRING(1 1, 2 2)'));
@@ -1124,7 +1188,7 @@ GEOMETRYCOLLECTION(POLYGON((0 0,1 0,1 1,0 1,0 0)),POINT(2 2))
 GEOMETRYCOLLECTION(POLYGON((0 0,1 0,1 1,0 1,0 0)),MULTILINESTRING((1 1,2 2),(3 3,4 4)))
 MULTIPOLYGON(((5 5,10 5,10 10,5 10,5 5)),((0 1,0 0,1 0,1 1,0 1)))
 MULTIPOLYGON(((5 5,10 5,10 10,5 10,5 5),(6 6,6 7,7 7,7 6,6 6)),((0 1,0 0,1 0,1 1,0 1)))
-MULTIPOLYGON(((1 1,10 1,10 10,1 10,1 1),(4 4,4 6,6 6,6 4,4 4)),((0 1,0 0,1 0,1 1,0 1)))
+MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((1 1,10 1,10 10,1 10,1 1),(4 4,4 6,6 6,6 4,4 4)))
 POLYGON((0 0,1 0,1 1,0 1,0 0))
 GEOMETRYCOLLECTION(POLYGON((0 0,1 0,1 1,0 1,0 0)),LINESTRING(1 1,2 2))
 POLYGON((0 1,0 0,1 0,1 1,0 1))
@@ -1133,10 +1197,10 @@ GEOMETRYCOLLECTION(POLYGON((0 0,1 0,1 1,0 1,0 0)),POINT(2 2))
 GEOMETRYCOLLECTION(POLYGON((0 0,1 0,1 1,0 1,0 0)),MULTILINESTRING((1 1,2 2),(3 3,4 4)))
 MULTIPOLYGON(((5 5,10 5,10 10,5 10,5 5)),((0 1,0 0,1 0,1 1,0 1)))
 MULTIPOLYGON(((5 5,10 5,10 10,5 10,5 5),(6 6,6 7,7 7,7 6,6 6)),((0 1,0 0,1 0,1 1,0 1)))
-MULTIPOLYGON(((1 1,10 1,10 10,1 10,1 1),(4 4,4 6,6 6,6 4,4 4)),((0 1,0 0,1 0,1 1,0 1)))
+MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((1 1,10 1,10 10,1 10,1 1),(4 4,4 6,6 6,6 4,4 4)))
 POLYGON((0 1,0 0,1 0,10 0,10 5,10 10,5 10,0 10,0 1),(6 5,6 4,4 4,4 6,5 6,5 5,6 5))
 POLYGON((0 1,0 0,1 0,10 0,10 5,10 10,5 10,0 10,0 1),(6 5,6 4,4 4,4 6,5 6,5 5,6 5))
-MULTIPOLYGON(((1 1,10 1,10 10,1 10,1 1),(4 4,4 6,6 6,6 4,4 4)),((0 0,1 0,1 1,0 1,0 0)))
+MULTIPOLYGON(((1 1,10 1,10 10,1 10,1 1),(4 4,4 6,6 6,6 4,4 4)),((1 1,0 1,0 0,1 0,1 1)))
 POLYGON((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4))
 POLYGON((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4))
 POLYGON((0 1,0 0,1 0,10 0,10 10,0 10,0 1),(4 4,4 6,6 6,6 4,4 4))
@@ -1208,7 +1272,7 @@ GEOMETRYCOLLECTION(MULTIPOLYGON(((0 0,1 0,1 1,0 1,0 0)),((5 5,10 5,10 10,5 10,5 
 GEOMETRYCOLLECTION(MULTIPOLYGON(((0 0,1 0,1 1,0 1,0 0)),((5 5,10 5,10 10,5 10,5 5))),MULTILINESTRING((1 1,2 2),(3 3,4 4)))
 MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,5 5,10 5,10 10,5 10)))
 MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,5 5,10 5,10 10,5 10)))
-MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,1 10,1 1,10 1,10 5,10 10,5 10),(5 6,5 5,6 5,6 4,4 4,4 6,5 6)))
+MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((1 1,10 1,10 5,10 10,5 10,1 10,1 1),(5 6,5 5,6 5,6 4,4 4,4 6,5 6)))
 MULTIPOLYGON(((0 0,1 0,1 1,0 1,0 0)),((5 5,10 5,10 10,5 10,5 5)))
 GEOMETRYCOLLECTION(MULTIPOLYGON(((0 0,1 0,1 1,0 1,0 0)),((5 5,10 5,10 10,5 10,5 5))),LINESTRING(1 1,2 2))
 MULTIPOLYGON(((5 5,10 5,10 10,5 10,5 5)),((0 1,0 0,1 0,1 1,0 1)))
@@ -1217,10 +1281,10 @@ GEOMETRYCOLLECTION(MULTIPOLYGON(((0 0,1 0,1 1,0 1,0 0)),((5 5,10 5,10 10,5 10,5 
 GEOMETRYCOLLECTION(MULTIPOLYGON(((0 0,1 0,1 1,0 1,0 0)),((5 5,10 5,10 10,5 10,5 5))),MULTILINESTRING((1 1,2 2),(3 3,4 4)))
 MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,5 5,10 5,10 10,5 10)))
 MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,5 5,10 5,10 10,5 10)))
-MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,1 10,1 1,10 1,10 5,10 10,5 10),(5 6,5 5,6 5,6 4,4 4,4 6,5 6)))
+MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((1 1,10 1,10 5,10 10,5 10,1 10,1 1),(5 6,5 5,6 5,6 4,4 4,4 6,5 6)))
 POLYGON((0 1,0 0,1 0,10 0,10 5,10 10,5 10,0 10,0 1),(6 5,6 4,4 4,4 6,5 6,5 5,6 5))
 POLYGON((0 1,0 0,1 0,10 0,10 5,10 10,5 10,0 10,0 1),(6 5,6 4,4 4,4 6,5 6,5 5,6 5))
-MULTIPOLYGON(((0 0,1 0,1 1,0 1,0 0)),((5 10,1 10,1 1,10 1,10 5,10 10,5 10),(6 5,6 4,4 4,4 6,5 6,5 5,6 5)))
+MULTIPOLYGON(((5 10,1 10,1 1,10 1,10 5,10 10,5 10),(6 5,6 4,4 4,4 6,5 6,5 5,6 5)),((1 1,0 1,0 0,1 0,1 1)))
 MULTIPOLYGON(((0 0,1 0,1 1,0 1,0 0)),((5 5,10 5,10 10,5 10,5 5),(6 6,6 7,7 7,7 6,6 6)))
 GEOMETRYCOLLECTION(MULTIPOLYGON(((0 0,1 0,1 1,0 1,0 0)),((5 5,10 5,10 10,5 10,5 5),(6 6,6 7,7 7,7 6,6 6))),LINESTRING(1 1,2 2))
 MULTIPOLYGON(((5 5,10 5,10 10,5 10,5 5),(6 6,6 7,7 7,7 6,6 6)),((0 1,0 0,1 0,1 1,0 1)))
@@ -1229,7 +1293,7 @@ GEOMETRYCOLLECTION(MULTIPOLYGON(((0 0,1 0,1 1,0 1,0 0)),((5 5,10 5,10 10,5 10,5 
 GEOMETRYCOLLECTION(MULTIPOLYGON(((0 0,1 0,1 1,0 1,0 0)),((5 5,10 5,10 10,5 10,5 5),(6 6,6 7,7 7,7 6,6 6))),MULTILINESTRING((1 1,2 2),(3 3,4 4)))
 MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,5 5,10 5,10 10,5 10)))
 MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,5 5,10 5,10 10,5 10),(7 6,6 6,6 7,7 7,7 6)))
-MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,1 10,1 1,10 1,10 5,10 10,5 10),(5 6,5 5,6 5,6 4,4 4,4 6,5 6)))
+MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((1 1,10 1,10 5,10 10,5 10,1 10,1 1),(5 6,5 5,6 5,6 4,4 4,4 6,5 6)))
 MULTIPOLYGON(((0 0,1 0,1 1,0 1,0 0)),((5 5,10 5,10 10,5 10,5 5),(6 6,6 7,7 7,7 6,6 6)))
 GEOMETRYCOLLECTION(MULTIPOLYGON(((0 0,1 0,1 1,0 1,0 0)),((5 5,10 5,10 10,5 10,5 5),(6 6,6 7,7 7,7 6,6 6))),LINESTRING(1 1,2 2))
 MULTIPOLYGON(((5 5,10 5,10 10,5 10,5 5),(6 6,6 7,7 7,7 6,6 6)),((0 1,0 0,1 0,1 1,0 1)))
@@ -1238,28 +1302,28 @@ GEOMETRYCOLLECTION(MULTIPOLYGON(((0 0,1 0,1 1,0 1,0 0)),((5 5,10 5,10 10,5 10,5 
 GEOMETRYCOLLECTION(MULTIPOLYGON(((0 0,1 0,1 1,0 1,0 0)),((5 5,10 5,10 10,5 10,5 5),(6 6,6 7,7 7,7 6,6 6))),MULTILINESTRING((1 1,2 2),(3 3,4 4)))
 MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,5 5,10 5,10 10,5 10)))
 MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,5 5,10 5,10 10,5 10),(7 6,6 6,6 7,7 7,7 6)))
-MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,1 10,1 1,10 1,10 5,10 10,5 10),(5 6,5 5,6 5,6 4,4 4,4 6,5 6)))
+MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((1 1,10 1,10 5,10 10,5 10,1 10,1 1),(5 6,5 5,6 5,6 4,4 4,4 6,5 6)))
 POLYGON((0 1,0 0,1 0,10 0,10 5,10 10,5 10,0 10,0 1),(6 5,6 4,4 4,4 6,5 6,5 5,6 5))
 POLYGON((0 1,0 0,1 0,10 0,10 5,10 10,5 10,0 10,0 1),(6 5,6 4,4 4,4 6,5 6,5 5,6 5))
-MULTIPOLYGON(((0 0,1 0,1 1,0 1,0 0)),((5 10,1 10,1 1,10 1,10 5,10 10,5 10),(6 5,6 4,4 4,4 6,5 6,5 5,6 5)))
+MULTIPOLYGON(((5 10,1 10,1 1,10 1,10 5,10 10,5 10),(6 5,6 4,4 4,4 6,5 6,5 5,6 5)),((1 1,0 1,0 0,1 0,1 1)))
 MULTIPOLYGON(((0 0,1 0,1 1,0 1,0 0)),((1 1,10 1,10 10,1 10,1 1),(4 4,4 6,6 6,6 4,4 4)))
 MULTIPOLYGON(((0 0,1 0,1 1,0 1,0 0)),((1 1,10 1,10 10,1 10,1 1),(4 4,4 6,6 6,6 4,4 4)))
-MULTIPOLYGON(((1 1,10 1,10 10,1 10,1 1),(4 4,4 6,6 6,6 4,4 4)),((0 1,0 0,1 0,1 1,0 1)))
+MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((1 1,10 1,10 10,1 10,1 1),(4 4,4 6,6 6,6 4,4 4)))
 POLYGON((0 1,0 0,1 0,10 0,10 1,10 10,1 10,0 10,0 1),(6 4,4 4,4 6,6 6,6 4))
 MULTIPOLYGON(((0 0,1 0,1 1,0 1,0 0)),((1 1,10 1,10 10,1 10,1 1),(4 4,4 6,6 6,6 4,4 4)))
 MULTIPOLYGON(((0 0,1 0,1 1,0 1,0 0)),((1 1,10 1,10 10,1 10,1 1),(4 4,4 6,6 6,6 4,4 4)))
 MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,1 10,1 1,10 1,10 5,10 10,5 10),(6 5,6 4,4 4,4 6,5 6,5 5,6 5)))
 MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,1 10,1 1,10 1,10 5,10 10,5 10),(6 5,6 4,4 4,4 6,5 6,5 5,6 5)))
-MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((1 10,1 1,10 1,10 10,1 10),(6 4,4 4,4 6,6 6,6 4)))
+MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((1 1,10 1,10 10,1 10,1 1),(6 4,4 4,4 6,6 6,6 4)))
 MULTIPOLYGON(((0 0,1 0,1 1,0 1,0 0)),((1 1,10 1,10 10,1 10,1 1),(4 4,4 6,6 6,6 4,4 4)))
 MULTIPOLYGON(((0 0,1 0,1 1,0 1,0 0)),((1 1,10 1,10 10,1 10,1 1),(4 4,4 6,6 6,6 4,4 4)))
-MULTIPOLYGON(((1 1,10 1,10 10,1 10,1 1),(4 4,4 6,6 6,6 4,4 4)),((0 1,0 0,1 0,1 1,0 1)))
+MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((1 1,10 1,10 10,1 10,1 1),(4 4,4 6,6 6,6 4,4 4)))
 POLYGON((0 1,0 0,1 0,10 0,10 1,10 10,1 10,0 10,0 1),(6 4,4 4,4 6,6 6,6 4))
 MULTIPOLYGON(((0 0,1 0,1 1,0 1,0 0)),((1 1,10 1,10 10,1 10,1 1),(4 4,4 6,6 6,6 4,4 4)))
 MULTIPOLYGON(((0 0,1 0,1 1,0 1,0 0)),((1 1,10 1,10 10,1 10,1 1),(4 4,4 6,6 6,6 4,4 4)))
 MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,1 10,1 1,10 1,10 5,10 10,5 10),(6 5,6 4,4 4,4 6,5 6,5 5,6 5)))
 MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,1 10,1 1,10 1,10 5,10 10,5 10),(6 5,6 4,4 4,4 6,5 6,5 5,6 5)))
-MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((1 10,1 1,10 1,10 10,1 10),(6 4,4 4,4 6,6 6,6 4)))
+MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((1 1,10 1,10 10,1 10,1 1),(6 4,4 4,4 6,6 6,6 4)))
 POLYGON((0 1,0 0,1 0,10 0,10 5,10 10,5 10,0 10,0 1),(6 5,6 4,4 4,4 6,5 6,5 5,6 5))
 POLYGON((0 1,0 0,1 0,10 0,10 5,10 10,5 10,0 10,0 1),(6 5,6 4,4 4,4 6,5 6,5 5,6 5))
 MULTIPOLYGON(((0 0,1 0,1 1,0 1,0 0)),((1 1,10 1,10 10,1 10,1 1),(4 4,4 6,6 6,6 4,4 4)))
@@ -1313,7 +1377,7 @@ GEOMETRYCOLLECTION(POLYGON((0 0,1 0,1 1,0 1,0 0)),POINT(2 2))
 GEOMETRYCOLLECTION(POLYGON((0 0,1 0,1 1,0 1,0 0)),MULTILINESTRING((1 1,2 2),(3 3,4 4)))
 MULTIPOLYGON(((5 5,10 5,10 10,5 10,5 5)),((0 1,0 0,1 0,1 1,0 1)))
 MULTIPOLYGON(((5 5,10 5,10 10,5 10,5 5),(6 6,6 7,7 7,7 6,6 6)),((0 1,0 0,1 0,1 1,0 1)))
-MULTIPOLYGON(((1 1,10 1,10 10,1 10,1 1),(4 4,4 6,6 6,6 4,4 4)),((0 1,0 0,1 0,1 1,0 1)))
+MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((1 1,10 1,10 10,1 10,1 1),(4 4,4 6,6 6,6 4,4 4)))
 POLYGON((0 0,1 0,1 1,0 1,0 0))
 GEOMETRYCOLLECTION(POLYGON((0 0,1 0,1 1,0 1,0 0)),LINESTRING(1 1,2 2))
 POLYGON((0 1,0 0,1 0,1 1,0 1))
@@ -1322,10 +1386,10 @@ GEOMETRYCOLLECTION(POLYGON((0 0,1 0,1 1,0 1,0 0)),POINT(2 2))
 GEOMETRYCOLLECTION(POLYGON((0 0,1 0,1 1,0 1,0 0)),MULTILINESTRING((1 1,2 2),(3 3,4 4)))
 MULTIPOLYGON(((5 5,10 5,10 10,5 10,5 5)),((0 1,0 0,1 0,1 1,0 1)))
 MULTIPOLYGON(((5 5,10 5,10 10,5 10,5 5),(6 6,6 7,7 7,7 6,6 6)),((0 1,0 0,1 0,1 1,0 1)))
-MULTIPOLYGON(((1 1,10 1,10 10,1 10,1 1),(4 4,4 6,6 6,6 4,4 4)),((0 1,0 0,1 0,1 1,0 1)))
+MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((1 1,10 1,10 10,1 10,1 1),(4 4,4 6,6 6,6 4,4 4)))
 POLYGON((0 1,0 0,1 0,10 0,10 5,10 10,5 10,0 10,0 1),(6 5,6 4,4 4,4 6,5 6,5 5,6 5))
 POLYGON((0 1,0 0,1 0,10 0,10 5,10 10,5 10,0 10,0 1),(6 5,6 4,4 4,4 6,5 6,5 5,6 5))
-MULTIPOLYGON(((1 1,10 1,10 10,1 10,1 1),(4 4,4 6,6 6,6 4,4 4)),((0 0,1 0,1 1,0 1,0 0)))
+MULTIPOLYGON(((1 1,10 1,10 10,1 10,1 1),(4 4,4 6,6 6,6 4,4 4)),((1 1,0 1,0 0,1 0,1 1)))
 POLYGON((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4))
 POLYGON((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4))
 POLYGON((0 1,0 0,1 0,10 0,10 10,0 10,0 1),(4 4,4 6,6 6,6 4,4 4))
@@ -1397,7 +1461,7 @@ GEOMETRYCOLLECTION(MULTIPOLYGON(((0 0,1 0,1 1,0 1,0 0)),((5 5,10 5,10 10,5 10,5 
 GEOMETRYCOLLECTION(MULTIPOLYGON(((0 0,1 0,1 1,0 1,0 0)),((5 5,10 5,10 10,5 10,5 5))),MULTILINESTRING((1 1,2 2),(3 3,4 4)))
 MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,5 5,10 5,10 10,5 10)))
 MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,5 5,10 5,10 10,5 10)))
-MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,1 10,1 1,10 1,10 5,10 10,5 10),(5 6,5 5,6 5,6 4,4 4,4 6,5 6)))
+MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((1 1,10 1,10 5,10 10,5 10,1 10,1 1),(5 6,5 5,6 5,6 4,4 4,4 6,5 6)))
 MULTIPOLYGON(((0 0,1 0,1 1,0 1,0 0)),((5 5,10 5,10 10,5 10,5 5)))
 GEOMETRYCOLLECTION(MULTIPOLYGON(((0 0,1 0,1 1,0 1,0 0)),((5 5,10 5,10 10,5 10,5 5))),LINESTRING(1 1,2 2))
 MULTIPOLYGON(((5 5,10 5,10 10,5 10,5 5)),((0 1,0 0,1 0,1 1,0 1)))
@@ -1406,10 +1470,10 @@ GEOMETRYCOLLECTION(MULTIPOLYGON(((0 0,1 0,1 1,0 1,0 0)),((5 5,10 5,10 10,5 10,5 
 GEOMETRYCOLLECTION(MULTIPOLYGON(((0 0,1 0,1 1,0 1,0 0)),((5 5,10 5,10 10,5 10,5 5))),MULTILINESTRING((1 1,2 2),(3 3,4 4)))
 MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,5 5,10 5,10 10,5 10)))
 MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,5 5,10 5,10 10,5 10)))
-MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,1 10,1 1,10 1,10 5,10 10,5 10),(5 6,5 5,6 5,6 4,4 4,4 6,5 6)))
+MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((1 1,10 1,10 5,10 10,5 10,1 10,1 1),(5 6,5 5,6 5,6 4,4 4,4 6,5 6)))
 POLYGON((0 1,0 0,1 0,10 0,10 5,10 10,5 10,0 10,0 1),(6 5,6 4,4 4,4 6,5 6,5 5,6 5))
 POLYGON((0 1,0 0,1 0,10 0,10 5,10 10,5 10,0 10,0 1),(6 5,6 4,4 4,4 6,5 6,5 5,6 5))
-MULTIPOLYGON(((0 0,1 0,1 1,0 1,0 0)),((5 10,1 10,1 1,10 1,10 5,10 10,5 10),(6 5,6 4,4 4,4 6,5 6,5 5,6 5)))
+MULTIPOLYGON(((5 10,1 10,1 1,10 1,10 5,10 10,5 10),(6 5,6 4,4 4,4 6,5 6,5 5,6 5)),((1 1,0 1,0 0,1 0,1 1)))
 MULTIPOLYGON(((0 0,1 0,1 1,0 1,0 0)),((5 5,10 5,10 10,5 10,5 5),(6 6,6 7,7 7,7 6,6 6)))
 GEOMETRYCOLLECTION(MULTIPOLYGON(((0 0,1 0,1 1,0 1,0 0)),((5 5,10 5,10 10,5 10,5 5),(6 6,6 7,7 7,7 6,6 6))),LINESTRING(1 1,2 2))
 MULTIPOLYGON(((5 5,10 5,10 10,5 10,5 5),(6 6,6 7,7 7,7 6,6 6)),((0 1,0 0,1 0,1 1,0 1)))
@@ -1418,7 +1482,7 @@ GEOMETRYCOLLECTION(MULTIPOLYGON(((0 0,1 0,1 1,0 1,0 0)),((5 5,10 5,10 10,5 10,5 
 GEOMETRYCOLLECTION(MULTIPOLYGON(((0 0,1 0,1 1,0 1,0 0)),((5 5,10 5,10 10,5 10,5 5),(6 6,6 7,7 7,7 6,6 6))),MULTILINESTRING((1 1,2 2),(3 3,4 4)))
 MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,5 5,10 5,10 10,5 10)))
 MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,5 5,10 5,10 10,5 10),(7 6,6 6,6 7,7 7,7 6)))
-MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,1 10,1 1,10 1,10 5,10 10,5 10),(5 6,5 5,6 5,6 4,4 4,4 6,5 6)))
+MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((1 1,10 1,10 5,10 10,5 10,1 10,1 1),(5 6,5 5,6 5,6 4,4 4,4 6,5 6)))
 MULTIPOLYGON(((0 0,1 0,1 1,0 1,0 0)),((5 5,10 5,10 10,5 10,5 5),(6 6,6 7,7 7,7 6,6 6)))
 GEOMETRYCOLLECTION(MULTIPOLYGON(((0 0,1 0,1 1,0 1,0 0)),((5 5,10 5,10 10,5 10,5 5),(6 6,6 7,7 7,7 6,6 6))),LINESTRING(1 1,2 2))
 MULTIPOLYGON(((5 5,10 5,10 10,5 10,5 5),(6 6,6 7,7 7,7 6,6 6)),((0 1,0 0,1 0,1 1,0 1)))
@@ -1427,28 +1491,28 @@ GEOMETRYCOLLECTION(MULTIPOLYGON(((0 0,1 0,1 1,0 1,0 0)),((5 5,10 5,10 10,5 10,5 
 GEOMETRYCOLLECTION(MULTIPOLYGON(((0 0,1 0,1 1,0 1,0 0)),((5 5,10 5,10 10,5 10,5 5),(6 6,6 7,7 7,7 6,6 6))),MULTILINESTRING((1 1,2 2),(3 3,4 4)))
 MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,5 5,10 5,10 10,5 10)))
 MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,5 5,10 5,10 10,5 10),(7 6,6 6,6 7,7 7,7 6)))
-MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,1 10,1 1,10 1,10 5,10 10,5 10),(5 6,5 5,6 5,6 4,4 4,4 6,5 6)))
+MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((1 1,10 1,10 5,10 10,5 10,1 10,1 1),(5 6,5 5,6 5,6 4,4 4,4 6,5 6)))
 POLYGON((0 1,0 0,1 0,10 0,10 5,10 10,5 10,0 10,0 1),(6 5,6 4,4 4,4 6,5 6,5 5,6 5))
 POLYGON((0 1,0 0,1 0,10 0,10 5,10 10,5 10,0 10,0 1),(6 5,6 4,4 4,4 6,5 6,5 5,6 5))
-MULTIPOLYGON(((0 0,1 0,1 1,0 1,0 0)),((5 10,1 10,1 1,10 1,10 5,10 10,5 10),(6 5,6 4,4 4,4 6,5 6,5 5,6 5)))
+MULTIPOLYGON(((5 10,1 10,1 1,10 1,10 5,10 10,5 10),(6 5,6 4,4 4,4 6,5 6,5 5,6 5)),((1 1,0 1,0 0,1 0,1 1)))
 MULTIPOLYGON(((0 0,1 0,1 1,0 1,0 0)),((1 1,10 1,10 10,1 10,1 1),(4 4,4 6,6 6,6 4,4 4)))
 MULTIPOLYGON(((0 0,1 0,1 1,0 1,0 0)),((1 1,10 1,10 10,1 10,1 1),(4 4,4 6,6 6,6 4,4 4)))
-MULTIPOLYGON(((1 1,10 1,10 10,1 10,1 1),(4 4,4 6,6 6,6 4,4 4)),((0 1,0 0,1 0,1 1,0 1)))
+MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((1 1,10 1,10 10,1 10,1 1),(4 4,4 6,6 6,6 4,4 4)))
 POLYGON((0 1,0 0,1 0,10 0,10 1,10 10,1 10,0 10,0 1),(6 4,4 4,4 6,6 6,6 4))
 MULTIPOLYGON(((0 0,1 0,1 1,0 1,0 0)),((1 1,10 1,10 10,1 10,1 1),(4 4,4 6,6 6,6 4,4 4)))
 MULTIPOLYGON(((0 0,1 0,1 1,0 1,0 0)),((1 1,10 1,10 10,1 10,1 1),(4 4,4 6,6 6,6 4,4 4)))
 MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,1 10,1 1,10 1,10 5,10 10,5 10),(6 5,6 4,4 4,4 6,5 6,5 5,6 5)))
 MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,1 10,1 1,10 1,10 5,10 10,5 10),(6 5,6 4,4 4,4 6,5 6,5 5,6 5)))
-MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((1 10,1 1,10 1,10 10,1 10),(6 4,4 4,4 6,6 6,6 4)))
+MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((1 1,10 1,10 10,1 10,1 1),(6 4,4 4,4 6,6 6,6 4)))
 MULTIPOLYGON(((0 0,1 0,1 1,0 1,0 0)),((1 1,10 1,10 10,1 10,1 1),(4 4,4 6,6 6,6 4,4 4)))
 MULTIPOLYGON(((0 0,1 0,1 1,0 1,0 0)),((1 1,10 1,10 10,1 10,1 1),(4 4,4 6,6 6,6 4,4 4)))
-MULTIPOLYGON(((1 1,10 1,10 10,1 10,1 1),(4 4,4 6,6 6,6 4,4 4)),((0 1,0 0,1 0,1 1,0 1)))
+MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((1 1,10 1,10 10,1 10,1 1),(4 4,4 6,6 6,6 4,4 4)))
 POLYGON((0 1,0 0,1 0,10 0,10 1,10 10,1 10,0 10,0 1),(6 4,4 4,4 6,6 6,6 4))
 MULTIPOLYGON(((0 0,1 0,1 1,0 1,0 0)),((1 1,10 1,10 10,1 10,1 1),(4 4,4 6,6 6,6 4,4 4)))
 MULTIPOLYGON(((0 0,1 0,1 1,0 1,0 0)),((1 1,10 1,10 10,1 10,1 1),(4 4,4 6,6 6,6 4,4 4)))
 MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,1 10,1 1,10 1,10 5,10 10,5 10),(6 5,6 4,4 4,4 6,5 6,5 5,6 5)))
 MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,1 10,1 1,10 1,10 5,10 10,5 10),(6 5,6 4,4 4,4 6,5 6,5 5,6 5)))
-MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((1 10,1 1,10 1,10 10,1 10),(6 4,4 4,4 6,6 6,6 4)))
+MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((1 1,10 1,10 10,1 10,1 1),(6 4,4 4,4 6,6 6,6 4)))
 POLYGON((0 1,0 0,1 0,10 0,10 5,10 10,5 10,0 10,0 1),(6 5,6 4,4 4,4 6,5 6,5 5,6 5))
 POLYGON((0 1,0 0,1 0,10 0,10 5,10 10,5 10,0 10,0 1),(6 5,6 4,4 4,4 6,5 6,5 5,6 5))
 MULTIPOLYGON(((0 0,1 0,1 1,0 1,0 0)),((1 1,10 1,10 10,1 10,1 1),(4 4,4 6,6 6,6 4,4 4)))
@@ -1496,21 +1560,21 @@ POLYGON((0 1,0 0,1 0,10 0,10 5,10 10,5 10,0 10,0 1),(6 5,6 4,4 4,4 6,5 6,5 5,6 5
 POLYGON((0 1,0 0,1 0,10 0,10 5,10 10,5 10,0 10,0 1),(6 5,6 4,4 4,4 6,5 6,5 5,6 5))
 POLYGON((1 1,10 1,10 10,1 10,1 1),(4 4,4 6,6 6,6 4,4 4))
 POLYGON((1 1,10 1,10 10,1 10,1 1),(4 4,4 6,6 6,6 4,4 4))
-MULTIPOLYGON(((1 1,10 1,10 10,1 10,1 1),(4 4,4 6,6 6,6 4,4 4)),((0 0,1 0,1 1,0 1,0 0)))
+MULTIPOLYGON(((1 1,10 1,10 10,1 10,1 1),(4 4,4 6,6 6,6 4,4 4)),((1 1,0 1,0 0,1 0,1 1)))
 POLYGON((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4))
 POLYGON((1 1,10 1,10 10,1 10,1 1),(4 4,4 6,6 6,6 4,4 4))
 POLYGON((1 1,10 1,10 10,1 10,1 1),(4 4,4 6,6 6,6 4,4 4))
-MULTIPOLYGON(((0 0,1 0,1 1,0 1,0 0)),((5 10,1 10,1 1,10 1,10 5,10 10,5 10),(6 5,6 4,4 4,4 6,5 6,5 5,6 5)))
-MULTIPOLYGON(((0 0,1 0,1 1,0 1,0 0)),((5 10,1 10,1 1,10 1,10 5,10 10,5 10),(6 5,6 4,4 4,4 6,5 6,5 5,6 5)))
+MULTIPOLYGON(((5 10,1 10,1 1,10 1,10 5,10 10,5 10),(6 5,6 4,4 4,4 6,5 6,5 5,6 5)),((1 1,0 1,0 0,1 0,1 1)))
+MULTIPOLYGON(((5 10,1 10,1 1,10 1,10 5,10 10,5 10),(6 5,6 4,4 4,4 6,5 6,5 5,6 5)),((1 1,0 1,0 0,1 0,1 1)))
 MULTIPOLYGON(((0 0,1 0,1 1,0 1,0 0)),((1 1,10 1,10 10,1 10,1 1),(4 4,4 6,6 6,6 4,4 4)))
 POLYGON((1 1,10 1,10 10,1 10,1 1),(4 4,4 6,6 6,6 4,4 4))
 POLYGON((1 1,10 1,10 10,1 10,1 1),(4 4,4 6,6 6,6 4,4 4))
-MULTIPOLYGON(((1 1,10 1,10 10,1 10,1 1),(4 4,4 6,6 6,6 4,4 4)),((0 0,1 0,1 1,0 1,0 0)))
+MULTIPOLYGON(((1 1,10 1,10 10,1 10,1 1),(4 4,4 6,6 6,6 4,4 4)),((1 1,0 1,0 0,1 0,1 1)))
 POLYGON((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4))
 POLYGON((1 1,10 1,10 10,1 10,1 1),(4 4,4 6,6 6,6 4,4 4))
 POLYGON((1 1,10 1,10 10,1 10,1 1),(4 4,4 6,6 6,6 4,4 4))
-MULTIPOLYGON(((0 0,1 0,1 1,0 1,0 0)),((5 10,1 10,1 1,10 1,10 5,10 10,5 10),(6 5,6 4,4 4,4 6,5 6,5 5,6 5)))
-MULTIPOLYGON(((0 0,1 0,1 1,0 1,0 0)),((5 10,1 10,1 1,10 1,10 5,10 10,5 10),(6 5,6 4,4 4,4 6,5 6,5 5,6 5)))
+MULTIPOLYGON(((5 10,1 10,1 1,10 1,10 5,10 10,5 10),(6 5,6 4,4 4,4 6,5 6,5 5,6 5)),((1 1,0 1,0 0,1 0,1 1)))
+MULTIPOLYGON(((5 10,1 10,1 1,10 1,10 5,10 10,5 10),(6 5,6 4,4 4,4 6,5 6,5 5,6 5)),((1 1,0 1,0 0,1 0,1 1)))
 MULTIPOLYGON(((0 0,1 0,1 1,0 1,0 0)),((1 1,10 1,10 10,1 10,1 1),(4 4,4 6,6 6,6 4,4 4)))
 POLYGON((0 1,0 0,1 0,10 0,10 5,10 10,5 10,0 10,0 1),(6 5,6 4,4 4,4 6,5 6,5 5,6 5))
 POLYGON((0 1,0 0,1 0,10 0,10 5,10 10,5 10,0 10,0 1),(6 5,6 4,4 4,4 6,5 6,5 5,6 5))
@@ -1573,7 +1637,10 @@ ST_GEOMFROMTEXT('POINT(0 0)', 24000000)
 ))
 POINT(0 0)
 Warnings:
+Warning	3565	There's no spatial reference system with SRID 24000000. The axis order is unknown.
+Warning	3565	There's no spatial reference system with SRID 24000000. The axis order is unknown.
 Warning	3519	There's no spatial reference system with SRID 24000000. Calculations in function st_union will be done in SRID 0.
+Warning	3565	There's no spatial reference system with SRID 24000000. The axis order is unknown.
 # Unparseable SRS definition (should fail)
 INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
 organization, organization_coordsys_id, definition, description)

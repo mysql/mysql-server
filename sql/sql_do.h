@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,24 +16,36 @@
 #ifndef SQL_DO_INCLUDED
 #define SQL_DO_INCLUDED
 
-#include "my_global.h"
-#include "query_result.h"
- 
-class THD;
-struct LEX;
+#include <sys/types.h>
 
-class Query_result_do :public Query_result
+#include "my_sqlcommand.h"
+#include "query_result.h"
+#include "sql_select.h"
+
+class Item;
+class THD;
+template <class T> class List;
+
+class Sql_cmd_do final : public Sql_cmd_select
+{
+public:
+  explicit Sql_cmd_do(Query_result *result_arg) : Sql_cmd_select(result_arg)
+  {}
+
+  enum_sql_command sql_command_code() const override { return SQLCOM_DO; }
+};
+
+class Query_result_do final : public Query_result
 {
 public:
   Query_result_do(THD *thd): Query_result(thd) {}
-  bool send_result_set_metadata(List<Item> &list, uint flags) { return false; }
-  bool send_data(List<Item> &items);
-  bool send_eof();
-  virtual bool check_simple_select() const { return false; }
-  void abort_result_set() {}
-  virtual void cleanup() {}
+  bool send_result_set_metadata(List<Item>&, uint) override
+  { return false; }
+  bool send_data(List<Item> &items) override;
+  bool send_eof() override;
+  bool check_simple_select() const override { return false; }
+  void abort_result_set() override {}
+  void cleanup() override {}
 };
-
-bool mysql_do(THD *thd, LEX *lex);
 
 #endif /* SQL_DO_INCLUDED */

@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,9 +17,10 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/include
   ${CMAKE_BINARY_DIR}/include
   ${CMAKE_SOURCE_DIR}/libmysql
-  ${CMAKE_SOURCE_DIR}/regex
+  ${CMAKE_SOURCE_DIR}/extra/regex
   ${CMAKE_SOURCE_DIR}/sql
   ${CMAKE_SOURCE_DIR}/strings
+  ${CMAKE_SOURCE_DIR}/libbinlogevents/include
   ${SSL_INCLUDE_DIRS}
   ${SSL_INTERNAL_INCLUDE_DIRS}
   ${ZLIB_INCLUDE_DIR})
@@ -95,6 +96,7 @@ mysql_select_db
 mysql_stmt_send_long_data
 # We need to have document for this api
 mysql_send_query
+mysql_shutdown
 mysql_ssl_set
 mysql_stat
 mysql_stmt_affected_rows
@@ -164,15 +166,13 @@ CACHE INTERNAL "Undocumented functions exported by client API"
 )
 
 SET(CLIENT_SOURCES
-  get_password.c 
-  libmysql.c
-  errmsg.c
+  get_password.cc
+  libmysql.cc
+  errmsg.cc
   ../sql-common/client.cc
-  ../sql-common/my_time.c 
   ../sql-common/client_plugin.c 
   ../sql-common/client_authentication.cc
-  ../sql/net_serv.cc
-  ../sql-common/pack.c 
+  ../sql-common/net_serv.cc
   ../sql/auth/password.c
 )
 
@@ -201,7 +201,6 @@ IF (WITH_CLIENT_PROTOCOL_TRACING)
 ENDIF (WITH_CLIENT_PROTOCOL_TRACING)
 
 ADD_CONVENIENCE_LIBRARY(clientlib ${CLIENT_SOURCES})
-DTRACE_INSTRUMENT(clientlib)
 ADD_DEPENDENCIES(clientlib GenError)
 
 SET(LIBS clientlib dbug strings vio mysys mysys_ssl ${ZLIB_LIBRARY} ${SSL_LIBRARIES} ${LIBDL})
@@ -271,15 +270,6 @@ IF(NOT DISABLE_SHARED)
         INSTALL_NAME_DIR "${CMAKE_INSTALL_PREFIX}/${INSTALL_LIBDIR}"
       )
     ENDIF()
-
-    GET_TARGET_PROPERTY(libmysql_link_flags libmysql LINK_FLAGS)
-    IF(NOT libmysql_link_flag)
-      SET(libmysql_link_flags)
-    ENDIF()
-    SET(libmysql_link_flags
-      "${CMAKE_SHARED_LIBRARY_C_FLAGS} ${libmysql_link_flags}")
-    SET_TARGET_PROPERTIES(libmysql
-      PROPERTIES LINK_FLAGS "${libmysql_link_flags}")
 
     IF(LINK_FLAG_NO_UNDEFINED)
       SET(libmysql_link_flags

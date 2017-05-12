@@ -410,6 +410,7 @@ delete from mysql.user where user='mysqltest_3';
 delete from mysql.db where user="mysqltest_3";
 delete from mysql.tables_priv where user="mysqltest_3";
 delete from mysql.columns_priv where user="mysqltest_3";
+delete from mysql.global_grants where user="mysqltest_3";
 flush privileges;
 drop database mysqltest_1;
 drop database mysqltest_2;
@@ -418,6 +419,7 @@ disconnect conn2;
 #
 # just SHOW PRIVILEGES test
 #
+--sorted_result
 SHOW PRIVILEGES;
 
 #

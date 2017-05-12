@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -51,22 +51,52 @@
   cursor points at the first record).
 */
 
-#include "sql_handler.h"
+#include "sql/sql_handler.h"
 
+#include <limits.h>
+#include <string.h>
+#include <sys/types.h>
+
+#include "auth_acls.h"
 #include "auth_common.h"                        // check_table_access
-#include "sql_base.h"                           // close_thread_tables
-#include "lock.h"                               // mysql_unlock_tables
-#include "key.h"                                // key_copy
-#include "psi_memory_key.h"
-#include "sql_base.h"                           // insert_fields
-#include "sql_select.h"
-#include "sql_audit.h"                          // mysql_audit_table_access_notify
-#include "transaction.h"
-#include "log.h"
-#include "template_utils.h"
-#include "error_handler.h"
-
 #include "dd/types/abstract_table.h"            // dd::enum_table_type
+#include "error_handler.h"
+#include "field.h"
+#include "handler.h"
+#include "hash.h"
+#include "item.h"
+#include "key.h"                                // key_copy
+#include "lex_string.h"
+#include "lock.h"                               // mysql_unlock_tables
+#include "log.h"
+#include "m_ctype.h"
+#include "mdl.h"
+#include "my_bitmap.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_pointer_arithmetic.h"
+#include "my_sys.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysqld_error.h"
+#include "protocol.h"
+#include "psi_memory_key.h"
+#include "sql_audit.h"                          // mysql_audit_table_access_notify
+#include "sql_base.h"                           // close_thread_tables
+#include "sql_class.h"
+#include "sql_const.h"
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_security_ctx.h"
+#include "sql_string.h"
+#include "system_variables.h"
+#include "table.h"
+#include "template_utils.h"
+#include "transaction.h"
+#include "transaction_info.h"
+#include "typelib.h"
+#include "xa.h"
 
 #define HANDLER_TABLES_HASH_SIZE 120
 
@@ -258,6 +288,11 @@ bool Sql_cmd_handler_open::execute(THD *thd)
   hash_tables->table_name= name;
   hash_tables->alias= alias;
   hash_tables->set_tableno(0);
+  /*
+    The current SELECT_LEX won't exist when this TABLE_LIST is used by HANDLER
+    READ, so zero it:
+  */
+  hash_tables->select_lex= NULL;
   memcpy(const_cast<char*>(hash_tables->db), tables->db, dblen);
   memcpy(const_cast<char*>(hash_tables->table_name),
          tables->table_name, namelen);
@@ -507,7 +542,8 @@ bool Sql_cmd_handler_read::execute(THD *thd)
   */
 
   /* Get limit counters from SELECT_LEX. */
-  unit->set_limit(select_lex);
+  unit->prepare_limit(thd, select_lex);
+  unit->set_limit(thd, select_lex);
   select_limit_cnt= unit->select_limit_cnt;
   offset_limit_cnt= unit->offset_limit_cnt;
 
@@ -688,10 +724,8 @@ retry:
   if (res)
     goto err;
 
-#ifndef EMBEDDED_LIBRARY
   if (mysql_audit_table_access_notify(thd, hash_tables))
     goto err;
-#endif /* !EMBEDDED_LIBRARY */
 
   /*
     In ::external_lock InnoDB resets the fields which tell it that

@@ -3,14 +3,6 @@ set default_storage_engine=ndb;
 # ----------------------------------------------------------------------
 SET NAMES utf8;
 CREATE TABLE t1 (pk int  NOT NULL PRIMARY KEY AUTO_INCREMENT, i INT, j JSON);
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `pk` int(11) NOT NULL AUTO_INCREMENT,
-  `i` int(11) DEFAULT NULL,
-  `j` json DEFAULT NULL,
-  PRIMARY KEY (`pk`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 INSERT INTO t1(i, j) VALUES (0, NULL);
 INSERT INTO t1(i, j) VALUES (1, '{"a": 2}');
 INSERT INTO t1(i, j) VALUES (2, '[1,2]');
@@ -6413,36 +6405,36 @@ drop table jtable;
 select coalesce(cast(1 as json), cast(2 as json));
 coalesce(cast(1 as json), cast(2 as json))
 1
-select coalesce(j, cast(3 as json)) from t order by c;
-coalesce(j, cast(3 as json))
-2
-7
-[1, 2, 3]
-select coalesce(j, 666) from t order by c;
-coalesce(j, 666)
-2
-7
-[1, 2, 3]
-select json_type(coalesce(j, '[1,2,3]')) from t order by c;
-json_type(coalesce(j, '[1,2,3]'))
-INTEGER
-INTEGER
-ARRAY
-select json_type(coalesce(j, 'abc')) from t order by c;
-json_type(coalesce(j, 'abc'))
-INTEGER
-INTEGER
-ARRAY
-select json_type(coalesce(j, cast('"arg2"' as json))) from t order by c;
-json_type(coalesce(j, cast('"arg2"' as json)))
-INTEGER
-INTEGER
-ARRAY
-select json_type(coalesce(j, j)) from t order by c;
-json_type(coalesce(j, j))
-INTEGER
-INTEGER
-ARRAY
+select j, coalesce(j, cast(3 as json)) from t;
+j	coalesce(j, cast(3 as json))
+2	2
+7	7
+[1, 2, 3]	[1, 2, 3]
+select j, coalesce(j, 666) from t;
+j	coalesce(j, 666)
+2	2
+7	7
+[1, 2, 3]	[1, 2, 3]
+select j, json_type(coalesce(j, '[1,2,3]')) from t;
+j	json_type(coalesce(j, '[1,2,3]'))
+2	INTEGER
+7	INTEGER
+[1, 2, 3]	ARRAY
+select j, json_type(coalesce(j, 'abc')) from t;
+j	json_type(coalesce(j, 'abc'))
+2	INTEGER
+7	INTEGER
+[1, 2, 3]	ARRAY
+select j, json_type(coalesce(j, cast('"arg2"' as json))) from t;
+j	json_type(coalesce(j, cast('"arg2"' as json)))
+2	INTEGER
+7	INTEGER
+[1, 2, 3]	ARRAY
+select j, json_type(coalesce(j, j)) from t;
+j	json_type(coalesce(j, j))
+2	INTEGER
+7	INTEGER
+[1, 2, 3]	ARRAY
 inconsistent result: error message depends on the order of evaluation of rows
 --error ER_INVALID_JSON_TEXT_IN_PARAM
 select json_type(coalesce(json_extract(concat(j, 'abc'), '$'), j)) from t;
@@ -6548,16 +6540,21 @@ JSON_DEPTH(j),
 JSON_ARRAY(j, j),
 JSON_OBJECT('k', j),
 JSON_UNQUOTE(CAST(j AS CHAR)),
-JSON_QUOTE(CAST(j AS CHAR))
+JSON_QUOTE(CAST(j AS CHAR)),
+JSON_PRETTY(j)
 FROM T_WITH_NULLS
 ORDER BY i;
-JSON_VALID(j)	JSON_TYPE(j)	JSON_KEYS(j)	JSON_EXTRACT(j, '$')	JSON_REMOVE(j, '$.a.b.c')	JSON_ARRAY_APPEND(j, '$', 2)	JSON_SET(j, '$[0]', 2)	JSON_INSERT(j, '$[0]', 2)	JSON_REPLACE(j, '$[0]', 2)	JSON_MERGE(j, j)	JSON_SEARCH(j, 'one', 'abc')	JSON_CONTAINS(j, '[1]')	JSON_CONTAINS_PATH(j, 'all', '$.a')	JSON_LENGTH(j)	JSON_DEPTH(j)	JSON_ARRAY(j, j)	JSON_OBJECT('k', j)	JSON_UNQUOTE(CAST(j AS CHAR))	JSON_QUOTE(CAST(j AS CHAR))
-NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	[null, null]	{"k": null}	NULL	NULL
-1	ARRAY	NULL	[1]	[1]	[1, 2]	[2]	[1]	[2]	[1, 1]	NULL	1	0	1	2	[[1], [1]]	{"k": [1]}	[1]	"[1]"
-NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	[null, null]	{"k": null}	NULL	NULL
-1	OBJECT	["a"]	{"a": "b"}	{"a": "b"}	[{"a": "b"}, 2]	2	{"a": "b"}	2	{"a": ["b", "b"]}	NULL	0	1	1	2	[{"a": "b"}, {"a": "b"}]	{"k": {"a": "b"}}	{"a": "b"}	"{\"a\": \"b\"}"
-NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	[null, null]	{"k": null}	NULL	NULL
-1	STRING	NULL	"abc"	"abc"	["abc", 2]	2	"abc"	2	["abc", "abc"]	"$"	0	0	1	1	["abc", "abc"]	{"k": "abc"}	abc	"\"abc\""
+JSON_VALID(j)	JSON_TYPE(j)	JSON_KEYS(j)	JSON_EXTRACT(j, '$')	JSON_REMOVE(j, '$.a.b.c')	JSON_ARRAY_APPEND(j, '$', 2)	JSON_SET(j, '$[0]', 2)	JSON_INSERT(j, '$[0]', 2)	JSON_REPLACE(j, '$[0]', 2)	JSON_MERGE(j, j)	JSON_SEARCH(j, 'one', 'abc')	JSON_CONTAINS(j, '[1]')	JSON_CONTAINS_PATH(j, 'all', '$.a')	JSON_LENGTH(j)	JSON_DEPTH(j)	JSON_ARRAY(j, j)	JSON_OBJECT('k', j)	JSON_UNQUOTE(CAST(j AS CHAR))	JSON_QUOTE(CAST(j AS CHAR))	JSON_PRETTY(j)
+NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	[null, null]	{"k": null}	NULL	NULL	NULL
+1	ARRAY	NULL	[1]	[1]	[1, 2]	[2]	[1]	[2]	[1, 1]	NULL	1	0	1	2	[[1], [1]]	{"k": [1]}	[1]	"[1]"	[
+  1
+]
+NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	[null, null]	{"k": null}	NULL	NULL	NULL
+1	OBJECT	["a"]	{"a": "b"}	{"a": "b"}	[{"a": "b"}, 2]	2	{"a": "b"}	2	{"a": ["b", "b"]}	NULL	0	1	1	2	[{"a": "b"}, {"a": "b"}]	{"k": {"a": "b"}}	{"a": "b"}	"{\"a\": \"b\"}"	{
+  "a": "b"
+}
+NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	[null, null]	{"k": null}	NULL	NULL	NULL
+1	STRING	NULL	"abc"	"abc"	["abc", 2]	2	"abc"	2	["abc", "abc"]	"$"	0	0	1	1	["abc", "abc"]	{"k": "abc"}	abc	"\"abc\""	"abc"
 ALTER TABLE T_WITH_NULLS MODIFY COLUMN j TEXT;
 Warnings:
 Warning	1478	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
@@ -6580,16 +6577,21 @@ JSON_DEPTH(j),
 JSON_ARRAY(j, j),
 JSON_OBJECT('k', j),
 JSON_UNQUOTE(CAST(j AS CHAR)),
-JSON_QUOTE(CAST(j AS CHAR))
+JSON_QUOTE(CAST(j AS CHAR)),
+JSON_PRETTY(j)
 FROM T_WITH_NULLS
 ORDER BY i;
-JSON_VALID(j)	JSON_TYPE(j)	JSON_KEYS(j)	JSON_EXTRACT(j, '$')	JSON_REMOVE(j, '$.a.b.c')	JSON_ARRAY_APPEND(j, '$', 2)	JSON_SET(j, '$[0]', 2)	JSON_INSERT(j, '$[0]', 2)	JSON_REPLACE(j, '$[0]', 2)	JSON_MERGE(j, j)	JSON_SEARCH(j, 'one', 'abc')	JSON_CONTAINS(j, '[1]')	JSON_CONTAINS_PATH(j, 'all', '$.a')	JSON_LENGTH(j)	JSON_DEPTH(j)	JSON_ARRAY(j, j)	JSON_OBJECT('k', j)	JSON_UNQUOTE(CAST(j AS CHAR))	JSON_QUOTE(CAST(j AS CHAR))
-NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	[null, null]	{"k": null}	NULL	NULL
-1	ARRAY	NULL	[1]	[1]	[1, 2]	[2]	[1]	[2]	[1, 1]	NULL	1	0	1	2	["[1]", "[1]"]	{"k": "[1]"}	[1]	"[1]"
-NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	[null, null]	{"k": null}	NULL	NULL
-1	OBJECT	["a"]	{"a": "b"}	{"a": "b"}	[{"a": "b"}, 2]	2	{"a": "b"}	2	{"a": ["b", "b"]}	NULL	0	1	1	2	["{\"a\": \"b\"}", "{\"a\": \"b\"}"]	{"k": "{\"a\": \"b\"}"}	{"a": "b"}	"{\"a\": \"b\"}"
-NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	[null, null]	{"k": null}	NULL	NULL
-1	STRING	NULL	"abc"	"abc"	["abc", 2]	2	"abc"	2	["abc", "abc"]	"$"	0	0	1	1	["\"abc\"", "\"abc\""]	{"k": "\"abc\""}	abc	"\"abc\""
+JSON_VALID(j)	JSON_TYPE(j)	JSON_KEYS(j)	JSON_EXTRACT(j, '$')	JSON_REMOVE(j, '$.a.b.c')	JSON_ARRAY_APPEND(j, '$', 2)	JSON_SET(j, '$[0]', 2)	JSON_INSERT(j, '$[0]', 2)	JSON_REPLACE(j, '$[0]', 2)	JSON_MERGE(j, j)	JSON_SEARCH(j, 'one', 'abc')	JSON_CONTAINS(j, '[1]')	JSON_CONTAINS_PATH(j, 'all', '$.a')	JSON_LENGTH(j)	JSON_DEPTH(j)	JSON_ARRAY(j, j)	JSON_OBJECT('k', j)	JSON_UNQUOTE(CAST(j AS CHAR))	JSON_QUOTE(CAST(j AS CHAR))	JSON_PRETTY(j)
+NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	[null, null]	{"k": null}	NULL	NULL	NULL
+1	ARRAY	NULL	[1]	[1]	[1, 2]	[2]	[1]	[2]	[1, 1]	NULL	1	0	1	2	["[1]", "[1]"]	{"k": "[1]"}	[1]	"[1]"	[
+  1
+]
+NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	[null, null]	{"k": null}	NULL	NULL	NULL
+1	OBJECT	["a"]	{"a": "b"}	{"a": "b"}	[{"a": "b"}, 2]	2	{"a": "b"}	2	{"a": ["b", "b"]}	NULL	0	1	1	2	["{\"a\": \"b\"}", "{\"a\": \"b\"}"]	{"k": "{\"a\": \"b\"}"}	{"a": "b"}	"{\"a\": \"b\"}"	{
+  "a": "b"
+}
+NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	[null, null]	{"k": null}	NULL	NULL	NULL
+1	STRING	NULL	"abc"	"abc"	["abc", 2]	2	"abc"	2	["abc", "abc"]	"$"	0	0	1	1	["\"abc\"", "\"abc\""]	{"k": "\"abc\""}	abc	"\"abc\""	"abc"
 DROP TABLE T_WITH_NULLS;
 CREATE TABLE t_latin1(id INT PRIMARY KEY AUTO_INCREMENT,
 json_text VARCHAR(20),
@@ -9651,3 +9653,171 @@ j
 {"a": "b"}
 {"a": "b"}
 DROP TABLE t;
+#
+# WL#9191: JSON_PRETTY function
+#
+CREATE TABLE t(id INT PRIMARY KEY AUTO_INCREMENT,
+uc VARCHAR(128) CHARACTER SET utf8mb4,
+lc VARCHAR(128) CHARACTER SET latin1,
+j JSON);
+INSERT INTO t(uc) VALUES
+(NULL),
+('{}'),
+('[]'),
+('[1,2,3]'),
+('{"a":1,"b":2}'),
+('{"a":[1,{}],"b":[]}'),
+('{"a":{"b":{"c":{"d":{"e":{"f":null}}}}}}'),
+('true'),
+('false'),
+('null'),
+('1'),
+('1.1'),
+('"hello"'),
+(JSON_ARRAY('abc
+def', '"abc"'));
+UPDATE t SET lc = uc, j = uc;
+SELECT JSON_PRETTY(uc) AS c1 FROM t ORDER BY id;
+c1
+NULL
+{}
+[]
+[
+  1,
+  2,
+  3
+]
+{
+  "a": 1,
+  "b": 2
+}
+{
+  "a": [
+    1,
+    {}
+  ],
+  "b": []
+}
+{
+  "a": {
+    "b": {
+      "c": {
+        "d": {
+          "e": {
+            "f": null
+          }
+        }
+      }
+    }
+  }
+}
+true
+false
+null
+1
+1.1
+"hello"
+[
+  "abc\ndef",
+  "\"abc\""
+]
+SELECT JSON_PRETTY(lc) AS c1 FROM t ORDER BY id;
+c1
+NULL
+{}
+[]
+[
+  1,
+  2,
+  3
+]
+{
+  "a": 1,
+  "b": 2
+}
+{
+  "a": [
+    1,
+    {}
+  ],
+  "b": []
+}
+{
+  "a": {
+    "b": {
+      "c": {
+        "d": {
+          "e": {
+            "f": null
+          }
+        }
+      }
+    }
+  }
+}
+true
+false
+null
+1
+1.1
+"hello"
+[
+  "abc\ndef",
+  "\"abc\""
+]
+SELECT JSON_PRETTY(j) AS c1 FROM t ORDER BY id;
+c1
+NULL
+{}
+[]
+[
+  1,
+  2,
+  3
+]
+{
+  "a": 1,
+  "b": 2
+}
+{
+  "a": [
+    1,
+    {}
+  ],
+  "b": []
+}
+{
+  "a": {
+    "b": {
+      "c": {
+        "d": {
+          "e": {
+            "f": null
+          }
+        }
+      }
+    }
+  }
+}
+true
+false
+null
+1
+1.1
+"hello"
+[
+  "abc\ndef",
+  "\"abc\""
+]
+SELECT DISTINCT CHARSET(JSON_PRETTY(uc)) AS c1,
+CHARSET(JSON_PRETTY(lc)) AS c2,
+CHARSET(JSON_PRETTY(j)) AS c3 FROM t;
+c1	c2	c3
+utf8mb4	utf8mb4	utf8mb4
+DROP TABLE t;
+SELECT JSON_PRETTY('this is not JSON') AS j;
+ERROR 22032: Invalid JSON text in argument 1 to function json_pretty: "Invalid value." at position 1.
+SELECT JSON_PRETTY();
+ERROR 42000: Incorrect parameter count in the call to native function 'JSON_PRETTY'
+SELECT JSON_PRETTY('{}', 2);
+ERROR 42000: Incorrect parameter count in the call to native function 'JSON_PRETTY'

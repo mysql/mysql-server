@@ -21,10 +21,12 @@ SELECT HEX(vbin1 & vbin2), HEX(vbin1 | vbin2), HEX(vbin1 ^ vbin2),
 FROM t
 WHERE id in(1,2,3,4,5,6);
 
---echo # bitwise operations result in raw format
+--echo # bitwise operations result as raw binary
+--disable_result_log
 SELECT vbin1 & vbin2, vbin1 | vbin2, vbin1 ^ vbin2, ~vbin1, vbin1 << 3, vbin2 >> 3
 FROM t
 WHERE id in(1,2,3,4,5,6);
+--enable_result_log
 
 SELECT (vbin1 & vbin2)=0x4801090820114B1082C40002004180081400008108114A3090A009308C100200, (vbin1 | vbin2)=0x7BFBFDBA7BB74FFF8FD556EE19E9B7AF3EEFB9FFDBD34AF1BAEDCBF1BFFF7A9A, (vbin1 ^ vbin2)=0x33FAF4B25BA604EF0D1156EC19A837A72AEFB97ED3C200C12A4DC2C133EF789A, (~vbin1)=0xA6C656679EEAB0CA782ABBF9E7164D74E99E7E3A35AEB54E4716368F51A1BDE5, (vbin1 << 3)=0xC9CD4CC308AA79AC3EAA2030C74D9458B30C0E2E528A558DC74E4B8572F210D0, (vbin2 >> 3)=0x0D586BA54756697B5158825D402830A58791C7176332694E1254817633B62750
 FROM t
@@ -57,7 +59,8 @@ SELECT HEX(vbin1 ^ vbin2) FROM t WHERE id=8;
 --echo # show output type
 --echo #
 CREATE TABLE t0(vbin VARBINARY(6), bin BINARY(6));
-CREATE TABLE t1 AS SELECT vbin & vbin, vbin & bin, bin & vbin, bin & bin FROM t0;
+CREATE TABLE t1  charset utf8mb4
+AS SELECT vbin & vbin, vbin & bin, bin & vbin, bin & bin FROM t0;
 SHOW CREATE TABLE t1;
 DROP TABLE t0;
 DROP TABLE t1;
@@ -239,8 +242,6 @@ INSERT INTO at (
     1,
     1
 );
-
-SELECT * FROM at;
 
 --echo #
 --echo # bitwise operations with an integer argument and mysql data-types
@@ -524,9 +525,12 @@ DROP TABLE t1;
 
 CREATE TABLE t(a varbinary(10));
 INSERT INTO t VALUES(0xFF00F0F0), (0xF0F0FF00);
+--echo # bitwise operations result as raw binary
+--disable_result_log
 SELECT BIT_AND(a) FROM t;
 SELECT BIT_OR(a) FROM t;
 SELECT BIT_XOR(a) FROM t;
+--enable_result_log
 SELECT HEX(BIT_AND(a)) FROM t;
 SELECT HEX(BIT_OR(a)) FROM t;
 SELECT HEX(BIT_XOR(a)) FROM t;
@@ -969,3 +973,43 @@ SELECT id, HEX(BIT_AND(a)), HEX(BIT_OR(a)), HEX(BIT_XOR(a)) FROM t GROUP BY id;
 DROP TABLE t, u;
 
 SELECT BIT_COUNT(0b1100000010011010000000101000000111100010) = 13;
+
+--echo #
+--echo # Bug #23853628	BITWISE OPERATORS: ASSERTION 0 IN SORT_PARAM::MAKE_SORTKEY
+--echo #
+
+DROP TABLE IF EXISTS t;
+CREATE TABLE t(
+a BINARY(2) NOT NULL,
+b BINARY(1) NOT NULL
+) engine=innodb;
+INSERT INTO t VALUES('1',''),('','');
+
+--error ER_INVALID_BITWISE_OPERANDS_SIZE
+SELECT SQL_BIG_RESULT DISTINCT a&b FROM t;
+
+DROP TABLE t;
+
+--echo #
+--echo # Bug#24910958 BITWISE OPERATORS: CRASH IN ITEM_FUNC_BIT_COUNT::VAL_INT()
+--echo #
+CREATE TABLE t (a BLOB NOT NULL) ENGINE=INNODB;
+INSERT INTO t values(0xfefefefefefe);
+--error ER_INVALID_BITWISE_OPERANDS_SIZE
+SELECT bit_count(a & 0x2438) FROM t;
+--error ER_INVALID_BITWISE_OPERANDS_SIZE
+SELECT 1 FROM t WHERE ~reverse(a & 0x111111);
+--error ER_INVALID_BITWISE_OPERANDS_SIZE
+SELECT 1 FROM t WHERE insert(a & 0x111111,'','','');
+--error ER_INVALID_BITWISE_OPERANDS_SIZE
+SELECT 1 FROM t WHERE rtrim(a & 0x111111);
+--error ER_INVALID_BITWISE_OPERANDS_SIZE
+SELECT (SELECT a & 0xff FROM t);
+
+SELECT bit_count(a & NULL) FROM t;
+SELECT 1 FROM t WHERE ~reverse(a & NULL);
+SELECT 1 FROM t WHERE insert(a & NULL,'','','');
+SELECT 1 FROM t WHERE rtrim(a & NULL);
+SELECT (SELECT a & NULL from t);
+
+DROP TABLE t;

@@ -98,7 +98,7 @@ drop table t1;
 --replace_result $DEFAULT_ENGINE ENGINE
 # Also we will test behaviour of TIMESTAMP field in SHOW CREATE TABLE and
 # behaviour of DEFAULT literal for such fields
-create table t1 (t1 timestamp not null default '2003-01-01 00:00:00', t2 datetime, t3 timestamp NOT NULL DEFAULT '0000-00-00 00:00:00');
+create table t1 (t1 timestamp not null default '2003-01-01 00:00:00', t2 datetime, t3 timestamp NOT NULL DEFAULT '0000-00-00 00:00:00') charset utf8mb4;
 SET TIMESTAMP=1000000000;
 insert into t1 values ();
 SET TIMESTAMP=1000000001;
@@ -113,7 +113,7 @@ show create table t1;
 show columns from t1;
 drop table t1;
 
-create table t1 (t1 timestamp not null default now(), t2 datetime, t3 timestamp NOT NULL DEFAULT '0000-00-00 00:00:00');
+create table t1 (t1 timestamp not null default now(), t2 datetime, t3 timestamp NOT NULL DEFAULT '0000-00-00 00:00:00') charset utf8mb4;
 SET TIMESTAMP=1000000002;
 insert into t1 values ();
 SET TIMESTAMP=1000000003;
@@ -128,7 +128,7 @@ show create table t1;
 show columns from t1;
 drop table t1;
 
-create table t1 (t1 timestamp not null default '2003-01-01 00:00:00' on update now(), t2 datetime);
+create table t1 (t1 timestamp not null default '2003-01-01 00:00:00' on update now(), t2 datetime) charset utf8mb4;
 SET TIMESTAMP=1000000004;
 insert into t1 values ();
 select * from t1;
@@ -144,7 +144,7 @@ show create table t1;
 show columns from t1;
 drop table t1;
 
-create table t1 (t1 timestamp not null default now() on update now(), t2 datetime);
+create table t1 (t1 timestamp not null default now() on update now(), t2 datetime) charset utf8mb4;
 SET TIMESTAMP=1000000006;
 insert into t1 values ();
 select * from t1;
@@ -160,7 +160,7 @@ show create table t1;
 show columns from t1;
 drop table t1;
 
-create table t1 (t1 timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, t2 datetime, t3 timestamp NOT NULL DEFAULT '0000-00-00 00:00:00');
+create table t1 (t1 timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, t2 datetime, t3 timestamp NOT NULL DEFAULT '0000-00-00 00:00:00') charset utf8mb4;
 SET TIMESTAMP=1000000007;
 insert into t1 values ();
 select * from t1;
@@ -179,7 +179,7 @@ drop table t1;
 # Let us test if CURRENT_TIMESTAMP also works well as default value
 # (Of course NOW and CURRENT_TIMESTAMP are same for parser but still just
 # for demonstartion.)
-create table t1 (t1 timestamp not null default current_timestamp on update current_timestamp, t2 datetime);
+create table t1 (t1 timestamp not null default current_timestamp on update current_timestamp, t2 datetime) charset utf8mb4;
 SET TIMESTAMP=1000000009;
 insert into t1 values ();
 select * from t1;
@@ -245,9 +245,9 @@ drop table t1;
 # Test for TIMESTAMP columns which are able to store NULLs
 #
 
-# Unlike for default TIMESTAMP fields we don't interpret first field
+# Unlike for default TIMESTAMP fields we do not interpret first field
 # in this table as TIMESTAMP with DEFAULT NOW() ON UPDATE NOW() properties.
-create table t1 (a timestamp null, b timestamp null);
+create table t1 (a timestamp null, b timestamp null) charset utf8mb4;
 
 #Replace default engine value with static engine string 
 --replace_result $DEFAULT_ENGINE ENGINE
@@ -259,7 +259,7 @@ select * from t1;
 drop table t1;
 
 # But explicit auto-set properties still should be OK.
-create table t1 (a timestamp null default current_timestamp on update current_timestamp, b timestamp null);
+create table t1 (a timestamp null default current_timestamp on update current_timestamp, b timestamp null) charset utf8mb4;
 
 #Replace default engine value with static engine string 
 --replace_result $DEFAULT_ENGINE ENGINE
@@ -274,7 +274,7 @@ drop table t1;
 # This is also a test for bug #2464, DEFAULT keyword in INSERT statement
 # should return default value for column.
 
-create table t1 (a timestamp null default null, b timestamp null default '2003-01-01 00:00:00');
+create table t1 (a timestamp null default null, b timestamp null default '2003-01-01 00:00:00') charset utf8mb4;
 
 #Replace default engine value with static engine string 
 --replace_result $DEFAULT_ENGINE ENGINE
@@ -311,7 +311,7 @@ drop table t1;
 # mode regardless of whether a display width is given.
 #
 set sql_mode='maxdb';
-create table t1 (a timestamp, b timestamp);
+create table t1 (a timestamp, b timestamp) charset utf8mb4;
 
 #Replace default engine value with static engine string 
 --replace_result $DEFAULT_ENGINE ENGINE
@@ -413,7 +413,7 @@ EXPLAIN
 SELECT * FROM t1 WHERE a >= '2010-02-01 09:31:02.0';
 SELECT * FROM t1 WHERE a >= '2010-02-01 09:31:02.0';
 
-CREATE TABLE t2 ( a TIMESTAMP, KEY ( a DESC ) );
+CREATE TABLE t2 ( a TIMESTAMP, KEY ( a ) );
 
 INSERT INTO t2 VALUES( '2010-02-01 09:31:01' );
 INSERT INTO t2 VALUES( '2010-02-01 09:31:02' );

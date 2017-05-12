@@ -38,7 +38,8 @@ if ($commands == 'configure')
   let $binlog_filter=
   /Anonymous_Gtid/Gtid/
   /GTID_NEXT= '([0-9a-f:\-]+|ANONYMOUS)'/GTID_NEXT= Gtid_set/
-  /xid=[0-9]+/XID/
+  /COMMIT \/\* xid=[0-9]+ \*\//COMMIT \/* XID *\//
+  /[ ]*\/\* xid=[0-9]+ \*\///
   /table_id: [0-9]+/table_id: #/;
   connection master;
   --disable_query_log

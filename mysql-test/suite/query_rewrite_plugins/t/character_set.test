@@ -6,12 +6,6 @@
 --source suite/query_rewrite_plugins/include/have_plugin_rewriter.inc
 --source suite/query_rewrite_plugins/include/install_rewriter_with_optional_columns.inc
 
---echo # Let's be clear on what the global and session values are
---echo # for this variable.
-SHOW VARIABLES LIKE 'character_set_client';
-SHOW SESSION VARIABLES LIKE 'character_set_client';
-SHOW GLOBAL VARIABLES LIKE 'character_set_client';
-
 --source suite/query_rewrite_plugins/include/trivial.inc
 
 --echo # We now set the global value of the variable, this should not affect

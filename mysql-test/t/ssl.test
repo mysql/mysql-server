@@ -3,7 +3,17 @@
 # Turn on ssl between the client and server
 # and run a number of tests
 
--- source include/have_ssl_communication.inc
+-- source include/have_ssl.inc
+
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs277=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema default character set latin1;
+use test;
+--enable_query_log
+########################################
 
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
@@ -59,3 +69,10 @@ disconnect ssl_con;
 
 ##  This test file is for testing encrypted communication only, not other
 ##  encryption routines that the SSL library happens to provide!
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs277;
+--enable_query_log
+########################################

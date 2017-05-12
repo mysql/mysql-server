@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -18,13 +18,16 @@
 #ifndef MYSQL_OBJECT_READER_INCLUDED
 #define MYSQL_OBJECT_READER_INCLUDED
 
-#include "i_object_reader.h"
+#include <functional>
+
 #include "abstract_data_formatter_wrapper.h"
 #include "abstract_mysql_chain_element_extension.h"
+#include "i_object_reader.h"
+#include "my_inttypes.h"
+#include "mysql_field.h"
 #include "mysql_object_reader_options.h"
 #include "row_group_dump_task.h"
 #include "table_rows_dump_task.h"
-#include "mysql_field.h"
 
 namespace Mysql{
 namespace Tools{
@@ -41,7 +44,7 @@ class Mysql_object_reader
 public:
   Mysql_object_reader(
     I_connection_provider* connection_provider,
-    Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
+    std::function<bool(const Mysql::Tools::Base::Message_data&)>*
     message_handler, Simple_id_generator* object_id_generator,
     const Mysql_object_reader_options* options);
 

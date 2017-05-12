@@ -93,7 +93,7 @@ SET @@session.foreign_key_checks = "Y";
 SET @@session.foreign_key_checks = TRÜE;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.foreign_key_checks = ÕN;
---Error ER_WRONG_VALUE_FOR_VAR
+--error ER_PARSE_ERROR
 SET @@session.foreign_key_checks = OF;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.foreign_key_checks = ÓFF;

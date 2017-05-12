@@ -485,8 +485,8 @@ set sql_mode=16384+(65536*4);
 select @@sql_mode;
 @@sql_mode
 REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,NO_TABLE_OPTIONS,ANSI
-set sql_mode=2147483648*2;
-ERROR 42000: Variable 'sql_mode' can't be set to the value of '4294967296'
+set sql_mode=4294967296*2;
+ERROR 42000: Variable 'sql_mode' can't be set to the value of '8589934592'
 select @@sql_mode;
 @@sql_mode
 REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,NO_TABLE_OPTIONS,ANSI

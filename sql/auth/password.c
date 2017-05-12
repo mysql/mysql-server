@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -59,14 +59,16 @@
 
 *****************************************************************************/
 
-#include <password.h>
-#include <my_global.h>
-#include <my_sys.h>
-#include <m_string.h>
-#include <sha1.h>
-#include <my_rnd.h>
-#include "mysql.h"
+#include <string.h>
+#include <sys/types.h>
+
 #include "crypt_genhash_impl.h"
+#include "m_string.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
+#include "mysql_com.h"
+#include "password.h"
+#include "sha1.h"
 
 void randominit(struct rand_struct *rand_st, ulong seed1, ulong seed2)
 {                                               /* For mysql 3.21.# */
@@ -321,7 +323,7 @@ scramble(char *to, const char *message, const char *password)
     !0  password is invalid
 */
 
-static my_bool
+static bool
 check_scramble_sha1(const uchar *scramble_arg, const char *message,
                     const uint8 *hash_stage2)
 {
@@ -340,7 +342,7 @@ check_scramble_sha1(const uchar *scramble_arg, const char *message,
   return MY_TEST(memcmp(hash_stage2, hash_stage2_reassured, SHA1_HASH_SIZE));
 }
 
-my_bool
+bool
 check_scramble(const uchar *scramble_arg, const char *message,
                const uint8 *hash_stage2)
 {

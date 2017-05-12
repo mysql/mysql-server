@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,18 +13,16 @@
   along with this program; if not, write to the Free Software Foundation,
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include <my_global.h>
 #include <my_thread.h>
+#include <pfs_buffer_container.h>
+#include <pfs_global.h>
 #include <pfs_instr.h>
 #include <pfs_stat.h>
-#include <pfs_global.h>
 #include <pfs_user.h>
-#include <pfs_buffer_container.h>
+#include <string.h> /* memset */
 #include <tap.h>
 
 #include "stub_pfs_global.h"
-
-#include <string.h> /* memset */
 
 static void test_oom()
 {
@@ -45,6 +43,7 @@ static void test_oom()
   PSI_transaction_bootstrap *transaction_boot;
   PSI_memory_bootstrap *memory_boot;
   PSI_error_bootstrap *error_boot;
+  PSI_data_lock_bootstrap *data_lock_boot;
 
   memset(& param, 0xFF, sizeof(param));
   param.m_enabled= true;
@@ -99,8 +98,7 @@ static void test_oom()
                                     & cond_boot, & file_boot, & socket_boot,
                                     & table_boot, & mdl_boot, & idle_boot,
                                     & stage_boot, & statement_boot, & transaction_boot,
-                                    & memory_boot,
-                                    & error_boot);
+                                    & memory_boot, & error_boot, & data_lock_boot);
   ok(rc == 0, "init ok");
   thread_service= (PSI_thread_service_t *)thread_boot->get_interface(PSI_THREAD_VERSION_1);
 
@@ -151,9 +149,9 @@ static void do_all_tests()
 
 int main(int, char **)
 {
-  plan(6);
+  plan(7);
   MY_INIT("pfs_user-oom-t");
   do_all_tests();
-  return 0;
+  return (exit_status());
 }
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -990,7 +990,7 @@ MgmApiSession::restartAll(Parser<MgmApiSession>::Context &,
 
   m_output->println("restart reply");
   if(result != 0)
-    m_output->println("result: %s", get_error_text(result));
+    m_output->println("result: %d-%s", result, get_error_text(result));
   else
     m_output->println("result: Ok");
   m_output->println("restarted: %d", count);
@@ -1598,7 +1598,7 @@ Ndb_mgmd_event_service::stop_sessions(){
     if(my_socket_valid(m_clients[i].m_socket))
     {
       NDB_CLOSE_SOCKET(m_clients[i].m_socket);
-      m_clients.erase(i);
+      m_clients.erase(i, false);
     }
   }
   m_clients.unlock();
@@ -1929,6 +1929,12 @@ MgmApiSession::list_session(SocketServer::Session *_s, void *data)
   {
     int l= (int)strlen(s->m_ctx->m_tokenBuffer);
     char *buf= (char*) malloc(2*l+1);
+
+    if (buf == NULL)
+    {
+        lister->m_stop = true;
+        return;
+    }
     char *b= buf;
     for(int i=0; i<l;i++)
       if(s->m_ctx->m_tokenBuffer[i]=='\n')

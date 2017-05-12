@@ -47,6 +47,8 @@
   (e.g. my_atomic_add64, my_atomic_fas32, my_atomic_casptr).
 */
 
+#include "my_config.h"
+
 /*
   We choose implementation as follows:
   ------------------------------------
@@ -57,13 +59,15 @@
   the Solaris implementation on Solaris (mainly for SunStudio compilers).
 */
 #if defined(_MSC_VER)
-#  include "atomic/generic-msvc.h"
+#  include "atomic/generic-msvc.h"  // IWYU pragma: export
 #elif defined(HAVE_SOLARIS_ATOMIC)
-#  include "atomic/solaris.h"
-#elif defined(HAVE_GCC_SYNC_BUILTINS)   /* Use old __sync by default */
-#  include "atomic/gcc_sync.h"
-#elif defined(HAVE_GCC_ATOMIC_BUILTINS) /* Use __atomic on e.g. powerpc */
-#  include "atomic/gcc_atomic.h"
+#  include "atomic/solaris.h"  // IWYU pragma: export
+#elif defined(HAVE_GCC_SYNC_BUILTINS)
+/* Use old __sync by default */
+#  include "atomic/gcc_sync.h"  // IWYU pragma: export
+#elif defined(HAVE_GCC_ATOMIC_BUILTINS)
+/* Use __atomic on e.g. powerpc */
+#  include "atomic/gcc_atomic.h"  // IWYU pragma: export
 #else
 #  error Native atomics support not found!
 #endif

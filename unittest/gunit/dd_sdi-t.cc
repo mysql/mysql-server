@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,56 +14,56 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include <gtest/gtest.h>
-#include "../../sql/dd/sdi.h"
+#include <m_string.h>
+#include "my_rapidjson_size_t.h"  // IWYU pragma: keep
+#include <rapidjson/document.h>
+#include <rapidjson/prettywriter.h>
+#include <rapidjson/stringbuffer.h>
+#include <stddef.h>
 
-#include "../../sql/dd/types/object_type.h"
 #include "../../sql/dd/dd.h"
-#include "../../sql/dd/impl/types/weak_object_impl.h"
+#include "../../sql/dd/impl/sdi.h"
 #include "../../sql/dd/impl/sdi_impl.h"
+#include "../../sql/dd/impl/types/column_impl.h"
+#include "../../sql/dd/impl/types/entity_object_impl.h"
+#include "../../sql/dd/impl/types/index_impl.h"
+#include "../../sql/dd/impl/types/table_impl.h"
+#include "../../sql/dd/impl/types/weak_object_impl.h"
+#include "../../sql/dd/sdi_file.h"
 #include "../../sql/dd/types/column.h"
 #include "../../sql/dd/types/column_type_element.h"
-#include "../../sql/dd/types/foreign_key_element.h"
 #include "../../sql/dd/types/foreign_key.h"
-#include "../../sql/dd/types/index_element.h"
+#include "../../sql/dd/types/foreign_key_element.h"
 #include "../../sql/dd/types/index.h"
+#include "../../sql/dd/types/index_element.h"
+#include "../../sql/dd/types/object_type.h"
 #include "../../sql/dd/types/partition.h"
 #include "../../sql/dd/types/partition_index.h"
 #include "../../sql/dd/types/partition_value.h"
 #include "../../sql/dd/types/schema.h"
 #include "../../sql/dd/types/table.h"
-#include "../../sql/dd/types/tablespace_file.h"
 #include "../../sql/dd/types/tablespace.h"
-
-#include <dd/impl/types/entity_object_impl.h>
-#include "../../sql/dd/impl/types/column_impl.h"
-#include "../../sql/dd/impl/types/index_impl.h"
-
-
-#include <m_string.h>
-#include <rapidjson/stringbuffer.h>
-#include <rapidjson/prettywriter.h>
-#include <rapidjson/document.h>
-
-#include <boost/lexical_cast.hpp>
+#include "../../sql/dd/types/tablespace_file.h"
+#include "my_inttypes.h"
 
 namespace {
 int FANOUT= 3;
+}
+
+namespace dd {
+class Sdi_wcontext;
+class Sdi_rcontext;
 }
 
 namespace sdi_unittest {
 
 typedef dd::Foreign_key Foreign_key; // To avoid the one from sql_class.h
 
+::dd::Sdi_wcontext* get_wctx();
+::dd::Sdi_rcontext* get_rctx();
 
-// Declare these here to be able to call into sdi.cc where
-// Sdi_wcontext and Sdi_rcontext are defined. A bit of a kludge, but
-// at least we avoid exporting them just to run unit tests.
-typedef void (*cb)(dd::Sdi_wcontext*, const dd::Weak_object*, dd::Sdi_writer*);
-void setup_wctx(cb, const dd::Weak_object*, dd::Sdi_writer*);
-
-typedef void (*dcb)(dd::Sdi_rcontext*, dd::Weak_object*, dd::RJ_Document&);
-void setup_rctx(dcb, dd::Weak_object *, dd::RJ_Document &);
-
+bool equal_prefix_chars_driver(const dd::String_type &a,
+                               const dd::String_type &b, size_t prefix);
 
 // Mocking functions
 
@@ -71,7 +71,8 @@ static void mock_properties(dd::Properties &p, uint64 size)
 {
   for (uint64 i= 0; i < size; ++i)
   {
-    p.set_uint64(boost::lexical_cast<std::string>(i), i);
+    std::string key= std::to_string(i);
+    p.set_uint64(dd::String_type{key.begin(), key.end()}, i);
   }
 }
 
@@ -181,7 +182,7 @@ static void mock_dd_obj(dd::Partition_value *pv)
 
 static void mock_dd_obj(dd::Partition *p, dd::Index *ix= NULL)
 {
-  p->set_level(42);
+  p->set_level(0);
   p->set_number(42);
   p->set_engine("mocked partition engine");
   p->set_comment("mocked comment");
@@ -265,67 +266,57 @@ private:
 };
 
 
-bool diff(const std::string &expected, std::string actual)
+bool diff(const dd::String_type &expected, dd::String_type actual)
 {
   if (actual == expected)
   {
     return false;
   }
-  typedef std::string::const_iterator csit_t;
+  typedef dd::String_type::const_iterator csit_t;
   typedef std::pair<csit_t, csit_t> diff_t_;
   csit_t expected_end= expected.end();
   actual.resize(expected.size());
   csit_t actual_end= actual.end();
   diff_t_ diff= std::mismatch(expected.begin(), expected.end(), actual.begin());
 
-  std::cout << std::string(expected.begin(), diff.first) << "\n@ offset "
+  std::cout << dd::String_type(expected.begin(), diff.first) << "\n@ offset "
             << diff.first - expected.begin() << ":\n< "
-            << std::string(diff.first, expected_end) << "\n---\n> " <<
-    std::string(diff.second, actual_end) << std::endl;
+            << dd::String_type(diff.first, expected_end) << "\n---\n> " <<
+    dd::String_type(diff.second, actual_end) << std::endl;
   return true;
 }
 
-template<class Dd_type>
-void serialize_callback(dd::Sdi_wcontext *wctx, const dd::Weak_object *wo,
-                        dd::Sdi_writer *w)
-{
-  dynamic_cast<const Dd_type*>(wo)->serialize(wctx, w);
-}
-
-template<class Dd_type>
-void deserialize_callback(dd::Sdi_rcontext *rctx, dd::Weak_object *wo,
-                          dd::RJ_Document &doc)
-{
-  dynamic_cast<Dd_type*>(wo)->deserialize(rctx, doc);
-}
 
 template <typename T>
-std::string serialize(const T *dd_obj)
+dd::String_type serialize_drv(const T *dd_obj)
 {
   dd::RJ_StringBuffer buf;
   dd::Sdi_writer w(buf);
-  setup_wctx(serialize_callback<T>, dd_obj, &w);
-  return std::string(buf.GetString(), buf.GetSize());
+  dd::String_type s= "driver schema";
+  dd::Sdi_wcontext *wctx= get_wctx();
+  dd_obj->serialize(wctx, &w);
+  return dd::String_type(buf.GetString(), buf.GetSize());
 }
 
 
 template <typename T>
-T* deserialize(const std::string &sdi)
+T* deserialize_drv(const dd::String_type &sdi)
 {
   T *dst_obj= dd::create_object<T>();
   dd::RJ_Document doc;
   doc.Parse<0>(sdi.c_str());
-  setup_rctx(deserialize_callback<T>, dst_obj, doc);
+  dd::Sdi_rcontext *rctx= get_rctx();
+  dst_obj->deserialize(rctx, doc);
   return dst_obj;
 }
 
 template <class T>
-std::string api_serialize(const T *tp)
+dd::String_type api_serialize(const T *tp)
 {
   return dd::serialize(*tp);
 }
 
-std::string api_serialize(const dd::Table *table)
+dd::String_type api_serialize(const dd::Table *table)
 {
   return dd::serialize(nullptr, *table, "api_schema");
 }
@@ -333,13 +324,12 @@ std::string api_serialize(const dd::Table *table)
 
 template <typename T>
 void verify(T *dd_obj) {
-  std::string sdi= serialize(dd_obj);
-//  std::cout << "Verifying json: \n" << sdi << std::endl;
+  dd::String_type sdi= serialize_drv(dd_obj);
+  //std::cout << "Verifying json: \n" << sdi << std::endl;
   ASSERT_GT(sdi.size(), 0u);
-// Commented out due to UB when accessing DOM after deserialization
-//  std::unique_ptr<T> dst_obj(deserialize<T>(sdi));
-//  std::string dst_sdi= serialize(dst_obj.get());
-//  EXPECT_EQ(dst_sdi, sdi);
+  std::unique_ptr<T> dst_obj{deserialize_drv<T>(sdi)};
+  dd::String_type dst_sdi= serialize_drv(dst_obj.get());
+  EXPECT_EQ(dst_sdi, sdi);
 }
 
 
@@ -357,15 +347,14 @@ void api_test(const AP &ap)
 {
   typedef typename AP::element_type T;
   dd::sdi_t sdi= api_serialize(ap.get());
-// Commented out due to UB when accessing DOM after deserialization
-//  std::unique_ptr<T> d(create_object<T>());
-//  dd::deserialize(nullptr, sdi, d.get());
+  std::unique_ptr<T> d(dd::create_object<T>());
+  dd::deserialize(nullptr, sdi, d.get());
 
-//  sdi_t d_sdi= api_serialize(d.get());
+  dd::sdi_t d_sdi= api_serialize(d.get());
 
-//   EXPECT_EQ(d_sdi.size(), sdi.size());
-//   EXPECT_EQ(d_sdi, sdi);
-//   ASSERT_FALSE(diff(sdi, d_sdi));
+  EXPECT_EQ(d_sdi.size(), sdi.size());
+  EXPECT_EQ(d_sdi, sdi);
+  ASSERT_FALSE(diff(sdi, d_sdi));
 }
 
 
@@ -459,16 +448,110 @@ TEST(SdiTest, Tablespace_API)
   api_test(ts);
 }
 
+#ifdef DBUG_OFF
 TEST(SdiTest, Serialization_perf)
 {
   std::unique_ptr<dd::Table> t(dd::create_object<dd::Table>());
   FANOUT= 20;
   mock_dd_obj(t.get());
 
-  for (int i= 0; i < 1000; ++i)
+  for (int i= 0; i < 1; ++i)
   {
-    std::string sdi= dd::serialize(nullptr, *t, "perftest");
+    dd::String_type sdi= dd::serialize(nullptr, *t, "perftest");
     EXPECT_GT(sdi.size(), 100000u);
   }
 }
+#endif /* DBUG_OFF */
+
+TEST(SdiTest, CharPromotion)
+{
+  char x= 127;
+  unsigned char ux= x;
+  EXPECT_EQ(127u, ux);
+
+  unsigned short usx= x;
+  EXPECT_EQ(127u, usx);
+
+  unsigned int uix= x;
+  EXPECT_EQ(127u, usx);
+
+  unsigned char tmp= 0xe0;
+  x= static_cast<char>(tmp);
+  EXPECT_EQ(-32,x);
+
+  ux= x;
+  EXPECT_EQ(224u, ux);
+
+  usx= x;
+  short sx= x;
+  EXPECT_EQ(-32, sx);
+  unsigned short usy= sx;
+  EXPECT_EQ(usx, usy);
+  EXPECT_EQ(65504u, usx);
+
+  uix= x;
+  int ix= x;
+  EXPECT_EQ(-32, ix);
+  unsigned int uiy= ix;
+  EXPECT_EQ(uix, uiy);
+  EXPECT_EQ(4294967264u, uix);
+}
+
+TEST(SdiTest, Utf8Filename)
+{
+  dd::Table_impl x{};
+  x.set_name("\xe0\xa0\x80");
+  x.set_id(42);
+  dd::String_type path= dd::sdi_file::sdi_filename(&x, "foobar");
+  std::replace(path.begin(), path.end(), '\\', '/');
+  EXPECT_EQ("./foobar/@0800_42.SDI", path);
+}
+
+TEST(SdiTest, Utf8FilenameTrunc)
+{
+  dd::String_type name{"\xe0\xa0\x80"};
+  for (int i= 0; i < 16; ++i)
+  {
+    name.append("\xe0\xa0\x80");
+  }
+  EXPECT_EQ(51u, name.length());
+
+  dd::Table_impl x{};
+  x.set_name(name);
+  x.set_id(42);
+  dd::String_type fn= dd::sdi_file::sdi_filename(&x, "foobar");
+  std::replace(fn.begin(), fn.end(), '\\', '/');
+  EXPECT_EQ(96u, fn.length());
+  EXPECT_EQ("./foobar/@0800@0800@0800@0800@0800@0800@0800@0800@0800@0800@0800@0800@0800@0800@0800@0800_42.SDI", fn);
+}
+
+TEST(SdiTest, EqualPrefixCharsAscii)
+{
+  ASSERT_TRUE(equal_prefix_chars_driver("a", "a", 16));
+  ASSERT_FALSE(equal_prefix_chars_driver("a", "b", 16));
+  ASSERT_FALSE(equal_prefix_chars_driver("aaa", "aaab", 16));
+  ASSERT_TRUE(equal_prefix_chars_driver("abcdefghijklmnon_aaa",
+                                        "abcdefghijklmnon_bbb", 16));
+
+}
+
+TEST(SdiTest, EqualPrefixCharsUtf8)
+{
+  ASSERT_TRUE(equal_prefix_chars_driver("\xe0\xa0\x80", "\xe0\xa0\x80", 16));
+  ASSERT_FALSE(equal_prefix_chars_driver("\xe0\xa0\x80", "\xf0\x90\x80\x80",
+                                         16));
+  ASSERT_FALSE(equal_prefix_chars_driver
+               (
+                "\xe0\xa0\x80\xe0\xa0\x80\xe0\xa0\x80",
+                "\xe0\xa0\x80\xe0\xa0\x80\xe0\xa0\x80\xf0\x90\x80\x80", 16));
+
+  ASSERT_TRUE
+    (
+     equal_prefix_chars_driver
+     ("abc\xe0\xa0\x80""def\xe0\xa0\x80ghi\xe0\xa0\x80jkl\xe0\xa0\x80_aaa",
+      "abc\xe0\xa0\x80""def\xe0\xa0\x80ghi\xe0\xa0\x80jkl\xe0\xa0\x80_bbb",
+      16));
+}
+
+
 } // namespace sdi_unittest

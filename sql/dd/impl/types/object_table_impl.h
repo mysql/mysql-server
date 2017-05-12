@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,15 +16,13 @@
 #ifndef DD__OBJECT_TABLE_IMPL_INCLUDED
 #define DD__OBJECT_TABLE_IMPL_INCLUDED
 
-#include "my_global.h"
-
-#include "log.h"                                        // sql_print_warning
-#include "mysqld.h"                                     // opt_initialize
 
 #include "dd/impl/dictionary_impl.h"                    // get_target_dd_...
 #include "dd/impl/types/object_table_definition_impl.h" // Object_table_defin...
 #include "dd/types/object_table.h"                      // Object_table
 #include "dd/types/object_table.h"                      // Object_table
+#include "log.h"                                        // sql_print_warning
+#include "mysqld.h"                                     // opt_initialize
 
 class THD;
 
@@ -80,7 +78,7 @@ public:
     return Dictionary_impl::instance()->get_actual_dd_version(thd);
   }
 
-  virtual bool populate(THD *thd) const
+  virtual bool populate(THD*) const
   { return false; }
 
   virtual bool hidden() const

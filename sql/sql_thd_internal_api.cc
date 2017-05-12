@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,15 +13,47 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql_thd_internal_api.h"
+#include "sql/sql_thd_internal_api.h"
+
+#include "my_config.h"
+
+#include <fcntl.h>
+#include <string.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
 
 #include "binlog.h"               // mysql_bin_log
 #include "current_thd.h"          // current_thd
+#include "lex_string.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_macros.h"
+#include "my_psi_config.h"
+#include "my_sys.h"
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/mysql_socket.h"
+#include "mysql/psi/mysql_thread.h"
+#include "mysql/psi/psi_stage.h"
+#include "mysql/psi/psi_thread.h"
+#include "mysql/thread_type.h"
+#include "mysqld.h"
 #include "mysqld_thd_manager.h"   // Global_THD_manager
+#include "protocol_classic.h"
+#include "query_options.h"
 #include "rpl_filter.h"           // binlog_filter
 #include "sql_class.h"            // THD
+#include "sql_lex.h"
 #include "sql_parse.h"            // sqlcom_can_generate_row_events
-#include "mysqld.h"
+#include "sql_plugin.h"
+#include "system_variables.h"
+#include "transaction_info.h"
+#include "violite.h"
+
+struct PSI_thread;
 
 int thd_init(THD *thd, char *stack_start, bool bound, PSI_thread_key psi_key)
 {

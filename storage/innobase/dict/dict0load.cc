@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -24,29 +24,31 @@ from dictionary tables
 Created 4/24/1996 Heikki Tuuri
 *******************************************************/
 
-#include "ha_prototypes.h"
+#include <set>
+#include <stack>
 
-#include "dict0load.h"
-
-#include "mysql_version.h"
-#include "btr0pcur.h"
 #include "btr0btr.h"
+#include "btr0pcur.h"
 #include "dict0boot.h"
 #include "dict0crea.h"
 #include "dict0dict.h"
+#include "dict0load.h"
 #include "dict0mem.h"
 #include "dict0priv.h"
 #include "dict0stats.h"
 #include "fsp0file.h"
 #include "fsp0sysspace.h"
 #include "fts0priv.h"
+#include "ha_prototypes.h"
 #include "mach0data.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "mysql_version.h"
 #include "page0page.h"
 #include "rem0cmp.h"
-#include "srv0start.h"
 #include "srv0srv.h"
-#include <stack>
-#include <set>
+#include "srv0start.h"
 
 /** Following are the InnoDB system tables. The positions in
 this array are referenced by enum dict_system_table_id. */
@@ -103,7 +105,7 @@ dict_load_table_low(
 
 /* If this flag is TRUE, then we will load the cluster index's (and tables')
 metadata even if it is marked as "corrupted". */
-my_bool     srv_load_corrupted = FALSE;
+bool     srv_load_corrupted = FALSE;
 
 #ifdef UNIV_DEBUG
 /****************************************************************//**
@@ -983,6 +985,7 @@ dict_load_field_low(
 	ulint		len;
 	ulint		pos_and_prefix_len;
 	ulint		prefix_len;
+	bool		is_ascending;
 	ibool		first_field;
 	ulint		position;
 
@@ -1038,10 +1041,12 @@ err_len:
 	}
 
 	if (first_field || pos_and_prefix_len > 0xFFFFUL) {
-		prefix_len = pos_and_prefix_len & 0xFFFFUL;
+		prefix_len = pos_and_prefix_len & 0x7FFFUL;
+		is_ascending = !(pos_and_prefix_len & 0x8000UL);
 		position = (pos_and_prefix_len & 0xFFFF0000UL)  >> 16;
 	} else {
 		prefix_len = 0;
+		is_ascending = true;
 		position = pos_and_prefix_len & 0xFFFFUL;
 	}
 
@@ -1065,7 +1070,7 @@ err_len:
 	if (index) {
 		index->add_field(
 			mem_heap_strdupl(heap, (const char*) field, len),
-			prefix_len);
+			prefix_len, is_ascending);
 	} else {
 		ut_a(sys_field);
 		ut_a(pos);
@@ -1779,13 +1784,13 @@ dict_check_sys_tablespaces(
 			continue;
 		}
 
-		/* Ignore system and file-per-table tablespaces,
+		/* Ignore system, undo and file-per-table tablespaces,
 		and tablespaces that already are in the tablespace cache. */
-		if (is_system_tablespace(space_id)
+		if (fsp_is_system_or_temp_tablespace(space_id)
+		    || fsp_is_undo_tablespace(space_id)
 		    || !fsp_is_shared_tablespace(fsp_flags)
 		    || fil_space_for_table_exists_in_mem(
-			    space_id, space_name,
-			    false, true, NULL, 0)) {
+			    space_id, space_name, false, true, NULL, 0)) {
 			continue;
 		}
 
@@ -1967,7 +1972,8 @@ dict_check_sys_tables(
 					 &table_id, &space_id,
 					 &n_cols, &flags, &flags2);
 		if (flags == ULINT_UNDEFINED
-		    || is_system_tablespace(space_id)) {
+		    || fsp_is_system_or_temp_tablespace(space_id)) {
+                        ut_ad(!fsp_is_undo_tablespace(space_id));
 			ut_free(table_name.m_name);
 			continue;
 		}
@@ -2782,8 +2788,8 @@ dict_load_tablespace(
 {
 	ut_ad(!table->is_temporary());
 
-	/* The system tablespace is always available. */
-	if (is_system_tablespace(table->space)) {
+	/* The system and temporary tablespaces are preloaded and always available. */
+	if (fsp_is_system_or_temp_tablespace(table->space)) {
 		return;
 	}
 
@@ -3047,7 +3053,7 @@ err_exit:
 	field) if the datafiles are from 3.23.52 version. To identify this
 	version, we do the below check and reset the flags. */
 	if (!DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)
-	    && table->space == srv_sys_space.space_id()
+	    && table->space == TRX_SYS_SPACE
 	    && table->flags == 0) {
 		table->flags2 = 0;
 	}
@@ -3665,6 +3671,7 @@ loop:
 
 	if (0 != cmp_data_data(dfield_get_type(dfield)->mtype,
 			       dfield_get_type(dfield)->prtype,
+			       true,
 			       static_cast<const byte*>(
 				       dfield_get_data(dfield)),
 			       dfield_get_len(dfield),

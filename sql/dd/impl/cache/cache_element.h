@@ -1,4 +1,4 @@
-/* Copyright (c) 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,10 +16,9 @@
 #ifndef DD_CACHE__CACHE_ELEMENT_INCLUDED
 #define DD_CACHE__CACHE_ELEMENT_INCLUDED
 
-#include "my_global.h"                    // DBUG_ASSERT() etc.
 #include "dd/impl/raw/object_keys.h"      // Primary_id_key
-
-#include <string>                         // std::string
+#include "dd/string_type.h"               // dd::String_type
+#include "my_dbug.h"
 
 namespace dd_cache_unittest {
   class CacheTestHelper;
@@ -64,12 +63,12 @@ class Cache_element
   friend class Storage_adapter;                     // Unit test access.
   friend class dd_cache_unittest::CacheTestHelper;  // Unit test access.
   friend class Shared_multi_map<T>;                 // Access to changing data.
+  friend class Dictionary_client;                   // Access to changing data.
 
 private:
 
   const T *m_object;              // Pointer to the actual object.
   uint m_ref_counter;             // Number of concurrent object usages.
-  bool m_sticky;                  // Whether the object may be evicted.
 
 
   /**
@@ -135,14 +134,6 @@ private:
   { m_object= replacement_object; }
 
 
-  // Set whether the object is sticky or not.
-  void set_sticky(bool sticky)
-  {
-    DBUG_ASSERT(m_sticky == !sticky);
-    m_sticky= sticky;
-  }
-
-
   // Update the keys based on the object pointed to.
   void recreate_keys()
   {
@@ -156,8 +147,8 @@ private:
 public:
 
   // Initialize an instance to having NULL pointers and 0 count.
-  Cache_element(): m_object(NULL), m_ref_counter(0), m_sticky(false),
-                   m_id_key(), m_name_key(), m_aux_key()
+  Cache_element(): m_object(NULL), m_ref_counter(0), m_id_key(),
+          m_name_key(), m_aux_key()
   { } /* purecov: tested */
 
 
@@ -171,7 +162,6 @@ public:
   {
     m_object= NULL;
     m_ref_counter= 0;
-    m_sticky= false;
     delete_keys();
   }
 
@@ -192,11 +182,6 @@ public:
   // Return the object pointer.
   const T *object() const
   { return m_object; }
-
-
-  // Return whether the object is sticky or not.
-  bool sticky() const
-  { return m_sticky; }
 
 
   // Get the id key.
@@ -227,14 +212,12 @@ public:
 
   // Debug dump of the element to stderr.
   /* purecov: begin inspected */
-  void dump(const std::string &prefix= "      ") const
+  void dump(const String_type &prefix= "      ") const
   {
 #ifndef DBUG_OFF
     fprintf(stderr, "%sobj: %p, id: %llu, cnt: %u",
             prefix.c_str(), m_object, m_object ? m_object->id() : 0,
             m_ref_counter);
-    fprintf(stderr, ", sticky: %d",
-            static_cast<int>(m_sticky));
     fprintf(stderr, ", id_k: %s",
             m_id_key.is_null ? "NULL" : m_id_key.key.str().c_str());
     fprintf(stderr, ", name_k: %s",

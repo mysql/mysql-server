@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,10 +15,17 @@
 
 #include "dd/impl/transaction_impl.h"
 
-#include "sql_base.h"                        // MYSQL_LOCK_IGNORE_TIMEOUT
+#include <stddef.h>
+#include <new>
+#include <utility>
 
-#include "dd/properties.h"                   // Needed for destructor
 #include "dd/impl/raw/raw_table.h"           // dd::Raw_table
+#include "my_dbug.h"
+#include "query_options.h"
+#include "sql_base.h"                        // MYSQL_LOCK_IGNORE_TIMEOUT
+#include "sql_lex.h"
+#include "system_variables.h"
+#include "table.h"
 
 namespace dd {
 
@@ -35,7 +42,7 @@ Open_dictionary_tables_ctx::~Open_dictionary_tables_ctx()
 }
 
 
-void Open_dictionary_tables_ctx::add_table(const std::string &name)
+void Open_dictionary_tables_ctx::add_table(const String_type &name)
 {
   if (!m_tables[name])
     m_tables[name]= new (std::nothrow) Raw_table(m_lock_type, name);
@@ -100,16 +107,21 @@ bool Open_dictionary_tables_ctx::open_tables()
   if (::open_tables(m_thd, &table_list, &counter, flags))
     DBUG_RETURN(true);
 
-#ifndef DBUG_OFF
   /*
     Data-dictionary tables must use storage engine supporting attachable
     transactions.
+
+    We also disable auto-increment locking for data-dictionary tables.
+    It leads to increased chances of deadlocks during atomic DDL and
+    is not really necessary for replicating data-dictionary changes
+    (as we do not aim to replicate exact IDs in the data-dictionary).
   */
   for (TABLE_LIST *t= table_list; t; t= t->next_global)
   {
     DBUG_ASSERT(t->table->file->ha_table_flags() & HA_ATTACHABLE_TRX_COMPATIBLE);
+    if (t->table->file->extra(HA_EXTRA_NO_AUTOINC_LOCKING))
+      DBUG_RETURN(true);
   }
-#endif
 
   // Lock the tables.
   if (lock_tables(m_thd, table_list, counter, flags))
@@ -119,7 +131,7 @@ bool Open_dictionary_tables_ctx::open_tables()
 }
 
 
-Raw_table *Open_dictionary_tables_ctx::get_table(const std::string &name) const
+Raw_table *Open_dictionary_tables_ctx::get_table(const String_type &name) const
 {
   Object_table_map::const_iterator it= m_tables.find(name);
 
@@ -138,7 +150,7 @@ Update_dictionary_tables_ctx::Update_dictionary_tables_ctx(THD *thd)
   m_saved_auto_increment_increment(
     thd->variables.auto_increment_increment)
 {
-  m_saved_count_cuted_fields= m_thd->count_cuted_fields;
+  m_saved_check_for_truncated_fields= m_thd->check_for_truncated_fields;
 
   m_saved_mode= m_thd->variables.sql_mode;
   m_thd->variables.sql_mode= 0; // Reset during DD operations
@@ -193,7 +205,7 @@ Update_dictionary_tables_ctx::~Update_dictionary_tables_ctx()
   // Close all the tables that are open till now.
   close_thread_tables(m_thd);
 
-  m_thd->count_cuted_fields= m_saved_count_cuted_fields;
+  m_thd->check_for_truncated_fields= m_saved_check_for_truncated_fields;
   m_thd->variables.sql_mode= m_saved_mode;
 
   m_thd->variables.option_bits= m_saved_binlog_options;

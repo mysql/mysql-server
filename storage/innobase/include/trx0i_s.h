@@ -77,31 +77,9 @@ do {								\
 	}							\
 } while (0)
 
-/** A row of INFORMATION_SCHEMA.innodb_locks */
-struct i_s_locks_row_t;
-
-/** Objects of trx_i_s_cache_t::locks_hash */
-struct i_s_hash_chain_t;
-
-/** Objects of this type are added to the hash table
-trx_i_s_cache_t::locks_hash */
-struct i_s_hash_chain_t {
-	i_s_locks_row_t*	value;	/*!< row of
-					INFORMATION_SCHEMA.innodb_locks*/
-	i_s_hash_chain_t*	next;	/*!< next item in the hash chain */
-};
-
 /** This structure represents INFORMATION_SCHEMA.innodb_locks row */
 struct i_s_locks_row_t {
 	trx_id_t	lock_trx_id;	/*!< transaction identifier */
-	const char*	lock_mode;	/*!< lock mode from
-					lock_get_mode_str() */
-	const char*	lock_type;	/*!< lock type from
-					lock_get_type_str() */
-	const char*	lock_table;	/*!< table name from
-					lock_get_table_name() */
-	const char*	lock_index;	/*!< index name from
-					lock_rec_get_index_name() */
 	/** Information for record locks.  All these are
 	ULINT_UNDEFINED for table locks. */
 	/* @{ */
@@ -109,7 +87,6 @@ struct i_s_locks_row_t {
 	page_no_t	lock_page;	/*!< page number within the_space */
 	ulint		lock_rec;	/*!< heap number of the record
 					on the page */
-	const char*	lock_data;	/*!< (some) content of the record */
 	/* @} */
 
 	/** The following are auxiliary and not included in the table */
@@ -117,8 +94,6 @@ struct i_s_locks_row_t {
 	table_id_t	lock_table_id;
 					/*!< table identifier from
 					lock_get_table_id */
-	i_s_hash_chain_t hash_chain;	/*!< hash table chain node for
-					trx_i_s_cache_t::locks_hash */
 	/* @} */
 };
 
@@ -171,12 +146,6 @@ struct i_s_trx_row_t {
 					*/
 };
 
-/** This structure represents INFORMATION_SCHEMA.innodb_lock_waits row */
-struct i_s_lock_waits_row_t {
-	const i_s_locks_row_t*	requested_lock_row;	/*!< requested lock */
-	const i_s_locks_row_t*	blocking_lock_row;	/*!< blocking lock */
-};
-
 /** Cache of INFORMATION_SCHEMA table data */
 struct trx_i_s_cache_t;
 
@@ -184,8 +153,6 @@ struct trx_i_s_cache_t;
 INFORMATION_SCHEMA tables */
 enum i_s_table {
 	I_S_INNODB_TRX,		/*!< INFORMATION_SCHEMA.innodb_trx */
-	I_S_INNODB_LOCKS,	/*!< INFORMATION_SCHEMA.innodb_locks */
-	I_S_INNODB_LOCK_WAITS	/*!< INFORMATION_SCHEMA.innodb_lock_waits */
 };
 
 /** This is the intermediate buffer where data needed to fill the
@@ -290,5 +257,20 @@ trx_i_s_create_lock_id(
 	char*			lock_id,/*!< out: resulting lock_id */
 	ulint			lock_id_size);/*!< in: size of the lock id
 					buffer */
+
+/** Fill performance schema lock data.
+Create a string that represents the LOCK_DATA
+column, for a given lock record.
+@param[out]	lock_data	Lock data string
+@param[in]	lock		Lock to inspect
+@param[in]	heap_no		Lock heap number
+@param[in]	container	Data container to fill
+*/
+void
+p_s_fill_lock_data(
+	const char**			lock_data,
+	const lock_t*			lock,
+	ulint				heap_no,
+	PSI_server_data_lock_container*	container);
 
 #endif /* trx0i_s_h */

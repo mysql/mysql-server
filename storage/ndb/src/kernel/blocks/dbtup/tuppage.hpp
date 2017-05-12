@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -57,9 +57,13 @@ struct Tup_page
   Uint32 unused_high_index; // size of index + 1
   Uint32 unused_insert_pos;
   Uint32 m_flags; /* Currently only LCP_SKIP flag in bit 0 */
-  Uint32 unused_ph[6];
+  Uint32 m_ndb_version;
+  Uint32 m_create_table_version;
+  Uint32 unused_ph[4];
 
-  STATIC_CONST( DATA_WORDS = File_formats::NDB_PAGE_SIZE_WORDS - 32 );
+  STATIC_CONST( HEADER_WORDS = 32 );
+  STATIC_CONST( DATA_WORDS = File_formats::NDB_PAGE_SIZE_WORDS -
+                             HEADER_WORDS );
   
   Uint32 m_data[DATA_WORDS];
 
@@ -115,10 +119,14 @@ struct Tup_fixsize_page
   Uint32 unused_high_index; // size of index + 1
   Uint32 unushed_insert_pos;
   Uint32 m_flags; /* Currently only LCP_SKIP flag in bit 0 */
-  Uint32 unused_ph[6];
+  Uint32 m_ndb_version;
+  Uint32 m_schema_version;
+  Uint32 unused_ph[4];
 
   STATIC_CONST( FREE_RECORD = ~(Uint32)0 );
-  STATIC_CONST( DATA_WORDS = File_formats::NDB_PAGE_SIZE_WORDS - 32 );
+  STATIC_CONST( HEADER_WORDS = 32 );
+  STATIC_CONST( DATA_WORDS = File_formats::NDB_PAGE_SIZE_WORDS -
+                             HEADER_WORDS );
   
   Uint32 m_data[DATA_WORDS];
   
@@ -169,9 +177,13 @@ struct Tup_varsize_page
   Uint32 high_index; // size of index + 1
   Uint32 insert_pos;
   Uint32 m_flags; /* Currently only LCP_SKIP flag in bit 0 */
-  Uint32 unused_ph[6];
+  Uint32 m_ndb_version;
+  Uint32 m_schema_version;
+  Uint32 unused_ph[4];
   
-  STATIC_CONST( DATA_WORDS = File_formats::NDB_PAGE_SIZE_WORDS - 32 );
+  STATIC_CONST( HEADER_WORDS = 32 );
+  STATIC_CONST( DATA_WORDS = File_formats::NDB_PAGE_SIZE_WORDS -
+                             HEADER_WORDS );
   STATIC_CONST( CHAIN    = 0x80000000 );
   STATIC_CONST( FREE     = 0x40000000 );
   STATIC_CONST( LEN_MASK = 0x3FFF8000 );

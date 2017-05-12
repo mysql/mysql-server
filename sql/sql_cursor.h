@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,9 +16,16 @@
 #ifndef _sql_cursor_h_
 #define _sql_cursor_h_
 
+#include <stddef.h>
+#include <sys/types.h>
+#include <new>
+
+#include "sql_alloc.h"
 #include "sql_class.h"                          /* Query_arena */
+#include "sql_servers.h"
 
 class JOIN;
+class Query_result;
 
 /**
   @file
@@ -53,8 +60,8 @@ public:
   virtual ~Server_side_cursor();
 
   static void operator delete(void *ptr, size_t size);
-  static void operator delete(void *ptr, MEM_ROOT *mem_root,
-                              const std::nothrow_t &arg) throw ()
+  static void operator delete(void*, MEM_ROOT*,
+                              const std::nothrow_t&) throw ()
   { /* never called */ }
 };
 

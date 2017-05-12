@@ -15,11 +15,13 @@
 
 #include "dd/impl/types/procedure_impl.h"
 
-#include "dd/impl/transaction_impl.h"            // Open_dictionary_tables_ctx
-#include "dd/impl/tables/routines.h"             // Routines
-#include "dd/types/parameter.h"                  // Parameter
-
 #include <sstream>
+
+#include "dd/impl/tables/routines.h"             // Routines
+#include "dd/impl/transaction_impl.h"            // Open_dictionary_tables_ctx
+#include "dd/string_type.h"                      // dd::String_type
+#include "dd/types/parameter.h"                  // Parameter
+#include "dd/types/weak_object.h"
 
 using dd::tables::Routines;
 
@@ -39,7 +41,7 @@ const Object_type &Procedure::TYPE()
 
 bool Procedure_impl::update_routine_name_key(name_key_type *key,
                                              Object_id schema_id,
-                                             const std::string &name) const
+                                             const String_type &name) const
 {
   return Procedure::update_name_key(key, schema_id, name);
 }
@@ -49,7 +51,7 @@ bool Procedure_impl::update_routine_name_key(name_key_type *key,
 
 bool Procedure::update_name_key(name_key_type *key,
                                 Object_id schema_id,
-                                const std::string &name)
+                                const String_type &name)
 {
   return Routines::update_object_key(key,
                                      schema_id,
@@ -59,11 +61,11 @@ bool Procedure::update_name_key(name_key_type *key,
 
 ///////////////////////////////////////////////////////////////////////////
 
-void Procedure_impl::debug_print(std::string &outb) const
+void Procedure_impl::debug_print(String_type &outb) const
 {
-  std::stringstream ss;
+  dd::Stringstream_type ss;
 
-  std::string s;
+  String_type s;
   Routine_impl::debug_print(s);
 
   ss

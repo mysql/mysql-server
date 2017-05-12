@@ -2,9 +2,18 @@
 --echo # BUG#21816041 - ROW_FORMAT=DYNAMIC IS RESTRICTIVE THAN ROW_FORMAT=COMPACT
 --echo #
 --source include/no_valgrind_without_big.inc
---source include/have_innodb_16k.inc
 # This test use $MYSQL client, so this cannot be used in embedded mode
 --source include/not_embedded.inc
+
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs41=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema default character set latin1;
+use test;
+--enable_query_log
+########################################
 
 CREATE TABLE t1 (a VARCHAR(300), b VARCHAR(16383) CHARACTER SET UTF8MB3,
 PRIMARY KEY(a(255), b(255))) ENGINE=INNODB ROW_FORMAT=DYNAMIC;
@@ -353,3 +362,10 @@ ALTER TABLE t1 ADD COLUMN c CHAR(255) CHARACTER SET UTF32;
 ALTER TABLE t1 ADD INDEX k2(b);
 ALTER TABLE t1 ADD INDEX k3(c);
 DROP TABLE t1;
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs41;
+--enable_query_log
+########################################

@@ -1,3 +1,12 @@
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs37=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema test default character set latin1;
+--enable_query_log
+########################################
+
 --disable_warnings
 DROP TABLE IF EXISTS t1;
 --enable_warnings
@@ -6,3 +15,10 @@ INSERT INTO t1(c1) VALUES('abc');
 SELECT * FROM t1;
 DROP TABLE t1;
 
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs37;
+--enable_query_log
+########################################

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,23 +16,33 @@
 #ifndef DD__FOREIGN_KEY_IMPL_INCLUDED
 #define DD__FOREIGN_KEY_IMPL_INCLUDED
 
-#include "my_global.h"
+#include <sys/types.h>
+#include <memory>     // std::unique_ptr
+#include <new>
+#include <string>
 
 #include "dd/impl/types/entity_object_impl.h" // dd::Entity_object_impl
+#include "dd/impl/types/weak_object_impl.h"
+#include "dd/object_id.h"
+#include "dd/sdi_fwd.h"
 #include "dd/types/foreign_key.h"             // dd::Foreign_key
 #include "dd/types/foreign_key_element.h"     // dd::Foreign_key_element
 #include "dd/types/object_type.h"             // dd::Object_type
-
-#include <memory>     // std::unique_ptr
 
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
+class Open_dictionary_tables_ctx;
 class Raw_record;
 class Table;
 class Table_impl;
-class Open_dictionary_tables_ctx;
+class Foreign_key_element;
+class Index;
+class Object_table;
+class Sdi_rcontext;
+class Sdi_wcontext;
+class Weak_object;
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -73,10 +83,10 @@ public:
 
   bool deserialize(Sdi_rcontext *rctx, const RJ_Value &val);
 
-  void debug_print(std::string &outb) const;
+  void debug_print(String_type &outb) const;
 
 public:
-  void set_ordinal_position(uint ordinal_position)
+  void set_ordinal_position(uint)
   { }
 
   virtual uint ordinal_position() const
@@ -141,30 +151,30 @@ public:
   // the catalog name of the referenced table.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &referenced_table_catalog_name() const
+  virtual const String_type &referenced_table_catalog_name() const
   { return m_referenced_table_catalog_name; }
 
-  virtual void referenced_table_catalog_name(const std::string &name)
+  virtual void referenced_table_catalog_name(const String_type &name)
   { m_referenced_table_catalog_name= name; }
 
   /////////////////////////////////////////////////////////////////////////
   // the schema name of the referenced table.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &referenced_table_schema_name() const
+  virtual const String_type &referenced_table_schema_name() const
   { return m_referenced_table_schema_name; }
 
-  virtual void referenced_table_schema_name(const std::string &name)
+  virtual void referenced_table_schema_name(const String_type &name)
   { m_referenced_table_schema_name= name; }
 
   /////////////////////////////////////////////////////////////////////////
   // the name of the referenced table.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &referenced_table_name() const
+  virtual const String_type &referenced_table_name() const
   { return m_referenced_table_name; }
 
-  virtual void referenced_table_name(const std::string &name)
+  virtual void referenced_table_name(const String_type &name)
   { m_referenced_table_name= name; }
 
   /////////////////////////////////////////////////////////////////////////
@@ -185,9 +195,9 @@ public:
   { return Entity_object_impl::id(); }
   virtual bool is_persistent() const
   { return Entity_object_impl::is_persistent(); }
-  virtual const std::string &name() const
+  virtual const String_type &name() const
   { return Entity_object_impl::name(); }
-  virtual void set_name(const std::string &name)
+  virtual void set_name(const String_type &name)
   { Entity_object_impl::set_name(name); }
 
 public:
@@ -206,9 +216,9 @@ private:
 
   const Index *m_unique_constraint;
 
-  std::string m_referenced_table_catalog_name;
-  std::string m_referenced_table_schema_name;
-  std::string m_referenced_table_name;
+  String_type m_referenced_table_catalog_name;
+  String_type m_referenced_table_schema_name;
+  String_type m_referenced_table_name;
 
   Table_impl *m_table;
 

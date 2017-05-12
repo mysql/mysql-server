@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,12 +13,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
 #include <gtest/gtest.h>
-
-#include <my_global.h>
 #include <my_sys.h>
+
+#include "my_inttypes.h"
 
 namespace like_range_unittest {
 
@@ -52,48 +50,51 @@ test_like_range_for_charset(CHARSET_INFO *cs, const char *src, size_t src_len)
 }
 
 
-static CHARSET_INFO *charset_list[]=
+static const char *charset_list[]=
 {
-  &my_charset_big5_chinese_ci,
-  &my_charset_big5_bin,
+  "big5_chinese_ci",
+  "big5_bin",
 
-  &my_charset_euckr_korean_ci,
-  &my_charset_euckr_bin,
+  "euckr_korean_ci",
+  "euckr_bin",
 
-  &my_charset_gb2312_chinese_ci,
-  &my_charset_gb2312_bin,
+  "gb2312_chinese_ci",
+  "gb2312_bin",
 
-  &my_charset_gbk_chinese_ci,
-  &my_charset_gbk_bin,
+  "gbk_chinese_ci",
+  "gbk_bin",
 
-  &my_charset_gb18030_chinese_ci,
-  &my_charset_gb18030_bin,
+  "gb18030_chinese_ci",
+  "gb18030_bin",
 
-  &my_charset_latin1,
-  &my_charset_latin1_bin,
+  "latin1_swedish_ci",
+  "latin1_bin",
 
-  &my_charset_sjis_japanese_ci,
-  &my_charset_sjis_bin,
+  "sjis_japanese_ci",
+  "sjis_bin",
 
-  &my_charset_tis620_thai_ci,
-  &my_charset_tis620_bin,
+  "tis620_thai_ci",
+  "tis620_bin",
 
-  &my_charset_ujis_japanese_ci,
-  &my_charset_ujis_bin,
+  "ujis_japanese_ci",
+  "ujis_bin",
 
-  &my_charset_utf8_general_ci,
-  &my_charset_utf8_unicode_ci,
-  &my_charset_utf8_bin,
+  "utf8_general_ci",
+  "utf8_unicode_ci",
+  "utf8_bin",
 };
 
 #if defined(GTEST_HAS_PARAM_TEST)
 
-class LikeRangeTest : public ::testing::TestWithParam<CHARSET_INFO*>
+class LikeRangeTest : public ::testing::TestWithParam<const char *>
 {
 protected:
   virtual void SetUp()
   {
-    m_charset= GetParam();
+    MY_CHARSET_LOADER loader;
+    my_charset_loader_init_mysys(&loader);
+    m_charset= my_collation_get_by_name(&loader, GetParam(), MYF(0));
+    DBUG_ASSERT(m_charset);
   }
   CHARSET_INFO *m_charset;
 };

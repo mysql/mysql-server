@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -24,9 +24,14 @@ Created 2/23/1996 Heikki Tuuri
 *******************************************************/
 
 #include "btr0pcur.h"
-#include "ut0byte.h"
+
+#include <stddef.h>
+
+#include "my_dbug.h"
+#include "my_inttypes.h"
 #include "rem0cmp.h"
 #include "trx0trx.h"
+#include "ut0byte.h"
 
 /**************************************************************//**
 Allocates memory for a persistent cursor object and initializes the cursor.
@@ -360,7 +365,7 @@ btr_pcur_restore_position_func(
 	      || cursor->rel_pos == BTR_PCUR_AFTER);
 	if (cursor->rel_pos == BTR_PCUR_ON
 	    && btr_pcur_is_on_user_rec(cursor)
-	    && !cmp_dtuple_rec(tuple, btr_pcur_get_rec(cursor),
+	    && !cmp_dtuple_rec(tuple, btr_pcur_get_rec(cursor), index,
 			       rec_get_offsets(btr_pcur_get_rec(cursor),
 			       index, NULL, ULINT_UNDEFINED, &heap))) {
 

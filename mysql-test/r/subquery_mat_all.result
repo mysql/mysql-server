@@ -6,9 +6,9 @@ Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 drop table if exists t1, t2, t3, t1i, t2i, t3i;
 drop view if exists v1, v2, v1m, v2m;
-create table t1 (a1 char(8), a2 char(8));
-create table t2 (b1 char(8), b2 char(8));
-create table t3 (c1 char(8), c2 char(8));
+create table t1 (a1 char(8), a2 char(8)) charset utf8mb4;
+create table t2 (b1 char(8), b2 char(8)) charset utf8mb4;
+create table t3 (c1 char(8), c2 char(8)) charset utf8mb4;
 insert into t1 values ('1 - 00', '2 - 00');
 insert into t1 values ('1 - 01', '2 - 01');
 insert into t1 values ('1 - 02', '2 - 02');
@@ -21,9 +21,9 @@ insert into t3 values ('1 - 01', '2 - 01');
 insert into t3 values ('1 - 02', '2 - 02');
 insert into t3 values ('1 - 03', '2 - 03');
 insert into t3 values ('1 - 04', '2 - 04');
-create table t1i (a1 char(8), a2 char(8));
-create table t2i (b1 char(8), b2 char(8));
-create table t3i (c1 char(8), c2 char(8));
+create table t1i (a1 char(8), a2 char(8)) charset utf8mb4;
+create table t2i (b1 char(8), b2 char(8)) charset utf8mb4;
+create table t3i (c1 char(8), c2 char(8)) charset utf8mb4;
 create index it1i1 on t1i (a1);
 create index it1i2 on t1i (a2);
 create index it1i3 on t1i (a1, a2);
@@ -80,7 +80,7 @@ explain extended
 select * from t1 where (a1, a2) in (select b1, min(b2) from t2 where b1 > '0' group by b1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	33.33	Using where; Using temporary; Using filesort
+2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	33.33	Using where; Using temporary
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),(`test`.`t1`.`a1`,`test`.`t1`.`a2`) in ( <materialize> (/* select#2 */ select `test`.`t2`.`b1`,min(`test`.`t2`.`b2`) from `test`.`t2` where (`test`.`t2`.`b1` > '0') group by `test`.`t2`.`b1` having 1 ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on <auto_key> where ((`test`.`t1`.`a1` = `materialized-subquery`.`b1`) and (`test`.`t1`.`a2` = `materialized-subquery`.`min(b2)`)))))
@@ -91,8 +91,8 @@ a1	a2
 explain extended
 select * from t1i where a1 in (select b1 from t2i where b1 > '0');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2i	NULL	index	it2i1,it2i3	it2i1	9	NULL	5	50.00	Using where; Using index; LooseScan
-1	SIMPLE	t1i	NULL	ref	it1i1,it1i3	it1i1	9	test.t2i.b1	1	100.00	NULL
+1	SIMPLE	t2i	NULL	index	it2i1,it2i3	it2i1	33	NULL	5	50.00	Using where; Using index; LooseScan
+1	SIMPLE	t1i	NULL	ref	it1i1,it1i3	it1i1	33	test.t2i.b1	1	100.00	NULL
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` semi join (`test`.`t2i`) where ((`test`.`t1i`.`a1` = `test`.`t2i`.`b1`) and (`test`.`t2i`.`b1` > '0'))
@@ -103,8 +103,8 @@ a1	a2
 explain extended
 select * from t1i where a1 in (select b1 from t2i where b1 > '0' group by b1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2i	NULL	index	it2i1,it2i3	it2i1	9	NULL	5	50.00	Using where; Using index; LooseScan
-1	SIMPLE	t1i	NULL	ref	it1i1,it1i3	it1i1	9	test.t2i.b1	1	100.00	NULL
+1	SIMPLE	t2i	NULL	index	it2i1,it2i3	it2i1	33	NULL	5	50.00	Using where; Using index; LooseScan
+1	SIMPLE	t1i	NULL	ref	it1i1,it1i3	it1i1	33	test.t2i.b1	1	100.00	NULL
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` semi join (`test`.`t2i`) where ((`test`.`t1i`.`a1` = `test`.`t2i`.`b1`) and (`test`.`t2i`.`b1` > '0'))
@@ -115,8 +115,8 @@ a1	a2
 explain extended
 select * from t1i where (a1, a2) in (select b1, b2 from t2i where b1 > '0');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2i	NULL	index	it2i1,it2i2,it2i3	it2i3	18	NULL	5	50.00	Using where; Using index; LooseScan
-1	SIMPLE	t1i	NULL	ref	it1i1,it1i2,it1i3	it1i1	9	test.t2i.b1	1	33.33	Using where
+1	SIMPLE	t2i	NULL	index	it2i1,it2i2,it2i3	it2i3	66	NULL	5	50.00	Using where; Using index; LooseScan
+1	SIMPLE	t1i	NULL	ref	it1i1,it1i2,it1i3	it1i1	33	test.t2i.b1	1	33.33	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` semi join (`test`.`t2i`) where ((`test`.`t1i`.`a2` = `test`.`t2i`.`b2`) and (`test`.`t1i`.`a1` = `test`.`t2i`.`b1`) and (`test`.`t2i`.`b1` > '0'))
@@ -127,8 +127,8 @@ a1	a2
 explain extended
 select * from t1i where (a1, a2) in (select b1, b2 from t2i where b1 > '0' group by b1, b2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2i	NULL	index	it2i1,it2i2,it2i3	it2i3	18	NULL	5	50.00	Using where; Using index; LooseScan
-1	SIMPLE	t1i	NULL	ref	it1i1,it1i2,it1i3	it1i1	9	test.t2i.b1	1	33.33	Using where
+1	SIMPLE	t2i	NULL	index	it2i1,it2i2,it2i3	it2i3	66	NULL	5	50.00	Using where; Using index; LooseScan
+1	SIMPLE	t1i	NULL	ref	it1i1,it1i2,it1i3	it1i1	33	test.t2i.b1	1	33.33	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` semi join (`test`.`t2i`) where ((`test`.`t1i`.`a2` = `test`.`t2i`.`b2`) and (`test`.`t1i`.`a1` = `test`.`t2i`.`b1`) and (`test`.`t2i`.`b1` > '0'))
@@ -139,8 +139,8 @@ a1	a2
 explain extended
 select * from t1i where (a1, a2) in (select b1, min(b2) from t2i where b1 > '0' group by b1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1i	NULL	index	NULL	it1i3	18	NULL	3	100.00	Using where; Using index
-2	SUBQUERY	t2i	NULL	range	it2i1,it2i3	it2i3	18	NULL	3	100.00	Using where; Using index for group-by
+1	PRIMARY	t1i	NULL	index	NULL	it1i3	66	NULL	3	100.00	Using where; Using index
+2	SUBQUERY	t2i	NULL	range	it2i1,it2i3	it2i3	66	NULL	3	100.00	Using where; Using index for group-by
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` where <in_optimizer>((`test`.`t1i`.`a1`,`test`.`t1i`.`a2`),(`test`.`t1i`.`a1`,`test`.`t1i`.`a2`) in ( <materialize> (/* select#2 */ select `test`.`t2i`.`b1`,min(`test`.`t2i`.`b2`) from `test`.`t2i` where (`test`.`t2i`.`b1` > '0') group by `test`.`t2i`.`b1` having 1 ), <primary_index_lookup>(`test`.`t1i`.`a1` in <temporary table> on <auto_key> where ((`test`.`t1i`.`a1` = `materialized-subquery`.`b1`) and (`test`.`t1i`.`a2` = `materialized-subquery`.`min(b2)`)))))
@@ -152,7 +152,7 @@ explain extended
 select * from t1 where (a1, a2) in (select b1, max(b2) from t2i group by b1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	SUBQUERY	t2i	NULL	range	it2i1,it2i3	it2i3	9	NULL	3	100.00	Using index for group-by
+2	SUBQUERY	t2i	NULL	range	it2i1,it2i3	it2i3	33	NULL	3	100.00	Using index for group-by
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),(`test`.`t1`.`a1`,`test`.`t1`.`a2`) in ( <materialize> (/* select#2 */ select `test`.`t2i`.`b1`,max(`test`.`t2i`.`b2`) from `test`.`t2i` group by `test`.`t2i`.`b1` having 1 ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on <auto_key> where ((`test`.`t1`.`a1` = `materialized-subquery`.`b1`) and (`test`.`t1`.`a2` = `materialized-subquery`.`max(b2)`)))))
@@ -164,13 +164,13 @@ prepare st1 from "explain select * from t1 where (a1, a2) in (select b1, max(b2)
 execute st1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	SUBQUERY	t2i	NULL	range	it2i1,it2i3	it2i3	9	NULL	3	100.00	Using index for group-by
+2	SUBQUERY	t2i	NULL	range	it2i1,it2i3	it2i3	33	NULL	3	100.00	Using index for group-by
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),(`test`.`t1`.`a1`,`test`.`t1`.`a2`) in ( <materialize> (/* select#2 */ select `test`.`t2i`.`b1`,max(`test`.`t2i`.`b2`) from `test`.`t2i` group by `test`.`t2i`.`b1` having 1 ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on <auto_key> where ((`test`.`t1`.`a1` = `materialized-subquery`.`b1`) and (`test`.`t1`.`a2` = `materialized-subquery`.`max(b2)`)))))
 execute st1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	SUBQUERY	t2i	NULL	range	it2i1,it2i3	it2i3	9	NULL	3	100.00	Using index for group-by
+2	SUBQUERY	t2i	NULL	range	it2i1,it2i3	it2i3	33	NULL	3	100.00	Using index for group-by
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),(`test`.`t1`.`a1`,`test`.`t1`.`a2`) in ( <materialize> (/* select#2 */ select `test`.`t2i`.`b1`,max(`test`.`t2i`.`b2`) from `test`.`t2i` group by `test`.`t2i`.`b1` having 1 ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on <auto_key> where ((`test`.`t1`.`a1` = `materialized-subquery`.`b1`) and (`test`.`t1`.`a2` = `materialized-subquery`.`max(b2)`)))))
 prepare st2 from "select * from t1 where (a1, a2) in (select b1, max(b2) from t2i group by b1)";
@@ -186,7 +186,7 @@ explain extended
 select * from t1 where (a1, a2) in (select b1, min(b2) from t2i where b1 > '0' group by b1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	SUBQUERY	t2i	NULL	range	it2i1,it2i3	it2i3	18	NULL	3	100.00	Using where; Using index for group-by
+2	SUBQUERY	t2i	NULL	range	it2i1,it2i3	it2i3	66	NULL	3	100.00	Using where; Using index for group-by
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),(`test`.`t1`.`a1`,`test`.`t1`.`a2`) in ( <materialize> (/* select#2 */ select `test`.`t2i`.`b1`,min(`test`.`t2i`.`b2`) from `test`.`t2i` where (`test`.`t2i`.`b1` > '0') group by `test`.`t2i`.`b1` having 1 ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on <auto_key> where ((`test`.`t1`.`a1` = `materialized-subquery`.`b1`) and (`test`.`t1`.`a2` = `materialized-subquery`.`min(b2)`)))))
@@ -211,8 +211,8 @@ a1	a2
 explain extended
 select * from t1i where (a1, a2) in (select b1, b2 from t2i order by b1, b2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2i	NULL	index	it2i1,it2i2,it2i3	it2i3	18	NULL	5	50.00	Using where; Using index; LooseScan
-1	SIMPLE	t1i	NULL	ref	it1i1,it1i2,it1i3	it1i1	9	test.t2i.b1	1	33.33	Using where
+1	SIMPLE	t2i	NULL	index	it2i1,it2i2,it2i3	it2i3	66	NULL	5	50.00	Using where; Using index; LooseScan
+1	SIMPLE	t1i	NULL	ref	it1i1,it1i2,it1i3	it1i1	33	test.t2i.b1	1	33.33	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` semi join (`test`.`t2i`) where ((`test`.`t1i`.`a2` = `test`.`t2i`.`b2`) and (`test`.`t1i`.`a1` = `test`.`t2i`.`b1`))
@@ -268,7 +268,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	33.33	Using where; Start temporary
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; End temporary; Using join buffer (Block Nested Loop)
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
-1	SIMPLE	t2i	NULL	ref	it2i1,it2i2,it2i3	it2i3	18	test.t2.b1,test.t2.b2	2	100.00	Using index; FirstMatch(t1)
+1	SIMPLE	t2i	NULL	ref	it2i1,it2i2,it2i3	it2i3	66	test.t2.b1,test.t2.b2	2	100.00	Using index; FirstMatch(t1)
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` semi join (`test`.`t2i` join `test`.`t3`) semi join (`test`.`t2`) where ((`test`.`t1`.`a2` = `test`.`t2`.`b2`) and (`test`.`t3`.`c2` = `test`.`t2`.`b2`) and (`test`.`t2i`.`b2` = `test`.`t2`.`b2`) and (`test`.`t1`.`a1` = `test`.`t2`.`b1`) and (`test`.`t3`.`c1` = `test`.`t2`.`b1`) and (`test`.`t2i`.`b1` = `test`.`t2`.`b1`) and (`test`.`t2`.`b2` > '0') and (`test`.`t2`.`b1` > '0'))
@@ -285,10 +285,10 @@ where (a1, a2) in (select b1, b2 from t2i where b1 >  '0') and
 (a1, a2) in (select c1, c2 from t3i
 where (c1, c2) in (select b1, b2 from t2i where b2 > '0'));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2i	NULL	index	it2i1,it2i2,it2i3	it2i3	18	NULL	5	50.00	Using where; Using index; LooseScan
-1	SIMPLE	t1i	NULL	ref	it1i1,it1i2,it1i3	it1i1	9	test.t2i.b1	1	100.00	Using where
-1	SIMPLE	t3i	NULL	ref	it3i1,it3i2,it3i3	it3i1	9	test.t2i.b1	1	100.00	Using where
-1	SIMPLE	t2i	NULL	ref	it2i1,it2i2,it2i3	it2i3	18	test.t2i.b1,test.t2i.b2	2	100.00	Using index; FirstMatch(t1i)
+1	SIMPLE	t2i	NULL	index	it2i1,it2i2,it2i3	it2i3	66	NULL	5	50.00	Using where; Using index; LooseScan
+1	SIMPLE	t1i	NULL	ref	it1i1,it1i2,it1i3	it1i1	33	test.t2i.b1	1	100.00	Using where
+1	SIMPLE	t3i	NULL	ref	it3i1,it3i2,it3i3	it3i1	33	test.t2i.b1	1	100.00	Using where
+1	SIMPLE	t2i	NULL	ref	it2i1,it2i2,it2i3	it2i3	66	test.t2i.b1,test.t2i.b2	2	100.00	Using index; FirstMatch(t1i)
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` semi join (`test`.`t2i` join `test`.`t3i`) semi join (`test`.`t2i`) where ((`test`.`t1i`.`a2` = `test`.`t2i`.`b2`) and (`test`.`t3i`.`c2` = `test`.`t2i`.`b2`) and (`test`.`t2i`.`b2` = `test`.`t2i`.`b2`) and (`test`.`t1i`.`a1` = `test`.`t2i`.`b1`) and (`test`.`t3i`.`c1` = `test`.`t2i`.`b1`) and (`test`.`t2i`.`b1` = `test`.`t2i`.`b1`) and (`test`.`t2i`.`b2` > '0') and (`test`.`t2i`.`b1` > '0'))
@@ -307,15 +307,15 @@ b2 in (select c2 from t3 where c2 LIKE '%03')) and
 (a1, a2) in (select c1, c2 from t3
 where (c1, c2) in (select b1, b2 from t2i where b2 > '0'));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Start temporary
-1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (Block Nested Loop)
-1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where; Using join buffer (Block Nested Loop)
-1	PRIMARY	t2i	NULL	ref	it2i1,it2i2,it2i3	it2i3	18	test.t1.a1,test.t1.a2	2	100.00	Using index; End temporary
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
+1	PRIMARY	t2i	NULL	ref	it2i1,it2i2,it2i3	it2i3	66	test.t1.a1,test.t1.a2	2	100.00	Using index; FirstMatch(t1)
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where; FirstMatch(t2i); Using join buffer (Block Nested Loop)
 4	SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
 3	SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` semi join (`test`.`t2i` join `test`.`t3`) semi join (`test`.`t2`) where ((`test`.`t3`.`c2` = `test`.`t1`.`a2`) and (`test`.`t2`.`b2` = `test`.`t1`.`a2`) and (`test`.`t2i`.`b2` = `test`.`t1`.`a2`) and (`test`.`t3`.`c1` = `test`.`t1`.`a1`) and (`test`.`t2`.`b1` = `test`.`t1`.`a1`) and (`test`.`t2i`.`b1` = `test`.`t1`.`a1`) and (`test`.`t1`.`a2` > '0') and (<in_optimizer>(`test`.`t2`.`b2`,`test`.`t2`.`b2` in ( <materialize> (/* select#3 */ select `test`.`t3`.`c2` from `test`.`t3` where (`test`.`t3`.`c2` like '%02') ), <primary_index_lookup>(`test`.`t2`.`b2` in <temporary table> on <auto_key> where ((`test`.`t2`.`b2` = `materialized-subquery`.`c2`))))) or <in_optimizer>(`test`.`t2`.`b2`,`test`.`t2`.`b2` in ( <materialize> (/* select#4 */ select `test`.`t3`.`c2` from `test`.`t3` where (`test`.`t3`.`c2` like '%03') ), <primary_index_lookup>(`test`.`t2`.`b2` in <temporary table> on <auto_key> where ((`test`.`t2`.`b2` = `materialized-subquery`.`c2`)))))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` semi join (`test`.`t2i` join `test`.`t3`) semi join (`test`.`t2`) where ((`test`.`t3`.`c2` = `test`.`t1`.`a2`) and (`test`.`t2i`.`b2` = `test`.`t1`.`a2`) and (`test`.`t2`.`b2` = `test`.`t1`.`a2`) and (`test`.`t3`.`c1` = `test`.`t1`.`a1`) and (`test`.`t2i`.`b1` = `test`.`t1`.`a1`) and (`test`.`t2`.`b1` = `test`.`t1`.`a1`) and (`test`.`t1`.`a2` > '0') and (<in_optimizer>(`test`.`t2`.`b2`,`test`.`t2`.`b2` in ( <materialize> (/* select#3 */ select `test`.`t3`.`c2` from `test`.`t3` where (`test`.`t3`.`c2` like '%02') ), <primary_index_lookup>(`test`.`t2`.`b2` in <temporary table> on <auto_key> where ((`test`.`t2`.`b2` = `materialized-subquery`.`c2`))))) or <in_optimizer>(`test`.`t2`.`b2`,`test`.`t2`.`b2` in ( <materialize> (/* select#4 */ select `test`.`t3`.`c2` from `test`.`t3` where (`test`.`t3`.`c2` like '%03') ), <primary_index_lookup>(`test`.`t2`.`b2` in <temporary table> on <auto_key> where ((`test`.`t2`.`b2` = `materialized-subquery`.`c2`)))))))
 select * from t1
 where (a1, a2) in (select b1, b2 from t2
 where b2 in (select c2 from t3 where c2 LIKE '%02') or
@@ -332,16 +332,16 @@ b2 in (select c2 from t3 t3b where c2 LIKE '%03')) and
 (a1, a2) in (select c1, c2 from t3 t3c
 where (c1, c2) in (select b1, b2 from t2i where b2 > '0'));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Start temporary
-1	PRIMARY	t3c	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (Block Nested Loop)
-1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where; Using join buffer (Block Nested Loop)
-1	PRIMARY	t2i	NULL	ref	it2i1,it2i2,it2i3	it2i3	18	test.t1.a1,test.t1.a2	2	100.00	Using index; End temporary
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	PRIMARY	t3c	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
+1	PRIMARY	t2i	NULL	ref	it2i1,it2i2,it2i3	it2i3	66	test.t1.a1,test.t1.a2	2	100.00	Using index; FirstMatch(t1)
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where; FirstMatch(t2i); Using join buffer (Block Nested Loop)
 4	SUBQUERY	t3b	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
 3	DEPENDENT SUBQUERY	t3a	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1276	Field or reference 'test.t1.a1' of SELECT #3 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` semi join (`test`.`t2`) semi join (`test`.`t2i` join `test`.`t3` `t3c`) where ((`test`.`t3c`.`c2` = `test`.`t1`.`a2`) and (`test`.`t2`.`b2` = `test`.`t1`.`a2`) and (`test`.`t2i`.`b2` = `test`.`t1`.`a2`) and (`test`.`t3c`.`c1` = `test`.`t1`.`a1`) and (`test`.`t2`.`b1` = `test`.`t1`.`a1`) and (`test`.`t2i`.`b1` = `test`.`t1`.`a1`) and (<in_optimizer>(`test`.`t2`.`b2`,<exists>(/* select#3 */ select 1 from `test`.`t3` `t3a` where ((`test`.`t3a`.`c1` = `test`.`t1`.`a1`) and (<cache>(`test`.`t2`.`b2`) = `test`.`t3a`.`c2`)))) or <in_optimizer>(`test`.`t2`.`b2`,`test`.`t2`.`b2` in ( <materialize> (/* select#4 */ select `test`.`t3b`.`c2` from `test`.`t3` `t3b` where (`test`.`t3b`.`c2` like '%03') ), <primary_index_lookup>(`test`.`t2`.`b2` in <temporary table> on <auto_key> where ((`test`.`t2`.`b2` = `materialized-subquery`.`c2`)))))) and (`test`.`t1`.`a2` > '0'))
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` semi join (`test`.`t2`) semi join (`test`.`t2i` join `test`.`t3` `t3c`) where ((`test`.`t3c`.`c2` = `test`.`t1`.`a2`) and (`test`.`t2i`.`b2` = `test`.`t1`.`a2`) and (`test`.`t2`.`b2` = `test`.`t1`.`a2`) and (`test`.`t3c`.`c1` = `test`.`t1`.`a1`) and (`test`.`t2i`.`b1` = `test`.`t1`.`a1`) and (`test`.`t2`.`b1` = `test`.`t1`.`a1`) and (<in_optimizer>(`test`.`t2`.`b2`,<exists>(/* select#3 */ select 1 from `test`.`t3` `t3a` where ((`test`.`t3a`.`c1` = `test`.`t1`.`a1`) and (<cache>(`test`.`t2`.`b2`) = `test`.`t3a`.`c2`)))) or <in_optimizer>(`test`.`t2`.`b2`,`test`.`t2`.`b2` in ( <materialize> (/* select#4 */ select `test`.`t3b`.`c2` from `test`.`t3` `t3b` where (`test`.`t3b`.`c2` like '%03') ), <primary_index_lookup>(`test`.`t2`.`b2` in <temporary table> on <auto_key> where ((`test`.`t2`.`b2` = `materialized-subquery`.`c2`)))))) and (`test`.`t1`.`a2` > '0'))
 select * from t1
 where (a1, a2) in (select b1, b2 from t2
 where b2 in (select c2 from t3 t3a where c1 = a1) or
@@ -365,20 +365,20 @@ where (a1, a2) in (select b1, b2 from t2i where b1 >  '0') and
 (a1, a2) in (select c1, c2 from t3i
 where (c1, c2) in (select b1, b2 from t2i where b2 > '0')));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Start temporary
-1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (Block Nested Loop)
-1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where; Using join buffer (Block Nested Loop)
-1	PRIMARY	t2i	NULL	ref	it2i1,it2i2,it2i3	it2i3	18	test.t1.a1,test.t1.a2	2	100.00	Using index; End temporary
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
+1	PRIMARY	t2i	NULL	ref	it2i1,it2i2,it2i3	it2i3	66	test.t1.a1,test.t1.a2	2	100.00	Using index; FirstMatch(t1)
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where; FirstMatch(t2i); Using join buffer (Block Nested Loop)
 4	SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
 3	SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
-7	UNION	t2i	NULL	index	it2i1,it2i2,it2i3	it2i3	18	NULL	5	50.00	Using where; Using index; LooseScan
-7	UNION	t1i	NULL	ref	it1i1,it1i2,it1i3	it1i1	9	test.t2i.b1	1	100.00	Using where
-7	UNION	t3i	NULL	ref	it3i1,it3i2,it3i3	it3i1	9	test.t2i.b1	1	100.00	Using where
-7	UNION	t2i	NULL	ref	it2i1,it2i2,it2i3	it2i3	18	test.t2i.b1,test.t2i.b2	2	100.00	Using index; FirstMatch(t1i)
+7	UNION	t2i	NULL	index	it2i1,it2i2,it2i3	it2i3	66	NULL	5	50.00	Using where; Using index; LooseScan
+7	UNION	t1i	NULL	ref	it1i1,it1i2,it1i3	it1i1	33	test.t2i.b1	1	100.00	Using where
+7	UNION	t3i	NULL	ref	it3i1,it3i2,it3i3	it3i1	33	test.t2i.b1	1	100.00	Using where
+7	UNION	t2i	NULL	ref	it2i1,it2i2,it2i3	it2i3	66	test.t2i.b1,test.t2i.b2	2	100.00	Using index; FirstMatch(t1i)
 NULL	UNION RESULT	<union1,7>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	(/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` semi join (`test`.`t2i` join `test`.`t3`) semi join (`test`.`t2`) where ((`test`.`t3`.`c2` = `test`.`t1`.`a2`) and (`test`.`t2`.`b2` = `test`.`t1`.`a2`) and (`test`.`t2i`.`b2` = `test`.`t1`.`a2`) and (`test`.`t3`.`c1` = `test`.`t1`.`a1`) and (`test`.`t2`.`b1` = `test`.`t1`.`a1`) and (`test`.`t2i`.`b1` = `test`.`t1`.`a1`) and (`test`.`t1`.`a2` > '0') and (<in_optimizer>(`test`.`t2`.`b2`,`test`.`t2`.`b2` in ( <materialize> (/* select#3 */ select `test`.`t3`.`c2` from `test`.`t3` where (`test`.`t3`.`c2` like '%02') ), <primary_index_lookup>(`test`.`t2`.`b2` in <temporary table> on <auto_key> where ((`test`.`t2`.`b2` = `materialized-subquery`.`c2`))))) or <in_optimizer>(`test`.`t2`.`b2`,`test`.`t2`.`b2` in ( <materialize> (/* select#4 */ select `test`.`t3`.`c2` from `test`.`t3` where (`test`.`t3`.`c2` like '%03') ), <primary_index_lookup>(`test`.`t2`.`b2` in <temporary table> on <auto_key> where ((`test`.`t2`.`b2` = `materialized-subquery`.`c2`)))))))) union (/* select#7 */ select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` semi join (`test`.`t2i` join `test`.`t3i`) semi join (`test`.`t2i`) where ((`test`.`t1i`.`a2` = `test`.`t2i`.`b2`) and (`test`.`t3i`.`c2` = `test`.`t2i`.`b2`) and (`test`.`t2i`.`b2` = `test`.`t2i`.`b2`) and (`test`.`t1i`.`a1` = `test`.`t2i`.`b1`) and (`test`.`t3i`.`c1` = `test`.`t2i`.`b1`) and (`test`.`t2i`.`b1` = `test`.`t2i`.`b1`) and (`test`.`t2i`.`b2` > '0') and (`test`.`t2i`.`b1` > '0')))
+Note	1003	(/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` semi join (`test`.`t2i` join `test`.`t3`) semi join (`test`.`t2`) where ((`test`.`t3`.`c2` = `test`.`t1`.`a2`) and (`test`.`t2i`.`b2` = `test`.`t1`.`a2`) and (`test`.`t2`.`b2` = `test`.`t1`.`a2`) and (`test`.`t3`.`c1` = `test`.`t1`.`a1`) and (`test`.`t2i`.`b1` = `test`.`t1`.`a1`) and (`test`.`t2`.`b1` = `test`.`t1`.`a1`) and (`test`.`t1`.`a2` > '0') and (<in_optimizer>(`test`.`t2`.`b2`,`test`.`t2`.`b2` in ( <materialize> (/* select#3 */ select `test`.`t3`.`c2` from `test`.`t3` where (`test`.`t3`.`c2` like '%02') ), <primary_index_lookup>(`test`.`t2`.`b2` in <temporary table> on <auto_key> where ((`test`.`t2`.`b2` = `materialized-subquery`.`c2`))))) or <in_optimizer>(`test`.`t2`.`b2`,`test`.`t2`.`b2` in ( <materialize> (/* select#4 */ select `test`.`t3`.`c2` from `test`.`t3` where (`test`.`t3`.`c2` like '%03') ), <primary_index_lookup>(`test`.`t2`.`b2` in <temporary table> on <auto_key> where ((`test`.`t2`.`b2` = `materialized-subquery`.`c2`)))))))) union (/* select#7 */ select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` semi join (`test`.`t2i` join `test`.`t3i`) semi join (`test`.`t2i`) where ((`test`.`t1i`.`a2` = `test`.`t2i`.`b2`) and (`test`.`t3i`.`c2` = `test`.`t2i`.`b2`) and (`test`.`t2i`.`b2` = `test`.`t2i`.`b2`) and (`test`.`t1i`.`a1` = `test`.`t2i`.`b1`) and (`test`.`t3i`.`c1` = `test`.`t2i`.`b1`) and (`test`.`t2i`.`b1` = `test`.`t2i`.`b1`) and (`test`.`t2i`.`b2` > '0') and (`test`.`t2i`.`b1` > '0')))
 (select * from t1
 where (a1, a2) in (select b1, b2 from t2
 where b2 in (select c2 from t3 where c2 LIKE '%02') or
@@ -400,9 +400,9 @@ where (a1, a2) in (select * from t1 where a1 > '0' UNION select * from t2 where 
 (a1, a2) in (select c1, c2 from t3
 where (c1, c2) in (select b1, b2 from t2i where b2 > '0'));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Start temporary
-1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (Block Nested Loop)
-1	PRIMARY	t2i	NULL	ref	it2i1,it2i2,it2i3	it2i3	18	test.t1.a1,test.t1.a2	2	100.00	Using index; End temporary
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
+1	PRIMARY	t2i	NULL	ref	it2i1,it2i2,it2i3	it2i3	66	test.t1.a1,test.t1.a2	2	100.00	Using index; FirstMatch(t1)
 2	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 3	DEPENDENT UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
 NULL	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
@@ -423,10 +423,10 @@ where (a1, a2) in (select * from t1 where a1 > '0' UNION select * from t2 where 
 where (c1, c2) in (select b1, b2 from t2i where b2 > '0')) and
 a1 = c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Start temporary
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (Block Nested Loop)
-1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (Block Nested Loop)
-1	PRIMARY	t2i	NULL	ref	it2i1,it2i2,it2i3	it2i3	18	test.t1.a1,test.t3.c2	2	100.00	Using index; End temporary
+1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
+1	PRIMARY	t2i	NULL	ref	it2i1,it2i2,it2i3	it2i3	66	test.t1.a1,test.t3.c2	2	100.00	Using index; FirstMatch(t3)
 2	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 3	DEPENDENT UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
 NULL	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
@@ -470,17 +470,17 @@ b2 in (select c2 from t3 t3b where c2 LIKE '%03')) and
 (a1, a2) in (select c1, c2 from t3 t3c
 where (c1, c2) in (select b1, b2 from t2i where b2 > '0' or b2 = a2));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Start temporary
-1	PRIMARY	t3c	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (Block Nested Loop)
-1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where; Using join buffer (Block Nested Loop)
-1	PRIMARY	t2i	NULL	ref	it2i1,it2i2,it2i3	it2i3	18	test.t1.a1,test.t1.a2	2	100.00	Using index; End temporary
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	PRIMARY	t3c	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
+1	PRIMARY	t2i	NULL	ref	it2i1,it2i2,it2i3	it2i3	66	test.t1.a1,test.t1.a2	2	100.00	Using index; FirstMatch(t1)
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where; FirstMatch(t2i); Using join buffer (Block Nested Loop)
 4	SUBQUERY	t3b	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
 3	DEPENDENT SUBQUERY	t3a	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1276	Field or reference 'test.t1.a1' of SELECT #3 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t1.a2' of SELECT #6 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` semi join (`test`.`t2i` join `test`.`t3` `t3c`) semi join (`test`.`t2`) where ((`test`.`t3c`.`c2` = `test`.`t1`.`a2`) and (`test`.`t2`.`b2` = `test`.`t1`.`a2`) and (`test`.`t2i`.`b2` = `test`.`t1`.`a2`) and (`test`.`t3c`.`c1` = `test`.`t1`.`a1`) and (`test`.`t2`.`b1` = `test`.`t1`.`a1`) and (`test`.`t2i`.`b1` = `test`.`t1`.`a1`) and (<in_optimizer>(`test`.`t2`.`b2`,<exists>(/* select#3 */ select 1 from `test`.`t3` `t3a` where ((`test`.`t3a`.`c1` = `test`.`t1`.`a1`) and (<cache>(`test`.`t2`.`b2`) = `test`.`t3a`.`c2`)))) or <in_optimizer>(`test`.`t2`.`b2`,`test`.`t2`.`b2` in ( <materialize> (/* select#4 */ select `test`.`t3b`.`c2` from `test`.`t3` `t3b` where (`test`.`t3b`.`c2` like '%03') ), <primary_index_lookup>(`test`.`t2`.`b2` in <temporary table> on <auto_key> where ((`test`.`t2`.`b2` = `materialized-subquery`.`c2`)))))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` semi join (`test`.`t2i` join `test`.`t3` `t3c`) semi join (`test`.`t2`) where ((`test`.`t3c`.`c2` = `test`.`t1`.`a2`) and (`test`.`t2i`.`b2` = `test`.`t1`.`a2`) and (`test`.`t2`.`b2` = `test`.`t1`.`a2`) and (`test`.`t3c`.`c1` = `test`.`t1`.`a1`) and (`test`.`t2i`.`b1` = `test`.`t1`.`a1`) and (`test`.`t2`.`b1` = `test`.`t1`.`a1`) and (<in_optimizer>(`test`.`t2`.`b2`,<exists>(/* select#3 */ select 1 from `test`.`t3` `t3a` where ((`test`.`t3a`.`c1` = `test`.`t1`.`a1`) and (<cache>(`test`.`t2`.`b2`) = `test`.`t3a`.`c2`)))) or <in_optimizer>(`test`.`t2`.`b2`,`test`.`t2`.`b2` in ( <materialize> (/* select#4 */ select `test`.`t3b`.`c2` from `test`.`t3` `t3b` where (`test`.`t3b`.`c2` like '%03') ), <primary_index_lookup>(`test`.`t2`.`b2` in <temporary table> on <auto_key> where ((`test`.`t2`.`b2` = `materialized-subquery`.`c2`)))))))
 explain extended
 select * from t1 where (a1, a2) in (select '1 - 01', '2 - 01');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -488,7 +488,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),<exists>(/* select#2 */ select '1 - 01','2 - 01' having ((<cache>(`test`.`t1`.`a1`) = '1 - 01') and (<cache>(`test`.`t1`.`a2`) = '2 - 01'))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),<exists>(/* select#2 */ select '1 - 01','2 - 01' having ((<cache>(`test`.`t1`.`a1`) = convert('1 - 01' using utf8mb4)) and (<cache>(`test`.`t1`.`a2`) = convert('2 - 01' using utf8mb4)))))
 select * from t1 where (a1, a2) in (select '1 - 01', '2 - 01');
 a1	a2
 1 - 01	2 - 01
@@ -499,7 +499,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),<exists>(/* select#2 */ select '1 - 01','2 - 01' having ((<cache>(`test`.`t1`.`a1`) = '1 - 01') and (<cache>(`test`.`t1`.`a2`) = '2 - 01'))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),<exists>(/* select#2 */ select '1 - 01','2 - 01' having ((<cache>(`test`.`t1`.`a1`) = convert('1 - 01' using utf8mb4)) and (<cache>(`test`.`t1`.`a2`) = convert('2 - 01' using utf8mb4)))))
 select * from t1 where (a1, a2) in (select '1 - 01', '2 - 01' from dual);
 a1	a2
 1 - 01	2 - 01
@@ -529,7 +529,7 @@ a1	a2
 explain extended
 select * from t1 group by (a1 in (select col from columns));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using temporary; Using filesort
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using temporary
 2	DEPENDENT SUBQUERY	columns	NULL	unique_subquery	PRIMARY	PRIMARY	4	func	1	100.00	Using where; Using index; Full scan on NULL key
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
@@ -794,7 +794,7 @@ a	b
 execute st1;
 a	b
 drop table t1;
-CREATE TABLE t1 (a varchar(5), b varchar(10));
+CREATE TABLE t1 (a varchar(5), b varchar(10)) charset utf8mb4;
 INSERT INTO t1 VALUES
 ('AAA', 5), ('BBB', 4), ('BBB', 1), ('CCC', 2),
 ('CCC', 7), ('AAA', 2), ('AAA', 4), ('BBB', 3), ('AAA', 8);
@@ -807,7 +807,7 @@ EXPLAIN
 SELECT * FROM t1 WHERE (a,b) = ANY (SELECT a, max(b) FROM t1 GROUP BY a);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	Using where
-2	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	Using temporary; Using filesort
+2	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a`,`test`.`t1`.`b`),(`test`.`t1`.`a`,`test`.`t1`.`b`) in ( <materialize> (/* select#2 */ select `test`.`t1`.`a`,max(`test`.`t1`.`b`) from `test`.`t1` group by `test`.`t1`.`a` having 1 ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`a`) and (`test`.`t1`.`b` = `materialized-subquery`.`max(b)`)))))
 ALTER TABLE t1 ADD INDEX(a);
@@ -819,11 +819,11 @@ CCC	7
 AAA	8
 SHOW SESSION STATUS LIKE 'Sort_scan%';
 Variable_name	Value
-Sort_scan	1
+Sort_scan	0
 EXPLAIN SELECT * FROM t1 WHERE (a,b) = ANY (SELECT a, max(b) FROM t1 GROUP BY a);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	Using where
-2	SUBQUERY	t1	NULL	ALL	a	NULL	NULL	NULL	9	100.00	Using temporary; Using filesort
+2	SUBQUERY	t1	NULL	index	a	a	23	NULL	9	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a`,`test`.`t1`.`b`),(`test`.`t1`.`a`,`test`.`t1`.`b`) in ( <materialize> (/* select#2 */ select `test`.`t1`.`a`,max(`test`.`t1`.`b`) from `test`.`t1` group by `test`.`t1`.`a` having 1 ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`a`) and (`test`.`t1`.`b` = `materialized-subquery`.`max(b)`)))))
 DROP TABLE t1;
@@ -887,7 +887,7 @@ CREATE TABLE t1 (
 pk INT,
 v VARCHAR(1) DEFAULT NULL,
 PRIMARY KEY(pk)
-);
+) charset latin1;
 CREATE TABLE t2 LIKE t1;
 CREATE TABLE t3 LIKE t1;
 CREATE TABLE empty1 (a int);
@@ -1360,7 +1360,7 @@ HAVING COUNT(*) > 0
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	table1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 1	PRIMARY	table2	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	NULL
-2	DEPENDENT SUBQUERY	innr	NULL	ALL	col_int_key	NULL	NULL	NULL	2	50.00	Using where; Using temporary; Using filesort
+2	DEPENDENT SUBQUERY	innr	NULL	index	col_int_key	col_int_key	5	NULL	2	50.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select '1' AS `pk`,NULL AS `pk` from `test`.`t2` `table2` where 1
 FLUSH STATUS;
@@ -1378,7 +1378,7 @@ pk	pk
 1	NULL
 SHOW SESSION STATUS LIKE 'Sort_scan%';
 Variable_name	Value
-Sort_scan	1
+Sort_scan	0
 DROP TABLE t1, t2;
 # End of test for bug#13607423.
 
@@ -1556,7 +1556,7 @@ no NULLs.
 explain extended select t1.a as z, sum(t1.b) from t1 group by t1.a
 having (z in (select * from t2)) is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary; Using filesort
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
@@ -1569,7 +1569,7 @@ insert into t1 values(null,null);
 explain extended select t1.a as z, sum(t1.b) from t1 group by t1.a
 having (z in (select * from t2)) is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	7	100.00	Using temporary; Using filesort
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	7	100.00	Using temporary
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
@@ -1583,7 +1583,7 @@ insert into t2 values(null);
 explain extended select t1.a as z, sum(t1.b) from t1 group by t1.a
 having (z in (select * from t2)) is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	7	100.00	Using temporary; Using filesort
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	7	100.00	Using temporary
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
@@ -1591,15 +1591,15 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `z`,sum(`test`.`t1`.`b`) AS `
 select t1.a as z, sum(t1.b) from t1 group by t1.a
 having (z in (select * from t2)) is null;
 z	sum(t1.b)
-NULL	NULL
 1	6
 2	6
+NULL	NULL
 one inner NULL
 delete from t1 where a is null;
 explain extended select t1.a as z, sum(t1.b) from t1 group by t1.a
 having (z in (select * from t2)) is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary; Using filesort
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
@@ -1983,7 +1983,7 @@ col_varchar_key VARCHAR(1),
 col_varchar_nokey VARCHAR(1),
 KEY col_int_key (col_int_key),
 KEY col_varchar_key (col_varchar_key,col_int_key)
-);
+) charset utf8mb4;
 INSERT INTO t1 VALUES (8,'x','x');
 INSERT INTO t1 VALUES (NULL,'x','x');
 CREATE TABLE t2 (
@@ -1992,7 +1992,7 @@ col_varchar_key VARCHAR(1),
 col_varchar_nokey VARCHAR(1),
 KEY col_int_key (col_int_key),
 KEY col_varchar_key (col_varchar_key,col_int_key)
-);
+) charset utf8mb4;
 INSERT INTO t2 VALUES (0,'x','x');
 CREATE TABLE t3 (
 col_int_key INT,
@@ -2000,7 +2000,7 @@ col_varchar_key VARCHAR(1),
 col_varchar_nokey VARCHAR(1),
 KEY col_int_key (col_int_key),
 KEY col_varchar_key (col_varchar_key,col_int_key)
-);
+) charset utf8mb4;
 INSERT INTO t3 VALUES (8,'g','g');
 CREATE VIEW view_d AS SELECT * FROM t2;
 EXPLAIN SELECT alias2.col_int_key
@@ -2019,11 +2019,11 @@ WHERE c_sq1_alias1.col_varchar_key = sq1_alias3.col_varchar_nokey
 ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	alias2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	PRIMARY	alias1	NULL	index	NULL	col_varchar_key	9	NULL	2	100.00	Using where; Using index
+1	PRIMARY	alias1	NULL	index	NULL	col_varchar_key	12	NULL	2	100.00	Using where; Using index
 2	SUBQUERY	sq1_alias1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 2	SUBQUERY	sq1_alias2	NULL	index	NULL	col_int_key	5	NULL	2	100.00	Using index
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
-3	DEPENDENT SUBQUERY	c_sq1_alias1	NULL	ref	col_varchar_key	col_varchar_key	4	func	2	100.00	Using where; Using index
+3	DEPENDENT SUBQUERY	c_sq1_alias1	NULL	ref	col_varchar_key	col_varchar_key	7	func	2	100.00	Using where; Using index
 Warnings:
 Note	1276	Field or reference 'sq1_alias3.col_varchar_nokey' of SELECT #3 was resolved in SELECT #2
 Note	1003	/* select#1 */ select '0' AS `col_int_key` from `test`.`t1` `alias1` where (not(<in_optimizer>(`test`.`alias1`.`col_varchar_key`,`test`.`alias1`.`col_varchar_key` in ( <materialize> (/* select#2 */ select 'g' from `test`.`t1` `sq1_alias2` join `test`.`t2` where (/* select#3 */ select `test`.`c_sq1_alias1`.`col_int_key` from `test`.`t1` `c_sq1_alias1` where (`test`.`c_sq1_alias1`.`col_varchar_key` = `test`.`t2`.`col_varchar_nokey`)) having 1 ), <primary_index_lookup>(`test`.`alias1`.`col_varchar_key` in <temporary table> on <auto_key> where ((`test`.`alias1`.`col_varchar_key` = `materialized-subquery`.`col_varchar_nokey`)))))))

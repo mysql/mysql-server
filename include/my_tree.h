@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,8 +20,13 @@
   @file include/my_tree.h
 */
 
-#include "my_base.h"		/* get 'enum ha_rkey_function' */
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "mem_root_fwd.h"
 #include "my_alloc.h"           /* MEM_ROOT */
+#include "my_base.h"		/* get 'enum ha_rkey_function' */
+#include "my_inttypes.h"
 #include "my_sys.h"             /* qsort2_cmp */
 
 #ifdef	__cplusplus
@@ -62,14 +67,14 @@ typedef struct st_tree {
   qsort2_cmp compare;
   const void *custom_arg;
   MEM_ROOT mem_root;
-  my_bool with_delete;
+  bool with_delete;
   tree_element_free free;
   uint flag;
 } TREE;
 
 	/* Functions on whole tree */
 void init_tree(TREE *tree, size_t default_alloc_size, ulong memory_limit,
-               int size, qsort2_cmp compare, my_bool with_delete,
+               int size, qsort2_cmp compare, bool with_delete,
 	       tree_element_free free_element, const void *custom_arg);
 void delete_tree(TREE*);
 void reset_tree(TREE*);

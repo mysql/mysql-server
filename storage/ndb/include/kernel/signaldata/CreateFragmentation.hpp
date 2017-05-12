@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -37,10 +37,11 @@ class CreateFragmentationReq {
   friend bool printCREATE_FRAGMENTATION_REQ(FILE *, 
 					    const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 7 );
+  STATIC_CONST( SignalLength = 8 );
   
   enum RequestInfo {
-    RI_ADD_PARTITION = 0x1,
+    RI_CREATE_FRAGMENTATION = 0x0,
+    RI_ADD_FRAGMENTS = 0x1,
     RI_GET_FRAGMENTATION = 0x2
   };
 private:
@@ -51,6 +52,8 @@ private:
   Uint32 noOfFragments;
   Uint32 primaryTableId;  // use same fragmentation as this table if not RNIL
   Uint32 map_ptr_i;
+  Uint32 partitionBalance;
+  Uint32 partitionCount;
 };
 
 class CreateFragmentationRef {

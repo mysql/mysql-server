@@ -4,7 +4,6 @@
 #
 
 -- source include/have_debug.inc
--- source include/have_innodb.inc
 
 CREATE TABLE records_in_range_test (
 	c1 VARCHAR(16),

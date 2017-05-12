@@ -603,8 +603,8 @@ select @a;
 10
 show triggers;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
-t1_bi	INSERT	t1	set new."t1 column" = 5	BEFORE	#	REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
-t1_af	INSERT	t1	set @a=10	AFTER	#		root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+t1_bi	INSERT	t1	set new."t1 column" = 5	BEFORE	#	REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+t1_af	INSERT	t1	set @a=10	AFTER	#		root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 drop table t1;
 set sql_mode="traditional";
 Warnings:
@@ -628,10 +628,10 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` date DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 show triggers;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
-t1_bi	INSERT	t1	set new.a = '2004-01-00'	BEFORE	#		root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+t1_bi	INSERT	t1	set new.a = '2004-01-00'	BEFORE	#		root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 (id int);
 create trigger t1_ai after insert on t1 for each row reset query cache;
@@ -849,7 +849,7 @@ select @a, @b;
 select trigger_schema, trigger_name, event_object_schema,
 event_object_table, action_statement from information_schema.triggers
 where event_object_schema = 'test';
-trigger_schema	trigger_name	event_object_schema	event_object_table	action_statement
+TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_STATEMENT
 test	t1_bi	test	t1	set @a:=new.id
 test	t1_ai	test	t1	set @b:=new.id
 rename table t1 to t2;
@@ -860,7 +860,7 @@ select @a, @b;
 select trigger_schema, trigger_name, event_object_schema,
 event_object_table, action_statement from information_schema.triggers
 where event_object_schema = 'test';
-trigger_schema	trigger_name	event_object_schema	event_object_table	action_statement
+TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_STATEMENT
 test	t1_bi	test	t2	set @a:=new.id
 test	t1_ai	test	t2	set @b:=new.id
 alter table t2 rename to t3;
@@ -871,7 +871,7 @@ select @a, @b;
 select trigger_schema, trigger_name, event_object_schema,
 event_object_table, action_statement from information_schema.triggers
 where event_object_schema = 'test';
-trigger_schema	trigger_name	event_object_schema	event_object_table	action_statement
+TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_STATEMENT
 test	t1_bi	test	t3	set @a:=new.id
 test	t1_ai	test	t3	set @b:=new.id
 alter table t3 rename to t4, add column val int default 0;
@@ -882,7 +882,7 @@ select @a, @b;
 select trigger_schema, trigger_name, event_object_schema,
 event_object_table, action_statement from information_schema.triggers
 where event_object_schema = 'test';
-trigger_schema	trigger_name	event_object_schema	event_object_table	action_statement
+TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_STATEMENT
 test	t1_bi	test	t4	set @a:=new.id
 test	t1_ai	test	t4	set @b:=new.id
 drop trigger t1_bi;
@@ -899,7 +899,7 @@ select @a;
 select trigger_schema, trigger_name, event_object_schema,
 event_object_table, action_statement from information_schema.triggers
 where event_object_schema = 'test' or event_object_schema = 'mysqltest';
-trigger_schema	trigger_name	event_object_schema	event_object_table	action_statement
+TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_STATEMENT
 mysqltest	t1_bi	mysqltest	t1	set @a:=new.id
 rename table t1 to test.t2;
 ERROR HY000: Trigger in wrong schema
@@ -910,7 +910,7 @@ select @a;
 select trigger_schema, trigger_name, event_object_schema,
 event_object_table, action_statement from information_schema.triggers
 where event_object_schema = 'test' or event_object_schema = 'mysqltest';
-trigger_schema	trigger_name	event_object_schema	event_object_table	action_statement
+TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_STATEMENT
 mysqltest	t1_bi	mysqltest	t1	set @a:=new.id
 drop trigger test.t1_bi;
 ERROR HY000: Trigger does not exist
@@ -923,7 +923,7 @@ select @a;
 select trigger_schema, trigger_name, event_object_schema,
 event_object_table, action_statement from information_schema.triggers
 where event_object_schema = 'test' or event_object_schema = 'mysqltest';
-trigger_schema	trigger_name	event_object_schema	event_object_table	action_statement
+TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_STATEMENT
 mysqltest	t1_bi	mysqltest	t1	set @a:=new.id
 drop trigger test.t1_bi;
 ERROR HY000: Trigger does not exist
@@ -936,13 +936,13 @@ select @a;
 select trigger_schema, trigger_name, event_object_schema,
 event_object_table, action_statement from information_schema.triggers
 where event_object_schema = 'test' or event_object_schema = 'mysqltest';
-trigger_schema	trigger_name	event_object_schema	event_object_table	action_statement
+TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_STATEMENT
 mysqltest	t1_bi	mysqltest	t1	set @a:=new.id
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 drop trigger test.t1_bi;
 ERROR HY000: Trigger does not exist
 drop trigger t1_bi;
@@ -2086,6 +2086,12 @@ DROP TABLE t1,t2;
 #
 # Bug#50755: Crash if stored routine def contains version comments
 #
+# With WL#9494, the SHOW TRIGGERS no more parses
+# the underlaying trigger, and hence it would not
+# report parse error. This means that the code
+# causing this issue is removed now with WL#9494.
+# This test case is kept for reference.
+#
 DROP DATABASE IF EXISTS db1;
 DROP TRIGGER IF EXISTS trg1;
 DROP TABLE IF EXISTS t1, t2;
@@ -2094,9 +2100,9 @@ USE db1;
 CREATE TABLE t1 (b INT);
 CREATE TABLE t2 (a INT);
 CREATE TRIGGER trg1 BEFORE INSERT ON t2 FOR EACH ROW INSERT/*!INTO*/t1 VALUES (1);
-# Used to crash
 SHOW TRIGGERS IN db1;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
+trg1	INSERT	t2	INSERTINTO t1 VALUES (1)	BEFORE	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 INSERT INTO t2 VALUES (1);
 ERROR 42000: Trigger 'trg1' has an error in its body: 'You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 't1 VALUES (1)' at line 1'
 SELECT * FROM t1;
@@ -2187,7 +2193,7 @@ create temporary table t1 (j int);
 drop trigger t1_bi;
 select trigger_name from information_schema.triggers
 where event_object_schema = 'test' and event_object_table = 't1';
-trigger_name
+TRIGGER_NAME
 # Clean-up.
 drop temporary table t1;
 drop table t1;
@@ -2607,13 +2613,21 @@ CREATE TABLE test.silly_one (ID INT);
 CREATE DEFINER=user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char TRIGGER test.silly_trigger BEFORE INSERT ON test.silly_one FOR EACH ROW SET @x=1;
 SHOW TRIGGERS FROM test LIKE 'silly_one';
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
-silly_trigger	INSERT	silly_one	SET @x=1	BEFORE	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char	latin1	latin1_swedish_ci	latin1_swedish_ci
+silly_trigger	INSERT	silly_one	SET @x=1	BEFORE	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 SELECT DEFINER FROM information_schema.triggers WHERE TRIGGER_NAME='silly_trigger';
 DEFINER
 user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char
 DROP USER user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
 DROP TRIGGER test.silly_trigger;
 DROP TABLE test.silly_one;
+#
+# Bug #22512899 - DROP TRIGGER AFTER RENAME TABLE RESULTS IN ERROR CODE 1146: TABLE DOESN'T EXIST
+#
+CREATE TABLE t1 (a INT) ENGINE=InnoDB;
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
+RENAME TABLE t1 TO t1Renamed;
+DROP TRIGGER t1_bi;
+DROP TABLE t1Renamed;
 End of 5.7 tests.
 #
 # Bug #23624693 - USING SHOW CREATE TRIGGER IN A TRANSACTION CRASHES THE SERVER
@@ -2635,9 +2649,69 @@ PARTITION p2 VALUES IN (4,5)
 CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
 SHOW CREATE TRIGGER t1_bi;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW BEGIN END	latin1	latin1_swedish_ci	latin1_swedish_ci	#
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW BEGIN END	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci	#
 ALTER TABLE t1 DROP PARTITION p1;
 SHOW CREATE TRIGGER t1_bi;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW BEGIN END	latin1	latin1_swedish_ci	latin1_swedish_ci	#
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW BEGIN END	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci	#
+DROP TABLE t1;
+#
+# Bug#24482919 -- SHOW TRIGGER OUTPUT INCONSISTENCY ON WINDOWS / LINUX ON 8.0.0
+#
+CREATE TABLE t1 (a INT);
+CREATE TRIGGER trg1a BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
+CREATE TRIGGER trg1b AFTER INSERT ON t1 FOR EACH ROW BEGIN END;
+CREATE TRIGGER trg1c BEFORE UPDATE ON t1 FOR EACH ROW BEGIN END;
+CREATE TRIGGER trg1d AFTER UPDATE ON t1 FOR EACH ROW BEGIN END;
+CREATE TRIGGER trg1e BEFORE DELETE ON t1 FOR EACH ROW BEGIN END;
+CREATE TRIGGER trg1f AFTER DELETE ON t1 FOR EACH ROW BEGIN END;
+CREATE TRIGGER trg1a2 BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
+CREATE TRIGGER trg1b2 AFTER INSERT ON t1 FOR EACH ROW BEGIN END;
+CREATE TRIGGER trg1c2 BEFORE UPDATE ON t1 FOR EACH ROW BEGIN END;
+CREATE TRIGGER trg1d2 AFTER UPDATE ON t1 FOR EACH ROW BEGIN END;
+CREATE TRIGGER trg1f2 AFTER DELETE ON t1 FOR EACH ROW BEGIN END;
+CREATE TRIGGER trg1a0 BEFORE INSERT ON t1 FOR EACH ROW PRECEDES trg1a BEGIN END;
+CREATE TRIGGER trg1a3 BEFORE INSERT ON t1 FOR EACH ROW FOLLOWS trg1a2 BEGIN END;
+CREATE TRIGGER trg1b0 AFTER INSERT ON t1 FOR EACH ROW PRECEDES trg1b BEGIN END;
+CREATE TRIGGER trg1b3 AFTER INSERT ON t1 FOR EACH ROW FOLLOWS trg1b2 BEGIN END;
+CREATE TRIGGER trg1c0 BEFORE UPDATE ON t1 FOR EACH ROW PRECEDES trg1c BEGIN END;
+CREATE TRIGGER trg1c3 BEFORE UPDATE ON t1 FOR EACH ROW FOLLOWS trg1c2 BEGIN END;
+SELECT TRIGGER_NAME FROM information_schema.triggers WHERE TRIGGER_NAME LIKE 'trg1%' ORDER BY TRIGGER_NAME;
+TRIGGER_NAME
+trg1a
+trg1a0
+trg1a2
+trg1a3
+trg1b
+trg1b0
+trg1b2
+trg1b3
+trg1c
+trg1c0
+trg1c2
+trg1c3
+trg1d
+trg1d2
+trg1e
+trg1f
+trg1f2
+SHOW TRIGGERS;
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
+trg1a0	INSERT	t1	BEGIN END	BEFORE	#	#	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+trg1a	INSERT	t1	BEGIN END	BEFORE	#	#	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+trg1a2	INSERT	t1	BEGIN END	BEFORE	#	#	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+trg1a3	INSERT	t1	BEGIN END	BEFORE	#	#	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+trg1b0	INSERT	t1	BEGIN END	AFTER	#	#	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+trg1b	INSERT	t1	BEGIN END	AFTER	#	#	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+trg1b2	INSERT	t1	BEGIN END	AFTER	#	#	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+trg1b3	INSERT	t1	BEGIN END	AFTER	#	#	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+trg1c0	UPDATE	t1	BEGIN END	BEFORE	#	#	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+trg1c	UPDATE	t1	BEGIN END	BEFORE	#	#	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+trg1c2	UPDATE	t1	BEGIN END	BEFORE	#	#	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+trg1c3	UPDATE	t1	BEGIN END	BEFORE	#	#	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+trg1d	UPDATE	t1	BEGIN END	AFTER	#	#	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+trg1d2	UPDATE	t1	BEGIN END	AFTER	#	#	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+trg1e	DELETE	t1	BEGIN END	BEFORE	#	#	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+trg1f	DELETE	t1	BEGIN END	AFTER	#	#	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+trg1f2	DELETE	t1	BEGIN END	AFTER	#	#	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 DROP TABLE t1;

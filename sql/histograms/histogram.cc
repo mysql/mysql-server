@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,13 +18,20 @@
   Histogram base class (implementation).
 */
 
-#include "histogram.h"   // Histogram, Histogram_comparator
+#include "sql/histograms/histogram.h"   // Histogram, Histogram_comparator
 
+#include <new>
+
+#include "binary_log_types.h"
 #include "equi_height.h" // Equi_height<T>
 #include "json_dom.h"    // Json_*
+#include "my_dbug.h"
+#include "my_decimal.h"
+#include "my_inttypes.h"
 #include "my_sys.h"      // my_micro_time
 #include "singleton.h"   // Singleton<T>
 #include "sql_class.h"   // make_lex_string_root
+#include "sql_servers.h"
 #include "sql_string.h"  // String
 #include "sql_time.h"    // my_time_compare
 #include "tztime.h"      // my_tz_UTC

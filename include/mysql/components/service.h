@@ -85,7 +85,7 @@ typedef int mysql_service_status_t;
   BEGIN_SERVICE_DEFINITION macro.
 */
 #define END_SERVICE_DEFINITION(name) \
-} SERVICE_TYPE(name);
+} SERVICE_TYPE_NO_CONST(name);
 /**
   Declares a method as a part of the Service definition. To be used within the
   SERVICE_DEFINITION macro.

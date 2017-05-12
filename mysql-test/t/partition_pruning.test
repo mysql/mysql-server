@@ -1719,9 +1719,9 @@ explain extended select * from t2 where b > 5;
 explain partitions select * from t2 where b > 5;
 
 --replace_column 10 #
-explain extended select * from t2 where b > 5 and b < 8;
+explain extended select * from t2 where b > 5 and b < 9;
 --replace_column 10 #
-explain partitions select * from t2 where b > 5 and b < 8;
+explain partitions select * from t2 where b > 5 and b < 9;
 
 --replace_column 10 #
 explain extended select * from t2 where b > 5 and b < 7;
@@ -1742,7 +1742,7 @@ flush status;
 --eval $q
 show status like 'Handler_read_rnd_next';
 show status like 'Handler_read_key';
---let $q = update t2 set a = 111 where b in (5,6)
+--let $q = update t2 set a = 111 where b in (5,6,7)
 --replace_column 10 #
 --eval explain partitions $q
 flush status;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,17 +28,21 @@
 #ifndef BINLOG_EVENT_INCLUDED
 #define BINLOG_EVENT_INCLUDED
 
-#include "debug_vars.h"
+#include <stdlib.h>
+#include <sys/types.h>
+#include <zlib.h> //for checksum calculations
+#include <climits>
+#include <cstdio>
+#include <iostream>
+
 /*
  The header contains functions macros for reading and storing in
  machine independent format (low byte first).
 */
 #include "byteorder.h"
+#include "debug_vars.h"
+#include "my_io.h"
 #include "wrapper_functions.h"
-#include <zlib.h> //for checksum calculations
-#include <cstdio>
-#include <iostream>
-#include <climits>
 
 #if defined(_WIN32)
 #include <Winsock2.h>
@@ -123,7 +127,9 @@
                                    1U + (MAX_DBS_IN_EVENT_MTS * (1 + NAME_LEN)) + \
                                    3U +            /* type, microseconds */ + \
                                    1U + 32*3 + 1 + 60 \
-                                   /* type, user_len, user, host_len, host */)
+                                   /* type, user_len, user, host_len, host */ + \
+                                   1U + 1          /* type, explicit_def..ts*/+ \
+                                   1U + 8          /* type, xid of DDL */)
 
 
 /**
@@ -132,12 +138,20 @@
 */
 const int64_t SEQ_UNINIT= 0;
 
+/** We use 7 bytes, 1 bit being used as a flag. */
+#define MAX_COMMIT_TIMESTAMP_VALUE (1ULL << 55)
+/**
+  Used to determine whether the original_commit_timestamp is already known or if
+  it still needs to be determined when computing it.
+*/
+const int64_t UNDEFINED_COMMIT_TIMESTAMP= MAX_COMMIT_TIMESTAMP_VALUE;
+
 /** Setting this flag will mark an event as Ignorable */
 #define LOG_EVENT_IGNORABLE_F 0x80
 
 /**
   In case the variable is updated,
-  make sure to update it in $MYSQL_SOURCE_DIR/my_global.h.
+  make sure to update it in $MYSQL_SOURCE_DIR/my_io.h.
 */
 #ifndef FN_REFLEN
 #define FN_REFLEN       512     /* Max length of full path-name */
@@ -793,10 +807,8 @@ protected:
 
     @param buf              Contains the serialized event
     @param binlog_version   The binary log format version
-    @param server_version   The MySQL server's version
   */
-  Binary_log_event(const char **buf, uint16_t binlog_version,
-                   const char *server_version);
+  Binary_log_event(const char **buf, uint16_t binlog_version);
 public:
 #ifndef HAVE_MYSYS
   /*

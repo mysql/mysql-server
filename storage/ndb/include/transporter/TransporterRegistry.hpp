@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -131,9 +131,16 @@ struct TransporterReceiveData
 
   /**
    * Bitmask of transporters having received corrupted or unsupported
-   * message.  No more unpacking and delivery of messages allowed.
+   * message. No more unpacking and delivery of messages allowed.
    */
   NodeBitmask m_bad_data_transporters;
+
+  /**
+   * Last node received from if unable to complete all transporters
+   * in previous ::performReceive(). Next ::performReceive will
+   * resume from first transporter after this.
+   */
+  Uint32 m_last_nodeId;
 
 #if defined(HAVE_EPOLL_CREATE)
   int m_epoll_fd;
@@ -689,7 +696,7 @@ public:
   Uint32 bytes_sent(NodeId node, Uint32 bytes);
   bool has_data_to_send(NodeId node);
 
-  void reset_send_buffer(NodeId node, bool should_be_empty);
+  void reset_send_buffer(NodeId node);
 
   void print_transporters(const char* where, NdbOut& out = ndbout);
 

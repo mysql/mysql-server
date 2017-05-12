@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,12 +16,26 @@
 #ifndef PARSE_TREE_HELPERS_INCLUDED
 #define PARSE_TREE_HELPERS_INCLUDED
 
-#include "item_func.h"      // Item etc.
-#include "set_var.h"        // enum_var_type
-#include "mem_root_array.h"
+#include <stddef.h>
+#include <sys/types.h>
+#include <new>
 
-class SELECT_LEX;
-class Table_ident;
+#include "item.h"
+#include "item_func.h"      // Item etc.
+#include "lex_string.h"
+#include "mem_root_array.h"
+#include "my_dbug.h"
+#include "my_decimal.h"
+#include "my_inttypes.h"
+#include "parse_tree_node_base.h"
+#include "set_var.h"        // enum_var_type
+#include "sql_list.h"
+#include "sql_udf.h"
+#include "typelib.h"
+
+class String;
+class THD;
+struct handlerton;
 
 /**
   Base class for parse-time Item objects
@@ -103,6 +117,8 @@ public:
     DBUG_ASSERT(!is_empty());
     return value.pop();
   }
+
+  Item *operator[](uint index) const { return value[index]; }
 };
 
 
@@ -222,5 +238,7 @@ bool resolve_engine(THD *thd,
                     bool is_temp_table,
                     bool strict,
                     handlerton **ret);
+bool apply_privileges(THD *thd,
+                      const Trivial_array<class PT_role_or_privilege *> &privs);
 
 #endif /* PARSE_TREE_HELPERS_INCLUDED */

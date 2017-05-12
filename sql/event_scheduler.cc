@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,21 +15,44 @@
 
 #include "event_scheduler.h"
 
-#include "current_thd.h"
-#include "events.h"
-#include "event_data_objects.h"
-#include "event_queue.h"
-#include "event_db_repository.h"
-#include "mysqld.h"                  // my_localhost slave_net_timeout
-#include "auth_common.h"             // SUPER_ACL
-#include "log.h"
-#include "mysqld_thd_manager.h"      // Global_THD_manager
-#include "psi_memory_key.h"
-#include "sql_error.h"               // Sql_condition
-#include "sql_class.h"               // THD
-#include "lock.h"
+#include <stdio.h>
+#include <string.h>
 
+#include "auth_acls.h"
+#include "current_thd.h"
 #include "dd/dd_schema.h"               // dd::Schema_MDL_locker
+#include "event_data_objects.h"
+#include "event_db_repository.h"
+#include "event_queue.h"
+#include "events.h"
+#include "lex_string.h"
+#include "log.h"
+#include "m_string.h"
+#include "mdl.h"
+#include "my_command.h"
+#include "my_dbug.h"
+#include "my_psi_config.h"
+#include "my_sys.h"
+#include "my_thread.h"
+#include "mysql/psi/mysql_statement.h"
+#include "mysql/psi/mysql_thread.h"
+#include "mysql/psi/psi_statement.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql/thread_type.h"
+#include "mysql_com.h"
+#include "mysqld.h"                  // my_localhost slave_net_timeout
+#include "mysqld_thd_manager.h"      // Global_THD_manager
+#include "protocol_classic.h"
+#include "psi_memory_key.h"
+#include "query_options.h"
+#include "sql_class.h"               // THD
+#include "sql_const.h"
+#include "sql_error.h"               // Sql_condition
+#include "sql_security_ctx.h"
+#include "sql_string.h"
+#include "system_variables.h"
+#include "table.h"
+#include "thr_mutex.h"
 
 /**
   @addtogroup Event_Scheduler

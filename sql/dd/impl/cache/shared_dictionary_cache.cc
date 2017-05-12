@@ -15,13 +15,19 @@
 
 #include "shared_dictionary_cache.h"
 
-#include "sql_class.h"                      // THD::is_error()
+#include <stddef.h>
 
+#include "dd/impl/cache/shared_multi_map.h"
+#include "my_dbug.h"
+#include "mysqld.h"
+#include "sql_class.h"                      // THD::is_error()
 #include "storage_adapter.h"                // Storage_adapter
 
 namespace dd {
 namespace cache {
 
+
+template <typename T> class Cache_element;
 
 Shared_dictionary_cache *Shared_dictionary_cache::instance()
 {
@@ -61,13 +67,12 @@ void Shared_dictionary_cache::shutdown()
 
 
 // Don't call this function anywhere except upgrade scenario.
-void Shared_dictionary_cache::reset_schema_cache()
+void Shared_dictionary_cache::reset(bool keep_dd_entities)
 {
-
-  instance()->m_map<Abstract_table>()->shutdown();
-  instance()->m_map<Schema>()->shutdown();
-  instance()->m_map<Abstract_table>()->set_capacity(max_connections);
-  instance()->m_map<Schema>()->set_capacity(schema_def_size);
+  shutdown();
+  if (!keep_dd_entities)
+    Storage_adapter::instance()->erase_all();
+  init();
 }
 
 

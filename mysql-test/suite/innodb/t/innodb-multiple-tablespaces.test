@@ -2,13 +2,22 @@
 # These test make sure that tables are visible after rebooting
 #
 
---source include/have_innodb.inc
+--source include/have_debug.inc
 
 # Embedded server does not support crashing
 --source include/not_embedded.inc
 
 # Avoid CrashReporter popup on Mac
 #--source include/not_crashrep.inc
+
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs41=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema test default character set latin1;
+--enable_query_log
+########################################
 
 SET default_storage_engine=InnoDB;
 
@@ -335,6 +344,10 @@ INSERT INTO yy VALUES (1, 'yy');
 --echo #
 --echo # Crash the server, copy and remove files.
 --echo #
+
+#Ensure that master thread doesnt do a checkpoint
+SET GLOBAL innodb_master_thread_disabled_debug=1;
+
 BEGIN;
 INSERT INTO ny VALUES (2, 'ny');
 INSERT INTO wy VALUES (2, 'wy');
@@ -447,3 +460,10 @@ DROP TABLE yy;
 --rmdir $MYSQL_TMP_DIR/alt_dir
 --rmdir $MYSQL_TMP_DIR/new_dir/test
 --rmdir $MYSQL_TMP_DIR/new_dir
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs41;
+--enable_query_log
+########################################

@@ -303,6 +303,29 @@ select count(*) from t2;
 count(*)
 25500
 drop table t1,t2,t3;
+CREATE TABLE t1(a INTEGER, b INTEGER);
+INSERT INTO t1 VALUES(1, 1);
+INSERT INTO t1 VALUES(1);
+ERROR 21S01: Column count doesn't match value count at row 1
+INSERT INTO t1 VALUES(1, 1, 1);
+ERROR 21S01: Column count doesn't match value count at row 1
+INSERT INTO t1 VALUES(1, 1), (2);
+ERROR 21S01: Column count doesn't match value count at row 2
+INSERT INTO t1 VALUES(1, 1), (2);
+ERROR 21S01: Column count doesn't match value count at row 2
+INSERT INTO t1 VALUES(1, 1), (3, 3, 3);
+ERROR 21S01: Column count doesn't match value count at row 2
+INSERT INTO t1(a, b) VALUES(1);
+ERROR 21S01: Column count doesn't match value count at row 1
+INSERT INTO t1(a, b) VALUES(1, 1, 1);
+ERROR 21S01: Column count doesn't match value count at row 1
+INSERT INTO t1(a, b) VALUES(1, 1), (2);
+ERROR 21S01: Column count doesn't match value count at row 2
+INSERT INTO t1(a, b) VALUES(1, 1), (2);
+ERROR 21S01: Column count doesn't match value count at row 2
+INSERT INTO t1(a, b) VALUES(1, 1), (3, 3, 3);
+ERROR 21S01: Column count doesn't match value count at row 2
+DROP TABLE t1;
 create table t1 (a int, b int);
 insert into t1 (a,b) values (a,b);
 insert into t1 SET a=1, b=a+1;
@@ -310,10 +333,12 @@ insert into t1 (a,b) select 1,2;
 INSERT INTO t1 ( a ) SELECT 0 ON DUPLICATE KEY UPDATE a = a + VALUES (a);
 prepare stmt1 from ' replace into t1 (a,a) select 100, ''hundred'' ';
 ERROR 42000: Column 'a' specified twice
+insert into t1 (a,b) values (1,1,1);
+ERROR 21S01: Column count doesn't match value count at row 1
 insert into t1 (a,b,b) values (1,1,1);
 ERROR 42000: Column 'b' specified twice
 insert into t1 (a,a) values (1,1,1);
-ERROR 21S01: Column count doesn't match value count at row 1
+ERROR 42000: Column 'a' specified twice
 insert into t1 (a,a) values (1,1);
 ERROR 42000: Column 'a' specified twice
 insert into t1 SET a=1,b=2,a=1;
@@ -623,13 +648,17 @@ Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE default_date(a DATE NOT NULL DEFAULT '0000-00-00');
 INSERT INTO default_date VALUES();
+INSERT INTO default_date VALUES(DEFAULT);
 SET sql_mode=default;
 INSERT INTO default_date VALUES();
+ERROR 22007: Incorrect date value: '0000-00-00' for column 'a' at row 1
+INSERT INTO default_date VALUES(DEFAULT);
 ERROR 22007: Incorrect date value: '0000-00-00' for column 'a' at row 1
 INSERT INTO default_date VALUES('0000-00-00');
 ERROR 22007: Incorrect date value: '0000-00-00' for column 'a' at row 1
 SELECT * FROM default_date;
 a
+0000-00-00
 0000-00-00
 DROP TABLE default_date;
 

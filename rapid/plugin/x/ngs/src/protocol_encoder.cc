@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -17,26 +17,31 @@
  * 02110-1301  USA
  */
 
-#include "ngs_common/protocol_protobuf.h" // has to come before boost includes, because of build issue in Solaris (unqualified map used, which clashes with some other map defined in Solaris headers)
-#include "ngs_common/connection_vio.h"
+#include <errno.h>
+#include <sys/types.h>
 
+// "ngs_common/protocol_protobuf.h" has to come before boost includes, because of build
+// issue in Solaris (unqualified map used, which clashes with some other map defined
+// in Solaris headers)
+#include "ngs_common/protocol_protobuf.h"
+
+#include "my_io.h"
+#include "ngs/log.h"
 #include "ngs/protocol/buffer.h"
 #include "ngs/protocol/output_buffer.h"
 #include "ngs/protocol/protocol_config.h"
 #include "ngs/protocol_encoder.h"
 #include "ngs/protocol_monitor.h"
-#include "ngs/log.h"
+#include "ngs_common/connection_vio.h"
 
 #undef ERROR // Needed to avoid conflict with ERROR in mysqlx.pb.h
-#include "ngs_common/protocol_protobuf.h"
-#include <boost/make_shared.hpp>
 
 
 using namespace ngs;
 
 const Pool_config Protocol_encoder::m_default_pool_config = { 0, 5, BUFFER_PAGE_SIZE };
 
-Protocol_encoder::Protocol_encoder(const boost::shared_ptr<Connection_vio> &socket,
+Protocol_encoder::Protocol_encoder(const ngs::shared_ptr<Connection_vio> &socket,
                                    Error_handler ehandler,
                                    Protocol_monitor_interface &pmon)
 : m_pool(m_default_pool_config),
@@ -44,7 +49,7 @@ Protocol_encoder::Protocol_encoder(const boost::shared_ptr<Connection_vio> &sock
   m_error_handler(ehandler),
   m_protocol_monitor(&pmon)
 {
-  m_buffer.reset(new Output_buffer(m_pool));
+  m_buffer.reset(ngs::allocate_object<Output_buffer>(ngs::ref(m_pool)));
 }
 
 Protocol_encoder::~Protocol_encoder()
@@ -66,9 +71,7 @@ bool Protocol_encoder::send_row()
   m_row_builder.end_row();
   get_protocol_monitor().on_row_send();
 
-  bool res = send_raw_buffer(Mysqlx::ServerMessages::RESULTSET_ROW);
-
-  return res;
+  return send_raw_buffer(Mysqlx::ServerMessages::RESULTSET_ROW);
 }
 
 bool Protocol_encoder::send_result(const Error_code &result)
@@ -94,6 +97,12 @@ bool Protocol_encoder::send_result(const Error_code &result)
     error.set_severity(result.severity == Error_code::FATAL ? Mysqlx::Error::FATAL : Mysqlx::Error::ERROR);
     return send_message(Mysqlx::ServerMessages::ERROR, error);
   }
+}
+
+
+bool Protocol_encoder::send_ok()
+{
+  return send_message(Mysqlx::ServerMessages::OK, Mysqlx::Ok());
 }
 
 
@@ -123,7 +132,9 @@ bool Protocol_encoder::send_init_error(const Error_code& error_code)
 }
 
 
-void Protocol_encoder::send_local_notice(uint32_t type, const std::string &data, bool force_flush)
+void Protocol_encoder::send_local_notice(Notice_type type,
+                                         const std::string &data,
+                                         bool force_flush)
 {
   get_protocol_monitor().on_notice_other_send();
 
@@ -133,21 +144,20 @@ void Protocol_encoder::send_local_notice(uint32_t type, const std::string &data,
 /*
 NOTE: Commented for coverage. Uncomment when needed.
 
-void Protocol_encoder::send_global_notice(uint32_t type, const std::string &data)
+void Protocol_encoder::send_global_notice(Notice_type type, const std::string &data)
 {
   get_protocol_monitor().on_notice_other_send();
 
   send_notice(type, data, FRAME_SCOPE_GLOBAL, true);
 }
+*/
 
-
-void Protocol_encoder::send_local_warning(uint32_t type, const std::string &data, bool force_flush)
+void Protocol_encoder::send_local_warning(const std::string &data, bool force_flush)
 {
   get_protocol_monitor().on_notice_warning_send();
 
-  send_notice(type, data, FRAME_SCOPE_LOCAL, force_flush);
+  send_notice(k_notice_warning, data, FRAME_SCOPE_LOCAL, force_flush);
 }
-*/
 
 
 void Protocol_encoder::send_auth_ok(const std::string &data)
@@ -327,16 +337,22 @@ bool Protocol_encoder::send_column_metadata(uint64_t collation, int type, int de
 
 bool Protocol_encoder::flush_buffer()
 {
-  ssize_t result = m_socket->write(m_buffer->get_buffers());
-  if (result <= 0)
-  {
-    log_info("Error writing to client: %s (%i)", strerror(errno), errno);
-    on_error(errno);
-    return false;
-  }
-  m_buffer->reset();
+  const bool is_valid_socket = INVALID_SOCKET != m_socket->get_socket_id();
 
-  m_protocol_monitor->on_send(static_cast<long>(result));
+  if (is_valid_socket)
+  {
+    const ssize_t result = m_socket->write(m_buffer->get_buffers());
+    if (result <= 0)
+    {
+      log_info("Error writing to client: %s (%i)", strerror(errno), errno);
+      on_error(errno);
+      return false;
+    }
+
+    m_protocol_monitor->on_send(static_cast<long>(result));
+  }
+
+  m_buffer->reset();
 
   return true;
 }

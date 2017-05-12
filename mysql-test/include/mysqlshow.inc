@@ -1,12 +1,8 @@
 # Can't run test of external client with embedded server
 -- source include/not_embedded.inc
 # Test lists tables in Information_schema, and InnoDB adds some
--- source include/have_innodb.inc
 # Don't test when thread_pool active
 --source include/not_threadpool.inc
-
-# Test lists tables in Information_schema, and ndb adds some
--- source include/not_ndb_is.inc
 
 --disable_warnings
 DROP TABLE IF EXISTS t1,t2,test1,test2;
@@ -36,7 +32,12 @@ DROP TABLE t1, t2;
 #
 # Bug #19147: mysqlshow INFORMATION_SCHEMA does not work
 #
+# Suppress the ndb_transid_mysql_connection_map table from
+# the output. This is done to make sure that the same result
+# file is generated with and without NDB
+--replace_result "| ndb_transid_mysql_connection_map      |\n" ""
 --exec $MYSQL_SHOW information_schema
+--replace_result "| ndb_transid_mysql_connection_map      |\n" ""
 --exec $MYSQL_SHOW INFORMATION_SCHEMA
 --exec $MYSQL_SHOW inf_rmation_schema
 

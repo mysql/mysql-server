@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 *
 * This program is free software; you can redistribute it and/or
 * modify it under the terms of the GNU General Public License as
@@ -18,16 +18,16 @@
 */
 
 #include "ngs/protocol/message_builder.h"
-#include "ngs/protocol/output_buffer.h"
 
+#include "my_dbug.h"
+#include "ngs/protocol/output_buffer.h"
 #include "ngs_common/protocol_protobuf.h"
 
 using namespace ngs;
 
 
-Message_builder::Message_builder() :
-  m_out_buffer(NULL),
-  m_out_stream(NULL)
+Message_builder::Message_builder()
+: m_out_buffer(NULL)
 {}
 
 Message_builder::~Message_builder()
@@ -39,7 +39,7 @@ void Message_builder::encode_uint32(uint32 value, bool write)
   ++m_field_number;
   if (write)
   {
-    google::protobuf::internal::WireFormatLite::WriteTag(m_field_number, google::protobuf::internal::WireFormatLite::WIRETYPE_VARINT, m_out_stream);
+    google::protobuf::internal::WireFormatLite::WriteTag(m_field_number, google::protobuf::internal::WireFormatLite::WIRETYPE_VARINT, m_out_stream.get());
     m_out_stream->WriteVarint32(value);
   }
 }
@@ -49,7 +49,7 @@ void Message_builder::encode_uint64(uint64 value, bool write)
   ++m_field_number;
   if (write)
   {
-    google::protobuf::internal::WireFormatLite::WriteTag(m_field_number, google::protobuf::internal::WireFormatLite::WIRETYPE_VARINT, m_out_stream);
+    google::protobuf::internal::WireFormatLite::WriteTag(m_field_number, google::protobuf::internal::WireFormatLite::WIRETYPE_VARINT, m_out_stream.get());
     m_out_stream->WriteVarint64(value);
   }
 }
@@ -59,7 +59,7 @@ void Message_builder::encode_int32(int32 value, bool write)
   ++m_field_number;
   if (write)
   {
-    google::protobuf::internal::WireFormatLite::WriteTag(m_field_number, google::protobuf::internal::WireFormatLite::WIRETYPE_VARINT, m_out_stream);
+    google::protobuf::internal::WireFormatLite::WriteTag(m_field_number, google::protobuf::internal::WireFormatLite::WIRETYPE_VARINT, m_out_stream.get());
     m_out_stream->WriteVarint32SignExtended(value);
   }
 }
@@ -69,7 +69,7 @@ void Message_builder::encode_string(const char* value, size_t len, bool write)
   ++m_field_number;
   if (write)
   {
-    google::protobuf::internal::WireFormatLite::WriteTag(m_field_number, google::protobuf::internal::WireFormatLite::WIRETYPE_LENGTH_DELIMITED, m_out_stream);
+    google::protobuf::internal::WireFormatLite::WriteTag(m_field_number, google::protobuf::internal::WireFormatLite::WIRETYPE_LENGTH_DELIMITED, m_out_stream.get());
     m_out_stream->WriteVarint32(static_cast<google::protobuf::uint32>(len));
     m_out_stream->WriteRaw(value, static_cast<int>(len));
   }
@@ -83,7 +83,7 @@ void Message_builder::start_message(Output_buffer* out_buffer, uint8 type)
   m_out_buffer->save_state();
   m_out_buffer->reserve(5);
   m_start_from = static_cast<uint32>(m_out_buffer->ByteCount());
-  m_out_stream = new CodedOutputStream(m_out_buffer);
+  m_out_stream.reset(ngs::allocate_object<CodedOutputStream>(m_out_buffer));
 
   // at this point we don't know the size but we need to reserve the space for it
   // it is possible that the size which is stored on 4-bytes will be split into 2 pages
@@ -113,7 +113,7 @@ void Message_builder::end_message()
 {
   // here we already know the buffer size, so write it at the beginning of the buffer
   // the order is important here as the stream's destructor calls buffer's BackUp() validating ByteCount
-  delete m_out_stream;
+  m_out_stream.reset();
 
   uint32 msg_size = static_cast<uint32>(m_out_buffer->ByteCount()) - m_start_from - sizeof(google::protobuf::uint32);
   if (static_cast<size_t>(m_size_addr1_size) >= sizeof(google::protobuf::uint32))

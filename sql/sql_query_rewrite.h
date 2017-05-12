@@ -1,7 +1,7 @@
 #ifndef SQL_QUERY_REWRITE_INCLUDED
 #define SQL_QUERY_REWRITE_INCLUDED
 
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +16,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <mysql/plugin_audit.h>
+#include "my_inttypes.h"
+
+class Parser_state;
+class THD;
 
 /**
   Calls the query rewrite plugins' respective rewrite functions before parsing
@@ -46,6 +49,6 @@ void enable_digest_if_any_plugin_needs_it(THD *thd, Parser_state *ps);
   @param[in] thd The session with the query to be rewritten.
   @param is_prepared True if the query was a prepared statement.
 */
-bool invoke_post_parse_rewrite_plugins(THD *thd, my_bool is_prepared);
+bool invoke_post_parse_rewrite_plugins(THD *thd, bool is_prepared);
 
 #endif /* SQL_QUERY_REWRITE_INCLUDED */

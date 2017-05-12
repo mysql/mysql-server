@@ -16,16 +16,7 @@
 #ifndef MYSQL_PSI_BASE_H
 #define MYSQL_PSI_BASE_H
 
-#ifndef MY_GLOBAL_INCLUDED
-/*
-  Make sure a .c or .cc file contains an include to my_global.h first.
-  When this include is missing, all the #ifdef HAVE_XXX have no effect,
-  and the resulting binary won't build, or won't link,
-  or will crash at runtime
-  since various structures will have different binary definitions.
-*/
-#error "You must include my_global.h in the code for the build to be correct."
-#endif
+#include "my_psi_config.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -94,14 +85,16 @@ typedef unsigned int PSI_stage_key;
 
 /**
   Instrumented statement key.
-  To instrument a statement, a statement key must be obtained using @c register_statement.
+  To instrument a statement, a statement key must be obtained using @c
+  register_statement.
   Using a zero key always disable the instrumentation.
 */
 typedef unsigned int PSI_statement_key;
 
 /**
   Instrumented socket key.
-  To instrument a socket, a socket key must be obtained using @c register_socket.
+  To instrument a socket, a socket key must be obtained using @c
+  register_socket.
   Using a zero key always disable the instrumentation.
 */
 typedef unsigned int PSI_socket_key;
@@ -173,4 +166,3 @@ struct PSI_placeholder
 #endif
 
 #endif /* MYSQL_PSI_BASE_H */
-

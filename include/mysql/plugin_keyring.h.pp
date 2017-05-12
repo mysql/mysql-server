@@ -114,11 +114,11 @@ void thd_set_ha_data(void* thd, const struct handlerton *hton,
 struct st_mysql_keyring
 {
   int interface_version;
-  my_bool (*mysql_key_store)(const char *key_id, const char *key_type,
-                             const char* user_id, const void *key, size_t key_len);
-  my_bool (*mysql_key_fetch)(const char *key_id, char **key_type,
-                             const char *user_id, void **key, size_t *key_len);
-  my_bool (*mysql_key_remove)(const char *key_id, const char *user_id);
-  my_bool (*mysql_key_generate)(const char *key_id, const char *key_type,
-                                const char *user_id, size_t key_len);
+  bool (*mysql_key_store)(const char *key_id, const char *key_type,
+                          const char* user_id, const void *key, size_t key_len);
+  bool (*mysql_key_fetch)(const char *key_id, char **key_type,
+                          const char *user_id, void **key, size_t *key_len);
+  bool (*mysql_key_remove)(const char *key_id, const char *user_id);
+  bool (*mysql_key_generate)(const char *key_id, const char *key_type,
+                             const char *user_id, size_t key_len);
 };

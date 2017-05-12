@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,21 +23,47 @@
 
 #include "item_sum.h"
 
+#include <algorithm>
+#include <cstring>
+#include <functional>
+#include <string>
+
 #include "aggregate_check.h"               // Distinct_check
 #include "current_thd.h"                   // current_thd
+#include "decimal.h"
 #include "derror.h"                        // ER_THD
+#include "field.h"
+#include "handler.h"
+#include "item_cmpfunc.h"
+#include "item_func.h"
+#include "item_json_func.h"
+#include "item_subselect.h"
+#include "json_dom.h"
+#include "my_base.h"
+#include "my_byteorder.h"
+#include "my_dbug.h"
+#include "my_double2ulonglong.h"
+#include "my_sys.h"
+#include "mysql/psi/mysql_statement.h"
 #include "mysqld.h"                        // my_thread_get_THR_MALLOC
+#include "mysqld_error.h"
 #include "parse_tree_helpers.h"            // PT_item_list
 #include "parse_tree_nodes.h"              // PT_order_list
+#include "sql_array.h"
 #include "sql_class.h"                     // THD
+#include "sql_error.h"
+#include "sql_exception_handler.h"         // handle_std_exception
 #include "sql_executor.h"                  // copy_fields
+#include "sql_lex.h"
+#include "sql_list.h"
 #include "sql_resolver.h"                  // setup_order
+#include "sql_security_ctx.h"
 #include "sql_select.h"                    // count_field_types
 #include "sql_tmp_table.h"                 // create_tmp_table
 #include "temp_table_param.h"              // Temp_table_param
+#include "thr_malloc.h"
 #include "uniques.h"                       // Unique
 
-#include <algorithm>
 using std::min;
 using std::max;
 
@@ -301,6 +327,8 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref)
   }
 
   aggr_select->set_agg_func_used(true);
+  if (sum_func() == JSON_AGG_FUNC)
+    aggr_select->set_json_agg_func_used(true);
   update_used_tables();
   thd->lex->in_sum_func= in_sum_func;
 
@@ -392,10 +420,10 @@ void Item_sum::fix_num_length_and_dec()
 }
 
 
-bool Item_sum::resolve_type(THD *thd)
+bool Item_sum::resolve_type(THD *)
 {
-  maybe_null=1;
-  null_value=1;
+  maybe_null= true;
+  null_value= TRUE;
 
   const Sumfunctype t= sum_func();
 
@@ -437,7 +465,7 @@ bool Item_sum::walk(Item_processor processor, enum_walk walk, uchar *argument)
   @see Item_sum::check_sum_func()
   @see remove_redundant_subquery_clauses()
  */
-bool Item_sum::clean_up_after_removal(uchar *arg)
+bool Item_sum::clean_up_after_removal(uchar*)
 {
   /*
     Don't do anything if
@@ -556,7 +584,7 @@ bool Item_sum::aggregate_check_group(uchar *arg)
 }
 
 
-Field *Item_sum::create_tmp_field(bool group, TABLE *table)
+Field *Item_sum::create_tmp_field(bool, TABLE *table)
 {
   Field *field;
   switch (result_type()) {
@@ -765,7 +793,7 @@ static int simple_raw_key_cmp(const void* arg,
 }
 
 
-static int item_sum_distinct_walk(void *element, element_count num_of_dups,
+static int item_sum_distinct_walk(void *element, element_count,
                                   void *item)
 {
   return ((Aggregator_distinct*) (item))->unique_walk_function(element);
@@ -979,10 +1007,9 @@ bool Aggregator_distinct::setup(THD *thd)
     }
 
 
-    enum enum_field_types field_type;
+    enum enum_field_types field_type=
+      calc_tmp_field_type(arg->data_type(), arg->result_type());
 
-    field_type= calc_tmp_field_type(arg->field_type(),
-                              arg->result_type());
     field_def.init_for_tmp_table(field_type, 
                                  arg->max_length,
                                  arg->decimals, 
@@ -1232,8 +1259,7 @@ my_decimal *Item_sum_int::val_decimal(my_decimal *decimal_value)
 }
 
 
-bool
-Item_sum_num::fix_fields(THD *thd, Item **ref)
+bool Item_sum_num::fix_fields(THD *thd, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
 
@@ -1242,19 +1268,18 @@ Item_sum_num::fix_fields(THD *thd, Item **ref)
 
   Disable_semijoin_flattening DSF(thd->lex->current_select(), true);
 
-  decimals=0;
-  maybe_null=0;
+  maybe_null= false;
   for (uint i=0 ; i < arg_count ; i++)
   {
     if ((!args[i]->fixed && args[i]->fix_fields(thd, args + i)) ||
         args[i]->check_cols(1))
       return true;
-    set_if_bigger(decimals, args[i]->decimals);
-    maybe_null |= args[i]->maybe_null;
+    maybe_null|= args[i]->maybe_null;
   }
-  result_field=0;
-  max_length=float_length(decimals);
-  null_value=1;
+
+  // Set this value before calling resolve_type()
+  null_value= TRUE;
+
   if (resolve_type(thd))
     return true;
 
@@ -1277,7 +1302,7 @@ Item_sum_bit::fix_fields(THD *thd, Item **ref)
 
   for (uint i= 0 ; i < arg_count ; i++)
   {
-    if ((!args[i]->fixed && args[i]->fix_fields(current_thd, args + i)) ||
+    if ((!args[i]->fixed && args[i]->fix_fields(thd, args + i)) ||
         args[i]->check_cols(1))
       return true;
   }
@@ -1296,7 +1321,7 @@ Item_sum_bit::fix_fields(THD *thd, Item **ref)
 }
 
 
-bool Item_sum_bit::resolve_type(THD *thd)
+bool Item_sum_bit::resolve_type(THD *)
 {
   max_length= 0;
   if (bit_func_returns_binary(args[0], nullptr))
@@ -1322,11 +1347,13 @@ bool Item_sum_bit::resolve_type(THD *thd)
      if Item_sum_bit_field is used.
     */
     max_length++;
+    set_data_type(MYSQL_TYPE_VARCHAR);
   }
   else
   {
     hybrid_type= INT_RESULT;
     max_length= MAX_BIGINT_WIDTH + 1;
+    set_data_type(MYSQL_TYPE_LONGLONG);
   }
 
   maybe_null= false;
@@ -1460,9 +1487,9 @@ Item_sum_hybrid::fix_fields(THD *thd, Item **ref)
     return true;
   item= item->real_item();
   if (item->type() == Item::FIELD_ITEM)
-    hybrid_field_type= ((Item_field*) item)->field->type();
+    set_data_type(item->data_type());
   else
-    hybrid_field_type= Item::field_type();
+    set_data_type_from_result(hybrid_type, max_length);
 
   if (check_sum_func(thd, ref))
     return true;
@@ -1522,7 +1549,7 @@ Field *Item_sum_hybrid::create_tmp_field(bool group, TABLE *table)
     In order to preserve field type, it's needed to handle DATE/TIME
     fields creations separately.
   */
-  switch (args[0]->field_type()) {
+  switch (args[0]->data_type()) {
   case MYSQL_TYPE_DATE:
     field= new Field_newdate(maybe_null, item_name.ptr());
     break;
@@ -1530,6 +1557,8 @@ Field *Item_sum_hybrid::create_tmp_field(bool group, TABLE *table)
     field= new Field_timef(maybe_null, item_name.ptr(), decimals);
     break;
   case MYSQL_TYPE_TIMESTAMP:
+    field= new Field_timestampf(maybe_null, item_name.ptr(), decimals);
+    break;
   case MYSQL_TYPE_DATETIME:
     field= new Field_datetimef(maybe_null, item_name.ptr(), decimals);
     break;
@@ -1585,7 +1614,7 @@ void Item_sum_sum::clear()
 }
 
 
-bool Item_sum_sum::resolve_type(THD *thd)
+bool Item_sum_sum::resolve_type(THD *)
 {
   DBUG_ENTER("Item_sum_sum::resolve_type");
   maybe_null= true;
@@ -1618,6 +1647,8 @@ bool Item_sum_sum::resolve_type(THD *thd)
 
   if (reject_geometry_args(arg_count, args, this))
     DBUG_RETURN(true);
+
+  set_data_type_from_result(hybrid_type, max_length);
 
   DBUG_PRINT("info", ("Type: %s (%d, %d)",
                       (hybrid_type == REAL_RESULT ? "REAL_RESULT" :
@@ -1857,7 +1888,7 @@ bool Item_sum_avg::resolve_type(THD *thd)
 
   maybe_null= true;
   null_value= TRUE;
-  prec_increment= current_thd->variables.div_precincrement;
+  prec_increment= thd->variables.div_precincrement;
   if (hybrid_type == DECIMAL_RESULT)
   {
     int precision= args[0]->decimal_precision() + prec_increment;
@@ -1873,6 +1904,7 @@ bool Item_sum_avg::resolve_type(THD *thd)
     decimals= min<uint>(args[0]->decimals + prec_increment, NOT_FIXED_DEC);
     max_length= args[0]->max_length + prec_increment;
   }
+  set_data_type_from_result(hybrid_type, max_length);
   return false;
 }
 
@@ -2050,7 +2082,7 @@ Item_sum_variance::Item_sum_variance(THD *thd, Item_sum_variance *item):
 }
 
 
-bool Item_sum_variance::resolve_type(THD *thd)
+bool Item_sum_variance::resolve_type(THD *)
 {
   DBUG_ENTER("Item_sum_variance::resolve_type");
   maybe_null= true;
@@ -2062,9 +2094,8 @@ bool Item_sum_variance::resolve_type(THD *thd)
     type of the result is an implementation-defined aproximate numeric
     type.
   */
+  set_data_type_double();
   hybrid_type= REAL_RESULT;
-  decimals= NOT_FIXED_DEC;
-  max_length= float_length(decimals);
 
   if (reject_geometry_args(arg_count, args, this))
     DBUG_RETURN(true);
@@ -2991,8 +3022,10 @@ Item_avg_field::Item_avg_field(Item_result res_type, Item_sum_avg *item)
   max_length= item->max_length;
   unsigned_flag= item->unsigned_flag;
   field=item->result_field;
-  maybe_null=1;
+  maybe_null= true;
   hybrid_type= res_type;
+  set_data_type(hybrid_type == DECIMAL_RESULT ?
+                MYSQL_TYPE_NEWDECIMAL : MYSQL_TYPE_DOUBLE);
   prec_increment= item->prec_increment;
   if (hybrid_type == DECIMAL_RESULT)
   {
@@ -3063,6 +3096,11 @@ Item_sum_bit_field::Item_sum_bit_field(Item_result res_type,
   field= item->result_field;
   maybe_null= false;
   hybrid_type= res_type;
+  DBUG_ASSERT(hybrid_type == INT_RESULT || hybrid_type == STRING_RESULT);
+  if (hybrid_type == INT_RESULT)
+    set_data_type(MYSQL_TYPE_LONGLONG);
+  else if (hybrid_type == STRING_RESULT)
+    set_data_type(MYSQL_TYPE_VARCHAR);
   // Implementation requires a non-Blob for string results.
   DBUG_ASSERT(hybrid_type != STRING_RESULT ||
               field->type() == MYSQL_TYPE_VARCHAR);
@@ -3159,6 +3197,7 @@ bool Item_sum_bit_field::get_time(MYSQL_TIME *ltime)
     return get_time_from_string(ltime);
 }
 
+
 Item_std_field::Item_std_field(Item_sum_std *item)
   : Item_variance_field(item)
 {
@@ -3201,13 +3240,15 @@ my_decimal *Item_std_field::val_decimal(my_decimal *dec_buf)
 Item_variance_field::Item_variance_field(Item_sum_variance *item)
 {
   item_name= item->item_name;
-  decimals=item->decimals;
-  max_length=item->max_length;
+  decimals= item->decimals;
+  max_length= item->max_length;
   unsigned_flag= item->unsigned_flag;
   field=item->result_field;
-  maybe_null=1;
+  maybe_null= true;
   sample= item->sample;
   hybrid_type= item->hybrid_type;
+  DBUG_ASSERT(hybrid_type == REAL_RESULT);
+  set_data_type(MYSQL_TYPE_DOUBLE);
 }
 
 
@@ -3377,8 +3418,9 @@ my_decimal *Item_sum_udf_int::val_decimal(my_decimal *dec)
 
 /** Default max_length is max argument length. */
 
-bool Item_sum_udf_str::resolve_type(THD *thd)
+bool Item_sum_udf_str::resolve_type(THD *)
 {
+  set_data_type(MYSQL_TYPE_VARCHAR);
   max_length=0;
   for (uint i = 0; i < arg_count; i++)
     set_if_bigger(max_length,args[i]->max_length);
@@ -3509,7 +3551,7 @@ int group_concat_key_cmp_with_order(const void* arg, const void* key1,
                   table->s->null_bytes);
     int res= field->cmp((uchar*)key1 + offset, (uchar*)key2 + offset);
     if (res)
-      return ((order_item)->direction == ORDER::ORDER_ASC) ? res : -res;
+      return ((order_item)->direction == ORDER_ASC) ? res : -res;
   }
   /*
     We can't return 0 because in that case the tree class would remove this
@@ -3922,6 +3964,9 @@ Item_func_group_concat::fix_fields(THD *thd, Item **ref)
   result_field= 0;
   null_value= 1;
   max_length= thd->variables.group_concat_max_len;
+  set_data_type(max_length/collation.collation->mbmaxlen >
+                CONVERT_IF_BIGGER_TO_BLOB ?
+                MYSQL_TYPE_BLOB : MYSQL_TYPE_VARCHAR);
 
   size_t offset;
   if (separator->needs_conversion(separator->length(), separator->charset(),
@@ -4088,7 +4133,7 @@ void Item_func_group_concat::make_unique()
 }
 
 
-String* Item_func_group_concat::val_str(String* str)
+String* Item_func_group_concat::val_str(String*)
 {
   DBUG_ASSERT(fixed == 1);
   if (null_value)
@@ -4130,7 +4175,7 @@ void Item_func_group_concat::print(String *str, enum_query_type query_type)
       if (i)
         str->append(',');
       args[i + arg_count_field]->print(str, query_type);
-      if (order_array[i].direction == ORDER::ORDER_ASC)
+      if (order_array[i].direction == ORDER_ASC)
         str->append(STRING_WITH_LEN(" ASC"));
       else
         str->append(STRING_WITH_LEN(" DESC"));
@@ -4163,4 +4208,461 @@ Item_func_group_concat::~Item_func_group_concat()
 {
   if (!original && unique_filter)
     delete unique_filter;    
+}
+
+
+bool Item_sum_json::fix_fields(THD *thd, Item **ref)
+{
+  DBUG_ASSERT(!fixed);
+  result_field= nullptr;
+
+  if (init_sum_func_check(thd))
+    return true;
+
+  Disable_semijoin_flattening DSF(thd->lex->current_select(), true);
+
+  for (uint i= 0; i < arg_count; i++)
+  {
+    if ((!args[i]->fixed && args[i]->fix_fields(thd, args + i)) ||
+        args[i]->check_cols(1))
+      return true;
+  }
+
+  if (resolve_type(thd))
+    return true;
+
+  if (check_sum_func(thd, ref))
+    return true;
+
+  maybe_null= true;
+  null_value= true;
+  fixed= true;
+  return false;
+}
+
+String *Item_sum_json::val_str(String *str)
+{
+  DBUG_ASSERT(fixed == 1);
+  if (null_value || m_wrapper.empty())
+    return nullptr;
+  str->length(0);
+  if (m_wrapper.to_string(str, true, func_name()))
+    return error_str();
+
+  return str;
+}
+
+
+bool Item_sum_json::val_json(Json_wrapper *wr)
+{
+  if (null_value || m_wrapper.empty())
+    return true;
+
+  /*
+    val_* functions are called more than once in aggregates and
+    by passing the dom some function will destroy it so a clone is needed.
+  */
+  *wr= Json_wrapper(m_wrapper.clone_dom(current_thd));
+  return false;
+}
+
+
+double Item_sum_json::val_real()
+{
+  if (null_value || m_wrapper.empty())
+    return 0.0;
+
+  return m_wrapper.coerce_real(func_name());
+}
+
+
+longlong Item_sum_json::val_int()
+{
+  if (null_value || m_wrapper.empty())
+    return 0;
+
+  return m_wrapper.coerce_int(func_name());
+}
+
+
+my_decimal *Item_sum_json::val_decimal(my_decimal *decimal_value)
+{
+  if (null_value || m_wrapper.empty())
+  {
+    my_decimal_set_zero(decimal_value);
+    return decimal_value;
+  }
+
+  return m_wrapper.coerce_decimal(decimal_value, func_name());
+}
+
+
+bool Item_sum_json::get_date(MYSQL_TIME *ltime, my_time_flags_t)
+{
+  if (null_value || m_wrapper.empty())
+    return true;
+
+  return m_wrapper.coerce_date(ltime, func_name());
+}
+
+
+bool Item_sum_json::get_time(MYSQL_TIME *ltime)
+{
+  if (null_value || m_wrapper.empty())
+    return true;
+
+  return m_wrapper.coerce_time(ltime, func_name());
+}
+
+
+void Item_sum_json::reset_field()
+{
+  /* purecov: begin inspected */
+  DBUG_ASSERT(0); // Check JOIN::with_json_agg for more details.
+  // Create the container
+  clear();
+  // Append element to the container.
+  add();
+
+  /*
+    field_type is MYSQL_TYPE_JSON so Item::make_string_field will always
+    create a Field_json(in Item_sum::create_tmp_field).
+    The cast is need since Field does not expose store_json function.
+  */
+  Field_json *json_result_field= down_cast<Field_json *>(result_field);
+  json_result_field->set_notnull();
+  // Store the container inside the field.
+  json_result_field->store_json(&m_wrapper);
+  /* purecov: end */
+}
+
+
+void Item_sum_json::update_field()
+{
+  /* purecov: begin inspected */
+  DBUG_ASSERT(0); // Check JOIN::with_json_agg for more details.
+  /*
+    field_type is MYSQL_TYPE_JSON so Item::make_string_field will always
+    create a Field_json(in Item_sum::create_tmp_field).
+    The cast is need since Field does not expose store_json function.
+  */
+  Field_json *json_result_field= down_cast<Field_json *>(result_field);
+  // Restore the container(m_wrapper) from the field
+  json_result_field->val_json(&m_wrapper);
+
+  // Append elements to the container.
+  add();
+  // Store the container inside the field.
+  json_result_field->store_json(&m_wrapper);
+  json_result_field->set_notnull();
+  /* purecov: end */
+}
+
+
+void Item_sum_json_array::clear()
+{
+  null_value= true;
+  m_json_array.clear();
+
+  // Set the array to the m_wrapper.
+  m_wrapper= Json_wrapper(&m_json_array);
+  // But let Item_sum_json_array keep the ownership.
+  m_wrapper.set_alias();
+}
+
+
+void Item_sum_json_object::clear()
+{
+  null_value= true;
+  m_json_object.clear();
+
+  // Set the object to the m_wrapper.
+  m_wrapper= Json_wrapper(&m_json_object);
+  // But let Item_sum_json_object keep the ownership.
+  m_wrapper.set_alias();
+}
+
+
+bool Item_sum_json_array::add()
+{
+  DBUG_ASSERT(fixed == 1);
+  DBUG_ASSERT(arg_count == 1);
+
+  const THD *thd= base_select->parent_lex->thd;
+  /*
+     Checking if an error happened inside one of the functions that have no
+     way of returning an error status. (reset_field(), update_field() or
+     clear())
+   */
+  if (thd->is_error())
+    return error_json();
+
+  try
+  {
+    Json_wrapper value_wrapper;
+    // Get the value.
+    if (get_atom_null_as_null(args, 0, func_name(), &m_value,
+                              &m_conversion_buffer,
+                              &value_wrapper))
+      return error_json();
+
+    /*
+      The m_wrapper always points to m_json_array or the result of
+      deserializing the result_field in reset/update_field.
+    */
+    const auto arr= down_cast<Json_array *>(m_wrapper.to_dom(thd));
+    if (arr->append_alias(value_wrapper.to_dom(thd)))
+      return error_json();              /* purecov: inspected */
+
+    null_value= false;
+    value_wrapper.set_alias(); // release the DOM
+  }
+  catch (...)
+  {
+    /* purecov: begin inspected */
+    handle_std_exception(func_name());
+    return error_json();
+    /* purecov: end */
+  }
+
+  return false;
+}
+
+
+Item *Item_sum_json_array::copy_or_same(THD *thd)
+{
+  return new (thd->mem_root) Item_sum_json_array(thd, this);
+}
+
+
+bool Item_sum_json_object::add()
+{
+  DBUG_ASSERT(fixed == 1);
+  DBUG_ASSERT(arg_count == 2);
+
+  const THD *thd= base_select->parent_lex->thd;
+  /*
+     Checking if an error happened inside one of the functions that have no
+     way of returning an error status. (reset_field(), update_field() or
+     clear())
+   */
+  if (thd->is_error())
+    return error_json();
+
+  try
+  {
+    // key
+    Item *key_item= args[0];
+    const char *safep;         // contents of key_item, possibly converted
+    size_t safe_length;        // length of safep
+
+    if (get_json_string(key_item, &m_tmp_key_value, &m_conversion_buffer,
+                        &safep, &safe_length))
+    {
+      my_error(ER_JSON_DOCUMENT_NULL_KEY, MYF(0));
+      return error_json();
+    }
+
+    std::string key(safep, safe_length);
+
+    // value
+    Json_wrapper value_wrapper;
+    if (get_atom_null_as_null(args, 1, func_name(), &m_value,
+                              &m_conversion_buffer, &value_wrapper))
+      return error_json();
+
+    /*
+      The m_wrapper always points to m_json_object or the result of
+      deserializing the result_field in reset/update_field.
+    */
+    Json_object *object= down_cast<Json_object *>(m_wrapper.to_dom(thd));
+    if (object->add_alias(key, value_wrapper.to_dom(thd)))
+      return error_json();              /* purecov: inspected */
+
+    null_value= false;
+    // object will take ownership of the value
+    value_wrapper.set_alias();
+  }
+  catch (...)
+  {
+    /* purecov: begin inspected */
+    handle_std_exception(func_name());
+    return error_json();
+    /* purecov: end */
+  }
+
+  return false;
+}
+
+
+Item *Item_sum_json_object::copy_or_same(THD *thd)
+{
+  return new (thd->mem_root) Item_sum_json_object(thd, this);
+}
+
+/**
+  Resolve the fields in the GROUPING function.
+  The GROUPING function can only appear in SELECT list or
+  in HAVING clause and requires WITH ROLLUP. Check that this holds.
+  We also need to check if all the arguments of the function
+  are present in GROUP BY clause. As GROUP BY columns are not
+  resolved at this time, we do it in SELECT_LEX::resolve_rollup().
+  However, if the GROUPING function is found in HAVING clause,
+  we can check here. Also, resolve_rollup() does not
+  check for items present in HAVING clause.
+
+  @param[in]     thd        current thread
+  @param[in,out] ref        reference to place where item is
+                            stored
+  @retval
+    TRUE  if error
+  @retval
+    FALSE on success
+
+*/
+bool Item_func_grouping::fix_fields(THD *thd, Item **ref)
+{
+  /*
+    We do not allow GROUPING by position. However GROUP BY allows
+    it for now.
+  */
+  Item **arg,**arg_end;
+  for (arg= args, arg_end= args+arg_count; arg != arg_end; arg++)
+  {
+    if ((*arg)->type() == Item::INT_ITEM && (*arg)->basic_const_item())
+    {
+      my_error(ER_WRONG_ARGUMENTS, MYF(0), "GROUPING function");
+      return true;
+    }
+  }
+
+  if (Item_func::fix_fields(thd, ref))
+    return true;
+
+  /*
+    More than 64 args cannot be supported as the bitmask which is
+    used to represent the result cannot accomodate.
+  */
+  if (arg_count > 64)
+  {
+    my_error(ER_INVALID_NO_OF_ARGS, MYF(0), "GROUPING", arg_count, "64");
+    return true;
+  }
+
+  /*
+    GROUPING() is allowed to be present only in SELECT list and
+    HAVING clause.
+  */
+  SELECT_LEX *select= thd->lex->current_select();
+
+  if (select->olap == UNSPECIFIED_OLAP_TYPE ||
+      (select->resolve_place != SELECT_LEX::RESOLVE_SELECT_LIST &&
+       select->resolve_place != SELECT_LEX::RESOLVE_HAVING))
+  {
+    my_error(ER_INVALID_GROUP_FUNC_USE, MYF(0));
+    return true;
+  }
+
+  /*
+    If GROUPING() is present in HAVING clause, check if all the
+    arguments are present in GROUP BY.
+  */
+  if (select->resolve_place == SELECT_LEX::RESOLVE_HAVING)
+  {
+    for (uint i= 0; i < arg_count; i++)
+    {
+      Item *const real_item= args[i]->real_item();
+      bool found_in_group= false;
+
+      for (ORDER *group= select->group_list.first; group; group= group->next)
+      {
+        if (real_item->eq((*group->item)->real_item(), 0))
+        {
+          found_in_group= true;
+          break;
+        }
+      }
+      if (!found_in_group)
+      {
+        my_error(ER_FIELD_IN_GROUPING_NOT_GROUP_BY, MYF(0), (i+1));
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+/**
+  Evaluation of the GROUPING function.
+  We check the type of the item for all the arguments of
+  GROUPING function. If it's a NULL_RESULT_ITEM, set the bit for
+  the field in the result. The result of the GROUPING function
+  would be the integer bit mask having 1's for the arguments
+  of type NULL_RESULT_ITEM.
+
+  @return
+  integer bit mask having 1's for the arguments which have a
+  NULL in their result becuase of ROLLUP operation.
+*/
+longlong Item_func_grouping::val_int()
+{
+  longlong result= 0;
+  for (uint i= 0; i<arg_count; i++)
+  {
+    Item *real_item = args[i];
+    while (real_item->type() == REF_ITEM)
+      real_item = *((down_cast<Item_ref *>(real_item))->ref);
+    /*
+      Note: if the current input argument is an 'Item_null_result',
+      then we know it is generated by rollup handler to fill the
+      subtotal rows.
+    */
+    if (real_item->type() == NULL_RESULT_ITEM)
+      result+= 1<<(arg_count-(i+1));
+  }
+  return result;
+}
+
+
+/**
+  This function is expected to check if GROUPING function with
+  its arguments is "group-invariant".
+  However, GROUPING function produces only one value per
+  group similar to the other set functions and the arguments
+  to the GROUPING function are always present in GROUP BY (this
+  is checked in resolve_rollup() which is called much earlier to
+  aggregate_check_group). As a result, aggregate_check_group does
+  not have to determine if the result of this function is
+  "group-invariant".
+
+  @retval
+    TRUE  if error
+  @retval
+    FALSE on success
+*/
+bool Item_func_grouping::aggregate_check_group(uchar *arg)
+{
+  Group_check *gc= reinterpret_cast<Group_check *>(arg);
+
+  if (gc->is_stopped(this))
+    return false;
+
+  if (gc->is_fd_on_source(this))
+  {
+    gc->stop_at(this);
+    return false;
+  }
+  return true;
+}
+
+
+/**
+  Resets 'with_sum_func' which was set during creation
+  of references to GROUP BY fields in SELECT_LEX::change_group_ref.
+  Calls Item_int_func::cleanup() to do the rest of the cleanup.
+*/
+void Item_func_grouping::cleanup()
+{
+  with_sum_func= 0;
+  Item_int_func::cleanup();
 }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,18 +16,27 @@
 #ifndef DD__ROUTINE_IMPL_INCLUDED
 #define DD__ROUTINE_IMPL_INCLUDED
 
-#include "my_global.h"
+#include <stddef.h>
+#include <memory>                              // std::unique_ptr
+#include <string>
 
+#include "dd/impl/raw/raw_record.h"
 #include "dd/impl/types/entity_object_impl.h"  // dd::Entity_object_impl
+#include "dd/impl/types/weak_object_impl.h"
+#include "dd/object_id.h"
 #include "dd/types/dictionary_object_table.h"  // dd::Dictionary_object_table
 #include "dd/types/object_type.h"              // dd::Object_type
 #include "dd/types/parameter.h"                // dd::Parameter
 #include "dd/types/routine.h"                  // dd::Routine
-
-#include <memory>                              // std::unique_ptr
+#include "dd/types/view.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
 
 namespace dd {
-  class Parameter_collection;
+class Parameter_collection;
+class Open_dictionary_tables_ctx;
+class Parameter;
+class Weak_object;
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -55,7 +64,7 @@ public:
 
   virtual bool store_attributes(Raw_record *r);
 
-  virtual void debug_print(std::string &outb) const;
+  virtual void debug_print(String_type &outb) const;
 
 public:
   /////////////////////////////////////////////////////////////////////////
@@ -82,26 +91,26 @@ public:
   // definition/utf8.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &definition() const
+  virtual const String_type &definition() const
   { return m_definition; }
 
-  virtual void set_definition(const std::string &definition)
+  virtual void set_definition(const String_type &definition)
   { m_definition= definition; }
 
-  virtual const std::string &definition_utf8() const
+  virtual const String_type &definition_utf8() const
   { return m_definition_utf8; }
 
-  virtual void set_definition_utf8(const std::string &definition_utf8)
+  virtual void set_definition_utf8(const String_type &definition_utf8)
   { m_definition_utf8= definition_utf8; }
 
   /////////////////////////////////////////////////////////////////////////
   // parameter_str
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &parameter_str() const
+  virtual const String_type &parameter_str() const
   { return m_parameter_str; }
 
-  virtual void set_parameter_str(const std::string &parameter_str)
+  virtual void set_parameter_str(const String_type &parameter_str)
   { m_parameter_str= parameter_str; }
 
   /////////////////////////////////////////////////////////////////////////
@@ -148,14 +157,14 @@ public:
   // definer.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &definer_user() const
+  virtual const String_type &definer_user() const
   { return m_definer_user; }
 
-  virtual const std::string &definer_host() const
+  virtual const String_type &definer_host() const
   { return m_definer_host; }
 
-  virtual void set_definer(const std::string &username,
-                           const std::string &hostname)
+  virtual void set_definer(const String_type &username,
+                           const String_type &hostname)
   {
     m_definer_user= username;
     m_definer_host= hostname;
@@ -207,10 +216,10 @@ public:
   // comment.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &comment() const
+  virtual const String_type &comment() const
   { return m_comment; }
 
-  virtual void set_comment(const std::string &comment)
+  virtual void set_comment(const String_type &comment)
   { m_comment= comment; }
 
   /////////////////////////////////////////////////////////////////////////
@@ -231,9 +240,9 @@ public:
   { return Entity_object_impl::id(); }
   virtual bool is_persistent() const
   { return Entity_object_impl::is_persistent(); }
-  virtual const std::string &name() const
+  virtual const String_type &name() const
   { return Entity_object_impl::name(); }
-  virtual void set_name(const std::string &name)
+  virtual void set_name(const String_type &name)
   { Entity_object_impl::set_name(name); }
 
 private:
@@ -247,12 +256,12 @@ private:
   ulonglong m_created;
   ulonglong m_last_altered;
 
-  std::string m_definition;
-  std::string m_definition_utf8;
-  std::string m_parameter_str;
-  std::string m_definer_user;
-  std::string m_definer_host;
-  std::string m_comment;
+  String_type m_definition;
+  String_type m_definition_utf8;
+  String_type m_parameter_str;
+  String_type m_definer_user;
+  String_type m_definer_host;
+  String_type m_comment;
 
   // Collections.
 

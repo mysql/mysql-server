@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,14 +13,22 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "my_global.h"          // HAVE_*
-#include "des_key_file.h"       // st_des_keyschedule, st_des_keyblock
-#include "log.h"                // sql_print_error
-#include "mysqld.h"             // LOCK_des_key_file
-#include <m_ctype.h>
+#include "sql/des_key_file.h"       // st_des_keyschedule, st_des_keyblock
 
-#include "pfs_file_provider.h"
+#include <fcntl.h>
+#include <string.h>
+
+#include "log.h"                // sql_print_error
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_sys.h"
 #include "mysql/psi/mysql_file.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysqld.h"             // LOCK_des_key_file
+#include "sql_string.h"
 
 #ifdef HAVE_OPENSSL
 

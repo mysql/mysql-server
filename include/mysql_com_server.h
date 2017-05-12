@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,13 +22,15 @@
 #ifndef _mysql_com_server_h
 #define _mysql_com_server_h
 
-struct st_net_server;
+#include <stddef.h>
+
+#include "my_inttypes.h"
 
 typedef void (*before_header_callback_fn)
   (struct st_net *net, void *user_data, size_t count);
 
 typedef void (*after_header_callback_fn)
-  (struct st_net *net, void *user_data, size_t count, my_bool rc);
+  (struct st_net *net, void *user_data, size_t count, bool rc);
 
 struct st_net_server
 {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,12 +15,16 @@
 
 /* Check that heap-structure is ok */
 
+#include <sys/types.h>
+
 #include "heapdef.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
 
 static int check_one_key(HP_KEYDEF *keydef, uint keynr, ulong records,
-			 ulong blength, my_bool print_status);
+			 ulong blength, bool print_status);
 static int check_one_rb_key(HP_INFO *info, uint keynr, ulong records,
-			    my_bool print_status);
+			    bool print_status);
 
 
 /*
@@ -39,7 +43,7 @@ static int check_one_rb_key(HP_INFO *info, uint keynr, ulong records,
     1 error
 */
 
-int heap_check_heap(HP_INFO *info, my_bool print_status)
+int heap_check_heap(HP_INFO *info, bool print_status)
 {
   int error;
   uint key;
@@ -97,7 +101,7 @@ int heap_check_heap(HP_INFO *info, my_bool print_status)
 
 
 static int check_one_key(HP_KEYDEF *keydef, uint keynr, ulong records,
-			 ulong blength, my_bool print_status)
+			 ulong blength, bool print_status)
 {
   int error;
   ulong i,found,max_links,seek,links;
@@ -159,7 +163,7 @@ static int check_one_key(HP_KEYDEF *keydef, uint keynr, ulong records,
 }
 
 static int check_one_rb_key(HP_INFO *info, uint keynr, ulong records,
-			    my_bool print_status)
+			    bool print_status)
 {
   HP_KEYDEF *keydef= info->s->keydef + keynr;
   int error= 0;

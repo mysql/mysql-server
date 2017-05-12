@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,9 +16,29 @@
 #ifndef LOG_H
 #define LOG_H
 
-#include "my_global.h"
-#include "auth/sql_security_ctx.h"  // Security_context
+#include <stdarg.h>
+#include <stdarg.h>
+#include <stddef.h>
+#include <sys/types.h>
 
+#include "auth/sql_security_ctx.h"  // Security_context
+#include "my_command.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_loglevel.h"
+#include "my_psi_config.h"
+#include "my_sys.h"
+#include "my_thread_local.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/mysql_rwlock.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql_com.h"
+#include "sql_string.h"
+#include "thr_malloc.h"
+
+class THD;
 struct TABLE_LIST;
 
 ////////////////////////////////////////////////////////////
@@ -74,9 +94,6 @@ struct TABLE_LIST;
 */
 
 
-class Query_logger;
-class Log_to_file_event_handler;
-
 /** Type of the log table */
 enum enum_log_table_type
 {
@@ -126,9 +143,6 @@ class File_query_log
      Log given command to normal (not rotatable) log file.
 
      @param event_utime       Command start timestamp in micro seconds
-     @param user_host         The pointer to the string with user\@host info
-     @param user_host_len     Length of the user_host string. this is computed once
-                              and passed to all general log event handlers
      @param thread_id         Id of the thread that issued the query
      @param command_type      The type of the command being logged
      @param command_type_len  The length of the string above
@@ -137,8 +151,7 @@ class File_query_log
 
      @return true if error, false otherwise.
   */
-  bool write_general(ulonglong event_utime, const char *user_host,
-                     size_t user_host_len, my_thread_id thread_id,
+  bool write_general(ulonglong event_utime, my_thread_id thread_id,
                      const char *command_type, size_t command_type_len,
                      const char *sql_text, size_t sql_text_len);
 
@@ -147,7 +160,6 @@ class File_query_log
 
      @param thd               THD of the query
      @param current_utime     Current timestamp in micro seconds
-     @param query_start_arg   Command start timestamp
      @param user_host         The pointer to the string with user\@host info
      @param user_host_len     Length of the user_host string. this is computed once
                               and passed to all general log event handlers
@@ -161,7 +173,7 @@ class File_query_log
 
      @return true if error, false otherwise.
 */
-  bool write_slow(THD *thd, ulonglong current_utime, ulonglong query_start_arg,
+  bool write_slow(THD *thd, ulonglong current_utime,
                   const char *user_host, size_t user_host_len,
                   ulonglong query_utime, ulonglong lock_utime, bool is_command,
                   const char *sql_text, size_t sql_text_len);
@@ -537,6 +549,16 @@ extern Query_logger query_logger;
 char *make_query_log_name(char *buff, enum_log_table_type log_type);
 
 /**
+  Check given log name against certain blacklisted names/extensions.
+
+  @param name     Log name to check
+  @param len      Length of log name
+
+  @returns true if name is valid, false otherwise.
+*/
+bool is_valid_log_name(const char *name, size_t len);
+
+/**
   Check whether we need to write the current statement (or its rewritten
   version if it exists) to the slow query log.
   As a side-effect, a digest of suppressed statements may be written.
@@ -571,9 +593,6 @@ void log_slow_do(THD *thd);
   @param thd              thread handle
 */
 void log_slow_statement(THD *thd);
-
-
-#ifdef MYSQL_SERVER // Security_context not defined otherwise.
 
 /**
   @class Log_throttle
@@ -811,8 +830,6 @@ public:
 
 
 extern Slow_log_throttle log_throttle_qni;
-
-#endif // MYSQL_SERVER
 
 ////////////////////////////////////////////////////////////
 //

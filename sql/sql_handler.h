@@ -17,11 +17,13 @@
 #define SQL_HANDLER_INCLUDED
 
 #include "my_base.h"                   /* ha_rkey_function, ha_rows */
+#include "my_sqlcommand.h"
 #include "sql_cmd.h"                   // Sql_cmd
 
 class Item;
 class THD;
 struct TABLE_LIST;
+
 enum class enum_ha_read_modes { RFIRST, RNEXT, RPREV, RLAST, RKEY, RNEXT_SAME };
 template <class T> class List;
 

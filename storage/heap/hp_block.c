@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,7 +15,11 @@
 
 /* functions on blocks; Keys and records are saved in blocks */
 
+#include <stddef.h>
+#include <sys/types.h>
+
 #include "heapdef.h"
+#include "my_inttypes.h"
 #include "mysql/service_mysql_alloc.h"
 
 /*

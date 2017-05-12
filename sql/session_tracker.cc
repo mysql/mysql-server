@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,14 +14,39 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
-#include "session_tracker.h"
+#include "sql/session_tracker.h"
+
+#include <string.h>
+#include <new>
 
 #include "current_thd.h"
+#include "handler.h"
 #include "hash.h"
+#include "lex_string.h"
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
+#include "mysql/psi/mysql_statement.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql/thread_type.h"
+#include "mysql_com.h"
+#include "mysqld_error.h"
 #include "psi_memory_key.h"
+#include "query_options.h"
+#include "rpl_context.h"
 #include "rpl_gtid.h"
+#include "set_var.h"
 #include "sql_class.h"
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_plugin.h"
 #include "sql_show.h"
+#include "sql_string.h"
+#include "system_variables.h"
+#include "transaction_info.h"
 #include "xa.h"
 
 static void store_lenenc_string(String &to, const char *from,
@@ -210,7 +235,7 @@ public:
 
   bool enable(THD *thd)
   { return update(thd); }
-  bool check(THD *thd, set_var *var)
+  bool check(THD*, set_var*)
   { return false; }
   bool update(THD *thd);
   bool store(THD *thd, String &buf);
@@ -362,7 +387,7 @@ public:
 
   bool enable(THD *thd)
   { return update(thd); }
-  bool check(THD *thd, set_var *var)
+  bool check(THD*, set_var*)
   { return false; }
   bool update(THD *thd);
   bool store(THD *thd, String &buf);
@@ -898,10 +923,6 @@ Transaction_state_tracker::Transaction_state_tracker()
 
 bool Transaction_state_tracker::update(THD *thd)
 {
-#ifdef EMBEDDED_LIBRARY
-  return true;
-
-#else
   if (thd->variables.session_track_transaction_info != TX_TRACK_NONE)
   {
     /*
@@ -923,7 +944,6 @@ bool Transaction_state_tracker::update(THD *thd)
     m_enabled= false;
 
   return false;
-#endif
 }
 
 
@@ -1223,9 +1243,7 @@ bool Transaction_state_tracker::store(THD *thd, String &buf)
   Mark the tracker as changed.
 */
 
-void Transaction_state_tracker::mark_as_changed(THD *thd,
-                                                LEX_CSTRING *tracked_item_name
-                                                MY_ATTRIBUTE((unused)))
+void Transaction_state_tracker::mark_as_changed(THD*, LEX_CSTRING*)
 {
   m_changed                    = true;
 }
@@ -1249,14 +1267,12 @@ void Transaction_state_tracker::reset()
           non-transactional), and returns the corresponding access flag
           out of TX_READ_TRX, TX_READ_UNSAFE, TX_WRITE_TRX, TX_WRITE_UNSAFE.
 
-  @param thd                The thd handle
   @param l                  The table's access/lock type
   @param has_trx            Whether the table's engine is transactional
 
   @return                   The table access flag
 */
-enum_tx_state Transaction_state_tracker::calc_trx_state(THD *thd,
-                                                        thr_lock_type l,
+enum_tx_state Transaction_state_tracker::calc_trx_state(thr_lock_type l,
                                                         bool has_trx)
 {
   enum_tx_state      s;
@@ -1443,7 +1459,6 @@ bool Session_state_change_tracker::update(THD *thd)
          1byte flag value is 1 then there is a session state change else
          there is no state change information.
 
-  @param thd                The thd handle.
   @param [in,out] buf       Buffer to store the information to.
 
   @return
@@ -1451,7 +1466,7 @@ bool Session_state_change_tracker::update(THD *thd)
     true                    Error
 **/
 
-bool Session_state_change_tracker::store(THD *thd, String &buf)
+bool Session_state_change_tracker::store(THD*, String &buf)
 {
   /* since its a boolean tracker length is always 1 */
   const ulonglong length= 1;
@@ -1468,7 +1483,7 @@ bool Session_state_change_tracker::store(THD *thd, String &buf)
   to= net_store_length(to, length);
 
   /* boolean tracker will go here */
-  *to= (is_state_changed(thd) ? '1' : '0');
+  *to= (is_state_changed() ? '1' : '0');
 
   reset();
 
@@ -1512,7 +1527,7 @@ void Session_state_change_tracker::reset()
   @retval false There is no session state change
 **/
 
-bool Session_state_change_tracker::is_state_changed(THD* thd)
+bool Session_state_change_tracker::is_state_changed()
 {
   return m_changed;
 }

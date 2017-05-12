@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,19 +16,30 @@
 #ifndef DD__TABLESPACE_IMPL_INCLUDED
 #define DD__TABLESPACE_IMPL_INCLUDED
 
-#include "my_global.h"
+#include <memory>   // std::unique_ptr
+#include <new>
+#include <string>
 
+#include "dd/impl/raw/raw_record.h"
 #include "dd/impl/types/entity_object_impl.h" // dd::Entity_object_impl
+#include "dd/impl/types/weak_object_impl.h"
+#include "dd/object_id.h"
+#include "dd/sdi_fwd.h"
 #include "dd/types/dictionary_object_table.h" // dd::Dictionary_object_table
 #include "dd/types/object_type.h"             // dd::Object_type
 #include "dd/types/tablespace.h"              // dd::Tablespace
 #include "dd/types/tablespace_file.h"         // dd::Tablespace_file
 
-#include <memory>   // std::unique_ptr
-
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
+
+class Open_dictionary_tables_ctx;
+class Properties;
+class Sdi_rcontext;
+class Sdi_wcontext;
+class Tablespace_file;
+class Weak_object;
 
 class Tablespace_impl : public Entity_object_impl,
                         public Tablespace
@@ -58,17 +69,19 @@ public:
 
   bool deserialize(Sdi_rcontext *rctx, const RJ_Value &val);
 
-  virtual void debug_print(std::string &outb) const;
+  virtual void debug_print(String_type &outb) const;
+
+  virtual bool is_empty(THD *thd, bool *empty) const;
 
 public:
   /////////////////////////////////////////////////////////////////////////
   // comment.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &comment() const
+  virtual const String_type &comment() const
   { return m_comment; }
 
-  virtual void set_comment(const std::string &comment)
+  virtual void set_comment(const String_type &comment)
   { m_comment= comment; }
 
   /////////////////////////////////////////////////////////////////////////
@@ -81,7 +94,7 @@ public:
   virtual Properties &options()
   { return *m_options; }
 
-  virtual bool set_options_raw(const std::string &options_raw);
+  virtual bool set_options_raw(const String_type &options_raw);
 
   /////////////////////////////////////////////////////////////////////////
   // se_private_data.
@@ -93,16 +106,16 @@ public:
   virtual Properties &se_private_data()
   { return *m_se_private_data; }
 
-  virtual bool set_se_private_data_raw(const std::string &se_private_data_raw);
+  virtual bool set_se_private_data_raw(const String_type &se_private_data_raw);
 
   /////////////////////////////////////////////////////////////////////////
   // m_engine.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &engine() const
+  virtual const String_type &engine() const
   { return m_engine; }
 
-  virtual void set_engine(const std::string &engine)
+  virtual void set_engine(const String_type &engine)
   { m_engine= engine; }
 
   /////////////////////////////////////////////////////////////////////////
@@ -111,7 +124,7 @@ public:
 
   virtual Tablespace_file *add_file();
 
-  virtual bool remove_file(std::string data_file);
+  virtual bool remove_file(String_type data_file);
 
   virtual const Tablespace_file_collection &files() const
   { return m_files; }
@@ -125,18 +138,18 @@ public:
   { return Entity_object_impl::id(); }
   virtual bool is_persistent() const
   { return Entity_object_impl::is_persistent(); }
-  virtual const std::string &name() const
+  virtual const String_type &name() const
   { return Entity_object_impl::name(); }
-  virtual void set_name(const std::string &name)
+  virtual void set_name(const String_type &name)
   { Entity_object_impl::set_name(name); }
 
 private:
   // Fields
 
-  std::string m_comment;
+  String_type m_comment;
   std::unique_ptr<Properties> m_options;
   std::unique_ptr<Properties> m_se_private_data;
-  std::string m_engine;
+  String_type m_engine;
 
   // Collections.
 

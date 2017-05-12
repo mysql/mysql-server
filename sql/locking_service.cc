@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,12 +13,21 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "locking_service.h"
+#include "sql/locking_service.h"
+
+#include <string.h>
+#include <sys/types.h>
 
 #include "current_thd.h"   // current_thd
 #include "error_handler.h" // Internal_error_handler
 #include "mdl.h"           // MDL_request_list
+#include "my_inttypes.h"
+#include "my_macros.h"
+#include "my_sys.h"
+#include "mysql/service_thd_wait.h"
+#include "mysqld_error.h"
 #include "sql_class.h"     // THD
+#include "sql_error.h"
 
 /**
   We want to convert ER_LOCK_DEADLOCK error to ER_LOCK_SERVICE_DEADLOCK error.
@@ -34,11 +43,11 @@
 class Locking_service_deadlock_error_handler: public Internal_error_handler
 {
 public:
-  virtual bool handle_condition(THD *thd,
+  virtual bool handle_condition(THD*,
                                 uint sql_errno,
-                                const char *sqlstate,
-                                Sql_condition::enum_severity_level *level,
-                                const char *msg)
+                                const char*,
+                                Sql_condition::enum_severity_level*,
+                                const char*)
   {
     if (sql_errno == ER_LOCK_DEADLOCK)
     {

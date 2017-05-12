@@ -19,7 +19,14 @@
   Server session service implementation. For more information please check
   the function comments.
 */
-#include "srv_session.h"
+
+#include <stddef.h>
+#include <new>
+
+#include "conn_handler/connection_handler_manager.h"
+#include "current_thd.h" // current_thd
+#include "derror.h"  // ER_DEFAULT
+#include "my_dbug.h"
 /*
  service_srv_session.h should not be first to be included as it will include
  - include/mysql/service_srv_session.h
@@ -30,11 +37,10 @@
  declared after the includes.
  */
 #include "mysql/service_srv_session.h" 
-#include "sql_class.h"
-#include "conn_handler/connection_handler_manager.h"
-#include "derror.h"  // ER_DEFAULT
 #include "mysqld.h"  // SERVER_OPERATING
-#include "current_thd.h" // current_thd
+#include "mysqld_error.h"
+#include "sql_class.h"
+#include "srv_session.h"
 
 extern "C"
 {

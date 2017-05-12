@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,7 +17,8 @@
 
 #include "ndb_event_data.h"
 
-#include <table.h>
+#include "my_pointer_arithmetic.h"
+#include "table.h"
 
 
 Ndb_event_data::Ndb_event_data(NDB_SHARE *the_share) :

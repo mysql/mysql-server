@@ -3,9 +3,6 @@
 # This test verifies the correct behaviour in case of invalid
 # usage of DDLs on the table replication_connection_status.
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 -- error ER_DBACCESS_DENIED_ERROR
 ALTER TABLE performance_schema.replication_connection_status
   ADD COLUMN foo integer;

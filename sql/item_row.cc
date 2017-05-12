@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,10 +13,19 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "item_row.h"
+#include "sql/item_row.h"
+
+#include <stddef.h>
 
 #include "current_thd.h"
+#include "my_dbug.h"
+#include "my_sys.h"
+#include "mysqld_error.h"
 #include "sql_class.h"  // THD
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_string.h"
+#include "thr_malloc.h"
 
 Item_row::Item_row(const POS &pos, Item *head, List<Item> &tail):
   super(pos), used_tables_cache(0), not_null_tables_cache(0),
@@ -81,7 +90,7 @@ bool Item_row::itemize(Parse_context *pc, Item **res)
 }
 
 
-void Item_row::illegal_method_call(const char *method)
+void Item_row::illegal_method_call(const char *method) const
 {
   DBUG_ENTER("Item_row::illegal_method_call");
   DBUG_PRINT("error", ("!!! %s method was called for row item", method));
@@ -90,7 +99,7 @@ void Item_row::illegal_method_call(const char *method)
   DBUG_VOID_RETURN;
 }
 
-bool Item_row::fix_fields(THD *thd, Item **ref)
+bool Item_row::fix_fields(THD *thd, Item**)
 {
   DBUG_ASSERT(fixed == 0);
   null_value= 0;
@@ -223,13 +232,11 @@ bool Item_row::walk(Item_processor processor, enum_walk walk, uchar *arg)
 
 Item *Item_row::transform(Item_transformer transformer, uchar *arg)
 {
-  DBUG_ASSERT(!current_thd->stmt_arena->is_stmt_prepare());
-
   for (uint i= 0; i < arg_count; i++)
   {
     Item *new_item= items[i]->transform(transformer, arg);
-    if (!new_item)
-      return 0;
+    if (new_item == NULL)
+      return NULL;                 /* purecov: inspected */
 
     /*
       THD::change_item_tree() should be called only if the tree was

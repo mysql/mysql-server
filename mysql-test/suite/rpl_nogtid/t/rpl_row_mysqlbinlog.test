@@ -5,7 +5,6 @@
 # We are using .opt file since we need small binlog size         #
 ##################################################################
 --source include/not_group_replication_plugin.inc
---source include/not_gtid_enabled.inc
 --source include/big_test.inc
 # Include Section
 # Make sure that we have row based bin log
@@ -28,10 +27,22 @@ DROP TABLE IF EXISTS t1,t2,t3;
 connection master;
 CREATE TABLE t1(word VARCHAR(20));
 CREATE TABLE t2(id INT AUTO_INCREMENT NOT NULL PRIMARY KEY);
---let $position= query_get_value(SHOW MASTER STATUS, Position, 1)
+# After WL#7319, the Anonymous_Gtid on the original master will have 7 bytes
+# less than any server applying the same transaction.
+# Since these positions will be tested against this binlog after it is applied
+# using mysqlbinlog, we need to consider the three transactions that occurred
+# previously and, therefore, add 21 bytes to the start position.
+--let $m_position= query_get_value(SHOW MASTER STATUS, Position, 1)
+--let $position=`select $m_position + 21`
+
 CREATE TABLE t3(c1 INT NOT NULL PRIMARY KEY, c2 LONGBLOB, c3 TIMESTAMP, c4 TEXT, c5 FLOAT); 
---let $stop_position=query_get_value(SHOW MASTER STATUS, Position, 1)
+
+# In addition to the 21 bytes of the three previous transactions, we add
+# extra 7 to account for this transaction.
+--let $m_stop_position=query_get_value(SHOW MASTER STATUS, Position, 1)
+--let $stop_position=`select $m_stop_position + 28`
 --let $stop_position1=`select $stop_position - 1`
+
 --let $binlog_start_pos=query_get_value(SHOW BINLOG EVENTS LIMIT 1, End_log_pos, 1)
 # Test Section
 # Lets start by putting some data into the tables.

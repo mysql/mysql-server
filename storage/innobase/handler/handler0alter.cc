@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -21,46 +21,48 @@ this program; if not, write to the Free Software Foundation, Inc.,
 Smart ALTER TABLE
 *******************************************************/
 
-/* Include necessary SQL headers */
-#include "ha_prototypes.h"
+#include <assert.h>
 #include <debug_sync.h>
+#include <key_spec.h>
 #include <log.h>
-#include <sql_lex.h>
+#include <mysql/plugin.h>
 #include <sql_class.h>
+#include <sql_lex.h>
 #include <sql_table.h>
 #include <sql_thd_internal_api.h>
-#include <mysql/plugin.h>
-#include <key_spec.h>
+#include <sys/types.h>
 
-/* Include necessary InnoDB headers */
 #include "btr0sea.h"
+#include "dd/types/table.h"           // dd::Table
 #include "dict0crea.h"
 #include "dict0dict.h"
 #include "dict0priv.h"
 #include "dict0stats.h"
 #include "dict0stats_bg.h"
 #include "fsp0sysspace.h"
+#include "fts0plugin.h"
+#include "fts0priv.h"
+#include "ha_innodb.h"
+#include "ha_innopart.h"
+#include "ha_prototypes.h"
+#include "handler0alter.h"
+#include "lex_string.h"
 #include "log0log.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "pars0pars.h"
+#include "partition_info.h"
 #include "rem0types.h"
 #include "row0log.h"
 #include "row0merge.h"
-#include "trx0trx.h"
-#include "trx0roll.h"
-#include "handler0alter.h"
-#include "srv0mon.h"
-#include "fts0priv.h"
-#include "fts0plugin.h"
-#include "pars0pars.h"
 #include "row0sel.h"
-#include "ha_innodb.h"
+#include "srv0mon.h"
+#include "trx0roll.h"
+#include "trx0trx.h"
 #include "ut0new.h"
 #include "ut0stage.h"
-
-/* For supporting Native InnoDB Partitioning. */
-#include "partition_info.h"
-#include "ha_innopart.h"
-
-#include "dd/types/table.h"           // dd::Table
 
 /** TRUE if we don't have DDTableBuffer in the system tablespace,
 this should be due to we run the server against old data files.
@@ -1163,7 +1165,6 @@ innobase_find_fk_index(
 
 	while (index != NULL) {
 		if (!(index->type & DICT_FTS)
-		    && !dict_index_has_virtual(index)
 		    && dict_foreign_qualify_index(
 			    table, col_names, columns, n_cols,
 			    index, NULL, true, 0)) {
@@ -1954,6 +1955,9 @@ innobase_create_index_field_def(
 		index_field->is_v_col = false;
 		index_field->col_no = key_part->fieldnr - num_v;
 	}
+	index_field->is_ascending
+		= !(key_part->key_part_flag & HA_REVERSE_SORT);
+
 
 	if (DATA_LARGE_MTYPE(col_type)
 	    || (key_part->length < field->pack_length()
@@ -2065,6 +2069,12 @@ innobase_create_index_def(
 		index->fields[0].col_no = key->key_part[0].fieldnr - num_v;
 		index->fields[0].prefix_len = 0;
 		index->fields[0].is_v_col = false;
+
+		/* Currently only ascending order is supported in spatial
+		index. */
+		ut_ad(!(key->key_part[0].key_part_flag & HA_REVERSE_SORT));
+		index->fields[0].is_ascending = true;
+
 		if (!key->key_part[0].field->stored_in_db
 		    && key->key_part[0].field->gcol_info) {
 			/* Currently, the spatial index cannot be created
@@ -2212,6 +2222,11 @@ innobase_fts_check_doc_id_index(
 
 			if ((key.flags & HA_NOSAME)
 			    && key.user_defined_key_parts == 1
+			    /* For now, we do not allow a descending index,
+			    because fts_doc_fetch_by_doc_id() uses the
+			    InnoDB SQL interpreter to look up FTS_DOC_ID. */
+			    && !(key.key_part[0].key_part_flag
+				 & HA_REVERSE_SORT)
 			    && !strcmp(key.name, FTS_DOC_ID_INDEX_NAME)
 			    && !strcmp(key.key_part[0].field->field_name,
 				       FTS_DOC_ID_COL_NAME)) {
@@ -2239,6 +2254,10 @@ innobase_fts_check_doc_id_index(
 
 		if (!dict_index_is_unique(index)
 		    || dict_index_get_n_unique(index) > 1
+		    /* For now, we do not allow a descending index,
+		    because fts_doc_fetch_by_doc_id() uses the
+		    InnoDB SQL interpreter to look up FTS_DOC_ID. */
+		    || !index->get_field(0)->is_ascending
 		    || strcmp(index->name, FTS_DOC_ID_INDEX_NAME)) {
 			return(FTS_INCORRECT_DOC_ID_INDEX);
 		}
@@ -2290,6 +2309,10 @@ innobase_fts_check_doc_id_index_in_def(
 		named as "FTS_DOC_ID_INDEX" and on column "FTS_DOC_ID" */
 		if (!(key->flags & HA_NOSAME)
 		    || key->user_defined_key_parts != 1
+		    /* For now, we do not allow a descending index,
+		    because fts_doc_fetch_by_doc_id() uses the
+		    InnoDB SQL interpreter to look up FTS_DOC_ID. */
+		    || (key->key_part[0].key_part_flag & HA_REVERSE_SORT)
 		    || strcmp(key->name, FTS_DOC_ID_INDEX_NAME)
 		    || strcmp(key->key_part[0].field->field_name,
 			      FTS_DOC_ID_COL_NAME)) {
@@ -2301,6 +2324,7 @@ innobase_fts_check_doc_id_index_in_def(
 
 	return(FTS_NOT_EXIST_DOC_ID_INDEX);
 }
+
 /*******************************************************************//**
 Create an index table where indexes are ordered as follows:
 
@@ -2367,31 +2391,15 @@ innobase_create_key_defs(
 	(only prefix/part of the column is indexed), MySQL will treat the
 	index as a PRIMARY KEY unless the table already has one. */
 
-	if (n_add > 0 && !new_primary && got_default_clust
-	    && (key_info[*add].flags & HA_NOSAME)
-	    && !(key_info[*add].flags & HA_KEY_HAS_PART_KEY_SEG)) {
-		uint	key_part = key_info[*add].user_defined_key_parts;
+	ut_ad(altered_table->s->primary_key == 0
+	      || altered_table->s->primary_key == MAX_KEY);
 
-		new_primary = true;
-
-		while (key_part--) {
-			const bool	maybe_null
-				= key_info[*add].key_part[key_part].
-					field->real_maybe_null();
-			bool		is_v
-				= innobase_is_v_fld(
-					key_info[*add].key_part[key_part].field);
-
-			if (maybe_null || is_v) {
-				new_primary = false;
-				break;
-			}
-		}
+	if (got_default_clust && !new_primary) {
+		new_primary = (altered_table->s->primary_key != MAX_KEY);
 	}
 
 	const bool rebuild = new_primary || add_fts_doc_id
 		|| innobase_need_rebuild(ha_alter_info);
-
 
 	/* Reserve one more space if new_primary is true, and we might
 	need to add the FTS_DOC_ID_INDEX */
@@ -2406,8 +2414,14 @@ innobase_create_key_defs(
 		ulint	primary_key_number;
 
 		if (new_primary) {
-			DBUG_ASSERT(n_add > 0);
-			primary_key_number = *add;
+			if (n_add == 0) {
+				DBUG_ASSERT(got_default_clust);
+				DBUG_ASSERT(altered_table->s->primary_key
+					    == 0);
+				primary_key_number = 0;
+			} else {
+				primary_key_number = *add;
+			}
 		} else if (got_default_clust) {
 			/* Create the GEN_CLUST_INDEX */
 			index_def_t*	index = indexdef++;
@@ -2506,6 +2520,7 @@ created_clustered:
 		index->n_fields = 1;
 		index->fields->col_no = fts_doc_id_col;
 		index->fields->prefix_len = 0;
+		index->fields->is_ascending = true;
 		index->fields->is_v_col = false;
 		index->ind_type = DICT_UNIQUE;
 		ut_ad(!rebuild
@@ -2800,29 +2815,6 @@ innobase_check_foreigns(
 	return(false);
 }
 
-/** Get the default POINT value in MySQL format
-@param[in]	heap	memory heap where allocated
-@param[in]	length	length of MySQL format
-@return mysql format data */
-static
-const byte*
-innobase_build_default_mysql_point(
-	mem_heap_t*	heap,
-	ulint		length)
-{
-	byte*	buf	= static_cast<byte*>(mem_heap_alloc(
-				heap, DATA_POINT_LEN + length));
-
-	byte*	wkb	= buf + length;
-
-	ulint   len = get_wkb_of_default_point(SPDIMS, wkb, DATA_POINT_LEN);
-	ut_ad(len == DATA_POINT_LEN);
-
-	row_mysql_store_blob_ref(buf, length, wkb, len);
-
-	return(buf);
-}
-
 /** Convert a default value for ADD COLUMN.
 
 @param heap Memory heap where allocated
@@ -2848,16 +2840,6 @@ innobase_build_col_map_add(
 	byte*	buf	= static_cast<byte*>(mem_heap_alloc(heap, size));
 
 	const byte*	mysql_data = field->ptr;
-
-	if (dfield_get_type(dfield)->mtype == DATA_POINT) {
-		/** If the DATA_POINT field is NOT NULL, we need to
-		give it a default value, since DATA_POINT is a fixed length
-		type, we couldn't store a value of length 0, like other
-		geom types. Server doesn't provide the default value, and
-		we would use POINT(0 0) here instead. */
-
-		mysql_data = innobase_build_default_mysql_point(heap, size);
-	}
 
 	row_mysql_store_col_in_innobase_format(
 		dfield, buf, true, mysql_data, size, comp);
@@ -3169,7 +3151,8 @@ columns are removed from the PK;
 (3) Changing the order of existing PK columns;
 (4) Decreasing the prefix length just like removing existing PK columns
 follows rule(1), Increasing the prefix length just like adding existing
-PK columns follows rule(2).
+PK columns follows rule(2);
+(5) Changing the ascending order of the existing PK columns.
 @param[in]	col_map		mapping of old column numbers to new ones
 @param[in]	old_clust_index	index to be compared
 @param[in]	new_clust_index index to be compared
@@ -3275,6 +3258,16 @@ innobase_pk_order_preserved(
 			if (old_field != old_n_uniq - 1) {
 				return(false);
 			}
+		}
+
+		/* Check new primary key field ascending or descending changes
+		compared to old primary key field. */
+		bool	change_asc =
+			(new_clust_index->fields[new_field].is_ascending
+			 == old_clust_index->fields[old_field].is_ascending);
+
+		if (!change_asc) {
+			return(false);
 		}
 	}
 
@@ -4594,6 +4587,7 @@ prepare_inplace_alter_table_dict(
 				ctx->old_table->name.m_name);
 
 			error = DB_SUCCESS;
+			// Fall through.
 
 		case DB_SUCCESS:
 			/* We need to bump up the table ref count and
@@ -4655,6 +4649,8 @@ new_clustered_failed:
 		ctx->add_cols = add_cols;
 	} else {
 		DBUG_ASSERT(!innobase_need_rebuild(ha_alter_info));
+		DBUG_ASSERT(old_table->s->primary_key
+			    == altered_table->s->primary_key);
 
 		for (dict_index_t* index = user_table->first_index();
 		     index != NULL;
@@ -5321,9 +5317,12 @@ This will be invoked before inplace_alter_table().
 @param altered_table TABLE object for new version of table.
 @param ha_alter_info Structure describing changes to be done
 by ALTER TABLE and holding data used during in-place alter.
-@param new_dd_tab    dd::Table object representing new version
-of the table. This parameter is a temporary workaround until
-WL#7743 is implemented.
+@param old_table_def dd::Table object describing old version
+of the table.
+@param new_table_def dd::Table object for the new version of the
+table. Can be adjusted by this call. Changes to the table
+definition will be persisted in the data-dictionary at statement
+commit time.
 
 @retval true Failure
 @retval false Success
@@ -5334,7 +5333,8 @@ ha_innobase::prepare_inplace_alter_table(
 /*=====================================*/
 	TABLE*			altered_table,
 	Alter_inplace_info*	ha_alter_info,
-	dd::Table		*new_dd_tab)
+	const dd::Table*	old_table_def,
+	dd::Table*		new_table_def)
 {
 	dict_index_t**	drop_index = NULL;	/*!< Index to be dropped */
 	ulint		n_drop_index;	/*!< Number of indexes to drop */
@@ -5411,7 +5411,8 @@ ha_innobase::prepare_inplace_alter_table(
 	(the create options have tablespace=='innodb_system' and the
 	SHARED_SPACE flag is set in the table flags) so it can no longer be
 	implicitly moved to a file-per-table tablespace. */
-	bool	in_system_space = is_system_tablespace(indexed_table->space);
+	bool	in_system_space
+		= fsp_is_system_or_temp_tablespace(indexed_table->space);
 	bool	is_file_per_table = !in_system_space
 			&& !DICT_TF_HAS_SHARED_SPACE(indexed_table->flags);
 #ifdef UNIV_DEBUG
@@ -5538,16 +5539,16 @@ check_if_ok_to_rename:
 	and COPY it needs to be updated to reflect correct row format. */
 	switch (dict_tf_get_rec_format(info.flags())) {
 	case REC_FORMAT_REDUNDANT:
-		new_dd_tab->set_row_format(dd::Table::RF_REDUNDANT);
+		new_table_def->set_row_format(dd::Table::RF_REDUNDANT);
 		break;
 	case REC_FORMAT_COMPACT:
-		new_dd_tab->set_row_format(dd::Table::RF_COMPACT);
+		new_table_def->set_row_format(dd::Table::RF_COMPACT);
 		break;
 	case REC_FORMAT_COMPRESSED:
-		new_dd_tab->set_row_format(dd::Table::RF_COMPRESSED);
+		new_table_def->set_row_format(dd::Table::RF_COMPRESSED);
 		break;
 	case REC_FORMAT_DYNAMIC:
-		new_dd_tab->set_row_format(dd::Table::RF_DYNAMIC);
+		new_table_def->set_row_format(dd::Table::RF_DYNAMIC);
 		break;
 	}
 
@@ -6125,6 +6126,26 @@ alter_templ_needs_rebuild(
 	return(false);
 }
 
+/** Get the name of an erroneous key.
+@param[in]	error_key_num	InnoDB number of the erroneus key
+@param[in]	ha_alter_info	changes that were being performed
+@param[in]	table		InnoDB table
+@return	the name of the erroneous key */
+static
+const char*
+get_error_key_name(
+	ulint				error_key_num,
+	const Alter_inplace_info*	ha_alter_info,
+	const dict_table_t*		table)
+{
+	if (error_key_num == ULINT_UNDEFINED) {
+		return(FTS_DOC_ID_INDEX_NAME);
+	} else if (ha_alter_info->key_count == 0) {
+		return(table->first_index()->name);
+	} else {
+		return(ha_alter_info->key_info_buffer[error_key_num].name);
+	}
+}
 
 /** Alter the table structure in-place with operations
 specified using Alter_inplace_info.
@@ -6134,6 +6155,12 @@ on the return value from check_if_supported_inplace_alter().
 @param altered_table TABLE object for new version of table.
 @param ha_alter_info Structure describing changes to be done
 by ALTER TABLE and holding data used during in-place alter.
+@param old_table_def dd::Table object describing old version
+of the table.
+@param new_table_def dd::Table object for the new version of the
+table. Can be adjusted by this call. Changes to the table
+definition will be persisted in the data-dictionary at statement
+commit time.
 
 @retval true Failure
 @retval false Success
@@ -6143,7 +6170,9 @@ bool
 ha_innobase::inplace_alter_table(
 /*=============================*/
 	TABLE*			altered_table,
-	Alter_inplace_info*	ha_alter_info)
+	Alter_inplace_info*	ha_alter_info,
+	const dd::Table*	old_table_def,
+	dd::Table*		new_table_def)
 {
 	dberr_t			error;
 	dict_add_v_col_t*	add_v = NULL;
@@ -6266,15 +6295,6 @@ ok_exit:
 		ctx->add_autoinc, ctx->sequence, ctx->skip_pk_sort,
 		ctx->m_stage, add_v, eval_table);
 
-	if (s_templ) {
-		ut_ad(ctx->need_rebuild() || ctx->num_to_add_vcol > 0
-		      || rebuild_templ);
-		dict_free_vc_templ(s_templ);
-		UT_DELETE(s_templ);
-
-		ctx->new_table->vc_templ = old_templ;
-	}
-
 #ifdef UNIV_DEBUG
 oom:
 #endif /* UNIV_DEBUG */
@@ -6283,6 +6303,15 @@ oom:
 		error = row_log_table_apply(
 			ctx->thr, m_prebuilt->table, altered_table,
 			ctx->m_stage);
+	}
+
+	if (s_templ) {
+		ut_ad(ctx->need_rebuild() || ctx->num_to_add_vcol > 0
+		      || rebuild_templ);
+		dict_free_vc_templ(s_templ);
+		UT_DELETE(s_templ);
+
+		ctx->new_table->vc_templ = old_templ;
 	}
 
 	DEBUG_SYNC_C("inplace_after_index_build");
@@ -6324,17 +6353,13 @@ oom:
 	case DB_ONLINE_LOG_TOO_BIG:
 		DBUG_ASSERT(ctx->online);
 		my_error(ER_INNODB_ONLINE_LOG_TOO_BIG, MYF(0),
-			 (m_prebuilt->trx->error_key_num == ULINT_UNDEFINED)
-			 ? FTS_DOC_ID_INDEX_NAME
-			 : ha_alter_info->key_info_buffer[
-				 m_prebuilt->trx->error_key_num].name);
+			 get_error_key_name(m_prebuilt->trx->error_key_num,
+					    ha_alter_info, m_prebuilt->table));
 		break;
 	case DB_INDEX_CORRUPT:
 		my_error(ER_INDEX_CORRUPT, MYF(0),
-			 (m_prebuilt->trx->error_key_num == ULINT_UNDEFINED)
-			 ? FTS_DOC_ID_INDEX_NAME
-			 : ha_alter_info->key_info_buffer[
-				 m_prebuilt->trx->error_key_num].name);
+			 get_error_key_name(m_prebuilt->trx->error_key_num,
+					    ha_alter_info, m_prebuilt->table));
 		break;
 	default:
 		my_error_innodb(error,
@@ -7498,10 +7523,30 @@ commit_try_rebuild(
 	if (ctx->online) {
 		DEBUG_SYNC_C("row_log_table_apply2_before");
 
+		dict_vcol_templ_t* s_templ  = NULL;
+
+		if (ctx->new_table->n_v_cols > 0) {
+			s_templ = UT_NEW_NOKEY(
+					dict_vcol_templ_t());
+			s_templ->vtempl = NULL;
+
+			innobase_build_v_templ(
+				altered_table, ctx->new_table, s_templ,
+				NULL, true, NULL);
+			ctx->new_table->vc_templ = s_templ;
+		}
+
 		error = row_log_table_apply(
 			ctx->thr, user_table, altered_table,
 			static_cast<ha_innobase_inplace_ctx*>(
 				ha_alter_info->handler_ctx)->m_stage);
+
+		if (s_templ) {
+			ut_ad(ctx->need_rebuild());
+			dict_free_vc_templ(s_templ);
+			UT_DELETE(s_templ);
+			ctx->new_table->vc_templ = NULL;
+		}
 
 		ulint	err_key = thr_get_trx(ctx->thr)->error_key_num;
 
@@ -7524,14 +7569,13 @@ commit_try_rebuild(
 			DBUG_RETURN(true);
 		case DB_ONLINE_LOG_TOO_BIG:
 			my_error(ER_INNODB_ONLINE_LOG_TOO_BIG, MYF(0),
-				 ha_alter_info->key_info_buffer[0].name);
+				 get_error_key_name(err_key, ha_alter_info,
+						    rebuilt_table));
 			DBUG_RETURN(true);
 		case DB_INDEX_CORRUPT:
 			my_error(ER_INDEX_CORRUPT, MYF(0),
-				 (err_key == ULINT_UNDEFINED)
-				 ? FTS_DOC_ID_INDEX_NAME
-				 : ha_alter_info->key_info_buffer[err_key]
-				 .name);
+				 get_error_key_name(err_key, ha_alter_info,
+						    rebuilt_table));
 			DBUG_RETURN(true);
 		default:
 			my_error_innodb(error, table_name, user_table->flags);
@@ -8117,6 +8161,12 @@ blocked during prepare, but might not be during commit).
 @param ha_alter_info Structure describing changes to be done
 by ALTER TABLE and holding data used during in-place alter.
 @param commit true => Commit, false => Rollback.
+@param old_table_def dd::Table object describing old version
+of the table.
+@param new_table_def dd::Table object for the new version of the
+table. Can be adjusted by this call. Changes to the table
+definition will be persisted in the data-dictionary at statement
+commit time.
 @retval true Failure
 @retval false Success
 */
@@ -8126,7 +8176,9 @@ ha_innobase::commit_inplace_alter_table(
 /*====================================*/
 	TABLE*			altered_table,
 	Alter_inplace_info*	ha_alter_info,
-	bool			commit)
+	bool			commit,
+	const dd::Table*	old_table_def,
+	dd::Table*		new_table_def)
 {
 	dberr_t	error;
 	ha_innobase_inplace_ctx*ctx0;
@@ -8997,13 +9049,20 @@ This will be invoked before inplace_alter_table().
 @param[in]	altered_table	TABLE object for new version of table.
 @param[in]	ha_alter_info	Structure describing changes to be done
 by ALTER TABLE and holding data used during in-place alter.
+@param[in]	old_table_def	dd::Table object describing old version
+of the table.
+@param[in,out]	new_table_def	dd::Table object for the new version of
+the table. Can be adjusted by this call. Changes to the table
+definition will be persisted in the data-dictionary at statement commit
+time.
 @retval true Failure.
 @retval false Success. */
 bool
 ha_innopart::prepare_inplace_alter_table(
 	TABLE*			altered_table,
 	Alter_inplace_info*	ha_alter_info,
-	dd::Table		*new_dd_tab)
+	const dd::Table*	old_table_def,
+	dd::Table*		new_table_def)
 {
 	THD* thd;
 	ha_innopart_inplace_ctx* ctx_parts;
@@ -9081,7 +9140,8 @@ ha_innopart::prepare_inplace_alter_table(
 
 		res = ha_innobase::prepare_inplace_alter_table(altered_table,
 							ha_alter_info,
-							new_dd_tab);
+							old_table_def,
+							new_table_def);
 		update_partition(i);
 		ctx_parts->ctx_array[i] = ha_alter_info->handler_ctx;
 		if (res) {
@@ -9105,12 +9165,20 @@ on the return value from check_if_supported_inplace_alter().
 @param[in]	altered_table	TABLE object for new version of table.
 @param[in]	ha_alter_info	Structure describing changes to be done
 by ALTER TABLE and holding data used during in-place alter.
+@param[in]	old_table_def	dd::Table object describing old version
+of the table.
+@param[in,out]	new_table_def	dd::Table object for the new version of
+the table. Can be adjusted by this call. Changes to the table
+definition will be persisted in the data-dictionary at statement commit
+time.
 @retval true Failure.
 @retval false Success. */
 bool
 ha_innopart::inplace_alter_table(
 	TABLE*			altered_table,
-	Alter_inplace_info*	ha_alter_info)
+	Alter_inplace_info*	ha_alter_info,
+	const dd::Table*	old_table_def,
+	dd::Table*		new_table_def)
 {
 	bool res = true;
 	ha_innopart_inplace_ctx* ctx_parts;
@@ -9122,7 +9190,9 @@ ha_innopart::inplace_alter_table(
 		ha_alter_info->handler_ctx = ctx_parts->ctx_array[i];
 		set_partition(i);
 		res = ha_innobase::inplace_alter_table(altered_table,
-						ha_alter_info);
+						ha_alter_info,
+						old_table_def,
+						new_table_def);
 		ut_ad(ctx_parts->ctx_array[i] == ha_alter_info->handler_ctx);
 		ctx_parts->ctx_array[i] = ha_alter_info->handler_ctx;
 		if (res) {
@@ -9146,13 +9216,21 @@ blocked during prepare, but might not be during commit).
 @param[in]	ha_alter_info	Structure describing changes to be done
 by ALTER TABLE and holding data used during in-place alter.
 @param[in]	commit		true => Commit, false => Rollback.
+@param[in]	old_table_def	dd::Table object describing old version
+of the table.
+@param[in,out]	new_table_def	dd::Table object for the new version of
+the table. Can be adjusted by this call. Changes to the table
+definition will be persisted in the data-dictionary at statement commit
+time.
 @retval true Failure.
 @retval false Success. */
 bool
 ha_innopart::commit_inplace_alter_table(
 	TABLE*			altered_table,
 	Alter_inplace_info*	ha_alter_info,
-	bool			commit)
+	bool			commit,
+	const dd::Table*	old_table_def,
+	dd::Table*		new_table_def)
 {
 	bool res = false;
 	ha_innopart_inplace_ctx* ctx_parts;
@@ -9169,7 +9247,9 @@ ha_innopart::commit_inplace_alter_table(
 		set_partition(0);
 		res = ha_innobase::commit_inplace_alter_table(altered_table,
 							ha_alter_info,
-							commit);
+							commit,
+							old_table_def,
+							new_table_def);
 		ut_ad(res || !ha_alter_info->group_commit_ctx);
 		goto end;
 	}
@@ -9179,7 +9259,9 @@ ha_innopart::commit_inplace_alter_table(
 		ha_alter_info->handler_ctx = ctx_parts->ctx_array[i];
 		set_partition(i);
 		if (ha_innobase::commit_inplace_alter_table(altered_table,
-						ha_alter_info, commit)) {
+						ha_alter_info, commit,
+						old_table_def,
+						new_table_def)) {
 			res = true;
 		}
 		ut_ad(ctx_parts->ctx_array[i] == ha_alter_info->handler_ctx);

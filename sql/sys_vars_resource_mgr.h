@@ -1,7 +1,7 @@
 #ifndef SYS_VARS_RESOURCE_MGR_INCLUDED
 #define SYS_VARS_RESOURCE_MGR_INCLUDED
-#include <hash.h>
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -51,6 +51,11 @@
   system variable.
 
 */
+
+#include <string.h>
+
+#include "hash.h"
+#include "my_inttypes.h"
 
 class Session_sysvar_resource_manager {
 

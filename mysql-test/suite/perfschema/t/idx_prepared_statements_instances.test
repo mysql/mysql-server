@@ -1,8 +1,5 @@
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 # Setup
 let $select_column = SUM_ERRORS;
 let $table = performance_schema.prepared_statements_instances;

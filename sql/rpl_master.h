@@ -1,5 +1,7 @@
 #ifndef RPL_MASTER_H_INCLUDED
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+#define RPL_MASTER_H_INCLUDED
+
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,12 +16,9 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#include <stddef.h>
 
-#define RPL_MASTER_H_INCLUDED
-
-#ifdef HAVE_REPLICATION
-
-#include "my_global.h"
+#include "my_inttypes.h"
 #include "mysql_com.h"   // HOSTNAME_LENGTH
 #include "sql_const.h"   // MAX_PASSWORD_LENGTH
 
@@ -30,8 +29,8 @@ class THD;
 
 extern bool server_id_supplied;
 extern int max_binlog_dump_events;
-extern my_bool opt_sporadic_binlog_dump_fail;
-extern my_bool opt_show_slave_auth_info;
+extern bool opt_sporadic_binlog_dump_fail;
+extern bool opt_show_slave_auth_info;
 
 typedef struct st_slave_info
 {
@@ -109,7 +108,5 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
                        Gtid_set* gtid_set, uint32 flags);
 
 bool reset_master(THD* thd);
-
-#endif /* HAVE_REPLICATION */
 
 #endif /* RPL_MASTER_H_INCLUDED */

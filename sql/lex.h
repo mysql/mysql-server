@@ -1,7 +1,7 @@
 #ifndef LEX_INCLUDED
 #define LEX_INCLUDED
 
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -77,8 +77,7 @@ static const SYMBOL symbols[] = {
   { SYM("ALGORITHM",                ALGORITHM_SYM)},
   { SYM("ALTER",                    ALTER)},
   { SYM("ALWAYS",                   ALWAYS_SYM)},
-  { SYM("ANALYSE",                  ANALYSE_SYM)}, // this one is for PROCEDURE ANALYSE
-  { SYM("ANALYZE",                  ANALYZE_SYM)}, // this one is for ANALYZE TABLE etc
+  { SYM("ANALYZE",                  ANALYZE_SYM)},
   { SYM("AND",                      AND_SYM)},
   { SYM("ANY",                      ANY_SYM)},
   { SYM("AS",                       AS)},
@@ -267,6 +266,7 @@ static const SYMBOL symbols[] = {
   { SYM("GRANT",                    GRANT)},
   { SYM("GRANTS",                   GRANTS)},
   { SYM("GROUP",                    GROUP_SYM)},
+  { SYM("GROUPING",                 GROUPING_SYM)},
   { SYM("HANDLER",                  HANDLER_SYM)},
   { SYM("HASH",                     HASH_SYM)},
   { SYM("HAVING",                   HAVING)},
@@ -339,6 +339,7 @@ static const SYMBOL symbols[] = {
   { SYM("LOCALTIME",                NOW_SYM)},
   { SYM("LOCALTIMESTAMP",           NOW_SYM)},
   { SYM("LOCK",                     LOCK_SYM)},
+  { SYM("LOCKED",                   LOCKED_SYM)},
   { SYM("LOCKS",                    LOCKS_SYM)},
   { SYM("LOGFILE",                  LOGFILE_SYM)},
   { SYM("LOGS",                     LOGS_SYM)},
@@ -415,6 +416,7 @@ static const SYMBOL symbols[] = {
   { SYM("NEXT",                     NEXT_SYM)},
   { SYM("NO",                       NO_SYM)},
   { SYM("NO_WAIT",                  NO_WAIT_SYM)},
+  { SYM("NOWAIT",                   NOWAIT_SYM)},
   { SYM("NODEGROUP",                NODEGROUP_SYM)},
   { SYM("NONE",                     NONE_SYM)},
   { SYM("NOT",                      NOT_SYM)},
@@ -423,6 +425,7 @@ static const SYMBOL symbols[] = {
   { SYM("NUMBER",                   NUMBER_SYM)},
   { SYM("NUMERIC",                  NUMERIC_SYM)},
   { SYM("NVARCHAR",                 NVARCHAR_SYM)},
+  { SYM("OF",                       OF_SYM)},
   { SYM("OFFSET",                   OFFSET_SYM)},
   { SYM("ON",                       ON_SYM)},
   { SYM("ONE",                      ONE_SYM)},
@@ -480,6 +483,7 @@ static const SYMBOL symbols[] = {
   { SYM("REAL",                     REAL_SYM)},
   { SYM("REBUILD",                  REBUILD_SYM)},
   { SYM("RECOVER",                  RECOVER_SYM)},
+  { SYM("RECURSIVE",                RECURSIVE_SYM)},
   { SYM("REDO_BUFFER_SIZE",         REDO_BUFFER_SIZE_SYM)},
   { SYM("REDOFILE",                 REDOFILE_SYM)},
   { SYM("REDUNDANT",                REDUNDANT_SYM)},
@@ -550,6 +554,7 @@ static const SYMBOL symbols[] = {
   { SYM("SIGNAL",                   SIGNAL_SYM)},
   { SYM("SIGNED",                   SIGNED_SYM)},
   { SYM("SIMPLE",                   SIMPLE_SYM)},
+  { SYM("SKIP",                     SKIP_SYM)},
   { SYM("SLAVE",                    SLAVE)},
   { SYM("SLOW",                     SLOW)},
   { SYM("SNAPSHOT",                 SNAPSHOT_SYM)},
@@ -710,6 +715,8 @@ static const SYMBOL symbols[] = {
   { SYM_FN("DATE_SUB",              DATE_SUB_INTERVAL)},
   { SYM_FN("EXTRACT",               EXTRACT_SYM)},
   { SYM_FN("GROUP_CONCAT",          GROUP_CONCAT_SYM)},
+  { SYM_FN("JSON_OBJECTAGG",        JSON_OBJECTAGG)},
+  { SYM_FN("JSON_ARRAYAGG",         JSON_ARRAYAGG)},
   { SYM_FN("MAX",                   MAX_SYM)},
   { SYM_FN("MID",                   SUBSTRING)}, /* unireg function */
   { SYM_FN("MIN",                   MIN_SYM)},
@@ -753,6 +760,12 @@ static const SYMBOL symbols[] = {
   { SYM_H("SUBQUERY",               SUBQUERY_HINT)},
   { SYM_H("MERGE",                  DERIVED_MERGE_HINT)},
   { SYM_H("NO_MERGE",               NO_DERIVED_MERGE_HINT)},
+  { SYM_H("JOIN_PREFIX",            JOIN_PREFIX_HINT)},
+  { SYM_H("JOIN_SUFFIX",            JOIN_SUFFIX_HINT)},
+  { SYM_H("JOIN_ORDER",             JOIN_ORDER_HINT)},
+  { SYM_H("JOIN_FIXED_ORDER",       JOIN_FIXED_ORDER_HINT)},
+  { SYM_H("INDEX_MERGE",            INDEX_MERGE_HINT)},
+  { SYM_H("NO_INDEX_MERGE",         NO_INDEX_MERGE_HINT)},
 };
 
 #endif /* LEX_INCLUDED */

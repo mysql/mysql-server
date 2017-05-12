@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,20 +16,23 @@
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
 
+#include <stdarg.h>
+#include <string.h>
+
+#include "my_dbug.h"
+#include "my_inttypes.h"
+
 #if defined(HAVE_OPENSSL)
 #include "crypt_genhash_impl.h"
-#include "mysql/client_authentication.h"
-#include "m_ctype.h"
-#include "sql_common.h"
 #include "errmsg.h"
+#include "m_ctype.h"
+#include "mysql/client_authentication.h"
+#include "sql_common.h"
 #include "sql_string.h"
-
-#include <string.h>
-#include <stdarg.h>
 #if !defined(HAVE_YASSL)
-#include <openssl/rsa.h>
-#include <openssl/pem.h>
 #include <openssl/err.h>
+#include <openssl/pem.h>
+#include <openssl/rsa.h>
 #if defined(_WIN32) && !defined(_OPENSSL_Applink) && defined(HAVE_OPENSSL_APPLINK_C)
 #include <openssl/applink.c>
 #endif
@@ -42,7 +45,7 @@
 mysql_mutex_t g_public_key_mutex;
 #endif
 
-int sha256_password_init(char *a, size_t b, int c, va_list d)
+int sha256_password_init(char *, size_t, int, va_list)
 {
 #if !defined(HAVE_YASSL)
   mysql_mutex_init(0,&g_public_key_mutex, MY_MUTEX_INIT_SLOW);

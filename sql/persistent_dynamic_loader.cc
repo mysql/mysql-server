@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -13,22 +13,47 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 
+#include <mutex_lock.h>
+#include <scope_guard.h>
+#include <stdarg.h>
+#include <string.h>
+#include <sys/types.h>
 #include <algorithm>
 #include <atomic>
-#include <mysql/components/services/persistent_dynamic_loader.h>
-#include <mysql/components/service_implementation.h>
-#include <scope_guard.h>
-#include "auth_common.h" // commit_and_close_mysql_tables
-#include "log.h" // error_log_print
-#include "sql_base.h"
-#include "sql_class.h"
-#include "derror.h"
-#include "records.h"
-#include "table.h"
-#include "transaction.h"
+#include <map>
+#include <string>
+#include <utility>
+#include <vector>
+
 #include "../components/mysql_server/dynamic_loader.h"
 #include "../components/mysql_server/persistent_dynamic_loader.h"
 #include "../components/mysql_server/server_component.h"
+#include "auth_common.h" // commit_and_close_mysql_tables
+#include "derror.h"
+#include "field.h"
+#include "handler.h"
+#include "key.h"
+#include "log.h" // error_log_print
+#include "m_string.h"
+#include "mdl.h"
+#include "my_base.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_loglevel.h"
+#include "my_sys.h"
+#include "mysql/components/service_implementation.h"
+#include "mysqld.h"
+#include "mysqld_error.h"
+#include "records.h"
+#include "sql_base.h"
+#include "sql_class.h"
+#include "sql_const.h"
+#include "sql_error.h"
+#include "sql_string.h"
+#include "table.h"
+#include "thr_lock.h"
+#include "transaction.h"
 
 typedef std::string my_string;
 
@@ -79,22 +104,6 @@ protected:
 static Component_db_intact table_intact;
 
 /**
-  Closes tables that is being used by current thread processing.
-
-  @param thd Thread context
-  @param mdl_savepoint Save-point to revert to after closing tables.
-  @return Status of performed operation
-  @retval true failure
-  @retval false success
-*/
-static bool close_tables(THD* thd, MDL_savepoint& mdl_savepoint)
-{
-  close_thread_tables(thd);
-  thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
-  return false;
-}
-
-/**
   Open mysql.component table for read or write.
 
   Note that if the table can't be locked successfully this operation will
@@ -104,49 +113,35 @@ static bool close_tables(THD* thd, MDL_savepoint& mdl_savepoint)
   @param thd Thread context
   @param lock_type How to lock the table
   @param [out] table Pointer to table structure to store the open table into.
-  @param [out] mdl_savepoint A pointer to MDL save-point to store current
-    status of locks. In case of NULL, the save-point will not be acquired.
+  @param acl_to_check acl type to check
   @return Status of performed operation
   @retval true open and lock failed - an error message is pushed into the
     stack.
   @retval false success
 */
 static bool open_component_table(
-  THD *thd, enum thr_lock_type lock_type, TABLE **table,
-  MDL_savepoint* mdl_savepoint)
+  THD *thd, enum thr_lock_type lock_type, TABLE **table, ulong acl_to_check)
 {
   TABLE_LIST tables;
-  if (mdl_savepoint != NULL)
-  {
-    /* Take a save-point to release only the locks gathered during current
-    execution flow, for example these taken on mysql.component table, at the
-    end, when closing component table. This will keep intact then any other
-    locks and the global locks by the caller before this call. */
-    *mdl_savepoint= thd->mdl_context.mdl_savepoint();
-  }
 
   tables.init_one_table("mysql", 5, "component", 9, "component", lock_type);
 
-  if (open_and_lock_tables(thd, &tables, MYSQL_LOCK_IGNORE_TIMEOUT))
+  if (mysql_persistent_dynamic_loader_imp::initialized() && !opt_noacl &&
+      check_one_table_access(thd, acl_to_check, &tables))
+    return true;
+
+  if (!(*table= open_ltable(thd, &tables, lock_type, MYSQL_LOCK_IGNORE_TIMEOUT)))
   {
     return true;
   }
 
   *table= tables.table;
-  tables.table->use_all_columns();
+  (*table)->use_all_columns();
 
   if (table_intact.check(thd, *table, &component_table_def))
   {
-    if (mdl_savepoint != NULL)
-    {
-      close_tables(thd, *mdl_savepoint);
-    }
-    else
-    {
-      /* In case we don't have save-point, we just close transaction and tables.
-      */
-      commit_and_close_mysql_tables(thd);
-    }
+    trans_rollback_stmt(thd);
+    close_mysql_tables(thd);
     return true;
   }
 
@@ -174,10 +169,27 @@ bool mysql_persistent_dynamic_loader_imp::init(void* thdp)
   try
   {
     THD* thd= reinterpret_cast<THD*>(thdp);
-    if (mysql_persistent_dynamic_loader_imp::is_initialized)
+
+    if (mysql_persistent_dynamic_loader_imp::initialized())
     {
       return true;
     }
+
+    static PSI_mutex_key key_component_id_by_urn_mutex;
+    static PSI_mutex_info all_dyloader_mutexes[]=
+    {
+      { &key_component_id_by_urn_mutex,
+        "key_component_id_by_urn_mutex", 0, 0
+      }
+    };
+
+    int count= (int) array_elements(all_dyloader_mutexes);
+    PSI_MUTEX_CALL(register_mutex)("p_dyn_loader",
+                                   all_dyloader_mutexes, count);
+
+    mysql_mutex_init(key_component_id_by_urn_mutex,
+                     &component_id_by_urn_mutex,
+                     MY_MUTEX_INIT_SLOW);
 
     TABLE* component_table;
     READ_RECORD read_record_info;
@@ -186,7 +198,7 @@ bool mysql_persistent_dynamic_loader_imp::init(void* thdp)
     mysql_persistent_dynamic_loader_imp::group_id= 0;
 
     /* Open component table and scan read all records. */
-    if (open_component_table(thd, TL_READ, &component_table, NULL))
+    if (open_component_table(thd, TL_READ, &component_table, SELECT_ACL))
     {
       push_warning(thd, Sql_condition::SL_WARNING,
         ER_COMPONENT_TABLE_INCORRECT,
@@ -244,8 +256,11 @@ bool mysql_persistent_dynamic_loader_imp::init(void* thdp)
         component_group_id);
 
       component_groups[component_group_id].push_back(component_urn);
-      mysql_persistent_dynamic_loader_imp::component_id_by_urn.emplace(
-        component_urn, component_id);
+      {
+        Mutex_lock lock(&component_id_by_urn_mutex);
+        mysql_persistent_dynamic_loader_imp::component_id_by_urn.emplace(
+          component_urn, component_id);
+      }
     }
 
     end_read_record(&read_record_info);
@@ -268,7 +283,7 @@ bool mysql_persistent_dynamic_loader_imp::init(void* thdp)
         urns.push_back(group_it->c_str());
       }
       /* We continue process despite of any errors. */
-      mysql_dynamic_loader_imp::load(urns.data(), urns.size());
+      mysql_dynamic_loader_imp::load(urns.data(), (int) urns.size());
     }
 
     mysql_persistent_dynamic_loader_imp::is_initialized= true;
@@ -287,8 +302,23 @@ bool mysql_persistent_dynamic_loader_imp::init(void* thdp)
 */
 void mysql_persistent_dynamic_loader_imp::deinit()
 {
+  if (is_initialized)
+  {
+    mysql_persistent_dynamic_loader_imp::component_id_by_urn.clear();
+    mysql_mutex_destroy(&component_id_by_urn_mutex);
+  }
   mysql_persistent_dynamic_loader_imp::is_initialized= false;
-  mysql_persistent_dynamic_loader_imp::component_id_by_urn.clear();
+}
+/**
+ Initialisation status of persistence loader.
+
+ @return Status of performed operation
+ @retval true initialization is done
+ @retval false initialization is not done
+*/
+bool mysql_persistent_dynamic_loader_imp::initialized()
+{
+  return mysql_persistent_dynamic_loader_imp::is_initialized;
 }
 
 /**
@@ -314,13 +344,34 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::load,
 {
   try
   {
+    int res;
     THD* thd= (THD*)thd_ptr;
 
-    if (!mysql_persistent_dynamic_loader_imp::is_initialized)
+    if (!mysql_persistent_dynamic_loader_imp::initialized())
     {
       my_error(ER_COMPONENT_TABLE_INCORRECT, MYF(0));
       return true;
     }
+
+    Mutex_lock lock(&component_id_by_urn_mutex);
+
+    TABLE* component_table;
+    if (open_component_table(thd, TL_WRITE, &component_table, INSERT_ACL))
+    {
+      my_error(ER_COMPONENT_TABLE_INCORRECT, MYF(0));
+      return true;
+    }
+
+    /* We don't replicate INSTALL COMPONENT */
+    tmp_disable_binlog(thd);
+
+    auto guard_close_tables= create_scope_guard(
+      [&thd, &component_table, &tmp_disable_binlog__save_options]
+    {
+      thd->variables.option_bits= tmp_disable_binlog__save_options;
+      trans_rollback_stmt(thd);
+      close_mysql_tables(thd);
+    });
 
     if (mysql_dynamic_loader_imp::load(urns, component_count))
     {
@@ -331,20 +382,6 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::load,
     auto guard= create_scope_guard([&thd, &urns, &component_count]()
     {
       mysql_dynamic_loader_imp::unload(urns, component_count);
-    });
-
-    TABLE* component_table;
-    MDL_savepoint mdl_savepoint;
-    if (open_component_table(thd, TL_WRITE, &component_table, &mdl_savepoint))
-    {
-      my_error(ER_COMPONENT_TABLE_INCORRECT, MYF(0));
-      return true;
-    }
-
-    auto guard_close_tables= create_scope_guard(
-      [&thd, &component_table, &mdl_savepoint]
-    {
-      close_tables(thd, mdl_savepoint);
     });
 
     uint64 group_id= ++mysql_persistent_dynamic_loader_imp::group_id;
@@ -363,8 +400,14 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::load,
       component_table->field[CT_FIELD_COMPONENT_URN]->store(urns[i],
         strlen(urns[i]), system_charset);
 
-      int res=
-        component_table->file->ha_write_row(component_table->record[0]);
+     /*
+       We do not replicate the INSTALL COMPONENT statement. Disable binlogging
+       of the insert into the component table, so that it is not replicated in
+       row based mode.
+     */
+      tmp_disable_binlog(thd);
+      res= component_table->file->ha_write_row(component_table->record[0]);
+      reenable_binlog(thd);
       if (res != 0)
       {
         my_error(ER_COMPONENT_MANIPULATE_ROW_FAILED, MYF(0), urns[i], res);
@@ -379,7 +422,10 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::load,
     }
 
     guard.commit();
-
+    guard_close_tables.commit();
+    reenable_binlog(thd);
+    trans_commit_stmt(thd);
+    close_mysql_tables(thd);
     return false;
   }
   catch (...)
@@ -417,13 +463,33 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::unload,
   {
     THD* thd= (THD*)thd_ptr;
 
-    if (!mysql_persistent_dynamic_loader_imp::is_initialized)
+    if (!mysql_persistent_dynamic_loader_imp::initialized())
     {
       my_error(ER_COMPONENT_TABLE_INCORRECT, MYF(0));
       return true;
     }
 
+    Mutex_lock lock(&component_id_by_urn_mutex);
+
     int res;
+
+    TABLE* component_table;
+    if (open_component_table(thd, TL_WRITE, &component_table, DELETE_ACL))
+    {
+      my_error(ER_COMPONENT_TABLE_INCORRECT, MYF(0));
+      return true;
+    }
+
+    /* We don't replicate UNINSTALL_COMPONENT */
+    tmp_disable_binlog(thd);
+
+    auto guard_close_tables= create_scope_guard(
+    [&thd, &component_table, &tmp_disable_binlog__save_options]()
+    {
+      thd->variables.option_bits= tmp_disable_binlog__save_options;
+      trans_rollback_stmt(thd);
+      close_mysql_tables(thd);
+    });
 
     bool result=
       mysql_dynamic_loader_imp::unload(urns, component_count);
@@ -433,20 +499,6 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::unload,
         one. */
       return result;
     }
-
-    TABLE* component_table;
-    MDL_savepoint mdl_savepoint;
-    if (open_component_table(thd, TL_WRITE, &component_table, &mdl_savepoint))
-    {
-      my_error(ER_COMPONENT_TABLE_INCORRECT, MYF(0));
-      return true;
-    }
-
-    auto guard_close_tables= create_scope_guard(
-    [&thd, &component_table, &mdl_savepoint]()
-    {
-      close_tables(thd, mdl_savepoint);
-    });
 
     DBUG_ASSERT(component_table->key_info != NULL);
 
@@ -481,7 +533,15 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::unload,
         return true;
       }
 
+      /*
+        We do not replicate the UNINSTALL COMPONENT statement. Disable binlogging
+        of the delete from the component table, so that it is not replicated in
+        row based mode.
+      */
+      tmp_disable_binlog(thd);
       res= component_table->file->ha_delete_row(component_table->record[0]);
+      reenable_binlog(thd);
+
       if (res != 0)
       {
         my_error(ER_COMPONENT_MANIPULATE_ROW_FAILED, MYF(0), urns[i], res);
@@ -490,6 +550,11 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::unload,
 
       mysql_persistent_dynamic_loader_imp::component_id_by_urn.erase(it);
     }
+
+    guard_close_tables.commit();
+    reenable_binlog(thd);
+    trans_commit_stmt(thd);
+    close_mysql_tables(thd);
 
     return false;
   }
@@ -503,7 +568,9 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::unload,
 std::atomic<uint64> mysql_persistent_dynamic_loader_imp::group_id;
 std::map<my_string, uint64>
   mysql_persistent_dynamic_loader_imp::component_id_by_urn;
-bool mysql_persistent_dynamic_loader_imp::is_initialized;
+bool mysql_persistent_dynamic_loader_imp::is_initialized= false;
+
+mysql_mutex_t mysql_persistent_dynamic_loader_imp::component_id_by_urn_mutex;
 
 /**
   Initializes persistence store, loads all groups of components registered in

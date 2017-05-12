@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,10 +16,15 @@
 #ifndef DEFINED_RPL_SLAVE_UNTIL_OPTIONS_H
 #define DEFINED_RPL_SLAVE_UNTIL_OPTIONS_H
 
+#include <sys/types.h>
 #include <string>
-#include "log_event.h"
-#include "log.h"
 
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "rpl_gtid.h"
+
+class Log_event;
 class Relay_log_info;
 
 /**

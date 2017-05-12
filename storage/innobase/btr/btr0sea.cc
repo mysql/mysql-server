@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -31,19 +31,24 @@ Created 2/17/1996 Heikki Tuuri
 *************************************************************************/
 
 #include "btr0sea.h"
-#include "buf0buf.h"
-#include "page0page.h"
-#include "page0cur.h"
+
+#include <sys/types.h>
+
+#include "btr0btr.h"
 #include "btr0cur.h"
 #include "btr0pcur.h"
-#include "btr0btr.h"
+#include "buf0buf.h"
 #include "ha0ha.h"
+#include "my_compiler.h"
+#include "my_inttypes.h"
+#include "page0cur.h"
+#include "page0page.h"
 #include "srv0mon.h"
 #include "sync0sync.h"
 
 /** Is search system enabled.
 Search system is protected by array of latches. */
-char		btr_search_enabled	= true;
+bool		btr_search_enabled	= true;
 
 /** Number of adaptive hash index partition. */
 ulong		btr_ahi_parts		= 8;
@@ -681,6 +686,7 @@ btr_search_update_hash_ref(
 	      || rw_lock_own(&(block->lock), RW_LOCK_X));
 	ut_ad(page_align(btr_cur_get_rec(cursor))
 	      == buf_block_get_frame(block));
+	assert_block_ahi_valid(block);
 
 	index = block->index;
 
@@ -826,7 +832,8 @@ btr_search_check_guess(
 
 	offsets = rec_get_offsets(rec, cursor->index, offsets,
 				  n_unique, &heap);
-	cmp = cmp_dtuple_rec_with_match(tuple, rec, offsets, &match);
+	cmp = cmp_dtuple_rec_with_match(tuple, rec, cursor->index, offsets,
+					&match);
 
 	if (mode == PAGE_CUR_GE) {
 		if (cmp > 0) {
@@ -881,7 +888,7 @@ btr_search_check_guess(
 		offsets = rec_get_offsets(prev_rec, cursor->index, offsets,
 					  n_unique, &heap);
 		cmp = cmp_dtuple_rec_with_match(
-			tuple, prev_rec, offsets, &match);
+			tuple, prev_rec, cursor->index, offsets, &match);
 		if (mode == PAGE_CUR_GE) {
 			success = cmp > 0;
 		} else {
@@ -910,7 +917,7 @@ btr_search_check_guess(
 		offsets = rec_get_offsets(next_rec, cursor->index, offsets,
 					  n_unique, &heap);
 		cmp = cmp_dtuple_rec_with_match(
-			tuple, next_rec, offsets, &match);
+			tuple, next_rec, cursor->index, offsets, &match);
 		if (mode == PAGE_CUR_LE) {
 			success = cmp < 0;
 			cursor->up_match = match;
@@ -1194,14 +1201,13 @@ btr_search_drop_page_hash_index(buf_block_t* block)
 	rw_lock_t*		latch;
 	btr_search_t*		info;
 
-	if (!btr_search_enabled) {
-		return;
-	}
-
 retry:
 	/* Do a dirty check on block->index, return if the block is
 	not in the adaptive hash index. */
 	index = block->index;
+	/* This debug check uses a dirty read that could theoretically cause
+	false positives while buf_pool_clear_hash_index() is executing. */
+	assert_block_ahi_valid(block);
 
 	if (index == NULL) {
 		return;
@@ -1228,6 +1234,7 @@ retry:
 	ut_ad(!btr_search_own_any(RW_LOCK_X));
 
 	rw_lock_s_lock(latch);
+	assert_block_ahi_valid(block);
 
 	if (block->index == NULL) {
 		rw_lock_s_unlock(latch);
@@ -1242,6 +1249,7 @@ retry:
 	buf_LRU_drop_page_hash_for_tablespace()). */
 	ut_a(index == block->index);
 	ut_ad(!index->disable_ahi);
+	ut_ad(btr_search_enabled);
 
 	ut_ad(block->page.id.space() == index->space);
 	ut_a(index_id == index->id);
@@ -1362,23 +1370,8 @@ next_rec:
 	MONITOR_INC_VALUE(MONITOR_ADAPTIVE_HASH_ROW_REMOVED, n_cached);
 
 cleanup:
-#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
-	if (UNIV_UNLIKELY(block->n_pointers)) {
-		/* Corruption */
-		ib::error() << "Corruption of adaptive hash index."
-			<< " After dropping, the hash index to a page of "
-			<< index->name
-			<< ", still " << block->n_pointers
-			<< " hash nodes remain.";
-		rw_lock_x_unlock(latch);
-
-		ut_ad(btr_search_validate());
-	} else {
-		rw_lock_x_unlock(latch);
-	}
-#else /* UNIV_AHI_DEBUG || UNIV_DEBUG */
+	assert_block_ahi_valid(block);
 	rw_lock_x_unlock(latch);
-#endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 
 	ut_free(folds);
 }
@@ -1604,6 +1597,7 @@ btr_search_build_page_hash_index(
 	have to take care not to increment the counter in that
 	case. */
 	if (!block->index) {
+		assert_block_ahi_empty(block);
 		index->search_info->ref_count++;
 	}
 
@@ -1622,6 +1616,7 @@ btr_search_build_page_hash_index(
 	MONITOR_INC(MONITOR_ADAPTIVE_HASH_PAGE_ADDED);
 	MONITOR_INC_VALUE(MONITOR_ADAPTIVE_HASH_ROW_ADDED, n_cached);
 exit_func:
+	assert_block_ahi_valid(block);
 	btr_search_x_unlock(index);
 
 	ut_free(folds);
@@ -1663,6 +1658,8 @@ btr_search_move_or_delete_hash_entries(
 	ut_a(!block->index || block->index == index);
 	ut_a(!(new_block->index || block->index)
 	     || !dict_index_is_ibuf(index));
+	assert_block_ahi_valid(block);
+	assert_block_ahi_valid(new_block);
 
 	if (new_block->index) {
 
@@ -1720,6 +1717,7 @@ btr_search_update_hash_on_delete(btr_cur_t* cursor)
 
 	ut_ad(rw_lock_own(&(block->lock), RW_LOCK_X));
 
+	assert_block_ahi_valid(block);
 	index = block->index;
 
 	if (!index) {
@@ -1745,6 +1743,7 @@ btr_search_update_hash_on_delete(btr_cur_t* cursor)
 	}
 
 	btr_search_x_lock(index);
+	assert_block_ahi_valid(block);
 
 	if (block->index) {
 		ut_a(block->index == index);
@@ -1755,6 +1754,8 @@ btr_search_update_hash_on_delete(btr_cur_t* cursor)
 			MONITOR_INC(
 				MONITOR_ADAPTIVE_HASH_ROW_REMOVE_NOT_FOUND);
 		}
+
+		assert_block_ahi_valid(block);
 	}
 
 	btr_search_x_unlock(index);
@@ -1815,6 +1816,7 @@ btr_search_update_hash_node_on_insert(btr_cur_t* cursor)
 		}
 
 func_exit:
+		assert_block_ahi_valid(block);
 		btr_search_x_unlock(index);
 	} else {
 		btr_search_x_unlock(index);
@@ -1856,6 +1858,7 @@ btr_search_update_hash_on_insert(btr_cur_t* cursor)
 	block = btr_cur_get_block(cursor);
 
 	ut_ad(rw_lock_own(&(block->lock), RW_LOCK_X));
+	assert_block_ahi_valid(block);
 
 	index = block->index;
 

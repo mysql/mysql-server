@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -13,18 +13,22 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 
-#include <stdexcept>                        // std::exception subclasses
 #include <my_sys.h>                         // my_error
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/my_service.h>
-#include <sql_class.h>
+#include <stddef.h>
+#include <new>
+#include <stdexcept>                        // std::exception subclasses
+
 #include "dynamic_loader.h"
 #include "dynamic_loader_path_filter.h"
 #include "dynamic_loader_scheme_file.h"
+#include "my_inttypes.h"
+#include "mysqld_error.h"
 #include "persistent_dynamic_loader.h"
 #include "registry.h"
 #include "server_component.h"
-
+#include "auth/dynamic_privileges_impl.h"
 
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, registry)
   mysql_registry_imp::acquire,
@@ -99,6 +103,15 @@ BEGIN_SERVICE_IMPLEMENTATION(mysql_server, persistent_dynamic_loader)
   mysql_persistent_dynamic_loader_imp::unload
 END_SERVICE_IMPLEMENTATION()
 
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, dynamic_privilege_register)
+  dynamic_privilege_services_impl::register_privilege,
+  dynamic_privilege_services_impl::unregister_privilege
+END_SERVICE_IMPLEMENTATION()
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, global_grants_check)
+  dynamic_privilege_services_impl::has_global_grant
+END_SERVICE_IMPLEMENTATION()
+
 BEGIN_COMPONENT_PROVIDES(mysql_server)
   PROVIDES_SERVICE(mysql_server, registry)
   PROVIDES_SERVICE(mysql_server, registry_registration)
@@ -112,6 +125,8 @@ BEGIN_COMPONENT_PROVIDES(mysql_server)
   PROVIDES_SERVICE(mysql_server, dynamic_loader_metadata_enumerate)
   PROVIDES_SERVICE(mysql_server, dynamic_loader_metadata_query)
   PROVIDES_SERVICE(mysql_server, dynamic_loader_scheme_file)
+  PROVIDES_SERVICE(mysql_server, dynamic_privilege_register)
+  PROVIDES_SERVICE(mysql_server, global_grants_check)
 END_COMPONENT_PROVIDES()
 
 static BEGIN_COMPONENT_REQUIRES(mysql_server)

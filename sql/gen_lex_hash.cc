@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -78,15 +78,17 @@ So, we can read full search-structure as 32-bit word
 */
 
 #define NO_YACC_SYMBOLS
-#include <my_global.h>
-#include "mysql_version.h"
-#include "lex.h"
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
 #include <set>
+#include <utility>
 
-#include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
+#include "lex.h"
+#include "lex_symbol.h"
+#include "my_inttypes.h"
+#include "welcome_copyright_notice.h" /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 
 static bool check_duplicates(uint group_mask);
@@ -339,7 +341,7 @@ bool check_duplicates(uint group_mask)
 }
 
 
-int main(int argc,char **argv)
+int main(int, char **)
 {
 
 

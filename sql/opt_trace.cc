@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,12 +18,28 @@
    Implementation of the Optimizer trace API (WL#5257)
 */
 
-#include "opt_trace.h"
-#include "mysqld.h"    // system_charset_info
-#include "item.h"      // Item
-#include "sql_string.h" // String
-#include "m_string.h"  // _dig_vec_lower
+#include "sql/opt_trace.h"
+
+#include <assert.h>
+#include <stdio.h>
+#include <new>
+
 #include "current_thd.h"
+#include "enum_query_type.h"
+#include "handler.h"
+#include "item.h"      // Item
+#include "key.h"
+#include "m_string.h"  // _dig_vec_lower
+#include "my_dbug.h"
+#include "my_pointer_arithmetic.h"
+#include "my_sys.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysqld_error.h"
+#include "prealloced_array.h"
+#include "sql_string.h" // String
+#include "system_variables.h"
+#include "table.h"
 
 #ifdef OPTIMIZER_TRACE
 
@@ -1146,8 +1162,9 @@ void Opt_trace_context::purge_stmts(bool purge_all)
     DBUG_VOID_RETURN;
   }
   long idx;
-  compile_time_assert(
-    static_cast<long>(static_cast<size_t>(LONG_MAX)) == LONG_MAX);
+  static_assert(
+    static_cast<long>(static_cast<size_t>(LONG_MAX)) == LONG_MAX,
+    "Every positive long must be able to round-trip through size_t.");
   /*
     Start from the newest traces (array's end), scroll back in time. This
     direction is necessary, as we may delete elements from the array (assume

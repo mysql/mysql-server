@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -23,6 +23,9 @@
 
 #include "mysql/psi/psi_transaction.h"
 
+#include "my_inttypes.h"
+#include "pfs_transaction_provider.h"
+
 #ifndef PSI_TRANSACTION_CALL
 #define PSI_TRANSACTION_CALL(M) psi_transaction_service->M
 #endif
@@ -34,83 +37,97 @@
 */
 
 #ifdef HAVE_PSI_TRANSACTION_INTERFACE
-  #define MYSQL_START_TRANSACTION(STATE, XID, TRXID, ISO, RO, AC) \
-    inline_mysql_start_transaction(STATE, XID, TRXID, ISO, RO, AC, __FILE__, __LINE__)
+#define MYSQL_START_TRANSACTION(STATE, XID, TRXID, ISO, RO, AC) \
+  inline_mysql_start_transaction(                               \
+    STATE, XID, TRXID, ISO, RO, AC, __FILE__, __LINE__)
 #else
-  #define MYSQL_START_TRANSACTION(STATE, XID, TRXID, ISO, RO, AC) \
-    do {} while (0)
+#define MYSQL_START_TRANSACTION(STATE, XID, TRXID, ISO, RO, AC) \
+  do                                                            \
+  {                                                             \
+  } while (0)
 #endif
 
 #ifdef HAVE_PSI_TRANSACTION_INTERFACE
-  #define MYSQL_SET_TRANSACTION_GTID(LOCKER, P1, P2) \
-    inline_mysql_set_transaction_gtid(LOCKER, P1, P2)
+#define MYSQL_SET_TRANSACTION_GTID(LOCKER, P1, P2) \
+  inline_mysql_set_transaction_gtid(LOCKER, P1, P2)
 #else
-  #define MYSQL_SET_TRANSACTION_GTID(LOCKER, P1, P2) \
-    do {} while (0)
+#define MYSQL_SET_TRANSACTION_GTID(LOCKER, P1, P2) \
+  do                                               \
+  {                                                \
+  } while (0)
 #endif
 
 #ifdef HAVE_PSI_TRANSACTION_INTERFACE
-  #define MYSQL_SET_TRANSACTION_XID(LOCKER, P1, P2) \
-    inline_mysql_set_transaction_xid(LOCKER, P1, P2)
+#define MYSQL_SET_TRANSACTION_XID(LOCKER, P1, P2) \
+  inline_mysql_set_transaction_xid(LOCKER, P1, P2)
 #else
-  #define MYSQL_SET_TRANSACTION_XID(LOCKER, P1, P2) \
-    do {} while (0)
+#define MYSQL_SET_TRANSACTION_XID(LOCKER, P1, P2) \
+  do                                              \
+  {                                               \
+  } while (0)
 #endif
 
 #ifdef HAVE_PSI_TRANSACTION_INTERFACE
-  #define MYSQL_SET_TRANSACTION_XA_STATE(LOCKER, P1) \
-    inline_mysql_set_transaction_xa_state(LOCKER, P1)
+#define MYSQL_SET_TRANSACTION_XA_STATE(LOCKER, P1) \
+  inline_mysql_set_transaction_xa_state(LOCKER, P1)
 #else
-  #define MYSQL_SET_TRANSACTION_XA_STATE(LOCKER, P1) \
-    do {} while (0)
+#define MYSQL_SET_TRANSACTION_XA_STATE(LOCKER, P1) \
+  do                                               \
+  {                                                \
+  } while (0)
 #endif
 
 #ifdef HAVE_PSI_TRANSACTION_INTERFACE
-  #define MYSQL_SET_TRANSACTION_TRXID(LOCKER, P1) \
-    inline_mysql_set_transaction_trxid(LOCKER, P1)
+#define MYSQL_SET_TRANSACTION_TRXID(LOCKER, P1) \
+  inline_mysql_set_transaction_trxid(LOCKER, P1)
 #else
-  #define MYSQL_SET_TRANSACTION_TRXID(LOCKER, P1) \
-    do {} while (0)
+#define MYSQL_SET_TRANSACTION_TRXID(LOCKER, P1) \
+  do                                            \
+  {                                             \
+  } while (0)
 #endif
 
 #ifdef HAVE_PSI_TRANSACTION_INTERFACE
-  #define MYSQL_INC_TRANSACTION_SAVEPOINTS(LOCKER, P1) \
-    inline_mysql_inc_transaction_savepoints(LOCKER, P1)
+#define MYSQL_INC_TRANSACTION_SAVEPOINTS(LOCKER, P1) \
+  inline_mysql_inc_transaction_savepoints(LOCKER, P1)
 #else
-  #define MYSQL_INC_TRANSACTION_SAVEPOINTS(LOCKER, P1) \
-    do {} while (0)
+#define MYSQL_INC_TRANSACTION_SAVEPOINTS(LOCKER, P1) \
+  do                                                 \
+  {                                                  \
+  } while (0)
 #endif
 
 #ifdef HAVE_PSI_TRANSACTION_INTERFACE
-  #define MYSQL_INC_TRANSACTION_ROLLBACK_TO_SAVEPOINT(LOCKER, P1) \
-    inline_mysql_inc_transaction_rollback_to_savepoint(LOCKER, P1)
+#define MYSQL_INC_TRANSACTION_ROLLBACK_TO_SAVEPOINT(LOCKER, P1) \
+  inline_mysql_inc_transaction_rollback_to_savepoint(LOCKER, P1)
 #else
-  #define MYSQL_INC_TRANSACTION_ROLLBACK_TO_SAVEPOINT(LOCKER, P1) \
-    do {} while (0)
+#define MYSQL_INC_TRANSACTION_ROLLBACK_TO_SAVEPOINT(LOCKER, P1) \
+  do                                                            \
+  {                                                             \
+  } while (0)
 #endif
 
 #ifdef HAVE_PSI_TRANSACTION_INTERFACE
-  #define MYSQL_INC_TRANSACTION_RELEASE_SAVEPOINT(LOCKER, P1) \
-    inline_mysql_inc_transaction_release_savepoint(LOCKER, P1)
+#define MYSQL_INC_TRANSACTION_RELEASE_SAVEPOINT(LOCKER, P1) \
+  inline_mysql_inc_transaction_release_savepoint(LOCKER, P1)
 #else
-  #define MYSQL_INC_TRANSACTION_RELEASE_SAVEPOINT(LOCKER, P1) \
-    do {} while (0)
+#define MYSQL_INC_TRANSACTION_RELEASE_SAVEPOINT(LOCKER, P1) \
+  do                                                        \
+  {                                                         \
+  } while (0)
 #endif
 
 #ifdef HAVE_PSI_TRANSACTION_INTERFACE
-  #define MYSQL_ROLLBACK_TRANSACTION(LOCKER) \
-    inline_mysql_rollback_transaction(LOCKER)
+#define MYSQL_ROLLBACK_TRANSACTION(LOCKER) \
+  inline_mysql_rollback_transaction(LOCKER)
 #else
-  #define MYSQL_ROLLBACK_TRANSACTION(LOCKER) \
-    NULL
+#define MYSQL_ROLLBACK_TRANSACTION(LOCKER) NULL
 #endif
 
 #ifdef HAVE_PSI_TRANSACTION_INTERFACE
-  #define MYSQL_COMMIT_TRANSACTION(LOCKER) \
-    inline_mysql_commit_transaction(LOCKER)
+#define MYSQL_COMMIT_TRANSACTION(LOCKER) inline_mysql_commit_transaction(LOCKER)
 #else
-  #define MYSQL_COMMIT_TRANSACTION(LOCKER) \
-    NULL
+#define MYSQL_COMMIT_TRANSACTION(LOCKER) NULL
 #endif
 
 #ifdef HAVE_PSI_TRANSACTION_INTERFACE
@@ -119,18 +136,18 @@ inline_mysql_start_transaction(PSI_transaction_locker_state *state,
                                const void *xid,
                                const ulonglong *trxid,
                                int isolation_level,
-                               my_bool read_only,
-                               my_bool autocommit,
-                               const char *src_file, int src_line)
+                               bool read_only,
+                               bool autocommit,
+                               const char *src_file,
+                               int src_line)
 {
   PSI_transaction_locker *locker;
-  locker= PSI_TRANSACTION_CALL(get_thread_transaction_locker)(state,
-                                                              xid, trxid,
-                                                              isolation_level,
-                                                              read_only,
-                                                              autocommit);
+  locker = PSI_TRANSACTION_CALL(get_thread_transaction_locker)(
+    state, xid, trxid, isolation_level, read_only, autocommit);
   if (likely(locker != NULL))
+  {
     PSI_TRANSACTION_CALL(start_transaction)(locker, src_file, src_line);
+  }
   return locker;
 }
 
@@ -140,7 +157,9 @@ inline_mysql_set_transaction_gtid(PSI_transaction_locker *locker,
                                   const void *gtid_spec)
 {
   if (likely(locker != NULL))
+  {
     PSI_TRANSACTION_CALL(set_transaction_gtid)(locker, sid, gtid_spec);
+  }
 }
 
 static inline void
@@ -149,7 +168,9 @@ inline_mysql_set_transaction_xid(PSI_transaction_locker *locker,
                                  int xa_state)
 {
   if (likely(locker != NULL))
+  {
     PSI_TRANSACTION_CALL(set_transaction_xid)(locker, xid, xa_state);
+  }
 }
 
 static inline void
@@ -157,7 +178,9 @@ inline_mysql_set_transaction_xa_state(PSI_transaction_locker *locker,
                                       int xa_state)
 {
   if (likely(locker != NULL))
+  {
     PSI_TRANSACTION_CALL(set_transaction_xa_state)(locker, xa_state);
+  }
 }
 
 static inline void
@@ -165,7 +188,9 @@ inline_mysql_set_transaction_trxid(PSI_transaction_locker *locker,
                                    const ulonglong *trxid)
 {
   if (likely(locker != NULL))
+  {
     PSI_TRANSACTION_CALL(set_transaction_trxid)(locker, trxid);
+  }
 }
 
 static inline void
@@ -173,15 +198,19 @@ inline_mysql_inc_transaction_savepoints(PSI_transaction_locker *locker,
                                         ulong count)
 {
   if (likely(locker != NULL))
+  {
     PSI_TRANSACTION_CALL(inc_transaction_savepoints)(locker, count);
+  }
 }
 
 static inline void
-inline_mysql_inc_transaction_rollback_to_savepoint(PSI_transaction_locker *locker,
-                                                   ulong count)
+inline_mysql_inc_transaction_rollback_to_savepoint(
+  PSI_transaction_locker *locker, ulong count)
 {
   if (likely(locker != NULL))
+  {
     PSI_TRANSACTION_CALL(inc_transaction_rollback_to_savepoint)(locker, count);
+  }
 }
 
 static inline void
@@ -189,25 +218,30 @@ inline_mysql_inc_transaction_release_savepoint(PSI_transaction_locker *locker,
                                                ulong count)
 {
   if (likely(locker != NULL))
+  {
     PSI_TRANSACTION_CALL(inc_transaction_release_savepoint)(locker, count);
+  }
 }
 
 static inline void
 inline_mysql_rollback_transaction(struct PSI_transaction_locker *locker)
 {
   if (likely(locker != NULL))
+  {
     PSI_TRANSACTION_CALL(end_transaction)(locker, false);
+  }
 }
 
 static inline void
 inline_mysql_commit_transaction(struct PSI_transaction_locker *locker)
 {
   if (likely(locker != NULL))
+  {
     PSI_TRANSACTION_CALL(end_transaction)(locker, true);
+  }
 }
 #endif
 
 /** @} (end of group psi_api_transaction) */
 
 #endif
-

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -17,28 +17,26 @@
  * 02110-1301  USA
  */
 
-
 #ifndef _XPL_DISPATCHER_H_
 #define _XPL_DISPATCHER_H_
 
 #include "ngs_common/protocol_protobuf.h"
-
 #include "ngs/protocol_encoder.h"
 
-namespace xpl
-{
+namespace xpl {
 class Session;
 class Crud_command_handler;
 class Sql_data_context;
 class Expectation_stack;
 class Session_options;
 
-namespace dispatcher
-{
-bool dispatch_command(Session &session, Crud_command_handler &crudh, Expectation_stack &expect, ngs::Request &command);
+namespace dispatcher {
+bool dispatch_command(Session &session, Crud_command_handler &crudh,
+                      Expectation_stack &expect, ngs::Request &command);
 };
 
-ngs::Error_code show_warnings_and_send(Sql_data_context &da, ngs::Protocol_encoder &proto);
+ngs::Error_code show_warnings_and_send(Sql_data_context &da,
+                                       ngs::Protocol_encoder &proto);
 }
 
 #endif

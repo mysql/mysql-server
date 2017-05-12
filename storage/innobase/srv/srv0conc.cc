@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -37,13 +37,16 @@ InnoDB concurrency manager
 Created 2011/04/18 Sunny Bains
 *******************************************************/
 
-#include "ha_prototypes.h"
 #include <mysql/service_thd_wait.h>
+#include <stddef.h>
+#include <sys/types.h>
 
+#include "dict0dict.h"
+#include "ha_prototypes.h"
+#include "my_inttypes.h"
+#include "row0mysql.h"
 #include "srv0srv.h"
 #include "trx0trx.h"
-#include "row0mysql.h"
-#include "dict0dict.h"
 
 /** Number of times a thread is allowed to enter InnoDB within the same
 SQL query after it has once got the ticket. */

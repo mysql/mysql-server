@@ -30,7 +30,7 @@ perl;
   @build_specific=qw/auto-generate-certs/;
 
   # Plugins which may or may not be there:
-  @plugins=qw/innodb ngram mecab ndb ndbinfo archive blackhole federated partition ndbcluster debug temp-pool ssl des-key-file
+  @plugins=qw/innodb ngram mecab ndb ndbinfo archive blackhole federated partition ndbcluster debug ssl des-key-file
               thread-concurrency super-large-pages mutex-deadlock-detector null-audit
               sha256-password-private-key-path sha256-password-public-key-path
               sha256-password-auto-generate-rsa-keys/;
@@ -58,6 +58,8 @@ perl;
     s/\b4294967295\b/18446744073709551615/;
     s/\b2146435072\b/9223372036853727232/;
     s/\b196608\b/262144/;
+    s/\b524288\b/262144/;
+    s/\b393216\b/262144/;
     # Replacing port number with string
     s/^port \d+/port ####/;
     # log-tc-size varies by platform

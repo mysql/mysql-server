@@ -1,7 +1,7 @@
 #ifndef SQL_STRING_INCLUDED
 #define SQL_STRING_INCLUDED
 
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,17 +22,23 @@
   @file include/sql_string.h
 */
 
-#include "my_global.h"
+#include <string.h>
+#include <sys/types.h>
+#include <new>
+
+#include "lex_string.h"
 #include "m_ctype.h"                         // my_convert
 #include "m_string.h"                        // LEX_CSTRING
+#include "mem_root_fwd.h"
+#include "my_byteorder.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
 #include "my_sys.h"                          // alloc_root
 #include "mysql/mysql_lex_string.h"          // LEX_STRING
+#include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_memory.h"
 #include "mysql/service_mysql_alloc.h"       // my_free
-
-#include <string.h>
-
-typedef struct st_mysql_lex_string LEX_STRING;
-
 
 #ifdef MYSQL_SERVER
 extern "C" {
@@ -59,7 +65,7 @@ class Simple_cstring
 private:
   const char *m_str;
   size_t m_length;
-protected:
+public:
   /**
     Initialize from a C string whose length is already known.
   */
@@ -72,7 +78,6 @@ protected:
     m_str= str_arg;
     m_length= length_arg;
   }
-public:
   Simple_cstring()
   {
     set(NULL, 0);
@@ -128,9 +133,9 @@ public:
 
 
 class String;
+
 typedef struct charset_info_st CHARSET_INFO;
 typedef struct st_io_cache IO_CACHE;
-typedef struct st_mem_root MEM_ROOT;
 
 int sortcmp(const String *a,const String *b, const CHARSET_INFO *cs);
 String *copy_if_not_alloced(String *to, String *from, size_t from_length);
@@ -477,8 +482,26 @@ public:
   bool append_with_prefill(const char *s, size_t arg_length, 
 			   size_t full_length, char fill_char);
   bool append_parenthesized(long nr, int radix= 10);
-  int strstr(const String &search,size_t offset=0); // Returns offset to substring or -1
-  int strrstr(const String &search,size_t offset=0); // Returns offset to substring or -1
+  /**
+    Search for a substring.
+
+    @param search    substring to search for
+    @param offset    starting point, bytes from the start of the string
+
+    @return byte offset to the substring from the start of this string
+    @retval -1 if the substring is not found starting from the offset
+  */
+  int strstr(const String &search, size_t offset= 0) const;
+  /**
+    Reverse search for a substring.
+
+    @param search    substring to search for
+    @param offset    starting point, bytes from the start of the string
+
+    @return byte offset to the substring from the start of this string
+    @retval -1 if the substring is not found starting from the offset
+  */
+  int strrstr(const String &search, size_t offset= 0) const;
   /**
    * Returns substring of given characters lenght, starting at given character offset.
    * Note that parameter indexes are character indexes and not byte indexes.
@@ -507,7 +530,7 @@ public:
   friend int stringcmp(const String *a,const String *b);
   friend String *copy_if_not_alloced(String *to, String *from, size_t from_length);
   size_t numchars() const;
-  size_t charpos(size_t i, size_t offset=0);
+  size_t charpos(size_t i, size_t offset= 0) const;
 
   int reserve(size_t space_needed)
   {
@@ -658,8 +681,8 @@ public:
 };
 
 
-static inline bool check_if_only_end_space(const CHARSET_INFO *cs, char *str, 
-                                           char *end)
+static inline bool check_if_only_end_space(const CHARSET_INFO *cs,
+                                           const char *str, const char *end)
 {
   return str+ cs->cset->scan(cs, str, end, MY_SEQ_SPACES) == end;
 }
@@ -687,4 +710,7 @@ inline LEX_CSTRING to_lex_cstring(const char *s)
 bool
 validate_string(const CHARSET_INFO *cs, const char *str, uint32 length,
                 size_t *valid_length, bool *length_error);
+
+bool append_escaped(String *to_str, const String *from_str);
+
 #endif /* SQL_STRING_INCLUDED */

@@ -4,7 +4,6 @@
 --echo #
 
 --source include/have_nodebug.inc
---source include/have_innodb.inc
 --source include/not_embedded.inc
 
 let PAGE_SIZE=`select @@innodb_page_size`;
@@ -63,4 +62,3 @@ call mtr.add_suppression("\\[Warning\\] InnoDB: A transaction id in a record of 
 
 SELECT * FROM t1;
 DROP TABLE t1;
-

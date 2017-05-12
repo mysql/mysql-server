@@ -1,0 +1,30 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+# CONFIGURE SERVER 1
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+include/gr_wait_primary_member_uuid.inc
+# CONFIGURE SERVER 2
+[connection server2]
+include/start_group_replication.inc
+include/gr_wait_primary_member_uuid.inc
+[connection server1]
+CREATE TABLE first(c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
+INSERT INTO first(c1) VALUES(2),(4);
+include/rpl_sync.inc
+[connection server2]
+SELECT * FROM first;
+c1
+2
+4
+[connection server2]
+include/stop_group_replication.inc
+[connection server1]
+include/stop_group_replication.inc
+# CLEANUP
+[connection server1]
+DROP TABLE first;
+include/group_replication_end.inc

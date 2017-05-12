@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -51,17 +51,17 @@ inline int my_decimal_get_binary_size(uint precision, uint scale)
 #endif
 
 #define DTIMAP(x, y, z) \
-  { DictTabInfo::y, my_offsetof(x, z), SimpleProperties::Uint32Value, 0, UINT_MAX32, 0 }
+  { DictTabInfo::y, (unsigned) my_offsetof(x, z), SimpleProperties::Uint32Value, 0, UINT_MAX32, 0 }
 
 #define DTIMAP2(x, y, z, u, v) \
-  { DictTabInfo::y, my_offsetof(x, z), SimpleProperties::Uint32Value, u, v, 0 }
+  { DictTabInfo::y, (unsigned) my_offsetof(x, z), SimpleProperties::Uint32Value, u, v, 0 }
 
 #define DTIMAPS(x, y, z, u, v) \
-  { DictTabInfo::y, my_offsetof(x, z), SimpleProperties::StringValue, u, v, 0 }
+  { DictTabInfo::y, (unsigned) my_offsetof(x, z), SimpleProperties::StringValue, u, v, 0 }
 
 #define DTIMAPB(x, y, z, u, v, l) \
-  { DictTabInfo::y, my_offsetof(x, z), SimpleProperties::BinaryValue, u, v, \
-                     my_offsetof(x, l) }
+  { DictTabInfo::y, (unsigned) my_offsetof(x, z), SimpleProperties::BinaryValue, u, v, \
+      (unsigned) my_offsetof(x, l) }
 
 #define DTIBREAK(x) \
   { DictTabInfo::x, 0, SimpleProperties::InvalidValue, 0, 0, 0 }
@@ -125,6 +125,7 @@ public:
     TableTemporaryFlag = 28,  //Default not Temporary
     ForceVarPartFlag   = 29,
 
+    PartitionBalance  = 127,
     FragmentCount      = 128, // No of fragments in table (!fragment replicas)
     FragmentDataLen    = 129,
     FragmentData       = 130, // CREATE_FRAGMENTATION reply
@@ -155,6 +156,15 @@ public:
 
     ExtraRowGCIBits    = 156,
     ExtraRowAuthorBits = 157,
+
+    ReadBackupFlag     = 158,
+
+    FullyReplicatedFlag= 159,
+    PartitionCount  = 160,
+    /**
+     * Needed for NR
+     */
+    FullyReplicatedTriggerId = 161,
 
     TableEnd           = 999,
     
@@ -229,6 +239,11 @@ public:
     FKParentTrigger = 26,
     FKChildTrigger = 27,
 
+    /**
+     * Trigger that propagates DML to all fragments
+     */
+    FullyReplicatedTrigger = 28,
+
     SchemaTransaction = 30
   };
 
@@ -283,7 +298,8 @@ public:
       tableType == IndexTrigger ||
       tableType == ReorgTrigger ||
       tableType == FKParentTrigger ||
-      tableType == FKChildTrigger;
+      tableType == FKChildTrigger ||
+      tableType == FullyReplicatedTrigger;
   }
   static inline bool
   isFilegroup(int tableType) {
@@ -372,6 +388,7 @@ public:
     */
     Uint32 FrmLen;
     char   FrmData[MAX_FRM_DATA_SIZE];
+    Uint32 PartitionBalance;
     Uint32 FragmentCount;
     Uint32 ReplicaDataLen;
     Uint16 ReplicaData[MAX_FRAGMENT_DATA_ENTRIES];
@@ -400,6 +417,11 @@ public:
 
     Uint32 ExtraRowGCIBits;
     Uint32 ExtraRowAuthorBits;
+
+    Uint32 ReadBackupFlag;
+    Uint32 FullyReplicatedFlag;
+    Uint32 FullyReplicatedTriggerId;
+    Uint32 PartitionCount;
 
     Table() {}
     void init();
@@ -688,17 +710,17 @@ public:
 };
 
 #define DFGIMAP(x, y, z) \
-  { DictFilegroupInfo::y, my_offsetof(x, z), SimpleProperties::Uint32Value, 0, UINT_MAX32, 0 }
+  { DictFilegroupInfo::y, (unsigned) my_offsetof(x, z), SimpleProperties::Uint32Value, 0, UINT_MAX32, 0 }
 
 #define DFGIMAP2(x, y, z, u, v) \
-  { DictFilegroupInfo::y, my_offsetof(x, z), SimpleProperties::Uint32Value, u, v, 0 }
+  { DictFilegroupInfo::y, (unsigned) my_offsetof(x, z), SimpleProperties::Uint32Value, u, v, 0 }
 
 #define DFGIMAPS(x, y, z, u, v) \
-  { DictFilegroupInfo::y, my_offsetof(x, z), SimpleProperties::StringValue, u, v, 0 }
+  { DictFilegroupInfo::y, (unsigned) my_offsetof(x, z), SimpleProperties::StringValue, u, v, 0 }
 
 #define DFGIMAPB(x, y, z, u, v, l) \
-  { DictFilegroupInfo::y, my_offsetof(x, z), SimpleProperties::BinaryValue, u, v, \
-                     my_offsetof(x, l) }
+  { DictFilegroupInfo::y, (unsigned) my_offsetof(x, z), SimpleProperties::BinaryValue, u, v, \
+      (unsigned) my_offsetof(x, l) }
 
 #define DFGIBREAK(x) \
   { DictFilegroupInfo::x, 0, SimpleProperties::InvalidValue, 0, 0, 0 }
@@ -809,17 +831,17 @@ struct DictFilegroupInfo {
 };
 
 #define DHMIMAP(x, y, z) \
-  { DictHashMapInfo::y, my_offsetof(x, z), SimpleProperties::Uint32Value, 0, UINT_MAX32, 0 }
+  { DictHashMapInfo::y, (unsigned) my_offsetof(x, z), SimpleProperties::Uint32Value, 0, UINT_MAX32, 0 }
 
 #define DHMIMAP2(x, y, z, u, v) \
-  { DictHashMapInfo::y, my_offsetof(x, z), SimpleProperties::Uint32Value, u, v, 0 }
+  { DictHashMapInfo::y, (unsigned) my_offsetof(x, z), SimpleProperties::Uint32Value, u, v, 0 }
 
 #define DHMIMAPS(x, y, z, u, v) \
-  { DictHashMapInfo::y, my_offsetof(x, z), SimpleProperties::StringValue, u, v, 0 }
+  { DictHashMapInfo::y, (unsigned) my_offsetof(x, z), SimpleProperties::StringValue, u, v, 0 }
 
 #define DHMIMAPB(x, y, z, u, v, l) \
-  { DictHashMapInfo::y, my_offsetof(x, z), SimpleProperties::BinaryValue, u, v, \
-                     my_offsetof(x, l) }
+  { DictHashMapInfo::y, (unsigned) my_offsetof(x, z), SimpleProperties::BinaryValue, u, v, \
+      (unsigned) my_offsetof(x, l) }
 
 #define DHMIBREAK(x) \
   { DictHashMapInfo::x, 0, SimpleProperties::InvalidValue, 0, 0, 0 }
@@ -911,17 +933,17 @@ class NdbOut&
 operator<<(class NdbOut& out, const DictForeignKeyInfo::ForeignKey& fk);
 
 #define DFKIMAP(x, y, z) \
-  { DictForeignKeyInfo::y, my_offsetof(x, z), SimpleProperties::Uint32Value, 0, UINT_MAX32, 0 }
+  { DictForeignKeyInfo::y, (unsigned) my_offsetof(x, z), SimpleProperties::Uint32Value, 0, UINT_MAX32, 0 }
 
 #define DFKIMAP2(x, y, z, u, v) \
-  { DictForeignKeyInfo::y, my_offsetof(x, z), SimpleProperties::Uint32Value, u, v, 0 }
+  { DictForeignKeyInfo::y, (unsigned) my_offsetof(x, z), SimpleProperties::Uint32Value, u, v, 0 }
 
 #define DFKIMAPS(x, y, z, u, v) \
-  { DictForeignKeyInfo::y, my_offsetof(x, z), SimpleProperties::StringValue, u, v, 0 }
+  { DictForeignKeyInfo::y, (unsigned) my_offsetof(x, z), SimpleProperties::StringValue, u, v, 0 }
 
 #define DFKIMAPB(x, y, z, u, v, l) \
-  { DictForeignKeyInfo::y, my_offsetof(x, z), SimpleProperties::BinaryValue, u, v, \
-                     my_offsetof(x, l) }
+  { DictForeignKeyInfo::y, (unsigned) my_offsetof(x, z), SimpleProperties::BinaryValue, u, v, \
+      (unsigned) my_offsetof(x, l) }
 
 #define DFKIBREAK(x) \
   { DictForeignKeyInfo::x, 0, SimpleProperties::InvalidValue, 0, 0, 0 }

@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 *
 * This program is free software; you can redistribute it and/or
 * modify it under the terms of the GNU General Public License as
@@ -20,12 +20,13 @@
 #ifndef _NGS_METADATA_BUILDER_H_
 #define _NGS_METADATA_BUILDER_H_
 
-#include "m_ctype.h"
-#include "ngs_common/protocol_protobuf.h"
-#include <string>
 #include <set>
+#include <string>
 
+#include "m_ctype.h"
 #include "message_builder.h"
+#include "my_inttypes.h"
+#include "ngs_common/protocol_protobuf.h"
 
 namespace ngs
 {

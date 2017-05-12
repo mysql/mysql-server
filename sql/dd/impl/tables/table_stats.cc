@@ -16,6 +16,7 @@
 #include "dd/impl/tables/table_stats.h"
 
 #include "dd/impl/raw/object_keys.h"   // Composite_char_key
+#include "dd/impl/types/object_table_definition_impl.h"
 
 namespace dd {
 namespace tables {
@@ -66,8 +67,8 @@ const Table_stats &Table_stats::instance()
 ///////////////////////////////////////////////////////////////////////////
 
 Table_stat::name_key_type *Table_stats::create_object_key(
-  const std::string &schema_name,
-  const std::string &table_name)
+  const String_type &schema_name,
+  const String_type &table_name)
 {
   const int INDEX_NO= 0;
 

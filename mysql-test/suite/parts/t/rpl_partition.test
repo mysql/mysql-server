@@ -1,12 +1,14 @@
 # This test takes long time, so only run it with the --big-test mtr-flag.
 --source include/big_test.inc
 
---source include/have_innodb.inc
 --source include/master-slave.inc
 
 --vertical_results
 
 let $engine_type= 'innodb';
+
+# WL#7554: Added setting --bootstrap --character-set-server=latin1
+# in the opt file. This test should be migrated to utf8mb4.
 
 set @old_global_binlog_format=  @@global.binlog_format;
 set @old_session_binlog_format=  @@session.binlog_format;

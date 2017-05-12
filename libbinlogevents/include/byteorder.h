@@ -14,7 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file byteorder.h
+  @file libbinlogevents/include/byteorder.h
 
   @brief The file contains functions to convert the byte encoding of integer
   values to and from little-endian and big-endian byte order.
@@ -121,12 +121,4 @@ uint64_t inline le64toh(uint64_t x)
 }
 #endif
 
-#if defined(_WIN32)
-#define MY_ATTRIBUTE(x)
-#endif
-#define do_compile_time_assert(X)                                              \
-  do                                                                        \
-  {                                                                         \
-    typedef char do_compile_time_assert[(X) ? 1 : -1] MY_ATTRIBUTE((unused)); \
-  } while(0)
 #endif // BYTEORDER_INCLUDED

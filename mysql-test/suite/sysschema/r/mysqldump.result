@@ -1,5 +1,5 @@
-CREATE TEMPORARY TABLE tmp_user AS SELECT * FROM mysql.user;
-CREATE TEMPORARY TABLE tmp_tables_priv AS SELECT * FROM mysql.tables_priv;
+CREATE TEMPORARY TABLE tmp_backup_tables_priv AS SELECT * FROM mysql.tables_priv;
+CREATE TEMPORARY TABLE tmp_backup_user AS SELECT * FROM mysql.user;
 DROP DATABASE sys;
 SHOW DATABASES;
 Database
@@ -16,6 +16,7 @@ mysql.default_roles                                OK
 mysql.engine_cost                                  OK
 mysql.func                                         OK
 mysql.general_log                                  OK
+mysql.global_grants                                OK
 mysql.gtid_executed                                OK
 mysql.help_category                                OK
 mysql.help_keyword                                 OK
@@ -51,10 +52,10 @@ mysql
 performance_schema
 sys
 test
-TRUNCATE TABLE mysql.user;
-INSERT INTO mysql.user (SELECT * FROM tmp_user);
-DROP TEMPORARY TABLE tmp_user;
 TRUNCATE TABLE mysql.tables_priv;
-INSERT INTO mysql.tables_priv (SELECT * FROM tmp_tables_priv);
-DROP TEMPORARY TABLE tmp_tables_priv;
+INSERT INTO mysql.tables_priv (SELECT * FROM tmp_backup_tables_priv);
+DROP TEMPORARY TABLE tmp_backup_tables_priv;
+TRUNCATE TABLE mysql.user;
+INSERT INTO mysql.user (SELECT * FROM tmp_backup_user);
+DROP TEMPORARY TABLE tmp_backup_user;
 FLUSH PRIVILEGES;

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -18,13 +18,16 @@
 #ifndef ABSTRACT_MYSQL_CHAIN_ELEMENT_EXTENSION_INCLUDED
 #define ABSTRACT_MYSQL_CHAIN_ELEMENT_EXTENSION_INCLUDED
 
+#include <sys/types.h>
+#include <functional>
+
+#include "abstract_data_object.h"
+#include "base/message_data.h"
 #include "i_chain_element.h"
 #include "i_connection_provider.h"
-#include "base/message_data.h"
-#include "nullable.h"
-#include "i_callable.h"
+#include "my_inttypes.h"
 #include "mysql_chain_element_options.h"
-#include "abstract_data_object.h"
+#include "nullable.h"
 
 #define MYSQL_UNIVERSAL_CLIENT_CHARSET "utf8"
 #define MAX_NAME_LEN    (64 * 3)
@@ -38,7 +41,7 @@ class Abstract_mysql_chain_element_extension : public virtual I_chain_element
 protected:
   Abstract_mysql_chain_element_extension(
     I_connection_provider* connection_provider,
-    Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
+    std::function<bool(const Mysql::Tools::Base::Message_data&)>*
       message_handler, const Mysql_chain_element_options* options);
 
   Mysql::Tools::Base::Mysql_query_runner* get_runner() const;
@@ -78,7 +81,7 @@ protected:
 private:
 
   I_connection_provider* m_connection_provider;
-  Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
+  std::function<bool(const Mysql::Tools::Base::Message_data&)>*
     m_message_handler;
   const Mysql_chain_element_options* m_options;
   CHARSET_INFO* m_charset;

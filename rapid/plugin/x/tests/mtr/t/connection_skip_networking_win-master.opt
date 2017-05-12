@@ -1,2 +1,1 @@
---plugin_dir=$MYSQLXPLUGIN_DIR --loose-enable-named-pipe
-
+--loose-enable-named-pipe

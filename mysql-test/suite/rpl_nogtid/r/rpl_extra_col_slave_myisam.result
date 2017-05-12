@@ -212,9 +212,10 @@ set @b1 = concat(@b1,@b1);
 INSERT INTO t9 () VALUES(1,@b1,'Kyle'),(2,@b1,'JOE'),(3,@b1,'QA');
 select * from t9;
 a	b	c	d	e	f	g	h	i
-1	b1b1b1b1b1b1b1b1	Kyle	0000-00-00 00:00:00	0		NULL		NULL
-2	b1b1b1b1b1b1b1b1	JOE	0000-00-00 00:00:00	0		NULL		NULL
-3	b1b1b1b1b1b1b1b1	QA	0000-00-00 00:00:00	0		NULL		NULL
+1	b1b1b1b1b1b1b1b1	Kyle	CURRENT_TIMESTAMP	0		NULL		NULL
+2	b1b1b1b1b1b1b1b1	JOE	CURRENT_TIMESTAMP	0		NULL		NULL
+3	b1b1b1b1b1b1b1b1	QA	CURRENT_TIMESTAMP	0		NULL		NULL
+include/assert.inc [The values of column 'd' should have non-zero timetsamp.]
 DROP TABLE t9;
 *** Create t10 on slave  ***
 STOP SLAVE;
@@ -511,7 +512,7 @@ t16	CREATE TABLE `t16` (
   `c4` blob,
   `c5` char(5) DEFAULT NULL,
   PRIMARY KEY (`c1`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 *** Show table on Slave ****
 SHOW CREATE TABLE t16;
 Table	Create Table
@@ -524,7 +525,7 @@ t16	CREATE TABLE `t16` (
   `c6` int(11) DEFAULT '1',
   `c7` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`c1`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 *** DROP TABLE t16 ***
 DROP TABLE t16;
 *** Alter Master End ***

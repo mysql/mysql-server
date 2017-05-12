@@ -30,7 +30,7 @@ Created 9/8/1995 Heikki Tuuri
 
 /** We are prepared for a situation that we have this many threads waiting for
 a semaphore inside InnoDB. innodb_init_params() sets the value. */
-ulint           srv_max_n_threads = 0;
+ulint srv_max_n_threads = 0;
 
 /** Number of threads active. */
 std::atomic_int os_thread_count;
@@ -42,9 +42,10 @@ os_thread_id_t
 os_thread_get_curr_id()
 {
 #ifdef _WIN32
-        return(reinterpret_cast<os_thread_id_t>(::GetCurrentThreadId()));
+	return(reinterpret_cast<os_thread_id_t>(
+			(UINT_PTR)::GetCurrentThreadId()));
 #else
-        return(::pthread_self());
+	return(::pthread_self());
 #endif /* _WIN32 */
 }
 

@@ -1,6 +1,5 @@
-# This test uses chmod, can't be run with root permissions
+# This test uses chmod, cannot be run with root permissions
 -- source include/not_as_root.inc
-
 
 # Initialise
 --disable_warnings

@@ -29,6 +29,8 @@ select * from performance_schema.events_stages_summary_by_thread_by_event_name;
 select * from performance_schema.events_stages_summary_by_user_by_event_name;
 select * from performance_schema.events_stages_summary_global_by_event_name;
 select * from performance_schema.events_statements_current;
+select * from performance_schema.events_statements_histogram_by_digest;
+select * from performance_schema.events_statements_histogram_global;
 select * from performance_schema.events_statements_history;
 select * from performance_schema.events_statements_history_long;
 select * from performance_schema.events_statements_summary_by_account_by_event_name;
@@ -79,6 +81,8 @@ select * from performance_schema.mutex_instances;
 select * from performance_schema.objects_summary_global_by_type;
 select * from performance_schema.performance_timers;
 select * from performance_schema.rwlock_instances;
+select * from performance_schema.data_locks;
+select * from performance_schema.data_lock_waits;
 select * from performance_schema.session_account_connect_attrs;
 select * from performance_schema.session_connect_attrs;
 select * from performance_schema.setup_actors;
@@ -138,7 +142,7 @@ performance_schema_max_memory_classes	0
 performance_schema_max_metadata_locks	0
 performance_schema_max_mutex_classes	0
 performance_schema_max_mutex_instances	0
-performance_schema_max_prepared_statements_instances	100
+performance_schema_max_prepared_statements_instances	-1
 performance_schema_max_program_instances	0
 performance_schema_max_rwlock_classes	0
 performance_schema_max_rwlock_instances	0

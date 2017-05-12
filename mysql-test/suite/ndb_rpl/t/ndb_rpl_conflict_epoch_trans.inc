@@ -15,11 +15,11 @@
 RESET MASTER;
 STOP SLAVE;
 select @secondary_server_id:=(variable_value+0)
-       from information_schema.global_variables
+       from performance_schema.global_variables
        where variable_name like 'server_id';
 let $SECONDARY_SERVER_ID= query_get_value('select @secondary_server_id as v',v,1);
 select @secondary_port:=(variable_value+0)
-       from information_schema.global_variables
+       from performance_schema.global_variables
        where variable_name like 'port';
 let $SECONDARY_PORT= query_get_value('select @secondary_port as v',v,1);
 
@@ -29,11 +29,11 @@ STOP SLAVE;
 --eval CHANGE MASTER TO master_host="127.0.0.1",master_port=$SECONDARY_PORT,master_user="root"
 START SLAVE;
 select @primary_server_id:=(variable_value+0)
-       from information_schema.global_variables
+       from performance_schema.global_variables
        where variable_name like 'server_id';
 let $PRIMARY_SERVER_ID= query_get_value('select @primary_server_id as v',v,1);
 select @primary_port:=(variable_value+0)
-       from information_schema.global_variables
+       from performance_schema.global_variables
        where variable_name like 'port';
 let $PRIMARY_PORT= query_get_value('select @primary_port as v',v,1);
 
@@ -837,7 +837,7 @@ commit;
 --disable_query_log
 --disable_result_log
 SELECT @s1_epoch:=(Variable_value + 0) 
-   FROM information_schema.global_status
+   FROM performance_schema.global_status
   WHERE variable_name like 'Ndb_last_commit_epoch_session';
 let $S1_EPOCH= query_get_value('select @s1_epoch as v',v,1);
 --enable_result_log
@@ -873,7 +873,7 @@ commit;
 --disable_query_log
 --disable_result_log
 SELECT @s2_epoch:=(Variable_value + 0) 
-   FROM information_schema.global_status
+   FROM performance_schema.global_status
   WHERE variable_name like 'Ndb_last_commit_epoch_session';
 let $S2_EPOCH= query_get_value('select @s2_epoch as v',v,1);
 --enable_result_log
@@ -1108,7 +1108,7 @@ commit;
 --disable_query_log
 --disable_result_log
 SELECT @s1_epoch:=(Variable_value + 0) 
-   FROM information_schema.global_status
+   FROM performance_schema.global_status
   WHERE variable_name like 'Ndb_last_commit_epoch_session';
 let $S1_EPOCH= query_get_value('select @s1_epoch as v',v,1);
 --enable_result_log
@@ -1141,7 +1141,7 @@ commit;
 --disable_query_log
 --disable_result_log
 SELECT @s2_epoch:=(Variable_value + 0) 
-   FROM information_schema.global_status
+   FROM performance_schema.global_status
   WHERE variable_name like 'Ndb_last_commit_epoch_session';
 let $S2_EPOCH= query_get_value('select @s2_epoch as v',v,1);
 eval select @epochs_equal:=$S1_EPOCH=$S2_EPOCH as epochs_equal;

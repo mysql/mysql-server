@@ -6,10 +6,8 @@
 # - getaddrinfo() fails with NONAME
 # - reported in COUNT_ADDRINFO_PERMANENT_ERRORS
 
---source include/not_embedded.inc
 --source include/have_debug.inc
 --source include/have_ipv6.inc
---source include/have_perfschema.inc
 
 # [Warning] Host name 'santa.claus.ipv6.example.com' could not be resolved:
 # Name or service not known

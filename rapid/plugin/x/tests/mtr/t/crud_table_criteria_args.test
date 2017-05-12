@@ -18,7 +18,7 @@
 --echo PREAMBLE
 --echo ================================================================================
 ## Preamble
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 ## Test starts here
 --echo ================================================================================
 --echo TEST START

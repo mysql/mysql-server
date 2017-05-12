@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,11 +13,16 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#define MYSQL_SERVER
-#include <my_global.h>
+
 #include <boost/optional/optional.hpp>
 #include <current_thd.h>
 #include <sql_class.h> // THD
+#include <stdio.h>
+#include <sys/types.h>
+#include <new>
+
+#include "my_dbug.h"
+#include "my_inttypes.h"
 
 #define MAX_KEYRING_UDF_KEY_LENGTH_IN_BITS 16384
 #define MAX_KEYRING_UDF_KEY_TEXT_LENGTH MAX_KEYRING_UDF_KEY_LENGTH_IN_BITS/8
@@ -29,16 +34,16 @@
 #define PLUGIN_EXPORT extern "C"
 #endif
 
-static my_bool is_keyring_udf_initialized= FALSE;
+static bool is_keyring_udf_initialized= FALSE;
 
-static int keyring_udf_init(void *p)
+static int keyring_udf_init(void*)
 {
   DBUG_ENTER("keyring_udf_init");
   is_keyring_udf_initialized= TRUE;
   DBUG_RETURN(0);
 }
 
-static int keyring_udf_deinit(void *p)
+static int keyring_udf_deinit(void*)
 {
   DBUG_ENTER("keyring_udf_deinit");
   is_keyring_udf_initialized= FALSE;
@@ -70,7 +75,7 @@ mysql_declare_plugin(keyring_udf)
 }
 mysql_declare_plugin_end;
 
-static my_bool get_current_user(std::string *current_user)
+static bool get_current_user(std::string *current_user)
 {
   THD *thd= current_thd;
   MYSQL_SECURITY_CONTEXT sec_ctx;
@@ -109,8 +114,8 @@ static uint get_args_count_from_validation_request(int to_validate)
   return args_count;
 }
 
-static my_bool validate(UDF_ARGS *args, uint expected_arg_count,
-                        int to_validate, char *message)
+static bool validate(UDF_ARGS *args, uint expected_arg_count,
+                     int to_validate, char *message)
 {
   THD *thd= current_thd;
   MYSQL_SECURITY_CONTEXT sec_ctx;
@@ -185,10 +190,10 @@ static my_bool validate(UDF_ARGS *args, uint expected_arg_count,
   return FALSE;
 }
 
-static my_bool keyring_udf_func_init(UDF_INIT *initid, UDF_ARGS *args, char *message,
-                                     int to_validate,
-                                     const boost::optional<size_t> max_lenth_to_return,
-                                     const size_t size_of_memory_to_allocate)
+static bool keyring_udf_func_init(UDF_INIT *initid, UDF_ARGS *args, char *message,
+                                  int to_validate,
+                                  const boost::optional<size_t> max_lenth_to_return,
+                                  const size_t size_of_memory_to_allocate)
 {
   initid->ptr= NULL;
   uint expected_arg_count= get_args_count_from_validation_request(to_validate);
@@ -214,13 +219,13 @@ static my_bool keyring_udf_func_init(UDF_INIT *initid, UDF_ARGS *args, char *mes
 }
 
 PLUGIN_EXPORT
-my_bool keyring_key_store_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
+bool keyring_key_store_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
 {
   return keyring_udf_func_init(initid, args, message, (VALIDATE_KEY_ID | VALIDATE_KEY_TYPE | VALIDATE_KEY), 1, 0);
 }
 
 PLUGIN_EXPORT
-void keyring_key_store_deinit(UDF_INIT *initid)
+void keyring_key_store_deinit(UDF_INIT*)
 {}
 
 /**
@@ -229,8 +234,7 @@ void keyring_key_store_deinit(UDF_INIT *initid)
   @return 1 on success, NULL and error on failure
 */
 PLUGIN_EXPORT
-long long keyring_key_store(UDF_INIT *initid, UDF_ARGS *args, char *is_null,
-                            char *error)
+long long keyring_key_store(UDF_INIT*, UDF_ARGS *args, char*, char *error)
 {
   std::string current_user;
 
@@ -252,8 +256,8 @@ long long keyring_key_store(UDF_INIT *initid, UDF_ARGS *args, char *is_null,
   return 1;
 }
 
-static my_bool fetch(const char* function_name, char *key_id, char **a_key,
-                     char **a_key_type, size_t *a_key_len)
+static bool fetch(const char* function_name, char *key_id, char **a_key,
+                  char **a_key_type, size_t *a_key_len)
 {
   std::string current_user;
   if (get_current_user(&current_user))
@@ -293,7 +297,7 @@ static my_bool fetch(const char* function_name, char *key_id, char **a_key,
 }
 
 PLUGIN_EXPORT
-my_bool keyring_key_fetch_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
+bool keyring_key_fetch_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
 {
  return keyring_udf_func_init(initid, args, message, VALIDATE_KEY_ID,
                                MAX_KEYRING_UDF_KEY_TEXT_LENGTH, MAX_KEYRING_UDF_KEY_TEXT_LENGTH);
@@ -316,7 +320,7 @@ void keyring_key_fetch_deinit(UDF_INIT *initid)
   @return key on success, NULL if key does not exist, NULL and error on failure
 */
 PLUGIN_EXPORT
-char *keyring_key_fetch(UDF_INIT *initid, UDF_ARGS *args, char *result,
+char *keyring_key_fetch(UDF_INIT *initid, UDF_ARGS *args, char*,
                         unsigned long *length, char *is_null, char *error)
 {
   char *key= NULL;
@@ -344,7 +348,7 @@ char *keyring_key_fetch(UDF_INIT *initid, UDF_ARGS *args, char *result,
 }
 
 PLUGIN_EXPORT
-my_bool keyring_key_type_fetch_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
+bool keyring_key_type_fetch_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
 {
   return keyring_udf_func_init(initid, args, message, VALIDATE_KEY_ID,
                                KEYRING_UDF_KEY_TYPE_LENGTH, KEYRING_UDF_KEY_TYPE_LENGTH);
@@ -367,7 +371,7 @@ void keyring_key_type_fetch_deinit(UDF_INIT *initid)
   @return key's type on success, NULL if key does not exist, NULL and error on failure
 */
 PLUGIN_EXPORT
-char *keyring_key_type_fetch(UDF_INIT *initid, UDF_ARGS *args, char *result,
+char *keyring_key_type_fetch(UDF_INIT *initid, UDF_ARGS *args, char*,
                              unsigned long *length, char *is_null, char *error)
 {
   char *key_type= NULL;
@@ -396,7 +400,7 @@ char *keyring_key_type_fetch(UDF_INIT *initid, UDF_ARGS *args, char *result,
 }
 
 PLUGIN_EXPORT
-my_bool keyring_key_length_fetch_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
+bool keyring_key_length_fetch_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
 {
   return keyring_udf_func_init(initid, args, message, VALIDATE_KEY_ID,
                                boost::none, 0);
@@ -419,7 +423,7 @@ void keyring_key_length_fetch_deinit(UDF_INIT *initid)
   @return key's length on success, NULL if key does not exist, NULL and error on failure
 */
 PLUGIN_EXPORT
-long long keyring_key_length_fetch(UDF_INIT *initid, UDF_ARGS *args, char *is_null,
+long long keyring_key_length_fetch(UDF_INIT*, UDF_ARGS *args, char *is_null,
                                    char *error)
 {
   size_t key_len= 0;
@@ -438,14 +442,14 @@ long long keyring_key_length_fetch(UDF_INIT *initid, UDF_ARGS *args, char *is_nu
 }
 
 PLUGIN_EXPORT
-my_bool keyring_key_remove_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
+bool keyring_key_remove_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
 {
   return keyring_udf_func_init(initid, args, message, VALIDATE_KEY_ID,
                                1, 0);
 }
 
 PLUGIN_EXPORT
-void keyring_key_remove_deinit(UDF_INIT *initid)
+void keyring_key_remove_deinit(UDF_INIT*)
 {}
 
 /**
@@ -454,8 +458,7 @@ void keyring_key_remove_deinit(UDF_INIT *initid)
   @return 1 on success, NULL on failure
 */
 PLUGIN_EXPORT
-long long keyring_key_remove(UDF_INIT *initid, UDF_ARGS *args, char *is_null,
-                             char *error)
+long long keyring_key_remove(UDF_INIT*, UDF_ARGS *args, char*, char *error)
 {
   std::string current_user;
   if (get_current_user(&current_user))
@@ -474,7 +477,7 @@ long long keyring_key_remove(UDF_INIT *initid, UDF_ARGS *args, char *is_null,
 }
 
 PLUGIN_EXPORT
-my_bool keyring_key_generate_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
+bool keyring_key_generate_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
 {
   return keyring_udf_func_init(initid, args, message,
                                (VALIDATE_KEY_ID | VALIDATE_KEY_TYPE | VALIDATE_KEY_LENGTH),
@@ -482,7 +485,7 @@ my_bool keyring_key_generate_init(UDF_INIT *initid, UDF_ARGS *args, char *messag
 }
 
 PLUGIN_EXPORT
-void keyring_key_generate_deinit(UDF_INIT *initid)
+void keyring_key_generate_deinit(UDF_INIT*)
 {}
 
 /**
@@ -491,8 +494,7 @@ void keyring_key_generate_deinit(UDF_INIT *initid)
   @return 1 on success, NULL and error on failure
 */
 PLUGIN_EXPORT
-long long keyring_key_generate(UDF_INIT *initid, UDF_ARGS *args, char *is_null,
-                               char *error)
+long long keyring_key_generate(UDF_INIT*, UDF_ARGS *args, char*, char *error)
 {
   std::string current_user;
   if (get_current_user(&current_user))

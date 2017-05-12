@@ -1,6 +1,5 @@
 --source include/have_case_insensitive_file_system.inc
---source include/have_innodb.inc
---require r/lowercase2.require
+--source include/have_lowercase2.inc
 
 --echo #
 --echo # Bug#46941 crash with lower_case_table_names=2 and

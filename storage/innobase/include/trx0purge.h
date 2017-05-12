@@ -35,7 +35,6 @@ Created 3/26/1996 Heikki Tuuri
 #include "usr0sess.h"
 #include "fil0fil.h"
 #include "read0types.h"
-#include "srv0start.h"
 
 /** The global data structure coordinating a purge */
 extern trx_purge_t*	purge_sys;
@@ -141,15 +140,9 @@ struct purge_iter_t {
 					space id. */
 };
 
-
-/* Namespace to hold all the related functions and variables need for truncate
-of undo tablespace. */
+/* Namespace to hold all the related functions and variables needed
+to truncate an undo tablespace. */
 namespace undo {
-
-	using undo_spaces_t = std::vector<ulint, ut_allocator<ulint>>;
-
-	using rseg_for_trunc_t = std::vector<
-		trx_rseg_t*, ut_allocator<trx_rseg_t*>>;
 
 	/** Magic Number to indicate truncate action is complete. */
 	const ib_uint32_t			s_magic = 76845412;
@@ -160,6 +153,16 @@ namespace undo {
 	/** Truncate Log file Extension. */
 	const char* const			s_log_ext = "trunc.log";
 
+	/** Build a standard undo tablespace name from a space_id.
+	@param[in]	space_id	id of the undo tablespace.
+	@return tablespace name of the undo tablespace file */
+	char* make_space_name(space_id_t space_id);
+
+	/** Build a standard undo tablespace file name from a space_id.
+	@param[in]	space_id	id of the undo tablespace.
+	@return file_name of the undo tablespace file */
+	char* make_file_name(space_id_t space_id);
+
 	/** Populate log file name based on space_id
 	@param[in]	space_id	id of the undo tablespace.
 	@param[in]	log_file_name	name of the log file
@@ -168,26 +171,88 @@ namespace undo {
 		space_id_t	space_id,
 		char*&		log_file_name);
 
+	struct Tablespace
+	{
+		Tablespace(space_id_t id)
+			:
+			id(id)
+		{
+			m_space_name = nullptr;
+			m_file_name = nullptr;
+		};
+
+		~Tablespace()
+		{
+			if (m_space_name != nullptr) {
+				ut_free(m_space_name);
+				m_space_name = nullptr;
+			}
+			if (m_file_name != nullptr) {
+				ut_free(m_file_name);
+				m_file_name = nullptr;
+			}
+		};
+
+		char* space_name() {
+			if (m_space_name == nullptr) {
+				m_space_name = make_space_name(id);
+			}
+
+			return(m_space_name);
+		}
+
+		char* file_name() {
+			if (m_file_name == nullptr) {
+				m_file_name = make_file_name(id);
+			}
+
+			return(m_file_name);
+		}
+
+		space_id_t	id;
+	private:
+		char*		m_file_name;
+		char*		m_space_name;
+	};
+
 	/** Create the truncate log file.
 	@param[in]	space_id	id of the undo tablespace to truncate.
 	@return DB_SUCCESS or error code. */
 	dberr_t init(space_id_t space_id);
 
-	/** Mark completion of undo truncate action by writing magic number to
-	the log file and then removing it from the disk.
-	If we are going to remove it from disk then why write magic number ?
-	This is to safeguard from unlink (file-system) anomalies that will keep
-	the link to the file even after unlink action is successfull and
-	ref-count = 0.
-	@param[in]	space_id	id of the undo tablespace to truncate.*/
+	/** Mark completion of undo truncate action by writing magic number
+	to the log file and then removing it from the disk.
+	If we are going to remove it from disk then why write magic number?
+	This is to safeguard from unlink (file-system) anomalies that will
+	keep the link to the file even after unlink action is successfull
+	and ref-count = 0.
+	@param[in]	space_id	ID of the undo tablespace to truncate.*/
 	void done(space_id_t space_id);
 
 	/** Check if TRUNCATE_DDL_LOG file exist.
-	@param[in]	space_id	id of the undo tablespace.
+	@param[in]	space_id	ID of the undo tablespace.
 	@return true if exist else false. */
-	bool is_log_present(space_id_t space_id);
+	bool is_active_truncate_log_present(space_id_t space_id);
 
-	/** Track UNDO tablespace mark for truncate. */
+	/** list of undo tablespaces that need header pages and rollback
+	segments written to them at startup.  This can be because they
+	are newly initialized, were being truncated and the system crashed. */
+	extern Space_Ids s_under_construction;
+
+	/** Add undo tablespace to s_under_construction vector.
+	@param[in]	space_id	space id of tablespace to
+	truncate */
+	void add_space_to_construction_list(space_id_t space_id);
+
+	/** Clear the s_under_construction vector. */
+	void clear_construction_list();
+
+	/** Is an undo tablespace under constuction at the moment.
+	@param[in]	space_id	space id to check
+	@return true if marked for truncate, else false. */
+	bool is_under_construction(space_id_t space_id);
+
+	/** Track an UNDO tablespace marked for truncate. */
 	class Truncate {
 	public:
 
@@ -195,7 +260,6 @@ namespace undo {
 			:
 			m_undo_for_trunc(SPACE_UNKNOWN),
 			m_rseg_for_trunc(),
-			m_scan_start(srv_undo_space_id_start),
 			m_purge_rseg_truncate_frequency(
 				static_cast<ulint>(
 				srv_purge_rseg_truncate_frequency))
@@ -208,7 +272,7 @@ namespace undo {
 		void clear()
 		{
 			reset();
-			rseg_for_trunc_t	temp;
+			Rsegs	temp;
 			m_rseg_for_trunc.swap(temp);
 		}
 
@@ -232,7 +296,7 @@ namespace undo {
 		}
 
 		/** Get the tablespace marked for truncate.
-		@return tablespace id marked for truncate. */
+		@return tablespace ID marked for truncate. */
 		space_id_t get_marked_space_id() const
 		{
 			return(m_undo_for_trunc);
@@ -274,61 +338,24 @@ namespace undo {
 				srv_purge_rseg_truncate_frequency);
 		}
 
-		/** Get the tablespace id to start scanning from.
-		@return	id of UNDO tablespace to start scanning from. */
-		space_id_t get_scan_start() const
+		/** Get the tablespace ID to start a scan.
+		@return	UNDO space_id to start scanning. */
+		space_id_t get_scan_space_id() const
 		{
-			return(m_scan_start);
+			return(trx_sys_undo_spaces->at(s_scan_pos));
 		}
 
-		/** Set the tablespace id to start scanning from. */
-		void set_scan_start(space_id_t	space_id)
+		/** Increment the scanning position in a round-robin fashion.
+		@return	UNDO space_id at incremented scanning position. */
+		space_id_t increment_scan() const
 		{
-			m_scan_start = space_id;
-		}
+			/** Round-robin way of selecting an undo tablespace
+			for the truncate operation. Once we reach the end of
+			the list of active undo tablespace IDs, move back to
+			the first undo tablespace ID. */
+			++s_scan_pos %= trx_sys_undo_spaces->size();
 
-		/** Check if the tablespace needs fix-up (based on presence of
-		DDL truncate log)
-		@param	space_id	space id of the undo tablespace to check
-		@return true if fix up is needed else false */
-		bool needs_fix_up(space_id_t space_id) const
-		{
-			return(is_log_present(space_id));
-		}
-
-		/** Add undo tablespace to truncate vector.
-		@param[in]	space_id	space id of tablespace to
-						truncate */
-		static void add_space_to_trunc_list(space_id_t space_id)
-		{
-			s_spaces_to_truncate.push_back(space_id);
-		}
-
-		/** Clear the truncate vector. */
-		static void clear_trunc_list()
-		{
-			s_spaces_to_truncate.clear();
-		}
-
-		/** Is tablespace marked for truncate.
-		@param[in]	space_id	space id to check
-		@return true if marked for truncate, else false. */
-		static bool is_tablespace_truncated(space_id_t space_id)
-		{
-			return(std::find(s_spaces_to_truncate.begin(),
-					 s_spaces_to_truncate.end(), space_id)
-			       != s_spaces_to_truncate.end());
-		}
-
-		/** Was a tablespace truncated at startup
-		@param[in]	space_id	space id to check
-		@return whether space_id was truncated at startup */
-		static bool was_tablespace_truncated(space_id_t space_id)
-		{
-			return(std::find(s_fix_up_spaces.begin(),
-					 s_fix_up_spaces.end(),
-					 space_id)
-			       != s_fix_up_spaces.end());
+			return(get_scan_space_id());
 		}
 
 		/** Get local rseg purge truncate frequency
@@ -361,11 +388,7 @@ namespace undo {
 
 		/** rseg that resides in UNDO tablespace is marked for
 		truncate. */
-		rseg_for_trunc_t	m_rseg_for_trunc;
-
-		/** Start scanning for UNDO tablespace from this space_id.
-		This is to avoid bias selection of one tablespace always. */
-		space_id_t		m_scan_start;
+		Rsegs			m_rseg_for_trunc;
 
 		/** Rollback segment(s) purge frequency. This is local
 		value maintained along with global value. It is set to global
@@ -374,11 +397,11 @@ namespace undo {
 		purge action. */
 		ulint			m_purge_rseg_truncate_frequency;
 
-		/** List of UNDO tablespace(s) to truncate. */
-		static undo_spaces_t	s_spaces_to_truncate;
-	public:
-		/** Undo tablespaces that were truncated at startup */
-		static undo_spaces_t	s_fix_up_spaces;
+		/** Start scanning for UNDO tablespace from this
+		vector position. This is to avoid bias selection
+		of one tablespace always. */
+		static size_t		s_scan_pos;
+
 	};	/* class Truncate */
 
 }	/* namespace undo */
@@ -466,8 +489,7 @@ struct trx_purge_t{
 					records */
 };
 
-/**
-Chooses the rollback segment with the smallest trx_no. */
+/** Choose the rollback segment with the smallest trx_no. */
 struct TrxUndoRsegsIterator {
 
 	/** Constructor */
@@ -492,7 +514,7 @@ private:
 	TrxUndoRsegs			m_trx_undo_rsegs;
 
 	/** Track the current element in m_trx_undo_rseg */
-	TrxUndoRsegs::iterator		m_iter;
+	Rseg_Iterator			m_iter;
 
 	/** Sentinel value */
 	static const TrxUndoRsegs	NullElement;

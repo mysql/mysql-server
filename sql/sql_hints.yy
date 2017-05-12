@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -63,6 +63,12 @@
 %token SUBQUERY_HINT
 %token DERIVED_MERGE_HINT
 %token NO_DERIVED_MERGE_HINT
+%token JOIN_PREFIX_HINT
+%token JOIN_SUFFIX_HINT
+%token JOIN_ORDER_HINT
+%token JOIN_FIXED_ORDER_HINT
+%token INDEX_MERGE_HINT
+%token NO_INDEX_MERGE_HINT
 
 /* Other tokens */
 
@@ -286,6 +292,55 @@ qb_level_hint:
             if ($$ == NULL)
               YYABORT; // OOM
           }
+          |
+          JOIN_PREFIX_HINT '(' opt_hint_param_table_list ')'
+          {
+            $$= NEW_PTN PT_qb_level_hint(NULL_CSTR, TRUE, JOIN_PREFIX_HINT_ENUM, $3);
+            if ($$ == NULL)
+              YYABORT; // OOM
+          }
+          |
+          JOIN_PREFIX_HINT '(' HINT_ARG_QB_NAME opt_hint_param_table_list_empty_qb ')'
+          {
+            $$= NEW_PTN PT_qb_level_hint($3, TRUE, JOIN_PREFIX_HINT_ENUM, $4);
+            if ($$ == NULL)
+              YYABORT; // OOM
+          }
+          |
+          JOIN_SUFFIX_HINT '(' opt_hint_param_table_list ')'
+          {
+            $$= NEW_PTN PT_qb_level_hint(NULL_CSTR, TRUE, JOIN_SUFFIX_HINT_ENUM, $3);
+            if ($$ == NULL)
+              YYABORT; // OOM
+          }
+          |
+          JOIN_SUFFIX_HINT '(' HINT_ARG_QB_NAME opt_hint_param_table_list_empty_qb ')'
+          {
+            $$= NEW_PTN PT_qb_level_hint($3, TRUE, JOIN_SUFFIX_HINT_ENUM, $4);
+            if ($$ == NULL)
+              YYABORT; // OOM
+          }
+          |
+          JOIN_ORDER_HINT '(' opt_hint_param_table_list ')'
+          {
+            $$= NEW_PTN PT_qb_level_hint(NULL_CSTR, TRUE, JOIN_ORDER_HINT_ENUM, $3);
+            if ($$ == NULL)
+              YYABORT; // OOM
+          }
+          |
+          JOIN_ORDER_HINT '(' HINT_ARG_QB_NAME opt_hint_param_table_list_empty_qb ')'
+          {
+            $$= NEW_PTN PT_qb_level_hint($3, TRUE, JOIN_ORDER_HINT_ENUM, $4);
+            if ($$ == NULL)
+              YYABORT; // OOM
+          }
+          |
+          JOIN_FIXED_ORDER_HINT '(' opt_qb_name  ')'
+          {
+            $$= NEW_PTN PT_qb_level_hint($3, TRUE, JOIN_FIXED_ORDER_HINT_ENUM, 0);
+            if ($$ == NULL)
+              YYABORT; // OOM
+          }
           ;
 
 semijoin_strategies:
@@ -399,6 +454,10 @@ key_level_hint_type_on:
           {
             $$= NO_RANGE_HINT_ENUM;
           }
+        | INDEX_MERGE_HINT
+          {
+            $$= INDEX_MERGE_HINT_ENUM;
+          }
         ;
 
 key_level_hint_type_off:
@@ -409,6 +468,10 @@ key_level_hint_type_off:
         | NO_MRR_HINT
           {
             $$= MRR_HINT_ENUM;
+          }
+        | NO_INDEX_MERGE_HINT
+          {
+            $$= INDEX_MERGE_HINT_ENUM;
           }
         ;
 

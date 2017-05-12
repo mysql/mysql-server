@@ -1156,11 +1156,16 @@ SELECT * FROM t1 UNION SELECT * FROM t1 ORDER BY a + 12;
 --echo # Should not crash
 SELECT * FROM t1 UNION SELECT * FROM t1 ORDER BY a + 12;
 
-
 --echo # Should not crash
 EXPLAIN EXTENDED
 SELECT * FROM t1 UNION SELECT * FROM t1
   ORDER BY MATCH(a) AGAINST ('+abc' IN BOOLEAN MODE);
+
+--echo # Should not crash
+WITH cte AS (
+SELECT * FROM t1 UNION SELECT * FROM t1
+  ORDER BY MATCH(a) AGAINST ('+abc' IN BOOLEAN MODE)
+) SELECT * FROM cte;
 
 --echo # Should not crash
 SELECT * FROM t1 UNION SELECT * FROM t1
@@ -1951,3 +1956,55 @@ SELECT FOUND_ROWS();
 DROP TABLE t1;
 
 --echo #End of test for Bug#22602381
+
+--echo # INSERT SELECT using UNION ALL:
+--echo # UNION should create no tmp table if not at the top level.
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(2);
+CREATE TABLE t2 LIKE t1;
+FLUSH STATUS;
+SELECT * FROM t1 UNION ALL SELECT * FROM t1;
+SHOW STATUS LIKE "handler_write";
+FLUSH STATUS;
+INSERT INTO t2
+SELECT * FROM t1 UNION ALL SELECT * FROM t1;
+SHOW STATUS LIKE "handler_write";
+SELECT * FROM t2;
+DELETE FROM t2;
+FLUSH STATUS;
+INSERT INTO t2
+SELECT * FROM (SELECT * FROM t1 UNION ALL SELECT * FROM t1) AS dt;
+SHOW STATUS LIKE "handler_write";
+SELECT * FROM t2;
+
+DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug#24808970 CREATED_TMP_TABLES STATISTIC IS WRONG
+--echo #
+
+FLUSH STATUS;
+SELECT 1 UNION ALL SELECT 2;
+
+# We properly report: 0 tables
+SHOW STATUS LIKE 'Created_tmp_%tables';
+
+FLUSH STATUS;
+SELECT 1 UNION DISTINCT SELECT 2;
+
+# In normal mode, the query above creates one tmp table, so SHOW
+# STATUS reports 1;
+# in PS mode, the preparation phase creates one, and the execution
+# phase does, too. So SHOW reports 2. To have a single result in both
+# modes, we use this complex query instead of SHOW.
+
+--disable_query_log
+eval select variable_name,
+            variable_value -
+            (case when variable_name not like "%disk%" and ($PS_PROTOCOL > 0)
+             then 1 else 0 end)
+            as tweaked_value
+from performance_schema.session_status
+where variable_name like 'created_tmp_%tables';
+--enable_query_log

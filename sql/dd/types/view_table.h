@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +16,6 @@
 #ifndef DD__VIEW_TABLE_INCLUDED
 #define DD__VIEW_TABLE_INCLUDED
 
-#include "my_global.h"
 
 #include "dd/types/weak_object.h"    // dd::Weak_object
 
@@ -52,22 +51,22 @@ public:
   // XXX: do we need it now?
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &table_catalog() const = 0;
-  virtual void set_table_catalog(const std::string &table_catalog) = 0;
+  virtual const String_type &table_catalog() const = 0;
+  virtual void set_table_catalog(const String_type &table_catalog) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // View table schema name.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &table_schema() const = 0;
-  virtual void set_table_schema(const std::string &table_schema) = 0;
+  virtual const String_type &table_schema() const = 0;
+  virtual void set_table_schema(const String_type &table_schema) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // View table name.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &table_name() const = 0;
-  virtual void set_table_name(const std::string &table_name) = 0;
+  virtual const String_type &table_name() const = 0;
+  virtual void set_table_name(const String_type &table_name) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // Parent view.

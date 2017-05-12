@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,26 +23,29 @@ Implements a buffer pool dump/load.
 Created April 08, 2011 Vasil Dimov
 *******************************************************/
 
-#include "my_global.h"
-#include "my_sys.h"
-#include "my_thread.h"
-
-#include "mysql/psi/mysql_stage.h"
-
-#include "univ.i"
+#include <errno.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <algorithm>
 
 #include "buf0buf.h"
 #include "buf0dump.h"
 #include "dict0dict.h"
+#include "my_compiler.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_psi_config.h"
+#include "my_sys.h"
+#include "my_thread.h"
+#include "mysql/psi/mysql_stage.h"
 #include "os0file.h"
+#include "os0thread-create.h"
 #include "os0thread.h"
 #include "srv0srv.h"
 #include "srv0start.h"
 #include "sync0rw.h"
+#include "univ.i"
 #include "ut0byte.h"
-#include "os0thread-create.h"
-
-#include <algorithm>
 
 enum status_severity {
 	STATUS_VERBOSE,
@@ -101,7 +104,7 @@ Sets the global variable that feeds MySQL's innodb_buffer_pool_dump_status
 to the specified string. The format and the following parameters are the
 same as the ones used for printf(3). The value of this variable can be
 retrieved by:
-SELECT variable_value FROM information_schema.global_status WHERE
+SELECT variable_value FROM performance_schema.global_status WHERE
 variable_name = 'INNODB_BUFFER_POOL_DUMP_STATUS';
 or by:
 SHOW STATUS LIKE 'innodb_buffer_pool_dump_status'; */
@@ -144,7 +147,7 @@ Sets the global variable that feeds MySQL's innodb_buffer_pool_load_status
 to the specified string. The format and the following parameters are the
 same as the ones used for printf(3). The value of this variable can be
 retrieved by:
-SELECT variable_value FROM information_schema.global_status WHERE
+SELECT variable_value FROM performance_schema.global_status WHERE
 variable_name = 'INNODB_BUFFER_POOL_LOAD_STATUS';
 or by:
 SHOW STATUS LIKE 'innodb_buffer_pool_load_status'; */
@@ -756,6 +759,8 @@ buf_dump_thread()
 {
 	ut_ad(!srv_read_only_mode);
 
+	my_thread_init();
+
 	srv_buf_dump_thread_active = TRUE;
 
 	buf_dump_status(STATUS_VERBOSE, "Dumping of buffer pool not started");
@@ -788,4 +793,6 @@ buf_dump_thread()
 	}
 
 	srv_buf_dump_thread_active = FALSE;
+
+	my_thread_end();
 }

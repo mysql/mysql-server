@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,10 +17,18 @@
   @file mysys/my_delete.cc
 */
 
-#include "mysys_priv.h"
-#include "mysys_err.h"
-#include <my_sys.h>
+#include "my_config.h"
+
+#include <errno.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
 #include "my_thread_local.h"
+#include "mysys_err.h"
 
 
 int my_delete(const char *name, myf MyFlags)

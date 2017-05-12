@@ -1,4 +1,3 @@
---source include/have_innodb.inc
 --source include/have_innodb_max_16k.inc
 --source include/have_no_undo_tablespaces.inc
 --source include/big_test.inc
@@ -7,6 +6,16 @@
 --source include/not_embedded.inc
 # Avoid CrashReporter popup on Mac
 --source include/not_crashrep.inc
+
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs107=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema default character set latin1;
+use test;
+--enable_query_log
+########################################
 
 ####################################################################
 # TC to test temp-table undolog changes correctness                #
@@ -32,10 +41,7 @@
 
 # run for page size >= 8k
 --disable_warnings
-if (`SELECT COUNT(*) = 0 FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_page_size' AND variable_value >= 8192`)
-{
-  --skip Test requires InnoDB with page size >= 8k.
-}
+--source include/have_innodb_min_8k.inc
 --enable_warnings
 
 call mtr.ADD_suppression(".*Resizing redo log.*");
@@ -586,3 +592,10 @@ SHOW TABLES;
 eval set global innodb_file_per_table=$innodb_file_per_table_orig;
 -- enable_query_log
 
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs107;
+--enable_query_log
+########################################

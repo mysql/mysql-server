@@ -1,5 +1,5 @@
 DROP DATABASE IF EXISTS test1;
-CREATE DATABASE test1;
+CREATE DATABASE test1 charset latin1;
 USE test;
 drop table if exists tb1 ;
 create table tb1 (
@@ -61,7 +61,7 @@ f55 numeric zerofill not null DEFAULT 99,
 f56 numeric unsigned zerofill not null DEFAULT 99,
 f57 numeric (0) not null DEFAULT 99,
 f58 numeric (64) not null DEFAULT 99
-) engine = innodb;
+) charset latin1 engine = innodb;
 Warnings:
 Note	1265	Data truncated for column 'f36' at row 1
 Note	1265	Data truncated for column 'f37' at row 1
@@ -77,7 +77,7 @@ Note	1265	Data truncated for column 'f47' at row 1
 Note	1265	Data truncated for column 'f49' at row 1
 Note	1265	Data truncated for column 'f51' at row 1
 load data infile '<MYSQLTEST_VARDIR>/std_data/funcs_1/innodb_tb1.txt'
-into table tb1;
+into table tb1 CHARACTER SET latin1;
 drop table if exists tb2 ;
 create table tb2 (
 f59 numeric (0) unsigned,
@@ -131,9 +131,9 @@ f106 year(4) not null default 2000,
 f107 year(4) not null default 2000,
 f108 enum("1enum","2enum") not null default "1enum",
 f109 set("1set","2set") not null default "1set"
-) engine = innodb;
+) charset latin1 engine = innodb;
 load data infile '<MYSQLTEST_VARDIR>/std_data/funcs_1/innodb_tb2.txt'
-into table tb2;
+into table tb2 CHARACTER SET latin1 ;
 drop table if exists tb3 ;
 create table tb3 (
 f118 char not null DEFAULT 'a',
@@ -194,13 +194,13 @@ f172 numeric zerofill,
 f173 numeric unsigned zerofill,
 f174 numeric (0),
 f175 numeric (64)
-) engine = innodb;
+) charset latin1 engine = innodb;
 Warnings:
 Note	1265	Data truncated for column 'f150' at row 1
 Note	1265	Data truncated for column 'f151' at row 1
 Note	1265	Data truncated for column 'f152' at row 1
 load data infile '<MYSQLTEST_VARDIR>/std_data/funcs_1/innodb_tb3.txt'
-into table tb3;
+into table tb3 CHARACTER SET latin1;
 drop table if exists tb4;
 create table tb4 (
 f176 numeric (0) unsigned not null DEFAULT 9,
@@ -261,9 +261,9 @@ f238 varchar(0),
 f239 varchar(20000) binary,
 f240 varchar(2000),
 f241 char(100)
-) engine = innodb;
+) charset latin1 engine = innodb;
 load data infile '<MYSQLTEST_VARDIR>/std_data/funcs_1/innodb_tb4.txt'
-into table tb4;
+into table tb4 CHARACTER SET latin1;
 USE test1;
 drop table if exists tb2 ;
 create table tb2 (
@@ -318,9 +318,9 @@ f106 year(4) not null default 2000,
 f107 year(4) not null default 2000,
 f108 enum("1enum","2enum") not null default "1enum",
 f109 set("1set","2set") not null default "1set"
-) engine = innodb;
+) charset latin1 engine = innodb;
 load data infile '<MYSQLTEST_VARDIR>/std_data/funcs_1/innodb_tb2.txt'
-into table tb2;
+into table tb2 CHARACTER SET latin1 ;
 USE test;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 Warnings:
@@ -328,34 +328,42 @@ Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be r
 USE test;
 DROP TABLE IF EXISTS t1, t2, t4, t10, t11;
 CREATE TABLE t1  (f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int)
-ENGINE = InnoDB;
+charset latin1 ENGINE = InnoDB;
 CREATE TABLE t2  (f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int)
-ENGINE = InnoDB;
+charset latin1 ENGINE = InnoDB;
 CREATE TABLE t4  (f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int)
-ENGINE = InnoDB;
+charset latin1 ENGINE = InnoDB;
 CREATE TABLE t10 (f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int)
-ENGINE = InnoDB;
+charset latin1 ENGINE = InnoDB;
 CREATE TABLE t11 (f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int)
-ENGINE = InnoDB;
-LOAD DATA INFILE '<MYSQLTEST_VARDIR>/std_data/funcs_1/t4.txt' INTO TABLE t1;
-LOAD DATA INFILE '<MYSQLTEST_VARDIR>/std_data/funcs_1/t4.txt' INTO TABLE t2;
-LOAD DATA INFILE '<MYSQLTEST_VARDIR>/std_data/funcs_1/t4.txt' INTO TABLE t4;
-LOAD DATA INFILE '<MYSQLTEST_VARDIR>/std_data/funcs_1/t4.txt' INTO TABLE t10;
-LOAD DATA INFILE '<MYSQLTEST_VARDIR>/std_data/funcs_1/t4.txt' INTO TABLE t11;
+charset latin1 ENGINE = InnoDB;
+LOAD DATA INFILE '<MYSQLTEST_VARDIR>/std_data/funcs_1/t4.txt' INTO TABLE t1
+character set latin1;
+LOAD DATA INFILE '<MYSQLTEST_VARDIR>/std_data/funcs_1/t4.txt' INTO TABLE t2
+character set latin1;
+LOAD DATA INFILE '<MYSQLTEST_VARDIR>/std_data/funcs_1/t4.txt' INTO TABLE t4
+character set latin1;
+LOAD DATA INFILE '<MYSQLTEST_VARDIR>/std_data/funcs_1/t4.txt' INTO TABLE t10
+character set latin1;
+LOAD DATA INFILE '<MYSQLTEST_VARDIR>/std_data/funcs_1/t4.txt' INTO TABLE t11
+character set latin1;
 drop TABLE if exists t3;
-CREATE TABLE t3 (f1 char(20), f2 char(20), f3 integer) ENGINE = InnoDB;
-LOAD DATA INFILE '<MYSQLTEST_VARDIR>/std_data/funcs_1/t3.txt' INTO TABLE t3;
+CREATE TABLE t3 (f1 char(20), f2 char(20), f3 integer) charset latin1 ENGINE = InnoDB;
+LOAD DATA INFILE '<MYSQLTEST_VARDIR>/std_data/funcs_1/t3.txt' INTO TABLE t3
+character set latin1;
 drop database if exists test4;
 CREATE database test4;
 use test4;
 CREATE TABLE t6 (f1 char(20), f2 char(25), f3 date, f4 int, f5 char(25), f6 int)
-ENGINE = InnoDB;
-LOAD DATA INFILE '<MYSQLTEST_VARDIR>/std_data/funcs_1/t4.txt' INTO TABLE t6;
+charset latin1 ENGINE = InnoDB;
+LOAD DATA INFILE '<MYSQLTEST_VARDIR>/std_data/funcs_1/t4.txt' INTO TABLE t6
+character set latin1;
 use test;
 drop TABLE if exists t7, t8;
-CREATE TABLE t7 (f1 char(20),f2 char(25),f3 date,f4 int) ENGINE = InnoDB;
-CREATE TABLE t8 (f1 char(20),f2 char(25),f3 date,f4 int) ENGINE = InnoDB;
-LOAD DATA INFILE '<MYSQLTEST_VARDIR>/std_data/funcs_1/t7.txt' INTO TABLE t7;
+CREATE TABLE t7 (f1 char(20),f2 char(25),f3 date,f4 int) charset latin1 ENGINE = InnoDB;
+CREATE TABLE t8 (f1 char(20),f2 char(25),f3 date,f4 int) charset latin1 ENGINE = InnoDB;
+LOAD DATA INFILE '<MYSQLTEST_VARDIR>/std_data/funcs_1/t7.txt' INTO TABLE t7
+character set latin1;
 Warnings:
 Warning	1265	Data truncated for column 'f3' at row 1
 Warning	1265	Data truncated for column 'f3' at row 2
@@ -367,7 +375,8 @@ Warning	1265	Data truncated for column 'f3' at row 7
 Warning	1265	Data truncated for column 'f3' at row 8
 Warning	1265	Data truncated for column 'f3' at row 9
 Warning	1265	Data truncated for column 'f3' at row 10
-LOAD DATA INFILE '<MYSQLTEST_VARDIR>/std_data/funcs_1/t7.txt' INTO TABLE t8;
+LOAD DATA INFILE '<MYSQLTEST_VARDIR>/std_data/funcs_1/t7.txt' INTO TABLE t8
+character set latin1;
 Warnings:
 Warning	1265	Data truncated for column 'f3' at row 1
 Warning	1265	Data truncated for column 'f3' at row 2
@@ -380,8 +389,9 @@ Warning	1265	Data truncated for column 'f3' at row 8
 Warning	1265	Data truncated for column 'f3' at row 9
 Warning	1265	Data truncated for column 'f3' at row 10
 drop TABLE if exists t9;
-CREATE TABLE t9 (f1 int, f2 char(25), f3 int) ENGINE = InnoDB;
-LOAD DATA INFILE '<MYSQLTEST_VARDIR>/std_data/funcs_1/t9.txt' INTO TABLE t9;
+CREATE TABLE t9 (f1 int, f2 char(25), f3 int) charset latin1 ENGINE = InnoDB;
+LOAD DATA INFILE '<MYSQLTEST_VARDIR>/std_data/funcs_1/t9.txt' INTO TABLE t9
+character set latin1;
 SET sql_mode = default;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 Warnings:

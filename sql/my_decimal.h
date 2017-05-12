@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,11 +28,15 @@
   Most function are just inline wrappers around library calls
 */
 
-#include "my_global.h"
-#include "sql_string.h"                         /* String */
-
 #include <decimal.h>
+#include <stdlib.h>
+#include <sys/types.h>
 #include <algorithm>
+
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
+#include "sql_string.h"                         /* String */
 
 typedef struct st_mysql_time MYSQL_TIME;
 
@@ -155,10 +159,13 @@ public:
   {
     init();
   }
+
+#ifndef DBUG_OFF
   ~my_decimal()
   {
     sanity_check();
   }
+#endif // DBUG_OFF
 
   void sanity_check() const
   {
@@ -178,8 +185,8 @@ public:
   }
 
   // Error reporting in server code only.
-  int check_result(uint mask, int result) const
-#ifdef MYSQL_CLIENT
+  int check_result(uint, int result) const
+#ifndef MYSQL_SERVER
   {
     return result;
   }
@@ -359,7 +366,7 @@ int my_decimal2string(uint mask, const my_decimal *d, uint fixed_prec,
 		      uint fixed_dec, char filler, String *str);
 
 inline
-int my_decimal2int(uint mask, const my_decimal *d, my_bool unsigned_flag,
+int my_decimal2int(uint mask, const my_decimal *d, bool unsigned_flag,
 		   longlong *l)
 {
   my_decimal rounded;
@@ -421,7 +428,7 @@ int double2my_decimal(uint mask, double val, my_decimal *d)
 
 
 inline
-int int2my_decimal(uint mask, longlong i, my_bool unsigned_flag, my_decimal *d)
+int int2my_decimal(uint mask, longlong i, bool unsigned_flag, my_decimal *d)
 {
   return d->check_result(mask, (unsigned_flag ?
                                 ulonglong2decimal((ulonglong)i, d) :

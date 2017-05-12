@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -16,6 +16,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
+#include "my_compiler.h"
+#include "my_inttypes.h"
+
 /********************************************************************//**
 @file rem/rec.h
 Record manager
@@ -30,8 +33,8 @@ external tools. */
 #ifndef rem_rec_h
 #define rem_rec_h
 
-#include "dict0dict.h"
 #include "dict0boot.h"
+#include "dict0dict.h"
 
 /* Compact flag ORed to the extra size returned by rec_get_offsets() */
 #define REC_OFFS_COMPACT	((ulint) 1 << 31)
@@ -147,7 +150,7 @@ significant bit denotes that the tail of a field is stored off-page. */
 
 /* Number of elements that should be initially allocated for the
 offsets[] array, first passed to rec_get_offsets() */
-#define REC_OFFS_NORMAL_SIZE	OFFS_IN_REC_NORMAL_SIZE
+#define REC_OFFS_NORMAL_SIZE	100
 #define REC_OFFS_SMALL_SIZE	10
 
 /* Get the base address of offsets.  The extra_size is stored at

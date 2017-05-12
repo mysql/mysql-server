@@ -1,5 +1,2 @@
---source include/have_innodb.inc
---source include/have_innodb_16k.inc
-
 let $engine= InnoDB;
 --source include/ctype_utf8mb4.inc

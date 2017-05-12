@@ -21,7 +21,7 @@
 --echo ================================================================================
 --echo PREAMBLE
 --echo ================================================================================
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 CREATE USER deletesqluser@localhost  identified by 'deletesqluser';
 GRANT ALL ON *.* TO deletesqluser@localhost;
 

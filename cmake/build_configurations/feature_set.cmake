@@ -18,7 +18,6 @@ SET(FEATURE_SET "community" CACHE STRING
 )
 
 IF(FEATURE_SET AND NOT WITHOUT_SERVER)
-  SET(WITH_EMBEDDED_SERVER ON CACHE BOOL "")
 
   # Set these ON by default. They can be disabled with
   # -DWITHOUT_${eng}_STORAGE_ENGINE

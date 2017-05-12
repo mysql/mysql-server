@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,20 +15,33 @@
 
 
 #include "mdl.h"
-#include "debug_sync.h"
-#include "prealloced_array.h"
-#include <lf.h>
-#include <mysqld_error.h>
-#include <mysql/plugin.h>
-#include <mysql/service_thd_wait.h>
-#include <pfs_metadata_provider.h>
-#include <mysql/psi/mysql_mdl.h>
-#include <pfs_stage_provider.h>
-#include <mysql/psi/mysql_stage.h>
-#include <my_murmur3.h>
+
+#include <time.h>
 #include <algorithm>
 #include <functional>
+
+#include "debug_sync.h"
+#include "lf.h"
+#include "m_ctype.h"
+#include "my_atomic.h"
+#include "my_dbug.h"
+#include "my_murmur3.h"
+#include "my_sharedlib.h"
+#include "my_sys.h"
+#include "my_systime.h"
+#include "my_thread.h"
+#include "mysql/psi/mysql_mdl.h"
 #include "mysql/psi/mysql_memory.h"
+#include "mysql/psi/mysql_stage.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_cond.h"
+#include "mysql/psi/psi_memory.h"
+#include "mysql/psi/psi_mutex.h"
+#include "mysql/psi/psi_rwlock.h"
+#include "mysql/service_thd_wait.h"
+#include "mysqld_error.h"
+#include "prealloced_array.h"
+#include "thr_malloc.h"
 
 extern "C" MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
 
@@ -71,16 +84,16 @@ static void init_mdl_psi_keys(void)
 {
   int count;
 
-  count= array_elements(all_mdl_mutexes);
+  count= static_cast<int>(array_elements(all_mdl_mutexes));
   mysql_mutex_register("sql", all_mdl_mutexes, count);
 
-  count= array_elements(all_mdl_rwlocks);
+  count= static_cast<int>(array_elements(all_mdl_rwlocks));
   mysql_rwlock_register("sql", all_mdl_rwlocks, count);
 
-  count= array_elements(all_mdl_conds);
+  count= static_cast<int>(array_elements(all_mdl_conds));
   mysql_cond_register("sql", all_mdl_conds, count);
 
-  count= array_elements(all_mdl_memory);
+  count= static_cast<int>(array_elements(all_mdl_memory));
   mysql_memory_register("sql", all_mdl_memory, count);
 
   MDL_key::init_psi_keys();
@@ -117,7 +130,8 @@ void MDL_key::init_psi_keys()
   int count;
   PSI_stage_info *info MY_ATTRIBUTE((unused));
 
-  count= array_elements(MDL_key::m_namespace_to_wait_state_name);
+  count=
+    static_cast<int>(array_elements(MDL_key::m_namespace_to_wait_state_name));
   for (i= 0; i<count; i++)
   {
     /* mysql_stage_register wants an array of pointers, registering 1 by 1. */
@@ -1890,8 +1904,7 @@ MDL_wait::timed_wait(MDL_context_owner *owner, struct timespec *abs_timeout,
   owner->ENTER_COND(&m_COND_wait_status, &m_LOCK_wait_status,
                     wait_state_name, & old_stage);
   thd_wait_begin(NULL, THD_WAIT_META_DATA_LOCK);
-  while (!m_wait_status && !owner->is_killed() &&
-         wait_result != ETIMEDOUT && wait_result != ETIME)
+  while (!m_wait_status && !owner->is_killed() && !is_timeout(wait_result))
   {
     wait_result= mysql_cond_timedwait(&m_COND_wait_status, &m_LOCK_wait_status,
                                       abs_timeout);
@@ -3097,10 +3110,11 @@ MDL_context::try_acquire_lock_impl(MDL_request *mdl_request,
   {
     mysql_mdl_set_status(ticket->m_psi, MDL_ticket::PRE_ACQUIRE_NOTIFY);
 
-    if (m_owner->notify_hton_pre_acquire_exclusive(key))
+    bool victimized;
+    if (m_owner->notify_hton_pre_acquire_exclusive(key, &victimized))
     {
       MDL_ticket::destroy(ticket);
-      my_error(ER_LOCK_REFUSED_BY_ENGINE, MYF(0));
+      my_error(victimized ? ER_LOCK_DEADLOCK : ER_LOCK_REFUSED_BY_ENGINE, MYF(0));
       return TRUE;
     }
     ticket->m_hton_notified= true;
@@ -3435,10 +3449,11 @@ MDL_context::clone_ticket(MDL_request *mdl_request)
 
     mysql_mdl_set_status(ticket->m_psi, MDL_ticket::PRE_ACQUIRE_NOTIFY);
 
-    if (m_owner->notify_hton_pre_acquire_exclusive(&mdl_request->key))
+    bool victimized;
+    if (m_owner->notify_hton_pre_acquire_exclusive(&mdl_request->key, &victimized))
     {
       MDL_ticket::destroy(ticket);
-      my_error(ER_LOCK_REFUSED_BY_ENGINE, MYF(0));
+      my_error(victimized ? ER_LOCK_DEADLOCK : ER_LOCK_REFUSED_BY_ENGINE, MYF(0));
       return TRUE;
     }
     ticket->m_hton_notified= true;
@@ -4788,6 +4803,42 @@ bool MDL_context::has_locks(MDL_key::enum_mdl_namespace mdl_namespace) const
   }
   return false;
 }
+
+
+/**
+  Do we hold any locks which are possibly being waited
+  for by another MDL_context?
+
+  @retval TRUE  A lock being 'waited_for' was found.
+  @retval FALSE No one waits for the lock(s) we hold.
+
+  @note Should only be called from the thread which
+        owns the MDL_context
+*/
+
+bool MDL_context::has_locks_waited_for() const
+{
+  MDL_ticket *ticket;
+
+  for (int i=0; i < MDL_DURATION_END; i++)
+  {
+    const enum_mdl_duration duration= static_cast<enum_mdl_duration>(i);
+    Ticket_iterator it(m_tickets[duration]);
+    while ((ticket= it++))
+    {
+      MDL_lock *const lock= ticket->m_lock;
+
+      mysql_prlock_rdlock(&lock->m_rwlock);
+      const bool has_waiters= !lock->m_waiting.is_empty();
+      mysql_prlock_unlock(&lock->m_rwlock);
+
+      if (!has_waiters)
+        return true;
+    }
+  }
+  return false;
+}
+
 
 
 /**

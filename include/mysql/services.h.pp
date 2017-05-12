@@ -63,12 +63,21 @@ typedef struct st_com_set_option_data
 {
   unsigned int opt_command;
 } COM_SET_OPTION_DATA;
+typedef struct st_ps_param
+{
+  unsigned char null_bit;
+  enum enum_field_types type;
+  unsigned char unsigned_type;
+  const unsigned char *value;
+  unsigned long length;
+} PS_PARAM;
 typedef struct st_com_stmt_execute_data
 {
   unsigned long stmt_id;
-  unsigned long flags;
-  unsigned char *params;
-  unsigned long params_length;
+  unsigned long open_cursor;
+  PS_PARAM *parameters;
+  unsigned long parameter_count;
+  unsigned char has_new_types;
 } COM_STMT_EXECUTE_DATA;
 typedef struct st_com_stmt_fetch_data
 {
@@ -122,6 +131,24 @@ union COM_DATA {
   COM_FIELD_LIST_DATA com_field_list;
 };
 #include "mysql_time.h"
+#include "my_inttypes.h"
+#include "my_config.h"
+typedef unsigned char uchar;
+typedef signed char int8;
+typedef unsigned char uint8;
+typedef short int16;
+typedef unsigned short uint16;
+typedef int int32;
+typedef unsigned int uint32;
+typedef unsigned long long int ulonglong;
+typedef long long int longlong;
+typedef longlong int64;
+typedef ulonglong uint64;
+typedef unsigned long long my_ulonglong;
+typedef intptr_t intptr;
+typedef ulonglong my_off_t;
+typedef ptrdiff_t my_ptrdiff_t;
+typedef int myf;
 enum enum_mysql_timestamp_type
 {
   MYSQL_TIMESTAMP_NONE= -2, MYSQL_TIMESTAMP_ERROR= -1,
@@ -131,18 +158,19 @@ typedef struct st_mysql_time
 {
   unsigned int year, month, day, hour, minute, second;
   unsigned long second_part;
-  my_bool neg;
+  bool neg;
   enum enum_mysql_timestamp_type time_type;
 } MYSQL_TIME;
 #include "decimal.h"
-C_MODE_START
+#include "my_inttypes.h"
+#include "my_macros.h"
 typedef enum
 {TRUNCATE=0, HALF_EVEN, HALF_UP, CEILING, FLOOR}
   decimal_round_mode;
 typedef int32 decimal_digit_t;
 typedef struct st_decimal_t {
   int intg, frac, len;
-  my_bool sign;
+  bool sign;
   decimal_digit_t *buf;
 } decimal_t;
 struct st_send_field
@@ -343,7 +371,50 @@ void mysql_string_free(mysql_string_handle);
 void mysql_string_iterator_free(mysql_string_iterator_handle);
 #include <mysql/service_mysql_alloc.h>
 #include "mysql/psi/psi_memory.h"
+#include "my_psi_config.h"
+#include "my_config.h"
+#include "my_sharedlib.h"
 typedef unsigned int PSI_memory_key;
+struct PSI_thread;
+struct PSI_memory_bootstrap
+{
+  void *(*get_interface)(int version);
+};
+typedef struct PSI_memory_bootstrap PSI_memory_bootstrap;
+struct PSI_memory_info_v1
+{
+  PSI_memory_key *m_key;
+  const char *m_name;
+  int m_flags;
+};
+typedef struct PSI_memory_info_v1 PSI_memory_info_v1;
+typedef void (*register_memory_v1_t)(const char *category,
+                                     struct PSI_memory_info_v1 *info,
+                                     int count);
+typedef PSI_memory_key (*memory_alloc_v1_t)(PSI_memory_key key,
+                                            size_t size,
+                                            struct PSI_thread **owner);
+typedef PSI_memory_key (*memory_realloc_v1_t)(PSI_memory_key key,
+                                              size_t old_size,
+                                              size_t new_size,
+                                              struct PSI_thread **owner);
+typedef PSI_memory_key (*memory_claim_v1_t)(PSI_memory_key key,
+                                            size_t size,
+                                            struct PSI_thread **owner);
+typedef void (*memory_free_v1_t)(PSI_memory_key key,
+                                 size_t size,
+                                 struct PSI_thread *owner);
+struct PSI_memory_service_v1
+{
+  register_memory_v1_t register_memory;
+  memory_alloc_v1_t memory_alloc;
+  memory_realloc_v1_t memory_realloc;
+  memory_claim_v1_t memory_claim;
+  memory_free_v1_t memory_free;
+};
+typedef struct PSI_memory_service_v1 PSI_memory_service_t;
+typedef struct PSI_memory_info_v1 PSI_memory_info;
+extern PSI_memory_service_t *psi_memory_service;
 typedef int myf_t;
 typedef void * (*mysql_malloc_t)(PSI_memory_key key, size_t size, myf_t flags);
 typedef void * (*mysql_realloc_t)(PSI_memory_key key, void *ptr, size_t size, myf_t flags);
@@ -456,8 +527,8 @@ struct st_transaction_termination_ctx
 {
   unsigned long m_thread_id;
   unsigned int m_flags;
-  char m_rollback_transaction;
-  char m_generated_gtid;
+  bool m_rollback_transaction;
+  bool m_generated_gtid;
   int m_sidno;
   long long int m_gno;
 };
@@ -541,3 +612,8 @@ int my_key_fetch(const char *, char **, const char *, void **,
                  size_t *);
 int my_key_remove(const char *, const char *);
 int my_key_generate(const char *, const char *, const char *, size_t);
+#include <mysql/service_plugin_registry.h>
+#include <mysql/components/services/registry.h>
+#include <mysql/components/service.h>
+typedef int mysql_service_status_t;
+#include <stdint.h>

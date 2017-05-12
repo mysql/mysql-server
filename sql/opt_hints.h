@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,17 +21,28 @@
 #ifndef OPT_HINTS_INCLUDED
 #define OPT_HINTS_INCLUDED
 
-#include "my_global.h"
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "enum_query_type.h"
 #include "item_subselect.h" // Item_exists_subselect
+#include "m_string.h"
 #include "mem_root_array.h" // Mem_root_array
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
 #include "sql_alloc.h"      // Sql_alloc
 #include "sql_bitmap.h"     // Bitmap
+#include "sql_plugin.h"
 #include "sql_show.h"       // append_identifier
 #include "sql_string.h"     // String
+#include "system_variables.h"
+#include "typelib.h"
 
+class JOIN;
 class Opt_hints_table;
-struct LEX;
-struct TABLE;
+class THD;
+struct TABLE_LIST;
 
 
 /**
@@ -51,6 +62,11 @@ enum opt_hints_enum
   SEMIJOIN_HINT_ENUM,
   SUBQUERY_HINT_ENUM,
   DERIVED_MERGE_HINT_ENUM,
+  JOIN_PREFIX_HINT_ENUM,
+  JOIN_SUFFIX_HINT_ENUM,
+  JOIN_ORDER_HINT_ENUM,
+  JOIN_FIXED_ORDER_HINT_ENUM,
+  INDEX_MERGE_HINT_ENUM,
   MAX_HINT_ENUM
 };
 
@@ -61,6 +77,9 @@ struct st_opt_hint_info
   bool check_upper_lvl;   // true if upper level hint check is needed (for hints
                           // which can be specified on more than one level).
   bool switch_hint;       // true if hint is not complex.
+  bool irregular_hint;    ///< true if hint requires some special handling.
+                          ///< Currently it's used only for join order hints
+                          ///< since they need special printing procedure.
 };
 
 
@@ -82,7 +101,7 @@ public:
 
      @return true if hint is specified
   */
-  my_bool is_specified(opt_hints_enum type_arg) const
+  bool is_specified(opt_hints_enum type_arg) const
   {
     return hints_specified.is_set(type_arg);
   }
@@ -115,9 +134,9 @@ public:
 };
 
 
+class Opt_hints_key;
 class PT_hint;
 class PT_hint_max_execution_time;
-class Opt_hints_key;
 
 
 /**
@@ -154,7 +173,7 @@ class Opt_hints : public Sql_alloc
   Opt_hints_map hints_map;   // Hint map
 
   /* Array of child objects. i.e. array of the lower level objects */
-  Mem_root_array<Opt_hints*, true> child_array;
+  Mem_root_array<Opt_hints*> child_array;
   /* true if hint is connected to the real object */
   bool resolved;
   /* Number of resolved children */
@@ -211,10 +230,37 @@ public:
   virtual const LEX_CSTRING *get_name() const { return name; }
   void set_name(const LEX_CSTRING *name_arg) { name= name_arg; }
   Opt_hints *get_parent() const { return parent; }
-  void set_resolved() { resolved= true; }
-  bool is_resolved() const { return resolved; }
+  virtual void set_resolved() { resolved= true; }
+  /**
+    Returns 'resolved' flag value for depending on hint type.
+
+    @param type_arg  hint type
+
+    @return  true if all hint objects are resolved, false otherwise.
+  */
+  virtual bool is_resolved(opt_hints_enum type_arg MY_ATTRIBUTE((unused)))
+  { return resolved; }
+  /**
+    Set hint to unresolved state.
+
+    @param type_arg  hint type
+  */
+  virtual void set_unresolved(opt_hints_enum type_arg MY_ATTRIBUTE((unused)))
+  {}
+  /**
+    If ignore_print() returns true, hint is not printed
+    in Opt_hints::print() function. Atm used for
+    INDEX_MERGE hint only.
+
+    @param type_arg  hint type
+
+    @return  true if the hint should not be printed
+    in Opt_hints::print() function, false otherwise.
+  */
+  virtual bool ignore_print(opt_hints_enum type_arg MY_ATTRIBUTE((unused))) const
+  { return false; }
   void incr_resolved_children() { resolved_children++; }
-  Mem_root_array<Opt_hints*, true> *child_array_ptr() { return &child_array; }
+  Mem_root_array<Opt_hints*> *child_array_ptr() { return &child_array; }
 
   bool is_all_resolved() const
   {
@@ -285,6 +331,16 @@ private:
     @param thd             Pointer to THD object
   */
   void print_warn_unresolved(THD *thd);
+  /**
+    Function prints hints which are non-standard and don't
+    fit into existing hint infrastructure.
+
+    @param thd             pointer to THD object
+    @param str             pointer to String object
+  */
+  virtual void print_irregular_hints(THD *thd MY_ATTRIBUTE((unused)),
+                                     String *str MY_ATTRIBUTE((unused)))
+  { }
 };
 
 
@@ -322,7 +378,16 @@ class Opt_hints_qb : public Opt_hints
   char buff[32];          // Buffer to hold sys name
 
   PT_qb_level_hint *subquery_hint, *semijoin_hint;
-  // PT_qb_level_hint::contextualize sets subquery/semijoin_hint during parsing.
+
+  /// Array of join order hints
+  Mem_root_array<PT_qb_level_hint*> join_order_hints;
+  /// Bit map of which hints are ignored.
+  ulonglong join_order_hints_ignored;
+
+  /*
+    PT_qb_level_hint::contextualize sets subquery/semijoin_hint during parsing.
+    it also registers join order hints during parsing.
+  */
   friend class PT_qb_level_hint;
 
 public:
@@ -414,6 +479,54 @@ public:
     @retval EXEC_UNSPECIFIED No SUBQUERY hint for this query block
   */
   Item_exists_subselect::enum_exec_method subquery_strategy() const;
+
+  virtual void print_irregular_hints(THD *thd, String *str);
+
+  /**
+    Checks if join order hints are applicable and
+    applies table dependencies if possible.
+
+    @param join JOIN object
+  */
+  void apply_join_order_hints(JOIN *join);
+
+private:
+  void register_join_order_hint(PT_qb_level_hint* hint_arg)
+  {
+    join_order_hints.push_back(hint_arg);
+  }
+};
+
+
+class PT_key_level_hint;
+
+/**
+  Auxiluary class for compound key objects.
+*/
+class Compound_key_hint
+{
+  PT_key_level_hint *pt_hint; // Pointer to PT_key_level_hint object.
+  Key_map key_map;            // Indexes, specified in the hint.
+  bool resolved;              // true if hint does not have unresolved index.
+
+public:
+
+  Compound_key_hint()
+  {
+    key_map.init();
+    resolved= false;
+    pt_hint= NULL;
+  }
+
+  void set_pt_hint( PT_key_level_hint *pt_hint_arg) { pt_hint= pt_hint_arg; }
+  PT_key_level_hint *get_pt_hint() { return pt_hint; }
+
+  void set_resolved(bool arg) { resolved= arg; }
+  bool is_resolved() { return resolved; }
+
+  void set_key_map(uint i) { key_map.set_bit(i); }
+  bool is_set_key_map(uint i) { return key_map.is_set(i); }
+  bool is_key_map_clear_all() { return key_map.is_clear_all(); }
 };
 
 
@@ -424,7 +537,8 @@ public:
 class Opt_hints_table : public Opt_hints
 {
 public:
-  Mem_root_array<Opt_hints_key*, true> keyinfo_array;
+  Mem_root_array<Opt_hints_key*> keyinfo_array;
+  Compound_key_hint index_merge;
 
   Opt_hints_table(const LEX_CSTRING *table_name_arg,
                   Opt_hints_qb *qb_hints_arg,
@@ -439,7 +553,7 @@ public:
     @param thd   pointer to THD object
     @param str   pointer to String object
   */
-  virtual void append_name(THD *thd, String *str)
+  virtual void append_name(THD *thd, String *str) override
   {
     append_identifier(thd, str, get_name()->str, get_name()->length);
     get_parent()->append_name(thd, str);
@@ -451,6 +565,33 @@ public:
     @param table      Pointer to TABLE_LIST object
   */
   void adjust_key_hints(TABLE_LIST *table);
+  virtual PT_hint *get_complex_hints(opt_hints_enum type) override;
+
+  void set_resolved() override
+  {
+    Opt_hints::set_resolved();
+    if (is_specified(INDEX_MERGE_HINT_ENUM))
+      index_merge.set_resolved(true);
+  }
+
+  void set_unresolved(opt_hints_enum type_arg) override
+  {
+    if (type_arg == INDEX_MERGE_HINT_ENUM && is_specified(INDEX_MERGE_HINT_ENUM))
+      index_merge.set_resolved(false);
+  }
+
+  bool is_resolved(opt_hints_enum type_arg) override
+  {
+    if (type_arg == INDEX_MERGE_HINT_ENUM)
+      return Opt_hints::is_resolved(type_arg) && index_merge.is_resolved();
+    return Opt_hints::is_resolved(type_arg);
+  }
+
+  void set_compound_key_hint_map(Opt_hints* hint, uint arg)
+  {
+    if (hint->is_specified(INDEX_MERGE_HINT_ENUM))
+      index_merge.set_key_map(arg);
+  }
 };
 
 
@@ -479,6 +620,14 @@ public:
     get_parent()->append_name(thd, str);
     str->append(' ');
     append_identifier(thd, str, get_name()->str, get_name()->length);
+  }
+  /**
+    Ignore printing of the object since parent complex hint has
+    its own printing method.
+  */
+  virtual bool ignore_print(opt_hints_enum type_arg) const
+  {
+    return (type_arg == INDEX_MERGE_HINT_ENUM);
   }
 };
 
@@ -515,5 +664,45 @@ bool hint_key_state(const THD *thd, const TABLE_LIST *table,
 bool hint_table_state(const THD *thd, const TABLE_LIST *table,
                       opt_hints_enum type_arg,
                       uint optimizer_switch);
+/**
+   Append table and query block name.
+
+  @param thd        pointer to THD object
+  @param str        pointer to String object
+  @param qb_name    pointer to query block name, may be null
+  @param table_name pointer to table name
+*/
+void append_table_name(THD *thd, String *str,
+                       const LEX_CSTRING *qb_name,
+                       const LEX_CSTRING *table_name);
+
+/**
+  Returns true if index merge hint state is on with or without
+  specified keys, otherwise returns false.
+  If index merge hint state is on and hint is specified without indexes,
+  function returns 'true' for any 'keyno' argument. If hint specified
+  with indexes, function returns true only for appropriate 'keyno' index.
+
+
+  @param table              Pointer to TABLE object
+  @param keyno              Key number
+
+  @return true if index merge hint state is on with or without
+          specified keys, otherwise returns false.
+*/
+bool idx_merge_key_enabled(const TABLE *table, uint keyno);
+
+
+/**
+  Returns true if index merge hint state is on otherwise returns false.
+
+  @param table                     Pointer to TABLE object
+  @param use_cheapest_index_merge  IN/OUT Returns true if INDEX_MERGE hint is
+                                          used without any specified key.
+
+  @return true if index merge hint state is on otherwise returns false.
+*/
+
+bool idx_merge_hint_state(const TABLE *table, bool *use_cheapest_index_merge);
 
 #endif /* OPT_HINTS_INCLUDED */

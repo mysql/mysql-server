@@ -715,6 +715,18 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "6" },
 
   {
+    CFG_DB_DISK_DATA_FORMAT,
+    "__disk_data_format",
+    DB_TOKEN,
+    "0: Use old v1 format, 1: Use new v2 format",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "1",
+    "0",
+    "1" },
+
+  {
     CFG_DB_WATCHDOG_INTERVAL_INITIAL,
     "TimeBetweenWatchDogCheckInitial",
     DB_TOKEN,
@@ -1547,8 +1559,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    "16M", // remember to change BackupMemory
-    "2M",
+    "16M",
+    "512K",
     STR_VALUE(MAX_INT_RNIL) },
 
   { 
@@ -1559,7 +1571,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    "16M", // remember to change BackupMemory
+    "16M",
     "2M",
     STR_VALUE(MAX_INT_RNIL) },
 
@@ -2546,6 +2558,19 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "0",
     "0",
     STR_VALUE(MAX_INT_RNIL)
+  },
+
+  {
+    CFG_API_VERBOSE,
+    "ApiVerbose",
+    "API",
+    "Tracelevel for API nodes.",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    0,
+    "0",
+    "100"
   },
 
   /****************************************************************************

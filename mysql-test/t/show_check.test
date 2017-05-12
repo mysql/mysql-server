@@ -955,16 +955,29 @@ use test;
 #
 flush status;
 show variables like "log_queries_not_using_indexes";
-select 1 from information_schema.tables limit 1;
+
+CREATE TABLE `tab1` (
+  `c1` int(11) default NULL,
+  `c2` char(20) default NULL,
+  `c3` char(20) default NULL,
+  KEY `k1` (`c2`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+INSERT INTO tab1 values(1, "hello", "world");
+INSERT INTO tab1 values(2, "hello2", "world2");
+INSERT INTO tab1 values(3, "hello3", "world3");
+
+select SQL_NO_CACHE * from tab1;
 show status like 'slow_queries';
 set global log_queries_not_using_indexes=OFF;
 show variables like "log_queries_not_using_indexes";
-select 1 from information_schema.tables limit 1;
+select SQL_NO_CACHE * from tab1;
 show status like 'slow_queries';
 set global log_queries_not_using_indexes=ON;
 show variables like "log_queries_not_using_indexes";
-select 1 from information_schema.tables limit 1;
+select SQL_NO_CACHE * from tab1;
 show status like 'slow_queries';
+
+drop table tab1;
 
 #
 # Bug#30088 Can't disable myisam-recover by a value of ""
@@ -1480,6 +1493,29 @@ CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#24800048 - SHOW TABLES FROM DATABASE HANGS ON WINDOWS PLATFORM
+--echo #
+
+CREATE DATABASE unknown;
+
+--echo # On case sensitive file system following statement fails as DB name
+--echo # is in different case. Following statement works fine on case insensitive
+--echo # file systems.
+--error 0,ER_BAD_DB_ERROR
+SHOW TABLES FROM UNKNOWN;
+
+--echo # On case sensitive file system following statement fails as DB name
+--echo # is in different case. Following statement works fine on case insensitive
+--echo # file systems.
+--echo # Without fix following SHOW TABLES statements hangs in Windows (with
+--echo # lower_case_table_names=1).
+--error 0,ER_BAD_DB_ERROR
+SHOW TABLES FROM UNKNOWN;
+
+DROP DATABASE unknown;
 
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc

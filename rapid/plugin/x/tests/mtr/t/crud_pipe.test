@@ -5,7 +5,7 @@
 # latency is a bottleneck.
 
 ## Preamble
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 DROP DATABASE IF EXISTS xplugintest;
 CREATE DATABASE xplugintest;
 USE xplugintest;

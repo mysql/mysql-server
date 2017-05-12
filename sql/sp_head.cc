@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,33 +16,68 @@
 
 #include "sp_head.h"
 
-#include "mysqld.h"            // atomic_global_query_id
-#include "probes_mysql.h"
-#include "psi_memory_key.h"
-#include "sql_show.h"          // append_identifier
-#include "sql_db.h"            // mysql_opt_change_db, mysql_change_db
+#include <stdio.h>
+#include <string.h>
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
+#include <algorithm>
+#include <atomic>
+
+#include "auth_acls.h"
 #include "auth_common.h"       // *_ACL
-#include "log_event.h"         // append_query_string, Query_log_event
 #include "binlog.h"
-
-#include "sp_instr.h"
-#include "sp.h"
-#include "sp_pcontext.h"
-#include "sp_rcontext.h"
-#include "sp_cache.h"
-#include "sql_parse.h"         // cleanup_items
-#include "sql_base.h"          // close_thread_tables
-#include "template_utils.h"    // pointer_cast
-#include "transaction.h"       // trans_commit_stmt
-#include "opt_trace.h"         // opt_trace_disable_etc
-
-#include <my_user.h>           // parse_user
-#include "mysql/psi/mysql_statement.h"
-#include "mysql/psi/mysql_sp.h"
-#include "mysql/psi/mysql_error.h"
-
+#include "check_stack.h"
 #include "dd/dd.h"             // get_dictionary
 #include "dd/dictionary.h"     // is_dd_table_access_allowed
+#include "derror.h"            // ER_THD
+#include "discrete_interval.h"
+#include "hash.h"
+#include "item.h"
+#include "log_event.h"         // append_query_string, Query_log_event
+#include "m_ctype.h"
+#include "m_string.h"
+#include "mdl.h"
+#include "my_bitmap.h"
+#include "my_config.h"
+#include "my_dbug.h"
+#include "my_pointer_arithmetic.h"
+#include "my_user.h"           // parse_user
+#include "mysql/psi/mysql_error.h"
+#include "mysql/psi/mysql_sp.h"
+#include "mysql/psi/mysql_statement.h"
+#include "mysql/psi/psi_error.h"
+#include "mysql/psi/psi_statement.h"
+#include "mysql_com.h"
+#include "mysqld.h"            // atomic_global_query_id
+#include "opt_trace.h"         // opt_trace_disable_etc
+#include "prealloced_array.h"
+#include "protocol.h"
+#include "protocol_classic.h"
+#include "psi_memory_key.h"
+#include "query_options.h"
+#include "session_tracker.h"
+#include "sp.h"
+#include "sp_instr.h"
+#include "sp_pcontext.h"
+#include "sp_rcontext.h"
+#include "sql_base.h"          // close_thread_tables
+#include "sql_const.h"
+#include "sql_db.h"            // mysql_opt_change_db, mysql_change_db
+#include "sql_digest_stream.h"
+#include "sql_error.h"
+#include "sql_parse.h"         // cleanup_items
+#include "sql_profile.h"
+#include "sql_show.h"          // append_identifier
+#include "sql_string.h"
+#include "template_utils.h"    // pointer_cast
+#include "thr_lock.h"
+#include "thr_malloc.h"
+#include "transaction.h"       // trans_commit_stmt
+#include "trigger_def.h"
+
+class Table_trigger_field_support;
+struct PSI_statement_locker;
 
 /**
   @page stored_programs Stored Programs
@@ -1384,8 +1419,8 @@ delimiter ;
   @note We do not have a debugger,
   so this is old school printf-like debugging into a table.
 
-  By setting a breakpoint in #Sql_cmd_insert::mysql_insert in the server,
-  the current thread stack at the first insert will look like this:
+  By setting a breakpoint in #Sql_cmd_insert_values::execute_inner in
+  the server, the current thread stack at the first insert will look like this:
 
   @todo Refresh the stack
 
@@ -1612,6 +1647,13 @@ static bool sp_update_sp_used_routines(HASH *dst, HASH *src)
         This should be fine as sp_name objects created by this constructor
         are mainly used for SP-cache lookups.
 
+  @note Stored routine names are case insensitive. So for the proper MDL key
+        comparison, routine name is converted to the lower case while
+        preparing the MDL_key. Hence the instance of sp_name created from the
+        MDL_key has the routine name in lower case.
+        Since instances created by this constructor are mainly used for
+        SP-cache lookups, routine name in lower case should work fine.
+
   @param key         MDL key containing database and routine name.
   @param qname_buff  Buffer to be used for storing quoted routine name
                      (should be at least 2*NAME_LEN+1+1 bytes).
@@ -1663,8 +1705,8 @@ void sp_head::destroy(sp_head *sp)
   if (!sp)
     return;
 
-  /* Make a copy of main_mem_root as free_root will free the sp */
-  MEM_ROOT own_root= sp->main_mem_root;
+  /* Pull out main_mem_root as free_root will free the sp */
+  MEM_ROOT own_root= std::move(sp->main_mem_root);
 
   sp->~sp_head();
 
@@ -1672,7 +1714,7 @@ void sp_head::destroy(sp_head *sp)
 }
 
 
-sp_head::sp_head(MEM_ROOT mem_root, enum_sp_type type)
+sp_head::sp_head(MEM_ROOT &&mem_root, enum_sp_type type)
  :Query_arena(&main_mem_root, STMT_INITIALIZED_FOR_SP),
   m_type(type),
   m_flags(0),
@@ -1687,7 +1729,7 @@ sp_head::sp_head(MEM_ROOT mem_root, enum_sp_type type)
   m_first_free_instance(NULL),
   m_last_cached_sp(NULL),
   m_trg_list(NULL),
-  main_mem_root(mem_root),
+  main_mem_root(std::move(mem_root)),
   m_root_parsing_ctx(NULL),
   m_instructions(&main_mem_root),
   m_sp_cache_version(0),
@@ -1824,7 +1866,7 @@ bool sp_head::setup_trigger_fields(THD *thd,
     for (Item_trigger_field *f= trig_field_list->first; f;
          f= f->next_trg_field)
     {
-      f->setup_field(thd, tfs, subject_table_grant);
+      f->setup_field(tfs, subject_table_grant);
 
       if (need_fix_fields &&
           !f->fixed &&
@@ -1985,7 +2027,6 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
   Query_arena execute_arena(&execute_mem_root, STMT_INITIALIZED_FOR_SP),
               backup_arena;
   query_id_t old_query_id;
-  TABLE *old_derived_tables;
   LEX *old_lex;
   Item_change_list old_change_list;
   String old_packet;
@@ -2016,7 +2057,7 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
   */
 
   {
-#if defined(__sparcv9) && defined(__sun)
+#if defined(__sparc) && defined(__SUNPRO_CC)
     const int sp_stack_size= 10 * STACK_MIN_SIZE;
 #else
     const int sp_stack_size=  8 * STACK_MIN_SIZE;
@@ -2084,8 +2125,6 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
     be able properly do close_thread_tables() in instructions.
   */
   old_query_id= thd->query_id;
-  old_derived_tables= thd->derived_tables;
-  thd->derived_tables= 0;
   save_sql_mode= thd->variables.sql_mode;
   thd->variables.sql_mode= m_sql_mode;
   /**
@@ -2129,7 +2168,7 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
 
       It is probably safe to use same thd->convert_buff everywhere.
     */
-    old_packet.swap(*thd->get_protocol_classic()->get_packet());
+    old_packet.swap(*thd->get_protocol_classic()->get_output_packet());
   }
 
   /*
@@ -2290,13 +2329,11 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
 
   if(thd->is_classic_protocol())
     /* Restore all saved */
-    old_packet.swap(*thd->get_protocol_classic()->get_packet());
+    old_packet.swap(*thd->get_protocol_classic()->get_output_packet());
   DBUG_ASSERT(thd->change_list.is_empty());
   old_change_list.move_elements_to(&thd->change_list);
   thd->lex= old_lex;
   thd->set_query_id(old_query_id);
-  DBUG_ASSERT(!thd->derived_tables);
-  thd->derived_tables= old_derived_tables;
   thd->variables.sql_mode= save_sql_mode;
   thd->pop_reprepare_observer();
 
@@ -2433,7 +2470,6 @@ bool sp_head::execute_trigger(THD *thd,
   DBUG_ENTER("sp_head::execute_trigger");
   DBUG_PRINT("info", ("trigger %s", m_name.str));
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   Security_context *save_ctx= NULL;
   LEX_CSTRING definer_user= {m_definer_user.str, m_definer_user.length};
   LEX_CSTRING definer_host= {m_definer_host.str, m_definer_host.length};
@@ -2485,7 +2521,6 @@ bool sp_head::execute_trigger(THD *thd,
     - connected user != definer: then in sp_head::execute(), when checking the
     security context we will disable tracing.
   */
-#endif // NO_EMBEDDED_ACCESS_CHECKS
 
   /*
     Prepare arena and memroot for objects which lifetime is whole
@@ -2529,9 +2564,7 @@ bool sp_head::execute_trigger(THD *thd,
 err_with_cleanup:
   thd->restore_active_arena(&call_arena, &backup_arena);
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   m_security_ctx.restore_security_context(thd, save_ctx);
-#endif // NO_EMBEDDED_ACCESS_CHECKS
 
   delete trigger_runtime_ctx;
   call_arena.free_items();
@@ -2678,14 +2711,12 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
 
   thd->sp_runtime_ctx= func_runtime_ctx;
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   Security_context *save_security_ctx;
   if (set_security_ctx(thd, &save_security_ctx))
   {
     err_status= TRUE;
     goto err_with_cleanup;
   }
-#endif
 
   if (need_binlog_call)
   {
@@ -2769,9 +2800,7 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
     }
   }
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   m_security_ctx.restore_security_context(thd, save_security_ctx);
-#endif
 
 err_with_cleanup:
   delete func_runtime_ctx;
@@ -2805,10 +2834,12 @@ bool sp_head::execute_procedure(THD *thd, List<Item> *args)
   DBUG_ENTER("sp_head::execute_procedure");
   DBUG_PRINT("info", ("procedure %s", m_name.str));
 
-  if (args->elements != params)
+  uint arg_count= args != NULL ? args->elements : 0;
+
+  if (arg_count != params)
   {
     my_error(ER_SP_WRONG_NO_OF_ARGS, MYF(0), "PROCEDURE",
-             m_qname.str, params, args->elements);
+             m_qname.str, params, arg_count);
     DBUG_RETURN(true);
   }
 
@@ -2871,8 +2902,6 @@ bool sp_head::execute_procedure(THD *thd, List<Item> *args)
           err_status= TRUE;
           break;
         }
-
-        srp->set_required_privilege(spvar->mode == sp_variable::MODE_INOUT);
       }
 
       if (spvar->mode == sp_variable::MODE_OUT)
@@ -2954,11 +2983,9 @@ bool sp_head::execute_procedure(THD *thd, List<Item> *args)
   }
   thd->sp_runtime_ctx= proc_runtime_ctx;
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   Security_context *save_security_ctx= 0;
   if (!err_status)
     err_status= set_security_ctx(thd, &save_security_ctx);
-#endif
 
   opt_trace_disable_if_no_stored_proc_func_access(thd, this);
 
@@ -3029,10 +3056,8 @@ bool sp_head::execute_procedure(THD *thd, List<Item> *args)
     }
   }
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (save_security_ctx)
     m_security_ctx.restore_security_context(thd, save_security_ctx);
-#endif
 
   if (!sp_runtime_ctx_saved)
     delete parent_sp_runtime_ctx;
@@ -3377,8 +3402,11 @@ bool sp_head::merge_table_list(THD *thd,
                  table->mdl_request.is_ddl_or_lock_tables_lock_request(),
                  table->db, table->db_length, table->table_name))
       {
-        my_error(ER_NO_SYSTEM_TABLE_ACCESS, MYF(0), table->db,
-                 table->table_name);
+        my_error(ER_NO_SYSTEM_TABLE_ACCESS, MYF(0),
+                 ER_THD(thd,
+                        dictionary->table_type_error_code(table->db,
+                                                          table->table_name)),
+                 table->db, table->table_name);
         return true;
       }
 
@@ -3417,8 +3445,8 @@ bool sp_head::merge_table_list(THD *thd,
                                             temp_table_key_length)) &&
            tab->temp))
       {
-        if (tab->lock_type < table->lock_type)
-          tab->lock_type= table->lock_type; // Use the table with the highest lock type
+        if (tab->lock_type < table->lock_descriptor().type)
+          tab->lock_type= table->lock_descriptor().type; // Use the table with the highest lock type
         tab->query_lock_count++;
         if (tab->query_lock_count > tab->lock_count)
           tab->lock_count++;
@@ -3442,7 +3470,7 @@ bool sp_head::merge_table_list(THD *thd,
           return false;
         tab->table_name_length= table->table_name_length;
         tab->db_length= table->db_length;
-        tab->lock_type= table->lock_type;
+        tab->lock_type= table->lock_descriptor().type;
         tab->lock_count= tab->query_lock_count= 1;
         tab->trg_event_map= table->trg_event_map;
         if (my_hash_insert(&m_sptabs, (uchar *)tab))
@@ -3563,7 +3591,6 @@ bool sp_head::check_show_access(THD *thd, bool *full_access)
 }
 
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
 bool sp_head::set_security_ctx(THD *thd, Security_context **save_ctx)
 {
   *save_ctx= NULL;
@@ -3595,7 +3622,6 @@ bool sp_head::set_security_ctx(THD *thd, Security_context **save_ctx)
 
   return false;
 }
-#endif // ! NO_EMBEDDED_ACCESS_CHECKS
 
 
 ///////////////////////////////////////////////////////////////////////////

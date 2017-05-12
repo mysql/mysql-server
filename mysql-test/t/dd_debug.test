@@ -3,6 +3,16 @@
 #
 
 --source include/have_debug.inc
+
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs60=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema test default character set latin1;
+--enable_query_log
+########################################
+
 --source include/count_sessions.inc
 
 ###########################################################################
@@ -89,22 +99,13 @@ SET DEBUG_SYNC= 'now SIGNAL cont';
 --connection default
 SET DEBUG_SYNC= 'RESET';
 SET GLOBAL DEBUG= '-d, fail_while_acquiring_dd_object';
---echo # Note: We are now left with an inconsistency
---echo #       between the file system and the dd.
---echo #       To get out of this, create a directory.
---let $MYSQLD_DATADIR= `select @@datadir`
---mkdir $MYSQLD_DATADIR/s1
 
 --echo # 1.3b No schema found during drop.
 
 SET DEBUG= '+d, pretend_no_schema_in_drop_schema';
---error ER_BAD_DB_ERROR
+--error ER_DB_DROP_EXISTS
 DROP SCHEMA s1;
 SET DEBUG= '-d, pretend_no_schema_in_drop_schema';
---echo # Note: We are now left with an inconsistency
---echo #       between the file system and the dd.
---echo #       To get out of this, create a directory.
---mkdir $MYSQLD_DATADIR/s1
 
 --echo # 1.3c Fail while dropping dd object during drop.
 
@@ -113,17 +114,8 @@ SET DEBUG= '+d, fail_while_dropping_dd_object';
 DROP SCHEMA s1;
 SET DEBUG= '-d, fail_while_dropping_dd_object';
 --echo # Do it for real.
---echo # Note: The statement below fails, and the entry for
---echo #       s1 in mysql.schemata is still present. This
---echo #       will be addressed in WL#7743.
---error ER_DB_DROP_EXISTS
 DROP SCHEMA s1;
 SET SESSION debug= '+d,skip_dd_table_access_check';
-SELECT COUNT(*) FROM mysql.schemata WHERE name LIKE 's1';
-
---echo # To get out of this, create a directory, then drop.
---mkdir $MYSQLD_DATADIR/s1
-DROP SCHEMA s1;
 SELECT COUNT(*) FROM mysql.schemata WHERE name LIKE 's1';
 SET SESSION debug= '-d,skip_dd_table_access_check';
 
@@ -181,10 +173,7 @@ SET DEBUG= '+d, fail_while_dropping_dd_object';
 DROP TABLE t1;
 SET DEBUG= '-d, fail_while_dropping_dd_object';
 --echo # Do it for real.
---echo # Note: The statement below fails, but the entry for t1
---echo #       in mysql.tables is removed.
---error ER_BAD_TABLE_ERROR
-DROP TABLE t1;
+DROP TABLE IF EXISTS t1;
 
 --echo ###################################################################
 --echo #
@@ -228,10 +217,11 @@ SET DEBUG= '+d, fail_while_storing_dd_object';
 CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
 SET DEBUG= '-d, fail_while_storing_dd_object';
 
---echo # Here, the global DD and InnoDB are out of sync. To get
---echo # out of this, we must do a drop, which fails since the
---echo # object does not exist in the DD, but which still
---echo # removes the tablespace from the SE.
+--echo # There should be no trace left in the data-dictionary
+SET SESSION debug= '+d,skip_dd_table_access_check';
+SELECT COUNT(*) FROM mysql.tablespaces WHERE name LIKE 'ts1';
+SET SESSION debug= '-d,skip_dd_table_access_check';
+
 --error ER_TABLESPACE_MISSING_WITH_NAME
 DROP TABLESPACE ts1;
 
@@ -249,21 +239,79 @@ SET DEBUG= '+d, fail_while_dropping_dd_object';
 DROP TABLESPACE ts1;
 SET DEBUG= '-d, fail_while_dropping_dd_object';
 
---echo # Do it for real.
---echo # Note: The statement below fails, and there is still an entry for
---echo #       ts1 in mysql.tablespaces.
---error ER_DROP_FILEGROUP_FAILED
-DROP TABLESPACE ts1;
+--echo # Tablespace is still in the data-dictionary.
 SET SESSION debug= '+d,skip_dd_table_access_check';
 SELECT COUNT(*) FROM mysql.tablespaces WHERE name LIKE 'ts1';
 
---echo # To get around this, recreate the tablespace, which will fail,
---echo # yet also makes the global DD in sync with InnoDB. Then drop.
---error ER_TABLESPACE_EXISTS
-CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
+--echo # Here, the global DD and InnoDB are out of sync. To get
+--echo # out of this, we must do a drop, which fails since the
+--echo # object does not exist in the SE, but which still
+--echo # removes the tablespace from the DD.
+--echo # Note: The statement below fails, but removes entry for
+--echo #       ts1 from mysql.tablespaces.
+--echo # Do it for real.
+--error ER_DROP_FILEGROUP_FAILED
 DROP TABLESPACE ts1;
 SELECT COUNT(*) FROM mysql.tablespaces WHERE name LIKE 'ts1';
 SET SESSION debug= '-d,skip_dd_table_access_check';
+
+--echo ###################################################################
+--echo #
+--echo # WL#8150: Dictionary cache.
+--echo #
+--echo # Verify that calls to Dictionary_client::drop() while executing
+--echo # ALTER TABLE will make the dropped object disappear, and that
+--echo # the shared cache will not be contaminated with the dropped
+--echo # object (which will make subsequent DDL operations fail due to
+--echo # the shared cache being out of sync with the persistent tables).
+--echo #
+--echo ###################################################################
+--echo #
+
+# Errors found during RQG testing of WL#7743 have been reduced to the
+# following statement sequences:
+
+CREATE TABLE t1 (pk INT PRIMARY KEY);
+CREATE VIEW v1 AS SELECT * FROM t1;
+ALTER TABLE t1 RENAME TO t2, MODIFY COLUMN pk INTEGER;
+DROP TABLE IF EXISTS t1;
+DROP VIEW v1;
+DROP TABLE t2;
+
+CREATE TABLE t1 (pk INT PRIMARY KEY);
+CREATE TABLE t2 (i INT);
+CREATE VIEW v1 AS SELECT * FROM t1, t2;
+DROP TABLE t2;
+ALTER TABLE t1 RENAME TO t2, MODIFY COLUMN pk INTEGER;
+DROP TABLE IF EXISTS t1;
+DROP VIEW v1;
+DROP TABLE t2;
+
+CREATE TABLE t1(a INT PRIMARY KEY);
+CREATE VIEW v1 AS SELECT * FROM t1;
+ALTER TABLE t1 RENAME TO t2, ALGORITHM= COPY;
+DROP TABLE IF EXISTS t1;
+DROP TABLE t2;
+DROP VIEW v1;
+
+--echo #
+--echo # Bug#25587256 NEWDD: FK: NEED TO SET PROPER REFERENCED COLUMN CASE
+--echo #
+
+CREATE TABLE t1 (pk INT PRIMARY KEY);
+CREATE TABLE t2 (fk INT, FOREIGN KEY (FK) REFERENCES t1 (PK));
+
+SHOW CREATE TABLE t2;
+SET SESSION debug= '+d,skip_dd_table_access_check';
+# Case should match SHOW CREATE TABLE output.
+SELECT foreign_key_column_usage.referenced_column_name
+FROM mysql.foreign_key_column_usage, mysql.foreign_keys, mysql.tables
+WHERE tables.name= 't2'
+AND tables.id = foreign_keys.table_id
+AND foreign_keys.id = foreign_key_column_usage.foreign_key_id;
+SET SESSION debug= '-d,skip_dd_table_access_check';
+
+DROP TABLE t2, t1;
 
 --echo ###################################################################
 
@@ -271,3 +319,10 @@ SET SESSION debug= '-d,skip_dd_table_access_check';
 --source include/wait_until_count_sessions.inc
 
 ###########################################################################
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs60;
+--enable_query_log
+########################################

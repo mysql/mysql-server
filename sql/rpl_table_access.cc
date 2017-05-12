@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -15,14 +15,23 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
    02110-1301 USA */
 
-#include "rpl_table_access.h"
+#include "sql/rpl_table_access.h"
+
+#include <stddef.h>
 
 #include "current_thd.h" // my_thread_set_THR_THD
 #include "handler.h"     // ha_rollback_trans
+#include "lex_string.h"
 #include "log.h"         // sql_print_warning
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
+#include "mysqld_error.h"
 #include "sql_base.h"    // close_thread_tables
 #include "sql_class.h"   // THD
+#include "sql_error.h"
 #include "sql_lex.h"     // Query_tables_list
+#include "sql_security_ctx.h"
 #include "table.h"       // TABLE_LIST
 
 
@@ -56,7 +65,8 @@ bool System_table_access::open_table(THD* thd, const LEX_STRING dbstr,
 
   tables.open_strategy= TABLE_LIST::OPEN_IF_EXISTS;
 
-  if (!open_n_lock_single_table(thd, &tables, tables.lock_type, m_flags))
+  if (!open_n_lock_single_table(thd, &tables, tables.lock_descriptor().type,
+                                m_flags))
   {
     close_thread_tables(thd);
     thd->restore_backup_open_tables_state(backup);

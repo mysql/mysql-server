@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -20,6 +20,9 @@
 
 #ifndef MY_RDTSC_H
 #define MY_RDTSC_H
+
+#include "my_macros.h"
+#include "my_inttypes.h"
 
 /**
   Characteristics of a timer.
@@ -99,7 +102,7 @@ C_MODE_END
 #define MY_TIMER_ROUTINE_ASM_X86                  1
 #define MY_TIMER_ROUTINE_ASM_X86_64               2
 /* #define MY_TIMER_ROUTINE_RDTSCLL                  3 - No longer used */
-#define MY_TIMER_ROUTINE_ASM_X86_WIN              4
+/* #define MY_TIMER_ROUTINE_ASM_X86_WIN              4 - No longer used */
 #define MY_TIMER_ROUTINE_RDTSC                    5
 #define MY_TIMER_ROUTINE_ASM_IA64                 6
 #define MY_TIMER_ROUTINE_ASM_PPC                  7

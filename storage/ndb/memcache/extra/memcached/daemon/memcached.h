@@ -2,6 +2,9 @@
 #ifndef MEMCACHED_H
 #define MEMCACHED_H
 
+#include "config.h"
+#include "my_config.h"
+
 /** \file
  * The main memcached header holding commonly used data
  * structures and function prototypes.
@@ -15,7 +18,6 @@
 
 #include "cache.h"
 #include "topkeys.h"
-
 #include "sasl_defs.h"
 
 /** Maximum length of a key. */
@@ -456,7 +458,7 @@ bool set_socket_nonblocking(SOCKET sfd);
 void conn_close(conn *c);
 
 
-#if HAVE_DROP_PRIVILEGES
+#ifdef HAVE_DROP_PRIVILEGES
 extern void drop_privileges(void);
 #else
 #define drop_privileges()

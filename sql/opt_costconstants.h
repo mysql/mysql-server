@@ -2,7 +2,7 @@
 #define OPT_COSTCONSTANTS_INCLUDED
 
 /*
-   Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,8 +17,12 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "my_global.h"
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "lex_string.h"
 #include "m_string.h"                           // LEX_CSTRING
+#include "my_dbug.h"
 #include "prealloced_array.h"
 
 class THD;
@@ -554,7 +558,7 @@ private:
     Cost constants for storage engines
     15 should be enough for most use cases, see PREALLOC_NUM_HA.
   */
-  Prealloced_array<Cost_model_se_info, 15, false> m_engines;
+  Prealloced_array<Cost_model_se_info, 15> m_engines;
 
   /// Reference counter for this set of cost constants.
   unsigned int m_ref_counter;

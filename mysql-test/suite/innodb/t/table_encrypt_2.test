@@ -1,8 +1,10 @@
 # InnoDB transparent tablespace data encryption
 # This test case will test basic encryption support features.
 
+# WL#7554: Added setting --bootstrap --character-set-server=latin1
+# in the opt file. This test should be migrated to utf8mb4.
+
 --source include/no_valgrind_without_big.inc
---source include/have_innodb.inc
 --source include/not_embedded.inc
 
 call mtr.add_suppression("\\[Error\\] InnoDB: Can't generate new master key for tablespace encryption, please check the keyring plugin is loaded.");
@@ -101,7 +103,7 @@ DROP TABLE t1;
 
 
 
-let $restart_parameters = restart: --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring --general-log --log-output=FILE --general_log_file=$MYSQL_TMP_DIR/keyring_query_log $KEYRING_PLUGIN_OPT ;
+let $restart_parameters = restart: --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring2 --general-log --log-output=FILE --general_log_file=$MYSQL_TMP_DIR/keyring_query_log $KEYRING_PLUGIN_OPT ;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH
 --replace_regex /\.dll/.so/
 --source include/restart_mysqld.inc
@@ -142,7 +144,6 @@ DROP DATABASE tde_db;
 
 # Cleanup
 --remove_file $MYSQL_TMP_DIR/keyring_query_log
---remove_file $MYSQL_TMP_DIR/mysecret_keyring
 --remove_file $MYSQL_TMP_DIR/mysecret_keyring2
 --remove_file $MYSQL_TMP_DIR/mysqlpump_encrypt.sql
 eval SET GLOBAL innodb_file_per_table=$innodb_file_per_table;

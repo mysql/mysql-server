@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,21 +19,33 @@
   If there are many available, any non-zero one can be used.
 */
 
+#include "my_config.h"
+#include <errno.h>
+#include <string.h>
+#ifdef SYS_SOCKET_H
+#include <sys/socket.h>
+#endif
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+
+#include "my_inttypes.h"
+#include "my_sys.h"  // IWYU pragma: keep
+#if defined(_WIN32)
 #include "mysys_priv.h"
-#include "my_sys.h"
-#include <m_string.h>
+#endif
 
 #ifndef MAIN
 
 #ifdef __FreeBSD__
 
 #include <net/ethernet.h>
-#include <sys/sysctl.h>
-#include <net/route.h>
 #include <net/if.h>
 #include <net/if_dl.h>
+#include <net/route.h>
+#include <sys/sysctl.h>
 
-my_bool my_gethwaddr(uchar *to)
+bool my_gethwaddr(uchar *to)
 {
   size_t len;
   char *buf, *next, *end;
@@ -68,13 +80,13 @@ err:
 
 #elif defined(__linux__)
 
+#include <net/ethernet.h>
 #include <net/if.h>
 #include <sys/ioctl.h>
-#include <net/ethernet.h>
 
 #define MAX_IFS 64
 
-my_bool my_gethwaddr(uchar *to)
+bool my_gethwaddr(uchar *to)
 {
   int fd= -1;
   int res= 1;
@@ -165,13 +177,13 @@ typedef DWORD (WINAPI *pfnGetAdaptersAddresses)(IN ULONG Family,
     @retval 0       OK
     @retval <>0     FAILED
 */
-my_bool my_gethwaddr(uchar *to)
+bool my_gethwaddr(uchar *to)
 {
   PIP_ADAPTER_ADDRESSES pAdapterAddresses;
   PIP_ADAPTER_ADDRESSES pCurrAddresses;
   IP_ADAPTER_ADDRESSES  adapterAddresses;
   ULONG                 address_len;
-  my_bool               return_val= 1;
+  bool                  return_val= 1;
   static pfnGetAdaptersAddresses fnGetAdaptersAddresses=
                                 (pfnGetAdaptersAddresses)-1;
 
@@ -234,7 +246,7 @@ my_bool my_gethwaddr(uchar *to)
 
 #else /* __FreeBSD__ || __linux__ || _WIN32 */
 /* just fail */
-my_bool my_gethwaddr(uchar *to MY_ATTRIBUTE((unused)))
+bool my_gethwaddr(uchar *to MY_ATTRIBUTE((unused)))
 {
   return 1;
 }

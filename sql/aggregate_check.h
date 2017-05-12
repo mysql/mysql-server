@@ -1,7 +1,7 @@
 #ifndef AGGREGATE_CHECK_INCLUDED
 #define AGGREGATE_CHECK_INCLUDED
 
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -446,18 +446,25 @@ VE2 are NULL then VE3 must be NULL, which makes the dependency NULL-friendly.
 
 */
 
-#include "my_global.h"
+#include <stddef.h>
+#include <sys/types.h>
 
+#include "item.h"
 #include "item_cmpfunc.h"        // Item_func_any_value
 #include "item_sum.h"            // Item_sum
 #include "mem_root_array.h"      // Mem_root_array
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_table_map.h"
 #include "sql_alloc.h"           // Sql_alloc
 
-struct st_mem_root;
 class Opt_trace_context;
 class Opt_trace_object;
 class SELECT_LEX;
+class THD;
 struct TABLE_LIST;
+struct st_mem_root;
+template <class T> class List;
 
 /**
    Re-usable shortcut, when it does not make sense to do copy objects of a
@@ -639,11 +646,11 @@ private:
      - if is_child(), columns of the result of the query expression under
      'table' which are themselves part of 'fd' of the parent Group_check.
   */
-  Mem_root_array<Item_ident *, true> fd;
+  Mem_root_array<Item_ident *> fd;
   /// Map of tables for which all columns can be considered part of 'fd'.
   table_map whole_tables_fd;
   /// Children Group_checks of 'this'
-  Mem_root_array<Group_check *, true> mat_tables;
+  Mem_root_array<Group_check *> mat_tables;
   /// Identifier which triggered an error
   Item_ident *failed_ident;
 
@@ -701,6 +708,7 @@ private:
   friend bool Item_func_any_value::aggregate_check_group(uchar *arg);
   friend bool Item_ident::is_strong_side_column_not_in_fd(uchar *arg);
   friend bool Item_ident::is_column_not_in_fd(uchar *arg);
+  friend bool Item_func_grouping::aggregate_check_group(uchar *arg);
 
   FORBID_COPY_CTOR_AND_ASSIGN_OP(Group_check);
 };

@@ -1,0 +1,105 @@
+#################################################################################################
+# Create a backup from a member of GR group , which at later point can be restored successfully.
+#
+# 0. Start GR on with 2 servers
+# 1. Perform some DDL/DML operations on a member
+# 2. Create a backup from the member using mysqldump
+# 3. Verify if that backup can be later restored successfully on a 3rd server
+# 4. See if that 3rd server can then be added to GR group
+# 5. Perform some DDL/DML operations on the group
+# 6. Cleanup
+#################################################################################################
+
+--source include/big_test.inc
+--source ../inc/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count= 3
+--source ../inc/group_replication.inc
+
+# Start group replication on thwo servers
+
+--echo
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source ../inc/start_and_bootstrap_group_replication.inc
+
+--echo
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+
+# Make sure number of servers in the group is 2
+--let $group_replication_number_of_members= 2
+--source ../inc/gr_wait_for_number_of_members.inc
+
+# Create a table and insert data into it.
+CREATE DATABASE db;
+USE db;
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (0);
+INSERT INTO t1 VALUES (1);
+UPDATE t1 SET c1=2 WHERE c1=0;
+
+# Create a backup using mysqldump
+--let $server2_datadir= `SELECT @@DATADIR`
+--let $server2_backup_file= backup_server2.sql
+# Use mysqldump client to get a dump of server2
+# --single-transaction uses savepoints
+--exec $MYSQL_DUMP --user=root --host=127.0.0.1 --single-transaction --port=$SLAVE_MYPORT --databases db > $server2_datadir/$server2_backup_file
+
+# Restore the backup onto a 3rd server outside the GR group
+--echo
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--exec $MYSQL --user=root --host=127.0.0.1 --port=$SERVER_MYPORT_3 <  $server2_datadir/$server2_backup_file
+
+# See if the data has been properly restored on server3
+--echo
+--let $assert_text= 'There is a value 1 in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM db.t1 WHERE t1.c1 = 1, count, 1] = 1
+--source include/assert.inc
+--let $assert_text= 'There is a value 2 in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM db.t1 WHERE t1.c1 = 2, count, 1] = 1
+--source include/assert.inc
+
+# Add server3 to GR group
+--echo
+--source include/start_group_replication.inc
+
+# Make sure number of servers in the group is now 3
+--echo
+--let $wait_timeout= 100
+let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
+--source include/wait_condition.inc
+
+# Now perform DDL/DML operations
+--echo
+# Create a table and insert data into it.
+USE db;
+CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (0);
+INSERT INTO t2 VALUES (1);
+UPDATE t2 SET c1=2 WHERE c1=0;
+--source include/rpl_sync.inc
+
+# See if data has been successfully replicated across the group
+--echo
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $assert_text= 'Checking the number of records in db.t2'
+--let $assert_cond= [SELECT COUNT(*) as count FROM db.t2,count, 1] = 2
+--source include/assert.inc
+
+--echo
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $assert_text= 'Checking the number of records in db.t2'
+--let $assert_cond= [SELECT COUNT(*) as count FROM db.t2,count, 1] = 2
+--source include/assert.inc
+
+# Drop table
+--echo
+DROP DATABASE db;
+
+--remove_file $server2_datadir/$server2_backup_file
+--source ../inc/group_replication_end.inc

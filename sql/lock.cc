@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -75,19 +75,36 @@
 
 #include "lock.h"
 
-#include "hash.h"
-#include "debug_sync.h"
-#include "sql_base.h"                       // MYSQL_LOCK_LOG_TABLE
-#include "sql_parse.h"                     // is_log_table_write_query
-#include "psi_memory_key.h"
-#include "auth_common.h"                   // SUPER_ACL
-#include "sql_class.h"
-#include "mysqld.h"                        // opt_readonly
-#include "session_tracker.h"
-#include "template_utils.h"
-
+#include <fcntl.h>
+#include <string.h>
 #include <algorithm>
 #include <atomic>
+
+#include "auth_common.h"                   // SUPER_ACL
+#include "debug_sync.h"
+#include "handler.h"
+#include "lex_string.h"
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_base.h"
+#include "my_dbug.h"
+#include "my_sqlcommand.h"
+#include "my_sys.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql_com.h"
+#include "mysqld.h"                        // opt_readonly
+#include "mysqld_error.h"
+#include "psi_memory_key.h"
+#include "session_tracker.h"
+#include "sql_base.h"                       // MYSQL_LOCK_LOG_TABLE
+#include "sql_class.h"
+#include "sql_const.h"
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_parse.h"                     // is_log_table_write_query
+#include "system_variables.h"
+#include "table.h"
+#include "thr_lock.h"
 
 /**
   @defgroup Locking Locking
@@ -275,7 +292,7 @@ static void track_table_access(THD *thd, TABLE **tables, size_t count)
 
     if (t)
     {
-      s= tst->calc_trx_state(thd, t->reginfo.lock_type,
+      s= tst->calc_trx_state(t->reginfo.lock_type,
                              t->file->has_transactions());
       tst->add_trx_state(thd, s);
     }
@@ -327,9 +344,7 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, size_t count, uint flags
   if (! (sql_lock= get_lock_data(thd, tables, count, GET_LOCK_STORE_LOCKS)))
     DBUG_RETURN(NULL);
 
-  if (thd->state_flags & Open_tables_state::SYSTEM_TABLES)
-    THD_STAGE_INFO(thd, stage_locking_system_tables);
-  else
+  if (!(thd->state_flags & Open_tables_state::SYSTEM_TABLES))
     THD_STAGE_INFO(thd, stage_system_lock);
 
   DBUG_PRINT("info", ("thd->proc_info %s", thd->proc_info));

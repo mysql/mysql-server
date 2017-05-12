@@ -25,13 +25,14 @@ SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 't'
 AND TIMESTAMPDIFF(SECOND, update_time, NOW()) < 120;
 COUNT(*)
 1
-CREATE TABLE big (a TEXT) ENGINE=INNODB;
 SELECT COUNT(*) FROM information_schema.innodb_buffer_page
 WHERE table_name = '`test`.`t`';
 COUNT(*)
 1
-# INSERT lots of data in table 'big': begin
-# INSERT lots of data in table 'big': end
+# Emptying InnoDB buffer pool: begin
+# Buffer pool size: 10485760 bytes
+# Creating and dropping a table with size: 20971520 bytes
+# Emptying InnoDB buffer pool: end
 SELECT COUNT(*) FROM information_schema.innodb_buffer_page
 WHERE table_name = '`test`.`t`';
 COUNT(*)
@@ -43,7 +44,6 @@ SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 't'
 AND update_time IS NOT NULL;
 COUNT(*)
 1
-DROP TABLE big;
 # Test the behavior after restart with a prepared XA transaction
 XA START 'xatrx';
 INSERT INTO t VALUES (5);

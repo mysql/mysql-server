@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@
 #include <random.h>
 #include <NdbAutoPtr.hpp>
 #include <NdbMixRestarter.hpp>
+#include <NdbBackup.hpp>
 #include <NdbSqlUtil.hpp>
 #include <NdbEnv.h>
 #include <ndb_rand.h>
@@ -1057,6 +1058,19 @@ runDropTakeoverTest(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 int
+runBackup(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbBackup backup;
+  Uint32 backupId = 0;
+  backup.clearOldBackups();
+  if (backup.start(backupId) == -1)
+  {
+    return NDBT_FAILED;
+  }
+  return NDBT_OK;
+}
+
+int
 runCreateMaxTables(NDBT_Context* ctx, NDBT_Step* step)
 {
   char tabName[256];
@@ -1537,6 +1551,157 @@ int runStoreFrmError(NDBT_Context* ctx, NDBT_Step* step){
       continue;
     } 
     
+  }
+
+  return result;
+}
+
+
+int runStoreExtraMetada(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  const NdbDictionary::Table* pTab = ctx->getTab();
+  int result = NDBT_OK;
+
+  for (int l = 0; l < ctx->getNumLoops() && result == NDBT_OK ; l++)
+  {
+    const Uint32 dataLen = (Uint32)myRandom48(MAX_FRM_DATA_SIZE);
+    unsigned char data[MAX_FRM_DATA_SIZE];
+
+    // Fill in the "data" array with some varying numbers
+    char value = l + 248;
+    for(Uint32 i = 0; i < dataLen; i++){
+      data[i] = value;
+      value++;
+    }
+
+    NdbDictionary::Table newTab(* pTab);
+    // Using loop counter for version since any version should be supported
+    const Uint32 version = l;
+    if (newTab.setExtraMetadata(version,
+                                &data, dataLen))
+    {
+      result = NDBT_FAILED;
+      continue;
+    }
+
+    // Try to create table in db
+    if (newTab.createTableInDb(pNdb) != 0){
+      result = NDBT_FAILED;
+      continue;
+    }
+
+    // Verify that table is in db
+    const NdbDictionary::Table* pTab2 =
+      NDBT_Table::discoverTableFromDb(pNdb, pTab->getName());
+    if (pTab2 == NULL){
+      g_err << pTab->getName() << " was not found in DB"<< endl;
+      result = NDBT_FAILED;
+      continue;
+    }
+
+    Uint32 version2;
+    void* data2;
+    Uint32 dataLen2;
+    if (pTab2->getExtraMetadata(version2,
+                                &data2, &dataLen2))
+    {
+      result = NDBT_FAILED;
+    }
+
+    if (version != version2)
+    {
+      g_err << "Wrong version received" << endl
+            << " expected = " << version << endl
+            << " got = " << version2 << endl;
+      result = NDBT_FAILED;
+    }
+
+    if (dataLen != dataLen2){
+      g_err << "Length of data failure" << endl
+            << " expected = " << dataLen << endl
+            << " got = " << dataLen2 << endl;
+      result = NDBT_FAILED;
+    }
+
+    // Verfiy the frm data
+    if (memcmp(&data, data2, dataLen2) != 0){
+      g_err << "Wrong data received" << endl;
+      for (size_t i = 0; i < dataLen; i++){
+        unsigned char c = ((unsigned char*)data2)[i];
+        g_err << hex << c << ", ";
+      }
+      g_err << endl;
+      result = NDBT_FAILED;
+    }
+    free(data2);
+
+    if (pNdb->getDictionary()->dropTable(pTab2->getName()) != 0){
+      g_err << "It can NOT be dropped" << endl;
+      result = NDBT_FAILED;
+    }
+  }
+
+  return result;
+}
+
+
+int runStoreExtraMetadataError(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  const NdbDictionary::Table* pTab = ctx->getTab();
+  int result = NDBT_OK;
+
+  for (int l = 0; l < ctx->getNumLoops() && result == NDBT_OK ; l++)
+  {
+    // The setExtraMetadata function will compress the payload,
+    // need to use a fairly larg value in order to guarantee it
+    // exceeds the MAX_FRM_DATA_SIZE limit after it has been
+    // compressed
+    const Uint32 dataLen = 0x200000U;
+    uchar* data = new uchar[dataLen];
+
+    // Fill in the "data" array with some varying numbers
+    char value = l + 248;
+    for(Uint32 i = 0; i < dataLen; i++){
+      data[i] = value;
+      value++;
+    }
+
+    // It should be possible to set the extra metadata
+    // even though it later will not work to create the table
+    NdbDictionary::Table newTab(* pTab);
+    if (newTab.setExtraMetadata(37, // version
+                                data, dataLen))
+    {
+      g_err << "Failed to set the extra metadata, "
+               "length: " << dataLen << endl;
+      result = NDBT_FAILED;
+      delete[] data;
+      continue;
+    }
+    delete[] data;
+
+    // Try to create table in db, should fail!
+    if (newTab.createTableInDb(pNdb) == 0){
+      g_err << "Table created, that was unexpected" << endl;
+      result = NDBT_FAILED;
+      continue;
+    }
+
+    const NdbDictionary::Table* pTab2 =
+      NDBT_Table::discoverTableFromDb(pNdb, pTab->getName());
+    if (pTab2 != NULL){
+      g_err << pTab->getName() << " was found in DB"<< endl;
+      result = NDBT_FAILED;
+      if (pNdb->getDictionary()->dropTable(pTab2->getName()) != 0){
+        g_err << "It can NOT be dropped" << endl;
+        result = NDBT_FAILED;
+      }
+
+      continue;
+    }
+
   }
 
   return result;
@@ -2160,8 +2325,30 @@ runCreateLogfileGroup(NDBT_Context* ctx, NDBT_Step* step){
   lg.setName("DEFAULT-LG");
   lg.setUndoBufferSize(8*1024*1024);
   
-  int res;
-  res = pNdb->getDictionary()->createLogfileGroup(lg);
+  int oneDictParticipantFail = ctx->getProperty("OneDictParticipantFail",
+                                                (Uint32)0);
+  if (oneDictParticipantFail)
+  {
+    NdbRestarter restarter;
+    const int anyDbNodeId = restarter.getNode(NdbRestarter::NS_RANDOM);
+    restarter.insertErrorInNode(anyDbNodeId, 15001);
+
+    if ((pNdb->getDictionary()->createLogfileGroup(lg)) == 0)
+    {
+      g_err << "Error: Should have failed to create logfilegroup"
+            << " due to error insertion" << endl;
+
+      // Leave the data nodes error-free before failing
+      restarter.insertErrorInNode(anyDbNodeId, 0);
+      return NDBT_FAILED;
+    }
+
+    restarter.insertErrorInNode(anyDbNodeId, 0); // clear error
+
+    // Recreate LFG below
+  }
+
+  int res = pNdb->getDictionary()->createLogfileGroup(lg);
   if(res != 0){
     g_err << "Failed to create logfilegroup:"
 	  << endl << pNdb->getDictionary()->getNdbError() << endl;
@@ -2202,8 +2389,32 @@ runCreateTablespace(NDBT_Context* ctx, NDBT_Step* step){
   lg.setExtentSize(1024*1024);
   lg.setDefaultLogfileGroup("DEFAULT-LG");
 
-  int res;
-  res = pNdb->getDictionary()->createTablespace(lg);
+  int oneDictParticipantFail = ctx->getProperty("OneDictParticipantFail",
+                                                (Uint32)0);
+
+  if (oneDictParticipantFail)
+  {
+    NdbRestarter restarter;
+    const int anyDbNodeId = restarter.getNode(NdbRestarter::NS_RANDOM);
+
+    restarter.insertErrorInNode(anyDbNodeId, 16001);
+
+    if ((pNdb->getDictionary()->createTablespace(lg)) == 0)
+    {
+      g_err << "Error: Should have failed to createTablespace"
+            << " due to error insertion." << endl;
+
+      // Leave the data nodes error-free before failing
+      restarter.insertErrorInNode(anyDbNodeId, 0);
+      return NDBT_FAILED;
+    }
+
+    restarter.insertErrorInNode(anyDbNodeId, 0); // clear error
+
+    // recreate TS below.
+  }
+
+  int res = pNdb->getDictionary()->createTablespace(lg);
   if(res != 0){
     g_err << "Failed to create tablespace:"
 	  << endl << pNdb->getDictionary()->getNdbError() << endl;
@@ -2221,9 +2432,40 @@ runCreateTablespace(NDBT_Context* ctx, NDBT_Step* step){
 	  << endl << pNdb->getDictionary()->getNdbError() << endl;
     return NDBT_FAILED;
   }
-
   return NDBT_OK;
 }
+
+int
+runDropTableSpaceLogFileGroup(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+
+  if (pNdb->getDictionary()->dropDatafile(
+      pNdb->getDictionary()->getDatafile(0, "datafile01.dat")) != 0)
+  {
+    g_err << "Error: Failed to drop datafile: "
+          << pNdb->getDictionary()->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+
+  if (pNdb->getDictionary()->dropTablespace(pNdb->getDictionary()->
+                                            getTablespace("DEFAULT-TS")) != 0)
+  {
+    g_err << "Error: Failed to drop tablespace: "
+          << pNdb->getDictionary()->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+
+  if (pNdb->getDictionary()->dropLogfileGroup(
+      pNdb->getDictionary()->getLogfileGroup("DEFAULT-LG")) != 0)
+  {
+    g_err << "Error: Drop of LFG Failed"
+          << endl << pNdb->getDictionary()->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+  return NDBT_OK;
+}
+
 int
 runCreateDiskTable(NDBT_Context* ctx, NDBT_Step* step){
   Ndb* pNdb = GETNDB(step);  
@@ -4057,7 +4299,7 @@ DropDDObjectsVerify(NDBT_Context* ctx, NDBT_Step* step){
   if (pDict->listObjects(list) == -1)
     return NDBT_FAILED;
 
-    bool ddFound  = false;
+  bool ddFound  = false;
   for (i = 0; i <list.count; i++){
     switch(list.elements[i].type){
       case NdbDictionary::Object::Tablespace:
@@ -7766,6 +8008,7 @@ runFailAddPartition(NDBT_Context* ctx, NDBT_Step* step)
   NdbDictionary::Table altered = * org;
   altered.setFragmentCount(org->getFragmentCount() +
                            restarter.getNumDbNodes());
+  altered.setPartitionBalance(NdbDictionary::Object::PartitionBalance_Specific);
 
   if (pDic->beginSchemaTrans())
   {
@@ -7880,6 +8123,8 @@ runTableAddPartition(NDBT_Context* ctx, NDBT_Step* step){
     NdbDictionary::Table newTable= *oldTable;
 
     newTable.setFragmentCount(2 * oldTable->getFragmentCount());
+    newTable.setPartitionBalance(
+      NdbDictionary::Object::PartitionBalance_Specific);
     CHECK2(dict->alterTable(*oldTable, newTable) == 0,
            "TableAddAttrs failed");
 
@@ -8263,6 +8508,8 @@ runBug46585(NDBT_Context* ctx, NDBT_Step* step)
 
     NdbDictionary::Table altered = * org;
     altered.setFragmentCount(org->getFragmentCount() + 1);
+    altered.setPartitionBalance(
+      NdbDictionary::Object::PartitionBalance_Specific);
     ndbout_c("alter from %u to %u partitions",
              org->getFragmentCount(),
              altered.getFragmentCount());
@@ -9886,7 +10133,14 @@ runBug14645319(NDBT_Context* ctx, NDBT_Step* step)
       NdbDictionary::Table new_tab = old_tab;
       new_tab.setFragmentCount(test.new_fragments);
       if (test.new_fragments == 0)
+      {
         new_tab.setFragmentData(0, 0);
+      }
+      else
+      {
+        new_tab.setPartitionBalance(
+          NdbDictionary::Object::PartitionBalance_Specific);
+      }
 
       result = pDic->beginSchemaTrans();
       if (result != 0) break;
@@ -11457,6 +11711,13 @@ TESTCASE("CreateMaxTables",
   INITIALIZER(runCreateMaxTables);
   INITIALIZER(runDropMaxTables);
 }
+TESTCASE("BackupMaxTables", 
+	 "Create max amount of tables and verify backup works\n"){
+  TC_PROPERTY("tables", 200);
+  INITIALIZER(runCreateMaxTables);
+  INITIALIZER(runBackup);
+  INITIALIZER(runDropMaxTables);
+}
 TESTCASE("PkSizes", 
 	 "Create tables with all different primary key sizes.\n"\
 	 "Test all data operations insert, update, delete etc.\n"\
@@ -11478,6 +11739,15 @@ TESTCASE("StoreFrmError",
 	 "Test that a frm file with too long length can't be stored."){
   INITIALIZER(runStoreFrmError);
 }
+TESTCASE("StoreExtraMetadata",
+         "Test that extra metadata can be stored as part of the\n"
+         "data in Dict."){
+  INITIALIZER(runStoreExtraMetada);
+}
+TESTCASE("StoreExtraMetadataError",
+         "Test that extra metadata with too long length can't be stored."){
+  INITIALIZER(runStoreExtraMetadataError);
+}
 TESTCASE("TableRename",
 	 "Test basic table rename"){
   INITIALIZER(runTableRename);
@@ -11493,7 +11763,22 @@ TESTCASE("DictionaryPerf",
 TESTCASE("CreateLogfileGroup", ""){
   INITIALIZER(runCreateLogfileGroup);
 }
-TESTCASE("CreateTablespace", ""){
+TESTCASE("CreateLogfileGroupWithFailure",
+         "Create a log file group where a dict participant"
+         " fails to create log buffer"){
+  TC_PROPERTY("OneDictParticipantFail", 1);
+  INITIALIZER(runCreateLogfileGroup);
+}
+TESTCASE("CreateTablespaceWithFailure",
+         "Create a log file group where a dict participant"
+         " fails to create log buffer"){
+  TC_PROPERTY("OneDictParticipantFail", 1);
+  STEP(runCreateTablespace);
+  FINALIZER(runDropTableSpaceLogFileGroup);
+}
+TESTCASE("CreateTablespace",
+         "Create a table space where a dict participant"
+         " fails to create log buffer"){
   INITIALIZER(runCreateTablespace);
 }
 TESTCASE("CreateDiskTable", ""){

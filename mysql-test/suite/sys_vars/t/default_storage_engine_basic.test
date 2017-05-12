@@ -15,7 +15,6 @@
 ########################################################################
 
 --source include/not_embedded.inc
---source include/have_innodb.inc
 --source include/load_sysvars.inc
 
 ######################################################################

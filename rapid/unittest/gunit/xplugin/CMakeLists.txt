@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,7 +13,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-IF(NOT GMOCK_FOUND)
+IF(NOT GMOCK_FOUND OR DISABLE_SHARED OR NOT PROTOBUF_FOUND)
   RETURN()
 ENDIF()
 
@@ -26,7 +26,6 @@ INCLUDE(CTest)
 INCLUDE(${PROJECT_SOURCE_DIR}/rapid/plugin/x/mysqlx_protobuf.cmake)
 
 INCLUDE(${PROJECT_SOURCE_DIR}/rapid/plugin/x/source_files.cmake)
-LIST(REMOVE_ITEM xplugin_SRC "${MYSQLX_PROJECT_DIR}/src/mysql_variables.cc")
 
 MYSQLX_PROTOBUF_GENERATE_CPP_NAMES(protobuf_SRC ${PROTOBUF_MYSQLX_FILES})
 
@@ -40,10 +39,9 @@ IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 ENDIF()
 
 
-ADD_DEFINITIONS(${GMOCK_CFLAGS} -DBOOST_ALL_NO_LIB -DBOOST_NO_AUTO_PTR -DUSE_MYSQLX_FULL_PROTO -DXPLUGIN_UNIT_TESTS)
+ADD_DEFINITIONS(${GMOCK_CFLAGS} -DUSE_MYSQLX_FULL_PROTO -DXPLUGIN_UNIT_TESTS)
 
 INCLUDE_DIRECTORIES(SYSTEM
-    ${BOOST_INCLUDE_DIR}
     ${PROTOBUF_INCLUDE_DIRS}
     ${SSL_INCLUDE_DIRS}
     ${LIBEVENT_INCLUDE_DIR}
@@ -60,7 +58,7 @@ INCLUDE_DIRECTORIES(
   ${PROJECT_SOURCE_DIR}/rapid/plugin/x/src
   ${PROJECT_SOURCE_DIR}/rapid/plugin/x
   ${CMAKE_SOURCE_DIR}/include
-  ${CMAKE_SOURCE_DIR}/regex
+  ${CMAKE_SOURCE_DIR}/extra/regex
   ${CMAKE_SOURCE_DIR}/libbinlogevents/include
   ${PROJECT_SOURCE_DIR}/sql
   ${PROJECT_SOURCE_DIR}/include/mysql
@@ -83,41 +81,42 @@ FILE(
   "${PROJECT_SOURCE_DIR}/rapid/plugin/x/mysqlxtest_src/mysqlx_row.cc"
 )
 
-# boost::shared_ptr depends on scoped_lock
-# Prevent missing symbols scoped_lock() CTOR/DTOR in sasl_authentication_t.cc
-#   boost::atomics::detail::lockpool::scoped_lock::~scoped_lock()
-UNSET(BOOST_LIB_SOURCES)
-IF (CMAKE_CXX_COMPILER_ID STREQUAL "SunPro")
-  SET(BOOST_LIB_SOURCES
-    ${BOOST_SOURCES_DIR}/libs/atomic/src/lockpool.cpp)
-ENDIF()
+SET(unit_tests_EXE xplugin_unit_tests)
 
-ADD_EXECUTABLE(xplugin_unit_tests
-  ${unit_tests_SRC} ${xplugin_SRC} ${protobuf_SRC} ${BOOST_LIB_SOURCES}
+ADD_EXECUTABLE(${unit_tests_EXE}
+  ${unit_tests_SRC} ${xplugin_SRC} ${protobuf_SRC}
 )
 
-ADD_DEPENDENCIES(xplugin_unit_tests mysqlxtest)
+ADD_DEPENDENCIES(${unit_tests_EXE} mysqlxtest)
 
 # New warning in Visual Studio 2008
 # '%$S': virtual function overrides '%$pS', previous versions of the compiler
 # did not override when parameters only differed by const/volatile qualifiers
 IF(WIN32)
-  SET_TARGET_PROPERTIES(xplugin_unit_tests PROPERTIES COMPILE_FLAGS "/wd4373")
+  SET_TARGET_PROPERTIES(${unit_tests_EXE} PROPERTIES COMPILE_FLAGS "/wd4373")
 ENDIF(WIN32)
 
+# assertion failed in function assert_with_dumps() @ ssa.c:621 when using -xO3
+# Segfault in the unit test, so lower optimization level there as well
+IF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro")
+  ADD_COMPILE_FLAGS(
+    ${CMAKE_CURRENT_SOURCE_DIR}/callback_command_delegate_t.cc
+    ${MYSQLX_PROJECT_DIR}/ngs/src/client.cc
+    COMPILE_FLAGS "-xO2")
+ENDIF()
+
 TARGET_LINK_LIBRARIES(
-  xplugin_unit_tests
-  xplugin
+  ${unit_tests_EXE}
   gtest
   regex
   gmock
   mysqlservices
   mysqlclient
-  ${LIBEVENT_LIBRARY}
+  ${LIBEVENT_LIBRARY} ${LIBEVENT_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT}
   ${PROTOBUF_LIBRARY}
   ${GCOV_LDFLAGS}
 )
 
-INCLUDE(TestGroups.txt)
+ADD_TEST(xplugin ${unit_tests_EXE})
 

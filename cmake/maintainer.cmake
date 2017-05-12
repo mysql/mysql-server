@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -43,6 +43,17 @@ SET(MY_C_WARNING_FLAGS
 # Common warning flags for G++ and Clang++
 SET(MY_CXX_WARNING_FLAGS
     "${MY_WARNING_FLAGS} -Woverloaded-virtual -Wno-unused-parameter")
+
+# GCC bug #36750 (https://gcc.gnu.org/bugzilla/show_bug.cgi?id=36750)
+# Remove when we require GCC >= 5.1 everywhere.
+if(CMAKE_COMPILER_IS_GNUCXX)
+  MY_ADD_CXX_WARNING_FLAG("Wno-missing-field-initializers")
+ENDIF()
+
+# The default =3 given by -Wextra is a bit too strict for our code.
+IF(CMAKE_COMPILER_IS_GNUCXX)
+  MY_ADD_CXX_WARNING_FLAG("Wimplicit-fallthrough=2")
+ENDIF()
 
 #
 # Extra flags not supported on all versions/compilers

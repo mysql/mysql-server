@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,9 +17,7 @@
 
 #include "ndb_local_schema.h"
 
-#ifndef MYSQL_SERVER
-#define MYSQL_SERVER
-#endif
+#include <errno.h>
 
 #include "sql_class.h"
 #include "sql_table.h"

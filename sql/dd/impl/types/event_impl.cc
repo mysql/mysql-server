@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,15 +15,20 @@
 
 #include "dd/impl/types/event_impl.h"
 
-#include "my_user.h"                             // parse_user
-#include "mysqld_error.h"                        // ER_*
+#include <sstream>
 
-#include "dd/impl/transaction_impl.h"            // Open_dictionary_tables_ctx
 #include "dd/impl/raw/object_keys.h"             // Primary_id_key
 #include "dd/impl/raw/raw_record.h"              // Raw_record
 #include "dd/impl/tables/events.h"               // Events
-
-#include <sstream>
+#include "dd/impl/transaction_impl.h"            // Open_dictionary_tables_ctx
+#include "dd/string_type.h"                      // dd::String_type
+#include "dd/types/weak_object.h"
+#include "lex_string.h"
+#include "my_sys.h"
+#include "my_user.h"                             // parse_user
+#include "mysql_com.h"
+#include "mysqld.h"
+#include "mysqld_error.h"                        // ER_*
 
 using dd::tables::Events;
 
@@ -65,7 +70,7 @@ Event_impl::Event_impl()
   m_is_starts_null(false),
   m_is_ends_null(false),
   m_is_event_status_null(false),
-  m_is_last_executed_null(false),
+  m_is_last_executed_null(true),
   m_schema_id(INVALID_OBJECT_ID),
   m_client_collation_id(INVALID_OBJECT_ID),
   m_connection_collation_id(INVALID_OBJECT_ID),
@@ -137,7 +142,7 @@ bool Event_impl::restore_attributes(const Raw_record &r)
 
   // Read definer user/host
   {
-    std::string definer= r.read_str(Events::FIELD_DEFINER);
+    String_type definer= r.read_str(Events::FIELD_DEFINER);
 
     char user_name_holder[USERNAME_LENGTH + 1];
     LEX_STRING user_name= { user_name_holder, USERNAME_LENGTH };
@@ -170,7 +175,7 @@ bool Event_impl::restore_attributes(const Raw_record &r)
 
 bool Event_impl::store_attributes(Raw_record *r)
 {
-  std::stringstream definer;
+  dd::Stringstream_type definer;
   definer << m_definer_user << '@' << m_definer_host;
 
   return store_id(r, Events::FIELD_ID) ||
@@ -224,14 +229,14 @@ bool Event::update_id_key(id_key_type *key, Object_id id)
 
 bool Event::update_name_key(name_key_type *key,
                             Object_id schema_id,
-                            const std::string &name)
+                            const String_type &name)
 { return Events::update_object_key(key, schema_id, name); }
 
 ///////////////////////////////////////////////////////////////////////////
 
-void Event_impl::debug_print(std::string &outb) const
+void Event_impl::debug_print(String_type &outb) const
 {
-  std::stringstream ss;
+  dd::Stringstream_type ss;
   ss
   << "id: {OID: " << id() << "}; "
   << "m_name: " << name() << "; "

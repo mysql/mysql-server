@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,13 +13,18 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#include <stdlib.h>
-#include <my_global.h>
-#include "my_sys.h"                             // my_write, my_malloc
+#include <fcntl.h>
 #include <mysql/plugin.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
 
-#include "mysql_com.h"
 #include "m_string.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_sys.h"                             // my_write, my_malloc
+#include "mysql_com.h"
 
 static const char *log_filename= "test_sql_all_col_types";
 
@@ -146,7 +151,7 @@ struct st_plugin_ctx
 };
 
 
-static int sql_start_result_metadata(void *ctx, uint num_cols, uint flags,
+static int sql_start_result_metadata(void *ctx, uint num_cols, uint,
                                      const CHARSET_INFO *resultcs)
 {
   struct st_plugin_ctx *pctx= (struct st_plugin_ctx*) ctx;
@@ -162,7 +167,7 @@ static int sql_start_result_metadata(void *ctx, uint num_cols, uint flags,
 
 
 static int sql_field_metadata(void *ctx, struct st_send_field *field,
-                              const CHARSET_INFO *charset)
+                              const CHARSET_INFO*)
 {
   struct st_plugin_ctx *pctx= (struct st_plugin_ctx*) ctx;
   st_send_field_n *cfield= &pctx->sql_field[pctx->current_col];
@@ -233,7 +238,7 @@ static void sql_abort_row(void *ctx)
 }
 
 
-static ulong sql_get_client_capabilities(void *ctx)
+static ulong sql_get_client_capabilities(void*)
 {
   DBUG_ENTER("sql_get_client_capabilities");
   DBUG_RETURN(0);
@@ -443,7 +448,7 @@ static int sql_get_datetime(void * ctx, const MYSQL_TIME * value, uint decimals)
 
 
 static int sql_get_string(void * ctx, const char * const value, size_t length,
-                          const CHARSET_INFO * const valuecs)
+                          const CHARSET_INFO * const)
 {
   struct st_plugin_ctx *pctx= (struct st_plugin_ctx*) ctx;
   DBUG_ENTER("sql_get_string");
@@ -495,7 +500,7 @@ static void sql_handle_error(void * ctx, uint sql_errno,
 }
 
 
-static void sql_shutdown(void *ctx, int shutdown_server)
+static void sql_shutdown(void*, int)
 {
   DBUG_ENTER("sql_shutdown");
   DBUG_VOID_RETURN;

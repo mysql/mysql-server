@@ -13,9 +13,22 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_config.h"
+#include "derror.h"
+#include "item.h"
+#include "my_dbug.h"
+#include "my_sys.h"
+#include "mysql_com.h"
+#include "mysqld_error.h"
+#include "parse_location.h"
 #include "parse_tree_partitions.h"
+#include "sql_alter.h"
 #include "sql_class.h"
+#include "sql_const.h"
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_parse.h"
+#include "sql_security_ctx.h"
+#include "sql_string.h"
 
 Partition_parse_context::Partition_parse_context(
     THD *thd,
@@ -53,6 +66,13 @@ bool PT_subpartition::contextualize(Partition_parse_context *pc)
     new (pc->mem_root) partition_element(pc->current_partition);
   if (sub_p_elem == NULL)
     return true;
+
+  if (check_string_char_length(to_lex_cstring(name), "",
+                               NAME_CHAR_LEN, system_charset_info, true))
+  {
+    my_error(ER_TOO_LONG_IDENT, MYF(0), name);
+    return true;
+  }
 
   sub_p_elem->partition_name= name;
 
@@ -226,6 +246,13 @@ bool PT_part_definition::contextualize(Partition_parse_context *pc)
   curr_part->part_state= PART_NORMAL;
   part_info->use_default_partitions= false;
   part_info->use_default_num_partitions= false;
+
+  if (check_string_char_length(to_lex_cstring(name), "",
+                               NAME_CHAR_LEN, system_charset_info, true))
+  {
+    my_error(ER_TOO_LONG_IDENT, MYF(0), name.str);
+    return true;
+  }
 
   curr_part->partition_name= name.str;
 

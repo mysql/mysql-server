@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,17 +13,30 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "derror.h"
-#include "mysys_err.h"
-#include "mysqld.h"                             // lc_messages_dir
-#include "sql_class.h"                          // THD
-#include "log.h"
-#include "current_thd.h"
-#include "psi_memory_key.h"
-#include "sql_locale.h"
+#include "sql/derror.h"
 
-#include "pfs_file_provider.h"
+#include <fcntl.h>
+#include <stddef.h>
+#include <sys/types.h>
+
+#include "current_thd.h"
+#include "log.h"
+#include "my_byteorder.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_macros.h"
+#include "my_sys.h"
 #include "mysql/psi/mysql_file.h"
+#include "mysql/psi/mysql_statement.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysqld.h"                             // lc_messages_dir
+#include "mysqld_error.h"
+#include "psi_memory_key.h"
+#include "sql_class.h"                          // THD
+#include "sql_locale.h"
+#include "system_variables.h"
+#include "table.h"
 
 CHARSET_INFO *error_message_charset_info;
 

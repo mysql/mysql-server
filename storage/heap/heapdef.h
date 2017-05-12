@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -97,7 +97,7 @@ extern uint hp_rb_make_key(HP_KEYDEF *keydef, uchar *key,
 extern uint hp_rb_key_length(HP_KEYDEF *keydef, const uchar *key);
 extern uint hp_rb_null_key_length(HP_KEYDEF *keydef, const uchar *key);
 extern uint hp_rb_var_key_length(HP_KEYDEF *keydef, const uchar *key);
-extern my_bool hp_if_null_in_key(HP_KEYDEF *keyinfo, const uchar *record);
+extern bool hp_if_null_in_key(HP_KEYDEF *keyinfo, const uchar *record);
 extern int hp_close(HP_INFO *info);
 extern void hp_clear(HP_SHARE *info);
 extern void hp_clear_keys(HP_SHARE *info);

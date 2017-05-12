@@ -1,0 +1,52 @@
+
+############################################################
+# 1. Create a group with 3 members and a table on it.
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+include/rpl_sync.inc
+
+############################################################
+# 2. Force a new group membership with 2 members: server 1 and 2.
+[connection server_2]
+[connection server1]
+include/assert.inc [group_replication_force_members is correct]
+
+############################################################
+# 3. Assert that group has 2 members: server 1 and 2.
+[connection server1]
+include/rpl_gr_wait_for_number_of_members.inc
+include/assert.inc [Server 1 must be present on group members]
+include/assert.inc [Server 2 must be present on group members]
+include/assert.inc [The value of view_id must be random:4]
+[connection server2]
+include/rpl_gr_wait_for_number_of_members.inc
+include/assert.inc [Server 1 must be present on group members]
+include/assert.inc [Server 2 must be present on group members]
+include/assert.inc [The value of view_id must be random:4]
+
+############################################################
+# 4. Execute a transaction in order to prove liveness.
+[connection server2]
+INSERT INTO t1 VALUES (1);
+include/sync_slave_sql_with_master.inc
+include/assert.inc ['There is one value in table t1']
+include/diff_tables.inc [server1:test.t1, server2:test.t1]
+
+############################################################
+# 5. Kill the member that did not receive the new
+#    membership: server 3, which is blocked.
+[connection server3]
+# Kill and restart
+include/rpl_reconnect.inc
+include/assert.inc ['There are no values in table t1']
+DROP TABLE t1;
+
+############################################################
+# 6. Clean up.
+[connection server1]
+DROP TABLE t1;
+include/group_replication_end.inc

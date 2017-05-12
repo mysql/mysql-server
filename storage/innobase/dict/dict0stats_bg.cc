@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,15 +23,19 @@ Code used for background table and index stats gathering.
 Created Apr 25, 2012 Vasil Dimov
 *******************************************************/
 
+#include "dict0stats_bg.h"
+
+#include <stddef.h>
+#include <sys/types.h>
+#include <vector>
+
 #include "dict0dict.h"
 #include "dict0stats.h"
-#include "dict0stats_bg.h"
+#include "my_inttypes.h"
+#include "os0thread-create.h"
 #include "row0mysql.h"
 #include "srv0start.h"
 #include "ut0new.h"
-#include "os0thread-create.h"
-
-#include <vector>
 
 /** Minimum time interval between stats recalc for a given table */
 #define MIN_RECALC_INTERVAL	10 /* seconds */
@@ -43,7 +47,7 @@ os_event_t			dict_stats_event = NULL;
 
 #ifdef UNIV_DEBUG
 /** Used by SET GLOBAL innodb_dict_stats_disabled_debug = 1; */
-my_bool				innodb_dict_stats_disabled_debug;
+bool				innodb_dict_stats_disabled_debug;
 
 static os_event_t		dict_stats_disabled_event;
 #endif /* UNIV_DEBUG */
@@ -377,7 +381,7 @@ dict_stats_disabled_debug_update(
 	/* This method is protected by mutex, as every SET GLOBAL .. */
 	ut_ad(dict_stats_disabled_event != NULL);
 
-	const bool disable = *static_cast<const my_bool*>(save);
+	const bool disable = *static_cast<const bool*>(save);
 
 	const int64_t sig_count = os_event_reset(dict_stats_disabled_event);
 
@@ -396,6 +400,8 @@ statistics. */
 void
 dict_stats_thread()
 {
+	my_thread_init();
+
 	ut_a(!srv_read_only_mode);
 
 	srv_dict_stats_thread_active = true;
@@ -433,6 +439,8 @@ dict_stats_thread()
 	srv_dict_stats_thread_active = false;
 
 	os_event_set(dict_stats_shutdown_event);
+
+	my_thread_end();
 }
 
 /** Shutdown the dict stats thread. */

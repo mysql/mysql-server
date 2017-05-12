@@ -63,23 +63,23 @@ create table t1 (a int);
 insert into t1 values(1),(2),(3),(4);
 select case a when 1 then 2 when 2 then 3 else 0 end as fcase, count(*) from t1 group by fcase;
 fcase	count(*)
-0	2
 2	1
 3	1
+0	2
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 explain extended select case a when 1 then 2 when 2 then 3 else 0 end as fcase, count(*) from t1 group by fcase;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using temporary
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select (case `test`.`t1`.`a` when 1 then 2 when 2 then 3 else 0 end) AS `fcase`,count(0) AS `count(*)` from `test`.`t1` group by `fcase`
 select case a when 1 then "one" when 2 then "two" else "nothing" end as fcase, count(*) from t1 group by fcase;
 fcase	count(*)
-nothing	2
 one	1
 two	1
+nothing	2
 drop table t1;
 create table t1 (row int not null, col int not null, val varchar(255) not null);
 insert into t1 values (1,1,'orange'),(1,2,'large'),(2,1,'yellow'),(2,2,'medium'),(3,1,'green'),(3,2,'small');
@@ -109,17 +109,17 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(1) CHARACTER SET latin1 COLLATE latin1_danish_ci NOT NULL DEFAULT '',
   `c2` varchar(1) CHARACTER SET latin1 COLLATE latin1_danish_ci NOT NULL DEFAULT '',
-  `c3` varchar(1) NOT NULL DEFAULT '',
-  `c4` varchar(1) NOT NULL DEFAULT '',
-  `c5` varchar(4) NOT NULL DEFAULT '',
-  `c6` varchar(4) NOT NULL DEFAULT '',
+  `c3` varchar(1) CHARACTER SET latin1 NOT NULL DEFAULT '',
+  `c4` varchar(1) CHARACTER SET latin1 NOT NULL DEFAULT '',
+  `c5` varchar(4) CHARACTER SET latin1 NOT NULL DEFAULT '',
+  `c6` varchar(4) CHARACTER SET latin1 NOT NULL DEFAULT '',
   `c7` decimal(2,1) NOT NULL DEFAULT '0.0',
   `c8` decimal(2,1) NOT NULL DEFAULT '0.0',
   `c9` decimal(2,1) DEFAULT NULL,
   `c10` double NOT NULL DEFAULT '0',
   `c11` double NOT NULL DEFAULT '0',
-  `c12` varchar(5) NOT NULL DEFAULT ''
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+  `c12` varchar(5) CHARACTER SET latin1 NOT NULL DEFAULT ''
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 SELECT CASE 
 WHEN 1 
@@ -162,12 +162,12 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `COALESCE(1)` int(1) NOT NULL DEFAULT '0',
   `COALESCE(1.0)` decimal(2,1) NOT NULL DEFAULT '0.0',
-  `COALESCE('a')` varchar(1) NOT NULL DEFAULT '',
+  `COALESCE('a')` varchar(1) CHARACTER SET latin1 NOT NULL DEFAULT '',
   `COALESCE(1,1.0)` decimal(2,1) NOT NULL DEFAULT '0.0',
-  `COALESCE(1,'1')` varchar(1) NOT NULL DEFAULT '',
-  `COALESCE(1.1,'1')` varchar(4) NOT NULL DEFAULT '',
+  `COALESCE(1,'1')` varchar(1) CHARACTER SET latin1 NOT NULL DEFAULT '',
+  `COALESCE(1.1,'1')` varchar(4) CHARACTER SET latin1 NOT NULL DEFAULT '',
   `COALESCE('a' COLLATE latin1_bin,'b')` varchar(1) CHARACTER SET latin1 COLLATE latin1_bin NOT NULL DEFAULT ''
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE t1 SELECT IFNULL('a' COLLATE latin1_swedish_ci, 'b' COLLATE latin1_bin);
 ERROR HY000: Illegal mix of collations (latin1_swedish_ci,EXPLICIT) and (latin1_bin,EXPLICIT) for operation 'ifnull'
@@ -252,3 +252,137 @@ COALESCE(c1)
 
 DROP TABLE t1;
 set @@sql_mode=default;
+# Bug#24733658: IF and friends give wrong type for signed and unsigned
+CREATE TABLE source(bt INTEGER, bf INTEGER, i8u BIGINT UNSIGNED, i8s BIGINT);
+INSERT INTO source VALUES
+(1,0,0,-9223372036854775808), (1,0,18446744073709551615,9223372036854775807);
+CREATE TABLE target
+SELECT IF(bt,i8u,i8s) AS u, IF(bf,i8u,i8s) AS s
+FROM source;
+SHOW CREATE TABLE target;
+Table	Create Table
+target	CREATE TABLE `target` (
+  `u` decimal(20,0) DEFAULT NULL,
+  `s` decimal(20,0) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+SELECT IF(bt,i8u,i8s) AS u, IF(bf,i8u,i8s) AS s
+FROM source;
+u	s
+0	-9223372036854775808
+18446744073709551615	9223372036854775807
+SELECT * FROM target;
+u	s
+0	-9223372036854775808
+18446744073709551615	9223372036854775807
+DROP TABLE target;
+CREATE TABLE target
+SELECT CASE WHEN bt THEN i8u ELSE i8s END AS u,
+CASE WHEN bf THEN i8u ELSE i8s END AS s
+FROM source;
+SHOW CREATE TABLE target;
+Table	Create Table
+target	CREATE TABLE `target` (
+  `u` decimal(20,0) DEFAULT NULL,
+  `s` decimal(20,0) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+SELECT CASE WHEN bt THEN i8u ELSE i8s END AS u,
+CASE WHEN bf THEN i8u ELSE i8s END AS s
+FROM source;
+u	s
+0	-9223372036854775808
+18446744073709551615	9223372036854775807
+SELECT * FROM target;
+u	s
+0	-9223372036854775808
+18446744073709551615	9223372036854775807
+DROP TABLE target;
+CREATE TABLE target
+SELECT CASE bt WHEN TRUE THEN i8u WHEN FALSE THEN i8s END AS u,
+CASE bf WHEN TRUE THEN i8u WHEN FALSE THEN i8s END AS s
+FROM source;
+SHOW CREATE TABLE target;
+Table	Create Table
+target	CREATE TABLE `target` (
+  `u` decimal(20,0) DEFAULT NULL,
+  `s` decimal(20,0) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+SELECT CASE bt WHEN TRUE THEN i8u WHEN FALSE THEN i8s END AS u,
+CASE bf WHEN TRUE THEN i8u WHEN FALSE THEN i8s END AS s
+FROM source;
+u	s
+0	-9223372036854775808
+18446744073709551615	9223372036854775807
+SELECT * FROM target;
+u	s
+0	-9223372036854775808
+18446744073709551615	9223372036854775807
+DROP TABLE target;
+CREATE TABLE target
+SELECT COALESCE(i8u, i8s) AS u, COALESCE(i8s, i8u) AS s
+FROM source;
+SHOW CREATE TABLE target;
+Table	Create Table
+target	CREATE TABLE `target` (
+  `u` decimal(20,0) DEFAULT NULL,
+  `s` decimal(20,0) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+SELECT COALESCE(i8u, i8s) AS u, COALESCE(i8s, i8u) AS s
+FROM source;
+u	s
+0	-9223372036854775808
+18446744073709551615	9223372036854775807
+SELECT * FROM target;
+u	s
+0	-9223372036854775808
+18446744073709551615	9223372036854775807
+DROP TABLE source, target;
+# Bug#25139420: BIT(n) data type confused when used with IF, IFNULL
+CREATE TABLE t (a bit(5));
+INSERT INTO t VALUES
+(0),(1),(2),(3),(4),(5),(6),(7),(8),(9),
+(10),(11),(12),(19),(20),(21),(29),(30),(31);
+SELECT HEX(a),
+IFNULL(a,a) AS b,
+IFNULL(a,a)+0 AS c,
+IFNULL(a+0,a+0) AS d,
+IFNULL(a+0,a) AS e,
+IFNULL(a,a+0) AS f
+FROM t;
+HEX(a)	b	c	d	e	f
+0	0	0	0	0	0
+1	1	1	1	1	1
+2	2	2	2	2	2
+3	3	3	3	3	3
+4	4	4	4	4	4
+5	5	5	5	5	5
+6	6	6	6	6	6
+7	7	7	7	7	7
+8	8	8	8	8	8
+9	9	9	9	9	9
+A	10	10	10	10	10
+B	11	11	11	11	11
+C	12	12	12	12	12
+13	19	19	19	19	19
+14	20	20	20	20	20
+15	21	21	21	21	21
+1D	29	29	29	29	29
+1E	30	30	30	30	30
+1F	31	31	31	31	31
+CREATE TABLE u AS SELECT HEX(a),
+IFNULL(a,a) AS b,
+IFNULL(a,a)+0 AS c,
+IFNULL(a+0,a+0) AS d,
+IFNULL(a+0,a) AS e,
+IFNULL(a,a+0) AS f
+FROM t;
+SHOW CREATE TABLE u;
+Table	Create Table
+u	CREATE TABLE `u` (
+  `HEX(a)` varchar(10) CHARACTER SET latin1 DEFAULT NULL,
+  `b` bit(5) DEFAULT NULL,
+  `c` int(6) unsigned DEFAULT NULL,
+  `d` bigint(6) unsigned DEFAULT NULL,
+  `e` bigint(6) unsigned DEFAULT NULL,
+  `f` bigint(6) unsigned DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+DROP TABLE t, u;

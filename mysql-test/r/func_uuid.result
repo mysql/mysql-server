@@ -169,12 +169,12 @@ FROM at;
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `bin_to_uuid(_bin)` varchar(36) DEFAULT NULL,
-  `bin_to_uuid(_vbn)` varchar(36) DEFAULT NULL,
-  `bin_to_uuid(_tbl)` varchar(36) DEFAULT NULL,
-  `bin_to_uuid(_ttx)` varchar(36) DEFAULT NULL,
-  `bin_to_uuid(_blb)` varchar(36) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+  `bin_to_uuid(_bin)` varchar(36) CHARACTER SET latin1 DEFAULT NULL,
+  `bin_to_uuid(_vbn)` varchar(36) CHARACTER SET latin1 DEFAULT NULL,
+  `bin_to_uuid(_tbl)` varchar(36) CHARACTER SET latin1 DEFAULT NULL,
+  `bin_to_uuid(_ttx)` varchar(36) CHARACTER SET latin1 DEFAULT NULL,
+  `bin_to_uuid(_blb)` varchar(36) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t3;
 # Compare with hex:
 DELETE FROM at;
@@ -183,10 +183,10 @@ CREATE TABLE t3 AS SELECT hex('c8eb4b15cb0948bb'),hex(_bin),hex(_blb) FROM at;
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `hex('c8eb4b15cb0948bb')` varchar(32) DEFAULT NULL,
-  `hex(_bin)` varchar(32) DEFAULT NULL,
-  `hex(_blb)` longtext
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+  `hex('c8eb4b15cb0948bb')` varchar(32) CHARACTER SET latin1 DEFAULT NULL,
+  `hex(_bin)` varchar(32) CHARACTER SET latin1 DEFAULT NULL,
+  `hex(_blb)` longtext CHARACTER SET latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t3;
 # Output types of uuid_to_bin
 CREATE TABLE t3 AS SELECT
@@ -197,7 +197,7 @@ Table	Create Table
 t3	CREATE TABLE `t3` (
   `a` varbinary(16) DEFAULT NULL,
   `b` varbinary(16) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t3;
 # Compare with unhex:
 CREATE TABLE t3 AS SELECT unhex(_bin) FROM at;
@@ -205,7 +205,7 @@ SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
   `unhex(_bin)` varbinary(8) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t3;
 DROP TABLE at;
 # Bad arguments
@@ -286,7 +286,7 @@ col1	gcol2
 4Vy4Vx4Vx4Vx	12345679-1234-5678-1234-567812345678
 EXPLAIN SELECT * FROM t2 where gcol2='12345679-1234-5678-1234-567812345678';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ref	gcol2	gcol2	39	const	1	100.00	NULL
+1	SIMPLE	t2	NULL	ref	gcol2	gcol2	147	const	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`col1` AS `col1`,`test`.`t2`.`gcol2` AS `gcol2` from `test`.`t2` where (`test`.`t2`.`gcol2` = '12345679-1234-5678-1234-567812345678')
 SELECT * FROM t2 where gcol2='12345679-1234-5678-1234-567812345678';
@@ -294,7 +294,7 @@ col1	gcol2
 4Vy4Vx4Vx4Vx	12345679-1234-5678-1234-567812345678
 EXPLAIN SELECT * FROM t2 where bin_to_uuid(col1)='12345679-1234-5678-1234-567812345678';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ref	gcol2	gcol2	39	const	1	100.00	NULL
+1	SIMPLE	t2	NULL	ref	gcol2	gcol2	147	const	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`col1` AS `col1`,`test`.`t2`.`gcol2` AS `gcol2` from `test`.`t2` where (`test`.`t2`.`gcol2` = '12345679-1234-5678-1234-567812345678')
 SELECT * FROM t2 where bin_to_uuid(col1)='12345679-1234-5678-1234-567812345678';

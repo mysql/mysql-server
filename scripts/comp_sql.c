@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,13 +19,12 @@
 */
 
 #include <stdarg.h>
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 
-#include "../include/my_config.h"
 #include "../include/my_compiler.h"
+#include "../include/my_config.h"
 #include "../sql/sql_bootstrap.h"
-
 /*
   This is an internal tool used during the build process only,
   - do not make a library just for this,

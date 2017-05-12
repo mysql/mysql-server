@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,11 +18,10 @@
 #ifndef NDB_BINLOG_EXTRA_ROW_INFO_H
 #define NDB_BINLOG_EXTRA_ROW_INFO_H
 
-#include <my_global.h>
-#include <my_byteorder.h>
-#include <ndb_types.h>
-#include <rpl_constants.h>
+#include "my_byteorder.h"
+#include "ndb_types.h"
 #include "rows_event.h"
+#include "rpl_constants.h"
 
 /*
    Helper for reading/writing Binlog extra row info

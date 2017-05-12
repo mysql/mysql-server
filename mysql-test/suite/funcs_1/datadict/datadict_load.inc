@@ -74,7 +74,7 @@ let $engine_ndb= 0;
 --disable_warnings
 DROP DATABASE IF EXISTS test1;
 --enable_warnings
-CREATE DATABASE test1;
+CREATE DATABASE test1 charset latin1;
 USE test;
 
 if ($engine_innodb)

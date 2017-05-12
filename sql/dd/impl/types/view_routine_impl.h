@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,6 +16,11 @@
 #ifndef DD__VIEW_ROUTINE_IMPL_INCLUDED
 #define DD__VIEW_ROUTINE_IMPL_INCLUDED
 
+#include <sys/types.h>
+#include <new>
+#include <string>
+
+#include "dd/impl/raw/raw_record.h"
 #include "dd/impl/types/weak_object_impl.h"  // dd::Weak_object_impl
 #include "dd/types/object_type.h"            // dd::Object_type
 #include "dd/types/view_routine.h"           // dd::View_routine
@@ -26,6 +31,10 @@ namespace dd {
 
 class View;
 class View_impl;
+class Object_key;
+class Object_table;
+class Open_dictionary_tables_ctx;
+class Weak_object;
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -52,9 +61,9 @@ public:
 
   virtual bool restore_attributes(const Raw_record &r);
 
-  virtual void debug_print(std::string &outb) const;
+  virtual void debug_print(String_type &outb) const;
 
-  void set_ordinal_position(uint ordinal_position)
+  void set_ordinal_position(uint)
   { }
 
   virtual uint ordinal_position() const
@@ -65,30 +74,30 @@ public:
   // routine catalog.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &routine_catalog() const
+  virtual const String_type &routine_catalog() const
   { return m_routine_catalog; }
 
-  virtual void set_routine_catalog(const std::string &sf_catalog)
+  virtual void set_routine_catalog(const String_type &sf_catalog)
   { m_routine_catalog= sf_catalog; }
 
   /////////////////////////////////////////////////////////////////////////
   // routine schema.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &routine_schema() const
+  virtual const String_type &routine_schema() const
   { return m_routine_schema; }
 
-  virtual void set_routine_schema(const std::string &sf_schema)
+  virtual void set_routine_schema(const String_type &sf_schema)
   { m_routine_schema= sf_schema; }
 
   /////////////////////////////////////////////////////////////////////////
   // routine name.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const std::string &routine_name() const
+  virtual const String_type &routine_name() const
   { return m_routine_name; }
 
-  virtual void set_routine_name(const std::string &sf_name)
+  virtual void set_routine_name(const String_type &sf_name)
   { m_routine_name= sf_name; }
 
   /////////////////////////////////////////////////////////////////////////
@@ -122,9 +131,9 @@ public:
   virtual bool has_new_primary_key() const;
 
 private:
-  std::string m_routine_catalog;
-  std::string m_routine_schema;
-  std::string m_routine_name;
+  String_type m_routine_catalog;
+  String_type m_routine_schema;
+  String_type m_routine_name;
 
   // References to other objects
   View_impl *m_view;

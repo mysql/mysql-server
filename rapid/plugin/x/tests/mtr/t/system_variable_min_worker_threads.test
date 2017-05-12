@@ -1,7 +1,6 @@
-## generated
 ## Ping
 
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 
 SET GLOBAL Mysqlx_min_worker_threads=50;
 SET GLOBAL Mysqlx_max_connections = 200;
@@ -19,7 +18,7 @@ EOF
 --exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/worker_threads.tmp 2>&1
 
 let $wait_condition=
-      SELECT VARIABLE_VALUE <51 FROM  information_schema.GLOBAL_STATUS gs where VARIABLE_NAME = 'mysqlx_worker_threads';
+      SELECT VARIABLE_VALUE <51 FROM  performance_schema.global_status gs where VARIABLE_NAME = 'mysqlx_worker_threads';
 --source include/wait_condition.inc
 
 SHOW STATUS like 'mysqlx_worker_threads';

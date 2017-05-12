@@ -1,4 +1,4 @@
-/* Copyright (c) 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,8 +16,18 @@
 #ifndef DD_CACHE__MULTI_MAP_BASE_INCLUDED
 #define DD_CACHE__MULTI_MAP_BASE_INCLUDED
 
-#include "my_global.h"                        // DBUG_ASSERT() etc.
+#include <stdio.h>
+
+#include "dd/types/abstract_table.h"
+#include "dd/types/charset.h"
+#include "dd/types/collation.h"
+#include "dd/types/event.h"
+#include "dd/types/routine.h"
+#include "dd/types/schema.h"
+#include "dd/types/spatial_reference_system.h"
+#include "dd/types/tablespace.h"
 #include "element_map.h"                      // Element_map
+#include "my_dbug.h"
 
 namespace dd {
 namespace cache {

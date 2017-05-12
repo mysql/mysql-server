@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,8 +13,13 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <my_global.h>
+#include <stddef.h>
+#include <memory>
+
 #include "keyring.h"
+#include "my_compiler.h"
+#include "my_inttypes.h"
+#include "my_psi_config.h"
 #include "mysql/psi/mysql_memory.h"
 
 namespace keyring
@@ -26,10 +31,10 @@ namespace keyring
 
 mysql_rwlock_t LOCK_keyring;
 
-boost::movelib::unique_ptr<IKeys_container> keys(NULL);
-my_bool is_keys_container_initialized= FALSE;
-boost::movelib::unique_ptr<ILogger> logger(NULL);
-boost::movelib::unique_ptr<char[]> keyring_file_data(NULL);
+std::unique_ptr<IKeys_container> keys(nullptr);
+bool is_keys_container_initialized= FALSE;
+std::unique_ptr<ILogger> logger(nullptr);
+std::unique_ptr<char[]> keyring_file_data(nullptr);
 
 #ifdef HAVE_PSI_INTERFACE
 static PSI_rwlock_info all_keyring_rwlocks[]=
@@ -47,15 +52,15 @@ void keyring_init_psi_keys(void)
   const char *category = "keyring";
   int count;
 
-  count= array_elements(all_keyring_memory);
+  count= static_cast<int>(array_elements(all_keyring_memory));
   mysql_memory_register(category, all_keyring_memory, count);
 
-  count= array_elements(all_keyring_rwlocks);
+  count= static_cast<int>(array_elements(all_keyring_rwlocks));
   mysql_rwlock_register(category, all_keyring_rwlocks, count);
 }
 #endif //HAVE_PSI_INTERFACE
 
-my_bool init_keyring_locks()
+bool init_keyring_locks()
 {
   if (mysql_rwlock_init(keyring::key_LOCK_keyring, &LOCK_keyring))
     return TRUE;
@@ -78,8 +83,8 @@ void update_keyring_file_data(MYSQL_THD thd  MY_ATTRIBUTE((unused)),
   mysql_rwlock_unlock(&LOCK_keyring);
 }
 
-my_bool mysql_key_fetch(boost::movelib::unique_ptr<IKey> key_to_fetch, char **key_type,
-                        void **key, size_t *key_len)
+bool mysql_key_fetch(std::unique_ptr<IKey> key_to_fetch, char **key_type,
+                     void **key, size_t *key_len)
 {
   if (is_keys_container_initialized == FALSE)
     return TRUE;
@@ -107,7 +112,7 @@ my_bool mysql_key_fetch(boost::movelib::unique_ptr<IKey> key_to_fetch, char **ke
   return FALSE;
 }
 
-my_bool check_key_for_writting(IKey* key, std::string error_for)
+bool check_key_for_writting(IKey* key, std::string error_for)
 {
   std::string error_msg= "Error while ";
   error_msg+= error_for;
@@ -126,7 +131,7 @@ my_bool check_key_for_writting(IKey* key, std::string error_for)
  return FALSE;
 }
 
-my_bool mysql_key_store(boost::movelib::unique_ptr<IKey> key_to_store)
+bool mysql_key_store(std::unique_ptr<IKey> key_to_store)
 {
   if (is_keys_container_initialized == FALSE)
     return TRUE;
@@ -148,7 +153,7 @@ my_bool mysql_key_store(boost::movelib::unique_ptr<IKey> key_to_store)
   return FALSE;
 }
 
-my_bool mysql_key_remove(boost::movelib::unique_ptr<IKey> key_to_remove)
+bool mysql_key_remove(std::unique_ptr<IKey> key_to_remove)
 {
   bool retval= false;
   if (is_keys_container_initialized == FALSE)

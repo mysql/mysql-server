@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,22 +13,39 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "rpl_write_set_handler.h"
+#include "sql/rpl_write_set_handler.h"
 
-#include "my_global.h"
-#include "my_stacktrace.h" // my_safe_itoa
-#include "field.h"         // Field
-#include "psi_memory_key.h"
-#include "sql_class.h"     // THD
-#include "sql_list.h"      // List
-#include "table.h"         // TABLE
-
-#include "my_murmur3.h"    // murmur3_32
-#include "../extra/lz4/my_xxhash.h" // xxHash
-
+#include <string.h>
+#include <sys/types.h>
 #include <map>
 #include <string>
 #include <vector>
+
+#include "../extra/lz4/my_xxhash.h"  // IWYU pragma: keep
+#include "field.h"         // Field
+#include "handler.h"
+#include "key.h"
+#include "lex_string.h"
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_base.h"
+#include "my_bitmap.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_murmur3.h"    // murmur3_32
+#include "my_stacktrace.h" // my_safe_itoa
+#include "mysql/service_mysql_alloc.h"
+#include "psi_memory_key.h"
+#include "rpl_transaction_write_set_ctx.h"
+#include "sql_class.h"     // THD
+#include "sql_const.h"
+#include "sql_list.h"      // List
+#include "sql_plugin_ref.h"
+#include "sql_string.h"
+#include "system_variables.h"
+#include "table.h"         // TABLE
+#include "transaction_info.h"
+#include "rpl_handler.h"
 
 #define NAME_READ_BUFFER_SIZE 1024
 #define HASH_STRING_SEPARATOR "½"
@@ -80,6 +97,25 @@ static void check_foreign_key(TABLE *table, THD *thd,
                               std::map<std::string,std::string> &foreign_key_map)
 {
   DBUG_ENTER("check_foreign_key");
+  /*
+    OPTION_NO_FOREIGN_KEY_CHECKS bit in options_bits is set at two places
+
+    1) If the user executed 'SET foreign_key_checks= 0' on the local session
+    before executing the query.
+    or
+    2) We are applying a RBR event (i.e., the event is from a remote server)
+    and logic in Rows_log_event::do_apply_event found out that the event is
+    generated from a remote server session that disabled foreign_key_checks
+    (using 'SET foreign_key_checks=0').
+
+    In either of the above cases (i.e., the foreign key check is disabled for
+    the current query/current event), we should ignore generating
+    the foreign key information as they should not participate
+    in the conflicts detecting algorithm.
+  */
+  if (thd->variables.option_bits & OPTION_NO_FOREIGN_KEY_CHECKS)
+    DBUG_VOID_RETURN;
+
   List<FOREIGN_KEY_INFO> f_key_list;
   table->file->get_foreign_key_list(thd, &f_key_list);
 
@@ -88,6 +124,14 @@ static void check_foreign_key(TABLE *table, THD *thd,
   LEX_STRING *f_info;
   while ((f_key_info=foreign_key_iterator++))
   {
+    /*
+      If referenced_key_name is NULL it means that the parent table
+      was dropped using foreign_key_checks= 0, on that case we
+      cannot check foreign key and need to skip it.
+    */
+    if (f_key_info->referenced_key_name == NULL)
+      continue;
+
     std::string temporary_pke;
     List_iterator_fast<LEX_STRING> foreign_fields_iterator(f_key_info->foreign_fields);
 
@@ -107,10 +151,12 @@ static void check_foreign_key(TABLE *table, THD *thd,
                                 length_table, MYF(0));
     char *char_length_table= my_safe_itoa(10, length_table, &buffer_table[length_table-1]);
 
-    // We need to append the PKE with prefix "P" since it the primary key in
-    // the referenced table that will be used to check the foreign key
-    // conflict.
-    temporary_pke.append("P");
+    /*
+      Prefix the hash keys with the referenced index name.
+    */
+    temporary_pke.append(f_key_info->referenced_key_name->str,
+                         f_key_info->referenced_key_name->length);
+    temporary_pke.append(HASH_STRING_SEPARATOR);
     temporary_pke.append(f_database_name);
     temporary_pke.append(HASH_STRING_SEPARATOR);
     temporary_pke.append(char_length_database);
@@ -133,104 +179,104 @@ static void check_foreign_key(TABLE *table, THD *thd,
 static void debug_check_for_write_sets(std::vector<std::string> &key_list_to_hash)
 {
   DBUG_EXECUTE_IF("PKE_assert_single_primary_key_generated_insert",
-                  DBUG_ASSERT(key_list_to_hash[0] == "Ptest" HASH_STRING_SEPARATOR "4t1"
+                  DBUG_ASSERT(key_list_to_hash[0] == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                      HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "1"););
 
   DBUG_EXECUTE_IF("PKE_assert_single_primary_key_generated_update",
-                  DBUG_ASSERT(key_list_to_hash[0] == "Ptest" HASH_STRING_SEPARATOR "4t1"
+                  DBUG_ASSERT(key_list_to_hash[0] == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                      HASH_STRING_SEPARATOR "23" HASH_STRING_SEPARATOR "1" ||
-                              key_list_to_hash[0] == "Ptest" HASH_STRING_SEPARATOR "4t1"
+                              key_list_to_hash[0] == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                      HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "1"););
 
   DBUG_EXECUTE_IF("PKE_assert_multi_primary_key_generated_insert",
-                  DBUG_ASSERT(key_list_to_hash[0] == "Ptest" HASH_STRING_SEPARATOR "4t1"
+                  DBUG_ASSERT(key_list_to_hash[0] == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                      HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "12"
                                                      HASH_STRING_SEPARATOR "1"););
 
   DBUG_EXECUTE_IF("PKE_assert_multi_primary_key_generated_update",
-                  DBUG_ASSERT(key_list_to_hash[0] == "Ptest" HASH_STRING_SEPARATOR "4t1"
+                  DBUG_ASSERT(key_list_to_hash[0] == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                      HASH_STRING_SEPARATOR "23" HASH_STRING_SEPARATOR "12"
                                                      HASH_STRING_SEPARATOR "1" ||
-                              key_list_to_hash[0] == "Ptest" HASH_STRING_SEPARATOR "4t1"
+                              key_list_to_hash[0] == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                      HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "12"
                                                      HASH_STRING_SEPARATOR "1"););
 
   DBUG_EXECUTE_IF("PKE_assert_single_primary_unique_key_generated_insert",
-                  DBUG_ASSERT(key_list_to_hash[0] == "Ptest" HASH_STRING_SEPARATOR "4t1"
+                  DBUG_ASSERT(key_list_to_hash[0] == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                      HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "1" &&
-                              key_list_to_hash[1] == "U1test" HASH_STRING_SEPARATOR "4t1"
+                              key_list_to_hash[1] == "c2" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                      HASH_STRING_SEPARATOR "22" HASH_STRING_SEPARATOR "1" &&
-                              key_list_to_hash[2] == "U2test" HASH_STRING_SEPARATOR "4t1"
+                              key_list_to_hash[2] == "c3" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                      HASH_STRING_SEPARATOR "23" HASH_STRING_SEPARATOR "1"););
 
   DBUG_EXECUTE_IF("PKE_assert_single_primary_unique_key_generated_update",
-                  DBUG_ASSERT((key_list_to_hash[0] == "Ptest" HASH_STRING_SEPARATOR "4t1"
+                  DBUG_ASSERT((key_list_to_hash[0] == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                       HASH_STRING_SEPARATOR "25" HASH_STRING_SEPARATOR "1" &&
-                               key_list_to_hash[1] == "U1test" HASH_STRING_SEPARATOR "4t1"
+                               key_list_to_hash[1] == "c2" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                       HASH_STRING_SEPARATOR "22" HASH_STRING_SEPARATOR "1" &&
-                               key_list_to_hash[2] == "U2test" HASH_STRING_SEPARATOR "4t1"
+                               key_list_to_hash[2] == "c3" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                       HASH_STRING_SEPARATOR "23" HASH_STRING_SEPARATOR "1") ||
-                              (key_list_to_hash[0] == "Ptest" HASH_STRING_SEPARATOR "4t1"
+                              (key_list_to_hash[0] == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                       HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "1" &&
-                               key_list_to_hash[1] == "U1test" HASH_STRING_SEPARATOR "4t1"
+                               key_list_to_hash[1] == "c2" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                       HASH_STRING_SEPARATOR "22" HASH_STRING_SEPARATOR "1" &&
-                               key_list_to_hash[2] == "U2test" HASH_STRING_SEPARATOR "4t1"
+                               key_list_to_hash[2] == "c3" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                       HASH_STRING_SEPARATOR "23" HASH_STRING_SEPARATOR "1")););
 
   DBUG_EXECUTE_IF("PKE_assert_multi_primary_unique_key_generated_insert",
-                  DBUG_ASSERT(key_list_to_hash[0] == "Ptest" HASH_STRING_SEPARATOR "4t1"
+                  DBUG_ASSERT(key_list_to_hash[0] == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                      HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "12"
                                                      HASH_STRING_SEPARATOR "1" &&
-                              key_list_to_hash[1] == "U1test" HASH_STRING_SEPARATOR "4t1"
+                              key_list_to_hash[1] == "b" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                      HASH_STRING_SEPARATOR "23" HASH_STRING_SEPARATOR "1" &&
-                              key_list_to_hash[2] == "U2test" HASH_STRING_SEPARATOR "4t1"
+                              key_list_to_hash[2] == "c" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                      HASH_STRING_SEPARATOR "24" HASH_STRING_SEPARATOR "1"););
 
   DBUG_EXECUTE_IF("PKE_assert_multi_primary_unique_key_generated_update",
-                  DBUG_ASSERT((key_list_to_hash[0] == "Ptest" HASH_STRING_SEPARATOR "4t1"
+                  DBUG_ASSERT((key_list_to_hash[0] == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                        HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "12"
                                                        HASH_STRING_SEPARATOR "1" &&
-                               key_list_to_hash[1] == "U1test" HASH_STRING_SEPARATOR "4t1"
+                               key_list_to_hash[1] == "b" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                        HASH_STRING_SEPARATOR "23" HASH_STRING_SEPARATOR "1" &&
-                               key_list_to_hash[2] == "U2test" HASH_STRING_SEPARATOR "4t1"
+                               key_list_to_hash[2] == "c" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                        HASH_STRING_SEPARATOR "24" HASH_STRING_SEPARATOR "1") ||
-                              (key_list_to_hash[0] == "Ptest" HASH_STRING_SEPARATOR "4t1"
+                              (key_list_to_hash[0] == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                        HASH_STRING_SEPARATOR "25" HASH_STRING_SEPARATOR "12"
                                                        HASH_STRING_SEPARATOR "1" &&
-                               key_list_to_hash[1] == "U1test" HASH_STRING_SEPARATOR "4t1"
+                               key_list_to_hash[1] == "b" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                        HASH_STRING_SEPARATOR "23" HASH_STRING_SEPARATOR "1" &&
-                               key_list_to_hash[2] == "U2test" HASH_STRING_SEPARATOR "4t1"
+                               key_list_to_hash[2] == "c" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                        HASH_STRING_SEPARATOR "24" HASH_STRING_SEPARATOR "1")););
 
   DBUG_EXECUTE_IF("PKE_assert_multi_foreign_key_generated_insert",
-                  DBUG_ASSERT(key_list_to_hash[0] == "Ptest" HASH_STRING_SEPARATOR "4t3"
+                  DBUG_ASSERT(key_list_to_hash[0] == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t3"
                                                       HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "15"
                                                       HASH_STRING_SEPARATOR "1" &&
-                              key_list_to_hash[1] == "U1test" HASH_STRING_SEPARATOR "4t3"
+                              key_list_to_hash[1] == "c2" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t3"
                                                       HASH_STRING_SEPARATOR "25" HASH_STRING_SEPARATOR "1" &&
-                              key_list_to_hash[2] == "Ptest" HASH_STRING_SEPARATOR "4t1"
+                              key_list_to_hash[2] == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                       HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "1" &&
-                              key_list_to_hash[3] == "Ptest" HASH_STRING_SEPARATOR "4t2"
+                              key_list_to_hash[3] == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t2"
                                                       HASH_STRING_SEPARATOR "25" HASH_STRING_SEPARATOR "1"););
 
   DBUG_EXECUTE_IF("PKE_assert_multi_foreign_key_generated_update",
-                  DBUG_ASSERT((key_list_to_hash[0] == "Ptest" HASH_STRING_SEPARATOR "4t3"
+                  DBUG_ASSERT((key_list_to_hash[0] == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t3"
                                                        HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "15"
                                                        HASH_STRING_SEPARATOR "1" &&
-                               key_list_to_hash[1] == "U1test" HASH_STRING_SEPARATOR "4t3"
+                               key_list_to_hash[1] == "c2" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t3"
                                                        HASH_STRING_SEPARATOR "25" HASH_STRING_SEPARATOR "1" &&
-                               key_list_to_hash[2] == "Ptest" HASH_STRING_SEPARATOR "4t1"
+                               key_list_to_hash[2] == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                        HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "1" &&
-                               key_list_to_hash[3] == "Ptest" HASH_STRING_SEPARATOR "4t2"
+                               key_list_to_hash[3] == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t2"
                                                        HASH_STRING_SEPARATOR "25" HASH_STRING_SEPARATOR "1") ||
-                              (key_list_to_hash[0] == "Ptest" HASH_STRING_SEPARATOR "4t3"
+                              (key_list_to_hash[0] == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t3"
                                                        HASH_STRING_SEPARATOR "23" HASH_STRING_SEPARATOR "15"
                                                        HASH_STRING_SEPARATOR "1" &&
-                               key_list_to_hash[1] == "U1test" HASH_STRING_SEPARATOR "4t3"
+                               key_list_to_hash[1] == "c2" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t3"
                                                        HASH_STRING_SEPARATOR "25" HASH_STRING_SEPARATOR "1" &&
-                               key_list_to_hash[2] == "Ptest" HASH_STRING_SEPARATOR "4t1"
+                               key_list_to_hash[2] == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                        HASH_STRING_SEPARATOR "23" HASH_STRING_SEPARATOR "1" &&
-                               key_list_to_hash[3] == "Ptest" HASH_STRING_SEPARATOR "4t2"
+                               key_list_to_hash[3] == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t2"
                                                        HASH_STRING_SEPARATOR "25" HASH_STRING_SEPARATOR "1")););
 }
 
@@ -311,12 +357,17 @@ void add_pke(TABLE *table, THD *thd)
     changing during the current transaction.
 
     1. The primary key field is always stored in the key_part[0] so we can simply
-       read the value from the table->s->keys and append it with a prefix "P" to
-       signify that its primary key field.
+       read the value from the table->s->keys.
+
     2. Along with primary key we also need to extract the unique key values to
        look for the places where we are breaking the unique key constraints.
-       The unique keys are prefixed with U# (# ranges from 1 to n based on the
-       number of unique keys).
+
+    These keys (primary/unique) are prefixed with their index names.
+
+    In MySQL, the name of a PRIMARY KEY is PRIMARY. For other indexes, if
+    you do not assign a name, the index is assigned the same name as the
+    first indexed column, with an optional suffix (_2, _3, ...) to make it
+    unique.
 
     example :
        CREATE TABLE db1.t1 (i INT NOT NULL PRIMARY KEY, j INT UNIQUE KEY, k INT
@@ -327,45 +378,42 @@ void add_pke(TABLE *table, THD *thd)
        Here the write set string will have three values and the prepared value before
        hash function is used will be :
 
-       i -> Pdb13t1211
+       i -> PRIMARYdb13t1211 => PRIMARY is the index name (for primary key)
 
-       j -> U1db13t1221
-       k -> U2db13t1231
+       j -> jdb13t1221       => 'j' is the index name (for first unique key)
+       k -> kdb13t1231       => 'k' is the index name (for second unique key)
 
     Finally these value are hashed using the murmur hash function to prevent sending more
     for certification algorithm.
   */
+  Rpl_transaction_write_set_ctx* ws_ctx=
+    thd->get_transaction()->get_transaction_write_set_ctx();
   std::vector<std::string> key_list_to_hash;
   bitmap_set_all(table->read_set);
+  int writeset_hashes_added= 0;
+
   if(table->key_info && (table->s->primary_key < MAX_KEY))
   {
     for (uint key_number=0; key_number < table->s->keys; key_number++)
     {
-      // Skip non unique or null key.
-      if (!((table->key_info[key_number].flags & (HA_NOSAME | HA_NULL_PART_KEY))
-            == HA_NOSAME))
+      // Skip non unique.
+      if (!((table->key_info[key_number].flags & (HA_NOSAME )) == HA_NOSAME))
         continue;
 
       std::string unhashed_string;
-      if (key_number == 0)
-        unhashed_string.append("P");
-      else
-      {
-        unhashed_string.append("U");
-
-        // This is used to store the unique key number of the table. The max
-        // value length of the column count can not exceed this buffer size.
-        char buf[10];
-        const char *temporary_keynr= my_safe_itoa(10, key_number, &buf[9]);
-        unhashed_string.append(temporary_keynr);
-      }
-
+      unhashed_string.append(table->key_info[key_number].name);
+      unhashed_string.append(HASH_STRING_SEPARATOR);
       unhashed_string.append(pke);
-      for (uint i= 0; i < table->key_info[key_number].user_defined_key_parts; i++)
+      uint i= 0;
+      for (/*empty*/; i < table->key_info[key_number].user_defined_key_parts; i++)
       {
         // read the primary key field values in str.
         int index= table->key_info[key_number].key_part[i].fieldnr;
         table->field[index-1]->val_str(&row_data);
+
+        /* Ignore if the value is NULL. */
+        if (table->field[index-1]->is_null())
+          break;
 
         char* pk_value= (char*) my_malloc(
                                 key_memory_write_set_extraction,
@@ -384,7 +432,23 @@ void add_pke(TABLE *table, THD *thd)
         my_free(buf);
         my_free(pk_value);
       }
-      key_list_to_hash.push_back(unhashed_string);
+      /*
+        If any part of the key is NULL, ignore adding it to hash keys.
+        NULL cannot conflict with any value.
+        Eg: create table t1(i int primary key not null, j int, k int,
+                                                unique key (j, k));
+            insert into t1 values (1, 2, NULL);
+            insert into t1 values (2, 2, NULL); => this is allowed.
+      */
+      if (i == table->key_info[key_number].user_defined_key_parts)
+      {
+        key_list_to_hash.push_back(unhashed_string);
+      }
+      else
+      {
+        /* This is impossible to happen in case of primary keys */
+        DBUG_ASSERT(key_number !=0);
+      }
       unhashed_string.clear();
     }
 
@@ -397,6 +461,11 @@ void add_pke(TABLE *table, THD *thd)
       if (referenced_FQTN.size() > 0)
       {
         table->field[i]->val_str(&row_data);
+
+        /* Ignore if the value is NULL. */
+        if (table->field[i]->is_null())
+          continue;
+
         char* pk_value= (char*) my_malloc(
                                 key_memory_write_set_extraction,
                                 row_data.length()+1, MYF(0));
@@ -418,6 +487,9 @@ void add_pke(TABLE *table, THD *thd)
       }
     }
 
+    if (table->file->referenced_by_foreign_key())
+      ws_ctx->set_has_related_foreign_keys();
+
     debug_check_for_write_sets(key_list_to_hash);
 
     while(key_list_to_hash.size())
@@ -425,7 +497,12 @@ void add_pke(TABLE *table, THD *thd)
       std::string prepared_string= key_list_to_hash.back();
       key_list_to_hash.pop_back();
       generate_hash_pke(prepared_string, thd);
+      writeset_hashes_added++;
     }
   }
+
+  if (writeset_hashes_added == 0)
+    ws_ctx->set_has_missing_keys();
+
   DBUG_VOID_RETURN;
 }

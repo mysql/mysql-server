@@ -1,6 +1,6 @@
 # We are using some debug-only features in this test
-call mtr.add_suppression("NDB FK: Failed to drop fk");
-call mtr.add_suppression("NDB FK: Failed to list dependent objects for table");
+call mtr.add_suppression("NDB: Failed to drop fk");
+call mtr.add_suppression("NDB: Failed to list dependent objects for table");
 # bulk delete with timeout error 4012
 create table t4(id int primary key, val int) engine=ndb;
 insert into t4 values (1,1), (2,2), (3,3), (4,4), (5,5);
@@ -143,11 +143,11 @@ SET SESSION debug=@save_debug;
 create table t1(id int primary key, val int) engine=ndb;
 SET SESSION debug="+d,ndb_dictsignal_timeout";
 alter table t1 add partition partitions 2;
-ERROR HY000: Unknown error 4008
+ERROR HY000: Got error 4008 'Receive from NDB failed' from NDBCLUSTER
 show warnings;
 Level	Code	Message
 Warning	1296	Got error 4008 'Receive from NDB failed' from NDB
-Error	4008	Unknown error 4008
+Error	1296	Got error 4008 'Receive from NDB failed' from NDBCLUSTER
 SET SESSION debug=@save_debug;
 drop table t1;
 # mysqld gets timeout error 4008 on DROP_TAB_REQ for table drop
@@ -174,16 +174,6 @@ Warning	1296	Got error 4008 'Receive from NDB failed' from NDB
 Error	1296	Got error 4008 'Receive from NDB failed' from NDBCLUSTER
 SET SESSION debug=@save_debug;
 drop table t1;
-# mysqld gets timeout error 4008 on CREATE_FILEGROUP_REQ
-set @save_debug = @@session.debug;
-SET SESSION debug="+d,ndb_dictsignal_timeout";
-create logfile group lg1 add undofile 'undo1.dat' engine=ndb;
-ERROR HY000: Failed to create LOGFILE GROUP
-show warnings;
-Level	Code	Message
-Warning	1296	Got error 4008 'Receive from NDB failed' from NDB
-Error	1528	Failed to create LOGFILE GROUP
-SET SESSION debug=@save_debug;
 # mysqld gets timeout error 4008 on DROP_INDX_REQ
 create table t1(id int primary key, val int, unique key val_unq(val))engine=ndb;
 set @save_debug = @@session.debug;
@@ -195,6 +185,41 @@ Level	Code	Message
 Warning	1296	Got error 4008 'Receive from NDB failed' from NDB
 Error	1296	Got error 4008 'Receive from NDB failed' from NDBCLUSTER
 SET SESSION debug=@save_debug;
+drop table t1;
+# mysqld gets timeout error 4008 on CREATE_FILEGROUP_REQ
+set @save_debug = @@session.debug;
+SET SESSION debug="+d,ndb_dictsignal_timeout";
+create logfile group lg1 add undofile 'undo1.dat' engine=ndb;
+ERROR HY000: Failed to create LOGFILE GROUP
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 4008 'Receive from NDB failed' from NDB
+Error	1528	Failed to create LOGFILE GROUP
+SET SESSION debug=@save_debug;
+# mysqld gets timeout error 4008 on DROP_FILEGROUP_REQ
+create logfile group lg1 add undofile 'undo1.dat' engine=ndb;
+set @save_debug = @@session.debug;
+SET SESSION debug="+d,ndb_dictsignal_timeout";
+drop logfile group lg1 engine=ndb;
+ERROR HY000: Failed to drop LOGFILE GROUP
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 4008 'Receive from NDB failed' from NDB
+Error	1529	Failed to drop LOGFILE GROUP
+SET SESSION debug=@save_debug;
+drop logfile group lg1 engine=ndb;
+# mysqld gets timeout error 4008 on CREATE_FK_REQ for foreign key
+create table t1(id int primary key, val int) engine=ndb;
+create table t2(id int primary key, val int) engine=ndb;
+SET SESSION debug="+d,ndb_dictsignal_timeout";
+alter table t2 add constraint foreign key (id) references t1(id);
+ERROR HY000: Unknown error 4008
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 4008 'Receive from NDB failed' from NDB
+Error	4008	Unknown error 4008
+SET SESSION debug=@save_debug;
+drop table t2;
 drop table t1;
 # mysqld gets timeout error 4008 on DROP_FK_REQ for foreign key
 create table t1(id int primary key, val int) engine=ndb;
@@ -211,6 +236,21 @@ Error	1296	Got error 4008 'Receive from NDB failed' from NDBCLUSTER
 SET SESSION debug=@save_debug;
 drop table t2;
 drop table t1;
+# mysqld gets timeout error 4008 on CREATE_FILE_REQ
+create logfile group lg1 add undofile 'undo1.dat' engine=ndb;
+create tablespace ts1 add datafile 'data1.dat' use logfile group lg1 engine=ndb;
+set @save_debug = @@session.debug;
+SET SESSION debug="+d,ndb_dictsignal_timeout";
+alter tablespace ts1 add datafile 'data2.dat' engine=ndb;
+ERROR HY000: Failed to alter:  CREATE DATAFILE
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 4008 'Receive from NDB failed' from NDB
+Error	1533	Failed to alter:  CREATE DATAFILE
+SET SESSION debug=@save_debug;
+alter tablespace ts1 drop datafile 'data1.dat' engine=ndb;
+drop tablespace ts1 engine=ndb;
+drop logfile group lg1 engine=ndb;
 # mysqld gets timeout error 4008 on DROP_FILE_REQ
 create logfile group lg1 add undofile 'undo1.dat' engine=ndb;
 create tablespace ts1 add datafile 'data1.dat' use logfile group lg1 engine=ndb;
@@ -226,18 +266,16 @@ SET SESSION debug=@save_debug;
 alter tablespace ts1 drop datafile 'data1.dat' engine=ndb;
 drop tablespace ts1 engine=ndb;
 drop logfile group lg1 engine=ndb;
-# mysqld gets timeout error 4008 on DROP_FILEGROUP_REQ
-create logfile group lg1 add undofile 'undo1.dat' engine=ndb;
+# mysqld gets timeout error 4008 on CREATE_HASH_MAP_REQ
 set @save_debug = @@session.debug;
 SET SESSION debug="+d,ndb_dictsignal_timeout";
-drop logfile group lg1 engine=ndb;
-ERROR HY000: Failed to drop LOGFILE GROUP
+create table t1(id int primary key, val int) engine=ndb;
+ERROR HY000: Got error 4008 'Receive from NDB failed' from NDBCLUSTER
 show warnings;
 Level	Code	Message
 Warning	1296	Got error 4008 'Receive from NDB failed' from NDB
-Error	1529	Failed to drop LOGFILE GROUP
+Error	1296	Got error 4008 'Receive from NDB failed' from NDBCLUSTER
 SET SESSION debug=@save_debug;
-drop logfile group lg1 engine=ndb;
 # mysqld gets timeout error 4008 on LIST_TABLES_REQ
 create table t1(id int primary key, val int) engine=ndb;
 set @save_debug = @@session.debug;

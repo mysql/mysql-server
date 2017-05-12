@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -47,14 +47,14 @@ protected:
     return m_table->add_column();
   }
 
-  const dd::Column *get_column(std::string name)
+  const dd::Column *get_column(dd::String_type name)
   {
     return m_table->get_column(name);
   }
 
   const Column_collection& columns()
   {
-    return m_table->columns();
+    return *m_table->columns();
   }
 
   ColumnsTest() {}

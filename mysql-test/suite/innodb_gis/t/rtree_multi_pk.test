@@ -1,7 +1,16 @@
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs98=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema default character set latin1;
+use test;
+--enable_query_log
+########################################
+
 # WL#6745 InnoDB R-tree support
 # This test case will test basic R-tree support features.
 
---source include/have_innodb.inc
 
 # Create table with R-tree index.
 create table t1 (i int, i2 char(10), g geometry not null, primary key (i, i2), spatial index (g))engine=innodb;
@@ -124,3 +133,10 @@ drop index idx on t1;
 
 drop table t1;
 
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs98;
+--enable_query_log
+########################################

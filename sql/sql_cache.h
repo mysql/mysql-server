@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,10 +18,18 @@
 
 /* Query cache */
 
-#include "my_global.h"
+#include <stddef.h>
+#include <sys/types.h>
+
 #include "hash.h"         // HASH
+#include "my_inttypes.h"
+#include "my_thread_local.h"
+#include "mysql/mysql_lex_string.h"
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_mutex.h"
 
 class THD;
+struct LEX;
 struct Query_cache_block_table;
 struct Query_cache_memory_bin;
 struct Query_cache_memory_bin_step;
@@ -30,7 +38,7 @@ struct Query_cache_result;
 struct Query_cache_table;
 struct TABLE;
 struct TABLE_LIST;
-struct LEX;
+
 typedef struct st_mysql_const_lex_string LEX_CSTRING;
 
 
@@ -39,9 +47,9 @@ static const ulong QUERY_CACHE_MIN_RESULT_DATA_SIZE= 1024*4;
 
 typedef size_t TABLE_COUNTER_TYPE;
 
-typedef my_bool (*qc_engine_callback)(THD *thd, const char *table_key,
-                                      uint key_length,
-                                      ulonglong *engine_data);
+typedef bool (*qc_engine_callback)(THD *thd, const char *table_key,
+                                   uint key_length,
+                                   ulonglong *engine_data);
 
 /**
   libmysql convenience wrapper to insert data into query cache.

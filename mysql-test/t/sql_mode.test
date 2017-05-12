@@ -1,3 +1,13 @@
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs276=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema default character set latin1;
+use test;
+--enable_query_log
+########################################
+
 
  #Get deafult engine value
 --let $DEFAULT_ENGINE = `select @@global.default_storage_engine`
@@ -319,7 +329,7 @@ select @@sql_mode;
 set sql_mode=16384+(65536*4);
 select @@sql_mode;
 --error 1231
-set sql_mode=2147483648*2; # that mode does not exist
+set sql_mode=4294967296*2; # that mode does not exist
 select @@sql_mode;
 
 #
@@ -592,3 +602,10 @@ SELECT @@sql_mode;
 --echo # Restore sql mode
 --echo #
 SET sql_mode= @org_mode;
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs276;
+--enable_query_log
+########################################

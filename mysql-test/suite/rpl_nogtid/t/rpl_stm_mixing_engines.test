@@ -2,10 +2,8 @@
 # This test cases evaluates the mixture of non-transactional and transcational
 # tables. For further details, please, read WL#2687 and WL#5072.
 ###################################################################################
---source include/not_gtid_enabled.inc
 --source include/have_binlog_format_statement.inc
 --source include/master-slave.inc
---source include/have_innodb.inc
 --source include/have_myisam.inc
 
 let $engine_type=Innodb;

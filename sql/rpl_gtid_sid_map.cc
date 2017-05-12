@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -15,11 +15,21 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
    02110-1301 USA */
 
+#include <string.h>
+
+#include "control_events.h"
+#include "hash.h"
+#include "m_ctype.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
+#include "mysql/psi/psi_memory.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysqld_error.h"    // ER_*
+#include "prealloced_array.h"
 #include "rpl_gtid.h"
 
-#include "mysqld_error.h"    // ER_*
-
-#ifdef MYSQL_CLIENT
+#ifndef MYSQL_SERVER
 #include "mysqlbinlog.h"
 #endif
 
@@ -48,13 +58,6 @@ Sid_map::~Sid_map()
 }
 
 
-/*
-  This code is not being used but we will keep it as it may be
-  useful to optimize gtids by avoiding sharing mappings from
-  sid to sidno. For instance, the IO Thread and the SQL Thread
-  may have different mappings in the future.
-*/
-#ifdef NON_DISABLED_GTID
 enum_return_status Sid_map::clear()
 {
   DBUG_ENTER("Sid_map::clear");
@@ -66,7 +69,6 @@ enum_return_status Sid_map::clear()
   _sorted.clear();
   RETURN_OK;
 }
-#endif
 
 rpl_sidno Sid_map::add_sid(const rpl_sid &sid)
 {

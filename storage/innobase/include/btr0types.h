@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -42,7 +42,7 @@ struct btr_search_t;
 
 /** Is search system enabled.
 Search system is protected by array of latches. */
-extern char	btr_search_enabled;
+extern bool	btr_search_enabled;
 
 /** Number of adaptive hash index partition. */
 extern ulong	btr_ahi_parts;
@@ -56,23 +56,4 @@ in the index record. */
 #define BTR_EXTERN_LOCAL_STORED_MAX_SIZE	\
 	(BTR_EXTERN_FIELD_REF_SIZE * 2)
 
-/** The structure of a BLOB part header */
-
-/** BLOB part len on this page */
-#define BTR_BLOB_HDR_PART_LEN		0
-/** next BLOB part page no, FIL_NULL if none */
-#define BTR_BLOB_HDR_NEXT_PAGE_NO	4
-/** Size of a BLOB part header, in bytes */
-#define BTR_BLOB_HDR_SIZE		8
-
-/** The structure of a BLOB part header */
-/* @{ */
-/*--------------------------------------*/
-#define BTR_BLOB_HDR_PART_LEN		0	/*!< BLOB part len on this
-						page */
-#define BTR_BLOB_HDR_NEXT_PAGE_NO	4	/*!< next BLOB part page no,
-						FIL_NULL if none */
-/*--------------------------------------*/
-#define BTR_BLOB_HDR_SIZE		8	/*!< Size of a BLOB
-						part header, in bytes */
 #endif

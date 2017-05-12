@@ -17,12 +17,31 @@
   @file mysys/my_write.cc
 */
 
-#include "mysys_priv.h"
-#include "my_sys.h"
-#include "mysys_err.h"
-#include <errno.h>
-#include "my_thread_local.h"
+#include "my_config.h"
 
+#include <errno.h>
+#include <stddef.h>
+#include <sys/types.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_sys.h"
+#include "my_thread_local.h"
+#include "mysys_err.h"
+#if defined(_WIN32)
+#include "mysys_priv.h"
+#endif
+
+
+#ifndef _WIN32
+// Mock away write() for unit testing.
+ssize_t (*mock_write)(int fd, const void *buf, size_t count)= nullptr;
+#endif
 
 /**
   Write a chunk of bytes to a file
@@ -64,7 +83,10 @@ size_t my_write(File Filedes, const uchar *Buffer, size_t Count, myf MyFlags)
 #ifdef _WIN32
     writtenbytes= my_win_write(Filedes, Buffer, Count);
 #else
-    writtenbytes= write(Filedes, Buffer, Count);
+    if (mock_write)
+      writtenbytes= mock_write(Filedes, Buffer, Count);
+    else
+      writtenbytes= write(Filedes, Buffer, Count);
 #endif
     DBUG_EXECUTE_IF("simulate_file_write_error",
                     {

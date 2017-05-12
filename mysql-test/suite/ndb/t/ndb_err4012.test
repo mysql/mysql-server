@@ -3,8 +3,8 @@
 --echo # We are using some debug-only features in this test
 -- source include/have_debug.inc
 -- source have_ndb_error_insert.inc
-call mtr.add_suppression("NDB FK: Failed to drop fk");
-call mtr.add_suppression("NDB FK: Failed to list dependent objects for table");
+call mtr.add_suppression("NDB: Failed to drop fk");
+call mtr.add_suppression("NDB: Failed to list dependent objects for table");
 
 --echo # bulk delete with timeout error 4012
 create table t4(id int primary key, val int) engine=ndb;
@@ -159,7 +159,7 @@ SET SESSION debug=@save_debug;
 create table t1(id int primary key, val int) engine=ndb;
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 6217" >> $NDB_TOOLS_OUTPUT
 SET SESSION debug="+d,ndb_dictsignal_timeout";
---error 4008
+--error 1296
 alter table t1 add partition partitions 2;
 show warnings;
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
@@ -189,16 +189,6 @@ show warnings;
 SET SESSION debug=@save_debug;
 drop table t1;
 
---echo # mysqld gets timeout error 4008 on CREATE_FILEGROUP_REQ
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 6218" >> $NDB_TOOLS_OUTPUT
-set @save_debug = @@session.debug;
-SET SESSION debug="+d,ndb_dictsignal_timeout";
---error 1528
-create logfile group lg1 add undofile 'undo1.dat' engine=ndb;
-show warnings;
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
-SET SESSION debug=@save_debug;
-
 --echo # mysqld gets timeout error 4008 on DROP_INDX_REQ
 create table t1(id int primary key, val int, unique key val_unq(val))engine=ndb;
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 6219" >> $NDB_TOOLS_OUTPUT
@@ -209,6 +199,41 @@ drop index val_unq on t1;
 show warnings;
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
 SET SESSION debug=@save_debug;
+drop table t1;
+
+--echo # mysqld gets timeout error 4008 on CREATE_FILEGROUP_REQ
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 6218" >> $NDB_TOOLS_OUTPUT
+set @save_debug = @@session.debug;
+SET SESSION debug="+d,ndb_dictsignal_timeout";
+--error 1528
+create logfile group lg1 add undofile 'undo1.dat' engine=ndb;
+show warnings;
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
+SET SESSION debug=@save_debug;
+
+--echo # mysqld gets timeout error 4008 on DROP_FILEGROUP_REQ
+create logfile group lg1 add undofile 'undo1.dat' engine=ndb;
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 6219" >> $NDB_TOOLS_OUTPUT
+set @save_debug = @@session.debug;
+SET SESSION debug="+d,ndb_dictsignal_timeout";
+--error 1529
+drop logfile group lg1 engine=ndb;
+show warnings;
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
+SET SESSION debug=@save_debug;
+drop logfile group lg1 engine=ndb;
+
+--echo # mysqld gets timeout error 4008 on CREATE_FK_REQ for foreign key
+create table t1(id int primary key, val int) engine=ndb;
+create table t2(id int primary key, val int) engine=ndb;
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 6218" >> $NDB_TOOLS_OUTPUT
+SET SESSION debug="+d,ndb_dictsignal_timeout";
+--error 4008
+alter table t2 add constraint foreign key (id) references t1(id);
+show warnings;
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
+SET SESSION debug=@save_debug;
+drop table t2;
 drop table t1;
 
 --echo # mysqld gets timeout error 4008 on DROP_FK_REQ for foreign key
@@ -225,6 +250,21 @@ SET SESSION debug=@save_debug;
 drop table t2;
 drop table t1;
 
+--echo # mysqld gets timeout error 4008 on CREATE_FILE_REQ
+create logfile group lg1 add undofile 'undo1.dat' engine=ndb;
+create tablespace ts1 add datafile 'data1.dat' use logfile group lg1 engine=ndb;
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 6218" >> $NDB_TOOLS_OUTPUT
+set @save_debug = @@session.debug;
+SET SESSION debug="+d,ndb_dictsignal_timeout";
+--error 1533
+alter tablespace ts1 add datafile 'data2.dat' engine=ndb;
+show warnings;
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
+SET SESSION debug=@save_debug;
+alter tablespace ts1 drop datafile 'data1.dat' engine=ndb;
+drop tablespace ts1 engine=ndb;
+drop logfile group lg1 engine=ndb;
+
 --echo # mysqld gets timeout error 4008 on DROP_FILE_REQ
 create logfile group lg1 add undofile 'undo1.dat' engine=ndb;
 create tablespace ts1 add datafile 'data1.dat' use logfile group lg1 engine=ndb;
@@ -240,17 +280,15 @@ alter tablespace ts1 drop datafile 'data1.dat' engine=ndb;
 drop tablespace ts1 engine=ndb;
 drop logfile group lg1 engine=ndb;
 
---echo # mysqld gets timeout error 4008 on DROP_FILEGROUP_REQ
-create logfile group lg1 add undofile 'undo1.dat' engine=ndb;
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 6219" >> $NDB_TOOLS_OUTPUT
+--echo # mysqld gets timeout error 4008 on CREATE_HASH_MAP_REQ
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 6222" >> $NDB_TOOLS_OUTPUT
 set @save_debug = @@session.debug;
 SET SESSION debug="+d,ndb_dictsignal_timeout";
---error 1529
-drop logfile group lg1 engine=ndb;
+--error 1296
+create table t1(id int primary key, val int) engine=ndb;
 show warnings;
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
 SET SESSION debug=@save_debug;
-drop logfile group lg1 engine=ndb;
 
 --echo # mysqld gets timeout error 4008 on LIST_TABLES_REQ
 create table t1(id int primary key, val int) engine=ndb;

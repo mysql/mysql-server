@@ -10,7 +10,6 @@
 
 # This test needs transactional engine as otherwise COMMIT
 # won't block FLUSH TABLES WITH GLOBAL READ LOCK.
---source include/have_innodb.inc
 
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc

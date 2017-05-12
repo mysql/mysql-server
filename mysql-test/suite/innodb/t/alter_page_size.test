@@ -1,5 +1,14 @@
---source include/have_innodb.inc
 --source include/have_innodb_max_16k.inc
+
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs33=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema default character set latin1;
+use test;
+--enable_query_log
+########################################
 
 --echo #
 --echo # Bug #19077964 ASSERT PAGE_SIZE.EQUALS_TO SPACE_PAGE_SIZE
@@ -30,3 +39,10 @@ let $linestr = $linestr 9999 9999);
 alter table t1 row_format=dynamic, key_block_size=0, algorithm=inplace;
 
 drop table t1;
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs33;
+--enable_query_log
+########################################

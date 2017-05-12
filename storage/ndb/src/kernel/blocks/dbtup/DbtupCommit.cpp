@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -287,7 +287,7 @@ Dbtup::handle_lcp_keep_commit(const Local_key* rowid,
     setup_fixed_tuple_ref(req_struct, opPtrP, regTabPtr);
     setup_fixed_part(req_struct, opPtrP, regTabPtr);
     req_struct->m_tuple_ptr = dst;
-    expand_tuple(req_struct, sizes, org, regTabPtr, disk);
+    expand_tuple(req_struct, sizes, org, regTabPtr, disk, true);
     shrink_tuple(req_struct, sizes+2, regTabPtr, disk);
   }
   else
@@ -356,6 +356,112 @@ static void dump_buf_hex(unsigned char *p, Uint32 bytes)
 }
 #endif
 
+/**
+ * Handling COMMIT
+ * ---------------
+ * The most complex part of our operations on a tuple is when we have
+ * multiple row operations on the same tuple within the same operation.
+ * There might even be an insert followed by a delete followed by a
+ * new insert followed by an update! The only operation that isn't
+ * allowed is a DELETE followed by a DELETE and an INSERT followed by
+ * an INSERT and a DELETE followed by an UPDATE.
+ *
+ * Each operation carries with it a copy row. This makes it easy to
+ * commit and abort multi-operations on one tuple within one
+ * transaction.
+ *
+ * At the time of the commit we can have multiple operations in a list
+ * linked from the row. The "surviving" operation is the one which is
+ * last in the list. This is the only operation that will be truly
+ * committed. All other copy rows simply represent intermediate states
+ * in getting to the committed state. The transaction itself can have
+ * seen these uncommitted intermediate states, but no other transaction
+ * have the ability to see those intermediate row states.
+ *
+ * The last operation in the list is the operation linked from the
+ * tuple header. The "last" operation in the list was also the last
+ * operation prepared.
+ *
+ * The last operation in the list will be committed for "real". This means
+ * that the copy row for the last operation will be copied to the rowid of
+ * the row. However the TUX commit triggers are fired on the first operation
+ * in the operation list.
+ *
+ * COMMIT handling of shrinking varpart's
+ * --------------------------------------
+ * The varpart entry header contains the actual length of the varpart
+ * allocated from the page. This size might be equal or bigger than
+ * the size of the varpart to be committed. We will always at COMMIT time
+ * ensure that we shrink it to the minimum size. It migth even be
+ * shrunk to 0 in which case we free the varpart entirely.
+ *
+ * Handling ABORT
+ * --------------
+ * Given that we have a copy tuple for each row it means that it is very
+ * easy to abort operations without aborting the entire transaction. Abort
+ * can happen at any time before the commit has started and abort can
+ * happen either on the entire transaction or on a subset of the transaction.
+ *
+ * One example when we can abort a subset of the transaction is when we get
+ * an LQHKEYREF returned from the backup replica. In this case we did a
+ * successful operation at the primary replica, but at the backup replica
+ * we failed for some reason. There might actually even be multiple operations
+ * outstanding at the same time since we allow for multiple operations within
+ * the same batch to execute in parallel. It is not defined what the end
+ * result will be if such a batch have multiple updates on the same row, but
+ * we still have to ensure that we can handle those cases in a secure manner.
+ *
+ * This also means that the code is prepared to allow for aborting to a
+ * savepoint. However the functionality that handles this will be in DBTC and
+ * is independent of the code here in DBTUP.
+ *
+ * When aborting an operation we simply drop it from the list of operations
+ * on the row and if it is the last then we also restore the header.
+ * This means that an abort operation for a row with multiple changes to it
+ * is really easy, it needs only to drop the operation and drop the copy
+ * row attached to it.
+ *
+ * If we increase the size of the varpart for a row we need to extend the
+ * size. This means that the header of the varpart will contain the new
+ * length. So in order to restore we need to store the original varpart
+ * length somewhere.
+ *
+ * The MM_GROWN bit and its meaning
+ * --------------------------------
+ * During an operation that increases the size of the varpart we might actually
+ * change the location of the committed varpart of the row. To ensure that any
+ * readers of the row that does a COMMITTED READ can still see the original
+ * row size we store this at the last word of the new varpart. We also set the
+ * MM_GROWN bit in the tuple header to indicate this.
+ *
+ * The consequence of this is that an aborted transaction can not have changed
+ * the row content, but it can have changed the place the row is stored. The
+ * actual row content is however only changed when we commit the transaction,
+ * until then the new data is always stored in the copy rows.
+ *
+ * When aborting we need to care about MM_GROWN since then we have to restore
+ * the varpart size by shrinking it. If MM_GROWN is set we might have attempted
+ * to shrink the tuple, but this information is only represented by a smaller
+ * size of the copy row and thus when the copy row is free'd we have done
+ * everything needed to abort this operation.
+ *
+ * Acceptable order of ABORT and COMMIT and WRITE operations
+ * ---------------------------------------------------------
+ * So acceptable order of COMMIT's is that once a COMMIT has arrived on a row
+ * then no ABORT is allowed AND no new WRITE operation on the row in the same
+ * transaction is allowed. When the commit is complete then the row is
+ * unlocked and ready for a new transaction again. COMMIT operations can
+ * arrive in any order.
+ *
+ * Before any operation on the row have received COMMIT we can receive ABORT
+ * operations in any order. TUP have no ability to verify that the upper level
+ * ABORT operations are executed correctly. However since ABORTs can happen in
+ * any order it is only vital that the correct operations are ABORTed, it
+ * doesn't matter in which order they are ABORTed.
+ *
+ * The upper level (mainly TC and LQH) will maintain the correctness when it
+ * comes to transaction concepts.
+ */
 void
 Dbtup::commit_operation(Signal* signal,
 			Uint32 gci_hi,
@@ -418,10 +524,54 @@ Dbtup::commit_operation(Signal* signal,
       Uint32 len = vp->m_len;
       memcpy(dst, vp->m_data, 4*len);
 
-      if(copy_bits & Tuple_header::MM_SHRINK)
+      /**
+       * When we come here we will commit a varpart with length specified in
+       * the copy tuple.
+       *
+       * The length in the page entry specifies the length we have allocated.
+       * This means that the page entry length either specifies the original
+       * length or the length that we allocated when growing the varsize part
+       * of the tuple.
+       *
+       * The following cases exists:
+       * 1) MM_GROWN not set
+       *    Since MM_GROWN is never set then we have never extended the length
+       *    of the varpart. We might however have executed one operation that
+       *    shrunk the varpart size followed by an operation that grew the
+       *    varpart again. It can however not have grown to be bigger than the
+       *    original size since then MM_GROWN would be set.
+       *
+       *    The new varpart length might thus in this case be smaller than the
+       *    page entry length.
+       *
+       * 2) MM_GROWN set
+       *    In this case we have extended the varpart size in some operation.
+       *
+       *    If no more operation was performed after that then the page entry
+       *    length and the committed varpart length will be equal. However if
+       *    more operations are executed after this operation then they might
+       *    decrease the varpart length without updating the page entry length.
+       *    So also in this case we might actually have a smaller committed
+       *    varpart length compared to the current page entry length.
+       *
+       * So the conclusion is that when we arrive here we can always have a
+       * smaller committed varpart length compared to the page entry length.
+       * So we always need to check whether we should shrink the varpart
+       * entry to the committed length. The new committed length might even
+       * be zero in which case we should release the varpart entirely.
+       *
+       * We need to check this independent of if MM_GROWN is set or not as
+       * there might be multiple row operations both increasing and
+       * shrinking the tuple.
+       */
+      ndbassert(vpagePtrP->get_entry_len(tmp.m_page_idx) >= len);
+      if (vpagePtrP->get_entry_len(tmp.m_page_idx) > len)
       {
+        /**
+         * Page entry is now bigger than it needs to be, we are committing
+         * and can thus shrink the entry to its correct size now.
+         */
         jam();
-        ndbassert(vpagePtrP->get_entry_len(tmp.m_page_idx) >= len);
         if (len)
         {
           jam();
@@ -434,16 +584,15 @@ Dbtup::commit_operation(Signal* signal,
         else
         {
           jam();
+          /**
+           * We have shrunk the varsize part down to zero, so in this case
+           * we don't shrink it, in this case we simply free it.
+           */
           free_var_part(regFragPtr, vpagePtr, tmp.m_page_idx);
           tmp.m_page_no = RNIL;
           ref->assign(&tmp);
           copy_bits &= ~(Uint32)Tuple_header::VAR_PART;
         }
-      }
-      else
-      {
-        jam();
-        ndbassert(vpagePtrP->get_entry_len(tmp.m_page_idx) == len);
       }
 
       /**
@@ -500,7 +649,7 @@ Dbtup::commit_operation(Signal* signal,
     
     memcpy(dst, disk_ptr, 4*sz);
     memcpy(tuple_ptr->get_disk_ref_ptr(regTabPtr), &key, sizeof(Local_key));
-    
+
     ndbassert(! (disk_ptr->m_header_bits & Tuple_header::FREE));
     copy_bits |= Tuple_header::DISK_PART;
   }
@@ -527,7 +676,7 @@ Dbtup::commit_operation(Signal* signal,
   Uint32 clear= 
     Tuple_header::ALLOC | Tuple_header::FREE | Tuple_header::COPY_TUPLE |
     Tuple_header::DISK_ALLOC | Tuple_header::DISK_INLINE | 
-    Tuple_header::MM_SHRINK | Tuple_header::MM_GROWN;
+    Tuple_header::MM_GROWN;
   copy_bits &= ~(Uint32)clear;
   
   tuple_ptr->m_header_bits= copy_bits;

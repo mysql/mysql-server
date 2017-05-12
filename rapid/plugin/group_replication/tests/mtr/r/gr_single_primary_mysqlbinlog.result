@@ -1,0 +1,51 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+#
+# Bootstrap start GR on server3 (Primary). And, execute some transactions
+# on server3. Then, stop GR on server3.
+#
+[connection server3]
+include/start_and_bootstrap_group_replication.inc
+SET GTID_NEXT= "GROUP_REPLICATION_GROUP_NAME:2";
+BEGIN;
+COMMIT;
+SET GTID_NEXT= "AUTOMATIC";
+CREATE TABLE test.t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO test.t1 VALUES (1);
+include/stop_group_replication.inc
+include/assert.inc [GTID_EXECUTED must contain GROUP_UUID:1-4]
+#
+# Bootstrap start GR on server1 (Primary). Start GR on server2 (Secondary).
+#
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_group_replication.inc
+include/assert.inc [Verify group_replication_primary_member is SERVER_UUID]
+#
+# Try executing mysqlbinlog output of server3 on server2(RO). Expect ERROR.
+#
+[connection server2]
+include/assert.inc [GTID_EXECUTED must contain GROUP_UUID:1-2]
+#
+# Try executing mysqlbinlog output of server3 on server1(RW). Expect SUCCESS.
+#
+[connection server1]
+Wait until server1 applies the single row of table t1
+include/assert.inc [GTID_EXECUTED must contain GROUP_UUID:1-4]
+[connection server2]
+Wait until server2 applies the single row of table t1
+include/assert.inc [GTID_EXECUTED must contain GROUP_UUID:1-4]
+#
+# Join server3 to the group. Expect SUCCESS.
+#
+[connection server3]
+include/start_group_replication.inc
+include/rpl_gr_wait_for_number_of_members.inc
+include/assert.inc [GTID_EXECUTED must contain GROUP_UUID:1-5]
+[connection server1]
+DROP TABLE test.t1;
+include/group_replication_end.inc

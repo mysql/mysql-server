@@ -59,6 +59,7 @@ def	mysql	PRIMARY	mysql	db
 def	mysql	PRIMARY	mysql	default_roles
 def	mysql	PRIMARY	mysql	engine_cost
 def	mysql	PRIMARY	mysql	func
+def	mysql	PRIMARY	mysql	global_grants
 def	mysql	PRIMARY	mysql	gtid_executed
 def	mysql	name	mysql	help_category
 def	mysql	PRIMARY	mysql	help_category
@@ -87,6 +88,7 @@ def	mysql	PRIMARY	mysql	time_zone_transition_type
 def	mysql	PRIMARY	mysql	user
 def	performance_schema	ACCOUNT	performance_schema	accounts
 def	performance_schema	PRIMARY	performance_schema	cond_instances
+def	performance_schema	PRIMARY	performance_schema	data_locks
 def	performance_schema	ACCOUNT	performance_schema	events_errors_summary_by_account_by_error
 def	performance_schema	HOST	performance_schema	events_errors_summary_by_host_by_error
 def	performance_schema	THREAD_ID	performance_schema	events_errors_summary_by_thread_by_error
@@ -100,6 +102,8 @@ def	performance_schema	PRIMARY	performance_schema	events_stages_summary_by_threa
 def	performance_schema	USER	performance_schema	events_stages_summary_by_user_by_event_name
 def	performance_schema	PRIMARY	performance_schema	events_stages_summary_global_by_event_name
 def	performance_schema	PRIMARY	performance_schema	events_statements_current
+def	performance_schema	SCHEMA_NAME	performance_schema	events_statements_histogram_by_digest
+def	performance_schema	PRIMARY	performance_schema	events_statements_histogram_global
 def	performance_schema	PRIMARY	performance_schema	events_statements_history
 def	performance_schema	ACCOUNT	performance_schema	events_statements_summary_by_account_by_event_name
 def	performance_schema	SCHEMA_NAME	performance_schema	events_statements_summary_by_digest
@@ -138,6 +142,7 @@ def	performance_schema	PRIMARY	performance_schema	memory_summary_global_by_event
 def	performance_schema	PRIMARY	performance_schema	metadata_locks
 def	performance_schema	PRIMARY	performance_schema	mutex_instances
 def	performance_schema	OBJECT	performance_schema	objects_summary_global_by_type
+def	performance_schema	PRIMARY	performance_schema	persisted_variables
 def	performance_schema	OWNER_THREAD_ID	performance_schema	prepared_statements_instances
 def	performance_schema	PRIMARY	performance_schema	prepared_statements_instances
 def	performance_schema	PRIMARY	performance_schema	replication_applier_configuration

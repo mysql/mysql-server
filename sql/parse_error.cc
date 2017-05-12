@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,11 +13,22 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "parse_error.h"
-#include "sql_lex.h"
-#include "sql_class.h"
-#include "current_thd.h"
+#include "sql/parse_error.h"
+
+#include <sys/types.h>
+
+#include "check_stack.h"
 #include "derror.h" // ER_THD
+#include "my_inttypes.h"
+#include "my_sys.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql_com.h"
+#include "mysqld_error.h"
+#include "sql_class.h"
+#include "sql_const.h"
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "system_variables.h"
 
 
 /**

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,13 +21,15 @@
   Table EVENTS_ERRORS_SUMMARY_BY_ACCOUNT_BY_ERROR (declarations).
 */
 
+#include <sys/types.h>
+
+#include "pfs_account.h"
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"
-#include "pfs_instr_class.h"
-#include "pfs_instr.h"
-#include "pfs_account.h"
-#include "table_helper.h"
 #include "pfs_error.h"
+#include "pfs_instr.h"
+#include "pfs_instr_class.h"
+#include "table_helper.h"
 
 /**
   @addtogroup Performance_schema_tables
@@ -39,11 +41,15 @@ class PFS_index_ees_by_account_by_error : public PFS_engine_index
 public:
   PFS_index_ees_by_account_by_error()
     : PFS_engine_index(&m_key_1, &m_key_2, &m_key_3),
-    m_key_1("USER"), m_key_2("HOST"), m_key_3("ERROR_NUMBER")
-  {}
+      m_key_1("USER"),
+      m_key_2("HOST"),
+      m_key_3("ERROR_NUMBER")
+  {
+  }
 
   ~PFS_index_ees_by_account_by_error()
-  {}
+  {
+  }
 
   virtual bool match(PFS_account *pfs);
   virtual bool match_error_index(uint error_index);
@@ -72,29 +78,34 @@ struct row_ees_by_account_by_error
   Index 1 on account (0 based)
   Index 2 on error (0 based)
 */
-struct pos_ees_by_account_by_error
-: public PFS_double_index
+struct pos_ees_by_account_by_error : public PFS_double_index
 {
-  pos_ees_by_account_by_error()
-    : PFS_double_index(0, 0)
-  {}
-
-  inline void reset(void)
+  pos_ees_by_account_by_error() : PFS_double_index(0, 0)
   {
-    m_index_1= 0;
-    m_index_2= 0;
   }
 
-  inline void next_account(void)
+  inline void
+  reset(void)
+  {
+    m_index_1 = 0;
+    m_index_2 = 0;
+  }
+
+  inline void
+  next_account(void)
   {
     m_index_1++;
-    m_index_2= 0;
+    m_index_2 = 0;
   }
 
-  inline bool has_more_error(void)
-  { return (m_index_2 < max_server_errors); }
+  inline bool
+  has_more_error(void)
+  {
+    return (m_index_2 < max_server_errors);
+  }
 
-  inline void next_error(void)
+  inline void
+  next_error(void)
   {
     m_index_2++;
   }
@@ -106,7 +117,7 @@ class table_ees_by_account_by_error : public PFS_engine_table
 public:
   /** Table share */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table* create();
+  static PFS_engine_table *create();
   static int delete_all_rows();
   static ha_rows get_row_count();
 
@@ -129,10 +140,11 @@ protected:
 
 public:
   ~table_ees_by_account_by_error()
-  {}
+  {
+  }
 
 protected:
-  void make_row(PFS_account *account, int error_index);
+  int make_row(PFS_account *account, int error_index);
 
 private:
   /** Table share lock. */
@@ -142,8 +154,6 @@ private:
 
   /** Current row. */
   row_ees_by_account_by_error m_row;
-  /** True is the current row exists. */
-  bool m_row_exists;
   /** Current position. */
   pos_ees_by_account_by_error m_pos;
   /** Next position. */

@@ -1,8 +1,5 @@
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
-
 #setup
 let $select_column = COUNT_STAR;
 let $table = performance_schema.events_statements_summary_by_user_by_event_name;

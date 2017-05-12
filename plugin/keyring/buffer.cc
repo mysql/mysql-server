@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,12 +13,15 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <memory>
+
 #include "buffer.h"
 #include "keyring_key.h"
+#include "my_dbug.h"
 
 namespace keyring
 {
-  inline void Buffer::free()
+  void Buffer::free()
   {
     if (data != NULL)
     {
@@ -29,11 +32,11 @@ namespace keyring
     DBUG_ASSERT(size == 0 && position == 0);
   }
 
-  my_bool Buffer::get_next_key(IKey **key)
+  bool Buffer::get_next_key(IKey **key)
   {
     *key= NULL;
 
-    boost::movelib::unique_ptr<Key> key_ptr(new Key());
+    std::unique_ptr<Key> key_ptr(new Key());
     size_t number_of_bytes_read_from_buffer = 0;
     if (data == NULL)
     {
@@ -50,7 +53,7 @@ namespace keyring
     return FALSE;
   }
 
-  my_bool Buffer::has_next_key()
+  bool Buffer::has_next_key()
   {
     return position < size;
   }

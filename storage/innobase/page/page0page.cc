@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -25,15 +25,18 @@ Created 2/2/1994 Heikki Tuuri
 *******************************************************/
 
 #include "page0page.h"
+
+#include "btr0btr.h"
+#include "buf0buf.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
 #include "page0cur.h"
 #include "page0zip.h"
-#include "buf0buf.h"
-#include "btr0btr.h"
 #ifndef UNIV_HOTBACKUP
-# include "srv0srv.h"
-# include "lock0lock.h"
-# include "fut0lst.h"
 # include "btr0sea.h"
+# include "fut0lst.h"
+# include "lock0lock.h"
+# include "srv0srv.h"
 #endif /* !UNIV_HOTBACKUP */
 
 /*			THE INDEX PAGE
@@ -2761,7 +2764,7 @@ page_delete_rec(
 @return the last record, not delete-marked
 @retval infimum record if all records are delete-marked */
 const rec_t*
-page_find_rec_max_not_deleted(
+page_find_rec_last_not_deleted(
 	const page_t*	page)
 {
 	const rec_t*	rec = page_get_infimum_rec(page);

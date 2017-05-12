@@ -1,0 +1,135 @@
+################################################################################
+# Verify that group_replication_gtid_assignment_block_size
+# validates its input values.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. Set invalid values to group_replication_gtid_assignment_block_size. Expect
+#    error ER_WRONG_TYPE_FOR_VAR.
+# 2. Set valid values to group_replication_gtid_assignment_block_size. Expect
+#    SUCCESS.
+# 3. Bootstrap start GR on M1. Set group_replication_gtid_assignment_block_size
+#    while Group Replication is running. It should be blocked.
+# 4. Set group_replication_gtid_assignment_block_size to some different value
+#    on M2 than member M1.
+#  - Try start GR on M2. It should FAIL.
+#  - Verify the messages in error log.
+# 5. Clean up.
+################################################################################
+--source ../inc/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source ../inc/group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET @group_replication_gtid_assignment_block_size_save= @@GLOBAL.group_replication_gtid_assignment_block_size;
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET @group_replication_gtid_assignment_block_size_save= @@GLOBAL.group_replication_gtid_assignment_block_size;
+
+
+--echo
+--echo ############################################################
+--echo # 1. Set invalid values to group_replication_gtid_assignment_block_size.
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL group_replication_gtid_assignment_block_size= ON;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL group_replication_gtid_assignment_block_size= OFF;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL group_replication_gtid_assignment_block_size= " ";
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL group_replication_gtid_assignment_block_size= "a";
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL group_replication_gtid_assignment_block_size= 1.0;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL group_replication_gtid_assignment_block_size= 0;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL group_replication_gtid_assignment_block_size= -1;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL group_replication_gtid_assignment_block_size= 9223372036854775808;
+
+
+--echo
+--echo ############################################################
+--echo # 2. Set valid values to group_replication_gtid_assignment_block_size.
+SET GLOBAL group_replication_gtid_assignment_block_size= 1;
+--let $assert_text= group_replication_gtid_assignment_block_size is correct
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_gtid_assignment_block_size] = 1
+--source include/assert.inc
+
+SET GLOBAL group_replication_gtid_assignment_block_size= 65535;
+--let $assert_text= group_replication_gtid_assignment_block_size is correct
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_gtid_assignment_block_size] = 65535
+--source include/assert.inc
+
+SET GLOBAL group_replication_gtid_assignment_block_size= 4294967295;
+--let $assert_text= group_replication_gtid_assignment_block_size is correct
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_gtid_assignment_block_size] = 4294967295
+--source include/assert.inc
+
+SET GLOBAL group_replication_gtid_assignment_block_size= 9223372036854775807;
+--let $assert_text= group_replication_gtid_assignment_block_size is correct
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_gtid_assignment_block_size] = 9223372036854775807
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 3. Try set group_replication_gtid_assignment_block_size
+--echo #    while Group Replication is running.
+--echo #    It will be disallowed.
+SET GLOBAL group_replication_gtid_assignment_block_size= 1;
+--let $assert_text= group_replication_gtid_assignment_block_size is correct
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_gtid_assignment_block_size] = 1
+--source include/assert.inc
+
+--source ../inc/start_and_bootstrap_group_replication.inc
+--error ER_GROUP_REPLICATION_RUNNING
+SET GLOBAL group_replication_gtid_assignment_block_size= 1000;
+--let $assert_text= group_replication_gtid_assignment_block_size is 1
+--let $assert_cond= [SELECT @@GLOBAL.group_replication_gtid_assignment_block_size] = 1
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 4. Try join a group with a different value for
+--echo #    group_replication_gtid_assignment_block_size than the
+--echo #    group one. It will be disallowed.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--disable_query_log
+--eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
+--enable_query_log
+
+SET GLOBAL group_replication_gtid_assignment_block_size= 2;
+--error ER_GROUP_REPLICATION_CONFIGURATION
+START GROUP_REPLICATION;
+
+--replace_regex /[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]\.[0-9][0-9][0-9][0-9][0-9][0-9][-+Z][0-9:]* *[0-9]* *\[/DATE_TIME [/
+--let $grep_file=$MYSQLTEST_VARDIR/tmp/group_replication_gtid_assignment_block_size.err
+--let $grep_pattern=The member is configured with a group_replication_gtid_assignment_block_size option value
+--source include/grep_pattern.inc
+
+
+--echo
+--echo ############################################################
+--echo # 5. Clean up.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+SET GLOBAL group_replication_gtid_assignment_block_size= @group_replication_gtid_assignment_block_size_save;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET GLOBAL group_replication_gtid_assignment_block_size= @group_replication_gtid_assignment_block_size_save;
+
+--source ../inc/group_replication_end.inc

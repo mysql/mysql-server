@@ -1,5 +1,14 @@
 -- source include/no_valgrind_without_big.inc
--- source include/have_innodb.inc
+
+########################################
+##### WL#7554 Force schema `test` to character set latin1
+##### This test should be migrated to utf8mb4
+--disable_query_log
+let $testdbcs51=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
+alter schema default character set latin1;
+use test;
+--enable_query_log
+########################################
 
 let $MYSQLD_DATADIR= `select @@datadir`;
 
@@ -175,7 +184,7 @@ alter table t2 MODIFY b INT NOT NULL, ALGORITHM=INPLACE;
 SET FOREIGN_KEY_CHECKS=0;
 --error ER_FK_COLUMN_CANNOT_DROP
 alter table t2 DROP COLUMN b, ALGORITHM=COPY;
---error ER_DROP_INDEX_FK
+--error ER_FK_COLUMN_CANNOT_DROP
 alter table t2 DROP COLUMN b;
 --error ER_FK_COLUMN_CANNOT_DROP_CHILD
 alter table t1 DROP COLUMN b, ALGORITHM=COPY;
@@ -1044,5 +1053,23 @@ insert into t1 values('abd', 'acd'), ('acd', 'abd');
 alter table t1 drop primary key, add primary key(o2,o1), lock=none;
 drop table t1;
 
+CREATE TABLE t1(a INT NOT NULL, b INT, PRIMARY KEY (a ASC)) ENGINE=INNODB;
+SHOW CREATE TABLE t1;
+INSERT INTO t1 VALUES(5,5), (4,4), (3,4), (2,3);
+ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY (a DESC);
+CHECK TABLE t1;
+SELECT * FROM t1;
+ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY (a ASC);
+CHECK TABLE t1;
+SELECT * FROM t1;
+DROP TABLE t1;
+
 # no skip sort cases
 --source suite/innodb/include/alter_table_pk_no_sort.inc
+
+########################################
+##### WL#7554 set schema `test` back to what it was
+--disable_query_log
+--eval alter schema test default character set $testdbcs51;
+--enable_query_log
+########################################

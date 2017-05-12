@@ -16,7 +16,7 @@
 ###############################################################################
 
 --source include/not_embedded.inc
---source include/have_ssl_communication.inc
+--source include/have_ssl.inc
 --source include/have_openssl.inc
 --source include/mysql_upgrade_preparation.inc
 

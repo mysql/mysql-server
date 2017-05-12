@@ -15,12 +15,30 @@
 
 #include "dd/impl/tables/character_sets.h"
 
-#include "sql_class.h"                            // THD
+#include <stddef.h>
+#include <new>
+#include <set>
+#include <vector>
 
-#include "dd/dd.h"                                // dd::create_object
 #include "dd/cache/dictionary_client.h"           // dd::cache::Dictionary_...
+#include "dd/dd.h"                                // dd::create_object
+#include "dd/impl/cache/storage_adapter.h"        // Storage_adapter
 #include "dd/impl/raw/object_keys.h"              // Global_name_key
 #include "dd/impl/types/charset_impl.h"           // dd::Charset_impl
+#include "dd/impl/types/object_table_definition_impl.h"
+#include "dd/object_id.h"
+#include "dd/types/charset.h"
+#include "m_ctype.h"
+#include "my_dbug.h"
+#include "my_sys.h"
+#include "mysql/psi/mysql_statement.h"
+#include "sql_class.h"                            // THD
+#include "template_utils.h"
+
+namespace dd {
+class Dictionary_object;
+class Raw_record;
+}  // namespace dd
 
 namespace dd {
 namespace tables {
@@ -116,7 +134,8 @@ bool Character_sets::populate(THD *thd) const
 
       // If the charset exists, it will be updated; otherwise,
       // it will be inserted.
-      error= thd->dd_client()->store(static_cast<Charset*>(new_charset));
+      error= cache::Storage_adapter::instance()->store(thd,
+               static_cast<Charset*>(new_charset));
     }
   }
   delete new_charset;
@@ -136,8 +155,6 @@ bool Character_sets::populate(THD *thd) const
       return true;
   }
 
-  delete_container_pointers(prev_cset);
-
   return error;
 }
 
@@ -154,7 +171,7 @@ Dictionary_object *Character_sets::create_dictionary_object(const Raw_record &) 
 
 bool Character_sets::update_object_key(
   Global_name_key *key,
-  const std::string &charset_name)
+  const String_type &charset_name)
 {
   key->update(FIELD_NAME, charset_name);
   return false;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -48,12 +48,33 @@ TODO:
   write buffer to the read buffer before we start to reuse it.
 */
 
-#include "mysys_priv.h"
-#include "my_sys.h"
-#include <m_string.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <math.h>
+#include <stdarg.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+
+#include "m_string.h"
+#include "my_byteorder.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_macros.h"
+#include "my_sys.h"
 #include "my_thread_local.h"
+#include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_file.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysys_priv.h"
+#include "thr_mutex.h"
 
 PSI_file_key key_file_io_cache;
 
@@ -147,7 +168,7 @@ init_functions(IO_CACHE* info)
 
 int init_io_cache_ext(IO_CACHE *info, File file, size_t cachesize,
                       enum cache_type type, my_off_t seek_offset,
-                      pbool use_async_io, myf cache_myflags,
+                      bool use_async_io, myf cache_myflags,
                       PSI_file_key file_key)
 {
   size_t min_cache;
@@ -295,7 +316,7 @@ int init_io_cache_ext(IO_CACHE *info, File file, size_t cachesize,
 
 int init_io_cache(IO_CACHE *info, File file, size_t cachesize,
                   enum cache_type type, my_off_t seek_offset,
-                  pbool use_async_io, myf cache_myflags)
+                  bool use_async_io, myf cache_myflags)
 {
   return init_io_cache_ext(info, file, cachesize, type, seek_offset,
                            use_async_io, cache_myflags, key_file_io_cache);
@@ -308,10 +329,10 @@ int init_io_cache(IO_CACHE *info, File file, size_t cachesize,
   in the cache, we are reusing this memory without flushing it to disk.
 */
 
-my_bool reinit_io_cache(IO_CACHE *info, enum cache_type type,
-			my_off_t seek_offset,
-			pbool use_async_io MY_ATTRIBUTE((unused)),
-			pbool clear_cache)
+bool reinit_io_cache(IO_CACHE *info, enum cache_type type,
+                     my_off_t seek_offset,
+                     bool use_async_io MY_ATTRIBUTE((unused)),
+                     bool clear_cache)
 {
   DBUG_ENTER("reinit_io_cache");
   DBUG_PRINT("enter",("cache: %p type: %d  seek_offset: %lu  clear_cache: %d",
@@ -1511,7 +1532,7 @@ int my_b_flush_io_cache(IO_CACHE *info,
 {
   size_t length;
   my_off_t pos_in_file;
-  my_bool append_cache= (info->type == SEQ_READ_APPEND);
+  bool append_cache= (info->type == SEQ_READ_APPEND);
   DBUG_ENTER("my_b_flush_io_cache");
   DBUG_PRINT("enter", ("cache: %p", info));
 
@@ -1678,7 +1699,7 @@ static void close_file(IO_CACHE* info)
   my_close(info->file, MYF(MY_WME));
 }
 
-int main(int argc, char** argv)
+int main(int, char** argv)
 {
   IO_CACHE sra_cache; /* SEQ_READ_APPEND */
   MY_STAT status;

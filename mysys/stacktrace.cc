@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,12 +17,28 @@
   @file mysys/stacktrace.cc
 */
 
+#include "my_config.h"
+
+#include <errno.h>
+#include <fcntl.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
+#ifdef __linux__
+#include <syscall.h>
+#endif
+#include <time.h>
+
+#include "my_inttypes.h"
+#include "my_macros.h"
 #include "my_stacktrace.h"
 
 #ifndef _WIN32
-#include "my_thread.h"
-#include "m_string.h"
 #include <signal.h>
+
+#include "my_thread.h"
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -30,7 +46,6 @@
 
 #ifdef __linux__
 #include <ctype.h>          /* isprint */
-#include <sys/syscall.h>    /* SYS_gettid */
 #endif
 
 #ifdef HAVE_EXECINFO_H
@@ -90,8 +105,8 @@ static int safe_print_str(const char *addr, int max_len)
   if ((fd= open(buf, O_RDONLY)) < 0)
     return -1;
 
-  /* Ensure that off_t can hold a pointer. */
-  compile_time_assert(sizeof(off_t) >= sizeof(intptr));
+  static_assert(sizeof(off_t) >= sizeof(intptr),
+                "off_t needs to be able to hold a pointer.");
 
   total= max_len;
   offset= (intptr) addr;
@@ -183,6 +198,7 @@ void my_print_stacktrace(uchar* stack_bottom MY_ATTRIBUTE((unused)),
 #ifdef HAVE_ABI_CXA_DEMANGLE
 
 #include <cxxabi.h>
+
 static char *my_demangle(const char *mangled_name, int *status)
 {
   return abi::__cxa_demangle(mangled_name, NULL, NULL, status);
@@ -420,12 +436,7 @@ void my_print_stacktrace(uchar* unused1, ulong unused2)
 
   /*Prepare stackframe for the first StackWalk64 call*/
   frame.AddrFrame.Mode= frame.AddrPC.Mode= frame.AddrStack.Mode= AddrModeFlat;
-#if (defined _M_IX86)
-  machine= IMAGE_FILE_MACHINE_I386;
-  frame.AddrFrame.Offset= context.Ebp;
-  frame.AddrPC.Offset=    context.Eip;
-  frame.AddrStack.Offset= context.Esp;
-#elif (defined _M_X64)
+#if (defined _M_X64)
   machine = IMAGE_FILE_MACHINE_AMD64;
   frame.AddrFrame.Offset= context.Rbp;
   frame.AddrPC.Offset=    context.Rip;
@@ -453,19 +464,6 @@ void my_print_stacktrace(uchar* unused1, ulong unused2)
     addr= frame.AddrPC.Offset;
 
     have_module= SymGetModuleInfo64(hProcess,addr,&module);
-#ifdef _M_IX86
-    if(!have_module)
-    {
-      /*
-        ModuleInfo structure has been "compatibly" extended in releases after XP,
-        and its size was increased. To make XP dbghelp.dll function
-        happy, pretend passing the old structure.
-      */
-      module.SizeOfStruct= MODULE64_SIZE_WINXP;
-      have_module= SymGetModuleInfo64(hProcess, addr, &module);
-    }
-#endif
-
     have_symbol= SymGetSymFromAddr64(hProcess, addr, &function_offset,
       &(package.sym));
     have_source= SymGetLineFromAddr64(hProcess, addr, &line_offset, &line);
@@ -542,6 +540,7 @@ void my_create_minidump(const char *name, HANDLE process, DWORD pid)
 {
   char path[MAX_PATH];
   MINIDUMP_EXCEPTION_INFORMATION info;
+  PMINIDUMP_EXCEPTION_INFORMATION info_ptr= NULL;
   HANDLE hFile;
 
   if (process == 0)
@@ -552,6 +551,7 @@ void my_create_minidump(const char *name, HANDLE process, DWORD pid)
     info.ExceptionPointers= exception_ptrs;
     info.ClientPointers= FALSE;
     info.ThreadId= GetCurrentThreadId();
+    info_ptr= &info;
   }
 
   hFile= CreateFile(name, GENERIC_WRITE, 0, 0, CREATE_ALWAYS,
@@ -563,7 +563,7 @@ void my_create_minidump(const char *name, HANDLE process, DWORD pid)
                                         MiniDumpWithProcessThreadData);
     /* Create minidump, use info only if same process. */
     if(MiniDumpWriteDump(process, pid, hFile, mdt,
-                         process ? NULL : &info, 0, 0))
+                         info_ptr, 0, 0))
     {
       my_safe_printf_stderr("Minidump written to %s\n",
                             _fullpath(path, name, sizeof(path)) ?
@@ -630,7 +630,7 @@ char *my_safe_utoa(int base, ulonglong val, char *buf)
 char *my_safe_itoa(int base, longlong val, char *buf)
 {
   char *orig_buf= buf;
-  const my_bool is_neg= (val < 0);
+  const bool is_neg= (val < 0);
   *buf--= 0;
 
   if (is_neg)
@@ -681,7 +681,7 @@ char *my_safe_itoa(int base, longlong val, char *buf)
 }
 
 
-static const char *check_longlong(const char *fmt, my_bool *have_longlong)
+static const char *check_longlong(const char *fmt, bool *have_longlong)
 {
   *have_longlong= FALSE;
   if (*fmt == 'l')
@@ -705,7 +705,7 @@ static size_t my_safe_vsnprintf(char *to, size_t size,
   char *end= start + size - 1;
   for (; *format; ++format)
   {
-    my_bool have_longlong = FALSE;
+    bool have_longlong = FALSE;
     if (*format != '%')
     {
       if (to == end)                            /* end of buffer */

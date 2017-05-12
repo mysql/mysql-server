@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -43,7 +43,7 @@ Created 5/7/1996 Heikki Tuuri
 // Forward declaration
 class ReadView;
 
-extern my_bool	innobase_deadlock_detect;
+extern bool	innobase_deadlock_detect;
 
 /*********************************************************************//**
 Gets the size of a lock struct.
@@ -345,60 +345,69 @@ lock_sec_rec_modify_check_and_lock(
 				(can be NULL if BTR_NO_LOCKING_FLAG) */
 	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 	MY_ATTRIBUTE((warn_unused_result));
-/*********************************************************************//**
-Like lock_clust_rec_read_check_and_lock(), but reads a
+
+/** Like lock_clust_rec_read_check_and_lock(), but reads a
 secondary index record.
+@param[in]	flags		if BTR_NO_LOCKING_FLAG bit is set, does nothing
+@param[in]	block		buffer block of rec
+@param[in]	rec		user record or page supremum record which should
+				be read or passed over by a read cursor
+@param[in]	index		secondary index
+@param[in]	offsets		rec_get_offsets(rec, index)
+@param[in]	sel_mode	select mode: SELECT_ORDINARY,
+				SELECT_SKIP_LOKCED, or SELECT_NO_WAIT
+@param[in]	mode		mode of the lock which the read cursor should
+				set on records: LOCK_S or LOCK_X; the latter is
+				possible in SELECT FOR UPDATE
+@param[in]	gap_mode	LOCK_ORDINARY, LOCK_GAP, or LOCK_REC_NOT_GAP
+@param[in,out]	thr		query thread
 @return DB_SUCCESS, DB_SUCCESS_LOCKED_REC, DB_LOCK_WAIT, DB_DEADLOCK,
-or DB_QUE_THR_SUSPENDED */
+DB_QUE_THR_SUSPENDED, DB_SKIP_LOCKED, or DB_LOCK_NOWAIT */
 dberr_t
 lock_sec_rec_read_check_and_lock(
-/*=============================*/
-	ulint			flags,	/*!< in: if BTR_NO_LOCKING_FLAG
-					bit is set, does nothing */
-	const buf_block_t*	block,	/*!< in: buffer block of rec */
-	const rec_t*		rec,	/*!< in: user record or page
-					supremum record which should
-					be read or passed over by a
-					read cursor */
-	dict_index_t*		index,	/*!< in: secondary index */
-	const ulint*		offsets,/*!< in: rec_get_offsets(rec, index) */
-	lock_mode		mode,	/*!< in: mode of the lock which
-					the read cursor should set on
-					records: LOCK_S or LOCK_X; the
-					latter is possible in
-					SELECT FOR UPDATE */
-	ulint			gap_mode,/*!< in: LOCK_ORDINARY, LOCK_GAP, or
-					LOCK_REC_NOT_GAP */
-	que_thr_t*		thr);	/*!< in: query thread */
-/*********************************************************************//**
-Checks if locks of other transactions prevent an immediate read, or passing
+	ulint			flags,
+	const buf_block_t*	block,
+	const rec_t*		rec,
+	dict_index_t*		index,
+	const ulint*		offsets,
+	select_mode		sel_mode,
+	lock_mode		mode,
+	ulint			gap_mode,
+	que_thr_t*		thr);
+
+/** Checks if locks of other transactions prevent an immediate read, or passing
 over by a read cursor, of a clustered index record. If they do, first tests
 if the query thread should anyway be suspended for some reason; if not, then
 puts the transaction and the query thread to the lock wait state and inserts a
 waiting request for a record lock to the lock queue. Sets the requested mode
 lock on the record.
+@param[in]	flags		if BTR_NO_LOCKING_FLAG bit is set, does nothing
+@param[in]	block		buffer block of rec
+@param[in]	rec		user record or page supremum record which should
+				be read or passed over by a read cursor
+@param[in]	index		secondary index
+@param[in]	offsets		rec_get_offsets(rec, index)
+@param[in]	sel_mode	select mode: SELECT_ORDINARY,
+				SELECT_SKIP_LOKCED, or SELECT_NO_WAIT
+@param[in]	mode		mode of the lock which the read cursor should
+				set on records: LOCK_S or LOCK_X; the latter is
+				possible in SELECT FOR UPDATE
+@param[in]	gap_mode	LOCK_ORDINARY, LOCK_GAP, or LOCK_REC_NOT_GAP
+@param[in,out]	thr		query thread
 @return DB_SUCCESS, DB_SUCCESS_LOCKED_REC, DB_LOCK_WAIT, DB_DEADLOCK,
-or DB_QUE_THR_SUSPENDED */
+DB_QUE_THR_SUSPENDED, DB_SKIP_LOCKED, or DB_LOCK_NOWAIT */
 dberr_t
 lock_clust_rec_read_check_and_lock(
-/*===============================*/
-	ulint			flags,	/*!< in: if BTR_NO_LOCKING_FLAG
-					bit is set, does nothing */
-	const buf_block_t*	block,	/*!< in: buffer block of rec */
-	const rec_t*		rec,	/*!< in: user record or page
-					supremum record which should
-					be read or passed over by a
-					read cursor */
-	dict_index_t*		index,	/*!< in: clustered index */
-	const ulint*		offsets,/*!< in: rec_get_offsets(rec, index) */
-	lock_mode		mode,	/*!< in: mode of the lock which
-					the read cursor should set on
-					records: LOCK_S or LOCK_X; the
-					latter is possible in
-					SELECT FOR UPDATE */
-	ulint			gap_mode,/*!< in: LOCK_ORDINARY, LOCK_GAP, or
-					LOCK_REC_NOT_GAP */
-	que_thr_t*		thr);	/*!< in: query thread */
+	ulint			flags,
+	const buf_block_t*	block,
+	const rec_t*		rec,
+	dict_index_t*		index,
+	const ulint*		offsets,
+	select_mode		sel_mode,
+	lock_mode		mode,
+	ulint			gap_mode,
+	que_thr_t*		thr);
+
 /*********************************************************************//**
 Checks if locks of other transactions prevent an immediate read, or passing
 over by a read cursor, of a clustered index record. If they do, first tests
@@ -569,6 +578,16 @@ lock_rec_find_set_bit(
 	const lock_t*	lock);	/*!< in: record lock with at least one
 				bit set */
 
+/** Looks for the next set bit in the record lock bitmap.
+@param[in] lock		record lock with at least one bit set
+@param[in] heap_no	current set bit
+@return The next bit index  == heap number following heap_no, or ULINT_UNDEFINED
+if none found */
+ulint
+lock_rec_find_next_set_bit(
+	const lock_t*	lock,
+	ulint		heap_no);
+
 /*********************************************************************//**
 Checks if a lock request lock1 has to wait for request lock2.
 @return TRUE if lock1 has to wait for lock2 to be removed */
@@ -641,7 +660,7 @@ lock_number_of_tables_locked(
 Gets the type of a lock. Non-inline version for using outside of the
 lock module.
 @return LOCK_TABLE or LOCK_REC */
-ulint
+uint32_t
 lock_get_type(
 /*==========*/
 	const lock_t*	lock);	/*!< in: lock */
@@ -653,6 +672,35 @@ trx_id_t
 lock_get_trx_id(
 /*============*/
 	const lock_t*	lock);	/*!< in: lock */
+
+/** Get the performance schema event (thread_id, event_id)
+that created the lock.
+@param[in]	lock		Lock
+@param[out]	thread_id	Thread ID that created the lock
+@param[out]	event_id	Event ID that created the lock
+*/
+void
+lock_get_psi_event(
+	const lock_t*	lock,
+	ulonglong*	thread_id,
+	ulonglong*	event_id);
+
+/** Get the first lock of a trx lock list.
+@param[in]	trx_lock	the trx lock
+@return The first lock
+*/
+const lock_t*
+lock_get_first_trx_locks(
+	const trx_lock_t*	trx_lock);
+
+/** Get the next lock of a trx lock list.
+@param[in]	lock	the current lock
+@return The next lock
+*/
+const lock_t*
+lock_get_next_trx_locks(
+	const lock_t*	lock);
+
 
 /*******************************************************************//**
 Gets the mode of a lock in a human readable string.

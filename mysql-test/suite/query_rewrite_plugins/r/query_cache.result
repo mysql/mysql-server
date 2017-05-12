@@ -170,7 +170,6 @@ SHOW STATUS LIKE "Qcache_hits";
 Variable_name	Value
 Qcache_hits	1
 DROP TABLE t1, t2;
-SET GLOBAL query_cache_size = DEFAULT;
 #
 # Reinstalls the plugin while keeping the rules table.
 #

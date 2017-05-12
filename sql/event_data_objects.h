@@ -1,6 +1,6 @@
 #ifndef _EVENT_DATA_OBJECTS_H_
 #define _EVENT_DATA_OBJECTS_H_
-/* Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,26 +22,21 @@
   @file event_data_objects.h
 */
 
-#include "my_global.h"
+#include <sys/types.h>
+
+#include "lex_string.h"
 #include "my_alloc.h"                   // MEM_ROOT
+#include "my_inttypes.h"
+#include "my_psi_config.h"
 #include "my_time.h"                    // interval_type
 #include "mysql/mysql_lex_string.h"     // LEX_STRING
+#include "mysql/psi/psi_statement.h"
 
-#include "my_thread.h"                  // Needed for psi.h
-#include "pfs_stage_provider.h"
-#include "mysql/psi/mysql_stage.h"
-
-#include "pfs_statement_provider.h"
-#include "mysql/psi/mysql_statement.h"
-
-class Field;
 class String;
 class THD;
 class Time_zone;
-struct TABLE;
+
 typedef ulonglong sql_mode_t;
-typedef struct st_mysql_lex_string LEX_STRING;
-typedef struct st_mysql_const_lex_string LEX_CSTRING;
 namespace dd
 {
   class Event;
@@ -110,9 +105,9 @@ public:
   my_time_t m_execute_at;
   my_time_t m_starts;
   my_time_t m_ends;
-  my_bool m_starts_null;
-  my_bool m_ends_null;
-  my_bool m_execute_at_null;
+  bool m_starts_null;
+  bool m_ends_null;
+  bool m_execute_at_null;
 
   longlong m_expression;
   interval_type m_interval;

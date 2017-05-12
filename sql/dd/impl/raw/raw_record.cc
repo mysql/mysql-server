@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,11 +15,21 @@
 
 #include "dd/impl/raw/raw_record.h"
 
-#include "field.h"                  // Field
-#include "table.h"                  // TABLE
-#include "tztime.h"                 // Time_zone_offset
+#include <stddef.h>
 
 #include "dd/properties.h"          // dd::Properties
+#include "field.h"                  // Field
+#include "handler.h"
+#include "m_ctype.h"
+#include "my_base.h"
+#include "my_bitmap.h"
+#include "my_dbug.h"
+#include "my_time.h"
+#include "mysql_time.h"
+#include "sql_const.h"
+#include "sql_string.h"
+#include "table.h"                  // TABLE
+#include "tztime.h"                 // Time_zone_offset
 
 namespace dd {
 
@@ -139,7 +149,7 @@ void Raw_record::set_null(int field_no, bool is_null)
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Raw_record::store(int field_no, const std::string &s, bool is_null)
+bool Raw_record::store(int field_no, const String_type &s, bool is_null)
 {
   set_null(field_no, is_null);
 
@@ -238,14 +248,14 @@ ulonglong Raw_record::read_uint(int field_no) const
 
 ///////////////////////////////////////////////////////////////////////////
 
-std::string Raw_record::read_str(int field_no) const
+String_type Raw_record::read_str(int field_no) const
 {
   char buff[MAX_FIELD_WIDTH];
   String val(buff, sizeof(buff), &my_charset_bin);
 
   field(field_no)->val_str(&val);
 
-  return std::string(val.ptr(), val.length());
+  return String_type(val.ptr(), val.length());
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -262,7 +272,7 @@ Object_id Raw_record::read_ref_id(int field_no) const
 my_time_t Raw_record::read_time(int field_no) const
 {
   MYSQL_TIME time;
-  my_bool not_used;
+  bool not_used;
 
   field(field_no)->get_date(&time, TIME_DATETIME_ONLY);
   return my_tz_OFFSET0->TIME_to_gmt_sec(&time,&not_used);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,25 +13,97 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "rpl_filter.h"
+#include "sql/rpl_filter.h"
 
+#include <string.h>
+#include <map>
+#include <utility>
+
+#include "auth_acls.h"
 #include "auth_common.h"                // SUPER_ACL
+#include "handler.h"
 #include "item.h"                       // Item
+#include "m_ctype.h"
+#include "m_string.h"
+#include "mf_wcomp.h"                   // wild_one, wild_many
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql_com.h"
 #include "mysqld.h"                     // table_alias_charset
+#include "mysqld_error.h"
 #include "psi_memory_key.h"
 #include "rpl_mi.h"                     // Master_info
 #include "rpl_msr.h"                    // channel_map
 #include "rpl_rli.h"                    // Relay_log_info
 #include "rpl_slave.h"                  // SLAVE_SQL
+#include "sql_class.h"
+#include "sql_string.h"
 #include "table.h"                      // TABLE_LIST
 #include "template_utils.h"             // my_free_container_pointers
+#include "derror.h"                     // ER_THD
+#include "current_thd.h"
+
+
+class THD;
 
 
 #define TABLE_RULE_HASH_SIZE   16
 extern PSI_memory_key key_memory_array_buffer;
 
+
+Rpl_pfs_filter::Rpl_pfs_filter() :
+  m_channel_name(NULL),
+  m_filter_name(NULL)
+{
+}
+
+
+Rpl_pfs_filter::~Rpl_pfs_filter()
+{
+}
+
+
+Rpl_filter_statistics::Rpl_filter_statistics() :
+  m_configured_by(CONFIGURED_BY_STARTUP_OPTIONS),
+  m_active_since(0)
+{
+}
+
+
+Rpl_filter_statistics::~Rpl_filter_statistics()
+{
+}
+
+
+//void Rpl_filter_statistics::set_active_since()
+void Rpl_filter_statistics::set_all(enum_configured_by configured_by,
+                                    ulonglong counter)
+{
+  m_configured_by= configured_by;
+  m_atomic_counter= counter;
+
+  /* Set m_active_since to current time. */
+  THD *thd= current_thd;
+  if (thd == NULL)
+    m_active_since= my_micro_time();
+  else
+  {
+    /*
+      Calculate time stamp up to tenths of milliseconds elapsed
+      from 1 Jan 1970 00:00:00.
+    */
+    struct timeval stmt_start_time= thd->query_start_timeval_trunc(6);
+    m_active_since= static_cast<ulonglong>(stmt_start_time.tv_sec) * 1000000 +
+                    stmt_start_time.tv_usec;
+  }
+}
+
+
 Rpl_filter::Rpl_filter() :
-  table_rules_on(false),
+  table_rules_on(false), attached(false),
   do_table_array(key_memory_TABLE_RULE_ENT),
   ignore_table_array(key_memory_TABLE_RULE_ENT),
   wild_do_table(key_memory_TABLE_RULE_ENT),
@@ -43,10 +115,16 @@ Rpl_filter::Rpl_filter() :
   do_db.empty();
   ignore_db.empty();
   rewrite_db.empty();
+
+  m_rpl_filter_lock= new Checkable_rwlock(
+#ifdef HAVE_PSI_INTERFACE
+                                          key_rwlock_rpl_filter_lock
+#endif
+                                         );
 }
 
 
-Rpl_filter::~Rpl_filter() 
+Rpl_filter::~Rpl_filter()
 {
   if (do_table_hash_inited)
     my_hash_free(&do_table_hash);
@@ -61,6 +139,209 @@ Rpl_filter::~Rpl_filter()
   free_string_list(&do_db);
   free_string_list(&ignore_db);
   free_string_pair_list(&rewrite_db);
+
+  delete m_rpl_filter_lock;
+
+  if (rpl_pfs_global_filter_vec.size() > 0)
+    cleanup_rpl_pfs_global_filter_vec();
+}
+
+
+bool Rpl_filter::is_empty()
+{
+  rdlock();
+  bool res= do_table_hash_inited == 0 && ignore_table_hash_inited == 0 &&
+            do_table_array_inited == 0 && ignore_table_array_inited == 0 &&
+            wild_do_table_inited == 0 && wild_ignore_table_inited == 0 &&
+            do_db.is_empty() && ignore_db.is_empty() && rewrite_db.is_empty();
+
+  unlock();
+  return res;
+}
+
+
+int Rpl_filter::copy_global_replication_filters()
+{
+  DBUG_ENTER("Rpl_filter::copy_global_replication_filters()");
+  int res= 0;
+  bool need_unlock= false;
+
+  /* Check self copy. */
+  if (this == global_rpl_filter)
+    DBUG_RETURN(0);
+
+  /* Check if the source is empty. */
+  if (global_rpl_filter->is_empty())
+    DBUG_RETURN(0);
+
+  THD *thd= current_thd;
+  if (thd != NULL && thd->lex->sql_command == SQLCOM_CHANGE_MASTER)
+  {
+    /*
+      Acquire the write lock when copying global replication filter if
+      a new channel is being created by CHANGE MASTER TO ... FOR CHANNEL
+      command after server startup, in case SHOW SLAVE STATUS or
+      SELECT * FROM performance_schema.replication_applier_filters is
+      querying the filter in parallel. We do not have the race problem
+      when creating a new channel from repository during server startup.
+      Note: we hold a write lock of channel_map when executing
+      CHANGE MASTER TO ... FOR CHANNEL <channel_name>, and hold a read
+      lock of channel_map when executing CHANGE REPLICATION FILTER
+      (the global replication filters). So we do not need to lock the
+      global replication filters for read.
+    */
+    wrlock();
+    need_unlock= true;
+  }
+
+  if (!do_table_hash_inited && global_rpl_filter->do_table_hash_inited)
+  {
+    /*
+      Build this->do_table_array from global_rpl_filter->do_table_hash since
+      global_rpl_filter->do_table_array is freed after building do table hash.
+    */
+    res= table_rule_ent_hash_to_array(&do_table_array,
+                                      &global_rpl_filter->do_table_hash,
+                                      global_rpl_filter->do_table_hash_inited);
+    if (res != 0)
+      goto err;
+
+    do_table_array_inited= 1;
+    table_rules_on= 1;
+
+    res= build_do_table_hash();
+    if (res != 0)
+      goto err;
+
+    if (do_table_hash_inited && !do_table_hash.records)
+    {
+      my_hash_free(&do_table_hash);
+      do_table_hash_inited= 0;
+    }
+
+    do_table_statistics.set_all(
+      global_rpl_filter->do_table_statistics.get_configured_by(), 0);
+  }
+
+  if (!ignore_table_hash_inited && global_rpl_filter->ignore_table_hash_inited)
+  {
+    /*
+      Build this->ignore_table_array from global_rpl_filter->ignore_table_hash
+      since global_rpl_filter->ignore_table_array is freed after building
+      ignore table hash.
+    */
+    res= table_rule_ent_hash_to_array(
+      &ignore_table_array, &global_rpl_filter->ignore_table_hash,
+      global_rpl_filter->ignore_table_hash_inited);
+    if (res != 0)
+      goto err;
+
+    ignore_table_array_inited= 1;
+    table_rules_on= 1;
+
+    res= build_ignore_table_hash();
+    DBUG_EXECUTE_IF("simulate_out_of_memory_on_copy_ignore_table", res= 1;);
+    if (res != 0)
+      goto err;
+
+    if (ignore_table_hash_inited && !ignore_table_hash.records)
+    {
+      my_hash_free(&ignore_table_hash);
+      ignore_table_hash_inited= 0;
+    }
+
+    ignore_table_statistics.set_all(
+      global_rpl_filter->ignore_table_statistics.get_configured_by(), 0);
+  }
+
+  if (!wild_do_table_inited && global_rpl_filter->wild_do_table_inited)
+  {
+    res= table_rule_ent_array_to_array(
+      &wild_do_table, &global_rpl_filter->wild_do_table,
+      global_rpl_filter->wild_do_table_inited);
+    if (res != 0)
+      goto err;
+
+    DBUG_ASSERT(!wild_do_table.empty());
+
+    wild_do_table_inited= 1;
+    table_rules_on= 1;
+
+    wild_do_table_statistics.set_all(
+      global_rpl_filter->wild_do_table_statistics.get_configured_by(), 0);
+  }
+
+  if (!wild_ignore_table_inited && global_rpl_filter->wild_ignore_table_inited)
+  {
+    res= table_rule_ent_array_to_array(
+      &wild_ignore_table, &global_rpl_filter->wild_ignore_table,
+      global_rpl_filter->wild_ignore_table_inited);
+    DBUG_EXECUTE_IF("simulate_out_of_memory_on_copy_wild_ignore_table",
+                    res= 1;);
+    if (res != 0)
+      goto err;
+
+    DBUG_ASSERT(!wild_ignore_table.empty());
+
+    wild_ignore_table_inited= 1;
+    table_rules_on= 1;
+
+    wild_ignore_table_statistics.set_all(
+      global_rpl_filter->wild_ignore_table_statistics.get_configured_by(), 0);
+  }
+
+  if (do_db.is_empty() && !global_rpl_filter->do_db.is_empty())
+  {
+    /* Copy content from global_rpl_filter->do_db to this->do_db */
+    res= parse_filter_list(&global_rpl_filter->do_db, &Rpl_filter::add_do_db);
+    if (res != 0)
+      goto err;
+
+    do_db_statistics.set_all(
+      global_rpl_filter->do_db_statistics.get_configured_by(), 0);
+  }
+
+  if (ignore_db.is_empty() && !global_rpl_filter->ignore_db.is_empty())
+  {
+    /* Copy content from global_rpl_filter->ignore_db to this->ignore_db */
+    res= parse_filter_list(&global_rpl_filter->ignore_db,
+                           &Rpl_filter::add_ignore_db);
+    DBUG_EXECUTE_IF("simulate_out_of_memory_on_copy_ignore_db", res= 1;);
+    if (res != 0)
+      goto err;
+
+    ignore_db_statistics.set_all(
+      global_rpl_filter->ignore_db_statistics.get_configured_by(), 0);
+  }
+
+  if (rewrite_db.is_empty() && !global_rpl_filter->rewrite_db.is_empty())
+  {
+    /* Copy content from global_rpl_filter->rewrite_db to this->rewrite_db */
+    I_List_iterator<i_string_pair> it(global_rpl_filter->rewrite_db);
+    i_string_pair* str_pair;
+    while ((str_pair= it++))
+    {
+      res = add_db_rewrite(str_pair->key, str_pair->val);
+      DBUG_EXECUTE_IF("simulate_out_of_memory_on_copy_rewrite_db", res= 1;);
+      if (res)
+        break;
+    }
+    if (res != 0)
+      goto err;
+
+    rewrite_db_statistics.set_all(
+      global_rpl_filter->rewrite_db_statistics.get_configured_by(), 0);
+  }
+
+  if (need_unlock)
+    unlock();
+  DBUG_RETURN(0);
+
+err:
+  if (need_unlock)
+    unlock();
+  my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), 0);
+  DBUG_RETURN(1);
 }
 
 
@@ -123,19 +404,31 @@ Rpl_filter::tables_ok(const char* db, TABLE_LIST* tables)
     if (do_table_hash_inited) // if there are any do's
     {
       if (my_hash_search(&do_table_hash, (uchar*) hash_key, len))
+      {
+        do_table_statistics.increase_counter();
 	DBUG_RETURN(1);
+      }
     }
     if (ignore_table_hash_inited) // if there are any ignores
     {
       if (my_hash_search(&ignore_table_hash, (uchar*) hash_key, len))
+      {
+        ignore_table_statistics.increase_counter();
 	DBUG_RETURN(0); 
+      }
     }
     if (wild_do_table_inited && 
 	find_wild(&wild_do_table, hash_key, len))
+    {
+      wild_do_table_statistics.increase_counter();
       DBUG_RETURN(1);
+    }
     if (wild_ignore_table_inited && 
 	find_wild(&wild_ignore_table, hash_key, len))
+    {
+      wild_ignore_table_statistics.increase_counter();
       DBUG_RETURN(0);
+    }
   }
 
   /*
@@ -155,6 +448,7 @@ Rpl_filter::tables_ok(const char* db, TABLE_LIST* tables)
   SYNOPSIS
     db_ok()
     db              name of the db to check
+    need_increase_counter true if need to increase do_db/ignore_db counter
 
   RETURN VALUES
     0           should not be logged/replicated
@@ -162,7 +456,7 @@ Rpl_filter::tables_ok(const char* db, TABLE_LIST* tables)
 */
 
 bool
-Rpl_filter::db_ok(const char* db)
+Rpl_filter::db_ok(const char* db, bool need_increase_counter)
 {
   DBUG_ENTER("Rpl_filter::db_ok");
 
@@ -192,7 +486,11 @@ Rpl_filter::db_ok(const char* db)
         Otherwise they will be case insensitive but accent sensitive.
       */
       if (!my_strcasecmp(table_alias_charset, tmp->ptr, db))
+      {
+        if (need_increase_counter)
+          do_db_statistics.increase_counter();
         DBUG_RETURN(1); // match
+      }
     }
     DBUG_RETURN(0);
   }
@@ -209,7 +507,11 @@ Rpl_filter::db_ok(const char* db)
         Otherwise they will be case insensitive but accent sensitive.
       */
       if (!my_strcasecmp(table_alias_charset, tmp->ptr, db))
+      {
+        if (need_increase_counter)
+          ignore_db_statistics.increase_counter();
         DBUG_RETURN(0); // match
+      }
     }
     DBUG_RETURN(1);
   }
@@ -259,11 +561,13 @@ Rpl_filter::db_ok_with_wild_table(const char *db)
   len= end - hash_key ;
   if (wild_do_table_inited && find_wild(&wild_do_table, hash_key, len))
   {
+    wild_do_table_statistics.increase_counter();
     DBUG_PRINT("return",("1"));
     DBUG_RETURN(1);
   }
   if (wild_ignore_table_inited && find_wild(&wild_ignore_table, hash_key, len))
   {
+    wild_ignore_table_statistics.increase_counter();
     DBUG_PRINT("return",("0"));
     DBUG_RETURN(0);
   }  
@@ -517,31 +821,58 @@ Rpl_filter::parse_filter_list(List<Item> *item_list, Add_filter add)
 
 
 int
-Rpl_filter::set_do_db(List<Item> *do_db_list)
+Rpl_filter::parse_filter_list(I_List<i_string> *list, Add_filter add)
+{
+  DBUG_ENTER("Rpl_filter::parse_filter_list(I_List<i_string> *list, ...)");
+  int status= 0;
+  if (list->is_empty()) /* to support '()' syntax */
+    DBUG_RETURN(status);
+  I_List_iterator<i_string> it(*list);
+  i_string * istr;
+  while ((istr= it++))
+  {
+    status= (this->*add)(istr->ptr);
+    DBUG_EXECUTE_IF("simulate_out_of_memory_on_copy_do_db", status= 1;);
+    if (status)
+      break;
+  }
+  DBUG_RETURN(status);
+}
+
+
+int
+Rpl_filter::set_do_db(List<Item> *do_db_list, enum_configured_by configured_by)
 {
   DBUG_ENTER("Rpl_filter::set_do_db");
+  m_rpl_filter_lock->assert_some_wrlock();
   if (!do_db_list)
     DBUG_RETURN(0);
   free_string_list(&do_db);
   int ret= parse_filter_list(do_db_list, &Rpl_filter::add_do_db);
+  do_db_statistics.set_all(configured_by, 0);
   DBUG_RETURN(ret);
 }
 
 int
-Rpl_filter::set_ignore_db(List<Item> *ignore_db_list)
+Rpl_filter::set_ignore_db(List<Item> *ignore_db_list,
+                          enum_configured_by configured_by)
 {
   DBUG_ENTER("Rpl_filter::set_ignore_db");
+  m_rpl_filter_lock->assert_some_wrlock();
   if (!ignore_db_list)
     DBUG_RETURN(0);
   free_string_list(&ignore_db);
   int ret= parse_filter_list(ignore_db_list, &Rpl_filter::add_ignore_db);
+  ignore_db_statistics.set_all(configured_by, 0);
   DBUG_RETURN(ret);
 }
 
 int
-Rpl_filter::set_do_table(List<Item> *do_table_list)
+Rpl_filter::set_do_table(List<Item> *do_table_list,
+                         enum_configured_by configured_by)
 {
   DBUG_ENTER("Rpl_filter::set_do_table");
+  m_rpl_filter_lock->assert_some_wrlock();
   if (!do_table_list)
     DBUG_RETURN(0);
   int status;
@@ -559,13 +890,16 @@ Rpl_filter::set_do_table(List<Item> *do_table_list)
       do_table_hash_inited= 0;
     }
   }
+  do_table_statistics.set_all(configured_by, 0);
   DBUG_RETURN(status);
 }
 
 int
-Rpl_filter::set_ignore_table(List<Item>* ignore_table_list)
+Rpl_filter::set_ignore_table(List<Item>* ignore_table_list,
+                             enum_configured_by configured_by)
 {
   DBUG_ENTER("Rpl_filter::set_ignore_table");
+  m_rpl_filter_lock->assert_some_wrlock();
   if (!ignore_table_list)
     DBUG_RETURN(0);
   int status;
@@ -583,13 +917,16 @@ Rpl_filter::set_ignore_table(List<Item>* ignore_table_list)
       ignore_table_hash_inited= 0;
     }
   }
+  ignore_table_statistics.set_all(configured_by, 0);
   DBUG_RETURN(status);
 }
 
 int
-Rpl_filter::set_wild_do_table(List<Item> *wild_do_table_list)
+Rpl_filter::set_wild_do_table(List<Item> *wild_do_table_list,
+                              enum_configured_by configured_by)
 {
   DBUG_ENTER("Rpl_filter::set_wild_do_table");
+  m_rpl_filter_lock->assert_some_wrlock();
   if (!wild_do_table_list)
     DBUG_RETURN(0);
   int status;
@@ -603,13 +940,16 @@ Rpl_filter::set_wild_do_table(List<Item> *wild_do_table_list)
     wild_do_table.shrink_to_fit();
     wild_do_table_inited= 0;
   }
+  wild_do_table_statistics.set_all(configured_by, 0);
   DBUG_RETURN(status);
 }
 
 int
-Rpl_filter::set_wild_ignore_table(List<Item> *wild_ignore_table_list)
+Rpl_filter::set_wild_ignore_table(List<Item> *wild_ignore_table_list,
+                                  enum_configured_by configured_by)
 {
   DBUG_ENTER("Rpl_filter::set_wild_ignore_table");
+  m_rpl_filter_lock->assert_some_wrlock();
   if (!wild_ignore_table_list)
     DBUG_RETURN(0);
   int status;
@@ -623,21 +963,26 @@ Rpl_filter::set_wild_ignore_table(List<Item> *wild_ignore_table_list)
     wild_ignore_table.shrink_to_fit();
     wild_ignore_table_inited= 0;
   }
+  wild_ignore_table_statistics.set_all(configured_by, 0);
   DBUG_RETURN(status);
 }
 
 int
-Rpl_filter::set_db_rewrite(List<Item> *rewrite_db_pair_list)
+Rpl_filter::set_db_rewrite(List<Item> *rewrite_db_pair_list,
+                           enum_configured_by configured_by)
 {
   DBUG_ENTER("Rpl_filter::set_db_rewrite");
+  m_rpl_filter_lock->assert_some_wrlock();
   if (!rewrite_db_pair_list)
     DBUG_RETURN(0);
   int status= 0;
   free_string_pair_list(&rewrite_db);
-  if (rewrite_db_pair_list->is_empty()) /* to support '()' syntax */
-    DBUG_RETURN(status);
+
   List_iterator_fast<Item> it(*rewrite_db_pair_list);
   Item * db_key, *db_val;
+
+  if (rewrite_db_pair_list->is_empty()) /* to support '()' syntax */
+    goto end;
 
   /* Please note that grammer itself allows only even number of db values. So
    * it is ok to do it++ twice without checking anything. */
@@ -652,6 +997,8 @@ Rpl_filter::set_db_rewrite(List<Item> *rewrite_db_pair_list)
     db_key= it++;
     db_val= it++;
   }
+end:
+  rewrite_db_statistics.set_all(configured_by, 0);
   DBUG_RETURN(status);
 }
 
@@ -850,6 +1197,86 @@ Rpl_filter::table_rule_ent_hash_to_str(String* s, HASH* h, bool inited)
 }
 
 
+int
+Rpl_filter::table_rule_ent_hash_to_array(Table_rule_array* table_array,
+                                         HASH* h, bool inited)
+{
+  if (inited)
+  {
+    /*
+      Build do_table_array from other.do_table_hash since other.do_table_array
+      is freed after building do table hash.
+    */
+    for (uint i= 0; i < h->records; i++)
+    {
+      TABLE_RULE_ENT* ori_e=
+        (TABLE_RULE_ENT*) my_hash_element(h, i);
+
+      const char* dot = strchr(ori_e->db, '.');
+      if (!dot)
+        return 1;
+      size_t len = ori_e->key_len;
+      TABLE_RULE_ENT* e = (TABLE_RULE_ENT*)my_malloc(key_memory_TABLE_RULE_ENT,
+                                                     sizeof(TABLE_RULE_ENT)
+                                                     + len, MYF(MY_WME));
+      if (!e)
+        return 1;
+      e->db= (char*)e + sizeof(TABLE_RULE_ENT);
+      e->tbl_name= e->db + (dot - ori_e->db) + 1;
+      e->key_len= len;
+      memcpy(e->db, ori_e->db, len);
+
+      if (DBUG_EVALUATE_IF("simulate_out_of_memory_on_copy_do_table", 1, 0) ||
+          table_array->push_back(e))
+      {
+        my_free(e);
+        return 1;
+      }
+    }
+  }
+
+  return 0;
+}
+
+
+int
+Rpl_filter::table_rule_ent_array_to_array(Table_rule_array* dest_array,
+                                          Table_rule_array* source_array, bool inited)
+{
+  if (inited)
+  {
+    size_t array_size= source_array->size();
+    for (size_t i= 0; i < array_size; i++)
+    {
+      TABLE_RULE_ENT* ori_e= source_array->at(i);
+
+      const char* dot = strchr(ori_e->db, '.');
+      if (!dot)
+        return 1;
+      size_t len = ori_e->key_len;
+      TABLE_RULE_ENT* e = (TABLE_RULE_ENT*)my_malloc(key_memory_TABLE_RULE_ENT,
+                                                     sizeof(TABLE_RULE_ENT)
+                                                     + len, MYF(MY_WME));
+      if (!e)
+        return 1;
+      e->db= (char*)e + sizeof(TABLE_RULE_ENT);
+      e->tbl_name= e->db + (dot - ori_e->db) + 1;
+      e->key_len= len;
+      memcpy(e->db, ori_e->db, len);
+
+      if (DBUG_EVALUATE_IF("simulate_out_of_memory_on_copy_wild_do_table",
+                           1, 0) || dest_array->push_back(e))
+      {
+        my_free(e);
+        return 1;
+      }
+    }
+  }
+
+  return 0;
+}
+
+
 void 
 Rpl_filter::table_rule_ent_dynamic_array_to_str(String* s, Table_rule_array* a,
                                                 bool inited)
@@ -947,13 +1374,244 @@ Rpl_filter::get_do_db()
 {
   return &do_db;
 }
-  
+
+
+void
+Rpl_filter::get_do_db(String *str)
+{
+  str->length(0);
+  if (!do_db.is_empty())
+  {
+    I_List_iterator<i_string> it(do_db);
+    i_string* s;
+    while ((s= it++))
+    {
+      str->append(s->ptr);
+      str->append(',');
+    }
+    // Remove last ','
+    str->chop();
+  }
+}
+
 
 I_List<i_string>*
 Rpl_filter::get_ignore_db()
 {
   return &ignore_db;
 }
+
+
+void
+Rpl_filter::get_ignore_db(String *str)
+{
+  str->length(0);
+  if (!ignore_db.is_empty())
+  {
+    I_List_iterator<i_string> it(ignore_db);
+    i_string* s;
+    while ((s= it++))
+    {
+      str->append(s->ptr);
+      str->append(',');
+    }
+    // Remove last ','
+    str->chop();
+  }
+}
+
+
+#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
+
+uint Rpl_filter::get_filter_count()
+{
+  DBUG_ENTER("Rpl_filter::get_filter_count()");
+  m_rpl_filter_lock->assert_some_lock();
+  uint count= 0;
+
+  if (do_db_statistics.get_active_since() > 0)
+    count++;
+  if (ignore_db_statistics.get_active_since() > 0)
+    count++;
+  if (do_table_statistics.get_active_since() > 0)
+    count++;
+  if (ignore_table_statistics.get_active_since() > 0)
+    count++;
+  if (wild_do_table_statistics.get_active_since() > 0)
+    count++;
+  if (wild_ignore_table_statistics.get_active_since() > 0)
+    count++;
+  if (rewrite_db_statistics.get_active_since() > 0)
+    count++;
+
+  DBUG_RETURN(count);
+}
+
+
+void Rpl_filter::put_filters_into_vector(
+  std::vector<Rpl_pfs_filter*>& rpl_pfs_filter_vec, const char* channel_name)
+{
+  DBUG_ENTER("Rpl_filter::put_filters_into_vector");
+  m_rpl_filter_lock->assert_some_lock();
+
+  String tmp;
+  Rpl_pfs_filter* rpl_pfs_filter;
+
+  if (do_db_statistics.get_active_since() > 0)
+  {
+    // Fill REPLICATE_DO_DB filter.
+    rpl_pfs_filter= new Rpl_pfs_filter();
+    if (channel_name != NULL)
+      rpl_pfs_filter->set_channel_name(channel_name);
+    rpl_pfs_filter->set_filter_name("REPLICATE_DO_DB");
+    get_do_db(&tmp);
+    if (!tmp.is_empty())
+      rpl_pfs_filter->set_filter_rule(tmp);
+    rpl_pfs_filter->m_rpl_filter_statistics.set_all(
+      do_db_statistics.get_configured_by(),
+      do_db_statistics.get_counter(),
+      do_db_statistics.get_active_since());
+    rpl_pfs_filter_vec.push_back(rpl_pfs_filter);
+  }
+
+  if (ignore_db_statistics.get_active_since() > 0)
+  {
+    // Fill REPLICATE_IGNORE_DB filter.
+    rpl_pfs_filter= new Rpl_pfs_filter();
+    if (channel_name != NULL)
+      rpl_pfs_filter->set_channel_name(channel_name);
+    rpl_pfs_filter->set_filter_name("REPLICATE_IGNORE_DB");
+    get_ignore_db(&tmp);
+    if (!tmp.is_empty())
+      rpl_pfs_filter->set_filter_rule(tmp);
+    rpl_pfs_filter->m_rpl_filter_statistics.set_all(
+      ignore_db_statistics.get_configured_by(),
+      ignore_db_statistics.get_counter(),
+      ignore_db_statistics.get_active_since());
+    rpl_pfs_filter_vec.push_back(rpl_pfs_filter);
+  }
+
+  if (do_table_statistics.get_active_since() > 0)
+  {
+    // Fill REPLICATE_DO_TABLE filter.
+    rpl_pfs_filter= new Rpl_pfs_filter();
+    if (channel_name != NULL)
+      rpl_pfs_filter->set_channel_name(channel_name);
+    rpl_pfs_filter->set_filter_name("REPLICATE_DO_TABLE");
+    get_do_table(&tmp);
+    if (!tmp.is_empty())
+      rpl_pfs_filter->set_filter_rule(tmp);
+    rpl_pfs_filter->m_rpl_filter_statistics.set_all(
+      do_table_statistics.get_configured_by(),
+      do_table_statistics.get_counter(),
+      do_table_statistics.get_active_since());
+    rpl_pfs_filter_vec.push_back(rpl_pfs_filter);
+  }
+
+  if (ignore_table_statistics.get_active_since() > 0)
+  {
+    // Fill REPLICATE_IGNORE_TABLE filter.
+    rpl_pfs_filter= new Rpl_pfs_filter();
+    if (channel_name != NULL)
+      rpl_pfs_filter->set_channel_name(channel_name);
+    rpl_pfs_filter->set_filter_name("REPLICATE_IGNORE_TABLE");
+    get_ignore_table(&tmp);
+    if (!tmp.is_empty())
+      rpl_pfs_filter->set_filter_rule(tmp);
+    rpl_pfs_filter->m_rpl_filter_statistics.set_all(
+      ignore_table_statistics.get_configured_by(),
+      ignore_table_statistics.get_counter(),
+      ignore_table_statistics.get_active_since());
+    rpl_pfs_filter_vec.push_back(rpl_pfs_filter);
+  }
+
+  if (wild_do_table_statistics.get_active_since() > 0)
+  {
+    // Fill REPLICATE_WILD_DO_TABLE filter.
+    rpl_pfs_filter= new Rpl_pfs_filter();
+    if (channel_name != NULL)
+      rpl_pfs_filter->set_channel_name(channel_name);
+    rpl_pfs_filter->set_filter_name("REPLICATE_WILD_DO_TABLE");
+    get_wild_do_table(&tmp);
+    if (!tmp.is_empty())
+      rpl_pfs_filter->set_filter_rule(tmp);
+    rpl_pfs_filter->m_rpl_filter_statistics.set_all(
+      wild_do_table_statistics.get_configured_by(),
+      wild_do_table_statistics.get_counter(),
+      wild_do_table_statistics.get_active_since());
+    rpl_pfs_filter_vec.push_back(rpl_pfs_filter);
+  }
+
+  if (wild_ignore_table_statistics.get_active_since() > 0)
+  {
+    // Fill REPLICATE_WILD_IGNORE_TABLE filter.
+    rpl_pfs_filter= new Rpl_pfs_filter();
+    if (channel_name != NULL)
+      rpl_pfs_filter->set_channel_name(channel_name);
+    rpl_pfs_filter->set_filter_name("REPLICATE_WILD_IGNORE_TABLE");
+    get_wild_ignore_table(&tmp);
+    if (!tmp.is_empty())
+      rpl_pfs_filter->set_filter_rule(tmp);
+    rpl_pfs_filter->m_rpl_filter_statistics.set_all(
+      wild_ignore_table_statistics.get_configured_by(),
+      wild_ignore_table_statistics.get_counter(),
+      wild_ignore_table_statistics.get_active_since());
+    rpl_pfs_filter_vec.push_back(rpl_pfs_filter);
+  }
+
+  if (rewrite_db_statistics.get_active_since() > 0)
+  {
+    // Fill REPLICATE_REWRITE_DB filter.
+    rpl_pfs_filter= new Rpl_pfs_filter();
+    if (channel_name != NULL)
+      rpl_pfs_filter->set_channel_name(channel_name);
+    rpl_pfs_filter->set_filter_name("REPLICATE_REWRITE_DB");
+    get_rewrite_db(&tmp);
+    if (!tmp.is_empty())
+      rpl_pfs_filter->set_filter_rule(tmp);
+    rpl_pfs_filter->m_rpl_filter_statistics.set_all(
+      rewrite_db_statistics.get_configured_by(),
+      rewrite_db_statistics.get_counter(),
+      rewrite_db_statistics.get_active_since());
+    rpl_pfs_filter_vec.push_back(rpl_pfs_filter);
+  }
+
+  DBUG_VOID_RETURN;
+}
+
+
+void Rpl_filter::reset_pfs_view()
+{
+  DBUG_ENTER("Rpl_filter::get_global_filter_at_pos");
+  DBUG_ASSERT(this == global_rpl_filter);
+  m_rpl_filter_lock->assert_some_lock();
+
+  if (!rpl_pfs_global_filter_vec.empty())
+    cleanup_rpl_pfs_global_filter_vec();
+
+  // Pass NULL since global_rpl_filter does not attach a channel.
+  put_filters_into_vector(rpl_pfs_global_filter_vec, NULL);
+
+  DBUG_VOID_RETURN;
+}
+
+Rpl_pfs_filter* Rpl_filter::get_global_filter_at_pos(uint pos)
+{
+  DBUG_ENTER("Rpl_filter::get_global_filter_at_pos");
+  DBUG_ASSERT(this == global_rpl_filter);
+  m_rpl_filter_lock->assert_some_lock();
+
+  reset_pfs_view();
+
+  if (pos < rpl_pfs_global_filter_vec.size())
+    DBUG_RETURN(rpl_pfs_global_filter_vec[pos]);
+  else
+    DBUG_RETURN(NULL);
+}
+
+
+#endif /*WITH_PERFSCHEMA_STORAGE_ENGINE */
+
 
 bool Sql_cmd_change_repl_filter::execute(THD *thd)
 {
@@ -1010,80 +1668,227 @@ bool Sql_cmd_change_repl_filter::change_rpl_filter(THD* thd)
 {
   DBUG_ENTER("change_rpl_filter");
   bool ret= false;
-#ifdef HAVE_REPLICATION
   int thread_mask= 0;
   Master_info *mi= NULL;
+  LEX *lex= thd->lex;
+  Rpl_filter *rpl_filter;
 
-  if (check_global_access(thd, SUPER_ACL))
+  Security_context *sctx= thd->security_context();
+  if (!sctx->check_access(SUPER_ACL) &&
+      !sctx->
+        has_global_grant(STRING_WITH_LEN("REPLICATION_SLAVE_ADMIN")).first)
+  {
+    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+             "SUPER or REPLICATION_SLAVE_ADMIN");
     DBUG_RETURN(ret= true);
-
-  /* @Global filter:  Currently, after WL#1697, replication
-    filters should act on all the channels. Before setting
-    the replication filters, we  shall check the status
-    of all SQL threads.
-    Logic is lock all mi->rli->run_locks(),check the status of
-    SQL threads; then set the replication filter and unlock
-    all mi->rli->run_locks()
-
-    however after the advent of WL#7361, replication filters
-    would act on a single channel. This part of the code
-    will be properly fixed in that WL.
-  */
-  channel_map.wrlock();
-
-  mi= channel_map.get_default_channel_mi();
-
-  if (!mi)
-  {
-    my_error(ER_SLAVE_CONFIGURATION, MYF(0));
-    ret= true;
-    goto err;
   }
 
-  for (mi_map::iterator it= channel_map.begin(); it!= channel_map.end(); it++)
-  {
-    mi= it->second;
-    if (mi)
-      mysql_mutex_lock(&mi->rli->run_lock); /* lock slave_sql_thread */
-  }
+  channel_map.rdlock();
 
-  /* check the running status of all SQL threads */
-
-  for (mi_map::iterator it= channel_map.begin(); it!= channel_map.end(); it++)
+  if (!lex->mi.for_channel)
   {
-    mi= it->second;
-    if (mi)
-      init_thread_mask(&thread_mask, mi, 0 /*not inverse*/);
-    if (thread_mask & SLAVE_SQL) /* We refuse if any slave thread is running */
+    if (channel_map.get_num_instances(true) == 0)
     {
-      my_error(ER_SLAVE_SQL_THREAD_MUST_STOP, MYF(0));
+      my_error(ER_SLAVE_CONFIGURATION, MYF(0));
       ret= true;
-      break;
+      goto err;
+    }
+    /*
+      CHANGE REPLICATION FILTER filter [, filter...] with no FOR CHANNEL clause
+      does the following, both for every configured slave replication channel's
+      per-channel filter and for the global filters: For every filter type, if
+      the filter type is listed in the statement, then any existing filter
+      rules of that type are replaced by the filter rules specified in the
+      statement. The statement does not act on group replication channels,
+      because replication filters on group replication channels are
+      disallowed.
+    */
+    mi_map::iterator it_end= channel_map.end();
+    for (mi_map::iterator it= channel_map.begin();
+         it != channel_map.end(); it++)
+    {
+      mi= it->second;
+      if (Master_info::is_configured(mi))
+      {
+        /* lock slave_sql_thread */
+        mysql_mutex_lock(&mi->rli->run_lock);
+        /* Check the running status of all SQL threads */
+        init_thread_mask(&thread_mask, mi, 0 /*not inverse*/);
+        if (thread_mask & SLAVE_SQL)
+        {
+          /* We refuse if any slave thread is running */
+          my_error(ER_SLAVE_CHANNEL_SQL_THREAD_MUST_STOP, MYF(0),
+                   mi->get_channel());
+          ret= true;
+          /*
+            Stop acquiring the run_locks once finding a SQL thread running
+            and record the stop position.
+          */
+          it_end= ++it;
+          break;
+        }
+      }
+    }
+
+    if (!ret)
+    {
+      for (mi_map::iterator it= channel_map.begin();
+           it != channel_map.end(); it++)
+      {
+        mi= it->second;
+        if (Master_info::is_configured(mi))
+        {
+          /* filter for this channel */
+          rpl_filter= mi->rli->rpl_filter;
+          if (rpl_filter != NULL)
+          {
+            rpl_filter->wrlock();
+            if (DBUG_EVALUATE_IF("simulate_out_of_memory_on_CRF", 1, 0) ||
+                (!rpl_filter->set_do_db(do_db_list,
+                                        CONFIGURED_BY_CHANGE_REPLICATION_FILTER)
+                 && !rpl_filter->set_ignore_db(
+                       ignore_db_list, CONFIGURED_BY_CHANGE_REPLICATION_FILTER)
+                 && !rpl_filter->set_do_table(
+                       do_table_list, CONFIGURED_BY_CHANGE_REPLICATION_FILTER)
+                 && !rpl_filter->set_ignore_table(
+                       ignore_table_list,
+                       CONFIGURED_BY_CHANGE_REPLICATION_FILTER)
+                 && !rpl_filter->set_wild_do_table(
+                       wild_do_table_list,
+                       CONFIGURED_BY_CHANGE_REPLICATION_FILTER)
+                 && !rpl_filter->set_wild_ignore_table(
+                       wild_ignore_table_list,
+                       CONFIGURED_BY_CHANGE_REPLICATION_FILTER)
+                 && rpl_filter->set_db_rewrite(
+                      rewrite_db_pair_list,
+                      CONFIGURED_BY_CHANGE_REPLICATION_FILTER)))
+            {
+              my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), 0);
+              ret= true;
+            }
+            rpl_filter->unlock();
+          }
+        }
+      }
+    }
+
+    if (!ret)
+    {
+      global_rpl_filter->wrlock();
+      if (DBUG_EVALUATE_IF("simulate_out_of_memory_on_global_CRF", 1, 0) ||
+          (!global_rpl_filter->set_do_db(
+              do_db_list, CONFIGURED_BY_CHANGE_REPLICATION_FILTER)
+           && !global_rpl_filter->set_ignore_db(
+                 ignore_db_list, CONFIGURED_BY_CHANGE_REPLICATION_FILTER)
+           && !global_rpl_filter->set_do_table(
+                 do_table_list, CONFIGURED_BY_CHANGE_REPLICATION_FILTER)
+           && !global_rpl_filter->set_ignore_table(
+                 ignore_table_list, CONFIGURED_BY_CHANGE_REPLICATION_FILTER)
+           && !global_rpl_filter->set_wild_do_table(
+                 wild_do_table_list, CONFIGURED_BY_CHANGE_REPLICATION_FILTER)
+           && !global_rpl_filter->set_wild_ignore_table(
+                 wild_ignore_table_list,
+                 CONFIGURED_BY_CHANGE_REPLICATION_FILTER)
+           && global_rpl_filter->set_db_rewrite(
+                rewrite_db_pair_list, CONFIGURED_BY_CHANGE_REPLICATION_FILTER)))
+      {
+        my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), 0);
+        ret= true;
+      }
+      global_rpl_filter->unlock();
+    }
+
+    /* Release the run_locks until the stop position recorded in above. */
+    for (mi_map::iterator it= channel_map.begin(); it != it_end; it++)
+    {
+      mi= it->second;
+      if (Master_info::is_configured(mi))
+        mysql_mutex_unlock(&mi->rli->run_lock);
     }
   }
-
-  if (!ret)
+  else
   {
-    if (!rpl_filter->set_do_db(do_db_list)
-        && !rpl_filter->set_ignore_db(ignore_db_list)
-        && !rpl_filter->set_do_table(do_table_list)
-        && !rpl_filter->set_ignore_table(ignore_table_list)
-        && !rpl_filter->set_wild_do_table(wild_do_table_list)
-        && !rpl_filter->set_wild_ignore_table(wild_ignore_table_list)
-        && rpl_filter->set_db_rewrite(rewrite_db_pair_list))
+    if (channel_map.is_group_replication_channel_name(lex->mi.channel))
     {
-      /* purecov: begin inspected */
-      my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), 0);
+      /*
+        If an explicit FOR CHANNEL clause is provided, the statement
+        is disallowed on group replication channels.
+      */
+      my_error(ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED, MYF(0),
+               "CHANGE REPLICATION FILTER", lex->mi.channel);
       ret= true;
-    /* purecov: end */
+      goto err;
     }
-  }
 
-  for (mi_map::iterator it= channel_map.begin(); it !=channel_map.end(); it++)
-  {
-   mi= it->second;
-   if (mi)
-     mysql_mutex_unlock(&mi->rli->run_lock);
+    /*
+      If an explicit FOR CHANNEL clause is provided, the statement acts on
+      that configured slave replication channel removing any existing
+      replication filter if it has the same filter type as one of
+      specified replication filters, and replacing them with the
+      specified ones. Filter types that were not explicitly listed
+      in the statement are not modified.
+    */
+    mi= channel_map.get_mi(lex->mi.channel);
+
+    if (!Master_info::is_configured(mi))
+    {
+      my_error(ER_SLAVE_CONFIGURATION, MYF(0));
+      ret= true;
+      goto err;
+    }
+
+    /* lock slave_sql_thread */
+    mysql_mutex_lock(&mi->rli->run_lock);
+
+    /* check the status of SQL thread */
+    init_thread_mask(&thread_mask, mi, 0 /*not inverse*/);
+    /* We refuse if the slave thread is running */
+    if (thread_mask & SLAVE_SQL)
+    {
+      my_error(ER_SLAVE_CHANNEL_SQL_THREAD_MUST_STOP, MYF(0),
+               mi->get_channel());
+      ret= true;
+    }
+
+    if (!ret)
+    {
+      /* filter for this channel */
+      rpl_filter= mi->rli->rpl_filter;
+      if (rpl_filter != NULL)
+      {
+        rpl_filter->wrlock();
+        if (DBUG_EVALUATE_IF("simulate_out_of_memory_on_CRF_FOR_CHA", 1, 0) ||
+            (!rpl_filter->set_do_db(
+                do_db_list, CONFIGURED_BY_CHANGE_REPLICATION_FILTER_FOR_CHANNEL)
+             && !rpl_filter->set_ignore_db(
+                   ignore_db_list,
+                   CONFIGURED_BY_CHANGE_REPLICATION_FILTER_FOR_CHANNEL)
+             && !rpl_filter->set_do_table(
+                   do_table_list,
+                   CONFIGURED_BY_CHANGE_REPLICATION_FILTER_FOR_CHANNEL)
+             && !rpl_filter->set_ignore_table(
+                   ignore_table_list,
+                   CONFIGURED_BY_CHANGE_REPLICATION_FILTER_FOR_CHANNEL)
+             && !rpl_filter->set_wild_do_table(
+                   wild_do_table_list,
+                   CONFIGURED_BY_CHANGE_REPLICATION_FILTER_FOR_CHANNEL)
+             && !rpl_filter->set_wild_ignore_table(
+                   wild_ignore_table_list,
+                   CONFIGURED_BY_CHANGE_REPLICATION_FILTER_FOR_CHANNEL)
+             && rpl_filter->set_db_rewrite(
+                  rewrite_db_pair_list,
+                  CONFIGURED_BY_CHANGE_REPLICATION_FILTER_FOR_CHANNEL)))
+        {
+          /* purecov: begin inspected */
+          my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), 0);
+          ret= true;
+          /* purecov: end */
+        }
+        rpl_filter->unlock();
+      }
+    }
+
+    mysql_mutex_unlock(&mi->rli->run_lock);
   }
 
   if (ret)
@@ -1093,6 +1898,5 @@ bool Sql_cmd_change_repl_filter::change_rpl_filter(THD* thd)
 
 err:
   channel_map.unlock();
-#endif //HAVE_REPLICATION
   DBUG_RETURN(ret);
 }

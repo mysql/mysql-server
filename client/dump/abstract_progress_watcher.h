@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -18,10 +18,13 @@
 #ifndef ABSTRACT_PROGRESS_WATCHER_INCLUDED
 #define ABSTRACT_PROGRESS_WATCHER_INCLUDED
 
-#include "i_progress_watcher.h"
+#include <chrono>
+#include <functional>
+
 #include "abstract_chain_element.h"
 #include "base/atomic.h"
-#include <boost/chrono.hpp>
+#include "i_progress_watcher.h"
+#include "my_inttypes.h"
 
 namespace Mysql{
 namespace Tools{
@@ -54,8 +57,8 @@ public:
   { return Abstract_chain_element::get_id(); }
 
 protected:
-  Abstract_progress_watcher(Mysql::I_callable
-    <bool, const Mysql::Tools::Base::Message_data&>*
+  Abstract_progress_watcher(std::function
+    <bool(const Mysql::Tools::Base::Message_data&)>*
       message_handler, Simple_id_generator* object_id_generator);
 
   class Progress_data
@@ -84,7 +87,7 @@ private:
   /**
     Throttles progress changes to be reported to progress_changed() about 1 in
     second. It uses 10 stages, each 100ms long, in each there is number of
-    iterations to prevent calling boost::chrono::system_clock::now() on each
+    iterations to prevent calling std::chrono::system_clock::now() on each
     function call.
    */
   void progress_changed();
@@ -92,7 +95,7 @@ private:
   static const int STAGES= 10;
   static const int REPORT_DELAY_MS= 1000;
 
-  boost::chrono::system_clock::time_point m_last_stage_time;
+  std::chrono::system_clock::time_point m_last_stage_time;
   my_boost::atomic_int64_t m_step_countdown;
   my_boost::atomic_int64_t m_stage_countdown;
   int64 m_last_step_countdown;

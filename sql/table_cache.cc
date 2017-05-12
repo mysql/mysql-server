@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,8 +14,17 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 #include "table_cache.h"
+
+#include <stdio.h>
+#include <string.h>
+
+#include "m_ctype.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
 #include "sql_test.h" // lock_descriptions[]
 #include "template_utils.h"
+#include "thr_lock.h"
+#include "thr_mutex.h"
 
 
 /**
@@ -88,7 +97,8 @@ void Table_cache::destroy()
 void Table_cache::init_psi_keys()
 {
 #ifdef HAVE_PSI_INTERFACE
-  mysql_mutex_register("sql", m_mutex_keys, array_elements(m_mutex_keys));
+  mysql_mutex_register("sql", m_mutex_keys,
+                       static_cast<int>(array_elements(m_mutex_keys)));
 #endif
 }
 
@@ -173,7 +183,7 @@ void Table_cache::print_tables()
   uint unused= 0;
   uint count=0;
 
-  compile_time_assert(TL_WRITE_ONLY+1 == array_elements(lock_descriptions));
+  static_assert(TL_WRITE_ONLY+1 == array_elements(lock_descriptions), "");
 
   for (uint idx= 0; idx < m_cache.records; idx++)
   {

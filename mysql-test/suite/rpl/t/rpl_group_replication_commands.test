@@ -39,5 +39,15 @@ START GROUP_REPLICATION;
 STOP GROUP_REPLICATION;
 
 --connection default
+# Start / Stop replication should be possible with the
+# GROUP_REPLICATION_ADMIN command
+GRANT GROUP_REPLICATION_ADMIN ON *.* TO group_rpl_user;
+--connection con_group_rpl_user
+--error ER_GROUP_REPLICATION_CONFIGURATION
+START GROUP_REPLICATION;
+--error ER_GROUP_REPLICATION_CONFIGURATION
+STOP GROUP_REPLICATION;
+
+--connection default
 --disconnect con_group_rpl_user
 DROP USER group_rpl_user;

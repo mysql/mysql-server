@@ -1,6 +1,6 @@
 #ifndef SQL_PREPARE_H
 #define SQL_PREPARE_H
-/* Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,10 +15,27 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "my_global.h"
-#include "query_result.h" // Query_result_send
-#include "sql_class.h"    // Query_arena
+#include <stddef.h>
+#include <sys/types.h>
+#include <new>
 
+#include "lex_string.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_psi_config.h"
+#include "mysql_com.h"
+#include "protocol_classic.h"
+#include "query_result.h" // Query_result_send
+#include "session_tracker.h"
+#include "sql_alloc.h"
+#include "sql_class.h"    // Query_arena
+#include "sql_error.h"
+#include "sql_list.h"
+#include "sql_servers.h"
+
+class Item;
+class Item_param;
+class String;
 struct LEX;
 struct PSI_prepared_stmt;
 
@@ -50,7 +67,7 @@ struct PSI_prepared_stmt;
   of metadata observers.
 */
 
-class Reprepare_observer
+class Reprepare_observer final
 {
 public:
   /**
@@ -67,21 +84,26 @@ private:
 };
 
 
-void mysqld_stmt_prepare(THD *thd, const char *query, uint length);
-void mysqld_stmt_execute(THD *thd, ulong stmt_id, ulong flags, uchar *params,
-                         ulong params_length);
-void mysqld_stmt_close(THD *thd, ulong stmt_id);
+bool
+mysql_stmt_precheck(THD *thd, const COM_DATA *com_data,
+                    enum enum_server_command cmd, Prepared_statement **stmt);
+void mysqld_stmt_prepare(THD *thd, const char *query, uint length,
+                         Prepared_statement *stmt);
+void mysqld_stmt_execute(THD *thd, Prepared_statement *stmt, bool has_new_types,
+                         ulong execute_flags, PS_PARAM *parameters);
+void mysqld_stmt_close(THD *thd, Prepared_statement *stmt);
 void mysql_sql_stmt_prepare(THD *thd);
 void mysql_sql_stmt_execute(THD *thd);
 void mysql_sql_stmt_close(THD *thd);
-void mysqld_stmt_fetch(THD *thd, ulong stmt_id, ulong num_rows);
-void mysqld_stmt_reset(THD *thd, ulong stmt_id);
-void mysql_stmt_get_longdata(THD *thd, ulong stmt_id, uint param_number,
-                             uchar *longdata, ulong length);
+void mysqld_stmt_fetch(THD *thd, Prepared_statement *stmt, ulong num_rows);
+void mysqld_stmt_reset(THD *thd, Prepared_statement *stmt);
+void mysql_stmt_get_longdata(THD *thd, Prepared_statement *stmt,
+                             uint param_number, uchar *longdata, ulong length);
 bool reinit_stmt_before_use(THD *thd, LEX *lex);
 bool select_like_stmt_cmd_test(THD *thd,
                                class Sql_cmd_dml *cmd,
                                ulong setup_tables_done_option);
+bool mysql_test_show(Prepared_statement *stmt, TABLE_LIST *tables);
 
 /**
   Execute a fragment of server code in an isolated context, so that
@@ -112,7 +134,7 @@ class Ed_row;
   automatic type conversion.
 */
 
-class Ed_result_set: public Sql_alloc
+class Ed_result_set final : public Sql_alloc
 {
 public:
   operator List<Ed_row>&() { return *m_rows; }
@@ -127,8 +149,8 @@ public:
   size_t get_field_count() const { return m_column_count; }
 
   static void operator delete(void *ptr, size_t size) throw ();
-  static void operator delete(void *ptr, MEM_ROOT *mem_root,
-                              const std::nothrow_t &arg) throw ()
+  static void operator delete(void*, MEM_ROOT*,
+                              const std::nothrow_t&) throw ()
   { /* never called */ }
 private:
   Ed_result_set(const Ed_result_set &);        /* not implemented */
@@ -142,7 +164,7 @@ private:
 };
 
 
-class Ed_connection
+class Ed_connection final
 {
 public:
   /**
@@ -251,7 +273,7 @@ private:
 
 /** One result set column. */
 
-struct Ed_column: public LEX_STRING
+struct Ed_column final : public LEX_STRING
 {
   /** Implementation note: destructor for this class is never called. */
 };
@@ -259,7 +281,7 @@ struct Ed_column: public LEX_STRING
 
 /** One result set record. */
 
-class Ed_row: public Sql_alloc
+class Ed_row final : public Sql_alloc
 {
 public:
   const Ed_column &operator[](const unsigned int column_index) const
@@ -287,22 +309,16 @@ private:
   A result class used to send cursor rows using the binary protocol.
 */
 
-class Query_fetch_protocol_binary: public Query_result_send
+class Query_fetch_protocol_binary final : public Query_result_send
 {
   Protocol_binary protocol;
 public:
   Query_fetch_protocol_binary(THD *thd)
     : Query_result_send(thd), protocol(thd)
   { }
-  virtual bool send_result_set_metadata(List<Item> &list, uint flags);
-  virtual bool send_data(List<Item> &items);
-  virtual bool send_eof();
-#ifdef EMBEDDED_LIBRARY
-  void begin_dataset()
-  {
-    protocol.begin_dataset();
-  }
-#endif
+  bool send_result_set_metadata(List<Item> &list, uint flags) override;
+  bool send_data(List<Item> &items) override;
+  bool send_eof() override;
 };
 
 
@@ -312,7 +328,7 @@ class Server_side_cursor;
   Prepared_statement: a statement that can contain placeholders.
 */
 
-class Prepared_statement: public Query_arena
+class Prepared_statement final : public Query_arena
 {
   enum flag_values
   {
@@ -345,7 +361,8 @@ public:
   PSI_prepared_stmt* m_prepared_stmt;
 
 private:
-  Query_fetch_protocol_binary result;
+  Query_result_send *result;
+
   uint flags;
   bool with_log;
   LEX_CSTRING m_name; /* name for named prepared statements */
@@ -380,8 +397,7 @@ public:
   bool is_sql_prepare() const { return flags & (uint) IS_SQL_PREPARE; }
   void set_sql_prepare() { flags|= (uint) IS_SQL_PREPARE; }
   bool prepare(const char *packet, size_t packet_length);
-  bool execute_loop(bool open_cursor,
-                    uchar *packet_arg, uchar *packet_end_arg);
+  bool execute_loop(String *expanded_query, bool open_cursor);
   bool execute_server_runnable(Server_runnable *server_runnable);
 #ifdef HAVE_PSI_PS_INTERFACE
   PSI_prepared_stmt* get_PS_prepared_stmt()
@@ -391,23 +407,20 @@ public:
 #endif
   /* Destroy this statement */
   void deallocate();
+  bool set_parameters(String *expanded_query, bool has_new_types,
+                      PS_PARAM *parameters);
+  bool set_parameters(String *expanded_query);
 private:
   void setup_set_params();
   bool set_db(const LEX_CSTRING &db_length);
-  bool set_parameters(String *expanded_query,
-                      uchar *packet, uchar *packet_end);
+
   bool execute(String *expanded_query, bool open_cursor);
   bool reprepare();
   bool validate_metadata(Prepared_statement  *copy);
   void swap_prepared_statement(Prepared_statement *copy);
   bool insert_params_from_vars(List<LEX_STRING>& varnames,
                                String *query);
-#ifndef EMBEDDED_LIBRARY
-  bool insert_params(uchar *null_array, uchar *read_pos, uchar *data_end,
-                     String *query);
-#else
-  bool emb_insert_params(String *query);
-#endif
+  bool insert_params(String *query, PS_PARAM *parameters);
 };
 
 #endif // SQL_PREPARE_H

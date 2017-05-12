@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,17 +17,27 @@
   @file mysys/my_error.cc
 */
 
-#include "mysys_priv.h"
-#include "my_sys.h"
-#include "mysys_err.h"
-#include <m_string.h>
+#include <errno.h>
 #include <stdarg.h>
-#include <m_ctype.h>
+#ifdef __linux__
+#include <features.h>
+#endif
+#include <stdarg.h>
+#include <string.h>
+#include <sys/types.h>
+
+#include "m_ctype.h"
+#include "m_string.h"
 #include "my_base.h"
+#include "my_dbug.h"
 #include "my_handler_errors.h"
-#include "my_thread_local.h"
+#include "my_inttypes.h"
+#include "my_loglevel.h"
+#include "my_sys.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysys_err.h"
+#include "mysys_priv.h"
 
 /* Max length of a error message. Should be kept in sync with MYSQL_ERRMSG_SIZE. */
 #define ERRMSGSIZE      (512)
@@ -361,7 +371,7 @@ extern "C" int my_error_register(const char* (*get_errmsg) (int),
   @retval  FALSE     OK
 */
 
-my_bool my_error_unregister(int first, int last)
+bool my_error_unregister(int first, int last)
 {
   struct my_err_head    *meh_p;
   struct my_err_head    **search_meh_pp;

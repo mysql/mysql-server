@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,16 +15,24 @@
 
 #include "dd/impl/types/routine_impl.h"
 
-#include "my_user.h"                             // parse_user
+#include <new>
+#include <sstream>
 
-#include "dd/impl/transaction_impl.h"            // Open_dictionary_tables_ctx
 #include "dd/impl/raw/object_keys.h"             // Primary_id_key
 #include "dd/impl/raw/raw_record.h"              // Raw_record
 #include "dd/impl/tables/parameters.h"           // Parameters
 #include "dd/impl/tables/routines.h"             // Routines
+#include "dd/impl/transaction_impl.h"            // Open_dictionary_tables_ctx
 #include "dd/impl/types/parameter_impl.h"        // Parameter_impl
-
-#include <sstream>
+#include "dd/string_type.h"                      // dd::String_type
+#include "dd/types/parameter.h"
+#include "dd/types/weak_object.h"
+#include "lex_string.h"
+#include "my_sys.h"
+#include "my_user.h"                             // parse_user
+#include "mysql_com.h"
+#include "mysqld.h"
+#include "mysqld_error.h"
 
 using dd::tables::Routines;
 using dd::tables::Parameters;
@@ -156,7 +164,7 @@ bool Routine_impl::restore_attributes(const Raw_record &r)
 
   // Read definer user/host
   {
-    std::string definer= r.read_str(Routines::FIELD_DEFINER);
+    String_type definer= r.read_str(Routines::FIELD_DEFINER);
 
     char user_name_holder[USERNAME_LENGTH + 1];
     LEX_STRING user_name= { user_name_holder, USERNAME_LENGTH };
@@ -179,7 +187,7 @@ bool Routine_impl::restore_attributes(const Raw_record &r)
 
 bool Routine_impl::store_attributes(Raw_record *r)
 {
-  std::stringstream definer;
+  dd::Stringstream_type definer;
   definer << m_definer_user << '@' << m_definer_host;
 
   return store_id(r, Routines::FIELD_ID) ||
@@ -213,9 +221,9 @@ bool Routine::update_id_key(id_key_type *key, Object_id id)
 
 ///////////////////////////////////////////////////////////////////////////
 
-void Routine_impl::debug_print(std::string &outb) const
+void Routine_impl::debug_print(String_type &outb) const
 {
-  std::stringstream ss;
+  dd::Stringstream_type ss;
   ss
   << "id: {OID: " << id() << "}; "
   << "m_name: " << name() << "; "
@@ -240,7 +248,7 @@ void Routine_impl::debug_print(std::string &outb) const
 
   for (const Parameter *f : parameters())
   {
-    std::string ob;
+    String_type ob;
     f->debug_print(ob);
     ss << ob;
   }

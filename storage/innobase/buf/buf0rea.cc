@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,22 +23,25 @@ The database buffer read
 Created 11/5/1995 Heikki Tuuri
 *******************************************************/
 
-#include "ha_prototypes.h"
 #include <mysql/service_thd_wait.h>
+#include <stddef.h>
 
-#include "buf0rea.h"
-#include "fil0fil.h"
-#include "mtr0mtr.h"
 #include "buf0buf.h"
+#include "buf0dblwr.h"
 #include "buf0flu.h"
 #include "buf0lru.h"
-#include "buf0dblwr.h"
+#include "buf0rea.h"
+#include "fil0fil.h"
+#include "ha_prototypes.h"
 #include "ibuf0ibuf.h"
 #include "log0recv.h"
-#include "trx0sys.h"
+#include "mtr0mtr.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
 #include "os0file.h"
-#include "srv0start.h"
 #include "srv0srv.h"
+#include "srv0start.h"
+#include "trx0sys.h"
 
 /** There must be at least this many pages in buf_pool in the area to start
 a random read-ahead */

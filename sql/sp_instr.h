@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,11 +16,36 @@
 #ifndef _SP_INSTR_H_
 #define _SP_INSTR_H_
 
-#include "my_global.h"
-#include "sql_class.h"   // Query_arena
+#include <limits.h>
+#include <string.h>
+#include <sys/types.h>
 
+#include "binary_log_types.h"
+#include "lex_string.h"
+#include "m_string.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_psi_config.h"
+#include "my_sys.h"
+#include "mysql/psi/psi_statement.h"
+#include "sql_alloc.h"
+#include "sql_class.h"   // Query_arena
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_servers.h"
+#include "sql_string.h"
+
+class Item;
+class Item_case_expr;
+class Item_trigger_field;
+class sp_condition_value;
 class sp_handler;
+class sp_head;
+class sp_pcontext;
 class sp_variable;
+struct TABLE_LIST;
 
 ///////////////////////////////////////////////////////////////////////////
 // This file contains SP-instruction classes.
@@ -140,7 +165,7 @@ public:
     index to the next instruction. Jump instruction will add their
     destination to the leads list.
   */
-  virtual uint opt_mark(sp_head *sp, List<sp_instr> *leads)
+  virtual uint opt_mark(sp_head*, List<sp_instr> *leads MY_ATTRIBUTE((unused)))
   {
     m_marked= true;
     return get_ip() + 1;
@@ -152,7 +177,8 @@ public:
     used to prevent the mark sweep from looping for ever. Return the
     end destination.
   */
-  virtual uint opt_shortcut_jump(sp_head *sp, sp_instr *start)
+  virtual uint opt_shortcut_jump(sp_head*,
+                                 sp_instr *start MY_ATTRIBUTE((unused)))
   { return get_ip(); }
 
   /**
@@ -161,7 +187,8 @@ public:
     must also take care of their destination pointers. Forward jumps get
     pushed to the backpatch list 'ibp'.
   */
-  virtual void opt_move(uint dst, List<sp_branch_instr> *ibp)
+  virtual void opt_move(uint dst,
+                        List<sp_branch_instr> *ibp MY_ATTRIBUTE((unused)))
   { m_ip= dst; }
 
   bool opt_is_marked() const
@@ -377,7 +404,7 @@ protected:
 
     @return Error flag.
   */
-  virtual bool on_after_expr_parsing(THD *thd)
+  virtual bool on_after_expr_parsing(THD *thd MY_ATTRIBUTE((unused)))
   { return false; }
 
   /**
@@ -483,7 +510,7 @@ public:
   virtual void get_query(String *sql_query) const
   { sql_query->append(m_query.str, m_query.length); }
 
-  virtual bool on_after_expr_parsing(THD *thd)
+  virtual bool on_after_expr_parsing(THD*)
   {
     m_valid= true;
     return false;
@@ -677,7 +704,7 @@ public:
   // sp_instr implementation.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual uint opt_mark(sp_head *sp, List<sp_instr> *leads)
+  virtual uint opt_mark(sp_head*, List<sp_instr>*)
   {
     m_marked= true;
     return UINT_MAX;
@@ -769,7 +796,7 @@ public:
   // sp_instr implementation.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual bool execute(THD *thd, uint *nextp)
+  virtual bool execute(THD*, uint *nextp)
   {
     *nextp= m_dest;
     return false;
@@ -1031,7 +1058,7 @@ public:
       m_cont_dest= new_dest;
   }
 
-  virtual void backpatch(uint dest)
+  virtual void backpatch(uint)
   { }
 
   /////////////////////////////////////////////////////////////////////////
@@ -1186,7 +1213,7 @@ public:
   virtual uint opt_mark(sp_head *sp, List<sp_instr> *leads);
 
   /** Override sp_instr_jump's shortcut; we stop here. */
-  virtual uint opt_shortcut_jump(sp_head *sp, sp_instr *start)
+  virtual uint opt_shortcut_jump(sp_head*, sp_instr*)
   { return get_ip(); }
 
   /////////////////////////////////////////////////////////////////////////
@@ -1277,7 +1304,7 @@ public:
   virtual bool execute(THD *thd, uint *nextp);
 
   /** Override sp_instr_jump's shortcut; we stop here. */
-  virtual uint opt_shortcut_jump(sp_head *sp, sp_instr *start)
+  virtual uint opt_shortcut_jump(sp_head*, sp_instr*)
   { return get_ip(); }
 
   virtual uint opt_mark(sp_head *sp, List<sp_instr> *leads);
@@ -1377,7 +1404,7 @@ public:
   virtual void get_query(String *sql_query) const
   { sql_query->append(m_cursor_query.str, m_cursor_query.length); }
 
-  virtual bool on_after_expr_parsing(THD *thd)
+  virtual bool on_after_expr_parsing(THD*)
   {
     m_valid= true;
     return false;
@@ -1602,14 +1629,14 @@ public:
   // sp_instr implementation.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual bool execute(THD *thd, uint *nextp)
+  virtual bool execute(THD*, uint *nextp)
   {
     my_error(m_errcode, MYF(0));
     *nextp= get_ip() + 1;
     return true;
   }
 
-  virtual uint opt_mark(sp_head *sp, List<sp_instr> *leads)
+  virtual uint opt_mark(sp_head*, List<sp_instr>*)
   {
     m_marked= true;
     return UINT_MAX;

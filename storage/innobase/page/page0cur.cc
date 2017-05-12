@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -24,18 +24,19 @@ The page cursor
 Created 10/4/1994 Heikki Tuuri
 *************************************************************************/
 
-#include "ha_prototypes.h"
-
 #include "page0cur.h"
-#include "page0zip.h"
-#include "btr0btr.h"
-#include "mtr0log.h"
-#include "log0recv.h"
-#ifndef UNIV_HOTBACKUP
-#include "rem0cmp.h"
-#include "gis0rtree.h"
 
+#include "btr0btr.h"
+#include "ha_prototypes.h"
+#include "log0recv.h"
+#include "mtr0log.h"
+#include "my_inttypes.h"
+#include "page0zip.h"
+#ifndef UNIV_HOTBACKUP
 #include <algorithm>
+
+#include "gis0rtree.h"
+#include "rem0cmp.h"
 
 #ifdef PAGE_CUR_ADAPT
 # ifdef UNIV_SEARCH_PERF_STAT
@@ -119,7 +120,8 @@ page_cur_try_search_shortcut(
 	low_match = up_match = std::min(*ilow_matched_fields,
 					*iup_matched_fields);
 
-	if (cmp_dtuple_rec_with_match(tuple, rec, offsets, &low_match) < 0) {
+	if (cmp_dtuple_rec_with_match(tuple, rec, index, offsets,
+				      &low_match) < 0) {
 		goto exit_func;
 	}
 
@@ -128,7 +130,7 @@ page_cur_try_search_shortcut(
 		offsets = rec_get_offsets(next_rec, index, offsets,
 					  dtuple_get_n_fields(tuple), &heap);
 
-		if (cmp_dtuple_rec_with_match(tuple, next_rec, offsets,
+		if (cmp_dtuple_rec_with_match(tuple, next_rec, index, offsets,
 					      &up_match) >= 0) {
 			goto exit_func;
 		}
@@ -284,7 +286,11 @@ page_cur_rec_field_extends(
 		if (dfield_get_len(dfield) != UNIV_SQL_NULL
 		    && rec_f_len != UNIV_SQL_NULL
 		    && rec_f_len >= dfield_get_len(dfield)
-		    && !cmp_data_data(type->mtype, type->prtype,
+		    /* is_ascending parameter in the below call is passed as a
+		    constant as we are only testing for equality and we are
+		    not interested in what the nonzero return value actually
+		    is. */
+		    && !cmp_data_data(type->mtype, type->prtype, true,
 				      dfield_get_data(dfield),
 				      dfield_get_len(dfield),
 				      rec_f, dfield_get_len(dfield))) {
@@ -531,7 +537,7 @@ page_cur_search_with_match(
 		}
 
 		cmp = cmp_dtuple_rec_with_match(
-			tuple, mid_rec, offsets, &cur_matched_fields);
+			tuple, mid_rec, index, offsets, &cur_matched_fields);
 
 		if (cmp > 0) {
 low_slot_match:
@@ -593,7 +599,7 @@ up_slot_match:
 		}
 
 		cmp = cmp_dtuple_rec_with_match(
-			tuple, mid_rec, offsets, &cur_matched_fields);
+			tuple, mid_rec, index, offsets, &cur_matched_fields);
 
 		if (cmp > 0) {
 low_rec_match:

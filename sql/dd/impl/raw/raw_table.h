@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,20 +16,21 @@
 #ifndef DD__RAW_TABLE_INCLUDED
 #define DD__RAW_TABLE_INCLUDED
 
-#include "my_global.h"
-#include "table.h"               // TABLE_LIST
-
 #include <memory>
+#include <string>
+
+#include "dd/string_type.h"      // dd::String_type
+#include "table.h"               // TABLE_LIST
+#include "thr_lock.h"
 
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
+class Object_key;
 class Raw_new_record;
 class Raw_record;
 class Raw_record_set;
-
-class Object_key;
 class Transaction;
 
 ///////////////////////////////////////////////////////////////////////////
@@ -37,7 +38,7 @@ class Transaction;
 class Raw_table
 {
 public:
-  Raw_table(thr_lock_type lock_type, const std::string &name);
+  Raw_table(thr_lock_type lock_type, const String_type &name);
 
   virtual ~Raw_table()
   { }

@@ -1,4 +1,5 @@
 # Test needs myisam for some myisam specific testcases
+
 --source include/have_myisam.inc
 --echo #
 --echo # Test of function defaults for any server, including embedded.

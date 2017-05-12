@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,18 +16,50 @@
 /* Some general useful functions */
 
 #include "partition_info.h"                   // LIST_PART_ENTRY
-                                              // NOT_A_PARTITION_ID
-#include "sql_parse.h"                        // test_if_data_home_dir
+
+#include <limits.h>
+#include <stdio.h>
+#include <string.h>
+#include <algorithm>
+
+#include "auth_acls.h"
 #include "auth_common.h"                      // *_ACL
-#include "table.h"                            // TABLE_LIST
-#include "sql_base.h"                         // fill_record
-#include "table_trigger_dispatcher.h"         // Table_trigger_dispatcher
-#include "trigger_chain.h"                    // Trigger_chain
-#include "partitioning/partition_handler.h"   // PART_DEF_NAME, Partition_share
-#include "sql_class.h"                        // THD
 #include "derror.h"                           // ER_THD
-#include "sql_tablespace.h"                   // check_tablespace_name
 #include "error_handler.h"
+#include "field.h"
+#include "hash.h"
+#include "item.h"
+#include "lex_string.h"
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_sqlcommand.h"
+#include "my_sys.h"
+#include "mysql/plugin.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql_com.h"
+#include "mysqld_error.h"
+#include "partitioning/partition_handler.h"   // PART_DEF_NAME, Partition_share
+#include "set_var.h"
+#include "sql_base.h"                         // fill_record
+#include "sql_class.h"                        // THD
+#include "sql_const.h"
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_parse.h"                        // test_if_data_home_dir
+#include "sql_partition.h"
+#include "sql_security_ctx.h"
+#include "sql_string.h"
+#include "sql_tablespace.h"                   // validate_tablespace_name
+#include "system_variables.h"
+#include "table.h"                            // TABLE_LIST
+#include "table_trigger_dispatcher.h"         // Table_trigger_dispatcher
+#include "template_utils.h"
+#include "thr_malloc.h"
+#include "trigger_chain.h"                    // Trigger_chain
+#include "trigger_def.h"
 
 
 // TODO: Create ::get_copy() for getting a deep copy.
@@ -1942,15 +1974,15 @@ void partition_info::print_no_partition_found(THD *thd, TABLE *table_arg)
 
 /*
   Set fields related to partition expression
-  SYNOPSIS
-    set_part_expr()
-    start_token               Start of partition function string
-    item_ptr                  Pointer to item tree
-    end_token                 End of partition function string
-    is_subpart                Subpartition indicator
-  RETURN VALUES
-    TRUE                      Memory allocation error
-    FALSE                     Success
+
+  @param start_token    Start of partition function string
+  @param item_ptr       Pointer to item tree
+  @param end_token      End of partition function string
+  @param is_subpart     Subpartition indicator
+
+  @retval true          Memory allocation error or
+                        Invalid character string
+  @retval false         Success
 */
 
 bool partition_info::set_part_expr(char *start_token, Item *item_ptr,
@@ -1962,8 +1994,22 @@ bool partition_info::set_part_expr(char *start_token, Item *item_ptr,
   if (!func_string)
   {
     mem_alloc_error(expr_len);
-    return TRUE;
+    return true;
   }
+
+  size_t valid_length;
+  bool dummy_len_err;
+  if (validate_string(system_charset_info, func_string, expr_len,
+                      &valid_length, &dummy_len_err))
+  {
+    char hexbuf[7];
+    octet2hex(hexbuf, func_string + valid_length,
+              std::min<size_t>(expr_len - valid_length, 3));
+    my_error(ER_INVALID_CHARACTER_STRING, MYF(0), system_charset_info->csname,
+             hexbuf);
+    return true;
+  }
+
   if (is_subpart)
   {
     list_of_subpart_fields= FALSE;
@@ -1978,7 +2024,7 @@ bool partition_info::set_part_expr(char *start_token, Item *item_ptr,
     part_func_string= func_string;
     part_func_len= expr_len;
   }
-  return FALSE;
+  return false;
 }
 
 
@@ -3224,6 +3270,29 @@ void partition_info::print_debug(const char *str, uint *value)
   DBUG_VOID_RETURN;
 }
 
+bool has_external_data_or_index_dir(partition_info &pi)
+{
+  List_iterator<partition_element> part_it(pi.partitions);
+  for (partition_element *part= part_it++; part; part= part_it++)
+  {
+    if (part->data_file_name != NULL || part->index_file_name != NULL)
+    {
+      return true;
+    }
+    List_iterator<partition_element> subpart_it(part->subpartitions);
+    for (const partition_element *subpart= subpart_it++;
+         subpart;
+         subpart= subpart_it++)
+    {
+      if (subpart->data_file_name != NULL || subpart->index_file_name != NULL)
+      {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 /**
   Fill the Tablespace_hash_set with the tablespace names
   used by the partitions on the table.
@@ -3270,20 +3339,10 @@ bool fill_partition_tablespace_names(
   return false;
 }
 
-/**
-  Check if all tablespace names specified for partitions
-  are valid.
 
-  @param part_info  - Partition info that could be using tablespaces.
-
-  @return true  - One of tablespace names specified is invalid and
-                  a error is reported.
-  @return false - All the tablespace names specified for
-                  partitions are valid.
-*/
-bool check_partition_tablespace_names(partition_info *part_info)
+bool validate_partition_tablespace_name_lengths(partition_info *part_info)
 {
-  // Do nothing if table is not partitioned.
+  // Do nothing if the table is not partitioned.
   if (!part_info)
     return false;
 
@@ -3292,10 +3351,9 @@ bool check_partition_tablespace_names(partition_info *part_info)
   partition_element *part_elem;
   while ((part_elem= part_it++))
   {
-    // Check tablespace names from partition elements, if used.
+    // Check tablespace name length from partition elements, if used.
     if (part_elem->tablespace_name &&
-        (check_tablespace_name(part_elem->tablespace_name) !=
-         Ident_name_check::OK))
+        validate_tablespace_name_length(part_elem->tablespace_name))
       return true;
 
     // Traverse through all subpartitions.
@@ -3303,10 +3361,58 @@ bool check_partition_tablespace_names(partition_info *part_info)
     partition_element *sub_elem;
     while ((sub_elem= sub_it++))
     {
-      // Add tablespace name from sub-partition elements, if used.
+      // Check tablespace name length from sub-partition elements, if used.
       if (sub_elem->tablespace_name &&
-          check_tablespace_name(sub_elem->tablespace_name) !=
-          Ident_name_check::OK)
+          validate_tablespace_name_length(sub_elem->tablespace_name))
+        return true;
+    }
+  }
+
+  return false;
+}
+
+
+bool validate_partition_tablespace_names(partition_info *part_info,
+                                         const handlerton *default_engine)
+{
+  DBUG_ASSERT(default_engine);
+
+  // Do nothing if the table is not partitioned.
+  if (!part_info)
+    return false;
+
+  // Traverse through all partitions.
+  List_iterator<partition_element> part_it(part_info->partitions);
+  partition_element *part_elem;
+  while ((part_elem= part_it++))
+  {
+    // Use default engine if not overridden.
+    const handlerton *part_elem_engine= part_elem->engine_type;
+    if (part_elem_engine == nullptr)
+      part_elem_engine= default_engine;
+
+    // Check tablespace names from partition elements, if used.
+    if (part_elem->tablespace_name &&
+        validate_tablespace_name(false,
+                                 part_elem->tablespace_name,
+                                 part_elem_engine))
+      return true;
+
+    // Traverse through all subpartitions.
+    List_iterator<partition_element> sub_it(part_elem->subpartitions);
+    partition_element *sub_elem;
+    while ((sub_elem= sub_it++))
+    {
+      // Use default engine if not overridden.
+      const handlerton *sub_elem_engine= sub_elem->engine_type;
+      if (sub_elem_engine == nullptr)
+        sub_elem_engine= default_engine;
+
+      // Check tablespace name from sub-partition elements, if used.
+      if (sub_elem->tablespace_name &&
+          validate_tablespace_name(false,
+                                   sub_elem->tablespace_name,
+                                   sub_elem_engine))
         return true;
     }
   }

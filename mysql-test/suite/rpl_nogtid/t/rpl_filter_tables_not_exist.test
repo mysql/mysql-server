@@ -49,7 +49,6 @@
 
 --source include/not_group_replication_plugin.inc
 source include/have_binlog_format_statement.inc;
-source include/not_gtid_enabled.inc;
 source include/master-slave.inc;
 
 # These tables are mentioned in do-table rules

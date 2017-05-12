@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -26,7 +26,7 @@ namespace ngs
 {
 
 class IOptions_session;
-typedef boost::shared_ptr<IOptions_session> IOptions_session_ptr;
+typedef ngs::shared_ptr<IOptions_session> IOptions_session_ptr;
 
 }  // namespace ngs
 
@@ -41,7 +41,7 @@ namespace xpl
     std::string ssl_x509_issuer;
     std::string ssl_x509_subject;
 
-    ngs::Error_code validate(ngs::IOptions_session_ptr &options) const;
+    ngs::Error_code validate(const ngs::IOptions_session_ptr &options) const;
 
   private:
     const static std::string SSL_TYPE_NONE;
@@ -49,9 +49,9 @@ namespace xpl
     const static std::string SSL_TYPE_X509;
     const static std::string SSL_TYPE_SPECIFIC;
 
-    ngs::Error_code check_ssl(ngs::IOptions_session_ptr &options) const;
-    ngs::Error_code check_x509(ngs::IOptions_session_ptr &options) const;
-    ngs::Error_code check_specific(ngs::IOptions_session_ptr &options) const;
+    ngs::Error_code check_ssl(const ngs::IOptions_session_ptr &options) const;
+    ngs::Error_code check_x509(const ngs::IOptions_session_ptr &options) const;
+    ngs::Error_code check_specific(const ngs::IOptions_session_ptr &options) const;
   };
 
 } // namespace xpl

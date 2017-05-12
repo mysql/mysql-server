@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,10 +16,14 @@
 #ifndef DD__INDEX_ELEMENT_IMPL_INCLUDED
 #define DD__INDEX_ELEMENT_IMPL_INCLUDED
 
-#include "my_global.h"
+#include <stddef.h>
+#include <sys/types.h>
+#include <new>
+#include <string>
 
 #include "dd/impl/types/index_impl.h"       // dd::Index_impl
 #include "dd/impl/types/weak_object_impl.h" // dd::Weak_object_impl
+#include "dd/sdi_fwd.h"
 #include "dd/types/index_element.h"         // dd::Index_element
 #include "dd/types/object_type.h"           // dd::Object_type
 
@@ -29,8 +33,14 @@ namespace dd {
 
 class Index;
 class Index_impl;
-class Raw_record;
 class Open_dictionary_tables_ctx;
+class Raw_record;
+class Column;
+class Object_key;
+class Object_table;
+class Sdi_rcontext;
+class Sdi_wcontext;
+class Weak_object;
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -117,7 +127,7 @@ public:
   virtual void set_length(uint length)
   { m_length= length; }
 
-  virtual void set_length_null(bool is_null)
+  virtual void set_length_null(bool)
   { m_length= (uint) -1; }
 
   virtual bool is_length_null() const
@@ -143,6 +153,8 @@ public:
   virtual void set_order(enum_index_element_order order)
   { m_order= order; }
 
+  virtual bool is_prefix() const;
+
   // Fix "inherits ... via dominance" warnings
   virtual Weak_object_impl *impl()
   { return Weak_object_impl::impl(); }
@@ -159,7 +171,7 @@ public:
                                    Index_impl *index);
 
 public:
-  virtual void debug_print(std::string &outb) const;
+  virtual void debug_print(String_type &outb) const;
 
 public:
   virtual Object_key *create_primary_key() const;

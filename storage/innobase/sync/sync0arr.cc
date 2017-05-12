@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -30,16 +30,20 @@ The wait array used in synchronization primitives
 Created 9/5/1995 Heikki Tuuri
 *******************************************************/
 
-#include "ha_prototypes.h"
-
 #include "sync0arr.h"
-#include "sync0sync.h"
+
+#include <sys/types.h>
+#include <time.h>
+
+#include "ha_prototypes.h"
 #include "lock0lock.h"
-#include "sync0rw.h"
-#include "sync0debug.h"
+#include "my_inttypes.h"
 #include "os0event.h"
 #include "os0file.h"
 #include "srv0srv.h"
+#include "sync0debug.h"
+#include "sync0rw.h"
+#include "sync0sync.h"
 
 /*
 			WAIT ARRAY
@@ -491,10 +495,10 @@ sync_array_cell_print(
 	type = cell->request_type;
 
 	fprintf(file,
-		"--Thread %lu has waited at %s line %lu"
+		"--Thread " UINT64PF " has waited at %s line " ULINTPF
 		" for %.2f seconds the semaphore:\n",
-		(ulong) cell->thread_id,
-		innobase_basename(cell->file), (ulong) cell->line,
+		(uint64_t)(cell->thread_id),
+		innobase_basename(cell->file), cell->line,
 		difftime(time(NULL), cell->reservation_time));
 
 	if (type == SYNC_MUTEX) {
@@ -571,9 +575,9 @@ sync_array_cell_print(
 		if (writer != RW_LOCK_NOT_LOCKED) {
 
 			fprintf(file,
-				"a writer (thread id %lu) has"
+				"a writer (thread id " UINT64PF ") has"
 				" reserved it in mode %s",
-				(ulong) rwlock->writer_thread,
+				(uint64_t)(rwlock->writer_thread),
 				writer == RW_LOCK_X ? " exclusive\n"
 				: writer == RW_LOCK_SX ? " SX\n"
 				: " wait exclusive\n");
@@ -1193,7 +1197,7 @@ sync_array_print_long_waits(
 
 		os_thread_sleep(30000000);
 
-		srv_print_innodb_monitor = static_cast<my_bool>(old_val);
+		srv_print_innodb_monitor = static_cast<bool>(old_val);
 		fprintf(stderr,
 			"InnoDB: ###### Diagnostic info printed"
 			" to the standard error stream\n");

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,27 +14,48 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "json_dom.h"
-#include "base64.h"
-#include "current_thd.h"        // current_thd
-#include "derror.h"             // ER_THD
-#include "json_path.h"
-#include "m_string.h"           // my_gcvt, _dig_vec_lower
-#include "mysqld_error.h"       // ER_*
-#include "prealloced_array.h"   // Prealloced_array
-#include "psi_memory_key.h"     // key_memory_JSON
-#include "sql_class.h"          // THD
-#include "sql_const.h"          // STACK_MIN_SIZE
-#include "sql_parse.h"          // check_stack_overrun
-#include "sql_time.h"
-#include "template_utils.h"     // down_cast, pointer_cast
 
-#include "rapidjson/rapidjson.h"
-#include "rapidjson/reader.h"
-#include "rapidjson/memorystream.h"
-#include "rapidjson/error/en.h"
-
+#include <cmath>                // std::isfinite
+#include <errno.h>
+#include <limits.h>
+#include <math.h>
+#include <stdint.h>
+#include <string.h>
+#include <sys/types.h>
 #include <algorithm>            // std::min, std::max
 #include <memory>               // std::unique_ptr
+
+#include "base64.h"
+#include "check_stack.h"
+#include "current_thd.h"        // current_thd
+#include "decimal.h"
+#include "derror.h"             // ER_THD
+#include "field.h"
+#include "json_path.h"
+#include "m_ctype.h"
+#include "m_string.h"           // my_gcvt, _dig_vec_lower, my_strtod
+#include "my_byteorder.h"
+#include "my_dbug.h"
+#include "my_double2ulonglong.h"
+#include "my_rapidjson_size_t.h"
+#include "my_sys.h"
+#include "my_time.h"
+#include "mysql/psi/mysql_statement.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql_com.h"
+#include "mysqld_error.h"       // ER_*
+#include "psi_memory_key.h"     // key_memory_JSON
+#include "rapidjson/error/en.h"
+#include "rapidjson/error/error.h"
+#include "rapidjson/memorystream.h"
+#include "rapidjson/reader.h"
+#include "sql_class.h"          // THD
+#include "sql_const.h"          // STACK_MIN_SIZE
+#include "sql_error.h"
+#include "sql_string.h"
+#include "sql_time.h"
+#include "system_variables.h"
+#include "template_utils.h"     // down_cast, pointer_cast
 
 using namespace rapidjson;
 
@@ -404,6 +425,9 @@ static bool check_json_depth(size_t depth)
 }
 
 
+namespace
+{
+
 /**
   This class implements rapidjson's Handler concept to make our own handler
   which will construct our DOM from the parsing of the JSON text.
@@ -441,404 +465,224 @@ private:
     expect_eof
   };
 
-  struct Current_element
-  {
-    Current_element(bool object, const char *str, uint32 length,
-                    Json_dom *value)
-      : m_object(object), m_key(std::string(str, length)), m_value(value)
-    {}
-
-    Current_element(Json_dom *value)
-      : m_object(false), m_value(value)
-    {}
-
-    bool m_object; //!< true of object, false if array
-    std::string m_key; //!< only used if object
-    Json_dom *m_value; //!< deallocated by clients
-  };
-
-  typedef Prealloced_array<Current_element, 8, false> Element_vector;
-
-  struct Partial_compound
-  {
-    Partial_compound(bool is_object)
-      : m_elements(key_memory_JSON),
-        m_is_object(is_object)
-    {}
-    ~Partial_compound()
-    {}
-
-    Element_vector m_elements;
-    bool m_is_object;
-  };
-
-  typedef Prealloced_array<Partial_compound, 8, false> Compound_vector;
-
-  enum_state m_state;
-  Compound_vector m_stack;
-  Json_dom *m_dom_as_built;
-  bool m_preserve_neg_zero_int;
+  enum_state m_state;   ///< Tells what kind of value to expect next.
+  std::unique_ptr<Json_dom> m_dom_as_built; ///< Root of the DOM being built.
+  Json_dom* m_current_element;  ///< The current object/array being parsed.
+  size_t m_depth;      ///< The depth at which parsing currently happens.
+  std::string m_key;   ///< The name of the current member of an object.
 public:
-  Rapid_json_handler(bool preserve_neg_zero_int= false)
-    : m_state(expect_anything),
-      m_stack(key_memory_JSON),
-      m_dom_as_built(NULL),
-      m_preserve_neg_zero_int(preserve_neg_zero_int)
+  Rapid_json_handler()
+    : m_state(expect_anything), m_dom_as_built(nullptr),
+      m_current_element(nullptr), m_depth(0), m_key()
   {}
-
-  ~Rapid_json_handler()
-  {
-    if (m_dom_as_built)
-    {
-      // We managed to build something, but found garbage after it
-      delete m_dom_as_built;
-    }
-    else
-    {
-      // We have something half built, empty the allocated data in it
-      for (Compound_vector::iterator iter= m_stack.begin();
-           iter != m_stack.end(); ++iter)
-      {
-        for (Element_vector::iterator i= iter->m_elements.begin();
-             i != iter->m_elements.end(); ++i)
-        {
-          delete i->m_value;
-        }
-      }
-    }
-  }
 
   /**
     @returns The built JSON DOM object.
-    Deallocation is the returned value responsibility of the caller.
+    Deallocation of the returned value is the responsibility of the caller.
   */
   Json_dom *get_built_doc()
   {
-    Json_dom *result= m_dom_as_built;
-    m_dom_as_built= NULL;
-    return result;
+    return m_dom_as_built.release();
   }
 
+private:
   /**
-    Function which is called on each scalar value found in the JSON
+    Function which is called on each value found in the JSON
     document being parsed.
 
-    @param[in] scalar the scalar that was seen
+    @param[in] value the value that was seen
     @return true if parsing should continue, false if an error was
             found and parsing should stop
   */
-  bool seeing_scalar(Json_scalar *scalar)
+  bool seeing_value(Json_dom *value)
   {
-    std::unique_ptr<Json_scalar> uptr(scalar);
-    if (scalar == NULL || check_json_depth(m_stack.size() + 1))
+    std::unique_ptr<Json_dom> uptr(value);
+    if (value == nullptr || check_json_depth(m_depth + 1))
       return false;
     switch (m_state)
     {
     case expect_anything:
-      m_dom_as_built= scalar;
+      m_dom_as_built= std::move(uptr);
       m_state= expect_eof;
-      break;
+      return true;
     case expect_array_value:
-      if (m_stack.back().m_elements.push_back(Current_element(scalar)))
-        return false;                           /* purecov: inspected */
-      break;
-    case expect_object_key:
-    case expect_eof:
+      {
+        auto array= down_cast<Json_array *>(m_current_element);
+        /*
+          append_alias() only takes over ownership if successful, so don't
+          release the unique_ptr unless the value was added to the array.
+        */
+        if (array->append_alias(value))
+          return false;                         /* purecov: inspected */
+        uptr.release();
+        return true;
+      }
+    case expect_object_value:
+      {
+        m_state= expect_object_key;
+        auto object= down_cast<Json_object *>(m_current_element);
+        /*
+          Hand over ownership from uptr to object. Contrary to append_alias(),
+          add_alias() takes over ownership also in the case of failure.
+        */
+        return !object->add_alias(m_key, uptr.release());
+      }
+    default:
       /* purecov: begin inspected */
       DBUG_ABORT();
       return false;
       /* purecov: end */
-    case expect_object_value:
-      DBUG_ASSERT(!m_stack.back().m_elements.empty());
-      DBUG_ASSERT(m_stack.back().m_elements.back().m_value == NULL);
-      m_stack.back().m_elements.back().m_value= scalar;
-      m_state= expect_object_key;
-      break;
     }
-
-    /*
-      The scalar is owned by the Element_vector or m_dom_as_built now,
-      so release it.
-    */
-    uptr.release();
-    return true;
   }
 
+public:
   bool Null()
   {
     DUMP_CALLBACK("null", state);
-    return seeing_scalar(new (std::nothrow) Json_null());
+    return seeing_value(new (std::nothrow) Json_null());
   }
 
   bool Bool(bool b)
   {
     DUMP_CALLBACK("bool", state);
-    return seeing_scalar(new (std::nothrow) Json_boolean(b));
+    return seeing_value(new (std::nothrow) Json_boolean(b));
   }
 
   bool Int(int i)
   {
     DUMP_CALLBACK("int", state);
-    return seeing_scalar(new (std::nothrow) Json_int(i));
+    return seeing_value(new (std::nothrow) Json_int(i));
   }
 
   bool Uint(unsigned u)
   {
     DUMP_CALLBACK("uint", state);
-    return seeing_scalar(new (std::nothrow) Json_int(static_cast<longlong>(u)));
+    return seeing_value(new (std::nothrow) Json_int(static_cast<longlong>(u)));
   }
 
   bool Int64(int64_t i)
   {
     DUMP_CALLBACK("int64", state);
-    return seeing_scalar(new (std::nothrow) Json_int(i));
+    return seeing_value(new (std::nothrow) Json_int(i));
   }
 
   bool Uint64(uint64_t ui64)
   {
     DUMP_CALLBACK("uint64", state);
-    return seeing_scalar(new (std::nothrow) Json_uint(ui64));
+    return seeing_value(new (std::nothrow) Json_uint(ui64));
   }
 
-  bool Double(double d, bool is_int= false)
+  bool Double(double d)
   {
-    if (is_int && !m_preserve_neg_zero_int)
-    {
-      /*
-        The is_int flag is true only if -0 was seen. Handle it as an
-        integer.
-      */
-      DBUG_ASSERT(d == 0.0);
-      return Int64(static_cast<int64_t>(d));
-    }
-    else
-    {
-      DUMP_CALLBACK("double", state);
-      return seeing_scalar(new (std::nothrow) Json_double(d));
-    }
-  }
-
-  bool RawNumber(const char*, SizeType, bool)
-  {
-    DBUG_ASSERT(false);
-    return false;
-  }
-
-  bool String(const char* str, SizeType length, bool copy)
-  {
-    if (check_json_depth(m_stack.size() + 1))
+    DUMP_CALLBACK("double", state);
+    /*
+      We only accept finite values. RapidJSON normally stops non-finite values
+      from getting here, but sometimes +/-inf values could end up here anyway.
+    */
+    if (!std::isfinite(d))
       return false;
+    return seeing_value(new (std::nothrow) Json_double(d));
+  }
+
+  bool RawNumber(const char* str, SizeType length, bool)
+  {
+    char *end[]= { const_cast<char*>(str) + length };
+    int error= 0;
+    double value = my_strtod(str, end, &error);
+
+    if (error == EOVERFLOW)
+      return false;
+    return Double(value);
+  }
+
+  bool String(const char* str, SizeType length, bool)
+  {
     DUMP_CALLBACK("string", state);
-    switch (m_state)
-    {
-    case expect_anything:
-      m_dom_as_built= new (std::nothrow) Json_string(std::string(str, length));
-      if (!m_dom_as_built)
-        return false;                         /* purecov: inspected */
-      m_state= expect_eof;
-      break;
-    case expect_array_value:
-      {
-        Json_string *jstr=
-          new (std::nothrow) Json_string(std::string(str, length));
-        if (jstr == NULL ||
-            m_stack.back().m_elements.push_back(Current_element(jstr)))
-        {
-          /* purecov: begin inspected */
-          delete jstr;
-          return false;
-          /* purecov: end */
-        }
-        break;
-      }
-    case expect_object_key:
-      if (m_stack.back().m_elements.push_back(Current_element(true, str,
-                                                              length, NULL)))
-        return false;                         /* purecov: inspected */
-      m_state= expect_object_value;
-      break;
-    case expect_eof:
-      /* purecov: begin inspected */
-      DBUG_ABORT();
-      return false;
-      /* purecov: end */
-    case expect_object_value:
-      DBUG_ASSERT(!m_stack.back().m_elements.empty());
-      DBUG_ASSERT(m_stack.back().m_elements.back().m_value == NULL);
-      m_stack.back().m_elements.back().m_value=
-        new (std::nothrow) Json_string(std::string(str, length));
-      m_state= expect_object_key;
-      break;
-    }
-    return true;
+    return seeing_value(new (std::nothrow) Json_string(str, length));
   }
 
   bool StartObject()
   {
     DUMP_CALLBACK("start object {", state);
-    switch (m_state)
-    {
-    case expect_anything:
-    case expect_array_value:
-    case expect_object_value:
-      if (m_stack.push_back(Partial_compound(true)) ||
-          check_json_depth(m_stack.size()))
-        return false;
-      m_state= expect_object_key;
-      break;
-    case expect_eof:
-    case expect_object_key:
-      /* purecov: begin inspected */
-      DBUG_ABORT();
-      return false;
-      /* purecov: end */
-    }
-    return true;
+    auto object= new (std::nothrow) Json_object();
+    bool success= seeing_value(object);
+    m_depth++;
+    m_current_element= object;
+    m_state= expect_object_key;
+    return success;
   }
 
   bool EndObject(SizeType)
   {
     DUMP_CALLBACK("} end object", state);
-    switch (m_state)
-    {
-    case expect_object_key:
-      {
-        std::unique_ptr<Json_object> o(new (std::nothrow) Json_object());
-        if (o.get() == NULL)
-          return false;                       /* purecov: inspected */
-        for (Element_vector::const_iterator iter=
-               m_stack.back().m_elements.begin();
-             iter != m_stack.back().m_elements.end(); ++iter)
-        {
-          /* _alias: save superfluous copy/delete */
-          if (o->add_alias(iter->m_key, iter->m_value))
-            return false;                     /* purecov: inspected */
-        }
-        m_stack.pop_back();
-
-        if (m_stack.empty())
-        {
-          m_dom_as_built= o.release();
-          m_state= expect_eof;
-        }
-        else if (m_stack.back().m_is_object)
-        {
-          m_stack.back().m_elements.back().m_value= o.release();
-          m_state= expect_object_key;
-        }
-        else
-        {
-          if (m_stack.back().m_elements.push_back(o.get()))
-            return false;                     /* purecov: inspected */
-          o.release();             // Owned by the Element_vector now.
-          m_state= expect_array_value;
-        }
-      }
-      break;
-    case expect_array_value:
-    case expect_eof:
-    case expect_object_value:
-    case expect_anything:
-      /* purecov: begin inspected */
-      DBUG_ABORT();
-      return false;
-      /* purecov: end */
-    }
+    DBUG_ASSERT(m_state == expect_object_key);
+    end_object_or_array();
     return true;
   }
 
   bool StartArray()
   {
     DUMP_CALLBACK("start array [", state);
-    switch (m_state)
-    {
-    case expect_anything:
-    case expect_array_value:
-    case expect_object_value:
-      if (m_stack.push_back(Partial_compound(false)) ||
-          check_json_depth(m_stack.size()))
-        return false;
-      m_state= expect_array_value;
-      break;
-    case expect_eof:
-    case expect_object_key:
-      /* purecov: begin inspected */
-      DBUG_ABORT();
-      return false;
-      /* purecov: end */
-    }
-    return true;
+    auto array= new (std::nothrow) Json_array();
+    bool success= seeing_value(array);
+    m_depth++;
+    m_current_element= array;
+    m_state= expect_array_value;
+    return success;
   }
 
   bool EndArray(SizeType)
   {
     DUMP_CALLBACK("] end array", state);
-    switch (m_state)
-    {
-    case expect_array_value:
-      {
-        std::unique_ptr<Json_array> a(new (std::nothrow) Json_array());
-        if (a.get() == NULL)
-          return false;                         /* purecov: inspected */
-        for (Element_vector::const_iterator iter=
-               m_stack.back().m_elements.begin();
-             iter != m_stack.back().m_elements.end(); ++iter)
-        {
-          /* _alias: save superfluous copy/delete */
-          if (a->append_alias(iter->m_value))
-            return false;                       /* purecov: inspected */
-        }
-        m_stack.pop_back();
-
-        if (m_stack.empty())
-        {
-          m_dom_as_built= a.release();
-          m_state= expect_eof;
-        }
-        else
-        {
-          if (m_stack.back().m_is_object)
-          {
-            m_stack.back().m_elements.back().m_value= a.release();
-            m_state= expect_object_key;
-          }
-          else
-          {
-            if (m_stack.back().m_elements.push_back(a.get()))
-              return false;                     /* purecov: inspected */
-            a.release();                // Owned by the Element_vector now.
-            m_state= expect_array_value;
-          }
-        }
-      }
-      break;
-    case expect_object_key:
-    case expect_object_value:
-    case expect_eof:
-    case expect_anything:
-      /* purecov: begin inspected */
-      DBUG_ABORT();
-      return false;
-      /* purecov: end */
-    }
+    DBUG_ASSERT(m_state == expect_array_value);
+    end_object_or_array();
     return true;
   }
 
-  bool Key(const char* str, SizeType len, bool copy)
+  bool Key(const char* str, SizeType len, bool)
   {
-    return String(str, len, copy);
+    if (check_json_depth(m_depth + 1))
+      return false;
+    DBUG_ASSERT(m_state == expect_object_key);
+    m_state= expect_object_value;
+    m_key.assign(str, len);
+    return true;
+  }
+
+private:
+  void end_object_or_array()
+  {
+    m_depth--;
+    m_current_element= m_current_element->parent();
+    if (m_current_element == nullptr)
+    {
+      DBUG_ASSERT(m_depth == 0);
+      m_state= expect_eof;
+    }
+    else if (m_current_element->json_type() == enum_json_type::J_OBJECT)
+      m_state= expect_object_key;
+    else
+    {
+      DBUG_ASSERT(m_current_element->json_type() == enum_json_type::J_ARRAY);
+      m_state= expect_array_value;
+    }
   }
 };
+
+} // namespace
 
 
 Json_dom *Json_dom::parse(const char *text, size_t length,
                           const char **syntaxerr, size_t *offset,
-                          bool preserve_neg_zero_int)
+                          bool handle_numbers_as_double)
 {
-  Rapid_json_handler handler(preserve_neg_zero_int);
+  Rapid_json_handler handler;
   MemoryStream ss(text, length);
   Reader reader;
-  bool success= reader.Parse<kParseDefaultFlags>(ss, handler);
+  bool success=
+    handle_numbers_as_double ?
+    reader.Parse<kParseNumbersAsStringsFlag>(ss, handler) :
+    reader.Parse<kParseDefaultFlags>(ss, handler);
 
   if (success)
   {
@@ -860,6 +704,9 @@ Json_dom *Json_dom::parse(const char *text, size_t length,
   return NULL;
 }
 
+
+namespace
+{
 
 /**
   This class implements a handler for use with rapidjson::Reader when
@@ -900,12 +747,15 @@ public:
   bool Uint(unsigned) { return seeing_scalar(); }
   bool Int64(int64_t) { return seeing_scalar(); }
   bool Uint64(uint64_t) { return seeing_scalar(); }
-  bool Double(double, bool is_int= false) { return seeing_scalar(); }
+  bool Double(double, bool is_int MY_ATTRIBUTE((unused)) = false)
+  { return seeing_scalar(); }
   bool String(const char*, SizeType, bool) { return seeing_scalar(); }
   bool Key(const char*, SizeType, bool) { return seeing_scalar(); }
   bool RawNumber(const char*, SizeType, bool)
   { return seeing_scalar(); }
 };
+
+} // namespace
 
 
 bool is_valid_json_syntax(const char *text, size_t length)
@@ -1050,7 +900,7 @@ static Json_dom *json_binary_to_dom_template(const json_binary::Value &v)
                                             v.get_data_length());
     }
   case json_binary::Value::STRING:
-    return new (std::nothrow) Json_string(get_string_data(v));
+    return new (std::nothrow) Json_string(v.get_data(), v.get_data_length());
   case json_binary::Value::ERROR:
     break;                                    /* purecov: inspected */
   }
@@ -1802,20 +1652,19 @@ Json_wrapper::Json_wrapper(Json_dom *dom_value)
 }
 
 
-void Json_wrapper::steal(Json_wrapper *old)
+Json_wrapper::Json_wrapper(Json_wrapper &&old)
+  : m_is_dom(old.m_is_dom)
 {
-  if (old->m_is_dom)
+  if (m_is_dom)
   {
-    bool old_is_aliased= old->m_dom_alias;
-    old->m_dom_alias= true; // we want no deep copy now, or later
-    *this= *old;
-    this->m_dom_alias= old_is_aliased; // set it back
-    // old is now marked as aliased, so any ownership is effectively
-    // transferred to this.
+    m_dom_alias= old.m_dom_alias;
+    m_dom_value= old.m_dom_value;
+    // Mark old as aliased. Any ownership is effectively transferred to this.
+    old.set_alias();
   }
   else
   {
-    *this= *old;
+    m_value= std::move(old.m_value);
   }
 }
 
@@ -1849,20 +1698,38 @@ Json_wrapper::~Json_wrapper()
 }
 
 
-Json_wrapper &Json_wrapper::operator=(const Json_wrapper& from)
+/**
+  Common implementation of move-assignment and copy-assignment for
+  Json_wrapper. If @a from is an rvalue, its contents are moved into
+  @a to, otherwise the contents are copied over.
+*/
+template <typename T>
+static Json_wrapper &assign_json_wrapper(T &&from, Json_wrapper *to)
 {
-  if (this == &from)
+  if (&from == to)
   {
-    return *this;   // self assignment: no-op
+    return *to;   // self assignment: no-op
   }
 
   // Deallocate DOM if needed.
-  this->~Json_wrapper();
+  to->~Json_wrapper();
 
-  // Copy the value into this.
-  new (this) Json_wrapper(from);
+  // Move or copy the value into the destination.
+  new (to) Json_wrapper(std::forward<T>(from));
 
-  return *this;
+  return *to;
+}
+
+
+Json_wrapper &Json_wrapper::operator=(const Json_wrapper &from)
+{
+  return assign_json_wrapper(from, this);
+}
+
+
+Json_wrapper &Json_wrapper::operator=(Json_wrapper &&from)
+{
+  return assign_json_wrapper(std::move(from), this);
 }
 
 
@@ -1881,7 +1748,7 @@ Json_dom *Json_wrapper::to_dom(const THD *thd)
 }
 
 
-Json_dom *Json_wrapper::clone_dom(const THD *thd)
+Json_dom *Json_wrapper::clone_dom(const THD *thd) const
 {
   // If we already have a DOM, return a clone of it.
   if (m_is_dom)
@@ -1892,7 +1759,7 @@ Json_dom *Json_wrapper::clone_dom(const THD *thd)
 }
 
 
-bool Json_wrapper::to_binary(String *str) const
+bool Json_wrapper::to_binary(const THD *thd, String *str) const
 {
   if (empty())
   {
@@ -1903,9 +1770,9 @@ bool Json_wrapper::to_binary(String *str) const
   }
 
   if (m_is_dom)
-    return json_binary::serialize(m_dom_value, str);
+    return json_binary::serialize(thd, m_dom_value, str);
 
-  return m_value.raw_binary(str);
+  return m_value.raw_binary(thd, str);
 }
 
 
@@ -1915,7 +1782,7 @@ bool Json_wrapper::to_binary(String *str) const
   @param[in] json_quoted whether or not a quote should be appended
   @return false if successful, true on error
 */
-inline bool single_quote(String *buffer, bool json_quoted)
+static inline bool single_quote(String *buffer, bool json_quoted)
 {
   return json_quoted && buffer->append('"');
 }
@@ -1940,15 +1807,42 @@ static int print_string(String *buffer, bool json_quoted,
 
 
 /**
+  Helper function for wrapper_to_string() which adds a newline and indentation
+  up to the specified level.
+
+  @param[in,out] buffer  the buffer to write to
+  @param[in]     level   how many nesting levels to add indentation for
+  @retval false on success
+  @retval true on error
+*/
+static bool newline_and_indent(String *buffer, size_t level)
+{
+  // Append newline and two spaces per indentation level.
+  return buffer->append('\n') ||
+    buffer->fill(buffer->length() + level * 2, ' ');
+}
+
+
+/**
   Helper function which does all the heavy lifting for
   Json_wrapper::to_string(). It processes the Json_wrapper
   recursively. The depth parameter keeps track of the current nesting
   level. When it reaches JSON_DOCUMENT_MAX_DEPTH, it gives up in order
   to avoid running out of stack space.
+
+  @param[in]     wr          the value to convert to a string
+  @param[in,out] buffer      the buffer to write to
+  @param[in]     json_quoted quote strings if true
+  @param[in]     pretty      add newlines and indentation if true
+  @param[in]     func_name   the name of the calling function
+  @param[in]     depth       the nesting level of @a wr
+
+  @retval false on success
+  @retval true on error
 */
 static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
-                              bool json_quoted, const char *func_name,
-                              size_t depth)
+                              bool json_quoted, bool pretty,
+                              const char *func_name, size_t depth)
 {
   if (check_json_depth(++depth))
     return true;
@@ -1978,17 +1872,26 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
     {
       if (buffer->append('['))
         return true;                           /* purecov: inspected */
+
       size_t array_len= wr.length();
       for (uint32 i= 0; i < array_len; ++i)
       {
-        if (i > 0 && buffer->append(", "))
+        if (i > 0 && buffer->append(pretty ? "," : ", "))
           return true;                         /* purecov: inspected */
 
-        if (wrapper_to_string(wr[i], buffer, true, func_name, depth))
+        if (pretty && newline_and_indent(buffer, depth))
+          return true;                         /* purecov: inspected */
+
+        if (wrapper_to_string(wr[i], buffer, true, pretty, func_name, depth))
           return true;                         /* purecov: inspected */
       }
+
+      if (pretty && array_len > 0 && newline_and_indent(buffer, depth - 1))
+        return true;                           /* purecov: inspected */
+
       if (buffer->append(']'))
         return true;                           /* purecov: inspected */
+
       break;
     }
   case enum_json_type::J_BOOLEAN:
@@ -2033,11 +1936,17 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
     {
       if (buffer->append('{'))
         return true;                           /* purecov: inspected */
-      uint32 i= 0;
+
+      bool first= true;
       for (Json_wrapper_object_iterator iter= wr.object_iterator();
            !iter.empty(); iter.next())
       {
-        if (i++ > 0 && buffer->append(", "))
+        if (!first && buffer->append(pretty ? "," : ", "))
+          return true;                         /* purecov: inspected */
+
+        first= false;
+
+        if (pretty && newline_and_indent(buffer, depth))
           return true;                         /* purecov: inspected */
 
         const std::string &key= iter.elt().first;
@@ -2045,12 +1954,17 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
         size_t key_length= key.length();
         if (print_string(buffer, true, key_data, key_length) ||
             buffer->append(": ") ||
-            wrapper_to_string(iter.elt().second, buffer, true, func_name,
-                              depth))
+            wrapper_to_string(iter.elt().second, buffer, true, pretty,
+                              func_name, depth))
           return true;                         /* purecov: inspected */
       }
+
+      if (pretty && wr.length() > 0 && newline_and_indent(buffer, depth - 1))
+        return true;                           /* purecov: inspected */
+
       if (buffer->append('}'))
         return true;                           /* purecov: inspected */
+
       break;
     }
   case enum_json_type::J_OPAQUE:
@@ -2125,8 +2039,16 @@ bool Json_wrapper::to_string(String *buffer, bool json_quoted,
                              const char *func_name) const
 {
   buffer->set_charset(&my_charset_utf8mb4_bin);
-  return wrapper_to_string(*this, buffer, json_quoted, func_name, 0);
+  return wrapper_to_string(*this, buffer, json_quoted, false, func_name, 0);
 }
+
+
+bool Json_wrapper::to_pretty_string(String *buffer, const char *func_name) const
+{
+  buffer->set_charset(&my_charset_utf8mb4_bin);
+  return wrapper_to_string(*this, buffer, true, true, func_name, 0);
+}
+
 
 enum_json_type Json_wrapper::type() const
 {
@@ -2439,10 +2361,7 @@ bool Json_wrapper::seek_no_ellipsis(const Json_seekable_path &path,
     if (m_is_dom)
     {
       Json_wrapper clone(m_dom_value->clone());
-      if (clone.empty() || hits->push_back(Json_wrapper()))
-        return true;                          /* purecov: inspected */
-      hits->back().steal(&clone);
-      return false;
+      return clone.empty() || hits->push_back(std::move(clone));
     }
     return hits->push_back(*this);
   }
@@ -2622,12 +2541,11 @@ bool Json_wrapper::seek(const Json_seekable_path &path,
   Json_dom_vector dhits(key_memory_JSON);
   if (m_dom_value->seek(path, &dhits, auto_wrap, only_need_one))
     return true;                              /* purecov: inspected */
-  for (Json_dom_vector::iterator it= dhits.begin(); it != dhits.end(); ++it)
+  for (const Json_dom *dom : dhits)
   {
-    Json_wrapper clone((*it)->clone());
-    if (clone.empty() || hits->push_back(Json_wrapper()))
+    Json_wrapper clone(dom->clone());
+    if (clone.empty() || hits->push_back(std::move(clone)))
       return true;                            /* purecov: inspected */
-    hits->back().steal(&clone);
   }
 
   return false;
@@ -3446,6 +3364,9 @@ bool Json_wrapper::coerce_time(MYSQL_TIME *ltime,
 }
 
 
+namespace
+{
+
 /// Wrapper around a sort key buffer.
 class Wrapper_sort_key
 {
@@ -3465,6 +3386,12 @@ public:
     return m_length - m_pos;
   }
 
+  /// Get how much space we've used so far.
+  size_t pos() const
+  {
+    return m_pos;
+  }
+
   /// Append a character to the buffer.
   void append(uchar ch)
   {
@@ -3472,10 +3399,16 @@ public:
       m_buffer[m_pos++]= ch;
   }
 
-  /// Pad the buffer with the specified character.
-  void pad_fill(uchar pad_character, size_t length)
+ /**
+    Pad the buffer with the specified character till given position.
+    @note This function is intended to be used to make numbers of equal length
+    without occupying the whole buffer.
+  */
+  void pad_till(uchar pad_character, size_t pos)
   {
-    size_t num_chars= std::min(remaining(), length);
+    longlong num_chars= pos - m_pos;
+    DBUG_ASSERT(num_chars >= 0);
+    num_chars= std::min(remaining(), static_cast<size_t>(num_chars));
     memset(m_buffer + m_pos, pad_character, num_chars);
     m_pos += num_chars;
   }
@@ -3510,9 +3443,12 @@ public:
   {
     /*
       The length is written as a four byte value at the end of the
-      buffer, provided that there is enough room.
+      buffer, provided that there is enough room and string to be stored is
+      longer than buffer.
     */
-    size_t space_for_len= std::min(static_cast<size_t>(4), remaining());
+    size_t space_for_len= (len <= remaining()) ? 0 :
+                          std::min(static_cast<size_t>(VARLEN_PREFIX),
+                          remaining());
 
     /*
       The string contents are written up to where the length is
@@ -3524,24 +3460,18 @@ public:
     m_pos+= copy_len;
 
     /*
-      Fill the space between the end of the string and the beginning
-      of the length with zeros.
-    */
-    pad_fill(0, space_for_str - copy_len);
-
-    /*
       Write the length in a format that memcmp() knows how to sort.
       First we store it in little-endian format in a four-byte buffer,
       and then we use copy_integer to transform it into a format that
       works with memcmp().
     */
-    uchar length_buffer[4];
-    int4store(length_buffer, static_cast<uint32>(len));
-    copy_int(space_for_len,
-             length_buffer, sizeof(length_buffer), true);
-
-    // The entire buffer has been filled when we are done here.
-    m_pos= m_length;
+    if (space_for_str)
+    {
+      uchar length_buffer[VARLEN_PREFIX];
+      int4store(length_buffer, static_cast<uint32>(len));
+      copy_int(space_for_len,
+               length_buffer, sizeof(length_buffer), true);
+    }
   }
 };
 
@@ -3617,32 +3547,34 @@ private:
 };
 
 
-/// Check if a character represents a non-zero digit.
-static inline bool is_non_zero_digit(char ch)
-{
-  return ch >= '1' && ch <= '9';
-}
-
-
 /*
   Type identifiers used in the sort key generated by
   Json_wrapper::make_sort_key(). Types with lower identifiers sort
   before types with higher identifiers.
+  See also note for Json_dom::enum_json_type.
 */
-#define JSON_KEY_NULL        '\x00'
-#define JSON_KEY_NUMBER_NEG  '\x01'
-#define JSON_KEY_NUMBER_ZERO '\x02'
-#define JSON_KEY_NUMBER_POS  '\x03'
-#define JSON_KEY_STRING      '\x04'
-#define JSON_KEY_OBJECT      '\x05'
-#define JSON_KEY_ARRAY       '\x06'
-#define JSON_KEY_FALSE       '\x07'
-#define JSON_KEY_TRUE        '\x08'
-#define JSON_KEY_DATE        '\x09'
-#define JSON_KEY_TIME        '\x0A'
-#define JSON_KEY_DATETIME    '\x0B'
-#define JSON_KEY_OPAQUE      '\x0C'
+constexpr uchar JSON_KEY_NULL=        '\x00';
+constexpr uchar JSON_KEY_NUMBER_NEG=  '\x01';
+constexpr uchar JSON_KEY_NUMBER_ZERO= '\x02';
+constexpr uchar JSON_KEY_NUMBER_POS=  '\x03';
+constexpr uchar JSON_KEY_STRING=      '\x04';
+constexpr uchar JSON_KEY_OBJECT=      '\x05';
+constexpr uchar JSON_KEY_ARRAY=       '\x06';
+constexpr uchar JSON_KEY_FALSE=       '\x07';
+constexpr uchar JSON_KEY_TRUE=        '\x08';
+constexpr uchar JSON_KEY_DATE=        '\x09';
+constexpr uchar JSON_KEY_TIME=        '\x0A';
+constexpr uchar JSON_KEY_DATETIME=    '\x0B';
+constexpr uchar JSON_KEY_OPAQUE=      '\x0C';
 
+} // namespace
+
+/*
+  Max char position to pad numeric sort keys to. Includes max precision +
+  sort key len.
+*/
+#define MAX_NUMBER_SORT_PAD \
+  (std::max(DBL_DIG, DECIMAL_MAX_POSSIBLE_PRECISION) + VARLEN_PREFIX + 3)
 
 /**
   Make a sort key for a JSON numeric value from its string representation. The
@@ -3685,6 +3617,7 @@ static void make_json_numeric_sort_key(const char *from, size_t len,
     Find the first significant digit. Skip past sign, leading zeros
     and the decimal point, until the first non-zero digit is found.
   */
+  const auto is_non_zero_digit= [] (char c) { return c >= '1' && c <= '9'; };
   const char *first_significant_digit=
     std::find_if(from, end_of_digits, is_non_zero_digit);
 
@@ -3769,17 +3702,18 @@ static void make_json_numeric_sort_key(const char *from, size_t len,
   }
 
   /*
-    Pad the rest of the buffer with zeros, so that the number of trailing
+    Pad the number with zeros up to 30 bytes, so that the number of trailing
     zeros doesn't affect how the number is sorted. As above, we need to invert
     the digits for negative numbers.
   */
-  to->pad_fill(negative ? '9' : '0', to->remaining());
+  to->pad_till(negative ? '9' : '0', MAX_NUMBER_SORT_PAD);
 }
 
 
-void Json_wrapper::make_sort_key(uchar *to, size_t to_length) const
+size_t Json_wrapper::make_sort_key(uchar *to, size_t to_length) const
 {
   Wrapper_sort_key key(to, to_length);
+
   const enum_json_type jtype= type();
   switch (jtype)
   {
@@ -3889,7 +3823,7 @@ void Json_wrapper::make_sort_key(uchar *to, size_t to_length) const
     break;
   }
 
-  key.pad_fill(0, key.remaining());
+  return key.pos();
 }
 
 

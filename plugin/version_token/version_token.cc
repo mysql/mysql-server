@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,20 +13,27 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#define MYSQL_SERVER
-#include <my_global.h>
-#include <mysql/plugin_audit.h>
-#include <m_string.h>
-#include <sql_class.h>
-#include <hash.h>
 #include <current_thd.h>
-#include <sstream>
-#include <errmsg.h>
-#include <mysql/service_locking.h>
-#include <locking_service.h>
 #include <derror.h>
-#include <mysql/psi/mysql_rwlock.h>
+#include <errmsg.h>
+#include <hash.h>
+#include <locking_service.h>
+#include <m_string.h>
+#include <mysql/plugin_audit.h>
 #include <mysql/psi/mysql_memory.h>
+#include <mysql/psi/mysql_rwlock.h>
+#include <mysql/service_locking.h>
+#include <mysql/components/my_service.h>
+#include <mysql/components/services/dynamic_privilege.h>
+#include <sql_class.h>
+#include <sys/types.h>
+#include <sstream>
+
+#include "lex_string.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_psi_config.h"
 
 #ifdef WIN32
 #define PLUGIN_EXPORT extern "C" __declspec(dllexport)
@@ -54,6 +61,69 @@ struct version_token_st {
 
 static HASH version_tokens_hash;
 
+/**
+  Utility class implementing an atomic boolean on top of an int32
+
+  The mysys lib does not support atomic booleans.
+*/
+class atomic_boolean
+{
+  /** constants for true and false */
+  static const int m_true, m_false;
+  /** storage for the boolean's current value */
+  volatile int32 m_value;
+public:
+
+  /**
+    Constructs a new atomic_boolean.
+
+    @param value  The value to initialize the boolean with.
+  */
+  atomic_boolean(bool value= false) : m_value(value ? m_true : m_false)
+  {}
+
+  /**
+    Checks if the atomic boolean has a certain value
+
+    if used without an argument checks if the atomic boolean is on.
+
+    @param value  the value to check for
+    @retval true  the atomic boolean value matches the argument value
+    @retval false the atomic boolean value is different from the argument value
+  */
+  bool is_set(bool value= true)
+  {
+    int32 cmp= value ? m_true : m_false, actual_value;
+
+    actual_value= my_atomic_load32(&m_value);
+
+    return actual_value == cmp;
+  }
+
+  /**
+    Sets a new value for the atomic boolean
+
+    @param new_value value to set
+  */
+  void set(bool new_value)
+  {
+    int32 new_val= new_value ? m_true : m_false;
+    my_atomic_store32(&m_value, new_val);
+  }
+};
+
+const int atomic_boolean::m_true= 0;
+const int atomic_boolean::m_false= 1;
+
+
+/**
+  State of the version tokens hash global structure
+
+  Needed since both the UDFs and the plugin are using the global
+  and thus it can't be freed until the last UDF or plugin has been unloaded.
+*/
+static atomic_boolean version_tokens_hash_inited;
+
 static MYSQL_THDVAR_ULONG(session_number,
                           PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
                           "Version number to assist with session tokens check",
@@ -61,7 +131,7 @@ static MYSQL_THDVAR_ULONG(session_number,
 
 
 static void update_session_version_tokens(MYSQL_THD thd,
-                                          struct st_mysql_sys_var *var,
+                                          struct st_mysql_sys_var*,
 					  void *var_ptr, const void *save)
 {
   THDVAR(thd, session_number)= 0;
@@ -100,10 +170,10 @@ static void vtoken_init_psi_keys(void)
   const char* category= "vtoken";
   int count;
 
-  count= array_elements(all_vtoken_rwlocks);
+  count= static_cast<int>(array_elements(all_vtoken_rwlocks));
   PSI_RWLOCK_CALL(register_rwlock)(category, all_vtoken_rwlocks, count);
 
-  count= array_elements(all_vtoken_memory);
+  count= static_cast<int>(array_elements(all_vtoken_memory));
   PSI_MEMORY_CALL(register_memory)(category, all_vtoken_memory, count);
 }
 
@@ -123,6 +193,37 @@ static bool is_blank_string(char *input)
     return false;
 }
 
+/**
+  Check if user either has SUPER or VERSION_TOKEN_ADMIN privileges
+  @param thd Thread handle
+  
+  @return succcess state
+    @retval true User has the required privileges
+    @retval false User has not the required privileges
+*/
+
+bool has_required_privileges(THD *thd)
+{
+  if (!(thd->security_context()->check_access(SUPER_ACL)))
+  {
+    SERVICE_TYPE(registry) *r= mysql_plugin_registry_acquire();
+    bool has_admin_privilege= false;
+    {
+      my_service<SERVICE_TYPE(global_grants_check)>
+        service("global_grants_check.mysql_server", r);
+      if (service.is_valid())
+      {
+        has_admin_privilege=
+          service->
+            has_global_grant(reinterpret_cast<Security_context_handle>(thd->security_context()),
+                             STRING_WITH_LEN("VERSION_TOKEN_ADMIN"));
+      }
+    } // end scope
+    mysql_plugin_registry_release(r);
+    return (has_admin_privilege);
+  } // end if
+  return true;
+}
 
 static const uchar *
 version_token_get_key(const uchar *entry, size_t *length);
@@ -149,39 +250,39 @@ static void set_vtoken_string_length()
 
 
 // UDF
-PLUGIN_EXPORT my_bool version_tokens_set_init(UDF_INIT *initid, UDF_ARGS *args,
+PLUGIN_EXPORT bool version_tokens_set_init(UDF_INIT *initid, UDF_ARGS *args,
                                               char *message);
 PLUGIN_EXPORT char *version_tokens_set(UDF_INIT *initid, UDF_ARGS *args,
                                        char *result, unsigned long *length,
 				       char *null_value, char *error);
 
-PLUGIN_EXPORT my_bool version_tokens_show_init(UDF_INIT *initid, UDF_ARGS *args,
+PLUGIN_EXPORT bool version_tokens_show_init(UDF_INIT *initid, UDF_ARGS *args,
                                                char *message);
 PLUGIN_EXPORT void version_tokens_show_deinit(UDF_INIT *initid);
 PLUGIN_EXPORT char *version_tokens_show(UDF_INIT *initid, UDF_ARGS *args,
                                         char *result, unsigned long *length,
 					char *null_value, char *error);
 
-PLUGIN_EXPORT my_bool version_tokens_edit_init(UDF_INIT *initid, UDF_ARGS *args,
+PLUGIN_EXPORT bool version_tokens_edit_init(UDF_INIT *initid, UDF_ARGS *args,
                                                char *message);
 PLUGIN_EXPORT char *version_tokens_edit(UDF_INIT *initid, UDF_ARGS *args,
                                         char *result, unsigned long *length,
 					char *null_value, char *error);
 
-PLUGIN_EXPORT my_bool version_tokens_delete_init(UDF_INIT *initid,
+PLUGIN_EXPORT bool version_tokens_delete_init(UDF_INIT *initid,
                                                  UDF_ARGS *args, char *message);
 PLUGIN_EXPORT char *version_tokens_delete(UDF_INIT *initid, UDF_ARGS *args,
                                           char *result, unsigned long *length,
 					  char *null_value, char *error);
-PLUGIN_EXPORT my_bool version_tokens_lock_shared_init(
+PLUGIN_EXPORT bool version_tokens_lock_shared_init(
   UDF_INIT *initid, UDF_ARGS *args, char *message);
 PLUGIN_EXPORT long long version_tokens_lock_shared(
   UDF_INIT *initid, UDF_ARGS *args, char *is_null, char *error);
-PLUGIN_EXPORT my_bool version_tokens_lock_exclusive_init(
+PLUGIN_EXPORT bool version_tokens_lock_exclusive_init(
   UDF_INIT *initid, UDF_ARGS *args, char *message);
 PLUGIN_EXPORT long long version_tokens_lock_exclusive(
   UDF_INIT *initid, UDF_ARGS *args, char *is_null, char *error);
-PLUGIN_EXPORT my_bool version_tokens_unlock_init(
+PLUGIN_EXPORT bool version_tokens_unlock_init(
   UDF_INIT *initid, UDF_ARGS *args, char *message);
 PLUGIN_EXPORT long long version_tokens_unlock(
   UDF_INIT *initid, UDF_ARGS *args, char *is_null, char *error);
@@ -423,7 +524,7 @@ static int version_token_check(MYSQL_THD thd,
   const struct mysql_event_general *event_general=
     (const struct mysql_event_general *) event;
   const uchar *command= (const uchar *) event_general->general_command.str;
-  unsigned int length= event_general->general_command.length;
+  size_t length= event_general->general_command.length;
 
   DBUG_ASSERT(event_class == MYSQL_AUDIT_GENERAL_CLASS);
 
@@ -481,6 +582,50 @@ static int version_token_check(MYSQL_THD thd,
 }
 
 
+/**
+  Helper class to dispose of the rwlocks at DLL/so unload.
+
+  We can't release the rwlock at plugin or UDF unload since we're using it
+  to synchronize both.
+
+  So we need to rely on the shared object deinitialization function to
+  dispose of lock up.
+
+  For that we declare a helper class with a destructor that disposes of the
+  global object and declare one global variable @ref cleanup_lock of that
+  class and expect the C library to call the destructor when unloading
+  the DLL/so.
+*/
+class vtoken_lock_cleanup
+{
+  atomic_boolean activated;
+public:
+  vtoken_lock_cleanup()
+  {};
+  ~vtoken_lock_cleanup()
+  {
+    if (activated.is_set())
+      mysql_rwlock_destroy(&LOCK_vtoken_hash);
+  }
+  void activate()
+  {
+    activated.set(true);
+  }
+
+  bool is_active()
+  {
+    return activated.is_set();
+  }
+};
+
+/**
+  A single global variable to invoke the destructor.
+  See @ref vtoken_lock_cleanup.
+*/
+static vtoken_lock_cleanup cleanup_lock;
+
+
+
 static struct st_mysql_audit version_token_descriptor=
 {
   MYSQL_AUDIT_INTERFACE_VERSION,                       /* interface version */
@@ -488,8 +633,6 @@ static struct st_mysql_audit version_token_descriptor=
   version_token_check,                                 /* event_notify()    */
   { (unsigned long) MYSQL_AUDIT_GENERAL_ALL, }         /* class mask        */
 };
-
-
 
 /** Plugin init. */
 static int version_tokens_init(void *arg MY_ATTRIBUTE((unused)))
@@ -505,26 +648,53 @@ static int version_tokens_init(void *arg MY_ATTRIBUTE((unused)))
                4, 0, version_token_get_key,
                my_free, HASH_UNIQUE,
                key_memory_vtoken);
+  version_tokens_hash_inited.set(true);
 
-  // Lock for hash.
-  mysql_rwlock_init(key_LOCK_vtoken_hash, &LOCK_vtoken_hash);
-  // Lock for version number.
-  return 0;
+  if (!cleanup_lock.is_active())
+  {
+    // Lock for hash.
+    mysql_rwlock_init(key_LOCK_vtoken_hash, &LOCK_vtoken_hash);
+    // Lock for version number.
+    cleanup_lock.activate();
+  }
+  bool ret= false;
+  SERVICE_TYPE(registry) *r= mysql_plugin_registry_acquire();
+  {
+    my_service<SERVICE_TYPE(dynamic_privilege_register)>
+      service("dynamic_privilege_register.mysql_server", r);
+    if (service.is_valid())
+    {
+      ret |=
+        service->register_privilege(STRING_WITH_LEN("VERSION_TOKEN_ADMIN"));
+    }
+  } // end scope
+  mysql_plugin_registry_release(r);
+  return (ret?1:0);
 }
 
 /** Plugin deinit. */
 static int version_tokens_deinit(void *arg MY_ATTRIBUTE((unused)))
 {
+  SERVICE_TYPE(registry) *r= mysql_plugin_registry_acquire();
+  {
+    my_service<SERVICE_TYPE(dynamic_privilege_register)>
+      service("dynamic_privilege_register.mysql_server", r);
+    if (service.is_valid())
+    {
+      service->unregister_privilege(STRING_WITH_LEN("VERSION_TOKEN_ADMIN"));
+    }
+  }
+  mysql_plugin_registry_release(r);
   mysql_rwlock_wrlock(&LOCK_vtoken_hash);
   if (version_tokens_hash.records)
     my_hash_reset(&version_tokens_hash);
 
   my_hash_free(&version_tokens_hash);
+  version_tokens_hash_inited.set(false);
   mysql_rwlock_unlock(&LOCK_vtoken_hash);
 
   return 0;
 }
-
 
 static struct st_mysql_sys_var* system_variables[]={
   MYSQL_SYSVAR(session_number),
@@ -553,6 +723,32 @@ mysql_declare_plugin(version_tokens)
 mysql_declare_plugin_end;
 
 
+/**
+  A function to check if the hash is inited and generate an error.
+
+  To be called while holding LOCK_vtoken_hash
+
+  @param function  the UDF function name for the error message
+  @param error     the UDF error pointer to set
+  @retval false    hash not initialized. Error set. Bail out.
+  @retval true     All good. Go on.
+*/
+
+static bool is_hash_inited(const char *function, char *error)
+{
+
+  if (!version_tokens_hash_inited.is_set())
+  {
+    my_error(ER_CANT_INITIALIZE_UDF, MYF(0), function,
+             "version_token plugin is not installed.");
+    *error= 1;
+    return false;
+  }
+  return true;
+}
+
+
+
 /*
   Below is the UDF for setting global list of version tokens.
   Input must be provided as semicolon separated tokens.
@@ -562,18 +758,18 @@ mysql_declare_plugin_end;
   VERSION_TOKENS_SET(tokens_list varchar)
 */
 
-PLUGIN_EXPORT my_bool version_tokens_set_init(UDF_INIT* initid, UDF_ARGS* args,
-                                              char* message)
+PLUGIN_EXPORT bool version_tokens_set_init(UDF_INIT*, UDF_ARGS* args,
+                                           char* message)
 {
   THD *thd= current_thd;
 
-  if (!(thd->security_context()->check_access(SUPER_ACL)))
+  if (!has_required_privileges(thd))
   {
     my_stpcpy(message, "The user is not privileged to use this function.");
     return true;
   }
 
-  if (!(my_hash_inited(&version_tokens_hash)))
+  if (!version_tokens_hash_inited.is_set())
   {
     my_stpcpy(message, "version_token plugin is not installed.");
     return true;
@@ -588,9 +784,9 @@ PLUGIN_EXPORT my_bool version_tokens_set_init(UDF_INIT* initid, UDF_ARGS* args,
   return false;
 }
 
-PLUGIN_EXPORT char *version_tokens_set(UDF_INIT *initid, UDF_ARGS *args,
+PLUGIN_EXPORT char *version_tokens_set(UDF_INIT*, UDF_ARGS *args,
                                        char *result, unsigned long *length,
-				       char *null_value, char *error)
+				       char*, char *error)
 {
   char *hash_str;
   int len= args->lengths[0];
@@ -598,6 +794,11 @@ PLUGIN_EXPORT char *version_tokens_set(UDF_INIT *initid, UDF_ARGS *args,
   std::stringstream ss;
 
   mysql_rwlock_wrlock(&LOCK_vtoken_hash);
+  if (!is_hash_inited("version_tokens_set", error))
+  {
+    mysql_rwlock_unlock(&LOCK_vtoken_hash);
+    return NULL;
+  }
   if (len > 0)
   {
     // Separate copy for values to be inserted in hash.
@@ -607,6 +808,7 @@ PLUGIN_EXPORT char *version_tokens_set(UDF_INIT *initid, UDF_ARGS *args,
     if (!hash_str)
     {
       *error= 1;
+      mysql_rwlock_unlock(&LOCK_vtoken_hash);
       return NULL;
     }
     memcpy(hash_str, args->args[0], len);
@@ -650,18 +852,18 @@ PLUGIN_EXPORT char *version_tokens_set(UDF_INIT *initid, UDF_ARGS *args,
   VERSION_TOKENS_EDIT(tokens_list varchar)
 */
 
-PLUGIN_EXPORT my_bool version_tokens_edit_init(UDF_INIT *initid, UDF_ARGS *args,
-                                               char *message)
+PLUGIN_EXPORT bool version_tokens_edit_init(UDF_INIT*, UDF_ARGS *args,
+                                            char *message)
 {
   THD *thd= current_thd;
 
-  if (!(my_hash_inited(&version_tokens_hash)))
+  if (!version_tokens_hash_inited.is_set())
   {
     my_stpcpy(message, "version_token plugin is not installed.");
     return true;
   }
 
-  if (!(thd->security_context()->check_access(SUPER_ACL)))
+  if (!has_required_privileges(thd))
   {
     my_stpcpy(message, "The user is not privileged to use this function.");
     return true;
@@ -676,9 +878,9 @@ PLUGIN_EXPORT my_bool version_tokens_edit_init(UDF_INIT *initid, UDF_ARGS *args,
   return false;
 }
 
-PLUGIN_EXPORT char *version_tokens_edit(UDF_INIT *initid, UDF_ARGS *args,
+PLUGIN_EXPORT char *version_tokens_edit(UDF_INIT*, UDF_ARGS *args,
                                         char *result, unsigned long *length,
-					char *null_value, char *error)
+					char*, char *error)
 {
   char *hash_str;
   int len= args->lengths[0];
@@ -701,6 +903,11 @@ PLUGIN_EXPORT char *version_tokens_edit(UDF_INIT *initid, UDF_ARGS *args,
 
     // Hash built with its own copy of string.
     mysql_rwlock_wrlock(&LOCK_vtoken_hash);
+    if (!is_hash_inited("version_tokens_edit", error))
+    {
+      mysql_rwlock_unlock(&LOCK_vtoken_hash);
+      return NULL;
+    }
 
     vtokens_count= parse_vtokens(hash_str, EDIT_VTOKEN);
 
@@ -729,18 +936,18 @@ PLUGIN_EXPORT char *version_tokens_edit(UDF_INIT *initid, UDF_ARGS *args,
   VERSION_TOKENS_DELETE(tokens_list varchar)
 */
 
-PLUGIN_EXPORT my_bool version_tokens_delete_init(UDF_INIT *initid,
-                                                 UDF_ARGS *args, char *message)
+PLUGIN_EXPORT bool version_tokens_delete_init(UDF_INIT*,
+                                              UDF_ARGS *args, char *message)
 {
   THD *thd= current_thd;
 
-  if (!(my_hash_inited(&version_tokens_hash)))
+  if (!version_tokens_hash_inited.is_set())
   {
     my_stpcpy(message, "version_token plugin is not installed.");
     return true;
   }
 
-  if (!(thd->security_context()->check_access(SUPER_ACL)))
+  if (!has_required_privileges(thd))
   {
     my_stpcpy(message, "The user is not privileged to use this function.");
     return true;
@@ -755,9 +962,9 @@ PLUGIN_EXPORT my_bool version_tokens_delete_init(UDF_INIT *initid,
   return false;
 }
 
-PLUGIN_EXPORT char *version_tokens_delete(UDF_INIT *initid, UDF_ARGS *args,
+PLUGIN_EXPORT char *version_tokens_delete(UDF_INIT*, UDF_ARGS *args,
                                           char *result, unsigned long *length,
-					  char *null_value, char *error)
+					  char*, char *error)
 {
   const char *arg= args->args[0];
   std::stringstream ss;
@@ -776,6 +983,11 @@ PLUGIN_EXPORT char *version_tokens_delete(UDF_INIT *initid, UDF_ARGS *args,
     }
 
     mysql_rwlock_wrlock(&LOCK_vtoken_hash);
+    if (!is_hash_inited("version_tokens_delete", error))
+    {
+      mysql_rwlock_unlock(&LOCK_vtoken_hash);
+      return NULL;
+    }
 
     token= my_strtok_r(input, separator, &lasts_token);
 
@@ -829,24 +1041,23 @@ PLUGIN_EXPORT char *version_tokens_delete(UDF_INIT *initid, UDF_ARGS *args,
   VERSION_TOKENS_SHOW()
 */
 
-PLUGIN_EXPORT my_bool version_tokens_show_init(UDF_INIT *initid, UDF_ARGS *args,
+PLUGIN_EXPORT bool version_tokens_show_init(UDF_INIT *initid, UDF_ARGS *args,
                                                char *message)
 {
   int i= 0;
   size_t str_size= 0;
   char *result_str;
   version_token_st *token_obj;
-  THD *thd= current_thd;
 
+  THD *thd= current_thd;
+  if (!has_required_privileges(thd))
+  {
+        my_stpcpy(message, "The user is not privileged to use this function.");
+        return true;
+  }
   if (!(my_hash_inited(&version_tokens_hash)))
   {
     my_stpcpy(message, "version_token plugin is not installed.");
-    return true;
-  }
-
-  if (!(thd->security_context()->check_access(SUPER_ACL)))
-  {
-    my_stpcpy(message, "The user is not privileged to use this function.");
     return true;
   }
 
@@ -857,6 +1068,12 @@ PLUGIN_EXPORT my_bool version_tokens_show_init(UDF_INIT *initid, UDF_ARGS *args,
   }
 
   mysql_rwlock_rdlock(&LOCK_vtoken_hash);
+  if (!version_tokens_hash_inited.is_set())
+  {
+    my_stpcpy(message, "version_token plugin is not installed.");
+    mysql_rwlock_unlock(&LOCK_vtoken_hash);
+    return true;
+  }
 
   str_size= vtoken_string_length;
 
@@ -869,6 +1086,7 @@ PLUGIN_EXPORT my_bool version_tokens_show_init(UDF_INIT *initid, UDF_ARGS *args,
     if (initid->ptr == NULL)
     {
       my_stpcpy(message, "Not enough memory available.");
+      mysql_rwlock_unlock(&LOCK_vtoken_hash);
       return true;
     }
 
@@ -912,9 +1130,9 @@ PLUGIN_EXPORT void version_tokens_show_deinit(UDF_INIT *initid)
     my_free(initid->ptr);
 }
 
-PLUGIN_EXPORT char *version_tokens_show(UDF_INIT *initid, UDF_ARGS *args,
-                                        char *result, unsigned long *length,
-					char *null_value, char *error)
+PLUGIN_EXPORT char *version_tokens_show(UDF_INIT *initid, UDF_ARGS*,
+                                        char*, unsigned long *length,
+					char*, char*)
 {
   char *result_str= initid->ptr;
   *length= 0;
@@ -927,7 +1145,7 @@ PLUGIN_EXPORT char *version_tokens_show(UDF_INIT *initid, UDF_ARGS *args,
   return result_str;
 }
 
-static inline my_bool init_acquire(UDF_INIT *initid, UDF_ARGS *args, char *message)
+static inline bool init_acquire(UDF_INIT *initid, UDF_ARGS *args, char *message)
 {
   initid->maybe_null= FALSE;
   initid->decimals= 0;
@@ -937,8 +1155,7 @@ static inline my_bool init_acquire(UDF_INIT *initid, UDF_ARGS *args, char *messa
   initid->extension= NULL;
 
   THD *thd= current_thd;
-
-  if (!(thd->security_context()->check_access(SUPER_ACL)))
+  if (!has_required_privileges(thd))
   {
     my_stpcpy(message, "The user is not privileged to use this function.");
     return true;
@@ -972,15 +1189,15 @@ static inline my_bool init_acquire(UDF_INIT *initid, UDF_ARGS *args, char *messa
   return FALSE;
 }
 
-PLUGIN_EXPORT my_bool version_tokens_lock_shared_init(
+PLUGIN_EXPORT bool version_tokens_lock_shared_init(
   UDF_INIT *initid, UDF_ARGS *args, char *message)
 {
   return init_acquire(initid, args, message);
 }
 
 
-PLUGIN_EXPORT long long version_tokens_lock_shared(
-  UDF_INIT *initid, UDF_ARGS *args, char *is_null, char *error)
+PLUGIN_EXPORT long long version_tokens_lock_shared(UDF_INIT*, UDF_ARGS *args,
+                                                   char*, char *error)
 {
   long long timeout=
     args->args[args->arg_count - 1] ?                      // Null ?
@@ -1001,15 +1218,15 @@ PLUGIN_EXPORT long long version_tokens_lock_shared(
 }
 
 
-PLUGIN_EXPORT my_bool version_tokens_lock_exclusive_init(
+PLUGIN_EXPORT bool version_tokens_lock_exclusive_init(
   UDF_INIT *initid, UDF_ARGS *args, char *message)
 {
   return init_acquire(initid, args, message);
 }
 
 
-PLUGIN_EXPORT long long version_tokens_lock_exclusive(
-  UDF_INIT *initid, UDF_ARGS *args, char *is_null, char *error)
+PLUGIN_EXPORT long long version_tokens_lock_exclusive(UDF_INIT*, UDF_ARGS *args,
+                                                      char*, char *error)
 {
   long long timeout=
     args->args[args->arg_count - 1] ?                      // Null ?
@@ -1029,12 +1246,12 @@ PLUGIN_EXPORT long long version_tokens_lock_exclusive(
 					LOCKING_SERVICE_WRITE, (unsigned long) timeout);
 }
 
-PLUGIN_EXPORT my_bool version_tokens_unlock_init(
-  UDF_INIT *initid, UDF_ARGS *args, char *message)
+PLUGIN_EXPORT bool version_tokens_unlock_init(UDF_INIT*, UDF_ARGS *args,
+                                              char *message)
 {
   THD *thd= current_thd;
 
-  if (!(thd->security_context()->check_access(SUPER_ACL)))
+  if (!has_required_privileges(thd))
   {
     my_stpcpy(message, "The user is not privileged to use this function.");
     return true;
@@ -1049,9 +1266,8 @@ PLUGIN_EXPORT my_bool version_tokens_unlock_init(
   return FALSE;
 }
 
-
-long long version_tokens_unlock(UDF_INIT *initid, UDF_ARGS *args,
-                                             char *is_null, char *error)
+long long version_tokens_unlock(UDF_INIT*, UDF_ARGS*,
+                                char*, char*)
 {
   // For the UDF 1 == success, 0 == failure.
   return !release_locking_service_locks(NULL, VTOKEN_LOCKS_NAMESPACE);

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -119,23 +119,20 @@ InnoDB:
 #ifndef ut0new_h
 #define ut0new_h
 
+#include <errno.h>
+#include <stddef.h>
+#include <stdlib.h> /* malloc() */
+#include <string.h> /* strlen(), strrchr(), strncmp() */
 #include <algorithm> /* std::min() */
 #include <limits> /* std::numeric_limits */
 #include <map> /* std::map */
 
-#include <stddef.h>
-#include <stdlib.h> /* malloc() */
-#include <string.h> /* strlen(), strrchr(), strncmp() */
-
-#include "my_global.h" /* needed for headers from mysql/psi/ */
 #include "mysql/psi/mysql_memory.h" /* PSI_MEMORY_CALL() */
 #include "mysql/psi/psi_base.h" /* PSI_NOT_INSTRUMENTED */
 #include "mysql/psi/psi_memory.h" /* PSI_memory_key, PSI_memory_info */
-
-#include "univ.i"
-
 #include "os0proc.h" /* os_mem_alloc_large() */
 #include "os0thread.h" /* os_thread_sleep() */
+#include "univ.i"
 #include "ut0ut.h" /* ut_strcmp_functor, ut_basename_noext() */
 
 #define	OUT_OF_MEMORY_MSG \
@@ -171,6 +168,7 @@ extern PSI_memory_key	mem_key_row_log_buf;
 extern PSI_memory_key	mem_key_row_merge_sort;
 extern PSI_memory_key	mem_key_std;
 extern PSI_memory_key	mem_key_trx_sys_t_rw_trx_ids;
+extern PSI_memory_key	mem_key_trx_sys_t_rsegs;
 extern PSI_memory_key	mem_key_ut_lock_free_hash_t;
 /* Please obey alphabetical order in the definitions above. */
 

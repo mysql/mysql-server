@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -35,16 +35,34 @@ Created 9/11/1995 Heikki Tuuri
 
 #include "univ.i"
 #ifndef UNIV_HOTBACKUP
-#include "ut0counter.h"
+#include "my_compiler.h"
 #include "os0event.h"
+#include "ut0counter.h"
 #include "ut0mutex.h"
 
 #endif /* !UNIV_HOTBACKUP */
 
+struct rw_lock_t;
+
 #ifdef UNIV_LIBRARY
 
 #ifdef UNIV_DEBUG
-#define rw_lock_own(A, B)			(A)
+
+/**
+Pass-through version of rw_lock_own(), which normally checks that the
+thread has locked the rw-lock in the specified mode.
+@param[in]	rw-lock		pointer to rw-lock
+@param[in]	lock type	lock type: RW_LOCK_S, RW_LOCK_X
+@return TRUE if success */
+UNIV_INLINE
+bool
+rw_lock_own(
+	rw_lock_t*	lock,
+	ulint		lock_type)
+{
+	return lock != nullptr;
+}
+
 #define sync_check_iterate(A)			true
 #endif /* UNIV_DEBUG */
 
@@ -124,8 +142,6 @@ of concurrent read locks before the rw_lock breaks. */
 /* We decrement lock_word by X_LOCK_HALF_DECR for sx_lock. */
 #define X_LOCK_DECR		0x20000000
 #define X_LOCK_HALF_DECR	0x10000000
-
-struct rw_lock_t;
 
 #ifdef UNIV_DEBUG
 struct rw_lock_debug_t;
@@ -794,7 +810,7 @@ function!
 UNIV_INLINE
 void
 pfs_rw_lock_create_func(
-	PSI_rwlock_key  key,
+	mysql_pfs_key_t	key,
 	rw_lock_t*	lock,
 #ifdef UNIV_DEBUG
 	latch_level_t	level,

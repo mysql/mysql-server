@@ -1,0 +1,72 @@
+#
+# ==== Purpose ====
+#
+# This test asserts that the information regarding the replication timestamps
+# is displayed correctly when the system is running with MTS disabled.
+#
+# ==== Implementation ====
+#
+# Five transaction types are tested:
+#  - create table
+#  - insert
+#  - update
+#  - delete
+#  - drop table
+# For each statement, the test asserts that the information concerning the
+# transaction that is currently being processed matches what is expected
+# before and after each of the following replication stages is completed for
+# that transaction:
+#  1) The connection thread queues the transaction to be applied by the applier
+#     thread (table: performance_schema.replication_connection_status)
+#  2) The applier thread applies the transaction
+#     (table: performance_schema.replication_applier_status_by_worker)
+#
+# The second part of the test checks if the table
+# performance_schema.replication_applier_status_by_worker displays the correct
+# information when the slave cannot apply a transaction due to an error.
+# Two types of transactions are tested: DDL (DROP table) and DML (insert). After
+# the slave fails applying each transaction, the test verifies that
+# last_applied_transaction still shows the last transaction applied before the
+# failed one, and also that applying_transaction was cleared.
+# Also check that when an STS slave is restarted with MTS enabled, the table
+# performance_schema.replication_applier_status_by_coordinator shows the
+# appropriate information.
+#
+# ==== References ====
+#
+# WL#7374 Performance schema tables to monitor replication lags and queue
+
+--source include/not_mts_slave_parallel_workers.inc
+# the test is binlog-format agnostic
+--source include/have_binlog_format_row.inc
+--source include/have_debug_sync.inc
+--source include/master-slave.inc
+
+--let $is_mts= 0
+
+--source extra/rpl_tests/rpl_ps_connection_applier_status.inc
+
+--source extra/rpl_tests/rpl_ps_connection_applier_status_by_worker_failed_trx.inc
+
+# check if transaction information in the the coordinator ps schema table was
+# reset when restarting an STS slave with MTS enabled.
+--source include/rpl_connection_slave.inc
+--source include/stop_slave.inc
+SET GLOBAL slave_parallel_workers= 4;
+--source include/start_slave.inc
+
+--let $processing_gtid_= query_get_value(SELECT PROCESSING_TRANSACTION FROM performance_schema.replication_applier_status_by_coordinator, PROCESSING_TRANSACTION, 1)
+--let $assert_text= processing_gtid is cleared when a former STS slave restarts with MTS enabled
+--let $assert_cond= "$processing_gtid" = ""
+--source include/assert.inc
+
+--let $last_processed_gtid= query_get_value(SELECT LAST_PROCESSED_TRANSACTION FROM performance_schema.replication_applier_status_by_coordinator, LAST_PROCESSED_TRANSACTION, 1)
+--let $assert_text= last_processed_gtid is cleared when a former STS slave restarts with MTS enabled
+--let $assert_cond= "$last_processed_gtid" = ""
+--source include/assert.inc
+
+#cleanup
+--source include/stop_slave.inc
+SET GLOBAL slave_parallel_workers= 0;
+--source include/start_slave.inc
+--source include/rpl_end.inc

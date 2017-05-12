@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@
 #include <Configuration.hpp>
 #include <kernel_types.h>
 #include <NdbOut.hpp>
-#include <NdbMem.h>
+#include <portlib/NdbMem.h>
 #include <NdbTick.h>
 #include <util/ConfigValues.hpp>
 
@@ -204,6 +204,12 @@ void Cmvmi::execNDB_TAMPER(Signal* signal)
   if(ERROR_INSERTED(9995)){
     simulate_error_during_shutdown= SIGSEGV;
     kill(getpid(), SIGABRT);
+  }
+
+  if(ERROR_INSERTED(9006)){
+    g_eventLogger->info("Activating error 9006 for SEGV of all nodes");
+    int *invalid_ptr = (int*) 123;
+    printf("%u", *invalid_ptr); // SEGV
   }
 #endif
 
@@ -1228,8 +1234,8 @@ void Cmvmi::execTAMPER_ORD(Signal* signal)
   }
   else if (errNo < 12000)
   {
-    // DBUTIL_REF ?
     jam();
+    tuserblockref = PGMAN_REF;
   }
   else if (errNo < 13000)
   {
@@ -1265,6 +1271,11 @@ void Cmvmi::execTAMPER_ORD(Signal* signal)
   {
     jam();
     tuserblockref = TRIX_REF;
+  }
+  else if (errNo < 20000)
+  {
+    jam();
+    tuserblockref = DBUTIL_REF;
   }
   else if (errNo < 30000)
   {
@@ -1947,7 +1958,7 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
 #endif
 #endif
 
-  if (arg == 9999)
+  if (arg == 9999 || arg == 9006)
   {
     Uint32 delay = 1000;
     switch(signal->getLength()){
@@ -1963,8 +1974,7 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
       break;
     }
     }
-    
-    signal->theData[0] = 9999;
+    signal->theData[0] = arg;
     if (delay == 0)
     {
       execNDB_TAMPER(signal);

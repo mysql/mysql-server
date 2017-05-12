@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -16,13 +16,14 @@
 #ifndef PFS_BUILTIN_MEMORY_H
 #define PFS_BUILTIN_MEMORY_H
 
-#include "my_global.h"
+#include <sys/types.h>
+
 #include "pfs_global.h"
 #include "pfs_instr_class.h"
 
 /**
   @file storage/perfschema/pfs_builtin_memory.h
-  Performance schema instruments meta data (declarations).
+  Performance schema instruments metadata (declarations).
 */
 
 typedef uint PFS_builtin_memory_key;
@@ -32,12 +33,14 @@ struct PFS_builtin_memory_class
   PFS_memory_class m_class;
   PFS_memory_stat m_stat;
 
-  inline void count_alloc(size_t size)
+  inline void
+  count_alloc(size_t size)
   {
     m_stat.count_builtin_alloc(size);
   }
 
-  inline void count_free(size_t size)
+  inline void
+  count_free(size_t size)
   {
     m_stat.count_builtin_free(size);
   }
@@ -88,7 +91,8 @@ extern PFS_builtin_memory_class builtin_memory_thread_waits_history;
 extern PFS_builtin_memory_class builtin_memory_thread_stages_history;
 extern PFS_builtin_memory_class builtin_memory_thread_statements_history;
 extern PFS_builtin_memory_class builtin_memory_thread_statements_history_tokens;
-extern PFS_builtin_memory_class builtin_memory_thread_statements_history_sqltext;
+extern PFS_builtin_memory_class
+  builtin_memory_thread_statements_history_sqltext;
 extern PFS_builtin_memory_class builtin_memory_thread_statements_stack;
 extern PFS_builtin_memory_class builtin_memory_thread_statements_stack_tokens;
 extern PFS_builtin_memory_class builtin_memory_thread_statements_stack_sqltext;
@@ -138,4 +142,3 @@ extern PFS_builtin_memory_class builtin_memory_scalable_buffer;
 
 /** @} */
 #endif
-

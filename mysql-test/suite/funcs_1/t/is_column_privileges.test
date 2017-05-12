@@ -20,7 +20,6 @@
 # privileges.
 --source include/not_embedded.inc
 
---source include/have_innodb.inc
 let $engine_type       = InnoDB;
 let $other_engine_type = InnoDB;
 

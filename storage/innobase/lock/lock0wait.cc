@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -25,16 +25,20 @@ Created 25/5/2010 Sunny Bains
 
 #define LOCK_MODULE_IMPLEMENTATION
 
-#include "ha_prototypes.h"
 #include <mysql/service_thd_wait.h>
+#include <sys/types.h>
+#include <time.h>
 
-#include "srv0mon.h"
-#include "que0que.h"
+#include "ha_prototypes.h"
 #include "lock0lock.h"
-#include "row0mysql.h"
-#include "srv0start.h"
 #include "lock0priv.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
 #include "os0thread-create.h"
+#include "que0que.h"
+#include "row0mysql.h"
+#include "srv0mon.h"
+#include "srv0start.h"
 
 /*********************************************************************//**
 Print the contents of the lock_sys_t::waiting_threads array. */

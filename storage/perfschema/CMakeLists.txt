@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 #
 # This program is free software; you can redistribute it and/or modify
@@ -18,14 +18,11 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}
                     ${CMAKE_SOURCE_DIR}/include
                     ${CMAKE_SOURCE_DIR}/sql
                     ${CMAKE_BINARY_DIR}/sql
-                    ${CMAKE_SOURCE_DIR}/regex
+                    ${CMAKE_SOURCE_DIR}/extra/regex
                     ${CMAKE_SOURCE_DIR}/extra/yassl/include
                     ${SSL_INCLUDE_DIRS})
 
 ADD_DEFINITIONS(-DMYSQL_SERVER)
-IF (SSL_DEFINES)
-  ADD_DEFINITIONS(${SSL_DEFINES})
-ENDIF()
 
 #
 # Maintainer: keep this list sorted, to avoid merge collisions.
@@ -55,6 +52,7 @@ pfs_events_statements.h
 pfs_events_transactions.h
 pfs_events_waits.h
 pfs_global.h
+pfs_histogram.h
 pfs_host.h
 pfs_instr.h
 pfs_instr_class.h
@@ -78,6 +76,8 @@ table_esgs_by_host_by_event_name.h
 table_esgs_by_thread_by_event_name.h
 table_esgs_by_user_by_event_name.h
 table_esgs_global_by_event_name.h
+table_esmh_global.h
+table_esmh_by_digest.h
 table_esms_by_account_by_event_name.h
 table_esms_by_host_by_event_name.h
 table_esms_by_digest.h
@@ -108,6 +108,8 @@ table_ews_by_user_by_event_name.h
 table_ews_global_by_event_name.h
 table_file_instances.h
 table_md_locks.h
+table_data_locks.h
+table_data_lock_waits.h
 table_mems_global_by_event_name.h
 table_mems_by_account_by_event_name.h
 table_mems_by_host_by_event_name.h
@@ -138,6 +140,7 @@ table_session_status.h
 table_variables_by_thread.h
 table_global_variables.h
 table_session_variables.h
+table_persisted_variables.h
 table_table_handles.h
 table_threads.h
 table_tiws_by_index_usage.h
@@ -158,6 +161,8 @@ table_replication_applier_status.h
 table_replication_applier_status_by_coordinator.h
 table_replication_applier_status_by_worker.h
 table_replication_group_member_stats.h
+table_replication_applier_filters.h
+table_replication_applier_global_filters.h
 cursor_by_account.cc
 cursor_by_host.cc
 cursor_by_thread.cc
@@ -172,6 +177,7 @@ pfs_check.cc
 pfs_column_types.cc
 pfs_column_values.cc
 pfs_con_slice.cc
+pfs_data_lock.cc
 pfs_defaults.cc
 pfs_digest.cc
 pfs_engine_table.cc
@@ -181,6 +187,7 @@ pfs_events_statements.cc
 pfs_events_transactions.cc
 pfs_events_waits.cc
 pfs_global.cc
+pfs_histogram.cc
 pfs_host.cc
 pfs_instr.cc
 pfs_instr_class.cc
@@ -202,6 +209,8 @@ table_esgs_by_host_by_event_name.cc
 table_esgs_by_thread_by_event_name.cc
 table_esgs_by_user_by_event_name.cc
 table_esgs_global_by_event_name.cc
+table_esmh_global.cc
+table_esmh_by_digest.cc
 table_esms_by_account_by_event_name.cc
 table_esms_by_host_by_event_name.cc
 table_esms_by_digest.cc
@@ -232,6 +241,8 @@ table_ews_by_user_by_event_name.cc
 table_ews_global_by_event_name.cc
 table_file_instances.cc
 table_md_locks.cc
+table_data_locks.cc
+table_data_lock_waits.cc
 table_mems_global_by_event_name.cc
 table_mems_by_account_by_event_name.cc
 table_mems_by_host_by_event_name.cc
@@ -262,6 +273,7 @@ table_session_status.cc
 table_variables_by_thread.cc
 table_global_variables.cc
 table_session_variables.cc
+table_persisted_variables.cc
 table_table_handles.cc
 table_threads.cc
 table_tiws_by_index_usage.cc
@@ -282,9 +294,11 @@ table_replication_applier_status.cc
 table_replication_applier_status_by_coordinator.cc
 table_replication_applier_status_by_worker.cc
 table_replication_group_member_stats.cc
+table_replication_applier_filters.cc
+table_replication_applier_global_filters.cc
 )
 
-MYSQL_ADD_PLUGIN(perfschema ${PERFSCHEMA_SOURCES} STORAGE_ENGINE MANDATORY STATIC_ONLY RECOMPILE_FOR_EMBEDDED)
+MYSQL_ADD_PLUGIN(perfschema ${PERFSCHEMA_SOURCES} STORAGE_ENGINE MANDATORY STATIC_ONLY)
 IF(WITH_PERFSCHEMA_STORAGE_ENGINE AND WITH_UNIT_TESTS)
   ENABLE_TESTING()
   ADD_SUBDIRECTORY(unittest)
@@ -309,6 +323,8 @@ OPTION(DISABLE_PSI_STATEMENT_DIGEST "Exclude the performance schema statement di
 OPTION(DISABLE_PSI_METADATA "Exclude the performance schema metadata instrumentation" OFF)
 OPTION(DISABLE_PSI_MEMORY "Exclude the performance schema memory instrumentation" OFF)
 OPTION(DISABLE_PSI_TRANSACTION "Exclude the performance schema transaction instrumentation" OFF)
+OPTION(DISABLE_PSI_ERROR "Exclude the performance schema server error instrumentation" OFF)
+OPTION(DISABLE_PSI_DATA_LOCK "Exclude the performance schema data lock instrumentation" OFF)
 
 MARK_AS_ADVANCED(DISABLE_PSI_THREAD)
 
@@ -327,4 +343,6 @@ MARK_AS_ADVANCED(DISABLE_PSI_STATEMENT_DIGEST)
 MARK_AS_ADVANCED(DISABLE_PSI_METADATA)
 MARK_AS_ADVANCED(DISABLE_PSI_MEMORY)
 MARK_AS_ADVANCED(DISABLE_PSI_TRANSACTION)
+MARK_AS_ADVANCED(DISABLE_PSI_ERROR)
+MARK_AS_ADVANCED(DISABLE_PSI_DATA_LOCK)
 

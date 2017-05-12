@@ -2,7 +2,6 @@
 --echo # Bug #21025880	DUPLICATE UK VALUES IN READ-COMMITTED(AGAIN)
 --echo #
 
---source include/have_innodb.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 

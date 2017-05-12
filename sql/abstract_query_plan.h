@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,13 +18,18 @@
 #ifndef ABSTRACT_QUERY_PLAN_H_INCLUDED
 #define ABSTRACT_QUERY_PLAN_H_INCLUDED
 
-#include "my_global.h"      // uint
-#include "item_cmpfunc.h"   // Item_equal_iterator
+#include <sys/types.h>
 
-struct TABLE;
-class JOIN;
+#include "item_cmpfunc.h"   // Item_equal_iterator
+#include "my_dbug.h"
+#include "sql_alloc.h"
+
 class Item;
 class Item_field;
+class JOIN;
+class KEY_PART_INFO;
+class QEP_TAB;
+struct TABLE;
 
 /**
   Abstract query plan (AQP) is an interface for examining certain aspects of 

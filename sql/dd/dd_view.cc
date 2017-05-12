@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,29 +13,56 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "dd_view.h"
+#include "sql/dd/dd_view.h"
 
-#include "dd_table_share.h"                   // dd_get_mysql_charset
-#include "item_func.h"                        // Item_func
-#include "log.h"                              // sql_print_error, sql_print_..
-#include "parse_file.h"                       // PARSE_FILE_TIMESTAMPLENGTH
-#include "sql_class.h"                        // THD
-#include "sql_tmp_table.h"                    // create_tmp_field
-#include "transaction.h"                      // trans_commit
-#include "sp_head.h"                          // sp_name
-#include "sp.h"                               // Sroutine_hash_entry
+#include <string.h>
+#include <sys/types.h>
+#include <time.h>
+#include <memory>
+#include <string>
 
+#include "binary_log_types.h"
+#include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
 #include "dd/dd.h"                            // dd::get_dictionary
 #include "dd/dd_table.h"                      // fill_dd_columns_from_create_*
 #include "dd/dictionary.h"                    // dd::Dictionary
-#include "dd/properties.h"                    // dd::Properties
-#include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
 #include "dd/impl/dictionary_impl.h"          // default_catalog_name
+#include "dd/properties.h"                    // dd::Properties
 #include "dd/types/abstract_table.h"          // dd::enum_table_type
 #include "dd/types/schema.h"                  // dd::Schema
 #include "dd/types/view.h"                    // dd::View
-#include "dd/types/view_table.h"              // dd::View_table
 #include "dd/types/view_routine.h"            // dd::View_routine
+#include "dd/types/view_table.h"              // dd::View_table
+#include "dd_table_share.h"                   // dd_get_mysql_charset
+#include "field.h"
+#include "handler.h"
+#include "item.h"
+#include "item_func.h"                        // Item_func
+#include "key.h"
+#include "lex_string.h"
+#include "log.h"                              // sql_print_error, sql_print_..
+#include "mdl.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
+#include "mysql/psi/mysql_statement.h"
+#include "mysql_com.h"
+#include "mysql_time.h"                       // MYSQL_TIME
+#include "mysqld_error.h"
+#include "parse_file.h"                       // PARSE_FILE_TIMESTAMPLENGTH
+#include "session_tracker.h"
+#include "sp.h"                               // Sroutine_hash_entry
+#include "sp_head.h"                          // sp_name
+#include "sql_class.h"                        // THD
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_plugin_ref.h"
+#include "sql_security_ctx.h"
+#include "sql_tmp_table.h"                    // create_tmp_field
+#include "system_variables.h"
+#include "table.h"
+#include "transaction.h"                      // trans_commit
+#include "tztime.h"                           // Time_zone
 
 namespace dd {
 
@@ -238,10 +265,10 @@ static bool fill_dd_view_columns(THD *thd,
   // reuse them for all the fields.
   TABLE table;
   TABLE_SHARE share;
-  init_tmp_table_share(thd, &share, "", 0, "", "");
+  init_tmp_table_share(thd, &share, "", 0, "", "", nullptr);
   memset(&table, 0, sizeof(table));
   table.s= &share;
-  handler *file= get_new_handler(&share, thd->mem_root,
+  handler *file= get_new_handler(&share, false, thd->mem_root,
                                  ha_default_temp_handlerton(thd));
   if (file == nullptr)
   {
@@ -251,12 +278,16 @@ static bool fill_dd_view_columns(THD *thd,
 
   Context_handler ctx_handler(thd, file);
 
+  const dd::Properties &names_dict= view_obj->column_names();
+
   // Iterate through all the items of first SELECT_LEX of the view query.
   Item *item;
   List<Create_field> create_fields;
   List_iterator_fast<Item> it(thd->lex->select_lex->item_list);
+  uint i= 0;
   while ((item= it++) != nullptr)
   {
+    i++;
     bool is_sp_func_item= false;
     // Create temporary Field object from the item.
     Field *tmp_field;
@@ -286,7 +317,7 @@ static bool fill_dd_view_columns(THD *thd,
       }
       else
       {
-        switch (item->field_type())
+        switch (item->data_type())
         {
         case MYSQL_TYPE_TINY_BLOB:
         case MYSQL_TYPE_MEDIUM_BLOB:
@@ -342,6 +373,18 @@ static bool fill_dd_view_columns(THD *thd,
 
     if (is_sp_func_item)
       cr_field->field_name= item->item_name.ptr();
+    if (!names_dict.empty())                     // Explicit names were provided
+    {
+      std::string i_s= std::to_string(i);
+      String_type value=
+        names_dict.value(String_type(i_s.begin(), i_s.end()));
+      char *name= static_cast<char*>(strmake_root(thd->mem_root, value.c_str(),
+                                                  value.length()));
+      if (!name)
+        DBUG_RETURN(true);                      /* purecov: inspected */
+      cr_field->field_name= name;
+    }
+
     cr_field->after= nullptr;
     cr_field->offset= 0;
     cr_field->pack_length_override= 0;
@@ -432,10 +475,10 @@ static void fill_dd_view_tables(View *view_obj, const TABLE_LIST *view,
     view_table_obj->set_table_catalog(Dictionary_impl::default_catalog_name());
 
     // View table schema
-    view_table_obj->set_table_schema(std::string(db_name.str, db_name.length));
+    view_table_obj->set_table_schema(String_type(db_name.str, db_name.length));
 
     // View table name
-    view_table_obj->set_table_name(std::string(table_name.str,
+    view_table_obj->set_table_name(String_type(table_name.str,
                                                table_name.length));
   }
 
@@ -468,60 +511,41 @@ static void fill_dd_view_routines(
     view_sf_obj->set_routine_catalog(Dictionary_impl::default_catalog_name());
 
     // View routine schema
-    view_sf_obj->set_routine_schema(std::string(sf.m_db.str, sf.m_db.length));
+    view_sf_obj->set_routine_schema(String_type(sf.m_db.str, sf.m_db.length));
 
     // View routine name
-    view_sf_obj->set_routine_name(std::string(sf.m_name.str, sf.m_name.length));
+    view_sf_obj->set_routine_name(String_type(sf.m_name.str, sf.m_name.length));
   }
 
   DBUG_VOID_RETURN;
 }
 
 
-bool create_view(THD *thd,
-                 TABLE_LIST *view,
-                 const char *schema_name,
-                 const char *view_name)
+/**
+  Method to fill view information in the View object.
+
+  @param  thd          Thread handle.
+  @param  view_obj     DD view object.
+  @param  view         View description.
+
+  @retval false        On success.
+  @retval true         On failure.
+*/
+
+static bool fill_dd_view_definition(THD *thd, View *view_obj,
+                                    TABLE_LIST *view)
 {
-  dd::cache::Dictionary_client *client= thd->dd_client();
-
-  // Check if the schema exists.
-  dd::cache::Dictionary_client::Auto_releaser releaser(client);
-  const dd::Schema *sch_obj= nullptr;
-  if (client->acquire<dd::Schema>(schema_name, &sch_obj))
-  {
-    // Error is reported by the dictionary subsystem.
-    return true;
-  }
-
-  if (!sch_obj)
-  {
-    my_error(ER_BAD_DB_ERROR, MYF(0), schema_name);
-    return true;
-  }
-
-  // Create dd::View object.
-  std::unique_ptr<dd::View> view_obj;
-  if (dd::get_dictionary()->is_system_view_name(schema_name, view_name))
-  {
-    view_obj.reset(sch_obj->create_system_view(thd));
-  }
-  else
-  {
-    view_obj.reset(sch_obj->create_view(thd));
-  }
-
-  // View name.
-  view_obj->set_name(view_name);
+   // View name.
+  view_obj->set_name(view->table_name);
 
   // Set definer.
   view_obj->set_definer(view->definer.user.str, view->definer.host.str);
 
   // View definition.
-  view_obj->set_definition(std::string(view->select_stmt.str,
+  view_obj->set_definition(String_type(view->select_stmt.str,
                                        view->select_stmt.length));
 
-  view_obj->set_definition_utf8(std::string(view->view_body_utf8.str,
+  view_obj->set_definition_utf8(String_type(view->view_body_utf8.str,
                                             view->view_body_utf8.length));
 
   // Set updatable.
@@ -566,6 +590,18 @@ bool create_view(THD *thd,
 
   view_obj->set_connection_collation_id(collation->number);
 
+  if (view->derived_column_names())
+  {
+    dd::Properties &names_dict= view_obj->column_names();
+    uint i= 0;
+    for (auto name : *view->derived_column_names())
+    {
+      std::string i_s= std::to_string(++i);
+      names_dict.set(String_type(i_s.begin(), i_s.end()),
+                     String_type(name.str, name.length));
+    }
+  }
+
   time_t tm= my_time(0);
   get_date(view->timestamp.str,
            GETDATE_DATE_TIME|GETDATE_GMT|GETDATE_FIXEDLENGTH,
@@ -573,55 +609,81 @@ bool create_view(THD *thd,
   view->timestamp.length= PARSE_FILE_TIMESTAMPLENGTH;
 
   dd::Properties *view_options= &view_obj->options();
-  view_options->set("timestamp", std::string(view->timestamp.str,
+  view_options->set("timestamp", String_type(view->timestamp.str,
                                              view->timestamp.length));
   view_options->set_bool("view_valid", true);
 
   // Fill view columns information in View object.
-  if (fill_dd_view_columns(thd, view_obj.get(), view))
+  if (fill_dd_view_columns(thd, view_obj, view))
     return true;
 
   // Fill view tables information in View object.
-  fill_dd_view_tables(view_obj.get(), view, thd->lex->query_tables);
+  fill_dd_view_tables(view_obj, view, thd->lex->query_tables);
 
   // Fill view routines information in View object.
-  fill_dd_view_routines(view_obj.get(), &thd->lex->sroutines_list);
+  fill_dd_view_routines(view_obj, &thd->lex->sroutines_list);
 
-  Disable_gtid_state_update_guard disabler(thd);
-
-  // Store info in DD views table.
-  if (client->store(view_obj.get()))
-  {
-    trans_rollback_stmt(thd);
-    // Full rollback in case we have THD::transaction_rollback_request.
-    trans_rollback(thd);
-    return true;
-  }
-
-  return trans_commit_stmt(thd) ||
-         trans_commit(thd);
+  return false;
 }
 
 
-void read_view(TABLE_LIST *view,
+bool update_view(THD *thd, dd::View *new_view, TABLE_LIST *view)
+{
+  // Clear the columns, tables and routines since it will be added later.
+  new_view->remove_children();
+
+  // Get statement start time.
+  MYSQL_TIME curtime;
+  thd->variables.time_zone->gmt_sec_to_TIME(&curtime,
+                                            thd->query_start_in_secs());
+  ulonglong ull_curtime= TIME_to_ulonglong_datetime(&curtime);
+  // Set last altered time.
+  new_view->set_last_altered(ull_curtime);
+
+  if (fill_dd_view_definition(thd, new_view, view))
+    return true;
+
+  // Update DD tables.
+  return thd->dd_client()->update(new_view);
+}
+
+
+bool create_view(THD *thd, const dd::Schema &schema, TABLE_LIST *view)
+{
+  // Create dd::View object.
+  std::unique_ptr<dd::View> view_obj;
+  if (dd::get_dictionary()->is_system_view_name(view->db, view->table_name))
+    view_obj.reset(schema.create_system_view(thd));
+  else
+    view_obj.reset(schema.create_view(thd));
+
+  if (fill_dd_view_definition(thd, view_obj.get(), view))
+    return true;
+
+  // Store info in DD views table.
+  return thd->dd_client()->store(view_obj.get());
+}
+
+
+bool read_view(TABLE_LIST *view,
                const dd::View &view_obj,
                MEM_ROOT *mem_root)
 {
   // Fill TABLE_LIST 'view' with view details.
-  std::string definer_user= view_obj.definer_user();
+  String_type definer_user= view_obj.definer_user();
   view->definer.user.length= definer_user.length();
   view->definer.user.str= (char*) strmake_root(mem_root,
                                                definer_user.c_str(),
                                                definer_user.length());
 
-  std::string definer_host= view_obj.definer_host();
+  String_type definer_host= view_obj.definer_host();
   view->definer.host.length= definer_host.length();
   view->definer.host.str= (char*) strmake_root(mem_root,
                                                definer_host.c_str(),
                                                definer_host.length());
 
   // View definition body.
-  std::string vd_utf8= view_obj.definition_utf8();
+  String_type vd_utf8= view_obj.definition_utf8();
   view->view_body_utf8.length= vd_utf8.length();
   view->view_body_utf8.str= (char*) strmake_root(mem_root,
                                                  vd_utf8.c_str(),
@@ -644,7 +706,7 @@ void read_view(TABLE_LIST *view,
     (view_obj.type() == dd::enum_table_type::SYSTEM_VIEW);
 
   // Get definition.
-  std::string view_definition= view_obj.definition();
+  String_type view_definition= view_obj.definition();
   view->select_stmt.length= view_definition.length();
   view->select_stmt.str= (char*) strmake_root(mem_root,
                                          view_definition.c_str(),
@@ -661,35 +723,71 @@ void read_view(TABLE_LIST *view,
   DBUG_ASSERT(collation);
   view->view_connection_cl_name.length= strlen(collation->name);
   view->view_connection_cl_name.str= strdup_root(mem_root, collation->name);
+
+  if (!(view->definer.user.str && view->definer.host.str && // OOM
+        view->view_body_utf8.str && view->select_stmt.str &&
+        view->view_client_cs_name.str && view->view_connection_cl_name.str))
+    return true;                                /* purecov: inspected */
+
+  const dd::Properties &names_dict= view_obj.column_names();
+  if (!names_dict.empty())                     // Explicit names were provided
+  {
+    auto *names_array= static_cast<Create_col_name_list *>
+      (alloc_root(mem_root, sizeof(Create_col_name_list)));
+    if (!names_array)
+      return true;                              /* purecov: inspected */
+    names_array->init(mem_root);
+    uint i= 0;
+    while (true)
+    {
+      std::string i_s= std::to_string(++i);
+      String_type key(i_s.begin(), i_s.end());
+      if (!names_dict.exists(key))
+        break;
+      String_type value= names_dict.value(key);
+      char *name= static_cast<char*>(strmake_root(mem_root, value.c_str(),
+                                                  value.length()));
+      if (!name || (names_array->push_back({ name, value.length() })))
+        return true;                            /* purecov: inspected */
+    }
+    view->set_derived_column_names(names_array);
+  }
+  return false;
 }
 
 
 bool update_view_status(THD *thd, const char *schema_name,
-                        const char *view_name, bool status)
+                        const char *view_name, bool status,
+                        bool commit_dd_changes)
 {
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-  const dd::View *view= nullptr;
-  if (thd->dd_client()->acquire<dd::View>(schema_name, view_name, &view))
+  dd::cache::Dictionary_client *client= thd->dd_client();
+  dd::cache::Dictionary_client::Auto_releaser releaser(client);
+  dd::View *new_view= nullptr;
+  if (client->acquire_for_modification(schema_name, view_name,
+                                       &new_view))
     return true;
-  if (view == nullptr)
+  if (new_view == nullptr)
     return false;
 
   // Update view error status.
-  std::unique_ptr<dd::View> new_view(view->clone());
   dd::Properties *view_options= &new_view->options();
   view_options->set_bool("view_valid", status);
 
   Disable_gtid_state_update_guard disabler(thd);
 
   // Update DD tables.
-  if (thd->dd_client()->update(&view, new_view.get()))
+  if (client->update(new_view))
   {
-    trans_rollback_stmt(thd);
-    trans_rollback(thd);
+    if (commit_dd_changes)
+    {
+      trans_rollback_stmt(thd);
+      trans_rollback(thd);
+    }
     return true;
   }
 
-  return (trans_commit_stmt(thd) || trans_commit(thd));
+  return commit_dd_changes &&
+         (trans_commit_stmt(thd) || trans_commit(thd));
 }
 
 } // namespace dd

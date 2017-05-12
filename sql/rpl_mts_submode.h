@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,20 +15,23 @@
 #ifndef MTS_SUBMODE_H
 #define MTS_SUBMODE_H
 
-#include "my_global.h"
-#include "my_atomic.h"         // my_atomic_load64
+#include <stddef.h>
+#include <sys/types.h>
+#include <utility>
+
+#include "binlog_event.h"      // SEQ_UNINIT
+#include "my_atomic.h"
+#include "my_inttypes.h"
 #include "my_thread_local.h"   // my_thread_id
 #include "prealloced_array.h"  // Prealloced_array
-#include "binlog_event.h"      // SEQ_UNINIT
 
 class Log_event;
-class Mts_submode_database;
-class Mts_submode_logical_clock;
 class Query_log_event;
 class Relay_log_info;
 class Slave_worker;
 class THD;
 struct TABLE;
+
 typedef Prealloced_array<Slave_worker*, 4> Slave_worker_array;
 
 enum enum_mts_parallel_type {
@@ -90,10 +93,10 @@ public:
   void attach_temp_tables(THD *thd, const Relay_log_info* rli,
                                                       Query_log_event *ev);
   void detach_temp_tables(THD *thd, const Relay_log_info* rli,
-                                                      Query_log_event *ev);
-  Slave_worker* get_least_occupied_worker(Relay_log_info* rli,
+                          Query_log_event *ev);
+  Slave_worker* get_least_occupied_worker(Relay_log_info*,
                                           Slave_worker_array *ws,
-                                          Log_event *ev);
+                                          Log_event*);
   ~Mts_submode_database(){};
   int wait_for_workers_to_finish(Relay_log_info  *rli,
                                  Slave_worker *ignore= NULL);
@@ -145,7 +148,7 @@ public:
   void attach_temp_tables(THD *thd, const Relay_log_info* rli,
                                                       Query_log_event *ev);
   void detach_temp_tables(THD *thd, const Relay_log_info* rli,
-                                                      Query_log_event *ev);
+                          Query_log_event*);
   Slave_worker* get_least_occupied_worker(Relay_log_info* rli,
                                           Slave_worker_array *ws,
                                           Log_event *ev);

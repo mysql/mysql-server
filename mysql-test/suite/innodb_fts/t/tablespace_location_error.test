@@ -1,5 +1,4 @@
 --source include/have_debug.inc
---source include/have_innodb.inc
 
 --echo # Test with file_per_table
 --source ../include/tablespace_location_error.inc

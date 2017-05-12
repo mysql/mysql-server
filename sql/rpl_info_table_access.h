@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,11 +15,15 @@
 #ifndef RPL_INFO_TABLE_ACCESS_H
 #define RPL_INFO_TABLE_ACCESS_H
 
-#include "my_global.h"
+#include <sys/types.h>
+
 #include "rpl_table_access.h"    // System_table_access
 
 class Field;
+class Open_tables_backup;
 class Rpl_info_values;
+class THD;
+struct TABLE;
 
 
 enum enum_return_id { FOUND_ID= 1, NOT_FOUND_ID, ERROR_ID };

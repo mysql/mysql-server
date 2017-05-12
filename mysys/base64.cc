@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,10 +13,17 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <my_global.h>
-#include <m_string.h>  /* strchr() */
-#include <m_ctype.h>  /* my_isspace() */
-#include <base64.h>
+#include "base64.h"
+
+#include <math.h>
+#include <stddef.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
+
+#include "my_config.h"
+#include "my_dbug.h"
 
 /**
   @file mysys/base64.cc
@@ -199,7 +206,7 @@ from_base64_table[]=
  *   FALSE on success (there are some more non-space input characters)
  *   TRUE  on error (end-of-input found)
  */
-static inline my_bool
+static inline bool
 my_base64_decoder_skip_spaces(MY_BASE64_DECODER *decoder)
 {
   for ( ; decoder->src < decoder->end; decoder->src++)
@@ -224,7 +231,7 @@ my_base64_decoder_skip_spaces(MY_BASE64_DECODER *decoder)
  *   FALSE on success
  *   TRUE  on error (invalid base64 character found)
  */
-static inline my_bool
+static inline bool
 my_base64_add(MY_BASE64_DECODER *decoder)
 {
   int res;
@@ -246,7 +253,7 @@ my_base64_add(MY_BASE64_DECODER *decoder)
  *  FALSE on success (a valid base64 encoding character found)
  *  TRUE  on error (unexpected character or unexpected end-of-input found)
  */
-static inline my_bool
+static inline bool
 my_base64_decoder_getch(MY_BASE64_DECODER *decoder)
 {
   if (my_base64_decoder_skip_spaces(decoder))

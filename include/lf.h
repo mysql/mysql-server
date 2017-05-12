@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,10 +20,18 @@
   @file include/lf.h
 */
 
-#include "my_global.h"
-#include "my_atomic.h"
+#include "my_config.h"
+
+#include <stddef.h>
+#include <sys/types.h>
+
 #include "hash.h"
+#include "my_atomic.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
+#include "mysql/psi/mysql_statement.h"
 #include "mysql/service_mysql_alloc.h"
+#include "sql_string.h"
 
 C_MODE_START
 
@@ -147,6 +155,7 @@ static inline void lf_alloc_direct_free(LF_ALLOCATOR *allocator, void *addr)
 void *lf_alloc_new(LF_PINS *pins);
 
 struct st_lf_hash;
+
 typedef uint lf_hash_func(const struct st_lf_hash *, const uchar *, size_t);
 typedef void lf_hash_init_func(uchar *dst, const uchar* src);
 

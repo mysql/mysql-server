@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,12 +16,21 @@
 #ifndef STATELESS_ALLOCATOR_INCLUDED
 #define STATELESS_ALLOCATOR_INCLUDED
 
-#include "my_global.h"
-#include "my_sys.h"
-
-#include <new>
+#include <stddef.h>
 #include <limits>
+#include <new>
 
+#include "my_compiler.h"
+#include "my_dbug.h"
+
+/**
+  Functor struct which invokes my_free. Declared here as it is used as the
+  defalt value for Stateless_allocator's DEALLOC_FUN template parameter.
+*/
+struct My_free_functor
+{
+  void operator()(void *p, size_t) const;
+};
 
 /**
   Stateless_allocator is a C++ STL memory allocator skeleton based on
@@ -71,14 +80,6 @@
 
 */
 
-struct My_free_functor
-{
-  void operator()(void *p, size_t) const
-  {
-    my_free(p);
-  }
-};
-
 template <class T, class ALLOC_FUN, class DEALLOC_FUN= My_free_functor>
 class Stateless_allocator
 {
@@ -103,16 +104,16 @@ public:
   const_pointer address(const_reference r) const { return &r; }
 
   template <class U>
-  Stateless_allocator(const Stateless_allocator_type<U> &other)
+  Stateless_allocator(const Stateless_allocator_type<U> &)
   {}
 
   template <class U>
-  Stateless_allocator & operator=(const Stateless_allocator_type<U> &other)
+  Stateless_allocator & operator=(const Stateless_allocator_type<U> &)
   {}
 
   ~Stateless_allocator() = default;
 
-  pointer allocate(size_type n, const_pointer hint= 0)
+  pointer allocate(size_type n, const_pointer hint MY_ATTRIBUTE((unused))= 0)
   {
     if (n == 0)
       return NULL;

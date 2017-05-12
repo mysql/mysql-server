@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,10 +18,13 @@
    (bin.x.su@oracle.com)
 */
 
-#include <my_global.h>
-#include <errno.h>
-#include "m_string.h"
+#include <string.h>
+#include <sys/types.h>
+
 #include "m_ctype.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
 
 
 #define is_mb_1(c)            ((uchar) (c) <= 0x7F)
@@ -21618,7 +21621,7 @@ get_casefolded_code(const CHARSET_INFO *cs, const uchar *src,
 static size_t
 my_casefold_gb18030(const CHARSET_INFO *cs, char *src, size_t srclen,
                     char *dst, size_t dstlen, const uchar *map,
-                    my_bool is_upper)
+                    bool is_upper)
 {
   char *srcend= src + srclen;
   char *dst0= dst;
@@ -22032,7 +22035,7 @@ static int
 my_strnncoll_gb18030(const CHARSET_INFO *cs,
                      const uchar *s, size_t s_length,
                      const uchar *t, size_t t_length,
-                     my_bool t_is_prefix)
+                     bool t_is_prefix)
 {
   int res= my_strnncoll_gb18030_internal(cs, &s, s_length, &t, t_length);
 
@@ -22132,7 +22135,7 @@ my_strnxfrm_gb18030(const CHARSET_INFO *cs,
     }
   }
 
-  return my_strxfrm_pad_desc_and_reverse(cs, ds, dst, de, nweights, flags, 0);
+  return my_strxfrm_pad(cs, ds, dst, de, nweights, flags);
 }
 
 /**
@@ -22215,7 +22218,7 @@ my_wildcmp_gb18030_impl(const CHARSET_INFO *cs,
   {
     while (1)
     {
-      my_bool escaped= 0;
+      bool escaped= 0;
       if ((w_len= get_code_and_length(cs, wildstr, wildend, &w_gb)) == 0)
         return 1;
 
@@ -22529,9 +22532,9 @@ CHARSET_INFO my_charset_gb18030_chinese_ci=
   ' ',                            /* pad char      */
   1,                              /* escape_with_backslash_is_dangerous */
   1,                              /* levels_for_compare */
-  1,                              /* levels_for_order   */
   &my_charset_gb18030_handler,
-  &my_collation_ci_handler
+  &my_collation_ci_handler,
+  PAD_SPACE
 };
 
 CHARSET_INFO my_charset_gb18030_bin=
@@ -22564,7 +22567,7 @@ CHARSET_INFO my_charset_gb18030_bin=
   ' ',                            /* pad char      */
   1,                              /* escape_with_backslash_is_dangerous */
   1,                              /* levels_for_compare */
-  1,                              /* levels_for_order   */
   &my_charset_gb18030_handler,
-  &my_collation_mb_bin_handler
+  &my_collation_mb_bin_handler,
+  PAD_SPACE
 };

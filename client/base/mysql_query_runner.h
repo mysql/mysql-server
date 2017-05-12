@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,15 +18,16 @@
 #ifndef MYSQL_QUERY_RUNNER_INCLUDED
 #define MYSQL_QUERY_RUNNER_INCLUDED
 
-#include "my_global.h"
-#include "mysql.h"
-#include "mutex.h"
-#include "i_callable.h"
-#include "message_data.h"
-#include "atomic.h"
 #include <algorithm>
+#include <functional>
 #include <string>
 #include <vector>
+
+#include "atomic.h"
+#include "message_data.h"
+#include "mutex.h"
+#include "my_inttypes.h"
+#include "mysql.h"
 
 namespace Mysql{
 namespace Tools{
@@ -62,7 +63,7 @@ public:
     Callbacks are called in reverse order of addition, i.e. newest are first.
    */
   Mysql_query_runner& add_result_callback(
-    I_callable<int64, const Row&>* result_callback);
+    std::function<int64(const Row&)>* result_callback);
   /**
     Adds new callback to be called on every message after query execution,
     this includes errors, warnings and other notes. Return value from callback
@@ -71,9 +72,12 @@ public:
     value and negative number will continue query execution and other messages
     processing, but will not pass current message to rest of callbacks.
     Callbacks are called in reverse order of addition, i.e. newest are first.
+
+    The optional cleanup function is called when the callback is deleted.
    */
   Mysql_query_runner& add_message_callback(
-    I_callable<int64, const Message_data&>* message_callback);
+    std::function<int64(const Message_data&)>* message_callback,
+    std::function<void()> cleanup_callback = nullptr);
   /**
     Runs specified query and processes result rows and messages to callbacks.
    */
@@ -91,7 +95,7 @@ public:
    */
   int64 run_query(
     std::string query,
-    I_callable<int64, const Row&>* result_callback);
+    std::function<int64(const Row&)>* result_callback);
   /**
     Returns escaped copy of string to use in queries.
    */
@@ -198,7 +202,7 @@ private:
   {
   public:
     Store_result_helper(std::vector<const Row*>* result);
-    I_callable<int64, const Row&>* get_result_callback();
+    std::function<int64(const Row&)>* get_result_callback();
 
   private:
     int64 result_callback(const Row& row);
@@ -206,9 +210,11 @@ private:
     std::vector<const Row*>* m_result;
   };
 
-  std::vector<I_callable<int64, const Row&>*>
+  std::vector<std::function<int64(const Row&)>*>
     m_result_callbacks;
-  std::vector<I_callable<int64, const Message_data&>*> m_message_callbacks;
+  std::vector<std::pair<
+    std::function<int64(const Message_data&)>*,
+    std::function<void()>>> m_message_callbacks;
 
   /**
     Indicates if there is query currently executed. Only one query can be

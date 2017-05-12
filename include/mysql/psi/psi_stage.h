@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,7 +25,10 @@
   @{
 */
 
-#include "my_global.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
+#include "my_psi_config.h"
+#include "my_sharedlib.h"
 #include "psi_base.h"
 
 C_MODE_START
@@ -78,7 +81,7 @@ struct PSI_stage_bootstrap
     @sa PSI_STAGE_VERSION_2
     @sa PSI_CURRENT_STAGE_VERSION
   */
-  void* (*get_interface)(int version);
+  void *(*get_interface)(int version);
 };
 typedef struct PSI_stage_bootstrap PSI_stage_bootstrap;
 
@@ -97,7 +100,7 @@ typedef struct PSI_stage_progress_v1 PSI_stage_progress_v1;
 
 /**
   Stage instrument information.
-  @since PSI_VERSION_1
+  @since PSI_STAGE_VERSION_1
   This structure is used to register an instrumented stage.
 */
 struct PSI_stage_info_v1
@@ -117,8 +120,9 @@ typedef struct PSI_stage_info_v1 PSI_stage_info_v1;
   @param info an array of stage info to register
   @param count the size of the info array
 */
-typedef void (*register_stage_v1_t)
-  (const char *category, struct PSI_stage_info_v1 **info, int count);
+typedef void (*register_stage_v1_t)(const char *category,
+                                    struct PSI_stage_info_v1 **info,
+                                    int count);
 
 /**
   Start a new stage, and implicitly end the previous stage.
@@ -127,17 +131,18 @@ typedef void (*register_stage_v1_t)
   @param src_line the source line number
   @return the new stage progress
 */
-typedef PSI_stage_progress_v1* (*start_stage_v1_t)
-  (PSI_stage_key key, const char *src_file, int src_line);
+typedef PSI_stage_progress_v1 *(*start_stage_v1_t)(PSI_stage_key key,
+                                                   const char *src_file,
+                                                   int src_line);
 
 /**
   Get the current stage progress.
   @return the stage progress
 */
-typedef PSI_stage_progress_v1* (*get_current_stage_progress_v1_t)(void);
+typedef PSI_stage_progress_v1 *(*get_current_stage_progress_v1_t)(void);
 
 /** End the current stage. */
-typedef void (*end_stage_v1_t) (void);
+typedef void (*end_stage_v1_t)(void);
 
 /**
   Performance Schema Stage Interface, version 1.
@@ -176,7 +181,6 @@ extern MYSQL_PLUGIN_IMPORT PSI_stage_service_t *psi_stage_service;
 
 /**
   Stage instrument information.
-  @since PSI_VERSION_1
   This structure is used to register an instrumented stage.
 */
 struct PSI_stage_info_none
@@ -206,4 +210,3 @@ typedef struct PSI_placeholder PSI_stage_progress;
 C_MODE_END
 
 #endif /* MYSQL_PSI_FILE_H */
-

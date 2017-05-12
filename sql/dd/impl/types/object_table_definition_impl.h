@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,19 +16,17 @@
 #ifndef DD__OBJECT_TABLE_DEFINITION_IMPL_INCLUDED
 #define	DD__OBJECT_TABLE_DEFINITION_IMPL_INCLUDED
 
-#include "my_global.h"
-#include "m_string.h"                         // my_stpcpy
-#include "mysqld.h"                           // lower_case_table_names
-#include "table.h"                            // MYSQL_TABLESPACE_NAME
+#include <map>
+#include <vector>
 
 #include "dd/impl/system_registry.h"          // System_tablespaces
+#include "dd/string_type.h"                   // dd::String_type
 #include "dd/types/object_table_definition.h" // dd::Object_table_definition
 #include "dd/types/table.h"                   // dd::Table
-
-#include <map>
-#include <sstream>
-#include <string>
-#include <vector>
+#include "m_string.h"                         // my_stpcpy
+#include "my_dbug.h"
+#include "mysqld.h"                           // lower_case_table_names
+#include "table.h"                            // MYSQL_TABLESPACE_NAME
 
 namespace dd {
 
@@ -37,15 +35,15 @@ namespace dd {
 class Object_table_definition_impl: public Object_table_definition
 {
 private:
-  typedef std::map<std::string, int> Field_numbers;
-  typedef std::map<int, std::string> Field_definitions;
-  typedef std::vector<std::string> Indexes;
-  typedef std::vector<std::string> Foreign_keys;
-  typedef std::vector<std::string> Options;
+  typedef std::map<String_type, int> Field_numbers;
+  typedef std::map<int, String_type> Field_definitions;
+  typedef std::vector<String_type> Indexes;
+  typedef std::vector<String_type> Foreign_keys;
+  typedef std::vector<String_type> Options;
 
 private:
-  std::string m_table_name;
-  std::string m_type_name;
+  String_type m_table_name;
+  String_type m_type_name;
 
   Field_numbers m_field_numbers;
   Field_definitions m_field_definitions;
@@ -53,7 +51,7 @@ private:
   Foreign_keys m_foreign_keys;
   Foreign_keys m_cyclic_foreign_keys;
   Options m_options;
-  std::vector<std::string> m_populate_statements;
+  std::vector<String_type> m_populate_statements;
 
   uint m_dd_version;
 
@@ -96,7 +94,7 @@ public:
              the src string has been copied and lowercase'd, if l_c_t_n == 2
    */
 
-  static const char *fs_name_case(const std::string &src, char *buf)
+  static const char *fs_name_case(const String_type &src, char *buf)
   {
     const char *tmp_name= src.c_str();
     if (lower_case_table_names == 2)
@@ -117,20 +115,20 @@ public:
   virtual void dd_version(uint version)
   { m_dd_version= version; }
 
-  virtual const std::string &table_name() const
+  virtual const String_type &table_name() const
   { return m_table_name; }
 
-  virtual const std::string &type_name() const
+  virtual const String_type &type_name() const
   { return m_type_name; }
 
-  virtual void table_name(const std::string &name)
+  virtual void table_name(const String_type &name)
   { m_table_name= name; }
 
-  virtual void type_name(const std::string &type)
+  virtual void type_name(const String_type &type)
   { m_type_name= type; }
 
-  virtual void add_field(int field_number, const std::string &field_name,
-                         const std::string field_definition)
+  virtual void add_field(int field_number, const String_type &field_name,
+                         const String_type field_definition)
   {
     DBUG_ASSERT(
       m_field_numbers.find(field_name) == m_field_numbers.end() &&
@@ -140,30 +138,30 @@ public:
     m_field_definitions[field_number]= field_definition;
   }
 
-  virtual void add_index(const std::string &index)
+  virtual void add_index(const String_type &index)
   { m_indexes.push_back(index); }
 
-  virtual void add_foreign_key(const std::string &foreign_key)
+  virtual void add_foreign_key(const String_type &foreign_key)
   { m_foreign_keys.push_back(foreign_key); }
 
-  virtual void add_cyclic_foreign_key(const std::string &foreign_key)
+  virtual void add_cyclic_foreign_key(const String_type &foreign_key)
   { m_cyclic_foreign_keys.push_back(foreign_key); }
 
-  virtual void add_option(const std::string &option)
+  virtual void add_option(const String_type &option)
   { m_options.push_back(option); }
 
-  virtual void add_populate_statement(const std::string &statement)
+  virtual void add_populate_statement(const String_type &statement)
   { m_populate_statements.push_back(statement); }
 
-  virtual int field_number(const std::string &field_name) const
+  virtual int field_number(const String_type &field_name) const
   {
     DBUG_ASSERT(m_field_numbers.find(field_name) != m_field_numbers.end());
     return m_field_numbers.find(field_name)->second;
   }
 
-  virtual std::string build_ddl_create_table() const
+  virtual String_type build_ddl_create_table() const
   {
-    std::stringstream ss;
+    Stringstream_type ss;
     ss << "CREATE TABLE " + m_table_name + "(\n";
 
     // Output fields
@@ -199,9 +197,9 @@ public:
     return ss.str();
   }
 
-  virtual std::string build_ddl_add_cyclic_foreign_keys() const
+  virtual String_type build_ddl_add_cyclic_foreign_keys() const
   {
-    std::stringstream ss;
+    Stringstream_type ss;
     ss << "ALTER TABLE " + m_table_name + "\n";
 
     // Output cyclic foreign keys
@@ -218,7 +216,7 @@ public:
     return ss.str();
   }
 
-  virtual const std::vector<std::string> &dml_populate_statements() const
+  virtual const std::vector<String_type> &dml_populate_statements() const
   { return m_populate_statements; }
 };
 

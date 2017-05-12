@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -18,13 +18,24 @@
 #ifndef RPL_GTID_PERSIST_H_
 #define RPL_GTID_PERSIST_H_
 
-#include "my_global.h"
-#include "derror.h"                  // ER_THD
-#include "rpl_table_access.h"        // System_table_access
-#include "sql_class.h"               // Open_tables_backup
-
+#include <string.h>
+#include <sys/types.h>
+#include <atomic>
 #include <string>
 
+#include "lex_string.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "mysqld_error.h"
+#include "rpl_gtid.h"
+#include "rpl_table_access.h"        // System_table_access
+#include "sql_class.h"               // Open_tables_backup
+#include "table.h"
+#include "thr_lock.h"
+#include "transaction_info.h"
+#include "xa.h"
+
+class Field;
 
 class Gtid_table_access_context : public System_table_access
 {
@@ -102,11 +113,8 @@ class Gtid_table_persistor
 public:
   static const uint number_fields= 3;
 
-  Gtid_table_persistor()
-  {
-    m_count.atomic_set(0);
-  };
-  virtual ~Gtid_table_persistor() { };
+  Gtid_table_persistor() { }
+  virtual ~Gtid_table_persistor() { }
 
   /**
     Insert the gtid into table.
@@ -184,15 +192,16 @@ public:
     @param thd Thread requesting to access the table
     @param table The table is being accessed.
 
-    @retval true Push a warning or an error to client.
-    @retval false No warning or error was pushed to the client.
+    @retval 0 No warning or error was pushed to the client.
+    @retval 1 Push a warning to client.
+    @retval 2 Push an error to client.
   */
-  bool warn_or_err_on_explicit_modification(THD *thd, TABLE_LIST *table)
+  int warn_or_err_on_explicit_modification(THD *thd, TABLE_LIST *table)
   {
     DBUG_ENTER("Gtid_table_persistor::warn_or_err_on_explicit_modification");
 
     if (!thd->is_operating_gtid_table_implicitly &&
-        table->lock_type >= TL_WRITE_ALLOW_WRITE &&
+        table->lock_descriptor().type >= TL_WRITE_ALLOW_WRITE &&
         !strcmp(table->table_name, Gtid_table_access_context::TABLE_NAME.str))
     {
       if (thd->get_transaction()->xid_state()->has_state(XID_STATE::XA_ACTIVE))
@@ -203,7 +212,7 @@ public:
         */
         thd->raise_error_printf(ER_ERROR_ON_MODIFYING_GTID_EXECUTED_TABLE,
                                 table->table_name);
-        DBUG_RETURN(true);
+        DBUG_RETURN(2);
       }
       else
       {
@@ -213,16 +222,16 @@ public:
         */
         thd->raise_warning_printf(ER_WARN_ON_MODIFYING_GTID_EXECUTED_TABLE,
                                   table->table_name);
-        DBUG_RETURN(true);
+        DBUG_RETURN(1);
       }
     }
 
-    DBUG_RETURN(false);
+    DBUG_RETURN(0);
   }
 
 private:
   /* Count the append size of the table */
-  Atomic_int64 m_count;
+  std::atomic<int64> m_atomic_count{0};
   /**
     Compress the gtid_executed table, read each row by the
     PK(sid, gno_start) in increasing order, compress the first

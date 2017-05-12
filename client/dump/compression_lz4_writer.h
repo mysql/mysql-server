@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -18,12 +18,14 @@
 #ifndef COMPRESSION_LZ4_WRITER_INCLUDED
 #define COMPRESSION_LZ4_WRITER_INCLUDED
 
-#include "i_output_writer.h"
-#include "abstract_output_writer_wrapper.h"
-#include "i_callable.h"
 #include <lz4frame.h>
-#include "base/mutex.h"
 #include <string.h>
+#include <functional>
+
+#include "abstract_output_writer_wrapper.h"
+#include "base/mutex.h"
+#include "i_output_writer.h"
+#include "my_inttypes.h"
 
 namespace Mysql{
 namespace Tools{
@@ -37,7 +39,7 @@ class Compression_lz4_writer : public I_output_writer,
 {
 public:
   Compression_lz4_writer(
-    Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
+    std::function<bool(const Mysql::Tools::Base::Message_data&)>*
     message_handler, Simple_id_generator* object_id_generator);
 
   ~Compression_lz4_writer();

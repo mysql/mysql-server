@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,17 +20,25 @@
 #error "Don't include this C++ header file from a non-C++ file!"
 #endif
 
-#include "my_global.h"
-#include "prealloced_array.h"   // Prealloced_array
+#include <sys/types.h>
+
 #include "binary_log_types.h"   // enum_field_types
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
 
 #ifdef MYSQL_SERVER
+#include "handler.h"
+#include "hash.h"
+#include "prealloced_array.h"   // Prealloced_array
 #include "table.h"              // TABLE_LIST
+
+class THD;
+class Log_event;
+class Relay_log_info;
 #endif
 
-class Relay_log_info;
-class Log_event;
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
 
 /**
    Hash table used when applying row events on the slave and there is
@@ -333,7 +341,7 @@ public:
     This function returns whether the field on the master can be null.
     This value is derived from field->maybe_null().
   */
-  my_bool maybe_null(uint index) const
+  bool maybe_null(uint index) const
   {
     DBUG_ASSERT(index < m_size);
     return ((m_null_bits[(index / 8)] & 
@@ -349,7 +357,7 @@ public:
   */
   uint32 calc_field_size(uint col, uchar *master_data) const;
 
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
   /**
     Decide if the table definition is compatible with a table.
 
@@ -416,7 +424,7 @@ private:
 };
 
 
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_SERVER
 /**
    Extend the normal table list with a few new fields needed by the
    slave thread, but nowhere else.
@@ -433,10 +441,10 @@ struct RPL_TABLE_LIST
 class Deferred_log_events
 {
 private:
-  Prealloced_array<Log_event*, 32, true> m_array;
+  Prealloced_array<Log_event*, 32> m_array;
 
 public:
-  Deferred_log_events(Relay_log_info *rli);
+  Deferred_log_events();
   ~Deferred_log_events();
   /* queue for exection at Query-log-event time prior the Query */
   int add(Log_event *ev);

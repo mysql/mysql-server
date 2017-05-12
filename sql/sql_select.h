@@ -1,7 +1,7 @@
 #ifndef SQL_SELECT_INCLUDED
 #define SQL_SELECT_INCLUDED
 
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,17 +19,67 @@
 
 /**
   @file sql/sql_select.h
-
-  Classes to use when handling where clause
 */
 
 
-#include "my_global.h"
-#include "item_cmpfunc.h"             // Item_cond_and
-#include "sql_class.h"                // THD
-#include "sql_opt_exec_shared.h"      // join_type
-
+#include <limits.h>
+#include <stddef.h>
+#include <sys/types.h>
 #include <functional>
+
+#include "binary_log_types.h"
+#include "field.h"
+#include "item.h"
+#include "item_cmpfunc.h"             // Item_cond_and
+#include "my_base.h"
+#include "my_bitmap.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_sqlcommand.h"
+#include "my_table_map.h"
+#include "opt_costmodel.h"
+#include "opt_explain_format.h"       // Explain_sort_clause
+#include "set_var.h"
+#include "sql_alloc.h"
+#include "sql_bitmap.h"
+#include "sql_class.h"                // THD
+#include "sql_cmd_dml.h"              // Sql_cmd_dml
+#include "sql_const.h"
+#include "sql_lex.h"
+#include "sql_opt_exec_shared.h"      // join_type
+#include "sql_opt_exec_shared.h"      // join_type
+#include "system_variables.h"
+#include "table.h"
+
+class Item_func;
+class JOIN_TAB;
+class KEY;
+class QEP_TAB;
+class Query_result;
+class Temp_table_param;
+template <class T> class List;
+
+class Sql_cmd_select : public Sql_cmd_dml
+{
+public:
+  explicit Sql_cmd_select(Query_result *result_arg) : Sql_cmd_dml()
+  {
+    result= result_arg;
+  }
+
+  virtual enum_sql_command sql_command_code() const
+  {
+    return SQLCOM_SELECT;
+  }
+
+  virtual bool is_data_change_stmt() const { return false; }
+
+protected:
+  virtual bool precheck(THD *thd);
+
+  virtual bool prepare_inner(THD *thd);
+};
+
 /**
    Returns a constant of type 'type' with the 'A' lowest-weight bits set.
    Example: LOWER_BITS(uint, 3) == 7.
@@ -236,9 +286,6 @@ public:
 join_type calc_join_type(int quick_type);
 
 class JOIN;
-
-class JOIN_CACHE;
-class SJ_TMP_TABLE;
 
 #define SJ_OPT_NONE 0
 #define SJ_OPT_DUPS_WEEDOUT 1
@@ -513,10 +560,6 @@ typedef struct st_position : public Sql_alloc
   }
 } POSITION;
 
-struct st_cache_field;
-class QEP_operation;
-class Filesort;
-
 /**
    Use this in a function which depends on best_ref listing tables in the
    final join order. If 'tables==0', one is not expected to consult best_ref
@@ -648,7 +691,7 @@ public:
     method (but not 'index' for some reason), i.e. this matches method which
     E(#records) is in found_records.
   */
-  ha_rows       read_time;
+  double       read_time;
   /**
     The set of tables that this table depends on. Used for outer join and
     straight join dependencies.
@@ -905,15 +948,16 @@ public:
   {
     enum store_key_result result;
     THD *thd= to_field->table->in_use;
-    enum_check_fields saved_count_cuted_fields= thd->count_cuted_fields;
+    enum_check_fields saved_check_for_truncated_fields=
+      thd->check_for_truncated_fields;
     sql_mode_t sql_mode= thd->variables.sql_mode;
     thd->variables.sql_mode&= ~(MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE);
 
-    thd->count_cuted_fields= CHECK_FIELD_IGNORE;
+    thd->check_for_truncated_fields= CHECK_FIELD_IGNORE;
 
     result= copy_inner();
 
-    thd->count_cuted_fields= saved_count_cuted_fields;
+    thd->check_for_truncated_fields= saved_check_for_truncated_fields;
     thd->variables.sql_mode= sql_mode;
 
     return result;
@@ -940,7 +984,7 @@ type_conversion_status_to_store_key (type_conversion_status ts)
   case TYPE_NOTE_TIME_TRUNCATED:
     return store_key::STORE_KEY_CONV;
   case TYPE_WARN_OUT_OF_RANGE:
-  case TYPE_WARN_ALL_TRUNCATED:
+  case TYPE_WARN_INVALID_STRING:
   case TYPE_ERR_NULL_CONSTRAINT_VIOLATION:
   case TYPE_ERR_BAD_VALUE:
   case TYPE_ERR_OOM:
@@ -1078,10 +1122,13 @@ bool error_if_full_join(JOIN *join);
 bool handle_query(THD *thd, LEX *lex, Query_result *result,
                   ulonglong added_options, ulonglong removed_options);
 
-void free_underlaid_joins(THD *thd, SELECT_LEX *select);
+// Statement timeout function(s)
+bool set_statement_timer(THD *thd);
+void reset_statement_timer(THD *thd);
 
-void calc_used_field_length(THD *thd,
-                            TABLE *table,
+void free_underlaid_joins(SELECT_LEX *select);
+
+void calc_used_field_length(TABLE *table,
                             bool keep_current_rowid,
                             uint *p_used_fields,
                             uint *p_used_fieldlength,
@@ -1089,8 +1136,6 @@ void calc_used_field_length(THD *thd,
                             bool *p_used_null_fields,
                             bool *p_used_uneven_bit_fields);
 
-uint get_index_for_order(ORDER *order, QEP_TAB *tab,
-                         ha_rows limit, bool *need_sort, bool *reverse);
 ORDER *simple_remove_const(ORDER *order, Item *where);
 bool const_expression_in_where(Item *cond, Item *comp_item,
                                Field *comp_field= NULL,
@@ -1103,17 +1148,44 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
 bool types_allow_materialization(Item *outer, Item *inner);
 bool and_conditions(Item **e1, Item *e2);
 
-static inline Item * and_items(Item* cond, Item *item)
+
+/**
+  Create a AND item of two existing items.
+  A new Item_cond_and item is created with the two supplied items as
+  arguments.
+
+  @note About handling of null pointers as arguments: if the first
+  argument is a null pointer, then the item given as second argument is
+  returned (no new Item_cond_and item is created). The second argument
+  must not be a null pointer.
+
+  @param cond  the first argument to the new AND condition
+  @param item  the second argument to the new AND condtion
+
+  @return the new AND item
+*/
+static inline Item *and_items(Item *cond, Item *item)
 {
+  DBUG_ASSERT(item != NULL);
+  return (cond? (new Item_cond_and(cond, item)) : item);
+}
+
+/// A variant of the above, guaranteed to return Item_bool_func.
+static inline Item_bool_func *and_items(Item *cond, Item_bool_func *item)
+{
+  DBUG_ASSERT(item != NULL);
   return (cond? (new Item_cond_and(cond, item)) : item);
 }
 
 uint actual_key_parts(const KEY *key_info);
 
-int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
-                         uint *used_key_parts= NULL);
+class ORDER_with_src;
+uint get_index_for_order(ORDER_with_src *order, QEP_TAB *tab,
+                         ha_rows limit, bool *need_sort, bool *reverse);
+int test_if_order_by_key(ORDER_with_src *order, TABLE *table, uint idx,
+                         uint *used_key_parts, bool *skip_quick);
 bool test_if_cheaper_ordering(const JOIN_TAB *tab,
-                              ORDER *order, TABLE *table,
+                              ORDER_with_src *order, TABLE *table,
                               Key_map usable_keys, int key,
                               ha_rows select_limit,
                               int *new_key, int *new_key_direction,

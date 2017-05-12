@@ -1,7 +1,7 @@
 #ifndef JSON_DOM_INCLUDED
 #define JSON_DOM_INCLUDED
 
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,26 +16,34 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_global.h"
-#include "malloc_allocator.h"   // Malloc_allocator
-#include "my_decimal.h"         // my_decimal
-#include "binary_log_types.h"   // enum_field_types
-#include "mysql_time.h"         // MYSQL_TIME
-#include "json_binary.h"        // json_binary::Value
-#include "sql_alloc.h"          // Sql_alloc
-#include "prealloced_array.h"   // Prealloced_array
-
+#include <stddef.h>
+#include <functional>
 #include <map>
+#include <new>
 #include <string>
 #include <type_traits>          // is_base_of
+#include <utility>
+
+#include "binary_log_types.h"   // enum_field_types
+#include "json_binary.h"        // json_binary::Value
+#include "malloc_allocator.h"   // Malloc_allocator
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_decimal.h"         // my_decimal
+#include "my_inttypes.h"
+#include "mysql_time.h"         // MYSQL_TIME
+#include "prealloced_array.h"   // Prealloced_array
+#include "sql_alloc.h"          // Sql_alloc
 
 class Json_dom;
 class Json_path;
 class Json_path_leg;
 class Json_seekable_path;
 class Json_wrapper;
+class String;
+class THD;
 
-typedef Prealloced_array<Json_wrapper, 16, false> Json_wrapper_vector;
+typedef Prealloced_array<Json_wrapper, 16> Json_wrapper_vector;
 typedef Prealloced_array<Json_dom *, 16> Json_dom_vector;
 
 /// The maximum number of nesting levels allowed in a JSON document.
@@ -223,17 +231,15 @@ public:
     @param[out] errmsg any syntax error message (will be ignored if it is NULL)
     @param[out] offset the position in the parsed string a syntax error was
                        found (will be ignored if it is NULL)
-    @param[in]  preserve_neg_zero_int whether integer negative zero should
-                                      be preserved. If set to TRUE, -0 is
-                                      handled as a DOUBLE. Double negative
-                                      zero (-0.0) is preserved regardless of
-                                      what this parameter is set to.
+    @param[in]  handle_numbers_as_double whether numbers should be handled as
+                                         double. If set to TRUE, all numbers are
+                                         parsed as DOUBLE
 
     @result the built DOM if JSON text was parseable, else NULL
   */
   static Json_dom *parse(const char *text, size_t length,
                          const char **errmsg, size_t *offset,
-                         bool preserve_neg_zero_int= false);
+                         bool handle_numbers_as_double= false);
 
   /**
     Construct a DOM object based on a binary JSON value. The ownership
@@ -255,7 +261,8 @@ public:
     @param[in,out] newv the new value to put in the container
   */
   /* purecov: begin deadcode */
-  virtual void replace_dom_in_container(Json_dom *oldv, Json_dom *newv)
+  virtual void replace_dom_in_container(Json_dom *oldv MY_ATTRIBUTE((unused)),
+                                        Json_dom *newv MY_ATTRIBUTE((unused)))
   {
     /*
       Array and object should override this method. Not expected to be
@@ -337,7 +344,7 @@ struct Json_key_comparator
   Json_object class.
 */
 typedef std::map<std::string, Json_dom *, Json_key_comparator,
-  Malloc_allocator<std::pair<std::string, Json_dom *> > > Json_object_map;
+  Malloc_allocator<std::pair<const std::string, Json_dom *> > > Json_object_map;
 
 /**
   Represents a JSON container value of type "object" (ECMA), type
@@ -608,8 +615,13 @@ class Json_string : public Json_scalar
 private:
   std::string m_str; //!< holds the string
 public:
-  explicit Json_string(const std::string &value)
-    : Json_scalar(), m_str(value)
+  /*
+    Construct a Json_string object.
+    @param args any arguments accepted by std::string's constructors
+  */
+  template <typename... Args>
+  explicit Json_string(Args&&... args)
+    : Json_scalar(), m_str(std::forward<Args>(args)...)
   {}
   ~Json_string() {}
 
@@ -1110,13 +1122,14 @@ public:
   using Sql_alloc::operator delete;
 
   /** Placement new. */
-  void *operator new(size_t size, void *ptr,
-                     const std::nothrow_t &arg= std::nothrow) throw()
+  void *operator new(size_t, void *ptr,
+                     const std::nothrow_t &arg MY_ATTRIBUTE((unused))
+                     = std::nothrow) throw()
   { return ptr; }
 
   /** Placement delete. */
-  void operator delete(void *ptr1, void *ptr2,
-                       const std::nothrow_t &arg) throw ()
+  void operator delete(void*, void*,
+                       const std::nothrow_t&) throw ()
   {}
 
   /**
@@ -1139,14 +1152,6 @@ public:
   void set_alias() { m_dom_alias= true; }
 
   /**
-    Copy the contents (and take ownership if old has any) of the old value.
-    Any already owned DOM will be deallocated.
-
-    @param old value
-  */
-  void steal(Json_wrapper *old);
-
-  /**
     Wrap a binary value. Does not copy the underlying buffer, so
     lifetime is limited the that of the supplied value.
 
@@ -1161,11 +1166,31 @@ public:
   Json_wrapper(const Json_wrapper &old);
 
   /**
+    Move constructor. Take over the ownership of the other wrapper's
+    DOM, unless it's aliased. If the other wrapper is aliased, this
+    wrapper becomes an alias too. Any already owned DOM will be
+    deallocated.
+
+    @param old the wrapper whose contents to take over
+  */
+  Json_wrapper(Json_wrapper &&old);
+
+  /**
     Assignment operator. Does a deep copy of any owned DOM. If a DOM
     os not owned (aliased), the copy will also be aliased. Any owned
     DOM in the left side will be deallocated.
   */
   Json_wrapper &operator=(const Json_wrapper &old);
+
+  /**
+    Move-assignment operator. Take over the ownership of the other
+    wrapper's DOM, unless it's aliased. If the other wrapper is
+    aliased, this wrapper becomes an alias too. Any already owned DOM
+    will be deallocated.
+
+    @param old the wrapper whose contents to take over
+  */
+  Json_wrapper &operator=(Json_wrapper &&old);
 
   ~Json_wrapper();
 
@@ -1194,15 +1219,35 @@ public:
     @param thd current session
     @return pointer to a DOM object, or NULL if the DOM could not be allocated
   */
-  Json_dom *clone_dom(const THD *thd);
+  Json_dom *clone_dom(const THD *thd) const;
 
   /**
     Get the wrapped contents in binary value form.
+
+    @param[in]     thd  current session
     @param[in,out] str  a string that will be filled with the binary value
     @retval false on success
     @retval true  on error
   */
-  bool to_binary(String *str) const;
+  bool to_binary(const THD *thd, String *str) const;
+
+  /**
+    Check if the wrapped JSON document is a binary value (a
+    json_binary::Value), and if that binary is pointing to data stored in the
+    given string.
+
+    This function can be used to check if overwriting the data in the string
+    might overwrite and corrupt the document contained in this wrapper.
+
+    @param str    a string which contains JSON binary data
+    @retval true  if the string contains data that the wrapped document
+                  points to from its json_binary::Value representation
+    @retval false otherwise
+  */
+  bool is_binary_backed_by(const String *str) const
+  {
+    return !m_is_dom && m_value.is_backed_by(str);
+  }
 
   /**
     Format the JSON value to an external JSON string in buffer in
@@ -1218,6 +1263,20 @@ public:
     @return false formatting went well, else true
   */
   bool to_string(String *buffer, bool json_quoted, const char *func_name) const;
+
+  /**
+    Format the JSON value to an external JSON string in buffer in the format of
+    ISO/IEC 10646. Add newlines and indentation for readability.
+
+    @param[in,out] buffer     the buffer that receives the formatted string
+                              (the string is appended, so make sure the length
+                              is set correctly before calling)
+    @param[in]     func_name  the name of the calling function
+
+    @retval false on success
+    @retval true on error
+  */
+  bool to_pretty_string(String *buffer, const char *func_name) const;
 
   // Accessors
 
@@ -1500,8 +1559,25 @@ public:
 
     @param[out] to      a buffer to which the sort key is written
     @param[in]  length  the length of the sort key
+
+    @details Key storage format is following:
+    @verbatim
+      |<json type><   sort key    >|
+       1 byte    / variable length /
+    @endverbatim
+
+    JSON is assumed to be non-sql-null and valid (checked by caller).
+    Key length contains full length - the len prefix itself, json type and the
+    sort key.
+    All numeric types are stored as a number, without distinction to
+    double/decimal/int/etc. See @c make_json_numeric_sort_key().
+    Same is done to DATETIME and TIMESTAMP types.
+    For string and opaque types only the prefix that fits into the output buffer
+    is stored.
+    For JSON objects and arrays only their length (number of elements) is
+    stored, this is a limitation of current implementation.
   */
-  void make_sort_key(uchar *to, size_t length) const;
+  size_t make_sort_key(uchar *to, size_t length) const;
 
   /**
     Make a hash key that can be used by sql_executor.cc/unique_hash

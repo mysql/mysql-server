@@ -33,9 +33,9 @@ public:
     return *s_instance;
   }
 
-  static const std::string &table_name()
+  static const String_type &table_name()
   {
-    static std::string s_table_name("catalogs");
+    static String_type s_table_name("catalogs");
     return s_table_name;
   }
 
@@ -49,7 +49,7 @@ public:
             "id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT");
     m_target_def.add_field(1, "FIELD_NAME",
             "name VARCHAR(64) NOT NULL COLLATE " +
-            std::string(Object_table_definition_impl::
+            String_type(Object_table_definition_impl::
                         fs_name_collation()->name));
     m_target_def.add_field(2, "FIELD_CREATED",
             "created TIMESTAMP NOT NULL\n"
@@ -65,7 +65,7 @@ public:
         "VALUES (1, 'def', now(), now())");
   }
 
-  virtual const std::string &name() const
+  virtual const String_type &name() const
   { return Catalogs::table_name(); }
 };
 

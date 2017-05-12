@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,11 +18,12 @@
 #ifndef ABSTRACT_STRING_OPTION_INCLUDED
 #define ABSTRACT_STRING_OPTION_INCLUDED
 
+#include <functional>
 #include <string>
+
 #include "my_getopt.h"
 #include "abstract_value_option.h"
 #include "nullable.h"
-#include "instance_callback.h"
 
 namespace Mysql{
 namespace Tools{
@@ -73,9 +74,9 @@ template<typename T_type> Abstract_string_option<T_type>::Abstract_string_option
   *value= Nullable<std::string>();
   this->m_original_value= NULL;
 
-  this->add_callback(new Instance_callback
-    <void, char*, Abstract_string_option<T_type> >(
-      this, &Abstract_string_option<T_type>::string_callback));
+  this->add_callback(new std::function<void(char*)>(
+      std::bind(&Abstract_string_option<T_type>::string_callback, this,
+                std::placeholders::_1)));
 }
 
 template<typename T_type> T_type* Abstract_string_option<T_type>::set_value(

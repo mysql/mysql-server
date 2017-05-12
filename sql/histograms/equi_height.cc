@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,13 +18,21 @@
   Equi-height histogram (implementation).
 */
 
-#include "equi_height.h"
+#include "sql/histograms/equi_height.h"
 
 #include <cmath>            // std::lround
+#include <iterator>
+#include <new>
 
+#include "equi_height_bucket.h"
 #include "float_compare.h"
 #include "json_dom.h"       // Json_*
+#include "memroot_allocator.h"
 #include "my_base.h"        // ha_rows
+#include "my_dbug.h"
+#include "my_decimal.h"
+#include "my_inttypes.h"
+#include "sql_string.h"
 
 namespace histograms {
 

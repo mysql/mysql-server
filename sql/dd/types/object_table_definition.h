@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,10 +16,10 @@
 #ifndef DD__OBJECT_TABLE_DEFINITION_INCLUDED
 #define DD__OBJECT_TABLE_DEFINITION_INCLUDED
 
-#include "my_global.h"
-
 #include <vector>
-#include <string>
+
+#include "dd/string_type.h"                    // dd::String_type
+#include "my_inttypes.h"
 
 namespace dd {
 
@@ -48,21 +48,21 @@ public:
 
     @return String containing the SQL DDL statement for the target table.
    */
-  virtual std::string build_ddl_create_table() const= 0;
+  virtual String_type build_ddl_create_table() const= 0;
 
   /**
     Get the SQL DDL statement for adding foreign keys for the table.
 
     @return String containing the SQL DDL statement for adding foreign keys.
    */
-  virtual std::string build_ddl_add_cyclic_foreign_keys() const= 0;
+  virtual String_type build_ddl_add_cyclic_foreign_keys() const= 0;
 
   /**
     Get the SQL DML statements for populating the table.
 
     @return Vector of strings containing SQL DML statements
    */
-  virtual const std::vector<std::string> &dml_populate_statements() const= 0;
+  virtual const std::vector<String_type> &dml_populate_statements() const= 0;
 
   /**
     Get dd version of the meta data representing the object table.

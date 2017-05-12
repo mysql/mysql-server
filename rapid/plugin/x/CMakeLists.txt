@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,13 +19,6 @@ INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 IF(SSL_DEFINES)
   ADD_DEFINITIONS(${SSL_DEFINES})
 ENDIF()
-
-# Note that no COMPONENTS option is to be used for header only components,
-# it would try to find a library
-SET(Boost_USE_STATIC_LIBS OFF)
-ADD_DEFINITIONS(-DBOOST_ALL_NO_LIB -DBOOST_NO_AUTO_PTR)
-
-MESSAGE(STATUS "Using Boost headers from ${BOOST_INCLUDE_DIR}")
 
 SET(XPLUGIN_LOG_PROTOBUF 1 CACHE STRING "Enable logging of protobuf messages")
 
@@ -78,12 +71,12 @@ ELSE()
     ${CMAKE_CURRENT_SOURCE_DIR}/ngs/include
     ${CMAKE_SOURCE_DIR}/include #temporary
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mysql
+    ${CMAKE_CURRENT_BINARY_DIR}/generated
     ${SSL_INCLUDE_DIRS}
     ${ZLIB_INCLUDE_DIR}
   )
 
   INCLUDE_DIRECTORIES(SYSTEM
-    ${BOOST_INCLUDE_DIR}
     ${PROTOBUF_INCLUDE_DIRS}
     ${LIBEVENT_INCLUDE_DIR}
   )
@@ -107,46 +100,34 @@ ELSE()
     ADD_COMPILE_FLAGS(${PROTO_SRCS} ${PROTO_LITE_SRCS} COMPILE_FLAGS "/wd4018")
   ENDIF(MSVC)
 
-  # boost::shared_ptr depends on scoped_lock
-  # Prevent missing symbols scoped_lock() CTOR/DTOR in mysqlx.so
-  #   boost::atomics::detail::lockpool::scoped_lock::~scoped_lock()
-  UNSET(BOOST_LIB_SOURCES)
-  IF (CMAKE_CXX_COMPILER_ID STREQUAL "SunPro")
-    SET(BOOST_LIB_SOURCES
-      ${BOOST_SOURCES_DIR}/libs/atomic/src/lockpool.cpp)
-  ENDIF()
-
-  # Built *without* -DMYSQL_DYNAMIC_PLUGIN
-  ADD_CONVENIENCE_LIBRARY(xplugin
-    ${xplugin_SRC} ${xplugin_HDRS} ${xplugin_PROTOBUF_SRC} ${BOOST_LIB_SOURCES})
-
   ADD_COMPILE_FLAGS(
     src/xpl_plugin.cc
     src/xpl_performance_schema.cc
     ${xplugin_SRC} ${xplugin_PROTOBUF_SRC}
     COMPILE_FLAGS
-    "-I${xplugin_PROTOBUF_DIR}"
-    "-I${CMAKE_CURRENT_BINARY_DIR}/generated/")
+    "-I${xplugin_PROTOBUF_DIR}")
 
-  TARGET_LINK_LIBRARIES(xplugin ${LIBEVENT_LIBRARY} ${LIBEVENT_LIBRARIES})
-  IF(MSVC)
-    TARGET_LINK_LIBRARIES(xplugin strings) 
-  ENDIF(MSVC)
-  
-  # These are built *with* -DMYSQL_DYNAMIC_PLUGIN
+  # assertion failed in function assert_with_dumps() @ ssa.c:621 when using -xO3
+  IF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro")
+    ADD_COMPILE_FLAGS(
+      ${MYSQLX_PROJECT_DIR}/ngs/src/client.cc
+      COMPILE_FLAGS "-xO2")
+  ENDIF()
+
   MYSQL_ADD_PLUGIN(mysqlx
     src/xpl_plugin.cc
     src/xpl_performance_schema.cc
-    LINK_LIBRARIES xplugin ${xplugin_PROTOBUF_LIB}
+    ${xplugin_SRC} ${xplugin_HDRS} ${xplugin_PROTOBUF_SRC}
+    LINK_LIBRARIES ${xplugin_PROTOBUF_LIB} ${LIBEVENT_LIBRARY} ${LIBEVENT_LIBRARIES}
     MODULE_ONLY MODULE_OUTPUT_NAME "mysqlx")
 
   IF(WITH_PROTOBUF STREQUAL "system")
     TARGET_LINK_LIBRARIES(mysqlx "${PROTOBUF_LIBRARY}")
   ENDIF()
 
-  ADD_DEPENDENCIES(xplugin GenError)
+  ADD_DEPENDENCIES(mysqlx GenError)
   IF (WITH_LIBEVENT STREQUAL "bundled")
-    ADD_DEPENDENCIES(xplugin ${LIBEVENT_LIBRARY})
+    ADD_DEPENDENCIES(mysqlx ${LIBEVENT_LIBRARY})
   ENDIF()
 
   IF(XPLUGIN_LOG_PROTOBUF)
@@ -197,7 +178,7 @@ ELSE()
 
   GET_PROPERTY(OLD_COMPILE_FLAGS TARGET mysqlxtest PROPERTY COMPILE_FLAGS)
   SET_PROPERTY(TARGET mysqlxtest PROPERTY COMPILE_FLAGS
-    "${OLD_COMPILE_FLAGS} -I${CMAKE_CURRENT_BINARY_DIR}/generated/protobuf -I${CMAKE_CURRENT_BINARY_DIR}/generated/")
+    "${OLD_COMPILE_FLAGS} -I${CMAKE_CURRENT_BINARY_DIR}/generated/protobuf")
 
     GET_TARGET_PROPERTY(mysqlxtest_compile_definitions
       mysqlxtest COMPILE_DEFINITIONS)

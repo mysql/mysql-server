@@ -19,7 +19,6 @@
 # Need debug build to run this test
 --source include/have_debug.inc
 # Problem happens only in gtid mode
---source include/have_gtid.inc
 # Run only in row format
 --source include/have_binlog_format_row.inc
 # Disable auto position protocol

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,12 +13,23 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "sql/check_stack.h"
+
 #include "my_config.h"
-#include "check_stack.h"
-#include "sql_class.h"
+
+#include <algorithm>
+#include <new>
+
 #include "current_thd.h"
 #include "derror.h"
-#include <algorithm>
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql_com.h"
+#include "mysqld_error.h"
+#include "sql_class.h"
 
 /****************************************************************************
 	Check stack size; Send error if there isn't enough stack to continue

@@ -12,7 +12,7 @@
 ########################################################################
 #
 
---source ../include/xplugin_preamble.inc
+--source include/xplugin_preamble.inc
 ## Test starts here
 --write_file $MYSQL_TMP_DIR/expect_noerror.tmp
 

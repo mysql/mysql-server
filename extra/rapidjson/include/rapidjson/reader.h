@@ -23,6 +23,7 @@
 #include "internal/meta.h"
 #include "internal/stack.h"
 #include "internal/strtod.h"
+#include <limits>
 
 #if defined(RAPIDJSON_SIMD) && defined(_MSC_VER)
 #include <intrin.h>
@@ -42,6 +43,7 @@ RAPIDJSON_DIAG_OFF(4702)  // unreachable code
 
 #ifdef __clang__
 RAPIDJSON_DIAG_PUSH
+RAPIDJSON_DIAG_OFF(old-style-cast)
 RAPIDJSON_DIAG_OFF(padded)
 RAPIDJSON_DIAG_OFF(switch-enum)
 #endif
@@ -150,6 +152,7 @@ enum ParseFlag {
     kParseCommentsFlag = 32,        //!< Allow one-line (//) and multi-line (/**/) comments.
     kParseNumbersAsStringsFlag = 64,    //!< Parse all numbers (ints/doubles) as strings.
     kParseTrailingCommasFlag = 128, //!< Allow trailing commas at the end of objects and arrays.
+    kParseNanAndInfFlag = 256,      //!< Allow parsing NaN, Inf, Infinity, -Inf and -Infinity as doubles.
     kParseDefaultFlags = RAPIDJSON_PARSE_DEFAULT_FLAGS  //!< Default parse flags. Can be customized by defining RAPIDJSON_PARSE_DEFAULT_FLAGS
 };
 
@@ -202,7 +205,7 @@ struct BaseReaderHandler {
     bool Uint(unsigned) { return static_cast<Override&>(*this).Default(); }
     bool Int64(int64_t) { return static_cast<Override&>(*this).Default(); }
     bool Uint64(uint64_t) { return static_cast<Override&>(*this).Default(); }
-    bool Double(double, bool is_int = false) { return static_cast<Override&>(*this).Default(); }
+    bool Double(double) { return static_cast<Override&>(*this).Default(); }
     /// enabled via kParseNumbersAsStringsFlag, string is not null-terminated (use length)
     bool RawNumber(const Ch* str, SizeType len, bool copy) { return static_cast<Override&>(*this).String(str, len, copy); }
     bool String(const Ch*, SizeType, bool) { return static_cast<Override&>(*this).Default(); }
@@ -635,8 +638,7 @@ private:
                         RAPIDJSON_PARSE_ERROR(kParseErrorTermination, is.Tell());
                     return;
                 default:
-                    RAPIDJSON_PARSE_ERROR(kParseErrorObjectMissCommaOrCurlyBracket, is.Tell());
-                    break;
+                    RAPIDJSON_PARSE_ERROR(kParseErrorObjectMissCommaOrCurlyBracket, is.Tell()); break; // This useless break is only for making warning and coverage happy
             }
 
             if (parseFlags & kParseTrailingCommasFlag) {
@@ -1138,6 +1140,8 @@ private:
                 (parseFlags & kParseInsituFlag) == 0> s(*this, copy.s);
 
         size_t startOffset = s.Tell();
+        double d = 0.0;
+        bool useNanOrInf = false;
 
         // Parse minus
         bool minus = Consume(s, '-');
@@ -1179,12 +1183,26 @@ private:
                     significandDigit++;
                 }
         }
+        // Parse NaN or Infinity here
+        else if ((parseFlags & kParseNanAndInfFlag) && RAPIDJSON_LIKELY((s.Peek() == 'I' || s.Peek() == 'N'))) {
+            useNanOrInf = true;
+            if (RAPIDJSON_LIKELY(Consume(s, 'N') && Consume(s, 'a') && Consume(s, 'N'))) {
+                d = std::numeric_limits<double>::quiet_NaN();
+            }
+            else if (RAPIDJSON_LIKELY(Consume(s, 'I') && Consume(s, 'n') && Consume(s, 'f'))) {
+                d = (minus ? -std::numeric_limits<double>::infinity() : std::numeric_limits<double>::infinity());
+                if (RAPIDJSON_UNLIKELY(s.Peek() == 'i' && !(Consume(s, 'i') && Consume(s, 'n')
+                                                            && Consume(s, 'i') && Consume(s, 't') && Consume(s, 'y'))))
+                    RAPIDJSON_PARSE_ERROR(kParseErrorValueInvalid, s.Tell());
+            }
+            else
+                RAPIDJSON_PARSE_ERROR(kParseErrorValueInvalid, s.Tell());
+        }
         else
             RAPIDJSON_PARSE_ERROR(kParseErrorValueInvalid, s.Tell());
 
         // Parse 64bit int
         bool useDouble = false;
-        double d = 0.0;
         if (use64bit) {
             if (minus)
                 while (RAPIDJSON_LIKELY(s.Peek() >= '0' && s.Peek() <= '9')) {
@@ -1347,6 +1365,9 @@ private:
 
                cont = handler.Double(minus ? -d : d);
            }
+           else if (useNanOrInf) {
+               cont = handler.Double(d);
+           }
            else {
                if (use64bit) {
                    if (minus)
@@ -1355,12 +1376,8 @@ private:
                        cont = handler.Uint64(i64);
                }
                else {
-                   if (minus) {
-                       if (i == 0)
-                           cont = handler.Double(-(double)i, true);
-                       else
-                           cont = handler.Int(static_cast<int32_t>(~i + 1));
-                   }
+                   if (minus)
+                       cont = handler.Int(static_cast<int32_t>(~i + 1));
                    else
                        cont = handler.Uint(i);
                }
@@ -1797,8 +1814,7 @@ private:
         case IterativeParsingKeyValueDelimiterState:
         case IterativeParsingArrayInitialState:
         case IterativeParsingElementDelimiterState: RAPIDJSON_PARSE_ERROR(kParseErrorValueInvalid, is.Tell()); return;
-        case IterativeParsingElementState:          RAPIDJSON_PARSE_ERROR(kParseErrorArrayMissCommaOrSquareBracket, is.Tell()); return;
-        default:                                    RAPIDJSON_PARSE_ERROR(kParseErrorUnspecificSyntaxError, is.Tell()); return;
+        default: RAPIDJSON_ASSERT(src == IterativeParsingElementState); RAPIDJSON_PARSE_ERROR(kParseErrorArrayMissCommaOrSquareBracket, is.Tell()); return;
         }
     }
 

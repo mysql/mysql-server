@@ -1,8 +1,10 @@
 # Want to skip this test from daily Valgrind execution
 --source include/no_valgrind_without_big.inc
+
 # This test should work in embedded server after we fix mysqltest
 -- source include/not_embedded.inc
--- source include/have_ssl_communication.inc
+-- source include/have_ssl.inc
+
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
@@ -19,8 +21,14 @@ call mtr.add_suppression("Failed to set up SSL because of");
 
 # We let our server restart attempts write to the file $error_log.
 let $error_log= $MYSQLTEST_VARDIR/log/my_restart.err;
---error 0,1
---remove_file $error_log
+
+perl;
+my $filetodelete = "$ENV{'MYSQLTEST_VARDIR'}/log/my_restart.err";
+while (-e $filetodelete) {
+  unlink $filetodelete;
+  sleep 1;
+}
+EOF
 
 let $MYSQLD_DATADIR= `SELECT @@datadir`;
 let $MYSQL_SOCKET= `SELECT @@socket`;

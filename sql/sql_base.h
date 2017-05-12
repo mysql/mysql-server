@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,12 +16,18 @@
 #ifndef SQL_BASE_INCLUDED
 #define SQL_BASE_INCLUDED
 
-#include "my_global.h"
+#include <stddef.h>
+#include <sys/types.h>
+
 #include "hash.h"                   // my_hash_value_type
-#include "my_base.h"                // ha_extra_function
-#include "thr_lock.h"               // thr_lock_type
+#include "lex_string.h"
+#include "m_string.h"
 #include "mdl.h"                    // MDL_savepoint
+#include "my_base.h"                // ha_extra_function
+#include "my_inttypes.h"
+#include "mysql/psi/mysql_mutex.h"
 #include "sql_array.h"              // Bounds_checked_array
+#include "thr_lock.h"               // thr_lock_type
 #include "trigger_def.h"            // enum_trigger_event_type
 
 class Field;
@@ -31,21 +37,26 @@ class Open_table_context;
 class Open_tables_backup;
 class Prelocking_strategy;
 class Query_tables_list;
-class sp_head;
 class Sroutine_hash_entry;
-struct handlerton;
-struct Name_resolution_context;
+class THD;
+class sp_head;
 struct LEX;
+struct Name_resolution_context;
 struct TABLE;
-struct TABLE_SHARE;
 struct TABLE_LIST;
+struct TABLE_SHARE;
+struct handlerton;
 template <class T> class List;
 template <class T> class List_iterator;
+
 typedef struct st_bitmap MY_BITMAP;
 typedef struct st_open_table_list OPEN_TABLE_LIST;
 class SELECT_LEX;
+
 typedef Bounds_checked_array<Item *> Ref_item_array;
-namespace dd { class Table; }
+namespace dd {
+class Table;
+}  // namespace dd
 
 
 #define TEMP_PREFIX	"MY"
@@ -103,6 +114,12 @@ namespace dd { class Table; }
   TMP_TABLE_COLUMNS/KEYS I_S table only for the SHOW commands.
 */
 #define OPEN_FOR_SHOW_ONLY     CHECK_METADATA_VERSION*2
+/**
+  Avoid dd::Table lookup in open_table_from_share() call.
+  Temporary workaround used by upgrade code until we start
+  reading info from InnoDB SYS tables directly.
+*/
+#define OPEN_NO_DD_TABLE       OPEN_FOR_SHOW_ONLY*2
 
 
 /*
@@ -194,6 +211,12 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type update,
   table flush, wait on thr_lock.c locks) while opening and locking table.
 */
 #define MYSQL_OPEN_IGNORE_KILLED                0x4000
+/**
+  For new TABLE instances constructed do not open table in the storage
+  engine. Existing TABLE instances for which there is a handler object
+  which represents table open in storage engines can still be used.
+*/
+#define MYSQL_OPEN_NO_NEW_TABLE_IN_SE           0x8000
 
 /** Please refer to the internals manual. */
 #define MYSQL_OPEN_REOPEN  (MYSQL_OPEN_IGNORE_FLUSH |\
@@ -218,7 +241,8 @@ thr_lock_type read_lock_type_for_table(THD *thd,
                                        bool routine_modifies_data);
 
 bool mysql_rm_tmp_tables(void);
-bool rm_temporary_table(THD *thd, handlerton *base, const char *path);
+bool rm_temporary_table(THD *thd, handlerton *base, const char *path,
+                        const dd::Table *table_def);
 void close_tables_for_reopen(THD *thd, TABLE_LIST **tables,
                              const MDL_savepoint &start_of_statement_svp);
 TABLE *find_temporary_table(THD *thd, const char *db, const char *table_name);
@@ -263,7 +287,7 @@ find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
                         uint *cached_field_index_ptr,
                         bool register_tree_change, TABLE_LIST **actual_table);
 Field *
-find_field_in_table(THD *thd, TABLE *table, const char *name, size_t length,
+find_field_in_table(TABLE *table, const char *name, size_t length,
                     bool allow_rowid, uint *cached_field_index_ptr);
 Field *
 find_field_in_table_sef(TABLE *table, const char *name);
@@ -277,8 +301,6 @@ bool setup_natural_join_row_types(THD *thd,
 bool wait_while_table_is_used(THD *thd, TABLE *table,
                               enum ha_extra_function function);
 
-void drop_open_table(THD *thd, TABLE *table, const char *db_name,
-                     const char *table_name);
 void update_non_unique_table_error(TABLE_LIST *update,
                                    const char *operation,
                                    TABLE_LIST *duplicate);
@@ -303,9 +325,9 @@ void free_io_cache(TABLE *entry);
 void intern_close_table(TABLE *entry);
 void close_thread_table(THD *thd, TABLE **table_ptr);
 bool close_temporary_tables(THD *thd);
-TABLE_LIST *unique_table(THD *thd, const TABLE_LIST *table,
+TABLE_LIST *unique_table(const TABLE_LIST *table,
                          TABLE_LIST *table_list, bool check_alias);
-int drop_temporary_table(THD *thd, TABLE_LIST *table_list, bool *is_trans);
+void drop_temporary_table(THD *thd, TABLE_LIST *table_list);
 void close_temporary_table(THD *thd, TABLE *table, bool free_share,
                            bool delete_table);
 void close_temporary(THD *thd, TABLE *table, bool free_share, bool delete_table);
@@ -331,7 +353,7 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *db, const char *wild);
 void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
                       const char *db, const char *table_name,
                       bool has_lock);
-bool tdc_open_view(THD *thd, TABLE_LIST *table_list, const char *alias,
+bool tdc_open_view(THD *thd, TABLE_LIST *table_list,
                    const char *cache_key, size_t cache_key_length, uint flags);
 void tdc_flush_unused_tables();
 TABLE *find_table_for_mdl_upgrade(THD *thd, const char *db,

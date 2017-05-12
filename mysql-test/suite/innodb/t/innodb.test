@@ -4,6 +4,8 @@
 #Want to skip this test from daily Valgrind execution
 --source include/no_valgrind_without_big.inc
 
+-- source include/have_innodb_max_16k.inc
+
 #######################################################################
 #                                                                     #
 # Please, DO NOT TOUCH this file as well as the innodb.result file.   #
@@ -18,9 +20,6 @@
 # (otherwise your changes may be erased).                             #
 #                                                                     #
 #######################################################################
-
--- source include/have_innodb.inc
--- source include/have_innodb_max_16k.inc
 
 let $MYSQLD_DATADIR= `select @@datadir`;
 # Save the original values of some variables in order to be able to
@@ -1471,7 +1470,7 @@ SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 # Embedded server doesn't chdir to data directory
 --replace_result $MYSQLTEST_VARDIR . master-data/ ''
 --error ER_TOO_LONG_KEY,ER_INDEX_COLUMN_TOO_LONG
-create table t1 (v varchar(65530), key(v)) ROW_FORMAT=COMPACT;
+create table t1 (v varchar(65530), key(v)) charset latin1 ROW_FORMAT=COMPACT;
 create table t1 (v varchar(65536));
 show create table t1;
 drop table t1;
@@ -1482,7 +1481,7 @@ SET sql_mode = default;
 eval set default_storage_engine=$default;
 
 # InnoDB specific varchar tests
-create table t1 (v varchar(16384)) engine=innodb;
+create table t1 (v varchar(16384)) charset latin1 engine=innodb;
 drop table t1;
 
 #
@@ -2432,7 +2431,7 @@ CREATE TABLE t1 (
 	c21 CHAR(255), c22 CHAR(255), c23 CHAR(255), c24 CHAR(255),
 	c25 CHAR(255), c26 CHAR(255), c27 CHAR(255), c28 CHAR(255),
 	c29 CHAR(255), c30 CHAR(255), c31 CHAR(255), c32 CHAR(255)
-	) ENGINE = InnoDB;
+	) charset latin1 ENGINE = InnoDB;
 SET innodb_strict_mode=OFF;
 
 #
@@ -2606,6 +2605,12 @@ DROP TABLE bug58912;
 # HANDLER_READ_KEY) when it should not.
 #
 create table t1 (f1 integer primary key) engine=innodb;
+# Warm-up data-dictionary cache
+--disable_query_log
+--disable_result_log
+show create table t1;
+--enable_result_log
+--enable_query_log
 flush status;
 show status like "handler_read_key";
 select f1 from t1;

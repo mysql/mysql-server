@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,8 +13,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
-#include "my_global.h"
+#include <stdio.h>
+#include <string.h>
+#include <sys/types.h>
+
 #include "m_string.h"
+#include "my_inttypes.h"
 #include "my_xml.h"
 
 
@@ -106,7 +110,7 @@ static void my_xml_norm_text(MY_XML_ATTR *a)
 }
 
 
-static inline my_bool
+static inline bool
 my_xml_parser_prefix_cmp(MY_XML_PARSER *p, const char *s, size_t slen)
 {
   return (p->cur + slen > p->end) || memcmp(p->cur, s, slen);

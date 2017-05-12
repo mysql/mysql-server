@@ -54,5 +54,5 @@ DROP TABLE t1;
 include/sync_slave_sql_with_master.inc
 include/sync_slave_sql_with_master.inc
 include/rpl_end.inc
-RESET SLAVE ALL FOR CHANNEL  'channel_1';
-RESET SLAVE ALL FOR CHANNEL  'channel_2';
+RESET SLAVE ALL FOR CHANNEL 'channel_1';
+RESET SLAVE ALL FOR CHANNEL 'channel_2';

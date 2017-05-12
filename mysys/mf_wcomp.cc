@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,31 +17,24 @@
   @file mysys/mf_wcomp.cc
   Functions for comparing with wild-cards.
 */
+#include "mf_wcomp.h"
 
-#include "mysys_priv.h"
+#include "my_dbug.h"
 
-	/* Test if a string is "comparable" to a wild-card string */
-	/* returns 0 if the strings are "comparable" */
-
-char wild_many='*';
-char wild_one='?';
-char wild_prefix=0; /* QQ this can potentially cause a SIGSEGV */
-
-
-extern "C" int wild_compare(const char *str, const char *wildstr,
-                            pbool str_is_pattern)
+int wild_compare_full(const char *str, const char *wildstr, bool str_is_pattern,
+                      char w_prefix, char w_one, char w_many)
 {
   char cmp;
   DBUG_ENTER("wild_compare");
 
   while (*wildstr)
   {
-    while (*wildstr && *wildstr != wild_many && *wildstr != wild_one)
+    while (*wildstr && *wildstr != w_many && *wildstr != w_one)
     {
-      if (*wildstr == wild_prefix && wildstr[1])
+      if (*wildstr == w_prefix && wildstr[1])
       {
 	wildstr++;
-        if (str_is_pattern && *str++ != wild_prefix)
+        if (str_is_pattern && *str++ != w_prefix)
           DBUG_RETURN(1);
       }
       if (*wildstr++ != *str++)
@@ -49,33 +42,33 @@ extern "C" int wild_compare(const char *str, const char *wildstr,
     }
     if (! *wildstr )
       DBUG_RETURN(*str != 0);
-    if (*wildstr++ == wild_one)
+    if (*wildstr++ == w_one)
     {
-      if (! *str || (str_is_pattern && *str == wild_many))
+      if (! *str || (str_is_pattern && *str == w_many))
         DBUG_RETURN(1);                     /* One char; skip */
-      if (*str++ == wild_prefix && str_is_pattern && *str)
+      if (*str++ == w_prefix && str_is_pattern && *str)
         str++;
     }
     else
     {						/* Found '*' */
-      while (str_is_pattern && *str == wild_many)
+      while (str_is_pattern && *str == w_many)
         str++;
-      for (; *wildstr ==  wild_many || *wildstr == wild_one; wildstr++)
-        if (*wildstr == wild_many)
+      for (; *wildstr ==  w_many || *wildstr == w_one; wildstr++)
+        if (*wildstr == w_many)
         {
-          while (str_is_pattern && *str == wild_many)
+          while (str_is_pattern && *str == w_many)
             str++;
         }
         else
         {
-          if (str_is_pattern && *str == wild_prefix && str[1])
+          if (str_is_pattern && *str == w_prefix && str[1])
             str+=2;
           else if (! *str++)
             DBUG_RETURN (1);
         }
       if (!*wildstr)
         DBUG_RETURN(0);		/* '*' as last char: OK */
-      if ((cmp= *wildstr) == wild_prefix && wildstr[1] && !str_is_pattern)
+      if ((cmp= *wildstr) == w_prefix && wildstr[1] && !str_is_pattern)
         cmp=wildstr[1];
       for (;;str++)
       {
@@ -83,7 +76,8 @@ extern "C" int wild_compare(const char *str, const char *wildstr,
           str++;
         if (!*str)
           DBUG_RETURN (1);
-	if (wild_compare(str,wildstr,str_is_pattern) == 0)
+	if (wild_compare_full(str, wildstr, str_is_pattern, w_prefix, w_one,
+                              w_many) == 0)
           DBUG_RETURN (0);
       }
       /* We will never come here */
@@ -91,3 +85,10 @@ extern "C" int wild_compare(const char *str, const char *wildstr,
   }
   DBUG_RETURN (*str != 0);
 } /* wild_compare */
+
+
+int wild_compare(const char *str, const char *wildstr, bool str_is_pattern)
+{
+  return wild_compare_full(str, wildstr, str_is_pattern, wild_prefix, wild_one,
+                           wild_many);
+}

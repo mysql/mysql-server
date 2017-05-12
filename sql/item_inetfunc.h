@@ -1,7 +1,7 @@
 #ifndef ITEM_INETFUNC_INCLUDED
 #define ITEM_INETFUNC_INCLUDED
 
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,9 +16,16 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_global.h"
 #include "item_cmpfunc.h"  // Item_bool_func
+#include "item_func.h"
 #include "item_strfunc.h"  // Item_str_func
+#include "m_ctype.h"
+#include "my_inttypes.h"
+#include "parse_tree_node_base.h"
+
+class Item;
+class String;
+class THD;
 
 /*************************************************************************
   Item_func_inet_aton implements INET_ATON() SQL-function.
@@ -32,15 +39,12 @@ public:
   {}
 
 public:
-  virtual longlong val_int();
+  longlong val_int() override;
 
-  virtual const char *func_name() const
-  { return "inet_aton"; }
+  const char *func_name() const override { return "inet_aton"; }
 
-  virtual bool resolve_type(THD *thd)
+  bool resolve_type(THD *) override
   {
-    decimals= 0;
-    max_length= 21;
     maybe_null= true;
     unsigned_flag= true;
     return false;
@@ -60,15 +64,13 @@ public:
   { }
 
 public:
-  virtual String* val_str(String* str);
+  String *val_str(String *str) override;
 
-  virtual const char *func_name() const
-  { return "inet_ntoa"; }
+  const char *func_name() const override { return "inet_ntoa"; }
 
-  virtual bool resolve_type(THD *thd)
+  bool resolve_type(THD *) override
   {
-    decimals= 0;
-    fix_length_and_charset(3 * 8 + 7, default_charset());
+    set_data_type_string(3 * 8 + 7, default_charset());
     maybe_null= true;
     return false;
   }
@@ -90,10 +92,10 @@ public:
   }
 
 public:
-  virtual longlong val_int();
+  longlong val_int() override;
 
 protected:
-  virtual bool calc_value(const String *arg) = 0;
+  virtual bool calc_value(const String *arg) const= 0;
 };
 
 
@@ -110,7 +112,7 @@ public:
   { }
 
 public:
-  virtual String *val_str_ascii(String *buffer);
+  String *val_str_ascii(String *buffer) override;
 
 protected:
   virtual bool calc_value(String *arg, String *buffer) = 0;
@@ -129,19 +131,17 @@ public:
   { }
 
 public:
-  virtual const char *func_name() const
-  { return "inet6_aton"; }
+  const char *func_name() const override { return "inet6_aton"; }
 
-  virtual bool resolve_type(THD *thd)
+  bool resolve_type(THD *) override
   {
-    decimals= 0;
-    fix_length_and_charset(16, &my_charset_bin);
+    set_data_type_string(16, &my_charset_bin);
     maybe_null= true;
     return false;
   }
 
 protected:
-  virtual bool calc_value(String *arg, String *buffer);
+  bool calc_value(String *arg, String *buffer) override;
 };
 
 
@@ -157,24 +157,21 @@ public:
   { }
 
 public:
-  virtual const char *func_name() const
-  { return "inet6_ntoa"; }
+  const char *func_name() const override { return "inet6_ntoa"; }
 
-  virtual bool resolve_type(THD *thd)
+  bool resolve_type(THD *) override
   {
-    decimals= 0;
-
     // max length: IPv6-address -- 16 bytes
     // 16 bytes / 2 bytes per group == 8 groups => 7 delimiter
     // 4 symbols per group
-    fix_length_and_charset(8 * 4 + 7, default_charset());
+    set_data_type_string(8 * 4 + 7, default_charset());
 
     maybe_null= true;
     return false;
   }
 
 protected:
-  virtual bool calc_value(String *arg, String *buffer);
+  bool calc_value(String *arg, String *buffer) override;
 };
 
 
@@ -190,11 +187,10 @@ public:
   { }
 
 public:
-  virtual const char *func_name() const
-  { return "is_ipv4"; }
+  const char *func_name() const override { return "is_ipv4"; }
 
 protected:
-  virtual bool calc_value(const String *arg);
+  bool calc_value(const String *arg) const override;
 };
 
 
@@ -210,11 +206,10 @@ public:
   { }
 
 public:
-  virtual const char *func_name() const
-  { return "is_ipv6"; }
+  const char *func_name() const override { return "is_ipv6"; }
 
 protected:
-  virtual bool calc_value(const String *arg);
+  bool calc_value(const String *arg) const override;
 };
 
 
@@ -230,11 +225,10 @@ public:
   { }
 
 public:
-  virtual const char *func_name() const
-  { return "is_ipv4_compat"; }
+  const char *func_name() const override { return "is_ipv4_compat"; }
 
 protected:
-  virtual bool calc_value(const String *arg);
+  bool calc_value(const String *arg) const override;
 };
 
 
@@ -250,11 +244,10 @@ public:
   { }
 
 public:
-  virtual const char *func_name() const
-  { return "is_ipv4_mapped"; }
+  const char *func_name() const override { return "is_ipv4_mapped"; }
 
 protected:
-  virtual bool calc_value(const String *arg);
+  bool calc_value(const String *arg) const override;
 };
 
 #endif // ITEM_INETFUNC_INCLUDED
