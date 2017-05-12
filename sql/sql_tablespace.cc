@@ -402,11 +402,8 @@ bool mysql_alter_tablespace(THD *thd, st_alter_tablespace *ts_info)
       if ((ts_info->ts_cmd_type == CREATE_TABLESPACE &&
            !(hton->flags & HTON_SUPPORTS_ATOMIC_DDL)) ||
           (ts_info->ts_cmd_type == DROP_TABLESPACE &&
-           (error == HA_ERR_TABLESPACE_MISSING)
-#ifdef WORKAROUND_UNTIL_WL7016_IS_IMPLEMENTED
-            && !(hton->flags & HTON_SUPPORTS_ATOMIC_DDL)
-#endif
-          ))
+           (error == HA_ERR_TABLESPACE_MISSING) &&
+           !(hton->flags & HTON_SUPPORTS_ATOMIC_DDL)))
       {
         /*
           For engines which don't support atomic DDL addition of tablespace to

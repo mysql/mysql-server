@@ -878,13 +878,13 @@ create table t3 select a from t2;
 # COM_PREPARE.
 if (`SELECT $PS_PROTOCOL = 0`)
 {
- --replace_regex /9/<commit_count>/
-  call p_verify_status_increment(9, 4, 4, 4);
+ --replace_regex /7/<commit_count>/
+  call p_verify_status_increment(7, 4, 4, 4);
 }
 if (`SELECT $PS_PROTOCOL > 0`)
 {
-  --replace_regex /10/<commit_count>/
-  call p_verify_status_increment(10, 4, 4, 4);
+  --replace_regex /8/<commit_count>/
+  call p_verify_status_increment(8, 4, 4, 4);
 }
 alter table t3 add column (b int);
 

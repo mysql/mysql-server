@@ -2563,22 +2563,6 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
 
       if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE))
       {
-#ifndef WORKAROUND_TO_BE_REMOVED_IN_WL7141_WL7016_TREES
-        /*
-          InnoDB might add tablespace objects to the DD during table creation.
-          If these changes are not committed here it will have problems dropping
-          table on error.
-
-          The problem will be solved once InnoDB implements support for atomic
-          DDL and statement rollback will remove the table automatically.
-        */
-        {
-          Disable_gtid_state_update_guard disabler(thd);
-          trans_commit_stmt(thd);
-          trans_commit_implicit(thd);
-        }
-#endif
-
         Open_table_context ot_ctx(thd, MYSQL_OPEN_REOPEN);
         /*
           Here we open the destination table, on which we already have
@@ -2593,15 +2577,6 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
           if (!(create_info->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL))
             quick_rm_table(thd, create_info->db_type, create_table->db,
                            create_table->table_name, 0);
-#ifndef WORKAROUND_TO_BE_REMOVED_IN_WL7141_WL7016_TREES
-          else
-          {
-            /*
-              In practice this never ever happens. So it is not worth
-              to write workaround code.
-            */
-          }
-#endif
         }
         else
           table= create_table->table;
@@ -3047,22 +3022,6 @@ void Query_result_create::drop_open_table()
       quick_rm_table(thd, table_type, create_table->db,
                      create_table->table_name, 0);
     }
-#ifndef WORKAROUND_TO_BE_REMOVED_IN_WL7141_WL7016_TREES
-    else
-    {
-      trans_rollback_stmt(thd);
-      /*
-        Rollback transaction both to clear THD::transaction_rollback_request
-        (if it is set) and to synchronize DD state for view metadata in cache
-        and on disk (as statement rollback doesn't clear DD cache of modified
-        uncommitted objects).
-      */
-      trans_rollback_implicit(thd);
-
-      quick_rm_table(thd, table_type, create_table->db,
-                     create_table->table_name, 0);
-    }
-#endif
   }
   DBUG_VOID_RETURN;
 }

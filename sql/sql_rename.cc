@@ -220,11 +220,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
                          !int_commit_done);
   }
 
-  if (!error
-#ifndef WORKAROUND_TO_BE_REMOVED_BY_WL9536
-      && int_commit_done
-#endif
-      )
+  if (!error)
   {
     Uncommitted_tables_guard uncommitted_tables(thd);
 
@@ -248,25 +244,6 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
 
   if (!error && !int_commit_done)
     error= (trans_commit_stmt(thd) || trans_commit_implicit(thd));
-
-#ifndef WORKAROUND_TO_BE_REMOVED_BY_WL9536
-  if (!error && !int_commit_done)
-  {
-    for (ren_table= table_list; ren_table;
-         ren_table= ren_table->next_local->next_local)
-    {
-      TABLE_LIST *new_table= ren_table->next_local;
-      DBUG_ASSERT(new_table);
-
-      if ((error= update_referencing_views_metadata(thd, ren_table,
-                                                    new_table->db,
-                                                    new_table->table_name,
-                                                    true,
-                                                    nullptr)))
-        break;
-    }
-  }
-#endif
 
   if (error)
   {
