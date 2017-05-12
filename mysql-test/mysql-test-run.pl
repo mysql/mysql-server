@@ -118,7 +118,6 @@ our $path_charsetsdir;
 our $path_client_bindir;
 our $path_client_libdir;
 our $path_language;
-our $suitedir;
 our $path_current_testlog;
 our $path_testlog;
 
@@ -1026,18 +1025,7 @@ sub run_worker ($) {
     chomp($line);
     if ($line eq 'TESTCASE'){
       my $test= My::Test::read_test($server);
-      #$test->print_test();
 
-      # Don't use configurations of the first test case when using --start
-      if ( $start_only and !@opt_cases )
-      {
-        my $default_cnf = "$suitedir/my.cnf";
-        if (! -f $default_cnf )
-        {
-          $default_cnf = "include/default_my.cnf";
-        }
-        $test->{'template_path'} = $default_cnf;
-      }
       # Clear comment and logfile, to avoid
       # reusing them from previous test
       delete($test->{'comment'});
