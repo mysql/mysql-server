@@ -366,6 +366,7 @@ int group_replication_trans_before_commit(Trans_param *param)
 
   // Binlog cache.
   bool is_dml= true;
+  bool may_have_sbr_stmts= !is_dml;
   IO_CACHE *cache_log= NULL;
   my_off_t cache_log_position= 0;
   bool reinit_cache_log_required= false;
@@ -382,6 +383,7 @@ int group_replication_trans_before_commit(Trans_param *param)
     cache_log= param->stmt_cache_log;
     cache_log_position= stmt_cache_log_position;
     is_dml= false;
+    may_have_sbr_stmts= true;
   }
   else
   {
@@ -482,13 +484,23 @@ int group_replication_trans_before_commit(Trans_param *param)
       cleanup_transaction_write_set(write_set);
       DBUG_ASSERT(is_gtid_specified || (tcle->get_write_set()->size() > 0));
     }
+    else
+    {
+      /*
+        For empty transactions we should set the GTID may_have_sbr_stmts. See
+        comment at binlog_cache_data::may_have_sbr_stmts().
+      */
+      may_have_sbr_stmts= true;
+    }
   }
 
   // Write transaction context to group replication cache.
   tcle->write(cache);
 
   // Write Gtid log event to group replication cache.
-  gle= new Gtid_log_event(param->server_id, is_dml, 0, 1, gtid_specification);
+  gle= new Gtid_log_event(param->server_id, is_dml, 0, 1,
+                          may_have_sbr_stmts,
+                          gtid_specification);
   gle->write(cache);
 
   transaction_size= cache_log_position + my_b_tell(cache);

@@ -16,6 +16,7 @@ include/mysqlbinlog.inc
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
 # [empty]
+/*!50718 SET TRANSACTION ISOLATION LEVEL READ COMMITTED*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;

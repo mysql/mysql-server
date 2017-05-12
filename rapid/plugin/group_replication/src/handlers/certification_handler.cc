@@ -400,6 +400,7 @@ Certification_handler::handle_transaction_id(Pipeline_event *pevent,
                                                 gle->is_using_trans_cache(),
                                                 gle->last_committed,
                                                 gle->sequence_number,
+                                                gle->may_have_sbr_stmts,
                                                 gtid_specification);
 
         pevent->reset_pipeline_event();
@@ -612,6 +613,7 @@ int Certification_handler::inject_transactional_events(Pipeline_event *pevent,
                                                      true,
                                                      0,
                                                      0,
+                                                     true,
                                                      gtid_specification);
 
   Pipeline_event *gtid_pipeline_event= new Pipeline_event(gtid_log_event,
