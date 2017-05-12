@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,7 +29,7 @@ int mi_delete_table(const char *name)
 #endif
 
   fn_format(from,name,"",MI_NAME_IEXT,MY_UNPACK_FILENAME|MY_APPEND_EXT);
-  if (my_is_symlink(from) && (*myisam_test_invalid_symlink)(from))
+  if (my_is_symlink(from, NULL) && (*myisam_test_invalid_symlink)(from))
   {
     /*
       Symlink is pointing to file in data directory.
@@ -44,7 +44,7 @@ int mi_delete_table(const char *name)
       DBUG_RETURN(my_errno());
   }
   fn_format(from,name,"",MI_NAME_DEXT,MY_UNPACK_FILENAME|MY_APPEND_EXT);
-  if (my_is_symlink(from) && (*myisam_test_invalid_symlink)(from))
+  if (my_is_symlink(from, NULL) && (*myisam_test_invalid_symlink)(from))
   {
     /*
       Symlink is pointing to file in data directory.
