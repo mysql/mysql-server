@@ -1,3 +1,4 @@
+set names latin1;
 CREATE TABLE t1 (`a` INT, `b` INT, `C` INT,
 `D` INT, `á` INT, `é` INT,
 `Á` INT, `Å` INT, `ê` INT,

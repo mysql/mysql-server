@@ -3,6 +3,8 @@
 #         Test to compare collation of column_name and index_name on .FRM bases DD
 #         and New DD.
 #
+
+set names latin1;
 CREATE TABLE t1 (`a` INT, `b` INT, `C` INT,
                  `D` INT, `á` INT, `é` INT,
                  `Á` INT, `Å` INT, `ê` INT,

@@ -1282,7 +1282,7 @@ create algorithm=temptable view v1 as select a*a as a2 from t1;
 # statement code, and should not raise ER_PS_INVALIDATED errors
 show create view v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=TEMPTABLE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select (`t1`.`a` * `t1`.`a`) AS `a2` from `t1`	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=TEMPTABLE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select (`t1`.`a` * `t1`.`a`) AS `a2` from `t1`	utf8mb4	utf8mb4_0900_ai_ci
 prepare stmt from "select * from v1";
 insert into t1 values (1), (2), (3);
 execute stmt;

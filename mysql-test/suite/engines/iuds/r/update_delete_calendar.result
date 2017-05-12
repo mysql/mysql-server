@@ -68,13 +68,10 @@ Warnings:
 Warning	1292	Incorrect date value: '10:45:15' for column 'c2' at row 1
 Warning	1292	Incorrect date value: '2009-01-32' for column 'c2' at row 1
 Warning	1292	Incorrect date value: '10:45:15' for column 'c2' at row 1
-Warning	1292	Incorrect date value: '10:45:15' for column 'c2' at row 1
-Warning	1292	Incorrect date value: '2009-01-32' for column 'c2' at row 1
 UPDATE t1 SET c2='2009-11-31' WHERE c2='2001-01-16';
 ERROR 22007: Incorrect date value: '2009-11-31' for column 'c2' at row 1
 SELECT * FROM t1 WHERE c2='0000-00-00';
 c1	c2	c3
-Warning	1292	Incorrect date value: '0000-00-00' for column 'c2' at row 1
 Warning	1292	Incorrect date value: '0000-00-00' for column 'c2' at row 1
 Warnings:
 SET SQL_MODE=ALLOW_INVALID_DATES;
@@ -94,7 +91,6 @@ SELECT * FROM t1 WHERE c2='0000-00-00';
 c1	c2	c3
 Warnings:
 Warning	1292	Incorrect date value: '0000-00-00' for column 'c2' at row 1
-Warning	1292	Incorrect date value: '0000-00-00' for column 'c2' at row 1
 UPDATE t1 SET c2='0000-00-00' WHERE c2='2001-01-18';
 ERROR 22007: Incorrect date value: '0000-00-00' for column 'c2' at row 1
 SET SQL_MODE=DEFAULT;
@@ -105,8 +101,6 @@ ERROR 22007: Incorrect date value: '0000-00-00' for column 'c2' at row 1
 SELECT * FROM t1 WHERE c1='0000-00-00' OR c2='0000-00-00';
 c1	c2	c3
 Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
-Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
-Warning	1292	Incorrect date value: '0000-00-00' for column 'c2' at row 1
 Warning	1292	Incorrect date value: '0000-00-00' for column 'c2' at row 1
 Warnings:
 Warnings:
@@ -139,7 +133,6 @@ SELECT * FROM t1 WHERE c1='0000-00-00';
 c1	c2	c3
 0000-00-00	2001-01-24	17
 Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
-Warning	1292	Truncated incorrect datetime value: '0000-00-00'
 Warnings:
 TRUNCATE TABLE t1;
 CREATE TABLE t2(c1 DATE NOT NULL PRIMARY KEY, c2 DATE, c3 INT);
@@ -755,12 +748,9 @@ Warning	1292	Incorrect datetime value: '2001-01-11 23:59:60' for column 'c2' at 
 Warning	1292	Incorrect datetime value: '2001-01-11 23:59:60' for column 'c2' at row 1
 Warning	1292	Incorrect datetime value: '2001-01-11 23:59:60' for column 'c2' at row 1
 Warning	1292	Incorrect datetime value: '2001-01-11 23:59:60' for column 'c2' at row 1
-Warning	1292	Incorrect datetime value: '2001-01-11 23:59:60' for column 'c2' at row 1
 SELECT * FROM t1 WHERE c1='0000-00-00 00:00:00' OR c2='0000-00-00 00:00:00';
 c1	c2	c3
 Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'c1' at row 1
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'c1' at row 1
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'c2' at row 1
 Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'c2' at row 1
 Warnings:
 INSERT INTO t1 VALUES('2001-01-17','0000-00-00 00:00:00',8);
@@ -770,7 +760,6 @@ SET SQL_MODE=TRADITIONAL;
 SELECT * FROM t1 WHERE c2='0000-00-00 00:00:00';
 c1	c2	c3
 Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'c2' at row 1
 Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'c2' at row 1
 UPDATE t1 SET c2='0000-00-00 00:00:00' WHERE c2='2001-01-18 07:35';
 ERROR 22007: Incorrect datetime value: '0000-00-00 00:00:00' for column 'c2' at row 1
@@ -782,8 +771,6 @@ ERROR 22007: Incorrect datetime value: '0000-00-00 00:00:00' for column 'c2' at 
 SELECT * FROM t1 WHERE c1='0000-00-00 00:00:00' OR c2='0000-00-00 00:00:00';
 c1	c2	c3
 Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'c1' at row 1
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'c1' at row 1
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'c2' at row 1
 Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'c2' at row 1
 Warnings:
 SELECT * FROM t1 WHERE c2='2001-01-17 12:34:00';
@@ -811,7 +798,6 @@ SELECT * FROM t1 WHERE c1='0000-00-00 00:00:00';
 c1	c2	c3
 0000-00-00 00:00:00	2001-01-24 03:33:00	11
 Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'c1' at row 1
-Warning	1292	Truncated incorrect datetime value: '0000-00-00 00:00:00'
 Warnings:
 TRUNCATE TABLE t1;
 CREATE TABLE t2(c1 DATETIME NOT NULL PRIMARY KEY, c2 DATETIME, c3 INT);
@@ -1366,8 +1352,6 @@ Warning	1292	Incorrect datetime value: '2001-01-11 23:59:60' for column 'c2' at 
 SELECT * FROM t1 WHERE c1='0000-00-00 00:00:00' OR c2='0000-00-00 00:00:00';
 c1	c2	c3
 Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'c1' at row 1
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'c1' at row 1
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'c2' at row 1
 Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'c2' at row 1
 Warnings:
 INSERT INTO t1 VALUES('2001-01-17','0000-00-00 00:00:00',8);
@@ -1377,7 +1361,6 @@ SET SQL_MODE=TRADITIONAL;
 SELECT * FROM t1 WHERE c2='0000-00-00 00:00:00';
 c1	c2	c3
 Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'c2' at row 1
 Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'c2' at row 1
 UPDATE t1 SET c1='1972-01-01 07:35',c2='0000-00-00 00:00:00' WHERE c2='2001-01-18 07:35';
 ERROR 22007: Incorrect datetime value: '0000-00-00 00:00:00' for column 'c2' at row 1
@@ -1389,8 +1372,6 @@ ERROR 22007: Incorrect datetime value: '0000-00-00 00:00:00' for column 'c2' at 
 SELECT * FROM t1 WHERE c1='0000-00-00 00:00:00' OR c2='0000-00-00 00:00:00';
 c1	c2	c3
 Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'c1' at row 1
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'c1' at row 1
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'c2' at row 1
 Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'c2' at row 1
 Warnings:
 SELECT * FROM t1 WHERE c1='2001-01-17 12:34:00' AND c2='2001-01-17 12:34:00';
