@@ -2256,7 +2256,7 @@ ROLLBACK/*!*/;
 # # server id #  end_log_pos # CRC32 # 	Previous-GTIDs
 # [empty]
 # at #
-# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	rbr_only=no
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -2362,7 +2362,8 @@ crn INT -- row number
 ) ENGINE=MyISAM DEFAULT CHARSET latin1
 /*!*/;
 # at #
-# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	rbr_only=yes
+/*!50718 SET TRANSACTION ISOLATION LEVEL READ COMMITTED*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -2461,7 +2462,8 @@ SET TIMESTAMP=#/*!*/;
 COMMIT
 /*!*/;
 # at #
-# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	rbr_only=yes
+/*!50718 SET TRANSACTION ISOLATION LEVEL READ COMMITTED*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -2559,7 +2561,8 @@ SET TIMESTAMP=#/*!*/;
 COMMIT
 /*!*/;
 # at #
-# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	rbr_only=yes
+/*!50718 SET TRANSACTION ISOLATION LEVEL READ COMMITTED*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -2738,7 +2741,8 @@ SET TIMESTAMP=#/*!*/;
 COMMIT
 /*!*/;
 # at #
-# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	rbr_only=yes
+/*!50718 SET TRANSACTION ISOLATION LEVEL READ COMMITTED*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -2916,7 +2920,8 @@ SET TIMESTAMP=#/*!*/;
 COMMIT
 /*!*/;
 # at #
-# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	rbr_only=yes
+/*!50718 SET TRANSACTION ISOLATION LEVEL READ COMMITTED*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -3094,7 +3099,8 @@ SET TIMESTAMP=#/*!*/;
 COMMIT
 /*!*/;
 # at #
-# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	rbr_only=yes
+/*!50718 SET TRANSACTION ISOLATION LEVEL READ COMMITTED*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -3272,7 +3278,8 @@ SET TIMESTAMP=#/*!*/;
 COMMIT
 /*!*/;
 # at #
-# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	rbr_only=yes
+/*!50718 SET TRANSACTION ISOLATION LEVEL READ COMMITTED*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -3450,7 +3457,8 @@ SET TIMESTAMP=#/*!*/;
 COMMIT
 /*!*/;
 # at #
-# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	rbr_only=yes
+/*!50718 SET TRANSACTION ISOLATION LEVEL READ COMMITTED*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -3548,7 +3556,8 @@ SET TIMESTAMP=#/*!*/;
 COMMIT
 /*!*/;
 # at #
-# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	rbr_only=yes
+/*!50718 SET TRANSACTION ISOLATION LEVEL READ COMMITTED*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -3646,7 +3655,8 @@ SET TIMESTAMP=#/*!*/;
 COMMIT
 /*!*/;
 # at #
-# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	rbr_only=yes
+/*!50718 SET TRANSACTION ISOLATION LEVEL READ COMMITTED*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -3744,7 +3754,8 @@ SET TIMESTAMP=#/*!*/;
 COMMIT
 /*!*/;
 # at #
-# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	rbr_only=yes
+/*!50718 SET TRANSACTION ISOLATION LEVEL READ COMMITTED*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -3941,7 +3952,7 @@ ROLLBACK/*!*/;
 # # server id #  end_log_pos # CRC32 # 	Previous-GTIDs
 # [empty]
 # at #
-# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	rbr_only=no
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -3962,7 +3973,8 @@ crn INT -- row number
 ) ENGINE=MyISAM DEFAULT CHARSET latin1
 /*!*/;
 # at #
-# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	rbr_only=yes
+/*!50718 SET TRANSACTION ISOLATION LEVEL READ COMMITTED*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -4024,7 +4036,8 @@ SET TIMESTAMP=#/*!*/;
 COMMIT
 /*!*/;
 # at #
-# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	rbr_only=yes
+/*!50718 SET TRANSACTION ISOLATION LEVEL READ COMMITTED*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -4104,7 +4117,8 @@ SET TIMESTAMP=#/*!*/;
 COMMIT
 /*!*/;
 # at #
-# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	rbr_only=yes
+/*!50718 SET TRANSACTION ISOLATION LEVEL READ COMMITTED*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -4343,7 +4357,7 @@ ROLLBACK/*!*/;
 # # server id #  end_log_pos # CRC32 # 	Previous-GTIDs
 # [empty]
 # at #
-# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	rbr_only=no
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -4364,7 +4378,7 @@ c_1_n INT -- row number
 ) ENGINE=MyISAM DEFAULT CHARSET latin1
 /*!*/;
 # at #
-# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	rbr_only=no
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -4376,7 +4390,7 @@ c_2_n INT -- row number
 ) ENGINE=MyISAM DEFAULT CHARSET latin1
 /*!*/;
 # at #
-# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	rbr_only=no
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -4388,7 +4402,8 @@ c_3_n INT -- row number
 ) ENGINE=MyISAM DEFAULT CHARSET latin1
 /*!*/;
 # at #
-# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	rbr_only=yes
+/*!50718 SET TRANSACTION ISOLATION LEVEL READ COMMITTED*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -4450,7 +4465,8 @@ SET TIMESTAMP=#/*!*/;
 COMMIT
 /*!*/;
 # at #
-# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	rbr_only=yes
+/*!50718 SET TRANSACTION ISOLATION LEVEL READ COMMITTED*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -4512,7 +4528,8 @@ SET TIMESTAMP=#/*!*/;
 COMMIT
 /*!*/;
 # at #
-# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	rbr_only=yes
+/*!50718 SET TRANSACTION ISOLATION LEVEL READ COMMITTED*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -4574,7 +4591,7 @@ SET TIMESTAMP=#/*!*/;
 COMMIT
 /*!*/;
 # at #
-# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	rbr_only=no
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -4582,7 +4599,7 @@ SET TIMESTAMP=#/*!*/;
 ANALYZE TABLE t1
 /*!*/;
 # at #
-# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	rbr_only=no
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -4590,7 +4607,7 @@ SET TIMESTAMP=#/*!*/;
 ANALYZE TABLE t2
 /*!*/;
 # at #
-# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	rbr_only=no
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -4598,7 +4615,8 @@ SET TIMESTAMP=#/*!*/;
 ANALYZE TABLE t3
 /*!*/;
 # at #
-# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	rbr_only=yes
+/*!50718 SET TRANSACTION ISOLATION LEVEL READ COMMITTED*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -4785,7 +4803,8 @@ SET TIMESTAMP=#/*!*/;
 COMMIT
 /*!*/;
 # at #
-# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	rbr_only=yes
+/*!50718 SET TRANSACTION ISOLATION LEVEL READ COMMITTED*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -4967,7 +4986,7 @@ ROLLBACK/*!*/;
 # # server id #  end_log_pos # CRC32 # 	Previous-GTIDs
 # [empty]
 # at #
-# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	rbr_only=no
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -4988,7 +5007,8 @@ c3 VARCHAR(60)
 ) ENGINE=MyISAM DEFAULT CHARSET latin1
 /*!*/;
 # at #
-# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#
+# # server id #  end_log_pos # CRC32 # 	Anonymous_GTID	last_committed=#	sequence_number=#	rbr_only=yes
+/*!50718 SET TRANSACTION ISOLATION LEVEL READ COMMITTED*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0

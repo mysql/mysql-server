@@ -4627,6 +4627,37 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
           thd->m_digest->reset(thd->m_token_array, max_digest_length);
 
         mysql_parse(thd, &parser_state);
+
+        /*
+          Transaction isolation level of pure row based replicated transactions
+          can be optimized to ISO_READ_COMMITTED by the applier when applying
+          the Gtid_log_event.
+
+          If we are applying a statement other than transaction control ones
+          after having optimized the transactions isolation level, we must warn
+          about the non-standard situation we have found.
+        */
+        if (is_sbr_logging_format() &&
+            thd->variables.tx_isolation > ISO_READ_COMMITTED &&
+            thd->tx_isolation == ISO_READ_COMMITTED)
+        {
+          String message;
+          message.append("The isolation level for the current transaction "
+                         "was changed to READ_COMMITTED based on the "
+                         "assumption that it had only row events and was "
+                         "not mixed with statements. "
+                         "However, an unexpected statement was found in "
+                         "the middle of the transaction."
+                         "Query: '");
+          message.append(thd->query().str);
+          message.append("'");
+          rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
+                      ER_THD(thd, ER_SLAVE_FATAL_ERROR),
+                      message.c_ptr());
+          thd->is_slave_error= true;
+          goto end;
+        }
+
         /* Finalize server status flags after executing a statement. */
         thd->update_server_status();
         log_slow_statement(thd);
@@ -6882,6 +6913,21 @@ bool Xid_log_event::do_commit(THD *thd_arg)
   thd_arg->mdl_context.release_transactional_locks();
 
   error |= mysql_bin_log.gtid_end_transaction(thd_arg);
+
+  /*
+    The parser executing a SQLCOM_COMMIT or SQLCOM_ROLLBACK will reset the
+    tx isolation level and access mode when the statement is finishing a
+    transaction.
+
+    For replicated workload, when dealing with pure transactional workloads,
+    there will be no QUERY(COMMIT) finishing a transaction, but a
+    Xid_log_event instead.
+
+    So, if the slave applier changed the current transaction isolation level,
+    it needs to be restored to the session default value once the current
+    transaction has been committed.
+  */
+  trans_reset_one_shot_chistics(thd);
 
   /*
     Increment the global status commit count variable
@@ -13023,8 +13069,10 @@ Gtid_log_event::Gtid_log_event(const char *buffer, uint event_len,
 #ifndef MYSQL_CLIENT
 Gtid_log_event::Gtid_log_event(THD* thd_arg, bool using_trans,
                                int64 last_committed_arg,
-                               int64 sequence_number_arg)
-: binary_log::Gtid_event(last_committed_arg, sequence_number_arg),
+                               int64 sequence_number_arg,
+                               bool may_have_sbr_stmts_arg)
+: binary_log::Gtid_event(last_committed_arg, sequence_number_arg,
+                         may_have_sbr_stmts_arg),
   Log_event(thd_arg, thd_arg->variables.gtid_next.type == ANONYMOUS_GROUP ?
             LOG_EVENT_IGNORABLE_F : 0,
             using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
@@ -13062,8 +13110,10 @@ Gtid_log_event::Gtid_log_event(THD* thd_arg, bool using_trans,
 Gtid_log_event::Gtid_log_event(uint32 server_id_arg, bool using_trans,
                                int64 last_committed_arg,
                                int64 sequence_number_arg,
+                               bool may_have_sbr_stmts_arg,
                                const Gtid_specification spec_arg)
- : binary_log::Gtid_event(last_committed_arg, sequence_number_arg),
+ : binary_log::Gtid_event(last_committed_arg, sequence_number_arg,
+                          may_have_sbr_stmts_arg),
    Log_event(header(), footer(),
              using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
              Log_event::EVENT_STMT_CACHE, Log_event::EVENT_NORMAL_LOGGING)
@@ -13135,11 +13185,30 @@ Gtid_log_event::print(FILE *file, PRINT_EVENT_INFO *print_event_info)
   if (!print_event_info->short_form)
   {
     print_header(head, print_event_info, FALSE);
-    my_b_printf(head, "\t%s\tlast_committed=%llu\tsequence_number=%llu\n",
+    my_b_printf(head, "\t%s\tlast_committed=%llu\tsequence_number=%llu\t"
+                "rbr_only=%s\n",
                 get_type_code() == binary_log::GTID_LOG_EVENT ?
                 "GTID" : "Anonymous_GTID",
-                last_committed, sequence_number);
+                last_committed, sequence_number,
+                may_have_sbr_stmts ? "no" : "yes");
   }
+
+  /*
+    The applier thread can always use "READ COMMITTED" isolation for
+    transactions containing only RBR events (Table_map + Rows).
+
+    This would prevent some deadlock issues because InnoDB doesn't
+    acquire GAP locks in "READ COMMITTED" isolation level since
+    MySQL 5.7.18.
+  */
+  if (!may_have_sbr_stmts)
+  {
+    my_b_printf(head,
+                "/*!50718 SET TRANSACTION ISOLATION LEVEL "
+                "READ COMMITTED*/%s\n",
+                print_event_info->delimiter);
+  }
+
   to_string(buffer);
   my_b_printf(head, "%s%s\n", buffer, print_event_info->delimiter);
 }
@@ -13151,7 +13220,11 @@ uint32 Gtid_log_event::write_data_header_to_memory(uchar *buffer)
   DBUG_ENTER("Gtid_log_event::write_data_header_to_memory");
   uchar *ptr_buffer= buffer;
 
-  *ptr_buffer= 1;
+  /* Encode the GTID flags */
+  uchar gtid_flags= 0;
+  gtid_flags|= may_have_sbr_stmts ?
+               binary_log::Gtid_event::FLAG_MAY_HAVE_SBR : 0;
+  *ptr_buffer= gtid_flags;
   ptr_buffer+= ENCODED_FLAG_LENGTH;
 
 #ifndef DBUG_OFF
@@ -13265,6 +13338,38 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli)
     DBUG_RETURN(1);
 
   thd->set_currently_executing_gtid_for_slave_thread();
+
+  /*
+    If the current transaction contains no changes logged with SBR
+    we can assume this transaction as a pure row based replicated one.
+
+    Based on this assumption, we can set current transaction tx_isolation to
+    READ COMMITTED in order to avoid concurrent transactions to be blocked by
+    InnoDB gap locks.
+
+    The session tx_isolation will be restored:
+    - When the transaction finishes with QUERY(COMMIT|ROLLBACK),
+      as the MySQL server does for ordinary user sessions;
+    - When applying a Xid_log_event, after committing the transaction;
+    - When applying a XA_prepare_log_event, after preparing the transaction;
+    - When the applier needs to abort a transaction execution.
+
+    Notice that when a transaction is being "gtid skipped", its statements are
+    not actually executed (see mysql_execute_command()). So, the call to the
+    function that would restore the tx_isolation after finishing the transaction
+    may not happen.
+  */
+  if (DBUG_EVALUATE("force_trx_as_rbr_only", true,
+                    !may_have_sbr_stmts &&
+                    thd->tx_isolation > ISO_READ_COMMITTED &&
+                    gtid_pre_statement_checks(thd) != GTID_STATEMENT_SKIP))
+  {
+    DBUG_ASSERT(thd->get_transaction()->is_empty(Transaction_ctx::STMT));
+    DBUG_ASSERT(thd->get_transaction()->is_empty(Transaction_ctx::SESSION));
+    DBUG_ASSERT(!thd->lock);
+    DBUG_PRINT("info", ("setting tx_isolation to READ COMMITTED"));
+    set_tx_isolation(thd, ISO_READ_COMMITTED, true/*one_shot*/);
+  }
 
   DBUG_RETURN(0);
 }

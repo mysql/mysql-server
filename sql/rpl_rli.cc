@@ -1825,6 +1825,22 @@ void Relay_log_info::cleanup_context(THD *thd, bool error)
   reset_row_stmt_start_timestamp();
   unset_long_find_row_note_printed();
 
+  /*
+    If the slave applier changed the current transaction isolation level,
+    it need to be restored to the session default value once having the
+    current transaction cleared.
+
+    We should call "trans_reset_one_shot_chistics()" only if the "error"
+    flag is "true", because "cleanup_context()" is called at the end of each
+    set of Table_maps/Rows representing a statement (when the rows event
+    is tagged with the STMT_END_F) with the "error" flag as "false".
+
+    So, without the "if (error)" below, the isolation level might be reset
+    in the middle of a pure row based transaction.
+  */
+  if (error)
+    trans_reset_one_shot_chistics(thd);
+
   DBUG_VOID_RETURN;
 }
 
