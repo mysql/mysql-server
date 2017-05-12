@@ -2264,38 +2264,6 @@ NdbImportImpl::RelayOpWorker::do_run()
     return;
   }
   const Table& table = m_util.get_table(row->m_tabid);
-  if (table.m_has_hidden_pk)
-  {
-    const Attrs& attrs = table.m_attrs;
-    const uint attrcnt = attrs.size();
-    const Attr& attr = attrs[attrcnt - 1];
-    require(attr.m_type == NdbDictionary::Column::Bigunsigned);
-    uint64 val;
-    // XXX mark row as "ai_done" to avoid re-doing
-    if (m_ndb->getAutoIncrementValue(table.m_tab, val,
-                                     opt.m_ai_prefetch_sz,
-                                     opt.m_ai_increment,
-                                     opt.m_ai_offset) == -1)
-    {
-      const NdbError& ndberror = m_ndb->getNdbError();
-      require(ndberror.code != 0);
-      if (ndberror.status == NdbError::TemporaryError)
-      {
-        log1("getAutoIncrementValue: " << ndberror);
-        rows_in.lock();
-        log1("push back to input: rowid " << row->m_rowid);
-        rows_in.push_back_force(row);
-        rows_in.unlock();
-        NdbSleep_MilliSleep(opt.m_tempdelay);
-        return;
-      }
-      m_util.set_error_ndb(m_error, __LINE__, m_ndb->getNdbError(),
-                           "table %s: get autoincrement failed",
-                           table.m_tab->getName());
-      return;
-    }
-    attr.set_value(row, &val, 8);
-  }
   const bool no_hint = opt.m_no_hint;
   Tx* tx = 0;
   if (no_hint)
@@ -2822,6 +2790,35 @@ NdbImportImpl::ExecOpWorkerAsynch::state_define()
     Row* row = op->m_row;
     require(row != 0);
     const Table& table = m_util.get_table(row->m_tabid);
+    if (table.m_has_hidden_pk)
+    {
+      const Attrs& attrs = table.m_attrs;
+      const uint attrcnt = attrs.size();
+      const Attr& attr = attrs[attrcnt - 1];
+      require(attr.m_type == NdbDictionary::Column::Bigunsigned);
+      uint64 val;
+      if (m_ndb->getAutoIncrementValue(table.m_tab, val,
+                                       opt.m_ai_prefetch_sz,
+                                       opt.m_ai_increment,
+                                       opt.m_ai_offset) == -1)
+      {
+        const NdbError& ndberror = m_ndb->getNdbError();
+        require(ndberror.code != 0);
+        if (ndberror.status == NdbError::TemporaryError)
+        {
+          log1("getAutoIncrementValue: " << ndberror);
+          log1("push back to input: rowid " << row->m_rowid);
+          ops_in.push_front(op);
+          NdbSleep_MilliSleep(opt.m_tempdelay);
+          continue;
+        }
+        m_util.set_error_ndb(m_error, __LINE__, m_ndb->getNdbError(),
+                             "table %s: get autoincrement failed",
+                             table.m_tab->getName());
+        break;
+      }
+      attr.set_value(row, &val, 8);
+    }
     const bool no_hint = opt.m_no_hint;
     Tx* tx = 0;
     if (no_hint)
