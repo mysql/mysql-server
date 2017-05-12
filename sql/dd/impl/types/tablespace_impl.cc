@@ -148,6 +148,19 @@ bool Tablespace_impl::restore_children(Open_dictionary_tables_ctx *otx)
 
 bool Tablespace_impl::store_children(Open_dictionary_tables_ctx *otx)
 {
+  if (m_files.has_removed_items())
+  {
+    if (m_files.drop_items
+        (otx,
+         otx->get_table<Tablespace_file>(),
+         Tablespace_files::create_key_by_tablespace_id(this->id())))
+    {
+      return true;
+    }
+    // Prevent store_items() below from also dropping removed files since
+    // all are already dropped.
+    m_files.clear_removed_items();
+  }
   return m_files.store_items(otx);
 }
 
@@ -313,7 +326,7 @@ bool Tablespace_impl::remove_file(String_type data_file)
 {
   for (Tablespace_file *tsf : m_files)
   {
-    if (!strcmp(tsf->filename().c_str(), data_file.c_str()))
+    if (tsf->filename() == data_file)
     {
       m_files.remove(dynamic_cast<Tablespace_file_impl*>(tsf));
       return false;
