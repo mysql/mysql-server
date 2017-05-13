@@ -4151,6 +4151,7 @@ dict_scan_table_name(
 	const CHARSET_INFO*	cs,	/*!< in: the character set of ptr */
 	const char*		ptr,	/*!< in: scanned to */
 	dict_table_t**		table,	/*!< out: table object or NULL */
+	MDL_ticket**		mdl,	/*!< out: mdl on table */
 	const char*		name,	/*!< in: foreign key table name */
 	ibool*			success,/*!< out: TRUE if ok name found */
 	mem_heap_t*		heap,	/*!< in: heap where to allocate the id */
@@ -4208,9 +4209,9 @@ dict_scan_table_name(
 		table_name = scan_name;
 	}
 
-	*ref_name = dict_get_referenced_table(
+	*ref_name = dd_get_referenced_table(
 		name, database_name, database_name_len,
-		table_name, strlen(table_name), table, heap);
+		table_name, strlen(table_name), table, mdl, heap);
 
 	*success = TRUE;
 	return(ptr);
@@ -4489,6 +4490,7 @@ dict_create_foreign_constraints_low(
 	const char*	referenced_table_name;
 	dict_foreign_set	local_fk_set;
 	dict_foreign_set_free	local_fk_set_free(local_fk_set);
+	MDL_ticket*	mdl;
 
 	ut_ad(!srv_read_only_mode);
 	ut_ad(mutex_own(&dict_sys->mutex));
@@ -4526,7 +4528,7 @@ dict_create_foreign_constraints_low(
 
 	/* We are doing an ALTER TABLE: scan the table name we are altering */
 
-	ptr = dict_scan_table_name(cs, ptr, &table_to_alter, name,
+	ptr = dict_scan_table_name(cs, ptr, &table_to_alter, &mdl, name,
 				   &success, heap, &referenced_table_name);
 	if (!success) {
 		ib::error() << "Could not find the table being ALTERED in: "
@@ -4549,6 +4551,7 @@ dict_create_foreign_constraints_low(
 	} else {
 		highest_id_so_far = dict_table_get_highest_foreign_id(
 			table_to_alter);
+		dd_table_close(table_to_alter, current_thd, &mdl, true);
 	}
 
 	number = highest_id_so_far + 1;
@@ -4791,13 +4794,17 @@ col_loop1:
 			table->get_col_name(dict_col_get_no(columns[i])));
 	}
 
-	ptr = dict_scan_table_name(cs, ptr, &referenced_table, name,
+	ptr = dict_scan_table_name(cs, ptr, &referenced_table, &mdl, name,
 				   &success, heap, &referenced_table_name);
 
 	/* Note that referenced_table can be NULL if the user has suppressed
 	checking of foreign key constraints! */
 
 	if (!success || (!referenced_table && trx->check_foreigns)) {
+		if (referenced_table) {
+			dd_table_close(referenced_table,current_thd,
+				       &mdl, true);
+		}
 		mutex_enter(&dict_foreign_err_mutex);
 		dict_foreign_error_report_low(ef, name);
 		fprintf(ef, "%s:\nCannot resolve table name close to:\n"
@@ -4819,6 +4826,10 @@ col_loop1:
 	ptr = dict_accept(cs, ptr, "(", &success);
 
 	if (!success) {
+		if (referenced_table) {
+			dd_table_close(referenced_table, current_thd,
+				       &mdl, true);
+		}
 		dict_foreign_report_syntax_err(name, start_of_latest_foreign,
 					       ptr);
 		return(DB_CANNOT_ADD_CONSTRAINT);
@@ -4834,6 +4845,10 @@ col_loop2:
 
 	if (!success) {
 
+		if (referenced_table) {
+			dd_table_close(referenced_table, current_thd,
+				       &mdl, true);
+		}
 		mutex_enter(&dict_foreign_err_mutex);
 		dict_foreign_error_report_low(ef, name);
 		fprintf(ef, "%s:\nCannot resolve column name close to:\n"
@@ -4853,6 +4868,10 @@ col_loop2:
 	ptr = dict_accept(cs, ptr, ")", &success);
 
 	if (!success || foreign->n_fields != i) {
+		if (referenced_table) {
+			dd_table_close(referenced_table, current_thd,
+				       &mdl, true);
+		}
 
 		dict_foreign_report_syntax_err(name, start_of_latest_foreign,
 					       ptr);
@@ -4878,6 +4897,10 @@ scan_on_conditions:
 		ptr = dict_accept(cs, ptr, "UPDATE", &success);
 
 		if (!success) {
+			if (referenced_table) {
+				dd_table_close(referenced_table, current_thd,
+					       &mdl, true);
+			}
 
 			dict_foreign_report_syntax_err(
 				name, start_of_latest_foreign, ptr);
@@ -4915,6 +4938,10 @@ scan_on_conditions:
 		ptr = dict_accept(cs, ptr, "ACTION", &success);
 
 		if (!success) {
+			if (referenced_table) {
+				dd_table_close(referenced_table, current_thd,
+					       &mdl, true);
+			}
 			dict_foreign_report_syntax_err(
 				name, start_of_latest_foreign, ptr);
 
@@ -4933,6 +4960,10 @@ scan_on_conditions:
 	ptr = dict_accept(cs, ptr, "SET", &success);
 
 	if (!success) {
+		if (referenced_table) {
+			dd_table_close(referenced_table, current_thd,
+				       &mdl, true);
+		}
 		dict_foreign_report_syntax_err(name, start_of_latest_foreign,
 					       ptr);
 		return(DB_CANNOT_ADD_CONSTRAINT);
@@ -4941,6 +4972,10 @@ scan_on_conditions:
 	ptr = dict_accept(cs, ptr, "NULL", &success);
 
 	if (!success) {
+		if (referenced_table) {
+			dd_table_close(referenced_table, current_thd,
+				       &mdl, true);
+		}
 		dict_foreign_report_syntax_err(name, start_of_latest_foreign,
 					       ptr);
 		return(DB_CANNOT_ADD_CONSTRAINT);
@@ -4952,6 +4987,10 @@ scan_on_conditions:
 
 			/* It is not sensible to define SET NULL
 			if the column is not allowed to be NULL! */
+			if (referenced_table) {
+				dd_table_close(referenced_table, current_thd,
+					       &mdl, true);
+			}
 
 			mutex_enter(&dict_foreign_err_mutex);
 			dict_foreign_error_report_low(ef, name);
@@ -4977,6 +5016,10 @@ scan_on_conditions:
 try_find_index:
 	if (n_on_deletes > 1 || n_on_updates > 1) {
 		/* It is an error to define more than 1 action */
+		if (referenced_table) {
+			dd_table_close(referenced_table, current_thd,
+				       &mdl, true);
+		}
 
 		mutex_enter(&dict_foreign_err_mutex);
 		dict_foreign_error_report_low(ef, name);
@@ -4999,6 +5042,8 @@ try_find_index:
 						foreign->foreign_index,
 						TRUE, FALSE);
 		if (!index) {
+			dd_table_close(referenced_table, current_thd,
+				       &mdl, true);
 			mutex_enter(&dict_foreign_err_mutex);
 			dict_foreign_error_report_low(ef, name);
 			fprintf(ef, "%s:\n"
@@ -5038,6 +5083,10 @@ try_find_index:
 	for (i = 0; i < foreign->n_fields; i++) {
 		foreign->referenced_col_names[i]
 			= mem_heap_strdup(foreign->heap, column_names[i]);
+	}
+
+	if (referenced_table) {
+		dd_table_close(referenced_table, current_thd, &mdl, true);
 	}
 
 	goto loop;

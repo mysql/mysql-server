@@ -3004,7 +3004,7 @@ dd_get_first_path(
 }
 
 /** Make sure the data_dir_path is saved in dict_table_t if DATA DIRECTORY
-was used. Try to read it from the fil_system first, then from SYS_DATAFILES.
+was used. Try to read it from the fil_system first, then from NEW DD.
 @param[in]	table		Table object
 @param[in]	dict_mutex_own	true if dict_sys->mutex is owned already */
 template<typename Table>
@@ -4888,3 +4888,72 @@ uint32_t dd_get_total_indexes_num()
 	return(indexes_count);
 }
 #endif /* UNIV_DEBUG */
+
+/** Open a table from its database and table name, this is currently used by
+foreign constraint parser to get the referenced table.
+@param[in]	name			foreign key table name
+@param[in]	database_name		table db name
+@param[in]	database_name_len	db name length
+@param[in]	table_name		table db name
+@param[in]	table_name_len		table name length
+@param[in,out]	table			table object or NULL
+@param[in,out]	mdl			mdl on table
+@param[in,out]	heap			heap memory
+@return complete table name with database and table name, allocated from
+heap memory passed in */
+char*
+dd_get_referenced_table(
+	const char*	name,
+	const char*	database_name,
+	ulint		database_name_len,
+	const char*	table_name,
+	ulint		table_name_len,
+	dict_table_t**	table,
+	MDL_ticket**	mdl,
+	mem_heap_t*	heap)
+{
+	char*		ref;
+	const char*	db_name;
+
+	if (!database_name) {
+		/* Use the database name of the foreign key table */
+
+		db_name = name;
+		database_name_len = dict_get_db_name_len(name);
+	} else {
+		db_name = database_name;
+	}
+
+	/* Copy database_name, '/', table_name, '\0' */
+	ref = static_cast<char*>(
+		mem_heap_alloc(heap, database_name_len + table_name_len + 2));
+
+	memcpy(ref, db_name, database_name_len);
+	ref[database_name_len] = '/';
+	memcpy(ref + database_name_len + 1, table_name, table_name_len + 1);
+
+	/* Values;  0 = Store and compare as given; case sensitive
+		    1 = Store and compare in lower; case insensitive
+		    2 = Store as given, compare in lower; case semi-sensitive */
+	if (innobase_get_lower_case_table_names() == 2) {
+		innobase_casedn_str(ref);
+		*table = dd_table_open_on_name(current_thd, mdl, ref,
+					       true, DICT_ERR_IGNORE_NONE);
+		memcpy(ref, db_name, database_name_len);
+		ref[database_name_len] = '/';
+		memcpy(ref + database_name_len + 1, table_name, table_name_len + 1);
+
+	} else {
+#ifndef _WIN32
+		if (innobase_get_lower_case_table_names() == 1) {
+			innobase_casedn_str(ref);
+		}
+#else
+		innobase_casedn_str(ref);
+#endif /* !_WIN32 */
+		*table = dd_table_open_on_name(current_thd, mdl, ref,
+					       true, DICT_ERR_IGNORE_NONE);
+	}
+
+	return(ref);
+}

@@ -930,5 +930,27 @@ dd_rename_fts_table(
 	const dict_table_t*	table,
 	const char*		old_name);
 
+/** Open a table from its database and table name, this is currently used by
+foreign constraint parser to get the referenced table.
+@param[in]	name			foreign key table name
+@param[in]	database_name		table db name
+@param[in]	database_name_len	db name length
+@param[in]	table_name		table db name
+@param[in]	table_name_len		table name length
+@param[in,out]	table			table object or NULL
+@param[in,out]	mdl			mdl on table
+@param[in,out]	heap			heap memory
+@return complete table name with database and table name, allocated from
+heap memory passed in */
+char*
+dd_get_referenced_table(
+	const char*	name,
+	const char*	database_name,
+	ulint		database_name_len,
+	const char*	table_name,
+	ulint		table_name_len,
+	dict_table_t**	table,
+	MDL_ticket**	mdl,
+	mem_heap_t*	heap);
 #include "dict0dd.ic"
 #endif
