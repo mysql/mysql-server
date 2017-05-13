@@ -194,6 +194,24 @@ uint Dictionary_impl::set_I_S_version(THD *thd, uint version)
 
 ///////////////////////////////////////////////////////////////////////////
 
+uint Dictionary_impl::get_target_P_S_version()
+{ return tables::DD_properties::get_target_P_S_version(); }
+
+///////////////////////////////////////////////////////////////////////////
+
+uint Dictionary_impl::get_actual_P_S_version(THD *thd)
+{ return tables::DD_properties::instance().get_actual_P_S_version(thd); }
+
+///////////////////////////////////////////////////////////////////////////
+
+uint Dictionary_impl::set_P_S_version(THD *thd, uint version)
+{
+  return const_cast<tables::DD_properties&>(
+           tables::DD_properties::instance()).set_P_S_version(thd, version);
+}
+
+///////////////////////////////////////////////////////////////////////////
+
 const Object_table *Dictionary_impl::get_dd_table(
   const String_type &schema_name,
   const String_type &table_name) const

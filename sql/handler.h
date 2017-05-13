@@ -831,8 +831,8 @@ enum ha_notification_type { HA_NOTIFY_PRE_EVENT, HA_NOTIFY_POST_EVENT };
 
 /**
   Class to hold information regarding a table to be created on
-  behalf of a plugin. The class stores the name, definition and
-  options of the table. The definition should not contain the
+  behalf of a plugin. The class stores the name, definition, options
+  and optional tablespace of the table. The definition should not contain the
   'CREATE TABLE name' prefix.
 
   @note The data members are not owned by the class, and will not
@@ -844,13 +844,15 @@ private:
   const char *m_table_name;
   const char *m_table_definition;
   const char *m_table_options;
+  const char *m_tablespace_name;
 
 public:
   Plugin_table(const char *name, const char *definition,
-               const char *options):
-    m_table_name(name),
+               const char *options, const char *tablespace_name)
+  : m_table_name(name),
     m_table_definition(definition),
-    m_table_options(options)
+    m_table_options(options),
+    m_tablespace_name(tablespace_name)
   { }
 
   const char *get_name() const
@@ -861,6 +863,9 @@ public:
 
   const char *get_table_options() const
   { return m_table_options; }
+
+  const char *get_tablespace_name() const
+  { return m_tablespace_name; }
 };
 
 /**

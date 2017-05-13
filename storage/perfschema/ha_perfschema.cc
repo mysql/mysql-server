@@ -1252,6 +1252,2635 @@ find_table_share(const char *db, const char *name)
   DBUG_RETURN(result);
 }
 
+
+/**
+  Initialize Performance Schema tables in the Data Dictionary.
+
+  Create strings representing the required performance schema tables,
+  i.e. tables that InnoDB expects to exist in the DD, and add them
+  to the appropriate out parameter.
+
+  @param[in]      dict_init_mode  How to initialize files
+
+  @param[in]      version         Target DD version if a new server
+                                  is being installed.
+                                  0 if restarting an existing server.
+
+  @param[out]     tables          List of SQL DDL statements
+                                  for creating DD tables that
+                                  are needed by the DDSE.
+
+  @param[out]     tablespaces     List of meta data for predefined
+                                  tablespaces created by the DDSE.
+
+  @retval true                    An error occurred.
+  @retval false                   Success - no errors.
+*/
+
+static
+bool
+pfs_dict_init(dict_init_mode_t               dict_init_mode,
+              uint                           version MY_ATTRIBUTE((unused)),
+              List<const Plugin_table>*      tables,
+              List<const Plugin_tablespace>* tablespaces MY_ATTRIBUTE((unused)))
+{
+  if (dict_init_mode != DICT_INIT_CREATE_FILES)
+    return false;
+
+  static Plugin_table pfst_cond_instances(
+    /* Name */
+    "cond_instances",
+    /* Definition */
+    "  NAME VARCHAR(128) not null,\n"
+    "  OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,\n"
+    "  PRIMARY KEY (OBJECT_INSTANCE_BEGIN) USING HASH,\n"
+    "  KEY (NAME) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr);
+
+  static Plugin_table pfst_events_waits_current(
+    /* Name */
+    "events_waits_current",
+    /* Definition */
+    "  THREAD_ID BIGINT unsigned not null,\n"
+    "  EVENT_ID BIGINT unsigned not null,\n"
+    "  END_EVENT_ID BIGINT unsigned,\n"
+    "  EVENT_NAME VARCHAR(128) not null,\n"
+    "  SOURCE VARCHAR(64),\n"
+    "  TIMER_START BIGINT unsigned,\n"
+    "  TIMER_END BIGINT unsigned,\n"
+    "  TIMER_WAIT BIGINT unsigned,\n"
+    "  SPINS INTEGER unsigned,\n"
+    "  OBJECT_SCHEMA VARCHAR(64),\n"
+    "  OBJECT_NAME VARCHAR(512),\n"
+    "  INDEX_NAME VARCHAR(64),\n"
+    "  OBJECT_TYPE VARCHAR(64),\n"
+    "  OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,\n"
+    "  NESTING_EVENT_ID BIGINT unsigned,\n"
+    "  NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT'),\n"
+    "  OPERATION VARCHAR(32) not null,\n"
+    "  NUMBER_OF_BYTES BIGINT,\n"
+    "  FLAGS INTEGER unsigned,\n"
+    "  PRIMARY KEY (THREAD_ID, EVENT_ID)\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_events_waits_history(
+    /* Name */
+    "events_waits_history",
+    /* Definition */
+    "  THREAD_ID BIGINT unsigned not null,\n"
+    "  EVENT_ID BIGINT unsigned not null,\n"
+    "  END_EVENT_ID BIGINT unsigned,\n"
+    "  EVENT_NAME VARCHAR(128) not null,\n"
+    "  SOURCE VARCHAR(64),\n"
+    "  TIMER_START BIGINT unsigned,\n"
+    "  TIMER_END BIGINT unsigned,\n"
+    "  TIMER_WAIT BIGINT unsigned,\n"
+    "  SPINS INTEGER unsigned,\n"
+    "  OBJECT_SCHEMA VARCHAR(64),\n"
+    "  OBJECT_NAME VARCHAR(512),\n"
+    "  INDEX_NAME VARCHAR(64),\n"
+    "  OBJECT_TYPE VARCHAR(64),\n"
+    "  OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,\n"
+    "  NESTING_EVENT_ID BIGINT unsigned,\n"
+    "  NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT'),\n"
+    "  OPERATION VARCHAR(32) not null,\n"
+    "  NUMBER_OF_BYTES BIGINT,\n"
+    "  FLAGS INTEGER unsigned,\n"
+    "  PRIMARY KEY (THREAD_ID, EVENT_ID)\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_events_waits_history_long(
+    /* Name */
+    "events_waits_history_long",
+    /* Definition */
+    "  THREAD_ID BIGINT unsigned not null,\n"
+    "  EVENT_ID BIGINT unsigned not null,\n"
+    "  END_EVENT_ID BIGINT unsigned,\n"
+    "  EVENT_NAME VARCHAR(128) not null,\n"
+    "  SOURCE VARCHAR(64),\n"
+    "  TIMER_START BIGINT unsigned,\n"
+    "  TIMER_END BIGINT unsigned,\n"
+    "  TIMER_WAIT BIGINT unsigned,\n"
+    "  SPINS INTEGER unsigned,\n"
+    "  OBJECT_SCHEMA VARCHAR(64),\n"
+    "  OBJECT_NAME VARCHAR(512),\n"
+    "  INDEX_NAME VARCHAR(64),\n"
+    "  OBJECT_TYPE VARCHAR(64),\n"
+    "  OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,\n"
+    "  NESTING_EVENT_ID BIGINT unsigned,\n"
+    "  NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT'),\n"
+    "  OPERATION VARCHAR(32) not null,\n"
+    "  NUMBER_OF_BYTES BIGINT,\n"
+    "  FLAGS INTEGER unsigned\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_events_waits_summary_by_instance(
+    /* Name */
+    "events_waits_summary_by_instance",
+    /* Definition */
+    "  EVENT_NAME VARCHAR(128) not null,\n"
+    "  OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,\n"
+    "  COUNT_STAR BIGINT unsigned not null,\n"
+    "  SUM_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  MIN_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  AVG_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  MAX_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  PRIMARY KEY (OBJECT_INSTANCE_BEGIN),\n"
+    "  KEY (EVENT_NAME)\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+
+  static Plugin_table pfst_events_waits_summary_by_host_by_event_name(
+    /* Name */
+    "events_waits_summary_by_host_by_event_name",
+    /* Definition */
+    "  HOST CHAR(60) collate utf8_bin default null,\n"
+    "  EVENT_NAME VARCHAR(128) not null,\n"
+    "  COUNT_STAR BIGINT unsigned not null,\n"
+    "  SUM_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  MIN_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  AVG_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  MAX_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  UNIQUE KEY (HOST, EVENT_NAME) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_events_waits_summary_by_user_by_event_name(
+    /* Name */
+    "events_waits_summary_by_user_by_event_name",
+    /* Definition */
+    "  USER CHAR(32) collate utf8_bin default null,\n"
+    "  EVENT_NAME VARCHAR(128) not null,\n"
+    "  COUNT_STAR BIGINT unsigned not null,\n"
+    "  SUM_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  MIN_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  AVG_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  MAX_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  UNIQUE KEY (USER, EVENT_NAME) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_events_waits_summary_by_account_by_event_name(
+    /* Name */
+    "events_waits_summary_by_account_by_event_name",
+    /* Definition */
+    "  USER CHAR(32) collate utf8_bin default null,\n"
+    "  HOST CHAR(60) collate utf8_bin default null,\n"
+    "  EVENT_NAME VARCHAR(128) not null,\n"
+    "  COUNT_STAR BIGINT UNSIGNED not null,\n"
+    "  SUM_TIMER_WAIT BIGINT UNSIGNED not null,\n"
+    "  MIN_TIMER_WAIT BIGINT UNSIGNED not null,\n"
+    "  AVG_TIMER_WAIT BIGINT UNSIGNED not null,\n"
+    "  MAX_TIMER_WAIT BIGINT UNSIGNED not null,\n"
+    "  UNIQUE KEY `ACCOUNT` (USER, HOST, EVENT_NAME) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_events_waits_summary_by_thread_by_event_name(
+    /* Name */
+    "events_waits_summary_by_thread_by_event_name",
+    /* Definition */
+    "  THREAD_ID BIGINT unsigned not null,\n"
+    "  EVENT_NAME VARCHAR(128) not null,\n"
+    "  COUNT_STAR BIGINT unsigned not null,\n"
+    "  SUM_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  MIN_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  AVG_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  MAX_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  PRIMARY KEY (THREAD_ID, EVENT_NAME) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_events_waits_summary_global_by_event_name(
+    /* Name */
+    "events_waits_summary_global_by_event_name",
+    /* Definition */
+    "  EVENT_NAME VARCHAR(128) not null,\n"
+    "  COUNT_STAR BIGINT unsigned not null,\n"
+    "  SUM_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  MIN_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  AVG_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  MAX_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  PRIMARY KEY (EVENT_NAME) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_file_instances(
+    /* Name */
+    "file_instances",
+    /* Definition */
+    "  FILE_NAME VARCHAR(512) not null,\n"
+    "  EVENT_NAME VARCHAR(128) not null,\n"
+    "  OPEN_COUNT INTEGER unsigned not null,\n"
+    "  PRIMARY KEY (FILE_NAME) USING HASH,\n"
+    "  KEY (EVENT_NAME) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_file_summary_by_event_name(
+    /* Name */
+    "file_summary_by_event_name",
+    /* Definition */
+    "  EVENT_NAME VARCHAR(128) not null,\n"
+    "  COUNT_STAR BIGINT UNSIGNED not null,\n"
+    "  SUM_TIMER_WAIT BIGINT UNSIGNED not null,\n"
+    "  MIN_TIMER_WAIT BIGINT UNSIGNED not null,\n"
+    "  AVG_TIMER_WAIT BIGINT UNSIGNED not null,\n"
+    "  MAX_TIMER_WAIT BIGINT UNSIGNED not null,\n"
+    "  COUNT_READ BIGINT UNSIGNED not null,\n"
+    "  SUM_TIMER_READ BIGINT UNSIGNED not null,\n"
+    "  MIN_TIMER_READ BIGINT UNSIGNED not null,\n"
+    "  AVG_TIMER_READ BIGINT UNSIGNED not null,\n"
+    "  MAX_TIMER_READ BIGINT UNSIGNED not null,\n"
+    "  SUM_NUMBER_OF_BYTES_READ BIGINT not null,\n"
+    "  COUNT_WRITE BIGINT unsigned not null,\n"
+    "  SUM_TIMER_WRITE BIGINT unsigned not null,\n"
+    "  MIN_TIMER_WRITE BIGINT unsigned not null,\n"
+    "  AVG_TIMER_WRITE BIGINT unsigned not null,\n"
+    "  MAX_TIMER_WRITE BIGINT unsigned not null,\n"
+    "  SUM_NUMBER_OF_BYTES_WRITE BIGINT not null,\n"
+    "  COUNT_MISC BIGINT unsigned not null,\n"
+    "  SUM_TIMER_MISC BIGINT unsigned not null,\n"
+    "  MIN_TIMER_MISC BIGINT unsigned not null,\n"
+    "  AVG_TIMER_MISC BIGINT unsigned not null,\n"
+    "  MAX_TIMER_MISC BIGINT unsigned not null,\n"
+    "  PRIMARY KEY (EVENT_NAME) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_file_summary_by_instance(
+    /* Name */
+    "file_summary_by_instance",
+    /* Definition */
+    "  FILE_NAME VARCHAR(512) not null,\n"
+    "  EVENT_NAME VARCHAR(128) not null,\n"
+    "  OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,\n"
+    "  COUNT_STAR BIGINT unsigned not null,\n"
+    "  SUM_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  MIN_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  AVG_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  MAX_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  COUNT_READ BIGINT unsigned not null,\n"
+    "  SUM_TIMER_READ BIGINT unsigned not null,\n"
+    "  MIN_TIMER_READ BIGINT unsigned not null,\n"
+    "  AVG_TIMER_READ BIGINT unsigned not null,\n"
+    "  MAX_TIMER_READ BIGINT unsigned not null,\n"
+    "  SUM_NUMBER_OF_BYTES_READ BIGINT not null,\n"
+    "  COUNT_WRITE BIGINT unsigned not null,\n"
+    "  SUM_TIMER_WRITE BIGINT unsigned not null,\n"
+    "  MIN_TIMER_WRITE BIGINT unsigned not null,\n"
+    "  AVG_TIMER_WRITE BIGINT unsigned not null,\n"
+    "  MAX_TIMER_WRITE BIGINT unsigned not null,\n"
+    "  SUM_NUMBER_OF_BYTES_WRITE BIGINT not null,\n"
+    "  COUNT_MISC BIGINT unsigned not null,\n"
+    "  SUM_TIMER_MISC BIGINT unsigned not null,\n"
+    "  MIN_TIMER_MISC BIGINT unsigned not null,\n"
+    "  AVG_TIMER_MISC BIGINT unsigned not null,\n"
+    "  MAX_TIMER_MISC BIGINT unsigned not null,\n"
+    "  PRIMARY KEY (OBJECT_INSTANCE_BEGIN) USING HASH,\n"
+    "  KEY (FILE_NAME) USING HASH,\n"
+    "  KEY (EVENT_NAME) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_socket_instances(
+    /* Name */
+    "socket_instances",
+    /* Definition */
+    "  EVENT_NAME VARCHAR(128) not null,\n"
+    "  OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,\n"
+    "  THREAD_ID BIGINT unsigned,\n"
+    "  SOCKET_ID INTEGER not null,\n"
+    "  IP VARCHAR(64) not null,\n"
+    "  PORT INTEGER not null,\n"
+    "  STATE ENUM('IDLE','ACTIVE') not null,\n"
+    "  PRIMARY KEY (OBJECT_INSTANCE_BEGIN) USING HASH,\n"
+    "  KEY (THREAD_ID) USING HASH,\n"
+    "  KEY (SOCKET_ID) USING HASH,\n"
+    "  KEY (IP, PORT) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_socket_summary_by_instance(
+    /* Name */
+    "socket_summary_by_instance",
+    /* Definition */
+    "  EVENT_NAME VARCHAR(128) not null,\n"
+    "  OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,\n"
+    "  COUNT_STAR BIGINT unsigned not null,\n"
+    "  SUM_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  MIN_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  AVG_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  MAX_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  COUNT_READ BIGINT unsigned not null,\n"
+    "  SUM_TIMER_READ BIGINT unsigned not null,\n"
+    "  MIN_TIMER_READ BIGINT unsigned not null,\n"
+    "  AVG_TIMER_READ BIGINT unsigned not null,\n"
+    "  MAX_TIMER_READ BIGINT unsigned not null,\n"
+    "  SUM_NUMBER_OF_BYTES_READ BIGINT unsigned not null,\n"
+    "  COUNT_WRITE BIGINT unsigned not null,\n"
+    "  SUM_TIMER_WRITE BIGINT unsigned not null,\n"
+    "  MIN_TIMER_WRITE BIGINT unsigned not null,\n"
+    "  AVG_TIMER_WRITE BIGINT unsigned not null,\n"
+    "  MAX_TIMER_WRITE BIGINT unsigned not null,\n"
+    "  SUM_NUMBER_OF_BYTES_WRITE BIGINT unsigned not null,\n"
+    "  COUNT_MISC BIGINT unsigned not null,\n"
+    "  SUM_TIMER_MISC BIGINT unsigned not null,\n"
+    "  MIN_TIMER_MISC BIGINT unsigned not null,\n"
+    "  AVG_TIMER_MISC BIGINT unsigned not null,\n"
+    "  MAX_TIMER_MISC BIGINT unsigned not null,\n"
+    "  PRIMARY KEY (object_instance_begin) USING HASH,\n"
+    "  KEY (event_name) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_socket_summary_by_event_name(
+    /* Name */
+    "socket_summary_by_event_name",
+    /* Definition */
+    "  EVENT_NAME VARCHAR(128) not null,\n"
+    "  COUNT_STAR BIGINT unsigned not null,\n"
+    "  SUM_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  MIN_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  AVG_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  MAX_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  COUNT_READ BIGINT unsigned not null,\n"
+    "  SUM_TIMER_READ BIGINT unsigned not null,\n"
+    "  MIN_TIMER_READ BIGINT unsigned not null,\n"
+    "  AVG_TIMER_READ BIGINT unsigned not null,\n"
+    "  MAX_TIMER_READ BIGINT unsigned not null,\n"
+    "  SUM_NUMBER_OF_BYTES_READ BIGINT unsigned not null,\n"
+    "  COUNT_WRITE BIGINT unsigned not null,\n"
+    "  SUM_TIMER_WRITE BIGINT unsigned not null,\n"
+    "  MIN_TIMER_WRITE BIGINT unsigned not null,\n"
+    "  AVG_TIMER_WRITE BIGINT unsigned not null,\n"
+    "  MAX_TIMER_WRITE BIGINT unsigned not null,\n"
+    "  SUM_NUMBER_OF_BYTES_WRITE BIGINT unsigned not null,\n"
+    "  COUNT_MISC BIGINT unsigned not null,\n"
+    "  SUM_TIMER_MISC BIGINT unsigned not null,\n"
+    "  MIN_TIMER_MISC BIGINT unsigned not null,\n"
+    "  AVG_TIMER_MISC BIGINT unsigned not null,\n"
+    "  MAX_TIMER_MISC BIGINT unsigned not null,\n"
+    "  PRIMARY KEY (EVENT_NAME) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_host_cache(
+    /* Name */
+    "host_cache",
+    /* Definition */
+    "  IP VARCHAR(64) not null,\n"
+    "  HOST VARCHAR(255) collate utf8_bin,\n"
+    "  HOST_VALIDATED ENUM ('YES', 'NO') not null,\n"
+    "  SUM_CONNECT_ERRORS BIGINT not null,\n"
+    "  COUNT_HOST_BLOCKED_ERRORS BIGINT not null,\n"
+    "  COUNT_NAMEINFO_TRANSIENT_ERRORS BIGINT not null,\n"
+    "  COUNT_NAMEINFO_PERMANENT_ERRORS BIGINT not null,\n"
+    "  COUNT_FORMAT_ERRORS BIGINT not null,\n"
+    "  COUNT_ADDRINFO_TRANSIENT_ERRORS BIGINT not null,\n"
+    "  COUNT_ADDRINFO_PERMANENT_ERRORS BIGINT not null,\n"
+    "  COUNT_FCRDNS_ERRORS BIGINT not null,\n"
+    "  COUNT_HOST_ACL_ERRORS BIGINT not null,\n"
+    "  COUNT_NO_AUTH_PLUGIN_ERRORS BIGINT not null,\n"
+    "  COUNT_AUTH_PLUGIN_ERRORS BIGINT not null,\n"
+    "  COUNT_HANDSHAKE_ERRORS BIGINT not null,\n"
+    "  COUNT_PROXY_USER_ERRORS BIGINT not null,\n"
+    "  COUNT_PROXY_USER_ACL_ERRORS BIGINT not null,\n"
+    "  COUNT_AUTHENTICATION_ERRORS BIGINT not null,\n"
+    "  COUNT_SSL_ERRORS BIGINT not null,\n"
+    "  COUNT_MAX_USER_CONNECTIONS_ERRORS BIGINT not null,\n"
+    "  COUNT_MAX_USER_CONNECTIONS_PER_HOUR_ERRORS BIGINT not null,\n"
+    "  COUNT_DEFAULT_DATABASE_ERRORS BIGINT not null,\n"
+    "  COUNT_INIT_CONNECT_ERRORS BIGINT not null,\n"
+    "  COUNT_LOCAL_ERRORS BIGINT not null,\n"
+    "  COUNT_UNKNOWN_ERRORS BIGINT not null,\n"
+    "  FIRST_SEEN TIMESTAMP(0) NOT NULL default 0,\n"
+    "  LAST_SEEN TIMESTAMP(0) NOT NULL default 0,\n"
+    "  FIRST_ERROR_SEEN TIMESTAMP(0) null default 0,\n"
+    "  LAST_ERROR_SEEN TIMESTAMP(0) null default 0,\n"
+    "  PRIMARY KEY (IP) USING HASH,\n"
+    "  KEY (HOST) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_mutex_instances(
+    /* Name */
+    "mutex_instances",
+    /* Definition */
+    "  NAME VARCHAR(128) not null,\n"
+    "  OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,\n"
+    "  LOCKED_BY_THREAD_ID BIGINT unsigned,\n"
+    "  PRIMARY KEY (OBJECT_INSTANCE_BEGIN) USING HASH,\n"
+    "  KEY (NAME) USING HASH,\n"
+    "  KEY (LOCKED_BY_THREAD_ID) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_objects_summary_global_by_type(
+    /* Name */
+    "objects_summary_global_by_type",
+    /* Definition */
+    "  OBJECT_TYPE VARCHAR(64),\n"
+    "  OBJECT_SCHEMA VARCHAR(64),\n"
+    "  OBJECT_NAME VARCHAR(64),\n"
+    "  COUNT_STAR BIGINT unsigned not null,\n"
+    "  SUM_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  MIN_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  AVG_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  MAX_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  UNIQUE KEY `OBJECT` (OBJECT_TYPE, OBJECT_SCHEMA,\n"
+    "                       OBJECT_NAME) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_performance_timers(
+    /* Name */
+    "performance_timers",
+    /* Definition */
+    "  TIMER_NAME ENUM ('CYCLE', 'NANOSECOND', 'MICROSECOND', 'MILLISECOND',\n"
+    "                   'TICK') NOT NULL,\n"
+    "  TIMER_FREQUENCY BIGINT,\n"
+    "  TIMER_RESOLUTION BIGINT,\n"
+    "  TIMER_OVERHEAD BIGINT\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_data_locks(
+    /* Name */
+    "data_locks",
+    /* Definition */
+    "  ENGINE VARCHAR(32) not null,\n"
+    "  ENGINE_LOCK_ID VARCHAR(128) not null,\n"
+    "  ENGINE_TRANSACTION_ID BIGINT unsigned,\n"
+    "  THREAD_ID BIGINT unsigned,\n"
+    "  EVENT_ID BIGINT unsigned,\n"
+    "  OBJECT_SCHEMA VARCHAR(64),\n"
+    "  OBJECT_NAME VARCHAR(64),\n"
+    "  PARTITION_NAME VARCHAR(64),\n"
+    "  SUBPARTITION_NAME VARCHAR(64),\n"
+    "  INDEX_NAME VARCHAR(64),\n"
+    "  OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,\n"
+    "  LOCK_TYPE VARCHAR(32) not null,\n"
+    "  LOCK_MODE VARCHAR(32) not null,\n"
+    "  LOCK_STATUS VARCHAR(32) not null,\n"
+    "  LOCK_DATA VARCHAR(8192) CHARACTER SET utf8mb4,\n"
+    "  PRIMARY KEY (ENGINE_LOCK_ID, ENGINE) USING HASH,\n"
+    "  KEY (ENGINE_TRANSACTION_ID, ENGINE) USING HASH,\n"
+    "  KEY (THREAD_ID, EVENT_ID) USING HASH,\n"
+    "  KEY (OBJECT_SCHEMA, OBJECT_NAME, PARTITION_NAME,\n"
+    "       SUBPARTITION_NAME) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_data_lock_waits(
+    /* Name */
+    "data_lock_waits",
+    /* Definition */
+    "  ENGINE VARCHAR(32) not null,\n"
+    "  REQUESTING_ENGINE_LOCK_ID VARCHAR(128) not null,\n"
+    "  REQUESTING_ENGINE_TRANSACTION_ID BIGINT unsigned,\n"
+    "  REQUESTING_THREAD_ID BIGINT unsigned,\n"
+    "  REQUESTING_EVENT_ID BIGINT unsigned,\n"
+    "  REQUESTING_OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,\n"
+    "  BLOCKING_ENGINE_LOCK_ID VARCHAR(128) not null,\n"
+    "  BLOCKING_ENGINE_TRANSACTION_ID BIGINT unsigned,\n"
+    "  BLOCKING_THREAD_ID BIGINT unsigned,\n"
+    "  BLOCKING_EVENT_ID BIGINT unsigned,\n"
+    "  BLOCKING_OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,\n"
+    "  KEY (REQUESTING_ENGINE_LOCK_ID, ENGINE) USING HASH,\n"
+    "  KEY (BLOCKING_ENGINE_LOCK_ID, ENGINE) USING HASH,\n"
+    "  KEY (REQUESTING_ENGINE_TRANSACTION_ID, ENGINE) USING HASH,\n"
+    "  KEY (BLOCKING_ENGINE_TRANSACTION_ID, ENGINE) USING HASH,\n"
+    "  KEY (REQUESTING_THREAD_ID, REQUESTING_EVENT_ID) USING HASH,\n"
+    "  KEY (BLOCKING_THREAD_ID, BLOCKING_EVENT_ID) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_rwlock_instances(
+    /* Name */
+    "rwlock_instances",
+    /* Definition */
+    "  NAME VARCHAR(128) not null,\n"
+    "  OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,\n"
+    "  WRITE_LOCKED_BY_THREAD_ID BIGINT unsigned,\n"
+    "  READ_LOCKED_BY_COUNT INTEGER unsigned not null,\n"
+    "  PRIMARY KEY (OBJECT_INSTANCE_BEGIN) USING HASH,\n"
+    "  KEY (NAME) USING HASH,\n"
+    "  KEY (WRITE_LOCKED_BY_THREAD_ID) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_setup_actors(
+    /* Name */
+    "setup_actors",
+    /* Definition */
+    "  HOST CHAR(60) COLLATE utf8_bin default '%' not null,\n"
+    "  USER CHAR(32) COLLATE utf8_bin default '%' not null,\n"
+    "  `ROLE` CHAR(32) COLLATE utf8_bin default '%' not null,\n"
+    "  ENABLED ENUM ('YES', 'NO') not null default 'YES',\n"
+    "  HISTORY ENUM ('YES', 'NO') not null default 'YES',\n"
+    "  PRIMARY KEY (HOST, USER, `ROLE`) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_setup_consumers(
+    /* Name */
+    "setup_consumers",
+    /* Definition */
+    "  NAME VARCHAR(64) not null,\n"
+    "  ENABLED ENUM ('YES', 'NO') not null,\n"
+    "  PRIMARY KEY (NAME) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_setup_instruments(
+    /* Name */
+    "setup_instruments",
+    /* Definition */
+    "  NAME VARCHAR(128) not null,\n"
+    "  ENABLED ENUM ('YES', 'NO') not null,\n"
+    "  TIMED ENUM ('YES', 'NO') not null,\n"
+    "  PRIMARY KEY (NAME) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_setup_objects(
+    /* Name */
+    "setup_objects",
+    /* Definition */
+    "  OBJECT_TYPE ENUM ('EVENT', 'FUNCTION', 'PROCEDURE', 'TABLE',\n"
+    "                    'TRIGGER') not null default 'TABLE',\n"
+    "  OBJECT_SCHEMA VARCHAR(64) default '%',\n"
+    "  OBJECT_NAME VARCHAR(64) NOT null default '%',\n"
+    "  ENABLED ENUM ('YES', 'NO') not null default 'YES',\n"
+    "  TIMED ENUM ('YES', 'NO') not null default 'YES',\n"
+    "  UNIQUE KEY `OBJECT` (OBJECT_TYPE, OBJECT_SCHEMA,\n"
+    "                       OBJECT_NAME) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_setup_timers(
+    /* Name */
+    "setup_timers",
+    /* Definition */
+    "  NAME VARCHAR(64) not null,\n"
+    "  TIMER_NAME ENUM ('CYCLE', 'NANOSECOND', 'MICROSECOND', 'MILLISECOND',\n"
+    "                   'TICK') not null,\n"
+    "  PRIMARY KEY (NAME) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_table_io_waits_summary_by_index_usage(
+    /* Name */
+    "table_io_waits_summary_by_index_usage",
+    /* Definition */
+    "  OBJECT_TYPE VARCHAR(64),\n"
+    "  OBJECT_SCHEMA VARCHAR(64),\n"
+    "  OBJECT_NAME VARCHAR(64),\n"
+    "  INDEX_NAME VARCHAR(64),\n"
+    "  COUNT_STAR BIGINT unsigned not null,\n"
+    "  SUM_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  MIN_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  AVG_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  MAX_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  COUNT_READ BIGINT unsigned not null,\n"
+    "  SUM_TIMER_READ BIGINT unsigned not null,\n"
+    "  MIN_TIMER_READ BIGINT unsigned not null,\n"
+    "  AVG_TIMER_READ BIGINT unsigned not null,\n"
+    "  MAX_TIMER_READ BIGINT unsigned not null,\n"
+    "  COUNT_WRITE BIGINT unsigned not null,\n"
+    "  SUM_TIMER_WRITE BIGINT unsigned not null,\n"
+    "  MIN_TIMER_WRITE BIGINT unsigned not null,\n"
+    "  AVG_TIMER_WRITE BIGINT unsigned not null,\n"
+    "  MAX_TIMER_WRITE BIGINT unsigned not null,\n"
+    "  COUNT_FETCH BIGINT unsigned not null,\n"
+    "  SUM_TIMER_FETCH BIGINT unsigned not null,\n"
+    "  MIN_TIMER_FETCH BIGINT unsigned not null,\n"
+    "  AVG_TIMER_FETCH BIGINT unsigned not null,\n"
+    "  MAX_TIMER_FETCH BIGINT unsigned not null,\n"
+    "  COUNT_INSERT BIGINT unsigned not null,\n"
+    "  SUM_TIMER_INSERT BIGINT unsigned not null,\n"
+    "  MIN_TIMER_INSERT BIGINT unsigned not null,\n"
+    "  AVG_TIMER_INSERT BIGINT unsigned not null,\n"
+    "  MAX_TIMER_INSERT BIGINT unsigned not null,\n"
+    "  COUNT_UPDATE BIGINT unsigned not null,\n"
+    "  SUM_TIMER_UPDATE BIGINT unsigned not null,\n"
+    "  MIN_TIMER_UPDATE BIGINT unsigned not null,\n"
+    "  AVG_TIMER_UPDATE BIGINT unsigned not null,\n"
+    "  MAX_TIMER_UPDATE BIGINT unsigned not null,\n"
+    "  COUNT_DELETE BIGINT unsigned not null,\n"
+    "  SUM_TIMER_DELETE BIGINT unsigned not null,\n"
+    "  MIN_TIMER_DELETE BIGINT unsigned not null,\n"
+    "  AVG_TIMER_DELETE BIGINT unsigned not null,\n"
+    "  MAX_TIMER_DELETE BIGINT unsigned not null,\n"
+    "  UNIQUE KEY `OBJECT` (OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME,\n"
+    "                       INDEX_NAME) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_table_io_waits_summary_by_table(
+    /* Name */
+    "table_io_waits_summary_by_table",
+    /* Definition */
+    "  OBJECT_TYPE VARCHAR(64),\n"
+    "  OBJECT_SCHEMA VARCHAR(64),\n"
+    "  OBJECT_NAME VARCHAR(64),\n"
+    "  COUNT_STAR BIGINT unsigned not null,\n"
+    "  SUM_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  MIN_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  AVG_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  MAX_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  COUNT_READ BIGINT unsigned not null,\n"
+    "  SUM_TIMER_READ BIGINT unsigned not null,\n"
+    "  MIN_TIMER_READ BIGINT unsigned not null,\n"
+    "  AVG_TIMER_READ BIGINT unsigned not null,\n"
+    "  MAX_TIMER_READ BIGINT unsigned not null,\n"
+    "  COUNT_WRITE BIGINT unsigned not null,\n"
+    "  SUM_TIMER_WRITE BIGINT unsigned not null,\n"
+    "  MIN_TIMER_WRITE BIGINT unsigned not null,\n"
+    "  AVG_TIMER_WRITE BIGINT unsigned not null,\n"
+    "  MAX_TIMER_WRITE BIGINT unsigned not null,\n"
+    "  COUNT_FETCH BIGINT unsigned not null,\n"
+    "  SUM_TIMER_FETCH BIGINT unsigned not null,\n"
+    "  MIN_TIMER_FETCH BIGINT unsigned not null,\n"
+    "  AVG_TIMER_FETCH BIGINT unsigned not null,\n"
+    "  MAX_TIMER_FETCH BIGINT unsigned not null,\n"
+    "  COUNT_INSERT BIGINT unsigned not null,\n"
+    "  SUM_TIMER_INSERT BIGINT unsigned not null,\n"
+    "  MIN_TIMER_INSERT BIGINT unsigned not null,\n"
+    "  AVG_TIMER_INSERT BIGINT unsigned not null,\n"
+    "  MAX_TIMER_INSERT BIGINt unsigned not null,\n"
+    "  COUNT_UPDATE BIGINT unsigned not null,\n"
+    "  SUM_TIMER_UPDATE BIGINT unsigned not null,\n"
+    "  MIN_TIMER_UPDATE BIGINT unsigned not null,\n"
+    "  AVG_TIMER_UPDATE BIGINT unsigned not null,\n"
+    "  MAX_TIMER_UPDATE BIGINT unsigned not null,\n"
+    "  COUNT_DELETE BIGINT unsigned not null,\n"
+    "  SUM_TIMER_DELETE BIGINT unsigned not null,\n"
+    "  MIN_TIMER_DELETE BIGINT unsigned not null,\n"
+    "  AVG_TIMER_DELETE BIGINT unsigned not null,\n"
+    "  MAX_TIMER_DELETE BIGINT unsigned not null,\n"
+    "  UNIQUE KEY `OBJECT` (OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_table_lock_waits_summary_by_table(
+    /* Name */
+    "table_lock_waits_summary_by_table",
+    /* Definition */
+    "  OBJECT_TYPE VARCHAR(64),\n"
+    "  OBJECT_SCHEMA VARCHAR(64),\n"
+    "  OBJECT_NAME VARCHAR(64),\n"
+    "  COUNT_STAR BIGINT unsigned not null,\n"
+    "  SUM_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  MIN_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  AVG_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  MAX_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  COUNT_READ BIGINT unsigned not null,\n"
+    "  SUM_TIMER_READ BIGINT unsigned not null,\n"
+    "  MIN_TIMER_READ BIGINT unsigned not null,\n"
+    "  AVG_TIMER_READ BIGINT unsigned not null,\n"
+    "  MAX_TIMER_READ BIGINT unsigned not null,\n"
+    "  COUNT_WRITE BIGINT unsigned not null,\n"
+    "  SUM_TIMER_WRITE BIGINT unsigned not null,\n"
+    "  MIN_TIMER_WRITE BIGINT unsigned not null,\n"
+    "  AVG_TIMER_WRITE BIGINT unsigned not null,\n"
+    "  MAX_TIMER_WRITE BIGINT unsigned not null,\n"
+    "  COUNT_READ_NORMAL BIGINT unsigned not null,\n"
+    "  SUM_TIMER_READ_NORMAL BIGINT unsigned not null,\n"
+    "  MIN_TIMER_READ_NORMAL BIGINT unsigned not null,\n"
+    "  AVG_TIMER_READ_NORMAL BIGINT unsigned not null,\n"
+    "  MAX_TIMER_READ_NORMAL BIGINT unsigned not null,\n"
+    "  COUNT_READ_WITH_SHARED_LOCKS BIGINT unsigned not null,\n"
+    "  SUM_TIMER_READ_WITH_SHARED_LOCKS BIGINT unsigned not null,\n"
+    "  MIN_TIMER_READ_WITH_SHARED_LOCKS BIGINT unsigned not null,\n"
+    "  AVG_TIMER_READ_WITH_SHARED_LOCKS BIGINT unsigned not null,\n"
+    "  MAX_TIMER_READ_WITH_SHARED_LOCKS BIGINT unsigned not null,\n"
+    "  COUNT_READ_HIGH_PRIORITY BIGINT unsigned not null,\n"
+    "  SUM_TIMER_READ_HIGH_PRIORITY BIGINT unsigned not null,\n"
+    "  MIN_TIMER_READ_HIGH_PRIORITY BIGINT unsigned not null,\n"
+    "  AVG_TIMER_READ_HIGH_PRIORITY BIGINT unsigned not null,\n"
+    "  MAX_TIMER_READ_HIGH_PRIORITY BIGINT unsigned not null,\n"
+    "  COUNT_READ_NO_INSERT BIGINT unsigned not null,\n"
+    "  SUM_TIMER_READ_NO_INSERT BIGINT unsigned not null,\n"
+    "  MIN_TIMER_READ_NO_INSERT BIGINT unsigned not null,\n"
+    "  AVG_TIMER_READ_NO_INSERT BIGINT unsigned not null,\n"
+    "  MAX_TIMER_READ_NO_INSERT BIGINT unsigned not null,\n"
+    "  COUNT_READ_EXTERNAL BIGINT unsigned not null,\n"
+    "  SUM_TIMER_READ_EXTERNAL BIGINT unsigned not null,\n"
+    "  MIN_TIMER_READ_EXTERNAL BIGINT unsigned not null,\n"
+    "  AVG_TIMER_READ_EXTERNAL BIGINT unsigned not null,\n"
+    "  MAX_TIMER_READ_EXTERNAL BIGINT unsigned not null,\n"
+    "  COUNT_WRITE_ALLOW_WRITE BIGINT unsigned not null,\n"
+    "  SUM_TIMER_WRITE_ALLOW_WRITE BIGINT unsigned not null,\n"
+    "  MIN_TIMER_WRITE_ALLOW_WRITE BIGINT unsigned not null,\n"
+    "  AVG_TIMER_WRITE_ALLOW_WRITE BIGINT unsigned not null,\n"
+    "  MAX_TIMER_WRITE_ALLOW_WRITE BIGINT unsigned not null,\n"
+    "  COUNT_WRITE_CONCURRENT_INSERT BIGINT unsigned not null,\n"
+    "  SUM_TIMER_WRITE_CONCURRENT_INSERT BIGINT unsigned not null,\n"
+    "  MIN_TIMER_WRITE_CONCURRENT_INSERT BIGINT unsigned not null,\n"
+    "  AVG_TIMER_WRITE_CONCURRENT_INSERT BIGINT unsigned not null,\n"
+    "  MAX_TIMER_WRITE_CONCURRENT_INSERT BIGINT unsigned not null,\n"
+    "  COUNT_WRITE_LOW_PRIORITY BIGINT unsigned not null,\n"
+    "  SUM_TIMER_WRITE_LOW_PRIORITY BIGINT unsigned not null,\n"
+    "  MIN_TIMER_WRITE_LOW_PRIORITY BIGINT unsigned not null,\n"
+    "  AVG_TIMER_WRITE_LOW_PRIORITY BIGINT unsigned not null,\n"
+    "  MAX_TIMER_WRITE_LOW_PRIORITY BIGINT unsigned not null,\n"
+    "  COUNT_WRITE_NORMAL BIGINT unsigned not null,\n"
+    "  SUM_TIMER_WRITE_NORMAL BIGINT unsigned not null,\n"
+    "  MIN_TIMER_WRITE_NORMAL BIGINT unsigned not null,\n"
+    "  AVG_TIMER_WRITE_NORMAL BIGINT unsigned not null,\n"
+    "  MAX_TIMER_WRITE_NORMAL BIGINT unsigned not null,\n"
+    "  COUNT_WRITE_EXTERNAL BIGINT unsigned not null,\n"
+    "  SUM_TIMER_WRITE_EXTERNAL BIGINT unsigned not null,\n"
+    "  MIN_TIMER_WRITE_EXTERNAL BIGINT unsigned not null,\n"
+    "  AVG_TIMER_WRITE_EXTERNAL BIGINT unsigned not null,\n"
+    "  MAX_TIMER_WRITE_EXTERNAL BIGINT unsigned not null,\n"
+    "  UNIQUE KEY `OBJECT` (OBJECT_TYPE, OBJECT_SCHEMA,\n"
+    "                       OBJECT_NAME) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_threads(
+    /* Name */
+    "threads",
+    /* Definition */
+    "  THREAD_ID BIGINT unsigned not null,\n"
+    "  NAME VARCHAR(128) not null,\n"
+    "  TYPE VARCHAR(10) not null,\n"
+    "  PROCESSLIST_ID BIGINT unsigned,\n"
+    "  PROCESSLIST_USER VARCHAR(32),\n"
+    "  PROCESSLIST_HOST VARCHAR(60),\n"
+    "  PROCESSLIST_DB VARCHAR(64),\n"
+    "  PROCESSLIST_COMMAND VARCHAR(16),\n"
+    "  PROCESSLIST_TIME BIGINT,\n"
+    "  PROCESSLIST_STATE VARCHAR(64),\n"
+    "  PROCESSLIST_INFO LONGTEXT,\n"
+    "  PARENT_THREAD_ID BIGINT unsigned,\n"
+    "  `ROLE` VARCHAR(64),\n"
+    "  INSTRUMENTED ENUM ('YES', 'NO') not null,\n"
+    "  HISTORY ENUM ('YES', 'NO') not null,\n"
+    "  CONNECTION_TYPE VARCHAR(16),\n"
+    "  THREAD_OS_ID BIGINT unsigned,\n"
+    "  PRIMARY KEY (THREAD_ID) USING HASH,\n"
+    "  KEY (PROCESSLIST_ID) USING HASH,\n"
+    "  KEY (THREAD_OS_ID) USING HASH,\n"
+    "  KEY (NAME) USING HASH,\n"
+    "  KEY `PROCESSLIST_ACCOUNT` (PROCESSLIST_USER,\n"
+    "                             PROCESSLIST_HOST) USING HASH,\n"
+    "  KEY (PROCESSLIST_HOST) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_events_stages_current(
+    /* Name */
+    "events_stages_current",
+    /* Definition */
+    "  THREAD_ID BIGINT unsigned not null,\n"
+    "  EVENT_ID BIGINT unsigned not null,\n"
+    "  END_EVENT_ID BIGINT unsigned,\n"
+    "  EVENT_NAME VARCHAR(128) not null,\n"
+    "  SOURCE VARCHAR(64),\n"
+    "  TIMER_START BIGINT unsigned,\n"
+    "  TIMER_END BIGINT unsigned,\n"
+    "  TIMER_WAIT BIGINT unsigned,\n"
+    "  WORK_COMPLETED BIGINT unsigned,\n"
+    "  WORK_ESTIMATED BIGINT unsigned,\n"
+    "  NESTING_EVENT_ID BIGINT unsigned,\n"
+    "  NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT'),\n"
+    "  PRIMARY KEY (THREAD_ID, EVENT_ID) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_events_stages_history(
+    /* Name */
+    "events_stages_history",
+    /* Definition */
+    "  THREAD_ID BIGINT unsigned not null,\n"
+    "  EVENT_ID BIGINT unsigned not null,\n"
+    "  END_EVENT_ID BIGINT unsigned,\n"
+    "  EVENT_NAME VARCHAR(128) not null,\n"
+    "  SOURCE VARCHAR(64),\n"
+    "  TIMER_START BIGINT unsigned,\n"
+    "  TIMER_END BIGINT unsigned,\n"
+    "  TIMER_WAIT BIGINT unsigned,\n"
+    "  WORK_COMPLETED BIGINT unsigned,\n"
+    "  WORK_ESTIMATED BIGINT unsigned,\n"
+    "  NESTING_EVENT_ID BIGINT unsigned,\n"
+    "  NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT'),\n"
+    "  PRIMARY KEY (THREAD_ID, EVENT_ID) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_events_stages_history_long(
+    /* Name */
+    "events_stages_history_long",
+    /* Definition */
+    "  THREAD_ID BIGINT unsigned not null,\n"
+    "  EVENT_ID BIGINT unsigned not null,\n"
+    "  END_EVENT_ID BIGINT unsigned,\n"
+    "  EVENT_NAME VARCHAR(128) not null,\n"
+    "  SOURCE VARCHAR(64),\n"
+    "  TIMER_START BIGINT unsigned,\n"
+    "  TIMER_END BIGINT unsigned,\n"
+    "  TIMER_WAIT BIGINT unsigned,\n"
+    "  WORK_COMPLETED BIGINT unsigned,\n"
+    "  WORK_ESTIMATED BIGINT unsigned,\n"
+    "  NESTING_EVENT_ID BIGINT unsigned,\n"
+    "  NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT')\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_events_stages_summary_by_thread_by_event_name(
+    /* Name */
+    "events_stages_summary_by_thread_by_event_name",
+    /* Definition */
+    "  THREAD_ID BIGINT unsigned not null,\n"
+    "  EVENT_NAME VARCHAR(128) not null,\n"
+    "  COUNT_STAR BIGINT unsigned not null,\n"
+    "  SUM_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  MIN_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  AVG_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  MAX_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  PRIMARY KEY (THREAD_ID, EVENT_NAME) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_events_stages_summary_by_host_by_event_name(
+    /* Name */
+    "events_stages_summary_by_host_by_event_name",
+    /* Definition */
+    "  HOST CHAR(60) COLLATE utf8_bin default null,\n"
+    "  EVENT_NAME VARCHAR(128) not null,\n"
+    "  COUNT_STAR BIGINT unsigned not null,\n"
+    "  SUM_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  MIN_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  AVG_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  MAX_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  UNIQUE KEY (HOST, EVENT_NAME) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_events_stages_summary_by_user_by_event_name(
+    /* Name */
+    "events_stages_summary_by_user_by_event_name",
+    /* Definition */
+    "  USER CHAR(32) collate utf8_bin default null,\n"
+    "  EVENT_NAME VARCHAR(128) not null,\n"
+    "  COUNT_STAR BIGINT unsigned not null,\n"
+    "  SUM_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  MIN_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  AVG_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  MAX_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  UNIQUE KEY (USER, EVENT_NAME) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_events_stages_summary_by_account_by_event_name(
+    /* Name */
+    "events_stages_summary_by_account_by_event_name",
+    /* Definition */
+    "  USER CHAR(32) collate utf8_bin default null,\n"
+    "  HOST CHAR(60) collate utf8_bin default null,\n"
+    "  EVENT_NAME VARCHAR(128) not null,\n"
+    "  COUNT_STAR BIGINT UNSIGNED not null,\n"
+    "  SUM_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  MIN_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  AVG_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  MAX_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  UNIQUE KEY `ACCOUNT` (USER, HOST, EVENT_NAME) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_events_stages_summary_global_by_event_name(
+    /* Name */
+    "events_stages_summary_global_by_event_name",
+    /* Definition */
+    "  EVENT_NAME VARCHAR(128) not null,\n"
+    "  COUNT_STAR BIGINT unsigned not null,\n"
+    "  SUM_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  MIN_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  AVG_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  MAX_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  PRIMARY KEY (EVENT_NAME) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_events_statements_current(
+    /* Name */
+    "events_statements_current",
+    /* Definition */
+    "  THREAD_ID BIGINT unsigned not null,\n"
+    "  EVENT_ID BIGINT unsigned not null,\n"
+    "  END_EVENT_ID BIGINT unsigned,\n"
+    "  EVENT_NAME VARCHAR(128) not null,\n"
+    "  SOURCE VARCHAR(64),\n"
+    "  TIMER_START BIGINT unsigned,\n"
+    "  TIMER_END BIGINT unsigned,\n"
+    "  TIMER_WAIT BIGINT unsigned,\n"
+    "  LOCK_TIME BIGINT unsigned not null,\n"
+    "  SQL_TEXT LONGTEXT,\n"
+    "  DIGEST VARCHAR(32),\n"
+    "  DIGEST_TEXT LONGTEXT,\n"
+    "  CURRENT_SCHEMA VARCHAR(64),\n"
+    "  OBJECT_TYPE VARCHAR(64),\n"
+    "  OBJECT_SCHEMA VARCHAR(64),\n"
+    "  OBJECT_NAME VARCHAR(64),\n"
+    "  OBJECT_INSTANCE_BEGIN BIGINT unsigned,\n"
+    "  MYSQL_ERRNO INTEGER,\n"
+    "  RETURNED_SQLSTATE VARCHAR(5),\n"
+    "  MESSAGE_TEXT VARCHAR(128),\n"
+    "  ERRORS BIGINT unsigned not null,\n"
+    "  WARNINGS BIGINT unsigned not null,\n"
+    "  ROWS_AFFECTED BIGINT unsigned not null,\n"
+    "  ROWS_SENT BIGINT unsigned not null,\n"
+    "  ROWS_EXAMINED BIGINT unsigned not null,\n"
+    "  CREATED_TMP_DISK_TABLES BIGINT unsigned not null,\n"
+    "  CREATED_TMP_TABLES BIGINT unsigned not null,\n"
+    "  SELECT_FULL_JOIN BIGINT unsigned not null,\n"
+    "  SELECT_FULL_RANGE_JOIN BIGINT unsigned not null,\n"
+    "  SELECT_RANGE BIGINT unsigned not null,\n"
+    "  SELECT_RANGE_CHECK BIGINT unsigned not null,\n"
+    "  SELECT_SCAN BIGINT unsigned not null,\n"
+    "  SORT_MERGE_PASSES BIGINT unsigned not null,\n"
+    "  SORT_RANGE BIGINT unsigned not null,\n"
+    "  SORT_ROWS BIGINT unsigned not null,\n"
+    "  SORT_SCAN BIGINT unsigned not null,\n"
+    "  NO_INDEX_USED BIGINT unsigned not null,\n"
+    "  NO_GOOD_INDEX_USED BIGINT unsigned not null,\n"
+    "  NESTING_EVENT_ID BIGINT unsigned,\n"
+    "  NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT'),\n"
+    "  NESTING_EVENT_LEVEL INTEGER,\n"
+    "  PRIMARY KEY (THREAD_ID, EVENT_ID) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_events_statements_history(
+    /* Name */
+    "events_statements_history",
+    /* Definition */
+    "  THREAD_ID BIGINT unsigned not null,\n"
+    "  EVENT_ID BIGINT unsigned not null,\n"
+    "  END_EVENT_ID BIGINT unsigned,\n"
+    "  EVENT_NAME VARCHAR(128) not null,\n"
+    "  SOURCE VARCHAR(64),\n"
+    "  TIMER_START BIGINT unsigned,\n"
+    "  TIMER_END BIGINT unsigned,\n"
+    "  TIMER_WAIT BIGINT unsigned,\n"
+    "  LOCK_TIME BIGINT unsigned not null,\n"
+    "  SQL_TEXT LONGTEXT,\n"
+    "  DIGEST VARCHAR(32),\n"
+    "  DIGEST_TEXT LONGTEXT,\n"
+    "  CURRENT_SCHEMA VARCHAR(64),\n"
+    "  OBJECT_TYPE VARCHAR(64),\n"
+    "  OBJECT_SCHEMA VARCHAR(64),\n"
+    "  OBJECT_NAME VARCHAR(64),\n"
+    "  OBJECT_INSTANCE_BEGIN BIGINT unsigned,\n"
+    "  MYSQL_ERRNO INTEGER,\n"
+    "  RETURNED_SQLSTATE VARCHAR(5),\n"
+    "  MESSAGE_TEXT VARCHAR(128),\n"
+    "  ERRORS BIGINT unsigned not null,\n"
+    "  WARNINGS BIGINT unsigned not null,\n"
+    "  ROWS_AFFECTED BIGINT unsigned not null,\n"
+    "  ROWS_SENT BIGINT unsigned not null,\n"
+    "  ROWS_EXAMINED BIGINT unsigned not null,\n"
+    "  CREATED_TMP_DISK_TABLES BIGINT unsigned not null,\n"
+    "  CREATED_TMP_TABLES BIGINT unsigned not null,\n"
+    "  SELECT_FULL_JOIN BIGINT unsigned not null,\n"
+    "  SELECT_FULL_RANGE_JOIN BIGINT unsigned not null,\n"
+    "  SELECT_RANGE BIGINT unsigned not null,\n"
+    "  SELECT_RANGE_CHECK BIGINT unsigned not null,\n"
+    "  SELECT_SCAN BIGINT unsigned not null,\n"
+    "  SORT_MERGE_PASSES BIGINT unsigned not null,\n"
+    "  SORT_RANGE BIGINT unsigned not null,\n"
+    "  SORT_ROWS BIGINT unsigned not null,\n"
+    "  SORT_SCAN BIGINT unsigned not null,\n"
+    "  NO_INDEX_USED BIGINT unsigned not null,\n"
+    "  NO_GOOD_INDEX_USED BIGINT unsigned not null,\n"
+    "  NESTING_EVENT_ID BIGINT unsigned,\n"
+    "  NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT'),\n"
+    "  NESTING_EVENT_LEVEL INTEGER,\n"
+    "  PRIMARY KEY (THREAD_ID, EVENT_ID) USING HASH\n",
+      /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_events_statements_history_long(
+    /* Name */
+    "events_statements_history_long",
+    /* Definition */
+    "  THREAD_ID BIGINT unsigned not null,\n"
+    "  EVENT_ID BIGINT unsigned not null,\n"
+    "  END_EVENT_ID BIGINT unsigned,\n"
+    "  EVENT_NAME VARCHAR(128) not null,\n"
+    "  SOURCE VARCHAR(64),\n"
+    "  TIMER_START BIGINT unsigned,\n"
+    "  TIMER_END BIGINT unsigned,\n"
+    "  TIMER_WAIT BIGINT unsigned,\n"
+    "  LOCK_TIME BIGINT unsigned not null,\n"
+    "  SQL_TEXT LONGTEXT,\n"
+    "  DIGEST VARCHAR(32),\n"
+    "  DIGEST_TEXT LONGTEXT,\n"
+    "  CURRENT_SCHEMA VARCHAR(64),\n"
+    "  OBJECT_TYPE VARCHAR(64),\n"
+    "  OBJECT_SCHEMA VARCHAR(64),\n"
+    "  OBJECT_NAME VARCHAR(64),\n"
+    "  OBJECT_INSTANCE_BEGIN BIGINT unsigned,\n"
+    "  MYSQL_ERRNO INTEGER,\n"
+    "  RETURNED_SQLSTATE VARCHAR(5),\n"
+    "  MESSAGE_TEXT VARCHAR(128),\n"
+    "  ERRORS BIGINT unsigned not null,\n"
+    "  WARNINGS BIGINT unsigned not null,\n"
+    "  ROWS_AFFECTED BIGINT unsigned not null,\n"
+    "  ROWS_SENT BIGINT unsigned not null,\n"
+    "  ROWS_EXAMINED BIGINT unsigned not null,\n"
+    "  CREATED_TMP_DISK_TABLES BIGINT unsigned not null,\n"
+    "  CREATED_TMP_TABLES BIGINT unsigned not null,\n"
+    "  SELECT_FULL_JOIN BIGINT unsigned not null,\n"
+    "  SELECT_FULL_RANGE_JOIN BIGINT unsigned not null,\n"
+    "  SELECT_RANGE BIGINT unsigned not null,\n"
+    "  SELECT_RANGE_CHECK BIGINT unsigned not null,\n"
+    "  SELECT_SCAN BIGINT unsigned not null,\n"
+    "  SORT_MERGE_PASSES BIGINT unsigned not null,\n"
+    "  SORT_RANGE BIGINT unsigned not null,\n"
+    "  SORT_ROWS BIGINT unsigned not null,\n"
+    "  SORT_SCAN BIGINT unsigned not null,\n"
+    "  NO_INDEX_USED BIGINT unsigned not null,\n"
+    "  NO_GOOD_INDEX_USED BIGINT unsigned not null,\n"
+    "  NESTING_EVENT_ID BIGINT unsigned,\n"
+    "  NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT'),\n"
+    "  NESTING_EVENT_LEVEL INTEGER\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_events_statements_summary_by_thread_by_event_name(
+    /* Name */
+    "events_statements_summary_by_thread_by_event_name",
+    /* Definition */
+    "  THREAD_ID BIGINT unsigned not null,\n"
+    "  EVENT_NAME VARCHAR(128) not null,\n"
+    "  COUNT_STAR BIGINT unsigned not null,\n"
+    "  SUM_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  MIN_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  AVG_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  MAX_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  SUM_LOCK_TIME BIGINT unsigned not null,\n"
+    "  SUM_ERRORS BIGINT unsigned not null,\n"
+    "  SUM_WARNINGS BIGINT unsigned not null,\n"
+    "  SUM_ROWS_AFFECTED BIGINT unsigned not null,\n"
+    "  SUM_ROWS_SENT BIGINT unsigned not null,\n"
+    "  SUM_ROWS_EXAMINED BIGINT unsigned not null,\n"
+    "  SUM_CREATED_TMP_DISK_TABLES BIGINT unsigned not null,\n"
+    "  SUM_CREATED_TMP_TABLES BIGINT unsigned not null,\n"
+    "  SUM_SELECT_FULL_JOIN BIGINT unsigned not null,\n"
+    "  SUM_SELECT_FULL_RANGE_JOIN BIGINT unsigned not null,\n"
+    "  SUM_SELECT_RANGE BIGINT unsigned not null,\n"
+    "  SUM_SELECT_RANGE_CHECK BIGINT unsigned not null,\n"
+    "  SUM_SELECT_SCAN BIGINT unsigned not null,\n"
+    "  SUM_SORT_MERGE_PASSES BIGINT unsigned not null,\n"
+    "  SUM_SORT_RANGE BIGINT unsigned not null,\n"
+    "  SUM_SORT_ROWS BIGINT unsigned not null,\n"
+    "  SUM_SORT_SCAN BIGINT unsigned not null,\n"
+    "  SUM_NO_INDEX_USED BIGINT unsigned not null,\n"
+    "  SUM_NO_GOOD_INDEX_USED BIGINT unsigned not null,\n"
+    "  PRIMARY KEY (THREAD_ID, EVENT_NAME) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_events_statements_summary_by_host_by_event_name(
+    /* Name */
+    "events_statements_summary_by_host_by_event_name",
+    /* Definition */
+    "  HOST CHAR(60) collate utf8_bin default null,\n"
+    "  EVENT_NAME VARCHAR(128) not null,\n"
+    "  COUNT_STAR BIGINT unsigned not null,\n"
+    "  SUM_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  MIN_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  AVG_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  MAX_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  SUM_LOCK_TIME BIGINT unsigned not null,\n"
+    "  SUM_ERRORS BIGINT unsigned not null,\n"
+    "  SUM_WARNINGS BIGINT unsigned not null,\n"
+    "  SUM_ROWS_AFFECTED BIGINT unsigned not null,\n"
+    "  SUM_ROWS_SENT BIGINT unsigned not null,\n"
+    "  SUM_ROWS_EXAMINED BIGINT unsigned not null,\n"
+    "  SUM_CREATED_TMP_DISK_TABLES BIGINT unsigned not null,\n"
+    "  SUM_CREATED_TMP_TABLES BIGINT unsigned not null,\n"
+    "  SUM_SELECT_FULL_JOIN BIGINT unsigned not null,\n"
+    "  SUM_SELECT_FULL_RANGE_JOIN BIGINT unsigned not null,\n"
+    "  SUM_SELECT_RANGE BIGINT unsigned not null,\n"
+    "  SUM_SELECT_RANGE_CHECK BIGINT unsigned not null,\n"
+    "  SUM_SELECT_SCAN BIGINT unsigned not null,\n"
+    "  SUM_SORT_MERGE_PASSES BIGINT unsigned not null,\n"
+    "  SUM_SORT_RANGE BIGINT unsigned not null,\n"
+    "  SUM_SORT_ROWS BIGINT unsigned not null,\n"
+    "  SUM_SORT_SCAN BIGINT unsigned not null,\n"
+    "  SUM_NO_INDEX_USED BIGINT unsigned not null,\n"
+    "  SUM_NO_GOOD_INDEX_USED BIGINT unsigned not null,\n"
+    "  UNIQUE KEY (HOST, EVENT_NAME) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_events_statements_summary_by_user_by_event_name(
+    /* Name */
+    "events_statements_summary_by_user_by_event_name",
+    /* Definition */
+    "  USER CHAR(32) collate utf8_bin default null,\n"
+    "  EVENT_NAME VARCHAR(128) not null,\n"
+    "  COUNT_STAR BIGINT unsigned not null,\n"
+    "  SUM_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  MIN_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  AVG_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  MAX_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  SUM_LOCK_TIME BIGINT unsigned not null,\n"
+    "  SUM_ERRORS BIGINT unsigned not null,\n"
+    "  SUM_WARNINGS BIGINT unsigned not null,\n"
+    "  SUM_ROWS_AFFECTED BIGINT unsigned not null,\n"
+    "  SUM_ROWS_SENT BIGINT unsigned not null,\n"
+    "  SUM_ROWS_EXAMINED BIGINT unsigned not null,\n"
+    "  SUM_CREATED_TMP_DISK_TABLES BIGINT unsigned not null,\n"
+    "  SUM_CREATED_TMP_TABLES BIGINT unsigned not null,\n"
+    "  SUM_SELECT_FULL_JOIN BIGINT unsigned not null,\n"
+    "  SUM_SELECT_FULL_RANGE_JOIN BIGINT unsigned not null,\n"
+    "  SUM_SELECT_RANGE BIGINT unsigned not null,\n"
+    "  SUM_SELECT_RANGE_CHECK BIGINT unsigned not null,\n"
+    "  SUM_SELECT_SCAN BIGINT unsigned not null,\n"
+    "  SUM_SORT_MERGE_PASSES BIGINT unsigned not null,\n"
+    "  SUM_SORT_RANGE BIGINT unsigned not null,\n"
+    "  SUM_SORT_ROWS BIGINT unsigned not null,\n"
+    "  SUM_SORT_SCAN BIGINT unsigned not null,\n"
+    "  SUM_NO_INDEX_USED BIGINT unsigned not null,\n"
+    "  SUM_NO_GOOD_INDEX_USED BIGINT unsigned not null,\n"
+    "  UNIQUE KEY (user, event_name) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_events_statements_summary_by_account_by_event_name(
+    /* Name */
+    "events_statements_summary_by_account_by_event_name",
+    /* Definition */
+    "  USER CHAR(32) collate utf8_bin default null,\n"
+    "  HOST CHAR(60) collate utf8_bin default null,\n"
+    "  EVENT_NAME VARCHAR(128) not null,\n"
+    "  COUNT_STAR BIGINT unsigned not null,\n"
+    "  SUM_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  MIN_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  AVG_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  MAX_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  SUM_LOCK_TIME BIGINT unsigned not null,\n"
+    "  SUM_ERRORS BIGINT unsigned not null,\n"
+    "  SUM_WARNINGS BIGINT unsigned not null,\n"
+    "  SUM_ROWS_AFFECTED BIGINT unsigned not null,\n"
+    "  SUM_ROWS_SENT BIGINT unsigned not null,\n"
+    "  SUM_ROWS_EXAMINED BIGINT unsigned not null,\n"
+    "  SUM_CREATED_TMP_DISK_TABLES BIGINT unsigned not null,\n"
+    "  SUM_CREATED_TMP_TABLES BIGINT unsigned not null,\n"
+    "  SUM_SELECT_FULL_JOIN BIGINT unsigned not null,\n"
+    "  SUM_SELECT_FULL_RANGE_JOIN BIGINT unsigned not null,\n"
+    "  SUM_SELECT_RANGE BIGINT unsigned not null,\n"
+    "  SUM_SELECT_RANGE_CHECK BIGINT unsigned not null,\n"
+    "  SUM_SELECT_SCAN BIGINT unsigned not null,\n"
+    "  SUM_SORT_MERGE_PASSES BIGINT unsigned not null,\n"
+    "  SUM_SORT_RANGE BIGINT unsigned not null,\n"
+    "  SUM_SORT_ROWS BIGINT unsigned not null,\n"
+    "  SUM_SORT_SCAN BIGINT unsigned not null,\n"
+    "  SUM_NO_INDEX_USED BIGINT unsigned not null,\n"
+    "  SUM_NO_GOOD_INDEX_USED BIGINT unsigned not null,\n"
+    "  UNIQUE KEY `ACCOUNT` (USER, HOST, EVENT_NAME) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_events_statements_summary_global_by_event_name(
+    /* Name */
+    "events_statements_summary_global_by_event_name",
+    /* Definition */
+    "  EVENT_NAME VARCHAR(128) not null,\n"
+    "  COUNT_STAR BIGINT UNSIGNED not null,\n"
+    "  SUM_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  MIN_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  AVG_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  MAX_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  SUM_LOCK_TIME BIGINT unsigned not null,\n"
+    "  SUM_ERRORS BIGINT unsigned not null,\n"
+    "  SUM_WARNINGS BIGINT unsigned not null,\n"
+    "  SUM_ROWS_AFFECTED BIGINT unsigned not null,\n"
+    "  SUM_ROWS_SENT BIGINT unsigned not null,\n"
+    "  SUM_ROWS_EXAMINED BIGINT unsigned not null,\n"
+    "  SUM_CREATED_TMP_DISK_TABLES BIGINT unsigned not null,\n"
+    "  SUM_CREATED_TMP_TABLES BIGINT unsigned not null,\n"
+    "  SUM_SELECT_FULL_JOIN BIGINT unsigned not null,\n"
+    "  SUM_SELECT_FULL_RANGE_JOIN BIGINT unsigned not null,\n"
+    "  SUM_SELECT_RANGE BIGINT unsigned not null,\n"
+    "  SUM_SELECT_RANGE_CHECK BIGINT unsigned not null,\n"
+    "  SUM_SELECT_SCAN BIGINT unsigned not null,\n"
+    "  SUM_SORT_MERGE_PASSES BIGINT unsigned not null,\n"
+    "  SUM_SORT_RANGE BIGINT unsigned not null,\n"
+    "  SUM_SORT_ROWS BIGINT unsigned not null,\n"
+    "  SUM_SORT_SCAN BIGINT unsigned not null,\n"
+    "  SUM_NO_INDEX_USED BIGINT unsigned not null,\n"
+    "  SUM_NO_GOOD_INDEX_USED BIGINT unsigned not null,\n"
+    "  PRIMARY KEY (EVENT_NAME) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_events_transactions_current(
+    /* Name */
+    "events_transactions_current",
+    /* Definition */
+    "  THREAD_ID BIGINT unsigned not null,\n"
+    "  EVENT_ID BIGINT unsigned not null,\n"
+    "  END_EVENT_ID BIGINT unsigned,\n"
+    "  EVENT_NAME VARCHAR(128) not null,\n"
+    "  STATE ENUM('ACTIVE', 'COMMITTED', 'ROLLED BACK'),\n"
+    "  TRX_ID BIGINT unsigned,\n"
+    "  GTID VARCHAR(64),\n"
+    "  XID_FORMAT_ID INTEGER,\n"
+    "  XID_GTRID VARCHAR(130),\n"
+    "  XID_BQUAL VARCHAR(130),\n"
+    "  XA_STATE VARCHAR(64),\n"
+    "  SOURCE VARCHAR(64),\n"
+    "  TIMER_START BIGINT unsigned,\n"
+    "  TIMER_END BIGINT unsigned,\n"
+    "  TIMER_WAIT BIGINT unsigned,\n"
+    "  ACCESS_MODE ENUM('READ ONLY', 'READ WRITE'),\n"
+    "  ISOLATION_LEVEL VARCHAR(64),\n"
+    "  AUTOCOMMIT ENUM('YES','NO') not null,\n"
+    "  NUMBER_OF_SAVEPOINTS BIGINT unsigned,\n"
+    "  NUMBER_OF_ROLLBACK_TO_SAVEPOINT BIGINT unsigned,\n"
+    "  NUMBER_OF_RELEASE_SAVEPOINT BIGINT unsigned,\n"
+    "  OBJECT_INSTANCE_BEGIN BIGINT unsigned,\n"
+    "  NESTING_EVENT_ID BIGINT unsigned,\n"
+    "  NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT'),\n"
+    "  PRIMARY KEY (THREAD_ID, EVENT_ID) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_events_transactions_history(
+    /* Name */
+    "events_transactions_history",
+    /* Definition */
+    "  THREAD_ID BIGINT unsigned not null,\n"
+    "  EVENT_ID BIGINT unsigned not null,\n"
+    "  END_EVENT_ID BIGINT unsigned,\n"
+    "  EVENT_NAME VARCHAR(128) not null,\n"
+    "  STATE ENUM('ACTIVE', 'COMMITTED', 'ROLLED BACK'),\n"
+    "  TRX_ID BIGINT unsigned,\n"
+    "  GTID VARCHAR(64),\n"
+    "  XID_FORMAT_ID INTEGER,\n"
+    "  XID_GTRID VARCHAR(130),\n"
+    "  XID_BQUAL VARCHAR(130),\n"
+    "  XA_STATE VARCHAR(64),\n"
+    "  SOURCE VARCHAR(64),\n"
+    "  TIMER_START BIGINT unsigned,\n"
+    "  TIMER_END BIGINT unsigned,\n"
+    "  TIMER_WAIT BIGINT unsigned,\n"
+    "  ACCESS_MODE ENUM('READ ONLY', 'READ WRITE'),\n"
+    "  ISOLATION_LEVEL VARCHAR(64),\n"
+    "  AUTOCOMMIT ENUM('YES','NO') not null,\n"
+    "  NUMBER_OF_SAVEPOINTS BIGINT unsigned,\n"
+    "  NUMBER_OF_ROLLBACK_TO_SAVEPOINT BIGINT unsigned,\n"
+    "  NUMBER_OF_RELEASE_SAVEPOINT BIGINT unsigned,\n"
+    "  OBJECT_INSTANCE_BEGIN BIGINT unsigned,\n"
+    "  NESTING_EVENT_ID BIGINT unsigned,\n"
+    "  NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT'),\n"
+    "  PRIMARY KEY (THREAD_ID, EVENT_ID) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_events_transactions_history_long(
+    /* Name */
+    "events_transactions_history_long",
+    /* Definition */
+    "  THREAD_ID BIGINT unsigned not null,\n"
+    "  EVENT_ID BIGINT unsigned not null,\n"
+    "  END_EVENT_ID BIGINT unsigned,\n"
+    "  EVENT_NAME VARCHAR(128) not null,\n"
+    "  STATE ENUM('ACTIVE', 'COMMITTED', 'ROLLED BACK'),\n"
+    "  TRX_ID BIGINT UNSIGNED,\n"
+    "  GTID VARCHAR(64),\n"
+    "  XID_FORMAT_ID INTEGER,\n"
+    "  XID_GTRID VARCHAR(130),\n"
+    "  XID_BQUAL VARCHAR(130),\n"
+    "  XA_STATE VARCHAR(64),\n"
+    "  SOURCE VARCHAR(64),\n"
+    "  TIMER_START BIGINT unsigned,\n"
+    "  TIMER_END BIGINT unsigned,\n"
+    "  TIMER_WAIT BIGINT unsigned,\n"
+    "  ACCESS_MODE ENUM('READ ONLY', 'READ WRITE'),\n"
+    "  ISOLATION_LEVEL VARCHAR(64),\n"
+    "  AUTOCOMMIT ENUM('YES','NO') not null,\n"
+    "  NUMBER_OF_SAVEPOINTS BIGINT unsigned,\n"
+    "  NUMBER_OF_ROLLBACK_TO_SAVEPOINT BIGINT unsigned,\n"
+    "  NUMBER_OF_RELEASE_SAVEPOINT BIGINT unsigned,\n"
+    "  OBJECT_INSTANCE_BEGIN BIGINT unsigned,\n"
+    "  NESTING_EVENT_ID BIGINT unsigned,\n"
+    "  NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT')\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_events_transactions_summary_by_thread_by_event_name(
+    /* Name */
+    "events_transactions_summary_by_thread_by_event_name",
+    /* Definition */
+    "  THREAD_ID BIGINT UNSIGNED not null,\n"
+    "  EVENT_NAME VARCHAR(128) not null,\n"
+    "  COUNT_STAR BIGINT unsigned not null,\n"
+    "  SUM_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  MIN_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  AVG_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  MAX_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  COUNT_READ_WRITE BIGINT unsigned not null,\n"
+    "  SUM_TIMER_READ_WRITE BIGINT unsigned not null,\n"
+    "  MIN_TIMER_READ_WRITE BIGINT unsigned not null,\n"
+    "  AVG_TIMER_READ_WRITE BIGINT unsigned not null,\n"
+    "  MAX_TIMER_READ_WRITE BIGINT unsigned not null,\n"
+    "  COUNT_READ_ONLY BIGINT unsigned not null,\n"
+    "  SUM_TIMER_READ_ONLY BIGINT unsigned not null,\n"
+    "  MIN_TIMER_READ_ONLY BIGINT unsigned not null,\n"
+    "  AVG_TIMER_READ_ONLY BIGINT unsigned not null,\n"
+    "  MAX_TIMER_READ_ONLY BIGINT unsigned not null,\n"
+    "  PRIMARY KEY (THREAD_ID, EVENT_NAME) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_events_transactions_summary_by_host_by_event_name(
+    /* Name */
+    "events_transactions_summary_by_host_by_event_name",
+    /* Definition */
+    "  HOST CHAR(60) collate utf8_bin default null,\n"
+    "  EVENT_NAME VARCHAR(128) not null,\n"
+    "  COUNT_STAR BIGINT unsigned not null,\n"
+    "  SUM_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  MIN_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  AVG_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  MAX_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  COUNT_READ_WRITE BIGINT unsigned not null,\n"
+    "  SUM_TIMER_READ_WRITE BIGINT unsigned not null,\n"
+    "  MIN_TIMER_READ_WRITE BIGINT unsigned not null,\n"
+    "  AVG_TIMER_READ_WRITE BIGINT unsigned not null,\n"
+    "  MAX_TIMER_READ_WRITE BIGINT unsigned not null,\n"
+    "  COUNT_READ_ONLY BIGINT unsigned not null,\n"
+    "  SUM_TIMER_READ_ONLY BIGINT unsigned not null,\n"
+    "  MIN_TIMER_READ_ONLY BIGINT unsigned not null,\n"
+    "  AVG_TIMER_READ_ONLY BIGINT unsigned not null,\n"
+    "  MAX_TIMER_READ_ONLY BIGINT unsigned not null,\n"
+    "  UNIQUE KEY (HOST, EVENT_NAME) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_events_transactions_summary_by_user_by_event_name(
+    /* Name */
+    "events_transactions_summary_by_user_by_event_name",
+    /* Definition */
+    "  USER CHAR(32) collate utf8_bin default null,\n"
+    "  EVENT_NAME VARCHAR(128) not null,\n"
+    "  COUNT_STAR BIGINT unsigned not null,\n"
+    "  SUM_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  MIN_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  AVG_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  MAX_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  COUNT_READ_WRITE BIGINT unsigned not null,\n"
+    "  SUM_TIMER_READ_WRITE BIGINT unsigned not null,\n"
+    "  MIN_TIMER_READ_WRITE BIGINT unsigned not null,\n"
+    "  AVG_TIMER_READ_WRITE BIGINT unsigned not null,\n"
+    "  MAX_TIMER_READ_WRITE BIGINT unsigned not null,\n"
+    "  COUNT_READ_ONLY BIGINT unsigned not null,\n"
+    "  SUM_TIMER_READ_ONLY BIGINT unsigned not null,\n"
+    "  MIN_TIMER_READ_ONLY BIGINT unsigned not null,\n"
+    "  AVG_TIMER_READ_ONLY BIGINT unsigned not null,\n"
+    "  MAX_TIMER_READ_ONLY BIGINT unsigned not null,\n"
+    "  UNIQUE KEY (USER, EVENT_NAME) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_events_transactions_summary_by_account_by_evnt_name(
+    /* Name */
+    "events_transactions_summary_by_account_by_event_name",
+    /* Definition */
+    "  USER CHAR(32) collate utf8_bin default null,\n"
+    "  HOST CHAR(60) collate utf8_bin default null,\n"
+    "  EVENT_NAME VARCHAR(128) not null,\n"
+    "  COUNT_STAR BIGINT unsigned not null,\n"
+    "  SUM_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  MIN_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  AVG_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  MAX_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  COUNT_READ_WRITE BIGINT unsigned not null,\n"
+    "  SUM_TIMER_READ_WRITE BIGINT unsigned not null,\n"
+    "  MIN_TIMER_READ_WRITE BIGINT unsigned not null,\n"
+    "  AVG_TIMER_READ_WRITE BIGINT unsigned not null,\n"
+    "  MAX_TIMER_READ_WRITE BIGINT unsigned not null,\n"
+    "  COUNT_READ_ONLY BIGINT unsigned not null,\n"
+    "  SUM_TIMER_READ_ONLY BIGINT unsigned not null,\n"
+    "  MIN_TIMER_READ_ONLY BIGINT unsigned not null,\n"
+    "  AVG_TIMER_READ_ONLY BIGINT unsigned not null,\n"
+    "  MAX_TIMER_READ_ONLY BIGINT unsigned not null,\n"
+    "  UNIQUE KEY `ACCOUNT` (USER, HOST, EVENT_NAME) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_events_transactions_summary_global_by_event_name(
+    /* Name */
+    "events_transactions_summary_global_by_event_name",
+    /* Definition */
+    "  EVENT_NAME VARCHAR(128) not null,\n"
+    "  COUNT_STAR BIGINT unsigned not null,\n"
+    "  SUM_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  MIN_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  AVG_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  MAX_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  COUNT_READ_WRITE BIGINT unsigned not null,\n"
+    "  SUM_TIMER_READ_WRITE BIGINT unsigned not null,\n"
+    "  MIN_TIMER_READ_WRITE BIGINT unsigned not null,\n"
+    "  AVG_TIMER_READ_WRITE BIGINT unsigned not null,\n"
+    "  MAX_TIMER_READ_WRITE BIGINT unsigned not null,\n"
+    "  COUNT_READ_ONLY BIGINT unsigned not null,\n"
+    "  SUM_TIMER_READ_ONLY BIGINT unsigned not null,\n"
+    "  MIN_TIMER_READ_ONLY BIGINT unsigned not null,\n"
+    "  AVG_TIMER_READ_ONLY BIGINT unsigned not null,\n"
+    "  MAX_TIMER_READ_ONLY BIGINT unsigned not null,\n"
+    "  PRIMARY KEY (EVENT_NAME) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_events_errors_summary_by_account_by_error(
+    /* Name */
+    "events_errors_summary_by_account_by_error",
+    /* Definition */
+    "  USER CHAR(32) collate utf8_bin default null,\n"
+    "  HOST CHAR(60) collate utf8_bin default null,\n"
+    "  ERROR_NUMBER INTEGER,\n"
+    "  ERROR_NAME VARCHAR(64),\n"
+    "  SQL_STATE VARCHAR(5),\n"
+    "  SUM_ERROR_RAISED  BIGINT unsigned not null,\n"
+    "  SUM_ERROR_HANDLED BIGINT unsigned not null,\n"
+    "  FIRST_SEEN TIMESTAMP(0) null default 0,\n"
+    "  LAST_SEEN TIMESTAMP(0) null default 0,\n"
+    "  UNIQUE KEY `ACCOUNT` (USER, HOST, ERROR_NUMBER) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_events_errors_summary_by_host_by_error(
+    /* Name */
+    "events_errors_summary_by_host_by_error",
+    /* Definition */
+    "  HOST CHAR(60) collate utf8_bin default null,\n"
+    "  ERROR_NUMBER INTEGER,\n"
+    "  ERROR_NAME VARCHAR(64),\n"
+    "  SQL_STATE VARCHAR(5),\n"
+    "  SUM_ERROR_RAISED  BIGINT unsigned not null,\n"
+    "  SUM_ERROR_HANDLED BIGINT unsigned not null,\n"
+    "  FIRST_SEEN TIMESTAMP(0) null default 0,\n"
+    "  LAST_SEEN TIMESTAMP(0) null default 0,\n"
+    "  UNIQUE KEY (host, error_number) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_events_errors_summary_by_user_by_error(
+    /* Name */
+    "events_errors_summary_by_user_by_error",
+    /* Definition */
+    "  USER CHAR(32) collate utf8_bin default null,\n"
+    "  ERROR_NUMBER INTEGER,\n"
+    "  ERROR_NAME VARCHAR(64),\n"
+    "  SQL_STATE VARCHAR(5),\n"
+    "  SUM_ERROR_RAISED  BIGINT unsigned not null,\n"
+    "  SUM_ERROR_HANDLED BIGINT unsigned not null,\n"
+    "  FIRST_SEEN TIMESTAMP(0) null default 0,\n"
+    "  LAST_SEEN TIMESTAMP(0) null default 0,\n"
+    "  UNIQUE KEY (USER, ERROR_NUMBER) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_events_errors_summary_by_thread_by_error(
+    /* Name */
+    "events_errors_summary_by_thread_by_error",
+    /* Definition */
+    "  THREAD_ID BIGINT unsigned not null,\n"
+    "  ERROR_NUMBER INTEGER,\n"
+    "  ERROR_NAME VARCHAR(64),\n"
+    "  SQL_STATE VARCHAR(5),\n"
+    "  SUM_ERROR_RAISED  BIGINT unsigned not null,\n"
+    "  SUM_ERROR_HANDLED BIGINT unsigned not null,\n"
+    "  FIRST_SEEN TIMESTAMP(0) null default 0,\n"
+    "  LAST_SEEN TIMESTAMP(0) null default 0,\n"
+    "  UNIQUE KEY (THREAD_ID, ERROR_NUMBER) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_events_errors_summary_global_by_error(
+    /* Name */
+    "events_errors_summary_global_by_error",
+    /* Definition */
+    "  ERROR_NUMBER INTEGER,\n"
+    "  ERROR_NAME VARCHAR(64),\n"
+    "  SQL_STATE VARCHAR(5),\n"
+    "  SUM_ERROR_RAISED  BIGINT unsigned not null,\n"
+    "  SUM_ERROR_HANDLED BIGINT unsigned not null,\n"
+    "  FIRST_SEEN TIMESTAMP(0) null default 0,\n"
+    "  LAST_SEEN TIMESTAMP(0) null default 0,\n"
+    "  UNIQUE KEY (ERROR_NUMBER) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_hosts(
+    /* Name */
+    "hosts",
+    /* Definition */
+    "  HOST CHAR(60) collate utf8_bin default null,\n"
+    "  CURRENT_CONNECTIONS bigint not null,\n"
+    "  TOTAL_CONNECTIONS bigint not null,\n"
+    "  UNIQUE KEY (HOST) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_users(
+    /* Name */
+    "users",
+    /* Definition */
+    "  USER CHAR(32) collate utf8_bin default null,\n"
+    "  CURRENT_CONNECTIONS bigint not null,\n"
+    "  TOTAL_CONNECTIONS bigint not null,\n"
+    "  UNIQUE KEY (USER) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_accounts(
+    /* Name */
+    "accounts",
+    /* Definition */
+    "  USER CHAR(32) collate utf8_bin default null,\n"
+    "  HOST CHAR(60) collate utf8_bin default null,\n"
+    "  CURRENT_CONNECTIONS bigint not null,\n"
+    "  TOTAL_CONNECTIONS bigint not null,\n"
+    "  UNIQUE KEY `ACCOUNT` (USER, HOST) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_memory_summary_global_by_event_name(
+    /* Name */
+    "memory_summary_global_by_event_name",
+    /* Definition */
+    "  EVENT_NAME VARCHAR(128) not null,\n"
+    "  COUNT_ALLOC BIGINT unsigned not null,\n"
+    "  COUNT_FREE BIGINT unsigned not null,\n"
+    "  SUM_NUMBER_OF_BYTES_ALLOC BIGINT unsigned not null,\n"
+    "  SUM_NUMBER_OF_BYTES_FREE BIGINT unsigned not null,\n"
+    "  LOW_COUNT_USED BIGINT not null,\n"
+    "  CURRENT_COUNT_USED BIGINT not null,\n"
+    "  HIGH_COUNT_USED BIGINT not null,\n"
+    "  LOW_NUMBER_OF_BYTES_USED BIGINT not null,\n"
+    "  CURRENT_NUMBER_OF_BYTES_USED BIGINT not null,\n"
+    "  HIGH_NUMBER_OF_BYTES_USED BIGINT not null,\n"
+    "  PRIMARY KEY (EVENT_NAME)\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_memory_summary_by_thread_by_event_name(
+    /* Name */
+    "memory_summary_by_thread_by_event_name",
+    /* Definition */
+    "  THREAD_ID BIGINT unsigned not null,\n"
+    "  EVENT_NAME VARCHAR(128) not null,\n"
+    "  COUNT_ALLOC BIGINT unsigned not null,\n"
+    "  COUNT_FREE BIGINT unsigned not null,\n"
+    "  SUM_NUMBER_OF_BYTES_ALLOC BIGINT unsigned not null,\n"
+    "  SUM_NUMBER_OF_BYTES_FREE BIGINT unsigned not null,\n"
+    "  LOW_COUNT_USED BIGINT not null,\n"
+    "  CURRENT_COUNT_USED BIGINT not null,\n"
+    "  HIGH_COUNT_USED BIGINT not null,\n"
+    "  LOW_NUMBER_OF_BYTES_USED BIGINT not null,\n"
+    "  CURRENT_NUMBER_OF_BYTES_USED BIGINT not null,\n"
+    "  HIGH_NUMBER_OF_BYTES_USED BIGINT not null,\n"
+    "  PRIMARY KEY (THREAD_ID, EVENT_NAME) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_memory_summary_by_account_by_event_name(
+    /* Name */
+    "memory_summary_by_account_by_event_name",
+    /* Definition */
+    "  USER CHAR(32) collate utf8_bin default null,\n"
+    "  HOST CHAR(60) collate utf8_bin default null,\n"
+    "  EVENT_NAME VARCHAR(128) not null,\n"
+    "  COUNT_ALLOC BIGINT unsigned not null,\n"
+    "  COUNT_FREE BIGINT unsigned not null,\n"
+    "  SUM_NUMBER_OF_BYTES_ALLOC BIGINT unsigned not null,\n"
+    "  SUM_NUMBER_OF_BYTES_FREE BIGINT unsigned not null,\n"
+    "  LOW_COUNT_USED BIGINT not null,\n"
+    "  CURRENT_COUNT_USED BIGINT not null,\n"
+    "  HIGH_COUNT_USED BIGINT not null,\n"
+    "  LOW_NUMBER_OF_BYTES_USED BIGINT not null,\n"
+    "  CURRENT_NUMBER_OF_BYTES_USED BIGINT not null,\n"
+    "  HIGH_NUMBER_OF_BYTES_USED BIGINT not null,\n"
+    "  UNIQUE KEY `ACCOUNT` (USER, HOST, EVENT_NAME) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_memory_summary_by_host_by_event_name(
+    /* Name */
+    "memory_summary_by_host_by_event_name",
+    /* Definition */
+    "  HOST CHAR(60) collate utf8_bin default null,\n"
+    "  EVENT_NAME VARCHAR(128) not null,\n"
+    "  COUNT_ALLOC BIGINT unsigned not null,\n"
+    "  COUNT_FREE BIGINT unsigned not null,\n"
+    "  SUM_NUMBER_OF_BYTES_ALLOC BIGINT unsigned not null,\n"
+    "  SUM_NUMBER_OF_BYTES_FREE BIGINT unsigned not null,\n"
+    "  LOW_COUNT_USED BIGINT not null,\n"
+    "  CURRENT_COUNT_USED BIGINT not null,\n"
+    "  HIGH_COUNT_USED BIGINT not null,\n"
+    "  LOW_NUMBER_OF_BYTES_USED BIGINT not null,\n"
+    "  CURRENT_NUMBER_OF_BYTES_USED BIGINT not null,\n"
+    "  HIGH_NUMBER_OF_BYTES_USED BIGINT not null,\n"
+    "  UNIQUE KEY (HOST, EVENT_NAME) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_memory_summary_by_user_by_event_name(
+    /* Name */
+    "memory_summary_by_user_by_event_name",
+    /* Definition */
+    "  USER CHAR(32) collate utf8_bin default null,\n"
+    "  EVENT_NAME VARCHAR(128) not null,\n"
+    "  COUNT_ALLOC BIGINT UNSIGNED not null,\n"
+    "  COUNT_FREE BIGINT UNSIGNED not null,\n"
+    "  SUM_NUMBER_OF_BYTES_ALLOC BIGINT unsigned not null,\n"
+    "  SUM_NUMBER_OF_BYTES_FREE BIGINT unsigned not null,\n"
+    "  LOW_COUNT_USED BIGINT not null,\n"
+    "  CURRENT_COUNT_USED BIGINT not null,\n"
+    "  HIGH_COUNT_USED BIGINT not null,\n"
+    "  LOW_NUMBER_OF_BYTES_USED BIGINT not null,\n"
+    "  CURRENT_NUMBER_OF_BYTES_USED BIGINT not null,\n"
+    "  HIGH_NUMBER_OF_BYTES_USED BIGINT not null,\n"
+    "  UNIQUE KEY (USER, EVENT_NAME) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_events_statements_summary_by_digest(
+    /* Name */
+    "events_statements_summary_by_digest",
+    /* Definition */
+    "  SCHEMA_NAME VARCHAR(64),\n"
+    "  DIGEST VARCHAR(32),\n"
+    "  DIGEST_TEXT LONGTEXT,\n"
+    "  COUNT_STAR BIGINT unsigned not null,\n"
+    "  SUM_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  MIN_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  AVG_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  MAX_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  SUM_LOCK_TIME BIGINT unsigned not null,\n"
+    "  SUM_ERRORS BIGINT unsigned not null,\n"
+    "  SUM_WARNINGS BIGINT unsigned not null,\n"
+    "  SUM_ROWS_AFFECTED BIGINT unsigned not null,\n"
+    "  SUM_ROWS_SENT BIGINT unsigned not null,\n"
+    "  SUM_ROWS_EXAMINED BIGINT unsigned not null,\n"
+    "  SUM_CREATED_TMP_DISK_TABLES BIGINT unsigned not null,\n"
+    "  SUM_CREATED_TMP_TABLES BIGINT unsigned not null,\n"
+    "  SUM_SELECT_FULL_JOIN BIGINT unsigned not null,\n"
+    "  SUM_SELECT_FULL_RANGE_JOIN BIGINT unsigned not null,\n"
+    "  SUM_SELECT_RANGE BIGINT unsigned not null,\n"
+    "  SUM_SELECT_RANGE_CHECK BIGINT unsigned not null,\n"
+    "  SUM_SELECT_SCAN BIGINT unsigned not null,\n"
+    "  SUM_SORT_MERGE_PASSES BIGINT unsigned not null,\n"
+    "  SUM_SORT_RANGE BIGINT unsigned not null,\n"
+    "  SUM_SORT_ROWS BIGINT unsigned not null,\n"
+    "  SUM_SORT_SCAN BIGINT unsigned not null,\n"
+    "  SUM_NO_INDEX_USED BIGINT unsigned not null,\n"
+    "  SUM_NO_GOOD_INDEX_USED BIGINT unsigned not null,\n"
+    "  FIRST_SEEN TIMESTAMP(0) NOT NULL default 0,\n"
+    "  LAST_SEEN TIMESTAMP(0) NOT NULL default 0,\n"
+    "  QUANTILE_95 BIGINT unsigned not null,\n"
+    "  QUANTILE_99 BIGINT unsigned not null,\n"
+    "  QUANTILE_999 BIGINT unsigned not null,\n"
+    "  UNIQUE KEY (SCHEMA_NAME, DIGEST) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_events_statements_histogram_global(
+    /* Name */
+    "events_statements_histogram_global",
+    /* Definition */
+    "  BUCKET_NUMBER INTEGER unsigned not null,\n"
+    "  BUCKET_TIMER_LOW BIGINT unsigned not null,\n"
+    "  BUCKET_TIMER_HIGH BIGINT unsigned not null,\n"
+    "  COUNT_BUCKET BIGINT unsigned not null,\n"
+    "  COUNT_BUCKET_AND_LOWER BIGINT unsigned not null,\n"
+    "  BUCKET_QUANTILE DOUBLE(7,6) not null,\n"
+    "  PRIMARY KEY (BUCKET_NUMBER) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_events_statements_histogram_by_digest(
+    /* Name */
+    "events_statements_histogram_by_digest",
+    /* Definition */
+    "  SCHEMA_NAME VARCHAR(64),\n"
+    "  DIGEST VARCHAR(32),\n"
+    "  BUCKET_NUMBER INTEGER unsigned not null,\n"
+    "  BUCKET_TIMER_LOW BIGINT unsigned not null,\n "
+    "  BUCKET_TIMER_HIGH BIGINT unsigned not null,\n"
+    "  COUNT_BUCKET BIGINT unsigned not null,\n"
+    "  COUNT_BUCKET_AND_LOWER BIGINT unsigned not null,\n"
+    "  BUCKET_QUANTILE DOUBLE(7,6) not null,\n"
+    "  UNIQUE KEY (SCHEMA_NAME, DIGEST, BUCKET_NUMBER) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_events_statements_summary_by_program(
+    /* Name */
+    "events_statements_summary_by_program",
+    /* Definition */
+    "  OBJECT_TYPE enum('EVENT', 'FUNCTION', 'PROCEDURE', 'TABLE',\n"
+    "                   'TRIGGER'),\n"
+    "  OBJECT_SCHEMA VARCHAR(64) NOT NULL,\n"
+    "  OBJECT_NAME VARCHAR(64) NOT NULL,\n"
+    "  COUNT_STAR bigint(20) unsigned NOT NULL,\n"
+    "  SUM_TIMER_WAIT bigint(20) unsigned NOT NULL,\n"
+    "  MIN_TIMER_WAIT bigint(20) unsigned NOT NULL,\n"
+    "  AVG_TIMER_WAIT bigint(20) unsigned NOT NULL,\n"
+    "  MAX_TIMER_WAIT bigint(20) unsigned NOT NULL,\n"
+    "  COUNT_STATEMENTS bigint(20) unsigned NOT NULL,\n"
+    "  SUM_STATEMENTS_WAIT bigint(20) unsigned NOT NULL,\n"
+    "  MIN_STATEMENTS_WAIT bigint(20) unsigned NOT NULL,\n"
+    "  AVG_STATEMENTS_WAIT bigint(20) unsigned NOT NULL,\n"
+    "  MAX_STATEMENTS_WAIT bigint(20) unsigned NOT NULL,\n"
+    "  SUM_LOCK_TIME bigint(20) unsigned NOT NULL,\n"
+    "  SUM_ERRORS bigint(20) unsigned NOT NULL,\n"
+    "  SUM_WARNINGS bigint(20) unsigned NOT NULL,\n"
+    "  SUM_ROWS_AFFECTED bigint(20) unsigned NOT NULL,\n"
+    "  SUM_ROWS_SENT bigint(20) unsigned NOT NULL,\n"
+    "  SUM_ROWS_EXAMINED bigint(20) UNSIGNED NOT NULL,\n"
+    "  SUM_CREATED_TMP_DISK_TABLES bigint(20) unsigned NOT NULL,\n"
+    "  SUM_CREATED_TMP_TABLES bigint(20) unsigned NOT NULL,\n"
+    "  SUM_SELECT_FULL_JOIN bigint(20) unsigned NOT NULL,\n"
+    "  SUM_SELECT_FULL_RANGE_JOIN bigint(20) unsigned NOT NULL,\n"
+    "  SUM_SELECT_RANGE bigint(20) unsigned NOT NULL,\n"
+    "  SUM_SELECT_RANGE_CHECK bigint(20) unsigned NOT NULL,\n"
+    "  SUM_SELECT_SCAN bigint(20) unsigned NOT NULL,\n"
+    "  SUM_SORT_MERGE_PASSES bigint(20) unsigned NOT NULL,\n"
+    "  SUM_SORT_RANGE bigint(20) unsigned NOT NULL,\n"
+    "  SUM_SORT_ROWS bigint(20) unsigned NOT NULL,\n"
+    "  SUM_SORT_SCAN bigint(20) unsigned NOT NULL,\n"
+    "  SUM_NO_INDEX_USED bigint(20) unsigned NOT NULL,\n"
+    "  SUM_NO_GOOD_INDEX_USED bigint(20) unsigned NOT NULL,\n"
+    "  PRIMARY KEY (OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_prepared_statements_instances(
+    /* Name */
+    "prepared_statements_instances",
+    /* Definition */
+    "  OBJECT_INSTANCE_BEGIN bigint(20) unsigned NOT NULL,\n"
+    "  STATEMENT_ID BIGINT(20) unsigned NOT NULL,\n"
+    "  STATEMENT_NAME varchar(64) default NULL,\n"
+    "  SQL_TEXT longtext NOT NULL,\n"
+    "  OWNER_THREAD_ID bigint(20) unsigned NOT NULL,\n"
+    "  OWNER_EVENT_ID bigint(20) unsigned NOT NULL,\n"
+    "  OWNER_OBJECT_TYPE enum('EVENT','FUNCTION','PROCEDURE','TABLE',\n"
+    "                         'TRIGGER') DEFAULT NULL,\n"
+    "  OWNER_OBJECT_SCHEMA varchar(64) DEFAULT NULL,\n"
+    "  OWNER_OBJECT_NAME varchar(64) DEFAULT NULL,\n"
+    "  TIMER_PREPARE bigint(20) unsigned NOT NULL,\n"
+    "  COUNT_REPREPARE bigint(20) unsigned NOT NULL,\n"
+    "  COUNT_EXECUTE bigint(20) unsigned NOT NULL,\n"
+    "  SUM_TIMER_EXECUTE bigint(20) unsigned NOT NULL,\n"
+    "  MIN_TIMER_EXECUTE bigint(20) unsigned NOT NULL,\n"
+    "  AVG_TIMER_EXECUTE bigint(20) unsigned NOT NULL,\n"
+    "  MAX_TIMER_EXECUTE bigint(20) unsigned NOT NULL,\n"
+    "  SUM_LOCK_TIME bigint(20) unsigned NOT NULL,\n"
+    "  SUM_ERRORS bigint(20) unsigned NOT NULL,\n"
+    "  SUM_WARNINGS bigint(20) unsigned NOT NULL,\n"
+    "  SUM_ROWS_AFFECTED bigint(20) unsigned NOT NULL,\n"
+    "  SUM_ROWS_SENT bigint(20) unsigned NOT NULL,\n"
+    "  SUM_ROWS_EXAMINED bigint(20) unsigned NOT NULL,\n"
+    "  SUM_CREATED_TMP_DISK_TABLES bigint(20) unsigned NOT NULL,\n"
+    "  SUM_CREATED_TMP_TABLES bigint(20) unsigned NOT NULL,\n"
+    "  SUM_SELECT_FULL_JOIN bigint(20) unsigned NOT NULL,\n"
+    "  SUM_SELECT_FULL_RANGE_JOIN bigint(20) unsigned NOT NULL,\n"
+    "  SUM_SELECT_RANGE bigint(20) unsigned NOT NULL,\n"
+    "  SUM_SELECT_RANGE_CHECK bigint(20) unsigned NOT NULL,\n"
+    "  SUM_SELECT_SCAN bigint(20) unsigned NOT NULL,\n"
+    "  SUM_SORT_MERGE_PASSES bigint(20) unsigned NOT NULL,\n"
+    "  SUM_SORT_RANGE bigint(20) unsigned NOT NULL,\n"
+    "  SUM_SORT_ROWS bigint(20) unsigned NOT NULL,\n"
+    "  SUM_SORT_SCAN bigint(20) unsigned NOT NULL,\n"
+    "  SUM_NO_INDEX_USED bigint(20) unsigned NOT NULL,\n"
+    "  SUM_NO_GOOD_INDEX_USED bigint(20) unsigned NOT NULL,\n"
+    "  PRIMARY KEY (OBJECT_INSTANCE_BEGIN) USING HASH,\n"
+    "  UNIQUE KEY (OWNER_THREAD_ID, OWNER_EVENT_ID) USING HASH,\n"
+    "  KEY (STATEMENT_ID) USING HASH,\n"
+    "  KEY (STATEMENT_NAME) USING HASH,\n"
+    "  KEY (OWNER_OBJECT_TYPE, OWNER_OBJECT_SCHEMA,\n"
+    "       OWNER_OBJECT_NAME) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_replication_connection_configuration(
+    /* Name */
+    "replication_connection_configuration",
+    /* Definition */
+    "  CHANNEL_NAME CHAR(64) collate utf8_general_ci not null,\n"
+    "  HOST CHAR(60) collate utf8_bin not null,\n"
+    "  PORT INTEGER not null,\n"
+    "  USER CHAR(32) collate utf8_bin not null,\n"
+    "  NETWORK_INTERFACE CHAR(60) collate utf8_bin not null,\n"
+    "  AUTO_POSITION ENUM('1','0') not null,\n"
+    "  SSL_ALLOWED ENUM('YES','NO','IGNORED') not null,\n"
+    "  SSL_CA_FILE VARCHAR(512) not null,\n"
+    "  SSL_CA_PATH VARCHAR(512) not null,\n"
+    "  SSL_CERTIFICATE VARCHAR(512) not null,\n"
+    "  SSL_CIPHER VARCHAR(512) not null,\n"
+    "  SSL_KEY VARCHAR(512) not null,\n"
+    "  SSL_VERIFY_SERVER_CERTIFICATE ENUM('YES','NO') not null,\n"
+    "  SSL_CRL_FILE VARCHAR(255) not null,\n"
+    "  SSL_CRL_PATH VARCHAR(255) not null,\n"
+    "  CONNECTION_RETRY_INTERVAL INTEGER not null,\n"
+    "  CONNECTION_RETRY_COUNT BIGINT unsigned not null,\n"
+    "  HEARTBEAT_INTERVAL DOUBLE(10,3) unsigned not null\n"
+    "  COMMENT 'Number of seconds after which a heartbeat will be sent .',\n"
+    "  TLS_VERSION VARCHAR(255) not null,\n"
+    "  PRIMARY KEY (channel_name) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_replication_group_member_stats(
+    /* Name */
+    "replication_group_member_stats",
+    /* Definition */
+    "  CHANNEL_NAME CHAR(64) collate utf8_general_ci not null,\n"
+    "  VIEW_ID CHAR(60) collate utf8_bin not null,\n"
+    "  MEMBER_ID CHAR(36) collate utf8_bin not null,\n"
+    "  COUNT_TRANSACTIONS_IN_QUEUE BIGINT unsigned not null,\n"
+    "  COUNT_TRANSACTIONS_CHECKED BIGINT unsigned not null,\n"
+    "  COUNT_CONFLICTS_DETECTED BIGINT unsigned not null,\n"
+    "  COUNT_TRANSACTIONS_ROWS_VALIDATING BIGINT unsigned not null,\n"
+    "  TRANSACTIONS_COMMITTED_ALL_MEMBERS LONGTEXT not null,\n"
+    "  LAST_CONFLICT_FREE_TRANSACTION TEXT not null\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_replication_group_members(
+    /* Name */
+    "replication_group_members",
+    /* Definition */
+    "  CHANNEL_NAME CHAR(64) collate utf8_general_ci not null,\n"
+    "  MEMBER_ID CHAR(36) collate utf8_bin not null,\n"
+    "  MEMBER_HOST CHAR(60) collate utf8_bin not null,\n"
+    "  MEMBER_PORT INTEGER,\n"
+    "  MEMBER_STATE CHAR(64) collate utf8_bin not null\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_replication_connection_status(
+    /* Name */
+    "replication_connection_status",
+    /* Definition */
+    "  CHANNEL_NAME CHAR(64) collate utf8_general_ci not null,\n"
+    "  GROUP_NAME CHAR(36) collate utf8_bin not null,\n"
+    "  SOURCE_UUID CHAR(36) collate utf8_bin not null,\n"
+    "  THREAD_ID BIGINT unsigned,\n"
+    "  SERVICE_STATE ENUM('ON','OFF','CONNECTING') not null,\n"
+    "  COUNT_RECEIVED_HEARTBEATS bigint unsigned NOT NULL DEFAULT 0,\n"
+    "  LAST_HEARTBEAT_TIMESTAMP TIMESTAMP(6) not null\n"
+    "  COMMENT 'Shows when the most recent heartbeat signal was received.',\n"
+    "  RECEIVED_TRANSACTION_SET LONGTEXT not null,\n"
+    "  LAST_ERROR_NUMBER INTEGER not null,\n"
+    "  LAST_ERROR_MESSAGE VARCHAR(1024) not null,\n"
+    "  LAST_ERROR_TIMESTAMP TIMESTAMP(6) not null,\n"
+    "  PRIMARY KEY (CHANNEL_NAME) USING HASH,\n"
+    "  KEY (THREAD_ID) USING HASH,\n"
+    "  LAST_QUEUED_TRANSACTION CHAR(57),\n"
+    "  LAST_QUEUED_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP TIMESTAMP(6)\n"
+    "                                                    not null,\n"
+    "  LAST_QUEUED_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP TIMESTAMP(6)\n"
+    "                                                     not null,\n"
+    "  LAST_QUEUED_TRANSACTION_START_QUEUE_TIMESTAMP TIMESTAMP(6) not null,\n"
+    "  LAST_QUEUED_TRANSACTION_END_QUEUE_TIMESTAMP TIMESTAMP(6) not null,\n"
+    "  QUEUEING_TRANSACTION CHAR(57),\n"
+    "  QUEUEING_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP TIMESTAMP(6) not null,\n"
+    "  QUEUEING_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP TIMESTAMP(6)\n"
+    "                                                  not null,\n"
+    "  QUEUEING_TRANSACTION_START_QUEUE_TIMESTAMP TIMESTAMP(6) not null\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_replication_applier_configuration(
+    /* Name */
+    "replication_applier_configuration",
+    /* Definition */
+    "  CHANNEL_NAME CHAR(64) collate utf8_general_ci not null,\n"
+    "  DESIRED_DELAY INTEGER not null,\n"
+    "  PRIMARY KEY (CHANNEL_NAME) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_replication_applier_filters(
+    /* Name */
+    "replication_applier_filters",
+    /* Definition */
+    "  CHANNEL_NAME CHAR(64) collate utf8_general_ci not null,\n"
+    "  FILTER_NAME CHAR(64) collate utf8_general_ci not null,\n"
+    "  FILTER_RULE LONGTEXT not null,\n"
+    "  CONFIGURED_BY ENUM('STARTUP_OPTIONS','CHANGE_REPLICATION_FILTER',\n"
+    "                     'STARTUP_OPTIONS_FOR_CHANNEL',\n"
+    "                     'CHANGE_REPLICATION_FILTER_FOR_CHANNEL') not null,\n"
+    "  ACTIVE_SINCE TIMESTAMP(6) NOT NULL default 0,\n"
+    "  COUNTER bigint(20) unsigned NOT NULL default 0\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_replication_applier_global_filters(
+    /* Name */
+    "replication_applier_global_filters",
+    /* Definition */
+    "  FILTER_NAME CHAR(64) collate utf8_general_ci not null,\n"
+    "  FILTER_RULE LONGTEXT not null,\n"
+    "  CONFIGURED_BY ENUM('STARTUP_OPTIONS',\n"
+    "                     'CHANGE_REPLICATION_FILTER') not null,\n"
+    "  ACTIVE_SINCE TIMESTAMP(6) NOT NULL default 0\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_replication_applier_status(
+    /* Name */
+    "replication_applier_status",
+    /* Definition */
+    "  CHANNEL_NAME CHAR(64) collate utf8_general_ci not null,\n"
+    "  SERVICE_STATE ENUM('ON','OFF') not null,\n"
+    "  REMAINING_DELAY INTEGER unsigned,\n"
+    "  COUNT_TRANSACTIONS_RETRIES BIGINT unsigned not null,\n"
+    "  PRIMARY KEY (CHANNEL_NAME) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_replication_applier_status_by_coordinator(
+    /* Name */
+    "replication_applier_status_by_coordinator",
+    /* Definition */
+    "  CHANNEL_NAME CHAR(64) collate utf8_general_ci not null,\n"
+    "  THREAD_ID BIGINT UNSIGNED,\n"
+    "  SERVICE_STATE ENUM('ON','OFF') not null,\n"
+    "  LAST_ERROR_NUMBER INTEGER not null,\n"
+    "  LAST_ERROR_MESSAGE VARCHAR(1024) not null,\n"
+    "  LAST_ERROR_TIMESTAMP TIMESTAMP(6) not null,\n"
+    "  PRIMARY KEY (CHANNEL_NAME) USING HASH,\n"
+    "  KEY (THREAD_ID) USING HASH,\n"
+    "  LAST_PROCESSED_TRANSACTION CHAR(57),\n"
+    "  LAST_PROCESSED_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP TIMESTAMP(6)\n"
+    "                                                       not null,\n"
+    "  LAST_PROCESSED_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP TIMESTAMP(6)\n"
+    "                                                        not null,\n"
+    "  LAST_PROCESSED_TRANSACTION_START_BUFFER_TIMESTAMP TIMESTAMP(6)\n"
+    "                                                    not null,\n"
+    "  LAST_PROCESSED_TRANSACTION_END_BUFFER_TIMESTAMP TIMESTAMP(6)\n"
+    "                                                  not null,\n"
+    "  PROCESSING_TRANSACTION CHAR(57),\n"
+    "  PROCESSING_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP TIMESTAMP(6)\n"
+    "                                                   not null,\n"
+    "  PROCESSING_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP TIMESTAMP(6)\n"
+    "                                                    not null,\n"
+    "  PROCESSING_TRANSACTION_START_BUFFER_TIMESTAMP TIMESTAMP(6) not null\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_replication_applier_status_by_worker(
+    /* Name */
+    "replication_applier_status_by_worker",
+    /* Definition */
+    "  CHANNEL_NAME CHAR(64) collate utf8_general_ci not null,\n"
+    "  WORKER_ID BIGINT UNSIGNED not null,\n"
+    "  THREAD_ID BIGINT UNSIGNED,\n"
+    "  SERVICE_STATE ENUM('ON','OFF') not null,\n"
+    "  LAST_ERROR_NUMBER INTEGER not null,\n"
+    "  LAST_ERROR_MESSAGE VARCHAR(1024) not null,\n"
+    "  LAST_ERROR_TIMESTAMP TIMESTAMP(6) not null,\n"
+    "  PRIMARY KEY (CHANNEL_NAME, WORKER_ID) USING HASH,\n"
+    "  KEY (THREAD_ID) USING HASH,\n"
+    "  LAST_APPLIED_TRANSACTION CHAR(57),\n"
+    "  LAST_APPLIED_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP TIMESTAMP(6)\n"
+    "                                                     not null,\n"
+    "  LAST_APPLIED_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP TIMESTAMP(6)\n"
+    "                                                      not null,\n"
+    "  LAST_APPLIED_TRANSACTION_START_APPLY_TIMESTAMP TIMESTAMP(6)\n"
+    "                                                 not null,\n"
+    "  LAST_APPLIED_TRANSACTION_END_APPLY_TIMESTAMP TIMESTAMP(6)\n"
+    "                                               not null,\n"
+    "  APPLYING_TRANSACTION CHAR(57),\n"
+    "  APPLYING_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP TIMESTAMP(6)\n"
+    "                                                 not null,\n"
+    "  APPLYING_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP TIMESTAMP(6)\n"
+    "                                                  not null,\n"
+    "  APPLYING_TRANSACTION_START_APPLY_TIMESTAMP TIMESTAMP(6)\n"
+    "                                             not null\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_session_connect_attrs(
+    /* Name */
+    "session_connect_attrs",
+    /* Definition */
+    "  PROCESSLIST_ID INT NOT NULL,\n"
+    "  ATTR_NAME VARCHAR(32) NOT NULL,\n"
+    "  ATTR_VALUE VARCHAR(1024),\n"
+    "  ORDINAL_POSITION INT,\n"
+    "  PRIMARY KEY (PROCESSLIST_ID, ATTR_NAME)\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA CHARACTER SET utf8 COLLATE utf8_bin",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_session_account_connect_attrs(
+    /* Name */
+    "session_account_connect_attrs",
+    /* Definition */
+    "  PROCESSLIST_ID INT NOT NULL,\n"
+    "  ATTR_NAME VARCHAR(32) NOT NULL,\n"
+    "  ATTR_VALUE VARCHAR(1024),\n"
+    "  ORDINAL_POSITION INT,\n"
+    "  PRIMARY KEY (PROCESSLIST_ID, ATTR_NAME)\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA CHARACTER SET utf8 COLLATE utf8_bin",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_table_handles(
+    /* Name */
+    "table_handles",
+    /* Definition */
+    "  OBJECT_TYPE VARCHAR(64) not null,\n"
+    "  OBJECT_SCHEMA VARCHAR(64) not null,\n"
+    "  OBJECT_NAME VARCHAR(64) not null,\n"
+    "  OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,\n"
+    "  OWNER_THREAD_ID BIGINT unsigned,\n"
+    "  OWNER_EVENT_ID BIGINT unsigned,\n"
+    "  INTERNAL_LOCK VARCHAR(64),\n"
+    "  EXTERNAL_LOCK VARCHAR(64),\n"
+    "  PRIMARY KEY (OBJECT_INSTANCE_BEGIN) USING HASH,\n"
+    "  KEY (OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME) USING HASH,\n"
+    "  KEY (OWNER_THREAD_ID, OWNER_EVENT_ID) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_metadata_locks(
+    /* Name */
+    "metadata_locks",
+    /* Definition */
+    "  OBJECT_TYPE VARCHAR(64) not null,\n"
+    "  OBJECT_SCHEMA VARCHAR(64),\n"
+    "  OBJECT_NAME VARCHAR(64),\n"
+    "  OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,\n"
+    "  LOCK_TYPE VARCHAR(32) not null,\n"
+    "  LOCK_DURATION VARCHAR(32) not null,\n"
+    "  LOCK_STATUS VARCHAR(32) not null,\n"
+    "  SOURCE VARCHAR(64),\n"
+    "  OWNER_THREAD_ID BIGINT unsigned,\n"
+    "  OWNER_EVENT_ID BIGINT unsigned,\n"
+    "  PRIMARY KEY (OBJECT_INSTANCE_BEGIN) USING HASH,\n"
+    "  KEY (OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME) USING HASH,\n"
+    "  KEY (OWNER_THREAD_ID, OWNER_EVENT_ID) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_user_variables_by_thread(
+    /* Name */
+    "user_variables_by_thread",
+    /* Definition */
+    "  THREAD_ID BIGINT unsigned not null,\n"
+    "  VARIABLE_NAME VARCHAR(64) not null,\n"
+    "  VARIABLE_VALUE LONGBLOB,\n"
+    "  PRIMARY KEY (THREAD_ID, VARIABLE_NAME) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_variables_by_thread(
+    /* Name */
+    "variables_by_thread",
+    /* Definition */
+    "  THREAD_ID BIGINT unsigned not null,\n"
+    "  VARIABLE_NAME VARCHAR(64) not null,\n"
+    "  VARIABLE_VALUE VARCHAR(1024),\n"
+    "  PRIMARY KEY (THREAD_ID, VARIABLE_NAME) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_global_variables(
+    /* Name */
+    "global_variables",
+    /* Definition */
+    "  VARIABLE_NAME VARCHAR(64) not null,\n"
+    "  VARIABLE_VALUE VARCHAR(1024),\n"
+    "  PRIMARY KEY (VARIABLE_NAME) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_session_variables(
+    /* Name */
+    "session_variables",
+    /* Definition */
+    "  VARIABLE_NAME VARCHAR(64) not null,\n"
+    "  VARIABLE_VALUE VARCHAR(1024),\n"
+    "  PRIMARY KEY (VARIABLE_NAME ) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_variables_info(
+    /* Name */
+    "variables_info",
+    /* Definition */
+    "  VARIABLE_NAME varchar(64) not null,\n"
+    "  VARIABLE_SOURCE ENUM('COMPILED','GLOBAL','SERVER','EXPLICIT','EXTRA',\n"
+    "                       'USER','LOGIN','COMMAND_LINE','PERSISTED',\n"
+    "                       'DYNAMIC') DEFAULT 'COMPILED',\n"
+    "  VARIABLE_PATH varchar(1024),\n"
+    "  MIN_VALUE varchar(64),\n"
+    "  MAX_VALUE varchar(64),\n"
+    "  SET_TIME TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP,\n"
+    "  SET_USER CHAR(32) collate utf8_bin default null,\n"
+    "  SET_HOST CHAR(60) collate utf8_bin default null\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_persisted_variables(
+    /* Name */
+    "persisted_variables",
+    /* Definition */
+    "  VARIABLE_NAME VARCHAR(64) not null,\n"
+    "  VARIABLE_VALUE VARCHAR(1024),\n"
+    "  PRIMARY KEY (VARIABLE_NAME) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_status_by_thread(
+    /* Name */
+    "status_by_thread",
+    /* Definition */
+    "  THREAD_ID BIGINT UNSIGNED not null,\n"
+    "  VARIABLE_NAME VARCHAR(64) not null,\n"
+    "  VARIABLE_VALUE VARCHAR(1024),\n"
+    "  PRIMARY KEY (THREAD_ID, VARIABLE_NAME) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_status_by_user(
+    /* Name */
+    "status_by_user",
+    /* Definition */
+    "  USER CHAR(32) collate utf8_bin default null,\n"
+    "  VARIABLE_NAME VARCHAR(64) not null,\n"
+    "  VARIABLE_VALUE VARCHAR(1024),\n"
+    "  UNIQUE KEY (USER, VARIABLE_NAME) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_status_by_host(
+    /* Name */
+    "status_by_host",
+    /* Definition */
+    "  HOST CHAR(60) collate utf8_bin default null,\n"
+    "  VARIABLE_NAME VARCHAR(64) not null,\n"
+    "  VARIABLE_VALUE VARCHAR(1024),\n"
+    "  UNIQUE KEY (HOST, VARIABLE_NAME) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_status_by_account(
+    /* Name */
+    "status_by_account",
+    /* Definition */
+    "  USER CHAR(32) collate utf8_bin default null,\n"
+    "  HOST CHAR(60) collate utf8_bin default null,\n"
+    "  VARIABLE_NAME VARCHAR(64) not null,\n"
+    "  VARIABLE_VALUE VARCHAR(1024),\n"
+    "  UNIQUE KEY `ACCOUNT` (USER, HOST, VARIABLE_NAME) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_global_status(
+    /* Name */
+    "global_status",
+    /* Definition */
+    "  VARIABLE_NAME VARCHAR(64) not null,\n"
+    "  VARIABLE_VALUE VARCHAR(1024),\n"
+    "  PRIMARY KEY (VARIABLE_NAME) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+  static Plugin_table pfst_session_status(
+    /* Name */
+    "session_status",
+    /* Definition */
+    "  VARIABLE_NAME VARCHAR(64) not null,\n"
+    "  VARIABLE_VALUE VARCHAR(1024),\n"
+    "  PRIMARY KEY (VARIABLE_NAME) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr
+  );
+
+
+  tables->push_back(&pfst_cond_instances);
+  tables->push_back(&pfst_events_waits_current);
+  tables->push_back(&pfst_events_waits_history);
+  tables->push_back(&pfst_events_waits_history_long);
+  tables->push_back(&pfst_events_waits_summary_by_instance);
+  tables->push_back(&pfst_events_waits_summary_by_host_by_event_name);
+  tables->push_back(&pfst_events_waits_summary_by_user_by_event_name);
+  tables->push_back(&pfst_events_waits_summary_by_account_by_event_name);
+  tables->push_back(&pfst_events_waits_summary_by_thread_by_event_name);
+  tables->push_back(&pfst_events_waits_summary_global_by_event_name);
+  tables->push_back(&pfst_file_instances);
+  tables->push_back(&pfst_file_summary_by_event_name);
+  tables->push_back(&pfst_file_summary_by_instance);
+  tables->push_back(&pfst_socket_instances);
+  tables->push_back(&pfst_socket_summary_by_instance);
+  tables->push_back(&pfst_socket_summary_by_event_name);
+  tables->push_back(&pfst_host_cache);
+  tables->push_back(&pfst_mutex_instances);
+  tables->push_back(&pfst_objects_summary_global_by_type);
+  tables->push_back(&pfst_performance_timers);
+  tables->push_back(&pfst_data_locks);
+  tables->push_back(&pfst_data_lock_waits);
+  tables->push_back(&pfst_rwlock_instances);
+  tables->push_back(&pfst_setup_actors);
+  tables->push_back(&pfst_setup_consumers);
+  tables->push_back(&pfst_setup_instruments);
+  tables->push_back(&pfst_setup_objects);
+  tables->push_back(&pfst_setup_timers);
+  tables->push_back(&pfst_table_io_waits_summary_by_index_usage);
+  tables->push_back(&pfst_table_io_waits_summary_by_table);
+  tables->push_back(&pfst_table_lock_waits_summary_by_table);
+  tables->push_back(&pfst_threads);
+  tables->push_back(&pfst_events_stages_current);
+  tables->push_back(&pfst_events_stages_history);
+  tables->push_back(&pfst_events_stages_history_long);
+  tables->push_back(&pfst_events_stages_summary_by_thread_by_event_name);
+  tables->push_back(&pfst_events_stages_summary_by_host_by_event_name);
+  tables->push_back(&pfst_events_stages_summary_by_user_by_event_name);
+  tables->push_back(&pfst_events_stages_summary_by_account_by_event_name);
+  tables->push_back(&pfst_events_stages_summary_global_by_event_name);
+  tables->push_back(&pfst_events_statements_current);
+  tables->push_back(&pfst_events_statements_history);
+  tables->push_back(&pfst_events_statements_history_long);
+  tables->push_back(&pfst_events_statements_summary_by_thread_by_event_name);
+  tables->push_back(&pfst_events_statements_summary_by_host_by_event_name);
+  tables->push_back(&pfst_events_statements_summary_by_user_by_event_name);
+  tables->push_back(&pfst_events_statements_summary_by_account_by_event_name);
+  tables->push_back(&pfst_events_statements_summary_global_by_event_name);
+  tables->push_back(&pfst_events_transactions_current);
+  tables->push_back(&pfst_events_transactions_history);
+  tables->push_back(&pfst_events_transactions_history_long);
+  tables->push_back(&pfst_events_transactions_summary_by_thread_by_event_name);
+  tables->push_back(&pfst_events_transactions_summary_by_host_by_event_name);
+  tables->push_back(&pfst_events_transactions_summary_by_user_by_event_name);
+  tables->push_back(&pfst_events_transactions_summary_by_account_by_evnt_name);
+  tables->push_back(&pfst_events_transactions_summary_global_by_event_name);
+  tables->push_back(&pfst_events_errors_summary_by_account_by_error);
+  tables->push_back(&pfst_events_errors_summary_by_host_by_error);
+  tables->push_back(&pfst_events_errors_summary_by_user_by_error);
+  tables->push_back(&pfst_events_errors_summary_by_thread_by_error);
+  tables->push_back(&pfst_events_errors_summary_global_by_error);
+  tables->push_back(&pfst_hosts);
+  tables->push_back(&pfst_users);
+  tables->push_back(&pfst_accounts);
+  tables->push_back(&pfst_memory_summary_global_by_event_name);
+  tables->push_back(&pfst_memory_summary_by_thread_by_event_name);
+  tables->push_back(&pfst_memory_summary_by_account_by_event_name);
+  tables->push_back(&pfst_memory_summary_by_host_by_event_name);
+  tables->push_back(&pfst_memory_summary_by_user_by_event_name);
+  tables->push_back(&pfst_events_statements_summary_by_digest);
+  tables->push_back(&pfst_events_statements_histogram_global);
+  tables->push_back(&pfst_events_statements_histogram_by_digest);
+  tables->push_back(&pfst_events_statements_summary_by_program);
+  tables->push_back(&pfst_prepared_statements_instances);
+  tables->push_back(&pfst_replication_connection_configuration);
+  tables->push_back(&pfst_replication_group_member_stats);
+  tables->push_back(&pfst_replication_group_members);
+  tables->push_back(&pfst_replication_connection_status);
+  tables->push_back(&pfst_replication_applier_configuration);
+  tables->push_back(&pfst_replication_applier_filters);
+  tables->push_back(&pfst_replication_applier_global_filters);
+  tables->push_back(&pfst_replication_applier_status);
+  tables->push_back(&pfst_replication_applier_status_by_coordinator);
+  tables->push_back(&pfst_replication_applier_status_by_worker);
+  tables->push_back(&pfst_session_connect_attrs);
+  tables->push_back(&pfst_session_account_connect_attrs);
+  tables->push_back(&pfst_table_handles);
+  tables->push_back(&pfst_metadata_locks);
+  tables->push_back(&pfst_user_variables_by_thread);
+  tables->push_back(&pfst_variables_by_thread);
+  tables->push_back(&pfst_global_variables);
+  tables->push_back(&pfst_session_variables);
+  tables->push_back(&pfst_variables_info);
+  tables->push_back(&pfst_persisted_variables);
+  tables->push_back(&pfst_status_by_thread);
+  tables->push_back(&pfst_status_by_user);
+  tables->push_back(&pfst_status_by_host);
+  tables->push_back(&pfst_status_by_account);
+  tables->push_back(&pfst_global_status);
+  tables->push_back(&pfst_session_status);
+  return false;
+}
+
+
 static int
 pfs_init_func(void *p)
 {
@@ -1262,6 +3891,8 @@ pfs_init_func(void *p)
   pfs_hton->state = SHOW_OPTION_YES;
   pfs_hton->create = pfs_create_handler;
   pfs_hton->show_status = pfs_show_status;
+  pfs_hton->dict_init= pfs_dict_init;
+
   pfs_hton->flags = HTON_ALTER_NOT_SUPPORTED | HTON_TEMPORARY_NOT_SUPPORTED |
                     HTON_NO_PARTITION | HTON_NO_BINLOG_ROW_OPT;
 

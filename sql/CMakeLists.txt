@@ -180,6 +180,8 @@ SET(DD_SOURCES
   dd/info_schema/show_query_builder.cc
   dd/info_schema/stats.cc
 
+  dd/performance_schema/init.cc
+
   dd/upgrade/event.cc
   dd/upgrade/global.cc
   dd/upgrade/routine.cc

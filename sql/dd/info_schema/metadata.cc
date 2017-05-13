@@ -49,23 +49,28 @@ unsigned int UNKNOWN_PLUGIN_VERSION= -1;
 const dd::String_type PLUGIN_VERSION_STRING("plugin_version");
 const dd::String_type SERVER_I_S_TABLE_STRING("server_i_s_table");
 
+}
+
 /**
   Check if DDSE (Data Dictionary Storage Engine) is in
   readonly mode.
 
-  @param thd Thread
+  @param thd                 Thread
+  @param schema_name_abbrev  Abbreviation of schema (I_S or P_S) for use
+                             in warning message output
 
   @returns false on success, otherwise true.
 */
-bool check_if_server_ddse_readonly(THD *thd)
+bool check_if_server_ddse_readonly(THD *thd, const char *schema_name_abbrev)
 {
   /*
-    If we are in read-only mode, we skip updating I_S metadata. Here,
+    If we are in read-only mode, we skip updating I_S/P_S metadata. Here,
     'opt_readonly' is the value of the '--read-only' option.
   */
   if (opt_readonly)
   {
-    sql_print_warning("Skip updating I_S metadata in read-only mode.");
+    sql_print_warning("Skip updating %s metadata in read-only mode.",
+                      schema_name_abbrev);
     return true;
   }
 
@@ -78,13 +83,15 @@ bool check_if_server_ddse_readonly(THD *thd)
   handlerton *ddse= ha_resolve_by_legacy_type(thd, DB_TYPE_INNODB);
   if (ddse->is_dict_readonly && ddse->is_dict_readonly())
   {
-    sql_print_warning("Skip updating I_S metadata in InnoDB read-only mode.");
+    sql_print_warning("Skip updating %s metadata in InnoDB read-only mode.",
+                      schema_name_abbrev);
     return true;
   }
 
   return false;
 }
 
+namespace {
 
 // Hold context during IS metadata update to DD.
 class Update_context
@@ -315,7 +322,7 @@ bool store_plugin_metadata(THD *thd,
 bool update_plugins_I_S_metadata(THD *thd)
 {
   // Warn if we have read-only mode enabled and continue.
-  if (check_if_server_ddse_readonly(thd))
+  if (check_if_server_ddse_readonly(thd, INFORMATION_SCHEMA_NAME.str))
     return false;
 
   /*
@@ -416,7 +423,7 @@ bool update_server_I_S_metadata(THD *thd)
     Stop server restart if I_S version is changed and the server is
     started in read-only mode.
   */
-  if (check_if_server_ddse_readonly(thd))
+  if (check_if_server_ddse_readonly(thd, INFORMATION_SCHEMA_NAME.str))
     return true;
 
   Update_context ctx(thd, true);

@@ -33,6 +33,12 @@ static const uint TARGET_DD_VERSION= 1;
 // The version of the current server IS schema
 static const uint TARGET_I_S_VERSION= 1;
 
+// The version of the current server PS schema
+static const uint TARGET_P_S_VERSION= 1;
+
+// Unknown version of the current server PS schema. It is used for tests.
+static const uint UNKNOWN_P_S_VERSION= -1;
+
 ///////////////////////////////////////////////////////////////////////////
 
 class DD_properties : public Object_table_impl
@@ -83,7 +89,7 @@ public:
   /**
     The DD version stored in mysql.dd_properties.
 
-    @param thd         - THD to which lock belongs to.
+    @param thd         - Thread context.
     @param[out] exists - Will be marked 'false' if dd_properties
                          tables is not present. Otherwise true.
 
@@ -108,21 +114,48 @@ public:
   /**
     The IS version stored in mysql.dd_properties.
 
-    @param thd - THD to which lock belongs to.
+    @param thd - Thread context.
 
     @returns TARGET_I_S_VERSION
   */
   uint get_actual_I_S_version(THD *thd) const;
 
   /**
+    The PS version required by the current server binaries.
+
+    @returns TARGET_P_S_VERSION
+  */
+  static uint get_target_P_S_version()
+  { return TARGET_P_S_VERSION; }
+
+  /**
+    The PS version stored in mysql.dd_properties.
+
+    @param thd - Thread context.
+
+    @returns actual PS version
+  */
+  uint get_actual_P_S_version(THD *thd) const;
+
+  /**
     Store IS version in mysql.dd_properties.
 
-    @param thd     - THD to which lock belongs to.
+    @param thd     - Thread context.
     @param version - The version number to stored.
 
     @returns false on success otherwise true.
   */
   bool set_I_S_version(THD *thd, uint version);
+
+  /**
+    Store PS version in mysql.dd_properties.
+
+    @param thd     - Thread context.
+    @param version - The version number to stored.
+
+    @returns false on success otherwise true.
+  */
+  bool set_P_S_version(THD *thd, uint version);
 
   /**
     Get the dd::Properties raw string of all versions.
@@ -136,6 +169,7 @@ public:
     dd::Properties_impl p;
     p.set_uint32("DD_version", get_target_dd_version());
     p.set_uint32("IS_version", get_target_I_S_version());
+    p.set_uint32("PS_version", get_target_P_S_version());
     return p.raw_string();
   }
 
@@ -145,7 +179,7 @@ private:
     Get the value of given property key stored in dd_properties
     table.
 
-    @param thd         - THD to which lock belongs to.
+    @param thd         - Thread context.
     @param key         - The key representing property stored.
     @param[out] exists - Will be marked 'false' if dd_properties
                          tables is not present. Otherwise true.
@@ -157,7 +191,7 @@ private:
   /**
     Set the value of property key in dd_properties table.
 
-    @param thd    - THD to which lock belongs to.
+    @param thd    - Thread context.
     @param key    - The key representing property.
     @param value  - The value to be stored for 'key'.
 

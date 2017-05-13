@@ -58,7 +58,8 @@ eval SHOW COLUMNS FROM information_schema.$is_table;
 # Show that CATALOG_NAME and SQL_PATH are always NULL.
 SELECT catalog_name, schema_name, sql_path
 FROM information_schema.schemata
-WHERE catalog_name IS NOT NULL or sql_path IS NOT NULL;
+WHERE catalog_name IS NOT NULL or sql_path IS NOT NULL
+ORDER BY schema_name;
 
 
 --echo ###############################################################################

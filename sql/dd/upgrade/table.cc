@@ -1848,7 +1848,9 @@ bool migrate_all_frm_to_dd(THD *thd, const char *dbname,
       */
 
       bool is_skip_table= ((strcmp(schema_name, "mysql") == 0) &&
-                           (strcmp(table_name, "plugin") == 0));
+                           (strcmp(table_name, "plugin") == 0)) ||
+                          strcmp(schema_name,
+                                 PERFORMANCE_SCHEMA_DB_NAME.str) == 0;
 
       if (is_skip_table)
         continue;
@@ -1857,10 +1859,6 @@ bool migrate_all_frm_to_dd(THD *thd, const char *dbname,
       bool result= false;
       result= migrate_table_to_dd(thd, schema_name, table_name,
                                   is_fix_view_cols_and_deps);
-
-      // Don't abort upgrade if error is in upgrading Performance Schema table.
-      if (result && (strcmp(dbname, "performance_schema") == 0))
-        result= false;
 
       /*
         Set error status, but don't abort upgrade

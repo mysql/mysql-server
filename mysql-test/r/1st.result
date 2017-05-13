@@ -1,11 +1,11 @@
-select schema_name from information_schema.schemata ;
+select schema_name from information_schema.schemata order by schema_name;
 SCHEMA_NAME
-mysql
 information_schema
-sys
-performance_schema
-test
 mtr
+mysql
+performance_schema
+sys
+test
 show tables in mysql where Tables_in_mysql != 'ndb_binlog_index';
 Tables_in_mysql
 column_stats

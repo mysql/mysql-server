@@ -573,6 +573,7 @@
 #include "dd/dd.h"                      // dd::shutdown
 #include "dd/dd_kill_immunizer.h"       // dd::DD_kill_immunizer
 #include "dd/dictionary.h"              // dd::get_dictionary
+#include "dd/performance_schema/init.h" // performance_schema::init
 #include "dd/upgrade/upgrade.h"         // dd::upgrade::in_progress
 #include "srv_session.h"
 #include "dynamic_privileges_impl.h" 
@@ -4537,6 +4538,14 @@ static int init_server_components()
   }
   dynamic_plugins_are_initialized= true;  /* Don't separate from init function */
 
+#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
+  /*
+    A value of the variable dd_upgrade_flag is reset after
+    dd::init(dd::enum_dd_init_type::DD_POPULATE_UPGRADE) returned.
+    So make its copy to call init_pfs_tables() with right argument value later.
+  */
+  bool dd_upgrade_was_initiated= dd::upgrade::in_progress();
+#endif
   // Populate DD tables with meta data from 5.7 in case of upgrade
   if (!opt_help && dd::upgrade::in_progress() &&
       dd::init(dd::enum_dd_init_type::DD_POPULATE_UPGRADE))
@@ -4555,6 +4564,25 @@ static int init_server_components()
     LogErr(ERROR_LEVEL, ER_DD_UPDATING_PLUGIN_MD_FAILED);
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
+
+#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
+  if (!opt_help)
+  {
+    bool st;
+    if (opt_initialize || dd_upgrade_was_initiated)
+      st= dd::performance_schema::init_pfs_tables(
+            dd::enum_dd_init_type::DD_INITIALIZE);
+    else
+      st= dd::performance_schema::init_pfs_tables(
+            dd::enum_dd_init_type::DD_RESTART_OR_UPGRADE);
+
+    if (st)
+    {
+      sql_print_error("Performance schema initialization failed.");
+      unireg_abort(1);
+    }
+  }
+#endif
 
   Session_tracker session_track_system_variables_check;
   LEX_STRING var_list;

@@ -381,7 +381,8 @@ public:
     INERT,
     CORE,
     SECOND,
-    SUPPORT
+    SUPPORT,
+    PFS
   };
 
   // Map from system table type to string description, e.g. for debugging.
@@ -393,6 +394,7 @@ public:
       case Types::CORE:    return "CORE";
       case Types::SECOND:  return "SECOND";
       case Types::SUPPORT: return "SUPPORT";
+      case Types::PFS:     return "PFS";
       default:             return "";
     }
   }
@@ -403,7 +405,7 @@ public:
     if (type == Types::INERT || type == Types::CORE || type == Types::SECOND)
       return ER_NO_SYSTEM_TABLE_ACCESS_FOR_DICTIONARY_TABLE;
 
-    if (type == Types::SUPPORT)
+    if (type == Types::SUPPORT || type ==Types::PFS)
       return ER_NO_SYSTEM_TABLE_ACCESS_FOR_SYSTEM_TABLE;
 
     DBUG_ASSERT(false);

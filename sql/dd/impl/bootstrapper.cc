@@ -828,7 +828,8 @@ bool DDSE_dict_init(THD *thd,
             table->get_name(),
             table->get_table_definition(),
             table->get_table_options(),
-            Dictionary_impl::get_target_dd_version());
+            Dictionary_impl::get_target_dd_version(),
+            table->get_tablespace_name());
     System_tables::instance()->add(MYSQL_SCHEMA_NAME.str, table->get_name(),
                                    System_tables::Types::SUPPORT, plugin_table);
   }

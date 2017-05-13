@@ -12333,7 +12333,9 @@ innobase_dict_init(
 		/* Options */
 		" ENGINE=INNODB ROW_FORMAT=DYNAMIC "
 		"DEFAULT CHARSET=utf8 COLLATE=utf8_bin "
-		"STATS_PERSISTENT=0");
+		"STATS_PERSISTENT=0",
+                /* Tablespace */
+		MYSQL_TABLESPACE_NAME.str);
 
 	static Plugin_table innodb_index_stats(
 		/* Name */
@@ -12360,7 +12362,9 @@ innobase_dict_init(
 		/* Options */
 		" ENGINE=INNODB ROW_FORMAT=DYNAMIC "
 		"DEFAULT CHARSET=utf8 COLLATE=utf8_bin "
-		"STATS_PERSISTENT=0");
+		"STATS_PERSISTENT=0",
+                /* Tablespace */
+                MYSQL_TABLESPACE_NAME.str);
 
 	static const Plugin_table innodb_dynamic_metadata(
 		/* Name */
@@ -12372,7 +12376,9 @@ innobase_dict_init(
 		"  metadata BLOB NOT NULL\n",
 		/* Options */
 		" ENGINE=INNODB ROW_FORMAT=DYNAMIC "
-		" STATS_PERSISTENT=0");
+		" STATS_PERSISTENT=0",
+                /* Tablespace */
+                MYSQL_TABLESPACE_NAME.str);
 
 	tables->push_back(&innodb_table_stats);
 	tables->push_back(&innodb_index_stats);

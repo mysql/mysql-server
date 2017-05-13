@@ -11,8 +11,8 @@ CALL mtr.add_suppression("Skip re-populating collations and character sets table
 # 2.2 Restart the server with --innodb-read-only and wait for reconnect.
 # 2.3 Search for, and suppress, the expected warning in the log file.
 CALL mtr.add_suppression("Skip re-populating collations and character sets tables in InnoDB read-only mode.");
-CALL mtr.add_suppression("Skip updating I_S metadata in read-only mode.");
-CALL mtr.add_suppression("Skip updating I_S metadata in InnoDB read-only mode.");
+CALL mtr.add_suppression("Skip updating information_schema metadata in read-only mode.");
+CALL mtr.add_suppression("Skip updating information_schema metadata in InnoDB read-only mode.");
 # 3. Clean server restart.
 # 3.1 Request shutdown and wait for disconnect.
 # 3.2 Restart the server with no additional options.

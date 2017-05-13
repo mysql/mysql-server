@@ -68,12 +68,15 @@ public:
   { return false; }
 
   Plugin_table_impl(const String_type &name, const String_type &definition,
-                    const String_type &options, uint version)
+                    const String_type &options, uint version,
+                    const char* tablespace_name)
   {
     m_target_def.set_table_name(name);
     m_target_def.set_table_definition(definition);
     m_target_def.set_table_options(options);
     m_target_def.dd_version(version);
+    if (tablespace_name)
+      m_target_def.set_tablespace_name(tablespace_name);
   }
 
   virtual ~Plugin_table_impl()

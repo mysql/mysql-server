@@ -26,7 +26,7 @@ DROP TABLE t2;
 --echo #
 
 --disable_query_log
-call mtr.add_suppression("Skip updating I_S metadata in InnoDB read-only mode.");
+call mtr.add_suppression("Skip updating information_schema metadata in InnoDB read-only mode.");
 --enable_query_log
 
 CREATE TABLE t1(a int PRIMARY KEY) ENGINE=InnoDB;

@@ -281,7 +281,7 @@ INSERT INTO global_suppressions VALUES
  ("\\[GCS\\] Message cannot be sent because the member does not belong to a group."),
  ("Slave SQL for channel 'group_replication_recovery': ... The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*"),
  ("Skip re-populating collations and character sets tables in read-only mode"),
- ("Skip updating I_S metadata in read-only mode"),
+ ("Skip updating information_schema metadata in read-only mode"),
 
  ("THE_LAST_SUPPRESSION")||
 

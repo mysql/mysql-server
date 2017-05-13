@@ -997,7 +997,7 @@ call mtr.add_suppression("\\[ERROR\\] InnoDB: The file .* already exists though 
 
 --disable_query_log
 call mtr.add_suppression("Skip re-populating collations and character sets tables in InnoDB read-only mode.");
-call mtr.add_suppression("Skip updating I_S metadata in InnoDB read-only mode.");
+call mtr.add_suppression("Skip updating information_schema metadata in InnoDB read-only mode.");
 --enable_query_log
 
 CREATE TABLESPACE s1 ADD DATAFILE 's1.ibd' ENGINE InnoDB;

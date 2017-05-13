@@ -26,6 +26,9 @@
 // TODO: Avoid exposing dd/impl headers in public files.
 #include "dd/impl/dictionary_impl.h"          // default_catalog_name
 #include "dd/impl/utils.h"                    // dd::escape
+#include "dd/impl/system_registry.h"          // dd::System_tables
+#include "dd/performance_schema/init.h"       // performance_schema::
+                                              //   set_PS_version_for_table
 #include "dd/properties.h"                    // dd::Properties
 #include "dd/types/abstract_table.h"
 #include "dd/types/column.h"                  // dd::Column
@@ -2150,6 +2153,16 @@ static bool create_dd_system_table(THD *thd,
 }
 
 
+bool is_server_ps_table_name(const dd::String_type& schema_name,
+                             const dd::String_type& table_name)
+{
+  return
+    is_perfschema_db(schema_name.c_str(), schema_name.length()) &&
+    System_tables::instance()->find_table(schema_name,
+                                          table_name) != nullptr;
+}
+
+
 bool create_dd_user_table(THD *thd,
                           const dd::Schema &sch_obj,
                           const dd::String_type &table_name,
@@ -2173,6 +2186,9 @@ bool create_dd_user_table(THD *thd,
   tab_obj->set_hidden(create_info->m_hidden ?
                       dd::Abstract_table::HT_HIDDEN_DDL :
                       dd::Abstract_table::HT_VISIBLE);
+
+  if (is_server_ps_table_name(sch_obj.name(), table_name))
+    performance_schema::set_PS_version_for_table(&tab_obj->options());
 
   if (fill_dd_table_from_create_info(thd, tab_obj.get(), table_name,
                                      create_info, create_fields,
