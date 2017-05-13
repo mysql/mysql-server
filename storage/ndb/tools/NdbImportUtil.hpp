@@ -19,6 +19,7 @@
 #define NDB_IMPORT_UTIL_HPP
 
 #include <ndb_global.h>
+#include <stdint.h>
 #include <ndb_limits.h>
 #include <mgmapi.h>
 #include <NdbMutex.h>
