@@ -5846,7 +5846,7 @@
       PAGE_MYSQLTEST "mysqltest" aborts the test when a statement sent
       to the server results in an unexpected error, and does not
       generate the <b>.reject</b> file. For discussion of reasons why
-      it can be useful to disable this behavior, see
+      it can be useful to disable this behavior, see @ref
       PAGE_ERROR_HANDLING.
 
       @verbatim
@@ -7195,7 +7195,7 @@
       'Slave_running'</b> statements until the result is <b>OFF</b>.
 
       For information about alternative means of slave server control,
-      see PAGE_WRITING_REPLICATION_TESTS.
+      see @ref PAGE_WRITING_REPLICATION_TESTS.
     </li>
 
     <li>
