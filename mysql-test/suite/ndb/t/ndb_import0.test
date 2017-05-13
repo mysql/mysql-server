@@ -1,5 +1,4 @@
 --source include/have_ndb.inc
---source include/not_windows.inc
 --source suite/ndb/include/ndb_find_import_tool.inc
 
 --echo # manual ndb_import tests
