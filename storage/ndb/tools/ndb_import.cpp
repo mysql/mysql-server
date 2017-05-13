@@ -398,6 +398,8 @@ checkopts(int argc, char** argv)
 
 // signal handlers
 
+#ifndef _WIN32
+
 static void
 sighandler(int sig)
 {
@@ -415,7 +417,7 @@ sighandler(int sig)
   NdbImport::set_stop_all();
 }
 
-void
+static void
 setsighandler(bool on)
 {
   struct sigaction sa;
@@ -429,6 +431,17 @@ setsighandler(bool on)
   sigaction(SIGHUP, &sa, NULL);
   sigaction(SIGINT, &sa, NULL);
 }
+
+#else
+
+// TODO
+
+static void
+setsighandler(bool on)
+{
+}
+
+#endif
 
 // error insert
 
@@ -515,6 +528,7 @@ doerrins_c(void* data)
     NdbImport::set_stop_all();
     return 0;
   }
+#ifndef _WIN32
   int pid = getpid();
   int sig = 0;
   if (strcmp(type, "sighup") == 0)
@@ -523,6 +537,9 @@ doerrins_c(void* data)
     sig = SIGINT;
   require(sig != 0);
   ::kill(pid, sig);
+#else
+  // TODO
+#endif
   return 0;
 }
 
