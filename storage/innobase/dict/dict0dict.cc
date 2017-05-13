@@ -5831,14 +5831,6 @@ dict_table_load_dynamic_metadata(
 			table->dirty_status = METADATA_BUFFERED;
 			ut_d(table->in_dirty_dict_tables_list = true);
 		}
-		/* If !is_dirty, it could be either:
-		1. It's first time to load this table, and the corrupted
-		index marked has been dropped. Current dirty_status should
-		be METADATA_CLEAN.
-		2. It's the second time to apply dynamic metadata to this
-		table, current in-memory dynamic metadata is up-to-date.
-		Current dirty_status should be METADATA_BUFFERED.
-		In both cases, we don't have to change the dirty_status */
 	}
 
 	mutex_exit(&dict_persist->mutex);

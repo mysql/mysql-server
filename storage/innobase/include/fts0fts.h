@@ -968,28 +968,6 @@ innobase_mysql_fts_get_token(
 						end of text */
 	fts_string_t*	token);			/*!< out: token's text */
 
-/** Create dd table for fts aux index table
-@param[in]	parent_table	parent table of fts table
-@param[in]	table		fts table
-@param[in]	charset		fts index charset
-@return true on success, false on failure */
-bool
-innobase_fts_create_one_index_dd_table(
-	const dict_table_t*	parent_table,
-	dict_table_t*		fts_table,
-	const CHARSET_INFO*	charset);
-
-/** Create dd table for fts aux common table
-@param[in]	parent_table	parent table of fts table
-@param[in]	table		fts table
-@param[in]	is_config	flag whether it's fts aux configure table
-@return true on success, false on failure */
-bool
-innobase_fts_create_one_common_dd_table(
-	const dict_table_t*	parent_talbe,
-	dict_table_t*		table,
-	bool			is_config);
-
 /** Drop dd table & tablespace for fts aux table
 @param[in]	name		table name
 @param[in]	file_per_table	flag whether use file per table

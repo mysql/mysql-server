@@ -3191,11 +3191,6 @@ dd_load_tablespace(
 
 	}
 	else if (DICT_TF_HAS_SHARED_SPACE(table->flags)) {
-#ifdef INNODB_NO_NEW_DD
-		/* Set table->tablespace from either
-		fil_system or SYS_TABLESPACES */
-		dict_get_and_save_space_name(table, true);
-#endif /* INNODB_NO_NEW_DD */
 
 		filepath = dd_get_first_path(heap, table, dd_table);
 		if (filepath == nullptr) {
@@ -3359,12 +3354,6 @@ dd_open_table_one(
 		index->trx_id = trx_id;
 		index = index->next();
 	}
-
-#ifdef INNODB_NO_NEW_DD
-	if (!implicit) {
-		dict_get_and_save_space_name(m_table, false);
-	}
-#endif /* INNODB_NO_NEW_DD */
 
 	mutex_enter(&dict_sys->mutex);
 

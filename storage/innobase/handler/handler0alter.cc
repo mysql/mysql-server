@@ -6808,7 +6808,7 @@ innobase_update_foreign_try(
 				DBUG_RETURN(true);
 			}
 		}
-		
+
 		/* During upgrade, inserts into SYS_* should be avoided. */
 		if (!srv_is_upgrade_mode) {
 			DBUG_EXECUTE_IF(
