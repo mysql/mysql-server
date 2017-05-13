@@ -19,6 +19,7 @@
 #define NDB_IMPORT_CSV_HPP
 
 #include <ndb_global.h>
+#include <stdint.h>
 #include <ndb_limits.h>
 #include <NdbOut.hpp>
 #include <NdbImport.hpp>
