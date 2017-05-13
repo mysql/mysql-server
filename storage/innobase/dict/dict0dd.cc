@@ -3045,6 +3045,8 @@ dd_get_and_save_data_dir_path(
 
 		if (heap) {
 			mem_heap_free(heap);
+		} else {
+			ut_free(path);
 		}
 	}
 }
