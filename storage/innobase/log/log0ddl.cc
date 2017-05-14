@@ -180,6 +180,10 @@ LogDDL::insertFreeLog(
 
 	pars_info_add_ull_literal(info, "index_id", index->id);
 
+	ut_ad(mutex_own(&dict_sys->mutex));
+
+	mutex_exit(&dict_sys->mutex);
+
 	dberr_t error = que_eval_sql(
 			info,
 			"PROCEDURE P () IS\n"
@@ -188,7 +192,9 @@ LogDDL::insertFreeLog(
 			"(:id, :thread_id, :type, :space_id, :page_no,"
 			":index_id, NULL, NULL, NULL);\n"
 			"END;\n",
-			FALSE, trx);
+			TRUE, trx);
+
+	mutex_enter(&dict_sys->mutex);
 
 	if (!has_dd_trx) {
 		trx_commit_for_mysql(trx);
@@ -291,6 +297,10 @@ LogDDL::insertDeleteLog(
 
 	pars_info_add_str_literal(info, "old_file_path", file_path);
 
+	if (dict_locked) {
+		mutex_exit(&dict_sys->mutex);
+	}
+
 	dberr_t error = que_eval_sql(
 			info,
 			"PROCEDURE P () IS\n"
@@ -299,7 +309,11 @@ LogDDL::insertDeleteLog(
 			"(:id, :thread_id, :type, :space_id, NULL,"
 			"NULL, NULL, :old_file_path, NULL);\n"
 			"END;\n",
-			!dict_locked, trx);
+			TRUE, trx);
+
+	if (dict_locked) {
+		mutex_enter(&dict_sys->mutex);
+	}
 
 	ut_ad(error == DB_SUCCESS);
 
@@ -378,6 +392,10 @@ LogDDL::insertRenameLog(
 
 	pars_info_add_str_literal(info, "new_file_path", new_file_path);
 
+	ut_ad(mutex_own(&dict_sys->mutex));
+
+	mutex_exit(&dict_sys->mutex);
+
 	dberr_t error = que_eval_sql(
 			info,
 			"PROCEDURE P () IS\n"
@@ -386,7 +404,9 @@ LogDDL::insertRenameLog(
 			"(:id, :thread_id, :type, :space_id, NULL,"
 			"NULL, NULL, :old_file_path, :new_file_path);\n"
 			"END;\n",
-			FALSE, trx);
+			TRUE, trx);
+
+	mutex_enter(&dict_sys->mutex);
 
 	ut_ad(error == DB_SUCCESS);
 
@@ -448,6 +468,10 @@ LogDDL::insertDropLog(
 
 	pars_info_add_ull_literal(info, "table_id", table_id);
 
+	ut_ad(mutex_own(&dict_sys->mutex));
+
+	mutex_exit(&dict_sys->mutex);
+
 	dberr_t	error = que_eval_sql(
 		info,
 		"PROCEDURE P() IS\n"
@@ -456,7 +480,10 @@ LogDDL::insertDropLog(
 		"(:id, :thread_id, :type, NULL, NULL,"
 		"NULL, :table_id, NULL, NULL);\n"
 		"END;\n",
-		FALSE, trx);
+		TRUE, trx);
+
+	mutex_enter(&dict_sys->mutex);
+
 	ut_ad(error == DB_SUCCESS);
 
 	ib::info() << "ddl log drop : " << "DROP "
@@ -529,6 +556,10 @@ LogDDL::insertRenameTableLog(
 
 	pars_info_add_str_literal(info, "new_file_path", new_name);
 
+	ut_ad(mutex_own(&dict_sys->mutex));
+
+	mutex_exit(&dict_sys->mutex);
+
 	dberr_t error = que_eval_sql(
 			info,
 			"PROCEDURE P () IS\n"
@@ -537,7 +568,9 @@ LogDDL::insertRenameTableLog(
 			"(:id, :thread_id, :type, NULL, NULL,"
 			"NULL, :table_id, :old_file_path, :new_file_path);\n"
 			"END;\n",
-			FALSE, trx);
+			TRUE, trx);
+
+	mutex_enter(&dict_sys->mutex);
 
 	ut_ad(error == DB_SUCCESS);
 
@@ -607,6 +640,10 @@ LogDDL::insertRemoveLog(
 
 	pars_info_add_str_literal(info, "new_file_path", table_name);
 
+	ut_ad(mutex_own(&dict_sys->mutex));
+
+	mutex_exit(&dict_sys->mutex);
+
 	dberr_t error = que_eval_sql(
 			info,
 			"PROCEDURE P () IS\n"
@@ -615,7 +652,9 @@ LogDDL::insertRemoveLog(
 			"(:id, :thread_id, :type, NULL, NULL,"
 			"NULL, :table_id, NULL, :new_file_path);\n"
 			"END;\n",
-			FALSE, trx);
+			TRUE, trx);
+
+	mutex_enter(&dict_sys->mutex);
 
 	ut_ad(error == DB_SUCCESS);
 
@@ -649,13 +688,19 @@ LogDDL::deleteById(
 
 	pars_info_add_ull_literal(info, "id", id);
 
+	ut_ad(mutex_own(&dict_sys->mutex));
+
+	mutex_exit(&dict_sys->mutex);
+
 	dberr_t error = que_eval_sql(
 			info,
 			"PROCEDURE P () IS\n"
 			"BEGIN\n"
 			"DELETE FROM mysql/innodb_ddl_log WHERE id=:id;\n"
 			"END;\n",
-			FALSE, trx);
+			TRUE, trx);
+
+	mutex_enter(&dict_sys->mutex);
 
 	ut_ad(error == DB_SUCCESS);
 
@@ -679,17 +724,13 @@ LogDDL::deleteByThreadId(
 
 	pars_info_add_ull_literal(info, "thread_id", thread_id);
 
-	mutex_enter(&dict_sys->mutex);
-
 	dberr_t error = que_eval_sql(
 			info,
 			"PROCEDURE P () IS\n"
 			"BEGIN\n"
 			"DELETE FROM mysql/innodb_ddl_log WHERE thread_id=:thread_id;\n"
 			"END;\n",
-			FALSE, trx);
-
-	mutex_exit(&dict_sys->mutex);
+			TRUE, trx);
 
 	ut_ad(error == DB_SUCCESS || error == DB_LOCK_WAIT_TIMEOUT);
 
@@ -708,17 +749,13 @@ LogDDL::deleteAll(
 	/* TODO: use truncate? */
 	pars_info_t*    info = pars_info_create();
 
-	mutex_enter(&dict_sys->mutex);
-
 	dberr_t error = que_eval_sql(
 			info,
 			"PROCEDURE P () IS\n"
 			"BEGIN\n"
 			"DELETE FROM mysql/innodb_ddl_log;\n"
 			"END;\n",
-			FALSE, trx);
-
-	mutex_exit(&dict_sys->mutex);
+			TRUE, trx);
 
 	ut_ad(error == DB_SUCCESS);
 
@@ -735,8 +772,6 @@ LogDDL::scanAll(
 	pars_info_t*	info = pars_info_create();
 
 	pars_info_bind_function(info, "my_func", readAndReplay, NULL);
-
-	mutex_enter(&dict_sys->mutex);
 
 	dberr_t error = que_eval_sql(
 			info,
@@ -758,9 +793,7 @@ LogDDL::scanAll(
 			"END LOOP;\n"
 			"CLOSE c;\n"
 			"END;\n",
-			FALSE, trx);
-
-	mutex_exit(&dict_sys->mutex);
+			TRUE, trx);
 
 	ut_ad(error == DB_SUCCESS);
 
