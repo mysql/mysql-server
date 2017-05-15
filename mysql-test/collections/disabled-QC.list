@@ -6,6 +6,7 @@ ndb.ndb_partition_hash                  : Result mismatch when running with Quer
 ndb.ndb_partition_key                    : Result mismatch when running with Query Cache enabled (#scan)
 ndb.ndb_partition_list                     : Result mismatch when running with Query Cache enabled (#scan)
 ndb.ndb_partition_range                 : Result mismatch when running with Query Cache enabled (#scan)
+ndb.ndb_spj_skew                  : Result mismatch when running with Query Cache enabled (#scan)
 ndb.ndb_index_unique                   : Result mismatch when running with Query Cache enabled (#ndb_api_read_row_count)
 ndb.ndb_read_multi_range             : Result mismatch when running with Query Cache enabled (#ndb_execute_count)
 ndb.ndb_update_no_read               : Result mismatch when running with Query Cache enabled (#ndb_execute_count)
