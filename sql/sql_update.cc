@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -811,9 +811,8 @@ bool mysql_update(THD *thd,
           continue;  /* repeat the read of the same row if it still exists */
 
         store_record(table,record[1]);
-        if (fill_record_n_invoke_before_triggers(thd, fields, values,
-                                                 table,
-                                                 TRG_EVENT_UPDATE, 0))
+        if (fill_record_n_invoke_before_triggers(thd, &update, fields, values,
+                                                 table, TRG_EVENT_UPDATE, 0))
           break; /* purecov: inspected */
 
         found++;
@@ -2270,7 +2269,7 @@ bool Query_result_update::send_data(List<Item> &not_used_values)
     {
       table->status|= STATUS_UPDATED;
       store_record(table,record[1]);
-      if (fill_record_n_invoke_before_triggers(thd,
+      if (fill_record_n_invoke_before_triggers(thd, update_operations[offset],
                                                *fields_for_table[offset],
                                                *values_for_table[offset],
                                                table,

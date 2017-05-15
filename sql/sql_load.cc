@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -954,8 +954,9 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     }
 
     if (thd->killed ||
-        fill_record_n_invoke_before_triggers(thd, set_fields, set_values,
-                                             table, TRG_EVENT_INSERT,
+        fill_record_n_invoke_before_triggers(thd, &info, set_fields,
+                                             set_values, table,
+                                             TRG_EVENT_INSERT,
                                              table->s->fields))
       DBUG_RETURN(1);
 
@@ -1188,8 +1189,9 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     }
 
     if (thd->killed ||
-        fill_record_n_invoke_before_triggers(thd, set_fields, set_values,
-                                             table, TRG_EVENT_INSERT,
+        fill_record_n_invoke_before_triggers(thd, &info, set_fields,
+                                             set_values, table,
+                                             TRG_EVENT_INSERT,
                                              table->s->fields))
       DBUG_RETURN(1);
 
@@ -1402,8 +1404,9 @@ read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     }
 
     if (thd->killed ||
-        fill_record_n_invoke_before_triggers(thd, set_fields, set_values,
-                                             table, TRG_EVENT_INSERT,
+        fill_record_n_invoke_before_triggers(thd, &info, set_fields,
+                                             set_values, table,
+                                             TRG_EVENT_INSERT,
                                              table->s->fields))
       DBUG_RETURN(1);
 
