@@ -1133,6 +1133,7 @@ LogDDL::replayRenameTableLog(
 
 	trx_t*	trx;
 	trx = trx_allocate_for_background();
+	trx->mysql_thd = current_thd;
 	trx_start_if_not_started(trx, true);
 
 	row_mysql_lock_data_dictionary(trx);
