@@ -4647,8 +4647,6 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
 
   DBUG_PRINT("info", ("generated filename: %s", log_file_name));
 
-  DEBUG_SYNC(current_thd, "after_log_file_name_initialized");
-
 #ifdef HAVE_REPLICATION
   if (open_purge_index_file(TRUE) ||
       register_create_index_entry(log_file_name) ||

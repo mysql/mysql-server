@@ -25,6 +25,7 @@
 
 #include "my_global.h"
 #include "keycaches.h"            // dflt_key_cache
+#include "debug_sync.h"           // DEBUG_SYNC
 #include "my_bit.h"               // my_count_bits
 #include "my_getopt.h"            // get_opt_arg_type
 #include "mysql/plugin.h"         // enum_mysql_show_type
@@ -2708,6 +2709,7 @@ public:
       to take the other locks.
     */
     gtid_mode_lock->wrlock();
+    DEBUG_SYNC(thd, "gtid_mode_update_gtid_mode_lock_wrlock_taken_will_take_global_sid_lock");
     channel_map.wrlock();
     mysql_mutex_lock(mysql_bin_log.get_log_lock());
     global_sid_lock->wrlock();
