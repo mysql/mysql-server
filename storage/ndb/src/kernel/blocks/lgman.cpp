@@ -41,7 +41,7 @@ extern EventLogger * g_eventLogger;
 
 #define JAM_FILE_ID 441
 
-#define DEBUG_LGMAN 1
+//#define DEBUG_LGMAN 1
 #ifdef DEBUG_LGMAN
 #define DEB_LGMAN(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
