@@ -138,7 +138,6 @@ verify_ready() {
 
 # Verify the database exists and is ssl ready
 verify_database() {
-	if [ ! -z "$1" ]; then
 	# For multi-instance support with the mysql@ service
 	INSTANCE="mysqld${1}"
 	MYSQLDATA=$(get_mysql_option ${INSTANCE} datadir "/var/lib/mysql")
