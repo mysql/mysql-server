@@ -132,32 +132,20 @@ User_variables::materialize(PFS_thread *pfs, THD *thd)
 
 THR_LOCK table_uvar_by_thread::m_table_lock;
 
-/* clang-format off */
-static const TABLE_FIELD_TYPE field_types[]=
-{
-  {
-    { C_STRING_WITH_LEN("THREAD_ID") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("VARIABLE_NAME") },
-    { C_STRING_WITH_LEN("varchar(64)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("VARIABLE_VALUE") },
-    { C_STRING_WITH_LEN("longblob") },
-    { NULL, 0}
-  }
-};
-/* clang-format on */
-
-TABLE_FIELD_DEF
-table_uvar_by_thread::m_field_def = {3, field_types};
+Plugin_table table_uvar_by_thread::m_table_def(
+  /* Name */
+  "user_variables_by_thread",
+  /* Definition */
+  "  THREAD_ID BIGINT unsigned not null,\n"
+  "  VARIABLE_NAME VARCHAR(64) not null,\n"
+  "  VARIABLE_VALUE LONGBLOB,\n"
+  "  PRIMARY KEY (THREAD_ID, VARIABLE_NAME) USING HASH\n",
+  /* Options */
+  " ENGINE=PERFORMANCE_SCHEMA",
+  /* Tablespace */
+  nullptr);
 
 PFS_engine_table_share table_uvar_by_thread::m_share = {
-  {C_STRING_WITH_LEN("user_variables_by_thread")},
   &pfs_readonly_acl,
   table_uvar_by_thread::create,
   NULL, /* write_row */
@@ -165,9 +153,8 @@ PFS_engine_table_share table_uvar_by_thread::m_share = {
   table_uvar_by_thread::get_row_count,
   sizeof(pos_t),
   &m_table_lock,
-  &m_field_def,
-  false, /* checked */
-  false  /* perpetual */
+  &m_table_def,
+  false /* perpetual */
 };
 
 bool

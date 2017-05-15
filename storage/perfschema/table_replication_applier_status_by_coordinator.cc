@@ -37,94 +37,40 @@
 
 THR_LOCK table_replication_applier_status_by_coordinator::m_table_lock;
 
-/* clang-format off */
-static const TABLE_FIELD_TYPE field_types[]=
-{
-  {
-    {C_STRING_WITH_LEN("CHANNEL_NAME")},
-    {C_STRING_WITH_LEN("char(64)")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("THREAD_ID")},
-    {C_STRING_WITH_LEN("bigint")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("SERVICE_STATE")},
-    {C_STRING_WITH_LEN("enum('ON','OFF')")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("LAST_ERROR_NUMBER")},
-    {C_STRING_WITH_LEN("int(11)")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("LAST_ERROR_MESSAGE")},
-    {C_STRING_WITH_LEN("varchar(1024)")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("LAST_ERROR_TIMESTAMP")},
-    { C_STRING_WITH_LEN("timestamp") },
-    { NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("LAST_PROCESSED_TRANSACTION")},
-    {C_STRING_WITH_LEN("char(57)")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("LAST_PROCESSED_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP")},
-    {C_STRING_WITH_LEN("timestamp")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("LAST_PROCESSED_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP")},
-    {C_STRING_WITH_LEN("timestamp")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("LAST_PROCESSED_TRANSACTION_START_BUFFER_TIMESTAMP")},
-    {C_STRING_WITH_LEN("timestamp")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("LAST_PROCESSED_TRANSACTION_END_BUFFER_TIMESTAMP")},
-    {C_STRING_WITH_LEN("timestamp")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("PROCESSING_TRANSACTION")},
-    {C_STRING_WITH_LEN("char(57)")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("PROCESSING_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP")},
-    {C_STRING_WITH_LEN("timestamp")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("PROCESSING_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP")},
-    {C_STRING_WITH_LEN("timestamp")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("PROCESSING_TRANSACTION_START_BUFFER_TIMESTAMP")},
-    {C_STRING_WITH_LEN("timestamp")},
-    {NULL, 0}
-  },
-};
-/* clang-format on */
-
-TABLE_FIELD_DEF
-table_replication_applier_status_by_coordinator::m_field_def = {15,
-                                                                field_types};
+Plugin_table table_replication_applier_status_by_coordinator::m_table_def(
+  /* Name */
+  "replication_applier_status_by_coordinator",
+  /* Definition */
+  "  CHANNEL_NAME CHAR(64) collate utf8_general_ci not null,\n"
+  "  THREAD_ID BIGINT UNSIGNED,\n"
+  "  SERVICE_STATE ENUM('ON','OFF') not null,\n"
+  "  LAST_ERROR_NUMBER INTEGER not null,\n"
+  "  LAST_ERROR_MESSAGE VARCHAR(1024) not null,\n"
+  "  LAST_ERROR_TIMESTAMP TIMESTAMP(6) not null,\n"
+  "  PRIMARY KEY (CHANNEL_NAME) USING HASH,\n"
+  "  KEY (THREAD_ID) USING HASH,\n"
+  "  LAST_PROCESSED_TRANSACTION CHAR(57),\n"
+  "  LAST_PROCESSED_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP TIMESTAMP(6)\n"
+  "                                                       not null,\n"
+  "  LAST_PROCESSED_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP TIMESTAMP(6)\n"
+  "                                                        not null,\n"
+  "  LAST_PROCESSED_TRANSACTION_START_BUFFER_TIMESTAMP TIMESTAMP(6)\n"
+  "                                                    not null,\n"
+  "  LAST_PROCESSED_TRANSACTION_END_BUFFER_TIMESTAMP TIMESTAMP(6)\n"
+  "                                                  not null,\n"
+  "  PROCESSING_TRANSACTION CHAR(57),\n"
+  "  PROCESSING_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP TIMESTAMP(6)\n"
+  "                                                   not null,\n"
+  "  PROCESSING_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP TIMESTAMP(6)\n"
+  "                                                    not null,\n"
+  "  PROCESSING_TRANSACTION_START_BUFFER_TIMESTAMP TIMESTAMP(6) not null\n",
+  /* Options */
+  " ENGINE=PERFORMANCE_SCHEMA",
+  /* Tablespace */
+  nullptr);
 
 PFS_engine_table_share
   table_replication_applier_status_by_coordinator::m_share = {
-    {C_STRING_WITH_LEN("replication_applier_status_by_coordinator")},
     &pfs_readonly_acl,
     table_replication_applier_status_by_coordinator::create,
     NULL, /* write_row */
@@ -132,9 +78,8 @@ PFS_engine_table_share
     table_replication_applier_status_by_coordinator::get_row_count,
     sizeof(PFS_simple_index), /* ref length */
     &m_table_lock,
-    &m_field_def,
-    false, /* checked */
-    true  /* perpetual */
+    &m_table_def,
+    true /* perpetual */
 };
 
 bool
@@ -412,20 +357,22 @@ table_replication_applier_status_by_coordinator::make_row(Master_info *mi)
 
   mysql_mutex_unlock(&mi->rli->data_lock);
 
-  last_processed_trx.copy_to_ps_table(global_sid_map,
-                                      m_row.last_processed_trx,
-                                      &m_row.last_processed_trx_length,
-                                      &m_row.last_processed_trx_original_commit_timestamp,
-                                      &m_row.last_processed_trx_immediate_commit_timestamp,
-                                      &m_row.last_processed_trx_start_buffer_timestamp,
-                                      &m_row.last_processed_trx_end_buffer_timestamp);
+  last_processed_trx.copy_to_ps_table(
+    global_sid_map,
+    m_row.last_processed_trx,
+    &m_row.last_processed_trx_length,
+    &m_row.last_processed_trx_original_commit_timestamp,
+    &m_row.last_processed_trx_immediate_commit_timestamp,
+    &m_row.last_processed_trx_start_buffer_timestamp,
+    &m_row.last_processed_trx_end_buffer_timestamp);
 
-  processing_trx.copy_to_ps_table(global_sid_map,
-                                  m_row.processing_trx,
-                                  &m_row.processing_trx_length,
-                                  &m_row.processing_trx_original_commit_timestamp,
-                                  &m_row.processing_trx_immediate_commit_timestamp,
-                                  &m_row.processing_trx_start_buffer_timestamp);
+  processing_trx.copy_to_ps_table(
+    global_sid_map,
+    m_row.processing_trx,
+    &m_row.processing_trx_length,
+    &m_row.processing_trx_original_commit_timestamp,
+    &m_row.processing_trx_immediate_commit_timestamp,
+    &m_row.processing_trx_start_buffer_timestamp);
 
   return 0;
 }

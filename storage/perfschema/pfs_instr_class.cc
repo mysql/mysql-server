@@ -2297,7 +2297,8 @@ update_program_share_derived_flags(PFS_thread *thread)
   global_program_container.apply(proc);
 }
 
-ulonglong gtid_monitoring_getsystime()
+ulonglong
+gtid_monitoring_getsystime()
 {
   if (pfs_enabled)
     return my_getsystime();

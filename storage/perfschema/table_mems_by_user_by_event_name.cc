@@ -35,77 +35,29 @@
 
 THR_LOCK table_mems_by_user_by_event_name::m_table_lock;
 
-/* clang-format off */
-static const TABLE_FIELD_TYPE field_types[]=
-{
-  {
-    { C_STRING_WITH_LEN("USER") },
-    { C_STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("EVENT_NAME") },
-    { C_STRING_WITH_LEN("varchar(128)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("COUNT_ALLOC") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("COUNT_FREE") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SUM_NUMBER_OF_BYTES_ALLOC") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SUM_NUMBER_OF_BYTES_FREE") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("LOW_COUNT_USED") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("CURRENT_COUNT_USED") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("HIGH_COUNT_USED") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("LOW_NUMBER_OF_BYTES_USED") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("CURRENT_NUMBER_OF_BYTES_USED") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("HIGH_NUMBER_OF_BYTES_USED") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  }
-};
-/* clang-format on */
-
-TABLE_FIELD_DEF
-table_mems_by_user_by_event_name::m_field_def = {12, field_types};
+Plugin_table table_mems_by_user_by_event_name::m_table_def(
+  /* Name */
+  "memory_summary_by_user_by_event_name",
+  /* Definition */
+  "  USER CHAR(32) collate utf8_bin default null,\n"
+  "  EVENT_NAME VARCHAR(128) not null,\n"
+  "  COUNT_ALLOC BIGINT UNSIGNED not null,\n"
+  "  COUNT_FREE BIGINT UNSIGNED not null,\n"
+  "  SUM_NUMBER_OF_BYTES_ALLOC BIGINT unsigned not null,\n"
+  "  SUM_NUMBER_OF_BYTES_FREE BIGINT unsigned not null,\n"
+  "  LOW_COUNT_USED BIGINT not null,\n"
+  "  CURRENT_COUNT_USED BIGINT not null,\n"
+  "  HIGH_COUNT_USED BIGINT not null,\n"
+  "  LOW_NUMBER_OF_BYTES_USED BIGINT not null,\n"
+  "  CURRENT_NUMBER_OF_BYTES_USED BIGINT not null,\n"
+  "  HIGH_NUMBER_OF_BYTES_USED BIGINT not null,\n"
+  "  UNIQUE KEY (USER, EVENT_NAME) USING HASH\n",
+  /* Options */
+  " ENGINE=PERFORMANCE_SCHEMA",
+  /* Tablespace */
+  nullptr);
 
 PFS_engine_table_share table_mems_by_user_by_event_name::m_share = {
-  {C_STRING_WITH_LEN("memory_summary_by_user_by_event_name")},
   &pfs_readonly_acl,
   table_mems_by_user_by_event_name::create,
   NULL, /* write_row */
@@ -113,9 +65,8 @@ PFS_engine_table_share table_mems_by_user_by_event_name::m_share = {
   table_mems_by_user_by_event_name::get_row_count,
   sizeof(PFS_simple_index),
   &m_table_lock,
-  &m_field_def,
-  false, /* checked */
-  false  /* perpetual */
+  &m_table_def,
+  false /* perpetual */
 };
 
 bool

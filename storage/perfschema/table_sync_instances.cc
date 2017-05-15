@@ -35,32 +35,22 @@
 
 THR_LOCK table_mutex_instances::m_table_lock;
 
-/* clang-format off */
-static const TABLE_FIELD_TYPE mutex_field_types[]=
-{
-  {
-    { C_STRING_WITH_LEN("NAME") },
-    { C_STRING_WITH_LEN("varchar(128)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("OBJECT_INSTANCE_BEGIN") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("LOCKED_BY_THREAD_ID") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  }
-};
-/* clang-format on */
-
-TABLE_FIELD_DEF
-table_mutex_instances::m_field_def = {3, mutex_field_types};
+Plugin_table table_mutex_instances::m_table_def(
+  /* Name */
+  "mutex_instances",
+  /* Definition */
+  "  NAME VARCHAR(128) not null,\n"
+  "  OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,\n"
+  "  LOCKED_BY_THREAD_ID BIGINT unsigned,\n"
+  "  PRIMARY KEY (OBJECT_INSTANCE_BEGIN) USING HASH,\n"
+  "  KEY (NAME) USING HASH,\n"
+  "  KEY (LOCKED_BY_THREAD_ID) USING HASH\n",
+  /* Options */
+  " ENGINE=PERFORMANCE_SCHEMA",
+  /* Tablespace */
+  nullptr);
 
 PFS_engine_table_share table_mutex_instances::m_share = {
-  {C_STRING_WITH_LEN("mutex_instances")},
   &pfs_readonly_acl,
   table_mutex_instances::create,
   NULL, /* write_row */
@@ -68,9 +58,8 @@ PFS_engine_table_share table_mutex_instances::m_share = {
   table_mutex_instances::get_row_count,
   sizeof(PFS_simple_index),
   &m_table_lock,
-  &m_field_def,
-  false, /* checked */
-  false  /* perpetual */
+  &m_table_def,
+  false /* perpetual */
 };
 
 bool
@@ -305,23 +294,23 @@ table_mutex_instances::read_row_values(TABLE *table,
 
 THR_LOCK table_rwlock_instances::m_table_lock;
 
-static const TABLE_FIELD_TYPE rwlock_field_types[] = {
-  {{C_STRING_WITH_LEN("NAME")}, {C_STRING_WITH_LEN("varchar(128)")}, {NULL, 0}},
-  {{C_STRING_WITH_LEN("OBJECT_INSTANCE_BEGIN")},
-   {C_STRING_WITH_LEN("bigint(20)")},
-   {NULL, 0}},
-  {{C_STRING_WITH_LEN("WRITE_LOCKED_BY_THREAD_ID")},
-   {C_STRING_WITH_LEN("bigint(20)")},
-   {NULL, 0}},
-  {{C_STRING_WITH_LEN("READ_LOCKED_BY_COUNT")},
-   {C_STRING_WITH_LEN("int(10)")},
-   {NULL, 0}}};
-
-TABLE_FIELD_DEF
-table_rwlock_instances::m_field_def = {4, rwlock_field_types};
+Plugin_table table_rwlock_instances::m_table_def(
+  /* Name */
+  "rwlock_instances",
+  /* Definition */
+  "  NAME VARCHAR(128) not null,\n"
+  "  OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,\n"
+  "  WRITE_LOCKED_BY_THREAD_ID BIGINT unsigned,\n"
+  "  READ_LOCKED_BY_COUNT INTEGER unsigned not null,\n"
+  "  PRIMARY KEY (OBJECT_INSTANCE_BEGIN) USING HASH,\n"
+  "  KEY (NAME) USING HASH,\n"
+  "  KEY (WRITE_LOCKED_BY_THREAD_ID) USING HASH\n",
+  /* Options */
+  " ENGINE=PERFORMANCE_SCHEMA",
+  /* Tablespace */
+  nullptr);
 
 PFS_engine_table_share table_rwlock_instances::m_share = {
-  {C_STRING_WITH_LEN("rwlock_instances")},
   &pfs_readonly_acl,
   table_rwlock_instances::create,
   NULL, /* write_row */
@@ -329,9 +318,8 @@ PFS_engine_table_share table_rwlock_instances::m_share = {
   table_rwlock_instances::get_row_count,
   sizeof(PFS_simple_index),
   &m_table_lock,
-  &m_field_def,
-  false, /* checked */
-  false  /* perpetual */
+  &m_table_def,
+  false /* perpetual */
 };
 
 bool
@@ -572,17 +560,20 @@ table_rwlock_instances::read_row_values(TABLE *table,
 
 THR_LOCK table_cond_instances::m_table_lock;
 
-static const TABLE_FIELD_TYPE cond_field_types[] = {
-  {{C_STRING_WITH_LEN("NAME")}, {C_STRING_WITH_LEN("varchar(128)")}, {NULL, 0}},
-  {{C_STRING_WITH_LEN("OBJECT_INSTANCE_BEGIN")},
-   {C_STRING_WITH_LEN("bigint(20)")},
-   {NULL, 0}}};
-
-TABLE_FIELD_DEF
-table_cond_instances::m_field_def = {2, cond_field_types};
+Plugin_table table_cond_instances::m_table_def(
+  /* Name */
+  "cond_instances",
+  /* Definition */
+  "  NAME VARCHAR(128) not null,\n"
+  "  OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,\n"
+  "  PRIMARY KEY (OBJECT_INSTANCE_BEGIN) USING HASH,\n"
+  "  KEY (NAME) USING HASH\n",
+  /* Options */
+  " ENGINE=PERFORMANCE_SCHEMA",
+  /* Tablespace */
+  nullptr);
 
 PFS_engine_table_share table_cond_instances::m_share = {
-  {C_STRING_WITH_LEN("cond_instances")},
   &pfs_readonly_acl,
   table_cond_instances::create,
   NULL, /* write_row */
@@ -590,9 +581,8 @@ PFS_engine_table_share table_cond_instances::m_share = {
   table_cond_instances::get_row_count,
   sizeof(PFS_simple_index),
   &m_table_lock,
-  &m_field_def,
-  false, /* checked */
-  false  /* perpetual */
+  &m_table_def,
+  false /* perpetual */
 };
 
 bool

@@ -36,137 +36,41 @@
 
 THR_LOCK table_events_transactions_current::m_table_lock;
 
-/* clang-format off */
-static const TABLE_FIELD_TYPE field_types[]=
-{
-  {
-    { C_STRING_WITH_LEN("THREAD_ID") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("EVENT_ID") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("END_EVENT_ID") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("EVENT_NAME") },
-    { C_STRING_WITH_LEN("varchar(128)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("STATE") },
-    { C_STRING_WITH_LEN("enum(\'ACTIVE\',\'COMMITTED\',\'ROLLED BACK\'") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("TRX_ID") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("GTID") },
-    { C_STRING_WITH_LEN("varchar(64)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("XID_FORMAT_ID") },
-    { C_STRING_WITH_LEN("int(11)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("XID_GTRID") },
-    { C_STRING_WITH_LEN("varchar(130)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("XID_BQUAL") },
-    { C_STRING_WITH_LEN("varchar(130)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("XA_STATE") },
-    { C_STRING_WITH_LEN("varchar(64)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SOURCE") },
-    { C_STRING_WITH_LEN("varchar(64)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("TIMER_START") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("TIMER_END") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("TIMER_WAIT") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("ACCESS_MODE") },
-    { C_STRING_WITH_LEN("enum(\'READ ONLY\',\'READ WRITE\'") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("ISOLATION_LEVEL") },
-    { C_STRING_WITH_LEN("varchar(64)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("AUTOCOMMIT") },
-    { C_STRING_WITH_LEN("enum(\'YES\',\'NO\'") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("NUMBER_OF_SAVEPOINTS") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("NUMBER_OF_ROLLBACK_TO_SAVEPOINT") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("NUMBER_OF_RELEASE_SAVEPOINT") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("OBJECT_INSTANCE_BEGIN") },
-    { C_STRING_WITH_LEN("bigint") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("NESTING_EVENT_ID") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("NESTING_EVENT_TYPE") },
-    { C_STRING_WITH_LEN("enum(\'TRANSACTION\',\'STATEMENT\',\'STAGE\',\'WAIT\'") },
-    { NULL, 0}
-  }
-};
-/* clang-format on */
-
-TABLE_FIELD_DEF
-table_events_transactions_current::m_field_def = {24, field_types};
+Plugin_table table_events_transactions_current::m_table_def(
+  /* Name */
+  "events_transactions_current",
+  /* Definition */
+  "  THREAD_ID BIGINT unsigned not null,\n"
+  "  EVENT_ID BIGINT unsigned not null,\n"
+  "  END_EVENT_ID BIGINT unsigned,\n"
+  "  EVENT_NAME VARCHAR(128) not null,\n"
+  "  STATE ENUM('ACTIVE', 'COMMITTED', 'ROLLED BACK'),\n"
+  "  TRX_ID BIGINT unsigned,\n"
+  "  GTID VARCHAR(64),\n"
+  "  XID_FORMAT_ID INTEGER,\n"
+  "  XID_GTRID VARCHAR(130),\n"
+  "  XID_BQUAL VARCHAR(130),\n"
+  "  XA_STATE VARCHAR(64),\n"
+  "  SOURCE VARCHAR(64),\n"
+  "  TIMER_START BIGINT unsigned,\n"
+  "  TIMER_END BIGINT unsigned,\n"
+  "  TIMER_WAIT BIGINT unsigned,\n"
+  "  ACCESS_MODE ENUM('READ ONLY', 'READ WRITE'),\n"
+  "  ISOLATION_LEVEL VARCHAR(64),\n"
+  "  AUTOCOMMIT ENUM('YES','NO') not null,\n"
+  "  NUMBER_OF_SAVEPOINTS BIGINT unsigned,\n"
+  "  NUMBER_OF_ROLLBACK_TO_SAVEPOINT BIGINT unsigned,\n"
+  "  NUMBER_OF_RELEASE_SAVEPOINT BIGINT unsigned,\n"
+  "  OBJECT_INSTANCE_BEGIN BIGINT unsigned,\n"
+  "  NESTING_EVENT_ID BIGINT unsigned,\n"
+  "  NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT'),\n"
+  "  PRIMARY KEY (THREAD_ID, EVENT_ID) USING HASH\n",
+  /* Options */
+  " ENGINE=PERFORMANCE_SCHEMA",
+  /* Tablespace */
+  nullptr);
 
 PFS_engine_table_share table_events_transactions_current::m_share = {
-  {C_STRING_WITH_LEN("events_transactions_current")},
   &pfs_truncatable_acl,
   table_events_transactions_current::create,
   NULL, /* write_row */
@@ -174,15 +78,47 @@ PFS_engine_table_share table_events_transactions_current::m_share = {
   table_events_transactions_current::get_row_count,
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
-  &m_field_def,
-  false, /* checked */
-  false  /* perpetual */
+  &m_table_def,
+  false /* perpetual */
 };
 
 THR_LOCK table_events_transactions_history::m_table_lock;
 
+Plugin_table table_events_transactions_history::m_table_def(
+  /* Name */
+  "events_transactions_history",
+  /* Definition */
+  "  THREAD_ID BIGINT unsigned not null,\n"
+  "  EVENT_ID BIGINT unsigned not null,\n"
+  "  END_EVENT_ID BIGINT unsigned,\n"
+  "  EVENT_NAME VARCHAR(128) not null,\n"
+  "  STATE ENUM('ACTIVE', 'COMMITTED', 'ROLLED BACK'),\n"
+  "  TRX_ID BIGINT unsigned,\n"
+  "  GTID VARCHAR(64),\n"
+  "  XID_FORMAT_ID INTEGER,\n"
+  "  XID_GTRID VARCHAR(130),\n"
+  "  XID_BQUAL VARCHAR(130),\n"
+  "  XA_STATE VARCHAR(64),\n"
+  "  SOURCE VARCHAR(64),\n"
+  "  TIMER_START BIGINT unsigned,\n"
+  "  TIMER_END BIGINT unsigned,\n"
+  "  TIMER_WAIT BIGINT unsigned,\n"
+  "  ACCESS_MODE ENUM('READ ONLY', 'READ WRITE'),\n"
+  "  ISOLATION_LEVEL VARCHAR(64),\n"
+  "  AUTOCOMMIT ENUM('YES','NO') not null,\n"
+  "  NUMBER_OF_SAVEPOINTS BIGINT unsigned,\n"
+  "  NUMBER_OF_ROLLBACK_TO_SAVEPOINT BIGINT unsigned,\n"
+  "  NUMBER_OF_RELEASE_SAVEPOINT BIGINT unsigned,\n"
+  "  OBJECT_INSTANCE_BEGIN BIGINT unsigned,\n"
+  "  NESTING_EVENT_ID BIGINT unsigned,\n"
+  "  NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT'),\n"
+  "  PRIMARY KEY (THREAD_ID, EVENT_ID) USING HASH\n",
+  /* Options */
+  " ENGINE=PERFORMANCE_SCHEMA",
+  /* Tablespace */
+  nullptr);
+
 PFS_engine_table_share table_events_transactions_history::m_share = {
-  {C_STRING_WITH_LEN("events_transactions_history")},
   &pfs_truncatable_acl,
   table_events_transactions_history::create,
   NULL, /* write_row */
@@ -190,15 +126,46 @@ PFS_engine_table_share table_events_transactions_history::m_share = {
   table_events_transactions_history::get_row_count,
   sizeof(pos_events_transactions_history), /* ref length */
   &m_table_lock,
-  &table_events_transactions_current::m_field_def,
-  false, /* checked */
-  false  /* perpetual */
+  &m_table_def,
+  false /* perpetual */
 };
 
 THR_LOCK table_events_transactions_history_long::m_table_lock;
 
+Plugin_table table_events_transactions_history_long::m_table_def(
+  /* Name */
+  "events_transactions_history_long",
+  /* Definition */
+  "  THREAD_ID BIGINT unsigned not null,\n"
+  "  EVENT_ID BIGINT unsigned not null,\n"
+  "  END_EVENT_ID BIGINT unsigned,\n"
+  "  EVENT_NAME VARCHAR(128) not null,\n"
+  "  STATE ENUM('ACTIVE', 'COMMITTED', 'ROLLED BACK'),\n"
+  "  TRX_ID BIGINT UNSIGNED,\n"
+  "  GTID VARCHAR(64),\n"
+  "  XID_FORMAT_ID INTEGER,\n"
+  "  XID_GTRID VARCHAR(130),\n"
+  "  XID_BQUAL VARCHAR(130),\n"
+  "  XA_STATE VARCHAR(64),\n"
+  "  SOURCE VARCHAR(64),\n"
+  "  TIMER_START BIGINT unsigned,\n"
+  "  TIMER_END BIGINT unsigned,\n"
+  "  TIMER_WAIT BIGINT unsigned,\n"
+  "  ACCESS_MODE ENUM('READ ONLY', 'READ WRITE'),\n"
+  "  ISOLATION_LEVEL VARCHAR(64),\n"
+  "  AUTOCOMMIT ENUM('YES','NO') not null,\n"
+  "  NUMBER_OF_SAVEPOINTS BIGINT unsigned,\n"
+  "  NUMBER_OF_ROLLBACK_TO_SAVEPOINT BIGINT unsigned,\n"
+  "  NUMBER_OF_RELEASE_SAVEPOINT BIGINT unsigned,\n"
+  "  OBJECT_INSTANCE_BEGIN BIGINT unsigned,\n"
+  "  NESTING_EVENT_ID BIGINT unsigned,\n"
+  "  NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT')\n",
+  /* Options */
+  " ENGINE=PERFORMANCE_SCHEMA",
+  /* Tablespace */
+  nullptr);
+
 PFS_engine_table_share table_events_transactions_history_long::m_share = {
-  {C_STRING_WITH_LEN("events_transactions_history_long")},
   &pfs_truncatable_acl,
   table_events_transactions_history_long::create,
   NULL, /* write_row */
@@ -206,9 +173,8 @@ PFS_engine_table_share table_events_transactions_history_long::m_share = {
   table_events_transactions_history_long::get_row_count,
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
-  &table_events_transactions_current::m_field_def,
-  false, /* checked */
-  false  /* perpetual */
+  &m_table_def,
+  false /* perpetual */
 };
 
 bool

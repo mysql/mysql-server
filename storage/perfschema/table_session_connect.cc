@@ -26,34 +26,6 @@
 #include "my_inttypes.h"
 #include "pfs_buffer_container.h"
 
-/* clang-format off */
-static const TABLE_FIELD_TYPE field_types[]=
-{
-  {
-    { C_STRING_WITH_LEN("PROCESSLIST_ID") },
-    { C_STRING_WITH_LEN("int(11)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("ATTR_NAME") },
-    { C_STRING_WITH_LEN("varchar(32)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("ATTR_VALUE") },
-    { C_STRING_WITH_LEN("varchar(1024)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("ORDINAL_POSITION") },
-    { C_STRING_WITH_LEN("int(11)") },
-    { NULL, 0}
-  }
-};
-/* clang-format on */
-
-TABLE_FIELD_DEF table_session_connect::m_field_def = {4, field_types};
-
 bool
 PFS_index_session_connect::match(PFS_thread *pfs)
 {

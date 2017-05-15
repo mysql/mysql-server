@@ -63,112 +63,36 @@ PFS_index_events_waits::match(PFS_events_waits *pfs)
 
 THR_LOCK table_events_waits_current::m_table_lock;
 
-/* clang-format off */
-static const TABLE_FIELD_TYPE field_types[]=
-{
-  {
-    { C_STRING_WITH_LEN("THREAD_ID") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("EVENT_ID") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("END_EVENT_ID") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("EVENT_NAME") },
-    { C_STRING_WITH_LEN("varchar(128)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SOURCE") },
-    { C_STRING_WITH_LEN("varchar(64)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("TIMER_START") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("TIMER_END") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("TIMER_WAIT") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SPINS") },
-    { C_STRING_WITH_LEN("int(10)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("OBJECT_SCHEMA") },
-    { C_STRING_WITH_LEN("varchar(64)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("OBJECT_NAME") },
-    { C_STRING_WITH_LEN("varchar(512)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("INDEX_NAME") },
-    { C_STRING_WITH_LEN("varchar(64)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("OBJECT_TYPE") },
-    { C_STRING_WITH_LEN("varchar(64)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("OBJECT_INSTANCE_BEGIN") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("NESTING_EVENT_ID") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("NESTING_EVENT_TYPE") },
-    { C_STRING_WITH_LEN("enum(\'TRANSACTION\',\'STATEMENT\',\'STAGE\',\'WAIT\'") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("OPERATION") },
-    { C_STRING_WITH_LEN("varchar(32)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("NUMBER_OF_BYTES") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("FLAGS") },
-    { C_STRING_WITH_LEN("int(10)") },
-    { NULL, 0}
-  }
-};
-/* clang-format on */
-
-TABLE_FIELD_DEF
-table_events_waits_current::m_field_def = {19, field_types};
+Plugin_table table_events_waits_current::m_table_def(
+  /* Name */
+  "events_waits_current",
+  /* Definition */
+  "  THREAD_ID BIGINT unsigned not null,\n"
+  "  EVENT_ID BIGINT unsigned not null,\n"
+  "  END_EVENT_ID BIGINT unsigned,\n"
+  "  EVENT_NAME VARCHAR(128) not null,\n"
+  "  SOURCE VARCHAR(64),\n"
+  "  TIMER_START BIGINT unsigned,\n"
+  "  TIMER_END BIGINT unsigned,\n"
+  "  TIMER_WAIT BIGINT unsigned,\n"
+  "  SPINS INTEGER unsigned,\n"
+  "  OBJECT_SCHEMA VARCHAR(64),\n"
+  "  OBJECT_NAME VARCHAR(512),\n"
+  "  INDEX_NAME VARCHAR(64),\n"
+  "  OBJECT_TYPE VARCHAR(64),\n"
+  "  OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,\n"
+  "  NESTING_EVENT_ID BIGINT unsigned,\n"
+  "  NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT'),\n"
+  "  OPERATION VARCHAR(32) not null,\n"
+  "  NUMBER_OF_BYTES BIGINT,\n"
+  "  FLAGS INTEGER unsigned,\n"
+  "  PRIMARY KEY (THREAD_ID, EVENT_ID)\n",
+  /* Options */
+  " ENGINE=PERFORMANCE_SCHEMA",
+  /* Tablespace */
+  nullptr);
 
 PFS_engine_table_share table_events_waits_current::m_share = {
-  {C_STRING_WITH_LEN("events_waits_current")},
   &pfs_truncatable_acl,
   table_events_waits_current::create,
   NULL, /* write_row */
@@ -176,15 +100,42 @@ PFS_engine_table_share table_events_waits_current::m_share = {
   table_events_waits_current::get_row_count,
   sizeof(pos_events_waits_current), /* ref length */
   &m_table_lock,
-  &m_field_def,
-  false, /* checked */
-  false  /* perpetual */
+  &m_table_def,
+  false /* perpetual */
 };
 
 THR_LOCK table_events_waits_history::m_table_lock;
 
+Plugin_table table_events_waits_history::m_table_def(
+  /* Name */
+  "events_waits_history",
+  /* Definition */
+  "  THREAD_ID BIGINT unsigned not null,\n"
+  "  EVENT_ID BIGINT unsigned not null,\n"
+  "  END_EVENT_ID BIGINT unsigned,\n"
+  "  EVENT_NAME VARCHAR(128) not null,\n"
+  "  SOURCE VARCHAR(64),\n"
+  "  TIMER_START BIGINT unsigned,\n"
+  "  TIMER_END BIGINT unsigned,\n"
+  "  TIMER_WAIT BIGINT unsigned,\n"
+  "  SPINS INTEGER unsigned,\n"
+  "  OBJECT_SCHEMA VARCHAR(64),\n"
+  "  OBJECT_NAME VARCHAR(512),\n"
+  "  INDEX_NAME VARCHAR(64),\n"
+  "  OBJECT_TYPE VARCHAR(64),\n"
+  "  OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,\n"
+  "  NESTING_EVENT_ID BIGINT unsigned,\n"
+  "  NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT'),\n"
+  "  OPERATION VARCHAR(32) not null,\n"
+  "  NUMBER_OF_BYTES BIGINT,\n"
+  "  FLAGS INTEGER unsigned,\n"
+  "  PRIMARY KEY (THREAD_ID, EVENT_ID)\n",
+  /* Options */
+  " ENGINE=PERFORMANCE_SCHEMA",
+  /* Tablespace */
+  nullptr);
+
 PFS_engine_table_share table_events_waits_history::m_share = {
-  {C_STRING_WITH_LEN("events_waits_history")},
   &pfs_truncatable_acl,
   table_events_waits_history::create,
   NULL, /* write_row */
@@ -192,15 +143,41 @@ PFS_engine_table_share table_events_waits_history::m_share = {
   table_events_waits_history::get_row_count,
   sizeof(pos_events_waits_history), /* ref length */
   &m_table_lock,
-  &table_events_waits_current::m_field_def,
-  false, /* checked */
-  false  /* perpetual */
+  &m_table_def,
+  false /* perpetual */
 };
 
 THR_LOCK table_events_waits_history_long::m_table_lock;
 
+Plugin_table table_events_waits_history_long::m_table_def(
+  /* Name */
+  "events_waits_history_long",
+  /* Definition */
+  "  THREAD_ID BIGINT unsigned not null,\n"
+  "  EVENT_ID BIGINT unsigned not null,\n"
+  "  END_EVENT_ID BIGINT unsigned,\n"
+  "  EVENT_NAME VARCHAR(128) not null,\n"
+  "  SOURCE VARCHAR(64),\n"
+  "  TIMER_START BIGINT unsigned,\n"
+  "  TIMER_END BIGINT unsigned,\n"
+  "  TIMER_WAIT BIGINT unsigned,\n"
+  "  SPINS INTEGER unsigned,\n"
+  "  OBJECT_SCHEMA VARCHAR(64),\n"
+  "  OBJECT_NAME VARCHAR(512),\n"
+  "  INDEX_NAME VARCHAR(64),\n"
+  "  OBJECT_TYPE VARCHAR(64),\n"
+  "  OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,\n"
+  "  NESTING_EVENT_ID BIGINT unsigned,\n"
+  "  NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT'),\n"
+  "  OPERATION VARCHAR(32) not null,\n"
+  "  NUMBER_OF_BYTES BIGINT,\n"
+  "  FLAGS INTEGER unsigned\n",
+  /* Options */
+  " ENGINE=PERFORMANCE_SCHEMA",
+  /* Tablespace */
+  nullptr);
+
 PFS_engine_table_share table_events_waits_history_long::m_share = {
-  {C_STRING_WITH_LEN("events_waits_history_long")},
   &pfs_truncatable_acl,
   table_events_waits_history_long::create,
   NULL, /* write_row */
@@ -208,9 +185,8 @@ PFS_engine_table_share table_events_waits_history_long::m_share = {
   table_events_waits_history_long::get_row_count,
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
-  &table_events_waits_current::m_field_def,
-  false, /* checked */
-  false  /* perpetual */
+  &m_table_def,
+  false /* perpetual */
 };
 
 table_events_waits_common::table_events_waits_common(

@@ -35,177 +35,50 @@
 
 THR_LOCK table_esms_by_program::m_table_lock;
 
-/* clang-format off */
-static const TABLE_FIELD_TYPE field_types[]=
-{
-  {
-    { C_STRING_WITH_LEN("OBJECT_TYPE") },
-    { C_STRING_WITH_LEN("enum(\'EVENT\',\'FUNCTION\',\'PROCEDURE\',\'TABLE\',\'TRIGGER\')") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("OBJECT_SCHEMA") },
-    { C_STRING_WITH_LEN("varchar(64)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("OBJECT_NAME") },
-    { C_STRING_WITH_LEN("varchar(64)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("COUNT_STAR") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SUM_TIMER_WAIT") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("MIN_TIMER_WAIT") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("AVG_TIMER_WAIT") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("MAX_TIMER_WAIT") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("COUNT_STATEMENTS") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SUM_STATEMENTS_WAIT") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("MIN_STATEMENTS_WAIT") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("AVG_STATEMENTS_WAIT") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("MAX_STATEMENTS_WAIT") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SUM_LOCK_TIME") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SUM_ERRORS") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SUM_WARNINGS") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SUM_ROWS_AFFECTED") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SUM_ROWS_SENT") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SUM_ROWS_EXAMINED") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SUM_CREATED_TMP_DISK_TABLES") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SUM_CREATED_TMP_TABLES") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SUM_SELECT_FULL_JOIN") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SUM_SELECT_FULL_RANGE_JOIN") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SUM_SELECT_RANGE") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SUM_SELECT_RANGE_CHECK") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SUM_SELECT_SCAN") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SUM_SORT_MERGE_PASSES") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SUM_SORT_RANGE") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SUM_SORT_ROWS") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SUM_SORT_SCAN") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SUM_NO_INDEX_USED") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SUM_NO_GOOD_INDEX_USED") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-};
-/* clang-format on */
-
-TABLE_FIELD_DEF
-table_esms_by_program::m_field_def = {32, field_types};
+Plugin_table table_esms_by_program::m_table_def(
+  /* Name */
+  "events_statements_summary_by_program",
+  /* Definition */
+  "  OBJECT_TYPE enum('EVENT', 'FUNCTION', 'PROCEDURE', 'TABLE',\n"
+  "                   'TRIGGER'),\n"
+  "  OBJECT_SCHEMA VARCHAR(64) NOT NULL,\n"
+  "  OBJECT_NAME VARCHAR(64) NOT NULL,\n"
+  "  COUNT_STAR bigint(20) unsigned NOT NULL,\n"
+  "  SUM_TIMER_WAIT bigint(20) unsigned NOT NULL,\n"
+  "  MIN_TIMER_WAIT bigint(20) unsigned NOT NULL,\n"
+  "  AVG_TIMER_WAIT bigint(20) unsigned NOT NULL,\n"
+  "  MAX_TIMER_WAIT bigint(20) unsigned NOT NULL,\n"
+  "  COUNT_STATEMENTS bigint(20) unsigned NOT NULL,\n"
+  "  SUM_STATEMENTS_WAIT bigint(20) unsigned NOT NULL,\n"
+  "  MIN_STATEMENTS_WAIT bigint(20) unsigned NOT NULL,\n"
+  "  AVG_STATEMENTS_WAIT bigint(20) unsigned NOT NULL,\n"
+  "  MAX_STATEMENTS_WAIT bigint(20) unsigned NOT NULL,\n"
+  "  SUM_LOCK_TIME bigint(20) unsigned NOT NULL,\n"
+  "  SUM_ERRORS bigint(20) unsigned NOT NULL,\n"
+  "  SUM_WARNINGS bigint(20) unsigned NOT NULL,\n"
+  "  SUM_ROWS_AFFECTED bigint(20) unsigned NOT NULL,\n"
+  "  SUM_ROWS_SENT bigint(20) unsigned NOT NULL,\n"
+  "  SUM_ROWS_EXAMINED bigint(20) UNSIGNED NOT NULL,\n"
+  "  SUM_CREATED_TMP_DISK_TABLES bigint(20) unsigned NOT NULL,\n"
+  "  SUM_CREATED_TMP_TABLES bigint(20) unsigned NOT NULL,\n"
+  "  SUM_SELECT_FULL_JOIN bigint(20) unsigned NOT NULL,\n"
+  "  SUM_SELECT_FULL_RANGE_JOIN bigint(20) unsigned NOT NULL,\n"
+  "  SUM_SELECT_RANGE bigint(20) unsigned NOT NULL,\n"
+  "  SUM_SELECT_RANGE_CHECK bigint(20) unsigned NOT NULL,\n"
+  "  SUM_SELECT_SCAN bigint(20) unsigned NOT NULL,\n"
+  "  SUM_SORT_MERGE_PASSES bigint(20) unsigned NOT NULL,\n"
+  "  SUM_SORT_RANGE bigint(20) unsigned NOT NULL,\n"
+  "  SUM_SORT_ROWS bigint(20) unsigned NOT NULL,\n"
+  "  SUM_SORT_SCAN bigint(20) unsigned NOT NULL,\n"
+  "  SUM_NO_INDEX_USED bigint(20) unsigned NOT NULL,\n"
+  "  SUM_NO_GOOD_INDEX_USED bigint(20) unsigned NOT NULL,\n"
+  "  PRIMARY KEY (OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME) USING HASH\n",
+  /* Options */
+  " ENGINE=PERFORMANCE_SCHEMA",
+  /* Tablespace */
+  nullptr);
 
 PFS_engine_table_share table_esms_by_program::m_share = {
-  {C_STRING_WITH_LEN("events_statements_summary_by_program")},
   &pfs_truncatable_acl,
   table_esms_by_program::create,
   NULL, /* write_row */
@@ -213,9 +86,8 @@ PFS_engine_table_share table_esms_by_program::m_share = {
   table_esms_by_program::get_row_count,
   sizeof(PFS_simple_index),
   &m_table_lock,
-  &m_field_def,
-  false, /* checked */
-  false  /* perpetual */
+  &m_table_def,
+  false /* perpetual */
 };
 
 bool

@@ -32,7 +32,6 @@ class PFS_engine_key;
 class PFS_engine_index;
 
 typedef struct st_thr_lock THR_LOCK;
-typedef struct st_table_field_def TABLE_FIELD_DEF;
 
 /**
   @file storage/perfschema/pfs_engine_table.h
@@ -435,17 +434,14 @@ public:
 */
 struct PFS_engine_table_share
 {
-  static void check_all_tables(THD *thd);
-  void check_one_table(THD *thd);
+  static void get_all_tables(List<const Plugin_table> *tables);
   static void init_all_locks(void);
   static void delete_all_locks(void);
+
   /** Get the row count. */
   ha_rows get_row_count(void) const;
   /** Write a row. */
   int write_row(TABLE *table, unsigned char *buf, Field **fields) const;
-
-  /** Table name. */
-  LEX_STRING m_name;
   /** Table Access Control List. */
   const ACL_internal_table_access *m_acl;
   /** Open table function. */
@@ -460,10 +456,8 @@ struct PFS_engine_table_share
   uint m_ref_length;
   /** The lock, stored on behalf of the SQL layer. */
   THR_LOCK *m_thr_lock_ptr;
-  /** Table fields definition. */
-  TABLE_FIELD_DEF *m_field_def;
-  /** Schema integrity flag. */
-  bool m_checked;
+  /** Table definition. */
+  const Plugin_table *m_table_def;
   /** Table is available even if the Performance Schema is disabled. */
   bool m_perpetual;
 };

@@ -35,57 +35,25 @@
 
 THR_LOCK table_esgs_by_account_by_event_name::m_table_lock;
 
-/* clang-format off */
-static const TABLE_FIELD_TYPE field_types[]=
-{
-  {
-    { C_STRING_WITH_LEN("USER") },
-    { C_STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("HOST") },
-    { C_STRING_WITH_LEN("char(60)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("EVENT_NAME") },
-    { C_STRING_WITH_LEN("varchar(128)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("COUNT_STAR") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SUM_TIMER_WAIT") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("MIN_TIMER_WAIT") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("AVG_TIMER_WAIT") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("MAX_TIMER_WAIT") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  }
-};
-/* clang-format on */
-
-TABLE_FIELD_DEF
-table_esgs_by_account_by_event_name::m_field_def = {8, field_types};
+Plugin_table table_esgs_by_account_by_event_name::m_table_def(
+  /* Name */
+  "events_stages_summary_by_account_by_event_name",
+  /* Definition */
+  "  USER CHAR(32) collate utf8_bin default null,\n"
+  "  HOST CHAR(60) collate utf8_bin default null,\n"
+  "  EVENT_NAME VARCHAR(128) not null,\n"
+  "  COUNT_STAR BIGINT UNSIGNED not null,\n"
+  "  SUM_TIMER_WAIT BIGINT unsigned not null,\n"
+  "  MIN_TIMER_WAIT BIGINT unsigned not null,\n"
+  "  AVG_TIMER_WAIT BIGINT unsigned not null,\n"
+  "  MAX_TIMER_WAIT BIGINT unsigned not null,\n"
+  "  UNIQUE KEY `ACCOUNT` (USER, HOST, EVENT_NAME) USING HASH\n",
+  /* Options */
+  " ENGINE=PERFORMANCE_SCHEMA",
+  /* Tablespace */
+  nullptr);
 
 PFS_engine_table_share table_esgs_by_account_by_event_name::m_share = {
-  {C_STRING_WITH_LEN("events_stages_summary_by_account_by_event_name")},
   &pfs_truncatable_acl,
   table_esgs_by_account_by_event_name::create,
   NULL, /* write_row */
@@ -93,9 +61,8 @@ PFS_engine_table_share table_esgs_by_account_by_event_name::m_share = {
   table_esgs_by_account_by_event_name::get_row_count,
   sizeof(pos_esgs_by_account_by_event_name),
   &m_table_lock,
-  &m_field_def,
-  false, /* checked */
-  false  /* perpetual */
+  &m_table_def,
+  false /* perpetual */
 };
 
 bool

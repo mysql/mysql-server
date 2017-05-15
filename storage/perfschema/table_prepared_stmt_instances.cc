@@ -35,192 +35,58 @@
 
 THR_LOCK table_prepared_stmt_instances::m_table_lock;
 
-/* clang-format off */
-static const TABLE_FIELD_TYPE field_types[]=
-{
-  {
-    { C_STRING_WITH_LEN("OBJECT_INSTANCE_BEGIN") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("STATEMENT_ID") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("STATEMENT_NAME") },
-    { C_STRING_WITH_LEN("varchar(64)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SQL_TEXT") },
-    { C_STRING_WITH_LEN("longtext") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("OWNER_THREAD_ID") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("OWNER_EVENT_ID") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("OWNER_OBJECT_TYPE") },
-    { C_STRING_WITH_LEN("enum(\'EVENT\',\'FUNCTION\',\'PROCEDURE\',\'TABLE\',\'TRIGGER\')") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("OWNER_OBJECT_SCHEMA") },
-    { C_STRING_WITH_LEN("varchar(64)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("OWNER_OBJECT_NAME") },
-    { C_STRING_WITH_LEN("varchar(64)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("TIMER_PREPARE") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("COUNT_REPREPARE") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("COUNT_EXECUTE") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SUM_TIMER_EXECUTE") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("MIN_TIMER_EXECUTE") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("AVG_TIMER_EXECUTE") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("MAX_TIMER_EXECUTE") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SUM_LOCK_TIME") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SUM_ERRORS") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SUM_WARNINGS") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SUM_ROWS_AFFECTED") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SUM_ROWS_SENT") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SUM_ROWS_EXAMINED") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SUM_CREATED_TMP_DISK_TABLES") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SUM_CREATED_TMP_TABLES") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SUM_SELECT_FULL_JOIN") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SUM_SELECT_FULL_RANGE_JOIN") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SUM_SELECT_RANGE") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SUM_SELECT_RANGE_CHECK") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SUM_SELECT_SCAN") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SUM_SORT_MERGE_PASSES") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SUM_SORT_RANGE") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SUM_SORT_ROWS") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SUM_SORT_SCAN") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SUM_NO_INDEX_USED") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SUM_NO_GOOD_INDEX_USED") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-};
-/* clang-format on */
-
-TABLE_FIELD_DEF
-table_prepared_stmt_instances::m_field_def = {35, field_types};
+Plugin_table table_prepared_stmt_instances::m_table_def(
+  /* Name */
+  "prepared_statements_instances",
+  /* Definition */
+  "  OBJECT_INSTANCE_BEGIN bigint(20) unsigned NOT NULL,\n"
+  "  STATEMENT_ID BIGINT(20) unsigned NOT NULL,\n"
+  "  STATEMENT_NAME varchar(64) default NULL,\n"
+  "  SQL_TEXT longtext NOT NULL,\n"
+  "  OWNER_THREAD_ID bigint(20) unsigned NOT NULL,\n"
+  "  OWNER_EVENT_ID bigint(20) unsigned NOT NULL,\n"
+  "  OWNER_OBJECT_TYPE enum('EVENT','FUNCTION','PROCEDURE','TABLE',\n"
+  "                         'TRIGGER') DEFAULT NULL,\n"
+  "  OWNER_OBJECT_SCHEMA varchar(64) DEFAULT NULL,\n"
+  "  OWNER_OBJECT_NAME varchar(64) DEFAULT NULL,\n"
+  "  TIMER_PREPARE bigint(20) unsigned NOT NULL,\n"
+  "  COUNT_REPREPARE bigint(20) unsigned NOT NULL,\n"
+  "  COUNT_EXECUTE bigint(20) unsigned NOT NULL,\n"
+  "  SUM_TIMER_EXECUTE bigint(20) unsigned NOT NULL,\n"
+  "  MIN_TIMER_EXECUTE bigint(20) unsigned NOT NULL,\n"
+  "  AVG_TIMER_EXECUTE bigint(20) unsigned NOT NULL,\n"
+  "  MAX_TIMER_EXECUTE bigint(20) unsigned NOT NULL,\n"
+  "  SUM_LOCK_TIME bigint(20) unsigned NOT NULL,\n"
+  "  SUM_ERRORS bigint(20) unsigned NOT NULL,\n"
+  "  SUM_WARNINGS bigint(20) unsigned NOT NULL,\n"
+  "  SUM_ROWS_AFFECTED bigint(20) unsigned NOT NULL,\n"
+  "  SUM_ROWS_SENT bigint(20) unsigned NOT NULL,\n"
+  "  SUM_ROWS_EXAMINED bigint(20) unsigned NOT NULL,\n"
+  "  SUM_CREATED_TMP_DISK_TABLES bigint(20) unsigned NOT NULL,\n"
+  "  SUM_CREATED_TMP_TABLES bigint(20) unsigned NOT NULL,\n"
+  "  SUM_SELECT_FULL_JOIN bigint(20) unsigned NOT NULL,\n"
+  "  SUM_SELECT_FULL_RANGE_JOIN bigint(20) unsigned NOT NULL,\n"
+  "  SUM_SELECT_RANGE bigint(20) unsigned NOT NULL,\n"
+  "  SUM_SELECT_RANGE_CHECK bigint(20) unsigned NOT NULL,\n"
+  "  SUM_SELECT_SCAN bigint(20) unsigned NOT NULL,\n"
+  "  SUM_SORT_MERGE_PASSES bigint(20) unsigned NOT NULL,\n"
+  "  SUM_SORT_RANGE bigint(20) unsigned NOT NULL,\n"
+  "  SUM_SORT_ROWS bigint(20) unsigned NOT NULL,\n"
+  "  SUM_SORT_SCAN bigint(20) unsigned NOT NULL,\n"
+  "  SUM_NO_INDEX_USED bigint(20) unsigned NOT NULL,\n"
+  "  SUM_NO_GOOD_INDEX_USED bigint(20) unsigned NOT NULL,\n"
+  "  PRIMARY KEY (OBJECT_INSTANCE_BEGIN) USING HASH,\n"
+  "  UNIQUE KEY (OWNER_THREAD_ID, OWNER_EVENT_ID) USING HASH,\n"
+  "  KEY (STATEMENT_ID) USING HASH,\n"
+  "  KEY (STATEMENT_NAME) USING HASH,\n"
+  "  KEY (OWNER_OBJECT_TYPE, OWNER_OBJECT_SCHEMA,\n"
+  "       OWNER_OBJECT_NAME) USING HASH\n",
+  /* Options */
+  " ENGINE=PERFORMANCE_SCHEMA",
+  /* Tablespace */
+  nullptr);
 
 PFS_engine_table_share table_prepared_stmt_instances::m_share = {
-  {C_STRING_WITH_LEN("prepared_statements_instances")},
   &pfs_truncatable_acl,
   table_prepared_stmt_instances::create,
   NULL, /* write_row */
@@ -228,9 +94,8 @@ PFS_engine_table_share table_prepared_stmt_instances::m_share = {
   table_prepared_stmt_instances::get_row_count,
   sizeof(PFS_simple_index),
   &m_table_lock,
-  &m_field_def,
-  false, /* checked */
-  false  /* perpetual */
+  &m_table_def,
+  false /* perpetual */
 };
 
 bool

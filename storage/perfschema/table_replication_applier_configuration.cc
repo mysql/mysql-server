@@ -38,28 +38,19 @@
 
 THR_LOCK table_replication_applier_configuration::m_table_lock;
 
-/* clang-format off */
-static const TABLE_FIELD_TYPE field_types[]=
-{
-  {
-    {C_STRING_WITH_LEN("CHANNEL_NAME")},
-    {C_STRING_WITH_LEN("char(64)")},
-    {NULL,0}
-  },
-
-  {
-    {C_STRING_WITH_LEN("DESIRED_DELAY")},
-    {C_STRING_WITH_LEN("int(11)")},
-    {NULL, 0}
-  }
-};
-/* clang-format on */
-
-TABLE_FIELD_DEF
-table_replication_applier_configuration::m_field_def = {2, field_types};
+Plugin_table table_replication_applier_configuration::m_table_def(
+  /* Name */
+  "replication_applier_configuration",
+  /* Definition */
+  "  CHANNEL_NAME CHAR(64) collate utf8_general_ci not null,\n"
+  "  DESIRED_DELAY INTEGER not null,\n"
+  "  PRIMARY KEY (CHANNEL_NAME) USING HASH\n",
+  /* Options */
+  " ENGINE=PERFORMANCE_SCHEMA",
+  /* Tablespace */
+  nullptr);
 
 PFS_engine_table_share table_replication_applier_configuration::m_share = {
-  {C_STRING_WITH_LEN("replication_applier_configuration")},
   &pfs_readonly_acl,
   table_replication_applier_configuration::create,
   NULL, /* write_row */
@@ -67,9 +58,8 @@ PFS_engine_table_share table_replication_applier_configuration::m_share = {
   table_replication_applier_configuration::get_row_count,
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
-  &m_field_def,
-  false, /* checked */
-  true  /* perpetual */
+  &m_table_def,
+  true /* perpetual */
 };
 
 bool

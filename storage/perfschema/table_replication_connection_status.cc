@@ -80,117 +80,42 @@ set_service_state(void *const context, bool value)
 
 THR_LOCK table_replication_connection_status::m_table_lock;
 
-/* clang-format off */
-static const TABLE_FIELD_TYPE field_types[]=
-{
-  {
-    {C_STRING_WITH_LEN("CHANNEL_NAME")},
-    {C_STRING_WITH_LEN("char(64)")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("GROUP_NAME")},
-    {C_STRING_WITH_LEN("char(36)")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("SOURCE_UUID")},
-    {C_STRING_WITH_LEN("char(36)")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("THREAD_ID")},
-    {C_STRING_WITH_LEN("bigint(20)")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("SERVICE_STATE")},
-    {C_STRING_WITH_LEN("enum('ON','OFF','CONNECTING')")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("COUNT_RECEIVED_HEARTBEATS")},
-    {C_STRING_WITH_LEN("bigint(20)")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("LAST_HEARTBEAT_TIMESTAMP")},
-    {C_STRING_WITH_LEN("timestamp")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("RECEIVED_TRANSACTION_SET")},
-    {C_STRING_WITH_LEN("longtext")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("LAST_ERROR_NUMBER")},
-    {C_STRING_WITH_LEN("int(11)")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("LAST_ERROR_MESSAGE")},
-    {C_STRING_WITH_LEN("varchar(1024)")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("LAST_ERROR_TIMESTAMP")},
-    {C_STRING_WITH_LEN("timestamp")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("LAST_QUEUED_TRANSACTION")},
-    {C_STRING_WITH_LEN("char(57)")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("LAST_QUEUED_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP")},
-    {C_STRING_WITH_LEN("timestamp")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("LAST_QUEUED_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP")},
-    {C_STRING_WITH_LEN("timestamp")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("LAST_QUEUED_TRANSACTION_START_QUEUE_TIMESTAMP")},
-    {C_STRING_WITH_LEN("timestamp")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("LAST_QUEUED_TRANSACTION_END_QUEUE_TIMESTAMP")},
-    {C_STRING_WITH_LEN("timestamp")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("QUEUEING_TRANSACTION")},
-    {C_STRING_WITH_LEN("char(57)")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("QUEUEING_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP")},
-    {C_STRING_WITH_LEN("timestamp")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("QUEUEING_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP")},
-    {C_STRING_WITH_LEN("timestamp")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("QUEUEING_TRANSACTION_START_QUEUE_TIMESTAMP")},
-    {C_STRING_WITH_LEN("timestamp")},
-    {NULL, 0}
-  }
-};
-/* clang-format on */
-
-TABLE_FIELD_DEF
-table_replication_connection_status::m_field_def = {20, field_types};
+Plugin_table table_replication_connection_status::m_table_def(
+  /* Name */
+  "replication_connection_status",
+  /* Definition */
+  "  CHANNEL_NAME CHAR(64) collate utf8_general_ci not null,\n"
+  "  GROUP_NAME CHAR(36) collate utf8_bin not null,\n"
+  "  SOURCE_UUID CHAR(36) collate utf8_bin not null,\n"
+  "  THREAD_ID BIGINT unsigned,\n"
+  "  SERVICE_STATE ENUM('ON','OFF','CONNECTING') not null,\n"
+  "  COUNT_RECEIVED_HEARTBEATS bigint unsigned NOT NULL DEFAULT 0,\n"
+  "  LAST_HEARTBEAT_TIMESTAMP TIMESTAMP(6) not null\n"
+  "  COMMENT 'Shows when the most recent heartbeat signal was received.',\n"
+  "  RECEIVED_TRANSACTION_SET LONGTEXT not null,\n"
+  "  LAST_ERROR_NUMBER INTEGER not null,\n"
+  "  LAST_ERROR_MESSAGE VARCHAR(1024) not null,\n"
+  "  LAST_ERROR_TIMESTAMP TIMESTAMP(6) not null,\n"
+  "  PRIMARY KEY (CHANNEL_NAME) USING HASH,\n"
+  "  KEY (THREAD_ID) USING HASH,\n"
+  "  LAST_QUEUED_TRANSACTION CHAR(57),\n"
+  "  LAST_QUEUED_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP TIMESTAMP(6)\n"
+  "                                                    not null,\n"
+  "  LAST_QUEUED_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP TIMESTAMP(6)\n"
+  "                                                     not null,\n"
+  "  LAST_QUEUED_TRANSACTION_START_QUEUE_TIMESTAMP TIMESTAMP(6) not null,\n"
+  "  LAST_QUEUED_TRANSACTION_END_QUEUE_TIMESTAMP TIMESTAMP(6) not null,\n"
+  "  QUEUEING_TRANSACTION CHAR(57),\n"
+  "  QUEUEING_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP TIMESTAMP(6) not null,\n"
+  "  QUEUEING_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP TIMESTAMP(6)\n"
+  "                                                  not null,\n"
+  "  QUEUEING_TRANSACTION_START_QUEUE_TIMESTAMP TIMESTAMP(6) not null\n",
+  /* Options */
+  " ENGINE=PERFORMANCE_SCHEMA",
+  /* Tablespace */
+  nullptr);
 
 PFS_engine_table_share table_replication_connection_status::m_share = {
-  {C_STRING_WITH_LEN("replication_connection_status")},
   &pfs_readonly_acl,
   table_replication_connection_status::create,
   NULL,                                               /* write_row */
@@ -198,9 +123,8 @@ PFS_engine_table_share table_replication_connection_status::m_share = {
   table_replication_connection_status::get_row_count, /* records */
   sizeof(PFS_simple_index),                           /* ref length */
   &m_table_lock,
-  &m_field_def,
-  false, /* checked */
-  true  /* perpetual */
+  &m_table_def,
+  true /* perpetual */
 };
 
 bool
@@ -489,9 +413,9 @@ table_replication_connection_status::make_row(Master_info *mi)
     if (m_row.received_transaction_set_length < 0)
     {
       my_free(m_row.received_transaction_set);
-      m_row.received_transaction_set_length= 0;
+      m_row.received_transaction_set_length = 0;
       mysql_mutex_unlock(&mi->data_lock);
-      error= true;
+      error = true;
       goto end;
     }
   }
@@ -515,8 +439,7 @@ table_replication_connection_status::make_row(Master_info *mi)
   }
   mysql_mutex_unlock(&mi->err_lock);
 
-  mi->get_gtid_monitoring_info()->copy_info_to(&queueing_trx,
-                                               &last_queued_trx);
+  mi->get_gtid_monitoring_info()->copy_info_to(&queueing_trx, &last_queued_trx);
 
   mysql_mutex_unlock(&mi->data_lock);
 
@@ -527,13 +450,14 @@ table_replication_connection_status::make_row(Master_info *mi)
                                 &m_row.queueing_trx_immediate_commit_timestamp,
                                 &m_row.queueing_trx_start_queue_timestamp);
 
-  last_queued_trx.copy_to_ps_table(mi->rli->get_sid_map(),
-                                   m_row.last_queued_trx,
-                                   &m_row.last_queued_trx_length,
-                                   &m_row.last_queued_trx_original_commit_timestamp,
-                                   &m_row.last_queued_trx_immediate_commit_timestamp,
-                                   &m_row.last_queued_trx_start_queue_timestamp,
-                                   &m_row.last_queued_trx_end_queue_timestamp);
+  last_queued_trx.copy_to_ps_table(
+    mi->rli->get_sid_map(),
+    m_row.last_queued_trx,
+    &m_row.last_queued_trx_length,
+    &m_row.last_queued_trx_original_commit_timestamp,
+    &m_row.last_queued_trx_immediate_commit_timestamp,
+    &m_row.last_queued_trx_start_queue_timestamp,
+    &m_row.last_queued_trx_end_queue_timestamp);
 
 end:
   if (error)

@@ -52,6 +52,8 @@ protected:
 private:
   /** Table share lock. */
   static THR_LOCK m_table_lock;
+  /** Table definition. */
+  static Plugin_table m_table_def;
 };
 
 /** @} */

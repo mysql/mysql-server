@@ -341,8 +341,6 @@ void pfs_automated_sizing(PFS_global_param *param);
 */
 void initialize_performance_schema_acl(bool bootstrap);
 
-void check_performance_schema();
-
 /**
   Reset the aggregated status counter stats.
 */

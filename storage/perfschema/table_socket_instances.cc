@@ -34,52 +34,27 @@
 
 THR_LOCK table_socket_instances::m_table_lock;
 
-/* clang-format off */
-static const TABLE_FIELD_TYPE field_types[]=
-{
-  {
-    { C_STRING_WITH_LEN("EVENT_NAME") },
-    { C_STRING_WITH_LEN("varchar(128)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("OBJECT_INSTANCE_BEGIN") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("THREAD_ID") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SOCKET_ID") },
-    { C_STRING_WITH_LEN("int(11)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("IP") },
-    { C_STRING_WITH_LEN("varchar(64)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("PORT") },
-    { C_STRING_WITH_LEN("int(11)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("STATE") },
-    { C_STRING_WITH_LEN("enum('IDLE','ACTIVE')") },
-    { NULL, 0}
-  }
-};
-/* clang-format on */
-
-TABLE_FIELD_DEF
-table_socket_instances::m_field_def = {7, field_types};
+Plugin_table table_socket_instances::m_table_def(
+  /* Name */
+  "socket_instances",
+  /* Definition */
+  "  EVENT_NAME VARCHAR(128) not null,\n"
+  "  OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,\n"
+  "  THREAD_ID BIGINT unsigned,\n"
+  "  SOCKET_ID INTEGER not null,\n"
+  "  IP VARCHAR(64) not null,\n"
+  "  PORT INTEGER not null,\n"
+  "  STATE ENUM('IDLE','ACTIVE') not null,\n"
+  "  PRIMARY KEY (OBJECT_INSTANCE_BEGIN) USING HASH,\n"
+  "  KEY (THREAD_ID) USING HASH,\n"
+  "  KEY (SOCKET_ID) USING HASH,\n"
+  "  KEY (IP, PORT) USING HASH\n",
+  /* Options */
+  " ENGINE=PERFORMANCE_SCHEMA",
+  /* Tablespace */
+  nullptr);
 
 PFS_engine_table_share table_socket_instances::m_share = {
-  {C_STRING_WITH_LEN("socket_instances")},
   &pfs_readonly_acl,
   table_socket_instances::create,
   NULL, /* write_row */
@@ -87,9 +62,8 @@ PFS_engine_table_share table_socket_instances::m_share = {
   table_socket_instances::get_row_count,
   sizeof(PFS_simple_index),
   &m_table_lock,
-  &m_field_def,
-  false, /* checked */
-  false  /* perpetual */
+  &m_table_def,
+  false /* perpetual */
 };
 
 bool

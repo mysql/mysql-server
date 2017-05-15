@@ -34,42 +34,24 @@
 
 THR_LOCK table_setup_objects::m_table_lock;
 
-/* clang-format off */
-static const TABLE_FIELD_TYPE field_types[]=
-{
-  {
-    { C_STRING_WITH_LEN("OBJECT_TYPE") },
-    { C_STRING_WITH_LEN("enum(\'EVENT\',\'FUNCTION\',\'PROCEDURE\',\'TABLE\',\'TRIGGER\'") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("OBJECT_SCHEMA") },
-    { C_STRING_WITH_LEN("varchar(64)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("OBJECT_NAME") },
-    { C_STRING_WITH_LEN("varchar(64)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("ENABLED") },
-    { C_STRING_WITH_LEN("enum(\'YES\',\'NO\')") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("TIMED") },
-    { C_STRING_WITH_LEN("enum(\'YES\',\'NO\')") },
-    { NULL, 0}
-  }
-};
-/* clang-format on */
-
-TABLE_FIELD_DEF
-table_setup_objects::m_field_def = {5, field_types};
+Plugin_table table_setup_objects::m_table_def(
+  /* Name */
+  "setup_objects",
+  /* Definition */
+  "  OBJECT_TYPE ENUM ('EVENT', 'FUNCTION', 'PROCEDURE', 'TABLE',\n"
+  "                    'TRIGGER') not null default 'TABLE',\n"
+  "  OBJECT_SCHEMA VARCHAR(64) default '%',\n"
+  "  OBJECT_NAME VARCHAR(64) NOT null default '%',\n"
+  "  ENABLED ENUM ('YES', 'NO') not null default 'YES',\n"
+  "  TIMED ENUM ('YES', 'NO') not null default 'YES',\n"
+  "  UNIQUE KEY `OBJECT` (OBJECT_TYPE, OBJECT_SCHEMA,\n"
+  "                       OBJECT_NAME) USING HASH\n",
+  /* Options */
+  " ENGINE=PERFORMANCE_SCHEMA",
+  /* Tablespace */
+  nullptr);
 
 PFS_engine_table_share table_setup_objects::m_share = {
-  {C_STRING_WITH_LEN("setup_objects")},
   &pfs_editable_acl,
   table_setup_objects::create,
   table_setup_objects::write_row,
@@ -77,9 +59,8 @@ PFS_engine_table_share table_setup_objects::m_share = {
   table_setup_objects::get_row_count,
   sizeof(PFS_simple_index),
   &m_table_lock,
-  &m_field_def,
-  false, /* checked */
-  false  /* perpetual */
+  &m_table_def,
+  false /* perpetual */
 };
 
 static int

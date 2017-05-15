@@ -33,53 +33,25 @@
 
 THR_LOCK table_events_waits_summary_by_instance::m_table_lock;
 
-/* clang-format off */
-static const TABLE_FIELD_TYPE ews_by_instance_field_types[]=
-{
-  {
-    { C_STRING_WITH_LEN("EVENT_NAME") },
-    { C_STRING_WITH_LEN("varchar(128)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("OBJECT_INSTANCE_BEGIN") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("COUNT_STAR") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SUM_TIMER_WAIT") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("MIN_TIMER_WAIT") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("AVG_TIMER_WAIT") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("MAX_TIMER_WAIT") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  }
-};
-/* clang-format on */
-
-TABLE_FIELD_DEF
-table_events_waits_summary_by_instance::m_field_def = {
-  7, ews_by_instance_field_types};
+Plugin_table table_events_waits_summary_by_instance::m_table_def(
+  /* Name */
+  "events_waits_summary_by_instance",
+  /* Definition */
+  "  EVENT_NAME VARCHAR(128) not null,\n"
+  "  OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,\n"
+  "  COUNT_STAR BIGINT unsigned not null,\n"
+  "  SUM_TIMER_WAIT BIGINT unsigned not null,\n"
+  "  MIN_TIMER_WAIT BIGINT unsigned not null,\n"
+  "  AVG_TIMER_WAIT BIGINT unsigned not null,\n"
+  "  MAX_TIMER_WAIT BIGINT unsigned not null,\n"
+  "  PRIMARY KEY (OBJECT_INSTANCE_BEGIN),\n"
+  "  KEY (EVENT_NAME)\n",
+  /* Options */
+  " ENGINE=PERFORMANCE_SCHEMA",
+  /* Tablespace */
+  nullptr);
 
 PFS_engine_table_share table_events_waits_summary_by_instance::m_share = {
-  {C_STRING_WITH_LEN("events_waits_summary_by_instance")},
   &pfs_truncatable_acl,
   table_events_waits_summary_by_instance::create,
   NULL, /* write_row */
@@ -87,9 +59,8 @@ PFS_engine_table_share table_events_waits_summary_by_instance::m_share = {
   table_all_instr::get_row_count,
   sizeof(pos_all_instr),
   &m_table_lock,
-  &m_field_def,
-  false, /* checked */
-  false  /* perpetual */
+  &m_table_def,
+  false /* perpetual */
 };
 
 bool

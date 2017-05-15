@@ -5673,14 +5673,6 @@ int mysqld_main(int argc, char **argv)
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
   initialize_performance_schema_acl(opt_initialize);
-  /*
-    Do not check the structure of the performance schema tables
-    during bootstrap:
-    - the tables are not supposed to exist yet, bootstrap will create them
-    - a check would print spurious error messages
-  */
-  if (!opt_initialize)
-    check_performance_schema();
 #endif
 
   initialize_information_schema_acl();

@@ -141,62 +141,25 @@ set_transactions_rows_in_validation(void* const context,
 
 THR_LOCK table_replication_group_member_stats::m_table_lock;
 
-/* clang-format off */
-static const TABLE_FIELD_TYPE field_types[]=
-{
-  {
-    {C_STRING_WITH_LEN("CHANNEL_NAME")},
-    {C_STRING_WITH_LEN("char(64)")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("VIEW_ID")},
-    {C_STRING_WITH_LEN("char(60)")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("MEMBER_ID")},
-    {C_STRING_WITH_LEN("char(36)")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("COUNT_TRANSACTIONS_IN_QUEUE")},
-    {C_STRING_WITH_LEN("bigint")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("COUNT_TRANSACTIONS_CHECKED")},
-    {C_STRING_WITH_LEN("bigint")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("COUNT_CONFLICTS_DETECTED")},
-    {C_STRING_WITH_LEN("bigint")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("COUNT_TRANSACTIONS_ROWS_VALIDATING")},
-    {C_STRING_WITH_LEN("bigint")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("TRANSACTIONS_COMMITTED_ALL_MEMBERS")},
-    {C_STRING_WITH_LEN("longtext")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("LAST_CONFLICT_FREE_TRANSACTION")},
-    {C_STRING_WITH_LEN("text")},
-    {NULL, 0}
-  }
-};
-/* clang-format on */
-
-TABLE_FIELD_DEF
-table_replication_group_member_stats::m_field_def = {9, field_types};
+Plugin_table table_replication_group_member_stats::m_table_def(
+  /* Name */
+  "replication_group_member_stats",
+  /* Definition */
+  "  CHANNEL_NAME CHAR(64) collate utf8_general_ci not null,\n"
+  "  VIEW_ID CHAR(60) collate utf8_bin not null,\n"
+  "  MEMBER_ID CHAR(36) collate utf8_bin not null,\n"
+  "  COUNT_TRANSACTIONS_IN_QUEUE BIGINT unsigned not null,\n"
+  "  COUNT_TRANSACTIONS_CHECKED BIGINT unsigned not null,\n"
+  "  COUNT_CONFLICTS_DETECTED BIGINT unsigned not null,\n"
+  "  COUNT_TRANSACTIONS_ROWS_VALIDATING BIGINT unsigned not null,\n"
+  "  TRANSACTIONS_COMMITTED_ALL_MEMBERS LONGTEXT not null,\n"
+  "  LAST_CONFLICT_FREE_TRANSACTION TEXT not null\n",
+  /* Options */
+  " ENGINE=PERFORMANCE_SCHEMA",
+  /* Tablespace */
+  nullptr);
 
 PFS_engine_table_share table_replication_group_member_stats::m_share = {
-  {C_STRING_WITH_LEN("replication_group_member_stats")},
   &pfs_readonly_acl,
   &table_replication_group_member_stats::create,
   NULL, /* write_row */
@@ -204,9 +167,8 @@ PFS_engine_table_share table_replication_group_member_stats::m_share = {
   table_replication_group_member_stats::get_row_count,
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
-  &m_field_def,
-  false, /* checked */
-  true  /* perpetual */
+  &m_table_def,
+  true /* perpetual */
 };
 
 PFS_engine_table*

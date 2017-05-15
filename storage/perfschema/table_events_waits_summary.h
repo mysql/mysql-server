@@ -130,8 +130,8 @@ public:
 private:
   /** Table share lock. */
   static THR_LOCK m_table_lock;
-  /** Fields definition. */
-  static TABLE_FIELD_DEF m_field_def;
+  /** Table definition. */
+  static Plugin_table m_table_def;
 
   /** Current row. */
   row_events_waits_summary_by_instance m_row;

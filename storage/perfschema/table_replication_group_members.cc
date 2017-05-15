@@ -97,42 +97,21 @@ set_member_state(void* const context, const char& value, size_t length)
 
 THR_LOCK table_replication_group_members::m_table_lock;
 
-/* clang-format off */
-static const TABLE_FIELD_TYPE field_types[]=
-{
-  {
-    {C_STRING_WITH_LEN("CHANNEL_NAME")},
-    {C_STRING_WITH_LEN("char(64)")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("MEMBER_ID")},
-    {C_STRING_WITH_LEN("char(36)")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("MEMBER_HOST")},
-    {C_STRING_WITH_LEN("char(60)")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("MEMBER_PORT")},
-    {C_STRING_WITH_LEN("int(11)")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("MEMBER_STATE")},
-    {C_STRING_WITH_LEN("char(64)")},
-    {NULL, 0}
-  }
-};
-/* clang-format on */
-
-TABLE_FIELD_DEF
-table_replication_group_members::m_field_def = {5, field_types};
+Plugin_table table_replication_group_members::m_table_def(
+  /* Name */
+  "replication_group_members",
+  /* Definition */
+  "  CHANNEL_NAME CHAR(64) collate utf8_general_ci not null,\n"
+  "  MEMBER_ID CHAR(36) collate utf8_bin not null,\n"
+  "  MEMBER_HOST CHAR(60) collate utf8_bin not null,\n"
+  "  MEMBER_PORT INTEGER,\n"
+  "  MEMBER_STATE CHAR(64) collate utf8_bin not null\n",
+  /* Options */
+  " ENGINE=PERFORMANCE_SCHEMA",
+  /* Tablespace */
+  nullptr);
 
 PFS_engine_table_share table_replication_group_members::m_share = {
-  {C_STRING_WITH_LEN("replication_group_members")},
   &pfs_readonly_acl,
   &table_replication_group_members::create,
   NULL, /* write_row */
@@ -140,9 +119,8 @@ PFS_engine_table_share table_replication_group_members::m_share = {
   table_replication_group_members::get_row_count,
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
-  &m_field_def,
-  false, /* checked */
-  true  /* perpetual */
+  &m_table_def,
+  true /* perpetual */
 };
 
 PFS_engine_table*

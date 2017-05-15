@@ -36,112 +36,37 @@
 
 THR_LOCK table_replication_connection_configuration::m_table_lock;
 
-/* clang-format off */
-static const TABLE_FIELD_TYPE field_types[]=
-{
-  {
-    {C_STRING_WITH_LEN("CHANNEL_NAME")},
-    {C_STRING_WITH_LEN("char(64)")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("HOST")},
-    {C_STRING_WITH_LEN("char(60)")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("PORT")},
-    {C_STRING_WITH_LEN("int(11)")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("USER")},
-    {C_STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("NETWORK_INTERFACE")},
-    {C_STRING_WITH_LEN("char(60)")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("AUTO_POSITION")},
-    {C_STRING_WITH_LEN("enum('1','0')")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("SSL_ALLOWED")},
-    {C_STRING_WITH_LEN("enum('YES','NO','IGNORED')")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("SSL_CA_FILE")},
-    {C_STRING_WITH_LEN("varchar(512)")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("SSL_CA_PATH")},
-    {C_STRING_WITH_LEN("varchar(512)")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("SSL_CERTIFICATE")},
-    {C_STRING_WITH_LEN("varchar(512)")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("SSL_CIPHER")},
-    {C_STRING_WITH_LEN("varchar(512)")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("SSL_KEY")},
-    {C_STRING_WITH_LEN("varchar(512)")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("SSL_VERIFY_SERVER_CERTIFICATE")},
-    {C_STRING_WITH_LEN("enum('YES','NO')")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("SSL_CRL_FILE")},
-    {C_STRING_WITH_LEN("varchar(255)")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("SSL_CRL_PATH")},
-    {C_STRING_WITH_LEN("varchar(255)")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("CONNECTION_RETRY_INTERVAL")},
-    {C_STRING_WITH_LEN("int(11)")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("CONNECTION_RETRY_COUNT")},
-    {C_STRING_WITH_LEN("bigint")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("HEARTBEAT_INTERVAL")},
-    {C_STRING_WITH_LEN("double(10,3)")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("TLS_VERSION")},
-    {C_STRING_WITH_LEN("varchar(255)")},
-    {NULL, 0}
-  }
-};
-/* clang-format on */
-
-TABLE_FIELD_DEF
-table_replication_connection_configuration::m_field_def = {19, field_types};
+Plugin_table table_replication_connection_configuration::m_table_def(
+  /* Name */
+  "replication_connection_configuration",
+  /* Definition */
+  "  CHANNEL_NAME CHAR(64) collate utf8_general_ci not null,\n"
+  "  HOST CHAR(60) collate utf8_bin not null,\n"
+  "  PORT INTEGER not null,\n"
+  "  USER CHAR(32) collate utf8_bin not null,\n"
+  "  NETWORK_INTERFACE CHAR(60) collate utf8_bin not null,\n"
+  "  AUTO_POSITION ENUM('1','0') not null,\n"
+  "  SSL_ALLOWED ENUM('YES','NO','IGNORED') not null,\n"
+  "  SSL_CA_FILE VARCHAR(512) not null,\n"
+  "  SSL_CA_PATH VARCHAR(512) not null,\n"
+  "  SSL_CERTIFICATE VARCHAR(512) not null,\n"
+  "  SSL_CIPHER VARCHAR(512) not null,\n"
+  "  SSL_KEY VARCHAR(512) not null,\n"
+  "  SSL_VERIFY_SERVER_CERTIFICATE ENUM('YES','NO') not null,\n"
+  "  SSL_CRL_FILE VARCHAR(255) not null,\n"
+  "  SSL_CRL_PATH VARCHAR(255) not null,\n"
+  "  CONNECTION_RETRY_INTERVAL INTEGER not null,\n"
+  "  CONNECTION_RETRY_COUNT BIGINT unsigned not null,\n"
+  "  HEARTBEAT_INTERVAL DOUBLE(10,3) unsigned not null\n"
+  "  COMMENT 'Number of seconds after which a heartbeat will be sent .',\n"
+  "  TLS_VERSION VARCHAR(255) not null,\n"
+  "  PRIMARY KEY (channel_name) USING HASH\n",
+  /* Options */
+  " ENGINE=PERFORMANCE_SCHEMA",
+  /* Tablespace */
+  nullptr);
 
 PFS_engine_table_share table_replication_connection_configuration::m_share = {
-  {C_STRING_WITH_LEN("replication_connection_configuration")},
   &pfs_readonly_acl,
   table_replication_connection_configuration::create,
   NULL, /* write_row */
@@ -149,9 +74,8 @@ PFS_engine_table_share table_replication_connection_configuration::m_share = {
   table_replication_connection_configuration::get_row_count, /* records */
   sizeof(PFS_simple_index),                                  /* ref length */
   &m_table_lock,
-  &m_field_def,
-  false, /* checked */
-  true  /* perpetual */
+  &m_table_def,
+  true /* perpetual */
 };
 
 bool
