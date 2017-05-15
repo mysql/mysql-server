@@ -31,7 +31,7 @@ get_option () {
 
 install_validate_password_sql_file () {
     local initfile
-    initfile="$(mktemp /tmp/install-validate-password-plugin.XXXXXX.sql)"
+    initfile="$(mktemp /var/lib/mysql-files/install-validate-password-plugin.XXXXXX.sql)"
     chmod a+r "$initfile"
     echo "SET @@SESSION.SQL_LOG_BIN=0;" > "$initfile"
     echo "INSERT INTO mysql.plugin (name, dl) VALUES ('validate_password', 'validate_password.so');" >> $initfile
