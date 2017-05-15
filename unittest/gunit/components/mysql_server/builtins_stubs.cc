@@ -22,7 +22,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 #include "my_compiler.h"
 #include <mysql/components/services/log_shared.h>
 
-int32 volatile     connection_events_loop_aborted_flag;
+#include <atomic>
+
+std::atomic<int32> connection_events_loop_aborted_flag;
 thread_local THD  *current_thd= nullptr;
 ulong              log_error_verbosity;
 ulong              opt_log_timestamps= 0;
