@@ -19,6 +19,7 @@
 
 #include "my_base.h"   // HA_ERR_ROWS_EVENT_APPLY
 #include "my_dbug.h"
+#include "log.h"
 #include <mysql/components/services/log_builtins.h>
 #include "mysqld.h"   // lower_case_table_names
 #include "mysqld_error.h"
