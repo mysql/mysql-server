@@ -817,7 +817,8 @@ bool Sql_cmd_update::update_single_table(THD *thd)
       table->clear_binary_diffs();
 
       store_record(table,record[1]);
-      if (fill_record_n_invoke_before_triggers(thd, *update_field_list,
+      if (fill_record_n_invoke_before_triggers(thd, &update,
+                                               *update_field_list,
                                                *update_value_list, table,
                                                TRG_EVENT_UPDATE, 0))
       {
@@ -2240,7 +2241,7 @@ bool Query_result_update::send_data(List<Item>&)
       table->clear_binary_diffs();
       table->set_updated_row();
       store_record(table,record[1]);
-      if (fill_record_n_invoke_before_triggers(thd,
+      if (fill_record_n_invoke_before_triggers(thd, update_operations[offset],
                                                *fields_for_table[offset],
                                                *values_for_table[offset],
                                                table,

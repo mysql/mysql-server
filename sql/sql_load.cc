@@ -889,8 +889,9 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     }
 
     if (thd->killed ||
-        fill_record_n_invoke_before_triggers(thd, set_fields, set_values,
-                                             table, TRG_EVENT_INSERT,
+        fill_record_n_invoke_before_triggers(thd, &info, set_fields,
+                                             set_values, table,
+                                             TRG_EVENT_INSERT,
                                              table->s->fields))
       DBUG_RETURN(1);
 
@@ -1123,8 +1124,9 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     }
 
     if (thd->killed ||
-        fill_record_n_invoke_before_triggers(thd, set_fields, set_values,
-                                             table, TRG_EVENT_INSERT,
+        fill_record_n_invoke_before_triggers(thd, &info, set_fields,
+                                             set_values, table,
+                                             TRG_EVENT_INSERT,
                                              table->s->fields))
       DBUG_RETURN(1);
 
@@ -1338,8 +1340,9 @@ read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     }
 
     if (thd->killed ||
-        fill_record_n_invoke_before_triggers(thd, set_fields, set_values,
-                                             table, TRG_EVENT_INSERT,
+        fill_record_n_invoke_before_triggers(thd, &info, set_fields,
+                                             set_values, table,
+                                             TRG_EVENT_INSERT,
                                              table->s->fields))
       DBUG_RETURN(1);
 

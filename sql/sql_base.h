@@ -36,6 +36,7 @@
 #include "thr_lock.h"               // thr_lock_type
 #include "trigger_def.h"            // enum_trigger_event_type
 
+class COPY_INFO;
 class Field;
 class Item;
 class Item_ident;
@@ -225,7 +226,8 @@ void close_tables_for_reopen(THD *thd, TABLE_LIST **tables,
 TABLE *find_temporary_table(THD *thd, const char *db, const char *table_name);
 TABLE *find_temporary_table(THD *thd, const TABLE_LIST *tl);
 void close_thread_tables(THD *thd);
-bool fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
+bool fill_record_n_invoke_before_triggers(THD *thd, COPY_INFO *optype_info,
+                                          List<Item> &fields,
                                           List<Item> &values,
                                           TABLE *table,
                                           enum enum_trigger_event_type event,
