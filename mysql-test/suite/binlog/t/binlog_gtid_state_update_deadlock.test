@@ -31,7 +31,6 @@
 # 6. server_1_1 continues; it holds gtid_mode_lock and tries to acquire
 #    global_sid_lock.
 
---source include/big_test.inc
 --source include/have_debug_sync.inc
 # One binlog_format is enough.
 --source include/have_binlog_format_statement.inc
@@ -58,7 +57,7 @@ SET @@SESSION.DEBUG_SYNC = 'now WAIT_FOR before_global_sid_lock';
 --connection server_1_1
 #  3. wait when holding gtid_mode_lock, before takeing global_sid_lock.
 #  6. once the INSERT has taken global_sid_lock, unpause and hit the deadlock
-SET @@SESSION.DEBUG_SYNC= 'after_log_file_name_initialized SIGNAL have_gtid_mode_lock WAIT_FOR have_global_sid_lock';
+SET @@SESSION.DEBUG_SYNC= 'gtid_mode_update_gtid_mode_lock_wrlock_taken_will_take_global_sid_lock SIGNAL have_gtid_mode_lock WAIT_FOR have_global_sid_lock';
 SET @@GLOBAL.GTID_MODE = OFF_PERMISSIVE;
 
 --connection server_1
