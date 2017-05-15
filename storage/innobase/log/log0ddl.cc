@@ -1053,6 +1053,9 @@ LogDDL::replayFreeLog(
 		return;
 	}
 
+	/* This is required by dropping hash index afterwards. */
+	mutex_enter(&dict_sys->mutex);
+
 	mtr_t	mtr;
 	mtr_start(&mtr);
 
@@ -1063,6 +1066,8 @@ LogDDL::replayFreeLog(
 		<< ", page_no " << page_no << ", index_id " << index_id;
 
 	mtr_commit(&mtr);
+
+	mutex_exit(&dict_sys->mutex);
 
 	return;	
 }
