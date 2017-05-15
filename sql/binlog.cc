@@ -1388,7 +1388,8 @@ int binlog_cache_data::write_event(THD*, Log_event *ev)
     if (ev->is_rbr_logging_format())
       flags.with_rbr= true;
     event_counter++;
-    DBUG_PRINT("debug",("event_counter= %lu", event_counter));
+    DBUG_PRINT("debug",("event_counter= %lu",
+                        static_cast<ulong>(event_counter)));
   }
   DBUG_RETURN(0);
 }
@@ -1576,11 +1577,11 @@ bool MYSQL_BIN_LOG::write_gtid(THD *thd, binlog_cache_data *cache_data,
   DBUG_PRINT("debug",("cache_data->get_byte_position()= %llu",
                       cache_data->get_byte_position()));
   DBUG_PRINT("debug",("cache_data->get_event_counter()= %lu",
-                      cache_data->get_event_counter()));
+                      static_cast<ulong>(cache_data->get_event_counter())));
   DBUG_PRINT("debug",("writer->is_checksum_enabled()= %s",
                       YESNO(writer->is_checksum_enabled())));
   DBUG_PRINT("debug",("gtid_event.get_event_length()= %lu",
-                      gtid_event.get_event_length()));
+                      static_cast<ulong>(gtid_event.get_event_length())));
   DBUG_PRINT("info",("transaction_length= %llu",
                      gtid_event.transaction_length));
 
