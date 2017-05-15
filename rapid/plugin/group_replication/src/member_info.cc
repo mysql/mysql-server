@@ -470,7 +470,7 @@ bool
 Group_member_info::comparator_group_member_uuid(Group_member_info *m1,
                                                 Group_member_info *m2)
 {
-  return m2->has_greater_uuid(m1);
+  return m1->has_lower_uuid(m2);
 }
 
 bool
@@ -484,7 +484,7 @@ Group_member_info::has_greater_version(Group_member_info *other)
 }
 
 bool
-Group_member_info::has_greater_uuid(Group_member_info *other)
+Group_member_info::has_lower_uuid(Group_member_info *other)
 {
   return this->get_uuid().compare(other->get_uuid()) < 0;
 }
