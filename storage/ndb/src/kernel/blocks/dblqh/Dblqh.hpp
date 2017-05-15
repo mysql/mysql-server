@@ -3840,6 +3840,7 @@ public:
 
   bool handleLCPSurfacing(Signal *signal);
   bool is_disk_columns_in_table(Uint32 tableId);
+  void sendSTART_FRAGCONF(Signal*);
 
   AlterTabReq c_keep_alter_tab_req;
   Uint32 c_keep_alter_tab_req_len;

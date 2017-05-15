@@ -2722,8 +2722,7 @@ runBug33793(NDBT_Context* ctx, NDBT_Step* step)
         int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
         if (restarter.dumpStateOneNode(id, val2, 2))
           return NDBT_FAILED;
-        if (restarter.waitNodesNoStart(nodes, nodecount))
-          return NDBT_FAILED;
+        break;
       }
     }
     printf("\n"); fflush(stdout);
