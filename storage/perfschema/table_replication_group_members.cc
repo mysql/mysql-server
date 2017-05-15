@@ -142,7 +142,7 @@ PFS_engine_table_share table_replication_group_members::m_share = {
   &m_table_lock,
   &m_field_def,
   false, /* checked */
-  false  /* perpetual */
+  true  /* perpetual */
 };
 
 PFS_engine_table*
