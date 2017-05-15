@@ -21153,7 +21153,6 @@ void Dblqh::execRESTORE_LCP_CONF(Signal* signal)
                                  fragptr.p->fragId,
                                  RNIL,
                                  0);
-      ndbrequire(fragptr.p->srNoLognodes == 0);
     }
     else
     {
