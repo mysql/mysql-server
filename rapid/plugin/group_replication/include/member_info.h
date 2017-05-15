@@ -307,9 +307,9 @@ public:
   bool has_greater_version(Group_member_info *other);
 
   /**
-    Return true if server uuid is higher than other member server uuid
+    Return true if server uuid is lower than other member server uuid
    */
-  bool has_greater_uuid(Group_member_info *other);
+  bool has_lower_uuid(Group_member_info *other);
 
   /**
     Return true if server uuid is equal than other member server uuid
