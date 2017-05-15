@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 
 #include "sql_class.h"                          /* enum_mark_columns */
 
+class COPY_INFO;
 class Item_ident;
 struct Name_resolution_context;
 class Open_table_context;
@@ -223,7 +224,8 @@ TABLE *find_temporary_table(THD *thd, const TABLE_LIST *tl);
 TABLE *find_temporary_table(THD *thd, const char *table_key,
                             size_t table_key_length);
 void close_thread_tables(THD *thd);
-bool fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
+bool fill_record_n_invoke_before_triggers(THD *thd, COPY_INFO *optype_info,
+                                          List<Item> &fields,
                                           List<Item> &values,
                                           TABLE *table,
                                           enum enum_trigger_event_type event,

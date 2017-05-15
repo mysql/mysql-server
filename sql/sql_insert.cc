@@ -702,8 +702,8 @@ bool Sql_cmd_insert::mysql_insert(THD *thd,TABLE_LIST *table_list)
         error= 1;
         break;
       }
-      if (fill_record_n_invoke_before_triggers(thd, insert_field_list, *values,
-                                               insert_table,
+      if (fill_record_n_invoke_before_triggers(thd, &info, insert_field_list,
+                                               *values, insert_table,
                                                TRG_EVENT_INSERT,
                                                insert_table->s->fields))
       {
@@ -1659,7 +1659,7 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
         restore_record(table,record[1]);
         DBUG_ASSERT(update->get_changed_columns()->elements ==
                     update->update_values->elements);
-        if (fill_record_n_invoke_before_triggers(thd,
+        if (fill_record_n_invoke_before_triggers(thd, info,
                                                  *update->get_changed_columns(),
                                                  *update->update_values,
                                                  table, TRG_EVENT_UPDATE, 0))
@@ -2310,7 +2310,7 @@ void Query_result_insert::store_values(List<Item> &values)
   {
     restore_record(table, s->default_values);
     if (!validate_default_values_of_unset_fields(thd, table))
-      fill_record_n_invoke_before_triggers(thd, *fields, values,
+      fill_record_n_invoke_before_triggers(thd, &info, *fields, values,
                                            table, TRG_EVENT_INSERT,
                                            table->s->fields);
   }
