@@ -30,14 +30,14 @@
 #define DEB_LCP(arglist) do { } while (0)
 #endif
 
-#define DEBUG_PGMAN 1
+//#define DEBUG_PGMAN 1
 #ifdef DEBUG_PGMAN
 #define DEB_PGMAN(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_PGMAN(arglist) do { } while (0)
 #endif
 
-#define DEBUG_EXTENT_BITS 1
+//#define DEBUG_EXTENT_BITS 1
 #ifdef DEBUG_EXTENT_BITS
 #define DEB_EXTENT_BITS(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
