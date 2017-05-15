@@ -20837,7 +20837,6 @@ void Dblqh::execSTART_FRAGREQ(Signal* signal)
       fragptr.p->newestGci = cnewestGci;
     }
     fragptr.p->m_completed_gci = 0;
-    ndbrequire(nodeRestorableGci == 0);
   }//if
 
   /**
