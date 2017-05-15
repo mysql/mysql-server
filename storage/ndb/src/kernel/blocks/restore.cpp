@@ -1426,7 +1426,13 @@ Restore::read_ctl_file_done(Signal *signal, FilePtr file_ptr, Uint32 bytesRead)
                         maxGciCompleted,
                         maxGciWritten,
                         file_ptr.p->m_create_gci);
-    ndbrequire(false);
+    file_ptr.p->m_status = File::DROP_OLD_FILES;
+    file_ptr.p->m_remove_ctl_file_no = file_ptr.p->m_ctl_file_no == 0 ? 1 : 0;
+    file_ptr.p->m_remove_data_file_no = 0;
+    file_ptr.p->m_num_remove_data_files = BackupFormat::NDB_MAX_FILES_PER_LCP;
+    ndbrequire(file_ptr.p->m_used_ctl_file_no == ~Uint32(0));
+    close_file(signal, file_ptr, true);
+    return;
   }
   else if (maxGciWritten > file_ptr.p->m_restored_gcp_id ||
            validFlag == 0)
@@ -1578,6 +1584,16 @@ Restore::read_ctl_file_done(Signal *signal, FilePtr file_ptr, Uint32 bytesRead)
     calculate_remove_old_data_files(file_ptr);
   }
   close_file(signal, file_ptr);
+}
+
+void
+Restore::lcp_drop_old_files(Signal *signal, FilePtr file_ptr)
+{
+  file_ptr.p->m_status = File::REMOVE_LCP_DATA_FILE;
+  lcp_remove_old_file(signal,
+                      file_ptr,
+                      file_ptr.p->m_remove_data_file_no,
+                      false);
 }
 
 void
@@ -2475,6 +2491,12 @@ Restore::execFSCLOSECONF(Signal * signal)
   {
     jam();
     lcp_create_ctl_done_close(signal, file_ptr);
+    return;
+  }
+  else if (file_ptr.p->m_status == File::DROP_OLD_FILES)
+  {
+    jam();
+    lcp_drop_old_files(signal, file_ptr);
     return;
   }
 

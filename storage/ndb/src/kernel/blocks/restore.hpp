@@ -110,7 +110,8 @@ private:
       READ_CTL_FILES = 32,
       CREATE_CTL_FILE = 64,
       REMOVE_LCP_DATA_FILE = 128,
-      REMOVE_LCP_CTL_FILE = 256
+      REMOVE_LCP_CTL_FILE = 256,
+      DROP_OLD_FILES = 512
     };
 
     enum PartState
@@ -180,6 +181,7 @@ private:
   void lcp_create_ctl_done_close(Signal*, FilePtr);
 
   /* Methods to remove no longer needed LCP control and data files */
+  void lcp_drop_old_files(Signal*, FilePtr);
   void lcp_remove_old_file(Signal*, FilePtr, Uint32, bool);
   void lcp_remove_old_file_done(Signal*, FilePtr);
 
