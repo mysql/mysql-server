@@ -231,7 +231,7 @@ NdbImportImpl::do_connect()
   for (uint i = 0; i < c.m_connectioncnt; i++)
   {
     Ndb_cluster_connection* con = c.m_connections[i];
-    if (con->wait_until_ready(30, 0) != 0)
+    if (con->wait_until_ready(30, 0) < 0)
     {
       m_util.set_error_con(m_error, __LINE__, con);
       return -1;
