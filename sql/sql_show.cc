@@ -5419,7 +5419,7 @@ int mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list)
   if (!(table= table_list->schema_table->create_table(thd, table_list)))
     DBUG_RETURN(1);
   table->s->tmp_table= SYSTEM_TMP_TABLE;
-  table->grant.privilege= table_list->grant.privilege= SELECT_ACL;
+  table_list->grant.privilege= SELECT_ACL;
   /*
     This test is necessary to make
     case insensitive file systems +

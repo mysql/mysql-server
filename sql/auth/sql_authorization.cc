@@ -3606,32 +3606,28 @@ err:
 }
 
 
-/*
-  Check the privileges to a column depending on the type of table.
+/**
+  Check the privileges for a column depending on the type of table.
 
-  SYNOPSIS
-    check_column_grant_in_table_ref()
-    thd              thread handler
-    table_ref        table reference where to check the field
-    name             name of field to check
-    length           length of name
-    want_privilege   wanted privileges
+  @param thd              thread handler
+  @param table_ref        table reference where to check the field
+  @param name             name of field to check
+  @param length           length of name
+  @param want_privilege   wanted privileges
 
-  DESCRIPTION
-    Check the privileges to a column depending on the type of table
-    reference where the column is checked. The function provides a
-    generic interface to check column privileges that hides the
-    heterogeneity of the column representation - whether it is a view
-    or a stored table column.
+  Check the privileges for a column depending on the type of table the column
+  belongs to. The function provides a generic interface to check column
+  privileges that hides the heterogeneity of the column representation -
+  whether it belongs to a view or a base table.
 
-    Notice that this function does not understand that a column from a view
-    reference must be checked for privileges both in the view and in the
-    underlying base table (or view) reference. This is the responsibility of
-    the caller.
+  Notice that this function does not understand that a column from a view
+  reference must be checked for privileges both in the view and in the
+  underlying base table (or view) reference. This is the responsibility of
+  the caller.
 
-  RETURN
-    FALSE OK
-    TRUE  access denied
+  Columns from temporary tables and derived tables are ignored by this function.
+
+  @returns false if success, true if error (access denied)
 */
 
 bool check_column_grant_in_table_ref(THD *thd, TABLE_LIST * table_ref,
@@ -3647,12 +3643,9 @@ bool check_column_grant_in_table_ref(THD *thd, TABLE_LIST * table_ref,
 
   DBUG_ASSERT(want_privilege);
 
-  if (table_ref->is_derived())
+  if (is_temporary_table(table_ref) || table_ref->is_derived())
   {
-    /*
-      If this is a derived table there's no need to evaluate the required
-      privileges at all.
-    */
+    // Temporary table or derived table: no need to evaluate privileges
     DBUG_RETURN(false);
   }
   else if (table_ref->is_view() || table_ref->field_translation)
@@ -3694,15 +3687,18 @@ bool check_column_grant_in_table_ref(THD *thd, TABLE_LIST * table_ref,
   }
   else
   {
-    /* Normal or temporary table. */
-    TABLE *table= table_ref->table;
-    grant= &(table->grant);
-    db_name= table->s->db.str;
-    table_name= table->s->table_name.str;
+    // Regular, persistent base table
+    grant= &table_ref->grant;
+    db_name= table_ref->db;
+    table_name= table_ref->table_name;
+    DBUG_ASSERT(strcmp(db_name, table_ref->table->s->db.str) == 0 &&
+                strcmp(table_name, table_ref->table->s->table_name.str) == 0);
   }
 
-  DBUG_RETURN(check_grant_column(thd, grant, db_name, table_name, name,
-                                 length, sctx, want_privilege));
+  if (check_grant_column(thd, grant, db_name, table_name, name,
+                         length, sctx, want_privilege))
+    DBUG_RETURN(true);
+  DBUG_RETURN(false);
 }
 
 

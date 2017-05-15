@@ -990,23 +990,30 @@ bool Item_field::check_column_privileges(uchar *arg)
 }
 
 /**
-  Check privileges of view column
+  Check privileges of view column.
+
+  @note this function will be called for columns from views and derived tables,
+  however privilege check for derived tables should be skipped
+  (those columns are checked against the base tables).
 */
 
 bool Item_direct_view_ref::check_column_privileges(uchar *arg)
 {
   THD *thd= (THD *)arg;
 
+  if (cached_table->is_derived()) // Rely on checking underlying tables
+    return false;
+
   Internal_error_handler_holder<View_error_handler, TABLE_LIST>
     view_handler(thd, context->view_error_handler,
                  context->view_error_handler_arg);
 
+  DBUG_ASSERT(strlen(cached_table->get_table_name()) > 0);
+
   if (check_column_grant_in_table_ref(thd, cached_table,
                                       field_name, strlen(field_name),
                                       thd->want_privilege))
-  {
     return true;
-  }
 
   return false;
 }
@@ -6013,7 +6020,8 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
     const char *db, *tab;
     db= cached_table->get_db_name();
     tab= cached_table->get_table_name();
-    if (!(have_privileges= (get_column_grant(thd, &field->table->grant,
+    DBUG_ASSERT(field->table == table_ref->table);
+    if (!(have_privileges= (get_column_grant(thd, &table_ref->grant,
                                              db, tab, field_name) &
                             VIEW_ANY_ACL)))
     {

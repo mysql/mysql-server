@@ -558,7 +558,14 @@ retry:
                                                  (uchar*) tables->alias,
                                                  strlen(tables->alias) + 1)))
   {
+    /*
+      Handler interface sometimes uses "tables", sometimes it uses "hash_tables"
+      thus we need grant information in both objects.
+    */
+    tables->grant= hash_tables->grant;
+
     table= hash_tables->table;
+
     DBUG_PRINT("info-in-hash",("'%s'.'%s' as '%s' table: %p",
                                hash_tables->db, hash_tables->table_name,
                                hash_tables->alias, table));
@@ -682,7 +689,11 @@ retry:
 
   if (cond)
   {
-    Column_privilege_tracker column_privilege(thd, SELECT_ACL);
+    /*
+      Privilege check not needed since all columns are selected and checked
+      by insert_fields().
+    */
+    Column_privilege_tracker column_privilege(thd, 0);
 
     if (table->query_id != thd->query_id)
       cond->cleanup();                          // File was reopened
@@ -807,8 +818,11 @@ retry:
 	my_error(ER_TOO_MANY_KEY_PARTS, MYF(0), keyinfo->user_defined_key_parts);
 	goto err;
       }
-
-      Column_privilege_tracker column_privilege(thd, SELECT_ACL);
+      /*
+        Privilege check not needed since all columns are selected and checked
+        by insert_fields().
+      */
+      Column_privilege_tracker column_privilege(thd, 0);
 
       List_iterator<Item> it_ke(*m_key_expr);
       Item *item;

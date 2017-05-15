@@ -5032,8 +5032,6 @@ void TABLE_LIST::set_want_privilege(ulong want_privilege MY_ATTRIBUTE((unused)))
   want_privilege&= ~SHOW_VIEW_ACL;
 
   grant.want_privilege= want_privilege & ~grant.privilege;
-  if (table)
-    table->grant.want_privilege= want_privilege & ~table->grant.privilege;
   for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
     tbl->set_want_privilege(want_privilege);
 #endif
@@ -5179,8 +5177,6 @@ bool TABLE_LIST::prepare_security(THD *thd)
     }
     fill_effective_table_privileges(thd, &tbl->grant, local_db,
                                     local_table_name);
-    if (tbl->table)
-      tbl->table->grant= grant;
   }
   thd->set_security_context(save_security_ctx);
   DBUG_RETURN(FALSE);
@@ -5279,9 +5275,7 @@ const char *Natural_join_column::db_name()
 
 GRANT_INFO *Natural_join_column::grant()
 {
-  if (view_field)
-    return &(table_ref->grant);
-  return &(table_ref->table->grant);
+  return &table_ref->grant;
 }
 
 
@@ -5525,11 +5519,10 @@ const char *Field_iterator_table_ref::get_db_name()
 
 GRANT_INFO *Field_iterator_table_ref::grant()
 {
-  if (table_ref->is_view())
-    return &(table_ref->grant);
-  else if (table_ref->is_natural_join)
+  if (table_ref->is_natural_join)
     return natural_join_it.column_ref()->grant();
-  return &(table_ref->table->grant);
+  else
+    return &table_ref->grant;
 }
 
 

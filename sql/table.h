@@ -1464,7 +1464,6 @@ public:
      and BLOB field count > 0.
    */
   Blob_mem_storage *blob_storage;
-  GRANT_INFO grant;
   Filesort_info sort;
   partition_info *part_info;            /* Partition related information */
   /* If true, all partitions have been pruned away */
@@ -2739,8 +2738,6 @@ struct TABLE_LIST
   void set_privileges(ulong privilege)
   {
     grant.privilege|= privilege;
-    if (table)
-      table->grant.privilege|= privilege;
   }
   /*
     List of tables local to a subquery or the top-level SELECT (used by

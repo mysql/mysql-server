@@ -5333,9 +5333,6 @@ open_and_process_table(THD *thd, LEX *lex, TABLE_LIST *const tables,
       goto end;
   }
 
-  /* Copy grant information from TABLE_LIST instance to TABLE one. */
-  tables->table->grant= tables->grant;
-
   /* Check and update metadata version of a base table. */
   error= check_and_update_table_version(thd, tables, tables->table->s);
 
@@ -6557,7 +6554,6 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type,
     }
 
     table_list->set_lock({lock_type, THR_DEFAULT});
-    table->grant= table_list->grant;
     if (thd->locked_tables_mode)
     {
       if (check_lock_and_start_stmt(thd, thd->lex, table_list))
@@ -9240,36 +9236,15 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
 
        - If any_privileges is true, skip the check.
 
-       - If the SELECT privilege has been found as fulfilled already for both
-         the TABLE and TABLE_LIST objects (and both of these exist, of
-         course), the check is skipped.
-
-       - If the SELECT privilege has been found fulfilled for the TABLE object
-         and the TABLE_LIST represents a derived table other than a view (see
-         below), the check is skipped.
-
-       - If the TABLE_LIST object represents a view, we may skip checking if
-         the SELECT privilege has been found fulfilled for it, regardless of
-         the TABLE object.
-
-       - If there is no TABLE object, the test is skipped if either 
-         * the TABLE_LIST does not represent a view, or
-         * the SELECT privilege has been found fulfilled.         
-
-       A TABLE_LIST that is not a view may be a subquery, an
-       information_schema table, or a nested table reference. See the comment
-       for TABLE_LIST.
+       - If the SELECT privilege has been found as fulfilled already,
+         the check is skipped.
 
        NOTE: This check is not sufficient: If a user has SELECT_ACL privileges
        for a view, it does not mean having the same privileges for the
        underlying tables/view. Thus, we have to perform individual column
        privilege checks below (or recurse down to all underlying tables here).
     */
-    if (!((table && !tables->is_view_or_derived() &&
-           (table->grant.privilege & SELECT_ACL)) ||
-          (tables->is_view_or_derived() &&
-           (tables->grant.privilege & SELECT_ACL))) &&
-        !any_privileges)
+    if (!any_privileges && !(tables->grant.privilege & SELECT_ACL))
     {
       field_iterator.set(tables);
       if (check_grant_all_columns(thd, SELECT_ACL, &field_iterator))

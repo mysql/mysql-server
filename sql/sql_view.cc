@@ -622,15 +622,6 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
         res= true;
         goto err;
       }
-      /*
-        Copy the privileges of the underlying VIEWs which were filled by
-        fill_effective_table_privileges
-        (they were not copied at derived tables processing)
-      */
-      tbl->table->grant.privilege= tbl->grant.privilege;
-#ifndef DBUG_OFF
-      tbl->table->grant.want_privilege= tbl->grant.want_privilege;
-#endif
     }
   }
 
@@ -1538,8 +1529,6 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref)
       user's security context.
     */
     tbl->grant.privilege= 0;
-    if (tbl->table)
-      tbl->table->grant.privilege= 0;
     
     tbl->set_want_privilege(SELECT_ACL);
     /*

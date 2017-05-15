@@ -581,10 +581,6 @@ bool TABLE_LIST::setup_materialized_derived_tmp_table(THD *thd)
   set_name_temporary();
 
   table->s->tmp_table= NON_TRANSACTIONAL_TMP_TABLE;
-  if (referencing_view)
-    table->grant= grant;
-  else
-    table->grant.privilege= SELECT_ACL;
 
   // Table is "nullable" if inner table of an outer_join
   if (is_inner_table_of_outer_join())
