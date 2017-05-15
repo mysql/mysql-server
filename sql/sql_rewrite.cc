@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -190,12 +190,15 @@ void mysql_rewrite_grant(THD *thd, String *rlb)
   LEX        *lex= thd->lex;
   TABLE_LIST *first_table= lex->select_lex->table_list.first;
   bool        comma= FALSE, comma_inner;
+  bool        proxy_grant= lex->type == TYPE_ENUM_PROXY;
   String      cols(1024);
   int         c;
 
   rlb->append(STRING_WITH_LEN("GRANT "));
 
-  if (lex->all_privileges)
+  if (proxy_grant)
+    rlb->append(STRING_WITH_LEN("PROXY"));
+  else if (lex->all_privileges)
     rlb->append(STRING_WITH_LEN("ALL PRIVILEGES"));
   else
   {
@@ -254,12 +257,23 @@ void mysql_rewrite_grant(THD *thd, String *rlb)
   rlb->append(STRING_WITH_LEN(" ON "));
   switch(lex->type)
   {
-  case TYPE_ENUM_PROCEDURE: rlb->append(STRING_WITH_LEN("PROCEDURE ")); break;
-  case TYPE_ENUM_FUNCTION:  rlb->append(STRING_WITH_LEN("FUNCTION "));  break;
-  default:                                                              break;
+    case TYPE_ENUM_PROCEDURE: rlb->append(STRING_WITH_LEN("PROCEDURE ")); break;
+    case TYPE_ENUM_FUNCTION:  rlb->append(STRING_WITH_LEN("FUNCTION "));  break;
+    default:                                                              break;
   }
 
-  if (first_table)
+  LEX_USER *user_name, *tmp_user_name;
+  List_iterator <LEX_USER> user_list(lex->users_list);
+  comma= FALSE;
+
+  if (proxy_grant)
+  {
+    tmp_user_name= user_list++;
+    user_name= get_current_user(thd, tmp_user_name);
+    if (user_name)
+      append_user_new(thd, rlb, user_name, comma);
+  }
+  else if (first_table)
   {
     if (first_table->is_view())
     {
@@ -289,10 +303,6 @@ void mysql_rewrite_grant(THD *thd, String *rlb)
 
   rlb->append(STRING_WITH_LEN(" TO "));
   {
-    LEX_USER *user_name, *tmp_user_name;
-    List_iterator <LEX_USER> user_list(lex->users_list);
-    bool comma= FALSE;
-
     while ((tmp_user_name= user_list++))
     {
       if ((user_name= get_current_user(thd, tmp_user_name)))
