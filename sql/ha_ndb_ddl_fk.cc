@@ -1639,7 +1639,7 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
       if (err.code == 721)
       {
         /* An FK constraint with same name exists */
-        my_error(ER_FK_DUP_NAME, MYF(0), fk->name);
+        my_error(ER_FK_DUP_NAME, MYF(0), ndbfk.getName());
         DBUG_RETURN(err_default);
       }
       else
