@@ -1,0 +1,28 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+# 1. Start group replication on all servers
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_group_replication.inc
+[connection server3]
+include/start_group_replication.inc
+# 2. First primary server should be server1 as it boostrapped the group
+include/gr_find_a_primary.inc
+[connection server1]
+include/gr_wait_primary_member_uuid.inc
+include/assert.inc [Assert that server1 is primary]
+include/stop_group_replication.inc
+# 3. Verify next primary is elected based on uuid ordered lexicographically.
+include/gr_find_a_primary.inc
+include/gr_wait_primary_member_uuid.inc
+include/assert.inc [Assert that next primary uuid matches]
+include/stop_group_replication.inc
+# 4. Verify next primary is elected based on uuid ordered lexicographically.
+include/gr_find_a_primary.inc
+include/gr_wait_primary_member_uuid.inc
+include/assert.inc [Assert that next primary uuid matches]
+include/group_replication_end.inc

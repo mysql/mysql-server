@@ -40,7 +40,7 @@ struct Group_member_info_pointer_comparator
   bool operator()(Group_member_info* one,
                   Group_member_info* other) const
   {
-    return other->has_greater_uuid(one);
+    return one->has_lower_uuid(other);
   }
 };
 
