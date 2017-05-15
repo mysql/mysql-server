@@ -20796,6 +20796,7 @@ void Dblqh::execSTART_FRAGREQ(Signal* signal)
     // Magic no, meaning to COPY_FRAGREQ instead of read from disk
     fragptr.p->srChkpnr = Z8NIL;
     c_fragmentsStartedWithCopy++;
+    ndbrequire(noOfLogNodes == 0);
   }
 
   if (noOfLogNodes > 0) 
@@ -20816,6 +20817,19 @@ void Dblqh::execSTART_FRAGREQ(Signal* signal)
     /**
      * This is a really weird piece of code
      *   it's probably incorrect, but seems to mask problems...
+     *
+     * This code can only be executed by node restarts. In this
+     * case having no log nodes simply means that we restore
+     * entirely from the live node. This is indicated by
+     * nodeRestorableGci == 0.
+     * In reality there should be some REDO log to execute, but
+     * this should only happen immediately after creating table
+     * and no LCP executed before crash, so should be ok to skip
+     * the REDO log and instead restore from live node for this
+     * specific case. To use the REDO log would require ensuring
+     * that not multiple failures have occurred, so this makes
+     * code a bit simpler although a bit less efficient in this
+     * specific case.
      */
     if (cnewestGci > fragptr.p->newestGci) 
     {
@@ -20823,6 +20837,7 @@ void Dblqh::execSTART_FRAGREQ(Signal* signal)
       fragptr.p->newestGci = cnewestGci;
     }
     fragptr.p->m_completed_gci = 0;
+    ndbrequire(nodeRestorableGci == 0);
   }//if
 
   /**
@@ -21100,21 +21115,6 @@ void Dblqh::move_start_gci_forward(Signal *signal, Uint32 new_start_gci)
     }
     fragptr.p->srNoLognodes--;
   }
-  if (fragptr.p->srNoLognodes == 0)
-  {
-    jam();
-    /**
-     * We have removed at least one range and have no one left. This means
-     * we are now completed also with REDO logging and we can set the
-     * fragment state to active and also set it to enable logging.
-     */
-    fragptr.p->logFlag = Fragrecord::STATE_TRUE;
-    fragptr.p->fragStatus = Fragrecord::FSACTIVE;
-    
-    signal->theData[0] = fragptr.p->srUserptr;
-    signal->theData[1] = cownNodeid;
-    sendSignal(fragptr.p->srBlockref, GSN_START_FRAGCONF, signal, 2, JBB);
-  }
 }
 
 void Dblqh::execRESTORE_LCP_CONF(Signal* signal) 
@@ -21153,6 +21153,7 @@ void Dblqh::execRESTORE_LCP_CONF(Signal* signal)
                                  fragptr.p->fragId,
                                  RNIL,
                                  0);
+      ndbrequire(fragptr.p->srNoLognodes == 0);
     }
     else
     {
@@ -21189,6 +21190,34 @@ void Dblqh::execRESTORE_LCP_CONF(Signal* signal)
       fragptr.p->m_completed_gci = maxGciCompleted;
       move_start_gci_forward(signal, startGci);
     }
+  }
+  else
+  {
+    ndbrequire(fragptr.p->srNoLognodes == 0);
+  }
+  if (fragptr.p->srNoLognodes == 0)
+  {
+    jam();
+    /**
+     * 3 potential reasons for getting here:
+     * -------------------------------------
+     * 1) We have removed at least one range and have no one left. This means
+     *    we are now completed also with REDO logging and we can set the
+     *    fragment state to active and also set it to enable logging.
+     *
+     * 2) We are restoring using SFR_COPY_FRAG and in this case afterRestore
+     *    is set to 0 and number of log nodes is 0. So REDO logging is
+     *    completed.
+     *
+     * 3) We are performing a node restart and no LCP was found, we ignore
+     *    any REDO logging in this case and thus we have also here completed
+     *    REDO logging.
+     *
+     * We need to be careful in setting up all fragments as if REDO logging
+     * was done since we could potentially start up an LCP on the fragment
+     * even before the copy fragment process is started.
+     */
+    sendSTART_FRAGCONF(signal);
   }
 
   if (!c_lcp_waiting_fragments.isEmpty())
@@ -21839,6 +21868,23 @@ void Dblqh::sendExecFragRefLab(Signal* signal)
   return;
 }//Dblqh::sendExecFragRefLab()
 
+void Dblqh::sendSTART_FRAGCONF(Signal *signal)
+{
+  /**
+   * This signal is ignored in DIH currently, but we still send it to enable
+   * future functionality beased on this if needed.
+   *
+   * This method is called when we are sure that we have completed any REDO
+   * log execution needed.
+   */
+  fragptr.p->logFlag = Fragrecord::STATE_TRUE;
+  fragptr.p->fragStatus = Fragrecord::FSACTIVE;
+ 
+  signal->theData[0] = fragptr.p->srUserptr;
+  signal->theData[1] = cownNodeid;
+  sendSignal(fragptr.p->srBlockref, GSN_START_FRAGCONF, signal, 2, JBB);
+}
+  
 /* ***************>> */
 /*  EXEC_FRAGCONF  > */
 /* ***************>> */
@@ -21854,16 +21900,8 @@ void Dblqh::execEXEC_FRAGCONF(Signal* signal)
   if (fragptr.p->srNoLognodes == csrPhasesCompleted + 1)
   {
     jam();
-    
-    fragptr.p->logFlag = Fragrecord::STATE_TRUE;
-    fragptr.p->fragStatus = Fragrecord::FSACTIVE;
-    
-    signal->theData[0] = fragptr.p->srUserptr;
-    signal->theData[1] = cownNodeid;
-    sendSignal(fragptr.p->srBlockref, GSN_START_FRAGCONF, signal, 2, JBB);
+    sendSTART_FRAGCONF(signal);
   }
-  
-  return;
 }//Dblqh::execEXEC_FRAGCONF()
 
 /* ***************> */
