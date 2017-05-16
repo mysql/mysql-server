@@ -401,10 +401,14 @@ void Gtid_monitoring_info::atomic_lock()
 {
   if (atomic_mutex == NULL)
   {
-    DBUG_ASSERT(!is_locked);
     bool expected= false;
     while (!atomic_locked.compare_exchange_weak(expected, true))
     {
+      /*
+        On exchange failures, the atomic_locked value (true) is set
+        to the expected variable. It needs to be reset again.
+      */
+      expected= false;
       /*
         All "atomic" operations on this object are based on copying
         variable contents and setting values. They should not take long.
@@ -412,6 +416,7 @@ void Gtid_monitoring_info::atomic_lock()
       my_thread_yield();
     }
 #ifndef DBUG_OFF
+    DBUG_ASSERT(!is_locked);
     is_locked= true;
 #endif
   }
