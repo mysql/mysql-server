@@ -1803,8 +1803,10 @@ dict_table_load_dynamic_metadata(
 	dict_table_t*	table);
 
 /** Check if any table has any dirty persistent data, if so
-write dirty persistent data of table to DD TABLE BUFFER table accordingly */
-void
+write dirty persistent data of table to DD TABLE BUFFER table accordingly
+@return true if any table is dirty and write to DD TABLE BUFFER would
+possibly be done */
+bool
 dict_persist_to_dd_table_buffer(void);
 
 /** Apply the persistent dynamic metadata read from redo logs or
