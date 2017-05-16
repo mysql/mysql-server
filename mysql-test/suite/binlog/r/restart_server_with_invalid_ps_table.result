@@ -1,4 +1,4 @@
-call mtr.add_suppression("Native table 'performance_schema'.'events_errors_summary_by_user_by_error' has the wrong structure");
 DROP TABLE performance_schema.events_errors_summary_by_user_by_error;
 # restart
-include/assert_grep.inc [Found the expected error "'performance_schema'.'events_errors_summary_by_user_by_error' has the wrong structure" in the server error log.]
+select * from performance_schema.events_errors_summary_by_user_by_error;
+ERROR 42S02: Table 'performance_schema.events_errors_summary_by_user_by_error' doesn't exist

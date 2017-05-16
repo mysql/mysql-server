@@ -229,19 +229,19 @@ select 1 from tab1;
 1 Expected
 select (select variable_value from performance_schema.session_status where variable_name ='Opened_tables') = @opened_tables + 1;
 (select variable_value from performance_schema.session_status where variable_name ='Opened_tables') = @opened_tables + 1
-0
+1
 1 Expected
 select (select variable_value from performance_schema.session_status where variable_name ='Table_open_cache_hits') = @open_cache_hits;
 (select variable_value from performance_schema.session_status where variable_name ='Table_open_cache_hits') = @open_cache_hits
-0
+1
 1 Expected
 select (select variable_value from performance_schema.session_status where variable_name ='Table_open_cache_misses') = @open_cache_miss + 1;
 (select variable_value from performance_schema.session_status where variable_name ='Table_open_cache_misses') = @open_cache_miss + 1
-0
+1
 1 Expected
 select (select variable_value from performance_schema.session_status where variable_name ='Table_open_cache_overflows') = @open_cache_overflow + 1;
 (select variable_value from performance_schema.session_status where variable_name ='Table_open_cache_overflows') = @open_cache_overflow + 1
-0
+1
 flush status;
 select (select variable_value from performance_schema.global_status where variable_name ='Opened_tables') = @global_opened_tables + 1;
 (select variable_value from performance_schema.global_status where variable_name ='Opened_tables') = @global_opened_tables + 1

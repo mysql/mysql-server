@@ -20,8 +20,6 @@
 --source include/have_binlog_format_row.inc
 --source include/force_restart.inc
 
-call mtr.add_suppression("Native table 'performance_schema'.'events_errors_summary_by_user_by_error' has the wrong structure");
-
 # drop the performance schema table to force the print of the error when the
 # server is restarted
 DROP TABLE performance_schema.events_errors_summary_by_user_by_error;
@@ -29,9 +27,9 @@ DROP TABLE performance_schema.events_errors_summary_by_user_by_error;
 # restart the server without errors
 --source include/restart_mysqld.inc
 
---let $assert_file= $MYSQLTEST_VARDIR/tmp/restart_server_with_invalid_ps_table.err
---let $assert_only_after= CURRENT_TEST: main.restart_server_with_invalid_ps_table
---let $assert_count= 1
---let $assert_select= Native table 'performance_schema'.'events_errors_summary_by_user_by_error' has the wrong structure
---let $assert_text= Found the expected error "'performance_schema'.'events_errors_summary_by_user_by_error' has the wrong structure" in the server error log.
---source include/assert_grep.inc
+# On restart, the server in 8.0.1 no longer check the structure of pfs
+# tables, so there is no error raised.
+
+--error ER_NO_SUCH_TABLE
+select * from performance_schema.events_errors_summary_by_user_by_error;
+
