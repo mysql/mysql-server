@@ -1,0 +1,196 @@
+# Stariting the server with an --init-file which does shutdown does
+# not appear to be working on windows
+--source include/not_windows.inc
+
+--echo #
+--echo # Testing wl#10441: Add mysqld_safe-functionality to server
+--echo #
+
+let $MYSQL_SOCKET= `SELECT @@socket`;
+let $MYSQL_PORT= `SELECT @@port`;
+
+--echo # Shutdown mysqld which is started by mtr.
+--let $_server_id= `SELECT @@server_id`
+--let $_expect_file_name= $MYSQLTEST_VARDIR/tmp/mysqld.$_server_id.expect
+--exec echo "wait" > $_expect_file_name
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+let MYSQLD_LOG= $MYSQL_TMP_DIR/server.log;
+let DDIR=       $MYSQL_TMP_DIR/basedir_test;
+let SHUTDOWN_SQL= $MYSQL_TMP_DIR/shutdown.sql;
+# Need to save this as PWD env var is overriden when invoking perl
+let BDIR= $PWD;
+
+let DEFARGS= --no-defaults --explicit_defaults_for_timestamp --socket=$MYSQL_SOCKET --port=$MYSQL_PORT --log-syslog=0 --skip-ssl;
+
+write_file $SHUTDOWN_SQL;
+  SHUTDOWN;
+EOF
+
+--echo # Run -I on a new datadir
+--exec $MYSQLD $DEFARGS -I --datadir=$DDIR --log-error=$MYSQLD_LOG
+
+let MYSQLD_ARGS= $DEFARGS --datadir=$DDIR --log-error=$MYSQLD_LOG --init-file=$SHUTDOWN_SQL;
+
+--echo #
+--echo # Deduce --basedir when using full path to mysqld
+--echo #
+--exec $MYSQLD $MYSQLD_ARGS
+
+--perl
+  use strict;
+  open(MYSQLD_LOG, $ENV{'MYSQLD_LOG'});
+  while(<MYSQLD_LOG>)
+  {
+    next if (/InnoDB: New log files created/);
+    next if (/InnoDB: Creating foreign key constraint system tables/);
+    next if (/No existing UUID has been found/);
+    next if (/Gtid table is not ready to be used/);
+    if (/Warning/ || /ERROR/) { print; }
+  }
+  close(MYSQLD_LOG);
+EOF
+--remove_file $MYSQLD_LOG
+
+--echo #
+--echo # Deduce --basedir when using path relative to CWD
+--echo #
+--perl
+  use strict;
+  my $bdir= $ENV{'BDIR'};
+  #print "\$bdir: $bdir\n";
+  chdir $bdir;
+   
+  my $binary= $ENV{'MYSQLD'};
+  #print "\$binary: $binary\n";
+
+  $binary =~ s|$bdir/||;
+  #print "\$binary: $binary\n";
+  #print "exec: $binary $ENV{'MYSQLD_ARGS'}\n";
+  
+  system("$binary $ENV{'MYSQLD_ARGS'}");
+
+  open(MYSQLD_LOG, $ENV{'MYSQLD_LOG'});
+  while(<MYSQLD_LOG>)
+  {
+    #print;
+    if (/Warning/ || /ERROR/) { print; }
+  }
+  close(MYSQLD_LOG);
+EOF
+--remove_file $MYSQLD_LOG
+
+--echo #
+--echo # Deduce --basedir when using bare executable name (PATH lookup)
+--echo #
+--perl
+  use strict;
+  use File::Basename;
+  my $bdir= $ENV{'BDIR'};
+  #print "\$bdir: $bdir\n";
+  chdir $bdir;
+   
+  my $bindir= dirname($ENV{'MYSQLD'});
+  #print "\$bindir: $bindir\n";
+
+  #print "\$ENV{'PATH'}=\"$bindir:\$ENV{'PATH'}\"\n";
+  $ENV{'PATH'}="$bindir:$ENV{'PATH'}";
+
+  #print "exec: mysqld $ENV{'MYSQLD_ARGS'}\n";
+  system("mysqld $ENV{'MYSQLD_ARGS'}");
+
+  open(MYSQLD_LOG, $ENV{'MYSQLD_LOG'});
+  while(<MYSQLD_LOG>)
+  {
+    if (/Warning/||/ERROR/) { print; }
+  }
+  close(MYSQLD_LOG);
+
+EOF
+--remove_file $MYSQLD_LOG
+
+let MYSQLD_OUT= $MYSQL_TMP_DIR/server.out;
+--echo #
+--echo # Try invalid --log-error
+--echo #
+--error 1
+--exec $MYSQLD --no-defaults --explicit_defaults_for_timestamp --skip-ssl --datadir=$DDIR --log-error=/ >$MYSQLD_OUT 2>&1
+
+--echo # Analyze output with perl
+--perl
+  use strict;
+  open(MYSQLD_OUT, $ENV{'MYSQLD_OUT'});
+  while(<MYSQLD_OUT>)
+  {
+    if (/\[ERROR\] Could not open .+ for error logging/)
+    {
+      print "# Result: OK\n";
+    }
+  }
+  close(MYSQLD_OUT);
+EOF
+
+
+--echo #
+--echo # Try -D as shortcut for --daemonize option with invalid --log-error
+--echo #
+--error 1
+--exec $MYSQLD $DEFARGS -D --datadir=$DDIR --log-error=/ >$MYSQLD_OUT 2>&1
+
+--perl
+  use strict;
+  open(MYSQLD_OUT, $ENV{'MYSQLD_OUT'});
+  while(<MYSQLD_OUT>)
+  {
+    if (/\[ERROR\] Could not open .+ for error logging/)
+    {
+      print "# Found expected error from lanucher process\n";
+    }
+    if (/\[ERROR\] Failed to start mysqld daemon\. Check mysqld error log\./)
+    {
+      print "# Found expected error from daemon process\n";
+    }
+  }
+  close(MYSQLD_OUT);
+EOF
+
+
+--echo #
+--echo # Try using -D with relative path
+--echo #
+#--error 1
+
+--perl
+  use strict;
+  use File::Basename;
+  my $mysqld= $ENV{'MYSQLD'};
+  my $mysql_tmp_dir= $ENV{'MYSQL_TMP_DIR'};
+  my $defargs= $ENV{'DEFARGS'};
+
+  chdir($mysql_tmp_dir) || die "# Could not chdir to '$mysql_tmp_dir': $!";
+  system("$mysqld $defargs -D --datadir=./basedir_test --log-error=$ENV{'MYSQLD_LOG'} --init-file=$ENV{'SHUTDOWN_SQL'} >$ENV{'MYSQLD_OUT'} 2>&1"); 
+
+  open(MYSQLD_LOG, $ENV{'MYSQLD_LOG'});
+  while(<MYSQLD_LOG>)
+  {
+    if (/Warning/||/ERROR/) { print; }
+  }
+  close(MYSQLD_LOG);
+
+  open(MYSQLD_OUT, $ENV{'MYSQLD_OUT'});
+  while(<MYSQLD_OUT>)
+  {
+    if (/Warning/||/ERROR/) { print; }
+  }
+  close(MYSQLD_OUT);
+EOF
+
+
+--remove_file $SHUTDOWN_SQL
+--force-rmdir $DDIR
+
+--echo # Restart mysqld of mtr
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc

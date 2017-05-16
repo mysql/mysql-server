@@ -193,7 +193,7 @@ The following options may be given as the first argument:
  --console           Write error output on screen; don't remove the console
  window on windows.
  --core-file         Write core on errors.
- --daemonize         Run mysqld as sysv daemon
+ -D, --daemonize     Run mysqld as sysv daemon
  -h, --datadir=name  Path to the database root directory
  --date-format=name  The DATE format (ignored)
  --datetime-format=name 
@@ -347,7 +347,7 @@ The following options may be given as the first argument:
  --init-file=name    Read SQL commands from this file at startup
  --init-slave=name   Command(s) that are executed by a slave server each time
  the SQL thread starts
- --initialize        Create the default database and exit. Create a super user
+ -I, --initialize    Create the default database and exit. Create a super user
  with a random expired password and store it into the log.
  --initialize-insecure 
  Create the default database and exit. Create a super user

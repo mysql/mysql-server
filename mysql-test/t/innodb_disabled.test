@@ -34,21 +34,19 @@ perl;
     my $search_pattern1= $ENV{'SEARCH_PATTERN1'}  or die "SEARCH_PATTERN1 not set";
     my $minimum_matches= $ENV{'MINIMUM_MATCHES'} or die "MINIMUM_MATCHES not set";
     open(FILE, "$search_file") or die("Unable to open '$search_file': $!\n");
-    read(FILE, my $file_content, 10000000, 0);
+    my $count = 0;
+    while (<FILE>) {
+      if (m{$search_pattern}) { ++$count; }
+      if (m{$search_pattern1}) {
+        die ("# ERROR: The file '$search_file' contains \n".
+           "#        the unexpected pattern '$search_pattern1' at $_\n");
+      }
+    }
     close(FILE);
-    my $file_content1= $file_content;
-    my $count = ( $file_content1 =~ s{$search_pattern}{}gm );
-    if ( not $count >= $minimum_matches ) {
+    if ( $count < $minimum_matches ) {
        die("# ERROR: The file '$search_file' does not contain \n".
            "#        the expected pattern '$search_pattern' often enough.\n".
-           "#        Found: $count    Expected: >= $minimum_matches\n".
-           "# File content begin ===========\n$file_content\n".
-           "# File content end   ===========\n");
-    }
-    my $count = ( $file_content1 =~ s{$search_pattern1}{}gm );
-    if ( $count > 0 ) {
-       die("# ERROR: The file '$search_file' contains \n".
-           "#        the unexpected pattern '$search_pattern1'.\n");
+           "#        Found: $count    Expected: >= $minimum_matches");
     }
 EOF
 

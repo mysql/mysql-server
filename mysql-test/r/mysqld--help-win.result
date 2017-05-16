@@ -346,7 +346,7 @@ The following options may be given as the first argument:
  --init-file=name    Read SQL commands from this file at startup
  --init-slave=name   Command(s) that are executed by a slave server each time
  the SQL thread starts
- --initialize        Create the default database and exit. Create a super user
+ -I, --initialize    Create the default database and exit. Create a super user
  with a random expired password and store it into the log.
  --initialize-insecure 
  Create the default database and exit. Create a super user

@@ -179,6 +179,15 @@ UNINSTALL COMPONENT "file://component_log_sink_json";
    use strict;
    use JSON;
 
+   # Entries matching the below patterns are logged before the
+   # option '--log-error-verbosity' is processed. Hence, they
+   # need to be ignored during verbosity checks.
+   my @ignore_patterns=
+   ("\\[Warning\\] Changed limits",
+    "\\[Note\\] Running in sandbox",
+    "\\[Note\\] Basedir set to");
+
+   my $ignore_regex= "(". join('|', @ignore_patterns). ")";
    # --------
    # TEST 1.1
    # --------
@@ -188,13 +197,14 @@ UNINSTALL COMPONENT "file://component_log_sink_json";
    open(FILE, "$file") or die("Unable to open $file: $!");
    while (<FILE>) {
      my $line = $_;
+     next if $line =~ /$ignore_regex/;
+
      if ($line =~ /\[Note\]/ or $line =~ /\[Warning\]/) {
        # '[Warning] Changed limits' is shown in-spite of verbosity being 1
-       if ($line !~ /Changed limits/) {
-         $result=1;
-         }
-       }
+       print;
+       $result=1;
      }
+   }
    close(FILE);
    if($result) {
    print "[ FAIL ] Error log contains WARNING's/NOTE's even with --log-error-verbosity=1\n";
@@ -213,8 +223,11 @@ UNINSTALL COMPONENT "file://component_log_sink_json";
    open(FILE, "$file") or die("Unable to open $file: $!");
    while (<FILE>) {
      my $line = $_;
+     next if $line =~ /$ignore_regex/;
+
      if ($line =~ /\[Note\]/) {
        $result_note=1;
+       print;
        }
      if ($line =~ /\[Warning\]/) {
        $result_warning=1;
@@ -267,7 +280,10 @@ UNINSTALL COMPONENT "file://component_log_sink_json";
    open(FILE, "$file") or die("Unable to open $file: $!");
    while (<FILE>) {
      my $line = $_;
+     next if $line =~ /$ignore_regex/;
+
      if ($line =~ /\[Note\]/) {
+       print;
        $result=1;
        }
      }
@@ -288,11 +304,11 @@ UNINSTALL COMPONENT "file://component_log_sink_json";
    open(FILE, "$file") or die("Unable to open $file: $!");
    while (<FILE>) {
      my $line = $_;
+     next if $line =~ /$ignore_regex/;
+
      if ($line =~ /\[Note\]/ or $line =~ /\[Warning\]/) {
-       # '[Warning] Changed limits' is shown in-spite of verbosity being 1
-       if ($line !~ /Changed limits/) {
+         print;
          $result=1;
-         }
        }
      }
    close(FILE);
@@ -312,7 +328,10 @@ UNINSTALL COMPONENT "file://component_log_sink_json";
    open(FILE, "$file") or die("Unable to open $file: $!");
    while (<FILE>) {
      my $line = $_;
+     next if $line =~ /$ignore_regex/;
+
      if ($line =~ /\[Note\]/) {
+       print;
        $result=1;
        }
      }

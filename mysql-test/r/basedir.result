@@ -1,0 +1,28 @@
+#
+# Testing wl#10441: Add mysqld_safe-functionality to server
+#
+# Shutdown mysqld which is started by mtr.
+# Run -I on a new datadir
+#
+# Deduce --basedir when using full path to mysqld
+#
+#
+# Deduce --basedir when using path relative to CWD
+#
+#
+# Deduce --basedir when using bare executable name (PATH lookup)
+#
+#
+# Try invalid --log-error
+#
+# Analyze output with perl
+# Result: OK
+#
+# Try -D as shortcut for --daemonize option with invalid --log-error
+#
+# Found expected error from lanucher process
+# Found expected error from daemon process
+#
+# Try using -D with relative path
+#
+# Restart mysqld of mtr

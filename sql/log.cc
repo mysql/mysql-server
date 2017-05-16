@@ -1802,9 +1802,8 @@ bool open_error_log(const char *filename)
   */
   if (my_stat(filename, &f_stat, MYF(0)))
   {
-    if (!(f_stat.st_mode & MY_S_IWRITE))
+    if (my_access(filename, W_OK))
     {
-      errno= EACCES;
       return true;
     }
   }
