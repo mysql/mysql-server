@@ -8322,6 +8322,27 @@ ha_innobase::ft_init_ext(
 }
 
 /*****************************************************************//**
+Copy a cached MySQL row.
+If requested, also avoids overwriting non-read columns.
+@param[out]     buf             Row in MySQL format.
+@param[in]      cached_row      Which row to copy.
+@param[in]	rec_len		Record length. */
+void
+ha_innobase::copy_cached_row(
+	uchar*		buf,
+	const uchar*    cached_row,
+	uint		rec_len)
+{
+	if (prebuilt->keep_other_fields_on_keyread) {
+                row_sel_copy_cached_fields_for_mysql(buf, cached_row,
+                        prebuilt);
+        } else {
+                memcpy(buf, cached_row, rec_len);
+        }
+}
+
+
+/*****************************************************************//**
 Set up search tuple for a query through FTS_DOC_ID_INDEX on
 supplied Doc ID. This is used by MySQL to retrieve the documents
 once the search result (Doc IDs) is available */

@@ -2,7 +2,7 @@
 #define HANDLER_INCLUDED
 
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -2309,6 +2309,20 @@ public:
     by another transaction, the engine may try an optimistic read of
     the last committed row value under the cursor.
   */
+ /**
+   Copy a cached row.
+   This is currently implemented only in innodb for supporting
+   HA_EXTRA_KEYREAD_PRESERVE_FIELDS.
+   Used when copying a row from the record priority queue to
+   the return buffer. For some engines, like InnoDB, only
+   marked columns must be copied,to preserve non-read columns.
+
+   @param[out]	to_rec		Buffer to copy to.
+   @param[in]	from_rec	Buffer to copy from.
+   @param[in]	rec_length	Record length
+  */
+  virtual void copy_cached_row(uchar *to_rec, const uchar *from_rec, uint rec_length)
+	{ memcpy(to_rec, from_rec, rec_length); }
   virtual void try_semi_consistent_read(bool) {}
   virtual void unlock_row() {}
   virtual int start_stmt(THD *thd, thr_lock_type lock_type) {return 0;}
