@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1989,6 +1989,13 @@ int READ_INFO::read_xml()
       
     case '>': /* end tag - read tag value */
       in_tag= false;
+      /* Skip all whitespaces */
+      while (' ' == (chr= my_tospace(GET)));
+      /*
+        Push the first non-whitespace char back to Stack. This char would be
+        read in the upcoming call to read_value()
+       */
+      PUSH(chr);
       chr= read_value('<', &value);
       if(chr == my_b_EOF)
         goto found_eof;
