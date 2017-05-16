@@ -193,5 +193,20 @@ DROP TABLE t1,t2,t3,t4;
 # end of test cases for intersect index_merge optimization technique
 #
 
+--echo #
+--echo # Bug#24829050 INDEX_MERGE_INTERSECTION OPTIMIZATION CAUSES
+--echo #              WRONG QUERY RESULTS
+--echo #
+CREATE TABLE t1 (ID int, PRIMARY KEY (ID));
+CREATE TABLE t2 (ID int, c1 int DEFAULT NULL, c2 int, PRIMARY KEY (ID),
+                 KEY c1_INDEX (c1), KEY c2_INDEX (c2));
 
+insert into t1 values (1);
+insert into t2 values (1,1,20),(2,1,20),(3,1,30),(4,2,30);
+
+SELECT * FROM t1 WHERE t1.ID=1 AND EXISTS (
+                 SELECT 1 FROM t2 WHERE t2.c2=30 AND t2.c1=t1.ID);
+
+DROP TABLE t1;
+DROP TABLE t2;
 
