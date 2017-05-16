@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -6086,7 +6086,10 @@ void ha_partition::return_top_record(uchar *buf)
   uchar *rec_buffer= key_buffer + m_rec_offset;
 
   part_id= uint2korr(key_buffer);
-  memcpy(buf, rec_buffer, m_rec_length);
+  /* Do column copy to avoid overwriting of non read columns
+  specific to table with innodb engine */
+  handler *file= m_file[part_id];
+  file->copy_cached_row(buf, rec_buffer, m_rec_length);
   m_last_part= part_id;
   m_top_entry= part_id;
 }
