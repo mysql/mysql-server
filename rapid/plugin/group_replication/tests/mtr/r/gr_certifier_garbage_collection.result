@@ -50,7 +50,7 @@ include/assert.inc ['Transactions_committed_all_members must be equal to 8a94f35
 #     8a94f357-aab4-11df-86ab-c80aa9422222:1-4
 include/assert.inc [GTID_EXECUTED must contain first two transactions]
 UPDATE t1 SET c1=2 WHERE c1=1;
-ERROR HY000: Plugin instructed the server to rollback the current transaction.
+ERROR 40000: Plugin instructed the server to rollback the current transaction.
 include/assert.inc ['There is a value 1 in table t1']
 include/assert.inc ['There is no value 2 in table t1']
 

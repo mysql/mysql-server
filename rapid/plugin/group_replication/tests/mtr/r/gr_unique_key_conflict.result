@@ -67,7 +67,7 @@ include/sync_slave_sql_with_master.inc
 #    remote server was ordered first. If the test case is
 #    is positive scenario, no error will be seen here.
 [connection server_1]
-ERROR HY000: Plugin instructed the server to rollback the current transaction.
+ERROR 40000: Plugin instructed the server to rollback the current transaction.
 [connection server_1]
 SET @@GLOBAL.DEBUG=@debug_save;
 ############################################################

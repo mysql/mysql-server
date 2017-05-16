@@ -25,7 +25,7 @@ SET @debug_save= @@GLOBAL.DEBUG;
 SET @@GLOBAL.DEBUG= '+d,certifier_force_1_negative_certification';
 SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-bbbbbbbbbbbb:1';
 INSERT INTO t1 VALUES (1);
-ERROR HY000: Plugin instructed the server to rollback the current transaction.
+ERROR 40000: Plugin instructed the server to rollback the current transaction.
 include/assert.inc ['GTID_OWNED is empty']
 SET GTID_NEXT= AUTOMATIC;
 [connection server2]

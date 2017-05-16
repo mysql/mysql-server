@@ -7377,7 +7377,7 @@ ER_PREVENTS_VARIABLE_WITHOUT_RBR
 ER_RUN_HOOK_ERROR
   eng "Error on observer while running replication hook '%s'."
 
-ER_TRANSACTION_ROLLBACK_DURING_COMMIT
+ER_TRANSACTION_ROLLBACK_DURING_COMMIT 40000
   eng "Plugin instructed the server to rollback the current transaction."
 
 ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED

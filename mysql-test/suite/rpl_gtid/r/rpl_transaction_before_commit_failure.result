@@ -21,7 +21,7 @@ SET gtid_next='automatic';
 SET @@GLOBAL.DEBUG= '+d,force_negative_certification_outcome';
 SET gtid_next='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:2';
 COMMIT;
-ERROR HY000: Plugin instructed the server to rollback the current transaction.
+ERROR 40000: Plugin instructed the server to rollback the current transaction.
 SET @@GLOBAL.DEBUG= @debug_saved;
 ROLLBACK;
 SET gtid_next='automatic';

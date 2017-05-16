@@ -45,7 +45,7 @@ SET @@GLOBAL.DEBUG= @debug_save;
 #    since transactions are conflicting and server2 was
 #    ordered first.
 [connection server_1]
-ERROR HY000: Plugin instructed the server to rollback the current transaction.
+ERROR 40000: Plugin instructed the server to rollback the current transaction.
 XA COMMIT 'trx';
 ERROR XAE04: XAER_NOTA: Unknown XID
 

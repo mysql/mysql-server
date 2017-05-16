@@ -56,7 +56,7 @@ include/start_group_replication.inc
 # being concurrent in all members.
 [connection server2]
 INSERT INTO t1 VALUES(1,2);
-ERROR HY000: Plugin instructed the server to rollback the current transaction.
+ERROR 40000: Plugin instructed the server to rollback the current transaction.
 include/gr_start_applier_sql_thread.inc
 START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
 include/assert.inc ['The value of Count_conflicts_detected should be 1 on server 2']

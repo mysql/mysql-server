@@ -33,7 +33,7 @@ INSERT INTO t1 VALUES (2);
 [connection server_1]
 include/stop_group_replication.inc
 [connection server1]
-ERROR HY000: Plugin instructed the server to rollback the current transaction.
+ERROR 40000: Plugin instructed the server to rollback the current transaction.
 #
 # 5. Clean up.
 #
