@@ -6962,18 +6962,17 @@ sub create_debug_statement {
   my $args= shift;
   my $input= shift;
 
-  # Put $args into a single string
-  my $str= join(" ", @$$args);
-  my $runline= $input ? "run $str < $input" : "run $str";
-
-  # add quotes to escape ; in plugin_load option
-  my $pos1 = index($runline, "--plugin_load=");
-  if ( $pos1 != -1 ) {
-    my $pos2 = index($runline, " ",$pos1);
-    substr($runline,$pos1+14,0) = "\"";
-    substr($runline,$pos2+1,0) = "\"";
+  # Put arguments into a single string and enclose values which
+  # contain metacharacters in quotes
+  my $runline;
+  for my $arg (@$$args)
+  {
+    $runline.= ( $arg =~ /^(--[a-z0-9_-]+=)(.*[^A-Za-z_0-9].*)$/
+                 ? "$1\"$2\""
+                 : $arg )." ";
   }
 
+  $runline= $input ? "run $runline < $input" : "run $runline";
   return $runline;
 }
 
