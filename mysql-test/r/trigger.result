@@ -2744,7 +2744,7 @@ UPDATE t1 SET b= 2;
 SELECT * FROM t1;
 a	b
 2017-04-13 08:08:08	2
-# x contains the old timestamp because of the abscence of
+# x contains the old timestamp because of the absence of
 # ON UPDATE clause for the timestamp field.
 SELECT @x;
 @x
