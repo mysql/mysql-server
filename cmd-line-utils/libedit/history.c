@@ -827,7 +827,7 @@ history_save(TYPE(History) *h, const char *fname)
 			}
 			ptr = nptr;
 		}
-		(void) strvis(ptr, str, VIS_WHITE);
+		(void) strvis(ptr, str, VIS_SAFE);
 		(void) fprintf(fp, "%s\n", ptr);
 	}
 oomem:
