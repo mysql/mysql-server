@@ -5360,9 +5360,10 @@ execute_signals(thr_data *selfptr,
     /* Must update original buffer so signal dump will see it. */
     s->theSignalId = selfptr->m_signal_id_counter++;
     memcpy(&sig->header, s, 4*siglen);
-    sig->m_sectionPtrI[0] = read_buffer->m_data[read_pos + siglen + 0];
-    sig->m_sectionPtrI[1] = read_buffer->m_data[read_pos + siglen + 1];
-    sig->m_sectionPtrI[2] = read_buffer->m_data[read_pos + siglen + 2];
+    for(Uint32 i = 0; i < seccnt; i++)
+    {
+      sig->m_sectionPtrI[i] = read_buffer->m_data[read_pos + siglen + i];
+    }
 
     read_pos += siglen + seccnt;
 #if SIZEOF_CHARP == 8
