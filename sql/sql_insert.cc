@@ -1659,7 +1659,7 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
         restore_record(table,record[1]);
         DBUG_ASSERT(update->get_changed_columns()->elements ==
                     update->update_values->elements);
-        if (fill_record_n_invoke_before_triggers(thd, info,
+        if (fill_record_n_invoke_before_triggers(thd, update,
                                                  *update->get_changed_columns(),
                                                  *update->update_values,
                                                  table, TRG_EVENT_UPDATE, 0))
