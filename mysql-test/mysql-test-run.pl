@@ -2588,15 +2588,6 @@ sub environment_setup {
     push(@ld_library_paths, "$path_client_libdir");
   }
 
-  # --------------------------------------------------------------------------
-  # Add the path where libndbclient can be found
-  # --------------------------------------------------------------------------
-  if ( $ndbcluster_enabled )
-  {
-    push(@ld_library_paths,  
-	 "$basedir/storage/ndb/src");
-  }
-
   # Plugin settings should no longer be added here, instead
   # place definitions in include/plugin.defs.
   # See comment in that file for details.
