@@ -295,7 +295,6 @@ struct Page8 {
   bool checkScanContainer(Uint32 conptr) const;
   Uint16 checkScans(Uint16 scanmask, Uint32 conptr) const;
 }; /* p2c: size = 8192 bytes */
-
   typedef Ptr<Page8> Page8Ptr;
 
 struct Page8SLinkMethods
@@ -312,11 +311,6 @@ struct ContainerPageLinkMethods
   static Uint32 getPrev(Page8 const& item) { return item.word32[Page8::PREV_PAGE]; }
   static void setPrev(Page8& item, Uint32 prev) { item.word32[Page8::PREV_PAGE] = prev; }
 };
-
-typedef SLCFifoList<Page8,Dbacc,Page8,Page8SLinkMethods> Page8List;
-typedef LocalSLCFifoList<Page8,Dbacc,Page8,Page8SLinkMethods> LocalPage8List;
-typedef DLCFifoList<Page8,Dbacc,Page8,ContainerPageLinkMethods> ContainerPageList;
-typedef LocalDLCFifoList<Page8,Dbacc,Page8,ContainerPageLinkMethods> LocalContainerPageList;
 
 struct Page32
 {
@@ -360,6 +354,21 @@ public:
     void releasePage8(Page32_pool& pool, Page8Ptr p);
     bool haveFreePage8(int sub_page_id) const;
   };
+
+class Page8_pool
+{
+public:
+  explicit Page8_pool(Page32_pool& pool): m_page_pool(pool) { }
+  void getPtr(Ptr<Page8>& page) const;
+  void getPtrForce(Ptr<Page8>& page) const;
+private:
+  Page32_pool& m_page_pool;
+};
+
+typedef SLCFifoList<Page8,Page8_pool,Page8,Page8SLinkMethods> Page8List;
+typedef LocalSLCFifoList<Page8,Page8_pool,Page8,Page8SLinkMethods> LocalPage8List;
+typedef DLCFifoList<Page8,Page8_pool,Page8,ContainerPageLinkMethods> ContainerPageList;
+typedef LocalDLCFifoList<Page8,Page8_pool,Page8,ContainerPageLinkMethods> LocalContainerPageList;
 
 /* --------------------------------------------------------------------------------- */
 /* FRAGMENTREC. ALL INFORMATION ABOUT FRAMENT AND HASH TABLE IS SAVED IN FRAGMENT    */
@@ -1084,9 +1093,6 @@ private:
   void debug_lh_vars(const char* where) const {}
 #endif
 
-public:
-  void getPtr(Ptr<Page8>& page) const;
-  void getPtrForce(Ptr<Page8>& page) const;
 private:
   // Variables
 /* --------------------------------------------------------------------------------- */
@@ -1129,6 +1135,7 @@ private:
   Uint32 cnoOfAllocatedPagesMax;
 
   Page32_pool c_page_pool;
+  Page8_pool c_page8_pool;
   bool c_allow_use_of_spare_pages;
 /* --------------------------------------------------------------------------------- */
 /* ROOTFRAGMENTREC                                                                   */
@@ -1416,16 +1423,16 @@ inline void Dbacc::ScanRec::moveScanBit(Uint32 toptr, Uint32 fromptr)
   }
 }
 
-inline void Dbacc::getPtr(Ptr<Page8>& page) const
+inline void Dbacc::Page8_pool::getPtr(Ptr<Page8>& page) const
 {
-  ndbrequire(page.i != RNIL);
+  require(page.i != RNIL);
   Page32Ptr ptr;
   ptr.i = page.i >> 2;
-  c_page_pool.getPtr(ptr);
+  m_page_pool.getPtr(ptr);
   page.p = &ptr.p->page8[page.i & 3];
 }
 
-inline void Dbacc::getPtrForce(Ptr<Page8>& page) const
+inline void Dbacc::Page8_pool::getPtrForce(Ptr<Page8>& page) const
 {
   if (page.i == RNIL)
   {
@@ -1434,7 +1441,7 @@ inline void Dbacc::getPtrForce(Ptr<Page8>& page) const
   }
   Page32Ptr ptr;
   ptr.i = page.i >> 2;
-  c_page_pool.getPtr(ptr);
+  m_page_pool.getPtr(ptr);
   page.p = &ptr.p->page8[page.i & 3];
 }
 
