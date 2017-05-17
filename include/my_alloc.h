@@ -180,20 +180,6 @@ inline void operator delete[](void*, MEM_ROOT*,
 {
   /* never called */
 }
-
-template<class T>
-inline void destroy(T *ptr) { if (ptr != nullptr) ptr->~T(); }
-
-/*
-  For std::unique_ptr with objects allocated on a MEM_ROOT, you shouldn't use
-  Default_deleter; use this deleter instead.
-*/
-template<class T>
-class Destroy_only
-{
-public:
-  void operator() (T *ptr) const { destroy(ptr); }
-};
 #endif  // __cplusplus
 
 #endif

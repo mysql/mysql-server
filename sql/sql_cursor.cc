@@ -192,7 +192,7 @@ bool mysql_open_cursor(THD *thd, Query_result *result,
   }
 
 end:
-  destroy(result_materialize);
+  delete result_materialize;
   return rc;
 }
 

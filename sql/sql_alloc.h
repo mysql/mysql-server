@@ -52,6 +52,9 @@ public:
   Sql_alloc() {}
   ~Sql_alloc() {}
 
+  static void operator delete(void *ptr MY_ATTRIBUTE((unused)),
+                              size_t size MY_ATTRIBUTE((unused)))
+  { TRASH(ptr, size); }
   static void operator delete(void*, MEM_ROOT*,
                               const std::nothrow_t&) throw ()
   { /* never called */ }
@@ -72,11 +75,6 @@ public:
                             const std::nothrow_t &arg MY_ATTRIBUTE((unused))
                             = std::nothrow) throw ()
   { return alloc_root(mem_root, size); }
-
-protected:
-  static void operator delete(void *ptr MY_ATTRIBUTE((unused)),
-                              size_t size MY_ATTRIBUTE((unused)))
-  { TRASH(ptr, size); }
 };
 
 #endif // SQL_ALLOC_INCLUDED

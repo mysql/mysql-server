@@ -1948,9 +1948,9 @@ sp_head::~sp_head()
   DBUG_ASSERT(!m_parser_data.is_parsing_sp_body());
 
   for (uint ip = 0 ; (i = get_instr(ip)) ; ip++)
-    ::destroy(i);
+    delete i;
 
-  ::destroy(m_root_parsing_ctx);
+  delete m_root_parsing_ctx;
 
   free_items();
 
@@ -2565,7 +2565,7 @@ err_with_cleanup:
 
   m_security_ctx.restore_security_context(thd, save_ctx);
 
-  ::destroy(trigger_runtime_ctx);
+  delete trigger_runtime_ctx;
   call_arena.free_items();
   free_root(&call_mem_root, MYF(0));
   thd->sp_runtime_ctx= parent_sp_runtime_ctx;
@@ -2802,7 +2802,7 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   m_security_ctx.restore_security_context(thd, save_security_ctx);
 
 err_with_cleanup:
-  ::destroy(func_runtime_ctx);
+  delete func_runtime_ctx;
   call_arena.free_items();
   free_root(&call_mem_root, MYF(0));
   thd->sp_runtime_ctx= parent_sp_runtime_ctx;
@@ -2865,7 +2865,7 @@ bool sp_head::execute_procedure(THD *thd, List<Item> *args)
     thd->sp_runtime_ctx= sp_runtime_ctx_saved;
 
     if (!sp_runtime_ctx_saved)
-      ::destroy(parent_sp_runtime_ctx);
+      delete parent_sp_runtime_ctx;
 
     DBUG_RETURN(true);
   }
@@ -3059,9 +3059,9 @@ bool sp_head::execute_procedure(THD *thd, List<Item> *args)
     m_security_ctx.restore_security_context(thd, save_security_ctx);
 
   if (!sp_runtime_ctx_saved)
-    ::destroy(parent_sp_runtime_ctx);
+    delete parent_sp_runtime_ctx;
 
-  ::destroy(proc_runtime_ctx);
+  delete proc_runtime_ctx;
   thd->sp_runtime_ctx= sp_runtime_ctx_saved;
   thd->utime_after_lock= utime_before_sp_exec;
 
@@ -3244,7 +3244,7 @@ void sp_head::optimize()
   {
     if (!i->opt_is_marked())
     {
-      ::destroy(i);
+      delete i;
       src+= 1;
     }
     else

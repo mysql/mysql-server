@@ -1790,7 +1790,7 @@ ndb_serialize_cond(const Item *item, void *arg)
           // Pop rewrite stack
           context->rewrite_stack=  rewrite_context->next;
           rewrite_context->next= NULL;
-          destroy(rewrite_context);
+          delete(rewrite_context);
         }
       }
     }
@@ -1808,7 +1808,8 @@ ha_ndbcluster_cond::ha_ndbcluster_cond()
 
 ha_ndbcluster_cond::~ha_ndbcluster_cond()
 {
-  destroy(m_cond_stack);
+  if (m_cond_stack)
+    delete m_cond_stack;
 }
 
 
@@ -1855,7 +1856,7 @@ ha_ndbcluster_cond::cond_pop()
   {
     m_cond_stack= ndb_cond_stack->next;
     ndb_cond_stack->next= NULL;
-    destroy(ndb_cond_stack);
+    delete ndb_cond_stack;
   }
 }
 

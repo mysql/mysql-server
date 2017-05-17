@@ -212,23 +212,22 @@ dd::String_type get_sql_type_by_create_field(TABLE *table,
   DBUG_ENTER("get_sql_type_by_create_field");
 
   // Create Field object from Create_field
-  std::unique_ptr<Field, Destroy_only<Field>>
-    fld(make_field(table->s,
-                   0,
-                   field->length,
-                   NULL,
-                   0,
-                   field->sql_type,
-                   field->charset,
-                   field->geom_type,
-                   field->auto_flags,
-                   field->interval,
-                   field->field_name,
-                   field->maybe_null,
-                   field->is_zerofill,
-                   field->is_unsigned,
-                   field->decimals,
-                   field->treat_bit_as_char, 0));
+  std::unique_ptr<Field> fld(make_field(table->s,
+                                        0,
+                                        field->length,
+                                        NULL,
+                                        0,
+                                        field->sql_type,
+                                        field->charset,
+                                        field->geom_type,
+                                        field->auto_flags,
+                                        field->interval,
+                                        field->field_name,
+                                        field->maybe_null,
+                                        field->is_zerofill,
+                                        field->is_unsigned,
+                                        field->decimals,
+                                        field->treat_bit_as_char, 0));
   fld->init(table);
 
   // Read column display type.
@@ -268,23 +267,22 @@ static void prepare_default_value_string(uchar *buf,
                                          String *def_value)
 {
   // Create a fake field with the default value buffer 'buf'.
-  std::unique_ptr<Field, Destroy_only<Field>>
-    f(make_field(table->s,
-                 buf + 1,
-                 field.length,
-                 buf,
-                 0,
-                 field.sql_type,
-                 field.charset,
-                 field.geom_type,
-                 field.auto_flags,
-                 field.interval,
-                 field.field_name,
-                 field.maybe_null,
-                 field.is_zerofill,
-                 field.is_unsigned,
-                 field.decimals,
-                 field.treat_bit_as_char, 0));
+  std::unique_ptr<Field > f(make_field(table->s,
+                                       buf + 1,
+                                       field.length,
+                                       buf,
+                                       0,
+                                       field.sql_type,
+                                       field.charset,
+                                       field.geom_type,
+                                       field.auto_flags,
+                                       field.interval,
+                                       field.field_name,
+                                       field.maybe_null,
+                                       field.is_zerofill,
+                                       field.is_unsigned,
+                                       field.decimals,
+                                       field.treat_bit_as_char, 0));
   f->init(table);
 
   if (col_obj->has_no_default())
@@ -961,23 +959,22 @@ bool is_candidate_primary_key(THD *thd,
 
     /* Prepare Field* object from Create_field */
 
-    std::unique_ptr<Field, Destroy_only<Field>>
-      table_field(make_field(table.s,
-                             0,
-                             cfield->length,
-                             nullptr,
-                             0,
-                             cfield->sql_type,
-                             cfield->charset,
-                             cfield->geom_type,
-                             cfield->auto_flags,
-                             cfield->interval,
-                             cfield->field_name,
-                             cfield->maybe_null,
-                             cfield->is_zerofill,
-                             cfield->is_unsigned,
-                             cfield->decimals,
-                             cfield->treat_bit_as_char, 0));
+    std::unique_ptr<Field> table_field(make_field(table.s,
+                                         0,
+                                         cfield->length,
+                                         nullptr,
+                                         0,
+                                         cfield->sql_type,
+                                         cfield->charset,
+                                         cfield->geom_type,
+                                         cfield->auto_flags,
+                                         cfield->interval,
+                                         cfield->field_name,
+                                         cfield->maybe_null,
+                                         cfield->is_zerofill,
+                                         cfield->is_unsigned,
+                                         cfield->decimals,
+                                         cfield->treat_bit_as_char, 0));
     table_field->init(&table);
 
     if (is_suitable_for_primary_key(key_part, table_field.get()) == false)

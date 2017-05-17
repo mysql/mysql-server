@@ -123,11 +123,12 @@ protected:
   {
     delete ctx;
 
-    // Must destroy fields and handler explicitly to avoid gmock warning
+    // Must delete fields and handler explicitly to avoid gmock warning
     for (uint i= 0; i < table->s->fields; ++i)
-      destroy(table->field[i]);
+      if (table->field[i])
+        delete table->field[i];
 
-    destroy(table->file);
+    delete table->file;
     delete[] table->s->default_values;
     delete[] table->record[0];
     delete[] table->record[1];

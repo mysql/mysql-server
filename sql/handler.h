@@ -2276,7 +2276,7 @@ public:
 
   ~Alter_inplace_info()
   {
-    destroy(handler_ctx);
+    delete handler_ctx;
   }
 
   /**

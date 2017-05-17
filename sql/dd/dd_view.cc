@@ -247,7 +247,7 @@ static bool fill_dd_view_columns(THD *thd,
     ~Context_handler()
     {
       m_thd->variables.sql_mode= m_sql_mode;
-      destroy(m_file);
+      delete m_file;
     }
   private:
     // Thread Handle.

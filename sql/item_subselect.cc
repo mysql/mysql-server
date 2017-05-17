@@ -171,7 +171,7 @@ void Item_subselect::cleanup()
     if (engine)
     {
       engine->cleanup();
-      destroy(engine);
+      delete engine;
     }
     engine= old_engine;
     old_engine= 0;
@@ -386,7 +386,7 @@ bool Item_in_subselect::finalize_materialization_transform(JOIN *join)
       Delete all materialization-related objects, and return error.
     */
     new_engine->cleanup();
-    destroy(new_engine);
+    delete new_engine;
     return true;
   }
   if (change_engine(new_engine))
@@ -436,7 +436,7 @@ void Item_in_subselect::cleanup()
 
 Item_subselect::~Item_subselect()
 {
-  destroy(engine);
+  delete engine;
 }
 
 

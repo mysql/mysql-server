@@ -662,7 +662,7 @@ sp_returns_type(THD *thd, String &result, sp_head *sp)
     }
   }
 
-  destroy(field);
+  delete field;
 }
 
 

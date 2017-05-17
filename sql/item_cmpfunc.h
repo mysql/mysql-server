@@ -1691,11 +1691,11 @@ public:
   void cleanup_arrays()
   {
     uint i;
-    destroy(array);
+    delete array;
     array= 0;
     for (i= 0; i <= (uint)DECIMAL_RESULT + 1; i++)
     {
-      destroy(cmp_items[i]);
+      delete cmp_items[i];
       cmp_items[i]= 0;
     }
   }
@@ -2147,7 +2147,7 @@ public:
   Item_equal(Item_equal *item_equal);
   virtual ~Item_equal()
   {
-    destroy(eval_item);
+    delete eval_item;
   }
 
   inline Item* get_const() { return const_item; }

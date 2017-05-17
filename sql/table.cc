@@ -538,7 +538,7 @@ void TABLE_SHARE::destroy()
   }
   if (m_part_info)
   {
-    ::destroy(m_part_info);
+    delete m_part_info;
     m_part_info= NULL;
   }
   /* The mutex is initialized only for shares that are part of the TDC */
@@ -2496,14 +2496,14 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
   bitmap_init(&share->all_set, bitmaps, share->fields, FALSE);
   bitmap_set_all(&share->all_set);
 
-  destroy(handler_file);
+  delete handler_file;
   my_free(extra_segment_buff);
   DBUG_RETURN (0);
 
  err:
   my_free(disk_buff);
   my_free(extra_segment_buff);
-  destroy(handler_file);
+  delete handler_file;
   delete share->name_hash;
   share->name_hash= nullptr;
 
@@ -3394,7 +3394,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
  err:
   if (! error_reported)
     open_table_error(thd, share, error, my_errno());
-  destroy(outparam->file);
+  delete outparam->file;
   if (outparam->part_info)
     free_items(outparam->part_info->item_free_list);
   if (outparam->vfield)
@@ -3434,11 +3434,11 @@ int closefrm(TABLE *table, bool free_share)
     {
       if ((*ptr)->gcol_info)
         free_items((*ptr)->gcol_info->item_free_list);
-      destroy(*ptr);
+      delete *ptr;
     }
     table->field= 0;
   }
-  destroy(table->file);
+  delete table->file;
   table->file= 0;				/* For easier errorchecking */
   if (table->part_info)
   {
@@ -3558,7 +3558,7 @@ static void open_table_error(THD *thd, TABLE_SHARE *share,
     strxmov(buff, share->normalized_path.str, datext, NullS);
     my_error(err_no,errortype, buff,
              db_errno, my_strerror(errbuf, sizeof(errbuf), db_errno));
-    destroy(file);
+    delete file;
     break;
   }
   default:				/* Better wrong error than none */
@@ -7869,7 +7869,7 @@ bool TABLE::has_columns_marked_for_partial_update() const
 
 void TABLE::cleanup_partial_update()
 {
-  destroy(m_partial_update_info);
+  delete m_partial_update_info;
   m_partial_update_info= nullptr;
 }
 

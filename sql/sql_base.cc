@@ -1040,7 +1040,7 @@ void intern_close_table(TABLE *table)
                         table));
 
   free_io_cache(table);
-  destroy(table->triggers);
+  delete table->triggers;
   if (table->file)                              // Not true if placeholder
     (void) closefrm(table, 1);			// close file
   my_free(table);
@@ -4285,7 +4285,7 @@ static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share,
 
     if (!d || d->check_n_load(thd, *table))
     {
-      destroy(d);
+      delete d;
       return true;
     }
 
@@ -4321,7 +4321,7 @@ static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share,
         LogErr(ERROR_LEVEL,
                ER_BINLOG_OOM_WRITING_DELETE_WHILE_OPENING_HEAP_TABLE,
                share->db.str, share->table_name.str);
-        destroy(entry->triggers);
+        delete entry->triggers;
         return TRUE;
       }
     }
@@ -4522,7 +4522,7 @@ static bool fix_row_type(THD *thd, TABLE_LIST *table_list)
     {
       row_type correct_row_type= file->get_real_row_type(&create_info);
       bool result= dd::fix_row_type(thd, table_def, correct_row_type);
-      destroy(file);
+      delete file;
 
       if (result)
       {
@@ -7150,7 +7150,7 @@ bool rm_temporary_table(THD *thd, handlerton *base, const char *path,
     error=1;
     LogErr(WARNING_LEVEL, ER_FAILED_TO_REMOVE_TEMP_TABLE, path, my_errno());
   }
-  destroy(file);
+  delete file;
   DBUG_RETURN(error);
 }
 

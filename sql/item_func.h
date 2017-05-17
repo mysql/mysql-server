@@ -3095,7 +3095,7 @@ public:
     if (!master && ft_handler)
     {
       ft_handler->please->close_search(ft_handler);
-      destroy(hints);
+      delete hints;
     }
     ft_handler= NULL;
     concat_ws= NULL;

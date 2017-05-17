@@ -8593,7 +8593,7 @@ Item_func_sp::cleanup()
 {
   if (sp_result_field)
   {
-    destroy(sp_result_field);
+    delete sp_result_field;
     sp_result_field= NULL;
   }
   m_sp= NULL;

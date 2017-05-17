@@ -290,7 +290,8 @@ TEST_F(FieldTest, FieldTimef)
   EXPECT_FALSE(f->get_timestamp(&tv, &warnings));
   EXPECT_EQ(123400, tv.tv_usec);
 
-  destroy(field);
+  delete field;
+
 }
 
 TEST_F(FieldTest, FieldTimefCompare)

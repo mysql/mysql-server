@@ -289,7 +289,7 @@ class SEL_ARG;
   As a special case, a nullptr SEL_ROOT means a range that is always true.
   This is true both for keys[] and next_key_part.
 */
-class SEL_ROOT
+class SEL_ROOT : public Sql_alloc
 {
 public:
   /**
@@ -672,7 +672,7 @@ public:
     SEL_ARG object we can construct during one range analysis invocation.
 */
 
-class SEL_ARG
+class SEL_ARG : public Sql_alloc
 {
 public:
   uint8 min_flag{0}, max_flag{0};
@@ -1590,13 +1590,13 @@ static bool sel_trees_can_be_ored(SEL_TREE *tree1, SEL_TREE *tree2,
 
 void range_optimizer_init()
 {
-  null_element= new SEL_ARG;
+  null_element= ::new SEL_ARG;
   null_element->color= SEL_ARG::BLACK;  // Don't trip up the test in test_rb_tree.
 }
 
 void range_optimizer_free()
 {
-  delete null_element;
+  ::delete null_element;
 }
 
 /*
@@ -2009,7 +2009,7 @@ QUICK_RANGE_SELECT::~QUICK_RANGE_SELECT()
                             free_file));
         file->ha_external_lock(current_thd, F_UNLCK);
         file->ha_close();
-        destroy(file);
+        delete file;
       }
     }
     if (alloc != nullptr)
@@ -2067,7 +2067,7 @@ QUICK_INDEX_MERGE_SELECT::~QUICK_INDEX_MERGE_SELECT()
   List_iterator_fast<QUICK_RANGE_SELECT> quick_it(quick_selects);
   QUICK_RANGE_SELECT* quick;
   DBUG_ENTER("QUICK_INDEX_MERGE_SELECT::~QUICK_INDEX_MERGE_SELECT");
-  destroy(unique);
+  delete unique;
   quick_it.rewind();
   while ((quick= quick_it++))
     quick->file= NULL;
@@ -2228,7 +2228,7 @@ end:
 
 failure:
   head->column_bitmaps_set(save_read_set, save_write_set);
-  destroy(file);
+  delete file;
   file= save_file;
   DBUG_RETURN(1);
 }
@@ -2495,20 +2495,21 @@ QUICK_RANGE::QUICK_RANGE(const uchar *min_key_arg, uint min_length_arg,
 }
 
 SEL_ARG::SEL_ARG(SEL_ARG &arg)
-  : min_flag(arg.min_flag),
-    max_flag(arg.max_flag),
-    maybe_flag(arg.maybe_flag),
-    part(arg.part),
-    rkey_func_flag(arg.rkey_func_flag),
-    field(arg.field),
-    min_value(arg.min_value),
-    max_value(arg.max_value),
-    left(null_element),
-    right(null_element),
-    next(NULL),
-    prev(NULL),
-    next_key_part(arg.next_key_part),
-    is_ascending(arg.is_ascending)
+  :Sql_alloc(),
+  min_flag(arg.min_flag),
+  max_flag(arg.max_flag),
+  maybe_flag(arg.maybe_flag),
+  part(arg.part),
+  rkey_func_flag(arg.rkey_func_flag),
+  field(arg.field),
+  min_value(arg.min_value),
+  max_value(arg.max_value),
+  left(null_element),
+  right(null_element),
+  next(NULL),
+  prev(NULL),
+  next_key_part(arg.next_key_part),
+  is_ascending(arg.is_ascending)
 {
   if (next_key_part)
     ++next_key_part->use_count;
