@@ -36,6 +36,31 @@
 
 
 /**
+ * Ndbd_mem_manager handles memory in pages of size 32KiB.
+ *
+ * Pages are arranged in 8GiB regions, there first page is a bitmap
+ * indicating what pages in region have free page data, the last page is
+ * not used.
+ *
+ * There is one base address and pages are numbered with an 32 bit index
+ * from that address.  Index should be less than RNIL (0xFFFFFF00).  RNIL
+ * is not a valid page number.
+ *
+ * Regions are numbered with a 14 bit number, there 0x3FFF may not be
+ * used.  This limit possible page numbers to 0xFFFC0000.
+ *
+ * Furthermore there are zones defined that contains pages which have a
+ * page number representable with some specific number of bits.
+ *
+ * There are currently four zones:
+ *
+ * ZONE_19: regions      0 - 1       , pages      0 - (2^19-1)
+ * ZONE_27: regions      2 - (2^9-1) , pages (2^19) - (2^27-1)
+ * ZONE_30: regions  (2^9) - (2^12-1), pages (2^27) - (2^30-1)
+ * ZONE_32: regions (2^12) - 0x3FFE  , pages (2^30) - 0xFFFBFFFF
+ */
+
+/**
  * 13 -> 8192 words -> 32768 bytes
  * 18 -> 262144 words -> 1M
  */
@@ -171,7 +196,19 @@ public:
   static Uint32 ndb_log2(Uint32 size);
 
 private:
+  enum { ZONE_19 = 0, ZONE_27 = 1, ZONE_30 = 2, ZONE_32 = 3, ZONE_COUNT = 4 };
+  enum {
+    ZONE_19_BOUND = (1 << 19),
+    ZONE_27_BOUND = (1 << 27),
+    ZONE_30_BOUND = (1 << 30),
+    ZONE_32_BOUND = (RNIL)
+  };
+  static const Uint32 zone_bound[ZONE_COUNT];
   void grow(Uint32 start, Uint32 cnt);
+  bool do_virtual_alloc(Uint32 pages,
+                        InitChunk chunks[ZONE_COUNT],
+                        Uint32* watchCounter,
+                        Alloc_page** base_address);
 
   /**
    * Return pointer to free page data on page
@@ -179,12 +216,6 @@ private:
   static Free_page_data* get_free_page_data(Alloc_page*, Uint32 idx);
   Vector<Uint32> m_used_bitmap_pages;
   
-  enum { ZONE_19 = 0, ZONE_27 = 1, ZONE_30 = 2, ZONE_32 = 3, ZONE_COUNT = 4 };
-  enum {
-    ZONE_19_BOUND = (1 << 19),
-    ZONE_27_BOUND = (1 << 27),
-    ZONE_30_BOUND = (1 << 30)
-  };
   Uint32 m_buddy_lists[ZONE_COUNT][16];
   Resource_limits m_resource_limits;
   Alloc_page * m_base_page;

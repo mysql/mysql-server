@@ -23,11 +23,12 @@
 */
 
 
-
 #include "ndbd_malloc_impl.hpp"
 #include <ndb_global.h>
 #include <EventLogger.hpp>
 #include <portlib/NdbMem.h>
+
+#define PAGES_PER_REGION_LOG BPP_2LOG
 
 #ifdef _WIN32
 void *sbrk(int increment)
@@ -53,7 +54,7 @@ static const char * f_method = "MSms";
 #endif
 
 #ifdef NDBD_RANDOM_START_PAGE
-static Uint32 g_random_start_page_id = 0;
+static Uint32 g_random_start_page_id = ~Uint32(0);
 #endif
 
 /*
@@ -70,6 +71,169 @@ extern void mt_mem_manager_unlock();
 #include <NdbOut.hpp>
 
 extern void ndbd_alloc_touch_mem(void * p, size_t sz, volatile Uint32 * watchCounter);
+
+const Uint32 Ndbd_mem_manager::zone_bound[ZONE_COUNT] =
+{ /* bound in regions */
+  ZONE_19_BOUND >> PAGES_PER_REGION_LOG,
+  ZONE_27_BOUND >> PAGES_PER_REGION_LOG,
+  ZONE_30_BOUND >> PAGES_PER_REGION_LOG,
+  ZONE_32_BOUND >> PAGES_PER_REGION_LOG
+};
+
+#ifdef VM_TRACE
+/**
+ *
+ */
+
+bool
+Ndbd_mem_manager::do_virtual_alloc(Uint32 pages,
+                                   InitChunk chunks[ZONE_COUNT],
+                                   Uint32* watchCounter,
+                                   Alloc_page** base_address)
+{
+  if (watchCounter)
+    *watchCounter = 9;
+  const Uint32 max_regions = zone_bound[ZONE_COUNT - 1];
+  const Uint32 max_pages = max_regions << PAGES_PER_REGION_LOG;
+  require(max_regions == (max_pages >> PAGES_PER_REGION_LOG));
+  require(max_regions > 0); // TODO static_assert
+  if (pages > max_pages)
+  {
+    return false;
+  }
+  const bool half_space = (pages <= (max_pages >> 1));
+
+  /* Find out page count per zone */
+  Uint32 page_count[ZONE_COUNT];
+  Uint32 region_count[ZONE_COUNT];
+  Uint32 prev_bound = 0;
+  for (int i = 0; i < ZONE_COUNT; i++)
+  {
+    Uint32 n = pages / (ZONE_COUNT - i);
+    if (half_space && n > (zone_bound[i] << (PAGES_PER_REGION_LOG - 1)))
+    {
+      n = zone_bound[i] << (PAGES_PER_REGION_LOG - 1);
+    }
+    else if (n > ((zone_bound[i] - prev_bound) << PAGES_PER_REGION_LOG))
+    {
+      n = (zone_bound[i] - prev_bound) << PAGES_PER_REGION_LOG;
+    }
+    page_count[i] = n;
+    region_count[i] = (n + 256 * 1024 - 1) / (256 * 1024);
+    prev_bound = zone_bound[i];
+    pages -= n;
+  }
+  require(pages == 0);
+
+  /* Reserve big enough continuous address space */
+  require(ZONE_COUNT >= 2); // TODO static assert
+  const Uint32 highest_low = zone_bound[0] - region_count[0];
+  const Uint32 lowest_high = zone_bound[ZONE_COUNT - 2] +
+                             region_count[ZONE_COUNT - 1];
+  const Uint32 least_region_count = lowest_high - highest_low;
+  Uint32 space_regions = max_regions;
+  Alloc_page *space;
+  int rc;
+  while (space_regions >= least_region_count)
+  {
+    if (watchCounter)
+      *watchCounter = 9;
+    rc = NdbMem_ReserveSpace(
+           (void**)&space,
+           (space_regions << PAGES_PER_REGION_LOG) * Uint64(32768));
+    if (watchCounter)
+      *watchCounter = 9;
+    if (rc == 0)
+    {
+      ndbout_c("%s: Reserved address space for %u 8GiB regions at %p.",
+               __func__,
+              space_regions,
+              space);
+      break;
+    }
+    space_regions = (space_regions - 1 + least_region_count) / 2;
+  }
+  if (rc == -1)
+  {
+    ndbout_c("%s: Failed reserved address space for at least %u 8GiB regions.",
+             __func__,
+             least_region_count);
+    return false;
+  }
+
+#ifdef NDBD_RANDOM_START_PAGE
+  Uint32 range = highest_low;
+  for (int i = 0; i < ZONE_COUNT; i++)
+  {
+    Uint32 rmax = (zone_bound[i] << PAGES_PER_REGION_LOG) - page_count[i];
+    if (i > 0)
+    {
+      rmax -= zone_bound[i - 1] << PAGES_PER_REGION_LOG;
+    }
+    if (half_space)
+    {
+      rmax -= 1 << 17; /* lower half of region */
+    }
+    if (range > rmax)
+    {
+      rmax = range;
+    }
+  }
+  g_random_start_page_id = rand() % range;
+#endif
+
+  Uint32 first_region[ZONE_COUNT];
+  for (int i = 0; i < ZONE_COUNT; i++)
+  {
+    first_region[i] = (i < ZONE_COUNT - 1)
+                      ? zone_bound[i]
+                      : (first_region[0] + space_regions);
+    first_region[i] -= ((page_count[i] +
+                         g_random_start_page_id +
+                         ((1 << PAGES_PER_REGION_LOG) - 1))
+                        >> PAGES_PER_REGION_LOG);
+
+    if (watchCounter)
+      *watchCounter = 9;
+    rc = NdbMem_PopulateSpace(
+           space + (first_region[i] - first_region[0]) * 8 * Uint64(32768),
+           page_count[i] * Uint64(32768));
+    if (watchCounter)
+      *watchCounter = 9;
+    if (rc != 0)
+    {
+      if (watchCounter)
+        *watchCounter = 9;
+      NdbMem_FreeSpace(
+        space,
+        (space_regions << PAGES_PER_REGION_LOG) * Uint64(32768));
+      if (watchCounter)
+        *watchCounter = 9;
+      return false;
+    }
+    chunks[i].m_cnt = page_count[i];
+    chunks[i].m_ptr = space + ((first_region[i] - first_region[0])
+                                << PAGES_PER_REGION_LOG);
+#ifndef NDBD_RANDOM_START_PAGE
+    const Uint32 first_page = first_region[i] << PAGES_PER_REGION_LOG;
+#else
+    const Uint32 first_page = (first_region[i] << PAGES_PER_REGION_LOG) +
+                              g_random_start_page_id;
+#endif
+    const Uint32 last_page = first_page + chunks[i].m_cnt - 1;
+    require(last_page < (zone_bound[i] << PAGES_PER_REGION_LOG));
+    ndbout_c("%s: Populated space with pages %u to %u at %p.",
+             __func__,
+             first_page,
+             last_page,
+             chunks[i].m_ptr);
+  }
+  *base_address = space - first_region[0] * 8 * Uint64(32768);
+  if (watchCounter)
+    *watchCounter = 9;
+  return true;
+}
+#endif
 
 static
 bool
@@ -461,33 +625,54 @@ Ndbd_mem_manager::init(Uint32 *watchCounter, Uint32 max_pages , bool alloc_less_
   }
 #endif
 
-#ifdef NDBD_RANDOM_START_PAGE
-  /**
-   * In order to find bad-users of page-id's
-   *   we add a random offset to the page-id's returned
-   *   however, due to ZONE_19 that offset can't be that big
-   *   (since we at get_page don't know if it's a HI/LO page)
-   */
-  Uint32 max_rand_start = ZONE_19_BOUND - 1;
-  if (max_rand_start > pages)
+  Uint32 allocated = 0;
+  m_base_page = NULL;
+
+#ifdef VM_TRACE
   {
-    max_rand_start -= pages;
-    if (max_rand_start > 0x10000)
-      g_random_start_page_id = 0x10000 + (rand() % (max_rand_start - 0x10000));
-    else if (max_rand_start)
-      g_random_start_page_id = rand() % max_rand_start;
+    InitChunk chunks[ZONE_COUNT];
+    if (do_virtual_alloc(pages, chunks, watchCounter, &m_base_page))
+    {
+      for (int i = 0; i < ZONE_COUNT; i++)
+      {
+        m_unmapped_chunks.push_back(chunks[i]);
+        allocated += chunks[i].m_cnt;
+      }
+      require(allocated == pages);
+    }
+  }
+#endif
 
-    assert(Uint64(pages) + Uint64(g_random_start_page_id) <= 0xFFFFFFFF);
+#ifdef NDBD_RANDOM_START_PAGE
+  if (m_base_page == NULL)
+  {
+    /**
+     * In order to find bad-users of page-id's
+     *   we add a random offset to the page-id's returned
+     *   however, due to ZONE_19 that offset can't be that big
+     *   (since we at get_page don't know if it's a HI/LO page)
+     */
+    Uint32 max_rand_start = ZONE_19_BOUND - 1;
+    if (max_rand_start > pages)
+    {
+      max_rand_start -= pages;
+      if (max_rand_start > 0x10000)
+        g_random_start_page_id =
+          0x10000 + (rand() % (max_rand_start - 0x10000));
+      else if (max_rand_start)
+        g_random_start_page_id = rand() % max_rand_start;
 
-    ndbout_c("using g_random_start_page_id: %u (%.8x)",
-             g_random_start_page_id, g_random_start_page_id);
+      assert(Uint64(pages) + Uint64(g_random_start_page_id) <= 0xFFFFFFFF);
+
+      ndbout_c("using g_random_start_page_id: %u (%.8x)",
+               g_random_start_page_id, g_random_start_page_id);
+    }
   }
 #endif
 
   /**
    * Do malloc
    */
-  Uint32 allocated = 0;
   while (m_unmapped_chunks.size() < MAX_CHUNKS && allocated < pages)
   {
     InitChunk chunk;
@@ -528,14 +713,17 @@ Ndbd_mem_manager::init(Uint32 *watchCounter, Uint32 max_pages , bool alloc_less_
       return false;
   }
 
-  /**
-   * Sort chunks...
-   */
-  qsort(m_unmapped_chunks.getBase(), m_unmapped_chunks.size(),
-        sizeof(InitChunk), cmp_chunk);
+  if (m_base_page == NULL)
+  {
+    /**
+     * Sort chunks...
+     */
+    qsort(m_unmapped_chunks.getBase(), m_unmapped_chunks.size(),
+          sizeof(InitChunk), cmp_chunk);
 
-  m_base_page = m_unmapped_chunks[0].m_ptr;
-  
+    m_base_page = m_unmapped_chunks[0].m_ptr;
+  }
+
   for (Uint32 i = 0; i<m_unmapped_chunks.size(); i++)
   {
     UintPtr start = UintPtr(m_unmapped_chunks[i].m_ptr) - UintPtr(m_base_page);
