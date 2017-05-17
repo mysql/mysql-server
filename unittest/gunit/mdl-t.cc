@@ -2224,7 +2224,7 @@ TEST_F(MDLTest, SelfConflict)
   /*
     Acquire X lock on the same table. MDL subsystem should be able to detect
     that conflicting S lock belongs to the same context even though it was
-    was acquired using "fast path".
+    acquired using "fast path".
   */
   MDL_REQUEST_INIT(&m_request,
                    MDL_key::TABLE, db_name, table_name1, MDL_EXCLUSIVE,
