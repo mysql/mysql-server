@@ -9672,12 +9672,23 @@ fill_record_n_invoke_before_triggers(THD *thd, COPY_INFO *optype_info,
       if (!rc)
       {
         /*
-          Function defaults for columns with ON UPDATE clause need to be
-          evaluated only if other columns of the row are changing. Hence we
-          compare the "before" and "after" values of those columns.
+          Unlike INSERT and LOAD, UPDATE operation requires comparison of old
+          and new records to determine whether function defaults have to be
+          evaluated.
         */
-        if ((!records_are_comparable(table) || compare_records(table)) &&
-            (optype_info->function_defaults_apply_on_columns(table->write_set)))
+        if (optype_info->get_operation_type() == COPY_INFO::UPDATE_OPERATION)
+        {
+          /*
+            Evaluate function defaults for columns with ON UPDATE clause only
+            if any other column of the row is updated.
+          */
+          if ((!records_are_comparable(table) || compare_records(table)) &&
+              (optype_info->
+               function_defaults_apply_on_columns(table->write_set)))
+            optype_info->set_function_defaults(table);
+        }
+        else if(optype_info->
+                function_defaults_apply_on_columns(table->write_set))
           optype_info->set_function_defaults(table);
 
         rc= table->triggers->process_triggers(thd, event, TRG_ACTION_BEFORE,
