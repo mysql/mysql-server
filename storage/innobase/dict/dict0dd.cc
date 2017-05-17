@@ -1677,7 +1677,9 @@ dd_fill_one_dict_index(
 			prefix_len = 0;
 		}
 
-		if (key_part->length > max_len || prefix_len > max_len) {
+		if ((key_part->length > max_len || prefix_len > max_len)
+		    && !(key.flags & (HA_FULLTEXT))) {
+
 			dict_mem_index_free(index);
 			my_error(ER_INDEX_COLUMN_TOO_LONG, MYF(0), max_len);
 			return(HA_ERR_INDEX_COL_TOO_LONG);
