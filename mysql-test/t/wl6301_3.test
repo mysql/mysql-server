@@ -4,12 +4,16 @@
 # 3. Check that if the server is bound to the IPv4-mapped IPv6-address,
 # the server accepts client connections from both IPv4 and IPv6 worlds.
 #
-# Options: --skip-name-resolve, --bind-address=::ffff:127.0.0.1
-# (see corresponding opt file).
-#
 
 # Can't be tested with embedded server
 --source include/not_embedded.inc
+
+# Can't be tested without IPv6 support
+--source include/have_ipv6.inc
+
+# Start the server with --bind-address=::ffff:127.0.0.1
+--let $restart_parameters = "--skip-name-resolve --bind-address=::ffff:127.0.0.1"
+--source include/restart_mysqld.inc
 
 # The box should support IPv4-mapped addresses
 --source include/have_ipv4_mapped.inc

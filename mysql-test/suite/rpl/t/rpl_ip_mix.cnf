@@ -10,7 +10,6 @@
 log-bin=                 master-bin
 
 skip-name-resolve
-bind-address=               ::
 
 
 [mysqld.2]

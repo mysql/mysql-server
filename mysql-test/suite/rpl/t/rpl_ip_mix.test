@@ -1,9 +1,15 @@
 # Test of ipv6 format, especially "change master host=..."
-# Options: --skip-name-resolve, master: --bind-address=::, slave: --bind-address=0.0.0.0
+# Options: --skip-name-resolve, slave: --bind-address=0.0.0.0
 # (see corresponding cnf file)
 #
 --source include/check_ipv6.inc
 --source include/have_log_bin.inc
+
+# restart master with --bind-address=::
+--connect (master,localhost,root,,test,$MASTER_MYPORT)
+--let $restart_parameters = "--bind-address=::"
+--source include/restart_mysqld.inc
+--disconnect master
 
 let $IPv6= ::1;
 --echo #################### IP: $IPv6 ###########################
