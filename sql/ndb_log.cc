@@ -73,14 +73,108 @@ ndb_log_print(enum ndb_log_loglevel loglevel,
 }
 
 
+
+
+/*
+  Automatically detect any log message prefix used by the caller, these
+  are important in order to distinguish which subsystem of ndbcluster
+  generated the log printout.
+
+  @param fmt             The log message format, it may only start with one
+                         of the allowed subsystem prefixes or none at all.
+
+  @param prefix[out]     Pointer to detected prefix or NULL if none was
+                         detected.
+  @param fmt_start[out]  Pointer to new start of the format string in case the
+                         subsystem prefix has been stripped
+
+  @note  In debug compile the function will perform some additional
+         checks to make sure that the format string has one of the
+         allowed subsystem prefixes or none at all. The intention is that
+         faulty prefix usage should be detected but allowed
+         otherwise.
+
+  @note This code is primarily written for backwards compatibility of log
+        messages, thus allowing them to be forward ported with too much
+        problem. New implementations should not add new "allowed subsystems"
+        or otherwise modify this code, but rather use the logging functions
+        of Ndb_component where the prefix will be automatically set correct.
+*/
+
+static
+void
+ndb_log_detect_prefix(const char* fmt,
+                      const char** prefix, const char** fmt_start)
+{
+  DBUG_ENTER("ndb_log_detect_prefix");
+  DBUG_PRINT("enter", ("fmt: '%s'", fmt));
+
+  // Check if string starts with prefix "NDB:", this prefix is redundant
+  // since all log messages will be prefixed by NDB: anyway (unless
+  // using a subsystem prefix it will be "NDB <subsystem>:").
+  // Crash in debug compile, caller should fix by removing "NDB: " from
+  // the printout
+  DBUG_ASSERT(strncmp(fmt, "NDB:", 4) != 0);
+
+  // Check if string starts with "NDB <subsystem>:" by reading
+  // at most 15 chars whithout colon, then a colon and space
+  char subsystem[16], colon[2];
+  if (sscanf(fmt, "NDB %15[^:]%1[:] ", subsystem, colon) == 2)
+  {
+    DBUG_PRINT("info",("detected subsystem: '%s'", subsystem));
+    static
+    const char* allowed_prefixes[] =
+    {
+      "Binlog", // "NDB Binlog: "
+      "Slave"   // "NDB Slave: "
+    };
+    const size_t num_allowed_prefixes =
+        sizeof(allowed_prefixes)/sizeof(allowed_prefixes[0]);
+
+    // Check if subsystem is in the list of allowed subsystem
+    for (size_t i = 0; i < num_allowed_prefixes; i++)
+    {
+      const char* allowed_prefix = allowed_prefixes[i];
+
+      DBUG_PRINT("info", ("checking allowed_prefix: '%s'",
+                          allowed_prefix));
+      if (strncmp(subsystem, allowed_prefix, strlen(allowed_prefix)) == 0)
+      {
+        // String started with an allowed subsystem prefix, return
+        // pointer to prefix and new start of format string
+        *prefix = allowed_prefix;
+        *fmt_start = fmt +
+                     4 + /* "NDB " */
+                     strlen(allowed_prefix) +
+                     2; /* ": " */
+        DBUG_PRINT("info", ("Found! Returning prefix: '%s', fmt_start: '%s'",
+                            *prefix, *fmt_start));
+        DBUG_VOID_RETURN;
+      }
+    }
+    // Used subsystem prefix not in allowed list, caller should
+    // fix by using one of the allowed subsystem prefixes or switching
+    // over to use the Ndb_component log functions.
+    DBUG_ASSERT(false);
+  }
+
+  // Format string specifier accepted as is and no prefix was used
+  // this would be the default case
+  *prefix = NULL;
+  *fmt_start = fmt;
+  DBUG_VOID_RETURN;
+}
+
 void
 ndb_log_info(const char* fmt, ...)
 {
-  DBUG_ASSERT(fmt);
+  const char* prefix;
+  const char* fmt_start;
+  ndb_log_detect_prefix(fmt, &prefix, &fmt_start);
 
   va_list args;
   va_start(args, fmt);
-  ndb_log_print(NDB_LOG_INFORMATION_LEVEL, NULL, fmt, args);
+  ndb_log_print(NDB_LOG_INFORMATION_LEVEL, prefix, fmt_start, args);
   va_end(args);
 }
 
@@ -88,11 +182,13 @@ ndb_log_info(const char* fmt, ...)
 void
 ndb_log_warning(const char* fmt, ...)
 {
-  DBUG_ASSERT(fmt);
+  const char* prefix;
+  const char* fmt_start;
+  ndb_log_detect_prefix(fmt, &prefix, &fmt_start);
 
   va_list args;
   va_start(args, fmt);
-  ndb_log_print(NDB_LOG_WARNING_LEVEL, NULL, fmt, args);
+  ndb_log_print(NDB_LOG_WARNING_LEVEL, prefix, fmt_start, args);
   va_end(args);
 }
 
@@ -100,14 +196,15 @@ ndb_log_warning(const char* fmt, ...)
 void
 ndb_log_error(const char* fmt, ...)
 {
-  DBUG_ASSERT(fmt);
+  const char* prefix;
+  const char* fmt_start;
+  ndb_log_detect_prefix(fmt, &prefix, &fmt_start);
 
   va_list args;
   va_start(args, fmt);
-  ndb_log_print(NDB_LOG_ERROR_LEVEL, NULL, fmt, args);
+  ndb_log_print(NDB_LOG_ERROR_LEVEL, prefix, fmt_start, args);
   va_end(args);
 }
-
 
 // the verbose level is currently controlled by "ndb_extra_logging"
 extern ulong opt_ndb_extra_logging;
@@ -122,15 +219,17 @@ ndb_log_get_verbose_level(void)
 void
 ndb_log_verbose(unsigned verbose_level, const char* fmt, ...)
 {
-  DBUG_ASSERT(fmt);
-
   // Print message only if verbose level is set high enough
   if (ndb_log_get_verbose_level() < verbose_level)
     return;
 
+  const char* prefix;
+  const char* fmt_start;
+  ndb_log_detect_prefix(fmt, &prefix, &fmt_start);
+
   va_list args;
   va_start(args, fmt);
-  ndb_log_print(NDB_LOG_INFORMATION_LEVEL, NULL, fmt, args);
+  ndb_log_print(NDB_LOG_INFORMATION_LEVEL, prefix, fmt_start, args);
   va_end(args);
 }
 

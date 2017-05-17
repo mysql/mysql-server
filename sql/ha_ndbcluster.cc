@@ -78,7 +78,6 @@
 #include "auth_common.h"    // wild_case_compare
 #include "sql_table.h"      // build_table_filename,
                             // tablename_to_filename
-#include "log.h"            // sql_print_error
 #include "sql_class.h"
 #include "ndb_dd.h"
 
@@ -522,14 +521,16 @@ static int check_slave_config(THD* thd)
 
   if (ndb_get_number_of_channels() > 1)
   {
-    sql_print_error("Slave SQL: Configuration with number of replication masters = %u' is not supported when applying to Ndb",
-                    ndb_get_number_of_channels());
+    ndb_log_error("NDB Slave: Configuration with number of replication "
+                  "masters = %u is not supported when applying to NDB",
+                  ndb_get_number_of_channels());
     DBUG_RETURN(HA_ERR_UNSUPPORTED);
   }
   if (ndb_mi_get_slave_parallel_workers() > 0)
   {
-    sql_print_error("Slave SQL: Configuration 'slave_parallel_workers = %lu' is not supported when applying to Ndb",
-                    ndb_mi_get_slave_parallel_workers());
+    ndb_log_error("NDB Slave: Configuration 'slave_parallel_workers = %lu' is "
+                  "not supported when applying to NDB",
+                  ndb_mi_get_slave_parallel_workers());
     DBUG_RETURN(HA_ERR_UNSUPPORTED);
   }
 
@@ -651,11 +652,10 @@ static int check_slave_state(THD* thd)
 
       if (ndb_error.code != 0)
       {
-        sql_print_warning("NDB Slave : Could not determine maximum replicated epoch from %s.%s "
-                          "at Slave start, error %u %s",
-                          NDB_REP_DB,
-                          NDB_APPLY_TABLE,
-                          ndb_error.code, ndb_error.message);
+        ndb_log_warning("NDB Slave: Could not determine maximum replicated "
+                        "epoch from %s.%s at Slave start, error %u %s",
+                        NDB_REP_DB, NDB_APPLY_TABLE,
+                        ndb_error.code, ndb_error.message);
       }
 
       /*
@@ -664,10 +664,11 @@ static int check_slave_state(THD* thd)
         If none was found, this will be zero.
       */
       g_ndb_slave_state.max_rep_epoch = highestAppliedEpoch;
-      sql_print_information("NDB Slave : MaxReplicatedEpoch set to %llu (%u/%u) at Slave start",
-                            g_ndb_slave_state.max_rep_epoch,
-                            (Uint32)(g_ndb_slave_state.max_rep_epoch >> 32),
-                            (Uint32)(g_ndb_slave_state.max_rep_epoch & 0xffffffff));
+      ndb_log_info("NDB Slave: MaxReplicatedEpoch set to %llu (%u/%u) at "
+                   "Slave start",
+                   g_ndb_slave_state.max_rep_epoch,
+                   (Uint32)(g_ndb_slave_state.max_rep_epoch >> 32),
+                   (Uint32)(g_ndb_slave_state.max_rep_epoch & 0xffffffff));
     } // Load highest replicated epoch
   } // New Slave SQL thread run id
 
@@ -685,9 +686,9 @@ static int update_status_variables(Thd_ndb *thd_ndb,
   {
     ns->cluster_node_id= c->node_id();
     if (&g_ndb_status == ns && g_ndb_cluster_connection == c)
-      sql_print_information("NDB: NodeID is %lu, management server '%s:%lu'",
-                            ns->cluster_node_id, ns->connected_host,
-                            ns->connected_port);
+      ndb_log_info("NodeID is %lu, management server '%s:%lu'",
+                   ns->cluster_node_id, ns->connected_host,
+                   ns->connected_port);
   }
   {
     int n= c->get_no_ready();
@@ -1366,7 +1367,7 @@ Thd_ndb::~Thd_ndb()
 {
   DBUG_ASSERT(global_schema_lock_count == 0);
 
-  if (opt_ndb_extra_logging > 1)
+  if (unlikely(opt_ndb_extra_logging > 1))
   {
     /*
       print some stats about the connection at disconnect
@@ -1376,11 +1377,11 @@ Thd_ndb::~Thd_ndb()
       if (m_transaction_hint_count[i] > 0 ||
           m_transaction_no_hint_count[i] > 0)
       {
-        sql_print_information("tid %u: node[%u] "
-                              "transaction_hint=%u, transaction_no_hint=%u",
-                              m_thd->thread_id(), i,
-                              m_transaction_hint_count[i],
-                              m_transaction_no_hint_count[i]);
+        ndb_log_info("tid %u: node[%u] "
+                     "transaction_hint=%u, transaction_no_hint=%u",
+                     m_thd->thread_id(), i,
+                     m_transaction_hint_count[i],
+                     m_transaction_no_hint_count[i]);
       }
     }
   }
@@ -2162,9 +2163,9 @@ int ha_ndbcluster::check_default_values(const NDBTAB* ndbtab)
 
         if (unlikely(!defaults_aligned))
         {
-          sql_print_error("NDB Internal error: Default values differ "
-                          "for column %u, ndb_default: %d",
-                          field->field_index, ndb_default != NULL);
+          ndb_log_error("Internal error, Default values differ "
+                        "for column %u, ndb_default: %d",
+                        field->field_index, ndb_default != NULL);
         }
       }
       else
@@ -2173,25 +2174,25 @@ int ha_ndbcluster::check_default_values(const NDBTAB* ndbtab)
         if (unlikely(ndbCol->getDefaultValue() != NULL))
         {
           /* Didn't expect that */
-          sql_print_error("NDB Internal error: Column %u has native "
-                          "default, but shouldn't. Flags=%u, type=%u",
-                          field->field_index, field->flags,
-                          field->real_type());
+          ndb_log_error("Internal error, Column %u has native "
+                        "default, but shouldn't. Flags=%u, type=%u",
+                        field->field_index, field->flags,
+                        field->real_type());
           defaults_aligned= false;
         }
       }
       if (unlikely(!defaults_aligned))
       {
         // Dump field
-        sql_print_error("field[ name: '%s', type: %u, real_type: %u, "
-                        "flags: 0x%x, is_null: %d]",
-                        field->field_name, field->type(), field->real_type(),
-                        field->flags, field->is_null());
+        ndb_log_error("field[ name: '%s', type: %u, real_type: %u, "
+                      "flags: 0x%x, is_null: %d]",
+                      field->field_name, field->type(), field->real_type(),
+                      field->flags, field->is_null());
         // Dump ndbCol
-        sql_print_error("ndbCol[name: '%s', type: %u, column_no: %d, "
-                        "nullable: %d]",
-                        ndbCol->getName(), ndbCol->getType(),
-                        ndbCol->getColumnNo(), ndbCol->getNullable());
+        ndb_log_error("ndbCol[name: '%s', type: %u, column_no: %d, "
+                      "nullable: %d]",
+                      ndbCol->getName(), ndbCol->getType(),
+                      ndbCol->getColumnNo(), ndbCol->getNullable());
         break;
       }
     } 
@@ -2356,8 +2357,6 @@ static int fix_unique_index_attr_order(NDB_INDEX_DATA &data,
   data.unique_index_attrid_map= (uchar*)my_malloc(PSI_INSTRUMENT_ME, sz,MYF(MY_WME));
   if (data.unique_index_attrid_map == 0)
   {
-    sql_print_error("fix_unique_index_attr_order: my_malloc(%u) failure",
-                    (unsigned int)sz);
     DBUG_RETURN(HA_ERR_OUT_OF_MEM);
   }
 
@@ -4864,9 +4863,9 @@ ha_ndbcluster::prepare_conflict_detection(enum_conflicting_op_type op_type,
     Ndb_binlog_extra_row_info extra_row_info;
     if (extra_row_info.loadFromBuffer(thd->binlog_row_event_extra_data) != 0)
     {
-      sql_print_warning("NDB Slave : Malformed event received on table %s "
-                        "cannot parse.  Stopping Slave.",
-                        m_share->key_string());
+      ndb_log_warning("NDB Slave: Malformed event received on table %s "
+                      "cannot parse.  Stopping Slave.",
+                      m_share->key_string());
       DBUG_RETURN( ER_SLAVE_CORRUPT_EVENT );
     }
     
@@ -4920,11 +4919,11 @@ ha_ndbcluster::prepare_conflict_detection(enum_conflicting_op_type op_type,
       {
       case SCR_NONE:
       {
-        sql_print_warning("NDB Slave : Conflict function %s defined on "
-                          "table %s requires ndb_slave_conflict_role variable "
-                          "to be set.  Stopping slave.",
-                          conflict_fn->name,
-                          m_share->key_string());
+        ndb_log_warning("NDB Slave: Conflict function %s defined on "
+                        "table %s requires ndb_slave_conflict_role variable "
+                        "to be set.  Stopping slave.",
+                        conflict_fn->name,
+                        m_share->key_string());
         DBUG_RETURN(ER_SLAVE_CONFIGURATION);
       }
       case SCR_PASS:
@@ -5015,10 +5014,11 @@ ha_ndbcluster::prepare_conflict_detection(enum_conflicting_op_type op_type,
   if (unlikely((conflict_fn->flags & CF_TRANSACTIONAL) &&
                (transaction_id == Ndb_binlog_extra_row_info::InvalidTransactionId)))
   {
-    sql_print_warning("NDB Slave : Transactional conflict detection defined on table %s, but "
-                      "events received without transaction ids.  Check --ndb-log-transaction-id setting "
-                      "on upstream Cluster.",
-                      m_share->key_string());
+    ndb_log_warning("NDB Slave: Transactional conflict detection defined on "
+                    "table %s, but events received without transaction ids.  "
+                    "Check --ndb-log-transaction-id setting on "
+                    "upstream Cluster.",
+                    m_share->key_string());
     /* This is a user error, but we want them to notice, so treat seriously */
     DBUG_RETURN( ER_SLAVE_CORRUPT_EVENT );
   }
@@ -5133,10 +5133,10 @@ ha_ndbcluster::prepare_conflict_detection(enum_conflicting_op_type op_type,
     }
     else
     {
-      sql_print_warning("NDB Slave : Binlog event on table %s missing "
-                        "info necessary for conflict detection.  "
-                        "Check binlog format options on upstream cluster.",
-                        m_share->key_string());
+      ndb_log_warning("NDB Slave: Binlog event on table %s missing "
+                      "info necessary for conflict detection.  "
+                      "Check binlog format options on upstream cluster.",
+                      m_share->key_string());
       DBUG_RETURN( ER_SLAVE_CORRUPT_EVENT);
     }
   } // if (op_type != WRITE_ROW)
@@ -7854,8 +7854,8 @@ int ha_ndbcluster::info(uint flag)
                                       auto_increment_value64) == -1)
       {
         const NdbError err= ndb->getNdbError();
-        sql_print_error("Error %lu in readAutoIncrementValue(): %s",
-                        (ulong) err.code, err.message);
+        ndb_log_error("Error %d in readAutoIncrementValue(): %s",
+                      err.code, err.message);
         stats.auto_increment_value= ~(ulonglong)0;
       }
       else
@@ -8958,8 +8958,8 @@ int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
       {
         /* Commit was never attempted - this should not be possible */
         DBUG_ASSERT(commitStatus == NdbTransaction::Started || commitStatus == NdbTransaction::NotStarted);
-        sql_print_error("found uncommitted autocommit+rbwr transaction, "
-                        "commit status: %d", commitStatus);
+        ndb_log_error("found uncommitted autocommit+rbwr transaction, "
+                      "commit status: %d", commitStatus);
         abort();
       }
     }
@@ -9002,8 +9002,9 @@ int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
            Too many retries, print error and exit - normal
            too many retries mechanism will cause exit
          */
-        sql_print_error("Ndb slave retried transaction %u time(s) in vain.  Giving up.",
-                        st_ndb_slave_state::MAX_RETRY_TRANS_COUNT);
+        ndb_log_error("Ndb slave retried transaction %u time(s) in vain.  "
+                      "Giving up.",
+                      st_ndb_slave_state::MAX_RETRY_TRANS_COUNT);
       }
       res= ER_GET_TEMPORARY_ERRMSG;
     }
@@ -10079,8 +10080,8 @@ void ha_ndbcluster::update_create_info(HA_CREATE_INFO *create_info)
               continue;
             }
             const NdbError err= ndb->getNdbError();
-            sql_print_error("Error %lu in ::update_create_info(): %s",
-                            (ulong) err.code, err.message);
+            ndb_log_error("Error %d in ::update_create_info(): %s",
+                          err.code, err.message);
             DBUG_VOID_RETURN;
           }
           break;
@@ -11693,7 +11694,7 @@ cleanup_failed:
     /* Get a temporary ref AND a ref from open_tables iff share created */
     if (!(share= get_share(name, form, TRUE, TRUE)))
     {
-      sql_print_error("NDB: allocating table share for %s failed", name);
+      ndb_log_error("allocating table share for %s failed", name);
       /* my_errno is set */
     }
     else
@@ -11735,15 +11736,14 @@ cleanup_failed:
           !ndbcluster_create_event(thd, ndb, m_table, event_name.c_ptr(), share,
                                    do_event_op ? 2 : 1/* push warning */))
       {
-        if (opt_ndb_extra_logging)
-          sql_print_information("NDB Binlog: CREATE TABLE Event: %s",
-                                event_name.c_ptr());
+        ndb_log_verbose(1, "NDB Binlog: CREATE TABLE Event: %s",
+                        event_name.c_ptr());
 
         if (ndbcluster_create_event_ops(thd, share,
                                         m_table, event_name.c_ptr()))
         {
-          sql_print_error("NDB Binlog: FAILED CREATE TABLE event operations."
-                          " Event: %s", name);
+          ndb_log_error("NDB Binlog: FAILED CREATE TABLE event operations. "
+                        "Event: %s", name);
           /* a warning has been issued to the client */
         }
       }
@@ -12159,14 +12159,13 @@ ha_ndbcluster::rename_table_impl(THD* thd, Ndb* ndb,
         !ndbcluster_create_event(thd, ndb, ndbtab, event_name.c_ptr(), share,
                                  ndb_binlog_running ? 2 : 1/* push warning */))
     {
-      if (opt_ndb_extra_logging)
-        sql_print_information("NDB Binlog: RENAME Event: %s",
-                              event_name.c_ptr());
+      ndb_log_verbose(1, "NDB Binlog: RENAME Event: %s", event_name.c_ptr());
+
       if (share->op == 0 &&
           ndbcluster_create_event_ops(thd, share, ndbtab, event_name.c_ptr()))
       {
-        sql_print_error("NDB Binlog: FAILED create event operations "
-                        "during RENAME. Event %s", event_name.c_ptr());
+        ndb_log_error("NDB Binlog: FAILED create event operations "
+                      "during RENAME. Event %s", event_name.c_ptr());
         /* a warning has been issued to the client */
       }
     }
@@ -12506,8 +12505,8 @@ int ha_ndbcluster::rename_table(const char *from, const char *to,
     break;
 
   default:
-    sql_print_error("Unexpected rename case detected, sql_command: %d",
-                    thd_sql_command(thd));
+    ndb_log_error("Unexpected rename case detected, sql_command: %d",
+                  thd_sql_command(thd));
     abort();
     break;
   }
@@ -12861,8 +12860,8 @@ void ha_ndbcluster::get_auto_increment(ulonglong offset, ulonglong increment,
         continue;
       }
       const NdbError err= ndb->getNdbError();
-      sql_print_error("Error %lu in ::get_auto_increment(): %s",
-                      (ulong) err.code, err.message);
+      ndb_log_error("Error %d in ::get_auto_increment(): %s",
+                    err.code, err.message);
       *first_value= ~(ulonglong) 0;
       DBUG_VOID_RETURN;
     }
@@ -13097,11 +13096,10 @@ int ha_ndbcluster::open(const char *name, int mode, uint test_if_locked,
     /**
      * No share present...we must create one
      */
-    if (opt_ndb_extra_logging > 19)
-    {
-      sql_print_information("Calling ndbcluster_create_binlog_setup(%s) in ::open",
-                            name);
-    }
+    ndb_log_verbose(19,
+                    "Calling ndbcluster_create_binlog_setup(%s) in ::open",
+                    name);
+
     Ndb* ndb= check_ndb_in_thd(thd);
     ndbcluster_create_binlog_setup(thd, ndb, name,
                                    m_dbname, m_tabname, table);
@@ -13133,7 +13131,7 @@ int ha_ndbcluster::open(const char *name, int mode, uint test_if_locked,
   if (ndb_binlog_is_read_only())
   {
     table->db_stat|= HA_READ_ONLY;
-    sql_print_information("table '%s' opened read only", name);
+    ndb_log_info("table '%s' opened read only", name);
   }
   DBUG_RETURN(0);
 }
@@ -13984,7 +13982,7 @@ int ndbcluster_init(void* p)
   if (unlikely(opt_initialize))
   {
     /* Don't schema-distribute 'mysqld --initialize' of data dictionary */
-    sql_print_information("NDB: '--initialize' -> ndbcluster plugin disabled");
+    ndb_log_info("'--initialize' -> ndbcluster plugin disabled");
     ((handlerton *)p)->state = SHOW_OPTION_DISABLED;
     DBUG_ASSERT(!ha_storage_engine_is_enabled(static_cast<handlerton*>(p)));
     DBUG_RETURN(0); // Return before init will disable ndbcluster-SE.
@@ -14000,7 +13998,7 @@ int ndbcluster_init(void* p)
      * but the current global value
      */
     global_system_variables.binlog_format = BINLOG_FORMAT_MIXED;
-    sql_print_information("NDB: Changed global value of binlog_format from STATEMENT to MIXED");
+    ndb_log_info("Changed global value of binlog_format from STATEMENT to MIXED");
 
   }
 
@@ -14941,9 +14939,9 @@ int handle_trailing_share(THD *thd, NDB_SHARE *share)
 
   /* ndb_share reference temporary, free below */
   ++share->use_count;
-  if (opt_ndb_extra_logging > 9)
-    sql_print_information ("handle_trailing_share: %s use_count: %u",
-                           share->key_string(), share->use_count);
+
+  ndb_log_verbose(9, "handle_trailing_share: %s use_count: %u",
+                  share->key_string(), share->use_count);
   DBUG_PRINT("NDB_SHARE", ("%s temporary  use_count: %u",
                            share->key_string(), share->use_count));
   mysql_mutex_unlock(&ndbcluster_mutex);
@@ -14956,19 +14954,17 @@ int handle_trailing_share(THD *thd, NDB_SHARE *share)
                            share->key_string(), share->use_count));
   if (!--share->use_count)
   {
-    if (opt_ndb_extra_logging > 9)
-      sql_print_information ("handle_trailing_share: %s use_count: %u",
-                             share->key_string(), share->use_count);
-    if (opt_ndb_extra_logging)
-      sql_print_information("NDB_SHARE: trailing share %s, "
-                            "released by close_cached_tables",
-                            share->key_string());
+    ndb_log_verbose(9, "handle_trailing_share: %s use_count: %u",
+                    share->key_string(), share->use_count);
+    ndb_log_verbose(1,
+                    "NDB_SHARE, trailing share %s, "
+                    "released by close_cached_tables",
+                    share->key_string());
     ndbcluster_real_free_share(&share);
     DBUG_RETURN(0);
   }
-  if (opt_ndb_extra_logging > 9)
-    sql_print_information ("handle_trailing_share: %s use_count: %u",
-                           share->key_string(), share->use_count);
+  ndb_log_verbose(9, "handle_trailing_share: %s use_count: %u",
+                  share->key_string(), share->use_count);
 
   /*
     share still exists, if share has not been dropped by server
@@ -14976,9 +14972,8 @@ int handle_trailing_share(THD *thd, NDB_SHARE *share)
   */
   if (share->state != NSS_DROPPED)
   {
-    if (opt_ndb_extra_logging > 9)
-      sql_print_information ("handle_trailing_share: %s use_count: %u",
-                             share->key_string(), share->use_count);
+    ndb_log_verbose(9, "handle_trailing_share: %s use_count: %u",
+                    share->key_string(), share->use_count);
 
     ndbcluster_mark_share_dropped(&share);
     if (share == NULL) //Last share ref dropped
@@ -14992,9 +14987,9 @@ int handle_trailing_share(THD *thd, NDB_SHARE *share)
    */
   if (!((share->use_count == 1) && share->util_thread))
   {
-    sql_print_warning("NDB_SHARE: %s already exists use_count=%d."
-                      " Moving away for safety, but possible memleak.",
-                      share->key_string(), share->use_count);
+    ndb_log_warning("NDB_SHARE, %s already exists use_count=%d."
+                    " Moving away for safety, but possible memleak.",
+                    share->key_string(), share->use_count);
   }
   dbug_print_open_tables();
 
@@ -15134,9 +15129,8 @@ NDB_SHARE *ndbcluster_get_share(NDB_SHARE *share)
 
   dbug_print_open_tables();
   dbug_print_share("ndbcluster_get_share:", share);
-  if (opt_ndb_extra_logging > 9)
-    sql_print_information ("ndbcluster_get_share: %s use_count: %u",
-                           share->key_string(), share->use_count);
+  ndb_log_verbose(9, "ndbcluster_get_share: %s use_count: %u",
+                  share->key_string(), share->use_count);
   mysql_mutex_unlock(&ndbcluster_mutex);
   return share;
 }
@@ -15220,14 +15214,12 @@ NDB_SHARE *ndbcluster_get_share(const char *key, TABLE *table,
       DBUG_RETURN(0);
     }
     share->use_count++; // Add share refcount from 'ndbcluster_open_tables'
-    if (opt_ndb_extra_logging > 9)
-      sql_print_information ("ndbcluster_get_share: %s use_count: %u",
-                             share->key_string(), share->use_count);
+    ndb_log_verbose(9, "ndbcluster_get_share: %s use_count: %u",
+                    share->key_string(), share->use_count);
   }
   share->use_count++; //Add refcount for returned 'share'.
-  if (opt_ndb_extra_logging > 9)
-    sql_print_information ("ndbcluster_get_share: %s use_count: %u",
-                           share->key_string(), share->use_count);
+  ndb_log_verbose(9, "ndbcluster_get_share: %s use_count: %u",
+                  share->key_string(), share->use_count);
 
   dbug_print_open_tables();
   dbug_print_share("ndbcluster_get_share:", share);
@@ -15279,9 +15271,8 @@ void ndbcluster_real_free_share(NDB_SHARE **share)
   DBUG_ENTER("ndbcluster_real_free_share");
   dbug_print_share("ndbcluster_real_free_share:", *share);
 
-  if (opt_ndb_extra_logging > 9)
-    sql_print_information ("ndbcluster_real_free_share: %s use_count: %u",
-                           (*share)->key_string(), (*share)->use_count);
+  ndb_log_verbose(9, "ndbcluster_real_free_share: %s use_count: %u",
+                  (*share)->key_string(), (*share)->use_count);
 
   if ((*share)->state == NSS_DROPPED)
   {
@@ -15294,7 +15285,7 @@ void ndbcluster_real_free_share(NDB_SHARE **share)
   }
   else
   {
-    sql_print_warning("ndbcluster_real_free_share: %s, still open - "
+    ndb_log_warning("ndbcluster_real_free_share: %s, still open - "
                       "ignored 'free' (leaked?)", (*share)->key_string());
     assert(false); // Don't free a share not yet DROPPED
   }
@@ -15313,16 +15304,14 @@ void ndbcluster_free_share(NDB_SHARE **share, bool have_lock)
     mysql_mutex_lock(&ndbcluster_mutex);
   if (!--(*share)->use_count)
   {
-    if (opt_ndb_extra_logging > 9)
-      sql_print_information ("ndbcluster_free_share: %s use_count: %u",
-                             (*share)->key_string(), (*share)->use_count);
+    ndb_log_verbose(9, "ndbcluster_free_share: %s use_count: %u",
+                    (*share)->key_string(), (*share)->use_count);
     ndbcluster_real_free_share(share);
   }
   else
   {
-    if (opt_ndb_extra_logging > 9)
-      sql_print_information ("ndbcluster_free_share: %s use_count: %u",
-                             (*share)->key_string(), (*share)->use_count);
+    ndb_log_verbose(9, "ndbcluster_free_share: %s use_count: %u",
+                    (*share)->key_string(), (*share)->use_count);
     dbug_print_open_tables();
     dbug_print_share("ndbcluster_free_share:", *share);
   }
@@ -15358,11 +15347,8 @@ ndbcluster_mark_share_dropped(NDB_SHARE** share)
 
   (*share)->state= NSS_DROPPED;
   (*share)->use_count--;
-  if (opt_ndb_extra_logging > 9)
-  {
-    sql_print_information ("ndbcluster_mark_share_dropped: %s use_count: %u",
-                           (*share)->key_string(), (*share)->use_count);
-  }
+  ndb_log_verbose(9, "ndbcluster_mark_share_dropped: %s use_count: %u",
+                   (*share)->key_string(), (*share)->use_count);
   dbug_print_share("ndbcluster_mark_share_dropped:", *share);
 
   if (my_hash_delete(&ndbcluster_open_tables, (uchar*)(*share)) == 0)
@@ -15374,9 +15360,8 @@ ndbcluster_mark_share_dropped(NDB_SHARE** share)
     // put in 'dropped' list awaiting remaining refs to be freed.
     if ((*share)->use_count == 0)
     {
-      if (opt_ndb_extra_logging > 9)
-        sql_print_information ("ndbcluster_mark_share_dropped: destroys "
-                               "share %s", (*share)->key_string());
+      ndb_log_verbose(9, "ndbcluster_mark_share_dropped: destroys "
+                      "share %s", (*share)->key_string());
       NDB_SHARE::destroy(*share);
       *share= NULL;
     }
@@ -17221,14 +17206,14 @@ Ndb_util_thread::do_run()
   /* Get thd_ndb for this thread */
   if (!(thd_ndb= Thd_ndb::seize(thd)))
   {
-    sql_print_error("Could not allocate Thd_ndb object");
+    log_error("Could not allocate Thd_ndb object");
     mysql_mutex_lock(&LOCK);
     goto ndb_util_thread_end;
   }
   thd_set_thd_ndb(thd, thd_ndb);
 
-  if (opt_ndb_extra_logging && ndb_binlog_running)
-    sql_print_information("NDB Binlog: Ndb tables initially read only.");
+  if (ndb_binlog_running)
+    log_verbose(1, "NDB Binlog: Ndb tables initially read only.");
 
   log_info("Started");
 
@@ -17273,8 +17258,7 @@ Ndb_util_thread::do_run()
       NDB_SHARE ** new_share_list= new NDB_SHARE * [record_count];
       if (!new_share_list)
       {
-        sql_print_warning("ndb util thread: malloc failure, "
-                          "query cache not maintained properly");
+        log_warning("malloc failure, query cache not maintained properly");
         mysql_mutex_unlock(&ndbcluster_mutex);
         goto next;                               // At least do not crash
       }
@@ -20168,9 +20152,9 @@ ndb_recv_thread_cpu_mask_check_str(const char *str)
 
   if (parse_mask(str, bitmask) < 0)
   {
-    sql_print_information("Trying to set ndb_recv_thread_cpu_mask to"
-                          " illegal value = %s, ignored",
-                          str);
+    ndb_log_info("Trying to set ndb_recv_thread_cpu_mask to"
+                 " illegal value = %s, ignored",
+                 str);
     goto error;
   }
   for (i = bitmask.find(0);
@@ -20180,10 +20164,10 @@ ndb_recv_thread_cpu_mask_check_str(const char *str)
     if (recv_thread_num_cpus ==
         1 * MAX_CLUSTER_CONNECTIONS)
     {
-      sql_print_information("Trying to set too many CPU's in "
-                            "ndb_recv_thread_cpu_mask, ignored"
-                            " this variable, erroneus value = %s",
-                            str);
+      ndb_log_info("Trying to set too many CPU's in "
+                   "ndb_recv_thread_cpu_mask, ignored"
+                   " this variable, erroneus value = %s",
+                   str);
       goto error;
     }
     recv_thread_cpuid_array[recv_thread_num_cpus++] = i;
@@ -20664,27 +20648,27 @@ static
 void
 dbg_check_shares_update(THD*, st_mysql_sys_var*, void*, const void*)
 {
-  sql_print_information("dbug_check_shares open:");
+  ndb_log_info("dbug_check_shares open:");
   for (uint i= 0; i < ndbcluster_open_tables.records; i++)
   {
     NDB_SHARE *share= (NDB_SHARE*)my_hash_element(&ndbcluster_open_tables, i);
-    sql_print_information("  %s.%s: state: %s(%u) use_count: %u",
-                          share->db, share->table_name,
-                          get_share_state_string(share->state),
-                          (unsigned)share->state,
-                          share->use_count);
+    ndb_log_info("  %s.%s: state: %s(%u) use_count: %u",
+                 share->db, share->table_name,
+                 get_share_state_string(share->state),
+                 (unsigned)share->state,
+                 share->use_count);
     DBUG_ASSERT(share->state != NSS_DROPPED);
   }
 
-  sql_print_information("dbug_check_shares dropped:");
+  ndb_log_info("dbug_check_shares dropped:");
   for (uint i= 0; i < ndbcluster_dropped_tables.records; i++)
   {
     NDB_SHARE *share= (NDB_SHARE*)my_hash_element(&ndbcluster_dropped_tables,i);
-    sql_print_information("  %s.%s: state: %s(%u) use_count: %u",
-                          share->db, share->table_name,
-                          get_share_state_string(share->state),
-                          (unsigned)share->state,
-                          share->use_count);
+    ndb_log_info("  %s.%s: state: %s(%u) use_count: %u",
+                 share->db, share->table_name,
+                 get_share_state_string(share->state),
+                 (unsigned)share->state,
+                 share->use_count);
     DBUG_ASSERT(share->state == NSS_DROPPED);
   }
 

@@ -33,8 +33,7 @@
 #endif
 
 #include "ndb_sleep.h"
-
-#include "log.h"            // sql_print_*
+#include "ndb_log.h"
 
 extern char *my_bind_addr_str;
 
@@ -80,8 +79,8 @@ bool parse_pool_nodeids(const char* opt_str,
     // Don't allow empty string
     if (list[i].empty())
     {
-      sql_print_error("NDB: Found empty nodeid specified in "
-                      "--ndb-cluster-connection-pool-nodeids='%s'.",
+      ndb_log_error("Found empty nodeid specified in "
+                    "--ndb-cluster-connection-pool-nodeids='%s'.",
                       opt_str);
       return false;
     }
@@ -90,18 +89,18 @@ bool parse_pool_nodeids(const char* opt_str,
     uint nodeid = 0;
     if (sscanf(list[i].c_str(), "%u", &nodeid) != 1)
     {
-      sql_print_error("NDB: Could not parse '%s' in "
-                      "--ndb-cluster-connection-pool-nodeids='%s'.",
-                      list[i].c_str(),
-                      opt_str);
+      ndb_log_error("Could not parse '%s' in "
+                    "--ndb-cluster-connection-pool-nodeids='%s'.",
+                    list[i].c_str(),
+                    opt_str);
       return false;
     }
 
     // Check that number is a valid nodeid
     if (nodeid <= 0 || nodeid > MAX_NODES_ID)
     {
-      sql_print_error("NDB: Invalid nodeid %d in "
-                      "--ndb-cluster-connection-pool-nodeids='%s'.",
+      ndb_log_error("Invalid nodeid %d in "
+                    "--ndb-cluster-connection-pool-nodeids='%s'.",
                       nodeid, opt_str);
       return false;
     }
@@ -111,9 +110,9 @@ bool parse_pool_nodeids(const char* opt_str,
     {
       if (nodeid == nodeids[j])
       {
-        sql_print_error("NDB: Found duplicate nodeid %d in "
-                        "--ndb-cluster-connection-pool-nodeids='%s'.",
-                        nodeid, opt_str);
+        ndb_log_error("Found duplicate nodeid %d in "
+                      "--ndb-cluster-connection-pool-nodeids='%s'.",
+                      nodeid, opt_str);
         return false;
       }
     }
@@ -124,10 +123,10 @@ bool parse_pool_nodeids(const char* opt_str,
   // Check that size of nodeids match the pool size
   if (nodeids.size() != pool_size)
   {
-    sql_print_error("NDB: The size of the cluster connection pool must be "
-                    "equal to the number of nodeids in "
-                    "--ndb-cluster-connection-pool-nodeids='%s'.",
-                    opt_str);
+    ndb_log_error("The size of the cluster connection pool must be "
+                  "equal to the number of nodeids in "
+                  "--ndb-cluster-connection-pool-nodeids='%s'.",
+                  opt_str);
     return false;
   }
 
@@ -135,10 +134,10 @@ bool parse_pool_nodeids(const char* opt_str,
   if (force_nodeid != 0 &&
       force_nodeid != nodeids[0])
   {
-    sql_print_error("NDB: The nodeid specified by --ndb-nodeid must be equal "
-                    "to the first nodeid in "
-                    "--ndb-cluster-connection-pool-nodeids='%s'.",
-                    opt_str);
+    ndb_log_error("The nodeid specified by --ndb-nodeid must be equal "
+                  "to the first nodeid in "
+                  "--ndb-cluster-connection-pool-nodeids='%s'.",
+                  opt_str);
     return false;
   }
 
@@ -290,7 +289,7 @@ ndbcluster_connect(int (*connect_callback)(void),
   {
     assert(force_nodeid == 0 || force_nodeid == nodeids[0]);
     force_nodeid = nodeids[0];
-    sql_print_information("NDB: using nodeid %u", force_nodeid);
+    ndb_log_info("using nodeid %u", force_nodeid);
   }
 
   global_flag_skip_waiting_for_clean_cache= 1;
@@ -299,7 +298,7 @@ ndbcluster_connect(int (*connect_callback)(void),
     new Ndb_cluster_connection(connect_string, force_nodeid);
   if (!g_ndb_cluster_connection)
   {
-    sql_print_error("NDB: failed to allocate global ndb cluster connection");
+    ndb_log_error("failed to allocate global ndb cluster connection");
     DBUG_PRINT("error", ("Ndb_cluster_connection(%s)", connect_string));
     set_my_errno(HA_ERR_OUT_OF_MEM);
     DBUG_RETURN(-1);
@@ -321,7 +320,7 @@ ndbcluster_connect(int (*connect_callback)(void),
   // Create a Ndb object to open the connection  to NDB
   if ( (g_ndb= new Ndb(g_ndb_cluster_connection, "sys")) == 0 )
   {
-    sql_print_error("NDB: failed to allocate global ndb object");
+    ndb_log_error("failed to allocate global ndb object");
     DBUG_PRINT("error", ("failed to create global ndb object"));
     set_my_errno(HA_ERR_OUT_OF_MEM);
     DBUG_RETURN(-1);
@@ -365,7 +364,7 @@ ndbcluster_connect(int (*connect_callback)(void),
       if (i < nodeids.size())
       {
         nodeid = nodeids[i];
-        sql_print_information("NDB[%u]: using nodeid %u", i, nodeid);
+        ndb_log_info("connection[%u], using nodeid %u", i, nodeid);
       }
 
       if ((g_pool[i]=
@@ -373,8 +372,7 @@ ndbcluster_connect(int (*connect_callback)(void),
                                       g_ndb_cluster_connection,
                                       nodeid)) == 0)
       {
-        sql_print_error("NDB[%u]: failed to allocate cluster connect object",
-                        i);
+        ndb_log_error("connection[%u], failed to allocate connect object", i);
         DBUG_PRINT("error",("Ndb_cluster_connection[%u](%s)",
                             i, connect_string));
         DBUG_RETURN(-1);
@@ -407,7 +405,7 @@ ndbcluster_connect(int (*connect_callback)(void),
         g_pool[i]->connect(0,0,0);
         if (g_pool[i]->node_id() == 0)
         {
-          sql_print_information("NDB[%u]: starting connect thread", i);
+          ndb_log_info("connection[%u], starting connect thread", i);
           g_pool[i]->start_connect_thread();
           continue;
         }
@@ -439,8 +437,7 @@ ndbcluster_connect(int (*connect_callback)(void),
       {
         msg= "no storage nodes connected (timed out)";
       }
-      sql_print_information("NDB[%u]: NodeID: %d, %s",
-                            i, node_id, msg);
+      ndb_log_info("connection[%u], NodeID: %d, %s", i, node_id, msg);
     }
   }
   else if (res == 1)
@@ -450,7 +447,7 @@ ndbcluster_connect(int (*connect_callback)(void),
       if (g_pool[i]->
           start_connect_thread(i == 0 ? connect_callback :  NULL))
       {
-        sql_print_error("NDB[%u]: failed to start connect thread", i);
+        ndb_log_error("connection[%u], failed to start connect thread", i);
         DBUG_PRINT("error", ("g_ndb_cluster_connection->start_connect_thread()"));
         DBUG_RETURN(-1);
       }
@@ -470,9 +467,9 @@ ndbcluster_connect(int (*connect_callback)(void),
   {
     DBUG_ASSERT(res == -1);
     DBUG_PRINT("error", ("permanent error"));
-    sql_print_error("NDB: error (%u) %s",
-                    g_ndb_cluster_connection->get_latest_error(),
-                    g_ndb_cluster_connection->get_latest_error_msg());
+    ndb_log_error("error (%u) %s",
+                  g_ndb_cluster_connection->get_latest_error(),
+                  g_ndb_cluster_connection->get_latest_error_msg());
     DBUG_RETURN(-1);
   }
   DBUG_RETURN(0);
@@ -575,10 +572,9 @@ ndb_set_recv_thread_cpu(Uint16 *cpuid_array,
   if (cpuid_array_size < num_cpu_needed)
   {
     /* Ignore cpu masks that is too short */
-    sql_print_information(
-      "Ignored receive thread CPU mask, mask too short,"
-      " %u CPUs needed in mask, only %u CPUs provided",
-      num_cpu_needed, cpuid_array_size);
+    ndb_log_info("Ignored receive thread CPU mask, mask too short,"
+                 " %u CPUs needed in mask, only %u CPUs provided",
+                 num_cpu_needed, cpuid_array_size);
     return 1;
   }
   for (Uint32 i = 0; i < g_pool_alloc; i++)

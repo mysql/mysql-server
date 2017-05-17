@@ -49,7 +49,6 @@
                             // tablename_to_filename
 #include "mysqld.h"         // global_system_variables table_alias_charset ...
 #include "derror.h"         // ER_THD
-#include "log.h"            // sql_print_*
 #include "ndb_dd.h"
 
 extern bool opt_ndb_log_orig;
@@ -59,7 +58,6 @@ extern bool opt_ndb_log_updated_only;
 extern bool opt_ndb_log_update_minimal;
 extern bool opt_ndb_log_binlog_index;
 extern bool opt_ndb_log_apply_status;
-extern ulong opt_ndb_extra_logging;
 extern st_ndb_slave_state g_ndb_slave_state;
 extern bool opt_ndb_log_transaction_id;
 extern bool log_bin_use_v1_row_events;
@@ -545,7 +543,7 @@ get_ndb_blobs_value(TABLE* table, NdbValue* value_array,
       buffer= (uchar*) my_malloc(PSI_INSTRUMENT_ME, offset, MYF(MY_WME));
       if (buffer == NULL)
       {
-        sql_print_error("get_ndb_blobs_value: my_malloc(%u) failed", offset);
+        ndb_log_error("get_ndb_blobs_value, my_malloc(%u) failed", offset);
         DBUG_RETURN(-1);
       }
       buffer_size= offset;
@@ -628,15 +626,15 @@ static void ndbcluster_binlog_wait(THD *thd)
 
     if (count == 0)
     {
-      sql_print_warning("NDB: Thread id %u timed out (30s) waiting for epoch %u/%u "
-                        "to be handled.  Progress : %u/%u -> %u/%u.",
-                        thd->thread_id(),
-                        Uint32((session_last_committed_epoch >> 32) & 0xffffffff),
-                        Uint32(session_last_committed_epoch & 0xffffffff),
-                        Uint32((start_handled_epoch >> 32) & 0xffffffff),
-                        Uint32(start_handled_epoch & 0xffffffff),
-                        Uint32((ndb_latest_handled_binlog_epoch >> 32) & 0xffffffff),
-                        Uint32(ndb_latest_handled_binlog_epoch & 0xffffffff));
+      ndb_log_warning("Thread id %u timed out (30s) waiting for epoch %u/%u "
+                      "to be handled.  Progress : %u/%u -> %u/%u.",
+                      thd->thread_id(),
+                      Uint32((session_last_committed_epoch >> 32) & 0xffffffff),
+                      Uint32(session_last_committed_epoch & 0xffffffff),
+                      Uint32((start_handled_epoch >> 32) & 0xffffffff),
+                      Uint32(start_handled_epoch & 0xffffffff),
+                      Uint32((ndb_latest_handled_binlog_epoch >> 32) & 0xffffffff),
+                      Uint32(ndb_latest_handled_binlog_epoch & 0xffffffff));
 
       // Fail on wait/deadlock timeout in debug compile
       DBUG_ASSERT(false);
@@ -751,11 +749,9 @@ ndbcluster_binlog_index_purge_file(THD *passed_thd, const char *file)
      * TODO return proper error code here,
      * BUT! return code is not (currently) checked in
      *      log.cc : purge_index_entry() so we settle for warning printout
-     * Will sql_print_warning fail with no thd?
      */
-    sql_print_warning("NDB: Unable to purge "
-                      NDB_REP_DB "." NDB_REP_TABLE
-                      " File=%s (failed to setup thd)", file);
+    ndb_log_warning("Unable to purge " NDB_REP_DB "." NDB_REP_TABLE
+                    " File=%s (failed to setup thd)", file);
     DBUG_RETURN(0);
   }
 
@@ -823,9 +819,9 @@ Ndb_dist_priv_util::priv_tables_are_in_ndb(THD* thd)
     }
     else if (distributed)
     {
-      sql_print_error("NDB: Inconsistency detected in distributed "
-                      "privilege tables. Table '%s.%s' is not distributed",
-                      dist_priv.database(), table_name);
+      ndb_log_error("Inconsistency detected in distributed "
+                    "privilege tables. Table '%s.%s' is not distributed",
+                    dist_priv.database(), table_name);
       DBUG_RETURN(false);
     }
   }
@@ -1467,8 +1463,7 @@ class Ndb_binlog_setup {
     if (g_ndb_cluster_connection->get_no_ready() <= 0)
       return true;
 
-    if (opt_ndb_extra_logging)
-      sql_print_information("NDB: Creating %s.%s", db, table);
+    ndb_log_verbose(1, "Creating %s.%s", db, table);
 
     Ndb_local_connection mysqld(thd);
 
@@ -1489,8 +1484,7 @@ class Ndb_binlog_setup {
         It must be flushed to avoid that it exist only in the
         table definition cache.
         */
-        if (opt_ndb_extra_logging)
-          sql_print_information("NDB: Flushing %s.%s", db, table);
+        ndb_log_verbose(1, "Flushing %s.%s", db, table);
 
         /* Flush mysql.ndb_apply_status table, ignore all errors */
         (void)mysqld.flush_table(db, db_length,
@@ -1732,37 +1726,31 @@ static void ndb_report_waiting(const char *key,
   mysql_mutex_unlock(&injector_event_mutex);
   if (map == 0)
   {
-    sql_print_information("NDB %s:"
-                          " waiting max %u sec for %s %s."
-                          "  epochs: (%u/%u,%u/%u,%u/%u)"
-                          "  injector proc_info: %s"
-                          ,key, the_time, op, obj
-                          ,(uint)(ndb_latest_handled_binlog_epoch >> 32)
-                          ,(uint)(ndb_latest_handled_binlog_epoch)
-                          ,(uint)(ndb_latest_received_binlog_epoch >> 32)
-                          ,(uint)(ndb_latest_received_binlog_epoch)
-                          ,(uint)(ndb_latest_epoch >> 32)
-                          ,(uint)(ndb_latest_epoch)
-                          ,proc_info
-                          );
+    ndb_log_info("%s, waiting max %u sec for %s %s."
+                 "  epochs: (%u/%u,%u/%u,%u/%u)"
+                 "  injector proc_info: %s",
+                 key, the_time, op, obj,
+                 (uint)(ndb_latest_handled_binlog_epoch >> 32),
+                 (uint)(ndb_latest_handled_binlog_epoch),
+                 (uint)(ndb_latest_received_binlog_epoch >> 32),
+                 (uint)(ndb_latest_received_binlog_epoch),
+                 (uint)(ndb_latest_epoch >> 32),
+                 (uint)(ndb_latest_epoch),
+                 proc_info);
   }
   else
   {
-    sql_print_information("NDB %s:"
-                          " waiting max %u sec for %s %s."
-                          "  epochs: (%u/%u,%u/%u,%u/%u)"
-                          "  injector proc_info: %s map: %x%08x"
-                          ,key, the_time, op, obj
-                          ,(uint)(ndb_latest_handled_binlog_epoch >> 32)
-                          ,(uint)(ndb_latest_handled_binlog_epoch)
-                          ,(uint)(ndb_latest_received_binlog_epoch >> 32)
-                          ,(uint)(ndb_latest_received_binlog_epoch)
-                          ,(uint)(ndb_latest_epoch >> 32)
-                          ,(uint)(ndb_latest_epoch)
-                          ,proc_info
-                          ,map->bitmap[1]
-                          ,map->bitmap[0]
-                          );
+    ndb_log_info("%s, waiting max %u sec for %s %s."
+                 "  epochs: (%u/%u,%u/%u,%u/%u)"
+                 "  injector proc_info: %s map: %x%08x",
+                 key, the_time, op, obj,
+                 (uint)(ndb_latest_handled_binlog_epoch >> 32),
+                 (uint)(ndb_latest_handled_binlog_epoch),
+                 (uint)(ndb_latest_received_binlog_epoch >> 32),
+                 (uint)(ndb_latest_received_binlog_epoch),
+                 (uint)(ndb_latest_epoch >> 32),
+                 (uint)(ndb_latest_epoch),
+                 proc_info, map->bitmap[1], map->bitmap[0]);
   }
 }
 
@@ -1784,7 +1772,7 @@ int ndbcluster_log_schema_op(THD *thd,
   {
     if (!(thd_ndb= Thd_ndb::seize(thd)))
     {
-      sql_print_error("Could not allocate Thd_ndb object");
+      ndb_log_error("Could not allocate Thd_ndb object");
       DBUG_RETURN(1);
     }
     thd_set_thd_ndb(thd, thd_ndb);
@@ -2176,28 +2164,23 @@ end:
     ndb->closeTransaction(trans);
   ndb->setDatabaseName(save_db);
 
-  if (opt_ndb_extra_logging > 19)
-  {
-    sql_print_information("NDB: distributed %s.%s(%u/%u) type: %s(%u) query: \'%s\' to %x%08x",
-                          db,
-                          table_name,
-                          ndb_table_id,
-                          ndb_table_version,
-                          get_schema_type_name(log_type),
-                          log_type,
-                          query,
-                          ndb_schema_object->slock_bitmap.bitmap[1],
-                          ndb_schema_object->slock_bitmap.bitmap[0]);
-  }
+  ndb_log_verbose(19,
+                  "distributed %s.%s(%u/%u) type: %s(%u) "
+                  "query: \'%s\' to %x%08x",
+                  db, table_name, ndb_table_id, ndb_table_version,
+                  get_schema_type_name(log_type),
+                  log_type, query,
+                  ndb_schema_object->slock_bitmap.bitmap[1],
+                  ndb_schema_object->slock_bitmap.bitmap[0]);
 
   /*
     Wait for other mysqld's to acknowledge the table operation
   */
   if (unlikely(ndb_error))
   {
-    sql_print_error("NDB %s: distributing %s err: %u",
-                    type_str, ndb_schema_object->key,
-                    ndb_error->code);
+    ndb_log_error("%s, distributing %s err: %u",
+                  type_str, ndb_schema_object->key,
+                  ndb_error->code);
   }
   else if (!bitmap_is_clear_all(&ndb_schema_object->slock_bitmap))
   {
@@ -2233,12 +2216,12 @@ end:
         max_timeout--;
         if (max_timeout == 0)
         {
-          sql_print_error("NDB %s: distributing %s timed out. Ignoring...",
-                          type_str, ndb_schema_object->key);
+          ndb_log_error("%s, distributing %s timed out. Ignoring...",
+                        type_str, ndb_schema_object->key);
           DBUG_ASSERT(false);
           break;
         }
-        if (opt_ndb_extra_logging)
+        if (ndb_log_get_verbose_level())
           ndb_report_waiting(type_str, max_timeout,
                              "distributing", ndb_schema_object->key,
                              &ndb_schema_object->slock_bitmap);
@@ -2246,26 +2229,21 @@ end:
     }
     mysql_mutex_unlock(&ndb_schema_object->mutex);
   }
-  else if (opt_ndb_extra_logging > 19)
+  else
   {
-    sql_print_information("NDB %s: not waiting for distributing %s",
-                          type_str, ndb_schema_object->key);
+    ndb_log_verbose(19, "%s, not waiting for distributing %s",
+                    type_str, ndb_schema_object->key);
   }
 
   ndb_free_schema_object(&ndb_schema_object);
 
-  if (opt_ndb_extra_logging > 19)
-  {
-    sql_print_information("NDB: distribution of %s.%s(%u/%u) type: %s(%u) query: \'%s\'"
-                          " - complete!",
-                          db,
-                          table_name,
-                          ndb_table_id,
-                          ndb_table_version,
-                          get_schema_type_name(log_type),
-                          log_type,
-                          query);
-  }
+  ndb_log_verbose(19,
+                  "distribution of %s.%s(%u/%u) type: %s(%u) query: \'%s\'"
+                  " - complete!",
+                  db, table_name, ndb_table_id, ndb_table_version,
+                  get_schema_type_name(log_type),
+                  log_type,
+                  query);
 
   if (thd->slave_thread)
     update_slave_api_stats(ndb);
@@ -2464,14 +2442,13 @@ public:
     uint8 idx= map2subscriber_bitmap_index(data_node_id);
     bitmap_clear_all(&subscriber_bitmap[idx]);
     DBUG_PRINT("info",("Data node %u failure", data_node_id));
-    if (opt_ndb_extra_logging)
-    {
-      sql_print_information("NDB Schema dist: Data node: %d failed,"
-                            " subscriber bitmask %x%08x",
-                            data_node_id,
-                            subscriber_bitmap[idx].bitmap[1],
-                            subscriber_bitmap[idx].bitmap[0]);
-    }
+
+    ndb_log_verbose(1,
+                    "Data node: %d failed, subscriber bitmask %x%08x",
+                    data_node_id,
+                    subscriber_bitmap[idx].bitmap[1],
+                    subscriber_bitmap[idx].bitmap[0]);
+
     check_wakeup_clients();
   }
 
@@ -2482,15 +2459,13 @@ public:
     bitmap_set_bit(&subscriber_bitmap[idx], subscriber_node_id);
     DBUG_PRINT("info",("Data node %u reported node %u subscribed ",
                        data_node_id, subscriber_node_id));
-    if (opt_ndb_extra_logging)
-    {
-      sql_print_information("NDB Schema dist: Data node: %d reports "
-                            "subscribe from node %d, subscriber bitmask %x%08x",
-                            data_node_id,
-                            subscriber_node_id,
-                            subscriber_bitmap[idx].bitmap[1],
-                            subscriber_bitmap[idx].bitmap[0]);
-    }
+    ndb_log_verbose(1,
+                    "Data node: %d reports subscribe from node %d, "
+                    "subscriber bitmask %x%08x",
+                    data_node_id, subscriber_node_id,
+                    subscriber_bitmap[idx].bitmap[1],
+                    subscriber_bitmap[idx].bitmap[0]);
+
     //No 'wakeup_clients' now, as *adding* subscribers didn't complete anything
   }
 
@@ -2501,15 +2476,13 @@ public:
     bitmap_clear_bit(&subscriber_bitmap[idx], subscriber_node_id);
     DBUG_PRINT("info",("Data node %u reported node %u unsubscribed ",
                        data_node_id, subscriber_node_id));
-    if (opt_ndb_extra_logging)
-    {
-      sql_print_information("NDB Schema dist: Data node: %d reports "
-                            "unsubscribe from node %d, subscriber bitmask %x%08x",
-                            data_node_id,
-                            subscriber_node_id,
-                            subscriber_bitmap[idx].bitmap[1],
-                            subscriber_bitmap[idx].bitmap[0]);
-    }
+    ndb_log_verbose(1,
+                    "Data node: %d reports unsubscribe from node %d, "
+                    "subscriber bitmask %x%08x",
+                    data_node_id, subscriber_node_id,
+                    subscriber_bitmap[idx].bitmap[1],
+                    subscriber_bitmap[idx].bitmap[0]);
+
     check_wakeup_clients();
   }
 
@@ -2681,10 +2654,10 @@ class Ndb_schema_event_handler {
   print_could_not_discover_error(THD *thd,
                                  const Ndb_schema_op *schema)
   {
-    sql_print_error("NDB Binlog: Could not discover table '%s.%s' from "
-                    "binlog schema event '%s' from node %d.",
-                    schema->db, schema->name, schema->query,
-                    schema->node_id);
+    ndb_log_error("NDB Binlog: Could not discover table '%s.%s' from "
+                  "binlog schema event '%s' from node %d.",
+                  schema->db, schema->name, schema->query,
+                  schema->node_id);
 
     // Print thd's list of warnings to error log
     {
@@ -2694,9 +2667,8 @@ class Ndb_schema_event_handler {
       const Sql_condition *err;
       while ((err= it++))
       {
-        sql_print_warning("NDB Binlog: (%d)%s",
-                          err->mysql_errno(),
-                          err->message_text());
+        ndb_log_warning("NDB Binlog: (%d) %s",
+                        err->mysql_errno(), err->message_text());
       }
     }
   }
@@ -2719,9 +2691,10 @@ class Ndb_schema_event_handler {
     {
       /* Originating SQL node did not want this query logged */
       if (!ndbcluster_anyvalue_is_nologging(schema->any_value))
-        sql_print_warning("NDB: unknown value for binlog signalling 0x%X, "
-                          "query not logged",
-                          schema->any_value);
+      {
+        ndb_log_warning("unknown value for binlog signalling 0x%X, "
+                        "query not logged", schema->any_value);
+      }
       return;
     }
 
@@ -2872,7 +2845,7 @@ class Ndb_schema_event_handler {
         goto err;
 
       char before_slock[32];
-      if (unlikely(opt_ndb_extra_logging > 19))
+      if (ndb_log_get_verbose_level() > 19)
       {
         /* Format 'before slock' into temp string */
         my_snprintf(before_slock, sizeof(before_slock), "%x%08x",
@@ -2897,15 +2870,12 @@ class Ndb_schema_event_handler {
       }
       bitmap_clear_bit(&slock, own_nodeid());
 
-      if (unlikely(opt_ndb_extra_logging > 19))
-      {
-        sql_print_information("NDB: reply to %s.%s(%u/%u) from %s to %x%08x",
-                              db, table_name,
-                              table_id, table_version,
-                              before_slock,
-                              slock.bitmap[1],
-                              slock.bitmap[0]);
-      }
+      ndb_log_verbose(19, "reply to %s.%s(%u/%u) from %s to %x%08x",
+                           db, table_name,
+                           table_id, table_version,
+                           before_slock,
+                           slock.bitmap[1],
+                           slock.bitmap[0]);
 
       {
         NdbOperation *op= 0;
@@ -2964,10 +2934,10 @@ class Ndb_schema_event_handler {
 
     if (ndb_error)
     {
-      sql_print_warning("NDB: Could not release slock on '%s.%s', "
-                        "Error code: %d Message: %s",
-                        db, table_name,
-                        ndb_error->code, ndb_error->message);
+      ndb_log_warning("Could not release slock on '%s.%s', "
+                      "Error code: %d Message: %s",
+                      db, table_name,
+                      ndb_error->code, ndb_error->message);
     }
     if (trans)
       ndb->closeTransaction(trans);
@@ -3130,9 +3100,8 @@ class Ndb_schema_event_handler {
     if (!ndb_schema_object)
     {
       /* Noone waiting for this schema op in this mysqld */
-      if (opt_ndb_extra_logging > 19)
-        sql_print_information("NDB: Discarding event...no obj: %s (%u/%u)",
-                              key, schema->id, schema->version);
+      ndb_log_verbose(19, "Discarding event...no obj: %s (%u/%u)",
+                          key, schema->id, schema->version);
       DBUG_VOID_RETURN;
     }
 
@@ -3140,14 +3109,13 @@ class Ndb_schema_event_handler {
         ndb_schema_object->table_version != schema->version)
     {
       /* Someone waiting, but for another id/version... */
-      if (opt_ndb_extra_logging > 19)
-        sql_print_information("NDB: Discarding event...key: %s "
-                              "non matching id/version [%u/%u] != [%u/%u]",
-                              key,
-                              ndb_schema_object->table_id,
-                              ndb_schema_object->table_version,
-                              schema->id,
-                              schema->version);
+      ndb_log_verbose(19, "Discarding event...key: %s "
+                          "non matching id/version [%u/%u] != [%u/%u]",
+                          key,
+                          ndb_schema_object->table_id,
+                          ndb_schema_object->table_version,
+                          schema->id,
+                          schema->version);
       ndb_free_schema_object(&ndb_schema_object);
       DBUG_VOID_RETURN;
     }
@@ -3158,7 +3126,7 @@ class Ndb_schema_event_handler {
               no_bytes_in_map(&ndb_schema_object->slock_bitmap));
 
     char before_slock[32];
-    if (unlikely(opt_ndb_extra_logging > 19))
+    if (ndb_log_get_verbose_level() > 19)
     {
       /* Format 'before slock' into temp string */
       my_snprintf(before_slock, sizeof(before_slock), "%x%08x",
@@ -3174,16 +3142,13 @@ class Ndb_schema_event_handler {
      */
     bitmap_intersect(&ndb_schema_object->slock_bitmap, &schema->slock);
 
-    if (unlikely(opt_ndb_extra_logging > 19))
-    {
-      /* Print updated slock together with before image of it */
-      sql_print_information("NDB: CLEAR_SLOCK key: %s(%u/%u) %x%08x, from %s to %x%08x",
-                            key, schema->id, schema->version, 
-                            schema->slock_buf[1], schema->slock_buf[0],
-                            before_slock,
-                            ndb_schema_object->slock[1],
-                            ndb_schema_object->slock[0]);
-    }
+    /* Print updated slock together with before image of it */
+    ndb_log_verbose(19, "CLEAR_SLOCK key: %s(%u/%u) %x%08x, from %s to %x%08x",
+                        key, schema->id, schema->version,
+                        schema->slock_buf[1], schema->slock_buf[0],
+                        before_slock,
+                        ndb_schema_object->slock[1],
+                        ndb_schema_object->slock[0]);
 
     DBUG_DUMP("ndb_schema_object->slock_bitmap.bitmap",
               (uchar*)ndb_schema_object->slock_bitmap.bitmap,
@@ -3280,10 +3245,10 @@ class Ndb_schema_event_handler {
        !Ndb_dist_priv_util::is_distributed_priv_table(schema->db,
                                                       schema->name))
     {
-      sql_print_error("NDB Binlog: Skipping locally defined table '%s.%s' "
-                      "from binlog schema event '%s' from node %d.",
-                      schema->db, schema->name, schema->query,
-                      schema->node_id);
+      ndb_log_error("NDB Binlog: Skipping locally defined table '%s.%s' "
+                    "from binlog schema event '%s' from node %d.",
+                    schema->db, schema->name, schema->query,
+                    schema->node_id);
       DBUG_VOID_RETURN;
     }
 
@@ -3348,8 +3313,8 @@ class Ndb_schema_event_handler {
 
       if (ndb_binlog_open_shadow_table(m_thd, share, new_table_def))
       {
-        sql_print_error("NDB Binlog: Failed to re-open shadow table %s.%s",
-                        schema->db, schema->name);
+        ndb_log_error("NDB Binlog: Failed to re-open shadow table %s.%s",
+                      schema->db, schema->name);
       }
       mysql_mutex_unlock(&share->mutex);
 
@@ -3398,8 +3363,7 @@ class Ndb_schema_event_handler {
     NDB_SHARE *share= get_share(schema);
     if (share)
     {
-      if (opt_ndb_extra_logging > 9)
-        sql_print_information("NDB Binlog: handling online alter/rename");
+      ndb_log_verbose(9, "NDB Binlog: handling online alter/rename");
 
       mysql_mutex_lock(&share->mutex);
 
@@ -3412,8 +3376,8 @@ class Ndb_schema_event_handler {
             remote_participant_inplace_alter_open_shadow_table(share);
         if (open_shadow_result)
         {
-          sql_print_error("NDB Binlog: Failed to re-open shadow table %s.%s",
-                          schema->db, schema->name);
+          ndb_log_error("NDB Binlog: Failed to re-open shadow table %s.%s",
+                        schema->db, schema->name);
           mysql_mutex_unlock(&share->mutex);
         }
       }
@@ -3437,9 +3401,9 @@ class Ndb_schema_event_handler {
         if (ndbcluster_create_event_ops(m_thd, share, ndbtab,
                                         event_name.c_ptr()))
         {
-          sql_print_error("NDB Binlog:"
-                          "FAILED CREATE (DISCOVER) EVENT OPERATIONS Event: %s",
-                          event_name.c_ptr());
+          ndb_log_error("NDB Binlog: FAILED CREATE (DISCOVER) EVENT "
+                        "OPERATIONS Event: %s",
+                        event_name.c_ptr());
         }
         else
         {
@@ -3448,9 +3412,7 @@ class Ndb_schema_event_handler {
         share->op= tmp_op;
         mysql_mutex_unlock(&share->mutex);
 
-        if (opt_ndb_extra_logging > 9)
-          sql_print_information("NDB Binlog: handling online "
-                                "alter/rename done");
+        ndb_log_verbose(9, "NDB Binlog: handling online alter/rename done");
       }
       mysql_mutex_lock(&share->mutex);
       if (share->op && share->new_op)
@@ -3495,7 +3457,7 @@ class Ndb_schema_event_handler {
     if (tab.is_local_table())
     {
       /* Table is not a NDB table in this mysqld -> leave it */
-      sql_print_error("NDB Binlog: Skipping drop of locally "
+      ndb_log_warning("NDB Binlog: Skipping drop of locally "
                       "defined table '%s.%s' from binlog schema "
                       "event '%s' from node %d. ",
                       schema->db, schema->name, schema->query,
@@ -3586,8 +3548,8 @@ class Ndb_schema_event_handler {
     Ndb_local_schema::Table from(m_thd, schema->db, schema->name);
     if (from.is_local_table())
     {
-      /* Tables exists as a local table, print error and leave it */
-      sql_print_error("NDB Binlog: Skipping renaming locally "
+      /* Tables exists as a local table, print warning and leave it */
+      ndb_log_warning("NDB Binlog: Skipping rename of locally "
                       "defined table '%s.%s' from binlog schema "
                       "event '%s' from node %d. ",
                       schema->db, schema->name, schema->query,
@@ -3669,7 +3631,7 @@ class Ndb_schema_event_handler {
         strcmp(schema->db,  "performance_schema") == 0)
     {
       /* Tables exists as a local table, print error and leave it */
-      sql_print_error("NDB Binlog: Skipping drop database '%s' since "
+      ndb_log_warning("NDB Binlog: Skipping drop database '%s' since "
                       "it contained local tables "
                       "binlog schema event '%s' from node %d. ",
                       schema->db, schema->query,
@@ -3710,9 +3672,8 @@ class Ndb_schema_event_handler {
 
     if (is_local_table(schema->db, schema->name))
     {
-      sql_print_error("NDB Binlog: Skipping locally defined table "
-                      "'%s.%s' from binlog schema event '%s' from "
-                      "node %d. ",
+      ndb_log_warning("NDB Binlog: Skipping locally defined table "
+                      "'%s.%s' from binlog schema event '%s' from node %d. ",
                       schema->db, schema->name, schema->query,
                       schema->node_id);
       DBUG_VOID_RETURN;
@@ -3744,10 +3705,10 @@ class Ndb_schema_event_handler {
 
     if (is_local_table(schema->db, schema->name))
     {
-      sql_print_error("NDB Binlog: Skipping locally defined table '%s.%s' from "
-                          "binlog schema event '%s' from node %d. ",
-                          schema->db, schema->name, schema->query,
-                          schema->node_id);
+      ndb_log_warning("NDB Binlog: Skipping locally defined table '%s.%s' from "
+                      "binlog schema event '%s' from node %d. ",
+                      schema->db, schema->name, schema->query,
+                      schema->node_id);
       DBUG_VOID_RETURN;
     }
 
@@ -3822,10 +3783,8 @@ class Ndb_schema_event_handler {
 
     write_schema_op_to_binlog(m_thd, schema);
 
-    if (opt_ndb_extra_logging > 9)
-      sql_print_information("Got dist_priv event: %s, "
-                            "flushing privileges",
-                            get_schema_type_name(schema->type));
+    ndb_log_verbose(9, "Got dist_priv event: %s, flushing privileges",
+                       get_schema_type_name(schema->type));
 
     // Participant never takes GSL
     assert(get_thd_ndb(m_thd)->check_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT));
@@ -3847,18 +3806,17 @@ class Ndb_schema_event_handler {
     {
       const SCHEMA_OP_TYPE schema_type= (SCHEMA_OP_TYPE)schema->type;
 
-      if (opt_ndb_extra_logging > 19)
-      {
-        sql_print_information("NDB: got schema event on %s.%s(%u/%u) query: '%s' type: %s(%d) node: %u slock: %x%08x",
-                              schema->db, schema->name,
-                              schema->id, schema->version,
-                              schema->query,
-                              get_schema_type_name(schema_type),
-                              schema_type,
-                              schema->node_id,
-                              schema->slock.bitmap[1],
-                              schema->slock.bitmap[0]);
-      }
+      ndb_log_verbose(19,
+                      "got schema event on %s.%s(%u/%u) query: '%s' "
+                      "type: %s(%d) node: %u slock: %x%08x",
+                      schema->db, schema->name,
+                      schema->id, schema->version,
+                      schema->query,
+                      get_schema_type_name(schema_type),
+                      schema_type,
+                      schema->node_id,
+                      schema->slock.bitmap[1],
+                      schema->slock.bitmap[0]);
 
       if ((schema->db[0] == 0) && (schema->name[0] == 0))
       {
@@ -3928,9 +3886,9 @@ class Ndb_schema_event_handler {
           Only very old MySQL Server connected to the cluster may
           send this schema operation, ignore it
         */
-        sql_print_error("NDB schema: Skipping old schema operation"
-                        "(RENAME_TABLE_NEW) on %s.%s",
-                        schema->db, schema->name);
+        ndb_log_error("Skipping old schema operation"
+                      "(RENAME_TABLE_NEW) on %s.%s",
+                      schema->db, schema->name);
         DBUG_ASSERT(false);
         break;
 
@@ -3957,10 +3915,9 @@ class Ndb_schema_event_handler {
 
     {
       const SCHEMA_OP_TYPE schema_type= (SCHEMA_OP_TYPE)schema->type;
-      if (opt_ndb_extra_logging > 9)
-        sql_print_information("%s - %s.%s",
-                              get_schema_type_name(schema_type),
-                              schema->db, schema->name);
+      ndb_log_verbose(9, "%s - %s.%s",
+                         get_schema_type_name(schema_type),
+                         schema->db, schema->name);
 
       switch (schema_type)
       {
@@ -4064,18 +4021,16 @@ public:
       break;
 
     case NDBEVENT::TE_CLUSTER_FAILURE:
-      if (opt_ndb_extra_logging)
-        sql_print_information("NDB Schema dist: cluster failure "
-                              "at epoch %u/%u.",
-                              (uint)(pOp->getGCI() >> 32),
-                              (uint)(pOp->getGCI()));
+      ndb_log_verbose(1, "cluster failure at epoch %u/%u.",
+                      (uint)(pOp->getGCI() >> 32), (uint)(pOp->getGCI()));
+
       // fall through
     case NDBEVENT::TE_DROP:
       /* ndb_schema table DROPped */
-      if (opt_ndb_extra_logging &&
-          ndb_binlog_tables_inited && ndb_binlog_running)
-        sql_print_information("NDB Binlog: ndb tables initially "
-                              "read only on reconnect.");
+      if (ndb_binlog_tables_inited && ndb_binlog_running)
+        ndb_log_verbose(1,
+                        "NDB Binlog: ndb tables initially readonly "
+                        "on reconnect.");
 
       /* release the ndb_schema_share */
       mysql_mutex_lock(&injector_data_mutex);
@@ -4118,8 +4073,7 @@ public:
 
     default:
     {
-      sql_print_error("NDB Schema dist: unknown event %u, ignoring...",
-                      ev_type);
+      ndb_log_error("unknown event %u, ignoring...", ev_type);
     }
     }
 
@@ -4223,9 +4177,9 @@ class Ndb_binlog_index_table_util
       if (thd->killed)
         DBUG_PRINT("error", ("NDB Binlog: Opening ndb_binlog_index: killed"));
       else
-        sql_print_error("NDB Binlog: Opening ndb_binlog_index: %d, '%s'",
-                        thd->get_stmt_da()->mysql_errno(),
-                        thd->get_stmt_da()->message_text());
+        ndb_log_error("NDB Binlog: Opening ndb_binlog_index: %d, '%s'",
+                      thd->get_stmt_da()->mysql_errno(),
+                      thd->get_stmt_da()->message_text());
       thd_proc_info(thd, save_proc_info);
       return -1;
     }
@@ -4266,7 +4220,7 @@ class Ndb_binlog_index_table_util
       if (thd->killed)
         DBUG_PRINT("error", ("NDB Binlog: Unable to lock table ndb_binlog_index, killed"));
       else
-        sql_print_error("NDB Binlog: Unable to lock table ndb_binlog_index");
+        ndb_log_error("NDB Binlog: Unable to lock table ndb_binlog_index");
       error= -1;
       goto add_ndb_binlog_index_err;
     }
@@ -4355,20 +4309,20 @@ class Ndb_binlog_index_table_util
                       {
                         if ((((uint32) rand()) % 10) == 9)
                         {
-                          sql_print_error("NDB Binlog: Injecting random write failure");
+                          ndb_log_error("NDB Binlog: Injecting random write failure");
                           error= ndb_binlog_index->file->ha_write_row(ndb_binlog_index->record[0]);
                         }
                       });
     
       if (error)
       {
-        sql_print_error("NDB Binlog: Failed writing to ndb_binlog_index for epoch %u/%u "
-                        " orig_server_id %u orig_epoch %u/%u "
-                        "with error %d.",
-                        uint(epoch >> 32), uint(epoch),
-                        orig_server_id,
-                        uint(orig_epoch >> 32), uint(orig_epoch),
-                        error);
+        ndb_log_error("NDB Binlog: Failed writing to ndb_binlog_index for "
+                      "epoch %u/%u orig_server_id %u orig_epoch %u/%u "
+                      "with error %d.",
+                      uint(epoch >> 32), uint(epoch),
+                      orig_server_id,
+                      uint(orig_epoch >> 32), uint(orig_epoch),
+                      error);
       
         bool seen_error_row = false;
         ndb_binlog_index_row* cursor= first;
@@ -4386,11 +4340,10 @@ class Ndb_binlog_index_table_util
             my_snprintf(tmp, sizeof(tmp), "%u/%u", uint(epoch >> 32), uint(epoch));
         
           bool error_row = (row == (cursor->next));
-          sql_print_error("NDB Binlog: Writing row (%s) to ndb_binlog_index - %s",
-                          tmp,
-                          (error_row?"ERROR":
-                           (seen_error_row?"Discarded":
-                            "OK")));
+          ndb_log_error("NDB Binlog: Writing row (%s) to ndb_binlog_index - %s",
+                        tmp,
+                        (error_row?"ERROR":
+                                   (seen_error_row?"Discarded":"OK")));
           seen_error_row |= error_row;
 
         } while ((cursor = cursor->next));
@@ -4427,9 +4380,9 @@ class Ndb_binlog_index_table_util
           error, which will cause replication to stop.
         */
         error= thd->get_stmt_da()->mysql_errno();
-        sql_print_error("NDB Binlog: Failed committing transaction to ndb_binlog_index "
-                        "with error %d.",
-                        error);
+        ndb_log_error("NDB Binlog: Failed committing transaction to "
+                      "ndb_binlog_index with error %d.",
+                      error);
         trans_rollback_stmt(thd);
       }
     }
@@ -4470,7 +4423,7 @@ class Ndb_binlog_index_table_util
     const int retry_result = write_rows_impl(new_thd, rows);
     if (retry_result)
     {
-      sql_print_error("NDB Binlog: Failed writing to ndb_binlog_index table "
+      ndb_log_error("NDB Binlog: Failed writing to ndb_binlog_index table "
                       "while retrying after kill during shutdown");
       DBUG_ASSERT(false); // Crash in debug compile
     }
@@ -4528,9 +4481,9 @@ int ndbcluster_binlog_start()
 
   if (::server_id == 0)
   {
-    sql_print_warning("NDB: server id set to zero - changes logged to "
-                      "bin log with server id zero will be logged with "
-                      "another server id by slave mysqlds");
+    ndb_log_warning("server id set to zero - changes logged to "
+                    "binlog with server id zero will be logged with "
+                    "another server id by slave mysqlds");
   }
 
   /* 
@@ -4540,8 +4493,8 @@ int ndbcluster_binlog_start()
   if ((::server_id & 0x1 << 31) ||                             // Reserved bit
       !ndbcluster_anyvalue_is_serverid_in_range(::server_id))  // server_id_bits
   {
-    sql_print_error("NDB: server id provided is too large to be represented in "
-                    "opt_server_id_bits or is reserved");
+    ndb_log_error("server id provided is too large to be represented in "
+                  "opt_server_id_bits or is reserved");
     DBUG_RETURN(-1);
   }
 
@@ -4551,8 +4504,8 @@ int ndbcluster_binlog_start()
   if (opt_ndb_log_transaction_id &&
       log_bin_use_v1_row_events)
   {
-    sql_print_error("NDB: --ndb-log-transaction-id requires v2 Binlog row events "
-                    "but server is using v1.");
+    ndb_log_error("--ndb-log-transaction-id requires v2 Binlog row events "
+                  "but server is using v1.");
     DBUG_RETURN(-1);
   }
 
@@ -4738,9 +4691,8 @@ ndbcluster_get_binlog_replication_info(THD *thd, Ndb *ndb,
         WRITES.
       */
       DBUG_PRINT("info", ("ndb_apply_status defaulting to FULL, USE_WRITE"));
-      sql_print_information("NDB: ndb-log-apply-status forcing "
-                            "%s.%s to FULL USE_WRITE",
-                            NDB_REP_DB, NDB_APPLY_TABLE);
+      ndb_log_info("ndb-log-apply-status forcing %s.%s to FULL USE_WRITE",
+                   NDB_REP_DB, NDB_APPLY_TABLE);
       *binlog_flags = NBT_FULL;
       *conflict_fn = NULL;
       *num_args = 0;
@@ -4762,8 +4714,7 @@ ndbcluster_get_binlog_replication_info(THD *thd, Ndb *ndb,
                         ER_NDB_REPLICATION_SCHEMA_ERROR,
                         ER_THD(thd, ER_NDB_REPLICATION_SCHEMA_ERROR),
                         msg);
-    sql_print_warning("NDB Binlog: %s",
-                      msg);
+    ndb_log_warning("NDB Binlog: %s", msg);
   }
 
   if (rc != 0)
@@ -4791,12 +4742,9 @@ ndbcluster_get_binlog_replication_info(THD *thd, Ndb *ndb,
         Log as well, useful for contexts where the thd's stack of
         warnings are ignored
       */
-      if (opt_ndb_extra_logging)
-      {
-        sql_print_warning("NDB Slave: Table %s.%s : Parse error on conflict fn : %s",
-                          db, table_name,
-                          msgbuf);
-      }
+      ndb_log_warning("NDB Slave: Table %s.%s : Parse error on conflict fn : %s",
+                      db, table_name,
+                      msgbuf);
 
       DBUG_RETURN(ER_CONFLICT_FN_PARSE_ERROR);
     }
@@ -4840,10 +4788,7 @@ ndbcluster_apply_binlog_replication_info(THD *thd,
                           args,
                           num_args) == 0)
     {
-      if (opt_ndb_extra_logging)
-      {
-        sql_print_information("%s", tmp_buf);
-      }
+      ndb_log_verbose(1, "NDB Slave: %s", tmp_buf);
     }
     else
     {
@@ -4852,10 +4797,8 @@ ndbcluster_apply_binlog_replication_info(THD *thd,
         for cases where thd warning stack is
         ignored
       */
-      sql_print_warning("NDB Slave: Table %s.%s : %s",
-                        share->db,
-                        share->table_name,
-                        tmp_buf);
+      ndb_log_warning("NDB Slave: Table %s.%s : %s",
+                      share->db, share->table_name, tmp_buf);
 
       push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_CONFLICT_FN_PARSE_ERROR,
@@ -4975,12 +4918,12 @@ int ndbcluster_create_binlog_setup(THD *thd, Ndb *ndb,
     const NDBTAB *ndbtab= ndbtab_g.get_table();
     if (ndbtab == 0)
     {
-      if (opt_ndb_extra_logging)
-        sql_print_information("NDB Binlog: Failed to get table %s from ndb: "
-                              "%s, %d",
-                              share->key_string(),
-                              dict->getNdbError().message,
-                              dict->getNdbError().code);
+      ndb_log_verbose(1,
+                      "NDB Binlog: Failed to get table %s from NDB: "
+                      "%s, %d",
+                      share->key_string(),
+                      dict->getNdbError().message,
+                      dict->getNdbError().code);
       break; // error
     }
 
@@ -5001,9 +4944,7 @@ int ndbcluster_create_binlog_setup(THD *thd, Ndb *ndb,
     }
     if (get_binlog_nologging(share))
     {
-      if (opt_ndb_extra_logging)
-        sql_print_information("NDB Binlog: NOT logging %s",
-                              share->key_string());
+      ndb_log_verbose(1, "NDB Binlog: NOT logging %s", share->key_string());
       DBUG_RETURN(0);
     }
 
@@ -5018,22 +4959,18 @@ int ndbcluster_create_binlog_setup(THD *thd, Ndb *ndb,
     {
       if (ndbcluster_create_event(thd, ndb, ndbtab, event_name.c_ptr(), share))
       {
-        sql_print_error("NDB Binlog: "
-                        "FAILED CREATE (DISCOVER) TABLE Event: %s",
-                        event_name.c_ptr());
+        ndb_log_error("NDB Binlog: FAILED CREATE (DISCOVER) TABLE Event: %s",
+                      event_name.c_ptr());
         break; // error
       }
-      if (opt_ndb_extra_logging)
-        sql_print_information("NDB Binlog: "
-                              "CREATE (DISCOVER) TABLE Event: %s",
-                              event_name.c_ptr());
+      ndb_log_verbose(1, "NDB Binlog: CREATE (DISCOVER) TABLE Event: %s",
+                      event_name.c_ptr());
     }
     else
     {
       delete ev;
-      if (opt_ndb_extra_logging)
-        sql_print_information("NDB Binlog: DISCOVER TABLE Event: %s",
-                              event_name.c_ptr());
+      ndb_log_verbose(1, "NDB Binlog: DISCOVER TABLE Event: %s",
+                      event_name.c_ptr());
     }
 
     /*
@@ -5042,9 +4979,8 @@ int ndbcluster_create_binlog_setup(THD *thd, Ndb *ndb,
     if (ndbcluster_create_event_ops(thd, share,
                                     ndbtab, event_name.c_ptr()))
     {
-      sql_print_error("NDB Binlog:"
-                      "FAILED CREATE (DISCOVER) EVENT OPERATIONS Event: %s",
-                      event_name.c_ptr());
+      ndb_log_error("NDB Binlog: FAILED CREATE (DISCOVER) EVENT "
+                    "OPERATIONS Event: %s", event_name.c_ptr());
       /* a warning has been issued to the client */
       break;
     }
@@ -5103,9 +5039,9 @@ ndbcluster_create_event(THD *thd, Ndb *ndb, const NDBTAB *ndbtab,
 
   if (get_binlog_nologging(share))
   {
-    if (opt_ndb_extra_logging && ndb_binlog_running)
-      sql_print_information("NDB Binlog: NOT logging %s",
-                            share->key_string());
+    if (ndb_binlog_running)
+      ndb_log_verbose(1, "NDB Binlog: NOT logging %s", share->key_string());
+
     DBUG_PRINT("info", ("share->flags & NSF_NO_BINLOG, flags: %x %d",
                         share->flags, share->flags & NSF_NO_BINLOG));
     DBUG_RETURN(0);
@@ -5120,9 +5056,9 @@ ndbcluster_create_event(THD *thd, Ndb *ndb, const NDBTAB *ndbtab,
   {
     if (share->flags & NSF_BLOB_FLAG)
     {
-      sql_print_error("NDB Binlog: logging of table %s "
-                      "with BLOB attribute and no PK is not supported",
-                      share->key_string());
+      ndb_log_error("NDB Binlog: logging of table %s "
+                    "with BLOB attribute and no PK is not supported",
+                    share->key_string());
       if (push_warning)
         push_warning_printf(thd, Sql_condition::SL_WARNING,
                             ER_ILLEGAL_HA_CREATE_OPTION,
@@ -5188,9 +5124,9 @@ ndbcluster_create_event(THD *thd, Ndb *ndb, const NDBTAB *ndbtab,
                             ER_GET_ERRMSG, ER_THD(thd, ER_GET_ERRMSG),
                             dict->getNdbError().code,
                             dict->getNdbError().message, "NDB");
-      sql_print_error("NDB Binlog: Unable to create event in database. "
-                      "Event: %s  Error Code: %d  Message: %s", event_name,
-                      dict->getNdbError().code, dict->getNdbError().message);
+      ndb_log_error("NDB Binlog: Unable to create event in database. "
+                    "Event: %s  Error Code: %d  Message: %s", event_name,
+                    dict->getNdbError().code, dict->getNdbError().message);
       DBUG_RETURN(-1);
     }
 
@@ -5216,12 +5152,12 @@ ndbcluster_create_event(THD *thd, Ndb *ndb, const NDBTAB *ndbtab,
                             ER_GET_ERRMSG, ER_THD(thd, ER_GET_ERRMSG),
                             dict->getNdbError().code,
                             dict->getNdbError().message, "NDB");
-      sql_print_error("NDB Binlog: Unable to create event in database. "
-                      " Attempt to correct with drop failed. "
-                      "Event: %s Error Code: %d Message: %s",
-                      event_name,
-                      dict->getNdbError().code,
-                      dict->getNdbError().message);
+      ndb_log_error("NDB Binlog: Unable to create event in database. "
+                    " Attempt to correct with drop failed. "
+                    "Event: %s Error Code: %d Message: %s",
+                    event_name,
+                    dict->getNdbError().code,
+                    dict->getNdbError().message);
       DBUG_RETURN(-1);
     }
 
@@ -5235,12 +5171,12 @@ ndbcluster_create_event(THD *thd, Ndb *ndb, const NDBTAB *ndbtab,
                             ER_GET_ERRMSG, ER_THD(thd, ER_GET_ERRMSG),
                             dict->getNdbError().code,
                             dict->getNdbError().message, "NDB");
-      sql_print_error("NDB Binlog: Unable to create event in database. "
-                      " Attempt to correct with drop ok, but create failed. "
-                      "Event: %s Error Code: %d Message: %s",
-                      event_name,
-                      dict->getNdbError().code,
-                      dict->getNdbError().message);
+      ndb_log_error("NDB Binlog: Unable to create event in database. "
+                    " Attempt to correct with drop ok, but create failed. "
+                    "Event: %s Error Code: %d Message: %s",
+                    event_name,
+                    dict->getNdbError().code,
+                    dict->getNdbError().message);
       DBUG_RETURN(-1);
     }
   }
@@ -5321,7 +5257,7 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
     assert(share->event_data == 0);
 
     DBUG_ASSERT(share->use_count > 1);
-    sql_print_error("NDB Binlog: discover reusing old ev op");
+    ndb_log_error("NDB Binlog: discover reusing old ev op");
     /* ndb_share reference ToDo free */
     DBUG_PRINT("NDB_SHARE", ("%s ToDo free  use_count: %u",
                              share->key_string(), share->use_count));
@@ -5363,8 +5299,8 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
     }
     if (!op)
     {
-      sql_print_error("NDB Binlog: Creating NdbEventOperation failed for"
-                      " %s",event_name);
+      ndb_log_error("NDB Binlog: Creating NdbEventOperation failed for %s",
+                    event_name);
       push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_GET_ERRMSG, ER_THD(thd, ER_GET_ERRMSG),
                           ndb->getNdbError().code,
@@ -5425,9 +5361,9 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
           attr1.blob= op->getPreBlobHandle(col_name);
           if (attr0.blob == NULL || attr1.blob == NULL)
           {
-            sql_print_error("NDB Binlog: Creating NdbEventOperation"
-                            " blob field %u handles failed (code=%d) for %s",
-                            j, op->getNdbError().code, event_name);
+            ndb_log_error("NDB Binlog: Creating NdbEventOperation"
+                          " blob field %u handles failed (code=%d) for %s",
+                          j, op->getNdbError().code, event_name);
             push_warning_printf(thd, Sql_condition::SL_WARNING,
                                 ER_GET_ERRMSG, ER_THD(thd, ER_GET_ERRMSG),
                                 op->getNdbError().code,
@@ -5476,9 +5412,9 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
                             ER_GET_ERRMSG, ER_THD(thd, ER_GET_ERRMSG),
                             op->getNdbError().code, op->getNdbError().message,
                             "NDB");
-        sql_print_error("NDB Binlog: ndbevent->execute failed for %s; %d %s",
-                        event_name,
-                        op->getNdbError().code, op->getNdbError().message);
+        ndb_log_error("NDB Binlog: ndbevent->execute failed for %s; %d %s",
+                      event_name,
+                      op->getNdbError().code, op->getNdbError().message);
       }
       share->event_data= event_data;
       op->setCustomData(NULL);
@@ -5523,13 +5459,13 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
                      share->key_string(), (long) share->op,
                      share->use_count));
 
-  if (opt_ndb_extra_logging)
-    sql_print_information("NDB Binlog: logging %s (%s,%s)",
-                          share->key_string(),
-                          get_binlog_full(share) ? "FULL" : "UPDATED",
-                          get_binlog_use_update(share) ? "USE_UPDATE" : "USE_WRITE");
+  ndb_log_verbose(1, "NDB Binlog: logging %s (%s,%s)",
+                  share->key_string(),
+                  get_binlog_full(share) ? "FULL" : "UPDATED",
+                  get_binlog_use_update(share) ? "USE_UPDATE" : "USE_WRITE");
   DBUG_RETURN(0);
 }
+
 
 int
 ndbcluster_drop_event(THD *thd, Ndb *ndb, NDB_SHARE *share,
@@ -5561,11 +5497,11 @@ ndbcluster_drop_event(THD *thd, Ndb *ndb, NDB_SHARE *share,
                           dict->getNdbError().code,
                           dict->getNdbError().message, "NDB");
       /* error is not that the event did not exist */
-      sql_print_error("NDB Binlog: Unable to drop event in database. "
-                      "Event: %s Error Code: %d Message: %s",
-                      event_name.c_ptr(),
-                      dict->getNdbError().code,
-                      dict->getNdbError().message);
+      ndb_log_error("NDB Binlog: Unable to drop event in database. "
+                    "Event: %s Error Code: %d Message: %s",
+                    event_name.c_ptr(),
+                    dict->getNdbError().code,
+                    dict->getNdbError().message);
       /* ToDo; handle error? */
       if (share && share->op &&
           share->op->getState() == NdbEventOperation::EO_EXECUTING &&
@@ -5643,12 +5579,12 @@ ndbcluster_handle_drop_table(THD *thd, Ndb *ndb, NDB_SHARE *share,
       max_timeout--;
       if (max_timeout == 0)
       {
-        sql_print_error("NDB %s: %s timed out. Ignoring...",
-                        type_str, share->key_string());
+        ndb_log_error("%s, %s timed out. Ignoring...",
+                      type_str, share->key_string());
         DBUG_ASSERT(false);
         break;
       }
-      if (opt_ndb_extra_logging)
+      if (ndb_log_get_verbose_level())
         ndb_report_waiting(type_str, max_timeout,
                            type_str, share->key_string(), 0);
     }
@@ -5823,8 +5759,8 @@ handle_error(NdbEventOperation *pOp)
   NDB_SHARE *share= event_data->share;
   DBUG_ENTER("handle_error");
 
-  sql_print_error("NDB Binlog: unhandled error %d for table %s",
-                  pOp->hasError(), share->key_string());
+  ndb_log_error("NDB Binlog: unhandled error %d for table %s",
+                pOp->hasError(), share->key_string());
   pOp->clearError();
   DBUG_RETURN(0);
 }
@@ -5860,19 +5796,19 @@ handle_non_data_event(THD *thd,
   switch (type)
   {
   case NDBEVENT::TE_CLUSTER_FAILURE:
-    if (opt_ndb_extra_logging)
-      sql_print_information("NDB Binlog: cluster failure for %s at epoch %u/%u.",
-                            share->key_string(),
-                            (uint)(pOp->getGCI() >> 32),
-                            (uint)(pOp->getGCI()));
+    ndb_log_verbose(1,
+                    "NDB Binlog: cluster failure for %s at epoch %u/%u.",
+                    share->key_string(),
+                    (uint)(pOp->getGCI() >> 32),
+                    (uint)(pOp->getGCI()));
     // fallthrough
   case NDBEVENT::TE_DROP:
     if (ndb_apply_status_share == share)
     {
-      if (opt_ndb_extra_logging &&
-          ndb_binlog_tables_inited && ndb_binlog_running)
-        sql_print_information("NDB Binlog: ndb tables initially "
-                              "read only on reconnect.");
+      if (ndb_binlog_tables_inited && ndb_binlog_running)
+        ndb_log_verbose(1,
+                        "NDB Binlog: ndb tables initially "
+                        "readonly on reconnect.");
 
       /* release the ndb_apply_status_share */
       free_share(&ndb_apply_status_share);
@@ -5896,8 +5832,8 @@ handle_non_data_event(THD *thd,
     break;
 
   default:
-    sql_print_error("NDB Binlog: unknown non data event %d for %s. "
-                    "Ignoring...", (unsigned) type, share->key_string());
+    ndb_log_error("NDB Binlog: unknown non data event %d for %s. "
+                  "Ignoring...", (unsigned) type, share->key_string());
     break;
   }
 
@@ -6005,9 +5941,9 @@ handle_data_event(THD* thd, Ndb *ndb, NdbEventOperation *pOp,
     }
     else
     {
-      sql_print_warning("NDB: unknown value for binlog signalling 0x%X, "
-                        "event not logged",
-                        anyValue);
+      ndb_log_warning("unknown value for binlog signalling 0x%X, "
+                      "event not logged",
+                      anyValue);
       return 0;
     }
   }
@@ -6190,11 +6126,11 @@ handle_data_event(THD* thd, Ndb *ndb, NdbEventOperation *pOp,
        */
       if (!g_injector_v1_warning_emitted)
       {
-        sql_print_error("NDB: Binlog Injector discarding row event "
-                        "meta data as server is using v1 row events. "
-                        "(%u %x)",
-                        opt_ndb_log_transaction_id,
-                        event_conflict_flags);
+        ndb_log_error("Binlog Injector discarding row event "
+                      "meta data as server is using v1 row events. "
+                      "(%u %x)",
+                      opt_ndb_log_transaction_id,
+                      event_conflict_flags);
 
         g_injector_v1_warning_emitted = true;
       }
@@ -6480,16 +6416,16 @@ static void remove_all_event_operations(Ndb *s_ndb, Ndb *i_ndb)
   if (i_ndb)
     remove_event_operations(i_ndb);
 
-  if (opt_ndb_extra_logging > 15)
+  if (ndb_log_get_verbose_level() > 15)
   {
     mysql_mutex_lock(&ndbcluster_mutex);
     if (ndbcluster_open_tables.records)
     {
-      sql_print_information("remove_all_event_operations: Remaining open tables: ");
+      ndb_log_info("remove_all_event_operations: Remaining open tables: ");
       for (uint i= 0; i < ndbcluster_open_tables.records; i++)
       {
         NDB_SHARE* share = (NDB_SHARE*)my_hash_element(&ndbcluster_open_tables,i);
-        sql_print_information("  %s.%s, use_count: %u",
+        ndb_log_info("  %s.%s, use_count: %u",
                               share->db,
                               share->table_name,
                               share->use_count);
@@ -6537,7 +6473,7 @@ injectApplyStatusWriteRow(injector::transaction& trans,
   DBUG_ENTER("injectApplyStatusWriteRow");
   if (ndb_apply_status_share == NULL)
   {
-    sql_print_error("NDB: Could not get apply status share");
+    ndb_log_error("Could not get apply status share");
     DBUG_ASSERT(ndb_apply_status_share != NULL);
     DBUG_RETURN(false);
   }
@@ -6551,8 +6487,8 @@ injectApplyStatusWriteRow(injector::transaction& trans,
                                        & 0xffffffff);
                     ulonglong gciLo = (gci_to_store & 0xffffffff);
                     gciHi = (gciHi % 3);
-                    sql_print_warning("NDB Binlog injector cycling gcis (%llu -> %llu)",
-                                      gci_to_store, (gciHi << 32) + gciLo);
+                    ndb_log_warning("Binlog injector cycling gcis (%llu -> %llu)",
+                                    gci_to_store, (gciHi << 32) + gciLo);
                     gci_to_store = (gciHi << 32) + gciLo;
                   });
   DBUG_EXECUTE_IF("ndb_binlog_injector_repeat_gcis",
@@ -6562,8 +6498,8 @@ injectApplyStatusWriteRow(injector::transaction& trans,
                     ulonglong gciLo = (gci_to_store & 0xffffffff);
                     gciHi=0xffffff00;
                     gciLo=0;
-                    sql_print_warning("NDB Binlog injector repeating gcis (%llu -> %llu)",
-                                      gci_to_store, (gciHi << 32) + gciLo);
+                    ndb_log_warning("Binlog injector repeating gcis (%llu -> %llu)",
+                                    gci_to_store, (gciHi << 32) + gciLo);
                     gci_to_store = (gciHi << 32) + gciLo;
                   });
 #endif
@@ -6920,8 +6856,8 @@ restart_cluster_failure:
           that the server hangs during shutdown while waiting for the "global
           thread list" to be emtpy.
         */
-        sql_print_information("NDB Binlog: Server shutdown detected while "
-                              "waiting for ndbcluster to start...");
+        log_info("Server shutdown detected while "
+                  "waiting for ndbcluster to start...");
         goto err;
       }
       ndb_milli_sleep(1000);
@@ -6984,13 +6920,13 @@ restart_cluster_failure:
       s_ndb->flushIncompleteEvents(schema_gci);
       if (schema_gci < ndb_latest_handled_binlog_epoch)
       {
-        sql_print_error("NDB Binlog: cluster has been restarted --initial or with older filesystem. "
-                        "ndb_latest_handled_binlog_epoch: %u/%u, while current epoch: %u/%u. "
-                        "RESET MASTER should be issued. Resetting ndb_latest_handled_binlog_epoch.",
-                        (uint)(ndb_latest_handled_binlog_epoch >> 32),
-                        (uint)(ndb_latest_handled_binlog_epoch),
-                        (uint)(schema_gci >> 32),
-                        (uint)(schema_gci));
+        log_error("cluster has been restarted --initial or with older filesystem. "
+                  "ndb_latest_handled_binlog_epoch: %u/%u, while current epoch: %u/%u. "
+                  "RESET MASTER should be issued. Resetting ndb_latest_handled_binlog_epoch.",
+                  (uint)(ndb_latest_handled_binlog_epoch >> 32),
+                  (uint)(ndb_latest_handled_binlog_epoch),
+                  (uint)(schema_gci >> 32),
+                  (uint)(schema_gci));
         ndb_set_latest_trans_gci(0);
         ndb_latest_handled_binlog_epoch= 0;
         ndb_latest_applied_binlog_epoch= 0;
@@ -6999,16 +6935,14 @@ restart_cluster_failure:
       }
       else if (ndb_latest_applied_binlog_epoch > 0)
       {
-        sql_print_warning("NDB Binlog: cluster has reconnected. "
-                          "Changes to the database that occured while "
-                          "disconnected will not be in the binlog");
+        log_warning("cluster has reconnected. "
+                    "Changes to the database that occured while "
+                    "disconnected will not be in the binlog");
       }
-      if (opt_ndb_extra_logging)
-      {
-        sql_print_information("NDB Binlog: starting log at epoch %u/%u",
-                              (uint)(schema_gci >> 32),
-                              (uint)(schema_gci));
-      }
+      log_verbose(1,
+                  "starting log at epoch %u/%u",
+                  (uint)(schema_gci >> 32),
+                  (uint)(schema_gci));
     }
     log_verbose(1, "Got first event");
   }
@@ -7021,8 +6955,7 @@ restart_cluster_failure:
   ndb_binlog_is_ready= TRUE;
   mysql_mutex_unlock(&injector_data_mutex);
 
-  if (opt_ndb_extra_logging)
-    sql_print_information("NDB Binlog: ndb tables writable");
+  log_verbose(1, "ndb tables writable");
   ndb_tdc_close_cached_tables();
 
   /* 
@@ -7192,7 +7125,7 @@ restart_cluster_failure:
         list" is to be able to see the thread state using SHOW PROCESSLIST
         and I_S.PROCESSLIST
       */
-      sql_print_information("NDB Binlog: Server shutdown detected...");
+      log_info("Server shutdown detected...");
       break;
     }
 
@@ -7230,14 +7163,14 @@ restart_cluster_failure:
           {
             if (!ndb_binlog_is_ready)
             {
-	      sql_print_information("NDB Binlog: Just lost schema connection, hanging around");
+	      log_info("Just lost schema connection, hanging around");
               ndb_milli_sleep(10*1000); // seconds * 1000
               /* There could be a race where client side reconnect before we 
                * are able to detect 's_ndb->getEventOperation() == NULL'.
                * Thus, we never restart the binlog thread as supposed to.
                * -> 'ndb_binlog_is_ready' remains false and we get stuck in RO-mode
                */
-	      sql_print_information("NDB Binlog: ...and on our way");
+	      log_info("...and on our way");
             }
           });
 
@@ -7249,10 +7182,11 @@ restart_cluster_failure:
                               "<empty>"));
         }
         else
-          sql_print_error("NDB: error %lu (%s) on handling "
-                          "binlog schema event",
-                          (ulong) s_pOp->getNdbError().code,
-                          s_pOp->getNdbError().message);
+        {
+          log_error("error %d (%s) on handling binlog schema event",
+                    s_pOp->getNdbError().code,
+                    s_pOp->getNdbError().message);
+        }
         s_pOp = s_ndb->nextEvent();
       }
       updateInjectorStats(s_ndb, i_ndb);
@@ -7432,7 +7366,7 @@ restart_cluster_failure:
           /* Inject ndb_apply_status WRITE_ROW event */
           if (!injectApplyStatusWriteRow(trans, current_epoch))
           {
-            sql_print_error("NDB Binlog: Failed to inject apply status write row");
+            log_error("Failed to inject apply status write row");
           }
         }
 
@@ -7528,9 +7462,8 @@ restart_cluster_failure:
               /* nothing to commit, rollback instead */
               if (int r= trans.rollback())
               {
-                sql_print_error("NDB Binlog: "
-                                "Error during ROLLBACK of GCI %u/%u. Error: %d",
-                                uint(current_epoch >> 32), uint(current_epoch), r);
+                log_error("Error during ROLLBACK of GCI %u/%u. Error: %d",
+                          uint(current_epoch >> 32), uint(current_epoch), r);
                 /* TODO: Further handling? */
               }
               break;
@@ -7539,9 +7472,7 @@ restart_cluster_failure:
           thd->proc_info= "Committing events to binlog";
           if (int r= trans.commit())
           {
-            sql_print_error("NDB Binlog: "
-                            "Error during COMMIT of GCI. Error: %d",
-                            r);
+            log_error("Error during COMMIT of GCI. Error: %d", r);
             /* TODO: Further handling? */
           }
           injector::transaction::binlog_pos start= trans.start_pos();
@@ -7617,12 +7548,12 @@ restart_cluster_failure:
       DBUG_PRINT("info", ("binlog_thread_state= BCCC_restart"));
       if (ndb_latest_handled_binlog_epoch < ndb_get_latest_trans_gci() && ndb_binlog_running)
       {
-        sql_print_error("NDB Binlog: latest transaction in epoch %u/%u not in binlog "
-                        "as latest handled epoch is %u/%u",
-                        (uint)(ndb_get_latest_trans_gci() >> 32),
-                        (uint)(ndb_get_latest_trans_gci()),
-                        (uint)(ndb_latest_handled_binlog_epoch >> 32),
-                        (uint)(ndb_latest_handled_binlog_epoch));
+        log_error("latest transaction in epoch %u/%u not in binlog "
+                  "as latest handled epoch is %u/%u",
+                  (uint)(ndb_get_latest_trans_gci() >> 32),
+                  (uint)(ndb_get_latest_trans_gci()),
+                  (uint)(ndb_latest_handled_binlog_epoch >> 32),
+                  (uint)(ndb_latest_handled_binlog_epoch));
       }
       binlog_thread_state= BCCC_restart;
       break;
@@ -7671,8 +7602,7 @@ restart_cluster_failure:
    * release all extra references from tables
    */
   {
-    if (opt_ndb_extra_logging > 9)
-      sql_print_information("NDB Binlog: Release extra share references");
+    log_verbose(9, "Release extra share references");
 
     mysql_mutex_lock(&ndbcluster_mutex);
     while (ndbcluster_open_tables.records)
@@ -7691,18 +7621,16 @@ restart_cluster_failure:
   log_info("Stopping...");
 
   ndb_tdc_close_cached_tables();
-  if (opt_ndb_extra_logging > 15)
+  if (ndb_log_get_verbose_level() > 15)
   {
-    sql_print_information("NDB Binlog: remaining open tables: ");
+    log_info("remaining open tables: ");
     mysql_mutex_lock(&ndbcluster_mutex);
     for (uint i= 0; i < ndbcluster_open_tables.records; i++)
     {
       NDB_SHARE* share = (NDB_SHARE*)my_hash_element(&ndbcluster_open_tables,i);
-      sql_print_information("  %s.%s state: %u use_count: %u",
-                            share->db,
-                            share->table_name,
-                            (uint)share->state,
-                            share->use_count);
+      log_info("  %s.%s state: %u use_count: %u",
+               share->db, share->table_name,
+               (uint)share->state, share->use_count);
     }
     mysql_mutex_unlock(&ndbcluster_mutex);
   }

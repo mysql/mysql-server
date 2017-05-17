@@ -34,7 +34,7 @@ row4	D	4
 include/check_slave_is_running.inc
 STOP SLAVE;
 include/check_slave_no_error.inc
-call mtr.add_suppression("NDB Slave : At SQL thread start applying epoch .*");
+call mtr.add_suppression("NDB Slave: At SQL thread start applying epoch .*");
 START SLAVE;
 SELECT * FROM t1 ORDER BY c3;
 c1	c2	c3

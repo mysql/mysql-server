@@ -24,13 +24,14 @@
 
 #include "ndb_dd.h"
 #include "mdl.h"
-#include "log.h"
 #include "table_trigger_dispatcher.h"
 #include "sql_trigger.h"
 #include "mysqld.h"                             // reg_ext
 #include "dd/dd_table.h"  // dd::table_legacy_db_type
 #include "dd/dd_trigger.h"  // dd::table_has_triggers
 #include "sql_trigger.h"  // reload_triggers_for_table
+
+#include "ndb_log.h"
 
 static const char *ndb_ext=".ndb";
 
@@ -97,8 +98,8 @@ void Ndb_local_schema::Base::log_warning(const char* fmt, ...) const
   else
   {
     // Print the warning to log file
-    sql_print_warning("Ndb schema[%s.%s]: %s",
-                      m_db, m_name, buf);
+    ndb_log_warning("[%s.%s], %s",
+                    m_db, m_name, buf);
   }
 }
 
