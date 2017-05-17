@@ -2822,11 +2822,10 @@ bool MYSQL_QUERY_LOG::write(THD *thd, time_t current_time,
                     (ulong) thd->sent_row_count,
                     (ulong) thd->examined_row_count) == (uint) -1)
       tmp_errno= errno;
-    if (thd->db && strcmp(thd->db, db))
-    {						// Database changed
+    if (thd->db)
+    {						// Write use statement to every log entry
       if (my_b_printf(&log_file,"use %s;\n",thd->db) == (uint) -1)
         tmp_errno= errno;
-      strmov(db,thd->db);
     }
     if (thd->stmt_depends_on_first_successful_insert_id_in_prev_stmt)
     {
