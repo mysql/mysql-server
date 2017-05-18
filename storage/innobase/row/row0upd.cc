@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -223,6 +223,9 @@ row_upd_check_references_constraints(
 		row_mysql_freeze_data_dictionary(trx);
 	}
 
+	DEBUG_SYNC_C_IF_THD(thr_get_trx(thr)->mysql_thd,
+			    "foreign_constraint_check_for_insert");
+
 	for (dict_foreign_set::iterator it = table->referenced_set.begin();
 	     it != table->referenced_set.end();
 	     ++it) {
@@ -248,6 +251,26 @@ row_upd_check_references_constraints(
 				ref_table = dict_table_open_on_name(
 					foreign->foreign_table_name_lookup,
 					FALSE, FALSE, DICT_ERR_IGNORE_NONE);
+			}
+
+			/** dict_operation_lock is held both here and by truncate operations.
+			If a truncate is in process by another concurrent thread,
+			there can be 2 conditions possible:
+			1) row_truncate_table_for_mysql() is not yet called.
+			2) Truncate releases dict_operation_lock
+			during eviction of pages from buffer pool
+			for a file-per-table tablespace.
+
+			In case of (1), truncate will wait for FK operation
+			to complete.
+			In case of (2), truncate will be rolled forward even
+			if it is interrupted. So if the foreign table is
+			undergoing a truncate, ignore the FK check. */
+
+			if (foreign_table != NULL
+			    && fil_space_is_being_truncated(
+						foreign_table->space)) {
+				continue;
 			}
 
 			/* NOTE that if the thread ends up waiting for a lock
