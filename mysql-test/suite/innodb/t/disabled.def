@@ -35,3 +35,5 @@ innodb-wl5980-discard     : WL9535 disable it, need to check it deeper
 create_tablespace_debug   : WL9535 disable it, need to check it deeper
 pct_cached_evict          : WL9535 disable it, need to check it deeper
 tablespace_per_table_not_windows : WL9535 disable it, need to check it deeper
+
+sys_tablestats            : WL#9536 disables it, waiting for proper I_S opening table fix from 9535.
