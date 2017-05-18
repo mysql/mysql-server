@@ -63,10 +63,11 @@ struct match {
  ==	size_t nmatch, regmatch_t pmatch[], int eflags);
  */
 static int			/* 0 success, MY_REG_NOMATCH failure */
-matcher(charset,g, str, nmatch, pmatch, eflags)
+matcher(charset,g, str, strlength, nmatch, pmatch, eflags)
 const CHARSET_INFO *charset;
 struct re_guts *g;
 char *str;
+size_t strlength;
 size_t nmatch;
 my_regmatch_t pmatch[];
 int eflags;
@@ -89,7 +90,7 @@ int eflags;
 		stop = str + pmatch[0].rm_eo;
 	} else {
 		start = str;
-		stop = start + strlen(start);
+                stop = start + strlength;
 	}
 	if (stop < start)
 		return(MY_REG_INVARG);

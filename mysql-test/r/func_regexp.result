@@ -158,3 +158,6 @@ SELECT ' '  REGEXP '[[:space:]]';
 SELECT '\t' REGEXP '[[:space:]]';
 '\t' REGEXP '[[:space:]]'
 1
+SELECT (CONVERT(UNHEX('00149D5554') USING BINARY) RLIKE CONCAT('[', UNHEX('80'), '-', UNHEX('FF'), ']'));
+(CONVERT(UNHEX('00149D5554') USING BINARY) RLIKE CONCAT('[', UNHEX('80'), '-', UNHEX('FF'), ']'))
+1
