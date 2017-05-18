@@ -30,5 +30,3 @@ innodb.skip_locked_nowait  : Bug#25886814 2017-04-13 Allen Failing sporadically 
 
 log_corruption            : WL9535 disable it, need to check it deeper
 innodb-wl5980-discard     : WL9535 disable it, need to check it deeper
-
-sys_tablestats            : WL#9536 disables it, waiting for proper I_S opening table fix from 9535.
