@@ -1137,6 +1137,7 @@ fi
 %attr(644, root, root) %{_mandir}/man1/ndb_error_reporter.1*
 %attr(644, root, root) %{_mandir}/man1/ndb_index_stat.1*
 %attr(644, root, root) %{_mandir}/man1/ndb_mgm.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_move_data.1*
 %attr(644, root, root) %{_mandir}/man1/ndb_print_backup_file.1*
 %attr(644, root, root) %{_mandir}/man1/ndb_print_file.1*
 %attr(644, root, root) %{_mandir}/man1/ndb_print_frag_file.1*
