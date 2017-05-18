@@ -5454,7 +5454,7 @@ static void my_hash_sort_uca_900_tmpl(const CHARSET_INFO *cs,
   uint64 h= *n1;
   h^= 14695981039346656037ULL;
 
-  scanner.for_each_weight([&](int s_res, bool) {
+  scanner.for_each_weight([&](int s_res, bool) -> bool {
     h^= s_res;
     h*= 1099511628211ULL;
     return true;
@@ -5534,7 +5534,8 @@ static size_t my_strnxfrm_uca_900_tmpl(const CHARSET_INFO *cs,
   {
     scanner.for_each_weight([&dst, d0, dst_end, flags]
                             (int s_res,
-                              bool is_level_separator MY_ATTRIBUTE((unused))) {
+                              bool is_level_separator
+                             MY_ATTRIBUTE((unused))) -> bool {
       DBUG_ASSERT(is_level_separator == (s_res == 0));
       if (LEVELS_FOR_COMPARE == 1)
         DBUG_ASSERT(!is_level_separator);
