@@ -6367,16 +6367,6 @@ i_s_innodb_tables_fill_table_stats(
 			ref_count = table_rec->get_ref_count();
 		}
 
-		DBUG_EXECUTE_IF("test_innodb_tablestats", {
-			if (table_rec && strcmp("test/t1", table_rec->name.m_name) == 0 ) {
-				dd_table_close(table_rec, thd, &mdl_on_tab, true);
-				dd_closed = true;
-				table_rec->acquire();
-				mutex_exit(&dict_sys->mutex);
-				DEBUG_SYNC_C("dict_table_not_protected");
-				mutex_enter(&dict_sys->mutex);
-			}});
-
 		mutex_exit(&dict_sys->mutex);
 
 		if (table_rec != NULL) {
@@ -6388,10 +6378,6 @@ i_s_innodb_tables_fill_table_stats(
 
 		/* Get the next record */
 		mutex_enter(&dict_sys->mutex);
-		DBUG_EXECUTE_IF("test_innodb_tablestats", {
-			if (table_rec && strcmp("test/t1", table_rec->name.m_name) == 0 ) {
-				table_rec->release();
-			}});
 
 		if (table_rec != NULL
 #ifdef UNIV_DEBUG
