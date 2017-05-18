@@ -11570,7 +11570,7 @@ static void get_type_name(uint type, unsigned char** meta_ptr,
       if (geometry_type < 8)
         my_snprintf(typestr, typestr_length, names[geometry_type]);
       else
-        my_snprintf(typestr, typestr_length, "INVALIDE_GEOMETRY_TYPE(%u)",
+        my_snprintf(typestr, typestr_length, "INVALID_GEOMETRY_TYPE(%u)",
                     geometry_type);
       (*meta_ptr)++;
     }
@@ -11646,6 +11646,7 @@ void Table_map_log_event::print_columns(IO_CACHE *file,
     if (col_names_it != fields.m_column_name.end())
     {
       pretty_print_identifier(file, col_names_it->c_str(), col_names_it->size());
+      my_b_printf(file, " ");
       col_names_it++;
     }
 
@@ -11666,7 +11667,7 @@ void Table_map_log_event::print_columns(IO_CACHE *file,
       my_b_printf(file, "INVALID_TYPE(%d)", real_type);
       continue;
     }
-    my_b_printf(file, " %s", type_name);
+    my_b_printf(file, "%s", type_name);
 
     // Print UNSIGNED for numeric column
     if (is_numeric_type(real_type) &&
@@ -11676,6 +11677,10 @@ void Table_map_log_event::print_columns(IO_CACHE *file,
         my_b_printf(file, " UNSIGNED");
       signedness_it++;
     }
+
+    // if the column is not marked as 'null', print 'not null'
+    if (!(m_null_bits[(i / 8)] & (1 << (i % 8))))
+      my_b_printf(file, " NOT NULL");
 
     // Print column character set
     if (cs != NULL && cs->number != my_charset_bin.number && !is_default_cs)
@@ -11704,7 +11709,7 @@ void Table_map_log_event::print_columns(IO_CACHE *file,
       {
         my_b_printf(file, "%s", separator);
         pretty_print_str(file, it->c_str(), it->size());
-        separator= " ,";
+        separator= ", ";
       }
       my_b_printf(file, ")");
     }
