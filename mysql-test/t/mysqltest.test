@@ -3934,3 +3934,18 @@ while ($counter <= 1)
 }
 
 DROP TABLE t1;
+
+--echo #
+--echo # BUG#26090322 : MYSQLTEST CRASHES WITH 'NO-SKIP' OPTION
+--echo #
+
+--write_file $MYSQLTEST_VARDIR/tmp/bug26090322.test
+--echo Sample test
+--skip Skipping the test
+EOF
+
+# Run the test
+--exec $MYSQL_TEST --no-skip -x $MYSQLTEST_VARDIR/tmp/bug26090322.test 2>&1
+
+# Cleanup
+--remove_file $MYSQLTEST_VARDIR/tmp/bug26090322.test

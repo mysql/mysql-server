@@ -10222,14 +10222,14 @@ int main(int argc, char **argv)
           abort_not_supported_test("%s", command->first_argument);
         else
         {
-          const char *excluded_list = excluded_string;
           const char *path = cur_file->file_name;
           const char *fn = get_filename_from_path(path);
-          if(strstr(excluded_list,fn))
+
+          if(excluded_string && strstr(excluded_string, fn))
             abort_not_supported_test("%s", command->first_argument);
           else
-          /*Ignore the skip and continue running the test-case */
-          command->last_argument= command->end;
+            // Ignore the skip and continue running the test case
+            command->last_argument= command->end;
         }
         break;
       case Q_OUTPUT:
