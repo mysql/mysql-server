@@ -416,20 +416,23 @@ dd_startscan_system(
 @param[in,out]	rec			mysql.tables record
 @param[in,out]	table		dict_table_t to fill
 @param[in]		dd_tables	dict_table_t obj of dd system table
+@param[in]	mdl		mdl on the table
 @param[in]		mtr			the mini-transaction
 @retval error message, or NULL on success */
 const char*
 dd_process_dd_tables_rec_and_mtr_commit(
-	mem_heap_t*		heap,
+	mem_heap_t*	heap,
 	const rec_t*	rec,
 	dict_table_t**	table,
 	dict_table_t*	dd_tables,
-	mtr_t*			mtr);
+	MDL_ticket**	mdl,
+	mtr_t*		mtr);
 /** Process one mysql.table_partitions record and get the dict_table_t
 @param[in]	heap		temp memory heap
 @param[in,out]	rec		mysql.table_partitions record
 @param[in,out]	table		dict_table_t to fill
 @param[in]	dd_tables	dict_table_t obj of dd partition table
+@param[in]	mdl		mdl on the table
 @param[in]	mtr		the mini-transaction
 @retval error message, or NULL on success */
 const char*
@@ -438,6 +441,7 @@ dd_process_dd_partitions_rec_and_mtr_commit(
 	const rec_t*	rec,
 	dict_table_t**	table,
 	dict_table_t*	dd_tables,
+	MDL_ticket**	mdl,
 	mtr_t*		mtr);
 /** Process one mysql.columns record and get info to dict_col_t
 @param[in]	heap		temp memory heap
@@ -474,6 +478,7 @@ dd_getnext_system_rec(
 @param[in,out]	rec		mysql.indexes record
 @param[in,out]	index		dict_index_t to fill
 @param[in]	dd_indexes	dict_table_t obj of mysql.indexes
+@param[in]	mdl		mdl on index->table
 @param[in]	mtr		the mini-transaction
 @retval true if index is filled */
 bool
@@ -482,6 +487,7 @@ dd_process_dd_indexes_rec(
 	const rec_t*		rec,
 	const dict_index_t**	index,
 	dict_table_t*		dd_indexes,
+	MDL_ticket**		mdl,
 	mtr_t*			mtr);
 /** Process one mysql.tablespace_files record and get information from it
 @param[in]	heap		temp memory heap
@@ -923,5 +929,27 @@ dd_rename_fts_table(
 	const dict_table_t*	table,
 	const char*		old_name);
 
+/** Open a table from its database and table name, this is currently used by
+foreign constraint parser to get the referenced table.
+@param[in]	name			foreign key table name
+@param[in]	database_name		table db name
+@param[in]	database_name_len	db name length
+@param[in]	table_name		table db name
+@param[in]	table_name_len		table name length
+@param[in,out]	table			table object or NULL
+@param[in,out]	mdl			mdl on table
+@param[in,out]	heap			heap memory
+@return complete table name with database and table name, allocated from
+heap memory passed in */
+char*
+dd_get_referenced_table(
+	const char*	name,
+	const char*	database_name,
+	ulint		database_name_len,
+	const char*	table_name,
+	ulint		table_name_len,
+	dict_table_t**	table,
+	MDL_ticket**	mdl,
+	mem_heap_t*	heap);
 #include "dict0dd.ic"
 #endif

@@ -17,7 +17,6 @@ SELECT s.name 'Space_Name',
 	AND s.name NOT LIKE 'mysql/%'
 	AND s.name NOT LIKE 'sys/%'
 	AND s.name NOT LIKE 'innodb_undo%'
-	AND d.path NOT LIKE '%mysql/%'
 	ORDER BY s.space;
 
 # This SELECT will not show UNDO or TEMPORARY tablespaces
@@ -37,6 +36,5 @@ SELECT	s.name 'Space_Name',
 	AND s.name NOT LIKE 'sys/%'
 	AND s.name NOT LIKE 'innodb_temporary'
 	AND s.name NOT LIKE 'innodb_undo%'
-	AND f.file_name NOT LIKE '%mysql/%'
 	ORDER BY f.file_id;
 --enable_query_log

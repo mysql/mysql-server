@@ -29,11 +29,6 @@ innodb.innodb_wl6560_debug : Bug#25804386 2017-04-06 Bin Failing sporadically on
 innodb.skip_locked_nowait  : Bug#25886814 2017-04-13 Allen Failing sporadically on PB2
 
 log_corruption            : WL9535 disable it, need to check it deeper
-create_tablespace         : WL9535 disable it, need to check it deeper
-innodb_rename_index       : WL9535 disable it, need to check it deeper
 innodb-wl5980-discard     : WL9535 disable it, need to check it deeper
-create_tablespace_debug   : WL9535 disable it, need to check it deeper
-pct_cached_evict          : WL9535 disable it, need to check it deeper
-tablespace_per_table_not_windows : WL9535 disable it, need to check it deeper
 
 sys_tablestats            : WL#9536 disables it, waiting for proper I_S opening table fix from 9535.

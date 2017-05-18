@@ -9,5 +9,3 @@
 #
 ##############################################################################
 memc286_sdi_create  @solaris : Server eats up all memory 
-
-memcached_alter_column  : Pending for fix. line 88: query 'reap' succeeded - should have failed

@@ -13897,7 +13897,7 @@ ha_innobase::get_se_private_data(
 	for (dd::Index* i : *dd_table->indexes()) {
 		i->set_tablespace_id(dict_sys_t::dd_space_id);
 
-		if (fsp_is_inode_page(n_pages) && n_pages != 2) {
+		if (fsp_is_inode_page(n_pages)) {
 			++n_pages;
 			ut_ad(!fsp_is_inode_page(n_pages));
 		}

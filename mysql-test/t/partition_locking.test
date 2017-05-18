@@ -2,10 +2,6 @@
 # Test is skipped with log-bin enabled as the count of commit and prepare handlers
 # increase when binary logging is enabled.
 --source include/not_log_bin.inc
-# Because more work would be done in debug mode for debugging,
-# so some results like Handler_* are diverse in debug and non-debug
-# mode for TRUNCATE(PARTITION) operations.
---source include/have_debug.inc
 
 # Different page sizes gives different query plans
 # results based on default 16k.

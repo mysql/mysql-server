@@ -218,8 +218,8 @@ dd_table_open_on_dd_obj(
 	to verify the MDL against the table name, because both the
 	database name and table name may be invalid for MDL */
 	if (tbl_name && !row_is_mysql_tmp_table_name(tbl_name)) {
-		char	db_buf[NAME_LEN + 1];
-		char	tbl_buf[NAME_LEN + 1];
+		char	db_buf[MAX_DATABASE_NAME_LEN];
+		char	tbl_buf[MAX_TABLE_NAME_LEN];
 
 		dd_parse_tbl_name(tbl_name, db_buf, tbl_buf, nullptr);
 		if (dd_part == nullptr) {
@@ -291,7 +291,7 @@ dd_table_open_on_dd_obj(
 					      0, OPEN_FRM_FILE_ONLY, 0,
 					      &td, false, &dd_table);
 		if (error == 0) {
-			char		tmp_name[2 * (NAME_LEN + 1)];
+			char		tmp_name[MAX_FULL_NAME_LEN];
 			const char*	tab_namep;
 
 			if (tbl_name) {
@@ -482,8 +482,8 @@ dd_check_corrupted(dict_table_t*& table)
 			my_error(ER_TABLE_CORRUPT, MYF(0),
 				 "", table->name.m_name);
 		} else {
-			char	db_buf[NAME_LEN + 1];
-			char	tbl_buf[NAME_LEN + 1];
+			char	db_buf[MAX_DATABASE_NAME_LEN];
+			char	tbl_buf[MAX_TABLE_NAME_LEN];
 
 			dd_parse_tbl_name(
 				table->name.m_name, db_buf, tbl_buf, nullptr);
@@ -531,9 +531,9 @@ dd_table_open_on_id(
 {
 	dict_table_t*   ib_table;
 	const ulint     fold = ut_fold_ull(table_id);
-	char		db_buf[NAME_LEN + 1];
-	char		tbl_buf[NAME_LEN + 1];
-	char		full_name[2 * (NAME_LEN + 1)];
+	char		db_buf[MAX_DATABASE_NAME_LEN];
+	char		tbl_buf[MAX_TABLE_NAME_LEN];
+	char		full_name[MAX_FULL_NAME_LEN];
 	ib_uint64_t	autoinc = 0;
 
 	if (!dict_locked) {
@@ -594,13 +594,8 @@ reopen:
 		for (;;) {
 			bool ret = dd_parse_tbl_name(
 				ib_table->name.m_name, db_buf, tbl_buf, nullptr);
-			memset(full_name, 0, 2 * (NAME_LEN + 1));
-			if (strlen(ib_table->name.m_name) > 2 * (NAME_LEN + 1)) {
-				memcpy(full_name, ib_table->name.m_name,
-				       2 * (NAME_LEN + 1));
-			} else {
-				strcpy(full_name, ib_table->name.m_name);
-			}
+			memset(full_name, 0, MAX_FULL_NAME_LEN);
+			strcpy(full_name, ib_table->name.m_name);
 
 			mutex_exit(&dict_sys->mutex);
 
@@ -631,9 +626,6 @@ reopen:
 
 			if (ib_table != nullptr) {
 				ulint	namelen = strlen(ib_table->name.m_name);
-				if (namelen > 2 * (NAME_LEN + 1)) {
-					namelen = 2 * (NAME_LEN + 1);
-				}
 
 				/* The table could have been renamed. After
 				we release dict mutex before the old table
@@ -771,8 +763,8 @@ dd_table_open_on_name(
 #endif
 	ut_ad(!srv_is_being_shutdown);
 
-	char		db_buf[NAME_LEN + 1];
-	char		tbl_buf[NAME_LEN + 1];
+	char		db_buf[MAX_DATABASE_NAME_LEN];
+	char		tbl_buf[MAX_TABLE_NAME_LEN];
 	bool		skip_mdl = !(thd && mdl);
 	dict_table_t*	table = nullptr;
 
@@ -2782,8 +2774,8 @@ dd_table_check_for_child(
 		std::vector<dd::String_type>	child_schema;
 		std::vector<dd::String_type>	child_name;
 
-		char    name_buf1[NAME_LEN + 1];
-		char    name_buf2[NAME_LEN + 1];
+		char    name_buf1[MAX_DATABASE_NAME_LEN];
+		char    name_buf2[MAX_TABLE_NAME_LEN];
 
 		dd_parse_tbl_name(m_table->name.m_name,
 					name_buf1, name_buf2, nullptr);
@@ -2970,8 +2962,8 @@ dd_get_first_path(
 	dd::cache::Dictionary_client::Auto_releaser	releaser(client);
 
 	if (dd_table == NULL) {
-		char		db_buf[NAME_LEN + 1];
-		char		tbl_buf[NAME_LEN + 1];
+		char		db_buf[MAX_DATABASE_NAME_LEN];
+		char		tbl_buf[MAX_TABLE_NAME_LEN];
 		const dd::Table*	table_def = nullptr;
 
 		if (!dd_parse_tbl_name(
@@ -3012,7 +3004,7 @@ dd_get_first_path(
 }
 
 /** Make sure the data_dir_path is saved in dict_table_t if DATA DIRECTORY
-was used. Try to read it from the fil_system first, then from SYS_DATAFILES.
+was used. Try to read it from the fil_system first, then from NEW DD.
 @param[in]	table		Table object
 @param[in]	dict_mutex_own	true if dict_sys->mutex is owned already */
 template<typename Table>
@@ -3053,6 +3045,8 @@ dd_get_and_save_data_dir_path(
 
 		if (heap) {
 			mem_heap_free(heap);
+		} else {
+			ut_free(path);
 		}
 	}
 }
@@ -3197,11 +3191,6 @@ dd_load_tablespace(
 
 	}
 	else if (DICT_TF_HAS_SHARED_SPACE(table->flags)) {
-#ifdef INNODB_NO_NEW_DD
-		/* Set table->tablespace from either
-		fil_system or SYS_TABLESPACES */
-		dict_get_and_save_space_name(table, true);
-#endif /* INNODB_NO_NEW_DD */
 
 		filepath = dd_get_first_path(heap, table, dd_table);
 		if (filepath == nullptr) {
@@ -3366,12 +3355,6 @@ dd_open_table_one(
 		index = index->next();
 	}
 
-#ifdef INNODB_NO_NEW_DD
-	if (!implicit) {
-		dict_get_and_save_space_name(m_table, false);
-	}
-#endif /* INNODB_NO_NEW_DD */
-
 	mutex_enter(&dict_sys->mutex);
 
 	if (fail) {
@@ -3413,8 +3396,8 @@ dd_open_table_one(
 
 	/* Check if this is a DD system table */
 	if (m_table != nullptr) {
-		char db_buf[NAME_LEN + 1];
-		char tbl_buf[NAME_LEN + 1];
+		char db_buf[MAX_DATABASE_NAME_LEN];
+		char tbl_buf[MAX_TABLE_NAME_LEN];
 		dd_parse_tbl_name(m_table->name.m_name, db_buf, tbl_buf, NULL);
 		m_table->is_dd_table = dd::get_dictionary()->is_dd_table_name(
 			db_buf, tbl_buf);
@@ -3461,8 +3444,8 @@ dd_open_table_one_on_name(
 
 	if (!table) {
 		MDL_ticket*     mdl = nullptr;
-		char		db_buf[NAME_LEN + 1];
-		char		tbl_buf[NAME_LEN + 1];
+		char		db_buf[MAX_DATABASE_NAME_LEN];
+		char		tbl_buf[MAX_TABLE_NAME_LEN];
 
 		if (!dd_parse_tbl_name(
 			name, db_buf, tbl_buf, nullptr)) {
@@ -3738,6 +3721,7 @@ dd_startscan_system(
 @param[in,out]	rec		mysql.tables record
 @param[in,out]	table		dict_table_t to fill
 @param[in]	dd_tables	dict_table_t obj of dd system table
+@param[in]	mdl		mdl on the table
 @param[in]	mtr		the mini-transaction
 @retval error message, or NULL on success */
 const char*
@@ -3746,6 +3730,7 @@ dd_process_dd_tables_rec_and_mtr_commit(
 	const rec_t*	rec,
 	dict_table_t**	table,
 	dict_table_t*	dd_tables,
+	MDL_ticket**	mdl,
 	mtr_t*		mtr)
 {
 	ulint		len;
@@ -3790,14 +3775,11 @@ dd_process_dd_tables_rec_and_mtr_commit(
 	/* Commit before load the table again */
 	mtr_commit(mtr);
 	THD*		thd = current_thd;
-	MDL_ticket*	mdl = NULL;
 
-	*table = dd_table_open_on_id(table_id, thd, &mdl, true);
+	*table = dd_table_open_on_id(table_id, thd, mdl, true);
 
 	if (!(*table)) {
 		err_msg = "Table not found";
-	} else {
-		dd_table_close(*table, thd, &mdl, true);
 	}
 
 	if (err_msg) {
@@ -3812,6 +3794,7 @@ dd_process_dd_tables_rec_and_mtr_commit(
 @param[in,out]	rec		mysql.table_partitions record
 @param[in,out]	table		dict_table_t to fill
 @param[in]	dd_tables	dict_table_t obj of dd partition table
+@param[in]	mdl		mdl on the table
 @param[in]	mtr		the mini-transaction
 @retval error message, or NULL on success */
 const char*
@@ -3820,6 +3803,7 @@ dd_process_dd_partitions_rec_and_mtr_commit(
 	const rec_t*	rec,
 	dict_table_t**	table,
 	dict_table_t*	dd_tables,
+	MDL_ticket**	mdl,
 	mtr_t*		mtr)
 {
 	ulint		len;
@@ -3866,15 +3850,10 @@ dd_process_dd_partitions_rec_and_mtr_commit(
 	mtr_commit(mtr);
 	THD*		thd = current_thd;
 
-	*table = dd_table_open_on_id(table_id, thd, nullptr, true);
+	*table = dd_table_open_on_id(table_id, thd, mdl, true);
 
 	if (!(*table)) {
 		err_msg = "Table not found";
-	} else {
-		dd_table_close(*table, thd, nullptr, true);
-	}
-
-	if (err_msg) {
 		return(err_msg);
 	}
 
@@ -3978,6 +3957,9 @@ dd_process_dd_columns_rec(
 
 	/* Load the table and get the col. */
 	if (!p || !p->exists(dd_index_key_strings[DD_TABLE_ID])) {
+		if (p) {
+			delete p;
+		}
 		mtr_commit(mtr);
 		return(false);
 	}
@@ -3992,6 +3974,7 @@ dd_process_dd_columns_rec(
 		table = dd_table_open_on_id(*table_id, thd, &mdl, true);
 
 		if (!table) {
+			delete p;
 			return(false);
 		}
 
@@ -4004,8 +3987,9 @@ dd_process_dd_columns_rec(
 		col->len = t_col->len;
 
 		dd_table_close(table, thd, &mdl, true);
-
+		delete p;
 	} else {
+		delete p;
 		mtr_commit(mtr);
 		return(false);
 	}
@@ -4023,6 +4007,7 @@ dd_process_dd_columns_rec(
 @param[in,out]	rec		mysql.indexes record
 @param[in,out]	index		dict_index_t to fill
 @param[in]	dd_indexes	dict_table_t obj of mysql.indexes
+@param[in]	mdl		mdl on index->table
 @param[in]	mtr		the mini-transaction
 @retval true if index is filled */
 bool
@@ -4031,6 +4016,7 @@ dd_process_dd_indexes_rec(
 	const rec_t*		rec,
 	const dict_index_t**	index,
 	dict_table_t*		dd_indexes,
+	MDL_ticket**		mdl,
 	mtr_t*			mtr)
 {
 	ulint		len;
@@ -4068,11 +4054,15 @@ dd_process_dd_indexes_rec(
 
 	if (!p || !p->exists(dd_index_key_strings[DD_INDEX_ID])
 	    || !p->exists(dd_index_key_strings[DD_INDEX_SPACE_ID])) {
+		if (p) {
+			delete p;
+		}
 		mtr_commit(mtr);
 		return(false);
 	}
 
 	if (p->get_uint32(dd_index_key_strings[DD_INDEX_ID], &index_id)) {
+		delete p;
 		mtr_commit(mtr);
 		return(false);
 	}
@@ -4080,27 +4070,21 @@ dd_process_dd_indexes_rec(
 	/* Get the tablespace id. */
 	if (p->get_uint32(dd_index_key_strings[DD_INDEX_SPACE_ID],
 			  &space_id)) {
+		delete p;
 		mtr_commit(mtr);
 		return(false);
 	}
 
 	/* Skip mysql.* indexes. */
 	if (space_id == dict_sys->space_id) {
+		delete p;
 		mtr_commit(mtr);
 		return(false);
 	}
 
-	/* Try to find the index in the cache. */
-	index_id_t ind_id(space_id, index_id);
-
-	*index = dict_index_find(ind_id);
-	if (*index != nullptr) {
-		mtr_commit(mtr);
-		return(true);
-	}
-
 	/* Load the table and get the index. */
 	if (!p->exists(dd_index_key_strings[DD_TABLE_ID])) {
+		delete p;
 		mtr_commit(mtr);
 		return(false);
 	}
@@ -4108,13 +4092,13 @@ dd_process_dd_indexes_rec(
 	if (!p->get_uint32(dd_index_key_strings[DD_TABLE_ID], &table_id)) {
 		THD*		thd = current_thd;
 		dict_table_t*	table;
-		MDL_ticket*	mdl = NULL;
 
 		/* Commit before load the table */
 		mtr_commit(mtr);
-		table = dd_table_open_on_id(table_id, thd, &mdl, true);
+		table = dd_table_open_on_id(table_id, thd, mdl, true);
 
 		if (!table) {
+			delete p;
 			return(false);
 		}
 
@@ -4126,9 +4110,10 @@ dd_process_dd_indexes_rec(
 				*index = t_index;
 			}
 		}
-		dd_table_close(table, thd, &mdl, true);
 
+		delete p;
 	} else {
+		delete p;
 		mtr_commit(mtr);
 		return(false);
 	}
@@ -4174,15 +4159,20 @@ dd_process_dd_datafiles_rec(
 	dd::Properties* p = dd::Properties::parse_properties(prop);
 
 	if (!p || !p->exists(dd_space_key_strings[DD_SPACE_ID])) {
+		if (p) {
+			delete p;
+		}
 		return(false);
 	}
 
 	if (p->get_uint32(dd_space_key_strings[DD_SPACE_ID], space_id)) {
+		delete p;
 		return(false);
 	}
 
 	/* Skip temp tablespace. */
 	if (*space_id == dict_sys->temp_space_id) {
+		delete p;
 		return(false);
 	}
 
@@ -4192,6 +4182,7 @@ dd_process_dd_datafiles_rec(
 	memset(*path, 0, len + 1);
 	memcpy(*path, field, len);
 
+	delete p;
 	return(true);
 }
 
@@ -4237,17 +4228,24 @@ dd_process_dd_indexes_rec_simple(
 
 	if (!p || !p->exists(dd_index_key_strings[DD_INDEX_ID])
 	    || !p->exists(dd_index_key_strings[DD_INDEX_SPACE_ID])) {
+		if (p) {
+			delete p;
+		}
 		return(false);
 	}
 
 	if (p->get_uint32(dd_index_key_strings[DD_INDEX_ID], index_id)) {
+		delete p;
 		return(false);
 	}
 
 	/* Get the tablespace_id. */
 	if (p->get_uint32(dd_index_key_strings[DD_INDEX_SPACE_ID], space_id)) {
+		delete p;
 		return(false);
 	}
+
+	delete p;
 
 	return(true);
 }
@@ -4306,18 +4304,25 @@ dd_process_dd_tablespaces_rec(
 
 	if (!p || !p->exists(dd_space_key_strings[DD_SPACE_ID])
 	    || !p->exists(dd_index_key_strings[DD_SPACE_FLAGS])) {
+		if (p) {
+			delete p;
+		}
 		return(false);
 	}
 
 	/* Get space id. */
 	if (p->get_uint32(dd_space_key_strings[DD_SPACE_ID], space_id)) {
+		delete p;
 		return(false);
 	}
 
 	/* Get space flag. */
 	if (p->get_uint32(dd_space_key_strings[DD_SPACE_FLAGS], flags)) {
+		delete p;
 		return(false);
 	}
+
+	delete p;
 
 	return(true);
 }
@@ -4333,8 +4338,8 @@ dd_get_fts_tablespace_id(
 	const dict_table_t*	table,
 	dd::Object_id&		dd_space_id)
 {
-	char	db_name[NAME_LEN + 1];
-	char	table_name[NAME_LEN + 1];
+	char	db_name[MAX_DATABASE_NAME_LEN];
+	char	table_name[MAX_TABLE_NAME_LEN];
 
 	dd_parse_tbl_name(parent_table->name.m_name, db_name,
 				table_name, NULL);
@@ -4460,8 +4465,8 @@ dd_create_fts_index_table(
 {
 	ut_ad(charset != nullptr);
 
-	char	db_name[NAME_LEN + 1];
-	char	table_name[NAME_LEN + 1];
+	char	db_name[MAX_DATABASE_NAME_LEN];
+	char	table_name[MAX_TABLE_NAME_LEN];
 
 	dd_parse_tbl_name(table->name.m_name, db_name, table_name, NULL);
 
@@ -4605,8 +4610,8 @@ dd_create_fts_common_table(
 	dict_table_t*		table,
 	bool			is_config)
 {
-	char	db_name[NAME_LEN + 1];
-	char	table_name[NAME_LEN + 1];
+	char	db_name[MAX_DATABASE_NAME_LEN];
+	char	table_name[MAX_TABLE_NAME_LEN];
 
 	dd_parse_tbl_name(table->name.m_name, db_name, table_name, NULL);
 
@@ -4741,8 +4746,8 @@ dd_drop_fts_table(
 	const char*	name,
 	bool		file_per_table)
 {
-	char	db_name[NAME_LEN + 1];
-	char	table_name[NAME_LEN + 1];
+	char	db_name[MAX_DATABASE_NAME_LEN];
+	char	table_name[MAX_TABLE_NAME_LEN];
 
 	dd_parse_tbl_name(name, db_name, table_name, NULL);
 
@@ -4807,10 +4812,10 @@ dd_rename_fts_table(
 	const dict_table_t*	table,
 	const char*		old_name)
 {
-	char	new_db_name[NAME_LEN + 1];
-	char	new_table_name[NAME_LEN + 1];
-	char	old_db_name[NAME_LEN + 1];
-	char	old_table_name[NAME_LEN + 1];
+	char	new_db_name[MAX_DATABASE_NAME_LEN];
+	char	new_table_name[MAX_TABLE_NAME_LEN];
+	char	old_db_name[MAX_DATABASE_NAME_LEN];
+	char	old_table_name[MAX_TABLE_NAME_LEN];
 	char*	new_name = table->name.m_name;
 
 	dd_parse_tbl_name(new_name, new_db_name, new_table_name, nullptr);
@@ -4883,3 +4888,72 @@ uint32_t dd_get_total_indexes_num()
 	return(indexes_count);
 }
 #endif /* UNIV_DEBUG */
+
+/** Open a table from its database and table name, this is currently used by
+foreign constraint parser to get the referenced table.
+@param[in]	name			foreign key table name
+@param[in]	database_name		table db name
+@param[in]	database_name_len	db name length
+@param[in]	table_name		table db name
+@param[in]	table_name_len		table name length
+@param[in,out]	table			table object or NULL
+@param[in,out]	mdl			mdl on table
+@param[in,out]	heap			heap memory
+@return complete table name with database and table name, allocated from
+heap memory passed in */
+char*
+dd_get_referenced_table(
+	const char*	name,
+	const char*	database_name,
+	ulint		database_name_len,
+	const char*	table_name,
+	ulint		table_name_len,
+	dict_table_t**	table,
+	MDL_ticket**	mdl,
+	mem_heap_t*	heap)
+{
+	char*		ref;
+	const char*	db_name;
+
+	if (!database_name) {
+		/* Use the database name of the foreign key table */
+
+		db_name = name;
+		database_name_len = dict_get_db_name_len(name);
+	} else {
+		db_name = database_name;
+	}
+
+	/* Copy database_name, '/', table_name, '\0' */
+	ref = static_cast<char*>(
+		mem_heap_alloc(heap, database_name_len + table_name_len + 2));
+
+	memcpy(ref, db_name, database_name_len);
+	ref[database_name_len] = '/';
+	memcpy(ref + database_name_len + 1, table_name, table_name_len + 1);
+
+	/* Values;  0 = Store and compare as given; case sensitive
+		    1 = Store and compare in lower; case insensitive
+		    2 = Store as given, compare in lower; case semi-sensitive */
+	if (innobase_get_lower_case_table_names() == 2) {
+		innobase_casedn_str(ref);
+		*table = dd_table_open_on_name(current_thd, mdl, ref,
+					       true, DICT_ERR_IGNORE_NONE);
+		memcpy(ref, db_name, database_name_len);
+		ref[database_name_len] = '/';
+		memcpy(ref + database_name_len + 1, table_name, table_name_len + 1);
+
+	} else {
+#ifndef _WIN32
+		if (innobase_get_lower_case_table_names() == 1) {
+			innobase_casedn_str(ref);
+		}
+#else
+		innobase_casedn_str(ref);
+#endif /* !_WIN32 */
+		*table = dd_table_open_on_name(current_thd, mdl, ref,
+					       true, DICT_ERR_IGNORE_NONE);
+	}
+
+	return(ref);
+}

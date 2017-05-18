@@ -1526,6 +1526,7 @@ innobase_get_foreign_key_info(
 	char*		referenced_table_name = NULL;
 	ulint		num_fk = 0;
 	Alter_info*	alter_info = ha_alter_info->alter_info;
+	MDL_ticket*	mdl;
 
 	DBUG_ENTER("innobase_get_foreign_key_info");
 
@@ -1628,20 +1629,27 @@ innobase_get_foreign_key_info(
 #endif
 		mutex_enter(&dict_sys->mutex);
 
-		referenced_table_name = dict_get_referenced_table(
+		referenced_table_name = dd_get_referenced_table(
 			table->name.m_name,
 			db_namep,
 			db_name_len,
 			tbl_namep,
 			tbl_name_len,
 			&referenced_table,
+			&mdl,
 			add_fk[num_fk]->heap);
 
 		/* Test the case when referenced_table failed to
 		open, if trx->check_foreigns is not set, we should
 		still be able to add the foreign key */
 		DBUG_EXECUTE_IF("innodb_test_open_ref_fail",
-				referenced_table = NULL;);
+				if (referenced_table) {
+					dd_table_close(referenced_table,
+						       current_thd,
+						       &mdl,
+						       true);
+					referenced_table = NULL;
+				});
 
 		if (!referenced_table && trx->check_foreigns) {
 			mutex_exit(&dict_sys->mutex);
@@ -1676,6 +1684,10 @@ innobase_get_foreign_key_info(
 				/* Check whether there exist such
 				index in the the index create clause */
 				if (!referenced_index) {
+					dd_table_close(referenced_table,
+						       current_thd,
+						       &mdl,
+						       true);
 					mutex_exit(&dict_sys->mutex);
 					my_error(ER_FK_NO_INDEX_PARENT, MYF(0),
 						 fk_key->name.str
@@ -1691,6 +1703,12 @@ innobase_get_foreign_key_info(
 		} else {
 			/* Not possible to add a foreign key without a
 			referenced column */
+			if (referenced_table) {
+				dd_table_close(referenced_table,
+					       current_thd,
+					       &mdl,
+					       true);
+			}
 			mutex_exit(&dict_sys->mutex);
 			my_error(ER_CANNOT_ADD_FOREIGN, MYF(0), tbl_namep);
 			goto err_exit;
@@ -1702,6 +1720,12 @@ innobase_get_foreign_key_info(
 			    num_col, referenced_table_name,
 			    referenced_table, referenced_index,
 			    referenced_column_names, referenced_num_col)) {
+			if (referenced_table) {
+				dd_table_close(referenced_table,
+					       current_thd,
+					       &mdl,
+					       true);
+			}
 			mutex_exit(&dict_sys->mutex);
 			my_error(
 				ER_FK_DUP_NAME,
@@ -1710,6 +1734,12 @@ innobase_get_foreign_key_info(
 			goto err_exit;
 		}
 
+		if (referenced_table) {
+			dd_table_close(referenced_table,
+				       current_thd,
+				       &mdl,
+				       true);
+		}
 		mutex_exit(&dict_sys->mutex);
 
 		correct_option = innobase_set_foreign_key_option(
@@ -6817,7 +6847,7 @@ innobase_update_foreign_try(
 				DBUG_RETURN(true);
 			}
 		}
-		
+
 		/* During upgrade, inserts into SYS_* should be avoided. */
 		if (!srv_is_upgrade_mode) {
 			DBUG_EXECUTE_IF(
