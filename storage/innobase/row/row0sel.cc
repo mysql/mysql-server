@@ -5144,8 +5144,19 @@ idx_cond_failed:
 
 		btr_pcur_store_position(pcur, &mtr);
 
-		if (prebuilt->innodb_api) {
-			prebuilt->innodb_api_rec = result_rec;
+		if (prebuilt->innodb_api
+		    && (btr_pcur_get_rec(pcur) != result_rec)) {
+			ulint rec_size =  rec_offs_size(offsets);
+			if (!prebuilt->innodb_api_rec_size ||
+			   (prebuilt->innodb_api_rec_size < rec_size)) {
+				prebuilt->innodb_api_buf =
+				  static_cast<byte*>
+				  (mem_heap_alloc(prebuilt->cursor_heap,rec_size));
+				prebuilt->innodb_api_rec_size = rec_size;
+			}
+			prebuilt->innodb_api_rec =
+			      rec_copy(
+			       prebuilt->innodb_api_buf, result_rec, offsets);
 		}
 	}
 
