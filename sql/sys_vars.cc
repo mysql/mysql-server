@@ -1983,7 +1983,7 @@ static Sys_var_enum Sys_extract_write_set(
        "extract the write set which will be used for various purposes. ",
        SESSION_VAR(transaction_write_set_extraction), CMD_LINE(OPT_ARG),
        transaction_write_set_hashing_algorithms,
-       DEFAULT(HASH_ALGORITHM_OFF), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       DEFAULT(HASH_ALGORITHM_XXHASH64), NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(transaction_write_set_check),
        ON_UPDATE(NULL));
 

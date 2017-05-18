@@ -59,7 +59,10 @@ START GROUP_REPLICATION;
 --eval SET GLOBAL binlog_format= $binlog_format_backup
 
 --let $transaction_write_set_extraction_backup= `SELECT @@GLOBAL.transaction_write_set_extraction`
+# Value of TWSE cannot be changed when BTDT!= COMMIT_ORDER
+--let $binlog_transaction_dependency_tracking_backup= `SELECT @@GLOBAL.binlog_transaction_dependency_tracking`
 
+SET GLOBAL binlog_transaction_dependency_tracking= COMMIT_ORDER;
 SET GLOBAL transaction_write_set_extraction=OFF;
 
 --error ER_GROUP_REPLICATION_CONFIGURATION
@@ -67,6 +70,8 @@ START GROUP_REPLICATION;
 
 --replace_result $transaction_write_set_extraction_backup WRITE_SET_EXTRACTION_ALGORITHM
 --eval SET GLOBAL transaction_write_set_extraction= $transaction_write_set_extraction_backup
+--replace_result $binlog_transaction_dependency_tracking_backup BINLOG_TRANSACTION_DEPENDENCY_TRACKING
+--eval SET GLOBAL binlog_transaction_dependency_tracking= $binlog_transaction_dependency_tracking_backup
 
 --echo #
 --echo # Test if parallel applier is enabled and that start

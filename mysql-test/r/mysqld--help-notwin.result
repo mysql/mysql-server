@@ -1617,7 +1617,7 @@ transaction-alloc-block-size 8192
 transaction-isolation REPEATABLE-READ
 transaction-prealloc-size 4096
 transaction-read-only FALSE
-transaction-write-set-extraction OFF
+transaction-write-set-extraction XXHASH64
 updatable-views-with-limit YES
 validate-user-plugins TRUE
 verbose TRUE

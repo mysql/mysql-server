@@ -817,8 +817,9 @@ include/include/assert_logical_timestamps.inc [0 5;4 6]
 DROP TABLE t1;
 DROP TABLE t2;
 #### CLEAN UP ####
-SET @@GLOBAL.binlog_transaction_dependency_tracking= @save_binlog_transaction_dependency_tracking;
+SET @@GLOBAL.binlog_transaction_dependency_tracking= COMMIT_ORDER;
 SET @@GLOBAL.transaction_write_set_extraction= @save_transaction_write_set_extraction;
+SET @@GLOBAL.binlog_transaction_dependency_tracking= @save_binlog_transaction_dependency_tracking;
 include/sync_slave_sql_with_master.inc
 SET @@GLOBAL.slave_parallel_workers= @save_slave_parallel_workers;
 include/rpl_end.inc

@@ -306,12 +306,10 @@ while ($explicit_pk < 2)
 }
 
 --echo #### CLEAN UP ####
-
+# Value of TWSE cannot be changed when binlog_transaction_dependency_tracking!= COMMIT_ORDER
+SET @@GLOBAL.binlog_transaction_dependency_tracking= COMMIT_ORDER;
+SET @@GLOBAL.transaction_write_set_extraction= @save_transaction_write_set_extraction;
 SET @@GLOBAL.binlog_transaction_dependency_tracking= @save_binlog_transaction_dependency_tracking;
-if (`SELECT @@GLOBAL.transaction_write_set_extraction != @save_transaction_write_set_extraction`)
-{
-  SET @@GLOBAL.transaction_write_set_extraction= @save_transaction_write_set_extraction;
-}
 
 --source include/sync_slave_sql_with_master.inc
 SET @@GLOBAL.slave_parallel_workers= @save_slave_parallel_workers;

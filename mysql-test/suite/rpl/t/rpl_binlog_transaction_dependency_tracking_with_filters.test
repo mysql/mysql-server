@@ -173,8 +173,8 @@ SET @@GLOBAL.binlog_transaction_dependency_tracking= @save_binlog_transaction_de
 --echo [On Slave]
 --let $dont_print_logical_timestamps=
 SET GLOBAL binlog_transaction_dependency_tracking = COMMIT_ORDER;
-SET @@GLOBAL.binlog_transaction_dependency_tracking= @save_binlog_transaction_dependency_tracking;
 SET @@GLOBAL.transaction_write_set_extraction= @save_transaction_write_set_extraction;
+SET @@GLOBAL.binlog_transaction_dependency_tracking= @save_binlog_transaction_dependency_tracking;
 
 --source include/stop_slave.inc
 CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB=(), REPLICATE_IGNORE_DB=();

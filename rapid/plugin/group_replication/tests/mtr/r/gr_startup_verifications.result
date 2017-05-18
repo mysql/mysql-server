@@ -13,10 +13,12 @@ SET GLOBAL binlog_format= STATEMENT;
 START GROUP_REPLICATION;
 ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
 SET GLOBAL binlog_format= ROW;
+SET GLOBAL binlog_transaction_dependency_tracking= COMMIT_ORDER;
 SET GLOBAL transaction_write_set_extraction=OFF;
 START GROUP_REPLICATION;
 ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
 SET GLOBAL transaction_write_set_extraction= WRITE_SET_EXTRACTION_ALGORITHM;
+SET GLOBAL binlog_transaction_dependency_tracking= BINLOG_TRANSACTION_DEPENDENCY_TRACKING;
 #
 # Test if parallel applier is enabled and that start
 # Group Replication will fail.

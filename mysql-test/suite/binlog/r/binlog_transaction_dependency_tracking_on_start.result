@@ -51,4 +51,5 @@ include/assert.inc [binlog_transaction_dependency_tracking should be WRITESET]
 include/assert.inc [transaction_write_set_extraction should be XXHASH64]
 include/assert.inc [binlog_transaction_dependency_tracking should be WRITESET_SESSION]
 SET GLOBAL binlog_transaction_dependency_tracking= COMMIT_ORDER;
-SET GLOBAL transaction_write_set_extraction= OFF;
+SET GLOBAL transaction_write_set_extraction= SAVED_TWSE;
+SET GLOBAL binlog_transaction_dependency_tracking= COMMIT_ORDER;

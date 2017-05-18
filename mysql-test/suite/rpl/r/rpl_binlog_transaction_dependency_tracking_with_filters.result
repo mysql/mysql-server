@@ -101,8 +101,8 @@ SET @@GLOBAL.binlog_transaction_dependency_tracking= @save_binlog_transaction_de
 include/sync_slave_sql_with_master.inc
 [On Slave]
 SET GLOBAL binlog_transaction_dependency_tracking = COMMIT_ORDER;
-SET @@GLOBAL.binlog_transaction_dependency_tracking= @save_binlog_transaction_dependency_tracking;
 SET @@GLOBAL.transaction_write_set_extraction= @save_transaction_write_set_extraction;
+SET @@GLOBAL.binlog_transaction_dependency_tracking= @save_binlog_transaction_dependency_tracking;
 include/stop_slave.inc
 CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB=(), REPLICATE_IGNORE_DB=();
 include/start_slave.inc
