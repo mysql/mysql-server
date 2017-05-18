@@ -1095,6 +1095,7 @@ echo "====="                                                       >> $STATUS_HI
 %doc %attr(644, root, man) %{_mandir}/man1/ndb_error_reporter.1*
 %doc %attr(644, root, man) %{_mandir}/man1/ndb_index_stat.1*
 %doc %attr(644, root, man) %{_mandir}/man1/ndb_mgm.1*
+%doc %attr(644, root, man) %{_mandir}/man1/ndb_move_data.1*
 %doc %attr(644, root, man) %{_mandir}/man1/ndb_print_backup_file.1*
 %doc %attr(644, root, man) %{_mandir}/man1/ndb_print_schema_file.1*
 %doc %attr(644, root, man) %{_mandir}/man1/ndb_print_sys_file.1*
