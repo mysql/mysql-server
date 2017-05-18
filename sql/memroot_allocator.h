@@ -84,7 +84,7 @@ public:
   {}
 
   template <class U> Memroot_allocator & operator=
-    (const Memroot_allocator<U> &other)
+    (const Memroot_allocator<U> &other MY_ATTRIBUTE((unused)))
   {
     DBUG_ASSERT(m_memroot == other.memroot()); // Don't swap memroot.
   }

@@ -212,7 +212,7 @@ public:
 
   // Debug dump of the element to stderr.
   /* purecov: begin inspected */
-  void dump(const String_type &prefix= "      ") const
+  void dump(const String_type &prefix MY_ATTRIBUTE((unused))= "      ") const
   {
 #ifndef DBUG_OFF
     fprintf(stderr, "%sobj: %p, id: %llu, cnt: %u",

@@ -74,12 +74,13 @@ public:
   explicit Malloc_allocator(PSI_memory_key key) : m_key(key)
   {}
 
-  template <class U> Malloc_allocator(const Malloc_allocator<U> &other)
-    : m_key(other.psi_key())
+  template <class U> Malloc_allocator
+    (const Malloc_allocator<U> &other MY_ATTRIBUTE((unused)))
+      : m_key(other.psi_key())
   {}
 
   template <class U> Malloc_allocator & operator=
-    (const Malloc_allocator<U> &other)
+    (const Malloc_allocator<U> &other MY_ATTRIBUTE((unused)))
   {
     DBUG_ASSERT(m_key == other.psi_key()); // Don't swap key.
   }
