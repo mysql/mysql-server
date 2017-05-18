@@ -2290,7 +2290,6 @@ RecLock::make_trx_hit_list(
 		updated by the local DDL transaction. To prevent this kind
 		of failure for local DDL, HP transaction just waits */
 		if (lock->index->table == dict_sys->ddl_log) {
-			ut_ad(thd_is_dd_update_stmt(trx->mysql_thd));
 			continue;
 		}
 
