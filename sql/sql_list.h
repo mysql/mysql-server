@@ -242,7 +242,7 @@ public:
       last= &first;
     else if (last == &(*prev)->next)
       last= prev;
-    delete *prev;
+    destroy(*prev);
     *prev=node;
   }
   inline void concat(base_list *list)

@@ -2307,7 +2307,7 @@ bool explain_query(THD *ethd, SELECT_LEX_UNIT *unit)
     explain_result->send_eof();
 
   if (other)
-    delete explain_result;
+    destroy(explain_result);
 
   DBUG_RETURN(res);
 }

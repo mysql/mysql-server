@@ -92,7 +92,7 @@ TEST_F(SqlListTest, ConstructAndDestruct)
   EXPECT_TRUE(m_int_list.is_empty());
   List<int> *p_int_list= new (*THR_MALLOC) List<int>;
   EXPECT_TRUE(p_int_list->is_empty());
-  delete p_int_list;
+  destroy(p_int_list);
 }
 
 

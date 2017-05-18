@@ -5001,7 +5001,7 @@ bool execute_show(THD *thd, TABLE_LIST *all_tables)
       Query_result *save_result= result;
       res= handle_query(thd, lex, result, 0, 0);
       if (save_result != lex->result)
-        delete save_result;
+        destroy(save_result);
     }
   }
 

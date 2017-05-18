@@ -524,7 +524,7 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share, const dd::Table *table_d
   }
   else
       share->primary_key= MAX_KEY;
-  delete handler_file;
+  destroy(handler_file);
 
   if (share->found_next_number_field)
   {

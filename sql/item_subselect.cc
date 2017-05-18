@@ -171,7 +171,7 @@ void Item_subselect::cleanup()
     if (engine)
     {
       engine->cleanup();
-      delete engine;
+      destroy(engine);
     }
     engine= old_engine;
     old_engine= 0;
@@ -386,7 +386,7 @@ bool Item_in_subselect::finalize_materialization_transform(JOIN *join)
       Delete all materialization-related objects, and return error.
     */
     new_engine->cleanup();
-    delete new_engine;
+    destroy(new_engine);
     return true;
   }
   if (change_engine(new_engine))
@@ -403,7 +403,7 @@ void Item_in_subselect::cleanup()
   if (left_expr_cache)
   {
     left_expr_cache->delete_elements();
-    delete left_expr_cache;
+    destroy(left_expr_cache);
     left_expr_cache= NULL;
   }
   left_expr_cache_filled= false;
@@ -436,7 +436,7 @@ void Item_in_subselect::cleanup()
 
 Item_subselect::~Item_subselect()
 {
-  delete engine;
+  destroy(engine);
 }
 
 

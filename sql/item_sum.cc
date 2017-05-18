@@ -2351,8 +2351,7 @@ void Item_sum_hybrid::cleanup()
   DBUG_ENTER("Item_sum_hybrid::cleanup");
   Item_sum::cleanup();
   forced_const= FALSE;
-  if (cmp)
-    delete cmp;
+  destroy(cmp);
   cmp= 0;
   /*
     by default it is TRUE to avoid TRUE reporting by
@@ -3787,13 +3786,13 @@ void Item_func_group_concat::cleanup()
   */
   if (!original)
   {
-    delete tmp_table_param;
+    destroy(tmp_table_param);
     tmp_table_param= 0;
     if (table)
     {
       THD *thd= table->in_use;
       if (table->blob_storage)
-        delete table->blob_storage;
+        destroy(table->blob_storage);
       free_tmp_table(thd, table);
       table= 0;
       if (tree)
@@ -3803,7 +3802,7 @@ void Item_func_group_concat::cleanup()
       }
       if (unique_filter)
       {
-        delete unique_filter;
+        destroy(unique_filter);
         unique_filter= NULL;
       }
     }
@@ -4215,7 +4214,7 @@ void Item_func_group_concat::print(String *str, enum_query_type query_type)
 Item_func_group_concat::~Item_func_group_concat()
 {
   if (!original && unique_filter)
-    delete unique_filter;    
+    destroy(unique_filter);
 }
 
 

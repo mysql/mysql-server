@@ -515,7 +515,7 @@ void Cache_temp_engine_properties::init(THD *thd)
   HEAP_MAX_KEY_LENGTH= handler->max_key_length();
   HEAP_MAX_KEY_PART_LENGTH= handler->max_key_part_length();
   HEAP_MAX_KEY_PARTS= handler->max_key_parts();
-  delete handler;
+  destroy(handler);
   plugin_unlock(0, db_plugin);
   // Cache InnMEM engine's
   db_plugin= ha_lock_engine(0, innmem_hton);
@@ -523,7 +523,7 @@ void Cache_temp_engine_properties::init(THD *thd)
   INNMEM_MAX_KEY_LENGTH= handler->max_key_length();
   INNMEM_MAX_KEY_PART_LENGTH= handler->max_key_part_length();
   INNMEM_MAX_KEY_PARTS= handler->max_key_parts();
-  delete handler;
+  destroy(handler);
   plugin_unlock(0, db_plugin);
   // Cache MYISAM engine's
   db_plugin= ha_lock_engine(0, myisam_hton);
@@ -531,7 +531,7 @@ void Cache_temp_engine_properties::init(THD *thd)
   MYISAM_MAX_KEY_LENGTH= handler->max_key_length();
   MYISAM_MAX_KEY_PART_LENGTH= handler->max_key_part_length();
   MYISAM_MAX_KEY_PARTS= handler->max_key_parts();
-  delete handler;
+  destroy(handler);
   plugin_unlock(0, db_plugin);
   // Cache INNODB engine's
   db_plugin= ha_lock_engine(0, innodb_hton);
@@ -549,7 +549,7 @@ void Cache_temp_engine_properties::init(THD *thd)
   */
   INNODB_MAX_KEY_PART_LENGTH= 3072;
   INNODB_MAX_KEY_PARTS= handler->max_key_parts();
-  delete handler;
+  destroy(handler);
   plugin_unlock(0, db_plugin);
 }
 
@@ -1361,7 +1361,7 @@ update_hidden:
 
   if (table->file->set_ha_share_ref(&share->ha_share))
   {
-    delete table->file;
+    destroy(table->file);
     goto err;
   }
 
@@ -1881,7 +1881,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
 
   if (table->file->set_ha_share_ref(&share->ha_share))
   {
-    delete table->file;
+    destroy(table->file);
     goto err;
   }
 
@@ -2194,7 +2194,7 @@ TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list)
   return table;
 error:
   for (field= table->field; *field; ++field)
-    delete *field;                         /* just invokes field destructor */
+    destroy(*field);
   return 0;
 }
 
@@ -2562,7 +2562,7 @@ void free_tmp_table(THD *thd, TABLE *entry)
     entry->set_deleted();
   }
 
-  delete entry->file;
+  destroy(entry->file);
   entry->file= NULL;
 
   /* free blobs */
@@ -2889,7 +2889,7 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable,
 
     }
 
-    delete table->file;
+    destroy(table->file);
     table->file=0;
     /*
       '*table' is overwritten with 'new_table'. new_table was set up as
@@ -2983,7 +2983,7 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable,
 err_after_create:
   new_table.file->ha_delete_table(new_table.s->table_name.str, nullptr);
 err_after_alloc:
-  delete new_table.file;
+  destroy(new_table.file);
 err_after_proc_info:
   thd_proc_info(thd, save_proc_info);
   // New share took control of old share mem_root; regain control:

@@ -5774,7 +5774,7 @@ bool create_table_impl(THD *thd,
 
   partition_info *part_info= thd->work_part_info;
 
-  std::unique_ptr<handler>
+  std::unique_ptr<handler, Destroy_only<handler>>
     file(get_new_handler((TABLE_SHARE*) 0,
                          (part_info ||
                           (create_info->db_type->partition_flags &&
@@ -6530,7 +6530,7 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
       my_error(ER_ERROR_ON_RENAME, MYF(0), from, to,
                error, my_strerror(errbuf, sizeof(errbuf), error));
     }
-    delete file;
+    destroy(file);
     DBUG_RETURN(true);
   }
 
@@ -6568,10 +6568,10 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
        )
       (void) file->ha_rename_table(to_base, from_base, to_table_def,
                                    const_cast<dd::Table*>(from_table_def));
-    delete file;
+    destroy(file);
     DBUG_RETURN(true);
   }
-  delete file;
+  destroy(file);
 
 #ifdef HAVE_PSI_TABLE_INTERFACE
   /*
