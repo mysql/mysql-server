@@ -28,6 +28,7 @@ Created 5/7/1996 Heikki Tuuri
 #include <mysql/service_thd_engine_lock.h>
 #include <sys/types.h>
 #include <set>
+#include <sql_thd_internal_api.h>
 
 #include "btr0btr.h"
 #include "current_thd.h"
@@ -2248,6 +2249,7 @@ Currently we don't mark following transactions for ASYNC Rollback.
 1. Read only transactions
 2. Background transactions
 3. Other High priority transactions
+4. DDL transactions accessing innodb_ddl_log table
 @param[in]	lock		Lock being requested
 @param[in]	conflict_lock	First conflicting lock from the head */
 void
@@ -2277,6 +2279,18 @@ RecLock::make_trx_hit_list(
 		    || trx->mysql_thd == NULL
 		    || !lock_has_to_wait(lock, next)) {
 
+			continue;
+		}
+
+		/* Ignore the conflicting on innodb_ddl_log table.
+		This happens when a high priority transaction which is
+		applying a DDL and there is also a local DDL running.
+		Because internal parser is used to update innodb_ddl_log now,
+		the HP transaction may want to lock a record which was just
+		updated by the local DDL transaction. To prevent this kind
+		of failure for local DDL, HP transaction just waits */
+		if (lock->index->table == dict_sys->ddl_log) {
+			ut_ad(thd_is_dd_update_stmt(trx->mysql_thd));
 			continue;
 		}
 
