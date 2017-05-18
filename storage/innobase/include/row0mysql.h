@@ -727,6 +727,8 @@ struct row_prebuilt_t {
 	mem_heap_t*	heap;		/*!< memory heap from which
 					these auxiliary structures are
 					allocated when needed */
+	mem_heap_t*     cursor_heap;	/*!< memory heap from which
+					innodb_api_buf is allocated per session */
 	ins_node_t*	ins_node;	/*!< Innobase SQL insert node
 					used to perform inserts
 					to the table */
@@ -876,6 +878,9 @@ struct row_prebuilt_t {
 	unsigned	innodb_api:1;	/*!< whether this is a InnoDB API
 					query */
 	const rec_t*	innodb_api_rec;	/*!< InnoDB API search result */
+	void*           innodb_api_buf; /*!< Buffer holding copy of the physical
+					Innodb API search record */
+	ulint           innodb_api_rec_size; /*!< Size of the Innodb API record */
 	/*----------------------*/
 
 	/*----------------------*/
