@@ -23,11 +23,11 @@ USE test;
 let MEMCACHED_PORT=11290;
 
 CREATE TABLE t1        (c1 VARCHAR(32),
-			c2 VARCHAR(1024),
+			c2 BLOB,
 			primary key(c1))
 ENGINE = INNODB;
 
-INSERT INTO t1 VALUES ('A', 'Achstetten');
+INSERT INTO t1 VALUES ('A', repeat('a',8000));
 INSERT INTO t1 VALUES ('B', 'Berlin');
 INSERT INTO t1 VALUES ('C', 'Cottbus');
 INSERT INTO t1 VALUES ('D', 'Darmstadt');
@@ -71,6 +71,12 @@ $val = $memd2->get("E");
 if ($val) { print "$val\n"; } else { print "Couldn't get value for E\n"; }
 $val = $memd2->get("H");
 if ($val) { print "$val\n"; } else { print "Couldn't get value for H\n"; }
+
+$val1 = "h" x 9907;
+$val = $memd2->add("W","W|$val1");
+$val = $memd2->get("W");
+if ($val) { print "$val\n"; }
+
 $memd2->disconnect_all;
 EOF
 
