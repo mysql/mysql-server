@@ -3681,10 +3681,10 @@ static Sys_var_set Slave_rows_search_algorithms(
        "TABLE_SCAN and HASH_SCAN. Any combination is allowed, and "
        "the slave will always pick the most suitable algorithm for "
        "any given scenario. "
-       "(Default: INDEX_SCAN, TABLE_SCAN).",
+       "(Default: INDEX_SCAN, HASH_SCAN).",
        GLOBAL_VAR(slave_rows_search_algorithms_options), CMD_LINE(REQUIRED_ARG),
        slave_rows_search_algorithms_names,
-       DEFAULT(SLAVE_ROWS_INDEX_SCAN | SLAVE_ROWS_TABLE_SCAN),  NO_MUTEX_GUARD,
+       DEFAULT(SLAVE_ROWS_INDEX_SCAN | SLAVE_ROWS_HASH_SCAN),  NO_MUTEX_GUARD,
        NOT_IN_BINLOG, ON_CHECK(check_not_null_not_empty), ON_UPDATE(NULL));
 
 static const char *mts_parallel_type_names[]= {"DATABASE", "LOGICAL_CLOCK", 0};

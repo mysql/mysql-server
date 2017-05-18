@@ -77,11 +77,11 @@ perl mysql-test-run.pl --timer  --force --parallel=auto --comment=innodb_undo_32
 perl mysql-test-run.pl --timer  --force --parallel=auto --comment=innodb_undo_6_32k --vardir=var-innodb-undo-6-32k --experimental=collections/default.experimental --suite=innodb_undo,innodb_zip,innodb --mysqld=--innodb_undo_tablespaces=6 --mysqld=--innodb-page-size=32k --no-skip
 
 perl mysql-test-run.pl --timer  --force --parallel=auto --comment=innodb_undo_5_64k --vardir=var-innodb-undo-5-64k --experimental=collections/default.experimental --suite=innodb_undo,innodb_zip,innodb --mysqld=--innodb_undo_tablespaces=5 --mysqld=--innodb-page-size=64k --no-skip
-# Additional run to test rpl HASH_SCAN & INDEX_SCAN
-perl mysql-test-run.pl --force --debug-server --timer --parallel=auto --experimental=collections/default.experimental --comment=binlog_rpl_row_hash_scan --vardir=var-binlog_rpl_row_hash_scan --mysqld=--binlog-format=row --suite=binlog,binlog_gtid,binlog_nogtid,rpl,rpl_gtid,rpl_nogtid --mysqld=--slave-rows-search-algorithms=HASH_SCAN,INDEX_SCAN --big-test --testcase-timeout=60 --skip-test-list=collection/disabled-weekly.list --no-skip
+# Additional run to test rpl TABLE_SCAN & INDEX_SCAN
+perl mysql-test-run.pl --force --debug-server --timer --parallel=auto --experimental=collections/default.experimental --comment=binlog_rpl_row_hash_scan --vardir=var-binlog_rpl_row_hash_scan --mysqld=--binlog-format=row --suite=binlog,binlog_gtid,binlog_nogtid,rpl,rpl_gtid,rpl_nogtid --mysqld=--slave-rows-search-algorithms=TABLE_SCAN,INDEX_SCAN --big-test --testcase-timeout=60 --skip-test-list=collection/disabled-weekly.list --no-skip
 # Skipped test rpl_incompatible_gtids_in_relay_log.test from MTS runs
 # until Bug#23296672 is fixed.
-perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=rpl_binlog_row_hash_MTS --vardir=var-mts-rpl-binlog-hash-n_mix --mysqld=--binlog-format=row --experimental=collections/default.experimental --mysqld=--slave-parallel-workers=4 --suite=rpl,rpl_gtid,rpl_nogtid,binlog,binlog_gtid,binlog_nogtid --mysqld=--slave-rows-search-algorithms=HASH_SCAN,INDEX_SCAN --skip-test-list=collection/disabled-weekly.list --no-skip --skip-test=rpl_incompatible_gtids_in_relay_log
+perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=rpl_binlog_row_hash_MTS --vardir=var-mts-rpl-binlog-hash-n_mix --mysqld=--binlog-format=row --experimental=collections/default.experimental --mysqld=--slave-parallel-workers=4 --suite=rpl,rpl_gtid,rpl_nogtid,binlog,binlog_gtid,binlog_nogtid --mysqld=--slave-rows-search-algorithms=TABLE_SCAN,INDEX_SCAN --skip-test-list=collection/disabled-weekly.list --no-skip --skip-test=rpl_incompatible_gtids_in_relay_log
 
 #Run with Query Cache Enabled
 

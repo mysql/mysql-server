@@ -1139,8 +1139,7 @@ The following options may be given as the first argument:
  updated or deleted them. Possible values are: INDEX_SCAN,
  TABLE_SCAN and HASH_SCAN. Any combination is allowed, and
  the slave will always pick the most suitable algorithm
- for any given scenario. (Default: INDEX_SCAN,
- TABLE_SCAN).
+ for any given scenario. (Default: INDEX_SCAN, HASH_SCAN).
  --slave-skip-errors=name 
  Tells the slave thread to continue replication when a
  query event returns an error from the provided list
@@ -1587,7 +1586,7 @@ slave-parallel-type DATABASE
 slave-parallel-workers 0
 slave-pending-jobs-size-max 16777216
 slave-preserve-commit-order FALSE
-slave-rows-search-algorithms TABLE_SCAN,INDEX_SCAN
+slave-rows-search-algorithms INDEX_SCAN,HASH_SCAN
 slave-skip-errors (No default value)
 slave-sql-verify-checksum TRUE
 slave-transaction-retries 10
