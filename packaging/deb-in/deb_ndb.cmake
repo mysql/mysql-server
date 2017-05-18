@@ -127,6 +127,7 @@ Description: nodejs
 /usr/share/man/man1/ndb_drop_index.1*
 /usr/share/man/man1/ndb_drop_table.1*
 /usr/share/man/man1/ndb_error_reporter.1*
+/usr/share/man/man1/ndb_import.1*
 /usr/share/man/man1/ndb_index_stat.1*
 /usr/share/man/man1/ndb_mgm.1*
 /usr/share/man/man1/ndb_move_data.1*
