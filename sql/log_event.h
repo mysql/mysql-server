@@ -3668,7 +3668,7 @@ public:
     return Binary_log_event::INCIDENT_HEADER_LEN + 1 + message_length;
   }
 
-  virtual bool ends_group() { return true; }
+  virtual bool ends_group() const { return true; }
 
 private:
   const char *description() const;
