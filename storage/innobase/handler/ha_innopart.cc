@@ -627,22 +627,34 @@ from lowest level
 @param[in]	tablespace	table-level tablespace if specified
 @param[in]	part		Partition to check
 @param[in]	sub_part	Sub-partition to check, if no, just NULL
-@return Tablespace name, if [0] = '\0' then nothing specified */
+@return Tablespace name, if nullptr or [0] = '\0' then nothing specified */
 const char* partition_get_tablespace(
 	const char*			tablespace,
 	const partition_element*	part,
 	const partition_element*	sub_part)
 {
-	if (sub_part != NULL
-	    && sub_part->tablespace_name != NULL
-	    && sub_part->tablespace_name[0] != '\0') {
-		return(sub_part->tablespace_name);
+	if (sub_part != nullptr) {
+		if (sub_part->tablespace_name != nullptr
+		    && sub_part->tablespace_name[0] != '\0') {
+			return(sub_part->tablespace_name);
+		}
+		/* Once DATA DIRECTORY specified, it implies
+		non-default tablespace, same as below */
+		if (sub_part->data_file_name != nullptr
+		    && sub_part->data_file_name[0] != '\0') {
+			return(nullptr);
+		}
 	}
 
-	ut_ad(part != NULL);
-	if (part->tablespace_name != NULL
+	ut_ad(part != nullptr);
+	if (part->tablespace_name != nullptr
 	    && part->tablespace_name[0] != '\0') {
 		return(part->tablespace_name);
+	}
+
+	if (part->data_file_name != nullptr
+	    && part->data_file_name[0] != '\0') {
+		return(nullptr);
 	}
 
 	return(tablespace);

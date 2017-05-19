@@ -288,7 +288,7 @@ from lowest level
 @param[in]	tablespace	table-level tablespace if specified
 @param[in]	part		Partition to check
 @param[in]	sub_part	Sub-partition to check, if no, just NULL
-@return Tablespace name, if [0] = '\0' then nothing specified */
+@return Tablespace name, if nullptr or [0] = '\0' then nothing specified */
 const char* partition_get_tablespace(
 	const char*			tablespace,
 	const partition_element*	part,
