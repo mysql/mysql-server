@@ -88,13 +88,13 @@ public:
     uint m_rejects;
     // csv options
     OptCsv m_optcsv;
+    const char* m_csvopt;
     // debug options
     uint m_verbose;
     bool m_abort_on_error;
     const char* m_errins_type;
     uint m_errins_delay;
   };
-
   int set_opt(const Opt& opt);
 
   // connect

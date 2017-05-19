@@ -25,6 +25,7 @@
 // STL
 #include <string>
 
+typedef NdbImport::OptCsv OptCsv;
 typedef NdbImport::JobStatus JobStatus;
 typedef NdbImport::JobStats JobStats;
 
@@ -40,13 +41,6 @@ static NdbOut g_err(g_err_out);
 #define CHK2(b, e) \
   if (!(b)) { \
     g_err << my_progname << ": " << e << endl; \
-    ret = -1; \
-    break; \
-  }
-
-#define CHK3(b, m, e) \
-  if (!(b)) { \
-    g_err << my_progname << ": " << m << ": " << e << endl; \
     ret = -1; \
     break; \
   }
@@ -248,6 +242,16 @@ my_long_options[] =
     &g_opt.m_optcsv.m_lines_terminated_by,
     &g_opt.m_optcsv.m_lines_terminated_by, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { "csvopt", NDB_OPT_NOSHORT,
+    "Set some typical CSV options."
+    " Useful for environments where command line quoting and escaping is hard."
+    " Argument is a string of letters:"
+    " d-LOAD DATA defaults"
+    " c-fields terminated by real comma (,)"
+    " q-fields optionally enclosed by double quotes (\")"
+    " r-lines terminated by \\r\\n",
+    &g_opt.m_csvopt, &g_opt.m_csvopt, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "verbose", 'v',
     "Verbosity level for debug messages (0-2 or 0-4 in debug)",
     &g_opt.m_verbose, &g_opt.m_verbose, 0,
@@ -376,12 +380,46 @@ checkarg(TableArg& arg, const char* str)
 static int checkerrins();
 
 static int
+checkcsvopt()
+{
+  int ret = 0;
+  for (const char* p = g_opt.m_csvopt; *p != 0; p++)
+  {
+    switch (*p) {
+    case 'd':
+      new (&g_opt.m_optcsv) OptCsv;
+      break;
+    case 'c':
+      g_opt.m_optcsv.m_fields_terminated_by = ",";
+      break;
+    case 'q':
+      g_opt.m_optcsv.m_fields_optionally_enclosed_by = "\"";
+      break;
+    case 'r':
+      g_opt.m_optcsv.m_lines_terminated_by = "\\r\\n";
+      break;
+    default:
+      {
+        char tmp[2];
+        sprintf(tmp, "%c", *p);
+        CHK2(false, "m_csvopt: undefined option: " << tmp);
+      }
+      break;
+    }
+    CHK1(ret == 0);
+  }
+  return ret;
+}
+
+static int
 checkopts(int argc, char** argv)
 {
   int ret = 0;
   do
   {
     CHK1(checkerrins() == 0);
+    if (g_opt.m_csvopt != 0)
+      CHK1(checkcsvopt() == 0);
     CHK2(argc >= 1, "database argument is required, use --help for help");
     g_opt.m_database = argv[0];
     argc--;
@@ -725,8 +763,8 @@ doimp()
   }
   do
   {
-    CHK3(imp.set_opt(g_opt) == 0, "invalid options", imp.get_error());
-    CHK3(imp.do_connect() == 0, "connect to NDB failed", imp.get_error());
+    CHK2(imp.set_opt(g_opt) == 0, "invalid options: " << imp.get_error());
+    CHK2(imp.do_connect() == 0, "connect to NDB failed: " << imp.get_error());
     for (uint i = 0; i < g_tablecnt; i++)
     {
       const TableArg& arg = g_tablearg[i];
@@ -737,7 +775,7 @@ doimp()
       g_opt.m_reject_file = arg.m_reject_file.c_str();
       g_opt.m_rowmap_file = arg.m_rowmap_file.c_str();
       g_opt.m_stats_file = arg.m_stats_file.c_str();
-      CHK3(imp.set_opt(g_opt) == 0, "invalid options", imp.get_error());
+      CHK2(imp.set_opt(g_opt) == 0, "invalid options: "<< imp.get_error());
       NdbImport::Job job(imp);
       do
       {

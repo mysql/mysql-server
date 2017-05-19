@@ -92,6 +92,7 @@ NdbImport::Opt::Opt()
   m_idlespin = 0;
   m_idlesleep = 1;
   m_rejects = 0;
+  m_csvopt = 0;
   // debug options
   m_verbose = 0;
   m_abort_on_error = false;
