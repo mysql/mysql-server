@@ -1410,7 +1410,8 @@ Dbspj::build(Build_context& ctx,
       /**
        * Convert the deprecated SCAN_FRAG_v1 node+param to new SCAN_FRAG:
        *  - The 'node' formats are identical, no conversion needed.
-       *  - The QN_ScanFragParameters has two additional 'batch_size' member.
+       *  - The QN_ScanFragParameters has two additional 'batch_size' members.
+       *    In addition there is three unused Uint32 member for future use. (5)
        *    Extend entire param block to make room for it, fill in from 'req'.
        */
       jam();
@@ -1418,7 +1419,7 @@ Dbspj::build(Build_context& ctx,
       const Uint32 requestInfo = param_old->requestInfo;
       const Uint32 resultData = param_old->resultData;
 
-      if (unlikely(param_len+2 >= NDB_ARRAY_SIZE(m_buffer1)))
+      if (unlikely(param_len+5 >= NDB_ARRAY_SIZE(m_buffer1)))
       {
         jam();
         err = DbspjErr::QueryNodeParametersTooBig;
@@ -1428,7 +1429,7 @@ Dbspj::build(Build_context& ctx,
       memmove(((Uint32*)param)+param->NodeSize,
               ((Uint32*)param_old)+param_old->NodeSize, 
               (param_len-param_old->NodeSize) * sizeof(Uint32));
-      param_len+=2;
+      param_len+=5;
 
       param->requestInfo = requestInfo;
       param->resultData = resultData;
@@ -1438,6 +1439,9 @@ Dbspj::build(Build_context& ctx,
       const ScanFragReq* req = (const ScanFragReq*)(signal->getDataPtr());
       param->batch_size_rows = req->batch_size_rows;
       param->batch_size_bytes = req->batch_size_bytes;
+      param->unused0 = 0;
+      param->unused1 = 0;
+      param->unused2 = 0;
 
       /* Execute root scan with full parallelism - as SCAN_FRAG_v1 always did */
       param->requestInfo |= QN_ScanFragParameters::SFP_PARALLEL;
@@ -1450,7 +1454,8 @@ Dbspj::build(Build_context& ctx,
        * Convert the deprecated SCAN_INDEX_v1 node+param to new SCAN_FRAG:
        *  - The 'node' formats are identical, no conversion needed.
        *  - The QN_ScanIndexParameters has splitt the single batchSize into
-       *    two seperate 'batch_size' member.
+       *    two seperate 'batch_size' members and introduced an additional
+       *    three unused Uint32 members for future use. (Total 4)
        *    Extend entire param block to make room for it,
        *    fill in from old batchSize argument.
        */
@@ -1460,7 +1465,7 @@ Dbspj::build(Build_context& ctx,
       const Uint32 batchSize = param_old->batchSize;
       const Uint32 resultData = param_old->resultData;
 
-      if (unlikely(param_len+1 >= NDB_ARRAY_SIZE(m_buffer1)))
+      if (unlikely(param_len+4 >= NDB_ARRAY_SIZE(m_buffer1)))
       {
         jam();
         err = DbspjErr::QueryNodeParametersTooBig;
@@ -1470,12 +1475,15 @@ Dbspj::build(Build_context& ctx,
       memmove(((Uint32*)param)+param->NodeSize,
               ((Uint32*)param_old)+param_old->NodeSize, 
               (param_len-param_old->NodeSize) * sizeof(Uint32));
-      param_len+=1;
+      param_len+=4;
 
       param->requestInfo = requestInfo;
       param->resultData = resultData;
       param->batch_size_rows = batchSize & ~(0xFFFFFFFF << QN_ScanIndexParameters_v1::BatchRowBits);
       param->batch_size_bytes = batchSize >> QN_ScanIndexParameters_v1::BatchRowBits;
+      param->unused0 = 0;
+      param->unused1 = 0;
+      param->unused2 = 0;
 
       info = &Dbspj::g_ScanFragOpInfo;
     }

@@ -4692,6 +4692,9 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo,
     param->resultData = getIdOfReceiver();
     param->batch_size_rows = batchRows;
     param->batch_size_bytes = batchByteSize;
+    param->unused0 = 0;  //Future
+    param->unused1 = 0;
+    param->unused2 = 0;
     QueryNodeParameters::setOpLen(param->len, paramType, length);
     break;
   }

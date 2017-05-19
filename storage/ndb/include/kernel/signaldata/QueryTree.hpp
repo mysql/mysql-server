@@ -362,7 +362,11 @@ struct QN_ScanFragParameters
   Uint32 batch_size_rows;
   Uint32 batch_size_bytes;
 
-  STATIC_CONST ( NodeSize = 5 );
+  Uint32 unused0;      // Future
+  Uint32 unused1;
+  Uint32 unused2;
+
+  STATIC_CONST ( NodeSize = 8 );
 
   enum ScanFragParamBits
   {
