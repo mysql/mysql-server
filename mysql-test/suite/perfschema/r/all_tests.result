@@ -26,5 +26,6 @@ select test_name as `MISSING DDL/DML TESTS` from t2;
 MISSING DDL/DML TESTS
 idx_replication_applier_filters.test
 idx_replication_applier_global_filters.test
+idx_user_defined_functions.test
 drop table t1;
 drop table t2;

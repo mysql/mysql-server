@@ -1,0 +1,87 @@
+--source include/have_debug_sync.inc
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+--source ../inc/have_test_udf_registration_component.inc
+
+--echo # Simple load test
+INSTALL COMPONENT "file://component_test_udf_registration";
+
+SELECT * FROM performance_schema.user_defined_functions
+  WHERE UDF_NAME IN('dynamic_udf', 'dynamic_agg')
+  ORDER BY UDF_NAME;
+
+--echo # Must return 12
+SELECT dynamic_udf();
+
+--echo # aggregate function test
+CREATE TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1,1),(2,1),(3,2),(4,4);
+
+--echo # aggregate all rows: expect 42
+SELECT dynamic_agg(a) FROM t1;
+
+--echo # aggregate with group by: expect 42
+SELECT dynamic_agg(a) FROM t1 GROUP BY b;
+
+DROP TABLE t1;
+
+--echo # DROP should fail
+--error ER_UDF_DROP_DYNAMICALLY_REGISTERED
+DROP FUNCTION dynamic_udf;
+
+connect(c1,localhost,root,,mysql);
+connection default;
+
+--echo # Activating the sync point at udf reference count decrease
+SET DEBUG_SYNC='udf_handler_cleanup_sync SIGNAL pre_cleanup WAIT_FOR continue TIMEOUT 20';
+
+--echo # now emit a call to lock the UDF
+send SELECT dynamic_udf();
+
+--echo # switch to c1;
+connection c1;
+
+SET DEBUG_SYNC='now WAIT_FOR pre_cleanup';
+
+--echo # use counts should be 2 for dynamic_udf and 1 for dynamic_agg
+SELECT UDF_NAME, UDF_USAGE_COUNT FROM performance_schema.user_defined_functions
+  WHERE UDF_NAME IN('dynamic_udf', 'dynamic_agg')
+  ORDER BY UDF_NAME;
+
+--echo # Uninstall should fail: dynamic_udf stil locked
+--error ER_COMPONENTS_UNLOAD_CANT_DEINITIALIZE
+UNINSTALL COMPONENT "file://component_test_udf_registration";
+
+--echo # release the reference count decrease
+SET DEBUG_SYNC='now SIGNAL continue';
+
+--echo # switch back to default connection
+connection default;
+--echo # reaping the result from SELECT
+reap;
+
+--echo # should fail: the release of the UDF removed it
+--error ER_SP_DOES_NOT_EXIST
+SELECT dynamic_udf();
+
+--echo # Should fail: this one is unregistered
+--error ER_SP_DOES_NOT_EXIST
+SELECT dynamic_agg(a);
+
+--echo # should be empty
+SELECT * FROM performance_schema.user_defined_functions
+  WHERE UDF_NAME IN('dynamic_udf', 'dynamic_agg')
+  ORDER BY UDF_NAME;
+
+--echo # remove the plugin
+UNINSTALL COMPONENT "file://component_test_udf_registration";
+
+--echo # should fail: no UDF
+--error ER_SP_DOES_NOT_EXIST
+SELECT dynamic_udf();
+
+disconnect c1;
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc

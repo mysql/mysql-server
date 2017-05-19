@@ -130,6 +130,7 @@
 #include "table_variables_by_thread.h"
 #include "table_variables_info.h"
 #include "table_persisted_variables.h"
+#include "table_user_defined_functions.h"
 
 /**
   @page PAGE_PFS_NEW_TABLE Implementing a new performance_schema table
@@ -663,6 +664,7 @@ static PFS_engine_table_share *all_shares[] = {
   &table_session_variables::m_share,
   &table_variables_info::m_share,
   &table_persisted_variables::m_share,
+  &table_user_defined_functions::m_share,
 
   NULL};
 

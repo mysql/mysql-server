@@ -28,6 +28,7 @@
 #include "mysql/mysql_lex_string.h"  // LEX_STRING
 #include "mysql_com.h"               // Item_result
 #include "sql_alloc.h"               // Sql_alloc
+#include <mysql/components/services/udf_registration.h>
 
 class Item;
 class Item_result_field;
@@ -35,17 +36,6 @@ class String;
 class THD;
 class my_decimal;
 
-
-enum Item_udftype {UDFTYPE_FUNCTION=1,UDFTYPE_AGGREGATE};
-
-typedef void (*Udf_func_clear)(UDF_INIT *, uchar *, uchar *);
-typedef void (*Udf_func_add)(UDF_INIT *, UDF_ARGS *, uchar *, uchar *);
-typedef void (*Udf_func_deinit)(UDF_INIT*);
-typedef bool (*Udf_func_init)(UDF_INIT *, UDF_ARGS *,  char *);
-typedef void (*Udf_func_any)();
-typedef double (*Udf_func_double)(UDF_INIT *, UDF_ARGS *, uchar *, uchar *);
-typedef longlong (*Udf_func_longlong)(UDF_INIT *, UDF_ARGS *, uchar *,
-                                      uchar *);
 
 typedef struct st_udf_func
 {
@@ -84,7 +74,7 @@ class udf_handler :public Sql_alloc
   ~udf_handler();
   const char *name() const { return u_d ? u_d->name.str : "?"; }
   Item_result result_type () const
-  { return u_d	? u_d->returns : STRING_RESULT;}
+  { return (Item_result) (u_d ? (u_d->returns) : STRING_RESULT);}
   bool get_arguments();
   bool fix_fields(THD *thd, Item_result_field *item,
                   uint arg_count, Item **args);
@@ -150,6 +140,11 @@ class udf_handler :public Sql_alloc
 void udf_init(void),udf_deinit(void);
 udf_func *find_udf(const char *name, size_t len=0,bool mark_used=0);
 void free_udf(udf_func *udf);
-bool mysql_create_function(THD *thd,udf_func *udf);
-bool mysql_drop_function(THD *thd,const LEX_STRING *name);
+bool mysql_create_function(THD *thd, udf_func *udf);
+bool mysql_drop_function(THD *thd, const LEX_STRING *name);
+ulong udf_hash_size(void);
+void udf_hash_rlock(void);
+void udf_hash_unlock(void);
+typedef void udf_hash_for_each_func_t(udf_func *, void *);
+void udf_hash_for_each(udf_hash_for_each_func_t *func, void *arg);
 #endif /* SQL_UDF_INCLUDED */

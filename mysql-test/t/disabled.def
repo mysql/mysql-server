@@ -23,3 +23,4 @@ partition_exchange               : WL#9559 disables it, waiting for WL#9536 to r
 main.internal_tmp_disk_storage_engine : 2017-04-13 Allen Disabled it since it's failing on pb2.
 main.innodb_mysql_sync           : Bug#25887335 2017-04-13 Allen Disabled it since it's failing on pb2.
 # log_components_syslog    : WL#9343 2017-02-07 Tatiana provided for review/QA; should not be run routinely to prevent spamming the test host's log. may be removed later.
+service_udf_registration.udf_old : 2017-05-23 Horst Bug #26115002 UDF_EXAMPLE BINARY NOT PACKAGED.

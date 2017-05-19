@@ -10697,6 +10697,9 @@ ER_NDB_DISTRIBUTING_ERR
 ER_PART_EXPR_TOO_LONG
   eng "Partitioning expression is too long."
 
+ER_UDF_DROP_DYNAMICALLY_REGISTERED
+  eng "DROP FUNCTION can't drop a dynamically registered user defined function"
+
 #
 #  End of 8.0 error messages.
 #

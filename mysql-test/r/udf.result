@@ -10,6 +10,26 @@ CREATE FUNCTION reverse_lookup
 RETURNS STRING SONAME "UDF_EXAMPLE_LIB";
 CREATE AGGREGATE FUNCTION avgcost
 RETURNS REAL SONAME "UDF_EXAMPLE_LIB";
+# Should get 7 rows 1 aggregate
+SELECT * FROM performance_schema.user_defined_functions
+WHERE udf_library='UDF_EXAMPLE_LIB'
+  ORDER BY UDF_NAME;
+UDF_NAME	UDF_RETURN_TYPE	UDF_TYPE	UDF_LIBRARY	UDF_USAGE_COUNT
+avgcost	double	aggregate	UDF_EXAMPLE_LIB	1
+lookup	char	function	UDF_EXAMPLE_LIB	1
+metaphon	char	function	UDF_EXAMPLE_LIB	1
+myfunc_double	double	function	UDF_EXAMPLE_LIB	1
+myfunc_int	integer	function	UDF_EXAMPLE_LIB	1
+reverse_lookup	char	function	UDF_EXAMPLE_LIB	1
+sequence	integer	function	UDF_EXAMPLE_LIB	1
+# Should get an index lookup
+EXPLAIN
+SELECT udf_type FROM performance_schema.user_defined_functions
+WHERE udf_name = 'metaphon';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	user_defined_functions	NULL	const	PRIMARY	PRIMARY	194	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select 'function' AS `udf_type` from `performance_schema`.`user_defined_functions` where ('metaphon' = 'metaphon')
 select myfunc_double();
 ERROR HY000: Can't initialize function 'myfunc_double'; myfunc_double must have at least one argument
 select myfunc_double(1);

@@ -4574,6 +4574,7 @@ void udf_handler::cleanup()
         Udf_func_deinit deinit= u_d->func_deinit;
         (*deinit)(&initid);
       }
+      DEBUG_SYNC(current_thd, "udf_handler_cleanup_sync");
       free_udf(u_d);
       initialized= FALSE;
     }

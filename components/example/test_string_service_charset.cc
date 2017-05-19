@@ -191,7 +191,7 @@ bool test_charset (const char* charset, const char* text, int buff_len)
   Initialization entry method for test component.
   It executes the tests of the service.
 */
-bool test_string_service_init()
+mysql_service_status_t test_string_service_init()
 {
   const char* chs_latin1= "latin1";
   const char* chs_utf8  = "utf8";
@@ -229,7 +229,7 @@ bool test_string_service_init()
 /**
   De-initialization method for Component.
 */
-bool test_string_service_deinit()
+mysql_service_status_t test_string_service_deinit()
 {
   return false;
 }

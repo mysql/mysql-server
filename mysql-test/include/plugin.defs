@@ -90,7 +90,13 @@ connection_control                      plugin_output_directory  CONNECTION_CONT
 component_example_component1    component_output_directory  EXAMPLE_COMPONENT_1
 component_example_component2    component_output_directory  EXAMPLE_COMPONENT_2
 component_example_component3    component_output_directory  EXAMPLE_COMPONENT_3
+
 component_test_string_service   component_output_directory  TEST_STRING_SERVICE
 component_test_string_service_long   component_output_directory  TEST_STRING_SERVICE_LONG
 component_test_string_service_charset   component_output_directory  TEST_STRING_SERVICE_CHARSET
 component_log_sink_json         component_output_directory  LOGGING_COMPONENTS
+
+component_test_udf_registration    component_output_directory  TEST_UDF_REGISTRATION
+component_udf_reg_3_func   component_output_directory  UDF_REG_3_FUNC       component_udf_reg_3_func
+component_udf_reg_only_3_func component_output_directory UDF_REG_ONLY_3_FUNC component_udf_reg_only_3_func
+component_udf_unreg_3_func   component_output_directory  UDF_UNREG_3_FUNC component_udf_unreg_3_func

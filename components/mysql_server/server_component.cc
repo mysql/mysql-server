@@ -33,6 +33,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 #include "registry.h"
 #include "server_component.h"
 #include "auth/dynamic_privileges_impl.h"
+#include "udf_registration_imp.h"
 
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, registry)
   mysql_registry_imp::acquire,
@@ -238,6 +239,16 @@ BEGIN_SERVICE_IMPLEMENTATION(mysql_server, log_builtins_syseventlog)
   log_builtins_syseventlog_imp::close
 END_SERVICE_IMPLEMENTATION()
 
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, udf_registration)
+  mysql_udf_registration_imp::udf_register,
+  mysql_udf_registration_imp::udf_unregister
+END_SERVICE_IMPLEMENTATION()
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, udf_registration_aggregate)
+  mysql_udf_registration_imp::udf_register_aggregate,
+  mysql_udf_registration_imp::udf_unregister
+END_SERVICE_IMPLEMENTATION()
+
 BEGIN_COMPONENT_PROVIDES(mysql_server)
   PROVIDES_SERVICE(mysql_server, registry)
   PROVIDES_SERVICE(mysql_server, registry_registration)
@@ -265,6 +276,8 @@ BEGIN_COMPONENT_PROVIDES(mysql_server)
   PROVIDES_SERVICE(mysql_server, log_builtins_string)
   PROVIDES_SERVICE(mysql_server, log_builtins_tmp)
   PROVIDES_SERVICE(mysql_server, log_builtins_syseventlog)
+  PROVIDES_SERVICE(mysql_server, udf_registration)
+  PROVIDES_SERVICE(mysql_server, udf_registration_aggregate)
 END_COMPONENT_PROVIDES()
 
 static BEGIN_COMPONENT_REQUIRES(mysql_server)

@@ -812,7 +812,7 @@ typedef struct st_net {
   */
   unsigned char *unused;
   unsigned int last_errno;
-  unsigned char error; 
+  unsigned char error;
   /** Client library error message buffer. Actually belongs to struct MYSQL. */
   char last_error[MYSQL_ERRMSG_SIZE];
   /** Client library sqlstate buffer. Set along with the error message. */
@@ -836,7 +836,7 @@ typedef struct st_net {
   @ingroup group_cs
   @{
 */
-#define CLIENT_MULTI_QUERIES    CLIENT_MULTI_STATEMENTS    
+#define CLIENT_MULTI_QUERIES    CLIENT_MULTI_STATEMENTS
 #define FIELD_TYPE_DECIMAL     MYSQL_TYPE_DECIMAL
 #define FIELD_TYPE_NEWDECIMAL  MYSQL_TYPE_NEWDECIMAL
 #define FIELD_TYPE_TINY        MYSQL_TYPE_TINY
@@ -984,39 +984,8 @@ struct rand_struct {
 }
 #endif
 
-/** Used for user defined functions */
-enum Item_result {INVALID_RESULT=-1,
-                  STRING_RESULT=0, REAL_RESULT, INT_RESULT, ROW_RESULT,
-                  DECIMAL_RESULT};
-
-typedef struct st_udf_args
-{
-  unsigned int arg_count;		/**< Number of arguments */
-  enum Item_result *arg_type;		/**< Pointer to item_results */
-  char **args;				/**< Pointer to argument */
-  unsigned long *lengths;		/**< Length of string arguments */
-  char *maybe_null;			/**< Set to 1 for all maybe_null args */
-  char **attributes;                    /**< Pointer to attribute name */
-  unsigned long *attribute_lengths;     /**< Length of attribute arguments */
-  void *extension;
-} UDF_ARGS;
-
-/**
-  Information about the result of a user defined function
-
-  @todo add a notion for determinism of the UDF.
-
-  @sa Item_udf_func::update_used_tables()
-*/
-typedef struct st_udf_init
-{
-  bool maybe_null;             /** 1 if function can return NULL */
-  unsigned int decimals;       /** for real functions */
-  unsigned long max_length;    /** For string functions */
-  char *ptr;                   /** free pointer for function data */
-  bool const_item;             /** 1 if function always returns the same value */
-  void *extension;
-} UDF_INIT;
+/* Include the types here so existing UDFs can keep compiling */
+#include <mysql/udf_registration_types.h>
 
 /**
   @addtogroup group_cs_compresson_constants Constants when using compression

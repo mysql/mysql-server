@@ -404,7 +404,7 @@ void free_udf(udf_func *udf)
     }
     udf_hash->erase(it);
     using_udf_functions= !udf_hash->empty();
-    if (!find_udf_dl(udf->dl))
+    if (udf->dlhandle && !find_udf_dl(udf->dl))
       dlclose(udf->dlhandle);
   }
   mysql_rwlock_unlock(&THR_LOCK_udf);
@@ -434,9 +434,7 @@ udf_func *find_udf(const char *name, size_t length,bool mark_used)
   if (it != udf_hash->end())
   {
     udf= it->second;
-    if (!udf->dlhandle)
-      udf=0;					// Could not be opened
-    else if (mark_used)
+    if (mark_used)
       udf->usage_count++;
   }
   mysql_rwlock_unlock(&THR_LOCK_udf);
@@ -448,6 +446,8 @@ static void *find_udf_dl(const char *dl)
 {
   DBUG_ENTER("find_udf_dl");
 
+  if (!dl)
+    DBUG_RETURN(0);
   /*
     Because only the function name is hashed, we have to search trough
     all rows to find the dl.
@@ -455,7 +455,7 @@ static void *find_udf_dl(const char *dl)
   for (const auto &key_and_value : *udf_hash)
   {
     udf_func *udf= key_and_value.second;
-    if (!strcmp(dl, udf->dl) && udf->dlhandle != NULL)
+    if (udf->dl && !strcmp(dl, udf->dl) && udf->dlhandle != NULL)
       DBUG_RETURN(udf->dlhandle);
   }
   DBUG_RETURN(0);
@@ -585,6 +585,9 @@ bool mysql_create_function(THD *thd,udf_func *udf)
       my_error(ER_OUT_OF_RESOURCES, MYF(0));
     DBUG_RETURN(error);
   }
+
+  /* must not be dynamically registered */
+  DBUG_ASSERT(udf->dl);
 
   /*
     Ensure that the .dll doesn't have a path
@@ -732,6 +735,13 @@ bool mysql_drop_function(THD *thd,const LEX_STRING *udf_name)
     DBUG_RETURN(error);
   }
   udf= it->second;
+  if (!udf->dl)
+  {
+    mysql_rwlock_unlock(&THR_LOCK_udf);
+    my_error(ER_UDF_DROP_DYNAMICALLY_REGISTERED, MYF(0));
+    DBUG_RETURN(error);
+  }
+
   mysql_rwlock_unlock(&THR_LOCK_udf);
 
   table->use_all_columns();
@@ -766,4 +776,144 @@ bool mysql_drop_function(THD *thd,const LEX_STRING *udf_name)
 
 
   DBUG_RETURN(error);
+}
+
+#include "udf_registration_imp.h"
+
+bool mysql_udf_registration_imp::udf_register_inner(udf_func *ufunc)
+{
+  mysql_rwlock_wrlock(&THR_LOCK_udf);
+
+  DBUG_ASSERT(ufunc->dl == NULL);
+  DBUG_ASSERT(ufunc->dlhandle == NULL);
+
+  auto res= udf_hash->emplace(to_string(ufunc->name), ufunc);
+  if (!res.second)
+    ufunc= nullptr;
+  else
+    using_udf_functions= 1;
+
+  mysql_rwlock_unlock(&THR_LOCK_udf);
+  return ufunc == nullptr;
+}
+
+udf_func *
+mysql_udf_registration_imp::alloc_udf(const char *name,
+                                      Item_result return_type,
+                                      Udf_func_any func,
+                                      Udf_func_init init_func,
+                                      Udf_func_deinit deinit_func)
+{
+  udf_func *ufunc;
+
+  ufunc= (udf_func *) alloc_root(&mem, sizeof(udf_func));
+  if (!ufunc)
+    return NULL;
+  memset(ufunc, 0, sizeof(udf_func));
+  ufunc->name.str= strdup_root(&mem, name);
+  ufunc->name.length= strlen(name);
+  ufunc->func= func;
+  ufunc->func_init= init_func;
+  ufunc->func_deinit= deinit_func;
+  ufunc->returns= return_type;
+  ufunc->usage_count= 1;
+
+  return ufunc;
+}
+
+
+DEFINE_BOOL_METHOD(mysql_udf_registration_imp::udf_register,
+(const char *name,
+ Item_result return_type,
+ Udf_func_any func,
+ Udf_func_init init_func,
+ Udf_func_deinit deinit_func))
+{
+  udf_func *ufunc;
+
+  if (!func && !init_func && !deinit_func)
+    return TRUE;
+
+  ufunc= alloc_udf(name, return_type, func, init_func, deinit_func);
+  if (!ufunc)
+    return TRUE;
+  ufunc->type= Item_udftype::UDFTYPE_FUNCTION;
+
+  return udf_register_inner(ufunc);
+}
+
+
+DEFINE_BOOL_METHOD(mysql_udf_registration_imp::udf_register_aggregate,
+(const char *name,
+ enum Item_result return_type,
+ Udf_func_any func,
+ Udf_func_init init_func,
+ Udf_func_deinit deinit_func,
+ Udf_func_add add_func,
+ Udf_func_clear clear_func))
+{
+  udf_func *ufunc;
+
+  if (!func && !add_func && !clear_func && !init_func && !deinit_func)
+    return TRUE;
+
+  ufunc= alloc_udf(name, return_type, func, init_func, deinit_func);
+  if (!ufunc)
+    return TRUE;
+  ufunc->type= Item_udftype::UDFTYPE_AGGREGATE;
+  ufunc->func_add= add_func;
+  ufunc->func_clear= clear_func;
+
+  return udf_register_inner(ufunc);
+}
+
+
+DEFINE_BOOL_METHOD(mysql_udf_registration_imp::udf_unregister,
+(const char *name, int *was_present))
+{
+  udf_func *udf= NULL;
+
+  if (was_present)
+    *was_present= 0;
+  mysql_rwlock_wrlock(&THR_LOCK_udf);
+  const auto it= udf_hash->find(name);
+  if (it != udf_hash->end())
+  {
+    if (was_present)
+      *was_present= 1;
+
+    udf= it->second;
+
+    if (!udf->dl && !udf->dlhandle && // Not registered via CREATE FUNCTION
+        !--udf->usage_count)          // Not used
+    {
+      udf_hash->erase(it);
+      using_udf_functions= !udf_hash->empty();
+    }
+    else // error
+      udf= NULL;
+  }
+  mysql_rwlock_unlock(&THR_LOCK_udf);
+  return udf != NULL ? FALSE : TRUE;
+}
+
+void udf_hash_rlock(void)
+{
+  mysql_rwlock_rdlock(&THR_LOCK_udf);
+}
+
+void udf_hash_unlock(void)
+{
+  mysql_rwlock_unlock(&THR_LOCK_udf);
+}
+
+ulong udf_hash_size(void)
+{
+  return udf_hash->size();
+}
+
+void udf_hash_for_each(udf_hash_for_each_func_t *func, void *arg)
+{
+  for (auto it : *udf_hash)
+    func(it.second, arg);
 }

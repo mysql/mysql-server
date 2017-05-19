@@ -1313,6 +1313,11 @@ def	performance_schema	threads	THREAD_OS_ID	17	NULL	YES	bigint	NULL	NULL	20	0	NU
 def	performance_schema	users	USER	1	NULL	YES	char	32	96	NULL	NULL	NULL	utf8	utf8_bin	char(32)	UNI		select,insert,update,references		
 def	performance_schema	users	CURRENT_CONNECTIONS	2	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references		
 def	performance_schema	users	TOTAL_CONNECTIONS	3	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references		
+def	performance_schema	user_defined_functions	UDF_NAME	1	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)	PRI		select,insert,update,references		
+def	performance_schema	user_defined_functions	UDF_RETURN_TYPE	2	NULL	NO	varchar	20	60	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(20)			select,insert,update,references		
+def	performance_schema	user_defined_functions	UDF_TYPE	3	NULL	NO	varchar	20	60	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(20)			select,insert,update,references		
+def	performance_schema	user_defined_functions	UDF_LIBRARY	4	NULL	YES	varchar	1024	3072	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(1024)			select,insert,update,references		
+def	performance_schema	user_defined_functions	UDF_USAGE_COUNT	5	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references		
 def	performance_schema	user_variables_by_thread	THREAD_ID	1	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	PRI		select,insert,update,references		
 def	performance_schema	user_variables_by_thread	VARIABLE_NAME	2	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)	PRI		select,insert,update,references		
 def	performance_schema	user_variables_by_thread	VARIABLE_VALUE	3	NULL	YES	longblob	4294967295	4294967295	NULL	NULL	NULL	NULL	NULL	longblob			select,insert,update,references		

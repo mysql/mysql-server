@@ -36,6 +36,17 @@ eval CREATE FUNCTION reverse_lookup
 eval CREATE AGGREGATE FUNCTION avgcost
         RETURNS REAL SONAME "$UDF_EXAMPLE_LIB";
 
+--echo # Should get 7 rows 1 aggregate
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+eval SELECT * FROM performance_schema.user_defined_functions
+  WHERE udf_library='$UDF_EXAMPLE_LIB'
+  ORDER BY UDF_NAME;
+
+--echo # Should get an index lookup
+EXPLAIN
+SELECT udf_type FROM performance_schema.user_defined_functions
+  WHERE udf_name = 'metaphon';
+
 --error ER_CANT_INITIALIZE_UDF
 select myfunc_double();
 select myfunc_double(1);

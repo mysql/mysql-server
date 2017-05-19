@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -27,24 +27,24 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
   Initialization entry method for Component used when loading the Component.
 
   @return Status of performed operation
-  @retval false success
-  @retval true failure
+  @retval 0 success
+  @retval non-zero failure
 */
-bool example_init()
+mysql_service_status_t example_init()
 {
-  return false;
+  return 0;
 }
 
 /**
   De-initialization method for Component used when unloading the Component.
 
   @return Status of performed operation
-  @retval false success
-  @retval true failure
+  @retval 0 success
+  @retval non-zero failure
 */
-bool example_deinit()
+mysql_service_status_t example_deinit()
 {
-  return false;
+  return 0;
 }
 
 /* This component provides an implementation for all example Services. */

@@ -551,7 +551,7 @@ DEFINE_METHOD(int, log_service_imp::run,
   @retval false  success
   @retval true   failure
 */
-bool log_service_exit()
+mysql_service_status_t log_service_exit()
 {
   if (inited)
   {
@@ -579,7 +579,7 @@ bool log_service_exit()
   @retval false success
   @retval true failure
 */
-bool log_service_init()
+mysql_service_status_t log_service_init()
 {
   if (inited)
     return true;

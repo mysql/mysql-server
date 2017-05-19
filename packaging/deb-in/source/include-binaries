@@ -30,6 +30,16 @@ debian/extra/component_log_sink_json-plugin
 debian/extra/component_test_string_service_charset-plugin
 debian/extra/component_test_string_service_long-plugin
 debian/extra/component_test_string_service-plugin
+debian/extra/component_test_udf_registration-plugin
+debian/extra/component_udf_reg_3_func-plugin
+debian/extra/component_udf_reg_avg_func-plugin
+debian/extra/component_udf_reg_int_func-plugin
+debian/extra/component_udf_reg_int_same_func-plugin
+debian/extra/component_udf_reg_only_3_func-plugin
+debian/extra/component_udf_reg_real_func-plugin
+debian/extra/component_udf_unreg_3_func-plugin
+debian/extra/component_udf_unreg_int_func-plugin
+debian/extra/component_udf_unreg_real_func-plugin
 debian/extra/group_replication-plugin
 debian/extra/ha_example-plugin
 debian/extra/innodb_engine-plugin

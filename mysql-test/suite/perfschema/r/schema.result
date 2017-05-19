@@ -103,6 +103,7 @@ table_io_waits_summary_by_index_usage
 table_io_waits_summary_by_table
 table_lock_waits_summary_by_table
 threads
+user_defined_functions
 user_variables_by_thread
 users
 variables_by_thread

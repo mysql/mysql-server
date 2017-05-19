@@ -1,0 +1,78 @@
+# Test of general log of 3 UDFs with registration.
+
+--source include/no_ps_protocol.inc
+
+# Save values of log variables.
+SET @old_general_log= @@global.general_log;
+SET @old_log_output= @@global.log_output;
+SET @old_general_log_file= @@global.general_log_file;
+SET global general_log= ON;
+SET global log_output='table';
+
+# Empty general log.
+TRUNCATE TABLE mysql.general_log;
+
+# Register 3 UDFs.
+--echo # Simple load test
+INSTALL COMPONENT "file://component_udf_reg_3_func";
+
+# Usage of UDFs.
+--error ER_CANT_INITIALIZE_UDF
+SELECT myfunc_double();
+SELECT myfunc_double(1);
+SELECT myfunc_double(78654);
+SELECT myfunc_int();
+SELECT myfunc_int(5);
+SELECT myfunc_int('MySQL V8.0');
+
+CREATE TABLE t1(a INT, b INT);
+INSERT INTO t1 values (1,1),(2,2);
+SELECT myfunc_int(a AS attr_name) FROM t1;
+DROP TABLE t1;
+
+CREATE TABLE t1(sum int, price float(24));
+INSERT INTO t1 VALUES(100, 50.00), (100, 100.00);
+SELECT avgcost(sum, price) from t1;
+DELETE from t1;
+INSERT INTO t1 VALUES(100, 54.33), (200, 199.99);
+SELECT avgcost(sum, price) from t1;
+DROP TABLE t1;
+
+# Unregister UDFs.
+--echo # remove the plugin
+UNINSTALL COMPONENT "file://component_udf_reg_3_func";
+
+# UDFs must nor mor be available.
+--error ER_SP_DOES_NOT_EXIST
+SELECT myfunc_double(1);
+--error ER_SP_DOES_NOT_EXIST
+SELECT myfunc_double(1);
+
+# Register uDFs again.
+INSTALL COMPONENT "file://component_udf_reg_3_func";
+
+# UDFs again available.
+SELECT myfunc_double(78654);
+SELECT myfunc_int(5);
+
+# Unregister myfunc_int (called in init of component).
+INSTALL COMPONENT "file://component_udf_unreg_int_func";
+
+# Unload component.
+UNINSTALL COMPONENT "file://component_udf_unreg_int_func";
+
+# myfunc_int nit more available, other UDFs are.
+SELECT myfunc_double(78654);
+--error ER_SP_DOES_NOT_EXIST
+SELECT myfunc_int(5);
+
+# Unregister all UDFs.
+UNINSTALL COMPONENT "file://component_udf_reg_3_func";
+
+# Restore values of log variables.
+SET GLOBAL general_log = @old_general_log;
+SET GLOBAL log_output = @old_log_output;
+SET GLOBAL general_log_file = @old_general_log_file;
+
+# Show general log for UDFs.
+select command_type,argument from mysql.general_log WHERE argument LIKE '%myfunc%';
