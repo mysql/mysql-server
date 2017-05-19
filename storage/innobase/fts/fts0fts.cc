@@ -1646,7 +1646,7 @@ fts_rename_one_aux_table(
 
 	dberr_t	error;
 	error = row_rename_table_for_mysql(
-		fts_table_old_name, fts_table_new_name, nullptr, trx, false);
+		fts_table_old_name, fts_table_new_name, nullptr, trx, true);
 
 	if (error == DB_SUCCESS) {
 		/* Update dd tablespace filename. */
@@ -7006,7 +7006,7 @@ fts_rename_one_aux_table_to_hex_format(
 	}
 
 	error = row_rename_table_for_mysql(aux_table->name, new_name, nullptr,
-					   trx, FALSE);
+					   trx, false);
 
 	if (error != DB_SUCCESS) {
 		ib::warn() << "Failed to rename aux table '"
@@ -7150,7 +7150,7 @@ fts_rename_aux_tables_to_hex_format_low(
 			err = row_rename_table_for_mysql(table->name.m_name,
 							 aux_table->name,
 							 nullptr, trx_bg,
-							 FALSE);
+							 false);
 
 			trx_bg->dict_operation_lock_mode = 0;
 			dd_table_close(table, thd, &mdl, true);

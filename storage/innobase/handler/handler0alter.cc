@@ -9024,12 +9024,10 @@ alter_part::rename_table(
 
 	trx_start_if_not_started_xa(m_trx, true);
 
-	trx_set_dict_operation(m_trx, TRX_DICT_OP_INDEX);
-
 	row_mysql_lock_data_dictionary(m_trx);
 
 	error = row_rename_table_for_mysql(norm_from, norm_to, nullptr,
-					   m_trx, TRUE);
+					   m_trx, true);
 
 	row_mysql_unlock_data_dictionary(m_trx);
 
@@ -11488,12 +11486,10 @@ rename_table_for_exchange(
 
 	trx_start_if_not_started_xa(trx, true);
 
-	trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
-
 	row_mysql_lock_data_dictionary(trx);
 
 	error = row_rename_table_for_mysql(norm_from, norm_to, nullptr,
-					   trx, TRUE);
+					   trx, true);
 
 	row_mysql_unlock_data_dictionary(trx);
 

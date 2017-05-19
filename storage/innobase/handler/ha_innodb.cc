@@ -14568,31 +14568,9 @@ ha_innobase::delete_table_impl(
 		DBUG_RETURN(HA_ERR_TABLE_READONLY);
 	}
 
-	trx_t*	parent_trx = check_trx_exists(thd);
+	trx_t*	trx = check_trx_exists(thd);
 
-	TrxInInnoDB	trx_in_innodb(parent_trx);
-
-	/* Remove the to-be-dropped table from the list of modified tables
-	by parent_trx. Otherwise we may end up with an orphaned pointer to
-	the table object from parent_trx::mod_tables. This could happen in:
-	SET AUTOCOMMIT=0;
-	CREATE TABLE t (PRIMARY KEY (a)) ENGINE=INNODB SELECT 1 AS a UNION
-	ALL SELECT 1 AS a; */
-	trx_mod_tables_t::const_iterator	iter;
-
-	for (iter = parent_trx->mod_tables.begin();
-	     iter != parent_trx->mod_tables.end();
-	     ++iter) {
-
-		dict_table_t*	table_to_drop = *iter;
-
-		if (strcmp(norm_name, table_to_drop->name.m_name) == 0) {
-			parent_trx->mod_tables.erase(table_to_drop);
-			break;
-		}
-	}
-
-	trx_t*	trx = innobase_trx_allocate(thd);
+	TrxInInnoDB	trx_in_innodb(trx);
 
 	ulint	name_len = strlen(name);
 
@@ -14632,14 +14610,7 @@ ha_innobase::delete_table_impl(
 	err = row_drop_table_for_mysql(
 		norm_name, trx, sqlcom, true, handler);
 
-	if (handler == NULL) {
-		ut_ad(!srv_read_only_mode);
-		/* Flush the log to reduce probability that the .frm files and
-		the InnoDB data dictionary get out-of-sync if the user runs
-		with innodb_flush_log_at_trx_commit = 0 */
-
-		log_buffer_flush_to_disk();
-	} else if (err == DB_SUCCESS) {
+	if (handler != nullptr && err == DB_SUCCESS) {
 		priv->unregister_table_handler(norm_name);
 	}
 
@@ -14674,10 +14645,6 @@ ha_innobase::delete_table_impl(
 				fail = false;);
 		ut_a(!fail);
 	}
-
-	innobase_commit_low(trx);
-
-	trx_free_for_mysql(trx);
 
 	DBUG_RETURN(convert_error_code_to_mysql(err, 0, NULL));
 }
@@ -15167,7 +15134,6 @@ ha_innobase::rename_table_impl(
 	char	norm_from[FN_REFLEN];
 
 	DBUG_ENTER("ha_innobase::rename_table_impl");
-	DBUG_ASSERT(trx_get_dict_operation(trx) == TRX_DICT_OP_INDEX);
 
 	ut_ad(!srv_read_only_mode);
 
@@ -15191,18 +15157,19 @@ ha_innobase::rename_table_impl(
 	ut_a(trx->will_lock > 0);
 
 	error = row_rename_table_for_mysql(
-		norm_from, norm_to, &to_table->table(), trx, TRUE, true);
+		norm_from, norm_to, &to_table->table(), trx, true);
 
 	row_mysql_unlock_data_dictionary(trx);
 
-	bool    rename_dd_filename = false;
-	char*   new_path = NULL;
 	if (error == DB_SUCCESS && to_table->is_persistent()
 	    && strcmp(norm_from, norm_to) != 0) {
 		dict_table_t*	table;
+		bool		rename_dd_filename = false;
+		char*		new_path = nullptr;
+
 		mutex_enter(&dict_sys->mutex);
 		table = dict_table_check_if_in_cache_low(norm_to);
-		ut_ad(table != NULL);
+		ut_ad(table != nullptr);
 
 		rename_dd_filename = dict_table_is_file_per_table(table);
 
@@ -15219,25 +15186,19 @@ ha_innobase::rename_table_impl(
 		} else {
 			mutex_exit(&dict_sys->mutex);
 		}
-	}
 
-	/* Flush the log to reduce probability that the .frm
-	files and the InnoDB data dictionary get out-of-sync
-	if the user runs with innodb_flush_log_at_trx_commit = 0 */
+		if (rename_dd_filename && new_path != nullptr) {
+			dd::Object_id	dd_space_id =
+				(*to_table->indexes()->begin())
+				->tablespace_id();
 
-	log_buffer_flush_to_disk();
+			if (dd_tablespace_update_filename(
+				dd_space_id, new_path)) {
+				ut_a(false);
+			}
 
-	/* Allow to rename a table without ibd file, which has no
-	new_path, so no need to update anything */
-	if (rename_dd_filename && new_path != NULL) {
-		dd::Object_id		dd_space_id =
-			(*to_table->indexes()->begin())->tablespace_id();
-
-		if (dd_tablespace_update_filename(dd_space_id, new_path)) {
-			ut_a(false);
+			ut_free(new_path);
 		}
-
-		ut_free(new_path);
 	}
 
 	DBUG_RETURN(error);
@@ -15286,29 +15247,19 @@ ha_innobase::rename_table(
 		DBUG_RETURN(HA_ERR_UNSUPPORTED);
 	}
 
-	/* Get the transaction associated with the current thd, or create one
-	if not yet created */
+	trx_t*	trx = check_trx_exists(thd);
 
-	trx_t*	parent_trx = check_trx_exists(thd);
+	innobase_register_trx(ht, thd, trx);
 
-	innobase_register_trx(ht, thd, parent_trx);
-
-	TrxInInnoDB	trx_in_innodb(parent_trx);
-
-	trx_t*	trx = innobase_trx_allocate(thd);
+	TrxInInnoDB	trx_in_innodb(trx);
 
 	/* We are doing a DDL operation. */
 	++trx->will_lock;
-	trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
 
 	dberr_t	error = rename_table_impl<dd::Table>(
 		thd, trx, from, to, from_table_def, to_table_def);
 
 	DEBUG_SYNC(thd, "after_innobase_rename_table");
-
-	innobase_commit_low(trx);
-
-	trx_free_for_mysql(trx);
 
 	if (error == DB_SUCCESS) {
 		char	norm_from[MAX_FULL_NAME_LEN];

@@ -529,7 +529,7 @@ row_drop_database_for_mysql(
 @param[in]	new_name	new table name
 @param[in]	dd_table	dd::Table for new table
 @param[in,out]	trx		transaction
-@param[in]	commit		whether to commit trx
+@param[in]	log		whether to write rename table log
 @return error code or DB_SUCCESS */
 dberr_t
 row_rename_table_for_mysql(
@@ -537,8 +537,7 @@ row_rename_table_for_mysql(
 	const char*	new_name,
 	dd::Table*	dd_table,
 	trx_t*		trx,
-	bool		commit,
-	bool		log_rename = false)
+	bool		log)
 	MY_ATTRIBUTE((warn_unused_result));
 
 /*********************************************************************//**

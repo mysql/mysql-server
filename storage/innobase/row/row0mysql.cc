@@ -4247,7 +4247,7 @@ row_drop_table_for_mysql(
 	mem_heap_t*	heap			= NULL;
 	bool		is_intrinsic_temp_table	= false;
 	THD*		thd = trx->mysql_thd;
-	dd::Table* table_def = nullptr;
+	dd::Table*	table_def = nullptr;
 	bool		file_per_table = false;
 	aux_name_vec_t	aux_vec;
 
@@ -4688,9 +4688,6 @@ row_drop_table_for_mysql(
 
 	case DB_OUT_OF_FILE_SPACE:
 		err = DB_MUST_GET_MORE_FILE_SPACE;
-
-		row_mysql_handle_errors(&err, trx, NULL, NULL);
-
 		/* raise error */
 		ut_error;
 		break;
@@ -4708,10 +4705,6 @@ row_drop_table_for_mysql(
 			" dropping table: "
 			<< ut_get_name(trx, tablename) << ".";
 
-		trx->error_state = DB_SUCCESS;
-		trx_rollback_to_savepoint(trx, NULL);
-		trx->error_state = DB_SUCCESS;
-
 		/* Mark all indexes available in the data dictionary
 		cache again. */
 
@@ -4727,19 +4720,6 @@ row_drop_table_for_mysql(
 		}
 	}
 
-	if (err != DB_SUCCESS && table != NULL) {
-		/* Drop table has failed with error but as drop table is not
-		transaction safe we should mark the table as corrupted to avoid
-		unwarranted follow-up action on this table that can result
-		in more serious issues. */
-
-		for (dict_index_t* index = UT_LIST_GET_FIRST(table->indexes);
-		     index != NULL;
-		     index = UT_LIST_GET_NEXT(indexes, index)) {
-			dict_set_corrupted(index);
-		}
-	}
-
 funct_exit:
 	if (heap) {
 		mem_heap_free(heap);
@@ -4748,16 +4728,11 @@ funct_exit:
 	ut_free(filepath);
 
 	if (locked_dictionary) {
-
-		if (trx_is_started(trx)) {
-
-			trx_commit_for_mysql(trx);
-		}
-
 		row_mysql_unlock_data_dictionary(trx);
 	}
 
 	trx->op_info = "";
+	trx->dict_operation = TRX_DICT_OP_NONE;
 
 	if (aux_vec.aux_name.size() > 0) {
 		if (trx->dict_operation_lock_mode == RW_X_LATCH) {
@@ -4803,8 +4778,7 @@ row_is_mysql_tmp_table_name(
 @param[in]	new_name	new table name
 @param[in]	dd_table	dd::Table for new table
 @param[in,out]	trx		transaction
-@param[in]	commit		whether to commit trx
-@param[in]	log_rename	whether to log rename table
+@param[in]	log		whether to write rename table log
 @return error code or DB_SUCCESS */
 dberr_t
 row_rename_table_for_mysql(
@@ -4812,8 +4786,7 @@ row_rename_table_for_mysql(
 	const char*	new_name,
 	dd::Table*	dd_table,
 	trx_t*		trx,
-	bool		commit,
-	bool		log_rename)
+	bool		log)
 {
 	dict_table_t*	table			= NULL;
 	ibool		dict_locked		= FALSE;
@@ -4822,7 +4795,6 @@ row_rename_table_for_mysql(
 	const char**	constraints_to_drop	= NULL;
 	ulint		n_constraints_to_drop	= 0;
 	int		retry;
-	bool		aux_fts_rename		= false;
 
 	ut_a(old_name != NULL);
 	ut_a(new_name != NULL);
@@ -4899,9 +4871,6 @@ row_rename_table_for_mysql(
 	if (dict_table_has_fts_index(table)
 	    && !dict_tables_have_same_db(old_name, new_name)) {
 		err = fts_rename_aux_tables(table, new_name, trx);
-		if (err != DB_TABLE_NOT_FOUND) {
-			aux_fts_rename = true;
-		}
 	}
 	if (err != DB_SUCCESS) {
 		if (err == DB_DUPLICATE_KEY) {
@@ -4932,17 +4901,13 @@ row_rename_table_for_mysql(
 				" succeed.";
 		}
 		trx->error_state = DB_SUCCESS;
-		trx_rollback_to_savepoint(trx, NULL);
-		trx->error_state = DB_SUCCESS;
 	} else {
 		/* The following call will also rename the .ibd data file if
 		the table is stored in a single-table tablespace */
 
 		err = dict_table_rename_in_cache(
-			table, new_name, !new_is_tmp, log_rename);
+			table, new_name, !new_is_tmp, log);
 		if (err != DB_SUCCESS) {
-			trx->error_state = DB_SUCCESS;
-			trx_rollback_to_savepoint(trx, NULL);
 			trx->error_state = DB_SUCCESS;
 			goto funct_exit;
 		}
@@ -5038,9 +5003,6 @@ row_rename_table_for_mysql(
 
 			ut_a(DB_SUCCESS == dict_table_rename_in_cache(
 				table, old_name, FALSE));
-			trx->error_state = DB_SUCCESS;
-			trx_rollback_to_savepoint(trx, NULL);
-			trx->error_state = DB_SUCCESS;
 			goto funct_exit;
 		}
 		/* Check whether virtual column or stored column affects
@@ -5052,9 +5014,6 @@ row_rename_table_for_mysql(
 			err = DB_NO_FK_ON_S_BASE_COL;
 			ut_a(DB_SUCCESS == dict_table_rename_in_cache(
 				table, old_name, FALSE));
-			trx->error_state = DB_SUCCESS;
-			trx_rollback_to_savepoint(trx, NULL);
-			trx->error_state = DB_SUCCESS;
 			goto funct_exit;
 		}
 
@@ -5082,37 +5041,6 @@ row_rename_table_for_mysql(
 	}
 
 funct_exit:
-	if (aux_fts_rename && err != DB_SUCCESS
-	    && table != NULL && (table->space != 0)) {
-
-		char*	orig_name = table->name.m_name;
-		trx_t*	trx_bg = trx_allocate_for_background();
-
-		/* If the first fts_rename fails, the trx would
-		be rolled back and committed, we can't use it any more,
-		so we have to start a new background trx here. */
-		ut_a(trx_state_eq(trx_bg, TRX_STATE_NOT_STARTED));
-		trx_bg->op_info = "Revert the failing rename "
-				  "for fts aux tables";
-		trx_bg->dict_operation_lock_mode = RW_X_LATCH;
-		trx_start_for_ddl(trx_bg, TRX_DICT_OP_TABLE);
-
-		/* If rename fails and table has its own tablespace,
-		we need to call fts_rename_aux_tables again to
-		revert the ibd file rename, which is not under the
-		control of trx. Also notice the parent table name
-		in cache is not changed yet. If the reverting fails,
-		the ibd data may be left in the new database, which
-		can be fixed only manually. */
-		table->name.m_name = const_cast<char*>(new_name);
-		fts_rename_aux_tables(table, old_name, trx_bg);
-		table->name.m_name = orig_name;
-
-		trx_bg->dict_operation_lock_mode = 0;
-		trx_commit_for_mysql(trx_bg);
-		trx_free_for_background(trx_bg);
-	}
-
 	/* If this table has an autoinc column whose counter is non-zero,
 	and is renamed from mysql temporary table to normal table, we need
 	to write back the dynamic metadata of new table, since the table
@@ -5139,10 +5067,6 @@ funct_exit:
 
 	if (table != NULL) {
 		dd_table_close(table, thd, NULL, dict_locked);
-	}
-
-	if (commit) {
-		trx_commit_for_mysql(trx);
 	}
 
 	if (UNIV_LIKELY_NULL(heap)) {

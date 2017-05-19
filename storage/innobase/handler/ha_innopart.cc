@@ -2950,9 +2950,8 @@ ha_innopart::rename_table(
 
 	/* Get the transaction associated with the current thd, or create one
 	if not yet created */
-	trx_t*	parent_trx = check_trx_exists(thd);
-	TrxInInnoDB	trx_in_innodb(parent_trx);
-	trx_t*	trx = innobase_trx_allocate(thd);
+	trx_t*	trx = check_trx_exists(thd);
+	TrxInInnoDB	trx_in_innodb(trx);
 
 	char	from_name[FN_REFLEN];
 	char	to_name[FN_REFLEN];
@@ -2989,7 +2988,6 @@ ha_innopart::rename_table(
 		}
 
 		++trx->will_lock;
-		trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
 
 		error = rename_table_impl<dd::Partition>(
 			thd, trx, from_name, to_name, from_part, *to_part);
@@ -3018,10 +3016,6 @@ ha_innopart::rename_table(
 
 		++to_part;
 	}
-
-	innobase_commit_low(trx);
-
-	trx_free_for_mysql(trx);
 
 	/* Refer to comment in ha_innobase::rename_table() */
 	if (error == DB_DUPLICATE_KEY) {
