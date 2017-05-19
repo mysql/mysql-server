@@ -390,7 +390,6 @@ The following options may be given as the first argument:
  Set the language used for the month names and the days of
  the week.
  --local-infile      Enable LOAD DATA LOCAL INFILE
- (Defaults to on; use --skip-local-infile to disable.)
  --lock-wait-timeout=# 
  Timeout in seconds to wait for a lock before returning an
  error.
@@ -1375,7 +1374,7 @@ large-pages FALSE
 lc-messages en_US
 lc-messages-dir MYSQL_SHAREDIR/
 lc-time-names en_US
-local-infile TRUE
+local-infile FALSE
 lock-wait-timeout 31536000
 log-bin (No default value)
 log-bin-index (No default value)

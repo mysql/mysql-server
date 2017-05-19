@@ -522,7 +522,7 @@ IF(REPRODUCIBLE_BUILD)
 ENDIF()
 
 OPTION(ENABLED_LOCAL_INFILE
- "If we should enable LOAD DATA LOCAL by default" ${IF_WIN})
+ "If we should enable LOAD DATA LOCAL by default" OFF)
 MARK_AS_ADVANCED(ENABLED_LOCAL_INFILE)
 
 OPTION(OPTIMIZER_TRACE "Support tracing of Optimizer" ON)

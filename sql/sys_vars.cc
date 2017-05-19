@@ -1912,7 +1912,7 @@ static Sys_var_charptr Sys_language(
 
 static Sys_var_bool Sys_local_infile(
        "local_infile", "Enable LOAD DATA LOCAL INFILE",
-       GLOBAL_VAR(opt_local_infile), CMD_LINE(OPT_ARG), DEFAULT(TRUE));
+       GLOBAL_VAR(opt_local_infile), CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 
 static Sys_var_ulong Sys_lock_wait_timeout(
        "lock_wait_timeout",
