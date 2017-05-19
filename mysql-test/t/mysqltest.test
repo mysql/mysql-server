@@ -3949,3 +3949,20 @@ EOF
 
 # Cleanup
 --remove_file $MYSQLTEST_VARDIR/tmp/bug26090322.test
+
+--echo #
+--echo # BUG#25929826 : SKIP COMMAND DOES NOT EXPAND VARIABLES
+--echo #
+
+--write_file $MYSQLTEST_VARDIR/tmp/bug25929826.test
+--let $skip_message= Skipping bug25929826.test
+--skip $skip_message
+EOF
+
+# Run the test, test should get skipped and exit with status 62
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--error 62
+--exec $MYSQL_TEST --no-skip-exclude-list=bug25929826.test -x $MYSQLTEST_VARDIR/tmp/bug25929826.test 2>&1
+
+# Cleanup
+--remove_file $MYSQLTEST_VARDIR/tmp/bug25929826.test

@@ -10217,19 +10217,40 @@ int main(int argc, char **argv)
         abort_flag= 1;
         break;
       case Q_SKIP:
-        if(!no_skip)
-          /*Skip the test-case*/
-          abort_not_supported_test("%s", command->first_argument);
-        else
         {
-          const char *path = cur_file->file_name;
-          const char *fn = get_filename_from_path(path);
+          DYNAMIC_STRING ds_skip_msg;
+          init_dynamic_string(&ds_skip_msg, 0, command->query_len, 256);
 
-          if(excluded_string && strstr(excluded_string, fn))
-            abort_not_supported_test("%s", command->first_argument);
+          // Evaluate the skip message
+          do_eval(&ds_skip_msg, command->first_argument, command->end, FALSE);
+
+          char skip_msg[FN_REFLEN];
+          strmake(skip_msg, ds_skip_msg.str, FN_REFLEN - 1);
+          dynstr_free(&ds_skip_msg);
+
+          if(!no_skip)
+          {
+            // --no-skip option is disabled, skip the test case
+            abort_not_supported_test("%s", skip_msg);
+          }
           else
-            // Ignore the skip and continue running the test case
-            command->last_argument= command->end;
+          {
+            const char *path = cur_file->file_name;
+            const char *fn = get_filename_from_path(path);
+
+            // Check if the file is in excluded list
+            if(excluded_string && strstr(excluded_string, fn))
+            {
+              // File is present in excluded list, skip the test case
+              abort_not_supported_test("%s", skip_msg);
+            }
+            else
+            {
+              // File is not present in excluded list, ignore the skip
+              // and continue running the test case
+              command->last_argument= command->end;
+            }
+          }
         }
         break;
       case Q_OUTPUT:

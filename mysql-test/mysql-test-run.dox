@@ -6968,30 +6968,35 @@
       Skips the rest of the test file after printing the given message
       as the reason. This can be used after checking a condition that
       must be satisfied, as a way of performing an exit that displays
-      a reason. Suppose that the test file <b>mytest</b> has these
-      contents:
+      a reason. References to variables within the message are
+      replaced with the corresponding values. Suppose that the test
+      file <b>mytest.test</b> has these contents:
 
       @verbatim
-  let $v= 0;
-  if (!$v)
+  let $var= 0;
+  if (!$var)
   {
-    skip value is zero, skipping test;
+    skip value of \$var is '$var', skipping test;
   }
   echo This command is never reached;
       @endverbatim
 
-      Executing @ref PAGE_MYSQLTEST "mysqltest-x mytest" yields these
-      results:
+      Executing @ref PAGE_MYSQLTEST "mysqltest" -x mytest.test yields
+      these results:
 
       @verbatim
   The test './mytest' is not supported by this installation
   Detected in file ./mytest at line 4
-  reason: value is zero, skipping test
+  reason: value of $var is '0', skipping test
       @endverbatim
 
-      If the test is run from @ref PAGE_MYSQL_TEST_RUN_PL "mysql-test-
-      run.pl", you will instead see the test result as
+      If the test is run from @ref PAGE_MYSQL_TEST_RUN_PL
+      "mysql-test-run.pl", you will instead see the test result as
       <b>[ skipped ]</b> followed by the message.
+
+      @verbatim
+  main.mytest          [ skipped ]  value of $var is '0', skipping test
+      @endverbatim
     </li>
 
     <li>

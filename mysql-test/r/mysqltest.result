@@ -1549,3 +1549,9 @@ DROP TABLE t1;
 # BUG#26090322 : MYSQLTEST CRASHES WITH 'NO-SKIP' OPTION
 #
 Sample test
+#
+# BUG#25929826 : SKIP COMMAND DOES NOT EXPAND VARIABLES
+#
+The test 'MYSQLTEST_VARDIR/tmp/bug25929826.test' is not supported by this installation
+Detected in file MYSQLTEST_VARDIR/tmp/bug25929826.test at line 3:
+reason: Skipping bug25929826.test
