@@ -222,7 +222,7 @@ public:
 
     @see make_group_fields, alloc_group_fields, JOIN::exec
   */
-  bool     sort_and_group; 
+  bool     sort_and_group;
   bool     first_record;
   bool     grouped;          ///< If query contains GROUP BY clause
   bool     do_send_rows;     ///< If true, send produced rows using query_result
@@ -261,9 +261,9 @@ public:
   POSITION *best_positions;
 
 /******* Join optimization state members start *******/
-  
+
   /* Current join optimization state */
-  POSITION *positions;  
+  POSITION *positions;
 
   /* We also maintain a stack of join optimization states in * join->positions[] */
 /******* Join optimization state members end *******/
@@ -289,7 +289,7 @@ public:
   Item_sum  **sum_funcs2, ***sum_funcs_end2;
   Temp_table_param tmp_table_param;
   MYSQL_LOCK *lock;
-  
+
   ROLLUP rollup;                  ///< Used with rollup
   bool implicit_grouping;         ///< True if aggregated but no GROUP BY
   bool select_distinct;           ///< Set if SELECT DISTINCT
@@ -306,14 +306,14 @@ public:
     simple_xxxxx is set if ORDER/GROUP BY doesn't include any references
     to other tables than the first non-constant table in the JOIN.
     It's also set if ORDER/GROUP BY is empty.
-    Used for deciding for or against using a temporary table to compute 
+    Used for deciding for or against using a temporary table to compute
     GROUP/ORDER BY.
   */
   bool simple_order, simple_group;
 
   /*
     ordered_index_usage is set if an ordered index access
-    should be used instead of a filesort when computing 
+    should be used instead of a filesort when computing
     ORDER/GROUP BY.
   */
   enum
@@ -345,8 +345,8 @@ public:
   int error; ///< set in optimize(), exec(), prepare_result()
 
   /**
-    Wrapper for ORDER* pointer to trace origins of ORDER list 
-    
+    Wrapper for ORDER* pointer to trace origins of ORDER list
+
     As far as ORDER is just a head object of ORDER expression
     chain, we need some wrapper object to associate flags with
     the whole ORDER list.
@@ -399,7 +399,7 @@ public:
 
       These operators are safe, since we don't do any conversion of
       ORDER_with_src value, but just an access to the wrapped
-      ORDER pointer value. 
+      ORDER pointer value.
       We can use ORDER_with_src objects instead ORDER pointers in
       a transparent way without accessor functions.
 
@@ -410,7 +410,7 @@ public:
     operator const ORDER *() const { return order; }
 
     ORDER* operator->() const { return order; }
- 
+
     void clean() { order= NULL; src= ESC_none; flags= ESP_none; }
 
     void set_flag(Explain_sort_property flag)
@@ -436,7 +436,7 @@ public:
   */
   Explain_format_flags explain_flags;
 
-  /** 
+  /**
     JOIN::having_cond is initially equal to select_lex->having_cond, but may
     later be changed by optimizations performed by JOIN.
     The relationship between the JOIN::having_cond condition and the
@@ -561,7 +561,7 @@ public:
     memcpy(dest, src, src_arr.size() * src_arr.element_size());
   }
 
-  /// Overwrites 'ref_ptrs' and remembers the the source as 'current'.
+  /// Overwrites 'ref_ptrs' and remembers the source as 'current'.
   void set_items_ref_array(Ref_ptr_array src_arr)
   {
     copy_ref_ptr_array(ref_ptrs, src_arr);
@@ -600,7 +600,7 @@ public:
   void restore_join_tab();
   bool init_save_join_tab();
   /**
-    Return whether the caller should send a row even if the join 
+    Return whether the caller should send a row even if the join
     produced no rows if:
      - there is an aggregate function (sum_func_count!=0), and
      - the query is not grouped, and
@@ -673,7 +673,7 @@ private:
     @note       Explain skips this call during JOIN::execute() execution
   */
   void send_data();
-  
+
   /**
     Create a temporary table to be used for processing DISTINCT/ORDER
     BY/GROUP BY.
@@ -684,8 +684,8 @@ private:
     @param tmp_table_fields List of items that will be used to define
                             column types of the table.
     @param tmp_table_group  Group key to use for temporary table, NULL if none.
-    @param save_sum_fields  If true, do not replace Item_sum items in 
-                            @c tmp_fields list with Item_field items referring 
+    @param save_sum_fields  If true, do not replace Item_sum items in
+                            @c tmp_fields list with Item_field items referring
                             to fields in temporary table.
 
     @returns false on success, true on failure
@@ -752,7 +752,7 @@ private:
       corresponding first inner table through the field t0->on_expr_ref.
       Here ti are structures of the JOIN_TAB type.
 
-    EXAMPLE. For the query: 
+    EXAMPLE. For the query:
     @code
           SELECT * FROM t1
                         LEFT JOIN
@@ -765,7 +765,7 @@ private:
       is selected, the following references will be set;
       t4->last_inner=[t4], t4->first_inner=[t4], t4->first_upper=[t2]
       t2->last_inner=[t4], t2->first_inner=t3->first_inner=[t2],
-      on expression (t1.a=t2.a AND t1.b=t3.b) will be attached to 
+      on expression (t1.a=t2.a AND t1.b=t3.b) will be attached to
       *t2->on_expr_ref, while t3.a=t4.a will be attached to *t4->on_expr_ref.
 
     @note
@@ -829,7 +829,7 @@ private:
       used for only the first of any of these terms to be executed. This
       is reflected in the order which we check for test_if_skip_sort_order()
       below. However we do not check for DISTINCT here, as it would have
-      been transformed to a GROUP BY at this stage if it is a candidate for 
+      been transformed to a GROUP BY at this stage if it is a candidate for
       ordered index optimization.
       If a decision was made to use an ordered index, the availability
       if such an access path is stored in 'ordered_index_usage' for later
@@ -852,7 +852,7 @@ private:
   THD *const thd;
 };
 
-bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno, 
+bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno,
                             bool other_tbls_ok);
 bool remove_eq_conds(THD *thd, Item *cond, Item **retcond,
                      Item::cond_result *cond_value);
