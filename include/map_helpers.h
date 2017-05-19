@@ -97,36 +97,39 @@ using unique_ptr_free = std::unique_ptr<T, Free_deleter>;
 class Collation_hasher
 {
 public:
-  explicit Collation_hasher(CHARSET_INFO *cs_arg) : cs(cs_arg) {}
+  explicit Collation_hasher(const CHARSET_INFO *cs_arg)
+    : cs(cs_arg), hash_sort(cs->coll->hash_sort) {}
 
   size_t operator() (const std::string &s) const
   {
     ulong nr1= 1, nr2= 4;
-    cs->coll->hash_sort(
-      cs, pointer_cast<const uchar *>(s.data()), s.size(), &nr1, &nr2);
+    hash_sort(cs, pointer_cast<const uchar *>(s.data()), s.size(), &nr1, &nr2);
     return nr1;
   }
 
 private:
-  CHARSET_INFO *cs;
+  const CHARSET_INFO *cs;
+  decltype(cs->coll->hash_sort) hash_sort;
 };
 
 /** A KeyEqual that compares std::strings according to a MySQL collation. */
 class Collation_key_equal
 {
 public:
-  explicit Collation_key_equal(CHARSET_INFO *cs_arg) : cs(cs_arg) {}
+  explicit Collation_key_equal(const CHARSET_INFO *cs_arg)
+    : cs(cs_arg), strnncollsp(cs->coll->strnncollsp) {}
 
   size_t operator() (const std::string &a, const std::string &b) const
   {
-    return cs->coll->strnncollsp(
+    return strnncollsp(
       cs,
       pointer_cast<const uchar *>(a.data()), a.size(),
       pointer_cast<const uchar *>(b.data()), b.size()) == 0;
   }
 
 private:
-  CHARSET_INFO *cs;
+  const CHARSET_INFO *cs;
+  decltype(cs->coll->strnncollsp) strnncollsp;
 };
 
 /**
@@ -161,7 +164,7 @@ class collation_unordered_map
                               Malloc_allocator<std::pair<const Key, Value>>>
 {
 public:
-  collation_unordered_map(CHARSET_INFO *cs, PSI_memory_key psi_key)
+  collation_unordered_map(const CHARSET_INFO *cs, PSI_memory_key psi_key)
     : std::unordered_map<Key, Value, Collation_hasher, Collation_key_equal,
                          Malloc_allocator<std::pair<const Key, Value>>>
         (/*bucket_count=*/ 10, Collation_hasher(cs), Collation_key_equal(cs),
