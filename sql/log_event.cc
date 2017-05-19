@@ -3260,9 +3260,9 @@ int Log_event::apply_gtid_event(Relay_log_info *rli)
     Removes the job from the (G)lobal (A)ssigned (Q)ueue after
     applying it.
   */
-  DBUG_ASSERT(rli->gaq->len > 0);
-  Slave_job_group g= Slave_job_group();
-  rli->gaq->de_queue(&g);
+  //DBUG_ASSERT(rli->gaq->len > 0);
+  //Slave_job_group g= Slave_job_group();
+  //rli->gaq->de_queue(&g);
 
   DBUG_RETURN(error);
 }
