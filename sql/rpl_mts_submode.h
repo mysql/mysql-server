@@ -159,6 +159,13 @@ public:
     force_new_group= true;
     first_event= true;
   }
+  /**
+    Withdraw the delegated_job increased by the group.
+  */
+  void withdraw_delegated_job()
+  {
+    delegated_jobs--;
+  }
   int wait_for_workers_to_finish(Relay_log_info  *rli,
                                  Slave_worker *ignore= NULL);
   bool wait_for_last_committed_trx(Relay_log_info* rli,

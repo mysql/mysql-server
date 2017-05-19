@@ -2250,10 +2250,19 @@ Stage_manager::enroll_for(StageID stage, THD *thd, mysql_mutex_t *stage_mutex)
   }
 
   /*
+    We do not need to unlock the stage_mutex if it is LOCK_log when rotating
+    binlog caused by logging incident log event, since it should be held
+    always during rotation.
+  */
+  bool need_unlock_stage_mutex=
+    !(mysql_bin_log.is_rotating_caused_by_incident &&
+      stage_mutex == mysql_bin_log.get_log_lock());
+
+  /*
     The stage mutex can be NULL if we are enrolling for the first
     stage.
   */
-  if (stage_mutex)
+  if (stage_mutex && need_unlock_stage_mutex)
     mysql_mutex_unlock(stage_mutex);
 
 #ifndef DBUG_OFF
@@ -3477,7 +3486,7 @@ MYSQL_BIN_LOG::MYSQL_BIN_LOG(uint *sync_period,
    is_relay_log(0), signal_cnt(0),
    checksum_alg_reset(binary_log::BINLOG_CHECKSUM_ALG_UNDEF),
    relay_log_checksum_alg(binary_log::BINLOG_CHECKSUM_ALG_UNDEF),
-   previous_gtid_set_relaylog(0)
+   previous_gtid_set_relaylog(0), is_rotating_caused_by_incident(false)
 {
   /*
     We don't want to initialize locks here as such initialization depends on
@@ -6962,6 +6971,16 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
       && (error= ha_flush_logs(NULL)))
     goto end;
 
+  if (!is_relay_log)
+  {
+    /* Save set of GTIDs of the last binlog into table on binlog rotation */
+    if ((error= gtid_state->save_gtids_of_last_binlog_into_table(true)))
+    {
+      close_on_error= true;
+      goto end;
+    }
+  }
+
   /*
     If user hasn't specified an extension, generate a new log name
     We have to do this here and not in open as we want to store the
@@ -7019,16 +7038,6 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
   }
 
   DEBUG_SYNC(current_thd, "after_rotate_event_appended");
-
-  if (!is_relay_log)
-  {
-    /* Save set of GTIDs of the last binlog into table on binlog rotation */
-    if ((error= gtid_state->save_gtids_of_last_binlog_into_table(true)))
-    {
-      close_on_error= true;
-      goto end;
-    }
-  }
 
   old_name=name;
   name=0;				// Don't free name
@@ -7809,9 +7818,10 @@ bool MYSQL_BIN_LOG::do_write_cache(IO_CACHE *cache, Binlog_event_writer *writer)
 }
 
 /**
-  Writes an incident event to the binary log.
+  Writes an incident event to stmt_cache.
 
   @param ev Incident event to be written
+  @param thd Thread variable
   @param need_lock_log If true, will acquire LOCK_log; otherwise the
   caller should already have acquired LOCK_log.
   @param err_msg Error message written to log file for the incident.
@@ -7821,8 +7831,9 @@ bool MYSQL_BIN_LOG::do_write_cache(IO_CACHE *cache, Binlog_event_writer *writer)
   @retval false error
   @retval true success
 */
-bool MYSQL_BIN_LOG::write_incident(Incident_log_event *ev, bool need_lock_log,
-                                   const char* err_msg, bool do_flush_and_sync)
+bool MYSQL_BIN_LOG::write_incident(Incident_log_event *ev, THD *thd,
+                                   bool need_lock_log, const char* err_msg,
+                                   bool do_flush_and_sync)
 {
   uint error= 0;
   DBUG_ENTER("MYSQL_BIN_LOG::write_incident");
@@ -7831,21 +7842,37 @@ bool MYSQL_BIN_LOG::write_incident(Incident_log_event *ev, bool need_lock_log,
   if (!is_open())
     DBUG_RETURN(error);
 
+  // @todo make this work with the group log. /sven
+  binlog_cache_mngr *const cache_mngr= thd_get_cache_mngr(thd);
+  if (cache_mngr == NULL)
+    DBUG_RETURN(error);
+
+  if (!cache_mngr->stmt_cache.is_binlog_empty())
+  {
+    /* The stmt_cache contains corruption data, so we can reset it. */
+    cache_mngr->stmt_cache.reset();
+  }
+  if (!cache_mngr->trx_cache.is_binlog_empty())
+  {
+    /* The trx_cache contains corruption data, so we can reset it. */
+    cache_mngr->trx_cache.reset();
+  }
+  /*
+    Write the incident event into stmt_cache, so that a GTID is generated and
+    written for it prior to flushing the stmt_cache.
+  */
+  binlog_cache_data *cache_data= cache_mngr->get_binlog_cache_data(false);
+  if ((error= cache_data->write_event(thd, ev)))
+  {
+    sql_print_error("Failed to write an incident event into stmt_cache.");
+    cache_mngr->stmt_cache.reset();
+    DBUG_RETURN(error);
+  }
+
   if (need_lock_log)
     mysql_mutex_lock(&LOCK_log);
   else
     mysql_mutex_assert_owner(&LOCK_log);
-
-  // @todo make this work with the group log. /sven
-
-  error= ev->write(&log_file);
-
-  /*
-    Write an error to log. So that user might have a chance
-    to be alerted and explore incident details.
-  */
-  if (!error)
-    LogErr(ERROR_LEVEL, ER_BINLOG_LOGGING_INCIDENT_TO_STOP_SLAVES, err_msg);
 
   if (do_flush_and_sync)
   {
@@ -7853,7 +7880,9 @@ bool MYSQL_BIN_LOG::write_incident(Incident_log_event *ev, bool need_lock_log,
     {
       bool check_purge= false;
       update_binlog_end_pos();
+      is_rotating_caused_by_incident= true;
       error= rotate(true, &check_purge);
+      is_rotating_caused_by_incident= false;
       if (!error && check_purge)
         purge();
     }
@@ -7861,6 +7890,13 @@ bool MYSQL_BIN_LOG::write_incident(Incident_log_event *ev, bool need_lock_log,
 
   if (need_lock_log)
     mysql_mutex_unlock(&LOCK_log);
+
+  /*
+    Write an error to log. So that user might have a chance
+    to be alerted and explore incident details.
+  */
+  if (!error)
+    LogErr(ERROR_LEVEL, ER_BINLOG_LOGGING_INCIDENT_TO_STOP_SLAVES, err_msg);
 
   DBUG_RETURN(error);
 }
@@ -7914,7 +7950,8 @@ bool MYSQL_BIN_LOG::write_incident(THD *thd, bool need_lock_log,
                               binary_log::Incident_event::INCIDENT_LOST_EVENTS;
   Incident_log_event ev(thd, incident, write_error_msg);
 
-  DBUG_RETURN(write_incident(&ev, need_lock_log, err_msg, do_flush_and_sync));
+  DBUG_RETURN(write_incident(&ev, thd, need_lock_log, err_msg,
+                             do_flush_and_sync));
 }
 
 
@@ -8954,7 +8991,19 @@ MYSQL_BIN_LOG::change_stage(THD *thd MY_ATTRIBUTE((unused)),
     DBUG_ASSERT(!thd_get_cache_mngr(thd)->dbug_any_finalized());
     DBUG_RETURN(true);
   }
-  mysql_mutex_lock(enter_mutex);
+
+  /*
+    We do not lock the enter_mutex if it is LOCK_log when rotating binlog
+    caused by logging incident log event, since it is already locked.
+  */
+  bool need_lock_enter_mutex=
+    !(is_rotating_caused_by_incident && enter_mutex == &LOCK_log);
+
+  if (need_lock_enter_mutex)
+    mysql_mutex_lock(enter_mutex);
+  else
+    mysql_mutex_assert_owner(enter_mutex);
+
   DBUG_RETURN(false);
 }
 
@@ -9530,7 +9579,8 @@ commit_stage:
     Otherwise the thd->commit_error will be possibly reset.
    */
   if (DBUG_EVALUATE_IF("force_rotate", 1, 0) ||
-      (do_rotate && thd->commit_error == THD::CE_NONE))
+      (do_rotate && thd->commit_error == THD::CE_NONE &&
+       !is_rotating_caused_by_incident))
   {
     /*
       Do not force the rotate as several consecutive groups may
