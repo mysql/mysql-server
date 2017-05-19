@@ -121,8 +121,6 @@
 #include "transaction.h"       // trans_rollback_stmt
 #include "transaction_info.h"
 #include "tztime.h"            // Time_zone
-#include "rpl_msr.h"           // channel_map
-#include "binary_log.h"        // binary_log
 
 #define window_size Log_throttle::LOG_THROTTLE_WINDOW_SIZE
 Error_log_throttle
@@ -3342,37 +3340,6 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
   DBUG_RETURN (ret_worker);
 }
 
-
-int Log_event::apply_gtid_event(Relay_log_info *rli)
-{
-  DBUG_ENTER("LOG_EVENT:apply_gtid_event");
-
-  int error= 0;
-  if (rli->curr_group_da.size() < 1)
-    DBUG_RETURN(1);
-
-  Log_event* ev= rli->curr_group_da[0].data;
-  DBUG_ASSERT(ev->get_type_code() == binary_log::GTID_LOG_EVENT ||
-              ev->get_type_code() ==
-              binary_log::ANONYMOUS_GTID_LOG_EVENT);
-
-  error= ev->do_apply_event(rli);
-  /* Clean up */
-  delete ev;
-  rli->curr_group_da.clear();
-  rli->curr_group_seen_gtid= false;
-  /*
-    Removes the job from the (G)lobal (A)ssigned (Q)ueue after
-    applying it.
-  */
-  DBUG_ASSERT(rli->gaq->len > 0);
-  Slave_job_group g= Slave_job_group();
-  rli->gaq->de_queue(&g);
-
-  DBUG_RETURN(error);
-}
-
-
 /**
    Scheduling event to execute in parallel or execute it directly.
    In MTS case the event gets associated with either Coordinator or a
@@ -3452,8 +3419,7 @@ int Log_event::apply_event(Relay_log_info *rli)
           Workers to sync.
         */
         if (rli->curr_group_da.size() > 0 &&
-            is_mts_db_partitioned(rli) &&
-            get_type_code() != binary_log::INCIDENT_EVENT)
+            is_mts_db_partitioned(rli))
         {
           char llbuff[22];
           /*
@@ -3470,26 +3436,6 @@ int Log_event::apply_event(Relay_log_info *rli)
           rli->mts_group_status= Relay_log_info::MTS_KILLED_GROUP;
 
           goto err;
-        }
-
-        if (get_type_code() == binary_log::INCIDENT_EVENT &&
-            rli->curr_group_da.size() > 0 &&
-            rli->current_mts_submode->get_type() ==
-            MTS_PARALLEL_TYPE_LOGICAL_CLOCK)
-        {
-          DBUG_ASSERT(rli->curr_group_da.size() == 1);
-          Log_event* ev= rli->curr_group_da[0].data;
-          DBUG_ASSERT(ev->get_type_code() == binary_log::GTID_LOG_EVENT ||
-                      ev->get_type_code() ==
-                      binary_log::ANONYMOUS_GTID_LOG_EVENT);
-          /*
-            With MTS logical clock mode, when coordinator is applying an
-            incident event, it must withdraw delegated_job increased by
-            the incident's GTID before waiting for workers to finish.
-            So that it can exit from mts_checkpoint_routine.
-          */
-          ((Mts_submode_logical_clock*)rli->current_mts_submode)->
-            withdraw_delegated_job();
         }
         /*
           Marking sure the event will be executed in sequential mode.
@@ -3509,20 +3455,6 @@ int Log_event::apply_event(Relay_log_info *rli)
         */
         DBUG_ASSERT(rli->mts_group_status == Relay_log_info::MTS_NOT_IN_GROUP
                     || !is_mts_db_partitioned(rli));
-
-        if (get_type_code() == binary_log::INCIDENT_EVENT &&
-            rli->curr_group_da.size() > 0)
-        {
-          DBUG_ASSERT(rli->curr_group_da.size() == 1);
-          /*
-            When MTS is enabled, the incident event must be applied by the
-            coordinator. So the coordinator applies its GTID right before
-            applying the incident event..
-          */
-          int error= apply_gtid_event(rli);
-          if (error)
-            DBUG_RETURN(-1);
-        }
 
 #ifndef DBUG_OFF
         /* all Workers are idle as done through wait_for_workers_to_finish */
@@ -12807,32 +12739,6 @@ int
 Incident_log_event::do_apply_event(Relay_log_info const *rli)
 {
   DBUG_ENTER("Incident_log_event::do_apply_event");
-
-  enum_gtid_statement_status state= gtid_pre_statement_checks(thd);
-  if (state == GTID_STATEMENT_EXECUTE)
-  {
-    if (gtid_pre_statement_post_implicit_commit_checks(thd))
-      state= GTID_STATEMENT_CANCEL;
-  }
-
-  if (state == GTID_STATEMENT_CANCEL)
-  {
-    uint error= thd->get_stmt_da()->mysql_errno();
-    DBUG_ASSERT(error != 0);
-    rli->report(ERROR_LEVEL, error,
-                "Error executing incident event: '%s'",
-                thd->get_stmt_da()->message_text());
-    thd->is_slave_error= 1;
-    DBUG_RETURN(-1);
-  }
-  else if (state == GTID_STATEMENT_SKIP)
-  {
-    /*
-      Make slave skip the Incident event through general commands of GTID
-      i.e. 'set gtid_next=<GTID>; begin; commit;'.
-    */
-    DBUG_RETURN(0);
-  }
 
   if (ignored_error_code(ER_SLAVE_INCIDENT))
   {

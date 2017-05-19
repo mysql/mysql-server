@@ -1,0 +1,2 @@
+--loose-debug=+d,incident_database_resync_on_replace
+--binlog-ignore-db=test

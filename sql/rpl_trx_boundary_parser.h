@@ -146,13 +146,11 @@ private:
       (Rows, Load_data, etc.)
     */
     EVENT_BOUNDARY_TYPE_STATEMENT= 5,
-    /* Incident */
-    EVENT_BOUNDARY_TYPE_INCIDENT= 6,
     /*
-      All non DDL/DML events: Format_desc, Rotate,
+      All non DDL/DML events: Format_desc, Rotate, Incident,
       Previous_gtids, Stop, etc.
     */
-    EVENT_BOUNDARY_TYPE_IGNORE= 7
+    EVENT_BOUNDARY_TYPE_IGNORE= 6
   };
 
   /*

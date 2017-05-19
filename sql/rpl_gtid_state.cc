@@ -38,7 +38,6 @@
 #include "sql_error.h"
 #include "sql_plugin.h"
 #include "system_variables.h"
-#include "binlog.h"
 
 struct TABLE_LIST;
 
@@ -785,8 +784,7 @@ int Gtid_state::save_gtids_of_last_binlog_into_table(bool on_rotation)
   {
     logged_gtids_last_binlog.remove_gtid_set(&previous_gtids_logged);
     logged_gtids_last_binlog.remove_gtid_set(&gtids_only_in_table);
-    if (!logged_gtids_last_binlog.is_empty() ||
-        mysql_bin_log.is_rotating_caused_by_incident)
+    if (!logged_gtids_last_binlog.is_empty())
     {
       /* Prepare previous_gtids_logged for next binlog on binlog rotation */
       if (on_rotation)

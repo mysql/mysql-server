@@ -215,13 +215,6 @@ Transaction_boundary_parser::get_event_boundary_type(
       break;
 
     /*
-      Incident events have their own boundary type.
-    */
-    case binary_log::INCIDENT_EVENT:
-      boundary_type= EVENT_BOUNDARY_TYPE_INCIDENT;
-      break;
-
-    /*
       Rotate, Format_description and Heartbeat should be ignored.
       Also, any other kind of event not listed in the "cases" above
       will be ignored.
@@ -234,6 +227,7 @@ Transaction_boundary_parser::get_event_boundary_type(
     case binary_log::STOP_EVENT:
     case binary_log::SLAVE_EVENT:
     case binary_log::DELETE_FILE_EVENT:
+    case binary_log::INCIDENT_EVENT:
     case binary_log::TRANSACTION_CONTEXT_EVENT:
       boundary_type= EVENT_BOUNDARY_TYPE_IGNORE;
       break;
@@ -421,16 +415,6 @@ bool Transaction_boundary_parser::update_state(
       error= true;
       break;
     }
-    break;
-
-  /*
-    Incident events can happen without a GTID (before BUG#19594845 fix) or
-    with its own GTID in order to be skipped. In any case, it should always
-    mark "the end" of a transaction.
-  */
-  case EVENT_BOUNDARY_TYPE_INCIDENT:
-    /* In any case, we will update the state to NONE */
-    new_parser_state= EVENT_PARSER_NONE;
     break;
 
   /*

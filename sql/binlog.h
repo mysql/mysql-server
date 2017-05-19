@@ -838,8 +838,7 @@ public:
   bool write_incident(THD *thd, bool need_lock_log,
                       const char* err_msg,
                       bool do_flush_and_sync= true);
-  bool write_incident(Incident_log_event *ev, THD *thd,
-                      bool need_lock_log,
+  bool write_incident(Incident_log_event *ev, bool need_lock_log,
                       const char* err_msg,
                       bool do_flush_and_sync= true);
 
@@ -944,11 +943,6 @@ public:
       @retval !=0    Error
   */
   int get_gtid_executed(Sid_map *sid_map, Gtid_set *gtid_set);
-
-  /*
-    True while rotating binlog, which is caused by logging Incident_log_event.
-  */
-  bool is_rotating_caused_by_incident;
 };
 
 typedef struct st_load_file_info

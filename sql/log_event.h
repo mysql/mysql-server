@@ -1212,16 +1212,6 @@ public:
   int apply_event(Relay_log_info *rli);
 
   /**
-     Apply the GTID event in curr_group_data to the database.
-
-     @param rli Pointer to coordinato's relay log info.
-
-     @retval 0 success
-     @retval 1 error
-  */
-  inline int apply_gtid_event(Relay_log_info *rli);
-
-  /**
      Update the relay log position.
 
      This function represents the public interface for "stepping over"
@@ -3667,8 +3657,6 @@ public:
   virtual size_t get_data_size() {
     return Binary_log_event::INCIDENT_HEADER_LEN + 1 + message_length;
   }
-
-  virtual bool ends_group() const { return true; }
 
 private:
   const char *description() const;
