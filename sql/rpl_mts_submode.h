@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -154,6 +154,13 @@ public:
   {
     force_new_group= true;
     first_event= true;
+  }
+  /**
+    Withdraw the delegated_job increased by the group.
+  */
+  void withdraw_delegated_job()
+  {
+    delegated_jobs--;
   }
   int wait_for_workers_to_finish(Relay_log_info  *rli,
                                  Slave_worker *ignore= NULL);
