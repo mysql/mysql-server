@@ -20,6 +20,7 @@
 #include "rpl_gtid_persist.h"      // gtid_table_persistor
 #include "sql_class.h"             // THD
 #include "debug_sync.h"            // DEBUG_SYNC
+#include "binlog.h"
 
 PSI_memory_key key_memory_Gtid_state_group_commit_sidno;
 
@@ -760,7 +761,8 @@ int Gtid_state::save_gtids_of_last_binlog_into_table(bool on_rotation)
   {
     logged_gtids_last_binlog.remove_gtid_set(&previous_gtids_logged);
     logged_gtids_last_binlog.remove_gtid_set(&gtids_only_in_table);
-    if (!logged_gtids_last_binlog.is_empty())
+    if (!logged_gtids_last_binlog.is_empty() ||
+        mysql_bin_log.is_rotating_caused_by_incident)
     {
       /* Prepare previous_gtids_logged for next binlog on binlog rotation */
       if (on_rotation)
