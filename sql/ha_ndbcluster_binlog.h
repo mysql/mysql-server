@@ -30,8 +30,6 @@ typedef NdbDictionary::Event  NDBEVENT;
 
 #define NDB_INVALID_SCHEMA_OBJECT 241
 
-static const char *ha_ndb_ext=".ndb";
-
 extern Ndb_cluster_connection* g_ndb_cluster_connection;
 
 extern HASH ndbcluster_open_tables;
@@ -88,8 +86,6 @@ ndbcluster_read_binlog_replication(THD *thd, Ndb *ndb,
                                    const NDBTAB *ndbtab,
                                    uint server_id);
 
-int ndb_create_table_from_engine(THD *thd, const char *db,
-                                 const char *table_name);
 int ndbcluster_binlog_start();
 
 int ndbcluster_binlog_end();
@@ -117,65 +113,3 @@ ndbcluster_check_if_local_table(const char *dbname, const char *tabname);
 
 
 
-/**
-  Read the contents of a .frm file.
-
-  frmdata and len are set to 0 on error.
-
-  @param name           path to table-file "db/name"
-  @param frmdata        frm data
-  @param len            length of the read frmdata
-
-  @retval
-    0   ok
-  @retval
-    1   Could not open file
-  @retval
-    2    Could not stat file
-  @retval
-    3    Could not allocate data for read.  Could not read file
-*/
-
-static inline
-int readfrm(const char *name, uchar **frmdata, size_t *len)
-{
-  // NOTE, dummy function for now
-
-  // Generate some dummy data
-  const size_t dummy_len = 37;
-  uchar* dummy = (uchar*)my_malloc(PSI_NOT_INSTRUMENTED,
-                                   dummy_len, MYF(MY_WME));
-  if (dummy == NULL)
-    return 3;
-
-  for (size_t i = 0; i < dummy_len; i++)
-    dummy[i] = i;
-
-  *frmdata= dummy;
-  *len= dummy_len;
-
-  return 0;
-}
-
-/*
-  Write the content of a frm data pointer
-  to a frm file.
-
-  @param name           path to table-file "db/name"
-  @param frmdata        frm data
-  @param len            length of the frmdata
-
-  @retval
-    0   ok
-  @retval
-    2    Could not write file
-*/
-
-static inline
-int writefrm(const char *name, const uchar *frmdata, size_t len)
-{
-  // NOTE, dummy function for now
-
-  // Return error
-  return 2;
-}

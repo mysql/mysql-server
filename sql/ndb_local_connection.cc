@@ -17,9 +17,11 @@
 
 #include "sql/ndb_local_connection.h"
 
-#include "log.h"
 #include "sql_class.h"
 #include "sql_prepare.h"
+#include "mysqld.h" // next_query_id()
+
+#include "ndb_log.h"
 
 Ndb_local_connection::Ndb_local_connection(THD* thd_arg):
   m_thd(thd_arg)
@@ -111,9 +113,8 @@ Ndb_local_connection::execute_query(MYSQL_LEX_STRING sql_text,
     else
     {
       // Print the error to log file
-      LogErr(ERROR_LEVEL, ER_NDB_QUERY_FAILED,
-             sql_text.str,
-             last_errno, last_errmsg);
+      ndb_log_error("Query '%s' failed, error: %d: %s",
+                    sql_text.str, last_errno, last_errmsg);
     }
 
     DBUG_RETURN(true);
@@ -147,6 +148,13 @@ Ndb_local_connection::execute_query_iso(MYSQL_LEX_STRING sql_text,
   ulonglong save_thd_options= m_thd->variables.option_bits;
   assert(sizeof(save_thd_options) == sizeof(m_thd->variables.option_bits));
   m_thd->variables.option_bits&= ~OPTION_BIN_LOG;
+
+  /*
+    Increment query_id, the query_id is used when generating
+    the xid for transaction and unless incremented will get
+    the same xid in subsequent queries.
+  */
+  m_thd->set_query_id(next_query_id());
 
   bool result = execute_query(sql_text,
                               ignore_mysql_errors,

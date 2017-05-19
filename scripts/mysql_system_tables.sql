@@ -374,7 +374,8 @@ SET @cmd="CREATE TABLE IF NOT EXISTS ndb_binlog_index (
   gci INT UNSIGNED NOT NULL,
   next_position BIGINT UNSIGNED NOT NULL,
   next_file VARCHAR(255) NOT NULL,
-  PRIMARY KEY(epoch, orig_server_id, orig_epoch)) ENGINE=INNODB STATS_PERSISTENT=0";
+  PRIMARY KEY(epoch, orig_server_id, orig_epoch)
+  ) ENGINE=INNODB CHARACTER SET latin1 STATS_PERSISTENT=0";
 
 SET @str = IF(@have_ndb = 1, @cmd, 'SET @dummy = 0');
 PREPARE stmt FROM @str;
@@ -690,7 +691,7 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$acc_operations` (`node_id` INT UNSIGNED COMMENT "node_id",`block_instance` INT UNSIGNED COMMENT "Block instance",`tableid` INT UNSIGNED COMMENT "Table id",`fragmentid` INT UNSIGNED COMMENT "Fragment id",`rowid` BIGINT UNSIGNED COMMENT "Row id in fragment",`transid0` INT UNSIGNED COMMENT "Transaction id",`transid1` INT UNSIGNED COMMENT "Transaction id",`acc_op_id` INT UNSIGNED COMMENT "Operation id",`op_flags` INT UNSIGNED COMMENT "Operation flags",`prev_serial_op_id` INT UNSIGNED COMMENT "Prev serial op id",`next_serial_op_id` INT UNSIGNED COMMENT "Next serial op id",`prev_parallel_op_id` INT UNSIGNED COMMENT "Prev parallel op id",`next_parallel_op_id` INT UNSIGNED COMMENT "Next parallel op id",`duration_millis` INT UNSIGNED COMMENT "Duration of wait/hold",`user_ptr` INT UNSIGNED COMMENT "Lock requestor context") COMMENT="ACC operation info" ENGINE=NDBINFO','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$acc_operations` (`node_id` INT UNSIGNED COMMENT "node_id",`block_instance` INT UNSIGNED COMMENT "Block instance",`tableid` INT UNSIGNED COMMENT "Table id",`fragmentid` INT UNSIGNED COMMENT "Fragment id",`rowid` BIGINT UNSIGNED COMMENT "Row id in fragment",`transid0` INT UNSIGNED COMMENT "Transaction id",`transid1` INT UNSIGNED COMMENT "Transaction id",`acc_op_id` INT UNSIGNED COMMENT "Operation id",`op_flags` INT UNSIGNED COMMENT "Operation flags",`prev_serial_op_id` INT UNSIGNED COMMENT "Prev serial op id",`next_serial_op_id` INT UNSIGNED COMMENT "Next serial op id",`prev_parallel_op_id` INT UNSIGNED COMMENT "Prev parallel op id",`next_parallel_op_id` INT UNSIGNED COMMENT "Next parallel op id",`duration_millis` INT UNSIGNED COMMENT "Duration of wait/hold",`user_ptr` INT UNSIGNED COMMENT "Lock requestor context") COMMENT="ACC operation info" ENGINE=NDBINFO CHARACTER SET latin1','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -701,7 +702,7 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$columns` (`table_id` INT UNSIGNED,`column_id` INT UNSIGNED,`column_name` VARCHAR(512),`column_type` INT UNSIGNED,`comment` VARCHAR(512)) COMMENT="metadata for columns available through ndbinfo " ENGINE=NDBINFO','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$columns` (`table_id` INT UNSIGNED,`column_id` INT UNSIGNED,`column_name` VARCHAR(512),`column_type` INT UNSIGNED,`comment` VARCHAR(512)) COMMENT="metadata for columns available through ndbinfo " ENGINE=NDBINFO CHARACTER SET latin1','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -712,7 +713,7 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$config_nodes` (`reporting_node_id` INT UNSIGNED COMMENT "Reporting data node ID",`node_id` INT UNSIGNED COMMENT "Configured node ID",`node_type` INT UNSIGNED COMMENT "Configured node type",`node_hostname` VARCHAR(512) COMMENT "Configured hostname") COMMENT="All nodes of current cluster configuration" ENGINE=NDBINFO','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$config_nodes` (`reporting_node_id` INT UNSIGNED COMMENT "Reporting data node ID",`node_id` INT UNSIGNED COMMENT "Configured node ID",`node_type` INT UNSIGNED COMMENT "Configured node type",`node_hostname` VARCHAR(512) COMMENT "Configured hostname") COMMENT="All nodes of current cluster configuration" ENGINE=NDBINFO CHARACTER SET latin1','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -723,7 +724,7 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$config_values` (`node_id` INT UNSIGNED,`config_param` INT UNSIGNED COMMENT "Parameter number",`config_value` VARCHAR(512) COMMENT "Parameter value") COMMENT="Configuration parameter values" ENGINE=NDBINFO','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$config_values` (`node_id` INT UNSIGNED,`config_param` INT UNSIGNED COMMENT "Parameter number",`config_value` VARCHAR(512) COMMENT "Parameter value") COMMENT="Configuration parameter values" ENGINE=NDBINFO CHARACTER SET latin1','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -734,7 +735,7 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$counters` (`node_id` INT UNSIGNED,`block_number` INT UNSIGNED,`block_instance` INT UNSIGNED,`counter_id` INT UNSIGNED,`val` BIGINT UNSIGNED COMMENT "monotonically increasing since process start") COMMENT="monotonic counters" ENGINE=NDBINFO','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$counters` (`node_id` INT UNSIGNED,`block_number` INT UNSIGNED,`block_instance` INT UNSIGNED,`counter_id` INT UNSIGNED,`val` BIGINT UNSIGNED COMMENT "monotonically increasing since process start") COMMENT="monotonic counters" ENGINE=NDBINFO CHARACTER SET latin1','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -745,7 +746,7 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$cpustat` (`node_id` INT UNSIGNED COMMENT "node_id",`thr_no` INT UNSIGNED COMMENT "thread number",`OS_user` INT UNSIGNED COMMENT "Percentage time spent in user mode as reported by OS",`OS_system` INT UNSIGNED COMMENT "Percentage time spent in system mode as reported by OS",`OS_idle` INT UNSIGNED COMMENT "Percentage time spent in idle mode as reported by OS",`thread_exec` INT UNSIGNED COMMENT "Percentage time spent executing as calculated by thread",`thread_sleeping` INT UNSIGNED COMMENT "Percentage time spent sleeping as calculated by thread",`thread_spinning` INT UNSIGNED COMMENT "Percentage time spent spinning as calculated by thread",`thread_send` INT UNSIGNED COMMENT "Percentage time spent sending as calculated by thread",`thread_buffer_full` INT UNSIGNED COMMENT "Percentage time spent in buffer full as calculated by thread",`elapsed_time` INT UNSIGNED COMMENT "Elapsed time in microseconds for measurement") COMMENT="Thread CPU stats for last second" ENGINE=NDBINFO','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$cpustat` (`node_id` INT UNSIGNED COMMENT "node_id",`thr_no` INT UNSIGNED COMMENT "thread number",`OS_user` INT UNSIGNED COMMENT "Percentage time spent in user mode as reported by OS",`OS_system` INT UNSIGNED COMMENT "Percentage time spent in system mode as reported by OS",`OS_idle` INT UNSIGNED COMMENT "Percentage time spent in idle mode as reported by OS",`thread_exec` INT UNSIGNED COMMENT "Percentage time spent executing as calculated by thread",`thread_sleeping` INT UNSIGNED COMMENT "Percentage time spent sleeping as calculated by thread",`thread_spinning` INT UNSIGNED COMMENT "Percentage time spent spinning as calculated by thread",`thread_send` INT UNSIGNED COMMENT "Percentage time spent sending as calculated by thread",`thread_buffer_full` INT UNSIGNED COMMENT "Percentage time spent in buffer full as calculated by thread",`elapsed_time` INT UNSIGNED COMMENT "Elapsed time in microseconds for measurement") COMMENT="Thread CPU stats for last second" ENGINE=NDBINFO CHARACTER SET latin1','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -756,7 +757,7 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$cpustat_1sec` (`node_id` INT UNSIGNED COMMENT "node_id",`thr_no` INT UNSIGNED COMMENT "thread number",`OS_user_time` INT UNSIGNED COMMENT "User time in microseconds as reported by OS",`OS_system_time` INT UNSIGNED COMMENT "System time in microseconds as reported by OS",`OS_idle_time` INT UNSIGNED COMMENT "Idle time in microseconds as reported by OS",`exec_time` INT UNSIGNED COMMENT "Execution time in microseconds as calculated by thread",`sleep_time` INT UNSIGNED COMMENT "Sleep time in microseconds as calculated by thread",`spin_time` INT UNSIGNED COMMENT "Spin time in microseconds as calculated by thread",`send_time` INT UNSIGNED COMMENT "Send time in microseconds as calculated by thread",`buffer_full_time` INT UNSIGNED COMMENT "Time spent with buffer full in microseconds as calculated by thread",`elapsed_time` INT UNSIGNED COMMENT "Elapsed time in microseconds for measurement") COMMENT="Thread CPU stats at 1 second intervals" ENGINE=NDBINFO','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$cpustat_1sec` (`node_id` INT UNSIGNED COMMENT "node_id",`thr_no` INT UNSIGNED COMMENT "thread number",`OS_user_time` INT UNSIGNED COMMENT "User time in microseconds as reported by OS",`OS_system_time` INT UNSIGNED COMMENT "System time in microseconds as reported by OS",`OS_idle_time` INT UNSIGNED COMMENT "Idle time in microseconds as reported by OS",`exec_time` INT UNSIGNED COMMENT "Execution time in microseconds as calculated by thread",`sleep_time` INT UNSIGNED COMMENT "Sleep time in microseconds as calculated by thread",`spin_time` INT UNSIGNED COMMENT "Spin time in microseconds as calculated by thread",`send_time` INT UNSIGNED COMMENT "Send time in microseconds as calculated by thread",`buffer_full_time` INT UNSIGNED COMMENT "Time spent with buffer full in microseconds as calculated by thread",`elapsed_time` INT UNSIGNED COMMENT "Elapsed time in microseconds for measurement") COMMENT="Thread CPU stats at 1 second intervals" ENGINE=NDBINFO CHARACTER SET latin1','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -767,7 +768,7 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$cpustat_20sec` (`node_id` INT UNSIGNED COMMENT "node_id",`thr_no` INT UNSIGNED COMMENT "thread number",`OS_user_time` INT UNSIGNED COMMENT "User time in microseconds as reported by OS",`OS_system_time` INT UNSIGNED COMMENT "System time in microseconds as reported by OS",`OS_idle_time` INT UNSIGNED COMMENT "Idle time in microseconds as reported by OS",`exec_time` INT UNSIGNED COMMENT "Execution time in microseconds as calculated by thread",`sleep_time` INT UNSIGNED COMMENT "Sleep time in microseconds as calculated by thread",`spin_time` INT UNSIGNED COMMENT "Spin time in microseconds as calculated by thread",`send_time` INT UNSIGNED COMMENT "Send time in microseconds as calculated by thread",`buffer_full_time` INT UNSIGNED COMMENT "Time spent with buffer full in microseconds as calculated by thread",`elapsed_time` INT UNSIGNED COMMENT "Elapsed time in microseconds for measurement") COMMENT="Thread CPU stats at 20 seconds intervals" ENGINE=NDBINFO','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$cpustat_20sec` (`node_id` INT UNSIGNED COMMENT "node_id",`thr_no` INT UNSIGNED COMMENT "thread number",`OS_user_time` INT UNSIGNED COMMENT "User time in microseconds as reported by OS",`OS_system_time` INT UNSIGNED COMMENT "System time in microseconds as reported by OS",`OS_idle_time` INT UNSIGNED COMMENT "Idle time in microseconds as reported by OS",`exec_time` INT UNSIGNED COMMENT "Execution time in microseconds as calculated by thread",`sleep_time` INT UNSIGNED COMMENT "Sleep time in microseconds as calculated by thread",`spin_time` INT UNSIGNED COMMENT "Spin time in microseconds as calculated by thread",`send_time` INT UNSIGNED COMMENT "Send time in microseconds as calculated by thread",`buffer_full_time` INT UNSIGNED COMMENT "Time spent with buffer full in microseconds as calculated by thread",`elapsed_time` INT UNSIGNED COMMENT "Elapsed time in microseconds for measurement") COMMENT="Thread CPU stats at 20 seconds intervals" ENGINE=NDBINFO CHARACTER SET latin1','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -778,7 +779,7 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$cpustat_50ms` (`node_id` INT UNSIGNED COMMENT "node_id",`thr_no` INT UNSIGNED COMMENT "thread number",`OS_user_time` INT UNSIGNED COMMENT "User time in microseconds as reported by OS",`OS_system_time` INT UNSIGNED COMMENT "System time in microseconds as reported by OS",`OS_idle_time` INT UNSIGNED COMMENT "Idle time in microseconds as reported by OS",`exec_time` INT UNSIGNED COMMENT "Execution time in microseconds as calculated by thread",`sleep_time` INT UNSIGNED COMMENT "Sleep time in microseconds as calculated by thread",`spin_time` INT UNSIGNED COMMENT "Spin time in microseconds as calculated by thread",`send_time` INT UNSIGNED COMMENT "Send time in microseconds as calculated by thread",`buffer_full_time` INT UNSIGNED COMMENT "Time spent with buffer full in microseconds as calculated by thread",`elapsed_time` INT UNSIGNED COMMENT "Elapsed time in microseconds for measurement") COMMENT="Thread CPU stats at 50 milliseconds intervals" ENGINE=NDBINFO','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$cpustat_50ms` (`node_id` INT UNSIGNED COMMENT "node_id",`thr_no` INT UNSIGNED COMMENT "thread number",`OS_user_time` INT UNSIGNED COMMENT "User time in microseconds as reported by OS",`OS_system_time` INT UNSIGNED COMMENT "System time in microseconds as reported by OS",`OS_idle_time` INT UNSIGNED COMMENT "Idle time in microseconds as reported by OS",`exec_time` INT UNSIGNED COMMENT "Execution time in microseconds as calculated by thread",`sleep_time` INT UNSIGNED COMMENT "Sleep time in microseconds as calculated by thread",`spin_time` INT UNSIGNED COMMENT "Spin time in microseconds as calculated by thread",`send_time` INT UNSIGNED COMMENT "Send time in microseconds as calculated by thread",`buffer_full_time` INT UNSIGNED COMMENT "Time spent with buffer full in microseconds as calculated by thread",`elapsed_time` INT UNSIGNED COMMENT "Elapsed time in microseconds for measurement") COMMENT="Thread CPU stats at 50 milliseconds intervals" ENGINE=NDBINFO CHARACTER SET latin1','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -789,7 +790,7 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$dict_obj_info` (`type` INT UNSIGNED COMMENT "Type of dict object",`id` INT UNSIGNED COMMENT "Object identity",`version` INT UNSIGNED COMMENT "Object version",`state` INT UNSIGNED COMMENT "Object state",`parent_obj_type` INT UNSIGNED COMMENT "Parent object type",`parent_obj_id` INT UNSIGNED COMMENT "Parent object id",`fq_name` VARCHAR(512) COMMENT "Fully qualified object name") COMMENT="Dictionary object info" ENGINE=NDBINFO','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$dict_obj_info` (`type` INT UNSIGNED COMMENT "Type of dict object",`id` INT UNSIGNED COMMENT "Object identity",`version` INT UNSIGNED COMMENT "Object version",`state` INT UNSIGNED COMMENT "Object state",`parent_obj_type` INT UNSIGNED COMMENT "Parent object type",`parent_obj_id` INT UNSIGNED COMMENT "Parent object id",`fq_name` VARCHAR(512) COMMENT "Fully qualified object name") COMMENT="Dictionary object info" ENGINE=NDBINFO CHARACTER SET latin1','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -800,7 +801,7 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$disk_write_speed_aggregate` (`node_id` INT UNSIGNED COMMENT "node id",`thr_no` INT UNSIGNED COMMENT "LDM thread instance",`backup_lcp_speed_last_sec` BIGINT UNSIGNED COMMENT "Number of bytes written by backup and LCP last second",`redo_speed_last_sec` BIGINT UNSIGNED COMMENT "Number of bytes written to REDO log last second",`backup_lcp_speed_last_10sec` BIGINT UNSIGNED COMMENT "Number of bytes written by backup and LCP per second last 10 seconds",`redo_speed_last_10sec` BIGINT UNSIGNED COMMENT "Number of bytes written to REDO log per second last 10 seconds",`std_dev_backup_lcp_speed_last_10sec` BIGINT UNSIGNED COMMENT "Standard deviation of Number of bytes written by backup and LCP per second last 10 seconds",`std_dev_redo_speed_last_10sec` BIGINT UNSIGNED COMMENT "Standard deviation of Number of bytes written to REDO log per second last 10 seconds",`backup_lcp_speed_last_60sec` BIGINT UNSIGNED COMMENT "Number of bytes written by backup and LCP per second last 60 seconds",`redo_speed_last_60sec` BIGINT UNSIGNED COMMENT "Number of bytes written to REDO log per second last 60 seconds",`std_dev_backup_lcp_speed_last_60sec` BIGINT UNSIGNED COMMENT "Standard deviation of Number of bytes written by backup and LCP per second last 60 seconds",`std_dev_redo_speed_last_60sec` BIGINT UNSIGNED COMMENT "Standard deviation of Number of bytes written to REDO log per second last 60 seconds",`slowdowns_due_to_io_lag` BIGINT UNSIGNED COMMENT "Number of seconds that we slowed down disk writes due to REDO log IO lagging",`slowdowns_due_to_high_cpu` BIGINT UNSIGNED COMMENT "Number of seconds we slowed down disk writes due to high CPU usage of LDM thread",`disk_write_speed_set_to_min` BIGINT UNSIGNED COMMENT "Number of seconds we set disk write speed to a minimum",`current_target_disk_write_speed` BIGINT UNSIGNED COMMENT "Current target of disk write speed in bytes per second") COMMENT="Actual speed of disk writes per LDM thread, aggregate data" ENGINE=NDBINFO','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$disk_write_speed_aggregate` (`node_id` INT UNSIGNED COMMENT "node id",`thr_no` INT UNSIGNED COMMENT "LDM thread instance",`backup_lcp_speed_last_sec` BIGINT UNSIGNED COMMENT "Number of bytes written by backup and LCP last second",`redo_speed_last_sec` BIGINT UNSIGNED COMMENT "Number of bytes written to REDO log last second",`backup_lcp_speed_last_10sec` BIGINT UNSIGNED COMMENT "Number of bytes written by backup and LCP per second last 10 seconds",`redo_speed_last_10sec` BIGINT UNSIGNED COMMENT "Number of bytes written to REDO log per second last 10 seconds",`std_dev_backup_lcp_speed_last_10sec` BIGINT UNSIGNED COMMENT "Standard deviation of Number of bytes written by backup and LCP per second last 10 seconds",`std_dev_redo_speed_last_10sec` BIGINT UNSIGNED COMMENT "Standard deviation of Number of bytes written to REDO log per second last 10 seconds",`backup_lcp_speed_last_60sec` BIGINT UNSIGNED COMMENT "Number of bytes written by backup and LCP per second last 60 seconds",`redo_speed_last_60sec` BIGINT UNSIGNED COMMENT "Number of bytes written to REDO log per second last 60 seconds",`std_dev_backup_lcp_speed_last_60sec` BIGINT UNSIGNED COMMENT "Standard deviation of Number of bytes written by backup and LCP per second last 60 seconds",`std_dev_redo_speed_last_60sec` BIGINT UNSIGNED COMMENT "Standard deviation of Number of bytes written to REDO log per second last 60 seconds",`slowdowns_due_to_io_lag` BIGINT UNSIGNED COMMENT "Number of seconds that we slowed down disk writes due to REDO log IO lagging",`slowdowns_due_to_high_cpu` BIGINT UNSIGNED COMMENT "Number of seconds we slowed down disk writes due to high CPU usage of LDM thread",`disk_write_speed_set_to_min` BIGINT UNSIGNED COMMENT "Number of seconds we set disk write speed to a minimum",`current_target_disk_write_speed` BIGINT UNSIGNED COMMENT "Current target of disk write speed in bytes per second") COMMENT="Actual speed of disk writes per LDM thread, aggregate data" ENGINE=NDBINFO CHARACTER SET latin1','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -811,7 +812,7 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$disk_write_speed_base` (`node_id` INT UNSIGNED COMMENT "node id",`thr_no` INT UNSIGNED COMMENT "LDM thread instance",`millis_ago` BIGINT UNSIGNED COMMENT "Milliseconds ago since this period finished",`millis_passed` BIGINT UNSIGNED COMMENT "Milliseconds passed in the period reported",`backup_lcp_bytes_written` BIGINT UNSIGNED COMMENT "Bytes written by backup and LCP in the period",`redo_bytes_written` BIGINT UNSIGNED COMMENT "Bytes written to REDO log in the period",`target_disk_write_speed` BIGINT UNSIGNED COMMENT "Target disk write speed in bytes per second at the measurement point") COMMENT="Actual speed of disk writes per LDM thread, base data" ENGINE=NDBINFO','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$disk_write_speed_base` (`node_id` INT UNSIGNED COMMENT "node id",`thr_no` INT UNSIGNED COMMENT "LDM thread instance",`millis_ago` BIGINT UNSIGNED COMMENT "Milliseconds ago since this period finished",`millis_passed` BIGINT UNSIGNED COMMENT "Milliseconds passed in the period reported",`backup_lcp_bytes_written` BIGINT UNSIGNED COMMENT "Bytes written by backup and LCP in the period",`redo_bytes_written` BIGINT UNSIGNED COMMENT "Bytes written to REDO log in the period",`target_disk_write_speed` BIGINT UNSIGNED COMMENT "Target disk write speed in bytes per second at the measurement point") COMMENT="Actual speed of disk writes per LDM thread, base data" ENGINE=NDBINFO CHARACTER SET latin1','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -822,7 +823,7 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$diskpagebuffer` (`node_id` INT UNSIGNED,`block_instance` INT UNSIGNED,`pages_written` BIGINT UNSIGNED COMMENT "Pages written to disk",`pages_written_lcp` BIGINT UNSIGNED COMMENT "Pages written by local checkpoint",`pages_read` BIGINT UNSIGNED COMMENT "Pages read from disk",`log_waits` BIGINT UNSIGNED COMMENT "Page writes waiting for log to be written to disk",`page_requests_direct_return` BIGINT UNSIGNED COMMENT "Page in buffer and no requests waiting for it",`page_requests_wait_queue` BIGINT UNSIGNED COMMENT "Page in buffer, but some requests are already waiting for it",`page_requests_wait_io` BIGINT UNSIGNED COMMENT "Page not in buffer, waiting to be read from disk") COMMENT="disk page buffer info" ENGINE=NDBINFO','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$diskpagebuffer` (`node_id` INT UNSIGNED,`block_instance` INT UNSIGNED,`pages_written` BIGINT UNSIGNED COMMENT "Pages written to disk",`pages_written_lcp` BIGINT UNSIGNED COMMENT "Pages written by local checkpoint",`pages_read` BIGINT UNSIGNED COMMENT "Pages read from disk",`log_waits` BIGINT UNSIGNED COMMENT "Page writes waiting for log to be written to disk",`page_requests_direct_return` BIGINT UNSIGNED COMMENT "Page in buffer and no requests waiting for it",`page_requests_wait_queue` BIGINT UNSIGNED COMMENT "Page in buffer, but some requests are already waiting for it",`page_requests_wait_io` BIGINT UNSIGNED COMMENT "Page not in buffer, waiting to be read from disk") COMMENT="disk page buffer info" ENGINE=NDBINFO CHARACTER SET latin1','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -833,7 +834,7 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$frag_locks` (`node_id` INT UNSIGNED COMMENT "node id",`block_instance` INT UNSIGNED COMMENT "LQH instance no",`table_id` INT UNSIGNED COMMENT "Table identity",`fragment_num` INT UNSIGNED COMMENT "Fragment number",`ex_req` BIGINT UNSIGNED COMMENT "Exclusive row lock request count",`ex_imm_ok` BIGINT UNSIGNED COMMENT "Exclusive row lock immediate grants",`ex_wait_ok` BIGINT UNSIGNED COMMENT "Exclusive row lock grants with wait",`ex_wait_fail` BIGINT UNSIGNED COMMENT "Exclusive row lock failed grants",`sh_req` BIGINT UNSIGNED COMMENT "Shared row lock request count",`sh_imm_ok` BIGINT UNSIGNED COMMENT "Shared row lock immediate grants",`sh_wait_ok` BIGINT UNSIGNED COMMENT "Shared row lock grants with wait",`sh_wait_fail` BIGINT UNSIGNED COMMENT "Shared row lock failed grants",`wait_ok_millis` BIGINT UNSIGNED COMMENT "Time spent waiting before successfully claiming a lock",`wait_fail_millis` BIGINT UNSIGNED COMMENT "Time spent waiting before failing to claim a lock") COMMENT="Per fragment lock information" ENGINE=NDBINFO','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$frag_locks` (`node_id` INT UNSIGNED COMMENT "node id",`block_instance` INT UNSIGNED COMMENT "LQH instance no",`table_id` INT UNSIGNED COMMENT "Table identity",`fragment_num` INT UNSIGNED COMMENT "Fragment number",`ex_req` BIGINT UNSIGNED COMMENT "Exclusive row lock request count",`ex_imm_ok` BIGINT UNSIGNED COMMENT "Exclusive row lock immediate grants",`ex_wait_ok` BIGINT UNSIGNED COMMENT "Exclusive row lock grants with wait",`ex_wait_fail` BIGINT UNSIGNED COMMENT "Exclusive row lock failed grants",`sh_req` BIGINT UNSIGNED COMMENT "Shared row lock request count",`sh_imm_ok` BIGINT UNSIGNED COMMENT "Shared row lock immediate grants",`sh_wait_ok` BIGINT UNSIGNED COMMENT "Shared row lock grants with wait",`sh_wait_fail` BIGINT UNSIGNED COMMENT "Shared row lock failed grants",`wait_ok_millis` BIGINT UNSIGNED COMMENT "Time spent waiting before successfully claiming a lock",`wait_fail_millis` BIGINT UNSIGNED COMMENT "Time spent waiting before failing to claim a lock") COMMENT="Per fragment lock information" ENGINE=NDBINFO CHARACTER SET latin1','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -844,7 +845,7 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$frag_mem_use` (`node_id` INT UNSIGNED COMMENT "node id",`block_instance` INT UNSIGNED COMMENT "LDM instance number",`table_id` INT UNSIGNED COMMENT "Table identity",`fragment_num` INT UNSIGNED COMMENT "Fragment number",`rows` BIGINT UNSIGNED COMMENT "Number of rows in table",`fixed_elem_alloc_bytes` BIGINT UNSIGNED COMMENT "Number of bytes allocated for fixed-sized elements",`fixed_elem_free_bytes` BIGINT UNSIGNED COMMENT "Free bytes in fixed-size element pages",`fixed_elem_count` BIGINT UNSIGNED COMMENT "Number of fixed size elements in use",`fixed_elem_size_bytes` INT UNSIGNED COMMENT "Length of each fixed sized element in bytes",`var_elem_alloc_bytes` BIGINT UNSIGNED COMMENT "Number of bytes allocated for var-size elements",`var_elem_free_bytes` BIGINT UNSIGNED COMMENT "Free bytes in var-size element pages",`var_elem_count` BIGINT UNSIGNED COMMENT "Number of var size elements in use",`tuple_l2pmap_alloc_bytes` BIGINT UNSIGNED COMMENT "Bytes in logical to physical page map for tuple store",`hash_index_l2pmap_alloc_bytes` BIGINT UNSIGNED COMMENT "Bytes in logical to physical page map for the hash index",`hash_index_alloc_bytes` BIGINT UNSIGNED COMMENT "Bytes in linear hash map") COMMENT="Per fragment space information" ENGINE=NDBINFO','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$frag_mem_use` (`node_id` INT UNSIGNED COMMENT "node id",`block_instance` INT UNSIGNED COMMENT "LDM instance number",`table_id` INT UNSIGNED COMMENT "Table identity",`fragment_num` INT UNSIGNED COMMENT "Fragment number",`rows` BIGINT UNSIGNED COMMENT "Number of rows in table",`fixed_elem_alloc_bytes` BIGINT UNSIGNED COMMENT "Number of bytes allocated for fixed-sized elements",`fixed_elem_free_bytes` BIGINT UNSIGNED COMMENT "Free bytes in fixed-size element pages",`fixed_elem_count` BIGINT UNSIGNED COMMENT "Number of fixed size elements in use",`fixed_elem_size_bytes` INT UNSIGNED COMMENT "Length of each fixed sized element in bytes",`var_elem_alloc_bytes` BIGINT UNSIGNED COMMENT "Number of bytes allocated for var-size elements",`var_elem_free_bytes` BIGINT UNSIGNED COMMENT "Free bytes in var-size element pages",`var_elem_count` BIGINT UNSIGNED COMMENT "Number of var size elements in use",`tuple_l2pmap_alloc_bytes` BIGINT UNSIGNED COMMENT "Bytes in logical to physical page map for tuple store",`hash_index_l2pmap_alloc_bytes` BIGINT UNSIGNED COMMENT "Bytes in logical to physical page map for the hash index",`hash_index_alloc_bytes` BIGINT UNSIGNED COMMENT "Bytes in linear hash map") COMMENT="Per fragment space information" ENGINE=NDBINFO CHARACTER SET latin1','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -855,7 +856,7 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$frag_operations` (`node_id` INT UNSIGNED COMMENT "node id",`block_instance` INT UNSIGNED COMMENT "LQH instance no",`table_id` INT UNSIGNED COMMENT "Table identity",`fragment_num` INT UNSIGNED COMMENT "Fragment number",`tot_key_reads` BIGINT UNSIGNED COMMENT "Total number of key reads received",`tot_key_inserts` BIGINT UNSIGNED COMMENT "Total number of key inserts received",`tot_key_updates` BIGINT UNSIGNED COMMENT "Total number of key updates received",`tot_key_writes` BIGINT UNSIGNED COMMENT "Total number of key writes received",`tot_key_deletes` BIGINT UNSIGNED COMMENT "Total number of key deletes received",`tot_key_refs` BIGINT UNSIGNED COMMENT "Total number of key operations refused by LDM",`tot_key_attrinfo_bytes` BIGINT UNSIGNED COMMENT "Total attrinfo bytes received for key operations",`tot_key_keyinfo_bytes` BIGINT UNSIGNED COMMENT "Total keyinfo bytes received for key operations",`tot_key_prog_bytes` BIGINT UNSIGNED COMMENT "Total bytes of filter programs for key operations",`tot_key_inst_exec` BIGINT UNSIGNED COMMENT "Total number of interpreter instructions executed for key operations",`tot_key_bytes_returned` BIGINT UNSIGNED COMMENT "Total number of bytes returned to client for key operations",`tot_frag_scans` BIGINT UNSIGNED COMMENT "Total number of fragment scans received",`tot_scan_rows_examined` BIGINT UNSIGNED COMMENT "Total number of rows examined by scans",`tot_scan_rows_returned` BIGINT UNSIGNED COMMENT "Total number of rows returned to client by scan",`tot_scan_bytes_returned` BIGINT UNSIGNED COMMENT "Total number of bytes returned to client by scans",`tot_scan_prog_bytes` BIGINT UNSIGNED COMMENT "Total bytes of scan filter programs",`tot_scan_bound_bytes` BIGINT UNSIGNED COMMENT "Total bytes of scan bounds",`tot_scan_inst_exec` BIGINT UNSIGNED COMMENT "Total number of interpreter instructions executed for scans",`tot_qd_frag_scans` BIGINT UNSIGNED COMMENT "Total number of fragment scans queued before exec",`conc_frag_scans` INT UNSIGNED COMMENT "Number of frag scans currently running",`conc_qd_plain_frag_scans` INT UNSIGNED COMMENT "Number of tux frag scans currently queued",`conc_qd_tup_frag_scans` INT UNSIGNED COMMENT "Number of tup frag scans currently queued",`conc_qd_acc_frag_scans` INT UNSIGNED COMMENT "Number of acc frag scans currently queued",`tot_commits` BIGINT UNSIGNED COMMENT "Total number of committed row changes") COMMENT="Per fragment operational information" ENGINE=NDBINFO','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$frag_operations` (`node_id` INT UNSIGNED COMMENT "node id",`block_instance` INT UNSIGNED COMMENT "LQH instance no",`table_id` INT UNSIGNED COMMENT "Table identity",`fragment_num` INT UNSIGNED COMMENT "Fragment number",`tot_key_reads` BIGINT UNSIGNED COMMENT "Total number of key reads received",`tot_key_inserts` BIGINT UNSIGNED COMMENT "Total number of key inserts received",`tot_key_updates` BIGINT UNSIGNED COMMENT "Total number of key updates received",`tot_key_writes` BIGINT UNSIGNED COMMENT "Total number of key writes received",`tot_key_deletes` BIGINT UNSIGNED COMMENT "Total number of key deletes received",`tot_key_refs` BIGINT UNSIGNED COMMENT "Total number of key operations refused by LDM",`tot_key_attrinfo_bytes` BIGINT UNSIGNED COMMENT "Total attrinfo bytes received for key operations",`tot_key_keyinfo_bytes` BIGINT UNSIGNED COMMENT "Total keyinfo bytes received for key operations",`tot_key_prog_bytes` BIGINT UNSIGNED COMMENT "Total bytes of filter programs for key operations",`tot_key_inst_exec` BIGINT UNSIGNED COMMENT "Total number of interpreter instructions executed for key operations",`tot_key_bytes_returned` BIGINT UNSIGNED COMMENT "Total number of bytes returned to client for key operations",`tot_frag_scans` BIGINT UNSIGNED COMMENT "Total number of fragment scans received",`tot_scan_rows_examined` BIGINT UNSIGNED COMMENT "Total number of rows examined by scans",`tot_scan_rows_returned` BIGINT UNSIGNED COMMENT "Total number of rows returned to client by scan",`tot_scan_bytes_returned` BIGINT UNSIGNED COMMENT "Total number of bytes returned to client by scans",`tot_scan_prog_bytes` BIGINT UNSIGNED COMMENT "Total bytes of scan filter programs",`tot_scan_bound_bytes` BIGINT UNSIGNED COMMENT "Total bytes of scan bounds",`tot_scan_inst_exec` BIGINT UNSIGNED COMMENT "Total number of interpreter instructions executed for scans",`tot_qd_frag_scans` BIGINT UNSIGNED COMMENT "Total number of fragment scans queued before exec",`conc_frag_scans` INT UNSIGNED COMMENT "Number of frag scans currently running",`conc_qd_plain_frag_scans` INT UNSIGNED COMMENT "Number of tux frag scans currently queued",`conc_qd_tup_frag_scans` INT UNSIGNED COMMENT "Number of tup frag scans currently queued",`conc_qd_acc_frag_scans` INT UNSIGNED COMMENT "Number of acc frag scans currently queued",`tot_commits` BIGINT UNSIGNED COMMENT "Total number of committed row changes") COMMENT="Per fragment operational information" ENGINE=NDBINFO CHARACTER SET latin1','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -866,7 +867,7 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$logbuffers` (`node_id` INT UNSIGNED,`log_type` INT UNSIGNED COMMENT "0 = REDO, 1 = DD-UNDO",`log_id` INT UNSIGNED,`log_part` INT UNSIGNED,`total` BIGINT UNSIGNED COMMENT "total allocated",`used` BIGINT UNSIGNED COMMENT "currently in use",`high` BIGINT UNSIGNED COMMENT "in use high water mark") COMMENT="logbuffer usage" ENGINE=NDBINFO','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$logbuffers` (`node_id` INT UNSIGNED,`log_type` INT UNSIGNED COMMENT "0 = REDO, 1 = DD-UNDO",`log_id` INT UNSIGNED,`log_part` INT UNSIGNED,`total` BIGINT UNSIGNED COMMENT "total allocated",`used` BIGINT UNSIGNED COMMENT "currently in use",`high` BIGINT UNSIGNED COMMENT "in use high water mark") COMMENT="logbuffer usage" ENGINE=NDBINFO CHARACTER SET latin1','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -877,7 +878,7 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$logspaces` (`node_id` INT UNSIGNED,`log_type` INT UNSIGNED COMMENT "0 = REDO, 1 = DD-UNDO",`log_id` INT UNSIGNED,`log_part` INT UNSIGNED,`total` BIGINT UNSIGNED COMMENT "total allocated",`used` BIGINT UNSIGNED COMMENT "currently in use",`high` BIGINT UNSIGNED COMMENT "in use high water mark") COMMENT="logspace usage" ENGINE=NDBINFO','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$logspaces` (`node_id` INT UNSIGNED,`log_type` INT UNSIGNED COMMENT "0 = REDO, 1 = DD-UNDO",`log_id` INT UNSIGNED,`log_part` INT UNSIGNED,`total` BIGINT UNSIGNED COMMENT "total allocated",`used` BIGINT UNSIGNED COMMENT "currently in use",`high` BIGINT UNSIGNED COMMENT "in use high water mark") COMMENT="logspace usage" ENGINE=NDBINFO CHARACTER SET latin1','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -888,7 +889,7 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$membership` (`node_id` INT UNSIGNED COMMENT "node id",`group_id` INT UNSIGNED COMMENT "node group id",`left_node` INT UNSIGNED COMMENT "Left node in heart beat chain",`right_node` INT UNSIGNED COMMENT "Right node in heart beat chain",`president` INT UNSIGNED COMMENT "President nodeid",`successor` INT UNSIGNED COMMENT "President successor",`dynamic_id` INT UNSIGNED COMMENT "President, Configured_heartbeat order",`arbitrator` INT UNSIGNED COMMENT "Arbitrator nodeid",`arb_ticket` VARCHAR(512) COMMENT "Arbitrator ticket",`arb_state` INT UNSIGNED COMMENT "Arbitrator state",`arb_connected` INT UNSIGNED COMMENT "Arbitrator connected",`conn_rank1_arbs` VARCHAR(512) COMMENT "Connected rank 1 arbitrators",`conn_rank2_arbs` VARCHAR(512) COMMENT "Connected rank 2 arbitrators") COMMENT="membership" ENGINE=NDBINFO','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$membership` (`node_id` INT UNSIGNED COMMENT "node id",`group_id` INT UNSIGNED COMMENT "node group id",`left_node` INT UNSIGNED COMMENT "Left node in heart beat chain",`right_node` INT UNSIGNED COMMENT "Right node in heart beat chain",`president` INT UNSIGNED COMMENT "President nodeid",`successor` INT UNSIGNED COMMENT "President successor",`dynamic_id` INT UNSIGNED COMMENT "President, Configured_heartbeat order",`arbitrator` INT UNSIGNED COMMENT "Arbitrator nodeid",`arb_ticket` VARCHAR(512) COMMENT "Arbitrator ticket",`arb_state` INT UNSIGNED COMMENT "Arbitrator state",`arb_connected` INT UNSIGNED COMMENT "Arbitrator connected",`conn_rank1_arbs` VARCHAR(512) COMMENT "Connected rank 1 arbitrators",`conn_rank2_arbs` VARCHAR(512) COMMENT "Connected rank 2 arbitrators") COMMENT="membership" ENGINE=NDBINFO CHARACTER SET latin1','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -899,7 +900,7 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$nodes` (`node_id` INT UNSIGNED,`uptime` BIGINT UNSIGNED COMMENT "time in seconds that node has been running",`status` INT UNSIGNED COMMENT "starting/started/stopped etc.",`start_phase` INT UNSIGNED COMMENT "start phase if node is starting",`config_generation` INT UNSIGNED COMMENT "configuration generation number") COMMENT="node status" ENGINE=NDBINFO','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$nodes` (`node_id` INT UNSIGNED,`uptime` BIGINT UNSIGNED COMMENT "time in seconds that node has been running",`status` INT UNSIGNED COMMENT "starting/started/stopped etc.",`start_phase` INT UNSIGNED COMMENT "start phase if node is starting",`config_generation` INT UNSIGNED COMMENT "configuration generation number") COMMENT="node status" ENGINE=NDBINFO CHARACTER SET latin1','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -910,7 +911,7 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$operations` (`node_id` INT UNSIGNED COMMENT "node id",`block_instance` INT UNSIGNED COMMENT "LQH instance no",`objid` INT UNSIGNED COMMENT "Object id of operation object",`tcref` INT UNSIGNED COMMENT "TC reference",`apiref` INT UNSIGNED COMMENT "API reference",`transid0` INT UNSIGNED COMMENT "Transaction id",`transid1` INT UNSIGNED COMMENT "Transaction id",`tableid` INT UNSIGNED COMMENT "Table id",`fragmentid` INT UNSIGNED COMMENT "Fragment id",`op` INT UNSIGNED COMMENT "Operation type",`state` INT UNSIGNED COMMENT "Operation state",`flags` INT UNSIGNED COMMENT "Operation flags") COMMENT="operations" ENGINE=NDBINFO','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$operations` (`node_id` INT UNSIGNED COMMENT "node id",`block_instance` INT UNSIGNED COMMENT "LQH instance no",`objid` INT UNSIGNED COMMENT "Object id of operation object",`tcref` INT UNSIGNED COMMENT "TC reference",`apiref` INT UNSIGNED COMMENT "API reference",`transid0` INT UNSIGNED COMMENT "Transaction id",`transid1` INT UNSIGNED COMMENT "Transaction id",`tableid` INT UNSIGNED COMMENT "Table id",`fragmentid` INT UNSIGNED COMMENT "Fragment id",`op` INT UNSIGNED COMMENT "Operation type",`state` INT UNSIGNED COMMENT "Operation state",`flags` INT UNSIGNED COMMENT "Operation flags") COMMENT="operations" ENGINE=NDBINFO CHARACTER SET latin1','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -921,7 +922,7 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$pools` (`node_id` INT UNSIGNED,`block_number` INT UNSIGNED,`block_instance` INT UNSIGNED,`pool_name` VARCHAR(512),`used` BIGINT UNSIGNED COMMENT "currently in use",`total` BIGINT UNSIGNED COMMENT "total allocated",`high` BIGINT UNSIGNED COMMENT "in use high water mark",`entry_size` BIGINT UNSIGNED COMMENT "size in bytes of each object",`config_param1` INT UNSIGNED COMMENT "config param 1 affecting pool",`config_param2` INT UNSIGNED COMMENT "config param 2 affecting pool",`config_param3` INT UNSIGNED COMMENT "config param 3 affecting pool",`config_param4` INT UNSIGNED COMMENT "config param 4 affecting pool") COMMENT="pool usage" ENGINE=NDBINFO','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$pools` (`node_id` INT UNSIGNED,`block_number` INT UNSIGNED,`block_instance` INT UNSIGNED,`pool_name` VARCHAR(512),`used` BIGINT UNSIGNED COMMENT "currently in use",`total` BIGINT UNSIGNED COMMENT "total allocated",`high` BIGINT UNSIGNED COMMENT "in use high water mark",`entry_size` BIGINT UNSIGNED COMMENT "size in bytes of each object",`config_param1` INT UNSIGNED COMMENT "config param 1 affecting pool",`config_param2` INT UNSIGNED COMMENT "config param 2 affecting pool",`config_param3` INT UNSIGNED COMMENT "config param 3 affecting pool",`config_param4` INT UNSIGNED COMMENT "config param 4 affecting pool") COMMENT="pool usage" ENGINE=NDBINFO CHARACTER SET latin1','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -932,7 +933,7 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$processes` (`reporting_node_id` INT UNSIGNED COMMENT "Reporting data node ID",`node_id` INT UNSIGNED COMMENT "Connected node ID",`node_type` INT UNSIGNED COMMENT "Type of node",`node_version` VARCHAR(512) COMMENT "Node MySQL Cluster version string",`process_id` INT UNSIGNED COMMENT "PID of node process on host",`angel_process_id` INT UNSIGNED COMMENT "PID of node\'s angel process",`process_name` VARCHAR(512) COMMENT "Node\'s executable process name",`service_URI` VARCHAR(512) COMMENT "URI for service provided by node") COMMENT="Process ID and Name information for connected nodes" ENGINE=NDBINFO','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$processes` (`reporting_node_id` INT UNSIGNED COMMENT "Reporting data node ID",`node_id` INT UNSIGNED COMMENT "Connected node ID",`node_type` INT UNSIGNED COMMENT "Type of node",`node_version` VARCHAR(512) COMMENT "Node MySQL Cluster version string",`process_id` INT UNSIGNED COMMENT "PID of node process on host",`angel_process_id` INT UNSIGNED COMMENT "PID of node\'s angel process",`process_name` VARCHAR(512) COMMENT "Node\'s executable process name",`service_URI` VARCHAR(512) COMMENT "URI for service provided by node") COMMENT="Process ID and Name information for connected nodes" ENGINE=NDBINFO CHARACTER SET latin1','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -943,7 +944,7 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$resources` (`node_id` INT UNSIGNED,`resource_id` INT UNSIGNED,`reserved` INT UNSIGNED COMMENT "reserved for this resource",`used` INT UNSIGNED COMMENT "currently in use",`max` INT UNSIGNED COMMENT "max available",`high` INT UNSIGNED COMMENT "in use high water mark",`spare` INT UNSIGNED COMMENT "spare pages for restart") COMMENT="resources usage (a.k.a superpool)" ENGINE=NDBINFO','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$resources` (`node_id` INT UNSIGNED,`resource_id` INT UNSIGNED,`reserved` INT UNSIGNED COMMENT "reserved for this resource",`used` INT UNSIGNED COMMENT "currently in use",`max` INT UNSIGNED COMMENT "max available",`high` INT UNSIGNED COMMENT "in use high water mark",`spare` INT UNSIGNED COMMENT "spare pages for restart") COMMENT="resources usage (a.k.a superpool)" ENGINE=NDBINFO CHARACTER SET latin1','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -954,7 +955,7 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$restart_info` (`node_id` INT UNSIGNED COMMENT "node id",`node_restart_status` VARCHAR(512) COMMENT "Current state of node recovery",`node_restart_status_int` INT UNSIGNED COMMENT "Current state of node recovery as number",`secs_to_complete_node_failure` INT UNSIGNED COMMENT "Seconds to complete node failure handling",`secs_to_allocate_node_id` INT UNSIGNED COMMENT "Seconds from node failure completion to allocation of node id",`secs_to_include_in_heartbeat_protocol` INT UNSIGNED COMMENT "Seconds from allocation of node id to inclusion in HB protocol",`secs_until_wait_for_ndbcntr_master` INT UNSIGNED COMMENT "Seconds from included in HB protocol until we wait for ndbcntr master",`secs_wait_for_ndbcntr_master` INT UNSIGNED COMMENT "Seconds we waited for being accepted by NDBCNTR master to start",`secs_to_get_start_permitted` INT UNSIGNED COMMENT "Seconds from permit by master until all nodes accepted our start",`secs_to_wait_for_lcp_for_copy_meta_data` INT UNSIGNED COMMENT "Seconds waiting for LCP completion before copying meta data",`secs_to_copy_meta_data` INT UNSIGNED COMMENT "Seconds to copy meta data to starting node from master",`secs_to_include_node` INT UNSIGNED COMMENT "Seconds to wait for GCP and inclusion of all nodes into protocols",`secs_starting_node_to_request_local_recovery` INT UNSIGNED COMMENT "Seconds for starting node to request local recovery",`secs_for_local_recovery` INT UNSIGNED COMMENT "Seconds for local recovery in starting node",`secs_restore_fragments` INT UNSIGNED COMMENT "Seconds to restore fragments from LCP files",`secs_undo_disk_data` INT UNSIGNED COMMENT "Seconds to execute UNDO log on disk data part of records",`secs_exec_redo_log` INT UNSIGNED COMMENT "Seconds to execute REDO log on all restored fragments",`secs_index_rebuild` INT UNSIGNED COMMENT "Seconds to rebuild indexes on restored fragments",`secs_to_synchronize_starting_node` INT UNSIGNED COMMENT "Seconds to synchronize starting node from live nodes",`secs_wait_lcp_for_restart` INT UNSIGNED COMMENT "Seconds to wait for LCP start and completion before restart is completed",`secs_wait_subscription_handover` INT UNSIGNED COMMENT "Seconds waiting for handover of replication subscriptions",`total_restart_secs` INT UNSIGNED COMMENT "Total number of seconds from node failure until node is started again") COMMENT="Times of restart phases in seconds and current state" ENGINE=NDBINFO','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$restart_info` (`node_id` INT UNSIGNED COMMENT "node id",`node_restart_status` VARCHAR(512) COMMENT "Current state of node recovery",`node_restart_status_int` INT UNSIGNED COMMENT "Current state of node recovery as number",`secs_to_complete_node_failure` INT UNSIGNED COMMENT "Seconds to complete node failure handling",`secs_to_allocate_node_id` INT UNSIGNED COMMENT "Seconds from node failure completion to allocation of node id",`secs_to_include_in_heartbeat_protocol` INT UNSIGNED COMMENT "Seconds from allocation of node id to inclusion in HB protocol",`secs_until_wait_for_ndbcntr_master` INT UNSIGNED COMMENT "Seconds from included in HB protocol until we wait for ndbcntr master",`secs_wait_for_ndbcntr_master` INT UNSIGNED COMMENT "Seconds we waited for being accepted by NDBCNTR master to start",`secs_to_get_start_permitted` INT UNSIGNED COMMENT "Seconds from permit by master until all nodes accepted our start",`secs_to_wait_for_lcp_for_copy_meta_data` INT UNSIGNED COMMENT "Seconds waiting for LCP completion before copying meta data",`secs_to_copy_meta_data` INT UNSIGNED COMMENT "Seconds to copy meta data to starting node from master",`secs_to_include_node` INT UNSIGNED COMMENT "Seconds to wait for GCP and inclusion of all nodes into protocols",`secs_starting_node_to_request_local_recovery` INT UNSIGNED COMMENT "Seconds for starting node to request local recovery",`secs_for_local_recovery` INT UNSIGNED COMMENT "Seconds for local recovery in starting node",`secs_restore_fragments` INT UNSIGNED COMMENT "Seconds to restore fragments from LCP files",`secs_undo_disk_data` INT UNSIGNED COMMENT "Seconds to execute UNDO log on disk data part of records",`secs_exec_redo_log` INT UNSIGNED COMMENT "Seconds to execute REDO log on all restored fragments",`secs_index_rebuild` INT UNSIGNED COMMENT "Seconds to rebuild indexes on restored fragments",`secs_to_synchronize_starting_node` INT UNSIGNED COMMENT "Seconds to synchronize starting node from live nodes",`secs_wait_lcp_for_restart` INT UNSIGNED COMMENT "Seconds to wait for LCP start and completion before restart is completed",`secs_wait_subscription_handover` INT UNSIGNED COMMENT "Seconds waiting for handover of replication subscriptions",`total_restart_secs` INT UNSIGNED COMMENT "Total number of seconds from node failure until node is started again") COMMENT="Times of restart phases in seconds and current state" ENGINE=NDBINFO CHARACTER SET latin1','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -965,7 +966,7 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$stored_tables` (`node_id` INT UNSIGNED COMMENT "node_id",`table_id` INT UNSIGNED COMMENT "Table id",`logged_table` INT UNSIGNED COMMENT "Is table logged",`row_contains_gci` INT UNSIGNED COMMENT "Does table rows contains GCI",`row_contains_checksum` INT UNSIGNED COMMENT "Does table rows contain checksum",`temporary_table` INT UNSIGNED COMMENT "Is table temporary",`force_var_part` INT UNSIGNED COMMENT "Force var part active",`read_backup` INT UNSIGNED COMMENT "Is backup replicas read",`fully_replicated` INT UNSIGNED COMMENT "Is table fully replicated",`extra_row_gci` INT UNSIGNED COMMENT "extra_row_gci",`extra_row_author` INT UNSIGNED COMMENT "extra_row_author",`storage_type` INT UNSIGNED COMMENT "Storage type of table",`hashmap_id` INT UNSIGNED COMMENT "Hashmap id",`hashmap_version` INT UNSIGNED COMMENT "Hashmap version",`table_version` INT UNSIGNED COMMENT "Table version",`fragment_type` INT UNSIGNED COMMENT "Type of fragmentation",`partition_balance` INT UNSIGNED COMMENT "Partition balance",`create_gci` INT UNSIGNED COMMENT "GCI in which table was created",`backup_locked` INT UNSIGNED COMMENT "Locked for backup",`single_user_mode` INT UNSIGNED COMMENT "Is single user mode active") COMMENT="Information about stored tables" ENGINE=NDBINFO','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$stored_tables` (`node_id` INT UNSIGNED COMMENT "node_id",`table_id` INT UNSIGNED COMMENT "Table id",`logged_table` INT UNSIGNED COMMENT "Is table logged",`row_contains_gci` INT UNSIGNED COMMENT "Does table rows contains GCI",`row_contains_checksum` INT UNSIGNED COMMENT "Does table rows contain checksum",`temporary_table` INT UNSIGNED COMMENT "Is table temporary",`force_var_part` INT UNSIGNED COMMENT "Force var part active",`read_backup` INT UNSIGNED COMMENT "Is backup replicas read",`fully_replicated` INT UNSIGNED COMMENT "Is table fully replicated",`extra_row_gci` INT UNSIGNED COMMENT "extra_row_gci",`extra_row_author` INT UNSIGNED COMMENT "extra_row_author",`storage_type` INT UNSIGNED COMMENT "Storage type of table",`hashmap_id` INT UNSIGNED COMMENT "Hashmap id",`hashmap_version` INT UNSIGNED COMMENT "Hashmap version",`table_version` INT UNSIGNED COMMENT "Table version",`fragment_type` INT UNSIGNED COMMENT "Type of fragmentation",`partition_balance` INT UNSIGNED COMMENT "Partition balance",`create_gci` INT UNSIGNED COMMENT "GCI in which table was created",`backup_locked` INT UNSIGNED COMMENT "Locked for backup",`single_user_mode` INT UNSIGNED COMMENT "Is single user mode active") COMMENT="Information about stored tables" ENGINE=NDBINFO CHARACTER SET latin1','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -976,7 +977,7 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$table_distribution_status` (`node_id` INT UNSIGNED COMMENT "Node id",`table_id` INT UNSIGNED COMMENT "Table id",`tab_copy_status` INT UNSIGNED COMMENT "Copy status of the table",`tab_update_status` INT UNSIGNED COMMENT "Update status of the table",`tab_lcp_status` INT UNSIGNED COMMENT "LCP status of the table",`tab_status` INT UNSIGNED COMMENT "Create status of the table",`tab_storage` INT UNSIGNED COMMENT "Storage type of table",`tab_type` INT UNSIGNED COMMENT "Type of table",`tab_partitions` INT UNSIGNED COMMENT "Number of partitions in table",`tab_fragments` INT UNSIGNED COMMENT "Number of fragments in table",`current_scan_count` INT UNSIGNED COMMENT "Current number of active scans",`scan_count_wait` INT UNSIGNED COMMENT "Number of scans waiting for",`is_reorg_ongoing` INT UNSIGNED COMMENT "Is a table reorg ongoing on table") COMMENT="Table status in distribution handler" ENGINE=NDBINFO','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$table_distribution_status` (`node_id` INT UNSIGNED COMMENT "Node id",`table_id` INT UNSIGNED COMMENT "Table id",`tab_copy_status` INT UNSIGNED COMMENT "Copy status of the table",`tab_update_status` INT UNSIGNED COMMENT "Update status of the table",`tab_lcp_status` INT UNSIGNED COMMENT "LCP status of the table",`tab_status` INT UNSIGNED COMMENT "Create status of the table",`tab_storage` INT UNSIGNED COMMENT "Storage type of table",`tab_type` INT UNSIGNED COMMENT "Type of table",`tab_partitions` INT UNSIGNED COMMENT "Number of partitions in table",`tab_fragments` INT UNSIGNED COMMENT "Number of fragments in table",`current_scan_count` INT UNSIGNED COMMENT "Current number of active scans",`scan_count_wait` INT UNSIGNED COMMENT "Number of scans waiting for",`is_reorg_ongoing` INT UNSIGNED COMMENT "Is a table reorg ongoing on table") COMMENT="Table status in distribution handler" ENGINE=NDBINFO CHARACTER SET latin1','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -987,7 +988,7 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$table_distribution_status_all` (`node_id` INT UNSIGNED COMMENT "Node id",`table_id` INT UNSIGNED COMMENT "Table id",`tab_copy_status` INT UNSIGNED COMMENT "Copy status of the table",`tab_update_status` INT UNSIGNED COMMENT "Update status of the table",`tab_lcp_status` INT UNSIGNED COMMENT "LCP status of the table",`tab_status` INT UNSIGNED COMMENT "Create status of the table",`tab_storage` INT UNSIGNED COMMENT "Storage type of table",`tab_type` INT UNSIGNED COMMENT "Type of table",`tab_partitions` INT UNSIGNED COMMENT "Number of partitions in table",`tab_fragments` INT UNSIGNED COMMENT "Number of fragments in table",`current_scan_count` INT UNSIGNED COMMENT "Current number of active scans",`scan_count_wait` INT UNSIGNED COMMENT "Number of scans waiting for",`is_reorg_ongoing` INT UNSIGNED COMMENT "Is a table reorg ongoing on table") COMMENT="Table status in distribution handler" ENGINE=NDBINFO','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$table_distribution_status_all` (`node_id` INT UNSIGNED COMMENT "Node id",`table_id` INT UNSIGNED COMMENT "Table id",`tab_copy_status` INT UNSIGNED COMMENT "Copy status of the table",`tab_update_status` INT UNSIGNED COMMENT "Update status of the table",`tab_lcp_status` INT UNSIGNED COMMENT "LCP status of the table",`tab_status` INT UNSIGNED COMMENT "Create status of the table",`tab_storage` INT UNSIGNED COMMENT "Storage type of table",`tab_type` INT UNSIGNED COMMENT "Type of table",`tab_partitions` INT UNSIGNED COMMENT "Number of partitions in table",`tab_fragments` INT UNSIGNED COMMENT "Number of fragments in table",`current_scan_count` INT UNSIGNED COMMENT "Current number of active scans",`scan_count_wait` INT UNSIGNED COMMENT "Number of scans waiting for",`is_reorg_ongoing` INT UNSIGNED COMMENT "Is a table reorg ongoing on table") COMMENT="Table status in distribution handler" ENGINE=NDBINFO CHARACTER SET latin1','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -998,7 +999,7 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$table_fragments` (`node_id` INT UNSIGNED COMMENT "node_id",`table_id` INT UNSIGNED COMMENT "Table id",`partition_id` INT UNSIGNED COMMENT "Partition id",`fragment_id` INT UNSIGNED COMMENT "Fragment id",`partition_order` INT UNSIGNED COMMENT "Order of fragment in partition",`log_part_id` INT UNSIGNED COMMENT "Log part id of fragment",`no_of_replicas` INT UNSIGNED COMMENT "Number of replicas",`current_primary` INT UNSIGNED COMMENT "Current primary node id",`preferred_primary` INT UNSIGNED COMMENT "Preferred primary node id",`current_first_backup` INT UNSIGNED COMMENT "Current first backup node id",`current_second_backup` INT UNSIGNED COMMENT "Current second backup node id",`current_third_backup` INT UNSIGNED COMMENT "Current third backup node id",`num_alive_replicas` INT UNSIGNED COMMENT "Current number of alive replicas",`num_dead_replicas` INT UNSIGNED COMMENT "Current number of dead replicas",`num_lcp_replicas` INT UNSIGNED COMMENT "Number of replicas remaining to be LCP:ed") COMMENT="Partitions of the tables" ENGINE=NDBINFO','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$table_fragments` (`node_id` INT UNSIGNED COMMENT "node_id",`table_id` INT UNSIGNED COMMENT "Table id",`partition_id` INT UNSIGNED COMMENT "Partition id",`fragment_id` INT UNSIGNED COMMENT "Fragment id",`partition_order` INT UNSIGNED COMMENT "Order of fragment in partition",`log_part_id` INT UNSIGNED COMMENT "Log part id of fragment",`no_of_replicas` INT UNSIGNED COMMENT "Number of replicas",`current_primary` INT UNSIGNED COMMENT "Current primary node id",`preferred_primary` INT UNSIGNED COMMENT "Preferred primary node id",`current_first_backup` INT UNSIGNED COMMENT "Current first backup node id",`current_second_backup` INT UNSIGNED COMMENT "Current second backup node id",`current_third_backup` INT UNSIGNED COMMENT "Current third backup node id",`num_alive_replicas` INT UNSIGNED COMMENT "Current number of alive replicas",`num_dead_replicas` INT UNSIGNED COMMENT "Current number of dead replicas",`num_lcp_replicas` INT UNSIGNED COMMENT "Number of replicas remaining to be LCP:ed") COMMENT="Partitions of the tables" ENGINE=NDBINFO CHARACTER SET latin1','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -1009,7 +1010,7 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$table_fragments_all` (`node_id` INT UNSIGNED COMMENT "node_id",`table_id` INT UNSIGNED COMMENT "Table id",`partition_id` INT UNSIGNED COMMENT "Partition id",`fragment_id` INT UNSIGNED COMMENT "Fragment id",`partition_order` INT UNSIGNED COMMENT "Order of fragment in partition",`log_part_id` INT UNSIGNED COMMENT "Log part id of fragment",`no_of_replicas` INT UNSIGNED COMMENT "Number of replicas",`current_primary` INT UNSIGNED COMMENT "Current primary node id",`preferred_primary` INT UNSIGNED COMMENT "Preferred primary node id",`current_first_backup` INT UNSIGNED COMMENT "Current first backup node id",`current_second_backup` INT UNSIGNED COMMENT "Current second backup node id",`current_third_backup` INT UNSIGNED COMMENT "Current third backup node id",`num_alive_replicas` INT UNSIGNED COMMENT "Current number of alive replicas",`num_dead_replicas` INT UNSIGNED COMMENT "Current number of dead replicas",`num_lcp_replicas` INT UNSIGNED COMMENT "Number of replicas remaining to be LCP:ed") COMMENT="Partitions of the tables" ENGINE=NDBINFO','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$table_fragments_all` (`node_id` INT UNSIGNED COMMENT "node_id",`table_id` INT UNSIGNED COMMENT "Table id",`partition_id` INT UNSIGNED COMMENT "Partition id",`fragment_id` INT UNSIGNED COMMENT "Fragment id",`partition_order` INT UNSIGNED COMMENT "Order of fragment in partition",`log_part_id` INT UNSIGNED COMMENT "Log part id of fragment",`no_of_replicas` INT UNSIGNED COMMENT "Number of replicas",`current_primary` INT UNSIGNED COMMENT "Current primary node id",`preferred_primary` INT UNSIGNED COMMENT "Preferred primary node id",`current_first_backup` INT UNSIGNED COMMENT "Current first backup node id",`current_second_backup` INT UNSIGNED COMMENT "Current second backup node id",`current_third_backup` INT UNSIGNED COMMENT "Current third backup node id",`num_alive_replicas` INT UNSIGNED COMMENT "Current number of alive replicas",`num_dead_replicas` INT UNSIGNED COMMENT "Current number of dead replicas",`num_lcp_replicas` INT UNSIGNED COMMENT "Number of replicas remaining to be LCP:ed") COMMENT="Partitions of the tables" ENGINE=NDBINFO CHARACTER SET latin1','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -1020,7 +1021,7 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$table_replicas` (`node_id` INT UNSIGNED COMMENT "node_id",`table_id` INT UNSIGNED COMMENT "Table id",`fragment_id` INT UNSIGNED COMMENT "Fragment id",`initial_gci` INT UNSIGNED COMMENT "Initial GCI for table",`replica_node_id` INT UNSIGNED COMMENT "Node id where replica is stored",`is_lcp_ongoing` INT UNSIGNED COMMENT "Is LCP ongoing on this fragment",`num_crashed_replicas` INT UNSIGNED COMMENT "Number of crashed replica instances",`last_max_gci_started` INT UNSIGNED COMMENT "Last LCP Max GCI started",`last_max_gci_completed` INT UNSIGNED COMMENT "Last LCP Max GCI completed",`last_lcp_id` INT UNSIGNED COMMENT "Last LCP id",`prev_lcp_id` INT UNSIGNED COMMENT "Previous LCP id",`prev_max_gci_started` INT UNSIGNED COMMENT "Previous LCP Max GCI started",`prev_max_gci_completed` INT UNSIGNED COMMENT "Previous LCP Max GCI completed",`last_create_gci` INT UNSIGNED COMMENT "Last Create GCI of last crashed replica instance",`last_replica_gci` INT UNSIGNED COMMENT "Last GCI of last crashed replica instance",`is_replica_alive` INT UNSIGNED COMMENT "Is replica alive or not") COMMENT="Fragment replicas of the tables" ENGINE=NDBINFO','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$table_replicas` (`node_id` INT UNSIGNED COMMENT "node_id",`table_id` INT UNSIGNED COMMENT "Table id",`fragment_id` INT UNSIGNED COMMENT "Fragment id",`initial_gci` INT UNSIGNED COMMENT "Initial GCI for table",`replica_node_id` INT UNSIGNED COMMENT "Node id where replica is stored",`is_lcp_ongoing` INT UNSIGNED COMMENT "Is LCP ongoing on this fragment",`num_crashed_replicas` INT UNSIGNED COMMENT "Number of crashed replica instances",`last_max_gci_started` INT UNSIGNED COMMENT "Last LCP Max GCI started",`last_max_gci_completed` INT UNSIGNED COMMENT "Last LCP Max GCI completed",`last_lcp_id` INT UNSIGNED COMMENT "Last LCP id",`prev_lcp_id` INT UNSIGNED COMMENT "Previous LCP id",`prev_max_gci_started` INT UNSIGNED COMMENT "Previous LCP Max GCI started",`prev_max_gci_completed` INT UNSIGNED COMMENT "Previous LCP Max GCI completed",`last_create_gci` INT UNSIGNED COMMENT "Last Create GCI of last crashed replica instance",`last_replica_gci` INT UNSIGNED COMMENT "Last GCI of last crashed replica instance",`is_replica_alive` INT UNSIGNED COMMENT "Is replica alive or not") COMMENT="Fragment replicas of the tables" ENGINE=NDBINFO CHARACTER SET latin1','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -1031,7 +1032,7 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$table_replicas_all` (`node_id` INT UNSIGNED COMMENT "node_id",`table_id` INT UNSIGNED COMMENT "Table id",`fragment_id` INT UNSIGNED COMMENT "Fragment id",`initial_gci` INT UNSIGNED COMMENT "Initial GCI for table",`replica_node_id` INT UNSIGNED COMMENT "Node id where replica is stored",`is_lcp_ongoing` INT UNSIGNED COMMENT "Is LCP ongoing on this fragment",`num_crashed_replicas` INT UNSIGNED COMMENT "Number of crashed replica instances",`last_max_gci_started` INT UNSIGNED COMMENT "Last LCP Max GCI started",`last_max_gci_completed` INT UNSIGNED COMMENT "Last LCP Max GCI completed",`last_lcp_id` INT UNSIGNED COMMENT "Last LCP id",`prev_lcp_id` INT UNSIGNED COMMENT "Previous LCP id",`prev_max_gci_started` INT UNSIGNED COMMENT "Previous LCP Max GCI started",`prev_max_gci_completed` INT UNSIGNED COMMENT "Previous LCP Max GCI completed",`last_create_gci` INT UNSIGNED COMMENT "Last Create GCI of last crashed replica instance",`last_replica_gci` INT UNSIGNED COMMENT "Last GCI of last crashed replica instance",`is_replica_alive` INT UNSIGNED COMMENT "Is replica alive or not") COMMENT="Fragment replicas of the tables" ENGINE=NDBINFO','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$table_replicas_all` (`node_id` INT UNSIGNED COMMENT "node_id",`table_id` INT UNSIGNED COMMENT "Table id",`fragment_id` INT UNSIGNED COMMENT "Fragment id",`initial_gci` INT UNSIGNED COMMENT "Initial GCI for table",`replica_node_id` INT UNSIGNED COMMENT "Node id where replica is stored",`is_lcp_ongoing` INT UNSIGNED COMMENT "Is LCP ongoing on this fragment",`num_crashed_replicas` INT UNSIGNED COMMENT "Number of crashed replica instances",`last_max_gci_started` INT UNSIGNED COMMENT "Last LCP Max GCI started",`last_max_gci_completed` INT UNSIGNED COMMENT "Last LCP Max GCI completed",`last_lcp_id` INT UNSIGNED COMMENT "Last LCP id",`prev_lcp_id` INT UNSIGNED COMMENT "Previous LCP id",`prev_max_gci_started` INT UNSIGNED COMMENT "Previous LCP Max GCI started",`prev_max_gci_completed` INT UNSIGNED COMMENT "Previous LCP Max GCI completed",`last_create_gci` INT UNSIGNED COMMENT "Last Create GCI of last crashed replica instance",`last_replica_gci` INT UNSIGNED COMMENT "Last GCI of last crashed replica instance",`is_replica_alive` INT UNSIGNED COMMENT "Is replica alive or not") COMMENT="Fragment replicas of the tables" ENGINE=NDBINFO CHARACTER SET latin1','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -1042,7 +1043,7 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$tables` (`table_id` INT UNSIGNED,`table_name` VARCHAR(512),`comment` VARCHAR(512)) COMMENT="metadata for tables available through ndbinfo" ENGINE=NDBINFO','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$tables` (`table_id` INT UNSIGNED,`table_name` VARCHAR(512),`comment` VARCHAR(512)) COMMENT="metadata for tables available through ndbinfo" ENGINE=NDBINFO CHARACTER SET latin1','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -1053,7 +1054,7 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$tc_time_track_stats` (`node_id` INT UNSIGNED COMMENT "node id",`block_number` INT UNSIGNED COMMENT "Block number",`block_instance` INT UNSIGNED COMMENT "Block instance",`comm_node_id` INT UNSIGNED COMMENT "node_id of API or DB",`upper_bound` BIGINT UNSIGNED COMMENT "Upper bound in micros of interval",`scans` BIGINT UNSIGNED COMMENT "scan histogram interval",`scan_errors` BIGINT UNSIGNED COMMENT "scan error histogram interval",`scan_fragments` BIGINT UNSIGNED COMMENT "scan fragment histogram interval",`scan_fragment_errors` BIGINT UNSIGNED COMMENT "scan fragment error histogram interval",`transactions` BIGINT UNSIGNED COMMENT "transaction histogram interval",`transaction_errors` BIGINT UNSIGNED COMMENT "transaction error histogram interval",`read_key_ops` BIGINT UNSIGNED COMMENT "read key operation histogram interval",`write_key_ops` BIGINT UNSIGNED COMMENT "write key operation histogram interval",`index_key_ops` BIGINT UNSIGNED COMMENT "index key operation histogram interval",`key_op_errors` BIGINT UNSIGNED COMMENT "key operation error histogram interval") COMMENT="Time tracking of transaction, key operations and scan ops" ENGINE=NDBINFO','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$tc_time_track_stats` (`node_id` INT UNSIGNED COMMENT "node id",`block_number` INT UNSIGNED COMMENT "Block number",`block_instance` INT UNSIGNED COMMENT "Block instance",`comm_node_id` INT UNSIGNED COMMENT "node_id of API or DB",`upper_bound` BIGINT UNSIGNED COMMENT "Upper bound in micros of interval",`scans` BIGINT UNSIGNED COMMENT "scan histogram interval",`scan_errors` BIGINT UNSIGNED COMMENT "scan error histogram interval",`scan_fragments` BIGINT UNSIGNED COMMENT "scan fragment histogram interval",`scan_fragment_errors` BIGINT UNSIGNED COMMENT "scan fragment error histogram interval",`transactions` BIGINT UNSIGNED COMMENT "transaction histogram interval",`transaction_errors` BIGINT UNSIGNED COMMENT "transaction error histogram interval",`read_key_ops` BIGINT UNSIGNED COMMENT "read key operation histogram interval",`write_key_ops` BIGINT UNSIGNED COMMENT "write key operation histogram interval",`index_key_ops` BIGINT UNSIGNED COMMENT "index key operation histogram interval",`key_op_errors` BIGINT UNSIGNED COMMENT "key operation error histogram interval") COMMENT="Time tracking of transaction, key operations and scan ops" ENGINE=NDBINFO CHARACTER SET latin1','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -1064,7 +1065,7 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$test` (`node_id` INT UNSIGNED,`block_number` INT UNSIGNED,`block_instance` INT UNSIGNED,`counter` INT UNSIGNED,`counter2` BIGINT UNSIGNED) COMMENT="for testing" ENGINE=NDBINFO','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$test` (`node_id` INT UNSIGNED,`block_number` INT UNSIGNED,`block_instance` INT UNSIGNED,`counter` INT UNSIGNED,`counter2` BIGINT UNSIGNED) COMMENT="for testing" ENGINE=NDBINFO CHARACTER SET latin1','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -1075,7 +1076,7 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$threadblocks` (`node_id` INT UNSIGNED COMMENT "node id",`thr_no` INT UNSIGNED COMMENT "thread number",`block_number` INT UNSIGNED COMMENT "block number",`block_instance` INT UNSIGNED COMMENT "block instance") COMMENT="which blocks are run in which threads" ENGINE=NDBINFO','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$threadblocks` (`node_id` INT UNSIGNED COMMENT "node id",`thr_no` INT UNSIGNED COMMENT "thread number",`block_number` INT UNSIGNED COMMENT "block number",`block_instance` INT UNSIGNED COMMENT "block instance") COMMENT="which blocks are run in which threads" ENGINE=NDBINFO CHARACTER SET latin1','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -1086,7 +1087,7 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$threads` (`node_id` INT UNSIGNED COMMENT "node_id",`thr_no` INT UNSIGNED COMMENT "thread number",`thread_name` VARCHAR(512) COMMENT "thread_name",`thread_description` VARCHAR(512) COMMENT "thread_description") COMMENT="Base table for threads" ENGINE=NDBINFO','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$threads` (`node_id` INT UNSIGNED COMMENT "node_id",`thr_no` INT UNSIGNED COMMENT "thread number",`thread_name` VARCHAR(512) COMMENT "thread_name",`thread_description` VARCHAR(512) COMMENT "thread_description") COMMENT="Base table for threads" ENGINE=NDBINFO CHARACTER SET latin1','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -1097,7 +1098,7 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$threadstat` (`node_id` INT UNSIGNED COMMENT "node id",`thr_no` INT UNSIGNED COMMENT "thread number",`thr_nm` VARCHAR(512) COMMENT "thread name",`c_loop` BIGINT UNSIGNED COMMENT "No of loops in main loop",`c_exec` BIGINT UNSIGNED COMMENT "No of signals executed",`c_wait` BIGINT UNSIGNED COMMENT "No of times waited for more input",`c_l_sent_prioa` BIGINT UNSIGNED COMMENT "No of prio A signals sent to own node",`c_l_sent_priob` BIGINT UNSIGNED COMMENT "No of prio B signals sent to own node",`c_r_sent_prioa` BIGINT UNSIGNED COMMENT "No of prio A signals sent to remote node",`c_r_sent_priob` BIGINT UNSIGNED COMMENT "No of prio B signals sent to remote node",`os_tid` BIGINT UNSIGNED COMMENT "OS thread id",`os_now` BIGINT UNSIGNED COMMENT "OS gettimeofday (millis)",`os_ru_utime` BIGINT UNSIGNED COMMENT "OS user CPU time (micros)",`os_ru_stime` BIGINT UNSIGNED COMMENT "OS system CPU time (micros)",`os_ru_minflt` BIGINT UNSIGNED COMMENT "OS page reclaims (soft page faults",`os_ru_majflt` BIGINT UNSIGNED COMMENT "OS page faults (hard page faults)",`os_ru_nvcsw` BIGINT UNSIGNED COMMENT "OS voluntary context switches",`os_ru_nivcsw` BIGINT UNSIGNED COMMENT "OS involuntary context switches") COMMENT="Statistics on execution threads" ENGINE=NDBINFO','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$threadstat` (`node_id` INT UNSIGNED COMMENT "node id",`thr_no` INT UNSIGNED COMMENT "thread number",`thr_nm` VARCHAR(512) COMMENT "thread name",`c_loop` BIGINT UNSIGNED COMMENT "No of loops in main loop",`c_exec` BIGINT UNSIGNED COMMENT "No of signals executed",`c_wait` BIGINT UNSIGNED COMMENT "No of times waited for more input",`c_l_sent_prioa` BIGINT UNSIGNED COMMENT "No of prio A signals sent to own node",`c_l_sent_priob` BIGINT UNSIGNED COMMENT "No of prio B signals sent to own node",`c_r_sent_prioa` BIGINT UNSIGNED COMMENT "No of prio A signals sent to remote node",`c_r_sent_priob` BIGINT UNSIGNED COMMENT "No of prio B signals sent to remote node",`os_tid` BIGINT UNSIGNED COMMENT "OS thread id",`os_now` BIGINT UNSIGNED COMMENT "OS gettimeofday (millis)",`os_ru_utime` BIGINT UNSIGNED COMMENT "OS user CPU time (micros)",`os_ru_stime` BIGINT UNSIGNED COMMENT "OS system CPU time (micros)",`os_ru_minflt` BIGINT UNSIGNED COMMENT "OS page reclaims (soft page faults",`os_ru_majflt` BIGINT UNSIGNED COMMENT "OS page faults (hard page faults)",`os_ru_nvcsw` BIGINT UNSIGNED COMMENT "OS voluntary context switches",`os_ru_nivcsw` BIGINT UNSIGNED COMMENT "OS involuntary context switches") COMMENT="Statistics on execution threads" ENGINE=NDBINFO CHARACTER SET latin1','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -1108,7 +1109,7 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$transactions` (`node_id` INT UNSIGNED COMMENT "node id",`block_instance` INT UNSIGNED COMMENT "TC instance no",`objid` INT UNSIGNED COMMENT "Object id of transaction object",`apiref` INT UNSIGNED COMMENT "API reference",`transid0` INT UNSIGNED COMMENT "Transaction id",`transid1` INT UNSIGNED COMMENT "Transaction id",`state` INT UNSIGNED COMMENT "Transaction state",`flags` INT UNSIGNED COMMENT "Transaction flags",`c_ops` INT UNSIGNED COMMENT "No of operations in transaction",`outstanding` INT UNSIGNED COMMENT "Currently outstanding request",`timer` INT UNSIGNED COMMENT "Timer (seconds)") COMMENT="transactions" ENGINE=NDBINFO','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$transactions` (`node_id` INT UNSIGNED COMMENT "node id",`block_instance` INT UNSIGNED COMMENT "TC instance no",`objid` INT UNSIGNED COMMENT "Object id of transaction object",`apiref` INT UNSIGNED COMMENT "API reference",`transid0` INT UNSIGNED COMMENT "Transaction id",`transid1` INT UNSIGNED COMMENT "Transaction id",`state` INT UNSIGNED COMMENT "Transaction state",`flags` INT UNSIGNED COMMENT "Transaction flags",`c_ops` INT UNSIGNED COMMENT "No of operations in transaction",`outstanding` INT UNSIGNED COMMENT "Currently outstanding request",`timer` INT UNSIGNED COMMENT "Timer (seconds)") COMMENT="transactions" ENGINE=NDBINFO CHARACTER SET latin1','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -1119,7 +1120,7 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$transporters` (`node_id` INT UNSIGNED COMMENT "Node id reporting",`remote_node_id` INT UNSIGNED COMMENT "Node id at other end of link",`connection_status` INT UNSIGNED COMMENT "State of inter-node link",`remote_address` VARCHAR(512) COMMENT "Address of remote node",`bytes_sent` BIGINT UNSIGNED COMMENT "Bytes sent to remote node",`bytes_received` BIGINT UNSIGNED COMMENT "Bytes received from remote node",`connect_count` INT UNSIGNED COMMENT "Number of times connected",`overloaded` INT UNSIGNED COMMENT "Is link reporting overload",`overload_count` INT UNSIGNED COMMENT "Number of overload onsets since connect",`slowdown` INT UNSIGNED COMMENT "Is link requesting slowdown",`slowdown_count` INT UNSIGNED COMMENT "Number of slowdown onsets since connect") COMMENT="transporter status" ENGINE=NDBINFO','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$transporters` (`node_id` INT UNSIGNED COMMENT "Node id reporting",`remote_node_id` INT UNSIGNED COMMENT "Node id at other end of link",`connection_status` INT UNSIGNED COMMENT "State of inter-node link",`remote_address` VARCHAR(512) COMMENT "Address of remote node",`bytes_sent` BIGINT UNSIGNED COMMENT "Bytes sent to remote node",`bytes_received` BIGINT UNSIGNED COMMENT "Bytes received from remote node",`connect_count` INT UNSIGNED COMMENT "Number of times connected",`overloaded` INT UNSIGNED COMMENT "Is link reporting overload",`overload_count` INT UNSIGNED COMMENT "Number of overload onsets since connect",`slowdown` INT UNSIGNED COMMENT "Is link requesting slowdown",`slowdown_count` INT UNSIGNED COMMENT "Number of slowdown onsets since connect") COMMENT="transporter status" ENGINE=NDBINFO CHARACTER SET latin1','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -1131,7 +1132,7 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$blocks` (block_number INT UNSIGNED, block_name VARCHAR(512)) ENGINE=NDBINFO','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$blocks` (block_number INT UNSIGNED, block_name VARCHAR(512)) ENGINE=NDBINFO CHARACTER SET latin1','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -1142,7 +1143,7 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$config_params` (param_number INT UNSIGNED, param_name VARCHAR(512), param_description VARCHAR(512), param_type VARCHAR(512), param_default VARCHAR(512), param_min VARCHAR(512), param_max VARCHAR(512), param_mandatory INT UNSIGNED, param_status VARCHAR(512)) ENGINE=NDBINFO','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$config_params` (param_number INT UNSIGNED, param_name VARCHAR(512), param_description VARCHAR(512), param_type VARCHAR(512), param_default VARCHAR(512), param_min VARCHAR(512), param_max VARCHAR(512), param_mandatory INT UNSIGNED, param_status VARCHAR(512)) ENGINE=NDBINFO CHARACTER SET latin1','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -1153,7 +1154,7 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$dblqh_tcconnect_state` (state_int_value INT UNSIGNED, state_name VARCHAR(256), state_friendly_name VARCHAR(256), state_description VARCHAR(256)) ENGINE=NDBINFO','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$dblqh_tcconnect_state` (state_int_value INT UNSIGNED, state_name VARCHAR(256), state_friendly_name VARCHAR(256), state_description VARCHAR(256)) ENGINE=NDBINFO CHARACTER SET latin1','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -1164,7 +1165,7 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$dbtc_apiconnect_state` (state_int_value INT UNSIGNED, state_name VARCHAR(256), state_friendly_name VARCHAR(256), state_description VARCHAR(256)) ENGINE=NDBINFO','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$dbtc_apiconnect_state` (state_int_value INT UNSIGNED, state_name VARCHAR(256), state_friendly_name VARCHAR(256), state_description VARCHAR(256)) ENGINE=NDBINFO CHARACTER SET latin1','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -1175,7 +1176,7 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$dict_obj_types` (type_id INT UNSIGNED, type_name VARCHAR(512)) ENGINE=NDBINFO','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$dict_obj_types` (type_id INT UNSIGNED, type_name VARCHAR(512)) ENGINE=NDBINFO CHARACTER SET latin1','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;

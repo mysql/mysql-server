@@ -1,15 +1,7 @@
 create table rows(a int primary key) engine=ndb;
-set @N=0;
-insert into rows(a) 
-select @N:=@N+1 
-from mysql.user a, 
-mysql.user b, 
-mysql.user c, 
-mysql.user d, 
-mysql.user e, 
-mysql.user f, 
-mysql.user g 
-limit 1000;
+select count(a) from rows;
+count(a)
+1000
 create table p1 (name varchar(255),
 id int(11) auto_increment,
 parent_id int,
@@ -36,9 +28,9 @@ parent_rc3 int,
 primary key(c2),
 unique key abc(c2),
 unique key abd(parent_temp),
-constraint fk1 foreign key (id) references p1 (id),
-constraint fk2 foreign key (parent_rc1, parent_rc2) references p1(parent_c1, parent_c2),
-constraint fk3 foreign key (parent_rc3) references c1(id)
+constraint c2_fk1 foreign key (id) references p1 (id),
+constraint c2_fk2 foreign key (parent_rc1, parent_rc2) references p1(parent_c1, parent_c2),
+constraint c2_fk3 foreign key (parent_rc3) references c1(id)
 ) engine=ndb;
 insert into p1(parent_id) select a from rows;
 select count(1) from test.p1;

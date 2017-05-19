@@ -867,7 +867,8 @@ int main(int argc, char** argv){
 
     }
 
-    sql.appfmt(") COMMENT=\"%s\" ENGINE=NDBINFO", table.m.comment);
+    sql.appfmt(") COMMENT=\"%s\" ENGINE=NDBINFO CHARACTER SET latin1",
+               table.m.comment);
 
     print_conditional_sql(sql);
 
@@ -896,7 +897,8 @@ int main(int argc, char** argv){
     print_conditional_sql(sql);
 
     /* Create lookup table */
-    sql.assfmt("CREATE TABLE `%s`.`%s` (%s) ENGINE=NDBINFO",
+    sql.assfmt("CREATE TABLE `%s`.`%s` (%s) "
+               "ENGINE=NDBINFO CHARACTER SET latin1",
                opt_ndbinfo_db, table_name.c_str(), l.columns);
     print_conditional_sql(sql);
   }

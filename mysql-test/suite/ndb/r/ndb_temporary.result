@@ -11,7 +11,7 @@ DROP TABLE bar;
 SET SESSION default_storage_engine=NDBCLUSTER;
 create table t1 (a int key);
 select engine from information_schema.tables where table_name = 't1';
-engine
+ENGINE
 ndbcluster
 drop table t1;
 create temporary table t1 (a int key);
@@ -20,5 +20,5 @@ Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
   `a` int(11) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;

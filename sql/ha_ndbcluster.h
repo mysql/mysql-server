@@ -116,7 +116,6 @@ struct st_ndb_status {
   long cluster_node_id;
   const char * connected_host;
   long connected_port;
-  long number_of_replicas;
   long number_of_data_nodes;
   long number_of_ready_data_nodes;
   long connect_count;
@@ -221,13 +220,13 @@ public:
   bool start_read_removal(void);
   ha_rows end_read_removal(void);
   int extra(enum ha_extra_function operation);
-  int extra_opt(enum ha_extra_function operation, ulong cache_size);
   int reset();
   int external_lock(THD *thd, int lock_type);
   void unlock_row();
   int start_stmt(THD *thd, thr_lock_type lock_type);
   void update_create_info(HA_CREATE_INFO *create_info);
-  void update_comment_info(HA_CREATE_INFO *create_info, const NdbDictionary::Table *tab);
+  void update_comment_info(THD* thd, HA_CREATE_INFO *create_info,
+                           const NdbDictionary::Table *tab);
   void print_error(int error, myf errflag);
   const char * table_type() const;
   ulonglong table_flags(void) const;
@@ -396,15 +395,15 @@ void notify_table_changed(Alter_inplace_info *ha_alter_info);
 
 private:
   void prepare_inplace__drop_index(uint key_num);
-  int final_drop_index(TABLE *table_arg);
+  int inplace__final_drop_index(TABLE *table_arg);
 
   enum_alter_inplace_result
     check_inplace_alter_supported(TABLE *altered_table,
                                   Alter_inplace_info *ha_alter_info);
   void
-    check_implicit_column_format_change(TABLE *altered_table,
-                                        Alter_inplace_info *ha_alter_info);
-  
+  check_implicit_column_format_change(TABLE *altered_table,
+                                      Alter_inplace_info *ha_alter_info) const;
+
   bool abort_inplace_alter_table(TABLE *altered_table,
                                  Alter_inplace_info *ha_alter_info);
   int prepare_conflict_detection(enum_conflicting_op_type op_type,
@@ -425,10 +424,6 @@ private:
   friend int ndbcluster_drop_database_impl(THD *thd, const char *path);
 
   void check_read_before_write_removal();
-  static int drop_table_impl(THD *thd, ha_ndbcluster *h, Ndb *ndb,
-                             const char *path,
-                             const char *db,
-                             const char *table_name);
 
   int prepare_inplace__add_index(THD *thd, TABLE *table_arg,
                                  KEY *key_info, uint num_of_keys) const;
@@ -442,8 +437,8 @@ private:
   int create_indexes(THD *thd, Ndb *ndb, TABLE *tab) const;
   int open_indexes(Ndb *ndb, TABLE *tab);
   void release_indexes(NdbDictionary::Dictionary* dict, int invalidate);
-  void renumber_indexes(uint dropped_index_num);
-  int drop_indexes(Ndb *ndb, TABLE *tab);
+  void inplace__renumber_indexes(uint dropped_index_num);
+  int inplace__drop_indexes(Ndb *ndb, TABLE *tab);
   int add_index_handle(NdbDictionary::Dictionary *dict,
                        KEY *key_info, const char *key_name, uint index_no);
   int add_table_ndb_record(NdbDictionary::Dictionary *dict);
@@ -454,19 +449,17 @@ private:
   void release_fk_data();
   int create_fks(THD *thd, Ndb *ndb);
   int copy_fk_for_offline_alter(THD * thd, Ndb*, NdbDictionary::Table* _dsttab);
-  int drop_fk_for_online_alter(THD*, Ndb*, NdbDictionary::Dictionary*,
-                               const NdbDictionary::Table*);
+  int inplace__drop_fks(THD*, Ndb*, NdbDictionary::Dictionary*,
+                       const NdbDictionary::Table*);
   static int get_fk_data_for_truncate(NdbDictionary::Dictionary*,
                                       const NdbDictionary::Table*,
                                       Ndb_fk_list&);
   static int recreate_fk_for_truncate(THD*, Ndb*, const char*,
                                       Ndb_fk_list&);
   void append_dependents_to_changed_tables(List<NDB_SHARE>&, MEM_ROOT*);
-  static bool drop_table_and_related(THD*, Ndb*, NdbDictionary::Dictionary*,
-                                     const NdbDictionary::Table*,
-                                     int drop_flags, bool skip_related);
   int check_default_values(const NdbDictionary::Table* ndbtab);
-  int get_metadata(THD *thd, const dd::Table* table_def);
+  int get_metadata(THD *thd, const char* tablespace_name,
+                   const dd::Table* table_def);
   void release_metadata(THD *thd, Ndb *ndb);
   NDB_INDEX_TYPE get_index_type(uint idx_no) const;
   NDB_INDEX_TYPE get_index_type_from_table(uint index_no) const;
@@ -580,8 +573,6 @@ private:
                                   ulonglong *first_value,
                                   ulonglong *nb_reserved_values);
   bool uses_blob_value(const MY_BITMAP *bitmap) const;
-
-  int write_ndb_file(const char *name) const;
 
   int check_ndb_connection(THD* thd) const;
 

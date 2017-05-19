@@ -2123,12 +2123,18 @@ true	BOOLEAN
 "2010-12-02 02:01:00.000000"	TIMESTAMP
 "2010-12-02 02:01:00.000000"	DATETIME
 "9999-12-31 23:59:59.999999"	DATETIME
-"base64:type253:MTIzNGFiY2Q="	BLOB
+"base64:type15:MTIzNGFiY2Q="	BLOB
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
+SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j, id limit 2 offset 2;
+j	tp
+null	NULL
+-1e308	DOUBLE
 Warnings:
 Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
 SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j DESC, id;
 j	tp
-"base64:type253:MTIzNGFiY2Q="	BLOB
+"base64:type15:MTIzNGFiY2Q="	BLOB
 "9999-12-31 23:59:59.999999"	DATETIME
 "2010-12-02 02:01:00.000000"	TIMESTAMP
 "2010-12-02 02:01:00.000000"	DATETIME
@@ -2494,6 +2500,12 @@ false	BOOLEAN
 null	NULL
 NULL	NULL
 NULL	NULL
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
+SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j DESC, id limit 2 offset 2;
+j	tp
+"2010-12-02 02:01:00.000000"	TIMESTAMP
+"2010-12-02 02:01:00.000000"	DATETIME
 Warnings:
 Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
 SELECT JSON_EXTRACT(j, '$') AS je, JSON_TYPE(j) AS tp FROM t ORDER BY je, id;
@@ -2863,10 +2875,10 @@ true	BOOLEAN
 "2010-12-02 02:01:00.000000"	TIMESTAMP
 "2010-12-02 02:01:00.000000"	DATETIME
 "9999-12-31 23:59:59.999999"	DATETIME
-"base64:type253:MTIzNGFiY2Q="	BLOB
+"base64:type15:MTIzNGFiY2Q="	BLOB
 Warnings:
 Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
-SET @@max_sort_length=4;
+SET @@max_sort_length=8;
 SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j, id;
 j	tp
 NULL	NULL
@@ -3159,12 +3171,12 @@ null	NULL
 1e306	DOUBLE
 1e307	DOUBLE
 1e308	DOUBLE
-"abc"	STRING
 ""	STRING
 "abcd"	STRING
-"bc"	STRING
 "abc\u0000\u0000"	STRING
 "abc\u0000"	STRING
+"abc"	STRING
+"bc"	STRING
 {"an": "object"}	OBJECT
 {"another": "object"}	OBJECT
 {"type": "Point", "coordinates": [0, 0]}	OBJECT
@@ -3234,7 +3246,13 @@ true	BOOLEAN
 "2010-12-02 01:02:03.000000"	DATETIME
 "2010-12-02 02:01:00.000000"	DATETIME
 "9999-12-31 23:59:59.999999"	DATETIME
-"base64:type253:MTIzNGFiY2Q="	BLOB
+"base64:type15:MTIzNGFiY2Q="	BLOB
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
+SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j, id limit 2 offset 2;
+j	tp
+null	NULL
+-1e308	DOUBLE
 Warnings:
 Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
 SET @@max_sort_length=default;
@@ -3417,7 +3435,7 @@ true	1
 "2010-1202 01:02:03000"	2
 "2010-1202 02:01:00000"	2
 "9999-12-31 23:59:59.999999"	1
-"base64:type253:MTIzNGFiY2Q="	1
+"base64:type15:MTIzNGFiY2Q="	1
 Warnings:
 Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
 SELECT JSON_EXTRACT(j, '$') AS je, COUNT(*) FROM t GROUP BY je ORDER BY je;
@@ -3586,7 +3604,7 @@ true	1
 "2010-1202 01:02:03000"	2
 "2010-1202 02:01:00000"	2
 "9999-12-31 23:59:59.999999"	1
-"base64:type253:MTIzNGFiY2Q="	1
+"base64:type15:MTIzNGFiY2Q="	1
 Warnings:
 Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
 SELECT j, COUNT(*) FROM t GROUP BY j WITH ROLLUP;
@@ -3755,7 +3773,7 @@ true	1
 "2010-1202 01:02:03000"	2
 "2010-1202 02:01:00000"	2
 "9999-12-31 23:59:59.999999"	1
-"base64:type253:MTIzNGFiY2Q="	1
+"base64:type15:MTIzNGFiY2Q="	1
 NULL	366
 Warnings:
 Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
@@ -3925,7 +3943,7 @@ true	1
 "2010-1202 01:02:03000"	2
 "2010-1202 02:01:00000"	2
 "9999-12-31 23:59:59.999999"	1
-"base64:type253:MTIzNGFiY2Q="	1
+"base64:type15:MTIzNGFiY2Q="	1
 NULL	366
 Warnings:
 Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
@@ -5567,10 +5585,10 @@ json_type(ifnull(cast(3 as json), NULL))
 INTEGER
 SELECT JSON_TYPE(IFNULL(JSON_EXTRACT(CONCAT(t1.j, 'abc'), '$'), t2.j))
 FROM t t1, t t2;
-ERROR 22032: Invalid JSON text in argument 1 to function json_extract: "The document root must not follow by other values." at position 9.
+ERROR 22032: Invalid JSON text in argument 1 to function json_extract: "The document root must not be followed by other values." at position 9.
 SELECT JSON_TYPE(IFNULL(t1.j, JSON_EXTRACT(CONCAT(t2.j, 'abc'), '$')))
 FROM t t1, t t2;
-ERROR 22032: Invalid JSON text in argument 1 to function json_extract: "The document root must not follow by other values." at position 9.
+ERROR 22032: Invalid JSON text in argument 1 to function json_extract: "The document root must not be followed by other values." at position 9.
 # ----------------------------------------------------------------------
 # Json values used in text contexts
 # ----------------------------------------------------------------------
@@ -5797,7 +5815,7 @@ blob_col
 from blob_table
 ) dt;
 json_type( dt.a )	a
-ARRAY	["OBJECT", "ARRAY", "STRING", "BOOLEAN", "INTEGER", "DECIMAL", "DATETIME", "TIME", "DATE", "BIT", "BLOB"]
+ARRAY	["OBJECT", "ARRAY", "STRING", "BOOLEAN", "INTEGER", "DECIMAL", "DATETIME", "TIME", "DATE", "BLOB", "BLOB"]
 drop table blob_table;
 drop function get_types;
 create procedure merge_docs
@@ -5888,7 +5906,7 @@ end//
 call merge_doc_types( @in_types, @inout_types, @out_types );
 select @in_types, @inout_types, @out_types;
 @in_types	@inout_types	@out_types
-["OBJECT", "ARRAY", "STRING", "BOOLEAN"]	["OBJECT", "ARRAY", "STRING", "BOOLEAN"]	["OBJECT", "ARRAY", "STRING", "BOOLEAN", "INTEGER", "DECIMAL", "DATETIME", "TIME", "DATE", "BIT"]
+["OBJECT", "ARRAY", "STRING", "BOOLEAN"]	["OBJECT", "ARRAY", "STRING", "BOOLEAN"]	["OBJECT", "ARRAY", "STRING", "BOOLEAN", "INTEGER", "DECIMAL", "DATETIME", "TIME", "DATE", "BLOB"]
 drop procedure merge_doc_types;
 drop procedure merge_docs;
 drop function get_types;
@@ -6541,20 +6559,22 @@ JSON_ARRAY(j, j),
 JSON_OBJECT('k', j),
 JSON_UNQUOTE(CAST(j AS CHAR)),
 JSON_QUOTE(CAST(j AS CHAR)),
-JSON_PRETTY(j)
+JSON_PRETTY(j),
+JSON_STORAGE_FREE(j),
+JSON_STORAGE_SIZE(j)
 FROM T_WITH_NULLS
 ORDER BY i;
-JSON_VALID(j)	JSON_TYPE(j)	JSON_KEYS(j)	JSON_EXTRACT(j, '$')	JSON_REMOVE(j, '$.a.b.c')	JSON_ARRAY_APPEND(j, '$', 2)	JSON_SET(j, '$[0]', 2)	JSON_INSERT(j, '$[0]', 2)	JSON_REPLACE(j, '$[0]', 2)	JSON_MERGE(j, j)	JSON_SEARCH(j, 'one', 'abc')	JSON_CONTAINS(j, '[1]')	JSON_CONTAINS_PATH(j, 'all', '$.a')	JSON_LENGTH(j)	JSON_DEPTH(j)	JSON_ARRAY(j, j)	JSON_OBJECT('k', j)	JSON_UNQUOTE(CAST(j AS CHAR))	JSON_QUOTE(CAST(j AS CHAR))	JSON_PRETTY(j)
-NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	[null, null]	{"k": null}	NULL	NULL	NULL
+JSON_VALID(j)	JSON_TYPE(j)	JSON_KEYS(j)	JSON_EXTRACT(j, '$')	JSON_REMOVE(j, '$.a.b.c')	JSON_ARRAY_APPEND(j, '$', 2)	JSON_SET(j, '$[0]', 2)	JSON_INSERT(j, '$[0]', 2)	JSON_REPLACE(j, '$[0]', 2)	JSON_MERGE(j, j)	JSON_SEARCH(j, 'one', 'abc')	JSON_CONTAINS(j, '[1]')	JSON_CONTAINS_PATH(j, 'all', '$.a')	JSON_LENGTH(j)	JSON_DEPTH(j)	JSON_ARRAY(j, j)	JSON_OBJECT('k', j)	JSON_UNQUOTE(CAST(j AS CHAR))	JSON_QUOTE(CAST(j AS CHAR))	JSON_PRETTY(j)	JSON_STORAGE_FREE(j)	JSON_STORAGE_SIZE(j)
+NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	[null, null]	{"k": null}	NULL	NULL	NULL	NULL	NULL
 1	ARRAY	NULL	[1]	[1]	[1, 2]	[2]	[1]	[2]	[1, 1]	NULL	1	0	1	2	[[1], [1]]	{"k": [1]}	[1]	"[1]"	[
   1
-]
-NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	[null, null]	{"k": null}	NULL	NULL	NULL
+]	0	8
+NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	[null, null]	{"k": null}	NULL	NULL	NULL	NULL	NULL
 1	OBJECT	["a"]	{"a": "b"}	{"a": "b"}	[{"a": "b"}, 2]	2	{"a": "b"}	2	{"a": ["b", "b"]}	NULL	0	1	1	2	[{"a": "b"}, {"a": "b"}]	{"k": {"a": "b"}}	{"a": "b"}	"{\"a\": \"b\"}"	{
   "a": "b"
-}
-NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	[null, null]	{"k": null}	NULL	NULL	NULL
-1	STRING	NULL	"abc"	"abc"	["abc", 2]	2	"abc"	2	["abc", "abc"]	"$"	0	0	1	1	["abc", "abc"]	{"k": "abc"}	abc	"\"abc\""	"abc"
+}	0	15
+NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	[null, null]	{"k": null}	NULL	NULL	NULL	NULL	NULL
+1	STRING	NULL	"abc"	"abc"	["abc", 2]	2	"abc"	2	["abc", "abc"]	"$"	0	0	1	1	["abc", "abc"]	{"k": "abc"}	abc	"\"abc\""	"abc"	0	5
 ALTER TABLE T_WITH_NULLS MODIFY COLUMN j TEXT;
 Warnings:
 Warning	1478	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
@@ -6578,20 +6598,22 @@ JSON_ARRAY(j, j),
 JSON_OBJECT('k', j),
 JSON_UNQUOTE(CAST(j AS CHAR)),
 JSON_QUOTE(CAST(j AS CHAR)),
-JSON_PRETTY(j)
+JSON_PRETTY(j),
+JSON_STORAGE_FREE(j),
+JSON_STORAGE_SIZE(j)
 FROM T_WITH_NULLS
 ORDER BY i;
-JSON_VALID(j)	JSON_TYPE(j)	JSON_KEYS(j)	JSON_EXTRACT(j, '$')	JSON_REMOVE(j, '$.a.b.c')	JSON_ARRAY_APPEND(j, '$', 2)	JSON_SET(j, '$[0]', 2)	JSON_INSERT(j, '$[0]', 2)	JSON_REPLACE(j, '$[0]', 2)	JSON_MERGE(j, j)	JSON_SEARCH(j, 'one', 'abc')	JSON_CONTAINS(j, '[1]')	JSON_CONTAINS_PATH(j, 'all', '$.a')	JSON_LENGTH(j)	JSON_DEPTH(j)	JSON_ARRAY(j, j)	JSON_OBJECT('k', j)	JSON_UNQUOTE(CAST(j AS CHAR))	JSON_QUOTE(CAST(j AS CHAR))	JSON_PRETTY(j)
-NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	[null, null]	{"k": null}	NULL	NULL	NULL
+JSON_VALID(j)	JSON_TYPE(j)	JSON_KEYS(j)	JSON_EXTRACT(j, '$')	JSON_REMOVE(j, '$.a.b.c')	JSON_ARRAY_APPEND(j, '$', 2)	JSON_SET(j, '$[0]', 2)	JSON_INSERT(j, '$[0]', 2)	JSON_REPLACE(j, '$[0]', 2)	JSON_MERGE(j, j)	JSON_SEARCH(j, 'one', 'abc')	JSON_CONTAINS(j, '[1]')	JSON_CONTAINS_PATH(j, 'all', '$.a')	JSON_LENGTH(j)	JSON_DEPTH(j)	JSON_ARRAY(j, j)	JSON_OBJECT('k', j)	JSON_UNQUOTE(CAST(j AS CHAR))	JSON_QUOTE(CAST(j AS CHAR))	JSON_PRETTY(j)	JSON_STORAGE_FREE(j)	JSON_STORAGE_SIZE(j)
+NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	[null, null]	{"k": null}	NULL	NULL	NULL	NULL	NULL
 1	ARRAY	NULL	[1]	[1]	[1, 2]	[2]	[1]	[2]	[1, 1]	NULL	1	0	1	2	["[1]", "[1]"]	{"k": "[1]"}	[1]	"[1]"	[
   1
-]
-NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	[null, null]	{"k": null}	NULL	NULL	NULL
+]	0	8
+NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	[null, null]	{"k": null}	NULL	NULL	NULL	NULL	NULL
 1	OBJECT	["a"]	{"a": "b"}	{"a": "b"}	[{"a": "b"}, 2]	2	{"a": "b"}	2	{"a": ["b", "b"]}	NULL	0	1	1	2	["{\"a\": \"b\"}", "{\"a\": \"b\"}"]	{"k": "{\"a\": \"b\"}"}	{"a": "b"}	"{\"a\": \"b\"}"	{
   "a": "b"
-}
-NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	[null, null]	{"k": null}	NULL	NULL	NULL
-1	STRING	NULL	"abc"	"abc"	["abc", 2]	2	"abc"	2	["abc", "abc"]	"$"	0	0	1	1	["\"abc\"", "\"abc\""]	{"k": "\"abc\""}	abc	"\"abc\""	"abc"
+}	0	15
+NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	[null, null]	{"k": null}	NULL	NULL	NULL	NULL	NULL
+1	STRING	NULL	"abc"	"abc"	["abc", 2]	2	"abc"	2	["abc", "abc"]	"$"	0	0	1	1	["\"abc\"", "\"abc\""]	{"k": "\"abc\""}	abc	"\"abc\""	"abc"	0	5
 DROP TABLE T_WITH_NULLS;
 CREATE TABLE t_latin1(id INT PRIMARY KEY AUTO_INCREMENT,
 json_text VARCHAR(20),
@@ -8950,32 +8972,58 @@ drop table t_varchar;
 # Bug#21193273 CREATE TABLE SELECT JSN_QUOTE() RESULTS
 # IN TRUNCATED DATA
 #
+set names latin1;
 SELECT JSON_QUOTE('table') AS field1;
 field1
 "table"
 CREATE TABLE t SELECT JSON_QUOTE('table') AS field1;
-SHOW WARNINGS;
-Level	Code	Message
 SELECT * FROM t;
 field1
 "table"
 DESCRIBE t;
 Field	Type	Null	Key	Default	Extra
 field1	varchar(32)	YES		NULL	
-drop table t;
-select json_unquote( '"table"' ) as field1;
+DROP TABLE t;
+SELECT JSON_UNQUOTE( '"table"' ) AS field1;
 field1
 table
-create table t1 select json_unquote( '"table"' ) as field1;
-SHOW WARNINGS;
-Level	Code	Message
+CREATE TABLE t1 SELECT JSON_unquote( '"table"' ) AS field1;
 SELECT * FROM t1;
 field1
 table
 DESCRIBE t1;
 Field	Type	Null	Key	Default	Extra
 field1	varchar(7)	YES		NULL	
-drop table t1;
+DROP TABLE t1;
+set names default;
+#
+# Bug#25455065 JSON_QUOTE AND JSON_UNQUOTE
+#              ARE WRONG FOR MULTIBYTE CHARSETS
+#
+set names utf8mb4;
+SELECT JSON_QUOTE('table') AS field1;
+field1
+"table"
+CREATE TABLE t SELECT JSON_QUOTE('table') AS field1;
+SELECT * FROM t;
+field1
+"table"
+DESCRIBE t;
+Field	Type	Null	Key	Default	Extra
+field1	varchar(32)	YES		NULL	
+DROP TABLE t;
+SELECT JSON_UNQUOTE( '"table"' ) AS field1;
+field1
+table
+CREATE TABLE t1 SELECT JSON_unquote( '"table"' ) AS field1;
+SELECT * FROM t1;
+field1
+table
+DESCRIBE t1;
+Field	Type	Null	Key	Default	Extra
+field1	varchar(7)	YES		NULL	
+DROP TABLE t1;
+set names default;
 #
 # Bug#21230644 JSON_MERGE MEMORY USAGE
 #
@@ -9195,7 +9243,7 @@ Warnings:
 Warning	1478	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
 INSERT INTO t VALUES ('{}');
 UPDATE t SET j='1', j='1111-11-11', j=('1' NOT BETWEEN j AND '1');
-ERROR 22032: Invalid JSON text: "The document root must not follow by other values." at position 4 in value for column 't.j'.
+ERROR 22032: Invalid JSON text: "The document root must not be followed by other values." at position 4 in value for column 't.j'.
 SELECT * FROM t;
 j
 {}
@@ -9296,13 +9344,13 @@ Warnings:
 Note	1003	/* select#1 */ select json_extract(`test`.`t1`.`f1`,'$.a') AS `f1->"$.a"`,json_extract(`test`.`t1`.`f1`,'$.b') AS `f1->"$.b"` from `test`.`t1` order by `test`.`t1`.`autopk`
 SELECT MAX(f1->"$.a"), f1->"$.b" FROM t1 GROUP BY f1->"$.b";
 MAX(f1->"$.a")	f1->"$.b"
+11	3
+22	2
 3	NULL
 33	1
-22	2
-11	3
 EXPLAIN SELECT MAX(f1->"$.a"), f1->"$.b" FROM t1 GROUP BY f1->"$.b";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary
 Warnings:
 Note	1003	/* select#1 */ select max(json_extract(`test`.`t1`.`f1`,'$.a')) AS `MAX(f1->"$.a")`,json_extract(`test`.`t1`.`f1`,'$.b') AS `f1->"$.b"` from `test`.`t1` group by json_extract(`test`.`t1`.`f1`,'$.b')
 SELECT JSON_OBJECT("c",f1->"$.b") AS f2
@@ -9654,6 +9702,146 @@ j
 {"a": "b"}
 DROP TABLE t;
 #
+# Bug#22366102: EMPTY STRINGS AS KEYS PROBABLY NOT HANDLED CORRECTLY
+#               BY JSON_EXTRACT()
+#
+CREATE TABLE t(j JSON);
+Warnings:
+Warning	1478	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
+INSERT INTO t VALUES ('{"":"a"}'), ('{"":{"":"a"}}'), ('{"a":{"":{"b":"a"}}}');
+SELECT JSON_UNQUOTE(JSON_SEARCH(j, 'one', 'a')) AS path FROM t;
+path
+$.""
+$."".""
+$.a."".b
+SELECT j->'$.""' AS c1, j->'$."".""' AS c2, j->'$.a."".b' AS c3 FROM t;
+c1	c2	c3
+"a"	NULL	NULL
+NULL	NULL	"a"
+{"": "a"}	"a"	NULL
+DROP TABLE t;
+SELECT JSON_EXTRACT('[1]', '$.');
+ERROR 42000: Invalid JSON path expression. The error is around character position 2.
+SELECT JSON_EXTRACT('[1]', '$..');
+ERROR 42000: Invalid JSON path expression. The error is around character position 2.
+SELECT JSON_EXTRACT('[1]', '$.a..b');
+ERROR 42000: Invalid JSON path expression. The error is around character position 4.
+#
+# Bug#22477046: HANDLE_FATAL_SIGNAL (SIG=6) IN ITEM_FUNC_SP::VAL_JSON
+#
+CREATE TABLE t1(j JSON);
+Warnings:
+Warning	1478	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
+CREATE TABLE t2(vc VARCHAR(10));
+CREATE FUNCTION f1(i INT) RETURNS INT RETURN i;
+INSERT INTO t1 SELECT f1(3);
+ERROR 22032: Invalid JSON text: "not a JSON text, may need CAST" at position 0 in value for column 't1.j'.
+INSERT INTO t2 SELECT f1(3);
+CREATE FUNCTION f2(vc VARCHAR(10)) RETURNS VARCHAR(10) RETURN vc;
+INSERT INTO t1 SELECT f2('[1,2,3]');
+INSERT INTO t2 SELECT f2('[1,2,3]');
+CREATE FUNCTION f3(j JSON) RETURNS JSON RETURN j;
+INSERT INTO t1 SELECT f3('[4,5,6]');
+INSERT INTO t2 SELECT f3('[4,5,6]');
+SELECT * FROM t1;
+j
+[1, 2, 3]
+[4, 5, 6]
+SELECT * FROM t2;
+vc
+3
+[1,2,3]
+[4, 5, 6]
+DROP TABLE t1, t2;
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP FUNCTION f3;
+# Bug#22522073: Assertion failed: !thd->is_error() in optimize_cond()
+CREATE TABLE s(a INTEGER, b CHAR(1));
+INSERT INTO s VALUES (1,0), (1,0), (1,0);
+CREATE TABLE t(c JSON);
+Warnings:
+Warning	1478	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
+INSERT INTO t VALUES (), (), ();
+SELECT 1
+FROM s WHERE a NOT IN (SELECT 1
+FROM s WHERE (SELECT c FROM t) = b);
+ERROR 21000: Subquery returns more than 1 row
+DROP TABLE s, t;
+#
+# Bug#22546013: REMOVE DEPENDENCY ON BOOST IN ITEM_JSON_FUNC.CC
+#
+CREATE TABLE t(j JSON, vc VARCHAR(99));
+Warnings:
+Warning	1478	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
+INSERT INTO t VALUES ('"abc"', REPEAT('abc', 33)), ('"abc"', 'abc');
+INSERT INTO t SELECT * FROM t;
+SELECT * FROM t WHERE j = vc;
+j	vc
+"abc"	abc
+"abc"	abc
+DROP TABLE t;
+#
+# Bug#22816576: ASSERTION FAILED: !THD->IS_ERROR() IN OPTIMIZE_COND()
+#
+CREATE TABLE t(a DATE);
+SELECT 1 FROM t WHERE 1 <>
+(
+SELECT 1 FROM
+(
+SELECT 1 FROM t e
+JOIN t ON t.a <=> JSON_REPLACE(JSON_OBJECT('', ''), '', '')
+WHERE e.a
+) w
+);
+ERROR 42000: Invalid JSON path expression. The error is around character position 0.
+DROP TABLE t;
+#
+# Bug#23209914: ASSERTION FAILED: THIS_TYPE != ENUM_JSON_TYPE::J_ERROR
+#
+CREATE PROCEDURE p(a JSON) SELECT 1 WHERE a = 1;
+CALL p(NULL);
+1
+DROP PROCEDURE p;
+CREATE TABLE t1 (pk INT AUTO_INCREMENT KEY, f1 INT, fj JSON);
+INSERT INTO t1 VALUES(1, NULL, JSON_OBJECT('aaa','bbb'));
+INSERT INTO t1 VALUES(2, NULL, JSON_OBJECT('bbb','aaa'));
+SELECT * FROM t1 ORDER BY f1, pk, fj;
+pk	f1	fj
+1	NULL	{"aaa": "bbb"}
+2	NULL	{"bbb": "aaa"}
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
+DROP TABLE t1;
+#
+# Bug#25461627: VALGRIND WARNING WHEN UPDATING A JSON COLUMN
+#
+CREATE TABLE t (j JSON);
+Warnings:
+Warning	1478	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
+INSERT INTO t VALUES (NULL);
+UPDATE t SET j = JSON_ARRAY(REPEAT('a', 32)),
+j = JSON_EXTRACT(j, '$[0]');
+SELECT * FROM t;
+j
+"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+UPDATE t SET j = JSON_ARRAY(CAST(REPEAT('b', 32) AS BINARY)),
+j = JSON_EXTRACT(j, '$[0]');
+SELECT * FROM t;
+j
+"base64:type15:YmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmI="
+UPDATE t SET j = JSON_ARRAY(JSON_ARRAY(REPEAT('c', 32))),
+j = JSON_EXTRACT(j, '$[0]');
+SELECT * FROM t;
+j
+["cccccccccccccccccccccccccccccccc"]
+UPDATE t SET j = JSON_ARRAY(JSON_OBJECT(REPEAT('d', 16), REPEAT('e', 16))),
+j = JSON_EXTRACT(j, '$[0]');
+SELECT * FROM t;
+j
+{"dddddddddddddddd": "eeeeeeeeeeeeeeee"}
+DROP TABLE t;
+#
 # WL#9191: JSON_PRETTY function
 #
 CREATE TABLE t(id INT PRIMARY KEY AUTO_INCREMENT,
@@ -9821,3 +10009,1304 @@ SELECT JSON_PRETTY();
 ERROR 42000: Incorrect parameter count in the call to native function 'JSON_PRETTY'
 SELECT JSON_PRETTY('{}', 2);
 ERROR 42000: Incorrect parameter count in the call to native function 'JSON_PRETTY'
+#
+# WL#9192: Add JSON_STORAGE_SIZE / JSON_STORAGE_FREE functions
+#
+SELECT JSON_STORAGE_SIZE();
+ERROR 42000: Incorrect parameter count in the call to native function 'JSON_STORAGE_SIZE'
+SELECT JSON_STORAGE_FREE();
+ERROR 42000: Incorrect parameter count in the call to native function 'JSON_STORAGE_FREE'
+SELECT JSON_STORAGE_SIZE('{}', '[]');
+ERROR 42000: Incorrect parameter count in the call to native function 'JSON_STORAGE_SIZE'
+SELECT JSON_STORAGE_FREE('{}', '[]');
+ERROR 42000: Incorrect parameter count in the call to native function 'JSON_STORAGE_FREE'
+SELECT JSON_STORAGE_SIZE('this is not JSON');
+ERROR 22032: Invalid JSON text in argument 1 to function json_storage_size: "Invalid value." at position 1.
+SELECT JSON_STORAGE_FREE('this is not JSON');
+ERROR 22032: Invalid JSON text in argument 1 to function json_storage_free: "Invalid value." at position 1.
+SELECT JSON_STORAGE_SIZE(NULL);
+JSON_STORAGE_SIZE(NULL)
+NULL
+SELECT JSON_STORAGE_FREE(NULL);
+JSON_STORAGE_FREE(NULL)
+NULL
+SELECT JSON_STORAGE_SIZE(JSON_ARRAY(1,2,3));
+JSON_STORAGE_SIZE(JSON_ARRAY(1,2,3))
+14
+SELECT JSON_STORAGE_FREE(JSON_ARRAY(1,2,3));
+JSON_STORAGE_FREE(JSON_ARRAY(1,2,3))
+0
+CREATE TABLE t(id INT PRIMARY KEY, j JSON, v VARCHAR(100));
+INSERT INTO t(id, j) VALUES (0, NULL), (1, '[["abc", "def", "ghi"], "jkl"]');
+UPDATE t SET v = j;
+SELECT *,
+JSON_STORAGE_SIZE(j), JSON_STORAGE_SIZE(v),
+JSON_STORAGE_SIZE(j->'$[0]'), JSON_STORAGE_SIZE(v->'$[0]'),
+JSON_STORAGE_FREE(j), JSON_STORAGE_FREE(v),
+JSON_STORAGE_FREE(j->'$[0]'), JSON_STORAGE_FREE(v->'$[0]')
+FROM t ORDER BY id;
+id	j	v	JSON_STORAGE_SIZE(j)	JSON_STORAGE_SIZE(v)	JSON_STORAGE_SIZE(j->'$[0]')	JSON_STORAGE_SIZE(v->'$[0]')	JSON_STORAGE_FREE(j)	JSON_STORAGE_FREE(v)	JSON_STORAGE_FREE(j->'$[0]')	JSON_STORAGE_FREE(v->'$[0]')
+0	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+1	[["abc", "def", "ghi"], "jkl"]	[["abc", "def", "ghi"], "jkl"]	40	40	26	26	0	0	0	0
+UPDATE t SET j = JSON_SET(j, '$[0][1]', NULL, '$[1]', 'X'),
+v = JSON_SET(v, '$[0][1]', NULL, '$[1]', 'X');
+SELECT *,
+JSON_STORAGE_SIZE(j), JSON_STORAGE_SIZE(v),
+JSON_STORAGE_SIZE(j->'$[0]'), JSON_STORAGE_SIZE(v->'$[0]'),
+JSON_STORAGE_FREE(j), JSON_STORAGE_FREE(v),
+JSON_STORAGE_FREE(j->'$[0]'), JSON_STORAGE_FREE(v->'$[0]')
+FROM t ORDER BY id;
+id	j	v	JSON_STORAGE_SIZE(j)	JSON_STORAGE_SIZE(v)	JSON_STORAGE_SIZE(j->'$[0]')	JSON_STORAGE_SIZE(v->'$[0]')	JSON_STORAGE_FREE(j)	JSON_STORAGE_FREE(v)	JSON_STORAGE_FREE(j->'$[0]')	JSON_STORAGE_FREE(v->'$[0]')
+0	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+1	[["abc", null, "ghi"], "X"]	[["abc", null, "ghi"], "X"]	34	34	22	22	0	0	0	0
+DROP TABLE t;
+CREATE TABLE t(id INT PRIMARY KEY, j JSON);
+INSERT INTO t VALUES
+(1, '{"a":"a"}'), (2, '{"a":"b", "b":"b"}'), (3, '{"a":"c", "c":"c"}');
+SELECT *, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t ORDER BY id;
+id	j	ss	sf
+1	{"a": "a"}	15	0
+2	{"a": "b", "b": "b"}	25	0
+3	{"a": "c", "c": "c"}	25	0
+UPDATE t SET j = JSON_SET(j, '$.a', 'x');
+SELECT *, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t ORDER BY id;
+id	j	ss	sf
+1	{"a": "x"}	15	0
+2	{"a": "x", "b": "b"}	25	0
+3	{"a": "x", "c": "c"}	25	0
+UPDATE t SET j = JSON_SET(j, '$.a', 'y', '$.b', j->'$.a');
+SELECT *, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t ORDER BY id;
+id	j	ss	sf
+1	{"a": "y", "b": "x"}	25	0
+2	{"a": "y", "b": "x"}	25	0
+3	{"a": "y", "b": "x", "c": "c"}	35	0
+UPDATE t SET j = JSON_SET(j, '$.a', 'z'), j = JSON_SET(j, '$.b', j->'$.a');
+SELECT *, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t ORDER BY id;
+id	j	ss	sf
+1	{"a": "z", "b": "z"}	25	0
+2	{"a": "z", "b": "z"}	25	0
+3	{"a": "z", "b": "z", "c": "c"}	35	0
+UPDATE t SET j = JSON_SET(j, '$.a', 'w'),
+j = JSON_SET(j, '$.a', 'v', '$.b', j->'$.a');
+SELECT *, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t ORDER BY id;
+id	j	ss	sf
+1	{"a": "v", "b": "w"}	25	0
+2	{"a": "v", "b": "w"}	25	0
+3	{"a": "v", "b": "w", "c": "c"}	35	0
+UPDATE t SET j = JSON_REPLACE(j, '$.a', '1', '$.c', '2', '$.a', '3');
+SELECT *, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t ORDER BY id;
+id	j	ss	sf
+1	{"a": "3", "b": "w"}	25	0
+2	{"a": "3", "b": "w"}	25	0
+3	{"a": "3", "b": "w", "c": "2"}	35	0
+UPDATE t SET j = JSON_REPLACE(j, '$.a', '4'), j = JSON_REPLACE(j, '$.c', '5'),
+j = JSON_REPLACE(j, '$.a', '6');
+SELECT *, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t ORDER BY id;
+id	j	ss	sf
+1	{"a": "6", "b": "w"}	25	0
+2	{"a": "6", "b": "w"}	25	0
+3	{"a": "6", "b": "w", "c": "5"}	35	0
+UPDATE t SET j = JSON_REPLACE(j, '$.a', '');
+SELECT *, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t ORDER BY id;
+id	j	ss	sf
+1	{"a": "", "b": "w"}	24	0
+2	{"a": "", "b": "w"}	24	0
+3	{"a": "", "b": "w", "c": "5"}	34	0
+UPDATE t SET j = JSON_REPLACE(j, '$.a', 'a');
+SELECT *, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t ORDER BY id;
+id	j	ss	sf
+1	{"a": "a", "b": "w"}	25	0
+2	{"a": "a", "b": "w"}	25	0
+3	{"a": "a", "b": "w", "c": "5"}	35	0
+UPDATE t SET j = JSON_REPLACE(j, '$.a', 'ab');
+SELECT *, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t ORDER BY id;
+id	j	ss	sf
+1	{"a": "ab", "b": "w"}	26	0
+2	{"a": "ab", "b": "w"}	26	0
+3	{"a": "ab", "b": "w", "c": "5"}	36	0
+UPDATE t SET j = JSON_REPLACE(JSON_REPLACE(j, '$.a', 'A'), '$.b', true);
+SELECT *, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t ORDER BY id;
+id	j	ss	sf
+1	{"a": "A", "b": true}	23	0
+2	{"a": "A", "b": true}	23	0
+3	{"a": "A", "b": true, "c": "5"}	33	0
+UPDATE t SET j = JSON_REPLACE(JSON_REPLACE(j, '$.a', 'X'), '$.unknown', 'Y');
+SELECT *, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t ORDER BY id;
+id	j	ss	sf
+1	{"a": "X", "b": true}	23	0
+2	{"a": "X", "b": true}	23	0
+3	{"a": "X", "b": true, "c": "5"}	33	0
+UPDATE t SET j = JSON_REPLACE(JSON_REPLACE(j, '$.unknown', 'Z'), '$.a', 'W');
+SELECT *, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t ORDER BY id;
+id	j	ss	sf
+1	{"a": "W", "b": true}	23	0
+2	{"a": "W", "b": true}	23	0
+3	{"a": "W", "b": true, "c": "5"}	33	0
+UPDATE t SET j = JSON_REPLACE(JSON_REPLACE(j, '$.unknown1', 1),
+'$.unknown2', 2);
+SELECT *, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t ORDER BY id;
+id	j	ss	sf
+1	{"a": "W", "b": true}	23	0
+2	{"a": "W", "b": true}	23	0
+3	{"a": "W", "b": true, "c": "5"}	33	0
+UPDATE t SET j = JSON_SET(JSON_REPLACE(j, '$.a', 99), '$.b', 88);
+SELECT *, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t ORDER BY id;
+id	j	ss	sf
+1	{"a": 99, "b": 88}	21	0
+2	{"a": 99, "b": 88}	21	0
+3	{"a": 99, "b": 88, "c": "5"}	31	0
+UPDATE t SET j = JSON_REPLACE(JSON_SET(j, '$.a', 77), '$.b', 66);
+SELECT *, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t ORDER BY id;
+id	j	ss	sf
+1	{"a": 77, "b": 66}	21	0
+2	{"a": 77, "b": 66}	21	0
+3	{"a": 77, "b": 66, "c": "5"}	31	0
+UPDATE t SET j = JSON_REPLACE(JSON_SET(j, '$.c', 0), '$.a', 1);
+SELECT *, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t ORDER BY id;
+id	j	ss	sf
+1	{"a": 1, "b": 66, "c": 0}	29	0
+2	{"a": 1, "b": 66, "c": 0}	29	0
+3	{"a": 1, "b": 66, "c": 0}	29	0
+UPDATE t SET j = JSON_SET(JSON_REPLACE(JSON_SET(j, '$.a', 11),
+'$.unknown', 12),
+'$.b', 13);
+SELECT *, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t ORDER BY id;
+id	j	ss	sf
+1	{"a": 11, "b": 13, "c": 0}	29	0
+2	{"a": 11, "b": 13, "c": 0}	29	0
+3	{"a": 11, "b": 13, "c": 0}	29	0
+DROP TABLE t;
+CREATE TABLE t(id INT PRIMARY KEY, j1 JSON, j2 JSON);
+INSERT INTO t VALUES
+(1, '{"a":"a","b":"b"}', '{"a":"a","b":"b"}'),
+(2, NULL, NULL),
+(3, '{"a":"aa","b":"bb"}', '{"a":"aa","b":"bb"}');
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+SELECT *, JSON_STORAGE_SIZE(j1) ss1,
+JSON_STORAGE_FREE(j1) sf1,
+JSON_STORAGE_SIZE(j2) ss2,
+JSON_STORAGE_FREE(j2) sf2 FROM t ORDER BY id;
+id	j1	j2	ss1	sf1	ss2	sf2
+1	{"a": "a", "b": "b"}	{"a": "a", "b": "b"}	25	0	25	0
+2	NULL	NULL	NULL	NULL	NULL	NULL
+3	{"a": "aa", "b": "bb"}	{"a": "aa", "b": "bb"}	27	0	27	0
+EXPLAIN FORMAT=JSON UPDATE t SET j1 = JSON_SET(j1, '$.a', 'x'),
+j2 = JSON_SET(j2, '$.a', 'y'),
+j1 = JSON_SET(j1, '$.b', 'z');
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "table": {
+      "update": true,
+      "table_name": "t",
+      "partitions": [
+        "p0",
+        "p1",
+        "p2",
+        "p3",
+        "p4",
+        "p5",
+        "p6",
+        "p7"
+      ],
+      "access_type": "ALL",
+      "rows_examined_per_scan": 3,
+      "filtered": "100.00"
+    }
+  }
+}
+SET optimizer_trace="enabled=on";
+UPDATE t SET j1 = JSON_SET(j1, '$.a', 'x'),
+j2 = JSON_SET(j2, '$.a', 'y'),
+j1 = JSON_SET(j1, '$.b', 'z');
+SET optimizer_trace="enabled=off";
+SELECT trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+trace
+{
+  "steps": [
+    {
+      "update_preparation": {
+        "select#": 1,
+        "json_partial_update": {
+          "rejected_columns": [
+            {
+              "table": "`t`",
+              "column": "j1",
+              "cause": "Storage engine does not support partial update"
+            },
+            {
+              "table": "`t`",
+              "column": "j2",
+              "cause": "Storage engine does not support partial update"
+            }
+          ]
+        },
+        "steps": [
+          "/* select#1 */ select `t`.`j1` AS `j1`,`t`.`j2` AS `j2`,`t`.`j1` AS `j1` from `t`"
+        ]
+      }
+    },
+    {
+      "table": "`t`"
+    }
+  ]
+}
+SELECT *, JSON_STORAGE_SIZE(j1) ss1,
+JSON_STORAGE_FREE(j1) sf1,
+JSON_STORAGE_SIZE(j2) ss2,
+JSON_STORAGE_FREE(j2) sf2 FROM t ORDER BY id;
+id	j1	j2	ss1	sf1	ss2	sf2
+1	{"a": "x", "b": "z"}	{"a": "y", "b": "b"}	25	0	25	0
+2	NULL	NULL	NULL	NULL	NULL	NULL
+3	{"a": "x", "b": "z"}	{"a": "y", "b": "bb"}	25	0	26	0
+EXPLAIN FORMAT=JSON UPDATE t SET j1 = JSON_SET(j1, '$.a', 's'),
+j2 = JSON_SET(j2, '$.a', 'abcdefghi'),
+j1 = JSON_SET(j1, '$.b', 't');
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "table": {
+      "update": true,
+      "table_name": "t",
+      "partitions": [
+        "p0",
+        "p1",
+        "p2",
+        "p3",
+        "p4",
+        "p5",
+        "p6",
+        "p7"
+      ],
+      "access_type": "ALL",
+      "rows_examined_per_scan": 3,
+      "filtered": "100.00"
+    }
+  }
+}
+SET optimizer_trace="enabled=on";
+UPDATE t SET j1 = JSON_SET(j1, '$.a', 's'),
+j2 = JSON_SET(j2, '$.a', 'abcdefghi'),
+j1 = JSON_SET(j1, '$.b', 't');
+SET optimizer_trace="enabled=off";
+SELECT trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+trace
+{
+  "steps": [
+    {
+      "update_preparation": {
+        "select#": 1,
+        "json_partial_update": {
+          "rejected_columns": [
+            {
+              "table": "`t`",
+              "column": "j1",
+              "cause": "Storage engine does not support partial update"
+            },
+            {
+              "table": "`t`",
+              "column": "j2",
+              "cause": "Storage engine does not support partial update"
+            }
+          ]
+        },
+        "steps": [
+          "/* select#1 */ select `t`.`j1` AS `j1`,`t`.`j2` AS `j2`,`t`.`j1` AS `j1` from `t`"
+        ]
+      }
+    },
+    {
+      "table": "`t`"
+    }
+  ]
+}
+SELECT *, JSON_STORAGE_SIZE(j1) ss1,
+JSON_STORAGE_FREE(j1) sf1,
+JSON_STORAGE_SIZE(j2) ss2,
+JSON_STORAGE_FREE(j2) sf2 FROM t ORDER BY id;
+id	j1	j2	ss1	sf1	ss2	sf2
+1	{"a": "s", "b": "t"}	{"a": "abcdefghi", "b": "b"}	25	0	33	0
+2	NULL	NULL	NULL	NULL	NULL	NULL
+3	{"a": "s", "b": "t"}	{"a": "abcdefghi", "b": "bb"}	25	0	34	0
+EXPLAIN FORMAT=JSON UPDATE t SET j1 = JSON_SET(j1, '$.x.y.z', 'abc', '$.b', 'X');
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "table": {
+      "update": true,
+      "table_name": "t",
+      "partitions": [
+        "p0",
+        "p1",
+        "p2",
+        "p3",
+        "p4",
+        "p5",
+        "p6",
+        "p7"
+      ],
+      "access_type": "ALL",
+      "rows_examined_per_scan": 3,
+      "filtered": "100.00"
+    }
+  }
+}
+SET optimizer_trace="enabled=on";
+UPDATE t SET j1 = JSON_SET(j1, '$.x.y.z', 'abc', '$.b', 'X');
+SET optimizer_trace="enabled=off";
+SELECT trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+trace
+{
+  "steps": [
+    {
+      "update_preparation": {
+        "select#": 1,
+        "json_partial_update": {
+          "rejected_columns": [
+            {
+              "table": "`t`",
+              "column": "j1",
+              "cause": "Storage engine does not support partial update"
+            }
+          ]
+        },
+        "steps": [
+          "/* select#1 */ select `t`.`j1` AS `j1` from `t`"
+        ]
+      }
+    },
+    {
+      "table": "`t`"
+    }
+  ]
+}
+SELECT *, JSON_STORAGE_SIZE(j1) ss1,
+JSON_STORAGE_FREE(j1) sf1,
+JSON_STORAGE_SIZE(j2) ss2,
+JSON_STORAGE_FREE(j2) sf2 FROM t ORDER BY id;
+id	j1	j2	ss1	sf1	ss2	sf2
+1	{"a": "s", "b": "X"}	{"a": "abcdefghi", "b": "b"}	25	0	33	0
+2	NULL	NULL	NULL	NULL	NULL	NULL
+3	{"a": "s", "b": "X"}	{"a": "abcdefghi", "b": "bb"}	25	0	34	0
+EXPLAIN FORMAT=JSON UPDATE t SET j1 = JSON_REPLACE(j1, '$.x', 'abc', '$.b', 'Y');
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "table": {
+      "update": true,
+      "table_name": "t",
+      "partitions": [
+        "p0",
+        "p1",
+        "p2",
+        "p3",
+        "p4",
+        "p5",
+        "p6",
+        "p7"
+      ],
+      "access_type": "ALL",
+      "rows_examined_per_scan": 3,
+      "filtered": "100.00"
+    }
+  }
+}
+SET optimizer_trace="enabled=on";
+UPDATE t SET j1 = JSON_REPLACE(j1, '$.x', 'abc', '$.b', 'Y');
+SET optimizer_trace="enabled=off";
+SELECT trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+trace
+{
+  "steps": [
+    {
+      "update_preparation": {
+        "select#": 1,
+        "json_partial_update": {
+          "rejected_columns": [
+            {
+              "table": "`t`",
+              "column": "j1",
+              "cause": "Storage engine does not support partial update"
+            }
+          ]
+        },
+        "steps": [
+          "/* select#1 */ select `t`.`j1` AS `j1` from `t`"
+        ]
+      }
+    },
+    {
+      "table": "`t`"
+    }
+  ]
+}
+SELECT *, JSON_STORAGE_SIZE(j1) ss1,
+JSON_STORAGE_FREE(j1) sf1,
+JSON_STORAGE_SIZE(j2) ss2,
+JSON_STORAGE_FREE(j2) sf2 FROM t ORDER BY id;
+id	j1	j2	ss1	sf1	ss2	sf2
+1	{"a": "s", "b": "Y"}	{"a": "abcdefghi", "b": "b"}	25	0	33	0
+2	NULL	NULL	NULL	NULL	NULL	NULL
+3	{"a": "s", "b": "Y"}	{"a": "abcdefghi", "b": "bb"}	25	0	34	0
+EXPLAIN FORMAT=JSON UPDATE t SET j1 = JSON_SET(j1, '$.x', 'abc', '$.b', 'Z');
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "table": {
+      "update": true,
+      "table_name": "t",
+      "partitions": [
+        "p0",
+        "p1",
+        "p2",
+        "p3",
+        "p4",
+        "p5",
+        "p6",
+        "p7"
+      ],
+      "access_type": "ALL",
+      "rows_examined_per_scan": 3,
+      "filtered": "100.00"
+    }
+  }
+}
+SET optimizer_trace="enabled=on";
+UPDATE t SET j1 = JSON_SET(j1, '$.x', 'abc', '$.b', 'Z');
+SET optimizer_trace="enabled=off";
+SELECT trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+trace
+{
+  "steps": [
+    {
+      "update_preparation": {
+        "select#": 1,
+        "json_partial_update": {
+          "rejected_columns": [
+            {
+              "table": "`t`",
+              "column": "j1",
+              "cause": "Storage engine does not support partial update"
+            }
+          ]
+        },
+        "steps": [
+          "/* select#1 */ select `t`.`j1` AS `j1` from `t`"
+        ]
+      }
+    },
+    {
+      "table": "`t`"
+    }
+  ]
+}
+SELECT *, JSON_STORAGE_SIZE(j1) ss1,
+JSON_STORAGE_FREE(j1) sf1,
+JSON_STORAGE_SIZE(j2) ss2,
+JSON_STORAGE_FREE(j2) sf2 FROM t ORDER BY id;
+id	j1	j2	ss1	sf1	ss2	sf2
+1	{"a": "s", "b": "Z", "x": "abc"}	{"a": "abcdefghi", "b": "b"}	37	0	33	0
+2	NULL	NULL	NULL	NULL	NULL	NULL
+3	{"a": "s", "b": "Z", "x": "abc"}	{"a": "abcdefghi", "b": "bb"}	37	0	34	0
+EXPLAIN FORMAT=JSON UPDATE t SET j1 = JSON_SET(j2, '$.a', 'ABC');
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "table": {
+      "update": true,
+      "table_name": "t",
+      "partitions": [
+        "p0",
+        "p1",
+        "p2",
+        "p3",
+        "p4",
+        "p5",
+        "p6",
+        "p7"
+      ],
+      "access_type": "ALL",
+      "rows_examined_per_scan": 3,
+      "filtered": "100.00"
+    }
+  }
+}
+SET optimizer_trace="enabled=on";
+UPDATE t SET j1 = JSON_SET(j2, '$.a', 'ABC');
+SET optimizer_trace="enabled=off";
+SELECT trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+trace
+{
+  "steps": [
+    {
+      "update_preparation": {
+        "select#": 1,
+        "json_partial_update": {
+          "rejected_columns": [
+            {
+              "table": "`t`",
+              "column": "j1",
+              "cause": "Storage engine does not support partial update"
+            }
+          ]
+        },
+        "steps": [
+          "/* select#1 */ select `t`.`j1` AS `j1` from `t`"
+        ]
+      }
+    },
+    {
+      "table": "`t`"
+    }
+  ]
+}
+SELECT *, JSON_STORAGE_SIZE(j1) ss1,
+JSON_STORAGE_FREE(j1) sf1,
+JSON_STORAGE_SIZE(j2) ss2,
+JSON_STORAGE_FREE(j2) sf2 FROM t ORDER BY id;
+id	j1	j2	ss1	sf1	ss2	sf2
+1	{"a": "ABC", "b": "b"}	{"a": "abcdefghi", "b": "b"}	27	0	33	0
+2	NULL	NULL	NULL	NULL	NULL	NULL
+3	{"a": "ABC", "b": "bb"}	{"a": "abcdefghi", "b": "bb"}	28	0	34	0
+EXPLAIN FORMAT=JSON UPDATE t SET j1 = JSON_ARRAY(j1, j1);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "table": {
+      "update": true,
+      "table_name": "t",
+      "partitions": [
+        "p0",
+        "p1",
+        "p2",
+        "p3",
+        "p4",
+        "p5",
+        "p6",
+        "p7"
+      ],
+      "access_type": "ALL",
+      "rows_examined_per_scan": 3,
+      "filtered": "100.00"
+    }
+  }
+}
+SET optimizer_trace="enabled=on";
+UPDATE t SET j1 = JSON_ARRAY(j1, j1);
+SET optimizer_trace="enabled=off";
+SELECT trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+trace
+{
+  "steps": [
+    {
+      "update_preparation": {
+        "select#": 1,
+        "json_partial_update": {
+          "rejected_columns": [
+            {
+              "table": "`t`",
+              "column": "j1",
+              "cause": "Storage engine does not support partial update"
+            }
+          ]
+        },
+        "steps": [
+          "/* select#1 */ select `t`.`j1` AS `j1` from `t`"
+        ]
+      }
+    },
+    {
+      "table": "`t`"
+    }
+  ]
+}
+SELECT *, JSON_STORAGE_SIZE(j1) ss1,
+JSON_STORAGE_FREE(j1) sf1,
+JSON_STORAGE_SIZE(j2) ss2,
+JSON_STORAGE_FREE(j2) sf2 FROM t ORDER BY id;
+id	j1	j2	ss1	sf1	ss2	sf2
+1	[{"a": "ABC", "b": "b"}, {"a": "ABC", "b": "b"}]	{"a": "abcdefghi", "b": "b"}	63	0	33	0
+2	[null, null]	NULL	11	0	NULL	NULL
+3	[{"a": "ABC", "b": "bb"}, {"a": "ABC", "b": "bb"}]	{"a": "abcdefghi", "b": "bb"}	65	0	34	0
+EXPLAIN FORMAT=JSON UPDATE t SET j1 = JSON_SET(j2, '$.a', 1),
+j2 = JSON_SET(j2, '$.a', 1);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "table": {
+      "update": true,
+      "table_name": "t",
+      "partitions": [
+        "p0",
+        "p1",
+        "p2",
+        "p3",
+        "p4",
+        "p5",
+        "p6",
+        "p7"
+      ],
+      "access_type": "ALL",
+      "rows_examined_per_scan": 3,
+      "filtered": "100.00"
+    }
+  }
+}
+SET optimizer_trace="enabled=on";
+UPDATE t SET j1 = JSON_SET(j2, '$.a', 1),
+j2 = JSON_SET(j2, '$.a', 1);
+SET optimizer_trace="enabled=off";
+SELECT trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+trace
+{
+  "steps": [
+    {
+      "update_preparation": {
+        "select#": 1,
+        "json_partial_update": {
+          "rejected_columns": [
+            {
+              "table": "`t`",
+              "column": "j1",
+              "cause": "Storage engine does not support partial update"
+            },
+            {
+              "table": "`t`",
+              "column": "j2",
+              "cause": "Storage engine does not support partial update"
+            }
+          ]
+        },
+        "steps": [
+          "/* select#1 */ select `t`.`j1` AS `j1`,`t`.`j2` AS `j2` from `t`"
+        ]
+      }
+    },
+    {
+      "table": "`t`"
+    }
+  ]
+}
+SELECT *, JSON_STORAGE_SIZE(j1) ss1,
+JSON_STORAGE_FREE(j1) sf1,
+JSON_STORAGE_SIZE(j2) ss2,
+JSON_STORAGE_FREE(j2) sf2 FROM t ORDER BY id;
+id	j1	j2	ss1	sf1	ss2	sf2
+1	{"a": 1, "b": "b"}	{"a": 1, "b": "b"}	23	0	23	0
+2	NULL	NULL	NULL	NULL	NULL	NULL
+3	{"a": 1, "b": "bb"}	{"a": 1, "b": "bb"}	24	0	24	0
+DROP TABLE t;
+CREATE TABLE t(j JSON,
+i INT DEFAULT 42,
+db DOUBLE DEFAULT 2.34e-10,
+dc DECIMAL(5, 3) DEFAULT 98.765,
+ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+gc JSON GENERATED ALWAYS AS (JSON_ARRAY(i, db, dc, ts)));
+Warnings:
+Warning	1478	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
+INSERT INTO t(j, ts) VALUES
+('[null, "abc", true, "def", false]', '2017-01-02 14:15:16');
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+[null, "abc", true, "def", false]	ARRAY	28	0
+UPDATE t SET j = JSON_SET(j, '$[1]', 'xy', '$[3]', 'xyzw');
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+[null, "xy", true, "xyzw", false]	ARRAY	28	0
+UPDATE t SET j = JSON_SET(j, '$[1]', 'a');
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+[null, "a", true, "xyzw", false]	ARRAY	27	0
+UPDATE t SET j = JSON_SET(j, '$[3]', 'abcde');
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+[null, "a", true, "abcde", false]	ARRAY	28	0
+UPDATE t SET j = '[[[[[1]]]]]';
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+[[[[[1]]]]]	ARRAY	36	0
+UPDATE t SET j = JSON_SET(JSON_SET(j, '$[0][0][0]', 'ab'), '$[0][0]', 'cdefgh');
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+[["cdefgh"]]	ARRAY	22	0
+UPDATE t SET j = JSON_REPLACE(j, '$', JSON_ARRAY(123));
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+[123]	ARRAY	8	0
+UPDATE t SET j = JSON_SET(j, '$', 456);
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+456	INTEGER	3	0
+UPDATE t SET j = JSON_ARRAY(1,2,3);
+UPDATE t SET j = JSON_REPLACE(j, '$.a', 4);
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+[1, 2, 3]	ARRAY	14	0
+UPDATE t SET j = JSON_REPLACE(j, '$[1000]', 1000);
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+[1, 2, 3]	ARRAY	14	0
+UPDATE t SET j = JSON_SET(j, '$[1000]', 1000);
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+[1, 2, 3, 1000]	ARRAY	17	0
+UPDATE t SET j = JSON_OBJECT('a',1,'b',2,'c',3);
+UPDATE t SET j = JSON_REPLACE(j, '$[1]', 4);
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+{"a": 1, "b": 2, "c": 3}	OBJECT	29	0
+UPDATE t SET j = JSON_OBJECT('a',1,'b',2,'c',3);
+UPDATE t SET j = JSON_REPLACE(j, '$[1]', 4);
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+{"a": 1, "b": 2, "c": 3}	OBJECT	29	0
+UPDATE t SET j = JSON_REPLACE(j, '$.a.b', 5);
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+{"a": 1, "b": 2, "c": 3}	OBJECT	29	0
+UPDATE t SET j = JSON_REPLACE(j, '$.a[2]', 6);
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+{"a": 1, "b": 2, "c": 3}	OBJECT	29	0
+UPDATE t SET j = JSON_ARRAY('abcdefghijklmnopqrstuvwxyz');
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+["abcdefghijklmnopqrstuvwxyz"]	ARRAY	35	0
+UPDATE t SET j = JSON_SET(j, '$[0]', 3.14e0);
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+[3.14]	ARRAY	16	0
+UPDATE t SET j = JSON_SET(j, '$[0]', CAST(10000000000 AS UNSIGNED));
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+[10000000000]	ARRAY	16	0
+UPDATE t SET j = JSON_SET(j, '$[0]', CAST(4000000000 AS SIGNED));
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+[4000000000]	ARRAY	16	0
+UPDATE t SET j = JSON_SET(j, '$[0]', CAST(123 AS UNSIGNED));
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+[123]	ARRAY	8	0
+UPDATE t SET j = JSON_SET(j, '$[0]', CAST(456 AS SIGNED));
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+[456]	ARRAY	8	0
+UPDATE t SET j = JSON_SET(j, '$[0]', -123);
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+[-123]	ARRAY	8	0
+UPDATE t SET j = JSON_SET(j, '$[0]', -4000000000);
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+[-4000000000]	ARRAY	16	0
+UPDATE t SET j = JSON_SET(j, '$[0]', CAST(76543 AS SIGNED));
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+[76543]	ARRAY	12	0
+UPDATE t SET j = JSON_SET(j, '$[0]', CAST(87654 AS UNSIGNED));
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+[87654]	ARRAY	12	0
+UPDATE t SET j = JSON_SET(j, '$[0]', -100000);
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+[-100000]	ARRAY	12	0
+UPDATE t SET j = JSON_SET(j, '$[0]', TRUE);
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+[true]	ARRAY	8	0
+UPDATE t SET j = JSON_SET(j, '$[0]', NULL);
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+[null]	ARRAY	8	0
+UPDATE t SET j = JSON_SET(j, '$[0]', CAST('abc' AS BINARY));
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+["base64:type15:YWJj"]	ARRAY	13	0
+UPDATE t SET j = JSON_SET(j, '$[0]', CAST('2016-12-23 13:16:40' AS DATETIME));
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+["2016-12-23 13:16:40.000000"]	ARRAY	18	0
+UPDATE t SET j = JSON_SET(j, '$[0]', CAST('2016-12-24' AS DATE));
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+["2016-12-24"]	ARRAY	18	0
+UPDATE t SET j = JSON_SET(j, '$[0]', CAST('14:17:41' AS TIME));
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+["14:17:41.000000"]	ARRAY	18	0
+UPDATE t SET j = JSON_SET(j, '$[0]', 1.23);
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+[1.23]	ARRAY	14	0
+UPDATE t SET j = JSON_SET(j, '$[0]', i);
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+[42]	ARRAY	8	0
+UPDATE t SET j = JSON_SET(j, '$[0]', db);
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+[0.000000000234]	ARRAY	16	0
+UPDATE t SET j = JSON_SET(j, '$[0]', dc);
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+[98.765]	ARRAY	15	0
+UPDATE t SET j = JSON_SET(j, '$[0]', ts);
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+["2017-01-02 14:15:16.000000"]	ARRAY	18	0
+UPDATE t SET j = JSON_SET(j, '$[0]', JSON_ARRAY());
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+[[]]	ARRAY	12	0
+UPDATE t SET j = JSON_SET(j, '$[0]', JSON_ARRAY('abc'));
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+[["abc"]]	ARRAY	19	0
+UPDATE t SET j = JSON_SET(j, '$[0]', JSON_OBJECT());
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+[{}]	ARRAY	12	0
+UPDATE t SET j = JSON_SET(j, '$[0]', JSON_OBJECT('abc', 'def'));
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+[{"abc": "def"}]	ARRAY	26	0
+UPDATE t SET j = JSON_SET(j, '$[0]', gc->'$[0]');
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+[42]	ARRAY	8	0
+UPDATE t SET j = JSON_SET(j, '$[0]', gc->'$[1]');
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+[0.000000000234]	ARRAY	16	0
+UPDATE t SET j = JSON_SET(j, '$[0]', gc->'$[2]');
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+[98.765]	ARRAY	15	0
+UPDATE t SET j = JSON_SET(j, '$[0]', gc->'$[3]');
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+["2017-01-02 14:15:16.000000"]	ARRAY	18	0
+UPDATE t SET j = JSON_SET(j, '$[0]', gc->'$[4]');
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+[null]	ARRAY	8	0
+DROP TABLE t;
+CREATE TABLE t1(id INT PRIMARY KEY, j JSON, x INT);
+INSERT INTO t1 VALUES (1, '{"a":"xy"}', 1), (2, '{"a":"zw"}', 2);
+SELECT *, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t1 ORDER BY id;
+id	j	x	ss	sf
+1	{"a": "xy"}	1	16	0
+2	{"a": "zw"}	2	16	0
+CREATE TABLE t2(id INT PRIMARY KEY, j JSON, x INT);
+INSERT INTO t2 VALUES
+(1, '{"b":"X"}', 3),
+(2, '{"b":"Y"}', 4),
+(3, '{"b":"Z"}', 9);
+SELECT *, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t2 ORDER BY id;
+id	j	x	ss	sf
+1	{"b": "X"}	3	15	0
+2	{"b": "Y"}	4	15	0
+3	{"b": "Z"}	9	15	0
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN FORMAT=JSON UPDATE t1, t2
+SET t1.j = JSON_SET(t1.j, '$.a', t2.j->'$.b')
+WHERE t1.id = t2.id;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "500.90"
+    },
+    "nested_loop": [
+      {
+        "table": {
+          "update": true,
+          "table_name": "t1",
+          "partitions": [
+            "p0",
+            "p1",
+            "p2",
+            "p3",
+            "p4",
+            "p5",
+            "p6",
+            "p7"
+          ],
+          "access_type": "ALL",
+          "possible_keys": [
+            "PRIMARY"
+          ],
+          "rows_examined_per_scan": 2,
+          "rows_produced_per_join": 2,
+          "filtered": "100.00",
+          "cost_info": {
+            "read_cost": "500.00",
+            "eval_cost": "0.20",
+            "prefix_cost": "500.20",
+            "data_read_per_join": "48"
+          },
+          "used_columns": "filtered due to bug#22472365"
+        }
+      },
+      {
+        "table": {
+          "table_name": "t2",
+          "partitions": [
+            "p0",
+            "p1",
+            "p2",
+            "p3",
+            "p4",
+            "p5",
+            "p6",
+            "p7"
+          ],
+          "access_type": "eq_ref",
+          "possible_keys": [
+            "PRIMARY"
+          ],
+          "key": "PRIMARY",
+          "used_key_parts": [
+            "id"
+          ],
+          "key_length": "4",
+          "ref": [
+            "test.t1.id"
+          ],
+          "rows_examined_per_scan": 1,
+          "rows_produced_per_join": 2,
+          "filtered": "100.00",
+          "cost_info": {
+            "read_cost": "0.50",
+            "eval_cost": "0.20",
+            "prefix_cost": "500.90",
+            "data_read_per_join": "48"
+          },
+          "used_columns": "filtered due to bug#22472365"
+        }
+      }
+    ]
+  }
+}
+Warnings:
+Note	1003	Table 't1' is not pushable: select list can't contain BLOB columns
+Note	1003	Table 't2' is not pushable: select list can't contain BLOB columns
+SET optimizer_trace="enabled=on";
+UPDATE t1, t2
+SET t1.j = JSON_SET(t1.j, '$.a', t2.j->'$.b')
+WHERE t1.id = t2.id;
+SET optimizer_trace="enabled=off";
+SELECT trace->'$**.json_partial_update'
+       FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+trace->'$**.json_partial_update'
+[{"rejected_columns": [{"cause": "Storage engine does not support partial update", "table": "`t1`", "column": "j"}]}]
+SELECT *, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t1 ORDER BY id;
+id	j	x	ss	sf
+1	{"a": "X"}	1	15	0
+2	{"a": "Y"}	2	15	0
+SELECT *, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t2 ORDER BY id;
+id	j	x	ss	sf
+1	{"b": "X"}	3	15	0
+2	{"b": "Y"}	4	15	0
+3	{"b": "Z"}	9	15	0
+EXPLAIN FORMAT=JSON UPDATE t1, t2 SET t1.j = JSON_SET(t1.j, '$.a', t2.x),
+t2.j = JSON_SET(t2.j, '$.b', t1.x)
+WHERE t1.id = t2.id;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "500.90"
+    },
+    "nested_loop": [
+      {
+        "table": {
+          "update": true,
+          "table_name": "t1",
+          "partitions": [
+            "p0",
+            "p1",
+            "p2",
+            "p3",
+            "p4",
+            "p5",
+            "p6",
+            "p7"
+          ],
+          "access_type": "ALL",
+          "possible_keys": [
+            "PRIMARY"
+          ],
+          "rows_examined_per_scan": 2,
+          "rows_produced_per_join": 2,
+          "filtered": "100.00",
+          "cost_info": {
+            "read_cost": "500.00",
+            "eval_cost": "0.20",
+            "prefix_cost": "500.20",
+            "data_read_per_join": "48"
+          },
+          "used_columns": [
+            "id",
+            "j",
+            "x"
+          ]
+        }
+      },
+      {
+        "table": {
+          "update": true,
+          "table_name": "t2",
+          "partitions": [
+            "p0",
+            "p1",
+            "p2",
+            "p3",
+            "p4",
+            "p5",
+            "p6",
+            "p7"
+          ],
+          "access_type": "eq_ref",
+          "possible_keys": [
+            "PRIMARY"
+          ],
+          "key": "PRIMARY",
+          "used_key_parts": [
+            "id"
+          ],
+          "key_length": "4",
+          "ref": [
+            "test.t1.id"
+          ],
+          "rows_examined_per_scan": 1,
+          "rows_produced_per_join": 2,
+          "filtered": "100.00",
+          "cost_info": {
+            "read_cost": "0.50",
+            "eval_cost": "0.20",
+            "prefix_cost": "500.90",
+            "data_read_per_join": "48"
+          },
+          "used_columns": [
+            "id",
+            "j",
+            "x"
+          ]
+        }
+      }
+    ]
+  }
+}
+Warnings:
+Note	1003	Table 't1' is not pushable: select list can't contain BLOB columns
+Note	1003	Table 't2' is not pushable: select list can't contain BLOB columns
+SET optimizer_trace="enabled=on";
+UPDATE t1, t2 SET t1.j = JSON_SET(t1.j, '$.a', t2.x),
+t2.j = JSON_SET(t2.j, '$.b', t1.x)
+WHERE t1.id = t2.id;
+SET optimizer_trace="enabled=off";
+SELECT trace->'$**.json_partial_update'
+       FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+trace->'$**.json_partial_update'
+[{"rejected_columns": [{"cause": "Storage engine does not support partial update", "table": "`t1`", "column": "j"}, {"cause": "Storage engine does not support partial update", "table": "`t2`", "column": "j"}]}]
+SELECT *, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t1 ORDER BY id;
+id	j	x	ss	sf
+1	{"a": 3}	1	13	0
+2	{"a": 4}	2	13	0
+SELECT *, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t2 ORDER BY id;
+id	j	x	ss	sf
+1	{"b": 1}	3	13	0
+2	{"b": 2}	4	13	0
+3	{"b": "Z"}	9	15	0
+EXPLAIN FORMAT=JSON UPDATE t1, t2 SET t1.j = '[123]', t2.j = JSON_SET(t2.j, '$.b', 99);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1250.80"
+    },
+    "nested_loop": [
+      {
+        "table": {
+          "update": true,
+          "table_name": "t1",
+          "partitions": [
+            "p0",
+            "p1",
+            "p2",
+            "p3",
+            "p4",
+            "p5",
+            "p6",
+            "p7"
+          ],
+          "access_type": "ALL",
+          "rows_examined_per_scan": 2,
+          "rows_produced_per_join": 2,
+          "filtered": "100.00",
+          "cost_info": {
+            "read_cost": "500.00",
+            "eval_cost": "0.20",
+            "prefix_cost": "500.20",
+            "data_read_per_join": "48"
+          },
+          "used_columns": "filtered due to bug#22472365"
+        }
+      },
+      {
+        "table": {
+          "update": true,
+          "table_name": "t2",
+          "partitions": [
+            "p0",
+            "p1",
+            "p2",
+            "p3",
+            "p4",
+            "p5",
+            "p6",
+            "p7"
+          ],
+          "access_type": "ALL",
+          "rows_examined_per_scan": 3,
+          "rows_produced_per_join": 6,
+          "filtered": "100.00",
+          "cost_info": {
+            "read_cost": "750.00",
+            "eval_cost": "0.60",
+            "prefix_cost": "1250.80",
+            "data_read_per_join": "144"
+          },
+          "used_columns": "filtered due to bug#22472365"
+        }
+      }
+    ]
+  }
+}
+Warnings:
+Note	1003	Table 't1' is not pushable: lock modes other than 'read committed' not implemented
+Note	1003	Table 't2' is not pushable: select list can't contain BLOB columns
+SET optimizer_trace="enabled=on";
+UPDATE t1, t2 SET t1.j = '[123]', t2.j = JSON_SET(t2.j, '$.b', 99);
+SET optimizer_trace="enabled=off";
+SELECT trace->'$**.json_partial_update'
+       FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+trace->'$**.json_partial_update'
+[{"rejected_columns": [{"cause": "Storage engine does not support partial update", "table": "`t1`", "column": "j"}, {"cause": "Storage engine does not support partial update", "table": "`t2`", "column": "j"}]}]
+SELECT *, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t1 ORDER BY id;
+id	j	x	ss	sf
+1	[123]	1	8	0
+2	[123]	2	8	0
+SELECT *, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t2 ORDER BY id;
+id	j	x	ss	sf
+1	{"b": 99}	3	13	0
+2	{"b": 99}	4	13	0
+3	{"b": 99}	9	13	0
+DROP TABLE t1, t2;
+CREATE TABLE t(j JSON) ENGINE=MyISAM;
+INSERT INTO t VALUES ('["abcdef"]');
+SELECT j, JSON_STORAGE_SIZE(j), JSON_STORAGE_FREE(j) FROM t;
+j	JSON_STORAGE_SIZE(j)	JSON_STORAGE_FREE(j)
+["abcdef"]	15	0
+SET optimizer_trace="enabled=on";
+UPDATE t SET j = JSON_SET(j, '$[0]', 1);
+SET optimizer_trace="enabled=off";
+SELECT trace->'$**.json_partial_update'
+       FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+trace->'$**.json_partial_update'
+[{"rejected_columns": [{"cause": "Storage engine does not support partial update", "table": "`t`", "column": "j"}]}]
+SELECT j, JSON_STORAGE_SIZE(j), JSON_STORAGE_FREE(j) FROM t;
+j	JSON_STORAGE_SIZE(j)	JSON_STORAGE_FREE(j)
+[1]	8	0
+DROP TABLE t;

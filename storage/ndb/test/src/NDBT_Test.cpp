@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1509,7 +1509,9 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
   }
   ndbout_c("random seed: %u", opt_seed);
   srand(opt_seed);
+#ifndef _WIN32
   srandom(opt_seed);
+#endif
 
   global_flag_skip_invalidate_cache = 1;
 

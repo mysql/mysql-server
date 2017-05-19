@@ -26,7 +26,7 @@
 #include "item_func.h"      // Item_func
 #include "item_cmpfunc.h"   // Item_func_like etc.
 #include "current_thd.h"
-#include "log.h"            // sql_print_error
+#include "ndb_log.h"
 
 // Typedefs for long names 
 typedef NdbDictionary::Column NDBCOL;
@@ -723,13 +723,12 @@ ndb_serialize_cond(const Item *item, void *arg)
   {
     if (!item)
     {
-      DBUG_PRINT("info", ("Unexpected mismatch of found and expected number of function arguments %u", context->skip));
-      LogErr(ERROR_LEVEL, ER_NDB_CLUSTER_WRONG_NUMBER_OF_FUNCTION_ARGUMENTS,
-             context->skip);
+      ndb_log_error("ndb_serialize_cond(), Unexpected mismatch of found and "
+                    "expected number of function arguments %u", context->skip);
       context->skip= 0;
       DBUG_VOID_RETURN;
     }
-    DBUG_PRINT("info", ("Skiping argument %d", context->skip));
+    DBUG_PRINT("info", ("Skipping argument %d", context->skip));
     context->skip--;
     switch (item->type()) {
     case Item::FUNC_ITEM:

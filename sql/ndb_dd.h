@@ -26,8 +26,35 @@ namespace dd {
 }
 
 bool ndb_sdi_serialize(class THD *thd,
-                       const dd::Table &table,
+                       const dd::Table *table_def,
                        const char* schema_name,
+                       const char* tablespace_name,
                        dd::sdi_t& sdi);
 
+
+void ndb_dd_fix_inplace_alter_table_def(dd::Table *table_def,
+                                        const char* proper_table_name);
+
+bool ndb_dd_serialize_table(class THD *thd,
+                            const char* schema_name,
+                            const char* table_name,
+                            const char* tablespace_name,
+                            dd::sdi_t& sdi);
+
+
+
+bool ndb_dd_install_table(class THD *thd,
+                          const char *schema_name,
+                          const char *table_name,
+                          const dd::sdi_t& sdi, bool force_overwrite);
+
+bool ndb_dd_drop_table(class THD* thd,
+                       const char* schema_name,
+                       const char* table_name);
+
+bool ndb_dd_rename_table(class THD* thd,
+                         const char* old_schema_name,
+                         const char* old_table_name,
+                         const char* new_schema_name,
+                         const char* new_table_name);
 #endif

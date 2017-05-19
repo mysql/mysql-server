@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 
 
    This program is free software; you can redistribute it and/or modify
@@ -112,7 +112,7 @@ NDBT_find_ndb_mgmd(BaseString& path)
    * 2) define single character SEP to be able to use strrchr
    */
   BaseString copy(my_progname);
-#ifdef NDB_WIN
+#ifdef _WIN32
   char SEP = '\\';
 #else
   char SEP = '/';

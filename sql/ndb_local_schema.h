@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -50,7 +50,7 @@ public:
 
   /*
     Class used for working with a table in the
-    local MySQL Servers "dictionary"
+    local MySQL Servers DD
   */
 
   class Table : protected Base
@@ -66,6 +66,9 @@ public:
 
     // Read the engine type from .frm and return true if it says NDB
     bool frm_engine_is_ndb(void) const;
+
+    bool mdl_try_lock_for_rename(const char* new_db,
+                                 const char* new_name) const;
 
   public:
     Table(); // Not implemented

@@ -31,6 +31,12 @@ ADD_CONVENIENCE_LIBRARY(ndbtools
   NdbImportCsvGram.cpp
   NdbImportUtil.cpp)
 
+IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  # Suppress warnings for undefined identifiers in bison output
+  ADD_COMPILE_FLAGS(${CMAKE_CURRENT_BINARY_DIR}/NdbImportCsvGram.cpp
+                    COMPILE_FLAGS "-Wno-undef")
+ENDIF()
+
 COPY_BISON_OUTPUT(
   ${CMAKE_CURRENT_SOURCE_DIR}/NdbImportCsvGram.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/NdbImportCsvGram.hpp

@@ -78,10 +78,7 @@ public:
       Gives special priorites to this Thd_ndb, allowing it to create
       schema distribution event ops before ndb_schema_dist_is_ready()
      */
-    ALLOW_BINLOG_SETUP= 1 << 2,
-
-    /* Skip binlog setup in ndbcluster_find_files() */
-    SKIP_BINLOG_SETUP_IN_FIND_FILES = 1 << 3
+    ALLOW_BINLOG_SETUP= 1 << 2
   };
 
   // Check if given option is set

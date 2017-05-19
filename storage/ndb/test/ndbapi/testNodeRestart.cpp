@@ -29,6 +29,7 @@
 #include <NdbMgmd.hpp>
 #include <my_sys.h>
 #include <ndb_rand.h>
+#include <NdbHost.h>
 #include <BlockNumbers.h>
 #include <NdbConfig.hpp>
 
@@ -6904,7 +6905,7 @@ runBug16766493(NDBT_Context* ctx, NDBT_Step* step)
   const int records = ctx->getNumRecords();
   char* tabname = strdup(ctx->getTab()->getName());
   int result = NDBT_OK;
-  ndb_srand(getpid());
+  ndb_srand(NdbHost_GetProcessId());
   NdbRestarter restarter;
   (void)pDic->dropTable(tabname); // replace table
 
@@ -7043,7 +7044,7 @@ runBug16895311_create(NDBT_Context* ctx, NDBT_Step* step)
   Ndb* pNdb = GETNDB(step);
   NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
   int result = 0;
-  ndb_srand((unsigned)getpid());
+  ndb_srand(NdbHost_GetProcessId());
   do
   {
     (void)pDic->dropTable(bug.tabname);

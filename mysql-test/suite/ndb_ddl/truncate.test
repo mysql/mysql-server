@@ -1,0 +1,29 @@
+--source setup.inc
+
+#
+# Truncate tables one by one and check it's empty
+#
+
+let $counter = 1;
+while ($counter <= $num_tables)
+{
+   # Default table name is t$counter, ie. t1, t2, etc
+   let $tx=t$counter;
+
+  eval TRUNCATE TABLE $tx;
+
+  # Check that new table contains expected number of rows
+  let $tx_count = `SELECT count(*) from $tx`;
+  if ($tx_count != 0)
+  {
+    echo Wrong number of rows, expected 0 got $tx_count;
+    die Wrong number of rows in truncated table;
+  }
+
+  inc $counter;
+}
+
+--source verify_mysql_dd.inc
+
+--source cleanup.inc
+

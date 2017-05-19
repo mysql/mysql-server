@@ -358,6 +358,7 @@ drop table t1;
 
 create table t1
 (a int not null primary key auto_increment, b int, c varchar(256))
+character set latin1
 engine = ndb;
 # Show warning and count info
 --enable_info 

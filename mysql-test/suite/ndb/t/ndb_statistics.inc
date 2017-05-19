@@ -1,9 +1,5 @@
 -- source include/have_ndb.inc
 
---disable_warnings
-drop table if exists t1, t2, t3, t4;
---enable_warnings
-
 CREATE TABLE t10(
   K INT NOT NULL AUTO_INCREMENT,
   I INT, J INT,
@@ -139,5 +135,3 @@ SELECT * FROM t10000 WHERE J <> 1 AND I <> 0;
 
 
 DROP TABLE t10,t100,t10000;
-
---echo End of 5.1 tests

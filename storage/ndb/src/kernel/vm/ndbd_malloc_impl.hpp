@@ -18,6 +18,7 @@
 #ifndef NDBD_MALLOC_IMPL_H
 #define NDBD_MALLOC_IMPL_H
 
+#include <cstdint>
 #include <kernel_types.h>
 #include <Bitmask.hpp>
 #include <assert.h>

@@ -742,12 +742,12 @@ ha_ndbinfo::unpack_record(uchar *dst_row)
 
 
 static int
-ndbinfo_find_files(handlerton *hton, THD *thd,
-                   const char *db, const char *path,
-                   const char *wild, bool dir, List<LEX_STRING> *files)
+ndbinfo_find_files(handlerton*, THD* thd,
+                   const char *db, const char*,
+                   const char*, bool dir, List<LEX_STRING> *files)
 {
   DBUG_ENTER("ndbinfo_find_files");
-  DBUG_PRINT("enter", ("db: '%s', dir: %d, path: '%s'", db, dir, path));
+  DBUG_PRINT("enter", ("db: '%s', dir: %d", db, dir));
 
   const bool show_hidden = THDVAR(thd, show_hidden);
 
@@ -767,7 +767,7 @@ ndbinfo_find_files(handlerton *hton, THD *thd,
       if (strcmp(dir_name->str, opt_ndbinfo_dbname))
         continue;
 
-      DBUG_PRINT("info", ("Hiding own databse '%s'", dir_name->str));
+      DBUG_PRINT("info", ("Hiding own database '%s'", dir_name->str));
       it.remove();
     }
 
@@ -794,7 +794,37 @@ ndbinfo_find_files(handlerton *hton, THD *thd,
 }
 
 
-handlerton* ndbinfo_hton;
+static
+bool store_schema_sdi_dummy(THD*, handlerton *, const LEX_CSTRING&,
+                            const dd::Schema*, const dd::Table*)
+{
+  return false; // Success
+}
+
+
+static
+bool remove_schema_sdi_dummy(THD*, handlerton*,
+                             const dd::Schema*, const dd::Table*)
+{
+  return false; // Success
+}
+
+
+static
+bool store_table_sdi_dummy(THD*, handlerton*, const LEX_CSTRING&,
+                           const dd::Table*, const dd::Schema*)
+{
+  return false; // Success
+}
+
+
+static
+bool remove_table_sdi_dummy(THD*, handlerton*,
+                            const dd::Table*, const dd::Schema*)
+{
+  return false; // Success
+}
+
 
 static
 int
@@ -809,7 +839,20 @@ ndbinfo_init(void *plugin)
     HTON_ALTER_NOT_SUPPORTED;
   hton->find_files = ndbinfo_find_files;
 
-  ndbinfo_hton = hton;
+  {
+    // Install dummy callbacks to avoid writing <tablename>_<id>.SDI files
+    // in the data directory, those are redundant since the ndbinfo tables
+    // are hardcoded(some in NDB and some in ha_ndbinfo)
+    //
+    // NOTE! Install also store_schema_sdi since setting it to NULL will
+    // cause default implementation for store_table_sdi and
+    // remove_table_sdi to be installed
+    hton->store_schema_sdi = store_schema_sdi_dummy;
+    hton->remove_schema_sdi = remove_schema_sdi_dummy;
+
+    hton->store_table_sdi = store_table_sdi_dummy;
+    hton->remove_table_sdi = remove_table_sdi_dummy;
+  }
 
   if (ndbcluster_is_disabled())
   {

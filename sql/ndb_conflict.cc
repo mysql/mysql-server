@@ -26,13 +26,13 @@
 #include "mysqld_error.h"
 #include "ndb_binlog_extra_row_info.h"
 #include "ndb_table_guard.h"
+#include "ndb_log.h"
 
 extern st_ndb_slave_state g_ndb_slave_state;
 
 #include "ndb_mi.h"
 
 extern ulong opt_ndb_slave_conflict_role;
-extern ulong opt_ndb_extra_logging;
 
 #define NDBTAB NdbDictionary::Table
 #define NDBCOL NdbDictionary::Column
@@ -409,7 +409,7 @@ ExceptionsTableWriter::check_optional_columns(const NdbDictionary::Table* mainTa
                     mainTable->getName());
         DBUG_PRINT("info", ("%s", error_details));
         my_snprintf(msg_buf, msg_buf_len,
-                    "NDB Slave: exceptions table %s has suspicious "
+                    "exceptions table %s has suspicious "
                     "definition ((column %d): %s",
                     ex_tab_name, fixed_cols + k, error_details);
         continue;
@@ -602,13 +602,13 @@ ExceptionsTableWriter::init(const NdbDictionary::Table* mainTable,
     }
     else
       my_snprintf(msg_buf, msg_buf_len,
-                  "NDB Slave: exceptions table %s has wrong "
+                  "exceptions table %s has wrong "
                   "definition (column %d): %s",
                   ex_tab_name, fixed_cols + k, error_details);
   }
   else
     my_snprintf(msg_buf, msg_buf_len,
-                "NDB Slave: exceptions table %s has wrong "
+                "exceptions table %s has wrong "
                 "definition (initial %d columns)",
                 ex_tab_name, fixed_cols);
 
@@ -1141,17 +1141,21 @@ st_ndb_slave_state::verifyNextEpoch(Uint64 next_epoch,
     */
     if (next_epoch < current_master_server_epoch)
     {
-      LogErr(WARNING_LEVEL,
-             ER_NDB_SLAVE_SAW_EPOCH_LOWER_THAN_PREVIOUS_ON_START,
-             next_epoch >> 32,
-             next_epoch & 0xffffffff,
-             next_epoch,
-             master_server_id,
-             current_master_server_epoch >> 32,
-             current_master_server_epoch & 0xffffffff,
-             current_master_server_epoch,
-             ndb_mi_get_group_master_log_name(),
-             ndb_mi_get_group_master_log_pos());
+      ndb_log_warning("NDB Slave: At SQL thread start "
+                      "applying epoch %llu/%llu "
+                      "(%llu) from Master ServerId %u which is lower than previously "
+                      "applied epoch %llu/%llu (%llu).  "
+                      "Group Master Log : %s  Group Master Log Pos : %llu.  "
+                      "Check slave positioning.",
+                      next_epoch >> 32,
+                      next_epoch & 0xffffffff,
+                      next_epoch,
+                      master_server_id,
+                      current_master_server_epoch >> 32,
+                      current_master_server_epoch & 0xffffffff,
+                      current_master_server_epoch,
+                      ndb_mi_get_group_master_log_name(),
+                      ndb_mi_get_group_master_log_pos());
       /* Slave not stopped */
     }
     else if (next_epoch == current_master_server_epoch)
@@ -1181,16 +1185,20 @@ st_ndb_slave_state::verifyNextEpoch(Uint64 next_epoch,
     if (next_epoch < current_master_server_epoch)
     {
       /* Should never happen */
-      LogErr(ERROR_LEVEL, ER_NDB_SLAVE_SAW_EPOCH_LOWER_THAN_PREVIOUS,
-             next_epoch >> 32,
-             next_epoch & 0xffffffff,
-             next_epoch,
-             master_server_id,
-             current_master_server_epoch >> 32,
-             current_master_server_epoch & 0xffffffff,
-             current_master_server_epoch,
-             ndb_mi_get_group_master_log_name(),
-             ndb_mi_get_group_master_log_pos());
+      ndb_log_error("NDB Slave: SQL thread stopped as "
+                    "applying epoch %llu/%llu "
+                    "(%llu) from Master ServerId %u which is lower than previously "
+                    "applied epoch %llu/%llu (%llu).  "
+                    "Group Master Log : %s  Group Master Log Pos : %llu",
+                    next_epoch >> 32,
+                    next_epoch & 0xffffffff,
+                    next_epoch,
+                    master_server_id,
+                    current_master_server_epoch >> 32,
+                    current_master_server_epoch & 0xffffffff,
+                    current_master_server_epoch,
+                    ndb_mi_get_group_master_log_name(),
+                    ndb_mi_get_group_master_log_pos());
       /* Stop the slave */
       DBUG_RETURN(false);
     }
@@ -1203,13 +1211,16 @@ st_ndb_slave_state::verifyNextEpoch(Uint64 next_epoch,
       if (current_master_server_epoch_committed)
       {
         /* This epoch is committed already, why are we replaying it? */
-        LogErr(ERROR_LEVEL, ER_NDB_SLAVE_SAW_ALREADY_COMMITTED_EPOCH,
-               current_master_server_epoch >> 32,
-               current_master_server_epoch & 0xffffffff,
-               current_master_server_epoch,
-               master_server_id,
-               ndb_mi_get_group_master_log_name(),
-               ndb_mi_get_group_master_log_pos());
+        ndb_log_error("NDB Slave: SQL thread stopped as attempted "
+                      "to reapply already committed epoch %llu/%llu (%llu) "
+                      "from server id %u.  "
+                      "Group Master Log : %s  Group Master Log Pos : %llu.",
+                      current_master_server_epoch >> 32,
+                      current_master_server_epoch & 0xffffffff,
+                      current_master_server_epoch,
+                      master_server_id,
+                      ndb_mi_get_group_master_log_name(),
+                      ndb_mi_get_group_master_log_pos());
         /* Stop the slave */
         DBUG_RETURN(false);
       }
@@ -1233,16 +1244,20 @@ st_ndb_slave_state::verifyNextEpoch(Uint64 next_epoch,
            We've moved onto a new epoch without committing
            the last - probably a bug in transaction retry
         */
-        LogErr(ERROR_LEVEL, ER_NDB_SLAVE_PREVIOUS_EPOCH_NOT_COMMITTED,
-               next_epoch >> 32,
-               next_epoch & 0xffffffff,
-               next_epoch,
-               current_master_server_epoch >> 32,
-               current_master_server_epoch & 0xffffffff,
-               current_master_server_epoch,
-               master_server_id,
-               ndb_mi_get_group_master_log_name(),
-               ndb_mi_get_group_master_log_pos());
+        ndb_log_error("NDB Slave: SQL thread stopped as attempting to "
+                      "apply new epoch %llu/%llu (%llu) while lower "
+                      "received epoch %llu/%llu (%llu) has not been "
+                      "committed.  Master server id : %u.  "
+                      "Group Master Log : %s  Group Master Log Pos : %llu.",
+                      next_epoch >> 32,
+                      next_epoch & 0xffffffff,
+                      next_epoch,
+                      current_master_server_epoch >> 32,
+                      current_master_server_epoch & 0xffffffff,
+                      current_master_server_epoch,
+                      master_server_id,
+                      ndb_mi_get_group_master_log_name(),
+                      ndb_mi_get_group_master_log_pos());
         /* Stop the slave */
         DBUG_RETURN(false);
       }
@@ -1502,8 +1517,7 @@ st_ndb_slave_state::atPrepareConflictDetection(const NdbDictionary::Table* table
                         transaction_id);
     if (res != 0)
     {
-      LogErr(ERROR_LEVEL, ER_NDB_TRANS_DEPENDENCY_TRACKER_ERROR,
-             trans_dependency_tracker->get_error_text());
+      ndb_log_error("%s", trans_dependency_tracker->get_error_text());
       DBUG_RETURN(res);
     }
     /* Proceed as normal */
@@ -1600,9 +1614,7 @@ st_ndb_slave_state::atTransConflictDetected(Uint64 transaction_id)
 
     if (res != 0)
     {
-
-      LogErr(ERROR_LEVEL, ER_NDB_TRANS_DEPENDENCY_TRACKER_ERROR,
-             trans_dependency_tracker->get_error_text());
+      ndb_log_error("%s", trans_dependency_tracker->get_error_text());
       DBUG_RETURN(res);
     }
     break;
@@ -1884,9 +1896,8 @@ row_conflict_fn_old(NDB_CONFLICT_FN_SHARE* cfn_share,
 
   if (unlikely(!bitmap_is_set(bi_cols, resolve_column)))
   {
-    LogErr(INFORMATION_LEVEL, ER_NDB_SLAVE_MISSING_DATA_FOR_TIMESTAMP_COLUMN,
-           cfn_share->m_conflict_fn->name,
-           resolve_column);
+    ndb_log_info("NDB Slave: missing data for %s timestamp column %u.",
+                 cfn_share->m_conflict_fn->name, resolve_column);
     DBUG_RETURN(1);
   }
 
@@ -1966,9 +1977,8 @@ row_conflict_fn_max_update_only(NDB_CONFLICT_FN_SHARE* cfn_share,
 
   if (unlikely(!bitmap_is_set(ai_cols, resolve_column)))
   {
-    LogErr(INFORMATION_LEVEL, ER_NDB_SLAVE_MISSING_DATA_FOR_TIMESTAMP_COLUMN,
-           cfn_share->m_conflict_fn->name,
-           resolve_column);
+    ndb_log_info("NDB Slave: missing data for %s timestamp column %u.",
+                 cfn_share->m_conflict_fn->name, resolve_column);
     DBUG_RETURN(1);
   }
 
@@ -2647,20 +2657,16 @@ slave_set_resolve_fn(Ndb* ndb,
 
         /* Table looked suspicious, warn user */
         if (msg)
-          LogErr(WARNING_LEVEL, ER_NDB_CONFLICT_GENERIC_MESSAGE, msg);
+          ndb_log_warning("NDB Slave: %s", msg);
 
-        if (opt_ndb_extra_logging)
-        {
-          LogErr(INFORMATION_LEVEL, ER_NDB_SLAVE_LOGGING_EXCEPTIONS_TO,
-                 dbName,
-                 tabName,
-                 dbName,
-                 ex_tab_name);
-        }
+        ndb_log_verbose(1,
+                        "NDB Slave: Table %s.%s logging exceptions to %s.%s",
+                        dbName, tabName,
+                        dbName, ex_tab_name);
       }
       else
       {
-        LogErr(WARNING_LEVEL, ER_NDB_CONFLICT_GENERIC_MESSAGE, msg);
+        ndb_log_warning("NDB Slave: %s", msg);
       }
       break;
     } /* if (ex_tab) */
@@ -2702,7 +2708,7 @@ setup_conflict_fn(Ndb* ndb,
   if(is_exceptions_table(tabName))
   {
     my_snprintf(msg, msg_len, 
-                "Ndb Slave: Table %s.%s is exceptions table: not using conflict function %s",
+                "Table %s.%s is exceptions table: not using conflict function %s",
                 dbName,
                 tabName,
                 conflict_fn->name);
@@ -2781,7 +2787,7 @@ setup_conflict_fn(Ndb* ndb,
 
     /* Success, update message */
     my_snprintf(msg, msg_len,
-                "NDB Slave: Table %s.%s using conflict_fn %s on attribute %s.",
+                "Table %s.%s using conflict_fn %s on attribute %s.",
                 dbName,
                 tabName,
                 conflict_fn->name,
@@ -2833,8 +2839,8 @@ setup_conflict_fn(Ndb* ndb,
      * represent SavePeriod/EpochPeriod
      */
     if (ndbtab->getExtraRowGciBits() == 0)
-      LogErr(INFORMATION_LEVEL, ER_NDB_SLAVE_LOW_EPOCH_RESOLUTION,
-             dbName, tabName, conflict_fn->name);
+      ndb_log_info("NDB Slave: Table %s.%s : %s, low epoch resolution",
+                   dbName, tabName, conflict_fn->name);
 
     if (ndbtab->getExtraRowAuthorBits() == 0)
     {
@@ -2859,7 +2865,7 @@ setup_conflict_fn(Ndb* ndb,
     }
     /* Success, update message */
     my_snprintf(msg, msg_len,
-                "NDB Slave: Table %s.%s using conflict_fn %s.",
+                "Table %s.%s using conflict_fn %s.",
                 dbName,
                 tabName,
                 conflict_fn->name);
@@ -2928,7 +2934,7 @@ SHOW_VAR ndb_status_conflict_variables[]= {
 };
 
 int
-show_ndb_conflict_status_vars(THD *thd, struct st_mysql_show_var *var, char *buff)
+show_ndb_status_conflict(THD*, struct st_mysql_show_var* var, char*)
 {
   /* Just a function to allow moving array into this file */
   var->type = SHOW_ARRAY;

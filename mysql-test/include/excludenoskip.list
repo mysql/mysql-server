@@ -14,6 +14,7 @@
 # where conditions are met and skip on others.
 have_32bit.inc
 have_64bit.inc
+have_little_endian.inc
 have_case_insensitive_file_system.inc
 have_case_sensitive_file_system.inc
 have_crypt.inc
@@ -57,6 +58,15 @@ have_debug.inc
 have_nodebug.inc
 mysql_have_debug.inc
 have_ibd2sdi_debug.inc
+
+# 3.37 Compile options
+# Test checking existence of features in the build causing the test to be skipped
+have_ndb_error_insert.inc
+have_ndbapi_examples.inc
+have_ndb_debug.inc
+have_ndb_rqg.inc
+# Generated in var/tmp/ by run_ndbapitest.inc and then sourced
+run_ndbapitest_result.inc
 
 # 4.0 Miscellaneous
 

@@ -4,10 +4,6 @@
 
 -- source include/have_ndb.inc
 
---disable_warnings
-DROP TABLE IF EXISTS t1, t3, t2, t4;
---enable_warnings
-
 #The first step is to test the int type promotion
 
 create table t1(t1 tinyint, t2 tinyint, ut1 tinyint unsigned, 
@@ -153,7 +149,7 @@ drop table t3;
 create table t2(ch1 char(20), ch2 char(200), vch1 varchar(20), 
   vch2 varchar(200), vch3 varchar(2000), b1 binary(20), b2 binary(200), 
   vb1 varbinary(20), vb2 varbinary(200), vb3 varbinary(2000)
-)engine = ndb;
+) character set latin1 engine = ndb;
 
 insert into t2 values(repeat('a', 20), repeat('b', 200), repeat('c', 20),
   repeat('d', 200), repeat('e', 1000), repeat('f', 20), repeat('g', 200),

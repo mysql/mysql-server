@@ -23,6 +23,7 @@
 #include <ndb_version.h>
 #include <NDBT_Stats.hpp>
 #include <math.h>
+#include <NdbHost.h>
 
 #undef min
 #undef max
@@ -2081,7 +2082,7 @@ runtest()
   uint seed = g_opts.seed;
   if (seed != 1) { // not loop number
     if (seed == 0) { // random
-      seed = 2 + (ushort)getpid();
+      seed = 2 + NdbHost_GetProcessId();
     }
     ll0("random seed is " << seed);
     srand(seed);

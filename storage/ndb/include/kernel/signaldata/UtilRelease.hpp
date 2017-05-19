@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -72,7 +72,7 @@ class UtilReleaseRef {
   friend class Trix;
 
   enum ErrorCode {
-    NO_ERROR = 0,
+    RELEASE_REF_NO_ERROR = 0,
     NO_SUCH_PREPARE_SEIZED = 1
   };
 

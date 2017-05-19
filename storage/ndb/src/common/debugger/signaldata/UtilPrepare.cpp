@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003, 2005-2007 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -49,7 +48,7 @@ printUTIL_PREPARE_REF(FILE* out, const Uint32 * data, Uint32 len, Uint16 rec)
 
   fprintf(out, " errorMsg: ");
   switch(sig->errorCode) {
-  case UtilPrepareRef::NO_ERROR:
+  case UtilPrepareRef::PREPARE_REF_NO_ERROR:
     fprintf(out, "No error");
     break;
   case UtilPrepareRef::PREPARE_SEIZE_ERROR:

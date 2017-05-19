@@ -22,7 +22,7 @@
 #include <EventLogger.hpp>
 #include <portlib/NdbMem.h>
 
-#ifdef NDB_WIN
+#ifdef _WIN32
 void *sbrk(int increment)
 {
   return (void*)-1;
@@ -1155,6 +1155,7 @@ Ndbd_mem_manager::release_pages(Uint32 type, Uint32 i, Uint32 cnt)
 #ifdef UNIT_TEST
 
 #include <Vector.hpp>
+#include <NdbHost.h>
 
 struct Chunk {
   Uint32 pageId;
@@ -1237,7 +1238,7 @@ main(int argc, char** argv)
   
   mem.init(NULL);
   mem.dump();
-  printf("pid: %d press enter to continue\n", getpid());
+  printf("pid: %d press enter to continue\n", NdbHost_GetProcessId());
   fgets(buf, sizeof(buf), stdin);
   Vector<Chunk> chunks;
   time_t stop = time(0) + run_time;

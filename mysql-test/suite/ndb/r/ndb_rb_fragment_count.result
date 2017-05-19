@@ -468,7 +468,7 @@ t1	CREATE TABLE `t1` (
   `c` bigint(20) NOT NULL,
   `d` bigint(20) NOT NULL,
   PRIMARY KEY (`a`,`b`,`c`,`d`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_NODE,NOLOGGING=1,READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COMMENT='NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_NODE,NOLOGGING=1,READ_BACKUP=1'
 alter table t1 algorithm=inplace,
 comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_NODE";
 select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
@@ -492,7 +492,7 @@ t1	CREATE TABLE `t1` (
   `c` bigint(20) NOT NULL,
   `d` bigint(20) NOT NULL,
   PRIMARY KEY (`a`,`b`,`c`,`d`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_NODE,NOLOGGING=1,READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COMMENT='NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_NODE,NOLOGGING=1,READ_BACKUP=1'
 alter table t1 algorithm=inplace,
 comment="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_LDM";
 select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
@@ -520,7 +520,7 @@ t1	CREATE TABLE `t1` (
   `c` bigint(20) NOT NULL,
   `d` bigint(20) NOT NULL,
   PRIMARY KEY (`a`,`b`,`c`,`d`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_LDM,NOLOGGING=1,READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COMMENT='NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_LDM,NOLOGGING=1,READ_BACKUP=1'
 alter table t1 algorithm=inplace,
 comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
@@ -556,7 +556,7 @@ t1	CREATE TABLE `t1` (
   `c` bigint(20) NOT NULL,
   `d` bigint(20) NOT NULL,
   PRIMARY KEY (`a`,`b`,`c`,`d`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM,NOLOGGING=1,READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COMMENT='NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM,NOLOGGING=1,READ_BACKUP=1'
 -- t1 --
 Version: Any
 Fragment type: HashMapPartition
@@ -594,7 +594,11 @@ NDBT_ProgramExit: 0 - OK
 drop table t1;
 create table t1 (a bigint primary key, b bigint storage disk) engine ndb
 comment="NDB_TABLE=NOLOGGING=1";
-ERROR HY000: Table storage engine 'NDBCLUSTER' found required create option missing
+ERROR 42000: Table 't1' uses an extension that doesn't exist in this MySQL version
+show warnings;
+Level	Code	Message
+Warning	1478	Table storage engine 'ndbcluster' does not support the create option 'NOLOGGING=1 on table with fields using STORAGE DISK'
+Error	1112	Table 't1' uses an extension that doesn't exist in this MySQL version
 create table t2 (a bigint primary key, b bigint unique) engine ndb
 comment="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_NODE";
 select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
@@ -652,7 +656,7 @@ t1	CREATE TABLE `t1` (
   `b` bigint(20) DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COMMENT='NDB_TABLE=READ_BACKUP=1'
 select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
 where fq_name = 'test/def/t1' order by node_id, fragment_num, block_instance;
 node_id	fragment_num	block_instance
@@ -700,7 +704,7 @@ t1	CREATE TABLE `t1` (
   `b` bigint(20) DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM,READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COMMENT='NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM,READ_BACKUP=1'
 select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
 where fq_name = 'test/def/t1' order by node_id, fragment_num, block_instance;
 node_id	fragment_num	block_instance

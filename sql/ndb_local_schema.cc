@@ -21,14 +21,17 @@
 
 #include "sql_class.h"
 #include "sql_table.h"
+
+#include "ndb_dd.h"
 #include "mdl.h"
-#include "log.h"
 #include "table_trigger_dispatcher.h"
 #include "sql_trigger.h"
 #include "mysqld.h"                             // reg_ext
 #include "dd/dd_table.h"  // dd::table_legacy_db_type
 #include "dd/dd_trigger.h"  // dd::table_has_triggers
 #include "sql_trigger.h"  // reload_triggers_for_table
+
+#include "ndb_log.h"
 
 static const char *ndb_ext=".ndb";
 
@@ -95,7 +98,8 @@ void Ndb_local_schema::Base::log_warning(const char* fmt, ...) const
   else
   {
     // Print the warning to log file
-    LogErr(WARNING_LEVEL, ER_NDB_SCHEMA_GENERIC_MESSAGE, m_db, m_name, buf);
+    ndb_log_warning("[%s.%s], %s",
+                    m_db, m_name, buf);
   }
 }
 
@@ -249,18 +253,61 @@ Ndb_local_schema::Table::remove_table(void) const
   (void)remove_file(reg_ext);
   (void)remove_file(ndb_ext);
 
+  // Remove the table from DD
+  if (!ndb_dd_drop_table(m_thd, m_db, m_name))
+  {
+    log_warning("Failed to drop table from DD");
+    return;
+  }
+
   if (m_has_triggers)
   {
-    // Copy to buffers since 'drop_all_triggers' want char*
-    char db_name_buf[FN_REFLEN + 1], table_name_buf[FN_REFLEN + 1];
-    my_stpcpy(db_name_buf, m_db);
-    my_stpcpy(table_name_buf, m_name);
-
-    if (drop_all_triggers(m_thd, db_name_buf, table_name_buf))
+    if (drop_all_triggers(m_thd, m_db, m_name))
     {
       log_warning("Failed to drop all triggers");
     }
   }
+
+  // TODO Presumably also referencing views need to be updated here.
+  // They should probably not be dropped by their references
+  // to the now non existing table must be removed. Assumption is
+  // that if user tries to open such a table an error
+  // saying 'no such table' will be returned
+}
+
+
+bool
+Ndb_local_schema::Table::mdl_try_lock_for_rename(const char* new_db,
+                                                 const char* new_name) const
+{
+  MDL_request_list mdl_requests;
+  MDL_request schema_request;
+  MDL_request mdl_request;
+
+  MDL_REQUEST_INIT(&schema_request,
+                   MDL_key::SCHEMA, new_db, "", MDL_INTENTION_EXCLUSIVE,
+                   MDL_TRANSACTION);
+  MDL_REQUEST_INIT(&mdl_request,
+                   MDL_key::TABLE, new_db, new_name, MDL_EXCLUSIVE,
+                   MDL_TRANSACTION);
+
+  mdl_requests.push_front(&mdl_request);
+  mdl_requests.push_front(&schema_request);
+  if (m_thd->mdl_context.acquire_locks(&mdl_requests,
+                                       0 /* don't wait for lock */))
+  {
+    // Check that an error has been pushed to thd and then
+    // clear it since this is just a _try lock_
+    assert(m_thd->is_error());
+    m_thd->clear_error();
+
+    log_warning("Failed to acquire exclusive metadata lock for %s.%s",
+                new_db, new_name);
+
+    return false;
+  }
+  DBUG_PRINT("info", ("acquired metadata lock"));
+  return true;
 }
 
 
@@ -268,8 +315,19 @@ void
 Ndb_local_schema::Table::rename_table(const char* new_db,
                                       const char* new_name) const
 {
-  (void)rename_file(new_db, new_name, reg_ext);
-  (void)rename_file(new_db, new_name, ndb_ext);
+  // Take write lock for the new table name
+  if (mdl_try_lock_for_rename(new_db, new_name))
+  {
+    return;
+  }
+
+  if (!ndb_dd_rename_table(m_thd,
+                           m_db, m_name,
+                           new_db, new_name)) /* commit_dd_changes */
+  {
+    log_warning("Failed to rename table in DD");
+    return;
+  }
 
   if (m_has_triggers)
   {

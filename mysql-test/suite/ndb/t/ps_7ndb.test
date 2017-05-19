@@ -4,24 +4,26 @@
 #                                             #
 ###############################################
 
-#    
-# NOTE: PLEASE SEE ps_1general.test (bottom) 
-#       BEFORE ADDING NEW TEST CASES HERE !!!
+-- source include/have_ndb.inc
 
-use test;
+# Query cache could affect the result column names of
+# prepared statements. Hence, skipping this test.
+--source include/have_query_cache_disabled.inc
 
+# Turn off ndb_join_pushdown
 --disable_query_log
 set @save_ndb_join_pushdown = @@session.ndb_join_pushdown;
 set ndb_join_pushdown = false;
 --enable_query_log
 
-# bug#36342
-
--- source include/have_ndb.inc
+# Set default engine type to use for these tests
 let $type= 'NDB' ;
-# Query cache could affect the result column names of
-# prepared statements. Hence, skipping this test.
---source include/have_query_cache_disabled.inc
+
+# Source the upstream include files which are also
+# used by ps_2myisam, ps_3innodb etc. This means that when
+# these upstream include files are modified the ps_7ndb.result file
+# need to be updated. Sometimes also the upstream include files need
+# to be adapted to also work with NDB tables
 -- source include/ps_create.inc
 -- source include/ps_renew.inc
 
@@ -32,8 +34,7 @@ let $type= 'NDB' ;
 
 drop table t1, t9;
 
+# Restore original ndb_join_pushdown value
 --disable_query_log
 set ndb_join_pushdown = @save_ndb_join_pushdown;
 --enable_query_log
-
-# End of 4.1 tests

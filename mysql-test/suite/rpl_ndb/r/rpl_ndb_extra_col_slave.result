@@ -478,7 +478,7 @@ c1	c2	c3	c4	c5	c6	c7
 1	1.00	Replication Testing Extra Col	b1b1b1b1b1b1b1b1	Kyle	1	CURRENT_TIMESTAMP
 2	2.00	This Test Should work	b1b1b1b1b1b1b1b1	JOE	1	CURRENT_TIMESTAMP
 3	3.00	If is does not, I will open a bug	b1b1b1b1b1b1b1b1	QA	1	CURRENT_TIMESTAMP
-*** Add Partition on master ***
+*** Add Partition on master if native partitioning is supported ***
 ALTER TABLE t16 PARTITION BY KEY(c1) PARTITIONS 4;
 INSERT INTO t16 () VALUES(4,1.00,'Replication Rocks',@b1,'Omer');
 SHOW CREATE TABLE t16;
@@ -490,7 +490,7 @@ t16	CREATE TABLE `t16` (
   `c4` blob,
   `c5` char(5) DEFAULT NULL,
   PRIMARY KEY (`c1`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=NOLOGGING=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COMMENT='NDB_TABLE=NOLOGGING=1'
 /*!50100 PARTITION BY KEY (c1)
 PARTITIONS 4 */
 *** Show table on Slave ****
@@ -505,7 +505,7 @@ t16	CREATE TABLE `t16` (
   `c6` int(11) DEFAULT '1',
   `c7` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`c1`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=NOLOGGING=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COMMENT='NDB_TABLE=NOLOGGING=1'
 /*!50100 PARTITION BY KEY (c1)
 PARTITIONS 4 */
 *** DROP TABLE t16 ***

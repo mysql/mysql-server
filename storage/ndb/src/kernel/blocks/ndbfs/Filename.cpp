@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -160,7 +160,7 @@ Filename::set(Ndbfs* fs,
     }
     else
     {
-#ifdef NDB_WIN32
+#ifdef _WIN32
       char* b= buf;
       while((b= strchr(b, '/')) && b)
       {

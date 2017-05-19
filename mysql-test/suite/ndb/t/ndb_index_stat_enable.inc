@@ -30,8 +30,8 @@ if ($is_enable_off)
   eval set @@global.ndb_index_stat_enable = 0;
 
   # stats thread does not (and must not) drop stats tables
-  eval drop table mysql.ndb_index_stat_sample;
-  eval drop table mysql.ndb_index_stat_head;
+  drop table mysql.ndb_index_stat_sample;
+  drop table mysql.ndb_index_stat_head;
 }
 
 --echo # ndb_index_stat_enable - after
