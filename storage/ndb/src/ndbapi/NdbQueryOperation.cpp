@@ -2737,7 +2737,7 @@ NdbQueryImpl::prepareSend()
       {
         Uint32 nodes[1];
         const Uint32 res = rootTable.getFragmentNodes(i, nodes, NDB_ARRAY_SIZE(nodes));
-        assert(res>0);
+        assert(res>0); (void)res;
         {
           if (!dataNodes.get(nodes[0]))
           {
