@@ -269,4 +269,42 @@ select count(*) from t5a;
 select count(*) from t5b;
 select count(*) from t5c;
 
-drop table t1, t2, t2ver, t3, t3ver, t4, t5a, t5b, t5c;
+--echo # test quoting and escapes
+
+create table t6 (
+  a int primary key,
+  b char(5) not null
+) engine=ndb;
+
+create table t6ver like t6;
+
+write_file $MYSQLTEST_VARDIR/tmp/t6.csv;
+1,abc
+2,"abc"
+3,"a""bc"
+4,\\\"\\
+5,"\\\"\\"
+6,\0\b\r\n\t
+7,"\0\b\r\n\t"
+EOF
+
+--error 0
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --verbose=1
+     --csvopt=cq
+     test $MYSQLTEST_VARDIR/tmp/t6.csv >> $NDB_TOOLS_OUTPUT 2>&1;
+
+--disable_query_log
+eval load data infile '$MYSQLTEST_VARDIR/tmp/t6.csv'
+into table t6ver
+fields terminated by ',' enclosed by '"' escaped by '\\\\'
+lines terminated by '\n';
+--enable_query_log
+
+select count(*) from t6 x, t6ver y
+where x.a = y.a and x.b = y.b;
+
+select a from t6
+where b like '%"%'
+order by a;
+
+drop table t1, t2, t2ver, t3, t3ver, t4, t5a, t5b, t5c, t6, t6ver;
