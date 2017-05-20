@@ -82,4 +82,21 @@ count(*)
 select count(*) from t5c;
 count(*)
 2
-drop table t1, t2, t2ver, t3, t3ver, t4, t5a, t5b, t5c;
+# test quoting and escapes
+create table t6 (
+a int primary key,
+b char(5) not null
+) engine=ndb;
+create table t6ver like t6;
+select count(*) from t6 x, t6ver y
+where x.a = y.a and x.b = y.b;
+count(*)
+7
+select a from t6
+where b like '%"%'
+order by a;
+a
+3
+4
+5
+drop table t1, t2, t2ver, t3, t3ver, t4, t5a, t5b, t5c, t6, t6ver;
