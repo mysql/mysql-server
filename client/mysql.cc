@@ -3756,7 +3756,7 @@ print_table_data(MYSQL_RES *result)
       length=4;					// Room for "NULL"
     if (opt_binhex && is_binary_field(field))
       length= 2 + length * 2;
-    field->max_length=length;
+    field->max_length=(ulong) length;
     separator.fill(separator.length()+length+2,'-');
     separator.append('+');
   }
@@ -3823,7 +3823,7 @@ print_table_data(MYSQL_RES *result)
        many extra padding-characters we should send with the printing function.
       */
       visible_length= charset_info->cset->numcells(charset_info, buffer, buffer + data_length);
-      extra_padding= data_length - visible_length;
+      extra_padding= (uint) (data_length - visible_length);
 
       if (opt_binhex && is_binary_field(field))
         print_as_hex(PAGER, cur[off], lengths[off], field_max_length);
@@ -4546,10 +4546,9 @@ com_use(String *buffer MY_ATTRIBUTE((unused)), char *line)
   memset(buff, 0, sizeof(buff));
 
   /*
-    In case number of quotes exceed 2, we try to get
-    the normalized db name.
+    In case of quotes used, try to get the normalized db name.
   */
-  if (get_quote_count(line) > 2)
+  if (get_quote_count(line) > 0)
   {
     if (normalize_dbname(line, buff, sizeof(buff)))
       return put_error(&mysql);
@@ -4767,11 +4766,13 @@ char *get_arg(char *line, my_bool get_next_arg)
 static int
 get_quote_count(const char *line)
 {
-  int quote_count;
-  const char *ptr= line;
+  int quote_count= 0;
+  const char *quote= line;
 
-  for(quote_count= 0; ptr ++ && *ptr; ptr= strpbrk(ptr, "\"\'`"))
-    quote_count ++;
+  while ((quote= strpbrk(quote, "'`\"")) != NULL) {
+    quote_count++;
+    quote++;
+  }
 
   return quote_count;
 }
