@@ -17,17 +17,17 @@
 
 #include "ndb_log.h"
 
-// Use log.h until there is a plugin API which provides printing to error log
-// without polluting the message with it's own hardcoded string and without
-// need to pass in a MYSQL_PLUGIN pointer. Presumably 'my_plugin_log_service'
-// can be extended with a my_log_message(level, prefix, message, ...) function
+/*
+  Implements a logging interface for the ndbcluster
+  plugin using the LogEvent class as defined in log_builtins.h
+*/
 #include "log.h"
 #include <mysql/components/services/log_builtins.h>
+
 #include "my_dbug.h"
 #include "mysqld_error.h"
-#include "mysqld_error.h"
-#include "mysql/service_my_snprintf.h"
 
+#include <mysql/service_my_snprintf.h>
 
 /*
   Print message to MySQL Server's error log(s)
@@ -64,6 +64,11 @@ ndb_log_print(enum ndb_log_loglevel loglevel,
       break;
     case NDB_LOG_INFORMATION_LEVEL:
       prio= INFORMATION_LEVEL;
+      break;
+    default:
+      // Should never happen, crash in debug
+      DBUG_ABORT();
+      prio = ERROR_LEVEL;
       break;
   }
 

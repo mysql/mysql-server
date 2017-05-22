@@ -17,8 +17,6 @@
 
 #include "ha_ndbcluster_connection.h"
 
-#include "log.h"
-#include <mysql/components/services/log_builtins.h>
 #include <mysql/psi/mysql_thread.h>
 
 #include "sql_class.h"
