@@ -970,4 +970,14 @@ bool is_partial_transaction_on_channel_relay_log(const char *channel)
   channel_map.unlock();
   DBUG_RETURN(ret);
 }
+
+bool is_any_slave_channel_running(int thread_mask)
+{
+  bool status;
+  DBUG_ENTER("is_any_slave_channel_running");
+  channel_map.rdlock();
+  status= is_any_slave_channel_running(thread_mask, NULL);
+  channel_map.unlock();
+  DBUG_RETURN(status);
+}
 #endif /* HAVE_REPLICATION */

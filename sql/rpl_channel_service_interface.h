@@ -372,4 +372,15 @@ bool channel_is_stopping(const char* channel, enum_channel_thread_types type);
 */
 bool is_partial_transaction_on_channel_relay_log(const char* channel);
 
+/**
+  Checks if any slave threads of any channel is running
+
+  @param[in]        thread_mask       type of slave thread- IO/SQL or any
+
+  @return
+    @retval          true               atleast one channel threads are running.
+    @retval          false              none of the the channels are running.
+*/
+bool is_any_slave_channel_running(int thread_mask);
+
 #endif //RPL_SERVICE_INTERFACE_INCLUDE

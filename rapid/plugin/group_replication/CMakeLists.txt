@@ -1,4 +1,4 @@
-# Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -134,6 +134,7 @@ SET(GROUP_REPLICATION_SOURCES
   src/recovery.cc
   src/recovery_channel_state_observer.cc
   src/applier_channel_state_observer.cc
+  src/asynchronous_channels_state_observer.cc
   src/recovery_message.cc
   src/recovery_state_transfer.cc
   src/replication_threads_api.cc

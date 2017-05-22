@@ -1,0 +1,139 @@
+#
+# Test case to verify that group replication on single primary-mode can not be
+# started on secondary while asynchronous replication channels are running, its
+# should error out.
+#
+# Test:
+#
+# 1. Bootstrap start GR on server1 and verify its an primary.
+# 2. Verify server1 is primary and so server2 will be secondary.
+# 3. Create new channel ch3_2: server2(slave), server3(master).
+# 4. Verify for following scenarios:
+#    1. start slave and start GR and verify for
+#       ER_GROUP_REPLICATION_CONFIGURATION error.
+#    2. start slave io and start GR and verify for
+#       ER_GROUP_REPLICATION_CONFIGURATION error.
+#    3. start slave sql and start GR and verify for
+#       ER_GROUP_REPLICATION_CONFIGURATION error.
+# 5. Verify three occurrence of error message due to error in starting
+#    group replication three times in step 3.
+# 6. Verify GR on server2 is OFFLINE
+# 7. Start Group Replication again on server2 after resetting slave and verify
+#    it is running
+#
+
+--source include/big_test.inc
+--source ../inc/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count= 3
+--let $rpl_group_replication_single_primary_mode=1
+--source ../inc/group_replication.inc
+
+--echo
+--echo # 1. Bootstrap start GR on server1
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source ../inc/start_and_bootstrap_group_replication.inc
+
+
+--echo
+--echo # 2. Verify server1 is primary and so server2 will be secondary
+--let $server_id1=`SELECT @@server_id`
+--source ../inc/gr_find_a_primary.inc
+if ($group_replication_found_primary_out_var)
+{
+  --let $rpl_connection_name= $group_replication_primary_connection_out_var
+  --source include/rpl_connection.inc
+  --let $primary_server_id=`SELECT @@server_id`
+
+  --let $assert_text= The server1 is primary
+  --let $assert_cond= $primary_server_id = $server_id1
+  --source include/assert.inc
+}
+
+if (!$group_replication_found_primary_out_var)
+{
+  --echo performance_schema.replication_group_members
+  --echo --------------------------------------------
+  --query_vertical SELECT * FROM performance_schema.replication_group_members
+  --die "Unable to find PRIMARY server!!"
+}
+
+--echo
+--echo # 3. Create new channel ch3_2: server2(slave), server3(master).
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--replace_result $SERVER_MYPORT_3 SERVER_3_PORT
+--eval CHANGE MASTER TO MASTER_HOST='localhost', MASTER_USER='root', MASTER_PORT=$SERVER_MYPORT_3 for channel 'ch3_2'
+
+
+--let $rpl_channel_name=ch3_2
+
+--disable_query_log
+--eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
+--enable_query_log
+
+--echo
+--echo # 4.1 start slave and start GR and verify for
+--echo #     ER_GROUP_REPLICATION_CONFIGURATION error
+
+--source include/start_slave.inc
+
+--error ER_GROUP_REPLICATION_CONFIGURATION
+START GROUP_REPLICATION;
+
+--source include/stop_slave.inc
+
+
+--echo
+--echo # 4.2 start slave io and start GR and verify for
+--echo #     ER_GROUP_REPLICATION_CONFIGURATION error
+
+--source include/start_slave_io.inc
+
+--error ER_GROUP_REPLICATION_CONFIGURATION
+START GROUP_REPLICATION;
+
+--source include/stop_slave_io.inc
+
+
+--echo
+--echo # 4.3 start slave sql and start GR and verify for
+--echo #     ER_GROUP_REPLICATION_CONFIGURATION error
+
+--source include/start_slave_sql.inc
+
+--error ER_GROUP_REPLICATION_CONFIGURATION
+START GROUP_REPLICATION;
+
+--source include/stop_slave_sql.inc
+
+--let $rpl_channel_name=
+
+--echo
+--echo # 5. Verify occurrence of error message
+--replace_regex /[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]\.[0-9][0-9][0-9][0-9][0-9][0-9][-+Z][0-9:]* *[0-9]* *\[/DATE_TIME [/
+--let $grep_file= $MYSQLTEST_VARDIR/tmp/gr_secondary_scenario2.err
+--let $grep_pattern= Can't start group replication on secondary member with single primary-mode while asynchronous replication channels are running
+--let $grep_output= print_count
+--source include/grep_pattern.inc
+
+--echo
+--echo # 6. Verify GR on server2 is OFFLINE
+--let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+--let $assert_text= Verify server2 MEMBER_STATE is OFFLINE
+--let $assert_cond= "[SELECT MEMBER_STATE FROM performance_schema.replication_group_members WHERE MEMBER_ID=\'$server2_uuid\', MEMBER_STATE, 1]" = "OFFLINE"
+--source include/assert.inc
+
+--echo
+--echo # 7. Start Group Replication on server2 and after
+--echo #    resetting slave, verify it is running.
+RESET SLAVE ALL FOR CHANNEL 'ch3_2';
+
+--source include/start_group_replication.inc
+
+--let $assert_text= Verify server2 MEMBER_STATE is ONLINE
+--let $assert_cond= "[SELECT MEMBER_STATE FROM performance_schema.replication_group_members WHERE MEMBER_ID=\'$server2_uuid\', MEMBER_STATE, 1]" = "ONLINE"
+--source include/assert.inc
+
+--source ../inc/group_replication_end.inc
