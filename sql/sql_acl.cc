@@ -1,5 +1,5 @@
 /* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
-sql_authenticate
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; version 2 of the License.
@@ -3530,7 +3530,7 @@ static int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
       * An empty password is considered to be of mysql_native type.
     */
     
-    if (combo->plugin.str == NULL || combo->plugin.str == '\0')
+    if (combo->plugin.str == NULL || combo->plugin.str[0] == '\0')
     {
       if (combo->uses_identified_by_password_clause)
       {
