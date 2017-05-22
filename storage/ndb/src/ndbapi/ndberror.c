@@ -133,7 +133,8 @@ ErrorBundle ErrorCodes[] = {
    */
   {  286, DMEC, NR, "Node failure caused abort of transaction" }, 
   {  250, DMEC, NR, "Node where lock was held crashed, restart scan transaction" },
-  {  499, DMEC, NR, "Scan take over error, restart scan transaction" },  
+  {  499, DMEC, NR, "Scan take over error, restart scan transaction" },
+  {  631, DMEC, NR, "Scan take over error, restart scan transaction" },
   { 1204, DMEC, NR, "Temporary failure, distribution changed" },
   { 4002, DMEC, NR, "Send to NDB failed" },
   { 4007, DMEC, NR, "Send to ndbd node failed" },
@@ -370,7 +371,6 @@ ErrorBundle ErrorCodes[] = {
   { 290,  DMEC, IE, "Corrupt key in TC, unable to xfrm" },
   { 293,  DMEC, IE, "Inconsistent trigger state in TC block" },
   { 292,  DMEC, IE, "Inconsistent index state in TC block" },
-  { 631,  DMEC, IE, "631" },
   { 632,  DMEC, IE, "632" },
   { 706,  DMEC, IE, "Inconsistency during table creation" },
   { 781,  DMEC, IE, "Invalid schema transaction key from NDB API" },
