@@ -116,6 +116,7 @@ public:
 	Uint32 m_first_free_extent;
 	Uint32 m_lcp_free_extent_head; // extents freed but not LCP
 	Uint32 m_lcp_free_extent_tail;
+        Uint32 m_lcp_free_extent_count;
 	Uint32 m_offset_data_pages;    // 1(zero) + extent header pages
 	Uint32 m_data_pages;
 	Uint32 m_used_extent_cnt;
@@ -184,6 +185,10 @@ public:
 
     Datafile_list::Head m_full_files; // Files wo/ free space
     Datafile_list::Head m_meta_files; // Files being created/dropped
+
+    // Total extents of a tablespace (sum of data page extents of all files)
+    Uint64 m_total_extents;
+    Uint64 m_total_used_extents;  // Total extents used from a tablespace
     
     Uint32 nextHash;
     Uint32 prevHash;
