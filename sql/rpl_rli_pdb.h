@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -320,6 +320,18 @@ public:
       circular_buffer_queue<Slave_job_group>::en_queue(item);
   }
 
+  /**
+    Dequeue from head.
+
+    @param [out] item A pointer to the being dequeued item.
+    @return The queue's array index that the de-queued item located at,
+            or an error encoded in beyond the index legacy range.
+  */
+  ulong de_queue(Slave_job_group *item)
+  {
+    return circular_buffer_queue<Slave_job_group>::de_queue(item);
+  }
+
   ulong find_lwm(Slave_job_group**, ulong);
 };
 
@@ -362,6 +374,45 @@ ulong circular_buffer_queue<Element_type>::en_queue(Element_type *item)
   return ret;
 }
 
+
+/**
+  Dequeue from head.
+
+  @param [out] item A pointer to the being dequeued item.
+  @return the queue's array index that the de-queued item
+          located at, or an error as an int outside the legacy
+          [0, size) (value `size' is excluded) range.
+*/
+template <typename Element_type>
+ulong circular_buffer_queue<Element_type>::de_queue(Element_type *val)
+{
+  ulong ret;
+  if (entry == size)
+  {
+    DBUG_ASSERT(len == 0);
+    return (ulong) -1;
+  }
+
+  ret= entry;
+  *val= m_Q[entry];
+  len--;
+
+  // pre boundary cond
+  if (avail == size)
+    avail= entry;
+  entry= (entry + 1) % size;
+
+  // post boundary cond
+  if (avail == entry)
+    entry= size;
+
+  DBUG_ASSERT(entry == size ||
+              (len == (avail >= entry)? (avail - entry) :
+               (size + avail - entry)));
+  DBUG_ASSERT(avail != entry);
+
+  return ret;
+}
 
 
 class Slave_jobs_queue : public circular_buffer_queue<Slave_job_item>
