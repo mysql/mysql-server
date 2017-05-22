@@ -492,6 +492,8 @@ public:
   @return true if at least one member has  conflict detection enabled
   */
   virtual bool is_conflict_detection_enabled()= 0;
+
+  virtual void get_primary_member_uuid(std::string &primary_member_uuid)= 0;
 };
 
 
@@ -539,6 +541,8 @@ public:
                                           uint64 length);
 
   bool is_conflict_detection_enabled();
+
+  void get_primary_member_uuid(std::string &primary_member_uuid);
 
 private:
   void clear_members();

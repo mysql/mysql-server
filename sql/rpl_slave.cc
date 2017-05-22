@@ -7162,6 +7162,16 @@ extern "C" void *handle_slave_sql(void *arg)
   set_timespec_nsec(&rli->stats_begin, 0);
   rli->currently_executing_gtid.set_automatic();
 
+  if (RUN_HOOK(binlog_relay_io, applier_start, (thd, rli->mi)))
+  {
+    mysql_cond_broadcast(&rli->start_cond);
+    mysql_mutex_unlock(&rli->run_lock);
+    rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
+                ER_THD(thd, ER_SLAVE_FATAL_ERROR),
+                "Failed to run 'applier_start' hook");
+    goto err;
+  }
+
   /* MTS: starting the worker pool */
   if (slave_start_workers(rli, rli->opt_slave_parallel_workers, &mts_inited) != 0)
   {

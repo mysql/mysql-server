@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -292,6 +292,7 @@ public:
   typedef Binlog_relay_IO_observer Observer;
   int thread_start(THD *thd, Master_info *mi);
   int thread_stop(THD *thd, Master_info *mi);
+  int applier_start(THD *thd, Master_info *mi);
   int applier_stop(THD *thd, Master_info *mi, bool aborted);
   int before_request_transmit(THD *thd, Master_info *mi, ushort flags);
   int after_read_event(THD *thd, Master_info *mi,

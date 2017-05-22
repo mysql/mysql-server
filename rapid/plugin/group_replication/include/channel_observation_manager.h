@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,6 +29,7 @@ public:
   virtual ~Channel_state_observer()= 0;
   virtual int thread_start(Binlog_relay_IO_param *param)= 0;
   virtual int thread_stop(Binlog_relay_IO_param *param)= 0;
+  virtual int applier_start(Binlog_relay_IO_param *param)= 0;
   virtual int applier_stop(Binlog_relay_IO_param *param, bool aborted)= 0;
   virtual int before_request_transmit(Binlog_relay_IO_param *param,
                                       uint32 flags)= 0;
