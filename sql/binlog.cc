@@ -8644,7 +8644,7 @@ MYSQL_BIN_LOG::process_commit_stage_queue(THD *thd, THD *first)
 #ifndef DBUG_OFF
     stage_manager.clear_preempt_status(head);
 #endif
-    if (thd->get_transaction()->sequence_number != SEQ_UNINIT)
+    if (head->get_transaction()->sequence_number != SEQ_UNINIT)
       update_max_committed(head);
     /*
       Flush/Sync error should be ignored and continue
