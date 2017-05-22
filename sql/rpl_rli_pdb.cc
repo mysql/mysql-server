@@ -1412,48 +1412,6 @@ void Slave_worker::slave_worker_ends_group(Log_event* ev, int error)
 
 
 /**
-   Class circular_buffer_queue.
-
-   Content of the being dequeued item is copied to the arg-pointer
-   location.
-
-   @return the queue's array index that the de-queued item
-           located at, or an error as an int outside the legacy
-           [0, size) (value `size' is excluded) range.
-*/
-
-template <typename Element_type>
-ulong circular_buffer_queue<Element_type>::de_queue(Element_type *val)
-{
-  ulong ret;
-  if (entry == size)
-  {
-    DBUG_ASSERT(len == 0);
-    return (ulong) -1;
-  }
-
-  ret= entry;
-  *val= m_Q[entry];
-  len--;
-
-  // pre boundary cond
-  if (avail == size)
-    avail= entry;
-  entry= (entry + 1) % size;
-
-  // post boundary cond
-  if (avail == entry)
-    entry= size;
-
-  DBUG_ASSERT(entry == size ||
-              (len == (avail >= entry)? (avail - entry) :
-               (size + avail - entry)));
-  DBUG_ASSERT(avail != entry);
-
-  return ret;
-}
-
-/**
    Similar to de_queue() but removing an item from the tail side.
 
    return  the queue's array index that the de-queued item
