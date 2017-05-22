@@ -1,0 +1,13 @@
+RESET MASTER;
+CREATE TABLE t1(c1 INT PRIMARY KEY, c2 INT) ENGINE = InnoDB;
+SET DEBUG_SYNC = "bgc_after_enrolling_for_commit_stage
+                  SIGNAL insert1_ready WAIT_FOR continue_commit_stage";
+INSERT INTO t1 VALUES(1, 1);
+SET DEBUG_SYNC = "now WAIT_FOR insert1_ready";
+SET DEBUG_SYNC = "reached_finish_commit WAIT_FOR insert2_finish";
+INSERT INTO t1 VALUES(2, 1);
+SET DEBUG_SYNC = "now SIGNAL continue_commit_stage";
+UPDATE t1 SET c2 = 2 WHERE c1 = 2;
+SET DEBUG_SYNC = "now SIGNAL insert2_finish";
+include/include/assert_logical_timestamps.inc [3 4]
+DROP TABLE t1;
