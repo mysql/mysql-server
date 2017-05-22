@@ -1767,17 +1767,6 @@ static int add_init_command(struct st_mysql_options *options, const char *cmd)
     mysql->options.opt_var = arg ? my_strdup(key_memory_mysql_options, arg, MYF(MY_WME)) : NULL; \
   } while (0)
 
-
-#define SET_SSL_OPTION(opt_var, arg, mode) \
-  do { \
-    SET_OPTION(opt_var, static_cast<const char*>(arg)); \
-    if (mysql->options.opt_var) \
-    { \
-      ENSURE_EXTENSIONS_PRESENT(&mysql->options); \
-      mysql->options.extension->ssl_mode= mode; \
-    } \
-  } while (0)
-
 #define EXTENSION_SET_SSL_STRING(OPTS, X, STR, mode) \
   do { \
     EXTENSION_SET_STRING(OPTS, X, static_cast<const char*>(STR));       \
@@ -1785,18 +1774,13 @@ static int add_init_command(struct st_mysql_options *options, const char *cmd)
       (OPTS)->extension->ssl_mode= mode; \
   } while (0)
 #else
-#define SET_SSL_OPTION(opt_var, arg, mode) \
-    do { \
-      ; \
-    } while(0)
 #define EXTENSION_SET_SSL_STRING(OPTS, X, STR, mode) \
     do { \
       ; \
     } while(0)
 #endif
 
-static char *set_ssl_option_unpack_path(struct st_mysql_options *options,
-                                        const char *arg, unsigned int mode)
+static char *set_ssl_option_unpack_path(const char *arg)
 {
   char *opt_var= NULL;
   if (arg)
@@ -1805,8 +1789,6 @@ static char *set_ssl_option_unpack_path(struct st_mysql_options *options,
                                   MYF(MY_WME));
     unpack_filename(buff, (char *)arg);
     opt_var= my_strdup(key_memory_mysql_options, buff, MYF(MY_WME));
-    ENSURE_EXTENSIONS_PRESENT(options);
-    options->extension->ssl_mode= mode;
     my_free(buff);
   }
   return opt_var;
@@ -5891,36 +5873,28 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
     if (mysql->options.ssl_key)
       my_free(mysql->options.ssl_key);
     mysql->options.ssl_key=
-           set_ssl_option_unpack_path(&mysql->options,
-                                      static_cast<const char*>(arg),
-                                      SSL_MODE_PREFERRED);
+           set_ssl_option_unpack_path(static_cast<const char*>(arg));
     break;
   case MYSQL_OPT_SSL_CERT:
     if (mysql->options.ssl_cert)
       my_free(mysql->options.ssl_cert);
     mysql->options.ssl_cert=
-           set_ssl_option_unpack_path(&mysql->options,
-                                      static_cast<const char*>(arg),
-                                      SSL_MODE_PREFERRED);
+           set_ssl_option_unpack_path(static_cast<const char*>(arg));
     break;
   case MYSQL_OPT_SSL_CA:
     if (mysql->options.ssl_ca)
       my_free(mysql->options.ssl_ca);
     mysql->options.ssl_ca=
-           set_ssl_option_unpack_path(&mysql->options,
-                                      static_cast<const char*>(arg),
-                                      SSL_MODE_VERIFY_CA);
+           set_ssl_option_unpack_path(static_cast<const char*>(arg));
     break;
   case MYSQL_OPT_SSL_CAPATH:
     if (mysql->options.ssl_capath)
       my_free(mysql->options.ssl_capath);
     mysql->options.ssl_capath=
-           set_ssl_option_unpack_path(&mysql->options,
-                                      static_cast<const char*>(arg),
-                                      SSL_MODE_VERIFY_CA);
+           set_ssl_option_unpack_path(static_cast<const char*>(arg));
     break;
   case MYSQL_OPT_SSL_CIPHER:
-    SET_SSL_OPTION(ssl_cipher, arg, SSL_MODE_PREFERRED);
+    SET_OPTION(ssl_cipher, static_cast<const char*>(arg));
     break;
   case MYSQL_OPT_SSL_CRL:
     if (mysql->options.extension)
@@ -5928,9 +5902,7 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
     else
       ALLOCATE_EXTENSIONS(&mysql->options);
     mysql->options.extension->ssl_crl=
-                   set_ssl_option_unpack_path(&mysql->options,
-                                              static_cast<const char*>(arg),
-                                              SSL_MODE_PREFERRED);
+                   set_ssl_option_unpack_path(static_cast<const char*>(arg));
     break;
   case MYSQL_OPT_SSL_CRLPATH:
     if (mysql->options.extension)
@@ -5938,14 +5910,12 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
     else
       ALLOCATE_EXTENSIONS(&mysql->options);
     mysql->options.extension->ssl_crlpath=
-                   set_ssl_option_unpack_path(&mysql->options,
-                                              static_cast<const char*>(arg),
-                                              SSL_MODE_PREFERRED);
+                   set_ssl_option_unpack_path(static_cast<const char*>(arg));
     break;
   case MYSQL_OPT_TLS_VERSION:
 #if defined(HAVE_OPENSSL)
-    EXTENSION_SET_SSL_STRING(&mysql->options, tls_version, arg,
-                             SSL_MODE_PREFERRED);
+    EXTENSION_SET_STRING(&mysql->options, tls_version,
+                         static_cast<const char*>(arg));
     if ((mysql->options.extension->ssl_ctx_flags=
            process_tls_version(mysql->options.extension->tls_version)) == -1)
       DBUG_RETURN(1);
