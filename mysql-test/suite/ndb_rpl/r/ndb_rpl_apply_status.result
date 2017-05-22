@@ -1,4 +1,3 @@
-select * from mysql.ndb_apply_status;
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
