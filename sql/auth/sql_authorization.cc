@@ -1263,7 +1263,11 @@ public:
                        acl_user.host.get_host(),
                        acl_user.access));
     /* Add global access */
-    *m_access |= acl_user.access;
+    /*
+      Up-cast to base class to avoid gcc 7.1.1 warning:
+      dereferencing type-punned pointer will break strict-aliasing rules
+     */
+    *m_access |= implicit_cast<ACL_ACCESS*>(&acl_user)->access;
 
     /* Add database access */
     get_database_access_map(&acl_user, m_db_map, m_db_wild_map);
@@ -1297,8 +1301,10 @@ public:
       String qname;
       append_identifier(&qname, to_user.user, strlen(to_user.user));
       qname.append('@');
-      append_identifier(&qname, to_user.host.get_host(),
-                        to_user.host.get_host_len());
+      /* Up-cast to base class, see above. */
+      append_identifier(&qname,
+                        implicit_cast<ACL_ACCESS*>(&to_user)->host.get_host(),
+                        implicit_cast<ACL_ACCESS*>(&to_user)->host.get_host_len());
       /* We save the granted role in the Acl_map of the granted user */
       m_with_admin_acl->insert(std::string(qname.c_ptr_quick(),
                                            qname.length()));
