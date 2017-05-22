@@ -16,8 +16,6 @@
 #ifndef RPL_SERVICE_INTERFACE_INCLUDE
 #define RPL_SERVICE_INTERFACE_INCLUDE
 
-#include "rpl_mi.h"
-
 //Channel errors
 
 #define RPL_CHANNEL_SERVICE_RECEIVER_CONNECTION_ERROR      -1
