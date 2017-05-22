@@ -23,16 +23,6 @@
 #include "sql_string.h"                         // StringBuffer
 
 
-Json_diff::Json_diff(const Json_seekable_path &path,
-                     enum_json_diff_operation operation,
-                     Json_dom *value)
-  : m_path(), m_operation(operation), m_value(value)
-{
-  for (size_t i= 0; i < path.leg_count(); ++i)
-    m_path.append(*path.get_leg_at(i));
-}
-
-
 Json_wrapper Json_diff::value() const
 {
   Json_wrapper result(m_value.get());

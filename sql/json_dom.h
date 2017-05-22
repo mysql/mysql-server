@@ -19,6 +19,7 @@
 #include <stddef.h>
 #include <functional>
 #include <map>
+#include <memory>               // unique_ptr
 #include <new>
 #include <string>
 #include <type_traits>          // is_base_of
@@ -37,7 +38,9 @@
 #include "sql_alloc.h"          // Sql_alloc
 
 class Field_json;
+class Json_array;
 class Json_dom;
+class Json_object;
 class Json_path;
 class Json_path_leg;
 class Json_seekable_path;
@@ -47,6 +50,10 @@ class THD;
 
 typedef Prealloced_array<Json_wrapper, 16> Json_wrapper_vector;
 typedef Prealloced_array<Json_dom *, 16> Json_dom_vector;
+
+using Json_dom_ptr= std::unique_ptr<Json_dom>;
+using Json_array_ptr= std::unique_ptr<Json_array>;
+using Json_object_ptr= std::unique_ptr<Json_object>;
 
 /// The maximum number of nesting levels allowed in a JSON document.
 #define JSON_DOCUMENT_MAX_DEPTH 100
@@ -109,6 +116,22 @@ enum class enum_json_type
   J_OPAQUE,
   J_ERROR
 };
+
+/**
+  Allocate a new Json_dom object and return a std::unique_ptr which points to it.
+
+  @param args  the arguments to pass to the constructor
+
+  @tparam T     the type of Json_dom to create
+  @tparam Args  the type of the arguments to pass to the constructor
+
+  @return a pointer to the allocated object
+*/
+template <typename T, typename... Args>
+inline std::unique_ptr<T> create_dom_ptr(Args&&... args)
+{
+  return std::unique_ptr<T>(new (std::nothrow) T(std::forward<Args>(args)...));
+}
 
 /**
   JSON DOM abstract base class.
@@ -199,8 +222,18 @@ public:
   virtual bool is_number() const { return false; }
 
   /**
-    @return depth of the DOM. "abc", [] and {} have depth 1. ["abc"] and
-           {"a": "abc"} have depth 2.
+    Compute the depth of a document. This is the value which would be
+    returned by the JSON_DEPTH() system function.
+
+    - for scalar values, empty array and empty object: 1
+    - for non-empty array: 1+ max(depth of array elements)
+    - for non-empty objects: 1+ max(depth of object values)
+
+    For example:
+    "abc", [] and {} have depth 1.
+    ["abc", [3]] and {"a": "abc", "b": [3]} have depth 3.
+
+    @return the depth of the document
   */
   virtual uint32 depth() const= 0;
 
@@ -210,7 +243,7 @@ public:
 
     @return a cloned Json_dom object.
   */
-  virtual Json_dom *clone() const= 0;
+  virtual Json_dom_ptr clone() const= 0;
 
   /**
     Parse Json text to DOM (using rapidjson). The text must be valid JSON.
@@ -239,9 +272,9 @@ public:
 
     @result the built DOM if JSON text was parseable, else NULL
   */
-  static Json_dom *parse(const char *text, size_t length,
-                         const char **errmsg, size_t *offset,
-                         bool handle_numbers_as_double= false);
+  static Json_dom_ptr parse(const char *text, size_t length,
+                            const char **errmsg, size_t *offset,
+                            bool handle_numbers_as_double= false);
 
   /**
     Construct a DOM object based on a binary JSON value. The ownership
@@ -251,7 +284,7 @@ public:
     @param v    the binary value to parse
     @return a DOM representation of the binary value, or NULL on error
   */
-  static Json_dom* parse(const THD *thd, const json_binary::Value &v);
+  static Json_dom_ptr parse(const THD *thd, const json_binary::Value &v);
 
   /**
     Replace oldv contained inside this container array or object) with
@@ -259,12 +292,13 @@ public:
     If this container does not contain oldv, calling the method is
     a no-op. Do not call this method on a DOM object which is not a container.
 
-    @param[in] oldv the value to be replace
-    @param[in,out] newv the new value to put in the container
+    @param[in] oldv the value to be replaced
+    @param[in] newv the new value to put in the container
   */
   /* purecov: begin deadcode */
-  virtual void replace_dom_in_container(Json_dom *oldv MY_ATTRIBUTE((unused)),
-                                        Json_dom *newv MY_ATTRIBUTE((unused)))
+  virtual void
+  replace_dom_in_container(const Json_dom *oldv MY_ATTRIBUTE((unused)),
+                           Json_dom_ptr newv MY_ATTRIBUTE((unused)))
   {
     /*
       Array and object should override this method. Not expected to be
@@ -323,8 +357,9 @@ struct Json_key_comparator
   A type used to hold JSON object elements in a map, see the
   Json_object class.
 */
-typedef std::map<std::string, Json_dom *, Json_key_comparator,
-  Malloc_allocator<std::pair<const std::string, Json_dom *> > > Json_object_map;
+using Json_object_map=
+  std::map<std::string, Json_dom_ptr, Json_key_comparator,
+           Malloc_allocator<std::pair<const std::string, Json_dom_ptr>>>;
 
 /**
   Represents a JSON container value of type "object" (ECMA), type
@@ -340,7 +375,6 @@ private:
   Json_object_map m_map;
 public:
   Json_object();
-  ~Json_object();
   enum_json_type json_type() const { return enum_json_type::J_OBJECT; }
 
   /**
@@ -352,7 +386,10 @@ public:
     @retval false on success
     @retval true on failure
   */
-  bool add_clone(const std::string &key, const Json_dom *value);
+  bool add_clone(const std::string &key, const Json_dom *value)
+  {
+    return value == nullptr || add_alias(key, value->clone());
+  }
 
   /**
     Add the value to the object iff they key isn't already set.
@@ -361,12 +398,29 @@ public:
     object and the value will be deallocated by the object so only add
     values that can be deallocated safely (no stack variables please!)
 
+    New code should prefer #add_alias(const std::string&, Json_dom_ptr)
+    to this function, because that makes the transfer of ownership
+    more explicit. This function might be removed in the future.
+
     @param[in]  key    the JSON key of to be added
     @param[in]  value  a JSON value: the key's value
     @retval false on success
     @retval true on failure
   */
-  bool add_alias(const std::string &key, Json_dom *value); // no clone
+  bool add_alias(const std::string &key, Json_dom *value)
+  {
+    return add_alias(key, Json_dom_ptr(value));
+  }
+
+  /**
+    Add the value to the object if the key isn't already set. The
+    ownership of the value is transferred to the object.
+
+    @param[in] key    the key of the value to be added
+    @param[in] value  the value to add
+    @return false on success, true on failure
+  */
+  bool add_alias(const std::string &key, Json_dom_ptr value);
 
   /**
     Transfer all of the key/value pairs in the other object into this
@@ -377,7 +431,7 @@ public:
     @retval false on success
     @retval true on failure
   */
-  bool consume(Json_object *other);
+  bool consume(Json_object_ptr other);
 
   /**
     Return the value at key. The value is not cloned, so make
@@ -407,15 +461,15 @@ public:
   uint32 depth() const;
 
   // See base class documentation.
-  Json_dom *clone() const;
+  Json_dom_ptr clone() const;
 
   // See base class documentation.
-  void replace_dom_in_container(Json_dom *oldv, Json_dom *newv);
+  void replace_dom_in_container(const Json_dom *oldv, Json_dom_ptr newv);
 
   /**
     Remove all elements in the object.
   */
-  void clear();
+  void clear() { m_map.clear(); }
 
   /**
     Constant iterator over the elements in the JSON object. Each
@@ -440,10 +494,9 @@ class Json_array : public Json_dom
 {
 private:
   /// Holds the array values.
-  std::vector<Json_dom*, Malloc_allocator<Json_dom*>> m_v;
+  std::vector<Json_dom_ptr, Malloc_allocator<Json_dom_ptr>> m_v;
 public:
   Json_array();
-  ~Json_array();
 
   // See base class documentation.
   enum_json_type json_type() const { return enum_json_type::J_ARRAY; }
@@ -454,7 +507,10 @@ public:
     @retval false on success
     @retval true on failure
   */
-  bool append_clone(const Json_dom *value);
+  bool append_clone(const Json_dom *value)
+  {
+    return insert_clone(size(), value);
+  }
 
   /**
     Append the value to the end of the array.
@@ -463,11 +519,30 @@ public:
     the value will be deallocated by the array so only append values
     that can be deallocated safely (no stack variables please!)
 
+    New code should prefer #append_alias(Json_dom_ptr) to this
+    function, because that makes the transfer of ownership more
+    explicit. This function might be removed in the future.
+
     @param[in]  value a JSON value to be appended
     @retval false on success
     @retval true on failure
   */
-  bool append_alias(Json_dom *value); // makes no clone of value
+  bool append_alias(Json_dom *value)
+  {
+    return append_alias(Json_dom_ptr(value));
+  }
+
+  /**
+    Append the value to the end of the array and take over the
+    ownership of the value.
+
+    @param value  the JSON value to be appended
+    @return false on success, true on failure
+  */
+  bool append_alias(Json_dom_ptr value)
+  {
+    return insert_alias(size(), std::move(value));
+  }
 
   /**
     Moves all of the elements in the other array to the end of
@@ -477,7 +552,7 @@ public:
     @retval false on success
     @retval true on failure
   */
-  bool consume(Json_array *other);
+  bool consume(Json_array_ptr other);
 
   /**
     Insert a clone of the value at position index of the array. If beyond the
@@ -488,7 +563,10 @@ public:
     @retval false on success
     @retval true on failure
   */
-  bool insert_clone(size_t index, const Json_dom *value);
+  bool insert_clone(size_t index, const Json_dom *value)
+  {
+    return value == nullptr || insert_alias(index, value->clone());
+  }
 
   /**
     Insert the value at position index of the array.
@@ -503,7 +581,7 @@ public:
     @retval false on success
     @retval true on failure
   */
-  bool insert_alias(size_t index, Json_dom *value);
+  bool insert_alias(size_t index, Json_dom_ptr value);
 
   /**
     Remove the value at this index. A no-op if index is larger than
@@ -526,7 +604,7 @@ public:
   uint32 depth() const;
 
   // See base class documentation.
-  Json_dom *clone() const;
+  Json_dom_ptr clone() const;
 
   /**
     Get the value at position index. The value has not been cloned so
@@ -542,23 +620,24 @@ public:
   Json_dom *operator[](size_t index) const
   {
     DBUG_ASSERT(m_v[index]->parent() == this);
-    return m_v[index];
+    return m_v[index].get();
   }
 
   /**
     Remove the values in the array.
   */
-  void clear();
+  void clear() { m_v.clear(); }
 
-  /**
-     Auto-wrapping constructor. Wraps an array around a dom.
-     Ownership of the dom belongs to this array.
+  void replace_dom_in_container(const Json_dom *oldv, Json_dom_ptr newv);
 
-     @param [in] innards The dom to autowrap.
-  */
-  explicit Json_array(Json_dom *innards);
+  /// Constant iterator over the elements in the JSON array.
+  using const_iterator= decltype(m_v)::const_iterator;
 
-  void replace_dom_in_container(Json_dom *oldv, Json_dom *newv);
+  /// Returns a const_iterator that refers to the first element.
+  const_iterator begin() const { return m_v.begin(); }
+
+  /// Returns a const_iterator that refers past the last element.
+  const_iterator end() const { return m_v.end(); }
 };
 
 
@@ -600,7 +679,7 @@ public:
   // See base class documentation
   enum_json_type json_type() const { return enum_json_type::J_STRING; }
   // See base class documentation.
-  Json_dom *clone() const { return new (std::nothrow) Json_string(m_str); }
+  Json_dom_ptr clone() const { return create_dom_ptr<Json_string>(m_str); }
 
   /**
     Get the reference to the value of the JSON string.
@@ -671,7 +750,7 @@ public:
   const my_decimal *value() const { return &m_dec; }
 
   // See base class documentation
-  Json_dom *clone() const { return new (std::nothrow) Json_decimal(m_dec); }
+  Json_dom_ptr clone() const { return create_dom_ptr<Json_decimal>(m_dec); }
 
   /**
     Convert a binary value produced by get_binary() back to a my_decimal.
@@ -701,7 +780,7 @@ public:
   enum_json_type json_type() const { return enum_json_type::J_DOUBLE; }
 
   // See base class documentation
-  Json_dom *clone() const;
+  Json_dom_ptr clone() const { return create_dom_ptr<Json_double>(m_f); }
 
   /**
     Return the double value held by this object.
@@ -743,7 +822,7 @@ public:
   bool is_32bit() const { return INT_MIN32 <= m_i && m_i <= INT_MAX32; }
 
   // See base class documentation
-  Json_dom *clone() const { return new (std::nothrow) Json_int(m_i); }
+  Json_dom_ptr clone() const { return create_dom_ptr<Json_int>(m_i); }
 };
 
 
@@ -782,7 +861,7 @@ public:
   bool is_32bit() const { return m_i <= UINT_MAX32; }
 
   // See base class documentation
-  Json_dom *clone() const { return new (std::nothrow) Json_uint(m_i); }
+  Json_dom_ptr clone() const { return create_dom_ptr<Json_uint>(m_i); }
 };
 
 
@@ -799,7 +878,7 @@ public:
   enum_json_type json_type() const { return enum_json_type::J_NULL; }
 
   // See base class documentation
-  Json_dom *clone() const { return new (std::nothrow) Json_null(); }
+  Json_dom_ptr clone() const { return create_dom_ptr<Json_null>(); }
 };
 
 
@@ -835,7 +914,7 @@ public:
   enum_json_type json_type() const;
 
   // See base class documentation
-  Json_dom *clone() const;
+  Json_dom_ptr clone() const;
 
   /**
     Return a pointer the date/time value. Ownership is _not_ transferred.
@@ -923,7 +1002,7 @@ public:
   size_t size() const { return m_val.size(); }
 
    // See base class documentation
-  Json_dom *clone() const;
+  Json_dom_ptr clone() const;
 };
 
 
@@ -947,7 +1026,7 @@ public:
   bool value() const { return m_v; }
 
   // See base class documentation
-  Json_dom *clone() const { return new (std::nothrow) Json_boolean(m_v); }
+  Json_dom_ptr clone() const { return create_dom_ptr<Json_boolean>(m_v); }
 };
 
 
@@ -999,7 +1078,7 @@ bool double_quote(const char *cptr, size_t length, String *buf);
  @return A composite dom which subsumes the left and right doms, or NULL
  if a failure happened while merging
 */
-Json_dom *merge_doms(Json_dom *left, Json_dom *right);
+Json_dom_ptr merge_doms(Json_dom_ptr left, Json_dom_ptr right);
 
 
 class Json_wrapper_object_iterator
@@ -1119,6 +1198,13 @@ public:
   explicit Json_wrapper(Json_dom *dom_value);
 
   /**
+    Wrap the supplied DOM value. The wrapper takes over the ownership.
+  */
+  explicit Json_wrapper(Json_dom_ptr dom_value)
+    : Json_wrapper(dom_value.release())
+  {}
+
+  /**
     Only meaningful iff the wrapper encapsulates a DOM. Marks the
     wrapper as not owning the DOM object, i.e. it will not be
     deallocated in the wrapper's destructor. Useful if one wants a wrapper
@@ -1202,7 +1288,7 @@ public:
     @param thd current session
     @return pointer to a DOM object, or NULL if the DOM could not be allocated
   */
-  Json_dom *clone_dom(const THD *thd) const;
+  Json_dom_ptr clone_dom(const THD *thd) const;
 
   /**
     Get the wrapped contents in binary value form.
@@ -1459,23 +1545,6 @@ public:
     @returns 1, the number of members, or the number of cells
   */
   size_t length() const;
-
-  /**
-    Compute the depth of a document. This is the value which would be
-    returned by the JSON_DEPTH() system function.
-
-    - for scalar values, empty array and empty object: 1
-    - for non-empty array: 1+ max(depth of array elements)
-    - for non-empty objects: 1+ max(depth of object values)
-
-    For example:
-    "abc", [] and {} have depth 1.
-    ["abc", [3]] and {"a": "abc", "b": [3]} have depth 3.
-
-    @param thd current session
-    @return the depth of the document
-  */
-  size_t depth(const THD *thd) const;
 
   /**
     Compare this JSON value to another JSON value.

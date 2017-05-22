@@ -388,18 +388,16 @@ void JsonPathTest::vet_wrapper_seek(const char *json_text,
                                     const std::string &expected,
                                     bool expected_null) const
 {
-  const char *msg;
-  size_t msg_offset;
-
-  Json_dom *dom= Json_dom::parse(json_text, std::strlen(json_text),
-                                 &msg, &msg_offset);
-  Json_wrapper dom_wrapper(dom);
+  Json_dom_ptr dom= Json_dom::parse(json_text, std::strlen(json_text),
+                                    nullptr, nullptr);
 
   String  serialized_form;
-  EXPECT_FALSE(json_binary::serialize(thd(), dom, &serialized_form));
+  EXPECT_FALSE(json_binary::serialize(thd(), dom.get(), &serialized_form));
   json_binary::Value binary=
     json_binary::parse_binary(serialized_form.ptr(),
                               serialized_form.length());
+
+  Json_wrapper dom_wrapper(std::move(dom));
   Json_wrapper binary_wrapper(binary);
 
   Json_path path;
@@ -411,11 +409,8 @@ void JsonPathTest::vet_wrapper_seek(const char *json_text,
 void vet_dom_location(bool begins_with_column_id,
                       const char *json_text, const char *path_text)
 {
-  const char *msg;
-  size_t msg_offset;
-  Json_dom *dom= Json_dom::parse(json_text, std::strlen(json_text),
-                                 &msg, &msg_offset);
-  Json_wrapper dom_wrapper(dom);
+  Json_dom_ptr dom= Json_dom::parse(json_text, std::strlen(json_text),
+                                    nullptr, nullptr);
   Json_path path;
   good_path_common(begins_with_column_id, path_text, &path);
   Json_dom_vector hits(PSI_NOT_INSTRUMENTED);
@@ -470,18 +465,16 @@ void vet_only_needs_one(bool begins_with_column_id,
                         const char *json_text, const char *path_text,
                         uint expected_hits, const THD *thd)
 {
-  const char *msg;
-  size_t msg_offset;
-
-  Json_dom *dom= Json_dom::parse(json_text, std::strlen(json_text),
-                                 &msg, &msg_offset);
-  Json_wrapper dom_wrapper(dom);
+  Json_dom_ptr dom= Json_dom::parse(json_text, std::strlen(json_text),
+                                    nullptr, nullptr);
 
   String  serialized_form;
-  EXPECT_FALSE(json_binary::serialize(thd, dom, &serialized_form));
+  EXPECT_FALSE(json_binary::serialize(thd, dom.get(), &serialized_form));
   json_binary::Value binary=
     json_binary::parse_binary(serialized_form.ptr(),
                               serialized_form.length());
+
+  Json_wrapper dom_wrapper(std::move(dom));
   Json_wrapper binary_wrapper(binary);
 
   Json_path path;
@@ -1357,24 +1350,22 @@ TEST_F(JsonPathTest, RemoveDomTest)
   {
     SCOPED_TRACE("");
     std::string json_text= "[100, 200, 300]";
-    auto array= static_cast<Json_array*>(Json_dom::parse(json_text.data(),
-                                                         json_text.length(),
-                                                         nullptr, nullptr));
+    Json_dom_ptr dom= Json_dom::parse(json_text.data(), json_text.length(),
+                                      nullptr, nullptr);
+    auto array= static_cast<Json_array*>(dom.get());
     EXPECT_TRUE(array->remove(1));
     EXPECT_EQ("[100, 300]", format(array));
     EXPECT_FALSE(array->remove(2));
     EXPECT_EQ("[100, 300]", format(array));
-    delete array;
 
     json_text= "{\"a\": 100, \"b\": 200, \"c\": 300}";
-    auto object= static_cast<Json_object*>(Json_dom::parse(json_text.data(),
-                                                           json_text.length(),
-                                                           nullptr, nullptr));
+    dom= Json_dom::parse(json_text.data(), json_text.length(),
+                         nullptr, nullptr);
+    auto object= static_cast<Json_object*>(dom.get());
     EXPECT_TRUE(object->remove("b"));
     EXPECT_EQ("{\"a\": 100, \"c\": 300}", format(object));
     EXPECT_FALSE(object->remove("d"));
     EXPECT_EQ("{\"a\": 100, \"c\": 300}", format(object));
-    delete object;
   }
 
   /*
@@ -1447,7 +1438,7 @@ TEST_F(JsonPathTest, RemoveDomTest)
   // Json_array.insert_alias()
 
   Json_boolean *false_literal3= new (std::nothrow) Json_boolean(false);
-  array.insert_alias(3, false_literal3);
+  array.insert_alias(3, Json_dom_ptr(false_literal3));
   EXPECT_EQ((char *) "[true, false, true, false, null]", format(&array));
   EXPECT_EQ(&array, false_literal3->parent());
   EXPECT_TRUE(array.remove(3));
@@ -1463,7 +1454,7 @@ TEST_F(JsonPathTest, RemoveDomTest)
 
   // Json_array.insert_alias()
   Json_boolean *false_literal4= new (std::nothrow) Json_boolean(false);
-  array.insert_alias(7, false_literal4);
+  array.insert_alias(7, Json_dom_ptr(false_literal4));
   EXPECT_EQ((char *) "[true, false, true, null, true, false]",
             format(&array));
   EXPECT_EQ(&array, false_literal4->parent());

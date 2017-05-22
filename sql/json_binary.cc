@@ -561,9 +561,9 @@ serialize_json_array(const THD *thd, const Json_array *array, String *dest,
   if (dest->fill(dest->length() + size * entry_size, 0))
     return FAILURE;                             /* purecov: inspected */
 
-  for (uint32 i= 0; i < size; i++)
+  for (const auto &child : *array)
   {
-    const Json_dom *elt= (*array)[i];
+    const Json_dom *elt= child.get();
     if (!attempt_inline_value(elt, dest, entry_pos, large))
     {
       size_t offset= dest->length() - start_pos;
@@ -647,26 +647,24 @@ serialize_json_object(const THD *thd, const Json_object *object, String *dest,
   dest->fill(dest->length() + size * value_entry_size, 0);
 
   // Add the actual keys.
-  for (Json_object::const_iterator it= object->begin(); it != object->end();
-       ++it)
+  for (const auto &member : *object)
   {
-    if (dest->append(it->first.c_str(), it->first.length()))
+    if (dest->append(member.first.c_str(), member.first.length()))
       return FAILURE;                         /* purecov: inspected */
   }
 
   // Add the values, and update the value entries accordingly.
   size_t entry_pos= start_of_value_entries;
-  for (Json_object::const_iterator it= object->begin(); it != object->end();
-       ++it)
+  for (const auto &member : *object)
   {
-    if (!attempt_inline_value(it->second, dest, entry_pos, large))
+    const Json_dom *child= member.second.get();
+    if (!attempt_inline_value(child, dest, entry_pos, large))
     {
       size_t offset= dest->length() - start_pos;
       if (is_too_big_for_json(offset, large))
         return VALUE_TOO_BIG;
       insert_offset_or_size(dest, entry_pos + 1, offset, large);
-      res= serialize_json_value(thd, it->second, entry_pos, dest, depth,
-                                !large);
+      res= serialize_json_value(thd, child, entry_pos, dest, depth, !large);
       if (res != OK)
         return res;
     }

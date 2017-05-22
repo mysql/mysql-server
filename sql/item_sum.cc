@@ -6663,16 +6663,18 @@ bool Item_sum_json_array::add()
                               &value_wrapper))
       return error_json();
 
+    Json_dom_ptr value_dom(value_wrapper.to_dom(thd));
+    value_wrapper.set_alias(); // release the DOM
+
     /*
       The m_wrapper always points to m_json_array or the result of
       deserializing the result_field in reset/update_field.
     */
     const auto arr= down_cast<Json_array *>(m_wrapper.to_dom(thd));
-    if (arr->append_alias(value_wrapper.to_dom(thd)))
+    if (arr->append_alias(std::move(value_dom)))
       return error_json();              /* purecov: inspected */
 
     null_value= false;
-    value_wrapper.set_alias(); // release the DOM
   }
   catch (...)
   {

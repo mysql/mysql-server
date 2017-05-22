@@ -23,7 +23,6 @@
 #include <string.h>
 #include <sys/types.h>
 #include <algorithm>            // std::min, std::max
-#include <memory>               // std::unique_ptr
 
 #include "base64.h"
 #include "check_stack.h"
@@ -69,102 +68,39 @@ static bool populate_array(const THD *thd, Json_array *ja,
                            const json_binary::Value &v);
 
 /**
- Auto-wrap a dom. Delete the dom if there is a memory
- allocation failure.
+  Auto-wrap a dom in an array if it is not already an array. Delete
+  the dom if there is a memory allocation failure.
 */
-static Json_array *wrap_in_array(Json_dom *dom)
+static Json_array_ptr wrap_in_array(Json_dom_ptr dom)
 {
-  Json_array *array= new (std::nothrow) Json_array(dom);
-  if (array == NULL)
-    delete dom;                               /* purecov: inspected */
-  return array;
+  if (dom->json_type() == enum_json_type::J_ARRAY)
+    return Json_array_ptr(down_cast<Json_array*>(dom.release()));
+
+  Json_array_ptr a= create_dom_ptr<Json_array>();
+  if (a == nullptr || a->append_alias(std::move(dom)))
+    return nullptr;                           /* purecov: inspected */
+  return a;
 }
 
 
-/**
-  A dom is mergeable if it is an array or an object. All other
-  types must be wrapped in an array in order to be merged.
-  Delete the candidate if there is a memory allocation failure.
-*/
-static Json_dom *make_mergeable(Json_dom *candidate)
+Json_dom_ptr merge_doms(Json_dom_ptr left, Json_dom_ptr right)
 {
-  switch (candidate->json_type())
+  if (left->json_type() == enum_json_type::J_OBJECT &&
+      right->json_type() == enum_json_type::J_OBJECT)
   {
-  case enum_json_type::J_ARRAY:
-  case enum_json_type::J_OBJECT:
-    {
-      return candidate;
-    }
-  default:
-    {
-      return wrap_in_array(candidate);
-    }
-  }
-}
-
-Json_dom *merge_doms(Json_dom *left, Json_dom *right)
-{
-  left= make_mergeable(left);
-  if (!left)
-  {
-    /* purecov: begin inspected */
-    delete right;
-    return NULL;
-    /* purecov: end */
+    Json_object_ptr left_object(down_cast<Json_object*>(left.release()));
+    Json_object_ptr right_object(down_cast<Json_object*>(right.release()));
+    if (left_object->consume(std::move(right_object)))
+      return nullptr;                         /* purecov: inspected */
+    return std::move(left_object);
   }
 
-  right= make_mergeable(right);
-  if (!right)
-  {
-    /* purecov: begin inspected */
-    delete left;
-    return NULL;
-    /* purecov: end */
-  }
-
-  // at this point, the arguments are either objects or arrays
-  bool left_is_array= (left->json_type() == enum_json_type::J_ARRAY);
-  bool right_is_array= (right->json_type() == enum_json_type::J_ARRAY);
-
-  if (left_is_array || right_is_array)
-  {
-    if (!left_is_array)
-      left= wrap_in_array(left);
-    if (!left)
-    {
-      /* purecov: begin inspected */
-      delete right;
-      return NULL;
-      /* purecov: end */
-    }
-
-    if (!right_is_array)
-      right= wrap_in_array(right);
-    if (!right)
-    {
-      /* purecov: begin inspected */
-      delete left;
-      return NULL;
-      /* purecov: end */
-    }
-
-    if (down_cast<Json_array *>(left)->consume(down_cast<Json_array *>(right)))
-    {
-      delete left;                              /* purecov: inspected */
-      return NULL;                              /* purecov: inspected */
-    }
-  }
-  else  // otherwise, both doms are objects
-  {
-    if (down_cast<Json_object *>(left)
-        ->consume(down_cast<Json_object *>(right)))
-    {
-      delete left;                              /* purecov: inspected */
-      return NULL;                              /* purecov: inspected */
-    }
-  }
-
-  return left;
+  Json_array_ptr left_array= wrap_in_array(std::move(left));
+  Json_array_ptr right_array= wrap_in_array(std::move(right));
+  if (left_array == nullptr || right_array == nullptr ||
+      left_array->consume(std::move(right_array)))
+    return nullptr;                       /* purecov: inspected */
+  return std::move(left_array);
 }
 
 
@@ -337,14 +273,13 @@ static bool find_child_doms(Json_dom *dom,
       // ... and, recursively, all the values contained in it.
       if (dom_type == enum_json_type::J_ARRAY)
       {
-        const auto array= down_cast<const Json_array *>(dom);
-        for (unsigned eidx= 0; eidx < array->size(); eidx++)
+        for (const Json_dom_ptr &child : *down_cast<const Json_array *>(dom))
         {
           if (is_seek_done(result, only_need_one))
             return false;
 
           // Now recurse and add the child and values under it.
-          if (find_child_doms((*array)[eidx], path, current_leg, auto_wrap,
+          if (find_child_doms(child.get(), path, current_leg, auto_wrap,
                               only_need_one, duplicates, result))
             return true;                      /* purecov: inspected */
         } // end of loop through children
@@ -357,8 +292,8 @@ static bool find_child_doms(Json_dom *dom,
             return false;
 
           // Now recurse and add the child and values under it.
-          if (find_child_doms(member.second, path, current_leg, auto_wrap,
-                              only_need_one, duplicates, result))
+          if (find_child_doms(member.second.get(), path, current_leg,
+                              auto_wrap, only_need_one, duplicates, result))
             return true;                      /* purecov: inspected */
         } // end of loop through children
       }
@@ -384,8 +319,8 @@ static bool find_child_doms(Json_dom *dom,
       {
         for (const auto &member : *down_cast<const Json_object *>(dom))
         {
-          if (find_child_doms(member.second, path, current_leg + 1, auto_wrap,
-                              only_need_one, duplicates, result))
+          if (find_child_doms(member.second.get(), path, current_leg + 1,
+                              auto_wrap, only_need_one, duplicates, result))
             return true;                      /* purecov: inspected */
           if (is_seek_done(result, only_need_one))
             return false;
@@ -439,12 +374,6 @@ Json_object::Json_object()
     m_map(Json_object_map::key_compare(),
           Json_object_map::allocator_type(key_memory_JSON))
 {}
-
-
-Json_object::~Json_object()
-{
-  clear();
-}
 
 
 /**
@@ -507,7 +436,7 @@ private:
   };
 
   enum_state m_state;   ///< Tells what kind of value to expect next.
-  std::unique_ptr<Json_dom> m_dom_as_built; ///< Root of the DOM being built.
+  Json_dom_ptr m_dom_as_built;  ///< Root of the DOM being built.
   Json_dom* m_current_element;  ///< The current object/array being parsed.
   size_t m_depth;      ///< The depth at which parsing currently happens.
   std::string m_key;   ///< The name of the current member of an object.
@@ -521,9 +450,9 @@ public:
     @returns The built JSON DOM object.
     Deallocation of the returned value is the responsibility of the caller.
   */
-  Json_dom *get_built_doc()
+  Json_dom_ptr get_built_doc()
   {
-    return m_dom_as_built.release();
+    return std::move(m_dom_as_built);
   }
 
 private:
@@ -535,38 +464,28 @@ private:
     @return true if parsing should continue, false if an error was
             found and parsing should stop
   */
-  bool seeing_value(Json_dom *value)
+  bool seeing_value(Json_dom_ptr value)
   {
-    std::unique_ptr<Json_dom> uptr(value);
     if (value == nullptr || check_json_depth(m_depth + 1))
       return false;
     switch (m_state)
     {
     case expect_anything:
-      m_dom_as_built= std::move(uptr);
+      m_dom_as_built= std::move(value);
       m_state= expect_eof;
       return true;
     case expect_array_value:
       {
         auto array= down_cast<Json_array *>(m_current_element);
-        /*
-          append_alias() only takes over ownership if successful, so don't
-          release the unique_ptr unless the value was added to the array.
-        */
-        if (array->append_alias(value))
+        if (array->append_alias(std::move(value)))
           return false;                         /* purecov: inspected */
-        uptr.release();
         return true;
       }
     case expect_object_value:
       {
         m_state= expect_object_key;
         auto object= down_cast<Json_object *>(m_current_element);
-        /*
-          Hand over ownership from uptr to object. Contrary to append_alias(),
-          add_alias() takes over ownership also in the case of failure.
-        */
-        return !object->add_alias(m_key, uptr.release());
+        return !object->add_alias(m_key, std::move(value));
       }
     default:
       /* purecov: begin inspected */
@@ -580,37 +499,37 @@ public:
   bool Null()
   {
     DUMP_CALLBACK("null", state);
-    return seeing_value(new (std::nothrow) Json_null());
+    return seeing_value(create_dom_ptr<Json_null>());
   }
 
   bool Bool(bool b)
   {
     DUMP_CALLBACK("bool", state);
-    return seeing_value(new (std::nothrow) Json_boolean(b));
+    return seeing_value(create_dom_ptr<Json_boolean>(b));
   }
 
   bool Int(int i)
   {
     DUMP_CALLBACK("int", state);
-    return seeing_value(new (std::nothrow) Json_int(i));
+    return seeing_value(create_dom_ptr<Json_int>(i));
   }
 
   bool Uint(unsigned u)
   {
     DUMP_CALLBACK("uint", state);
-    return seeing_value(new (std::nothrow) Json_int(static_cast<longlong>(u)));
+    return seeing_value(create_dom_ptr<Json_int>(static_cast<longlong>(u)));
   }
 
   bool Int64(int64_t i)
   {
     DUMP_CALLBACK("int64", state);
-    return seeing_value(new (std::nothrow) Json_int(i));
+    return seeing_value(create_dom_ptr<Json_int>(i));
   }
 
   bool Uint64(uint64_t ui64)
   {
     DUMP_CALLBACK("uint64", state);
-    return seeing_value(new (std::nothrow) Json_uint(ui64));
+    return seeing_value(create_dom_ptr<Json_uint>(ui64));
   }
 
   bool Double(double d)
@@ -622,7 +541,7 @@ public:
     */
     if (!std::isfinite(d))
       return false;
-    return seeing_value(new (std::nothrow) Json_double(d));
+    return seeing_value(create_dom_ptr<Json_double>(d));
   }
 
   bool RawNumber(const char* str, SizeType length, bool)
@@ -639,14 +558,14 @@ public:
   bool String(const char* str, SizeType length, bool)
   {
     DUMP_CALLBACK("string", state);
-    return seeing_value(new (std::nothrow) Json_string(str, length));
+    return seeing_value(create_dom_ptr<Json_string>(str, length));
   }
 
   bool StartObject()
   {
     DUMP_CALLBACK("start object {", state);
     auto object= new (std::nothrow) Json_object();
-    bool success= seeing_value(object);
+    bool success= seeing_value(Json_dom_ptr(object));
     m_depth++;
     m_current_element= object;
     m_state= expect_object_key;
@@ -665,7 +584,7 @@ public:
   {
     DUMP_CALLBACK("start array [", state);
     auto array= new (std::nothrow) Json_array();
-    bool success= seeing_value(array);
+    bool success= seeing_value(Json_dom_ptr(array));
     m_depth++;
     m_current_element= array;
     m_state= expect_array_value;
@@ -713,9 +632,9 @@ private:
 } // namespace
 
 
-Json_dom *Json_dom::parse(const char *text, size_t length,
-                          const char **syntaxerr, size_t *offset,
-                          bool handle_numbers_as_double)
+Json_dom_ptr Json_dom::parse(const char *text, size_t length,
+                             const char **syntaxerr, size_t *offset,
+                             bool handle_numbers_as_double)
 {
   Rapid_json_handler handler;
   MemoryStream ss(text, length);
@@ -727,7 +646,7 @@ Json_dom *Json_dom::parse(const char *text, size_t length,
 
   if (success)
   {
-    Json_dom *dom= handler.get_built_doc();
+    Json_dom_ptr dom= handler.get_built_doc();
     if (dom == NULL && syntaxerr != NULL)
     {
       // The parsing failed for some other reason than a syntax error.
@@ -862,12 +781,12 @@ static enum_json_type bjson2json(const json_binary::Value::enum_type bintype)
 }
 
 
-Json_dom *Json_dom::parse(const THD* thd, const json_binary::Value &v)
+Json_dom_ptr Json_dom::parse(const THD* thd, const json_binary::Value &v)
 {
-  std::unique_ptr<Json_dom> dom(json_binary_to_dom_template(v));
-  if (dom.get() == NULL || populate_object_or_array(thd, dom.get(), v))
-    return NULL;                              /* purecov: inspected */
-  return dom.release();
+  Json_dom_ptr dom(json_binary_to_dom_template(v));
+  if (dom == nullptr || populate_object_or_array(thd, dom.get(), v))
+    return nullptr;                              /* purecov: inspected */
+  return dom;
 }
 
 
@@ -1004,10 +923,7 @@ static bool populate_object(const THD *thd, Json_object *jo,
     auto val= v.element(i);
     auto dom= json_binary_to_dom_template(val);
     if (jo->add_alias(key, dom) || populate_object_or_array(thd, dom, val))
-    {
-      // No need to delete dom on error, as Json_object does that for us.
       return true;                            /* purecov: inspected */
-    }
   }
   return false;
 }
@@ -1032,13 +948,7 @@ static bool populate_array(const THD *thd, Json_array *ja,
     auto elt= v.element(i);
     auto dom= json_binary_to_dom_template(elt);
     if (ja->append_alias(dom))
-    {
-      // Need to delete dom on error. append_alias() doesn't do it for us.
-      /* purecov: begin inspected */
-      delete dom;
-      return true;
-      /* purecov: end */
-    }
+      return true;                            /* purecov: inspected */
     if (populate_object_or_array(thd, dom, elt))
       return true;                            /* purecov: inspected */
   }
@@ -1046,52 +956,56 @@ static bool populate_array(const THD *thd, Json_array *ja,
 }
 
 
-void Json_array::replace_dom_in_container(Json_dom *oldv, Json_dom *newv)
+namespace
 {
-  auto it= std::find(m_v.begin(), m_v.end(), oldv);
+
+/**
+  Functor which compares a child DOM of a JSON array or JSON object
+  for equality.
+*/
+struct Json_child_equal
+{
+  const Json_dom *const m_ptr;
+  bool operator()(const Json_dom_ptr &dom) const
+  { return dom.get() == m_ptr; }
+  bool operator()(const Json_object_map::value_type &member) const
+  { return member.second.get() == m_ptr; }
+};
+
+} // namespace
+
+
+void Json_array::replace_dom_in_container(const Json_dom *oldv,
+                                          Json_dom_ptr newv)
+{
+  auto it= std::find_if(m_v.begin(), m_v.end(), Json_child_equal{oldv});
   if (it != m_v.end())
   {
-    delete oldv;
-    *it= newv;
     newv->set_parent(this);
+    *it= std::move(newv);
   }
 }
 
 
-void Json_object::replace_dom_in_container(Json_dom *oldv, Json_dom *newv)
+void Json_object::replace_dom_in_container(const Json_dom *oldv,
+                                           Json_dom_ptr newv)
 {
-  for (Json_object_map::iterator it= m_map.begin(); it != m_map.end(); ++it)
+  auto it= std::find_if(m_map.begin(), m_map.end(), Json_child_equal{oldv});
+  if (it != m_map.end())
   {
-    if (it->second == oldv)
-    {
-      delete oldv;
-      it->second= newv;
-      newv->set_parent(this);
-      break;
-    }
+    newv->set_parent(this);
+    it->second= std::move(newv);
   }
 }
 
 
-bool Json_object::add_clone(const std::string &key, const Json_dom *value)
-{
-  if (!value)
-    return true;                                /* purecov: inspected */
-  return add_alias(key, value->clone());
-}
-
-
-bool Json_object::add_alias(const std::string &key, Json_dom *value)
+bool Json_object::add_alias(const std::string &key, Json_dom_ptr value)
 {
   if (!value)
     return true;                                /* purecov: inspected */
 
-  /*
-    Wrap value in a unique_ptr to make sure it's released if we cannot
-    add it to the object. The contract of add_alias() requires that it
-    either gets added to the object or gets deleted.
-  */
-  std::unique_ptr<Json_dom> uptr(value);
+  // We have taken over the ownership of this value.
+  value->set_parent(this);
 
   /*
     We have already an element with this key.  Note we compare utf-8 bytes
@@ -1114,40 +1028,22 @@ bool Json_object::add_alias(const std::string &key, Json_dom *value)
 
     See WL-2048 Add function for Unicode normalization
   */
-  std::pair<Json_object_map::const_iterator, bool> ret=
-    m_map.insert(std::make_pair(key, value));
-
-  if (ret.second)
-  {
-    // the element was inserted
-    value->set_parent(this);
-    uptr.release();
-  }
-
+  m_map.emplace(key, std::move(value));
   return false;
 }
 
-bool Json_object::consume(Json_object *other)
+bool Json_object::consume(Json_object_ptr other)
 {
-  // We've promised to delete other before returning.
-  std::unique_ptr<Json_object> uptr(other);
-
-  Json_object_map &this_map= m_map;
-  Json_object_map &other_map= other->m_map;
-
-  for (Json_object_map::iterator other_iter= other_map.begin();
-       other_iter != other_map.end(); other_map.erase(other_iter++))
+  for (auto &other_member : other->m_map)
   {
-    const std::string &key= other_iter->first;
-    Json_dom *value= other_iter->second;
-    other_iter->second= NULL;
+    auto &key= other_member.first;
+    auto &other_value= other_member.second;
 
-    Json_object_map::iterator this_iter= this_map.find(key);
-
-    if (this_iter == this_map.end())
+    auto it= m_map.find(key);
+    if (it == m_map.end())
     {
       // The key does not exist in this object, so add the key/value pair.
-      if (add_alias(key, value))
+      if (add_alias(key, std::move(other_value)))
         return true;                          /* purecov: inspected */
     }
     else
@@ -1156,10 +1052,10 @@ bool Json_object::consume(Json_object *other)
         Oops. Duplicate key. Merge the values.
         This is where the recursion in JSON_MERGE() occurs.
       */
-      this_iter->second= merge_doms(this_iter->second, value);
-      if (this_iter->second == NULL)
+      it->second= merge_doms(std::move(it->second), std::move(other_value));
+      if (it->second == nullptr)
         return true;                          /* purecov: inspected */
-      this_iter->second->set_parent(this);
+      it->second->set_parent(this);
     }
   }
 
@@ -1173,10 +1069,10 @@ Json_dom *Json_object::get(const std::string &key) const
   if (iter != m_map.end())
   {
     DBUG_ASSERT(iter->second->parent() == this);
-    return iter->second;
+    return iter->second.get();
   }
 
-  return NULL;
+  return nullptr;
 }
 
 
@@ -1186,7 +1082,6 @@ bool Json_object::remove(const std::string &key)
   if (it == m_map.end())
     return false;
 
-  delete it->second;
   m_map.erase(it);
   return true;
 }
@@ -1211,33 +1106,19 @@ uint32 Json_object::depth() const
 }
 
 
-Json_dom *Json_object::clone() const
+Json_dom_ptr Json_object::clone() const
 {
-  Json_object * const o= new (std::nothrow) Json_object();
-  if (!o)
-    return NULL;                                /* purecov: inspected */
+  Json_object_ptr o= create_dom_ptr<Json_object>();
+  if (o == nullptr)
+    return nullptr;                           /* purecov: inspected */
 
-  for (Json_object_map::const_iterator iter= m_map.begin();
-       iter != m_map.end(); ++iter)
+  for (const auto &member : m_map)
   {
-    if (o->add_clone(iter->first, iter->second))
-    {
-      delete o;                                 /* purecov: inspected */
-      return NULL;                              /* purecov: inspected */
-    }
+    if (o->add_clone(member.first, member.second.get()))
+      return nullptr;                         /* purecov: inspected */
   }
-  return o;
-}
 
-
-void Json_object::clear()
-{
-  for (Json_object_map::const_iterator iter= m_map.begin();
-       iter != m_map.end(); ++iter)
-  {
-    delete iter->second;
-  }
-  m_map.clear();
+  return std::move(o);
 }
 
 
@@ -1272,57 +1153,20 @@ Json_array::Json_array()
 {}
 
 
-Json_array::Json_array(Json_dom *innards)
-  : Json_array()
+bool Json_array::consume(Json_array_ptr other)
 {
-  append_alias(innards);
-}
-
-
-Json_array::~Json_array()
-{
-  delete_container_pointers(m_v);
-}
-
-
-bool Json_array::append_clone(const Json_dom *value)
-{
-  return insert_clone(size(), value);
-}
-
-
-bool Json_array::append_alias(Json_dom *value)
-{
-  return insert_alias(size(), value);
-}
-
-
-bool Json_array::consume(Json_array *other)
-{
-  // We've promised to delete other before returning.
-  std::unique_ptr<Json_array> aptr(other);
-
   m_v.reserve(size() + other->size());
-  for (auto iter= other->m_v.begin(); iter != other->m_v.end(); ++iter)
+  for (auto &elt : other->m_v)
   {
-    if (append_alias(*iter))
+    if (append_alias(std::move(elt)))
       return true;                              /* purecov: inspected */
-    *iter= nullptr;
   }
 
   return false;
 }
 
 
-bool Json_array::insert_clone(size_t index, const Json_dom *value)
-{
-  if (!value)
-    return true;                                /* purecov: inspected */
-  return insert_alias(index, value->clone());
-}
-
-
-bool Json_array::insert_alias(size_t index, Json_dom *value)
+bool Json_array::insert_alias(size_t index, Json_dom_ptr value)
 {
   if (!value)
     return true;                                /* purecov: inspected */
@@ -1332,8 +1176,8 @@ bool Json_array::insert_alias(size_t index, Json_dom *value)
     index points past the end of the array.
   */
   auto pos= m_v.begin() + std::min(m_v.size(), index);
-  m_v.insert(pos, value);
   value->set_parent(this);
+  m_v.emplace(pos, std::move(value));
   return false;
 }
 
@@ -1342,9 +1186,7 @@ bool Json_array::remove(size_t index)
 {
   if (index < m_v.size())
   {
-    auto iter= m_v.begin() + index;
-    delete *iter;
-    m_v.erase(iter);
+    m_v.erase(m_v.begin() + index);
     return true;
   }
 
@@ -1356,33 +1198,27 @@ uint32 Json_array::depth() const
 {
   uint deepest_child= 0;
 
-  for (auto child : m_v)
+  for (const auto &child : m_v)
   {
     deepest_child= std::max(deepest_child, child->depth());
   }
   return 1 + deepest_child;
 }
 
-Json_dom *Json_array::clone() const
+Json_dom_ptr Json_array::clone() const
 {
-  std::unique_ptr<Json_array> vv(new (std::nothrow) Json_array());
+  Json_array_ptr vv= create_dom_ptr<Json_array>();
   if (vv == nullptr)
     return nullptr;                             /* purecov: inspected */
 
   vv->m_v.reserve(size());
-  for (auto child : m_v)
+  for (const auto &child : m_v)
   {
-    if (vv->append_clone(child))
+    if (vv->append_clone(child.get()))
       return nullptr;                           /* purecov: inspected */
   }
 
-  return vv.release();
-}
-
-
-void Json_array::clear()
-{
-  delete_container_pointers(m_v);
+  return std::move(vv);
 }
 
 
@@ -1537,12 +1373,6 @@ bool Json_decimal::convert_from_binary(const char *bin, size_t len,
 }
 
 
-Json_dom *Json_double::clone() const
-{
-  return new (std::nothrow) Json_double(m_f);
-}
-
-
 enum_json_type Json_datetime::json_type() const
 {
   switch (m_field_type)
@@ -1564,9 +1394,9 @@ enum_json_type Json_datetime::json_type() const
 }
 
 
-Json_dom *Json_datetime::clone() const
+Json_dom_ptr Json_datetime::clone() const
 {
-  return new (std::nothrow) Json_datetime(m_t, m_field_type);
+  return create_dom_ptr<Json_datetime>(m_t, m_field_type);
 }
 
 
@@ -1584,9 +1414,9 @@ void Json_datetime::from_packed(const char *from, enum_field_types ft,
 }
 
 
-Json_dom *Json_opaque::clone() const
+Json_dom_ptr Json_opaque::clone() const
 {
-  return new (std::nothrow) Json_opaque(m_mytype, value(), size());
+  return create_dom_ptr<Json_opaque>(m_mytype, value(), size());
 }
 
 
@@ -1628,7 +1458,7 @@ Json_wrapper_object_iterator::elt() const
 {
   if (m_is_dom)
   {
-    Json_wrapper wr(m_iter->second);
+    Json_wrapper wr(m_iter->second.get());
     // DOM possibly owned by object and we don't want to make a clone
     wr.set_alias();
     return std::make_pair(m_iter->first, wr);
@@ -1678,7 +1508,8 @@ Json_wrapper::Json_wrapper(const Json_wrapper &old)
   if (m_is_dom)
   {
     m_dom_alias= old.m_dom_alias;
-    m_dom_value= m_dom_alias ? old.m_dom_value : old.m_dom_value->clone();
+    m_dom_value=
+      m_dom_alias ? old.m_dom_value : old.m_dom_value->clone().release();
   }
   else
   {
@@ -1738,7 +1569,7 @@ Json_dom *Json_wrapper::to_dom(const THD *thd)
   {
     // Build a DOM from the binary JSON value and
     // convert this wrapper to hold the DOM instead
-    m_dom_value= Json_dom::parse(thd, m_value);
+    m_dom_value= Json_dom::parse(thd, m_value).release();
     m_is_dom= true;
     m_dom_alias= false;
   }
@@ -1747,11 +1578,11 @@ Json_dom *Json_wrapper::to_dom(const THD *thd)
 }
 
 
-Json_dom *Json_wrapper::clone_dom(const THD *thd) const
+Json_dom_ptr Json_wrapper::clone_dom(const THD *thd) const
 {
   // If we already have a DOM, return a clone of it.
   if (m_is_dom)
-    return m_dom_value ? m_dom_value->clone() : NULL;
+    return m_dom_value ? m_dom_value->clone() : nullptr;
 
   // Otherwise, produce a new DOM tree from the binary representation.
   return Json_dom::parse(thd, m_value);
@@ -2272,7 +2103,7 @@ bool Json_wrapper::get_boolean() const
 
 Json_path Json_dom::get_location()
 {
-  if (m_parent == NULL)
+  if (m_parent == nullptr)
   {
     Json_path result;
     return result;
@@ -2283,31 +2114,19 @@ Json_path Json_dom::get_location()
   if (m_parent->json_type() == enum_json_type::J_OBJECT)
   {
     Json_object *object= down_cast<Json_object *>(m_parent);
-    for (Json_object::const_iterator it= object->begin();
-         it != object->end(); ++it)
-    {
-      if (it->second == this)
-      {
-        Json_path_leg child_leg(it->first);
-        result.append(child_leg);
-        break;
-      }
-    }
+    auto it= std::find_if(object->begin(), object->end(),
+                          Json_child_equal{this});
+    DBUG_ASSERT(it != object->end());
+    result.append(Json_path_leg(it->first));
   }
   else
   {
     DBUG_ASSERT(m_parent->json_type() == enum_json_type::J_ARRAY);
     Json_array *array= down_cast<Json_array *>(m_parent);
-
-    for (size_t idx= 0; idx < array->size(); idx++)
-    {
-      if ((*array)[idx] == this)
-      {
-        Json_path_leg child_leg(idx);
-        result.append(child_leg);
-        break;
-      }
-    }
+    auto it= std::find_if(array->begin(), array->end(), Json_child_equal{this});
+    DBUG_ASSERT(it != array->end());
+    size_t idx= it - array->begin();
+    result.append(Json_path_leg(idx));
   }
 
   return result;
@@ -2569,25 +2388,6 @@ size_t Json_wrapper::length() const
   default:
     return 1;
   }
-}
-
-
-size_t Json_wrapper::depth(const THD *thd) const
-{
-  if (empty())
-  {
-    return 0;
-  }
-
-  if (m_is_dom)
-  {
-    return m_dom_value->depth();
-  }
-
-  Json_dom *d= Json_dom::parse(thd, m_value);
-  size_t result= d->depth();
-  delete d;
-  return result;
 }
 
 

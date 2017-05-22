@@ -655,15 +655,15 @@ static const char *find_end_of_member_name(const char *start, const char *end)
   @return a Json_string that represents the member name, or NULL if
   the input string is not a valid name
 */
-static const Json_string *parse_name_with_rapidjson(const char *str, size_t len)
+static std::unique_ptr<Json_string>
+parse_name_with_rapidjson(const char *str, size_t len)
 {
-  const Json_dom *dom= Json_dom::parse(str, len, NULL, NULL);
+  Json_dom_ptr dom= Json_dom::parse(str, len, nullptr, nullptr);
 
-  if (dom != NULL && dom->json_type() == enum_json_type::J_STRING)
-    return down_cast<const Json_string *>(dom);
+  if (dom == nullptr || dom->json_type() != enum_json_type::J_STRING)
+    return nullptr;
 
-  delete dom;
-  return NULL;
+  return std::unique_ptr<Json_string>(down_cast<Json_string *>(dom.release()));
 }
 
 
@@ -693,7 +693,7 @@ const char *Json_path::parse_member_leg(const char *charptr,
 
     charptr= key_end;
 
-    std::unique_ptr<const Json_string> jstr;
+    std::unique_ptr<Json_string> jstr;
 
     if (was_quoted)
     {
@@ -701,7 +701,7 @@ const char *Json_path::parse_member_leg(const char *charptr,
         Send the quoted name through the parser to unquote and
         unescape it.
       */
-      jstr.reset(parse_name_with_rapidjson(key_start, key_end - key_start));
+      jstr= parse_name_with_rapidjson(key_start, key_end - key_start);
     }
     else
     {
@@ -717,10 +717,10 @@ const char *Json_path::parse_member_leg(const char *charptr,
           strbuff.append(key_start, key_end - key_start) ||
           strbuff.append(DOUBLE_QUOTE))
         PARSER_RETURN(false);                 /* purecov: inspected */
-      jstr.reset(parse_name_with_rapidjson(strbuff.ptr(), strbuff.length()));
+      jstr= parse_name_with_rapidjson(strbuff.ptr(), strbuff.length());
     }
 
-    if (jstr.get() == NULL)
+    if (jstr == nullptr)
       PARSER_RETURN(false);
 
     // unquoted names must be valid ECMAScript identifiers
