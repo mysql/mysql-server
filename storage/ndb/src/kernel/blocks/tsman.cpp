@@ -1179,6 +1179,8 @@ Tsman::execFSOPENCONF(Signal* signal)
   case CreateFileImplReq::CreateForce:
   {
     jam();
+    const Uint32 extents = ptr.p->m_create.m_data_pages/ts_ptr.p->m_extent_size;
+    ts_ptr.p->m_total_extents += extents; // At initial start
     
     CreateFileImplConf* conf= (CreateFileImplConf*)signal->getDataPtr();
     conf->senderData = ptr.p->m_create.m_senderData;
@@ -1399,6 +1401,8 @@ Tsman::execFSREADCONF(Signal* signal){
      */
     m_global_page_pool.release(page_ptr);
 
+    ts_ptr.p->m_total_extents += extents; // At node restart
+
     CreateFileImplConf* conf= (CreateFileImplConf*)signal->getDataPtr();
     conf->senderData = ptr.p->m_create.m_senderData;
     conf->senderRef = reference();
@@ -1503,7 +1507,8 @@ Tsman::load_extent_page_callback(Signal* signal,
   ptr.p->m_online.m_offset_data_pages = 1 + extent_pages;
   ptr.p->m_online.m_first_free_extent = per_page;
   ptr.p->m_online.m_lcp_free_extent_head = RNIL;  
-  ptr.p->m_online.m_lcp_free_extent_tail = RNIL;  
+  ptr.p->m_online.m_lcp_free_extent_tail = RNIL;
+  ptr.p->m_online.m_lcp_free_extent_count = 0;
   ptr.p->m_online.m_data_pages = data_pages;
   ptr.p->m_online.m_used_extent_cnt = 0;
   ptr.p->m_online.m_extent_headers_per_extent_page = per_page;
@@ -1693,6 +1698,7 @@ Tsman::scan_extent_headers(Signal* signal, Ptr<Datafile> ptr)
         {
           jamEntry();
           ptr.p->m_online.m_used_extent_cnt++;
+          ts_ptr.p->m_total_used_extents++;
           for(Uint32 i = 0; i<size; i++, key.m_page_no++)
           {
             jam();
@@ -1885,6 +1891,8 @@ Tsman::Tablespace::Tablespace(Tsman* ts, const CreateFilegroupImplReq* req)
   m_tablespace_id = req->filegroup_id;
   m_version = req->filegroup_version;
   m_ref_count = 0;
+  m_total_extents = 0;
+  m_total_used_extents = 0;
   
   m_extent_size = (Uint32)DIV(req->tablespace.extent_size, File_formats::NDB_PAGE_SIZE);
 #if defined VM_TRACE || defined ERROR_INSERT
@@ -1922,7 +1930,27 @@ Tsman::execALLOC_EXTENT_REQ(Signal* signal)
   ndbrequire(m_tablespace_hash.find(ts_ptr, req.request.tablespace_id));
   Local_datafile_list tmp(m_file_pool, ts_ptr.p->m_free_files);
   
+  const bool starting =
+    (getNodeState().startLevel <= NodeState::SL_STARTING);
+
+  // Reserve 4% of total data extents of a tablespace from normal usage.
+  // This will be used during node starts.
+  bool extent_available = false;
   if (tmp.first(file_ptr))
+  {
+    if (unlikely(starting))
+    {
+      extent_available = true;
+    }
+    else
+    {
+      extent_available =
+        (100 * (ts_ptr.p->m_total_used_extents + 1) <
+         96 * ts_ptr.p->m_total_extents);
+    }
+  }
+
+  if (extent_available)
   {
     thrjam(jamBuf);
     Uint32 size = file_ptr.p->m_extent_size;
@@ -1989,6 +2017,7 @@ Tsman::execALLOC_EXTENT_REQ(Signal* signal)
        * Check if file is full
        */
       file_ptr.p->m_online.m_used_extent_cnt++;
+      ts_ptr.p->m_total_used_extents++;
       file_ptr.p->m_online.m_first_free_extent = next_free;
       if (next_free == RNIL)
       {
@@ -2095,6 +2124,7 @@ Tsman::execFREE_EXTENT_REQ(Signal* signal)
       if(file_ptr.p->m_online.m_lcp_free_extent_head == RNIL)
 	file_ptr.p->m_online.m_lcp_free_extent_tail= extent;
       file_ptr.p->m_online.m_lcp_free_extent_head= extent;
+      file_ptr.p->m_online.m_lcp_free_extent_count++;
     }
     else
     {
@@ -2114,6 +2144,11 @@ Tsman::execFREE_EXTENT_REQ(Signal* signal)
         free_list.addFirst(file_ptr);
       }
       file_ptr.p->m_online.m_first_free_extent = extent;
+
+      Ptr<Tablespace> ts_ptr;
+      m_tablespace_pool.getPtr(ts_ptr, file_ptr.p->m_tablespace_ptr_i);
+      ts_ptr.p->m_total_used_extents--;
+
     }
   }
   else
@@ -2649,6 +2684,10 @@ Tsman::end_lcp(Signal* signal, Uint32 ptrI, Uint32 list, Uint32 filePtrI)
 	     file.p->m_online.m_lcp_free_extent_head,
 	     file.p->m_online.m_lcp_free_extent_tail,
 	     file.p->m_online.m_first_free_extent);
+
+    // Update the used extents of the tablespace
+    ptr.p->m_total_used_extents -= file.p->m_online.m_lcp_free_extent_count;
+    file.p->m_online.m_lcp_free_extent_count = 0;
     
     if(file.p->m_online.m_first_free_extent == RNIL)
     {

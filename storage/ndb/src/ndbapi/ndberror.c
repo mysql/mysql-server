@@ -312,7 +312,7 @@ ErrorBundle ErrorCodes[] = {
   { 903,  HA_ERR_INDEX_FILE_FULL, IS, "Too many ordered indexes (increase MaxNoOfOrderedIndexes)" },
   { 904,  HA_ERR_INDEX_FILE_FULL, IS, "Out of fragment records (increase MaxNoOfOrderedIndexes)" },
   { 905,  DMEC, IS, "Out of attribute records (increase MaxNoOfAttributes)" },
-  { 1601, HA_ERR_RECORD_FILE_FULL, IS, "Out extents, tablespace full" },
+  { 1601, HA_ERR_RECORD_FILE_FULL, IS, "Out of extents, tablespace full" },
   { 1602, DMEC, IS,"No datafile in tablespace" },
   { 1603, HA_ERR_RECORD_FILE_FULL, IS,
     "Table fragment fixed data reference has reached maximum possible value (specify MAXROWS or increase no of partitions)"},
