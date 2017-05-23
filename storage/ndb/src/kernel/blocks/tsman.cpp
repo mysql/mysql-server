@@ -1203,7 +1203,7 @@ Tsman::execFSOPENCONF(Signal* signal)
   {
     jam();
     const Uint32 extents = ptr.p->m_create.m_data_pages/ts_ptr.p->m_extent_size;
-    ts_ptr.p->m_total_extents += extents; // At initial start
+    ts_ptr.p->m_total_extents += Uint64(extents); // At initial start
     
     CreateFileImplConf* conf= (CreateFileImplConf*)signal->getDataPtr();
     conf->senderData = ptr.p->m_create.m_senderData;
@@ -1434,7 +1434,7 @@ Tsman::execFSREADCONF(Signal* signal){
      */
     m_global_page_pool.release(page_ptr);
 
-    ts_ptr.p->m_total_extents += extents; // At node restart
+    ts_ptr.p->m_total_extents += Uint64(extents); // At node restart
 
     CreateFileImplConf* conf= (CreateFileImplConf*)signal->getDataPtr();
     conf->senderData = ptr.p->m_create.m_senderData;
@@ -1946,8 +1946,8 @@ Tsman::Tablespace::Tablespace(Tsman* ts, const CreateFilegroupImplReq* req)
   m_tablespace_id = req->filegroup_id;
   m_version = req->filegroup_version;
   m_ref_count = 0;
-  m_total_extents = 0;
-  m_total_used_extents = 0;
+  m_total_extents = Uint64(0);
+  m_total_used_extents = Uint64(0);
   
   m_extent_size = (Uint32)DIV(req->tablespace.extent_size, File_formats::NDB_PAGE_SIZE);
 #if defined VM_TRACE || defined ERROR_INSERT
@@ -1993,20 +1993,22 @@ Tsman::execALLOC_EXTENT_REQ(Signal* signal)
   // Reserve 4% of total data extents of a tablespace from normal usage.
   // This will be used during node starts.
   bool extent_available = false;
+
   if (tmp.first(file_ptr))
   {
     if (unlikely(starting))
     {
+      thrjam(jamBuf);
       extent_available = true;
     }
     else
     {
+      thrjam(jamBuf);
       extent_available =
-        (100 * (ts_ptr.p->m_total_used_extents + 1) <
-         96 * ts_ptr.p->m_total_extents);
+        (Uint64(100) * (ts_ptr.p->m_total_used_extents + 1) <
+         Uint64(96) * ts_ptr.p->m_total_extents);
     }
   }
-
   if (extent_available)
   {
     thrjam(jamBuf);
@@ -2202,7 +2204,7 @@ Tsman::execFREE_EXTENT_REQ(Signal* signal)
 	Local_datafile_list free_list(m_file_pool, ptr.p->m_free_files);
 	Local_datafile_list full(m_file_pool, ptr.p->m_full_files);
 	full.remove(file_ptr);
-        free_list.addFirst(file_ptr);
+        free_list.addLast(file_ptr);
       }
       file_ptr.p->m_online.m_first_free_extent = extent;
 
@@ -2897,7 +2899,7 @@ Tsman::end_lcp(Signal* signal, Uint32 ptrI, Uint32 list, Uint32 filePtrI)
       Local_datafile_list free_list(m_file_pool, ptr.p->m_free_files);
       Local_datafile_list full(m_file_pool, ptr.p->m_full_files);
       full.remove(file);
-      free_list.addFirst(file);
+      free_list.addLast(file);
     }
     else
     {

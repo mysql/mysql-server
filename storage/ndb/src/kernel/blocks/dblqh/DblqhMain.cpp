@@ -15714,7 +15714,8 @@ void Dblqh::start_local_lcp(Signal *signal,
      * Toggle c_current_local_lcp_instance.
      */
     c_local_lcp_started = true;
-    c_max_keep_gci_in_lcp = crestartNewestGci == 0 ?
+    c_max_keep_gci_in_lcp = 
+      (crestartNewestGci == 0 || crestartNewestGci == 1) ?
                             2 : crestartNewestGci;
     c_first_set_min_keep_gci = true;
     c_current_local_lcp_instance++;
@@ -21380,6 +21381,7 @@ void Dblqh::execSTART_RECREQ(Signal* signal)
   cmasterDihBlockref = req->senderRef;
 
   ndbrequire(crestartNewestGci == 0 ||
+             crestartNewestGci == 1 ||
              crestartNewestGci == req->lastCompletedGci);
 
   crestartOldestGci = req->keepGci;
