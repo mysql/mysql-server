@@ -687,7 +687,7 @@ bool store(THD *thd, const Table *t)
 bool store(THD *thd, const Tablespace *ts)
 {
   handlerton *hton= resolve_hton(thd, *ts);
-  if (hton->sdi_set)
+  if (hton->sdi_set == nullptr)
   {
     return false; // SDI api not supported
   }
