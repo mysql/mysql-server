@@ -3477,11 +3477,13 @@ int Log_event::apply_event(Relay_log_info *rli)
             rli->current_mts_submode->get_type() ==
             MTS_PARALLEL_TYPE_LOGICAL_CLOCK)
         {
+#ifndef DBUG_OFF
           DBUG_ASSERT(rli->curr_group_da.size() == 1);
           Log_event* ev= rli->curr_group_da[0].data;
           DBUG_ASSERT(ev->get_type_code() == binary_log::GTID_LOG_EVENT ||
                       ev->get_type_code() ==
                       binary_log::ANONYMOUS_GTID_LOG_EVENT);
+#endif
           /*
             With MTS logical clock mode, when coordinator is applying an
             incident event, it must withdraw delegated_job increased by
