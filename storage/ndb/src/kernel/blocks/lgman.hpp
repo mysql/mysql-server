@@ -479,7 +479,7 @@ public:
    */
   int get_log_buffer(Signal*, Uint32 sz, SimulatedBlock::CallbackPtr*);
 
-  int alloc_log_space(Uint32 words,
+  int alloc_log_space(Uint32 & words,
                       bool add_extra_words,
                       bool abortable,
                       EmulatedJamBuffer *jamBuf)

@@ -2493,7 +2493,10 @@ Lgman::force_log_sync(Signal* signal,
       ndbrequire(ptr.p->m_free_buffer_words > free);
       ptr.p->m_free_log_words -= free;
       ptr.p->m_free_buffer_words -= free;
-      DEB_LGMAN(("Line(%u): free_log_words: %llu", __LINE__, ptr.p->m_free_log_words));
+      DEB_LGMAN(("Line(%u): free_log_words: %llu, change: %u",
+                 __LINE__,
+                 ptr.p->m_free_log_words,
+                 free));
       
       validate_logfile_group(ptr, "force_log_sync", jamBuffer());
 
@@ -2636,7 +2639,12 @@ next:
    */
   ndbrequire(ptr.p->m_free_log_words >= free);
   ptr.p->m_free_log_words -= free;
-  DEB_LGMAN(("Line(%u): free_log_words: %llu", __LINE__, ptr.p->m_free_log_words));
+  if (free > 0)
+  {
+    DEB_LGMAN(("Line(%u): free_log_words: %llu, change: %d", __LINE__,
+               ptr.p->m_free_log_words,
+               free));
+  }
 
   validate_logfile_group(ptr, "get_log_buffer", jamBuf);
   
@@ -2839,7 +2847,10 @@ Lgman::flush_log(Signal* signal, Ptr<Logfile_group> ptr, Uint32 force)
 	ndbrequire(ptr.p->m_free_buffer_words > free);
 	ptr.p->m_free_log_words -= free;
 	ptr.p->m_free_buffer_words -= free;
-        DEB_LGMAN(("Line(%u): free_log_words: %llu", __LINE__, ptr.p->m_free_log_words));
+        DEB_LGMAN(("Line(%u): free_log_words: %llu, change: %u",
+                   __LINE__,
+                   ptr.p->m_free_log_words,
+                   free));
          
 	validate_logfile_group(ptr, "force_log_flush", jamBuffer());
 	
@@ -3169,6 +3180,10 @@ Lgman::write_log_pages(Signal* signal, Ptr<Logfile_group> ptr,
   FsReadWriteReq::setFormatFlag(req->operationFlag,
 				FsReadWriteReq::fsFormatSharedPage);
 
+  DEB_LGMAN(("Writing %u pages, start page: %u",
+             pages,
+             1 + head.m_idx));
+
   if(max > pages)
   {
     /**
@@ -3365,10 +3380,10 @@ Lgman::exec_lcp_frag_ord(Signal* signal,
                                 size_entry,
                                 client_block->jamBuffer());
     memcpy(dst, undo, sizeof(undo));
-    DEB_LGMAN(("Line(%u): free_log_words: %llu", __LINE__,
-               lg_ptr.p->m_free_log_words));
     ndbrequire(lg_ptr.p->m_free_log_words >= size_entry);
     lg_ptr.p->m_free_log_words -= (size_entry);
+    DEB_LGMAN(("Line(%u): free_log_words: %llu", __LINE__,
+               lg_ptr.p->m_free_log_words));
     Uint64 next_lsn = lg_ptr.p->m_next_lsn;
     lg_ptr.p->m_last_lcp_lsn = next_lsn;
     ret_lsn = next_lsn;
@@ -3617,6 +3632,9 @@ Lgman::alloc_log_space(Uint32 ref,
     {
       thrjam(jamBuf);
       lg_ptr.p->m_free_log_words -= words_64;
+      DEB_LGMAN(("Line(%u): free_log_words: %llu",
+                 __LINE__,
+                 lg_ptr.p->m_free_log_words));
       validate_logfile_group(lg_ptr, "alloc_log_space", jamBuf);
       return 0;
     }
@@ -3700,6 +3718,26 @@ Logfile_client::add_entry_complex(const Change* src,
   Uint32 over_allocated_size = (alloc_size - tot);
   Uint32 sz_first_part = remaining_page_space - 4;
   lg_ptr.p->m_callback_buffer_words = callback_buffer - alloc_size;
+  if ((alloc_size - tot) >= 5)
+  {
+    jamBlock(m_client_block);
+    Uint64 diff = Uint64(alloc_size - tot) - Uint64(5);
+    lg_ptr.p->m_free_log_words += diff;
+    DEB_LGMAN(("Line(%u): free_log_words: %llu, change: +%llu",
+               __LINE__,
+               lg_ptr.p->m_free_log_words,
+               diff));
+  }
+  else
+  {
+    jamBlock(m_client_block);
+    Uint64 diff = Uint64(5) - Uint64(alloc_size - tot);
+    lg_ptr.p->m_free_log_words -= diff;
+    DEB_LGMAN(("Line(%u): free_log_words: %llu, change: -%llu",
+               __LINE__,
+               lg_ptr.p->m_free_log_words,
+               diff));
+  }
   Uint32 type_length;
   {
     if (is_update)
@@ -3768,7 +3806,6 @@ Logfile_client::add_entry_simple(const Change* src,
   require(m_lgman->m_logfile_group_hash.find(lg_ptr, key));
   {
     jamBlock(m_client_block);
-    lg_ptr.p->m_free_log_words += (alloc_size - tot);
     Uint32 callback_buffer = lg_ptr.p->m_callback_buffer_words;
     Uint64 next_lsn = lg_ptr.p->m_next_lsn;
     dst= m_lgman->get_log_buffer(lg_ptr, tot, m_client_block->jamBuffer());
@@ -3790,6 +3827,11 @@ Logfile_client::add_entry_simple(const Change* src,
       }
       jamBlock(m_client_block);
       lg_ptr.p->m_callback_buffer_words = callback_buffer - alloc_size;
+      lg_ptr.p->m_free_log_words += (alloc_size - tot);
+      DEB_LGMAN(("Line(%u): free_log_words: %llu, change: %d",
+                 __LINE__,
+                 lg_ptr.p->m_free_log_words,
+                 int(alloc_size - tot)));
     }
     lg_ptr.p->m_next_lsn = next_lsn + 1;
     return next_lsn;
@@ -5263,6 +5305,7 @@ Lgman::stop_run_undo_log(Signal* signal)
                  lg_ptr.p->m_total_log_space));
       lg_ptr.p->m_next_reply_ptr_i = lg_ptr.p->m_file_pos[HEAD].m_ptr_i;
       
+      validate_logfile_group(lg_ptr, "completed UNDO log execution", jamBuffer());
       lg_ptr.p->m_state |= Logfile_group::LG_FLUSH_THREAD;
       signal->theData[0] = LgmanContinueB::FLUSH_LOG;
       signal->theData[1] = lg_ptr.i;
@@ -5362,10 +5405,10 @@ Lgman::execEND_LCPCONF(Signal* signal)
                               sizeof(undo) >> 2,
                               jamBuffer());
   memcpy(dst, undo, sizeof(undo));
-  DEB_LGMAN(("Line(%u): free_log_words: %llu", __LINE__,
-             lg_ptr.p->m_free_log_words));
   ndbrequire(lg_ptr.p->m_free_log_words >= (sizeof(undo) >> 2));
   lg_ptr.p->m_free_log_words -= (sizeof(undo) >> 2);
+  DEB_LGMAN(("Line(%u): free_log_words: %llu", __LINE__,
+             lg_ptr.p->m_free_log_words));
   DEB_LGMAN(("Fake LCP at lsn: %llu: lcp(%u,%u)",
             next_lsn,
             m_latest_lcp,
@@ -5384,6 +5427,8 @@ Lgman::execEND_LCPCONF(Signal* signal)
     lg_ptr.p->m_last_synced_lsn = next_lsn;
   }
   
+  validate_logfile_group(lg_ptr, "flushed PGMAN", jamBuffer());
+
   infoEvent("LGMAN: Flushing complete");
   g_eventLogger->info("LGMAN: Flushing complete");
 

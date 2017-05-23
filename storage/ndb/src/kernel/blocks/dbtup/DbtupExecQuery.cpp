@@ -44,6 +44,13 @@
 #define DEB_LCP(arglist) do { } while (0)
 #endif
 
+//#define DEBUG_LCP_LGMAN 1
+#ifdef DEBUG_LCP_LGMAN
+#define DEB_LCP_LGMAN(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_LCP_LGMAN(arglist) do { } while (0)
+#endif
+
 // #define TRACE_INTERPRETER
 
 /* For debugging */
@@ -1422,6 +1429,10 @@ int Dbtup::handleUpdateReq(Signal* signal,
       {
         D("Logfile_client - handleUpdateReq");
         Logfile_client lgman(this, c_lgman, regFragPtr->m_logfile_group_id);
+        DEB_LCP_LGMAN(("(%u)alloc_log_space(%u): %u",
+                       instance(),
+                       __LINE__,
+                       operPtrP->m_undo_buffer_space));
         terrorCode= lgman.alloc_log_space(operPtrP->m_undo_buffer_space,
                                           true,
                                           !req_struct->m_nr_copy_or_redo,
@@ -1996,6 +2007,10 @@ int Dbtup::handleInsertReq(Signal* signal,
     {
       D("Logfile_client - handleInsertReq");
       Logfile_client lgman(this, c_lgman, regFragPtr->m_logfile_group_id);
+      DEB_LCP_LGMAN(("(%u)alloc_log_space(%u): %u",
+                     instance(),
+                     __LINE__,
+                     regOperPtr.p->m_undo_buffer_space));
       res= lgman.alloc_log_space(regOperPtr.p->m_undo_buffer_space,
                                  true,
                                  !req_struct->m_nr_copy_or_redo,
@@ -2404,6 +2419,10 @@ int Dbtup::handleDeleteReq(Signal* signal,
     {
       D("Logfile_client - handleDeleteReq");
       Logfile_client lgman(this, c_lgman, regFragPtr->m_logfile_group_id);
+      DEB_LCP_LGMAN(("(%u)alloc_log_space(%u): %u",
+                     instance(),
+                     __LINE__,
+                     regOperPtr->m_undo_buffer_space));
       terrorCode= lgman.alloc_log_space(regOperPtr->m_undo_buffer_space,
                                         true,
                                         !req_struct->m_nr_copy_or_redo,

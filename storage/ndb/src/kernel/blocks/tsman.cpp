@@ -47,7 +47,7 @@ static bool g_use_old_format = false;
 #define DEB_TSMAN(arglist) do { } while (0)
 #endif
 
-#define DEBUG_TSMAN_RESTART 1
+//#define DEBUG_TSMAN_RESTART 1
 #ifdef DEBUG_TSMAN_RESTART
 #define DEB_TSMAN_RESTART(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else

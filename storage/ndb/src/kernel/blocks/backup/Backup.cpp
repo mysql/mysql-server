@@ -5565,8 +5565,9 @@ Backup::execBACKUP_FRAGMENT_REQ(Signal* signal)
   if (filePtr.p->tableId != tableId)
   {
     jam();
-    DEB_LCP(("Init new tab(%u): maxRecordSize: %u",
-              tableId, tabPtr.p->maxRecordSize));
+    DEB_EXTRA_LCP(("Init new tab(%u): maxRecordSize: %u",
+                   tableId,
+                   tabPtr.p->maxRecordSize));
     filePtr.p->operation.init(tabPtr);
     filePtr.p->tableId = tableId;
   }//if
