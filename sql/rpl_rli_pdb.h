@@ -378,7 +378,7 @@ ulong circular_buffer_queue<Element_type>::en_queue(Element_type *item)
 /**
   Dequeue from head.
 
-  @param [out] item A pointer to the being dequeued item.
+  @param [out] val A pointer to the being dequeued item.
   @return the queue's array index that the de-queued item
           located at, or an error as an int outside the legacy
           [0, size) (value `size' is excluded) range.
