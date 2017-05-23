@@ -11121,14 +11121,15 @@ int ha_ndbcluster::create(const char *name,
     }
   }
 
-  int abort_error = 0;
-
   if ((dict->beginSchemaTrans() == -1))
   {
     DBUG_PRINT("info", ("Failed to start schema transaction"));
-    goto err_return;
+    m_table= 0;
+    ERR_RETURN(dict->getNdbError());
   }
   DBUG_PRINT("info", ("Started schema transaction"));
+
+  int abort_error = 0;
 
   DBUG_PRINT("table", ("name: %s", m_tabname));  
   if (tab.setName(m_tabname))
@@ -11592,7 +11593,10 @@ int ha_ndbcluster::create(const char *name,
      * All steps have succeeded, try and commit schema transaction
      */
     if (dict->endSchemaTrans() == -1)
-      goto err_return;
+    {
+      m_table= 0;
+      ERR_RETURN(dict->getNdbError());
+    }
 
     Ndb_table_guard ndbtab_g(dict);
     ndbtab_g.init(m_tabname);
@@ -11652,9 +11656,6 @@ abort_return:
       DBUG_PRINT("info", ("Failed to abort schema transaction, %i",
                           dict->getNdbError().code));
     DBUG_RETURN(result);
-err_return:
-    m_table= 0;
-    ERR_RETURN(dict->getNdbError());
   }
 
   /**
