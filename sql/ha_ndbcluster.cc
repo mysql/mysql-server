@@ -11130,7 +11130,7 @@ int ha_ndbcluster::create(const char *name,
   DBUG_PRINT("info", ("Started schema transaction"));
 
   int abort_error = 0;
-
+  int create_result;
   DBUG_PRINT("table", ("name: %s", m_tabname));  
   if (tab.setName(m_tabname))
   {
@@ -11553,41 +11553,44 @@ int ha_ndbcluster::create(const char *name,
   DBUG_PRINT("info", ("Table %s/%s created successfully", 
                       m_dbname, m_tabname));
 
-  // Create secondary indexes
   tab.assignObjId(objId);
   m_table= &tab;
-  set_my_errno(create_indexes(thd, ndb, form));
 
-  if (!is_truncate && my_errno() == 0)
+  // Create secondary indexes
+  create_result = create_indexes(thd, ndb, form);
+
+  if (create_result == 0 &&
+      !is_truncate)
   {
-    set_my_errno(create_fks(thd, ndb));
+    create_result = create_fks(thd, ndb);
   }
 
-  if ((thd->lex->sql_command == SQLCOM_ALTER_TABLE ||
+  if (create_result == 0 &&
+      (thd->lex->sql_command == SQLCOM_ALTER_TABLE ||
        thd->lex->sql_command == SQLCOM_DROP_INDEX ||
-       thd->lex->sql_command == SQLCOM_CREATE_INDEX) &&
-      my_errno() == 0)
+       thd->lex->sql_command == SQLCOM_CREATE_INDEX))
   {
     /**
      * mysql doesnt know/care about FK (buhhh)
      *   so we need to copy the old ones ourselves
      */
-    set_my_errno(copy_fk_for_offline_alter(thd, ndb, &tab));
+    create_result = copy_fk_for_offline_alter(thd, ndb, &tab);
   }
 
-  if (!fk_list_for_truncate.is_empty() && my_errno() == 0)
+  if (create_result == 0 &&
+      !fk_list_for_truncate.is_empty())
   {
     /*
      create FKs for the new table from the list got from old table.
      for truncate table.
      */
-    set_my_errno(recreate_fk_for_truncate(thd, ndb, tab.getName(),
-                                          fk_list_for_truncate));
+    create_result = recreate_fk_for_truncate(thd, ndb, tab.getName(),
+                                             fk_list_for_truncate);
   }
 
   m_table= 0;
 
-  if (!my_errno())
+  if (create_result == 0)
   {
     /*
      * All steps have succeeded, try and commit schema transaction
@@ -11604,7 +11607,9 @@ int ha_ndbcluster::create(const char *name,
   }
   else
   {
-    abort_error = my_errno();
+    DBUG_PRINT("error", ("Failed to create schema objects in NDB, "
+                         "create_result: %d", create_result));
+    abort_error = create_result;
 
 abort:
     /*
@@ -11650,6 +11655,10 @@ abort:
     DBUG_RETURN(abort_error);
 
 abort_return:
+
+    // Require that "result" was set before "goto abort_return"
+    DBUG_ASSERT(result);
+
     DBUG_PRINT("info", ("Aborting schema transaction"));
     if (dict->endSchemaTrans(NdbDictionary::Dictionary::SchemaTransAbort)
         == -1)
@@ -11657,6 +11666,10 @@ abort_return:
                           dict->getNdbError().code));
     DBUG_RETURN(result);
   }
+
+  // All objects have been created sucessfully and
+  // thus "create_result" have to be zero here
+  DBUG_ASSERT(create_result == 0);
 
   /**
    * createTable/index schema transaction OK
@@ -11701,9 +11714,15 @@ cleanup_failed:
       break;
     }
     m_table = 0;
-    DBUG_RETURN(my_errno());
+
+    // The above code is activated when the table can't be opened in NDB,
+    // it then tries to drop the table which it can't open, having m_table
+    // being NULL indicates that most of the code is dead(and obfuscated).
+    // However an NDB error must have occured since the table can't
+    // be opened and as such the NDB error can be returned here
+    ERR_RETURN(dict->getNdbError());
   }
-  else // if (!my_errno)
+  else
   {
     NDB_SHARE *share= 0;
     mysql_mutex_lock(&ndbcluster_mutex);
@@ -11797,7 +11816,7 @@ cleanup_failed:
   }
 
   m_table= 0;
-  DBUG_RETURN(my_errno());
+  DBUG_RETURN(0); // All OK
 }
 
 
