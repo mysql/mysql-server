@@ -26,8 +26,6 @@
 --source ../inc/start_and_bootstrap_group_replication.inc
 --source include/stop_group_replication.inc
 
---sleep 30
-
 --echo
 --echo # Test#1: Basic check that there are 33 GR variables.
 
