@@ -40,7 +40,7 @@ ADD DATAFILE 'datafile.dat'
 USE LOGFILE GROUP lg1
 INITIAL_SIZE 1M
 ENGINE NDB;
-ERROR HY000: Failed to create TABLESPACE
+ERROR HY000: Tablespace 'ts1' exists.
 ALTER TABLESPACE ts1
 ADD DATAFILE 'datafile2.dat'
 INITIAL_SIZE 1M
@@ -70,19 +70,19 @@ ENGINE=NDB;
 ALTER TABLESPACE ts1
 DROP DATAFILE 'datafile2.dat' 
 ENGINE=NDB;
-ERROR HY000: Failed to alter:  NO SUCH FILE
+ERROR HY000: Incorrect File Name 'datafile2.dat'.
 ALTER TABLESPACE ts1
 DROP DATAFILE 'datafile.dat' 
 ENGINE=NDB;
 ALTER TABLESPACE ts1
 DROP DATAFILE 'datafile.dat' 
 ENGINE=NDB;
-ERROR HY000: Failed to alter:  NO SUCH FILE
+ERROR HY000: Incorrect File Name 'datafile.dat'.
 DROP TABLESPACE ts1 
 ENGINE=NDB;
 DROP TABLESPACE ts1 
 ENGINE=NDB;
-ERROR HY000: Failed to drop TABLESPACE
+ERROR HY000: Tablespace ts1 doesn't exist.
 DROP LOGFILE GROUP lg1 
 ENGINE=NDB;
 DROP LOGFILE GROUP lg1 
@@ -214,11 +214,11 @@ ENGINE NDB;
 ALTER TABLESPACE ts1
 DROP DATAFILE 'datafile3.dat'
 ENGINE NDB;
-ERROR HY000: Failed to alter:  NO SUCH FILE
+ERROR HY000: Incorrect File Name 'datafile3.dat'.
 ALTER TABLESPACE ts2
 DROP DATAFILE 'datafile2.dat'
 ENGINE NDB;
-ERROR HY000: Failed to alter:  NO SUCH FILE
+ERROR HY000: Incorrect File Name 'datafile2.dat'.
 ALTER TABLESPACE ts1
 DROP DATAFILE 'datafile2.dat'
 ENGINE NDB;

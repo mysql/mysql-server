@@ -143,11 +143,11 @@ SELECT * FROM test.t1 ORDER BY a1;
 # Create tablespace in Innodb with same name as in NDB
 # since the ALTER from NDB to Innodb will try to ALTER the table
 # into a tablespace with same name in InnoDB
-CREATE TABLESPACE ts ADD DATAFILE 'ts_innodb.ibd' ENGINE=Innodb;
+CREATE TABLESPACE ts_innodb ADD DATAFILE 'ts_innodb.ibd' ENGINE=Innodb;
 
 --error ER_ALTER_OPERATION_NOT_SUPPORTED
-ALTER TABLE test.t1 ALGORITHM=INPLACE, ENGINE=InnoDB;
-ALTER TABLE test.t1 ALGORITHM=COPY, ENGINE=InnoDB;
+ALTER TABLE test.t1 ALGORITHM=INPLACE, ENGINE=InnoDB TABLESPACE ts_innodb;
+ALTER TABLE test.t1 ALGORITHM=COPY, ENGINE=InnoDB TABLESPACE ts_innodb;
 --disable_warnings
 SHOW CREATE TABLE test.t1;
 --enable_warnings

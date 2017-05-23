@@ -59,10 +59,6 @@ ndb_reconnect: Need WL#9185 MySQL Cluster support for new DD
 # Test which timeout most likley due to mismatches in shares etc.
 ndb.ndb_spj_dict: Need WL#9185 MySQL Cluster support for new DD
 
-# Tablespace related problems
-ndb_dd_alter: Bug#25858337 TABLESPACE NAMES SHOULD NOT BE GLOBALLY UNIQUE ACROSS ENGINES
-ndb_dd_ddl: Bug#25858337 TABLESPACE NAMES SHOULD NOT BE GLOBALLY UNIQUE ACROSS ENGINES
-
 ndb_join_pushdown_default: Bug#25868387 WRONG DATA RETURNED WITH NDB JOIN PUSHDOWN
 ndb_join_pushdown_none: Bug#25868387 WRONG DATA RETURNED WITH NDB JOIN PUSHDOWN
 ndb_join_pushdown_nobnl: Bug#25868387 WRONG DATA RETURNED WITH NDB JOIN PUSHDOWN
@@ -101,6 +97,7 @@ ndb_partition_range: Need WL#9185 MySQL Cluster support for new DD
 ndb_database: Need WL#9185 MySQL Cluster support for new DD
 ndb_ddl_open_trans: Need WL#9185 MySQL Cluster support for new DD
 ndb_dist_priv: Need WL#9185 MySQL Cluster support for new DD
+ndb_dd_alter: Need WL#9185 MySQL Cluster support for new DD
 
 # Problem with inplace alter table, probably share released too early
 # (occurs when mtr.pl is run with --mysqld=--log-bin argument)
