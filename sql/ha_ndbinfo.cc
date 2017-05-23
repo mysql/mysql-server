@@ -865,8 +865,9 @@ ndbinfo_init(void *plugin)
                        opt_ndbinfo_dbname, opt_ndbinfo_table_prefix, "", 0);
   DBUG_PRINT("info", ("prefix: '%s'", prefix));
   assert(g_ndb_cluster_connection);
-  g_ndbinfo = new NdbInfo(g_ndb_cluster_connection, prefix,
-                          opt_ndbinfo_dbname, opt_ndbinfo_table_prefix);
+  g_ndbinfo = new (std::nothrow) NdbInfo(g_ndb_cluster_connection, prefix,
+                                         opt_ndbinfo_dbname,
+                                         opt_ndbinfo_table_prefix);
   if (!g_ndbinfo)
   {
     ndb_log_error("Failed to create NdbInfo");
