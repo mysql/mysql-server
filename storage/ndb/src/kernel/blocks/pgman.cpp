@@ -54,7 +54,7 @@ static bool g_dbg_lcp = false;
 #define DEB_PGMAN(arglist) do { } while (0)
 #endif
 
-#define DEBUG_PGMAN_IO 1
+//#define DEBUG_PGMAN_IO 1
 #ifdef DEBUG_PGMAN_IO
 #define DEB_PGMAN_IO(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else

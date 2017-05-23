@@ -58,6 +58,13 @@ extern EventLogger * g_eventLogger;
 #define DEB_TUP_META(arglist) do { } while (0)
 #endif
 
+//#define DEBUG_TUP_META_EXTRA
+#ifdef DEBUG_TUP_META_EXTRA
+#define DEB_TUP_META_EXTRA(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_TUP_META_EXTRA(arglist) do { } while (0)
+#endif
+
 void
 Dbtup::execCREATE_TAB_REQ(Signal* signal)
 {
@@ -2958,10 +2965,10 @@ Dbtup::get_max_lcp_record_size(Uint32 tableId)
   tabPtr.i= tableId;
   ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
 
-  DEB_TUP_META(("(%u)LCP tab(%u) use total_rec_size = %u",
-                instance(),
-                tableId,
-                tabPtr.p->total_rec_size));
+  DEB_TUP_META_EXTRA(("(%u)LCP tab(%u) use total_rec_size = %u",
+                      instance(),
+                      tableId,
+                      tabPtr.p->total_rec_size));
 
   return tabPtr.p->total_rec_size;
 }

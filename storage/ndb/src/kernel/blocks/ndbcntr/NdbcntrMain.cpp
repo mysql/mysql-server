@@ -5925,8 +5925,15 @@ Ndbcntr::execFSCLOSECONF(Signal *signal)
 }
 
 void
-Ndbcntr::sendWriteLocalSysfile_startLcp(Signal *signal, Uint32 gci)
+Ndbcntr::sendWriteLocalSysfile_startLcp(Signal *signal)
 {
+  Uint32 gci = m_max_completed_gci;
+  if (m_max_completed_gci < c_local_sysfile.m_max_restorable_gci)
+  {
+    jam();
+    gci = c_local_sysfile.m_max_restorable_gci;
+    m_max_completed_gci = gci;
+  }
   WriteLocalSysfileReq *req = (WriteLocalSysfileReq*)signal->getDataPtrSend();
   req->userReference = reference();
   req->userPointer = 0;
@@ -6047,7 +6054,7 @@ void Ndbcntr::execUNDO_LOG_LEVEL_REP(Signal *signal)
       m_full_local_lcp_started = true;
       ndbrequire(!c_local_sysfile.m_initial_write_local_sysfile_ongoing);
       c_local_sysfile.m_initial_write_local_sysfile_ongoing = true;
-      sendWriteLocalSysfile_startLcp(signal, m_max_completed_gci);
+      sendWriteLocalSysfile_startLcp(signal);
       return;
     }
     if (!m_local_lcp_started)
@@ -6094,7 +6101,7 @@ void Ndbcntr::execSTART_LOCAL_LCP_ORD(Signal *signal)
   ndbrequire(!m_initial_local_lcp_started);
   ndbrequire(!c_local_sysfile.m_initial_write_local_sysfile_ongoing);
   c_local_sysfile.m_initial_write_local_sysfile_ongoing = true;
-  sendWriteLocalSysfile_startLcp(signal, m_max_completed_gci);
+  sendWriteLocalSysfile_startLcp(signal);
 }
 
 void Ndbcntr::execSET_LOCAL_LCP_ID_REQ(Signal *signal)

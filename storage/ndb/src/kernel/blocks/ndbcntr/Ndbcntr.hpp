@@ -518,7 +518,7 @@ private:
   void sendSTART_FULL_LOCAL_LCP_ORD(Signal*);
   void sendSTART_LOCAL_LCP_ORD(Signal*);
   void sendSET_LOCAL_LCP_ID_CONF(Signal*);
-  void sendWriteLocalSysfile_startLcp(Signal*, Uint32);
+  void sendWriteLocalSysfile_startLcp(Signal*);
   void write_local_sysfile_start_lcp_done(Signal*);
   const char* get_restorable_flag_string(Uint32);
 
