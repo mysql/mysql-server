@@ -47,6 +47,13 @@ static bool g_use_old_format = false;
 #define DEB_TSMAN(arglist) do { } while (0)
 #endif
 
+#define DEBUG_TSMAN_NUM_EXTENTS 1
+#ifdef DEBUG_TSMAN_NUM_EXTENTS
+#define DEB_TSMAN_NUM_EXTENTS(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_TSMAN_NUM_EXTENTS(arglist) do { } while (0)
+#endif
+
 //#define DEBUG_TSMAN_RESTART 1
 #ifdef DEBUG_TSMAN_RESTART
 #define DEB_TSMAN_RESTART(arglist) do { g_eventLogger->info arglist ; } while (0)
@@ -1743,6 +1750,11 @@ Tsman::scan_extent_headers(Signal* signal, Ptr<Datafile> ptr)
           jamEntry();
           ptr.p->m_online.m_used_extent_cnt++;
           ts_ptr.p->m_total_used_extents++;
+          DEB_TSMAN_NUM_EXTENTS(("Allocated extent during restart"
+                             " tab(%u,%u), num_extents: %llu",
+                             (*ext_table_id),
+                             (*ext_fragment_id),
+                             ts_ptr.p->m_total_used_extents));
           for(Uint32 i = 0; i<size; i++, key.m_page_no++)
           {
             jam();
@@ -1904,7 +1916,7 @@ Tsman::execDROP_FILE_IMPL_REQ(Signal* signal)
       {
         jam();
 	Local_datafile_list free_list(m_file_pool, fg_ptr.p->m_free_files);
-        free_list.addFirst(file_ptr);
+        free_list.addLast(file_ptr);
       }
       else
       {
@@ -2079,6 +2091,11 @@ Tsman::execALLOC_EXTENT_REQ(Signal* signal)
        */
       file_ptr.p->m_online.m_used_extent_cnt++;
       ts_ptr.p->m_total_used_extents++;
+      DEB_TSMAN_NUM_EXTENTS(("ALLOC_EXTENT_REQ: tab(%u,%u)"
+                             " num_extents: %llu",
+                             (*ext_table_id),
+                             (*ext_fragment_id),
+                             ts_ptr.p->m_total_used_extents));
       file_ptr.p->m_online.m_first_free_extent = next_free;
       if (next_free == RNIL)
       {
@@ -2171,6 +2188,9 @@ Tsman::execFREE_EXTENT_REQ(Signal* signal)
     Uint32 *ext_table_id = page->get_table_id(val.m_extent_no,
                                               val.m_extent_size,
                                               v2);
+    Uint32 *ext_fragment_id = page->get_fragment_id(val.m_extent_no,
+                                                    val.m_extent_size,
+                                                    v2);
     Uint32 *ext_next_free_extent = page->get_next_free_extent(
                                               val.m_extent_no,
                                               val.m_extent_size,
@@ -2188,6 +2208,9 @@ Tsman::execFREE_EXTENT_REQ(Signal* signal)
 	file_ptr.p->m_online.m_lcp_free_extent_tail= extent;
       file_ptr.p->m_online.m_lcp_free_extent_head= extent;
       file_ptr.p->m_online.m_lcp_free_extent_count++;
+      DEB_TSMAN_NUM_EXTENTS(("FREE_EXTENT_REQ(waitLCP): tab(%u,%u)",
+                             req.request.table_id,
+                             (*ext_fragment_id)));
     }
     else
     {
@@ -2211,7 +2234,11 @@ Tsman::execFREE_EXTENT_REQ(Signal* signal)
       Ptr<Tablespace> ts_ptr;
       m_tablespace_pool.getPtr(ts_ptr, file_ptr.p->m_tablespace_ptr_i);
       ts_ptr.p->m_total_used_extents--;
-
+      DEB_TSMAN_NUM_EXTENTS(("FREE_EXTENT_REQ: tab(%u,%u)"
+                             " num_extents: %llu",
+                             req.request.table_id,
+                             (*ext_fragment_id),
+                             ts_ptr.p->m_total_used_extents));
     }
   }
   else
@@ -2806,10 +2833,10 @@ Tsman::execEND_LCPREQ(Signal* signal)
 void
 Tsman::end_lcp(Signal* signal, Uint32 ptrI, Uint32 list, Uint32 filePtrI)
 {
-  Ptr<Tablespace> ptr;
-  m_tablespace_list.getPtr(ptr, ptrI);
-  ndbrequire(ptr.p->m_ref_count);
-  ptr.p->m_ref_count--;
+  Ptr<Tablespace> ts_ptr;
+  m_tablespace_list.getPtr(ts_ptr, ptrI);
+  ndbrequire(ts_ptr.p->m_ref_count);
+  ts_ptr.p->m_ref_count--;
   
   Ptr<Datafile> file;
   file.i = filePtrI;
@@ -2819,7 +2846,7 @@ Tsman::end_lcp(Signal* signal, Uint32 ptrI, Uint32 list, Uint32 filePtrI)
   case 0:
   {
     jam();
-    Local_datafile_list tmp(m_file_pool, ptr.p->m_free_files);
+    Local_datafile_list tmp(m_file_pool, ts_ptr.p->m_free_files);
     if(file.i == RNIL)
     {
       jam();
@@ -2842,7 +2869,7 @@ Tsman::end_lcp(Signal* signal, Uint32 ptrI, Uint32 list, Uint32 filePtrI)
   case 1:
   {
     jam();
-    Local_datafile_list tmp(m_file_pool, ptr.p->m_full_files);
+    Local_datafile_list tmp(m_file_pool, ts_ptr.p->m_full_files);
     if(file.i == RNIL)
     {
       jam();
@@ -2850,7 +2877,7 @@ Tsman::end_lcp(Signal* signal, Uint32 ptrI, Uint32 list, Uint32 filePtrI)
       {
         jam();
 	list= 0;
-	if(m_tablespace_list.next(ptr))
+	if(m_tablespace_list.next(ts_ptr))
         {
           jam();
         }
@@ -2884,7 +2911,11 @@ Tsman::end_lcp(Signal* signal, Uint32 ptrI, Uint32 list, Uint32 filePtrI)
 	     file.p->m_online.m_first_free_extent);
 
     // Update the used extents of the tablespace
-    ptr.p->m_total_used_extents -= file.p->m_online.m_lcp_free_extent_count;
+    ts_ptr.p->m_total_used_extents -=
+      file.p->m_online.m_lcp_free_extent_count;
+    DEB_TSMAN_NUM_EXTENTS(("FREE_EXTENT_REQ(LCP):"
+                           " num_extents: %llu",
+                           ts_ptr.p->m_total_used_extents));
     file.p->m_online.m_lcp_free_extent_count = 0;
     
     if(file.p->m_online.m_first_free_extent == RNIL)
@@ -2896,8 +2927,8 @@ Tsman::end_lcp(Signal* signal, Uint32 ptrI, Uint32 list, Uint32 filePtrI)
       file.p->m_online.m_lcp_free_extent_head = RNIL;
       file.p->m_online.m_lcp_free_extent_tail = RNIL;
 
-      Local_datafile_list free_list(m_file_pool, ptr.p->m_free_files);
-      Local_datafile_list full(m_file_pool, ptr.p->m_full_files);
+      Local_datafile_list free_list(m_file_pool, ts_ptr.p->m_free_files);
+      Local_datafile_list full(m_file_pool, ts_ptr.p->m_full_files);
       full.remove(file);
       free_list.addLast(file);
     }
@@ -2906,7 +2937,7 @@ Tsman::end_lcp(Signal* signal, Uint32 ptrI, Uint32 list, Uint32 filePtrI)
       jam();
       bool v2 = (file.p->m_ndb_version >= NDB_DISK_V2);
       Uint32 extent = file.p->m_online.m_lcp_free_extent_tail;
-      Uint32 size = ptr.p->m_extent_size;
+      Uint32 size = ts_ptr.p->m_extent_size;
       Uint32 eh_words = File_formats::Datafile::extent_header_words(size, v2);
       Uint32 per_page = File_formats::Datafile::extent_page_words(v2) / eh_words;
       
@@ -2955,25 +2986,25 @@ Tsman::end_lcp(Signal* signal, Uint32 ptrI, Uint32 list, Uint32 filePtrI)
     {
       jam();
       list = 0;
-      m_tablespace_list.next(ptr);
+      m_tablespace_list.next(ts_ptr);
     }
   }
   else
   {
     jam();
-    ndbrequire(ptr.i != RNIL);
+    ndbrequire(ts_ptr.i != RNIL);
     m_file_pool.getPtr(file);
     file.p->m_ref_count++;
   }
   
 next:
-  if(ptr.i != RNIL)
+  if(ts_ptr.i != RNIL)
   {
     jam();
-    ptr.p->m_ref_count++;
+    ts_ptr.p->m_ref_count++;
     
     signal->theData[0] = TsmanContinueB::END_LCP;
-    signal->theData[1] = ptr.i;
+    signal->theData[1] = ts_ptr.i;
     signal->theData[2] = list;    
     signal->theData[3] = file.i;  
     sendSignal(reference(), GSN_CONTINUEB, signal, 4, JBB);
