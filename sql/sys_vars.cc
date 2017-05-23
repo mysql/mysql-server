@@ -4735,19 +4735,19 @@ static Sys_var_enum Sys_internal_tmp_disk_storage_engine(
        GLOBAL_VAR(internal_tmp_disk_storage_engine), CMD_LINE(OPT_ARG),
        internal_tmp_disk_storage_engine_names, DEFAULT(TMP_TABLE_INNODB));
 
-const char *internal_tmp_mem_storage_engine_names[] = { "MEMORY", "InnMEM", 0};
+const char *internal_tmp_mem_storage_engine_names[] = { "MEMORY", "TempTable", 0};
 static Sys_var_enum Sys_internal_tmp_mem_storage_engine(
        "internal_tmp_mem_storage_engine",
        "The default storage engine for in-memory internal temporary tables.",
        SESSION_VAR(internal_tmp_mem_storage_engine), CMD_LINE(REQUIRED_ARG),
-       internal_tmp_mem_storage_engine_names, DEFAULT(TMP_TABLE_INNMEM));
+       internal_tmp_mem_storage_engine_names, DEFAULT(TMP_TABLE_TEMPTABLE));
 
-static Sys_var_ulonglong Sys_innmem_max_ram(
-       "innmem_max_ram",
-       "Maximum amount of memory (in bytes) the InnMEM storage engine is "
+static Sys_var_ulonglong Sys_temptable_max_ram(
+       "temptable_max_ram",
+       "Maximum amount of memory (in bytes) the TempTable storage engine is "
        "allowed to allocate from the main memory (RAM) before starting to "
        "store data on disk.",
-       GLOBAL_VAR(innmem_max_ram),
+       GLOBAL_VAR(temptable_max_ram),
        CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(2 << 20 /* 2 MiB */, ULLONG_MAX),
        DEFAULT(1 << 30 /* 1 GiB */),

@@ -350,7 +350,7 @@ The following options may be given as the first argument:
  --initialize-insecure 
  Create the default database and exit. Create a super user
  with empty password.
- --innmem-max-ram=#  Maximum amount of memory (in bytes) the InnMEM storage
+ --temptable-max-ram=#  Maximum amount of memory (in bytes) the TempTable storage
  engine is allowed to allocate from the main memory (RAM)
  before starting to store data on disk.
  --interactive-timeout=# 
@@ -1356,10 +1356,10 @@ init-file (No default value)
 init-slave 
 initialize TRUE
 initialize-insecure TRUE
-innmem-max-ram 1073741824
+temptable-max-ram 1073741824
 interactive-timeout 28800
 internal-tmp-disk-storage-engine InnoDB
-internal-tmp-mem-storage-engine InnMEM
+internal-tmp-mem-storage-engine TempTable
 join-buffer-size 262144
 keep-files-on-create FALSE
 key-buffer-size 8388608

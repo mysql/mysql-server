@@ -620,7 +620,7 @@ SELECT (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SELECT 2 FROM t6 WHERE d
                 "row_length": 9,
                 "key_length": 8,
                 "unique_constraint": false,
-                "location": "InnMEM"
+                "location": "TempTable"
               } /* tmp_table_info */
             } /* creating_tmp_table */
           },
@@ -1049,7 +1049,7 @@ SELECT * FROM t5 WHERE 5 IN (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SEL
                 "row_length": 9,
                 "key_length": 8,
                 "unique_constraint": false,
-                "location": "InnMEM"
+                "location": "TempTable"
               } /* tmp_table_info */
             } /* creating_tmp_table */
           },
@@ -1322,7 +1322,7 @@ select (@query:=QUERY)+NULL, (@trace:=TRACE)+NULL from information_schema.OPTIMI
 NULL	NULL
 select length(@trace);
 length(@trace)
-13548
+13551
 set @max_mem_size=13900;
 set optimizer_trace_max_mem_size=@max_mem_size;
 select length(@query)+length(@trace) > @@optimizer_trace_max_mem_size;
@@ -1340,7 +1340,7 @@ select length(@trace2),
 (length(@trace2) + @missing_bytes) = length(@trace),
 @query2 = @query;
 length(@trace2)	(length(@trace2) + @missing_bytes) = length(@trace)	@query2 = @query
-13548	1	1
+13551	1	1
 select length(@query2) + length(@trace2)
 between (@@optimizer_trace_max_mem_size-200) and (@@optimizer_trace_max_mem_size+200);
 length(@query2) + length(@trace2)
@@ -4078,7 +4078,7 @@ SELECT * FROM t1 WHERE c1=5 UNION SELECT * FROM t2 WHERE c2=5	{
           "row_length": 5,
           "key_length": 5,
           "unique_constraint": false,
-          "location": "InnMEM"
+          "location": "TempTable"
         } /* tmp_table_info */
       } /* creating_tmp_table */
     },
@@ -6230,7 +6230,7 @@ trace
                 "row_length": 30,
                 "key_length": 5,
                 "unique_constraint": false,
-                "location": "InnMEM"
+                "location": "TempTable"
               } /* tmp_table_info */
             } /* creating_tmp_table */
           }
@@ -6695,7 +6695,7 @@ insert into t6 select * from t6 where d>7	{
                 "row_length": 5,
                 "key_length": 0,
                 "unique_constraint": false,
-                "location": "InnMEM"
+                "location": "TempTable"
               } /* tmp_table_info */
             } /* creating_tmp_table */
           }
@@ -6884,7 +6884,7 @@ update t5, t6 set t6.d=t6.d+t5.c+4-t5.c-4 where d>7000	{
                 "row_length": 12,
                 "key_length": 7,
                 "unique_constraint": false,
-                "location": "InnMEM"
+                "location": "TempTable"
               } /* tmp_table_info */
             } /* creating_tmp_table */
           },
@@ -11759,7 +11759,7 @@ explain select * from v1 where id="b"	{
                 "row_length": 69,
                 "key_length": 64,
                 "unique_constraint": false,
-                "location": "InnMEM"
+                "location": "TempTable"
               } /* tmp_table_info */
             } /* creating_tmp_table */
           },
@@ -11811,7 +11811,7 @@ select TRACE into dumpfile 'MYSQLTEST_VARDIR/tmp/optimizer_trace.txt' from infor
           "row_length": 9,
           "key_length": 8,
           "unique_constraint": false,
-          "location": "InnMEM"
+          "location": "TempTable"
         }
       }
     },

@@ -6,13 +6,13 @@ SELECT @@session.internal_tmp_mem_storage_engine;
 SET @@global.internal_tmp_mem_storage_engine = 'memory';
 SELECT @@global.internal_tmp_mem_storage_engine;
 
-SET @@global.internal_tmp_mem_storage_engine = 'innmem';
+SET @@global.internal_tmp_mem_storage_engine = 'temptable';
 SELECT @@global.internal_tmp_mem_storage_engine;
 
 SET @@session.internal_tmp_mem_storage_engine = 'memory';
 SELECT @@session.internal_tmp_mem_storage_engine;
 
-SET @@session.internal_tmp_mem_storage_engine = 'innmem';
+SET @@session.internal_tmp_mem_storage_engine = 'temptable';
 SELECT @@session.internal_tmp_mem_storage_engine;
 
 -- error ER_WRONG_VALUE_FOR_VAR

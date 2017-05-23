@@ -234,7 +234,7 @@
 
   @subpage PAGE_INNODB_PFS
 
-  @subpage PAGE_INNMEM
+  @subpage PAGE_TEMPTABLE
 */
 
 
@@ -759,7 +759,7 @@ char *default_tmp_storage_engine;
    temp table
  */
 ulong internal_tmp_disk_storage_engine;
-ulonglong innmem_max_ram;
+ulonglong temptable_max_ram;
 static char compiled_default_collation_name[]= MYSQL_DEFAULT_COLLATION_NAME;
 static bool binlog_format_used= false;
 
@@ -827,7 +827,7 @@ bool old_mode;
   Legacy global handlerton. These will be removed (please do not add more).
 */
 handlerton *heap_hton;
-handlerton *innmem_hton;
+handlerton *temptable_hton;
 handlerton *myisam_hton;
 handlerton *innodb_hton;
 

@@ -927,8 +927,8 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
   case DB_TYPE_HEAP:
     heap_hton= hton;
     break;
-  case DB_TYPE_INNMEM:
-    innmem_hton= hton;
+  case DB_TYPE_TEMPTABLE:
+    temptable_hton= hton;
     break;
   case DB_TYPE_MYISAM:
     myisam_hton= hton;
@@ -4841,7 +4841,7 @@ handler::mark_trx_read_write()
     */
     if (table_share == NULL || table_share->tmp_table == NO_TMP_TABLE)
     {
-      /* InnMEM and Heap tables don't use/support transactions. */
+      /* TempTable and Heap tables don't use/support transactions. */
       ha_info->set_trx_read_write();
     }
   }

@@ -4078,7 +4078,7 @@ QEP_TAB::remove_duplicates()
 
   free_io_cache(tbl);				// Safety
   tbl->file->info(HA_STATUS_VARIABLE);
-  if (tbl->s->db_type() == innmem_hton ||
+  if (tbl->s->db_type() == temptable_hton ||
       tbl->s->db_type() == heap_hton ||
       (!tbl->s->blob_fields &&
        ((ALIGN_SIZE(key_length) + HASH_OVERHEAD) * tbl->file->stats.records <

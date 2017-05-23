@@ -51,7 +51,7 @@ typedef struct st_order ORDER;
  */
 enum enum_internal_tmp_disk_storage_engine { TMP_TABLE_MYISAM, TMP_TABLE_INNODB };
 
-enum enum_internal_tmp_mem_storage_engine { TMP_TABLE_MEMORY, TMP_TABLE_INNMEM };
+enum enum_internal_tmp_mem_storage_engine { TMP_TABLE_MEMORY, TMP_TABLE_TEMPTABLE };
 
 TABLE *
 create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,

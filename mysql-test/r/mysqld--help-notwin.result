@@ -351,9 +351,6 @@ The following options may be given as the first argument:
  --initialize-insecure 
  Create the default database and exit. Create a super user
  with empty password.
- --innmem-max-ram=#  Maximum amount of memory (in bytes) the InnMEM storage
- engine is allowed to allocate from the main memory (RAM)
- before starting to store data on disk.
  --interactive-timeout=# 
  The number of seconds the server waits for activity on an
  interactive connection before closing it
@@ -1225,6 +1222,10 @@ The following options may be given as the first argument:
  --tc-heuristic-recover=name 
  Decision to use in heuristic recover process. Possible
  values are OFF, COMMIT or ROLLBACK.
+ --temptable-max-ram=# 
+ Maximum amount of memory (in bytes) the TempTable storage
+ engine is allowed to allocate from the main memory (RAM)
+ before starting to store data on disk.
  --thread-cache-size=# 
  How many threads we should keep in a cache for reuse
  --thread-handling=name 
@@ -1359,10 +1360,9 @@ init-file (No default value)
 init-slave 
 initialize TRUE
 initialize-insecure TRUE
-innmem-max-ram 1073741824
 interactive-timeout 28800
 internal-tmp-disk-storage-engine InnoDB
-internal-tmp-mem-storage-engine InnMEM
+internal-tmp-mem-storage-engine TempTable
 join-buffer-size 262144
 keep-files-on-create FALSE
 key-buffer-size 8388608
@@ -1608,6 +1608,7 @@ sysdate-is-now FALSE
 table-open-cache-instances 16
 tablespace-definition-cache 256
 tc-heuristic-recover OFF
+temptable-max-ram 1073741824
 thread-cache-size 9
 thread-handling one-thread-per-connection
 thread-stack 262144

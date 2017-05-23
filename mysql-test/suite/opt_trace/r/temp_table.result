@@ -136,7 +136,7 @@ SELECT uniq, col1 FROM t1 GROUP BY col2,uniq LIMIT 3	{
                 "row_length": 4190,
                 "key_length": 8,
                 "unique_constraint": true,
-                "location": "InnMEM"
+                "location": "TempTable"
               } /* tmp_table_info */
             } /* creating_tmp_table */
           }
@@ -273,7 +273,7 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq	{
                 "row_length": 4182,
                 "key_length": 43,
                 "unique_constraint": false,
-                "location": "InnMEM"
+                "location": "TempTable"
               } /* tmp_table_info */
             } /* creating_tmp_table */
           }

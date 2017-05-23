@@ -489,15 +489,15 @@ class Cache_temp_engine_properties
 {
 public:
   static uint HEAP_MAX_KEY_LENGTH;
-  static uint INNMEM_MAX_KEY_LENGTH;
+  static uint TEMPTABLE_MAX_KEY_LENGTH;
   static uint MYISAM_MAX_KEY_LENGTH;
   static uint INNODB_MAX_KEY_LENGTH;
   static uint HEAP_MAX_KEY_PART_LENGTH;
-  static uint INNMEM_MAX_KEY_PART_LENGTH;
+  static uint TEMPTABLE_MAX_KEY_PART_LENGTH;
   static uint MYISAM_MAX_KEY_PART_LENGTH;
   static uint INNODB_MAX_KEY_PART_LENGTH;
   static uint HEAP_MAX_KEY_PARTS;
-  static uint INNMEM_MAX_KEY_PARTS;
+  static uint TEMPTABLE_MAX_KEY_PARTS;
   static uint MYISAM_MAX_KEY_PARTS;
   static uint INNODB_MAX_KEY_PARTS;
 
@@ -517,12 +517,12 @@ void Cache_temp_engine_properties::init(THD *thd)
   HEAP_MAX_KEY_PARTS= handler->max_key_parts();
   destroy(handler);
   plugin_unlock(0, db_plugin);
-  // Cache InnMEM engine's
-  db_plugin= ha_lock_engine(0, innmem_hton);
-  handler= get_new_handler((TABLE_SHARE *)0, false, thd->mem_root, innmem_hton);
-  INNMEM_MAX_KEY_LENGTH= handler->max_key_length();
-  INNMEM_MAX_KEY_PART_LENGTH= handler->max_key_part_length();
-  INNMEM_MAX_KEY_PARTS= handler->max_key_parts();
+  // Cache TempTable engine's
+  db_plugin= ha_lock_engine(0, temptable_hton);
+  handler= get_new_handler((TABLE_SHARE *)0, false, thd->mem_root, temptable_hton);
+  TEMPTABLE_MAX_KEY_LENGTH= handler->max_key_length();
+  TEMPTABLE_MAX_KEY_PART_LENGTH= handler->max_key_part_length();
+  TEMPTABLE_MAX_KEY_PARTS= handler->max_key_parts();
   destroy(handler);
   plugin_unlock(0, db_plugin);
   // Cache MYISAM engine's
@@ -554,15 +554,15 @@ void Cache_temp_engine_properties::init(THD *thd)
 }
 
 uint Cache_temp_engine_properties::HEAP_MAX_KEY_LENGTH= 0;
-uint Cache_temp_engine_properties::INNMEM_MAX_KEY_LENGTH= 0;
+uint Cache_temp_engine_properties::TEMPTABLE_MAX_KEY_LENGTH= 0;
 uint Cache_temp_engine_properties::MYISAM_MAX_KEY_LENGTH= 0;
 uint Cache_temp_engine_properties::INNODB_MAX_KEY_LENGTH= 0;
 uint Cache_temp_engine_properties::HEAP_MAX_KEY_PART_LENGTH= 0;
-uint Cache_temp_engine_properties::INNMEM_MAX_KEY_PART_LENGTH= 0;
+uint Cache_temp_engine_properties::TEMPTABLE_MAX_KEY_PART_LENGTH= 0;
 uint Cache_temp_engine_properties::MYISAM_MAX_KEY_PART_LENGTH= 0;
 uint Cache_temp_engine_properties::INNODB_MAX_KEY_PART_LENGTH= 0;
 uint Cache_temp_engine_properties::HEAP_MAX_KEY_PARTS= 0;
-uint Cache_temp_engine_properties::INNMEM_MAX_KEY_PARTS= 0;
+uint Cache_temp_engine_properties::TEMPTABLE_MAX_KEY_PARTS= 0;
 uint Cache_temp_engine_properties::MYISAM_MAX_KEY_PARTS= 0;
 uint Cache_temp_engine_properties::INNODB_MAX_KEY_PARTS= 0;
 
@@ -1255,7 +1255,7 @@ update_hidden:
            opt_initialize) // 4
   {
     /*
-      1: MEMORY and InnMEM do not support BLOBs
+      1: MEMORY and TempTable do not support BLOBs
       2: User said the result would be big, so may not fit in memory
       3: unique constraint is implemented as index lookups (ha_index_read); if
       allow_scan_from_position is true, we will be doing, on table->file:
@@ -1264,7 +1264,7 @@ update_hidden:
       Write Row (write_row, many times),
       Initialize Scan (rnd_init), Read Row at Position (rnd_pos),
       Read Next Row (rnd_next).
-      This will work if InnMEM is used, but will not work for the Heap
+      This will work if TempTable is used, but will not work for the Heap
       engine (TMP_TABLE_MEMORY) for the reason below. So only pick
       on-disk if the configured engine is Heap.
       write_row checks unique constraint so calls ha_index_read.
@@ -1300,15 +1300,15 @@ update_hidden:
     switch ((enum_internal_tmp_mem_storage_engine)
               thd->variables.internal_tmp_mem_storage_engine)
     {
-    case TMP_TABLE_INNMEM:
+    case TMP_TABLE_TEMPTABLE:
       if (!param->schema_table) {
-        share->db_plugin= ha_lock_engine(0, innmem_hton);
+        share->db_plugin= ha_lock_engine(0, temptable_hton);
         break;
       }
       /* For information_schema tables we use the Heap engine because we do
-      not allow user-created InnMEM tables and even though information_schema
+      not allow user-created TempTable tables and even though information_schema
       tables are not user-created, an ingenious user may execute:
-      CREATE TABLE myowninnmemtable LIKE information_schema.some; */
+      CREATE TABLE myowntemptabletable LIKE information_schema.some; */
       /* Fall-through. */
     case TMP_TABLE_MEMORY:
       share->db_plugin= ha_lock_engine(0, heap_hton);
@@ -1863,8 +1863,8 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
     switch ((enum_internal_tmp_mem_storage_engine)
               thd->variables.internal_tmp_mem_storage_engine)
     {
-    case TMP_TABLE_INNMEM:
-      share->db_plugin= ha_lock_engine(0, innmem_hton);
+    case TMP_TABLE_TEMPTABLE:
+      share->db_plugin= ha_lock_engine(0, temptable_hton);
       break;
     case TMP_TABLE_MEMORY:
       share->db_plugin= ha_lock_engine(0, heap_hton);
@@ -2203,7 +2203,7 @@ bool open_tmp_table(TABLE *table)
 {
   DBUG_ASSERT(table->s->ref_count == 1 || // not shared, or:
               table->s->db_type() == heap_hton || // using right engines
-              table->s->db_type() == innmem_hton ||
+              table->s->db_type() == temptable_hton ||
               table->s->db_type() == innodb_hton);
 
   int error;
@@ -2380,7 +2380,7 @@ static bool create_tmp_table_with_fallback(TABLE *table)
 
   int error= table->file->create(share->table_name.str, table, &create_info,
                                  nullptr);
-  if (error == HA_ERR_RECORD_FILE_FULL && table->s->db_type() == innmem_hton)
+  if (error == HA_ERR_RECORD_FILE_FULL && table->s->db_type() == temptable_hton)
   {
     auto& disk_hton = internal_tmp_disk_storage_engine == TMP_TABLE_INNODB
         ? innodb_hton : myisam_hton;
@@ -2398,7 +2398,7 @@ static bool create_tmp_table_with_fallback(TABLE *table)
   }
   else
   {
-    if (table->s->db_type() != innmem_hton) {
+    if (table->s->db_type() != temptable_hton) {
       table->in_use->inc_status_created_tmp_disk_tables();
     }
     share->db_record_offset= 1;
@@ -2434,9 +2434,9 @@ static void trace_tmp_table(Opt_trace_context *trace, const TABLE *table)
     else
       trace_tmp.add_alnum("record_format", "fixed");
   }
-  else if(table->s->db_type() == innmem_hton)
+  else if(table->s->db_type() == temptable_hton)
   {
-    trace_tmp.add_alnum("location", "InnMEM");
+    trace_tmp.add_alnum("location", "TempTable");
   }
   else
   {
@@ -2479,7 +2479,7 @@ bool instantiate_tmp_table(THD *thd, TABLE *table, KEY *keyinfo,
 #endif
   thd->inc_status_created_tmp_tables();
 
-  if (share->db_type() == innmem_hton)
+  if (share->db_type() == temptable_hton)
   {
     if (create_tmp_table_with_fallback(table))
       return TRUE;
@@ -2665,7 +2665,7 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable,
   bool table_on_disk= false;
   DBUG_ENTER("create_ondisk_from_heap");
 
-  if ((wtable->s->db_type() != innmem_hton &&
+  if ((wtable->s->db_type() != temptable_hton &&
        wtable->s->db_type() != heap_hton) ||
       error != HA_ERR_RECORD_FILE_FULL)
   {

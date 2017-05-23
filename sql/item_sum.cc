@@ -900,7 +900,7 @@ bool Aggregator_distinct::setup(THD *thd)
     if (table->hash_field)
       table->file->ha_index_init(0, 0);
 
-    if (table->s->db_type() == innmem_hton || table->s->db_type() == heap_hton)
+    if (table->s->db_type() == temptable_hton || table->s->db_type() == heap_hton)
     {
       /*
         No blobs:

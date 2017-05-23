@@ -235,7 +235,7 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/sql
   ${CMAKE_SOURCE_DIR}/sql/auth
   ${CMAKE_SOURCE_DIR}/storage/example
-  ${CMAKE_SOURCE_DIR}/storage/innmem/include
+  ${CMAKE_SOURCE_DIR}/storage/temptable/include
 )
 
 # main-wrapper libraries (with tap-compatible option).
@@ -379,8 +379,6 @@ SET(SERVER_TESTS
   handler
   histograms
   initialize_password
-  innmem_allocator
-  innmem_storage
   insert_delayed
   into_syntax
   item
@@ -414,6 +412,8 @@ SET(SERVER_TESTS
   table_cache
   table_factor_syntax
   tc_log_mmap
+  temptable_allocator
+  temptable_storage
   thd_manager
   union_syntax
   unique
