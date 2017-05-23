@@ -41,6 +41,7 @@
 #include "my_bitmap.h"
 #include "my_config.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "my_pointer_arithmetic.h"
 #include "my_user.h"           // parse_user
 #include "mysql/psi/mysql_error.h"
@@ -3349,10 +3350,10 @@ bool sp_head::show_routine_code(THD *thd)
     */
     if (ip != i->get_ip())
     {
-      const char *format= "Instruction at position %u has m_ip=%u";
-      char tmp[sizeof(format) + 2 * sizeof(uint) + 1];
-
-      sprintf(tmp, format, ip, i->get_ip());
+      char tmp[64 + 2 * MY_INT32_NUM_DECIMAL_DIGITS];
+      snprintf(tmp, sizeof(tmp),
+               "Instruction at position %u has m_ip=%u",
+               ip, i->get_ip());
       /*
         Since this is for debugging purposes only, we don't bother to
         introduce a special error code for it.
