@@ -147,7 +147,6 @@ SET(GROUP_REPLICATION_SOURCES
   src/sql_service/sql_resultset.cc
   src/sql_service/sql_service_context.cc
   src/sql_service/sql_service_context_base.cc
-  src/sql_service/sql_service_gr_user.cc
   src/sql_service/sql_service_interface.cc
   src/sql_service/sql_command_test.cc
   src/sql_service/sql_service_command.cc

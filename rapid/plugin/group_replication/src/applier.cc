@@ -723,7 +723,12 @@ void Applier_module::kill_pending_transactions(bool set_read_mode,
     shared_stop_write_lock->release_write_lock();
 
   if (set_read_mode)
-    set_server_read_mode(threaded_sql_session);
+  {
+    if (threaded_sql_session)
+      set_server_read_mode(PSESSION_INIT_THREAD);
+    else
+      set_server_read_mode(PSESSION_USE_THREAD);
+  }
 
   DBUG_VOID_RETURN;
 }

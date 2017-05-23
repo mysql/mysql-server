@@ -22,7 +22,6 @@
 #include "observer_trans.h"
 
 #include "sql_service_command.h"
-#include "sql_service_gr_user.h"
 
 const std::string Certifier::GTID_EXTRACTED_NAME= "gtid_extracted";
 
@@ -326,7 +325,7 @@ int Certifier::initialize_server_gtid_set(bool get_server_gtid_retrieved)
   DBUG_ENTER("initialize_server_gtid_set");
   mysql_mutex_assert_owner(&LOCK_certification_info);
   int error= 0;
-  Sql_service_command *sql_command_interface= NULL;
+  Sql_service_command_interface *sql_command_interface= NULL;
   std::string gtid_executed;
   std::string applier_retrieved_gtids;
 
@@ -369,8 +368,8 @@ int Certifier::initialize_server_gtid_set(bool get_server_gtid_retrieved)
     goto end; /* purecov: inspected */
   }
 
-  sql_command_interface= new Sql_service_command();
-  if (sql_command_interface->establish_session_connection(false) ||
+  sql_command_interface= new Sql_service_command_interface();
+  if (sql_command_interface->establish_session_connection(PSESSION_USE_THREAD) ||
       sql_command_interface->set_interface_user(GROUPREPL_USER))
   {
     log_message(MY_ERROR_LEVEL,

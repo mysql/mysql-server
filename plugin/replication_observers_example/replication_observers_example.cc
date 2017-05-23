@@ -591,7 +591,11 @@ int validate_plugin_server_requirements(Trans_param *param)
   char *hostname, *uuid;
   uint port;
   unsigned int server_version;
-  get_server_parameters(&hostname, &port, &uuid, &server_version);
+  st_server_ssl_variables server_ssl_variables=
+      {false,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL};
+
+  get_server_parameters(&hostname, &port, &uuid, &server_version,
+                        &server_ssl_variables);
 
   Trans_context_info startup_pre_reqs;
   get_server_startup_prerequirements(startup_pre_reqs, false);

@@ -544,7 +544,7 @@ Warning	1287	Using GRANT for creating new user is deprecated and will be removed
 select * from INFORMATION_SCHEMA.COLUMN_PRIVILEGES WHERE table_schema != 'sys';
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
 'joe'@'localhost'	def	test	t1	a	SELECT	YES
-select * from INFORMATION_SCHEMA.TABLE_PRIVILEGES WHERE table_schema != 'sys';
+select * from INFORMATION_SCHEMA.TABLE_PRIVILEGES WHERE table_schema NOT IN ('sys','mysql');
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
 drop view v1, v2, v3;
 drop table t1;
@@ -1043,14 +1043,14 @@ order by grantee;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
 'user1'@'localhost'	def	mysqltest	t1	f1	SELECT	NO
 select * from information_schema.table_privileges where grantee like '%user%'
-order by grantee;
+and table_schema !='mysql' order by grantee;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
 'user2'@'localhost'	def	mysqltest	t2	SELECT	NO
 select * from information_schema.schema_privileges where grantee like '%user%'
-order by grantee;
+and table_schema !='performance_schema' order by grantee;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
 'user3'@'localhost'	def	mysqltest	SELECT	NO
-select * from information_schema.user_privileges where grantee like '%user%'
+select * from information_schema.user_privileges where grantee like '%user%' and grantee not like '%session%'
 order by grantee;
 GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
 'user1'@'localhost'	def	USAGE	NO
