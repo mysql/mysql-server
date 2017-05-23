@@ -893,13 +893,6 @@ fts_savepoint_rollback_last_stmt(
 /*=============================*/
 	trx_t*		trx);			/*!< in: transaction */
 
-/***********************************************************************//**
-Drop all orphaned FTS auxiliary tables, those that don't have a parent
-table or FTS index defined on them. */
-void
-fts_drop_orphaned_tables(void);
-/*==========================*/
-
 /* Get parent table name if it's a fts aux table
 @param[in]	aux_table_name	aux table name
 @param[in]	aux_table_len	aux table length

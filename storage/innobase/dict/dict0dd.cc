@@ -2245,10 +2245,6 @@ dd_fill_dict_table(
 		DICT_TF2_FLAG_SET(m_table, DICT_TF2_ENCRYPTION);
 	}
 
-	/* Since 8.0 (including after the upgrade from 5.7), all
-	FTS table name would be in HEX format */
-	m_table->flags2 |= DICT_TF2_FTS_AUX_HEX_NAME;
-
 	heap = mem_heap_create(1000);
 
 	/* Fill out each column info */

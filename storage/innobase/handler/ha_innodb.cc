@@ -12751,11 +12751,6 @@ index_bad:
 	dict_tf_set(&m_flags, innodb_row_format, zip_ssize,
 		    m_use_data_dir, m_use_shared_space);
 
-	/* Set the flags2 when create table or alter tables */
-	m_flags2 |= DICT_TF2_FTS_AUX_HEX_NAME;
-	DBUG_EXECUTE_IF("innodb_test_wrong_fts_aux_table_name",
-			m_flags2 &= ~DICT_TF2_FTS_AUX_HEX_NAME;);
-
 	DBUG_RETURN(true);
 }
 

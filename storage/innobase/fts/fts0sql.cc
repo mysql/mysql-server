@@ -61,28 +61,23 @@ fts_get_table_id(
 					long */
 {
 	int		len;
-	bool		hex_name = DICT_TF2_FLAG_IS_SET(fts_table->table,
-						DICT_TF2_FTS_AUX_HEX_NAME);
 
 	ut_a(fts_table->table != NULL);
 
 	switch (fts_table->type) {
 	case FTS_COMMON_TABLE:
-		len = fts_write_object_id(fts_table->table_id, table_id,
-					  hex_name);
+		len = fts_write_object_id(fts_table->table_id, table_id);
 		break;
 
 	case FTS_INDEX_TABLE:
 
-		len = fts_write_object_id(fts_table->table_id, table_id,
-					  hex_name);
+		len = fts_write_object_id(fts_table->table_id, table_id);
 
 		table_id[len] = '_';
 		++len;
 		table_id += len;
 
-		len += fts_write_object_id(fts_table->index_id, table_id,
-					   hex_name);
+		len += fts_write_object_id(fts_table->index_id, table_id);
 		break;
 
 	default:

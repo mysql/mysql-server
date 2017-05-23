@@ -5583,17 +5583,6 @@ check_if_ok_to_rename:
 		}
 	}
 
-	/* We won't be allowed to add fts index to a table with
-	fts indexes already but without AUX_HEX_NAME set.
-	This means the aux tables of the table failed to
-	rename to hex format but new created aux tables
-	shall be in hex format, which is contradictory. */
-	if (!DICT_TF2_FLAG_IS_SET(indexed_table, DICT_TF2_FTS_AUX_HEX_NAME)
-	    && indexed_table->fts != NULL && add_fts_idx) {
-		my_error(ER_INNODB_FT_AUX_NOT_HEX_ID, MYF(0));
-		goto err_exit_no_heap;
-	}
-
 	/* Check existing index definitions for too-long column
 	prefixes as well, in case max_col_len shrunk. */
 	for (const dict_index_t* index = indexed_table->first_index();

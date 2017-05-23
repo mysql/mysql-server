@@ -1591,11 +1591,6 @@ row_fts_merge_insert(
 	positions = ib_vector_create(heap_alloc, sizeof(ulint), 32);
 	last_doc_id = 0;
 
-	/* We should set the flags2 with aux_table_name here,
-	in order to get the correct aux table names. */
-	index->table->flags2 |= DICT_TF2_FTS_AUX_HEX_NAME;
-	DBUG_EXECUTE_IF("innodb_test_wrong_fts_aux_table_name",
-			index->table->flags2 &= ~DICT_TF2_FTS_AUX_HEX_NAME;);
 	fts_table.type = FTS_INDEX_TABLE;
 	fts_table.index_id = index->id;
 	fts_table.table_id = table->id;

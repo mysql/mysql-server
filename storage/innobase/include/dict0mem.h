@@ -257,11 +257,6 @@ use its own tablespace instead of the system tablespace. */
 /** Set when we discard/detach the tablespace */
 #define DICT_TF2_DISCARDED		32
 
-/** This bit is set if all aux table names (both common tables and
-index tables) of a FTS table are in HEX format.
-TODO: NewDD: WL#9535 remove this flag */
-#define DICT_TF2_FTS_AUX_HEX_NAME	64
-
 /** Intrinsic table bit
 Intrinsic table is table created internally by MySQL modules viz. Optimizer,
 FTS, etc.... Intrinsic table has all the properties of the normal table except
