@@ -11121,6 +11121,8 @@ int ha_ndbcluster::create(const char *name,
     }
   }
 
+  int abort_error = 0;
+
   if ((dict->beginSchemaTrans() == -1))
   {
     DBUG_PRINT("info", ("Failed to start schema transaction"));
@@ -11131,7 +11133,7 @@ int ha_ndbcluster::create(const char *name,
   DBUG_PRINT("table", ("name: %s", m_tabname));  
   if (tab.setName(m_tabname))
   {
-    set_my_errno(errno);
+    abort_error = errno;
     goto abort;
   }
   if (!ndb_sys_table)
@@ -11282,9 +11284,13 @@ int ha_ndbcluster::create(const char *name,
                         field->pack_length(), field->stored_in_db));
     if(field->stored_in_db)
     {
-      set_my_errno(create_ndb_column(thd, col, field, create_info));
-      if (my_errno())
+      const int create_column_result =
+          create_ndb_column(thd, col, field, create_info);
+      if (create_column_result)
+      {
+        abort_error = create_column_result;
         goto abort;
+      }
 
       if (!use_disk &&
           col.getStorageType() == NDBCOL::StorageTypeDisk)
@@ -11292,7 +11298,7 @@ int ha_ndbcluster::create(const char *name,
 
       if (tab.addColumn(col))
       {
-        set_my_errno(errno);
+        abort_error = errno;
         goto abort;
       }
       if (col.getPrimaryKey())
@@ -11373,7 +11379,7 @@ int ha_ndbcluster::create(const char *name,
     DBUG_PRINT("info", ("Generating shadow key"));
     if (col.setName("$PK"))
     {
-      set_my_errno(errno);
+      abort_error = errno;
       goto abort;
     }
     col.setType(NdbDictionary::Column::Bigunsigned);
@@ -11384,7 +11390,7 @@ int ha_ndbcluster::create(const char *name,
     col.setDefaultValue(NULL, 0);
     if (tab.addColumn(col))
     {
-      set_my_errno(errno);
+      abort_error = errno;
       goto abort;
     }
     pk_length += 2;
@@ -11452,10 +11458,16 @@ int ha_ndbcluster::create(const char *name,
   }
 
   // Check partition info
-  set_my_errno(create_table_set_up_partition_info(form->part_info,
-                                                  tab, table_map));
-  if (my_errno())
-    goto abort;
+  {
+    const int setup_partinfo_result =
+        create_table_set_up_partition_info(form->part_info,
+                                           tab, table_map);
+    if (setup_partinfo_result)
+    {
+      abort_error = setup_partinfo_result;
+      goto abort;
+    }
+  }
 
   if (tab.getFullyReplicated() &&
       (tab.getFragmentType() != NDBTAB::HashMapPartition ||
@@ -11515,7 +11527,7 @@ int ha_ndbcluster::create(const char *name,
       if (res == -1)
       {
         const NdbError err= dict->getNdbError();
-        set_my_errno(ndb_to_mysql_error(&err));
+        abort_error = ndb_to_mysql_error(&err);
         goto abort;
       }
 
@@ -11523,7 +11535,7 @@ int ha_ndbcluster::create(const char *name,
       if (res == -1)
       {
         const NdbError err= dict->getNdbError();
-        set_my_errno(ndb_to_mysql_error(&err));
+        abort_error = ndb_to_mysql_error(&err);
         goto abort;
       }
     }
@@ -11533,7 +11545,7 @@ int ha_ndbcluster::create(const char *name,
   if (dict->createTable(tab, &objId) != 0)
   {
     const NdbError err= dict->getNdbError();
-    set_my_errno(ndb_to_mysql_error(&err));
+    abort_error = ndb_to_mysql_error(&err);
     goto abort;
   }
 
@@ -11588,10 +11600,15 @@ int ha_ndbcluster::create(const char *name,
   }
   else
   {
+    abort_error = my_errno();
+
 abort:
-/*
- *  Some step during table creation failed, abort schema transaction
- */
+    /*
+     *  Some step during table creation failed, abort schema transaction
+     */
+
+    // Require that 'abort_error' was set before "goto abort"
+    DBUG_ASSERT(abort_error);
 
     {
       // Flush out the indexes(if any) from ndbapi dictionary's cache first
@@ -11610,7 +11627,7 @@ abort:
 
     // Now abort schema transaction
     DBUG_PRINT("info", ("Aborting schema transaction due to error %i",
-                        my_errno()));
+                        abort_error));
     if (dict->endSchemaTrans(NdbDictionary::Dictionary::SchemaTransAbort)
         == -1)
       DBUG_PRINT("info", ("Failed to abort schema transaction, %i",
@@ -11626,7 +11643,8 @@ abort:
       ndbtab_g.invalidate();
     }
 
-    DBUG_RETURN(my_errno());
+    DBUG_RETURN(abort_error);
+
 abort_return:
     DBUG_PRINT("info", ("Aborting schema transaction"));
     if (dict->endSchemaTrans(NdbDictionary::Dictionary::SchemaTransAbort)
