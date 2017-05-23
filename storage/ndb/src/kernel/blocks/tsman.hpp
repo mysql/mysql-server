@@ -153,8 +153,8 @@ public:
   };
 
   typedef RecordPool<Datafile, RWPool<Datafile> > Datafile_pool;
-  typedef DLList<Datafile, Datafile_pool> Datafile_list;
-  typedef LocalDLList<Datafile, Datafile_pool> Local_datafile_list;
+  typedef DLFifoList<Datafile, Datafile_pool> Datafile_list;
+  typedef LocalDLFifoList<Datafile, Datafile_pool> Local_datafile_list;
   typedef DLHashTable<Datafile_pool, Datafile> Datafile_hash;
 
   struct Tablespace
