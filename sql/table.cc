@@ -6255,16 +6255,6 @@ bool TABLE::add_tmp_key(Field_map *key_parts, char *key_name,
   cur_key->actual_flags= cur_key->flags= HA_GENERATED_KEY;
   cur_key->set_in_memory_estimate(IN_MEMORY_ESTIMATE_UNKNOWN);
 
-  if (modify_share)
-  {
-    /*
-      For cleanness, we copy to the TABLE_SHARE before allocating any
-      TABLE-specific memory (rec_per_key etc), as the TABLE_SHARE isn't
-      supposed to access rec_per_key etc.
-    */
-    s->key_info[keyno]= *cur_key;
-  }
-
   /*
     Allocate storage for the key part array and the two rec_per_key arrays in
     the tables' mem_root.
@@ -6287,7 +6277,6 @@ bool TABLE::add_tmp_key(Field_map *key_parts, char *key_name,
   cur_key->key_part= key_part_info= (KEY_PART_INFO*) key_buf;
   cur_key->set_rec_per_key_array(rec_per_key, rec_per_key_float);
   cur_key->table= this;
-
 
   /* Initialize rec_per_key and rec_per_key_float */
   for (uint kp= 0; kp < key_part_count; ++kp)
@@ -6318,6 +6307,23 @@ bool TABLE::add_tmp_key(Field_map *key_parts, char *key_name,
     key_part_info->init_from_field(*reg_field);
     key_part_info++;
   }
+
+  if (modify_share)
+  {
+    /*
+      We copy the TABLE's key_info to the TABLE_SHARE's key_info. Some of the
+      copied info is constant over all instances of TABLE,
+      e.g. s->key_info[keyno].key_part[i].key_part_flag, so can be
+      legally accessed from the share. On the other hand, TABLE-specific
+      members (rec_per_key, field, etc) of the TABLE's key_info shouldn't be
+      accessed from the share.
+    */
+    KEY &sk= s->key_info[keyno];
+    sk= *cur_key;
+    sk.table= nullptr; // catch any illegal access
+    sk.set_rec_per_key_array(nullptr, nullptr);
+  }
+
   return false;
 }
 

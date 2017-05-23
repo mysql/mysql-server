@@ -2818,3 +2818,16 @@ EXECUTE yy;
 EXECUTE yy;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#25907510 CRASH IN HA_MYISAM::IDX_COND_PUSH WITH INTERNAL_TMP_DISK_STORAGE_ENGINE=MYISAM
+--echo #
+
+#set sql_mode="";
+set global internal_tmp_disk_storage_engine=myisam;
+create table t (a bit(1),b int) engine=innodb;
+create table s (a int) engine=innodb;
+select 1 from t natural right outer join
+ (select a,@q from s limit 2) w where b;
+drop table t,s;
+set global internal_tmp_disk_storage_engine=default;
