@@ -4492,14 +4492,13 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
     {
       /* Unique index scan in NDB (full table scan with scan filter) */
       DBUG_PRINT("info", ("Starting unique index scan"));
-      if (!m_cond)
-        m_cond= new ha_ndbcluster_cond;
-
-      if (!m_cond)
+      if (m_cond == nullptr)
       {
-        set_my_errno(HA_ERR_OUT_OF_MEM);
-        DBUG_RETURN(my_errno());
-      }       
+        m_cond = new (std::nothrow) ha_ndbcluster_cond;
+        if (m_cond == nullptr)
+          DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+      }
+
       if (m_cond->generate_scan_filter_from_key(&code, &options, key_info,
                                                 start_key, end_key))
         ERR_RETURN(code.getNdbError());
@@ -12919,7 +12918,7 @@ ha_ndbcluster::ha_ndbcluster(handlerton *hton, TABLE_SHARE *table_arg):
   m_disable_pushed_join(FALSE),
   m_active_query(NULL),
   m_pushed_operation(NULL),
-  m_cond(NULL),
+  m_cond(nullptr),
   m_multi_cursor(NULL)
 {
   uint i;
@@ -12967,12 +12966,9 @@ ha_ndbcluster::~ha_ndbcluster()
   DBUG_ASSERT(m_thd_ndb == NULL);
 
   // Discard any generated condition
-  DBUG_PRINT("info", ("Deleting generated condition"));
-  if (m_cond)
-  {
-    delete m_cond;
-    m_cond= NULL;
-  }
+  delete m_cond;
+  m_cond = nullptr;
+
   DBUG_PRINT("info", ("Deleting pushed joins"));
   DBUG_ASSERT(m_active_query == NULL);
   DBUG_ASSERT(m_active_cursor == NULL);
@@ -17433,13 +17429,19 @@ ha_ndbcluster::cond_push(const Item *cond)
   */
   DBUG_ASSERT(!(cond->used_tables() & ~table->pos_in_table_list->map()));
 #endif
-  if (!m_cond) 
-    m_cond= new ha_ndbcluster_cond;
-  if (!m_cond)
+
+  if (m_cond == nullptr)
   {
-    set_my_errno(HA_ERR_OUT_OF_MEM);
-    DBUG_RETURN(cond);
+    m_cond= new (std::nothrow) ha_ndbcluster_cond;
+    if (m_cond == nullptr)
+    {
+      // Failed to allocate condition pushdown, return
+      // the full cond in order to indicate that it was not supported
+      // and caller has to evalute each row returned
+      DBUG_RETURN(cond);
+    }
   }
+
   DBUG_EXECUTE("where",print_where((Item *)cond, m_tabname, QT_ORDINARY););
   DBUG_RETURN(m_cond->cond_push(cond, table, (NDBTAB *)m_table));
 }
