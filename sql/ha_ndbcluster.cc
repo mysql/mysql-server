@@ -11743,7 +11743,6 @@ cleanup_failed:
     if (!(share= get_share(name, form, TRUE, TRUE)))
     {
       ndb_log_error("allocating table share for %s failed", name);
-      /* my_errno is set */
     }
     else
     {
@@ -15456,7 +15455,6 @@ int ha_ndbcluster::update_stats(THD *thd,
     Ndb *ndb= thd_ndb->ndb;
     if (ndb->setDatabaseName(m_dbname))
     {
-      set_my_errno(HA_ERR_OUT_OF_MEM);
       DBUG_RETURN(HA_ERR_OUT_OF_MEM);
     }
     if (int err= ndb_get_table_statistics(thd,
@@ -17181,7 +17179,6 @@ Ndb_util_thread::do_run()
   thd= new THD; /* note that contructor of THD uses DBUG_ */
   if (thd == NULL)
   {
-    set_my_errno(HA_ERR_OUT_OF_MEM);
     DBUG_VOID_RETURN;
   }
   THD_CHECK_SENTRY(thd);
@@ -18256,17 +18253,18 @@ ha_ndbcluster::check_inplace_alter_supported(TABLE *altered_table,
            }
          }
          /* Create new field to check if it can be added */
-         set_my_errno(create_ndb_column(thd, col, field, create_info,
-                                        COLUMN_FORMAT_TYPE_DYNAMIC));
-         if (my_errno())
+         const int create_column_result =
+             create_ndb_column(thd, col, field, create_info,
+                               COLUMN_FORMAT_TYPE_DYNAMIC);
+         if (create_column_result)
          {
-           DBUG_PRINT("info", ("create_ndb_column returned %u", my_errno()));
+           DBUG_PRINT("info", ("Failed to create NDB column, error %d",
+                               create_column_result));
            DBUG_RETURN(HA_ALTER_ERROR);
          }
          if (new_tab.addColumn(col))
          {
-           set_my_errno(errno);
-           DBUG_PRINT("info", ("NdbDictionary::Table::addColumn returned %u", my_errno()));
+           DBUG_PRINT("info", ("Failed to add NDB column to table"));
            DBUG_RETURN(HA_ALTER_ERROR);
          }
        }
