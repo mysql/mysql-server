@@ -6079,8 +6079,18 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
     memcpy((void *)rli->get_group_master_log_name(),
            new_log_ident, ident_len + 1);
     rli->notify_group_master_log_name_update();
+    /*
+      Execution coordinate update by Rotate itself needs forced flush
+      otherwise in crash case MTS won't be able to find the starting point
+      for recovery.
+      It is safe to update the last executed coordinates because all Worker
+      assignments prior to Rotate has been already processed (as well as
+      above call to @c mts_checkpoint_routine has harvested their
+      contribution to the last executed coordinates).
+    */
     if ((error= rli->inc_group_relay_log_pos(pos,
-                                             false/*need_data_lock=false*/)))
+                                             false /* need_data_lock=false */,
+                                             true /* force flush */)))
     {
       mysql_mutex_unlock(&rli->data_lock);
       goto err;

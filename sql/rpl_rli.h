@@ -597,8 +597,16 @@ public:
     event_relay_log_pos= future_event_relay_log_pos;
   }
 
+  /**
+    Last executed event group coordinates are updated and optionally
+    forcibly flushed to a repository.
+    @param log_pos         a value of the executed position to update to
+    @param need_data_lock  whether data_lock should be acquired
+    @param force           the value is passed to eventual flush_info()
+  */
   int inc_group_relay_log_pos(ulonglong log_pos,
-                              bool need_data_lock);
+                              bool need_data_lock,
+                              bool force= false);
 
   int wait_for_pos(THD* thd, String* log_name, longlong log_pos,
                    double timeout);

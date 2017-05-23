@@ -1099,7 +1099,8 @@ improper_arguments: %d  timed_out: %d",
 }
 
 int Relay_log_info::inc_group_relay_log_pos(ulonglong log_pos,
-                                            bool need_data_lock)
+                                            bool need_data_lock,
+                                            bool force)
 {
   int error= 0;
   DBUG_ENTER("Relay_log_info::inc_group_relay_log_pos");
@@ -1157,16 +1158,16 @@ int Relay_log_info::inc_group_relay_log_pos(ulonglong log_pos,
   DBUG_ASSERT(!is_parallel_exec() ||
               mts_group_status != Relay_log_info::MTS_IN_GROUP);
   /*
-    We do not force synchronization at this point, note the
-    parameter false, because a non-transactional change is
-    being committed.
+    We do not force synchronization at this point, except for Rotate event
+    (see Rotate_log_event::do_update_pos), note @c force is false by default,
+    because a non-transactional change is being committed.
 
     For that reason, the synchronization here is subjected to
     the option sync_relay_log_info.
 
     See sql/rpl_rli.h for further information on this behavior.
   */
-  error= flush_info(FALSE);
+  error= flush_info(force);
 
   mysql_cond_broadcast(&data_cond);
   if (need_data_lock)
