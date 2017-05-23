@@ -9629,12 +9629,14 @@ create_ndb_column(THD *thd,
   NDBCOL::StorageType type= NDBCOL::StorageTypeMemory;
   char buf[MAX_ATTR_DEFAULT_VALUE_SIZE];
   assert(field->stored_in_db);
+
   // Set name
   if (col.setName(field->field_name))
   {
-    set_my_errno(errno);
-    DBUG_RETURN(errno);
+    // Can only fail due to memory -> return HA_ERR_OUT_OF_MEM
+    DBUG_RETURN(HA_ERR_OUT_OF_MEM);
   }
+
   // Get char set
   CHARSET_INFO *cs= const_cast<CHARSET_INFO*>(field->charset());
   // Set type and sizes
@@ -11891,8 +11893,8 @@ int ha_ndbcluster::create_ndb_index(THD *thd, const char *name,
     ndb_index.setTemporary(TRUE); 
   if (ndb_index.setTable(m_tabname))
   {
-    set_my_errno(errno);
-    DBUG_RETURN(errno);
+    // Can only fail due to memory -> return HA_ERR_OUT_OF_MEM
+    DBUG_RETURN(HA_ERR_OUT_OF_MEM);
   }
 
   for (; key_part != end; key_part++) 
@@ -11912,8 +11914,8 @@ int ha_ndbcluster::create_ndb_index(THD *thd, const char *name,
     DBUG_PRINT("info", ("attr: %s", field->field_name));
     if (ndb_index.addColumnName(field->field_name))
     {
-      set_my_errno(errno);
-      DBUG_RETURN(errno);
+      // Can only fail due to memory -> return HA_ERR_OUT_OF_MEM
+      DBUG_RETURN(HA_ERR_OUT_OF_MEM);
     }
   }
   
