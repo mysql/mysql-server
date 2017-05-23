@@ -19,7 +19,6 @@
 
 #include "gcs_event_handlers.h"
 #include "plugin.h"
-#include "sql_service_gr_user.h"
 #include "pipeline_stats.h"
 #include "single_primary_message.h"
 
@@ -89,7 +88,8 @@ Plugin_gcs_events_handler::on_message_received(const Gcs_message& message) const
 }
 
 void
-Plugin_gcs_events_handler::handle_transactional_message(const Gcs_message& message) const
+Plugin_gcs_events_handler::
+handle_transactional_message(const Gcs_message& message) const
 {
   if ( (local_member_info->get_recovery_status() == Group_member_info::MEMBER_IN_RECOVERY ||
         local_member_info->get_recovery_status() == Group_member_info::MEMBER_ONLINE) &&
@@ -173,12 +173,12 @@ Plugin_gcs_events_handler::handle_recovery_message(const Gcs_message& message) c
         (local_member_info->get_role() == Group_member_info::MEMBER_ROLE_PRIMARY ||
          !local_member_info->in_primary_mode()))
     {
-      if (reset_server_read_mode(true))
+      if (reset_server_read_mode(PSESSION_INIT_THREAD))
       {
         log_message(MY_WARNING_LEVEL,
                     "When declaring the plugin online it was not possible to "
-                    "reset the server read mode settings. "
-                    "Try to reset it manually."); /* purecov: inspected */
+                    "disable the server read mode. "
+                    "Try to disable it manually."); /* purecov: inspected */
       }
     }
 
@@ -506,10 +506,13 @@ void Plugin_gcs_events_handler::handle_leader_election_if_needed() const
   /* If I am not leaving, then run election. Otherwise do nothing. */
   if (!am_i_leaving)
   {
-    Sql_service_command *sql_command_interface= new Sql_service_command();
+    Sql_service_command_interface *sql_command_interface=
+        new Sql_service_command_interface();
     bool skip_set_super_readonly= false;
     if (sql_command_interface == NULL ||
-        sql_command_interface->establish_session_connection(true, get_plugin_pointer()) ||
+        sql_command_interface->
+            establish_session_connection(PSESSION_INIT_THREAD,
+                                         get_plugin_pointer()) ||
         sql_command_interface->set_interface_user(GROUPREPL_USER))
     {
       log_message(MY_WARNING_LEVEL,
@@ -557,7 +560,8 @@ void Plugin_gcs_events_handler::handle_leader_election_if_needed() const
     {
       std::string primary_uuid= the_primary->get_uuid();
       const bool is_primary_local= !primary_uuid.compare(local_member_info->get_uuid());
-      const bool has_primary_changed = Group_member_info::MEMBER_ROLE_PRIMARY != the_primary->get_role();
+      const bool has_primary_changed=
+          Group_member_info::MEMBER_ROLE_PRIMARY != the_primary->get_role();
 
       if (has_primary_changed)
       {
@@ -582,8 +586,8 @@ void Plugin_gcs_events_handler::handle_leader_election_if_needed() const
             if (read_mode_handler->reset_super_read_only_mode(sql_command_interface, true))
             {
               log_message(MY_WARNING_LEVEL,
-                          "Unable to reset super read only flag. "
-                          "Try to reset it manually."); /* purecov: inspected */
+                          "Unable to disable super read only flag. "
+                          "Try to disable it manually."); /* purecov: inspected */
             }
           }
           else
@@ -593,7 +597,7 @@ void Plugin_gcs_events_handler::handle_leader_election_if_needed() const
             {
               log_message(MY_WARNING_LEVEL,
                           "Unable to set super read only flag. "
-                          "Try to reset it manually."); /* purecov: inspected */
+                          "Try to set it manually."); /* purecov: inspected */
             }
           }
         }
@@ -617,7 +621,7 @@ void Plugin_gcs_events_handler::handle_leader_election_if_needed() const
       {
         log_message(MY_WARNING_LEVEL,
                     "Unable to set super read only flag. "
-                    "Try to reset it manually."); /* purecov: inspected */
+                    "Try to set it manually."); /* purecov: inspected */
       }
     }
     delete sql_command_interface;
@@ -631,10 +635,10 @@ void Plugin_gcs_events_handler::handle_leader_election_if_needed() const
   delete all_members_info;
 }
 
-void Plugin_gcs_events_handler::update_group_info_manager(const Gcs_view& new_view,
-                                                          const Exchanged_data &exchanged_data,
-                                                          bool is_leaving)
-                                                          const
+void Plugin_gcs_events_handler::
+update_group_info_manager(const Gcs_view& new_view,
+                          const Exchanged_data &exchanged_data,
+                          bool is_leaving) const
 {
   //update the Group Manager with all the received states
   vector<Group_member_info*> to_update;
@@ -723,7 +727,7 @@ void Plugin_gcs_events_handler::handle_joining_members(const Gcs_view& new_view,
     /**
       Set the read mode if not set during start (auto-start)
     */
-    if (set_server_read_mode(true))
+    if (set_server_read_mode(PSESSION_INIT_THREAD))
     {
       log_message(MY_ERROR_LEVEL,
                   "Error when activating super_read_only mode on start. "
@@ -963,12 +967,14 @@ Plugin_gcs_events_handler::get_exchangeable_data() const
   std::string applier_retrieved_gtids;
   Replication_thread_api applier_channel("group_replication_applier");
 
-  Sql_service_command *sql_command_interface= new Sql_service_command();
+  Sql_service_command_interface *sql_command_interface=
+      new Sql_service_command_interface();
 
-  if(sql_command_interface->
-      establish_session_connection(true, get_plugin_pointer()) ||
-     sql_command_interface->set_interface_user(GROUPREPL_USER)
-    )
+  if (sql_command_interface->
+          establish_session_connection(PSESSION_INIT_THREAD,
+                                       get_plugin_pointer()) ||
+      sql_command_interface->set_interface_user(GROUPREPL_USER)
+     )
   {
     log_message(MY_WARNING_LEVEL,
                 "Error when extracting information for group change. "

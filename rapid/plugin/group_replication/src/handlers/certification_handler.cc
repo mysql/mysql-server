@@ -17,7 +17,6 @@
 #include "handlers/pipeline_handlers.h"
 #include "plugin.h"
 #include "plugin_log.h"
-#include "sql_service_gr_user.h"
 
 using std::string;
 const int GTID_WAIT_TIMEOUT= 30; //30 seconds
@@ -533,10 +532,11 @@ int Certification_handler::wait_for_local_transaction_execution()
     DBUG_RETURN(0); //empty
   }
 
-  Sql_service_command *sql_command_interface= new Sql_service_command();
+  Sql_service_command_interface *sql_command_interface=
+      new Sql_service_command_interface();
 
-  if(sql_command_interface->establish_session_connection(false) ||
-     sql_command_interface->set_interface_user(GROUPREPL_USER)
+  if (sql_command_interface->establish_session_connection(PSESSION_USE_THREAD) ||
+      sql_command_interface->set_interface_user(GROUPREPL_USER)
     )
   {
     /* purecov: begin inspected */

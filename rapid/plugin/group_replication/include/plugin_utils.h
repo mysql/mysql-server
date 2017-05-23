@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,30 +29,6 @@
   no longer possible.
 */
 void unblock_waiting_transactions();
-
-/**
-  This method creates a server session and connects to the server
-  to enable the read mode
-
-  @param threaded   Shall the session create a new dedicated thread
-
-  @return the operation status
-    @retval 0      OK
-    @retval !=0    Error
-*/
-int set_server_read_mode(bool threaded);
-
-/**
-  This method creates a server session and connects to the server
-  to reset the read mode
-
-  @param threaded   Shall the session create a new dedicated thread
-
-  @return the operation status
-    @retval 0      OK
-    @retval !=0    Error
-*/
-int reset_server_read_mode(bool threaded);
 
 template <typename T>
 class Synchronized_queue

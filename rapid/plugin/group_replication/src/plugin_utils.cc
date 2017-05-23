@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,7 +15,6 @@
 
 #include "plugin_utils.h"
 #include "plugin.h"
-#include "sql_service_gr_user.h"
 
 using std::vector;
 
@@ -54,26 +53,3 @@ void unblock_waiting_transactions()
   }
 }
 
-int set_server_read_mode(bool threaded)
-{
-  Sql_service_command *sql_command_interface= new Sql_service_command();
-  int error=
-      sql_command_interface->
-          establish_session_connection(threaded, get_plugin_pointer()) ||
-      sql_command_interface->set_interface_user(GROUPREPL_USER) ||
-      read_mode_handler->set_super_read_only_mode(sql_command_interface);
-  delete sql_command_interface;
-  return error;
-}
-
-int reset_server_read_mode(bool threaded)
-{
-  Sql_service_command *sql_command_interface= new Sql_service_command();
-  int error=
-      sql_command_interface->
-          establish_session_connection(threaded, get_plugin_pointer()) ||
-      sql_command_interface->set_interface_user(GROUPREPL_USER) ||
-      read_mode_handler->reset_super_read_only_mode(sql_command_interface);
-  delete sql_command_interface;
-  return error;
-}
