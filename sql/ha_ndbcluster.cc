@@ -18777,14 +18777,15 @@ ha_ndbcluster::prepare_inplace_alter_table(TABLE *altered_table,
        Field *field= altered_table->field[i];
        if(! field->stored_in_db)
          continue;
+
        DBUG_PRINT("info", ("Found new field %s", field->field_name));
-       set_my_errno(create_ndb_column(thd, col, field, create_info,
-                                      COLUMN_FORMAT_TYPE_DYNAMIC));
-       if (my_errno())
+       if (create_ndb_column(thd, col, field, create_info,
+                                 COLUMN_FORMAT_TYPE_DYNAMIC) != 0)
        {
-         error= my_errno();
+         // Failed to create column in NDB
          goto abort;
        }
+
        /*
          If the user has not specified the field format
          make it dynamic to enable online add attribute
@@ -18878,7 +18879,6 @@ ha_ndbcluster::prepare_inplace_alter_table(TABLE *altered_table,
         res= ER_CANNOT_ADD_FOREIGN;
       }
       error= res;
-      set_my_errno(error);
       my_error(error, MYF(0), 0);
       goto abort;
     }
