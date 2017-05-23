@@ -12,6 +12,7 @@
 
 ndb_rpl_ctype_ucs2_def : bug #34661 rpl_ndb_ctype_ucs2_def fails in 6.2
 ndb_rpl_conflict_load_epoch_trans : Not designed for determinism
+ndb_rpl_binlog_format_errors: Bug#26078612 PB2 TEST FAIL: NDB_RPL.NDB_RPL_BINLOG_FORMAT_ERRORS. MIXED ENGINE + SELF_LOGGING
 
 ndb_rpl_slave_lsu : SEAGULL ndb-force-binlog-format-statement
 ndb_rpl_slave_lsu_anyval : SEAGULL ndb-force-binlog-format-statement
