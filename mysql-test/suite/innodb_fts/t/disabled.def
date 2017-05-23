@@ -1,3 +1,1 @@
 innodb_fts.mecab_sjis : 2017-04-13 Allen Failing sporadically on PB2
-
-sync            :       parser reentrant issue
