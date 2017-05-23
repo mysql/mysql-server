@@ -159,11 +159,11 @@ Description: memcached
 ")
   SET (DEB_NDB_RULES_DOCDIRS
 "
-	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/mysql-@DEB_PRODUCTNAME@-auto-installer
-	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/mysql-@DEB_PRODUCTNAME@-data-node
-	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/mysql-@DEB_PRODUCTNAME@-java
-	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/mysql-@DEB_PRODUCTNAME@-management-server
-	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/mysql-@DEB_PRODUCTNAME@-memcached
+	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/mysql-${DEB_PRODUCTNAME}-auto-installer
+	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/mysql-${DEB_PRODUCTNAME}-data-node
+	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/mysql-${DEB_PRODUCTNAME}-java
+	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/mysql-${DEB_PRODUCTNAME}-management-server
+	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/mysql-${DEB_PRODUCTNAME}-memcached
 	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/ndbclient
 	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/ndbclient-dev
 ")
