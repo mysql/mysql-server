@@ -14950,7 +14950,7 @@ innobase_drop_tablespace(
 
 	trx_start_if_not_started(trx, true);
 
-	log_ddl->writeDeleteLog(
+	log_ddl->writeDeleteSpaceLog(
 		trx, NULL, space_id, dd_tablespace_get_filename(dd_space),
 		true, false);
 	/* WL#9536 TODO: Only server should commit the trx */

@@ -110,7 +110,7 @@ LogDDL::shouldSkip(
 @param[in]	is_drop		flag whether dropping index
 @return	DB_SUCCESS or error */
 dberr_t
-LogDDL::writeFreeLog(
+LogDDL::writeFreeTreeLog(
 	trx_t*			trx,
 	const dict_index_t*	index,
 	bool			is_drop)
@@ -133,10 +133,10 @@ LogDDL::writeFreeLog(
 	dberr_t	err;
 
 	if (is_drop) {
-		err = insertFreeLog(trx, index, id, thread_id);
+		err = insertFreeTreeLog(trx, index, id, thread_id);
 		ut_ad(err == DB_SUCCESS);
 	} else {
-		err = insertFreeLog(nullptr, index, id, thread_id);
+		err = insertFreeTreeLog(nullptr, index, id, thread_id);
 		ut_ad(err == DB_SUCCESS);
 
 		err = deleteById(trx, id);
@@ -153,7 +153,7 @@ LogDDL::writeFreeLog(
 @param[in]	thread_id	thread id
 @return DB_SUCCESS or error */
 dberr_t
-LogDDL::insertFreeLog(
+LogDDL::insertFreeTreeLog(
 	trx_t*			trx,
 	const dict_index_t*	index,
 	ib_uint64_t		id,
@@ -220,7 +220,7 @@ LogDDL::insertFreeLog(
 @param[in]	dict_locked	true if dict_sys mutex is held
 @return	DB_SUCCESS or error */
 dberr_t
-LogDDL::writeDeleteLog(
+LogDDL::writeDeleteSpaceLog(
 	trx_t*			trx,
 	const dict_table_t*	table,
 	space_id_t		space_id,
@@ -247,11 +247,11 @@ LogDDL::writeDeleteLog(
 	dberr_t	err;
 
 	if (is_drop) {
-		err = insertDeleteLog(
+		err = insertDeleteSpaceLog(
 			trx, id, thread_id, space_id, file_path, dict_locked);
 		ut_ad(err == DB_SUCCESS);
 	} else {
-		err = insertDeleteLog(
+		err = insertDeleteSpaceLog(
 			nullptr, id, thread_id, space_id,
 			file_path, dict_locked);
 		ut_ad(err == DB_SUCCESS);
@@ -272,7 +272,7 @@ LogDDL::writeDeleteLog(
 @param[in]	dict_locked	true if dict_sys mutex is held
 @return DB_SUCCESS or error */
 dberr_t
-LogDDL::insertDeleteLog(
+LogDDL::insertDeleteSpaceLog(
 	trx_t*			trx,
 	ib_uint64_t		id,
 	ulint			thread_id,
@@ -336,7 +336,7 @@ LogDDL::insertDeleteLog(
 @param[in]	new_file_path	file path before rename
 @return DB_SUCCESS or error */
 dberr_t
-LogDDL::writeRenameLog(
+LogDDL::writeRenameSpaceLog(
 	trx_t*		trx,
 	space_id_t	space_id,
 	const char*	old_file_path,
@@ -590,7 +590,7 @@ LogDDL::insertRenameTableLog(
 @param[in]	table		dict table
 @return DB_SUCCESS or error */
 dberr_t
-LogDDL::writeRemoveLog(
+LogDDL::writeRemoveCacheLog(
 	trx_t*		trx,
 	dict_table_t*	table)
 {
@@ -603,7 +603,7 @@ LogDDL::writeRemoveLog(
 	ib_uint64_t	id = getNextId();
 	ulint		thread_id = thd_get_thread_id(trx->mysql_thd);
 
-	dberr_t	err = insertRemoveLog(id, thread_id, table->id,
+	dberr_t	err = insertRemoveCacheLog(id, thread_id, table->id,
 				      table->name.m_name);
 	ut_ad(err == DB_SUCCESS);
 
@@ -620,7 +620,7 @@ LogDDL::writeRemoveLog(
 @param[in]	table_name	table name
 @return DB_SUCCESS or error */
 dberr_t
-LogDDL::insertRemoveLog(
+LogDDL::insertRemoveCacheLog(
 	ib_uint64_t		id,
 	ulint			thread_id,
 	table_id_t		table_id,
@@ -800,6 +800,51 @@ LogDDL::scanAll(
 	return(DB_SUCCESS);
 }
 
+/** Scan and print all log records
+@param[in]	trx		transaction instance
+@return DB_SUCCESS or error */
+dberr_t
+LogDDL::printAll()
+{
+	trx_t*		trx = trx_allocate_for_background();
+
+	trx->isolation_level = TRX_ISO_READ_UNCOMMITTED;
+
+	pars_info_t*	info = pars_info_create();
+
+	pars_info_bind_function(info, "my_func", printRecord, NULL);
+
+	dberr_t error = que_eval_sql(
+			info,
+			"PROCEDURE P() IS\n"
+			"DECLARE FUNCTION my_func;\n"
+			"DECLARE CURSOR c IS"
+			" SELECT id, type, thread_id, space_id, page_no,"
+			" index_id, table_id, old_file_path, new_file_path\n"
+			" FROM mysql/innodb_ddl_log\n"
+			" ORDER BY id;\n"
+			"BEGIN\n"
+			"\n"
+			"OPEN c;\n"
+			"WHILE 1 = 1 LOOP\n"
+			"  FETCH c INTO my_func();\n"
+			"  IF c % NOTFOUND THEN\n"
+			"    EXIT;\n"
+			"  END IF;\n"
+			"END LOOP;\n"
+			"CLOSE c;\n"
+			"END;\n",
+			TRUE, trx);
+
+	ut_ad(error == DB_SUCCESS);
+
+	trx_commit_for_mysql(trx);
+
+        trx_free_for_background(trx);
+
+	return(DB_SUCCESS);
+}
+
 /** Scan and replay log records by thread id
 @param[in]	trx		transaction instance
 @param[in]	thread_id	thread id
@@ -872,6 +917,40 @@ LogDDL::readAndReplay(
 		    : record.new_file_path);
 
 	replay(record);
+
+	mem_heap_free(heap);
+
+	return(TRUE);
+}
+
+/** Read and replay DDL log record
+@param[in]	row	DDL log row
+@param[in]	arg	argument passed down
+@return TRUE on success, FALSE on failure */
+ibool
+LogDDL::printRecord(
+	void*		row,
+	void*		arg)
+{
+	sel_node_t*	sel_node = static_cast<sel_node_t*>(row);
+	que_node_t*	exp = sel_node->select_list;
+	mem_heap_t*	heap = mem_heap_create(512);
+	Record		record;
+
+	read(exp, record, heap);
+
+	ib::info() << "ddl log read : id " << record.id
+		<< ", type " << record.type
+		<< ", thread_id " << record.thread_id
+		<< ", space_id " << record.space_id
+		<<", page_no " << record.page_no << ", index_id "
+		<< record.index_id << ", table_id " << record.table_id
+		<< ", old_file_path "
+		<< (record.old_file_path == nullptr ? "(null)"
+		    : record.old_file_path)
+		<< ", new_file_path "
+		<< (record.new_file_path == nullptr ? "(null)"
+		    : record.new_file_path);
 
 	mem_heap_free(heap);
 

@@ -105,7 +105,7 @@ dict_build_tablespace(
 
 	Datafile* datafile = tablespace->first_datafile();
 
-	log_ddl->writeDeleteLog(
+	log_ddl->writeDeleteSpaceLog(
 		trx, NULL, space, datafile->filepath(), false, true);
 
 	/* We create a new generic empty tablespace.
@@ -215,7 +215,7 @@ dict_build_tablespace_for_table(
 				NULL, table->name.m_name, IBD, false);
 		}
 
-		log_ddl->writeDeleteLog(
+		log_ddl->writeDeleteSpaceLog(
 			trx, table, space, filepath, false, true);
 
 		/* We create a new single-table tablespace for the table.
@@ -395,7 +395,7 @@ dict_create_index_tree_in_mem(
 		file per table, skip ddl log. */
 		//if (!is_create_table
 		//    || !dict_table_is_file_per_table(index->table)) {
-		err = log_ddl->writeFreeLog(trx, index, false);
+		err = log_ddl->writeFreeTreeLog(trx, index, false);
 	}
 
 #if 0

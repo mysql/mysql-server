@@ -54,7 +54,7 @@ public:
 	@param[in]	index		dict index
 	@param[in]	is_drop		flag whether dropping index
 	@return	DB_SUCCESS or error */
-	dberr_t writeFreeLog(
+	dberr_t writeFreeTreeLog(
 		trx_t*			trx,
 		const dict_index_t*	index,
 		bool			is_drop_table);
@@ -67,7 +67,7 @@ public:
 	@param[in]	is_drop		flag whether dropping tablespace
 	@param[in]	dick_locked	true if dict_sys mutex is held
 	@return	DB_SUCCESS or error */
-	dberr_t writeDeleteLog(
+	dberr_t writeDeleteSpaceLog(
 		trx_t*			trx,
 		const dict_table_t*	table,
 		space_id_t		space_id,
@@ -81,7 +81,7 @@ public:
 	@param[in]	old_file_path	file path after rename
 	@param[in]	new_file_path	file path before rename
 	@return DB_SUCCESS or error */
-	dberr_t writeRenameLog(
+	dberr_t writeRenameSpaceLog(
 		trx_t*			trx,
 		space_id_t		space_id,
 		const char*		old_file_path,
@@ -112,7 +112,7 @@ public:
 	@param[in]	trx		transaction
 	@param[in]	table		dict table
 	@return DB_SUCCESS or error */
-	dberr_t writeRemoveLog(
+	dberr_t writeRemoveCacheLog(
 		trx_t*		trx,
 		dict_table_t*	table);
 
@@ -128,6 +128,11 @@ public:
 	should be recovered before calling this function.
 	@return	DB_SUCCESS or error */
 	dberr_t recover();
+
+	/** Scan and replay all log records
+	@param[in]	trx		transaction instance
+	@return DB_SUCCESS or error */
+	dberr_t	printAll();
 
 private:
 
@@ -170,6 +175,14 @@ private:
 		void*		row,
 		void*		arg);
 
+	/** Read and print DDL log record
+	@param[in]	row	DDL log row
+	@param[in]	arg	argument passed down
+	@return TRUE on success, FALSE on failure */
+	static ibool printRecord(
+		void*		row,
+		void*		arg);
+
 	/** Read DDL log record
 	@param[in]	exp	query node expression
 	@param[in,out]	record	DDL log record
@@ -193,7 +206,7 @@ private:
 	@param[in]	id		log id
 	@param[in]	thread_id	thread id
 	@return DB_SUCCESS or error */
-	dberr_t	insertFreeLog(
+	dberr_t	insertFreeTreeLog(
 		trx_t*			trx,
 		const dict_index_t*	index,
 		ib_uint64_t		id,
@@ -215,7 +228,7 @@ private:
 	@param[in]	file_path	file path
 	@param[in]	dict_locked	true if dict_sys mutex is held
 	@return DB_SUCCESS or error */
-	dberr_t insertDeleteLog(
+	dberr_t insertDeleteSpaceLog(
 		trx_t*			trx,
 		ib_uint64_t		id,
 		ulint			thread_id,
@@ -299,7 +312,7 @@ private:
 	@param[in]	table_id	table id
 	@param[in]	table_name	table name
 	@return DB_SUCCESS or error */
-	static dberr_t insertRemoveLog(
+	static dberr_t insertRemoveCacheLog(
 		ib_uint64_t		id,
 		ulint			thread_id,
 		table_id_t		table_id,

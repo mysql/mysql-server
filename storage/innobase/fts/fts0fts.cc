@@ -1829,19 +1829,20 @@ fts_drop_index_tables(
 static
 dberr_t
 fts_init_config_table(
-	trx_t*		trx,
 	fts_table_t*	fts_table)
 {
 	pars_info_t*	info;
 	que_t*		graph;
 	char		table_name[MAX_FULL_NAME_LEN];
 	dberr_t		error = DB_SUCCESS;
+	trx_t*		trx;
 
 	info = pars_info_create();
 
 	fts_table->suffix = FTS_SUFFIX_CONFIG;
 	fts_get_table_name(fts_table, table_name);
 	pars_info_bind_id(info, true, "config_table", table_name);
+	trx = trx_allocate_for_background();
 
 	graph = fts_parse_sql_no_dict_lock(
 		fts_table, info, fts_config_table_insert_values_sql);
@@ -1849,6 +1850,14 @@ fts_init_config_table(
 	error = fts_eval_sql(trx, graph);
 
 	que_graph_free(graph);
+
+	if (error == DB_SUCCESS) {
+		fts_sql_commit(trx);
+	} else {
+		fts_sql_rollback(trx);
+	}
+
+	trx_free_for_background(trx);
 
 	return(error);
 }
@@ -2336,7 +2345,7 @@ fts_create_common_tables(
 	}
 
 	/* Write the default settings to the config table. */
-	error = fts_init_config_table(trx, &fts_table);
+	error = fts_init_config_table(&fts_table);
 
 	if (error != DB_SUCCESS || skip_doc_id_index) {
 
@@ -2801,10 +2810,6 @@ fts_create_index_tables(
 
 	err = fts_create_index_tables_low(
 		trx, index, table->name.m_name, table->id);
-
-	if (err == DB_SUCCESS) {
-		trx_commit(trx);
-	}
 
 	dd_table_close(table, nullptr, nullptr, true);
 

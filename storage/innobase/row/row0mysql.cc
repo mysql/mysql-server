@@ -3006,7 +3006,7 @@ row_create_table_for_mysql(
 
 	switch (trx_get_dict_operation(trx)) {
 	case TRX_DICT_OP_NONE:
-		trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
+		//trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
 	case TRX_DICT_OP_TABLE:
 		break;
 	case TRX_DICT_OP_INDEX:
@@ -3029,7 +3029,7 @@ row_create_table_for_mysql(
 		dict_table_add_system_columns(table, heap);
 		dict_table_add_to_cache(table, TRUE, heap);
 
-		log_ddl->writeRemoveLog(trx, table);
+		log_ddl->writeRemoveCacheLog(trx, table);
 
 		mem_heap_free(heap);
 	}
@@ -4537,7 +4537,7 @@ row_drop_table_for_mysql(
 		for (dict_index_t* index = table->first_index();
 		     index != NULL;
 		     index = index->next()) {
-			log_ddl->writeFreeLog(trx, index, true);
+			log_ddl->writeFreeTreeLog(trx, index, true);
 		}
 	}
 
@@ -4666,7 +4666,7 @@ row_drop_table_for_mysql(
 		}
 
 		/* We can now drop the single-table tablespace. */
-		log_ddl->writeDeleteLog(
+		log_ddl->writeDeleteSpaceLog(
 			trx, nullptr, space_id, filepath, true, true);
 
 		if (is_encrypted) {
