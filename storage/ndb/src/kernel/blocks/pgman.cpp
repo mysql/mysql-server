@@ -1532,7 +1532,7 @@ void Pgman::execSYNC_PAGE_CACHE_REQ(Signal *signal)
   }
   m_lcp_table_id = req->tableId;
   m_lcp_fragment_id = req->fragmentId;
-  DEB_PGMAN(("(%u)Move page_entrys from dirty list to lcp list of tab(%u,%u)"
+  DEB_PGMAN(("(%u)Move page_entries from dirty list to lcp list of tab(%u,%u)"
              ", list is %s",
              instance(),
              m_lcp_table_id,

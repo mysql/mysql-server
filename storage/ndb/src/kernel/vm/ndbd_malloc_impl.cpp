@@ -888,7 +888,6 @@ Ndbd_mem_manager::alloc_impl(Uint32 zone,
       }
       else
       {
-        g_eventLogger->info("C2 start: %u, cnt: %u", start, sz);
 	clear(start, start+sz-1);
       }
 

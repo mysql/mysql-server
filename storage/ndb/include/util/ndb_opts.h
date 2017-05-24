@@ -51,7 +51,6 @@ OPT_EXTERN(const char *,opt_debug,= 0);
 #else
 #define OPT_WANT_CORE_DEFAULT 0
 #endif
-#define OPT_WANT_CORE_DEFAULT 1
 
 #define NDB_STD_OPTS_COMMON \
   { "usage", '?', "Display this help and exit.", \
