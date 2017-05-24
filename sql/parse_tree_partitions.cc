@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -638,6 +638,9 @@ bool PT_add_partition::contextualize(Parse_context *pc)
   LEX * const lex= pc->thd->lex;
   lex->alter_info.flags|= Alter_info::ALTER_ADD_PARTITION;
   lex->no_write_to_binlog= no_write_to_binlog;
+
+  DBUG_ASSERT(pc->thd->lex->part_info == nullptr);
+  pc->thd->lex->part_info= &part_info;
   return false;
 }
 
@@ -654,8 +657,6 @@ bool PT_add_partition_def_list::contextualize(Parse_context *pc)
       return true;
   }
   part_info.num_parts= part_info.partitions.elements;
-  DBUG_ASSERT(pc->thd->lex->part_info == NULL);
-  pc->thd->lex->part_info= &part_info;
 
   return false;
 }
@@ -667,8 +668,6 @@ bool PT_add_partition_num::contextualize(Parse_context *pc)
     return true;
 
   part_info.num_parts= num_parts;
-  DBUG_ASSERT(pc->thd->lex->part_info == NULL);
-  pc->thd->lex->part_info= &part_info;
 
   return false;
 }
