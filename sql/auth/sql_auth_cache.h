@@ -25,7 +25,6 @@
 #include "auth_common.h"
 #include "auth_internal.h"       // List_of_authid, Authid
 #include "handler.h"
-#include "hash.h"                       // HASH
 #include "key.h"
 #include "lex_string.h"
 #include "lf.h"
@@ -299,8 +298,7 @@ extern std::unique_ptr<
 extern std::unique_ptr<
   malloc_unordered_multimap<std::string, unique_ptr_destroy_only<GRANT_NAME>>>
     proc_priv_hash, func_priv_hash;
-extern HASH db_cache;
-extern HASH acl_check_hosts;
+extern collation_unordered_map<std::string, ACL_USER *> *acl_check_hosts;
 extern bool allow_all_hosts;
 extern uint grant_version; /* Version of priv tables */
 

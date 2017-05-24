@@ -746,8 +746,8 @@ bool acl_check_host(THD *thd, const char *host, const char *ip)
   if (allow_all_hosts)
     return 0;
 
-  if ((host && my_hash_search(&acl_check_hosts,(uchar*) host,strlen(host))) ||
-      (ip && my_hash_search(&acl_check_hosts,(uchar*) ip, strlen(ip))))
+  if ((host && acl_check_hosts->count(host) != 0) ||
+      (ip && acl_check_hosts->count(ip) != 0))
     return 0;                                   // Found host
 
   for (ACL_HOST_AND_IP *acl= acl_wild_hosts->begin();

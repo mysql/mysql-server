@@ -1657,14 +1657,6 @@ sp_exist_routines(THD *thd, TABLE_LIST *routines, bool is_proc)
 }
 
 
-const uchar* sp_sroutine_key(const uchar *ptr, size_t *plen)
-{
-  const Sroutine_hash_entry *rn= pointer_cast<const Sroutine_hash_entry*>(ptr);
-  *plen= rn->m_key_length;
-  return rn->m_key;
-}
-
-
 /**
   Auxilary function that adds new element to the set of stored routines
   used by statement.
@@ -1703,32 +1695,27 @@ sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
                     const uchar *key, size_t key_length,
                     size_t db_length, TABLE_LIST *belong_to_view)
 {
-  if (!my_hash_inited(&prelocking_ctx->sroutines))
+  if (prelocking_ctx->sroutines == nullptr)
   {
-    /*
-      See Sroutine_hash_entry for explanation why this hash uses binary
-      key comparison.
-    */
-    my_hash_init(&prelocking_ctx->sroutines, &my_charset_bin,
-                 Query_tables_list::START_SROUTINES_HASH_SIZE, 0,
-                 sp_sroutine_key, nullptr, 0,
-                 PSI_INSTRUMENT_ME);
+    prelocking_ctx->sroutines.reset
+      (new malloc_unordered_map<std::string, Sroutine_hash_entry *>
+        (PSI_INSTRUMENT_ME));
   }
 
-  if (!my_hash_search(&prelocking_ctx->sroutines, key, key_length))
+  std::string key_str(pointer_cast<const char *>(key), key_length);
+  if (prelocking_ctx->sroutines->count(key_str) == 0)
   {
     Sroutine_hash_entry *rn=
       (Sroutine_hash_entry *)arena->alloc(sizeof(Sroutine_hash_entry));
     if (!rn)              // OOM. Error will be reported using fatal_error().
       return FALSE;
-    rn->m_key= (uchar*)arena->alloc(key_length);
+    rn->m_key= (char *)arena->alloc(key_length);
     if (!rn->m_key)       // Ditto.
       return FALSE;
     rn->m_key_length= key_length;
     rn->m_db_length= db_length;
     memcpy(rn->m_key, key, key_length);
-    if (my_hash_insert(&prelocking_ctx->sroutines, (uchar *)rn))
-      return FALSE;
+    prelocking_ctx->sroutines->emplace(key_str, rn);
     prelocking_ctx->sroutines_list.link_in_list(rn, &rn->next);
     rn->belong_to_view= belong_to_view;
     rn->m_sp_cache_version= 0;
@@ -1839,7 +1826,8 @@ void sp_remove_not_own_routines(Query_tables_list *prelocking_ctx)
       but we want to be more future-proof.
     */
     next_rt= not_own_rt->next;
-    my_hash_delete(&prelocking_ctx->sroutines, (uchar *)not_own_rt);
+    prelocking_ctx->sroutines->erase
+      (std::string(not_own_rt->m_key, not_own_rt->m_key_length));
   }
 
   *prelocking_ctx->sroutines_list_own_last= NULL;
@@ -1864,14 +1852,17 @@ void sp_remove_not_own_routines(Query_tables_list *prelocking_ctx)
 */
 
 void
-sp_update_stmt_used_routines(THD *thd, Query_tables_list *prelocking_ctx,
-                             HASH *src, TABLE_LIST *belong_to_view)
+sp_update_stmt_used_routines
+  (THD *thd, Query_tables_list *prelocking_ctx,
+   malloc_unordered_map<std::string, Sroutine_hash_entry*> *src,
+   TABLE_LIST *belong_to_view)
 {
-  for (uint i=0 ; i < src->records ; i++)
+  for (const auto &key_and_value : *src)
   {
-    Sroutine_hash_entry *rt= (Sroutine_hash_entry *)my_hash_element(src, i);
+    Sroutine_hash_entry *rt= key_and_value.second;
     (void)sp_add_used_routine(prelocking_ctx, thd->stmt_arena,
-                              rt->m_key, rt->m_key_length,
+                              pointer_cast<const uchar *>(rt->m_key),
+                              rt->m_key_length,
                               rt->m_db_length, belong_to_view);
   }
 }
@@ -1897,7 +1888,8 @@ void sp_update_stmt_used_routines(THD *thd, Query_tables_list *prelocking_ctx,
 {
   for (Sroutine_hash_entry *rt= src->first; rt; rt= rt->next)
     (void)sp_add_used_routine(prelocking_ctx, thd->stmt_arena,
-                              rt->m_key, rt->m_key_length,
+                              pointer_cast<const uchar *>(rt->m_key),
+                              rt->m_key_length,
                               rt->m_db_length, belong_to_view);
 }
 

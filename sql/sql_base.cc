@@ -5296,7 +5296,7 @@ open_and_process_table(THD *thd, LEX *lex, TABLE_LIST *const tables,
       Let us free memory used by 'sroutines' hash here since we never
       call destructor for this LEX.
     */
-    my_hash_free(&tables->view_query()->sroutines);
+    tables->view_query()->sroutines.reset();
     goto process_view_routines;
   }
 

@@ -1615,18 +1615,12 @@ static void reset_start_time_for_sp(THD *thd)
     @return Error status.
 */
 
-static bool sp_update_sp_used_routines(HASH *dst, HASH *src)
+static void sp_update_sp_used_routines
+  (malloc_unordered_map<std::string, Sroutine_hash_entry*> *dst,
+   const malloc_unordered_map<std::string, Sroutine_hash_entry*> &src)
 {
-  for (uint i= 0 ; i < src->records ; i++)
-  {
-    Sroutine_hash_entry *rt= (Sroutine_hash_entry *)my_hash_element(src, i);
-    if (!my_hash_search(dst, rt->m_key, rt->m_key_length))
-    {
-      if (my_hash_insert(dst, (uchar *)rt))
-        return true;
-    }
-  }
-  return false;
+  for (const auto &key_and_value : src)
+    dst->insert(key_and_value);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -1724,6 +1718,7 @@ sp_head::sp_head(MEM_ROOT &&mem_root, enum_sp_type type)
   m_first_instance(NULL),
   m_first_free_instance(NULL),
   m_last_cached_sp(NULL),
+  m_sroutines(key_memory_sp_head_main_root),
   m_trg_list(NULL),
   main_mem_root(std::move(mem_root)),
   m_root_parsing_ctx(NULL),
@@ -1757,13 +1752,6 @@ sp_head::sp_head(MEM_ROOT &&mem_root, enum_sp_type type)
   m_body_utf8= NULL_STR;
 
   my_hash_init(&m_sptabs, system_charset_info, 0, 0, sp_table_key, nullptr, 0,
-               key_memory_sp_head_main_root);
-  /*
-    See Sroutine_hash_entry for explanation why this hash uses binary
-    key comparison.
-  */
-  my_hash_init(&m_sroutines, &my_charset_bin, 0, 0, sp_sroutine_key,
-               nullptr, 0,
                key_memory_sp_head_main_root);
 
   m_trg_chistics.ordering_clause= TRG_ORDER_NONE;
@@ -1971,7 +1959,6 @@ sp_head::~sp_head()
   }
 
   my_hash_free(&m_sptabs);
-  my_hash_free(&m_sroutines);
 
   sp_head::destroy(m_next_cached_sp);
 }
@@ -3128,8 +3115,8 @@ bool sp_head::restore_lex(THD *thd)
     Add routines which are used by statement to respective set for
     this routine.
   */
-  if (sp_update_sp_used_routines(&m_sroutines, &sublex->sroutines))
-    return true;
+  if (sublex->sroutines != nullptr)
+    sp_update_sp_used_routines(&m_sroutines, *sublex->sroutines);
 
   /* If this substatement is a update query, then mark MODIFIES_DATA */
   if (is_update_query(sublex->sql_command))
