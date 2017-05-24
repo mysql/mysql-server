@@ -336,7 +336,7 @@ m3	CREATE TABLE `m3` (
   `c2` char(25) NOT NULL,
   `c3` tinyint(4) DEFAULT NULL,
   `c4` char(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -716,7 +716,7 @@ m3	CREATE TABLE `m3` (
   `c2` char(25) NOT NULL,
   `c3` smallint(4) DEFAULT NULL,
   `c4` char(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -1096,7 +1096,7 @@ m3	CREATE TABLE `m3` (
   `c2` char(25) NOT NULL,
   `c3` mediumint(4) DEFAULT NULL,
   `c4` char(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -1476,7 +1476,7 @@ m3	CREATE TABLE `m3` (
   `c2` char(25) NOT NULL,
   `c3` int(4) DEFAULT NULL,
   `c4` char(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -1856,7 +1856,7 @@ m3	CREATE TABLE `m3` (
   `c2` char(25) NOT NULL,
   `c3` int(4) DEFAULT NULL,
   `c4` char(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -2236,7 +2236,7 @@ m3	CREATE TABLE `m3` (
   `c2` char(25) NOT NULL,
   `c3` bigint(4) DEFAULT NULL,
   `c4` char(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -2616,7 +2616,7 @@ m3	CREATE TABLE `m3` (
   `c2` varchar(25) NOT NULL,
   `c3` tinyint(4) DEFAULT NULL,
   `c4` varchar(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -2996,7 +2996,7 @@ m3	CREATE TABLE `m3` (
   `c2` varchar(25) NOT NULL,
   `c3` smallint(4) DEFAULT NULL,
   `c4` varchar(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -3376,7 +3376,7 @@ m3	CREATE TABLE `m3` (
   `c2` varchar(25) NOT NULL,
   `c3` mediumint(4) DEFAULT NULL,
   `c4` varchar(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -3756,7 +3756,7 @@ m3	CREATE TABLE `m3` (
   `c2` varchar(25) NOT NULL,
   `c3` int(4) DEFAULT NULL,
   `c4` varchar(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -4136,7 +4136,7 @@ m3	CREATE TABLE `m3` (
   `c2` varchar(25) NOT NULL,
   `c3` int(4) DEFAULT NULL,
   `c4` varchar(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -4516,7 +4516,7 @@ m3	CREATE TABLE `m3` (
   `c2` varchar(25) NOT NULL,
   `c3` bigint(4) DEFAULT NULL,
   `c4` varchar(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -4896,7 +4896,7 @@ m3	CREATE TABLE `m3` (
   `c2` binary(25) NOT NULL,
   `c3` tinyint(4) DEFAULT NULL,
   `c4` binary(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -5276,7 +5276,7 @@ m3	CREATE TABLE `m3` (
   `c2` binary(25) NOT NULL,
   `c3` smallint(4) DEFAULT NULL,
   `c4` binary(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -5656,7 +5656,7 @@ m3	CREATE TABLE `m3` (
   `c2` binary(25) NOT NULL,
   `c3` mediumint(4) DEFAULT NULL,
   `c4` binary(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -6036,7 +6036,7 @@ m3	CREATE TABLE `m3` (
   `c2` binary(25) NOT NULL,
   `c3` int(4) DEFAULT NULL,
   `c4` binary(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -6416,7 +6416,7 @@ m3	CREATE TABLE `m3` (
   `c2` binary(25) NOT NULL,
   `c3` int(4) DEFAULT NULL,
   `c4` binary(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -6796,7 +6796,7 @@ m3	CREATE TABLE `m3` (
   `c2` binary(25) NOT NULL,
   `c3` bigint(4) DEFAULT NULL,
   `c4` binary(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -7176,7 +7176,7 @@ m3	CREATE TABLE `m3` (
   `c2` varbinary(25) NOT NULL,
   `c3` tinyint(4) DEFAULT NULL,
   `c4` varbinary(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -7556,7 +7556,7 @@ m3	CREATE TABLE `m3` (
   `c2` varbinary(25) NOT NULL,
   `c3` smallint(4) DEFAULT NULL,
   `c4` varbinary(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -7936,7 +7936,7 @@ m3	CREATE TABLE `m3` (
   `c2` varbinary(25) NOT NULL,
   `c3` mediumint(4) DEFAULT NULL,
   `c4` varbinary(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -8316,7 +8316,7 @@ m3	CREATE TABLE `m3` (
   `c2` varbinary(25) NOT NULL,
   `c3` int(4) DEFAULT NULL,
   `c4` varbinary(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -8696,7 +8696,7 @@ m3	CREATE TABLE `m3` (
   `c2` varbinary(25) NOT NULL,
   `c3` int(4) DEFAULT NULL,
   `c4` varbinary(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -9076,7 +9076,7 @@ m3	CREATE TABLE `m3` (
   `c2` varbinary(25) NOT NULL,
   `c3` bigint(4) DEFAULT NULL,
   `c4` varbinary(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -9456,7 +9456,7 @@ m3	CREATE TABLE `m3` (
   `c2` char(25) NOT NULL,
   `c3` tinyint(4) DEFAULT NULL,
   `c4` char(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -9836,7 +9836,7 @@ m3	CREATE TABLE `m3` (
   `c2` char(25) NOT NULL,
   `c3` smallint(4) DEFAULT NULL,
   `c4` char(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -10216,7 +10216,7 @@ m3	CREATE TABLE `m3` (
   `c2` char(25) NOT NULL,
   `c3` mediumint(4) DEFAULT NULL,
   `c4` char(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -10596,7 +10596,7 @@ m3	CREATE TABLE `m3` (
   `c2` char(25) NOT NULL,
   `c3` int(4) DEFAULT NULL,
   `c4` char(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -10976,7 +10976,7 @@ m3	CREATE TABLE `m3` (
   `c2` char(25) NOT NULL,
   `c3` int(4) DEFAULT NULL,
   `c4` char(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -11356,7 +11356,7 @@ m3	CREATE TABLE `m3` (
   `c2` char(25) NOT NULL,
   `c3` bigint(4) DEFAULT NULL,
   `c4` char(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -11736,7 +11736,7 @@ m3	CREATE TABLE `m3` (
   `c2` varchar(25) NOT NULL,
   `c3` tinyint(4) DEFAULT NULL,
   `c4` varchar(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -12116,7 +12116,7 @@ m3	CREATE TABLE `m3` (
   `c2` varchar(25) NOT NULL,
   `c3` smallint(4) DEFAULT NULL,
   `c4` varchar(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -12496,7 +12496,7 @@ m3	CREATE TABLE `m3` (
   `c2` varchar(25) NOT NULL,
   `c3` mediumint(4) DEFAULT NULL,
   `c4` varchar(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -12876,7 +12876,7 @@ m3	CREATE TABLE `m3` (
   `c2` varchar(25) NOT NULL,
   `c3` int(4) DEFAULT NULL,
   `c4` varchar(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -13256,7 +13256,7 @@ m3	CREATE TABLE `m3` (
   `c2` varchar(25) NOT NULL,
   `c3` int(4) DEFAULT NULL,
   `c4` varchar(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -13636,7 +13636,7 @@ m3	CREATE TABLE `m3` (
   `c2` varchar(25) NOT NULL,
   `c3` bigint(4) DEFAULT NULL,
   `c4` varchar(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -14016,7 +14016,7 @@ m3	CREATE TABLE `m3` (
   `c2` binary(25) NOT NULL,
   `c3` tinyint(4) DEFAULT NULL,
   `c4` binary(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -14396,7 +14396,7 @@ m3	CREATE TABLE `m3` (
   `c2` binary(25) NOT NULL,
   `c3` smallint(4) DEFAULT NULL,
   `c4` binary(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -14776,7 +14776,7 @@ m3	CREATE TABLE `m3` (
   `c2` binary(25) NOT NULL,
   `c3` mediumint(4) DEFAULT NULL,
   `c4` binary(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -15156,7 +15156,7 @@ m3	CREATE TABLE `m3` (
   `c2` binary(25) NOT NULL,
   `c3` int(4) DEFAULT NULL,
   `c4` binary(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -15536,7 +15536,7 @@ m3	CREATE TABLE `m3` (
   `c2` binary(25) NOT NULL,
   `c3` int(4) DEFAULT NULL,
   `c4` binary(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -15916,7 +15916,7 @@ m3	CREATE TABLE `m3` (
   `c2` binary(25) NOT NULL,
   `c3` bigint(4) DEFAULT NULL,
   `c4` binary(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -16296,7 +16296,7 @@ m3	CREATE TABLE `m3` (
   `c2` varbinary(25) NOT NULL,
   `c3` tinyint(4) DEFAULT NULL,
   `c4` varbinary(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -16676,7 +16676,7 @@ m3	CREATE TABLE `m3` (
   `c2` varbinary(25) NOT NULL,
   `c3` smallint(4) DEFAULT NULL,
   `c4` varbinary(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -17056,7 +17056,7 @@ m3	CREATE TABLE `m3` (
   `c2` varbinary(25) NOT NULL,
   `c3` mediumint(4) DEFAULT NULL,
   `c4` varbinary(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -17436,7 +17436,7 @@ m3	CREATE TABLE `m3` (
   `c2` varbinary(25) NOT NULL,
   `c3` int(4) DEFAULT NULL,
   `c4` varbinary(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -17816,7 +17816,7 @@ m3	CREATE TABLE `m3` (
   `c2` varbinary(25) NOT NULL,
   `c3` int(4) DEFAULT NULL,
   `c4` varbinary(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -18196,7 +18196,7 @@ m3	CREATE TABLE `m3` (
   `c2` varbinary(25) NOT NULL,
   `c3` bigint(4) DEFAULT NULL,
   `c4` varbinary(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -18576,7 +18576,7 @@ m3	CREATE TABLE `m3` (
   `c2` char(25) NOT NULL,
   `c3` tinyint(4) DEFAULT NULL,
   `c4` char(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -18956,7 +18956,7 @@ m3	CREATE TABLE `m3` (
   `c2` char(25) NOT NULL,
   `c3` smallint(4) DEFAULT NULL,
   `c4` char(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -19336,7 +19336,7 @@ m3	CREATE TABLE `m3` (
   `c2` char(25) NOT NULL,
   `c3` mediumint(4) DEFAULT NULL,
   `c4` char(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -19716,7 +19716,7 @@ m3	CREATE TABLE `m3` (
   `c2` char(25) NOT NULL,
   `c3` int(4) DEFAULT NULL,
   `c4` char(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -20096,7 +20096,7 @@ m3	CREATE TABLE `m3` (
   `c2` char(25) NOT NULL,
   `c3` int(4) DEFAULT NULL,
   `c4` char(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -20476,7 +20476,7 @@ m3	CREATE TABLE `m3` (
   `c2` char(25) NOT NULL,
   `c3` bigint(4) DEFAULT NULL,
   `c4` char(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -20856,7 +20856,7 @@ m3	CREATE TABLE `m3` (
   `c2` varchar(25) NOT NULL,
   `c3` tinyint(4) DEFAULT NULL,
   `c4` varchar(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -21236,7 +21236,7 @@ m3	CREATE TABLE `m3` (
   `c2` varchar(25) NOT NULL,
   `c3` smallint(4) DEFAULT NULL,
   `c4` varchar(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -21616,7 +21616,7 @@ m3	CREATE TABLE `m3` (
   `c2` varchar(25) NOT NULL,
   `c3` mediumint(4) DEFAULT NULL,
   `c4` varchar(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -21996,7 +21996,7 @@ m3	CREATE TABLE `m3` (
   `c2` varchar(25) NOT NULL,
   `c3` int(4) DEFAULT NULL,
   `c4` varchar(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -22376,7 +22376,7 @@ m3	CREATE TABLE `m3` (
   `c2` varchar(25) NOT NULL,
   `c3` int(4) DEFAULT NULL,
   `c4` varchar(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -22756,7 +22756,7 @@ m3	CREATE TABLE `m3` (
   `c2` varchar(25) NOT NULL,
   `c3` bigint(4) DEFAULT NULL,
   `c4` varchar(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -23136,7 +23136,7 @@ m3	CREATE TABLE `m3` (
   `c2` binary(25) NOT NULL,
   `c3` tinyint(4) DEFAULT NULL,
   `c4` binary(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -23516,7 +23516,7 @@ m3	CREATE TABLE `m3` (
   `c2` binary(25) NOT NULL,
   `c3` smallint(4) DEFAULT NULL,
   `c4` binary(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -23896,7 +23896,7 @@ m3	CREATE TABLE `m3` (
   `c2` binary(25) NOT NULL,
   `c3` mediumint(4) DEFAULT NULL,
   `c4` binary(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -24276,7 +24276,7 @@ m3	CREATE TABLE `m3` (
   `c2` binary(25) NOT NULL,
   `c3` int(4) DEFAULT NULL,
   `c4` binary(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -24656,7 +24656,7 @@ m3	CREATE TABLE `m3` (
   `c2` binary(25) NOT NULL,
   `c3` int(4) DEFAULT NULL,
   `c4` binary(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -25036,7 +25036,7 @@ m3	CREATE TABLE `m3` (
   `c2` binary(25) NOT NULL,
   `c3` bigint(4) DEFAULT NULL,
   `c4` binary(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -25416,7 +25416,7 @@ m3	CREATE TABLE `m3` (
   `c2` varbinary(25) NOT NULL,
   `c3` tinyint(4) DEFAULT NULL,
   `c4` varbinary(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -25796,7 +25796,7 @@ m3	CREATE TABLE `m3` (
   `c2` varbinary(25) NOT NULL,
   `c3` smallint(4) DEFAULT NULL,
   `c4` varbinary(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -26176,7 +26176,7 @@ m3	CREATE TABLE `m3` (
   `c2` varbinary(25) NOT NULL,
   `c3` mediumint(4) DEFAULT NULL,
   `c4` varbinary(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -26556,7 +26556,7 @@ m3	CREATE TABLE `m3` (
   `c2` varbinary(25) NOT NULL,
   `c3` int(4) DEFAULT NULL,
   `c4` varbinary(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -26936,7 +26936,7 @@ m3	CREATE TABLE `m3` (
   `c2` varbinary(25) NOT NULL,
   `c3` int(4) DEFAULT NULL,
   `c4` varbinary(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -27316,7 +27316,7 @@ m3	CREATE TABLE `m3` (
   `c2` varbinary(25) NOT NULL,
   `c3` bigint(4) DEFAULT NULL,
   `c4` varbinary(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -27696,7 +27696,7 @@ m3	CREATE TABLE `m3` (
   `c2` char(25) NOT NULL,
   `c3` tinyint(4) DEFAULT NULL,
   `c4` char(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -28076,7 +28076,7 @@ m3	CREATE TABLE `m3` (
   `c2` char(25) NOT NULL,
   `c3` smallint(4) DEFAULT NULL,
   `c4` char(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -28456,7 +28456,7 @@ m3	CREATE TABLE `m3` (
   `c2` char(25) NOT NULL,
   `c3` mediumint(4) DEFAULT NULL,
   `c4` char(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -28836,7 +28836,7 @@ m3	CREATE TABLE `m3` (
   `c2` char(25) NOT NULL,
   `c3` int(4) DEFAULT NULL,
   `c4` char(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -29216,7 +29216,7 @@ m3	CREATE TABLE `m3` (
   `c2` char(25) NOT NULL,
   `c3` int(4) DEFAULT NULL,
   `c4` char(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -29596,7 +29596,7 @@ m3	CREATE TABLE `m3` (
   `c2` char(25) NOT NULL,
   `c3` bigint(4) DEFAULT NULL,
   `c4` char(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -29976,7 +29976,7 @@ m3	CREATE TABLE `m3` (
   `c2` varchar(25) NOT NULL,
   `c3` tinyint(4) DEFAULT NULL,
   `c4` varchar(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -30356,7 +30356,7 @@ m3	CREATE TABLE `m3` (
   `c2` varchar(25) NOT NULL,
   `c3` smallint(4) DEFAULT NULL,
   `c4` varchar(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -30736,7 +30736,7 @@ m3	CREATE TABLE `m3` (
   `c2` varchar(25) NOT NULL,
   `c3` mediumint(4) DEFAULT NULL,
   `c4` varchar(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -31116,7 +31116,7 @@ m3	CREATE TABLE `m3` (
   `c2` varchar(25) NOT NULL,
   `c3` int(4) DEFAULT NULL,
   `c4` varchar(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -31496,7 +31496,7 @@ m3	CREATE TABLE `m3` (
   `c2` varchar(25) NOT NULL,
   `c3` int(4) DEFAULT NULL,
   `c4` varchar(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -31876,7 +31876,7 @@ m3	CREATE TABLE `m3` (
   `c2` varchar(25) NOT NULL,
   `c3` bigint(4) DEFAULT NULL,
   `c4` varchar(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -32256,7 +32256,7 @@ m3	CREATE TABLE `m3` (
   `c2` binary(25) NOT NULL,
   `c3` tinyint(4) DEFAULT NULL,
   `c4` binary(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -32636,7 +32636,7 @@ m3	CREATE TABLE `m3` (
   `c2` binary(25) NOT NULL,
   `c3` smallint(4) DEFAULT NULL,
   `c4` binary(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -33016,7 +33016,7 @@ m3	CREATE TABLE `m3` (
   `c2` binary(25) NOT NULL,
   `c3` mediumint(4) DEFAULT NULL,
   `c4` binary(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -33396,7 +33396,7 @@ m3	CREATE TABLE `m3` (
   `c2` binary(25) NOT NULL,
   `c3` int(4) DEFAULT NULL,
   `c4` binary(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -33776,7 +33776,7 @@ m3	CREATE TABLE `m3` (
   `c2` binary(25) NOT NULL,
   `c3` int(4) DEFAULT NULL,
   `c4` binary(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -34156,7 +34156,7 @@ m3	CREATE TABLE `m3` (
   `c2` binary(25) NOT NULL,
   `c3` bigint(4) DEFAULT NULL,
   `c4` binary(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -34536,7 +34536,7 @@ m3	CREATE TABLE `m3` (
   `c2` varbinary(25) NOT NULL,
   `c3` tinyint(4) DEFAULT NULL,
   `c4` varbinary(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -34916,7 +34916,7 @@ m3	CREATE TABLE `m3` (
   `c2` varbinary(25) NOT NULL,
   `c3` smallint(4) DEFAULT NULL,
   `c4` varbinary(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -35296,7 +35296,7 @@ m3	CREATE TABLE `m3` (
   `c2` varbinary(25) NOT NULL,
   `c3` mediumint(4) DEFAULT NULL,
   `c4` varbinary(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -35676,7 +35676,7 @@ m3	CREATE TABLE `m3` (
   `c2` varbinary(25) NOT NULL,
   `c3` int(4) DEFAULT NULL,
   `c4` varbinary(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -36056,7 +36056,7 @@ m3	CREATE TABLE `m3` (
   `c2` varbinary(25) NOT NULL,
   `c3` int(4) DEFAULT NULL,
   `c4` varbinary(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -36436,7 +36436,7 @@ m3	CREATE TABLE `m3` (
   `c2` varbinary(25) NOT NULL,
   `c3` bigint(4) DEFAULT NULL,
   `c4` varbinary(15) NOT NULL,
-  `c5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c5` timestamp NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)

@@ -2376,7 +2376,6 @@ CREATE TABLE t (a TIMESTAMP(1) GENERATED ALWAYS AS (1) VIRTUAL,
                ) ENGINE=INNODB;
 
 --echo # The below ALTER asserts without the fix.
---error ER_INVALID_DEFAULT
 ALTER TABLE t ADD  INDEX (b);
 DROP TABLE t;
 

@@ -303,8 +303,8 @@ a
 2
 drop table t1;
 create table t1 (a timestamp not null);
-prepare stmt from "insert into t1 (a) values (?)";
-execute stmt using @var;
+prepare stmt from "insert into t1 (a) values (CURRENT_TIMESTAMP)";
+execute stmt;
 select * from t1;
 deallocate prepare stmt;
 drop table t1;

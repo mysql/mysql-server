@@ -569,8 +569,6 @@ DROP TABLE t3;
 --echo # End of LOCK TABLE test.
 --echo #
 
-# Only TIMESTAMP auto converts NULL to NOW().
---let $null_as_now= 1;
 --let $default_update= 0;
 --echo #
 --echo # Test INSERT with timestamp column NO default function
@@ -627,8 +625,6 @@ SHOW CREATE TABLE t3;
 --source include/partition_default_functions.inc
 DROP TABLE t3;
 
-# Only TIMESTAMP auto converts NULL to NOW().
---let $null_as_now= 0;
 --let $default_update= 0;
 --echo #
 --echo # Test INSERT with DATETIME column NO default function

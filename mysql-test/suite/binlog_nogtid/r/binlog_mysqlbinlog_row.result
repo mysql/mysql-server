@@ -2110,7 +2110,7 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	Xid = #
 SET TIMESTAMP=#/*!*/;
-SET @@session.explicit_defaults_for_timestamp=0/*!*/;
+SET @@session.explicit_defaults_for_timestamp=1/*!*/;
 CREATE TABLE t1 (c30 TIMESTAMP)
 /*!*/;
 # at #
@@ -2132,7 +2132,7 @@ BEGIN
 # # server id #  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
 ### INSERT INTO `test`.`t1`
 ### SET
-###   @1=981184830 /* TIMESTAMP(0) meta=0 nullable=0 is_null=0 */
+###   @1=981184830 /* TIMESTAMP(0) meta=0 nullable=1 is_null=0 */
 # at #
 # # server id #  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
@@ -2154,7 +2154,7 @@ BEGIN
 # # server id #  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
 ### DELETE FROM `test`.`t1`
 ### WHERE
-###   @1=981184830 /* TIMESTAMP(0) meta=0 nullable=0 is_null=0 */
+###   @1=981184830 /* TIMESTAMP(0) meta=0 nullable=1 is_null=0 */
 # at #
 # # server id #  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
@@ -5946,7 +5946,7 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	Xid = #
 SET TIMESTAMP=#/*!*/;
 SET @@session.sql_mode=1073741824/*!*/;
-SET @@session.explicit_defaults_for_timestamp=0/*!*/;
+SET @@session.explicit_defaults_for_timestamp=1/*!*/;
 CREATE TABLE t1 (
 c85 TIMESTAMP(6), c86 TIMESTAMP(5), c87 TIMESTAMP(4),
 c88 TIMESTAMP(3), c89 TIMESTAMP(2), c90 TIMESTAMP(1)
@@ -5970,12 +5970,12 @@ BEGIN
 # # server id #  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
 ### INSERT INTO `test`.`t1`
 ### SET
-###   @1=978307200.123456 /* TIMESTAMP(6) meta=6 nullable=0 is_null=0 */
-###   @2=978307200.12346 /* TIMESTAMP(5) meta=5 nullable=0 is_null=0 */
-###   @3=978307200.1235 /* TIMESTAMP(4) meta=4 nullable=0 is_null=0 */
-###   @4=978307200.123 /* TIMESTAMP(3) meta=3 nullable=0 is_null=0 */
-###   @5=978307200.12 /* TIMESTAMP(2) meta=2 nullable=0 is_null=0 */
-###   @6=978307200.1 /* TIMESTAMP(1) meta=1 nullable=0 is_null=0 */
+###   @1=978307200.123456 /* TIMESTAMP(6) meta=6 nullable=1 is_null=0 */
+###   @2=978307200.12346 /* TIMESTAMP(5) meta=5 nullable=1 is_null=0 */
+###   @3=978307200.1235 /* TIMESTAMP(4) meta=4 nullable=1 is_null=0 */
+###   @4=978307200.123 /* TIMESTAMP(3) meta=3 nullable=1 is_null=0 */
+###   @5=978307200.12 /* TIMESTAMP(2) meta=2 nullable=1 is_null=0 */
+###   @6=978307200.1 /* TIMESTAMP(1) meta=1 nullable=1 is_null=0 */
 # at #
 # # server id #  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
@@ -5997,12 +5997,12 @@ BEGIN
 # # server id #  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
 ### INSERT INTO `test`.`t1`
 ### SET
-###   @1=1012681220.000000 /* TIMESTAMP(6) meta=6 nullable=0 is_null=0 */
-###   @2=1012681220.00000 /* TIMESTAMP(5) meta=5 nullable=0 is_null=0 */
-###   @3=1012681220.0000 /* TIMESTAMP(4) meta=4 nullable=0 is_null=0 */
-###   @4=1012681220.000 /* TIMESTAMP(3) meta=3 nullable=0 is_null=0 */
-###   @5=1012681220.00 /* TIMESTAMP(2) meta=2 nullable=0 is_null=0 */
-###   @6=1012681220.0 /* TIMESTAMP(1) meta=1 nullable=0 is_null=0 */
+###   @1=1012681220.000000 /* TIMESTAMP(6) meta=6 nullable=1 is_null=0 */
+###   @2=1012681220.00000 /* TIMESTAMP(5) meta=5 nullable=1 is_null=0 */
+###   @3=1012681220.0000 /* TIMESTAMP(4) meta=4 nullable=1 is_null=0 */
+###   @4=1012681220.000 /* TIMESTAMP(3) meta=3 nullable=1 is_null=0 */
+###   @5=1012681220.00 /* TIMESTAMP(2) meta=2 nullable=1 is_null=0 */
+###   @6=1012681220.0 /* TIMESTAMP(1) meta=1 nullable=1 is_null=0 */
 # at #
 # # server id #  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
@@ -6024,12 +6024,12 @@ BEGIN
 # # server id #  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
 ### INSERT INTO `test`.`t1`
 ### SET
-###   @1=1012681220.123456 /* TIMESTAMP(6) meta=6 nullable=0 is_null=0 */
-###   @2=1012681220.12346 /* TIMESTAMP(5) meta=5 nullable=0 is_null=0 */
-###   @3=1012681220.1235 /* TIMESTAMP(4) meta=4 nullable=0 is_null=0 */
-###   @4=1012681220.123 /* TIMESTAMP(3) meta=3 nullable=0 is_null=0 */
-###   @5=1012681220.12 /* TIMESTAMP(2) meta=2 nullable=0 is_null=0 */
-###   @6=1012681220.1 /* TIMESTAMP(1) meta=1 nullable=0 is_null=0 */
+###   @1=1012681220.123456 /* TIMESTAMP(6) meta=6 nullable=1 is_null=0 */
+###   @2=1012681220.12346 /* TIMESTAMP(5) meta=5 nullable=1 is_null=0 */
+###   @3=1012681220.1235 /* TIMESTAMP(4) meta=4 nullable=1 is_null=0 */
+###   @4=1012681220.123 /* TIMESTAMP(3) meta=3 nullable=1 is_null=0 */
+###   @5=1012681220.12 /* TIMESTAMP(2) meta=2 nullable=1 is_null=0 */
+###   @6=1012681220.1 /* TIMESTAMP(1) meta=1 nullable=1 is_null=0 */
 # at #
 # # server id #  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;

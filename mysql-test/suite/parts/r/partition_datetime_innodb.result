@@ -7,7 +7,7 @@ partition pa4 max_rows=40 min_rows=2);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `a` timestamp NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 /*!50100 PARTITION BY KEY (a)
@@ -37,7 +37,7 @@ partition by key (a) partitions 12;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `a` timestamp NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 /*!50100 PARTITION BY KEY (a)

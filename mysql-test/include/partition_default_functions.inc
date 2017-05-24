@@ -13,17 +13,14 @@
 # And a table t3 where a is a DATETIME/DATE/TIME/TIMESTAMP column
 # and b is a char/varchar() column.
 
-if ($null_as_now)
-{
 FLUSH STATUS;
 SET TIMESTAMP = 1234567890;
-INSERT INTO t3 (a) VALUES (NULL);
+INSERT INTO t3 (a) VALUES (NOW());
 
 connection monitor;
 --source include/get_handler_status_counts.inc
 connection default;
 
-}
 FLUSH STATUS;
 SET TIMESTAMP = 1234567891;
 INSERT INTO t3 VALUES ();

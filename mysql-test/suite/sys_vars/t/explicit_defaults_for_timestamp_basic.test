@@ -33,3 +33,14 @@ SET SESSION explicit_defaults_for_timestamp=TRUE;
 
 --connection default
 DROP USER damn;
+
+--echo #
+--echo # WL#9687 : Change default for explicit_defaults_for_timestamp to ON
+--echo #
+
+SET GLOBAL explicit_defaults_for_timestamp = 0;
+SET explicit_defaults_for_timestamp = 0;
+SHOW VARIABLES LIKE 'explicit_defaults_for_timestamp';
+SET GLOBAL explicit_defaults_for_timestamp = default;
+SET explicit_defaults_for_timestamp = default;
+SHOW VARIABLES LIKE 'explicit_defaults_for_timestamp';

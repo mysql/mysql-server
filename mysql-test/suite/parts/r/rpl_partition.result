@@ -123,7 +123,7 @@ show create table t3;
 Table	t3
 Create Table	CREATE TABLE `t3` (
   `id` mediumint(9) NOT NULL AUTO_INCREMENT,
-  `dt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `dt` timestamp NULL DEFAULT NULL,
   `user` char(255) DEFAULT NULL,
   `uuidf` longblob,
   `fkid` mediumint(9) DEFAULT NULL,

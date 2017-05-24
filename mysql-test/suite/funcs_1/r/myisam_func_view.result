@@ -26,7 +26,7 @@ ALTER TABLE t1_values ADD my_double         DOUBLE;
 ALTER TABLE t1_values ADD my_decimal        DECIMAL(64,30);
 SET sql_mode = default;
 SET sql_mode = 'traditional';
-INSERT INTO t1_values SET id = 0;
+INSERT INTO t1_values SET id = 0, my_timestamp= NOW();
 INSERT INTO t1_values SET
 my_char_30 = '',
 my_varchar_1000 = '',
@@ -87,13 +87,20 @@ PREPARE ins_sel_no_result   FROM "INSERT INTO t1_selects SET my_select = @my_sel
 disable_result = 'Yes'" ;
 SET sql_mode = 'traditional';
 SET @my_select = 'SELECT sqrt(my_bigint), my_bigint, id FROM t1_values';
+SET sql_mode = 'NO_ZERO_IN_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 INSERT INTO t1_values SET select_id = @select_id,
 my_bigint = 4;
 INSERT INTO t1_values SET select_id = @select_id,
 my_bigint = -25;
+SET sql_mode = default;
 ##### 1.1.1. CAST --> BINARY
 ##### 1.1.2. CAST --> CHAR
 ##### 1.1.3. CAST --> DATE
+SET sql_mode = (SELECT replace(@@sql_mode,'NO_ZERO_DATE',''));
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 INSERT INTO t1_values SET select_id = @select_id,
 my_char_30 = '2005-06-27';
 INSERT INTO t1_values SET select_id = @select_id,
@@ -287,9 +294,7 @@ SET @my_select =
 SET @my_select = 'SELECT my_char_30, id FROM t1_values';
 INSERT INTO t1_values SET select_id = @select_id,
 my_char_30 = 'Viana do Castelo';
-SET sql_mode = '';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+SET sql_mode = default;
 
 "# The basic preparations end and the main test starts here"
 --------------------------------------------------------------------------------
@@ -1283,7 +1288,7 @@ SELECT IFNULL(my_timestamp,'IS_NULL'),
 my_timestamp, id FROM t1_values
 WHERE select_id = 136 OR select_id IS NULL order by id;
 IFNULL(my_timestamp,'IS_NULL')	my_timestamp	id
-0000-00-00 00:00:00	0000-00-00 00:00:00	1
+2010-01-01 00:00:00	2010-01-01 00:00:00	1
 1970-01-01 03:00:01	1970-01-01 03:00:01	2
 2038-01-01 02:59:59	2038-01-01 02:59:59	3
 2004-02-29 23:59:59	2004-02-29 23:59:59	4
@@ -1295,7 +1300,7 @@ SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 136 OR select_id IS NULL) order by id;
 IFNULL(my_timestamp,'IS_NULL')	my_timestamp	id
-0000-00-00 00:00:00	0000-00-00 00:00:00	1
+2010-01-01 00:00:00	2010-01-01 00:00:00	1
 1970-01-01 03:00:01	1970-01-01 03:00:01	2
 2038-01-01 02:59:59	2038-01-01 02:59:59	3
 2004-02-29 23:59:59	2004-02-29 23:59:59	4
@@ -1602,7 +1607,7 @@ SELECT IF(my_timestamp IS NULL, 'IS     NULL',
 WHERE select_id = 124 OR select_id IS NULL order by id;
 IF(my_timestamp IS NULL, 'IS     NULL',
 'IS NOT NULL')	my_timestamp	id
-IS NOT NULL	0000-00-00 00:00:00	1
+IS NOT NULL	2010-01-01 00:00:00	1
 IS NOT NULL	1970-01-01 03:00:01	2
 IS NOT NULL	2038-01-01 02:59:59	3
 IS NOT NULL	2004-02-29 23:59:59	4
@@ -1616,7 +1621,7 @@ WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 124 OR select_id IS NULL) order by id;
 IF(my_timestamp IS NULL, 'IS     NULL',
 'IS NOT NULL')	my_timestamp	id
-IS NOT NULL	0000-00-00 00:00:00	1
+IS NOT NULL	2010-01-01 00:00:00	1
 IS NOT NULL	1970-01-01 03:00:01	2
 IS NOT NULL	2038-01-01 02:59:59	3
 IS NOT NULL	2004-02-29 23:59:59	4
@@ -1943,7 +1948,7 @@ SELECT IF(my_timestamp, 'IS     TRUE', 'IS NOT TRUE'),
 my_timestamp, id FROM t1_values
 WHERE select_id = 112 OR select_id IS NULL order by id;
 IF(my_timestamp, 'IS     TRUE', 'IS NOT TRUE')	my_timestamp	id
-IS NOT TRUE	0000-00-00 00:00:00	1
+IS     TRUE	2010-01-01 00:00:00	1
 IS     TRUE	1970-01-01 03:00:01	2
 IS     TRUE	2038-01-01 02:59:59	3
 IS     TRUE	2004-02-29 23:59:59	4
@@ -1955,7 +1960,7 @@ SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 112 OR select_id IS NULL) order by id;
 IF(my_timestamp, 'IS     TRUE', 'IS NOT TRUE')	my_timestamp	id
-IS NOT TRUE	0000-00-00 00:00:00	1
+IS     TRUE	2010-01-01 00:00:00	1
 IS     TRUE	1970-01-01 03:00:01	2
 IS     TRUE	2038-01-01 02:59:59	3
 IS     TRUE	2004-02-29 23:59:59	4
@@ -2491,7 +2496,7 @@ SELECT CAST(my_timestamp AS UNSIGNED INTEGER),
 my_timestamp, id FROM t1_values
 WHERE select_id = 92 OR select_id IS NULL order by id;
 CAST(my_timestamp AS UNSIGNED INTEGER)	my_timestamp	id
-0	0000-00-00 00:00:00	1
+20100101000000	2010-01-01 00:00:00	1
 19700101030001	1970-01-01 03:00:01	2
 20380101025959	2038-01-01 02:59:59	3
 20040229235959	2004-02-29 23:59:59	4
@@ -2503,7 +2508,7 @@ SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 92 OR select_id IS NULL) order by id;
 CAST(my_timestamp AS UNSIGNED INTEGER)	my_timestamp	id
-0	0000-00-00 00:00:00	1
+20100101000000	2010-01-01 00:00:00	1
 19700101030001	1970-01-01 03:00:01	2
 20380101025959	2038-01-01 02:59:59	3
 20040229235959	2004-02-29 23:59:59	4
@@ -2859,7 +2864,7 @@ SELECT CAST(my_timestamp AS SIGNED INTEGER),
 my_timestamp, id FROM t1_values
 WHERE select_id = 80 OR select_id IS NULL order by id;
 CAST(my_timestamp AS SIGNED INTEGER)	my_timestamp	id
-0	0000-00-00 00:00:00	1
+20100101000000	2010-01-01 00:00:00	1
 19700101030001	1970-01-01 03:00:01	2
 20380101025959	2038-01-01 02:59:59	3
 20040229235959	2004-02-29 23:59:59	4
@@ -2871,7 +2876,7 @@ SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 80 OR select_id IS NULL) order by id;
 CAST(my_timestamp AS SIGNED INTEGER)	my_timestamp	id
-0	0000-00-00 00:00:00	1
+20100101000000	2010-01-01 00:00:00	1
 19700101030001	1970-01-01 03:00:01	2
 20380101025959	2038-01-01 02:59:59	3
 20040229235959	2004-02-29 23:59:59	4
@@ -3217,7 +3222,7 @@ SELECT CAST(my_timestamp AS DECIMAL(37,2)),
 my_timestamp, id FROM t1_values
 WHERE select_id = 68 OR select_id IS NULL order by id;
 CAST(my_timestamp AS DECIMAL(37,2))	my_timestamp	id
-0.00	0000-00-00 00:00:00	1
+20100101000000.00	2010-01-01 00:00:00	1
 19700101030001.00	1970-01-01 03:00:01	2
 20380101025959.00	2038-01-01 02:59:59	3
 20040229235959.00	2004-02-29 23:59:59	4
@@ -3229,7 +3234,7 @@ SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 68 OR select_id IS NULL) order by id;
 CAST(my_timestamp AS DECIMAL(37,2))	my_timestamp	id
-0.00	0000-00-00 00:00:00	1
+20100101000000.00	2010-01-01 00:00:00	1
 19700101030001.00	1970-01-01 03:00:01	2
 20380101025959.00	2038-01-01 02:59:59	3
 20040229235959.00	2004-02-29 23:59:59	4
@@ -3609,7 +3614,7 @@ SELECT CAST(my_timestamp AS TIME),
 my_timestamp, id FROM t1_values
 WHERE select_id = 56 OR select_id IS NULL order by id;
 CAST(my_timestamp AS TIME)	my_timestamp	id
-00:00:00	0000-00-00 00:00:00	1
+00:00:00	2010-01-01 00:00:00	1
 03:00:01	1970-01-01 03:00:01	2
 02:59:59	2038-01-01 02:59:59	3
 23:59:59	2004-02-29 23:59:59	4
@@ -3621,7 +3626,7 @@ SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 56 OR select_id IS NULL) order by id;
 CAST(my_timestamp AS TIME)	my_timestamp	id
-00:00:00	0000-00-00 00:00:00	1
+00:00:00	2010-01-01 00:00:00	1
 03:00:01	1970-01-01 03:00:01	2
 02:59:59	2038-01-01 02:59:59	3
 23:59:59	2004-02-29 23:59:59	4
@@ -3965,7 +3970,7 @@ SELECT CAST(my_timestamp AS DATETIME),
 my_timestamp, id FROM t1_values
 WHERE select_id = 45 OR select_id IS NULL order by id;
 CAST(my_timestamp AS DATETIME)	my_timestamp	id
-0000-00-00 00:00:00	0000-00-00 00:00:00	1
+2010-01-01 00:00:00	2010-01-01 00:00:00	1
 1970-01-01 03:00:01	1970-01-01 03:00:01	2
 2038-01-01 02:59:59	2038-01-01 02:59:59	3
 2004-02-29 23:59:59	2004-02-29 23:59:59	4
@@ -3977,7 +3982,7 @@ SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 45 OR select_id IS NULL) order by id;
 CAST(my_timestamp AS DATETIME)	my_timestamp	id
-0000-00-00 00:00:00	0000-00-00 00:00:00	1
+2010-01-01 00:00:00	2010-01-01 00:00:00	1
 1970-01-01 03:00:01	1970-01-01 03:00:01	2
 2038-01-01 02:59:59	2038-01-01 02:59:59	3
 2004-02-29 23:59:59	2004-02-29 23:59:59	4
@@ -4070,6 +4075,7 @@ NULL	200506271758	19
 Warnings:
 Warning	1292	Incorrect datetime value: '-1.7976931348623e308'
 Warning	1292	Incorrect datetime value: '1.7976931348623e308'
+Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'CAST(my_double AS DATETIME)' at row 1
 Warning	1292	Incorrect datetime value: '-1'
 Warning	1292	Incorrect datetime value: '200506271758'
 DROP VIEW v1;
@@ -4108,6 +4114,7 @@ NULL	200506271758	18
 Warnings:
 Warning	1292	Incorrect datetime value: '-9223372036854775808'
 Warning	1292	Incorrect datetime value: '9223372036854775807'
+Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'CAST(my_bigint AS DATETIME)' at row 1
 Warning	1292	Incorrect datetime value: '-1'
 Warning	1292	Incorrect datetime value: '200506271758'
 DROP VIEW v1;
@@ -4335,7 +4342,7 @@ SELECT CAST(my_timestamp AS DATE),
 my_timestamp, id FROM t1_values
 WHERE select_id = 34 OR select_id IS NULL order by id;
 CAST(my_timestamp AS DATE)	my_timestamp	id
-0000-00-00	0000-00-00 00:00:00	1
+2010-01-01	2010-01-01 00:00:00	1
 1970-01-01	1970-01-01 03:00:01	2
 2038-01-01	2038-01-01 02:59:59	3
 2004-02-29	2004-02-29 23:59:59	4
@@ -4347,7 +4354,7 @@ SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 34 OR select_id IS NULL) order by id;
 CAST(my_timestamp AS DATE)	my_timestamp	id
-0000-00-00	0000-00-00 00:00:00	1
+2010-01-01	2010-01-01 00:00:00	1
 1970-01-01	1970-01-01 03:00:01	2
 2038-01-01	2038-01-01 02:59:59	3
 2004-02-29	2004-02-29 23:59:59	4
@@ -4439,6 +4446,7 @@ NULL	-1	5
 Warnings:
 Warning	1292	Incorrect datetime value: '-1.7976931348623e308'
 Warning	1292	Incorrect datetime value: '1.7976931348623e308'
+Warning	1292	Incorrect date value: '0000-00-00' for column 'CAST(my_double AS DATE)' at row 1
 Warning	1292	Incorrect datetime value: '-1'
 DROP VIEW v1;
 
@@ -4475,6 +4483,7 @@ NULL	-1	5
 Warnings:
 Warning	1292	Incorrect datetime value: '-9223372036854775808'
 Warning	1292	Incorrect datetime value: '9223372036854775807'
+Warning	1292	Incorrect date value: '0000-00-00' for column 'CAST(my_bigint AS DATE)' at row 1
 Warning	1292	Incorrect datetime value: '-1'
 DROP VIEW v1;
 
@@ -4691,7 +4700,7 @@ SELECT CAST(my_timestamp AS CHAR),
 my_timestamp, id FROM t1_values
 WHERE select_id = 23 OR select_id IS NULL order by id;
 CAST(my_timestamp AS CHAR)	my_timestamp	id
-0000-00-00 00:00:00	0000-00-00 00:00:00	1
+2010-01-01 00:00:00	2010-01-01 00:00:00	1
 1970-01-01 03:00:01	1970-01-01 03:00:01	2
 2038-01-01 02:59:59	2038-01-01 02:59:59	3
 2004-02-29 23:59:59	2004-02-29 23:59:59	4
@@ -4703,7 +4712,7 @@ SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 23 OR select_id IS NULL) order by id;
 CAST(my_timestamp AS CHAR)	my_timestamp	id
-0000-00-00 00:00:00	0000-00-00 00:00:00	1
+2010-01-01 00:00:00	2010-01-01 00:00:00	1
 1970-01-01 03:00:01	1970-01-01 03:00:01	2
 2038-01-01 02:59:59	2038-01-01 02:59:59	3
 2004-02-29 23:59:59	2004-02-29 23:59:59	4
@@ -5003,7 +5012,7 @@ SELECT CAST(my_timestamp AS BINARY),
 my_timestamp, id FROM t1_values
 WHERE select_id = 11 OR select_id IS NULL order by id;
 CAST(my_timestamp AS BINARY)	my_timestamp	id
-0000-00-00 00:00:00	0000-00-00 00:00:00	1
+2010-01-01 00:00:00	2010-01-01 00:00:00	1
 1970-01-01 03:00:01	1970-01-01 03:00:01	2
 2038-01-01 02:59:59	2038-01-01 02:59:59	3
 2004-02-29 23:59:59	2004-02-29 23:59:59	4
@@ -5015,7 +5024,7 @@ SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 11 OR select_id IS NULL) order by id;
 CAST(my_timestamp AS BINARY)	my_timestamp	id
-0000-00-00 00:00:00	0000-00-00 00:00:00	1
+2010-01-01 00:00:00	2010-01-01 00:00:00	1
 1970-01-01 03:00:01	1970-01-01 03:00:01	2
 2038-01-01 02:59:59	2038-01-01 02:59:59	3
 2004-02-29 23:59:59	2004-02-29 23:59:59	4

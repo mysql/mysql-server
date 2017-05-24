@@ -281,6 +281,7 @@ The following options may be given as the first argument:
  DEFAULT clauses. The old behavior is deprecated. The
  variable can only be set by users having the SUPER
  privilege.
+ (Defaults to on; use --skip-explicit-defaults-for-timestamp to disable.)
  --external-locking  Use system (external) locking (disabled by default). 
  With this option enabled you can run myisamchk to test
  (not repair) tables while the MySQL server is running.
@@ -1337,7 +1338,7 @@ enforce-gtid-consistency FALSE
 eq-range-index-dive-limit 200
 event-scheduler OFF
 expire-logs-days 0
-explicit-defaults-for-timestamp FALSE
+explicit-defaults-for-timestamp TRUE
 external-locking FALSE
 flush FALSE
 flush-time 0

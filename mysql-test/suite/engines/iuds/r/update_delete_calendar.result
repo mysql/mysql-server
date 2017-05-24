@@ -1390,10 +1390,10 @@ Warning	1062	Duplicate entry '2001-01-23 02:33:00' for key 'PRIMARY'
 SELECT count(*) FROM t1 WHERE c1='2001-01-23 02:33';
 count(*)
 1
-UPDATE t1 SET c1=NULL WHERE c2='2001-01-24 03:33' /* updates to current timestamp */;
+UPDATE t1 SET c1=CURRENT_TIMESTAMP WHERE c2='2001-01-24 03:33' /* updates to current timestamp */;
 UPDATE IGNORE t1 SET c1=NULL WHERE c2='2001-01-26 05:33';
 Warnings:
-Warning	1062	Duplicate entry '2009-02-25 12:20:13' for key 'PRIMARY'
+Warning	1048	Column 'c1' cannot be null
 SELECT * FROM t1 WHERE c1=CURRENT_TIMESTAMP();
 c1	c2	c3
 2009-02-25 12:20:13	2001-01-24 03:33:00	11

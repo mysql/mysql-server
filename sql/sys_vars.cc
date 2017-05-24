@@ -881,6 +881,16 @@ static bool check_super_outside_trx_outside_sf(sys_var *self, THD *thd, set_var 
 
 static bool check_explicit_defaults_for_timestamp(sys_var *self, THD *thd, set_var *var)
 {
+  // Deprecation warning if switching OFF explicit_defaults_for_timestamp
+  if (thd->variables.explicit_defaults_for_timestamp)
+  {
+    if (!var->save_result.ulonglong_value)
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_WARN_DEPRECATED_SYNTAX,
+                          ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),
+                          self->name.str, "");
+
+  }
   if (thd->in_sub_stmt)
   {
     my_error(ER_VARIABLE_NOT_SETTABLE_IN_SF_OR_TRIGGER, MYF(0), var->var->name.str);
@@ -1140,7 +1150,7 @@ static Sys_var_bool Sys_explicit_defaults_for_timestamp(
        "The old behavior is deprecated. "
        "The variable can only be set by users having the SUPER privilege.",
        SESSION_VAR(explicit_defaults_for_timestamp),
-       CMD_LINE(OPT_ARG), DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       CMD_LINE(OPT_ARG), DEFAULT(TRUE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(check_explicit_defaults_for_timestamp));
 
 static bool repository_check(sys_var *self, THD *thd, set_var *var, SLAVE_THD_TYPE thread_mask)

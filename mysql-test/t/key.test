@@ -435,8 +435,7 @@ alter table t1 drop primary key;
 alter table t1 add primary key (c1, c2), drop primary key;
 show create table t1;
 # Insert non-unique values.
-insert into t1 values(1, 'a', 'a', NULL);
-insert into t1 values(1, 'b', 'b', NULL);
+insert into t1 values(1, 'a', 'a', NOW()), (1, 'b', 'b', NOW());
 # Drop some indexes for new adds.
 alter table t1 drop index i3, drop index i2, drop index i1;
 # Add indexes, one is unique on non-unique values.
