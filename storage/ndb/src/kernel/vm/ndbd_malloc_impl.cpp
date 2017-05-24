@@ -189,7 +189,9 @@ Ndbd_mem_manager::do_virtual_alloc(Uint32 pages,
                       ? zone_bound[i]
                       : (first_region[0] + space_regions);
     first_region[i] -= ((page_count[i] +
+#ifdef NDBD_RANDOM_START_PAGE
                          g_random_start_page_id +
+#endif
                          ((1 << PAGES_PER_REGION_LOG) - 1))
                         >> PAGES_PER_REGION_LOG);
 
