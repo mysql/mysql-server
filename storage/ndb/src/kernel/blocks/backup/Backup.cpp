@@ -9917,6 +9917,7 @@ Backup::execLCP_PREPARE_REQ(Signal* signal)
   fragPtr.p->createGci = req.createGci;
 
   if (req.backupId != ptr.p->backupId ||
+      req.localLcpId != ptr.p->localLcpId ||
       !ptr.p->m_initial_lcp_started)
   {
     jam();
@@ -9941,10 +9942,6 @@ Backup::execLCP_PREPARE_REQ(Signal* signal)
     LocalDeleteLcpFile_list queue(c_deleteLcpFilePool,
                                   m_delete_lcp_file_head);
     ndbrequire(queue.isEmpty())
-  }
-  else
-  {
-    ndbrequire(ptr.p->localLcpId == req.localLcpId);
   }
 
   /**
