@@ -2,7 +2,7 @@
       xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
 
 <!--
-   Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -62,6 +62,32 @@
       <RemoveExistingProducts After="InstallInitialize"/>
     </InstallExecuteSequence>
 
+    <?if "@LINK_STATIC_RUNTIME_LIBRARIES@"="OFF" ?>
+      <?if "@Platform@"="x64"?>
+        <Property Id="VS08REDISTX64">
+          <RegistrySearch Id="FindRedistVS08"
+              Root="HKLM"
+              Key="SOFTWARE\Classes\Installer\Products\153AA053AF120723B8A73845437E66DA"
+              Name="Version"
+              Type="raw" />
+        </Property>
+        <Condition Message="This application requires Visual Studio 2008 x64 Redistributable. Please install the Redistributable then run this installer again.">
+          Installed OR VS08REDISTX64
+        </Condition>
+        <?elseif "@Platform@"="x86" ?>
+        <Property Id="VS08REDISTX86">
+          <RegistrySearch Id="FindRedistVS08"
+              Root="HKLM"
+              Key="SOFTWARE\Classes\Installer\Products\6F9E66FF7E38E3A3FA41D89E8A906A4A"
+              Name="Version"
+              Type="raw" />
+        </Property>
+        <Condition Message="This application requires Visual Studio 2008 x86 Redistributable. Please install the Redistributable then run this installer again.">
+          Installed OR VS08REDISTX86
+        </Condition>
+      <?endif?>
+    <?endif?>
+ 
     <!-- Save/restore install location -->
     <CustomAction Id="SaveTargetDir" Property="ARPINSTALLLOCATION" Value="[INSTALLDIR]" />
     <InstallExecuteSequence>
