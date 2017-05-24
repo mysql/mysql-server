@@ -2,7 +2,7 @@
       xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
 
 <!--
-   Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -64,6 +64,20 @@
       <RemoveExistingProducts After="InstallInitialize"/>
     </InstallExecuteSequence>
 
+
+    <?if "@LINK_STATIC_RUNTIME_LIBRARIES@"="OFF" ?>
+      <Property Id="VS12REDIST">
+        <RegistrySearch Id="FindRedistVS12"
+            Root="HKLM"
+            Key="SOFTWARE\Microsoft\DevDiv\vc\Servicing\12.0\RuntimeMinimum"
+            Name="Version"
+            Type="raw" />
+      </Property>
+      <Condition Message="This application requires Visual Studio 2013 Redistributable. Please install the Redistributable then run this installer again.">
+        Installed OR VS12REDIST
+      </Condition>
+    <?endif?> 
+ 
     <!-- Save/restore install location -->
     <CustomAction Id="SaveTargetDir" Property="ARPINSTALLLOCATION" Value="[INSTALLDIR]" />
     <InstallExecuteSequence>
