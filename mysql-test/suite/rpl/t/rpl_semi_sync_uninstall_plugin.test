@@ -125,12 +125,11 @@ SET GLOBAL rpl_semi_sync_slave_enabled = OFF;
 # Step 4.4: Uninstall semi sync plugin, it should be successful now.
 UNINSTALL PLUGIN rpl_semi_sync_slave;
 
-# Step 4.5: On Master, check that semi sync slaves are now '0'.
+# Step 4.5: On Master, wait until semi sync slaves is '0'.
 --connection master
---let $master_clients=[show status like "Rpl_semi_sync_master_clients", Value, 1]
---let assert_cond= $master_clients = 0
---let assert_text= semi sync master clients should be 0.
---source include/assert.inc
+--let $status_var= Rpl_semi_sync_master_clients
+--let $status_var_value= 0
+--source include/wait_for_status_var.inc
 
 # Step 4.6: So uninstalling semi sync plugin should be allowed
 UNINSTALL PLUGIN rpl_semi_sync_master;
