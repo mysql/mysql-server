@@ -2444,6 +2444,9 @@ Item_field::Item_field(Field *f)
    item_equal(0), no_const_subst(0),
    have_privileges(0), any_privileges(0)
 {
+  if (f->table->pos_in_table_list != NULL)
+    context= &(f->table->pos_in_table_list->select_lex->context);
+
   set_field(f);
   /*
     field_name and table_name should not point to garbage
