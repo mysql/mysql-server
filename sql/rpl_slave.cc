@@ -6762,7 +6762,8 @@ bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
   */
   DBUG_ASSERT(!rli->gaq->full() ||
               ((rli->checkpoint_seqno == rli->checkpoint_group -1 &&
-                rli->mts_group_status == Relay_log_info::MTS_IN_GROUP) ||
+                (rli->mts_group_status == Relay_log_info::MTS_IN_GROUP ||
+                 rli->mts_group_status == Relay_log_info::MTS_KILLED_GROUP)) ||
                rli->checkpoint_seqno == rli->checkpoint_group));
 
   /*
