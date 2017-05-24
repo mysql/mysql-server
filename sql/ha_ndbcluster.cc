@@ -2983,8 +2983,6 @@ void ha_ndbcluster::release_metadata(THD *thd, Ndb *ndb)
     invalidate_indexes= 1;
   dict->removeTableGlobal(*m_table, invalidate_indexes);
 
-  // TODO investigate
-  DBUG_ASSERT(m_table_info == NULL);
   m_table_info= NULL;
 
   release_indexes(dict, invalidate_indexes);
@@ -10813,7 +10811,6 @@ int ha_ndbcluster::create(const char *name,
   NDBTAB tab;
   NDBCOL col;
   uint i, pk_length= 0;
-  bool is_truncate= (thd->lex->sql_command == SQLCOM_TRUNCATE);
   bool use_disk= FALSE;
   NdbDictionary::Table::SingleUserMode single_user_mode= NdbDictionary::Table::SingleUserModeLocked;
   bool ndb_sys_table= FALSE;
@@ -10960,6 +10957,7 @@ int ha_ndbcluster::create(const char *name,
     }
   }
 
+  const bool is_truncate = (thd_sql_command(thd) == SQLCOM_TRUNCATE);
   if (is_truncate)
   {
     Ndb_table_guard ndbtab_g(dict);
@@ -11963,6 +11961,55 @@ int ha_ndbcluster::create_ndb_index(THD *thd, const char *name,
   DBUG_PRINT("info", ("Created index %s", name));
   DBUG_RETURN(0);  
 }
+
+
+/**
+  Truncate a table in NDB, after this command there should
+  be no rows left in the table and the autoincrement
+  value should be reset to its start value.
+
+  This is currently implemented by dropping the table and
+  creating it again, thus rendering it empty
+
+  @param[in,out]  table_def dd::Table describing table to be
+                  truncated. Can be adjusted by SE, the changes
+                  will be saved in the DD at statement commit time.
+
+  @return         error number
+  @retval         0 on success
+*/
+
+int ha_ndbcluster::truncate(dd::Table *table_def)
+{
+  DBUG_ENTER("ha_ndbcluster::truncate");
+
+  /* Table should have been opened */
+  DBUG_ASSERT(m_table);
+
+  /* Fill in create_info from the open table */
+  HA_CREATE_INFO create_info;
+  update_create_info_from_table(&create_info, table);
+
+  // Close the table, will always return 0
+  (void)close();
+
+  // Call ha_ndbcluster::create which will detect that this is a
+  // truncate and thus drop the table before creating it again.
+  const int truncate_error =
+      create(table->s->normalized_path.str, table,
+             &create_info,
+             table_def);
+
+  // Open the table again even if the truncate failed, the caller
+  // expect the table to be open. Report any error during open.
+  const int open_error =
+      open(table->s->normalized_path.str, 0, 0, table_def);
+
+  if (truncate_error)
+    DBUG_RETURN(truncate_error);
+  DBUG_RETURN(open_error);
+}
+
 
 
 int ha_ndbcluster::prepare_inplace__add_index(THD *thd,
@@ -14081,8 +14128,7 @@ int ndbcluster_init(void* p)
     h->partition_flags=  ndbcluster_partition_flags; /* Partition flags */
     h->fill_is_table=    ndbcluster_fill_is_table;
     ndbcluster_binlog_init(h);
-    h->flags=            HTON_CAN_RECREATE |
-                         HTON_TEMPORARY_NOT_SUPPORTED |
+    h->flags=            HTON_TEMPORARY_NOT_SUPPORTED |
                          HTON_NO_BINLOG_ROW_OPT |
                          HTON_SUPPORTS_FOREIGN_KEYS;
     h->discover=         ndbcluster_discover;
@@ -14613,6 +14659,16 @@ ulonglong ha_ndbcluster::table_flags(void) const
      for generic problem with forcing STATEMENT logging see BUG16482501.
    */
   if (Ndb_dist_priv_util::is_distributed_priv_table(m_dbname,m_tabname))
+    f= (f | HA_BINLOG_STMT_CAPABLE) & ~HA_HAS_OWN_BINLOGGING;
+
+  /*
+     Allow MySQL Server to decide that STATEMENT logging should be used
+     during TRUNCATE TABLE, thus writing the truncate query to the binlog
+     in STATEMENT format. Basically this is shortcutting the logic
+     in THD::decide_logging_format() to not handle the truncated
+     table as a "no_replicate" table.
+  */
+  if (thd_sql_command(thd) == SQLCOM_TRUNCATE)
     f= (f | HA_BINLOG_STMT_CAPABLE) & ~HA_HAS_OWN_BINLOGGING;
 
   /**
