@@ -6243,7 +6243,9 @@ void Ndbcntr::execRESTORABLE_GCI_REP(Signal *signal)
   jamEntry();
   Uint32 gci = signal->theData[0];
   m_max_completed_gci = gci;
-  DEB_LCP(("max_completed_gci: %u", gci));
+  DEB_LCP(("(%u)max_completed_gci: %u",
+           instance(),
+           gci));
   if (is_ready_to_cut_log_tail())
   {
     jam();

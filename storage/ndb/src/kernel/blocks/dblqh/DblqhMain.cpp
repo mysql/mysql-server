@@ -132,6 +132,13 @@ extern EventLogger * g_eventLogger;
 #define DEB_LOCAL_LCP(arglist) do { } while (0)
 #endif
 
+#define DEBUG_LOCAL_LCP_EXTRA
+#ifdef DEBUG_LOCAL_LCP_EXTRA
+#define DEB_LOCAL_LCP_EXTRA(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_LOCAL_LCP_EXTRA(arglist) do { } while (0)
+#endif
+
 //#define DEBUG_REDO_FLAG
 #ifdef DEBUG_REDO_FLAG
 #define DEB_REDO(arglist) do { g_eventLogger->info arglist ; } while (0)
@@ -15933,7 +15940,8 @@ void Dblqh::send_lastLCP_FRAG_ORD(Signal *signal)
    * c_lcpId here. It will later be restored to its original value
    * using c_saveLcpId.
    */
-  DEB_LOCAL_LCP(("Send last LCP_FRAG_ORD, c_full_local_lcp_started: %u",
+  DEB_LOCAL_LCP(("(%u)Send last LCP_FRAG_ORD, c_full_local_lcp_started: %u",
+                 instance(),
                  c_full_local_lcp_started));
   LcpFragOrd *lcpFragOrd = (LcpFragOrd *)signal->getDataPtrSend();
   lcpFragOrd->tableId = RNIL;
@@ -16484,10 +16492,10 @@ Dblqh::execUNDO_LOG_LEVEL_REP(Signal *signal)
   UndoLogLevelRep *rep = (UndoLogLevelRep*)signal->getDataPtr();
   Uint32 levelUsed = rep->levelUsed;
 
-  DEB_LOCAL_LCP(("(%u)UNDO_LOG_LEVEL: %u percent, copy in progress: %u",
-                 instance(),
-                 levelUsed,
-                 c_copy_fragment_in_progress));
+  DEB_LOCAL_LCP_EXTRA(("(%u)UNDO_LOG_LEVEL: %u percent, copy in progress: %u",
+                       instance(),
+                       levelUsed,
+                       c_copy_fragment_in_progress));
   if (c_copy_fragment_in_progress)
   {
     if (levelUsed >= OVERLOAD_LEVEL)
@@ -17426,7 +17434,8 @@ Dblqh::lcp_max_completed_gci(Uint32 & completedGci,
   }
 
   completedGci = fragptr.p->maxGciCompletedInLcp;
-  DEB_LCP(("maxGciCompletedInLcp = %u, tab(%u,%u)",
+  DEB_LCP(("(%u)maxGciCompletedInLcp = %u, tab(%u,%u)",
+           instance(),
            completedGci,
            fragptr.p->tabRef,
            fragptr.p->fragId));

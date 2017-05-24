@@ -534,6 +534,7 @@ public:
       {
         m_wait_end_lcp = false;
         m_initial_lcp_started = false;
+        localLcpId = 0;
         /*
           report of backup status uses these variables to keep track
           if backup ia running and current state
