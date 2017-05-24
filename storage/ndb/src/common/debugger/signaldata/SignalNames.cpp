@@ -866,6 +866,5 @@ const GsnName SignalNames [] = {
   ,{ GSN_LCP_START_REP, "LCP_START_REP" }
   ,{ GSN_INFORM_BACKUP_DROP_TAB_REQ, "INFORM_BACKUP_DROP_TAB_REQ" }
   ,{ GSN_INFORM_BACKUP_DROP_TAB_CONF, "INFORM_BACKUP_DROP_TAB_CONF" }
-  ,{ GSN_INFO_GCP_STOP_TIMER, "INFO_GCP_STOP_TIMER" }
 };
 const unsigned short NO_OF_SIGNAL_NAMES = sizeof(SignalNames)/sizeof(GsnName);
