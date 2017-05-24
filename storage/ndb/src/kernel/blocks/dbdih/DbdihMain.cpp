@@ -10408,7 +10408,6 @@ void Dbdih::execMASTER_GCPREQ(Signal* signal)
      */
     gcpState = MasterGCPConf::GCP_READY; //Compiler keep quiet
     ndbrequire(false);
-    gcpState = MasterGCPConf::GCP_READY; //Dead code to silence compiler
   }
 
   MasterGCPConf::SaveState saveState;

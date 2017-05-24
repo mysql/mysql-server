@@ -35,6 +35,13 @@
 #define DEB_LCP(arglist) do { } while (0)
 #endif
 
+//#define DEBUG_NR_SCAN 1
+#ifdef DEBUG_NR_SCAN
+#define DEB_NR_SCAN(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_NR_SCAN(arglist) do { } while (0)
+#endif
+
 #define DEBUG_LCP_SCANNED_BIT 1
 
 #ifdef VM_TRACE
@@ -126,10 +133,12 @@ Dbtup::execACC_SCANREQ(Signal* signal)
       scanPtr.p->m_endPage = req->maxPage;
       if (req->maxPage != RNIL && req->maxPage > frag.m_max_page_cnt)
       {
-        ndbout_c("%u %u endPage: %u (noOfPages: %u maxPage: %u)", 
-                 tablePtr.i, fragId,
-                 req->maxPage, fragPtr.p->noOfPages,
-                 fragPtr.p->m_max_page_cnt);
+        DEB_NR_SCAN(("%u %u endPage: %u (noOfPages: %u maxPage: %u)", 
+                     tablePtr.i,
+                     fragId,
+                     req->maxPage,
+                     fragPtr.p->noOfPages,
+                     fragPtr.p->m_max_page_cnt));
       }
     }
     else if (AccScanReq::getLcpScanFlag(req->requestInfo))
@@ -604,13 +613,13 @@ Dbtup::execACCKEYREF(Signal* signal)
 	jam();
 	scan.m_state = ScanOp::Next;
 	scan.m_scanPos.m_get = ScanPos::Get_tuple;
-	ndbout_c("Ignoring scan.m_state == ScanOp::Blocked, refetch");
+	DEB_NR_SCAN(("Ignoring scan.m_state == ScanOp::Blocked, refetch"));
       }
       else
       {
 	jam();
 	scan.m_state = ScanOp::Next;
-	ndbout_c("Ignoring scan.m_state == ScanOp::Blocked");
+	DEB_NR_SCAN(("Ignoring scan.m_state == ScanOp::Blocked"));
       }
     }
     // LQH has the ball
@@ -892,7 +901,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
               if (key.m_page_no < scan.m_endPage)
               {
                 jam();
-                ndbout_c("scanning page %u", key.m_page_no);
+                DEB_NR_SCAN(("scanning page %u", key.m_page_no));
                 goto cont;
               }
               jam();

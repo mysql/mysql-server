@@ -15715,7 +15715,8 @@ void Dblqh::start_local_lcp(Signal *signal,
      */
     c_local_lcp_started = true;
     c_max_keep_gci_in_lcp = 
-      (crestartNewestGci == 0 || crestartNewestGci == 1) ?
+      (crestartNewestGci == 0 ||
+       crestartNewestGci == ZUNDEFINED_GCI_LIMIT) ?
                             2 : crestartNewestGci;
     c_first_set_min_keep_gci = true;
     c_current_local_lcp_instance++;
@@ -20855,7 +20856,7 @@ void Dblqh::execSTART_FRAGREQ(Signal* signal)
   {
     jam();
     if (crestartNewestGci == 0 ||
-        crestartNewestGci == 1)
+        crestartNewestGci == ZUNDEFINED_GCI_LIMIT)
     {
       jam();
       crestartNewestGci = nodeRestorableGci;
@@ -21381,7 +21382,7 @@ void Dblqh::execSTART_RECREQ(Signal* signal)
   cmasterDihBlockref = req->senderRef;
 
   ndbrequire(crestartNewestGci == 0 ||
-             crestartNewestGci == 1 ||
+             crestartNewestGci == ZUNDEFINED_GCI_LIMIT ||
              crestartNewestGci == req->lastCompletedGci);
 
   crestartOldestGci = req->keepGci;
@@ -24060,8 +24061,8 @@ void Dblqh::initFourth(Signal* signal)
   jamEntry();
   logPartPtr.i = signal->theData[0];
   ptrCheckGuard(logPartPtr, clogPartFileSize, logPartRecord);
-  crestartNewestGci = 1;
-  crestartOldestGci = 1;
+  crestartNewestGci = ZUNDEFINED_GCI_LIMIT;
+  crestartOldestGci = ZUNDEFINED_GCI_LIMIT;
   /* ------------------------------------------------------------------------
    *       INITIALISE LOG PART AND LOG FILES AS NEEDED.
    * ----------------------------------------------------------------------- */
