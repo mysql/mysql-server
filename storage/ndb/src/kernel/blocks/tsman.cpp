@@ -1211,6 +1211,7 @@ Tsman::execFSOPENCONF(Signal* signal)
     jam();
     const Uint32 extents = ptr.p->m_create.m_data_pages/ts_ptr.p->m_extent_size;
     ts_ptr.p->m_total_extents += Uint64(extents); // At initial start
+    DEB_TSMAN_NUM_EXTENTS(("Total num_extents: %llu", ts_ptr.p->m_total_extents));
     
     CreateFileImplConf* conf= (CreateFileImplConf*)signal->getDataPtr();
     conf->senderData = ptr.p->m_create.m_senderData;
@@ -1442,6 +1443,7 @@ Tsman::execFSREADCONF(Signal* signal){
     m_global_page_pool.release(page_ptr);
 
     ts_ptr.p->m_total_extents += Uint64(extents); // At node restart
+    DEB_TSMAN_NUM_EXTENTS(("Total num_extents: %llu", ts_ptr.p->m_total_extents));
 
     CreateFileImplConf* conf= (CreateFileImplConf*)signal->getDataPtr();
     conf->senderData = ptr.p->m_create.m_senderData;
