@@ -138,6 +138,7 @@ count(*)
 2
 DROP TABLE t1;
 set global innodb_file_per_table=1;
+set names utf8;
 CREATE TABLE t1 (
 id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 a TEXT,
@@ -166,7 +167,7 @@ SELECT count(*) FROM t1
 WHERE MATCH (a,b,c)
 AGAINST ('"very blob"@4' IN BOOLEAN MODE);
 count(*)
-4
+5
 SELECT count(*) FROM t1
 WHERE MATCH (a,b,c)
 AGAINST ('"interesting blob"@9' IN BOOLEAN MODE);
@@ -181,7 +182,7 @@ SELECT COUNT(*) FROM t1
 WHERE MATCH (a,b,c)
 AGAINST ('"very blob"@4 - "interesting blob"@9' IN BOOLEAN MODE);
 COUNT(*)
-3
+4
 DROP TABLE t1;
 CREATE TABLE t1 (
 id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
