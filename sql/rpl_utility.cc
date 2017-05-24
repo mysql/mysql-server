@@ -59,6 +59,7 @@
 
 using std::min;
 using std::max;
+using std::unique_ptr;
 using binary_log::checksum_crc32;
 
 #endif //MYSQL_SERVER
@@ -1035,24 +1036,9 @@ table_def::~table_def()
   Utility methods for handling row based operations.
  */
 
-static const uchar*
-hash_slave_rows_get_key(const uchar *record,
-                        size_t *length)
-{
-  DBUG_ENTER("get_key");
-
-  HASH_ROW_ENTRY *entry=(HASH_ROW_ENTRY *) record;
-  HASH_ROW_PREAMBLE *preamble= entry->preamble;
-  *length= preamble->length;
-
-  DBUG_RETURN((uchar*) &preamble->hash_value);
-}
-
-static void
-hash_slave_rows_free_entry(void *ptr)
+void hash_slave_rows_free_entry::operator() (HASH_ROW_ENTRY *entry) const
 {
   DBUG_ENTER("free_entry");
-  HASH_ROW_ENTRY *entry= pointer_cast<HASH_ROW_ENTRY*>(ptr);
   if (entry)
   {
     if (entry->preamble)
@@ -1066,7 +1052,7 @@ hash_slave_rows_free_entry(void *ptr)
 
 bool Hash_slave_rows::is_empty(void)
 {
-  return (m_hash.records == 0);
+  return m_hash.empty();
 }
 
 /**
@@ -1075,29 +1061,18 @@ bool Hash_slave_rows::is_empty(void)
 
 bool Hash_slave_rows::init(void)
 {
-  if (my_hash_init(&m_hash,
-                   &my_charset_bin,                /* the charater set information */
-                   16 /* TODO */,                  /* size */
-                   0,                              /* key length */
-                   hash_slave_rows_get_key,        /* get function pointer */
-                   hash_slave_rows_free_entry,     /* freefunction pointer */
-                   0,                              /* flags */
-                   key_memory_HASH_ROW_ENTRY))     /* memory instrumentation key */
-    return true;
   return false;
 }
 
 bool Hash_slave_rows::deinit(void)
 {
-  if (my_hash_inited(&m_hash))
-    my_hash_free(&m_hash);
-
+  m_hash.clear();
   return 0;
 }
 
 int Hash_slave_rows::size()
 {
-  return m_hash.records;
+  return m_hash.size();
 }
 
 HASH_ROW_ENTRY* Hash_slave_rows::make_entry()
@@ -1123,8 +1098,7 @@ HASH_ROW_ENTRY* Hash_slave_rows::make_entry(const uchar* bi_start, const uchar* 
      Filling in the preamble.
    */
   preamble->hash_value= 0;
-  preamble->length= sizeof(my_hash_value_type);
-  preamble->search_state= HASH_ROWS_POS_SEARCH_INVALID;
+  preamble->search_state= m_hash.end();
   preamble->is_search_state_inited= false;
 
   /**
@@ -1169,7 +1143,8 @@ Hash_slave_rows::put(TABLE *table,
   */
   preamble->hash_value= make_hash_key(table, cols);
 
-  my_hash_insert(&m_hash, (uchar *) entry);
+  m_hash.emplace(preamble->hash_value,
+                 unique_ptr<HASH_ROW_ENTRY, hash_slave_rows_free_entry>(entry));
   DBUG_PRINT("debug", ("Added record to hash with key=%u", preamble->hash_value));
   DBUG_RETURN(false);
 }
@@ -1178,7 +1153,6 @@ HASH_ROW_ENTRY*
 Hash_slave_rows::get(TABLE *table, MY_BITMAP *cols)
 {
   DBUG_ENTER("Hash_slave_rows::get");
-  HASH_SEARCH_STATE state;
   my_hash_value_type key;
   HASH_ROW_ENTRY *entry= NULL;
 
@@ -1186,11 +1160,8 @@ Hash_slave_rows::get(TABLE *table, MY_BITMAP *cols)
 
   DBUG_PRINT("debug", ("Looking for record with key=%u in the hash.", key));
 
-  entry= (HASH_ROW_ENTRY*) my_hash_first(&m_hash,
-                                         (const uchar*) &key,
-                                         sizeof(my_hash_value_type),
-                                         &state);
-  if (entry)
+  const auto it= m_hash.find(key);
+  if (it != m_hash.end())
   {
     DBUG_PRINT("debug", ("Found record with key=%u in the hash.", key));
 
@@ -1198,7 +1169,8 @@ Hash_slave_rows::get(TABLE *table, MY_BITMAP *cols)
        Save the search state in case we need to go through entries for
        the given key.
     */
-    entry->preamble->search_state= state;
+    entry= it->second.get();
+    entry->preamble->search_state= it;
     entry->preamble->is_search_state_inited= true;
   }
 
@@ -1219,35 +1191,33 @@ bool Hash_slave_rows::next(HASH_ROW_ENTRY** entry)
     DBUG_RETURN(true);
 
   my_hash_value_type key= preamble->hash_value;
-  HASH_SEARCH_STATE state= preamble->search_state;
+  const auto it= std::next(preamble->search_state);
 
   /*
     Invalidate search for current preamble, because it is going to be
     used in the search below (and search state is used in a
     one-time-only basis).
    */
-  preamble->search_state= HASH_ROWS_POS_SEARCH_INVALID;
+  preamble->search_state= m_hash.end();
   preamble->is_search_state_inited= false;
 
   DBUG_PRINT("debug", ("Looking for record with key=%u in the hash (next).", key));
 
-  /**
-     Do the actual search in the hash table.
-   */
-  *entry= (HASH_ROW_ENTRY*) my_hash_next(&m_hash,
-                                         (const uchar*) &key,
-                                         sizeof(my_hash_value_type),
-                                         &state);
-  if (*entry)
+  if (it != m_hash.end() && it->first == key)
   {
     DBUG_PRINT("debug", ("Found record with key=%u in the hash (next).", key));
+    *entry= it->second.get();
     preamble= (*entry)->preamble;
 
     /**
        Save the search state for next iteration (if any).
      */
-    preamble->search_state= state;
+    preamble->search_state= it;
     preamble->is_search_state_inited= true;
+  }
+  else
+  {
+    *entry= nullptr;
   }
 
   DBUG_RETURN(false);
@@ -1259,8 +1229,7 @@ Hash_slave_rows::del(HASH_ROW_ENTRY *entry)
   DBUG_ENTER("Hash_slave_rows::del");
   DBUG_ASSERT(entry);
 
-  if (my_hash_delete(&m_hash, (uchar *) entry))
-    DBUG_RETURN(true);
+  erase_specific_element(&m_hash, entry->preamble->hash_value, entry);
   DBUG_RETURN(false);
 }
 
