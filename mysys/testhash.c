@@ -169,6 +169,11 @@ static int do_test()
   for (j=0 ; j < 1000 ; j++)
     if (key1[j] > 1)
       break;
+  if (j >= 1000)
+  {
+    printf("All keys are <= 1\n");
+    goto err;
+  }
   if (key1[j] > 1)
   {
     HASH_SEARCH_STATE state;
