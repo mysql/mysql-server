@@ -28,11 +28,10 @@
 #include "ngs/protocol_encoder.h"
 #include "streaming_command_delegate.h"
 
-// Same user account should be add to
-// scripts/mysql_system_tables_data.sql
-#define MYSQLXSYS_USER "mysqlxsys"
+// Use an internal MySQL server user
+#define MYSQL_SESSION_USER "mysql.session"
 #define MYSQLXSYS_HOST "localhost"
-#define MYSQLXSYS_ACCOUNT MYSQLXSYS_USER "@" MYSQLXSYS_HOST
+#define MYSQLXSYS_ACCOUNT "'" MYSQL_SESSION_USER "'@'" MYSQLXSYS_HOST "'"
 
 namespace ngs {
 class IOptions_session;
