@@ -384,7 +384,7 @@ GRANT SUPER ON *.* TO u1;
 --echo # the case when upgrade is run against a database that was created by
 --echo # mysql server without support for XA_RECOVER_ADMIN.
 REVOKE XA_RECOVER_ADMIN ON *.* FROM root@localhost;
-REVOKE XA_RECOVER_ADMIN ON *.* FROM `mysql.session_user`@localhost;
+REVOKE XA_RECOVER_ADMIN ON *.* FROM `mysql.session`@localhost;
 
 --echo # We show here that the users root@localhost and u1 have the privilege
 --echo # SUPER and don't have the privilege XA_RECOVER_ADMIN
@@ -412,9 +412,9 @@ SHOW GRANTS FOR u1;
 --echo # granted during upgrade.
 
 --echo # Revoke the privilege XA_RECOVER_ADMIN from the user u1 and
---echo # mysql.session_user@localhost
+--echo # mysql.session@localhost
 REVOKE XA_RECOVER_ADMIN ON *.* FROM u1;
-REVOKE XA_RECOVER_ADMIN ON *.* FROM `mysql.session_user`@localhost;
+REVOKE XA_RECOVER_ADMIN ON *.* FROM `mysql.session`@localhost;
 
 --echo # Start upgrade
 # Filter out ndb_binlog_index to mask differences due to running with or

@@ -471,7 +471,7 @@ Warning	1287	The SUPER privilege identifier is deprecated
 # the case when upgrade is run against a database that was created by
 # mysql server without support for XA_RECOVER_ADMIN.
 REVOKE XA_RECOVER_ADMIN ON *.* FROM root@localhost;
-REVOKE XA_RECOVER_ADMIN ON *.* FROM `mysql.session_user`@localhost;
+REVOKE XA_RECOVER_ADMIN ON *.* FROM `mysql.session`@localhost;
 # We show here that the users root@localhost and u1 have the privilege
 # SUPER and don't have the privilege XA_RECOVER_ADMIN
 SHOW GRANTS FOR root@localhost;
@@ -540,9 +540,9 @@ GRANT XA_RECOVER_ADMIN ON *.* TO `u1`@`%` WITH GRANT OPTION
 # the privilege SUPER assigned the privilege XA_RECOVER_ADMIN won't be
 # granted during upgrade.
 # Revoke the privilege XA_RECOVER_ADMIN from the user u1 and
-# mysql.session_user@localhost
+# mysql.session@localhost
 REVOKE XA_RECOVER_ADMIN ON *.* FROM u1;
-REVOKE XA_RECOVER_ADMIN ON *.* FROM `mysql.session_user`@localhost;
+REVOKE XA_RECOVER_ADMIN ON *.* FROM `mysql.session`@localhost;
 # Start upgrade
 mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
