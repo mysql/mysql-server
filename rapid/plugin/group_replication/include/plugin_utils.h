@@ -24,11 +24,23 @@
 #include "plugin_psi.h"
 #include <mysql/group_replication_priv.h>
 
-/**
-  This method instructs all local transactions to rollback when certification is
-  no longer possible.
-*/
-void unblock_waiting_transactions();
+class Blocked_transaction_handler
+{
+public:
+  Blocked_transaction_handler();
+  virtual ~Blocked_transaction_handler();
+
+  /**
+    This method instructs all local transactions to rollback when certification is
+    no longer possible.
+  */
+  void unblock_waiting_transactions();
+
+private:
+
+  /* The lock that disallows concurrent method executions */
+  mysql_mutex_t unblocking_process_lock;
+};
 
 template <typename T>
 class Synchronized_queue

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -191,6 +191,9 @@ int Delayed_initialization_thread::initialization_thread_handler()
       error= GROUP_REPLICATION_REPLICATION_APPLIER_INIT_ERROR;
       goto err;
     }
+
+    initialize_group_partition_handler();
+    blocked_transaction_handler= new Blocked_transaction_handler();
 
     /*
      At this point in the code, set the super_read_only mode here on the

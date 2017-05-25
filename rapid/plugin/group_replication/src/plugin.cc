@@ -56,6 +56,10 @@ Shared_writelock *shared_plugin_stop_lock;
 Read_mode_handler *read_mode_handler= NULL;
 //Initialization thread for server starts
 Delayed_initialization_thread *delayed_initialization_thread= NULL;
+//The transaction handler for network partitions
+Group_partition_handling *group_partition_handler= NULL;
+//The handler for transaction killing when an error or partition happens
+Blocked_transaction_handler *blocked_transaction_handler= NULL;
 
 /* Group communication options */
 char *local_address_var= NULL;
@@ -148,6 +152,9 @@ int write_set_extraction_algorithm= HASH_ALGORITHM_OFF;
 
 /* Generic components variables */
 ulong components_stop_timeout_var= LONG_TIMEOUT;
+
+/* The timeout before going to error when majority becomes unreachable */
+ulong timeout_on_unreachable_var= 0;
 
 /**
   The default value for auto_increment_increment is choosen taking into
@@ -475,6 +482,8 @@ int plugin_group_replication_start()
   }
 
   initialize_asynchronous_channels_observer();
+  initialize_group_partition_handler();
+  blocked_transaction_handler= new Blocked_transaction_handler();
 
   DBUG_EXECUTE_IF("group_replication_read_mode_error",
                   { read_mode_handler->set_to_fail(); };);
@@ -582,7 +591,6 @@ void init_compatibility_manager()
 
   compatibility_mgr= new Compatibility_module();
 }
-
 
 int configure_compatibility_manager()
 {
@@ -705,7 +713,7 @@ int plugin_group_replication_stop()
   if (timeout)
   {
     //if they are blocked, kill them
-    unblock_waiting_transactions();
+    blocked_transaction_handler->unblock_waiting_transactions();
   }
 
   /* first leave all joined groups (currently one) */
@@ -767,6 +775,12 @@ int terminate_plugin_modules(bool read_mode_set)
     }
     delete sql_command_interface;
   }
+
+  delete group_partition_handler;
+  group_partition_handler= NULL;
+
+  delete blocked_transaction_handler;
+  blocked_transaction_handler= NULL;
 
   delete read_mode_handler;
 
@@ -1087,6 +1101,13 @@ int configure_and_start_applier_module()
                 "Group Replication applier module successfully initialized!");
 
   DBUG_RETURN(error);
+}
+
+void initialize_group_partition_handler()
+{
+  group_partition_handler=
+      new Group_partition_handling(shared_plugin_stop_lock,
+                                   timeout_on_unreachable_var);
 }
 
 int terminate_applier_module()
@@ -2078,6 +2099,22 @@ check_enforce_update_everywhere_checks(MYSQL_THD thd, SYS_VAR *var,
   DBUG_RETURN(0);
 }
 
+static void update_unreachable_timeout(MYSQL_THD thd, SYS_VAR *var,
+                                       void *var_ptr, const void *save)
+{
+  DBUG_ENTER("update_unreachable_timeout");
+
+  ulong in_val= *static_cast<const ulong*>(save);
+  (*(ulong*) var_ptr)= (*(ulong*) save);
+
+  if (group_partition_handler != NULL)
+  {
+    group_partition_handler->update_timeout_on_unreachable(in_val);
+  }
+
+  DBUG_VOID_RETURN;
+}
+
 //Base plugin variables
 
 static MYSQL_SYSVAR_STR(
@@ -2516,6 +2553,20 @@ static MYSQL_SYSVAR_ULONG(
   0                                    /* block */
 );
 
+static MYSQL_SYSVAR_ULONG(
+  unreachable_majority_timeout,                    /* name */
+  timeout_on_unreachable_var,                      /* var */
+  PLUGIN_VAR_OPCMDARG,                             /* optional var */
+  "The number of seconds before going into error when a majority of members is unreachable."
+  "If 0 there is no action taken.",
+  NULL,                                            /* check func. */
+  update_unreachable_timeout,                      /* update func. */
+  0,                                               /* default */
+  0,                                               /* min */
+  LONG_TIMEOUT,                                    /* max */
+  0                                                /* block */
+);
+
 static SYS_VAR* group_replication_system_vars[]= {
   MYSQL_SYSVAR(group_name),
   MYSQL_SYSVAR(start_on_boot),
@@ -2550,6 +2601,7 @@ static SYS_VAR* group_replication_system_vars[]= {
   MYSQL_SYSVAR(flow_control_certifier_threshold),
   MYSQL_SYSVAR(flow_control_applier_threshold),
   MYSQL_SYSVAR(transaction_size_limit),
+  MYSQL_SYSVAR(unreachable_majority_timeout),
   NULL,
 };
 

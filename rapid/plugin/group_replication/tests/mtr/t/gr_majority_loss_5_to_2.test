@@ -58,7 +58,7 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 # We do kill the servers, using shutdown_server 0, and then MTR will
 # follow the expect file and restart the server, but we do not wait
 # for the server restart.
-# Since the servers loose its GCS configuration them will not rejoin
+# Since the servers loose its GCS configuration they will not rejoin
 # the group.
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc

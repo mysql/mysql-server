@@ -30,6 +30,7 @@
 #include "delayed_plugin_initialization.h"
 #include "gcs_operations.h"
 #include "asynchronous_channels_state_observer.h"
+#include "group_partition_handling.h"
 
 #include "plugin_constants.h"
 #include "plugin_server_include.h"
@@ -76,6 +77,8 @@ extern Plugin_gcs_events_handler* events_handler;
 extern Plugin_gcs_view_modification_notifier* view_change_notifier;
 extern Group_member_info* local_member_info;
 extern Compatibility_module* compatibility_mgr;
+extern Group_partition_handling* group_partition_handler;
+extern Blocked_transaction_handler* blocked_transaction_handler;
 
 //Plugin global methods
 bool server_engine_initialized();
@@ -86,6 +89,7 @@ int configure_group_member_manager(char *hostname, char *uuid,
 int configure_compatibility_manager();
 int terminate_applier_module();
 int initialize_recovery_module();
+void initialize_group_partition_handler();
 int terminate_recovery_module();
 int configure_group_communication(st_server_ssl_variables *ssl_variables);
 int start_group_communication();
