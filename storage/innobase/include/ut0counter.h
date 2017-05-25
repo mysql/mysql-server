@@ -53,6 +53,52 @@ struct generic_indexer_t {
         }
 };
 
+#ifdef HAVE_SCHED_GETCPU
+#include <sched.h>
+/** Use the cpu id to index into the counter array. If it fails then
+use the thread id. */
+template <typename Type=ulint, int N=1>
+struct get_sched_indexer_t : public generic_indexer_t<Type, N> {
+	/** Default constructor/destructor should be OK. */
+
+	enum { fast = 1 };
+
+	/* @return result from sched_getcpu(), the thread id if it fails. */
+	static size_t get_rnd_index() UNIV_NOTHROW {
+
+		int	cpu = sched_getcpu();
+
+		if (cpu == -1) {
+			cpu = (int) os_thread_get_curr_id();
+		}
+
+		return(size_t(cpu));
+	}
+};
+#elif _WIN32
+template <typename Type=ulint, int N=1>
+struct get_sched_indexer_t : public generic_indexer_t<Type, N> {
+ 	/** Default constructor/destructor should be OK. */
+
+	enum { fast = 1 };
+
+	/* @return result from GetCurrentProcessorNumber (). */
+	static size_t get_rnd_index() UNIV_NOTHROW {
+
+		/* According to the Windows documentation, it returns the
+		processor number within the Processor group if the host
+		has more than 64 logical CPUs. We ignore that here. If the
+		processor number from a different group maps to the same
+		slot that is acceptable. We want to avoid making another
+		system call to determine the processor group. If this becomes
+		an issue, the fix is to multiply the group with the processor
+		number and use that, also note that the number of slots should
+		be increased to avoid overlap. */
+		return(size_t(GetCurrentProcessorNumber()));
+	}
+};
+#endif /* HAVE_SCHED_GETCPU */
+
 /** Use the result of my_timer_cycles(), which mainly uses RDTSC for cycles,
 to index into the counter array. See the comments for my_timer_cycles() */
 template <typename Type=ulint, int N=1>
@@ -106,7 +152,11 @@ struct single_indexer_t {
 	}
 };
 
-#define	default_indexer_t	counter_indexer_t
+#if defined(HAVE_SCHED_GETCPU) || defined(_WIN32)
+# define default_indexer_t	get_sched_indexer_t
+#else
+# define default_indexer_t	counter_indexer_t
+#endif
 
 /** Class for using fuzzy counters. The counter is not protected by any
 mutex and the results are not guaranteed to be 100% accurate but close

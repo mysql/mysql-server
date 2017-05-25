@@ -8714,8 +8714,7 @@ ha_innobase::index_read(
 	case DB_SUCCESS:
 		error = 0;
 		table->status = 0;
-		srv_stats.n_rows_read.add(
-			thd_get_thread_id(m_prebuilt->trx->mysql_thd), 1);
+		srv_stats.n_rows_read.inc();
 		break;
 
 	case DB_RECORD_NOT_FOUND:
@@ -9007,7 +9006,7 @@ ha_innobase::general_fetch(
 	case DB_SUCCESS:
 		error = 0;
 		table->status = 0;
-		srv_stats.n_rows_read.add(thd_get_thread_id(trx->mysql_thd), 1);
+		srv_stats.n_rows_read.inc();
 		break;
 	case DB_RECORD_NOT_FOUND:
 		error = HA_ERR_END_OF_FILE;
