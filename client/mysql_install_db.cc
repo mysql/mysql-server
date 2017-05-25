@@ -1045,19 +1045,19 @@ public:
     info << "Creating user for internal session service...";
 
     string create_session_serv_user(
-      "INSERT IGNORE INTO mysql.user VALUES ('localhost','mysql.session_user',"
+      "INSERT IGNORE INTO mysql.user VALUES ('localhost','mysql.session',"
         "'N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','Y','N',"
         "'N','N','N','N','N','N','N','N','N','N','N','N','','','','',0,0,0,0,"
         "'mysql_native_password','*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE',"
         "'N',CURRENT_TIMESTAMP,NULL,'Y');\n");
     string select_table_priv(
       "INSERT IGNORE INTO mysql.tables_priv VALUES ('localhost', 'mysql',"
-        " 'mysql.session_user', 'user', 'root@localhost', CURRENT_TIMESTAMP,"
+        " 'mysql.session', 'user', 'root@localhost', CURRENT_TIMESTAMP,"
         " 'Select', '');\n"
       );
     string select_db_priv(
       "INSERT IGNORE INTO mysql.db VALUES ('localhost', 'performance_schema',"
-        " 'mysql.session_user','Y','N','N','N','N','N','N','N','N','N','N','N',"
+        " 'mysql.session','Y','N','N','N','N','N','N','N','N','N','N','N',"
         "'N','N','N','N','N','N','N');\n"
     );
 
