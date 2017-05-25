@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017 Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -29,11 +29,10 @@
 #include "buffering_command_delegate.h"
 #include "streaming_command_delegate.h"
 
-// Same user account should be add to
-// scripts/mysql_system_tables_data.sql
-#define MYSQLXSYS_USER      "mysqlxsys"
-#define MYSQLXSYS_HOST      "localhost"
-#define MYSQLXSYS_ACCOUNT   MYSQLXSYS_USER "@" MYSQLXSYS_HOST
+// Use an internal MySQL server user
+#define MYSQL_SESSION_USER "mysql.session"
+#define MYSQLXSYS_HOST "localhost"
+#define MYSQLXSYS_ACCOUNT "'" MYSQL_SESSION_USER "'@'" MYSQLXSYS_HOST "'"
 
 
 namespace ngs

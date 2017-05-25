@@ -8,8 +8,8 @@ call mtr.add_suppression("Plugin mysqlx reported: '5.1: Unsuccessful login attem
 call mtr.add_suppression("Plugin mysqlx reported: '16.1: Unsuccessful login attempt: Account is locked.'");
 call mtr.add_suppression("Plugin mysqlx reported: '6.1: Unsuccessful login attempt: Invalid user or password'");
 call mtr.add_suppression("Plugin mysqlx reported: '1.1: Unsuccessful login attempt: Server works in offline mode.'");
-call mtr.add_suppression("Plugin mysqlx reported: '2.1: Unsuccessful login attempt: Unable to switch context to user mysqlxsys'");
-call mtr.add_suppression("Plugin mysqlx reported: 'Unable to switch context to user mysqlxsys'");
+call mtr.add_suppression("Plugin mysqlx reported: '2.1: Unsuccessful login attempt: Unable to switch context to user mysql.session'");
+call mtr.add_suppression("Plugin mysqlx reported: 'Unable to switch context to user mysql.session'");
 call mtr.add_suppression("Plugin mysqlx reported: 'Unable to accept connection, disconnecting client'");
 call mtr.add_suppression("Plugin mysqlx reported: 'Could not open internal MySQL session'");
 call mtr.add_suppression("Plugin mysqlx reported: '.*: Error initializing session for connection: Could not open session'");
@@ -320,8 +320,6 @@ Mysqlx_sessions_accepted	1
 Mysqlx_sessions_closed	1
 Mysqlx_sessions_killed	0
 Mysqlx_sessions_rejected	4
-Application terminated with expected error: Invalid user or password (code 1045)
-not ok
 show status like 'Mysqlx_connections_closed';
 Variable_name	Value
 Mysqlx_connections_closed	6
@@ -767,75 +765,6 @@ RUN show status like 'Mysqlx_connection_accept_errors'
 Got expected error: You must reset your password using ALTER USER statement before executing this statement. (code 1820)
 RUN show status where `Variable_name` like  'Mysqlx_sessions%' and not `Variable_name` like  'Mysqlx_sessions_fatal_error'
 Got expected error: You must reset your password using ALTER USER statement before executing this statement. (code 1820)
-Mysqlx.Ok {
-  msg: "bye!"
-}
-ok
-show status like 'Mysqlx_connections_closed';
-Variable_name	Value
-Mysqlx_connections_closed	1
-show status like 'Mysqlx_connections_accepted';
-Variable_name	Value
-Mysqlx_connections_accepted	1
-show status like 'Mysqlx_connection_accept_errors';
-Variable_name	Value
-Mysqlx_connection_accept_errors	0
-show status where `Variable_name` like  'Mysqlx_sessions%' and not `Variable_name` like  'Mysqlx_sessions_fatal_error';
-Variable_name	Value
-Mysqlx_sessions	0
-Mysqlx_sessions_accepted	1
-Mysqlx_sessions_closed	1
-Mysqlx_sessions_killed	0
-Mysqlx_sessions_rejected	0
-drop user mysqlxsys@localhost;
-Application terminated with expected error: Unable to switch context to user mysqlxsys (code 1045)
-not ok
-show status like 'Mysqlx_connections_closed';
-Variable_name	Value
-Mysqlx_connections_closed	2
-show status like 'Mysqlx_connections_accepted';
-Variable_name	Value
-Mysqlx_connections_accepted	2
-show status like 'Mysqlx_connection_accept_errors';
-Variable_name	Value
-Mysqlx_connection_accept_errors	0
-show status where `Variable_name` like  'Mysqlx_sessions%' and not `Variable_name` like  'Mysqlx_sessions_fatal_error';
-Variable_name	Value
-Mysqlx_sessions	0
-Mysqlx_sessions_accepted	1
-Mysqlx_sessions_closed	1
-Mysqlx_sessions_killed	0
-Mysqlx_sessions_rejected	1
-# restart: --plugin-load=mysqlx.so 
-RUN select user(),current_user(),@@bind_address
-user()	current_user()	@@bind_address
-root@localhost	root@localhost	*
-0 rows affected
-Got expected error (code 0)
-RUN show status like 'Mysqlx_connections_closed'
-Variable_name	Value
-Mysqlx_connections_closed	0
-0 rows affected
-Got expected error (code 0)
-RUN show status like 'Mysqlx_connections_accepted'
-Variable_name	Value
-Mysqlx_connections_accepted	1
-0 rows affected
-Got expected error (code 0)
-RUN show status like 'Mysqlx_connection_accept_errors'
-Variable_name	Value
-Mysqlx_connection_accept_errors	0
-0 rows affected
-Got expected error (code 0)
-RUN show status where `Variable_name` like  'Mysqlx_sessions%' and not `Variable_name` like  'Mysqlx_sessions_fatal_error'
-Variable_name	Value
-Mysqlx_sessions	1
-Mysqlx_sessions_accepted	1
-Mysqlx_sessions_closed	0
-Mysqlx_sessions_killed	0
-Mysqlx_sessions_rejected	0
-0 rows affected
-Got expected error (code 0)
 Mysqlx.Ok {
   msg: "bye!"
 }
