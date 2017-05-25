@@ -32,7 +32,11 @@ Created 2012/04/12 by Sunny Bains
 #include "os0thread.h"
 
 /** CPU cache line size */
+#ifdef __powerpc__
+#define CACHE_LINE_SIZE		128
+#else
 #define CACHE_LINE_SIZE		64
+#endif /* __powerpc__ */
 
 /** Default number of slots to use in ib_counter_t */
 #define IB_N_SLOTS		64

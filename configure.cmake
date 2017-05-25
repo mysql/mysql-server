@@ -1020,6 +1020,16 @@ IF(NOT CMAKE_CROSSCOMPILING AND NOT MSVC)
     }
    " HAVE_FAKE_PAUSE_INSTRUCTION)
   ENDIF()
+  IF (NOT HAVE_PAUSE_INSTRUCTION)
+    CHECK_C_SOURCE_COMPILES("
+    int main()
+    {
+     __asm__ __volatile__ (\"or 1,1,1\");
+     __asm__ __volatile__ (\"or 2,2,2\");
+     return 0;
+    }
+    " HAVE_HMT_PRIORITY_INSTRUCTION)
+  ENDIF()
 ENDIF()
   
 CHECK_SYMBOL_EXISTS(tcgetattr "termios.h" HAVE_TCGETATTR 1)
