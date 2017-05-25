@@ -11056,8 +11056,6 @@ create_table_info_t::create_table_def(
 		}
 	}
 
-	ut_ad(trx_state_eq(m_trx, TRX_STATE_NOT_STARTED));
-
 	/* Check whether there already exists a FTS_DOC_ID column */
 	if (create_table_check_doc_id_col(m_trx->mysql_thd,
 					  m_form, &doc_id_col)){
@@ -11187,9 +11185,6 @@ create_table_info_t::create_table_def(
 				mem_heap_free(heap);
 				dict_mem_table_free(table);
 
-				ut_ad(trx_state_eq(
-					m_trx, TRX_STATE_NOT_STARTED));
-
 				DBUG_RETURN(ER_CANT_CREATE_TABLE);
 			}
 		}
@@ -11226,7 +11221,6 @@ create_table_info_t::create_table_def(
 err_col:
 			dict_mem_table_free(table);
 			mem_heap_free(heap);
-			ut_ad(trx_state_eq(m_trx, TRX_STATE_NOT_STARTED));
 
 			err = DB_ERROR;
 			goto error_ret;
@@ -11311,8 +11305,6 @@ err_col:
 	    && !has_doc_id_col) {
 		fts_add_doc_id_column(table, heap);
 	}
-
-	ut_ad(trx_state_eq(m_trx, TRX_STATE_NOT_STARTED));
 
 	/* If temp table, then we avoid creation of entries in SYSTEM TABLES.
 	Given that temp table lifetime is limited to connection/server lifetime
@@ -11439,7 +11431,7 @@ err_col:
 
 		if (err == DB_SUCCESS) {
 			err = row_create_table_for_mysql(
-				table, algorithm, m_trx, false);
+				table, algorithm, m_trx);
 		}
 
 		if (err == DB_IO_NO_PUNCH_HOLE_FS) {
@@ -13013,10 +13005,8 @@ create_table_info_t::initialize()
 		DBUG_RETURN(HA_ERR_WRONG_INDEX);
 	}
 
-	/* Get the transaction associated with the current thd, or create one
-	if not yet created */
-
-	check_trx_exists(m_thd);
+	m_trx->will_lock++;
+	m_trx->ddl = true;
 
 	DBUG_RETURN(0);
 }
@@ -13256,12 +13246,6 @@ create_table_info_t::create_table(
 		dd_table_close(innobase_table, NULL, NULL, true);
 
 		if (error) {
-			trx_rollback_to_savepoint(m_trx, NULL);
-			m_trx->error_state = DB_SUCCESS;
-
-			row_drop_table_for_mysql(m_table_name, m_trx, FALSE);
-
-			m_trx->error_state = DB_SUCCESS;
 			DBUG_RETURN(error);
 		}
 	}
@@ -13315,11 +13299,6 @@ create_table_info_t::create_table(
 			m_trx, stmt, stmt_len, m_table_name,
 			m_create_info->options & HA_LEX_CREATE_TMP_TABLE,
 			dd_table);
-
-		if (trx_is_started(m_trx)) {
-			trx_commit(m_trx);
-			m_trx->op_info = "";
-		}
 
 		switch (err) {
 
@@ -13377,11 +13356,6 @@ create_table_info_t::create_table(
 		innobase_table = NULL;
 	}
 
-	if (trx_is_started(m_trx)) {
-		trx_commit(m_trx);
-		m_trx->op_info = "";
-	}
-
 	DBUG_RETURN(0);
 }
 
@@ -13434,8 +13408,6 @@ create_table_info_t::create_table_update_dict()
 	if (m_flags2 & DICT_TF2_FTS) {
 		if (!innobase_fts_load_stopword(innobase_table, NULL, m_thd)) {
 			dict_table_close(innobase_table, FALSE, FALSE);
-			srv_active_wake_master_thread();
-			trx_free_for_mysql(m_trx);
 			DBUG_RETURN(-1);
 		}
 	}
@@ -13554,16 +13526,6 @@ template int create_table_info_t::create_table_update_global_dd<dd::Table>(
 
 template int create_table_info_t::create_table_update_global_dd<dd::Partition>(
 	dd::Partition*);
-
-/** Allocate a new trx. */
-void
-create_table_info_t::allocate_trx()
-{
-	m_trx = innobase_trx_allocate(m_thd);
-
-	m_trx->will_lock++;
-	m_trx->ddl = true;
-}
 
 /** Check if a column is the only column in an index.
 @param[in]	index	data dictionary index
@@ -13933,11 +13895,19 @@ ha_innobase::create_table_impl(
 	char		norm_name[FN_REFLEN];	/* {database}/{tablename} */
 	char		remote_path[FN_REFLEN];	/* Absolute path of table */
 	char		tablespace[NAME_LEN];	/* Tablespace name identifier */
+	THD*		thd = ha_thd();
 	trx_t*		trx;
-	trx_t*		thd_trx = thd_to_trx(ha_thd());
 	DBUG_ENTER("ha_innobase::create");
 
-	create_table_info_t	info(ha_thd(),
+	/* Get the transaction associated with the current thd, or create one
+	if not yet created */
+	trx = check_trx_exists(thd);
+
+	if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE)) {
+		trx_start_if_not_started(trx, true);
+	}
+
+	create_table_info_t	info(thd,
 				     form,
 				     create_info,
 				     norm_name,
@@ -13955,10 +13925,6 @@ ha_innobase::create_table_impl(
 		DBUG_RETURN(error);
 	}
 
-	info.allocate_trx();
-
-	trx = info.trx();
-
 	bool	dict_locked = false;
 	bool	prevent_eviction = false;
 	bool	prevented = false;
@@ -13969,15 +13935,8 @@ ha_innobase::create_table_impl(
 	Table Object for such table is cached in THD instead of storing it
 	to dictionary. */
 	if (!info.is_intrinsic_temp_table()) {
-		/* We need to set the lock mode for both thd trx and
-		info.trx()).*/
-		if (thd_trx) {
-			row_mysql_lock_data_dictionary(thd_trx);
-			trx->dict_operation_lock_mode = RW_X_LATCH;
-		} else {
-			row_mysql_lock_data_dictionary(trx);
-		}
-
+		row_mysql_lock_data_dictionary(trx);
+		trx->dict_operation_lock_mode = RW_X_LATCH;
 		dict_locked = true;
 	}
 
@@ -13986,8 +13945,6 @@ ha_innobase::create_table_impl(
 		goto cleanup;
 	}
 
-	innobase_commit_low(trx);
-
 	if (!info.is_intrinsic_temp_table()) {
 		ut_ad(!srv_read_only_mode);
 
@@ -13995,18 +13952,9 @@ ha_innobase::create_table_impl(
 		prevent_eviction = info.prevent_eviction();
 		prevented = true;
 
-		if (thd_trx) {
-			row_mysql_unlock_data_dictionary(thd_trx);
-			trx->dict_operation_lock_mode = 0;
-		} else {
-			row_mysql_unlock_data_dictionary(trx);
-		}
-
+		row_mysql_unlock_data_dictionary(trx);
+		trx->dict_operation_lock_mode = 0;
 		dict_locked = false;
-		/* Flush the log to reduce probability that the .frm files and
-		the InnoDB data dictionary get out-of-sync if the user runs
-		with innodb_flush_log_at_trx_commit = 0 */
-		log_buffer_flush_to_disk();
 	}
 
 	if ((error = info.create_table_update_global_dd(dd_tab))) {
@@ -14019,13 +13967,6 @@ ha_innobase::create_table_impl(
 		info.detach(prevent_eviction, false);
 	}
 
-	/* Tell the InnoDB server that there might be work for
-	utility threads: */
-
-	srv_active_wake_master_thread();
-
-	trx_free_for_mysql(trx);
-
 	DBUG_RETURN(error);
 
 cleanup:
@@ -14033,20 +13974,12 @@ cleanup:
 		info.detach(prevent_eviction, dict_locked);
 	}
 
-	trx_rollback_for_mysql(trx);
-
 	if (!info.is_intrinsic_temp_table()) {
 		if (dict_locked) {
-			if (thd_trx) {
-				row_mysql_unlock_data_dictionary(thd_trx);
-				trx->dict_operation_lock_mode = 0;
-			} else {
-				row_mysql_unlock_data_dictionary(trx);
-			}
+			row_mysql_unlock_data_dictionary(trx);
+			trx->dict_operation_lock_mode = 0;
 		}
 	} else {
-		THD* thd = info.thd();
-
 		dict_table_t* intrinsic_table =
 			thd_to_innodb_session(thd)->lookup_table_handler(
 			info.table_name());
@@ -14072,8 +14005,6 @@ cleanup:
 			intrinsic_table = NULL;
 		}
 	}
-
-	trx_free_for_mysql(trx);
 
 	DBUG_RETURN(error);
 }
@@ -14845,13 +14776,12 @@ innobase_create_tablespace(
 
 	/* Get the transaction associated with the current thd and make
 	sure it will not block this DDL. */
-	check_trx_exists(thd);
-
-	/* Allocate a new transaction for this DDL */
-	trx = innobase_trx_allocate(thd);
-	++trx->will_lock;
+	trx = check_trx_exists(thd);
 
 	trx_start_if_not_started(trx, true);
+
+	++trx->will_lock;
+
 	row_mysql_lock_data_dictionary(trx);
 
 	/* In FSP_FLAGS, a zip_ssize of zero means that the tablespace
@@ -14878,22 +14808,17 @@ innobase_create_tablespace(
 	err = dict_build_tablespace(trx, &tablespace);
 	if (err != DB_SUCCESS) {
 		error = convert_error_code_to_mysql(err, 0, NULL);
-		trx_rollback_for_mysql(trx);
 		goto cleanup;
 	}
 
 	err = btr_sdi_create_indexes(tablespace.space_id(), true);
 	if (err != DB_SUCCESS) {
 		error = convert_error_code_to_mysql(err, 0, NULL);
-		trx_rollback_for_mysql(trx);
 		goto cleanup;
 	}
 
-	innobase_commit_low(trx);
-
 cleanup:
 	row_mysql_unlock_data_dictionary(trx);
-	trx_free_for_mysql(trx);
 
 	if (err == DB_SUCCESS) {
 		dd_write_tablespace(dd_space, tablespace);
@@ -14942,21 +14867,15 @@ innobase_drop_tablespace(
 
 	/* Get the transaction associated with the current thd and make sure
 	it will not block this DDL. */
-	check_trx_exists(thd);
-
-	/* Allocate a new transaction for this DDL */
-	trx = innobase_trx_allocate(thd);
-	++trx->will_lock;
+	trx = check_trx_exists(thd);
 
 	trx_start_if_not_started(trx, true);
+
+	++trx->will_lock;
 
 	log_ddl->writeDeleteSpaceLog(
 		trx, NULL, space_id, dd_tablespace_get_filename(dd_space),
 		true, false);
-	/* WL#9536 TODO: Only server should commit the trx */
-	innobase_commit_low(trx);
-
-	trx_free_for_mysql(trx);
 
 	DBUG_RETURN(error);
 }

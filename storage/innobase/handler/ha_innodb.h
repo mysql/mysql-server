@@ -885,6 +885,11 @@ innobase_parse_hint_from_comment(
 	dict_table_t*		table,
 	const TABLE_SHARE*	table_share);
 
+/** Obtain the InnoDB transaction of a MySQL thread.
+@param[in,out]	thd	MySQL thread handler.
+@return	reference to transaction pointer */
+trx_t*& thd_to_trx(THD* thd);
+
 /** Class for handling create table information. */
 class create_table_info_t
 {
@@ -902,6 +907,7 @@ public:
 		char*		tablespace,
 		bool		file_per_table)
 	:m_thd(thd),
+	m_trx(thd_to_trx(thd)),
 	m_form(form),
 	m_create_info(create_info),
 	m_table_name(table_name),
@@ -952,8 +958,6 @@ public:
 	/** Prepare to create a table. */
 	int prepare_create_table(const char* name);
 
-	void allocate_trx();
-
 	/** Determines InnoDB table flags.
 	If strict_mode=OFF, this will adjust the flags to what should be assumed.
 	@retval true if successful, false if error */
@@ -969,10 +973,6 @@ public:
 	/** Get table flags2. */
 	ulint flags2() const
 	{ return(m_flags2); }
-
-	/** Get trx. */
-	trx_t* trx() const
-	{ return(m_trx); }
 
 	/** Return table name. */
 	const char* table_name() const
@@ -1165,11 +1165,6 @@ innodb_base_col_setup_for_stored(
 #define normalize_table_name(norm_name, name)           \
 	create_table_info_t::normalize_table_name_low(norm_name, name, FALSE)
 #endif /* _WIN32 */
-
-/** Obtain the InnoDB transaction of a MySQL thread.
-@param[in,out]	thd	MySQL thread handler.
-@return reference to transaction pointer */
-trx_t*& thd_to_trx(THD*	thd);
 
 /** Note that a transaction has been registered with MySQL.
 @param[in]	trx	Transaction.

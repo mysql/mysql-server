@@ -4608,7 +4608,7 @@ prepare_inplace_alter_table_dict(
 		}
 
 		error = row_create_table_for_mysql(
-			ctx->new_table, compression, ctx->trx, false);
+			ctx->new_table, compression, ctx->trx);
 
 		punch_hole_warning =
 			(error == DB_IO_NO_PUNCH_HOLE_FS)
@@ -8763,9 +8763,7 @@ alter_part::create_table(
 		return(error);
 	}
 
-	info.allocate_trx();
-
-	trx_t*	trx = info.trx();
+	trx_t*	trx = thd_to_trx(current_thd);
 
 	row_mysql_lock_data_dictionary(trx);
 
@@ -8778,18 +8776,12 @@ alter_part::create_table(
 	/* Let's just assume all are successful */
 	ut_ad(error == 0);
 
-	innobase_commit_low(trx);
-
 	row_mysql_unlock_data_dictionary(trx);
 
 	error = info.create_table_update_global_dd(dd_part);
 	ut_ad(error == 0);
 
 	error = info.create_table_update_dict();
-
-	srv_active_wake_master_thread();
-
-	trx_free_for_mysql(trx);
 
 	return(error);
 }

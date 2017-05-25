@@ -348,18 +348,16 @@ row_mysql_unfreeze_data_dictionary(
 /*********************************************************************//**
 Creates a table for MySQL. On failure the transaction will be rolled back
 and the 'table' object will be freed.
+@param[in]	table		table definition(will be freed, or on
+				DB_SUCCESS added to the data dictionary cache)
+@param[in]	compression	compression algorithm to use, can be nullptr
+@param[in,out]	trx		transasction
 @return error code or DB_SUCCESS */
 dberr_t
 row_create_table_for_mysql(
-/*=======================*/
-	dict_table_t*	table,	/*!< in, own: table definition
-				(will be freed, or on DB_SUCCESS
-				added to the data dictionary cache) */
+	dict_table_t*	table,
         const char*     compression,
-                                /*!< in: compression algorithm to use,
-                                can be NULL */
-	trx_t*		trx,	/*!< in/out: transaction */
-	bool		commit)	/*!< in: if true, commit the transaction */
+	trx_t*		trx)
 	MY_ATTRIBUTE((warn_unused_result));
 /*********************************************************************//**
 Does an index creation operation for MySQL. TODO: currently failure

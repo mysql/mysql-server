@@ -2607,6 +2607,7 @@ ha_innopart::create(
 	const char*	table_index_file_name;
 	uint		created = 0;
 	bool		prevent_eviction = false;
+	trx_t*		trx = thd_to_trx(ha_thd());
 
 	create_table_info_t	info(ha_thd(),
 				     form,
@@ -2672,8 +2673,6 @@ ha_innopart::create(
 		table_level_tablespace_name[0] = '\0';
 	}
 
-	info.allocate_trx();
-
 	/* It's also doable to get tablespace names by accessing
 	dd::Tablespace::name according to dd_part->tablespace_id().
 	However, it costs more. So as long as partition_element contains
@@ -2706,7 +2705,7 @@ ha_innopart::create(
 	or lock waits can happen in it during a table create operation.
 	Drop table etc. do this latching in row0mysql.cc. */
 
-	row_mysql_lock_data_dictionary(info.trx());
+	row_mysql_lock_data_dictionary(trx);
 
 #ifdef UNIV_DEBUG
 	ulint	i = 0;
@@ -2781,9 +2780,7 @@ ha_innopart::create(
 		create_info->tablespace = table_level_tablespace_name;
 	}
 
-	innobase_commit_low(info.trx());
-
-	row_mysql_unlock_data_dictionary(info.trx());
+	row_mysql_unlock_data_dictionary(trx);
 
 	/* No need to use these now, only table_name will be used. */
 	create_info->data_file_name = NULL;
@@ -2824,13 +2821,6 @@ end:
 		}
 	}
 
-	/* Tell the InnoDB server that there might be work for
-	utility threads: */
-
-	srv_active_wake_master_thread();
-
-	trx_free_for_mysql(info.trx());
-
 	DBUG_RETURN(error);
 
 cleanup:
@@ -2854,11 +2844,7 @@ cleanup:
 		}
 	}
 
-	trx_rollback_for_mysql(info.trx());
-
-	row_mysql_unlock_data_dictionary(info.trx());
-
-	trx_free_for_mysql(info.trx());
+	row_mysql_unlock_data_dictionary(trx);
 
 	DBUG_RETURN(error);
 }

@@ -2965,18 +2965,16 @@ row_mysql_unlock_data_dictionary(
 /*********************************************************************//**
 Creates a table for MySQL. On failure the transaction will be rolled back
 and the 'table' object will be freed.
+@param[in]	table		table definition(will be freed, or on
+				DB_SUCCESS added to the data dictionary cache)
+@param[in]	compression	compression algorithm to use, can be nullptr
+@param[in,out]	trx		transaction
 @return error code or DB_SUCCESS */
 dberr_t
 row_create_table_for_mysql(
-/*=======================*/
-	dict_table_t*	table,	/*!< in, own: table definition
-				(will be freed, or on DB_SUCCESS
-				added to the data dictionary cache) */
+	dict_table_t*	table,
 	const char*	compression,
-				/*!< in: compression algorithm to use,
-				can be NULL */
-	trx_t*		trx,	/*!< in/out: transaction */
-	bool		commit)	/*!< in: if true, commit the transaction */
+	trx_t*		trx)
 {
 	mem_heap_t*	heap;
 	que_thr_t*	thr = NULL;
@@ -2990,10 +2988,6 @@ row_create_table_for_mysql(
 		"ib_create_table_fail_at_start_of_row_create_table_for_mysql", {
 		dict_mem_table_free(table);
 
-		if (commit) {
-			trx_commit_for_mysql(trx);
-		}
-
 		trx->op_info = "";
 
 		return(DB_ERROR);
@@ -3001,8 +2995,6 @@ row_create_table_for_mysql(
 	);
 
 	trx->op_info = "creating table";
-
-	trx_start_if_not_started_xa(trx, true);
 
 	switch (trx_get_dict_operation(trx)) {
 	case TRX_DICT_OP_NONE:
@@ -3080,7 +3072,6 @@ error_handling:
 		break;
 	case DB_OUT_OF_FILE_SPACE:
 		trx->error_state = DB_SUCCESS;
-		trx_rollback_to_savepoint(trx, NULL);
 
 		ib::warn() << "Cannot create table "
 			<< table->name
@@ -3118,7 +3109,6 @@ error_handling:
 	case DB_TABLESPACE_EXISTS:
 	default:
 		trx->error_state = DB_SUCCESS;
-		trx_rollback_to_savepoint(trx, NULL);
 		dict_mem_table_free(table);
 		break;
 	}
@@ -3128,6 +3118,7 @@ error_handling:
 	}
 
 	trx->op_info = "";
+	trx->dict_operation = TRX_DICT_OP_NONE;
 
 	return(err);
 }
@@ -3184,10 +3175,6 @@ row_create_index_for_mysql(
 	} else {
 		table->acquire();
 		ut_ad(table->is_intrinsic());
-	}
-
-	if (!table->is_temporary()) {
-		trx_start_if_not_started_xa(trx, true);
 	}
 
 	for (i = 0; i < index->n_def; i++) {
@@ -3293,28 +3280,8 @@ row_create_index_for_mysql(
 error_handling:
 	dd_table_close(table, thd, NULL, true);
 
-	if (err != DB_SUCCESS) {
-		/* We have special error handling here */
-
-		trx->error_state = DB_SUCCESS;
-
-		if (trx_is_started(trx)) {
-
-			trx_rollback_to_savepoint(trx, NULL);
-		}
-
-		row_drop_table_for_mysql(
-			table_name, trx, SQLCOM_DROP_TABLE, true);
-
-		if (trx_is_started(trx)) {
-
-			trx_commit_for_mysql(trx);
-		}
-
-		trx->error_state = DB_SUCCESS;
-	}
-
 	trx->op_info = "";
+	trx->dict_operation = TRX_DICT_OP_NONE;
 
 	ut_free(table_name);
 	ut_free(index_name);
@@ -3362,8 +3329,6 @@ row_table_add_foreign_constraints(
 	ut_a(sql_string);
 
 	trx->op_info = "adding foreign keys";
-
-	trx_start_if_not_started_xa(trx, true);
 
 	trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
 
@@ -3418,26 +3383,8 @@ row_table_add_foreign_constraints(
 	}
 
 func_exit:
-	if (err != DB_SUCCESS) {
-		/* We have special error handling here */
-
-		trx->error_state = DB_SUCCESS;
-
-		if (trx_is_started(trx)) {
-
-			trx_rollback_to_savepoint(trx, NULL);
-		}
-
-		row_drop_table_for_mysql(
-			name, trx, SQLCOM_DROP_TABLE, true);
-
-		if (trx_is_started(trx)) {
-
-			trx_commit_for_mysql(trx);
-		}
-
-		trx->error_state = DB_SUCCESS;
-	}
+	trx->op_info = "";
+	trx->dict_operation = TRX_DICT_OP_NONE;
 
 	DBUG_RETURN(err);
 }
