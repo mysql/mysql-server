@@ -356,6 +356,7 @@ public:
   int8 max_arg_level;     /* max level of unbound column references          */
   int8 max_sum_func_level;/* max level of aggregation for embedded functions */
   bool quick_group;			/* If incremental update of fields */
+  st_select_lex *base_select; ///< query block where function is placed
 
 protected:  
   uint arg_count;
