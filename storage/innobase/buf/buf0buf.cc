@@ -1496,9 +1496,6 @@ buf_chunk_init(
 	/* Round down to a multiple of page size,
 	although it already should be. */
 	mem_size = ut_2pow_round(mem_size, UNIV_PAGE_SIZE);
-	/* Reserve space for the block descriptors. */
-	mem_size += ut_2pow_round((mem_size / UNIV_PAGE_SIZE) * (sizeof *block)
-				  + (UNIV_PAGE_SIZE - 1), UNIV_PAGE_SIZE);
 
 	DBUG_EXECUTE_IF("ib_buf_chunk_init_fails", return(NULL););
 
