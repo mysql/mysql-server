@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -106,9 +106,8 @@ bool Sql_data_context::kill()
 
       if (thd_get_security_context(srv_session_info_get_thd(session), &scontext))
         log_warning("Could not get security context for session");
-      else
-      {
-        const char *user = MYSQLXSYS_USER;
+      else {
+        const char *user = MYSQL_SESSION_USER;
         const char *host = MYSQLXSYS_HOST;
         if (security_context_lookup(scontext, user, host, NULL, NULL))
           log_warning("Unable to switch security context to root");
@@ -207,12 +206,11 @@ ngs::Error_code Sql_data_context::authenticate(const char *user, const char *hos
   std::string authenticated_user_name = get_authenticated_user_name();
   std::string authenticated_user_host = get_authenticated_user_host();
 
-  error = switch_to_user(MYSQLXSYS_USER, MYSQLXSYS_HOST, NULL, NULL);
+  error = switch_to_user(MYSQL_SESSION_USER, MYSQLXSYS_HOST, NULL, NULL);
 
-  if (error)
-  {
-    log_error("Unable to switch context to user %s", MYSQLXSYS_USER);
-    throw error;
+  if (error) {
+    log_error("Unable to switch context to user %s", MYSQL_SESSION_USER);
+    return error;
   }
 
   if (!is_acl_disabled())
