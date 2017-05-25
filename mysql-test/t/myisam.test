@@ -556,6 +556,8 @@ insert t2 select * from t1;
 checksum table t1, t2, t3 quick;
 checksum table t1, t2, t3;
 checksum table t1, t2, t3 extended;
+alter table t1 add d int default 30, add e bigint default 300000, add f decimal(30) default 442;
+checksum table t2;
 #show table status;
 drop table t1,t2;
 

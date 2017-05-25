@@ -617,6 +617,10 @@ test.t2	2948697075
 test.t3	NULL
 Warnings:
 Error	1146	Table 'test.t3' doesn't exist
+alter table t1 add d int default 30, add e bigint default 300000, add f decimal(30) default 442;
+checksum table t2;
+Table	Checksum
+test.t2	2948697075
 drop table t1,t2;
 create table t1 (a int, key (a));
 show keys from t1;
