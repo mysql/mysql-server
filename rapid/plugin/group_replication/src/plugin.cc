@@ -1459,7 +1459,7 @@ static int check_if_server_properly_configured()
     {
       log_message(MY_ERROR_LEVEL,
                   "In order to use parallel applier on Group Replication, parameter "
-                  "slave-parallel-workers must be set to 'LOGICAL_CLOCK'.");
+                  "slave-parallel-type must be set to 'LOGICAL_CLOCK'.");
       DBUG_RETURN(1);
     }
 
