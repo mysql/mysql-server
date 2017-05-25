@@ -107,6 +107,7 @@ bool Item_sum::init_sum_func_check(THD *thd)
   aggr_sel= NULL;
   max_arg_level= -1;
   max_sum_func_level= -1;
+  base_select= thd->lex->current_select();
   return FALSE;
 }
 
