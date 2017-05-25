@@ -1250,7 +1250,7 @@ void Slave_worker::slave_worker_ends_group(Log_event* ev, int error)
     */
     if (ev->get_type_code() != binary_log::XID_EVENT && !is_committed_ddl(ev))
     {
-      commit_positions(ev, ptr_g, false);
+      commit_positions(ev, ptr_g, true);
       DBUG_EXECUTE_IF("crash_after_commit_and_update_pos",
            sql_print_information("Crashing crash_after_commit_and_update_pos.");
            flush_info(TRUE);
