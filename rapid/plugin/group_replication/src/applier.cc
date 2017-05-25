@@ -730,7 +730,7 @@ void Applier_module::kill_pending_transactions(bool set_read_mode,
   bool already_locked= shared_stop_write_lock->try_grab_write_lock();
 
   //kill pending transactions
-  unblock_waiting_transactions();
+  blocked_transaction_handler->unblock_waiting_transactions();
 
   if (!already_locked)
     shared_stop_write_lock->release_write_lock();

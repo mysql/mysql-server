@@ -32,6 +32,7 @@ SET(GROUP_REPLICATION_SOURCES
   src/gcs_operations.cc
   src/gcs_plugin_messages.cc
   src/gcs_view_modification_notifier.cc
+  src/group_partition_handling.cc
   src/member_info.cc
   src/observer_server_actions.cc
   src/observer_server_channels.cc

@@ -191,6 +191,9 @@ int Delayed_initialization_thread::initialization_thread_handler()
       goto err;
     }
 
+    initialize_group_partition_handler();
+    blocked_transaction_handler= new Blocked_transaction_handler();
+
     /*
      At this point in the code, set the super_read_only mode here on the
      server to protect recovery and version module of the Group Replication.

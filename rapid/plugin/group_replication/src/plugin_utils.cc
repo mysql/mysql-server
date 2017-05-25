@@ -20,8 +20,19 @@
 
 using std::vector;
 
-void unblock_waiting_transactions()
+Blocked_transaction_handler::Blocked_transaction_handler()
 {
+  mysql_mutex_init(key_GR_LOCK_trx_unlocking, &unblocking_process_lock, MY_MUTEX_INIT_FAST);
+}
+
+Blocked_transaction_handler::~Blocked_transaction_handler()
+{
+  mysql_mutex_destroy(&unblocking_process_lock);
+}
+
+void Blocked_transaction_handler::unblock_waiting_transactions()
+{
+  mysql_mutex_lock(&unblocking_process_lock);
   vector<my_thread_id> waiting_threads;
   certification_latch->get_all_waiting_keys(waiting_threads);
 
@@ -53,4 +64,5 @@ void unblock_waiting_transactions()
                  " Check for consistency errors when restarting the service"); /* purecov: inspected */
     }
   }
+  mysql_mutex_unlock(&unblocking_process_lock);
 }

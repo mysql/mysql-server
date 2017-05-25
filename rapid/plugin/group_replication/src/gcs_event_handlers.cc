@@ -338,10 +338,52 @@ Plugin_gcs_events_handler::on_suspicions(const std::vector<Gcs_member_identifier
 
   if ((members.size() - unreachable.size()) <= (members.size() / 2))
   {
+    if (!group_partition_handler->get_timeout_on_unreachable())
+      log_message(MY_WARNING_LEVEL,
+                  "The member lost contact with a majority of the members in the"
+                  " group. Until the network is restored transactions will block."
+                  " As the value of group_replication_unreachable_majority_timeout"
+                  " is 0 the plugin will wait indefinitely for the network to be"
+                  " restored.");
+    else
+      log_message(MY_WARNING_LEVEL,
+                  "The member lost contact with a majority of the members in the"
+                  " group. Until the network is restored transactions will block."
+                  " The plugin will wait for a network restore or timeout after"
+                  " the period defined on"
+                  " group_replication_unreachable_majority_timeout.");
+
+    if (!group_partition_handler->is_partition_handler_running() &&
+        !group_partition_handler->is_partition_handling_terminated())
+      group_partition_handler->launch_partition_handler_thread();
+
     // flag as having lost quorum
     m_notification_ctx.set_quorum_lost();
   }
-
+  else
+  {
+    /*
+      This code is present on on_view_changed and on_suspicions as no assumption
+      can be made about the order in which these methods are invoked.
+    */
+    if (group_partition_handler->is_member_on_partition())
+    {
+      if (group_partition_handler->abort_partition_handler_if_running())
+      {
+        log_message(MY_WARNING_LEVEL,
+                    "A group membership change was received but the plugin is "
+                    "already leaving due to the configured timeout on "
+                    "group_replication_unreachable_majority_timeout option.");
+      }
+      else
+      {
+        /* If it was not running or we canceled it in time */
+        log_message(MY_WARNING_LEVEL,
+                    "The member resumed contact with a majority of the members"
+                    " in the group. Regular operation is re-established.");
+      }
+    }
+  }
   notify_and_reset_ctx(m_notification_ctx);
 }
 
@@ -378,6 +420,37 @@ Plugin_gcs_events_handler::on_view_changed(const Gcs_view& new_view,
   }
   else
   {
+    /*
+      This code is present on on_view_changed and on_suspicions as no assumption
+      can be made about the order in which these methods are invoked.
+    */
+    if (!is_leaving && group_partition_handler->is_member_on_partition())
+    {
+      if (group_partition_handler->abort_partition_handler_if_running())
+      {
+        log_message(MY_WARNING_LEVEL,
+                    "A group membership change was received but the plugin is "
+                    "already leaving due to the configured timeout on "
+                    "group_replication_unreachable_majority_timeout option.");
+        goto end;
+      }
+      else
+      {
+        /* If it was not running or we canceled it in time */
+        log_message(MY_WARNING_LEVEL,
+                    "The member resumed contact with a majority of the members"
+                    " in the group. Regular operation is re-established.");
+      }
+    }
+
+    /*
+      Maybe on_suspicions we already executed the above block but it was too late.
+      No point in repeating the message, but we need to break the view install.
+    */
+    if (!is_leaving &&
+        group_partition_handler->is_partition_handling_terminated())
+      goto end;
+
     //update the Group Manager with all the received states
     this->update_group_info_manager(new_view, exchanged_data, is_leaving);
 
