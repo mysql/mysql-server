@@ -1629,7 +1629,7 @@ int main(int argc MY_ATTRIBUTE((unused)),char **argv MY_ATTRIBUTE((unused)))
     exit(1);
   }
 #ifndef pthread_attr_setstacksize		/* void return value */
-  if ((error=pthread_attr_setstacksize(&thr_attr,65536L)))
+  if (PTHREAD_STACK_MIN < 65536L && (error=pthread_attr_setstacksize(&thr_attr,65536L)))
   {
     fprintf(stderr,"Got error: %d from pthread_attr_setstacksize (errno: %d)",
 	    error,errno);
