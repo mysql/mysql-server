@@ -13,10 +13,6 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#ifndef HAVE_REPLICATION
-#define HAVE_REPLICATION
-#endif
-
 #include "rpl_group_replication.h"
 #include "rpl_channel_service_interface.h"
 #include "rpl_info_factory.h"
@@ -142,6 +138,7 @@ Group_replication_handler* group_replication_handler= NULL;
 /*
   Group Replication plugin handler function accessors.
 */
+#ifdef HAVE_REPLICATION
 int group_replication_init(const char* plugin_name)
 {
   if (initialize_channel_service_interface())
@@ -165,6 +162,7 @@ int group_replication_init(const char* plugin_name)
 
   return 1;
 }
+#endif
 
 int group_replication_cleanup()
 {
@@ -323,6 +321,7 @@ unsigned int get_group_replication_members_number_info()
   Server methods exported to plugin through
   include/mysql/group_replication_priv.h
 */
+#ifdef HAVE_REPLICATION
 void get_server_parameters(char **hostname, uint *port, char** uuid,
                            unsigned int *out_server_version,
                            st_server_ssl_variables* server_ssl_variables)
@@ -380,6 +379,7 @@ void get_server_parameters(char **hostname, uint *port, char** uuid,
 
   return;
 }
+#endif
 
 ulong get_server_id()
 {

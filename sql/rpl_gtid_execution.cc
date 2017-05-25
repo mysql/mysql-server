@@ -113,9 +113,9 @@ bool set_gtid_next(THD *thd, const Gtid_specification &spec)
         */
         break;
       }
-      my_thread_id owner= gtid_state->get_owner(spec.gtid);
+
       // GTID not owned by anyone: acquire ownership
-      if (owner == 0)
+      if (!gtid_state->is_owned(spec.gtid))
       {
         // acquire_ownership can't fail
         gtid_state->acquire_ownership(thd, spec.gtid);

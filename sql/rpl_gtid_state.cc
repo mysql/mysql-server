@@ -302,10 +302,11 @@ bool Gtid_state::wait_for_gtid(THD *thd, const Gtid &gtid,
                                struct timespec *abstime)
 {
   DBUG_ENTER("Gtid_state::wait_for_gtid");
-  DBUG_PRINT("info", ("SIDNO=%d GNO=%lld owner(sidno,gno)=%u thread_id=%u",
+  DBUG_PRINT("info", ("SIDNO=%d GNO=%lld thread_id=%u",
                       gtid.sidno, gtid.gno,
-                      owned_gtids.get_owner(gtid), thd->thread_id()));
-  DBUG_ASSERT(owned_gtids.get_owner(gtid) != thd->thread_id());
+                      thd->thread_id()));
+  DBUG_ASSERT(!owned_gtids.is_owned_by(gtid, thd->thread_id()));
+  DBUG_ASSERT(!owned_gtids.is_owned_by(gtid, 0));
 
   bool ret= wait_for_sidno(thd, gtid.sidno, abstime);
   DBUG_RETURN(ret);
@@ -468,7 +469,7 @@ rpl_gno Gtid_state::get_automatic_gno(rpl_sidno sidno) const
            DBUG_EVALUATE_IF("simulate_gno_exhausted", false, true))
     {
       DBUG_PRINT("debug",("Checking availability of gno= %llu", next_candidate.gno));
-      if (owned_gtids.get_owner(next_candidate) == 0)
+      if (owned_gtids.is_owned_by(next_candidate, 0))
         DBUG_RETURN(next_candidate.gno);
       next_candidate.gno++;
     }
@@ -912,11 +913,16 @@ void Gtid_state::update_gtids_impl_lock_sidnos(THD *first_thd)
 void Gtid_state::update_gtids_impl_own_gtid(THD *thd, bool is_commit)
 {
   assert_sidno_lock_owner(thd->owned_gtid.sidno);
-  DBUG_ASSERT(!executed_gtids.contains_gtid(thd->owned_gtid));
-  owned_gtids.remove_gtid(thd->owned_gtid);
+  /*
+    In Group Replication the GTID may additionally be owned by another
+    thread, and we won't remove that ownership (it will be rolled back later)
+  */
+  DBUG_ASSERT(owned_gtids.is_owned_by(thd->owned_gtid, thd->thread_id()));
+  owned_gtids.remove_gtid(thd->owned_gtid, thd->thread_id());
 
   if (is_commit)
   {
+    DBUG_ASSERT(!executed_gtids.contains_gtid(thd->owned_gtid));
     DBUG_EXECUTE_IF(
       "rpl_gtid_update_on_commit_simulate_out_of_memory",
       DBUG_SET("+d,rpl_gtid_get_free_interval_simulate_out_of_memory"););
