@@ -19,6 +19,7 @@ root	localhost	REPLICATION_SLAVE_ADMIN	Y
 root	localhost	ROLE_ADMIN	Y
 root	localhost	SET_USER_ID	Y
 root	localhost	SYSTEM_VARIABLES_ADMIN	Y
+root	localhost	XA_RECOVER_ADMIN	Y
 u1	localhost	SYSTEM_VARIABLES_ADMIN	N
 -------------------------------------------------------------------------
 
@@ -37,6 +38,7 @@ root	localhost	REPLICATION_SLAVE_ADMIN	Y
 root	localhost	ROLE_ADMIN	Y
 root	localhost	SET_USER_ID	Y
 root	localhost	SYSTEM_VARIABLES_ADMIN	Y
+root	localhost	XA_RECOVER_ADMIN	Y
 u1	localhost	SYSTEM_VARIABLES_ADMIN	Y
 
 FLUSH PRIVILEGES;
@@ -54,6 +56,7 @@ root	localhost	REPLICATION_SLAVE_ADMIN	Y
 root	localhost	ROLE_ADMIN	Y
 root	localhost	SET_USER_ID	Y
 root	localhost	SYSTEM_VARIABLES_ADMIN	Y
+root	localhost	XA_RECOVER_ADMIN	Y
 u1	localhost	SYSTEM_VARIABLES_ADMIN	Y
 
 ** Try granting multiple times.This shouldn't result in duplicate entries
@@ -84,6 +87,7 @@ root	localhost	REPLICATION_SLAVE_ADMIN	Y
 root	localhost	ROLE_ADMIN	Y
 root	localhost	SET_USER_ID	Y
 root	localhost	SYSTEM_VARIABLES_ADMIN	Y
+root	localhost	XA_RECOVER_ADMIN	Y
 u1	localhost	SYSTEM_VARIABLES_ADMIN	Y
 ** Only one dynamic entry
 SELECT * FROM information_schema.user_privileges WHERE GRANTEE LIKE '%u1%'
@@ -106,6 +110,7 @@ root	localhost	REPLICATION_SLAVE_ADMIN	Y
 root	localhost	ROLE_ADMIN	Y
 root	localhost	SET_USER_ID	Y
 root	localhost	SYSTEM_VARIABLES_ADMIN	Y
+root	localhost	XA_RECOVER_ADMIN	Y
 u1	localhost	SYSTEM_VARIABLES_ADMIN	Y
 
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO u1@localhost;
@@ -123,6 +128,7 @@ root	localhost	REPLICATION_SLAVE_ADMIN	Y
 root	localhost	ROLE_ADMIN	Y
 root	localhost	SET_USER_ID	Y
 root	localhost	SYSTEM_VARIABLES_ADMIN	Y
+root	localhost	XA_RECOVER_ADMIN	Y
 u1	localhost	SYSTEM_VARIABLES_ADMIN	Y
 
 REVOKE SYSTEM_VARIABLES_ADMIN ON *.* FROM u1@localhost;
@@ -163,6 +169,7 @@ root	localhost	REPLICATION_SLAVE_ADMIN	Y
 root	localhost	ROLE_ADMIN	Y
 root	localhost	SET_USER_ID	Y
 root	localhost	SYSTEM_VARIABLES_ADMIN	Y
+root	localhost	XA_RECOVER_ADMIN	Y
 u1	localhoster	RUBBISH	N
 SELECT * FROM information_schema.user_privileges WHERE GRANTEE LIKE '%u1%'
 ORDER BY GRANTEE, PRIVILEGE_TYPE, IS_GRANTABLE;
@@ -194,6 +201,7 @@ root	localhost	REPLICATION_SLAVE_ADMIN	Y
 root	localhost	ROLE_ADMIN	Y
 root	localhost	SET_USER_ID	Y
 root	localhost	SYSTEM_VARIABLES_ADMIN	Y
+root	localhost	XA_RECOVER_ADMIN	Y
 u1	localhoster	RUBBISH	N
 u2	localhost	BINLOG_ADMIN	N
 u2	localhost	GROUP_REPLICATION_ADMIN	Y
@@ -233,6 +241,7 @@ root	localhost	REPLICATION_SLAVE_ADMIN	Y
 root	localhost	ROLE_ADMIN	Y
 root	localhost	SET_USER_ID	Y
 root	localhost	SYSTEM_VARIABLES_ADMIN	Y
+root	localhost	XA_RECOVER_ADMIN	Y
 u1	localhoster	RUBBISH	N
 u1	localhost	SYSTEM_VARIABLES_ADMIN	Y
 SELECT * FROM information_schema.user_privileges WHERE GRANTEE LIKE '%u1%'
@@ -568,7 +577,7 @@ GRANT ALL ON *.* to u1;
 SHOW GRANTS FOR u1;
 Grants for u1@%
 GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `u1`@`%`
-GRANT BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,HELLOWORLD,NON_DOCUMENTED_PRIVILEGE,REPLICATION_SLAVE_ADMIN,ROLE_ADMIN,ROUTINE_GRANT,RUBBISH,SET_USER_ID,SYSTEM_VARIABLES_ADMIN ON *.* TO `u1`@`%`
+GRANT BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,HELLOWORLD,NON_DOCUMENTED_PRIVILEGE,REPLICATION_SLAVE_ADMIN,ROLE_ADMIN,ROUTINE_GRANT,RUBBISH,SET_USER_ID,SYSTEM_VARIABLES_ADMIN,XA_RECOVER_ADMIN ON *.* TO `u1`@`%`
 GRANT `r2`@`%` TO `u1`@`%`
 # Boundary value test for privilege_id
 INSERT INTO mysql.global_grants VALUES('u1', '%',
@@ -625,6 +634,7 @@ Super	Server Admin	To use KILL thread, SET GLOBAL, CHANGE MASTER, etc.
 Trigger	Tables	To use triggers
 Update	Tables	To update existing rows
 Usage	Server Admin	No privileges - allow connect only
+XA_RECOVER_ADMIN	Server Admin	
 TRUNCATE TABLE mysql.global_grants;
 FLUSH PRIVILEGES;
 # REPLICATION_SLAVE_ADMIN test
@@ -664,3 +674,40 @@ PRIMARY KEY (USER,HOST,PRIV)
 ) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin;
 # restart
 DROP USER u1@localhost;
+#
+# Test for WL#7194
+# This test checks that a user who granted XA_RECOVER_ADMIN with
+# WITH GRANT OPTION can grant it to other user and a user who is granted
+# XA_RECOVER_ADMIN without WITH GRANT OPTION can not.
+#
+CREATE USER u1;
+CREATE USER u2;
+CREATE USER u3;
+GRANT SYSTEM_VARIABLES_ADMIN, SELECT ON *.* TO u1;
+GRANT SYSTEM_VARIABLES_ADMIN, SELECT ON *.* TO u2;
+# Grant the privilege XA_RECOVER_ADMIN to user u1 with GRANT OPTION
+GRANT XA_RECOVER_ADMIN ON *.* TO u1 WITH GRANT OPTION;
+# And check that the user u1 can grant the privilege XA_RECOVER_ADMIN
+# to the user u2
+GRANT XA_RECOVER_ADMIN ON *.* TO u2;
+SHOW GRANTS FOR u1;
+Grants for u1@%
+GRANT SELECT ON *.* TO `u1`@`%` WITH GRANT OPTION
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO `u1`@`%`
+GRANT XA_RECOVER_ADMIN ON *.* TO `u1`@`%` WITH GRANT OPTION
+SHOW GRANTS FOR u2;
+Grants for u2@%
+GRANT SELECT ON *.* TO `u2`@`%`
+GRANT SYSTEM_VARIABLES_ADMIN,XA_RECOVER_ADMIN ON *.* TO `u2`@`%`
+# Connect as user u2 who was granted the privilege XA_RECOVER_ADMIN
+# without WITH GRANT OPTION and try to grant the privilege
+# XA_RECOVER_ADMIN to user u3.
+# Since the the privilege XA_RECOVER_ADMIN was granted to the user u2
+# without the clause WITH GRANT OPTION it is expected that attempt
+# to grant the privilege XA_RECOVER_ADMIN to the user u3 be failed.
+GRANT XA_RECOVER_ADMIN ON *.* TO u3;
+ERROR 42000: Access denied; you need (at least one of) the GRANT OPTION privilege(s) for this operation
+DROP USER u1;
+DROP USER u2;
+DROP USER u3;
+# End of test for WL#7194

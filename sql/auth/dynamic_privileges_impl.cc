@@ -193,6 +193,8 @@ bool dynamic_privilege_init(void)
         service->register_privilege(STRING_WITH_LEN("CONNECTION_ADMIN"));
       ret |=
         service->register_privilege(STRING_WITH_LEN("SET_USER_ID"));
+      ret |=
+        service->register_privilege(STRING_WITH_LEN("XA_RECOVER_ADMIN"));
     }
   } // exist scope
   mysql_plugin_registry_release(r);

@@ -299,6 +299,7 @@ Super	Server Admin	To use KILL thread, SET GLOBAL, CHANGE MASTER, etc.
 Trigger	Tables	To use triggers
 Update	Tables	To update existing rows
 Usage	Server Admin	No privileges - allow connect only
+XA_RECOVER_ADMIN	Server Admin	
 
 drop function version_tokens_set;
 drop function version_tokens_show;

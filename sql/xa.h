@@ -141,6 +141,7 @@ public:
   virtual bool execute(THD *thd);
 
 private:
+  bool check_xa_recover_privilege(THD *thd) const;
   bool trans_xa_recover(THD *thd);
 
   bool m_print_xid_as_hex;

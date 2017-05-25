@@ -367,6 +367,73 @@ DROP USER B20614545@localhost;
 --let $restore= 1
 --source include/backup_tables_priv_and_users.inc
 
+--echo #
+--echo # Tests for WL#7194
+--echo # Check that users with SUPER privilege (root@localhost and
+--echo # the new added user u1) gets XA_RECOVER_ADMIN privilege
+--echo # after upgrade.
+--echo #
+
+--echo # Show privilege for root@localhost before the privilege XA_RECOVER_ADMIN will be revoked
+SHOW GRANTS FOR root@localhost;
+
+CREATE USER u1;
+GRANT SUPER ON *.* TO u1;
+
+--echo # Revoke the privilege XA_RECOVER_ADMIN in order to simulate
+--echo # the case when upgrade is run against a database that was created by
+--echo # mysql server without support for XA_RECOVER_ADMIN.
+REVOKE XA_RECOVER_ADMIN ON *.* FROM root@localhost;
+REVOKE XA_RECOVER_ADMIN ON *.* FROM `mysql.session_user`@localhost;
+
+--echo # We show here that the users root@localhost and u1 have the privilege
+--echo # SUPER and don't have the privilege XA_RECOVER_ADMIN
+SHOW GRANTS FOR root@localhost;
+SHOW GRANTS FOR u1;
+
+--echo # Start upgrade
+# Filter out ndb_binlog_index to mask differences due to running with or
+# without ndb.
+--replace_regex /mysql.ndb_binlog_index.*$//
+--exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
+
+--echo # Show privileges granted to the users root@localhost and u1
+--echo # after upgrade has been finished.
+--echo # It is expected that the users root@localhost and u1 have the
+--echo # privilege XA_RECOVER_ADMIN granted since they had the privilge SUPER
+--echo # before upgrade and there wasn't any user with explicitly granted
+--echo # privilege XA_RECOVER_ADMIN.
+SHOW GRANTS FOR root@localhost;
+SHOW GRANTS FOR u1;
+
+--echo # Now run upgrade against database where there is a user with granted
+--echo # privilege XA_RECOVER_ADMIN and check that for those users who have
+--echo # the privilege SUPER assigned the privilege XA_RECOVER_ADMIN won't be
+--echo # granted during upgrade.
+
+--echo # Revoke the privilege XA_RECOVER_ADMIN from the user u1 and
+--echo # mysql.session_user@localhost
+REVOKE XA_RECOVER_ADMIN ON *.* FROM u1;
+REVOKE XA_RECOVER_ADMIN ON *.* FROM `mysql.session_user`@localhost;
+
+--echo # Start upgrade
+# Filter out ndb_binlog_index to mask differences due to running with or
+# without ndb.
+--replace_regex /mysql.ndb_binlog_index.*$//
+--exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
+
+--echo # It is expected that after upgrade be finished the privilege
+--echo # XA_RECOVER_ADMIN won't be granted to the user u1 since
+--echo # there was another user (root@localhost) who had the privilege
+--echo # XA_RECOVER_ADMIN at the time when upgrade was started
+SHOW GRANTS FOR root@localhost;
+SHOW GRANTS FOR u1;
+
+--echo # Cleaning up
+DROP USER u1;
+
+--echo # End of tests for WL#7194
+
 --source include/mysql_upgrade_cleanup.inc
 
 --echo

@@ -418,3 +418,70 @@ todo: such case will be ever registered.
 xa rollback 'testb',0x2030405060,11;
 XA RECOVER;
 formatID	gtrid_length	bqual_length	data
+#
+# WL#7194 -- Define and implement authorization model to manage XA-transactions
+#
+CREATE USER u1;
+GRANT XA_RECOVER_ADMIN ON *.* TO u1;
+CREATE USER u2;
+XA START 'xid1';
+XA END 'xid1';
+XA PREPARE 'xid1';
+# Connect as user u1
+# Since the privilege XA_RECOVER_ADMIN was granted to the user u1
+# it is allowed to execute the statement XA RECOVER to get a list of
+# xids for prepared XA transactions.
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	4	0	xid1
+# Connect as user u2
+# The privilege XA_RECOVER_ADMIN wasn't granted to the user u2.
+# It leads to issuing the error ER_XAER_RMERR on attempt to run
+# the statement XA RECOVER.
+XA RECOVER;
+ERROR XAE03: XAER_RMERR: Fatal error occurred in the transaction branch - check your data for consistency
+SHOW WARNINGS;
+Level	Code	Message
+Error	1401	XAER_RMERR: Fatal error occurred in the transaction branch - check your data for consistency
+Error	1227	Access denied; you need (at least one of) the XA_RECOVER_ADMIN privilege(s) for this operation
+# The default connection was established on behalf the user root@localhost
+# who has the XA_RECOVER_ADMIN privilege assigned by default.
+# So for the user root@localhost the statement XA RECOVER
+# can be executed successfully.
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	4	0	xid1
+XA COMMIT 'xid1';
+# Connect as the user u2 who wasn't granted privilege XA_RECOVER_ADMIN.
+# Initiates a new XA transaction on behalf the user u2 and shows that
+# call XA RECOVER made by the user u2 is failed with error ER_XAER_RMERR.
+XA START 'xid2';
+XA END 'xid2';
+XA PREPARE 'xid2';
+XA RECOVER;
+ERROR XAE03: XAER_RMERR: Fatal error occurred in the transaction branch - check your data for consistency
+SHOW WARNINGS;
+Level	Code	Message
+Error	1401	XAER_RMERR: Fatal error occurred in the transaction branch - check your data for consistency
+Error	1227	Access denied; you need (at least one of) the XA_RECOVER_ADMIN privilege(s) for this operation
+# Although the user u2 can't get a list of prepared XA transaction this user
+# can finalize a prepared XA transaction knowing its XID value.
+XA COMMIT 'xid2';
+DROP USER u1, u2;
+# Check that a user who has the privilege SUPER and hasn't the privilege
+# XA_RECOVER_ADMIN isn't allowed to run the statement XA RECOVER
+CREATE USER u1;
+GRANT SUPER ON *.* TO u1;
+Warnings:
+Warning	1287	The SUPER privilege identifier is deprecated
+SHOW GRANTS FOR u1;
+Grants for u1@%
+GRANT SUPER ON *.* TO `u1`@`%`
+XA START 'xid1';
+XA END 'xid1';
+XA PREPARE 'xid1';
+XA RECOVER;
+ERROR XAE03: XAER_RMERR: Fatal error occurred in the transaction branch - check your data for consistency
+XA COMMIT 'xid1';
+DROP USER u1;
+# End of tests fro WL#7194

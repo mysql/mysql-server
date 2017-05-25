@@ -635,6 +635,13 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
+-- Add the privilege XA_RECOVER_ADMIN for every user who has the privilege SUPER
+-- provided that there isn't a user who already has the privilige XA_RECOVER_ADMIN.
+SET @hadXARecoverAdminPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'XA_RECOVER_ADMIN');
+INSERT INTO global_grants SELECT user, host, 'XA_RECOVER_ADMIN', 'Y' FROM mysql.user
+WHERE super_priv = 'Y' AND @hadXARecoverAdminPriv = 0;
+COMMIT;
+
 # Activate the new, possible modified privilege tables
 # This should not be needed, but gives us some extra testing that the above
 # changes was correct

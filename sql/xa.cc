@@ -957,9 +957,40 @@ bool Sql_cmd_xa_recover::trans_xa_recover(THD *thd)
 }
 
 
+/**
+  Check if the current user has a privilege to perform XA RECOVER.
+
+  @param thd    Current thread
+
+  @retval false  A user has a privilege to perform XA RECOVER
+  @retval true   A user doesn't have a privilege to perform XA RECOVER
+*/
+
+bool Sql_cmd_xa_recover::check_xa_recover_privilege(THD *thd) const
+{
+  Security_context *sctx= thd->security_context();
+
+  if (!sctx->has_global_grant(STRING_WITH_LEN("XA_RECOVER_ADMIN")).first)
+  {
+    /*
+      Report an error ER_XAER_RMERR. A supplementary error
+      ER_SPECIFIC_ACCESS_DENIED_ERROR is also reported when
+      SHOW WARNINGS is issued. This provides more information
+      about the reason for failure.
+    */
+    my_error(ER_XAER_RMERR, MYF(0));
+    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "XA_RECOVER_ADMIN");
+    return true;
+  }
+
+  return false;
+}
+
 bool Sql_cmd_xa_recover::execute(THD *thd)
 {
-  bool st= trans_xa_recover(thd);
+  bool st= check_xa_recover_privilege(thd) ||
+           trans_xa_recover(thd);
+
   DBUG_EXECUTE_IF("crash_after_xa_recover", {DBUG_SUICIDE();});
 
   return st;
