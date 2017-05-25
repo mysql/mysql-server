@@ -1376,7 +1376,7 @@ SELECT host, db, user, table_name, grantor, table_priv, column_priv FROM mysql.t
 host	db	user	table_name	grantor	table_priv	column_priv
 h	test	u1	t1	root@localhost		Select,Insert,Update,References
 h	test	u1	t2	root@localhost		Insert
-localhost	mysql	mysql.session_user	user	root@localhost	Select	
+localhost	mysql	mysql.session	user	root@localhost	Select	
 localhost	sys	mysql.sys	sys_config	root@localhost	Select	
 DELETE FROM mysql.columns_priv WHERE host = 'h' AND user = 'u1'
 AND table_name = 't1';
@@ -1386,7 +1386,7 @@ SELECT host, db, user, table_name, column_name, column_priv FROM mysql.columns_p
 host	db	user	table_name	column_name	column_priv
 SELECT host, db, user, table_name, grantor, table_priv, column_priv FROM mysql.tables_priv;
 host	db	user	table_name	grantor	table_priv	column_priv
-localhost	mysql	mysql.session_user	user	root@localhost	Select	
+localhost	mysql	mysql.session	user	root@localhost	Select	
 localhost	sys	mysql.sys	sys_config	root@localhost	Select	
 SHOW GRANTS FOR u1@h;
 Grants for u1@h
@@ -1577,9 +1577,9 @@ RENAME TABLE mysql.tables_priv_bak TO mysql.tables_priv;
 CREATE USER u1@h;
 
 # Remove the session user
-DELETE FROM mysql.tables_priv WHERE user='mysql.session_user';
-DELETE FROM mysql.user WHERE user='mysql.session_user';
-DELETE FROM mysql.db WHERE user='mysql.session_user';
+DELETE FROM mysql.tables_priv WHERE user='mysql.session';
+DELETE FROM mysql.user WHERE user='mysql.session';
+DELETE FROM mysql.db WHERE user='mysql.session';
 
 # Backup privilege tables and drop original ones
 RENAME TABLE mysql.user TO mysql.user_bak;
@@ -1872,16 +1872,16 @@ RENAME TABLE mysql.columns_priv_bak TO mysql.columns_priv;
 RENAME TABLE mysql.procs_priv_bak TO mysql.procs_priv;
 RENAME TABLE mysql.proxies_priv_bak TO mysql.proxies_priv;
 RENAME TABLE mysql.tables_priv_bak TO mysql.tables_priv;
-INSERT IGNORE INTO mysql.user VALUES ('localhost','mysql.session_user',
+INSERT IGNORE INTO mysql.user VALUES ('localhost','mysql.session',
 'N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','Y','N','N','N',
 'N','N','N','N','N','N','N','N','N','N','','','','',0,0,0,0,
 'mysql_native_password','*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE',
 'N',CURRENT_TIMESTAMP,NULL,'Y', 'N', 'N');
 INSERT IGNORE INTO mysql.tables_priv VALUES ('localhost', 'mysql',
-'mysql.session_user', 'user', 'root\@localhost',
+'mysql.session', 'user', 'root\@localhost',
 CURRENT_TIMESTAMP, 'Select', '');
 INSERT IGNORE INTO mysql.db VALUES ('localhost', 'performance_schema',
-'mysql.session_user','Y','N','N','N','N','N','N','N','N','N','N','N',
+'mysql.session','Y','N','N','N','N','N','N','N','N','N','N','N',
 'N','N','N','N','N','N','N');
 FLUSH PRIVILEGES;
 DROP USER u1@h;

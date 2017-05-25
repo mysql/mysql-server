@@ -21,7 +21,7 @@ include/assert.inc [The group replication user should exist in this member]
 # Delete the user and watch GR  fail at start
 #
 include/stop_group_replication.inc
-DROP USER "mysql.session_user"@"localhost";
+DROP USER "mysql.session"@"localhost";
 START GROUP_REPLICATION;
 ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
 #
@@ -76,7 +76,7 @@ include/assert.inc [The group replication user should exist after install]
 #
 INSTALL PLUGIN group_replication SONAME 'GROUP_REPLICATION';
 SET SESSION sql_log_bin= 0;
-call mtr.add_suppression("There was an error when trying to access the server with user: mysql.session_user.*");
+call mtr.add_suppression("There was an error when trying to access the server with user: mysql.session.*");
 call mtr.add_suppression("Error calling group communication interfaces while trying to leave the group");
 call mtr.add_suppression("On plugin shutdown it was not possible to reset the server read mode settings. Try to reset it manually.");
 SET SESSION sql_log_bin= 1;

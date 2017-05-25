@@ -9,7 +9,7 @@ user	authentication_string
 userX	
 userY	
 userZ	
-mysql.session_user	*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE
+mysql.session	*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE
 mysql.sys	*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE
 root	
 # Case 1 : Modify multiple users
@@ -22,7 +22,7 @@ user	authentication_string
 userX	*A154C52565E9E7F94BFC08A1FE702624ED8EFFDA
 userY	*7538919BBFC125D3F772537519E66F8242CD2E6B
 userZ	*B7CF9386A7552DE7AAAB3A3882289C7BDEB9556B
-mysql.session_user	*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE
+mysql.session	*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE
 mysql.sys	*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE
 root	
 # This event sequence pattern MUST be present in binlog: !Q(ALTER USER.*userX.*userY.*userZ.*)
@@ -65,7 +65,7 @@ SELECT user FROM mysql.user;
 user
 userY
 userZ
-mysql.session_user
+mysql.session
 mysql.sys
 root
 # This event sequence pattern MUST NOT be present in binlog: !Q(ALTER USER.*root.*userW.*)
@@ -91,7 +91,7 @@ SELECT user, authentication_string FROM mysql.user;
 user	authentication_string
 userX	*7538919BBFC125D3F772537519E66F8242CD2E6B
 userY	*B7CF9386A7552DE7AAAB3A3882289C7BDEB9556B
-mysql.session_user	*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE
+mysql.session	*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE
 mysql.sys	*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE
 root	
 # This event sequence pattern MUST be present in binlog: !Q(ALTER USER.*userW.*userX.*userY.*userZ.*)
@@ -109,7 +109,7 @@ Note	3162	Authorization ID 'userX'@'%' does not exist.
 SELECT user, authentication_string FROM mysql.user;
 user	authentication_string
 userY	
-mysql.session_user	*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE
+mysql.session	*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE
 mysql.sys	*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE
 root	
 # This event sequence pattern MUST be present in binlog: !Q(ALTER USER.*userX.*userY.*)
@@ -129,7 +129,7 @@ Note	3162	Authorization ID 'userW'@'%' does not exist.
 SELECT user FROM mysql.user;
 user
 userY
-mysql.session_user
+mysql.session
 mysql.sys
 root
 # This event sequence pattern MUST be present in binlog: !Q(ALTER USER.*userY.*userW.*)

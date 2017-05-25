@@ -4032,7 +4032,7 @@ sub mysql_install_db {
              "UPDATE mysql.tables_priv SET
                timestamp = CURRENT_TIMESTAMP,
                Grantor= 'root\@localhost'
-               WHERE USER= 'mysql.session_user';\n");
+               WHERE USER= 'mysql.session';\n");
 
   # Make sure no anonymous accounts exists as a safety precaution
   mtr_tofile($bootstrap_sql_file,

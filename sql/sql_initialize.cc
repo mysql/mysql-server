@@ -64,13 +64,13 @@ static const char *initialization_data[] =
 
 static const char *session_service_initialization_data[] =
 {
-  "CREATE USER 'mysql.session_user'@localhost IDENTIFIED "
+  "CREATE USER 'mysql.session'@localhost IDENTIFIED "
     "WITH mysql_native_password AS '*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE' "
     "ACCOUNT LOCK;\n",
-  "REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'mysql.session_user'@localhost;\n",
-  "GRANT SELECT ON mysql.user TO 'mysql.session_user'@localhost;\n",
-  "GRANT SELECT ON performance_schema.* TO 'mysql.session_user'@localhost;\n",
-  "GRANT SUPER ON *.* TO 'mysql.session_user'@localhost;\n",
+  "REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'mysql.session'@localhost;\n",
+  "GRANT SELECT ON mysql.user TO 'mysql.session'@localhost;\n",
+  "GRANT SELECT ON performance_schema.* TO 'mysql.session'@localhost;\n",
+  "GRANT SUPER ON *.* TO 'mysql.session'@localhost;\n",
   NULL
 };
 

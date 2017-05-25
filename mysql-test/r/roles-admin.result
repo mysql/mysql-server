@@ -211,7 +211,7 @@ DROP ROLE r1;
 DROP DATABASE db1;
 SELECT user,host FROM mysql.user;
 user	host
-mysql.session_user	localhost
+mysql.session	localhost
 mysql.sys	localhost
 root	localhost
 #############################################
