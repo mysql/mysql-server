@@ -36,7 +36,8 @@ Group_member_info(char* hostname_arg,
                   ulonglong gtid_assignment_block_size_arg,
                   Group_member_info::Group_member_role role_arg,
                   bool in_single_primary_mode,
-                  bool has_enforces_update_everywhere_checks)
+                  bool has_enforces_update_everywhere_checks,
+                  uint member_weight_arg)
   : Plugin_gcs_message(CT_MEMBER_INFO_MESSAGE),
     hostname(hostname_arg), port(port_arg), uuid(uuid_arg),
     status(status_arg),
@@ -44,7 +45,8 @@ Group_member_info(char* hostname_arg,
     gtid_assignment_block_size(gtid_assignment_block_size_arg),
     unreachable(false),
     role(role_arg),
-    configuration_flags(0), conflict_detection_enable(false)
+    configuration_flags(0), conflict_detection_enable(false),
+    member_weight(member_weight_arg)
 {
   gcs_member_id= new Gcs_member_identifier(gcs_member_id_arg);
   member_version= new Member_version(member_version_arg.get_version());
@@ -71,7 +73,8 @@ Group_member_info::Group_member_info(Group_member_info& other)
     unreachable(other.is_unreachable()),
     role(other.get_role()),
     configuration_flags(other.get_configuration_flags()),
-    conflict_detection_enable(other.is_conflict_detection_enabled())
+    conflict_detection_enable(other.is_conflict_detection_enabled()),
+    member_weight(other.get_member_weight())
 {
   gcs_member_id= new Gcs_member_identifier(other.get_gcs_member_id()
                                                .get_member_id());
@@ -151,6 +154,10 @@ Group_member_info::encode_payload(std::vector<unsigned char>* buffer) const
   char conflict_detection_enable_aux= conflict_detection_enable ? '1' : '0';
   encode_payload_item_char(buffer, PIT_CONFLICT_DETECTION_ENABLE,
                            conflict_detection_enable_aux);
+
+  uint16 member_weight_aux= (uint16)member_weight;
+  encode_payload_item_int2(buffer, PIT_MEMBER_WEIGHT,
+                           member_weight_aux);
 
   DBUG_VOID_RETURN;
 }
@@ -254,6 +261,15 @@ Group_member_info::decode_payload(const unsigned char* buffer,
           slider += payload_item_length;
           conflict_detection_enable=
               (conflict_detection_enable_aux == '1') ? true : false;
+        }
+        break;
+
+      case PIT_MEMBER_WEIGHT:
+        if (slider + payload_item_length <= end)
+        {
+          uint16 member_weight_aux= uint2korr(slider);
+          slider += payload_item_length;
+          member_weight= (uint)member_weight_aux;
         }
         break;
     }
@@ -397,6 +413,16 @@ bool Group_member_info::is_conflict_detection_enabled()
   return conflict_detection_enable;
 }
 
+void Group_member_info::set_member_weight(uint new_member_weight)
+{
+  member_weight= new_member_weight;
+}
+
+uint Group_member_info::get_member_weight()
+{
+  return member_weight;
+}
+
 bool
 Group_member_info::operator ==(Group_member_info& other)
 {
@@ -479,6 +505,13 @@ Group_member_info::comparator_group_member_uuid(Group_member_info *m1,
 }
 
 bool
+Group_member_info::comparator_group_member_weight(Group_member_info *m1,
+                                                  Group_member_info *m2)
+{
+  return m1->has_greater_weight(m2);
+}
+
+bool
 Group_member_info::has_greater_version(Group_member_info *other)
 {
   if (this->member_version->get_major_version() >
@@ -492,6 +525,18 @@ bool
 Group_member_info::has_lower_uuid(Group_member_info *other)
 {
   return this->get_uuid().compare(other->get_uuid()) < 0;
+}
+
+bool
+Group_member_info::has_greater_weight(Group_member_info *other)
+{
+  if (this->get_member_weight() > other->get_member_weight())
+    return true;
+
+  if (this->get_member_weight() == other->get_member_weight())
+    return has_lower_uuid(other);
+
+  return false;
 }
 
 Group_member_info_manager::

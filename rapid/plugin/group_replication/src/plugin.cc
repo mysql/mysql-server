@@ -201,6 +201,12 @@ int flow_control_applier_threshold_var= DEFAULT_FLOW_CONTROL_THRESHOLD;
 #define MIN_TRANSACTION_SIZE_LIMIT 0
 ulong transaction_size_limit_var= DEFAULT_TRANSACTION_SIZE_LIMIT;
 
+/* Member Weight limits */
+#define DEFAULT_MEMBER_WEIGHT 50
+#define MAX_MEMBER_WEIGHT 100
+#define MIN_MEMBER_WEIGHT 0
+uint member_weight_var= DEFAULT_MEMBER_WEIGHT;
+
 /* Downgrade options */
 bool allow_local_lower_version_join_var= 0;
 
@@ -599,6 +605,7 @@ int configure_group_member_manager(char *hostname, char *uuid,
                   };);
   Member_version local_member_plugin_version(local_version);
   delete local_member_info;
+
   local_member_info= new Group_member_info(hostname,
                                            port,
                                            uuid,
@@ -609,7 +616,8 @@ int configure_group_member_manager(char *hostname, char *uuid,
                                            gtid_assignment_block_size_var,
                                            Group_member_info::MEMBER_ROLE_SECONDARY,
                                            single_primary_mode_var,
-                                           enforce_update_everywhere_checks_var);
+                                           enforce_update_everywhere_checks_var,
+                                           member_weight_var);
 
   //Create the membership info visible for the group
   delete group_member_mgr;
@@ -627,6 +635,7 @@ void init_compatibility_manager()
 
   compatibility_mgr= new Compatibility_module();
 }
+
 
 int configure_compatibility_manager()
 {
@@ -2168,6 +2177,23 @@ static void update_unreachable_timeout(MYSQL_THD, SYS_VAR*,
   DBUG_VOID_RETURN;
 }
 
+static void
+update_member_weight(MYSQL_THD, SYS_VAR*,
+                     void *var_ptr, const void *save)
+{
+  DBUG_ENTER("update_member_weight");
+
+  (*(uint*) var_ptr)= (*(uint*) save);
+  uint in_val= *static_cast<const uint*>(save);
+
+  if (local_member_info != NULL)
+  {
+    local_member_info->set_member_weight(in_val);
+  }
+
+  DBUG_VOID_RETURN;
+}
+
 //Base plugin variables
 
 static MYSQL_SYSVAR_STR(
@@ -2620,6 +2646,20 @@ static MYSQL_SYSVAR_ULONG(
   0                                                /* block */
 );
 
+static MYSQL_SYSVAR_UINT(
+  member_weight,                       /* name */
+  member_weight_var,                   /* var */
+  PLUGIN_VAR_OPCMDARG,                 /* optional var */
+  "Member weight will determine the member role in the group on"
+  " future primary elections",
+  NULL,                                /* check func. */
+  update_member_weight,                /* update func. */
+  DEFAULT_MEMBER_WEIGHT,               /* default */
+  MIN_MEMBER_WEIGHT,                   /* min */
+  MAX_MEMBER_WEIGHT,                   /* max */
+  0                                    /* block */
+);
+
 static SYS_VAR* group_replication_system_vars[]= {
   MYSQL_SYSVAR(group_name),
   MYSQL_SYSVAR(start_on_boot),
@@ -2655,6 +2695,7 @@ static SYS_VAR* group_replication_system_vars[]= {
   MYSQL_SYSVAR(flow_control_applier_threshold),
   MYSQL_SYSVAR(transaction_size_limit),
   MYSQL_SYSVAR(unreachable_majority_timeout),
+  MYSQL_SYSVAR(member_weight),
   NULL,
 };
 
