@@ -4027,10 +4027,11 @@ innobase_change_buffering_inited_ok:
 
 #endif /* HAVE_PSI_INTERFACE */
 
-	/* Set buffer pool size to default for fast startup when mysqld is
-	run with --help --verbose options. */
+	/* Set buffer pool size to default for fast startup when mysqld is run
+	with --help --verbose options or with --initialize/--initialize-insecure
+	options. */
 	ulint	srv_buf_pool_size_org = 0;
-	if (opt_help && opt_verbose
+	if (((opt_help && opt_verbose) || opt_initialize)
 	    && srv_buf_pool_size > srv_buf_pool_def_size) {
 		ib::warn() << "Setting innodb_buf_pool_size to "
 			<< srv_buf_pool_def_size << " for fast startup, "
