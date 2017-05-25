@@ -2279,7 +2279,10 @@ sp_load_for_information_schema(THD *thd, TABLE *proc_table, String *db,
                      returns, strlen(returns), 
                      sp_body, strlen(sp_body),
                      &sp_chistics, &definer_user, &definer_host, sql_mode))
+  {
+    delete creation_ctx;
     return 0;
+  }
 
   thd->lex= &newlex;
   newlex.current_select= NULL; 
