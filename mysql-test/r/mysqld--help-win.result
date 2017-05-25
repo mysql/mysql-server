@@ -1402,7 +1402,7 @@ long-query-time 10
 low-priority-updates FALSE
 lower-case-table-names 1
 master-info-file master.info
-master-info-repository FILE
+master-info-repository TABLE
 master-retry-count 86400
 master-verify-checksum FALSE
 max-allowed-packet 4194304
@@ -1542,7 +1542,7 @@ read-rnd-buffer-size 262144
 relay-log (No default value)
 relay-log-index (No default value)
 relay-log-info-file relay-log.info
-relay-log-info-repository FILE
+relay-log-info-repository TABLE
 relay-log-purge TRUE
 relay-log-recovery FALSE
 relay-log-space-limit 0

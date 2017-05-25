@@ -1,0 +1,1 @@
+--slave-transaction-retries=0 --sync_master_info=1 --binlog-direct-non-transactional-updates

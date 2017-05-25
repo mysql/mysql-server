@@ -18,7 +18,7 @@ START SLAVE IO_THREAD;
 include/wait_for_slave_io_to_start.inc
 [connection master]
 include/sync_slave_io_with_master.inc
-include/rpl_restart_server.inc [server_number=2 parameters: --skip_slave_start=FALSE --master-info-repository=TABLE --relay-log-info-repository=TABLE --relay-log-recovery=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip_slave_start=FALSE --relay-log-recovery=1]
 include/wait_for_slave_sql_to_start.inc
 [connection master]
 DROP DATABASE test_jfg;

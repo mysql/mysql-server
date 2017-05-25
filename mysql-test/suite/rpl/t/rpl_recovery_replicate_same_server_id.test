@@ -40,6 +40,8 @@
 ###############################################################################
 --source include/force_restart.inc
 --source include/not_group_replication_plugin.inc
+# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
+--source include/have_slave_repository_type_table.inc
 --source include/master-slave.inc
 
 --source include/rpl_connection_slave.inc
@@ -61,7 +63,7 @@ START SLAVE IO_THREAD;
 --source include/rpl_stop_server.inc
 
 --let $rpl_server_number= 2
---let $rpl_server_parameters=--skip_slave_start=FALSE --master-info-repository=TABLE --relay-log-info-repository=TABLE --relay-log-recovery=1
+--let $rpl_server_parameters=--skip_slave_start=FALSE --relay-log-recovery=1
 --source include/rpl_start_server.inc
 
 --let $assert_text= One error should match 'Error during --relay-log-recovery'
@@ -72,7 +74,7 @@ START SLAVE IO_THREAD;
 
 # Clean up Server needs to be restarted with relay-log-recovery=0
 --let $rpl_server_number= 2
---let $rpl_server_parameters=--master-info-repository=TABLE --relay-log-info-repository=TABLE --relay-log-recovery=0
+--let $rpl_server_parameters=--relay-log-recovery=0
 --source include/rpl_restart_server.inc
 
 DROP TABLE t1;

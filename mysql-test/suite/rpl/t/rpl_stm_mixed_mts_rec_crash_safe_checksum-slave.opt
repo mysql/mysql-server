@@ -1,1 +1,1 @@
---skip-core-file --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1 --relay-log-recovery=1 --binlog-checksum=NONE
+--skip-core-file --slave-transaction-retries=0 --sync-master-info=1 --relay-log-recovery=1 --binlog-checksum=NONE

@@ -1,1 +1,0 @@
---gtid-mode=on --enforce-gtid-consistency --log-slave-updates --relay_log_info_repository=TABLE --master_info_repository=TABLE --sync_master_info=1 --relay-log-recovery=1 --slave-transaction-retries=0

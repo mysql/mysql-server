@@ -10,8 +10,6 @@ log-slave-updates
 
 [mysqld.2]
 log-slave-updates
-master-info-repository=   TABLE
-relay-log-info-repository=TABLE
 
 [mysqld.3]
 loose-innodb_write_io_threads=    2

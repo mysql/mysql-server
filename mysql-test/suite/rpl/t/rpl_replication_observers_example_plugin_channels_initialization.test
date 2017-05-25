@@ -7,6 +7,8 @@
 --source include/have_binlog_format_mixed.inc
 --source include/have_replication_observers_example_plugin.inc
 
+SET @saved_master_info_repository = @@GLOBAL.master_info_repository;
+SET @saved_relay_log_info_repository = @@GLOBAL.relay_log_info_repository;
 # Install the replication observers example plugin
 
 --source include/install_replication_observers_example.inc
@@ -47,8 +49,8 @@ SET @@GLOBAL.master_info_repository='FILE';
 
 # Clean
 
-SET @@GLOBAL.master_info_repository='TABLE';
-
+SET @@GLOBAL.master_info_repository = @saved_master_info_repository;
+SET @@GLOBAL.relay_log_info_repository = @saved_relay_log_info_repository;
 SET @@GLOBAL.DEBUG= @debug_saved;
 DROP TABLE t1;
 

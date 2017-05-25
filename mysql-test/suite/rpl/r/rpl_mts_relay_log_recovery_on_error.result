@@ -37,7 +37,7 @@ INSERT INTO d1.t VALUES (2, 'T5');
 [connection slave]
 COMMIT;
 include/wait_for_slave_sql_error.inc [errno=1062]
-include/rpl_restart_server.inc [server_number=2 parameters: --skip_slave_start=TRUE --relay_log_info_repository=TABLE --master_info_repository=TABLE --sync_master_info=1 --relay-log-recovery=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip_slave_start=TRUE --sync_master_info=1 --relay-log-recovery=1]
 [connection slave]
 Relay log recovery should fail as MTS stopped due to an error
 START SLAVE;
@@ -45,7 +45,7 @@ ERROR HY000: Slave failed to initialize relay log info structure from the reposi
 Eliminate the cause of MTS error
 DELETE FROM d2.t WHERE a=2;
 DELETE FROM d1.t WHERE a=3;
-include/rpl_restart_server.inc [server_number=2 parameters: --skip_slave_start=TRUE --relay_log_info_repository=TABLE --master_info_repository=TABLE --sync_master_info=1 --relay-log-recovery=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip_slave_start=TRUE --sync_master_info=1 --relay-log-recovery=1]
 MTS recovery should be successful. Check that gaps are filled.
 include/assert.inc [Table d1.t should contain 2 rows.]
 include/assert.inc [Table d2.t should contain 3 rows.]

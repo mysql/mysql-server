@@ -95,7 +95,7 @@
 #include "query_options.h"
 #include "rpl_group_replication.h"       // is_group_replication_running
 #include "rpl_info_factory.h"            // Rpl_info_factory
-#include "rpl_info_handler.h"            // INFO_REPOSITORY_FILE
+#include "rpl_info_handler.h"            // INFO_REPOSITORY_TABLE
 #include "rpl_mi.h"                      // Master_info
 #include "rpl_msr.h"                     // channel_map
 #include "rpl_mts_submode.h"             // MTS_PARALLEL_TYPE_DB_NAME
@@ -1253,22 +1253,22 @@ static const char *repository_names[]=
   0
 };
 
-ulong opt_mi_repository_id= INFO_REPOSITORY_FILE;
+ulong opt_mi_repository_id= INFO_REPOSITORY_TABLE;
 static Sys_var_enum Sys_mi_repository(
        "master_info_repository",
        "Defines the type of the repository for the master information."
        ,GLOBAL_VAR(opt_mi_repository_id), CMD_LINE(REQUIRED_ARG),
-       repository_names, DEFAULT(INFO_REPOSITORY_FILE), NO_MUTEX_GUARD,
+       repository_names, DEFAULT(INFO_REPOSITORY_TABLE), NO_MUTEX_GUARD,
        NOT_IN_BINLOG, ON_CHECK(master_info_repository_check),
        ON_UPDATE(0));
 
-ulong opt_rli_repository_id= INFO_REPOSITORY_FILE;
+ulong opt_rli_repository_id= INFO_REPOSITORY_TABLE;
 static Sys_var_enum Sys_rli_repository(
        "relay_log_info_repository",
        "Defines the type of the repository for the relay log information "
        "and associated workers."
        ,GLOBAL_VAR(opt_rli_repository_id), CMD_LINE(REQUIRED_ARG),
-       repository_names, DEFAULT(INFO_REPOSITORY_FILE), NO_MUTEX_GUARD,
+       repository_names, DEFAULT(INFO_REPOSITORY_TABLE), NO_MUTEX_GUARD,
        NOT_IN_BINLOG, ON_CHECK(relay_log_info_repository_check),
        ON_UPDATE(0));
 

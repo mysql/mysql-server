@@ -14,8 +14,8 @@ perl mysql-test-run.pl --force --timer   --parallel=auto --experimental=collecti
 
 # Additional modes for rpl and binlog suites. Checksum and relay-log-info-repository
 perl mysql-test-run.pl --force --timer  --parallel=auto --experimental=collections/default.experimental --comment=rpl_binlog_checksum  --vardir=var-rpl_binlog_checksum --suite=rpl,rpl_gtid,rpl_nogtid,binlog,binlog_gtid,binlog_nogtid --mysqld=--binlog-checksum=CRC32 --skip-test-list=collections/disabled-daily.list --no-skip
-perl mysql-test-run.pl --force --timer  --parallel=auto --experimental=collections/default.experimental --comment=rpl_crash_safe_relay --vardir=var-rpl_crash_safe_relay --suite=rpl,rpl_gtid,rpl_nogtid --mysqld=--relay-log-info-repository=TABLE --skip-test-list=collections/disabled-daily.list --no-skip
-perl mysql-test-run.pl --force --timer  --parallel=auto --experimental=collections/default.experimental --comment=rpl_crash_safe_master --vardir=var-rpl_crash_safe_master --suite=rpl,rpl_gtid,rpl_nogtid --mysqld=--master-info-repository=TABLE --skip-test-list=collections/disabled-daily.list --no-skip
+perl mysql-test-run.pl --force --timer  --parallel=auto --experimental=collections/default.experimental --comment=rpl_relay_log_info_file --vardir=var-rpl_relay_log_info_file --suite=rpl,rpl_gtid,rpl_nogtid --mysqld=--relay-log-info-repository=FILE --skip-test-list=collections/disabled-daily.list --no-skip
+perl mysql-test-run.pl --force --timer  --parallel=auto --experimental=collections/default.experimental --comment=rpl_master_info_file --vardir=var-rpl_master_info_file --suite=rpl,rpl_gtid,rpl_nogtid --mysqld=--master-info-repository=FILE --skip-test-list=collections/disabled-daily.list --no-skip
 
 # Additional modes for rpl. Multi-Threaded Slave
 # Skipped test rpl_incompatible_gtids_in_relay_log.test from MTS runs

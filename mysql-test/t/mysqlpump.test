@@ -131,8 +131,8 @@ DROP DATABASE db1_1gb;
 SHOW VARIABLES LIKE "master_info_repository";
 SHOW VARIABLES LIKE "relay_log_info_repository";
 
-SET GLOBAL master_info_repository= 'TABLE';
-SET GLOBAL relay_log_info_repository= 'TABLE';
+SET GLOBAL master_info_repository= 'FILE';
+SET GLOBAL relay_log_info_repository= 'FILE';
 
 SHOW VARIABLES LIKE "master_info_repository";
 SHOW VARIABLES LIKE "relay_log_info_repository";
@@ -149,8 +149,8 @@ SHOW VARIABLES LIKE "relay_log_info_repository";
 --let SEARCH_PATTERN= CREATE TABLE `mysql`.`slave_relay_log_info`
 --source include/search_pattern.inc
 
-SET GLOBAL master_info_repository= 'FILE';
-SET GLOBAL relay_log_info_repository= 'FILE';
+SET GLOBAL master_info_repository= 'TABLE';
+SET GLOBAL relay_log_info_repository= 'TABLE';
 
 SHOW VARIABLES LIKE "master_info_repository";
 SHOW VARIABLES LIKE "relay_log_info_repository";
