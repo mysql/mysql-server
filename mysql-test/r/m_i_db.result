@@ -7,7 +7,7 @@ ERROR HY000: You must reset your password using ALTER USER statement before exec
 set password='abc';
 SELECT user,host,plugin FROM mysql.user WHERE password_expired='n' ORDER BY user;
 user	host	plugin
-mysql.session_user	localhost	mysql_native_password
+mysql.session	localhost	mysql_native_password
 mysql.sys	localhost	mysql_native_password
 root	localhost	mysql_native_password
 SELECT count(*) FROM mysql.user;
@@ -35,7 +35,7 @@ ERROR HY000: You must reset your password using ALTER USER statement before exec
 set password='abc';
 SELECT user,host,plugin FROM mysql.user WHERE password_expired='n' ORDER BY user;
 user	host	plugin
-mysql.session_user	localhost	mysql_native_password
+mysql.session	localhost	mysql_native_password
 mysql.sys	localhost	mysql_native_password
 root	localhost	mysql_native_password
 SELECT count(*) FROM mysql.user;
@@ -57,7 +57,7 @@ set password='';
 # Execution of mysql_install_db ends..............
 SELECT user,host,plugin FROM mysql.user WHERE password_expired='n' ORDER BY user;
 user	host	plugin
-mysql.session_user	localhost	mysql_native_password
+mysql.session	localhost	mysql_native_password
 mysql.sys	localhost	mysql_native_password
 root	localhost	mysql_native_password
 SELECT count(*) FROM mysql.user;
@@ -79,7 +79,7 @@ set password='';
 # Execution of mysql_install_db ends..............
 SELECT user,host,plugin FROM mysql.user WHERE password_expired='n' ORDER BY user;
 user	host	plugin
-mysql.session_user	localhost	mysql_native_password
+mysql.session	localhost	mysql_native_password
 mysql.sys	localhost	mysql_native_password
 test_user	localhost	mysql_native_password
 SELECT count(*) FROM mysql.user;
@@ -103,7 +103,7 @@ ERROR HY000: You must reset your password using ALTER USER statement before exec
 set password='abc';
 SELECT user,host,plugin FROM mysql.user WHERE password_expired='n' ORDER BY user;
 user	host	plugin
-mysql.session_user	localhost	mysql_native_password
+mysql.session	localhost	mysql_native_password
 mysql.sys	localhost	mysql_native_password
 test_user	localhost	mysql_native_password
 SELECT count(*) FROM mysql.user;
@@ -125,7 +125,7 @@ set password='';
 # Execution of mysql_install_db ends..............
 SELECT user,host,plugin FROM mysql.user WHERE password_expired='n' ORDER BY user;
 user	host	plugin
-mysql.session_user	localhost	mysql_native_password
+mysql.session	localhost	mysql_native_password
 mysql.sys	localhost	mysql_native_password
 test_user2	localhost	mysql_native_password
 SELECT count(*) FROM mysql.user;
@@ -147,7 +147,7 @@ set password='';
 # Execution of mysql_install_db ends..............
 SELECT user,host,plugin FROM mysql.user WHERE password_expired='n' ORDER BY user;
 user	host	plugin
-mysql.session_user	localhost	mysql_native_password
+mysql.session	localhost	mysql_native_password
 mysql.sys	localhost	mysql_native_password
 test_user2	localhost	mysql_native_password
 SELECT count(*) FROM mysql.user;
@@ -169,7 +169,7 @@ set password='';
 # Execution of mysql_install_db ends..............
 SELECT user,host,plugin FROM mysql.user WHERE password_expired='n' ORDER BY user;
 user	host	plugin
-mysql.session_user	localhost	mysql_native_password
+mysql.session	localhost	mysql_native_password
 mysql.sys	localhost	mysql_native_password
 test_user	localhost	mysql_native_password
 SELECT count(*) FROM mysql.user;
@@ -194,7 +194,7 @@ ERROR HY000: You must reset your password using ALTER USER statement before exec
 set password='abc';
 SELECT user,host,plugin FROM mysql.user WHERE password_expired='n' ORDER BY user;
 user	host	plugin
-mysql.session_user	localhost	mysql_native_password
+mysql.session	localhost	mysql_native_password
 mysql.sys	localhost	mysql_native_password
 test_user	localhost	mysql_native_password
 SELECT count(*) FROM mysql.user;
@@ -219,7 +219,7 @@ ERROR HY000: You must reset your password using ALTER USER statement before exec
 set password='abc';
 SELECT user,host,plugin FROM mysql.user WHERE password_expired='n' ORDER BY user;
 user	host	plugin
-mysql.session_user	localhost	mysql_native_password
+mysql.session	localhost	mysql_native_password
 mysql.sys	localhost	mysql_native_password
 root	127.0.0.1	mysql_native_password
 SELECT count(*) FROM mysql.user;
@@ -240,7 +240,7 @@ set password='';
 # Execution of mysql_install_db ends..............
 SELECT user,host,plugin FROM mysql.user WHERE password_expired='n' ORDER BY user;
 user	host	plugin
-mysql.session_user	localhost	mysql_native_password
+mysql.session	localhost	mysql_native_password
 mysql.sys	localhost	mysql_native_password
 root	127.0.0.1	mysql_native_password
 SELECT count(*) FROM mysql.user;
@@ -262,7 +262,7 @@ set password='';
 # Execution of mysql_install_db ends..............
 SELECT user,host,plugin FROM mysql.user WHERE password_expired='n' ORDER BY user;
 user	host	plugin
-mysql.session_user	localhost	mysql_native_password
+mysql.session	localhost	mysql_native_password
 mysql.sys	localhost	mysql_native_password
 root	localhost	mysql_native_password
 SELECT count(*) FROM mysql.user;
@@ -288,7 +288,7 @@ ERROR HY000: You must reset your password using ALTER USER statement before exec
 set password='abc';
 SELECT user,host,plugin FROM mysql.user WHERE password_expired='n' ORDER BY user;
 user	host	plugin
-mysql.session_user	localhost	mysql_native_password
+mysql.session	localhost	mysql_native_password
 mysql.sys	localhost	mysql_native_password
 root	localhost	mysql_native_password
 SELECT count(*) FROM mysql.user;
@@ -310,7 +310,7 @@ set password='';
 ERROR 28000: Access denied for user 'root'@'localhost' (using password: NO)
 SELECT user,host,plugin FROM mysql.user WHERE password_expired='n' ORDER BY user;
 user	host	plugin
-mysql.session_user	localhost	mysql_native_password
+mysql.session	localhost	mysql_native_password
 mysql.sys	localhost	mysql_native_password
 root	localhost	mysql_native_password
 SELECT count(*) FROM mysql.user;
@@ -336,7 +336,7 @@ ERROR HY000: You must reset your password using ALTER USER statement before exec
 set password='abc';
 SELECT user,host,plugin FROM mysql.user WHERE password_expired='n' ORDER BY user;
 user	host	plugin
-mysql.session_user	localhost	mysql_native_password
+mysql.session	localhost	mysql_native_password
 mysql.sys	localhost	mysql_native_password
 root	localhost	mysql_native_password
 SELECT count(*) FROM mysql.user;
@@ -358,7 +358,7 @@ set password='';
 ERROR 28000: Access denied for user 'root'@'localhost' (using password: NO)
 SELECT user,host,plugin FROM mysql.user WHERE password_expired='n' ORDER BY user;
 user	host	plugin
-mysql.session_user	localhost	mysql_native_password
+mysql.session	localhost	mysql_native_password
 mysql.sys	localhost	mysql_native_password
 root	localhost	mysql_native_password
 SELECT count(*) FROM mysql.user;
@@ -383,7 +383,7 @@ ERROR HY000: You must reset your password using ALTER USER statement before exec
 set password='abc';
 SELECT user,host,plugin FROM mysql.user WHERE password_expired='n' ORDER BY user;
 user	host	plugin
-mysql.session_user	localhost	mysql_native_password
+mysql.session	localhost	mysql_native_password
 mysql.sys	localhost	mysql_native_password
 root	localhost	mysql_native_password
 SELECT count(*) FROM mysql.user;
@@ -404,7 +404,7 @@ set password='';
 # Execution of mysql_install_db ends..............
 SELECT user,host,plugin FROM mysql.user WHERE password_expired='n' ORDER BY user;
 user	host	plugin
-mysql.session_user	localhost	mysql_native_password
+mysql.session	localhost	mysql_native_password
 mysql.sys	localhost	mysql_native_password
 root	localhost	mysql_native_password
 SELECT count(*) FROM mysql.user;
@@ -429,7 +429,7 @@ ERROR HY000: You must reset your password using ALTER USER statement before exec
 set password='abc';
 SELECT user,host,plugin FROM mysql.user WHERE password_expired='n' ORDER BY user;
 user	host	plugin
-mysql.session_user	localhost	mysql_native_password
+mysql.session	localhost	mysql_native_password
 mysql.sys	localhost	mysql_native_password
 root	localhost	mysql_native_password
 SELECT count(*) FROM mysql.user;
@@ -450,7 +450,7 @@ set password='';
 # Execution of mysql_install_db ends..............
 SELECT user,host,plugin FROM mysql.user WHERE password_expired='n' ORDER BY user;
 user	host	plugin
-mysql.session_user	localhost	mysql_native_password
+mysql.session	localhost	mysql_native_password
 mysql.sys	localhost	mysql_native_password
 root	localhost	mysql_native_password
 SELECT count(*) FROM mysql.user;
@@ -475,7 +475,7 @@ ERROR HY000: You must reset your password using ALTER USER statement before exec
 set password='abc';
 SELECT user,host,plugin FROM mysql.user WHERE password_expired='n' ORDER BY user;
 user	host	plugin
-mysql.session_user	localhost	mysql_native_password
+mysql.session	localhost	mysql_native_password
 mysql.sys	localhost	mysql_native_password
 root	localhost	mysql_native_password
 SELECT count(*) FROM mysql.user;
@@ -500,7 +500,7 @@ ERROR HY000: You must reset your password using ALTER USER statement before exec
 set password='abc';
 SELECT user,host,plugin FROM mysql.user WHERE password_expired='n' ORDER BY user;
 user	host	plugin
-mysql.session_user	localhost	mysql_native_password
+mysql.session	localhost	mysql_native_password
 mysql.sys	localhost	mysql_native_password
 root	localhost	mysql_native_password
 SELECT count(*) FROM mysql.user;
@@ -521,7 +521,7 @@ set password='';
 # Execution of mysql_install_db ends..............
 SELECT user,host,plugin FROM mysql.user WHERE password_expired='n' ORDER BY user;
 user	host	plugin
-mysql.session_user	localhost	mysql_native_password
+mysql.session	localhost	mysql_native_password
 mysql.sys	localhost	mysql_native_password
 root	localhost	mysql_native_password
 SELECT count(*) FROM mysql.user;

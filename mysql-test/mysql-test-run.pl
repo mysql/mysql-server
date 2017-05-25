@@ -4011,18 +4011,18 @@ sub mysql_install_db {
   # Create the SQL session user need for plugins that use this service
   mtr_tofile($bootstrap_sql_file,
              "INSERT IGNORE INTO mysql.user VALUES ('localhost',
-             'mysql.session_user','N','N','N','N','N','N','N','N','N','N','N',
+             'mysql.session','N','N','N','N','N','N','N','N','N','N','N',
              'N','N','N','N','Y','N','N','N','N','N','N','N','N','N','N','N',
              'N','N','','','','',0,0,0,0,'mysql_native_password',
              '*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE','N',
               CURRENT_TIMESTAMP,NULL,'Y');\n");
   mtr_tofile($bootstrap_sql_file,
              "INSERT INTO mysql.tables_priv VALUES ('localhost','mysql',
-             'mysql.session_user','user','root\@localhost', CURRENT_TIMESTAMP,
+             'mysql.session','user','root\@localhost', CURRENT_TIMESTAMP,
              'Select', '');\n");
   mtr_tofile($bootstrap_sql_file,
              "INSERT INTO mysql.db VALUES ('localhost', 'performance_schema',
-             'mysql.session_user','Y','N','N','N','N','N','N','N','N','N','N',
+             'mysql.session','Y','N','N','N','N','N','N','N','N','N','N',
              'N','N','N','N','N','N','N','N');\n");
 
   # Make sure no anonymous accounts exists as a safety precaution
