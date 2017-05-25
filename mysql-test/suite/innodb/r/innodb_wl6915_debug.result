@@ -58,7 +58,7 @@ count(*)
 50
 drop table t2;
 drop procedure populate_t1_t2;
-# restart: --innodb_undo_logs=1
+# restart: --innodb_rollback_segments=1
 create table t (i int) engine=innodb;
 insert into t values (1);
 insert into t values (2);
@@ -95,7 +95,7 @@ count(*)
 drop table t1;
 drop table t2;
 drop procedure populate_t1_t2;
-# restart: --innodb_undo_logs=10
+# restart: --innodb_rollback_segments=10
 create table t (i int) engine=innodb;
 insert into t values (1);
 insert into t values (2);
@@ -104,7 +104,7 @@ insert into t values (1);
 insert into t values (2);
 drop table t;
 drop table t2;
-# restart: --innodb_undo_logs=40
+# restart: --innodb_rollback_segments=40
 create table t (i int) engine=innodb;
 insert into t values (1);
 insert into t values (2);
