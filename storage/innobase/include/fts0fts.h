@@ -350,9 +350,6 @@ enum	fts_status {
 
 	ADDED_TABLE_SYNCED = 8,		/*!< TRUE if the ADDED table record is
 					sync-ed after crash recovery */
-
-	TABLE_DICT_LOCKED = 16		/*!< Set if the table has
-					dict_sys->mutex */
 };
 
 typedef	enum fts_status	fts_status_t;
@@ -435,9 +432,7 @@ extern char*		fts_internal_tbl_name2;
 
 #define	fts_que_graph_free(graph)			\
 do {							\
-	mutex_enter(&dict_sys->mutex);			\
 	que_graph_free(graph);				\
-	mutex_exit(&dict_sys->mutex);			\
 } while (0)
 
 /******************************************************************//**
@@ -915,16 +910,6 @@ fts_sync_table(
 	bool		unlock_cache,
 	bool		wait,
 	bool		has_dict);
-
-/****************************************************************//**
-Free the query graph but check whether dict_sys->mutex is already
-held */
-void
-fts_que_graph_free_check_lock(
-/*==========================*/
-	fts_table_t*		fts_table,	/*!< in: FTS table */
-	const fts_index_cache_t*index_cache,	/*!< in: FTS index cache */
-	que_t*			graph);		/*!< in: query graph */
 
 /****************************************************************//**
 Create an FTS index cache. */

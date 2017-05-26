@@ -504,14 +504,9 @@ fts_load_user_stopword(
 	dberr_t		error = DB_SUCCESS;
 	ibool		ret = TRUE;
 	trx_t*		trx;
-	ibool		has_lock = fts->fts_status & TABLE_DICT_LOCKED;
 
 	trx = trx_allocate_for_background();
 	trx->op_info = "Load user stopword table into FTS cache";
-
-	if (!has_lock) {
-		mutex_enter(&dict_sys->mutex);
-	}
 
 	/* Validate the user table existence and in the right
 	format */
@@ -535,7 +530,7 @@ fts_load_user_stopword(
 	pars_info_bind_function(info, "my_func", fts_read_stopword,
 				stopword_info);
 
-	graph = fts_parse_sql_no_dict_lock(
+	graph = fts_parse_sql(
 		NULL,
 		info,
 		"DECLARE FUNCTION my_func;\n"
@@ -582,10 +577,6 @@ fts_load_user_stopword(
 	que_graph_free(graph);
 
 cleanup:
-	if (!has_lock) {
-		mutex_exit(&dict_sys->mutex);
-	}
-
 	trx_free_for_background(trx);
 	return(ret);
 }
@@ -945,43 +936,6 @@ fts_drop_index(
 }
 
 /****************************************************************//**
-Free the query graph but check whether dict_sys->mutex is already
-held */
-void
-fts_que_graph_free_check_lock(
-/*==========================*/
-	fts_table_t*		fts_table,	/*!< in: FTS table */
-	const fts_index_cache_t*index_cache,	/*!< in: FTS index cache */
-	que_t*			graph)		/*!< in: query graph */
-{
-	ibool	has_dict = FALSE;
-
-	if (fts_table && fts_table->table) {
-		ut_ad(fts_table->table->fts);
-
-		has_dict = fts_table->table->fts->fts_status
-			 & TABLE_DICT_LOCKED;
-	} else if (index_cache) {
-		ut_ad(index_cache->index->table->fts);
-
-		has_dict = index_cache->index->table->fts->fts_status
-			 & TABLE_DICT_LOCKED;
-	}
-
-	if (!has_dict) {
-		mutex_enter(&dict_sys->mutex);
-	}
-
-	ut_ad(mutex_own(&dict_sys->mutex));
-
-	que_graph_free(graph);
-
-	if (!has_dict) {
-		mutex_exit(&dict_sys->mutex);
-	}
-}
-
-/****************************************************************//**
 Create an FTS index cache. */
 CHARSET_INFO*
 fts_index_get_charset(
@@ -1157,18 +1111,14 @@ fts_cache_clear(
 
 			if (index_cache->ins_graph[j] != NULL) {
 
-				fts_que_graph_free_check_lock(
-					NULL, index_cache,
-					index_cache->ins_graph[j]);
+				que_graph_free(index_cache->ins_graph[j]);
 
 				index_cache->ins_graph[j] = NULL;
 			}
 
 			if (index_cache->sel_graph[j] != NULL) {
 
-				fts_que_graph_free_check_lock(
-					NULL, index_cache,
-					index_cache->sel_graph[j]);
+				que_graph_free(index_cache->sel_graph[j]);
 
 				index_cache->sel_graph[j] = NULL;
 			}
@@ -1726,8 +1676,7 @@ fts_rename_aux_tables(
 				new_name, old_table_name, trx);
 
 			DBUG_EXECUTE_IF("fts_rename_failure",
-					err = DB_DEADLOCK;
-					fts_sql_rollback(trx););
+					err = DB_DEADLOCK;);
 
 			if (err != DB_SUCCESS) {
 				return(err);
@@ -1837,6 +1786,10 @@ fts_init_config_table(
 	dberr_t		error = DB_SUCCESS;
 	trx_t*		trx;
 
+	ut_ad(mutex_own(&dict_sys->mutex));
+
+	mutex_exit(&dict_sys->mutex);
+
 	info = pars_info_create();
 
 	fts_table->suffix = FTS_SUFFIX_CONFIG;
@@ -1844,7 +1797,7 @@ fts_init_config_table(
 	pars_info_bind_id(info, true, "config_table", table_name);
 	trx = trx_allocate_for_background();
 
-	graph = fts_parse_sql_no_dict_lock(
+	graph = fts_parse_sql(
 		fts_table, info, fts_config_table_insert_values_sql);
 
 	error = fts_eval_sql(trx, graph);
@@ -1858,6 +1811,8 @@ fts_init_config_table(
 	}
 
 	trx_free_for_background(trx);
+
+	mutex_enter(&dict_sys->mutex);
 
 	return(error);
 }
@@ -1882,7 +1837,11 @@ fts_empty_table(
 	fts_get_table_name(fts_table, table_name);
 	pars_info_bind_id(info, true, "table_name", table_name);
 
-	graph = fts_parse_sql_no_dict_lock(
+	ut_ad(mutex_own(&dict_sys->mutex));
+
+	mutex_exit(&dict_sys->mutex);
+
+	graph = fts_parse_sql(
 		fts_table,
 		info,
 		"BEGIN DELETE FROM $table_name;");
@@ -1890,6 +1849,8 @@ fts_empty_table(
 	error = fts_eval_sql(trx, graph);
 
 	que_graph_free(graph);
+
+	mutex_enter(&dict_sys->mutex);
 
 	return(error);
 }
@@ -2742,7 +2703,7 @@ fts_create_index_tables_low(
 
 		/* Create the FTS auxiliary tables that are specific
 		to an FTS index. We need to preserve the table_id %s
-		which fts_parse_sql_no_dict_lock() will fill in for us. */
+		which fts_parse_sql() will fill in for us. */
 		fts_table.suffix = fts_get_suffix(i);
 
 		new_table = fts_create_one_index_table(
@@ -3378,7 +3339,7 @@ retry:
 
 	error = fts_eval_sql(trx, graph);
 
-	fts_que_graph_free_check_lock(&fts_table, NULL, graph);
+	que_graph_free(graph);
 
 	// FIXME: We need to retry deadlock errors
 	if (error != DB_SUCCESS) {
@@ -3490,7 +3451,7 @@ fts_update_sync_doc_id(
 
 	error = fts_eval_sql(trx, graph);
 
-	fts_que_graph_free_check_lock(&fts_table, NULL, graph);
+	que_graph_free(graph);
 
 	if (local_trx) {
 		if (error == DB_SUCCESS) {
@@ -5014,18 +4975,14 @@ fts_sync_rollback(
 
 			if (index_cache->ins_graph[j] != NULL) {
 
-				fts_que_graph_free_check_lock(
-					NULL, index_cache,
-					index_cache->ins_graph[j]);
+				que_graph_free(index_cache->ins_graph[j]);
 
 				index_cache->ins_graph[j] = NULL;
 			}
 
 			if (index_cache->sel_graph[j] != NULL) {
 
-				fts_que_graph_free_check_lock(
-					NULL, index_cache,
-					index_cache->sel_graph[j]);
+				que_graph_free(index_cache->sel_graph[j]);
 
 				index_cache->sel_graph[j] = NULL;
 			}
@@ -6805,7 +6762,7 @@ fts_valid_stopword_table(
 	MDL_ticket*	mdl = nullptr;
 	THD*		thd = current_thd;
 	table = dd_table_open_on_name(
-		thd, &mdl, stopword_table_name, true, DICT_ERR_IGNORE_NONE);
+		thd, &mdl, stopword_table_name, false, DICT_ERR_IGNORE_NONE);
 
 	if (!table) {
 		ib::error() << "User stopword table " << stopword_table_name
@@ -6815,7 +6772,7 @@ fts_valid_stopword_table(
 	} else {
 		const char*     col_name;
 
-		dd_table_close(table, thd, &mdl, true);
+		dd_table_close(table, thd, &mdl, false);
 
 		col_name = table->get_col_name(0);
 

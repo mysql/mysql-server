@@ -121,9 +121,7 @@ fts_config_get_value(
 
 	error = fts_eval_sql(trx, graph);
 
-	mutex_enter(&dict_sys->mutex);
 	que_graph_free(graph);
-	mutex_exit(&dict_sys->mutex);
 
 	return(error);
 }
@@ -229,7 +227,7 @@ fts_config_set_value(
 
 	error = fts_eval_sql(trx, graph);
 
-	fts_que_graph_free_check_lock(fts_table, NULL, graph);
+	que_graph_free(graph);
 
 	n_rows_updated = trx->undo_no - undo_no;
 
@@ -255,7 +253,7 @@ fts_config_set_value(
 
 		error = fts_eval_sql(trx, graph);
 
-		fts_que_graph_free_check_lock(fts_table, NULL, graph);
+		que_graph_free(graph);
 	}
 
 	return(error);

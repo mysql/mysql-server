@@ -1805,6 +1805,7 @@ srv_start(bool create_new_db, const char* scan_directories)
 
 	fsp_init();
 	log_init();
+	pars_init();
 
 	recv_sys_create();
 	recv_sys_init(buf_pool_get_curr_size());
@@ -2852,6 +2853,7 @@ srv_shutdown()
 	row_mysql_close();
 	srv_free();
 	fil_close();
+	pars_close();
 
 	/* 4. Free all allocated memory */
 

@@ -4883,15 +4883,15 @@ new_clustered_failed:
 				build_fts_common = true;
 			}
 
-			ctx->new_table->fts->fts_status
-				|= TABLE_DICT_LOCKED;
+			ut_ad(mutex_own(&dict_sys->mutex));
+			mutex_exit(&dict_sys->mutex);
 
 			error = innobase_fts_load_stopword(
 				ctx->new_table, nullptr,
 				ctx->prebuilt->trx->mysql_thd)
 				? DB_SUCCESS : DB_ERROR;
-			ctx->new_table->fts->fts_status
-				&= ~TABLE_DICT_LOCKED;
+
+			mutex_enter(&dict_sys->mutex);
 
 			if (error != DB_SUCCESS) {
 				goto error_handling;

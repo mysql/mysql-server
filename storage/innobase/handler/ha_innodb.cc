@@ -522,6 +522,7 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	PSI_MUTEX_KEY(dict_foreign_err_mutex, 0, 0),
 	PSI_MUTEX_KEY(dict_persist_dirty_tables_mutex, 0, 0),
 	PSI_MUTEX_KEY(dict_sys_mutex, 0, 0),
+	PSI_MUTEX_KEY(parser_mutex, 0, 0),
 	PSI_MUTEX_KEY(recalc_pool_mutex, 0, 0),
 	PSI_MUTEX_KEY(fil_system_mutex, 0, 0),
 	PSI_MUTEX_KEY(file_open_mutex, 0, 0),
@@ -12265,6 +12266,8 @@ innobase_fts_load_stopword(
 	trx_t*		trx,	/*!< in: transaction */
 	THD*		thd)	/*!< in: current thread */
 {
+	ut_ad(!mutex_own(&dict_sys->mutex));
+
 	return(fts_load_stopword(table, trx,
 				 innobase_server_stopword_table,
 				 THDVAR(thd, ft_user_stopword_table),
@@ -19470,17 +19473,12 @@ innodb_stopword_table_validate(
 	const char*	stopword_table_name;
 	char		buff[STRING_BUFFER_USUAL_SIZE];
 	int		len = sizeof(buff);
-	trx_t*		trx;
 	int		ret = 1;
 
 	ut_a(save != NULL);
 	ut_a(value != NULL);
 
 	stopword_table_name = value->val_str(value, buff, &len);
-
-	trx = check_trx_exists(thd);
-
-	row_mysql_lock_data_dictionary(trx);
 
 	/* Validate the stopword table's (if supplied) existence and
 	of the right format */
@@ -19489,8 +19487,6 @@ innodb_stopword_table_validate(
 		*static_cast<const char**>(save) = stopword_table_name;
 		ret = 0;
 	}
-
-	row_mysql_unlock_data_dictionary(trx);
 
 	return(ret);
 }

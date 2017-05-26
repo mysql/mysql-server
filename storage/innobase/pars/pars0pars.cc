@@ -89,6 +89,23 @@ pars_res_word_t	pars_clustered_token = {PARS_CLUSTERED_TOKEN};
 /** Global variable used to denote the '*' in SELECT * FROM. */
 ulint	pars_star_denoter	= 12345678;
 
+/** Mutex to protect the sql parser */
+ib_mutex_t	pars_mutex;
+
+/** Initialize for the internal parser */
+void
+pars_init()
+{
+	mutex_create(LATCH_ID_PARSER, &pars_mutex);
+}
+
+/** Clean up the internal parser */
+void
+pars_close()
+{
+	mutex_free(&pars_mutex);
+}
+
 /********************************************************************
 Get user function with the given name.*/
 UNIV_INLINE
@@ -786,19 +803,19 @@ pars_retrieve_table_def(
 		if (strstr(sym_node->name, "sys") != nullptr
 		    || strstr(sym_node->name, "SYS") != nullptr) {
 			sym_node->table = dict_table_open_on_name(
-				sym_node->name, TRUE, FALSE,
+				sym_node->name, FALSE, FALSE,
 				DICT_ERR_IGNORE_NONE);
 		} else {
 			THD*		thd = current_thd;
 
 			sym_node->mdl = nullptr;
 			sym_node->table = dd_table_open_on_name_in_mem(
-				sym_node->name, true);
+				sym_node->name, false);
 
 			if (sym_node->table == nullptr) {
 				sym_node->table = dd_table_open_on_name(
 					thd, &sym_node->mdl, sym_node->name,
-					true, DICT_ERR_IGNORE_NONE);
+					false, DICT_ERR_IGNORE_NONE);
 			}
 		}
 
@@ -1937,7 +1954,8 @@ pars_sql(
 	heap = mem_heap_create(16000);
 
 	/* Currently, the parser is not reentrant: */
-	ut_ad(mutex_own(&dict_sys->mutex));
+	ut_ad(mutex_own(&pars_mutex));
+	ut_ad(!mutex_own(&dict_sys->mutex));
 
 	pars_sym_tab_global = sym_tab_create(heap);
 

@@ -263,10 +263,7 @@ row_undo_mod_clust(
 	bool		online;
 
 	ut_ad(thr_get_trx(thr) == node->trx);
-	ut_ad(node->trx->dict_operation_lock_mode);
 	ut_ad(node->trx->in_rollback);
-	ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_S)
-	      || rw_lock_own(dict_operation_lock, RW_LOCK_X));
 
 	log_free_check();
 	pcur = &node->pcur;
@@ -278,7 +275,6 @@ row_undo_mod_clust(
 
 	online = dict_index_is_online_ddl(index);
 	if (online) {
-		ut_ad(node->trx->dict_operation_lock_mode != RW_X_LATCH);
 		mtr_s_lock(dict_index_get_lock(index), &mtr);
 	}
 
@@ -819,7 +815,6 @@ row_undo_mod_sec_flag_corrupted(
 		dict_set_corrupted(index);
 		break;
 	default:
-		ut_ad(0);
 		/* fall through */
 	case RW_X_LATCH:
 		/* This should be the rollback of a data dictionary
@@ -1103,14 +1098,12 @@ row_undo_mod_upd_exist_sec(
 	return(err);
 }
 
-/***********************************************************//**
-Parses the row reference and other info in a modify undo log record. */
+/** Parses the row reference and other info in a modify undo log record.
+@param[in]	node	row undo node */
 static
 void
 row_undo_mod_parse_undo_rec(
-/*========================*/
-	undo_node_t*	node,		/*!< in: row undo node */
-	ibool		dict_locked)	/*!< in: TRUE if own dict_sys->mutex */
+	undo_node_t*	node)
 {
 	dict_index_t*	clust_index;
 	byte*		ptr;
@@ -1132,7 +1125,7 @@ row_undo_mod_parse_undo_rec(
 	Notably, there cannot be a race between ROLLBACK and
 	DROP TEMPORARY TABLE, because temporary tables are
 	private to a single connection. */
-	node->table = dd_table_open_on_id_in_mem(table_id, dict_locked);
+	node->table = dd_table_open_on_id_in_mem(table_id, false);
 
 	/* TODO: other fixes associated with DROP TABLE + rollback in the
 	same table by another user */
@@ -1143,7 +1136,7 @@ row_undo_mod_parse_undo_rec(
 	}
 
 	if (node->table->ibd_file_missing) {
-		dict_table_close(node->table, dict_locked, FALSE);
+		dd_table_close(node->table, nullptr, nullptr, false);
 
 		/* We skip undo operations to missing .ibd files */
 		node->table = NULL;
@@ -1169,7 +1162,7 @@ row_undo_mod_parse_undo_rec(
 
 	if (!row_undo_search_clust_to_pcur(node)) {
 
-		dict_table_close(node->table, dict_locked, FALSE);
+		dd_table_close(node->table, nullptr, nullptr, false);
 
 		node->table = NULL;
 	}
@@ -1193,7 +1186,6 @@ row_undo_mod(
 	que_thr_t*	thr)	/*!< in: query thread */
 {
 	dberr_t	err;
-	ibool	dict_locked;
 
 	ut_ad(node != NULL);
 	ut_ad(thr != NULL);
@@ -1201,11 +1193,9 @@ row_undo_mod(
 	ut_ad(node->trx->in_rollback);
 	ut_ad(!trx_undo_roll_ptr_is_insert(node->roll_ptr));
 
-	dict_locked = thr_get_trx(thr)->dict_operation_lock_mode == RW_X_LATCH;
-
 	ut_ad(thr_get_trx(thr) == node->trx);
 
-	row_undo_mod_parse_undo_rec(node, dict_locked);
+	row_undo_mod_parse_undo_rec(node);
 
 	if (node->table == NULL) {
 		/* It is already undone, or will be undone by another query
@@ -1244,7 +1234,7 @@ row_undo_mod(
 		err = row_undo_mod_clust(node, thr);
 	}
 
-	dict_table_close(node->table, dict_locked, FALSE);
+	dd_table_close(node->table, nullptr, nullptr, false);
 
 	node->table = NULL;
 

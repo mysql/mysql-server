@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -49,6 +49,9 @@ extern int	yydebug;
 NOT re-entrant */
 extern sym_tab_t*	pars_sym_tab_global;
 
+/** Mutex to protect the sql parser */
+extern ib_mutex_t	pars_mutex;
+
 extern pars_res_word_t	pars_to_binary_token;
 extern pars_res_word_t	pars_substr_token;
 extern pars_res_word_t	pars_concat_token;
@@ -81,6 +84,14 @@ extern ulint		pars_star_denoter;
 
 int
 yyparse(void);
+
+/** Initialize for the internal parser */
+void
+pars_init();
+
+/** Clean up the internal parser */
+void
+pars_close();
 
 /*************************************************************//**
 Parses an SQL string returning the query graph.

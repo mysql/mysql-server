@@ -560,6 +560,7 @@ que_graph_free(
 			afterwards! */
 {
 	ut_ad(graph);
+	ut_ad(!mutex_own(&dict_sys->mutex));
 
 	if (graph->sym_tab) {
 		/* The following call frees dynamic memory allocated
@@ -1180,15 +1181,11 @@ que_eval_sql(
 
 	ut_a(trx->error_state == DB_SUCCESS);
 
-	if (reserve_dict_mutex) {
-		mutex_enter(&dict_sys->mutex);
-	}
+	mutex_enter(&pars_mutex);
 
 	graph = pars_sql(info, sql);
 
-	if (reserve_dict_mutex) {
-		mutex_exit(&dict_sys->mutex);
-	}
+	mutex_exit(&pars_mutex);
 
 	graph->trx = trx;
 	trx->graph = NULL;
@@ -1199,15 +1196,7 @@ que_eval_sql(
 
 	que_run_threads(thr);
 
-	if (reserve_dict_mutex) {
-		mutex_enter(&dict_sys->mutex);
-	}
-
 	que_graph_free(graph);
-
-	if (reserve_dict_mutex) {
-		mutex_exit(&dict_sys->mutex);
-	}
 
 	ut_a(trx->error_state != 0);
 

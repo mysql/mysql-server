@@ -307,14 +307,12 @@ retry:
 	return(err);
 }
 
-/***********************************************************//**
-Parses the row reference and other info in a fresh insert undo record. */
+/** Parses the row reference and other info in a fresh insert undo record.
+@param[in,out]	node	row undo node */
 static
 void
 row_undo_ins_parse_undo_rec(
-/*========================*/
-	undo_node_t*	node,		/*!< in/out: row undo node */
-	ibool		dict_locked)	/*!< in: TRUE if own dict_sys->mutex */
+	undo_node_t*	node)
 {
 	dict_index_t*	clust_index;
 	byte*		ptr;
@@ -333,13 +331,13 @@ row_undo_ins_parse_undo_rec(
 
 	node->update = NULL;
 
-	node->table = dd_table_open_on_id_in_mem(table_id, dict_locked);
+	node->table = dd_table_open_on_id_in_mem(table_id, false);
 
 	/* Skip the UNDO if we can't find the table or the .ibd file. */
 	if (node->table == NULL) {
 	} else if (node->table->ibd_file_missing) {
 close_table:
-		dict_table_close(node->table, dict_locked, FALSE);
+		dd_table_close(node->table, nullptr, nullptr, false);
 		node->table = NULL;
 	} else {
 		ut_ad(!node->table->skip_alter_undo);
@@ -441,15 +439,12 @@ row_undo_ins(
 	que_thr_t*	thr)	/*!< in: query thread */
 {
 	dberr_t	err;
-	ibool	dict_locked;
 
 	ut_ad(node->state == UNDO_NODE_INSERT);
 	ut_ad(node->trx->in_rollback);
 	ut_ad(trx_undo_roll_ptr_is_insert(node->roll_ptr));
 
-	dict_locked = node->trx->dict_operation_lock_mode == RW_X_LATCH;
-
-	row_undo_ins_parse_undo_rec(node, dict_locked);
+	row_undo_ins_parse_undo_rec(node);
 
 	if (node->table == NULL) {
 		return(DB_SUCCESS);
@@ -470,25 +465,12 @@ row_undo_ins(
 
 		log_free_check();
 
-		if (node->table->id == DICT_INDEXES_ID) {
-
-			if (!dict_locked) {
-				mutex_enter(&dict_sys->mutex);
-			}
-		}
-
 		// FIXME: We need to update the dict_index_t::space and
 		// page number fields too.
 		err = row_undo_ins_remove_clust_rec(node);
-
-		if (node->table->id == DICT_INDEXES_ID
-		    && !dict_locked) {
-
-			mutex_exit(&dict_sys->mutex);
-		}
 	}
 
-	dict_table_close(node->table, dict_locked, FALSE);
+	dd_table_close(node->table, nullptr, nullptr, false);
 
 	node->table = NULL;
 

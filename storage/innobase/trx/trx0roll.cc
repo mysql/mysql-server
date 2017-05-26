@@ -632,7 +632,6 @@ trx_rollback_active(
 	roll_node_t*	roll_node;
 	int64_t		rows_to_undo;
 	const char*	unit		= "";
-	ibool		dictionary_locked = FALSE;
 
 	heap = mem_heap_create(512);
 
@@ -672,11 +671,6 @@ trx_rollback_active(
 	ib::info() << "Rolling back trx with id " << trx_id << ", "
 		<< rows_to_undo << unit << " rows to undo";
 
-	if (trx_get_dict_operation(trx) != TRX_DICT_OP_NONE) {
-		row_mysql_lock_data_dictionary(trx);
-		dictionary_locked = TRUE;
-	}
-
 	que_run_threads(thr);
 	ut_a(roll_node->undo_thr != NULL);
 
@@ -689,10 +683,6 @@ trx_rollback_active(
 			       roll_node->undo_thr->common.parent));
 
 	ut_a(trx->lock.que_state == TRX_QUE_RUNNING);
-
-	if (dictionary_locked) {
-		row_mysql_unlock_data_dictionary(trx);
-	}
 
 	ib::info() << "Rollback of trx with id " << trx_id << " completed";
 

@@ -325,18 +325,6 @@ fts_sql_rollback(
 	trx_t*		trx);		/*!< in: transaction */
 
 /******************************************************************//**
-Parse an SQL string. %s is replaced with the table's id. Don't acquire
-the dict mutex
-@return query graph */
-que_t*
-fts_parse_sql_no_dict_lock(
-/*=======================*/
-	fts_table_t*	fts_table,	/*!< in: table with FTS index */
-	pars_info_t*	info,		/*!< in: parser info */
-	const char*	sql)		/*!< in: SQL string to evaluate */
-	MY_ATTRIBUTE((warn_unused_result));
-
-/******************************************************************//**
 Get value from config table. The caller must ensure that enough
 space is allocated for value to hold the column contents
 @return DB_SUCCESS or error code */
