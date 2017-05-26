@@ -27,6 +27,13 @@
 %{?with_mecab: %global mecab_option -DWITH_MECAB=%{with_mecab}}
 %{?with_mecab: %global mecab 1}
 
+# Pass path to the AWS SDK install
+%{?with_aws_sdk: %global aws_sdk_option -DWITH_AWS_SDK=%{with_aws_sdk}}
+%{?with_aws_sdk: %global aws_sdk 1}
+
+# Pass path to the libcurl "lib" directory
+%{?WITH_CURL: %global curl_lib_option -DWITH_CURL=%{WITH_CURL}}
+
 # Regression tests may take a long time, override the default to skip them
 %{!?runselftest:%global runselftest 0}
 
@@ -531,6 +538,8 @@ mkdir debug
            -DWITH_NUMA=ON \
            %{?ssl_option} \
            %{?mecab_option} \
+           %{?aws_sdk_option} \
+           %{?curl_lib_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" \
            -DMYSQL_SERVER_SUFFIX="%{?server_suffix}"
   echo BEGIN_DEBUG_CONFIG ; egrep '^#define' include/config.h ; echo END_DEBUG_CONFIG
@@ -566,6 +575,8 @@ mkdir release
            -DWITH_NUMA=ON \
            %{?ssl_option} \
            %{?mecab_option} \
+           %{?aws_sdk_option} \
+           %{?curl_lib_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
            -DMYSQL_SERVER_SUFFIX="%{?server_suffix}"
   echo BEGIN_NORMAL_CONFIG ; egrep '^#define' include/config.h ; echo END_NORMAL_CONFIG
@@ -831,6 +842,10 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/thread_pool.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/openssl_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/firewall.so
+%if 0%{?aws_sdk}
+%attr(755, root, root) %{_libdir}/mysql/plugin/keyring_aws.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_aws.so
+%endif
 %endif
 %attr(644, root, root) %{_datadir}/mysql/fill_help_tables.sql
 %attr(644, root, root) %{_datadir}/mysql/mysql_sys_schema.sql
@@ -1149,6 +1164,9 @@ fi
 %endif # cluster
 
 %changelog
+* Fri May 26 2017 Harin Vadodaria <harin.vadodaria@oracle.com> - 5.7.19-1
+- Add keyring_aws.so plugin to commercial server subpackage
+
 * Tue Sep 13 2016 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.16-1
 - Add connection_control.so to server subpackage
 
