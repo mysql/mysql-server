@@ -2236,8 +2236,11 @@ struct Gtid_set_or_null
   lock and then degrades it to a read lock again; there will be a
   short period when the lock is not held at all.
 
-  The internal representation is a dynamic array that maps SIDNO to
-  HASH, where each HASH maps GNO to my_thread_id.
+  The internal representation is a multi-valued map from GTIDs to
+  threads, mapping GTIDs to one or more threads that owns it.
+
+  In Group Replication multiple threads can own a GTID whereas if GR
+  is disabeld there is at most one owner per GTID.
 */
 class Owned_gtids
 {
@@ -2259,14 +2262,6 @@ public:
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
   enum_return_status add_gtid_owner(const Gtid &gtid, my_thread_id owner);
-  /**
-    Returns the owner of the given GTID, or 0 if the GTID is not owned.
-
-    @param gtid The Gtid to query.
-    @return my_thread_id of the thread that owns the group, or
-    0 if the group is not owned.
-  */
-  my_thread_id get_owner(const Gtid &gtid) const;
 
   /*
     Fill all gtids into the given Gtid_set object. It doesn't clear the given
@@ -2280,8 +2275,9 @@ public:
     nothing.
 
     @param gtid The Gtid.
+    @param owner thread_id of the owner thread
   */
-  void remove_gtid(const Gtid &gtid);
+  void remove_gtid(const Gtid &gtid, const my_thread_id owner);
   /**
     Ensures that this Owned_gtids object can accomodate SIDNOs up to
     the given SIDNO.
@@ -2415,6 +2411,13 @@ public:
     my_free(str);
 #endif
   }
+
+  /**
+    If thd_id==0, returns true when gtid is not owned by any thread.
+    If thd_id!=0, returns true when gtid is owned by that thread.
+  */
+  bool is_owned_by(const Gtid &gtid, const my_thread_id thd_id) const;
+
 private:
   /// Represents one owned group.
   struct Node
@@ -2439,23 +2442,9 @@ private:
     sid_lock->assert_some_lock();
     return sidno_to_hash[sidno - 1];
   }
-  /**
-    Returns the Node for the given HASH and GNO, or NULL if the GNO
-    does not exist in the HASH.
-  */
-  Node *get_node(const HASH *hash, rpl_gno gno) const
-  {
-    sid_lock->assert_some_lock();
-    return (Node *)my_hash_search(hash, (const uchar *)&gno, sizeof(rpl_gno));
-  }
-  /**
-    Returns the Node for the given group, or NULL if the group does
-    not exist in this Owned_gtids object.
-  */
-  Node *get_node(const Gtid &gtid) const
-  { return get_node(get_hash(gtid.sidno), gtid.gno); };
   /// Return true iff this Owned_gtids object contains the given group.
-  bool contains_gtid(const Gtid &gtid) const { return get_node(gtid) != NULL; }
+  bool contains_gtid(const Gtid &gtid) const;
+
   /// Growable array of hashes.
   Prealloced_array<HASH*, 8> sidno_to_hash;
 
@@ -2628,14 +2617,14 @@ public:
     DBUG_RETURN(ret);
   }
   /**
-    Returns the owner of the given GTID, or 0 if the group is not owned.
+    Returns true if GTID is owned, otherwise returns 0.
 
     @param gtid The Gtid to check.
-    @return my_thread_id of the thread that owns the group, or
-    0 if the group is not owned.
+    @return true if some thread owns the group, false if the group is
+    not owned
   */
-  my_thread_id get_owner(const Gtid &gtid) const
-  { return owned_gtids.get_owner(gtid); }
+  bool is_owned(const Gtid &gtid) const
+  { return !owned_gtids.is_owned_by(gtid, 0); }
 #ifdef MYSQL_SERVER
   /**
     Acquires ownership of the given GTID, on behalf of the given thread.
