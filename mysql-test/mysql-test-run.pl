@@ -5775,13 +5775,26 @@ sub mysqld_arguments ($$$) {
   my $found_skip_core= 0;
   my $found_no_console= 0;
   my $found_log_error= 0;
+
+  # On windows, do not add console if log-error found in .cnf file
+  open (CONFIG_FILE, " < $path_config_file") or
+    die("Could not open output file $path_config_file");
+
+  while (<CONFIG_FILE>)
+  {
+    if (m/^log[-_]error/)
+    {
+      $found_log_error= 1;
+    }
+  }
+  close (CONFIG_FILE);
+
   foreach my $arg ( @$extra_opts )
   {
     # Skip --defaults-file option since it's handled above.
     next if $arg =~ /^--defaults-file/;
-   
 
-    if ($arg eq "--log-error")
+    if ($arg =~ /^--log[-_]error/)
     {
       $found_log_error= 1;
     }
