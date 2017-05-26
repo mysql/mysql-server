@@ -184,8 +184,6 @@ namespace keyring__keys_container_unittest
     EXPECT_CALL(*((Mock_logger *)logger),
                 log(MY_ERROR_LEVEL, StrEq("Incorrect Keyring file")));
     EXPECT_CALL(*((Mock_logger *)logger),
-                log(MY_ERROR_LEVEL, StrEq("Incorrect Keyring file version")));
-    EXPECT_CALL(*((Mock_logger *)logger),
                 log(MY_ERROR_LEVEL, StrEq("Error while loading keyring content. The keyring might be malformed")));
     EXPECT_EQ(keys_container->init(keyring_io, keyring_incorrect_tag), 1);
     remove(keyring_incorrect_tag);
