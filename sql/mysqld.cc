@@ -4466,6 +4466,8 @@ static int init_server_components()
     unireg_abort(1);
   }
 
+  /* This limits ability to configure SSL library through config options */
+  init_ssl();
   /* Load builtin plugins, initialize MyISAM, CSV and InnoDB */
   if (plugin_register_builtin_and_init_core_se(&remaining_argc,
                                                remaining_argv))
@@ -5368,8 +5370,6 @@ int mysqld_main(int argc, char **argv)
   Service.SetSlowStarting(slow_start_timeout);
 #endif
 
-  /* This limits ability to configure SSL library through config options */
-  init_ssl();
   if (init_server_components())
     unireg_abort(MYSQLD_ABORT_EXIT);
 

@@ -29,6 +29,24 @@ Key::Key()
 Key::Key(const char *a_key_id, const char *a_key_type, const char *a_user_id,
     const void *a_key, size_t a_key_len)
 {
+  init(a_key_id, a_key_type, a_user_id, a_key, a_key_len);
+}
+
+Key::Key(const Key& other)
+{
+  init(other.key_id.c_str(), other.key_type.c_str(), other.user_id.c_str(),
+       other.key.get(), other.key_len);
+}
+
+Key::Key(IKey *other)
+{
+  init(other->get_key_id()->c_str(), other->get_key_type()->c_str(),
+       other->get_user_id()->c_str(), other->get_key_data(), other->get_key_data_size());
+}
+
+void Key::init(const char *a_key_id, const char *a_key_type, const char *a_user_id,
+               const void *a_key, size_t a_key_len)
+{
   if(a_key_id != NULL)
     key_id= a_key_id;
 
@@ -45,6 +63,7 @@ Key::Key(const char *a_key_id, const char *a_key_type, const char *a_user_id,
     memcpy(key.get(), a_key, a_key_len);
   }
 }
+
 
 Key::~Key()
 {
@@ -195,6 +214,18 @@ bool Key::is_key_valid()
   return is_key_id_valid() || is_key_type_valid();
 }
 
+bool Key::is_key_length_valid()
+{
+  if(key_type == "AES")
+    return key_len == 16 || key_len == 24 || key_len == 32;
+  if (key_type == "RSA")
+    return key_len == 128 || key_len == 256 || key_len == 512;
+  if (key_type == "DSA")
+    return key_len == 128 || key_len == 256 || key_len == 384;
+
+  return FALSE;
+}
+
 uchar* Key::release_key_data()
 {
   return key.release();
@@ -240,6 +271,16 @@ std::string* Key::get_key_signature() const
 std::string* Key::get_key_type()
 {
   return &this->key_type;
+}
+
+std::string* Key::get_key_id()
+{
+  return &this->key_id;
+}
+
+std::string* Key::get_user_id()
+{
+  return &this->user_id;
 }
 
 } //namespace keyring

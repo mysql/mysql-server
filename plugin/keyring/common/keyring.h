@@ -39,7 +39,7 @@ namespace keyring
 extern mysql_rwlock_t LOCK_keyring;
 
 extern std::unique_ptr<IKeys_container> keys;
-extern bool is_keys_container_initialized;
+extern volatile bool is_keys_container_initialized;
 extern std::unique_ptr<ILogger> logger;
 extern std::unique_ptr<char[]> keyring_file_data;
 
@@ -48,6 +48,7 @@ void keyring_init_psi_keys(void);
 #endif //HAVE_PSI_INTERFACE
 
 bool init_keyring_locks();
+bool create_keyring_dir_if_does_not_exist(const char *keyring_file_path);
 
 void update_keyring_file_data(MYSQL_THD thd  MY_ATTRIBUTE((unused)),
                               struct st_mysql_sys_var *var  MY_ATTRIBUTE((unused)),
@@ -59,11 +60,15 @@ bool mysql_key_fetch(std::unique_ptr<IKey> key_to_fetch, char **key_type,
 bool mysql_key_store(std::unique_ptr<IKey> key_to_store);
 bool mysql_key_remove(std::unique_ptr<IKey> key_to_remove);
 
-bool check_key_for_writting(IKey* key, std::string error_for);
+bool check_key_for_writing(IKey* key, std::string error_for);
+
+void log_operation_error(const char *failed_operation, const char *plugin_name);
+
+bool is_key_length_and_type_valid(const char *key_type, size_t key_len);
 
 template <typename T>
 bool mysql_key_fetch(const char *key_id, char **key_type, const char *user_id,
-                     void **key, size_t *key_len)
+                     void **key, size_t *key_len, const char *plugin_name)
 {
   try
   {
@@ -72,15 +77,15 @@ bool mysql_key_fetch(const char *key_id, char **key_type, const char *user_id,
   }
   catch (...)
   {
-    if (logger != NULL)
-      logger->log(MY_ERROR_LEVEL, "Failed to fetch a key due to internal exception inside keyring_okv plugin");
+    log_operation_error("fetch a key", plugin_name);
     return TRUE;
   }
 }
 
 template <typename T>
 bool mysql_key_store(const char *key_id, const char *key_type,
-                     const char *user_id, const void *key, size_t key_len)
+                     const char *user_id, const void *key, size_t key_len,
+                     const char *plugin_name)
 {
   try
   {
@@ -89,14 +94,14 @@ bool mysql_key_store(const char *key_id, const char *key_type,
   }
   catch (...)
   {
-    if (logger != NULL)
-      logger->log(MY_ERROR_LEVEL, "Failed to store a key due to internal exception inside keyring_okv plugin");
+    log_operation_error("store a key", plugin_name);
     return TRUE;
   }
 }
 
 template <typename T>
-bool mysql_key_remove(const char *key_id, const char *user_id)
+bool mysql_key_remove(const char *key_id, const char *user_id,
+                      const char *plugin_name)
 {
   try
   {
@@ -105,10 +110,10 @@ bool mysql_key_remove(const char *key_id, const char *user_id)
   }
   catch (...)
   {
-    if (logger != NULL)
-      logger->log(MY_ERROR_LEVEL, "Failed to remove a key due to internal exception inside keyring_okv plugin");
+    log_operation_error("remove a key", plugin_name);
     return TRUE;
   }
 }
+
 
 #endif //MYSQL_KEYRING_H

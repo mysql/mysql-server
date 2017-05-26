@@ -8838,7 +8838,11 @@ Encryption::decode_encryption_info(byte*	key,
 		my_aes_256_ecb, NULL, false);
 
 	if (elen == MY_AES_BAD_DATA) {
-		my_free(master_key);
+		if (m_key_id == 0) {
+			ut_free(master_key);
+		} else {
+			my_free(master_key);
+		}
 		return(NULL);
 	}
 
@@ -8850,6 +8854,11 @@ Encryption::decode_encryption_info(byte*	key,
 	if (crc1 != crc2) {
 		ib::error() << "Failed to decrypt encryption information,"
 			<< " please check whether key file has been changed!";
+		if (m_key_id == 0) {
+			ut_free(master_key);
+		} else {
+			my_free(master_key);
+		}
 		return(false);
 	}
 
