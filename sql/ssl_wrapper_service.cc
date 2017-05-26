@@ -47,6 +47,8 @@ extern "C"
 static char *
 my_asn1_time_to_string(ASN1_TIME *time, char *buf, size_t len)
 {
+  if (!time)
+      return NULL;
   return yaSSL_ASN1_TIME_to_string(time, buf, len);
 }
 
