@@ -604,6 +604,13 @@ Session_plugin_thread::terminate_session_thread()
 
   DBUG_ASSERT(!m_session_thread_running);
 
+  while (!this->incoming_methods->empty())
+  {
+    st_session_method *method= NULL;
+    this->incoming_methods->pop(&method);
+    my_free(method);
+  }
+
   mysql_mutex_unlock(&m_run_lock);
 
   DBUG_RETURN(0);

@@ -150,6 +150,15 @@ int Delayed_initialization_thread::initialization_thread_handler()
     DBUG_ASSERT(server_engine_initialized());
     wait_on_engine_initialization= false;
 
+    char *hostname, *uuid;
+    uint port;
+    unsigned int server_version;
+    st_server_ssl_variables server_ssl_variables=
+      {false,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL};
+
+    get_server_parameters(&hostname, &port, &uuid, &server_version,
+                          &server_ssl_variables);
+
     sql_command_interface= new Sql_service_command_interface();
     if (sql_command_interface->
             establish_session_connection(PSESSION_INIT_THREAD,
@@ -160,18 +169,10 @@ int Delayed_initialization_thread::initialization_thread_handler()
       log_message(MY_ERROR_LEVEL,
                   "It was not possible to establish a connection to "
                     "server SQL service");
-      goto end;
+      error= 1;
+      goto err;
       /* purecov: end */
     }
-
-    char *hostname, *uuid;
-    uint port;
-    unsigned int server_version;
-    st_server_ssl_variables server_ssl_variables=
-      {false,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL};
-
-    get_server_parameters(&hostname, &port, &uuid, &server_version,
-                          &server_ssl_variables);
 
     if ((error= configure_group_communication(&server_ssl_variables)))
       goto err; /* purecov: inspected */
