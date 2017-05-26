@@ -172,8 +172,6 @@ trx_init(
 
 	trx->will_lock = 0;
 
-	trx->ddl = false;
-
 	trx->internal = false;
 
 #ifdef UNIV_DEBUG
@@ -1268,8 +1266,7 @@ trx_start_low(
 
 	trx->read_only =
 		(trx->api_trx && !trx->read_write)
-		|| (!trx->ddl && !trx->internal
-		    && thd_trx_is_read_only(trx->mysql_thd))
+		|| (!trx->internal && thd_trx_is_read_only(trx->mysql_thd))
 		|| srv_read_only_mode;
 
 	if (!trx->auto_commit) {
@@ -1315,8 +1312,7 @@ trx_start_low(
 	read only can write to temporary tables, we put those on the RO
 	list too. */
 
-	if (!trx->read_only
-	    && (trx->mysql_thd == 0 || read_write || trx->ddl)) {
+	if (!trx->read_only && (trx->mysql_thd == 0 || read_write)) {
 
 		trx_assign_rseg_durable(trx);
 
@@ -3050,50 +3046,6 @@ trx_start_internal_read_only_low(
 	trx->internal = true;
 
 	trx_start_low(trx, false);
-}
-
-/*************************************************************//**
-Starts the transaction for a DDL operation. */
-void
-trx_start_for_ddl_low(
-/*==================*/
-	trx_t*		trx,	/*!< in/out: transaction */
-	trx_dict_op_t	op)	/*!< in: dictionary operation type */
-{
-	switch (trx->state) {
-	case TRX_STATE_NOT_STARTED:
-	case TRX_STATE_FORCED_ROLLBACK:
-
-		/* Flag this transaction as a dictionary operation, so that
-		the data dictionary will be locked in crash recovery. */
-
-		trx_set_dict_operation(trx, op);
-
-		/* Ensure it is not flagged as an auto-commit-non-locking
-		transation. */
-		trx->will_lock = 1;
-
-		trx->ddl= true;
-
-		trx_start_internal_low(trx);
-		return;
-
-	case TRX_STATE_ACTIVE:
-
-		/* We have this start if not started idiom, therefore we
-		can't add stronger checks here. */
-		trx->ddl = true;
-
-		ut_ad(trx->dict_operation != TRX_DICT_OP_NONE);
-		ut_ad(trx->will_lock > 0);
-		return;
-
-	case TRX_STATE_PREPARED:
-	case TRX_STATE_COMMITTED_IN_MEMORY:
-		break;
-	}
-
-	ut_error;
 }
 
 /*************************************************************//**

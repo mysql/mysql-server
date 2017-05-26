@@ -4259,9 +4259,8 @@ row_drop_table_for_mysql(
 
 	/* This function is called recursively via fts_drop_tables(). */
 	if (!trx_is_started(trx)) {
-
 		if (!table->is_temporary()) {
-			trx_start_for_ddl(trx, TRX_DICT_OP_TABLE);
+			trx_start_if_not_started(trx, true);
 		} else {
 			trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
 		}

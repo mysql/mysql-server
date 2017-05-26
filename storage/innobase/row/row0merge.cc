@@ -3402,7 +3402,6 @@ row_merge_lock_table(
 	ut_ad(mode == LOCK_X || mode == LOCK_S);
 
 	trx->op_info = "setting table lock for creating or dropping index";
-	trx->ddl = true;
 	/* Trx for DDL should not be forced to rollback for now */
 	trx->in_innodb |= TRX_FORCE_ROLLBACK_DISABLE;
 

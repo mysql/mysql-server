@@ -13009,7 +13009,6 @@ create_table_info_t::initialize()
 	}
 
 	m_trx->will_lock++;
-	m_trx->ddl = true;
 
 	DBUG_RETURN(0);
 }

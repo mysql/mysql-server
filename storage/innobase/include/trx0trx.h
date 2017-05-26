@@ -218,27 +218,6 @@ trx_start_internal_read_only_low(
 	trx_start_if_not_started_xa_low((t), (rw))
 #endif /* UNIV_DEBUG */
 
-/*************************************************************//**
-Starts the transaction for a DDL operation. */
-void
-trx_start_for_ddl_low(
-/*==================*/
-	trx_t*		trx,	/*!< in/out: transaction */
-	trx_dict_op_t	op);	/*!< in: dictionary operation type */
-
-#ifdef UNIV_DEBUG
-#define trx_start_for_ddl(t, o)					\
-	do {							\
-	ut_ad((t)->start_file == 0);				\
-	(t)->start_line = __LINE__;				\
-	(t)->start_file = __FILE__;				\
-	trx_start_for_ddl_low((t), (o));			\
-	} while (0)
-#else
-#define trx_start_for_ddl(t, o)					\
-	trx_start_for_ddl_low((t), (o))
-#endif /* UNIV_DEBUG */
-
 /****************************************************************//**
 Commits a transaction. */
 void
@@ -1243,11 +1222,8 @@ struct trx_t {
 					count of tables being flushed. */
 
 	/*------------------------------*/
-	bool		ddl;		/*!< true if it is an internal
-					transaction for DDL */
 	bool		internal;	/*!< true if it is a system/internal
-					transaction background task. This
-					includes DDL transactions too.  Such
+					transaction background task. Such
 					transactions are always treated as
 					read-write. */
 	/*------------------------------*/
