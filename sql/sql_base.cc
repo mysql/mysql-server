@@ -94,7 +94,6 @@
 #include "sql_const.h"
 #include "sql_error.h"                // Sql_condition
 #include "sql_handler.h"              // mysql_ha_flush_tables
-#include "sql_hset.h"                 // Hash_set
 #include "sql_lex.h"
 #include "window.h"                   // Window
 #include "sql_list.h"
@@ -5388,12 +5387,24 @@ end:
 
 namespace
 {
-const uchar *schema_set_get_key(const uchar *record, size_t *length)
+
+struct schema_hash
 {
-  TABLE_LIST *table=(TABLE_LIST*) record;
-  *length= table->db_length;
-  return (uchar*) table->db;
-}
+  size_t operator() (const TABLE_LIST *table) const
+  {
+    return std::hash<std::string>()(std::string(table->db, table->db_length));
+  }
+};
+
+struct schema_key_equal
+{
+  bool operator() (const TABLE_LIST *a, const TABLE_LIST *b) const
+  {
+    return a->db_length == b->db_length &&
+      memcmp(a->db, b->db, a->db_length) == 0;
+  }
+};
+
 }
 
 
@@ -5508,10 +5519,10 @@ get_and_lock_tablespace_names(THD *thd,
       //    along with tablespace names used by partitions. (e.g.
       //    ALTER TABLE t TABLESPACE s2, where t is defined in
       //    some tablespace s)
-      if (table->target_tablespace_name.length > 0 &&
-          tablespace_set.insert(
-            const_cast<char*>(table->target_tablespace_name.str)))
-        return true;
+      if (table->target_tablespace_name.length > 0)
+      {
+        tablespace_set.insert(table->target_tablespace_name.str);
+      }
 
       // No need to try this for tables to be created since they are not
       // yet present in the dictionary.
@@ -5574,7 +5585,8 @@ lock_table_names(THD *thd,
   MDL_request_list mdl_requests;
   TABLE_LIST *table;
   MDL_request global_request;
-  Hash_set<TABLE_LIST, schema_set_get_key> schema_set(PSI_INSTRUMENT_ME);
+  malloc_unordered_set<TABLE_LIST *, schema_hash, schema_key_equal>
+    schema_set(PSI_INSTRUMENT_ME);
   bool need_global_read_lock_protection= false;
 
   DBUG_ASSERT(!thd->locked_tables_mode);
@@ -5601,9 +5613,10 @@ lock_table_names(THD *thd,
         return true;
       }
 
-      if (! (flags & MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK) &&
-          schema_set.insert(table))
-        return true;
+      if (! (flags & MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK))
+      {
+        schema_set.insert(table);
+      }
       need_global_read_lock_protection= true;
     }
 
@@ -5619,8 +5632,7 @@ lock_table_names(THD *thd,
       Scoped locks: Take intention exclusive locks on all involved
       schemas.
     */
-    Hash_set<TABLE_LIST, schema_set_get_key>::Iterator it(schema_set);
-    while ((table= it++))
+    for (const TABLE_LIST *table : schema_set)
     {
       MDL_request *schema_request= new (thd->mem_root) MDL_request;
       if (schema_request == NULL)

@@ -1568,14 +1568,6 @@ struct SP_TABLE
 ///////////////////////////////////////////////////////////////////////////
 
 
-static const uchar *sp_table_key(const uchar *ptr, size_t *plen)
-{
-  SP_TABLE *tab= (SP_TABLE *)ptr;
-  *plen= tab->qname.length;
-  return (uchar *)tab->qname.str;
-}
-
-
 /**
   Helper function which operates on a THD object to set the query start_time to
   the current time.
@@ -1723,6 +1715,7 @@ sp_head::sp_head(MEM_ROOT &&mem_root, enum_sp_type type)
   main_mem_root(std::move(mem_root)),
   m_root_parsing_ctx(NULL),
   m_instructions(&main_mem_root),
+  m_sptabs(system_charset_info, key_memory_sp_head_main_root),
   m_sp_cache_version(0),
   m_creation_ctx(NULL),
   unsafe_flags(0)
@@ -1751,8 +1744,6 @@ sp_head::sp_head(MEM_ROOT &&mem_root, enum_sp_type type)
   m_body= NULL_STR;
   m_body_utf8= NULL_STR;
 
-  my_hash_init(&m_sptabs, system_charset_info, 0, 0, sp_table_key, nullptr, 0,
-               key_memory_sp_head_main_root);
 
   m_trg_chistics.ordering_clause= TRG_ORDER_NONE;
   m_trg_chistics.anchor_trigger_name= NULL_CSTR;
@@ -1957,8 +1948,6 @@ sp_head::~sp_head()
     delete thd->lex;
     thd->lex= lex;
   }
-
-  my_hash_free(&m_sptabs);
 
   sp_head::destroy(m_next_cached_sp);
 }
@@ -3373,10 +3362,9 @@ bool sp_head::merge_table_list(THD *thd,
       lex_for_tmp_check->drop_temporary)
     return true;
 
-  for (uint i= 0 ; i < m_sptabs.records ; i++)
+  for (auto &key_and_value : m_sptabs)
   {
-    SP_TABLE *tab= (SP_TABLE*) my_hash_element(&m_sptabs, i);
-    tab->query_lock_count= 0;
+    key_and_value.second->query_lock_count= 0;
   }
 
   for (; table ; table= table->next_global)
@@ -3426,10 +3414,10 @@ bool sp_head::merge_table_list(THD *thd,
 
       SP_TABLE *tab;
 
-      if ((tab= (SP_TABLE*) my_hash_search(&m_sptabs, (uchar *)tname.ptr(),
-                                           tname.length())) ||
-          ((tab= (SP_TABLE*) my_hash_search(&m_sptabs, (uchar *)tname.ptr(),
-                                            temp_table_key_length)) &&
+      if ((tab= find_or_nullptr
+             (m_sptabs, std::string(tname.ptr(), tname.length()))) ||
+          ((tab= find_or_nullptr
+              (m_sptabs, std::string(tname.ptr(), temp_table_key_length))) &&
            tab->temp))
       {
         if (tab->lock_type < table->lock_descriptor().type)
@@ -3460,7 +3448,7 @@ bool sp_head::merge_table_list(THD *thd,
         tab->lock_type= table->lock_descriptor().type;
         tab->lock_count= tab->query_lock_count= 1;
         tab->trg_event_map= table->trg_event_map;
-        if (my_hash_insert(&m_sptabs, (uchar *)tab))
+        if (!m_sptabs.emplace(to_string(tab->qname), tab).second)
           return false;
       }
     }
@@ -3483,9 +3471,9 @@ void sp_head::add_used_tables_to_table_list(THD *thd,
   */
   Prepared_stmt_arena_holder ps_arena_holder(thd);
 
-  for (uint i= 0; i < m_sptabs.records; i++)
+  for (const auto &key_and_value : m_sptabs)
   {
-    SP_TABLE *stab= pointer_cast<SP_TABLE*>(my_hash_element(&m_sptabs, i));
+    SP_TABLE *stab= key_and_value.second;
     if (stab->temp || stab->lock_type == TL_IGNORE)
       continue;
 

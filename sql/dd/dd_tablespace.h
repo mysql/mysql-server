@@ -34,7 +34,7 @@ class Tablespace;
   @param thd            - Thread invoking the function.
   @param db_name        - Database name.
   @param table_name     - Table name.
-  @param tablespace_set - (OUT) Hash_set where tablespace names
+  @param tablespace_set - (OUT) hash set where tablespace names
                           are filled.
 
   @return true - On failure.

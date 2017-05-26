@@ -6846,9 +6846,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
     DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
                   src_table->db, src_table->table_name, MDL_SHARED));
 
-    if (tablespace_set.insert(
-          const_cast<char*>(src_table->table->s->tablespace)))
-      DBUG_RETURN(true);
+    tablespace_set.insert(src_table->table->s->tablespace);
   }
 
   // Add tablespace names used under partition/subpartition definitions.

@@ -198,6 +198,27 @@ public:
 };
 
 /**
+  std::unordered_set, but with my_malloc, so that you can track the memory
+  used using PSI memory keys.
+*/
+template<class Key,
+         class Hash = std::hash<Key>,
+         class KeyEqual = std::equal_to<Key>>
+class malloc_unordered_set
+  : public std::unordered_set<Key, Hash, KeyEqual, Malloc_allocator<Key>>
+{
+public:
+  /*
+    In theory, we should be allowed to send in the allocator only, but GCC 4.8
+    is missing several unordered_set constructors, so let's give in everything.
+  */
+  malloc_unordered_set(PSI_memory_key psi_key)
+    : std::unordered_set<Key, Hash, KeyEqual, Malloc_allocator<Key>>
+        (/*bucket_count=*/ 10, Hash(), KeyEqual(),
+         Malloc_allocator<>(psi_key)) {}
+};
+
+/**
   std::unordered_multimap, but with my_malloc, so that you can track the memory
   used using PSI memory keys.
 */
