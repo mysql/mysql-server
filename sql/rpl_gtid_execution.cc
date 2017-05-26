@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -436,8 +436,10 @@ static bool is_stmt_innocent(const THD *thd)
   bool is_select= (sql_command == SQLCOM_SELECT);
   bool is_do= (sql_command == SQLCOM_DO);
   bool is_empty= (sql_command == SQLCOM_EMPTY_QUERY);
+  bool is_use= (sql_command == SQLCOM_CHANGE_DB);
   return
-    (is_set || is_select || is_do || is_show || is_empty) &&
+    (is_set || is_select || is_do || is_show || is_empty ||
+     is_use) &&
     !lex->uses_stored_routines();
 }
 
