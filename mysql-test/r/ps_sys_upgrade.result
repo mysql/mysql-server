@@ -483,18 +483,12 @@ CREATE TABLE mysql.db_backup SELECT * FROM mysql.db;
 ALTER TABLE mysql.tables_priv
 MODIFY User char(16) NOT NULL default '',
 MODIFY Grantor char(77) DEFAULT '' NOT NULL;
-Warnings:
-Warning	1265	Data truncated for column 'User' at row 1
 ALTER TABLE mysql.columns_priv
 MODIFY User char(16) NOT NULL default '';
 ALTER TABLE mysql.user
 MODIFY User char(16) NOT NULL default '';
-Warnings:
-Warning	1265	Data truncated for column 'User' at row 1
 ALTER TABLE mysql.db
 MODIFY User char(16) NOT NULL default '';
-Warnings:
-Warning	1265	Data truncated for column 'User' at row 2
 ALTER TABLE mysql.procs_priv
 MODIFY User char(16) binary DEFAULT '' NOT NULL,
 MODIFY Grantor char(77) DEFAULT '' NOT NULL;
