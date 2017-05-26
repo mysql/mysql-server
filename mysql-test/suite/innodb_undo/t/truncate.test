@@ -8,7 +8,7 @@
 # The test is restarting the server to force undo truncation.
 --source include/big_test.inc
 
---let $restart_parameters="restart: --innodb_undo_tablespaces=2 --innodb_undo_logs=3"
+--let $restart_parameters="restart: --innodb_undo_tablespaces=2 --innodb_rollback_segments=3"
 --source include/restart_mysqld.inc
 
 ################################################################################
