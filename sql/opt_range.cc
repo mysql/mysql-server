@@ -786,6 +786,27 @@ public:
       }
     }
   }
+
+  /**
+    Update use count for SEL_ARG's next_key_part.
+    This function does NOT update use_count of the current
+    SEL_ARG object.
+
+    Primarily used for reducing reference count of next_key_part of a
+    node when removed from SEL_ARG tree during tree merge operations.
+
+    @param count The number of additional references to this SEL_ARG
+                 tree.
+  */
+  void increment_next_key_part_use_count(long count)
+  {
+    if (next_key_part)
+    {
+      next_key_part->use_count+= count;
+      next_key_part->increment_use_count(count);
+    }
+  }
+
   void free_tree()
   {
     for (SEL_ARG *pos=first(); pos ; pos=pos->next)
@@ -8564,7 +8585,7 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2)
           Use the relevant range in key1.
         */
         cur_key1->merge_flags(cur_key2);        // Copy maybe flags
-        cur_key2->increment_use_count(-1);      // Free not used tree
+        cur_key2->increment_next_key_part_use_count(-1);  // Free not used tree
       }
       else
       {
@@ -8694,15 +8715,11 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2)
 
             Move on to next range in key2
           */
-          if (cur_key2->next_key_part)
-          {
-            /*
-              cur_key2 will no longer be used. Reduce reference count
-              of SEL_ARGs in its next_key_part.
-            */
-            cur_key2->next_key_part->use_count--;
-            cur_key2->next_key_part->increment_use_count(-1);
-          }
+          /*
+            cur_key2 will no longer be used. Reduce reference count
+            of SEL_ARGs in its next_key_part.
+          */
+          cur_key2->increment_next_key_part_use_count(-1);
           cur_key2= cur_key2->next;
           continue;
         }
@@ -9041,7 +9058,7 @@ SEL_ARG::tree_delete(SEL_ARG *key)
     key->prev->next=key->next;
   if (key->next)
     key->next->prev=key->prev;
-  key->increment_use_count(-1);
+  key->increment_next_key_part_use_count(-1);
   if (!key->parent)
     par= &root;
   else
