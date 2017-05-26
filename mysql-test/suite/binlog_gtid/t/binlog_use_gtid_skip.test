@@ -8,7 +8,7 @@
 #
 # BUG#26128931 USE `DATABASE` STATEMENT FAILS INSIDE GTID SKIPPED TRANSACTION
 #
---source include/have_gtid.inc
+--source include/have_log_bin.inc
 
 --echo #
 --echo # 1. Apply some data on server.
