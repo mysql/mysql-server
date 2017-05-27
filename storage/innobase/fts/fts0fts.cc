@@ -1714,12 +1714,6 @@ fts_drop_common_tables(
 
 		err = fts_drop_table(trx, table_name, aux_vec);
 
-		/* WL#9536 TODO: Remove this if drop is atomic */
-		if (err == DB_TABLE_CORRUPT) {
-			dict_set_corrupted(const_cast<dict_table_t*>(
-				fts_table->table)->first_index());
-		}
-
 		/* We only return the status of the last error. */
 		if (err != DB_SUCCESS && err != DB_FAIL) {
 			error = err;
@@ -1756,11 +1750,6 @@ fts_drop_index_tables(
 		fts_get_table_name(&fts_table, table_name);
 
 		err = fts_drop_table(trx, table_name, aux_vec);
-
-		/* WL#9536 TODO: Remove this if drop is atomic */
-		if (err == DB_TABLE_CORRUPT) {
-			dict_set_corrupted(index->table->first_index());
-		}
 
 		/* We only return the status of the last error. */
 		if (err != DB_SUCCESS && err != DB_FAIL) {
@@ -1945,8 +1934,6 @@ fts_drop_tables(
 	fts_table_t	fts_table;
 
 	FTS_INIT_FTS_TABLE(&fts_table, NULL, FTS_COMMON_TABLE, table);
-
-	/* TODO: This is not atomic and can cause problems during recovery. */
 
 	error = fts_drop_common_tables(trx, &fts_table, aux_vec);
 
@@ -2271,11 +2258,6 @@ fts_create_common_tables(
 
 	ut_ad(!fts_check_common_tables_exist(table));
 
-	/* common_tables vector is used for dropping FTS common tables
-	on error condition. */
-	std::vector<dict_table_t*>			common_tables;
-	std::vector<dict_table_t*>::const_iterator	it;
-
 	mem_heap_t*	heap = mem_heap_create(1024);
 
 	FTS_INIT_FTS_TABLE(&fts_table, NULL, FTS_COMMON_TABLE, table);
@@ -2291,8 +2273,6 @@ fts_create_common_tables(
 		 if (common_table == NULL) {
 			error = DB_ERROR;
 			goto func_exit;
-		} else {
-			common_tables.push_back(common_table);
 		}
 
 		DBUG_EXECUTE_IF("ib_fts_aux_table_error",
@@ -2325,14 +2305,6 @@ fts_create_common_tables(
 	trx->dict_operation = op;
 
 func_exit:
-	if (error != DB_SUCCESS) {
-		for (it = common_tables.begin(); it != common_tables.end();
-		     ++it) {
-			fts_drop_table(trx, (*it)->name.m_name, nullptr);
-		}
-	}
-
-	common_tables.clear();
 	mem_heap_free(heap);
 
 	return(error);
@@ -2693,11 +2665,6 @@ fts_create_index_tables_low(
 	fts_table.parent = table_name;
 	fts_table.table = index->table;
 
-	/* aux_idx_tables vector is used for dropping FTS AUX INDEX
-	tables on error condition. */
-	std::vector<dict_table_t*>			aux_idx_tables;
-	std::vector<dict_table_t*>::const_iterator	it;
-
 	for (i = 0; i < FTS_NUM_AUX_INDEX && error == DB_SUCCESS; ++i) {
 		dict_table_t*	new_table;
 
@@ -2712,8 +2679,6 @@ fts_create_index_tables_low(
 		if (new_table == NULL) {
 			error = DB_FAIL;
 			break;
-		} else {
-			aux_idx_tables.push_back(new_table);
 		}
 
 		DBUG_EXECUTE_IF("ib_fts_index_table_error",
@@ -2726,17 +2691,11 @@ fts_create_index_tables_low(
 		);
 	}
 
-	if (error != DB_SUCCESS) {
-		for (it = aux_idx_tables.begin(); it != aux_idx_tables.end();
-		     ++it) {
-			fts_drop_table(trx, (*it)->name.m_name, nullptr);
-		}
-	} else {
+	if (error == DB_SUCCESS) {
 		index->fill_dd = true;
 	}
 
 
-	aux_idx_tables.clear();
 	mem_heap_free(heap);
 
 	return(error);
