@@ -2854,7 +2854,13 @@ online_retry_drop_dict_indexes(
 	while ((index = index->next())) {
 		if (dict_index_get_online_status(index)
 		    == ONLINE_INDEX_ABORTED_DROPPED) {
-			 dict_index_remove_from_cache(table, index);
+
+			dict_index_t* prev = UT_LIST_GET_PREV(
+				indexes, index);
+
+			dict_index_remove_from_cache(table, index);
+
+			index = prev;
 		}
 	}
 
