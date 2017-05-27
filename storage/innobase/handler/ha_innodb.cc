@@ -17593,6 +17593,27 @@ innodb_large_prefix_update(
 	*static_cast<my_bool*>(var_ptr) = *static_cast<const my_bool*>(save);
 }
 
+/** If the setting innodb_undo_logs is updated, write and return a
+deprecation warning message.
+@param[in,out]	thd	MySQL client connection
+@param[out]	var_ptr	current value
+@param[in]	save	to-be-assigned value */
+static
+void
+innodb_undo_logs_update(
+	THD*		thd,
+	st_mysql_sys_var*,
+	void*		var_ptr,
+	const void*	save)
+{
+	ib::warn() << deprecated_undo_logs;
+
+	push_warning(thd, Sql_condition::SL_WARNING,
+		     HA_ERR_WRONG_COMMAND, deprecated_undo_logs);
+
+	*static_cast<ulong*>(var_ptr) = *static_cast<const ulong*>(save);
+}
+
 /*************************************************************//**
 Check whether valid argument given to innobase_*_stopword_table.
 This function is registered as a callback with MySQL.
@@ -19883,8 +19904,8 @@ static MYSQL_SYSVAR_ULONG(undo_tablespaces, srv_undo_tablespaces,
 
 static MYSQL_SYSVAR_ULONG(undo_logs, srv_undo_logs,
   PLUGIN_VAR_OPCMDARG,
-  "Number of undo logs to use.",
-  NULL, NULL,
+  "Number of rollback segments to use for storing undo logs. (deprecated)",
+  NULL, innodb_undo_logs_update,
   TRX_SYS_N_RSEGS,	/* Default setting */
   1,			/* Minimum value */
   TRX_SYS_N_RSEGS, 0);	/* Maximum value */
@@ -19911,9 +19932,9 @@ static MYSQL_SYSVAR_BOOL(undo_log_truncate, srv_undo_log_truncate,
   NULL, NULL, FALSE);
 
 /* Alias for innodb_undo_logs, this config variable is deprecated. */
-static MYSQL_SYSVAR_ULONG(rollback_segments, srv_undo_logs,
+static MYSQL_SYSVAR_ULONG(rollback_segments, srv_rollback_segments,
   PLUGIN_VAR_OPCMDARG,
-  "Number of undo logs to use (deprecated).",
+  "Number of rollback segments to use for storing undo logs.",
   NULL, NULL,
   TRX_SYS_N_RSEGS,	/* Default setting */
   1,			/* Minimum value */

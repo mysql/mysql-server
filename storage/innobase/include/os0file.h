@@ -1118,13 +1118,13 @@ do {									\
 		state, key.m_value, op, name, &locker);			\
 	if (locker != NULL) {						\
 		PSI_FILE_CALL(start_file_open_wait)(			\
-			locker, src_file, src_line);			\
+			locker, src_file, static_cast<uint>(src_line));	\
 	}								\
 } while (0)
 
 # define register_pfs_file_open_end(locker, file, result)		\
 do {									\
-	if (locker != NULL) {				\
+	if (locker != NULL) {						\
 		file.m_psi = PSI_FILE_CALL(				\
 		end_file_open_wait)(					\
 			locker, result);				\
@@ -1132,13 +1132,14 @@ do {									\
 } while (0)
 
 # define register_pfs_file_rename_begin(state, locker, key, op, name,	\
-				src_file, src_line)                     \
-	register_pfs_file_open_begin(state, locker, key, op, name,      \
 					src_file, src_line)             \
+	register_pfs_file_open_begin(					\
+		state, locker, key, op, name,				\
+		src_file, static_cast<uint>(src_line))			\
 
 # define register_pfs_file_rename_end(locker, result)			\
 do {									\
-	if (locker != NULL) {                              \
+	if (locker != NULL) {						\
 		 PSI_FILE_CALL(						\
 			end_file_open_wait)(				\
 			locker, result);				\
@@ -1146,13 +1147,13 @@ do {									\
 }while(0)
 
 # define register_pfs_file_close_begin(state, locker, key, op, name,	\
-				      src_file, src_line)		\
+				       src_file, src_line)		\
 do {									\
 	locker = PSI_FILE_CALL(get_thread_file_name_locker)(		\
 		state, key.m_value, op, name, &locker);			\
 	if (locker != NULL) {						\
 		PSI_FILE_CALL(start_file_close_wait)(			\
-			locker, src_file, src_line);			\
+			locker, src_file, static_cast<uint>(src_line));	\
 	}								\
 } while (0)
 
@@ -1167,11 +1168,12 @@ do {									\
 # define register_pfs_file_io_begin(state, locker, file, count, op,	\
 				    src_file, src_line)			\
 do {									\
-	locker = PSI_FILE_CALL(get_thread_file_stream_locker)(	\
+	locker = PSI_FILE_CALL(get_thread_file_stream_locker)(		\
 		state, file.m_psi, op);					\
 	if (locker != NULL) {						\
 		PSI_FILE_CALL(start_file_wait)(				\
-			locker, count, src_file, src_line);		\
+			locker, count,					\
+			src_file, static_cast<uint>(src_line));		\
 	}								\
 } while (0)
 
