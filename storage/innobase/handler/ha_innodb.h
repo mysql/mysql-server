@@ -597,58 +597,6 @@ protected:
 	doesn't give any clue that it is called at the end of a statement. */
 	int end_stmt();
 
-	/** Create an InnoDB table.
-	@tparam		Table		dd::Table or dd::Partition
-	@param[in]	name		table name in filename-safe encoding
-	@param[in]	form		table structure
-	@param[in]	create_info	more information
-	@param[in,out]	dd_tab		data dictionary cache object
-	@param[in]	file_per_table	whether to create a tablespace too
-	@return	error number
-	@retval	0 on success */
-	template<typename Table>
-	int create_table_impl(
-		const char*		name,
-		TABLE*			form,
-		HA_CREATE_INFO*		create_info,
-		Table*			dd_tab,
-		bool			file_per_table);
-
-	/** Implementation of dropping a table.
-	@tparam		Table		dd::Table or dd::Partition
-	@param[in]	name		table name
-	@param[in,out]	dd_tab		data dictionary table
-	@param[in]	sqlcom		type of operation that the DROP
-					is part of
-	@return	error number
-	@retval	0 on success */
-	template<typename Table>
-	int delete_table_impl(
-		const char*		name,
-		const Table*		dd_tab,
-		enum enum_sql_command	sqlcom);
-
-	/** Renames an InnoDB table.
-	@tparam		Table		dd::Table or dd::Partition
-	@param[in,out]	thd		THD object
-	@param[in,out]	trx		transaction
-	@param[in]	from		old name of the table
-	@param[in]	to		new name of the table
-	@param[in]	from_table	dd::Table or dd::Partition of the table
-	with old name
-	@param[in,out]	to_table	dd::Table or dd::Partition of the table
-	with new name
-	@return DB_SUCCESS or error code */
-	template<typename Table>
-	dberr_t
-	rename_table_impl(
-		THD*			thd,
-		trx_t*			trx,
-		const char*		from,
-		const char*		to,
-		const Table*		from_table,
-		Table*			to_table);
-
 	/** Rename tablespace file name for truncate
 	@tparam		Table		dd::Table or dd::Partition
 	@param[in]	name		table name
@@ -1077,6 +1025,64 @@ private:
 
 	/** Table flags2 */
 	ulint		m_flags2;
+};
+
+/** Class of basic DDL implementation, for CREATE/DROP/RENAME TABLE */
+class innobase_basic_ddl
+{
+public:
+	/** Create an InnoDB table.
+	@tparam		Table		dd::Table or dd::Partition
+	@param[in,out]	thd		THD object
+	@param[in]	name		Table name, format: "db/table_name"
+	@param[in]	form		Table format; columns and index
+					information
+	@param[in]	create_info	Create info(including create statement
+					string)
+	@param[in,out]	dd_tab		dd::Table describing table to be created
+	@param[in]	file_per_table	whether to create a tablespace too
+	@return	error number
+	@retval	0 on success */
+	template<typename Table>
+	static int create_impl(
+		THD*		thd,
+		const char*	name,
+		TABLE*		form,
+		HA_CREATE_INFO*	create_info,
+		Table*		dd_tab,
+		bool		file_per_table);
+
+	/** Drop an InnoDB table.
+	@tparam		Table		dd::Table or dd::Partition
+	@param[in,out]	thd		THD object
+	@param[in]	name		table name
+	@param[in]	dd_tab		dd::Table describing table to be dropped
+	@param[in]	sqlcom		type of operation that the DROP
+					is part of
+	@return	error number
+	@retval	0 on success */
+	template<typename Table>
+	static int delete_impl(
+		THD*			thd,
+		const char*		name,
+		const Table*		dd_tab,
+		enum enum_sql_command	sqlcom);
+
+	/** Renames an InnoDB table.
+	@tparam		Table		dd::Table or dd::Partition
+	@param[in,out]	thd		THD object
+	@param[in]	from		old name of the table
+	@param[in]	to		new name of the table
+	@param[in]	to_table	dd::Table or dd::Partition of the table
+					with new name
+	@return	error number
+	@retval	0 on success */
+	template<typename Table>
+	static int rename_impl(
+		THD*			thd,
+		const char*		from,
+		const char*		to,
+		const Table*		to_table);
 };
 
 /**

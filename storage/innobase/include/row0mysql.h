@@ -531,11 +531,11 @@ row_drop_database_for_mysql(
 @return error code or DB_SUCCESS */
 dberr_t
 row_rename_table_for_mysql(
-	const char*	old_name,
-	const char*	new_name,
-	dd::Table*	dd_table,
-	trx_t*		trx,
-	bool		log)
+	const char*		old_name,
+	const char*		new_name,
+	const dd::Table*	dd_table,
+	trx_t*			trx,
+	bool			log)
 	MY_ATTRIBUTE((warn_unused_result));
 
 /*********************************************************************//**

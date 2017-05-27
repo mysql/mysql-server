@@ -13529,6 +13529,392 @@ template int create_table_info_t::create_table_update_global_dd<dd::Table>(
 template int create_table_info_t::create_table_update_global_dd<dd::Partition>(
 	dd::Partition*);
 
+/** Create an InnoDB table.
+@tparam		Table		dd::Table or dd::Partition
+@parampin,out]	thd		THD object
+@param[in]	name		Table name, format: "db/table_name"
+@param[in]	form		Table format; columns and index information
+@param[in]	create_info	Create info (including create statement string)
+@param[in,out]	dd_tab		dd::Table describing table to be created
+@param[in]	file_per_table	whether to create a tablespace too
+@return	error number
+@retval 0 on success */
+template<typename Table>
+int
+innobase_basic_ddl::create_impl(
+	THD*			thd,
+	const char*		name,
+	TABLE*			form,
+	HA_CREATE_INFO*		create_info,
+	Table*			dd_tab,
+	bool			file_per_table)
+{
+	int		error;
+	char		norm_name[FN_REFLEN];	/* {database}/{tablename} */
+	char		remote_path[FN_REFLEN];	/* Absolute path of table */
+	char		tablespace[NAME_LEN];	/* Tablespace name identifier */
+	trx_t*		trx;
+
+	/* Get the transaction associated with the current thd, or create one
+	if not yet created */
+	trx = check_trx_exists(thd);
+
+	if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE)) {
+		trx_start_if_not_started(trx, true);
+	}
+
+	create_table_info_t	info(thd,
+				     form,
+				     create_info,
+				     norm_name,
+				     remote_path,
+				     tablespace,
+				     file_per_table);
+
+	/* Initialize the object. */
+	if ((error = info.initialize())) {
+		return(error);
+	}
+
+	/* Prepare for create and validate options. */
+	if ((error = info.prepare_create_table(name))) {
+		return(error);
+	}
+
+	bool	dict_locked = false;
+	bool	prevent_eviction = false;
+	bool	prevented = false;
+	/* Latch the InnoDB data dictionary exclusively so that no deadlocks
+	or lock waits can happen in it during a table create operation.
+	Drop table etc. do this latching in row0mysql.cc.
+	Avoid locking dictionary if table is intrinsic.
+	Table Object for such table is cached in THD instead of storing it
+	to dictionary. */
+	if (!info.is_intrinsic_temp_table()) {
+		row_mysql_lock_data_dictionary(trx);
+		trx->dict_operation_lock_mode = RW_X_LATCH;
+		dict_locked = true;
+	}
+
+	if ((error = info.create_table(
+		dd_tab != nullptr ? &dd_tab->table() : nullptr))) {
+		goto cleanup;
+	}
+
+	if (!info.is_intrinsic_temp_table()) {
+		ut_ad(!srv_read_only_mode);
+
+		/* Prevent eviction before releasing dict_sys mutex */
+		prevent_eviction = info.prevent_eviction();
+		prevented = true;
+
+		row_mysql_unlock_data_dictionary(trx);
+		trx->dict_operation_lock_mode = 0;
+		dict_locked = false;
+	}
+
+	if ((error = info.create_table_update_global_dd(dd_tab))) {
+		goto cleanup;
+	}
+
+	error = info.create_table_update_dict();
+
+	if (prevent_eviction || prevented) {
+		info.detach(prevent_eviction, false);
+	}
+
+	return(error);
+
+cleanup:
+	if (prevent_eviction || prevented) {
+		info.detach(prevent_eviction, dict_locked);
+	}
+
+	if (!info.is_intrinsic_temp_table()) {
+		if (dict_locked) {
+			row_mysql_unlock_data_dictionary(trx);
+			trx->dict_operation_lock_mode = 0;
+		}
+	} else {
+		dict_table_t* intrinsic_table =
+			thd_to_innodb_session(thd)->lookup_table_handler(
+			info.table_name());
+
+		if (intrinsic_table != NULL) {
+			thd_to_innodb_session(thd)->unregister_table_handler(
+				info.table_name());
+
+			for (;;) {
+				dict_index_t*	index;
+				index = UT_LIST_GET_FIRST(
+					intrinsic_table->indexes);
+				if (index == NULL) {
+					break;
+				}
+				rw_lock_free(&index->lock);
+				UT_LIST_REMOVE(intrinsic_table->indexes, index);
+				dict_mem_index_free(index);
+				index = NULL;
+			}
+
+			dict_mem_table_free(intrinsic_table);
+			intrinsic_table = NULL;
+		}
+	}
+
+	return(error);
+}
+
+template int innobase_basic_ddl::create_impl<dd::Table>(
+	THD*, const char*, TABLE*, HA_CREATE_INFO*, dd::Table*, bool);
+
+template int innobase_basic_ddl::create_impl<dd::Partition>(
+	THD*, const char*, TABLE*, HA_CREATE_INFO*, dd::Partition*, bool);
+
+
+/** Drop a table.
+@tparam		Table		dd::Table or dd::Partition
+@param[in,out]	thd		THD object
+@param[in]	name		table name
+@param[in]	dd_tab		dd::Table describing table to be dropped
+@param[in]	sqlcom		type of operation that the DROP is part of
+@return	error number
+@retval 0 on success */
+template<typename Table>
+int
+innobase_basic_ddl::delete_impl(
+	THD*			thd,
+	const char*		name,
+	const Table*		dd_tab,
+	enum enum_sql_command	sqlcom)
+{
+	dberr_t	error = DB_SUCCESS;
+	char	norm_name[FN_REFLEN];
+
+	DBUG_EXECUTE_IF(
+		"test_normalize_table_name_low",
+		test_normalize_table_name_low();
+	);
+	DBUG_EXECUTE_IF(
+		"test_ut_format_name",
+		test_ut_format_name();
+	);
+
+	/* Strangely, MySQL passes the table name without the '.frm'
+	extension, in contrast to ::create */
+	normalize_table_name(norm_name, name);
+
+	innodb_session_t*&	priv = thd_to_innodb_session(thd);
+	dict_table_t*		handler = priv->lookup_table_handler(norm_name);
+
+	if (handler != NULL) {
+		for (dict_index_t* index = UT_LIST_GET_FIRST(handler->indexes);
+		     index != NULL && index->last_ins_cur;
+		     index = UT_LIST_GET_NEXT(indexes, index)) {
+			/* last_ins_cur and last_sel_cur are allocated
+			together,therfore only checking last_ins_cur
+			before releasing mtr */
+			index->last_ins_cur->release();
+			index->last_sel_cur->release();
+		}
+	} else if (srv_read_only_mode
+		   || srv_force_recovery >= SRV_FORCE_NO_UNDO_LOG_SCAN) {
+		return(HA_ERR_TABLE_READONLY);
+	}
+
+	trx_t*	trx = check_trx_exists(thd);
+
+	TrxInInnoDB	trx_in_innodb(trx);
+
+	ulint	name_len = strlen(name);
+
+	ut_a(name_len < 1000);
+
+	/* Either the transaction is already flagged as a locking transaction
+	or it hasn't been started yet. */
+
+	ut_a(!trx_is_started(trx) || trx->will_lock > 0);
+
+	/* We are doing a DDL operation. */
+	++trx->will_lock;
+
+	bool	file_per_table = false;
+	if (dd_tab != nullptr && dd_tab->is_persistent()) {
+		dict_table_t*	tab;
+
+		dd::cache::Dictionary_client* client = dd::get_dd_client(thd);
+		dd::cache::Dictionary_client::Auto_releaser releaser(client);
+
+		int err = dd_table_open_on_dd_obj(
+			client, dd_tab->table(),
+			(!dd_table_is_partitioned(dd_tab->table())
+			 ? nullptr
+			 : reinterpret_cast<const dd::Partition*>(dd_tab)),
+			norm_name, tab, thd);
+
+		if (err == 0 && tab != nullptr) {
+			file_per_table = dict_table_is_file_per_table(tab);
+			dd_table_close(tab, thd, nullptr, false);
+		}
+	}
+
+	error = row_drop_table_for_mysql(
+		norm_name, trx, sqlcom, true, handler);
+
+	if (handler != nullptr && error == DB_SUCCESS) {
+		priv->unregister_table_handler(norm_name);
+	}
+
+	if (error == DB_SUCCESS && file_per_table) {
+		dd::Object_id   dd_space_id =
+			dd_first_index(dd_tab)->tablespace_id();
+		dd::cache::Dictionary_client* client = dd::get_dd_client(thd);
+		dd::cache::Dictionary_client::Auto_releaser releaser(client);
+
+		if (dd_drop_tablespace(client, thd, dd_space_id) != 0) {
+			error = DB_ERROR;
+		}
+	}
+
+	return(convert_error_code_to_mysql(error, 0, NULL));
+}
+
+template int innobase_basic_ddl::delete_impl<dd::Table>(
+	THD*, const char*, const dd::Table*, enum enum_sql_command);
+
+template int innobase_basic_ddl::delete_impl<dd::Partition>(
+	THD*, const char*, const dd::Partition*, enum enum_sql_command);
+
+
+/** Renames an InnoDB table.
+@tparam		Table		dd::Table or dd::Partition
+@param[in,out]	thd		THD object
+@param[in]	from		old name of the table
+@param[in]	to		new name of the table
+@param[in]	to_table	dd::Table or dd::Partition of the table with
+				new name
+@return	error number
+@retval	0 on success */
+template<typename Table>
+int
+innobase_basic_ddl::rename_impl(
+	THD*		thd,
+	const char*	from,
+	const char*	to,
+	const Table*	to_table)
+{
+	dberr_t	error;
+	char	norm_to[FN_REFLEN];
+	char	norm_from[FN_REFLEN];
+
+	ut_ad(!srv_read_only_mode);
+
+	normalize_table_name(norm_to, to);
+	normalize_table_name(norm_from, from);
+
+	DEBUG_SYNC_C("innodb_rename_table_ready");
+
+	trx_t*	trx = check_trx_exists(thd);
+
+	trx_start_if_not_started(trx, true);
+
+	TrxInInnoDB	trx_in_innodb(trx);
+
+	++trx->will_lock;
+
+	/* Serialize data dictionary operations with dictionary mutex:
+	no deadlocks can occur then in these operations. */
+
+	row_mysql_lock_data_dictionary(trx);
+
+	error = row_rename_table_for_mysql(
+		norm_from, norm_to, &to_table->table(), trx, true);
+
+	row_mysql_unlock_data_dictionary(trx);
+
+	if (error == DB_SUCCESS && to_table->is_persistent()
+	    && strcmp(norm_from, norm_to) != 0) {
+		dict_table_t*	table;
+		bool		rename_dd_filename = false;
+		char*		new_path = nullptr;
+
+		mutex_enter(&dict_sys->mutex);
+		table = dict_table_check_if_in_cache_low(norm_to);
+		ut_ad(table != nullptr);
+
+		rename_dd_filename = dict_table_is_file_per_table(table);
+
+		if (rename_dd_filename) {
+			new_path = fil_space_get_first_path(table->space);
+		}
+
+		if (row_is_mysql_tmp_table_name(norm_from)
+		    && !row_is_mysql_tmp_table_name(norm_to)
+		    && !dict_table_is_partition(table)) {
+			table->refresh_fk = true;
+
+			mutex_exit(&dict_sys->mutex);
+		} else {
+			mutex_exit(&dict_sys->mutex);
+		}
+
+		if (rename_dd_filename && new_path != nullptr) {
+			dd::Object_id	dd_space_id =
+				dd_first_index(to_table)->tablespace_id();
+
+			if (dd_tablespace_update_filename(
+				dd_space_id, new_path)) {
+				ut_a(false);
+			}
+
+			ut_free(new_path);
+		}
+	}
+
+	DEBUG_SYNC(thd, "after_innobase_rename_table");
+
+	if (error == DB_SUCCESS) {
+		char	errstr[512];
+
+		error = dict_stats_rename_table(norm_from, norm_to,
+						errstr, sizeof(errstr));
+
+		if (error != DB_SUCCESS) {
+			ib::error() << errstr;
+
+			push_warning(thd, Sql_condition::SL_WARNING,
+				     ER_LOCK_WAIT_TIMEOUT, errstr);
+		}
+	}
+
+	/* Add a special case to handle the Duplicated Key error
+	and return DB_ERROR instead.
+	This is to avoid a possible SIGSEGV error from mysql error
+	handling code. Currently, mysql handles the Duplicated Key
+	error by re-entering the storage layer and getting dup key
+	info by calling get_dup_key(). This operation requires a valid
+	table handle ('row_prebuilt_t' structure) which could no
+	longer be available in the error handling stage. The suggested
+	solution is to report a 'table exists' error message (since
+	the dup key error here is due to an existing table whose name
+	is the one we are trying to rename to) and return the generic
+	error code. */
+	if (error == DB_DUPLICATE_KEY) {
+		my_error(ER_TABLE_EXISTS_ERROR, MYF(0), to);
+
+		error = DB_ERROR;
+	}
+
+	return(convert_error_code_to_mysql(error, 0, NULL));
+}
+
+template int innobase_basic_ddl::rename_impl<dd::Table>(
+	THD*, const char*, const char*, const dd::Table*);
+
+template int innobase_basic_ddl::rename_impl<dd::Partition>(
+	THD*, const char*, const char*, const dd::Partition*);
+
+
 /** Check if a column is the only column in an index.
 @param[in]	index	data dictionary index
 @param[in]	column	the column to look for
@@ -13874,150 +14260,6 @@ ha_innobase::get_se_private_data(
 }
 
 /** Create an InnoDB table.
-@tparam		Table		dd::Table or dd::Partition
-@param[in]	name		Table name, format: "db/table_name".
-@param[in]	form		Table format; columns and index information.
-@param[in]	create_info	Create info (including create statement string).
-@param[in,out]	dd_tab		dd::Table describing table to be created.
-Can be adjusted by SE, the changes will be saved into data-dictionary at
-statement commit time.
-@param[in]	file_per_table	whether to create a tablespace too
-@return	error number
-@retval 0 on success */
-template<typename Table>
-int
-ha_innobase::create_table_impl(
-	const char*		name,
-	TABLE*			form,
-	HA_CREATE_INFO*		create_info,
-	Table*			dd_tab,
-	bool			file_per_table)
-{
-	int		error;
-	char		norm_name[FN_REFLEN];	/* {database}/{tablename} */
-	char		remote_path[FN_REFLEN];	/* Absolute path of table */
-	char		tablespace[NAME_LEN];	/* Tablespace name identifier */
-	THD*		thd = ha_thd();
-	trx_t*		trx;
-	DBUG_ENTER("ha_innobase::create");
-
-	/* Get the transaction associated with the current thd, or create one
-	if not yet created */
-	trx = check_trx_exists(thd);
-
-	if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE)) {
-		trx_start_if_not_started(trx, true);
-	}
-
-	create_table_info_t	info(thd,
-				     form,
-				     create_info,
-				     norm_name,
-				     remote_path,
-				     tablespace,
-				     file_per_table);
-
-	/* Initialize the object. */
-	if ((error = info.initialize())) {
-		DBUG_RETURN(error);
-	}
-
-	/* Prepare for create and validate options. */
-	if ((error = info.prepare_create_table(name))) {
-		DBUG_RETURN(error);
-	}
-
-	bool	dict_locked = false;
-	bool	prevent_eviction = false;
-	bool	prevented = false;
-	/* Latch the InnoDB data dictionary exclusively so that no deadlocks
-	or lock waits can happen in it during a table create operation.
-	Drop table etc. do this latching in row0mysql.cc.
-	Avoid locking dictionary if table is intrinsic.
-	Table Object for such table is cached in THD instead of storing it
-	to dictionary. */
-	if (!info.is_intrinsic_temp_table()) {
-		row_mysql_lock_data_dictionary(trx);
-		trx->dict_operation_lock_mode = RW_X_LATCH;
-		dict_locked = true;
-	}
-
-	if ((error = info.create_table(
-		dd_tab != nullptr ? &dd_tab->table() : nullptr))) {
-		goto cleanup;
-	}
-
-	if (!info.is_intrinsic_temp_table()) {
-		ut_ad(!srv_read_only_mode);
-
-		/* Prevent eviction before releasing dict_sys mutex */
-		prevent_eviction = info.prevent_eviction();
-		prevented = true;
-
-		row_mysql_unlock_data_dictionary(trx);
-		trx->dict_operation_lock_mode = 0;
-		dict_locked = false;
-	}
-
-	if ((error = info.create_table_update_global_dd(dd_tab))) {
-		goto cleanup;
-	}
-
-	error = info.create_table_update_dict();
-
-	if (prevent_eviction || prevented) {
-		info.detach(prevent_eviction, false);
-	}
-
-	DBUG_RETURN(error);
-
-cleanup:
-	if (prevent_eviction || prevented) {
-		info.detach(prevent_eviction, dict_locked);
-	}
-
-	if (!info.is_intrinsic_temp_table()) {
-		if (dict_locked) {
-			row_mysql_unlock_data_dictionary(trx);
-			trx->dict_operation_lock_mode = 0;
-		}
-	} else {
-		dict_table_t* intrinsic_table =
-			thd_to_innodb_session(thd)->lookup_table_handler(
-			info.table_name());
-
-		if (intrinsic_table != NULL) {
-			thd_to_innodb_session(thd)->unregister_table_handler(
-				info.table_name());
-
-			for (;;) {
-				dict_index_t*	index;
-				index = UT_LIST_GET_FIRST(
-					intrinsic_table->indexes);
-				if (index == NULL) {
-					break;
-				}
-				rw_lock_free(&index->lock);
-				UT_LIST_REMOVE(intrinsic_table->indexes, index);
-				dict_mem_index_free(index);
-				index = NULL;
-			}
-
-			dict_mem_table_free(intrinsic_table);
-			intrinsic_table = NULL;
-		}
-	}
-
-	DBUG_RETURN(error);
-}
-
-template int ha_innobase::create_table_impl<dd::Table>(
-	const char*, TABLE*, HA_CREATE_INFO*, dd::Table*, bool);
-
-template int ha_innobase::create_table_impl<dd::Partition>(
-	const char*, TABLE*, HA_CREATE_INFO*, dd::Partition*, bool);
-
-/** Create an InnoDB table.
 @param[in]	name		table name
 @param[in]	form		table structure
 @param[in]	create_info	more information on the table
@@ -14037,8 +14279,9 @@ ha_innobase::create(
 	dict_sys mutex protection, and could be changed while creating the
 	table. So we read the current value here and make all further
 	decisions based on this. */
-	return(create_table_impl(name, form, create_info, table_def,
-				 srv_file_per_table));
+	return(innobase_basic_ddl::create_impl(
+		ha_thd(), name, form, create_info, table_def,
+		srv_file_per_table));
 }
 
 /** Discards or imports an InnoDB tablespace.
@@ -14351,6 +14594,7 @@ ha_innobase::truncate(dd::Table *table_def)
 	close();
 
 	int	error = 0;
+	THD*	thd = ha_thd();
 
 	/* Rename tablespace file to avoid existing file in create.*/
 	if (file_per_table) {
@@ -14358,7 +14602,8 @@ ha_innobase::truncate(dd::Table *table_def)
 	}
 
 	if (!error) {
-		error = delete_table_impl(name, table_def, SQLCOM_TRUNCATE);
+		error = innobase_basic_ddl::delete_impl(
+			thd, name, table_def, SQLCOM_TRUNCATE);
 	}
 
 	if (!error) {
@@ -14367,8 +14612,8 @@ ha_innobase::truncate(dd::Table *table_def)
 			dd_index->se_private_data().clear();
 		}
 
-		error = create_table_impl(name, table, &info, table_def,
-					  file_per_table);
+		error = innobase_basic_ddl::create_impl(
+			thd, name, table, &info, table_def, file_per_table);
 	}
 
 	open(name, 0, 0, table_def);
@@ -14427,11 +14672,12 @@ ha_innobase::delete_table(
 		return(HA_ERR_UNSUPPORTED);
 	}
 
+	THD*			thd = ha_thd();
 	enum enum_sql_command	sqlcom	= static_cast<enum enum_sql_command>(
-		thd_sql_command(ha_thd()));
+		thd_sql_command(thd));
 
 	if (sqlcom == SQLCOM_TRUNCATE
-	    && thd_killed(ha_thd())
+	    && thd_killed(thd)
 	    && (m_prebuilt == NULL
 		|| m_prebuilt->table->is_temporary())) {
 		sqlcom = SQLCOM_DROP_TABLE;
@@ -14441,147 +14687,8 @@ ha_innobase::delete_table(
 	from the data dictionary tables. */
 	DBUG_ASSERT(sqlcom != SQLCOM_TRUNCATE);
 
-	return(delete_table_impl(name, table_def, sqlcom));
+	return(innobase_basic_ddl::delete_impl(thd, name, table_def, sqlcom));
 }
-
-/** Drop a table.
-@tparam		Table		dd::Table or dd::Partition
-@param[in]	name		table name
-@param[in]	dd_tab		dd::Table describing table to
-				be dropped
-@param[in]	sqlcom	type of operation that the DROP is part of
-@return	error number
-@retval 0 on success */
-template<typename Table>
-int
-ha_innobase::delete_table_impl(
-	const char*		name,
-	const Table*		dd_tab,
-	enum enum_sql_command	sqlcom)
-{
-	dberr_t	err = DB_SUCCESS;
-	THD*	thd = ha_thd();
-	char	norm_name[FN_REFLEN];
-
-	DBUG_ENTER("ha_innobase::delete_table");
-
-	DBUG_EXECUTE_IF(
-		"test_normalize_table_name_low",
-		test_normalize_table_name_low();
-	);
-	DBUG_EXECUTE_IF(
-		"test_ut_format_name",
-		test_ut_format_name();
-	);
-
-	/* Strangely, MySQL passes the table name without the '.frm'
-	extension, in contrast to ::create */
-	normalize_table_name(norm_name, name);
-
-	innodb_session_t*&	priv = thd_to_innodb_session(thd);
-	dict_table_t*		handler = priv->lookup_table_handler(norm_name);
-
-	if (handler != NULL) {
-		for (dict_index_t* index = UT_LIST_GET_FIRST(handler->indexes);
-		     index != NULL && index->last_ins_cur;
-		     index = UT_LIST_GET_NEXT(indexes, index)) {
-			/* last_ins_cur and last_sel_cur are allocated
-			together,therfore only checking last_ins_cur
-			before releasing mtr */
-			index->last_ins_cur->release();
-			index->last_sel_cur->release();
-		}
-	} else if (srv_read_only_mode
-		   || srv_force_recovery >= SRV_FORCE_NO_UNDO_LOG_SCAN) {
-		DBUG_RETURN(HA_ERR_TABLE_READONLY);
-	}
-
-	trx_t*	trx = check_trx_exists(thd);
-
-	TrxInInnoDB	trx_in_innodb(trx);
-
-	ulint	name_len = strlen(name);
-
-	ut_a(name_len < 1000);
-
-	/* Either the transaction is already flagged as a locking transaction
-	or it hasn't been started yet. */
-
-	ut_a(!trx_is_started(trx) || trx->will_lock > 0);
-
-	/* We are doing a DDL operation. */
-	++trx->will_lock;
-
-	bool	file_per_table = false;
-	bool	tmp_table = false;
-	if (dd_tab != NULL && dd_tab->is_persistent()) {
-		dict_table_t*	tab;
-
-		dd::cache::Dictionary_client* client = dd::get_dd_client(thd);
-		dd::cache::Dictionary_client::Auto_releaser releaser(client);
-		int error = dd_table_open_on_dd_obj(
-			client, dd_tab->table(),
-			(!dd_table_is_partitioned(dd_tab->table())
-			 ? NULL
-			 : reinterpret_cast<const dd::Partition*>(dd_tab)),
-			norm_name, tab, thd);
-
-		if (error == 0 && tab != NULL) {
-			file_per_table = dict_table_is_file_per_table(tab);
-			tmp_table = tab->is_temporary();
-			dd_table_close(tab, thd, NULL, false);
-		}
-	}
-
-	/* Drop the table in InnoDB */
-
-	err = row_drop_table_for_mysql(
-		norm_name, trx, sqlcom, true, handler);
-
-	if (handler != nullptr && err == DB_SUCCESS) {
-		priv->unregister_table_handler(norm_name);
-	}
-
-	if (err == DB_SUCCESS && !tmp_table && file_per_table) {
-		dd::Object_id   dd_space_id = (*dd_tab->indexes().begin())
-			->tablespace_id();
-		dd::cache::Dictionary_client* client = dd::get_dd_client(thd);
-		dd::cache::Dictionary_client::Auto_releaser releaser(client);
-
-		dd::Tablespace*	old_dd_space;
-		const dd::Tablespace*	new_dd_space;
-		if (client->acquire_uncached_uncommitted(
-				dd_space_id, &old_dd_space)) {
-			ut_a(false);
-		}
-
-		ut_a(old_dd_space != NULL);
-
-		if (dd::acquire_exclusive_tablespace_mdl(
-			    thd, old_dd_space->name().c_str(), false)) {
-			ut_a(false);
-		}
-
-		/* Acquire the new dd tablespace for modification */
-		if (client->acquire<dd::Tablespace>(
-				old_dd_space->name(), &new_dd_space)) {
-			ut_a(false);
-		}
-
-		bool fail = client->drop(new_dd_space);
-		DBUG_EXECUTE_IF("fail_while_dropping_dd_object",
-				fail = false;);
-		ut_a(!fail);
-	}
-
-	DBUG_RETURN(convert_error_code_to_mysql(err, 0, NULL));
-}
-
-template int ha_innobase::delete_table_impl<dd::Table>(
-	const char*, const dd::Table*, enum enum_sql_command);
-
-template int ha_innobase::delete_table_impl<dd::Partition>(
-	const char*, const dd::Partition*, enum enum_sql_command);
 
 /** Validate the parameters in st_alter_tablespace
 before using them in InnoDB tablespace functions.
@@ -15026,112 +15133,10 @@ innobase_drop_database(
 	trx_free_for_mysql(trx);
 }
 
-/** Renames an InnoDB table.
-@tparam		Table		dd::Table or dd::Partition
-@param[in,out]	thd		THD object
-@param[in,out]	trx		transaction
-@param[in]	from		old name of the table
-@param[in]	to		new name of the table
-@param[in]	from_table	dd::Table of the table with old name
-@param[in,out]	to_table	dd::Table of the table with new name
-@return DB_SUCCESS or error code */
-template<typename Table>
-dberr_t
-ha_innobase::rename_table_impl(
-	THD*		thd,
-	trx_t*		trx,
-	const char*	from,
-	const char*	to,
-	const Table*	from_table,
-	Table*		to_table)
-{
-	dberr_t	error;
-	char	norm_to[FN_REFLEN];
-	char	norm_from[FN_REFLEN];
-
-	DBUG_ENTER("ha_innobase::rename_table_impl");
-
-	ut_ad(!srv_read_only_mode);
-
-	normalize_table_name(norm_to, to);
-	normalize_table_name(norm_from, from);
-
-	DEBUG_SYNC_C("innodb_rename_table_ready");
-
-	TrxInInnoDB	trx_in_innodb(trx);
-
-	trx_start_if_not_started(trx, true);
-
-	/* Serialize data dictionary operations with dictionary mutex:
-	no deadlocks can occur then in these operations. */
-
-	row_mysql_lock_data_dictionary(trx);
-
-	/* Transaction must be flagged as a locking transaction or it hasn't
-	been started yet. */
-
-	ut_a(trx->will_lock > 0);
-
-	error = row_rename_table_for_mysql(
-		norm_from, norm_to, &to_table->table(), trx, true);
-
-	row_mysql_unlock_data_dictionary(trx);
-
-	if (error == DB_SUCCESS && to_table->is_persistent()
-	    && strcmp(norm_from, norm_to) != 0) {
-		dict_table_t*	table;
-		bool		rename_dd_filename = false;
-		char*		new_path = nullptr;
-
-		mutex_enter(&dict_sys->mutex);
-		table = dict_table_check_if_in_cache_low(norm_to);
-		ut_ad(table != nullptr);
-
-		rename_dd_filename = dict_table_is_file_per_table(table);
-
-		if (rename_dd_filename) {
-			new_path = fil_space_get_first_path(table->space);
-		}
-
-		if (row_is_mysql_tmp_table_name(norm_from)
-		    && !row_is_mysql_tmp_table_name(norm_to)
-		    && !dict_table_is_partition(table)) {
-			table->refresh_fk = true;
-
-			mutex_exit(&dict_sys->mutex);
-		} else {
-			mutex_exit(&dict_sys->mutex);
-		}
-
-		if (rename_dd_filename && new_path != nullptr) {
-			dd::Object_id	dd_space_id =
-				(*to_table->indexes()->begin())
-				->tablespace_id();
-
-			if (dd_tablespace_update_filename(
-				dd_space_id, new_path)) {
-				ut_a(false);
-			}
-
-			ut_free(new_path);
-		}
-	}
-
-	DBUG_RETURN(error);
-}
-
-template dberr_t ha_innobase::rename_table_impl<dd::Table>(
-	THD*, trx_t*, const char*, const char*,
-	const dd::Table*, dd::Table*);
-
-template dberr_t ha_innobase::rename_table_impl<dd::Partition>(
-	THD*, trx_t*, const char*, const char*,
-	const dd::Partition*, dd::Partition*);
-
 /*********************************************************************//**
 Renames an InnoDB table.
-@param[in]	from	Old name of the table.
-@param[in]	to	New name of the table.
+@param[in]	from		Old name of the table.
+@param[in]	to		New name of the table.
 @param[in]	from_table_def	dd::Table object describing old version
 of table.
 @param[in,out]	to_table_def	dd::Table object describing version of
@@ -15140,7 +15145,6 @@ dictionary at statement commit time.
 @return 0 or error code */
 int
 ha_innobase::rename_table(
-/*======================*/
 	const char*	from,
 	const char*	to,
 	const dd::Table	*from_table_def,
@@ -15163,59 +15167,8 @@ ha_innobase::rename_table(
 		DBUG_RETURN(HA_ERR_UNSUPPORTED);
 	}
 
-	trx_t*	trx = check_trx_exists(thd);
-
-	innobase_register_trx(ht, thd, trx);
-
-	TrxInInnoDB	trx_in_innodb(trx);
-
-	/* We are doing a DDL operation. */
-	++trx->will_lock;
-
-	dberr_t	error = rename_table_impl<dd::Table>(
-		thd, trx, from, to, from_table_def, to_table_def);
-
-	DEBUG_SYNC(thd, "after_innobase_rename_table");
-
-	if (error == DB_SUCCESS) {
-		char	norm_from[MAX_FULL_NAME_LEN];
-		char	norm_to[MAX_FULL_NAME_LEN];
-		char	errstr[512];
-		dberr_t	ret;
-
-		normalize_table_name(norm_from, from);
-		normalize_table_name(norm_to, to);
-
-		ret = dict_stats_rename_table(norm_from, norm_to,
-					      errstr, sizeof(errstr));
-
-		if (ret != DB_SUCCESS) {
-			ib::error() << errstr;
-
-			push_warning(thd, Sql_condition::SL_WARNING,
-				     ER_LOCK_WAIT_TIMEOUT, errstr);
-		}
-	}
-
-	/* Add a special case to handle the Duplicated Key error
-	and return DB_ERROR instead.
-	This is to avoid a possible SIGSEGV error from mysql error
-	handling code. Currently, mysql handles the Duplicated Key
-	error by re-entering the storage layer and getting dup key
-	info by calling get_dup_key(). This operation requires a valid
-	table handle ('row_prebuilt_t' structure) which could no
-	longer be available in the error handling stage. The suggested
-	solution is to report a 'table exists' error message (since
-	the dup key error here is due to an existing table whose name
-	is the one we are trying to rename to) and return the generic
-	error code. */
-	if (error == DB_DUPLICATE_KEY) {
-		my_error(ER_TABLE_EXISTS_ERROR, MYF(0), to);
-
-		error = DB_ERROR;
-	}
-
-	DBUG_RETURN(convert_error_code_to_mysql(error, 0, NULL));
+	DBUG_RETURN(innobase_basic_ddl::rename_impl<dd::Table>(
+		thd, from, to, to_table_def));
 }
 
 /*********************************************************************//**

@@ -771,6 +771,18 @@ dd_create_implicit_tablespace(
 	const char*			filename,
 	dd::Object_id&			dd_space_id);
 
+/** Drop a tablespace
+@param[in,out]	dd_client	data dictionary client
+@param[in,out]	thd		THD object
+@param[in]	dd_space_id	dd tablespace id
+@retval	false	On success
+@retval	true	On failure */
+bool
+dd_drop_tablespace(
+	dd::cache::Dictionary_client*	dd_client,
+	THD*				thd,
+	dd::Object_id			dd_space_id);
+
 /** Obtain the private handler of InnoDB session specific data.
 @param[in,out]	thd	MySQL thread handler.
 @return reference to private handler */

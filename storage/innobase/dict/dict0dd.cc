@@ -2453,6 +2453,52 @@ dd_create_implicit_tablespace(
 	return(fail);
 }
 
+/** Drop a tablespace
+@param[in,out]  dd_client       data dictionary client
+@param[in,out]  thd             THD object
+@param[in]      dd_space_id     dd tablespace id
+@retval false   On success
+@retval true    On failure */
+bool
+dd_drop_tablespace(
+	dd::cache::Dictionary_client*	dd_client,
+	THD*				thd,
+	dd::Object_id			dd_space_id)
+{
+	dd::Tablespace*	dd_space;
+
+	if (dd_client->acquire_uncached_uncommitted(dd_space_id, &dd_space)) {
+		my_error(ER_INTERNAL_ERROR, MYF(0),
+			 " InnoDB can't get tablespace object"
+			 " for space ", dd_space_id);
+
+		return(true);
+	}
+
+	ut_a(dd_space != nullptr);
+
+	if (dd::acquire_exclusive_tablespace_mdl(
+		thd, dd_space->name().c_str(), false)) {
+		my_error(ER_INTERNAL_ERROR, MYF(0),
+			 " InnoDB can't set exclusive MDL on"
+			 " tablespace ", dd_space->name().c_str());
+
+		return(true);
+	}
+
+	bool error = dd_client->drop(dd_space);
+	DBUG_EXECUTE_IF("fail_while_dropping_dd_object",
+			error = true;);
+
+	if (error) {
+		my_error(ER_INTERNAL_ERROR, MYF(0),
+			 " InnoDB can't drop tablespace object",
+			 dd_space->name().c_str());
+	}
+
+	return(error);
+}
+
 /** Check if a tablespace is implicit.
 @param[in]	dd_space	tablespace metadata
 @param[in]	space_id	InnoDB tablespace ID
@@ -2978,11 +3024,11 @@ dd_get_first_path(
 			return(filepath);
 		}
 
-		dd_space_id = (*table_def->indexes().begin())->tablespace_id();
+		dd_space_id = dd_first_index(table_def)->tablespace_id();
 
 		dd_mdl_release(thd, &mdl);
 	} else {
-		dd_space_id = (*dd_table->indexes().begin())->tablespace_id();
+		dd_space_id = dd_first_index(dd_table)->tablespace_id();
 	}
 
 	if (client->acquire_uncached_uncommitted<dd::Tablespace>(
@@ -4769,26 +4815,12 @@ dd_drop_fts_table(
 		return(false);
 	}
 
-	/* Drop dd table space */
 	if (file_per_table) {
 		dd::Object_id   dd_space_id = (*dd_table->indexes().begin())
 			->tablespace_id();
-
-		dd::Tablespace*	dd_space;
-		if (client->acquire_uncached_uncommitted<dd::Tablespace>(
-				dd_space_id, &dd_space)) {
-			ut_a(false);
-		}
-
-		ut_a(dd_space != NULL);
-
-		if (dd::acquire_exclusive_tablespace_mdl(
-			    thd, dd_space->name().c_str(), false)) {
-			ut_a(false);
-		}
-
-		bool fail = client->drop(dd_space);
-		ut_a(!fail);
+		bool	error;
+		error = dd_drop_tablespace(client, thd, dd_space_id);
+		ut_ad(!error);
 	}
 
 	if (client->drop(dd_table)) {

@@ -3975,28 +3975,7 @@ dd_prepare_inplace_alter_table(
 		dd::Object_id   old_space_id =
 			dd_first_index(old_dd_tab)->tablespace_id();
 
-		dd::Tablespace* old_dd_space = NULL;
-		if (client->acquire_uncached_uncommitted(
-			old_space_id, &old_dd_space)) {
-			my_error(ER_INTERNAL_ERROR, MYF(0),
-				 " InnoDB can't get tablespace object"
-				 " for space ", old_space_id);
-			return(true);
-		}
-
-		ut_a(old_dd_space != NULL);
-		if (dd::acquire_exclusive_tablespace_mdl(
-			thd, old_dd_space->name().c_str(), false)) {
-			my_error(ER_INTERNAL_ERROR, MYF(0),
-				 " InnoDB can't set exclusive MDL on"
-				 " tablespace ", old_dd_space->name().c_str());
-			return(true);
-		}
-
-		if (client->drop(old_dd_space)) {
-			my_error(ER_INTERNAL_ERROR, MYF(0),
-				 " InnoDB can't drop tablespace object",
-				 old_dd_space->name().c_str());
+		if (dd_drop_tablespace(client, thd, old_space_id)) {
 			return(true);
 		}
 	}
@@ -8580,24 +8559,6 @@ protected:
 		ib_uint64_t	autoinc);
 
 protected:
-	int create_table(
-		const char*	name,
-		TABLE*		form,
-		HA_CREATE_INFO*	create_info,
-		dd::Partition*	dd_part,
-		bool		file_per_table);
-
-	int delete_table(
-		const char*		name,
-		const dd::Partition*	dd_part,
-		enum enum_sql_command	sqlcom);
-
-	int rename_table(
-		const char*		from,
-		const char*		to,
-		const dd::Partition*	dd_part);
-
-protected:
 	/** InnoDB transaction, nullptr if not used */
 	trx_t* const			m_trx;
 
@@ -8727,199 +8688,10 @@ alter_part::create(
 		return(HA_WRONG_CREATE_OPTION);
 	}
 
-	return(create_table(
-		part_name, table, &create_info, dd_part, file_per_table));
+	return(innobase_basic_ddl::create_impl<dd::Partition>(
+		current_thd, part_name, table, &create_info, dd_part,
+		file_per_table));
 }
-
-/* WL#9536 TODO: Remove this or refactor it to prevent redundant code */
-int
-alter_part::create_table(
-	const char*	name,
-	TABLE*		form,
-	HA_CREATE_INFO*	create_info,
-	dd::Partition*	dd_part,
-	bool		file_per_table)
-{
-	int		error;
-	char		norm_name[FN_REFLEN];	/* {database}/{tablename} */
-	char		remote_path[FN_REFLEN];	/* Absolute path of table */
-	char		tablespace[NAME_LEN];	/* Tablespace name identifier */
-
-	create_table_info_t	info(current_thd,
-				     form,
-				     create_info,
-				     norm_name,
-				     remote_path,
-				     tablespace,
-				     file_per_table);
-
-	/* Initialize the object. */
-	if ((error = info.initialize())) {
-		return(error);
-	}
-
-	/* Prepare for create and validate options. */
-	if ((error = info.prepare_create_table(name))) {
-		return(error);
-	}
-
-	trx_t*	trx = thd_to_trx(current_thd);
-
-	row_mysql_lock_data_dictionary(trx);
-
-	if ((error = info.create_table(&dd_part->table()))) {
-		trx_rollback_for_mysql(trx);
-		row_mysql_unlock_data_dictionary(trx);
-		trx_free_for_mysql(trx);
-		return(error);
-	}
-	/* Let's just assume all are successful */
-	ut_ad(error == 0);
-
-	row_mysql_unlock_data_dictionary(trx);
-
-	error = info.create_table_update_global_dd(dd_part);
-	ut_ad(error == 0);
-
-	error = info.create_table_update_dict();
-
-	return(error);
-}
-
-/* WL#9536 TODO: Remove this or refactor it to prevent redundant code */
-int
-alter_part::delete_table(
-	const char*		name,
-	const dd::Partition*	dd_part,
-	enum enum_sql_command	sqlcom)
-{
-	dberr_t	err;
-	THD*	thd = current_thd;
-	char	norm_name[FN_REFLEN];
-
-	normalize_table_name(norm_name, name);
-
-	trx_start_if_not_started_xa(m_trx, true);
-
-	++m_trx->will_lock;
-
-	bool	file_per_table = false;
-	{
-		dict_table_t*	tab;
-
-		mutex_enter(&dict_sys->mutex);
-		tab = dict_table_check_if_in_cache_low(norm_name);
-		if (tab != nullptr) {
-			file_per_table = dict_table_is_file_per_table(tab);
-		}
-		mutex_exit(&dict_sys->mutex);
-	}
-
-	err = row_drop_table_for_mysql(
-		norm_name, m_trx, sqlcom, true, nullptr);
-
-	if (err == DB_SUCCESS && file_per_table) {
-		dd::Object_id	dd_space_id = (*dd_part->indexes().begin())
-			->tablespace_id();
-		dd::cache::Dictionary_client* client = dd::get_dd_client(thd);
-		dd::cache::Dictionary_client::Auto_releaser releaser(client);
-
-		dd::Tablespace*		dd_space;
-		const dd::Tablespace*	new_dd_space;
-		if (client->acquire_uncached_uncommitted<dd::Tablespace>(
-			    dd_space_id, &dd_space)) {
-			ut_a(false);
-		}
-
-		ut_a(dd_space != nullptr);
-
-		if (dd::acquire_exclusive_tablespace_mdl(
-			    thd, dd_space->name().c_str(), false)) {
-			ut_a(false);
-		}
-
-		if (client->acquire<dd::Tablespace>(
-			dd_space->name(), &new_dd_space)) {
-			ut_a(false);
-		}
-
-		bool fail = client->drop(new_dd_space);
-		DBUG_EXECUTE_IF("fail_while_dropping_dd_object",
-				fail = false;);
-		ut_a(!fail);
-	}
-
-	return(false);
-}
-
-/* WL#9536 TODO: Remove this or refactor it to prevent redundant code */
-int
-alter_part::rename_table(
-	const char*		from,
-	const char*		to,
-	const dd::Partition*	dd_part)
-{
-	dberr_t error;
-	char	norm_to[FN_REFLEN];
-	char	norm_from[FN_REFLEN];
-
-	normalize_table_name(norm_to, to);
-	normalize_table_name(norm_from, from);
-
-	trx_start_if_not_started_xa(m_trx, true);
-
-	row_mysql_lock_data_dictionary(m_trx);
-
-	error = row_rename_table_for_mysql(norm_from, norm_to, nullptr,
-					   m_trx, true);
-
-	row_mysql_unlock_data_dictionary(m_trx);
-
-	bool	rename_dd_filename = false;
-	char*	new_path = nullptr;
-	if (error == DB_SUCCESS && strcmp(norm_from, norm_to) != 0) {
-		dict_table_t*	table;
-		mutex_enter(&dict_sys->mutex);
-		table = dict_table_check_if_in_cache_low(norm_to);
-		ut_ad(table != nullptr);
-		ut_ad(!table->ibd_file_missing);
-
-		rename_dd_filename = dict_table_is_file_per_table(table);
-		if (rename_dd_filename) {
-			new_path = fil_space_get_first_path(table->space);
-		}
-
-		mutex_exit(&dict_sys->mutex);
-	}
-
-	if (rename_dd_filename) {
-		ut_ad(new_path != nullptr);
-
-		dd::Object_id	dd_space_id =
-			(*dd_part->indexes().begin())->tablespace_id();
-
-		if (dd_tablespace_update_filename(dd_space_id, new_path)) {
-			ut_a(false);
-		}
-
-		ut_free(new_path);
-	}
-
-	if (error == DB_SUCCESS) {
-		char	errstr[512];
-		dberr_t	ret = dict_stats_rename_table(
-			norm_from, norm_to, errstr, sizeof(errstr));
-		if (ret != DB_SUCCESS) {
-			ib::error() << errstr;
-			push_warning(m_trx->mysql_thd,
-				     Sql_condition::SL_WARNING,
-				     ER_LOCK_WAIT_TIMEOUT, errstr);
-		}
-	}
-
-	return(false);
-}
-
 
 typedef std::vector<alter_part*, ut_allocator<alter_part*>> alter_part_array;
 
@@ -9461,7 +9233,8 @@ public:
 				new_part, true, old_name);
 			build_partition_name(
 				new_part, false, new_name);
-			error = rename_table(old_name, new_name, new_part);
+			error = innobase_basic_ddl::rename_impl<dd::Partition>(
+				m_trx->mysql_thd, old_name, new_name, new_part);
 		}
 
 		if (m_new != nullptr) {
@@ -9555,11 +9328,13 @@ public:
 
 		int	error;
 		char	part_name[FN_REFLEN];
+		THD*	thd = m_trx->mysql_thd;
+
 		build_partition_name(old_part, false, part_name);
 
 		if (!m_conflict) {
-			error = delete_table(
-				part_name, old_part, SQLCOM_DROP_TABLE);
+			error = innobase_basic_ddl::delete_impl<dd::Partition>(
+				thd, part_name, old_part, SQLCOM_DROP_TABLE);
 		} else {
 			/* Have to rename it to a temporary name to prevent
 			name conflict, because later deleting table doesn't
@@ -9569,11 +9344,16 @@ public:
 			mem_heap_t*	heap = mem_heap_create(FN_REFLEN);
 			char*	temp_name = dict_mem_create_temporary_tablename(
 				heap, m_old->name.m_name, m_old->id);
-			error = rename_table(part_name, temp_name, old_part);
+
+			error = innobase_basic_ddl::rename_impl<dd::Partition>(
+				thd, part_name, temp_name, old_part);
 			if (error == 0) {
-				error = delete_table(
-					temp_name, old_part, SQLCOM_DROP_TABLE);
+				error = innobase_basic_ddl::delete_impl<
+					dd::Partition>(
+					thd, temp_name, old_part,
+					SQLCOM_DROP_TABLE);
 			}
+
 			mem_heap_free(heap);
 		}
 
@@ -9749,18 +9529,23 @@ alter_part_change::try_commit(
 	build_partition_name(new_part, false, old_name);
 	build_partition_name(new_part, true, temp_name);
 
+	THD*	thd = m_trx->mysql_thd;
 	int	error;
-	error = rename_table(old_name, temp_old_name, old_part);
+
+	error = innobase_basic_ddl::rename_impl<dd::Partition>(
+		thd, old_name, temp_old_name, old_part);
 	if (error == 0) {
-		error = rename_table(temp_name, old_name, new_part);
+		error = innobase_basic_ddl::rename_impl<dd::Partition>(
+			thd, temp_name, old_name, new_part);
 		if (error == 0) {
-			error = delete_table(temp_old_name,
-					     old_part, SQLCOM_DROP_TABLE);
+			error = innobase_basic_ddl::delete_impl<dd::Partition>(
+				thd, temp_old_name,
+				old_part, SQLCOM_DROP_TABLE);
 		}
 	}
 
 	if (m_new != nullptr) {
-		dd_table_close(m_new, m_trx->mysql_thd, nullptr, false);
+		dd_table_close(m_new, thd, nullptr, false);
 	}
 
 	return(error);
@@ -11313,64 +11098,6 @@ dd_part_has_datadir(const dd::Partition* dd_part)
 			dd_table_key_strings[DD_TABLE_DATA_DIRECTORY]));
 }
 
-static
-int
-rename_table_for_exchange(
-	trx_t*		trx,
-	const char*	from,
-	const char*	to,
-	dd::Object_id	dd_space_id)
-{
-	dberr_t error;
-	char	norm_to[FN_REFLEN];
-	char	norm_from[FN_REFLEN];
-
-	normalize_table_name(norm_to, to);
-	normalize_table_name(norm_from, from);
-
-	trx_start_if_not_started_xa(trx, true);
-
-	row_mysql_lock_data_dictionary(trx);
-
-	error = row_rename_table_for_mysql(norm_from, norm_to, nullptr,
-					   trx, true);
-
-	row_mysql_unlock_data_dictionary(trx);
-
-	char*	new_path = nullptr;
-	if (error == DB_SUCCESS && strcmp(norm_from, norm_to) != 0) {
-		dict_table_t*	table;
-		mutex_enter(&dict_sys->mutex);
-		table = dict_table_check_if_in_cache_low(norm_to);
-		ut_ad(table != nullptr);
-		ut_ad(!table->ibd_file_missing);
-		new_path = fil_space_get_first_path(table->space);
-		mutex_exit(&dict_sys->mutex);
-	}
-
-	if (new_path != nullptr) {
-		if (dd_tablespace_update_filename(dd_space_id, new_path)) {
-			ut_a(false);
-		}
-
-		ut_free(new_path);
-	}
-
-	if (error == DB_SUCCESS) {
-		char	errstr[512];
-		dberr_t ret = dict_stats_rename_table(
-			norm_from, norm_to, errstr, sizeof(errstr));
-		if (ret != DB_SUCCESS) {
-			ib::error() << errstr;
-			push_warning(trx->mysql_thd,
-				     Sql_condition::SL_WARNING,
-				     ER_LOCK_WAIT_TIMEOUT, errstr);
-		}
-	}
-
-	return(error);
-}
-
 /** Exchange partition.
 Low-level primitive which implementation is provided here.
 @param[in]	part_table_path		data file path of the partitioned table
@@ -11454,42 +11181,45 @@ ha_innopart::exchange_partition_low(
 	ut_ad(swap != nullptr);
 	ut_ad(swap->n_ref_count == 1);
 
+	/* Declare earlier before 'goto' */
+	auto		swap_i = swap_table->indexes()->begin();
+        ut_d(auto part_table_i = part_table->indexes()->begin());
+        dd::Object_id	p_se_id = dd_part->se_private_id();
+
 	/* Try to rename files. Tablespace checking ensures that
 	both partition and table are of implicit tablespace. The plan is:
 	1. Rename the swap table to the intermediate file
 	2. Rename the partition to the swap table file
 	3. Rename the intermediate file of swap table to the partition file */
-	trx_t*	trx = m_prebuilt->trx;
-
-	const dd::Object_id	p_id = dd_first_index(dd_part)->tablespace_id();
-	const dd::Object_id	swap_id = dd_first_index(swap_table)
-		->tablespace_id();
-	char*			swap_name = strdup(swap->name.m_name);
-	char*			part_name = strdup(part->name.m_name);
+	THD*	thd = m_prebuilt->trx->mysql_thd;
+	char*	swap_name = strdup(swap->name.m_name);
+	char*	part_name = strdup(part->name.m_name);
 
 	/* Define the temporary table name, by appending "#tmp" */
 	char			temp_name[FN_REFLEN];
 	snprintf(temp_name, sizeof temp_name, "%s#tmp", swap_name);
 
-	/* TODO WL#9536: Handle rollback */
-	int	error;
-	error = rename_table_for_exchange(trx, swap_name, temp_name, swap_id);
-	ut_a(error == DB_SUCCESS);
-	error = rename_table_for_exchange(trx, part_name, swap_name, p_id);
-	ut_a(error == DB_SUCCESS);
-	error = rename_table_for_exchange(trx, temp_name, part_name, swap_id);
-	ut_a(error == DB_SUCCESS);
-
-	free(swap_name);
-	free(part_name);
+	int	error = 0;
+	error = innobase_basic_ddl::rename_impl<dd::Table>(
+		thd, swap_name, temp_name, swap_table);
+	if (error != 0) {
+		goto func_exit;
+	}
+	error = innobase_basic_ddl::rename_impl<dd::Partition>(
+		thd, part_name, swap_name, dd_part);
+	if (error != 0) {
+		goto func_exit;
+	}
+	error = innobase_basic_ddl::rename_impl<dd::Table>(
+		thd, temp_name, part_name, swap_table);
+	if (error != 0) {
+		goto func_exit;
+	}
 
 	/* Swap the se_private_data and options between indexes.
 	The se_private_data should be swapped between every index of
 	dd_part and swap_table; however, options should be swapped(checked)
 	between part_table and swap_table */
-	auto	swap_i = swap_table->indexes()->begin();
-	ut_d(auto part_table_i = part_table->indexes()->begin());
-
 	for (auto part_index : *dd_part->indexes()) {
 		ut_ad(swap_i != swap_table->indexes()->end());
 		auto	swap_index = *swap_i;
@@ -11548,11 +11278,14 @@ ha_innopart::exchange_partition_low(
 	}
 
 	/* Swap the se_private_id between partition and table */
-	dd::Object_id	p_se_id = dd_part->se_private_id();
 	dd_part->set_se_private_id(swap_table->se_private_id());
 	swap_table->set_se_private_id(p_se_id);
 
-	DBUG_RETURN(0);
+func_exit:
+	free(swap_name);
+	free(part_name);
+
+	DBUG_RETURN(error);
 }
 
 /**

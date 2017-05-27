@@ -4724,11 +4724,11 @@ row_is_mysql_tmp_table_name(
 @return error code or DB_SUCCESS */
 dberr_t
 row_rename_table_for_mysql(
-	const char*	old_name,
-	const char*	new_name,
-	dd::Table*	dd_table,
-	trx_t*		trx,
-	bool		log)
+	const char*		old_name,
+	const char*		new_name,
+	const dd::Table*	dd_table,
+	trx_t*			trx,
+	bool			log)
 {
 	dict_table_t*	table			= NULL;
 	ibool		dict_locked		= FALSE;

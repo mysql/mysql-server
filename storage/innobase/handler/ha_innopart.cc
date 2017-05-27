@@ -2862,6 +2862,7 @@ ha_innopart::delete_table(
 	char	partition_name[FN_REFLEN];
 	char*	partition_name_start;
 	size_t	table_name_len;
+	THD*	thd = ha_thd();
 	int	error = 0;
 
 	DBUG_ENTER("ha_innopart::delete_table");
@@ -2892,8 +2893,8 @@ ha_innopart::delete_table(
 			DBUG_RETURN(error);
 		}
 
-		error = ha_innobase::delete_table_impl<dd::Partition>(
-			partition_name, dd_part, SQLCOM_DROP_TABLE);
+		error = innobase_basic_ddl::delete_impl<dd::Partition>(
+			thd, partition_name, dd_part, SQLCOM_DROP_TABLE);
 
 		if (error != 0) {
 			break;
@@ -2918,7 +2919,7 @@ ha_innopart::rename_table(
 	dd::Table*		to_table)
 {
 	THD*	thd = ha_thd();
-	dberr_t	error = DB_SUCCESS;
+	int	error = 0;
 
 	DBUG_ENTER("ha_innopart::rename_table");
 
@@ -2973,43 +2974,17 @@ ha_innopart::rename_table(
 			DBUG_RETURN(0);
 		}
 
-		++trx->will_lock;
+		error = innobase_basic_ddl::rename_impl<dd::Partition>(
+			thd, from_name, to_name, *to_part);
 
-		error = rename_table_impl<dd::Partition>(
-			thd, trx, from_name, to_name, from_part, *to_part);
-
-		if (error != DB_SUCCESS) {
-			break;
-		}
-
-		char	norm_from[MAX_FULL_NAME_LEN];
-		char	norm_to[MAX_FULL_NAME_LEN];
-		char	errstr[512];
-
-		normalize_table_name(norm_from, from_name);
-		normalize_table_name(norm_to, to_name);
-
-		error = dict_stats_rename_table(norm_from, norm_to,
-						errstr, sizeof(errstr));
-		if (error != DB_SUCCESS) {
-			ib::error() << errstr;
-
-			push_warning(thd, Sql_condition::SL_WARNING,
-				     ER_LOCK_WAIT_TIMEOUT, errstr);
-
+		if (error != 0) {
 			break;
 		}
 
 		++to_part;
 	}
 
-	/* Refer to comment in ha_innobase::rename_table() */
-	if (error == DB_DUPLICATE_KEY) {
-		my_error(ER_TABLE_EXISTS_ERROR, MYF(0), to);
-		error = DB_ERROR;
-	}
-
-	DBUG_RETURN(convert_error_code_to_mysql(error, 0, NULL));
+	DBUG_RETURN(error);
 }
 
 /** Set DD discard attribute for tablespace.
@@ -3225,6 +3200,7 @@ ha_innopart::truncate_partition_low(dd::Table *dd_table)
 	ulint		num_used_parts = m_part_info->num_partitions_used();
 	ulint		processed = 0;
 	uint		i = 0;
+	THD*		thd = ha_thd();
 	DBUG_ENTER("ha_innopart::truncate_partition_low");
 
 	if (high_level_read_only) {
@@ -3344,8 +3320,8 @@ ha_innopart::truncate_partition_low(dd::Table *dd_table)
 			}
 		}
 
-		error = ha_innobase::delete_table_impl<dd::Partition>(
-			name, dd_part, SQLCOM_TRUNCATE);
+		error = innobase_basic_ddl::delete_impl<dd::Partition>(
+			thd, name, dd_part, SQLCOM_TRUNCATE);
 		if (error == 0) {
 			bool	reset = false;
 			/* Don't change the tablespace in this case, so
@@ -3361,8 +3337,8 @@ ha_innopart::truncate_partition_low(dd::Table *dd_table)
 				reset = true;
 			}
 
-			error = ha_innobase::create_table_impl(
-				name, table, info, dd_part, file_per_table);
+			error = innobase_basic_ddl::create_impl(
+				thd, name, table, info, dd_part, file_per_table);
 
 			if (reset) {
 				dd_part->set_tablespace_id(
