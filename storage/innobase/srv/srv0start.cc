@@ -2363,6 +2363,15 @@ files_checked:
 	ut_a(srv_rollback_segments <= TRX_SYS_N_RSEGS);
 	ut_a(srv_tmp_rollback_segments > 0);
 	ut_a(srv_tmp_rollback_segments <= TRX_SYS_N_RSEGS);
+	ut_a(srv_undo_logs > 0);
+	ut_a(srv_undo_logs <= TRX_SYS_N_RSEGS);
+
+	if (srv_undo_logs < TRX_SYS_N_RSEGS) {
+		ib::warn() << deprecated_undo_logs;
+		if (srv_rollback_segments == TRX_SYS_N_RSEGS) {
+			srv_rollback_segments = srv_undo_logs;
+		}
+	}
 
 	/* Create temporary rollback segments. */
 	if (!srv_read_only_mode) {

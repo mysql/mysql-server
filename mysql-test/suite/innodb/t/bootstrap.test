@@ -19,7 +19,7 @@ EOF
 
 --append_file $bugdir/my.cnf
 innodb_data_file_path = ibdata1:16M;ibdata2:16M
-innodb_undo_logs = 20
+innodb_rollback_segments = 20
 innodb_undo_tablespaces = 3
 innodb_log_files_in_group = 3
 innodb_log_file_size=6M

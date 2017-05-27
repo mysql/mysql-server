@@ -120,6 +120,15 @@ non-redo-logged, temporary transactions. These logs reside in the
 temp tablespace.*/
 ulong	srv_tmp_rollback_segments = TRX_SYS_OLD_TMP_RSEGS;
 
+/* Used for the deprecated setting innodb_undo_logs. This will still get
+put into srv_rollback_segments if it is set to a non-default value. */
+ulong	srv_undo_logs = 0;
+const char* deprecated_undo_logs =
+	"The parameter innodb_undo_logs is deprecated"
+	" and may be removed in future releases."
+	" Please use innodb_rollback_segments instead."
+	" See " REFMAN "innodb-undo-logs.html";
+
 /** Rate at which UNDO records should be purged. */
 ulong	srv_purge_rseg_truncate_frequency = 128;
 
