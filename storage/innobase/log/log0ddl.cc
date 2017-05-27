@@ -344,6 +344,11 @@ LogDDL::writeRenameSpaceLog(
 {
 	trx = thd_to_trx(current_thd);
 
+	/* This is special case for fil_rename_tablespace during recovery */
+	if (trx == nullptr) {
+		return(DB_SUCCESS);
+	}
+
 	if (shouldSkip(NULL, trx->mysql_thd)) {
 		return(DB_SUCCESS);
 	}
