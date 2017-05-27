@@ -22997,10 +22997,10 @@ bool Dbdih::findLogNodes(CreateReplicaRecord* createReplica,
   arrGuard(flnReplicaPtr.p->noCrashedReplicas, MAX_CRASHED_REPLICAS);
   const Uint32 noCrashed = flnReplicaPtr.p->noCrashedReplicas;
   
-  if (!(ERROR_INSERTED(7073) || ERROR_INSERTED(7074))&&
-      (startGci >= flnReplicaPtr.p->createGci[noCrashed]) &&
+  if ((startGci >= flnReplicaPtr.p->createGci[noCrashed]) &&
       (stopGci <= flnReplicaPtr.p->replicaLastGci[noCrashed]) &&
-      (stopGci <= SYSFILE->lastCompletedGCI[flnReplicaPtr.p->procNode])) {
+      (stopGci <= SYSFILE->lastCompletedGCI[flnReplicaPtr.p->procNode]))
+  {
     jam();
     /* --------------------------------------------------------------------- */
     /*       WE FOUND ALL THE LOG RECORDS NEEDED IN THE DATA NODE. WE WILL   */
@@ -23012,6 +23012,19 @@ bool Dbdih::findLogNodes(CreateReplicaRecord* createReplica,
     createReplica->logNodeId[0] = flnReplicaPtr.p->procNode;
     return true;
   }//if
+  /* If we reach this code we're in trouble nowadays */
+  g_eventLogger->info("startGci: %u, stopGci: %u, noCrashed: %u"
+                      "newestRestorableGci: %u, createGci: %u,"
+                      " replicaLastGci: %u, lastCompletedGci: %u"
+                      ", node: %u",
+                      startGci,
+                      stopGci,
+                      noCrashed,
+                      SYSFILE->newestRestorableGCI,
+                      flnReplicaPtr.p->createGci[noCrashed],
+                      flnReplicaPtr.p->replicaLastGci[noCrashed],
+                      SYSFILE->lastCompletedGCI[flnReplicaPtr.p->procNode],
+                      flnReplicaPtr.p->procNode);
   Uint32 logNode = 0;
   do {
     Uint32 fblStopGci;
@@ -25249,7 +25262,8 @@ void Dbdih::sendStartFragreq(Signal* signal,
     startFragReq->fragId = fragId;
     startFragReq->requestInfo = StartFragReq::SFR_RESTORE_LCP;
 
-    if(ERROR_INSERTED(7072) || ERROR_INSERTED(7074)){
+    if (ERROR_INSERTED(7072))
+    {
       jam();
       const Uint32 noNodes = replicaPtr.p->noLogNodes;
       Uint32 start = replicaPtr.p->logStartGci[noNodes - 1];

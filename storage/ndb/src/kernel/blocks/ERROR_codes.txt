@@ -703,8 +703,6 @@ System Restart:
 7070: Set TimeBetweenLcp to min value
 7071: Set TimeBetweenLcp to max value
 7072: Split START_FRAGREQ into several log nodes
-7073: Don't include own node in START_FRAGREQ
-7074: 7072 + 7073
 
 Scan:
 ------
