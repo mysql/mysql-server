@@ -27,7 +27,8 @@ Description: Management server
 
 Package: mysql-${DEB_PRODUCTNAME}-data-node
 Architecture: any
-Depends: \${shlibs:Depends}, \${misc:Depends}
+Depends: \${shlibs:Depends}, \${misc:Depends},
+ libclass-methodmaker-perl
 Description: Data node
  This package contains MySQL Cluster Data Node Daemon, it's the process
  that is used to handle all the data in tables using the NDB Cluster
@@ -36,7 +37,8 @@ Description: Data node
 
 Package: mysql-${DEB_PRODUCTNAME}-auto-installer
 Architecture: any
-Depends: \${shlibs:Depends}, \${misc:Depends}
+Depends: \${shlibs:Depends}, \${misc:Depends},
+ python-paramiko
 Description: Data node
  This package contains MySQL Cluster Data Node Daemon, it's the process
  that is used to handle all the data in tables using the NDB Cluster
