@@ -1721,7 +1721,7 @@ static Sys_var_ulong Sys_expire_logs_days(
        " seconds if binlog_expire_logs_seconds has a non zero value; "
        "possible purges happen at startup and at binary log rotation",
        GLOBAL_VAR(expire_logs_days),
-       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 99), DEFAULT(0), BLOCK_SIZE(1));
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 99), DEFAULT(30), BLOCK_SIZE(1));
 
 static Sys_var_ulong Sys_binlog_expire_logs_seconds(
        "binlog_expire_logs_seconds",
