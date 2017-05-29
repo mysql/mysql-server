@@ -3,6 +3,8 @@ SELECT @@GLOBAL.innodb_undo_logs;
 128
 128 Expected
 SET @@GLOBAL.innodb_undo_logs=128;
+Warnings:
+Warning	131	The parameter innodb_undo_logs is deprecated and may be removed in future releases. Please use innodb_rollback_segments instead. See http://dev.mysql.com/doc/refman/5.7/en/innodb-undo-logs.html
 SELECT COUNT(@@GLOBAL.innodb_undo_logs);
 COUNT(@@GLOBAL.innodb_undo_logs)
 1
@@ -37,6 +39,7 @@ select @@innodb_undo_logs;
 set global innodb_undo_logs = 129;
 Warnings:
 Warning	1292	Truncated incorrect innodb_undo_logs value: '129'
+Warning	131	The parameter innodb_undo_logs is deprecated and may be removed in future releases. Please use innodb_rollback_segments instead. See http://dev.mysql.com/doc/refman/5.7/en/innodb-undo-logs.html
 select @@innodb_undo_logs;
 @@innodb_undo_logs
 128
@@ -44,6 +47,7 @@ select @@innodb_undo_logs;
 set global innodb_undo_logs = 0;
 Warnings:
 Warning	1292	Truncated incorrect innodb_undo_logs value: '0'
+Warning	131	The parameter innodb_undo_logs is deprecated and may be removed in future releases. Please use innodb_rollback_segments instead. See http://dev.mysql.com/doc/refman/5.7/en/innodb-undo-logs.html
 select @@innodb_undo_logs;
 @@innodb_undo_logs
 1
@@ -51,18 +55,30 @@ select @@innodb_undo_logs;
 set global innodb_undo_logs = -1;
 Warnings:
 Warning	1292	Truncated incorrect innodb_undo_logs value: '-1'
+Warning	131	The parameter innodb_undo_logs is deprecated and may be removed in future releases. Please use innodb_rollback_segments instead. See http://dev.mysql.com/doc/refman/5.7/en/innodb-undo-logs.html
 select @@innodb_undo_logs;
 @@innodb_undo_logs
 1
 1 Expected
 set global innodb_undo_logs = 50;
+Warnings:
+Warning	131	The parameter innodb_undo_logs is deprecated and may be removed in future releases. Please use innodb_rollback_segments instead. See http://dev.mysql.com/doc/refman/5.7/en/innodb-undo-logs.html
 select @@innodb_undo_logs;
 @@innodb_undo_logs
 50
 50 Expected
 set global innodb_undo_logs = default;
+Warnings:
+Warning	131	The parameter innodb_undo_logs is deprecated and may be removed in future releases. Please use innodb_rollback_segments instead. See http://dev.mysql.com/doc/refman/5.7/en/innodb-undo-logs.html
 select @@innodb_undo_logs;
 @@innodb_undo_logs
 128
 128 Expected
 End bug 13604034
+# restart: --innodb-undo-logs=100
+SELECT VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='innodb_undo_logs';
+VARIABLE_VALUE
+100
+100 Expected

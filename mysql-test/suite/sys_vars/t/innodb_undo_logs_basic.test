@@ -18,6 +18,10 @@
 
 --source include/have_innodb.inc
 
+--disable_query_log
+call mtr.add_suppression("The parameter innodb_undo_logs is deprecated and may be removed in future releases");
+--enable_query_log
+
 ####################################################################
 #   Display default value                                          #
 ####################################################################
@@ -72,9 +76,11 @@ SELECT COUNT(@@SESSION.innodb_undo_logs);
 --Error ER_BAD_FIELD_ERROR
 SELECT innodb_undo_logs = @@SESSION.innodb_undo_logs;
 
+################################################################################
 # Begin Bug 13604034
 # SET GLOBAL INNODB_UNDO_LOGS=0 SUCCEEDS BUT LEADS TO AN ASSERT
 # MAX_UNDO_LOGS > 0
+################################################################################
 --echo Begin bug 13604034
 select @@innodb_undo_logs;
 --echo 128 Expected
@@ -95,3 +101,16 @@ select @@innodb_undo_logs;
 --echo 128 Expected
 --echo End bug 13604034
 # End Bug 13604034
+
+################################################################################
+# Check that the setting can be set at startup
+################################################################################
+let $restart_parameters = restart: --innodb-undo-logs=100;
+--source include/restart_mysqld.inc
+--disable_warnings
+SELECT VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='innodb_undo_logs';
+--enable_warnings
+--echo 100 Expected
+
