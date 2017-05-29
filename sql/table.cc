@@ -3727,6 +3727,42 @@ char *get_field(MEM_ROOT *mem, Field *field)
 /**
   Check if database name is valid
 
+  @param name             Name of database
+  @param length           Length of name
+
+  @retval  Ident_name_check::OK        Identifier name is Ok (Success)
+  @retval  Ident_name_check::WRONG     Identifier name is Wrong
+                                       (ER_WRONG_TABLE_NAME)
+  @retval  Ident_name_check::TOO_LONG  Identifier name is too long if it is
+                                       greater than 64 characters
+                                       (ER_TOO_LONG_IDENT)
+
+  @note In case of Ident_name_check::WRONG and Ident_name_check::TOO_LONG, this
+        function reports an error (my_error)
+*/
+
+Ident_name_check check_db_name(const char *name, size_t length)
+{
+  Ident_name_check ident_check_status;
+
+  if (!length || length > NAME_LEN)
+  {
+    my_error(ER_WRONG_DB_NAME, MYF(0), name);
+    return Ident_name_check::WRONG;
+  }
+
+  ident_check_status= check_table_name(name, length);
+  if (ident_check_status == Ident_name_check::WRONG)
+    my_error(ER_WRONG_DB_NAME, MYF(0), name);
+  else if (ident_check_status == Ident_name_check::TOO_LONG)
+    my_error(ER_TOO_LONG_IDENT, MYF(0), name);
+  return ident_check_status;
+}
+
+
+/**
+  Check if database name is valid, and convert to lower case if necessary
+
   @param org_name             Name of database and length
   @param preserve_lettercase  Preserve lettercase if true
 

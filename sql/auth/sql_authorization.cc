@@ -1676,8 +1676,7 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
       goto err;
   }
 
-  if (check_fk_parent_table_access(thd, create_table->db, lex->create_info,
-                                   lex->alter_info))
+  if (check_fk_parent_table_access(thd, lex->create_info, lex->alter_info))
     goto err;
 
   error= FALSE;
@@ -6092,7 +6091,6 @@ bool check_global_access(THD *thd, ulong want_access)
   Checks foreign key's parent table access.
 
   @param [in] thd               Thread handler
-  @param [in] child_table_db    Database of child table
   @param [in] create_info       Create information (like MAX_ROWS, ENGINE or
                                 temporary table flag)
   @param [in] alter_info        Initial list of columns and indexes for the
@@ -6104,7 +6102,6 @@ bool check_global_access(THD *thd, ulong want_access)
    true	  error or access denied. Error is sent to client in this case.
 */
 bool check_fk_parent_table_access(THD *thd,
-                                  const char *child_table_db,
                                   HA_CREATE_INFO *create_info,
                                   Alter_info *alter_info)
 {
@@ -6122,57 +6119,11 @@ bool check_fk_parent_table_access(THD *thd,
     if (key->type == KEYTYPE_FOREIGN)
     {
       TABLE_LIST parent_table;
-      bool is_qualified_table_name;
       const Foreign_key_spec *fk_key= down_cast<const Foreign_key_spec*>(key);
-      LEX_STRING db_name;
-      LEX_STRING table_name= { (char *) fk_key->ref_table.str,
-                               fk_key->ref_table.length };
 
-      // Check if tablename is valid or not.
-      DBUG_ASSERT(table_name.str != NULL);
-      if (check_table_name(table_name.str, table_name.length) !=
-          Ident_name_check::OK)
-      {
-        my_error(ER_WRONG_TABLE_NAME, MYF(0), table_name.str);
-        return true;
-      }
-
-      if (fk_key->ref_db.str)
-      {
-        is_qualified_table_name= true;
-        db_name.str= (char *) thd->memdup(fk_key->ref_db.str,
-                                          fk_key->ref_db.length+1);
-        db_name.length= fk_key->ref_db.length;
-
-        // Check if database name is valid or not.
-        if (fk_key->ref_db.str &&
-            (check_and_convert_db_name(&db_name, false) !=
-             Ident_name_check::OK))
-          return true;
-      }
-      else
-      {
-        /*
-          If database name for parent table is not specified explicitly
-          SEs assume that it is the same as database name of child table.
-          We do the same here.
-        */
-        is_qualified_table_name= false;
-        db_name.str= const_cast<char*>(child_table_db);
-        db_name.length= strlen(child_table_db);
-      }
-
-      // if lower_case_table_names is set then convert tablename to lower case.
-      if (lower_case_table_names)
-      {
-        table_name.str= (char *) thd->memdup(fk_key->ref_table.str,
-                                             fk_key->ref_table.length+1);
-        table_name.length= my_casedn_str(files_charset_info, table_name.str);
-      }
-
-      parent_table.init_one_table(db_name.str, db_name.length,
-                                  table_name.str, table_name.length,
-                                  table_name.str, TL_IGNORE);
+      parent_table.init_one_table(fk_key->ref_db.str, fk_key->ref_db.length,
+                    fk_key->ref_table.str, fk_key->ref_table.length,
+                    fk_key->ref_table.str, TL_IGNORE);
 
       /*
        Check if user has REFERENCES_ACL privilege at table level on
@@ -6187,22 +6138,14 @@ bool check_fk_parent_table_access(THD *thd,
            check_grant(thd, REFERENCES_ACL, &parent_table, false, 1, true)) ||
           (parent_table.grant.privilege & REFERENCES_ACL) == 0)
       {
-        if (is_qualified_table_name)
-        {
-          const size_t qualified_table_name_len= NAME_LEN + 1 + NAME_LEN + 1;
-          char *qualified_table_name=
-            (char *) thd->alloc(qualified_table_name_len);
-
-          my_snprintf(qualified_table_name, qualified_table_name_len, "%s.%s",
-                      db_name.str, table_name.str);
-          table_name.str= qualified_table_name;
-        }
-
+        char fqtn_buff[NAME_LEN + 1 + NAME_LEN + 1];
+        my_snprintf(fqtn_buff, sizeof(fqtn_buff), "%s.%s",
+                    fk_key->ref_db.str, fk_key->ref_table.str);
         my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0),
                  "REFERENCES",
                  thd->security_context()->priv_user().str,
                  thd->security_context()->host_or_ip().str,
-                 table_name.str);
+                 fqtn_buff);
 
         return true;
       }

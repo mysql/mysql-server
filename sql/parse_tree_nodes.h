@@ -2916,6 +2916,8 @@ class PT_ddl_table_option : public Table_ddl_node
 {
 public:
   virtual ~PT_ddl_table_option()= 0; // Force abstract class declaration
+
+  virtual bool is_rename_table() const { return false; }
 };
 
 inline PT_ddl_table_option::~PT_ddl_table_option() {}
@@ -4157,6 +4159,8 @@ public:
   {}
 
   bool contextualize(Table_ddl_parse_context *pc) override;
+
+  bool is_rename_table() const override { return true; }
 
 private:
   const Table_ident * const m_ident;

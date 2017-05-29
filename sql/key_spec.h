@@ -159,7 +159,9 @@ class Foreign_key_spec: public Key_spec
 {
 public:
   const LEX_CSTRING ref_db;
+  const LEX_CSTRING orig_ref_db;
   const LEX_CSTRING ref_table;
+  const LEX_CSTRING orig_ref_table;
   Mem_root_array<const Key_part_spec*> ref_columns;
   const fk_option delete_opt;
   const fk_option update_opt;
@@ -169,7 +171,9 @@ public:
                    const LEX_CSTRING &name_arg,
                    List<Key_part_spec> cols,
                    const LEX_CSTRING &ref_db_arg,
+                   const LEX_CSTRING &orig_ref_db_arg,
                    const LEX_CSTRING &ref_table_arg,
+                   const LEX_CSTRING &orig_ref_table_arg,
                    List<Key_part_spec> *ref_cols,
                    fk_option delete_opt_arg,
                    fk_option update_opt_arg,
@@ -179,7 +183,9 @@ public:
               false, // We don't check for duplicate FKs.
               cols),
     ref_db(ref_db_arg),
+    orig_ref_db(orig_ref_db_arg),
     ref_table(ref_table_arg),
+    orig_ref_table(orig_ref_table_arg),
     ref_columns(mem_root),
     delete_opt(delete_opt_arg),
     update_opt(update_opt_arg),
@@ -200,14 +206,13 @@ public:
     on which the FK is created.
 
     @param thd                  Thread handle
-    @param db                   Database name
     @param table_name           Table name (for error reporting)
     @param table_fields         List of columns
 
     @retval false   Key valid
     @retval true    Key invalid
  */
-  bool validate(THD *thd, const char *db, const char *table_name,
+  bool validate(THD *thd, const char *table_name,
                 List<Create_field> &table_fields) const;
 };
 
