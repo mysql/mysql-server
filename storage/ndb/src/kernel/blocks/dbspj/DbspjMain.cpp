@@ -752,6 +752,8 @@ Dbspj::nodeFail_checkRequests(Signal* signal)
   case 2:
     hash = &m_scan_request_hash;
     break;
+  default:
+    ndbrequire(false); //Impossible, avoid warning
   }
   hash->next(bucket, iter);
 
@@ -872,7 +874,7 @@ void Dbspj::execLQHKEYREQ(Signal* signal)
       /**
        * Root TreeNode in Request takes ownership of keyPtr
        * section when build has completed.
-       * We are done with attrPtr which is now released.
+       * We are done with attrPtr which are now released.
        */
       Ptr<TreeNode> rootNodePtr = ctx.m_node_list[0];
       rootNodePtr.p->m_send.m_keyInfoPtrI = keyPtrI;
@@ -1208,7 +1210,7 @@ Dbspj::execSCAN_FRAGREQ(Signal* signal)
       /**
        * Root TreeNode in Request takes ownership of keyPtr
        * section when build has completed.
-       * We are done with attrPtr and MultiFrag-list which is
+       * We are done with attrPtr and MultiFrag-list which are
        * now released.
        */
       Ptr<TreeNode> rootNodePtr = ctx.m_node_list[0];
@@ -1413,6 +1415,10 @@ Dbspj::build(Build_context& ctx,
        *  - The QN_ScanFragParameters has two additional 'batch_size' members.
        *    In addition there is three unused Uint32 member for future use. (5)
        *    Extend entire param block to make room for it, fill in from 'req'.
+       *
+       *    {len, requestInfo, resultData}
+       *     -> {len, requestInfo, resultData,
+       *         batch_size_rows, batch_size_bytes, unused0-2}
        */
       jam();
       QN_ScanFragParameters_v1 *param_old = (QN_ScanFragParameters_v1*)m_buffer1;
@@ -1426,6 +1432,7 @@ Dbspj::build(Build_context& ctx,
         goto error;
       }
       QN_ScanFragParameters *param = (QN_ScanFragParameters*)m_buffer1;
+      /* Moving data beyond 'NodeSize' after the space for new parameters */
       memmove(((Uint32*)param)+param->NodeSize,
               ((Uint32*)param_old)+param_old->NodeSize, 
               (param_len-param_old->NodeSize) * sizeof(Uint32));
@@ -1453,11 +1460,15 @@ Dbspj::build(Build_context& ctx,
       /**
        * Convert the deprecated SCAN_INDEX_v1 node+param to new SCAN_FRAG:
        *  - The 'node' formats are identical, no conversion needed.
-       *  - The QN_ScanIndexParameters has splitt the single batchSize into
+       *  - The QN_ScanIndexParameters has split the single batchSize into
        *    two seperate 'batch_size' members and introduced an additional
        *    three unused Uint32 members for future use. (Total 4)
        *    Extend entire param block to make room for it,
        *    fill in from old batchSize argument.
+       *
+       *    {len, requestInfo, batchSize, resultData}
+       *     -> {len, requestInfo, resultData,
+       *         batch_size_rows, batch_size_bytes, unused0-2}
        */
       jam();
       QN_ScanIndexParameters_v1 *param_old = (QN_ScanIndexParameters_v1*)m_buffer1;
@@ -1472,6 +1483,7 @@ Dbspj::build(Build_context& ctx,
         goto error;
       }
       QN_ScanFragParameters *param = (QN_ScanFragParameters*)m_buffer1;
+      /* Moving data beyond 'NodeSize' after the space for new parameters */
       memmove(((Uint32*)param)+param->NodeSize,
               ((Uint32*)param_old)+param_old->NodeSize, 
               (param_len-param_old->NodeSize) * sizeof(Uint32));
@@ -5244,7 +5256,7 @@ Dbspj::getNodes(Signal* signal, BuildKeyReq& dst, Uint32 tableId)
   req->hashValue = dst.hashInfo[1];
   req->distr_key_indicator = 0; // userDefinedPartitioning not supported!
   req->scan_indicator = 0;
-  req->anyNode = !!(tablePtr.p->m_flags & TableRecord::TR_FULLY_REPLICATED);
+  req->anyNode = (tablePtr.p->m_flags & TableRecord::TR_FULLY_REPLICATED) != 0;
   req->get_next_fragid_indicator = 0;
   req->jamBufferPtr = jamBuffer();
 
@@ -5513,7 +5525,7 @@ Dbspj::scanFrag_build(Build_context& ctx,
       tablePtr.i = treeNodePtr.p->m_tableOrIndexId;
       ptrCheckGuard(tablePtr, c_tabrecFilesize, m_tableRecord);
       const bool readBackup =
-        !!(tablePtr.p->m_flags & TableRecord::TR_READ_BACKUP);
+        (tablePtr.p->m_flags & TableRecord::TR_READ_BACKUP) != 0;
 
       data.m_fragCount = 0;
 
@@ -5879,7 +5891,7 @@ Dbspj::execDIH_SCAN_TAB_CONF(Signal* signal)
   tablePtr.i = treeNodePtr.p->m_tableOrIndexId;
   ptrCheckGuard(tablePtr, c_tabrecFilesize, m_tableRecord);
   const bool readBackup =
-    !!(tablePtr.p->m_flags & TableRecord::TR_READ_BACKUP);
+    (tablePtr.p->m_flags & TableRecord::TR_READ_BACKUP) != 0;
 
   Ptr<Request> requestPtr;
   m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI);
@@ -6746,7 +6758,7 @@ Dbspj::scanFrag_send(Signal* signal,
        *
        * Thus, we set 'releaseAtSend' to suite the shorter lifecycle
        * of the 'range' keys. attrInfo is duplicated whenever needed
-       * such that a copy can be release together with the keyInfo.
+       * such that a copy can be released together with the keyInfo.
        */
       Uint32 attrInfoPtrI = treeNodePtr.p->m_send.m_attrInfoPtrI;
       Uint32 keyInfoPtrI = treeNodePtr.p->m_send.m_keyInfoPtrI;

@@ -167,12 +167,9 @@ private:
 
 
 /**
- * The NdbWorker handle results produced by a request to a single SPJ instance.
- * Previously this was results produced by scanning (only) the single fragment
- * from the scan operation being the root, and any rows from its child tables
- * matching on the join condition.
+ * The NdbWorker handles results produced by a request to a single SPJ instance.
  *
- * If 'MultiFragment' scan is requested, the NdbWorker handle root and
+ * If 'MultiFragment' scan is requested, the NdbWorker handles root and
  * related child rows from all fragments specified in the MultiFragment scan request.
  *
  * If a query has a scan operation as its root, then that scan will normally 
@@ -2724,7 +2721,7 @@ NdbQueryImpl::prepareSend()
     }
     else if (!ndbd_spj_multifrag_scan(m_transaction.getNdb()->getMinDbNodeVersion()))
     {
-      // 'MultiFragment' not supported by all datanodes, partial upgraded?
+      // 'MultiFragment' not supported by all datanodes, partially upgraded?
       m_fragsPrWorker = 1;
     }
     else
@@ -3625,7 +3622,7 @@ NdbQueryImpl::OrderedFragSet::getCurrent() const
 
 /**
  *  Keep the set of worker results ordered, both with respect to
- *  specified ScanOrdering, and such that NdbWorkers which becomes
+ *  specified ScanOrdering, and such that NdbWorkers which become
  *  empty are removed from  m_activeWorkers[].
  *  Thus, ::getCurrent() should be as lightweight as possible and only has
  *  to return the 'next' available from array wo/ doing any housekeeping.
