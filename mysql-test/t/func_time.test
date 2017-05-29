@@ -695,9 +695,11 @@ INSERT INTO t1 VALUES
 INSERT INTO t2 VALUES
   (1, '2005-08-01'), (2, '2005-06-15'), (3, '2005-07-15');
 
+--sorted_result
 SELECT * FROM t1, t2 
   WHERE t1.day BETWEEN 
                '2005.09.01' - INTERVAL 6 MONTH AND t2.day;
+--sorted_result
 SELECT * FROM t1, t2 
   WHERE CAST(t1.day AS DATE) BETWEEN 
                              '2005.09.01' - INTERVAL 6 MONTH AND t2.day;

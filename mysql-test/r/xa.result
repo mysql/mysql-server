@@ -44,8 +44,8 @@ formatID	gtrid_length	bqual_length	data
 xa prepare 'testa','testb';
 xa recover;
 formatID	gtrid_length	bqual_length	data
-11	5	5	testb 0@P`
 1	5	5	testatestb
+11	5	5	testb 0@P`
 xa commit 'testb',0x2030405060,11;
 ERROR XAE07: XAER_RMFAIL: The command cannot be executed when global transaction is in the  PREPARED state
 xa rollback 'testb',0x2030405060,11;
@@ -253,8 +253,8 @@ xa end 0xABCDEF1234567890, 0x01, 0x02 ;
 xa prepare 0xABCDEF1234567890, 0x01, 0x02 ;
 xa recover convert xid;
 formatID	gtrid_length	bqual_length	data
-2	8	1	0xABCDEF123456789001
 11	5	5	0x74657374622030405060
+2	8	1	0xABCDEF123456789001
 xa rollback 0xABCDEF1234567890, 0x01, 0x02 ;
 # Check that XID which has only printable characters are displayed
 # correctly without using of CONVERT XID clause
@@ -263,8 +263,8 @@ xa end 0x4142434445, 0x46, 0x02 ;
 xa prepare 0x4142434445, 0x46, 0x02 ;
 xa recover;
 formatID	gtrid_length	bqual_length	data
-2	5	1	ABCDEF
 11	5	5	testb 0@P`
+2	5	1	ABCDEF
 xa rollback 0x4142434445, 0x46, 0x02 ;
 #
 # WL#7155: Test 1: check that if a thread of control terminates then 

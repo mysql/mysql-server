@@ -57,6 +57,7 @@ xa prepare 'testb',0x2030405060,11;
 --error ER_XAER_RMFAIL
 start transaction;
 
+--sorted_result
 xa recover;
 
 # uncomment the line below when binlog will be able to prepare
@@ -65,6 +66,7 @@ connection default;
 
 xa prepare 'testa','testb';
 
+--sorted_result
 xa recover;
 
 # When this connection has already started an own XA transaction
@@ -424,6 +426,7 @@ disconnect con2;
 xa start 0xABCDEF1234567890, 0x01, 0x02 ;
 xa end 0xABCDEF1234567890, 0x01, 0x02 ;
 xa prepare 0xABCDEF1234567890, 0x01, 0x02 ;
+--sorted_result
 xa recover convert xid;
 xa rollback 0xABCDEF1234567890, 0x01, 0x02 ;
 
@@ -432,6 +435,7 @@ xa rollback 0xABCDEF1234567890, 0x01, 0x02 ;
 xa start 0x4142434445, 0x46, 0x02 ;
 xa end 0x4142434445, 0x46, 0x02 ;
 xa prepare 0x4142434445, 0x46, 0x02 ;
+--sorted_result
 xa recover;
 xa rollback 0x4142434445, 0x46, 0x02 ;
 
@@ -635,16 +639,19 @@ connection con_tmp;
 --ERROR ER_LOCK_WAIT_TIMEOUT
 xa rollback 'test1';
 show errors;
+--sorted_result
 xa recover;
 --echo # LOCK error during COMMIT will not alter transaction state.
 --ERROR ER_LOCK_WAIT_TIMEOUT
 xa commit 'test1';
 show errors;
+--sorted_result
 xa recover;
 connection default;
 unlock tables;
 connection con_tmp;
 xa rollback 'test1';
+--sorted_result
 xa recover;
 drop table asd;
 disconnect con_tmp;
@@ -681,6 +688,7 @@ XA PREPARE 'xid1';
 --echo # it is allowed to execute the statement XA RECOVER to get a list of
 --echo # xids for prepared XA transactions.
 --connect(con1,localhost,u1,'',)
+--sorted_result
 XA RECOVER;
 
 --echo # Connect as user u2
@@ -700,6 +708,7 @@ SHOW WARNINGS;
 --echo # who has the XA_RECOVER_ADMIN privilege assigned by default.
 --echo # So for the user root@localhost the statement XA RECOVER
 --echo # can be executed successfully.
+--sorted_result
 XA RECOVER;
 XA COMMIT 'xid1';
 
