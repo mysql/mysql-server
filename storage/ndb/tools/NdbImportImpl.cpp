@@ -1406,7 +1406,7 @@ NdbImportImpl::RandomInputWorker::do_run()
   rows_out.lock();
   for (uint i = 0; i < opt.m_rowbatch; i++)
   {
-    if (rows_out.m_totcnt >= max_rows)
+    if (rows_out.totcnt() >= max_rows)
     {
       log1("stop at max rows " << max_rows);
       m_state = WorkerState::State_stop;
@@ -1418,7 +1418,7 @@ NdbImportImpl::RandomInputWorker::do_run()
       m_state = WorkerState::State_stop;
       break;
     }
-    uint64 rowid = rows_out.m_totcnt;
+    uint64 rowid = rows_out.totcnt();
     Row* row = create_row(rowid, table);
     if (row == 0)
     {
@@ -1746,7 +1746,7 @@ NdbImportImpl::CsvInputWorker::state_parse()
 {
   log2("state_parse");
   m_csvinput->do_parse();
-  log2("lines parsed:" << m_csvinput->m_line_list.m_cnt);
+  log2("lines parsed:" << m_csvinput->m_line_list.cnt());
   m_inputstate = InputState::State_movetail;
 }
 
@@ -1964,6 +1964,14 @@ NdbImportImpl::Op::Op()
   m_opsize = 0;
 }
 
+NdbImportImpl::OpList::OpList()
+{
+}
+
+NdbImportImpl::OpList::~OpList()
+{
+}
+
 // tx
 
 NdbImportImpl::Tx::Tx(DbWorker* w) :
@@ -2012,7 +2020,7 @@ NdbImportImpl::DbWorker::DbWorker(Team& team, uint n) :
 
 NdbImportImpl::DbWorker::~DbWorker()
 {
-  require(m_tx_open.m_cnt == 0);
+  require(m_tx_open.cnt() == 0);
   delete m_ndb;
 }
 
@@ -2077,7 +2085,7 @@ NdbImportImpl::DbWorker::start_trans()
   }
   require(tx != 0);
   require(tx->m_trans == 0);
-  require(tx->m_ops.m_cnt == 0);
+  require(tx->m_ops.cnt() == 0);
   tx->m_trans = trans;
   tx_open.push_back(tx);
   return tx;
@@ -2105,7 +2113,7 @@ NdbImportImpl::DbWorker::start_trans(const NdbRecord* keyrec,
   }
   require(tx != 0);
   require(tx->m_trans == 0);
-  require(tx->m_ops.m_cnt == 0);
+  require(tx->m_ops.cnt() == 0);
   tx->m_trans = trans;
   tx_open.push_back(tx);
   return tx;
@@ -2130,7 +2138,7 @@ NdbImportImpl::DbWorker::start_trans(uint nodeid, uint instanceid)
   }
   require(tx != 0);
   require(tx->m_trans == 0);
-  require(tx->m_ops.m_cnt == 0);
+  require(tx->m_ops.cnt() == 0);
   tx->m_trans = trans;
   tx_open.push_back(tx);
   return tx;
@@ -2145,7 +2153,7 @@ NdbImportImpl::DbWorker::close_trans(Tx* tx)
   require(tx->m_trans != 0);
   m_ndb->closeTransaction(tx->m_trans);
   tx->m_trans = 0;
-  while (tx->m_ops.m_cnt != 0)
+  while (tx->m_ops.cnt() != 0)
   {
     Op* op = tx->m_ops.pop_front();
     require(op != 0);
@@ -2305,11 +2313,11 @@ NdbImportImpl::RelayOpWorker::do_end()
   log1("do_end");
   if (!has_error())
   {
-    require(m_tx_open.m_cnt == 0);
+    require(m_tx_open.cnt() == 0);
   }
-  else if (m_tx_open.m_cnt != 0)
+  else if (m_tx_open.cnt() != 0)
   {
-    require(m_tx_open.m_cnt == 1);
+    require(m_tx_open.cnt() == 1);
     Tx* tx = m_tx_open.front();
     close_trans(tx);
   }
@@ -2438,7 +2446,7 @@ NdbImportImpl::ExecOpWorker::state_receive()
   const Opt& opt = m_util.c_opt;
   RowList& rows_in = *m_team.m_job.m_rows_exec[m_nodeindex];
   OpList& ops_in = m_ops_in;
-  if (ops_in.m_cnt == 0)
+  if (ops_in.cnt() == 0)
   {
     require(m_opcnt == 0);
     require(m_opsize == 0);
@@ -2450,10 +2458,10 @@ NdbImportImpl::ExecOpWorker::state_receive()
   {
     Row* row = rows_in.pop_front();
     m_eof = (row == 0 && rows_in.m_eof);
-    log2("eof=" << m_eof << " ops_in=" << ops_in.m_cnt);
+    log2("eof=" << m_eof << " ops_in=" << ops_in.cnt());
     if (m_eof)
     {
-      if (ops_in.m_cnt != 0)
+      if (ops_in.cnt() != 0)
         m_execstate = ExecState::State_define;
       else
         m_execstate = ExecState::State_eof;
@@ -2516,7 +2524,7 @@ NdbImportImpl::ExecOpWorker::reject_row(Row* row, const Error& error)
   m_util.set_reject_row(rejectrow, m_team.m_job.m_runno, error, reject, rejectlen);
   require(rows_reject.push_back(rejectrow));
   // error if rejects exceeded
-  if (rows_reject.m_totcnt > opt.m_rejects)
+  if (rows_reject.totcnt() > opt.m_rejects)
   {
     // set team level error
     m_util.set_error_data(m_error, __LINE__, 0,
@@ -2542,11 +2550,11 @@ NdbImportImpl::ExecOpWorkerSynch::do_end()
   log1("do_end/synch");
   if (!has_error())
   {
-    require(m_tx_open.m_cnt == 0);
+    require(m_tx_open.cnt() == 0);
   }
-  else if (m_tx_open.m_cnt != 0)
+  else if (m_tx_open.cnt() != 0)
   {
-    require(m_tx_open.m_cnt == 1);
+    require(m_tx_open.cnt() == 1);
     Tx* tx = m_tx_open.front();
     close_trans(tx);
   }
@@ -2559,7 +2567,7 @@ NdbImportImpl::ExecOpWorkerSynch::state_define()
   OpList& ops_in = m_ops_in;
   TxList& tx_open = m_tx_open;
   // single trans
-  require(tx_open.m_cnt == 0);
+  require(tx_open.cnt() == 0);
   Tx* tx = start_trans();
   if (tx == 0)
   {
@@ -2571,7 +2579,7 @@ NdbImportImpl::ExecOpWorkerSynch::state_define()
   }
   NdbTransaction* trans = tx->m_trans;
   require(trans != 0);
-  while (ops_in.m_cnt != 0)
+  while (ops_in.cnt() != 0)
   {
     Op* op = ops_in.pop_front();
     Row* row = op->m_row;
@@ -2633,7 +2641,7 @@ NdbImportImpl::ExecOpWorkerSynch::state_send()
 {
   log2("state_send/synch");
   TxList& tx_open = m_tx_open;
-  require(tx_open.m_cnt == 1);
+  require(tx_open.cnt() == 1);
   Tx* tx = tx_open.front();
   require(tx != 0);
   NdbTransaction* trans = tx->m_trans;
@@ -2676,12 +2684,12 @@ NdbImportImpl::ExecOpWorkerAsynch::do_end()
   if (!has_error())
   {
     require(m_execstate == ExecState::State_eof);
-    require(m_tx_open.m_cnt == 0);
+    require(m_tx_open.cnt() == 0);
   }
   else if (m_execstate == ExecState::State_prepare)
   {
     // error in State_define, simply close the txs
-    while (m_tx_open.m_cnt != 0)
+    while (m_tx_open.cnt() != 0)
     {
       Tx* tx = m_tx_open.front();
       close_trans(tx);
@@ -2737,7 +2745,7 @@ NdbImportImpl::ExecOpWorkerAsynch::asynch_callback(Tx* tx)
      */
     RowList& rows_in = *m_team.m_job.m_rows_exec[m_nodeindex];
     rows_in.lock();
-    while (tx->m_ops.m_cnt != 0)
+    while (tx->m_ops.cnt() != 0)
     {
       Op* op = tx->m_ops.pop_front();
       Row* row = op->m_row;
@@ -2753,7 +2761,7 @@ NdbImportImpl::ExecOpWorkerAsynch::asynch_callback(Tx* tx)
     Error error;        // local error
     m_util.set_error_ndb(error, __LINE__, ndberror,
                          "permanent error");
-    while (tx->m_ops.m_cnt != 0)
+    while (tx->m_ops.cnt() != 0)
     {
       Op* op = tx->m_ops.pop_front();
       require(op != 0);
@@ -2776,14 +2784,14 @@ NdbImportImpl::ExecOpWorkerAsynch::state_define()
   OpList& ops_in = m_ops_in;
   TxList& tx_open = m_tx_open;
   // no transes yet
-  require(tx_open.m_cnt == 0);
+  require(tx_open.cnt() == 0);
   m_errormap.clear();
   /*
    * Temporary errors can occur at auto-incr and start trans.  We
    * don't want to get stuck here on "permanent" temporary errors.
    * So we limit them by opt.m_tmperrors (counted per op).
    */
-  while (ops_in.m_cnt != 0)
+  while (ops_in.cnt() != 0)
   {
     Op* op = ops_in.pop_front();
     Row* row = op->m_row;
@@ -2935,7 +2943,7 @@ void
 NdbImportImpl::ExecOpWorkerAsynch::state_send()
 {
   log2("state_send/asynch");
-  require(m_tx_open.m_cnt != 0);
+  require(m_tx_open.cnt() != 0);
   int forceSend = 0;
   m_ndb->sendPreparedTransactions(forceSend);
   m_execstate = ExecState::State_poll;
@@ -2947,9 +2955,9 @@ NdbImportImpl::ExecOpWorkerAsynch::state_poll()
   log2("state_poll/asynch");
   const Opt& opt = m_util.c_opt;
   int timeout = opt.m_polltimeout;
-  require(m_tx_open.m_cnt != 0);
-  m_ndb->pollNdb(timeout, m_tx_open.m_cnt);
-  if (m_tx_open.m_cnt != 0)
+  require(m_tx_open.cnt() != 0);
+  m_ndb->pollNdb(timeout, m_tx_open.cnt());
+  if (m_tx_open.cnt() != 0)
   {
     log2("poll not ready");
     return;
@@ -3019,7 +3027,7 @@ NdbImportImpl::ExecOpWorker::str_state(char* str) const
 {
   sprintf(str, "%s/%s tx:free=%u,open=%u",
                g_str_state(m_state), g_str_state(m_execstate),
-               m_tx_free.m_cnt, m_tx_open.m_cnt);
+               m_tx_free.cnt(), m_tx_open.cnt());
 }
 
 // diag team
@@ -3152,10 +3160,10 @@ NdbImportImpl::DiagTeam::read_old_diags(const char* name,
       i = j;
       n++;
     }
-    log1("read_old_diags: " << name << " count=" << rows_out.m_cnt);
+    log1("read_old_diags: " << name << " count=" << rows_out.cnt());
   }
   // XXX diag errors not yet handled
-  require(rows_reject.m_cnt == 0);
+  require(rows_reject.cnt() == 0);
 }
 
 void
