@@ -372,7 +372,7 @@ static bool parse_path(Item * path_expression, String *value,
     return true;
   }
 
-  if (forbid_wildcards && json_path->contains_wildcard_or_ellipsis())
+  if (forbid_wildcards && json_path->can_match_many())
   {
     my_error(ER_INVALID_JSON_PATH_WILDCARD, MYF(0));
     return true;
@@ -2004,10 +2004,7 @@ bool Item_func_json_extract::val_json(Json_wrapper *wr)
         return false;
       }
 
-      if (path->contains_wildcard_or_ellipsis())
-      {
-        could_return_multiple_matches= true;
-      }
+      could_return_multiple_matches|= path->can_match_many();
 
       if (w.seek(*path, &v, true, false))
         return error_json();              /* purecov: inspected */
@@ -2018,7 +2015,8 @@ bool Item_func_json_extract::val_json(Json_wrapper *wr)
       null_value= true;
       return false;
     }
-    else if (could_return_multiple_matches)
+
+    if (could_return_multiple_matches)
     {
       Json_array *a= new (std::nothrow) Json_array();
       if (!a)
@@ -2060,6 +2058,8 @@ bool Item_func_json_extract::val_json(Json_wrapper *wr)
     have been autowrapped to (since we got a hit), i.e. '$[0]' or
     $[0][0]...[0]'.
 
+  @see Json_path_leg::is_autowrap
+
   @param[in] path the specified path which gave a match
   @param[in] v    the JSON item matched
   @return true if v is a top level item
@@ -2073,10 +2073,7 @@ bool wrapped_top_level_item(Json_path *path MY_ATTRIBUTE((unused)),
 
 #ifndef DBUG_OFF
   for (size_t i= 0; i < path->leg_count(); i++)
-  {
-    DBUG_ASSERT(path->get_leg_at(i)->get_type() == jpl_array_cell);
-    DBUG_ASSERT(path->get_leg_at(i)->get_array_cell_index() == 0);
-  }
+    DBUG_ASSERT(path->get_leg_at(i)->is_autowrap());
 #endif
 
   return true;
@@ -2294,24 +2291,24 @@ bool Item_func_json_insert::val_json(Json_wrapper *wr)
           // We specified an array, what did we find at that position?
           if ((*it)->json_type() == enum_json_type::J_ARRAY)
           {
+            // We found an array, so either prepend or append.
             Json_array *arr= down_cast<Json_array *>(*it);
-            DBUG_ASSERT(leg->get_type() == jpl_array_cell);
-            if (arr->insert_clone(leg->get_array_cell_index(),
-                                  valuew.to_dom(thd)))
+            size_t pos= leg->first_array_index(arr->size()).position();
+            if (arr->insert_alias(pos, valuew.clone_dom(thd)))
               return error_json();        /* purecov: inspected */
           }
-          else if (leg->get_array_cell_index() > 0)
+          else if (!leg->is_autowrap())
           {
             /*
-              Found a scalar or object and we didn't specify position 0:
-              auto-wrap it
+              Found a scalar or object and we didn't specify position 0 or last:
+              auto-wrap it and either prepend or append.
             */
+            size_t pos= leg->first_array_index(1).position();
             Json_dom *a= *it;
             Json_array *newarr= new (std::nothrow) Json_array();
             if (!newarr ||
                 newarr->append_clone(a) /* auto-wrap this */ ||
-                newarr->insert_clone(leg->get_array_cell_index(),
-                                     valuew.to_dom(thd)))
+                newarr->insert_alias(pos, valuew.clone_dom(thd)))
             {
               delete newarr;                    /* purecov: inspected */
               return error_json();        /* purecov: inspected */
@@ -2456,8 +2453,8 @@ bool Item_func_json_array_insert::val_json(Json_wrapper *wr)
           // Excellent. Insert the value at that location.
           Json_array *arr= down_cast<Json_array *>(*it);
           DBUG_ASSERT(leg->get_type() == jpl_array_cell);
-          if (arr->insert_clone(leg->get_array_cell_index(),
-                                valuew.to_dom(thd)))
+          size_t pos= leg->first_array_index(arr->size()).position();
+          if (arr->insert_alias(pos, valuew.clone_dom(thd)))
             return error_json();        /* purecov: inspected */
         }
       }
@@ -2481,13 +2478,15 @@ bool Item_func_json_array_insert::val_json(Json_wrapper *wr)
 
 
 /**
-  Clone a source path to a target path, stripping out [0] legs
-  which are made redundant by the auto-wrapping rule
-  in the WL#7909 spec:
+  Clone a source path to a target path, stripping out legs which are made
+  redundant by the auto-wrapping rule from the WL#7909 spec and further
+  extended in the WL#9831 spec:
 
-  "If a pathExpression identifies a non-array value,
-  then pathExpression[ 0 ] evaluates to the same value
-  as pathExpression."
+  "If an array cell path leg or an array range path leg is evaluated against a
+  non-array value, the result of the evaluation is the same as if the non-array
+  value had been wrapped in a single-element array."
+
+  @see Json_path_leg::is_autowrap
 
   @param[in]      source_path The original path.
   @param[in,out]  target_path The clone to be filled in.
@@ -2506,8 +2505,7 @@ static bool clone_without_autowrapping(Json_path *source_path,
   for (size_t leg_idx= 0; leg_idx < leg_count; leg_idx++)
   {
     const Json_path_leg *path_leg= source_path->get_leg_at(leg_idx);
-    if ((path_leg->get_type() == jpl_array_cell) &&
-        (path_leg->get_array_cell_index() == 0))
+    if (path_leg->is_autowrap())
     {
       /*
          We have a partial path of the form
@@ -2713,9 +2711,8 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
           if (hit->json_type() == enum_json_type::J_ARRAY)
           {
             Json_array *arr= down_cast<Json_array *>(hit);
-            DBUG_ASSERT(leg->get_type() == jpl_array_cell);
-            if (arr->insert_clone(leg->get_array_cell_index(),
-                                  valuew.to_dom(thd)))
+            size_t pos= leg->first_array_index(arr->size()).position();
+            if (arr->insert_alias(pos, valuew.clone_dom(thd)))
               return error_json();            /* purecov: inspected */
           }
           else
@@ -2727,12 +2724,12 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
               array position to be 0 here, though, as such legs should have
               been removed by the call to clone_without_autowrapping() above.
             */
-            DBUG_ASSERT(leg->get_array_cell_index() != 0);
+            DBUG_ASSERT(!leg->is_autowrap());
             Json_array *newarr= new (std::nothrow) Json_array();
+            size_t pos= leg->first_array_index(1).position();
             if (!newarr ||
                 newarr->append_clone(hit) ||
-                newarr->insert_clone(leg->get_array_cell_index(),
-                                     valuew.to_dom(thd)))
+                newarr->insert_alias(pos, valuew.clone_dom(thd)))
             {
               delete newarr;                    /* purecov: inspected */
               return error_json();              /* purecov: inspected */
@@ -3189,7 +3186,7 @@ bool Item_func_json_search::val_json(Json_wrapper *wr)
           compute the full path to the subdocument. We can only
           do this on doms.
         */
-        if (path->contains_wildcard_or_ellipsis())
+        if (path->can_match_many())
         {
           Json_dom *dom= docw.to_dom(current_thd);
           if (!dom)

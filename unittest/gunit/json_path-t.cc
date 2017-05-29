@@ -24,6 +24,7 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <utility>
 
 #include "json_dom.h"
 #include "json_path.h"
@@ -182,9 +183,7 @@ void good_path_common(bool begins_with_column_id, const char *path_expression,
                           json_path,
                           &bad_idx));
 
-  EXPECT_EQ(0U, bad_idx) <<
-    "Parse pointer for " << path_expression <<
-    " should have been 0\n";
+  EXPECT_EQ(0U, bad_idx) << "bad_idx != 0 for " << path_expression;
 }
 
 /** Verify that a good path parses correctly */
@@ -213,13 +212,13 @@ void good_path(bool, const char *path_expression)
   good_path(false, false, path_expression, "");
 }
 
-/** Verify whether the path contains a wildcard or ellipsis token */
-void contains_wildcard(bool begins_with_column_id, char *path_expression,
+/** Verify whether the path contains a wildcard, ellipsis or range token. */
+void contains_wildcard(bool begins_with_column_id, const char *path_expression,
                        bool expected_answer)
 {
   Json_path json_path;
   good_path_common(begins_with_column_id, path_expression, &json_path);
-  EXPECT_EQ(expected_answer, json_path.contains_wildcard_or_ellipsis());
+  EXPECT_EQ(expected_answer, json_path.can_match_many());
 }
 
 /** Verify that the leg at the given offset looks good */
@@ -313,7 +312,8 @@ void bad_path(bool begins_with_column_id, const char *path_expression,
                          &json_path,
                          &actual_index))
     << "Unexpectedly parsed " << path_expression;
-  EXPECT_EQ(expected_index, actual_index);
+  EXPECT_EQ(expected_index, actual_index)
+    << "Unexpected index for " << path_expression;
 }
 
 /** Bad identifiers are ok as membern names if they are double-quoted */
@@ -604,6 +604,16 @@ static const Good_path good_paths_no_column_scope[]=
   { false, " $[ 456 ] ", "$[456]" },
   { false, " $ [  456   ] ", "$[456]" },
 
+  { false, "$[last]", "$[last]" },
+  { false, "$[ last]", "$[last]" },
+  { false, "$[last ]", "$[last]" },
+  { false, "$[last-1]", "$[last-1]" },
+  { false, "$[last -1]", "$[last-1]" },
+  { false, "$[last- 1]", "$[last-1]" },
+
+  { false, "$[4294967295]", "$[4294967295]" },
+  { false, "$[last-4294967295]", "$[last-4294967295]" },
+
   { false, "$.a", "$.a" },
   { false, "$ .a", "$.a" },
   { false, "$. a", "$.a" },
@@ -657,6 +667,17 @@ static const Good_path good_paths_no_column_scope[]=
   { false, "$.abc.\"\"", "$.abc.\"\"" },
   { false, "$.abc.\"\".def", "$.abc.\"\".def" },
   { false, "$.\"abc\".\"\".def", "$.abc.\"\".def" },
+
+  { false, "$[0 to 0]", "$[0 to 0]" },
+  { false, "$[1 to 1]", "$[1 to 1]" },
+  { false, "$[1 to 3]", "$[1 to 3]" },
+  { false, "$[  1  to  3  ]", "$[1 to 3]" },
+  { false, "$[0 to 4294967295]", "$[0 to 4294967295]" },
+  { false, "$[last to last]", "$[last to last]" },
+  { false, "$[last-0 to last - 0]", "$[last to last]" },
+  { false, "$[last-1 to last-1]", "$[last-1 to last-1]" },
+  { false, "$[last to 1]", "$[last to 1]" },
+  { false, "$[1 to last]", "$[1 to last]" },
 };
 
 /** Test good paths without column scope */
@@ -707,7 +728,7 @@ TEST_F(JsonPathTest, LegTypes)
   {
     SCOPED_TRACE("");
     enum_json_path_leg_type leg_types6[]= { jpl_member, jpl_array_cell };
-    good_leg_types(false, (char *) "$.foo[9876543210]", leg_types6, 2);
+    good_leg_types(false, (char *) "$.foo[987654321]", leg_types6, 2);
   }
 
   {
@@ -825,6 +846,14 @@ TEST_F(JsonPathTest, WildcardDetection)
     SCOPED_TRACE("");
     contains_wildcard(false, (char *) "$**[5]", true);
   }
+  {
+    SCOPED_TRACE("");
+    contains_wildcard(false, "$[1 to 2]", true);
+  }
+  {
+    SCOPED_TRACE("");
+    contains_wildcard(false, "$.a[1 to 2].b", true);
+  }
 }
 
 TEST_P(JsonBadPathTestP, BadPaths)
@@ -846,13 +875,42 @@ static const Bad_path bad_paths_no_column_scope[]=
   { false, "$foo", 1 },
   { false, "$[5]foo", 4 },
 
-  // array index not a number
+  // array index not a number or a valid range
   { false, "$[a]", 2 },
   { false, "$[5].foo[b]", 9 },
+  { false, "$[]", 2 },
+  { false, "$[1.2]", 4 },
+  { false, "$[1,2]", 4 },
+  { false, "$[1,]", 4 },
+  { false, "$[1 TO 3]", 5},
+  { false, "$[1 tO 3]", 5},
+  { false, "$[1 To 3]", 5},
+  { false, "$[1 to]", 5 },
+  { false, "$[1to]", 4 },
+  { false, "$[1to 2]", 4 },
+  { false, "$[1 to2]", 5 },
+  { false, "$[1 ti 2]", 5 },
+  { false, "$[1 t", 5 },
+  { false, "$[1 to ", 5 },
+  { false, "$[1 to 2,]", 9 },
+  { false, "$[4 to 3]", 8 },
+  { false, "$[0 tolast]", 5 },
+  { false, "$[lastto 2]", 7 },
+  { false, "$[lastto to 2]", 7 },
+  { false, "$[last+0]", 7 },
+  { false, "$[last+1]", 7 },
+  { false, "$[LAST]", 2 },
 
-  // absurdly large array index
+  // absurdly large array index, largest supported array index is 2^32-1
   { false, "$[9999999999999999999999999999999999999999"
-    "999999999999999999999999999]", 69 },
+    "999999999999999999999999999]", 2 },
+  { false, "$[4294967296]", 2 },
+  { false, "$[18446744073709551616]", 2 },
+  { false, "$[9223372036854775808]", 2 },
+  { false, "$[4294967296 to 2]", 2 },
+  { false, "$[0 to 4294967296]", 7 },
+  { false, "$[0 to 4294967297]", 7 },
+  { false, "$[last-4294967296]", 7 },
 
   // period not followed by member name
   { false, "$.", 2 },
@@ -892,6 +950,17 @@ static const Bad_path bad_paths_no_column_scope[]=
 
   // backslash in front of a quote, and no end quote
   { false, "$.\"\\\"", 5 },
+
+  // reject plus in front of array index
+  { false, "$[+1]", 2 },
+
+  // negative array indexes are rejected
+  { false, "$[-0]", 2 },
+  { false, "$[-1]", 2},
+  { false, "$[0 to -1]", 7},
+  { false, "$[-1 to 0]", 2},
+  { false, "$[- 1]", 2 },
+  { false, "$[-]", 2 },
 };
 
 INSTANTIATE_TEST_CASE_P(NegativeNoColumnScope, JsonBadPathTestP,
@@ -1470,7 +1539,6 @@ TEST_F(JsonPathTest, RemoveDomTest)
             format(&array));
 }
 
-
 // Tuples for the test of Json_dom.get_location()
 static const Location_tuple location_tuples[]=
 {
@@ -1543,5 +1611,66 @@ TEST_P(JsonGoodCloneTestP, GoodClone)
 INSTANTIATE_TEST_CASE_P(CloneTesting, JsonGoodCloneTestP,
                         ::testing::ValuesIn(clone_tuples));
 
+/**
+  A class used for parameterized test cases for the
+  Json_path_leg::is_autowrap() function.
+*/
+class JsonPathLegAutowrapP :
+  public ::testing::TestWithParam<std::pair<std::string, bool>>
+{};
+
+TEST_P(JsonPathLegAutowrapP, Autowrap)
+{
+  const auto param= GetParam();
+  const std::string path_text= "$" + param.first + ".a";
+  const bool expected_result= param.second;
+
+  Json_path path;
+  size_t idx= 0;
+  EXPECT_FALSE(parse_path(false, path_text.length(), path_text.data(),
+                          &path, &idx));
+  EXPECT_EQ(0U, idx);
+  EXPECT_EQ(2U, path.leg_count());
+  EXPECT_EQ(expected_result, path.get_leg_at(0)->is_autowrap());
+}
+
+static const std::pair<std::string, bool> autowrap_tuples[]=
+{
+  // These should match non-arrays due to auto-wrapping.
+  { "[0]", true },
+  { "[last]", true },
+  { "[last-0]", true },
+  { "[0 to last]", true },
+  { "[0 to last-0]", true },
+  { "[0 to 0]", true },
+  { "[0 to 1]", true },
+  { "[0 to 100]", true },
+  { "[last to 0]", true },
+  { "[last to 1]", true },
+  { "[last-0 to 1]", true },
+  { "[last to 100]", true },
+  { "[last to last]", true },
+  { "[last-1 to last]", true },
+  { "[last-100 to last]", true },
+  { "[last-1 to 0]", true },
+  { "[last-1 to 1]", true },
+
+  // These should not match non-arrays.
+  { "[*]", false },
+  { ".*", false },
+  { "**", false },
+  { ".name", false },
+  { ".\"0\"", false },
+  { "[1]", false },
+  { "[100]", false },
+  { "[last-1]", false },
+  { "[last-100]", false },
+  { "[0 to last-1]", false },
+  { "[1 to last]", false },
+  { "[last-2 to last-1]", false },
+};
+
+INSTANTIATE_TEST_CASE_P(AutowrapTesting, JsonPathLegAutowrapP,
+                        ::testing::ValuesIn(autowrap_tuples));
 
 } // end namespace json_path_unittest

@@ -3841,6 +3841,27 @@ UPDATE t SET j = JSON_SET(j, '$[0]', gc->'$[3]');
 --eval $dump_table
 UPDATE t SET j = JSON_SET(j, '$[0]', gc->'$[4]');
 --eval $dump_table
+
+--echo # Test update with indexes relative to the end of the array.
+UPDATE t SET j = JSON_ARRAY('a','b','c');
+--eval $dump_table
+UPDATE t SET j = JSON_SET(j, '$[last]', 4);
+--eval $dump_table
+UPDATE t SET j = JSON_SET(j, '$[last-1]', 5);
+--eval $dump_table
+UPDATE t SET j = JSON_SET(j, '$[last-2]', 6);
+--eval $dump_table
+UPDATE t SET j = JSON_SET(j, '$[last-3]', 7);
+--eval $dump_table
+UPDATE t SET j = JSON_ARRAY('a','b');
+--eval $dump_table
+UPDATE t SET j = JSON_REPLACE(j, '$[last]', 3);
+--eval $dump_table
+UPDATE t SET j = JSON_REPLACE(j, '$[last-1]', 4);
+--eval $dump_table
+UPDATE t SET j = JSON_REPLACE(j, '$[last-2]', 5);
+--eval $dump_table
+
 DROP TABLE t;
 
 # Some multi-table updates which perform partial updates.

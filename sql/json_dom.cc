@@ -251,32 +251,40 @@ bool Json_dom::find_child_doms(const Json_path_leg *path_leg,
   if (is_seek_done(result, only_need_one))
     return false;
 
+  // Handle auto-wrapping of non-arrays.
+  if (auto_wrap && dom_type != enum_json_type::J_ARRAY &&
+      path_leg->is_autowrap())
+  {
+    return !seen_already(result, this) &&
+      add_if_missing(this, duplicates, result);
+  }
+
   switch (leg_type)
   {
   case jpl_array_cell:
+    if (dom_type == enum_json_type::J_ARRAY)
     {
-      size_t array_cell_index= path_leg->get_array_cell_index();
-
-      if (dom_type == enum_json_type::J_ARRAY)
-      {
-        const Json_array * const array= down_cast<const Json_array *>(this);
-
-        if (array_cell_index < array->size() &&
-            add_if_missing((*array)[array_cell_index], duplicates, result))
-          return true;                        /* purecov: inspected */
-      }
-      else if (array_cell_index == 0 && auto_wrap)
-      {
-        if (!seen_already(result, this))
-        {
-          // auto-wrap non-arrays
-          if (add_if_missing(this, duplicates, result))
-            return true;                      /* purecov: inspected */
-        }
-      }
-
-      return false;
+      auto array= down_cast<const Json_array *>(this);
+      Json_array_index idx= path_leg->first_array_index(array->size());
+      return idx.within_bounds() &&
+        add_if_missing((*array)[idx.position()], duplicates, result);
     }
+    return false;
+  case jpl_array_range:
+  case jpl_array_cell_wildcard:
+    if (dom_type == enum_json_type::J_ARRAY)
+    {
+      const auto array= down_cast<const Json_array *>(this);
+      auto range= path_leg->get_array_range(array->size());
+      for (size_t i= range.m_begin; i < range.m_end; ++i)
+      {
+        if (add_if_missing((*array)[i], duplicates, result))
+          return true;                          /* purecov: inspected */
+        if (is_seek_done(result, only_need_one))
+          return false;
+      }
+    }
+    return false;
   case jpl_ellipsis:
     {
       if (add_if_missing(this, duplicates, result))
@@ -330,23 +338,6 @@ bool Json_dom::find_child_doms(const Json_path_leg *path_leg,
               return true;                    /* purecov: inspected */
           }
         } // end of loop through children
-      }
-
-      return false;
-    }
-  case jpl_array_cell_wildcard:
-    {
-      if (dom_type == enum_json_type::J_ARRAY)
-      {
-        const Json_array * array= down_cast<const Json_array *>(this);
-
-        for (unsigned idx= 0; idx < array->size(); idx++)
-        {
-          if (add_if_missing((*array)[idx], duplicates, result))
-            return true;                      /* purecov: inspected */
-          if (is_seek_done(result, only_need_one))
-            return false;
-        }
       }
 
       return false;
@@ -2336,12 +2327,21 @@ bool Json_wrapper::seek_no_ellipsis(const Json_seekable_path &path,
   }
 
   const Json_path_leg *path_leg= path.get_leg_at(current_leg);
+  const enum_json_type jtype= type();
+
+  // Handle auto-wrapping of non-arrays.
+  if (auto_wrap && jtype != enum_json_type::J_ARRAY && path_leg->is_autowrap())
+  {
+    // recursion
+    return seek_no_ellipsis(path, hits, current_leg + 1, last_leg,
+                            auto_wrap, only_need_one);
+  }
 
   switch(path_leg->get_type())
   {
   case jpl_member:
     {
-      switch(this->type())
+      switch (jtype)
       {
       case enum_json_type::J_OBJECT:
         {
@@ -2366,7 +2366,7 @@ bool Json_wrapper::seek_no_ellipsis(const Json_seekable_path &path,
 
   case jpl_member_wildcard:
     {
-      switch(this->type())
+      switch (jtype)
       {
       case enum_json_type::J_OBJECT:
         {
@@ -2396,66 +2396,34 @@ bool Json_wrapper::seek_no_ellipsis(const Json_seekable_path &path,
     }
 
   case jpl_array_cell:
+    if (jtype == enum_json_type::J_ARRAY)
     {
-      size_t cell_idx= path_leg->get_array_cell_index();
-
-      // handle auto-wrapping
-      if ((cell_idx == 0) &&
-          auto_wrap &&
-          (this->type() != enum_json_type::J_ARRAY))
-      {
-        // recursion
-        return seek_no_ellipsis(path, hits, current_leg + 1, last_leg,
-                                auto_wrap, only_need_one);
-      }
-
-      switch(this->type())
-      {
-      case enum_json_type::J_ARRAY:
-        {
-          if (cell_idx < this->length())
-          {
-            Json_wrapper cell= (*this)[cell_idx];
-            return cell.seek_no_ellipsis(path, hits, current_leg + 1, last_leg,
-                                         auto_wrap, only_need_one);
-          }
-          return false;
-        }
-
-      default:
-        {
-          return false;
-        }
-      } // end inner switch on wrapper type
+      Json_array_index idx= path_leg->first_array_index(length());
+      return idx.within_bounds() &&
+        (*this)[idx.position()].seek_no_ellipsis(path, hits, current_leg + 1,
+                                                 last_leg, auto_wrap,
+                                                 only_need_one);
     }
+    return false;
 
+  case jpl_array_range:
   case jpl_array_cell_wildcard:
+    if (jtype == enum_json_type::J_ARRAY)
     {
-      switch(this->type())
+      auto range= path_leg->get_array_range(length());
+      for (size_t idx= range.m_begin; idx < range.m_end; idx++)
       {
-      case enum_json_type::J_ARRAY:
-        {
-          size_t  array_length= this->length();
-          for (size_t idx= 0; idx < array_length; idx++)
-          {
-            if (is_seek_done(hits, only_need_one))
-              return false;
-
-            // recursion
-            Json_wrapper cell= (*this)[idx];
-            if (cell.seek_no_ellipsis(path, hits, current_leg + 1, last_leg,
-                                      auto_wrap, only_need_one))
-              return true;                    /* purecov: inspected */
-          }
+        if (is_seek_done(hits, only_need_one))
           return false;
-        }
 
-      default:
-        {
-          return false;
-        }
-      } // end inner switch on wrapper type
+        // recursion
+        Json_wrapper cell= (*this)[idx];
+        if (cell.seek_no_ellipsis(path, hits, current_leg + 1, last_leg,
+                                  auto_wrap, only_need_one))
+          return true;                        /* purecov: inspected */
+      }
     }
+    return false;
 
   default:
     // should never be called on a path which contains an ellipsis
@@ -3931,26 +3899,33 @@ bool Json_wrapper::attempt_partial_update(const THD *thd,
     if (last_leg->get_type() != enum_json_path_leg_type::jpl_member)
       return true;
     element_pos= parent.lookup_index(last_leg->get_member_name());
+    /*
+      If the member is not found, JSON_REPLACE is done (it's a no-op),
+      whereas JSON_SET will need to add a new element to the object.
+    */
+    if (element_pos == parent.element_count())
+      return !replace;
     break;
   case Value::ARRAY:
-    if (last_leg->get_type() != enum_json_path_leg_type::jpl_array_cell)
-      return true;
-    element_pos= last_leg->get_array_cell_index();
+    {
+      if (last_leg->get_type() != enum_json_path_leg_type::jpl_array_cell)
+        return true;
+      Json_array_index idx= last_leg->first_array_index(parent.element_count());
+      /*
+        If the element is not found, JSON_REPLACE is done (it's a no-op),
+        whereas JSON_SET will need to add a new element to the array
+      */
+      if (!idx.within_bounds())
+        return !replace;
+      element_pos= idx.position();
+    }
     break;
   default:
     // Can only partially update values inside an array or an object.
     return true;
   }
 
-  if (element_pos >= parent.element_count())
-  {
-    /*
-      The element wasn't found. JSON_SET will need to grow the
-      array/object with a new entry, so it cannot do partial update.
-      JSON_REPLACE will be a no-op, so we can return successfully.
-    */
-    return !replace;
-  }
+  DBUG_ASSERT(element_pos < parent.element_count());
 
   // Find out how much space we need to store new_value.
   size_t needed;

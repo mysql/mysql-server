@@ -7528,7 +7528,7 @@ ER_INVALID_JSON_PATH_CHARSET 42000
   eng "A path expression must be encoded in the utf8 character set. The path expression '%-.200s' is encoded in character set '%-.200s'."
 
 ER_INVALID_JSON_PATH_WILDCARD 42000
-  eng "In this situation, path expressions may not contain the * and ** tokens."
+  eng "In this situation, path expressions may not contain the * and ** tokens or an array range."
 
 ER_JSON_VALUE_TOO_BIG 22032
   eng "The JSON value is too big to be stored in a JSON column."

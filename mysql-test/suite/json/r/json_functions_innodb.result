@@ -10781,6 +10781,52 @@ SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
 JSON_STORAGE_FREE(j) sf FROM t;
 j	jt	ss	sf
 [null]	ARRAY	35	27
+# Test update with indexes relative to the end of the array.
+UPDATE t SET j = JSON_ARRAY('a','b','c');
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+["a", "b", "c"]	ARRAY	20	0
+UPDATE t SET j = JSON_SET(j, '$[last]', 4);
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+["a", "b", 4]	ARRAY	20	2
+UPDATE t SET j = JSON_SET(j, '$[last-1]', 5);
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+["a", 5, 4]	ARRAY	20	4
+UPDATE t SET j = JSON_SET(j, '$[last-2]', 6);
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+[6, 5, 4]	ARRAY	20	6
+UPDATE t SET j = JSON_SET(j, '$[last-3]', 7);
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+[7, 6, 5, 4]	ARRAY	17	0
+UPDATE t SET j = JSON_ARRAY('a','b');
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+["a", "b"]	ARRAY	15	0
+UPDATE t SET j = JSON_REPLACE(j, '$[last]', 3);
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+["a", 3]	ARRAY	15	2
+UPDATE t SET j = JSON_REPLACE(j, '$[last-1]', 4);
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+[4, 3]	ARRAY	15	4
+UPDATE t SET j = JSON_REPLACE(j, '$[last-2]', 5);
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t;
+j	jt	ss	sf
+[4, 3]	ARRAY	15	4
 DROP TABLE t;
 CREATE TABLE t1(id INT PRIMARY KEY, j JSON, x INT);
 INSERT INTO t1 VALUES (1, '{"a":"xy"}', 1), (2, '{"a":"zw"}', 2);
