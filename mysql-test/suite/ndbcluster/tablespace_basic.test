@@ -11,7 +11,7 @@ CREATE LOGFILE GROUP lg1
 CREATE TABLESPACE ts1
   ADD DATAFILE 'ts1_datafile.dat'
   USE LOGFILE GROUP lg1
-  INITIAL_SIZE 1M
+  INITIAL_SIZE 2M
   ENGINE NDB;
 
 # Create table in the tablespace
