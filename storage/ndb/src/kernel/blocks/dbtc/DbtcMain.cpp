@@ -12895,7 +12895,7 @@ void Dbtc::sendDihGetNodesLab(Signal* signal, ScanRecordPtr scanptr)
    * same SPJ instance.
    *
    * Then sort the fragLocations[] on blockRef such that possible
-   * multiFrag scans could easier find fragId's to be included in
+   * multiFrag scans could easily find fragId's to be included in
    * the same multiFragment SCAN_FRAGREQ
    */
   if (ScanFragReq::getMultiFragFlag(scanptr.p->scanRequestInfo))
@@ -13255,7 +13255,7 @@ void Dbtc::sendFragScansLab(Signal* signal,
    * sufficient for all the sendScanFragReq's below:
    * Table or scanState can not change while we are in controll.
    * sendScanFragReq() itself can fail, possibly closing the scan.
-   * However, that is catched by checking its return value.
+   * However, that is caught by checking its return value.
    */
   scanFragP.i = RNIL;
   do
@@ -13287,7 +13287,7 @@ void Dbtc::sendFragScansLab(Signal* signal,
         {
           jam();
           /**
-           * We check for CONTINUEB sending here to limits how many
+           * We check for CONTINUEB sending here to limit how many
            * fragment scans we can start in one signal to ensure we keep the
            * rules of not executing for more than 5-10 microseconds per
            * signal.
