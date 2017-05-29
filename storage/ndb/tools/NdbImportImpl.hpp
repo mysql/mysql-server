@@ -511,7 +511,12 @@ public:
     uint m_opsize;
   };
 
-  struct OpList : List {
+  struct OpList : private List {
+    OpList();
+    ~OpList();
+    void set_stats(Stats& stats, const char* name) {
+      List::set_stats(stats, name);
+    }
     Op* front() {
       return static_cast<Op*>(m_front);
     }
@@ -523,6 +528,9 @@ public:
     }
     void push_front(Op* op) {
       List::push_front(op);
+    }
+    uint cnt() const {
+      return m_cnt;
     }
   };
 
@@ -541,14 +549,26 @@ public:
     }
   };
 
-  struct TxList : List {
+  struct TxList : private List {
     TxList();
     ~TxList();
+    void set_stats(Stats& stats, const char* name) {
+      List::set_stats(stats, name);
+    }
     Tx* front() {
       return static_cast<Tx*>(m_front);
     }
+    void push_back(Tx* tx) {
+      List::push_back(tx);
+    }
     Tx* pop_front() {
       return static_cast<Tx*>(List::pop_front());
+    }
+    void remove(Tx* tx) {
+      List::remove(tx);
+    }
+    uint cnt() const {
+      return m_cnt;
     }
   };
 

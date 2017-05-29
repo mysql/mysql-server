@@ -336,7 +336,7 @@ NdbImportCsv::Alloc::alloc_data()
 void
 NdbImportCsv::Alloc::free_data_list(DataList& data_list)
 {
-  m_free_data_cnt += data_list.m_cnt;
+  m_free_data_cnt += data_list.cnt();
   m_data_free.push_back(data_list);
 }
 
@@ -361,7 +361,7 @@ NdbImportCsv::Alloc::free_field_list(FieldList& field_list)
     free_data_list(field->m_data_list);
     field = field->next();
   }
-  m_free_field_cnt += field_list.m_cnt;
+  m_free_field_cnt += field_list.cnt();
   m_field_free.push_back(field_list);
 }
 
@@ -386,7 +386,7 @@ NdbImportCsv::Alloc::free_line_list(LineList& line_list)
     free_field_list(line->m_field_list);
     line = line->next();
   }
-  m_free_line_cnt += line_list.m_cnt;
+  m_free_line_cnt += line_list.cnt();
   m_line_free.push_back(line_list);
 }
 
@@ -477,8 +477,8 @@ NdbImportCsv::Input::do_send(uint& curr, uint& left)
   RowList& rows_in = m_rows_in;         // local
   RowList& rows_out = m_rows_out;       // shared
   rows_out.lock();
-  curr = rows_in.m_cnt;
-  while (rows_in.m_cnt != 0)
+  curr = rows_in.cnt();
+  while (rows_in.cnt() != 0)
   {
     Row* row = rows_in.pop_front();
     require(row != 0);
@@ -488,7 +488,7 @@ NdbImportCsv::Input::do_send(uint& curr, uint& left)
       break;
     }
   }
-  left = rows_in.m_cnt;
+  left = rows_in.cnt();
   if (rows_out.m_foe)
   {
     log1("consumer has stopped");
@@ -505,7 +505,7 @@ NdbImportCsv::Input::do_movetail(Input& input2)
   require(buf1.movetail(buf2) == 0);
   buf1.m_pos = buf1.m_len;      // keep pos within new len
   input2.m_startpos = m_startpos + buf1.m_len;
-  input2.m_startlineno = m_startlineno + m_line_list.m_cnt;
+  input2.m_startlineno = m_startlineno + m_line_list.cnt();
   log1("movetail " <<
       " src: " << buf1 <<
       " dst: " << buf2 <<
@@ -536,7 +536,7 @@ NdbImportCsv::Input::reject_line(const Line* line,
   m_util.set_reject_row(rejectrow, Inval_uint32, error, reject, rejectlen);
   require(rows_reject.push_back(rejectrow));
   // error if rejects exceeded
-  if (rows_reject.m_totcnt > opt.m_rejects)
+  if (rows_reject.totcnt() > opt.m_rejects)
   {
     m_util.set_error_data(m_error, __LINE__, 0,
                           "reject limit %u exceeded", opt.m_rejects);
@@ -560,7 +560,7 @@ NdbImportCsv::Input::print(NdbOut& out)
     out << bufdatac;
   else
     out << bufdatac << "\\c" << endl;
-  out << "linecnt=" << line_list.m_cnt;
+  out << "linecnt=" << line_list.cnt();
   Line* line = line_list.front();
   while (line != 0)
   {
@@ -568,7 +568,7 @@ NdbImportCsv::Input::print(NdbOut& out)
     out << "lineno=" << line->m_lineno;
     out << " pos=" << line->m_pos;
     out << " length=" << line->m_end - line->m_pos;
-    out << " fieldcnt=" << line->m_field_list.m_cnt;
+    out << " fieldcnt=" << line->m_field_list.cnt();
     Field* field = line->m_field_list.front();
     while (field != 0)
     {
@@ -599,7 +599,7 @@ operator<<(NdbOut& out, const NdbImportCsv::Input& input)
 {
   out << input.m_name;
   out << " len=" << input.m_buf.m_len;
-  out << " linecnt=" << input.m_line_list.m_cnt;
+  out << " linecnt=" << input.m_line_list.cnt();
   return out;
 }
 
@@ -761,7 +761,7 @@ NdbImportCsv::Parse::do_parse()
       Field* field = line->m_field_list.front();
       while (field != 0)
       {
-        if (field->m_data_list.m_cnt != 0)
+        if (field->m_data_list.cnt() != 0)
           pack_field(field);
         field = field->next();
       }
@@ -855,7 +855,7 @@ NdbImportCsv::Parse::do_error(const char* msg)
     const Buf& buf = m_input.m_buf;
     log2("parse error at buf:" << buf);
     uint64 abspos = m_input.m_startpos + buf.m_pos;
-    uint64 abslineno = m_input.m_startlineno + m_line_list.m_cnt;
+    uint64 abslineno = m_input.m_startlineno + m_line_list.cnt();
     m_util.set_error_data(m_error, __LINE__, 0,
                           "parse error at line=%llu: pos=%llu: %s",
                           abslineno, abspos, msg);
@@ -1163,7 +1163,7 @@ NdbImportCsv::Eval::eval_line(Row* row, Line* line)
   row->m_linenr = linenr;
   row->m_startpos = m_input.m_startpos + line->m_pos;
   row->m_endpos = m_input.m_startpos + line->m_end;
-  const uint fieldcnt = line->m_field_list.m_cnt;
+  const uint fieldcnt = line->m_field_list.cnt();
   const uint has_hidden_pk = (uint)table.m_has_hidden_pk;
   const uint expect_attrcnt = attrcnt - has_hidden_pk;
   Error error;  // local error
@@ -2645,7 +2645,7 @@ testinput1()
       out << util.c_error << endl;
       require(mycsv.error == 1);
     }
-    require(input.m_line_list.m_cnt == mycsv.linecnt);
+    require(input.m_line_list.cnt() == mycsv.linecnt);
     const MyRes& myres = mycsv.res;
     uint fieldcnt = 0;
     CsvLine* line = input.m_line_list.front();
@@ -2744,7 +2744,7 @@ testinput2()
     }
     input1.do_parse();
     totread++;
-    totlines += input1.m_line_list.m_cnt;
+    totlines += input1.m_line_list.cnt();
     input1.free_line_list(input1.m_line_list);
     if (b1.m_eof)
       break;

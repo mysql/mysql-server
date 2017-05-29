@@ -153,6 +153,10 @@ public:
    * For example List/ListEnt are subclassed as RowList/Row where
    * RowList stores only Row entries.
    *
+   * For type-safety, subclasses of List use private inheritance and
+   * define explicitly the methods needed.  This prevents putting an
+   * entry on a wrong type of list.
+   *
    * A list has optional associated stats under a given name.  These
    * can be extended by subclasses.
    */
@@ -294,7 +298,7 @@ public:
     std::vector<Blob*> m_blobs;
   };
 
-  struct RowList : List, Lockable {
+  struct RowList : private List, Lockable {
     RowList();
     virtual ~RowList();
     void set_stats(Stats& stats, const char* name);
@@ -303,6 +307,12 @@ public:
     bool push_front(Row* row);
     Row* pop_front();
     void remove(Row* row);
+    uint cnt() const {
+      return m_cnt;
+    }
+    uint64 totcnt() const {
+      return m_totcnt;
+    }
     uint m_rowsize;     // sum from row entries
     uint m_rowbatch;    // limit m_cnt
     uint m_rowbytes;    // limit m_rowsize
@@ -330,9 +340,15 @@ public:
     uchar* m_data;
   };
 
-  struct BlobList : List, Lockable {
+  struct BlobList : private List, Lockable {
     BlobList();
     virtual ~BlobList();
+    void push_back(Blob* blob) {
+      List::push_back(blob);
+    }
+    Blob* pop_front() {
+      return static_cast<Blob*>(List::pop_front());
+    }
   };
 
   Blob* alloc_blob();
