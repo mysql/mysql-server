@@ -2360,20 +2360,20 @@ Dbtup::lcp_frag_watchdog_print(Uint32 tableId, Uint32 fragId)
     jam();
     g_eventLogger->info("No LCP scan ongoing in TUP tab(%u,%u)",
                         tableId, fragId);
+    ndbrequire(false);
   }
   else if (frag.m_lcp_scan_op == RNIL)
   {
     jam();
-    g_eventLogger->info("Inconsistency, LCP scan not on correct tab(%u,%u)",
-                        tableId, fragId);
-    ndbassert(false);
+    DEB_LCP(("LCP scan stopped, signal to stop watchdog still in flight tab(%u,%u)",
+             tableId, fragId));
   }
   else if (frag.m_lcp_scan_op != c_lcp_scan_op)
   {
     jam();
     g_eventLogger->info("Corrupt internal, LCP scan not on correct tab(%u,%u)",
                         tableId, fragId);
-    ndbassert(false);
+    ndbrequire(false);
   }
   else
   {

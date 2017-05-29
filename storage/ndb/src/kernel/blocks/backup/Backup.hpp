@@ -935,6 +935,7 @@ public:
 
   Uint32 m_backup_report_frequency;
 
+  char c_part_array[BackupFormat::NDB_MAX_LCP_PARTS * 4];
   /**
    * Pools
    */
@@ -1069,6 +1070,8 @@ public:
   void lcp_write_ctl_file(Signal*, BackupRecordPtr);
   void lcp_write_ctl_file_to_disk(Signal*, BackupFilePtr, Page32Ptr);
   void lcp_init_ctl_file(Page32Ptr pagePtr);
+  Uint32 compress_part_pairs(struct BackupFormat::LCPCtlFile*, Uint32);
+  Uint32 decompress_part_pairs(struct BackupFormat::LCPCtlFile*, Uint32);
   bool convert_ctl_page_to_host(struct BackupFormat::LCPCtlFile*);
   void convert_ctl_page_to_network(Uint32*);
   void handle_idle_lcp(Signal*, BackupRecordPtr);
