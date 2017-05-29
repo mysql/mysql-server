@@ -43,6 +43,8 @@ static bool group_replication_running;
 bool wait_on_engine_initialization= false;
 bool server_shutdown_status= false;
 bool plugin_is_auto_starting= false;
+static bool plugin_is_waiting_to_set_server_read_mode= false;
+static bool plugin_is_being_uninstalled= false;
 
 /* Plugin modules */
 //The plugin applier
@@ -61,8 +63,6 @@ Asynchronous_channels_state_observer *asynchronous_channels_state_observer= NULL
 Checkable_rwlock *plugin_stop_lock;
 //Class to coordinate access to the plugin stop lock
 Shared_writelock *shared_plugin_stop_lock;
-//Read mode handler
-Read_mode_handler *read_mode_handler= NULL;
 //Initialization thread for server starts
 Delayed_initialization_thread *delayed_initialization_thread= NULL;
 //The transaction handler for network partitions
@@ -342,6 +342,8 @@ int plugin_group_replication_start()
   Mutex_autolock auto_lock_mutex(&plugin_running_mutex);
 
   int error= 0;
+  bool enabled_super_read_only= false;
+  bool read_only_mode= false, super_read_only_mode=false;
   st_server_ssl_variables server_ssl_variables=
     {false,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL};
 
@@ -392,7 +394,6 @@ int plugin_group_replication_start()
     Instantiate certification latch.
   */
   certification_latch= new Wait_ticket<my_thread_id>();
-  read_mode_handler= new Read_mode_handler();
   Sql_service_command_interface *sql_command_interface=
       new Sql_service_command_interface();
 
@@ -495,6 +496,9 @@ int plugin_group_replication_start()
                     compatibility_mgr->set_local_version(current_version);
                   };);
 
+  get_read_mode_state(sql_command_interface, &read_only_mode,
+                      &super_read_only_mode);
+
   /*
    At this point in the code, set the super_read_only mode here on the
    server to protect recovery and version module of the Group Replication.
@@ -502,7 +506,7 @@ int plugin_group_replication_start()
    deadlock issues.
   */
   if (!plugin_is_auto_starting &&
-      read_mode_handler->set_super_read_only_mode(sql_command_interface))
+      enable_super_read_only_mode(sql_command_interface))
   {
     /* purecov: begin inspected */
     error =1;
@@ -512,6 +516,7 @@ int plugin_group_replication_start()
     goto err;
     /* purecov: end */
   }
+  enabled_super_read_only= true;
 
   if ((error= initialize_recovery_module()))
     goto err; /* purecov: inspected */
@@ -526,9 +531,6 @@ int plugin_group_replication_start()
   initialize_asynchronous_channels_observer();
   initialize_group_partition_handler();
   blocked_transaction_handler= new Blocked_transaction_handler();
-
-  DBUG_EXECUTE_IF("group_replication_read_mode_error",
-                  { read_mode_handler->set_to_fail(); };);
 
   if ((error= start_group_communication()))
   {
@@ -551,18 +553,26 @@ int plugin_group_replication_start()
   group_replication_running= true;
 
 err:
-  delete sql_command_interface;
 
   if (error)
   {
     leave_group();
     terminate_plugin_modules();
+
+    if (!server_shutdown_status && server_engine_initialized()
+        && enabled_super_read_only)
+    {
+      set_read_mode_state(sql_command_interface, read_only_mode,
+                          super_read_only_mode);
+    }
     if (certification_latch != NULL)
     {
       delete certification_latch; /* purecov: inspected */
       certification_latch= NULL;  /* purecov: inspected */
     }
   }
+
+  delete sql_command_interface;
   plugin_is_auto_starting= false;
 
   DBUG_RETURN(error);
@@ -752,6 +762,8 @@ int plugin_group_replication_stop()
     DBUG_RETURN(0);
   }
 
+  plugin_is_waiting_to_set_server_read_mode= true;
+
   // wait for all transactions waiting for certification
   bool timeout=
       certification_latch->block_until_empty(TRANSACTION_KILL_TIMEOUT);
@@ -774,6 +786,21 @@ int plugin_group_replication_stop()
   });
 
   shared_plugin_stop_lock->release_write_lock();
+
+  // Enable super_read_only.
+  if (!server_shutdown_status &&
+      !plugin_is_being_uninstalled &&
+      server_engine_initialized())
+  {
+    if (enable_server_read_mode(PSESSION_DEDICATED_THREAD))
+    {
+      log_message(MY_ERROR_LEVEL,
+                  "On plugin shutdown it was not possible to enable the "
+                  "server read only mode. Local transactions will be accepted "
+                  "and committed."); /* purecov: inspected */
+    }
+    plugin_is_waiting_to_set_server_read_mode= false;
+  }
 
   DBUG_RETURN(error);
 }
@@ -809,31 +836,11 @@ int terminate_plugin_modules()
 
   terminate_asynchronous_channels_observer();
 
-  if (!server_shutdown_status && server_engine_initialized())
-  {
-    Sql_service_command_interface *sql_command_interface=
-        new Sql_service_command_interface();
-    if (sql_command_interface->
-            establish_session_connection(PSESSION_DEDICATED_THREAD,
-                                         plugin_info_ptr) ||
-        sql_command_interface->set_interface_user(GROUPREPL_USER) ||
-        read_mode_handler->reset_super_read_only_mode(sql_command_interface))
-    {
-      //Do not throw an error as the user can reset the read mode
-      log_message(MY_WARNING_LEVEL,
-                  "On plugin shutdown it was not possible to reset the server"
-                  " read mode settings. Try to reset it manually."); /* purecov: inspected */
-    }
-    delete sql_command_interface;
-  }
-
   delete group_partition_handler;
   group_partition_handler= NULL;
 
   delete blocked_transaction_handler;
   blocked_transaction_handler= NULL;
-
-  delete read_mode_handler;
 
   /*
     Destroy certification latch.
@@ -979,6 +986,7 @@ int plugin_group_replication_deinit(void *p)
   if (plugin_info_ptr == NULL)
     return 0;
 
+  plugin_is_being_uninstalled= true;
   int observer_unregister_error= 0;
 
   //plugin_group_replication_stop will be called from this method stack
@@ -1357,8 +1365,7 @@ int start_group_communication()
   events_handler= new Plugin_gcs_events_handler(applier_module,
                                                 recovery_module,
                                                 view_change_notifier,
-                                                compatibility_mgr,
-                                                read_mode_handler);
+                                                compatibility_mgr);
 
   view_change_notifier->start_view_modification();
 
@@ -1451,6 +1458,12 @@ ulong get_transaction_size_limit()
 {
   DBUG_ENTER("get_transaction_size_limit");
   DBUG_RETURN(transaction_size_limit_var);
+}
+
+bool is_plugin_waiting_to_set_server_read_mode()
+{
+  DBUG_ENTER("is_plugin_waiting_to_set_server_read_mode");
+  DBUG_RETURN(plugin_is_waiting_to_set_server_read_mode);
 }
 
 /*

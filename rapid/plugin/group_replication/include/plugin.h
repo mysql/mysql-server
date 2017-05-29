@@ -70,7 +70,6 @@ extern Asynchronous_channels_state_observer *asynchronous_channels_state_observe
 //Lock for the applier and recovery module to prevent the race between STOP
 //Group replication and ongoing transactions.
 extern Shared_writelock *shared_plugin_stop_lock;
-extern Read_mode_handler *read_mode_handler;
 extern Delayed_initialization_thread *delayed_initialization_thread;
 
 //Auxiliary Functionality
@@ -103,6 +102,7 @@ bool get_allow_local_disjoint_gtids_join();
 ulong get_transaction_size_limit();
 void initialize_asynchronous_channels_observer();
 void terminate_asynchronous_channels_observer();
+bool is_plugin_waiting_to_set_server_read_mode();
 
 //Plugin public methods
 int plugin_group_replication_init(MYSQL_PLUGIN plugin_info);

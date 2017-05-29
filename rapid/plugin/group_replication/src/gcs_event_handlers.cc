@@ -31,12 +31,10 @@ Plugin_gcs_events_handler::
 Plugin_gcs_events_handler(Applier_module_interface* applier_module,
                           Recovery_module* recovery_module,
                           Plugin_gcs_view_modification_notifier* vc_notifier,
-                          Compatibility_module* compatibility_module,
-                          Read_mode_handler* read_mode_handler)
+                          Compatibility_module* compatibility_module)
 : applier_module(applier_module), recovery_module(recovery_module),
   view_change_notifier(vc_notifier),
-  compatibility_manager(compatibility_module),
-  read_mode_handler(read_mode_handler)
+  compatibility_manager(compatibility_module)
 {
   this->temporary_states= new std::set<Group_member_info*,
                                        Group_member_info_pointer_comparator>();
@@ -173,7 +171,7 @@ Plugin_gcs_events_handler::handle_recovery_message(const Gcs_message& message) c
                 "This server was declared online within the replication group");
 
     /**
-    Reset the read mode in the server if the member is:
+    Disable the read mode in the server if the member is:
     - joining
     - doesn't have a higher possible incompatible version
     - We are not on Primary mode.
@@ -182,12 +180,12 @@ Plugin_gcs_events_handler::handle_recovery_message(const Gcs_message& message) c
         (local_member_info->get_role() == Group_member_info::MEMBER_ROLE_PRIMARY ||
          !local_member_info->in_primary_mode()))
     {
-      if (reset_server_read_mode(PSESSION_INIT_THREAD))
+      if (disable_server_read_mode(PSESSION_INIT_THREAD))
       {
         log_message(MY_WARNING_LEVEL,
                     "When declaring the plugin online it was not possible to "
-                    "reset the server read mode settings. "
-                    "Try to reset it manually."); /* purecov: inspected */
+                    "disable the server read mode settings. "
+                    "Try to disable it manually."); /* purecov: inspected */
       }
     }
 
@@ -749,21 +747,21 @@ void Plugin_gcs_events_handler::handle_leader_election_if_needed() const
           if (is_primary_local)
           {
             log_message(MY_INFORMATION_LEVEL, "Unsetting super_read_only.");
-            if (read_mode_handler->reset_super_read_only_mode(sql_command_interface, true))
+            if (disable_super_read_only_mode(sql_command_interface))
             {
               log_message(MY_WARNING_LEVEL,
-                          "Unable to reset super read only flag. "
-                          "Try to reset it manually."); /* purecov: inspected */
+                          "Unable to disable super read only flag. "
+                          "Try to disable it manually."); /* purecov: inspected */
             }
           }
           else
           {
             log_message(MY_INFORMATION_LEVEL, "Setting super_read_only.");
-            if (read_mode_handler->set_super_read_only_mode(sql_command_interface))
+            if (enable_super_read_only_mode(sql_command_interface))
             {
               log_message(MY_WARNING_LEVEL,
                           "Unable to set super read only flag. "
-                          "Try to reset it manually."); /* purecov: inspected */
+                          "Try to set it manually."); /* purecov: inspected */
             }
           }
         }
@@ -783,11 +781,11 @@ void Plugin_gcs_events_handler::handle_leader_election_if_needed() const
                     "Unable to set any member as primary. No suitable candidate."); /* purecov: inspected */
       }
 
-      if(read_mode_handler->set_super_read_only_mode(sql_command_interface))
+      if(enable_super_read_only_mode(sql_command_interface))
       {
         log_message(MY_WARNING_LEVEL,
                     "Unable to set super read only flag. "
-                    "Try to reset it manually."); /* purecov: inspected */
+                    "Try to set it manually."); /* purecov: inspected */
       }
     }
     delete sql_command_interface;
@@ -893,7 +891,7 @@ void Plugin_gcs_events_handler::handle_joining_members(const Gcs_view& new_view,
     /**
       Set the read mode if not set during start (auto-start)
     */
-    if (set_server_read_mode(PSESSION_INIT_THREAD))
+    if (enable_server_read_mode(PSESSION_INIT_THREAD))
     {
       log_message(MY_ERROR_LEVEL,
                   "Error when activating super_read_only mode on start. "

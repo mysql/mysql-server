@@ -39,7 +39,7 @@ START GROUP_REPLICATION;
 
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
 --let $assert_only_after = CURRENT_TEST: group_replication.gr_no_user_start_failure
---let $assert_count = 2
+--let $assert_count = 1
 --let $assert_select = There was an error when trying to access the server with user: mysql.session. Make
 --let $assert_text = Found the expected error about the missing user in server log
 --source include/assert_grep.inc

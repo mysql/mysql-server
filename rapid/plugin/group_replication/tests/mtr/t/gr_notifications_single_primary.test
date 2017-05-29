@@ -216,7 +216,6 @@ TRUNCATE gms_listener_example;
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
---source include/stop_group_replication.inc
 
 --let $debug_point= register_gms_listener_example
 --source include/remove_debug_point.inc

@@ -369,18 +369,10 @@ SET SQL_LOG_BIN=1;
 ### Clean up and bail out
 ###
 
-# server2
-
---let $rpl_connection_name= server2
---source include/rpl_connection.inc
-
---source include/stop_group_replication.inc
-
 # server1
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
---source include/stop_group_replication.inc
 
 --let $debug_point= register_gms_listener_example
 --source include/remove_debug_point.inc
