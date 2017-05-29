@@ -9237,7 +9237,8 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
    till this point for the alter operation.
   */
   if ((alter_info->flags & Alter_info::ADD_FOREIGN_KEY) &&
-      check_fk_parent_table_access(thd, create_info, alter_info))
+      check_fk_parent_table_access(thd, alter_ctx.new_db,
+                                   create_info, alter_info))
     DBUG_RETURN(true);
 
   /*
