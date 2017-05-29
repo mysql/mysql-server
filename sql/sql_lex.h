@@ -2432,6 +2432,11 @@ public:
     BINLOG_STMT_UNSAFE_SKIP_LOCKED,
     BINLOG_STMT_UNSAFE_NOWAIT,
 
+    /**
+      XA transactions and statements.
+    */
+    BINLOG_STMT_UNSAFE_XA,
+
     /* the last element of this enumeration type. */
     BINLOG_STMT_UNSAFE_COUNT
   };

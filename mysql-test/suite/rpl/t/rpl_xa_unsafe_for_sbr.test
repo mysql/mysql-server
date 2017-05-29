@@ -1,0 +1,94 @@
+# ==== Purpose ====
+#
+# This test case will check if DMLs inside XA transactions are
+# considered unsafe when using SBR and are being binary logged using
+# RBR when mixed binary log format is used.
+#
+# The Step 1 covers the unsafe warnings for SBR by forcing statement
+# based replication for a single XA transaction.
+#
+# The Step 2 covers the logging as RBR case by generating a workload
+# that would produce a deadlock on the slave applier if applied using
+# statements.
+#
+# ==== Related Bugs and Worklogs ====
+#
+# Bug#25786490 XA TRANSACTIONS ARE 'UNSAFE' FOR RPL USING SBR
+#
+
+# This test case should only run in mixed mode replication.
+--source include/have_binlog_format_mixed.inc
+--source include/master-slave.inc
+
+--source include/rpl_connection_master.inc
+# Suppression of error messages
+CALL mtr.add_suppression('Unsafe statement written to the binary log using statement format');
+
+CREATE TABLE t1 (c1 INT PRIMARY KEY);
+
+--echo #
+--echo # Step 1 - XA + SBR = warning
+--echo #
+SET SESSION binlog_format = 'STATEMENT';
+XA START 'a';
+# Read only queries should not produce warnings
+SET @one = (SELECT SUBSTRING('11', 1, 1));
+--let $assert_text= Any read only query shall not throw warning inside XA with SBR
+--let $warnings_count= `SHOW COUNT(*) WARNINGS`
+--let $assert_cond= $warnings_count = 0
+# The next statement should display a warning message
+INSERT INTO t1 VALUES (@one);
+--let $assert_text= Any DML shall throw warning inside XA with SBR
+--let $warning_code= query_get_value(SHOW WARNINGS, Code, 1)
+--let $expected_code= convert_error(ER_BINLOG_UNSAFE_STATEMENT)
+--let $assert_cond= $warning_code = $expected_code
+--source include/assert.inc
+# Read only queries should not produce warnings
+SET @two = (SELECT SUBSTRING('22', 1, 1));
+--let $assert_text= Any read only query shall not throw warning inside XA with SBR
+--let $warnings_count= `SHOW COUNT(*) WARNINGS`
+--let $assert_cond= $warnings_count = 0
+# The next statement should display a warning message
+INSERT INTO t1 VALUES (@two);
+--let $assert_text= Any DML shall throw warning inside XA with SBR
+--let $warning_code= query_get_value(SHOW WARNINGS, Code, 1)
+--let $expected_code= convert_error(ER_BINLOG_UNSAFE_STATEMENT)
+--let $assert_cond= $warning_code = $expected_code
+XA END 'a';
+XA PREPARE 'a';
+XA COMMIT 'a';
+
+SET SESSION binlog_format = DEFAULT;
+
+--echo #
+--echo # Step 2 - XA + MIXED != deadlock
+--echo #
+BEGIN;
+INSERT INTO t1 VALUES (7);
+INSERT INTO t1 VALUES (8);
+COMMIT;
+
+XA START 'a';
+INSERT INTO t1 VALUES (5);
+
+--source include/rpl_connection_master1.inc
+XA START 'b';
+DELETE FROM t1 WHERE c1 > 5 AND c1 < 8;
+XA END 'b';
+XA PREPARE 'b';
+
+--source include/rpl_connection_master.inc
+XA END 'a';
+XA PREPARE 'a';
+XA COMMIT 'a';
+
+--source include/rpl_connection_master1.inc
+XA COMMIT 'b';
+
+--echo #
+--echo # Cleanup
+--echo #
+
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+--source include/rpl_end.inc

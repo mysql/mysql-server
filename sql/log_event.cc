@@ -12043,7 +12043,7 @@ Write_rows_log_event::do_before_row_operations(const Slave_reporting_capability 
 
     Set 'sql_command' as SQLCOM_INSERT after the tables are locked.
     When locking the tables, it should be SQLCOM_END.
-    THD::decide_binlog_format which is called from "lock tables"
+    THD::decide_logging_format which is called from "lock tables"
     assumes that row_events will have 'sql_command' as SQLCOM_END.
   */
   thd->lex->sql_command= SQLCOM_INSERT;
@@ -12547,7 +12547,7 @@ Delete_rows_log_event::do_before_row_operations(const Slave_reporting_capability
 
     Set 'sql_command' as SQLCOM_UPDATE after the tables are locked.
     When locking the tables, it should be SQLCOM_END.
-    THD::decide_binlog_format which is called from "lock tables"
+    THD::decide_logging_format which is called from "lock tables"
     assumes that row_events will have 'sql_command' as SQLCOM_END.
   */
   thd->lex->sql_command= SQLCOM_DELETE;
@@ -12677,7 +12677,7 @@ Update_rows_log_event::do_before_row_operations(const Slave_reporting_capability
 
     Set 'sql_command' as SQLCOM_UPDATE after the tables are locked.
     When locking the tables, it should be SQLCOM_END.
-    THD::decide_binlog_format which is called from "lock tables"
+    THD::decide_logging_format which is called from "lock tables"
     assumes that row_events will have 'sql_command' as SQLCOM_END.
    */
   thd->lex->sql_command= SQLCOM_UPDATE;
@@ -13439,10 +13439,10 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli)
     function that would restore the tx_isolation after finishing the transaction
     may not happen.
   */
-  if (DBUG_EVALUATE("force_trx_as_rbr_only", true,
-                    !may_have_sbr_stmts &&
-                    thd->tx_isolation > ISO_READ_COMMITTED &&
-                    gtid_pre_statement_checks(thd) != GTID_STATEMENT_SKIP))
+  if (DBUG_EVALUATE_IF("force_trx_as_rbr_only", true,
+                       !may_have_sbr_stmts &&
+                       thd->tx_isolation > ISO_READ_COMMITTED &&
+                       gtid_pre_statement_checks(thd) != GTID_STATEMENT_SKIP))
   {
     DBUG_ASSERT(thd->get_transaction()->is_empty(Transaction_ctx::STMT));
     DBUG_ASSERT(thd->get_transaction()->is_empty(Transaction_ctx::SESSION));
