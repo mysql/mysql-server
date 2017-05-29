@@ -2948,13 +2948,13 @@ dd_save_data_dir_path(
 template<typename Table>
 char*
 dd_get_first_path(
-	mem_heap_t*				heap,
-	dict_table_t*			table,
-	const Table*			dd_table)
+	mem_heap_t*	heap,
+	dict_table_t*	table,
+	const Table*	dd_table)
 {
 	char*		filepath = NULL;
-	dd::Tablespace*		dd_space = nullptr;
-	THD*			thd = current_thd;
+	dd::Tablespace*	dd_space = nullptr;
+	THD*		thd = current_thd;
 	MDL_ticket*     mdl = nullptr;
 	dd::Object_id   dd_space_id;
 
@@ -2969,12 +2969,8 @@ dd_get_first_path(
 		const dd::Table*	table_def = nullptr;
 
 		if (!dd_parse_tbl_name(
-			table->name.m_name,
-			db_buf, tbl_buf, NULL)) {
-			return(filepath);
-		}
-
-		if (dd_mdl_acquire(thd, &mdl, db_buf, tbl_buf)) {
+				table->name.m_name, db_buf, tbl_buf, NULL)
+		    || dd_mdl_acquire(thd, &mdl, db_buf, tbl_buf)) {
 			return(filepath);
 		}
 
@@ -3067,7 +3063,7 @@ single-table tablespace.
 void
 dd_get_meta_data_filename(
 	dict_table_t*	table,
-	dd::Table*		dd_table,
+	dd::Table*	dd_table,
 	char*		filename,
 	ulint		max_len)
 {
@@ -3082,8 +3078,7 @@ dd_get_meta_data_filename(
 
 		path = fil_make_filepath(
 			table->data_dir_path, table->name.m_name, CFG, true);
-	}
-	else {
+	} else {
 		path = fil_make_filepath(NULL, table->name.m_name, CFG, false);
 	}
 
@@ -3648,13 +3643,13 @@ template dict_table_t* dd_open_table<dd::Partition>(
 
 /** Get next record from a new dd system table, like mysql.tables...
 @param[in,out]	pcur		persistent cursor
-@param[in]		mtr			the mini-transaction
+@param[in]	mtr		the mini-transaction
 @retval the next rec of the dd system table */
 static
 const rec_t*
 dd_getnext_system_low(
 	btr_pcur_t*	pcur,		/*!< in/out: persistent cursor to the
-							record*/
+					record*/
 	mtr_t*		mtr)		/*!< in: the mini-transaction */
 {
 	rec_t*	rec = NULL;
@@ -3709,7 +3704,7 @@ dd_startscan_system(
 
 	mtr_start(mtr);
 	btr_pcur_open_at_index_side(true, clust_index, BTR_SEARCH_LEAF, pcur,
-		true, 0, mtr);
+			 	    true, 0, mtr);
 
 	rec = dd_getnext_system_low(pcur, mtr);
 
@@ -3744,7 +3739,7 @@ dd_process_dd_tables_rec_and_mtr_commit(
 	ut_ad(mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_S_FIX));
 
 	ulint*	offsets = rec_get_offsets(rec, dd_tables->first_index(), NULL,
-		ULINT_UNDEFINED, &heap);
+					  ULINT_UNDEFINED, &heap);
 
 	field = rec_get_nth_field(rec, offsets, 6, &len);
 
@@ -3752,16 +3747,17 @@ dd_process_dd_tables_rec_and_mtr_commit(
 	if (strncmp((const char*)field, "InnoDB", 6) != 0) {
 		*table = NULL;
 		mtr_commit(mtr);
-		return(NULL);
+		return(err_msg);
 	}
 
 	/* Get the se_private_id field. */
 	field = (const byte*)rec_get_nth_field(rec, offsets, 14, &len);
+
 	/* When table is partitioned table, the se_private_id is null. */
 	if (len != 8) {
 		*table = NULL;
 		mtr_commit(mtr);
-		return(NULL);
+		return(err_msg);
 	}
 
 	/* Get the table id */
@@ -3771,7 +3767,7 @@ dd_process_dd_tables_rec_and_mtr_commit(
 	if (table_id <= INNODB_DD_TABLE_ID_MAX) {
 		*table = NULL;
 		mtr_commit(mtr);
-		return(NULL);
+		return(err_msg);
 	}
 
 	/* Commit before load the table again */
@@ -3784,11 +3780,7 @@ dd_process_dd_tables_rec_and_mtr_commit(
 		err_msg = "Table not found";
 	}
 
-	if (err_msg) {
-		return(err_msg);
-	}
-
-	return(NULL);
+	return(err_msg);
 }
 
 /** Process one mysql.table_partitions record and get the dict_table_t
@@ -3818,7 +3810,7 @@ dd_process_dd_partitions_rec_and_mtr_commit(
 	ut_ad(!rec_get_deleted_flag(rec, dict_table_is_comp(dd_tables)));
 
 	ulint*	offsets = rec_get_offsets(rec, dd_tables->first_index(), NULL,
-		ULINT_UNDEFINED, &heap);
+					  ULINT_UNDEFINED, &heap);
 
 	field = rec_get_nth_field(rec, offsets, 7, &len);
 
@@ -3826,7 +3818,7 @@ dd_process_dd_partitions_rec_and_mtr_commit(
 	if (strncmp((const char*)field, "InnoDB", 6) != 0) {
 		*table = NULL;
 		mtr_commit(mtr);
-		return(NULL);
+		return(err_msg);
 	}
 
 	/* Get the se_private_id field. */
@@ -3835,7 +3827,7 @@ dd_process_dd_partitions_rec_and_mtr_commit(
 	if (len != 8) {
 		*table = NULL;
 		mtr_commit(mtr);
-		return(NULL);
+		return(err_msg);
 	}
 
 	/* Get the table id */
@@ -3845,7 +3837,7 @@ dd_process_dd_partitions_rec_and_mtr_commit(
 	if (table_id <= INNODB_DD_TABLE_ID_MAX) {
 		*table = NULL;
 		mtr_commit(mtr);
-		return(NULL);
+		return(err_msg);
 	}
 
 	/* Commit before load the table again */
@@ -3856,10 +3848,9 @@ dd_process_dd_partitions_rec_and_mtr_commit(
 
 	if (!(*table)) {
 		err_msg = "Table not found";
-		return(err_msg);
 	}
 
-	return(NULL);
+	return(err_msg);
 }
 
 /** Get next record of new DD system tables
@@ -3877,8 +3868,8 @@ dd_getnext_system_rec(
 	btr_pcur_restore_position(BTR_SEARCH_LEAF, pcur, mtr);
 
 	/* Get the next record */
-	while (!rec || rec_get_deleted_flag(rec,
-		dict_table_is_comp(pcur->index()->table))) {
+	while (!rec || rec_get_deleted_flag(
+			rec, dict_table_is_comp(pcur->index()->table))) {
 		btr_pcur_move_to_next_user_rec(pcur, mtr);
 
 		rec = btr_pcur_get_rec(pcur);
@@ -3927,7 +3918,7 @@ dd_process_dd_columns_rec(
 	ut_ad(!rec_get_deleted_flag(rec, dict_table_is_comp(dd_columns)));
 
 	ulint*	offsets = rec_get_offsets(rec, dd_columns->first_index(), NULL,
-		ULINT_UNDEFINED, &heap);
+					  ULINT_UNDEFINED, &heap);
 
 	/* Get the hidden attibute, and skip if it's a hidden column. */
 	field = (const byte*)rec_get_nth_field(rec, offsets, 25, &len);
@@ -3971,12 +3962,11 @@ dd_process_dd_columns_rec(
 		dict_table_t*	table;
 		MDL_ticket*	mdl = NULL;
 
-		/* Commit before load the table */
+		/* Commit before we try to load the table. */
 		mtr_commit(mtr);
 		table = dd_table_open_on_id(*table_id, thd, &mdl, true);
 
 		if (!table) {
-			delete p;
 			return(false);
 		}
 
@@ -4032,7 +4022,7 @@ dd_process_dd_indexes_rec(
 	ut_ad(!rec_get_deleted_flag(rec, dict_table_is_comp(dd_indexes)));
 
 	ulint*	offsets = rec_get_offsets(rec, dd_indexes->first_index(), NULL,
-		ULINT_UNDEFINED, &heap);
+					  ULINT_UNDEFINED, &heap);
 
 	field = rec_get_nth_field(rec, offsets, 16, &len);
 
@@ -4144,7 +4134,7 @@ dd_process_dd_datafiles_rec(
 	ut_ad(!rec_get_deleted_flag(rec, dict_table_is_comp(dd_files)));
 
 	ulint*	offsets = rec_get_offsets(rec, dd_files->first_index(), NULL,
-		ULINT_UNDEFINED, &heap);
+					  ULINT_UNDEFINED, &heap);
 
 	/* Get the se_private_data field. */
 	field = (const byte*)rec_get_nth_field(rec, offsets, 5, &len);
@@ -4208,7 +4198,7 @@ dd_process_dd_indexes_rec_simple(
 	ut_ad(!rec_get_deleted_flag(rec, dict_table_is_comp(dd_indexes)));
 
 	ulint*	offsets = rec_get_offsets(rec, dd_indexes->first_index(), NULL,
-		ULINT_UNDEFINED, &heap);
+					  ULINT_UNDEFINED, &heap);
 
 	field = rec_get_nth_field(rec, offsets, 16, &len);
 

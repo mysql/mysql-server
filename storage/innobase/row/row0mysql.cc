@@ -2979,7 +2979,6 @@ row_create_table_for_mysql(
 	bool		commit)	/*!< in: if true, commit the transaction */
 {
 	mem_heap_t*	heap;
-	que_thr_t*	thr = NULL;
 	dberr_t		err;
 
 	ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
@@ -3119,10 +3118,6 @@ error_handling:
 		trx_rollback_to_savepoint(trx, NULL);
 		dict_mem_table_free(table);
 		break;
-	}
-
-	if (thr != NULL) {
-		que_graph_free((que_t*) que_node_get_parent(thr));
 	}
 
 	trx->op_info = "";
@@ -3657,14 +3652,12 @@ row_add_table_to_background_drop_list(
 
 /** Reassigns the table identifier of a table.
 @param[in,out]	table	table
-@param[in,out]	trx	transaction
 @param[out]	new_id	new table id
 @return error code or DB_SUCCESS */
 static
 dberr_t
 row_mysql_table_id_reassign(
 	dict_table_t*	table,
-	trx_t*		trx,
 	table_id_t*	new_id)
 {
 	dict_hdr_get_new_id(new_id, NULL, NULL, table, false);
@@ -3858,7 +3851,7 @@ row_discard_tablespace(
 	/* Assign a new space ID to the table definition so that purge
 	can ignore the changes. Update the system table on disk. */
 
-	err = row_mysql_table_id_reassign(table, trx, &new_id);
+	err = row_mysql_table_id_reassign(table, &new_id);
 
 	if (err != DB_SUCCESS) {
 		return(err);
@@ -4144,12 +4137,9 @@ row_drop_ancillary_fts_tables(
 UNIV_INLINE
 dberr_t
 row_drop_table_from_cache(
-	const char*	tablename,
 	dict_table_t*	table,
 	trx_t*		trx)
 {
-	dberr_t	err = DB_SUCCESS;
-
 	/* Remove the pointer to this table object from the list
 	of modified tables by the transaction because the object
 	is going to be destroyed below. */
@@ -4175,7 +4165,7 @@ row_drop_table_from_cache(
 		table = NULL;
 	}
 
-	return(err);
+	return(DB_SUCCESS);
 }
 
 /** Drop a single-table tablespace as part of dropping or renaming a table.
@@ -4245,7 +4235,7 @@ row_drop_table_for_mysql(
 	mem_heap_t*	heap			= NULL;
 	bool		is_intrinsic_temp_table	= false;
 	THD*		thd = trx->mysql_thd;
-	dd::Table* table_def = nullptr;
+	dd::Table*	table_def = nullptr;
 	bool		file_per_table = false;
 	aux_name_vec_t	aux_vec;
 
@@ -4570,7 +4560,6 @@ row_drop_table_for_mysql(
 		     index = index->next()) {
 			dict_drop_index(index, *page_no++);
 		}
-		err = DB_SUCCESS;
 	} else {
 		page_no = page_nos;
 		for (dict_index_t* index = table->first_index();
@@ -4578,140 +4567,95 @@ row_drop_table_for_mysql(
 		     index = index->next()) {
 			dict_drop_temporary_table_index(index, *page_no++);
 		}
-		err = DB_SUCCESS;
 	}
 
-	switch (err) {
-		space_id_t	space_id;
-		bool		is_temp;
-		bool		ibd_file_missing;
-		bool		is_discarded;
-		bool		shared_tablespace;
-		table_id_t	table_id;
-		bool		is_encrypted;
+	space_id_t	space_id;
+	bool		is_temp;
+	bool		ibd_file_missing;
+	bool		is_discarded;
+	bool		shared_tablespace;
+	table_id_t	table_id;
+	bool		is_encrypted;
 
-	case DB_SUCCESS:
-		space_id = table->space;
-		table_id = table->id;
-		ibd_file_missing = table->ibd_file_missing;
-		is_discarded = dict_table_is_discarded(table);
-		is_temp = table->is_temporary();
-		shared_tablespace = DICT_TF_HAS_SHARED_SPACE(table->flags);
-		is_encrypted = dict_table_is_encrypted(table);
+	space_id = table->space;
+	table_id = table->id;
+	ibd_file_missing = table->ibd_file_missing;
+	is_discarded = dict_table_is_discarded(table);
+	is_temp = table->is_temporary();
+	shared_tablespace = DICT_TF_HAS_SHARED_SPACE(table->flags);
+	is_encrypted = dict_table_is_encrypted(table);
 
-		/* We do not allow temporary tables with a remote path. */
-		ut_a(!(is_temp && DICT_TF_HAS_DATA_DIR(table->flags)));
+	/* We do not allow temporary tables with a remote path. */
+	ut_a(!(is_temp && DICT_TF_HAS_DATA_DIR(table->flags)));
 
-		/* Make sure the data_dir_path is set if needed. */
-		dd_get_and_save_data_dir_path(table, table_def, true);
+	/* Make sure the data_dir_path is set if needed. */
+	dd_get_and_save_data_dir_path(table, table_def, true);
 
-		if (dict_table_has_fts_index(table)
-		    || DICT_TF2_FLAG_IS_SET(
-			table, DICT_TF2_FTS_HAS_DOC_ID)) {
-			err = row_drop_ancillary_fts_tables(
-				table, &aux_vec, trx);
-			if (err != DB_SUCCESS) {
-				break;
-			}
-		}
-
-		/* Determine the tablespace filename before we drop
-		dict_table_t.  Free this memory before returning. */
-		if (DICT_TF_HAS_DATA_DIR(table->flags)) {
-			ut_a(table->data_dir_path);
-
-			filepath = fil_make_filepath(
-				table->data_dir_path,
-				table->name.m_name, IBD, true);
-		} else if (!shared_tablespace) {
-			filepath = fil_make_filepath(
-				NULL, table->name.m_name, IBD, false);
-		}
-
-		/* Free the dict_table_t object. */
-		err = row_drop_table_from_cache(tablename, table, trx);
+	if (dict_table_has_fts_index(table)
+	    || DICT_TF2_FLAG_IS_SET(
+		table, DICT_TF2_FTS_HAS_DOC_ID)) {
+		err = row_drop_ancillary_fts_tables(
+			table, &aux_vec, trx);
 		if (err != DB_SUCCESS) {
-			break;
-		}
-
-		/* Do not attempt to drop known-to-be-missing tablespaces,
-		nor system or shared general tablespaces. */
-		if (is_discarded || ibd_file_missing || is_temp || shared_tablespace
-		    || fsp_is_system_or_temp_tablespace(space_id)) {
-			/* For encrypted table, if ibd file can not be decrypt,
-			we also set ibd_file_missing. We still need to try to
-			remove the ibd file for this. */
-			if (is_discarded || !is_encrypted
-			    || !ibd_file_missing) {
-				break;
-			}
-		}
-
-		if (is_encrypted) {
-			/* Require the mutex to block key rotation. */
-			mutex_enter(&master_key_id_mutex);
-		}
-
-		/* We can now drop the single-table tablespace. */
-		err = row_drop_single_table_tablespace(
-			space_id, tablename, filepath);
-
-		if (is_encrypted) {
-			mutex_exit(&master_key_id_mutex);
-		}
-
-		/* Finally, if it's not a temporary table,
-		let's try to delete the row in DDTableBuffer if exists */
-		if (!is_temp) {
-			mutex_enter(&dict_persist->mutex);
-			err = dict_persist->table_buffer->remove(table_id);
-			ut_ad(err == DB_SUCCESS);
-			mutex_exit(&dict_persist->mutex);
-		}
-
-		break;
-
-	case DB_OUT_OF_FILE_SPACE:
-		err = DB_MUST_GET_MORE_FILE_SPACE;
-
-		row_mysql_handle_errors(&err, trx, NULL, NULL);
-
-		/* raise error */
-		ut_error;
-		break;
-
-	case DB_TOO_MANY_CONCURRENT_TRXS:
-		/* Cannot even find a free slot for the
-		the undo log. We can directly exit here
-		and return the DB_TOO_MANY_CONCURRENT_TRXS
-		error. */
-
-	default:
-		/* This is some error we do not expect. Print
-		the error number and rollback the transaction */
-		ib::error() << "Unknown error code " << err << " while"
-			" dropping table: "
-			<< ut_get_name(trx, tablename) << ".";
-
-		trx->error_state = DB_SUCCESS;
-		trx_rollback_to_savepoint(trx, NULL);
-		trx->error_state = DB_SUCCESS;
-
-		/* Mark all indexes available in the data dictionary
-		cache again. */
-
-		page_no = page_nos;
-
-		for (dict_index_t* index = table->first_index();
-		     index != NULL;
-		     index = index->next()) {
-			rw_lock_x_lock(dict_index_get_lock(index));
-			ut_a(index->page == FIL_NULL);
-			index->page = *page_no++;
-			rw_lock_x_unlock(dict_index_get_lock(index));
+			goto next_step;
 		}
 	}
 
+	/* Determine the tablespace filename before we drop
+	dict_table_t.  Free this memory before returning. */
+	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
+		ut_a(table->data_dir_path);
+
+		filepath = fil_make_filepath(
+			table->data_dir_path,
+			table->name.m_name, IBD, true);
+	} else if (!shared_tablespace) {
+		filepath = fil_make_filepath(
+			NULL, table->name.m_name, IBD, false);
+	}
+
+	/* Free the dict_table_t object. */
+	err = row_drop_table_from_cache(table, trx);
+	if (err != DB_SUCCESS) {
+		goto next_step;
+	}
+
+	/* Do not attempt to drop known-to-be-missing tablespaces,
+	nor system or shared general tablespaces. */
+	if (is_discarded || ibd_file_missing || is_temp || shared_tablespace
+	    || fsp_is_system_or_temp_tablespace(space_id)) {
+		/* For encrypted table, if ibd file can not be decrypt,
+		we also set ibd_file_missing. We still need to try to
+		remove the ibd file for this. */
+		if (is_discarded || !is_encrypted
+		    || !ibd_file_missing) {
+			goto next_step;
+		}
+	}
+
+	if (is_encrypted) {
+		/* Require the mutex to block key rotation. */
+		mutex_enter(&master_key_id_mutex);
+	}
+
+	/* We can now drop the single-table tablespace. */
+	err = row_drop_single_table_tablespace(
+		space_id, tablename, filepath);
+
+	if (is_encrypted) {
+		mutex_exit(&master_key_id_mutex);
+	}
+
+	/* Finally, if it's not a temporary table,
+	let's try to delete the row in DDTableBuffer if exists */
+	if (!is_temp) {
+		mutex_enter(&dict_persist->mutex);
+		err = dict_persist->table_buffer->remove(table_id);
+		ut_ad(err == DB_SUCCESS);
+		mutex_exit(&dict_persist->mutex);
+	}
+
+next_step:
 	if (err != DB_SUCCESS && table != NULL) {
 		/* Drop table has failed with error but as drop table is not
 		transaction safe we should mark the table as corrupted to avoid

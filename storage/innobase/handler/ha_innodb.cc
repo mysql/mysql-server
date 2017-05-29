@@ -14967,8 +14967,6 @@ innobase_drop_database(
 	handlerton*	hton,
 	char*		path)
 {
-	char*	namebuf;
-
 	/* Get the transaction associated with the current thd, or create one
 	if not yet created */
 
@@ -14985,25 +14983,6 @@ innobase_drop_database(
 		check_trx_exists(thd);
 	}
 
-	ulint	len = 0;
-	char*	ptr = strend(path) - 2;
-
-	while (ptr >= path && *ptr != '\\' && *ptr != '/') {
-		ptr--;
-		len++;
-	}
-
-	ptr++;
-	namebuf = (char*) my_malloc(PSI_INSTRUMENT_ME, (uint) len + 2, MYF(0));
-
-	memcpy(namebuf, ptr, len);
-	namebuf[len] = '/';
-	namebuf[len + 1] = '\0';
-
-#ifdef	_WIN32
-	innobase_casedn_str(namebuf);
-#endif /* _WIN32 */
-
 	trx_t*	trx = innobase_trx_allocate(thd);
 
 	/* Either the transaction is already flagged as a locking transaction
@@ -15013,8 +14992,6 @@ innobase_drop_database(
 
 	/* We are doing a DDL operation. */
 	++trx->will_lock;
-
-	my_free(namebuf);
 
 	/* Flush the log to reduce probability that the .frm files and
 	the InnoDB data dictionary get out-of-sync if the user runs

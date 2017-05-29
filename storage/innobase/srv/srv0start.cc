@@ -1667,8 +1667,6 @@ srv_start(bool create_new_db, const char* scan_directories)
 	    && scan_directories != nullptr
 	    && strlen(scan_directories) > 0) {
 
-		dberr_t	err;
-
 		err = fil_scan_for_tablespaces(scan_directories);
 
 		if (err != DB_SUCCESS) {

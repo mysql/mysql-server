@@ -5206,16 +5206,12 @@ innobase_check_foreign_key_index(
 	return(false);
 }
 
-/**
-Rename a given index in the InnoDB data dictionary cache.
-
+/** Rename a given index in the InnoDB data dictionary cache.
 @param[in,out] index index to rename
-@param new_name new index name
-*/
+@param new_name new index name */
 static
 void
 rename_index_in_cache(
-/*==================*/
 	dict_index_t*	index,
 	const char*	new_name)
 {
