@@ -494,6 +494,28 @@ NdbOut & operator<<(NdbOut& ndbout,
   return ndbout;
 } 
 
+Uint32 decompress_part_pairs(
+  struct BackupFormat::LCPCtlFile *lcpCtlFilePtr,
+  Uint32 num_parts)
+{
+  static unsigned char c_part_array[BackupFormat::NDB_MAX_LCP_PARTS * 4];
+  Uint32 total_parts = 0;
+  unsigned char *part_array = (unsigned char*)&lcpCtlFilePtr->partPairs[0].startPart;
+  memcpy(c_part_array, part_array, 3 * num_parts);
+  for (Uint32 part = 0; part < num_parts; part++)
+  {
+    Uint32 part_0 = c_part_array[0];
+    Uint32 part_1 = c_part_array[1];
+    Uint32 part_2 = c_part_array[2];
+    Uint32 startPart = ((part_1 & 0xF) + (part_0 << 4));
+    Uint32 numParts = (((part_1 >> 4) & 0xF)) + (part_2 << 4);
+    lcpCtlFilePtr->partPairs[part].startPart = startPart;
+    lcpCtlFilePtr->partPairs[part].numParts = numParts;
+    total_parts += numParts;
+  }
+  return total_parts;
+}
+
 bool 
 readLCPCtlFile(ndbzio_stream* f, BackupFormat::LCPCtlFile *ret)
 
@@ -526,6 +548,7 @@ readLCPCtlFile(ndbzio_stream* f, BackupFormat::LCPCtlFile *ret)
   theData.LCPCtlFile.MaxPartPairs = ntohl(theData.LCPCtlFile.MaxPartPairs);
   theData.LCPCtlFile.NumPartPairs = ntohl(theData.LCPCtlFile.NumPartPairs);
 
+  decompress_part_pairs(&theData.LCPCtlFile, theData.LCPCtlFile.NumPartPairs);
   if (theData.LCPCtlFile.NumPartPairs > 1)
   {
     sz = sizeof(BackupFormat::PartPair) *
@@ -533,14 +556,6 @@ readLCPCtlFile(ndbzio_stream* f, BackupFormat::LCPCtlFile *ret)
     dst = (char*)&theData.LCPCtlFile.partPairs[1];
     if(aread(dst, sz, 1, f) != 1)
       RETURN_FALSE();
-  }
-  for (Uint32 i = 0; i < theData.LCPCtlFile.NumPartPairs; i++)
-  {
-    BackupFormat::PartPair locPartPair =
-      theData.LCPCtlFile.partPairs[i];
-    locPartPair.startPart = ntohs(locPartPair.startPart);
-    locPartPair.numParts = ntohs(locPartPair.numParts);
-    theData.LCPCtlFile.partPairs[i] = locPartPair;
   }
   *ret = theData.LCPCtlFile;
   return true;
