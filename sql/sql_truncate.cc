@@ -22,7 +22,7 @@
 #include "auth_common.h"    // DROP_ACL
 #include "dd/cache/dictionary_client.h"// dd::cache::Dictionary_client
 #include "dd/dd_schema.h"   // dd::Schema_MDL_locker
-#include "dd/dd_table.h"    // dd::recreate_table
+#include "dd/dd_table.h"    // dd::table_storage_engine
 #include "dd/types/abstract_table.h" // dd::enum_table_type
 #include "dd/types/table.h" // dd::Table
 #include "debug_sync.h"     // DEBUG_SYNC
@@ -397,7 +397,7 @@ static bool recreate_temporary_table(THD *thd, TABLE *table)
 
   if ((new_table= open_table_uncached(thd, share->path.str, share->db.str,
                                       share->table_name.str, true, true,
-                                      share->tmp_table_def)))
+                                      *share->tmp_table_def)))
   {
     /* Transfer ownership of dd::Table object to the new TABLE_SHARE. */
     new_table->s->tmp_table_def= share->tmp_table_def;

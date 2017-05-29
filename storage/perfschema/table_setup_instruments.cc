@@ -35,32 +35,20 @@
 
 THR_LOCK table_setup_instruments::m_table_lock;
 
-/* clang-format off */
-static const TABLE_FIELD_TYPE field_types[]=
-{
-  {
-    { C_STRING_WITH_LEN("NAME") },
-    { C_STRING_WITH_LEN("varchar(128)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("ENABLED") },
-    { C_STRING_WITH_LEN("enum(\'YES\',\'NO\')") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("TIMED") },
-    { C_STRING_WITH_LEN("enum(\'YES\',\'NO\')") },
-    { NULL, 0}
-  }
-};
-/* clang-format on */
-
-TABLE_FIELD_DEF
-table_setup_instruments::m_field_def = {3, field_types};
+Plugin_table table_setup_instruments::m_table_def(
+  /* Name */
+  "setup_instruments",
+  /* Definition */
+  "  NAME VARCHAR(128) not null,\n"
+  "  ENABLED ENUM ('YES', 'NO') not null,\n"
+  "  TIMED ENUM ('YES', 'NO') not null,\n"
+  "  PRIMARY KEY (NAME) USING HASH\n",
+  /* Options */
+  " ENGINE=PERFORMANCE_SCHEMA",
+  /* Tablespace */
+  nullptr);
 
 PFS_engine_table_share table_setup_instruments::m_share = {
-  {C_STRING_WITH_LEN("setup_instruments")},
   &pfs_updatable_acl,
   table_setup_instruments::create,
   NULL, /* write_row */
@@ -68,9 +56,8 @@ PFS_engine_table_share table_setup_instruments::m_share = {
   table_setup_instruments::get_row_count,
   sizeof(pos_setup_instruments),
   &m_table_lock,
-  &m_field_def,
-  false, /* checked */
-  false  /* perpetual */
+  &m_table_def,
+  false /* perpetual */
 };
 
 bool

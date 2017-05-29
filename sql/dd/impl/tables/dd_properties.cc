@@ -198,10 +198,25 @@ uint DD_properties::get_actual_I_S_version(THD *thd) const
 }
 
 
+// Get property value for key 'PS_version'
+uint DD_properties::get_actual_P_S_version(THD *thd) const
+{
+  bool not_used;
+  return get_property(thd, "PS_version", &not_used);
+}
+
+
 // Set property value for key 'IS_version'
 bool DD_properties::set_I_S_version(THD *thd, uint version)
 {
   return set_property(thd, "IS_version", version);
+}
+
+
+// Set property value for key 'PS_version'
+bool DD_properties::set_P_S_version(THD *thd, uint version)
+{
+  return set_property(thd, "PS_version", version);
 }
 
 }

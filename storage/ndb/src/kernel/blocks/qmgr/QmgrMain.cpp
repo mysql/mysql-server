@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -43,7 +43,10 @@
 #include <signaldata/DihRestart.hpp>
 #include <signaldata/DumpStateOrd.hpp>
 #include <signaldata/IsolateOrd.hpp>
+#include <signaldata/ProcessInfoRep.hpp>
 #include <ndb_version.h>
+#include <OwnProcessInfo.hpp>
+#include <NodeInfo.hpp>
 
 #include <TransporterRegistry.hpp> // Get connect address
 
@@ -2855,6 +2858,13 @@ void Qmgr::sendHeartbeat(Signal* signal)
      *-----------------------------------------------------------------------*/
     return;
   }//if
+
+  if(ERROR_INSERTED(946))
+  {
+    sleep(180);
+    return;
+  }
+
   ptrCheckGuard(localNodePtr, MAX_NDB_NODES, nodeRec);
   signal->theData[0] = getOwnNodeId();
 
@@ -3469,6 +3479,7 @@ void Qmgr::execDISCONNECT_REP(Signal* signal)
     CRASH_INSERTION(932);
     CRASH_INSERTION(938);
     CRASH_INSERTION(944);
+    CRASH_INSERTION(946);
     BaseString::snprintf(buf, 100, "Node %u disconnected", nodeId);    
     progError(__LINE__, NDBD_EXIT_SR_OTHERNODEFAILED, buf);
     ndbrequire(false);
@@ -3651,6 +3662,8 @@ Qmgr::api_failed(Signal* signal, Uint32 nodeId)
   closeCom->requestType = CloseComReqConf::RT_API_FAILURE;
   closeCom->failNo      = 0;
   closeCom->noOfNodes   = 1;
+  ProcessInfo * processInfo = getProcessInfo(nodeId);
+  if(processInfo) processInfo->invalidate();
   NodeBitmask::clear(closeCom->theNodes);
   NodeBitmask::set(closeCom->theNodes, failedNodePtr.i);
   sendSignal(TRPMAN_REF, GSN_CLOSE_COMREQ, signal,
@@ -4228,7 +4241,17 @@ void Qmgr::failReportLab(Signal* signal, Uint16 aFailedNode,
     CRASH_INSERTION(932);
     CRASH_INSERTION(938);
     char buf[100];
-    BaseString::snprintf(buf, 100, "Node failure during restart");
+    switch(aFailCause)
+    {
+      case FailRep::ZHEARTBEAT_FAILURE:
+        BaseString::snprintf(buf, 100 ,"Node %d heartbeat failure",
+                             failedNodePtr.i);
+        CRASH_INSERTION(947);
+        break;
+      default:
+        BaseString::snprintf(buf, 100 , "Node %d failed",
+                             failedNodePtr.i);
+    }
     progError(__LINE__, NDBD_EXIT_SR_OTHERNODEFAILED, buf);
     ndbrequire(false);
   }
@@ -5252,12 +5275,6 @@ void Qmgr::sendPrepFailReq(Signal* signal, Uint16 aNode)
  */
 
 /**
- * Should < 1/2 nodes die unconditionally.  Affects only >= 3-way
- * replication.
- */
-static const bool g_ndb_arbit_one_half_rule = false;
-
-/**
  * Config signals are logically part of CM_INIT.
  */
 void
@@ -5463,24 +5480,42 @@ Qmgr::handleArbitNdbAdd(Signal* signal, Uint16 nodeId)
  * (if we have one).  Always starts a new thread because
  * 1) CHOOSE cannot wait 2) if we are new president we need
  * a thread 3) if we are old president it does no harm.
+ *
+ * The following logic governs if we will survive or not.
+ * 1) If at least one node group is fully dead then we will not survive.
+ * 2) If 1) is false AND at least one group is fully alive then we will
+ *    survive.
+ * 3) If 1) AND 2) is false AND a majority of the previously alive nodes are
+ *    dead then we will not survive.
+ * 4) If 1) AND 2) AND 3) is false AND a majority of the previously alive
+ *    nodes are still alive, then we will survive.
+ * 5) If 1) AND 2) AND 3) AND 4) is false then exactly half of the previously
+ *    alive nodes are dead and the other half is alive. In this case we will
+ *    ask the arbitrator whether we can continue or not. If no arbitrator is
+ *    currently selected then we will fail. If an arbitrator exists then it
+ *    will respond with either WIN in which case our part of the cluster will
+ *    remain alive and LOSE in which case our part of the cluster will not
+ *    survive.
+ *
+ * The number of previously alive nodes are the sum of the currently alive
+ * nodes plus the number of nodes currently forming a node set that will
+ * die. All other nodes was dead in a previous node fail transaction and are
+ * not counted in the number of previously alive nodes.
  */
 void
 Qmgr::handleArbitCheck(Signal* signal)
 {
   jam();
+  Uint32 prev_alive_nodes = count_previously_alive_nodes();
   ndbrequire(cpresident == getOwnNodeId());
-  NdbNodeBitmask ndbMask;
-  computeArbitNdbMask(ndbMask);
-  if (g_ndb_arbit_one_half_rule && !ERROR_INSERTED(943) &&
-      2 * ndbMask.count() < cnoOfNodes) {
-    jam();
-    arbitRec.code = ArbitCode::LoseNodes;
-  } else {
+  NdbNodeBitmask survivorNodes;
+  computeArbitNdbMask(survivorNodes);
+  {
     jam();
     CheckNodeGroups* sd = (CheckNodeGroups*)&signal->theData[0];
     sd->blockRef = reference();
     sd->requestType = CheckNodeGroups::Direct | CheckNodeGroups::ArbitCheck;
-    sd->mask = ndbMask;
+    sd->mask = survivorNodes;
     EXECUTE_DIRECT(DBDIH, GSN_CHECKNODEGROUPSREQ, signal, 
 		   CheckNodeGroups::SignalLength);
     jamEntry();
@@ -5503,10 +5538,35 @@ Qmgr::handleArbitCheck(Signal* signal)
     case CheckNodeGroups::Partitioning:
       jam();
       arbitRec.code = ArbitCode::Partitioning;
-      if (g_ndb_arbit_one_half_rule &&
-          2 * ndbMask.count() > cnoOfNodes) {
+      if (2 * survivorNodes.count() > prev_alive_nodes)
+      {
+        /**
+         * We have lost nodes in all node groups so we are in a
+         * potentially partitioned state. If we have the majority
+         * of the nodes in this partition we will definitely
+         * survive.
+         */
         jam();
         arbitRec.code = ArbitCode::WinNodes;
+      }
+      else if (2 * survivorNodes.count() < prev_alive_nodes)
+      {
+        jam();
+        /**
+         * More than half of the live nodes failed and nodes from
+         * all node groups failed, we are definitely in a losing
+         * streak and we will be part of the failing side. Time
+         * to crash.
+         */
+        arbitRec.code = ArbitCode::LoseNodes;
+      }
+      else
+      {
+        jam();
+        /**
+         * Half of the live nodes failed, we can be in a partitioned
+         * state, use the arbitrator to decide what to do next.
+         */
       }
       break;
     default:
@@ -5524,7 +5584,8 @@ Qmgr::handleArbitCheck(Signal* signal)
     jam();
   case ArbitCode::WinGroups:
     jam();
-    if (arbitRec.state == ARBIT_RUN) {
+    if (arbitRec.state == ARBIT_RUN)
+    {
       jam();
       break;
     }
@@ -5532,16 +5593,20 @@ Qmgr::handleArbitCheck(Signal* signal)
     arbitRec.newstate = true;
     break;
   case ArbitCode::Partitioning:
-    if (arbitRec.state == ARBIT_RUN) {
+    if (arbitRec.state == ARBIT_RUN)
+    {
       jam();
       arbitRec.state = ARBIT_CHOOSE;
       arbitRec.newstate = true;
       break;
     }
-    if (arbitRec.apiMask[0].count() != 0) {
+    if (arbitRec.apiMask[0].count() != 0)
+    {
       jam();
       arbitRec.code = ArbitCode::LoseNorun;
-    } else {
+    }
+    else
+    {
       jam();
       arbitRec.code = ArbitCode::LoseNocfg;
     }
@@ -5557,8 +5622,8 @@ Qmgr::handleArbitCheck(Signal* signal)
   switch (arbitRec.state) {
   default:
     jam();
-    arbitRec.newMask.bitAND(ndbMask);   // delete failed nodes
-    arbitRec.recvMask.bitAND(ndbMask);
+    arbitRec.newMask.bitAND(survivorNodes);   // delete failed nodes
+    arbitRec.recvMask.bitAND(survivorNodes);
     sendCommitFailReq(signal);          // start commit of failed nodes
     break;
   case ARBIT_CHOOSE:
@@ -6278,6 +6343,25 @@ Qmgr::execARBIT_STOPREP(Signal* signal)
   }
   arbitRec.code = ArbitCode::ApiExit;
   handleArbitApiFail(signal, arbitRec.node);
+}
+
+Uint32
+Qmgr::count_previously_alive_nodes()
+{
+  Uint32 count = 0;
+  NodeRecPtr aPtr;
+  for (aPtr.i = 1; aPtr.i < MAX_NDB_NODES; aPtr.i++)
+  {
+    jam();
+    ptrAss(aPtr, nodeRec);
+    if (getNodeInfo(aPtr.i).getType() == NodeInfo::DB &&
+        (aPtr.p->phase == ZRUNNING || aPtr.p->phase == ZPREPARE_FAIL))
+    {
+      jam();
+      count++;
+    }
+  }
+  return count;
 }
 
 void
@@ -7485,6 +7569,18 @@ Qmgr::handleFailFromSuspect(Signal* signal,
   failReportLab(signal, sourceNode, (FailRep::FailCause) reason, getOwnNodeId());
 }
 
+ProcessInfo *
+Qmgr::getProcessInfo(Uint32 nodeId)
+{
+  ProcessInfo * storedProcessInfo = 0;
+  Int16 index = processInfoNodeIndex[nodeId];
+  if(index >= 0)
+    storedProcessInfo = & receivedProcessInfo[index];
+  else if(nodeId == getOwnNodeId())
+    storedProcessInfo = getOwnProcessInfo(getOwnNodeId());
+  return storedProcessInfo;
+}
+
 void
 Qmgr::execDBINFO_SCANREQ(Signal *signal)
 {
@@ -7580,12 +7676,105 @@ Qmgr::execDBINFO_SCANREQ(Signal *signal)
     ndbinfo_send_row(signal, req, row, rl);
     break;
   }
+  case Ndbinfo::PROCESSES_TABLEID:
+  {
+    jam();
+    for(int i = 1 ; i <= max_api_node_id ; i++)
+    {
+      NodeInfo nodeInfo = getNodeInfo(i);
+      if(nodeInfo.m_connected)
+      {
+        char version_buffer[NDB_VERSION_STRING_BUF_SZ];
+        ndbGetVersionString(nodeInfo.m_version, nodeInfo.m_mysql_version,
+                            0, version_buffer, NDB_VERSION_STRING_BUF_SZ);
+
+        ProcessInfo *processInfo = getProcessInfo(i);
+        if(processInfo && processInfo->isValid())
+        {
+          char uri_buffer[512];
+          processInfo->getServiceUri(uri_buffer, sizeof(uri_buffer));
+          Ndbinfo::Row row(signal, req);
+          row.write_uint32(getOwnNodeId());                 // reporting_node_id
+          row.write_uint32(i);                              // node_id
+          row.write_uint32(nodeInfo.getType());             // node_type
+          row.write_string(version_buffer);                 // node_version
+          row.write_uint32(processInfo->getPid());          // process_id
+          row.write_uint32(processInfo->getAngelPid());     // angel_process_id
+          row.write_string(processInfo->getProcessName());  // process_name
+          row.write_string(uri_buffer);                     // service_URI
+          ndbinfo_send_row(signal, req, row, rl);
+        }
+        else if(nodeInfo.m_type != NodeInfo::DB)
+        {
+          /* MGM/API node is an older version or has not sent ProcessInfoRep */
+
+          struct in_addr addr= globalTransporterRegistry.get_connect_address(i);
+          char service_uri[32];
+          strcpy(service_uri, "ndb://");
+          Ndb_inet_ntop(AF_INET, & addr, service_uri + 6, 24);
+
+          Ndbinfo::Row row(signal, req);
+          row.write_uint32(getOwnNodeId());                 // reporting_node_id
+          row.write_uint32(i);                              // node_id
+          row.write_uint32(nodeInfo.getType());             // node_type
+          row.write_string(version_buffer);                 // node_version
+          row.write_uint32(0);                              // process_id
+          row.write_uint32(0);                              // angel_process_id
+          row.write_string("");                             // process_name
+          row.write_string(service_uri);                    // service_URI
+          ndbinfo_send_row(signal, req, row, rl);
+        }
+      }
+    }
+    break;
+  }
   default:
     break;
   }
   ndbinfo_send_scan_conf(signal, req, rl);
 }
 
+
+void
+Qmgr::execPROCESSINFO_REP(Signal *signal)
+{
+  jamEntry();
+  ProcessInfoRep * report = (ProcessInfoRep *) signal->theData;
+  SectionHandle handle(this, signal);
+  SegmentedSectionPtr pathSectionPtr, hostSectionPtr;
+
+  ProcessInfo * processInfo = getProcessInfo(report->node_id);
+  if(processInfo)
+  {
+    /* Set everything except the connection name and host address */
+    processInfo->initializeFromProcessInfoRep(report);
+
+    /* Set the URI path */
+    if(handle.getSection(pathSectionPtr, ProcessInfoRep::PathSectionNum))
+    {
+      processInfo->setUriPath(pathSectionPtr.p->theData);
+    }
+
+    /* Set the host address */
+    if(handle.getSection(hostSectionPtr, ProcessInfoRep::HostSectionNum))
+    {
+      processInfo->setHostAddress(hostSectionPtr.p->theData);
+    }
+    else
+    {
+      /* Use the address from the transporter registry.
+         As implemented below we use setHostAddress() with struct in_addr
+         to set an IPv4 address.  An alternate more abstract version
+         of ProcessInfo::setHostAddress() is also available, which
+         takes a struct sockaddr * and length.
+      */
+      struct in_addr addr=
+        globalTransporterRegistry.get_connect_address(report->node_id);
+      processInfo->setHostAddress(& addr);
+    }
+  }
+  releaseSections(handle);
+}
 
 void
 Qmgr::execISOLATE_ORD(Signal* signal)

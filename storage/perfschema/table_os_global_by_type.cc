@@ -34,57 +34,26 @@
 
 THR_LOCK table_os_global_by_type::m_table_lock;
 
-/* clang-format off */
-static const TABLE_FIELD_TYPE field_types[]=
-{
-  {
-    { C_STRING_WITH_LEN("OBJECT_TYPE") },
-    { C_STRING_WITH_LEN("varchar(64)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("OBJECT_SCHEMA") },
-    { C_STRING_WITH_LEN("varchar(64)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("OBJECT_NAME") },
-    { C_STRING_WITH_LEN("varchar(64)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("COUNT_STAR") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SUM_TIMER_WAIT") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("MIN_TIMER_WAIT") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("AVG_TIMER_WAIT") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("MAX_TIMER_WAIT") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  }
-};
-/* clang-format on */
-
-TABLE_FIELD_DEF
-table_os_global_by_type::m_field_def = {8, field_types};
+Plugin_table table_os_global_by_type::m_table_def(
+  /* Name */
+  "objects_summary_global_by_type",
+  /* Definition */
+  "  OBJECT_TYPE VARCHAR(64),\n"
+  "  OBJECT_SCHEMA VARCHAR(64),\n"
+  "  OBJECT_NAME VARCHAR(64),\n"
+  "  COUNT_STAR BIGINT unsigned not null,\n"
+  "  SUM_TIMER_WAIT BIGINT unsigned not null,\n"
+  "  MIN_TIMER_WAIT BIGINT unsigned not null,\n"
+  "  AVG_TIMER_WAIT BIGINT unsigned not null,\n"
+  "  MAX_TIMER_WAIT BIGINT unsigned not null,\n"
+  "  UNIQUE KEY `OBJECT` (OBJECT_TYPE, OBJECT_SCHEMA,\n"
+  "                       OBJECT_NAME) USING HASH\n",
+  /* Options */
+  " ENGINE=PERFORMANCE_SCHEMA",
+  /* Tablespace */
+  nullptr);
 
 PFS_engine_table_share table_os_global_by_type::m_share = {
-  {C_STRING_WITH_LEN("objects_summary_global_by_type")},
   &pfs_truncatable_acl,
   table_os_global_by_type::create,
   NULL, /* write_row */
@@ -92,9 +61,8 @@ PFS_engine_table_share table_os_global_by_type::m_share = {
   table_os_global_by_type::get_row_count,
   sizeof(pos_os_global_by_type),
   &m_table_lock,
-  &m_field_def,
-  false, /* checked */
-  false  /* perpetual */
+  &m_table_def,
+  false /* perpetual */
 };
 
 bool

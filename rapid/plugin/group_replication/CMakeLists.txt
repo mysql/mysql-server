@@ -32,6 +32,7 @@ SET(GROUP_REPLICATION_SOURCES
   src/gcs_operations.cc
   src/gcs_plugin_messages.cc
   src/gcs_view_modification_notifier.cc
+  src/group_partition_handling.cc
   src/member_info.cc
   src/observer_server_actions.cc
   src/observer_server_channels.cc
@@ -47,6 +48,7 @@ SET(GROUP_REPLICATION_SOURCES
   src/recovery.cc
   src/recovery_channel_state_observer.cc
   src/applier_channel_state_observer.cc
+  src/asynchronous_channels_state_observer.cc
   src/recovery_message.cc
   src/recovery_state_transfer.cc
   src/replication_threads_api.cc
@@ -62,7 +64,12 @@ SET(GROUP_REPLICATION_SOURCES
   src/sql_service/sql_service_interface.cc
   src/sql_service/sql_command_test.cc
   src/sql_service/sql_service_command.cc
+  src/services/notification/notification.cc
+  src/services/registry.cc
 )
+
+SET(GMS_LISTENER_SERVICE_TEST_SOURCES
+    src/services/notification/impl/gms_listener_test.cc)
 
 ADD_DEFINITIONS(-DMYSQL_SERVER)
 
@@ -83,6 +90,7 @@ ENDIF()
 # declare the plugin itself
 MYSQL_ADD_PLUGIN(group_replication
                  ${GROUP_REPLICATION_SOURCES}
+                 ${GMS_LISTENER_SERVICE_TEST_SOURCES}
                  LINK_LIBRARIES
                  ${LZ4_LIBRARY}
                  ${SSL_LIBRARIES}

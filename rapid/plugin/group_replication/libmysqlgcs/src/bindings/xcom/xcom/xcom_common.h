@@ -27,7 +27,7 @@ extern "C" {
 #endif
 
 typedef uint16_t xcom_port;
-#define number_is_valid_port(n) ((n) > 0 && (n) <= UINT16_MAX)
+#define number_is_valid_port(n) ((n) > 0 && (n) <= (int) UINT16_MAX)
 
 typedef void *gpointer;
 typedef char	gchar;

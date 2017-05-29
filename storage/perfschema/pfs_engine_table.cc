@@ -130,6 +130,7 @@
 #include "table_variables_by_thread.h"
 #include "table_variables_info.h"
 #include "table_persisted_variables.h"
+#include "table_user_defined_functions.h"
 
 /**
   @page PAGE_PFS_NEW_TABLE Implementing a new performance_schema table
@@ -456,8 +457,7 @@ PFS_table_context::initialize(void)
   if (m_restore)
   {
     /* Restore context from TLS. */
-    PFS_table_context *context =
-      static_cast<PFS_table_context *>(my_get_thread_local(m_thr_key));
+    PFS_table_context *context = THR_PFS_contexts[m_thr_key];
     DBUG_ASSERT(context != NULL);
 
     if (context)
@@ -472,9 +472,7 @@ PFS_table_context::initialize(void)
   else
   {
     /* Check that TLS is not in use. */
-    PFS_table_context *context =
-      static_cast<PFS_table_context *>(my_get_thread_local(m_thr_key));
-    // DBUG_ASSERT(context == NULL);
+    PFS_table_context *context = THR_PFS_contexts[m_thr_key];
 
     context = this;
 
@@ -483,19 +481,8 @@ PFS_table_context::initialize(void)
     m_map = NULL;
     m_word_size = sizeof(ulong) * 8;
 
-#if 0
-    /* Disabled. */
-    /* Allocate a bitmap to record which threads are materialized. */
-    if (m_map_size > 0)
-    {
-      THD *thd= current_thd;
-      ulong words= m_map_size / m_word_size + (m_map_size % m_word_size > 0);
-      m_map= (ulong *)thd->mem_calloc(words * m_word_size);
-    }
-#endif
-
     /* Write to TLS. */
-    my_set_thread_local(m_thr_key, static_cast<void *>(context));
+    THR_PFS_contexts[m_thr_key] = context;
   }
 
   m_initialized = (m_map_size > 0) ? (m_map != NULL) : true;
@@ -506,7 +493,7 @@ PFS_table_context::initialize(void)
 /* Constructor for global or single thread tables, map size = 0.  */
 PFS_table_context::PFS_table_context(ulonglong current_version,
                                      bool restore,
-                                     thread_local_key_t key)
+                                     THR_PFS_key key)
   : m_thr_key(key),
     m_current_version(current_version),
     m_last_version(0),
@@ -525,7 +512,7 @@ PFS_table_context::PFS_table_context(ulonglong current_version,
 PFS_table_context::PFS_table_context(ulonglong current_version,
                                      ulong map_size,
                                      bool restore,
-                                     thread_local_key_t key)
+                                     THR_PFS_key key)
   : m_thr_key(key),
     m_current_version(current_version),
     m_last_version(0),
@@ -541,11 +528,6 @@ PFS_table_context::PFS_table_context(ulonglong current_version,
 
 PFS_table_context::~PFS_table_context(void)
 {
-  /* Clear TLS after final use. */
-  //  if (m_restore)
-  //  {
-  //    my_set_thread_local(m_thr_key, NULL);
-  //  }
 }
 
 void
@@ -682,106 +664,20 @@ static PFS_engine_table_share *all_shares[] = {
   &table_session_variables::m_share,
   &table_variables_info::m_share,
   &table_persisted_variables::m_share,
+  &table_user_defined_functions::m_share,
 
   NULL};
 
-/**
-  Check all the tables structure.
-  @param thd              current thread
-*/
+/** Get all the core performance schema tables. */
 void
-PFS_engine_table_share::check_all_tables(THD *thd)
+PFS_engine_table_share::get_all_tables(List<const Plugin_table> *tables)
 {
   PFS_engine_table_share **current;
 
-  DBUG_EXECUTE_IF("tampered_perfschema_table1", {
-    /* Hack SETUP_INSTRUMENT, incompatible change. */
-    all_shares[20]->m_field_def->count++;
-  });
-
   for (current = &all_shares[0]; (*current) != NULL; current++)
   {
-    (*current)->check_one_table(thd);
+    tables->push_back((*current)->m_table_def);
   }
-}
-
-/** Error reporting for schema integrity checks. */
-class PFS_check_intact : public Table_check_intact
-{
-protected:
-  virtual void report_error(uint code, const char *fmt, ...);
-
-public:
-  PFS_check_intact()
-  {
-  }
-
-  ~PFS_check_intact()
-  {
-  }
-};
-
-void
-PFS_check_intact::report_error(uint, const char *fmt, ...)
-{
-  va_list args;
-  char buff[MYSQL_ERRMSG_SIZE];
-
-  va_start(args, fmt);
-  my_vsnprintf(buff, sizeof(buff), fmt, args);
-  va_end(args);
-
-  /*
-    This is an install/upgrade issue:
-    - do not report it in the user connection, there is none in main(),
-    - report it in the server error log.
-  */
-  sql_print_error("%s", buff);
-}
-
-/**
-  Check integrity of the actual table schema.
-  The actual table schema is compared to the expected schema.
-  @param thd              current thread
-*/
-void
-PFS_engine_table_share::check_one_table(THD *thd)
-{
-  TABLE_LIST tables;
-
-  tables.init_one_table(PERFORMANCE_SCHEMA_str.str,
-                        PERFORMANCE_SCHEMA_str.length,
-                        m_name.str,
-                        m_name.length,
-                        m_name.str,
-                        TL_READ);
-
-  /* Work around until Bug#32115 is backported. */
-  LEX dummy_lex;
-  LEX *old_lex = thd->lex;
-  thd->lex = &dummy_lex;
-  lex_start(thd);
-
-  if (!open_and_lock_tables(thd, &tables, MYSQL_LOCK_IGNORE_TIMEOUT))
-  {
-    PFS_check_intact checker;
-
-    if (!checker.check(thd, tables.table, m_field_def))
-    {
-      m_checked = true;
-    }
-    close_thread_tables(thd);
-  }
-  else
-  {
-    sql_print_error(ER_DEFAULT(ER_WRONG_NATIVE_TABLE_STRUCTURE),
-                    PERFORMANCE_SCHEMA_str.str,
-                    m_name.str);
-    thd->clear_error();
-  }
-
-  lex_end(&dummy_lex);
-  thd->lex = old_lex;
 }
 
 /** Initialize all the table share locks. */
@@ -820,15 +716,6 @@ PFS_engine_table_share::write_row(TABLE *table,
                                   Field **fields) const
 {
   my_bitmap_map *org_bitmap;
-
-  /*
-    Make sure the table structure is as expected before mapping
-    hard wired columns in m_write_row.
-  */
-  if (!m_checked)
-  {
-    return HA_ERR_TABLE_NEEDS_UPGRADE;
-  }
 
   if (m_write_row == NULL)
   {
@@ -883,7 +770,7 @@ PFS_engine_table::find_engine_table_share(const char *name)
 
   for (current = &all_shares[0]; (*current) != NULL; current++)
   {
-    if (compare_table_names(name, (*current)->m_name.str) == 0)
+    if (compare_table_names(name, (*current)->m_table_def->get_name()) == 0)
     {
       DBUG_RETURN(*current);
     }
@@ -905,15 +792,6 @@ PFS_engine_table::read_row(TABLE *table, unsigned char *buf, Field **fields)
   my_bitmap_map *org_bitmap;
   Field *f;
   Field **fields_reset;
-
-  /*
-    Make sure the table structure is as expected before mapping
-    hard wired columns in read_row_values.
-  */
-  if (!m_share_ptr->m_checked)
-  {
-    return HA_ERR_TABLE_NEEDS_UPGRADE;
-  }
 
   /* We must read all columns in case a table is opened for update */
   bool read_all = !bitmap_is_clear_all(table->write_set);
@@ -954,15 +832,6 @@ PFS_engine_table::update_row(TABLE *table,
 {
   my_bitmap_map *org_bitmap;
 
-  /*
-    Make sure the table structure is as expected before mapping
-    hard wired columns in update_row_values.
-  */
-  if (!m_share_ptr->m_checked)
-  {
-    return HA_ERR_TABLE_NEEDS_UPGRADE;
-  }
-
   /* We internally read from Fields to support the write interface */
   org_bitmap = dbug_tmp_use_all_columns(table, table->read_set);
   int result = update_row_values(table, old_buf, new_buf, fields);
@@ -977,15 +846,6 @@ PFS_engine_table::delete_row(TABLE *table,
                              Field **fields)
 {
   my_bitmap_map *org_bitmap;
-
-  /*
-    Make sure the table structure is as expected before mapping
-    hard wired columns in delete_row_values.
-  */
-  if (!m_share_ptr->m_checked)
-  {
-    return HA_ERR_TABLE_NEEDS_UPGRADE;
-  }
 
   /* We internally read from Fields to support the delete interface */
   org_bitmap = dbug_tmp_use_all_columns(table, table->read_set);
@@ -1485,15 +1345,6 @@ PFS_key_reader::read_varchar_utf8(enum ha_rkey_function find_flag,
     *buffer_length = (uint)string_len;
 
     uchar *pos = (uchar *)buffer;
-#if 0
-    const CHARSET_INFO *cs= &my_charset_utf8_bin; // FIXME
-    if (cs->mbmaxlen > 1)
-    {
-      size_t char_length;
-      char_length= my_charpos(cs, pos, pos + string_len, string_len/cs->mbmaxlen);
-      set_if_smaller(string_len, char_length);
-    }
-#endif
     const uchar *end = skip_trailing_space(pos, string_len);
     *buffer_length = (uint)(end - pos);
 

@@ -173,7 +173,7 @@ SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/
 SET @@session.character_set_client=255,@@session.collation_connection=255,@@session.collation_server=255/*!*/;
 SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
-SET @@session.explicit_defaults_for_timestamp=0/*!*/;
+SET @@session.explicit_defaults_for_timestamp=1/*!*/;
 CREATE TABLE t3(c1 INT NOT NULL PRIMARY KEY, c2 LONGBLOB, c3 TIMESTAMP, c4 TEXT, c5 FLOAT)
 /*!*/;
 SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
@@ -224,7 +224,7 @@ CREATE TABLE t2(id INT AUTO_INCREMENT NOT NULL PRIMARY KEY)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
-SET @@session.explicit_defaults_for_timestamp=0/*!*/;
+SET @@session.explicit_defaults_for_timestamp=1/*!*/;
 CREATE TABLE t3(c1 INT NOT NULL PRIMARY KEY, c2 LONGBLOB, c3 TIMESTAMP, c4 TEXT, c5 FLOAT)
 /*!*/;
 SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
@@ -358,7 +358,7 @@ CREATE TABLE t2(id INT AUTO_INCREMENT NOT NULL PRIMARY KEY)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
-SET @@session.explicit_defaults_for_timestamp=0/*!*/;
+SET @@session.explicit_defaults_for_timestamp=1/*!*/;
 CREATE TABLE t3(c1 INT NOT NULL PRIMARY KEY, c2 LONGBLOB, c3 TIMESTAMP, c4 TEXT, c5 FLOAT)
 /*!*/;
 SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
@@ -387,7 +387,7 @@ SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/
 SET @@session.character_set_client=255,@@session.collation_connection=255,@@session.collation_server=255/*!*/;
 SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
-SET @@session.explicit_defaults_for_timestamp=0/*!*/;
+SET @@session.explicit_defaults_for_timestamp=1/*!*/;
 CREATE TABLE t3(c1 INT NOT NULL PRIMARY KEY, c2 LONGBLOB, c3 TIMESTAMP, c4 TEXT, c5 FLOAT)
 /*!*/;
 SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;

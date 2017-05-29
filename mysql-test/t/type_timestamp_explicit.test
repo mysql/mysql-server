@@ -11,7 +11,7 @@ SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 --echo # Almost all the scenario's required to test this WL, is already tested
 --echo # by most of existing test case. Adding some basic tests here.
 --echo #
-CREATE TABLE t1 (f1 TIMESTAMP, f2 TIMESTAMP) charset utf8mb4;
+CREATE TABLE t1 (f1 TIMESTAMP, f2 TIMESTAMP);
 ALTER TABLE t1 ADD COLUMN (f3 TIMESTAMP NOT NULL);
 ALTER TABLE t1 ADD COLUMN (f4 TIMESTAMP DEFAULT NULL);
 ALTER TABLE t1 ADD COLUMN (f5 TIMESTAMP DEFAULT '0:0:0');
@@ -36,7 +36,7 @@ SHOW CREATE TABLE t1;
 --echo # before SELECT keyword. The columns f1,f2 in t2 do not get promoted
 --echo # with the new behavior.
 
-CREATE TABLE t2 (f1 TIMESTAMP, f2 TIMESTAMP) charset utf8mb4 SELECT f1,f2,f3,f4,f5,f6 FROM t1;
+CREATE TABLE t2 (f1 TIMESTAMP, f2 TIMESTAMP) SELECT f1,f2,f3,f4,f5,f6 FROM t1;
 
 #Replace default engine value with static engine string 
 --replace_result $DEFAULT_ENGINE ENGINE
@@ -52,7 +52,7 @@ DROP TABLE t2;
 CREATE TABLE t1(
 c1 TIMESTAMP NOT NULL,
 c2 TIMESTAMP NOT NULL DEFAULT '2001-01-01 01:01:01',
-c3 INT NOT NULL DEFAULT 42) charset utf8mb4;
+c3 INT NOT NULL DEFAULT 42);
 
 #Replace default engine value with static engine string 
 --replace_result $DEFAULT_ENGINE ENGINE
@@ -87,13 +87,13 @@ t2_not_null_const TIMESTAMP NOT NULL DEFAULT '2001-01-01 03:03:03',
 i3_null INT NULL,
 t3_null TIMESTAMP NULL,
 i4_not_null INT NOT NULL,
-t4_not_null TIMESTAMP NOT NULL) charset utf8mb4;
+t4_not_null TIMESTAMP NOT NULL);
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
-CREATE TABLE t1(a TIMESTAMP, b TIMESTAMP) charset utf8mb4;
+CREATE TABLE t1(a TIMESTAMP, b TIMESTAMP);
 SHOW CREATE TABLE t1;
-CREATE TABLE t2(a INT) charset utf8mb4;
+CREATE TABLE t2(a INT);
 ALTER TABLE t2 ADD COLUMN b TIMESTAMP;
 ALTER TABLE t2 ADD COLUMN c TIMESTAMP;
 SHOW CREATE TABLE t2;

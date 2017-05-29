@@ -62,8 +62,8 @@ insert into t2 values (5,0);
 insert into t2 values (null,last_insert_id());
 SET FOREIGN_KEY_CHECKS=1;
 --source include/sync_slave_sql_with_master.inc
-select * from t1;
-select * from t2;
+select * from t1 ORDER BY a;
+select * from t2 ORDER BY b;
 connection master;
 
 --echo #
@@ -118,10 +118,10 @@ insert into t1 (a) values (null);
 insert into t2 (a) select a from t1 where a is null;
 insert into t2 (a) select a from t1 where a is null;
 --enable_warnings
-select * from t2;
+select * from t2 ORDER BY a;
 --source include/sync_slave_sql_with_master.inc
 connection slave;
-select * from t2;
+select * from t2 ORDER by a;
 connection master;
 drop table t1;
 drop table t2;
@@ -203,11 +203,11 @@ end|
 delimiter ;|
 call foo();
 
-select * from t1;
-select * from t2;
+select * from t1 ORDER BY last_id;
+select * from t2 ORDER BY last_id;
 --source include/sync_slave_sql_with_master.inc
-select * from t1;
-select * from t2;
+select * from t1 ORDER BY last_id;
+select * from t2 ORDER BY last_id;
 connection master;
 
 drop function bug15728;
@@ -464,8 +464,8 @@ SELECT * FROM t1 ORDER BY i;
 SELECT * FROM t2 ORDER BY i;
 
 --source include/sync_slave_sql_with_master.inc
-SELECT * FROM t1;
-SELECT * FROM t2;
+SELECT * FROM t1 ORDER BY i;
+SELECT * FROM t2 ORDER BY i;
 
 connection master;
 DROP PROCEDURE p1;

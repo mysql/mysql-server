@@ -20,6 +20,9 @@
 --source include/have_debug.inc
 # test is binlog agnostic
 --source include/have_binlog_format_row.inc
+# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
+--source include/have_slave_repository_type_table.inc
+
 # Establish the line topology.
 --let $rpl_topology=1->2, 3->2
 --let $rpl_multi_source= 1

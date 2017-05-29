@@ -781,6 +781,27 @@ rpl_gno Certifier::certify(Gtid_set *snapshot_version,
   else
   {
     /*
+      Check if it is an already used GTID
+    */
+    rpl_sidno sidno_for_group_gtid_sid_map= gle->get_sidno(group_gtid_sid_map);
+    if (sidno_for_group_gtid_sid_map < 1)
+    {
+      log_message(MY_ERROR_LEVEL,
+                  "Error fetching transaction sidno after transaction"
+                  " being positively certified"); /* purecov: inspected */
+      goto end; /* purecov: inspected */
+    }
+    if (group_gtid_executed->contains_gtid(sidno_for_group_gtid_sid_map, gle->get_gno()))
+    {
+      char buf[rpl_sid::TEXT_LENGTH + 1];
+      gle->get_sid()->to_string(buf);
+
+      log_message(MY_ERROR_LEVEL,
+                  "The requested GTID '%s:%lld' was already used, the transaction will rollback"
+                  , buf, gle->get_gno());
+      goto end;
+    }
+    /*
       Add received transaction GTID to transaction snapshot version.
     */
     rpl_sidno sidno= gle->get_sidno(snapshot_version->get_sid_map());
@@ -791,6 +812,7 @@ rpl_gno Certifier::certify(Gtid_set *snapshot_version,
                   " being positively certified"); /* purecov: inspected */
       goto end; /* purecov: inspected */
     }
+
     if (snapshot_version->ensure_sidno(sidno) != RETURN_STATUS_OK)
     {
       log_message(MY_ERROR_LEVEL,

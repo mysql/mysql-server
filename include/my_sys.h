@@ -45,6 +45,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <time.h>
 
 #include "mysql/psi/mysql_cond.h"       /* mysql_cond_t */
@@ -73,12 +74,15 @@ C_MODE_START
 # include <valgrind/memcheck.h>
 
 # define MEM_UNDEFINED(a,len) VALGRIND_MAKE_MEM_UNDEFINED(a,len)
+# define MEM_DEFINED_IF_ADDRESSABLE(a,len) \
+    VALGRIND_MAKE_MEM_DEFINED_IF_ADDRESSABLE(a,len)
 # define MEM_NOACCESS(a,len) VALGRIND_MAKE_MEM_NOACCESS(a,len)
 # define MEM_CHECK_ADDRESSABLE(a,len) VALGRIND_CHECK_MEM_IS_ADDRESSABLE(a,len)
 #else /* HAVE_VALGRIND */
 # define MEM_MALLOCLIKE_BLOCK(p1, p2, p3, p4) do {} while (0)
 # define MEM_FREELIKE_BLOCK(p1, p2) do {} while (0)
 # define MEM_UNDEFINED(a,len) ((void) 0)
+# define MEM_DEFINED_IF_ADDRESSABLE(a,len) ((void) 0)
 # define MEM_NOACCESS(a,len) ((void) 0)
 # define MEM_CHECK_ADDRESSABLE(a,len) ((void) 0)
 #endif /* HAVE_VALGRIND */
@@ -469,7 +473,8 @@ typedef struct st_io_cache		/* Used when cacheing files */
     "hard" error, and the actual number of I/O-ed bytes if the read/write was
     partial.
   */
-  int	seek_not_done,error;
+  bool seek_not_done;
+  int error;
   /* buffer_length is memory size allocated for buffer or write_buffer */
   size_t	buffer_length;
   /* read_length is the same as buffer_length except when we use async io */
@@ -486,6 +491,16 @@ typedef struct st_io_cache		/* Used when cacheing files */
 
 typedef int (*qsort_cmp)(const void *,const void *);
 typedef int (*qsort2_cmp)(const void *, const void *, const void *);
+
+/*
+  Subset of struct stat fields filled by stat/lstat/fstat that uniquely
+  identify a file
+*/
+typedef struct st_file_id
+{
+  dev_t st_dev;
+  ino_t st_ino;
+} ST_FILE_ID;
 
 typedef void (*my_error_reporter)(enum loglevel level, const char *format, ...)
   MY_ATTRIBUTE((format(printf, 2, 3)));
@@ -555,8 +570,9 @@ extern File my_create(const char *FileName,int CreateFlags,
 extern int my_close(File Filedes,myf MyFlags);
 extern int my_mkdir(const char *dir, int Flags, myf MyFlags);
 extern int my_readlink(char *to, const char *filename, myf MyFlags);
-extern int my_is_symlink(const char *filename);
+extern int my_is_symlink(const char *filename, ST_FILE_ID *file_id);
 extern int my_realpath(char *to, const char *filename, myf MyFlags);
+extern int my_is_same_file(File file, const ST_FILE_ID *file_id);
 extern File my_create_with_symlink(const char *linkname, const char *filename,
 				   int createflags, int access_flags,
 				   myf MyFlags);
@@ -700,13 +716,6 @@ extern bool array_append_string_unique(const char *str,
                                           const char **array, size_t size);
 extern void get_date(char * to,int timeflag,time_t use_time);
 
-extern bool radixsort_is_appliccable(uint n_items, size_t size_of_element);
-extern void radixsort_for_str_ptr(uchar* base[], uint number_of_elements,
-				  size_t size_of_element,uchar *buffer[]);
-extern void my_qsort(void *base_ptr, size_t total_elems, size_t size,
-                     qsort_cmp cmp);
-extern void my_qsort2(void *base_ptr, size_t total_elems, size_t size,
-                      qsort2_cmp cmp, const void *cmp_argument);
 void my_store_ptr(uchar *buff, size_t pack_length, my_off_t pos);
 my_off_t my_get_ptr(uchar *ptr, size_t pack_length);
 extern int init_io_cache_ext(IO_CACHE *info,File file,size_t cachesize,

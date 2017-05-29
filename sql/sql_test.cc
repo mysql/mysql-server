@@ -117,8 +117,6 @@ static void print_cached_tables(void)
   table_cache_manager.print_tables();
 
   printf("\nCurrent refresh version: %ld\n",refresh_version);
-  if (my_hash_check(&table_def_cache))
-    printf("Error: Table definition hash table is corrupted\n");
   fflush(stdout);
   table_cache_manager.unlock_all_and_tdc();
   /* purecov: end */

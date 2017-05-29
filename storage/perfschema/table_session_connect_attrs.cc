@@ -24,8 +24,21 @@
 
 THR_LOCK table_session_connect_attrs::m_table_lock;
 
+Plugin_table table_session_connect_attrs::m_table_def(
+  /* Name */
+  "session_connect_attrs",
+  /* Definition */
+  "  PROCESSLIST_ID INT NOT NULL,\n"
+  "  ATTR_NAME VARCHAR(32) NOT NULL,\n"
+  "  ATTR_VALUE VARCHAR(1024),\n"
+  "  ORDINAL_POSITION INT,\n"
+  "  PRIMARY KEY (PROCESSLIST_ID, ATTR_NAME)\n",
+  /* Options */
+  " ENGINE=PERFORMANCE_SCHEMA CHARACTER SET utf8 COLLATE utf8_bin",
+  /* Tablespace */
+  nullptr);
+
 PFS_engine_table_share table_session_connect_attrs::m_share = {
-  {C_STRING_WITH_LEN("session_connect_attrs")},
   &pfs_readonly_acl,
   table_session_connect_attrs::create,
   NULL, /* write_row */
@@ -33,9 +46,8 @@ PFS_engine_table_share table_session_connect_attrs::m_share = {
   cursor_by_thread_connect_attr::get_row_count,
   sizeof(pos_connect_attr_by_thread_by_attr), /* ref length */
   &m_table_lock,
-  &m_field_def,
-  false, /* checked */
-  false  /* perpetual */
+  &m_table_def,
+  false /* perpetual */
 };
 
 PFS_engine_table*

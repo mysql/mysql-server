@@ -1,0 +1,427 @@
+####################################################################
+# The aim of this test is to provide mysqld options related to     #
+# error logging on the command line and verify their behaviour.    #
+#                                                                  #
+# Creation Date: 2017-03-02                                        #
+# Author: Srikanth B R                                             #
+#                                                                  #
+####################################################################
+
+##================================================================##
+# 1 - Tests to check error log verbosity on command line           #
+##================================================================##
+
+# Setup
+CREATE TABLE t1(a int);
+
+# 1.1 Set log_error_verbosity= 1 
+#-------------------------------
+--let LOG_FILE1= $MYSQLTEST_VARDIR/tmp/test1.err
+--let restart_parameters="restart: --log-error=$LOG_FILE1 --log-error-verbosity=1 --log-bin --binlog-format=statement"
+--replace_result $LOG_FILE1 LOG_FILE1
+--source include/restart_mysqld.inc
+
+# Run commands which lead to entry of warnings/notes in the error log
+# Warning - unsafe statement to binlog
+INSERT INTO t1 SELECT FOUND_ROWS();
+# Note - Access denied
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(con1,localhost,unknown_user,,*NO-ONE*);
+
+
+# 1.2 Set log_error_verbosity= 2 
+#-------------------------------
+--let LOG_FILE2= $MYSQLTEST_VARDIR/tmp/test2.err
+--let restart_parameters="restart: --log-error=$LOG_FILE2 --log-error-verbosity=2 --log-bin --binlog-format=statement"
+--replace_result $LOG_FILE2 LOG_FILE2
+--source include/restart_mysqld.inc
+
+# Run commands which lead to entry of warnings/notes in the error log
+# Warning - unsafe statement to binlog
+INSERT INTO t1 SELECT FOUND_ROWS();
+# Note - Access denied
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(con2,localhost,unknown_user,,*NO-ONE*);
+
+
+# 1.3 Set log_error_verbosity= 7 (reset to default - 3) 
+#------------------------------------------------------
+--let LOG_FILE3= $MYSQLTEST_VARDIR/tmp/test3.err
+--let restart_parameters="restart: --log-error=$LOG_FILE3 --log-error-verbosity=7 --log-bin --binlog-format=statement"
+--replace_result $LOG_FILE3 LOG_FILE3
+--source include/restart_mysqld.inc
+
+# Run commands which lead to entry of warnings/notes in the error log
+# Warning - unsafe statement to binlog
+INSERT INTO t1 SELECT FOUND_ROWS();
+# Note - Access denied
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(con3,localhost,unknown_user,,*NO-ONE*);
+
+# Cleanup
+DROP TABLE t1;
+
+##================================================================##
+# 2 - Tests to check error log verbosity during initialization     #
+##================================================================##
+
+# 2.1. Invalid verbosity with --initialize(reverts to default - 2)
+#------------------------------------------------------------------
+--let LOG_FILE4 = $MYSQLTEST_VARDIR/tmp/bootstrap1.err
+--let CMD1= $MYSQLD --no-defaults --initialize-insecure --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLTEST_VARDIR/tmp/new_datadir --log-error=$LOG_FILE4 --log-error-verbosity=-1 2>&1
+--exec $CMD1
+--force-rmdir $MYSQLTEST_VARDIR/tmp/new_datadir
+
+# 2.2. Set verbosity to 1 explicitly with --initialize
+#-----------------------------------------------------
+--let LOG_FILE5 = $MYSQLTEST_VARDIR/tmp/bootstrap3.err
+--let CMD3 = $MYSQLD --no-defaults --initialize-insecure --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLTEST_VARDIR/tmp/new_datadir --log-error=$LOG_FILE5 --log-error-verbosity=1 2>&1
+--exec $CMD3
+--force-rmdir $MYSQLTEST_VARDIR/tmp/new_datadir
+
+# 2.3. Set verbosity to 2 explicitly with --initialize
+#-----------------------------------------------------
+--let LOG_FILE6 = $MYSQLTEST_VARDIR/tmp/bootstrap2.err
+--let CMD2 = $MYSQLD --no-defaults --initialize-insecure --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLTEST_VARDIR/tmp/new_datadir --log-error=$LOG_FILE6 --log-error-verbosity=2 2>&1
+--exec $CMD2
+--force-rmdir $MYSQLTEST_VARDIR/tmp/new_datadir
+
+# 2.4. Set verbosity to 3 explicitly with --initialize
+#-----------------------------------------------------
+--let LOG_FILE7 = $MYSQLTEST_VARDIR/tmp/bootstrap4.err
+--let CMD4 = $MYSQLD --no-defaults --initialize-insecure --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLTEST_VARDIR/tmp/new_datadir --log-error=$LOG_FILE7 --log-error-verbosity=3 2>&1
+--exec $CMD4
+--force-rmdir $MYSQLTEST_VARDIR/tmp/new_datadir
+
+##================================================================##
+# 3 - WL#9344:  Logging services: error messages                   #
+##================================================================##
+
+# 3.1. Test giving an empty lc-messages-dir and verify that the
+#      server makes use of builtin english messages when the
+#      language files(errmsg.sys) are not found
+#--------------------------------------------------------------
+--let LOG_FILE8 = $MYSQLTEST_VARDIR/tmp/wl9344.err
+--let $MSG_DIR = $MYSQLTEST_VARDIR/tmp/empty_lcmsgsdir
+--mkdir $MSG_DIR
+--let restart_parameters="restart: --log-error=$LOG_FILE8 --lc-messages-dir=$MSG_DIR"
+--replace_result $LOG_FILE8 LOG_FILE8 $MSG_DIR MSG_DIR
+--source include/restart_mysqld.inc
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(con4,localhost,unknown_user,,*NO-ONE*);
+--rmdir $MSG_DIR
+
+
+##================================================================##
+# 4 - WL#9323:  Logging services: Improved Error logging in 8.0    #
+##================================================================##
+
+# 4.1 Provide invalid value 'abcd' to --log-error-services
+# -------------------------------------------------------------
+# In case the server aborts,
+# --exec $MYSQLD ... 
+# Below check can be used in case the server doesn't abort/resets to default
+--let LOG_FILE9= $MYSQLTEST_VARDIR/tmp/test9.err
+--let restart_parameters="restart: --log-error=$LOG_FILE9 --log-error-services=abcd "
+--replace_result $LOG_FILE9 LOG_FILE9
+--source include/restart_mysqld.inc
+SELECT @@GLOBAL.LOG_ERROR_SERVICES;
+# If we fail with ER_WRONG_VALUE_FOR_VAR here, then the server has started
+# despite of an invalid value for log-error-services: it has in fact rejected
+# that value and is using the default (as it should), but shows the (illegal)
+# value from start-up on SELECT (which it shouldn't):
+SET GLOBAL LOG_ERROR_SERVICES=@@GLOBAL.LOG_ERROR_SERVICES;
+
+
+# 4.2 Provide 'log_sink_json' to --log-error-services without
+#     installing the json writer component
+#--------------------------------------------------------------
+# In case the server aborts,
+# --exec $MYSQLD ...
+# Below check can be used in case the server doesn't abort/resets to default
+--let LOG_FILE10= $MYSQLTEST_VARDIR/tmp/test10.err
+--let restart_parameters="restart: --log-error=$LOG_FILE10 --log-error-services=log_sink_json "
+--replace_result $LOG_FILE10 LOG_FILE10
+--source include/restart_mysqld.inc
+
+
+# 4.3 Install the json writer component and provide its service
+#     to --log-error-services
+# -------------------------------------------------------------
+INSTALL COMPONENT "file://component_log_sink_json";
+
+--let LOG_FILE11= $MYSQLTEST_VARDIR/tmp/test11.err
+--let LOG_FILE11j= $MYSQLTEST_VARDIR/tmp/test11.err.00.json
+--let $log_services="log_filter_internal;log_sink_internal;log_sink_json"
+--let restart_parameters="restart: --no-console --log-error=$LOG_FILE11 --log-error-services=$log_services "
+--replace_result $LOG_FILE11 LOG_FILE11
+--source include/restart_mysqld.inc
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(con5,localhost,unknown_user,,*NO-ONE*);
+
+SET GLOBAL log_error_services= default;
+UNINSTALL COMPONENT "file://component_log_sink_json";
+
+##===============================================================##
+#           Validate error logs for the above cases               #
+##===============================================================##
+
+--echo
+--echo Reading error logs for validation
+--echo ---------------------------------
+
+--perl
+   use strict;
+   use JSON;
+
+   # --------
+   # TEST 1.1
+   # --------
+   my $file= $ENV{'LOG_FILE1'} or die("logfile1 not set");
+   my $result=0;
+
+   open(FILE, "$file") or die("Unable to open $file: $!");
+   while (<FILE>) {
+     my $line = $_;
+     if ($line =~ /\[Note\]/ or $line =~ /\[Warning\]/) {
+       # '[Warning] Changed limits' is shown in-spite of verbosity being 1
+       if ($line !~ /Changed limits/) {
+         $result=1;
+         }
+       }
+     }
+   close(FILE);
+   if($result) {
+   print "[ FAIL ] Error log contains WARNING's/NOTE's even with --log-error-verbosity=1\n";
+   }
+   else {
+   print "[ PASS ] Error log does not contain WARNING's/NOTE's with --log-error-verbosity=1\n";
+   }
+
+   # --------
+   # TEST 1.2
+   # --------
+   $file= $ENV{'LOG_FILE2'} or die("log file2 not set");
+   my $result_note=0;
+   my $result_warning=0;
+
+   open(FILE, "$file") or die("Unable to open $file: $!");
+   while (<FILE>) {
+     my $line = $_;
+     if ($line =~ /\[Note\]/) {
+       $result_note=1;
+       }
+     if ($line =~ /\[Warning\]/) {
+       $result_warning=1;
+       }
+     }
+   close(FILE);
+   if($result_note) {
+   print "[ FAIL ] Error log contains NOTE's even with --log-error-verbosity=2\n";
+   }
+   elsif (!$result_warning)
+   {
+   print "[ FAIL ] Error log does not WARNING's with --log-error-verbosity=2\n";
+   }
+   else {
+   print "[ PASS ] Error log does not contain NOTE's with --log-error-verbosity=2\n";
+   }
+
+   # --------
+   # TEST 1.3
+   # --------
+   $file= $ENV{'LOG_FILE3'} or die("log file3 not set");
+   $result_note=0;
+   $result_warning=0;
+
+   open(FILE, "$file") or die("Unable to open $file: $!");
+   while (<FILE>) {
+     my $line = $_;
+     if ($line =~ /\[Note\]/) {
+         $result_note=1;
+       }
+     if ($line =~ /\[Warning\]/) {
+         $result_warning=1;
+       }
+
+     }
+   close(FILE);
+   if($result_note and $result_warning) {
+   print "[ PASS ] Error log contains NOTE's & WARNING's with --log-error-verbosity=3\n";
+   }
+   else {
+   print "[ FAIL ] Error log does not include WARNING's AND/OR NOTE's with --log-error-verbosity=3\n";
+   }
+
+   # --------
+   # TEST 2.1
+   # --------
+   $file= $ENV{'LOG_FILE4'} or die("log file4 not set");
+   $result=0;
+
+   open(FILE, "$file") or die("Unable to open $file: $!");
+   while (<FILE>) {
+     my $line = $_;
+     if ($line =~ /\[Note\]/) {
+       $result=1;
+       }
+     }
+   close(FILE);
+   if($result) {
+   print "[ FAIL ] Error log contains NOTE's even with default verbosity(2) during initialization\n";
+   }
+   else {
+   print "[ PASS ] Error log does not contain NOTE's with default verbosity(2)  during initialization\n";
+   }
+
+   # --------
+   # TEST 2.2
+   # --------
+   $file= $ENV{'LOG_FILE5'} or die("log file5 not set");
+   $result=0;
+
+   open(FILE, "$file") or die("Unable to open $file: $!");
+   while (<FILE>) {
+     my $line = $_;
+     if ($line =~ /\[Note\]/ or $line =~ /\[Warning\]/) {
+       # '[Warning] Changed limits' is shown in-spite of verbosity being 1
+       if ($line !~ /Changed limits/) {
+         $result=1;
+         }
+       }
+     }
+   close(FILE);
+   if($result) {
+   print "[ FAIL ] Error log contains WARNING's/NOTE's even with --log-error-verbosity=1  during initialization\n";
+   }
+   else {
+   print "[ PASS ] Error log does not contain WARNING's/NOTE's with --log-error-verbosity=1  during initialization\n";
+   }
+
+   # --------
+   # TEST 2.3
+   # --------
+   my $file= $ENV{'LOG_FILE6'} or die("log file6 not set");
+   my $result=0;
+
+   open(FILE, "$file") or die("Unable to open $file: $!");
+   while (<FILE>) {
+     my $line = $_;
+     if ($line =~ /\[Note\]/) {
+       $result=1;
+       }
+     }
+   close(FILE);
+
+   if($result) {
+   print "[ FAIL ] Error log contains NOTE's even with --log-error-verbosity=2  during initialization\n";
+   }
+   else {
+   print "[ PASS ] Error log does not contain NOTE's with --log-error-verbosity=2  during initialization\n";
+   }
+
+   # --------
+   # TEST 2.4
+   # --------
+   $file= $ENV{'LOG_FILE7'} or die("log file7 not set");
+   $result=1;
+
+   open(FILE, "$file") or die("Unable to open $file: $!");
+   while (<FILE>) {
+     my $line = $_;
+     if ($line =~ /\[Note\]/) {
+         $result=0;
+       }
+     }
+   close(FILE);
+   if($result) {
+   print "[ FAIL ] Error log does not include NOTE's with --log-error-verbosity=3 during initialization\n";
+   }
+   else {
+   print "[ PASS ] Error log contains NOTE's with --log-error-verbosity=3 during initialization\n";
+   }
+
+   # --------
+   # TEST 3.1
+   # --------
+   $file= $ENV{'LOG_FILE8'} or die("log file8 not set");
+   $result=0;
+
+   open(FILE, "$file") or die("Unable to open $file: $!");
+   while (<FILE>) {
+     my $line = $_;
+     if ($line =~ /\[Note\] Access denied for user \'unknown_user\'/) {
+         $result=1;
+       }
+     }
+   close(FILE);
+   if($result) {
+   print "[ PASS ] Error log contains a NOTE with compiled-in message 'Access denied' when lc_messages_dir does not contain error messages\n";
+   }
+   else {
+   print "[ FAIL ] Error log does not contain a NOTE with compiled-in message 'Access denied'  when lc_messages_dir does not contain error messages\n";
+   }
+
+   # --------
+   # TEST 4.1
+   # --------
+   # To be re-visited in case the server doesn't abort
+
+   # --------
+   # TEST 4.2
+   # --------
+   # To be re-visited in case the server doesn't abort
+
+   # --------
+   # TEST 4.3
+   # --------
+   my $file= $ENV{'LOG_FILE11j'};
+   open(FILE,"$file") or die("Unable to open $file $!\n");
+   my @log_lines=<FILE>;
+   close(FILE);
+ 
+   # Test for validity of the json docs in error log
+   my $string = "[\n".join("", @log_lines)."\n]";
+   $string =~ s/\}\n\{/\},\n\{/g ;
+   my $parsed_json;
+   my $success=1;
+   $parsed_json = decode_json $string;
+   unless ( $parsed_json )
+   {
+     print "[ FAIL ] Error while parsing the error log as a json document:\n$@\n";
+     $success=0;
+   }
+   if($success)
+   {
+     print "[ PASS ] Error log successfully parsed as a json document\n";
+     for my $item( @$parsed_json ){
+        if ( $item->{'msg'} =~ /Access denied for user \'unknown_user\'/) {
+          print "[ PASS ] Expected entry found in the json error log:-" . $item->{'msg'} . "\n";
+        }
+     }
+   }
+
+EOF
+
+# Cleanup
+--remove_file $LOG_FILE1
+--remove_file $LOG_FILE2
+--remove_file $LOG_FILE3
+--remove_file $LOG_FILE4
+--remove_file $LOG_FILE6
+--remove_file $LOG_FILE5
+--remove_file $LOG_FILE7
+--remove_file $LOG_FILE8
+--remove_file $LOG_FILE9
+--remove_file $LOG_FILE10
+--remove_file $LOG_FILE11
+--remove_file $LOG_FILE11j
+
+# Restart server after this test since it enables binary 
+# logging and may affect further tests
+--source include/force_restart.inc

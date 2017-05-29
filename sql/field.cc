@@ -2194,7 +2194,7 @@ type_conversion_status Field::store_time(MYSQL_TIME *ltime, uint8 dec_arg)
 
 bool Field::optimize_range(uint idx, uint part)
 {
-  return MY_TEST(table->file->index_flags(idx, part, 1) & HA_READ_RANGE);
+  return table->file->index_flags(idx, part, 1) & HA_READ_RANGE;
 }
 
 
@@ -2942,8 +2942,9 @@ Field *Field_new_decimal::create_from_item (Item *item)
       /* Corrected value fits. */
       len= required_length;
   }
-  return new Field_new_decimal(len, item->maybe_null, item->item_name.ptr(),
-                               dec, item->unsigned_flag);
+  return new (*THR_MALLOC) Field_new_decimal(len, item->maybe_null,
+                                             item->item_name.ptr(), dec,
+                                             item->unsigned_flag);
 }
 
 
@@ -7568,8 +7569,9 @@ Field *Field_string::new_field(MEM_ROOT *root, TABLE *new_table,
   Field *field;
   if (type() != MYSQL_TYPE_VAR_STRING || keep_type)
     field= Field::new_field(root, new_table, keep_type);
-  else if ((field= new Field_varstring(field_length, maybe_null(), field_name,
-                                       new_table->s, charset())))
+  else if ((field= new (*THR_MALLOC) Field_varstring(field_length, maybe_null(),
+                                                     field_name, new_table->s,
+                                                     charset())))
   {
     /*
       Old VARCHAR field which should be modified to a VARCHAR on copy
@@ -7808,27 +7810,16 @@ int Field_varstring::key_cmp(const uchar *a,const uchar *b)
 
 size_t Field_varstring::make_sort_key(uchar *to, size_t length)
 {
-  size_t orig_length= length;
-  size_t tot_length=  length_bytes == 1 ? (uint) *ptr : uint2korr(ptr);
+  size_t input_bytes= length_bytes == 1 ? (uint) *ptr : uint2korr(ptr);
 
-  if (field_charset->pad_attribute == NO_PAD)
-  {
-    /*
-      Store length last in high-byte order to sort longer strings first.
-      Note that we always store two bytes, since otherwise, we would be
-      breaking the invariant that strnxfrm needs an even number of bytes.
-    */
-    mi_int2store(to + length - 2, tot_length);
-    length-= 2;
-  }
- 
-  tot_length= field_charset->coll->strnxfrm(field_charset,
-                                            to, length, length,
-                                            ptr + length_bytes,
-                                            tot_length,
-                                            MY_STRXFRM_PAD_TO_MAXLEN);
-  DBUG_ASSERT(tot_length == length);
-  return orig_length;
+  const int flags=
+    (field_charset->pad_attribute == NO_PAD) ? 0 : MY_STRXFRM_PAD_TO_MAXLEN;
+
+  return field_charset->coll->strnxfrm(field_charset,
+                                       to, length, char_length(),
+                                       ptr + length_bytes,
+                                       input_bytes,
+                                       flags);
 }
 
 
@@ -8799,7 +8790,7 @@ Field_json *Field_json::clone(MEM_ROOT *mem_root) const
 Field_json *Field_json::clone() const
 {
   DBUG_ASSERT(type() == MYSQL_TYPE_JSON);
-  return new Field_json(*this);
+  return new (*THR_MALLOC) Field_json(*this);
 }
 
 
@@ -10410,7 +10401,7 @@ void Create_field::create_length_to_internal_length(void)
     {
       pack_length= length / 8;
       /* We need one extra byte to store the bits we save among the null bits */
-      key_length= pack_length + MY_TEST(length & 7);
+      key_length= pack_length + (length & 7 ? 1 : 0);
     }
     break;
   case MYSQL_TYPE_NEWDECIMAL:
@@ -10459,7 +10450,7 @@ uint32 calc_key_length(enum_field_types sql_type, uint32 length,
   case MYSQL_TYPE_SET:
     return get_set_pack_length(elements);
   case MYSQL_TYPE_BIT:
-    return length / 8 + MY_TEST(length & 7);
+    return length / 8 + (length & 7 ? 1 : 0);
     break;
   case MYSQL_TYPE_NEWDECIMAL:
     return my_decimal_get_binary_size(my_decimal_length_to_precision(length,
@@ -11115,15 +11106,16 @@ Field *make_field(TABLE_SHARE *share, uchar *ptr, size_t field_length,
   switch (field_type) {
   case MYSQL_TYPE_VAR_STRING:
   case MYSQL_TYPE_STRING:
-    return new Field_string(ptr,field_length,null_pos,null_bit,
-                            auto_flags, field_name, field_charset);
+    return new (*THR_MALLOC) Field_string(ptr,field_length,null_pos,null_bit,
+                                          auto_flags, field_name,
+                                          field_charset);
   case MYSQL_TYPE_VARCHAR:
-    return new Field_varstring(ptr,field_length,
-                               HA_VARCHAR_PACKLENGTH(field_length),
-                               null_pos,null_bit,
-                               auto_flags, field_name,
-                               share,
-                               field_charset);
+    return new (*THR_MALLOC)
+      Field_varstring(ptr,field_length, HA_VARCHAR_PACKLENGTH(field_length),
+                      null_pos,null_bit,
+                      auto_flags, field_name,
+                      share,
+                      field_charset);
   case MYSQL_TYPE_BLOB:
   case MYSQL_TYPE_MEDIUM_BLOB:
   case MYSQL_TYPE_TINY_BLOB:
@@ -11136,9 +11128,9 @@ Field *make_field(TABLE_SHARE *share, uchar *ptr, size_t field_length,
       uint pack_length= calc_pack_length(field_type, field_length) -
                         portable_sizeof_char_ptr;
 
-      return new Field_blob(ptr, null_pos, null_bit, auto_flags,
-                            field_name, share,
-                            pack_length, field_charset);
+      return new (*THR_MALLOC) Field_blob(ptr, null_pos, null_bit, auto_flags,
+                                          field_name, share,
+                                          pack_length, field_charset);
     }
   case MYSQL_TYPE_GEOMETRY:
     {
@@ -11149,8 +11141,9 @@ Field *make_field(TABLE_SHARE *share, uchar *ptr, size_t field_length,
       uint pack_length= calc_pack_length(field_type, field_length) -
                         portable_sizeof_char_ptr;
 
-      return new Field_geom(ptr, null_pos, null_bit, auto_flags,
-                            field_name, share, pack_length, geom_type);
+      return new (*THR_MALLOC) Field_geom(ptr, null_pos, null_bit, auto_flags,
+                                          field_name, share, pack_length,
+                                          geom_type);
     }
   case MYSQL_TYPE_JSON:
     {
@@ -11161,111 +11154,115 @@ Field *make_field(TABLE_SHARE *share, uchar *ptr, size_t field_length,
       uint pack_length= calc_pack_length(field_type, field_length) -
                         portable_sizeof_char_ptr;
 
-      return new Field_json(ptr, null_pos, null_bit, auto_flags,
-                            field_name, share, pack_length);
+      return new (*THR_MALLOC) Field_json(ptr, null_pos, null_bit, auto_flags,
+                                          field_name, share, pack_length);
     }
   case MYSQL_TYPE_ENUM:
     DBUG_ASSERT(interval);
-    return new Field_enum(ptr, field_length, null_pos, null_bit,
-                          auto_flags, field_name,
-                          (pack_length_override ? pack_length_override :
-                           get_enum_pack_length(interval->count)),
-                          interval, field_charset);
+    return new (*THR_MALLOC)
+      Field_enum(ptr, field_length, null_pos, null_bit, auto_flags, field_name,
+                 (pack_length_override ? pack_length_override :
+                 get_enum_pack_length(interval->count)),
+                 interval, field_charset);
   case MYSQL_TYPE_SET:
     DBUG_ASSERT(interval);
-    return new Field_set(ptr, field_length, null_pos, null_bit,
-			 auto_flags, field_name,
-                         (pack_length_override ? pack_length_override :
-                          get_set_pack_length(interval->count)),
-                         interval, field_charset);
+    return new (*THR_MALLOC)
+      Field_set(ptr, field_length, null_pos, null_bit, auto_flags, field_name,
+                (pack_length_override ? pack_length_override :
+                 get_set_pack_length(interval->count)),
+                 interval, field_charset);
   case MYSQL_TYPE_DECIMAL:
-    return new Field_decimal(ptr,field_length,null_pos,null_bit,
-			     auto_flags, field_name,
-			     decimals,
-                             is_zerofill,
-                             is_unsigned);
+    return new (*THR_MALLOC) Field_decimal(ptr,field_length,null_pos,null_bit,
+                                           auto_flags, field_name,
+                                           decimals,
+                                           is_zerofill,
+                                           is_unsigned);
   case MYSQL_TYPE_NEWDECIMAL:
-    return new Field_new_decimal(ptr,field_length,null_pos,null_bit,
-                                 auto_flags, field_name,
-                                 decimals,
-                                 is_zerofill,
-                                 is_unsigned);
+    return new (*THR_MALLOC) Field_new_decimal(ptr,field_length,null_pos,
+                                               null_bit, auto_flags, field_name,
+                                               decimals,
+                                               is_zerofill,
+                                               is_unsigned);
   case MYSQL_TYPE_FLOAT:
-    return new Field_float(ptr,field_length,null_pos,null_bit,
-			   auto_flags, field_name,
-			   decimals,
-                           is_zerofill,
-                           is_unsigned);
+    return new (*THR_MALLOC) Field_float(ptr,field_length,null_pos,null_bit,
+                                         auto_flags, field_name,
+                                         decimals,
+                                         is_zerofill,
+                                         is_unsigned);
   case MYSQL_TYPE_DOUBLE:
-    return new Field_double(ptr,field_length,null_pos,null_bit,
-			    auto_flags, field_name,
-			    decimals,
-                            is_zerofill,
-                            is_unsigned);
+    return new (*THR_MALLOC) Field_double(ptr,field_length,null_pos,null_bit,
+                                          auto_flags, field_name,
+                                          decimals,
+                                          is_zerofill,
+                                          is_unsigned);
   case MYSQL_TYPE_TINY:
-    return new Field_tiny(ptr,field_length,null_pos,null_bit,
-			  auto_flags, field_name,
-                          is_zerofill,
-                          is_unsigned);
+    return new (*THR_MALLOC) Field_tiny(ptr,field_length,null_pos,null_bit,
+                                        auto_flags, field_name,
+                                        is_zerofill,
+                                        is_unsigned);
   case MYSQL_TYPE_SHORT:
-    return new Field_short(ptr,field_length,null_pos,null_bit,
-			   auto_flags, field_name,
-                           is_zerofill,
-                           is_unsigned);
+    return new (*THR_MALLOC) Field_short(ptr,field_length,null_pos,null_bit,
+                                         auto_flags, field_name,
+                                         is_zerofill,
+                                         is_unsigned);
   case MYSQL_TYPE_INT24:
-    return new Field_medium(ptr,field_length,null_pos,null_bit,
-			    auto_flags, field_name,
-                            is_zerofill,
-                            is_unsigned);
+    return new (*THR_MALLOC) Field_medium(ptr,field_length,null_pos,null_bit,
+                                          auto_flags, field_name,
+                                          is_zerofill,
+                                          is_unsigned);
   case MYSQL_TYPE_LONG:
-    return new Field_long(ptr,field_length,null_pos,null_bit,
-			   auto_flags, field_name,
-                           is_zerofill,
-                           is_unsigned);
+    return new (*THR_MALLOC) Field_long(ptr,field_length,null_pos,null_bit,
+                                        auto_flags, field_name,
+                                        is_zerofill,
+                                        is_unsigned);
   case MYSQL_TYPE_LONGLONG:
-    return new Field_longlong(ptr,field_length,null_pos,null_bit,
-			      auto_flags, field_name,
-                              is_zerofill,
-                              is_unsigned);
+    return new (*THR_MALLOC) Field_longlong(ptr,field_length,null_pos,null_bit,
+                                            auto_flags, field_name,
+                                            is_zerofill,
+                                            is_unsigned);
   case MYSQL_TYPE_TIMESTAMP:
-    return new Field_timestamp(ptr, field_length, null_pos, null_bit,
-                               auto_flags, field_name);
+    return new (*THR_MALLOC) Field_timestamp(ptr, field_length, null_pos,
+                                             null_bit, auto_flags, field_name);
   case MYSQL_TYPE_TIMESTAMP2:
-    return new Field_timestampf(ptr, null_pos, null_bit,
-                                auto_flags, field_name,
-                                field_length > MAX_DATETIME_WIDTH ?
-                                field_length - 1 - MAX_DATETIME_WIDTH : 0);
+    return new (*THR_MALLOC)
+      Field_timestampf(ptr, null_pos, null_bit,
+                       auto_flags, field_name,
+                       field_length > MAX_DATETIME_WIDTH ?
+                       field_length - 1 - MAX_DATETIME_WIDTH : 0);
   case MYSQL_TYPE_YEAR:
-    return new Field_year(ptr,field_length,null_pos,null_bit,
-			  auto_flags, field_name);
+    return new (*THR_MALLOC) Field_year(ptr,field_length,null_pos,null_bit,
+                                        auto_flags, field_name);
   case MYSQL_TYPE_NEWDATE:
-    return new Field_newdate(ptr, null_pos, null_bit, auto_flags, field_name);
+    return new (*THR_MALLOC) Field_newdate(ptr, null_pos, null_bit, auto_flags,
+  field_name);
 
   case MYSQL_TYPE_TIME:
-    return new Field_time(ptr, null_pos, null_bit,
-                          auto_flags, field_name);
+    return new (*THR_MALLOC) Field_time(ptr, null_pos, null_bit, auto_flags,
+                                        field_name);
   case MYSQL_TYPE_TIME2:
-    return new Field_timef(ptr, null_pos, null_bit,
-                           auto_flags, field_name,
-                           (field_length > MAX_TIME_WIDTH) ?
-                           field_length - 1 - MAX_TIME_WIDTH : 0);
+    return new (*THR_MALLOC)
+      Field_timef(ptr, null_pos, null_bit, auto_flags, field_name,
+                  (field_length > MAX_TIME_WIDTH) ?
+                  field_length - 1 - MAX_TIME_WIDTH : 0);
   case MYSQL_TYPE_DATETIME:
-    return new Field_datetime(ptr, null_pos, null_bit,
-                              auto_flags, field_name);
+    return new (*THR_MALLOC) Field_datetime(ptr, null_pos, null_bit, auto_flags,
+                                            field_name);
   case MYSQL_TYPE_DATETIME2:
-    return new Field_datetimef(ptr, null_pos, null_bit,
-                               auto_flags, field_name,
-                               (field_length > MAX_DATETIME_WIDTH) ?
-                               field_length - 1 - MAX_DATETIME_WIDTH : 0);
+    return new (*THR_MALLOC)
+      Field_datetimef(ptr, null_pos, null_bit, auto_flags, field_name,
+                      (field_length > MAX_DATETIME_WIDTH) ?
+                      field_length - 1 - MAX_DATETIME_WIDTH : 0);
   case MYSQL_TYPE_NULL:
-    return new Field_null(ptr, field_length, auto_flags, field_name,
-                          field_charset);
+    return new (*THR_MALLOC) Field_null(ptr, field_length, auto_flags,
+                                        field_name, field_charset);
   case MYSQL_TYPE_BIT:
     return treat_bit_as_char ?
-           new Field_bit_as_char(ptr, field_length, null_pos, null_bit,
-                                 auto_flags, field_name) :
-           new Field_bit(ptr, field_length, null_pos, null_bit, bit_ptr,
-                         bit_offset, auto_flags, field_name);
+           new (*THR_MALLOC)
+             Field_bit_as_char(ptr, field_length, null_pos, null_bit,
+                               auto_flags, field_name) :
+           new (*THR_MALLOC)
+             Field_bit(ptr, field_length, null_pos, null_bit, bit_ptr,
+                       bit_offset, auto_flags, field_name);
 
   default:					// Impossible (Wrong version)
     break;

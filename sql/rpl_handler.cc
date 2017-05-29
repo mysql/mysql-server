@@ -26,7 +26,7 @@
 #include "item_func.h"         // user_var_entry
 #include "key.h"
 #include "lex_string.h"
-#include "log.h"               // sql_print_error
+#include "log.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_io.h"
@@ -98,15 +98,13 @@ int get_user_var_int(const char *name,
   /* Protects thd->user_vars. */
   mysql_mutex_lock(&thd->LOCK_thd_data);
 
-  user_var_entry *entry=
-    (user_var_entry*) my_hash_search(&thd->user_vars,
-                                  (uchar*) name, strlen(name));
-  if (!entry)
+  const auto it= thd->user_vars.find(name);
+  if (it == thd->user_vars.end())
   {
     mysql_mutex_unlock(&thd->LOCK_thd_data);
     return 1;
   }
-  *value= entry->val_int(&null_val);
+  *value= it->second->val_int(&null_val);
   if (null_value)
     *null_value= null_val;
   mysql_mutex_unlock(&thd->LOCK_thd_data);
@@ -122,15 +120,13 @@ int get_user_var_real(const char *name,
   /* Protects thd->user_vars. */
   mysql_mutex_lock(&thd->LOCK_thd_data);
 
-  user_var_entry *entry=
-    (user_var_entry*) my_hash_search(&thd->user_vars,
-                                  (uchar*) name, strlen(name));
-  if (!entry)
+  const auto it= thd->user_vars.find(name);
+  if (it == thd->user_vars.end())
   {
     mysql_mutex_unlock(&thd->LOCK_thd_data);
     return 1;
   }
-  *value= entry->val_real(&null_val);
+  *value= it->second->val_real(&null_val);
   if (null_value)
     *null_value= null_val;
   mysql_mutex_unlock(&thd->LOCK_thd_data);
@@ -147,15 +143,13 @@ int get_user_var_str(const char *name, char *value,
   /* Protects thd->user_vars. */
   mysql_mutex_lock(&thd->LOCK_thd_data);
 
-  user_var_entry *entry=
-    (user_var_entry*) my_hash_search(&thd->user_vars,
-                                  (uchar*) name, strlen(name));
-  if (!entry)
+  const auto it= thd->user_vars.find(name);
+  if (it == thd->user_vars.end())
   {
     mysql_mutex_unlock(&thd->LOCK_thd_data);
     return 1;
   }
-  entry->val_str(&null_val, &str, precision);
+  it->second->val_str(&null_val, &str, precision);
   strncpy(value, str.c_ptr(), len);
   if (null_value)
     *null_value= null_val;
@@ -184,8 +178,7 @@ int delegates_init()
 
   if (!transaction_delegate->is_inited())
   {
-    sql_print_error("Initialization of transaction delegates failed. "
-                    "Please report a bug.");
+    LogErr(ERROR_LEVEL, ER_RPL_TRX_DELEGATES_INIT_FAILED);
     return 1;
   }
 
@@ -193,8 +186,7 @@ int delegates_init()
 
   if (!binlog_storage_delegate->is_inited())
   {
-    sql_print_error("Initialization binlog storage delegates failed. "
-                    "Please report a bug.");
+    LogErr(ERROR_LEVEL, ER_RPL_BINLOG_STORAGE_DELEGATES_INIT_FAILED);
     return 1;
   }
 
@@ -207,8 +199,7 @@ int delegates_init()
 
   if (!binlog_transmit_delegate->is_inited())
   {
-    sql_print_error("Initialization of binlog transmit delegates failed. "
-                    "Please report a bug.");
+    LogErr(ERROR_LEVEL, ER_RPL_BINLOG_TRANSMIT_DELEGATES_INIT_FAILED);
     return 1;
   }
 
@@ -216,8 +207,7 @@ int delegates_init()
 
   if (!binlog_relay_io_delegate->is_inited())
   {
-    sql_print_error("Initialization binlog relay IO delegates failed. "
-                    "Please report a bug.");
+    LogErr(ERROR_LEVEL, ER_RPL_BINLOG_RELAY_DELEGATES_INIT_FAILED);
     return 1;
   }
 
@@ -266,8 +256,12 @@ void delegates_destroy()
         && ((Observer *)info->observer)->f args)                        \
     {                                                                   \
       r= 1;                                                             \
-      sql_print_error("Run function '" #f "' in plugin '%s' failed",    \
-                      info->plugin_int->name.str);                      \
+      LogEvent().prio(ERROR_LEVEL)                                      \
+                .errcode(ER_RPL_PLUGIN_FUNCTION_FAILED)                 \
+                .subsys(LOG_SUBSYSTEM_TAG)                              \
+                .function(#f)                                           \
+                .message("Run function '" #f "' in plugin '%s' failed", \
+                         info->plugin_int->name.str);                   \
       break;                                                            \
     }                                                                   \
   }                                                                     \
@@ -308,8 +302,12 @@ void delegates_destroy()
     if (hook_error)                                                     \
     {                                                                   \
       r= 1;                                                             \
-      sql_print_error("Run function '" #f "' in plugin '%s' failed",    \
-                      info->plugin_int->name.str);                      \
+      LogEvent().prio(ERROR_LEVEL)                                      \
+                .errcode(ER_RPL_PLUGIN_FUNCTION_FAILED)                 \
+                .subsys(LOG_SUBSYSTEM_TAG)                              \
+                .function(#f)                                           \
+                .message("Run function '" #f "' in plugin '%s' failed", \
+                         info->plugin_int->name.str);                   \
       break;                                                            \
     }                                                                   \
   }                                                                     \
@@ -887,6 +885,18 @@ int Binlog_relay_IO_delegate::thread_stop(THD *thd, Master_info *mi)
 
   int ret= 0;
   FOREACH_OBSERVER(ret, thread_stop, (&param));
+  return ret;
+}
+
+int Binlog_relay_IO_delegate::applier_start(THD *thd, Master_info *mi)
+{
+  Binlog_relay_IO_param param;
+  init_param(&param, mi);
+  param.server_id= thd->server_id;
+  param.thread_id= thd->thread_id();
+
+  int ret= 0;
+  FOREACH_OBSERVER(ret, applier_start, (&param));
   return ret;
 }
 

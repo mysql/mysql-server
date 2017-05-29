@@ -267,22 +267,40 @@ static void make_valid_column_names(LEX *lex)
     TRUE                 can't open table
     FALSE                success
 */
-static bool
-fill_defined_view_parts (THD *thd, TABLE_LIST *view)
+static bool fill_defined_view_parts(THD *thd, TABLE_LIST *view)
 {
-  const char *key;
-  size_t key_length;
-  LEX *lex= thd->lex;
+  const char *cache_key;
+  size_t cache_key_length= get_table_def_key(view, &cache_key);
   TABLE_LIST decoy;
-
   memcpy (&decoy, view, sizeof (TABLE_LIST));
 
-  key_length= get_table_def_key(view, &key);
+  mysql_mutex_lock(&LOCK_open);
 
-  // No need to check metadata version nor parse the view definition.
-  if (tdc_open_view(thd, &decoy, key, key_length, false, true))
-    return TRUE;
+  TABLE_SHARE *share;
+  if (!(share= get_table_share(thd, view->db, view->table_name, cache_key,
+                               cache_key_length, true)))
+  {
+    mysql_mutex_unlock(&LOCK_open);
+    return true;
+  }
 
+  if (!share->is_view)
+  {
+    my_error(ER_WRONG_OBJECT, MYF(0), view->db, view->table_name, "VIEW");
+    release_table_share(share);
+    mysql_mutex_unlock(&LOCK_open);
+    return true;
+  }
+
+  bool view_open_result= open_and_read_view(thd, share, &decoy);
+
+  release_table_share(share);
+  mysql_mutex_unlock(&LOCK_open);
+
+  if (view_open_result)
+    return true;
+
+  LEX *lex= thd->lex;
   if (!lex->definer)
   {
     view->definer.host= decoy.definer.host;
@@ -604,15 +622,6 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
         res= true;
         goto err;
       }
-      /*
-        Copy the privileges of the underlying VIEWs which were filled by
-        fill_effective_table_privileges
-        (they were not copied at derived tables processing)
-      */
-      tbl->table->grant.privilege= tbl->grant.privilege;
-#ifndef DBUG_OFF
-      tbl->table->grant.want_privilege= tbl->grant.want_privilege;
-#endif
     }
   }
 
@@ -873,14 +882,13 @@ bool mysql_register_view(THD *thd, TABLE_LIST *view,
   view_query.length(0);
   is_query.length(0);
   {
-    sql_mode_t sql_mode= thd->variables.sql_mode & MODE_ANSI_QUOTES;
-    thd->variables.sql_mode&= ~MODE_ANSI_QUOTES;
+    // Turn off ANSI_QUOTES and other SQL modes which affect printing of
+    // view definition.
+    Sql_mode_parse_guard parse_guard(thd);
 
-    lex->unit->print(&view_query, QT_TO_ARGUMENT_CHARSET); 
+    lex->unit->print(&view_query, QT_TO_ARGUMENT_CHARSET);
     lex->unit->print(&is_query,
                 enum_query_type(QT_TO_SYSTEM_CHARSET | QT_WITHOUT_INTRODUCERS));
-
-    thd->variables.sql_mode|= sql_mode;
   }
   DBUG_PRINT("info",
              ("View: %*.s", (int) view_query.length(), view_query.ptr()));
@@ -1336,33 +1344,6 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref)
 
   // Needed for correct units markup for EXPLAIN
   view_lex->describe= old_lex->describe;
-  const sql_mode_t saved_mode= thd->variables.sql_mode;
-  /* switch off modes which can prevent normal parsing of VIEW
-      - MODE_REAL_AS_FLOAT            affect only CREATE TABLE parsing
-      + MODE_PIPES_AS_CONCAT          affect expression parsing
-      + MODE_ANSI_QUOTES              affect expression parsing
-      + MODE_IGNORE_SPACE             affect expression parsing
-      - MODE_NOT_USED                 not used :)
-      * MODE_ONLY_FULL_GROUP_BY       affect execution
-      * MODE_NO_UNSIGNED_SUBTRACTION  affect execution
-      - MODE_NO_DIR_IN_CREATE         affect table creation only
-      - MODE_POSTGRESQL               compounded from other modes
-      - MODE_ORACLE                   compounded from other modes
-      - MODE_MSSQL                    compounded from other modes
-      - MODE_DB2                      compounded from other modes
-      - MODE_MAXDB                    affect only CREATE TABLE parsing
-      - MODE_NO_KEY_OPTIONS           affect only SHOW
-      - MODE_NO_TABLE_OPTIONS         affect only SHOW
-      - MODE_NO_FIELD_OPTIONS         affect only SHOW
-      - MODE_MYSQL323                 affect only SHOW
-      - MODE_MYSQL40                  affect only SHOW
-      - MODE_ANSI                     compounded from other modes
-                                      (+ transaction mode)
-      ? MODE_NO_AUTO_VALUE_ON_ZERO    affect UPDATEs
-      + MODE_NO_BACKSLASH_ESCAPES     affect expression parsing
-  */
-  thd->variables.sql_mode&= ~(MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
-                              MODE_IGNORE_SPACE | MODE_NO_BACKSLASH_ESCAPES);
 
   if (thd->m_digest != NULL)
     thd->m_digest->reset(thd->m_token_array, max_digest_length);
@@ -1390,8 +1371,14 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref)
   if (thd->parsing_system_view)
     thd->push_internal_handler(&dd_access_handler);
 
-  // Parse the query text of the view
-  result= parse_sql(thd, &parser_state, view_ref->view_creation_ctx);
+  {
+    // Switch off modes which can prevent normal parsing of VIEW
+    Sql_mode_parse_guard parse_guard(thd);
+
+
+    // Parse the query text of the view
+    result= parse_sql(thd, &parser_state, view_ref->view_creation_ctx);
+  }
 
   if (thd->parsing_system_view)
     thd->pop_internal_handler();
@@ -1402,8 +1389,6 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref)
   if ((old_lex->sql_command == SQLCOM_SHOW_FIELDS) ||
       (old_lex->sql_command == SQLCOM_SHOW_CREATE))
     view_lex->sql_command= old_lex->sql_command;
-
-  thd->variables.sql_mode= saved_mode;
 
   mysql_mutex_lock(&thd->LOCK_thd_data);
   thd->reset_db(current_db_name_saved);
@@ -1520,8 +1505,6 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref)
       user's security context.
     */
     tbl->grant.privilege= 0;
-    if (tbl->table)
-      tbl->table->grant.privilege= 0;
     
     tbl->set_want_privilege(SELECT_ACL);
     /*

@@ -43,7 +43,7 @@ SET GLOBAL offline_mode = ON;
 # Wait until all non super user have been disconnected (for slow machines)
 let $count_sessions= $user_count;
 --source include/wait_until_count_sessions.inc
---replace_regex /_[0-9]+\.SDI/_XXX.SDI/
+--replace_regex /_[0-9]+\.sdi/_XXX.sdi/
 --list_files $MYSQLD_DATADIR/test t*
 SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
 

@@ -40,6 +40,9 @@
 
 #include <gtest/gtest.h>
 #include <sys/types.h>
+#include <algorithm>
+#include <memory>
+#include <utility>
 #include <vector>
 
 #include "benchmark.h"
@@ -48,6 +51,9 @@
 #include "strnxfrm.h"
 #include "template_utils.h"
 
+using std::make_pair;
+using std::max;
+using std::pair;
 using std::to_string;
 
 namespace strnxfrm_unittest {
@@ -413,15 +419,23 @@ TEST(StrXfrmTest, Japanese_ks_UTF8MB4)
 
   CHARSET_INFO *as_cs= init_collation("utf8mb4_ja_0900_as_cs");
   CHARSET_INFO *as_cs_ks= init_collation("utf8mb4_ja_0900_as_cs_ks");
-  EXPECT_EQ(compare_through_strxfrm(as_cs, u8"にほんご", u8"ニホンゴ"), 0);
-  EXPECT_LT(compare_through_strxfrm(as_cs_ks, u8"にほんご", u8"ニホンゴ"), 0);
+  // utf8 "にほんご"
+  const char *str1= "\xE3\x81\xAB\xE3\x81\xBB\xE3\x82\x93\xE3\x81\x94";
+  // utf8 "ニホンゴ"
+  const char *str2= "\xE3\x83\x8B\xE3\x83\x9B\xE3\x83\xB3\xE3\x82\xB4";
+  EXPECT_EQ(compare_through_strxfrm(as_cs, str1, str2), 0);
+  EXPECT_LT(compare_through_strxfrm(as_cs_ks, str1, str2), 0);
 
-  EXPECT_EQ(compare_through_strxfrm(as_cs, u8"はは", u8"はハ"), 0);
-  EXPECT_EQ(compare_through_strxfrm(as_cs, u8"はハ", u8"ハは"), 0);
-  EXPECT_EQ(compare_through_strxfrm(as_cs, u8"ハは", u8"ハハ"), 0);
-  EXPECT_LT(compare_through_strxfrm(as_cs_ks, u8"はは", u8"はハ"), 0);
-  EXPECT_LT(compare_through_strxfrm(as_cs_ks, u8"はハ", u8"ハは"), 0);
-  EXPECT_LT(compare_through_strxfrm(as_cs_ks, u8"ハは", u8"ハハ"), 0);
+  str1= "\xE3\x81\xAF\xE3\x81\xAF"; // utf8 "はは"
+  str2= "\xE3\x81\xAF\xE3\x83\x8F"; // utf8 "はハ"
+  const char *str3= "\xE3\x83\x8F\xE3\x81\xAF"; // utf8 "ハは"
+  const char *str4= "\xE3\x83\x8F\xE3\x83\x8F"; // utf8 "ハハ"
+  EXPECT_EQ(compare_through_strxfrm(as_cs, str1, str2), 0);
+  EXPECT_EQ(compare_through_strxfrm(as_cs, str2, str3), 0);
+  EXPECT_EQ(compare_through_strxfrm(as_cs, str3, str4), 0);
+  EXPECT_LT(compare_through_strxfrm(as_cs_ks, str1, str2), 0);
+  EXPECT_LT(compare_through_strxfrm(as_cs_ks, str2, str3), 0);
+  EXPECT_LT(compare_through_strxfrm(as_cs_ks, str3, str4), 0);
 }
 
 TEST(StrXfrmTest, JapaneseUTF8MB4_1)
@@ -1646,6 +1660,57 @@ TEST(HashTest, NullPointer)
   cs->coll->hash_sort(
     cs, pointer_cast<const uchar *>("        "), 8, &nr1, &nr2);
   // Don't care what the values are, just that we don't crash.
+}
+
+namespace {
+
+// Test that strnxfrmlen() holds for all single characters.
+void test_strnxfrmlen(CHARSET_INFO *cs) {
+  pair<size_t, my_wc_t> longest{0, 0};
+
+  uchar inbuf[16], outbuf[256];  // Ought to be enough for anyone.
+  const size_t max_len= cs->coll->strnxfrmlen(cs, cs->mbmaxlen);
+
+  for (my_wc_t ch= 0; ch <= 0x10ffff; ++ch) {
+    size_t in_len= cs->cset->wc_mb(cs, ch, inbuf, inbuf + sizeof(inbuf));
+    if (in_len <= 0) {
+      continue;  // Not representable in this character set.
+    }
+    size_t out_len= cs->coll->strnxfrm(
+      cs, outbuf, sizeof(outbuf), 1, inbuf, in_len, 0);
+    EXPECT_LE(out_len, max_len);
+    if (out_len > max_len) {
+      fprintf(
+        stderr, "U+%04lX needed more room than strnxfrmlen() claimed\n", ch);
+      fprintf(stderr, "Weight string:");
+      for (size_t i= 0; i < out_len; ++i) {
+        fprintf(stderr, " %02x", outbuf[i]);
+      }
+      fprintf(stderr, "\n\n");
+    }
+
+    longest= max(longest, make_pair(out_len, ch));
+  }
+
+  fprintf(stderr,
+    "Longest character in '%s': U+%04lX, %d bytes (strnxfrm_len=%d)\n",
+    cs->name, longest.second,
+    static_cast<int>(longest.first), static_cast<int>(max_len));
+}
+
+}  // namespace
+
+TEST(StrxfrmLenTest, StrnxfrmLenIsLongEnoughForAllCharacters)
+{
+  // Load one collation to get everything going.
+  init_collation("utf8mb4_0900_ai_ci");
+
+  for (CHARSET_INFO *cs : all_charsets) {
+    if (cs && (cs->state & MY_CS_AVAILABLE)) {
+      SCOPED_TRACE(cs->name);
+      test_strnxfrmlen(init_collation(cs->name));
+    }
+  }
 }
 
 }  // namespace strnxfrm_unittest

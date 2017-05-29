@@ -1,0 +1,58 @@
+# Testing unsupported slave multi source configuration
+
+--source include/have_ndb.inc
+
+--let $rpl_topology= 1->2,3->2
+--let $rpl_multi_source= 1
+--source include/rpl_init.inc
+
+disable_query_log;
+call mtr.add_suppression("NDB Slave: Configuration with number of replication masters = .* is not supported when applying to Ndb");
+call mtr.add_suppression("Slave SQL for channel .*: Could not execute Write_rows event");
+call mtr.add_suppression("Slave SQL for channel .*: Request to stop slave SQL Thread");
+enable_query_log;
+
+# create connections to first mysqld in each cluster
+--let $rpl_connection_name= cluster1
+--let $rpl_server_number= 1
+--source include/rpl_connect.inc
+
+--let $rpl_connection_name= cluster2
+--let $rpl_server_number= 2
+--source include/rpl_connect.inc
+
+--let $rpl_connection_name= cluster3
+--let $rpl_server_number= 3
+--source include/rpl_connect.inc
+
+--let $rpl_connection_name= cluster1
+--source include/rpl_connection.inc
+create table t1 (a int) engine=ndb;
+insert into t1 values(1);
+
+# Check that replication fails to start since
+# it detect the unsupported multi source setup
+# and returns error ER_UNSUPPORTED_EXTENSION(1112)
+--let $slave_sql_errno= 1112
+--let $show_sql_error= 1
+--let $rpl_channel_name= 'channel_1'
+--let $rpl_connection_name= cluster2
+--source include/rpl_connection.inc
+--let $not_switch_connection= true
+--source include/wait_for_slave_sql_error_and_skip.inc
+
+
+#
+# clean up
+#
+
+# drop the table from cluster1, it does not exist anywhere else
+--let $rpl_connection_name= cluster1
+--source include/rpl_connection.inc
+drop table t1;
+
+# tear down replication
+--let $rpl_skip_sync= 1
+--source include/rpl_reset.inc
+--let $rpl_skip_sync= 1
+--source include/rpl_end.inc

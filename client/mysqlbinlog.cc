@@ -1254,6 +1254,7 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *
         goto end;
       }
     }
+    // Fall through
     case binary_log::ROWS_QUERY_LOG_EVENT:
     case binary_log::WRITE_ROWS_EVENT:
     case binary_log::DELETE_ROWS_EVENT:

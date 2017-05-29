@@ -223,35 +223,35 @@ Pipeline_stats_member_collector::~Pipeline_stats_member_collector()
 void
 Pipeline_stats_member_collector::increment_transactions_waiting_apply()
 {
-  my_atomic_add32(&m_transactions_waiting_apply, 1);
+  ++m_transactions_waiting_apply;
 }
 
 
 void
 Pipeline_stats_member_collector::decrement_transactions_waiting_apply()
 {
-  my_atomic_add32(&m_transactions_waiting_apply, -1);
+  ++m_transactions_waiting_apply;
 }
 
 
 void
 Pipeline_stats_member_collector::increment_transactions_certified()
 {
-  my_atomic_add64(&m_transactions_certified, 1);
+  ++m_transactions_certified;
 }
 
 
 void
 Pipeline_stats_member_collector::increment_transactions_applied()
 {
-  my_atomic_add64(&m_transactions_applied, 1);
+  ++m_transactions_applied;
 }
 
 
 void
 Pipeline_stats_member_collector::increment_transactions_local()
 {
-  my_atomic_add64(&m_transactions_local, 1);
+  ++m_transactions_local;
 }
 
 
@@ -268,10 +268,10 @@ Pipeline_stats_member_collector::send_stats_member_message()
 
   Pipeline_stats_member_message message(
       static_cast<int32>(applier_module->get_message_queue_size()),
-      my_atomic_load32(&m_transactions_waiting_apply),
-      my_atomic_load64(&m_transactions_certified),
-      my_atomic_load64(&m_transactions_applied),
-      my_atomic_load64(&m_transactions_local));
+      m_transactions_waiting_apply.load(),
+      m_transactions_certified.load(),
+      m_transactions_applied.load(),
+      m_transactions_local.load());
 
   enum_gcs_error msg_error= gcs_module->send_message(message, true);
   if (msg_error != GCS_OK)
@@ -427,7 +427,7 @@ void
 Flow_control_module::flow_control_step()
 {
   m_stamp++;
-  int32 holds= my_atomic_fas32(&m_holds_in_period, 0);
+  int32 holds= m_holds_in_period.exchange(0);
 
   switch(static_cast<Flow_control_mode>(flow_control_mode_var))
   {
@@ -436,8 +436,8 @@ Flow_control_module::flow_control_step()
       /*
         Postponed transactions
       */
-      int64 quota_size= my_atomic_fas64(&m_quota_size, 0);
-      int64 quota_used= my_atomic_fas64(&m_quota_used, 0);
+      int64 quota_size= m_quota_size.exchange(0);
+      int64 quota_used= m_quota_used.exchange(0);
       int64 extra_quota=
           (quota_size > 0 && quota_used > quota_size) ? quota_used - quota_size : 0;
 
@@ -504,7 +504,7 @@ Flow_control_module::flow_control_step()
                                             flow_control_applier_threshold_var));
         min_capacity= std::max(std::min(min_capacity, safe_capacity), lim_throttle);
         quota_size= static_cast<int64>((min_capacity * HOLD_FACTOR) / num_writing_members - extra_quota);
-        my_atomic_store64(&m_quota_size, quota_size > 1 ? quota_size : 1);
+        m_quota_size.store(quota_size > 1 ? quota_size : 1);
       }
       else
       {
@@ -516,16 +516,16 @@ Flow_control_module::flow_control_step()
         else
           quota_size= 0;
 
-        my_atomic_store64(&m_quota_size, quota_size);
+        m_quota_size.store(quota_size);
       }
 
-      my_atomic_store64(&m_quota_used, 0);
+      m_quota_used.store(0);
       break;
     }
 
     case FCM_DISABLED:
-      my_atomic_store64(&m_quota_size, 0);
-      my_atomic_store64(&m_quota_used, 0);
+      m_quota_size.store(0);
+      m_quota_used.store(0);
       break;
 
     default:
@@ -565,11 +565,11 @@ Flow_control_module::handle_stats_data(const uchar *data,
   */
   if (it->second.is_flow_control_needed())
   {
-    my_atomic_add32(&m_holds_in_period, 1);
+    ++m_holds_in_period;
 #ifndef DBUG_OFF
     it->second.debug(it->first.c_str(),
-                     my_atomic_load64(&m_quota_size),
-                     my_atomic_load64(&m_quota_used));
+                     m_quota_size.load(),
+                     m_quota_used.load());
 #endif
   }
 
@@ -581,8 +581,8 @@ int32
 Flow_control_module::do_wait()
 {
   DBUG_ENTER("Flow_control_module::do_wait");
-  int64 quota_size= my_atomic_load64(&m_quota_size);
-  int64 quota_used= my_atomic_add64(&m_quota_used, 1);
+  int64 quota_size= m_quota_size.load();
+  int64 quota_used= ++m_quota_used;
 
   if (quota_used > quota_size && quota_size != 0)
   {

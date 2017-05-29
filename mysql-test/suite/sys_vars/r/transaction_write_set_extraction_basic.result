@@ -14,7 +14,7 @@ SET @@GLOBAL.binlog_format= ROW;
 SET global transaction_write_set_extraction= DEFAULT;
 SELECT @@global.transaction_write_set_extraction;
 @@global.transaction_write_set_extraction
-OFF
+XXHASH64
 SET global transaction_write_set_extraction='OFF';
 SELECT @@global.transaction_write_set_extraction;
 @@global.transaction_write_set_extraction

@@ -2149,5 +2149,10 @@ ROLLBACK AND RELEASE CHAIN;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'RELEASE CHAIN' at line 1
 ROLLBACK AND NO CHAIN NO RELEASE;
 #
-# End of 5.5 tests
+# Bug#26132947: SERVER CAN EXIT ON ALTER TABLE ADD PARTITION SYNTAX
+#
+CREATE TABLE t1 (a INT PRIMARY KEY) PARTITION BY HASH (a) PARTITIONS 1;
+ALTER TABLE t1 ADD PARTITION;
+ERROR HY000: At least one partition must be added
+DROP TABLE t1;
 #

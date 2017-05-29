@@ -1,5 +1,5 @@
 #
-# We use default-character-set=latin1 to avoid character set auto-detection
+# We use default-character-set=utf8mb4 to avoid character set auto-detection
 # when running tests - not to depend on the current machine localization.
 #
 

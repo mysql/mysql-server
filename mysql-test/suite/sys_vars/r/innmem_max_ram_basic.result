@@ -1,0 +1,44 @@
+SELECT @@global.temptable_max_ram;
+@@global.temptable_max_ram
+1073741824
+SELECT @@session.temptable_max_ram;
+ERROR HY000: Variable 'temptable_max_ram' is a GLOBAL variable
+SET @@global.temptable_max_ram = 5666777;
+SELECT @@global.temptable_max_ram;
+@@global.temptable_max_ram
+5666777
+SET @@global.temptable_max_ram = -5666777;
+Warnings:
+Warning	1292	Truncated incorrect temptable_max_ram value: '-5666777'
+SELECT @@global.temptable_max_ram;
+@@global.temptable_max_ram
+2097152
+SET @@global.temptable_max_ram = -1;
+Warnings:
+Warning	1292	Truncated incorrect temptable_max_ram value: '-1'
+SELECT @@global.temptable_max_ram;
+@@global.temptable_max_ram
+2097152
+SET @@global.temptable_max_ram = 0;
+Warnings:
+Warning	1292	Truncated incorrect temptable_max_ram value: '0'
+SELECT @@global.temptable_max_ram;
+@@global.temptable_max_ram
+2097152
+SET @@global.temptable_max_ram = 1;
+Warnings:
+Warning	1292	Truncated incorrect temptable_max_ram value: '1'
+SELECT @@global.temptable_max_ram;
+@@global.temptable_max_ram
+2097152
+SET @@global.temptable_max_ram = default;
+SET @@global.temptable_max_ram = NULL;
+ERROR 42000: Incorrect argument type to variable 'temptable_max_ram'
+SELECT @@global.temptable_max_ram;
+@@global.temptable_max_ram
+1073741824
+SET @@global.temptable_max_ram = 'foo';
+ERROR 42000: Incorrect argument type to variable 'temptable_max_ram'
+SELECT @@global.temptable_max_ram;
+@@global.temptable_max_ram
+1073741824

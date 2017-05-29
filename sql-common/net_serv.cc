@@ -362,10 +362,9 @@ net_should_retry(NET *net, uint *retry_count MY_ATTRIBUTE((unused)))
 bool my_net_write(NET *net, const uchar *packet, size_t len)
 {
   uchar buff[NET_HEADER_SIZE];
-  int rc;
 
   if (unlikely(!net->vio)) /* nowhere to write */
-    return 0;
+    return false;
 
   DBUG_EXECUTE_IF("simulate_net_write_failure", {
                   my_error(ER_NET_ERROR_ON_WRITE, MYF(0));
@@ -401,8 +400,7 @@ bool my_net_write(NET *net, const uchar *packet, size_t len)
 #ifndef DEBUG_DATA_PACKETS
   DBUG_DUMP("packet_header", buff, NET_HEADER_SIZE);
 #endif
-  rc= MY_TEST(net_write_buff(net,packet,len));
-  return rc;
+  return net_write_buff(net,packet,len);
 }
 
 
@@ -441,7 +439,6 @@ net_write_command(NET *net,uchar command,
   size_t length=len+1+head_len;			/* 1 extra byte for command */
   uchar buff[NET_HEADER_SIZE+1];
   uint header_size=NET_HEADER_SIZE+1;
-  int rc;
   DBUG_ENTER("net_write_command");
   DBUG_PRINT("enter",("length: %lu", (ulong) len));
 
@@ -471,9 +468,10 @@ net_write_command(NET *net,uchar command,
   }
   int3store(buff, static_cast<uint>(length));
   buff[3]= (uchar) net->pkt_nr++;
-  rc= MY_TEST(net_write_buff(net, buff, header_size) ||
-              (head_len && net_write_buff(net, header, head_len)) ||
-              net_write_buff(net, packet, len) || net_flush(net));
+  bool rc= net_write_buff(net, buff, header_size) ||
+    (head_len && net_write_buff(net, header, head_len)) ||
+    net_write_buff(net, packet, len) ||
+    net_flush(net);
   DBUG_RETURN(rc);
 }
 
@@ -608,7 +606,7 @@ net_write_raw_loop(NET *net, const uchar *buf, size_t count)
 #endif
   }
 
-  return MY_TEST(count);
+  return count != 0;
 }
 
 
@@ -782,7 +780,7 @@ static bool net_read_raw_loop(NET *net, size_t count)
 #endif
   }
 
-  return MY_TEST(count);
+  return count != 0;
 }
 
 

@@ -291,10 +291,10 @@ SQL	CONTAINS SQL	int(11)
 SQL	CONTAINS SQL	NULL
 show procedure status where db='test';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-test	sel2	PROCEDURE	root@localhost	#	#	DEFINER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+test	sel2	PROCEDURE	root@localhost	#	#	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 show function status where db='test';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-test	sub1	FUNCTION	root@localhost	#	#	DEFINER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+test	sub1	FUNCTION	root@localhost	#	#	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 select a.ROUTINE_NAME from information_schema.ROUTINES a,
 information_schema.SCHEMATA b where
 a.ROUTINE_SCHEMA = b.SCHEMA_NAME AND b.SCHEMA_NAME='test';
@@ -333,17 +333,17 @@ sub2	return i+1
 sel2	NULL
 show create procedure sel2;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-sel2	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	NULL	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+sel2	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	NULL	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 show create function sub1;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-sub1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	NULL	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+sub1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	NULL	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 show create function sub2;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 sub2	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`mysqltest_1`@`localhost` FUNCTION `sub2`(i int) RETURNS int(11)
-return i+1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+return i+1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 show function status like "sub2";
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-test	sub2	FUNCTION	mysqltest_1@localhost	#	#	DEFINER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+test	sub2	FUNCTION	mysqltest_1@localhost	#	#	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 drop function sub2;
 show create procedure sel2;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
@@ -351,7 +351,7 @@ sel2	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_F
 begin
 select * from t1;
 select * from t2;
-end	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+end	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 create view v0 (c) as select schema_name from information_schema.schemata order by schema_name;
 select * from v0;
 c
@@ -401,11 +401,11 @@ Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_par
 select * from information_schema.views where TABLE_SCHEMA != 'sys' and
 TABLE_NAME rlike "v[0-4]{1}$" order by table_name;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE	CHARACTER_SET_CLIENT	COLLATION_CONNECTION
-def	test	v0	#	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
-def	test	v1	#	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
-def	test	v2	#	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
-def	test	v3	#	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
-def	test	v4	#	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
+def	test	v0	#	NONE	NO	root@localhost	DEFINER	utf8mb4	utf8mb4_0900_ai_ci
+def	test	v1	#	NONE	NO	root@localhost	DEFINER	utf8mb4	utf8mb4_0900_ai_ci
+def	test	v2	#	NONE	NO	root@localhost	DEFINER	utf8mb4	utf8mb4_0900_ai_ci
+def	test	v3	#	NONE	NO	root@localhost	DEFINER	utf8mb4	utf8mb4_0900_ai_ci
+def	test	v4	#	NONE	NO	root@localhost	DEFINER	utf8mb4	utf8mb4_0900_ai_ci
 drop view v0, v1, v2, v3, v4;
 create table t1 (a int);
 grant select,update,insert on t1 to mysqltest_1@localhost;
@@ -504,9 +504,9 @@ create view v3 (c) as select a from t1 WITH CASCADED CHECK OPTION;
 select * from information_schema.views where table_schema !=
 'sys' order by table_name;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE	CHARACTER_SET_CLIENT	COLLATION_CONNECTION
-def	test	v1	select `test`.`t1`.`a` AS `a` from `test`.`t1`	CASCADED	YES	root@localhost	DEFINER	latin1	latin1_swedish_ci
-def	test	v2	select `test`.`t1`.`a` AS `a` from `test`.`t1`	LOCAL	YES	root@localhost	DEFINER	latin1	latin1_swedish_ci
-def	test	v3	select `test`.`t1`.`a` AS `a` from `test`.`t1`	CASCADED	YES	root@localhost	DEFINER	latin1	latin1_swedish_ci
+def	test	v1	select `test`.`t1`.`a` AS `a` from `test`.`t1`	CASCADED	YES	root@localhost	DEFINER	utf8mb4	utf8mb4_0900_ai_ci
+def	test	v2	select `test`.`t1`.`a` AS `a` from `test`.`t1`	LOCAL	YES	root@localhost	DEFINER	utf8mb4	utf8mb4_0900_ai_ci
+def	test	v3	select `test`.`t1`.`a` AS `a` from `test`.`t1`	CASCADED	YES	root@localhost	DEFINER	utf8mb4	utf8mb4_0900_ai_ci
 grant select (a) on test.t1 to joe@localhost with grant option;
 Warnings:
 Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.

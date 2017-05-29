@@ -154,7 +154,7 @@ static const ulong EVENT_DEF_CACHE_MIN=          256;
   Feel free to raise this by the smallest amount you can to get the
   "execution_constants" test to pass.
 */
-#define STACK_MIN_SIZE          16000   // Abort if less stack during eval.
+#define STACK_MIN_SIZE          20000   // Abort if less stack during eval.
 
 #define STACK_MIN_SIZE_FOR_OPEN 1024*80
 

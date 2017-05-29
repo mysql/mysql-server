@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 #############################################################
 # Author: JBM
 # Date: 2006-02-24
@@ -18,33 +13,26 @@
 # workaround for Bug #34006 binlog race for temporary ndb table
 # - disable using temporary ndb tables
 -- connection master
--- disable_query_log
 set ndb_table_temporary=0;
--- enable_query_log
 
 -- connection slave
-
-# Remove any old ndb_apply_status from slaves datadir
-let $datadir= `SELECT @@datadir`;
---error 0,1
-remove_file $datadir/mysql/ndb_apply_status.frm;
---error 0,1
-remove_file $datadir/mysql/ndb_apply_status.ndb;
-
 set @@global.slave_exec_mode= 'IDEMPOTENT';
+
+# Silence warning about MyISAM not supporting HASH index algorithm
+# when creating mysql.ndb_apply_status
+disable_warnings ONCE;
 CREATE TABLE mysql.ndb_apply_status
                    ( server_id INT UNSIGNED NOT NULL,
                    epoch BIGINT UNSIGNED NOT NULL,
                    log_name VARCHAR(255) BINARY NOT NULL,
                    start_pos BIGINT UNSIGNED NOT NULL,
                    end_pos BIGINT UNSIGNED NOT NULL,
-                   PRIMARY KEY USING HASH (server_id)) ENGINE=MYISAM;
+                   PRIMARY KEY USING HASH (server_id)) ENGINE=MYISAM
+                   CHARACTER SET latin1;
 
 -- connection master
---disable_query_log
 set new=on;
 set default_storage_engine=ndbcluster;
---enable_query_log
 
 --source suite/ndb_rpl/t/ndb_rpl_2multi_eng.inc
 

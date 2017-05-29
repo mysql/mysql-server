@@ -180,12 +180,13 @@ private:
     information in STS mode
   */
   int make_row(Master_info *);
-  void populate_trx_info(trx_monitoring_info *, trx_monitoring_info *);
+  void populate_trx_info(Gtid_monitoring_info *, mysql_mutex_t *);
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
-  /** Fields definition. */
-  static TABLE_FIELD_DEF m_field_def;
+  /** Table definition. */
+  static Plugin_table m_table_def;
+
   /** current row*/
   st_row_worker m_row;
   /** Current position. */

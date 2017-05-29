@@ -52,21 +52,21 @@ Cached_item *new_Cached_item(THD *thd, Item *item, bool use_result_field)
     Item_field *real_item= (Item_field *) item->real_item();
     Field *cached_field= use_result_field ? real_item->result_field :
                                             real_item->field;
-    return new Cached_item_field(cached_field);
+    return new (*THR_MALLOC) Cached_item_field(cached_field);
   }
   switch (item->result_type()) {
   case STRING_RESULT:
     if (item->is_temporal())
-      return new Cached_item_temporal(item);
+      return new (*THR_MALLOC) Cached_item_temporal(item);
     if (item->data_type() == MYSQL_TYPE_JSON)
-      return new Cached_item_json(item);
-    return new Cached_item_str(thd, item);
+      return new (*THR_MALLOC) Cached_item_json(item);
+    return new (*THR_MALLOC) Cached_item_str(thd, item);
   case INT_RESULT:
-    return new Cached_item_int(item);
+    return new (*THR_MALLOC) Cached_item_int(item);
   case REAL_RESULT:
-    return new Cached_item_real(item);
+    return new (*THR_MALLOC) Cached_item_real(item);
   case DECIMAL_RESULT:
-    return new Cached_item_decimal(item);
+    return new (*THR_MALLOC) Cached_item_decimal(item);
   case ROW_RESULT:
   default:
     DBUG_ASSERT(0);
@@ -123,7 +123,7 @@ Cached_item_str::~Cached_item_str()
 
 
 Cached_item_json::Cached_item_json(Item *item)
-  : m_item(item), m_value(new Json_wrapper())
+  : m_item(item), m_value(new (*THR_MALLOC) Json_wrapper())
 {}
 
 

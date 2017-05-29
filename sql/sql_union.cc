@@ -565,7 +565,7 @@ bool SELECT_LEX_UNIT::prepare(THD *thd_arg, Query_result *sel_result,
     if (is_union() && !union_needs_tmp_table())
     {
       if (!(tmp_result= union_result=
-            new Query_result_union_direct(thd, sel_result, last_select)))
+            new (*THR_MALLOC) Query_result_union_direct(thd, sel_result, last_select)))
         goto err; /* purecov: inspected */
       if (fake_select_lex != NULL)
       {
@@ -577,7 +577,7 @@ bool SELECT_LEX_UNIT::prepare(THD *thd_arg, Query_result *sel_result,
     }
     else
     {
-      if (!(tmp_result= union_result= new Query_result_union(thd)))
+      if (!(tmp_result= union_result= new (*THR_MALLOC) Query_result_union(thd)))
         goto err; /* purecov: inspected */
       instantiate_tmp_table= true;
     }
@@ -652,7 +652,7 @@ bool SELECT_LEX_UNIT::prepare(THD *thd_arg, Query_result *sel_result,
       Use items list of underlaid select for derived tables to preserve
       information about fields lengths and exact types
     */
-    if (simple_query_expression)
+    if (!is_union())
       types= first_select()->item_list;
     else if (sl == first_select())
     {
@@ -661,6 +661,19 @@ bool SELECT_LEX_UNIT::prepare(THD *thd_arg, Query_result *sel_result,
       Item *item_tmp;
       while ((item_tmp= it++))
       {
+        /*
+          If the outer query has a GROUP BY clause, an outer reference to this
+          query block may have been wrapped in a Item_outer_ref, which has not
+          been fixed yet. An Item_type_holder must be created based on a fixed
+          Item, so use the inner Item instead.
+        */
+        DBUG_ASSERT(item_tmp->fixed ||
+                    (item_tmp->type() == Item::REF_ITEM &&
+                     down_cast<Item_ref *>(item_tmp)->ref_type() ==
+                     Item_ref::OUTER_REF));
+        if (!item_tmp->fixed)
+          item_tmp= item_tmp->real_item();
+
         auto holder= new Item_type_holder(thd_arg, item_tmp);
         if (!holder)
           goto err;                             /* purecov: inspected */
@@ -766,7 +779,8 @@ bool SELECT_LEX_UNIT::prepare(THD *thd_arg, Query_result *sel_result,
     if (fake_select_lex && fake_select_lex->ftfunc_list->elements)
       create_options|= TMP_TABLE_FORCE_MYISAM;
 
-    if (union_result->create_result_table(thd, &types, MY_TEST(union_distinct),
+    if (union_result->create_result_table(thd, &types,
+                                          union_distinct != nullptr,
                                           create_options, "", false,
                                           instantiate_tmp_table))
       goto err;

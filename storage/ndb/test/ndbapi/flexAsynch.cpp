@@ -471,7 +471,7 @@ int main(int argc, char** argv)
         }
       }
     }
-    Uint32 mean_rounds;
+    Uint64 mean_rounds;
     if (total_rounds)
     {
       mean_rounds = total_transactions / total_rounds;
@@ -971,8 +971,12 @@ defineNdbRecordOperation(char *record,
   {
     if (my_thread_data != NULL && aType != stInsert)
     {
+#ifdef _WIN32
+      rand_val = rand();
+#else
       my_thread_data->rand_seed++;
       rand_val = (Uint32)rand_r(&my_thread_data->rand_seed);
+#endif
     }
     for (unsigned k = 1; k < tNoOfAttributes; k++) {
       NdbDictionary::getOffset(ndb_record, k + 1, offset);
@@ -1478,6 +1482,9 @@ init_thread_data(THREAD_DATA *my_thread_data, Uint32 thread_id)
   my_thread_data->ready = false;
   my_thread_data->start = false;
   my_thread_data->rand_seed = 1;
+#ifdef _WIN32
+  srand(my_thread_data->rand_seed);
+#endif
   my_thread_data->transport_mutex = NdbMutex_Create();
   my_thread_data->transport_cond = NdbCondition_Create();
   my_thread_data->main_cond = NdbCondition_Create();
@@ -2241,7 +2248,7 @@ read_cpus(const char *str, Uint32 *num_cpus, Uint16 *cpu_array)
   bool number_found = false;
   Uint16 start = 0;
   Uint32 current_number = 0;
-  Uint32 len = strlen(str);
+  Uint32 len = (Uint32)strlen(str);
 
   for (i = 0; i < len + 1; i++)
   {

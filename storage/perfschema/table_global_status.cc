@@ -50,27 +50,19 @@ PFS_index_global_status::match(const Status_variable *pfs)
 
 THR_LOCK table_global_status::m_table_lock;
 
-/* clang-format off */
-static const TABLE_FIELD_TYPE field_types[]=
-{
-  {
-    { C_STRING_WITH_LEN("VARIABLE_NAME") },
-    { C_STRING_WITH_LEN("varchar(64)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("VARIABLE_VALUE") },
-    { C_STRING_WITH_LEN("varchar(1024)") },
-    { NULL, 0}
-  }
-};
-/* clang-format on */
-
-TABLE_FIELD_DEF
-table_global_status::m_field_def = {2, field_types};
+Plugin_table table_global_status::m_table_def(
+  /* Name */
+  "global_status",
+  /* Definition */
+  "  VARIABLE_NAME VARCHAR(64) not null,\n"
+  "  VARIABLE_VALUE VARCHAR(1024),\n"
+  "  PRIMARY KEY (VARIABLE_NAME) USING HASH\n",
+  /* Options */
+  " ENGINE=PERFORMANCE_SCHEMA",
+  /* Tablespace */
+  nullptr);
 
 PFS_engine_table_share table_global_status::m_share = {
-  {C_STRING_WITH_LEN("global_status")},
   &pfs_truncatable_world_acl,
   table_global_status::create,
   NULL, /* write_row */
@@ -78,9 +70,8 @@ PFS_engine_table_share table_global_status::m_share = {
   table_global_status::get_row_count,
   sizeof(pos_t),
   &m_table_lock,
-  &m_field_def,
-  false, /* checked */
-  true   /* perpetual */
+  &m_table_def,
+  true /* perpetual */
 };
 
 PFS_engine_table *

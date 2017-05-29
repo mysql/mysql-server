@@ -267,7 +267,7 @@ Lex_input_stream::reset(const char *buffer, size_t length)
   m_cpp_utf8_processed_ptr= NULL;
   next_state= MY_LEX_START;
   found_semicolon= NULL;
-  ignore_space= MY_TEST(m_thd->variables.sql_mode & MODE_IGNORE_SPACE);
+  ignore_space= m_thd->variables.sql_mode & MODE_IGNORE_SPACE;
   stmt_prepare_mode= FALSE;
   multi_statements= TRUE;
   in_comment=NO_COMMENT;
@@ -4084,7 +4084,7 @@ TABLE_LIST *LEX::unlink_first_table(bool *link_to_local)
     /*
       and from local list if it is not empty
     */
-    if ((*link_to_local= MY_TEST(select_lex->get_table_list())))
+    if ((*link_to_local= select_lex->get_table_list() != nullptr))
     {
       select_lex->context.table_list= 
         select_lex->context.first_name_resolution_table= first->next_local;

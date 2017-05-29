@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
 
    This program is free software; you can redistribute it and/or modify
@@ -273,4 +273,24 @@ NdbOut_Init()
 
   new (&ndberrs_fileoutputstream) FileOutputStream(stderr);
   new (&ndberr) NdbOut(ndberrs_fileoutputstream);
+}
+
+void
+NdbOut_ReInit(OutputStream* stdout_ostream,
+              OutputStream* stderr_ostream)
+{
+  /**
+   * Re-initialise ndbout and ndberr globals with different OutputStreams
+   * Not thread safe, should be done at process start
+   */
+
+  /**
+   * Following probably can be removed as destructors(same file) are empty,
+   * but are present to handle any future changes
+   */
+    ndbout.~NdbOut();
+    //ndberr.~NdbErr();
+
+   new (&ndbout) NdbOut(*stdout_ostream);
+   new (&ndberr) NdbOut(*stderr_ostream);
 }

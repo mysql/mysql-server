@@ -151,10 +151,10 @@ Field	Type	Null	Key	Default	Extra
 f1	char(4)	YES		NULL	
 show create view testdb_1.v6;
 View	Create View	character_set_client	collation_connection
-v6	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v6` AS select `t1`.`f1` AS `f1` from `t1`	latin1	latin1_swedish_ci
+v6	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v6` AS select `t1`.`f1` AS `f1` from `t1`	utf8mb4	utf8mb4_0900_ai_ci
 show create view testdb_1.v7;
 View	Create View	character_set_client	collation_connection
-v7	CREATE ALGORITHM=UNDEFINED DEFINER=`no_such_user`@`no_such_host` SQL SECURITY DEFINER VIEW `v7` AS select `t2`.`f1` AS `f1` from `t2`	latin1	latin1_swedish_ci
+v7	CREATE ALGORITHM=UNDEFINED DEFINER=`no_such_user`@`no_such_host` SQL SECURITY DEFINER VIEW `v7` AS select `t2`.`f1` AS `f1` from `t2`	utf8mb4	utf8mb4_0900_ai_ci
 Warnings:
 Note	1449	The user specified as a definer ('no_such_user'@'no_such_host') does not exist
 show fields from testdb_1.v7;
@@ -170,19 +170,19 @@ Field	Type	Null	Key	Default	Extra
 f1	char(4)	YES		NULL	
 show create view testdb_1.v5;
 View	Create View	character_set_client	collation_connection
-v5	CREATE ALGORITHM=UNDEFINED DEFINER=`testdb_1`@`localhost` SQL SECURITY DEFINER VIEW `testdb_1`.`v5` AS select `testdb_1`.`t1`.`f1` AS `f1` from `testdb_1`.`t1`	latin1	latin1_swedish_ci
+v5	CREATE ALGORITHM=UNDEFINED DEFINER=`testdb_1`@`localhost` SQL SECURITY DEFINER VIEW `testdb_1`.`v5` AS select `testdb_1`.`t1`.`f1` AS `f1` from `testdb_1`.`t1`	utf8mb4	utf8mb4_0900_ai_ci
 show fields from testdb_1.v6;
 Field	Type	Null	Key	Default	Extra
 f1	char(4)	YES		NULL	
 show create view testdb_1.v6;
 View	Create View	character_set_client	collation_connection
-v6	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `testdb_1`.`v6` AS select `testdb_1`.`t1`.`f1` AS `f1` from `testdb_1`.`t1`	latin1	latin1_swedish_ci
+v6	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `testdb_1`.`v6` AS select `testdb_1`.`t1`.`f1` AS `f1` from `testdb_1`.`t1`	utf8mb4	utf8mb4_0900_ai_ci
 show fields from testdb_1.v7;
 Field	Type	Null	Key	Default	Extra
 f1	char(4)	YES		NULL	
 show create view testdb_1.v7;
 View	Create View	character_set_client	collation_connection
-v7	CREATE ALGORITHM=UNDEFINED DEFINER=`no_such_user`@`no_such_host` SQL SECURITY DEFINER VIEW `v7` AS select `t2`.`f1` AS `f1` from `t2`	latin1	latin1_swedish_ci
+v7	CREATE ALGORITHM=UNDEFINED DEFINER=`no_such_user`@`no_such_host` SQL SECURITY DEFINER VIEW `v7` AS select `t2`.`f1` AS `f1` from `t2`	utf8mb4	utf8mb4_0900_ai_ci
 Warnings:
 Note	1449	The user specified as a definer ('no_such_user'@'no_such_host') does not exist
 revoke insert(f1) on v3 from testdb_2@localhost;
@@ -203,7 +203,7 @@ show create view testdb_1.v7;
 ERROR 42000: SELECT command denied to user 'testdb_2'@'localhost' for table 'v7'
 show create view v4;
 View	Create View	character_set_client	collation_connection
-v4	CREATE ALGORITHM=UNDEFINED DEFINER=`testdb_2`@`localhost` SQL SECURITY DEFINER VIEW `v4` AS select `v3`.`f1` AS `f1`,`v3`.`f2` AS `f2` from `testdb_1`.`v3`	latin1	latin1_swedish_ci
+v4	CREATE ALGORITHM=UNDEFINED DEFINER=`testdb_2`@`localhost` SQL SECURITY DEFINER VIEW `v4` AS select `v3`.`f1` AS `f1`,`v3`.`f2` AS `f2` from `testdb_1`.`v3`	utf8mb4	utf8mb4_0900_ai_ci
 show fields from v4;
 Field	Type	Null	Key	Default	Extra
 f1	char(4)	YES		NULL	
@@ -216,7 +216,7 @@ Field	Type	Null	Key	Default	Extra
 f1	char(4)	YES		NULL	
 show create view v2;
 View	Create View	character_set_client	collation_connection
-v2	CREATE ALGORITHM=UNDEFINED DEFINER=`testdb_2`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `v1`.`f1` AS `f1` from `testdb_1`.`v1`	latin1	latin1_swedish_ci
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`testdb_2`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `v1`.`f1` AS `f1` from `testdb_1`.`v1`	utf8mb4	utf8mb4_0900_ai_ci
 show create view testdb_1.v1;
 ERROR 42000: SELECT command denied to user 'testdb_2'@'localhost' for table 'v1'
 select table_name from information_schema.columns a
@@ -250,7 +250,7 @@ TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION
 testdb_1	v1	
 show create view testdb_1.v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `testdb_1`.`v1` AS select `testdb_1`.`t1`.`a` AS `a` from `testdb_1`.`t1`	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `testdb_1`.`v1` AS select `testdb_1`.`t1`.`a` AS `a` from `testdb_1`.`t1`	utf8mb4	utf8mb4_0900_ai_ci
 revoke select on testdb_1.v1 from mysqltest_1@localhost;
 select table_schema, table_name, view_definition from information_schema.views
 where table_name='v1';

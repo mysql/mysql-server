@@ -82,7 +82,7 @@ bool Json_path_leg::to_string(String *buf) const
   }
 
   // Unknown leg type.
-  DBUG_ABORT();                                 /* purecov: inspected */
+  DBUG_ASSERT(false);                           /* purecov: inspected */
   return true;                                  /* purecov: inspected */
 }
 

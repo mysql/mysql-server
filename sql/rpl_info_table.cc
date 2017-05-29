@@ -23,7 +23,7 @@
 #include "field.h"
 #include "handler.h"
 #include "key.h"
-#include "log.h"                    // sql_print_error
+#include "log.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_base.h"
@@ -477,9 +477,8 @@ enum_return_check Rpl_info_table::do_check_info()
                          get_number_info(), TL_READ,
                          &table, &backup))
   {
-    sql_print_warning("Info table is not ready to be used. Table "
-                      "'%s.%s' cannot be opened.", str_schema.str,
-                      str_table.str);
+    LogErr(WARNING_LEVEL, ER_RPL_CANT_OPEN_INFO_TABLE,
+           str_schema.str, str_table.str);
 
     return_check= ERROR_CHECKING_REPOSITORY;
     goto end;
@@ -532,9 +531,8 @@ enum_return_check Rpl_info_table::do_check_info(uint instance)
                          get_number_info(), TL_READ,
                          &table, &backup))
   {
-    sql_print_warning("Info table is not ready to be used. Table "
-                      "'%s.%s' cannot be opened.", str_schema.str,
-                      str_table.str);
+    LogErr(WARNING_LEVEL, ER_RPL_CANT_OPEN_INFO_TABLE,
+           str_schema.str, str_table.str);
 
     return_check= ERROR_CHECKING_REPOSITORY;
     goto end;
@@ -614,9 +612,8 @@ bool Rpl_info_table::do_count_info(uint nparam,
   */
   if (info->access->count_info(table, counter))
   {
-    sql_print_warning("Info table is not ready to be used. Table "
-                      "'%s.%s' cannot be scanned.", info->str_schema.str,
-                      info->str_table.str);
+    LogErr(WARNING_LEVEL, ER_RPL_CANT_SCAN_INFO_TABLE,
+           info->str_schema.str, info->str_table.str);
     goto end;
   }
   error= 0;
@@ -842,8 +839,8 @@ bool Rpl_info_table::verify_table_primary_key_fields(TABLE *table)
               (m_n_pk_fields > 0 &&
                key_info->user_defined_key_parts != m_n_pk_fields)))
   {
-    sql_print_error("Corrupted table %s.%s. Check out table definition.",
-                    str_schema.str, str_table.str);
+    LogErr(ERROR_LEVEL, ER_RPL_CORRUPTED_INFO_TABLE,
+           str_schema.str, str_table.str);
   }
 
   if (!error && m_n_pk_fields && m_pk_field_indexes)
@@ -858,13 +855,11 @@ bool Rpl_info_table::verify_table_primary_key_fields(TABLE *table)
       {
         const char *key_field_name= key_info->key_part[idx].field->field_name;
         const char *table_field_name= table->field[m_pk_field_indexes[idx]]->field_name;
-        sql_print_error("Info table has a problem with its key field(s). "
-                        "Table '%s.%s' expected field #%u to be '%s' but "
-                        "found '%s' instead.",
-                        str_schema.str, str_table.str,
-                        m_pk_field_indexes[idx],
-                        key_field_name,
-                        table_field_name);
+        LogErr(ERROR_LEVEL, ER_RPL_CORRUPTED_KEYS_IN_INFO_TABLE,
+               str_schema.str, str_table.str,
+               m_pk_field_indexes[idx],
+               key_field_name,
+               table_field_name);
         error= true;
         break;
       }

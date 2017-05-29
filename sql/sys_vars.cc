@@ -30,6 +30,8 @@
   (for example in storage/myisam/ha_myisam.cc) !
 */
 
+#define  LOG_SUBSYSTEM_TAG "server_variables"
+
 #include "sql/sys_vars.h"
 
 #include "my_config.h"
@@ -65,7 +67,8 @@
 #include "ft_global.h"
 #include "hostname.h"                    // host_cache_resize
 #include "item_timefunc.h"               // ISO_FORMAT
-#include "log.h"                         // sql_print_warning
+#include "log.h"
+#include "../components/mysql_server/log_builtins_filter_imp.h" // until we have pluggable variables
 #include "log_event.h"                   // MAX_MAX_ALLOWED_PACKET
 #include "m_string.h"
 #include "mdl.h"
@@ -92,7 +95,7 @@
 #include "query_options.h"
 #include "rpl_group_replication.h"       // is_group_replication_running
 #include "rpl_info_factory.h"            // Rpl_info_factory
-#include "rpl_info_handler.h"            // INFO_REPOSITORY_FILE
+#include "rpl_info_handler.h"            // INFO_REPOSITORY_TABLE
 #include "rpl_mi.h"                      // Master_info
 #include "rpl_msr.h"                     // channel_map
 #include "rpl_mts_submode.h"             // MTS_PARALLEL_TYPE_DB_NAME
@@ -878,6 +881,16 @@ static bool check_super_outside_trx_outside_sf(sys_var *self, THD *thd, set_var 
 
 static bool check_explicit_defaults_for_timestamp(sys_var *self, THD *thd, set_var *var)
 {
+  // Deprecation warning if switching OFF explicit_defaults_for_timestamp
+  if (thd->variables.explicit_defaults_for_timestamp)
+  {
+    if (!var->save_result.ulonglong_value)
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_WARN_DEPRECATED_SYNTAX,
+                          ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),
+                          self->name.str, "");
+
+  }
   if (thd->in_sub_stmt)
   {
     my_error(ER_VARIABLE_NOT_SETTABLE_IN_SF_OR_TRIGGER, MYF(0), var->var->name.str);
@@ -951,7 +964,7 @@ static bool binlog_format_check(sys_var *self, THD *thd, set_var *var)
      switching @@SESSION.binlog_format from MIXED to STATEMENT when there are
      open temp tables and we are logging in row format.
   */
-  if (thd->temporary_tables && var->type == OPT_SESSION &&
+  if (thd->temporary_tables &&
       var->save_result.ulonglong_value == BINLOG_FORMAT_STMT &&
       ((thd->variables.binlog_format == BINLOG_FORMAT_MIXED &&
         thd->is_current_stmt_binlog_format_row()) ||
@@ -1137,7 +1150,7 @@ static Sys_var_bool Sys_explicit_defaults_for_timestamp(
        "The old behavior is deprecated. "
        "The variable can only be set by users having the SUPER privilege.",
        SESSION_VAR(explicit_defaults_for_timestamp),
-       CMD_LINE(OPT_ARG), DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       CMD_LINE(OPT_ARG), DEFAULT(TRUE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(check_explicit_defaults_for_timestamp));
 
 static bool repository_check(sys_var *self, THD *thd, set_var *var, SLAVE_THD_TYPE thread_mask)
@@ -1203,10 +1216,7 @@ static bool repository_check(sys_var *self, THD *thd, set_var *var, SLAVE_THD_TY
             }
           }
           else
-            sql_print_warning("It is not possible to change the type of the "
-                              "relay log's repository because there are workers' "
-                              "repositories with gaps. Please, fix the gaps first "
-                              "before doing such change.");
+            LogErr(WARNING_LEVEL, ER_RPL_REPO_HAS_GAPS);
         break;
         default:
           assert(0);
@@ -1243,22 +1253,22 @@ static const char *repository_names[]=
   0
 };
 
-ulong opt_mi_repository_id= INFO_REPOSITORY_FILE;
+ulong opt_mi_repository_id= INFO_REPOSITORY_TABLE;
 static Sys_var_enum Sys_mi_repository(
        "master_info_repository",
        "Defines the type of the repository for the master information."
        ,GLOBAL_VAR(opt_mi_repository_id), CMD_LINE(REQUIRED_ARG),
-       repository_names, DEFAULT(INFO_REPOSITORY_FILE), NO_MUTEX_GUARD,
+       repository_names, DEFAULT(INFO_REPOSITORY_TABLE), NO_MUTEX_GUARD,
        NOT_IN_BINLOG, ON_CHECK(master_info_repository_check),
        ON_UPDATE(0));
 
-ulong opt_rli_repository_id= INFO_REPOSITORY_FILE;
+ulong opt_rli_repository_id= INFO_REPOSITORY_TABLE;
 static Sys_var_enum Sys_rli_repository(
        "relay_log_info_repository",
        "Defines the type of the repository for the relay log information "
        "and associated workers."
        ,GLOBAL_VAR(opt_rli_repository_id), CMD_LINE(REQUIRED_ARG),
-       repository_names, DEFAULT(INFO_REPOSITORY_FILE), NO_MUTEX_GUARD,
+       repository_names, DEFAULT(INFO_REPOSITORY_TABLE), NO_MUTEX_GUARD,
        NOT_IN_BINLOG, ON_CHECK(relay_log_info_repository_check),
        ON_UPDATE(0));
 
@@ -1336,8 +1346,8 @@ static bool check_storage_engine(sys_var *self, THD *thd, set_var *var)
     {
       handlerton *hton= plugin_data<handlerton*>(plugin);
       if (ha_is_storage_engine_disabled(hton))
-        sql_print_warning("%s is set to a disabled storage engine %s.",
-                          self->name.str, se_name.str);
+        LogErr(WARNING_LEVEL, ER_DISABLED_STORAGE_ENGINE_AS_DEFAULT,
+               self->name.str, se_name.str);
       plugin_unlock(NULL, plugin);
     }
   }
@@ -1983,7 +1993,7 @@ static Sys_var_enum Sys_extract_write_set(
        "extract the write set which will be used for various purposes. ",
        SESSION_VAR(transaction_write_set_extraction), CMD_LINE(OPT_ARG),
        transaction_write_set_hashing_algorithms,
-       DEFAULT(HASH_ALGORITHM_OFF), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       DEFAULT(HASH_ALGORITHM_XXHASH64), NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(transaction_write_set_check),
        ON_UPDATE(NULL));
 
@@ -2060,6 +2070,88 @@ static Sys_var_charptr Sys_log_error(
        NOT_IN_BINLOG, ON_CHECK(NULL), ON_UPDATE(NULL),
        NULL, sys_var::PARSE_EARLY);
 
+
+/*
+  log_error_filter_rules: internal
+  (until components can have their own sysvars)
+*/
+
+static bool fix_log_error_filter_rules(sys_var *self,
+                                       THD *thd MY_ATTRIBUTE((unused)),
+                                       enum_var_type type
+                                         MY_ATTRIBUTE((unused)))
+{
+  int ret= LogVar(self->name).val(opt_log_error_filter_rules)
+                             .group("log_filter")
+                             .update();
+
+#if 0
+  /*
+    This will be enabled in the context of WL#9651:
+    Logging services: log filter (configuration engine)
+  */
+  if (ret < 1)
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
+                        ER_COMPONENT_FILTER_FLABBERGASTED,
+                        ER_THD(thd, ER_COMPONENT_FILTER_FLABBERGASTED),
+                        "draugnet", &opt_log_error_filter_rules[ret]);
+  return (ret != 0);
+#endif
+  return (ret == 0);
+}
+
+static Sys_var_charptr Sys_log_error_filter_rules(
+       "log_error_filter_rules", "Error log filter rules",
+       GLOBAL_VAR(opt_log_error_filter_rules),
+       CMD_LINE(OPT_ARG),
+       IN_SYSTEM_CHARSET,
+       DEFAULT("prio>=3? gag. "
+               "err_code==1408? set_priority 0. "
+               "err_code==1408? add_field log_label:=\"HELO\". "
+               "+source_line? delete_field. "
+               "+err_code? delete_field."),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(0),
+       ON_UPDATE(fix_log_error_filter_rules));
+
+
+static bool check_log_error_services(sys_var *self, THD *thd, set_var *var)
+{
+  int i;
+  if ((var->save_result.string_value.str != NULL) &&
+      ((i = log_builtins_error_stack(var->save_result.string_value.str,
+                                     true)) < 0))
+  {
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
+                        ER_WRONG_VALUE_FOR_VAR,
+                        "Value for %s got confusing at or around %s",
+                        self->name.str,
+                        &((char *) var->save_result.string_value.str)[-(i+1)]);
+    return true;
+  }
+
+  return false;
+}
+
+
+static bool fix_log_error_services(sys_var *self MY_ATTRIBUTE((unused)),
+                                   THD *thd MY_ATTRIBUTE((unused)),
+                                   enum_var_type type MY_ATTRIBUTE((unused)))
+{
+  return (log_builtins_error_stack(opt_log_error_services, false) < 0);
+}
+
+static Sys_var_charptr Sys_log_error_services(
+       "log_error_services",
+       "Services that should be called when an error event is received",
+       GLOBAL_VAR(opt_log_error_services),
+       CMD_LINE(REQUIRED_ARG),
+       IN_SYSTEM_CHARSET,
+       DEFAULT("log_filter_internal; log_sink_internal"),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(check_log_error_services),
+       ON_UPDATE(fix_log_error_services));
+
 static Sys_var_bool Sys_log_queries_not_using_indexes(
        "log_queries_not_using_indexes",
        "Log queries that are executed without benefit of any index to the "
@@ -2108,7 +2200,7 @@ static bool update_log_warnings(sys_var*, THD*, enum_var_type)
   // log_warnings is deprecated, but for now, we'll set the
   // new log_error_verbosity from it for backward compatibility.
   log_error_verbosity= std::min(3UL, 1UL + log_warnings);
-  return false;
+  return (log_builtins_filter_update_verbosity(log_error_verbosity) < 0);
 }
 
 static Sys_var_ulong Sys_log_warnings(
@@ -2125,7 +2217,7 @@ static bool update_log_error_verbosity(sys_var*, THD*, enum_var_type)
   // log_warnings is deprecated, but for now, we'll set it from
   // the new log_error_verbosity for backward compatibility.
   log_warnings= log_error_verbosity - 1;
-  return false;
+  return (log_builtins_filter_update_verbosity(log_error_verbosity) < 0);
 }
 
 static Sys_var_ulong Sys_log_error_verbosity(
@@ -2160,15 +2252,10 @@ static Sys_var_bool Sys_log_statements_unsafe_for_binlog(
 
 /* logging to host OS's syslog */
 
-static bool fix_syslog(sys_var*, THD*, enum_var_type)
+static bool fix_syslog_enable(sys_var *self, THD *thd MY_ATTRIBUTE((unused)),
+                              enum_var_type type MY_ATTRIBUTE((unused)))
 {
-  return log_syslog_update_settings();
-}
-
-static bool check_syslog_tag(sys_var*, THD*, set_var *var)
-{
-  return ((var->save_result.string_value.str != NULL) &&
-          (strchr(var->save_result.string_value.str, FN_LIBCHAR) != NULL));
+  return LogVar(self->name).val((longlong) opt_log_syslog_enable).update();
 }
 
 static Sys_var_bool Sys_log_syslog_enable(
@@ -2178,15 +2265,26 @@ static Sys_var_bool Sys_log_syslog_enable(
        "log (\"syslog\").",
        GLOBAL_VAR(opt_log_syslog_enable),
        CMD_LINE(OPT_ARG),
-       // preserve current defaults for both platforms:
-#ifndef _WIN32
-       DEFAULT(FALSE),
-#else
-       DEFAULT(TRUE),
-#endif
+       DEFAULT(TRUE), // true-when-loaded on either platform
        NO_MUTEX_GUARD, NOT_IN_BINLOG,
-       ON_CHECK(0), ON_UPDATE(fix_syslog));
+       ON_CHECK(0), ON_UPDATE(fix_syslog_enable),
+       DEPRECATED("--log_error_services"));
 
+
+static bool fix_syslog_tag(sys_var *self, THD *thd MY_ATTRIBUTE((unused)),
+                           enum_var_type type MY_ATTRIBUTE((unused)))
+{
+  return LogVar(self->name).val(opt_log_syslog_tag).update();
+}
+
+static bool check_syslog_tag(sys_var *self, THD *THD MY_ATTRIBUTE((unused)),
+                             set_var *var)
+{
+  if (var->value != nullptr)
+    return LogVar(self->name).val(var->save_result.string_value).check();
+
+  return false;
+}
 
 static Sys_var_charptr Sys_log_syslog_tag(
        "log_syslog_tag",
@@ -2197,27 +2295,22 @@ static Sys_var_charptr Sys_log_syslog_tag(
        "default ident of 'mysqld', connected by a hyphen.",
        GLOBAL_VAR(opt_log_syslog_tag), CMD_LINE(REQUIRED_ARG),
        IN_SYSTEM_CHARSET, DEFAULT(""), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-       ON_CHECK(check_syslog_tag), ON_UPDATE(fix_syslog));
+       ON_CHECK(check_syslog_tag), ON_UPDATE(fix_syslog_tag));
 
 
 #ifndef _WIN32
 
-static bool check_syslog_facility(sys_var*, THD*, set_var *var)
+static bool check_syslog_facility(sys_var *self, THD*, set_var *var)
 {
-  SYSLOG_FACILITY rsf;
-
-  if (var->value &&
-      log_syslog_find_facility(var->save_result.string_value.str, &rsf))
-    return true;
+  if (var->value != nullptr)
+    return LogVar(self->name).val(var->save_result.string_value).check();
   return false;
 }
 
-static bool fix_syslog_facility(sys_var*, THD*, enum_var_type)
+static bool fix_syslog_facility(sys_var *self, THD *thd MY_ATTRIBUTE((unused)),
+                                enum_var_type type MY_ATTRIBUTE((unused)))
 {
-  if (opt_log_syslog_facility == NULL)
-    return true;
-
-  return log_syslog_update_settings();
+  return LogVar(self->name).val(opt_log_syslog_facility).update();
 }
 
 static Sys_var_charptr Sys_log_syslog_facility(
@@ -2228,6 +2321,13 @@ static Sys_var_charptr Sys_log_syslog_facility(
        IN_SYSTEM_CHARSET, DEFAULT("daemon"), NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(check_syslog_facility), ON_UPDATE(fix_syslog_facility));
 
+static bool fix_syslog_pid(sys_var *self, THD *thd MY_ATTRIBUTE((unused)),
+                           enum_var_type type MY_ATTRIBUTE((unused)))
+{
+  return LogVar(self->name).val((longlong) opt_log_syslog_include_pid)
+                           .update();
+}
+
 static Sys_var_bool Sys_log_syslog_log_pid(
        "log_syslog_include_pid",
        "When logging issues using the host operating system's syslog, "
@@ -2236,7 +2336,7 @@ static Sys_var_bool Sys_log_syslog_log_pid(
        GLOBAL_VAR(opt_log_syslog_include_pid),
        CMD_LINE(OPT_ARG), DEFAULT(TRUE),
        NO_MUTEX_GUARD, NOT_IN_BINLOG,
-       ON_CHECK(0), ON_UPDATE(fix_syslog));
+       ON_CHECK(0), ON_UPDATE(fix_syslog_pid));
 
 #endif
 
@@ -3591,10 +3691,10 @@ static Sys_var_set Slave_rows_search_algorithms(
        "TABLE_SCAN and HASH_SCAN. Any combination is allowed, and "
        "the slave will always pick the most suitable algorithm for "
        "any given scenario. "
-       "(Default: INDEX_SCAN, TABLE_SCAN).",
+       "(Default: INDEX_SCAN, HASH_SCAN).",
        GLOBAL_VAR(slave_rows_search_algorithms_options), CMD_LINE(REQUIRED_ARG),
        slave_rows_search_algorithms_names,
-       DEFAULT(SLAVE_ROWS_INDEX_SCAN | SLAVE_ROWS_TABLE_SCAN),  NO_MUTEX_GUARD,
+       DEFAULT(SLAVE_ROWS_INDEX_SCAN | SLAVE_ROWS_HASH_SCAN),  NO_MUTEX_GUARD,
        NOT_IN_BINLOG, ON_CHECK(check_not_null_not_empty), ON_UPDATE(NULL));
 
 static const char *mts_parallel_type_names[]= {"DATABASE", "LOGICAL_CLOCK", 0};
@@ -3988,9 +4088,9 @@ bool Sys_var_gtid_mode::global_update(THD*, set_var *var)
   lock_count= 3;
 
   // Generate note in log
-  sql_print_information("Changed GTID_MODE from %s to %s.",
-                        gtid_mode_names[old_gtid_mode],
-                        gtid_mode_names[new_gtid_mode]);
+  LogErr(INFORMATION_LEVEL, ER_CHANGED_GTID_MODE,
+         gtid_mode_names[old_gtid_mode],
+         gtid_mode_names[new_gtid_mode]);
 
   // Rotate
   {
@@ -4080,9 +4180,9 @@ bool Sys_var_enforce_gtid_consistency::global_update(THD *thd, set_var *var)
   global_var(ulong)= new_mode;
 
   // Generate note in log
-  sql_print_information("Changed ENFORCE_GTID_CONSISTENCY from %s to %s.",
-                        get_gtid_consistency_mode_string(old_mode),
-                        get_gtid_consistency_mode_string(new_mode));
+  LogErr(INFORMATION_LEVEL, ER_CHANGED_ENFORCE_GTID_CONSISTENCY,
+         get_gtid_consistency_mode_string(old_mode),
+         get_gtid_consistency_mode_string(new_mode));
 
 end:
   ret= false;
@@ -4150,10 +4250,7 @@ static void check_sub_modes_of_strict_mode(sql_mode_t &sql_mode, THD *thd)
                                ER_SQL_MODE_MERGED,
                                ER_THD(thd, ER_SQL_MODE_MERGED));
     else
-      sql_print_warning("'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and "
-                        "'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used "
-                        "with strict mode. They will be merged with strict mode "
-                        "in a future release.");
+      LogErr(WARNING_LEVEL, ER_SQL_MODE_MERGED);
   }
 }
 
@@ -4495,12 +4592,6 @@ bool Sys_var_tx_isolation::session_update(THD *thd, set_var *var)
   if (var->type == OPT_DEFAULT || !(thd->in_active_multi_stmt_transaction() ||
                                     thd->in_sub_stmt))
   {
-    Transaction_state_tracker *tst= NULL;
-
-    if (thd->variables.session_track_transaction_info > TX_TRACK_NONE)
-      tst= (Transaction_state_tracker *)
-             thd->session_tracker.get_tracker(TRANSACTION_INFO_TRACKER);
-
     /*
       Update the isolation level of the next transaction.
       I.e. if one did:
@@ -4520,35 +4611,10 @@ bool Sys_var_tx_isolation::session_update(THD *thd, set_var *var)
       TRANSACTION would always succeed making the characteristics
       effective for the next transaction that starts.
      */
-    thd->tx_isolation= (enum_tx_isolation) var->save_result.ulonglong_value;
-
-    if (var->type == OPT_DEFAULT)
-    {
-      enum enum_tx_isol_level l;
-      switch (thd->tx_isolation) {
-      case ISO_READ_UNCOMMITTED:
-        l=  TX_ISOL_UNCOMMITTED;
-        break;
-      case ISO_READ_COMMITTED:
-        l=  TX_ISOL_COMMITTED;
-        break;
-      case ISO_REPEATABLE_READ:
-        l= TX_ISOL_REPEATABLE;
-        break;
-      case ISO_SERIALIZABLE:
-        l= TX_ISOL_SERIALIZABLE;
-        break;
-      default:
-        DBUG_ASSERT(0);
-        return TRUE;
-      }
-      if (tst)
-        tst->set_isol_level(thd, l);
-    }
-    else if (tst)
-    {
-      tst->set_isol_level(thd, TX_ISOL_INHERIT);
-    }
+    enum_tx_isolation tx_isol;
+    tx_isol= (enum_tx_isolation) var->save_result.ulonglong_value;
+    bool one_shot= (var->type == OPT_DEFAULT);
+    return set_tx_isolation(thd, tx_isol, one_shot);
   }
   return FALSE;
 }
@@ -4627,8 +4693,9 @@ static Sys_var_tx_read_only Sys_tx_read_only(
 
 static Sys_var_ulonglong Sys_tmp_table_size(
        "tmp_table_size",
-       "If an internal in-memory temporary table exceeds this size, MySQL "
-       "will automatically convert it to an on-disk MyISAM table",
+       "If an internal in-memory temporary table in the MEMORY storage engine "
+       "exceeds this size, MySQL will automatically convert it to an on-disk "
+       "table",
        SESSION_VAR(tmp_table_size), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(1024, (ulonglong)~(intptr)0), DEFAULT(16*1024*1024),
        BLOCK_SIZE(1));
@@ -4674,9 +4741,27 @@ static Sys_var_plugin Sys_default_storage_engine(
 const char *internal_tmp_disk_storage_engine_names[] = { "MyISAM", "InnoDB", 0};
 static Sys_var_enum Sys_internal_tmp_disk_storage_engine(
        "internal_tmp_disk_storage_engine",
-       "The default storage engine for on-disk internal tmp table",
+       "The default storage engine for on-disk internal temporary tables.",
        GLOBAL_VAR(internal_tmp_disk_storage_engine), CMD_LINE(OPT_ARG),
        internal_tmp_disk_storage_engine_names, DEFAULT(TMP_TABLE_INNODB));
+
+const char *internal_tmp_mem_storage_engine_names[] = { "MEMORY", "TempTable", 0};
+static Sys_var_enum Sys_internal_tmp_mem_storage_engine(
+       "internal_tmp_mem_storage_engine",
+       "The default storage engine for in-memory internal temporary tables.",
+       SESSION_VAR(internal_tmp_mem_storage_engine), CMD_LINE(REQUIRED_ARG),
+       internal_tmp_mem_storage_engine_names, DEFAULT(TMP_TABLE_TEMPTABLE));
+
+static Sys_var_ulonglong Sys_temptable_max_ram(
+       "temptable_max_ram",
+       "Maximum amount of memory (in bytes) the TempTable storage engine is "
+       "allowed to allocate from the main memory (RAM) before starting to "
+       "store data on disk.",
+       GLOBAL_VAR(temptable_max_ram),
+       CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(2 << 20 /* 2 MiB */, ULLONG_MAX),
+       DEFAULT(1 << 30 /* 1 GiB */),
+       BLOCK_SIZE(1));
 
 static Sys_var_plugin Sys_default_tmp_storage_engine(
        "default_tmp_storage_engine", "The default storage engine for new explicit temporary tables",
@@ -6009,10 +6094,10 @@ bool Sys_var_gtid_purged::global_update(THD *thd, set_var *var)
   gtid_state->get_lost_gtids()->to_string(&current_gtid_purged);
 
   // Log messages saying that GTID_PURGED and GTID_EXECUTED were changed.
-  sql_print_information(ER_DEFAULT(ER_GTID_PURGED_WAS_CHANGED),
-                        previous_gtid_purged, current_gtid_purged);
-  sql_print_information(ER_DEFAULT(ER_GTID_EXECUTED_WAS_CHANGED),
-                        previous_gtid_executed, current_gtid_executed);
+  LogErr(INFORMATION_LEVEL, ER_GTID_PURGED_WAS_CHANGED,
+         previous_gtid_purged, current_gtid_purged);
+  LogErr(INFORMATION_LEVEL, ER_GTID_EXECUTED_WAS_CHANGED,
+         previous_gtid_executed, current_gtid_executed);
 
 end:
   global_sid_lock->unlock();

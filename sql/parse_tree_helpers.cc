@@ -163,8 +163,8 @@ set_system_variable(THD *thd, struct sys_var_with_base *var_with_base,
     return TRUE;
   }
 
-  if (! (var= new set_var(var_type, var_with_base->var,
-         &var_with_base->base_name, val)))
+  if (! (var= new (*THR_MALLOC) set_var(var_type, var_with_base->var,
+                                        &var_with_base->base_name, val)))
     return TRUE;
 
   return lex->var_list.push_back(var);
@@ -504,7 +504,7 @@ bool apply_privileges(THD *thd,
             point->rights |= grant;
           else
           {
-            LEX_COLUMN *col= new LEX_COLUMN (*new_str, grant);
+            LEX_COLUMN *col= new (*THR_MALLOC) LEX_COLUMN (*new_str, grant);
             if (col == NULL)
               return true;
             lex->columns.push_back(col);

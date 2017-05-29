@@ -271,6 +271,7 @@ def	mysql	PRIMARY	def	mysql	time_zone_transition_type	Time_zone_id
 def	mysql	PRIMARY	def	mysql	time_zone_transition_type	Transition_type_id
 def	mysql	PRIMARY	def	mysql	user	Host
 def	mysql	PRIMARY	def	mysql	user	User
+def	performance_schema	PRIMARY	def	performance_schema	user_defined_functions	UDF_NAME
 def	performance_schema	PRIMARY	def	performance_schema	user_variables_by_thread	THREAD_ID
 def	performance_schema	PRIMARY	def	performance_schema	user_variables_by_thread	VARIABLE_NAME
 def	performance_schema	PRIMARY	def	performance_schema	variables_by_thread	THREAD_ID

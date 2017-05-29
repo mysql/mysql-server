@@ -2541,7 +2541,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` datetime DEFAULT NULL,
-  `b` timestamp GENERATED ALWAYS AS (cast(`a` as datetime)) VIRTUAL NOT NULL
+  `b` timestamp GENERATED ALWAYS AS (cast(`a` as datetime)) VIRTUAL NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 insert into t1 values ('2008-12-31',default);
 select * from t1;
@@ -2556,7 +2556,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` datetime DEFAULT NULL,
-  `b` timestamp GENERATED ALWAYS AS ((`a` + interval 1 minute)) VIRTUAL NOT NULL
+  `b` timestamp GENERATED ALWAYS AS ((`a` + interval 1 minute)) VIRTUAL NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 insert into t1 values ('2003-01-02',default);
 select * from t1;
@@ -2570,7 +2570,7 @@ create table t1 (a timestamp, c bigint generated always as (timestampdiff(MONTH,
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `a` timestamp NULL DEFAULT NULL,
   `c` bigint(20) GENERATED ALWAYS AS (timestampdiff(MONTH,`a`,`a`)) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 insert into t1 values ('2003-02-01',default);

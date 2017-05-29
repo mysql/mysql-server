@@ -34,9 +34,6 @@ extern Ndb_index_stat_thread ndb_index_stat_thread;
 
 /* Implemented in ha_ndbcluster.cc */
 extern bool ndb_index_stat_get_enable(THD *thd);
-extern const char* g_ndb_status_index_stat_status;
-extern long g_ndb_status_index_stat_cache_query;
-extern long g_ndb_status_index_stat_cache_clean;        
 
 // Typedefs for long names 
 typedef NdbDictionary::Table NDBTAB;
@@ -653,6 +650,11 @@ ndb_index_stat_set_allow(bool flag)
   }
   return ndb_index_stat_allow_flag;
 }
+
+static const char *g_ndb_status_index_stat_status = "";
+static long g_ndb_status_index_stat_cache_query = 0;
+static long g_ndb_status_index_stat_cache_clean = 0;
+
 
 /* Update status variable (must hold stat_mutex) */
 void
@@ -3069,4 +3071,22 @@ ha_ndbcluster::ndb_index_stat_analyze(Ndb *ndb,
   }
 
   DBUG_RETURN(err);
+}
+
+
+static SHOW_VAR ndb_status_vars_index_stat[]=
+{
+  {"status",          (char*) &g_ndb_status_index_stat_status, SHOW_CHAR_PTR, SHOW_SCOPE_GLOBAL},
+  {"cache_query",     (char*) &g_ndb_status_index_stat_cache_query, SHOW_LONG, SHOW_SCOPE_GLOBAL},
+  {"cache_clean",     (char*) &g_ndb_status_index_stat_cache_clean, SHOW_LONG, SHOW_SCOPE_GLOBAL},
+  {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}
+};
+
+int
+show_ndb_status_index_stat(THD*, struct st_mysql_show_var* var, char*)
+{
+  /* Just a function to allow moving array into this file */
+  var->type = SHOW_ARRAY;
+  var->value = (char*) &ndb_status_vars_index_stat;
+  return 0;
 }

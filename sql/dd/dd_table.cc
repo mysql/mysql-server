@@ -26,6 +26,9 @@
 // TODO: Avoid exposing dd/impl headers in public files.
 #include "dd/impl/dictionary_impl.h"          // default_catalog_name
 #include "dd/impl/utils.h"                    // dd::escape
+#include "dd/impl/system_registry.h"          // dd::System_tables
+#include "dd/performance_schema/init.h"       // performance_schema::
+                                              //   set_PS_version_for_table
 #include "dd/properties.h"                    // dd::Properties
 #include "dd/types/abstract_table.h"
 #include "dd/types/column.h"                  // dd::Column
@@ -48,7 +51,7 @@
 #include "key.h"
 #include "key_spec.h"
 #include "lex_string.h"
-#include "log.h"                              // sql_print_error
+#include "log.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "mdl.h"
@@ -190,7 +193,7 @@ dd::enum_column_types get_new_field_type(enum_field_types type)
   }
 
   /* purecov: begin deadcode */
-  sql_print_error("Error: Invalid field type.");
+  LogErr(ERROR_LEVEL, ER_DD_FAILSAFE, "field type.");
   DBUG_ASSERT(false);
 
   return dd::enum_column_types::LONG;
@@ -209,22 +212,23 @@ dd::String_type get_sql_type_by_create_field(TABLE *table,
   DBUG_ENTER("get_sql_type_by_create_field");
 
   // Create Field object from Create_field
-  std::unique_ptr<Field> fld(make_field(table->s,
-                                        0,
-                                        field->length,
-                                        NULL,
-                                        0,
-                                        field->sql_type,
-                                        field->charset,
-                                        field->geom_type,
-                                        field->auto_flags,
-                                        field->interval,
-                                        field->field_name,
-                                        field->maybe_null,
-                                        field->is_zerofill,
-                                        field->is_unsigned,
-                                        field->decimals,
-                                        field->treat_bit_as_char, 0));
+  std::unique_ptr<Field, Destroy_only<Field>>
+    fld(make_field(table->s,
+                   0,
+                   field->length,
+                   NULL,
+                   0,
+                   field->sql_type,
+                   field->charset,
+                   field->geom_type,
+                   field->auto_flags,
+                   field->interval,
+                   field->field_name,
+                   field->maybe_null,
+                   field->is_zerofill,
+                   field->is_unsigned,
+                   field->decimals,
+                   field->treat_bit_as_char, 0));
   fld->init(table);
 
   // Read column display type.
@@ -264,22 +268,23 @@ static void prepare_default_value_string(uchar *buf,
                                          String *def_value)
 {
   // Create a fake field with the default value buffer 'buf'.
-  std::unique_ptr<Field > f(make_field(table->s,
-                                       buf + 1,
-                                       field.length,
-                                       buf,
-                                       0,
-                                       field.sql_type,
-                                       field.charset,
-                                       field.geom_type,
-                                       field.auto_flags,
-                                       field.interval,
-                                       field.field_name,
-                                       field.maybe_null,
-                                       field.is_zerofill,
-                                       field.is_unsigned,
-                                       field.decimals,
-                                       field.treat_bit_as_char, 0));
+  std::unique_ptr<Field, Destroy_only<Field>>
+    f(make_field(table->s,
+                 buf + 1,
+                 field.length,
+                 buf,
+                 0,
+                 field.sql_type,
+                 field.charset,
+                 field.geom_type,
+                 field.auto_flags,
+                 field.interval,
+                 field.field_name,
+                 field.maybe_null,
+                 field.is_zerofill,
+                 field.is_unsigned,
+                 field.decimals,
+                 field.treat_bit_as_char, 0));
   f->init(table);
 
   if (col_obj->has_no_default())
@@ -770,7 +775,7 @@ static dd::Index::enum_index_algorithm dd_get_new_index_algorithm_type(enum ha_k
   }
 
   /* purecov: begin deadcode */
-  sql_print_error("Error: Invalid index algorithm.");
+  LogErr(ERROR_LEVEL, ER_DD_FAILSAFE, "index algorithm.");
   DBUG_ASSERT(false);
 
   return dd::Index::IA_SE_SPECIFIC;
@@ -956,22 +961,23 @@ bool is_candidate_primary_key(THD *thd,
 
     /* Prepare Field* object from Create_field */
 
-    std::unique_ptr<Field> table_field(make_field(table.s,
-                                         0,
-                                         cfield->length,
-                                         nullptr,
-                                         0,
-                                         cfield->sql_type,
-                                         cfield->charset,
-                                         cfield->geom_type,
-                                         cfield->auto_flags,
-                                         cfield->interval,
-                                         cfield->field_name,
-                                         cfield->maybe_null,
-                                         cfield->is_zerofill,
-                                         cfield->is_unsigned,
-                                         cfield->decimals,
-                                         cfield->treat_bit_as_char, 0));
+    std::unique_ptr<Field, Destroy_only<Field>>
+      table_field(make_field(table.s,
+                             0,
+                             cfield->length,
+                             nullptr,
+                             0,
+                             cfield->sql_type,
+                             cfield->charset,
+                             cfield->geom_type,
+                             cfield->auto_flags,
+                             cfield->interval,
+                             cfield->field_name,
+                             cfield->maybe_null,
+                             cfield->is_zerofill,
+                             cfield->is_unsigned,
+                             cfield->decimals,
+                             cfield->treat_bit_as_char, 0));
     table_field->init(&table);
 
     if (is_suitable_for_primary_key(key_part, table_field.get()) == false)
@@ -1567,9 +1573,28 @@ static bool fill_dd_partition_from_create_info(THD *thd,
     {
       /* column_list also has list_of_part_fields set! */
       DBUG_ASSERT(!part_info->column_list);
-      /* TODO-PARTITION: use part_info->part_expr->print() instead! */
-      dd::String_type str(part_info->part_func_string,
-                      part_info->part_func_len);
+      // Default on-stack buffer which allows to avoid malloc() in most cases.
+      char expr_buff[256];
+      String tmp(expr_buff, sizeof(expr_buff), system_charset_info);
+      tmp.length(0);
+
+      // Turn off ANSI_QUOTES and other SQL modes which affect printing of
+      // expressions.
+      Sql_mode_parse_guard parse_guard(thd);
+
+      // No point in including schema and table name for identifiers
+      // since any columns must be in this table.
+      part_info->part_expr->print(&tmp, enum_query_type(QT_TO_SYSTEM_CHARSET |
+                                                        QT_NO_DB |
+                                                        QT_NO_TABLE));
+
+      if (tmp.numchars() > PARTITION_EXPR_CHAR_LEN)
+      {
+        my_error(ER_PART_EXPR_TOO_LONG, MYF(0));
+        return true;
+      }
+
+      dd::String_type str(tmp.ptr(), tmp.length());
       tab_obj->set_partition_expression(str);
     }
 
@@ -1622,9 +1647,29 @@ static bool fill_dd_partition_from_create_info(THD *thd,
       }
       else
       {
-        /* TODO-PARTITION: use part_info->subpart_expr->print() instead! */
-        dd::String_type str(part_info->subpart_func_string,
-                        part_info->subpart_func_len);
+        // Default on-stack buffer which allows to avoid malloc() in most cases.
+        char expr_buff[256];
+        String tmp(expr_buff, sizeof(expr_buff), system_charset_info);
+        tmp.length(0);
+
+        // Turn off ANSI_QUOTES and other SQL modes which affect printing of
+        // expressions.
+        Sql_mode_parse_guard parse_guard(thd);
+
+        // No point in including schema and table name for identifiers
+        // since any columns must be in this table.
+        part_info->subpart_expr->print(&tmp,
+                                       enum_query_type(QT_TO_SYSTEM_CHARSET |
+                                                       QT_NO_DB |
+                                                       QT_NO_TABLE));
+
+        if (tmp.numchars() > PARTITION_EXPR_CHAR_LEN)
+        {
+          my_error(ER_PART_EXPR_TOO_LONG, MYF(0));
+          return true;
+        }
+
+        dd::String_type str(tmp.ptr(), tmp.length());
         tab_obj->set_subpartition_expression(str);
       }
       if (part_info->use_default_subpartitions)
@@ -2150,6 +2195,16 @@ static bool create_dd_system_table(THD *thd,
 }
 
 
+bool is_server_ps_table_name(const dd::String_type& schema_name,
+                             const dd::String_type& table_name)
+{
+  return
+    is_perfschema_db(schema_name.c_str(), schema_name.length()) &&
+    System_tables::instance()->find_table(schema_name,
+                                          table_name) != nullptr;
+}
+
+
 bool create_dd_user_table(THD *thd,
                           const dd::Schema &sch_obj,
                           const dd::String_type &table_name,
@@ -2173,6 +2228,9 @@ bool create_dd_user_table(THD *thd,
   tab_obj->set_hidden(create_info->m_hidden ?
                       dd::Abstract_table::HT_HIDDEN_DDL :
                       dd::Abstract_table::HT_VISIBLE);
+
+  if (is_server_ps_table_name(sch_obj.name(), table_name))
+    performance_schema::set_PS_version_for_table(&tab_obj->options());
 
   if (fill_dd_table_from_create_info(thd, tab_obj.get(), table_name,
                                      create_info, create_fields,
@@ -2311,48 +2369,6 @@ bool rename_foreign_keys(const char *old_table_name,
     }
   }
   return false;
-}
-
-
-bool rename_table(THD *thd, dd::Table *table_def,
-                  const char *from_table_name,
-                  const char *to_schema_name,
-                  const char *to_table_name)
-{
-  DBUG_ASSERT(table_def != nullptr);
-
-  // We must make sure the schema is released and unlocked in the right order.
-  dd::Schema_MDL_locker to_mdl_locker(thd);
-
-  // Check if destination schema exist.
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-  const dd::Schema *to_sch= NULL;
-
-  if (to_mdl_locker.ensure_locked(to_schema_name) ||
-      thd->dd_client()->acquire(to_schema_name, &to_sch))
-  {
-    // Error is reported by the dictionary subsystem.
-    return true;
-  }
-
-  if (!to_sch)
-  {
-    my_error(ER_BAD_DB_ERROR, MYF(0), to_schema_name);
-    return true;
-  }
-
-  // Set schema id and table name.
-  table_def->set_schema_id(to_sch->id());
-  table_def->set_name(to_table_name);
-
-  // Mark the hidden flag.
-  table_def->set_hidden(dd::Abstract_table::HT_VISIBLE);
-
-  if (rename_foreign_keys(from_table_name, table_def))
-    return true;
-
-  // Do the update. Errors will be reported by the dictionary subsystem.
-  return thd->dd_client()->update(table_def);
 }
 
 
@@ -2503,35 +2519,8 @@ dd::String_type get_sql_type_by_field_info(THD *thd,
 }
 
 
-bool fix_row_type(THD *thd, TABLE_SHARE *share)
+bool fix_row_type(THD *thd, dd::Table *table_def, row_type correct_row_type)
 {
-  HA_CREATE_INFO create_info;
-  create_info.row_type= share->row_type;
-  create_info.table_options= share->db_options_in_use;
-
-  handler *file= get_new_handler(share, share->m_part_info != NULL,
-                                 thd->mem_root, share->db_type());
-  if (!file)
-    return true;
-
-  row_type correct_row_type= file->get_real_row_type(&create_info);
-
-  bool error= fix_row_type(thd, share, correct_row_type);
-
-  delete file;
-  return error;
-}
-
-
-bool fix_row_type(THD *thd, TABLE_SHARE *share, row_type correct_row_type)
-{
-  dd::Table *table_def= nullptr;
-
-  if (thd->dd_client()->acquire_for_modification(share->db.str,
-                                                 share->table_name.str,
-                                                 &table_def))
-    return true;
-
   DBUG_ASSERT(table_def != nullptr);
 
   table_def->set_row_format(dd_get_new_row_format(correct_row_type));

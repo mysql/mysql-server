@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -977,7 +977,8 @@ public class NdbRecordImpl {
     }
 
     public String dumpValues(ByteBuffer data, byte[] mask) {
-        StringBuilder builder = new StringBuilder(tableConst.getName());
+        StringBuilder builder = new StringBuilder("table name: ");
+        builder.append(name);
         builder.append(" numberOfColumns: ");
         builder.append(numberOfTableColumns);
         builder.append('\n');
@@ -1030,6 +1031,7 @@ public class NdbRecordImpl {
     }
 
     TableConst getNdbTable() {
+        assertValid();
         return tableConst;
     }
 
@@ -1042,6 +1044,7 @@ public class NdbRecordImpl {
     }
 
     IndexConst getNdbIndex() {
+        assertValid();
         return indexConst;
     }
 
@@ -1050,6 +1053,7 @@ public class NdbRecordImpl {
     }
 
     public NdbRecordConst getNdbRecord() {
+        assertValid();
         return ndbRecord;
     }
 
@@ -1067,6 +1071,11 @@ public class NdbRecordImpl {
         }
     }
 
+    protected void assertValid() {
+        if (ndbRecord == null) {
+            throw new ClusterJUserException(local.message("ERR_NdbRecord_was_released"));
+        }
+    }
     public int getNullIndicatorSize() {
         return nullIndicatorSize;
     }

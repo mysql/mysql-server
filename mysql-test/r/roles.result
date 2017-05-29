@@ -22,7 +22,7 @@ CREATE ROLE r1 IDENTIFIED BY 'test';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'IDENTIFIED BY 'test'' at line 1
 # Created roles should not allow login per default
 # WL988.R-1.4
-SELECT user,host, plugin,IF(account_locked = 'Y',"Account is locked","ERROR") FROM mysql.user u WHERE u.user NOT IN ('root', 'mysql.sys', 'mysql.session_user');
+SELECT user,host, plugin,IF(account_locked = 'Y',"Account is locked","ERROR") FROM mysql.user u WHERE u.user NOT IN ('root', 'mysql.sys', 'mysql.session');
 user	host	plugin	IF(account_locked = 'Y',"Account is locked","ERROR")
 ident with space	%	mysql_native_password	Account is locked
 role	%	mysql_native_password	Account is locked
@@ -154,6 +154,7 @@ CURRENT_ROLE()
 SHOW GRANTS FOR current_user() USING `engineering`@`%`,`role`@`%`;
 Grants for root@localhost
 GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,REPLICATION_SLAVE_ADMIN,ROLE_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN,XA_RECOVER_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
 GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
 GRANT `engineering`@`%`,`role`@`%` TO `root`@`localhost`
 GRANT role1 TO current_user();
@@ -797,7 +798,7 @@ HOST	USER	DEFAULT_ROLE_HOST	DEFAULT_ROLE_USER
 localhost	joe_schema_designer	%	schema_designer
 DROP DATABASE db1;
 DROP PROCEDURE test.sp1;
-SELECT user,host FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session_user');
+SELECT user,host FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session');
 user	host
 backup_admin	%
 db_admin	%
@@ -880,6 +881,7 @@ ALTER USER u1@localhost DEFAULT ROLE r1,r2;
 SHOW GRANTS;
 Grants for root@localhost
 GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,REPLICATION_SLAVE_ADMIN,ROLE_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN,XA_RECOVER_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
 GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
 --------------------------
 SHOW GRANTS FOR u1@localhost USING r1;
@@ -1040,6 +1042,7 @@ Super	Server Admin	To use KILL thread, SET GLOBAL, CHANGE MASTER, etc.
 Trigger	Tables	To use triggers
 Update	Tables	To update existing rows
 Usage	Server Admin	No privileges - allow connect only
+XA_RECOVER_ADMIN	Server Admin	
 CREATE USER u1@localhost IDENTIFIED BY 'foo';
 CREATE ROLE r1;
 GRANT r1 TO u1@localhost;

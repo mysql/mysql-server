@@ -1152,7 +1152,7 @@ static uint opaque_index(enum_field_types field_type)
         FIXME.
       */
       /* purecov: begin deadcode */
-      DBUG_ABORT();
+      DBUG_ASSERT(false);
       return static_cast<uint>(enum_json_opaque_type::J_OPAQUE_GEOMETRY);
       /* purecov: end */
     }
@@ -1474,7 +1474,7 @@ static bool val_json_func_field_subselect(Item* arg,
           field_type= MYSQL_TYPE_LONG_BLOB;
           break;
         default:
-          DBUG_ABORT();
+          DBUG_ASSERT(false);
         }
       }
 
@@ -1568,7 +1568,7 @@ static bool val_json_func_field_subselect(Item* arg,
     /* purecov: end */
 
   case MYSQL_TYPE_JSON:
-    DBUG_ABORT();                               /* purecov: inspected */
+    DBUG_ASSERT(false);                         /* purecov: inspected */
     // fall-through
   default:
     my_error(ER_INVALID_CAST_TO_JSON, MYF(0));

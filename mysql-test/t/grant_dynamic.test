@@ -461,3 +461,45 @@ PRIMARY KEY (USER,HOST,PRIV)
 --source include/restart_mysqld.inc
 DROP USER u1@localhost;
 
+--echo #
+--echo # Test for WL#7194
+--echo # This test checks that a user who granted XA_RECOVER_ADMIN with
+--echo # WITH GRANT OPTION can grant it to other user and a user who is granted
+--echo # XA_RECOVER_ADMIN without WITH GRANT OPTION can not.
+--echo #
+CREATE USER u1;
+CREATE USER u2;
+CREATE USER u3;
+GRANT SYSTEM_VARIABLES_ADMIN, SELECT ON *.* TO u1;
+GRANT SYSTEM_VARIABLES_ADMIN, SELECT ON *.* TO u2;
+--echo # Grant the privilege XA_RECOVER_ADMIN to user u1 with GRANT OPTION
+GRANT XA_RECOVER_ADMIN ON *.* TO u1 WITH GRANT OPTION;
+--connect (con1, localhost, u1,,)
+--echo # And check that the user u1 can grant the privilege XA_RECOVER_ADMIN
+--echo # to the user u2
+GRANT XA_RECOVER_ADMIN ON *.* TO u2;
+SHOW GRANTS FOR u1;
+SHOW GRANTS FOR u2;
+
+--disconnect con1
+--source include/wait_until_disconnected.inc
+
+--echo # Connect as user u2 who was granted the privilege XA_RECOVER_ADMIN
+--echo # without WITH GRANT OPTION and try to grant the privilege
+--echo # XA_RECOVER_ADMIN to user u3.
+
+--connect (con1, localhost, u2,,)
+
+--echo # Since the the privilege XA_RECOVER_ADMIN was granted to the user u2
+--echo # without the clause WITH GRANT OPTION it is expected that attempt
+--echo # to grant the privilege XA_RECOVER_ADMIN to the user u3 be failed.
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+GRANT XA_RECOVER_ADMIN ON *.* TO u3;
+
+--connection default
+DROP USER u1;
+DROP USER u2;
+DROP USER u3;
+
+--echo # End of test for WL#7194

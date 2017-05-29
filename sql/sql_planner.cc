@@ -324,7 +324,7 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
     // fulltext indexes require special treatment
     if (cur_keytype != FULLTEXT)
     {
-      *found_condition|= MY_TEST(found_part);
+      *found_condition|= found_part;
 
       const bool all_key_parts_covered=
          (found_part == LOWER_BITS(key_part_map, actual_key_parts(keyinfo)));

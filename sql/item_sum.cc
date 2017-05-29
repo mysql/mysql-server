@@ -589,10 +589,10 @@ Field *Item_sum::create_tmp_field(bool, TABLE *table)
   Field *field;
   switch (result_type()) {
   case REAL_RESULT:
-    field= new Field_double(max_length, maybe_null, item_name.ptr(), decimals, TRUE);
+    field= new (*THR_MALLOC) Field_double(max_length, maybe_null, item_name.ptr(), decimals, TRUE);
     break;
   case INT_RESULT:
-    field= new Field_longlong(max_length, maybe_null, item_name.ptr(), unsigned_flag);
+    field= new (*THR_MALLOC) Field_longlong(max_length, maybe_null, item_name.ptr(), unsigned_flag);
     break;
   case STRING_RESULT:
     return make_string_field(table);
@@ -670,10 +670,10 @@ int Item_sum::set_aggregator(Aggregator::Aggregator_type aggregator)
   switch (aggregator)
   {
   case Aggregator::DISTINCT_AGGREGATOR:
-    aggr= new Aggregator_distinct(this);
+    aggr= new (*THR_MALLOC) Aggregator_distinct(this);
     break;
   case Aggregator::SIMPLE_AGGREGATOR:
-    aggr= new Aggregator_simple(this);
+    aggr= new (*THR_MALLOC) Aggregator_simple(this);
     break;
   };
   return aggr ? FALSE : TRUE;
@@ -900,11 +900,11 @@ bool Aggregator_distinct::setup(THD *thd)
     if (table->hash_field)
       table->file->ha_index_init(0, 0);
 
-    if (table->s->db_type() == heap_hton)
+    if (table->s->db_type() == temptable_hton || table->s->db_type() == heap_hton)
     {
       /*
-        No blobs, otherwise it would have been MyISAM: set up a compare
-        function and its arguments to use with Unique.
+        No blobs:
+        set up a compare function and its arguments to use with Unique.
       */
       qsort2_cmp compare_key;
       void* cmp_arg;
@@ -959,8 +959,8 @@ bool Aggregator_distinct::setup(THD *thd)
         }
       }
       DBUG_ASSERT(tree == 0);
-      tree= new Unique(compare_key, cmp_arg, tree_key_length,
-                       item_sum->ram_limitation(thd));
+      tree= new (*THR_MALLOC) Unique(compare_key, cmp_arg, tree_key_length,
+                                     item_sum->ram_limitation(thd));
       /*
         The only time tree_key_length could be 0 is if someone does
         count(distinct) on a char(0) field - stupid thing to do,
@@ -1029,8 +1029,9 @@ bool Aggregator_distinct::setup(THD *thd)
       simple_raw_key_cmp because the table contains numbers only; decimals
       are converted to binary representation as well.
     */
-    tree= new Unique(simple_raw_key_cmp, &tree_key_length, tree_key_length,
-                     item_sum->ram_limitation(thd));
+    tree= new (*THR_MALLOC) Unique(simple_raw_key_cmp, &tree_key_length,
+                                   tree_key_length,
+                                   item_sum->ram_limitation(thd));
 
     DBUG_RETURN(tree == 0);
   }
@@ -1520,7 +1521,7 @@ bool Item_sum_hybrid::setup_hybrid(Item *item, Item *value_arg)
   if (arg_cache == NULL)
     return true;
   arg_cache->setup(item);
-  cmp= new Arg_comparator();
+  cmp= new (*THR_MALLOC) Arg_comparator();
   if (cmp == NULL)
     return true;
   if (cmp->set_cmp_func(this, pointer_cast<Item **>(&arg_cache),
@@ -1551,16 +1552,16 @@ Field *Item_sum_hybrid::create_tmp_field(bool group, TABLE *table)
   */
   switch (args[0]->data_type()) {
   case MYSQL_TYPE_DATE:
-    field= new Field_newdate(maybe_null, item_name.ptr());
+    field= new (*THR_MALLOC) Field_newdate(maybe_null, item_name.ptr());
     break;
   case MYSQL_TYPE_TIME:
-    field= new Field_timef(maybe_null, item_name.ptr(), decimals);
+    field= new (*THR_MALLOC) Field_timef(maybe_null, item_name.ptr(), decimals);
     break;
   case MYSQL_TYPE_TIMESTAMP:
-    field= new Field_timestampf(maybe_null, item_name.ptr(), decimals);
+    field= new (*THR_MALLOC) Field_timestampf(maybe_null, item_name.ptr(), decimals);
     break;
   case MYSQL_TYPE_DATETIME:
-    field= new Field_datetimef(maybe_null, item_name.ptr(), decimals);
+    field= new (*THR_MALLOC) Field_datetimef(maybe_null, item_name.ptr(), decimals);
     break;
   default:
     return Item_sum::create_tmp_field(group, table);
@@ -1925,14 +1926,15 @@ Field *Item_sum_avg::create_tmp_field(bool group, TABLE *table)
       The easiest way is to do this is to store both value in a string
       and unpack on access.
     */
-    field= new Field_string(((hybrid_type == DECIMAL_RESULT) ?
-                             dec_bin_size : sizeof(double)) + sizeof(longlong),
-                            0, item_name.ptr(), &my_charset_bin);
+    field= new (*THR_MALLOC)
+      Field_string(((hybrid_type == DECIMAL_RESULT) ? dec_bin_size :
+                    sizeof(double)) + sizeof(longlong),
+                   0, item_name.ptr(), &my_charset_bin);
   }
   else if (hybrid_type == DECIMAL_RESULT)
     field= Field_new_decimal::create_from_item(this);
   else
-    field= new Field_double(max_length, maybe_null, item_name.ptr(), decimals, TRUE);
+    field= new (*THR_MALLOC) Field_double(max_length, maybe_null, item_name.ptr(), decimals, TRUE);
   if (field)
     field->init(table);
   return field;
@@ -2125,10 +2127,10 @@ Field *Item_sum_variance::create_tmp_field(bool group, TABLE *table)
       The easiest way is to do this is to store both value in a string
       and unpack on access.
     */
-    field= new Field_string(sizeof(double)*2 + sizeof(longlong), 0, item_name.ptr(), &my_charset_bin);
+    field= new (*THR_MALLOC) Field_string(sizeof(double)*2 + sizeof(longlong), 0, item_name.ptr(), &my_charset_bin);
   }
   else
-    field= new Field_double(max_length, maybe_null, item_name.ptr(), decimals, TRUE);
+    field= new (*THR_MALLOC) Field_double(max_length, maybe_null, item_name.ptr(), decimals, TRUE);
 
   if (field != NULL)
     field->init(table);
@@ -2349,8 +2351,7 @@ void Item_sum_hybrid::cleanup()
   DBUG_ENTER("Item_sum_hybrid::cleanup");
   Item_sum::cleanup();
   forced_const= FALSE;
-  if (cmp)
-    delete cmp;
+  destroy(cmp);
   cmp= 0;
   /*
     by default it is TRUE to avoid TRUE reporting by
@@ -3785,13 +3786,13 @@ void Item_func_group_concat::cleanup()
   */
   if (!original)
   {
-    delete tmp_table_param;
+    destroy(tmp_table_param);
     tmp_table_param= 0;
     if (table)
     {
       THD *thd= table->in_use;
       if (table->blob_storage)
-        delete table->blob_storage;
+        destroy(table->blob_storage);
       free_tmp_table(thd, table);
       table= 0;
       if (tree)
@@ -3801,7 +3802,7 @@ void Item_func_group_concat::cleanup()
       }
       if (unique_filter)
       {
-        delete unique_filter;
+        destroy(unique_filter);
         unique_filter= NULL;
       }
     }
@@ -3836,12 +3837,14 @@ Field *Item_func_group_concat::make_string_field(TABLE *table_arg)
   */
   const uint32 max_characters= max_length / collation.collation->mbminlen;
   if (max_characters > CONVERT_IF_BIGGER_TO_BLOB)
-    field= new Field_blob(max_characters * collation.collation->mbmaxlen,
-                          maybe_null, item_name.ptr(),
-                          collation.collation, true);
+    field= new (*THR_MALLOC)
+      Field_blob( max_characters * collation.collation->mbmaxlen, maybe_null,
+                 item_name.ptr(), collation.collation, true);
   else
-    field= new Field_varstring(max_characters * collation.collation->mbmaxlen,
-                               maybe_null, item_name.ptr(), table_arg->s, collation.collation);
+    field= new (*THR_MALLOC)
+      Field_varstring(max_characters * collation.collation->mbmaxlen,
+                      maybe_null, item_name.ptr(), table_arg->s,
+                      collation.collation);
 
   if (field)
     field->init(table_arg);
@@ -4003,7 +4006,7 @@ bool Item_func_group_concat::setup(THD *thd)
   List<Item> list;
   DBUG_ASSERT(thd->lex->current_select() == aggr_select);
 
-  const bool order_or_distinct= MY_TEST(arg_count_order > 0 || distinct);
+  const bool order_or_distinct= (arg_count_order > 0 || distinct);
 
   /*
     Currently setup() can be called twice. Please add
@@ -4086,7 +4089,7 @@ bool Item_func_group_concat::setup(THD *thd)
     with ORDER BY | DISTINCT and BLOB field count > 0.    
   */
   if (order_or_distinct && table->s->blob_fields)
-    table->blob_storage= new Blob_mem_storage();
+    table->blob_storage= new (*THR_MALLOC) Blob_mem_storage();
 
   /*
      Need sorting or uniqueness: init tree and choose a function to sort.
@@ -4110,10 +4113,9 @@ bool Item_func_group_concat::setup(THD *thd)
   }
 
   if (distinct)
-    unique_filter= new Unique(group_concat_key_cmp_with_distinct,
-                              (void*)this,
-                              tree_key_length,
-                              ram_limitation(thd));
+    unique_filter= new (*THR_MALLOC) Unique(group_concat_key_cmp_with_distinct,
+                                            (void*)this, tree_key_length,
+                                            ram_limitation(thd));
   
   DBUG_RETURN(FALSE);
 }
@@ -4212,7 +4214,7 @@ void Item_func_group_concat::print(String *str, enum_query_type query_type)
 Item_func_group_concat::~Item_func_group_concat()
 {
   if (!original && unique_filter)
-    delete unique_filter;    
+    destroy(unique_filter);
 }
 
 

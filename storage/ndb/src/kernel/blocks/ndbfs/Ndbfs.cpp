@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@
 #include "Ndbfs.hpp"
 #include "AsyncFile.hpp"
 
-#ifdef NDB_WIN
+#ifdef _WIN32
 #include "Win32AsyncFile.hpp"
 #else
 #include "PosixAsyncFile.hpp"
@@ -175,7 +175,7 @@ validate_path(BaseString & dst,
 {
   char buf2[PATH_MAX];
   memset(buf2, 0,sizeof(buf2));
-#ifdef NDB_WIN32
+#ifdef _WIN32
   CreateDirectory(path, 0);
   char* szFilePart;
   if(!GetFullPathName(path, sizeof(buf2), buf2, &szFilePart) ||
@@ -460,7 +460,7 @@ Ndbfs::execFSOPENREQ(Signal* signal)
     jam();
     Uint32 cnt = 16; // 512k
     Ptr<GlobalPage> page_ptr;
-    m_ctx.m_mm.alloc_pages(RT_DBTUP_PAGE, &page_ptr.i, &cnt, 1);
+    m_ctx.m_mm.alloc_pages(RT_NDBFS_INIT_FILE_PAGE, &page_ptr.i, &cnt, 1);
     if(cnt == 0)
     {
       file->m_page_ptr.setNull();
@@ -474,7 +474,7 @@ Ndbfs::execFSOPENREQ(Signal* signal)
       return;
     }
     m_shared_page_pool.getPtr(page_ptr);
-    file->set_buffer(RT_DBTUP_PAGE, page_ptr, cnt);
+    file->set_buffer(RT_NDBFS_INIT_FILE_PAGE, page_ptr, cnt);
   } 
   else if (fsOpenReq->fileFlags & FsOpenReq::OM_WRITE_BUFFER)
   {
@@ -1040,7 +1040,7 @@ Ndbfs::execBUILD_INDX_IMPL_REQ(Signal* signal)
   Uint32 cnt = (req->buffer_size + 32768 - 1) / 32768;
   Uint32 save = cnt;
   Ptr<GlobalPage> page_ptr;
-  m_ctx.m_mm.alloc_pages(RT_DBTUP_PAGE, &page_ptr.i, &cnt, cnt);
+  m_ctx.m_mm.alloc_pages(RT_NDBFS_BUILD_INDEX_PAGE, &page_ptr.i, &cnt, cnt);
   if(cnt == 0)
   {
     file->m_page_ptr.setNull();
@@ -1053,7 +1053,7 @@ Ndbfs::execBUILD_INDX_IMPL_REQ(Signal* signal)
   ndbrequire(cnt == save);
 
   m_shared_page_pool.getPtr(page_ptr);
-  file->set_buffer(RT_DBTUP_PAGE, page_ptr, cnt);
+  file->set_buffer(RT_NDBFS_BUILD_INDEX_PAGE, page_ptr, cnt);
 
   memcpy(&request->par.build.m_req, req, sizeof(* req));
   request->action = Request::buildindx;
@@ -1102,7 +1102,7 @@ Ndbfs::createAsyncFile()
     ERROR_SET(fatal, NDBD_EXIT_AFS_MAXOPEN,""," Ndbfs::createAsyncFile");
   }
 
-#ifdef NDB_WIN
+#ifdef _WIN32
   AsyncFile* file = new Win32AsyncFile(* this);
 #else
   AsyncFile* file = new PosixAsyncFile(* this);
@@ -1425,7 +1425,7 @@ bool
 Ndbfs::scanIPC(Signal* signal)
 {
    Request* request = theFromThreads.tryReadChannel();
-   jam();
+   jamDebug();
    if (request) {
       jam();
       report(request, signal);
@@ -1435,7 +1435,7 @@ Ndbfs::scanIPC(Signal* signal)
    return false;
 }
 
-#if defined NDB_WIN32
+#ifdef _WIN32
 Uint32 Ndbfs::translateErrno(int aErrno)
 {
   switch (aErrno)
@@ -1592,7 +1592,7 @@ Ndbfs::execCONTINUEB(Signal* signal)
 void
 Ndbfs::execSEND_PACKED(Signal* signal)
 {
-  jamEntry();
+  jamEntryDebug();
   if (scanningInProgress == false && scanIPC(signal))
   {
     jam();

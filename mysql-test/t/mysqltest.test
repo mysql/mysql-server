@@ -2703,7 +2703,7 @@ DROP TABLE t1;
 
 # 1. Basic test
 --lowercase_result
-SELECT "500g BLÅBÆRSYLTETØY" AS "WILL BE lower cased";
+SELECT "500g BLÃ…BÃ†RSYLTETÃ˜Y" AS "WILL BE lower cased";
 
 # 2. test that it does not apply to next statement
 SELECT "UPPER" AS "WILL NOT BE lower cased";
@@ -2728,11 +2728,13 @@ SELECT "Xyz" AS Name UNION SELECT "Abc" as Name ORDER BY Name DESC;
 --replace_result old new
 SELECT 1 as "SOME OLD TEXT";
 
-# 7. Test missing lower casing of "unknown" characters
---character_set utf8
---lowercase_result
-SELECT 0 as "WILL NOT lower case ÄËÐ";
+# 7. Test that it still works for latin1
 --character_set latin1
+set names latin1;
+--lowercase_result
+SELECT 0 as "WILL Lower CASE Å";
+--character_set utf8mb4
+set names utf8mb4;
 
 # ----------------------------------------------------------------------------
 # Some coverage tests
@@ -3897,3 +3899,70 @@ EOF
 
 # Cleanup
 --remove_file $MYSQLTEST_VARDIR/tmp/bug11766444.test
+
+--echo #
+--echo # BUG#25821838 : --ERROR IS NOT PROPERLY WORKING IF IT IS USED INSIDE WHILE LOOP
+--echo #
+
+# '--error' command should be evaluated only during the first iteration
+--let $counter= 0
+
+while ($counter <= 1)
+{
+  if ($counter == 0)
+  {
+    --error ER_BAD_TABLE_ERROR
+  }
+  DROP TABLE t1;
+  CREATE TABLE t1(c1 INT);
+  --inc $counter
+}
+
+DROP TABLE t1;
+
+# '--error' command should be evaluated only during the second iteration
+--let $counter= 0
+
+while ($counter <= 1)
+{
+  if ($counter == 1)
+  {
+    --error ER_TABLE_EXISTS_ERROR
+  }
+  CREATE TABLE t1(c1 INT);
+  --inc $counter
+}
+
+DROP TABLE t1;
+
+--echo #
+--echo # BUG#26090322 : MYSQLTEST CRASHES WITH 'NO-SKIP' OPTION
+--echo #
+
+--write_file $MYSQLTEST_VARDIR/tmp/bug26090322.test
+--echo Sample test
+--skip Skipping the test
+EOF
+
+# Run the test
+--exec $MYSQL_TEST --no-skip -x $MYSQLTEST_VARDIR/tmp/bug26090322.test 2>&1
+
+# Cleanup
+--remove_file $MYSQLTEST_VARDIR/tmp/bug26090322.test
+
+--echo #
+--echo # BUG#25929826 : SKIP COMMAND DOES NOT EXPAND VARIABLES
+--echo #
+
+--write_file $MYSQLTEST_VARDIR/tmp/bug25929826.test
+--let $skip_message= Skipping bug25929826.test
+--skip $skip_message
+EOF
+
+# Run the test, test should get skipped and exit with status 62
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--error 62
+--exec $MYSQL_TEST --no-skip-exclude-list=bug25929826.test -x $MYSQLTEST_VARDIR/tmp/bug25929826.test 2>&1
+
+# Cleanup
+--remove_file $MYSQLTEST_VARDIR/tmp/bug25929826.test

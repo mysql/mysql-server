@@ -27,6 +27,8 @@ PSI_mutex_key  key_GR_LOCK_applier_module_run,
                key_GR_LOCK_channel_observation_list,
                key_GR_LOCK_delayed_init_run,
                key_GR_LOCK_delayed_init_server_ready,
+               key_GR_LOCK_group_part_handler_run,
+               key_GR_LOCK_group_part_handler_abort,
                key_GR_LOCK_view_modification_wait,
                key_GR_LOCK_group_info_manager,
                key_GR_LOCK_pipeline_continuation,
@@ -42,7 +44,8 @@ PSI_mutex_key  key_GR_LOCK_applier_module_run,
                key_GR_LOCK_plugin_running,
                key_GR_LOCK_force_members_running,
                key_GR_LOCK_write_lock_protection,
-               key_GR_LOCK_pipeline_stats_flow_control;
+               key_GR_LOCK_pipeline_stats_flow_control,
+               key_GR_LOCK_trx_unlocking;
 
 PSI_cond_key   key_GR_COND_applier_module_run,
                key_GR_COND_applier_module_suspend,
@@ -51,6 +54,8 @@ PSI_cond_key   key_GR_COND_applier_module_run,
                key_GR_COND_cert_broadcast_dispatcher_run,
                key_GR_COND_delayed_init_run,
                key_GR_COND_delayed_init_server_ready,
+               key_GR_COND_group_part_handler_run,
+               key_GR_COND_group_part_handler_abort,
                key_GR_COND_view_modification_wait,
                key_GR_COND_pipeline_continuation,
                key_GR_COND_synchronized_queue,
@@ -86,6 +91,8 @@ static PSI_mutex_info all_group_replication_psi_mutex_keys[]=
   {&key_GR_LOCK_channel_observation_list, "LOCK_channel_observation_list", PSI_FLAG_GLOBAL, 0},
   {&key_GR_LOCK_delayed_init_run, "LOCK_delayed_init_run", PSI_FLAG_GLOBAL, 0},
   {&key_GR_LOCK_delayed_init_server_ready, "LOCK_delayed_init_server_ready", PSI_FLAG_GLOBAL, 0},
+  {&key_GR_LOCK_group_part_handler_run, "key_GR_LOCK_group_part_handler_run", PSI_FLAG_GLOBAL, 0},
+  {&key_GR_LOCK_group_part_handler_abort, "key_GR_LOCK_group_part_handler_abort", PSI_FLAG_GLOBAL, 0},
   {&key_GR_LOCK_view_modification_wait, "LOCK_view_modification_wait", PSI_FLAG_GLOBAL, 0},
   {&key_GR_LOCK_group_info_manager, "LOCK_group_info_manager", PSI_FLAG_GLOBAL, 0},
   {&key_GR_LOCK_pipeline_continuation, "LOCK_pipeline_continuation", PSI_FLAG_GLOBAL, 0},
@@ -101,7 +108,8 @@ static PSI_mutex_info all_group_replication_psi_mutex_keys[]=
   {&key_GR_LOCK_plugin_running, "LOCK_plugin_running", PSI_FLAG_GLOBAL, 0},
   {&key_GR_LOCK_force_members_running, "LOCK_force_members_running", PSI_FLAG_GLOBAL, 0},
   {&key_GR_LOCK_write_lock_protection, "LOCK_write_lock_protection", PSI_FLAG_GLOBAL, 0},
-  {&key_GR_LOCK_pipeline_stats_flow_control, "LOCK_pipeline_stats_flow_control", PSI_FLAG_GLOBAL, 0}
+  {&key_GR_LOCK_pipeline_stats_flow_control, "LOCK_pipeline_stats_flow_control", PSI_FLAG_GLOBAL, 0},
+  {&key_GR_LOCK_trx_unlocking, "LOCK_transaction_unblocking", PSI_FLAG_GLOBAL, 0}
 };
 
 static PSI_cond_info all_group_replication_psi_condition_keys[]=
@@ -113,6 +121,8 @@ static PSI_cond_info all_group_replication_psi_condition_keys[]=
   {&key_GR_COND_cert_broadcast_dispatcher_run, "COND_certifier_broadcast_dispatcher_run", PSI_FLAG_GLOBAL},
   {&key_GR_COND_delayed_init_run,  "COND_delayed_init_run", PSI_FLAG_GLOBAL},
   {&key_GR_COND_delayed_init_server_ready, "COND_delayed_init_server_ready", PSI_FLAG_GLOBAL},
+  {&key_GR_LOCK_group_part_handler_run, "COND_group_part_handler_run", PSI_FLAG_GLOBAL},
+  {&key_GR_LOCK_group_part_handler_abort, "COND_group_part_handler_abort", PSI_FLAG_GLOBAL},
   {&key_GR_COND_view_modification_wait, "COND_view_modification_wait", PSI_FLAG_GLOBAL},
   {&key_GR_COND_pipeline_continuation, "COND_pipeline_continuation", PSI_FLAG_GLOBAL},
   {&key_GR_COND_synchronized_queue, "COND_synchronized_queue", PSI_FLAG_GLOBAL},

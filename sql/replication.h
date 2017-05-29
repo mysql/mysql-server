@@ -562,6 +562,16 @@ typedef int (*thread_start_t)(Binlog_relay_IO_param *param);
 typedef int (*thread_stop_t)(Binlog_relay_IO_param *param);
 
 /**
+  This callback is called when a relay log consumer thread starts
+
+  @param param Observer common parameter
+
+  @retval 0 Sucess
+  @retval 1 Failure
+*/
+typedef int (*applier_start_t)(Binlog_relay_IO_param *param);
+
+/**
   This callback is called when a relay log consumer thread stops
 
   @param param   Observer common parameter
@@ -635,6 +645,7 @@ typedef struct Binlog_relay_IO_observer {
 
   thread_start_t thread_start;
   thread_stop_t thread_stop;
+  applier_start_t applier_start;
   applier_stop_t applier_stop;
   before_request_transmit_t before_request_transmit;
   after_read_event_t after_read_event;

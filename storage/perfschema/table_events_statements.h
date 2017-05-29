@@ -259,12 +259,8 @@ private:
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
-  /**
-    Fields definition.
-    Also used by table_events_statements_history
-    and table_events_statements_history_long.
-  */
-  static TABLE_FIELD_DEF m_field_def;
+  /** Table definition. */
+  static Plugin_table m_table_def;
 
   int make_row(PFS_thread *pfs_thread, PFS_events_statements *statement);
 
@@ -305,6 +301,8 @@ public:
 private:
   /** Table share lock. */
   static THR_LOCK m_table_lock;
+  /** Table definition. */
+  static Plugin_table m_table_def;
 
   int make_row(PFS_thread *pfs_thread, PFS_events_statements *statement);
 
@@ -343,6 +341,8 @@ public:
 private:
   /** Table share lock. */
   static THR_LOCK m_table_lock;
+  /** Table definition. */
+  static Plugin_table m_table_def;
 
   int make_row(PFS_events_statements *statement);
 

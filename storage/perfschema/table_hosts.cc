@@ -35,32 +35,20 @@
 
 THR_LOCK table_hosts::m_table_lock;
 
-/* clang-format off */
-static const TABLE_FIELD_TYPE field_types[]=
-{
-  {
-    { C_STRING_WITH_LEN("HOST") },
-    { C_STRING_WITH_LEN("char(60)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("CURRENT_CONNECTIONS") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("TOTAL_CONNECTIONS") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  }
-};
-/* clang-format on */
-
-TABLE_FIELD_DEF
-table_hosts::m_field_def = {3, field_types};
+Plugin_table table_hosts::m_table_def(
+  /* Name */
+  "hosts",
+  /* Definition */
+  "  HOST CHAR(60) collate utf8_bin default null,\n"
+  "  CURRENT_CONNECTIONS bigint not null,\n"
+  "  TOTAL_CONNECTIONS bigint not null,\n"
+  "  UNIQUE KEY (HOST) USING HASH\n",
+  /* Options */
+  " ENGINE=PERFORMANCE_SCHEMA",
+  /* Tablespace */
+  nullptr);
 
 PFS_engine_table_share table_hosts::m_share = {
-  {C_STRING_WITH_LEN("hosts")},
   &pfs_truncatable_acl,
   table_hosts::create,
   NULL, /* write_row */
@@ -68,9 +56,8 @@ PFS_engine_table_share table_hosts::m_share = {
   cursor_by_host::get_row_count,
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
-  &m_field_def,
-  false, /* checked */
-  false  /* perpetual */
+  &m_table_def,
+  false /* perpetual */
 };
 
 bool

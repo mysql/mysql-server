@@ -46,6 +46,7 @@
 #include "handler.h"
 #include "item.h"
 #include "lex_string.h"
+#include "map_helpers.h"
 #include "mdl.h"
 #include "my_base.h"
 #include "my_command.h"
@@ -112,6 +113,7 @@ class sp_rcontext;
 struct PSI_idle_locker;
 struct PSI_statement_locker;
 struct PSI_transaction_locker;
+struct User_level_lock;
 
 namespace dd {
   namespace cache {
@@ -960,7 +962,8 @@ public:
     so a lock is needed to prevent race conditions.
     Protected by @c LOCK_thd_data.
   */
-  HASH    user_vars;			// hash for user variables
+  collation_unordered_map<std::string, unique_ptr_with_deleter<user_var_entry>>
+    user_vars{system_charset_info, key_memory_user_var_entry};
   String  convert_buffer;               // buffer for charset conversions
   struct  rand_struct rand;		// used for authentication
   struct  System_variables variables;	// Changeable local variables
@@ -1230,13 +1233,15 @@ public:
 
   ulong max_client_packet_length;
 
-  HASH		handler_tables_hash;
+  collation_unordered_map<std::string, unique_ptr_my_free<TABLE_LIST>>
+    handler_tables_hash{&my_charset_latin1, key_memory_THD_handler_tables_hash};
   /*
     A thread can hold named user-level locks. This variable
     contains granted tickets if a lock is present. See item_func.cc and
     chapter 'Miscellaneous functions', for functions GET_LOCK, RELEASE_LOCK.
   */
-  HASH ull_hash;
+  malloc_unordered_map<std::string, User_level_lock*> ull_hash{
+    key_memory_User_level_lock};
 #ifndef DBUG_OFF
   uint dbug_sentry; // watch out for memory corruption
 #endif
@@ -2601,8 +2606,8 @@ public:
 
   inline bool is_strict_mode() const
   {
-    return MY_TEST(variables.sql_mode & (MODE_STRICT_TRANS_TABLES |
-                                         MODE_STRICT_ALL_TABLES));
+    return (variables.sql_mode & (MODE_STRICT_TRANS_TABLES |
+                                  MODE_STRICT_ALL_TABLES));
   }
   inline const CHARSET_INFO *collation()
   {
@@ -3511,13 +3516,20 @@ public:
     associated with this user session.
     @param psi Performance schema thread instrumentation
   */
-  void set_psi(PSI_thread *psi);
+  void set_psi(PSI_thread *psi)
+  {
+    m_psi= psi;
+  }
+
   /**
     Read the performance schema thread instrumentation
     associated with this user session.
     This method is safe to use from a different thread.
   */
-  PSI_thread* get_psi();
+  PSI_thread* get_psi()
+  {
+    return m_psi;
+  }
 
 private:
   /**
@@ -3527,7 +3539,7 @@ private:
     @sa set_psi
     @sa get_psi
   */
-  PSI_thread* m_psi;
+  std::atomic<PSI_thread*> m_psi;
 
 public:
   inline Internal_error_handler *get_internal_handler()
@@ -4328,6 +4340,60 @@ private:
   THD *m_thd;
   ulong m_global_binlog_format;
   enum_binlog_format m_current_stmt_binlog_format;
+};
+
+
+/**
+  RAII class to temporarily turn off SQL modes that affect parsing
+  of expressions. Can also be used when printing expressions even
+  if it turns off more SQL modes than strictly necessary for it
+  (these extra modes are harmless as they do not affect expression
+  printing).
+*/
+class Sql_mode_parse_guard
+{
+public:
+  Sql_mode_parse_guard(THD *thd)
+    : m_thd(thd), m_old_sql_mode(thd->variables.sql_mode)
+  {
+    /*
+      Switch off modes which can prevent normal parsing of expressions:
+
+      - MODE_REAL_AS_FLOAT            affect only CREATE TABLE parsing
+      + MODE_PIPES_AS_CONCAT          affect expression parsing
+      + MODE_ANSI_QUOTES              affect expression parsing
+      + MODE_IGNORE_SPACE             affect expression parsing
+      - MODE_NOT_USED                 not used :)
+      * MODE_ONLY_FULL_GROUP_BY       affect execution
+      * MODE_NO_UNSIGNED_SUBTRACTION  affect execution
+      - MODE_NO_DIR_IN_CREATE         affect table creation only
+      - MODE_POSTGRESQL               compounded from other modes
+      - MODE_ORACLE                   compounded from other modes
+      - MODE_MSSQL                    compounded from other modes
+      - MODE_DB2                      compounded from other modes
+      - MODE_MAXDB                    affect only CREATE TABLE parsing
+      - MODE_NO_KEY_OPTIONS           affect only SHOW
+      - MODE_NO_TABLE_OPTIONS         affect only SHOW
+      - MODE_NO_FIELD_OPTIONS         affect only SHOW
+      - MODE_MYSQL323                 affect only SHOW
+      - MODE_MYSQL40                  affect only SHOW
+      - MODE_ANSI                     compounded from other modes
+                                      (+ transaction mode)
+      ? MODE_NO_AUTO_VALUE_ON_ZERO    affect UPDATEs
+      + MODE_NO_BACKSLASH_ESCAPES     affect expression parsing
+    */
+    thd->variables.sql_mode&= ~(MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
+                                MODE_IGNORE_SPACE | MODE_NO_BACKSLASH_ESCAPES);
+  }
+
+  ~Sql_mode_parse_guard()
+  {
+    m_thd->variables.sql_mode= m_old_sql_mode;
+  }
+
+private:
+  THD *m_thd;
+  const sql_mode_t m_old_sql_mode;
 };
 
 

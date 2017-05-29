@@ -59,7 +59,7 @@
 #include "auth_internal.h"
 #include "current_thd.h"
 #include "derror.h"                     /* ER_THD */
-#include "log.h"                        /* sql_print_warning */
+#include "log.h"
 #include "mysqld.h"
 #include "prealloced_array.h"
 #include "sql_auth_cache.h"
@@ -1440,9 +1440,9 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list, bool if_not_exists, bool
           extra_users.insert(user_name);
         }
         catch (...) {
-          sql_print_warning("Failed to add %s in extra_users. "
-                            "Binary log entry may miss some of the users.",
-                            warn_user.c_ptr_safe());
+          LogErr(WARNING_LEVEL,
+                 ER_USER_NOT_IN_EXTRA_USERS_BINLOG_POSSIBLY_INCOMPLETE,
+                 warn_user.c_ptr_safe());
         }
         continue;
       }
@@ -1867,9 +1867,9 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
           extra_users.insert(tmp_user_from);
         }
         catch (...) {
-          sql_print_warning("Failed to add %s in extra_users. "
-                            "Binary log entry may miss some of the users.",
-                            warn_user.c_ptr_safe());
+          LogErr(WARNING_LEVEL,
+                 ER_USER_NOT_IN_EXTRA_USERS_BINLOG_POSSIBLY_INCOMPLETE,
+                 warn_user.c_ptr_safe());
         }
       }
       else
@@ -1904,9 +1904,9 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
           extra_users.insert(user_from);
         }
         catch (...) {
-          sql_print_warning("Failed to add %s in extra_users. "
-                            "Binary log entry may miss some of the users.",
-                            warn_user.c_ptr_safe());
+          LogErr(WARNING_LEVEL,
+                 ER_USER_NOT_IN_EXTRA_USERS_BINLOG_POSSIBLY_INCOMPLETE,
+                 warn_user.c_ptr_safe());
         }
       }
       else

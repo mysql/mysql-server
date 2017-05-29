@@ -38,18 +38,6 @@ static bool slow_logger(THD*, const char *query, size_t)
 }
 
 
-static void error_logger(const char *format,  ...)
-{
-  va_list args;
-
-  va_start(args, format);
-  sprintf(last_query, format, va_arg(args, ulong));
-  va_end(args);
-
-  summary_count++;
-}
-
-
 class LogThrottleTest : public ::testing::Test
 {
 protected:
@@ -174,76 +162,6 @@ TEST_F(LogThrottleTest, SlowLogSuppressCount)
   EXPECT_EQ(2, summary_count);
   EXPECT_STREQ("2", last_query);
 }
-// End of Slow_log_throttles test cases.
-
-//Error_log_throttles test cases starts from here.
-
-/*
-  Test basic functionality - throttling, eligibility, printing of summary of
-                             Error_log_throttle.
-*/
-TEST_F(LogThrottleTest, ErrorLogBasic)
-{
-  ulong window= 1000000;
-  Error_log_throttle throttle(window, error_logger, "%lu");
-
-  // Should not be throttled
-  EXPECT_FALSE(throttle.log());
-
-  // Flush and check that summary was not printed
-  EXPECT_FALSE(throttle.flush());
-  EXPECT_EQ(0, summary_count);
-
-  /*
-    Should be throttled. Even though this is the first
-    log after flush, flush didn't do anything and window
-    is not ended yet.
-  */
-  EXPECT_TRUE(throttle.log());
-
-  // Should be throttled.
-  EXPECT_TRUE(throttle.log());
-
-  // Flush and check that summary was printed
-  EXPECT_TRUE(throttle.flush());
-  EXPECT_EQ(1, summary_count);
-
-  // Flush and check that summary was not printed again
-  EXPECT_FALSE(throttle.flush());
-  EXPECT_EQ(1, summary_count);
-
-  // Get another summary printed
-  EXPECT_FALSE(throttle.log());
-  EXPECT_TRUE(throttle.log());
-  EXPECT_TRUE(throttle.log());
-  EXPECT_TRUE(throttle.flush());
-  EXPECT_EQ(2, summary_count);
-}
-
-
-// Test number of suppressed messages written by error logger
-TEST_F(LogThrottleTest, ErrorLogSuppressCount)
-{
-  ulong window= 1000000;
-  Error_log_throttle throttle(window, error_logger, "%lu");
-
-  // Suppress 3 events
-  EXPECT_FALSE(throttle.log());
-  EXPECT_TRUE(throttle.log());
-  EXPECT_TRUE(throttle.log());
-  EXPECT_TRUE(throttle.log());
-  EXPECT_TRUE(throttle.flush());
-  EXPECT_EQ(1, summary_count);
-  EXPECT_STREQ("3", last_query);
-
-  // Suppress 2 events
-  EXPECT_FALSE(throttle.log());
-  EXPECT_TRUE(throttle.log());
-  EXPECT_TRUE(throttle.log());
-  EXPECT_TRUE(throttle.flush());
-  EXPECT_EQ(2, summary_count);
-  EXPECT_STREQ("2", last_query);
-}
-//End of Error_log_throttles test cases.
+//End of Slow_log_throttles test cases.
 
 }

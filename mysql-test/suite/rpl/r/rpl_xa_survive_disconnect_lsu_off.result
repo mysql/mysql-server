@@ -139,8 +139,8 @@ include/start_slave.inc
 *** '3-stmt','3-row' xa-transactions must be in the list ***
 XA RECOVER;
 formatID	gtrid_length	bqual_length	data
-1	6	0	3-stmt
 1	5	0	3-row
+1	6	0	3-stmt
 XA COMMIT '3-stmt';
 XA ROLLBACK '3-row';
 include/sync_slave_sql_with_master.inc

@@ -95,7 +95,7 @@ protected:
   {
     va_list args;
     va_start(args, fmt);
-    error_log_print(ERROR_LEVEL, fmt, args);
+    error_log_printf(ERROR_LEVEL, fmt, args);
     va_end(args);
   }
 };

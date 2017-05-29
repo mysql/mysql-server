@@ -19,6 +19,10 @@
 #include <stddef.h>
 #include <sys/types.h>
 
+#include <map>
+#include <string>
+#include <unordered_map>
+
 #include "handler.h"
 #include "hash.h"
 #include "lex_string.h"
@@ -87,7 +91,7 @@ private:
     of used TABLE objects in this table cache is stored.
     We use Table_cache_element::share::table_cache_key as key for this hash.
   */
-  HASH m_cache;
+  std::unordered_map<std::string, std::unique_ptr<Table_cache_element>> m_cache;
 
   /**
     List that contains all TABLE instances for tables in this particular
@@ -135,7 +139,7 @@ public:
   /** Assert that caller owns lock on the table cache. */
   void assert_owner() { mysql_mutex_assert_owner(&m_lock); }
 
-  inline TABLE* get_table(THD *thd, my_hash_value_type hash_value,
+  inline TABLE* get_table(THD *thd,
                           const char *key, size_t key_length,
                           TABLE_SHARE **share);
 
@@ -387,19 +391,12 @@ bool Table_cache::add_used_table(THD *thd, TABLE *table)
       Allocate new Table_cache_element object and add it to the cache
       and array in TABLE_SHARE.
     */
-    DBUG_ASSERT(! my_hash_search(&m_cache,
-                                 (uchar*)table->s->table_cache_key.str,
-                                 table->s->table_cache_key.length));
+    std::string key(
+      table->s->table_cache_key.str, table->s->table_cache_key.length);
+    DBUG_ASSERT(m_cache.count(key) == 0);
 
-    if (!(el= new Table_cache_element(table->s)))
-      return true;
-
-    if (my_hash_insert(&m_cache, (uchar*)el))
-    {
-      delete el;
-      return true;
-    }
-
+    el= new Table_cache_element(table->s);
+    m_cache.emplace(key, std::unique_ptr<Table_cache_element>(el));
     table->s->cache_element[table_cache_manager.cache_index(this)]= el;
   }
 
@@ -446,7 +443,9 @@ void Table_cache::remove_table(TABLE *table)
 
   if (el->used_tables.is_empty() && el->free_tables.is_empty())
   {
-    (void) my_hash_delete(&m_cache, (uchar*) el);
+    std::string key(
+      table->s->table_cache_key.str, table->s->table_cache_key.length);
+    m_cache.erase(key);
     /*
       Remove reference to deleted cache element from array
       in the TABLE_SHARE.
@@ -460,7 +459,6 @@ void Table_cache::remove_table(TABLE *table)
   Get an unused TABLE instance from the table cache.
 
   @param      thd         Thread context.
-  @param      hash_value  Hash value for the key identifying table.
   @param      key         Key identifying table.
   @param      key_length  Length of key for the table.
   @param[out] share       NULL - if table cache doesn't contain any
@@ -478,20 +476,21 @@ void Table_cache::remove_table(TABLE *table)
                      are used TABLE objects in cache and NULL otherwise.
 */
 
-TABLE* Table_cache::get_table(THD *thd, my_hash_value_type hash_value,
+TABLE* Table_cache::get_table(THD *thd,
                               const char *key, size_t key_length,
                               TABLE_SHARE **share)
 {
-  Table_cache_element *el;
   TABLE *table;
 
   assert_owner();
 
   *share= NULL;
 
-  if (!(el= (Table_cache_element*) my_hash_search_using_hash_value(&m_cache,
-                                     hash_value, (uchar*) key, key_length)))
+  std::string key_str(key, key_length);
+  const auto el_it= m_cache.find(key_str);
+  if (el_it == m_cache.end())
     return NULL;
+  Table_cache_element *el= el_it->second.get();
 
   *share= el->share;
 

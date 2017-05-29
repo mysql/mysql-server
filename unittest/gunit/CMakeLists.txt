@@ -235,6 +235,7 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/sql
   ${CMAKE_SOURCE_DIR}/sql/auth
   ${CMAKE_SOURCE_DIR}/storage/example
+  ${CMAKE_SOURCE_DIR}/storage/temptable/include
 )
 
 # main-wrapper libraries (with tap-compatible option).
@@ -312,12 +313,10 @@ SET(TESTS
   my_error
   my_fileutils
   my_murmur3
-  my_qsort_vs_stdsort
   my_regex
   my_thread
   mysys_base64
   mysys_lf
-  mysys_my_atomic
   mysys_my_loadpath
   mysys_my_malloc
   mysys_my_pwrite
@@ -347,6 +346,7 @@ SET(TESTS
   my_alloc
   pump_object_filter
   val_int_compare
+  varlen_sort
   )
  
 IF(WIN32)
@@ -412,6 +412,8 @@ SET(SERVER_TESTS
   table_cache
   table_factor_syntax
   tc_log_mmap
+  temptable_allocator
+  temptable_storage
   thd_manager
   union_syntax
   unique

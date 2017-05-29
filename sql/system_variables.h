@@ -293,6 +293,8 @@ struct System_variables
   bool show_old_temporals;
   // Used for replication delay and lag monitoring
   ulonglong original_commit_timestamp;
+
+  ulong internal_tmp_mem_storage_engine; // enum_internal_tmp_mem_storage_engine
 };
 
 

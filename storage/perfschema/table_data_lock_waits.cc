@@ -35,72 +35,33 @@
 
 THR_LOCK table_data_lock_waits::m_table_lock;
 
-/* clang-format off */
-static const TABLE_FIELD_TYPE field_types[]=
-{
-  {
-    { C_STRING_WITH_LEN("ENGINE") },
-    { C_STRING_WITH_LEN("varchar(32)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("REQUESTING_ENGINE_LOCK_ID") },
-    { C_STRING_WITH_LEN("varchar(128)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("REQUESTING_ENGINE_TRANSACTION_ID") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("REQUESTING_THREAD_ID") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("REQUESTING_EVENT_ID") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("REQUESTING_OBJECT_INSTANCE_BEGIN") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("BLOCKING_ENGINE_LOCK_ID") },
-    { C_STRING_WITH_LEN("varchar(128)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("BLOCKING_ENGINE_TRANSACTION_ID") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("BLOCKING_THREAD_ID") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("BLOCKING_EVENT_ID") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("BLOCKING_OBJECT_INSTANCE_BEGIN") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  }
-};
-/* clang-format on */
-
-TABLE_FIELD_DEF
-table_data_lock_waits::m_field_def = {11, field_types};
+Plugin_table table_data_lock_waits::m_table_def(
+  /* Name */
+  "data_lock_waits",
+  /* Definition */
+  "  ENGINE VARCHAR(32) not null,\n"
+  "  REQUESTING_ENGINE_LOCK_ID VARCHAR(128) not null,\n"
+  "  REQUESTING_ENGINE_TRANSACTION_ID BIGINT unsigned,\n"
+  "  REQUESTING_THREAD_ID BIGINT unsigned,\n"
+  "  REQUESTING_EVENT_ID BIGINT unsigned,\n"
+  "  REQUESTING_OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,\n"
+  "  BLOCKING_ENGINE_LOCK_ID VARCHAR(128) not null,\n"
+  "  BLOCKING_ENGINE_TRANSACTION_ID BIGINT unsigned,\n"
+  "  BLOCKING_THREAD_ID BIGINT unsigned,\n"
+  "  BLOCKING_EVENT_ID BIGINT unsigned,\n"
+  "  BLOCKING_OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,\n"
+  "  KEY (REQUESTING_ENGINE_LOCK_ID, ENGINE) USING HASH,\n"
+  "  KEY (BLOCKING_ENGINE_LOCK_ID, ENGINE) USING HASH,\n"
+  "  KEY (REQUESTING_ENGINE_TRANSACTION_ID, ENGINE) USING HASH,\n"
+  "  KEY (BLOCKING_ENGINE_TRANSACTION_ID, ENGINE) USING HASH,\n"
+  "  KEY (REQUESTING_THREAD_ID, REQUESTING_EVENT_ID) USING HASH,\n"
+  "  KEY (BLOCKING_THREAD_ID, BLOCKING_EVENT_ID) USING HASH\n",
+  /* Options */
+  " ENGINE=PERFORMANCE_SCHEMA",
+  /* Tablespace */
+  nullptr);
 
 PFS_engine_table_share table_data_lock_waits::m_share = {
-  {C_STRING_WITH_LEN("data_lock_waits")},
   &pfs_readonly_acl,
   table_data_lock_waits::create,
   NULL, /* write_row */
@@ -108,9 +69,8 @@ PFS_engine_table_share table_data_lock_waits::m_share = {
   table_data_lock_waits::get_row_count,
   sizeof(pk_pos_t),
   &m_table_lock,
-  &m_field_def,
-  false, /* checked */
-  false  /* perpetual */
+  &m_table_def,
+  false /* perpetual */
 };
 
 PFS_engine_table *

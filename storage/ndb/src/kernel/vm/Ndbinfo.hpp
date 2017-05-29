@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -76,7 +76,9 @@ public:
     TABLE_DIST_STATUS_ALL_TABLEID =34,
     TABLE_FRAGMENTS_ALL_TABLEID =35,
     TABLE_REPLICAS_ALL_TABLEID = 36,
-    STORED_TABLES_TABLEID =      37
+    STORED_TABLES_TABLEID =      37,
+    PROCESSES_TABLEID =          38,
+    CONFIG_NODES_TABLEID =       39
   };
 
   struct Table {

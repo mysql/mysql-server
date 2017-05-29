@@ -75,8 +75,9 @@ private:
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
-  /** Fields definition. */
-  static TABLE_FIELD_DEF m_field_def;
+  /** Table definition. */
+  static Plugin_table m_table_def;
+
   /** Current row */
   st_row_applier_config m_row;
   /** Current position. */

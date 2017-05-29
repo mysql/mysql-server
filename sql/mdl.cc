@@ -18,12 +18,12 @@
 
 #include <time.h>
 #include <algorithm>
+#include <atomic>
 #include <functional>
 
 #include "debug_sync.h"
 #include "lf.h"
 #include "m_ctype.h"
-#include "my_atomic.h"
 #include "my_dbug.h"
 #include "my_murmur3.h"
 #include "my_sharedlib.h"
@@ -163,7 +163,7 @@ public:
   */
   void lock_object_used()
   {
-    my_atomic_add32(&m_unused_lock_objects, -1);
+    --m_unused_lock_objects;
   }
 
   /**
@@ -179,7 +179,7 @@ public:
       attempts to delete unused MDL_lock objects in order to avoid infinite
       loops,
     */
-    int32 unused_locks= my_atomic_add32(&m_unused_lock_objects, 1) + 1;
+    int32 unused_locks= ++m_unused_lock_objects;
 
     while (unused_locks > mdl_locks_unused_locks_low_water &&
            (unused_locks > m_locks.count * MDL_LOCKS_UNUSED_LOCKS_MIN_RATIO))
@@ -222,7 +222,7 @@ public:
   */
   int32 get_unused_locks_count() const
   {
-    return m_unused_lock_objects;
+    return m_unused_lock_objects.load();
   }
 
   /**
@@ -267,7 +267,7 @@ private:
     for some short period of time. Code which uses its value needs to take
     this into account.
   */
-  volatile int32 m_unused_lock_objects;
+  std::atomic<int32> m_unused_lock_objects;
 };
 
 
@@ -918,14 +918,11 @@ public:
           In order to enforce the above rules and other invariants,
           MDL_lock::m_fast_path_state should not be updated directly.
           Use fast_path_state_cas()/add()/reset() wrapper methods instead.
-
-    @note Needs to be volatile in order to be compatible with our
-          my_atomic_*() API.
   */
-  volatile fast_path_state_t m_fast_path_state;
+  std::atomic<fast_path_state_t> m_fast_path_state;
 
   /**
-    Wrapper for my_atomic_cas64 operation on m_fast_path_state member
+    Wrapper for atomic compare-and-swap operation on m_fast_path_state member
     which enforces locking and other invariants.
   */
   bool fast_path_state_cas(fast_path_state_t *old_state,
@@ -951,11 +948,12 @@ public:
     */
     DBUG_ASSERT(! (*old_state & IS_DESTROYED));
 
-    return my_atomic_cas64(&m_fast_path_state, old_state, new_state);
+    return atomic_compare_exchange_strong(
+      &m_fast_path_state, old_state, new_state);
   }
 
   /**
-    Wrapper for my_atomic_add64 operation on m_fast_path_state member
+    Wrapper for atomic add operation on m_fast_path_state member
     which enforces locking and other invariants.
   */
   fast_path_state_t fast_path_state_add(fast_path_state_t value)
@@ -968,7 +966,7 @@ public:
     */
     mysql_prlock_assert_write_owner(&m_rwlock);
 
-    fast_path_state_t old_state= my_atomic_add64(&m_fast_path_state, value);
+    fast_path_state_t old_state= m_fast_path_state.fetch_add(value);
 
     /*
       We should not change state of destroyed object
@@ -985,7 +983,7 @@ public:
   {
     /* HAS_DESTROYED flag can be cleared only under protection of m_rwlock. */
     mysql_prlock_assert_write_owner(&m_rwlock);
-    my_atomic_store64(&m_fast_path_state, 0);
+    m_fast_path_state.store(0);
   }
 
   /**
@@ -1307,7 +1305,7 @@ MDL_lock* MDL_map::find_or_insert(LF_PINS *pins, const MDL_key *mdl_key,
         New MDL_lock object is not used yet. So we need to
         increment number of unused lock objects.
       */
-      my_atomic_add32(&m_unused_lock_objects, 1);
+      ++m_unused_lock_objects;
     }
   }
   if (lock == MY_LF_ERRPTR)
@@ -1462,7 +1460,7 @@ void MDL_map::remove_random_unused(MDL_context *ctx, LF_PINS *pins,
     else
     {
       /* Success. */
-      *unused_locks= my_atomic_add32(&m_unused_lock_objects, -1) - 1;
+      *unused_locks= --m_unused_lock_objects;
     }
   }
   else

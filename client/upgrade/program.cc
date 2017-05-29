@@ -170,7 +170,7 @@ public:
   {
     int no_session_user =
       execute_conditional_query(
-        "SELECT COUNT(*) FROM mysql.user WHERE user = 'mysql.session_user'",
+        "SELECT COUNT(*) FROM mysql.user WHERE user = 'mysql.session'",
         "0");
     return no_session_user;
   }
@@ -185,13 +185,13 @@ public:
       execute_conditional_query(
         "SELECT SUM(count)=3 FROM ( "
           "SELECT COUNT(*) as count FROM mysql.tables_priv WHERE "
-          "Table_priv='Select' and User='mysql.session_user' and Db='mysql' and Table_name='user' "
+          "Table_priv='Select' and User='mysql.session' and Db='mysql' and Table_name='user' "
           "UNION ALL "
           "SELECT COUNT(*) as count FROM mysql.db WHERE "
-          "Select_priv='Y' and User='mysql.session_user' and Db='performance_schema' "
+          "Select_priv='Y' and User='mysql.session' and Db='performance_schema' "
           "UNION ALL "
           "SELECT COUNT(*) as count FROM mysql.user WHERE "
-          "Super_priv='Y' and User='mysql.session_user') as user_priv;",
+          "Super_priv='Y' and User='mysql.session') as user_priv;",
         "1");
     return is_user_configured;
   }
@@ -272,8 +272,8 @@ public:
     {
       return this->print_error(
           EXIT_UPGRADING_QUERIES_ERROR,
-          "The mysql.session_user exists but is not correctly configured."
-            " The mysql.session_user needs SELECT privileges in the"
+          "The mysql.session exists but is not correctly configured."
+            " The mysql.session needs SELECT privileges in the"
             " performance_schema database and the mysql.db table and also"
             " SUPER privileges.");
     }
@@ -282,7 +282,7 @@ public:
     {
       return this->print_error(EXIT_UPGRADING_QUERIES_ERROR,
                                "Query against mysql.user table failed "
-                                 "when checking the mysql.session_user.");
+                                 "when checking the mysql.session.");
     }
 
     /*

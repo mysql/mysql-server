@@ -33,47 +33,23 @@
 
 THR_LOCK table_esmh_global::m_table_lock;
 
-/* clang-format off */
-static const TABLE_FIELD_TYPE field_types[]=
-{
-  {
-    { C_STRING_WITH_LEN("BUCKET_NUMBER") },
-    { C_STRING_WITH_LEN("int(10)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("BUCKET_TIMER_LOW") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("BUCKET_TIMER_HIGH") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("COUNT_BUCKET") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("COUNT_BUCKET_AND_LOWER") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("BUCKET_QUANTILE") },
-    { C_STRING_WITH_LEN("double(7,6)") },
-    { NULL, 0}
-  }
-};
-/* clang-format on */
-
-TABLE_FIELD_DEF
-table_esmh_global::m_field_def = {6, field_types};
+Plugin_table table_esmh_global::m_table_def(
+  /* Name */
+  "events_statements_histogram_global",
+  /* Definition */
+  "  BUCKET_NUMBER INTEGER unsigned not null,\n"
+  "  BUCKET_TIMER_LOW BIGINT unsigned not null,\n"
+  "  BUCKET_TIMER_HIGH BIGINT unsigned not null,\n"
+  "  COUNT_BUCKET BIGINT unsigned not null,\n"
+  "  COUNT_BUCKET_AND_LOWER BIGINT unsigned not null,\n"
+  "  BUCKET_QUANTILE DOUBLE(7,6) not null,\n"
+  "  PRIMARY KEY (BUCKET_NUMBER) USING HASH\n",
+  /* Options */
+  " ENGINE=PERFORMANCE_SCHEMA",
+  /* Tablespace */
+  nullptr);
 
 PFS_engine_table_share table_esmh_global::m_share = {
-  {C_STRING_WITH_LEN("events_statements_histogram_global")},
   &pfs_truncatable_acl,
   table_esmh_global::create,
   NULL,
@@ -81,8 +57,7 @@ PFS_engine_table_share table_esmh_global::m_share = {
   table_esmh_global::get_row_count,
   sizeof(pos_t),
   &m_table_lock,
-  &m_field_def,
-  false,
+  &m_table_def,
   false};
 
 bool

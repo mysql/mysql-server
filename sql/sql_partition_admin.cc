@@ -189,6 +189,20 @@ static bool compare_table_with_partition(THD *thd, TABLE *table,
   Alter_table_ctx part_alter_ctx; // Not used
   DBUG_ENTER("compare_table_with_partition");
 
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  const dd::Table *part_table_def= nullptr;
+  if (!part_table->s->tmp_table)
+  {
+    if (thd->dd_client()->acquire(part_table->s->db.str,
+                                  part_table->s->table_name.str,
+                                  &part_table_def))
+    {
+      DBUG_RETURN(true);
+    }
+    // Should not happen, we know the table exists and can be opened.
+    DBUG_ASSERT(part_table_def != nullptr);
+  }
+
   bool metadata_equal= false;
   memset(&part_create_info, 0, sizeof(HA_CREATE_INFO));
   memset(&table_create_info, 0, sizeof(HA_CREATE_INFO));
@@ -199,7 +213,8 @@ static bool compare_table_with_partition(THD *thd, TABLE *table,
   /* mark all columns used, since they are used when preparing the new table */
   part_table->use_all_columns();
   table->use_all_columns();
-  if (mysql_prepare_alter_table(thd, part_table, &part_create_info,
+  if (mysql_prepare_alter_table(thd, part_table_def,
+                                part_table, &part_create_info,
                                 &part_alter_info, &part_alter_ctx))
   {
     my_error(ER_TABLES_DIFFERENT_METADATA, MYF(0));

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -170,7 +170,7 @@ Dbtup::execACC_SCANREQ(Signal* signal)
 void
 Dbtup::execNEXT_SCANREQ(Signal* signal)
 {
-  jamEntry();
+  jamEntryDebug();
   const NextScanReq reqCopy = *(const NextScanReq*)signal->getDataPtr();
   const NextScanReq* const req = &reqCopy;
   ScanOpPtr scanPtr;
@@ -180,9 +180,9 @@ Dbtup::execNEXT_SCANREQ(Signal* signal)
   case NextScanReq::ZSCAN_NEXT:
     jam();
     break;
-  case NextScanReq::ZSCAN_NEXT_COMMIT:
-    jam();
   case NextScanReq::ZSCAN_COMMIT:
+    jam();
+  case NextScanReq::ZSCAN_NEXT_COMMIT:
     jam();
     if ((scan.m_bits & ScanOp::SCAN_LOCK) != 0) {
       jam();
@@ -250,13 +250,13 @@ Dbtup::execNEXT_SCANREQ(Signal* signal)
   checkReq->accPtr = scanPtr.i;
   checkReq->checkLcpStop = AccCheckScan::ZNOT_CHECK_LCP_STOP;
   EXECUTE_DIRECT(DBTUP, GSN_ACC_CHECK_SCAN, signal, AccCheckScan::SignalLength);
-  jamEntry();
+  jamEntryDebug();
 }
 
 void
 Dbtup::execACC_CHECK_SCAN(Signal* signal)
 {
-  jamEntry();
+  jamEntryDebug();
   const AccCheckScan reqCopy = *(const AccCheckScan*)signal->getDataPtr();
   const AccCheckScan* const req = &reqCopy;
   ScanOpPtr scanPtr;
@@ -332,7 +332,7 @@ Dbtup::scanReply(Signal* signal, ScanOpPtr scanPtr)
   unsigned pkSize = 0;
   if (scan.m_state == ScanOp::Current) {
     // found an entry to return
-    jam();
+    jamDebug();
     ndbrequire(scan.m_accLockOp == RNIL);
     if (scan.m_bits & ScanOp::SCAN_LOCK) {
       jam();
@@ -362,7 +362,7 @@ Dbtup::scanReply(Signal* signal, ScanOpPtr scanPtr)
       lockReq->transId2 = scan.m_transId2;
       EXECUTE_DIRECT(DBACC, GSN_ACC_LOCKREQ,
           signal, AccLockReq::LockSignalLength);
-      jamEntry();
+      jamEntryDebug();
       switch (lockReq->returnCode) {
       case AccLockReq::Success:
         jam();
@@ -417,7 +417,7 @@ Dbtup::scanReply(Signal* signal, ScanOpPtr scanPtr)
 
   if (scan.m_state == ScanOp::Locked) {
     // we have lock or do not need one
-    jam();
+    jamDebug();
     // conf signal
     NextScanConf* const conf = (NextScanConf*)signal->getDataPtrSend();
     conf->scanPtr = scan.m_userPtr;
@@ -450,7 +450,7 @@ Dbtup::scanReply(Signal* signal, ScanOpPtr scanPtr)
      */
     Uint32 blockNo = refToMain(scan.m_userRef);
     EXECUTE_DIRECT(blockNo, GSN_NEXT_SCANCONF, signal, signalLength);
-    jamEntry();
+    jamEntryDebug();
     return;
   }
   if (scan.m_state == ScanOp::Last ||
@@ -765,7 +765,9 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
   case ScanPos::Get_next_tuple:
     jam();
     key.m_page_idx += size;
-    // fall through
+    pos.m_get = ScanPos::Get_page;
+    pos.m_realpid_mm = RNIL;
+    break;
   case ScanPos::Get_tuple:
     jam();
     /**
@@ -860,13 +862,11 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
       /*FALLTHRU*/
     case ScanPos::Get_page_mm:
       // get TUP real page
-      jam();
       {
         PagePtr pagePtr;
-        if (pos.m_realpid_mm == RNIL) {
-          jam();
+        if (pos.m_realpid_mm == RNIL)
+        {
           pos.m_realpid_mm = getRealpidCheck(fragPtr.p, key.m_page_no);
-          
           if (pos.m_realpid_mm == RNIL)
           {
             jam();
@@ -878,6 +878,14 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
             pos.m_get = ScanPos::Get_next_page_mm;
             break; // incr loop count
           }
+          else
+          {
+            jam();
+          }
+        }
+        else
+        {
+          jam();
         }
 	c_page_pool.getPtr(pagePtr, pos.m_realpid_mm);
         /**

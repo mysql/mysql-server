@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -96,7 +96,7 @@ NdbTransaction::NdbTransaction( Ndb* aNdb ) :
   theListState = NotInList;
   theError.code = 0;
   //theId = NdbObjectIdMap::InvalidId;
-  theId = theNdb->theImpl->theNdbObjectIdMap.map(this);
+  theId = theNdb->theImpl->mapRecipient(this);
 
 #define CHECK_SZ(mask, sz) assert((sizeof(mask)/sizeof(mask[0])) == sz)
 
@@ -112,7 +112,7 @@ Remark:        Deletes the connection object.
 NdbTransaction::~NdbTransaction()
 {
   DBUG_ENTER("NdbTransaction::~NdbTransaction");
-  theNdb->theImpl->theNdbObjectIdMap.unmap(theId, this);
+  theNdb->theImpl->unmapRecipient(theId, this);
   DBUG_VOID_RETURN;
 }//NdbTransaction::~NdbTransaction()
 
@@ -176,7 +176,7 @@ NdbTransaction::init()
   pendingBlobWriteBytes = 0;
   if (theId == NdbObjectIdMap::InvalidId)
   {
-    theId = theNdb->theImpl->theNdbObjectIdMap.map(this);
+    theId = theNdb->theImpl->mapRecipient(this);
     if (theId == NdbObjectIdMap::InvalidId)
     {
       theError.code = 4000;
@@ -774,6 +774,16 @@ NdbTransaction::executeAsynchPrepare(NdbTransaction::ExecType aTypeOfExec,
     }
     DBUG_VOID_RETURN;
   }//if
+
+  /**
+   * Perform scan finalisation here
+   */
+  NdbScanOperation* tScanOp = m_theFirstScanOperation;
+  while (tScanOp)
+  {
+    tScanOp->finaliseScan();
+    tScanOp = (NdbScanOperation*)tScanOp->next();
+  }
 
   NdbQueryImpl* const lastLookupQuery = getLastLookupQuery(m_firstQuery);
 

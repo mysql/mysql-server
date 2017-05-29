@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -64,7 +64,9 @@ struct Resource_limit
   Uint32 m_min;
   Uint32 m_max;
   Uint32 m_curr;
+  Uint32 m_spare;
   Uint32 m_resource_id;
+  Uint32 m_spare_pct;
 };
 
 struct Pool_context
@@ -85,7 +87,10 @@ struct Pool_context
    *
    * Will handle resource limit 
    */
-  void* alloc_page(Uint32 type_id, Uint32 *i);
+  void* alloc_page19(Uint32 type_id, Uint32 *i);
+  void* alloc_page27(Uint32 type_id, Uint32 *i);
+  void* alloc_page30(Uint32 type_id, Uint32 *i);
+  void* alloc_page32(Uint32 type_id, Uint32 *i);
   
   /**
    * Release pages

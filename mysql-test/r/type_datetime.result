@@ -668,7 +668,6 @@ Warning	1264	Out of range value for column 'dt1' at row 1
 DELETE IGNORE  FROM t1 WHERE dt1 = '0000-00-01 00:00:01';
 Warnings:
 Warning	1292	Incorrect datetime value: '0000-00-01 00:00:01' for column 'dt1' at row 1
-Warning	1292	Incorrect datetime value: '0000-00-01 00:00:01' for column 'dt1' at row 1
 # Should be empty
 SELECT * FROM t1;
 dt1

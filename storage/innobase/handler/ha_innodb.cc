@@ -1649,7 +1649,7 @@ innobase_create_handler(
 		ha_innopart* file = new (mem_root) ha_innopart(hton, table);
 		if (file && file->init_partitioning(mem_root))
 		{
-			delete file;
+			destroy(file);
 			return(NULL);
 		}
 		return(file);
@@ -7599,14 +7599,9 @@ ha_innobase::open_dict_table(
 
 		if (ib_table != NULL) {
 #ifndef _WIN32
-			sql_print_warning("Partition table %s opened"
-					  " after converting to lower"
-					  " case. The table may have"
-					  " been moved from a case"
-					  " in-sensitive file system."
-					  " Please recreate table in"
-					  " the current file system\n",
-					  norm_name);
+			LogErr(WARNING_LEVEL,
+			  ER_INNODB_PARTITION_TABLE_LOWERCASED,
+			  norm_name);
 #else
 			sql_print_warning("Partition table %s opened"
 					  " after skipping the step to"
@@ -12327,7 +12322,9 @@ innobase_dict_init(
 		/* Options */
 		" ENGINE=INNODB ROW_FORMAT=DYNAMIC "
 		"DEFAULT CHARSET=utf8 COLLATE=utf8_bin "
-		"STATS_PERSISTENT=0");
+		"STATS_PERSISTENT=0",
+                /* Tablespace */
+		MYSQL_TABLESPACE_NAME.str);
 
 	static Plugin_table innodb_index_stats(
 		/* Name */
@@ -12354,7 +12351,9 @@ innobase_dict_init(
 		/* Options */
 		" ENGINE=INNODB ROW_FORMAT=DYNAMIC "
 		"DEFAULT CHARSET=utf8 COLLATE=utf8_bin "
-		"STATS_PERSISTENT=0");
+		"STATS_PERSISTENT=0",
+                /* Tablespace */
+                MYSQL_TABLESPACE_NAME.str);
 
 	static const Plugin_table innodb_dynamic_metadata(
 		/* Name */
@@ -12366,7 +12365,9 @@ innobase_dict_init(
 		"  metadata BLOB NOT NULL\n",
 		/* Options */
 		" ENGINE=INNODB ROW_FORMAT=DYNAMIC "
-		" STATS_PERSISTENT=0");
+		" STATS_PERSISTENT=0",
+                /* Tablespace */
+                MYSQL_TABLESPACE_NAME.str);
 
 	tables->push_back(&innodb_table_stats);
 	tables->push_back(&innodb_index_stats);
@@ -19467,6 +19468,27 @@ innodb_max_dirty_pages_pct_lwm_update(
 	srv_max_dirty_pages_pct_lwm = in_val;
 }
 
+/** If the setting innodb_undo_logs is updated, write and return a
+deprecation warning message.
+@param[in,out]	thd	MySQL client connection
+@param[out]	var_ptr	current value
+@param[in]	save	to-be-assigned value */
+static
+void
+innodb_undo_logs_update(
+	THD*		thd,
+	st_mysql_sys_var*,
+	void*		var_ptr,
+	const void*	save)
+{
+	ib::warn() << deprecated_undo_logs;
+
+	push_warning(thd, Sql_condition::SL_WARNING,
+		     HA_ERR_WRONG_COMMAND, deprecated_undo_logs);
+
+	*static_cast<ulong*>(var_ptr) = *static_cast<const ulong*>(save);
+}
+
 /*************************************************************//**
 Check whether valid argument given to innobase_*_stopword_table.
 This function is registered as a callback with MySQL.
@@ -21558,10 +21580,10 @@ static MYSQL_SYSVAR_ULONG(undo_tablespaces, srv_undo_tablespaces,
 
 /* Alias for innodb_rollback_segments. This is the number of rollback
 segments to use in the system tablespace and all undo tablespaces. */
-static MYSQL_SYSVAR_ULONG(undo_logs, srv_rollback_segments,
+static MYSQL_SYSVAR_ULONG(undo_logs, srv_undo_logs,
   PLUGIN_VAR_OPCMDARG,
-  "Number of rollback segments to use for durable transactions.",
-  NULL, NULL,
+  "Number of rollback segments to use for storing undo logs. (deprecated)",
+  NULL, innodb_undo_logs_update,
   TRX_SYS_N_RSEGS,	/* Default setting */
   1,			/* Minimum value */
   TRX_SYS_N_RSEGS, 0);	/* Maximum value */
@@ -21591,7 +21613,7 @@ static MYSQL_SYSVAR_BOOL(undo_log_truncate, srv_undo_log_truncate,
 to use in the system tablespace and all undo tablespaces. */
 static MYSQL_SYSVAR_ULONG(rollback_segments, srv_rollback_segments,
   PLUGIN_VAR_OPCMDARG,
-  "Number of rollback segments to use for durable transactions.",
+  "Number of rollback segments to use for storing undo logs.",
   NULL, NULL,
   TRX_SYS_N_RSEGS,	/* Default setting */
   1,			/* Minimum value */

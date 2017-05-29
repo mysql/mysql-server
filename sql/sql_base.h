@@ -19,9 +19,15 @@
 #include <stddef.h>
 #include <sys/types.h>
 
+#include <memory>
+#include <string>
+#include <unordered_map>
+
 #include "hash.h"                   // my_hash_value_type
 #include "lex_string.h"
 #include "m_string.h"
+#include "malloc_allocator.h"
+#include "map_helpers.h"
 #include "mdl.h"                    // MDL_savepoint
 #include "my_base.h"                // ha_extra_function
 #include "my_inttypes.h"
@@ -30,6 +36,7 @@
 #include "thr_lock.h"               // thr_lock_type
 #include "trigger_def.h"            // enum_trigger_event_type
 
+class COPY_INFO;
 class Field;
 class Item;
 class Item_ident;
@@ -128,9 +135,9 @@ void table_def_start_shutdown(void);
 void assign_new_table_id(TABLE_SHARE *share);
 uint cached_table_definitions(void);
 size_t get_table_def_key(const TABLE_LIST *table_list, const char **key);
-TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list,
+TABLE_SHARE *get_table_share(THD *thd, const char *db, const char *table_name,
                              const char *key, size_t key_length,
-                             bool open_view, my_hash_value_type hash_value);
+                             bool open_view);
 void release_table_share(TABLE_SHARE *share);
 
 TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type update,
@@ -204,7 +211,7 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
 			   const char *table_name,
                            bool add_to_temporary_tables_list,
                            bool open_in_engine,
-                           const dd::Table *table_def);
+                           const dd::Table &table_def);
 TABLE *find_locked_table(TABLE *list, const char *db, const char *table_name);
 thr_lock_type read_lock_type_for_table(THD *thd,
                                        Query_tables_list *prelocking_ctx,
@@ -219,7 +226,8 @@ void close_tables_for_reopen(THD *thd, TABLE_LIST **tables,
 TABLE *find_temporary_table(THD *thd, const char *db, const char *table_name);
 TABLE *find_temporary_table(THD *thd, const TABLE_LIST *tl);
 void close_thread_tables(THD *thd);
-bool fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
+bool fill_record_n_invoke_before_triggers(THD *thd, COPY_INFO *optype_info,
+                                          List<Item> &fields,
                                           List<Item> &values,
                                           TABLE *table,
                                           enum enum_trigger_event_type event,
@@ -324,9 +332,6 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *db, const char *wild);
 void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
                       const char *db, const char *table_name,
                       bool has_lock);
-bool tdc_open_view(THD *thd, TABLE_LIST *table_list,
-                   const char *cache_key, size_t cache_key_length,
-                   bool check_metadata_version, bool no_parse);
 void tdc_flush_unused_tables();
 TABLE *find_table_for_mdl_upgrade(THD *thd, const char *db,
                                   const char *table_name,
@@ -336,7 +341,13 @@ void mark_tmp_table_for_reuse(TABLE *table);
 extern Item **not_found_item;
 extern Field *not_found_field;
 extern Field *view_ref_found;
-extern HASH table_def_cache;
+
+struct Table_share_deleter {
+  void operator() (TABLE_SHARE *share) const;
+};
+extern malloc_unordered_map<
+  std::string, std::unique_ptr<TABLE_SHARE, Table_share_deleter>>
+    *table_def_cache;
 
 TABLE_LIST *find_table_in_global_list(TABLE_LIST *table,
                                       const char *db_name,

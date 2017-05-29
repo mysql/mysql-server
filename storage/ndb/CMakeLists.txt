@@ -88,6 +88,7 @@ SET(NDBCLUSTER_SOURCES
   ../../sql/ndb_name_util.cc
   ../../sql/ndb_bitmap.cc
   ../../sql/ndb_table_map.cc
+  ../../sql/ndb_dd.cc
 )
 
 # Include directories used when building ha_ndbcluster
@@ -214,9 +215,6 @@ ELSE()
     SET(WITH_NDBAPI_EXAMPLES ON)
   ENDIF()
 ENDIF()
-
-OPTION(WITH_NDB_BINLOG
-  "Disable NDB binlog" ON)
 
 OPTION(WITH_ERROR_INSERT
   "Enable error injection in NDB" OFF)

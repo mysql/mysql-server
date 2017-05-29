@@ -16,6 +16,7 @@ include/mysqlbinlog.inc
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
 # [empty]
+/*!50718 SET TRANSACTION ISOLATION LEVEL READ COMMITTED*//*!*/;
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;

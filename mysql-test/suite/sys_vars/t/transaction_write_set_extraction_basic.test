@@ -6,7 +6,7 @@
 # Scope: GLOBAL | SESSION                                                               #
 # Access Type: Dynamic                                                                  #
 # Data Type: enum                                                                       #
-# Default Value: OFF                                                                    #
+# Default Value: XXHASH64                                                               #
 # Allowed value: OFF / MURMUR32 / XXHASH64 or  0 / 1 / 2                                #
 #                                                                                       #
 # Description: Test Cases of Dynamic System Variable transaction_write_set_extraction   #

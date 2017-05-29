@@ -22,7 +22,6 @@
 
 #include "hostname.h"
 #include "lex_string.h"
-#include "my_atomic.h"
 #include "my_dbug.h"
 #include "my_thread.h"
 #include "mysql/plugin.h"
@@ -1252,6 +1251,45 @@ find_table_share(const char *db, const char *name)
   DBUG_RETURN(result);
 }
 
+/**
+  Initialize Performance Schema tables in the Data Dictionary.
+
+  Create strings representing the required performance schema tables,
+  i.e. tables that InnoDB expects to exist in the DD, and add them
+  to the appropriate out parameter.
+
+  @param[in]      dict_init_mode  How to initialize files
+
+  @param[in]      version         Target DD version if a new server
+                                  is being installed.
+                                  0 if restarting an existing server.
+
+  @param[out]     tables          List of SQL DDL statements
+                                  for creating DD tables that
+                                  are needed by the DDSE.
+
+  @param[out]     tablespaces     List of meta data for predefined
+                                  tablespaces created by the DDSE.
+
+  @retval true                    An error occurred.
+  @retval false                   Success - no errors.
+*/
+
+static bool
+pfs_dict_init(dict_init_mode_t dict_init_mode,
+              uint version MY_ATTRIBUTE((unused)),
+              List<const Plugin_table> *tables,
+              List<const Plugin_tablespace> *tablespaces MY_ATTRIBUTE((unused)))
+{
+  if (dict_init_mode != DICT_INIT_CREATE_FILES)
+  {
+    return false;
+  }
+
+  PFS_engine_table_share::get_all_tables(tables);
+  return false;
+}
+
 static int
 pfs_init_func(void *p)
 {
@@ -1262,6 +1300,8 @@ pfs_init_func(void *p)
   pfs_hton->state = SHOW_OPTION_YES;
   pfs_hton->create = pfs_create_handler;
   pfs_hton->show_status = pfs_show_status;
+  pfs_hton->dict_init = pfs_dict_init;
+
   pfs_hton->flags = HTON_ALTER_NOT_SUPPORTED | HTON_TEMPORARY_NOT_SUPPORTED |
                     HTON_NO_PARTITION | HTON_NO_BINLOG_ROW_OPT;
 

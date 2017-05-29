@@ -574,7 +574,7 @@ static bool convert_constant_item(THD *thd, Item_field *field_item,
                                      *item) :
 #endif
           new Item_int_with_ref(field->type(), field->val_int(), *item,
-                                MY_TEST(field->flags & UNSIGNED_FLAG));
+                                field->flags & UNSIGNED_FLAG);
         if (tmp == NULL)
           return true;
 
@@ -717,7 +717,7 @@ bool Arg_comparator::set_compare_func(Item_result_field *item, Item_result type)
       comparators= 0;
       return true;
     }
-    if (!(comparators= new Arg_comparator[n]))
+    if (!(comparators= new (*THR_MALLOC) Arg_comparator[n]))
       return true;
     comparator_count= n;
 
@@ -1562,7 +1562,7 @@ static bool get_json_arg(Item* arg, String *value, String *tmp,
       so. Otherwise, we reuse the previously allocated memory.
     */
     if (*scalar == NULL)
-      *scalar= new Json_scalar_holder();
+      *scalar= new (*THR_MALLOC) Json_scalar_holder();
 
     holder= *scalar;
   }
@@ -1706,8 +1706,8 @@ int Arg_comparator::compare_e_string()
   res1= (*a)->val_str(&value1);
   res2= (*b)->val_str(&value2);
   if (!res1 || !res2)
-    return MY_TEST(res1 == res2);
-  return MY_TEST(sortcmp(res1, res2, cmp_collation.collation) == 0);
+    return (res1 == res2);
+  return (sortcmp(res1, res2, cmp_collation.collation) == 0);
 }
 
 
@@ -1717,8 +1717,8 @@ int Arg_comparator::compare_e_binary_string()
   res1= (*a)->val_str(&value1);
   res2= (*b)->val_str(&value2);
   if (!res1 || !res2)
-    return MY_TEST(res1 == res2);
-  return MY_TEST(stringcmp(res1, res2) == 0);
+    return (res1 == res2);
+  return (stringcmp(res1, res2) == 0);
 }
 
 
@@ -1773,8 +1773,8 @@ int Arg_comparator::compare_e_real()
   double val1= (*a)->val_real();
   double val2= (*b)->val_real();
   if ((*a)->null_value || (*b)->null_value)
-    return MY_TEST((*a)->null_value && (*b)->null_value);
-  return MY_TEST(val1 == val2);
+    return ((*a)->null_value && (*b)->null_value);
+  return (val1 == val2);
 }
 
 int Arg_comparator::compare_e_decimal()
@@ -1783,8 +1783,8 @@ int Arg_comparator::compare_e_decimal()
   my_decimal *val1= (*a)->val_decimal(&decimal1);
   my_decimal *val2= (*b)->val_decimal(&decimal2);
   if ((*a)->null_value || (*b)->null_value)
-    return MY_TEST((*a)->null_value && (*b)->null_value);
-  return MY_TEST(my_decimal_cmp(val1, val2) == 0);
+    return ((*a)->null_value && (*b)->null_value);
+  return (my_decimal_cmp(val1, val2) == 0);
 }
 
 
@@ -1822,8 +1822,8 @@ int Arg_comparator::compare_e_real_fixed()
   double val1= (*a)->val_real();
   double val2= (*b)->val_real();
   if ((*a)->null_value || (*b)->null_value)
-    return MY_TEST((*a)->null_value && (*b)->null_value);
-  return MY_TEST(val1 == val2 || fabs(val1 - val2) < precision);
+    return ((*a)->null_value && (*b)->null_value);
+  return (val1 == val2 || fabs(val1 - val2) < precision);
 }
 
 
@@ -1897,8 +1897,8 @@ int Arg_comparator::compare_e_time_packed()
   longlong val1= (*a)->val_time_temporal();
   longlong val2= (*b)->val_time_temporal();
   if ((*a)->null_value || (*b)->null_value)
-    return MY_TEST((*a)->null_value && (*b)->null_value);
-  return MY_TEST(val1 == val2);
+    return ((*a)->null_value && (*b)->null_value);
+  return (val1 == val2);
 }
 
 
@@ -1989,8 +1989,8 @@ int Arg_comparator::compare_e_int()
   longlong val1= (*a)->val_int();
   longlong val2= (*b)->val_int();
   if ((*a)->null_value || (*b)->null_value)
-    return MY_TEST((*a)->null_value && (*b)->null_value);
-  return MY_TEST(val1 == val2);
+    return ((*a)->null_value && (*b)->null_value);
+  return (val1 == val2);
 }
 
 /**
@@ -2001,8 +2001,8 @@ int Arg_comparator::compare_e_int_diff_signedness()
   longlong val1= (*a)->val_int();
   longlong val2= (*b)->val_int();
   if ((*a)->null_value || (*b)->null_value)
-    return MY_TEST((*a)->null_value && (*b)->null_value);
-  return (val1 >= 0) && MY_TEST(val1 == val2);
+    return ((*a)->null_value && (*b)->null_value);
+  return (val1 >= 0) && (val1 == val2);
 }
 
 int Arg_comparator::compare_row()
@@ -3663,11 +3663,11 @@ bool Item_func_nullif::resolve_type(THD *thd)
 double
 Item_func_nullif::val_real()
 {
-  DBUG_ASSERT(fixed == 1);
+  DBUG_ASSERT(fixed);
   double value;
   if (!cmp.compare())
   {
-    null_value=1;
+    null_value= true;
     return 0.0;
   }
   value= args[0]->val_real();
@@ -3678,11 +3678,11 @@ Item_func_nullif::val_real()
 longlong
 Item_func_nullif::val_int()
 {
-  DBUG_ASSERT(fixed == 1);
+  DBUG_ASSERT(fixed);
   longlong value;
   if (!cmp.compare())
   {
-    null_value=1;
+    null_value= true;
     return 0;
   }
   value=args[0]->val_int();
@@ -3693,12 +3693,12 @@ Item_func_nullif::val_int()
 String *
 Item_func_nullif::val_str(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
+  DBUG_ASSERT(fixed);
   String *res;
   if (!cmp.compare())
   {
-    null_value=1;
-    return 0;
+    null_value= true;
+    return nullptr;
   }
   res=args[0]->val_str(str);
   null_value=args[0]->null_value;
@@ -3709,14 +3709,28 @@ Item_func_nullif::val_str(String *str)
 my_decimal *
 Item_func_nullif::val_decimal(my_decimal * decimal_value)
 {
-  DBUG_ASSERT(fixed == 1);
+  DBUG_ASSERT(fixed);
   my_decimal *res;
   if (!cmp.compare())
   {
-    null_value=1;
-    return 0;
+    null_value= true;
+    return nullptr;
   }
   res= args[0]->val_decimal(decimal_value);
+  null_value= args[0]->null_value;
+  return res;
+}
+
+
+bool Item_func_nullif::val_json(Json_wrapper *wr)
+{
+  DBUG_ASSERT(fixed);
+  if (cmp.compare() == 0)
+  {
+    null_value= true;
+    return false;
+  }
+  bool res= args[0]->val_json(wr);
   null_value= args[0]->null_value;
   return res;
 }
@@ -4172,7 +4186,7 @@ void Item_func_case::cleanup()
   Item_func::cleanup();
   for (i= 0; i <= (uint)DECIMAL_RESULT; i++)
   {
-    delete cmp_items[i];
+    destroy(cmp_items[i]);
     cmp_items[i]= 0;
   }
   DBUG_VOID_RETURN;
@@ -4763,15 +4777,15 @@ cmp_item* cmp_item::get_comparator(Item_result type,
 {
   switch (type) {
   case STRING_RESULT:
-    return new cmp_item_string(cs);
+    return new (*THR_MALLOC) cmp_item_string(cs);
   case INT_RESULT:
-    return new cmp_item_int;
+    return new (*THR_MALLOC) cmp_item_int;
   case REAL_RESULT:
-    return new cmp_item_real;
+    return new (*THR_MALLOC) cmp_item_real;
   case ROW_RESULT:
-    return new cmp_item_row;
+    return new (*THR_MALLOC) cmp_item_row;
   case DECIMAL_RESULT:
-    return new cmp_item_decimal;
+    return new (*THR_MALLOC) cmp_item_decimal;
   default:
     DBUG_ASSERT(0);
     break;
@@ -4782,22 +4796,22 @@ cmp_item* cmp_item::get_comparator(Item_result type,
 
 cmp_item* cmp_item_string::make_same()
 {
-  return new cmp_item_string(cmp_charset);
+  return new (*THR_MALLOC) cmp_item_string(cmp_charset);
 }
 
 cmp_item* cmp_item_int::make_same()
 {
-  return new cmp_item_int();
+  return new (*THR_MALLOC) cmp_item_int();
 }
 
 cmp_item* cmp_item_real::make_same()
 {
-  return new cmp_item_real();
+  return new (*THR_MALLOC) cmp_item_real();
 }
 
 cmp_item* cmp_item_row::make_same()
 {
-  return new cmp_item_row();
+  return new (*THR_MALLOC) cmp_item_row();
 }
 
 
@@ -4962,7 +4976,7 @@ int cmp_item_decimal::compare(const cmp_item *arg) const
 
 cmp_item* cmp_item_decimal::make_same()
 {
-  return new cmp_item_decimal();
+  return new (*THR_MALLOC) cmp_item_decimal();
 }
 
 
@@ -4998,7 +5012,7 @@ int cmp_item_datetime::compare(const cmp_item *ci) const
 
 cmp_item *cmp_item_datetime::make_same()
 {
-  return new cmp_item_datetime(warn_item);
+  return new (*THR_MALLOC) cmp_item_datetime(warn_item);
 }
 
 

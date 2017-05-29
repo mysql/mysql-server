@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -37,6 +37,13 @@ $| = 1;
 my $opt_debug;
 my $opt_build_type;
 my $opt_build = 1;
+if ($^O eq "cygwin" or $^O eq "MSWin32" or $^O eq "msys")
+{
+  # Default to not build on Windows, just configure a solution
+  # which can then be opened in VS
+  $opt_build = 0;
+}
+my $opt_embedded = 0;
 my $opt_just_print;
 my $opt_vanilla;
 my $opt_autotest;
@@ -57,6 +64,7 @@ GetOptions(
   'autotest' => \$opt_autotest,
   'valgrind' => \$opt_valgrind,
   'distcheck' => \$opt_distcheck,
+  'embedded' => sub { $opt_embedded = 1; },
 
   # Special switch --parse-log=<file> which reads a log file (from build) and
   # parses it for warnings
@@ -67,7 +75,7 @@ GetOptions(
 # in <srcroot>/storage/ndb/
 my $opt_srcdir = dirname(dirname(dirname(abs_path($0))));
 die unless -d $opt_srcdir; # Sanity check that the srcdir exist
-if ($^O eq "cygwin") {
+if ($^O eq "cygwin" or $^O eq "msys") {
   # Convert posix path to Windows mixed path since cmake
   # is most likely a windows binary
   $opt_srcdir= `cygpath -m $opt_srcdir`;
@@ -121,6 +129,16 @@ if(defined $ENV{"CXXFLAGS"} and $ENV{"CXXFLAGS"} =~ "-fno-exceptions")
   print("compile-cluster: stripped off -fno-exceptions from CXXFLAGS='$ENV{CXXFLAGS}'\n");
 }
 
+# If no libmysqld directory in source, there is support for build embedded server.
+if(! -d "$opt_srcdir/libmysqld")
+{
+  if($opt_embedded)
+  {
+    die "Build with embedded server is not possible";
+  }
+  $opt_embedded = undef;
+}
+
 #
 # Configure
 #
@@ -165,7 +183,11 @@ if(defined $ENV{"CXXFLAGS"} and $ENV{"CXXFLAGS"} =~ "-fno-exceptions")
   {
     print("compile-cluster: autotest build requested, extra everything\n");
     push(@args, "-DWITH_NDB_CCFLAGS='-DERROR_INSERT'");
-    push(@args, "-DWITH_EMBEDDED_SERVER=1");
+  }
+
+  if (defined $opt_embedded)
+  {
+    push(@args, "-DWITH_EMBEDDED_SERVER=$opt_embedded");
   }
 
   if ($opt_valgrind)
@@ -183,6 +205,13 @@ if(defined $ENV{"CXXFLAGS"} and $ENV{"CXXFLAGS"} =~ "-fno-exceptions")
   if ($opt_build_type)
   {
     push(@args, "-G \"$opt_build_type\"");
+  }
+
+  if ($^O eq "cygwin" or $^O eq "MSWin32" or $^O eq "msys")
+  {
+    # Default to x64 since that's currrenlty the only supported
+    # architecture for building MySQL on Windows
+    push(@args, "-A x64");
   }
 
   # Sets installation directory,  bindir, libdir, libexecdir etc.
@@ -386,7 +415,7 @@ if (!$opt_build)
     push(@args, "--build");
     push(@args, ".");
 
-    if ($^O eq "cygwin" or $^O eq "MSWin32")
+    if ($^O eq "cygwin" or $^O eq "MSWin32" or $^O eq "msys")
     {
       # Choose to build RelWitDebInfo by default on Windows
       my $config = 'RelWithDebInfo';
@@ -426,7 +455,7 @@ sub cmd {
   my $cmd_str = join(' ', $cmd, @a);
   print "compile-cluster: '$cmd_str'\n";
   return if ($opt_just_print);
-  system($cmd, @a)
+  system($cmd_str)
     and print("command '$cmd_str' failed\n")
 	  and exit(1);
 }

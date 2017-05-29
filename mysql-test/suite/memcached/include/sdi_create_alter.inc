@@ -12,7 +12,7 @@ CREATE TABLE t1(c1 VARCHAR(32),
 	primary key(c1),
 	KEY idx1(c4(20)),
 	UNIQUE KEY idx2(c6(50)))
-ENGINE = INNODB;
+CHARSET latin1 ENGINE = INNODB;
 
 perl;
 use strict;

@@ -234,6 +234,11 @@ non-redo-logged, temporary transactions. These logs reside in
 the temp tablespace. */
 extern ulong	srv_tmp_rollback_segments;
 
+/* Used for the deprecated setting innodb_undo_logs. This will get put into
+srv_rollback_segments if it is set to non=default */
+extern ulong	srv_undo_logs;
+extern const char* deprecated_undo_logs;
+
 /** Maximum size of undo tablespace. */
 extern unsigned long long	srv_max_undo_tablespace_size;
 

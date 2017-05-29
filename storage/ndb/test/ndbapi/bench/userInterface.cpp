@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2005, 2006, 2008 MySQL AB, 2008, 2009 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,7 +20,7 @@
 ***************************************************************/
 
 #include <ndb_global.h>
-#ifndef NDB_WIN32
+#ifndef _WIN32
 #include <sys/time.h>
 #endif
 
@@ -540,7 +539,7 @@ static int dbCreate(Ndb * pNdb)
   return 0;
 }
 
-#ifndef NDB_WIN32
+#ifndef _WIN32
 #include <unistd.h>
 #endif
 

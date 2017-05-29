@@ -37,37 +37,21 @@
 
 THR_LOCK table_status_by_account::m_table_lock;
 
-/* clang-format off */
-static const TABLE_FIELD_TYPE field_types[]=
-{
-  {
-    { C_STRING_WITH_LEN("USER") },
-    { C_STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("HOST") },
-    { C_STRING_WITH_LEN("char(60)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("VARIABLE_NAME") },
-    { C_STRING_WITH_LEN("varchar(64)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("VARIABLE_VALUE") },
-    { C_STRING_WITH_LEN("varchar(1024)") },
-    { NULL, 0}
-  }
-};
-/* clang-format on */
-
-TABLE_FIELD_DEF
-table_status_by_account::m_field_def = {4, field_types};
+Plugin_table table_status_by_account::m_table_def(
+  /* Name */
+  "status_by_account",
+  /* Definition */
+  "  USER CHAR(32) collate utf8_bin default null,\n"
+  "  HOST CHAR(60) collate utf8_bin default null,\n"
+  "  VARIABLE_NAME VARCHAR(64) not null,\n"
+  "  VARIABLE_VALUE VARCHAR(1024),\n"
+  "  UNIQUE KEY `ACCOUNT` (USER, HOST, VARIABLE_NAME) USING HASH\n",
+  /* Options */
+  " ENGINE=PERFORMANCE_SCHEMA",
+  /* Tablespace */
+  nullptr);
 
 PFS_engine_table_share table_status_by_account::m_share = {
-  {C_STRING_WITH_LEN("status_by_account")},
   &pfs_truncatable_acl,
   table_status_by_account::create,
   NULL, /* write_row */
@@ -75,9 +59,8 @@ PFS_engine_table_share table_status_by_account::m_share = {
   table_status_by_account::get_row_count,
   sizeof(pos_t),
   &m_table_lock,
-  &m_field_def,
-  false, /* checked */
-  false  /* perpetual */
+  &m_table_def,
+  false /* perpetual */
 };
 
 bool

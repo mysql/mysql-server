@@ -2702,16 +2702,16 @@ DROP DATABASE bug25717383;
 SHOW VARIABLES LIKE "master_info_repository";
 SHOW VARIABLES LIKE "relay_log_info_repository";
 
-SET GLOBAL master_info_repository= 'TABLE';
-SET GLOBAL relay_log_info_repository= 'TABLE';
+SET GLOBAL master_info_repository= 'FILE';
+SET GLOBAL relay_log_info_repository= 'FILE';
 
 SHOW VARIABLES LIKE "master_info_repository";
 SHOW VARIABLES LIKE "relay_log_info_repository";
 
 --exec $MYSQL_DUMP --skip-comments mysql slave_master_info slave_relay_log_info 2>&1
 
-SET GLOBAL master_info_repository= 'FILE';
-SET GLOBAL relay_log_info_repository= 'FILE';
+SET GLOBAL master_info_repository= 'TABLE';
+SET GLOBAL relay_log_info_repository= 'TABLE';
 
 SHOW VARIABLES LIKE "master_info_repository";
 SHOW VARIABLES LIKE "relay_log_info_repository";

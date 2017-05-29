@@ -129,8 +129,6 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
       Attempt to do full-blown table open in mysql_admin_table() has failed.
       Let us try to open at least a .FRM for this table.
     */
-    my_hash_value_type hash_value;
-
     MDL_REQUEST_INIT(&table_list->mdl_request,
                      MDL_key::TABLE,
                      table_list->db, table_list->table_name,
@@ -143,10 +141,9 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
 
     key_length= get_table_def_key(table_list, &key);
 
-    hash_value= my_calc_hash(&table_def_cache, (uchar*) key, key_length);
     mysql_mutex_lock(&LOCK_open);
-    share= get_table_share(thd, table_list, key, key_length, false,
-                           hash_value);
+    share= get_table_share(thd, table_list->db, table_list->table_name,
+                           key, key_length, false);
     mysql_mutex_unlock(&LOCK_open);
     if (share == NULL)
       DBUG_RETURN(0);				// Can't open frm file
@@ -944,16 +941,21 @@ send_result_message:
         DBUG_ASSERT(thd->is_error() || thd->killed);
         if (thd->is_error())
         {
-          const char *err_msg= thd->get_stmt_da()->message_text();
+          Diagnostics_area *da= thd->get_stmt_da();
           if (!thd->get_protocol()->connection_alive())
           {
-            sql_print_error("%s", err_msg);
+            LogEvent().type(LOG_TYPE_ERROR)
+                      .prio(ERROR_LEVEL)
+                      .source_file(MY_BASENAME)
+                      .errcode(da->mysql_errno())
+                      .sqlstate(da->returned_sqlstate())
+                      .verbatim(da->message_text());
           }
           else
           {
             /* Hijack the row already in-progress. */
             protocol->store(STRING_WITH_LEN("error"), system_charset_info);
-            protocol->store(err_msg, system_charset_info);
+            protocol->store(da->message_text(), system_charset_info);
             if (protocol->end_row())
               goto err;
             /* Start off another row for HA_ADMIN_FAILED */
@@ -1276,7 +1278,7 @@ bool Sql_cmd_repair_table::execute(THD *thd)
   thd->enable_slow_log= opt_log_slow_admin_statements;
   res= mysql_admin_table(thd, first_table, &thd->lex->check_opt, "repair",
                          TL_WRITE, 1,
-                         MY_TEST(thd->lex->check_opt.sql_flags & TT_USEFRM),
+                         thd->lex->check_opt.sql_flags & TT_USEFRM,
                          HA_OPEN_FOR_REPAIR, &prepare_for_repair,
                          &handler::ha_repair, 0);
 

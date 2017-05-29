@@ -2930,8 +2930,10 @@ row_sel_field_store_in_mysql_format_func(
 		ut_ad(!templ->mbmaxlen
 		      || !(templ->mysql_col_len % templ->mbmaxlen));
 		/* Length of the record will be less in case of
-		clust_templ_for_sec is true. */
-		ut_ad(clust_templ_for_sec
+		clust_templ_for_sec is true or if it is fetched
+		from prefix virtual column in virtual index. */
+		ut_ad(templ->is_virtual
+		      || clust_templ_for_sec
 		      || len * templ->mbmaxlen >= templ->mysql_col_len
 		      || (field_no == templ->icp_rec_field_no
 			  && field->prefix_len > 0));
@@ -5479,6 +5481,7 @@ no_gap_lock:
 				prebuilt->new_rec_locks = 1;
 			}
 			err = DB_SUCCESS;
+ 			// Fall through
 		case DB_SUCCESS:
 			break;
 		case DB_SKIP_LOCKED:
@@ -5977,8 +5980,19 @@ idx_cond_failed:
 			btr_pcur_store_position(pcur, &mtr);
 		}
 
-		if (prebuilt->innodb_api) {
-			prebuilt->innodb_api_rec = result_rec;
+		if (prebuilt->innodb_api
+		   && (btr_pcur_get_rec(pcur) != result_rec)) {
+			ulint rec_size =  rec_offs_size(offsets);
+			if (!prebuilt->innodb_api_rec_size ||
+			   (prebuilt->innodb_api_rec_size < rec_size)) {
+				prebuilt->innodb_api_buf =
+				 static_cast<byte*>
+				 (mem_heap_alloc(prebuilt->cursor_heap,rec_size));
+				prebuilt->innodb_api_rec_size = rec_size;
+			}
+			prebuilt->innodb_api_rec =
+				rec_copy(
+				 prebuilt->innodb_api_buf, result_rec, offsets);
 		}
 	}
 

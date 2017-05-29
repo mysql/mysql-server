@@ -98,6 +98,7 @@ performance_schema	table_io_waits_summary_by_index_usage	def
 performance_schema	table_io_waits_summary_by_table	def
 performance_schema	table_lock_waits_summary_by_table	def
 performance_schema	threads	def
+performance_schema	user_defined_functions	def
 performance_schema	user_variables_by_thread	def
 performance_schema	users	def
 performance_schema	variables_by_thread	def
@@ -202,6 +203,7 @@ table_io_waits_summary_by_index_usage	BASE TABLE	PERFORMANCE_SCHEMA
 table_io_waits_summary_by_table	BASE TABLE	PERFORMANCE_SCHEMA
 table_lock_waits_summary_by_table	BASE TABLE	PERFORMANCE_SCHEMA
 threads	BASE TABLE	PERFORMANCE_SCHEMA
+user_defined_functions	BASE TABLE	PERFORMANCE_SCHEMA
 user_variables_by_thread	BASE TABLE	PERFORMANCE_SCHEMA
 users	BASE TABLE	PERFORMANCE_SCHEMA
 variables_by_thread	BASE TABLE	PERFORMANCE_SCHEMA
@@ -306,6 +308,7 @@ table_io_waits_summary_by_index_usage	10	Dynamic
 table_io_waits_summary_by_table	10	Dynamic
 table_lock_waits_summary_by_table	10	Dynamic
 threads	10	Dynamic
+user_defined_functions	10	Dynamic
 user_variables_by_thread	10	Dynamic
 users	10	Fixed
 variables_by_thread	10	Dynamic
@@ -402,6 +405,7 @@ table_io_waits_summary_by_index_usage	NULL
 table_io_waits_summary_by_table	NULL
 table_lock_waits_summary_by_table	NULL
 threads	NULL
+user_defined_functions	NULL
 user_variables_by_thread	NULL
 users	NULL
 select lower(TABLE_NAME), TABLE_ROWS, AVG_ROW_LENGTH
@@ -520,6 +524,7 @@ table_io_waits_summary_by_index_usage	NULL	NULL
 table_io_waits_summary_by_table	NULL	NULL
 table_lock_waits_summary_by_table	NULL	NULL
 threads	NULL	NULL
+user_defined_functions	NULL	NULL
 user_variables_by_thread	NULL	NULL
 users	NULL	NULL
 variables_by_thread	NULL	NULL
@@ -624,6 +629,7 @@ table_io_waits_summary_by_index_usage	NULL	NULL	NULL
 table_io_waits_summary_by_table	NULL	NULL	NULL
 table_lock_waits_summary_by_table	NULL	NULL	NULL
 threads	NULL	NULL	NULL
+user_defined_functions	NULL	NULL	NULL
 user_variables_by_thread	NULL	NULL	NULL
 users	NULL	NULL	NULL
 variables_by_thread	NULL	NULL	NULL
@@ -728,6 +734,7 @@ table_io_waits_summary_by_index_usage	NULL	NULL	NULL
 table_io_waits_summary_by_table	NULL	NULL	NULL
 table_lock_waits_summary_by_table	NULL	NULL	NULL
 threads	NULL	NULL	NULL
+user_defined_functions	NULL	NULL	NULL
 user_variables_by_thread	NULL	NULL	NULL
 users	NULL	NULL	NULL
 variables_by_thread	NULL	NULL	NULL
@@ -832,6 +839,7 @@ table_io_waits_summary_by_index_usage	utf8_general_ci	NULL
 table_io_waits_summary_by_table	utf8_general_ci	NULL
 table_lock_waits_summary_by_table	utf8_general_ci	NULL
 threads	utf8_general_ci	NULL
+user_defined_functions	utf8_general_ci	NULL
 user_variables_by_thread	utf8_general_ci	NULL
 users	utf8_general_ci	NULL
 variables_by_thread	utf8_general_ci	NULL
@@ -936,6 +944,7 @@ table_io_waits_summary_by_index_usage
 table_io_waits_summary_by_table	
 table_lock_waits_summary_by_table	
 threads	
+user_defined_functions	
 user_variables_by_thread	
 users	
 variables_by_thread	
@@ -1040,6 +1049,7 @@ table_io_waits_summary_by_index_usage
 table_io_waits_summary_by_table	
 table_lock_waits_summary_by_table	
 threads	
+user_defined_functions	
 user_variables_by_thread	
 users	
 variables_by_thread	

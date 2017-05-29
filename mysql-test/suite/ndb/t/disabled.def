@@ -18,3 +18,103 @@ ndb_disconnect_ddl        : Bug#31853 flaky testcase...
 ndb_dbug_lock : SEAGULL gsl locking order
 ndb_insert : Bug#16021097 INSERT .. SELECT WITH KEY VIOLATION DOES NOT FAIL
 ndb_row_count : Bug#16021097 INSERT .. SELECT WITH KEY VIOLATION DOES NOT FAIL
+
+ndb_alter_table_backup: Need WL#10167 On the fly frm translation
+ndb_restore_compat_endianness: Need WL#10167 On the fly frm translation
+ndb_wl946_pre: Need WL#10167 On the fly frm translation
+ndb_restore_conv_more: Need WL#10167 On the fly frm translation
+ndb_restore_undolog: Need WL#10167 On the fly frm translation
+ndb_restore_compat_downward: Need WL#10167 On the fly frm translation
+ndb_native_default_support: Need WL#10167 On the fly frm translation
+ndb_restore_misc: Need WL#10167 On the fly frm translation
+ndb_dd_restore_compat: Need WL#10167 On the fly frm translation
+ndb_alter_table_backup: Need WL#10167 On the fly frm translation
+ndb_wl946_post: Need WL#10167 On the fly frm translation
+ndb_column_properties_compat: Need WL#10167 On the fly frm translation
+ndb_dd_restore_check_tablespace_mdl: Need WL#10167 On the fly frm translation
+ndb_restore_compat_compression: Need WL#10167 On the fly frm translation
+ndb_statistics0: Need WL#10167 On the fly frm translation
+
+ndb_basic: Need WL#10665 Extend size of extra table metadata
+ndb_alter_table:  Need WL#10665 Extend size of extra table metadata
+
+# Tests does not autotect tables created from NdbApi tools(like ndb_restore)
+ndb_restore_schema_subsets: Need WL#9185 MySQL Cluster support for new DD
+ndb_restore_schema_blobs: Need WL#9185 MySQL Cluster support for new DD
+ndb_restore_schema_partitions: Need WL#9185 MySQL Cluster support for new DD
+ndb.ndb_restore_discover: Need WL#9185 MySQL Cluster support for new DD
+ndb_fk_bugs: Need WL#9185 MySQL Cluster support for new DD
+ndb_alter_table_online: Need WL#9185 MySQL Cluster support for new DD
+ndb_fk_restore: Need WL#9185 MySQL Cluster support for new DD
+ndb_wl946_main: Need WL#9185 MySQL Cluster support for new DD
+ndb_bug22904640: Need WL#9185 MySQL Cluster support for new DD
+ndb_index_stat_restart: Need WL#9185 MySQL Cluster support for new DD
+ndb_tools_connect: Need WL#9185 MySQL Cluster support for new DD
+ndb_restore_schema_tolerance: Bug#25860404 CREATE TABLE DOES NOT CHECK EXISTENCE OF TABLESPACE IN NDB
+
+# Problem with sync during reconnect, table not in NDB are not deleted from DD 
+ndb_reconnect: Need WL#9185 MySQL Cluster support for new DD
+
+
+# Test which timeout most likley due to mismatches in shares etc.
+ndb.ndb_spj_dict: Need WL#9185 MySQL Cluster support for new DD
+
+# Tablespace related problems
+ndb_dd_alter: Bug#25858337 TABLESPACE NAMES SHOULD NOT BE GLOBALLY UNIQUE ACROSS ENGINES
+ndb_dd_ddl: Bug#25858337 TABLESPACE NAMES SHOULD NOT BE GLOBALLY UNIQUE ACROSS ENGINES
+ndb_dd_basic: Bug#25858461 FAILURE TO DROP DATAFILE FROM TABLESPACES WITH MULTIPLE DATAFILES
+ndb_dd_dump: Bug#25858461 FAILURE TO DROP DATAFILE FROM TABLESPACES WITH MULTIPLE DATAFILES
+
+ndb_join_pushdown_default: Bug#25868387 WRONG DATA RETURNED WITH NDB JOIN PUSHDOWN
+ndb_join_pushdown_none: Bug#25868387 WRONG DATA RETURNED WITH NDB JOIN PUSHDOWN
+ndb_join_pushdown_nobnl: Bug#25868387 WRONG DATA RETURNED WITH NDB JOIN PUSHDOWN
+
+ps_7ndb: Bug#25874070 UNSTABLE PS TEST QUERIES WITH GROUP BY WITHOUT ORDER BY
+
+# Inplace alter table and foreign keys problem
+ndb_fk_alter: Bug#25915132 INPLACE ALTER TABLE WITH FOREIGN KEYS CAUSES TABLE DEFINITION MISMATCH
+ndb_fk_build: Bug#25915132 INPLACE ALTER TABLE WITH FOREIGN KEYS CAUSES TABLE DEFINITION MISMATCH
+ndb_fk_cascade_delete_multi: Bug#25915132 INPLACE ALTER TABLE WITH FOREIGN KEYS CAUSES TABLE DEFINITION MISMATCH
+ndb_fk_create_drop: Bug#25915132 INPLACE ALTER TABLE WITH FOREIGN KEYS CAUSES TABLE DEFINITION MISMATCH
+ndb_fk_locase: Bug#25915132 INPLACE ALTER TABLE WITH FOREIGN KEYS CAUSES TABLE DEFINITION MISMATCH
+ndb_fk_db: Bug#25915132 INPLACE ALTER TABLE WITH FOREIGN KEYS CAUSES TABLE DEFINITION MISMATCH
+ndb_fk_deferred_cascade: Bug#25915132 INPLACE ALTER TABLE WITH FOREIGN KEYS CAUSES TABLE DEFINITION MISMATCH
+ndb_fk_addnode: Bug#25915132 INPLACE ALTER TABLE WITH FOREIGN KEYS CAUSES TABLE DEFINITION MISMATCH
+ndb_fk_disable: Bug#25915132 INPLACE ALTER TABLE WITH FOREIGN KEYS CAUSES TABLE DEFINITION MISMATCH
+ndb_fk_multi_column: Bug#25915132 INPLACE ALTER TABLE WITH FOREIGN KEYS CAUSES TABLE DEFINITION MISMATCH
+ndb_fk_no_fk: Bug#25915132 INPLACE ALTER TABLE WITH FOREIGN KEYS CAUSES TABLE DEFINITION MISMATCH
+
+# Inplace alter table and index problem(same problem as above)
+ndb_alter_table3: Bug#25915132 INPLACE ALTER TABLE WITH FOREIGN KEYS CAUSES TABLE DEFINITION MISMATCH
+
+# Inplace alter table reopen the table from SE and thus table definition
+# does not match
+ndb_index_unique: Bug#26028185 INPLACE ALTER TABLE REOPEN TABLE WITH TABLE DEFINITION OUT OF SYNCH
+
+# Problem with alter table leaving table with old name behind
+# (for example altering from MyISAM to NDB)
+ndb_trigger: Need WL#9185 MySQL Cluster support for new DD
+ndb_rename: Need WL#9185 MySQL Cluster support for new DD
+ndb_global_schema_lock: Need WL#9185 MySQL Cluster support for new DD
+ndb_multi: Need WL#9185 MySQL Cluster support for new DD
+ndb_share: Need WL#9185 MySQL Cluster support for new DD
+ndb_blob: Need WL#9185 MySQL Cluster support for new DD
+ndb_partition_range: Need WL#9185 MySQL Cluster support for new DD
+ndb_database: Need WL#9185 MySQL Cluster support for new DD
+ndb_ddl_open_trans: Need WL#9185 MySQL Cluster support for new DD
+ndb_dist_priv: Need WL#9185 MySQL Cluster support for new DD
+
+# Problem with inplace alter table, probably share released too early
+# (occurs when mtr.pl is run with --mysqld=--log-bin argument)
+ndb_addnode: Need WL#9185 MySQL Cluster support for new DD
+ndb_addnode_withbinlog: Need WL#9185 MySQL Cluster support for new DD
+
+# Schema distribution timeout while altering table
+ndb_alter_table_online_multi: Need WL#9185 MySQL Cluster support for new DD
+
+# Problem running clusterj* with utf8
+clusterj: Bug#26027722 UNKNOWN INITIAL CHARACTER SET
+clusterj_jpa: Bug#26027722 UNKNOWN INITIAL CHARACTER SET
+
+# Problem with ndb_import and utf8
+ndb_import1: Bug#26027765 NDB_IMPORT FAILS WITH UTF8

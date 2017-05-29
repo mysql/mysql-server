@@ -2,7 +2,7 @@
 # Delete the user
 # Check that upgrade recreates it
 #
-DELETE FROM mysql.user WHERE user='mysql.session_user';
+DELETE FROM mysql.user WHERE user='mysql.session';
 Run mysql_upgrade
 mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
@@ -45,16 +45,16 @@ include/assert.inc [The session user should exist after upgrade]
 #
 # Change some user privileges, making it invalid
 #
-UPDATE mysql.user SET Super_priv ='N' WHERE USER= 'mysql.session_user';
+UPDATE mysql.user SET Super_priv ='N' WHERE USER= 'mysql.session';
 Run mysql_upgrade
-Error occurred: The mysql.session_user exists but is not correctly configured. The mysql.session_user needs SELECT privileges in the performance_schema database and the mysql.db table and also SUPER privileges.
-UPDATE mysql.user SET Super_priv ='Y' WHERE USER= 'mysql.session_user';
-UPDATE mysql.tables_priv SET Table_priv ='' WHERE USER= 'mysql.session_user';
+Error occurred: The mysql.session exists but is not correctly configured. The mysql.session needs SELECT privileges in the performance_schema database and the mysql.db table and also SUPER privileges.
+UPDATE mysql.user SET Super_priv ='Y' WHERE USER= 'mysql.session';
+UPDATE mysql.tables_priv SET Table_priv ='' WHERE USER= 'mysql.session';
 Run mysql_upgrade
-Error occurred: The mysql.session_user exists but is not correctly configured. The mysql.session_user needs SELECT privileges in the performance_schema database and the mysql.db table and also SUPER privileges.
+Error occurred: The mysql.session exists but is not correctly configured. The mysql.session needs SELECT privileges in the performance_schema database and the mysql.db table and also SUPER privileges.
 #
 # Clean up
 #
-UPDATE mysql.tables_priv SET Table_priv ='Select' WHERE USER= 'mysql.session_user';
+UPDATE mysql.tables_priv SET Table_priv ='Select' WHERE USER= 'mysql.session';
 
 End of tests

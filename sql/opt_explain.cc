@@ -199,7 +199,7 @@ protected:
   */
   bool push_extra(Extra_tag tag)
   {
-    extra *e= new extra(tag);
+    extra *e= new (*THR_MALLOC) extra(tag);
     return e == NULL || fmt->entry()->col_extra.push_back(e);
   }
 
@@ -217,7 +217,7 @@ protected:
   {
     if (arg.is_empty())
       return push_extra(tag);
-    extra *e= new extra(tag, arg.dup(thd->mem_root));
+    extra *e= new (*THR_MALLOC) extra(tag, arg.dup(thd->mem_root));
     return !e || !e->data || fmt->entry()->col_extra.push_back(e);
   }
 
@@ -235,7 +235,7 @@ protected:
   */
   bool push_extra(Extra_tag tag, const char *arg)
   {
-    extra *e= new extra(tag, arg);
+    extra *e= new (*THR_MALLOC) extra(tag, arg);
     return !e || fmt->entry()->col_extra.push_back(e);
   }
 
@@ -304,7 +304,7 @@ public:
     message(message_arg), rows(rows_arg)
   {
     if (can_walk_clauses())
-      order_list= MY_TEST(select_lex_arg->order_list.elements);
+      order_list= (select_lex_arg->order_list.elements != 0);
   }
 
 protected:
@@ -332,7 +332,7 @@ public:
     DBUG_ASSERT(select_lex_arg ==
                 select_lex_arg->master_unit()->fake_select_lex);
     // Use optimized values from fake_select_lex's join
-    order_list= MY_TEST(select_lex_arg->join->order);
+    order_list= (select_lex_arg->join->order != nullptr);
     // A plan exists so the reads above are safe:
     DBUG_ASSERT(select_lex_arg->join->get_plan_state() != JOIN::NO_PLAN);
   }
@@ -419,7 +419,7 @@ public:
     DBUG_ASSERT(join->get_plan_state() == JOIN::PLAN_READY);
     /* it is not UNION: */
     DBUG_ASSERT(join->select_lex != join->unit->fake_select_lex);
-    order_list= MY_TEST(join->order);
+    order_list= (join->order != nullptr);
   }
 
 private:
@@ -488,7 +488,7 @@ public:
     tab= tab_arg;
     usable_keys= table->possible_quick_keys;
     if (can_walk_clauses())
-      order_list= MY_TEST(select_lex_arg->order_list.elements);
+      order_list= (select_lex_arg->order_list.elements != 0);
   }
 
   virtual bool explain_modify_flags();
@@ -1090,7 +1090,7 @@ bool Explain_table_base::explain_extra_common(int quick_type,
       {
         if (fmt->is_hierarchical() && can_print_clauses())
         {
-          Lazy_condition *c= new Lazy_condition(tab->condition_optim());
+          Lazy_condition *c= new (*THR_MALLOC) Lazy_condition(tab->condition_optim());
           if (c == NULL)
             return true;
           fmt->entry()->col_attached_condition.set(c);
@@ -2260,7 +2260,7 @@ bool explain_query(THD *ethd, SELECT_LEX_UNIT *unit)
 
   if (other)  
   {
-    if (!((explain_result= new Query_result_send(ethd))))
+    if (!((explain_result= new (*THR_MALLOC) Query_result_send(ethd))))
       DBUG_RETURN(true); /* purecov: inspected */
     List<Item> dummy;
     if (explain_result->prepare(dummy, ethd->lex->unit))
@@ -2307,7 +2307,7 @@ bool explain_query(THD *ethd, SELECT_LEX_UNIT *unit)
     explain_result->send_eof();
 
   if (other)
-    delete explain_result;
+    destroy(explain_result);
 
   DBUG_RETURN(res);
 }

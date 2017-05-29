@@ -24,6 +24,8 @@
 #include <stddef.h>
 #include <sys/types.h>
 
+#include <atomic>
+
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "pfs_builtin_memory.h"
@@ -90,7 +92,7 @@ public:
       return NULL;
     }
 
-    monotonic = PFS_atomic::add_u32(&m_monotonic.m_u32, 1);
+    monotonic = m_monotonic.m_u32++;
     monotonic_max = monotonic + m_max;
 
     while (monotonic < monotonic_max)
@@ -102,7 +104,7 @@ public:
       {
         return pfs;
       }
-      monotonic = PFS_atomic::add_u32(&m_monotonic.m_u32, 1);
+      monotonic = m_monotonic.m_u32++;
     }
 
     m_full = true;
@@ -129,7 +131,7 @@ public:
   }
 
   bool m_full;
-  PFS_cacheline_uint32 m_monotonic;
+  PFS_cacheline_atomic_uint32 m_monotonic;
   T *m_ptr;
   size_t m_max;
   /** Container. */
@@ -152,7 +154,7 @@ public:
   {
     array->m_ptr = NULL;
     array->m_full = true;
-    array->m_monotonic.m_u32 = 0;
+    array->m_monotonic.m_u32.store(0);
 
     if (array->m_max > 0)
     {
@@ -475,8 +477,8 @@ public:
     m_max_page_count = PFS_PAGE_COUNT;
     m_last_page_size = PFS_PAGE_SIZE;
     m_lost = 0;
-    m_monotonic.m_u32 = 0;
-    m_max_page_index.m_u32 = 0;
+    m_monotonic.m_u32.store(0);
+    m_max_page_index.m_u32.store(0);
 
     for (i = 0; i < PFS_PAGE_COUNT; i++)
     {
@@ -555,7 +557,7 @@ public:
   ulong
   get_row_count()
   {
-    ulong page_count = PFS_atomic::load_u32(&m_max_page_index.m_u32);
+    ulong page_count = m_max_page_index.m_u32.load();
 
     return page_count * PFS_PAGE_SIZE;
   }
@@ -588,18 +590,14 @@ public:
     value_type *pfs;
     array_type *array;
 
-    void *addr;
-    void *volatile *typed_addr;
-    void *ptr;
-
     /*
       1: Try to find an available record within the existing pages
     */
-    current_page_count = PFS_atomic::load_u32(&m_max_page_index.m_u32);
+    current_page_count = m_max_page_index.m_u32.load();
 
     if (current_page_count != 0)
     {
-      monotonic = PFS_atomic::load_u32(&m_monotonic.m_u32);
+      monotonic = m_monotonic.m_u32.load();
       monotonic_max = monotonic + current_page_count;
 
       while (monotonic < monotonic_max)
@@ -611,10 +609,7 @@ public:
         index = monotonic % current_page_count;
 
         /* Atomic Load, array= m_pages[index] */
-        addr = &m_pages[index];
-        typed_addr = static_cast<void *volatile *>(addr);
-        ptr = my_atomic_loadptr(typed_addr);
-        array = static_cast<array_type *>(ptr);
+        array = m_pages[index].load();
 
         if (array != NULL)
         {
@@ -643,7 +638,7 @@ public:
           counter faster and then move on to the detection of new pages,
           in part 2: below.
         */
-        monotonic = PFS_atomic::add_u32(&m_monotonic.m_u32, 1);
+        monotonic = m_monotonic.m_u32++;
       };
     }
 
@@ -655,10 +650,7 @@ public:
       /* Peek for pages added by collaborating threads */
 
       /* (2-a) Atomic Load, array= m_pages[current_page_count] */
-      addr = &m_pages[current_page_count];
-      typed_addr = static_cast<void *volatile *>(addr);
-      ptr = my_atomic_loadptr(typed_addr);
-      array = static_cast<array_type *>(ptr);
+      array= m_pages[current_page_count].load();
 
       if (array == NULL)
       {
@@ -695,8 +687,7 @@ public:
 
         /* (2-b) Atomic Load, array= m_pages[current_page_count] */
 
-        ptr = my_atomic_loadptr(typed_addr);
-        array = static_cast<array_type *>(ptr);
+        array= m_pages[current_page_count].load();
 
         if (array == NULL)
         {
@@ -720,11 +711,10 @@ public:
           array->m_container = reinterpret_cast<PFS_opaque_container *>(this);
 
           /* (2-d) Atomic STORE, m_pages[current_page_count] = array  */
-          ptr = array;
-          my_atomic_storeptr(typed_addr, ptr);
+          m_pages[current_page_count].store(array);
 
           /* Advertise the new page */
-          PFS_atomic::add_u32(&m_max_page_index.m_u32, 1);
+          ++m_max_page_index.m_u32;
         }
 
         native_mutex_unlock(&m_critical_section);
@@ -1070,11 +1060,11 @@ private:
   bool m_initialized;
   bool m_full;
   size_t m_max;
-  PFS_cacheline_uint32 m_monotonic;
-  PFS_cacheline_uint32 m_max_page_index;
+  PFS_cacheline_atomic_uint32 m_monotonic;
+  PFS_cacheline_atomic_uint32 m_max_page_index;
   ulong m_max_page_count;
   ulong m_last_page_size;
-  array_type *m_pages[PFS_PAGE_COUNT];
+  std::atomic<array_type *> m_pages[PFS_PAGE_COUNT];
   allocator_type *m_allocator;
   native_mutex_t m_critical_section;
 };

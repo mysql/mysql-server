@@ -45,7 +45,7 @@
 #include "key.h"
 #include "key_spec.h"                   /* Key_spec */
 #include "lex_string.h"
-#include "log.h"                        /* sql_print_warning */
+#include "log.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "mdl.h"
@@ -492,13 +492,11 @@ bool roles_rename_authid(THD *thd, TABLE *edge_table, TABLE *defaults_table,
   if (ret)
   {
     String warning;
-    warning.append("MYSQL.DEFAULT_ROLES couldn't be updated for authorization"
-                   "identifier ");
     append_identifier(thd, &warning, user_from->user.str,
                       user_from->user.length);
     append_identifier(thd, &warning, user_from->host.str,
                       user_from->host.length);
-    sql_print_warning("%s", warning.c_ptr());
+    LogErr(WARNING_LEVEL, ER_SQL_AUTHOR_DEFAULT_ROLES_FAIL, warning.c_ptr());
     ret= false;
   }
 
@@ -1265,7 +1263,11 @@ public:
                        acl_user.host.get_host(),
                        acl_user.access));
     /* Add global access */
-    *m_access |= acl_user.access;
+    /*
+      Up-cast to base class to avoid gcc 7.1.1 warning:
+      dereferencing type-punned pointer will break strict-aliasing rules
+     */
+    *m_access |= implicit_cast<ACL_ACCESS*>(&acl_user)->access;
 
     /* Add database access */
     get_database_access_map(&acl_user, m_db_map, m_db_wild_map);
@@ -1299,8 +1301,10 @@ public:
       String qname;
       append_identifier(&qname, to_user.user, strlen(to_user.user));
       qname.append('@');
-      append_identifier(&qname, to_user.host.get_host(),
-                        to_user.host.get_host_len());
+      /* Up-cast to base class, see above. */
+      append_identifier(&qname,
+                        implicit_cast<ACL_ACCESS*>(&to_user)->host.get_host(),
+                        implicit_cast<ACL_ACCESS*>(&to_user)->host.get_host_len());
       /* We save the granted role in the Acl_map of the granted user */
       m_with_admin_acl->insert(std::string(qname.c_ptr_quick(),
                                            qname.length()));
@@ -2258,9 +2262,9 @@ bool is_granted_table_access(THD *thd, ulong required_acl,
 static bool test_if_create_new_users(THD *thd)
 {
   Security_context *sctx= thd->security_context();
-  bool create_new_users= MY_TEST(sctx->check_access(INSERT_ACL)) ||
+  bool create_new_users= sctx->check_access(INSERT_ACL) ||
                          (!opt_safe_user_create &&
-                          MY_TEST(sctx->check_access(CREATE_USER_ACL)));
+                          sctx->check_access(CREATE_USER_ACL));
   if (!create_new_users)
   {
     TABLE_LIST tl;
@@ -2541,10 +2545,10 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
 
       DBUG_EXECUTE_IF("mysql_table_grant_out_of_memory",
                       DBUG_SET("+d,simulate_out_of_memory"););
-      grant_table = new GRANT_TABLE (Str->host.str, db_name,
-                                     Str->user.str, table_name,
-                                     rights,
-                                     column_priv);
+      grant_table = new (*THR_MALLOC) GRANT_TABLE (Str->host.str, db_name,
+                                                   Str->user.str, table_name,
+                                                   rights,
+                                                   column_priv);
       DBUG_EXECUTE_IF("mysql_table_grant_out_of_memory",
                       DBUG_SET("-d,simulate_out_of_memory"););
 
@@ -2754,9 +2758,9 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
         result= true;
         continue;
       }
-      grant_name= new GRANT_NAME(Str->host.str, db_name,
-                                 Str->user.str, table_name,
-                                 rights, TRUE);
+      grant_name= new (*THR_MALLOC) GRANT_NAME(Str->host.str, db_name,
+                                               Str->user.str, table_name,
+                                               rights, TRUE);
       if (!grant_name ||
         my_hash_insert(is_proc ?
                        &proc_priv_hash : &func_priv_hash,(uchar*) grant_name))
@@ -3190,7 +3194,7 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
           Copy all currently available dynamic privileges to the list of
           dynamic privileges to grant.
         */
-        privileges_to_check= new List<LEX_CSTRING>;
+        privileges_to_check= new (*THR_MALLOC) List<LEX_CSTRING>;
         iterate_all_dynamic_privileges(thd, [&](const char *str){
           LEX_CSTRING *new_str= (LEX_CSTRING*)thd->alloc(sizeof(LEX_CSTRING));
           new_str->str= str;
@@ -3326,7 +3330,7 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
   {
     TABLE_LIST *const t_ref=
       tl->correspondent_table ? tl->correspondent_table : tl;
-    sctx = MY_TEST(t_ref->security_ctx) ? t_ref->security_ctx :
+    sctx = (t_ref->security_ctx != nullptr) ? t_ref->security_ctx :
                                           thd->security_context();
 
     const ACL_internal_table_access *access=
@@ -3608,32 +3612,28 @@ err:
 }
 
 
-/*
-  Check the privileges to a column depending on the type of table.
+/**
+  Check the privileges for a column depending on the type of table.
 
-  SYNOPSIS
-    check_column_grant_in_table_ref()
-    thd              thread handler
-    table_ref        table reference where to check the field
-    name             name of field to check
-    length           length of name
-    want_privilege   wanted privileges
+  @param thd              thread handler
+  @param table_ref        table reference where to check the field
+  @param name             name of field to check
+  @param length           length of name
+  @param want_privilege   wanted privileges
 
-  DESCRIPTION
-    Check the privileges to a column depending on the type of table
-    reference where the column is checked. The function provides a
-    generic interface to check column privileges that hides the
-    heterogeneity of the column representation - whether it is a view
-    or a stored table column.
+  Check the privileges for a column depending on the type of table the column
+  belongs to. The function provides a generic interface to check column
+  privileges that hides the heterogeneity of the column representation -
+  whether it belongs to a view or a base table.
 
-    Notice that this function does not understand that a column from a view
-    reference must be checked for privileges both in the view and in the
-    underlying base table (or view) reference. This is the responsibility of
-    the caller.
+  Notice that this function does not understand that a column from a view
+  reference must be checked for privileges both in the view and in the
+  underlying base table (or view) reference. This is the responsibility of
+  the caller.
 
-  RETURN
-    FALSE OK
-    TRUE  access denied
+  Columns from temporary tables and derived tables are ignored by this function.
+
+  @returns false if success, true if error (access denied)
 */
 
 bool check_column_grant_in_table_ref(THD *thd, TABLE_LIST * table_ref,
@@ -3644,17 +3644,14 @@ bool check_column_grant_in_table_ref(THD *thd, TABLE_LIST * table_ref,
   GRANT_INFO *grant;
   const char *db_name;
   const char *table_name;
-  Security_context *sctx= MY_TEST(table_ref->security_ctx) ?
+  Security_context *sctx= (table_ref->security_ctx != nullptr) ?
                           table_ref->security_ctx : thd->security_context();
 
   DBUG_ASSERT(want_privilege);
 
-  if (table_ref->is_derived())
+  if (is_temporary_table(table_ref) || table_ref->is_derived())
   {
-    /*
-      If this is a derived table there's no need to evaluate the required
-      privileges at all.
-    */
+    // Temporary table or derived table: no need to evaluate privileges
     DBUG_RETURN(false);
   }
   else if (table_ref->is_view() || table_ref->field_translation)
@@ -3696,15 +3693,18 @@ bool check_column_grant_in_table_ref(THD *thd, TABLE_LIST * table_ref,
   }
   else
   {
-    /* Normal or temporary table. */
-    TABLE *table= table_ref->table;
-    grant= &(table->grant);
-    db_name= table->s->db.str;
-    table_name= table->s->table_name.str;
+    // Regular, persistent base table
+    grant= &table_ref->grant;
+    db_name= table_ref->db;
+    table_name= table_ref->table_name;
+    DBUG_ASSERT(strcmp(db_name, table_ref->table->s->db.str) == 0 &&
+                strcmp(table_name, table_ref->table->s->table_name.str) == 0);
   }
 
-  DBUG_RETURN(check_grant_column(thd, grant, db_name, table_name, name,
-                                 length, sctx, want_privilege));
+  if (check_grant_column(thd, grant, db_name, table_name, name,
+                         length, sctx, want_privilege))
+    DBUG_RETURN(true);
+  DBUG_RETURN(false);
 }
 
 

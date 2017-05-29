@@ -3351,3 +3351,15 @@ SELECT CAST('2e309' AS JSON);
 ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "Number too big to be stored in double." at position 0.
 SELECT CAST('-2e309' AS JSON);
 ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "Number too big to be stored in double." at position 0.
+#
+# Bug#25818544: Assert failure when using result from NULLIF as JSON
+#
+SELECT JSON_EXTRACT(NULLIF(JSON_OBJECT('a', 123), JSON_ARRAY()), '$.a');
+JSON_EXTRACT(NULLIF(JSON_OBJECT('a', 123), JSON_ARRAY()), '$.a')
+123
+SELECT JSON_EXTRACT(NULLIF('a', 'a'), '$');
+JSON_EXTRACT(NULLIF('a', 'a'), '$')
+NULL
+SELECT JSON_EXTRACT(NULLIF('1', '2'), '$');
+JSON_EXTRACT(NULLIF('1', '2'), '$')
+1

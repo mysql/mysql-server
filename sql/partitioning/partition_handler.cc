@@ -29,7 +29,7 @@
 #include "hash.h"
 #include "key.h"                             // key_rec_cmp
 #include "lex_string.h"
-#include "log.h"                             // sql_print_error
+#include "log.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_bitmap.h"
@@ -994,9 +994,8 @@ uint32 Partition_helper::ph_calculate_key_hash_value(Field **field_array)
 {
   ulong nr1= 1;
   ulong nr2= 4;
-  bool use_51_hash;
-  use_51_hash= MY_TEST((*field_array)->table->part_info->key_algorithm ==
-                       enum_key_algorithm::KEY_ALGORITHM_51);
+  bool use_51_hash= (*field_array)->table->part_info->key_algorithm ==
+                       enum_key_algorithm::KEY_ALGORITHM_51;
 
   do
   {
@@ -1144,10 +1143,8 @@ bool Partition_helper::print_partition_error(int error)
       append_row_to_str(str, m_err_rec, m_table);
 
       /* Log this error, so the DBA can notice it and fix it! */
-      sql_print_error("Table '%-192s' corrupted: row in wrong partition: %s\n"
-                      "Please REPAIR the table!",
-                      m_table->s->table_name.str,
-                      str.c_ptr_safe());
+      LogErr(ERROR_LEVEL, ER_ROW_IN_WRONG_PARTITION_PLEASE_REPAIR,
+             m_table->s->table_name.str, str.c_ptr_safe());
 
       max_length= (MYSQL_ERRMSG_SIZE -
                    strlen(ER_THD(thd, ER_ROW_IN_WRONG_PARTITION)));
@@ -1493,15 +1490,13 @@ int Partition_helper::check_misplaced_rows(uint read_part_id, bool repair)
           append_row_to_str(str, m_err_rec, m_table);
 
           /* Log this error, so the DBA can notice it and fix it! */
-          sql_print_error("Table '%-192s': Delete from part %d failed with"
-                          " error %d. But it was already inserted into"
-                          " part %d, when moving the misplaced row!"
-                          "\nPlease manually fix the duplicate row:\n%s",
-                          m_table->s->table_name.str,
-                          read_part_id,
-                          result,
-                          correct_part_id,
-                          str.c_ptr_safe());
+          LogErr(ERROR_LEVEL,
+                 ER_PARTITION_MOVE_CREATED_DUPLICATE_ROW_PLEASE_FIX,
+                 m_table->s->table_name.str,
+                 read_part_id,
+                 result,
+                 correct_part_id,
+                 str.c_ptr_safe());
           break;
         }
       }
@@ -1627,8 +1622,7 @@ bool Partition_helper::print_admin_msg(THD* thd,
   protocol->store(msgbuf, msg_length, system_charset_info);
   if (protocol->end_row())
   {
-    sql_print_error("Failed on my_net_write, writing to stderr instead: %s\n",
-                    msgbuf);
+    LogErr(ERROR_LEVEL, ER_MY_NET_WRITE_FAILED_FALLING_BACK_ON_STDERR, msgbuf);
     goto err;
   }
   error= false;
@@ -2221,7 +2215,6 @@ int Partition_helper::ph_index_read_map(uchar *buf,
                                      enum ha_rkey_function find_flag)
 {
   DBUG_ENTER("Partition_handler::ph_index_read_map");
-  m_handler->end_range= NULL;
   m_index_scan_type= PARTITION_INDEX_READ;
   m_start_key.key= key;
   m_start_key.keypart_map= keypart_map;
@@ -2337,7 +2330,6 @@ int Partition_helper::ph_index_first(uchar *buf)
 {
   DBUG_ENTER("Partition_helper::ph_index_first");
 
-  m_handler->end_range= NULL;
   m_index_scan_type= PARTITION_INDEX_FIRST;
   m_reverse_order= false;
   DBUG_RETURN(common_first_last(buf));
@@ -2419,7 +2411,6 @@ int Partition_helper::ph_index_read_last_map(uchar *buf,
   DBUG_ENTER("Partition_helper::ph_index_read_last_map");
 
   m_ordered= true;                              // Safety measure
-  m_handler->end_range= NULL;
   m_index_scan_type= PARTITION_INDEX_READ_LAST;
   m_start_key.key= key;
   m_start_key.keypart_map= keypart_map;

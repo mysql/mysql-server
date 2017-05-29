@@ -19,7 +19,7 @@
 #include "dd/dd_event.h"                      // create_event
 #include "event_db_repository.h"              // Events
 #include "event_parse_data.h"                 // Event_parse_data
-#include "log.h"                              // sql_print_warning
+#include "log.h"                              // LogErr()
 #include "mysqld.h"                           // default_tz_name
 #include "my_user.h"                          // parse_user
 #include "sp.h"                               // load_charset
@@ -315,9 +315,8 @@ static void load_event_creation_context(THD *thd, TABLE *table,
   if ((tz_name.str=
        get_field(thd->mem_root, table->field[ET_FIELD_TIME_ZONE])) == NULL)
   {
-    sql_print_warning("Event '%s'.'%s': invalid value "
-                      "in column mysql.event.time_zone.",
-                      et_parse_data->dbname.str, et_parse_data->name.str);
+    LogErr(WARNING_LEVEL, ER_EVENT_CANT_GET_TIMEZONE_FROM_FIELD,
+           et_parse_data->dbname.str, et_parse_data->name.str);
   }
   else
   {
@@ -326,8 +325,8 @@ static void load_event_creation_context(THD *thd, TABLE *table,
     if ((thd->variables.time_zone= my_tz_find(thd, &tz_str)) == NULL)
     {
       thd->variables.time_zone= my_tz_SYSTEM;
-      sql_print_warning("Event '%s'.'%s': has invalid time zone value ",
-                        et_parse_data->dbname.str, et_parse_data->name.str);
+      LogErr(WARNING_LEVEL, ER_EVENT_CANT_FIND_TIMEZONE,
+             et_parse_data->dbname.str, et_parse_data->name.str);
     }
   }
 
@@ -336,9 +335,8 @@ static void load_event_creation_context(THD *thd, TABLE *table,
                    thd->variables.character_set_client,
                    &client_cs))
   {
-    sql_print_warning("Event '%s'.'%s': invalid value "
-                      "in column mysql.event.character_set_client.",
-                      et_parse_data->dbname.str, et_parse_data->name.str);
+    LogErr(WARNING_LEVEL, ER_EVENT_CANT_GET_CHARSET,
+           et_parse_data->dbname.str, et_parse_data->name.str);
   }
 
   if (load_collation(thd->mem_root,
@@ -346,9 +344,8 @@ static void load_event_creation_context(THD *thd, TABLE *table,
                      thd->variables.collation_connection,
                      &connection_cl))
   {
-    sql_print_warning("Event '%s'.'%s': invalid value "
-                      "in column mysql.event.collation_connection.",
-                      et_parse_data->dbname.str, et_parse_data->name.str);
+    LogErr(WARNING_LEVEL, ER_EVENT_CANT_GET_COLLATION,
+           et_parse_data->dbname.str, et_parse_data->name.str);
   }
 
   thd->variables.character_set_client= client_cs;
@@ -654,7 +651,7 @@ bool migrate_events_to_dd(THD *thd)
   if (open_and_lock_tables(thd, table_list, flags, &prelocking_strategy))
   {
     close_thread_tables(thd);
-    sql_print_error("Failed to open mysql.event Table.");
+    LogErr(ERROR_LEVEL, ER_EVENT_CANT_OPEN_TABLE_MYSQL_EVENT);
     return true;
   }
 
@@ -679,7 +676,7 @@ bool migrate_events_to_dd(THD *thd)
 
   if (event_table->file->ha_index_init(0, 1))
   {
-    sql_print_error("Failed to read mysql.event table.");
+    LogErr(ERROR_LEVEL, ER_EVENT_CANT_OPEN_TABLE_MYSQL_EVENT);
     goto err;
   }
 
@@ -691,7 +688,7 @@ bool migrate_events_to_dd(THD *thd)
       my_tz_free();
       return false;
     }
-    sql_print_error("Failed to read mysql.event table.");
+    LogErr(ERROR_LEVEL, ER_EVENT_CANT_OPEN_TABLE_MYSQL_EVENT);
     goto err;
   }
 
@@ -711,7 +708,7 @@ bool migrate_events_to_dd(THD *thd)
 
   if (error != HA_ERR_END_OF_FILE)
   {
-    sql_print_error("Failed to read mysql.event table.");
+    LogErr(ERROR_LEVEL, ER_EVENT_CANT_OPEN_TABLE_MYSQL_EVENT);
     goto err;
   }
 

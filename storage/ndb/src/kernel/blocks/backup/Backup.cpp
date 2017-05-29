@@ -5793,7 +5793,7 @@ Backup::execSCAN_HBREP(Signal* signal)
 void
 Backup::execTRANSID_AI(Signal* signal)
 {
-  jamEntry();
+  jamEntryDebug();
 
   const Uint32 filePtrI = signal->theData[0];
   //const Uint32 transId1 = signal->theData[1];

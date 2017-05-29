@@ -496,7 +496,7 @@ public:
   }
 
   bool is_null() override
-  { return MY_TEST(args[0]->is_null() || args[1]->is_null()); }
+  { return args[0]->is_null() || args[1]->is_null(); }
   const CHARSET_INFO *compare_collation() const override
   { return cmp.cmp_collation.collation; }
   void top_level_item() override { abort_on_null= true; }
@@ -1123,6 +1123,7 @@ public:
   longlong val_int() override;
   String *val_str(String *str) override;
   my_decimal *val_decimal(my_decimal *) override;
+  bool val_json(Json_wrapper *wr) override;
   Item_result result_type() const override { return cached_result_type; }
   bool resolve_type(THD *thd) override;
   uint decimal_precision() const override
@@ -1691,11 +1692,11 @@ public:
   void cleanup_arrays()
   {
     uint i;
-    delete array;
+    destroy(array);
     array= 0;
     for (i= 0; i <= (uint)DECIMAL_RESULT + 1; i++)
     {
-      delete cmp_items[i];
+      destroy(cmp_items[i]);
       cmp_items[i]= 0;
     }
   }
@@ -2147,7 +2148,7 @@ public:
   Item_equal(Item_equal *item_equal);
   virtual ~Item_equal()
   {
-    delete eval_item;
+    destroy(eval_item);
   }
 
   inline Item* get_const() { return const_item; }

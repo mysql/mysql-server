@@ -129,6 +129,7 @@ threads	1	performance_schema	PROCESSLIST_HOST	HASH
 threads	1	performance_schema	PROCESSLIST_ID	HASH	
 threads	1	performance_schema	THREAD_OS_ID	HASH	
 users	0	performance_schema	USER	HASH	
+user_defined_functions	0	performance_schema	PRIMARY	HASH	
 user_variables_by_thread	0	performance_schema	PRIMARY	HASH	
 variables_by_thread	0	performance_schema	PRIMARY	HASH	
 select TABLE_NAME, NON_UNIQUE, INDEX_SCHEMA, INDEX_NAME, SEQ_IN_INDEX,
@@ -351,6 +352,7 @@ threads	1	performance_schema	PROCESSLIST_HOST	1	PROCESSLIST_HOST	NULL	YES
 threads	1	performance_schema	PROCESSLIST_ID	1	PROCESSLIST_ID	NULL	YES
 threads	1	performance_schema	THREAD_OS_ID	1	THREAD_OS_ID	NULL	YES
 users	0	performance_schema	USER	1	USER	NULL	YES
+user_defined_functions	0	performance_schema	PRIMARY	1	UDF_NAME	NULL	
 user_variables_by_thread	0	performance_schema	PRIMARY	1	THREAD_ID	NULL	
 user_variables_by_thread	0	performance_schema	PRIMARY	2	VARIABLE_NAME	NULL	
 variables_by_thread	0	performance_schema	PRIMARY	1	THREAD_ID	NULL	

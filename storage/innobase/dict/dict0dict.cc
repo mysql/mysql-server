@@ -6053,15 +6053,19 @@ dict_table_persist_to_dd_table_buffer(
 }
 
 /** Check if any table has any dirty persistent data, if so
-write dirty persistent data of table to DD TABLE BUFFER table accordingly */
-void
+write dirty persistent data of table to DD TABLE BUFFER table accordingly
+@return true if any table is dirty and write to DD TABLE BUFFER would
+possibly be done */
+bool
 dict_persist_to_dd_table_buffer(void)
 {
+	bool	persisted = false;
+
 	if (dict_sys == NULL) {
 		/* We don't have dict_sys now, so just return.
 		This only happen during recovery.
 		TODO: remove in WL#7488 */
-		return;
+		return(persisted);
 	}
 
 	mutex_enter(&dict_persist->mutex);
@@ -6069,7 +6073,7 @@ dict_persist_to_dd_table_buffer(void)
 	if (UT_LIST_GET_LEN(dict_persist->dirty_dict_tables) == 0) {
 
 		mutex_exit(&dict_persist->mutex);
-		return;
+		return(persisted);
 	}
 
 	for (dict_table_t* table = UT_LIST_GET_FIRST(
@@ -6088,12 +6092,14 @@ dict_persist_to_dd_table_buffer(void)
 
 		if (table->dirty_status == METADATA_DIRTY) {
 			dict_table_persist_to_dd_table_buffer_low(table);
+			persisted = true;
 		}
 
 		table = next;
 	}
 
 	mutex_exit(&dict_persist->mutex);
+	return(persisted);
 }
 
 #ifdef UNIV_DEBUG

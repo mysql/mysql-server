@@ -824,5 +824,6 @@ const GsnName SignalNames [] = {
   ,{ GSN_LOCAL_RECOVERY_COMP_REP, "LOCAL_RECOVERY_COMP_REP" }
   ,{ GSN_CANCEL_SUBSCRIPTION_REQ, "CANCEL_SUBSCRIPTION_REQ" }
   ,{ GSN_ISOLATE_ORD, "ISOLATE_ORD" }
+  ,{ GSN_PROCESSINFO_REP, "PROCESSINFO_REP" }
 };
 const unsigned short NO_OF_SIGNAL_NAMES = sizeof(SignalNames)/sizeof(GsnName);

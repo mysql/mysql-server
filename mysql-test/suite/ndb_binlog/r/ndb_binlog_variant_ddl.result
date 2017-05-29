@@ -1,18 +1,22 @@
 show variables like '%log_update%';
 Variable_name	Value
 ndb_log_update_as_write	ON
+ndb_log_update_minimal	OFF
 ndb_log_updated_only	ON
 show variables like '%log_update%';
 Variable_name	Value
 ndb_log_update_as_write	ON
+ndb_log_update_minimal	OFF
 ndb_log_updated_only	OFF
 show variables like '%log_update%';
 Variable_name	Value
 ndb_log_update_as_write	OFF
+ndb_log_update_minimal	OFF
 ndb_log_updated_only	ON
 show variables like '%log_update%';
 Variable_name	Value
 ndb_log_update_as_write	OFF
+ndb_log_update_minimal	OFF
 ndb_log_updated_only	OFF
 create table t1(a int) engine=ndb;
 drop table t1;

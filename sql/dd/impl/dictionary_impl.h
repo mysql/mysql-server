@@ -88,9 +88,15 @@ public:
 
   static uint get_target_I_S_version();
 
+  static uint get_target_P_S_version();
+
   virtual uint get_actual_I_S_version(THD *thd);
 
+  virtual uint get_actual_P_S_version(THD *thd);
+
   uint set_I_S_version(THD *thd, uint version);
+
+  uint set_P_S_version(THD *thd, uint version);
 
   virtual const Object_table *get_dd_table(
     const String_type &schema_name, const String_type &table_name) const;

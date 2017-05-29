@@ -349,7 +349,7 @@ public:
     table.length=1;
   }
   // True if we can tell from syntax that this is an unnamed derived table.
-  bool is_derived_table() const { return MY_TEST(sel); }
+  bool is_derived_table() const { return sel; }
   void change_db(const char *db_name)
   {
     db.str= db_name;
@@ -2255,7 +2255,7 @@ public:
   }
   bool requires_prelocking()
   {
-    return MY_TEST(query_tables_own_last);
+    return query_tables_own_last;
   }
   void mark_as_requiring_prelocking(TABLE_LIST **tables_own_last)
   {

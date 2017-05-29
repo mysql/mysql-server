@@ -35,57 +35,26 @@
 
 THR_LOCK table_variables_info::m_table_lock;
 
-/* clang-format off */
-static const TABLE_FIELD_TYPE field_types[]=
-{
-  {
-    { C_STRING_WITH_LEN("VARIABLE_NAME") },
-    { C_STRING_WITH_LEN("varchar(64)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("VARIABLE_SOURCE") },
-    { C_STRING_WITH_LEN("enum('COMPILED','GLOBAL','SERVER','EXPLICIT','EXTRA','USER','LOGIN','COMMAND_LINE','PERSISTED','DYNAMIC')") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("VARIABLE_PATH") },
-    { C_STRING_WITH_LEN("varchar(1024)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("MIN_VALUE") },
-    { C_STRING_WITH_LEN("varchar(64)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("MAX_VALUE") },
-    { C_STRING_WITH_LEN("varchar(64)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SET_TIME") },
-    { C_STRING_WITH_LEN("timestamp") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SET_USER") },
-    { C_STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SET_HOST") },
-    { C_STRING_WITH_LEN("char(60)") },
-    { NULL, 0}
-  }
-};
-/* clang-format on */
-
-TABLE_FIELD_DEF
-table_variables_info::m_field_def = {8, field_types};
+Plugin_table table_variables_info::m_table_def(
+  /* Name */
+  "variables_info",
+  /* Definition */
+  "  VARIABLE_NAME varchar(64) not null,\n"
+  "  VARIABLE_SOURCE ENUM('COMPILED','GLOBAL','SERVER','EXPLICIT','EXTRA',\n"
+  "                       'USER','LOGIN','COMMAND_LINE','PERSISTED',\n"
+  "                       'DYNAMIC') DEFAULT 'COMPILED',\n"
+  "  VARIABLE_PATH varchar(1024),\n"
+  "  MIN_VALUE varchar(64),\n"
+  "  MAX_VALUE varchar(64),\n"
+  "  SET_TIME TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP,\n"
+  "  SET_USER CHAR(32) collate utf8_bin default null,\n"
+  "  SET_HOST CHAR(60) collate utf8_bin default null\n",
+  /* Options */
+  " ENGINE=PERFORMANCE_SCHEMA",
+  /* Tablespace */
+  nullptr);
 
 PFS_engine_table_share table_variables_info::m_share = {
-  {C_STRING_WITH_LEN("variables_info")},
   &pfs_readonly_world_acl,
   table_variables_info::create,
   NULL, /* write_row */
@@ -93,9 +62,8 @@ PFS_engine_table_share table_variables_info::m_share = {
   table_variables_info::get_row_count,
   sizeof(pos_t),
   &m_table_lock,
-  &m_field_def,
-  false, /* checked */
-  true   /* perpetual */
+  &m_table_def,
+  true /* perpetual */
 };
 
 PFS_engine_table *

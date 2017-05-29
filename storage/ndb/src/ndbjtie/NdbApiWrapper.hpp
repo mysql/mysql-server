@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -3520,6 +3520,13 @@ struct NdbApiWrapper {
         obj.set_name(p0);
     }
 
+    static void
+    Ndb_cluster_connection__set_service_uri
+    ( Ndb_cluster_connection & obj, const char * p0, const char * p1, int p2, const char * p3)
+    {
+        obj.set_service_uri(p0, p1, p2, p3);
+    }
+
     static int
     Ndb_cluster_connection__set_timeout
     ( Ndb_cluster_connection & obj, int p0 )
@@ -3560,6 +3567,13 @@ struct NdbApiWrapper {
     ( Ndb_cluster_connection & obj, const Ndb * p0 )
     {
         return obj.get_next_ndb_object(p0);
+    }
+
+    static const char *
+    Ndb_cluster_connection__get_system_name
+    ( const Ndb_cluster_connection & obj )
+    {
+        return obj.get_system_name();
     }
 
 // ---------------------------------------------------------------------------

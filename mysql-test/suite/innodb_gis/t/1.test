@@ -149,7 +149,7 @@ FROM gis_geometrycollection g1, gis_geometrycollection g2 ORDER BY first, second
 DROP TABLE gis_point, gis_line, gis_polygon, gis_multi_point, gis_multi_line, gis_multi_polygon, gis_geometrycollection, gis_geometry;
 
 #
-# Check that ALTER TABLE doesn't loose geometry type
+# Check that ALTER TABLE doesnt loose geometry type
 #
 CREATE TABLE t1 (
   gp  point,
@@ -886,7 +886,7 @@ DROP TABLE g1;
 --echo # Bug#13013970 MORE CRASHES IN FIELD_BLOB::GET_KEY_IMAGE
 --echo #
 
-CREATE TABLE g1(a TEXT NOT NULL, KEY(a(255)));
+CREATE TABLE g1(a TEXT NOT NULL, KEY(a(255))) charset latin1;
 
 INSERT INTO g1 VALUES ('a'),('a');
 --error ER_GIS_INVALID_DATA

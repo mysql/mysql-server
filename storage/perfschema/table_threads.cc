@@ -32,102 +32,40 @@
 
 THR_LOCK table_threads::m_table_lock;
 
-/* clang-format off */
-static const TABLE_FIELD_TYPE field_types[]=
-{
-  {
-    { C_STRING_WITH_LEN("THREAD_ID") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("NAME") },
-    { C_STRING_WITH_LEN("varchar(128)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("TYPE") },
-    { C_STRING_WITH_LEN("varchar(10)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("PROCESSLIST_ID") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("PROCESSLIST_USER") },
-    { C_STRING_WITH_LEN("varchar(" USERNAME_CHAR_LENGTH_STR ")") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("PROCESSLIST_HOST") },
-    { C_STRING_WITH_LEN("varchar(60)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("PROCESSLIST_DB") },
-    { C_STRING_WITH_LEN("varchar(64)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("PROCESSLIST_COMMAND") },
-    { C_STRING_WITH_LEN("varchar(16)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("PROCESSLIST_TIME") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("PROCESSLIST_STATE") },
-    { C_STRING_WITH_LEN("varchar(64)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("PROCESSLIST_INFO") },
-    { C_STRING_WITH_LEN("longtext") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("PARENT_THREAD_ID") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("ROLE") },
-    { C_STRING_WITH_LEN("varchar(64)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("INSTRUMENTED") },
-    { C_STRING_WITH_LEN("enum(\'YES\',\'NO\')") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("HISTORY") },
-    { C_STRING_WITH_LEN("enum(\'YES\',\'NO\')") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("CONNECTION_TYPE") },
-    { C_STRING_WITH_LEN("varchar(16)") },
-    { NULL, 0 }
-  },
-  {
-    { C_STRING_WITH_LEN("THREAD_OS_ID") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-};
-/* clang-format on */
-
-TABLE_FIELD_DEF
-table_threads::m_field_def = {17, field_types};
+Plugin_table table_threads::m_table_def(
+  /* Name */
+  "threads",
+  /* Definition */
+  "  THREAD_ID BIGINT unsigned not null,\n"
+  "  NAME VARCHAR(128) not null,\n"
+  "  TYPE VARCHAR(10) not null,\n"
+  "  PROCESSLIST_ID BIGINT unsigned,\n"
+  "  PROCESSLIST_USER VARCHAR(32),\n"
+  "  PROCESSLIST_HOST VARCHAR(60),\n"
+  "  PROCESSLIST_DB VARCHAR(64),\n"
+  "  PROCESSLIST_COMMAND VARCHAR(16),\n"
+  "  PROCESSLIST_TIME BIGINT,\n"
+  "  PROCESSLIST_STATE VARCHAR(64),\n"
+  "  PROCESSLIST_INFO LONGTEXT,\n"
+  "  PARENT_THREAD_ID BIGINT unsigned,\n"
+  "  `ROLE` VARCHAR(64),\n"
+  "  INSTRUMENTED ENUM ('YES', 'NO') not null,\n"
+  "  HISTORY ENUM ('YES', 'NO') not null,\n"
+  "  CONNECTION_TYPE VARCHAR(16),\n"
+  "  THREAD_OS_ID BIGINT unsigned,\n"
+  "  PRIMARY KEY (THREAD_ID) USING HASH,\n"
+  "  KEY (PROCESSLIST_ID) USING HASH,\n"
+  "  KEY (THREAD_OS_ID) USING HASH,\n"
+  "  KEY (NAME) USING HASH,\n"
+  "  KEY `PROCESSLIST_ACCOUNT` (PROCESSLIST_USER,\n"
+  "                             PROCESSLIST_HOST) USING HASH,\n"
+  "  KEY (PROCESSLIST_HOST) USING HASH\n",
+  /* Options */
+  " ENGINE=PERFORMANCE_SCHEMA",
+  /* Tablespace */
+  nullptr);
 
 PFS_engine_table_share table_threads::m_share = {
-  {C_STRING_WITH_LEN("threads")},
   &pfs_updatable_acl,
   table_threads::create,
   NULL, /* write_row */
@@ -135,9 +73,8 @@ PFS_engine_table_share table_threads::m_share = {
   cursor_by_thread::get_row_count,
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
-  &m_field_def,
-  false, /* checked */
-  false  /* perpetual */
+  &m_table_def,
+  false /* perpetual */
 };
 
 PFS_engine_table *

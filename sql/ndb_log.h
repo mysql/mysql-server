@@ -29,7 +29,7 @@ unsigned ndb_log_get_verbose_level(void);
   Write messages to the MySQL Servers error log(s)
 
   NOTE! Messages will always be prefixed with "NDB:" and
-  "NDB <prefix>" if one of the prefix functions are used
+  "NDB <prefix>:" if one of the prefix functions are used
 */
 void ndb_log_info(const char* fmt, ...)
   MY_ATTRIBUTE((format(printf, 1, 2)));

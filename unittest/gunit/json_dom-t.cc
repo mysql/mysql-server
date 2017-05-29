@@ -674,7 +674,9 @@ static void verify_binary_diffs(Field_json *field,
       or adjacent areas.
     */
     if (prev != nullptr)
+    {
       EXPECT_LT(prev->offset() + prev->length(), diff.offset());
+    }
     prev= &diff;
   }
   EXPECT_EQ(0, std::memcmp(buffer.get(), updated.ptr(), updated.length()));

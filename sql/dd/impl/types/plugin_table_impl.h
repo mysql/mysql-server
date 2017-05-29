@@ -35,7 +35,7 @@ public:
     // Upgrade/downgrade not supported yet.
     if (m_target_def.dd_version() != version)
     {
-      sql_print_warning("Data Dictionary version %d not supported", version);
+      LogErr(WARNING_LEVEL, ER_DD_VERSION_UNSUPPORTED, version);
       return nullptr;
     }
     return &m_target_def;
@@ -47,8 +47,8 @@ public:
     // Upgrade/downgrade not supported yet.
     if (m_target_def.dd_version() != default_dd_version(thd))
     {
-      sql_print_warning("Data Dictionary version %d not supported",
-                        default_dd_version(thd));
+      LogErr(WARNING_LEVEL, ER_DD_VERSION_UNSUPPORTED,
+             default_dd_version(thd));
       return nullptr;
     }
     return &m_target_def;
@@ -68,12 +68,15 @@ public:
   { return false; }
 
   Plugin_table_impl(const String_type &name, const String_type &definition,
-                    const String_type &options, uint version)
+                    const String_type &options, uint version,
+                    const char* tablespace_name)
   {
     m_target_def.set_table_name(name);
     m_target_def.set_table_definition(definition);
     m_target_def.set_table_options(options);
     m_target_def.dd_version(version);
+    if (tablespace_name)
+      m_target_def.set_tablespace_name(tablespace_name);
   }
 
   virtual ~Plugin_table_impl()

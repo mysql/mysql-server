@@ -36,5 +36,5 @@ slave-bin.000001	#	Query	#	#	use `mydb`; INSERT INTO t2 VALUES (1)
 slave-bin.000001	#	Query	#	#	COMMIT
 DROP DATABASE mydb;
 include/sync_slave_sql_with_master.inc
-Replicate_Do_Table: mydb.Ţ1,mydb.t2
+Replicate_Do_Table: mydb.t2,mydb.Ţ1
 include/rpl_end.inc

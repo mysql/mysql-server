@@ -18,7 +18,7 @@
 #include <stdlib.h>
 #include <sys/types.h>
 
-#include "log.h"                  // sql_print_error
+#include "log.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
@@ -26,6 +26,7 @@
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysqld.h"               // mysqld_port
+#include "mysqld_error.h"         // ER_*
 #include "mysqld_thd_manager.h"   // Global_THD_manager
 #include "replication.h"          // Trans_context_info
 #include "rpl_channel_service_interface.h"
@@ -231,7 +232,7 @@ int group_replication_start()
     return ret;
   }
   mysql_mutex_unlock(&LOCK_group_replication_handler);
-  sql_print_error("Group Replication plugin is not installed.");
+  LogErr(ERROR_LEVEL, ER_GROUP_REPLICATION_PLUGIN_NOT_INSTALLED);
   return 1;
 }
 
@@ -246,7 +247,7 @@ int group_replication_stop()
   }
   mysql_mutex_unlock(&LOCK_group_replication_handler);
 
-  sql_print_error("Group Replication plugin is not installed.");
+  LogErr(ERROR_LEVEL, ER_GROUP_REPLICATION_PLUGIN_NOT_INSTALLED);
   return 1;
 }
 

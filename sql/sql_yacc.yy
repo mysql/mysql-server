@@ -2800,7 +2800,7 @@ sp_name:
             {
               MYSQL_YYABORT;
             }
-            $$= new sp_name(to_lex_cstring($1), $3, true);
+            $$= new (*THR_MALLOC) sp_name(to_lex_cstring($1), $3, true);
             if ($$ == NULL)
               MYSQL_YYABORT;
             $$->init_qname(YYTHD);
@@ -2816,7 +2816,7 @@ sp_name:
             }
             if (lex->copy_db_to(&db.str, &db.length))
               MYSQL_YYABORT;
-            $$= new sp_name(to_lex_cstring(db), $1, false);
+            $$= new (*THR_MALLOC) sp_name(to_lex_cstring(db), $1, false);
             if ($$ == NULL)
               MYSQL_YYABORT;
             $$->init_qname(thd);
@@ -4965,7 +4965,7 @@ tablespace_name:
           ident
           {
             LEX *lex= Lex;
-            lex->alter_tablespace_info= new st_alter_tablespace();
+            lex->alter_tablespace_info= new (*THR_MALLOC) st_alter_tablespace();
             if (lex->alter_tablespace_info == NULL)
               MYSQL_YYABORT;
             lex->alter_tablespace_info->tablespace_name= $1.str;
@@ -4977,7 +4977,7 @@ logfile_group_name:
           ident
           {
             LEX *lex= Lex;
-            lex->alter_tablespace_info= new st_alter_tablespace();
+            lex->alter_tablespace_info= new (*THR_MALLOC) st_alter_tablespace();
             if (lex->alter_tablespace_info == NULL)
               MYSQL_YYABORT;
             lex->alter_tablespace_info->logfile_group_name= $1.str;
@@ -6816,7 +6816,7 @@ key_list:
         | key_part
           {
             // The order is ignored.
-            $$= new List<Key_part_spec>;
+            $$= new (*THR_MALLOC) List<Key_part_spec>;
             if ($$ == NULL || $$->push_back($1))
               MYSQL_YYABORT; // OOM
           }
@@ -6825,7 +6825,7 @@ key_list:
 key_part:
           ident order_dir
           {
-            $$= new Key_part_spec(to_lex_cstring($1), 0, (enum_order) $2);
+            $$= new (*THR_MALLOC) Key_part_spec(to_lex_cstring($1), 0, (enum_order) $2);
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
@@ -6836,8 +6836,9 @@ key_part:
             {
               my_error(ER_KEY_PART_0, MYF(0), $1.str);
             }
-            $$= new Key_part_spec(to_lex_cstring($1), (uint) key_part_len,
-                                  (enum_order) $5);
+            $$= new (*THR_MALLOC) Key_part_spec(to_lex_cstring($1),
+                                                (uint) key_part_len,
+                                                (enum_order) $5);
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
@@ -7070,10 +7071,10 @@ alter:
         | alter_instance_stmt { MAKE_CMD($1); }
         | alter_user_command user DEFAULT_SYM ROLE_SYM ALL
           {
-            List<LEX_USER> *users= new List<LEX_USER>;
+            List<LEX_USER> *users= new (*THR_MALLOC) List<LEX_USER>;
             if (users == NULL || users->push_back($2))
               MYSQL_YYABORT;
-            List<LEX_USER> *role_list= new List<LEX_USER>;
+            List<LEX_USER> *role_list= new (*THR_MALLOC) List<LEX_USER>;
             Lex->sql_command= SQLCOM_ALTER_USER_DEFAULT_ROLE;
               PT_statement *tmp=
                 NEW_PTN PT_alter_user_default_role(Lex->drop_if_exists,
@@ -7082,10 +7083,10 @@ alter:
           }
         | alter_user_command user DEFAULT_SYM ROLE_SYM NONE_SYM
           {
-            List<LEX_USER> *users= new List<LEX_USER>;
+            List<LEX_USER> *users= new (*THR_MALLOC) List<LEX_USER>;
             if (users == NULL || users->push_back($2))
               MYSQL_YYABORT;
-            List<LEX_USER> *role_list= new List<LEX_USER>;
+            List<LEX_USER> *role_list= new (*THR_MALLOC) List<LEX_USER>;
             Lex->sql_command= SQLCOM_ALTER_USER_DEFAULT_ROLE;
               PT_statement *tmp=
                 NEW_PTN PT_alter_user_default_role(Lex->drop_if_exists,
@@ -7094,7 +7095,7 @@ alter:
           }
         | alter_user_command user DEFAULT_SYM ROLE_SYM role_list
           {
-            List<LEX_USER> *users= new List<LEX_USER>;
+            List<LEX_USER> *users= new (*THR_MALLOC) List<LEX_USER>;
             if (users == NULL || users->push_back($2))
               MYSQL_YYABORT;
             Lex->sql_command= SQLCOM_ALTER_USER_DEFAULT_ROLE;
@@ -7647,7 +7648,7 @@ alter_list_item:
             LEX *lex=Lex;
             CONTEXTUALIZE($3);
             lex->drop_mode= $4;
-            auto ad= new Alter_drop(Alter_drop::COLUMN, $3->field_name.str);
+            auto ad= new (*THR_MALLOC) Alter_drop(Alter_drop::COLUMN, $3->field_name.str);
             if (ad == NULL)
               MYSQL_YYABORT;
             lex->alter_info.drop_list.push_back(ad);
@@ -7657,7 +7658,7 @@ alter_list_item:
           {
             LEX *lex=Lex;
             CONTEXTUALIZE($4);
-            auto ad= new Alter_drop(Alter_drop::FOREIGN_KEY, $4->field_name.str);
+            auto ad= new (*THR_MALLOC) Alter_drop(Alter_drop::FOREIGN_KEY, $4->field_name.str);
             if (ad == NULL)
               MYSQL_YYABORT;
             lex->alter_info.drop_list.push_back(ad);
@@ -7666,7 +7667,7 @@ alter_list_item:
         | DROP PRIMARY_SYM KEY_SYM
           {
             LEX *lex=Lex;
-            Alter_drop *ad= new Alter_drop(Alter_drop::KEY, primary_key_name);
+            Alter_drop *ad= new (*THR_MALLOC) Alter_drop(Alter_drop::KEY, primary_key_name);
             if (ad == NULL)
               MYSQL_YYABORT;
             lex->alter_info.drop_list.push_back(ad);
@@ -7676,7 +7677,7 @@ alter_list_item:
           {
             LEX *lex=Lex;
             CONTEXTUALIZE($3);
-            auto ad= new Alter_drop(Alter_drop::KEY, $3->field_name.str);
+            auto ad= new (*THR_MALLOC) Alter_drop(Alter_drop::KEY, $3->field_name.str);
             if (ad == NULL)
               MYSQL_YYABORT;
             lex->alter_info.drop_list.push_back(ad);
@@ -7699,7 +7700,7 @@ alter_list_item:
             LEX *lex=Lex;
             CONTEXTUALIZE($3);
             ITEMIZE($6, &$6);
-            Alter_column *ac= new Alter_column($3->field_name.str,$6);
+            Alter_column *ac= new (*THR_MALLOC) Alter_column($3->field_name.str,$6);
             if (ac == NULL)
               MYSQL_YYABORT;
             lex->alter_info.alter_list.push_back(ac);
@@ -7708,7 +7709,7 @@ alter_list_item:
         | ALTER INDEX_SYM ident visibility
           {
             LEX *lex= Lex;
-            auto ac= new Alter_index_visibility($3.str, $4);
+            auto ac= new (*THR_MALLOC) Alter_index_visibility($3.str, $4);
             if (ac == NULL)
               MYSQL_YYABORT;
             lex->alter_info.alter_index_visibility_list.push_back(ac);
@@ -7718,7 +7719,7 @@ alter_list_item:
           {
             LEX *lex=Lex;
             CONTEXTUALIZE($3);
-            Alter_column *ac= new Alter_column($3->field_name.str, (Item*) 0);
+            Alter_column *ac= new (*THR_MALLOC) Alter_column($3->field_name.str, (Item*) 0);
             if (ac == NULL)
               MYSQL_YYABORT;
             lex->alter_info.alter_list.push_back(ac);
@@ -10051,7 +10052,7 @@ opt_else:
 when_list:
           WHEN_SYM expr THEN_SYM expr
           {
-            $$= new List<Item>;
+            $$= new (*THR_MALLOC) List<Item>;
             if ($$ == NULL)
               MYSQL_YYABORT;
             $$->push_back($2);
@@ -10882,7 +10883,7 @@ drop:
         | DROP INDEX_SYM ident ON_SYM table_ident {}
           {
             LEX *lex=Lex;
-            Alter_drop *ad= new Alter_drop(Alter_drop::KEY, $3.str);
+            Alter_drop *ad= new (*THR_MALLOC) Alter_drop(Alter_drop::KEY, $3.str);
             if (ad == NULL)
               MYSQL_YYABORT;
             lex->sql_command= SQLCOM_DROP_INDEX;
@@ -10925,7 +10926,7 @@ drop:
             }
             lex->sql_command = SQLCOM_DROP_FUNCTION;
             lex->drop_if_exists= $3;
-            spname= new sp_name(to_lex_cstring($4), $6, true);
+            spname= new (*THR_MALLOC) sp_name(to_lex_cstring($4), $6, true);
             if (spname == NULL)
               MYSQL_YYABORT;
             spname->init_qname(thd);
@@ -10957,7 +10958,7 @@ drop:
                MYSQL_YYABORT;
             lex->sql_command = SQLCOM_DROP_FUNCTION;
             lex->drop_if_exists= $3;
-            spname= new sp_name(to_lex_cstring(db), $4, false);
+            spname= new (*THR_MALLOC) sp_name(to_lex_cstring(db), $4, false);
             if (spname == NULL)
               MYSQL_YYABORT;
             spname->init_qname(thd);
@@ -12093,18 +12094,18 @@ describe_command:
 opt_extended_describe:
           /* empty */
           {
-            if ((Lex->explain_format= new Explain_format_traditional) == NULL)
+            if ((Lex->explain_format= new (*THR_MALLOC) Explain_format_traditional) == NULL)
               MYSQL_YYABORT;
           }
         | EXTENDED_SYM
           {
-            if ((Lex->explain_format= new Explain_format_traditional) == NULL)
+            if ((Lex->explain_format= new (*THR_MALLOC) Explain_format_traditional) == NULL)
               MYSQL_YYABORT;
             push_deprecated_warn_no_replacement(YYTHD, "EXTENDED");
           }
         | PARTITIONS_SYM
           {
-            if ((Lex->explain_format= new Explain_format_traditional) == NULL)
+            if ((Lex->explain_format= new (*THR_MALLOC) Explain_format_traditional) == NULL)
               MYSQL_YYABORT;
             push_deprecated_warn_no_replacement(YYTHD, "PARTITIONS");
           }
@@ -12112,12 +12113,12 @@ opt_extended_describe:
           {
             if (!my_strcasecmp(system_charset_info, $3.str, "JSON"))
             {
-              if ((Lex->explain_format= new Explain_format_JSON) == NULL)
+              if ((Lex->explain_format= new (*THR_MALLOC) Explain_format_JSON) == NULL)
                 MYSQL_YYABORT;
             }
             else if (!my_strcasecmp(system_charset_info, $3.str, "TRADITIONAL"))
             {
-              if ((Lex->explain_format= new Explain_format_traditional) == NULL)
+              if ((Lex->explain_format= new (*THR_MALLOC) Explain_format_traditional) == NULL)
                 MYSQL_YYABORT;
             }
             else
@@ -12402,7 +12403,7 @@ load:
             lex->local_file=  $5;
             lex->duplicates= DUP_ERROR;
             lex->set_ignore(false);
-            if (!(lex->exchange= new sql_exchange($7.str, 0, $2)))
+            if (!(lex->exchange= new (*THR_MALLOC) sql_exchange($7.str, 0, $2)))
               MYSQL_YYABORT;
 
             switch ($8) {
@@ -12886,8 +12887,7 @@ table_ident_nodb:
           ident
           {
             LEX_CSTRING db= { any_db, strlen(any_db) };
-            $$= new Table_ident(YYTHD->get_protocol(),
-                                db, to_lex_cstring($1), 0);
+            $$= NEW_PTN Table_ident(YYTHD->get_protocol(), db, to_lex_cstring($1), 0);
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
@@ -14382,7 +14382,7 @@ grant_ident:
 user_list:
           user
           {
-            $$= new List<LEX_USER>;
+            $$= new (*THR_MALLOC) List<LEX_USER>;
             if ($$ == NULL || $$->push_back($1))
               MYSQL_YYABORT;
           }
@@ -14397,7 +14397,7 @@ user_list:
 role_list:
           role
           {
-            $$= new List<LEX_USER>;
+            $$= new (*THR_MALLOC) List<LEX_USER>;
             if ($$ == NULL || $$->push_back($1))
               MYSQL_YYABORT;
           }
@@ -15322,13 +15322,13 @@ install:
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_INSTALL_PLUGIN;
-            lex->m_sql_cmd= new Sql_cmd_install_plugin($3, $5);
+            lex->m_sql_cmd= new (*THR_MALLOC) Sql_cmd_install_plugin($3, $5);
           }
         | INSTALL_SYM COMPONENT_SYM TEXT_STRING_sys_list
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_INSTALL_COMPONENT;
-            lex->m_sql_cmd= new Sql_cmd_install_component($3);
+            lex->m_sql_cmd= new (*THR_MALLOC) Sql_cmd_install_component($3);
           }
         ;
 
@@ -15337,13 +15337,13 @@ uninstall:
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_UNINSTALL_PLUGIN;
-            lex->m_sql_cmd= new Sql_cmd_uninstall_plugin($3);
+            lex->m_sql_cmd= new (*THR_MALLOC) Sql_cmd_uninstall_plugin($3);
           }
        | UNINSTALL_SYM COMPONENT_SYM TEXT_STRING_sys_list
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_UNINSTALL_COMPONENT;
-            lex->m_sql_cmd= new Sql_cmd_uninstall_component($3);
+            lex->m_sql_cmd= new (*THR_MALLOC) Sql_cmd_uninstall_component($3);
           }
         ;
 

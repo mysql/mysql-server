@@ -1,0 +1,37 @@
+#
+# Test TempTable overflow to disk
+#
+
+CREATE TABLE t (c VARCHAR(128));
+
+INSERT INTO t VALUES
+(REPEAT('a', 128)),
+(REPEAT('b', 128)),
+(REPEAT('c', 128)),
+(REPEAT('d', 128));
+
+ANALYZE TABLE t;
+
+SET GLOBAL temptable_max_ram = 2097152;
+
+-- disable_result_log
+SELECT * FROM
+t AS t1,
+t AS t2,
+t AS t3,
+t AS t4,
+t AS t5,
+t AS t6
+ORDER BY 1
+LIMIT 2;
+-- enable_result_log
+
+SET GLOBAL temptable_max_ram = default;
+
+# Just make sure some disk pages were allocated, the exact number of bytes
+# and pages is irrelevant for this test.
+SELECT count_alloc > 0
+FROM performance_schema.memory_summary_global_by_event_name
+WHERE event_name = 'memory/temptable/physical_disk';
+
+DROP TABLE t;

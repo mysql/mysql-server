@@ -986,7 +986,7 @@ struct Uuid
 
   @section Gtid_event_binary_format Binary Format
 
-  The Body has five components:
+  The Body has eight components:
 
   <table>
   <caption>Body for Gtid_event</caption>
@@ -999,9 +999,13 @@ struct Uuid
 
   </tr>
   <tr>
-    <td>COMMIT_FLAG</td>
+    <td>GTID_FLAGS</td>
     <td>1 byte</td>
-    <td>Currently unused.</td>
+    <td>00000001 = Transaction may have changes logged with SBR.
+        In 5.6, 5.7.0-5.7.18, and 8.0.0-8.0.1, this flag is always set.
+        Starting in 5.7.19 and 8.0.2, this flag is cleared if the transaction
+        only contains row events. It is set if any part of the transaction is
+        written in statement format.</td>
   </tr>
   <tr>
     <td>ENCODED_SID_LENGTH</td>
@@ -1033,6 +1037,10 @@ struct Uuid
     <td>7 byte integer</td>
     <td>Timestamp of commit on the originating master</td>
   </tr>
+  <tr>
+    <td>1 to 9 byte integer</td> // Using net_store_length
+    <td>The packed transaction's length in bytes, including the Gtid</td>
+  </tr>
   </table>
 
 */
@@ -1047,18 +1055,25 @@ public:
   */
   long long int last_committed;
   long long int sequence_number;
+  /** GTID flags constants */
+  unsigned const char FLAG_MAY_HAVE_SBR= 1;
+  /** Transaction might have changes logged with SBR */
+  bool may_have_sbr_stmts;
   /** Timestamp when the transaction was committed on the originating master. */
   unsigned long long int original_commit_timestamp;
   /** Timestamp when the transaction was committed on the nearest master. */
   unsigned long long int immediate_commit_timestamp;
   bool has_commit_timestamps;
+  /** The length of the transaction in bytes. */
+  unsigned long long int transaction_length;
+public:
   /**
     Ctor of Gtid_event
 
     The layout of the buffer is as follows
-    +-----------+-----------+-- --------+-------+--------------+---------+
-    |commit flag|ENCODED SID|ENCODED GNO|TS_TYPE|logical ts(:s)|commit ts|
-    +-----------+-----------+-----------+-------+------------------------+
+    +----------+---+---+-------+--------------+---------+----------+
+    |gtid flags|SID|GNO|TS_TYPE|logical ts(:s)|commit ts|trx length|
+    +----------+---+---+-------+------------------------+----------+
     TS_TYPE is from {G_COMMIT_TS2} singleton set of values
     Details on commit timestamps in Gtid_event(const char*...)
 
@@ -1081,13 +1096,16 @@ public:
   */
   explicit Gtid_event(long long int last_committed_arg,
                       long long int sequence_number_arg,
+                      bool may_have_sbr_stmts_arg,
                       unsigned long long int original_commit_timestamp_arg,
                       unsigned long long int immediate_commit_timestamp_arg)
     : Binary_log_event(GTID_LOG_EVENT),
       last_committed(last_committed_arg),
       sequence_number(sequence_number_arg),
+      may_have_sbr_stmts(may_have_sbr_stmts_arg),
       original_commit_timestamp(original_commit_timestamp_arg),
-      immediate_commit_timestamp(immediate_commit_timestamp_arg)
+      immediate_commit_timestamp(immediate_commit_timestamp_arg),
+      transaction_length(0)
   {}
 #ifndef HAVE_MYSYS
   //TODO(WL#7684): Implement the method print_event_info and print_long_info
@@ -1113,6 +1131,9 @@ protected:
     IMMEDIATE_COMMIT_TIMESTAMP_LENGTH + ORIGINAL_COMMIT_TIMESTAMP_LENGTH;
   // We use 7 bytes out of which 1 bit is used as a flag.
   static const int ENCODED_COMMIT_TIMESTAMP_LENGTH= 55;
+  // Minimum and maximum lengths of transaction length field.
+  static const int TRANSACTION_LENGTH_MIN_LENGTH= 1;
+  static const int TRANSACTION_LENGTH_MAX_LENGTH= 9;
 
   /* We have only original commit timestamp if both timestamps are equal. */
   int get_commit_timestamp_length() const
@@ -1140,9 +1161,22 @@ public:
     On the originating master, the event has only one timestamp as the two
     timestamps are equal. On every other server we have two timestamps.
   */
-  static const int MAX_DATA_LENGTH= FULL_COMMIT_TIMESTAMP_LENGTH;
+  static const int MAX_DATA_LENGTH= FULL_COMMIT_TIMESTAMP_LENGTH +
+                                    TRANSACTION_LENGTH_MAX_LENGTH;
   static const int MAX_EVENT_LENGTH=
     LOG_EVENT_HEADER_LEN + POST_HEADER_LENGTH + MAX_DATA_LENGTH;
+  /**
+   Set the transaction length information.
+
+    This function should be used when the full transaction length (including
+    the Gtid event length) is known.
+
+    @param transaction_length_arg The transaction length.
+  */
+  void set_trx_length(unsigned long long int transaction_length_arg)
+  {
+    transaction_length= transaction_length_arg;
+  }
 };
 
 

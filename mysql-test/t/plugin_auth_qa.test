@@ -216,7 +216,7 @@ DROP USER 'plüg_dest';
 SET NAMES utf8;
 # 
 --error ER_PLUGIN_IS_NOT_LOADED
-CREATE USER plüg IDENTIFIED WITH 'test_plügin_server' AS 'plüg_dest';
+CREATE USER plüg IDENTIFIED WITH 'test_pluggggin_server' AS 'plüg_dest';
 CREATE USER 'plüg' IDENTIFIED WITH 'test_plugin_server' AS 'plüg_dest';
 --source include/plugin_auth_check_non_default_users.inc
 DROP USER 'plüg';

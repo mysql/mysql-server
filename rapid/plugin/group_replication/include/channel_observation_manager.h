@@ -30,6 +30,7 @@ public:
   virtual ~Channel_state_observer()= 0;
   virtual int thread_start(Binlog_relay_IO_param *param)= 0;
   virtual int thread_stop(Binlog_relay_IO_param *param)= 0;
+  virtual int applier_start(Binlog_relay_IO_param *param)= 0;
   virtual int applier_stop(Binlog_relay_IO_param *param, bool aborted)= 0;
   virtual int before_request_transmit(Binlog_relay_IO_param *param,
                                       uint32 flags)= 0;

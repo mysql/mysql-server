@@ -24,6 +24,8 @@
 
 #include <sys/types.h>
 
+#include <atomic>
+
 #include "lf.h"
 #include "my_inttypes.h"
 #include "mysql_com.h" /* USERNAME_LENGTH */
@@ -61,25 +63,25 @@ public:
   inline void
   init_refcount(void)
   {
-    PFS_atomic::store_32(&m_refcount, 1);
+    m_refcount.store(1);
   }
 
   inline int
   get_refcount(void)
   {
-    return PFS_atomic::load_32(&m_refcount);
+    return m_refcount.load();
   }
 
   inline void
   inc_refcount(void)
   {
-    PFS_atomic::add_32(&m_refcount, 1);
+    ++m_refcount;
   }
 
   inline void
   dec_refcount(void)
   {
-    PFS_atomic::add_32(&m_refcount, -1);
+    --m_refcount;
   }
 
   void aggregate(bool alive, PFS_user *safe_user, PFS_host *safe_host);
@@ -113,7 +115,7 @@ public:
   ulonglong m_disconnected_count;
 
 private:
-  int m_refcount;
+  std::atomic<int> m_refcount;
 };
 
 int init_account(const PFS_global_param *param);

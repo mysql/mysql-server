@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1371,7 +1371,7 @@ Dbtux::getTupAddr(const Frag& frag, TreeEnt ent, Uint32& lkey1, Uint32& lkey2)
   const TupLoc tupLoc = ent.m_tupLoc;
   c_tup->tuxGetTupAddr(tableFragPtrI, tupLoc.getPageId(),tupLoc.getPageOffset(),
                        lkey1, lkey2);
-  jamEntry();
+  jamEntryDebug();
 }
 
 inline unsigned

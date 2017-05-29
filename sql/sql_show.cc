@@ -50,7 +50,7 @@
 #include "item_func.h"
 #include "key.h"
 #include "keycache.h"                       // dflt_key_cache
-#include "log.h"                            // sql_print_warning
+#include "log.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "mdl.h"
@@ -607,7 +607,7 @@ public:
     m_top_view(top_view), m_handling(false),
     m_view_access_denied_message_ptr(NULL)
   {
-    m_sctx = MY_TEST(m_top_view->security_ctx) ?
+    m_sctx = (m_top_view->security_ctx != nullptr) ?
       m_top_view->security_ctx : thd->security_context();
   }
 
@@ -661,6 +661,7 @@ public:
         is_handled= false;
         break;
       }
+      // Fall through
     case ER_COLUMNACCESS_DENIED_ERROR:
     // ER_VIEW_NO_EXPLAIN cannot happen here.
     case ER_PROCACCESS_DENIED_ERROR:
@@ -1808,7 +1809,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
                                                   &part_syntax_len,
                                                   FALSE,
                                                   show_table_options,
-                                                  NULL, NULL,
+                                                  true, // For proper quoting.
                                                   comment_start.c_ptr())))
       {
          packet->append(comment_start);
@@ -2103,7 +2104,7 @@ public:
                     strcmp(inspect_sctx_user.str, m_user))))
       return;
 
-    thread_info *thd_info= new thread_info;
+    thread_info *thd_info= new (*THR_MALLOC) thread_info;
 
     /* ID */
     thd_info->thread_id= inspect_thd->thread_id();
@@ -3001,7 +3002,7 @@ int make_table_list(THD *thd, SELECT_LEX *sel,
                     const LEX_CSTRING &table_name)
 {
   Table_ident *table_ident;
-  table_ident= new Table_ident(thd->get_protocol(), db_name, table_name, 1);
+  table_ident= new (*THR_MALLOC) Table_ident(thd->get_protocol(), db_name, table_name, 1);
   if (!sel->add_table_to_list(thd, table_ident, 0, 0, TL_READ, MDL_SHARED_READ))
     return 1;
   return 0;
@@ -4284,7 +4285,7 @@ static int get_schema_tmp_table_columns_record(THD *thd, TABLE_LIST *tables,
     // PRIVILEGES
     uint col_access;
     check_access(thd,SELECT_ACL, db_name->str,
-                 &tables->grant.privilege, 0, 0, MY_TEST(tables->schema_table));
+                 &tables->grant.privilege, 0, 0, tables->schema_table != nullptr);
     col_access= get_column_grant(thd, &tables->grant,
                                  db_name->str, table_name->str,
                                  field->field_name) & COL_ACLS;
@@ -5418,7 +5419,7 @@ int mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list)
   if (!(table= table_list->schema_table->create_table(thd, table_list)))
     DBUG_RETURN(1);
   table->s->tmp_table= SYSTEM_TMP_TABLE;
-  table->grant.privilege= table_list->grant.privilege= SELECT_ACL;
+  table_list->grant.privilege= SELECT_ACL;
   /*
     This test is necessary to make
     case insensitive file systems +
@@ -5523,12 +5524,13 @@ int make_schema_select(THD *thd, SELECT_LEX *sel,
                        strlen(schema_table->table_name), 0);
 
   if (schema_table->old_format(thd, schema_table) ||   /* Handle old syntax */
-      !sel->add_table_to_list(thd,
-                              new Table_ident(thd->get_protocol(),
-                                              to_lex_cstring(db),
-                                              to_lex_cstring(table),
-                                              0),
-                              0, 0, TL_READ, MDL_SHARED_READ))
+      !sel->add_table_to_list(
+        thd,
+        new (*THR_MALLOC) Table_ident(thd->get_protocol(),
+                                      to_lex_cstring(db),
+                                      to_lex_cstring(table),
+                                      0),
+        0, 0, TL_READ, MDL_SHARED_READ))
   {
     DBUG_RETURN(1);
   }
@@ -6172,13 +6174,12 @@ int initialize_schema_table(st_plugin_int *plugin)
 
     if (plugin->plugin->init(schema_table))
     {
-      sql_print_error("Plugin '%s' init function returned error.",
-                      plugin->name.str);
+      LogErr(ERROR_LEVEL, ER_PLUGIN_INIT_FAILED, plugin->name.str);
       plugin->data= NULL;
       my_free(schema_table);
       DBUG_RETURN(1);
     }
-    
+
     /* Make sure the plugin name is not set inside the init() function. */
     schema_table->table_name= plugin->name.str;
   }

@@ -35,32 +35,20 @@
 
 THR_LOCK table_users::m_table_lock;
 
-/* clang-format off */
-static const TABLE_FIELD_TYPE field_types[]=
-{
-  {
-    { C_STRING_WITH_LEN("USER") },
-    { C_STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("CURRENT_CONNECTIONS") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("TOTAL_CONNECTIONS") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  }
-};
-/* clang-format on */
-
-TABLE_FIELD_DEF
-table_users::m_field_def = {3, field_types};
+Plugin_table table_users::m_table_def(
+  /* Name */
+  "users",
+  /* Definition */
+  "  USER CHAR(32) collate utf8_bin default null,\n"
+  "  CURRENT_CONNECTIONS bigint not null,\n"
+  "  TOTAL_CONNECTIONS bigint not null,\n"
+  "  UNIQUE KEY (USER) USING HASH\n",
+  /* Options */
+  " ENGINE=PERFORMANCE_SCHEMA",
+  /* Tablespace */
+  nullptr);
 
 PFS_engine_table_share table_users::m_share = {
-  {C_STRING_WITH_LEN("users")},
   &pfs_truncatable_acl,
   table_users::create,
   NULL, /* write_row */
@@ -68,9 +56,8 @@ PFS_engine_table_share table_users::m_share = {
   cursor_by_user::get_row_count,
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
-  &m_field_def,
-  false, /* checked */
-  false  /* perpetual */
+  &m_table_def,
+  false /* perpetual */
 };
 
 bool

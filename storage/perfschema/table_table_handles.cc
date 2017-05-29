@@ -34,57 +34,27 @@
 
 THR_LOCK table_table_handles::m_table_lock;
 
-/* clang-format off */
-static const TABLE_FIELD_TYPE field_types[]=
-{
-  {
-    { C_STRING_WITH_LEN("OBJECT_TYPE") },
-    { C_STRING_WITH_LEN("varchar(64)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("OBJECT_SCHEMA") },
-    { C_STRING_WITH_LEN("varchar(64)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("OBJECT_NAME") },
-    { C_STRING_WITH_LEN("varchar(64)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("OBJECT_INSTANCE_BEGIN") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("OWNER_THREAD_ID") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("OWNER_EVENT_ID") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("INTERNAL_LOCK") },
-    { C_STRING_WITH_LEN("varchar(64)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("EXTERNAL_LOCK") },
-    { C_STRING_WITH_LEN("varchar(64)") },
-    { NULL, 0}
-  }
-};
-/* clang-format on */
-
-TABLE_FIELD_DEF
-table_table_handles::m_field_def = {8, field_types};
+Plugin_table table_table_handles::m_table_def(
+  /* Name */
+  "table_handles",
+  /* Definition */
+  "  OBJECT_TYPE VARCHAR(64) not null,\n"
+  "  OBJECT_SCHEMA VARCHAR(64) not null,\n"
+  "  OBJECT_NAME VARCHAR(64) not null,\n"
+  "  OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,\n"
+  "  OWNER_THREAD_ID BIGINT unsigned,\n"
+  "  OWNER_EVENT_ID BIGINT unsigned,\n"
+  "  INTERNAL_LOCK VARCHAR(64),\n"
+  "  EXTERNAL_LOCK VARCHAR(64),\n"
+  "  PRIMARY KEY (OBJECT_INSTANCE_BEGIN) USING HASH,\n"
+  "  KEY (OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME) USING HASH,\n"
+  "  KEY (OWNER_THREAD_ID, OWNER_EVENT_ID) USING HASH\n",
+  /* Options */
+  " ENGINE=PERFORMANCE_SCHEMA",
+  /* Tablespace */
+  nullptr);
 
 PFS_engine_table_share table_table_handles::m_share = {
-  {C_STRING_WITH_LEN("table_handles")},
   &pfs_readonly_acl,
   table_table_handles::create,
   NULL, /* write_row */
@@ -92,9 +62,8 @@ PFS_engine_table_share table_table_handles::m_share = {
   table_table_handles::get_row_count,
   sizeof(PFS_simple_index),
   &m_table_lock,
-  &m_field_def,
-  false, /* checked */
-  false  /* perpetual */
+  &m_table_def,
+  false /* perpetual */
 };
 
 bool

@@ -1764,20 +1764,6 @@ bool SELECT_LEX::record_join_nest_info(List<TABLE_LIST> *tables)
 }
 
 
-static int subq_sj_candidate_cmp(const void *a, const void *b)
-{
-  Item_exists_subselect* const *el1= pointer_cast<Item_exists_subselect* const*>(a);
-  Item_exists_subselect* const *el2= pointer_cast<Item_exists_subselect* const*>(b);
-  /*
-    Remove this assert when we support semijoin on non-IN subqueries.
-  */
-  DBUG_ASSERT((*el1)->substype() == Item_subselect::IN_SUBS &&
-              (*el2)->substype() == Item_subselect::IN_SUBS);
-  return ((*el1)->sj_convert_priority < (*el2)->sj_convert_priority) ? 1 : 
-         ( ((*el1)->sj_convert_priority == (*el2)->sj_convert_priority)? 0 : -1);
-}
-
-
 /**
   Update table reference information for conditions and expressions due to
   query blocks having been merged in from derived tables/views and due to
@@ -2718,9 +2704,16 @@ bool SELECT_LEX::flatten_subqueries()
       - prefer correlated subqueries over uncorrelated;
       - prefer subqueries that have greater number of outer tables;
   */
-  my_qsort(subq_begin,
-           sj_candidates->size(), sj_candidates->element_size(),
-           subq_sj_candidate_cmp);
+  std::sort(subq_begin, subq_begin + sj_candidates->size(),
+    [](Item_exists_subselect *el1, Item_exists_subselect *el2)
+    {
+      /*
+        Remove this assert when we support semijoin on non-IN subqueries.
+      */
+      DBUG_ASSERT(el1->substype() == Item_subselect::IN_SUBS &&
+                  el2->substype() == Item_subselect::IN_SUBS);
+      return el1->sj_convert_priority > el2->sj_convert_priority;
+    });
 
   // A permanent transformation is going to start, so:
   Prepared_stmt_arena_holder ps_arena_holder(thd);

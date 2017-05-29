@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 package com.mysql.clusterj.tie;
 
 import com.mysql.clusterj.ClusterJFatalInternalException;
+import com.mysql.clusterj.ClusterJUserException;
 import com.mysql.clusterj.core.spi.QueryExecutionContext;
 import com.mysql.clusterj.core.store.ResultData;
 import com.mysql.clusterj.core.store.ScanFilter;
@@ -213,6 +214,9 @@ public abstract class NdbRecordScanOperationImpl extends NdbRecordOperationImpl 
      * Only used for deletePersistentAll to scan the table and delete all rows.
      */
     public int nextResult(boolean fetch) {
+        if (!clusterTransaction.isEnlisted()) {
+            throw new ClusterJUserException(local.message("ERR_Db_Is_Closing"));
+        }
         int result = ((NdbScanOperation)ndbOperation).nextResult(fetch, false);
         clusterTransaction.handleError(result);
         return result;
@@ -222,6 +226,9 @@ public abstract class NdbRecordScanOperationImpl extends NdbRecordOperationImpl 
      * 
      */
     public int nextResultCopyOut(boolean fetch, boolean force) {
+        if (!clusterTransaction.isEnlisted()) {
+            throw new ClusterJUserException(local.message("ERR_Db_Is_Closing"));
+        }
         allocateValueBuffer(false);
         int result = ((NdbScanOperation)ndbOperation).nextResultCopyOut(valueBuffer, fetch, force);
         return result;

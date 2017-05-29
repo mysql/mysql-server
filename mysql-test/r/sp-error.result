@@ -661,7 +661,7 @@ begin
 end|
 show procedure status like 'bug17015%'|
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-test	bug17015_0123456789012345678901234567890123456789012345678901234	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+test	bug17015_0123456789012345678901234567890123456789012345678901234	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 drop procedure bug17015_0123456789012345678901234567890123456789012345678901234|
 drop procedure if exists bug10969|
 create procedure bug10969()
@@ -1075,7 +1075,7 @@ ERROR 3D000: No database selected
 use mysqltest2;
 show procedure status like 'p1';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-mysqltest2	p1	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+mysqltest2	p1	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 drop database mysqltest2;
 use test;
 DROP FUNCTION IF EXISTS bug13012|
@@ -1153,7 +1153,7 @@ call ` bug15658`();
 1
 show procedure status like '%bug15658';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-test	 bug15658	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+test	 bug15658	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 drop procedure ` bug15658`;
 drop function if exists bug14270;
 drop table if exists t1;

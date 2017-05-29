@@ -35,6 +35,7 @@
 #include "gcs_plugin_messages.h"
 #include "member_version.h"
 #include "my_inttypes.h"
+#include "services/notification/notification.h"
 
 /*
   Encoding of the group_replication_enforce_update_everywhere_checks
@@ -100,8 +101,11 @@ public:
     // length of the conflict detection enabled: 1 byte
     PIT_CONFLICT_DETECTION_ENABLE= 13,
 
+    // Length of the payload item: 2 bytes
+    PIT_MEMBER_WEIGHT= 14,
+
     // No valid type codes can appear after this one.
-    PIT_MAX= 14
+    PIT_MAX= 15
   };
 
   /*
@@ -147,6 +151,7 @@ public:
     @param[in] role_arg                               member role within the group
     @param[in] in_single_primary_mode                 is member in single mode
     @param[in] has_enforces_update_everywhere_checks  has member enforce update check
+    @param[in] member_weight_arg                      member_weight
    */
   Group_member_info(char* hostname_arg,
                     uint port_arg,
@@ -158,7 +163,8 @@ public:
                     ulonglong gtid_assignment_block_size_arg,
                     Group_member_info::Group_member_role role_arg,
                     bool in_single_primary_mode,
-                    bool has_enforces_update_everywhere_checks);
+                    bool has_enforces_update_everywhere_checks,
+                    uint member_weight_arg);
 
   /**
     Copy constructor
@@ -301,26 +307,31 @@ public:
   static bool comparator_group_member_uuid(Group_member_info *m1, Group_member_info *m2);
 
   /**
+    @return Compare two members using member weight
+    @note if the weight is same, the member is sorted in
+          lexicographical order using its uuid.
+   */
+  static bool comparator_group_member_weight(Group_member_info *m1, Group_member_info *m2);
+
+  /**
     Return true if member version is higher than other member version
    */
   bool has_greater_version(Group_member_info *other);
 
   /**
-    Return true if server uuid is higher than other member server uuid
+    Return true if server uuid is lower than other member server uuid
    */
-  bool has_greater_uuid(Group_member_info *other);
+  bool has_lower_uuid(Group_member_info *other);
 
   /**
-    Return true if server uuid is equal than other member server uuid
+    Return true if member weight is higher than other member weight
    */
-  bool has_equal_uuid(Group_member_info *other);
+  bool has_greater_weight(Group_member_info *other);
 
   /**
-   Redefinition of operate == and <. They operate upon the uuid
+    Redefinition of operate ==, which operate upon the uuid
    */
   bool operator ==(Group_member_info& other);
-
-  bool operator <(Group_member_info& other);
 
   /**
     Sets this member as unreachable.
@@ -352,6 +363,18 @@ public:
    */
   bool is_conflict_detection_enabled();
 
+  /**
+    Update member weight
+
+    @param[in] new_member_weight  new member_weight to set
+   */
+  void set_member_weight(uint new_member_weight);
+
+  /**
+    Return member weight
+   */
+  uint get_member_weight();
+
 protected:
   void encode_payload(std::vector<unsigned char>* buffer) const;
   void decode_payload(const unsigned char* buffer, const unsigned char*);
@@ -371,6 +394,7 @@ private:
   Group_member_role role;
   uint32 configuration_flags;
   bool conflict_detection_enable;
+  uint member_weight;
 };
 
 
@@ -443,10 +467,12 @@ public:
 
     @param[in] uuid        member uuid
     @param[in] new_status  status to change to
+    @param[in,out] ctx     The notification context to update.
    */
   virtual void
   update_member_status(const std::string& uuid,
-                       Group_member_info::Group_member_status new_status)= 0;
+                       Group_member_info::Group_member_status new_status,
+                       Notification_context& ctx)= 0;
 
   /**
     Updates the GTID sets on a single member
@@ -464,10 +490,12 @@ public:
 
     @param[in] uuid        member uuid
     @param[in] new_role    role to change to
+    @param[in,out] ctx     The notification context to update.
    */
   virtual void
   update_member_role(const std::string& uuid,
-                     Group_member_info::Group_member_role new_role)= 0;
+                     Group_member_info::Group_member_role new_role,
+                     Notification_context& ctx)= 0;
 
   /**
     Encodes this object to send via the network
@@ -492,6 +520,8 @@ public:
   @return true if at least one member has  conflict detection enabled
   */
   virtual bool is_conflict_detection_enabled()= 0;
+
+  virtual void get_primary_member_uuid(std::string &primary_member_uuid)= 0;
 };
 
 
@@ -524,14 +554,16 @@ public:
 
   void
   update_member_status(const std::string& uuid,
-                       Group_member_info::Group_member_status new_status);
+                       Group_member_info::Group_member_status new_status,
+                       Notification_context& ctx);
 
   void update_gtid_sets(const std::string& uuid,
                         std::string& gtid_executed,
                         std::string& gtid_retrieved);
   void
   update_member_role(const std::string& uuid,
-                     Group_member_info::Group_member_role new_role);
+                     Group_member_info::Group_member_role new_role,
+                     Notification_context& ctx);
 
   void encode(std::vector<uchar>* to_encode);
 
@@ -539,6 +571,8 @@ public:
                                           size_t length);
 
   bool is_conflict_detection_enabled();
+
+  void get_primary_member_uuid(std::string &primary_member_uuid);
 
 private:
   void clear_members();

@@ -36,52 +36,24 @@
 
 THR_LOCK table_replication_applier_filters::m_table_lock;
 
-/* clang-format off */
-static const TABLE_FIELD_TYPE field_types[]=
-{
-  {
-    {C_STRING_WITH_LEN("CHANNEL_NAME")},
-    {C_STRING_WITH_LEN("char(64)")},
-    {NULL,0}
-  },
-
-  {
-    {C_STRING_WITH_LEN("FILTER_NAME")},
-    {C_STRING_WITH_LEN("char(64)")},
-    {NULL,0}
-  },
-
-  {
-    {C_STRING_WITH_LEN("FILTER_RULE")},
-    {C_STRING_WITH_LEN("longtext")},
-    {NULL,0}
-  },
-
-  {
-    {C_STRING_WITH_LEN("CONFIGURED_BY")},
-    {C_STRING_WITH_LEN("enum('STARTUP_OPTIONS','CHANGE_REPLICATION_FILTER','STARTUP_OPTIONS_FOR_CHANNEL','CHANGE_REPLICATION_FILTER_FOR_CHANNEL')")},
-    {NULL, 0}
-  },
-
-  {
-    { C_STRING_WITH_LEN("ACTIVE_SINCE") },
-    { C_STRING_WITH_LEN("timestamp") },
-    { NULL, 0}
-  },
-
-  {
-    {C_STRING_WITH_LEN("COUNTER")},
-    {C_STRING_WITH_LEN("bigint(20)")},
-    {NULL, 0}
-  }
-};
-/* clang-format on */
-
-TABLE_FIELD_DEF
-table_replication_applier_filters::m_field_def = {6, field_types};
+Plugin_table table_replication_applier_filters::m_table_def(
+  /* Name */
+  "replication_applier_filters",
+  /* Definition */
+  "  CHANNEL_NAME CHAR(64) collate utf8_general_ci not null,\n"
+  "  FILTER_NAME CHAR(64) collate utf8_general_ci not null,\n"
+  "  FILTER_RULE LONGTEXT not null,\n"
+  "  CONFIGURED_BY ENUM('STARTUP_OPTIONS','CHANGE_REPLICATION_FILTER',\n"
+  "                     'STARTUP_OPTIONS_FOR_CHANNEL',\n"
+  "                     'CHANGE_REPLICATION_FILTER_FOR_CHANNEL') not null,\n"
+  "  ACTIVE_SINCE TIMESTAMP(6) NOT NULL default 0,\n"
+  "  COUNTER bigint(20) unsigned NOT NULL default 0\n",
+  /* Options */
+  " ENGINE=PERFORMANCE_SCHEMA",
+  /* Tablespace */
+  nullptr);
 
 PFS_engine_table_share table_replication_applier_filters::m_share = {
-  {C_STRING_WITH_LEN("replication_applier_filters")},
   &pfs_readonly_acl,
   table_replication_applier_filters::create,
   NULL, /* write_row */
@@ -89,9 +61,8 @@ PFS_engine_table_share table_replication_applier_filters::m_share = {
   table_replication_applier_filters::get_row_count,
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
-  &m_field_def,
-  false, /* checked */
-  false  /* perpetual */
+  &m_table_def,
+  false /* perpetual */
 };
 
 PFS_engine_table *

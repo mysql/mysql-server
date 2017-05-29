@@ -128,7 +128,7 @@ SHOW CREATE TABLE t2;
 
 --echo # Verifying .par and MyISAM files (.MYD, MYI)
 --echo ---- MYSQLD_DATADIR/test
---replace_regex /_[0-9]+\.SDI/_XXX.SDI/
+--replace_regex /_[0-9]+\.sdi/_XXX.sdi/
 --list_files $MYSQLD_DATADIR/test
 --echo ---- MYSQLTEST_VARDIR/mysql-test-data-dir
 --list_files $MYSQLTEST_VARDIR/mysql-test-data-dir
@@ -218,24 +218,24 @@ INSERT INTO t1 VALUES (1);
 ALTER TABLE test.t1 ENGINE= MyISAM REMOVE PARTITIONING;
 
 --echo # datadir/test:
---replace_regex /_[0-9]+\.SDI/_XXX.SDI/
+--replace_regex /_[0-9]+\.sdi/_XXX.sdi/
 --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
 --list_files $MYSQLD_DATADIR/test
 
 --echo # datadir/test2:
---replace_regex /_[0-9]+\.SDI/_XXX.SDI/
+--replace_regex /_[0-9]+\.sdi/_XXX.sdi/
 --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
 --list_files $MYSQLD_DATADIR/test2
 
 ALTER TABLE test2.t1 ENGINE= MyISAM REMOVE PARTITIONING;
 
 --echo # datadir/test:
---replace_regex /_[0-9]+\.SDI/_XXX.SDI/
+--replace_regex /_[0-9]+\.sdi/_XXX.sdi/
 --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
 --list_files $MYSQLD_DATADIR/test
 
 --echo # datadir/test2:
---replace_regex /_[0-9]+\.SDI/_XXX.SDI/
+--replace_regex /_[0-9]+\.sdi/_XXX.sdi/
 --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
 --list_files $MYSQLD_DATADIR/test2
 

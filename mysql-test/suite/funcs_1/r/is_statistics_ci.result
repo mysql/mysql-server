@@ -362,6 +362,7 @@ def	performance_schema	threads	performance_schema	PROCESSLIST_ACCOUNT
 def	performance_schema	threads	performance_schema	PROCESSLIST_HOST
 def	performance_schema	threads	performance_schema	PROCESSLIST_ID
 def	performance_schema	threads	performance_schema	THREAD_OS_ID
+def	performance_schema	user_defined_functions	performance_schema	PRIMARY
 def	performance_schema	user_variables_by_thread	performance_schema	PRIMARY
 def	performance_schema	user_variables_by_thread	performance_schema	PRIMARY
 def	performance_schema	users	performance_schema	USER

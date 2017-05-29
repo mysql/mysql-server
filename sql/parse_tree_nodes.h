@@ -1133,7 +1133,7 @@ public:
     item= new (pc->mem_root) Item_func_set_user_var(name, expr, false);
     if (item == NULL)
       return true;
-    set_var_user *var= new set_var_user(item);
+    set_var_user *var= new (*THR_MALLOC) set_var_user(item);
     if (var == NULL)
       return true;
     thd->lex->var_list.push_back(var);
@@ -1295,7 +1295,7 @@ public:
       user->host.length= sctx_priv_host.length;
     }
 
-    var= new set_var_password(user, const_cast<char *>(password));
+    var= new (*THR_MALLOC) set_var_password(user, const_cast<char *>(password));
     if (var == NULL)
       return true;
     lex->var_list.push_back(var);
@@ -1447,10 +1447,9 @@ public:
     Item *item= new (pc->mem_root) Item_int(value);
     if (item == NULL)
       return true;
-    set_var *var= new set_var(lex->option_type,
-                              find_sys_var(thd, name),
-                              &null_lex_str,
-                              item);
+    set_var *var= new (*THR_MALLOC) set_var(lex->option_type,
+                                            find_sys_var(thd, name),
+                                            &null_lex_str, item);
     if (var == NULL)
       return true;
     lex->var_list.push_back(var);
@@ -1721,8 +1720,8 @@ public:
 
     LEX *lex= pc->thd->lex;
     lex->set_uncacheable(pc->select, UNCACHEABLE_SIDEEFFECT);
-    if (!(lex->exchange= new sql_exchange(file_name, 0)) ||
-        !(lex->result= new Query_result_export(pc->thd, lex->exchange)))
+    if (!(lex->exchange= new (*THR_MALLOC) sql_exchange(file_name, 0)) ||
+        !(lex->result= new (*THR_MALLOC) Query_result_export(pc->thd, lex->exchange)))
       return true;
 
     lex->exchange->cs= charset;
@@ -1756,9 +1755,9 @@ public:
     if (!lex->describe)
     {
       lex->set_uncacheable(pc->select, UNCACHEABLE_SIDEEFFECT);
-      if (!(lex->exchange= new sql_exchange(file_name, 1)))
+      if (!(lex->exchange= new (*THR_MALLOC) sql_exchange(file_name, 1)))
         return true;
-      if (!(lex->result= new Query_result_dump(pc->thd, lex->exchange)))
+      if (!(lex->result= new (*THR_MALLOC) Query_result_dump(pc->thd, lex->exchange)))
         return true;
     }
     return false;

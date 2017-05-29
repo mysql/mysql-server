@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 typedef struct charset_info_st CHARSET_INFO;
 typedef struct st_mem_root MEM_ROOT;
 typedef unsigned int PSI_memory_key;
+extern thread_local MEM_ROOT **THR_MALLOC;
 
 void init_sql_alloc(PSI_memory_key key,
                     MEM_ROOT *root, size_t block_size, size_t pre_alloc_size);

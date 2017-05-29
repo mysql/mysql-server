@@ -29,7 +29,7 @@ Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be r
 Replicate_Do_DB = 'db1,db2,db32,db,3'
 Replicate_Ignore_DB = 'db3'
 Replicate_Do_Table = 'db3.t,db4.t6'
-Replicate_Ignore_Table = 'db5.t8,db3.t3'
+Replicate_Ignore_Table = 'db3.t3,db5.t8'
 Replicate_Wild_Do_Table = 'd%.t%,dbt.t'
 Replicate_Wild_Ignore_Table = 'db%.%'
 Replicate_Rewrite_DB = '(db1,db3),(db4,db5)'

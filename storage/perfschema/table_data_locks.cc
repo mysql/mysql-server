@@ -35,92 +35,36 @@
 
 THR_LOCK table_data_locks::m_table_lock;
 
-/* clang-format off */
-static const TABLE_FIELD_TYPE field_types[]=
-{
-  {
-    { C_STRING_WITH_LEN("ENGINE") },
-    { C_STRING_WITH_LEN("varchar(32)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("ENGINE_LOCK_ID") },
-    { C_STRING_WITH_LEN("varchar(128)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("ENGINE_TRANSACTION_ID") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("THREAD_ID") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("EVENT_ID") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("OBJECT_SCHEMA") },
-    { C_STRING_WITH_LEN("varchar(64)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("OBJECT_NAME") },
-    { C_STRING_WITH_LEN("varchar(64)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("PARTITION_NAME") },
-    { C_STRING_WITH_LEN("varchar(64)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SUBPARTITION_NAME") },
-    { C_STRING_WITH_LEN("varchar(64)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("INDEX_NAME") },
-    { C_STRING_WITH_LEN("varchar(64)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("OBJECT_INSTANCE_BEGIN") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("LOCK_TYPE") },
-    { C_STRING_WITH_LEN("varchar(32)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("LOCK_MODE") },
-    { C_STRING_WITH_LEN("varchar(32)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("LOCK_STATUS") },
-    { C_STRING_WITH_LEN("varchar(32)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("LOCK_DATA") },
-    { C_STRING_WITH_LEN("varchar(8192)") },
-    { NULL, 0}
-  }
-};
-/* clang-format on */
-
-TABLE_FIELD_DEF
-table_data_locks::m_field_def = {15, field_types};
+Plugin_table table_data_locks::m_table_def(
+  /* Name */
+  "data_locks",
+  /* Definition */
+  "  ENGINE VARCHAR(32) not null,\n"
+  "  ENGINE_LOCK_ID VARCHAR(128) not null,\n"
+  "  ENGINE_TRANSACTION_ID BIGINT unsigned,\n"
+  "  THREAD_ID BIGINT unsigned,\n"
+  "  EVENT_ID BIGINT unsigned,\n"
+  "  OBJECT_SCHEMA VARCHAR(64),\n"
+  "  OBJECT_NAME VARCHAR(64),\n"
+  "  PARTITION_NAME VARCHAR(64),\n"
+  "  SUBPARTITION_NAME VARCHAR(64),\n"
+  "  INDEX_NAME VARCHAR(64),\n"
+  "  OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,\n"
+  "  LOCK_TYPE VARCHAR(32) not null,\n"
+  "  LOCK_MODE VARCHAR(32) not null,\n"
+  "  LOCK_STATUS VARCHAR(32) not null,\n"
+  "  LOCK_DATA VARCHAR(8192) CHARACTER SET utf8mb4,\n"
+  "  PRIMARY KEY (ENGINE_LOCK_ID, ENGINE) USING HASH,\n"
+  "  KEY (ENGINE_TRANSACTION_ID, ENGINE) USING HASH,\n"
+  "  KEY (THREAD_ID, EVENT_ID) USING HASH,\n"
+  "  KEY (OBJECT_SCHEMA, OBJECT_NAME, PARTITION_NAME,\n"
+  "       SUBPARTITION_NAME) USING HASH\n",
+  /* Options */
+  " ENGINE=PERFORMANCE_SCHEMA",
+  /* Tablespace */
+  nullptr);
 
 PFS_engine_table_share table_data_locks::m_share = {
-  {C_STRING_WITH_LEN("data_locks")},
   &pfs_readonly_acl,
   table_data_locks::create,
   NULL, /* write_row */
@@ -128,9 +72,8 @@ PFS_engine_table_share table_data_locks::m_share = {
   table_data_locks::get_row_count,
   sizeof(pk_pos_t),
   &m_table_lock,
-  &m_field_def,
-  false, /* checked */
-  false  /* perpetual */
+  &m_table_def,
+  false /* perpetual */
 };
 
 PFS_engine_table *

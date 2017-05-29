@@ -272,6 +272,13 @@ ndb_mgm_set_name(NdbMgmHandle handle, const char *name)
 }
 
 extern "C"
+const char *
+ndb_mgm_get_name(const NdbMgmHandle handle)
+{
+  return handle->m_name;
+}
+
+extern "C"
 int
 ndb_mgm_set_connectstring(NdbMgmHandle handle, const char* connect_string)
 {

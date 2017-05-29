@@ -16,13 +16,14 @@
 
 #include "my_config.h"
 
-#include <my_atomic.h>
 #include <my_sys.h>
 #include <mysql/plugin_audit.h>
 #include <mysql/psi/mysql_thread.h>
 #include <mysql/service_my_plugin_log.h>
 #include <stddef.h>
+
 #include <algorithm>
+#include <atomic>
 #include <new>
 
 #include "my_dbug.h"
@@ -70,7 +71,7 @@ static Rewriter* rewriter;
 ///@{
 
 /// Number of queries that were rewritten.
-static long long status_var_number_rewritten_queries;
+static std::atomic<long long> status_var_number_rewritten_queries;
 
 /// Indicates if there was an error during the last reload.
 static bool status_var_reload_error;
@@ -392,7 +393,7 @@ int rewrite_query_notify(MYSQL_THD thd,
                             "Rewritten query failed to parse:%s\n",
                             mysql_parser_get_query(thd).str);
 
-    my_atomic_add64(&status_var_number_rewritten_queries, 1);
+    ++status_var_number_rewritten_queries;
   }
 
   return 0;

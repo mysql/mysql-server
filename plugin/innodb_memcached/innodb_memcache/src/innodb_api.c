@@ -555,7 +555,7 @@ innodb_api_setup_field_value(
 			if (end_ptr == val_buf) {
 				fprintf(stderr,
 					" InnoDB_Memcached: Unable to convert"
-					" value '%s' to integer\n", value);
+					" value '%s' to integer\n", val_buf);
 				return(DB_ERROR);
 			}
 			err = innodb_api_write_int(tpl, field_id,

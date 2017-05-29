@@ -36,212 +36,57 @@
 
 THR_LOCK table_tiws_by_index_usage::m_table_lock;
 
-/* clang-format off */
-static const TABLE_FIELD_TYPE field_types[]=
-{
-  {
-    { C_STRING_WITH_LEN("OBJECT_TYPE") },
-    { C_STRING_WITH_LEN("varchar(64)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("OBJECT_SCHEMA") },
-    { C_STRING_WITH_LEN("varchar(64)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("OBJECT_NAME") },
-    { C_STRING_WITH_LEN("varchar(64)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("INDEX_NAME") },
-    { C_STRING_WITH_LEN("varchar(64)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("COUNT_STAR") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SUM_TIMER_WAIT") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("MIN_TIMER_WAIT") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("AVG_TIMER_WAIT") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("MAX_TIMER_WAIT") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("COUNT_READ") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SUM_TIMER_READ") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("MIN_TIMER_READ") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("AVG_TIMER_READ") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("MAX_TIMER_READ") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("COUNT_WRITE") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SUM_TIMER_WRITE") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("MIN_TIMER_WRITE") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("AVG_TIMER_WRITE") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("MAX_TIMER_WRITE") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("COUNT_FETCH") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SUM_TIMER_FETCH") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("MIN_TIMER_FETCH") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("AVG_TIMER_FETCH") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("MAX_TIMER_FETCH") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("COUNT_INSERT") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SUM_TIMER_INSERT") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("MIN_TIMER_INSERT") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("AVG_TIMER_INSERT") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("MAX_TIMER_INSERT") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("COUNT_UPDATE") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SUM_TIMER_UPDATE") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("MIN_TIMER_UPDATE") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("AVG_TIMER_UPDATE") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("MAX_TIMER_UPDATE") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("COUNT_DELETE") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SUM_TIMER_DELETE") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("MIN_TIMER_DELETE") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("AVG_TIMER_DELETE") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("MAX_TIMER_DELETE") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  }
-};
-/* clang-format on */
-
-TABLE_FIELD_DEF
-table_tiws_by_index_usage::m_field_def = {39, field_types};
+Plugin_table table_tiws_by_index_usage::m_table_def(
+  /* Name */
+  "table_io_waits_summary_by_index_usage",
+  /* Definition */
+  "  OBJECT_TYPE VARCHAR(64),\n"
+  "  OBJECT_SCHEMA VARCHAR(64),\n"
+  "  OBJECT_NAME VARCHAR(64),\n"
+  "  INDEX_NAME VARCHAR(64),\n"
+  "  COUNT_STAR BIGINT unsigned not null,\n"
+  "  SUM_TIMER_WAIT BIGINT unsigned not null,\n"
+  "  MIN_TIMER_WAIT BIGINT unsigned not null,\n"
+  "  AVG_TIMER_WAIT BIGINT unsigned not null,\n"
+  "  MAX_TIMER_WAIT BIGINT unsigned not null,\n"
+  "  COUNT_READ BIGINT unsigned not null,\n"
+  "  SUM_TIMER_READ BIGINT unsigned not null,\n"
+  "  MIN_TIMER_READ BIGINT unsigned not null,\n"
+  "  AVG_TIMER_READ BIGINT unsigned not null,\n"
+  "  MAX_TIMER_READ BIGINT unsigned not null,\n"
+  "  COUNT_WRITE BIGINT unsigned not null,\n"
+  "  SUM_TIMER_WRITE BIGINT unsigned not null,\n"
+  "  MIN_TIMER_WRITE BIGINT unsigned not null,\n"
+  "  AVG_TIMER_WRITE BIGINT unsigned not null,\n"
+  "  MAX_TIMER_WRITE BIGINT unsigned not null,\n"
+  "  COUNT_FETCH BIGINT unsigned not null,\n"
+  "  SUM_TIMER_FETCH BIGINT unsigned not null,\n"
+  "  MIN_TIMER_FETCH BIGINT unsigned not null,\n"
+  "  AVG_TIMER_FETCH BIGINT unsigned not null,\n"
+  "  MAX_TIMER_FETCH BIGINT unsigned not null,\n"
+  "  COUNT_INSERT BIGINT unsigned not null,\n"
+  "  SUM_TIMER_INSERT BIGINT unsigned not null,\n"
+  "  MIN_TIMER_INSERT BIGINT unsigned not null,\n"
+  "  AVG_TIMER_INSERT BIGINT unsigned not null,\n"
+  "  MAX_TIMER_INSERT BIGINT unsigned not null,\n"
+  "  COUNT_UPDATE BIGINT unsigned not null,\n"
+  "  SUM_TIMER_UPDATE BIGINT unsigned not null,\n"
+  "  MIN_TIMER_UPDATE BIGINT unsigned not null,\n"
+  "  AVG_TIMER_UPDATE BIGINT unsigned not null,\n"
+  "  MAX_TIMER_UPDATE BIGINT unsigned not null,\n"
+  "  COUNT_DELETE BIGINT unsigned not null,\n"
+  "  SUM_TIMER_DELETE BIGINT unsigned not null,\n"
+  "  MIN_TIMER_DELETE BIGINT unsigned not null,\n"
+  "  AVG_TIMER_DELETE BIGINT unsigned not null,\n"
+  "  MAX_TIMER_DELETE BIGINT unsigned not null,\n"
+  "  UNIQUE KEY `OBJECT` (OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME,\n"
+  "                       INDEX_NAME) USING HASH\n",
+  /* Options */
+  " ENGINE=PERFORMANCE_SCHEMA",
+  /* Tablespace */
+  nullptr);
 
 PFS_engine_table_share table_tiws_by_index_usage::m_share = {
-  {C_STRING_WITH_LEN("table_io_waits_summary_by_index_usage")},
   &pfs_truncatable_acl,
   table_tiws_by_index_usage::create,
   NULL, /* write_row */
@@ -249,9 +94,8 @@ PFS_engine_table_share table_tiws_by_index_usage::m_share = {
   table_tiws_by_index_usage::get_row_count,
   sizeof(pos_tiws_by_index_usage),
   &m_table_lock,
-  &m_field_def,
-  false, /* checked */
-  false  /* perpetual */
+  &m_table_def,
+  false /* perpetual */
 };
 
 bool

@@ -47,11 +47,15 @@ public:
 
   ulong get_number_of_keys()
   {
-    return keys_hash.records;
+    return keys_hash->records;
   };
 protected:
   Keys_container(const Keys_container &);
 
+  virtual void allocate_and_set_data_for_key(IKey *key,
+                                             std::string *source_key_type,
+                                             uchar *source_key_data,
+                                             size_t source_key_data_size);
   bool load_keys_from_keyring_storage();
   void free_keys_hash();
   IKey *get_key_from_hash(IKey *key);
@@ -60,8 +64,8 @@ protected:
   virtual bool flush_to_backup();
   virtual bool flush_to_storage(IKey *key, Key_operation operation);
 
-  HASH keys_hash;
-  ILogger* logger;
+  HASH *keys_hash;
+  ILogger *logger;
   IKeyring_io *keyring_io;
   std::string keyring_storage_url;
 };

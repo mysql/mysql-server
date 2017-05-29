@@ -3841,14 +3841,10 @@ bool ask_handler_allowance(THD *thd, TABLE_LIST *tables_used)
     if (tables_used->uses_materialization())
     {
       /*
-        Currently all result tables are MyISAM/Innodb or HEAP. MyISAM/Innodb
-        allows caching unless table is under in a concurrent insert
-        (which never could happen to a derived table). HEAP always allows caching.
+        Skip the derived table itself, but process its underlying tables and
+        other tables that follow.
       */
-      DBUG_ASSERT(table->s->db_type() == heap_hton ||
-                  table->s->db_type() == myisam_hton ||
-                  table->s->db_type() == innodb_hton);
-      DBUG_RETURN(false);
+      continue;
     }
 
     /*

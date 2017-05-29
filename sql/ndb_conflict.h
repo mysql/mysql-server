@@ -527,15 +527,13 @@ is_exceptions_table(const char *table_name);
 
 
 /**
- * show_ndb_conflict_status_vars
- *
- * Function called as part of SHOW STATUS / INFORMATION_SCHEMA
- * tables.
- * This function returns info about ndb_conflict related status
- * vars
- */
-int
-show_ndb_conflict_status_vars(THD *thd, struct st_mysql_show_var *var, char *buff);
+  show_ndb_status_conflict
 
-/* NDB_CONFLICT_H */
+  Called as part of SHOW STATUS or performance_schema
+  queries. Returns info about ndb_conflict related status variables.
+*/
+
+int
+show_ndb_status_conflict(THD* thd, struct st_mysql_show_var* var, char* buff);
+
 #endif

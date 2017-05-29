@@ -111,6 +111,11 @@ class sp_rcontext;
 using std::min;
 using std::max;
 
+static void free_user_var(user_var_entry *entry)
+{
+  entry->destroy();
+}
+
 bool check_reserved_words(LEX_STRING *name)
 {
   if (!my_strcasecmp(system_charset_info, name->str, "GLOBAL") ||
@@ -591,14 +596,15 @@ Field *Item_func::tmp_table_field(TABLE *table)
   switch (result_type()) {
   case INT_RESULT:
     if (max_length > MY_INT32_NUM_DECIMAL_DIGITS)
-      field= new Field_longlong(max_length, maybe_null, item_name.ptr(),
-                                unsigned_flag);
+      field= new (*THR_MALLOC) Field_longlong(max_length, maybe_null,
+                                              item_name.ptr(), unsigned_flag);
     else
-      field= new Field_long(max_length, maybe_null, item_name.ptr(),
-                            unsigned_flag);
+      field= new (*THR_MALLOC) Field_long(max_length, maybe_null,
+                                          item_name.ptr(), unsigned_flag);
     break;
   case REAL_RESULT:
-    field= new Field_double(max_char_length(), maybe_null, item_name.ptr(), decimals);
+    field= new (*THR_MALLOC) Field_double(max_char_length(), maybe_null,
+                                          item_name.ptr(), decimals);
     break;
   case STRING_RESULT:
     return make_string_field(table);
@@ -3391,7 +3397,7 @@ bool Item_func_round::resolve_type(THD *)
   case INT_RESULT:
     if ((!decimals_to_set && truncate) || (args[0]->decimal_precision() < DECIMAL_LONGLONG_DIGITS))
     {
-      int length_can_increase= MY_TEST(!truncate && (val1 < 0) && !val1_unsigned);
+      bool length_can_increase= (!truncate && (val1 < 0) && !val1_unsigned);
       max_length= args[0]->max_length + length_can_increase;
       /* Here we can keep INT_RESULT */
       set_data_type(MYSQL_TYPE_LONGLONG);
@@ -4568,6 +4574,7 @@ void udf_handler::cleanup()
         Udf_func_deinit deinit= u_d->func_deinit;
         (*deinit)(&initid);
       }
+      DEBUG_SYNC(current_thd, "udf_handler_cleanup_sync");
       free_udf(u_d);
       initialized= FALSE;
     }
@@ -5482,34 +5489,22 @@ struct User_level_lock
 };
 
 
-/** Extract a hash key from User_level_lock. */
-
-static const uchar *ull_get_key(const uchar *ptr, size_t *length)
-{
-  const User_level_lock *ull = reinterpret_cast<const User_level_lock*>(ptr);
-  const MDL_key *key = ull->ticket->get_key();
-  *length= key->length();
-  return key->ptr();
-}
-
-
 /**
   Release all user level locks for this THD.
 */
 
 void mysql_ull_cleanup(THD *thd)
 {
-  User_level_lock *ull;
   DBUG_ENTER("mysql_ull_cleanup");
 
-  for (ulong i= 0; i < thd->ull_hash.records; i++)
+  for (const auto &key_and_value : thd->ull_hash)
   {
-    ull= reinterpret_cast<User_level_lock*>(my_hash_element(&thd->ull_hash, i));
+    User_level_lock *ull= key_and_value.second;
     thd->mdl_context.release_lock(ull->ticket);
     my_free(ull);
   }
 
-  my_hash_free(&thd->ull_hash);
+  thd->ull_hash.clear();
 
   DBUG_VOID_RETURN;
 }
@@ -5523,12 +5518,11 @@ void mysql_ull_cleanup(THD *thd)
 
 void mysql_ull_set_explicit_lock_duration(THD *thd)
 {
-  User_level_lock *ull;
   DBUG_ENTER("mysql_ull_set_explicit_lock_duration");
 
-  for (ulong i= 0; i < thd->ull_hash.records; i++)
+  for (const auto &key_and_value : thd->ull_hash)
   {
-    ull= reinterpret_cast<User_level_lock*>(my_hash_element(&thd->ull_hash, i));
+    User_level_lock *ull= key_and_value.second;
     thd->mdl_context.set_lock_duration(ull->ticket, MDL_EXPLICIT);
   }
   DBUG_VOID_RETURN;
@@ -5688,7 +5682,6 @@ longlong Item_func_get_lock::val_int()
   ulonglong timeout= args[1]->val_int();
   char name[NAME_LEN + 1];
   THD *thd= current_thd;
-  User_level_lock *ull;
   DBUG_ENTER("Item_func_get_lock::val_int");
 
   null_value= TRUE;
@@ -5717,25 +5710,17 @@ longlong Item_func_get_lock::val_int()
   if (timeout > INT_MAX32)
     timeout= INT_MAX32;
 
-  /* HASH entries are of type User_level_lock. */
-  if (! my_hash_inited(&thd->ull_hash) &&
-      my_hash_init(&thd->ull_hash, &my_charset_bin,
-                   16 /* small hash */, 0, ull_get_key, nullptr, 0,
-                   key_memory_User_level_lock))
-  {
-    DBUG_RETURN(0);
-  }
-
   MDL_request ull_request;
   MDL_REQUEST_INIT(&ull_request, MDL_key::USER_LEVEL_LOCK, "",
                    name, MDL_EXCLUSIVE, MDL_EXPLICIT);
-  MDL_key *ull_key= &ull_request.key;
+  std::string ull_key(pointer_cast<const char *>(ull_request.key.ptr()),
+                      ull_request.key.length());
 
-  if ((ull= reinterpret_cast<User_level_lock*>
-         (my_hash_search(&thd->ull_hash, ull_key->ptr(), ull_key->length()))))
+  const auto it= thd->ull_hash.find(ull_key);
+  if (it != thd->ull_hash.end())
   {
     /* Recursive lock. */
-    ull->refs++;
+    it->second->refs++;
     null_value= FALSE;
     DBUG_RETURN(1);
   }
@@ -5759,6 +5744,7 @@ longlong Item_func_get_lock::val_int()
     DBUG_RETURN(0);
   }
 
+  User_level_lock *ull= nullptr;
   ull= reinterpret_cast<User_level_lock*>(my_malloc(key_memory_User_level_lock,
                                                     sizeof(User_level_lock),
                                                     MYF(0)));
@@ -5772,13 +5758,7 @@ longlong Item_func_get_lock::val_int()
   ull->ticket= ull_request.ticket;
   ull->refs= 1;
 
-  if (my_hash_insert(&thd->ull_hash, reinterpret_cast<uchar*>(ull)))
-  {
-    thd->mdl_context.release_lock(ull_request.ticket);
-    my_free(ull);
-    DBUG_RETURN(0);
-  }
-
+  thd->ull_hash.emplace(ull_key, ull);
   null_value= FALSE;
 
   DBUG_RETURN(1);
@@ -5831,10 +5811,9 @@ longlong Item_func_release_lock::val_int()
   MDL_key ull_key;
   ull_key.mdl_key_init(MDL_key::USER_LEVEL_LOCK, "", name);
 
-  User_level_lock *ull;
-
-  if (!(ull= reinterpret_cast<User_level_lock*>
-          (my_hash_search(&thd->ull_hash, ull_key.ptr(), ull_key.length()))))
+  const auto it= thd->ull_hash.find(
+    std::string(pointer_cast<const char *>(ull_key.ptr()), ull_key.length()));
+  if (it == thd->ull_hash.end())
   {
     /*
       When RELEASE_LOCK() is called for lock which is not owned by the
@@ -5850,10 +5829,12 @@ longlong Item_func_release_lock::val_int()
 
     DBUG_RETURN(0);
   }
+  User_level_lock *ull= it->second;
+
   null_value= FALSE;
   if (--ull->refs == 0)
   {
-    my_hash_delete(&thd->ull_hash, reinterpret_cast<uchar*>(ull));
+    thd->ull_hash.erase(it);
     thd->mdl_context.release_lock(ull->ticket);
     my_free(ull);
   }
@@ -5884,21 +5865,16 @@ longlong Item_func_release_all_locks::val_int()
   DBUG_ASSERT(fixed == 1);
   THD *thd= current_thd;
   uint result= 0;
-  User_level_lock *ull;
   DBUG_ENTER("Item_func_release_all_locks::val_int");
 
-  if (my_hash_inited(&thd->ull_hash))
+  for (const auto &key_and_value : thd->ull_hash)
   {
-    for (ulong i= 0; i < thd->ull_hash.records; i++)
-    {
-      ull= reinterpret_cast<User_level_lock*>(my_hash_element(&thd->ull_hash,
-                                                              i));
-      thd->mdl_context.release_lock(ull->ticket);
-      result+= ull->refs;
-      my_free(ull);
-    }
-    my_hash_reset(&thd->ull_hash);
+    User_level_lock *ull= key_and_value.second;
+    thd->mdl_context.release_lock(ull->ticket);
+    result+= ull->refs;
+    my_free(ull);
   }
+  thd->ull_hash.clear();
 
   DBUG_RETURN(result);
 }
@@ -5953,7 +5929,7 @@ longlong Item_func_is_free_lock::val_int()
     return 0;
 
   null_value= FALSE;
-  return MY_TEST(get_owner_visitor.get_owner_id() == 0);
+  return (get_owner_visitor.get_owner_id() == 0);
 }
 
 
@@ -6253,7 +6229,7 @@ longlong Item_func_sleep::val_int()
 
   mysql_cond_destroy(&cond);
 
-  return MY_TEST(!error); 		// Return 1 killed
+  return (error == 0); 		// Return 1 killed
 }
 
 /*
@@ -6263,25 +6239,19 @@ longlong Item_func_sleep::val_int()
 static user_var_entry *get_variable(THD *thd, const Name_string &name,
                                     const CHARSET_INFO *cs)
 {
-  user_var_entry *entry;
-  HASH *hash= & thd->user_vars;
+  const std::string key(name.ptr(), name.length());
 
   /* Protects thd->user_vars. */
   mysql_mutex_assert_owner(&thd->LOCK_thd_data);
 
-  if (!(entry= (user_var_entry*) my_hash_search(hash, (uchar*) name.ptr(),
-                                                 name.length())) &&
-        cs != NULL)
+  user_var_entry *entry= find_or_nullptr(thd->user_vars, key);
+  if (entry == nullptr && cs != nullptr)
   {
-    if (!my_hash_inited(hash))
+    entry= user_var_entry::create(thd, name, cs);
+    if (entry == nullptr)
       return 0;
-    if (!(entry= user_var_entry::create(thd, name, cs)))
-      return 0;
-    if (my_hash_insert(hash,(uchar*) entry))
-    {
-      my_free(entry);
-      return 0;
-    }
+    thd->user_vars.emplace(
+      key, unique_ptr_with_deleter<user_var_entry>(entry, &free_user_var));
   }
   return entry;
 }
@@ -6464,7 +6434,7 @@ bool user_var_entry::store(const void *from, size_t length, Item_result type)
   assert_locked();
 
   // Store strings with end \0
-  if (mem_realloc(length + MY_TEST(type == STRING_RESULT)))
+  if (mem_realloc(length + (type == STRING_RESULT)))
     return true;
   if (type == STRING_RESULT)
     m_ptr[length]= 0;     // Store end \0
@@ -7211,9 +7181,9 @@ get_var_with_binlog(THD *thd, enum_sql_command sql_command,
     LEX *sav_lex= thd->lex, lex_tmp;
     thd->lex= &lex_tmp;
     lex_start(thd);
-    tmp_var_list.push_back(new set_var_user(new Item_func_set_user_var(name,
-                                                                       new Item_null(),
-                                                                       false)));
+    tmp_var_list.push_back
+      (new (*THR_MALLOC)
+       set_var_user(new Item_func_set_user_var(name, new Item_null(), false)));
     /* Create the variable */
     if (sql_set_variables(thd, &tmp_var_list, false))
     {
@@ -8266,7 +8236,7 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref)
   if (!master)
   {
     Prepared_stmt_arena_holder ps_arena_holder(thd);
-    hints= new Ft_hints(flags);
+    hints= new (*THR_MALLOC) Ft_hints(flags);
     if (!hints)
     {
       my_error(ER_TABLE_CANT_HANDLE_FT, MYF(0));
@@ -8623,7 +8593,7 @@ Item_func_sp::cleanup()
 {
   if (sp_result_field)
   {
-    delete sp_result_field;
+    destroy(sp_result_field);
     sp_result_field= NULL;
   }
   m_sp= NULL;
@@ -8766,7 +8736,7 @@ bool Item_func_sp::resolve_type(THD *)
   max_length= sp_result_field->field_length;
   collation.set(sp_result_field->charset());
   maybe_null= true;
-  unsigned_flag= MY_TEST(sp_result_field->flags & UNSIGNED_FLAG);
+  unsigned_flag= (sp_result_field->flags & UNSIGNED_FLAG);
 
   DBUG_RETURN(false);
 }
@@ -8787,7 +8757,7 @@ bool Item_func_sp::val_json(Json_wrapper *result)
   }
 
   /* purecov: begin deadcode */
-  DBUG_ABORT();
+  DBUG_ASSERT(false);
   my_error(ER_INVALID_CAST_TO_JSON, MYF(0));
   return error_json();
   /* purecov: end */

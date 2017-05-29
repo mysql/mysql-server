@@ -36,7 +36,6 @@ cursor_by_thread.h
 cursor_by_user.h
 pfs.h
 pfs_account.h
-pfs_atomic.h
 pfs_buffer_container.h
 pfs_builtin_memory.h
 pfs_column_types.h
@@ -146,6 +145,7 @@ table_threads.h
 table_tiws_by_index_usage.h
 table_tiws_by_table.h
 table_tlws_by_table.h
+table_user_defined_functions.h
 table_users.h
 table_uvar_by_thread.h
 table_variables_info.h
@@ -173,7 +173,6 @@ pfs_account.cc
 pfs_autosize.cc
 pfs_buffer_container.cc
 pfs_builtin_memory.cc
-pfs_check.cc
 pfs_column_types.cc
 pfs_column_values.cc
 pfs_con_slice.cc
@@ -279,6 +278,7 @@ table_threads.cc
 table_tiws_by_index_usage.cc
 table_tiws_by_table.cc
 table_tlws_by_table.cc
+table_user_defined_functions.cc
 table_users.cc
 table_uvar_by_thread.cc
 table_variables_info.cc

@@ -66,7 +66,7 @@
 #include "debug_sync.h"                      // DEBUG_SYNC()
 #include "handler.h"
 #include "lex_string.h"
-#include "log.h"                             // sql_print_warning()
+#include "log.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "mdl.h"
@@ -888,11 +888,11 @@ Dictionary_client::Dictionary_client(THD *thd): m_thd(thd),
 Dictionary_client::~Dictionary_client()
 {
   // Release the objects left in the object registry (should be empty).
-  size_t num_released= release();
+  size_t num_released= release(&m_registry_committed);
   DBUG_ASSERT(num_released == 0);
   if (num_released > 0)
   {
-    sql_print_warning("Dictionary objects used but not released.");
+    LogErr(WARNING_LEVEL, ER_DD_OBJECT_REMAINS);
   }
 
   // Delete the additional releasers (should be none).
@@ -900,7 +900,7 @@ Dictionary_client::~Dictionary_client()
          m_current_releaser != &m_default_releaser)
   {
     /* purecov: begin deadcode */
-    sql_print_warning("Dictionary object auto releaser not deleted");
+    LogErr(WARNING_LEVEL, ER_DD_OBJECT_RELEASER_REMAINS);
     DBUG_ASSERT(false);
     delete m_current_releaser;
     /* purecov: end */
@@ -912,7 +912,7 @@ Dictionary_client::~Dictionary_client()
   DBUG_ASSERT(num_released == 0);
   if (num_released > 0)
   {
-    sql_print_warning("Dictionary objects left in default releaser.");
+    LogErr(WARNING_LEVEL, ER_DD_OBJECT_REMAINS_IN_RELEASER);
   }
 }
 
@@ -1445,7 +1445,6 @@ bool Dictionary_client::acquire_uncached_table_by_se_private_id(
 }
 
 // Retrieve a table object by its partition se private id.
-/* purecov: begin deadcode */
 bool Dictionary_client::acquire_uncached_table_by_partition_se_private_id(
                           const String_type &engine,
                           Object_id se_partition_id,
@@ -1478,7 +1477,6 @@ bool Dictionary_client::acquire_uncached_table_by_partition_se_private_id(
 
   return false;
 }
-/* purecov: end */
 
 
 // Get names of index and column names from index statistics entries.
@@ -1692,7 +1690,6 @@ bool Dictionary_client::get_table_name_by_se_private_id(
 
 
 // Retrieve a schema- and table name by the se private id of the partition.
-/* purecov: begin deadcode */
 bool Dictionary_client::get_table_name_by_partition_se_private_id(
                                       const String_type &engine,
                                       Object_id se_partition_id,
@@ -1737,7 +1734,7 @@ bool Dictionary_client::get_table_name_by_partition_se_private_id(
 
   return false;
 }
-/* purecov: end */
+
 
 bool Dictionary_client::get_table_name_by_trigger_name(
                           const Schema &schema,
@@ -1792,27 +1789,6 @@ bool Dictionary_client::get_table_name_by_trigger_name(
 
   return error;
 }
-
-
-// Get the highest currently used se private id for the table objects.
-/* purecov: begin deadcode */
-bool Dictionary_client::get_tables_max_se_private_id(const String_type &engine,
-                                                     Object_id *max_id)
-{
-  dd::Transaction_ro trx(m_thd, ISO_READ_COMMITTED);
-
-  trx.otx.register_tables<dd::Schema>();
-  trx.otx.register_tables<dd::Table>();
-
-  if (trx.otx.open_tables())
-  {
-    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
-    return true;
-  }
-
-  return dd::tables::Tables::max_se_private_id(&trx.otx, engine, max_id);
-}
-/* purecov: end */
 
 
 // Fetch the names of all the components in the schema.
@@ -2137,11 +2113,6 @@ bool Dictionary_client::fetch_fk_children_uncached(
 
   return false;
 }
-
-
-// Mark all objects acquired by this client as not being used anymore.
-size_t Dictionary_client::release()
-{ return release(&m_registry_committed); }
 
 
 // Remove and delete an object from the cache and the dd tables.

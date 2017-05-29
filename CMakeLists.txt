@@ -280,6 +280,7 @@ INCLUDE(install_macros)
 INCLUDE(install_layout)
 INCLUDE(mysql_add_executable)
 INCLUDE(mysqlgcs)
+INCLUDE(curl)
 
 # Handle options
 IF(EXISTS ${CMAKE_SOURCE_DIR}/rapid)
@@ -662,6 +663,8 @@ MYSQL_CHECK_LZ4()
 IF(NOT WITHOUT_SERVER)
   MYSQL_CHECK_PROTOBUF()
 ENDIF()
+# Try and set CURL_LIBRARY
+MYSQL_CHECK_CURL()
 
 IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
   # Check for pthread_setname_np

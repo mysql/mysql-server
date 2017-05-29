@@ -75,22 +75,6 @@ while ($counter <= $num_tables)
     eval SELECT count(*) FROM $tx;
     --enable_query_log
     --enable_result_log
-
-    # Check that old .frm file or .ndb doesn't exist
-    let $file_base = `SELECT CONCAT(@@datadir,
-                                    IF(INSTR('$tx', '.'),
-                                       REPLACE('$tx', '.', '/'),
-                                       CONCAT('ndb_ddl_test/', '$tx')))`;
-
-    let $file_frm = `SELECT CONCAT('$file_base', '.frm')`;
-    #echo file_frm: $file_frm;
-    --error 1
-    --file_exists $file_frm
-
-    let $file_ndb = `SELECT CONCAT('$file_base', '.ndb')`;
-    #echo file_ndb: $file_ndb;
-    --error 1
-    --file_exists $file_ndb
   }
 
   # Check that new name table exists
@@ -108,21 +92,7 @@ while ($counter <= $num_tables)
     die Wrong number of rows in renamed table;
   }
 
-  # Check that new .frm file or .ndb does exist
-  let $file_base = `SELECT CONCAT(@@datadir,
-                                  IF(INSTR('$ty', '.'),
-                                     REPLACE('$ty', '.', '/'),
-                                     CONCAT('ndb_ddl_test/', '$ty')))`;
-
-  let $file_frm = `SELECT CONCAT('$file_base', '.frm')`;
-  #echo file_frm: $file_frm;
-  --file_exists $file_frm
-
-  let $file_ndb = `SELECT CONCAT('$file_base', '.ndb')`;
-  #echo file_ndb: $file_ndb;
-  --file_exists $file_ndb
-
-  # List all objects for the renamed table and store them
+  # List all NDB objects for the renamed table and store them
   # in temporary table in the test database
   let $create_table_name = test.post_$tx;
   let $list_table_name = $ty;

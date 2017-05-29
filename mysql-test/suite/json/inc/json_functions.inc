@@ -3253,6 +3253,7 @@ EXPLAIN SELECT f1->"$.a" FROM t1 WHERE f1->"$.b" > 1 order by autopk;
 SELECT f1->"$.a", f1->"$.b" FROM t1 ORDER BY autopk;
 EXPLAIN SELECT f1->"$.a", f1->"$.b" FROM t1 ORDER BY autopk;
 
+--sorted_result
 SELECT MAX(f1->"$.a"), f1->"$.b" FROM t1 GROUP BY f1->"$.b";
 EXPLAIN SELECT MAX(f1->"$.a"), f1->"$.b" FROM t1 GROUP BY f1->"$.b";
 
@@ -3399,7 +3400,9 @@ DROP TABLE t;
 --echo #
 CREATE TABLE t(j JSON);
 INSERT INTO t VALUES ('{"":"a"}'), ('{"":{"":"a"}}'), ('{"a":{"":{"b":"a"}}}');
+--sorted_result
 SELECT JSON_UNQUOTE(JSON_SEARCH(j, 'one', 'a')) AS path FROM t;
+--sorted_result
 SELECT j->'$.""' AS c1, j->'$."".""' AS c2, j->'$.a."".b' AS c3 FROM t;
 DROP TABLE t;
 --error ER_INVALID_JSON_PATH
@@ -3424,7 +3427,9 @@ INSERT INTO t2 SELECT f2('[1,2,3]');
 CREATE FUNCTION f3(j JSON) RETURNS JSON RETURN j;
 INSERT INTO t1 SELECT f3('[4,5,6]');
 INSERT INTO t2 SELECT f3('[4,5,6]');
+--sorted_result
 SELECT * FROM t1;
+--sorted_result
 SELECT * FROM t2;
 DROP TABLE t1, t2;
 DROP FUNCTION f1;

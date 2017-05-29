@@ -27,6 +27,8 @@
 #include <mysql/components/services/dynamic_privilege.h>
 #include <sql_class.h>
 #include <sys/types.h>
+
+#include <atomic>
 #include <sstream>
 
 #include "lex_string.h"
@@ -44,7 +46,7 @@
 // This global value is initiated with 1 and the corresponding session
 // value with 0. Hence Every session must compare its tokens with the
 // global values when it runs its very first query.
-static volatile int64 session_number= 1;
+static std::atomic<int64> session_number{1};
 static size_t vtoken_string_length;
 
 // This flag is for memory management when the variable
@@ -71,7 +73,7 @@ class atomic_boolean
   /** constants for true and false */
   static const int m_true, m_false;
   /** storage for the boolean's current value */
-  volatile int32 m_value;
+  std::atomic<int32> m_value;
 public:
 
   /**
@@ -95,7 +97,7 @@ public:
   {
     int32 cmp= value ? m_true : m_false, actual_value;
 
-    actual_value= my_atomic_load32(&m_value);
+    actual_value= m_value.load();
 
     return actual_value == cmp;
   }
@@ -108,7 +110,7 @@ public:
   void set(bool new_value)
   {
     int32 new_val= new_value ? m_true : m_false;
-    my_atomic_store32(&m_value, new_val);
+    m_value.store(new_val);
   }
 };
 
@@ -314,8 +316,7 @@ static int parse_vtokens(char *input, enum command type)
   int result= 0;
   THD *thd= current_thd;
   ulonglong thd_session_number= THDVAR(thd, session_number);
-  ulonglong tmp_token_number= (ulonglong)
-                              my_atomic_load64((volatile int64 *) &session_number);
+  ulonglong tmp_token_number= (ulonglong) session_number.load();
 
   bool vtokens_unchanged= (thd_session_number == tmp_token_number);
 
@@ -832,7 +833,7 @@ PLUGIN_EXPORT char *version_tokens_set(UDF_INIT*, UDF_ARGS *args,
   }
   set_vtoken_string_length();
 
-  my_atomic_add64((volatile int64 *) &session_number, 1);
+  ++session_number;
 
   mysql_rwlock_unlock(&LOCK_vtoken_hash);
 
@@ -915,7 +916,7 @@ PLUGIN_EXPORT char *version_tokens_edit(UDF_INIT*, UDF_ARGS *args,
     set_vtoken_string_length();
 
     if (vtokens_count)
-      my_atomic_add64((volatile int64 *) &session_number, 1);
+      ++session_number;
 
     mysql_rwlock_unlock(&LOCK_vtoken_hash);
     my_free(hash_str);
@@ -1018,7 +1019,7 @@ PLUGIN_EXPORT char *version_tokens_delete(UDF_INIT*, UDF_ARGS *args,
 
     if (vtokens_count)
     {
-      my_atomic_add64((volatile int64 *) &session_number, 1);
+      ++session_number;
     }
 
     mysql_rwlock_unlock(&LOCK_vtoken_hash);

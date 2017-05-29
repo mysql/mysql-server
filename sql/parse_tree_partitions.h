@@ -713,6 +713,9 @@ class PT_add_partition : public Parse_tree_node
 
   const bool no_write_to_binlog;
 
+protected:
+  partition_info part_info;
+
 public:
   explicit PT_add_partition(bool no_write_to_binlog)
   : no_write_to_binlog(no_write_to_binlog)
@@ -730,8 +733,6 @@ public:
 class PT_add_partition_def_list : public PT_add_partition
 {
   typedef PT_add_partition super;
-
-  partition_info part_info;
 
   Trivial_array<PT_part_definition *> *def_list;
 
@@ -753,8 +754,6 @@ public:
 class PT_add_partition_num : public PT_add_partition
 {
   typedef PT_add_partition super;
-
-  partition_info part_info;
 
   const uint num_parts;
 

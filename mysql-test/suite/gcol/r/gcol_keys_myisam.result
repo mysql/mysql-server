@@ -528,6 +528,7 @@ Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`gc` AS `gc
 SELECT f1 + 1, MAX(GC) FROM t1 GROUP BY f1 + 1;
 f1 + 1	MAX(GC)
 1	1
+10	10
 2	2
 3	3
 4	4
@@ -536,7 +537,6 @@ f1 + 1	MAX(GC)
 7	7
 8	8
 9	9
-10	10
 EXPLAIN SELECT f1 + 1, MAX(GC) FROM t1 GROUP BY f1 + 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	4	NULL	10	100.00	NULL

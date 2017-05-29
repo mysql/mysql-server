@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -10204,6 +10204,22 @@ Java_com_mysql_ndbjtie_ndbapi_Ndb_1cluster_1connection_set_1name(JNIEnv * env, j
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_Ndb_cluster_connection
+ * Method:    set_service_uri
+ * Signature:
+*/
+JNIEXPORT void JNICALL
+Java_com_mysql_ndbjtie_ndbapi_Ndb_1cluster_1connection_set_1service_1uri(JNIEnv * env, jobject obj, jstring p0, jstring p1, jint p2, jstring p3)
+{
+    TRACE("void Java_com_mysql_ndbjtie_ndbapi_Ndb_1cluster_1connection_set_1service_1uri(JNIEnv *, jobject, jstring, jstring, jint, jstring)");
+#ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+    gcall_mfv< ttrait_c_m_n_n_Ndb_cluster_connection_t, ttrait_char_cp_jutf8null, ttrait_char_cp_jutf8null, ttrait_int, ttrait_char_cp_jutf8null, &Ndb_cluster_connection::set_service_uri >(env, obj, p0, p1, p2, p3);
+#else
+    gcall_fv< ttrait_c_m_n_n_Ndb_cluster_connection_r, ttrait_char_cp_jutf8null, ttrait_char_cp_jutf8null, ttrait_int, ttrait_char_cp_jutf8null, &NdbApiWrapper::Ndb_cluster_connection__set_service_uri >(env, NULL, obj, p0, p1, p2, p3);
+#endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+}
+
+/*
+ * Class:     com_mysql_ndbjtie_ndbapi_Ndb_cluster_connection
  * Method:    set_timeout
  * Signature: (I)I
  */
@@ -10295,6 +10311,22 @@ Java_com_mysql_ndbjtie_ndbapi_Ndb_1cluster_1connection_get_1next_1ndb_1object(JN
     return gcall_mfr< ttrait_c_m_n_n_Ndb_cluster_connection_t, ttrait_c_m_n_n_Ndb_cp, ttrait_c_m_n_n_Ndb_cp, &Ndb_cluster_connection::get_next_ndb_object >(env, obj, p0);
 #else
     return gcall_fr< ttrait_c_m_n_n_Ndb_cp, ttrait_c_m_n_n_Ndb_cluster_connection_r, ttrait_c_m_n_n_Ndb_cp, &NdbApiWrapper::Ndb_cluster_connection__get_next_ndb_object >(env, NULL, obj, p0);
+#endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+}
+
+/*
+ * Class:     com_mysql_ndbjtie_ndbapi_Ndb_cluster_connection
+ * Method:    get_system_name
+ * Signature: ()Ljava/lang/String;
+ */
+JNIEXPORT jstring JNICALL
+Java_com_mysql_ndbjtie_ndbapi_Ndb_1cluster_1connection_get_1system_1name(JNIEnv * env, jobject obj)
+{
+    TRACE("jstring Java_com_mysql_ndbjtie_ndbapi_Ndb_1cluster_1connection_get_1system_1name(JNIEnv *, jobject)");
+#ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+    return gcall_mfr< ttrait_c_m_n_n_Ndb_cluster_connection_ct, ttrait_char_cp_jutf8null, &Ndb_cluster_connection::get_system_name >(env, obj);
+#else
+    return gcall_fr< ttrait_char_cp_jutf8null, ttrait_c_m_n_n_Ndb_cluster_connection_cr, &NdbApiWrapper::Ndb_cluster_connection__get_system_name >(env, NULL, obj);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 

@@ -12,10 +12,17 @@
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
+# Value of TWSE cannot be changed when binlog_transaction_dependency_tracking!= COMMIT_ORDER
+SET @binlog_transaction_dependency_tracking_save= @@GLOBAL.binlog_transaction_dependency_tracking;
+SET GLOBAL binlog_transaction_dependency_tracking= COMMIT_ORDER;
 SET @transaction_write_set_extraction_save= @@GLOBAL.transaction_write_set_extraction;
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
+# Save default value of binlog_transaction_dependency_tracking, change it to
+# COMMIT_ORDER
+SET @binlog_transaction_dependency_tracking_save= @@GLOBAL.binlog_transaction_dependency_tracking;
+SET GLOBAL binlog_transaction_dependency_tracking= COMMIT_ORDER;
 SET @transaction_write_set_extraction_save= @@GLOBAL.transaction_write_set_extraction;
 
 --echo #
@@ -74,10 +81,12 @@ START GROUP_REPLICATION;
 
 --source include/stop_group_replication.inc
 SET GLOBAL transaction_write_set_extraction= @transaction_write_set_extraction_save;
+SET GLOBAL binlog_transaction_dependency_tracking= @binlog_transaction_dependency_tracking_save;
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
 SET GLOBAL transaction_write_set_extraction= @transaction_write_set_extraction_save;
+SET GLOBAL binlog_transaction_dependency_tracking= @binlog_transaction_dependency_tracking_save;
 
 --source ../inc/group_replication_end.inc

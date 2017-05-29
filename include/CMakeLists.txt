@@ -34,6 +34,7 @@ SET(HEADERS
 SET(HEADERS_MYSQL_DIR
   mysql/client_plugin.h
   mysql/plugin_auth_common.h
+  mysql/udf_registration_types.h
 )
 
 INSTALL(FILES ${HEADERS} DESTINATION ${INSTALL_INCLUDEDIR} COMPONENT Development)

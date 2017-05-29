@@ -624,7 +624,7 @@ struct TABLE_SHARE
   TABLE_CATEGORY table_category;
 
   /* hash of field names (contains pointers to elements of field array) */
-  HASH	name_hash;			/* hash of field names */
+  collation_unordered_map<std::string, Field**> *name_hash{nullptr};
   MEM_ROOT mem_root;
   TYPELIB keynames;			/* Pointers to keynames */
   TYPELIB *intervals;			/* pointer to interval info */
@@ -1464,7 +1464,6 @@ public:
      and BLOB field count > 0.
    */
   Blob_mem_storage *blob_storage;
-  GRANT_INFO grant;
   Filesort_info sort;
   partition_info *part_info;            /* Partition related information */
   /* If true, all partitions have been pruned away */
@@ -1888,6 +1887,12 @@ public:
     while performing partial update.
   */
   String *get_partial_update_buffer();
+
+  /**
+    Virtual fields of type BLOB have a flag m_keep_old_value. This flag is set
+    to false for all such fields in this table.
+  */
+  void blobs_need_not_keep_old_value();
 };
 
 
@@ -2733,8 +2738,6 @@ struct TABLE_LIST
   void set_privileges(ulong privilege)
   {
     grant.privilege|= privilege;
-    if (table)
-      table->grant.privilege|= privilege;
   }
   /*
     List of tables local to a subquery or the top-level SELECT (used by
@@ -3568,8 +3571,8 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
                           uint db_stat, uint prgflag, uint ha_open_flags,
                           TABLE *outparam, bool is_create_table,
                           const dd::Table *table_def_param);
-TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, const char *key,
-                               size_t key_length);
+TABLE_SHARE *alloc_table_share(const char *db, const char *table_name,
+                               const char *key, size_t key_length);
 void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
                           size_t key_length,
                           const char *table_name, const char *path,
