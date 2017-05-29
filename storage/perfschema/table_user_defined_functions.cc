@@ -196,7 +196,12 @@ table_user_defined_functions::make_row(const udf_func *entry,
 
   row->m_library_length= (uint) std::min(sizeof(row->m_library) - 1,
                                   entry->dl ? strlen(entry->dl) : 0);
-  memcpy(row->m_library, entry->dl, row->m_library_length);
+  if (entry->dl)
+    memcpy(row->m_library, entry->dl, row->m_library_length);
+  else
+    row->m_library_length= 0;
+  row->m_library[row->m_library_length]= 0;
+
 
   row->m_usage_count= entry->usage_count;
   return 0;
