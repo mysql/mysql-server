@@ -163,6 +163,7 @@ while($i > 0)
 
 --connection master
 --echo *** '3-stmt','3-row' xa-transactions must be in the list ***
+--sorted_result
 XA RECOVER;
 XA COMMIT '3-stmt';
 XA ROLLBACK '3-row';
