@@ -10600,7 +10600,8 @@ Backup::compress_part_pairs(struct BackupFormat::LCPCtlFile *lcpCtlFilePtr,
                             Uint32 num_parts)
 {
   Uint32 total_parts = 0;
-  char *part_array = (char*)&lcpCtlFilePtr->partPairs[0].startPart;
+  unsigned char *part_array =
+    (unsigned char*)&lcpCtlFilePtr->partPairs[0].startPart;
   for (Uint32 part = 0; part < num_parts; part++)
   {
     /**
@@ -10613,13 +10614,13 @@ Backup::compress_part_pairs(struct BackupFormat::LCPCtlFile *lcpCtlFilePtr,
      */
     Uint32 startPart = lcpCtlFilePtr->partPairs[part].startPart;
     Uint32 numParts = lcpCtlFilePtr->partPairs[part].numParts;
-    Uint32 startPart_bit0_3 = startPart & 0xF;
+    Uint32 startPart_bit0_3 = (startPart & 0xF);
     Uint32 startPart_bit4_11 = (startPart >> 4) & 0xFF;
-    Uint32 numParts_bit0_3 = numParts & 0xF;
+    Uint32 numParts_bit0_3 = (numParts & 0xF);
     Uint32 numParts_bit4_11 = (numParts >> 4) & 0xFF;
-    part_array[0] = (char)startPart_bit4_11;
-    part_array[1] = char(startPart_bit0_3 + (numParts_bit0_3 << 4));
-    part_array[2] = (char)numParts_bit4_11;
+    part_array[0] = (unsigned char)startPart_bit4_11;
+    part_array[1] = (unsigned char)(startPart_bit0_3 + (numParts_bit0_3 << 4));
+    part_array[2] = (unsigned char)numParts_bit4_11;
     part_array += 3;
     total_parts += numParts;
   }
@@ -10631,14 +10632,15 @@ Uint32 Backup::decompress_part_pairs(
   Uint32 num_parts)
 {
   Uint32 total_parts = 0;
-  char *part_array = (char*)&lcpCtlFilePtr->partPairs[0].startPart;
+  unsigned char *part_array =
+    (unsigned char*)&lcpCtlFilePtr->partPairs[0].startPart;
   memcpy(c_part_array, part_array, 3 * num_parts);
   for (Uint32 part = 0; part < num_parts; part++)
   {
     Uint32 part_0 = c_part_array[0];
     Uint32 part_1 = c_part_array[1];
     Uint32 part_2 = c_part_array[2];
-    Uint32 startPart = (part_1 & 0xF + (part_0 << 4));
+    Uint32 startPart = ((part_1 & 0xF) + (part_0 << 4));
     Uint32 numParts = (((part_1 >> 4) & 0xF)) + (part_2 << 4);
     lcpCtlFilePtr->partPairs[part].startPart = startPart;
     lcpCtlFilePtr->partPairs[part].numParts = numParts;
