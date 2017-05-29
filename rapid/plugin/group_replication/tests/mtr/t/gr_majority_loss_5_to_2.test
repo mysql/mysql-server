@@ -274,4 +274,18 @@ DROP TABLE t1;
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 DROP TABLE t1;
+
+set session sql_log_bin=0;
+call mtr.add_suppression("The member lost contact with a majority of the members in the group. Until the network is restored.*");
+call mtr.add_suppression("The member resumed contact with a majority of the members in the group.*");
+set session sql_log_bin=1;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+set session sql_log_bin=0;
+call mtr.add_suppression("The member lost contact with a majority of the members in the group. Until the network is restored.*");
+call mtr.add_suppression("The member resumed contact with a majority of the members in the group.*");
+set session sql_log_bin=1;
+
 --source ../inc/group_replication_end.inc
