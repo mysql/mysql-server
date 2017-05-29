@@ -151,6 +151,7 @@ public:
     @param[in] role_arg                               member role within the group
     @param[in] in_single_primary_mode                 is member in single mode
     @param[in] has_enforces_update_everywhere_checks  has member enforce update check
+    @param[in] member_weight_arg                      member_weight
    */
   Group_member_info(char* hostname_arg,
                     uint port_arg,

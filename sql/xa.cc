@@ -65,7 +65,7 @@ static const int MAX_XID_LIST_SIZE= 1024*128;
 
 struct transaction_free_hash
 {
-  void operator() (Transaction_ctx *transaction) const;
+  void operator() (Transaction_ctx *) const;
 };
 
 static bool inited= false;
@@ -1164,7 +1164,7 @@ static inline std::string to_string(const XID &xid)
 /**
   Callback that is called to do cleanup.
 
-  @param ptr  pointer to free
+  @param transaction  pointer to free
 */
 
 void transaction_free_hash::operator() (Transaction_ctx *transaction) const
