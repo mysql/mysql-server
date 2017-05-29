@@ -27,11 +27,11 @@ static const char BACKUP_MAGIC[] = { 'N', 'D', 'B', 'B', 'C', 'K', 'U', 'P' };
 
 struct BackupFormat {
 
-  static const Uint32 NDB_MAX_LCP_PARTS = 512;
+  static const Uint32 NDB_MAX_LCP_PARTS = 2048;
   static const Uint32 NDB_MAX_FILES_PER_LCP = 8;
   static const Uint32 NDB_MAX_LCP_PARTS_PER_ROUND =
     NDB_MAX_LCP_PARTS / NDB_MAX_FILES_PER_LCP;
-  static const Uint32 NDB_MAX_LCP_FILES = 528;
+  static const Uint32 NDB_MAX_LCP_FILES = 2064;
   static const Uint32 NDB_LCP_CTL_FILE_SIZE = 4096;
 
   enum RecordType

@@ -10519,15 +10519,8 @@ Backup::convert_ctl_page_to_host(
   ndbrequire(lcpCtlFilePtr->NumPartPairs > 0);
   ndbrequire(lcpCtlFilePtr->fileHeader.NdbVersion >= NDBD_USE_PARTIAL_LCP);
 
-  Uint32 total_parts = 0;
-  for (Uint32 i = 0; i < lcpCtlFilePtr->NumPartPairs; i++)
-  {
-    struct BackupFormat::PartPair locPartPair;
-    locPartPair.startPart = ntohs(lcpCtlFilePtr->partPairs[i].startPart);
-    locPartPair.numParts = ntohs(lcpCtlFilePtr->partPairs[i].numParts);
-    lcpCtlFilePtr->partPairs[i] = locPartPair;
-    total_parts += locPartPair.numParts;
-  }
+  Uint32 total_parts = decompress_part_pairs(lcpCtlFilePtr,
+                                             lcpCtlFilePtr->NumPartPairs);
   ndbrequire(total_parts <= lcpCtlFilePtr->MaxPartPairs);
   return true;
 }
@@ -10588,20 +10581,7 @@ Backup::convert_ctl_page_to_network(Uint32 *page)
   lcpCtlFilePtr->MaxPartPairs = htonl(lcpCtlFilePtr->MaxPartPairs);
   lcpCtlFilePtr->NumPartPairs = htonl(lcpCtlFilePtr->NumPartPairs);
 
-  Uint32 total_parts = 0;
-  for (Uint32 i = 0; i < numPartPairs; i++)
-  {
-    struct BackupFormat::PartPair locPartPair;
-    Uint16 numParts = lcpCtlFilePtr->partPairs[i].numParts;
-    ndbrequire(lcpCtlFilePtr->partPairs[i].startPart <
-               BackupFormat::NDB_MAX_LCP_PARTS);
-    ndbrequire(lcpCtlFilePtr->partPairs[i].numParts <=
-               BackupFormat::NDB_MAX_LCP_PARTS);
-    locPartPair.startPart = htons(lcpCtlFilePtr->partPairs[i].startPart);
-    locPartPair.numParts = htons(lcpCtlFilePtr->partPairs[i].numParts);
-    lcpCtlFilePtr->partPairs[i] = locPartPair;
-    total_parts += numParts;
-  }
+  Uint32 total_parts = compress_part_pairs(lcpCtlFilePtr, numPartPairs);
   ndbrequire(total_parts <= maxPartPairs);
 
   /* Checksum is calculated on network byte order */
@@ -10613,6 +10593,58 @@ Backup::convert_ctl_page_to_network(Uint32 *page)
     chksum ^= page[i];
   }
   lcpCtlFilePtr->Checksum = chksum;
+}
+
+Uint32
+Backup::compress_part_pairs(struct BackupFormat::LCPCtlFile *lcpCtlFilePtr,
+                            Uint32 num_parts)
+{
+  Uint32 total_parts = 0;
+  char *part_array = (char*)&lcpCtlFilePtr->partPairs[0].startPart;
+  for (Uint32 part = 0; part < num_parts; part++)
+  {
+    /**
+     * Compress the 32 bit by only using 12 bits word. This means that we
+     * can fit up to 2048 parts in 8 kBytes.
+     * The start part uses the first byte to store the upper 8 bits of
+     * 12 bits and bits 0-3 of the second byte is bit 0-3 of the start
+     * part. The number of parts has bit 0-3 stored in bit 4-7 of the
+     * second byte and bit 4-11 stored in the third byte.
+     */
+    Uint32 startPart = lcpCtlFilePtr->partPairs[part].startPart;
+    Uint32 numParts = lcpCtlFilePtr->partPairs[part].numParts;
+    Uint32 startPart_bit0_3 = startPart & 0xF;
+    Uint32 startPart_bit4_11 = (startPart >> 4) & 0xFF;
+    Uint32 numParts_bit0_3 = numParts & 0xF;
+    Uint32 numParts_bit4_11 = (numParts >> 4) & 0xFF;
+    part_array[0] = (char)startPart_bit4_11;
+    part_array[1] = char(startPart_bit0_3 + (numParts_bit0_3 << 4));
+    part_array[2] = (char)numParts_bit4_11;
+    part_array += 3;
+    total_parts += numParts;
+  }
+  return total_parts;
+}
+
+Uint32 Backup::decompress_part_pairs(
+  struct BackupFormat::LCPCtlFile *lcpCtlFilePtr,
+  Uint32 num_parts)
+{
+  Uint32 total_parts = 0;
+  char *part_array = (char*)&lcpCtlFilePtr->partPairs[0].startPart;
+  memcpy(c_part_array, part_array, 3 * num_parts);
+  for (Uint32 part = 0; part < num_parts; part++)
+  {
+    Uint32 part_0 = c_part_array[0];
+    Uint32 part_1 = c_part_array[1];
+    Uint32 part_2 = c_part_array[2];
+    Uint32 startPart = (part_1 & 0xF + (part_0 << 4));
+    Uint32 numParts = (((part_1 >> 4) & 0xF)) + (part_2 << 4);
+    lcpCtlFilePtr->partPairs[part].startPart = startPart;
+    lcpCtlFilePtr->partPairs[part].numParts = numParts;
+    total_parts += numParts;
+  }
+  return total_parts;
 }
 
 void
