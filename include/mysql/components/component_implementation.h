@@ -73,6 +73,19 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
   in example_services.h and are s_mysql_greetings,
   s_mysql_greetings_localization and s_mysql_example_math.
 
+  @section TROUBLESHOOTING Common problems
+
+  -# If you have problem during linking on GCC with similar message:
+
+        ../../../components/mysql_server/component_mysql_server.a(server_component.cc.o):%server_component.cc:imp_...: error: undefined reference to '..._impl::...'
+
+    In such case you should add a new `%init()` method (it can be dummy/empty) to
+    your source file that contains service methods implementations and a call
+    to that method somewhere in mysqld.cc. This will help GCC not to optimize
+    the required object file out of linkage. Take `mysql_string_services_init()`
+    as an example. This applies only to service implementations added to the
+    server component.
+
   @section TUTORIAL Step by step tutorial for creating new Component
   The creation of component is a mean to get some functionality exported for the
   Components infrastructure. It can be divided into several steps:
