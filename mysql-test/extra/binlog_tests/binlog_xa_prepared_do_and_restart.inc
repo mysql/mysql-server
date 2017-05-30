@@ -210,7 +210,9 @@ while ($i < $conn_number)
          SET @@binlog_format = ROW;
       }
     --eval XA START   'trx_$i'
+    --disable_warnings
     --eval INSERT INTO t SET a=$i
+    --enable_warnings
     --eval XA END     'trx_$i'
     --eval XA PREPARE 'trx_$i'
 
