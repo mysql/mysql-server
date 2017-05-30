@@ -568,6 +568,10 @@ sub make_byte {
       $val = $fesc.'0';
       last;
     }
+    if ($x == 032) {    # XXX windows only
+      $val = $fesc.'Z';
+      last;
+    }
     if ($x == ord($fter)) {
       if ($opts->{quote}) {
         $val = $fter;

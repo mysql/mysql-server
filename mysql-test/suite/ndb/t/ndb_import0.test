@@ -117,6 +117,14 @@ select count(*) from t2 x, t2ver y
 where x.a = y.a
 and (x.b = y.b or (x.b is null and y.b is null));
 
+# to check result diff
+--disable_query_log
+eval select * from t2 order by a
+  into outfile '$MYSQLTEST_VARDIR/tmp/t2.out';
+eval select * from t2ver order by a
+  into outfile '$MYSQLTEST_VARDIR/tmp/t2ver.out';
+--enable_query_log
+
 --echo # simple hidden-pk test
 
 perl;
