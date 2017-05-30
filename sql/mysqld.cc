@@ -5394,7 +5394,7 @@ int mysqld_main(int argc, char **argv)
   {
     if (chdir("/") < 0)
     {
-      fprintf(stderr, "Cannot change to root director: %s\n",
+      fprintf(stderr, "Cannot change to root directory: %s\n",
                       strerror(errno));
       exit(MYSQLD_ABORT_EXIT);
     }
@@ -5410,10 +5410,14 @@ int mysqld_main(int argc, char **argv)
     if (pipe_write_fd < 0)
     {
       // This is the launching process and the daemon appears to have
-      // started ok, so just flush our error log and exit.
-      flush_error_log_messages();
+      // started ok
       exit(MYSQLD_SUCCESS_EXIT);
     }
+
+    // Need to update the value of current_pid so that it reflects the
+    // pid of the daemon (the previous value was set by unireg_init()
+    // while still in the launcher process.
+    current_pid= static_cast<ulong>(getpid());
   }
 #endif
 

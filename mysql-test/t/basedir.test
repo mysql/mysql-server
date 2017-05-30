@@ -22,7 +22,7 @@ let SHUTDOWN_SQL= $MYSQL_TMP_DIR/shutdown.sql;
 # Need to save this as PWD env var is overriden when invoking perl
 let BDIR= $PWD;
 
-let DEFARGS= --no-defaults --explicit_defaults_for_timestamp --socket=$MYSQL_SOCKET --port=$MYSQL_PORT --log-syslog=0 --skip-ssl;
+let DEFARGS= --no-defaults --explicit_defaults_for_timestamp --socket=$MYSQL_SOCKET --port=$MYSQL_PORT --log-syslog=0 --skip-ssl --secure-file-priv="";
 
 write_file $SHUTDOWN_SQL;
   SHUTDOWN;
@@ -47,6 +47,7 @@ let MYSQLD_ARGS= $DEFARGS --datadir=$DDIR --log-error=$MYSQLD_LOG --init-file=$S
     next if (/InnoDB: Creating foreign key constraint system tables/);
     next if (/No existing UUID has been found/);
     next if (/Gtid table is not ready to be used/);
+    next if (/Insecure configuration for --secure-file-priv/);
     if (/Warning/ || /ERROR/) { print; }
   }
   close(MYSQLD_LOG);
@@ -75,6 +76,7 @@ EOF
   while(<MYSQLD_LOG>)
   {
     #print;
+    next if (/Insecure configuration for --secure-file-priv/);
     if (/Warning/ || /ERROR/) { print; }
   }
   close(MYSQLD_LOG);
@@ -103,6 +105,7 @@ EOF
   open(MYSQLD_LOG, $ENV{'MYSQLD_LOG'});
   while(<MYSQLD_LOG>)
   {
+    next if (/Insecure configuration for --secure-file-priv/);
     if (/Warning/||/ERROR/) { print; }
   }
   close(MYSQLD_LOG);
@@ -159,7 +162,6 @@ EOF
 --echo #
 --echo # Try using -D with relative path
 --echo #
-#--error 1
 
 --perl
   use strict;
@@ -174,6 +176,7 @@ EOF
   open(MYSQLD_LOG, $ENV{'MYSQLD_LOG'});
   while(<MYSQLD_LOG>)
   {
+    next if (/Insecure configuration for --secure-file-priv/);
     if (/Warning/||/ERROR/) { print; }
   }
   close(MYSQLD_LOG);
