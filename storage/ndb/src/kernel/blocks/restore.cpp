@@ -3375,9 +3375,9 @@ Restore::execute_operation(Signal *signal,
       sections.m_cnt++;
     }
     file_ptr.p->m_outstanding_operations++;
-    EXECUTE_DIRECT_SS(DBLQH, GSN_LQHKEYREQ, signal,
-                      LqhKeyReq::FixedSignalLength+pos,
-                      &sections);
+    EXECUTE_DIRECT_WITH_SECTIONS(DBLQH, GSN_LQHKEYREQ, signal,
+                                 LqhKeyReq::FixedSignalLength+pos,
+                                 &sections);
   }
 }
 
