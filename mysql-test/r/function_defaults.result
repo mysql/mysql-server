@@ -902,11 +902,11 @@ CREATE TABLE t2 ( a INT, b DATETIME ON UPDATE CURRENT_TIMESTAMP );
 CREATE VIEW v1 AS SELECT * FROM t1;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a`,`t1`.`b` AS `b` from `t1`	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a`,`t1`.`b` AS `b` from `t1`	utf8mb4	utf8mb4_0900_ai_ci
 CREATE VIEW v2 AS SELECT * FROM t2;
 SHOW CREATE VIEW v2;
 View	Create View	character_set_client	collation_connection
-v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `t2`.`a` AS `a`,`t2`.`b` AS `b` from `t2`	latin1	latin1_swedish_ci
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `t2`.`a` AS `a`,`t2`.`b` AS `b` from `t2`	utf8mb4	utf8mb4_0900_ai_ci
 # 1971-01-31 21:13:57 UTC
 SET TIMESTAMP = 34200837.348564;
 INSERT INTO v1 ( a ) VALUES ( 1 );
@@ -2474,11 +2474,11 @@ CREATE TABLE t2 ( a INT, b DATETIME(6) ON UPDATE CURRENT_TIMESTAMP(6) );
 CREATE VIEW v1 AS SELECT * FROM t1;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a`,`t1`.`b` AS `b` from `t1`	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a`,`t1`.`b` AS `b` from `t1`	utf8mb4	utf8mb4_0900_ai_ci
 CREATE VIEW v2 AS SELECT * FROM t2;
 SHOW CREATE VIEW v2;
 View	Create View	character_set_client	collation_connection
-v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `t2`.`a` AS `a`,`t2`.`b` AS `b` from `t2`	latin1	latin1_swedish_ci
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `t2`.`a` AS `a`,`t2`.`b` AS `b` from `t2`	utf8mb4	utf8mb4_0900_ai_ci
 # 1971-01-31 21:13:57 UTC
 SET TIMESTAMP = 34200837.348564;
 INSERT INTO v1 ( a ) VALUES ( 1 );

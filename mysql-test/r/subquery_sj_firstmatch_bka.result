@@ -7216,7 +7216,8 @@ District char(20) NOT NULL DEFAULT '',
 Population int(11) NOT NULL DEFAULT '0',
 PRIMARY KEY (ID),
 KEY CountryCode (CountryCode)
-) charset utf8mb4;
+);
+set names latin1;
 Fill the table with test data
 This must not use LooseScan:
 EXPLAIN SELECT Name FROM t1 

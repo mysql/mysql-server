@@ -653,6 +653,8 @@ select a as a from t4 union select a from t3;
 select a as a from t1 union select a from t4;
 drop table t1,t2,t3,t4;
 
+--character_set latin1
+set names latin1;
 #
 # Bug #6139 UNION doesn't understand collate in the column of second select
 #

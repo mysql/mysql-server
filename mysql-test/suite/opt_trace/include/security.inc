@@ -9,7 +9,7 @@ eval set global optimizer_trace_max_mem_size=$DEFAULT_TRACE_MEM_SIZE;
 
 connection default;
 select user();
-create database somedb character set latin1;
+create database somedb;
 use somedb;
 create table t1(a varchar(100));
 insert into t1 values("first");

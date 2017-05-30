@@ -1403,7 +1403,7 @@ EXPLAIN
           "query_block": {
             "select_id": 2,
             "cost_info": {
-              "query_cost": "18.70"
+              "query_cost": "49.45"
             },
             "nested_loop": [
               {
@@ -1449,9 +1449,9 @@ EXPLAIN
                   "rows_produced_per_join": 41,
                   "filtered": "100.00",
                   "cost_info": {
-                    "read_cost": "10.25",
+                    "read_cost": "41.00",
                     "eval_cost": "4.10",
-                    "prefix_cost": "18.70",
+                    "prefix_cost": "49.45",
                     "data_read_per_join": "9K"
                   },
                   "used_columns": [
@@ -1784,7 +1784,7 @@ EXPLAIN
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select distinct concat(`test`.`t2`.`c1`,convert(repeat('xx',250) using utf8mb4)) AS `cc` from `test`.`t2`
+Note	1003	/* select#1 */ select distinct concat(`test`.`t2`.`c1`,repeat('xx',250)) AS `cc` from `test`.`t2`
 select distinct concat(c1, repeat('xx', 250)) as cc from t2 order by 1;
 cc
 aabbccxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
@@ -1821,7 +1821,7 @@ EXPLAIN
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select concat(`test`.`t2`.`c1`,convert(repeat('xx',250) using utf8mb4)) AS `cc` from `test`.`t2` group by `cc`
+Note	1003	/* select#1 */ select concat(`test`.`t2`.`c1`,repeat('xx',250)) AS `cc` from `test`.`t2` group by `cc`
 select concat(c1, repeat('xx', 250)) as cc from t2 group by cc order by 1;
 cc
 aabbccxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
@@ -1854,7 +1854,7 @@ EXPLAIN
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select count(distinct concat(`test`.`t2`.`c1`,convert(repeat('xx',250) using utf8mb4))) AS `cc` from `test`.`t2`
+Note	1003	/* select#1 */ select count(distinct concat(`test`.`t2`.`c1`,repeat('xx',250))) AS `cc` from `test`.`t2`
 select count(distinct concat(c1, repeat('xx', 250))) as cc from t2 order by 1;
 cc
 3

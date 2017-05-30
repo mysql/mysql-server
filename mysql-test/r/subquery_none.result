@@ -7039,7 +7039,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	it	NULL	index_subquery	idx_cvk_cvk2_cik,idx_cvk_cik	idx_cvk_cvk2_cik	13	func,const,const	2	100.00	Using where; Using index
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select '1' AS `col_int_nokey` from dual where <in_optimizer>(('x','x'),<exists>(<index_lookup>(<cache>('x') in it on idx_cvk_cvk2_cik where (isnull(`test`.`it`.`col_int_key`) and (<cache>('x') = `test`.`it`.`col_varchar_key`) and (<cache>('x') = `test`.`it`.`col_varchar_key2`)))))
+Note	1003	/* select#1 */ select '1' AS `col_int_nokey` from dual where <in_optimizer>(('x','x'),<exists>(<index_lookup>(<cache>('x') in it on idx_cvk_cvk2_cik where (isnull(`test`.`it`.`col_int_key`) and (<cache>('x') = `test`.`it`.`col_varchar_key`) and ('x' = `test`.`it`.`col_varchar_key2`)))))
 
 DROP TABLE it, ot;
 #

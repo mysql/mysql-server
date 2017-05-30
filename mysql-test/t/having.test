@@ -364,12 +364,14 @@ select * from t1 a, t1 b group by a.s1 having s1 is null;
 
 drop table t1;
 
+set names latin1;
 create table t1 (s1 char character set latin1 collate latin1_german1_ci);
 insert ignore into t1 values ('ü'),('y');
 
 --source include/turn_off_only_full_group_by.inc
 select s1,count(s1) from t1
 group by s1 collate latin1_swedish_ci having s1 = 'y';
+set names utf8mb4;
 # ANSI requires: 1 row, with count(s1) = 2
 # MySQL returns: 1 row, with count(s1) = 1
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc

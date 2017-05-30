@@ -824,10 +824,12 @@ INSERT INTO t2 VALUES ('oe');
 SELECT COUNT(*) FROM (SELECT DISTINCT a FROM t2) dt;
 COUNT(*)
 2
+set names latin1;
 SELECT COUNT(*) FROM 
 (SELECT DISTINCT a FROM t2 WHERE a='oe' COLLATE latin1_german2_ci) dt;
 COUNT(*)
 2
+set names utf8mb4;
 DROP TABLE t1, t2;
 CREATE TABLE t1 (a INT, UNIQUE (a));
 INSERT INTO t1 VALUES (4),(null),(2),(1),(null),(3);

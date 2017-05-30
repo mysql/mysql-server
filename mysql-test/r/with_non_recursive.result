@@ -504,7 +504,7 @@ create view v1 as
 with qn (foo, bar) as (select 1,1) select * from qn;
 show create view v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS with `qn` (`foo`,`bar`) as (select 1 AS `1`,1 AS `1`) select `qn`.`foo` AS `foo`,`qn`.`bar` AS `bar` from `qn`	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS with `qn` (`foo`,`bar`) as (select 1 AS `1`,1 AS `1`) select `qn`.`foo` AS `foo`,`qn`.`bar` AS `bar` from `qn`	utf8mb4	utf8mb4_0900_ai_ci
 show fields from v1;
 Field	Type	Null	Key	Default	Extra
 foo	int(1)	NO		0	
@@ -517,7 +517,7 @@ create view v1 as
 select * from (select 1,1) dt(foo,bar);
 show create view v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `dt`.`foo` AS `foo`,`dt`.`bar` AS `bar` from (select 1 AS `1`,1 AS `1`) `dt` (`foo`,`bar`)	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `dt`.`foo` AS `foo`,`dt`.`bar` AS `bar` from (select 1 AS `1`,1 AS `1`) `dt` (`foo`,`bar`)	utf8mb4	utf8mb4_0900_ai_ci
 select * from v1;
 foo	bar
 1	1
@@ -526,7 +526,7 @@ create view v1 as
 with qn (foo, bar) as (select 1,1 from t1) select * from qn;
 show create view v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS with `qn` (`foo`,`bar`) as (select 1 AS `1`,1 AS `1` from `test`.`t1`) select `qn`.`foo` AS `foo`,`qn`.`bar` AS `bar` from `qn`	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS with `qn` (`foo`,`bar`) as (select 1 AS `1`,1 AS `1` from `test`.`t1`) select `qn`.`foo` AS `foo`,`qn`.`bar` AS `bar` from `qn`	utf8mb4	utf8mb4_0900_ai_ci
 select * from v1;
 foo	bar
 1	1
@@ -536,7 +536,7 @@ create view v1 as
 select * from (select 1,1 from t1) dt(foo,bar);
 show create view v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `dt`.`foo` AS `foo`,`dt`.`bar` AS `bar` from (select 1 AS `1`,1 AS `1` from `test`.`t1`) `dt` (`foo`,`bar`)	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `dt`.`foo` AS `foo`,`dt`.`bar` AS `bar` from (select 1 AS `1`,1 AS `1` from `test`.`t1`) `dt` (`foo`,`bar`)	utf8mb4	utf8mb4_0900_ai_ci
 select * from v1;
 foo	bar
 1	1
@@ -548,7 +548,7 @@ create view v1 as
 select * from (select 1) dt(`select`);
 show create view v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `dt`.`select` AS `select` from (select 1 AS `1`) `dt` (`select`)	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `dt`.`select` AS `select` from (select 1 AS `1`) `dt` (`select`)	utf8mb4	utf8mb4_0900_ai_ci
 select * from v1;
 select
 1
@@ -563,7 +563,7 @@ bar
 2
 show create view v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` (`bar`) AS select 1 AS `foo` group by `foo` union select 2 AS `2` order by `foo`	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` (`bar`) AS select 1 AS `foo` group by `foo` union select 2 AS `2` order by `foo`	utf8mb4	utf8mb4_0900_ai_ci
 # The column's name for the view
 select TABLE_NAME,COLUMN_NAME from information_schema.columns
 where TABLE_SCHEMA='test' and TABLE_NAME='v1';
@@ -614,7 +614,7 @@ select (with qn as (select "with") select * from qn) as scal_subq
 from dual;
 show create view v;
 View	Create View	character_set_client	collation_connection
-v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select (with `qn` as (select 'with' AS `with`) select `qn`.`with` from `qn`) AS `scal_subq`	latin1	latin1_swedish_ci
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select (with `qn` as (select 'with' AS `with`) select `qn`.`with` from `qn`) AS `scal_subq`	utf8mb4	utf8mb4_0900_ai_ci
 select * from v;
 scal_subq
 with
@@ -622,7 +622,7 @@ drop view v;
 create view v as select * from (with qn as (select "with") select * from qn) as dt;
 show create view v;
 View	Create View	character_set_client	collation_connection
-v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select `dt`.`with` AS `with` from (with `qn` as (select 'with' AS `with`) select `qn`.`with` AS `with` from `qn`) `dt`	latin1	latin1_swedish_ci
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select `dt`.`with` AS `with` from (with `qn` as (select 'with' AS `with`) select `qn`.`with` AS `with` from `qn`) `dt`	utf8mb4	utf8mb4_0900_ai_ci
 select * from v;
 with
 with
@@ -1501,7 +1501,7 @@ create view v1 as
 with qn (foo, bar) as (select 1,1) select * from qn;
 show create view v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS with `qn` (`foo`,`bar`) as (select 1 AS `1`,1 AS `1`) select `qn`.`foo` AS `foo`,`qn`.`bar` AS `bar` from `qn`	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS with `qn` (`foo`,`bar`) as (select 1 AS `1`,1 AS `1`) select `qn`.`foo` AS `foo`,`qn`.`bar` AS `bar` from `qn`	utf8mb4	utf8mb4_0900_ai_ci
 show fields from v1;
 Field	Type	Null	Key	Default	Extra
 foo	int(1)	NO		0	
@@ -1514,7 +1514,7 @@ create view v1 as
 select * from (select 1,1) dt(foo,bar);
 show create view v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `dt`.`foo` AS `foo`,`dt`.`bar` AS `bar` from (select 1 AS `1`,1 AS `1`) `dt` (`foo`,`bar`)	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `dt`.`foo` AS `foo`,`dt`.`bar` AS `bar` from (select 1 AS `1`,1 AS `1`) `dt` (`foo`,`bar`)	utf8mb4	utf8mb4_0900_ai_ci
 select * from v1;
 foo	bar
 1	1
@@ -1523,7 +1523,7 @@ create view v1 as
 with qn (foo, bar) as (select 1,1 from t1) select * from qn;
 show create view v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS with `qn` (`foo`,`bar`) as (select 1 AS `1`,1 AS `1` from `test`.`t1`) select `qn`.`foo` AS `foo`,`qn`.`bar` AS `bar` from `qn`	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS with `qn` (`foo`,`bar`) as (select 1 AS `1`,1 AS `1` from `test`.`t1`) select `qn`.`foo` AS `foo`,`qn`.`bar` AS `bar` from `qn`	utf8mb4	utf8mb4_0900_ai_ci
 select * from v1;
 foo	bar
 1	1
@@ -1533,7 +1533,7 @@ create view v1 as
 select * from (select 1,1 from t1) dt(foo,bar);
 show create view v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `dt`.`foo` AS `foo`,`dt`.`bar` AS `bar` from (select 1 AS `1`,1 AS `1` from `test`.`t1`) `dt` (`foo`,`bar`)	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `dt`.`foo` AS `foo`,`dt`.`bar` AS `bar` from (select 1 AS `1`,1 AS `1` from `test`.`t1`) `dt` (`foo`,`bar`)	utf8mb4	utf8mb4_0900_ai_ci
 select * from v1;
 foo	bar
 1	1
@@ -1545,7 +1545,7 @@ create view v1 as
 select * from (select 1) dt(`select`);
 show create view v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `dt`.`select` AS `select` from (select 1 AS `1`) `dt` (`select`)	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `dt`.`select` AS `select` from (select 1 AS `1`) `dt` (`select`)	utf8mb4	utf8mb4_0900_ai_ci
 select * from v1;
 select
 1
@@ -1560,7 +1560,7 @@ bar
 2
 show create view v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` (`bar`) AS select 1 AS `foo` group by `foo` union select 2 AS `2` order by `foo`	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` (`bar`) AS select 1 AS `foo` group by `foo` union select 2 AS `2` order by `foo`	utf8mb4	utf8mb4_0900_ai_ci
 # The column's name for the view
 select TABLE_NAME,COLUMN_NAME from information_schema.columns
 where TABLE_SCHEMA='test' and TABLE_NAME='v1';
@@ -1611,7 +1611,7 @@ select (with qn as (select "with") select * from qn) as scal_subq
 from dual;
 show create view v;
 View	Create View	character_set_client	collation_connection
-v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select (with `qn` as (select 'with' AS `with`) select `qn`.`with` from `qn`) AS `scal_subq`	latin1	latin1_swedish_ci
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select (with `qn` as (select 'with' AS `with`) select `qn`.`with` from `qn`) AS `scal_subq`	utf8mb4	utf8mb4_0900_ai_ci
 select * from v;
 scal_subq
 with
@@ -1619,7 +1619,7 @@ drop view v;
 create view v as select * from (with qn as (select "with") select * from qn) as dt;
 show create view v;
 View	Create View	character_set_client	collation_connection
-v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select `dt`.`with` AS `with` from (with `qn` as (select 'with' AS `with`) select `qn`.`with` AS `with` from `qn`) `dt`	latin1	latin1_swedish_ci
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select `dt`.`with` AS `with` from (with `qn` as (select 'with' AS `with`) select `qn`.`with` AS `with` from `qn`) `dt`	utf8mb4	utf8mb4_0900_ai_ci
 select * from v;
 with
 with

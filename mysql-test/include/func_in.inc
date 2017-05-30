@@ -69,16 +69,18 @@ select * from t1 where a in (b,c);
 select * from t1 where 'a' in (a,b,c);
 select * from t1 where 'a' in (a);
 select * from t1 where a in ('a');
+set names latin1;
 select * from t1 where 'a' collate latin1_general_ci in (a,b,c);
 select * from t1 where 'a' collate latin1_bin in (a,b,c);
 select * from t1 where 'a' in (a,b,c collate latin1_bin);
 explain extended select * from t1 where 'a' in (a,b,c collate latin1_bin);
 drop table t1;
+set names utf8mb4;
 
 set names utf8;
 create table t1 (a char(10) character set utf8 not null);
-insert into t1 values ('bbbb'),(_koi8r'ÃÃÃÃ'),(_latin1'ÄÄÄÄ');
-select a from t1 where a in ('bbbb',_koi8r'ÃÃÃÃ',_latin1'ÄÄÄÄ') order by a;
+insert into t1 values ('bbbb'),(_koi8r x'C3C3C3C3'),(_latin1 x'C4C4C4C4');
+select a from t1 where a in ('bbbb',_koi8r x'C3C3C3C3',_latin1 x'C4C4C4C4') order by a;
 drop table t1;
 # Bug#7834 Illegal mix of collations in IN operator
 create table t1 (a char(10) character set latin1 not null);

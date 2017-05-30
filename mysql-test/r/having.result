@@ -371,6 +371,7 @@ count(s1)
 select * from t1 a, t1 b group by a.s1 having s1 is null;
 ERROR 23000: Column 's1' in having clause is ambiguous
 drop table t1;
+set names latin1;
 create table t1 (s1 char character set latin1 collate latin1_german1_ci);
 insert ignore into t1 values ('ü'),('y');
 Warnings:
@@ -379,6 +380,7 @@ select s1,count(s1) from t1
 group by s1 collate latin1_swedish_ci having s1 = 'y';
 s1	count(s1)
 y	1
+set names utf8mb4;
 drop table t1;
 DROP SCHEMA IF EXISTS HU;
 CREATE SCHEMA HU ;

@@ -2641,7 +2641,7 @@ GROUP BY field1, field2;
 # In GROUP BY, aliases are printed as aliases.
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `alias1`.`col_int_nokey` AS `field1`,(select `alias2`.`col_int_key` from `t1` `alias2` where (`alias1`.`col_varchar_key` <= `alias1`.`col_varchar_nokey`)) AS `field2` from `t1` `alias1` group by `field1`,`field2`	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `alias1`.`col_int_nokey` AS `field1`,(select `alias2`.`col_int_key` from `t1` `alias2` where (`alias1`.`col_varchar_key` <= `alias1`.`col_varchar_nokey`)) AS `field2` from `t1` `alias1` group by `field1`,`field2`	utf8mb4	utf8mb4_0900_ai_ci
 SET @@sql_mode='ONLY_FULL_GROUP_BY';
 SELECT alias1.col_int_nokey AS field1,
 (SELECT alias2.col_int_key

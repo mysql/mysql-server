@@ -663,7 +663,7 @@ aa
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` varchar(2) CHARACTER SET latin1 NOT NULL DEFAULT ''
+  `a` varchar(2) NOT NULL DEFAULT ''
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 create table t1 SELECT 12 as a UNION select "aa" as a;
@@ -674,7 +674,7 @@ aa
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` varchar(2) CHARACTER SET latin1 NOT NULL DEFAULT ''
+  `a` varchar(2) NOT NULL DEFAULT ''
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 create table t1 SELECT 12 as a UNION select 12.2 as a;
@@ -1158,6 +1158,7 @@ a
 No
 aaa,bbb
 drop table t1,t2,t3,t4;
+set names latin1;
 create table t1 as
 (select _latin1'test') union
 (select _latin1'TEST') union

@@ -267,9 +267,9 @@ ERROR 23000: Duplicate entry 'cc' for key 'c'
 insert t1 (t) values ('ttt22');
 ERROR 23000: Duplicate entry 'ttt' for key 't'
 insert t1 (c) values (0xD0B1212322D0B1D0B1D0B1D0B1D0B1);
-ERROR 23000: Duplicate entry '\0431!' for key 'c'
+ERROR 23000: Duplicate entry 'б!' for key 'c'
 insert t1 (t) values (0xD0B1D0B1212322D0B1D0B1D0B1D0B1);
-ERROR 23000: Duplicate entry '\0431\0431!' for key 't'
+ERROR 23000: Duplicate entry 'бб!' for key 't'
 select c from t1 where c='cccc';
 c
 cccc
@@ -278,10 +278,10 @@ t
 tttt
 select c from t1 where c=0xD0B1212223D0B1D0B1D0B1D0B1D0B1;
 c
-?!"#?????
+б!"#ббббб
 select t from t1 where t=0xD0B1D0B1212223D0B1D0B1D0B1D0B1;
 t
-??!"#????
+бб!"#бббб
 drop table t1;
 DROP TABLE IF EXISTS t1;
 Warnings:
