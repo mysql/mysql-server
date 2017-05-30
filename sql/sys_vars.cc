@@ -1060,7 +1060,7 @@ static Sys_var_enum Sys_binlog_row_image(
        "(Default: FULL).",
        SESSION_VAR(binlog_row_image), CMD_LINE(REQUIRED_ARG),
        binlog_row_image_names, DEFAULT(BINLOG_ROW_IMAGE_FULL),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_has_super),
        ON_UPDATE(NULL));
 
 static const char *binlog_row_metadata_names[]= {"MINIMAL", "FULL", NullS};
@@ -1277,7 +1277,8 @@ static Sys_var_bool Sys_binlog_rows_query(
        "binlog_rows_query_log_events",
        "Allow writing of Rows_query_log events into binary log.",
        SESSION_VAR(binlog_rows_query_log_events),
-       CMD_LINE(OPT_ARG), DEFAULT(FALSE));
+       CMD_LINE(OPT_ARG), DEFAULT(FALSE), NO_MUTEX_GUARD,
+       NOT_IN_BINLOG, ON_CHECK(check_has_super));
 
 static Sys_var_bool Sys_binlog_order_commits(
        "binlog_order_commits",
