@@ -471,6 +471,9 @@ int plugin_group_replication_start()
   }
   enabled_super_read_only= true;
 
+  // need to be initialized before applier, is called on kill_pending_transactions
+  blocked_transaction_handler= new Blocked_transaction_handler();
+
   if ((error= initialize_recovery_module()))
     goto err; /* purecov: inspected */
 
@@ -483,7 +486,6 @@ int plugin_group_replication_start()
 
   initialize_asynchronous_channels_observer();
   initialize_group_partition_handler();
-  blocked_transaction_handler= new Blocked_transaction_handler();
 
   DBUG_EXECUTE_IF("group_replication_read_mode_error",
                   { read_mode_handler->set_to_fail(); };);
