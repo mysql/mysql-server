@@ -49,29 +49,6 @@ BEGIN {
   }
 }
 
-BEGIN {
-  # Check backward compatibility support
-  # By setting the environment variable MTR_VERSION
-  # it's possible to use a previous version of
-  # mysql-test-run.pl
-  my $version= $ENV{MTR_VERSION} || 2;
-  if ( $version == 1 )
-  {
-    print "ERROR: Version 1 of mysql-test-run is not supported!\n";
-    exit(1);
-  }
-  elsif ( $version == 2 )
-  {
-    # This is the current version, just continue
-    ;
-  }
-  else
-  {
-    print "ERROR: Version $version of mysql-test-run does not exist!\n";
-    exit(1);
-  }
-}
-
 use lib "lib";
 
 use Cwd;

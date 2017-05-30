@@ -1,8 +1,8 @@
-########## The MySQL Test Framework, Version 2.0 ##########
+########## The MySQL Test Framework ##########
 
 
 /**
-  @page PAGE_MYSQL_TEST_RUN The MySQL Test Framework, Version 2.0
+  @page PAGE_MYSQL_TEST_RUN The MySQL Test Framework
 
   This manual describes the MySQL test framework, consisting of the
   test driver and the test script language.
