@@ -7958,6 +7958,23 @@ static int mysql_init_variables()
   // sandbox build.
   strcat(prg_dev,"/../");     // Remove containing directory to get base dir
   cleanup_dirname(mysql_home, prg_dev);
+
+  // New layout: <cmake_binary_dir>/runtime_output_directory/<buildconfig>/
+  char cmake_binary_dir[FN_REFLEN];
+  size_t dlen= 0;
+  dirname_part(cmake_binary_dir, mysql_home, &dlen);
+  if (dlen > 26U &&
+      (!strcmp(cmake_binary_dir + (dlen - 26), "/runtime_output_directory/") ||
+       !strcmp(cmake_binary_dir + (dlen - 26), "\\runtime_output_directory\\")))
+  {
+    mysql_home[strlen(mysql_home) - 1]= '\0';   // remove trailing
+    dirname_part(cmake_binary_dir, mysql_home, &dlen);
+    strcat(cmake_binary_dir, "sql\\");
+    strmake(mysql_home, cmake_binary_dir, sizeof(mysql_home) - 1);
+  }
+  // The sql_print_information below outputs nothing ??
+  // fprintf(stderr, "mysql_home %s\n", mysql_home);
+  // fflush(stderr);
 #else
   const char *tmpenv= getenv("MY_BASEDIR_VERSION");
   if (tmpenv != nullptr)
@@ -7978,6 +7995,15 @@ static int mysql_init_variables()
                               progdir);
       }
       strmake(mysql_home, progdir, sizeof(mysql_home) - 1);
+    }
+    else if (dlen > 26U &&
+             !strcmp(progdir + (dlen - 26), "/runtime_output_directory/"))
+    {
+      char cmake_binary_dir[FN_REFLEN];
+      progdir[strlen(progdir) - 1]= '\0';       // remove trailing "/"
+      dirname_part(cmake_binary_dir, progdir, &dlen);
+      strcat(cmake_binary_dir, "sql/");
+      strmake(mysql_home, cmake_binary_dir, sizeof(mysql_home) - 1);
     }
     else
     {
