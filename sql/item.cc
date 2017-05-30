@@ -402,8 +402,8 @@ longlong Item::val_date_temporal()
     (mode & MODE_INVALID_DATES ? TIME_INVALID_DATES : 0) |
     (mode & MODE_NO_ZERO_IN_DATE ? TIME_NO_ZERO_IN_DATE : 0) |
     (mode & MODE_NO_ZERO_DATE ? TIME_NO_ZERO_DATE : 0);
-  if ((null_value= get_date(&ltime, flags)))
-    return 0;
+  if (get_date(&ltime, flags))
+    return error_int();
   return TIME_to_longlong_datetime_packed(&ltime);
 }
 
