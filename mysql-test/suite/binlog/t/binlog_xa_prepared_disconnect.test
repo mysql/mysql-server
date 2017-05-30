@@ -9,6 +9,6 @@
 # MIXED mode is chosen because formats are varied inside the sourced tests.
 #
 --source include/have_binlog_format_mixed.inc
-
+CALL mtr.add_suppression("Statement is unsafe because it is being used inside a XA transaction");
 --source extra/binlog_tests/binlog_xa_prepared.test
 
