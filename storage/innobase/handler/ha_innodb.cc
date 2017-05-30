@@ -21050,7 +21050,7 @@ static MYSQL_SYSVAR_BOOL(log_checksums, innodb_log_checksums,
   NULL, innodb_log_checksums_update, TRUE);
 
 static MYSQL_SYSVAR_STR(data_home_dir, innobase_data_home_dir,
-  PLUGIN_VAR_READONLY,
+  PLUGIN_VAR_READONLY | PLUGIN_VAR_NOPERSIST,
   "The common part for InnoDB table spaces.",
   NULL, NULL, NULL);
 
@@ -21180,12 +21180,12 @@ static MYSQL_SYSVAR_ENUM(flush_method, innodb_flush_method,
   &innodb_flush_method_typelib);
 
 static MYSQL_SYSVAR_BOOL(force_load_corrupted, srv_load_corrupted,
-  PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
+  PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_NOPERSIST,
   "Force InnoDB to load metadata of corrupted table.",
   NULL, NULL, FALSE);
 
 static MYSQL_SYSVAR_STR(log_group_home_dir, srv_log_group_home_dir,
-  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_NOPERSIST,
   "Path to InnoDB log files.", NULL, NULL, NULL);
 
 static MYSQL_SYSVAR_ULONG(page_cleaners, srv_n_page_cleaners,
@@ -21418,7 +21418,7 @@ static MYSQL_SYSVAR_BOOL(buffer_pool_load_abort, innodb_buffer_pool_load_abort,
 
 /* there is no point in changing this during runtime, thus readonly */
 static MYSQL_SYSVAR_BOOL(buffer_pool_load_at_startup, srv_buffer_pool_load_at_startup,
-  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_NOPERSIST,
   "Load the buffer pool from a file named @@innodb_buffer_pool_filename",
   NULL, NULL, TRUE);
 
@@ -21546,7 +21546,7 @@ static MYSQL_SYSVAR_ULONG(force_recovery_crash, srv_force_recovery_crash,
 #endif /* UNIV_DEBUG */
 
 static MYSQL_SYSVAR_ULONG(page_size, srv_page_size,
-  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
+  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_NOPERSIST,
   "Page size to use for all InnoDB tablespaces.",
   NULL, NULL, UNIV_PAGE_SIZE_DEF,
   UNIV_PAGE_SIZE_MIN, UNIV_PAGE_SIZE_MAX, 0);
@@ -21624,22 +21624,22 @@ static MYSQL_SYSVAR_ULONG(thread_sleep_delay, srv_thread_sleep_delay,
   1000000L, 0);
 
 static MYSQL_SYSVAR_STR(data_file_path, innobase_data_file_path,
-  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_NOPERSIST,
   "Path to individual files and their sizes.",
   NULL, NULL, NULL);
 
 static MYSQL_SYSVAR_STR(temp_data_file_path, innobase_temp_data_file_path,
-  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_NOPERSIST,
   "Path to files and their sizes making temp-tablespace.",
   NULL, NULL, NULL);
 
 static MYSQL_SYSVAR_STR(undo_directory, srv_undo_dir,
-  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_NOPERSIST,
   "Directory where undo tablespace files live, this path can be absolute.",
   NULL, NULL, NULL);
 
 static MYSQL_SYSVAR_ULONG(undo_tablespaces, srv_undo_tablespaces,
-  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_NOPERSIST,
   "Number of undo tablespaces to use. ",
   NULL, NULL,
   0L,							/* Default seting */
@@ -21704,7 +21704,7 @@ static MYSQL_SYSVAR_LONG(autoinc_lock_mode, innobase_autoinc_lock_mode,
   AUTOINC_NO_LOCKING, 0);	/* Maximum value */
 
 static MYSQL_SYSVAR_STR(version, innodb_version_str,
-  PLUGIN_VAR_NOCMDOPT | PLUGIN_VAR_READONLY,
+  PLUGIN_VAR_NOCMDOPT | PLUGIN_VAR_READONLY | PLUGIN_VAR_NOPERSIST,
   "InnoDB version", NULL, NULL, INNODB_VERSION_STR);
 
 static MYSQL_SYSVAR_BOOL(use_native_aio, srv_use_native_aio,
@@ -21852,7 +21852,7 @@ static MYSQL_SYSVAR_ULONG(compression_pad_pct_max,
   NULL, NULL, 50, 0, 75, 0);
 
 static MYSQL_SYSVAR_BOOL(read_only, srv_read_only_mode,
-  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
+  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_NOPERSIST,
   "Start InnoDB in read only mode (off by default)",
   NULL, NULL, FALSE);
 
@@ -21933,7 +21933,7 @@ static MYSQL_SYSVAR_BOOL(buffer_pool_debug, srv_buf_pool_debug,
 #endif /* UNIV_DEBUG */
 
 static MYSQL_SYSVAR_STR(scan_directories, innobase_scan_directories,
-  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_NOPERSIST,
   "List of directories to scan for missing tablespace files.",
   NULL, NULL, "");
 

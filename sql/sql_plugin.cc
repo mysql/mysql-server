@@ -540,6 +540,8 @@ public:
   ulonglong get_max_value();
   void set_arg_source(get_opt_arg_source *src)
   { source.m_path_name= src->m_path_name; source.m_source= src->m_source; }
+  bool is_non_persistent()
+  { return (plugin_var->flags & PLUGIN_VAR_NOPERSIST); }
 };
 
 
@@ -2236,11 +2238,12 @@ static bool mysql_install_plugin(THD *thd, const LEX_STRING *name,
   TABLE *table;
   bool error= true;
   int argc= orig_argc;
-  char **argv= orig_argv;
+  char **argv= orig_argv, **default_argv= NULL;
   st_plugin_int *tmp= nullptr;
   LEX_CSTRING name_cstr= {name->str, name->length};
   bool store_infoschema_metadata= false;
   dd::Schema_MDL_locker mdl_handler(thd);
+  Persisted_variables_cache *pv= Persisted_variables_cache::get_instance();
 
   DBUG_ENTER("mysql_install_plugin");
 
@@ -2293,9 +2296,22 @@ static bool mysql_install_plugin(THD *thd, const LEX_STRING *name,
     mysql_mutex_unlock(&LOCK_plugin);
     goto err;
   }
+  default_argv= argv;
+  /*
+   Append static variables present in mysqld-auto.cnf file for the
+   newly installed plugin to process those options which are specific
+   to this plugin.
+  */
+  if (pv && pv->append_read_only_variables(&argc, &argv))
+  {
+    mysql_rwlock_unlock(&LOCK_system_variables_hash);
+    report_error(REPORT_TO_USER, ER_PLUGIN_IS_NOT_LOADED, name->str);
+    mysql_mutex_unlock(&LOCK_plugin);
+    goto err;
+  }
   error= plugin_add(thd->mem_root, name, dl, &argc, argv, REPORT_TO_USER);
-  if (argv)
-    free_defaults(argv);
+  if (default_argv)
+    free_defaults(default_argv);
   mysql_rwlock_unlock(&LOCK_system_variables_hash);
 
   if (error || !(tmp= plugin_find_internal(name_cstr, MYSQL_ANY_PLUGIN)))
@@ -3764,7 +3780,6 @@ uchar* sys_var_pluginvar::do_value_ptr(THD *running_thd, THD *target_thd, enum_v
 bool sys_var_pluginvar::do_check(THD *thd, set_var *var)
 {
   st_item_value_holder value;
-  DBUG_ASSERT(!is_readonly());
   DBUG_ASSERT(plugin_var->check);
 
   value.value_type= item_value_type;

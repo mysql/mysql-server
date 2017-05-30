@@ -368,7 +368,7 @@ static struct st_mysql_show_var mecab_status[] =
 };
 
 static MYSQL_SYSVAR_STR(rc_file, mecab_rc_file,
-  PLUGIN_VAR_READONLY,
+  PLUGIN_VAR_READONLY | PLUGIN_VAR_NOPERSIST,
   "MECABRC file path",
   NULL, NULL, NULL);
 

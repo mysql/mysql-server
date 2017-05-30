@@ -87,7 +87,7 @@ static Uint32 opt_ndbinfo_version = NDB_VERSION_D;
 static MYSQL_SYSVAR_UINT(
   version,                          /* name */
   opt_ndbinfo_version,              /* var */
-  PLUGIN_VAR_NOCMDOPT | PLUGIN_VAR_READONLY,
+  PLUGIN_VAR_NOCMDOPT | PLUGIN_VAR_READONLY | PLUGIN_VAR_NOPERSIST,
   "Compile version for ndbinfo",
   NULL,                             /* check func. */
   NULL,                             /* update func. */

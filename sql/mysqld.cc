@@ -3624,9 +3624,6 @@ int init_common_variables()
   }
   if (rpl_filter_map.build_do_and_ignore_table_hashes())
     return 1;
-  /* Once all options are handled we load persisted config file */
-  if (persisted_variables_cache.load_persist_file())
-    return 1;
 
   return 0;
 }
@@ -4928,12 +4925,18 @@ int mysqld_main(int argc, char **argv)
     flush_error_log_messages();
     return 1;
   }
-
-  /* Initialize variables cache for persisted variables */
-  persisted_variables_cache.init();
-
-  my_getopt_use_args_separator= FALSE;
   defaults_argv= argv;
+
+  /*
+   Initialize variables cache for persisted variables, load persisted
+   config file and append read only persisted variables to command line
+   options if present.
+  */
+  if (persisted_variables_cache.init(&argc, &argv) ||
+      persisted_variables_cache.load_persist_file() ||
+      persisted_variables_cache.append_read_only_variables(&argc, &argv))
+    return 1;
+  my_getopt_use_args_separator= FALSE;
   remaining_argc= argc;
   remaining_argv= argv;
 

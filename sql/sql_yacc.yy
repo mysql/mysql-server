@@ -1147,6 +1147,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  LOCKED_SYM                    /* MYSQL */
 %token  NOWAIT_SYM                    /* MYSQL */
 %token  GROUPING_SYM                  /* SQL-2011-R */
+%token  PERSIST_ONLY_SYM              /* MYSQL */
 /*
   Resolve column attribute ambiguity -- force precedence of "UNIQUE KEY" against
   simple "UNIQUE" and "KEY" attributes:
@@ -13667,6 +13668,7 @@ option_value:
 option_type:
           GLOBAL_SYM  { $$=OPT_GLOBAL; }
         | PERSIST_SYM { $$=OPT_PERSIST; }
+        | PERSIST_ONLY_SYM { $$=OPT_PERSIST_ONLY; }
         | LOCAL_SYM   { $$=OPT_SESSION; }
         | SESSION_SYM { $$=OPT_SESSION; }
         ;
@@ -13688,6 +13690,7 @@ opt_var_ident_type:
 opt_set_var_ident_type:
           /* empty */     { $$=OPT_DEFAULT; }
         | PERSIST_SYM '.' { $$=OPT_PERSIST; }
+        | PERSIST_ONLY_SYM '.' {$$=OPT_PERSIST_ONLY; }
         | GLOBAL_SYM '.'  { $$=OPT_GLOBAL; }
         | LOCAL_SYM '.'   { $$=OPT_SESSION; }
         | SESSION_SYM '.' { $$=OPT_SESSION; }

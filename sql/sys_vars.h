@@ -112,6 +112,8 @@ template <typename T, ulong ARGT, enum enum_mysql_show_type SHOWT, bool SIGNED> 
 #define UNTRACKED_DEFAULT sys_var::TRI_LEVEL+
 // this means that Sys_var_charptr initial value was malloc()ed
 #define PREALLOCATED sys_var::ALLOCATED+
+#define NON_PERSIST sys_var::NOTPERSIST+
+
 /*
   Sys_var_bit meaning is reversed, like in
   @@foreign_key_checks <-> OPTION_NO_FOREIGN_KEY_CHECKS
@@ -1237,7 +1239,8 @@ private:
   uint test_flag_mask;
 public:
   Sys_var_test_flag(const char *name_arg, const char *comment, uint mask)
-  : Sys_var_bool(name_arg, comment, READ_ONLY GLOBAL_VAR(test_flag_value),
+  : Sys_var_bool(name_arg, comment, READ_ONLY NON_PERSIST
+          GLOBAL_VAR(test_flag_value),
           NO_CMD_LINE, DEFAULT(FALSE))
   {
     test_flag_mask= mask;

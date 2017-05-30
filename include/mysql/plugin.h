@@ -224,6 +224,8 @@ typedef int (*mysql_show_var_func)(MYSQL_THD, struct st_mysql_show_var*, char *)
 #define PLUGIN_VAR_OPCMDARG     0x2000 /* Argument optional for cmd line */
 #define PLUGIN_VAR_NODEFAULT    0x4000 /* SET DEFAULT is prohibited */
 #define PLUGIN_VAR_MEMALLOC     0x8000 /* String needs memory allocated */
+#define PLUGIN_VAR_NOPERSIST    0x10000 /* SET PERSIST_ONLY is prohibited
+                                           for read only variables */
 
 struct st_mysql_sys_var;
 struct st_mysql_value;
@@ -277,7 +279,7 @@ typedef void (*mysql_var_update_func)(MYSQL_THD thd,
         (PLUGIN_VAR_READONLY | PLUGIN_VAR_NOSYSVAR | \
          PLUGIN_VAR_NOCMDOPT | PLUGIN_VAR_NOCMDARG | \
          PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC | \
-         PLUGIN_VAR_NODEFAULT)
+         PLUGIN_VAR_NODEFAULT | PLUGIN_VAR_NOPERSIST)
 
 #define MYSQL_PLUGIN_VAR_HEADER \
   int flags;                    \

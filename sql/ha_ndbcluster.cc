@@ -13892,7 +13892,7 @@ static Uint32 ndb_version = NDB_VERSION_D;
 static MYSQL_SYSVAR_UINT(
   version,                          /* name */
   ndb_version,                      /* var */
-  PLUGIN_VAR_NOCMDOPT | PLUGIN_VAR_READONLY,
+  PLUGIN_VAR_NOCMDOPT | PLUGIN_VAR_READONLY | PLUGIN_VAR_NOPERSIST,
   "Compile version for ndbcluster",
   NULL,                             /* check func. */
   NULL,                             /* update func. */
@@ -13907,7 +13907,7 @@ static char* ndb_version_string = (char*)NDB_NDB_VERSION_STRING;
 static MYSQL_SYSVAR_STR(
   version_string,                  /* name */
   ndb_version_string,              /* var */
-  PLUGIN_VAR_NOCMDOPT | PLUGIN_VAR_READONLY,
+  PLUGIN_VAR_NOCMDOPT | PLUGIN_VAR_READONLY | PLUGIN_VAR_NOPERSIST,
   "Compile version string for ndbcluster",
   NULL,                             /* check func. */
   NULL,                             /* update func. */

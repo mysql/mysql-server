@@ -3141,15 +3141,15 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
 
 #if !defined(HAVE_YASSL)
 static MYSQL_SYSVAR_STR(private_key_path, auth_rsa_private_key_path,
-        PLUGIN_VAR_READONLY,
+        PLUGIN_VAR_READONLY | PLUGIN_VAR_NOPERSIST,
         "A fully qualified path to the private RSA key used for authentication",
         NULL, NULL, AUTH_DEFAULT_RSA_PRIVATE_KEY);
 static MYSQL_SYSVAR_STR(public_key_path, auth_rsa_public_key_path,
-        PLUGIN_VAR_READONLY,
+        PLUGIN_VAR_READONLY | PLUGIN_VAR_NOPERSIST,
         "A fully qualified path to the public RSA key used for authentication",
         NULL, NULL, AUTH_DEFAULT_RSA_PUBLIC_KEY);
 static MYSQL_SYSVAR_BOOL(auto_generate_rsa_keys, auth_rsa_auto_generate_rsa_keys,
-        PLUGIN_VAR_READONLY | PLUGIN_VAR_OPCMDARG,
+        PLUGIN_VAR_READONLY | PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_NOPERSIST,
         "Auto generate RSA keys at server startup if correpsonding "
         "system variables are not specified and key files are not present "
         "at the default location.",
