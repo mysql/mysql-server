@@ -88,7 +88,7 @@ PFS_file **file_handle_array = NULL;
 PFS_stage_stat *global_instr_class_stages_array = NULL;
 PFS_statement_stat *global_instr_class_statements_array = NULL;
 PFS_histogram global_statements_histogram;
-PFS_memory_stat *global_instr_class_memory_array = NULL;
+std::atomic<PFS_memory_stat*> global_instr_class_memory_array{nullptr};
 
 static PFS_ALIGNED PFS_cacheline_atomic_uint64 thread_internal_id_counter;
 
@@ -235,7 +235,7 @@ init_instruments(const PFS_global_param *param)
                        sizeof(PFS_memory_stat),
                        PFS_memory_stat,
                        MYF(MY_ZEROFILL));
-    if (unlikely(global_instr_class_memory_array == NULL))
+    if (unlikely(global_instr_class_memory_array.load() == nullptr))
     {
       return 1;
     }
@@ -286,7 +286,7 @@ cleanup_instruments(void)
                  memory_class_max,
                  sizeof(PFS_memory_stat),
                  global_instr_class_memory_array);
-  global_instr_class_memory_array = NULL;
+  global_instr_class_memory_array = nullptr;
 }
 
 /** Get hash table key for instrumented files. */
