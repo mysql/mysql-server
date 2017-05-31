@@ -603,7 +603,7 @@ def	test	tb3	f125	8	NULL	YES	tinyblob	255	255	NULL	NULL	NULL	NULL	NULL	tinyblob	
 def	test	tb3	f126	9	NULL	YES	blob	65535	65535	NULL	NULL	NULL	NULL	NULL	blob			select,insert,update,references		
 def	test	tb3	f127	10	NULL	YES	mediumblob	16777215	16777215	NULL	NULL	NULL	NULL	NULL	mediumblob			select,insert,update,references		
 def	test	tb3	f128	11	NULL	YES	longblob	4294967295	4294967295	NULL	NULL	NULL	NULL	NULL	longblob			select,insert,update,references		
-def	test	tb3	f129	12		NO	binary	1	1	NULL	NULL	NULL	NULL	NULL	binary(1)			select,insert,update,references		
+def	test	tb3	f129	12	0x05	NO	binary	1	1	NULL	NULL	NULL	NULL	NULL	binary(1)			select,insert,update,references		
 def	test	tb3	f130	13	99	NO	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(4)			select,insert,update,references		
 def	test	tb3	f131	14	99	NO	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(3) unsigned			select,insert,update,references		
 def	test	tb3	f132	15	099	NO	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(3) unsigned zerofill			select,insert,update,references		

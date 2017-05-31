@@ -2249,3 +2249,26 @@ SELECT create_options, UPPER(create_options),
 SELECT privileges, UPPER(privileges)
   FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 't1';
 DROP TABLE t1;
+
+
+--echo #
+--echo # BUG#24679166: TABLE CREATION WITH BINARY TYPE COLUMN IS RESULTING IN
+--echo #               ASSERT CONDITION FAILURE.
+
+--echo # Without patch, the server exits in debug build and
+--echo # an error is reported in release build.
+CREATE TABLE t1(fld1 BINARY(10) NOT NULL DEFAULT 'a',
+                fld2 BINARY(10) NOT NULL DEFAULT 0xAA,
+                fld3 BINARY(10) NOT NULL DEFAULT 0xA,
+                fld4 BINARY(10) NOT NULL DEFAULT b'1001',
+                fld5 VARBINARY(5) NOT NULL DEFAULT 'a',
+                fld6 VARBINARY(5) NOT NULL DEFAULT 0xAA,
+                fld7 VARBINARY(5) NOT NULL DEFAULT 0xA,
+                fld8 VARBINARY(5) NOT NULL DEFAULT b'1001');
+
+--echo # With the patch, default value is displayed in the hex format.
+SHOW COLUMNS from t1;
+SELECT COLUMN_DEFAULT FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME= 't1';
+
+--echo # Cleanup.
+DROP TABLE t1;
