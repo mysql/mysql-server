@@ -2876,7 +2876,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
   size_t key_length;
   const char *alias= table_list->alias;
   uint flags= ot_ctx->get_flags();
-  MDL_ticket *mdl_ticket;
+  MDL_ticket *mdl_ticket= nullptr;
   int error= 0;
   TABLE_SHARE *share;
 
