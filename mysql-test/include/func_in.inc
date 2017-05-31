@@ -625,7 +625,7 @@ DROP TABLE t1;
 --echo # Bug #11764651-57510: IN(string,real,string) causes invalid read in sort function
 --echo #
 
-SELECT LEFT(ST_GEOMFROMTEXT("POINT(0 0)"),1) IN (@@global.query_cache_type,1,"");
+SELECT LEFT(ST_GEOMFROMTEXT("POINT(0 0)"),1) IN (@@global.max_allowed_packet,1,"");
 
 --echo # End of test BUG#11764651-57510
 
