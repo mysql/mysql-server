@@ -4725,6 +4725,7 @@ static const char* generate_fk_name(const char *table_name,
 static bool prepare_foreign_key(THD *thd,
                                 HA_CREATE_INFO *create_info,
                                 Alter_info *alter_info,
+                                const char *db,
                                 const char *table_name,
                                 KEY *key_info_buffer,
                                 uint key_count,
@@ -4746,7 +4747,7 @@ static bool prepare_foreign_key(THD *thd,
   // not used and that generated columns are not used with
   // SET NULL and ON UPDATE CASCASE. Since this cannot change once
   // the FK has been made, it is enough to check it for new FKs.
-  if (fk_key->validate(thd, table_name, alter_info->create_list))
+  if (fk_key->validate(thd, db, table_name, alter_info->create_list))
     DBUG_RETURN(true);
 
   if (fk_key->name.str)
@@ -4782,7 +4783,11 @@ static bool prepare_foreign_key(THD *thd,
     }
   }
   else
-    fk_info->ref_db= thd->db(); // No schema given, use current schema
+  {
+    // No schema given, use table's schema
+    fk_info->ref_db.str= db;
+    fk_info->ref_db.length= strlen(db);
+  }
 
   fk_info->ref_table= fk_key->ref_table;
   if (lower_case_table_names == 1) // Store lowercase if LCTN = 1
@@ -5419,6 +5424,7 @@ bool mysql_prepare_create_table(THD *thd,
     if (key->type == KEYTYPE_FOREIGN)
     {
       if (prepare_foreign_key(thd, create_info, alter_info,
+                              error_schema_name,
                               error_table_name,
                               *key_info_buffer, *key_count,
                               fk_key_info_buffer, fk_number,
@@ -10852,7 +10858,8 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
    till this point for the alter operation.
   */
   if ((alter_info->flags & Alter_info::ADD_FOREIGN_KEY) &&
-      check_fk_parent_table_access(thd, create_info, alter_info))
+      check_fk_parent_table_access(thd, alter_ctx.new_db,
+                                   create_info, alter_info))
     DBUG_RETURN(true);
 
   /*

@@ -89,7 +89,8 @@ bool foreign_key_prefix(const Key_spec *a, const Key_spec *b)
 }
 
 
-bool Foreign_key_spec::validate(THD *thd, const char *table_name,
+bool Foreign_key_spec::validate(THD *thd,
+                                const char *db, const char *table_name,
                                 List<Create_field> &table_fields) const
 {
   DBUG_ENTER("Foreign_key_spec::validate");
@@ -100,8 +101,8 @@ bool Foreign_key_spec::validate(THD *thd, const char *table_name,
   size_t db_length= ref_db.length;
   if (db_str == nullptr)
   {
-    db_str= thd->db().str;
-    db_length= thd->db().length;
+    db_str= db;
+    db_length= strlen(db);
   }
 
   const dd::Dictionary *dictionary= dd::get_dictionary();
