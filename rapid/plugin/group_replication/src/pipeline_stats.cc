@@ -230,7 +230,7 @@ Pipeline_stats_member_collector::increment_transactions_waiting_apply()
 void
 Pipeline_stats_member_collector::decrement_transactions_waiting_apply()
 {
-  ++m_transactions_waiting_apply;
+  --m_transactions_waiting_apply;
 }
 
 
