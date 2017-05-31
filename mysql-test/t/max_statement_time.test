@@ -6,8 +6,6 @@
 # Save the initial number of concurrent sessions.
 --source include/count_sessions.inc
 
-SET SESSION query_cache_type= 0;
-
 --echo #
 --echo # 1. Test MAX_EXECUTION_TIME option syntax.
 --echo #
