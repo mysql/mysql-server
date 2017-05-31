@@ -151,8 +151,6 @@ INSERT INTO t set c = concat(repeat('x',28),'g','w');
 SELECT c from t ORDER BY c, id;
 --echo ** Results should not be sorted **
 
-RESET QUERY CACHE;
-
 
 --echo '#--------------------FN_DYNVARS_098_04-------------------------#'
 #########################################################

@@ -143,7 +143,6 @@ xxxxxxxxxxxxxxxxxxxxxxxxxxxxrx
 xxxxxxxxxxxxxxxxxxxxxxxxxxxxsy
 xxxxxxxxxxxxxxxxxxxxxxxxxxxxgw
 ** Results should not be sorted **
-RESET QUERY CACHE;
 '#--------------------FN_DYNVARS_098_04-------------------------#'
 SET max_sort_length=29;
 SELECT c from t ORDER BY c, id;

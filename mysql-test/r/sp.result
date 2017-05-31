@@ -2998,28 +2998,6 @@ select @tmp1, @tmp2|
 50	60
 drop procedure bug9598_1|
 drop procedure bug9598_2|
-drop procedure if exists bug9902|
-create function bug9902() returns int(11)
-begin
-set @x = @x + 1;
-return @x;
-end|
-set @qcs1 = @@query_cache_size|
-set global query_cache_size = 102400|
-set @x = 1|
-insert into t1 values ("qc", 42)|
-select bug9902() from t1|
-bug9902()
-2
-select bug9902() from t1|
-bug9902()
-3
-select @x|
-@x
-3
-set global query_cache_size = @qcs1|
-delete from t1|
-drop function bug9902|
 drop function if exists bug9102|
 create function bug9102() returns blob return 'a'|
 select bug9102()|
@@ -7956,58 +7934,6 @@ call bug4902_2()|
 show warnings|
 Level	Code	Message
 drop procedure bug4902_2|
-drop table if exists t1|
-create table t1 (
-id   char(16) not null default '',
-data int not null
-)|
-drop procedure if exists bug3583|
-drop procedure if exists bug3583|
-create procedure bug3583()
-begin
-declare c int;
-select * from t1;
-select count(*) into c from t1;
-select c;
-end|
-insert into t1 values ("x", 3), ("y", 5)|
-set @x = @@query_cache_size|
-set global query_cache_size = 10*1024*1024|
-flush status|
-flush query cache|
-show status like 'Qcache_hits'|
-Variable_name	Value
-Qcache_hits	0
-call bug3583()|
-id	data
-x	3
-y	5
-c
-2
-show status like 'Qcache_hits'|
-Variable_name	Value
-Qcache_hits	0
-call bug3583()|
-id	data
-x	3
-y	5
-c
-2
-call bug3583()|
-id	data
-x	3
-y	5
-c
-2
-show status like 'Qcache_hits'|
-Variable_name	Value
-Qcache_hits	2
-set global query_cache_size = @x|
-flush status|
-flush query cache|
-delete from t1|
-drop procedure bug3583|
-drop table t1|
 drop procedure if exists bug6807|
 create procedure bug6807()
 begin
