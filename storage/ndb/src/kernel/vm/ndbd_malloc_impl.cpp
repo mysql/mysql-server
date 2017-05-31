@@ -494,6 +494,31 @@ Resource_limits::init_resource_spare(Uint32 id, Uint32 pct)
  * Ndbd_mem_manager
  */
 
+int
+Ndbd_mem_manager::PageInterval::compare(const void* px, const void* py)
+{
+  const PageInterval* x = static_cast<const PageInterval*>(px);
+  const PageInterval* y = static_cast<const PageInterval*>(py);
+
+  if (x->start < y->start)
+  {
+    return -1;
+  }
+  if (x->start > y->start)
+  {
+    return +1;
+  }
+  if (x->end < y->end)
+  {
+    return -1;
+  }
+  if (x->end > y->end)
+  {
+    return +1;
+  }
+  return 0;
+}
+
 Uint32
 Ndbd_mem_manager::ndb_log2(Uint32 input)
 {
@@ -511,8 +536,10 @@ Ndbd_mem_manager::ndb_log2(Uint32 input)
 }
 
 Ndbd_mem_manager::Ndbd_mem_manager()
+: m_base_page(NULL),
+  m_mapped_pages_count(0),
+  m_mapped_pages_new_count(0)
 {
-  m_base_page = 0;
   memset(m_buddy_lists, 0, sizeof(m_buddy_lists));
 
   if (sizeof(Free_page_data) != (4 * (1 << FPD_2LOG)))
@@ -847,6 +874,28 @@ Ndbd_mem_manager::map(Uint32 * watchCounter, bool memlock, Uint32 resources[])
   {
     NdbMem_MemLockAll(1);
   }
+
+  /* Note: calls to map() must be serialized by other means. */
+  m_mapped_pages_lock.write_lock();
+  if (m_mapped_pages_new_count != m_mapped_pages_count)
+  {
+    /* Do not support shrinking memory */
+    require(m_mapped_pages_new_count > m_mapped_pages_count);
+
+    qsort(m_mapped_pages,
+          m_mapped_pages_new_count,
+          sizeof(m_mapped_pages[0]),
+          PageInterval::compare);
+
+    /* Validate no overlapping intervals */
+    for (Uint32 i = 1; i < m_mapped_pages_new_count; i++)
+    {
+      require(m_mapped_pages[i - 1].end <= m_mapped_pages[i].start);
+    }
+
+    m_mapped_pages_count = m_mapped_pages_new_count;
+  }
+  m_mapped_pages_lock.write_unlock();
 }
 
 void
@@ -877,15 +926,15 @@ Ndbd_mem_manager::grow(Uint32 start, Uint32 cnt)
     grow((start_bmp + 1) << BPP_2LOG, cnt - tmp);
     return;
   }
-  
-  if ((start + cnt) == ((start_bmp + 1) << BPP_2LOG))
-  {
-    cnt--; // last page is always marked as empty
-  }
-  
+
   for (Uint32 i = 0; i<m_used_bitmap_pages.size(); i++)
     if (m_used_bitmap_pages[i] == start_bmp)
+    {
+      m_mapped_pages[m_mapped_pages_new_count].start = start;
+      m_mapped_pages[m_mapped_pages_new_count].end = start + cnt;
+      m_mapped_pages_new_count++;
       goto found;
+    }
 
   if (start != (start_bmp << BPP_2LOG))
   {
@@ -906,7 +955,13 @@ Ndbd_mem_manager::grow(Uint32 start, Uint32 cnt)
 #ifdef UNIT_TEST
   ndbout_c("creating bitmap page %d", start_bmp);
 #endif
-  
+
+  require(m_mapped_pages_new_count < NDB_ARRAY_SIZE(m_mapped_pages));
+
+  m_mapped_pages[m_mapped_pages_new_count].start = start;
+  m_mapped_pages[m_mapped_pages_new_count].end = start + cnt;
+  m_mapped_pages_new_count++;
+
   {
     Alloc_page* bmp = m_base_page + start;
     memset(bmp, 0, sizeof(Alloc_page));
@@ -914,8 +969,13 @@ Ndbd_mem_manager::grow(Uint32 start, Uint32 cnt)
     start++;
   }
   m_used_bitmap_pages.push_back(start_bmp);
-  
+
 found:
+  if ((start + cnt) == ((start_bmp + 1) << BPP_2LOG))
+  {
+    cnt--; // last page is always marked as empty
+  }
+
   if (cnt)
   {
     mt_mem_manager_lock();

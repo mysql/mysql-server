@@ -29,8 +29,10 @@
 #include <kernel_types.h>
 #include <Bitmask.hpp>
 #include <assert.h>
+#include "NdbSeqLock.hpp"
 #include "Pool.hpp"
 #include <Vector.hpp>
+#include "util/NdbOut.hpp"
 
 #define JAM_FILE_ID 291
 
@@ -68,6 +70,7 @@
 #define BITMAP_WORDS (1 << BMW_2LOG)
 
 #define BPP_2LOG (BMW_2LOG + 5)
+#define PAGE_REGION_MASK ((1 << BPP_2LOG) - 1)
 #define SPACE_PER_BMP_2LOG ((2 + BMW_2LOG) + BPP_2LOG)
 
 #define MAX_ALLOC_PAGES ((1 << BPP_2LOG) - 2)
@@ -173,6 +176,8 @@ public:
     NDB_ZONE_LE_32 = 3,
   };
 
+  void* get_valid_page(Uint32 i) const; /* DO NOT USE see why at definition */
+
   void* alloc_page(Uint32 type, Uint32* i, enum AllocZone, bool locked = false);
   void* alloc_spare_page(Uint32 type, Uint32* i, enum AllocZone);
   void release_page(Uint32 type, Uint32 i, bool locked = false);
@@ -203,6 +208,17 @@ private:
     ZONE_30_BOUND = (1 << 30),
     ZONE_32_BOUND = (RNIL)
   };
+
+  struct PageInterval
+  {
+    PageInterval(Uint32 start = 0, Uint32 end = 0)
+    : start(start), end(end) {}
+    static int compare(const void* x, const void* y);
+
+    Uint32 start; /* inclusive */
+    Uint32 end; /* exclusive */
+  };
+
   static const Uint32 zone_bound[ZONE_COUNT];
   void grow(Uint32 start, Uint32 cnt);
   bool do_virtual_alloc(Uint32 pages,
@@ -219,7 +235,37 @@ private:
   Uint32 m_buddy_lists[ZONE_COUNT][16];
   Resource_limits m_resource_limits;
   Alloc_page * m_base_page;
-  
+  /**
+   * m_mapped_page is used by get_valid_page() to determine what pages are
+   * mapped into memory.
+   *
+   * This is normally not changed but still some thread safety is needed for
+   * the rare cases when changes do happend whenever map() is called.
+   *
+   * A static array is used since pointers can not be protected by NdbSeqLock.
+   *
+   * Normally all page memory are allocated in one big chunk, but in debug mode
+   * with do_virtual_alloc activated there will be at least one chunk per zone.
+   * An arbitrary factor 3 is used to still handle with other unseen allocation
+   * patterns.
+   *
+   * Intervals in m_mapped_pages consists of interval start (inclusive) and
+   * end (exclusive).  No two intervals overlap.  Intervals are sorted on start
+   * page number with lowest number first.
+   */
+  mutable NdbSeqLock m_mapped_pages_lock;
+  Uint32 m_mapped_pages_count;
+  /**
+   * m_mapped_pages[0 to m_mapped_pages_count - 1] is protected by seqlock.
+   * upper part is protected by same means as m_mapped_pages_new_count.
+   */
+  PageInterval m_mapped_pages[ZONE_COUNT * 3];
+  /**
+   * m_mapped_pages_new_count is not protected by seqlock but depends on calls
+   * to grow() via map() is serialized by other means.
+   */
+  Uint32 m_mapped_pages_new_count;
+
   void release_impl(Uint32 zone, Uint32 start, Uint32 cnt);  
   void insert_free_list(Uint32 zone, Uint32 start, Uint32 cnt);
   Uint32 remove_free_list(Uint32 zone, Uint32 start, Uint32 list);
@@ -567,6 +613,100 @@ void Resource_limits::post_alloc_resource_spare(Uint32 id, Uint32 cnt)
  * Ndbd_mem_manager
  */
 
+/**
+ * get_valid_page returns page pointer if requested page is handled by
+ * Ndbd_mem_manager, otherwise it returns NULL.
+ *
+ * Note: Use of function in release code paths should be regarded as bugs.
+ * Accessing a page through a potentially invalid page reference is never a
+ * good idea.
+ *
+ * This function is typically used for converting legacy code using static
+ * arrays of records to dynamically allocated records.
+ * For these static arrays there has been possible to inspect state of freed
+ * records to detemine that they are free.  Still this was a weak way to ensure
+ * if the reference to record actually is to the right version of record.
+ *
+ * In some cases it is used to dump the all records of a kind for debugging
+ * purposes, for these cases this function provides a mean to implement this
+ * in a way to at least minimize risk for memory faults leading to program
+ * exit.
+ *
+ * In any case one should strive to remove this function!
+ */
+inline
+void*
+Ndbd_mem_manager::get_valid_page(Uint32 page_num) const
+{
+#ifdef NDBD_RANDOM_START_PAGE
+  page_num -= g_random_start_page_id;
+#endif
+  const Uint32 page_region_index = page_num & PAGE_REGION_MASK;
+  if (page_region_index == 0 || page_region_index == PAGE_REGION_MASK)
+  {
+    /**
+     * First page in region are used internally for bitmap.
+     * Last page is region is reserved for no use.
+     */
+#ifdef NDBD_RANDOM_START_PAGE
+    ndbout_c("Warning: Ndbd_mem_manager::get_valid_page: internal page %u %u",
+             (page_num + g_random_start_page_id),
+             page_num);
+#else
+    ndbout_c("Warning: Ndbd_mem_manager::get_valid_page: internal page %u",
+             page_num);
+#endif
+#ifdef VM_TRACE
+    abort();
+#endif
+    return NULL;
+  }
+  bool page_is_mapped;
+  Uint32 lock_value;
+  do {
+    lock_value = m_mapped_pages_lock.read_lock();
+
+    Uint32 a = 0; /* inclusive lower limit */
+    Uint32 z = m_mapped_pages_count; /* exclusive upper limit */
+    page_is_mapped = false;
+    while (a < z)
+    {
+      Uint32 i = (a + z) / 2;
+      if (page_num < m_mapped_pages[i].start)
+      {
+        z = i;
+      }
+      else if (page_num < m_mapped_pages[i].end)
+      {
+        page_is_mapped = true;
+        break;
+      }
+      else
+      {
+        a = i + 1;
+      }
+    }
+  } while (!m_mapped_pages_lock.read_unlock(lock_value));
+
+  if (!page_is_mapped)
+  {
+#ifdef NDBD_RANDOM_START_PAGE
+    ndbout_c("Warning: Ndbd_mem_manager::get_valid_page: unmapped page %u %u",
+             (page_num + g_random_start_page_id),
+             page_num);
+#else
+    ndbout_c("Warning: Ndbd_mem_manager::get_valid_page: unmapped page %u",
+             page_num);
+#endif
+#ifdef VM_TRACE
+    abort();
+#endif
+    return NULL;
+  }
+
+  return (void*)(m_base_page + page_num);
+}
+
 inline
 Free_page_data*
 Ndbd_mem_manager::get_free_page_data(Alloc_page* ptr, Uint32 idx)
@@ -680,8 +820,6 @@ Ndbd_mem_manager::check(Uint32 first, Uint32 last)
   ret |= BitmaskImpl::get(BITMAP_WORDS, ptr->m_data, last) << 1;
   return ret;
 }
-
-
 
 #undef JAM_FILE_ID
 

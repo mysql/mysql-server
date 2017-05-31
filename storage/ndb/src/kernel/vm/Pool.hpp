@@ -130,6 +130,8 @@ struct Pool_context
    */
   void release_pages(Uint32 type_id, Uint32 i, Uint32 cnt);
 
+  void* get_valid_page(Uint32 page_num) const;
+
   /**
    * Abort
    */

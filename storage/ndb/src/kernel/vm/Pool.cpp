@@ -74,6 +74,12 @@ Pool_context::get_memroot() const
   return m_block->m_ctx.m_mm.get_memroot();
 }
 
+void*
+Pool_context::get_valid_page(Uint32 page_num) const
+{
+  return m_block->m_ctx.m_mm.get_valid_page(page_num);
+}
+
 void
 Pool_context::handleAbort(int err, const char * msg) const
 {
