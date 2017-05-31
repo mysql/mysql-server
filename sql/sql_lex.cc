@@ -3222,19 +3222,6 @@ void SELECT_LEX::print(THD *thd, String *str, enum_query_type query_type)
     str->append(STRING_WITH_LEN("sql_buffer_result "));
   if (active_options() & OPTION_FOUND_ROWS)
     str->append(STRING_WITH_LEN("sql_calc_found_rows "));
-  switch (sql_cache)
-  {
-    case SQL_NO_CACHE:
-      str->append(STRING_WITH_LEN("sql_no_cache "));
-      break;
-    case SQL_CACHE:
-      str->append(STRING_WITH_LEN("sql_cache "));
-      break;
-    case SQL_CACHE_UNSPECIFIED:
-      break;
-    default:
-      DBUG_ASSERT(0);
-  }
 
   //Item List
   bool first= 1;
