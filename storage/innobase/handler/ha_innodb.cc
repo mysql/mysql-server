@@ -13334,7 +13334,11 @@ create_table_info_t::create_table(
 	if (handler == NULL
 	    && stmt != NULL
 	    && dd_table != nullptr
-	    && !dd_table->foreign_keys().empty()
+	    /* FIXME: NewDD: WL#6049 should add a new call to check if a table
+	    is a parent table of any FK. If the table is not child table, nor
+	    parent table, then it can skip the check:
+	    dd_table->foreign_keys().empty() &&
+	    dd_table->referenced_keys().empty() */
 	) {
 		dberr_t	err = DB_SUCCESS;
 		err = row_table_add_foreign_constraints(

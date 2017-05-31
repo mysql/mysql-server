@@ -144,3 +144,27 @@ WHERE table_name = 't2';
 
 DROP TABLE t2;
 DROP TABLE t1;
+
+--echo #
+--echo # BUG#25976199 GROUP_REPLICATION.GR_FOREIGN_CHECKS_DISABLED TEST FAILING
+--echo # ON PB2
+--echo #
+
+SET foreign_key_checks=0;
+
+CREATE TABLE child_table (c1 INT PRIMARY KEY,
+                          FOREIGN KEY (c1) REFERENCES parent_table(c1));
+
+CREATE TABLE parent_table (c1 INT PRIMARY KEY);
+
+SET foreign_key_checks=1;
+
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN WHERE
+ID='test/child_table_ibfk_1';
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS WHERE
+ID='test/child_table_ibfk_1';
+
+--error 1217
+DROP TABLE parent_table;
+DROP TABLE child_table;
+DROP TABLE parent_table;
