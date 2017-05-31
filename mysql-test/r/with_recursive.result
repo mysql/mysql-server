@@ -949,7 +949,7 @@ union all
 select t2.*, concat(tree_of_a.path,",",t2.id) from t2 join tree_of_a on
 t2.id=tree_of_a.rightpar
 )
-select sql_no_cache * from tree_of_a order by path;
+select * from tree_of_a order by path;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using filesort
 2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where
@@ -969,7 +969,7 @@ union all
 select t2.*, concat(tree_of_a.path,",",t2.id) from t2 join tree_of_a on
 t2.id=tree_of_a.rightpar
 )
-select sql_no_cache * from tree_of_a order by path;
+select * from tree_of_a order by path;
 id	name	leftpar	rightpar	path
 1	A	2	3	1
 2	LA	4	5	1,2
@@ -996,7 +996,7 @@ union all
 select t2.*, concat(tree_of_a.path,",",t2.id) from t2 join tree_of_a on
 t2.id=tree_of_a.rightpar
 )
-select sql_no_cache * from tree_of_a order by path;
+select * from tree_of_a order by path;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using filesort
 2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where
@@ -1016,7 +1016,7 @@ union all
 select t2.*, concat(tree_of_a.path,",",t2.id) from t2 join tree_of_a on
 t2.id=tree_of_a.rightpar
 )
-select sql_no_cache * from tree_of_a order by path;
+select * from tree_of_a order by path;
 id	name	leftpar	rightpar	path
 1	A	2	3	1
 2	LA	4	5	1,2
@@ -1044,7 +1044,7 @@ union all
 select t2.*, concat(tree_of_a.path,",",t2.id) from t2 join tree_of_a on
 t2.id=tree_of_a.rightpar
 )
-select sql_no_cache * from tree_of_a;
+select * from tree_of_a;
 id	name	leftpar	rightpar	path
 1	A	2	3	1
 2	LA	4	5	1,2
@@ -2231,7 +2231,7 @@ union all
 select t2.*, concat(tree_of_a.path,",",t2.id) from t2 join tree_of_a on
 t2.id=tree_of_a.rightpar
 )
-select sql_no_cache * from tree_of_a order by path;
+select * from tree_of_a order by path;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using filesort
 2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where
@@ -2251,7 +2251,7 @@ union all
 select t2.*, concat(tree_of_a.path,",",t2.id) from t2 join tree_of_a on
 t2.id=tree_of_a.rightpar
 )
-select sql_no_cache * from tree_of_a order by path;
+select * from tree_of_a order by path;
 id	name	leftpar	rightpar	path
 1	A	2	3	1
 2	LA	4	5	1,2
@@ -2278,7 +2278,7 @@ union all
 select t2.*, concat(tree_of_a.path,",",t2.id) from t2 join tree_of_a on
 t2.id=tree_of_a.rightpar
 )
-select sql_no_cache * from tree_of_a order by path;
+select * from tree_of_a order by path;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using filesort
 2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where
@@ -2298,7 +2298,7 @@ union all
 select t2.*, concat(tree_of_a.path,",",t2.id) from t2 join tree_of_a on
 t2.id=tree_of_a.rightpar
 )
-select sql_no_cache * from tree_of_a order by path;
+select * from tree_of_a order by path;
 id	name	leftpar	rightpar	path
 1	A	2	3	1
 2	LA	4	5	1,2
@@ -2326,7 +2326,7 @@ union all
 select t2.*, concat(tree_of_a.path,",",t2.id) from t2 join tree_of_a on
 t2.id=tree_of_a.rightpar
 )
-select sql_no_cache * from tree_of_a;
+select * from tree_of_a;
 id	name	leftpar	rightpar	path
 1	A	2	3	1
 2	LA	4	5	1,2

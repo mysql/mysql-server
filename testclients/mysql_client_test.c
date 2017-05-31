@@ -11039,7 +11039,7 @@ static void test_view_insert_fields()
                   "CHARSET=latin1 COLLATE latin1_bin");
   myquery(rc);
   rc= mysql_query(mysql,
-                  "CREATE VIEW v1 AS select sql_no_cache "
+                  "CREATE VIEW v1 AS select "
                   " K1C4 AS K1C4, K2C4 AS K2C4, K3C4 AS K3C4, K4N4 AS K4N4, "
                   " F1C4 AS F1C4, F2I4 AS F2I4, F3N5 AS F3N5,"
                   " F7F8 AS F7F8, F6N4 AS F6N4, F5C8 AS F5C8, F9D8 AS F9D8"
