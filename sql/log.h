@@ -1028,6 +1028,16 @@ void destroy_error_log();
 */
 bool reopen_error_log();
 
+
+/**
+  Discard all buffered messages and deallocate buffer without printing
+  anything. Needed when terminating launching process after daemon
+  has started. At this point we may have messages in the error log,
+  but we don't want to show them to stderr (the daemon will output
+  them in its error log).
+ */
+void discard_error_log_messages();
+
 /**
   We buffer all error log messages that have been printed before the
   error log has been opened. This allows us to write them to the

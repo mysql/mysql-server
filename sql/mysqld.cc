@@ -1752,7 +1752,10 @@ static void unireg_abort(int exit_code)
   if (opt_help)
     usage();
 
-  if (exit_code)
+  bool daemon_launcher_quiet=
+    (IF_WIN(false, opt_daemonize) && !mysqld::runtime::is_daemon() && !opt_help);
+
+  if (!daemon_launcher_quiet && exit_code)
     LogErr(ERROR_LEVEL, ER_ABORTING);
 
   mysql_audit_notify(MYSQL_AUDIT_SERVER_SHUTDOWN_SHUTDOWN,
@@ -1768,13 +1771,12 @@ static void unireg_abort(int exit_code)
   }
   signal_thread_id.thread= 0;
 
-  if (opt_daemonize)
+  if (mysqld::runtime::is_daemon())
   {
     mysqld::runtime::signal_parent(pipe_write_fd,0);
   }
 #endif
-
-  clean_up(!opt_help && (exit_code ||
+  clean_up(!opt_help && !daemon_launcher_quiet && (exit_code ||
            !opt_initialize)); /* purecov: inspected */
   DBUG_PRINT("quit",("done with cleanup in unireg_abort"));
   mysqld_exit(exit_code);
@@ -1908,7 +1910,7 @@ static void clean_up(bool print_message)
     make sure that handlers finish up
     what they have that is dependent on the binlog
   */
-  if ((!opt_help) || (opt_verbose))
+  if (print_message && ((!opt_help) || (opt_verbose)))
     LogErr(INFORMATION_LEVEL, ER_BINLOG_END);
   ha_binlog_end(current_thd);
 
@@ -5380,7 +5382,7 @@ int mysqld_main(int argc, char **argv)
   if (opt_initialize && opt_daemonize)
   {
     fprintf(stderr, "Initialize and daemon options are incompatible.\n");
-    exit(MYSQLD_ABORT_EXIT);
+    unireg_abort(MYSQLD_ABORT_EXIT);
   }
 
   if (opt_daemonize && log_error_dest == disabled_my_option &&
@@ -5396,22 +5398,22 @@ int mysqld_main(int argc, char **argv)
     {
       fprintf(stderr, "Cannot change to root directory: %s\n",
                       strerror(errno));
-      exit(MYSQLD_ABORT_EXIT);
+      unireg_abort(MYSQLD_ABORT_EXIT);
     }
 
     if ((pipe_write_fd= mysqld::runtime::mysqld_daemonize()) < -1)
     {
       sql_print_error("Failed to start mysqld daemon. "
                       "Check mysqld error log.");
-      flush_error_log_messages();
-      exit(MYSQLD_ABORT_EXIT);
+      unireg_abort(MYSQLD_ABORT_EXIT);
     }
 
     if (pipe_write_fd < 0)
     {
       // This is the launching process and the daemon appears to have
-      // started ok
-      exit(MYSQLD_SUCCESS_EXIT);
+      // started ok (Need to call unireg_abort with success here to
+      // clean up resources in the lauching process.
+      unireg_abort(MYSQLD_SUCCESS_EXIT);
     }
 
     // Need to update the value of current_pid so that it reflects the

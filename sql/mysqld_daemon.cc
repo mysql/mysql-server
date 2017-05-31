@@ -32,6 +32,21 @@
 #include <sys/wait.h>
 #endif
 
+namespace {
+bool is_daemon_proc= false;
+}
+
+/**
+  Prediacate to test if we're currently executing
+  in the daemon process.
+  @retval true if this is the daemon
+  @retval false otherwise
+ */
+bool mysqld::runtime::is_daemon()
+{
+  return is_daemon_proc;
+}
+
 /**
   Daemonize mysqld.
 
@@ -78,8 +93,11 @@ int mysqld::runtime::mysqld_daemonize()
       close(pipe_fd[1]);
       return -2;
     }
+    // The error log is now owned by the daemon, and anything buffered
+    // up will be dumped by it. So we just discard the buffered messages here.
+    discard_error_log_messages();
 
-    // Exit parent on signal from grand child
+    // Parent waits for pipe message from grand child
     rc= read(pipe_fd[0], &waitstatus, 1);
     close(pipe_fd[0]);
 
@@ -117,6 +135,7 @@ int mysqld::runtime::mysqld_daemonize()
       switch (grand_child_pid)
       {
         case 0: // Grand child
+          is_daemon_proc= true;
           return pipe_fd[1];
         case -1:
           close(pipe_fd[1]);

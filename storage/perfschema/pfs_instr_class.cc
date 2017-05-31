@@ -216,7 +216,7 @@ static PFS_socket_class *socket_class_array = NULL;
 static std::atomic<uint32> memory_class_dirty_count{0};
 static std::atomic<uint32> memory_class_allocated_count{0};
 
-static PFS_memory_class *memory_class_array = NULL;
+static std::atomic<PFS_memory_class*> memory_class_array{nullptr};
 
 uint mutex_class_start = 0;
 uint rwlock_class_start = 0;
@@ -1053,14 +1053,14 @@ init_memory_class(uint memory_class_sizing)
                                           sizeof(PFS_memory_class),
                                           PFS_memory_class,
                                           MYF(MY_ZEROFILL));
-    if (unlikely(memory_class_array == NULL))
+    if (unlikely(memory_class_array.load() == nullptr))
     {
       return 1;
     }
   }
   else
   {
-    memory_class_array = NULL;
+    memory_class_array = nullptr;
   }
 
   return result;
@@ -1773,7 +1773,7 @@ PFS_memory_class *
 sanitize_memory_class(PFS_memory_class *unsafe)
 {
   SANITIZE_ARRAY_BODY(
-    PFS_memory_class, memory_class_array, memory_class_max, unsafe);
+    PFS_memory_class, memory_class_array.load(), memory_class_max, unsafe);
 }
 
 PFS_instr_class *

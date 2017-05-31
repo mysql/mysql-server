@@ -1763,6 +1763,15 @@ static const char *error_log_file= NULL;
 static bool error_log_buffering= true;
 static std::string *buffered_messages= NULL;
 
+void discard_error_log_messages()
+{
+  if (buffered_messages)
+  {
+    delete buffered_messages;
+    buffered_messages= NULL;
+  }
+  error_log_buffering= false;
+}
 
 void flush_error_log_messages()
 {

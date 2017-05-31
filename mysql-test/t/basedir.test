@@ -48,7 +48,7 @@ let MYSQLD_ARGS= $DEFARGS --datadir=$DDIR --log-error=$MYSQLD_LOG --init-file=$S
     next if (/No existing UUID has been found/);
     next if (/Gtid table is not ready to be used/);
     next if (/Insecure configuration for --secure-file-priv/);
-    if (/Warning/ || /ERROR/) { print; }
+    if (/ERROR/) { print; }
   }
   close(MYSQLD_LOG);
 EOF
@@ -77,7 +77,7 @@ EOF
   {
     #print;
     next if (/Insecure configuration for --secure-file-priv/);
-    if (/Warning/ || /ERROR/) { print; }
+    if (/ERROR/) { print; }
   }
   close(MYSQLD_LOG);
 EOF
@@ -106,7 +106,7 @@ EOF
   while(<MYSQLD_LOG>)
   {
     next if (/Insecure configuration for --secure-file-priv/);
-    if (/Warning/||/ERROR/) { print; }
+    if (/ERROR/) { print; }
   }
   close(MYSQLD_LOG);
 
@@ -118,7 +118,7 @@ let MYSQLD_OUT= $MYSQL_TMP_DIR/server.out;
 --echo # Try invalid --log-error
 --echo #
 --error 1
---exec $MYSQLD --no-defaults --explicit_defaults_for_timestamp --skip-ssl --datadir=$DDIR --log-error=/ >$MYSQLD_OUT 2>&1
+--exec $MYSQLD --no-defaults --explicit_defaults_for_timestamp --skip-ssl --datadir=$DDIR --log-error=$MYSQL_TMP_DIR/no_such_dir/bad_err_log.err >$MYSQLD_OUT 2>&1
 
 --echo # Analyze output with perl
 --perl
@@ -139,7 +139,7 @@ EOF
 --echo # Try -D as shortcut for --daemonize option with invalid --log-error
 --echo #
 --error 1
---exec $MYSQLD $DEFARGS -D --datadir=$DDIR --log-error=/ >$MYSQLD_OUT 2>&1
+--exec $MYSQLD $DEFARGS -D --datadir=$DDIR --log-error=$MYSQL_TMP_DIR/no_such_dir/bad_err_log.err >$MYSQLD_OUT 2>&1
 
 --perl
   use strict;
@@ -177,14 +177,15 @@ EOF
   while(<MYSQLD_LOG>)
   {
     next if (/Insecure configuration for --secure-file-priv/);
-    if (/Warning/||/ERROR/) { print; }
+    if (/ERROR/) { print; }
   }
   close(MYSQLD_LOG);
 
   open(MYSQLD_OUT, $ENV{'MYSQLD_OUT'});
   while(<MYSQLD_OUT>)
   {
-    if (/Warning/||/ERROR/) { print; }
+    next if (/Insecure configuration for --secure-file-priv/);
+    if (/ERROR/) { print; }
   }
   close(MYSQLD_OUT);
 EOF
