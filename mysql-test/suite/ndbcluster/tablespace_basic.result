@@ -23,6 +23,8 @@ SELECT * FROM t1 WHERE a = 1;
 a	b
 1	MySQL Server with NDB test
 REPLACE t1 (a, b) VALUES (12, "Another layer");
+SHOW WARNINGS;
+Level	Code	Message
 SELECT * FROM t1 WHERE a = 12 ORDER BY a;
 a	b
 12	Another layer
