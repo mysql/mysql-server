@@ -52,6 +52,13 @@ extern EventLogger* g_eventLogger;
 extern Uint32 ErrorSignalReceive;
 extern Uint32 ErrorMaxSegmentsToSeize;
 
+/**
+ * 12 bits are used to represent the 'parent-row-correlation-id'.
+ * Effectively limiting max rows in a batch.
+ */
+static const Uint32 MaxCorrelationId = (1 << 12);
+
+
 #ifdef VM_TRACE
 
 /**
@@ -6383,6 +6390,7 @@ Dbspj::scanFrag_fixupBound(Ptr<ScanFragHandle> fragPtr,
 
   Uint32 tmp;
   ndbrequire(r0.peekWord(&tmp));
+  ndbassert((corrVal & 0xFFFF) < MaxCorrelationId);
   tmp |= (boundsz << 16) | ((corrVal & 0xFFF) << 4);
   ndbrequire(r0.updateWord(tmp));
   ndbrequire(r0.step(1));    // Skip first BoundType
@@ -6685,6 +6693,15 @@ Dbspj::scanFrag_send(Signal* signal,
     {
       jam();
       ndbassert(!fragPtr.isNull());
+      /**
+       * There is a 12-bit implementation limit on how large
+       * the 'parent-row-correlation-id' may be. Thus, if rows
+       * from this scan may be 'parents', number of rows in batch
+       * should not exceed what could be represented in 12 bits.
+       * See also Dbspj::scanFrag_fixupBound()
+       */
+      ndbassert(treeNodePtr.p->isLeaf() ||
+                batchRange+bs_rows <= MaxCorrelationId);
 
       if (fragPtr.p->m_state != ScanFragHandle::SFH_NOT_STARTED)
       {
@@ -6949,14 +6966,6 @@ Dbspj::scanFrag_send(Signal* signal,
       batchRange += bs_rows;
       requestsSent++;
       list.next(fragPtr);
-
-      /**
-       * There is a 12-bit implementation limit of how large
-       * the 'parent-row-correlation-id' may be. Thus, if rows
-       * from this scan may be 'parents', number of rows in batch
-       * should not exceed what could be represented in 12 bits.
-       */
-      ndbassert(treeNodePtr.p->isLeaf() || batchRange <= 0x1000);
     } // while (requestsSent < noOfFrags)
   }
   if (err)
