@@ -48,6 +48,7 @@ AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
 ORDER BY t.space;
 LOWER(path)
+./sys/sys_config.ibd
 ./test/tr.ibd
 ./test/t1#p#p0.ibd
 ./test/t1#p#p1.ibd
@@ -81,6 +82,7 @@ AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
 ORDER BY t.space;
 LOWER(path)
+./sys/sys_config.ibd
 ./test/tr.ibd
 ./test/t1#p#p0.ibd
 ./test/t1#p#p1.ibd
@@ -180,6 +182,7 @@ AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
 ORDER BY t.space;
 LOWER(path)
+./sys/sys_config.ibd
 ./test/tr.ibd
 ./test/t1#p#p0.ibd
 ./test/t1#p#p1.ibd
@@ -208,6 +211,7 @@ AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
 ORDER BY t.space;
 LOWER(path)
+./sys/sys_config.ibd
 ./test/tr.ibd
 ./test/t1#p#p0.ibd
 ./test/t1#p#p1.ibd
@@ -236,6 +240,7 @@ AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
 ORDER BY t.space;
 LOWER(path)
+./sys/sys_config.ibd
 ./test/tr.ibd
 ./test/t1#p#p0.ibd
 ./test/t1#p#p1.ibd
@@ -247,6 +252,7 @@ AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
 ORDER BY t.space;
 LOWER(path)
+./sys/sys_config.ibd
 ./test/tr.ibd
 ./test/t1#p#p1.ibd
 ./test/t1#p#p3.ibd
@@ -285,6 +291,7 @@ AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
 ORDER BY t.space;
 LOWER(path)
+./sys/sys_config.ibd
 ./test/tr.ibd
 ./test/t1#p#p1.ibd
 SHOW CREATE TABLE t1;
@@ -331,6 +338,7 @@ AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
 ORDER BY t.space;
 LOWER(path)
+./sys/sys_config.ibd
 ./test/tr.ibd
 ./test/t1#p#p0.ibd
 ./test/t1#p#p1.ibd
@@ -359,6 +367,7 @@ AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
 ORDER BY t.space;
 LOWER(path)
+./sys/sys_config.ibd
 ./test/tr.ibd
 ./test/t1#p#p0.ibd
 ./test/t1#p#p1.ibd
@@ -426,6 +435,7 @@ AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
 ORDER BY t.space;
 LOWER(path)
+./sys/sys_config.ibd
 ./test/tr.ibd
 ./test/t1#p#p0.ibd
 ./test/t1#p#p1.ibd
@@ -464,6 +474,7 @@ AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
 ORDER BY t.space;
 LOWER(path)
+./sys/sys_config.ibd
 ./test/tr.ibd
 ./test/t1#p#p0.ibd
 ./test/t1#p#p1.ibd
@@ -534,6 +545,7 @@ AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
 ORDER BY t.space;
 LOWER(path)
+./sys/sys_config.ibd
 ./test/tr.ibd
 ./test/t1#p#p2.ibd
 ./test/t1#p#p3.ibd
@@ -584,6 +596,7 @@ AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
 ORDER BY t.space;
 LOWER(path)
+./sys/sys_config.ibd
 ./test/tr.ibd
 ./test/t1#p#p01.ibd
 ./test/t1#p#p02.ibd
@@ -641,6 +654,7 @@ AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
 ORDER BY t.space;
 LOWER(path)
+./sys/sys_config.ibd
 ./test/tr.ibd
 ./test/t1#p#p11.ibd
 ./test/t1#p#p12.ibd
@@ -732,6 +746,7 @@ AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
 ORDER BY t.space;
 LOWER(path)
+./sys/sys_config.ibd
 ./test/tr.ibd
 ./test/t1#p#p0.ibd
 ./test/t1#p#p1.ibd
@@ -774,6 +789,7 @@ AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
 ORDER BY t.space;
 LOWER(path)
+./sys/sys_config.ibd
 ./test/tr.ibd
 ./test/t1#p#p0.ibd
 ./test/t1#p#p1.ibd
@@ -880,6 +896,7 @@ AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
 ORDER BY t.space;
 LOWER(path)
+./sys/sys_config.ibd
 ./test/tr.ibd
 ./test/t1#p#p0#sp#sp00.ibd
 ./test/t1#p#p0#sp#sp01.ibd
@@ -946,6 +963,7 @@ AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
 ORDER BY t.space;
 LOWER(path)
+./sys/sys_config.ibd
 ./test/tr.ibd
 ./test/t1#p#p0#sp#sp00.ibd
 ./test/t1#p#p0#sp#sp01.ibd
@@ -1011,6 +1029,7 @@ AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
 ORDER BY t.space;
 LOWER(path)
+./sys/sys_config.ibd
 ./test/tr.ibd
 ./test/t1#p#p0#sp#sp00.ibd
 ./test/t1#p#p0#sp#sp01.ibd
@@ -1053,6 +1072,7 @@ AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
 ORDER BY t.space;
 LOWER(path)
+./sys/sys_config.ibd
 ./test/tr.ibd
 ./test/t1#p#p1#sp#sp10.ibd
 ./test/t1#p#p1#sp#sp11.ibd

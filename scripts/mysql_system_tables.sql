@@ -30,7 +30,7 @@ SET FOREIGN_KEY_CHECKS= 1;
 --
 
 set sql_mode='';
-set default_storage_engine=myisam;
+set default_storage_engine=InnoDB;
 
 CREATE TABLE IF NOT EXISTS db
 (
