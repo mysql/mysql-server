@@ -539,7 +539,10 @@ public:
   longlong get_min_value();
   ulonglong get_max_value();
   void set_arg_source(get_opt_arg_source *src)
-  { source.m_path_name= src->m_path_name; source.m_source= src->m_source; }
+  {
+    strcpy(source.m_path_name, src->m_path_name);
+    source.m_source= src->m_source;
+  }
   bool is_non_persistent()
   { return (plugin_var->flags & PLUGIN_VAR_NOPERSIST); }
 };
@@ -2302,7 +2305,7 @@ static bool mysql_install_plugin(THD *thd, const LEX_STRING *name,
    newly installed plugin to process those options which are specific
    to this plugin.
   */
-  if (pv && pv->append_read_only_variables(&argc, &argv))
+  if (pv && pv->append_read_only_variables(&argc, &argv, TRUE))
   {
     mysql_rwlock_unlock(&LOCK_system_variables_hash);
     report_error(REPORT_TO_USER, ER_PLUGIN_IS_NOT_LOADED, name->str);
@@ -4227,7 +4230,8 @@ static int construct_options(MEM_ROOT *mem_root, st_plugin_int *tmp,
     options[0].arg_source= options[1].arg_source=
       (get_opt_arg_source *)alloc_root(mem_root, sizeof(get_opt_arg_source));
     memset(options[0].arg_source, 0, sizeof(get_opt_arg_source));
-    options[0].arg_source->m_path_name= options[1].arg_source->m_path_name= 0;
+    options[0].arg_source->m_path_name[0]= 0;
+    options[1].arg_source->m_path_name[0]= 0;
     options[0].arg_source->m_source= options[1].arg_source->m_source=
       enum_variable_source::COMPILED;
 
@@ -4414,7 +4418,8 @@ static int construct_options(MEM_ROOT *mem_root, st_plugin_int *tmp,
     options[0].arg_source= options[1].arg_source=
       (get_opt_arg_source *)alloc_root(mem_root, sizeof(get_opt_arg_source));
     memset(options[0].arg_source, 0, sizeof(get_opt_arg_source));
-    options[0].arg_source->m_path_name= options[1].arg_source->m_path_name= 0;
+    options[0].arg_source->m_path_name[0]= 0;
+    options[1].arg_source->m_path_name[0]= 0;
     options[0].arg_source->m_source= options[1].arg_source->m_source=
       enum_variable_source::COMPILED;
 

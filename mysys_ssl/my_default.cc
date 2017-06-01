@@ -1573,13 +1573,15 @@ void set_variable_source(const char *opt_name, void* value)
   while ((pos= src_name.find("-")) != string::npos)
     src_name.replace(pos, 1, "_");
 
-  std::map<string, my_variable_sources>::iterator it= variables_hash.find(src_name);
+  std::map<string, my_variable_sources>::iterator it=
+    variables_hash.find(src_name);
   if (it != variables_hash.end())
   {
     if ((get_opt_arg_source*)value)
     {
-      ((get_opt_arg_source*)value)->m_path_name=
-        it->second.m_config_file_name.c_str();
+      memcpy(((get_opt_arg_source*)value)->m_path_name,
+             it->second.m_config_file_name.c_str(),
+             it->second.m_config_file_name.length());
       ((get_opt_arg_source*)value)->m_source= it->second.m_source;
     }
   }

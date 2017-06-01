@@ -74,7 +74,7 @@ public:
   /**
     Set persisted options
   */
-  bool set_persist_options(bool what_options= FALSE);
+  bool set_persist_options(bool plugin_options= FALSE);
   /**
     Reset persisted options
   */
@@ -91,7 +91,8 @@ public:
     append read only persisted variables to command line options with a
     separator.
   */
-  bool append_read_only_variables(int *argc, char ***argv);
+  bool append_read_only_variables(int *argc, char ***argv,
+    bool plugin_options= FALSE);
   void cleanup();
 
 private:
@@ -121,8 +122,10 @@ private:
   MYSQL_FILE *fd;
   string m_persist_filename;
   mysql_mutex_t m_LOCK_persist_file;
-  /* read only persisted arguments */
-  char** ro_persist_argv;
+  /* read only persisted options */
+  char** ro_persisted_argv;
+  /* read only persisted plugin options */
+  char** ro_persisted_plugin_argv;
 };
 
 #endif /* PERSISTED_VARIABLE_H_INCLUDED */

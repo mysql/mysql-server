@@ -198,7 +198,7 @@ sys_var::sys_var(sys_var_chain *chain, const char *name_arg,
   user[0]= '\0';
   host[0]= '\0';
 
-  source.m_path_name= 0;
+  memset(source.m_path_name, 0, FN_REFLEN);
   option.arg_source = &source;
 
   if (chain->last)

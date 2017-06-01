@@ -162,7 +162,10 @@ public:
   enum_variable_source get_source() { return source.m_source; }
   const char* get_source_name() { return source.m_path_name; }
   void set_source(enum_variable_source src) { option.arg_source->m_source= src; }
-  void set_source_name(const char* path) { option.arg_source->m_path_name= path; }
+  void set_source_name(const char* path)
+  {
+    strcpy(option.arg_source->m_path_name, path);
+  }
   const char* get_user() { return user; }
   const char* get_host() { return host; }
   ulonglong get_timestamp();

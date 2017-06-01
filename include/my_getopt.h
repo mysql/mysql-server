@@ -96,7 +96,7 @@ struct get_opt_arg_source
   /**
     config file path OR compiled default values
   */
-  const char* m_path_name;
+  char m_path_name[FN_REFLEN];
   enum enum_variable_source m_source;
 };
 

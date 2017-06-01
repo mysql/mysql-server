@@ -152,7 +152,8 @@ int Persisted_variables_cache::init(int *argc, char ***argv)
     &m_LOCK_persist_file, MY_MUTEX_INIT_FAST);
 
   m_instance= this;
-  ro_persist_argv= NULL;
+  ro_persisted_argv= NULL;
+  ro_persisted_plugin_argv= NULL;
   return 0;
 }
 
@@ -422,7 +423,7 @@ bool Persisted_variables_cache::load_persist_file()
   This function does nothing when --no-defaults is set or if
   persisted_globals_load is set to false
 
-   @param [in] plugin_options      Flag which tell what options are being set.
+   @param [in] plugin_options      Flag which tells what options are being set.
                                    If set to FALSE non plugin variables are set
                                    else plugin variables are set
 
@@ -670,12 +671,16 @@ int Persisted_variables_cache::read_persist_file()
 
   @param [in] argc                      Pointer to argc of original program
   @param [in] argv                      Pointer to argv of original program
+  @param [in] plugin_options            This flag tells wether options are handled
+                                        during plugin install. If set to TRUE
+                                        options are handled as part of install
+                                        plugin.
 
   @return 0 Success
   @return 1 Failure
 */
 bool Persisted_variables_cache::append_read_only_variables(int *argc,
-                                                           char ***argv)
+  char ***argv, bool plugin_options)
 {
   Prealloced_array<char *, 100> my_args(key_memory_root);
   TYPELIB group;
@@ -715,7 +720,18 @@ bool Persisted_variables_cache::append_read_only_variables(int *argc,
     if (!(ptr= (char *) alloc_root(&alloc, sizeof(alloc) +
         (my_args.size() + *argc + 2) * sizeof(char *))))
       goto err;
-    ro_persist_argv= res= (char **) (ptr + sizeof(alloc));
+    if (plugin_options)
+    {
+      /* free previously allocated memory */
+      if (ro_persisted_plugin_argv)
+      {
+        free_defaults(ro_persisted_plugin_argv);
+        ro_persisted_plugin_argv= NULL;
+      }
+      ro_persisted_plugin_argv= res= (char **) (ptr + sizeof(alloc));
+    }
+    else
+      ro_persisted_argv= res= (char **) (ptr + sizeof(alloc));
     memset(res, 0, (sizeof(char *) * (my_args.size() + *argc + 2)));
     /* copy all arguments to new array */
     memcpy((uchar *) (res), (char *) (*argv), (*argc) * sizeof(char *));
@@ -840,9 +856,14 @@ void Persisted_variables_cache::cleanup()
 {
   mysql_mutex_destroy(&m_LOCK_persist_hash);
   mysql_mutex_destroy(&m_LOCK_persist_file);
-  if (ro_persist_argv)
+  if (ro_persisted_argv)
   {
-    free_defaults(ro_persist_argv);
-    ro_persist_argv= NULL;
+    free_defaults(ro_persisted_argv);
+    ro_persisted_argv= NULL;
+  }
+  if (ro_persisted_plugin_argv)
+  {
+    free_defaults(ro_persisted_plugin_argv);
+    ro_persisted_plugin_argv= NULL;
   }
 }
