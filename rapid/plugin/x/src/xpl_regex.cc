@@ -57,6 +57,6 @@ xpl::Regex::~Regex()
 
 bool xpl::Regex::match(const char *value) const
 {
-  return my_regexec(&m_re, value, (size_t)0, NULL, 0) == 0;
+  return my_regexec(&m_re, value, strlen(value), (size_t)0, NULL, 0) == 0;
 }
 

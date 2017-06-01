@@ -5,7 +5,7 @@ extern "C" {
 
 /* === engine.c === */
 static int matcher(const CHARSET_INFO *charset,struct re_guts *g,
-                   char *string, size_t nmatch, my_regmatch_t pmatch[],
+                   char *string, size_t strlength, size_t nmatch, my_regmatch_t pmatch[],
                    int eflags);
 static char *dissect(const CHARSET_INFO *charset, struct match *m,
                      char *start, char *stop, sopno startst, sopno stopst);
