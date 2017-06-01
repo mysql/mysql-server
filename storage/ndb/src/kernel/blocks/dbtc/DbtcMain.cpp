@@ -7469,6 +7469,7 @@ void Dbtc::execLQHKEYREF(Signal* signal)
           if (errCode == ZNOT_FOUND)
           {
             errCode = terrorCode = ZFK_NO_PARENT_ROW_EXISTS;
+            regApiPtr->errorData = trigPtr.p->fkId;
           }
           goto do_abort;
         case TriggerType::FK_PARENT:
@@ -18438,6 +18439,7 @@ Dbtc::trigger_op_finished(Signal* signal,
         jam();
         // Only restrict
         terrorCode = ZFK_CHILD_ROW_EXISTS;
+        regApiPtr.p->errorData = trigPtr.p->fkId;
       }
       else if (errCode == 0)
       {
@@ -18460,6 +18462,7 @@ Dbtc::trigger_op_finished(Signal* signal,
         }
         jam();
         terrorCode = ZFK_CHILD_ROW_EXISTS;
+        regApiPtr.p->errorData = trigPtr.p->fkId;
       }
       else
       {
@@ -19694,6 +19697,7 @@ Dbtc::execSCAN_TABCONF(Signal* signal)
   {
     jam();
     tcPtr.p->triggerErrorCode = ZFK_CHILD_ROW_EXISTS;
+    orgApiConnectPtr.p->errorData = trigPtr.p->fkId;
   }
 
   if (conf->requestInfo & ScanTabConf::EndOfData)
