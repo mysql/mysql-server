@@ -95,7 +95,7 @@ static const Uint32 WaitTableStateChangeMillis = 10;
 
 extern EventLogger * g_eventLogger;
 
-//#define DEBUG_LCP 1
+#define DEBUG_LCP 1
 #ifdef DEBUG_LCP
 #define DEB_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
@@ -11271,7 +11271,8 @@ void Dbdih::execEMPTY_LCP_CONF(Signal* signal)
     }//if
     if(isMaster()){
       jam();
-      c_lcpState.m_LAST_LCP_FRAG_ORD.setWaitingFor(nodeId);    
+      c_lcpState.m_LAST_LCP_FRAG_ORD.setWaitingFor(nodeId);
+      DEB_LCP(("EMPTY_LCP_CONF: set LAST_LCP_FRAG_ORD(%u)", nodeId));
     }
   }
   
@@ -11849,6 +11850,8 @@ void Dbdih::MASTER_LCPhandling(Signal* signal, Uint32 failedNodeId)
   c_lcpState.currentFragment.tableId = c_lcpMasterTakeOverState.minTableId;
   c_lcpState.currentFragment.fragmentId = c_lcpMasterTakeOverState.minFragId;
   c_lcpState.m_LAST_LCP_FRAG_ORD = c_lcpState.m_LCP_COMPLETE_REP_Counter_LQH;
+  DEB_LCP(("MASTER_LCPhandling: m_LAST_LCP_FRAG_ORD = %s",
+	   c_lcpState.m_LAST_LCP_FRAG_ORD.getText()));
 
   NodeRecordPtr failedNodePtr;  
   failedNodePtr.i = failedNodeId;
@@ -13931,6 +13934,13 @@ Dbdih::execDROP_TAB_REQ(Signal* signal)
 	  }
 	}
 	nodePtr.p->noOfQueuedChkpt = count;
+        DEB_LCP(("DROP_TAB_REQ: nodePtr(%u)->noOfQueuedChkpt = %u"
+                 ", nodePtr->noOfStartedChkpt = %u"
+                 ", tab: %u",
+                 nodePtr.i,
+                 nodePtr.p->noOfQueuedChkpt,
+                 nodePtr.p->noOfStartedChkpt,
+                 tabPtr.i));
       }
     }
   }
@@ -20446,6 +20456,8 @@ Dbdih::startLcpMutex_unlocked(Signal* signal, Uint32 data, Uint32 retVal){
   /*     NOW PROCEED BY STARTING THE LOCAL CHECKPOINT IN EACH LQH.           */
   /* ----------------------------------------------------------------------- */
   c_lcpState.m_LAST_LCP_FRAG_ORD = c_lcpState.m_participatingLQH;
+  DEB_LCP(("startLcpMutex_unlocked: m_LAST_LCP_FRAG_ORD = %s",
+	   c_lcpState.m_LAST_LCP_FRAG_ORD.getText()));
 
   c_lcp_runs_with_pause_support = check_if_pause_lcp_possible();
   if (c_lcp_runs_with_pause_support)
@@ -21156,6 +21168,14 @@ void Dbdih::execLCP_FRAG_REP(Signal* signal)
       {
         jam();
         nodePtr.p->noOfQueuedChkpt--;
+        DEB_LCP(("LCP_FRAG_REP: nodePtr(%u)->noOfQueuedChkpt = %u"
+                 ", nodePtr->noOfStartedChkpt = %u"
+                 ", tab(%u,%u)",
+                 nodePtr.i,
+                 nodePtr.p->noOfQueuedChkpt,
+                 nodePtr.p->noOfStartedChkpt,
+                 tableId,
+                 fragId));
         return;
       }
     }
@@ -26089,6 +26109,12 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
 	      c_lcpState.m_LCP_COMPLETE_REP_Counter_DIH.getText());
     infoEvent("m_LCP_COMPLETE_REP_Counter_LQH = %s",
 	      c_lcpState.m_LCP_COMPLETE_REP_Counter_LQH.getText());
+    infoEvent("m_lastLCP_COMPLETE_REP_id = %u",
+               c_lcpState.m_lastLCP_COMPLETE_REP_id);
+    infoEvent("m_lastLCP_COMPLETE_REP_ref = %x",
+               c_lcpState.m_lastLCP_COMPLETE_REP_ref);
+    infoEvent("noOfLcpFragRepOutstanding: %u",
+              c_lcpState.noOfLcpFragRepOutstanding);
     infoEvent("m_LAST_LCP_FRAG_ORD = %s",
 	      c_lcpState.m_LAST_LCP_FRAG_ORD.getText());
     infoEvent("m_LCP_COMPLETE_REP_From_Master_Received = %d",
@@ -26115,6 +26141,14 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
 		    nodePtr.p->queuedChkpt[i].fragId,
 		    nodePtr.p->queuedChkpt[i].replicaPtr);
 	}
+      }
+      else
+      {
+#ifdef DEBUG_LCP
+        infoEvent("Node(%u)->nodeStatus = %u",
+                  nodePtr.i,
+                  nodePtr.p->nodeStatus);
+#endif
       }
     }
   }
@@ -27524,6 +27558,7 @@ bool Dbdih::isActiveMaster()
 
 void Dbdih::initNodeRecord(NodeRecordPtr nodePtr)
 {
+  DEB_LCP(("initNodeRecord(%u)", nodePtr.i));
   nodePtr.p->m_nodefailSteps.clear();
 
   nodePtr.p->activeStatus = Sysfile::NS_NotDefined;
