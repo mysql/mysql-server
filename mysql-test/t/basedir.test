@@ -6,8 +6,8 @@
 --echo # Testing wl#10441: Add mysqld_safe-functionality to server
 --echo #
 
-let $MYSQL_SOCKET= `SELECT @@socket`;
-let $MYSQL_PORT= `SELECT @@port`;
+let $MYSQLD_SOCKET= `SELECT @@socket`;
+let $MYSQLD_PORT= `SELECT @@port`;
 
 --echo # Shutdown mysqld which is started by mtr.
 --let $_server_id= `SELECT @@server_id`
@@ -17,37 +17,36 @@ let $MYSQL_PORT= `SELECT @@port`;
 --source include/wait_until_disconnected.inc
 
 let MYSQLD_LOG= $MYSQL_TMP_DIR/server.log;
+let MYSQLD_OUT= $MYSQL_TMP_DIR/server.out;
 let DDIR=       $MYSQL_TMP_DIR/basedir_test;
 let SHUTDOWN_SQL= $MYSQL_TMP_DIR/shutdown.sql;
 # Need to save this as PWD env var is overriden when invoking perl
 let BDIR= $PWD;
 
-let DEFARGS= --no-defaults --explicit_defaults_for_timestamp --socket=$MYSQL_SOCKET --port=$MYSQL_PORT --log-syslog=0 --skip-ssl --secure-file-priv="";
+let DEFARGS= --no-defaults --explicit_defaults_for_timestamp --socket=$MYSQLD_SOCKET --port=$MYSQLD_PORT --log-syslog=0 --skip-ssl --secure-file-priv="" --datadir=$DDIR;
+
+let INIT_FILE_ARGS= $DEFARGS --log-error=$MYSQLD_LOG --init-file=$SHUTDOWN_SQL;
+let INIT_FILE_ARGS_D= $DEFARGS -D --log-error=$MYSQLD_LOG --init-file=$SHUTDOWN_SQL;
 
 write_file $SHUTDOWN_SQL;
   SHUTDOWN;
 EOF
 
 --echo # Run -I on a new datadir
---exec $MYSQLD $DEFARGS -I --datadir=$DDIR --log-error=$MYSQLD_LOG
+--exec $MYSQLD $DEFARGS -I --log-error=$MYSQLD_LOG
 
-let MYSQLD_ARGS= $DEFARGS --datadir=$DDIR --log-error=$MYSQLD_LOG --init-file=$SHUTDOWN_SQL;
 
 --echo #
 --echo # Deduce --basedir when using full path to mysqld
---echo #
---exec $MYSQLD $MYSQLD_ARGS
+--exec $MYSQLD $INIT_FILE_ARGS
 
 --perl
   use strict;
-  open(MYSQLD_LOG, $ENV{'MYSQLD_LOG'});
+  my $mysqld_log= $ENV{'MYSQLD_LOG'};
+  open(MYSQLD_LOG, $mysqld_log) || die "Failed to open '$mysqld_log': $!";
+  print "# Look for [ERROR] in error log (there should be none):\n";
   while(<MYSQLD_LOG>)
   {
-    next if (/InnoDB: New log files created/);
-    next if (/InnoDB: Creating foreign key constraint system tables/);
-    next if (/No existing UUID has been found/);
-    next if (/Gtid table is not ready to be used/);
-    next if (/Insecure configuration for --secure-file-priv/);
     if (/ERROR/) { print; }
   }
   close(MYSQLD_LOG);
@@ -56,27 +55,25 @@ EOF
 
 --echo #
 --echo # Deduce --basedir when using path relative to CWD
---echo #
 --perl
   use strict;
   my $bdir= $ENV{'BDIR'};
-  #print "\$bdir: $bdir\n";
+  my $mysqld_log= $ENV{'MYSQLD_LOG'};
+
   chdir $bdir;
    
   my $binary= $ENV{'MYSQLD'};
-  #print "\$binary: $binary\n";
-
   $binary =~ s|$bdir/||;
-  #print "\$binary: $binary\n";
-  #print "exec: $binary $ENV{'MYSQLD_ARGS'}\n";
-  
-  system("$binary $ENV{'MYSQLD_ARGS'}");
 
-  open(MYSQLD_LOG, $ENV{'MYSQLD_LOG'});
+  my $init_file_args= $ENV{'INIT_FILE_ARGS'};
+  (system("$binary $init_file_args") == 0) ||
+    die "system failed on '$binary $init_file_args': $!";
+
+  open(MYSQLD_LOG, $ENV{'MYSQLD_LOG'}) ||
+    die "Failed to open '$mysqld_log': $!";
+  print "# Look for [ERROR] in error log (there should be none):\n";
   while(<MYSQLD_LOG>)
   {
-    #print;
-    next if (/Insecure configuration for --secure-file-priv/);
     if (/ERROR/) { print; }
   }
   close(MYSQLD_LOG);
@@ -85,27 +82,25 @@ EOF
 
 --echo #
 --echo # Deduce --basedir when using bare executable name (PATH lookup)
---echo #
 --perl
   use strict;
   use File::Basename;
   my $bdir= $ENV{'BDIR'};
-  #print "\$bdir: $bdir\n";
   chdir $bdir;
    
   my $bindir= dirname($ENV{'MYSQLD'});
-  #print "\$bindir: $bindir\n";
-
-  #print "\$ENV{'PATH'}=\"$bindir:\$ENV{'PATH'}\"\n";
   $ENV{'PATH'}="$bindir:$ENV{'PATH'}";
 
-  #print "exec: mysqld $ENV{'MYSQLD_ARGS'}\n";
-  system("mysqld $ENV{'MYSQLD_ARGS'}");
+  my $init_file_args= $ENV{'INIT_FILE_ARGS'};
+  (system("mysqld $init_file_args") == 0) ||
+    die "system failed on 'mysqld $init_file_args': $!";
 
-  open(MYSQLD_LOG, $ENV{'MYSQLD_LOG'});
+  my $mysqld_log= $ENV{'MYSQLD_LOG'};
+
+  open(MYSQLD_LOG, $mysqld_log) || die "Failed to open '$mysqld_log': $!";
+  print "# Look for [ERROR] in error log (there should be none):\n";
   while(<MYSQLD_LOG>)
   {
-    next if (/Insecure configuration for --secure-file-priv/);
     if (/ERROR/) { print; }
   }
   close(MYSQLD_LOG);
@@ -113,23 +108,29 @@ EOF
 EOF
 --remove_file $MYSQLD_LOG
 
-let MYSQLD_OUT= $MYSQL_TMP_DIR/server.out;
+
 --echo #
 --echo # Try invalid --log-error
---echo #
 --error 1
---exec $MYSQLD --no-defaults --explicit_defaults_for_timestamp --skip-ssl --datadir=$DDIR --log-error=$MYSQL_TMP_DIR/no_such_dir/bad_err_log.err >$MYSQLD_OUT 2>&1
+--exec $MYSQLD $DEFARGS --log-error=$MYSQL_TMP_DIR/no_such_dir/bad_err_log.err >$MYSQLD_OUT 2>&1
 
---echo # Analyze output with perl
+--echo # Look for expected error in output:
 --perl
   use strict;
-  open(MYSQLD_OUT, $ENV{'MYSQLD_OUT'});
+  my $mysqld_out= $ENV{'MYSQLD_OUT'};
+  open(MYSQLD_OUT, $mysqld_out) || die "Failed to open '$mysqld_out': $!";
+  my $found_expected_error= 0;
   while(<MYSQLD_OUT>)
   {
     if (/\[ERROR\] Could not open .+ for error logging/)
     {
-      print "# Result: OK\n";
+      print "# Found expected error\n";
+      $found_expected_error= 1;
     }
+  }
+  if (!$found_expected_error) {
+    seek(MYSQLD_OUT, 0, 0) || die "Failed to rewind FH for '$mysqld_out': $!";
+    while(<MYSQLD_OUT>) { print; }
   }
   close(MYSQLD_OUT);
 EOF
@@ -137,23 +138,30 @@ EOF
 
 --echo #
 --echo # Try -D as shortcut for --daemonize option with invalid --log-error
---echo #
 --error 1
---exec $MYSQLD $DEFARGS -D --datadir=$DDIR --log-error=$MYSQL_TMP_DIR/no_such_dir/bad_err_log.err >$MYSQLD_OUT 2>&1
+--exec $MYSQLD $DEFARGS -D --log-error=$MYSQL_TMP_DIR/no_such_dir/bad_err_log.err >$MYSQLD_OUT 2>&1
 
+--echo # Look for expected errors in output from launcher and daemon:
 --perl
   use strict;
-  open(MYSQLD_OUT, $ENV{'MYSQLD_OUT'});
+  my $mysqld_out= $ENV{'MYSQLD_OUT'};
+  open(MYSQLD_OUT, $mysqld_out) || die "Failed to open '$mysqld_out': $!";
+  my $found_expected_errors= 0;
   while(<MYSQLD_OUT>)
   {
     if (/\[ERROR\] Could not open .+ for error logging/)
     {
-      print "# Found expected error from lanucher process\n";
+      print "# Found expected error from launcher process\n";
+      ++$found_expected_errors;
     }
     if (/\[ERROR\] Failed to start mysqld daemon\. Check mysqld error log\./)
     {
       print "# Found expected error from daemon process\n";
+      ++$found_expected_errors;
     }
+  }
+  if ($found_expected_errors < 2) {
+      seek(MYSQLD_OUT, 0, 0) || die "Failed to rewind FH for '$mysqld_out': $!";
   }
   close(MYSQLD_OUT);
 EOF
@@ -161,40 +169,47 @@ EOF
 
 --echo #
 --echo # Try using -D with relative path
---echo #
-
 --perl
   use strict;
   use File::Basename;
   my $mysqld= $ENV{'MYSQLD'};
   my $mysql_tmp_dir= $ENV{'MYSQL_TMP_DIR'};
-  my $defargs= $ENV{'DEFARGS'};
+  my $init_file_args_d= $ENV{'INIT_FILE_ARGS_D'};
+  my $mysqld_out= $ENV{'MYSQLD_OUT'};
 
   chdir($mysql_tmp_dir) || die "# Could not chdir to '$mysql_tmp_dir': $!";
-  system("$mysqld $defargs -D --datadir=./basedir_test --log-error=$ENV{'MYSQLD_LOG'} --init-file=$ENV{'SHUTDOWN_SQL'} >$ENV{'MYSQLD_OUT'} 2>&1"); 
+  (system("$mysqld $init_file_args_d >$mysqld_out 2>&1") == 0) ||
+    die "system failed on '$mysqld $init_file_args_d': $!";
 
-  open(MYSQLD_LOG, $ENV{'MYSQLD_LOG'});
+  my $mysqld_log= $ENV{'MYSQLD_LOG'};
+  open(MYSQLD_LOG, $mysqld_log) || die "Failed to open '$mysqld_log': $!";
+  print "# Look for [ERROR] in error log (there should be none):\n";
   while(<MYSQLD_LOG>)
   {
-    next if (/Insecure configuration for --secure-file-priv/);
     if (/ERROR/) { print; }
   }
   close(MYSQLD_LOG);
 
-  open(MYSQLD_OUT, $ENV{'MYSQLD_OUT'});
+  open(MYSQLD_OUT, $mysqld_out) || die "Failed to open '$mysqld_out': $!";
+  print "# Look for output (there should be none):\n";
   while(<MYSQLD_OUT>)
   {
-    next if (/Insecure configuration for --secure-file-priv/);
-    if (/ERROR/) { print; }
+    print;
   }
   close(MYSQLD_OUT);
 EOF
 
-
+--echo #
+--echo # Cleanup
+--echo #
+--remove_file $MYSQLD_OUT
+--remove_file $MYSQLD_LOG
 --remove_file $SHUTDOWN_SQL
 --force-rmdir $DDIR
 
+--echo #
 --echo # Restart mysqld of mtr
+--echo #
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
