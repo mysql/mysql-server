@@ -25,6 +25,10 @@
 #include "sql_class.h"
 #include "sql_show.h"
 
+#include <mysql/service_plugin_registry.h>
+#include <components/mysql_server/server_component.h>
+
+
 struct System_status_var global_status_var;
 
 struct sql_digest_storage;
@@ -48,6 +52,16 @@ struct System_status_var* get_thd_status_var(THD*)
 }
 
 unsigned int mysql_errno_to_sqlstate_index(unsigned int)
+{
+  return 0;
+}
+
+SERVICE_TYPE(registry) * mysql_plugin_registry_acquire()
+{
+  return NULL;
+}
+
+int mysql_plugin_registry_release(SERVICE_TYPE(registry) *reg MY_ATTRIBUTE((unused)))
 {
   return 0;
 }

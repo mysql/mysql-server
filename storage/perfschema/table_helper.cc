@@ -1892,6 +1892,27 @@ PFS_key_name::match(const char *name, uint name_length)
 }
 
 bool
+PFS_key_group_name::match(const LEX_STRING *name)
+{
+  bool record_null = (name->length == 0);
+  return do_match(record_null, name->str, name->length);
+}
+
+bool
+PFS_key_group_name::match(const char *name, uint name_length)
+{
+  bool record_null = (name_length == 0);
+  return do_match(record_null, name, name_length);
+}
+
+bool
+PFS_key_group_name::match(PFS_thread *pfs)
+{
+  bool record_null = (pfs->m_groupname_length == 0);
+  return do_match(record_null, pfs->m_groupname, pfs->m_groupname_length);
+}
+
+bool
 PFS_key_variable_name::match(const System_variable *pfs)
 {
   return do_match(false, pfs->m_name, pfs->m_name_length);

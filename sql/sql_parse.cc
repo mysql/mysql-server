@@ -1491,8 +1491,10 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     else
     {
       /* we've authenticated new user */
+      PSI_THREAD_CALL(notify_session_change_user)(thd->get_psi());
+
       if (save_user_connect)
-	decrease_user_connections(save_user_connect);
+        decrease_user_connections(save_user_connect);
       mysql_mutex_lock(&thd->LOCK_thd_data);
       my_free(const_cast<char*>(save_db.str));
       save_db= NULL_CSTR;

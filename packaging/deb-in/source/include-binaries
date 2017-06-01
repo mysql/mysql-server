@@ -30,6 +30,8 @@ debian/extra/component_log_sink_json-plugin
 debian/extra/component_test_string_service_charset-plugin
 debian/extra/component_test_string_service_long-plugin
 debian/extra/component_test_string_service-plugin
+debian/extra/component_test_pfs_notification-plugin
+debian/extra/component_test_pfs_resource_group-plugin
 debian/extra/component_test_udf_registration-plugin
 debian/extra/component_udf_reg_3_func-plugin
 debian/extra/component_udf_reg_avg_func-plugin

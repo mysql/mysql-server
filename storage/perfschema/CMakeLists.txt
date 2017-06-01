@@ -201,6 +201,8 @@ pfs_timer.cc
 pfs_user.cc
 pfs_variable.cc
 pfs_visitor.cc
+service_pfs_notification.cc
+service_pfs_resource_group.cc
 table_accounts.cc
 table_all_instr.cc
 table_esgs_by_account_by_event_name.cc

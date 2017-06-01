@@ -2001,6 +2001,10 @@ static void clean_up(bool print_message)
     where all dependencies are still ok.
   */
   log_builtins_error_stack("log_filter_internal; log_sink_internal", false);
+#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
+  unregister_pfs_notification_service();
+  unregister_pfs_resource_group_service();
+#endif
   component_infrastructure_deinit();
 
   if (have_statement_timeout == SHOW_OPTION_YES)
@@ -5294,11 +5298,19 @@ int mysqld_main(int argc, char **argv)
 
   /*
     Initialize Components core subsystem early on, once we have PSI, which it
-    use. This part doesn't use any more MySQL-specific functionalities but
+    uses. This part doesn't use any more MySQL-specific functionalities but
     error logging and PFS.
   */
   if (component_infrastructure_init())
     unireg_abort(MYSQLD_ABORT_EXIT);
+
+  /*
+    Initialize Performance Schema component services.
+  */
+  #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
+  register_pfs_notification_service();
+  register_pfs_resource_group_service();
+  #endif
 
   /* Initialize audit interface globals. Audit plugins are inited later. */
   mysql_audit_initialize();
@@ -9621,7 +9633,7 @@ static PSI_thread_info all_server_threads[]=
   { &key_thread_bootstrap, "bootstrap", PSI_FLAG_GLOBAL},
   { &key_thread_handle_manager, "manager", PSI_FLAG_GLOBAL},
   { &key_thread_main, "main", PSI_FLAG_GLOBAL},
-  { &key_thread_one_connection, "one_connection", 0},
+  { &key_thread_one_connection, "one_connection", PSI_FLAG_USER},
   { &key_thread_signal_hand, "signal_handler", PSI_FLAG_GLOBAL},
   { &key_thread_compress_gtid_table, "compress_gtid_table", PSI_FLAG_GLOBAL},
   { &key_thread_parser_service, "parser_service", PSI_FLAG_GLOBAL},

@@ -1411,9 +1411,7 @@ sanitize_cond_class(PFS_cond_class *unsafe)
   @return a thread instrumentation key
 */
 PFS_thread_key
-register_thread_class(const char *name,
-                      uint name_length,
-                      PSI_thread_info *info MY_ATTRIBUTE((unused)))
+register_thread_class(const char *name, uint name_length, PSI_thread_info *info)
 {
   /* See comments in register_mutex_class */
   uint32 index;
@@ -1439,6 +1437,8 @@ register_thread_class(const char *name,
     strncpy(entry->m_name, name, name_length);
     entry->m_name_length = name_length;
     entry->m_enabled = true;
+    DBUG_ASSERT(info != NULL);
+    entry->m_flags = info->m_flags;
     ++thread_class_allocated_count;
     return (index + 1);
   }

@@ -21,6 +21,15 @@ typedef int myf;
 #include "my_psi_config.h"
 #include "my_sharedlib.h"
 #include "my_thread.h"
+#include "my_io.h"
+static inline int is_directory_separator(char c)
+{
+  return c == '/';
+}
+typedef int File;
+typedef mode_t MY_MODE;
+typedef socklen_t socket_len_t;
+typedef int my_socket;
 #include "psi_base.h"
 #include "my_psi_config.h"
 typedef unsigned int PSI_mutex_key;

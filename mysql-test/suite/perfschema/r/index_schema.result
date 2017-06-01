@@ -127,6 +127,7 @@ threads	0	performance_schema	PRIMARY	HASH
 threads	1	performance_schema	PROCESSLIST_ACCOUNT	HASH	
 threads	1	performance_schema	PROCESSLIST_HOST	HASH	
 threads	1	performance_schema	PROCESSLIST_ID	HASH	
+threads	1	performance_schema	RESOURCE_GROUP	HASH	
 threads	1	performance_schema	THREAD_OS_ID	HASH	
 users	0	performance_schema	USER	HASH	
 user_defined_functions	0	performance_schema	PRIMARY	HASH	
@@ -350,6 +351,7 @@ threads	1	performance_schema	PROCESSLIST_ACCOUNT	1	PROCESSLIST_USER	NULL	YES
 threads	1	performance_schema	PROCESSLIST_ACCOUNT	2	PROCESSLIST_HOST	NULL	YES
 threads	1	performance_schema	PROCESSLIST_HOST	1	PROCESSLIST_HOST	NULL	YES
 threads	1	performance_schema	PROCESSLIST_ID	1	PROCESSLIST_ID	NULL	YES
+threads	1	performance_schema	RESOURCE_GROUP	1	RESOURCE_GROUP	NULL	YES
 threads	1	performance_schema	THREAD_OS_ID	1	THREAD_OS_ID	NULL	YES
 users	0	performance_schema	USER	1	USER	NULL	YES
 user_defined_functions	0	performance_schema	PRIMARY	1	UDF_NAME	NULL	

@@ -66,6 +66,7 @@
 #include "pfs_timer.h"
 #include "pfs_transaction_provider.h"
 #include "pfs_user.h"
+#include "service_pfs_notification.h"
 #include "sp_head.h"
 #include "sql_const.h"
 #include "sql_error.h"
@@ -2379,6 +2380,7 @@ pfs_spawn_thread(void *arg)
   }
   my_thread_set_THR_PFS(pfs);
 
+  pfs_notify_thread_create((PSI_thread *)pfs);
   /*
     Secondly, free the memory allocated in spawn_thread_v1().
     It is preferable to do this before invoking the user
@@ -2475,6 +2477,11 @@ pfs_new_thread_v1(PSI_thread_key key,
   else
   {
     pfs = NULL;
+  }
+
+  if (pfs)
+  {
+    pfs_notify_thread_create((PSI_thread *)pfs);
   }
 
   return reinterpret_cast<PSI_thread *>(pfs);
@@ -2799,6 +2806,169 @@ pfs_set_thread_info_v1(const char *info, uint info_len)
 }
 
 /**
+  Set the resource group name for a given thread.
+  @param pfs Thread instrumentation
+  @param group_name Group name
+  @param group_name_len Length of group_name
+  @param user_data  Optional pointer to user-defined data
+  @return 0 if successful, 1 otherwise
+*/
+int
+set_thread_resource_group(PFS_thread *pfs,
+                          const char *group_name,
+                          int group_name_len,
+                          void *user_data)
+{
+  int result = 0;
+  pfs_dirty_state dirty_state;
+
+  if (unlikely(pfs == NULL || group_name_len <= 0))
+    return 1;
+
+  if ((size_t)group_name_len > sizeof(pfs->m_groupname))
+    return 1;
+
+  pfs->m_session_lock.allocated_to_dirty(&dirty_state);
+
+  memcpy(pfs->m_groupname, group_name, group_name_len);
+
+  pfs->m_groupname_length = group_name_len;
+  pfs->m_user_data = user_data;
+
+  pfs->m_session_lock.dirty_to_allocated(&dirty_state);
+  return result;
+}
+
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v1::set_thread_resource_group
+*/
+int
+pfs_set_thread_resource_group_v1(const char *group_name,
+                                 int group_name_len,
+                                 void *user_data)
+{
+  PFS_thread *pfs = my_thread_get_THR_PFS();
+  return set_thread_resource_group(pfs, group_name, group_name_len, user_data);
+}
+
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v1::set_thread_resource_group_by_id
+*/
+int
+pfs_set_thread_resource_group_by_id_v1(PSI_thread *thread,
+                                       ulonglong thread_id,
+                                       const char *group_name,
+                                       int group_name_len,
+                                       void *user_data)
+{
+  PFS_thread *pfs = reinterpret_cast<PFS_thread *>(thread);
+  if (pfs == NULL)
+    pfs = find_thread(thread_id);
+  return set_thread_resource_group(pfs, group_name, group_name_len, user_data);
+}
+
+/**
+  Get the system and session attributes for a given PFS_thread.
+  @param pfs thread instrumentation
+  @param current_thread true if pfs refers to the current thread
+  @param thread_attrs thread attribute structure
+  @return 0 if successful, non-zero otherwise
+*/
+int
+get_thread_attributes(PFS_thread *pfs,
+                      bool current_thread,
+                      PSI_thread_attrs *thread_attrs)
+
+{
+  int result = 0;
+  pfs_optimistic_state lock;
+  pfs_optimistic_state session_lock;
+
+  DBUG_ASSERT(thread_attrs != NULL);
+  
+  static_assert(PSI_NAME_LEN == NAME_LEN, "");
+  static_assert(PSI_USERNAME_LENGTH == USERNAME_LENGTH, "");
+  static_assert(PSI_HOSTNAME_LENGTH == HOSTNAME_LENGTH, "");
+
+  if (unlikely(pfs == NULL))
+    return 1;
+
+  if (!current_thread)
+  {
+    /* Protect this reader against a thread delete. */
+    pfs->m_lock.begin_optimistic_lock(&lock);
+    /* Protect this reader against writing on session attributes */
+    pfs->m_session_lock.begin_optimistic_lock(&session_lock);
+  }
+
+  thread_attrs->m_thread_internal_id = pfs->m_thread_internal_id;
+  thread_attrs->m_processlist_id = pfs->m_processlist_id;
+  thread_attrs->m_thread_os_id = pfs->m_thread_os_id;
+  thread_attrs->m_user_data = pfs->m_user_data;
+  thread_attrs->m_system_thread = pfs->m_system_thread;
+
+  DBUG_ASSERT(pfs->m_sock_addr_len <= sizeof(PSI_thread_attrs::m_sock_addr));
+  thread_attrs->m_sock_addr_length = pfs->m_sock_addr_len;
+  if (thread_attrs->m_sock_addr_length > 0)
+    memcpy(&thread_attrs->m_sock_addr, &pfs->m_sock_addr, pfs->m_sock_addr_len);
+
+  DBUG_ASSERT(pfs->m_username_length <= sizeof(PSI_thread_attrs::m_username));
+  thread_attrs->m_username_length = pfs->m_username_length;
+  if (pfs->m_username_length > 0)
+    memcpy(thread_attrs->m_username, pfs->m_username, pfs->m_username_length);
+
+  DBUG_ASSERT(pfs->m_hostname_length <= sizeof(PSI_thread_attrs::m_hostname));
+  thread_attrs->m_hostname_length = pfs->m_hostname_length;
+  if (pfs->m_hostname_length > 0)
+    memcpy(thread_attrs->m_hostname, pfs->m_hostname, pfs->m_hostname_length);
+
+  DBUG_ASSERT(pfs->m_groupname_length <= sizeof(PSI_thread_attrs::m_groupname));
+  thread_attrs->m_groupname_length = pfs->m_groupname_length;
+  if (pfs->m_groupname_length > 0)
+    memcpy(
+      thread_attrs->m_groupname, pfs->m_groupname, pfs->m_groupname_length);
+
+  if (!current_thread)
+  {
+    if (!pfs->m_session_lock.end_optimistic_lock(&session_lock))
+      result = 1;
+
+    if (!pfs->m_lock.end_optimistic_lock(&lock))
+      result = 1;
+  }
+
+  return result;
+}
+
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v1::get_thread_system_attrs.
+*/
+int
+pfs_get_thread_system_attrs_v1(PSI_thread_attrs *thread_attrs)
+{
+  PFS_thread *pfs = my_thread_get_THR_PFS();
+  return get_thread_attributes(pfs, true, thread_attrs);
+}
+
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v1::get_thread_system_attrs_by_id.
+*/
+int
+pfs_get_thread_system_attrs_by_id_v1(PSI_thread *thread,
+                                     ulonglong thread_id,
+                                     PSI_thread_attrs *thread_attrs)
+{
+  PFS_thread *pfs = reinterpret_cast<PFS_thread *>(thread);
+  if (pfs == NULL)
+    pfs = find_thread(thread_id);
+  return get_thread_attributes(pfs, false, thread_attrs);
+}
+
+/**
   Implementation of the thread instrumentation interface.
   @sa PSI_v1::set_thread.
 */
@@ -2821,6 +2991,7 @@ pfs_delete_current_thread_v1(void)
   {
     aggregate_thread(thread, thread->m_account, thread->m_user, thread->m_host);
     my_thread_set_THR_PFS(NULL);
+    pfs_notify_thread_destroy((PSI_thread *)thread);
     destroy_thread(thread);
   }
 }
@@ -2837,6 +3008,7 @@ pfs_delete_thread_v1(PSI_thread *thread)
   if (pfs != NULL)
   {
     aggregate_thread(pfs, pfs->m_account, pfs->m_user, pfs->m_host);
+    pfs_notify_thread_destroy(thread);
     destroy_thread(pfs);
   }
 }
@@ -6984,7 +7156,19 @@ pfs_set_socket_thread_owner_v1(PSI_socket *socket)
 {
   PFS_socket *pfs_socket = reinterpret_cast<PFS_socket *>(socket);
   DBUG_ASSERT(pfs_socket != NULL);
-  pfs_socket->m_thread_owner = my_thread_get_THR_PFS();
+  PFS_thread *pfs_thread = my_thread_get_THR_PFS();
+  pfs_socket->m_thread_owner = pfs_thread;
+
+  if (pfs_thread)  // TODO use set_thread_ip_addr()
+  {
+    pfs_thread->m_sock_addr_len = pfs_socket->m_addr_len;
+    if (pfs_thread->m_sock_addr_len > 0)
+    {
+      memcpy(&pfs_thread->m_sock_addr,
+             &pfs_socket->m_sock_addr,
+             pfs_socket->m_addr_len);
+    }
+  }
 }
 
 struct PSI_digest_locker *
@@ -7868,26 +8052,36 @@ pfs_unregister_data_lock_v1(PSI_engine_data_lock_inspector * /* inspector */)
   Implementation of the instrumentation interface.
   @sa PSI_thread_service_v1
 */
-PSI_thread_service_v1 pfs_thread_service_v1 = {pfs_register_thread_v1,
-                                               pfs_spawn_thread_v1,
-                                               pfs_new_thread_v1,
-                                               pfs_set_thread_id_v1,
-                                               pfs_set_thread_THD_v1,
-                                               pfs_set_thread_os_id_v1,
-                                               pfs_get_thread_v1,
-                                               pfs_set_thread_user_v1,
-                                               pfs_set_thread_account_v1,
-                                               pfs_set_thread_db_v1,
-                                               pfs_set_thread_command_v1,
-                                               pfs_set_connection_type_v1,
-                                               pfs_set_thread_start_time_v1,
-                                               pfs_set_thread_state_v1,
-                                               pfs_set_thread_info_v1,
-                                               pfs_set_thread_v1,
-                                               pfs_delete_current_thread_v1,
-                                               pfs_delete_thread_v1,
-                                               pfs_set_thread_connect_attrs_v1,
-                                               pfs_get_thread_event_id_v1};
+PSI_thread_service_v1 pfs_thread_service_v1 = {
+  pfs_register_thread_v1,
+  pfs_spawn_thread_v1,
+  pfs_new_thread_v1,
+  pfs_set_thread_id_v1,
+  pfs_set_thread_THD_v1,
+  pfs_set_thread_os_id_v1,
+  pfs_get_thread_v1,
+  pfs_set_thread_user_v1,
+  pfs_set_thread_account_v1,
+  pfs_set_thread_db_v1,
+  pfs_set_thread_command_v1,
+  pfs_set_connection_type_v1,
+  pfs_set_thread_start_time_v1,
+  pfs_set_thread_state_v1,
+  pfs_set_thread_info_v1,
+  pfs_set_thread_resource_group_v1,
+  pfs_set_thread_resource_group_by_id_v1,
+  pfs_set_thread_v1,
+  pfs_delete_current_thread_v1,
+  pfs_delete_thread_v1,
+  pfs_set_thread_connect_attrs_v1,
+  pfs_get_thread_event_id_v1,
+  pfs_get_thread_system_attrs_v1,
+  pfs_get_thread_system_attrs_by_id_v1,
+  pfs_register_notification_v1,
+  pfs_unregister_notification_v1,
+  pfs_notify_session_connect_v1,
+  pfs_notify_session_disconnect_v1,
+  pfs_notify_session_change_user_v1};
 
 PSI_mutex_service_v1 pfs_mutex_service_v1 = {pfs_register_mutex_v1,
                                              pfs_init_mutex_v1,

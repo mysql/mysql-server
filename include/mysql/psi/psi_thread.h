@@ -30,6 +30,7 @@
 #include "my_psi_config.h"  // IWYU pragma: keep
 #include "my_sharedlib.h"
 #include "my_thread.h"      /* my_thread_handle */
+#include "my_io.h"          /* sockaddr_storage */
 #include "psi_base.h"
 
 C_MODE_START
@@ -258,6 +259,33 @@ typedef void (*set_thread_state_v1_t)(const char *state);
 typedef void (*set_thread_info_v1_t)(const char *info, uint info_len);
 
 /**
+  Assign a resource group name to the current thread.
+
+  @param group_name resource group name string
+  @param group_name_len resource group name string length
+  @param user_data user-defined data
+  return 0 if successful, 1 otherwise
+*/
+typedef int (*set_thread_resource_group_v1_t)(const char* group_name,
+                                              int group_name_len,
+                                              void *user_data);
+/**
+  Assign a resource group name to an instrumented thread, identified either by
+  the thread instrumentation or Performance Schema thread id.
+
+  @param thread pointer to the thread instrumentation. Ignored if NULL.
+  @param thread_id thread id of the target thread. Only used if thread is NULL.
+  @param group_name resource group name string
+  @param group_name_len resource group name string length
+  @param user_data user-defined data
+  return 0 if successful, 1 otherwise
+*/
+typedef int (*set_thread_resource_group_by_id_v1_t)(PSI_thread *thread,
+                                                    ulonglong thread_id,
+                                                    const char* group_name,
+                                                    int group_name_len,
+                                                    void *user_data);
+/**
   Attach a thread instrumentation to the running thread.
   In case of thread pools, this method should be called when
   a worker thread picks a work item and runs it.
@@ -296,6 +324,143 @@ typedef int (*set_thread_connect_attrs_v1_t)(const char *buffer,
 typedef void (*get_thread_event_id_v1_t)(ulonglong *thread_internal_id,
                                          ulonglong *event_id);
 
+
+/* Duplicate definitions to avoid dependency on mysql_com.h */
+#define PSI_USERNAME_LENGTH (32 * 3)
+#define PSI_NAME_LEN (64 * 3)
+#define PSI_HOSTNAME_LENGTH (60)
+
+/**
+  Performance Schema thread type: user/foreground or system/background.
+  @sa get_thread_system_attrs
+*/
+typedef struct
+{
+  /* PFS internal thread id, unique. */
+  ulonglong m_thread_internal_id;
+
+  /* SHOW PROCESSLIST thread id, not unique. */
+  ulong m_processlist_id;
+
+  /* Operating system thread id, if any. */
+  ulonglong m_thread_os_id;
+
+  /* User-defined data. */
+  void *m_user_data;
+
+  /* User name. */
+  char m_username[PSI_USERNAME_LENGTH];
+  
+  /* User name length. */
+  size_t m_username_length;
+
+  /* Host name. */
+  char m_hostname[PSI_HOSTNAME_LENGTH];
+
+  /* Host name length. */
+  size_t m_hostname_length;
+
+  /* Resource group name. */
+  char m_groupname[PSI_NAME_LEN];
+
+  /* Resource group name length. */
+  size_t m_groupname_length;
+
+  /** Raw socket address */
+  struct sockaddr_storage m_sock_addr;
+
+  /** Length of address */
+  socklen_t m_sock_addr_length;
+
+  /* True if system/background thread, false if user/foreground thread. */
+  bool m_system_thread;
+} PSI_thread_attrs;
+
+/**
+  Callback for the pfs_notification service.
+  @param thread_attrs system attributes of the current thread.
+*/
+typedef void (*PSI_notification_cb)(const PSI_thread_attrs *thread_attrs);
+
+/**
+  Registration structure for the pfs_notification service.
+  @sa register_notification_v1_t
+*/
+typedef struct
+{
+    PSI_notification_cb thread_create;
+    PSI_notification_cb thread_destroy;
+    PSI_notification_cb session_connect;
+    PSI_notification_cb session_disconnect;
+    PSI_notification_cb session_change_user;
+} PSI_notification;
+
+/**
+  Get system attributes for the current thread.
+
+  @param pfs_thread_attr pointer to pfs_thread_attr struct
+  @return 0 if successful, 1 otherwise
+*/
+typedef int (*get_thread_system_attrs_v1_t)(PSI_thread_attrs *thread_attrs);
+
+/**
+  Get system attributes for an instrumented thread, identified either by the
+  thread instrumentation or Performance Schema thread id.
+  
+  @param thread pointer to the thread instrumentation. Ignored if NULL.
+  @param thread_id thread id of the target thread. Only used if thread is NULL.
+  @param pfs_thread_attr pointer to pfs_thread_attr struct
+  @return 0 if successful, 1 otherwise
+*/
+typedef int (*get_thread_system_attrs_by_id_v1_t)(PSI_thread *thread,
+                                                ulonglong thread_id,
+                                                PSI_thread_attrs *thread_attrs);
+/**
+  Register callback functions for the Notification service.
+  For best performance, set with_ref_count = false.
+
+  @param callback structure of user-defined callback functions
+  @param with_ref_count true if callbacks can be unregistered
+  @sa unregister_notification
+  @return registration handle on success, 0 if failure
+*/
+typedef int (*register_notification_v1_t)(const PSI_notification *callbacks,
+                                          bool with_ref_count);
+
+/**
+  Unregister callback functions for the Notification service.
+
+  @param handle  registration handle returned by register_notification()
+  @sa register_notification
+  @return 0 if successful, non-zero otherwise
+*/
+typedef int (*unregister_notification_v1_t)(int handle);
+
+/**
+  Invoke the callback function registered for a session connect event.
+
+  @param thread the thread instrumentation
+  @return 0 if successful, non-zero otherwise
+*/
+typedef void (*notify_session_connect_v1_t)(PSI_thread *thread);
+
+/**
+  Invoke the callback function registered for a session disconnect event.
+
+  @param thread the thread instrumentation
+  @return 0 if successful, non-zero otherwise
+*/
+typedef void (*notify_session_disconnect_v1_t)(PSI_thread *thread);
+
+/**
+  Invoke the callback function registered for a changer user event.
+
+  @param thread the thread instrumentation
+  @return 0 if successful, non-zero otherwise
+*/
+typedef void (*notify_session_change_user_v1_t)(PSI_thread *thread);
+
+
 /**
   Performance Schema Thread Interface, version 1.
   @since PSI_IDLE_VERSION_1
@@ -332,6 +497,10 @@ struct PSI_thread_service_v1
   set_thread_state_v1_t set_thread_state;
   /** @sa set_thread_info_v1_t. */
   set_thread_info_v1_t set_thread_info;
+  /** @sa set_thread_resource_group_v1_t. */
+  set_thread_resource_group_v1_t set_thread_resource_group;
+  /** @sa set_thread_resource_group_by_id_v1_t. */
+  set_thread_resource_group_by_id_v1_t set_thread_resource_group_by_id;
   /** @sa set_thread_v1_t. */
   set_thread_v1_t set_thread;
   /** @sa delete_current_thread_v1_t. */
@@ -342,6 +511,20 @@ struct PSI_thread_service_v1
   set_thread_connect_attrs_v1_t set_thread_connect_attrs;
   /** @sa get_thread_event_id_v1_t. */
   get_thread_event_id_v1_t get_thread_event_id;
+  /** @sa get_thread_system_attrs_v1_t. */
+  get_thread_system_attrs_v1_t get_thread_system_attrs;
+  /** @sa get_thread_system_attrs_by_id_v1_t. */
+  get_thread_system_attrs_by_id_v1_t get_thread_system_attrs_by_id;
+  /** @sa register_notification_v1_t. */
+  register_notification_v1_t register_notification;
+  /** @sa unregister_notification_v1_t. */
+  unregister_notification_v1_t unregister_notification;
+  /** @sa notify_session_connect_v1_t. */
+  notify_session_connect_v1_t notify_session_connect;
+  /** @sa notify_session_disconnect_v1_t. */
+  notify_session_disconnect_v1_t notify_session_disconnect;
+  /** @sa notify_session_change_user_v1_t. */
+  notify_session_change_user_v1_t notify_session_change_user;
 };
 
 #endif /* HAVE_PSI_THREAD_1 */

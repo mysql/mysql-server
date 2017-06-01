@@ -469,6 +469,8 @@ struct PFS_ALIGNED PFS_thread : PFS_connection_slice
   my_thread_os_id_t m_thread_os_id;
   /** Thread class. */
   PFS_thread_class *m_class;
+  /** True if a system thread. */
+  bool m_system_thread;
   /**
     Stack of events waits.
     This member holds the data for the table
@@ -582,6 +584,18 @@ struct PFS_ALIGNED PFS_thread : PFS_connection_slice
     Protected by @c m_stmt_lock.
   */
   uint m_dbname_length;
+  /**
+    Resource group name.
+    Protected by @c m_session_lock.
+  */
+  char m_groupname[NAME_LEN];
+  /**
+    Length of @c m_groupname.
+    Protected by @c m_session_lock.
+  */
+  uint m_groupname_length;
+  /** User-defined data. */
+  void *m_user_data;
   /** Current command. */
   int m_command;
   /** Connection type. */
@@ -621,6 +635,11 @@ struct PFS_ALIGNED PFS_thread : PFS_connection_slice
   PFS_host *m_host;
   PFS_user *m_user;
   PFS_account *m_account;
+
+  /** Raw socket address */
+  struct sockaddr_storage m_sock_addr;
+  /** Length of address */
+  socklen_t m_sock_addr_len;
 
   /** Reset session connect attributes */
   void reset_session_connect_attrs();
@@ -688,6 +707,8 @@ void destroy_cond(PFS_cond *pfs);
 PFS_thread *create_thread(PFS_thread_class *klass,
                           const void *identity,
                           ulonglong processlist_id);
+
+PFS_thread *find_thread(ulonglong thread_id);
 
 void destroy_thread(PFS_thread *pfs);
 

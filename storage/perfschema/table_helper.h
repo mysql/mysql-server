@@ -1348,6 +1348,22 @@ public:
   bool match(const char *name, uint name_length);
 };
 
+class PFS_key_group_name : public PFS_key_string<NAME_CHAR_LEN>
+{
+public:
+  PFS_key_group_name(const char *name) : PFS_key_string(name)
+  {
+  }
+
+  ~PFS_key_group_name()
+  {
+  }
+
+  bool match(const LEX_STRING *name);
+  bool match(const char *name, uint name_length);
+  bool match(PFS_thread *pfs);
+};
+
 class PFS_key_variable_name : public PFS_key_string<NAME_CHAR_LEN>
 {
 public:
