@@ -2494,6 +2494,9 @@ buf_pool_clear_hash_index(void)
 					continue;
 				}
 
+				ut_ad(buf_block_get_state(block)
+				      == BUF_BLOCK_FILE_PAGE);
+
 # if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 				block->n_pointers = 0;
 # endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
