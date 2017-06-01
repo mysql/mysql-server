@@ -1562,8 +1562,7 @@ static bool migrate_table_to_dd(THD *thd,
 
   // Fill create_info to be passed to the DD framework.
   HA_CREATE_INFO create_info;
-  Alter_info alter_info;
-  alter_info.reset();
+  Alter_info alter_info(thd->mem_root);
   Alter_table_ctx alter_ctx;
 
   /*

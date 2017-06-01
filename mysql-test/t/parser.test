@@ -2019,3 +2019,77 @@ ALTER TABLE t1 ADD PARTITION;
 DROP TABLE t1;
 
 --echo #
+
+--echo #
+--echo # Bug#25717617: Wrong syntax error line numbers when sql_mode has the
+--echo #               IGNORE_SPACE flag
+--echo #
+
+SET @save_sql_mode=@@sql_mode;
+SET sql_mode='IGNORE_SPACE';
+
+--echo # Expected error line number is 2:
+--error ER_PARSE_ERROR
+CREATE
+TABLE;
+
+--echo # Expected error line number is 5:
+--error ER_PARSE_ERROR
+CREATE
+#
+#
+#
+TABLE;
+
+--echo #
+--echo # Regression test added in WL#8657
+--echo #
+
+CREATE TEMPORARY TABLE t1(a INT);
+SHOW COLUMNS FROM t1 WHERE FIELD='a';
+DROP TABLE t1;
+
+--error ER_WRONG_DB_NAME
+ALTER TABLE t1 RENAME TO ``.t1;
+
+--error ER_PARSE_ERROR
+CREATE TABLE t1 (a INT) PARTITION BY KEY ALGORITHM = 10 () PARTITIONS 3;
+
+--error ER_PARSE_ERROR
+ALTER EVENT ev1;
+
+--error ER_PARSE_ERROR
+ALTER INSTANCE ROTATE MyISAM MASTER KEY;
+
+--error ER_PARSE_ERROR
+REVOKE SELECT(c1) ON FUNCTION *.* FROM r1;
+
+--error ER_PARSE_ERROR
+GRANT SELECT(c1) ON FUNCTION *.* TO r1;
+
+--error ER_WRONG_TABLE_NAME
+CREATE INDEX idx1 ON `` (c1);
+
+--error ER_WRONG_TABLE_NAME
+ALTER TABLE t1 EXCHANGE PARTITION p0 WITH TABLE `` WITH VALIDATION;
+
+--error ER_WRONG_TABLE_NAME
+CHECK TABLE ``;
+
+--error ER_WRONG_TABLE_NAME
+DROP INDEX idx1 ON ``;
+
+--error ER_WRONG_TABLE_NAME
+CACHE INDEX `` IN c;
+
+--error ER_WRONG_TABLE_NAME
+CACHE INDEX `` PARTITION (ALL) IN c;
+
+--error ER_WRONG_TABLE_NAME
+LOAD INDEX INTO CACHE `` PARTITION (ALL);
+
+--error ER_WRONG_TABLE_NAME
+LOAD INDEX INTO CACHE ``;
+
+
+SET @@sql_mode=@save_sql_mode;

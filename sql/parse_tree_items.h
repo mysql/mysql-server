@@ -671,8 +671,7 @@ public:
     }
     if (!(*res= get_system_var(pc, var_type, var, component)))
       return true;
-    if (!my_strcasecmp(system_charset_info, var.str, "warning_count") ||
-        !my_strcasecmp(system_charset_info, var.str, "error_count"))
+    if (is_identifier(var, "warning_count") || is_identifier(var, "error_count"))
     {
       /*
         "Diagnostics variable" used in a non-diagnostics statement.

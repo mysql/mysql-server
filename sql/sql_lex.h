@@ -86,6 +86,7 @@ class Item_sum;
 class PT_base_index_option;
 class PT_column_attr_base;
 class PT_create_table_option;
+class PT_ddl_table_option;
 class PT_part_definition;
 class PT_part_value_item;
 class PT_part_value_item_list_paren;
@@ -463,11 +464,11 @@ public:
     The index name. Empty (str=NULL) name represents an empty list 
     USE INDEX () clause 
   */ 
-  LEX_STRING key_name;
+  LEX_CSTRING key_name;
 
   Index_hint (const char *str, uint length)
   {
-    key_name.str= const_cast<char *>(str);
+    key_name.str= str;
     key_name.length= length;
   }
 
@@ -1820,6 +1821,66 @@ enum class Show_fields_type { STANDARD, FULL_SHOW, EXTENDED_SHOW,
                               EXTENDED_FULL_SHOW };
 
 
+/**
+  std::optional-like wrapper for simple bitmaps (usually enums of binary flags)
+
+  This template wraps trivial bitmap implementations to add two features:
+
+  * std::optional-like behavior -- the "unset" flag, so we don't have
+    to inject a special "invalid" value into existent enum types, this
+    wrapper class does that for us.
+
+  * the merge() function to merge two bitmap values in a type-safe way.
+
+  @tparam Enum           Usually a enum type which simulates a bit set.
+  @tparam Default_value  A default Enum value for "unset" variables.
+
+*/
+template<typename Enum, Enum Default_value>
+class Enum_parser
+{
+public:
+  /// Constructor-like function
+  ///
+  /// The Enum_parser<> class is designed for use as a field of restricted
+  /// unions, so it can't have C++ constructors.
+  void init() { m_is_set= false; }
+
+  /// False if the wrapped Enum value is not assigned.
+  bool is_set() const { return m_is_set; }
+
+  /// Return the wrapped Enum value.
+  ///
+  /// @note The wrapped value must be assigned.
+  Enum get() const
+  {
+    DBUG_ASSERT(is_set());
+    return m_enum;
+  }
+
+  /// Return the wrapped Enum value (if any) or the Default_value.
+  Enum get_or_default() const { return is_set() ? get() : Default_value; }
+
+  /// Assign the wrapped Enum value.
+  void set(Enum value)
+  {
+    m_is_set= true;
+    m_enum= value;
+  }
+
+  /// Merge the x bit set into the wrapped Enum value (if any), or replace it
+  void merge(const Enum_parser &x)
+  {
+    if (x.is_set())
+      set(x.get());
+  }
+
+private:
+  bool m_is_set; ///< True if m_enum is assigned with some value
+  Enum m_enum;   ///< The wrapped Enum value.
+};
+
+
 union YYSTYPE {
   /*
     Hint parser section (sql_hints.yy)
@@ -1966,17 +2027,17 @@ union YYSTYPE {
     class PT_query_expression *insert_query_expression;
   } insert_query_expression;
   class PT_insert_values_list *values_list;
-  class PT_statement *statement;
+  class Parse_tree_root *top_level_node;
   class Table_ident *table_ident;
   Mem_root_array_YY<Table_ident *> table_ident_list;
   delete_option_enum opt_delete_option;
   class PT_hint_list *optimizer_hints;
   enum alter_instance_action_enum alter_instance_action;
-  class PT_index_definition_stmt *index_definition_stmt;
+  class PT_create_index_stmt *create_index_stmt;
   class PT_table_constraint_def *table_constraint_def;
   List<Key_part_spec> *index_column_list;
   struct {
-    class PT_field_ident *name;
+    LEX_STRING name;
     class PT_base_index_option *type;
   } index_name_and_type;
   class PT_base_index_option *index_option;
@@ -2017,6 +2078,7 @@ union YYSTYPE {
   Ternary_option ternary_option;
   class PT_create_table_option *create_table_option;
   Trivial_array<PT_create_table_option *> *create_table_options;
+  Trivial_array<PT_ddl_table_option *> *space_separated_alter_table_opts;
   On_duplicate on_duplicate;
   class PT_column_attr_base *col_attr;
   column_format_type column_format;
@@ -2046,7 +2108,6 @@ union YYSTYPE {
     fk_option fk_update_opt;
     fk_option fk_delete_opt;
   } fk_references;
-  class PT_field_ident *field_ident;
   class PT_column_def *column_def;
   class PT_table_element *table_element;
   Trivial_array<PT_table_element *> *table_element_list;
@@ -2075,7 +2136,46 @@ union YYSTYPE {
   Trivial_array<LEX_CSTRING> *lex_cstring_list;
   class PT_role_or_privilege *role_or_privilege;
   Trivial_array<PT_role_or_privilege *> *role_or_privilege_list;
+  enum_order order_direction;
+  Alter_info::enum_with_validation with_validation;
+  class PT_alter_table_action *alter_table_action;
+  class PT_alter_table_standalone_action *alter_table_standalone_action;
+  Alter_info::enum_alter_table_algorithm alter_table_algorithm;
+  Alter_info::enum_alter_table_lock alter_table_lock;
+  struct Algo_and_lock {
+    Enum_parser<Alter_info::enum_alter_table_algorithm,
+                Alter_info::ALTER_TABLE_ALGORITHM_DEFAULT> algo;
+    Enum_parser<Alter_info::enum_alter_table_lock,
+                Alter_info::ALTER_TABLE_LOCK_DEFAULT> lock;
+    void init() { algo.init(); lock.init(); }
+  } opt_index_lock_and_algorithm;
+  struct Algo_and_lock_and_validation {
+    Enum_parser<Alter_info::enum_alter_table_algorithm,
+                Alter_info::ALTER_TABLE_ALGORITHM_DEFAULT> algo;
+    Enum_parser<Alter_info::enum_alter_table_lock,
+                Alter_info::ALTER_TABLE_LOCK_DEFAULT> lock;
+    Enum_parser<Alter_info::enum_with_validation,
+                Alter_info::ALTER_VALIDATION_DEFAULT> validation;
+    void init() { algo.init(); lock.init(); validation.init(); }
+    void merge(const Algo_and_lock_and_validation &x)
+    { algo.merge(x.algo); lock.merge(x.lock); validation.merge(x.validation); }
+  } algo_and_lock_and_validation;
+  struct {
+    Algo_and_lock_and_validation flags;
+    Trivial_array<PT_ddl_table_option *> *actions;
+  } alter_list;
+  struct {
+    Algo_and_lock_and_validation flags;
+    PT_alter_table_standalone_action *action;
+  } standalone_alter_table_action;
+  class PT_assign_to_keycache *assign_to_keycache;
+  Trivial_array<PT_assign_to_keycache *> *keycache_list;
+  class PT_adm_partition *adm_partition;
+  class PT_preload_keys *preload_keys;
+  Trivial_array<PT_preload_keys *> *preload_list;
 };
+
+static_assert(sizeof(YYSTYPE) <= 32, "YYSTYPE is too big");
 
 
 /**
@@ -2279,17 +2379,6 @@ public:
       query_tables_last= query_tables_own_last;
       query_tables_own_last= 0;
     }
-  }
-
-  /** Return a pointer to the last element in query table list. */
-  TABLE_LIST *last_table()
-  {
-    /* Don't use offsetof() macro in order to avoid warnings. */
-    return query_tables ?
-           (TABLE_LIST*) ((char*) query_tables_last -
-                          ((char*) &(query_tables->next_global) -
-                           (char*) query_tables)) :
-           0;
   }
 
   /**
@@ -2925,7 +3014,7 @@ public:
     Get the last character accepted.
     @return the last character accepted.
   */
-  unsigned char yyGetLast()
+  unsigned char yyGetLast() const
   {
     return m_ptr[-1];
   }
@@ -2933,7 +3022,7 @@ public:
   /**
     Look at the next character to parse, but do not accept it.
   */
-  unsigned char yyPeek()
+  unsigned char yyPeek() const
   {
     DBUG_ASSERT(m_ptr <= m_end_of_query);
     return m_ptr[0];
@@ -2943,7 +3032,7 @@ public:
     Look ahead at some character to parse.
     @param n offset of the character to look up
   */
-  unsigned char yyPeekn(int n)
+  unsigned char yyPeekn(int n) const
   {
     DBUG_ASSERT(m_ptr + n <= m_end_of_query);
     return m_ptr[n];
@@ -3019,7 +3108,7 @@ public:
     End of file indicator for the query text to parse.
     @return true if there are no more characters to parse
   */
-  bool eof()
+  bool eof() const
   {
     return (m_ptr >= m_end_of_query);
   }
@@ -3029,25 +3118,25 @@ public:
     @param n number of characters expected
     @return true if there are less than n characters to parse
   */
-  bool eof(int n)
+  bool eof(int n) const
   {
     return ((m_ptr + n) >= m_end_of_query);
   }
 
   /** Get the raw query buffer. */
-  const char *get_buf()
+  const char *get_buf() const
   {
     return m_buf;
   }
 
   /** Get the pre-processed query buffer. */
-  const char *get_cpp_buf()
+  const char *get_cpp_buf() const
   {
     return m_cpp_buf;
   }
 
   /** Get the end of the raw query buffer. */
-  const char *get_end_of_query()
+  const char *get_end_of_query() const
   {
     return m_end_of_query;
   }
@@ -3073,43 +3162,43 @@ public:
   }
 
   /** Get the token start position, in the raw buffer. */
-  const char *get_tok_start()
+  const char *get_tok_start() const
   {
     return m_tok_start;
   }
 
   /** Get the token start position, in the pre-processed buffer. */
-  const char *get_cpp_tok_start()
+  const char *get_cpp_tok_start() const
   {
     return m_cpp_tok_start;
   }
 
   /** Get the token end position, in the raw buffer. */
-  const char *get_tok_end()
+  const char *get_tok_end() const
   {
     return m_tok_end;
   }
 
   /** Get the token end position, in the pre-processed buffer. */
-  const char *get_cpp_tok_end()
+  const char *get_cpp_tok_end() const
   {
     return m_cpp_tok_end;
   }
 
   /** Get the current stream pointer, in the raw buffer. */
-  const char *get_ptr()
+  const char *get_ptr() const
   {
     return m_ptr;
   }
 
   /** Get the current stream pointer, in the pre-processed buffer. */
-  const char *get_cpp_ptr()
+  const char *get_cpp_ptr() const
   {
     return m_cpp_ptr;
   }
 
   /** Get the length of the current token, in the raw buffer. */
-  uint yyLength()
+  uint yyLength() const
   {
     /*
       The assumption is that the lexical analyser is always 1 character ahead,
@@ -3120,13 +3209,13 @@ public:
   }
    
   /** Get the utf8-body string. */
-  const char *get_body_utf8_str()
+  const char *get_body_utf8_str() const
   {
     return m_body_utf8;
   }
 
   /** Get the utf8-body length. */
-  uint get_body_utf8_length()
+  uint get_body_utf8_length() const
   {
     return (uint) (m_body_utf8_ptr - m_body_utf8);
   }
@@ -3139,7 +3228,7 @@ public:
                                 const CHARSET_INFO *txt_cs,
                                 const char *end_ptr);
 
-  uint get_lineno(const char *raw_ptr);
+  uint get_lineno(const char *raw_ptr) const;
 
   /** Current thread. */
   THD *m_thd;
@@ -3422,9 +3511,6 @@ public:
   // KILL statement-specific fields:
   List<Item>          kill_value_list;
 
-  // CALL statement-specific fields:
-  List<Item>          call_value_list;
-
   // HANDLER statement-specific fields:
   List<Item>          *handler_insert_list;
 
@@ -3531,7 +3617,6 @@ public:
   enum enum_tx_isolation tx_isolation;
   enum enum_var_type option_type;
   enum_view_create_mode create_view_mode;
-  enum enum_drop_mode drop_mode;
 
   /// QUERY ID for SHOW PROFILE and EXPLAIN CONNECTION
   my_thread_id query_id;
@@ -3558,13 +3643,7 @@ public:
   bool is_ignore() const { return ignore; }
   void set_ignore(bool ignore_param) { ignore= ignore_param; }
   st_parsing_options parsing_options;
-  Alter_info alter_info;
-  /*
-    For CREATE TABLE statement last element of table list which is not
-    part of SELECT or LIKE part (i.e. either element for table we are
-    creating or last of tables referenced by foreign keys).
-  */
-  TABLE_LIST *create_last_non_select_table;
+  Alter_info *alter_info;
   /* Prepared statements SQL syntax:*/
   LEX_CSTRING prepared_stmt_name; /* Statement name (in all queries) */
   /*
@@ -3798,7 +3877,12 @@ public:
     context_stack.pop();
   }
 
-  bool copy_db_to(char **p_db, size_t *p_db_length) const;
+  bool copy_db_to(char const **p_db, size_t *p_db_length) const;
+
+  bool copy_db_to(char **p_db, size_t *p_db_length) const
+  {
+    return copy_db_to(const_cast<const char **>(p_db), p_db_length);
+  }
 
   Name_resolution_context *current_context()
   {
@@ -3813,7 +3897,6 @@ public:
   void restore_backup_query_tables_list(Query_tables_list *backup);
 
   bool table_or_sp_used();
-  bool is_partition_management() const;
 
   /**
     @brief check if the statement is a single-level join

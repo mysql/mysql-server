@@ -4138,7 +4138,7 @@ static void calculate_field_offsets(List<Create_field> *create_list)
    @param[in]  is_ha_has_desc_index Whether storage supports desc indexes
 */
 
-static bool count_keys(const Prealloced_array<const Key_spec*, 1> &key_list,
+static bool count_keys(const Mem_root_array<const Key_spec*> &key_list,
                        uint *key_count, uint *key_parts,
                        uint *fk_key_count,
                        Mem_root_array<bool> *redundant_keys,
@@ -6775,7 +6775,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
                              HA_CREATE_INFO *create_info)
 {
   HA_CREATE_INFO local_create_info;
-  Alter_info local_alter_info;
+  Alter_info local_alter_info(thd->mem_root);
   Alter_table_ctx local_alter_ctx; // Not used
   bool is_trans= FALSE;
   uint not_used;
@@ -7100,8 +7100,10 @@ err:
   DBUG_RETURN(true);
 }
 
+
 /* table_list should contain just one table */
-bool mysql_discard_or_import_tablespace(THD *thd,
+bool
+Sql_cmd_discard_import_tablespace::mysql_discard_or_import_tablespace(THD *thd,
                                         TABLE_LIST *table_list)
 {
   Alter_table_prelocking_strategy alter_prelocking_strategy;
@@ -7116,7 +7118,7 @@ bool mysql_discard_or_import_tablespace(THD *thd,
    /*
      DISCARD/IMPORT TABLESPACE do not respect ALGORITHM and LOCK clauses.
    */
-  if (thd->lex->alter_info.requested_lock !=
+  if (m_alter_info->requested_lock !=
       Alter_info::ALTER_TABLE_LOCK_DEFAULT)
   {
     my_error(ER_ALTER_OPERATION_NOT_SUPPORTED, MYF(0),
@@ -7124,7 +7126,7 @@ bool mysql_discard_or_import_tablespace(THD *thd,
              "LOCK=DEFAULT");
     DBUG_RETURN(true);
   }
-  else if (thd->lex->alter_info.requested_algorithm !=
+  else if (m_alter_info->requested_algorithm !=
            Alter_info::ALTER_TABLE_ALGORITHM_DEFAULT)
   {
     my_error(ER_ALTER_OPERATION_NOT_SUPPORTED, MYF(0),
@@ -7157,10 +7159,10 @@ bool mysql_discard_or_import_tablespace(THD *thd,
       If not ALL is mentioned and there is at least one specified
       [sub]partition name, use the specified [sub]partitions only.
     */
-    if (thd->lex->alter_info.partition_names.elements > 0 &&
-        !(thd->lex->alter_info.flags & Alter_info::ALTER_ALL_PARTITION))
+    if (m_alter_info->partition_names.elements > 0 &&
+        !(m_alter_info->flags & Alter_info::ALTER_ALL_PARTITION))
     {
-      table_list->partition_names= &thd->lex->alter_info.partition_names;
+      table_list->partition_names= &m_alter_info->partition_names;
       /* Set all [named] partitions as used. */
       if (table_list->table->part_info->set_partition_bitmaps(table_list))
         DBUG_RETURN(true);
@@ -7168,8 +7170,8 @@ bool mysql_discard_or_import_tablespace(THD *thd,
   }
   else
   {
-    if (thd->lex->alter_info.partition_names.elements > 0 ||
-        thd->lex->alter_info.flags & Alter_info::ALTER_ALL_PARTITION)
+    if (m_alter_info->partition_names.elements > 0 ||
+        m_alter_info->flags & Alter_info::ALTER_ALL_PARTITION)
     {
       /* Don't allow DISCARD/IMPORT PARTITION on a nonpartitioned table */
       my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
@@ -7218,7 +7220,7 @@ bool mysql_discard_or_import_tablespace(THD *thd,
   }
 
   /*
-    The parser sets a flag in the thd->lex->alter_info struct to indicate
+    The parser sets a flag in the Alter_info struct to indicate
     whether this is DISCARD or IMPORT. The flag is used for two purposes:
 
     1. To submit the appropriate parameter to the SE to indicate which
@@ -7230,7 +7232,7 @@ bool mysql_discard_or_import_tablespace(THD *thd,
        missing tablespace.
   */
 
-  bool discard= (thd->lex->alter_info.flags &
+  bool discard= (m_alter_info->flags &
                  Alter_info::ALTER_DISCARD_TABLESPACE);
   error= table_list->table->file->ha_discard_or_import_tablespace(
                                                discard, table_def);
@@ -9489,7 +9491,9 @@ bool prepare_fields_and_keys(THD *thd,
     its copy.
   */
   Prealloced_array<const Alter_rename_key*, 1>
-    rename_key_list(alter_info->alter_rename_key_list);
+    rename_key_list(PSI_INSTRUMENT_ME,
+                    alter_info->alter_rename_key_list.cbegin(),
+                    alter_info->alter_rename_key_list.cend());
 
   /*
     This is how we check that all indexes to be altered are name-resolved: We
@@ -9499,7 +9503,9 @@ bool prepare_fields_and_keys(THD *thd,
     indexes.
   */
   Prealloced_array<const Alter_index_visibility*, 1>
-    index_visibility_list(alter_info->alter_index_visibility_list);
+    index_visibility_list(PSI_INSTRUMENT_ME,
+                          alter_info->alter_index_visibility_list.cbegin(),
+                          alter_info->alter_index_visibility_list.cend());
   List_iterator<Create_field> def_it(alter_info->create_list);
   List_iterator<Create_field> find_it(new_create_list);
   List_iterator<Create_field> field_it(new_create_list);
@@ -12654,7 +12660,7 @@ copy_data_between_tables(THD * thd,
 bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list, bool table_copy)
 {
   HA_CREATE_INFO create_info;
-  Alter_info alter_info;
+  Alter_info alter_info(thd->mem_root);
 
   DBUG_ENTER("mysql_recreate_table");
   DBUG_ASSERT(!table_list->next_global);

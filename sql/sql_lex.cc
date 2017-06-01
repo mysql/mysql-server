@@ -460,8 +460,6 @@ void LEX::reset()
   load_update_list.empty();
   load_value_list.empty();
 
-  call_value_list.empty();
-
   purge_value_list.empty();
 
   kill_value_list.empty();
@@ -476,6 +474,7 @@ void LEX::reset()
   insert_table= NULL;
   insert_table_leaf= NULL;
   parsing_options.reset();
+  alter_info= NULL;
   part_info= NULL;
   duplicates= DUP_ERROR;
   ignore= false;
@@ -1147,10 +1146,10 @@ static char *get_text(Lex_input_stream *lip, int pre_skip, int post_skip)
 }
 
 
-uint Lex_input_stream::get_lineno(const char *raw_ptr)
+uint Lex_input_stream::get_lineno(const char *raw_ptr) const
 {
-  DBUG_ASSERT(m_buf <= raw_ptr && raw_ptr < m_end_of_query);
-  if (!(m_buf <= raw_ptr && raw_ptr < m_end_of_query))
+  DBUG_ASSERT(m_buf <= raw_ptr && raw_ptr <= m_end_of_query);
+  if (!(m_buf <= raw_ptr && raw_ptr <= m_end_of_query))
     return 1;
 
   uint ret= 1;
@@ -1587,7 +1586,11 @@ static int lex_one_token(YYSTYPE *yylval, THD *thd)
           If we find a space then this can't be an identifier. We notice this
           below by checking start != lex->ptr.
         */
-        for (; state_map[c] == MY_LEX_SKIP ; c= lip->yyGet()) ;
+        for (; state_map[c] == MY_LEX_SKIP ; c= lip->yyGet())
+        {
+          if (c == '\n')
+            lip->yylineno++;
+        }
       }
       if (start == lip->get_ptr() && c == '.' && ident_map[lip->yyPeek()])
 	lip->next_state=MY_LEX_IDENT_SEP;
@@ -3712,7 +3715,7 @@ bool LEX::need_correct_ident()
 */
 
 bool
-LEX::copy_db_to(char **p_db, size_t *p_db_length) const
+LEX::copy_db_to(char const **p_db, size_t *p_db_length) const
 {
   if (sphead)
   {
@@ -4783,22 +4786,6 @@ bool Query_options::save_to(Parse_context *pc)
   pc->select->set_base_options(options);
 
   return false;
-}
-
-
-/**
-  A routine used by the parser to decide whether we are specifying a full
-  partitioning or if only partitions to add or to split.
-
-  @retval  TRUE    Yes, it is part of a management partition command
-  @retval  FALSE          No, not a management partition command
-*/
-
-bool LEX::is_partition_management() const
-{
-  return (sql_command == SQLCOM_ALTER_TABLE &&
-          (alter_info.flags == Alter_info::ALTER_ADD_PARTITION ||
-           alter_info.flags == Alter_info::ALTER_REORGANIZE_PARTITION));
 }
 
 

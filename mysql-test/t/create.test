@@ -79,7 +79,7 @@ create table 1ea10 (1a20 int,1e int);
 insert into 1ea10 values(1,1);
 select 1ea10.1a20,1e+ 1e+10 from 1ea10;
 drop table 1ea10;
-create table t1 (t1.index int);
+create table t1 (`index` int);
 drop table t1;
 # Test that we get warning for this
 drop database if exists mysqltest;
@@ -529,15 +529,16 @@ drop table t1;
 #
 # Bug#10413: Invalid column name is not rejected
 #
---error 1103
+--error ER_PARSE_ERROR
 create table t1(column.name int);
---error 1103
+--error ER_PARSE_ERROR
 create table t1(test.column.name int);
---error 1102
+--error ER_PARSE_ERROR
 create table t1(xyz.t1.name int);
+--error ER_PARSE_ERROR
 create table t1(t1.name int);
+--error ER_PARSE_ERROR
 create table t2(test.t2.name int);
-drop table t1,t2;
 
 #
 # Bug #12537: UNION produces longtext instead of varchar

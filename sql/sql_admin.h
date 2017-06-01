@@ -26,6 +26,7 @@
 #include "mysql/mysql_lex_string.h"
 #include "sql_cmd.h"       // Sql_cmd
 #include "sql/histograms/histogram.h"
+#include "sql_cmd_ddl_table.h" // Sql_cmd_ddl_table
 
 class String;
 class THD;
@@ -44,14 +45,14 @@ struct Column_name_comparator
 /* Must be able to hold ALTER TABLE t PARTITION BY ... KEY ALGORITHM = 1 ... */
 #define SQL_ADMIN_MSG_TEXT_SIZE 128 * 1024
 
-bool mysql_assign_to_keycache(THD* thd, TABLE_LIST* table_list,
-                              LEX_STRING *key_cache_name);
-bool mysql_preload_keys(THD* thd, TABLE_LIST* table_list);
 
 /**
   Sql_cmd_analyze_table represents the ANALYZE TABLE statement.
+
+  Also this class is a base class for Sql_cmd_alter_table_analyze_partition
+  which represents the ALTER TABLE ... ANALYZE PARTITION statement.
 */
-class Sql_cmd_analyze_table : public Sql_cmd
+class Sql_cmd_analyze_table : public Sql_cmd_ddl_table
 {
 public:
   /**
@@ -68,7 +69,9 @@ public:
   /**
     Constructor, used to represent a ANALYZE TABLE statement.
   */
-  Sql_cmd_analyze_table(THD *thd, Histogram_command histogram_command,
+  Sql_cmd_analyze_table(THD *thd,
+                        Alter_info *alter_info,
+                        Histogram_command histogram_command,
                         int histogram_buckets);
 
   ~Sql_cmd_analyze_table()
@@ -76,7 +79,7 @@ public:
 
   bool execute(THD *thd);
 
-  virtual enum_sql_command sql_command_code() const
+  enum_sql_command sql_command_code() const override
   {
     return SQLCOM_ANALYZE;
   }
@@ -162,18 +165,14 @@ private:
 
 /**
   Sql_cmd_check_table represents the CHECK TABLE statement.
+
+  Also this is a base class of Sql_cmd_alter_table_check_partition which
+  represents the ALTER TABLE ... CHECK PARTITION statement.
 */
-class Sql_cmd_check_table : public Sql_cmd
+class Sql_cmd_check_table : public Sql_cmd_ddl_table
 {
 public:
-  /**
-    Constructor, used to represent a CHECK TABLE statement.
-  */
-  Sql_cmd_check_table()
-  {}
-
-  ~Sql_cmd_check_table()
-  {}
+  using Sql_cmd_ddl_table::Sql_cmd_ddl_table;
 
   bool execute(THD *thd);
 
@@ -186,18 +185,14 @@ public:
 
 /**
   Sql_cmd_optimize_table represents the OPTIMIZE TABLE statement.
+
+  Also this is a base class of Sql_cmd_alter_table_optimize_partition.
+  represents the ALTER TABLE ... CHECK PARTITION statement.
 */
-class Sql_cmd_optimize_table : public Sql_cmd
+class Sql_cmd_optimize_table : public Sql_cmd_ddl_table
 {
 public:
-  /**
-    Constructor, used to represent a OPTIMIZE TABLE statement.
-  */
-  Sql_cmd_optimize_table()
-  {}
-
-  ~Sql_cmd_optimize_table()
-  {}
+  using Sql_cmd_ddl_table::Sql_cmd_ddl_table;
 
   bool execute(THD *thd);
 
@@ -211,18 +206,14 @@ public:
 
 /**
   Sql_cmd_repair_table represents the REPAIR TABLE statement.
+
+  Also this is a base class of Sql_cmd_alter_table_repair_partition which
+  represents the ALTER TABLE ... REPAIR PARTITION statement.
 */
-class Sql_cmd_repair_table : public Sql_cmd
+class Sql_cmd_repair_table : public Sql_cmd_ddl_table
 {
 public:
-  /**
-    Constructor, used to represent a REPAIR TABLE statement.
-  */
-  Sql_cmd_repair_table()
-  {}
-
-  ~Sql_cmd_repair_table()
-  {}
+  using Sql_cmd_ddl_table::Sql_cmd_ddl_table;
 
   bool execute(THD *thd);
 

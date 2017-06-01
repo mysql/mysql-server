@@ -3054,3 +3054,21 @@ proxy_native_0123456789	user_name_len_32_012345678901234	user_name_len_22_01234@
 DROP USER user_name_len_22_01234@localhost;
 DROP USER user_name_len_32_012345678901234@localhost;
 DROP USER proxy_native_0123456789@localhost;
+#
+# Regression test added in WL#8657
+#
+CREATE DATABASE db8657;
+CREATE TABLE db8657.t1 (i INT);
+CREATE USER 'untrusted8657'@'localhost';
+# Connection con1
+CREATE INDEX ON db8657.t1 (i);
+ERROR 42000: INDEX command denied to user 'untrusted8657'@'localhost' for table 't1'
+PREPARE stmt FROM 'CREATE TABLE db8657.t2 (i INT)';
+ERROR 42000: CREATE command denied to user 'untrusted8657'@'localhost' for table 't2'
+SHOW CREATE TABLE db8657.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+DROP USER 'untrusted8657'@localhost;
+DROP DATABASE db8657;

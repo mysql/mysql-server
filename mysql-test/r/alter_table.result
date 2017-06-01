@@ -2130,7 +2130,7 @@ t1	CREATE TABLE `t1` (
   KEY `c` (`j`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 # Even using 'funny' syntax.
-alter table t1 rename key t1.primary to d;
+alter table t1 rename key `primary` to d;
 ERROR 42000: Incorrect index name 'primary'
 show create table t1;
 Table	Create Table
@@ -2152,7 +2152,7 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`pk`),
   KEY `c` (`j`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-alter table t1 rename key c to t1.primary;
+alter table t1 rename key c to `primary`;
 ERROR 42000: Incorrect index name 'primary'
 show create table t1;
 Table	Create Table

@@ -303,9 +303,12 @@ static inline bool table_not_corrupt_error(uint sql_errno)
 
 
 Sql_cmd_analyze_table::
-Sql_cmd_analyze_table(THD *thd, Histogram_command histogram_command,
+Sql_cmd_analyze_table(THD *thd,
+                      Alter_info *alter_info,
+                      Histogram_command histogram_command,
                       int histogram_buckets)
-: m_histogram_command(histogram_command),
+: Sql_cmd_ddl_table(alter_info),
+  m_histogram_command(histogram_command),
   m_histogram_fields(Column_name_comparator(),
                      Memroot_allocator<String>(thd->mem_root)),
   m_histogram_buckets(histogram_buckets)
@@ -479,7 +482,8 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
                                                   HA_CHECK_OPT *),
                               int (handler::*operator_func)(THD *,
                                                             HA_CHECK_OPT *),
-                              int check_view)
+                              int check_view,
+                              Alter_info *alter_info)
 {
   /*
     Prevent InnoDB from automatically committing InnoDB
@@ -577,7 +581,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
         to differentiate from ALTER TABLE...CHECK PARTITION on which view is not
         allowed.
       */
-      if (lex->alter_info.flags & Alter_info::ALTER_ADMIN_PARTITION ||
+      if (alter_info->flags & Alter_info::ALTER_ADMIN_PARTITION ||
         check_view != 1)
         table->required_type= dd::enum_table_type::BASE_TABLE;
 
@@ -663,8 +667,6 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
           if ALTER TABLE t ANALYZE/CHECK/OPTIMIZE/REPAIR PARTITION ..
           CACHE INDEX/LOAD INDEX for specified partitions
         */
-        Alter_info *alter_info= &lex->alter_info;
-
         if (alter_info->flags & Alter_info::ALTER_ADMIN_PARTITION)
         {
           if (!table->table->part_info)
@@ -1012,7 +1014,6 @@ send_result_message:
     case HA_ADMIN_TRY_ALTER:
     {
       uint save_flags;
-      Alter_info *alter_info= &lex->alter_info;
 
       /* Store the original value of alter_info->flags */
       save_flags= alter_info->flags;
@@ -1219,7 +1220,7 @@ send_result_message:
           CACHE INDEX/LOAD INDEX for specified partitions
         */
         if (table->table->part_info &&
-            lex->alter_info.flags & Alter_info::ALTER_ADMIN_PARTITION)
+            alter_info->flags & Alter_info::ALTER_ADMIN_PARTITION)
         {
           set_all_part_state(table->table->part_info, PART_NORMAL);
         }
@@ -1278,7 +1279,7 @@ err:
   Assigned specified indexes for a table into key cache
 
   SYNOPSIS
-    mysql_assign_to_keycache()
+    assign_to_keycache()
     thd		Thread object
     tables	Table list (one table only)
 
@@ -1287,31 +1288,33 @@ err:
    TRUE  error
 */
 
-bool mysql_assign_to_keycache(THD* thd, TABLE_LIST* tables,
-			     LEX_STRING *key_cache_name)
+bool Sql_cmd_cache_index::assign_to_keycache(THD* thd, TABLE_LIST* tables)
 {
   HA_CHECK_OPT check_opt;
   KEY_CACHE *key_cache;
-  DBUG_ENTER("mysql_assign_to_keycache");
+  DBUG_ENTER("assign_to_keycache");
 
   check_opt.init();
   mysql_mutex_lock(&LOCK_global_system_variables);
-  if (!(key_cache= get_key_cache(key_cache_name)))
+  if (!(key_cache= get_key_cache(&m_key_cache_name)))
   {
     mysql_mutex_unlock(&LOCK_global_system_variables);
-    my_error(ER_UNKNOWN_KEY_CACHE, MYF(0), key_cache_name->str);
+    my_error(ER_UNKNOWN_KEY_CACHE, MYF(0), m_key_cache_name.str);
     DBUG_RETURN(TRUE);
   }
   mysql_mutex_unlock(&LOCK_global_system_variables);
   if (!key_cache->key_cache_inited)
   {
-    my_error(ER_UNKNOWN_KEY_CACHE, MYF(0), key_cache_name->str);
+    my_error(ER_UNKNOWN_KEY_CACHE, MYF(0), m_key_cache_name.str);
     DBUG_RETURN(true);
   }
   check_opt.key_cache= key_cache;
-  DBUG_RETURN(mysql_admin_table(thd, tables, &check_opt,
-                                "assign_to_keycache", TL_READ_NO_INSERT, 0, 0,
-                                0, 0, &handler::assign_to_keycache, 0));
+  // ret is needed since DBUG_RETURN isn't friendly to function call parameters:
+  const bool ret=mysql_admin_table(thd, tables, &check_opt,
+                                   "assign_to_keycache", TL_READ_NO_INSERT, 0,
+                                   0, 0, 0, &handler::assign_to_keycache, 0,
+                                   m_alter_info);
+  DBUG_RETURN(ret);
 }
 
 
@@ -1319,7 +1322,7 @@ bool mysql_assign_to_keycache(THD* thd, TABLE_LIST* tables,
   Preload specified indexes for a table into key cache
 
   SYNOPSIS
-    mysql_preload_keys()
+    preload_keys()
     thd		Thread object
     tables	Table list (one table only)
 
@@ -1328,17 +1331,20 @@ bool mysql_assign_to_keycache(THD* thd, TABLE_LIST* tables,
     TRUE  error
 */
 
-bool mysql_preload_keys(THD* thd, TABLE_LIST* tables)
+bool Sql_cmd_load_index::preload_keys(THD* thd, TABLE_LIST* tables)
 {
-  DBUG_ENTER("mysql_preload_keys");
+  DBUG_ENTER("preload_keys");
   /*
     We cannot allow concurrent inserts. The storage engine reads
     directly from the index file, bypassing the cache. It could read
     outdated information if parallel inserts into cache blocks happen.
   */
-  DBUG_RETURN(mysql_admin_table(thd, tables, 0,
-                                "preload_keys", TL_READ_NO_INSERT, 0, 0, 0, 0,
-                                &handler::preload_keys, 0));
+  // ret is needed since DBUG_RETURN isn't friendly to function call parameters:
+  const bool ret=mysql_admin_table(thd, tables, 0,
+                                   "preload_keys", TL_READ_NO_INSERT,
+                                   0, 0, 0, 0,
+                                   &handler::preload_keys, 0, m_alter_info);
+  DBUG_RETURN(ret);
 }
 
 
@@ -1453,7 +1459,7 @@ bool Sql_cmd_analyze_table::execute(THD *thd)
   {
     res= mysql_admin_table(thd, first_table, &thd->lex->check_opt,
                            "analyze", lock_type, 1, 0, 0, 0,
-                           &handler::ha_analyze, 0);
+                           &handler::ha_analyze, 0, m_alter_info);
   }
 
   /* ! we write after unlocking the table */
@@ -1486,7 +1492,7 @@ bool Sql_cmd_check_table::execute(THD *thd)
 
   res= mysql_admin_table(thd, first_table, &thd->lex->check_opt, "check",
                          lock_type, 0, 0, HA_OPEN_FOR_REPAIR, 0,
-                         &handler::ha_check, 1);
+                         &handler::ha_check, 1, m_alter_info);
 
   thd->lex->select_lex->table_list.first= first_table;
   thd->lex->query_tables= first_table;
@@ -1510,7 +1516,7 @@ bool Sql_cmd_optimize_table::execute(THD *thd)
     mysql_recreate_table(thd, first_table, true) :
     mysql_admin_table(thd, first_table, &thd->lex->check_opt,
                       "optimize", TL_WRITE, 1, 0, 0, 0,
-                      &handler::ha_optimize, 0);
+                      &handler::ha_optimize, 0, m_alter_info);
   /* ! we write after unlocking the table */
   if (!res && !thd->lex->no_write_to_binlog)
   {
@@ -1541,7 +1547,7 @@ bool Sql_cmd_repair_table::execute(THD *thd)
                          TL_WRITE, 1,
                          thd->lex->check_opt.sql_flags & TT_USEFRM,
                          HA_OPEN_FOR_REPAIR, &prepare_for_repair,
-                         &handler::ha_repair, 0);
+                         &handler::ha_repair, 0, m_alter_info);
 
   /* ! we write after unlocking the table */
   if (!res && !thd->lex->no_write_to_binlog)

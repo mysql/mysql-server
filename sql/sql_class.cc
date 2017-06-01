@@ -2695,8 +2695,81 @@ void THD::Query_plan::set_modification_plan(Modification_plan *plan_arg)
   modification_plan= plan_arg;
 }
 
+
 /**
-  Push an error message into MySQL diagnostic area with line
+  Push an error message into MySQL diagnostic area with line number and position
+
+  This function provides semantic action implementers with a way
+  to push the famous "You have a syntax error near..." error
+  message into the diagnostic area, which is normally produced only if
+  a syntax error is discovered according to the Bison grammar.
+  Unlike the syntax_error_at() function, the error position points to the last
+  parsed token.
+
+  @note Parse-time only function!
+
+  @param format         Error format message. NULL means ER(ER_SYNTAX_ERROR).
+*/
+void THD::syntax_error(const char *format, ...)
+{
+  va_list args;
+  va_start(args, format);
+  vsyntax_error_at(m_parser_state->m_lip.get_tok_start(), format, args);
+  va_end(args);
+}
+
+
+/**
+  Push an error message into MySQL diagnostic area with line number and position
+
+  This function provides semantic action implementers with a way
+  to push the famous "You have a syntax error near..." error
+  message into the diagnostic area, which is normally produced only if
+  a syntax error is discovered according to the Bison grammar.
+  Unlike the syntax_error_at() function, the error position points to the last
+  parsed token.
+
+  @note Parse-time only function!
+
+  @param mysql_errno    Error number to get a format string with ER_THD().
+*/
+void THD::syntax_error(int mysql_errno, ...)
+{
+  va_list args;
+  va_start(args, mysql_errno);
+  vsyntax_error_at(m_parser_state->m_lip.get_tok_start(),
+                   ER_THD(this, mysql_errno), args);
+  va_end(args);
+}
+
+
+/**
+  Push a syntax error message into MySQL diagnostic area with line
+  and position information.
+
+  This function provides semantic action implementers with a way
+  to push the famous "You have a syntax error near..." error
+  message into the diagnostic area, which is normally produced only if
+  a parse error is discovered internally by the Bison generated
+  parser.
+
+  @note Parse-time only function!
+
+  @param location       YYSTYPE object: error position.
+  @param format         Error format message. NULL means ER(ER_SYNTAX_ERROR).
+*/
+
+void THD::syntax_error_at(const YYLTYPE &location, const char *format, ...)
+{
+  va_list args;
+  va_start(args, format);
+  vsyntax_error_at(location, format, args);
+  va_end(args);
+}
+
+
+/**
+  Push a syntax error message into MySQL diagnostic area with line
   and position information.
 
   This function provides semantic action implementers with a way
@@ -2708,18 +2781,53 @@ void THD::Query_plan::set_modification_plan(Modification_plan *plan_arg)
   @note Parse-time only function!
 
   @param location       YYSTYPE object: error position
-  @param s              error message: NULL default means ER(ER_SYNTAX_ERROR)
+  @param mysql_errno    Error number to get a format string with ER_THD()
+*/
+void THD::syntax_error_at(const YYLTYPE &location, int mysql_errno, ...)
+{
+  va_list args;
+  va_start(args, mysql_errno);
+  vsyntax_error_at(location, ER_THD(this, mysql_errno), args);
+  va_end(args);
+}
+
+
+/**
+  Push a syntax error message into MySQL diagnostic area with line number and
+  position
+
+  This function provides semantic action implementers with a way
+  to push the famous "You have a syntax error near..." error
+  message into the error stack, which is normally produced only if
+  a parse error is discovered internally by the Bison generated
+  parser.
+
+  @param pos_in_lexer_raw_buffer        Pointer into LEX::m_buf or NULL.
+  @param format                         An error message format string.
+  @param args                           Arguments to the format string.
 */
 
-void THD::syntax_error_at(const YYLTYPE &location, const char *s)
+void THD::vsyntax_error_at(const char *pos_in_lexer_raw_buffer,
+                           const char *format, va_list args)
 {
-  uint lineno= location.raw.start ?
-    m_parser_state->m_lip.get_lineno(location.raw.start) : 1;
-  const char *pos= location.raw.start ? location.raw.start : "";
+  DBUG_ASSERT(pos_in_lexer_raw_buffer == NULL ||
+              (pos_in_lexer_raw_buffer >= m_parser_state->m_lip.get_buf() &&
+               pos_in_lexer_raw_buffer <=
+               m_parser_state->m_lip.get_end_of_query()));
+
+  char buff[MYSQL_ERRMSG_SIZE];
+  if (check_stack_overrun(this, STACK_MIN_SIZE, (uchar *)buff))
+    return;
+
+  const uint lineno= pos_in_lexer_raw_buffer ?
+    m_parser_state->m_lip.get_lineno(pos_in_lexer_raw_buffer) : 1;
+  const char *pos= pos_in_lexer_raw_buffer ? pos_in_lexer_raw_buffer : "";
   ErrConvString err(pos, variables.character_set_client);
-  my_printf_error(ER_PARSE_ERROR,  ER_THD(this, ER_PARSE_ERROR), MYF(0),
-                  s ? s : ER_THD(this, ER_SYNTAX_ERROR), err.ptr(), lineno);
+  (void) my_vsnprintf(buff, sizeof(buff), format, args);
+  my_printf_error(ER_PARSE_ERROR, ER_THD(this, ER_PARSE_ERROR), MYF(0), buff,
+                  err.ptr(), lineno);
 }
+
 
 bool THD::send_result_metadata(List<Item> *list, uint flags)
 {

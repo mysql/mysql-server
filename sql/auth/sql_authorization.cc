@@ -1525,7 +1525,7 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
   }
 
   if (check_fk_parent_table_access(thd, create_table->db, lex->create_info,
-                                   &lex->alter_info))
+                                   lex->alter_info))
     goto err;
 
   error= FALSE;
@@ -5749,6 +5749,8 @@ bool check_fk_parent_table_access(THD *thd,
                                   HA_CREATE_INFO *create_info,
                                   Alter_info *alter_info)
 {
+  DBUG_ASSERT(alter_info != nullptr);
+
   handlerton *db_type= create_info->db_type ? create_info->db_type :
                                              ha_default_handlerton(thd);
 

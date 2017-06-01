@@ -26,7 +26,6 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
-#include "parse_error.h"
 #include "parse_location.h"
 #include "sql_const.h"
 #include "thr_malloc.h"
@@ -108,7 +107,7 @@ struct Parse_context {
 
 
 /**
-  Base class for parse tree nodes
+  Base class for parse tree nodes (excluding the Parse_tree_root hierarchy)
 */
 template<typename Context>
 class Parse_tree_node_tmpl
@@ -125,6 +124,8 @@ private:
 #endif//DBUG_OFF
 
 public:
+  typedef Context context_t;
+
   static void *operator new(size_t size, MEM_ROOT *mem_root,
                             const std::nothrow_t &arg MY_ATTRIBUTE((unused))
                             = std::nothrow) throw ()
@@ -220,20 +221,32 @@ public:
   }
 
   /**
-    my_syntax_error() function replacement for deferred reporting of syntax
+    syntax_error() function replacement for deferred reporting of syntax
     errors
 
     @param      pc      Current parse context.
     @param      pos     Location of the error in lexical scanner buffers.
-    @param      msg     Error message: NULL default means ER(ER_SYNTAX_ERROR).
   */
-  void error(Context *pc, const POS &pos, const char * msg= NULL) const
+  void error(Context *pc, const POS &pos) const
   {
-    syntax_error_at(pc->thd, pos, msg);
+    pc->thd->syntax_error_at(pos);
   }
 
   /**
-    my_syntax_error() function replacement for deferred reporting of syntax
+    syntax_error() function replacement for deferred reporting of syntax
+    errors
+
+    @param      pc      Current parse context.
+    @param      pos     Location of the error in lexical scanner buffers.
+    @param      msg     Error message.
+  */
+  void error(Context *pc, const POS &pos, const char *msg) const
+  {
+    pc->thd->syntax_error_at(pos, msg);
+  }
+
+  /**
+    syntax_error() function replacement for deferred reporting of syntax
     errors
 
     @param      pc      Current parse context.
@@ -244,7 +257,7 @@ public:
   {
     va_list args;
     va_start(args, format);
-    vsyntax_error_at(pc->thd, pos, format, args);
+    pc->thd->vsyntax_error_at(pos, format, args);
     va_end(args);
   }
 };

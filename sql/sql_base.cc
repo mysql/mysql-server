@@ -3174,6 +3174,10 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
     if (check_if_table_exists(thd, table_list, &exists))
       DBUG_RETURN(TRUE);
 
+    /*
+      If the table does not exist then upgrade the lock to the EXCLUSIVE MDL
+      lock.
+    */
     if (!exists)
     {
       if (table_list->open_strategy == TABLE_LIST::OPEN_FOR_CREATE &&

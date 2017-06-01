@@ -286,6 +286,31 @@ public:
   }
 
   /**
+    Removes a single element from the array.
+
+    @param position  iterator that points to the element to remove
+
+    @return an iterator to the first element after the removed range
+  */
+  iterator erase(const_iterator position)
+  {
+    return erase(position, std::next(position));
+  }
+
+  /**
+    Removes a single element from the array.
+
+    @param ix  zero-based number of the element to remove
+
+    @return an iterator to the first element after the removed range
+  */
+  iterator erase(size_t ix)
+  {
+    DBUG_ASSERT(ix < size());
+    return erase(std::next(this->cbegin(), ix));
+  }
+
+  /**
     Insert an element at a given position.
 
     @param pos    the new element is inserted before the element
@@ -333,6 +358,8 @@ public:
   /// Convenience typedef, same typedef name as std::vector
   typedef Element_type value_type;
 
+  typedef typename super::const_iterator const_iterator;
+
   explicit Mem_root_array(MEM_ROOT *root)
   {
     super::init(root);
@@ -342,6 +369,31 @@ public:
     super::init(root);
     super::resize(n, val);
   }
+
+  /**
+    Range constructor.
+
+    Constructs a container with as many elements as the range [first,last),
+    with each element constructed from its corresponding element in that range,
+    in the same order.
+
+    @param root   MEM_ROOT to use for memory allocation.
+    @param first  iterator that points to the first element to copy
+    @param last   iterator that points to the element after the
+                  last one to copy
+  */
+  Mem_root_array(MEM_ROOT *root, const_iterator first, const_iterator last)
+  {
+    super::init(root);
+    if (this->reserve(last - first))
+      return;
+    for (auto it= first; it != last; ++it)
+      this->push_back(*it);
+  }
+
+  Mem_root_array(MEM_ROOT *root, const Mem_root_array &x)
+    : Mem_root_array(root, x.cbegin(), x.cend())
+  {}
 
   ~Mem_root_array()
   {

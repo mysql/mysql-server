@@ -46,11 +46,21 @@ struct Partition_parse_context : public Parse_context,
   Partition_parse_context(THD * const thd,
                           partition_info *part_info,
                           partition_element *current_partition,
-                          partition_element *curr_part_elem);
+                          partition_element *curr_part_elem,
+                          bool is_add_or_reorganize_partition);
 
-  Partition_parse_context(THD *thd, partition_info *part_info)
-  : Partition_parse_context(thd, part_info, NULL, NULL)
+  Partition_parse_context(THD *thd,
+                          partition_info *part_info,
+                          bool is_add_or_reorganize_partition)
+    : Partition_parse_context(thd, part_info, NULL, NULL,
+                              is_add_or_reorganize_partition)
   {}
+
+  /**
+    True for "ALTER TABLE ADD PARTITION" and "ALTER TABLE REORGANIZE PARTITION"
+    statements, otherwise false.
+  */
+  const bool is_add_or_reorganize_partition;
 };
 
 
@@ -696,70 +706,6 @@ public:
     opt_sub_part(opt_sub_part),
     part_defs_pos(part_defs_pos),
     part_defs(part_defs)
-  {}
-
-  virtual bool contextualize(Parse_context *pc);
-};
-
-
-/**
-  Node for the @SQL{ALTER TABLE ADD PARTITION} statement
-
-  @ingroup ptn_alter_table
-*/
-class PT_add_partition : public Parse_tree_node
-{
-  typedef Parse_tree_node super;
-
-  const bool no_write_to_binlog;
-
-protected:
-  partition_info part_info;
-
-public:
-  explicit PT_add_partition(bool no_write_to_binlog)
-  : no_write_to_binlog(no_write_to_binlog)
-  {}
-
-  virtual bool contextualize(Parse_context *pc);
-};
-
-
-/**
-  Node for the @SQL{ALTER TABLE ADD PARTITION (@<partition list@>)} statement
-
-  @ingroup ptn_alter_table
-*/
-class PT_add_partition_def_list : public PT_add_partition
-{
-  typedef PT_add_partition super;
-
-  Trivial_array<PT_part_definition *> *def_list;
-
-public:
-  PT_add_partition_def_list(bool no_write_to_binlog,
-                            Trivial_array<PT_part_definition *> *def_list)
-  : super(no_write_to_binlog), def_list(def_list)
-  {}
-
-  virtual bool contextualize(Parse_context *pc);
-};
-
-
-/**
-  Node for the @SQL{ALTER TABLE ADD PARTITION PARTITIONS (@<n>@)} statement
-
-  @ingroup ptn_alter_table
-*/
-class PT_add_partition_num : public PT_add_partition
-{
-  typedef PT_add_partition super;
-
-  const uint num_parts;
-
-public:
-  PT_add_partition_num(bool no_write_to_binlog, uint num_parts)
-  : super(no_write_to_binlog), num_parts(num_parts)
   {}
 
   virtual bool contextualize(Parse_context *pc);

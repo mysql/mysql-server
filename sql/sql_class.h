@@ -282,7 +282,7 @@ public:
   }
   inline char *mem_strdup(const char *str)
   { return strdup_root(mem_root,str); }
-  inline char *strmake(const char *str, size_t size)
+  inline char *strmake(const char *str, size_t size) const
   { return strmake_root(mem_root,str,size); }
   inline void *memdup(const void *str, size_t size)
   { return memdup_root(mem_root,str,size); }
@@ -3497,7 +3497,7 @@ public:
     allocate memory for a deep copy: current database may be freed after
     a statement is parsed but before it's executed.
   */
-  bool copy_db_to(char **p_db, size_t *p_db_length)
+  bool copy_db_to(char const **p_db, size_t *p_db_length) const
   {
     if (m_db.str == NULL)
     {
@@ -3508,6 +3508,13 @@ public:
     *p_db_length= m_db.length;
     return false;
   }
+
+  bool copy_db_to(char **p_db, size_t *p_db_length) const
+  {
+    return copy_db_to(const_cast<char const **>(p_db), p_db_length);
+  }
+
+
   thd_scheduler scheduler;
 
 public:
@@ -3904,7 +3911,27 @@ public:
   Session_tracker session_tracker;
   Session_sysvar_resource_manager session_sysvar_res_mgr;
 
-  void syntax_error_at(const YYLTYPE &location, const char *s= NULL);
+  void syntax_error()
+  {
+    syntax_error(ER_SYNTAX_ERROR);
+  }
+  void syntax_error(const char *format, ...);
+  void syntax_error(int mysql_errno, ...);
+
+  void syntax_error_at(const YYLTYPE &location)
+  {
+    syntax_error_at(location, ER_SYNTAX_ERROR);
+  }
+  void syntax_error_at(const YYLTYPE &location, const char *format, ...);
+  void syntax_error_at(const YYLTYPE &location, int mysql_errno, ...);
+
+  void vsyntax_error_at(const YYLTYPE &location,
+                        const char *format, va_list args)
+  {
+    vsyntax_error_at(location.raw.start, format, args);
+  }
+  void vsyntax_error_at(const char *pos_in_lexer_raw_buffer,
+                        const char *format, va_list args);
 
   /**
     Send name and type of result to client.

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,19 +13,17 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef PARSE_ERROR_INCLUDED_H
-#define PARSE_ERROR_INCLUDED_H
+#ifndef SQL_CMD_DDL_INCLUDED
+#define SQL_CMD_DDL_INCLUDED
 
-#include <stddef.h>
-#include <cstdarg>
+#include "sql_cmd.h"
 
-#include "parse_location.h"
 
-class THD;
+class Sql_cmd_ddl : public Sql_cmd
+{
+public:
 
-void my_syntax_error(THD *thd, const char *s);
-void syntax_error_at(THD *thd, const YYLTYPE &location, const char *s= NULL);
-void vsyntax_error_at(THD *thd, const YYLTYPE &location,
-                      const char *format, va_list args);
+  bool is_dml() const override final { return false; }
+};
 
-#endif /* PARSE_ERROR_INCLUDED_H */
+#endif//SQL_CMD_DDL_INCLUDED
