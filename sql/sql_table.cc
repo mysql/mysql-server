@@ -4711,6 +4711,7 @@ static const char* generate_fk_name(const char *table_name,
   @param thd                 Thread handle.
   @param create_info         Create info from parser.
   @param alter_info          Alter_info structure describing ALTER TABLE.
+  @param db                  Database name.
   @param table_name          Table name.
   @param key_info_buffer     Array of indexes.
   @param key_count           Number of indexes.
