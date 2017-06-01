@@ -13,20 +13,16 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#include <algorithm>
 #include <atomic>
 #include <fstream>
 #include <iostream>
 #include <sstream>
 #include <string>
-#include <vector>
 #include <string.h>
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/service_implementation.h>
 #include <mysql/components/services/pfs_notification.h>
 #include <mysql/components/services/pfs_resource_group.h>
-#include "thr_mutex.h"
-#include "thr_cond.h"
 
 /**
   @file test_pfs_resource_group.cc
@@ -56,14 +52,6 @@ REQUIRES_SERVICE_PLACEHOLDER(pfs_resource_group);
 /* True if user "PFS_DEBUG_MODE" connects. */
 static bool debug_mode = false;
 
-struct Thread_context
-{
-  my_thread_handle thread;
-  void *p;
-  bool thread_finished;
-  void (*test_function)(void *);
-};
-
 struct User_data
 {
   User_data() : thread_priority(0), thread_vcpu(0) { }
@@ -83,14 +71,9 @@ struct Event_info
   PSI_thread_attrs m_attrs;
 };
 
-struct Thread_context context;
-std::vector<Event_info> events;
 static int handle = 0;
 static std::ofstream log_outfile;
 static std::string separator("===========================");
-
-static native_mutex_t LOCK_session_event;
-static native_cond_t COND_session_event;
 
 void print_log(std::string msg)
 {
@@ -99,7 +82,7 @@ void print_log(std::string msg)
   fflush(stderr);
 }
 
-void print_event(Event_info& event, std::string& msg)
+void print_event(const Event_info& event, std::string& msg)
 {
   PSI_thread_attrs thread_attrs = event.m_attrs;
   event_type type = event.m_type;
@@ -133,6 +116,8 @@ void print_event(Event_info& event, std::string& msg)
   print_log(ss.str());
 }
 
+void session_event(const Event_info& event_info);
+
 /**
   Callback for session connection.
 */
@@ -140,11 +125,7 @@ void
 session_connect_callback(const PSI_thread_attrs *thread_attrs)
 {
   assert(thread_attrs != NULL);
-  native_mutex_lock(&LOCK_session_event);
-  events.push_back(Event_info(SESSION_CONNECT, thread_attrs));
-  native_mutex_unlock(&LOCK_session_event);
-
-  native_cond_signal(&COND_session_event);
+  session_event(Event_info(SESSION_CONNECT, thread_attrs));
 }
 
 /**
@@ -154,11 +135,7 @@ void
 session_disconnect_callback(const PSI_thread_attrs *thread_attrs)
 {
   assert(thread_attrs != NULL);
-  native_mutex_lock(&LOCK_session_event);
-  events.push_back(Event_info(SESSION_DISCONNECT, thread_attrs));
-  native_mutex_unlock(&LOCK_session_event);
-
-  native_cond_signal(&COND_session_event);
+  session_event(Event_info(SESSION_DISCONNECT, thread_attrs));
 }
 
 /**
@@ -166,109 +143,74 @@ session_disconnect_callback(const PSI_thread_attrs *thread_attrs)
   Log messages are written to the console and log file.
   @return NULL for success
 */
-static void *event_thread(void *param MY_ATTRIBUTE((unused)))
+void
+session_event(const Event_info& event)
 {
-  while (true)
+  PSI_thread_attrs attrs = event.m_attrs;
+
+  switch (event.m_type)
   {
-    native_mutex_lock(&LOCK_session_event);
-    native_cond_wait(&COND_session_event, &LOCK_session_event);
-
-    while (!events.empty())
+    case SESSION_CONNECT:
     {
-      Event_info event = events.back();
-      PSI_thread_attrs attrs = event.m_attrs;
-      events.pop_back();
+      std::string user_name(attrs.m_username, attrs.m_username_length);
 
-      switch (event.m_type)
+      /* Test API based on user name */
+      auto thread_id = attrs.m_thread_internal_id;
+      std::string group_name;
+      int ret = 0;
+
+      if (user_name == "PFS_DEBUG_MODE")
       {
-        case SESSION_CONNECT:
-        {
-          std::string user_name(attrs.m_username, attrs.m_username_length);
-
-          /* Test API based on user name */
-          auto thread_id = attrs.m_thread_internal_id;
-          std::string group_name;
-          bool current_thread = false;
-          int ret = 0;
-
-          if (user_name == "PFS_DEBUG_MODE")
-          {
-            debug_mode = true;
-            print_log("DEBUG MODE ON");
-          }
-          else if (user_name == "PFS_TEST_INVALID_THREAD_ID")
-          {
-            thread_id = 9999;
-            group_name = "PFS_INVALID_THREAD_ID";
-          }
-          else if (user_name == "PFS_TEST_INVALID_GROUP_NAME")
-          {
-            int invalid_size = sizeof(PSI_thread_attrs::m_groupname) + 10;
-            group_name = std::string(invalid_size, 'X');
-          }
-          else if (user_name == "PFS_TEST_CURRENT_THREAD")
-          {
-            /* Keep this synced with service_pfs_resource_group.test. */
-            group_name = "PFS_CURRENT_THREAD_NON_INSTRUMENTED";
-            current_thread = true;
-          }
-          else
-          {
-            group_name = "PFS_VALID_GROUP_NAME";
-          }
-
-          if (current_thread)
-          {
-            /*
-              Set the resource group name for the current thread. This thread is
-              not instrumented, so the call will fail.
-            */
-            ret = mysql_service_pfs_resource_group->set_thread_resource_group(
-                                              group_name.c_str(),
-                                              (int)group_name.length(),
-                                              (void *)attrs.m_user_data);
-          }
-          else
-          {
-            /* Set the resource group name for another thread. */
-            ret = mysql_service_pfs_resource_group->
-                                          set_thread_resource_group_by_id(NULL,
-                                            thread_id,
-                                            group_name.c_str(),
-                                            (int)group_name.length(),
-                                            (void *)attrs.m_user_data);
-          }
-
-          std::string msg ("set_thread_resource_group(");
-          if (debug_mode || user_name == "PFS_TEST_INVALID_THREAD_ID")
-            msg += std::to_string(thread_id);
-          else
-            msg += "tid";
-          msg += ", " + group_name + ") returned " + std::to_string(ret);
-          print_event(event, msg);
-          break;
-        }
-
-        case SESSION_DISCONNECT:
-        {
-          std::string user_name(attrs.m_username, attrs.m_username_length);
-          if (user_name == "PFS_DEBUG_MODE")
-          {
-            debug_mode = false;
-            print_log("DEBUG MODE OFF");
-          }
-          break;
-        }
-
-        default:
-          break;
+        debug_mode = true;
+        print_log("DEBUG MODE ON");
       }
+      else if (user_name == "PFS_TEST_INVALID_THREAD_ID")
+      {
+        thread_id = 9999;
+        group_name = "PFS_INVALID_THREAD_ID";
+      }
+      else if (user_name == "PFS_TEST_INVALID_GROUP_NAME")
+      {
+        int invalid_size = sizeof(PSI_thread_attrs::m_groupname) + 10;
+        group_name = std::string(invalid_size, 'X');
+      }
+      else
+      {
+        group_name = "PFS_VALID_GROUP_NAME";
+      }
+
+      /* Set the resource group name for a thread. */
+      ret = mysql_service_pfs_resource_group->
+                                      set_thread_resource_group_by_id(NULL,
+                                      thread_id,
+                                      group_name.c_str(),
+                                      (int)group_name.length(),
+                                      (void *)attrs.m_user_data);
+
+      std::string msg ("set_thread_resource_group(");
+      if (debug_mode || user_name == "PFS_TEST_INVALID_THREAD_ID")
+        msg += std::to_string(thread_id);
+      else
+        msg += "tid";
+      msg += ", " + group_name + ") returned " + std::to_string(ret);
+      print_event(event, msg);
+      break;
     }
 
-    native_mutex_unlock(&LOCK_session_event);
-  }
+    case SESSION_DISCONNECT:
+    {
+      std::string user_name(attrs.m_username, attrs.m_username_length);
+      if (user_name == "PFS_DEBUG_MODE")
+      {
+        debug_mode = false;
+        print_log("DEBUG MODE OFF");
+      }
+      break;
+    }
 
-  return NULL;
+    default:
+      break;
+  }
 }
 
 /**
@@ -299,16 +241,7 @@ mysql_service_status_t test_pfs_resource_group_init()
     goto error;
   }
 
-  native_mutex_init(&LOCK_session_event, MY_MUTEX_INIT_FAST);
-  native_cond_init(&COND_session_event);
-
-  my_thread_attr_t attr;
-  my_thread_attr_init(&attr);
-  my_thread_attr_setdetachstate(&attr, MY_THREAD_CREATE_JOINABLE);
-
-  context.thread_finished = false;
-
-  /* Set the resource group for the current thread, which is instrumented. */
+  /* Set the resource group for the current thread. */
   ret = mysql_service_pfs_resource_group->set_thread_resource_group(
                                 group_name.c_str(),
                                 (int)group_name.length(),
@@ -316,13 +249,6 @@ mysql_service_status_t test_pfs_resource_group_init()
   msg += group_name + ") returned " + std::to_string(ret);
   print_log(msg);
 
-  /* Start the event thread for the other tests. */
-  if (my_thread_create(&context.thread, &attr, event_thread, &context) != 0)
-  {
-    print_log("Could not create event thread");
-    goto error;
-  }
-  
   return mysql_service_status_t(0);
 
 error:
@@ -338,15 +264,6 @@ mysql_service_status_t test_pfs_resource_group_deinit()
 {
   if (mysql_service_pfs_notification->unregister_notification(handle))
     print_log("unregister_notification failed");
-
-  if (!my_thread_cancel(&context.thread))
-  {
-    void *retval;
-    my_thread_join(&context.thread, &retval);
-  }
-  
-  native_cond_destroy(&COND_session_event);
-  native_mutex_destroy(&LOCK_session_event);
   log_outfile.close();
   return mysql_service_status_t(0);
 }

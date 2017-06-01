@@ -7,14 +7,13 @@
 --echo ## 4. Print out log file
 --echo ##
 
-##                                                           EXPECTED
-## TEST                                                      RESULT    VERIFICATION                       NOTES
-## --------------------------------------------------------  --------  ---------------------------------  --------------------------------
-## 1. Set resource group, current thread (instrumented)      Success   Group name = PFS_CURRENT_THREAD    Performed during test component initialization
-## 2. Set resource group, current thread (non-instrumented)  Fail      Log message, empty query           The 'current thread' is the event thread spawned by the test component
-## 3. Set resource group, valid group name                   Success   Group name = PFS_VALID_GROUP_NAME
-## 4. Set resource group, invalid thread id                  Fail      Log message
-## 5. Set resource group, invalid group name                 Fail      Log message
+##                                             EXPECTED
+## TEST                                        RESULT    VERIFICATION
+## ------------------------------------------  --------  ---------------------------------
+## 1. Set resource group, current thread       Success   Group name = PFS_CURRENT_THREAD
+## 2. Set resource group, valid group name     Success   Group name = PFS_VALID_GROUP_NAME
+## 3. Set resource group, invalid thread id    Fail      Log message
+## 4. Set resource group, invalid group name   Fail      Log message
 
 --echo ## Note: The test component sets its own resource group name, PFS_CURRENT_THREAD, for root.
 
@@ -47,21 +46,7 @@ SELECT name, type, processlist_user, processlist_host, processlist_db, resource_
 FROM performance_schema.threads WHERE resource_group = 'PFS_CURRENT_THREAD';
 
 --echo
---echo ## TEST 2. CURRENT THREAD (NOT INSTRUMENTED)
---echo ## set_resource_group() for the current thread. This is expected to fail because the event thread
---echo ## that processes the callback is not instrumented.
---echo ## CONNECT PFS_TEST_CURRENT_THREAD
-connect (con_current_thread, localhost, PFS_TEST_CURRENT_THREAD, , test);
-
---echo
---echo ## Verify it is NOT in PERFORMANCE_SCHEMA.THREADS
---echo
-SELECT name, type, processlist_user, processlist_host, processlist_db, resource_group
-FROM performance_schema.threads
-WHERE resource_group = 'PFS_CURRENT_THREAD_NON_INSTRUMENTED';
-
---echo
---echo ## TEST 3. VALID GROUP NAME
+--echo ## TEST 2. VALID GROUP NAME
 --echo ## set_resource_group() with a valid group name
 --echo ## CONNECT PFS_TEST_VALID_GROUP_NAME
 connect (con_valid_group_name, localhost, PFS_TEST_VALID_GROUP_NAME, , test);
@@ -73,22 +58,16 @@ connect (con_valid_group_name, localhost, PFS_TEST_VALID_GROUP_NAME, , test);
 #FROM performance_schema.threads WHERE resource_group = 'PFS_VALID_GROUP_NAME';
 
 --echo
---echo ## TEST 4. INVALID THREAD_ID
+--echo ## TEST 3. INVALID THREAD_ID
 --echo ## Test set_resource_group() with an invalid thread_id
 --echo ## CONNECT PFS_TEST_INVALID_THREAD_ID
 connect (con_invalid_thread_id, localhost, PFS_TEST_INVALID_THREAD_ID, , test);
 
 --echo
---echo ## TEST 5. INVALID GROUP NAME
+--echo ## TEST 4. INVALID GROUP NAME
 --echo ## Test set_resource_group() with an invalid group name
 --echo ## CONNECT PFS_TEST_INVALID_GROUP_NAME
 connect (con_invalid_group_name, localhost, PFS_TEST_INVALID_GROUP_NAME, , test);
-
---echo
---echo ## Disconnect PFS_TEST_CURRENT_THREAD
---connection con_current_thread
---disconnect con_current_thread
---source include/wait_until_disconnected.inc
 
 --echo ## Disconnect PFS_TEST_VALID_GROUP_NAME
 --connection con_valid_group_name

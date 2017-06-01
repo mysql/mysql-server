@@ -30,31 +30,17 @@ FROM performance_schema.threads WHERE resource_group = 'PFS_CURRENT_THREAD';
 name	type	processlist_user	processlist_host	processlist_db	resource_group
 thread/sql/one_connection	FOREGROUND	root	localhost	test	PFS_CURRENT_THREAD
 
-## TEST 2. CURRENT THREAD (NOT INSTRUMENTED)
-## set_resource_group() for the current thread. This is expected to fail because the event thread
-## that processes the callback is not instrumented.
-## CONNECT PFS_TEST_CURRENT_THREAD
-
-## Verify it is NOT in PERFORMANCE_SCHEMA.THREADS
-
-SELECT name, type, processlist_user, processlist_host, processlist_db, resource_group
-FROM performance_schema.threads
-WHERE resource_group = 'PFS_CURRENT_THREAD_NON_INSTRUMENTED';
-name	type	processlist_user	processlist_host	processlist_db	resource_group
-
-## TEST 3. VALID GROUP NAME
+## TEST 2. VALID GROUP NAME
 ## set_resource_group() with a valid group name
 ## CONNECT PFS_TEST_VALID_GROUP_NAME
 
-## TEST 4. INVALID THREAD_ID
+## TEST 3. INVALID THREAD_ID
 ## Test set_resource_group() with an invalid thread_id
 ## CONNECT PFS_TEST_INVALID_THREAD_ID
 
-## TEST 5. INVALID GROUP NAME
+## TEST 4. INVALID GROUP NAME
 ## Test set_resource_group() with an invalid group name
 ## CONNECT PFS_TEST_INVALID_GROUP_NAME
-
-## Disconnect PFS_TEST_CURRENT_THREAD
 ## Disconnect PFS_TEST_VALID_GROUP_NAME
 ## Disconnect PFS_TEST_INVALID_THREAD_ID
 ## Disconnect PFS_TEST_INVALID_GROUP_NAME
