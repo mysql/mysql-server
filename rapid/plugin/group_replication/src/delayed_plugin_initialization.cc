@@ -207,6 +207,9 @@ int Delayed_initialization_thread::initialization_thread_handler()
 
     configure_compatibility_manager();
 
+    // need to be initialized before applier, is called on kill_pending_transactions
+    blocked_transaction_handler= new Blocked_transaction_handler();
+
     if ((error= initialize_recovery_module()))
       goto err; /* purecov: inspected */
 
@@ -217,7 +220,6 @@ int Delayed_initialization_thread::initialization_thread_handler()
     }
 
     initialize_group_partition_handler();
-    blocked_transaction_handler= new Blocked_transaction_handler();
 
     if ((error= start_group_communication()))
     {
