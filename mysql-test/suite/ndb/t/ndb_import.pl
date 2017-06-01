@@ -448,7 +448,7 @@ sub write_tests {
   my $tag = $tests->{tag};
   my $file = "$vardir/tmp/ndb_import$tag.inc";
   my $fh = gensym();
-  open($fh, ">$file")
+  open($fh, ">:raw", $file)
     or die "$file: open for write failed: $!";
   my $testlist = $tests->{testlist};
   for my $test (@$testlist) {
@@ -879,10 +879,10 @@ sub write_csvfile {
   my $filever = get_csvfile($test, $table, { ver => 1 });
   my $fh = gensym();
   my $fhver = gensym();
-  open($fh, ">$file")
+  open($fh, ">:raw", $file)
     or die "$file: open for write failed: $!";
   if ($test->{csvver}) {
-    open($fhver, ">$filever")
+    open($fhver, ">:raw", $filever)
       or die "$filever: open for write failed: $!";
   }
   my $tablename = get_tablename($test, $table, { ver => 0 });

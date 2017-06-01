@@ -35,7 +35,7 @@ my $vardir = $ENV{MYSQLTEST_VARDIR}
   or die "need MYSQLTEST_VARDIR";
 my $file = "$vardir/tmp/t1.csv";
 my $fh = gensym();
-open($fh, ">$file")
+open($fh, ">:raw", $file)
   or die "$file: open for write failed: $!";
 for my $i (0..999) {
   print $fh $i, "\t", $i*10, "\n";
@@ -77,9 +77,8 @@ my $vardir = $ENV{MYSQLTEST_VARDIR}
   or die "need MYSQLTEST_VARDIR";
 my $file = "$vardir/tmp/t2.csv";
 my $fh = gensym();
-open($fh, ">$file")
+open($fh, ">:raw:utf8", $file)
   or die "$file: open for write failed: $!";
-binmode($fh, ":utf8");
 my $c1 = chr(0x00e4);
 my $c2 = chr(0x263a);
 my $c3 = chr(0x2665);
@@ -120,9 +119,11 @@ and (x.b = y.b or (x.b is null and y.b is null));
 # to check result diff
 --disable_query_log
 eval select * from t2 order by a
-  into outfile '$MYSQLTEST_VARDIR/tmp/t2.out';
+  into outfile '$MYSQLTEST_VARDIR/tmp/t2.out'
+  charset utf8;
 eval select * from t2ver order by a
-  into outfile '$MYSQLTEST_VARDIR/tmp/t2ver.out';
+  into outfile '$MYSQLTEST_VARDIR/tmp/t2ver.out'
+  charset utf8;
 --enable_query_log
 
 --echo # simple hidden-pk test
@@ -134,7 +135,7 @@ my $vardir = $ENV{MYSQLTEST_VARDIR}
   or die "need MYSQLTEST_VARDIR";
 my $file = "$vardir/tmp/t3.csv";
 my $fh = gensym();
-open($fh, ">$file")
+open($fh, ">:raw", $file)
   or die "$file: open for write failed: $!";
 for my $i (1..1000) {
   print $fh 10*$i, "\n";
@@ -175,7 +176,7 @@ my $vardir = $ENV{MYSQLTEST_VARDIR}
   or die "need MYSQLTEST_VARDIR";
 my $file = "$vardir/tmp/t4.csv";
 my $fh = gensym();
-open($fh, ">$file")
+open($fh, ">:raw", $file)
   or die "$file: open for write failed: $!";
 for my $i (0..999) {
   if ($i == 333) {
