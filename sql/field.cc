@@ -9355,6 +9355,28 @@ bool Field_json::get_time(MYSQL_TIME *ltime)
 }
 
 
+int Field_json::cmp_binary(const uchar *a_ptr, const uchar *b_ptr,
+                           uint32 /* max_length */)
+{
+  char *a;
+  char *b;
+  memcpy(&a, a_ptr + packlength, sizeof(a));
+  memcpy(&b, b_ptr + packlength, sizeof(b));
+  uint32 a_length= get_length(a_ptr);
+  uint32 b_length= get_length(b_ptr);
+  using namespace json_binary;
+  /*
+    The length is 0 if NULL has been inserted into a NOT NULL column
+    using INSERT IGNORE or similar. If so, interpret the value as the
+    JSON null literal.
+  */
+  Value null_literal(Value::LITERAL_NULL);
+  Json_wrapper aw(a_length == 0 ? null_literal : parse_binary(a, a_length));
+  Json_wrapper bw(b_length == 0 ? null_literal : parse_binary(b, b_length));
+  return aw.compare(bw);
+}
+
+
 size_t Field_json::make_sort_key(uchar *to, size_t length)
 {
   Json_wrapper wr;

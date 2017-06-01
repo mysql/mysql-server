@@ -2003,4 +2003,50 @@ include/diff_tables.inc [master:data, slave:data]
 # cleanup
 DROP TABLE data,json_data;
 include/sync_slave_sql_with_master.inc
+#
+# Bug#26177130: SLAVE CAN'T FIND ROW USING HASH_SCAN
+#               IF JSON HAS DIFFERENT BINARY FORMAT
+#
+[connection slave]
+include/begin_replace_combination.inc [BOTH.binlog_format=row,mixed,statement -> GLOBAL.slave_rows_search_algorithms=HASH_SCAN,TABLE_SCAN,INDEX_SCAN]
+[connection master]
+SET @old_binlog_format = @@SESSION.binlog_format;
+SET SESSION binlog_format = ROW;
+[connection slave]
+include/stop_slave.inc
+include/start_slave.inc
+[connection master]
+CREATE TABLE t (j JSON);
+SET SQL_LOG_BIN = 0;
+INSERT INTO t VALUES ('["abc", "abcdefghij"]');
+UPDATE t SET j = JSON_SET(j, '$[0]', 'a');
+SET SQL_LOG_BIN = 1;
+SELECT j, JSON_STORAGE_SIZE(j), JSON_STORAGE_FREE(j) FROM t;
+j	JSON_STORAGE_SIZE(j)	JSON_STORAGE_FREE(j)
+["a", "abcdefghij"]	26	2
+include/sync_slave_sql_with_master.inc
+INSERT INTO t VALUES ('["a", "abcdefghij"]');
+SELECT j, JSON_STORAGE_SIZE(j), JSON_STORAGE_FREE(j) FROM t;
+j	JSON_STORAGE_SIZE(j)	JSON_STORAGE_FREE(j)
+["a", "abcdefghij"]	24	0
+# At this point, the master and the slave have the same JSON document,
+# but the binary representation is different (the master has a 'gap' due
+# to partial update).
+[connection master]
+DELETE FROM t;
+# Verify that the slave and the master are in sync after the DELETE.
+# Before the fix, the slave could not locate the row due with
+# slave_rows_search_algorithms=HASH_SCAN because of the difference in
+# the representation.
+include/sync_slave_sql_with_master.inc
+# Clean up
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+include/end_replace_combination.inc [BOTH.binlog_format=row,mixed,statement -> GLOBAL.slave_rows_search_algorithms=HASH_SCAN,TABLE_SCAN,INDEX_SCAN]
+[connection slave]
+include/stop_slave.inc
+include/start_slave.inc
+[connection master]
+SET SESSION binlog_format = @old_binlog_format;
 include/rpl_end.inc
