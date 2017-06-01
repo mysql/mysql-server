@@ -3978,7 +3978,12 @@ bool Sys_var_gtid_mode::global_update(THD*, set_var *var)
     goto end;
 
   // Can only change one step at a time.
-  if (abs((int)new_gtid_mode - (int)old_gtid_mode) > 1)
+  /*
+   Change gtid_mode value without checking for one step change during
+   server startup.
+  */
+  if (mysqld_server_started &&
+      abs((int)new_gtid_mode - (int)old_gtid_mode) > 1)
   {
     my_error(ER_GTID_MODE_CAN_ONLY_CHANGE_ONE_STEP_AT_A_TIME, MYF(0));
     goto err;
