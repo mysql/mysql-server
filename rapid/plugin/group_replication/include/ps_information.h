@@ -31,7 +31,8 @@ bool get_group_members_info(uint index,
                                 *group_member_manager,
                             char *channel_name);
 
-bool get_group_member_stats(const GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS& callbacks,
+bool get_group_member_stats(uint index,
+                            const GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS& callbacks,
                             Group_member_info_manager_interface
                                 *group_member_manager,
                             Applier_module *applier_module,

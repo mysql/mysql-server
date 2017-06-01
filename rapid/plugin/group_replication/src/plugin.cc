@@ -327,11 +327,12 @@ uint plugin_get_group_members_number()
 
 bool
 plugin_get_group_member_stats(
-    const GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS& callbacks)
+    uint index, const GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS& callbacks)
 {
   char* channel_name= applier_module_channel_name;
 
-  return get_group_member_stats(callbacks, group_member_mgr, applier_module,
+  return get_group_member_stats(index, callbacks, group_member_mgr,
+                                applier_module,
                                 gcs_module, channel_name);
 }
 

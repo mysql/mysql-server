@@ -73,8 +73,23 @@ public:
     // Length of the payload item: 8 bytes
     PIT_TRANSACTIONS_LOCAL= 5,
 
+    // Length of the payload item: 8 bytes
+    PIT_TRANSACTIONS_NEGATIVE_CERTIFIED= 6,
+
+    // Length of the payload item: 8 bytes
+    PIT_TRANSACTIONS_ROWS_VALIDATING= 7,
+
+    // Length of the payload item: variable
+    PIT_TRANSACTIONS_COMMITTED_ALL_MEMBERS= 8,
+
+    // Length of the payload item: variable
+    PIT_TRANSACTION_LAST_CONFLICT_FREE= 9,
+
+    // Length of the payload item: 8 bytes
+    PIT_TRANSACTIONS_LOCAL_ROLLBACK= 10,
+
     // No valid type codes can appear after this one.
-    PIT_MAX= 6
+    PIT_MAX= 11
   };
 
   /**
@@ -85,12 +100,22 @@ public:
     @param[in] transactions_certified
     @param[in] transactions_applied
     @param[in] transactions_local
+    @param[in] transactions_negative_certified
+    @param[in] transactions_rows_validating
+    @param[in] transactions_committed_all_members
+    @param[in] transactions_last_conflict_free
+    @param[in] transactions_local_rollback
   */
   Pipeline_stats_member_message(int32 transactions_waiting_certification,
                                 int32 transactions_waiting_apply,
                                 int64 transactions_certified,
                                 int64 transactions_applied,
-                                int64 transactions_local);
+                                int64 transactions_local,
+                                int64 transactions_negative_certified,
+                                int64 transactions_rows_validating,
+                                const std::string& transactions_committed_all_members,
+                                const std::string& transactions_last_conflict_free,
+                                int64 transactions_local_rollback);
 
   /**
     Message constructor for raw data
@@ -140,6 +165,41 @@ public:
   */
   int64 get_transactions_local();
 
+  /**
+    Get negatively certfied transaction by member.
+
+    @return the counter value
+  */
+  int64 get_transactions_negative_certified();
+
+  /**
+    Get size of conflict detection database.
+
+    @return the counter value
+  */
+  int64 get_transactions_rows_validating();
+
+  /**
+    Get set of stable group transactions.
+
+    @return the transaction identifier.
+  */
+  const std::string& get_transaction_committed_all_members();
+
+  /**
+    Get last positive certified transaction.
+
+    @return the transaction identifier.
+  */
+  const std::string& get_transaction_last_conflict_free();
+
+  /**
+    Get local transactions rolled back by the member.
+
+    @return the transaction identifiers.
+  */
+  int64 get_transactions_local_rollback();
+
 protected:
   /**
     Encodes the message contents for transmission.
@@ -152,8 +212,9 @@ protected:
     Message decoding method
 
     @param[in] buffer the received data
+    @param[in] end    the end of the buffer
   */
-  void decode_payload(const unsigned char *buffer, const unsigned char*);
+  void decode_payload(const unsigned char *buffer, const unsigned char *end);
 
 private:
   int32 m_transactions_waiting_certification;
@@ -161,6 +222,11 @@ private:
   int64 m_transactions_certified;
   int64 m_transactions_applied;
   int64 m_transactions_local;
+  int64 m_transactions_negative_certified;
+  int64 m_transactions_rows_validating;
+  std::string m_transactions_committed_all_members;
+  std::string m_transaction_last_conflict_free;
+  int64 m_transactions_local_rollback;
 };
 
 
@@ -208,15 +274,54 @@ public:
   void increment_transactions_local();
 
   /**
+    Increment local rollback transactions counter value.
+  */
+  void increment_transactions_local_rollback();
+
+  /**
     Send member statistics to group.
   */
   void send_stats_member_message();
 
+  /**
+    @returns transactions waiting to be applied.
+  */
+  int32 get_transactions_waiting_apply();
+
+  /**
+    @returns transactions certified.
+  */
+  int64 get_transactions_certified();
+
+  /**
+    @returns transactions applied of local member.
+  */
+  int64 get_transactions_applied();
+
+  /**
+    @returns local transactions proposed by member.
+  */
+  int64 get_transactions_local();
+
+  /**
+    @returns local transactions rollback due to Negative certification
+  */
+  int64 get_transactions_local_rollback();
+
+  /**
+    Send Transaction Identifiers or not.
+    Once Transactions identifiers are sent, variable will be reset to FALSE
+    So need to set each time Transactions identifiers needs to be transmitted
+  */
+  void set_send_transaction_identifiers();
 private:
   std::atomic<int32> m_transactions_waiting_apply;
   std::atomic<int64> m_transactions_certified;
   std::atomic<int64> m_transactions_applied;
   std::atomic<int64> m_transactions_local;
+  std::atomic<int64> m_transactions_local_rollback;
+
+  bool send_transaction_identifiers;
 };
 
 
@@ -269,6 +374,62 @@ public:
   int32 get_transactions_waiting_apply();
 
   /**
+    Get transactions certified counter value.
+
+    @return the counter value
+  */
+  int64 get_transactions_certified();
+
+  /**
+    Get transactions applied counter value.
+
+    @return the counter value
+  */
+  int64 get_transactions_applied();
+
+  /**
+    Get local member transactions proposed counter value.
+
+    @return the counter value
+  */
+  int64 get_transactions_local();
+
+  /**
+    Get transactions negatively certified.
+
+    @return the counter value
+  */
+  int64 get_transactions_negative_certified();
+
+  /**
+    Get certification database counter value.
+
+    @return the counter value
+  */
+  int64 get_transactions_rows_validating();
+
+  /**
+    Get set of stable group transactions.
+
+    @return the transaction identifier.
+  */
+  const std::string& get_transaction_committed_all_members();
+
+  /**
+    Get last positive certified transaction.
+
+    @return the transaction identifier.
+  */
+  const std::string& get_transaction_last_conflict_free();
+
+  /**
+    Get local member transactions negatively certified.
+
+    @return the counter value
+  */
+  int64 get_transactions_local_rollback();
+
+  /**
     Get transactions certified since last stats message.
 
     @return the counter value
@@ -310,6 +471,12 @@ private:
   int64 m_delta_transactions_applied;
   int64 m_transactions_local;
   int64 m_delta_transactions_local;
+  int64 m_transactions_negative_certified;
+  int64 m_transactions_rows_validating;
+  std::string m_transactions_committed_all_members;
+  std::string m_transaction_last_conflict_free;
+  int64 m_transactions_local_rollback;
+
   uint64 m_stamp;
 };
 
@@ -364,6 +531,16 @@ public:
     and adjust the system parameters accordingly
   */
   void flow_control_step();
+
+  /**
+    Returns copy of individual member stats information.
+    @note      Its caller responsibility to clean up allocated memory.
+
+    @param[in] member_id     GCS Type Member Id, i.e. format HOST:PORT
+    @return the reference to class Pipeline_member_stats of memberID
+    storing network(GCS Broadcasted) received information
+  */
+  Pipeline_member_stats * get_pipeline_stats(const std::string& member_id);
 
   /**
     Compute and wait the amount of time in microseconds that must

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,6 +13,9 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#include <sstream>
+#include <ios>
+
 #include "member_version.h"
 
 Member_version::Member_version(unsigned int version)
@@ -24,6 +27,17 @@ uint32
 Member_version::get_version() const
 {
   return this->version;
+}
+
+const std::string
+Member_version::get_version_string() const
+{
+  std::stringstream member_version;
+  member_version << std::hex
+                 << get_major_version ()<<"."
+                 << get_minor_version ()<<"."
+                 << get_patch_version ();
+  return member_version.str();
 }
 
 uint32

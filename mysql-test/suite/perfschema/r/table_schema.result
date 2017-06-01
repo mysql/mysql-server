@@ -1031,6 +1031,8 @@ def	performance_schema	replication_group_members	MEMBER_ID	2	NULL	NO	char	36	108
 def	performance_schema	replication_group_members	MEMBER_HOST	3	NULL	NO	char	60	180	NULL	NULL	NULL	utf8	utf8_bin	char(60)			select,insert,update,references		
 def	performance_schema	replication_group_members	MEMBER_PORT	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
 def	performance_schema	replication_group_members	MEMBER_STATE	5	NULL	NO	char	64	192	NULL	NULL	NULL	utf8	utf8_bin	char(64)			select,insert,update,references		
+def	performance_schema	replication_group_members	MEMBER_ROLE	6	NULL	NO	char	64	192	NULL	NULL	NULL	utf8	utf8_bin	char(64)			select,insert,update,references		
+def	performance_schema	replication_group_members	MEMBER_VERSION	7	NULL	NO	char	64	192	NULL	NULL	NULL	utf8	utf8_bin	char(64)			select,insert,update,references		
 def	performance_schema	replication_group_member_stats	CHANNEL_NAME	1	NULL	NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)			select,insert,update,references		
 def	performance_schema	replication_group_member_stats	VIEW_ID	2	NULL	NO	char	60	180	NULL	NULL	NULL	utf8	utf8_bin	char(60)			select,insert,update,references		
 def	performance_schema	replication_group_member_stats	MEMBER_ID	3	NULL	NO	char	36	108	NULL	NULL	NULL	utf8	utf8_bin	char(36)			select,insert,update,references		
@@ -1040,6 +1042,10 @@ def	performance_schema	replication_group_member_stats	COUNT_CONFLICTS_DETECTED	6
 def	performance_schema	replication_group_member_stats	COUNT_TRANSACTIONS_ROWS_VALIDATING	7	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
 def	performance_schema	replication_group_member_stats	TRANSACTIONS_COMMITTED_ALL_MEMBERS	8	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	NULL	utf8	utf8_general_ci	longtext			select,insert,update,references		
 def	performance_schema	replication_group_member_stats	LAST_CONFLICT_FREE_TRANSACTION	9	NULL	NO	text	65535	65535	NULL	NULL	NULL	utf8	utf8_general_ci	text			select,insert,update,references		
+def	performance_schema	replication_group_member_stats	COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE	10	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
+def	performance_schema	replication_group_member_stats	COUNT_TRANSACTIONS_REMOTE_APPLIED	11	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
+def	performance_schema	replication_group_member_stats	COUNT_TRANSACTIONS_LOCAL_PROPOSED	12	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
+def	performance_schema	replication_group_member_stats	COUNT_TRANSACTIONS_LOCAL_ROLLBACK	13	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
 def	performance_schema	rwlock_instances	NAME	1	NULL	NO	varchar	128	384	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(128)	MUL		select,insert,update,references		
 def	performance_schema	rwlock_instances	OBJECT_INSTANCE_BEGIN	2	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	PRI		select,insert,update,references		
 def	performance_schema	rwlock_instances	WRITE_LOCKED_BY_THREAD_ID	3	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	MUL		select,insert,update,references		

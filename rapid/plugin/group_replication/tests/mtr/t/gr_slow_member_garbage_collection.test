@@ -35,17 +35,17 @@ CREATE TABLE t1(i INT PRIMARY KEY);
 --connection server1
 --echo # Wait for the first round of garbage collection to finish on server 1.
 --let $wait_timeout= 65
---let $wait_condition= SELECT Transactions_committed_all_members<>"" FROM performance_schema.replication_group_member_stats
+--let $wait_condition= SELECT Transactions_committed_all_members<>"" FROM performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid)
 --source include/wait_condition.inc
 
 --connection server2
 --echo # Wait for the first round of garbage collection to finish on server 2.
 --let $wait_timeout= 65
---let $wait_condition= SELECT Transactions_committed_all_members<>"" FROM performance_schema.replication_group_member_stats
+--let $wait_condition= SELECT Transactions_committed_all_members<>"" FROM performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid)
 --source include/wait_condition.inc
 
 --echo # First round of garbage collection finished
---let $first_garbage_collection_transactions_committed= `SELECT Transactions_committed_all_members from performance_schema.replication_group_member_stats`
+--let $first_garbage_collection_transactions_committed= `SELECT Transactions_committed_all_members from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid)`
 
 --connection server2
 --echo ############################################################
@@ -66,7 +66,7 @@ INSERT INTO t1 VALUES(1);
 --connection server1
 --echo # Wait for the second round of garbage collection to finish on server 1.
 --let $wait_timeout= 65
---let $wait_condition= SELECT Transactions_committed_all_members<>"$first_garbage_collection_transactions_committed" FROM performance_schema.replication_group_member_stats
+--let $wait_condition= SELECT Transactions_committed_all_members<>"$first_garbage_collection_transactions_committed" FROM performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid)
 --source include/wait_condition.inc
 
 --connection server2
@@ -76,7 +76,7 @@ INSERT INTO t1 VALUES(1);
 #              2nd GC   3rd GC   extra
 
 --let $wait_timeout= 150
---let $wait_condition= SELECT Transactions_committed_all_members<>"$first_garbage_collection_transactions_committed" FROM performance_schema.replication_group_member_stats
+--let $wait_condition= SELECT Transactions_committed_all_members<>"$first_garbage_collection_transactions_committed" FROM performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid)
 --source include/wait_condition.inc
 
 # Cleanup

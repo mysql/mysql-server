@@ -63,13 +63,23 @@ Pipeline_stats_member_message::Pipeline_stats_member_message(
     int32 transactions_waiting_apply,
     int64 transactions_certified,
     int64 transactions_applied,
-    int64 transactions_local)
+    int64 transactions_local,
+    int64 transactions_negative_certified,
+    int64 transactions_rows_in_validation,
+    const std::string& transactions_all_committed,
+    const std::string& transactions_last_conflict_free,
+    int64 transactions_local_rollback)
   : Plugin_gcs_message(CT_PIPELINE_STATS_MEMBER_MESSAGE),
     m_transactions_waiting_certification(transactions_waiting_certification),
     m_transactions_waiting_apply(transactions_waiting_apply),
     m_transactions_certified(transactions_certified),
     m_transactions_applied(transactions_applied),
-    m_transactions_local(transactions_local)
+    m_transactions_local(transactions_local),
+    m_transactions_negative_certified(transactions_negative_certified),
+    m_transactions_rows_validating(transactions_rows_in_validation),
+    m_transactions_committed_all_members(transactions_all_committed),
+    m_transaction_last_conflict_free(transactions_last_conflict_free),
+    m_transactions_local_rollback(transactions_local_rollback)
 {}
 
 
@@ -79,7 +89,12 @@ Pipeline_stats_member_message::Pipeline_stats_member_message(const unsigned char
     m_transactions_waiting_apply(0),
     m_transactions_certified(0),
     m_transactions_applied(0),
-    m_transactions_local(0)
+    m_transactions_local(0),
+    m_transactions_negative_certified(0),
+    m_transactions_rows_validating(0),
+    m_transactions_committed_all_members(""),
+    m_transaction_last_conflict_free(""),
+    m_transactions_local_rollback(0)
 {
   decode(buf, len);
 }
@@ -129,6 +144,46 @@ Pipeline_stats_member_message::get_transactions_local()
 }
 
 
+int64
+Pipeline_stats_member_message::get_transactions_negative_certified()
+{
+  DBUG_ENTER("Pipeline_stats_member_message::get_transactions_negative_certified");
+  DBUG_RETURN(m_transactions_negative_certified);
+}
+
+
+int64
+Pipeline_stats_member_message::get_transactions_rows_validating()
+{
+  DBUG_ENTER("Pipeline_stats_member_message::get_transactions_rows_validating");
+  DBUG_RETURN(m_transactions_rows_validating);
+}
+
+
+int64
+Pipeline_stats_member_message::get_transactions_local_rollback()
+{
+  DBUG_ENTER("Pipeline_stats_member_message::get_transactions_local_rollback");
+  DBUG_RETURN(m_transactions_local_rollback);
+}
+
+
+const std::string&
+Pipeline_stats_member_message::get_transaction_committed_all_members()
+{
+  DBUG_ENTER("Pipeline_stats_member_message::get_transaction_committed_all_members");
+  DBUG_RETURN(m_transactions_committed_all_members);
+}
+
+
+const std::string&
+Pipeline_stats_member_message::get_transaction_last_conflict_free()
+{
+  DBUG_ENTER("Pipeline_stats_member_message::get_transaction_last_conflict_free");
+  DBUG_RETURN(m_transaction_last_conflict_free);
+}
+
+
 void
 Pipeline_stats_member_message::encode_payload(std::vector<unsigned char> *buffer) const
 {
@@ -159,17 +214,47 @@ Pipeline_stats_member_message::encode_payload(std::vector<unsigned char> *buffer
   encode_payload_item_int8(buffer, PIT_TRANSACTIONS_LOCAL,
                            transactions_local_aux);
 
+  uint64 transactions_negative_certified_aux=
+      (uint64)m_transactions_negative_certified;
+  encode_payload_item_int8(buffer, PIT_TRANSACTIONS_NEGATIVE_CERTIFIED,
+                           transactions_negative_certified_aux);
+
+  uint64 transactions_rows_validating_aux=
+      (uint64)m_transactions_rows_validating;
+  encode_payload_item_int8(buffer, PIT_TRANSACTIONS_ROWS_VALIDATING,
+                           transactions_rows_validating_aux);
+
+  if (!m_transactions_committed_all_members.empty())
+  {
+    encode_payload_item_string(buffer, PIT_TRANSACTIONS_COMMITTED_ALL_MEMBERS,
+                               m_transactions_committed_all_members.c_str(),
+                               m_transactions_committed_all_members.length());
+  }
+
+  if (!m_transaction_last_conflict_free.empty())
+  {
+    encode_payload_item_string(buffer, PIT_TRANSACTION_LAST_CONFLICT_FREE,
+                               m_transaction_last_conflict_free.c_str(),
+                               m_transaction_last_conflict_free.length());
+  }
+
+  uint64 transactions_local_rollback_aux=
+      (uint64)m_transactions_local_rollback;
+  encode_payload_item_int8(buffer, PIT_TRANSACTIONS_LOCAL_ROLLBACK,
+                           transactions_local_rollback_aux);
+
   DBUG_VOID_RETURN;
 }
 
 
 void
 Pipeline_stats_member_message::decode_payload(const unsigned char *buffer,
-                                              const unsigned char*)
+                                              const unsigned char *end)
 {
   DBUG_ENTER("Pipeline_stats_member_message::decode_payload");
   const unsigned char *slider= buffer;
   uint16 payload_item_type= 0;
+  unsigned long long payload_item_length= 0;
 
   uint32 transactions_waiting_certification_aux= 0;
   decode_payload_item_int4(&slider,
@@ -206,13 +291,71 @@ Pipeline_stats_member_message::decode_payload(const unsigned char *buffer,
   m_transactions_local=
       (int64)transactions_local_aux;
 
+  while (slider + Plugin_gcs_message::WIRE_PAYLOAD_ITEM_HEADER_SIZE <= end)
+  {
+    // Read payload item header to find payload item length.
+    decode_payload_item_type_and_length(&slider,
+                                        &payload_item_type,
+                                        &payload_item_length);
+
+    switch (payload_item_type)
+    {
+      case PIT_TRANSACTIONS_NEGATIVE_CERTIFIED:
+        if (slider + payload_item_length <= end)
+        {
+          uint64 transactions_negative_certified_aux= *slider;
+          slider += payload_item_length;
+          m_transactions_negative_certified=
+                 (int64)transactions_negative_certified_aux;
+        }
+        break;
+
+      case PIT_TRANSACTIONS_ROWS_VALIDATING:
+        if (slider + payload_item_length <= end)
+        {
+          uint64 transactions_rows_validating_aux= *slider;
+          slider += payload_item_length;
+          m_transactions_rows_validating=
+                 (int64)transactions_rows_validating_aux;
+        }
+        break;
+
+      case PIT_TRANSACTIONS_COMMITTED_ALL_MEMBERS:
+        if (slider + payload_item_length <= end)
+        {
+          m_transactions_committed_all_members.assign(slider, slider + payload_item_length);
+          slider += payload_item_length;
+        }
+        break;
+
+      case PIT_TRANSACTION_LAST_CONFLICT_FREE:
+        if (slider + payload_item_length <= end)
+        {
+          m_transaction_last_conflict_free.assign(slider, slider + payload_item_length);
+          slider += payload_item_length;
+        }
+        break;
+
+      case PIT_TRANSACTIONS_LOCAL_ROLLBACK:
+        if (slider + payload_item_length <= end)
+        {
+          uint64 transactions_local_rollback_aux= *slider;
+          slider += payload_item_length;
+          m_transactions_local_rollback=
+                 (int64)transactions_local_rollback_aux;
+        }
+        break;
+    }
+  }
+
   DBUG_VOID_RETURN;
 }
 
 
 Pipeline_stats_member_collector::Pipeline_stats_member_collector()
   : m_transactions_waiting_apply(0), m_transactions_certified(0),
-    m_transactions_applied(0), m_transactions_local(0)
+    m_transactions_applied(0), m_transactions_local(0),
+    m_transactions_local_rollback(0), send_transaction_identifiers(false)
 {}
 
 
@@ -256,6 +399,55 @@ Pipeline_stats_member_collector::increment_transactions_local()
 
 
 void
+Pipeline_stats_member_collector::increment_transactions_local_rollback()
+{
+  ++m_transactions_local_rollback;
+}
+
+
+int32
+Pipeline_stats_member_collector::get_transactions_waiting_apply()
+{
+  return m_transactions_waiting_apply.load();
+}
+
+
+int64
+Pipeline_stats_member_collector::get_transactions_certified()
+{
+  return m_transactions_certified.load();
+}
+
+
+int64
+Pipeline_stats_member_collector::get_transactions_applied()
+{
+  return m_transactions_applied.load();
+}
+
+
+int64
+Pipeline_stats_member_collector::get_transactions_local()
+{
+  return m_transactions_local.load();
+}
+
+
+int64
+Pipeline_stats_member_collector::get_transactions_local_rollback()
+{
+  return m_transactions_local_rollback.load();
+}
+
+
+void
+Pipeline_stats_member_collector::set_send_transaction_identifiers()
+{
+  send_transaction_identifiers= true;
+}
+
+
+void
 Pipeline_stats_member_collector::send_stats_member_message()
 {
   if (local_member_info == NULL)
@@ -266,12 +458,48 @@ Pipeline_stats_member_collector::send_stats_member_message()
       member_status != Group_member_info::MEMBER_IN_RECOVERY)
     return;
 
+  std::string last_conflict_free_transaction;
+  std::string committed_transactions;
+
+  Certifier_interface * cert_interface=
+       (applier_module && applier_module->get_certification_handler()) ?
+        applier_module->get_certification_handler()->get_certifier() : NULL;
+
+  if (send_transaction_identifiers &&
+      cert_interface != NULL)
+  {
+    char *committed_transactions_buf= NULL;
+    size_t committed_transactions_buf_length= 0;
+    int get_group_stable_transactions_set_string_outcome= cert_interface->
+          get_group_stable_transactions_set_string(&committed_transactions_buf,
+                                                   &committed_transactions_buf_length);
+    if (!get_group_stable_transactions_set_string_outcome &&
+        committed_transactions_buf_length > 0)
+    {
+      committed_transactions.assign(committed_transactions_buf);
+    }
+    my_free(committed_transactions_buf);
+    cert_interface->get_last_conflict_free_transaction(&last_conflict_free_transaction);
+    send_transaction_identifiers= false;
+  }
+  else
+  {
+    last_conflict_free_transaction.clear();
+    committed_transactions.clear();
+  }
+
   Pipeline_stats_member_message message(
       static_cast<int32>(applier_module->get_message_queue_size()),
       m_transactions_waiting_apply.load(),
       m_transactions_certified.load(),
       m_transactions_applied.load(),
-      m_transactions_local.load());
+      m_transactions_local.load(),
+      (cert_interface != NULL)?cert_interface->get_negative_certified():0,
+      (cert_interface != NULL)?cert_interface->get_certification_info_size():0,
+      committed_transactions,
+      last_conflict_free_transaction,
+      m_transactions_local_rollback.load());
+
 
   enum_gcs_error msg_error= gcs_module->send_message(message, true);
   if (msg_error != GCS_OK)
@@ -291,6 +519,11 @@ Pipeline_member_stats::Pipeline_member_stats()
     m_delta_transactions_applied(0),
     m_transactions_local(0),
     m_delta_transactions_local(0),
+    m_transactions_negative_certified(0),
+    m_transactions_rows_validating(0),
+    m_transactions_committed_all_members(),
+    m_transaction_last_conflict_free(),
+    m_transactions_local_rollback(0),
     m_stamp(0)
 {}
 
@@ -304,6 +537,11 @@ Pipeline_member_stats::Pipeline_member_stats(Pipeline_stats_member_message &msg)
     m_delta_transactions_applied(0),
     m_transactions_local(msg.get_transactions_local()),
     m_delta_transactions_local(0),
+    m_transactions_negative_certified(msg.get_transactions_negative_certified()),
+    m_transactions_rows_validating(msg.get_transactions_rows_validating()),
+    m_transactions_committed_all_members(msg.get_transaction_committed_all_members()),
+    m_transaction_last_conflict_free(msg.get_transaction_last_conflict_free()),
+    m_transactions_local_rollback(msg.get_transactions_local_rollback()),
     m_stamp(0)
 {}
 
@@ -336,6 +574,27 @@ Pipeline_member_stats::update_member_stats(Pipeline_stats_member_message &msg,
   m_transactions_local= msg.get_transactions_local();
   m_delta_transactions_local=
       m_transactions_local - previous_transactions_local;
+
+  m_transactions_negative_certified=
+      msg.get_transactions_negative_certified();
+
+  m_transactions_rows_validating=
+      msg.get_transactions_rows_validating();
+
+  if (!msg.get_transaction_committed_all_members().empty())
+  {
+    m_transactions_committed_all_members=
+        msg.get_transaction_committed_all_members();
+  }
+
+  if (!msg.get_transaction_last_conflict_free().empty())
+  {
+    m_transaction_last_conflict_free=
+      msg.get_transaction_last_conflict_free();
+  }
+
+  m_transactions_local_rollback=
+      msg.get_transactions_local_rollback();
 
   m_stamp= stamp;
 }
@@ -388,6 +647,62 @@ uint64
 Pipeline_member_stats::get_stamp()
 {
   return m_stamp;
+}
+
+
+int64
+Pipeline_member_stats::get_transactions_certified()
+{
+  return m_transactions_certified;
+}
+
+
+int64
+Pipeline_member_stats::get_transactions_applied()
+{
+  return m_transactions_applied;
+}
+
+
+int64
+Pipeline_member_stats::get_transactions_local()
+{
+  return m_transactions_local;
+}
+
+
+int64
+Pipeline_member_stats::get_transactions_negative_certified()
+{
+  return m_transactions_negative_certified;
+}
+
+
+int64
+Pipeline_member_stats::get_transactions_rows_validating()
+{
+  return m_transactions_rows_validating;
+}
+
+
+int64
+Pipeline_member_stats::get_transactions_local_rollback()
+{
+  return m_transactions_local_rollback;
+}
+
+
+const std::string&
+Pipeline_member_stats::get_transaction_committed_all_members()
+{
+  return m_transactions_committed_all_members;
+}
+
+
+const std::string&
+Pipeline_member_stats::get_transaction_last_conflict_free()
+{
+  return m_transaction_last_conflict_free;
 }
 
 
@@ -574,6 +889,19 @@ Flow_control_module::handle_stats_data(const uchar *data,
   }
 
   DBUG_RETURN(error);
+}
+
+
+Pipeline_member_stats *
+Flow_control_module::get_pipeline_stats(const std::string& member_id)
+{
+  Pipeline_member_stats * member_pipeline_stats= NULL;
+  Flow_control_module_info::iterator it= m_info.find(member_id);
+  if (it != m_info.end())
+  {
+    member_pipeline_stats= new Pipeline_member_stats(it->second);
+  }
+  return member_pipeline_stats;
 }
 
 

@@ -115,7 +115,7 @@ bool plugin_get_connection_status(
 bool plugin_get_group_members(
     uint index, const GROUP_REPLICATION_GROUP_MEMBERS_CALLBACKS& callbacks);
 bool plugin_get_group_member_stats(
-    const GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS& callbacks);
+    uint index, const GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS& callbacks);
 uint plugin_get_group_members_number();
 /**
   Method to set retrieved certification info from a recovery channel extracted

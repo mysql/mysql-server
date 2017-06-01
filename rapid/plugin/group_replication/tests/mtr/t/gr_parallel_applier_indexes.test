@@ -195,7 +195,7 @@ UPDATE t1 SET c1=7 WHERE c1=6;
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 --let $wait_timeout= 180
---let $wait_condition= SELECT Transactions_committed_all_members<>"" FROM performance_schema.replication_group_member_stats
+--let $wait_condition= SELECT Transactions_committed_all_members<>"" FROM performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid)
 --source include/wait_condition.inc
 
 --echo

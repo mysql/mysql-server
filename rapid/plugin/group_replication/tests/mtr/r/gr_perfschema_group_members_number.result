@@ -30,7 +30,7 @@ include/start_group_replication.inc
 include/rpl_gr_wait_for_number_of_members.inc
 include/rpl_gr_wait_for_number_of_members.inc
 include/rpl_gr_wait_for_number_of_members.inc
-SELECT * FROM performance_schema.replication_group_members;
+SELECT CHANNEL_NAME, MEMBER_ID, MEMBER_HOST, MEMBER_PORT, MEMBER_STATE FROM performance_schema.replication_group_members;
 CHANNEL_NAME	MEMBER_ID	MEMBER_HOST	MEMBER_PORT	MEMBER_STATE
 group_replication_applier	MEMBER_ID	MEMBER_HOST	MEMBER_PORT	ONLINE
 group_replication_applier	MEMBER_ID	MEMBER_HOST	MEMBER_PORT	ONLINE

@@ -151,6 +151,12 @@ void Certifier_broadcast_thread::dispatcher()
   {
     broadcast_counter++;
 
+    // Broadcast Transaction identifiers every 30 seconds
+    if (broadcast_counter % 30 == 0)
+    {
+      applier_module->get_pipeline_stats_member_collector()
+        ->set_send_transaction_identifiers();
+    }
     applier_module->get_pipeline_stats_member_collector()
         ->send_stats_member_message();
 
@@ -912,7 +918,7 @@ rpl_gno Certifier::certify(Gtid_set *snapshot_version,
   }
 
 end:
-  update_certified_transaction_count(result>0);
+  update_certified_transaction_count(result>0, local_transaction);
 
   mysql_mutex_unlock(&LOCK_certification_info);
   DBUG_PRINT("info", ("Group replication Certifier: certification result: %llu",
@@ -1622,9 +1628,9 @@ int Certifier::set_certification_info(std::map<std::string, std::string> *cert_i
   DBUG_RETURN(0);
 }
 
-void Certifier::update_certified_transaction_count(bool result)
+void Certifier::update_certified_transaction_count(bool result, bool local_transaction)
 {
-  if(result)
+  if (result)
     positive_cert++;
   else
     negative_cert++;
@@ -1633,6 +1639,16 @@ void Certifier::update_certified_transaction_count(bool result)
   {
     applier_module->get_pipeline_stats_member_collector()
         ->increment_transactions_certified();
+
+    /*
+      If transaction is local and rolledback
+      increment local negative certifier count
+    */
+    if (local_transaction && !result)
+    {
+      applier_module->get_pipeline_stats_member_collector()
+          ->increment_transactions_local_rollback();
+    }
   }
 }
 
