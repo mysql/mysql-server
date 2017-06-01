@@ -1601,6 +1601,16 @@ typedef void (*post_ddl_t)(THD *thd);
 
 
 /**
+  Perform SE-specific cleanup after recovery of transactions.
+
+  @note Particularly SEs supporting atomic DDL can use this call
+        to perform post-DDL actions for DDL statements which were
+        committed or rolled back during recovery stage.
+*/
+typedef void (*post_recover_t)(void);
+
+
+/**
   handlerton is a singleton structure - one instance per storage engine -
   to provide access to storage engine functionality that works on the
   "global" level (unlike handler class that works on a per-table basis).
@@ -1749,6 +1759,7 @@ struct handlerton
   get_index_column_cardinality_t get_index_column_cardinality;
 
   post_ddl_t post_ddl;
+  post_recover_t post_recover;
 
   /** Flag for Engine License. */
   uint32 license;
@@ -5745,6 +5756,16 @@ int ha_prepare(THD *thd);
 */
 
 int ha_recover(HASH *commit_list);
+
+
+/**
+  Perform SE-specific cleanup after recovery of transactions.
+
+  @note SE supporting atomic DDL can use this method to perform
+        post-DDL actions for DDL statements which were committed
+        or rolled back during recovery stage.
+*/
+void ha_post_recover();
 
 /*
  transactions: interface to low-level handlerton functions. These are

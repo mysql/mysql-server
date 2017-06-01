@@ -9019,3 +9019,21 @@ bool ha_notify_alter_table(THD *thd, const MDL_key *mdl_key,
   }
   return false;
 }
+
+
+static bool post_recover_handlerton(THD*, plugin_ref plugin, void *)
+{
+  handlerton *hton= plugin_data<handlerton*>(plugin);
+
+  if (hton->state == SHOW_OPTION_YES && hton->post_recover)
+    hton->post_recover();
+
+  return false;
+}
+
+
+void ha_post_recover(void)
+{
+  (void) plugin_foreach(nullptr, post_recover_handlerton,
+                        MYSQL_STORAGE_ENGINE_PLUGIN, nullptr);
+}
