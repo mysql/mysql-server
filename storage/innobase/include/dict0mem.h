@@ -1684,6 +1684,9 @@ struct dict_table_t {
 	/** Node of the LRU list of tables. */
 	UT_LIST_NODE_T(dict_table_t)		table_LRU;
 
+	/** metadata version number of dd::Table::se_private_data() */
+	uint64					version;
+
 	/** table dirty_status, which is protected by dict_persist->mutex */
 	table_dirty_status			dirty_status;
 
@@ -2167,11 +2170,14 @@ corrupted_ids_t;
 class PersistentTableMetadata {
 public:
 	/** Constructor
-	@param[in]	id	table id */
-	explicit PersistentTableMetadata(
-		table_id_t	id)
+	@param[in]	id	table id
+	@param[in]	version	table dynamic metadata version */
+	PersistentTableMetadata(
+		table_id_t	id,
+		uint64		version)
 		:
 		m_id(id),
+		m_version(version),
 		m_corrupted_ids(),
 		m_autoinc(0)
 	{}
@@ -2191,11 +2197,17 @@ public:
 		m_corrupted_ids.push_back(id);
 	}
 
-	/** Reset all the metadata, after it has been written to
-	the buffer table */
-	void reset()
+	/** Set the dynamic metadata version.
+	@param[in]	version		dynamic metadata version */
+	void set_version(uint64 version)
 	{
-		m_corrupted_ids.clear();
+		m_version = version;
+	}
+
+	/** Get the dynamic metadata version */
+	uint64 get_version() const
+	{
+		return(m_version);
 	}
 
 	/** Get the table id of the metadata
@@ -2231,6 +2243,9 @@ public:
 private:
 	/** Table ID which this metadata belongs to */
 	table_id_t		m_id;
+
+	/** Table dynamic metadata version of the change */
+	uint64			m_version;
 
 	/** Storing the corrupted indexes' ID if exist, or else empty */
 	corrupted_ids_t		m_corrupted_ids;
@@ -2413,8 +2428,7 @@ public:
 	}
 
 	/** Write redo logs for autoinc counter that is to be inserted or to
-	update the existing one, if the counter is bigger than current one
-	or the counter is 0 as the special mark.
+	update the existing one, if the counter is bigger than current one.
 	This function should be called only once at most per mtr, and work with
 	the commit() to finish the complete logging & commit
 	@param[in]	table	table

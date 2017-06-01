@@ -1048,6 +1048,8 @@ ha_innobase::prepare_inplace_alter_table(
 	}
 
 	if (altered_table->found_next_number_field != NULL) {
+		dd_copy_autoinc(old_dd_tab->se_private_data(),
+				new_dd_tab->se_private_data());
 		dd_set_autoinc(new_dd_tab->se_private_data(),
 			       ha_alter_info->create_info
 			       ->auto_increment_value);
@@ -7694,16 +7696,6 @@ ha_innobase::commit_inplace_alter_table_impl(
 
 			if (!fail) {
 				log_ddl->writeDropLog(trx, ctx->old_table->id);
-
-				/* Also check the DDTableBuffer and delete
-				the corresponding row for old table */
-				dberr_t		error;
-
-				mutex_enter(&dict_persist->mutex);
-				error = dict_persist->table_buffer->remove(
-					ctx->old_table->id);
-				ut_a(error = DB_SUCCESS);
-				mutex_exit(&dict_persist->mutex);
 			}
 		} else {
 			fail = commit_try_norebuild(
@@ -7802,53 +7794,7 @@ ha_innobase::commit_inplace_alter_table_impl(
 				DBUG_SUICIDE(););
 	}
 
-	/* Update the persistent autoinc counter if necessary, we should
-	do this before flushing logs. */
-	uint64	autoinc = 0;
-	if (altered_table->found_next_number_field) {
-		for (inplace_alter_handler_ctx** pctx = ctx_array;
-		     *pctx; pctx++) {
-			ha_innobase_inplace_ctx*	ctx
-				= static_cast<ha_innobase_inplace_ctx*>
-				(*pctx);
-			DBUG_ASSERT(ctx->need_rebuild() == new_clustered);
-
-			if (ctx->max_autoinc > autoinc) {
-				autoinc = ctx->max_autoinc;
-			}
-
-			dict_table_t* t = ctx->new_table;
-			Field* field = altered_table->found_next_number_field;
-
-			dict_table_autoinc_lock(t);
-
-			dict_table_autoinc_initialize(t, ctx->max_autoinc);
-
-			dict_table_autoinc_set_col_pos(t, field->field_index);
-
-			/* The same reason as comments on this function call
-			in row_rename_table_for_mysql(). Besides, we may write
-			redo logs here if we want to update the counter to a
-			smaller one. */
-			ib_uint64_t	autoinc = dict_table_autoinc_read(t);
-			dict_table_set_and_persist_autoinc(
-				t, autoinc - 1,
-				autoinc - 1 < t->autoinc_persisted);
-
-			dict_table_autoinc_unlock(t);
-		}
-	}
-
-
-	/* Flush the log to reduce probability that the .frm files and
-	the InnoDB data dictionary get out-of-sync if the user runs
-	with innodb_flush_log_at_trx_commit = 0 */
-
-	log_buffer_flush_to_disk();
-
-	/* At this point, the changes to the persistent storage have
-	been committed or rolled back. What remains to be done is to
-	update the in-memory structures, close some handles, release
+	/* Update the in-memory structures, close some handles, release
 	temporary files, and (unless we rolled back) update persistent
 	statistics. */
 	for (inplace_alter_handler_ctx** pctx = ctx_array;
@@ -8034,6 +7980,7 @@ ha_innobase::commit_inplace_alter_table_impl(
 
 	DBUG_EXECUTE_IF("ib_ddl_crash_after_user_trx_commit", DBUG_SUICIDE(););
 
+	uint64	autoinc = 0;
 	for (inplace_alter_handler_ctx** pctx = ctx_array;
 	     *pctx; pctx++) {
 		ha_innobase_inplace_ctx*	ctx
@@ -8041,12 +7988,18 @@ ha_innobase::commit_inplace_alter_table_impl(
 			(*pctx);
 		DBUG_ASSERT(ctx->need_rebuild() == new_clustered);
 
-		/* TODO: To remove the whole 'if' in WL#9536 */
 		if (altered_table->found_next_number_field) {
+			if (ctx->max_autoinc > autoinc) {
+				autoinc = ctx->max_autoinc;
+			}
+
 			dict_table_t*	t = ctx->new_table;
+			Field* field = altered_table->found_next_number_field;
 
 			dict_table_autoinc_lock(t);
 			dict_table_autoinc_initialize(t, ctx->max_autoinc);
+			t->autoinc_persisted = ctx->max_autoinc - 1;
+			dict_table_autoinc_set_col_pos(t, field->field_index);
 			dict_table_autoinc_unlock(t);
 		}
 
@@ -8153,6 +8106,9 @@ ha_innobase::commit_inplace_alter_table_impl(
 	if (altered_table->found_next_number_field != NULL) {
 		dd_set_autoinc(new_dd_tab->se_private_data(), autoinc);
 	}
+
+	DBUG_EXECUTE_IF("ib_ddl_crash_before_update_stats",
+			DBUG_SUICIDE(););
 
 	/* TODO: The following code could be executed
 	while allowing concurrent access to the table
@@ -10506,6 +10462,11 @@ ha_innopart::prepare_inplace_alter_table(
 {
 	DBUG_ENTER("ha_innopart::prepare_inplace_alter_table");
 	DBUG_ASSERT(ha_alter_info->handler_ctx == nullptr);
+
+	if (altered_table->found_next_number_field != nullptr) {
+		dd_copy_autoinc(old_table_def->se_private_data(),
+				new_table_def->se_private_data());
+	}
 
 	if (alter_parts::apply_to(ha_alter_info)) {
 		DBUG_RETURN(prepare_inplace_alter_partition(

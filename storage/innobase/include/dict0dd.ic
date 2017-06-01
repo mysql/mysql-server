@@ -417,3 +417,21 @@ dd_mdl_acquire(
 
 	return(ret);
 }
+
+/** Get the version attribute.
+@param[in]	dd_table	dd::Table
+@return table dynamic metadata version if exists, otherwise 0 */
+inline
+uint64
+dd_get_version(
+	const dd::Table*	dd_table)
+{
+	uint64			version;
+	const dd::Properties&	p = dd_table->se_private_data();
+	if (!p.exists(dd_table_key_strings[DD_TABLE_VERSION])
+	    || p.get_uint64(dd_table_key_strings[DD_TABLE_VERSION], &version)) {
+		return(0);
+	}
+
+	return(version);
+}

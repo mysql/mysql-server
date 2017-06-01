@@ -891,77 +891,6 @@ dict_table_autoinc_unlock(
 	mutex_exit(table->autoinc_mutex);
 }
 
-/** Set the persisted autoinc value of the table to the new counter,
-and write the table's dynamic metadata back to DDTableBuffer. This function
-should only be used in DDL operation functions like
-1. create_table_info_t::initialize_autoinc()
-2. ha_innobase::commit_inplace_alter_table()
-3. row_rename_table_for_mysql()
-4. When we do TRUNCATE TABLE
-WL#9536 TODO: We should reconsider the solution here. Once the DDL
-becomes crash-safe, we could not only reset the counter in DDTableBuffer
-in this simple way. We also have to make sure the update on this table
-is crash-safe, but not forget the old value because it doesn't support
-UNDO logging.
-@param[in,out]	table		table
-@param[in]	counter		new autoinc counter
-@param[in]	log_reset	if true, it means that the persisted
-				autoinc is updated to a smaller one,
-				an autoinc change log with value of 0
-				would be written, otherwise nothing to do */
-void
-dict_table_set_and_persist_autoinc(
-	dict_table_t*	table,
-	ib_uint64_t	counter,
-	bool		log_reset)
-{
-	ut_ad(dict_table_has_autoinc_col(table));
-
-	mutex_enter(table->autoinc_persisted_mutex);
-
-	if (table->autoinc_persisted == counter
-	    && table->dirty_status != METADATA_DIRTY) {
-
-		/* If the counter has already been written back to
-		DDTableBuffer, we don't need to write back again.
-		This could happen during ALTER TABLE, which doesn't
-		change the AUTOINC counter value. */
-		mutex_exit(table->autoinc_persisted_mutex);
-
-		return;
-	}
-
-	/* Even now, we could be not sure if the counter has already been
-	persisted. It could be some other dynamic persistent metadata makes
-	the dirty_status as METADATA_DIRTY. However, we still have to try
-	to write back. */
-	table->autoinc_persisted = counter;
-
-	dict_table_mark_dirty(table);
-
-	mutex_exit(table->autoinc_persisted_mutex);
-
-	/* Here the dirty_status would be set to METADATA_BUFFERED, but
-	this function is only called for DDL operations when there is no
-	any other DML. See comments in AutoIncLogMtr::log(). */
-	dict_table_persist_to_dd_table_buffer(table);
-
-	if (log_reset) {
-
-		mtr_t		mtr;
-		AutoIncLogMtr	autoinc_mtr(&mtr);
-		autoinc_mtr.start();
-
-		/* We write a redo log with counter value of 0 to indicate
-		that all redo logs logged before would be discarded, so that we
-		won't apply old bigger counter to the table during recovery,
-		which is incorrect if we update the counter to a smaller one. */
-		autoinc_mtr.log(table, 0);
-
-		autoinc_mtr.commit();
-	}
-}
-
 /** Returns TRUE if the index contains a column or a prefix of that column.
 @param[in]	index		index
 @param[in]	n		column number
@@ -5713,8 +5642,6 @@ dict_init_dynamic_metadata(
 
 	ut_ad(metadata->get_table_id() == table->id);
 
-	metadata->reset();
-
 	for (const dict_index_t* index = table->first_index();
 	     index != NULL;
 	     index = index->next()) {
@@ -5746,6 +5673,21 @@ dict_table_apply_dynamic_metadata(
 	bool	get_dirty = false;
 
 	ut_ad(mutex_own(&dict_sys->mutex));
+
+	/* Here is how version play role. Basically, version would be increased
+	by one during every DDL. So applying metadata here should only be
+	done when the versions match. One reason for this version is that
+	autoinc counter may not be applied if it's bigger if the version is
+	older.
+	If the version of metadata is older than current table,
+	then table already has the latest metadata, the old one should be
+	discarded.
+	If the metadata version is bigger than the one in table.
+	it could be that an ALTER TABLE has been rolled back, so metadata
+	in new version should be ignored too. */
+	if (table->version != metadata->get_version()) {
+		return(get_dirty);
+	}
 
 	/* Apply corrupted index ids first */
 	const corrupted_ids_t corrupted_ids =
@@ -5786,11 +5728,10 @@ dict_table_apply_dynamic_metadata(
 
 	/* This happens during recovery, so no locks are needed. */
 	if (autoinc > table->autoinc_persisted) {
-
-		get_dirty = true;
-
 		table->autoinc = autoinc;
 		table->autoinc_persisted = autoinc;
+
+		get_dirty = true;
 	}
 
 	/* Will apply other persistent metadata here */
@@ -5854,12 +5795,13 @@ dict_table_load_dynamic_metadata(
 	mutex_enter(&dict_persist->mutex);
 
 	std::string*	readmeta;
-	readmeta = table_buffer->get(table->id);
+	uint64		version;
+	readmeta = table_buffer->get(table->id, &version);
 
 	if (readmeta->length() != 0) {
 		/* Persistent dynamic metadata of this table have changed
 		recently, we need to update them to in-memory table */
-		PersistentTableMetadata	metadata(table->id);
+		PersistentTableMetadata	metadata(table->id, version);
 
 		dict_table_read_dynamic_metadata(
 			reinterpret_cast<const byte*>(readmeta->data()),
@@ -5947,7 +5889,8 @@ dict_set_corrupted(
 			/* In RO mode, we should be able to mark the
 			in memory indexes as corrupted but do not log it.
 			Also, no need to log for temporary table */
-			PersistentTableMetadata	metadata(table->id);
+			PersistentTableMetadata	metadata(
+				table->id, table->version);
 			metadata.add_corrupted_index(
 				index_id_t(index->space, index->id));
 
@@ -5959,7 +5902,8 @@ dict_set_corrupted(
 			mtr_t		mtr;
 
 			mtr.start();
-			persister->write_log(table->id, metadata, &mtr);
+			persister->write_log(
+				table->id, metadata, &mtr);
 			mtr.commit();
 
 			/* Try to flush the log immediately, so that
@@ -5995,7 +5939,7 @@ dict_table_persist_to_dd_table_buffer_low(
 	ut_ad(!table->is_temporary());
 
 	DDTableBuffer*		table_buffer = dict_persist->table_buffer;
-	PersistentTableMetadata	metadata(table->id);
+	PersistentTableMetadata	metadata(table->id, table->version);
 	byte			buffer[REC_MAX_DATA_SIZE];
 	ulint			size = 0;
 	byte*			pos = buffer;
@@ -6020,7 +5964,8 @@ dict_table_persist_to_dd_table_buffer_low(
 		size += consumed;
 	}
 
-	dberr_t error = table_buffer->replace(table->id, buffer, size);
+	dberr_t error = table_buffer->replace(
+		table->id, table->version, buffer, size);
 	ut_a(error == DB_SUCCESS);
 
 	table->dirty_status = METADATA_BUFFERED;
@@ -7026,6 +6971,9 @@ DDTableBuffer::init()
 	m_index = dict_sys->dynamic_metadata->first_index();
 	ut_ad(m_index->next() == NULL);
 	ut_ad(m_index->n_uniq == 1);
+	ut_ad(N_FIELDS == m_index->n_fields);
+	ut_ad(m_index->table->n_cols == N_COLS);
+
 	/* We don't need AHI for this table */
 	m_index->disable_ahi = true;
 	m_index->cached = true;
@@ -7074,8 +7022,10 @@ DDTableBuffer::update_set_metadata(
 {
 	ulint		offsets[N_FIELDS + 1 + REC_OFFS_HEADER_SIZE];
 	upd_field_t*	upd_field;
-	const dfield_t*	dfield;
-	const byte*	data;
+	const dfield_t*	version_field;
+	const dfield_t*	metadata_dfield;
+	const byte*	metadata;
+	const byte*	version;
 	ulint		len;
 	upd_t*		update;
 
@@ -7084,23 +7034,28 @@ DDTableBuffer::update_set_metadata(
 	rec_init_offsets_comp_ordinary(rec, false, m_index, offsets);
 	ut_ad(!rec_get_deleted_flag(rec, 1));
 
-	data = rec_get_nth_field(rec, offsets, METADATA_FIELD_NO, &len);
-	dfield = dtuple_get_nth_field(entry, METADATA_FIELD_NO);
+	version = rec_get_nth_field(rec, offsets, VERSION_FIELD_NO, &len);
+	ut_ad(len == 8);
+	version_field = dtuple_get_nth_field(entry, VERSION_FIELD_NO);
 
-	if (dfield_data_is_binary_equal(dfield, len, data)) {
-		/* We don't need to update if all fields are equal. */
-		return(NULL);
+	metadata = rec_get_nth_field(rec, offsets, METADATA_FIELD_NO, &len);
+	metadata_dfield = dtuple_get_nth_field(entry, METADATA_FIELD_NO);
+
+	if (dfield_data_is_binary_equal(version_field, 8, version)
+	    && dfield_data_is_binary_equal(metadata_dfield, len, metadata)) {
+		return(nullptr);
 	}
 
-	update = upd_create(dtuple_get_n_fields(entry), m_dynamic_heap);
+	update = upd_create(2, m_dynamic_heap);
 
-	/* There are only 2 fields in one row. Since the first field
-	TABLE_ID should be equal, we can set the second METADATA field
-	as diff directly */
-	upd_field = upd_get_nth_field(update, TABLE_ID_FIELD_NO);
-	dfield_copy(&upd_field->new_val, dfield);
-	upd_field_set_field_no(upd_field, METADATA_FIELD_NO, m_index, NULL);
-	update->n_fields = 1;
+	upd_field = upd_get_nth_field(update, 0);
+	dfield_copy(&upd_field->new_val, version_field);
+	upd_field_set_field_no(upd_field, VERSION_FIELD_NO, m_index, nullptr);
+
+	upd_field = upd_get_nth_field(update, 1);
+	dfield_copy(&upd_field->new_val, metadata_dfield);
+	upd_field_set_field_no(upd_field, METADATA_FIELD_NO, m_index, nullptr);
+
 	ut_ad(update->validate());
 
 	return(update);
@@ -7108,12 +7063,14 @@ DDTableBuffer::update_set_metadata(
 
 /** Replace the dynamic metadata for a specific table
 @param[in]	id		table id
+@param[in]	version		table dynamic metadata version
 @param[in]	metadata	the metadata we want to replace
 @param[in]	len		the metadata length
 @return DB_SUCCESS or error code */
 dberr_t
 DDTableBuffer::replace(
 	table_id_t	id,
+	uint64		version,
 	const byte*	metadata,
 	ulint		len)
 {
@@ -7121,6 +7078,7 @@ DDTableBuffer::replace(
 	dfield_t*	dfield;
 	btr_pcur_t	pcur;
 	mtr_t		mtr;
+	byte		ver[8];
 	dberr_t		error;
 
 	ut_ad(mutex_own(&dict_persist->mutex));
@@ -7128,6 +7086,9 @@ DDTableBuffer::replace(
 	init_tuple_with_id(m_search_tuple, id);
 
 	init_tuple_with_id(m_replace_tuple, id);
+	mach_write_to_8(ver, version);
+	dfield = dtuple_get_nth_field(m_replace_tuple, VERSION_COL_NO);
+	dfield_set_data(dfield, ver, sizeof ver);
 	dfield = dtuple_get_nth_field(m_replace_tuple, METADATA_COL_NO);
 	dfield_set_data(dfield, metadata, len);
 	/* Other system fields have been initialized */
@@ -7166,12 +7127,10 @@ DDTableBuffer::replace(
 	ut_ad(!rec_get_deleted_flag(btr_pcur_get_rec(&pcur), true));
 
 	/* Prepare to update the record. */
-	ulint*		cur_offsets = NULL;
-
 	upd_t*	update = update_set_metadata(entry, btr_pcur_get_rec(&pcur));
 
 	if (update != NULL) {
-
+		ulint*			cur_offsets = nullptr;
 		big_rec_t*		big_rec;
 		static const ulint	flags = (BTR_CREATE_FLAG
 						 | BTR_NO_LOCKING_FLAG
@@ -7245,11 +7204,13 @@ DDTableBuffer::truncate()
 /** Get the buffered metadata for a specific table, the caller
 has to delete the returned std::string object by UT_DELETE
 @param[in]	id	table id
+@param[out]	version	table dynamic metadata version
 @return the metadata got in a string object, if nothing, the
 string would be of length 0 */
 std::string*
 DDTableBuffer::get(
-	table_id_t	id)
+	table_id_t	id,
+	uint64*		version)
 {
 	btr_cur_t	cursor;
 	mtr_t		mtr;
@@ -7274,13 +7235,18 @@ DDTableBuffer::get(
 		rec_init_offsets_comp_ordinary(rec, false, m_index, offsets);
 		ut_ad(!rec_get_deleted_flag(rec, true));
 
-		/* Get the METADATA field */
+		const byte*	rec_version = rec_get_nth_field(
+			rec, offsets, VERSION_FIELD_NO, &len);
+		ut_ad(len == 8);
+		*version = mach_read_from_8(rec_version);
+
 		field = rec_get_nth_field(rec, offsets, METADATA_FIELD_NO,
 					  &len);
 
 		ut_ad(len != UNIV_SQL_NULL);
 	} else {
 		len = 0;
+		*version = 0;
 	}
 
 	std::string* metadata = UT_NEW_NOKEY(
@@ -7313,7 +7279,8 @@ Persister::write_log(
 	ut_ad(log_ptr != NULL);
 
 	log_ptr = mlog_write_initial_dict_log_record(
-		MLOG_TABLE_DYNAMIC_META, id, log_ptr, mtr);
+		MLOG_TABLE_DYNAMIC_META, id, metadata.get_version(),
+		log_ptr, mtr);
 
 	ulint consumed = write(metadata, log_ptr, size);
 	log_ptr += consumed;
@@ -7534,8 +7501,7 @@ AutoIncPersister::read(
 }
 
 /** Write redo logs for autoinc counter that is to be inserted or to
-update the existing one, if the counter is bigger than current one
-or the counter is 0 as the special mark.
+update the existing one, if the counter is bigger than current one.
 This function should be called only once at most per mtr, and work with
 the commit() to finish the complete logging & commit
 @param[in]	table	table
@@ -7549,51 +7515,38 @@ AutoIncLogMtr::log(
 	rw_lock_s_lock(&dict_persist->lock);
 	ut_d(m_locked = true);
 
-	if (counter == 0) {
+	mutex_enter(table->autoinc_persisted_mutex);
 
-		/* We should always write the log for this special mark */
-		m_logged = true;
+	if (table->autoinc_persisted < counter) {
+		dict_table_autoinc_persisted_update(table, counter);
 
-	} else {
+		if (table->dirty_status == METADATA_DIRTY) {
 
-		mutex_enter(table->autoinc_persisted_mutex);
-
-		if (table->autoinc_persisted < counter) {
-			dict_table_autoinc_persisted_update(table, counter);
-
-			if (table->dirty_status == METADATA_DIRTY) {
-
-				/* There are two cases when the dirty_status
-				would be changed from METADATA_DIRTY to
-				METADATA_BUFFERED. One is checkpoint, but
-				the rw-lock in dict_persist should prevent
-				checkpoint changing the status. The other
-				is dict_table_set_and_persist_autoinc(),
-				which would persist in-memory dynamic
-				metadata to DDTableBuffer. But it happens
-				only in DDL, when there should not be any
-				concurrent DML. */
-				ut_ad(table->in_dirty_dict_tables_list);
-			} else {
-
-				dict_table_mark_dirty(table);
-			}
-
-			m_logged = true;
+			/* On checkpoint, the dirty_status
+			would be changed from METADATA_DIRTY to
+			METADATA_BUFFERED. During checkpoint,
+			the rw-lock in dict_persist should prevent
+			checkpoint changing the status. */
+			ut_ad(table->in_dirty_dict_tables_list);
+		} else {
+			dict_table_mark_dirty(table);
 		}
 
-		mutex_exit(table->autoinc_persisted_mutex);
+		m_logged = true;
 	}
 
+	mutex_exit(table->autoinc_persisted_mutex);
+
 	if (m_logged) {
-		PersistentTableMetadata metadata(table->id);
+		PersistentTableMetadata metadata(table->id, table->version);
 		metadata.set_autoinc(counter);
 
 		Persister*	persister = dict_persist->persisters->get(
 			PM_TABLE_AUTO_INC);
 
 		/* No need to flush the logs now for performance reasons. */
-		persister->write_log(table->id, metadata, m_mtr);
+		persister->write_log(
+			table->id, metadata, m_mtr);
 	} else {
 
 		rw_lock_s_unlock(&dict_persist->lock);

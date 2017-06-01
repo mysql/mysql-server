@@ -377,12 +377,14 @@ public:
 	/** Parse a dynamic metadata redo log of a table and store
 	the metadata locally
 	@param[in]	id		table id
+	@param[in]	version		table dynamic metadata version
 	@param[in]	ptr		redo log start
 	@param[in]	end		end of redo log
 	@retval ptr to next redo log record, NULL if this log record
 	was truncated */
 	byte* parseMetadataLog(
 		table_id_t	id,
+		uint64		version,
 		byte*		ptr,
 		byte*		end);
 

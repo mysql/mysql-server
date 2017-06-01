@@ -215,7 +215,6 @@ Ha_innopart_share::open_one_table_part(
 {
 	dict_table_t*	part_table = nullptr;
 	bool		cached = false;
-	ib_uint64_t	autoinc = 0;
 
 	mutex_enter(&dict_sys->mutex);
 	part_table = dict_table_check_if_in_cache_low(part_name);
@@ -226,9 +225,6 @@ Ha_innopart_share::open_one_table_part(
 			part_table = nullptr;
 		} else if (part_table->discard_after_ddl) {
 			btr_drop_ahi_for_table(part_table);
-			dict_table_autoinc_lock(part_table);
-			autoinc = dict_table_autoinc_read(part_table);
-			dict_table_autoinc_unlock(part_table);
 			dict_table_remove_from_cache(part_table);
 			part_table = nullptr;
 			cached = false;
@@ -241,19 +237,16 @@ Ha_innopart_share::open_one_table_part(
 				part_table->acquire();
 			}
 		}
+
+		if (part_table != nullptr) {
+			part_table->version = dd_get_version(&dd_part->table());
+		}
 	}
 	mutex_exit(&dict_sys->mutex);
 
 	if (!cached) {
 		part_table = dd_open_table(
 			client, table, part_name, dd_part, thd);
-
-		if (part_table != nullptr && autoinc != 0) {
-			dict_table_autoinc_lock(part_table);
-			dict_table_autoinc_update_if_greater(
-				part_table, autoinc);
-			dict_table_autoinc_unlock(part_table);
-		}
 	}
 
 	if (part_table != NULL) {

@@ -4615,15 +4615,8 @@ row_drop_table_for_mysql(
 			mutex_exit(&master_key_id_mutex);
 		}
 
-		/* Finally, if it's not a temporary table,
-		let's try to delete the row in DDTableBuffer if exists */
 		if (!is_temp) {
 			log_ddl->writeDropLog(trx, table_id);
-
-			mutex_enter(&dict_persist->mutex);
-			err = dict_persist->table_buffer->remove(table_id);
-			ut_ad(err == DB_SUCCESS);
-			mutex_exit(&dict_persist->mutex);
 		}
 
 		break;
@@ -4983,30 +4976,6 @@ row_rename_table_for_mysql(
 	}
 
 funct_exit:
-	/* If this table has an autoinc column whose counter is non-zero,
-	and is renamed from mysql temporary table to normal table, we need
-	to write back the dynamic metadata of new table, since the table
-	id has been changed. */
-	if (err == DB_SUCCESS && dict_table_has_autoinc_col(table)
-	    && old_is_tmp && !new_is_tmp) {
-
-		dict_table_autoinc_lock(table);
-		ib_uint64_t	autoinc = dict_table_autoinc_read(table);
-		dict_table_autoinc_unlock(table);
-
-		if (autoinc != 0 && table->autoinc_persisted == 0) {
-
-			/* Update autoinc_persisted to autoinc - 1 instead of
-			autoinc. The autoinc here is already the counter to
-			be used for next value, if we set them as equal,
-			when we open table to use the counter, we will
-			calculate the next counter, then the autoinc could be
-			set to a bigger one, which is unnecessary. */
-			dict_table_set_and_persist_autoinc(
-				table, autoinc - 1, false);
-		}
-	}
-
 	if (table != NULL) {
 		dd_table_close(table, thd, NULL, dict_locked);
 	}

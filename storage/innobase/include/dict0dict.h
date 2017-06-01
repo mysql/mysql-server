@@ -310,25 +310,6 @@ bool
 dict_table_has_autoinc_col(
 	const dict_table_t*	table);
 
-/** Set the persisted autoinc value of the table to the new counter,
-and write the table's dynamic metadata back to DDTableBuffer. This function
-should only be used in DDL operation functions like
-1. create_table_info_t::initialize_autoinc()
-2. ha_innobase::commit_inplace_alter_table()
-3. row_rename_table_for_mysql()
-4. When we do TRUNCATE TABLE
-@param[in,out]	table		table
-@param[in]	counter		new autoinc counter
-@param[in]	log_reset	if true, it means that the persisted
-				autoinc is updated to a smaller one,
-				an autoinc change log with value of 0
-				would be written, otherwise nothing to do */
-void
-dict_table_set_and_persist_autoinc(
-	dict_table_t*	table,
-	ib_uint64_t	counter,
-	bool		log_reset);
-
 #endif /* !UNIV_HOTBACKUP */
 /**********************************************************************//**
 Adds system columns to a table object. */
@@ -1677,11 +1658,13 @@ public:
 
 	/** Replace the dynamic metadata for a specific table
 	@param[in]	id		table id
+	@param[in]	version		table dynamic metadata version
 	@param[in]	metadata	the metadata we want to replace
 	@param[in]	len		the metadata length
 	@return DB_SUCCESS or error code */
 	dberr_t	replace(
 		table_id_t	id,
+		uint64		version,
 		const byte*	metadata,
 		ulint		len);
 
@@ -1698,10 +1681,12 @@ public:
 	/** Get the buffered metadata for a specific table, the caller
 	has to delete the returned std::string object by UT_DELETE
 	@param[in]	id	table id
+	@param[out]	version	table dynamic metadata version
 	@return the metadata saved in a string object, if nothing, the
 	string would be of length 0 */
 	std::string* get(
-		table_id_t	id);
+		table_id_t	id,
+		uint64*		version);
 
 private:
 
@@ -1756,8 +1741,11 @@ private:
 	/** Column number of mysql.innodb_dynamic_metadata.table_id */
 	static constexpr unsigned	TABLE_ID_COL_NO = 0;
 
+	/** Column number of mysql.innodb_dynamic_metadata.version */
+	static constexpr unsigned	VERSION_COL_NO = 1;
+
 	/** Column number of mysql.innodb_dynamic_metadata.metadata */
-	static constexpr unsigned	METADATA_COL_NO = 1;
+	static constexpr unsigned	METADATA_COL_NO = 2;
 
 	/** Number of user columns */
 	static constexpr unsigned	N_USER_COLS = METADATA_COL_NO + 1;
@@ -1768,6 +1756,10 @@ private:
 	/** Clustered index field number of
 	mysql.innodb_dynamic_metadata.table_id */
 	static constexpr unsigned	TABLE_ID_FIELD_NO = TABLE_ID_COL_NO;
+
+	/** Clustered index field number of
+	mysql.innodb_dynamic_metadata.version */
+	static constexpr unsigned	VERSION_FIELD_NO = VERSION_COL_NO + 2;
 
 	/** Clustered index field number of
 	mysql.innodb_dynamic_metadata.metadata

@@ -253,7 +253,7 @@ MetadataRecover::getMetadata(
 			static_cast<PersistentTableMetadata*>(
 				ut_zalloc_nokey(sizeof *metadata));
 
-		metadata = new (mem) PersistentTableMetadata(id);
+		metadata = new (mem) PersistentTableMetadata(id, 0);
 
 		m_tables.insert(std::make_pair(id, metadata));
 	} else {
@@ -268,6 +268,7 @@ MetadataRecover::getMetadata(
 /** Parse a dynamic metadata redo log of a table and store
 the metadata locally
 @param[in]	id	table id
+@param[in]	version	table dynamic metadata version
 @param[in]	ptr	redo log start
 @param[in]	end	end of redo log
 @retval ptr to next redo log record, nullptr if this log record
@@ -275,6 +276,7 @@ was truncated */
 byte*
 MetadataRecover::parseMetadataLog(
 	table_id_t	id,
+	uint64		version,
 	byte*		ptr,
 	byte*		end)
 {
@@ -291,12 +293,15 @@ MetadataRecover::parseMetadataLog(
 	Persister*		persister = dict_persist->persisters->get(
 		type);
 	PersistentTableMetadata*metadata = getMetadata(id);
+
 	bool			corrupt;
 	ulint			consumed = persister->read(
 		*metadata, ptr, end - ptr, &corrupt);
 
 	if (corrupt) {
 		recv_sys->found_corrupt_log = true;
+	} else if (consumed != 0) {
+		metadata->set_version(version);
 	}
 
 	if (consumed == 0) {
@@ -2755,16 +2760,17 @@ recv_parse_log_rec(
 	case MLOG_TABLE_DYNAMIC_META | MLOG_SINGLE_REC_FLAG:
 
 		table_id_t	id;
+		uint64		version;
 
 		*page_no = FIL_NULL;
 		*space_id = SPACE_UNKNOWN;
 
 		new_ptr = mlog_parse_initial_dict_log_record(
-			ptr, end_ptr, type, &id);
+			ptr, end_ptr, type, &id, &version);
 
 		if (new_ptr != nullptr) {
 			new_ptr = recv_sys->metadata_recover->parseMetadataLog(
-				id, new_ptr, end_ptr);
+				id, version, new_ptr, end_ptr);
 		}
 
 		return(new_ptr == nullptr ? 0 : new_ptr - ptr);

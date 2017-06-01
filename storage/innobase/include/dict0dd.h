@@ -291,6 +291,22 @@ dd_set_autoinc(
 	dd::Properties&	se_private_data,
 	uint64		autoinc);
 
+/** Get the version attribute.
+@param[in]	dd_table	dd::Table
+@return	table dynamic metadata version if exists, otherwise 0 */
+inline
+uint64
+dd_get_version(
+	const dd::Table*	dd_table);
+
+/** Copy the AUTO_INCREMENT and version attribute if exist.
+@param[in]	src	dd::Table::se_private_data to copy from
+@param[out]	dest	dd::Table::se_private_data to copy to */
+void
+dd_copy_autoinc(
+	const dd::Properties&	src,
+	dd::Properties&		dest);
+
 /** Copy the engine-private parts of a table definition
 when the change does not affect InnoDB. Keep the already set
 AUTOINC counter related information if exist

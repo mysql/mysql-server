@@ -7069,8 +7069,6 @@ ha_innobase::open(
 
 	if (ib_table == NULL) {
 
-		ib_uint64_t	autoinc = 0;
-
 		mutex_enter(&dict_sys->mutex);
 		ib_table = dict_table_check_if_in_cache_low(norm_name);
 		if (ib_table != nullptr) {
@@ -7105,10 +7103,6 @@ ha_innobase::open(
 			} else if (ib_table->discard_after_ddl) {
 reload:
 				btr_drop_ahi_for_table(ib_table);
-				dict_table_autoinc_lock(ib_table);
-				autoinc = dict_table_autoinc_read(
-					ib_table);
-				dict_table_autoinc_unlock(ib_table);
 				dict_table_remove_from_cache(
 					ib_table);
 				ib_table = nullptr;
@@ -7122,6 +7116,12 @@ reload:
 				} else {
 					ib_table->acquire();
 				}
+			}
+
+			/* If the table is in-memory, always get the latest
+			version, in case this is open table after DDL */
+			if (ib_table != nullptr && table_def != nullptr) {
+				ib_table->version = dd_get_version(table_def);
 			}
 		}
 
@@ -7148,12 +7148,6 @@ reload:
 				free_share(m_share);
 				set_my_errno(ENOENT);
 				DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
-			}
-			if (autoinc) {
-				dict_table_autoinc_lock(ib_table);
-				dict_table_autoinc_update_if_greater(
-					ib_table, autoinc);
-				dict_table_autoinc_unlock(ib_table);
 			}
 		}
 	} else {
@@ -12367,8 +12361,7 @@ innobase_dict_init(
 		"innodb_dynamic_metadata",
 		/* Definition */
 		"  table_id BIGINT UNSIGNED NOT NULL PRIMARY KEY,\n"
-		/* TODO: Enable this one in WL#9536 */
-		//"  version BIGINT UNSIGNED NOT NULL,\n"
+		"  version BIGINT UNSIGNED NOT NULL,\n"
 		"  metadata BLOB NOT NULL\n",
 		/* Options */
 		" ENGINE=INNODB ROW_FORMAT=DYNAMIC "
@@ -13076,10 +13069,6 @@ create_table_info_t::initialize_autoinc()
 
 		dict_table_autoinc_lock(innobase_table);
 		dict_table_autoinc_initialize(innobase_table, auto_inc_value);
-		if (persist) {
-			dict_table_set_and_persist_autoinc(
-				innobase_table, auto_inc_value - 1, false);
-		}
 		dict_table_autoinc_unlock(innobase_table);
 	}
 
@@ -14627,13 +14616,15 @@ ha_innobase::truncate(dd::Table *table_def)
 			thd, name, table, &info, table_def, file_per_table);
 	}
 
+	if (!error) {
+		if (table->found_next_number_field != nullptr) {
+			dd_set_autoinc(table_def->se_private_data(), 0);
+		}
+	}
+
 	open(name, 0, 0, table_def);
 
 	if (!error) {
-		if (table->found_next_number_field != NULL) {
-			dd_set_autoinc(table_def->se_private_data(), 0);
-		}
-
 		dict_names_t    fk_tables;
 		THD*		thd = current_thd;
 

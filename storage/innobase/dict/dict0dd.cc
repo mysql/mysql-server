@@ -534,7 +534,6 @@ dd_table_open_on_id(
 	char		db_buf[MAX_DATABASE_NAME_LEN];
 	char		tbl_buf[MAX_TABLE_NAME_LEN];
 	char		full_name[MAX_FULL_NAME_LEN];
-	ib_uint64_t	autoinc = 0;
 
 	if (!dict_locked) {
 		mutex_enter(&dict_sys->mutex);
@@ -574,13 +573,6 @@ reopen:
 
 			ib_table = dd_table_open_on_id_low(
 				thd, mdl, table_id);
-
-			if (autoinc != 0 && ib_table != nullptr) {
-				dict_table_autoinc_lock(ib_table);
-				dict_table_autoinc_update_if_greater(
-					ib_table, autoinc);
-				dict_table_autoinc_unlock(ib_table);
-			}
 		}
 	} else if (mdl == nullptr || ib_table->is_temporary()
 		   || dict_table_is_sdi(ib_table->id)) {
@@ -640,10 +632,6 @@ reopen:
 					ut_ad(ib_table == nullptr);
 				} else if (ib_table->discard_after_ddl) {
 					btr_drop_ahi_for_table(ib_table);
-					dict_table_autoinc_lock(ib_table);
-					autoinc = dict_table_autoinc_read(
-						ib_table);
-					dict_table_autoinc_unlock(ib_table);
 					dict_table_remove_from_cache(ib_table);
 					ib_table = nullptr;
 					dd_mdl_release(thd, mdl);
@@ -1269,6 +1257,32 @@ dd_set_autoinc(dd::Properties& se_private_data, uint64 autoinc)
 				   autoinc);
 }
 
+/** Copy the AUTO_INCREMENT and version attribute if exist.
+@param[in]	src	dd::Table::se_private_data to copy from
+@param[out]	dest	dd::Table::se_private_data to copy to */
+void
+dd_copy_autoinc(
+	const dd::Properties&	src,
+	dd::Properties&		dest)
+{
+	uint64	autoinc;
+	uint64	version;
+
+	if (!src.exists(dd_table_key_strings[DD_TABLE_AUTOINC])) {
+		return;
+	}
+
+	if (src.get_uint64(dd_table_key_strings[DD_TABLE_AUTOINC], &autoinc)
+	    || src.get_uint64(dd_table_key_strings[DD_TABLE_VERSION],
+			      &version)) {
+		ut_ad(0);
+		return;
+	}
+
+	dest.set_uint64(dd_table_key_strings[DD_TABLE_VERSION], version);
+	dest.set_uint64(dd_table_key_strings[DD_TABLE_AUTOINC], autoinc);
+}
+
 /** Copy the engine-private parts of a table definition
 when the change does not affect InnoDB. Keep the already set
 AUTOINC counter related information if exist
@@ -1294,10 +1308,9 @@ dd_copy_private(
 		se_private_data.get_uint64(
 			dd_table_key_strings[DD_TABLE_VERSION], &version);
 		reset = true;
-		new_table.se_private_data().clear();
 	}
 
-	ut_ad(new_table.se_private_data().empty());
+	new_table.se_private_data().clear();
 
 	new_table.set_se_private_id(old_table.se_private_id());
 	new_table.set_se_private_data(old_table.se_private_data());
@@ -1992,26 +2005,6 @@ dd_fill_dict_index(
 				dict_table_get_index_on_name(
 					m_table, FTS_DOC_ID_INDEX_NAME);
 		}
-	}
-
-	if (Field** autoinc_col = m_form->s->found_next_number_field) {
-		const dd::Properties& p = dd_table.se_private_data();
-		dict_table_autoinc_set_col_pos(
-			m_table, (*autoinc_col)->field_index);
-		uint64	version, autoinc = 0;
-		if (p.get_uint64(dd_table_key_strings[DD_TABLE_VERSION],
-				 &version)
-		    || p.get_uint64(dd_table_key_strings[DD_TABLE_AUTOINC],
-				    &autoinc)) {
-			ut_ad(!"problem setting AUTO_INCREMENT");
-			error = HA_ERR_CRASHED;
-			goto dd_error;
-		}
-
-		dict_table_autoinc_lock(m_table);
-		dict_table_autoinc_initialize(m_table, autoinc + 1);
-		dict_table_autoinc_unlock(m_table);
-		m_table->autoinc_persisted = autoinc;
 	}
 
 	if (error == 0) {
@@ -3317,11 +3310,30 @@ dd_open_table_one(
 	ret = dd_fill_dict_index(
 		dd_table->table(), table, m_table, NULL, zip_allowed,
 		strict, thd);
-
 	mutex_exit(&dict_sys->mutex);
 
 	if (ret != 0) {
 		return(nullptr);
+	}
+
+	if (Field** autoinc_col = table->s->found_next_number_field) {
+		const dd::Properties& p = dd_table->table().se_private_data();
+		dict_table_autoinc_set_col_pos(
+			m_table, (*autoinc_col)->field_index);
+		uint64	version, autoinc = 0;
+		if (p.get_uint64(dd_table_key_strings[DD_TABLE_VERSION],
+				 &version)
+		    || p.get_uint64(dd_table_key_strings[DD_TABLE_AUTOINC],
+				    &autoinc)) {
+			ut_ad(!"problem setting AUTO_INCREMENT");
+			return(nullptr);
+		}
+
+		m_table->version = version;
+		dict_table_autoinc_lock(m_table);
+		dict_table_autoinc_initialize(m_table, autoinc + 1);
+		dict_table_autoinc_unlock(m_table);
+		m_table->autoinc_persisted = autoinc;
 	}
 
 	mem_heap_t*	heap = mem_heap_create(1000);
