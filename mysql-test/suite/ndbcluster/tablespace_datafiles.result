@@ -18,6 +18,10 @@ DROP DATAFILE 'ts1_datafile.dat'
 ALTER TABLESPACE ts1
 DROP DATAFILE 'ts1_datafile2.dat'
   ENGINE=NDB;
+ALTER TABLESPACE ts1
+DROP DATAFILE 'ts1_datafile2.dat'
+  ENGINE=NDB;
+ERROR HY000: Tablespace 'ts1' does not have a file named 'ts1_datafile2.dat'
 DROP TABLESPACE ts1
 ENGINE=NDB;
 DROP LOGFILE GROUP lg1

@@ -10790,6 +10790,9 @@ ER_STOP_SLAVE_IO_THREAD_DISK_SPACE
 ER_MANDATORY_ROLE
   eng "The role %s is a mandatory role and can't be revoked or dropped. The restriction can be lifted by excluding the role identifier from the global variable mandatory_roles."
 
+ER_MISSING_TABLESPACE_FILE
+  eng "Tablespace '%.192s' does not have a file named '%.192s'"
+
 #
 #  End of 8.0 error messages.
 #
