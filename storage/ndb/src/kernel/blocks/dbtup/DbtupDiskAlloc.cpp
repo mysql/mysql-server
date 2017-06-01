@@ -44,6 +44,13 @@
 #define DEB_EXTENT_BITS(arglist) do { } while (0)
 #endif
 
+#define DEBUG_EXTENT_BITS_HASH 1
+#ifdef DEBUG_EXTENT_BITS_HASH
+#define DEB_EXTENT_BITS_HASH(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_EXTENT_BITS_HASH(arglist) do { } while (0)
+#endif
+
 //#define DEBUG_UNDO 1
 #ifdef DEBUG_UNDO
 #define DEB_UNDO(arglist) do { g_eventLogger->info arglist ; } while (0)
@@ -367,7 +374,7 @@ Dbtup::restart_setup_page(Ptr<Fragrecord> fragPtr,
   Ptr<Extent_info> extentPtr;
   if (!c_extent_hash.find(extentPtr, key))
   {
-    DEB_EXTENT_BITS(("(%u)Crash on page(%u,%u) in tab(%u,%u), extent page: %u"
+    g_eventLogger->info("(%u)Crash on page(%u,%u) in tab(%u,%u), extent page: %u"
                      " restart_seq(%u,%u)",
                      instance(),
                      pagePtr.p->m_file_no,
@@ -376,7 +383,7 @@ Dbtup::restart_setup_page(Ptr<Fragrecord> fragPtr,
                      fragPtr.p->fragmentId,
                      pagePtr.p->m_extent_no,
                      pagePtr.p->m_restart_seq,
-                     globalData.m_restart_seq));
+                     globalData.m_restart_seq);
     ndbrequire(false);
   }
   DEB_EXTENT_BITS(("(%u)restart_setup_page(%u,%u) in tab(%u,%u), extent page: %u.%u"
@@ -671,9 +678,10 @@ Dbtup::disk_page_prealloc(Signal* signal,
       ext.p->m_free_page_count[0]= pages; // All pages are "free"-est
       ext.p->m_empty_page_no = 0;
 
-      DEB_EXTENT_BITS(("(%u)new:extent .i=%u in tab(%u,%u),"
-                       " page(%u,%u)->%u,"
-                 " empty_page: %u",
+      DEB_EXTENT_BITS_HASH((
+               "(%u)new:extent .i=%u in tab(%u,%u),"
+               " page(%u,%u)->%u,"
+               " empty_page: %u",
                 instance(),
                 ext.i,
                 fragPtr.p->fragTableId,
@@ -2945,8 +2953,9 @@ Dbtup::disk_restart_alloc_extent(EmulatedJamBuffer* jamBuf,
       ext.p->m_first_page_no = ext.p->m_key.m_page_no;
       ext.p->m_free_space= 0;
       ext.p->m_empty_page_no = (1 << 16); // We don't know, so assume none
-      DEB_EXTENT_BITS(("(%u)restart:extent(%u).%u in tab(%u,%u),"
-                       " first_page(%u,%u)",
+      DEB_EXTENT_BITS_HASH((
+                "(%u)restart:extent(%u).%u in tab(%u,%u),"
+                " first_page(%u,%u)",
                 instance(),
                 ext.p->m_key.m_page_idx,
                 ext.i,
