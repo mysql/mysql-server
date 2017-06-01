@@ -945,7 +945,7 @@ INSERT INTO `address` VALUES (2,22,2,'Second st. 2222',2);
 --echo # Add fk inplace
 # Adding foreign key with foreign_key_checks=1, fails since data is inconsistent
 set foreign_key_checks=1;
---error ER_NO_REFERENCED_ROW_2
+--error ER_CANNOT_ADD_FOREIGN
 ALTER TABLE address ALGORITHM=inplace,
   ADD CONSTRAINT `ca_fk1` FOREIGN KEY(`customer_id`) REFERENCES `customer` (`id`)
     ON DELETE CASCADE ON UPDATE RESTRICT;

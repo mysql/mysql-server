@@ -969,7 +969,7 @@ set foreign_key_checks=1;
 ALTER TABLE address ALGORITHM=inplace,
 ADD CONSTRAINT `ca_fk1` FOREIGN KEY(`customer_id`) REFERENCES `customer` (`id`)
 ON DELETE CASCADE ON UPDATE RESTRICT;
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+ERROR HY000: Cannot add foreign key constraint
 set foreign_key_checks=0;
 ALTER TABLE address ALGORITHM=inplace,
 ADD CONSTRAINT `ca_fk1` FOREIGN KEY(`customer_id`) REFERENCES `customer` (`id`)
