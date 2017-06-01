@@ -2393,39 +2393,3 @@ FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 't1';
 PRIVILEGES	UPPER(privileges)
 select,insert,update,references	SELECT,INSERT,UPDATE,REFERENCES
 DROP TABLE t1;
-#
-# BUG#24679166: TABLE CREATION WITH BINARY TYPE COLUMN IS RESULTING IN
-#               ASSERT CONDITION FAILURE.
-# Without patch, the server exits in debug build and
-# an error is reported in release build.
-CREATE TABLE t1(fld1 BINARY(10) NOT NULL DEFAULT 'a',
-fld2 BINARY(10) NOT NULL DEFAULT 0xAA,
-fld3 BINARY(10) NOT NULL DEFAULT 0xA,
-fld4 BINARY(10) NOT NULL DEFAULT b'1001',
-fld5 VARBINARY(5) NOT NULL DEFAULT 'a',
-fld6 VARBINARY(5) NOT NULL DEFAULT 0xAA,
-fld7 VARBINARY(5) NOT NULL DEFAULT 0xA,
-fld8 VARBINARY(5) NOT NULL DEFAULT b'1001');
-# With the patch, default value is displayed in the hex format.
-SHOW COLUMNS from t1;
-Field	Type	Null	Key	Default	Extra
-fld1	binary(10)	NO		0x61	
-fld2	binary(10)	NO		0xAA	
-fld3	binary(10)	NO		0x0A	
-fld4	binary(10)	NO		0x09	
-fld5	varbinary(5)	NO		0x61	
-fld6	varbinary(5)	NO		0xAA	
-fld7	varbinary(5)	NO		0x0A	
-fld8	varbinary(5)	NO		0x09	
-SELECT COLUMN_DEFAULT FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME= 't1';
-COLUMN_DEFAULT
-0x61
-0xAA
-0x0A
-0x09
-0x61
-0xAA
-0x0A
-0x09
-# Cleanup.
-DROP TABLE t1;

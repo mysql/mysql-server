@@ -324,39 +324,6 @@ static void prepare_default_value_string(uchar *buf,
       tmp[length]= '\'';
       type.length(length + 1);
     }
-    else if ((f->flags & BINARY_FLAG) && f->charset() == &my_charset_bin)
-    {
-      String type2;
-      char *ptr= type.c_ptr();
-
-      // Get the default value.
-      f->val_str(&type2);
-
-      DBUG_ASSERT(type2.length() > 0);
-
-      if (type2.length() > 0)
-      {
-        /*
-          The default value for BINARY and VARBINARY type is converted to the
-          hex string if hex format is used for default value at the parsing
-          stage. Converting hex string to system_charset_info charset while
-          storing value in DD table might fail because of unsupported byte
-          value in hex string. Hence converting default value to printable
-          HEX encoded string before store.
-
-          The original format as supplied by user is lost after parsing stage.
-          So regardless of the type specified by the user, default for
-          varbinary/binary is stored in the printable HEX encoded format.
-          I_S queries and SHOW COLUMNS always list such default value in HEX
-          format instead of user specified one.
-        */
-        *ptr++= '0';
-        *ptr++= 'x';
-        size_t len= bin_to_hex_str(ptr, type.length(),
-                                   type2.c_ptr(), strlen(type2.c_ptr()));
-        type.length(len+2);
-      }
-    }
     else
       f->val_str(&type);
 
