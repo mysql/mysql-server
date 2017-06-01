@@ -10907,7 +10907,7 @@ int ha_ndbcluster::create(const char *name,
     DBUG_ASSERT(is_prefix(form->s->table_name.str, tmp_file_prefix));
 
     if (!THDVAR(thd, allow_copying_alter_table) &&
-        (thd->lex->alter_info.requested_algorithm ==
+        (thd->lex->alter_info->requested_algorithm ==
          Alter_info::ALTER_TABLE_ALGORITHM_DEFAULT))
     {
       // Copying alter table is not allowed and user
@@ -12287,7 +12287,7 @@ int ha_ndbcluster::rename_table(const char *from, const char *to,
   */
   if (thd->lex->sql_command == SQLCOM_ALTER_TABLE)
   {
-    Alter_info *alter_info= &(thd->lex->alter_info);
+    Alter_info *alter_info= thd->lex->alter_info;
     uint flags= alter_info->flags;
 
     if (flags & Alter_info::ALTER_RENAME && flags & ~Alter_info::ALTER_RENAME)
@@ -12382,7 +12382,7 @@ int ha_ndbcluster::rename_table(const char *from, const char *to,
     }
 
     // Make sure that inplace was not requested
-    DBUG_ASSERT(thd->lex->alter_info.requested_algorithm !=
+    DBUG_ASSERT(thd->lex->alter_info->requested_algorithm !=
                   Alter_info::ALTER_TABLE_ALGORITHM_INPLACE);
 
     /*
@@ -12448,7 +12448,7 @@ int ha_ndbcluster::rename_table(const char *from, const char *to,
       */
       const char* orig_name = thd->lex->select_lex->table_list.first->table_name;
       const char* orig_db = thd->lex->select_lex->table_list.first->db;
-      if (thd->lex->alter_info.flags & Alter_info::ALTER_RENAME &&
+      if (thd->lex->alter_info->flags & Alter_info::ALTER_RENAME &&
           (my_strcasecmp(system_charset_info, orig_db, new_dbname) ||
            my_strcasecmp(system_charset_info, orig_name, new_tabname)))
       {
