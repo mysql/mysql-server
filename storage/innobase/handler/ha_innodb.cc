@@ -14274,6 +14274,13 @@ ha_innobase::create(
 	HA_CREATE_INFO*		create_info,
 	dd::Table*		table_def)
 {
+	THD*	thd = ha_thd();
+	trx_t*	trx = check_trx_exists(thd);
+
+	if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE)) {
+		innobase_register_trx(ht, thd, trx);
+	}
+
 	/* Determine if this CREATE TABLE will be making a file-per-table
 	tablespace.  Note that "srv_file_per_table" is not under
 	dict_sys mutex protection, and could be changed while creating the
@@ -14596,6 +14603,10 @@ ha_innobase::truncate(dd::Table *table_def)
 	int	error = 0;
 	THD*	thd = ha_thd();
 
+	if (!m_prebuilt->table->is_temporary()) {
+		innobase_register_trx(ht, thd, m_prebuilt->trx);
+	}
+
 	/* Rename tablespace file to avoid existing file in create.*/
 	if (file_per_table) {
 		error = truncate_rename_tablespace(name, table_def);
@@ -14673,6 +14684,7 @@ ha_innobase::delete_table(
 	}
 
 	THD*			thd = ha_thd();
+	trx_t*			trx = check_trx_exists(thd);
 	enum enum_sql_command	sqlcom	= static_cast<enum enum_sql_command>(
 		thd_sql_command(thd));
 
@@ -14686,6 +14698,10 @@ ha_innobase::delete_table(
 	/* SQLCOM_TRUNCATE will not drop FOREIGN KEY constraints
 	from the data dictionary tables. */
 	DBUG_ASSERT(sqlcom != SQLCOM_TRUNCATE);
+
+	if (table_def != nullptr && table_def->is_persistent()) {
+		innobase_register_trx(ht, thd, trx);
+	}
 
 	return(innobase_basic_ddl::delete_impl(thd, name, table_def, sqlcom));
 }
@@ -15151,6 +15167,7 @@ ha_innobase::rename_table(
 	dd::Table	*to_table_def)
 {
 	THD*	thd = ha_thd();
+	trx_t*	trx = check_trx_exists(thd);
 
 	DBUG_ENTER("ha_innobase::rename_table");
 	ut_ad(from_table_def->se_private_id() == to_table_def->se_private_id());
@@ -15166,6 +15183,8 @@ ha_innobase::rename_table(
 		my_error(ER_NOT_ALLOWED_COMMAND, MYF(0));
 		DBUG_RETURN(HA_ERR_UNSUPPORTED);
 	}
+
+	innobase_register_trx(ht, thd, trx);
 
 	DBUG_RETURN(innobase_basic_ddl::rename_impl<dd::Table>(
 		thd, from, to, to_table_def));

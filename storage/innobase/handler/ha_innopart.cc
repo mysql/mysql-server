@@ -2607,9 +2607,10 @@ ha_innopart::create(
 	const char*	table_index_file_name;
 	uint		created = 0;
 	bool		prevent_eviction = false;
-	trx_t*		trx = thd_to_trx(ha_thd());
+	THD*		thd = ha_thd();
+	trx_t*		trx = check_trx_exists(thd);
 
-	create_table_info_t	info(ha_thd(),
+	create_table_info_t	info(thd,
 				     form,
 				     create_info,
 				     table_name,
@@ -2629,6 +2630,8 @@ ha_innopart::create(
 		ut_ad(0); // Can we support partitioned temporary tables?
 		DBUG_RETURN(HA_ERR_INTERNAL_ERROR);
 	}
+
+	innobase_register_trx(ht, thd, trx);
 
 	if (form->found_next_number_field) {
 		dd_set_autoinc(table_def->se_private_data(),
@@ -2863,6 +2866,7 @@ ha_innopart::delete_table(
 	char*	partition_name_start;
 	size_t	table_name_len;
 	THD*	thd = ha_thd();
+	trx_t*	trx = check_trx_exists(thd);
 	int	error = 0;
 
 	DBUG_ENTER("ha_innopart::delete_table");
@@ -2874,6 +2878,8 @@ ha_innopart::delete_table(
 	if (high_level_read_only) {
 		DBUG_RETURN(HA_ERR_TABLE_READONLY);
 	}
+
+	innobase_register_trx(ht, thd, trx);
 
 	strcpy(partition_name, name);
 	partition_name_start = partition_name + strlen(name);
@@ -2938,6 +2944,10 @@ ha_innopart::rename_table(
 	/* Get the transaction associated with the current thd, or create one
 	if not yet created */
 	trx_t*	trx = check_trx_exists(thd);
+
+	trx_start_if_not_started(trx, false);
+	innobase_register_trx(ht, thd, trx);
+
 	TrxInInnoDB	trx_in_innodb(trx);
 
 	char	from_name[FN_REFLEN];
@@ -3218,6 +3228,8 @@ ha_innopart::truncate_partition_low(dd::Table *dd_table)
 		DBUG_RETURN(HA_ERR_OUT_OF_MEM);
 	}
 
+	innobase_register_trx(ht, thd, m_prebuilt->trx);
+
 	size_t		alloc_size = sizeof(HA_CREATE_INFO) * num_used_parts;
 	create_infos = static_cast<HA_CREATE_INFO*>(mem_heap_zalloc(
 		heap, alloc_size));
@@ -3248,7 +3260,7 @@ ha_innopart::truncate_partition_low(dd::Table *dd_table)
 
 		if (dict_table_is_discarded(table_part)) {
 			ib_senderrf(
-				ha_thd(), IB_LOG_LEVEL_ERROR,
+				thd, IB_LOG_LEVEL_ERROR,
 				ER_TABLESPACE_DISCARDED,
 				table->s->table_name.str);
 			error = HA_ERR_NO_SUCH_TABLE;
