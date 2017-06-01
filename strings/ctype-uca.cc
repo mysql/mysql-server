@@ -11804,3 +11804,38 @@ CHARSET_INFO my_charset_utf8mb4_ja_0900_as_cs_ks=
   &my_collation_uca_900_handler,
   NO_PAD
 };
+
+CHARSET_INFO my_charset_utf8mb4_0900_as_ci=
+{
+  305, 0, 0,            /* number       */
+  MY_CS_UTF8MB4_UCA_FLAGS,/* state    */
+  MY_UTF8MB4,         /* csname       */
+  MY_UTF8MB4 "_0900_as_ci",/* name */
+  "",                 /* comment      */
+  NULL,               /* tailoring    */
+  NULL,               /* coll_param   */
+  ctype_utf8,         /* ctype        */
+  NULL,               /* to_lower     */
+  NULL,               /* to_upper     */
+  NULL,               /* sort_order   */
+  &my_uca_v900,       /* uca          */
+  NULL,               /* tab_to_uni   */
+  NULL,               /* tab_from_uni */
+  &my_unicase_unicode900,/* caseinfo     */
+  NULL,               /* state_map    */
+  NULL,               /* ident_map    */
+  0,                  /* strxfrm_multiply */
+  1,                  /* caseup_multiply  */
+  1,                  /* casedn_multiply  */
+  1,                  /* mbminlen      */
+  4,                  /* mbmaxlen      */
+  1,                  /* mbmaxlenlen   */
+  32,                 /* min_sort_char */
+  0x10FFFF,           /* max_sort_char */
+  ' ',                /* pad char      */
+  0,                  /* escape_with_backslash_is_dangerous */
+  2,                  /* levels_for_compare */
+  &my_charset_utf8mb4_handler,
+  &my_collation_uca_900_handler,
+  NO_PAD
+};
