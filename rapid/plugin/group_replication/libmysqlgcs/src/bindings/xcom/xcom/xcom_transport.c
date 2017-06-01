@@ -1709,6 +1709,9 @@ void invalidate_servers(const site_def* old_site_def,
       if (sp) {
         sp->invalid= 1;
       }
+
+      if(name)
+        free(name);
     }
   }
 }
