@@ -206,7 +206,7 @@ ErrorBundle ErrorCodes[] = {
   { 21060, DMEC, AE, "Build foreign key failed in NDB - foreign key not found" },
   { 21061, DMEC, SE, "Build foreign key failed in NDB - invalid foreign key version" },
   /* Referential integrity */
-  { 21080, HA_ERR_ROW_IS_REFERENCED, SE, "Drop table not allowed in NDB - referenced by foreign key on another table" },
+  { 21080, HA_ERR_ROW_IS_REFERENCED, AE, "Drop table not allowed in NDB - referenced by foreign key on another table" },
   /* Drop index */
   { 21081, HA_ERR_DROP_INDEX_FK, AE, "Drop index not allowed in NDB - used as parent index of a foreign key" },
   { 21082, HA_ERR_DROP_INDEX_FK, AE, "Drop index not allowed in NDB - used as child index of a foreign key" },

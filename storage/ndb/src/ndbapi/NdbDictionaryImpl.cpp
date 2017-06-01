@@ -4701,6 +4701,9 @@ NdbDictionaryImpl::dropTable(NdbTableImpl & impl)
       if (!dropTableAllowDropChildFK(impl, fk, cascade_constraints))
       {
         m_receiver.m_error.code = 21080;
+        /* Save the violated FK id in error.details
+         * To provide additional context of the failure */
+        m_receiver.m_error.details = (char *)UintPtr(fk.getObjectId());
         return -1;
       }
       if ((res = dropForeignKey(fk)) != 0)
@@ -4789,6 +4792,9 @@ NdbDictionaryImpl::dropTableGlobal(NdbTableImpl & impl, int flags)
         if (!dropTableAllowDropChildFK(impl, fk, flags))
         {
           m_receiver.m_error.code = 21080;
+          /* Save the violated FK id in error.details
+           * To provide additional context of the failure */
+          m_receiver.m_error.details = (char *)UintPtr(fk.getObjectId());
           ERR_RETURN(getNdbError(), -1);
         }
       }
