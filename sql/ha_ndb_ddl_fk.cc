@@ -1225,6 +1225,158 @@ public:
     DBUG_PRINT("exit", ("allow: %u", allow));
     DBUG_RETURN(true);
   }
+
+  /**
+    Generate FK info string to be shown during FK violations.
+
+    @param    thd               Current thread.
+    @param    ndb               Pointer to the Ndb Object
+    @param    fk                The foreign key object whose info
+                                has to be printed.
+    @param    fk_string         String in which the fk info is to be printed.
+
+    @retval   true              on success
+              false             on failure.
+  */
+  bool
+  generate_fk_constraint_string(Ndb *ndb,
+                                const NdbDictionary::ForeignKey &fk,
+                                String &fk_string)
+  {
+    const NDBTAB *parenttab= 0;
+    const NDBTAB *childtab= 0;
+    NDBDICT *dict = ndb->getDictionary();
+    DBUG_ENTER("generate_fk_constraint_string");
+    Ndb_db_guard db_guard(ndb);
+
+    /* Fetch parent db and name and load it */
+    Ndb_table_guard parent_table_guard(dict);
+    char parent_db_and_name[FN_LEN + 1];
+    {
+      const char *name = fk_split_name(parent_db_and_name,
+                                       fk.getParentTable());
+      setDbName(ndb, parent_db_and_name);
+      parent_table_guard.init(name);
+      parenttab= parent_table_guard.get_table();
+      if (parenttab == 0)
+      {
+        NdbError err= dict->getNdbError();
+        warn("Unable to load parent table : error %d, %s",
+             err.code, err.message);
+        DBUG_RETURN(false);
+      }
+    }
+
+    /* Fetch child db and name and load it */
+    Ndb_table_guard child_table_guard(dict);
+    char child_db_and_name[FN_LEN + 1];
+    {
+      const char * name = fk_split_name(child_db_and_name,
+                                        fk.getChildTable());
+      setDbName(ndb, child_db_and_name);
+      child_table_guard.init(name);
+      childtab= child_table_guard.get_table();
+      if (childtab == 0)
+      {
+        NdbError err= dict->getNdbError();
+        err= dict->getNdbError();
+        warn("Unable to load child table : error %d, %s",
+             err.code, err.message);
+        DBUG_RETURN(false);
+      }
+
+      /* Now, Print child table names */
+      fk_string.append("`");
+      fk_string.append(child_db_and_name);
+      fk_string.append("`.`");
+      fk_string.append(name);
+      fk_string.append("`, ");
+    }
+
+    fk_string.append("CONSTRAINT `");
+    {
+      char db_and_name[FN_LEN+1];
+      const char * name = fk_split_name(db_and_name, fk.getName());
+      fk_string.append(name);
+    }
+    fk_string.append("` FOREIGN KEY (");
+
+    {
+      const char* separator = "";
+      for (unsigned j = 0; j < fk.getChildColumnCount(); j++)
+      {
+        unsigned no = fk.getChildColumnNo(j);
+        fk_string.append(separator);
+        fk_string.append("`");
+        fk_string.append(childtab->getColumn(no)->getName());
+        fk_string.append("`");
+        separator = ",";
+      }
+    }
+
+    fk_string.append(") REFERENCES `");
+    if (strcmp(parent_db_and_name, child_db_and_name) != 0)
+    {
+      /* Print db name only if the parent and child are from different dbs */
+      fk_string.append(parent_db_and_name);
+      fk_string.append("`.`");
+    }
+    fk_string.append(parenttab->getName());
+
+    fk_string.append("` (");
+    {
+      const char* separator = "";
+      for (unsigned j = 0; j < fk.getParentColumnCount(); j++)
+      {
+        unsigned no = fk.getParentColumnNo(j);
+        fk_string.append(separator);
+        fk_string.append("`");
+        fk_string.append(parenttab->getColumn(no)->getName());
+        fk_string.append("`");
+        separator = ",";
+      }
+    }
+    fk_string.append(")");
+
+    /* print action strings */
+    switch(fk.getOnDeleteAction()){
+    case NdbDictionary::ForeignKey::NoAction:
+      fk_string.append(" ON DELETE NO ACTION");
+      break;
+    case NdbDictionary::ForeignKey::Restrict:
+      fk_string.append(" ON DELETE RESTRICT");
+      break;
+    case NdbDictionary::ForeignKey::Cascade:
+      fk_string.append(" ON DELETE CASCADE");
+      break;
+    case NdbDictionary::ForeignKey::SetNull:
+      fk_string.append(" ON DELETE SET NULL");
+      break;
+    case NdbDictionary::ForeignKey::SetDefault:
+      fk_string.append(" ON DELETE SET DEFAULT");
+      break;
+    }
+
+    switch(fk.getOnUpdateAction()){
+    case NdbDictionary::ForeignKey::NoAction:
+      fk_string.append(" ON UPDATE NO ACTION");
+      break;
+    case NdbDictionary::ForeignKey::Restrict:
+      fk_string.append(" ON UPDATE RESTRICT");
+      break;
+    case NdbDictionary::ForeignKey::Cascade:
+      fk_string.append(" ON UPDATE CASCADE");
+      break;
+    case NdbDictionary::ForeignKey::SetNull:
+      fk_string.append(" ON UPDATE SET NULL");
+      break;
+    case NdbDictionary::ForeignKey::SetDefault:
+      fk_string.append(" ON UPDATE SET DEFAULT");
+      break;
+    }
+
+    DBUG_RETURN(true);
+  }
 };
 
 bool ndb_fk_util_build_list(THD* thd, NdbDictionary::Dictionary* dict,
@@ -1275,6 +1427,15 @@ bool ndb_fk_util_truncate_allowed(THD* thd, NdbDictionary::Dictionary* dict,
   if (!fk_util.truncate_allowed(dict, db, table, allowed))
     return false;
   return true;
+}
+
+
+bool ndb_fk_util_generate_constraint_string(THD* thd, Ndb *ndb,
+                                            const NdbDictionary::ForeignKey &fk,
+                                            String &fk_string)
+{
+  Fk_util fk_util(thd);
+  return fk_util.generate_fk_constraint_string(ndb, fk, fk_string);
 }
 
 
