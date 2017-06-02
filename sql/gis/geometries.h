@@ -202,6 +202,21 @@ class Point : public Geometry {
   double m_y;
 };
 
+/// Compares two points.
+///
+/// The point with the lowest X coordinate is the smaller point. If X
+/// coordinates are equal, the point with the lowest Y coordinate is the
+/// smaller.
+///
+/// @param lhs Left hand side.
+/// @param rhs Right hand side.
+///
+/// @retval true Left hand side sorts before right hand side.
+/// @retval false Left hand side does not sort before right hand side.
+inline bool operator<(const Point &lhs, const Point &rhs) {
+  return (lhs.x() < rhs.x()) || (lhs.x() == rhs.x() && lhs.y() < rhs.y());
+}
+
 /// An abstract 2d curve.
 ///
 /// Curve is a non-instantiable type in SQL.
