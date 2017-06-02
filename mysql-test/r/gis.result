@@ -1518,17 +1518,12 @@ SELECT ST_Equals(boundary,
 ST_PolyFromText('POLYGON( ( 67 13, 67 18, 59 18, 59 13, 67 13) )',101))
 FROM named_places
 WHERE name = 'Goose Island';
-ST_Equals(boundary,
-ST_PolyFromText('POLYGON( ( 67 13, 67 18, 59 18, 59 13, 67 13) )',101))
-1
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
-Warning	3519	There's no spatial reference system with SRID 101. Calculations in function st_equals will be done in SRID 0.
+ERROR SR001: There's no spatial reference system with SRID 101.
 SELECT ST_Equals(boundary,
 ST_PolyFromText('POLYGON( ( 67 13, 67 18, 59 18, 59 13, 67 13) )',1))
 FROM named_places
 WHERE name = 'Goose Island';
-ERROR HY000: Binary geometry function st_equals given two geometries of different srids: 101 and 1, which should have been identical.
+ERROR SR001: There's no spatial reference system with SRID 101.
 # Conformance Item T38 
 SELECT ST_Disjoint(centerlines, boundary) 
 FROM divided_routes, named_places 

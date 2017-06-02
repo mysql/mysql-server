@@ -1398,14 +1398,19 @@ SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_
 --echo #====================================================================================
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0));
 
+--error ER_SRS_NOT_FOUND
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(@star_center,100));
 
+--error ER_SRS_NOT_FOUND
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,20000),ST_GEOMFROMTEXT(@star_center,20000));
 
+--error ER_SRS_NOT_FOUND
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,123456),ST_GEOMFROMTEXT(@star_center,123456));
 
+--error ER_SRS_NOT_FOUND
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575));
 
+--error ER_SRS_NOT_FOUND
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295));
 
 --error ER_DATA_OUT_OF_RANGE
@@ -1427,7 +1432,7 @@ SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_
 --error ER_GIS_DIFFERENT_SRIDS
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_center,4326));
 
---error ER_GIS_DIFFERENT_SRIDS
+--error ER_SRS_NOT_FOUND
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,1048576),ST_GEOMFROMTEXT(@star_center,4326));
 
 SELECT ST_EQUALS(NULL,ST_GEOMFROMTEXT(@star_top));
@@ -1653,8 +1658,15 @@ INSERT INTO t1 VALUES (
     POINT(1,10), POINT(1,1)), LINESTRING(POINT(4,4),POINT(6,4),POINT(6,6),
     POINT(4,6),POINT(4,4))))));
 
+# We don't care about the result. We just want to put all parameter type
+# combinations through the function.
+--disable_result_log
 SELECT ST_EQUALS(a.g, b.g) FROM t1 AS a JOIN t1 AS b;
 SELECT MBREQUALS(a.g, b.g) FROM t1 AS a JOIN t1 AS b;
+
+SELECT ST_EQUALS(ST_SRID(a.g, 4326), ST_SRID(b.g, 4326))
+FROM t1 AS a JOIN t1 AS b;
+--enable_result_log
 
 --echo # clean up
 DROP TABLE t1;
@@ -1695,12 +1707,15 @@ SELECT MBREQUALS(
   ST_GEOMFROMTEXT('POINT(0 0)', 4326)
 );
 
---echo # Undefined SRS (should pass with warning)
+--echo # Undefined SRS (should fail)
 # Assume SRID 15000000 is undefined
+--error ER_SRS_NOT_FOUND
 SELECT ST_EQUALS(
   ST_GEOMFROMTEXT('POINT(0 0)', 15000000),
   ST_GEOMFROMTEXT('POINT(0 0)', 15000000)
 );
+--echo # Undefined SRS (should pass with warning)
+# Assume SRID 15000000 is undefined
 SELECT MBREQUALS(
   ST_GEOMFROMTEXT('POINT(0 0)', 15000000),
   ST_GEOMFROMTEXT('POINT(0 0)', 15000000)
