@@ -3581,12 +3581,14 @@ pax_msg *dispatch_op(site_def const *site, pax_msg *p, linkage *reply_queue) {
 /* }}} */
 
 /* {{{ Acceptor-learner task */
-#define WRITE_REPLY(msg)                                         \
+#define SERIALIZE_REPLY(msg)                                         \
   msg->to = ep->p->from;                                         \
   msg->from = ep->p->to;                                         \
   msg->delivered_msg = get_delivered_msg();                      \
   msg->max_synode = get_max_synode();                            \
   serialize_msg(msg, ep->rfd.x_proto, &ep->buflen, &ep->buf);    \
+
+#define WRITE_REPLY \
   if (ep->buflen) {                                              \
     int64_t sent;                                                \
     TASK_CALL(task_write(&ep->rfd, ep->buf, ep->buflen, &sent)); \
@@ -3726,8 +3728,9 @@ again:
             ref_msg(reply);
             create_noop(reply);
             set_learn_type(reply);
-            WRITE_REPLY(reply);
-            unref_msg(&reply);
+            SERIALIZE_REPLY(reply);
+            delete_pax_msg(reply); /* Deallocate BEFORE potentially blocking call which will lose value of reply */
+            WRITE_REPLY;
             goto again;
           }
         }
@@ -3746,8 +3749,9 @@ again:
                   COPY_AND_FREE_GOUT(dbg_pax_msg(reply->p)););
           assert(reply->p);
           assert(reply->p->refcnt > 0);
-          WRITE_REPLY(reply->p);
-          msg_link_delete(&reply);
+          SERIALIZE_REPLY(reply->p);
+          msg_link_delete(&reply); /* Deallocate BEFORE potentially blocking call which will lose value of reply */
+          WRITE_REPLY;
         }
       } else {
         DBGOUT(FN; STRLIT("rejecting "); STRLIT(pax_op_to_str(ep->p->op));
@@ -3771,11 +3775,12 @@ again:
               np = pax_msg_new(ep->p->synode, site);
               ref_msg(np);
               np->op = die_op;
-              WRITE_REPLY(np);
+              SERIALIZE_REPLY(np);
               DBGOUT(FN; STRLIT("sending die_op to node "); NDBG(np->to, d);
                      SYCEXP(executed_msg); SYCEXP(max_synode);
                      SYCEXP(np->synode));
-              unref_msg(&np);
+              unref_msg(&np); /* Deallocate BEFORE potentially blocking call which will lose value of np */
+              WRITE_REPLY;
             }
           }
 #endif
