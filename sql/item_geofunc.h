@@ -1179,11 +1179,11 @@ public:
 };
 
 
-class Item_func_st_intersects final : public Item_func_spatial_rel
+class Item_func_st_intersects final : public Item_func_spatial_relation
 {
 public:
   Item_func_st_intersects(const POS &pos, Item *a, Item *b)
-    : Item_func_spatial_rel(pos, a, b)
+    : Item_func_spatial_relation(pos, a, b)
   {}
   enum Functype functype() const override
   { return SP_INTERSECTS_FUNC; }
@@ -1191,15 +1191,8 @@ public:
   { return SP_INTERSECTS_FUNC; }
   const char *func_name() const override
   { return "st_intersects"; }
-  bool resolve_type(THD *) override
-  {
-    maybe_null= true;
-    return false;
-  }
-  void print(String *str, enum_query_type query_type) override
-  {
-    Item_func::print(str, query_type);
-  }
+  bool eval(const dd::Spatial_reference_system *srs, const gis::Geometry *g1,
+            const gis::Geometry *g2, bool *result, bool *null) override;
 };
 
 

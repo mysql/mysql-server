@@ -385,7 +385,7 @@ select st_intersects(st_intersection(ST_GeomFromText('point(1 1)'), ST_GeomFromT
 st_intersection(ST_GeomFromText('point(0 0)'), ST_GeomFromText('point(1 1)')));
 st_intersects(st_intersection(ST_GeomFromText('point(1 1)'), ST_GeomFromText('multipoint(2 2, 3 3)')), 
 st_intersection(ST_GeomFromText('point(0 0)'), ST_GeomFromText('point(1 1)')))
-0
+NULL
 select st_disjoint(st_intersection(ST_GeomFromText('point(1 1)'), ST_GeomFromText('multipoint(2 2, 3 3)')), 
 st_intersection(ST_GeomFromText('point(0 0)'), ST_GeomFromText('point(1 1)')));
 st_disjoint(st_intersection(ST_GeomFromText('point(1 1)'), ST_GeomFromText('multipoint(2 2, 3 3)')), 
@@ -425,7 +425,7 @@ select st_intersects(st_intersection(ST_GeomFromText('point(1 1)'), ST_GeomFromT
 st_union(ST_GeomFromText('point(0 0)'), ST_GeomFromText('point(1 1)')));
 st_intersects(st_intersection(ST_GeomFromText('point(1 1)'), ST_GeomFromText('multipoint(2 2, 3 3)')), 
 st_union(ST_GeomFromText('point(0 0)'), ST_GeomFromText('point(1 1)')))
-0
+NULL
 select st_disjoint(st_intersection(ST_GeomFromText('point(1 1)'), ST_GeomFromText('multipoint(2 2, 3 3)')), 
 st_union(ST_GeomFromText('point(0 0)'), ST_GeomFromText('point(1 1)')));
 st_disjoint(st_intersection(ST_GeomFromText('point(1 1)'), ST_GeomFromText('multipoint(2 2, 3 3)')), 
@@ -465,7 +465,7 @@ select st_intersects(st_union(ST_GeomFromText('point(1 1)'), ST_GeomFromText('mu
 st_intersection(ST_GeomFromText('point(0 0)'), ST_GeomFromText('point(1 1)')));
 st_intersects(st_union(ST_GeomFromText('point(1 1)'), ST_GeomFromText('multipoint(2 2, 3 3)')), 
 st_intersection(ST_GeomFromText('point(0 0)'), ST_GeomFromText('point(1 1)')))
-0
+NULL
 select st_disjoint(st_union(ST_GeomFromText('point(1 1)'), ST_GeomFromText('multipoint(2 2, 3 3)')), 
 st_intersection(ST_GeomFromText('point(0 0)'), ST_GeomFromText('point(1 1)')));
 st_disjoint(st_union(ST_GeomFromText('point(1 1)'), ST_GeomFromText('multipoint(2 2, 3 3)')), 
@@ -983,7 +983,7 @@ ST_AsText(ST_Envelope(ST_GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(), 
 GEOMETRYCOLLECTION EMPTY
 SELECT ST_intersects(ST_GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'),ST_GeomFromText('GEOMETRYCOLLECTION()'));
 ST_intersects(ST_GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'),ST_GeomFromText('GEOMETRYCOLLECTION()'))
-0
+NULL
 SELECT ST_disjoint(ST_GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'),ST_GeomFromText('GEOMETRYCOLLECTION()'));
 ST_disjoint(ST_GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'),ST_GeomFromText('GEOMETRYCOLLECTION()'))
 NULL
@@ -1692,7 +1692,7 @@ result
 NULL
 SELECT ST_INTERSECTS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()'),ST_GEOMFROMTEXT('POINT(0 0)')) as result;
 result
-0
+NULL
 SELECT ST_EQUALS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()'),ST_GEOMFROMTEXT('POINT(0 0)')) as result;
 result
 0
@@ -1716,7 +1716,7 @@ result
 NULL
 SELECT ST_INTERSECTS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'),ST_GEOMFROMTEXT('POINT(0 0)')) as result;
 result
-0
+NULL
 SELECT ST_EQUALS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'),ST_GEOMFROMTEXT('POINT(0 0)')) as result;
 result
 0

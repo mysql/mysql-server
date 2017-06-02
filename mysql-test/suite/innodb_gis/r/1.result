@@ -1549,10 +1549,7 @@ SELECT ST_Intersects(road_segments.centerline, divided_routes.centerlines)
 FROM road_segments, divided_routes 
 WHERE road_segments.fid = 102 
 AND divided_routes.name = 'Route 75';
-ST_Intersects(road_segments.centerline, divided_routes.centerlines)
-1
-Warnings:
-Warning	3519	There's no spatial reference system with SRID 101. Calculations in function st_intersects will be done in SRID 0.
+ERROR SR001: There's no spatial reference system with SRID 101.
 # Conformance Item T44 
 SELECT ST_Contains(forests.boundary, named_places.boundary) 
 FROM forests, named_places 
