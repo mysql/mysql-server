@@ -1243,6 +1243,23 @@ public:
 };
 
 
+class Item_func_mbrwithin final : public Item_func_spatial_relation
+{
+public:
+  Item_func_mbrwithin(const POS &pos, Item *a, Item *b)
+    : Item_func_spatial_relation(pos, a, b)
+  {}
+  enum Functype functype() const override
+  { return SP_WITHIN_FUNC; }
+  enum Functype rev_functype() const override
+  { return SP_CONTAINS_FUNC; }
+  const char *func_name() const override
+  { return "mbrwithin"; }
+  bool eval(const dd::Spatial_reference_system *srs, const gis::Geometry *g1,
+            const gis::Geometry *g2, bool *result, bool *null) override;
+};
+
+
 class Item_func_st_overlaps final : public Item_func_spatial_relation
 {
 public:

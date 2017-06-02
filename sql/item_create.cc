@@ -614,8 +614,6 @@ using Mbr_contains_instantiator=
   Mbr_rel_instantiator<Item_func::SP_CONTAINS_FUNC>;
 using Mbr_touches_instantiator=
   Mbr_rel_instantiator<Item_func::SP_TOUCHES_FUNC>;
-using Mbr_within_instantiator=
-  Mbr_rel_instantiator<Item_func::SP_WITHIN_FUNC>;
 using Mbr_crosses_instantiator=
   Mbr_rel_instantiator<Item_func::SP_CROSSES_FUNC>;
 
@@ -1658,7 +1656,7 @@ static const std::pair<const char *, Create_func *> func_array[]=
   { "MBRINTERSECTS", SQL_FN(Item_func_mbrintersects, 2) },
   { "MBROVERLAPS", SQL_FN(Item_func_mbroverlaps, 2) },
   { "MBRTOUCHES", SQL_FACTORY(Mbr_touches_instantiator) },
-  { "MBRWITHIN", SQL_FACTORY(Mbr_within_instantiator) },
+  { "MBRWITHIN", SQL_FN(Item_func_mbrwithin, 2) },
   { "MD5", SQL_FN(Item_func_md5, 1) },
   { "MONTHNAME", SQL_FN(Item_func_monthname, 1) },
   { "NAME_CONST", SQL_FN(Item_name_const, 2) },

@@ -1503,6 +1503,15 @@ bool Item_func_mbroverlaps::eval(const dd::Spatial_reference_system *srs,
 }
 
 
+bool Item_func_mbrwithin::eval(const dd::Spatial_reference_system *srs,
+                               const gis::Geometry *g1,
+                               const gis::Geometry *g2,
+                               bool *result, bool *null)
+{
+  return gis::mbr_within(srs, g1, g2, func_name(), result, null);
+}
+
+
 bool Item_func_st_overlaps::eval(const dd::Spatial_reference_system *srs,
                                  const gis::Geometry *g1,
                                  const gis::Geometry *g2,
