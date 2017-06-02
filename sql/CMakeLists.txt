@@ -195,6 +195,7 @@ SET(DD_SOURCES
 
 SET(SQL_GIS_SOURCES
   geometry_rtree.cc
+  gis/difference.cc
   gis/disjoint.cc
   gis/distance.cc
   gis/geometries.cc
@@ -554,6 +555,7 @@ ADD_COMPILE_FLAGS(
 # Fixes "C1128: number of sections exceeded object file format limit" in MSVC
 IF(WIN32)
   ADD_COMPILE_FLAGS(
+    gis/difference.cc
     item_geofunc.cc
     item_geofunc_setops.cc
     COMPILE_FLAGS "/bigobj")
