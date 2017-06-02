@@ -3,7 +3,7 @@
 #
 # Test:
 # 0. This test requires one server.
-# 1. Basic check that there are 35 GR variables.
+# 1. Basic check that there are 42 GR variables.
 # 2. Verify that all the group replication variables are GLOBAL variables.
 # 3. Verify values of GLOBAL and SESSION variables using below commands:-
 #  - SHOW GLOBAL VARIABLES LIKE 'group_replication_..'
@@ -29,12 +29,12 @@
 --sleep 30
 
 --echo
---echo # Test#1: Basic check that there are 35 GR variables.
+--echo # Test#1: Basic check that there are 42 GR variables.
 
 # Note: If a new GR variable is added or an old GR variable is removed, then
 # update this testcase for the sanity check.
---let $assert_text= There are 35 GR variables at present.
---let $assert_cond= "[SELECT COUNT(*) FROM performance_schema.global_variables WHERE VARIABLE_NAME LIKE \\'group_replication%\']" = 35
+--let $assert_text= There are 42 GR variables at present.
+--let $assert_cond= "[SELECT COUNT(*) FROM performance_schema.global_variables WHERE VARIABLE_NAME LIKE \\'group_replication%\']" = 42
 --source include/assert.inc
 
 # Take backup of GR variables

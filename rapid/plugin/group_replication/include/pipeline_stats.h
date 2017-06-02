@@ -41,8 +41,20 @@ extern ulong flow_control_mode_var;
 /**
   Flow control queue threshold for certifier and for applier.
 */
-extern int flow_control_certifier_threshold_var;
-extern int flow_control_applier_threshold_var;
+extern long flow_control_certifier_threshold_var;
+extern long flow_control_applier_threshold_var;
+
+
+/**
+  Options to fine-tune flow-control behaviour
+*/
+extern long flow_control_min_quota_var;
+extern long flow_control_min_recovery_quota_var;
+extern long flow_control_max_quota_var;
+extern int flow_control_member_quota_percent_var;
+extern int flow_control_period_var;
+extern int flow_control_hold_percent_var;
+extern int flow_control_release_percent_var;
 
 
 /**
@@ -88,23 +100,38 @@ public:
     // Length of the payload item: 8 bytes
     PIT_TRANSACTIONS_LOCAL_ROLLBACK= 10,
 
+    // Length of the payload item: 1 byte
+    PIT_FLOW_CONTROL_MODE= 11,
+
     // No valid type codes can appear after this one.
-    PIT_MAX= 11
+    PIT_MAX= 12
   };
 
   /**
     Message constructor
 
     @param[in] transactions_waiting_certification
+               Number of transactions pending certification
     @param[in] transactions_waiting_apply
+               Number of remote transactions waiting apply
     @param[in] transactions_certified
+               Number of transactions already certified
     @param[in] transactions_applied
+               Number of remote transactions applied
     @param[in] transactions_local
+               Number of local transactions
     @param[in] transactions_negative_certified
+               Number of transactions that were negatively certified
     @param[in] transactions_rows_validating
+               Number of transactions with which certification will be done against
     @param[in] transactions_committed_all_members
+               Set of transactions committed on all members
     @param[in] transactions_last_conflict_free
+               Latest transaction certified without conflicts
     @param[in] transactions_local_rollback
+               Number of local transactions that were negatively certified
+    @param[in] mode
+               Flow-control mode
   */
   Pipeline_stats_member_message(int32 transactions_waiting_certification,
                                 int32 transactions_waiting_apply,
@@ -115,7 +142,8 @@ public:
                                 int64 transactions_rows_validating,
                                 const std::string& transactions_committed_all_members,
                                 const std::string& transactions_last_conflict_free,
-                                int64 transactions_local_rollback);
+                                int64 transactions_local_rollback,
+                                Flow_control_mode mode);
 
   /**
     Message constructor for raw data
@@ -200,6 +228,13 @@ public:
   */
   int64 get_transactions_local_rollback();
 
+  /**
+    Get flow-control mode of member.
+
+    @return the mode value
+  */
+  Flow_control_mode get_flow_control_mode();
+
 protected:
   /**
     Encodes the message contents for transmission.
@@ -227,6 +262,7 @@ private:
   std::string m_transactions_committed_all_members;
   std::string m_transaction_last_conflict_free;
   int64 m_transactions_local_rollback;
+  Flow_control_mode m_flow_control_mode;
 };
 
 
@@ -281,7 +317,7 @@ public:
   /**
     Send member statistics to group.
   */
-  void send_stats_member_message();
+  void send_stats_member_message(Flow_control_mode mode);
 
   /**
     @returns transactions waiting to be applied.
@@ -452,6 +488,13 @@ public:
   int64 get_delta_transactions_local();
 
   /**
+    Get flow_control_mode of a member.
+
+    @return the mode value
+  */
+  Flow_control_mode get_flow_control_mode();
+
+  /**
     Get the last stats update stamp.
 
     @return the counter value
@@ -476,7 +519,7 @@ private:
   std::string m_transactions_committed_all_members;
   std::string m_transaction_last_conflict_free;
   int64 m_transactions_local_rollback;
-
+  Flow_control_mode m_flow_control_mode;
   uint64 m_stamp;
 };
 
@@ -498,8 +541,6 @@ class Flow_control_module
 {
 public:
   static const int64 MAXTPS;
-  static const double HOLD_FACTOR;
-  static const double RELEASE_FACTOR;
 
   /**
     Default constructor.
@@ -530,7 +571,7 @@ public:
     Evaluate the information received in the last flow control period
     and adjust the system parameters accordingly
   */
-  void flow_control_step();
+  void flow_control_step(Pipeline_stats_member_collector*);
 
   /**
     Returns copy of individual member stats information.
@@ -575,6 +616,11 @@ private:
     Counter incremented on every flow control step.
   */
   uint64 m_stamp;
+
+  /*
+    Remaining seconds to skip flow-control steps
+  */
+  int seconds_to_skip;
 };
 
 #endif /* PIPELINE_STATS_INCLUDED */

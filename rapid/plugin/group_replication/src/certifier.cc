@@ -157,10 +157,8 @@ void Certifier_broadcast_thread::dispatcher()
       applier_module->get_pipeline_stats_member_collector()
         ->set_send_transaction_identifiers();
     }
-    applier_module->get_pipeline_stats_member_collector()
-        ->send_stats_member_message();
 
-    applier_module->get_flow_control_module()->flow_control_step();
+    applier_module->run_flow_control_step();
 
     if (broadcast_counter % broadcast_gtid_executed_period == 0)
       broadcast_gtid_executed();

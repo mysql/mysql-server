@@ -147,6 +147,7 @@ public:
   virtual int handle(const uchar *data, ulong len)= 0;
   virtual int handle_pipeline_action(Pipeline_action *action)= 0;
   virtual Flow_control_module* get_flow_control_module()= 0;
+  virtual void run_flow_control_step()= 0;
   virtual int purge_applier_queue_and_restart_applier_module()= 0;
   virtual void kill_pending_transactions(bool set_read_mode,
                                          bool threaded_sql_session)= 0;
@@ -480,6 +481,11 @@ public:
   Flow_control_module* get_flow_control_module()
   {
     return &flow_control_module;
+  }
+
+  virtual void run_flow_control_step()
+  {
+    flow_control_module.flow_control_step(&pipeline_stats_member_collector);
   }
 
   /**
