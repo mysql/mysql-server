@@ -237,16 +237,22 @@ Ndb_local_schema::Table::Table(THD* thd,
 bool
 Ndb_local_schema::Table::is_local_table(void) const
 {
-  if (m_frm_file_exist && !m_ndb_file_exist)
+  dd::String_type engine;
+  if (ndb_dd_table_get_engine(m_thd, m_db, m_name, &engine))
   {
-    // The .frm exist but no .ndb file , this is a "local" table
-
-    // Double check that the engine type in .frm doesn't say NDB
-    assert(!frm_engine_is_ndb());
-
-    return true;
+    // Can't fetch engine for table, table does not exist
+    // and thus not local table
+    return false;
   }
-  return false;
+
+  if (engine == "ndbcluster")
+  {
+    // Table is marked as being in NDB, not a local table
+    return false;
+  }
+
+  // This is a local table
+  return true;
 }
 
 

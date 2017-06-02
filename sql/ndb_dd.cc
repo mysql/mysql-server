@@ -451,3 +451,46 @@ ndb_dd_rename_table(THD *thd,
   DBUG_RETURN(true); // OK
 }
 
+
+bool
+ndb_dd_table_get_engine(THD *thd,
+                        const char *schema_name,
+                        const char *table_name,
+                        dd::String_type* engine)
+{
+  DBUG_ENTER("ndb_dd_table_get_engine");
+
+  ulonglong save_option_bits = thd->variables.option_bits;
+  thd->variables.option_bits&= ~OPTION_AUTOCOMMIT;
+  thd->variables.option_bits|= OPTION_NOT_AUTOCOMMIT;
+
+  {
+    dd::cache::Dictionary_client* client= thd->dd_client();
+    dd::cache::Dictionary_client::Auto_releaser releaser{client};
+
+    const dd::Table *existing= nullptr;
+    if (client->acquire(schema_name, table_name, &existing))
+    {
+      thd->variables.option_bits = save_option_bits;
+      DBUG_RETURN(false);
+    }
+
+    if (existing == nullptr)
+    {
+      // Table does not exist
+      thd->variables.option_bits = save_option_bits;
+      DBUG_RETURN(false);
+    }
+
+    DBUG_PRINT("info", (("table '%s.%s' exists in DD, engine: '%s'"),
+                        schema_name, table_name, existing->engine().c_str()));
+    *engine = existing->engine();
+
+    trans_commit_stmt(thd);
+    trans_commit(thd);
+  }
+
+  thd->variables.option_bits = save_option_bits;
+
+  DBUG_RETURN(true); // Table exist
+}
