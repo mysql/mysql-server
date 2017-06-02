@@ -41,6 +41,7 @@ Created 12/1/2016 Shaohua Wang
 //#include <mysql/service_thd_engine_lock.h>
 
 #include "dict0mem.h"
+#include "dict0stats.h"
 #include "log0ddl.h"
 #include "pars0pars.h"
 #include "que0que.h"
@@ -1248,6 +1249,14 @@ LogDDL::replayRenameTableLog(
 	if (err != DB_SUCCESS) {
 		ib::info() << "ddl log replay rename table in cache from "
 			<< old_name << " to " << new_name;
+	} else {
+		/* TODO: Once we get rid of dict_operation_lock,
+		we may consider to do this in row_rename_table_for_mysql,
+		so no need to worry this rename here */
+		char	errstr[512];
+
+		dict_stats_rename_table(old_name, new_name,
+					errstr, sizeof(errstr));
 	}
 	
 	ib::info() << "ddl log replay : RENAME TABLE table_id " << table_id
