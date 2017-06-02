@@ -9465,7 +9465,7 @@ void Dbdih::execNODE_FAILREP(Signal* signal)
   cmasterNodeId = newMasterId;
 
   const bool masterTakeOver = (oldMasterId != newMasterId);
-
+  bool check_more_start_lcp = false;
   for(i = 0; i < noOfFailedNodes; i++) {
     NodeRecordPtr failedNodePtr;
     failedNodePtr.i = failedNodes[i];
@@ -9499,7 +9499,7 @@ void Dbdih::execNODE_FAILREP(Signal* signal)
     // Functions that need to be called for all nodes.
     /*--------------------------------------------------*/
     checkStopMe(signal, failedNodePtr);
-    failedNodeLcpHandling(signal, failedNodePtr);
+    failedNodeLcpHandling(signal, failedNodePtr, check_more_start_lcp);
     startRemoveFailedNode(signal, failedNodePtr);
 
     /**
@@ -9508,7 +9508,6 @@ void Dbdih::execNODE_FAILREP(Signal* signal)
      */
     failedNodeSynchHandling(signal, failedNodePtr);
   }//for
-  
   if(masterTakeOver){
     jam();
     startLcpMasterTakeOver(signal, oldMasterId);
@@ -9519,7 +9518,6 @@ void Dbdih::execNODE_FAILREP(Signal* signal)
       progError(__LINE__, NDBD_EXIT_MASTER_FAILURE_DURING_NR);
     }
   }
-
   
   if (isMaster()) {
     jam();
@@ -9527,6 +9525,13 @@ void Dbdih::execNODE_FAILREP(Signal* signal)
   }//if
 
   setGCPStopTimeouts(signal);
+
+  if (check_more_start_lcp)
+  {
+    jam();
+    ndbrequire(isMaster());
+    startNextChkpt(signal);
+  }
 }//Dbdih::execNODE_FAILREP()
 
 void Dbdih::checkCopyTab(Signal* signal, NodeRecordPtr failedNodePtr)
@@ -9792,7 +9797,9 @@ Dbdih::findTakeOver(Ptr<TakeOverRecord> & ptr, Uint32 failedNodeId)
   return false;
 }//Dbdih::findTakeOver()
 
-void Dbdih::failedNodeLcpHandling(Signal* signal, NodeRecordPtr failedNodePtr)
+void Dbdih::failedNodeLcpHandling(Signal* signal,
+                                  NodeRecordPtr failedNodePtr,
+                                  bool & check_more_start_lcp)
 {
   jam();
   const Uint32 nodeId = failedNodePtr.i;
@@ -9837,6 +9844,16 @@ void Dbdih::failedNodeLcpHandling(Signal* signal, NodeRecordPtr failedNodePtr)
       ndbrequire(false);
       break;
     }//switch
+    jam();
+    /**
+     * It could be that the ongoing LCP is only waiting for our node, so
+     * it is important to here call checkStartMoreLcp. We need to go
+     * through all nodes first though to ensure that we don't call
+     * this and start checkpoints towards nodes already failed.
+     */
+    failedNodePtr.p->noOfQueuedChkpt = 0;
+    failedNodePtr.p->noOfStartedChkpt = 0;
+    check_more_start_lcp = true;
   }//if
 
   c_lcpState.m_participatingDIH.clear(failedNodePtr.i);
@@ -13940,6 +13957,11 @@ Dbdih::execDROP_TAB_REQ(Signal* signal)
 	  }
 	}
 	nodePtr.p->noOfQueuedChkpt = count;
+        if (nodePtr.p->noOfStartedChkpt == 0)
+        {
+          jam();
+          checkStartMoreLcp(signal, nodePtr.i);
+        }
         DEB_LCP(("DROP_TAB_REQ: nodePtr(%u)->noOfQueuedChkpt = %u"
                  ", nodePtr->noOfStartedChkpt = %u"
                  ", tab: %u",
@@ -21174,6 +21196,11 @@ void Dbdih::execLCP_FRAG_REP(Signal* signal)
       {
         jam();
         nodePtr.p->noOfQueuedChkpt--;
+        if (nodePtr.p->noOfStartedChkpt == 0)
+        {
+          jam();
+          checkStartMoreLcp(signal, nodePtr.i);
+        }
         DEB_LCP(("LCP_FRAG_REP: nodePtr(%u)->noOfQueuedChkpt = %u"
                  ", nodePtr->noOfStartedChkpt = %u"
                  ", tab(%u,%u)",
