@@ -17,23 +17,13 @@
 
 #include "ndb_local_schema.h"
 
-#include <errno.h>
-
 #include "sql_class.h"
-#include "sql_table.h"
-
-#include "ndb_dd.h"
 #include "mdl.h"
-#include "table_trigger_dispatcher.h"
-#include "sql_trigger.h"
-#include "mysqld.h"                             // reg_ext
-#include "dd/dd_table.h"  // dd::table_legacy_db_type
-#include "dd/dd_trigger.h"  // dd::table_has_triggers
+#include "dd/dd_trigger.h"  // dd::table_has_triggersccmake .
 #include "sql_trigger.h"  // reload_triggers_for_table
 
+#include "ndb_dd.h"
 #include "ndb_log.h"
-
-static const char *ndb_ext=".ndb";
 
 
 bool Ndb_local_schema::Base::mdl_try_lock(void) const
@@ -132,98 +122,13 @@ Ndb_local_schema::Base::~Base()
 }
 
 
-bool
-Ndb_local_schema::Table::file_exists(const char* ext) const
-{
-  char buf[FN_REFLEN + 1];
-  build_table_filename(buf, sizeof(buf)-1,
-                       m_db, m_name, ext, 0);
-
-  if (my_access(buf, F_OK))
-  {
-    DBUG_PRINT("info", ("File '%s' does not exist", buf));
-    return false;
-  }
-
-  DBUG_PRINT("info", ("File '%s' exist", buf));
-  return true;
-}
-
-
-bool
-Ndb_local_schema::Table::remove_file(const char* ext) const
-{
-  char buf[FN_REFLEN + 1];
-  build_table_filename(buf, sizeof(buf)-1,
-                       m_db, m_name, ext, 0);
-
-  int error = my_delete(buf, 0);
-  if (!error || errno == ENOENT)
-    return true;
-
-  log_warning("Failed to remove file '%s', errno: %d", buf, errno);
-  return false;
-}
-
-
-bool
-Ndb_local_schema::Table::rename_file(const char* new_db, const char* new_name,
-                             const char* ext) const
-{
-  char from[FN_REFLEN + 1];
-  build_table_filename(from, sizeof(from)-1,
-                       m_db, m_name, ext, 0);
-
-  char to[FN_REFLEN + 1];
-  build_table_filename(to, sizeof(to) - 1, new_db, new_name, ext, 0);
-
-  int error = my_rename(from, to, 0);
-  if (!error)
-    return true;
-
-  log_warning("Failed to rename file '%s' to '%s', errno: %d",
-            from, to, errno);
-  return false;
-}
-
-
-// Read the engine type from the DD and return true if it says NDB
-// TODO: Change function name to "engine_is_ndb"
-bool
-Ndb_local_schema::Table::frm_engine_is_ndb(void) const
-{
-  legacy_db_type engine_type;
-  if (!dd::table_legacy_db_type(m_thd, m_db, m_name, &engine_type))
-  {
-    DBUG_PRINT("info", ("engine_type: %d", engine_type));
-    return (engine_type == DB_TYPE_NDBCLUSTER);
-  }
-
-  DBUG_PRINT("info", ("engine_type: Not found for table %s.%s", m_db, m_name));
-  return false;
-}
-
-
 Ndb_local_schema::Table::Table(THD* thd,
                                const char* db, const char* name) :
   Ndb_local_schema::Base(thd, db, name),
-  m_ndb_file_exist(false),
   m_has_triggers(false)
 {
   DBUG_ENTER("Ndb_local_table");
   DBUG_PRINT("enter", ("name: '%s.%s'", db, name));
-
-  // Check if .frm file exist
-  m_frm_file_exist = file_exists(reg_ext);
-  if (!m_frm_file_exist)
-  {
-    // Check for stray .ndb file
-    assert(!file_exists(ndb_ext));
-    DBUG_VOID_RETURN;
-  }
-
-  // Check if .ndb file exist
-  m_ndb_file_exist = file_exists(ndb_ext);
 
   // Check if there are trigger files
   // Ignore possible error from dd::table_has_triggers since
@@ -259,9 +164,6 @@ Ndb_local_schema::Table::is_local_table(void) const
 void
 Ndb_local_schema::Table::remove_table(void) const
 {
-  (void)remove_file(reg_ext);
-  (void)remove_file(ndb_ext);
-
   // Remove the table from DD
   if (!ndb_dd_drop_table(m_thd, m_db, m_name))
   {
