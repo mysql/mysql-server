@@ -273,7 +273,6 @@ MACRO(MAKE_WIX_IDENTIFIER str varname)
   ENDIF()
 ENDMACRO()
 
-
 FUNCTION(TRAVERSE_FILES dir topdir file file_comp  dir_root)
   FILE(RELATIVE_PATH dir_rel ${topdir} ${dir})
   IF(dir_rel)
