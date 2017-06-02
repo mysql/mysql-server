@@ -208,6 +208,7 @@ SET(SQL_GIS_SOURCES
   gis/srs/srs.cc
   gis/srs/wkt_parser.cc
   gis/union.cc
+  gis/within.cc
   gis/wkb_parser.cc
   item_geofunc.cc
   item_geofunc_buffer.cc
@@ -560,6 +561,7 @@ ADD_COMPILE_FLAGS(
 IF(WIN32)
   ADD_COMPILE_FLAGS(
     gis/difference.cc
+    gis/within.cc
     item_geofunc.cc
     item_geofunc_setops.cc
     COMPILE_FLAGS "/bigobj")

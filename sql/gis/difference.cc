@@ -51,7 +51,26 @@ Geometry *Difference::eval(const Geometry *g1, const Geometry *g2) const {
 
 //////////////////////////////////////////////////////////////////////////////
 
+// difference(Cartesian_linestring, *)
+
+Geometry *Difference::eval(const Cartesian_linestring *g1,
+                           const Cartesian_multilinestring *g2) const {
+  std::unique_ptr<Cartesian_multilinestring> result(
+      new Cartesian_multilinestring());
+  bg::difference(*g1, *g2, *result);
+  return result.release();
+}
+
+//////////////////////////////////////////////////////////////////////////////
+
 // difference(Cartesian_multipoint, *)
+
+Geometry *Difference::eval(const Cartesian_multipoint *g1,
+                           const Cartesian_multipoint *g2) const {
+  std::unique_ptr<Cartesian_multipoint> result(new Cartesian_multipoint());
+  bg::difference(*g1, *g2, *result);
+  return result.release();
+}
 
 Geometry *Difference::eval(const Cartesian_multipoint *g1,
                            const Cartesian_multilinestring *g2) const {
@@ -78,6 +97,14 @@ Geometry *Difference::eval(const Cartesian_multipoint *g1,
 // difference(Cartesian_multilinestring, *)
 
 Geometry *Difference::eval(const Cartesian_multilinestring *g1,
+                           const Cartesian_multilinestring *g2) const {
+  std::unique_ptr<Cartesian_multilinestring> result(
+      new Cartesian_multilinestring());
+  bg::difference(*g1, *g2, *result);
+  return result.release();
+}
+
+Geometry *Difference::eval(const Cartesian_multilinestring *g1,
                            const Cartesian_multipolygon *g2) const {
   std::unique_ptr<Cartesian_multilinestring> result(
       new Cartesian_multilinestring());
@@ -87,7 +114,37 @@ Geometry *Difference::eval(const Cartesian_multilinestring *g1,
 
 //////////////////////////////////////////////////////////////////////////////
 
+// difference(Cartesian_multipolygon, *)
+
+Geometry *Difference::eval(const Cartesian_multipolygon *g1,
+                           const Cartesian_multipolygon *g2) const {
+  std::unique_ptr<Cartesian_multipolygon> result(new Cartesian_multipolygon());
+  bg::difference(*g1, *g2, *result);
+  return result.release();
+}
+
+//////////////////////////////////////////////////////////////////////////////
+
+// difference(Geographic_linestring, *)
+
+Geometry *Difference::eval(const Geographic_linestring *g1,
+                           const Geographic_multilinestring *g2) const {
+  std::unique_ptr<Geographic_multilinestring> result(
+      new Geographic_multilinestring());
+  bg::difference(*g1, *g2, *result, m_geographic_ll_la_aa_strategy);
+  return result.release();
+}
+
+//////////////////////////////////////////////////////////////////////////////
+
 // difference(Geographic_multipoint, *)
+
+Geometry *Difference::eval(const Geographic_multipoint *g1,
+                           const Geographic_multipoint *g2) const {
+  std::unique_ptr<Geographic_multipoint> result(new Geographic_multipoint());
+  bg::difference(*g1, *g2, *result);  // Default strategy is OK.
+  return result.release();
+}
 
 Geometry *Difference::eval(const Geographic_multipoint *g1,
                            const Geographic_multilinestring *g2) const {
@@ -114,9 +171,29 @@ Geometry *Difference::eval(const Geographic_multipoint *g1,
 // difference(Geographic_multilinestring, *)
 
 Geometry *Difference::eval(const Geographic_multilinestring *g1,
+                           const Geographic_multilinestring *g2) const {
+  std::unique_ptr<Geographic_multilinestring> result(
+      new Geographic_multilinestring());
+  bg::difference(*g1, *g2, *result, m_geographic_ll_la_aa_strategy);
+  return result.release();
+}
+
+Geometry *Difference::eval(const Geographic_multilinestring *g1,
                            const Geographic_multipolygon *g2) const {
   std::unique_ptr<Geographic_multilinestring> result(
       new Geographic_multilinestring());
+  bg::difference(*g1, *g2, *result, m_geographic_ll_la_aa_strategy);
+  return result.release();
+}
+
+//////////////////////////////////////////////////////////////////////////////
+
+// difference(Geographic_multipolygon, *)
+
+Geometry *Difference::eval(const Geographic_multipolygon *g1,
+                           const Geographic_multipolygon *g2) const {
+  std::unique_ptr<Geographic_multipolygon> result(
+      new Geographic_multipolygon());
   bg::difference(*g1, *g2, *result, m_geographic_ll_la_aa_strategy);
   return result.release();
 }

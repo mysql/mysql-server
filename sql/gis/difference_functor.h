@@ -61,8 +61,17 @@ class Difference : public Functor<Geometry *> {
 
   //////////////////////////////////////////////////////////////////////////////
 
+  // difference(Cartesian_linestring, *)
+
+  Geometry *eval(const Cartesian_linestring *g1,
+                 const Cartesian_multilinestring *g2) const;
+
+  //////////////////////////////////////////////////////////////////////////////
+
   // difference(Cartesian_multipoint, *)
 
+  Geometry *eval(const Cartesian_multipoint *g1,
+                 const Cartesian_multipoint *g2) const;
   Geometry *eval(const Cartesian_multipoint *g1,
                  const Cartesian_multilinestring *g2) const;
   Geometry *eval(const Cartesian_multipoint *g1,
@@ -73,12 +82,30 @@ class Difference : public Functor<Geometry *> {
   // difference(Cartesian_multilinestring, *)
 
   Geometry *eval(const Cartesian_multilinestring *g1,
+                 const Cartesian_multilinestring *g2) const;
+  Geometry *eval(const Cartesian_multilinestring *g1,
                  const Cartesian_multipolygon *g2) const;
+
+  //////////////////////////////////////////////////////////////////////////////
+
+  // difference(Cartesian_multipolygon, *)
+
+  Geometry *eval(const Cartesian_multipolygon *g1,
+                 const Cartesian_multipolygon *g2) const;
+
+  //////////////////////////////////////////////////////////////////////////////
+
+  // difference(Geographic_linestring, *)
+
+  Geometry *eval(const Geographic_linestring *g1,
+                 const Geographic_multilinestring *g2) const;
 
   //////////////////////////////////////////////////////////////////////////////
 
   // difference(Geographic_multipoint, *)
 
+  Geometry *eval(const Geographic_multipoint *g1,
+                 const Geographic_multipoint *g2) const;
   Geometry *eval(const Geographic_multipoint *g1,
                  const Geographic_multilinestring *g2) const;
   Geometry *eval(const Geographic_multipoint *g1,
@@ -89,6 +116,15 @@ class Difference : public Functor<Geometry *> {
   // difference(Geographic_multilinestring, *)
 
   Geometry *eval(const Geographic_multilinestring *g1,
+                 const Geographic_multilinestring *g2) const;
+  Geometry *eval(const Geographic_multilinestring *g1,
+                 const Geographic_multipolygon *g2) const;
+
+  //////////////////////////////////////////////////////////////////////////////
+
+  // difference(Geographic_multipolygon, *)
+
+  Geometry *eval(const Geographic_multipolygon *g1,
                  const Geographic_multipolygon *g2) const;
 };
 

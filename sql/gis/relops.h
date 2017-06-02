@@ -110,6 +110,27 @@ bool overlaps(const dd::Spatial_reference_system *srs, const Geometry *g1,
               const Geometry *g2, const char *func_name, bool *overlaps,
               bool *null) noexcept;
 
+/// Computes the within relation between two geometries.
+///
+/// Both geometries must be in the same coordinate system (Cartesian or
+/// geographic), and the coordinate system of the geometries must match
+/// the coordinate system of the SRID. It is the caller's responsibility
+/// to guarantee this.
+///
+/// @param[in] srs The spatial reference system, common to both geometries.
+/// @param[in] g1 First geometry.
+/// @param[in] g2 Second geometry.
+/// @param[in] func_name Function name used in error reporting.
+/// @param[out] within Whether g1 lies within g2.
+/// @param[out] null True if the return value is NULL.
+///
+/// @retval false Success.
+/// @retval true An error has occurred. The error has been reported with
+/// my_error().
+bool within(const dd::Spatial_reference_system *srs, const Geometry *g1,
+            const Geometry *g2, const char *func_name, bool *within,
+            bool *null) noexcept;
+
 }  // namespace gis
 
 #endif  // GIS__RELOPS_H_INCLUDED
