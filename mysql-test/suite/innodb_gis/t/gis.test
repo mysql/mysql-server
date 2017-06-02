@@ -1325,6 +1325,7 @@ FROM named_places
 WHERE name = 'Goose Island';
 
 --echo # Conformance Item T38
+--error ER_SRS_NOT_FOUND
 SELECT ST_Disjoint(centerlines, boundary)
 FROM divided_routes, named_places
 WHERE divided_routes.name = 'Route 75'

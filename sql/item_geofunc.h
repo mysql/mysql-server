@@ -53,6 +53,14 @@ struct TABLE;
 
 enum class enum_json_type;
 
+namespace dd {
+class Spatial_reference_system;
+}  // namespace dd
+
+namespace gis {
+class Geometry;
+}  // namespace gis
+
 /**
    We have to hold result buffers in functions that return a GEOMETRY string,
    because such a function's result geometry's buffer is directly used and
@@ -1035,6 +1043,53 @@ private:
 };
 
 
+class Item_func_spatial_relation : public Item_bool_func2
+{
+public:
+  Item_func_spatial_relation(const POS &pos, Item *a, Item *b)
+    : Item_bool_func2(pos, a, b)
+  {}
+  bool resolve_type(THD *) override
+  {
+    // Spatial relation functions may return NULL if either parameter is NULL or
+    // an empty geometry. Since we can't check for empty geometries at resolve
+    // time, this item is always nullable.
+    maybe_null= true;
+    return false;
+  }
+  void print(String *str, enum_query_type query_type) override
+  {
+    Item_func::print(str, query_type);
+  }
+  longlong val_int() override;
+  bool is_null() override {
+    // The superclass implementation only checks is_null on the item's
+    // arguments. However, relational functions may return NULL even if the
+    // arguments are not NULL, e.g., if one or more argument is an empty
+    // geometry. Therefore, we must evaluate the item to find out if it is NULL
+    // or not.
+    val_int();
+    return null_value;
+  }
+
+  /**
+    Evaluate the spatial relation function.
+
+    @param[in] srs Spatial reference system common to both g1 and g2.
+    @param[in] g1 First geometry.
+    @param[in] g2 Second geometry.
+    @param[out] result Result of the relational operation.
+    @param[out] null True if the function should return NULL, false otherwise.
+
+    @retval true An error has occured and has been reported with my_error.
+    @retval false Success.
+  */
+  virtual bool eval(const dd::Spatial_reference_system *srs,
+                    const gis::Geometry *g1, const gis::Geometry *g2,
+                    bool *result, bool *null) = 0;
+};
+
+
 class Item_func_st_contains final : public Item_func_spatial_rel
 {
 public:
@@ -1083,11 +1138,11 @@ public:
 };
 
 
-class Item_func_st_disjoint final : public Item_func_spatial_rel
+class Item_func_st_disjoint final : public Item_func_spatial_relation
 {
 public:
   Item_func_st_disjoint(const POS &pos, Item *a, Item *b)
-    : Item_func_spatial_rel(pos, a, b)
+    : Item_func_spatial_relation(pos, a, b)
   {}
   enum Functype functype() const override
   { return SP_DISJOINT_FUNC; }
@@ -1095,15 +1150,8 @@ public:
   { return SP_DISJOINT_FUNC; }
   const char *func_name() const override
   { return "st_disjoint"; }
-  bool resolve_type(THD *) override
-  {
-    maybe_null= true;
-    return false;
-  }
-  void print(String *str, enum_query_type query_type) override
-  {
-    Item_func::print(str, query_type);
-  }
+  bool eval(const dd::Spatial_reference_system *srs, const gis::Geometry *g1,
+            const gis::Geometry *g2, bool *result, bool *null) override;
 };
 
 
