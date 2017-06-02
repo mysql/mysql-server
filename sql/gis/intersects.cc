@@ -22,10 +22,13 @@
 
 #include <boost/geometry.hpp>
 
+#include "box.h"
+#include "box_traits.h"
 #include "dd/types/spatial_reference_system.h"  // dd::Spatial_reference_system
 #include "disjoint_functor.h"
 #include "geometries.h"
 #include "geometries_traits.h"
+#include "mbr_utils.h"
 #include "sql_exception_handler.h"  // handle_gis_exception
 
 namespace bg = boost::geometry;
@@ -73,6 +76,21 @@ Intersects::Intersects(double semi_major, double semi_minor)
 
 bool Intersects::operator()(const Geometry *g1, const Geometry *g2) const {
   return apply(*this, g1, g2);
+}
+
+bool Intersects::operator()(const Box *b1, const Box *b2) const {
+  DBUG_ASSERT(b1->coordinate_system() == b2->coordinate_system());
+  switch (b1->coordinate_system()) {
+    case Coordinate_system::kCartesian:
+      return eval(down_cast<const Cartesian_box *>(b1),
+                  down_cast<const Cartesian_box *>(b2));
+    case Coordinate_system::kGeographic:
+      return eval(down_cast<const Geographic_box *>(b1),
+                  down_cast<const Geographic_box *>(b2));
+  }
+
+  DBUG_ASSERT(false);
+  return false;
 }
 
 bool Intersects::eval(const Geometry *g1, const Geometry *g2) const {
@@ -600,6 +618,19 @@ bool Intersects::eval(const Geographic_multipolygon *g1,
 
 //////////////////////////////////////////////////////////////////////////////
 
+// intersects(Box, Box)
+
+bool Intersects::eval(const Cartesian_box *b1, const Cartesian_box *b2) const {
+  return bg::intersects(*b1, *b2);
+}
+
+bool Intersects::eval(const Geographic_box *b1,
+                      const Geographic_box *b2) const {
+  return bg::intersects(*b1, *b2);
+}
+
+//////////////////////////////////////////////////////////////////////////////
+
 bool intersects(const dd::Spatial_reference_system *srs, const Geometry *g1,
                 const Geometry *g2, const char *func_name, bool *intersects,
                 bool *null) noexcept {
@@ -616,6 +647,48 @@ bool intersects(const dd::Spatial_reference_system *srs, const Geometry *g1,
     Intersects intersects_func(srs ? srs->semi_major_axis() : 0.0,
                                srs ? srs->semi_minor_axis() : 0.0);
     *intersects = intersects_func(g1, g2);
+  } catch (...) {
+    handle_gis_exception(func_name);
+    return true;
+  }
+
+  return false;
+}
+
+bool mbr_intersects(const dd::Spatial_reference_system *srs, const Geometry *g1,
+                    const Geometry *g2, const char *func_name, bool *intersects,
+                    bool *null) noexcept {
+  try {
+    DBUG_ASSERT(g1->coordinate_system() == g2->coordinate_system());
+    DBUG_ASSERT(srs == nullptr ||
+                ((srs->is_cartesian() &&
+                  g1->coordinate_system() == Coordinate_system::kCartesian) ||
+                 (srs->is_geographic() &&
+                  g1->coordinate_system() == Coordinate_system::kGeographic)));
+
+    if ((*null = (g1->is_empty() || g2->is_empty()))) return false;
+
+    Intersects intersects_func(srs ? srs->semi_major_axis() : 0.0,
+                               srs ? srs->semi_minor_axis() : 0.0);
+
+    switch (g1->coordinate_system()) {
+      case Coordinate_system::kCartesian: {
+        Cartesian_box mbr1;
+        box_envelope(g1, srs, &mbr1);
+        Cartesian_box mbr2;
+        box_envelope(g2, srs, &mbr2);
+        *intersects = intersects_func(&mbr1, &mbr2);
+        break;
+      }
+      case Coordinate_system::kGeographic: {
+        Geographic_box mbr1;
+        box_envelope(g1, srs, &mbr1);
+        Geographic_box mbr2;
+        box_envelope(g2, srs, &mbr2);
+        *intersects = intersects_func(&mbr1, &mbr2);
+        break;
+      }
+    }
   } catch (...) {
     handle_gis_exception(func_name);
     return true;
