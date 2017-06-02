@@ -65,11 +65,14 @@ struct User_data
   int m_vcpu;
 };
 
+static User_data g_user_data;
+
 /* Register callbacks */
 class Registration
 {
 public:
   Registration(PSI_notification& cb) : m_cb(cb), m_handle(0) { }
+  Registration(PSI_notification& cb, int handle) : m_cb(cb), m_handle(handle) { }
   PSI_notification m_cb;
   int m_handle;
 };
@@ -371,7 +374,12 @@ session_connect_callback(int handle, const PSI_thread_attrs *thread_attrs)
 
     User_data *user_data = (User_data *)thread_attrs->m_user_data;
     if (user_data == nullptr)
-      user_data = new User_data(handle, handle*10, handle*2);
+    {
+      g_user_data.m_handle = handle;
+      g_user_data.m_priority = handle*10;
+      g_user_data.m_vcpu = handle*2;
+      user_data = &g_user_data;
+    }
       
     /* Update resource group */
     if (mysql_service_pfs_resource_group->set_thread_resource_group_by_id(NULL,
@@ -543,16 +551,17 @@ bool test_pfs_notification()
         break;
     }
 
-    auto reg = new Registration(callbacks);
-    reg->m_handle =
+    auto handle =
         mysql_service_pfs_notification->register_notification(&callbacks, true);
 
-    if (reg->m_handle == 0)
+    if (handle == 0)
+    {
       print_log("register_notification() failed");
+    }
     else
     {
-      registrations.push_back(*reg);
-      ss << "register_notification " << reg->m_handle;
+      registrations.push_back(Registration(callbacks, handle));
+      ss << "register_notification " << handle;
       print_log(ss.str());
     }
   }

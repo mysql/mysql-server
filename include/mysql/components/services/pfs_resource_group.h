@@ -20,7 +20,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 #include <mysql/psi/mysql_thread.h>
 
 /**
-  @page PAGE_COMPONENTS_PFS_SERVICE Performance Schema Resource Group service
+  @page PAGE_PFS_RESOURCE_GROUP_SERVICE Performance Schema Resource Group service
 */
 
 BEGIN_SERVICE_DEFINITION(pfs_resource_group)

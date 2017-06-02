@@ -420,6 +420,10 @@ report_memory_accounting_error(const char *api_name,
   @subpage PAGE_PFS_DATA_LOCKS
 
   @subpage PAGE_PFS_NEW_TABLE
+
+  @subpage PAGE_PFS_NOTIFICATION_SERVICE
+
+  @subpage PAGE_PFS_RESOURCE_GROUP_SERVICE
 */
 
 /**
