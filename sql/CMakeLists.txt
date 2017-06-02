@@ -198,6 +198,7 @@ SET(SQL_GIS_SOURCES
   gis/difference.cc
   gis/disjoint.cc
   gis/distance.cc
+  gis/gc_utils.cc
   gis/geometries.cc
   gis/intersects.cc
   gis/ring_flip_visitor.cc
