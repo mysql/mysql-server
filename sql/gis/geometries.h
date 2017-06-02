@@ -228,6 +228,7 @@ class Linestring : public Curve {
   /// Adds a point to the end of the linestring.
   ///
   /// @param pt The point to add.
+  virtual void push_back(const Point &pt) = 0;
   virtual void push_back(Point &&pt) = 0;
 
   /// Checks if the linestring is empty.
@@ -295,6 +296,7 @@ class Polygon : public Surface {
   /// interior rings (holes).
   ///
   /// @param lr The linear ring to add.
+  virtual void push_back(const Linearring &lr) = 0;
   virtual void push_back(Linearring &&lr) = 0;
 
   /// Checks if the polygon is empty.
@@ -343,6 +345,7 @@ class Geometrycollection : public Geometry {
   /// Adds a geometry to the collection.
   ///
   /// @param g The geometry to add.
+  virtual void push_back(const Geometry &g) = 0;
   virtual void push_back(Geometry &&g) = 0;
 
   /// Checks if the collection is empty.

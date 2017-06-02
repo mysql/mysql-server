@@ -194,7 +194,7 @@ TYPED_TEST(GeometriesTest, Polygon)
   exterior.push_back(typename TypeParam::Point(10.0, 10.0));
   exterior.push_back(typename TypeParam::Point(0.0, 10.0));
   exterior.push_back(typename TypeParam::Point(0.0, 0.0));
-  py.push_back(std::move(exterior));
+  py.push_back(exterior);
   EXPECT_FALSE(py.empty());
   EXPECT_FALSE(py.is_empty());
 

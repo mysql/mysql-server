@@ -76,10 +76,16 @@ class Cartesian_linestring : public Linestring {
     return Coordinate_system::kCartesian;
   }
   bool accept(Geometry_visitor *v) override;
+  void push_back(const Point &pt) override;
   void push_back(Point &&pt) override;
   bool empty() const override;
   std::size_t size() const override { return m_points.size(); }
+  void resize(std::size_t count) { m_points.resize(count); }
+  void clear() { m_points.clear(); }
   virtual void flip() override;
+
+  Cartesian_point &back() { return m_points.back(); }
+  const Cartesian_point &back() const { return m_points.back(); }
 
   iterator begin() noexcept { return m_points.begin(); }
   const_iterator begin() const noexcept { return m_points.begin(); }
@@ -114,10 +120,16 @@ class Geographic_linestring : public Linestring {
     return Coordinate_system::kGeographic;
   }
   bool accept(Geometry_visitor *v) override;
+  void push_back(const Point &pt) override;
   void push_back(Point &&pt) override;
   bool empty() const override;
   std::size_t size() const override { return m_points.size(); }
+  void resize(std::size_t count) { m_points.resize(count); }
+  void clear() { m_points.clear(); }
   virtual void flip() override;
+
+  Geographic_point &back() { return m_points.back(); }
+  const Geographic_point &back() const { return m_points.back(); }
 
   iterator begin() noexcept { return m_points.begin(); }
   const_iterator begin() const noexcept { return m_points.begin(); }
@@ -138,6 +150,9 @@ class Cartesian_linearring : public Cartesian_linestring, public Linearring {
   }
   bool accept(Geometry_visitor *v) override;
   bool is_empty() const override { return Cartesian_linestring::is_empty(); }
+  void push_back(const gis::Point &pt) override {
+    Cartesian_linestring::push_back(pt);
+  }
   void push_back(gis::Point &&pt) override {
     Cartesian_linestring::push_back(std::forward<Point &&>(pt));
   }
@@ -162,6 +177,9 @@ class Geographic_linearring : public Geographic_linestring, public Linearring {
   }
   bool accept(Geometry_visitor *v) override;
   bool is_empty() const override { return Geographic_linestring::is_empty(); }
+  void push_back(const gis::Point &pt) override {
+    Geographic_linestring::push_back(pt);
+  }
   void push_back(gis::Point &&pt) override {
     Geographic_linestring::push_back(std::forward<Point &&>(pt));
   }
@@ -195,6 +213,7 @@ class Cartesian_polygon : public Polygon {
     return Coordinate_system::kCartesian;
   }
   bool accept(Geometry_visitor *v) override;
+  void push_back(const Linearring &lr) override;
   void push_back(Linearring &&lr) override;
   bool empty() const override;
 
@@ -243,6 +262,7 @@ class Geographic_polygon : public Polygon {
     return Coordinate_system::kGeographic;
   }
   bool accept(Geometry_visitor *v) override;
+  void push_back(const Linearring &lr) override;
   void push_back(Linearring &&lr) override;
   bool empty() const override;
 
@@ -286,7 +306,7 @@ class Cartesian_geometrycollection : public Geometrycollection {
   Cartesian_geometrycollection()
       : m_geometries(
             Malloc_allocator<Geometry *>(key_memory_Geometry_objects_data)) {}
-  Cartesian_geometrycollection(Cartesian_geometrycollection &gc);
+  Cartesian_geometrycollection(const Cartesian_geometrycollection &gc);
   Cartesian_geometrycollection(Cartesian_geometrycollection &&gc) noexcept
       : m_geometries(
             Malloc_allocator<Geometry *>(key_memory_Geometry_objects_data)) {
@@ -307,6 +327,7 @@ class Cartesian_geometrycollection : public Geometrycollection {
     }
     return true;
   }
+  void push_back(const Geometry &g) override;
   void push_back(Geometry &&g) override;
   bool empty() const override;
   std::size_t size() const override { return m_geometries.size(); }
@@ -336,7 +357,7 @@ class Geographic_geometrycollection : public Geometrycollection {
   Geographic_geometrycollection()
       : m_geometries(
             Malloc_allocator<Geometry *>(key_memory_Geometry_objects_data)) {}
-  Geographic_geometrycollection(Geographic_geometrycollection &gc);
+  Geographic_geometrycollection(const Geographic_geometrycollection &gc);
   Geographic_geometrycollection(Geographic_geometrycollection &&gc) noexcept
       : m_geometries(
             Malloc_allocator<Geometry *>(key_memory_Geometry_objects_data)) {
@@ -357,6 +378,7 @@ class Geographic_geometrycollection : public Geometrycollection {
     }
     return true;
   }
+  void push_back(const Geometry &g) override;
   void push_back(Geometry &&g) override;
   bool empty() const override;
   std::size_t size() const override { return m_geometries.size(); }
@@ -380,6 +402,7 @@ class Cartesian_multipoint : public Multipoint {
   std::vector<Cartesian_point, Malloc_allocator<Cartesian_point>> m_points;
 
  public:
+  typedef decltype(m_points)::value_type value_type;
   typedef decltype(m_points)::iterator iterator;
   typedef decltype(m_points)::const_iterator const_iterator;
 
@@ -397,6 +420,7 @@ class Cartesian_multipoint : public Multipoint {
     }
     return true;
   }
+  void push_back(const Geometry &g) override;
   void push_back(Geometry &&g) override;
   bool empty() const override;
   std::size_t size() const override { return m_points.size(); }
@@ -420,6 +444,7 @@ class Geographic_multipoint : public Multipoint {
   std::vector<Geographic_point, Malloc_allocator<Geographic_point>> m_points;
 
  public:
+  typedef decltype(m_points)::value_type value_type;
   typedef decltype(m_points)::iterator iterator;
   typedef decltype(m_points)::const_iterator const_iterator;
 
@@ -436,6 +461,7 @@ class Geographic_multipoint : public Multipoint {
     }
     return true;
   }
+  void push_back(const Geometry &g) override;
   void push_back(Geometry &&g) override;
   bool empty() const override;
   std::size_t size() const override { return m_points.size(); }
@@ -460,6 +486,7 @@ class Cartesian_multilinestring : public Multilinestring {
       m_linestrings;
 
  public:
+  typedef decltype(m_linestrings)::value_type value_type;
   typedef decltype(m_linestrings)::iterator iterator;
   typedef decltype(m_linestrings)::const_iterator const_iterator;
 
@@ -477,9 +504,14 @@ class Cartesian_multilinestring : public Multilinestring {
     }
     return true;
   }
+  void push_back(const Geometry &g) override;
   void push_back(Geometry &&g) override;
   bool empty() const override;
   std::size_t size() const override { return m_linestrings.size(); }
+  void resize(std::size_t count) { m_linestrings.resize(count); }
+
+  Cartesian_linestring &back() { return m_linestrings.back(); }
+  const Cartesian_linestring &back() const { return m_linestrings.back(); }
 
   iterator begin() noexcept { return m_linestrings.begin(); }
   const_iterator begin() const noexcept { return m_linestrings.begin(); }
@@ -501,6 +533,7 @@ class Geographic_multilinestring : public Multilinestring {
       m_linestrings;
 
  public:
+  typedef decltype(m_linestrings)::value_type value_type;
   typedef decltype(m_linestrings)::iterator iterator;
   typedef decltype(m_linestrings)::const_iterator const_iterator;
 
@@ -518,9 +551,14 @@ class Geographic_multilinestring : public Multilinestring {
     }
     return true;
   }
+  void push_back(const Geometry &g) override;
   void push_back(Geometry &&g) override;
   bool empty() const override;
   std::size_t size() const override { return m_linestrings.size(); }
+  void resize(std::size_t count) { m_linestrings.resize(count); }
+
+  Geographic_linestring &back() { return m_linestrings.back(); }
+  const Geographic_linestring &back() const { return m_linestrings.back(); }
 
   iterator begin() noexcept { return m_linestrings.begin(); }
   const_iterator begin() const noexcept { return m_linestrings.begin(); }
@@ -542,6 +580,7 @@ class Cartesian_multipolygon : public Multipolygon {
       m_polygons;
 
  public:
+  typedef decltype(m_polygons)::value_type value_type;
   typedef decltype(m_polygons)::iterator iterator;
   typedef decltype(m_polygons)::const_iterator const_iterator;
 
@@ -559,6 +598,7 @@ class Cartesian_multipolygon : public Multipolygon {
     }
     return true;
   }
+  void push_back(const Geometry &g) override;
   void push_back(Geometry &&g) override;
   bool empty() const override;
   std::size_t size() const override { return m_polygons.size(); }
@@ -583,6 +623,7 @@ class Geographic_multipolygon : public Multipolygon {
       m_polygons;
 
  public:
+  typedef decltype(m_polygons)::value_type value_type;
   typedef decltype(m_polygons)::iterator iterator;
   typedef decltype(m_polygons)::const_iterator const_iterator;
 
@@ -600,6 +641,7 @@ class Geographic_multipolygon : public Multipolygon {
     }
     return true;
   }
+  void push_back(const Geometry &g) override;
   void push_back(Geometry &&g) override;
   bool empty() const override;
   std::size_t size() const override { return m_polygons.size(); }
