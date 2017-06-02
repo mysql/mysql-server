@@ -152,6 +152,7 @@ namespace dynamic_loader_unittest {
       {
         ASSERT_FALSE(reg->release((my_h_service)loader));
       }
+      shutdown_dynamic_loader();
       ASSERT_FALSE(mysql_services_shutdown());
     }
     SERVICE_TYPE(registry)* reg;

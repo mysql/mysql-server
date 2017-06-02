@@ -716,6 +716,7 @@ mysql_declare_plugin(version_tokens)
   "version token check",             /* description                     */
   PLUGIN_LICENSE_GPL,
   version_tokens_init,               /* init function (when loaded)     */
+  NULL,                              /* cwcheck uninstall function      */
   version_tokens_deinit,             /* deinit function (when unloaded) */
   0x0101,                            /* version          */
   NULL,                              /* status variables */

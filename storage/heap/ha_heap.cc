@@ -814,6 +814,7 @@ mysql_declare_plugin(heap)
   PLUGIN_LICENSE_GPL,
   heap_init,
   NULL,
+  NULL,
   0x0100, /* 1.0 */
   NULL,                       /* status variables                */
   NULL,                       /* system variables                */

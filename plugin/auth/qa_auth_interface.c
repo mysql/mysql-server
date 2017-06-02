@@ -194,8 +194,9 @@ mysql_declare_plugin(test_plugin)
   "Horst Hunger",
   "plugin API test plugin",
   PLUGIN_LICENSE_GPL,
-  NULL,
-  NULL,
+  NULL, /* Init */
+  NULL, /* Check uninstall */
+  NULL, /* Deinit */
   0x0101,
   NULL,
   NULL,

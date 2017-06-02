@@ -3432,6 +3432,7 @@ mysql_declare_plugin(federated)
   "Federated MySQL storage engine",
   PLUGIN_LICENSE_GPL,
   federated_db_init, /* Plugin Init */
+  NULL, /* Plugin check uninstall */
   federated_done, /* Plugin Deinit */
   0x0100 /* 1.0 */,
   NULL,                       /* status variables                */

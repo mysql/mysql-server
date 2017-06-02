@@ -31,6 +31,8 @@ usr/lib/mysql/plugin/component_log_sink_test.so
 usr/lib/mysql/plugin/component_test_string_service.so
 usr/lib/mysql/plugin/component_test_string_service_charset.so
 usr/lib/mysql/plugin/component_test_string_service_long.so
+usr/lib/mysql/plugin/component_pfs_example_component_population.so
+usr/lib/mysql/plugin/pfs_example_plugin_employee.so
 usr/lib/mysql/plugin/component_test_pfs_notification.so
 usr/lib/mysql/plugin/component_test_pfs_resource_group.so
 usr/lib/mysql/plugin/component_test_udf_registration.so
@@ -85,6 +87,8 @@ usr/lib/mysql/plugin/debug/component_log_sink_test.so
 usr/lib/mysql/plugin/debug/component_test_string_service.so
 usr/lib/mysql/plugin/debug/component_test_string_service_charset.so
 usr/lib/mysql/plugin/debug/component_test_string_service_long.so
+usr/lib/mysql/plugin/debug/component_pfs_example_component_population.so
+usr/lib/mysql/plugin/debug/pfs_example_plugin_employee.so
 usr/lib/mysql/plugin/debug/component_test_pfs_notification.so
 usr/lib/mysql/plugin/debug/component_test_pfs_resource_group.so
 usr/lib/mysql/plugin/debug/component_test_udf_registration.so

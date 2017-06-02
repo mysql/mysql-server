@@ -931,6 +931,7 @@ mysql_declare_plugin(test_daemon)
   "Test error cases",
   PLUGIN_LICENSE_GPL,
   test_session_service_plugin_init,   /* Plugin Init      */
+  NULL, /* Plugin Check uninstall    */
   test_session_service_plugin_deinit, /* Plugin Deinit    */
   0x0100,                             /* 1.0              */
   NULL,                               /* status variables */

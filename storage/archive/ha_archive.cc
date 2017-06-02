@@ -1820,6 +1820,7 @@ mysql_declare_plugin(archive)
   "Archive storage engine",
   PLUGIN_LICENSE_GPL,
   archive_db_init, /* Plugin Init */
+  NULL, /* Plugin check uninstall */
   NULL, /* Plugin Deinit */
   0x0300 /* 3.0 */,
   NULL,                       /* status variables                */

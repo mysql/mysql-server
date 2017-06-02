@@ -48,7 +48,7 @@ Field (abstract)
 |  +--Field_bit_as_char
 |  
 +--Field_num (abstract)
-|  |  +--Field_real (asbstract)
+|  |  +--Field_real (abstract)
 |  |     +--Field_decimal
 |  |     +--Field_float
 |  |     +--Field_double
@@ -3290,7 +3290,7 @@ public:
 
 /*
   Field implementing TIME data type without fractional seconds.
-  We will be removed eventually.
+  It will be removed eventually.
 */
 class Field_time :public Field_time_common {
 protected:

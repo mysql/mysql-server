@@ -72,6 +72,10 @@
 #include "sql_error.h"
 #include "thr_lock.h"
 
+#include <mysql/components/component_implementation.h>
+#include "pfs_plugin_table.h"
+#include "pfs_services.h"
+
 /*
   Exporting cmake compilation flags to doxygen,
   so they get documented.
@@ -8440,3 +8444,66 @@ struct PSI_data_lock_bootstrap pfs_data_lock_bootstrap = {
 PSI_engine_data_lock_inspector *g_data_lock_inspector[COUNT_DATA_LOCK_ENGINES] =
   {NULL};
 unsigned int g_data_lock_inspector_count = 0;
+
+/* clang-format off */
+BEGIN_COMPONENT_PROVIDES(performance_schema)
+  PROVIDES_SERVICE(performance_schema, pfs_plugin_table)
+END_COMPONENT_PROVIDES()
+
+static BEGIN_COMPONENT_REQUIRES(performance_schema)
+END_COMPONENT_REQUIRES()
+
+BEGIN_COMPONENT_METADATA(performance_schema)
+  METADATA("mysql.author", "Oracle Corporation")
+  METADATA("mysql.license", "GPL")
+END_COMPONENT_METADATA()
+
+DECLARE_COMPONENT(performance_schema, "mysql:pfs")
+  /* There are no initialization/deinitialization functions, they will not be
+     called as this component is not a regular one. */
+  NULL,
+  NULL
+END_DECLARE_COMPONENT()
+  /* clang-format on */
+
+bool pfs_init_services(SERVICE_TYPE(registry_registration) * reg)
+{
+  int inx = 0;
+
+  for (;;)
+  {
+    my_h_service pfs_service;
+    pfs_service = reinterpret_cast<my_h_service>(
+      mysql_component_performance_schema.provides[inx].implementation);
+
+    if (pfs_service == NULL)
+    {
+      break;
+    }
+
+    if (reg->register_service(
+          mysql_component_performance_schema.provides[inx].name, pfs_service))
+    {
+      return true;
+    }
+
+    inx++;
+  }
+
+  return false;
+}
+
+bool pfs_deinit_services(SERVICE_TYPE(registry_registration) * reg)
+{
+  for (int inx = 0;
+       mysql_component_performance_schema.provides[inx].name != NULL;
+       inx++)
+  {
+    if (reg->unregister(mysql_component_performance_schema.provides[inx].name))
+    {
+      return true;
+    }
+  }
+
+  return false;
+}

@@ -22,6 +22,8 @@
 #include <pfs_stat.h>
 #include <tap.h>
 
+#include "stub_pfs_plugin_table.h"
+
 static void test_no_instruments()
 {
   int rc;

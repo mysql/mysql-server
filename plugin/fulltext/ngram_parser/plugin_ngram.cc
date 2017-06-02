@@ -296,6 +296,7 @@ mysql_declare_plugin(ngram_parser)
 	"Ngram Full-Text Parser",	/*!< description*/
 	PLUGIN_LICENSE_GPL,
 	NULL,				/*!< init function (when loaded)*/
+	NULL,				/*!< check uninstall function*/
 	NULL,				/*!< deinit function (when unloaded)*/
 	0x0001,				/*!< version	*/
 	NULL,				/*!< status variables	*/

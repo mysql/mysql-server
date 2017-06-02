@@ -4138,6 +4138,7 @@ mysql_declare_plugin(mysql_password)
   "Native MySQL authentication",                /* Description      */
   PLUGIN_LICENSE_GPL,                           /* License          */
   NULL,                                         /* Init function    */
+  NULL,                                         /* Check uninstall  */
   NULL,                                         /* Deinit function  */
   0x0101,                                       /* Version (1.0)    */
   NULL,                                         /* status variables */
@@ -4155,6 +4156,7 @@ mysql_declare_plugin(mysql_password)
   "SHA256 password authentication",             /* Description      */
   PLUGIN_LICENSE_GPL,                           /* License          */
   &init_sha256_password_handler,                /* Init function    */
+  NULL,                                         /* Check uninstall  */
   NULL,                                         /* Deinit function  */
   0x0101,                                       /* Version (1.0)    */
   NULL,                                         /* status variables */

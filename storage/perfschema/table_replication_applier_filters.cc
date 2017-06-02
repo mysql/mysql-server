@@ -209,7 +209,7 @@ table_replication_applier_filters::read_row_values(TABLE *table,
         break;
       case 2: /* filter_rule */
         if (!m_row.filter_rule.is_empty())
-          set_field_longtext_utf8(
+          set_field_blob(
             f, m_row.filter_rule.ptr(), m_row.filter_rule.length());
         break;
       case 3: /* configured_by */

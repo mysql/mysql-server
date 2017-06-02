@@ -57,6 +57,7 @@ pfs_instr.h
 pfs_instr_class.h
 pfs_lock.h
 pfs_memory.h
+pfs_plugin_table.h
 pfs_prepared_stmt.h
 pfs_program.h
 pfs_server.h
@@ -161,6 +162,7 @@ table_replication_applier_status.h
 table_replication_applier_status_by_coordinator.h
 table_replication_applier_status_by_worker.h
 table_replication_group_member_stats.h
+table_plugin_table.h
 table_replication_applier_filters.h
 table_replication_applier_global_filters.h
 cursor_by_account.cc
@@ -191,6 +193,7 @@ pfs_host.cc
 pfs_instr.cc
 pfs_instr_class.cc
 pfs_memory.cc
+pfs_plugin_table.cc
 pfs_prepared_stmt.cc
 pfs_program.cc
 pfs_server.cc
@@ -296,6 +299,7 @@ table_replication_applier_status.cc
 table_replication_applier_status_by_coordinator.cc
 table_replication_applier_status_by_worker.cc
 table_replication_group_member_stats.cc
+table_plugin_table.cc
 table_replication_applier_filters.cc
 table_replication_applier_global_filters.cc
 )

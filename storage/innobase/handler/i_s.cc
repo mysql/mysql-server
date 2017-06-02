@@ -789,6 +789,10 @@ struct st_mysql_plugin	i_s_innodb_trx =
 	/* int (*)(void*); */
 	STRUCT_FLD(init, innodb_trx_init),
 
+	/* the function to invoke when plugin is un installed */
+	/* int (*)(void*); */
+	NULL,
+
 	/* the function to invoke when plugin is unloaded */
 	/* int (*)(void*); */
 	STRUCT_FLD(deinit, i_s_common_deinit),
@@ -1097,6 +1101,10 @@ struct st_mysql_plugin	i_s_innodb_cmp =
 	/* int (*)(void*); */
 	STRUCT_FLD(init, i_s_cmp_init),
 
+	/* the function to invoke when plugin is un installed */
+	/* int (*)(void*); */
+	NULL,
+
 	/* the function to invoke when plugin is unloaded */
 	/* int (*)(void*); */
 	STRUCT_FLD(deinit, i_s_common_deinit),
@@ -1150,6 +1158,10 @@ struct st_mysql_plugin	i_s_innodb_cmp_reset =
 	/* the function to invoke when plugin is loaded */
 	/* int (*)(void*); */
 	STRUCT_FLD(init, i_s_cmp_reset_init),
+
+	/* the function to invoke when plugin is un installed */
+	/* int (*)(void*); */
+	NULL,
 
 	/* the function to invoke when plugin is unloaded */
 	/* int (*)(void*); */
@@ -1463,6 +1475,10 @@ struct st_mysql_plugin	i_s_innodb_cmp_per_index =
 	/* int (*)(void*); */
 	STRUCT_FLD(init, i_s_cmp_per_index_init),
 
+	/* the function to invoke when plugin is un installed */
+	/* int (*)(void*); */
+	NULL,
+
 	/* the function to invoke when plugin is unloaded */
 	/* int (*)(void*); */
 	STRUCT_FLD(deinit, i_s_common_deinit),
@@ -1516,6 +1532,10 @@ struct st_mysql_plugin	i_s_innodb_cmp_per_index_reset =
 	/* the function to invoke when plugin is loaded */
 	/* int (*)(void*); */
 	STRUCT_FLD(init, i_s_cmp_per_index_reset_init),
+
+	/* the function to invoke when plugin is un installed */
+	/* int (*)(void*); */
+	NULL,
 
 	/* the function to invoke when plugin is unloaded */
 	/* int (*)(void*); */
@@ -1771,6 +1791,10 @@ struct st_mysql_plugin	i_s_innodb_cmpmem =
 	/* int (*)(void*); */
 	STRUCT_FLD(init, i_s_cmpmem_init),
 
+	/* the function to invoke when plugin is un installed */
+	/* int (*)(void*); */
+	NULL,
+
 	/* the function to invoke when plugin is unloaded */
 	/* int (*)(void*); */
 	STRUCT_FLD(deinit, i_s_common_deinit),
@@ -1824,6 +1848,10 @@ struct st_mysql_plugin	i_s_innodb_cmpmem_reset =
 	/* the function to invoke when plugin is loaded */
 	/* int (*)(void*); */
 	STRUCT_FLD(init, i_s_cmpmem_reset_init),
+
+	/* the function to invoke when plugin is un installed */
+	/* int (*)(void*); */
+	NULL,
 
 	/* the function to invoke when plugin is unloaded */
 	/* int (*)(void*); */
@@ -2353,6 +2381,10 @@ struct st_mysql_plugin	i_s_innodb_metrics =
 	/* int (*)(void*); */
 	STRUCT_FLD(init, innodb_metrics_init),
 
+	/* the function to invoke when plugin is un installed */
+	/* int (*)(void*); */
+	NULL,
+
 	/* the function to invoke when plugin is unloaded */
 	/* int (*)(void*); */
 	STRUCT_FLD(deinit, i_s_common_deinit),
@@ -2469,6 +2501,10 @@ struct st_mysql_plugin	i_s_innodb_ft_default_stopword =
 	/* the function to invoke when plugin is loaded */
 	/* int (*)(void*); */
 	STRUCT_FLD(init, i_s_stopword_init),
+
+	/* the function to invoke when plugin is un installed */
+	/* int (*)(void*); */
+	NULL,
 
 	/* the function to invoke when plugin is unloaded */
 	/* int (*)(void*); */
@@ -2661,6 +2697,10 @@ struct st_mysql_plugin	i_s_innodb_ft_deleted =
 	/* int (*)(void*); */
 	STRUCT_FLD(init, i_s_fts_deleted_init),
 
+	/* the function to invoke when plugin is un installed */
+	/* int (*)(void*); */
+	NULL,
+
 	/* the function to invoke when plugin is unloaded */
 	/* int (*)(void*); */
 	STRUCT_FLD(deinit, i_s_common_deinit),
@@ -2747,6 +2787,10 @@ struct st_mysql_plugin	i_s_innodb_ft_being_deleted =
 	/* the function to invoke when plugin is loaded */
 	/* int (*)(void*); */
 	STRUCT_FLD(init, i_s_fts_being_deleted_init),
+
+	/* the function to invoke when plugin is un installed */
+	/* int (*)(void*); */
+	NULL,
 
 	/* the function to invoke when plugin is unloaded */
 	/* int (*)(void*); */
@@ -3050,6 +3094,10 @@ struct st_mysql_plugin	i_s_innodb_ft_index_cache =
 	/* the function to invoke when plugin is loaded */
 	/* int (*)(void*); */
 	STRUCT_FLD(init, i_s_fts_index_cache_init),
+
+	/* the function to invoke when plugin is un installed */
+	/* int (*)(void*); */
+	NULL,
 
 	/* the function to invoke when plugin is unloaded */
 	/* int (*)(void*); */
@@ -3499,6 +3547,10 @@ struct st_mysql_plugin	i_s_innodb_ft_index_table =
 	/* int (*)(void*); */
 	STRUCT_FLD(init, i_s_fts_index_table_init),
 
+	/* the function to invoke when plugin is un installed */
+	/* int (*)(void*); */
+	NULL,
+
 	/* the function to invoke when plugin is unloaded */
 	/* int (*)(void*); */
 	STRUCT_FLD(deinit, i_s_common_deinit),
@@ -3720,6 +3772,10 @@ struct st_mysql_plugin	i_s_innodb_ft_config =
 	/* the function to invoke when plugin is loaded */
 	/* int (*)(void*); */
 	STRUCT_FLD(init, i_s_fts_config_init),
+
+	/* the function to invoke when plugin is un installed */
+	/* int (*)(void*); */
+	NULL,
 
 	/* the function to invoke when plugin is unloaded */
 	/* int (*)(void*); */
@@ -3967,6 +4023,10 @@ struct st_mysql_plugin	i_s_innodb_temp_table_info =
 	/* the function to invoke when plugin is loaded */
 	/* int (*)(void*); */
 	STRUCT_FLD(init, i_s_innodb_temp_table_info_init),
+
+	/* the function to invoke when plugin is un installed */
+	/* int (*)(void*); */
+	NULL,
 
 	/* the function to invoke when plugin is unloaded */
 	/* int (*)(void*); */
@@ -4512,6 +4572,10 @@ struct st_mysql_plugin	i_s_innodb_buffer_stats =
 	/* the function to invoke when plugin is loaded */
 	/* int (*)(void*); */
 	STRUCT_FLD(init, i_s_innodb_buffer_pool_stats_init),
+
+	/* the function to invoke when plugin is un installed */
+	/* int (*)(void*); */
+	NULL,
 
 	/* the function to invoke when plugin is unloaded */
 	/* int (*)(void*); */
@@ -5246,6 +5310,10 @@ struct st_mysql_plugin	i_s_innodb_buffer_page =
 	/* int (*)(void*); */
 	STRUCT_FLD(init, i_s_innodb_buffer_page_init),
 
+	/* the function to invoke when plugin is un installed */
+	/* int (*)(void*); */
+	NULL,
+
 	/* the function to invoke when plugin is unloaded */
 	/* int (*)(void*); */
 	STRUCT_FLD(deinit, i_s_common_deinit),
@@ -5799,6 +5867,10 @@ struct st_mysql_plugin	i_s_innodb_buffer_page_lru =
 	/* int (*)(void*); */
 	STRUCT_FLD(init, i_s_innodb_buffer_page_lru_init),
 
+	/* the function to invoke when plugin is un installed */
+	/* int (*)(void*); */
+	NULL,
+
 	/* the function to invoke when plugin is unloaded */
 	/* int (*)(void*); */
 	STRUCT_FLD(deinit, i_s_common_deinit),
@@ -6104,6 +6176,10 @@ struct st_mysql_plugin	i_s_innodb_sys_tables =
 	/* the function to invoke when plugin is loaded */
 	/* int (*)(void*); */
 	STRUCT_FLD(init, innodb_sys_tables_init),
+
+	/* the function to invoke when plugin is un installed */
+	/* int (*)(void*); */
+	NULL,
 
 	/* the function to invoke when plugin is unloaded */
 	/* int (*)(void*); */
@@ -6422,6 +6498,10 @@ struct st_mysql_plugin	i_s_innodb_sys_tablestats =
 	/* int (*)(void*); */
 	STRUCT_FLD(init, innodb_sys_tablestats_init),
 
+	/* the function to invoke when plugin is un installed */
+	/* int (*)(void*); */
+	NULL,
+
 	/* the function to invoke when plugin is unloaded */
 	/* int (*)(void*); */
 	STRUCT_FLD(deinit, i_s_common_deinit),
@@ -6688,6 +6768,10 @@ struct st_mysql_plugin	i_s_innodb_sys_indexes =
 	/* int (*)(void*); */
 	STRUCT_FLD(init, innodb_sys_indexes_init),
 
+	/* the function to invoke when plugin is un installed */
+	/* int (*)(void*); */
+	NULL,
+
 	/* the function to invoke when plugin is unloaded */
 	/* int (*)(void*); */
 	STRUCT_FLD(deinit, i_s_common_deinit),
@@ -6937,6 +7021,10 @@ struct st_mysql_plugin	i_s_innodb_sys_columns =
 	/* int (*)(void*); */
 	STRUCT_FLD(init, innodb_sys_columns_init),
 
+	/* the function to invoke when plugin is un installed */
+	/* int (*)(void*); */
+	NULL,
+
 	/* the function to invoke when plugin is unloaded */
 	/* int (*)(void*); */
 	STRUCT_FLD(deinit, i_s_common_deinit),
@@ -7147,6 +7235,10 @@ struct st_mysql_plugin	i_s_innodb_sys_virtual =
 	/* the function to invoke when plugin is loaded */
 	/* int (*)(void*); */
 	STRUCT_FLD(init, innodb_sys_virtual_init),
+
+	/* the function to invoke when plugin is un installed */
+	/* int (*)(void*); */
+	NULL,
 
 	/* the function to invoke when plugin is unloaded */
 	/* int (*)(void*); */
@@ -7359,6 +7451,10 @@ struct st_mysql_plugin	i_s_innodb_sys_fields =
 	/* the function to invoke when plugin is loaded */
 	/* int (*)(void*); */
 	STRUCT_FLD(init, innodb_sys_fields_init),
+
+	/* the function to invoke when plugin is un installed */
+	/* int (*)(void*); */
+	NULL,
 
 	/* the function to invoke when plugin is unloaded */
 	/* int (*)(void*); */
@@ -7588,6 +7684,10 @@ struct st_mysql_plugin	i_s_innodb_sys_foreign =
 	/* int (*)(void*); */
 	STRUCT_FLD(init, innodb_sys_foreign_init),
 
+	/* the function to invoke when plugin is un installed */
+	/* int (*)(void*); */
+	NULL,
+
 	/* the function to invoke when plugin is unloaded */
 	/* int (*)(void*); */
 	STRUCT_FLD(deinit, i_s_common_deinit),
@@ -7807,6 +7907,10 @@ struct st_mysql_plugin	i_s_innodb_sys_foreign_cols =
 	/* the function to invoke when plugin is loaded */
 	/* int (*)(void*); */
 	STRUCT_FLD(init, innodb_sys_foreign_cols_init),
+
+	/* the function to invoke when plugin is un installed */
+	/* int (*)(void*); */
+	NULL,
 
 	/* the function to invoke when plugin is unloaded */
 	/* int (*)(void*); */
@@ -8176,6 +8280,10 @@ struct st_mysql_plugin	i_s_innodb_sys_tablespaces =
 	/* int (*)(void*); */
 	STRUCT_FLD(init, innodb_sys_tablespaces_init),
 
+	/* the function to invoke when plugin is un installed */
+	/* int (*)(void*); */
+	NULL,
+
 	/* the function to invoke when plugin is unloaded */
 	/* int (*)(void*); */
 	STRUCT_FLD(deinit, i_s_common_deinit),
@@ -8367,6 +8475,10 @@ struct st_mysql_plugin	i_s_innodb_sys_datafiles =
 	/* the function to invoke when plugin is loaded */
 	/* int (*)(void*); */
 	STRUCT_FLD(init, innodb_sys_datafiles_init),
+
+	/* the function to invoke when plugin is un installed */
+	/* int (*)(void*); */
+	NULL,
 
 	/* the function to invoke when plugin is unloaded */
 	/* int (*)(void*); */
@@ -8726,6 +8838,10 @@ struct st_mysql_plugin	i_s_innodb_cached_indexes =
 	/* the function to invoke when plugin is loaded */
 	/* int (*)(void*); */
 	STRUCT_FLD(init, innodb_cached_indexes_init),
+
+	/* the function to invoke when plugin is un installed */
+	/* int (*)(void*); */
+	NULL,
 
 	/* the function to invoke when plugin is unloaded */
 	/* int (*)(void*); */

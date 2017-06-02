@@ -179,7 +179,8 @@ mysql_declare_plugin(test_plugin)
   "plugin API test plugin",
   PLUGIN_LICENSE_GPL,
   test_plugin_init,
-  NULL,
+  NULL, /* Check uninstall */
+  NULL, /* Deinit */
   0x0101,
   NULL,
   NULL,
@@ -193,8 +194,9 @@ mysql_declare_plugin(test_plugin)
   "Georgi Kodinov",
   "cleartext plugin API test plugin",
   PLUGIN_LICENSE_GPL,
-  NULL,
-  NULL,
+  NULL, /* Init */
+  NULL, /* Check uninstall */
+  NULL, /* Deinit */
   0x0101,
   NULL,
   NULL,

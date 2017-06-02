@@ -315,6 +315,7 @@ mysql_declare_plugin(xpl)
   "X Plugin for MySQL",
   PLUGIN_LICENSE_GPL,
   xpl_plugin_init,              /* init       */
+  NULL,                         /* check uninstall */
   xpl_plugin_deinit,            /* deinit     */
   MYSQLX_PLUGIN_VERSION,        /* version    */
   xpl_plugin_status,            /* status var */

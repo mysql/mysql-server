@@ -149,7 +149,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
   Declares a component. For specified name following macros must be executed
   earlier: BEGIN_COMPONENT_PROVIDES, BEGIN_COMPONENT_REQUIRES and
   BEGIN_COMPONENT_METADATA.
-  It fills st_mysql_component_t structure with all of the component data. The
+  It fills mysql_component_t structure with all of the component data. The
   info object will be named mysql_component_{source_name}.
   After this macro it is required to specify comma-separated pointers to
   initialize and deinitialize methods for components to be used during loading

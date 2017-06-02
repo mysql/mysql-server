@@ -122,8 +122,9 @@ mysql_declare_plugin(socket_auth)
   "Sergei Golubchik",
   "Unix Socket based authentication",
   PLUGIN_LICENSE_GPL,
-  NULL,
-  NULL,
+  NULL, /* Init */
+  NULL, /* Check uninstall */
+  NULL, /* Deinit */
   0x0101,
   NULL,
   NULL,

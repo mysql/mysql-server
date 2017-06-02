@@ -1771,6 +1771,7 @@ mysql_declare_plugin(csv)
   "CSV storage engine",
   PLUGIN_LICENSE_GPL,
   tina_init_func, /* Plugin Init */
+  NULL, /* Plugin check uninstall */
   tina_done_func, /* Plugin Deinit */
   0x0100 /* 1.0 */,
   NULL,                       /* status variables                */

@@ -90,6 +90,69 @@ struct PFS_setup_object;
 */
 
 /**
+  Helper, assign a value to a @c tinyint field.
+  @param f the field to set
+  @param value the value to assign
+*/
+void set_field_tiny(Field *f, long value);
+
+/**
+  Helper, assign a value to a @c unsigned tinyint field.
+  @param f the field to set
+  @param value the value to assign
+*/
+void set_field_utiny(Field *f, ulong value);
+
+/**
+  Helper, read a value from an @c tinyint field.
+  @param f the field to read
+  @return the field value
+*/
+long get_field_tiny(Field *f);
+
+/**
+  Helper, assign a value to a @c short field.
+  @param f the field to set
+  @param value the value to assign
+*/
+void set_field_short(Field *f, long value);
+
+/**
+  Helper, assign a value to a @c unsigned short field.
+  @param f the field to set
+  @param value the value to assign
+*/
+void set_field_ushort(Field *f, ulong value);
+
+/**
+  Helper, read a value from an @c smallint field.
+  @param f the field to read
+  @return the field value
+*/
+long get_field_short(Field *f);
+
+/**
+  Helper, assign a value to a @c medium field.
+  @param f the field to set
+  @param value the value to assign
+*/
+void set_field_medium(Field *f, long value);
+
+/**
+  Helper, assign a value to a @c unsigned medium field.
+  @param f the field to set
+  @param value the value to assign
+*/
+void set_field_umedium(Field *f, ulong value);
+
+/**
+  Helper, read a value from an @c mediumint field.
+  @param f the field to read
+  @return the field value
+*/
+long get_field_medium(Field *f);
+
+/**
   Helper, assign a value to a @c long field.
   @param f the field to set
   @param value the value to assign
@@ -102,6 +165,13 @@ void set_field_long(Field *f, long value);
   @param value the value to assign
 */
 void set_field_ulong(Field *f, ulong value);
+
+/**
+  Helper, read a value from a @c long field.
+  @param f the field to read
+  @return the field value
+*/
+long get_field_long(Field *f);
 
 /**
   Helper, assign a value to a @c longlong field.
@@ -118,12 +188,78 @@ void set_field_longlong(Field *f, longlong value);
 void set_field_ulonglong(Field *f, ulonglong value);
 
 /**
+  Helper, read a value from an @c ulonglong field.
+  @param f the field to read
+  @return the field value
+*/
+ulonglong get_field_ulonglong(Field *f);
+
+/**
+  Helper, assign a value to a @c decimal field.
+  @param f the field to set
+  @param value the value to assign
+*/
+void set_field_decimal(Field *f, double value);
+
+/**
+  Helper, read a value from a @c decimal field.
+  @param f the field to read
+  @return the field value
+*/
+double get_field_decimal(Field *f);
+
+/**
+  Helper, assign a value to a @c float field.
+  @param f the field to set
+  @param value the value to assign
+*/
+void set_field_float(Field *f, double value);
+
+/**
+  Helper, read a value from a @c float field.
+  @param f the field to read
+  @return the field value
+*/
+double get_field_float(Field *f);
+
+/**
+  Helper, assign a value to a @c double field.
+  @param f the field to set
+  @param value the value to assign
+*/
+void set_field_double(Field *f, double value);
+
+/**
+  Helper, read a value from a @c double field.
+  @param f the field to read
+  @return the field value
+*/
+double get_field_double(Field *f);
+
+/**
   Helper, assign a value to a @code char utf8 @endcode field.
   @param f the field to set
   @param str the string to assign
   @param len the length of the string to assign
 */
 void set_field_char_utf8(Field *f, const char *str, uint len);
+
+/**
+  Helper, read a value from a @code char utf8 @endcode field.
+  @param f the field to read
+  @param[out] val the field value
+  @param[out] len field value length
+  @return the field value
+*/
+char *get_field_char_utf8(Field *f, char *val, uint *len);
+
+/**
+  Helper, read a value from a @code char utf8 @endcode field.
+  @param f the field to read
+  @param[out] val the field value
+  @return the field value
+*/
+String *get_field_char_utf8(Field *f, String *val);
 
 /**
   Helper, assign a value to a @code varchar utf8 @endcode field.
@@ -141,9 +277,40 @@ void set_field_varchar(Field *f,
   Helper, assign a value to a @code varchar utf8 @endcode field.
   @param f the field to set
   @param str the string to assign
+*/
+void set_field_varchar_utf8(Field *f, const char *str);
+
+/**
+  Helper, assign a value to a @code varchar utf8 @endcode field.
+  @param f the field to set
+  @param str the string to assign
   @param len the length of the string to assign
 */
 void set_field_varchar_utf8(Field *f, const char *str, uint len);
+
+/**
+  Helper, read a value from a @code varchar utf8 @endcode field.
+  @param f the field to read
+  @param[out] val the field value
+  @return the field value
+*/
+String *get_field_varchar_utf8(Field *f, String *val);
+
+/**
+  Helper, read a value from a @code varchar utf8 @endcode field.
+  @param f the field to read
+  @param[out] val the field value
+  @param[out] len field value length
+  @return the field value
+*/
+char *get_field_varchar_utf8(Field *f, char *val, uint *len);
+
+/**
+  Helper, assign a value to a @code varchar utf8mb4 @endcode field.
+  @param f the field to set
+  @param str the string to assign
+*/
+void set_field_varchar_utf8mb4(Field *f, const char *str);
 
 /**
   Helper, assign a value to a @code varchar utf8mb4 @endcode field.
@@ -154,34 +321,21 @@ void set_field_varchar_utf8(Field *f, const char *str, uint len);
 void set_field_varchar_utf8mb4(Field *f, const char *str, uint len);
 
 /**
-  Helper, assign a value to a @code varchar utf8 @endcode field.
-  @param f the field to set
-  @param str the string to assign
-*/
-void set_field_varchar_utf8(Field *f, const char *str);
-
-/**
-  Helper, assign a value to a @code varchar utf8mb4 @endcode field.
-  @param f the field to set
-  @param str the string to assign
-*/
-void set_field_varchar_utf8mb4(Field *f, const char *str);
-
-/**
-  Helper, assign a value to a @code longtext utf8 @endcode field.
-  @param f the field to set
-  @param str the string to assign
-  @param len the length of the string to assign
-*/
-void set_field_longtext_utf8(Field *f, const char *str, uint len);
-
-/**
-  Helper, assign a value to a blob field.
+  Helper, assign a value to a text/blob field.
   @param f the field to set
   @param val the value to assign
   @param len the length of the string to assign
 */
 void set_field_blob(Field *f, const char *val, uint len);
+
+/**
+  Helper, read a value from a @c blob field.
+  @param f the field to read
+  @param[out] val the field value
+  @param[out] len field value length
+  @return the field value
+*/
+char *get_field_blob(Field *f, char *val, uint *len);
 
 /**
   Helper, assign a value to an @c enum field.
@@ -191,27 +345,6 @@ void set_field_blob(Field *f, const char *val, uint len);
 void set_field_enum(Field *f, ulonglong value);
 
 /**
-  Helper, assign a value to a @c timestamp field.
-  @param f the field to set
-  @param value the value to assign
-*/
-void set_field_timestamp(Field *f, ulonglong value);
-
-/**
-  Helper, assign a value to a @c double field.
-  @param f the field to set
-  @param value the value to assign
-*/
-void set_field_double(Field *f, double value);
-
-/**
-  Helper, read a value from an @c ulonglong field.
-  @param f the field to read
-  @return the field value
-*/
-ulonglong get_field_ulonglong(Field *f);
-
-/**
   Helper, read a value from an @c enum field.
   @param f the field to read
   @return the field value
@@ -219,20 +352,93 @@ ulonglong get_field_ulonglong(Field *f);
 ulonglong get_field_enum(Field *f);
 
 /**
-  Helper, read a value from a @code char utf8 @endcode field.
-  @param f the field to read
-  @param[out] val the field value
-  @return the field value
+  Helper, assign a value to a @c date field.
+  @param f the field to set
+  @param value the value to assign
+  @param len length of the value
 */
-String *get_field_char_utf8(Field *f, String *val);
+void set_field_date(Field *f, const char *value, uint len);
 
 /**
-  Helper, read a value from a @code varchar utf8 @endcode field.
+  Helper, read a value from an @c date field.
   @param f the field to read
   @param[out] val the field value
+  @param[out] len field value length
   @return the field value
 */
-String *get_field_varchar_utf8(Field *f, String *val);
+char *get_field_date(Field *f, char *val, uint *len);
+
+/**
+  Helper, assign a value to a @c time field.
+  @param f the field to set
+  @param value the value to assign
+  @param len length of the value
+*/
+void set_field_time(Field *f, const char *value, uint len);
+
+/**
+  Helper, read a value from an @c time field.
+  @param f the field to read
+  @param[out] val the field value
+  @param[out] len field value length
+  @return the field value
+*/
+char *get_field_time(Field *f, char *val, uint *len);
+
+/**
+  Helper, assign a value to a @c datetime field.
+  @param f the field to set
+  @param value the value to assign
+  @param len length of the value
+*/
+void set_field_datetime(Field *f, const char *value, uint len);
+
+/**
+  Helper, read a value from an @c datetime field.
+  @param f the field to read
+  @param[out] val the field value
+  @param[out] len field value length
+  @return the field value
+*/
+char *get_field_datetime(Field *f, char *val, uint *len);
+
+/**
+  Helper, assign a value to a @c timestamp field.
+  @param f the field to set
+  @param value the value to assign
+*/
+void set_field_timestamp(Field *f, ulonglong value);
+
+/**
+  Helper, assign a value to a @c timestamp field.
+  @param f the field to set
+  @param value the value to assign
+  @param len length of the value
+*/
+void set_field_timestamp(Field *f, const char *value, uint len);
+
+/**
+  Helper, read a value from an @c timestamp field.
+  @param f the field to read
+  @param[out] val the field value
+  @param[out] len field value length
+  @return the field value
+*/
+char *get_field_timestamp(Field *f, char *val, uint *len);
+
+/**
+  Helper, assign a value to a @c year field.
+  @param f the field to set
+  @param value the value to assign
+*/
+void set_field_year(Field *f, ulong value);
+
+/**
+  Helper, read a value from an @c year field.
+  @param f the field to read
+  @return the field value
+*/
+long get_field_year(Field *f);
 
 /** Name space, internal views used within table setup_instruments. */
 struct PFS_instrument_view_constants
@@ -945,14 +1151,34 @@ public:
   {
   }
 
+  static enum ha_rkey_function
+  stateless_read(PFS_key_reader &reader,
+                 enum ha_rkey_function find_flag,
+                 bool &is_null,
+                 long *key_value)
+  {
+    return reader.read_long(find_flag, is_null, key_value);
+  }
+
   virtual void
   read(PFS_key_reader &reader, enum ha_rkey_function find_flag)
   {
-    m_find_flag = reader.read_long(find_flag, m_is_null, &m_key_value);
+    m_find_flag = stateless_read(reader, find_flag, m_is_null, &m_key_value);
   }
 
+  static bool stateless_match(bool record_null,
+                              long record_value,
+                              bool m_is_null,
+                              long m_key_value,
+                              enum ha_rkey_function find_flag);
+
 protected:
-  bool do_match(bool record_null, long record_value);
+  bool
+  do_match(bool record_null, long record_value)
+  {
+    return stateless_match(
+      record_null, record_value, m_is_null, m_key_value, m_find_flag);
+  }
 
 private:
   long m_key_value;
@@ -1158,11 +1384,60 @@ public:
   bool match_error_index(uint error_index);
 };
 
-template <int SIZE>
-class PFS_key_string : public PFS_engine_key
+class PFS_key_pstring : public PFS_engine_key
 {
 public:
-  PFS_key_string(const char *name) : PFS_engine_key(name), m_key_value_length(0)
+  PFS_key_pstring(const char *name) : PFS_engine_key(name)
+  {
+  }
+
+  virtual ~PFS_key_pstring()
+  {
+  }
+
+  static enum ha_rkey_function
+  stateless_read(PFS_key_reader &reader,
+                 enum ha_rkey_function find_flag,
+                 bool &is_null,
+                 char *key_value,
+                 uint *key_value_length,
+                 uint key_value_max_length)
+  {
+    if (reader.get_key_type() == HA_KEYTYPE_TEXT)
+    {
+      return (reader.read_text_utf8(
+        find_flag, is_null, key_value, key_value_length, key_value_max_length));
+    }
+    else
+    {
+      return (reader.read_varchar_utf8(
+        find_flag, is_null, key_value, key_value_length, key_value_max_length));
+    }
+  }
+
+  static bool stateless_match(bool record_null,
+                              const char *record_string,
+                              size_t record_string_length,
+                              const char *m_key_value,
+                              size_t m_key_value_length,
+                              bool m_is_null,
+                              enum ha_rkey_function m_find_flag);
+
+protected:
+  bool do_match(bool record_null,
+                const char *record_value,
+                size_t record_value_length);
+  bool do_match_prefix(bool record_null,
+                       const char *record_value,
+                       size_t record_value_length);
+};
+
+template <int SIZE>
+class PFS_key_string : public PFS_key_pstring
+{
+public:
+  PFS_key_string(const char *name)
+    : PFS_key_pstring(name), m_key_value_length(0)
   {
   }
 
@@ -1173,28 +1448,28 @@ public:
   virtual void
   read(PFS_key_reader &reader, enum ha_rkey_function find_flag)
   {
-    if (reader.get_key_type() == HA_KEYTYPE_TEXT)
-    {
-      m_find_flag = reader.read_text_utf8(find_flag,
-                                          m_is_null,
-                                          m_key_value,
-                                          &m_key_value_length,
-                                          sizeof(m_key_value));
-    }
-    else
-    {
-      m_find_flag = reader.read_varchar_utf8(find_flag,
-                                             m_is_null,
-                                             m_key_value,
-                                             &m_key_value_length,
-                                             sizeof(m_key_value));
-    }
+    m_find_flag = stateless_read(reader,
+                                 find_flag,
+                                 m_is_null,
+                                 m_key_value,
+                                 &m_key_value_length,
+                                 sizeof(m_key_value));
   }
 
 protected:
-  bool do_match(bool record_null,
-                const char *record_value,
-                size_t record_value_length);
+  bool
+  do_match(bool record_null,
+           const char *record_value,
+           size_t record_value_length)
+  {
+    return stateless_match(record_null,
+                           record_value,
+                           record_value_length,
+                           m_key_value,
+                           m_key_value_length,
+                           m_is_null,
+                           m_find_flag);
+  }
   bool do_match_prefix(bool record_null,
                        const char *record_value,
                        size_t record_value_length);

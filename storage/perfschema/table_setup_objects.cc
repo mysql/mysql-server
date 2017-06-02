@@ -147,7 +147,10 @@ table_setup_objects::create(PFS_engine_table_share *)
 }
 
 int
-table_setup_objects::write_row(TABLE *table, unsigned char *, Field **fields)
+table_setup_objects::write_row(PFS_engine_table *,
+                               TABLE *table,
+                               unsigned char *,
+                               Field **fields)
 {
   int result;
   Field *f;

@@ -548,8 +548,7 @@ table_events_statements_common::read_row_values(TABLE *table,
         break;
       case 9: /* SQL_TEXT */
         if (m_row.m_sqltext.length())
-          set_field_longtext_utf8(
-            f, m_row.m_sqltext.ptr(), m_row.m_sqltext.length());
+          set_field_blob(f, m_row.m_sqltext.ptr(), m_row.m_sqltext.length());
         else
         {
           f->set_null();
@@ -566,9 +565,9 @@ table_events_statements_common::read_row_values(TABLE *table,
         break;
       case 11: /* DIGEST_TEXT */
         if (m_row.m_digest.m_digest_text.length() > 0)
-          set_field_longtext_utf8(f,
-                                  m_row.m_digest.m_digest_text.ptr(),
-                                  m_row.m_digest.m_digest_text.length());
+          set_field_blob(f,
+                         m_row.m_digest.m_digest_text.ptr(),
+                         m_row.m_digest.m_digest_text.length());
         else
         {
           f->set_null();

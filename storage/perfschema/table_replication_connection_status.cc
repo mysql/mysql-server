@@ -531,9 +531,9 @@ table_replication_connection_status::read_row_values(
         set_field_timestamp(f, m_row.last_heartbeat_timestamp);
         break;
       case 7: /** received_transaction_set */
-        set_field_longtext_utf8(f,
-                                m_row.received_transaction_set,
-                                m_row.received_transaction_set_length);
+        set_field_blob(f,
+                       m_row.received_transaction_set,
+                       m_row.received_transaction_set_length);
         break;
       case 8: /*last_error_number*/
         set_field_ulong(f, m_row.last_error_number);

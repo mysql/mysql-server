@@ -366,12 +366,10 @@ table_replication_group_member_stats::read_row_values(
         set_field_ulonglong(f, m_row.trx_rows_validating);
         break;
       case 7: /** stable_set */
-        set_field_longtext_utf8(
-          f, m_row.trx_committed, m_row.trx_committed_length);
+        set_field_blob(f, m_row.trx_committed, m_row.trx_committed_length);
         break;
       case 8: /** last_certified_transaction */
-        set_field_longtext_utf8(
-          f, m_row.last_cert_trx, m_row.last_cert_trx_length);
+        set_field_blob(f, m_row.last_cert_trx, m_row.last_cert_trx_length);
 
         break;
       case 9:

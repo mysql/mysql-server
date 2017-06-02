@@ -61,8 +61,13 @@ void mysql_string_services_init();
 bool mysql_services_bootstrap(SERVICE_TYPE(registry)** registry);
 
 /**
-  Shutdowns service registry and dynamic loader making sure all basic services
-  are unregistered. Will fail if any service implementation is in use.
+  Shutdowns dynamic loader.
+*/
+void shutdown_dynamic_loader();
+
+/**
+  Shutdowns service registry making sure all basic services are unregistered.
+  Will fail if any service implementation is in use.
 
   @return Status of performed operation
   @retval false success
@@ -74,5 +79,7 @@ void mysql_components_handle_std_exception(const char* funcname);
 
 /* A declaration of registry service required for my_service<> to work. */
 extern SERVICE_TYPE(registry) imp_mysql_server_registry;
+
+extern SERVICE_TYPE(registry_registration) imp_mysql_server_registry_registration;
 
 #endif /* MYSQL_SERVER_COMPONENT_H */

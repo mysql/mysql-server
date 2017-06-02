@@ -199,6 +199,7 @@ mysql_declare_plugin(daemon_memcached)
 	"Memcached Daemon",
 	PLUGIN_LICENSE_GPL,
 	daemon_memcached_plugin_init,	/* Plugin Init */
+	NULL,	                        /* Plugin Check uninstall */
 	daemon_memcached_plugin_deinit,	/* Plugin Deinit */
 	0x0100 /* 1.0 */,
 	NULL,				/* status variables */

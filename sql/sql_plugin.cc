@@ -1806,6 +1806,11 @@ err_unlock:
   DBUG_RETURN(true);
 }
 
+bool is_builtin_and_core_se_initialized()
+{
+  return initialized;
+}
+
 /**
   Register and initialize the dynamic plugins. Also initialize
   the remaining builtin plugins that are not initialized
@@ -2511,6 +2516,10 @@ static bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
     goto err;
   }
 
+  /*
+    FIXME: plugin rpl_semi_sync_master, check_uninstall() function.
+  */
+
   /* Block Uninstallation of semi_sync plugins (Master/Slave)
      when they are busy
    */
@@ -2535,6 +2544,11 @@ static bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
              "Stop any active semisynchronous slaves of this master first.");
     goto err;
   }
+
+  /*
+    FIXME: plugin rpl_semi_sync_slave, check_uninstall() function.
+  */
+
   /* Slave: If there is semi sync enabled IO thread active on this Slave,
     then that means plugin is busy and rpl_semi_sync_slave plugin
     cannot be uninstalled. To check whether semi sync
@@ -2551,6 +2565,37 @@ static bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
     my_error(ER_PLUGIN_CANNOT_BE_UNINSTALLED, MYF(0), name->str,
              "Stop any active semisynchronous I/O threads on this slave first.");
     goto err;
+  }
+
+  if ((plugin->plugin->check_uninstall) && (plugin->state == PLUGIN_IS_READY))
+  {
+    int check;
+    /*
+      Prevent other threads to uninstall concurrently this plugin.
+    */
+    plugin->state= PLUGIN_IS_DYING;
+    mysql_mutex_unlock(&LOCK_plugin);
+
+    /*
+      Check uninstall may perform complex operations,
+      including acquiring MDL locks, which in turn may need LOCK_plugin.
+    */
+    DBUG_PRINT("info", ("check uninstall plugin: '%s'", plugin->name.str));
+    check= plugin->plugin->check_uninstall(plugin);
+
+    mysql_mutex_lock(&LOCK_plugin);
+    DBUG_ASSERT(plugin->state == PLUGIN_IS_DYING);
+
+    if (check)
+    {
+      DBUG_PRINT("warning", ("Plugin '%s' blocked uninstall.",
+                             plugin->name.str));
+      plugin->state= PLUGIN_IS_READY;
+      mysql_mutex_unlock(&LOCK_plugin);
+      my_error(ER_PLUGIN_CANNOT_BE_UNINSTALLED, MYF(0), name->str,
+               "Plugin is still in use.");
+      goto err;
+    }
   }
 
   plugin->state= PLUGIN_IS_DELETED;

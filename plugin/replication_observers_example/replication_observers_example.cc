@@ -1178,6 +1178,7 @@ mysql_declare_plugin(replication_observers_example)
   "Replication observer infrastructure example.",
   PLUGIN_LICENSE_GPL,
   replication_observers_example_plugin_init, /* Plugin Init */
+  NULL, /* Plugin Check uninstall */
   replication_observers_example_plugin_deinit, /* Plugin Deinit */
   0x0100 /* 1.0 */,
   NULL,                       /* status variables                */

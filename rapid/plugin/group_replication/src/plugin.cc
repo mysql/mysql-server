@@ -2754,6 +2754,7 @@ mysql_declare_plugin(group_replication_plugin)
   "Group Replication (1.0.0)",      /* Plugin name with full version*/
   PLUGIN_LICENSE_GPL,
   plugin_group_replication_init,    /* Plugin Init */
+  NULL,                             /* Plugin Check uninstall */
   plugin_group_replication_deinit,  /* Plugin Deinit */
   0x0100,                           /* Plugin Version: major.minor */
   group_replication_status_vars,    /* status variables */

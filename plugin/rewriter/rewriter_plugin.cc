@@ -184,6 +184,7 @@ mysql_declare_plugin(audit_log)
     " parse tree.",                 /* description                   */
     PLUGIN_LICENSE_GPL,             /* license                       */
     rewriter_plugin_init,           /* plugin initializer            */
+    NULL,                           /* plugin check uninstall        */
     rewriter_plugin_deinit,         /* plugin deinitializer          */
     0x0002,                         /* version                       */
     rewriter_plugin_status_vars,    /* status variables              */

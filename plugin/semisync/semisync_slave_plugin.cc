@@ -257,6 +257,7 @@ mysql_declare_plugin(semi_sync_slave)
   "Semi-synchronous replication slave",
   PLUGIN_LICENSE_GPL,
   semi_sync_slave_plugin_init, /* Plugin Init */
+  NULL, /* Plugin Check uninstall */
   semi_sync_slave_plugin_deinit, /* Plugin Deinit */
   0x0100 /* 1.0 */,
   semi_sync_slave_status_vars,	/* status variables */

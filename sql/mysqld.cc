@@ -452,6 +452,7 @@
 #include "print_version.h"
 #include "protocol.h"
 #include "psi_memory_key.h"             // key_memory_MYSQL_RELAY_LOG_index
+#include "pfs_priv_util.h"
 #include "query_options.h"
 #include "replication.h"                // thd_enter_cond
 #include "rpl_gtid.h"
@@ -507,6 +508,7 @@
 #include "tztime.h"                     // Time_zone
 #include "violite.h"
 #include "xa.h"
+#include "../storage/perfschema/pfs_services.h"
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"
@@ -1440,6 +1442,11 @@ static bool component_infrastructure_init()
     LogErr(ERROR_LEVEL, ER_COMPONENTS_INFRASTRUCTURE_BOOTSTRAP);
     return true;
   }
+  if (pfs_init_services(&imp_mysql_server_registry_registration))
+  {
+    sql_print_error("Failed to bootstrap performance schema components infrastructure.\n");
+    return true;
+  }
   return false;
 }
 /**
@@ -1486,7 +1493,13 @@ static bool mysql_component_infrastructure_init()
 static bool component_infrastructure_deinit()
 {
   persistent_dynamic_loader_deinit();
+  shutdown_dynamic_loader();
 
+  if (pfs_deinit_services(&imp_mysql_server_registry_registration))
+  {
+    sql_print_error("Failed to deinit performance schema components infrastructure.\n");
+    return true;
+  }
   if (mysql_services_shutdown())
   {
     LogErr(ERROR_LEVEL, ER_COMPONENTS_INFRASTRUCTURE_SHUTDOWN);
@@ -10038,4 +10051,89 @@ static void init_server_psi_keys(void)
   init_vio_psi_keys();
 }
 #endif /* HAVE_PSI_INTERFACE */
+
+bool do_create_native_table_for_pfs(THD *thd, const Plugin_table *t)
+{
+  const char *schema_name = t->get_schema_name();
+  const char *table_name = t->get_name();
+  MDL_request table_request;
+  MDL_REQUEST_INIT(&table_request,
+                   MDL_key::TABLE,
+                   schema_name,
+                   table_name,
+                   MDL_EXCLUSIVE,
+                   MDL_TRANSACTION);
+
+  if (thd->mdl_context.acquire_lock(&table_request,
+                                    thd->variables.lock_wait_timeout))
+  {
+    /* Error, failed to get MDL lock. */
+    return true;
+  }
+
+  tdc_remove_table(thd, TDC_RT_REMOVE_ALL, schema_name, table_name, false);
+
+  if (dd::create_native_table(thd, t))
+  {
+    /* Error, failed to create DD table. */
+    return true;
+  }
+
+  return false;
+}
+
+bool create_native_table_for_pfs(const Plugin_table *t)
+{
+  /* If InnoDB is not initialized yet, return error */
+  if (!is_builtin_and_core_se_initialized())
+    return true;
+
+  THD * thd = current_thd;
+  DBUG_ASSERT(thd);
+  return do_create_native_table_for_pfs(thd, t);
+}
+
+static bool do_drop_native_table_for_pfs(THD *thd, const char *schema_name, const char *table_name)
+{
+  MDL_request table_request;
+  MDL_REQUEST_INIT(&table_request,
+                   MDL_key::TABLE,
+                   schema_name,
+                   table_name,
+                   MDL_EXCLUSIVE,
+                   MDL_TRANSACTION);
+
+  if (thd->mdl_context.acquire_lock(&table_request,
+                                       thd->variables.lock_wait_timeout))
+  {
+    /* Error, failed to get MDL lock. */
+    return true;
+  }
+
+  tdc_remove_table(thd, TDC_RT_REMOVE_ALL, schema_name, table_name, false);
+
+  if (dd::drop_native_table(thd, schema_name, table_name))
+  {
+    /* Error, failed to destroy DD table. */
+    return true;
+  }
+
+  return false;
+}
+
+bool drop_native_table_for_pfs(const char *schema_name, const char *table_name)
+{
+  /* If server is shutting down, by the time control reaches here, DD would have
+   * already been shut down. Therefore return success and tables won't be 
+   * deleted and would be available at next server start.
+   */
+  if (get_server_state() == SERVER_SHUTTING_DOWN)
+  {
+    return false;
+  }
+
+  THD *thd= current_thd;
+  DBUG_ASSERT(thd);
+  return do_drop_native_table_for_pfs(thd, schema_name, table_name);
+}
 

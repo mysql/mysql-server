@@ -42,6 +42,76 @@
 #include "pfs_user.h"
 #include "pfs_variable.h"
 
+/* TINYINT TYPE */
+void
+set_field_tiny(Field *f, long value)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_TINY);
+  Field_tiny *f2 = (Field_tiny *)f;
+  f2->store(value, false);
+}
+void
+set_field_utiny(Field *f, ulong value)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_TINY);
+  Field_tiny *f2 = (Field_tiny *)f;
+  f2->store(value, true);
+}
+long
+get_field_tiny(Field *f)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_TINY);
+  Field_tiny *f2 = (Field_tiny *)f;
+  return f2->val_int();
+}
+
+/* SMALLINT TYPE */
+void
+set_field_short(Field *f, long value)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_SHORT);
+  Field_short *f2 = (Field_short *)f;
+  f2->store(value, false);
+}
+void
+set_field_ushort(Field *f, ulong value)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_SHORT);
+  Field_short *f2 = (Field_short *)f;
+  f2->store(value, true);
+}
+long
+get_field_short(Field *f)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_SHORT);
+  Field_short *f2 = (Field_short *)f;
+  return f2->val_int();
+}
+
+/* MEDIUMINT TYPE */
+void
+set_field_medium(Field *f, long value)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_INT24);
+  Field_medium *f2 = (Field_medium *)f;
+  f2->store(value, false);
+}
+void
+set_field_umedium(Field *f, ulong value)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_INT24);
+  Field_medium *f2 = (Field_medium *)f;
+  f2->store(value, true);
+}
+long
+get_field_medium(Field *f)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_INT24);
+  Field_medium *f2 = (Field_medium *)f;
+  return f2->val_int();
+}
+
+/* INTEGER (INT) TYPE */
 void
 set_field_long(Field *f, long value)
 {
@@ -49,7 +119,6 @@ set_field_long(Field *f, long value)
   Field_long *f2 = (Field_long *)f;
   f2->store(value, false);
 }
-
 void
 set_field_ulong(Field *f, ulong value)
 {
@@ -57,7 +126,15 @@ set_field_ulong(Field *f, ulong value)
   Field_long *f2 = (Field_long *)f;
   f2->store(value, true);
 }
+long
+get_field_long(Field *f)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_LONG);
+  Field_long *f2 = (Field_long *)f;
+  return f2->val_int();
+}
 
+/* BIGINT TYPE */
 void
 set_field_longlong(Field *f, longlong value)
 {
@@ -65,7 +142,6 @@ set_field_longlong(Field *f, longlong value)
   Field_longlong *f2 = (Field_longlong *)f;
   f2->store(value, false);
 }
-
 void
 set_field_ulonglong(Field *f, ulonglong value)
 {
@@ -73,7 +149,70 @@ set_field_ulonglong(Field *f, ulonglong value)
   Field_longlong *f2 = (Field_longlong *)f;
   f2->store(value, true);
 }
+longlong
+get_field_longlong(Field *f)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_LONGLONG);
+  Field_longlong *f2 = (Field_longlong *)f;
+  return f2->val_int();
+}
+ulonglong
+get_field_ulonglong(Field *f)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_LONGLONG);
+  Field_longlong *f2 = (Field_longlong *)f;
+  return f2->val_int();
+}
 
+/* DECIMAL TYPE */
+void
+set_field_decimal(Field *f, double value)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_NEWDECIMAL);
+  Field_new_decimal *f2 = (Field_new_decimal *)f;
+  f2->store(value);
+}
+double
+get_field_decimal(Field *f)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_NEWDECIMAL);
+  Field_new_decimal *f2 = (Field_new_decimal *)f;
+  return f2->val_real();
+}
+
+/* FLOAT TYPE */
+void
+set_field_float(Field *f, double value)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_FLOAT);
+  Field_float *f2 = (Field_float *)f;
+  f2->store(value);
+}
+double
+get_field_float(Field *f)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_FLOAT);
+  Field_float *f2 = (Field_float *)f;
+  return f2->val_real();
+}
+
+/* DOUBLE TYPE */
+void
+set_field_double(Field *f, double value)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_DOUBLE);
+  Field_double *f2 = (Field_double *)f;
+  f2->store(value);
+}
+double
+get_field_double(Field *f)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_DOUBLE);
+  Field_double *f2 = (Field_double *)f;
+  return f2->val_real();
+}
+
+/* CHAR TYPE */
 void
 set_field_char_utf8(Field *f, const char *str, uint len)
 {
@@ -81,7 +220,27 @@ set_field_char_utf8(Field *f, const char *str, uint len)
   Field_string *f2 = (Field_string *)f;
   f2->store(str, len, &my_charset_utf8_bin);
 }
+String *
+get_field_char_utf8(Field *f, String *val)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_STRING);
+  Field_string *f2 = (Field_string *)f;
+  val = f2->val_str(NULL, val);
+  return val;
+}
+char *
+get_field_char_utf8(Field *f, char *val, uint *len)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_STRING);
+  String temp;
+  Field_string *f2 = (Field_string *)f;
+  f2->val_str(NULL, &temp);
+  *len = temp.length();
+  strncpy(val, temp.ptr(), *len);
+  return val;
+}
 
+/* VARCHAR TYPE */
 void
 set_field_varchar(Field *f, const CHARSET_INFO *cs, const char *str, uint len)
 {
@@ -91,27 +250,37 @@ set_field_varchar(Field *f, const CHARSET_INFO *cs, const char *str, uint len)
 }
 
 void
+set_field_varchar_utf8(Field *f, const char *str)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_VARCHAR);
+  Field_varstring *f2 = (Field_varstring *)f;
+  f2->store(str, strlen(str), &my_charset_utf8_bin);
+}
+void
 set_field_varchar_utf8(Field *f, const char *str, uint len)
 {
   DBUG_ASSERT(f->real_type() == MYSQL_TYPE_VARCHAR);
   Field_varstring *f2 = (Field_varstring *)f;
   f2->store(str, len, &my_charset_utf8_bin);
 }
-
-void
-set_field_varchar_utf8mb4(Field *f, const char *str, uint len)
+String *
+get_field_varchar_utf8(Field *f, String *val)
 {
   DBUG_ASSERT(f->real_type() == MYSQL_TYPE_VARCHAR);
   Field_varstring *f2 = (Field_varstring *)f;
-  f2->store(str, len, &my_charset_utf8mb4_bin);
+  val = f2->val_str(NULL, val);
+  return val;
 }
-
-void
-set_field_varchar_utf8(Field *f, const char *str)
+char *
+get_field_varchar_utf8(Field *f, char *val, uint *len)
 {
   DBUG_ASSERT(f->real_type() == MYSQL_TYPE_VARCHAR);
+  String temp;
   Field_varstring *f2 = (Field_varstring *)f;
-  f2->store(str, strlen(str), &my_charset_utf8_bin);
+  f2->val_str(NULL, &temp);
+  *len = temp.length();
+  strncpy(val, temp.ptr(), *len);
+  return val;
 }
 
 void
@@ -121,15 +290,15 @@ set_field_varchar_utf8mb4(Field *f, const char *str)
   Field_varstring *f2 = (Field_varstring *)f;
   f2->store(str, strlen(str), &my_charset_utf8mb4_bin);
 }
-
 void
-set_field_longtext_utf8(Field *f, const char *str, uint len)
+set_field_varchar_utf8mb4(Field *f, const char *str, uint len)
 {
-  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_BLOB);
-  Field_blob *f2 = (Field_blob *)f;
-  f2->store(str, len, &my_charset_utf8_bin);
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_VARCHAR);
+  Field_varstring *f2 = (Field_varstring *)f;
+  f2->store(str, len, &my_charset_utf8mb4_bin);
 }
 
+/* TEXT/BLOB TYPE */
 void
 set_field_blob(Field *f, const char *val, uint len)
 {
@@ -137,13 +306,112 @@ set_field_blob(Field *f, const char *val, uint len)
   Field_blob *f2 = (Field_blob *)f;
   f2->store(val, len, &my_charset_utf8_bin);
 }
+char *
+get_field_blob(Field *f, char *val, uint *len)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_BLOB);
+  String temp;
+  Field_blob *f2 = (Field_blob *)f;
+  f2->val_str(NULL, &temp);
+  *len = temp.length();
+  strncpy(val, temp.ptr(), *len);
+  return val;
+}
 
+/* ENUM TYPE */
 void
 set_field_enum(Field *f, ulonglong value)
 {
   DBUG_ASSERT(f->real_type() == MYSQL_TYPE_ENUM);
   Field_enum *f2 = (Field_enum *)f;
   f2->store_type(value);
+}
+ulonglong
+get_field_enum(Field *f)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_ENUM);
+  Field_enum *f2 = (Field_enum *)f;
+  return f2->val_int();
+}
+
+/* DATE TYPE */
+void
+set_field_date(Field *f, const char *value, uint len)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_NEWDATE);
+  Field_newdate *f2 = (Field_newdate *)f;
+  f2->store(value, len, system_charset_info);
+}
+char *
+get_field_date(Field *f, char *val, uint *len)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_NEWDATE);
+  String temp;
+  Field_newdate *f2 = (Field_newdate *)f;
+  f2->val_str(&temp, NULL);
+  *len = temp.length();
+  strncpy(val, temp.ptr(), *len);
+  return val;
+}
+
+/* TIME TYPE */
+void
+set_field_time(Field *f, const char *value, uint len)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_TIME2);
+  Field_time *f2 = (Field_time *)f;
+  f2->store(value, len, system_charset_info);
+}
+char *
+get_field_time(Field *f, char *val, uint *len)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_TIME2);
+  String temp;
+  Field_time *f2 = (Field_time *)f;
+  f2->val_str(&temp, NULL);
+  *len = temp.length();
+  strncpy(val, temp.ptr(), *len);
+  return val;
+}
+
+/* DATETIME TYPE */
+void
+set_field_datetime(Field *f, const char *value, uint len)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_DATETIME2);
+  Field_datetimef *f2 = (Field_datetimef *)f;
+  f2->store(value, len, system_charset_info);
+}
+char *
+get_field_datetime(Field *f, char *val, uint *len)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_DATETIME2);
+  String temp;
+  Field_datetimef *f2 = (Field_datetimef *)f;
+  f2->val_str(&temp, NULL);
+  *len = temp.length();
+  strncpy(val, temp.ptr(), *len);
+  return val;
+}
+
+/* TIMESTAMP TYPE */
+void
+set_field_timestamp(Field *f, const char *value, uint len)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_TIMESTAMP2);
+  Field_timestampf *f2 = (Field_timestampf *)f;
+  f2->store(value, len, system_charset_info);
+}
+char *
+get_field_timestamp(Field *f, char *val, uint *len)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_TIMESTAMP2);
+  String temp;
+  Field_timestampf *f2 = (Field_timestampf *)f;
+  f2->val_str(&temp, NULL);
+  *len = temp.length();
+  strncpy(val, temp.ptr(), *len);
+  return val;
 }
 
 void
@@ -157,46 +425,20 @@ set_field_timestamp(Field *f, ulonglong value)
   f2->store_timestamp(&tm);
 }
 
+/* YEAR TYPE */
 void
-set_field_double(Field *f, double value)
+set_field_year(Field *f, ulong value)
 {
-  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_DOUBLE);
-  Field_double *f2 = (Field_double *)f;
-  f2->store(value);
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_YEAR);
+  Field_year *f2 = (Field_year *)f;
+  f2->store(value, true);
 }
-
-ulonglong
-get_field_ulonglong(Field *f)
+long
+get_field_year(Field *f)
 {
-  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_LONGLONG);
-  Field_longlong *f2 = (Field_longlong *)f;
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_YEAR);
+  Field_long *f2 = (Field_long *)f;
   return f2->val_int();
-}
-
-ulonglong
-get_field_enum(Field *f)
-{
-  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_ENUM);
-  Field_enum *f2 = (Field_enum *)f;
-  return f2->val_int();
-}
-
-String *
-get_field_char_utf8(Field *f, String *val)
-{
-  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_STRING);
-  Field_string *f2 = (Field_string *)f;
-  val = f2->val_str(NULL, val);
-  return val;
-}
-
-String *
-get_field_varchar_utf8(Field *f, String *val)
-{
-  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_VARCHAR);
-  Field_varstring *f2 = (Field_varstring *)f;
-  val = f2->val_str(NULL, val);
-  return val;
 }
 
 int
@@ -391,8 +633,7 @@ PFS_digest_row::set_field(uint index, Field *f)
   case 2: /* DIGEST_TEXT */
     if (m_digest_text.length() > 0)
     {
-      set_field_longtext_utf8(
-        f, m_digest_text.ptr(), (uint)m_digest_text.length());
+      set_field_blob(f, m_digest_text.ptr(), (uint)m_digest_text.length());
     }
     else
     {
@@ -1208,7 +1449,11 @@ PFS_user_variable_value_row::make_row(const char *val, size_t length)
 }
 
 bool
-PFS_key_long::do_match(bool record_null, long record_value)
+PFS_key_long::stateless_match(bool record_null,
+                              long record_value,
+                              bool m_is_null,
+                              long m_key_value,
+                              enum ha_rkey_function m_find_flag)
 {
   int cmp = 0;
 
@@ -1348,11 +1593,14 @@ PFS_key_ulonglong::do_match(bool record_null, ulonglong record_value)
   }
 }
 
-template <int SIZE>
 bool
-PFS_key_string<SIZE>::do_match(bool record_null,
-                               const char *record_string,
-                               size_t record_string_length)
+PFS_key_pstring::stateless_match(bool record_null,
+                                 const char *record_string,
+                                 size_t record_string_length,
+                                 const char *m_key_value,
+                                 size_t m_key_value_length,
+                                 bool m_is_null,
+                                 enum ha_rkey_function m_find_flag)
 {
   if (m_find_flag == HA_READ_KEY_EXACT)
   {

@@ -348,9 +348,21 @@ bool mysql_services_bootstrap(SERVICE_TYPE(registry)** registry)
   return false;
 }
 
+
 /**
-  Shutdowns service registry and dynamic loader making sure all basic services
-  are unregistered. Will fail if any service implementation is in use.
+  Shutdowns dynamic loader.
+*/
+void shutdown_dynamic_loader()
+{
+  /* Dynamic loader deinitialization still needs all scheme service
+    implementations to be functional. */
+  dynamic_loader_deinit();
+  dynamic_loader_scheme_file_deinit();
+}
+
+/**
+  Shutdowns service registry making sure all basic services are unregistered.
+  Will fail if any service implementation is in use.
 
   @return Status of performed operation
   @retval false success
@@ -358,11 +370,6 @@ bool mysql_services_bootstrap(SERVICE_TYPE(registry)** registry)
 */
 bool mysql_services_shutdown()
 {
-  /* Dynamic loader deinitialization still needs all scheme service
-    implementations to be functional. */
-  dynamic_loader_deinit();
-  dynamic_loader_scheme_file_deinit();
-
   for (int inx= 0;
     mysql_component_mysql_server.provides[inx].implementation != NULL;
     ++inx)

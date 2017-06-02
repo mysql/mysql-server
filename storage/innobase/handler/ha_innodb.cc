@@ -22127,6 +22127,7 @@ mysql_declare_plugin(innobase)
   "Supports transactions, row-level locking, and foreign keys",
   PLUGIN_LICENSE_GPL,
   innodb_init, /* Plugin Init */
+  NULL, /* Plugin Check uninstall */
   NULL, /* Plugin Deinit */
   INNODB_VERSION_SHORT,
   innodb_status_variables_export,/* status variables */
