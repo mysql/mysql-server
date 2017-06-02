@@ -203,6 +203,7 @@ Backup::execSTTOR(Signal* signal)
     m_monitor_snapshot_start = NdbTick_getCurrentTicks();
     m_curr_disk_write_speed = c_defaults.m_disk_write_speed_min;
     m_our_node_started = true;
+    c_initial_start_lcp_not_done_yet = false;
   }
 
   if(startphase == 7 && g_TypeOfStart == NodeState::ST_INITIAL_START &&
