@@ -612,8 +612,6 @@ using Mbr_covers_instantiator=
   Mbr_rel_instantiator<Item_func::SP_COVERS_FUNC>;
 using Mbr_contains_instantiator=
   Mbr_rel_instantiator<Item_func::SP_CONTAINS_FUNC>;
-using Mbr_disjoint_instantiator=
-  Mbr_rel_instantiator<Item_func::SP_DISJOINT_FUNC>;
 using Mbr_equals_instantiator=
   Mbr_rel_instantiator<Item_func::SP_EQUALS_FUNC>;
 using Mbr_intersects_instantiator=
@@ -1661,7 +1659,7 @@ static const std::pair<const char *, Create_func *> func_array[]=
   { "MBRCONTAINS", SQL_FACTORY(Mbr_contains_instantiator) },
   { "MBRCOVEREDBY", SQL_FACTORY(Mbr_covered_by_instantiator) },
   { "MBRCOVERS", SQL_FACTORY(Mbr_covers_instantiator) },
-  { "MBRDISJOINT", SQL_FACTORY(Mbr_disjoint_instantiator) },
+  { "MBRDISJOINT", SQL_FN(Item_func_mbrdisjoint, 2) },
   { "MBREQUALS", SQL_FACTORY(Mbr_equals_instantiator) },
   { "MBRINTERSECTS", SQL_FACTORY(Mbr_intersects_instantiator) },
   { "MBROVERLAPS", SQL_FACTORY(Mbr_overlaps_instantiator) },
