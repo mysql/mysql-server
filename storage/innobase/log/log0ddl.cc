@@ -800,7 +800,7 @@ LogDDL::scanAll(
 			"END;\n",
 			TRUE, trx);
 
-	ut_ad(error == DB_SUCCESS);
+	ut_a(error == DB_SUCCESS);
 
 	return(DB_SUCCESS);
 }
@@ -841,7 +841,7 @@ LogDDL::printAll()
 			"END;\n",
 			TRUE, trx);
 
-	ut_ad(error == DB_SUCCESS);
+	ut_a(error == DB_SUCCESS);
 
 	trx_commit_for_mysql(trx);
 
@@ -887,7 +887,7 @@ LogDDL::scanByThreadId(
 			"END;\n",
 			TRUE, trx);
 
-	ut_ad(error == DB_SUCCESS);
+	ut_a(error == DB_SUCCESS);
 
 	return(DB_SUCCESS);
 }

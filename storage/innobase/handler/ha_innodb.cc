@@ -14531,6 +14531,8 @@ the data-dictionary at statement commit time.
 int
 ha_innobase::truncate(dd::Table *table_def)
 {
+	THD*	thd = ha_thd();
+
 	DBUG_ENTER("ha_innobase::truncate");
 	/* The table should have been opened in ha_innobase::open().
 	Purge might be holding a reference to the table. */
@@ -14553,7 +14555,7 @@ ha_innobase::truncate(dd::Table *table_def)
 
 	if (dict_table_is_discarded(m_prebuilt->table)) {
 		ib_senderrf(
-			ha_thd(), IB_LOG_LEVEL_ERROR,
+			thd, IB_LOG_LEVEL_ERROR,
 			ER_TABLESPACE_DISCARDED,
 			table->s->table_name.str);
 		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
@@ -14569,6 +14571,8 @@ ha_innobase::truncate(dd::Table *table_def)
 	if (m_prebuilt->table->is_temporary()) {
 		info.options|= HA_LEX_CREATE_TMP_TABLE;
 	} else {
+		innobase_register_trx(ht, thd, m_prebuilt->trx);
+
 		dd_get_and_save_data_dir_path<dd::Table>(m_prebuilt->table, NULL, false);
 		if (m_prebuilt->table->tablespace != NULL) {
 			tsname = mem_strdup(m_prebuilt->table->tablespace);
@@ -14590,11 +14594,6 @@ ha_innobase::truncate(dd::Table *table_def)
 	close();
 
 	int	error = 0;
-	THD*	thd = ha_thd();
-
-	if (!m_prebuilt->table->is_temporary()) {
-		innobase_register_trx(ht, thd, m_prebuilt->trx);
-	}
 
 	/* Rename tablespace file to avoid existing file in create.*/
 	if (file_per_table) {
@@ -14626,7 +14625,6 @@ ha_innobase::truncate(dd::Table *table_def)
 
 	if (!error) {
 		dict_names_t    fk_tables;
-		THD*		thd = current_thd;
 
 		dd::cache::Dictionary_client*	client
 			= dd::get_dd_client(thd);
@@ -14641,7 +14639,7 @@ ha_innobase::truncate(dd::Table *table_def)
 
 		if (error != DB_SUCCESS) {
 		       push_warning_printf(
-			       m_user_thd, Sql_condition::SL_WARNING,
+			       thd, Sql_condition::SL_WARNING,
 			       HA_ERR_CANNOT_ADD_FOREIGN,
 			       "Truncate table '%s' failed to load some"
 			       " foreign key constraints.", name);

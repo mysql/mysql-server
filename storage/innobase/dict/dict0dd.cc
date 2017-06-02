@@ -4832,7 +4832,7 @@ dd_drop_fts_table(
 			->tablespace_id();
 		bool	error;
 		error = dd_drop_tablespace(client, thd, dd_space_id);
-		ut_ad(!error);
+		ut_a(!error);
 	}
 
 	if (client->drop(dd_table)) {
