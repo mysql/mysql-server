@@ -95,7 +95,8 @@ def	mysql	innodb_ddl_log	table_id	7	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NUL
 def	mysql	innodb_ddl_log	old_file_path	8	NULL	YES	varchar	512	1536	NULL	NULL	NULL	utf8	utf8_bin	varchar(512)			select,insert,update,references		
 def	mysql	innodb_ddl_log	new_file_path	9	NULL	YES	varchar	512	1536	NULL	NULL	NULL	utf8	utf8_bin	varchar(512)			select,insert,update,references		
 def	mysql	innodb_dynamic_metadata	table_id	1	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	PRI		select,insert,update,references		
-def	mysql	innodb_dynamic_metadata	metadata	2	NULL	NO	blob	65535	65535	NULL	NULL	NULL	NULL	NULL	blob			select,insert,update,references		
+def	mysql	innodb_dynamic_metadata	version	2	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
+def	mysql	innodb_dynamic_metadata	metadata	3	NULL	NO	blob	65535	65535	NULL	NULL	NULL	NULL	NULL	blob			select,insert,update,references		
 def	mysql	innodb_index_stats	database_name	1	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)	PRI		select,insert,update,references		
 def	mysql	innodb_index_stats	table_name	2	NULL	NO	varchar	199	597	NULL	NULL	NULL	utf8	utf8_bin	varchar(199)	PRI		select,insert,update,references		
 def	mysql	innodb_index_stats	index_name	3	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)	PRI		select,insert,update,references		
@@ -432,6 +433,7 @@ NULL	mysql	innodb_ddl_log	table_id	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigne
 3.0000	mysql	innodb_ddl_log	old_file_path	varchar	512	1536	utf8	utf8_bin	varchar(512)
 3.0000	mysql	innodb_ddl_log	new_file_path	varchar	512	1536	utf8	utf8_bin	varchar(512)
 NULL	mysql	innodb_dynamic_metadata	table_id	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
+NULL	mysql	innodb_dynamic_metadata	version	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
 1.0000	mysql	innodb_dynamic_metadata	metadata	blob	65535	65535	NULL	NULL	blob
 3.0000	mysql	innodb_index_stats	database_name	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	mysql	innodb_index_stats	table_name	varchar	199	597	utf8	utf8_bin	varchar(199)
