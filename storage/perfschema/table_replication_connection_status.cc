@@ -81,6 +81,8 @@ set_service_state(void *const context, bool value)
 THR_LOCK table_replication_connection_status::m_table_lock;
 
 Plugin_table table_replication_connection_status::m_table_def(
+  /* Schema name */
+  "performance_schema",
   /* Name */
   "replication_connection_status",
   /* Definition */

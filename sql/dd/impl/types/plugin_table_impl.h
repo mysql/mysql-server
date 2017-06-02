@@ -79,8 +79,21 @@ public:
       m_target_def.set_tablespace_name(tablespace_name);
   }
 
+  Plugin_table_impl(const String_type &schema_name,
+                    const String_type &name,
+                    const String_type &definition,
+                    const String_type &options, uint version,
+                    const char* tablespace_name)
+  : Plugin_table_impl(name, definition, options, version, tablespace_name)
+  {
+    m_target_def.set_schema_name(schema_name);
+  }
+
   virtual ~Plugin_table_impl()
   { }
+
+  virtual const String_type &schema() const
+  { return m_target_def.get_schema_name(); }
 
   virtual const String_type &name() const
   { return m_target_def.get_table_name(); }

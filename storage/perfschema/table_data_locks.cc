@@ -36,6 +36,8 @@
 THR_LOCK table_data_locks::m_table_lock;
 
 Plugin_table table_data_locks::m_table_def(
+  /* Schema name */
+  "performance_schema",
   /* Name */
   "data_locks",
   /* Definition */

@@ -35,6 +35,8 @@
 THR_LOCK table_ets_by_user_by_event_name::m_table_lock;
 
 Plugin_table table_ets_by_user_by_event_name::m_table_def(
+  /* Schema name */
+  "performance_schema",
   /* Name */
   "events_transactions_summary_by_user_by_event_name",
   /* Definition */

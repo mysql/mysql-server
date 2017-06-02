@@ -841,19 +841,27 @@ enum ha_notification_type { HA_NOTIFY_PRE_EVENT, HA_NOTIFY_POST_EVENT };
 class Plugin_table
 {
 private:
+  const char *m_schema_name;
   const char *m_table_name;
   const char *m_table_definition;
   const char *m_table_options;
   const char *m_tablespace_name;
 
 public:
-  Plugin_table(const char *name, const char *definition,
-               const char *options, const char *tablespace_name)
-  : m_table_name(name),
+  Plugin_table(const char *schema_name,
+               const char *table_name,
+               const char *definition,
+               const char *options,
+               const char *tablespace_name)
+  : m_schema_name(schema_name),
+    m_table_name(table_name),
     m_table_definition(definition),
     m_table_options(options),
     m_tablespace_name(tablespace_name)
   { }
+
+  const char *get_schema_name() const
+  { return m_schema_name; }
 
   const char *get_name() const
   { return m_table_name; }

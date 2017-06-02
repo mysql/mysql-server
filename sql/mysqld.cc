@@ -499,6 +499,8 @@
 #include "sys_vars.h"                   // fixup_enforce_gtid_consistency_...
 #include "sys_vars_shared.h"            // intern_find_sys_var
 #include "table_cache.h"                // table_cache_manager
+#include "transaction.h"
+#include "dd/cache/dictionary_client.h"
 #include "tc_log.h"                     // tc_log
 #include "thr_lock.h"
 #include "thr_mutex.h"
@@ -1453,9 +1455,14 @@ static bool mysql_component_infrastructure_init()
 {
   /* We need a temporary THD during boot */
   Auto_THD thd;
+  Disable_autocommit_guard autocommit_guard(thd.thd);
+  dd::cache::Dictionary_client::Auto_releaser scope_releaser(thd.thd->dd_client());
   if (persistent_dynamic_loader_init(thd.thd))
   {
     LogErr(ERROR_LEVEL, ER_COMPONENTS_PERSIST_LOADER_BOOTSTRAP);
+    trans_rollback_stmt(thd.thd);
+    // Full rollback in case we have THD::transaction_rollback_request.
+    trans_rollback(thd.thd);
     return true;
   }
   /*
@@ -1464,7 +1471,7 @@ static bool mysql_component_infrastructure_init()
    * calling any functions of it.
    */
   mysql_string_services_init();
-  return false;
+  return trans_commit_stmt(thd.thd) || trans_commit(thd.thd);
 }
 
 /**

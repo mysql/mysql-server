@@ -35,6 +35,8 @@
 THR_LOCK table_ees_by_user_by_error::m_table_lock;
 
 Plugin_table table_ees_by_user_by_error::m_table_def(
+  /* Schema name */
+  "performance_schema",
   /* Name */
   "events_errors_summary_by_user_by_error",
   /* Definition */

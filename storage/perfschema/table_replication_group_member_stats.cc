@@ -174,6 +174,8 @@ static void set_transactions_local_rollback(void* const context,
 THR_LOCK table_replication_group_member_stats::m_table_lock;
 
 Plugin_table table_replication_group_member_stats::m_table_def(
+  /* Schema name */
+  "performance_schema",
   /* Name */
   "replication_group_member_stats",
   /* Definition */

@@ -25,6 +25,7 @@
 
 #include "auth_acls.h"
 #include "auth_common.h"       // check_table_access
+#include "auto_thd.h"                   // Auto_THD
 #include "current_thd.h"
 #include "dd/dd_schema.h"                // dd::Schema_MDL_locker
 #include "dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
@@ -1845,11 +1846,16 @@ bool plugin_register_dynamic_and_init_all(int *argc,
   /* Temporary mem root not needed anymore, can free it here */
   free_root(&tmp_root, MYF(0));
 
+  Auto_THD fake_session;
+  Disable_autocommit_guard autocommit_guard(fake_session.thd);
+  dd::cache::Dictionary_client::Auto_releaser releaser(fake_session.thd->dd_client());
   if (!(flags & PLUGIN_INIT_SKIP_INITIALIZATION))
     if (plugin_init_initialize_and_reap())
-      DBUG_RETURN(true);
+    {
+      DBUG_RETURN(::end_transaction(fake_session.thd, true));
+    }
 
-  DBUG_RETURN(false);
+  DBUG_RETURN(::end_transaction(fake_session.thd, false));
 }
 
 static bool register_builtin(st_mysql_plugin *plugin,
@@ -2214,7 +2220,7 @@ void plugin_shutdown(void)
 
 
 // Helper function to do rollback or commit, depending on error.
-static bool end_transaction(THD *thd, bool error)
+bool end_transaction(THD *thd, bool error)
 {
   if (error)
   {
@@ -2251,6 +2257,7 @@ static bool mysql_install_plugin(THD *thd, const LEX_STRING *name,
   DBUG_ENTER("mysql_install_plugin");
 
   Disable_autocommit_guard autocommit_guard(thd);
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   tables.init_one_table("mysql", 5, "plugin", 6, "plugin", TL_WRITE);
 
@@ -2285,7 +2292,6 @@ static bool mysql_install_plugin(THD *thd, const LEX_STRING *name,
   mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_GENERAL_CLASS,
                               MYSQL_AUDIT_GENERAL_ALL);
 
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   mysql_mutex_lock(&LOCK_plugin_install);
   mysql_mutex_lock(&LOCK_plugin);
   DEBUG_SYNC(thd, "acquired_LOCK_plugin");
@@ -2330,15 +2336,6 @@ static bool mysql_install_plugin(THD *thd, const LEX_STRING *name,
                         ER_CANT_INITIALIZE_UDF,
                         ER_THD(thd, ER_CANT_INITIALIZE_UDF),
                         name->str, "Plugin is disabled");
-  }
-  else
-  {
-    if (plugin_initialize(tmp))
-    {
-      my_error(ER_CANT_INITIALIZE_UDF, MYF(0), name->str,
-               "Plugin initialization function failed.");
-      error= true;
-    }
   }
 
   // Check if we need to store I_S plugin metadata in DD.
@@ -2385,11 +2382,20 @@ static bool mysql_install_plugin(THD *thd, const LEX_STRING *name,
     else
     {
       mysql_mutex_lock(&LOCK_plugin);
+
+      if (tmp->state != PLUGIN_IS_DISABLED &&
+          plugin_initialize(tmp))
+      {
+        my_error(ER_CANT_INITIALIZE_UDF, MYF(0), name->str,
+                 "Plugin initialization function failed.");
+        error= true;
+      }
+
       /*
         Store plugin I_S table metadata into DD tables. The
         tables are closed before the function returns.
        */
-      error= thd->transaction_rollback_request;
+      error= error || thd->transaction_rollback_request;
       if (!error && store_infoschema_metadata)
         error= dd::info_schema::store_dynamic_plugin_I_S_metadata(thd, tmp);
       mysql_mutex_unlock(&LOCK_plugin);

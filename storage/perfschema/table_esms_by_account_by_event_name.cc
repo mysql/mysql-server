@@ -36,6 +36,8 @@
 THR_LOCK table_esms_by_account_by_event_name::m_table_lock;
 
 Plugin_table table_esms_by_account_by_event_name::m_table_def(
+  /* Schema name */
+  "performance_schema",
   /* Name */
   "events_statements_summary_by_account_by_event_name",
   /* Definition */

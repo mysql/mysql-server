@@ -36,6 +36,8 @@
 THR_LOCK table_prepared_stmt_instances::m_table_lock;
 
 Plugin_table table_prepared_stmt_instances::m_table_def(
+  /* Schema name */
+  "performance_schema",
   /* Name */
   "prepared_statements_instances",
   /* Definition */

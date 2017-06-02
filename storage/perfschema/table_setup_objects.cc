@@ -35,6 +35,8 @@
 THR_LOCK table_setup_objects::m_table_lock;
 
 Plugin_table table_setup_objects::m_table_def(
+  /* Schema name */
+  "performance_schema",
   /* Name */
   "setup_objects",
   /* Definition */

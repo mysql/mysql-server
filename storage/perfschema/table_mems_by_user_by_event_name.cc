@@ -36,6 +36,8 @@
 THR_LOCK table_mems_by_user_by_event_name::m_table_lock;
 
 Plugin_table table_mems_by_user_by_event_name::m_table_def(
+  /* Schema name */
+  "performance_schema",
   /* Name */
   "memory_summary_by_user_by_event_name",
   /* Definition */

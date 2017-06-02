@@ -41,6 +41,8 @@ static row_setup_timers all_setup_timers_data[COUNT_SETUP_TIMERS] = {
 THR_LOCK table_setup_timers::m_table_lock;
 
 Plugin_table table_setup_timers::m_table_def(
+  /* Schema name */
+  "performance_schema",
   /* Name */
   "setup_timers",
   /* Definition */

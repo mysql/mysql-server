@@ -34,6 +34,8 @@
 THR_LOCK table_esmh_global::m_table_lock;
 
 Plugin_table table_esmh_global::m_table_def(
+  /* Schema name */
+  "performance_schema",
   /* Name */
   "events_statements_histogram_global",
   /* Definition */

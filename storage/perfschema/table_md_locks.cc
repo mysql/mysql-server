@@ -35,6 +35,8 @@
 THR_LOCK table_metadata_locks::m_table_lock;
 
 Plugin_table table_metadata_locks::m_table_def(
+  /* Schema name */
+  "performance_schema",
   /* Name */
   "metadata_locks",
   /* Definition */

@@ -964,7 +964,8 @@ static bool rea_create_base_table(THD *thd, const char *path,
                                 fk_keys,
                                 file);
 
-  if (!(create_info->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL))
+  if (!(create_info->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
+      !thd->is_plugin_fake_ddl())
     result= trans_intermediate_ddl_commit(thd, result);
 
   if (result)
@@ -1047,7 +1048,8 @@ static bool rea_create_base_table(THD *thd, const char *path,
         return 'true' failure below.
       */
       bool result= dd::drop_table(thd, db, table_name, *table_def);
-      (void)trans_intermediate_ddl_commit(thd, result);
+      if (!thd->is_plugin_fake_ddl())
+        (void)trans_intermediate_ddl_commit(thd, result);
     }
     DBUG_RETURN(true);
   }
@@ -1776,7 +1778,8 @@ rm_table_sort_into_groups(THD *thd, Drop_tables_ctx *drop_ctx,
       if (dd::table_storage_engine(thd, table_def, &hton))
         return true;
 
-      if (hton->flags & HTON_SUPPORTS_ATOMIC_DDL)
+      if (hton->flags & HTON_SUPPORTS_ATOMIC_DDL ||
+          thd->is_plugin_fake_ddl())
         drop_ctx->base_atomic_tables.push_back(table);
       else
         drop_ctx->base_non_atomic_tables.push_back(table);
@@ -6189,6 +6192,9 @@ bool mysql_create_table_no_lock(THD *thd,
     return true;
   }
 
+  if (thd->is_plugin_fake_ddl())
+    no_ha_table= true;
+
   return create_table_impl(thd, *schema, db, table_name, table_name,
                            path, create_info, alter_info,
                            false, select_field_count, no_ha_table, is_trans,
@@ -6296,7 +6302,7 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
       changes to the data-dictionary, SE and binary log and possibly run
       handlerton's post-DDL hook.
     */
-    if (!result)
+    if (!result && !thd->is_plugin_fake_ddl())
       result= trans_commit_stmt(thd) || trans_commit_implicit(thd);
 
 #ifndef WORKAROUND_TO_BE_REMOVED_BY_WL9536
@@ -6305,7 +6311,7 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
                                                 nullptr);
 #endif
 
-    if (result)
+    if (result && !thd->is_plugin_fake_ddl())
     {
       trans_rollback_stmt(thd);
       /*

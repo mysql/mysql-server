@@ -32,6 +32,7 @@ namespace dd {
 class Plugin_table_definition_impl: public Object_table_definition
 {
 private:
+  String_type m_schema_name;
   String_type m_table_name;
   String_type m_table_definition;
   String_type m_table_options;
@@ -46,6 +47,12 @@ public:
 
   virtual ~Plugin_table_definition_impl()
   { }
+
+  void set_schema_name(const String_type &name)
+  { m_schema_name= name; }
+
+  const String_type &get_schema_name() const
+  { return m_schema_name; }
 
   void set_table_name(const String_type &name)
   { m_table_name= name; }
@@ -71,7 +78,12 @@ public:
   virtual String_type build_ddl_create_table() const
   {
     Stringstream_type ss;
-    ss << "CREATE TABLE " + m_table_name + "(\n";
+    ss << "CREATE TABLE ";
+
+    if (!m_schema_name.empty())
+      ss << m_schema_name << ".";
+
+    ss << m_table_name + "(\n";
     ss << m_table_definition << ")";
     ss << m_table_options;
 

@@ -4038,12 +4038,25 @@ public:
 
   bool is_a_srv_session() const { return is_a_srv_session_thd; }
   void mark_as_srv_session() { is_a_srv_session_thd= true; }
+
+  bool is_plugin_fake_ddl() const
+  { return m_is_plugin_fake_ddl; }
+  void mark_plugin_fake_ddl(bool flag)
+  { m_is_plugin_fake_ddl= flag; }
 private:
   /**
     Variable to mark if the object is part of a Srv_session object, which
     aggregates THD.
   */
   bool is_a_srv_session_thd;
+
+  /**
+    Creating or dropping plugin native table through a plugin service.
+    This variable enables the DDL command execution from
+    dd::create_native_table() to be executed without committing the
+    transaction.
+  */
+  bool m_is_plugin_fake_ddl;
 
 #ifndef DBUG_OFF
 public:

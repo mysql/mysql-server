@@ -290,7 +290,8 @@ bool stmt_causes_implicit_commit(const THD *thd, uint mask)
   bool skip= FALSE;
   DBUG_ENTER("stmt_causes_implicit_commit");
 
-  if (!(sql_command_flags[lex->sql_command] & mask))
+  if (!(sql_command_flags[lex->sql_command] & mask) ||
+      thd->is_plugin_fake_ddl())
     DBUG_RETURN(FALSE);
 
   switch (lex->sql_command) {
@@ -2736,8 +2737,9 @@ mysql_execute_command(THD *thd, bool first_level)
     committing InnoDB transaction each time data-dictionary tables are
     closed after being updated.
   */
-  Disable_autocommit_guard autocommit_guard(sqlcom_needs_autocommit_off(lex)?
-                                            thd : NULL);
+  Disable_autocommit_guard
+    autocommit_guard(sqlcom_needs_autocommit_off(lex) &&
+                     !thd->is_plugin_fake_ddl() ? thd : NULL);
 
   /*
     Check if we are in a read-only transaction and we're trying to

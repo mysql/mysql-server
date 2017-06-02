@@ -27,6 +27,8 @@ THR_LOCK table_user_defined_functions::m_table_lock;
 
 
 Plugin_table table_user_defined_functions::m_table_def(
+  /* Schema name */
+  "performance_schema",
   /* Name */
   "user_defined_functions",
   /* Definition */

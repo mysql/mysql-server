@@ -123,6 +123,8 @@ User_variables::materialize(PFS_thread *pfs, THD *thd)
 THR_LOCK table_uvar_by_thread::m_table_lock;
 
 Plugin_table table_uvar_by_thread::m_table_def(
+  /* Schema name */
+  "performance_schema",
   /* Name */
   "user_variables_by_thread",
   /* Definition */

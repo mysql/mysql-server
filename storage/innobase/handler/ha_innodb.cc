@@ -12317,7 +12317,9 @@ innobase_dict_init(
 	DBUG_ASSERT(tablespaces && tablespaces->is_empty());
 
 	static Plugin_table innodb_table_stats(
-		/* Name */
+		/* Schema Name */
+		"mysql",
+		/* Table Name */
 		"innodb_table_stats",
 		/* Definition */
 		"  database_name VARCHAR(64) NOT NULL, \n"
@@ -12338,7 +12340,9 @@ innobase_dict_init(
 		MYSQL_TABLESPACE_NAME.str);
 
 	static Plugin_table innodb_index_stats(
-		/* Name */
+		/* Schema Name */
+		"mysql",
+		/* Table Name */
 		"innodb_index_stats",
 		/* Definition */
 		"  database_name VARCHAR(64) NOT NULL, \n"
@@ -12367,7 +12371,9 @@ innobase_dict_init(
                 MYSQL_TABLESPACE_NAME.str);
 
 	static const Plugin_table innodb_dynamic_metadata(
-		/* Name */
+		/* Schema Name */
+		"mysql",
+		/* Table Name */
 		"innodb_dynamic_metadata",
 		/* Definition */
 		"  table_id BIGINT UNSIGNED NOT NULL PRIMARY KEY,\n"
