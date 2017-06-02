@@ -909,7 +909,8 @@ Dbtup::disk_page_prealloc_callback(Signal* signal,
   if (key.m_file_no != pagePtr.p->m_file_no ||
       key.m_page_no != pagePtr.p->m_page_no ||
       fragPtr.p->fragTableId != pagePtr.p->m_table_id ||
-      fragPtr.p->fragmentId != pagePtr.p->m_fragment_id)
+      fragPtr.p->fragmentId != pagePtr.p->m_fragment_id ||
+      pagePtr.p->m_restart_seq == 0)
   {
     jam();
     /**

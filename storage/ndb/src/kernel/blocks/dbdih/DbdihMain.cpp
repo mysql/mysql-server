@@ -1967,6 +1967,12 @@ void Dbdih::ndbStartReqLab(Signal* signal, BlockReference ref)
     initGciFilesLab(signal);
     return;
   }
+  else if (cstarttype == NodeState::ST_INITIAL_NODE_RESTART)
+  {
+    globalData.m_restart_seq = SYSFILE->m_restart_seq = 1;
+    g_eventLogger->info("Starting with m_restart_seq set to %u",
+                        globalData.m_restart_seq);
+  }
   
   NodeRecordPtr nodePtr;
   Uint32 gci = SYSFILE->lastCompletedGCI[getOwnNodeId()];
@@ -23669,7 +23675,7 @@ void Dbdih::initRestartInfo(Signal* signal)
   }//for
   Sysfile::setInitialStartOngoing(SYSFILE->systemRestartBits);
   srand((unsigned int)time(0));
-  globalData.m_restart_seq = SYSFILE->m_restart_seq = 0;
+  globalData.m_restart_seq = SYSFILE->m_restart_seq = 1;
   g_eventLogger->info("Starting with m_restart_seq set to %u",
                       globalData.m_restart_seq);
 
