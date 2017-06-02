@@ -421,7 +421,7 @@ bool parse_srid(const char *str, std::size_t length, srid_t *srid) {
 
 bool parse_geometry(THD *thd, const char *func_name, const String *str,
                     const dd::Spatial_reference_system **srs,
-                    std::unique_ptr<Geometry> *geometry) {
+                    std::unique_ptr<Geometry> *geometry, bool force_cartesian) {
   srid_t srid;
   if (parse_srid(str->ptr(), str->length(), &srid)) {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name);
@@ -437,7 +437,8 @@ bool parse_geometry(THD *thd, const char *func_name, const String *str,
     return true;
   }
 
-  *geometry = gis::parse_wkb(*srs, str->ptr() + sizeof(srid_t),
+  *geometry = gis::parse_wkb((force_cartesian ? nullptr : *srs),
+                             str->ptr() + sizeof(srid_t),
                              str->length() - sizeof(srid_t), true);
   if (!(*geometry)) {
     // Parsing failed, assume invalid input data.
@@ -455,7 +456,7 @@ bool parse_geometry(THD *thd, const char *func_name, const String *str,
     return true;
   }
 
-  gis::Coordinate_range_visitor crv(*srs);
+  gis::Coordinate_range_visitor crv(force_cartesian ? nullptr : *srs);
   if ((*geometry)->accept(&crv)) {
     if (crv.longitude_out_of_range()) {
       my_error(ER_LONGITUDE_OUT_OF_RANGE, MYF(0), crv.coordinate_value(),
