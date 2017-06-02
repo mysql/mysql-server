@@ -90,3 +90,43 @@ set debug= "-d,mysql_lock_tables_kill_query";
 # The below disconnect should drop temporary table automagically.
 disconnect con1;
 connection default;
+#
+# Bug#24786075   FIND A WAY TO LIST #SQL... TABLE LEFT IN      
+#                DATA DICTIONARY IN CASE ALTER FAILS.
+# Test that we can see hidden temporary tables using ALTER TABLE.
+# Test that we can delete the hidden temporary tables that were
+# left by ALTER TABLE table failures in rare situations.
+#
+CREATE TABLE t1(a INT) ENGINE=MyISAM;
+SET debug="+d,exit_after_alter_table_before_rename";
+ALTER TABLE t1 modify column a varchar(30);
+ERROR HY000: Unknown error
+SET debug="-d,exit_after_alter_table_before_rename";
+# Verify that #sql... tables are not seen by I_S and SHOW
+SELECT COUNT(TABLE_NAME) FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA='test' AND TABLE_NAME like '#sql%';
+COUNT(TABLE_NAME)
+0
+SHOW TABLES FROM test;
+Tables_in_test
+t1
+# The SHOW EXTENDED [FULL] syntax should show the hidden table.
+SHOW EXTENDED TABLES FROM test;
+Tables_in_test
+#sql-xxxxx
+t1
+SHOW EXTENDED FULL TABLES FROM test;
+Tables_in_test	Table_type
+#sql-xxxxx	BASE TABLE
+t1	BASE TABLE
+# Dropping the temporary table.
+DROP TABLE `#sql-xxxxx;
+# Verify that the temporary table is dropped.
+SHOW EXTENDED TABLES FROM test;
+Tables_in_test
+t1
+SHOW EXTENDED FULL TABLES FROM test;
+Tables_in_test	Table_type
+t1	BASE TABLE
+# clean-up
+DROP TABLE t1;

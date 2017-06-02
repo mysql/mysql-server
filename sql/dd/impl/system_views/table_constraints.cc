@@ -54,8 +54,8 @@ Table_constraints::Table_constraints()
   first_select->add_from("JOIN mysql.catalogs cat ON cat.id=sch.catalog_id"
                         " AND idx.type IN ('PRIMARY', 'UNIQUE')");
 
-  first_select->add_where("CAN_ACCESS_TABLE(sch.name, tbl.name, idx.hidden)");
-  first_select->add_where("AND tbl.hidden = 'Visible'");
+  first_select->add_where("CAN_ACCESS_TABLE(sch.name, tbl.name)");
+  first_select->add_where("AND IS_VISIBLE_DD_OBJECT(tbl.hidden, idx.hidden)");
 
 
   // Second SELECT for UNION
@@ -78,8 +78,8 @@ Table_constraints::Table_constraints()
   second_select->add_from("JOIN mysql.schemata sch ON tbl.schema_id=sch.id");
   second_select->add_from("JOIN mysql.catalogs cat ON cat.id=sch.catalog_id");
 
-  second_select->add_where("CAN_ACCESS_TABLE(sch.name, tbl.name, FALSE)");
-  second_select->add_where("AND tbl.hidden = 'Visible'");
+  second_select->add_where("CAN_ACCESS_TABLE(sch.name, tbl.name)");
+  second_select->add_where("AND IS_VISIBLE_DD_OBJECT(tbl.hidden)");
 
 }
 

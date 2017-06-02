@@ -2823,7 +2823,6 @@ mysql_execute_command(THD *thd, bool first_level)
   case SQLCOM_SHOW_STATUS_PROC:
   case SQLCOM_SHOW_STATUS_FUNC:
   case SQLCOM_SHOW_DATABASES:
-  case SQLCOM_SHOW_TABLES:
   case SQLCOM_SHOW_TRIGGERS:
   case SQLCOM_SHOW_TABLE_STATUS:
   case SQLCOM_SHOW_OPEN_TABLES:
@@ -4464,6 +4463,7 @@ mysql_execute_command(THD *thd, bool first_level)
   case SQLCOM_SHOW_GRANTS:
   case SQLCOM_SHOW_FIELDS:
   case SQLCOM_SHOW_KEYS:
+  case SQLCOM_SHOW_TABLES:
     DBUG_ASSERT(lex->m_sql_cmd != nullptr);
     res= lex->m_sql_cmd->execute(thd);
     break;

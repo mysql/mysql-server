@@ -1817,8 +1817,13 @@ enum class Numeric_type : ulong
 };
 
 
-enum class Show_fields_type { STANDARD, FULL_SHOW, EXTENDED_SHOW,
-                              EXTENDED_FULL_SHOW };
+enum class Show_cmd_type
+{
+  STANDARD,
+  FULL_SHOW,
+  EXTENDED_SHOW,
+  EXTENDED_FULL_SHOW
+};
 
 
 /**
@@ -2126,7 +2131,7 @@ union YYSTYPE {
     LEX_STRING wild;
     Item *where;
   } wild_or_where;
-  Show_fields_type show_fields_type;
+  Show_cmd_type show_cmd_type;
   struct {
     Sql_cmd_analyze_table::Histogram_command command;
     List<String> *columns;

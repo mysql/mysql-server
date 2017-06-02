@@ -33,7 +33,7 @@ Column_statistics::Column_statistics()
   m_target_def.add_field(FIELD_COLUMN_NAME, "COLUMN_NAME", "COLUMN_NAME");
   m_target_def.add_field(FIELD_HISTOGRAM, "HISTOGRAM", "HISTOGRAM");
   m_target_def.add_from("mysql.column_statistics");
-  m_target_def.add_where("CAN_ACCESS_TABLE(SCHEMA_NAME, TABLE_NAME, FALSE)");
+  m_target_def.add_where("CAN_ACCESS_TABLE(SCHEMA_NAME, TABLE_NAME)");
 }
 
 }

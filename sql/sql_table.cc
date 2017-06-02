@@ -2210,6 +2210,15 @@ drop_base_table(THD *thd, const Drop_tables_ctx &drop_ctx,
                      false);
   }
 
+  /*
+    If the table being dropped is a internal temporary table that was
+    created by ALTER TABLE, we need to mark it as internal tmp table.
+    This will enable us to build the filename as we build during ALTER
+    TABLE.
+  */
+  if (table_def->hidden() == dd::Abstract_table::HT_HIDDEN_DDL)
+    table->internal_tmp_table= true;
+
   (void) build_table_filename(path, sizeof(path) - 1, table->db,
                               table->table_name, "",
                               table->internal_tmp_table ? FN_IS_TMP : 0);
@@ -11802,6 +11811,11 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   new_table= NULL;
 
   DEBUG_SYNC(thd, "alter_table_before_rename_result_table");
+  DBUG_EXECUTE_IF("exit_after_alter_table_before_rename",
+                  {
+                    my_error(ER_UNKNOWN_ERROR, MYF(0));
+                    DBUG_RETURN(true);
+                  });
 
   /*
     Data is copied. Now we:

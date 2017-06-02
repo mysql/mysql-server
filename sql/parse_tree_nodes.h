@@ -3681,27 +3681,26 @@ class PT_show_fields final : public PT_show_fields_and_keys
 
 public:
   PT_show_fields(const POS &pos,
-                 Show_fields_type show_field_types,
+                 Show_cmd_type show_cmd_type,
                  Table_ident *table,
                  const LEX_STRING &wild)
     : PT_show_fields_and_keys(pos, SHOW_FIELDS, table, wild, nullptr),
-      m_show_fields_type(show_field_types)
+      m_show_cmd_type(show_cmd_type)
   {}
 
   PT_show_fields(const POS &pos,
-                 Show_fields_type show_field_types,
+                 Show_cmd_type show_cmd_type,
                  Table_ident *table_ident,
                  Item *where_condition= nullptr)
     : PT_show_fields_and_keys(pos, SHOW_FIELDS, table_ident, NULL_STR,
                               where_condition),
-      m_show_fields_type(show_field_types)
+      m_show_cmd_type(show_cmd_type)
   {}
 
   Sql_cmd *make_cmd(THD *thd) override;
 
 private:
-  // Show fields type: EXTENDED, FULL OR EXTENDED FULL.
-  Show_fields_type m_show_fields_type;
+  Show_cmd_type m_show_cmd_type;
 };
 
 
@@ -5016,6 +5015,47 @@ public:
 
 private:
   Trivial_array<PT_preload_keys *> *m_preload_list;
+};
+
+/**
+  Base class for Parse tree nodes of SHOW TABLES statements.
+*/
+class PT_show_tables : public Parse_tree_root
+{
+public:
+  PT_show_tables(const POS &pos,
+                 Show_cmd_type show_cmd_type,
+                 char *opt_db,
+                 const LEX_STRING &wild,
+                 Item *where_condition)
+    : m_pos(pos),
+      m_sql_cmd(SQLCOM_SHOW_TABLES),
+      m_opt_db(opt_db),
+      m_wild(wild),
+      m_where_condition(where_condition),
+      m_show_cmd_type(show_cmd_type)
+  {
+    DBUG_ASSERT(m_wild.str == nullptr || m_where_condition == nullptr);
+  }
+
+public:
+  Sql_cmd *make_cmd(THD *thd) override;
+
+private:
+  /// Textual location of a token just parsed.
+  POS m_pos;
+
+  /// Sql_cmd for SHOW TABLES statements.
+  Sql_cmd_show m_sql_cmd;
+
+  /// Optional schema name in FROM/IN clause.
+  char *m_opt_db;
+
+  /// Wild or where clause used in the statement.
+  LEX_STRING m_wild;
+  Item *m_where_condition;
+
+  Show_cmd_type m_show_cmd_type;
 };
 
 #endif /* PARSE_TREE_NODES_INCLUDED */

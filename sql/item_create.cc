@@ -1505,6 +1505,17 @@ Create_sp_func::create(THD *thd, LEX_STRING db, LEX_STRING name,
   &Internal_function_factory<Instantiator<F, N>>::s_singleton
 
 /**
+  Just like SQL_FN_INTERNAL, but enforces a check that the argument count
+  is even.
+
+  @param F The Item_func that the factory should make.
+  @param MIN Number of arguments that the function accepts.
+  @param MAX Number of arguments that the function accepts.
+*/
+#define SQL_FN_INTERNAL_V(F, MIN, MAX) \
+  &Internal_function_factory<Instantiator<F, MIN, MAX>>::s_singleton
+
+/**
   Like SQL_FN_LIST, but for functions that may only be referenced from system
   views.
 
@@ -1807,12 +1818,13 @@ static const std::pair<const char *, Create_func *> func_array[]=
   { "GET_DD_CREATE_OPTIONS", SQL_FN_INTERNAL(Item_func_get_dd_create_options, 2) },
   { "INTERNAL_DD_CHAR_LENGTH", SQL_FN_INTERNAL(Item_func_internal_dd_char_length, 4) },
   { "CAN_ACCESS_DATABASE", SQL_FN_INTERNAL(Item_func_can_access_database, 1) },
-  { "CAN_ACCESS_TABLE", SQL_FN_INTERNAL(Item_func_can_access_table, 3) },
-  { "CAN_ACCESS_COLUMN", SQL_FN_INTERNAL(Item_func_can_access_column, 4) },
+  { "CAN_ACCESS_TABLE", SQL_FN_INTERNAL(Item_func_can_access_table, 2) },
+  { "CAN_ACCESS_COLUMN", SQL_FN_INTERNAL(Item_func_can_access_column, 3) },
   { "CAN_ACCESS_VIEW", SQL_FN_INTERNAL(Item_func_can_access_view, 4) },
   { "CAN_ACCESS_TRIGGER", SQL_FN_INTERNAL(Item_func_can_access_trigger, 2) },
   { "CAN_ACCESS_ROUTINE", SQL_FN_LIST_INTERNAL(Item_func_can_access_routine, 5) },
   { "CAN_ACCESS_EVENT", SQL_FN_INTERNAL(Item_func_can_access_event, 1) },
+  { "IS_VISIBLE_DD_OBJECT", SQL_FN_INTERNAL_V(Item_func_is_visible_dd_object, 1, 2) },
   { "INTERNAL_TABLE_ROWS", SQL_FN_INTERNAL(Item_func_internal_table_rows, 4) },
   { "INTERNAL_AVG_ROW_LENGTH", SQL_FN_INTERNAL(Item_func_internal_avg_row_length, 4) },
   { "INTERNAL_DATA_LENGTH", SQL_FN_INTERNAL(Item_func_internal_data_length, 4) },

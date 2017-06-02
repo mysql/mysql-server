@@ -1777,28 +1777,34 @@ Sql_cmd *PT_show_fields_and_keys::make_cmd(THD *thd)
 }
 
 
-Sql_cmd *PT_show_fields::make_cmd(THD *thd)
+static void setup_lex_show_cmd_type(THD *thd,
+                                    Show_cmd_type show_cmd_type)
 {
   thd->lex->verbose= false;
   thd->lex->m_extended_show= false;
 
-  switch (m_show_fields_type)
+  switch (show_cmd_type)
   {
-  case Show_fields_type::STANDARD:
+  case Show_cmd_type::STANDARD:
     break;
-  case Show_fields_type::FULL_SHOW:
+  case Show_cmd_type::FULL_SHOW:
     thd->lex->verbose= true;
     break;
-  case Show_fields_type::EXTENDED_SHOW:
+  case Show_cmd_type::EXTENDED_SHOW:
     thd->lex->m_extended_show= true;
     break;
-  case Show_fields_type::EXTENDED_FULL_SHOW:
+  case Show_cmd_type::EXTENDED_FULL_SHOW:
     thd->lex->verbose= true;
     thd->lex->m_extended_show= true;
     break;
   default:
     DBUG_ASSERT(false);
   }
+}
+
+Sql_cmd *PT_show_fields::make_cmd(THD *thd)
+{
+  setup_lex_show_cmd_type(thd, m_show_cmd_type);
   return super::make_cmd(thd);
 }
 
@@ -2285,3 +2291,25 @@ Sql_cmd *PT_load_index_stmt::make_cmd(THD *thd)
   thd->lex->alter_info= &m_alter_info;
   return new (thd->mem_root) Sql_cmd_load_index(&m_alter_info);
 }
+
+
+Sql_cmd *PT_show_tables::make_cmd(THD *thd)
+{
+  LEX *lex= thd->lex;
+  lex->sql_command= SQLCOM_SHOW_TABLES;
+
+  lex->select_lex->db= m_opt_db;
+  setup_lex_show_cmd_type(thd, m_show_cmd_type);
+
+  if (m_wild.str && lex->set_wild(m_wild))
+    return NULL; // OOM
+
+  SELECT_LEX *sel= dd::info_schema::build_show_tables_query(
+                     m_pos, thd, lex->wild, m_where_condition, false);
+  if (sel == nullptr)
+    return NULL;
+
+  return &m_sql_cmd;
+}
+
+

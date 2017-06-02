@@ -78,6 +78,12 @@ SET DEBUG_SYNC= 'now WAIT_FOR blocked';
 SELECT COUNT(TABLE_NAME) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='test_i_s' AND TABLE_NAME like '#sql%';
 SHOW TABLES FROM test_i_s;
 
+--echo # Check that there exists a hidden table created by ALTER and
+--echo # I_S.TABLES had not listed above. The SHOW EXTENDED syntax was
+--echo # added as part of Bug#24786075.
+--replace_regex /#sql.*$/#sql-xxxxx/
+SHOW EXTENDED TABLES FROM test_i_s;
+
 --echo # Make sure mysqldump/mysqlpump ignores the #sql... tables.
 --echo # mysqldump fails to acquire the lock without the fix.
 --let $file = $MYSQLTEST_VARDIR/tmp/bug24571427.sql

@@ -113,8 +113,9 @@ Columns::Columns()
 
   m_target_def.add_where("INTERNAL_GET_VIEW_WARNING_OR_ERROR(sch.name,"
                          "tbl.name, tbl.type, tbl.options)");
-  m_target_def.add_where("AND CAN_ACCESS_COLUMN(sch.name, tbl.name, col.name, col.hidden)");
-  m_target_def.add_where("AND tbl.hidden = 'Visible'");
+  m_target_def.add_where("AND CAN_ACCESS_COLUMN(sch.name, tbl.name, "
+                         "col.name)");
+  m_target_def.add_where("AND IS_VISIBLE_DD_OBJECT(tbl.hidden, col.hidden)");
 }
 
 }

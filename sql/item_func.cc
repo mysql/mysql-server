@@ -43,6 +43,7 @@
 #include "dd/object_id.h"
 #include "dd/properties.h"       // dd::Properties
 #include "dd/types/index.h"      // Index::enum_index_type
+#include "dd/types/table.h"      // dd::Abstract_table::enum_hidden_type
 #include "dd_sql_view.h"         // push_view_warning_or_error
 #include "dd_table_share.h"      // dd_get_old_field_type
 #include "debug_sync.h"          // DEBUG_SYNC
@@ -9288,13 +9289,8 @@ bool check_table_and_trigger_access(Item **args,
     In order for INFORMATION_SCHEMA to skip listing table for which
     the user does not have rights, the following UDF's is used.
 
-    CAN_ACCESS_TABLE is invoked from INFORMATION_SCHEMA views even for
-    the hidden database objects. For example, CAN_ACCESS_TABLE is
-    invoked from the INFORMATION_SCHEMA.STATISTICS_BASE. To skip listing
-    for hidden index and index element, parameter "skip_table" is used.
-
   Syntax:
-    int CAN_ACCCESS_TABLE(schema_name, table_name, skip_table);
+    int CAN_ACCCESS_TABLE(schema_name, table_name);
 
   @returns,
     1 - If current user has access.
@@ -9303,23 +9299,6 @@ bool check_table_and_trigger_access(Item **args,
 longlong Item_func_can_access_table::val_int()
 {
   DBUG_ENTER("Item_func_can_access_table::val_int");
-
-  /*
-    If CAN_ACCESS_TABLE is called for the hidden database objects then skip
-    listing those. For example, CAN_ACCESS_TABLE is called from the I_S query
-    STATISTICS_BASE. In this case if index or index column is hidden then
-    skip listing of it.
-    Keyword EXTENDED enables the SHOW INDEX command to list the hidden Indexes
-    and Indexes columns.
-  */
-  THD *thd= current_thd;
-  bool skip_table= args[2]->val_bool();
-  if (args[2]->null_value ||
-      (skip_table && thd->lex->m_extended_show == false))
-  {
-    null_value= args[2]->null_value;
-    DBUG_RETURN(FALSE);
-  }
 
   if (check_table_and_trigger_access(args, false, &null_value))
     DBUG_RETURN(TRUE);
@@ -9488,16 +9467,10 @@ longlong Item_func_can_access_event::val_int()
     In order for INFORMATION_SCHEMA to skip listing column for which
     the user does not have rights, the following UDF's is used.
 
-    CAN_ACCESS_COLUMN is invoked from INFORMATION_SCHEMA views even
-    for the hidden database objects. For example, CAN_ACCESS_COLUMN
-    is invoked from the INFORMATION_SCHEMA.COLUMNS. To skip listing
-    of hiddden columns, parameter skip_column is used.
-
   Syntax:
     int CAN_ACCCESS_COLUMN(schema_name,
                            table_name,
-                           field_name,
-                           skip_column);
+                           field_name);
 
   @returns,
     1 - If current user has access.
@@ -9506,23 +9479,6 @@ longlong Item_func_can_access_event::val_int()
 longlong Item_func_can_access_column::val_int()
 {
   DBUG_ENTER("Item_func_can_access_column::val_int");
-
-  /*
-    If CAN_ACCCESS_COLUMN is called for the hidden database objects then
-    skip listing those. For example,CAN_ACCESS_COLUMN is called from the
-    I_S query COLUMNS. In this case if column is hidden then skip listing
-    of it.
-    Keyword EXTENDED enables the SHOW COLUMNS command to list the hidden
-    columns.
-  */
-  THD *thd= current_thd;
-  bool skip_column= args[3]->val_bool();
-  if (args[3]->null_value ||
-      (skip_column && thd->lex->m_extended_show == false))
-  {
-    null_value= args[3]->null_value;
-    DBUG_RETURN(FALSE);
-  }
 
   // Read schema_name, table_name
   String schema_name;
@@ -9540,6 +9496,7 @@ longlong Item_func_can_access_column::val_int()
   table_name_ptr->c_ptr_safe();
 
   // Check if table is hidden.
+  THD *thd= current_thd;
   if (is_hidden_by_ndb(thd, schema_name_ptr, table_name_ptr))
     DBUG_RETURN(FALSE);
 
@@ -9686,6 +9643,57 @@ longlong Item_func_can_access_view::val_int()
 
   DBUG_RETURN(FALSE);
 }
+
+
+/**
+  Skip hidden tables, columns, indexes and index elements.
+  Do not skip them, when SHOW EXTENDED command are run.
+
+  Syntax:
+    longlong  IS_VISIBLE_DD_OBJECT(table_type, is_object_hidden);
+
+  @returns,
+    1 - If dd object is visible
+    0 - If not visible.
+*/
+longlong Item_func_is_visible_dd_object::val_int()
+{
+  DBUG_ENTER("Item_func_is_visible_dd_object::val_int");
+
+  DBUG_ASSERT(arg_count == 1 || arg_count == 2);
+  DBUG_ASSERT(args[0]->null_value == false);
+
+  if (args[0]->null_value ||
+      (arg_count == 2 && args[1]->null_value))
+  {
+    null_value= true;
+    DBUG_RETURN(FALSE);
+  }
+
+  null_value= false;
+  THD *thd= current_thd;
+
+  auto table_type= static_cast<dd::Abstract_table::enum_hidden_type>(
+                                                     args[0]->val_int());
+
+  bool show_table= (table_type == dd::Abstract_table::HT_VISIBLE);
+
+  if (thd->lex->m_extended_show)
+    show_table= show_table ||
+                (table_type == dd::Abstract_table::HT_HIDDEN_DDL);
+
+  if (arg_count == 1 || show_table == false)
+    DBUG_RETURN(MY_TEST(show_table));
+
+  bool show_non_table_objects;
+  if (thd->lex->m_extended_show)
+    show_non_table_objects= true;
+  else
+    show_non_table_objects= (args[1]->val_bool() == false);
+
+  DBUG_RETURN(MY_TEST(show_non_table_objects));
+}
+
 
 static ulonglong get_statistics_from_cache(
                    Item** args,

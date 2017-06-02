@@ -1418,7 +1418,7 @@ END_OF_INPUT
         opt_full opt_extended
         opt_ignore_leaves
 
-%type <show_fields_type> opt_show_fields_type
+%type <show_cmd_type> opt_show_cmd_type
 
 %type <NONE>
         '-' '+' '*' '/' '%' '(' ')'
@@ -11351,17 +11351,11 @@ show_param:
                        @$, YYTHD, Lex->wild, $2.where) == nullptr)
                MYSQL_YYABORT;
            }
-         | opt_full TABLES opt_db opt_wild_or_where_for_show
+         | opt_show_cmd_type TABLES opt_db opt_wild_or_where_for_show
            {
-             LEX *lex= Lex;
-             lex->sql_command= SQLCOM_SHOW_TABLES;
-             lex->verbose= $1;
-             lex->select_lex->db= $3;
-             if (Lex->set_wild($4.wild))
-               MYSQL_YYABORT; // OOM
-             if (dd::info_schema::build_show_tables_query(@$, YYTHD, lex->wild,
-                                         $4.where, false) == nullptr)
-               MYSQL_YYABORT;
+             auto *p= NEW_PTN PT_show_tables(@$, $1, $3, $4.wild, $4.where);
+
+             MAKE_CMD(p);
            }
          | opt_full TRIGGERS_SYM opt_db opt_wild_or_where_for_show
            {
@@ -11422,7 +11416,12 @@ show_param:
           }
         | ENGINE_SYM ALL show_engine_param
           { Lex->create_info->db_type= NULL; }
-        | opt_show_fields_type COLUMNS from_or_in table_ident opt_db opt_wild_or_where_for_show
+        | opt_show_cmd_type
+          COLUMNS
+          from_or_in
+          table_ident
+          opt_db
+          opt_wild_or_where_for_show
           {
             LEX *lex= Lex;
 
@@ -11759,11 +11758,11 @@ opt_extended:
         | EXTENDED_SYM  { $$= 1; }
         ;
 
-opt_show_fields_type:
-          /* empty */          { $$= Show_fields_type::STANDARD; }
-        | FULL                 { $$= Show_fields_type::FULL_SHOW; }
-        | EXTENDED_SYM         { $$= Show_fields_type::EXTENDED_SHOW; }
-        | EXTENDED_SYM FULL    { $$= Show_fields_type::EXTENDED_FULL_SHOW; }
+opt_show_cmd_type:
+          /* empty */          { $$= Show_cmd_type::STANDARD; }
+        | FULL                 { $$= Show_cmd_type::FULL_SHOW; }
+        | EXTENDED_SYM         { $$= Show_cmd_type::EXTENDED_SHOW; }
+        | EXTENDED_SYM FULL    { $$= Show_cmd_type::EXTENDED_FULL_SHOW; }
         ;
 
 from_or_in:
@@ -11812,7 +11811,7 @@ describe:
             lex->current_select()->parsing_place= CTX_SELECT_LIST;
             lex->select_lex->db= NULL;
 
-            auto *p= NEW_PTN PT_show_fields(@$, Show_fields_type::STANDARD, $2);
+            auto *p= NEW_PTN PT_show_fields(@$, Show_cmd_type::STANDARD, $2);
 
             lex->sql_command= SQLCOM_SHOW_FIELDS;
             MAKE_CMD(p);
