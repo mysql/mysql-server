@@ -190,13 +190,17 @@ SHOW INDEX FROM tab;
 
 SET @g1 = ST_GeomFromText('POLYGON((20 20,30 30,40 40,50 50,40 50,30 40,30 30,20 20))');
 
+--echo # Invalid polygon.
 SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE ST_Crosses(tab.c4, @g1);
 
+--echo # Invalid polygon.
 UPDATE tab SET C2 = ST_GeomFromText('POINT(1000 1000)')
 WHERE ST_Crosses(tab.c4, @g1);
 
+--echo # Invalid polygon.
 SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE ST_Crosses(tab.c4, @g1);
 
+--echo # Invalid polygon.
 DELETE FROM tab WHERE ST_Crosses(tab.c4, @g1);
 
 ALTER TABLE tab CHANGE COLUMN c2 c22 POINT NOT NULL;

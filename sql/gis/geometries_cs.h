@@ -82,7 +82,6 @@ class Cartesian_linestring : public Linestring {
   std::size_t size() const override { return m_points.size(); }
   void resize(std::size_t count) { m_points.resize(count); }
   void clear() { m_points.clear(); }
-  virtual void flip() override;
 
   Cartesian_point &back() { return m_points.back(); }
   const Cartesian_point &back() const { return m_points.back(); }
@@ -128,7 +127,6 @@ class Geographic_linestring : public Linestring {
   std::size_t size() const override { return m_points.size(); }
   void resize(std::size_t count) { m_points.resize(count); }
   void clear() { m_points.clear(); }
-  virtual void flip() override;
 
   Geographic_point &back() { return m_points.back(); }
   const Geographic_point &back() const { return m_points.back(); }
@@ -162,7 +160,6 @@ class Cartesian_linearring : public Cartesian_linestring, public Linearring {
   }
   bool empty() const override { return Cartesian_linestring::empty(); }
   std::size_t size() const override { return Cartesian_linestring::size(); }
-  void flip() override { Cartesian_linestring::flip(); }
 
   Cartesian_point &operator[](std::size_t i) override {
     return Cartesian_linestring::operator[](i);
@@ -189,7 +186,6 @@ class Geographic_linearring : public Geographic_linestring, public Linearring {
   }
   bool empty() const override { return Geographic_linestring::empty(); }
   std::size_t size() const override { return Geographic_linestring::size(); }
-  void flip() override { Geographic_linestring::flip(); }
 
   Geographic_point &operator[](std::size_t i) override {
     return Geographic_linestring::operator[](i);

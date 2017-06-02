@@ -445,11 +445,11 @@ bool parse_geometry(THD *thd, const char *func_name, const String *str,
     return true;
   }
 
-  // Flip polygon rings so that the exterior ring is counterclockwise and
+  // Flip polygon rings so that the exterior ring is counter-clockwise and
   // interior rings are clockwise.
-  gis::Ring_flip_visitor rfv(*srs, gis::Ring_direction::kCCW);
+  gis::Ring_flip_visitor rfv;
   (*geometry)->accept(&rfv);
-  if ((*srs == nullptr || (*srs)->is_cartesian()) && rfv.invalid()) {
+  if (rfv.invalid()) {
     // There's something wrong with a polygon in the geometry.
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name);
     return true;

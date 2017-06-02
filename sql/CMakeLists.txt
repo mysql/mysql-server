@@ -197,7 +197,7 @@ SET(SQL_GIS_SOURCES
   geometry_rtree.cc
   gis/distance.cc
   gis/geometries.cc
-  gis/ring_direction.cc
+  gis/ring_flip_visitor.cc
   gis/rtree_support.cc
   gis/srs/srs.cc
   gis/srs/wkt_parser.cc

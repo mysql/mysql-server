@@ -260,12 +260,6 @@ class Linestring : public Curve {
   /// @return Number of points in the linestring.
   virtual std::size_t size() const = 0;
 
-  /// Flip the linestring.
-  ///
-  /// The last point becomes the first point, the second to last point
-  /// becomes the second, etc.
-  virtual void flip() = 0;
-
   virtual Point &operator[](std::size_t i) = 0;
   virtual const Point &operator[](std::size_t i) const = 0;
 };

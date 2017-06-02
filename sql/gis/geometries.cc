@@ -75,11 +75,6 @@ void Cartesian_linestring::push_back(Point &&pt) {
 
 bool Cartesian_linestring::empty() const { return m_points.empty(); }
 
-void Cartesian_linestring::flip() {
-  for (std::size_t i = 0, j = size() - 1; i < size() / 2; i++, j--)
-    std::swap(m_points[i], m_points[j]);
-}
-
 bool Geographic_linestring::accept(Geometry_visitor *v) {
   if (!v->visit_enter(this) && m_points.size() > 0) {
     if (m_points[0].accept(v)) return true;
@@ -101,11 +96,6 @@ void Geographic_linestring::push_back(Point &&pt) {
 }
 
 bool Geographic_linestring::empty() const { return m_points.empty(); }
-
-void Geographic_linestring::flip() {
-  for (std::size_t i = 0, j = size() - 1; i < size() / 2; i++, j--)
-    std::swap(m_points[i], m_points[j]);
-}
 
 bool Cartesian_linearring::accept(Geometry_visitor *v) {
   if (!v->visit_enter(this) && m_points.size() > 0) {

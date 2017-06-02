@@ -135,12 +135,6 @@ TYPED_TEST(GeometriesTest, Linestring)
   EXPECT_EQ(0.0, ls[0].y());
   EXPECT_EQ(30.0, ls[3].x());
   EXPECT_EQ(10.0, ls[3].y());
-
-  ls.flip();
-  EXPECT_EQ(30.0, ls[0].x());
-  EXPECT_EQ(10.0, ls[0].y());
-  EXPECT_EQ(0.0, ls[3].x());
-  EXPECT_EQ(0.0, ls[3].y());
 }
 
 TYPED_TEST(GeometriesTest, Linearring)
@@ -167,12 +161,6 @@ TYPED_TEST(GeometriesTest, Linearring)
   EXPECT_EQ(10.0, lr[1].y());
   EXPECT_EQ(20.0, lr[2].x());
   EXPECT_EQ(0.0, lr[2].y());
-
-  lr.flip();
-  EXPECT_EQ(20.0, lr[1].x());
-  EXPECT_EQ(0.0, lr[1].y());
-  EXPECT_EQ(10.0, lr[2].x());
-  EXPECT_EQ(10.0, lr[2].y());
 }
 
 TYPED_TEST(GeometriesTest, Surface)
@@ -200,11 +188,10 @@ TYPED_TEST(GeometriesTest, Polygon)
 
   typename TypeParam::Linearring interior;
   interior.push_back(typename TypeParam::Point(2.0, 2.0));
-  interior.push_back(typename TypeParam::Point(8.0, 2.0));
-  interior.push_back(typename TypeParam::Point(8.0, 8.0));
   interior.push_back(typename TypeParam::Point(2.0, 8.0));
+  interior.push_back(typename TypeParam::Point(8.0, 8.0));
+  interior.push_back(typename TypeParam::Point(8.0, 2.0));
   interior.push_back(typename TypeParam::Point(2.0, 2.0));
-  interior.flip();
   py.push_back(std::move(interior));
 
   EXPECT_EQ(2U, py.size());
@@ -376,11 +363,10 @@ TYPED_TEST(GeometriesTest, Multipolygon)
 
   typename TypeParam::Linearring interior;
   interior.push_back(typename TypeParam::Point(2.0, 2.0));
-  interior.push_back(typename TypeParam::Point(8.0, 2.0));
-  interior.push_back(typename TypeParam::Point(8.0, 8.0));
   interior.push_back(typename TypeParam::Point(2.0, 8.0));
+  interior.push_back(typename TypeParam::Point(8.0, 8.0));
+  interior.push_back(typename TypeParam::Point(8.0, 2.0));
   interior.push_back(typename TypeParam::Point(2.0, 2.0));
-  interior.flip();
 
   typename TypeParam::Polygon py;
   py.push_back(std::move(exterior));
