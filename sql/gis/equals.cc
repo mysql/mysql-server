@@ -24,10 +24,13 @@
 
 #include <boost/geometry.hpp>
 
+#include "box.h"
+#include "box_traits.h"
 #include "dd/types/spatial_reference_system.h"  // dd::Spatial_reference_system
 #include "gc_utils.h"
 #include "geometries.h"
 #include "geometries_traits.h"
+#include "mbr_utils.h"
 #include "sql_exception_handler.h"  // handle_gis_exception
 #include "template_utils.h"         // down_cast
 
@@ -143,6 +146,21 @@ Equals::Equals(double semi_major, double semi_minor)
 
 bool Equals::operator()(const Geometry *g1, const Geometry *g2) const {
   return apply(*this, g1, g2);
+}
+
+bool Equals::operator()(const Box *b1, const Box *b2) const {
+  DBUG_ASSERT(b1->coordinate_system() == b2->coordinate_system());
+  switch (b1->coordinate_system()) {
+    case Coordinate_system::kCartesian:
+      return eval(down_cast<const Cartesian_box *>(b1),
+                  down_cast<const Cartesian_box *>(b2));
+    case Coordinate_system::kGeographic:
+      return eval(down_cast<const Geographic_box *>(b1),
+                  down_cast<const Geographic_box *>(b2));
+  }
+
+  DBUG_ASSERT(false);
+  return false;
 }
 
 bool Equals::eval(const Geometry *g1, const Geometry *g2) const {
@@ -450,8 +468,8 @@ bool Equals::eval(const Geographic_point *g1,
 
 bool Equals::eval(const Geographic_point *g1,
                   const Geographic_geometrycollection *g2) const {
-  return geometry_collection_apply_equals<Geographic_geometrycollection>(*this,
-                                                                        g1, g2);
+  return geometry_collection_apply_equals<Geographic_geometrycollection>(
+      *this, g1, g2);
 }
 
 bool Equals::eval(const Geographic_point *g1,
@@ -496,8 +514,8 @@ bool Equals::eval(const Geographic_linestring *g1,
 
 bool Equals::eval(const Geographic_linestring *g1,
                   const Geographic_geometrycollection *g2) const {
-  return geometry_collection_apply_equals<Geographic_geometrycollection>(*this,
-                                                                        g1, g2);
+  return geometry_collection_apply_equals<Geographic_geometrycollection>(
+      *this, g1, g2);
 }
 
 bool Equals::eval(const Geographic_linestring *g1,
@@ -540,8 +558,8 @@ bool Equals::eval(const Geographic_polygon *g1,
 
 bool Equals::eval(const Geographic_polygon *g1,
                   const Geographic_geometrycollection *g2) const {
-  return geometry_collection_apply_equals<Geographic_geometrycollection>(*this,
-                                                                        g1, g2);
+  return geometry_collection_apply_equals<Geographic_geometrycollection>(
+      *this, g1, g2);
 }
 
 bool Equals::eval(const Geographic_polygon *g1,
@@ -707,6 +725,18 @@ bool Equals::eval(const Geographic_multipolygon *g1,
 
 //////////////////////////////////////////////////////////////////////////////
 
+// equals(Box, Box)
+
+bool Equals::eval(const Cartesian_box *b1, const Cartesian_box *b2) const {
+  return bg::equals(*b1, *b2);
+}
+
+bool Equals::eval(const Geographic_box *b1, const Geographic_box *b2) const {
+  return bg::equals(*b1, *b2);
+}
+
+//////////////////////////////////////////////////////////////////////////////
+
 bool equals(const dd::Spatial_reference_system *srs, const Geometry *g1,
             const Geometry *g2, const char *func_name, bool *equals,
             bool *null) noexcept {
@@ -731,6 +761,56 @@ bool equals(const dd::Spatial_reference_system *srs, const Geometry *g1,
     Equals equals_func(srs ? srs->semi_major_axis() : 0.0,
                        srs ? srs->semi_minor_axis() : 0.0);
     *equals = equals_func(g1, g2);
+  } catch (...) {
+    handle_gis_exception(func_name);
+    return true;
+  }
+
+  return false;
+}
+
+bool mbr_equals(const dd::Spatial_reference_system *srs, const Geometry *g1,
+                const Geometry *g2, const char *func_name, bool *equals,
+                bool *null) noexcept {
+  try {
+    DBUG_ASSERT(g1->coordinate_system() == g2->coordinate_system());
+    DBUG_ASSERT(srs == nullptr ||
+                ((srs->is_cartesian() &&
+                  g1->coordinate_system() == Coordinate_system::kCartesian) ||
+                 (srs->is_geographic() &&
+                  g1->coordinate_system() == Coordinate_system::kGeographic)));
+
+    *null = false;
+    if (g1->is_empty()) {
+      *equals = g2->is_empty();
+      return false;
+    }
+    if (g2->is_empty()) {
+      *equals = false;
+      return false;
+    }
+
+    Equals equals_func(srs ? srs->semi_major_axis() : 0.0,
+                       srs ? srs->semi_minor_axis() : 0.0);
+
+    switch (g1->coordinate_system()) {
+      case Coordinate_system::kCartesian: {
+        Cartesian_box mbr1;
+        box_envelope(g1, srs, &mbr1);
+        Cartesian_box mbr2;
+        box_envelope(g2, srs, &mbr2);
+        *equals = equals_func(&mbr1, &mbr2);
+        break;
+      }
+      case Coordinate_system::kGeographic: {
+        Geographic_box mbr1;
+        box_envelope(g1, srs, &mbr1);
+        Geographic_box mbr2;
+        box_envelope(g2, srs, &mbr2);
+        *equals = equals_func(&mbr1, &mbr2);
+        break;
+      }
+    }
   } catch (...) {
     handle_gis_exception(func_name);
     return true;
