@@ -1192,6 +1192,23 @@ public:
 };
 
 
+class Item_func_mbrcoveredby final : public Item_func_spatial_relation
+{
+public:
+  Item_func_mbrcoveredby(const POS &pos, Item *a, Item *b)
+    : Item_func_spatial_relation(pos, a, b)
+  {}
+  enum Functype functype() const override
+  { return SP_COVEREDBY_FUNC; }
+  enum Functype rev_functype() const override
+  { return SP_COVERS_FUNC; }
+  const char *func_name() const override
+  { return "mbrcoveredby"; }
+  bool eval(const dd::Spatial_reference_system *srs, const gis::Geometry *g1,
+            const gis::Geometry *g2, bool *result, bool *null) override;
+};
+
+
 class Item_func_mbrdisjoint final : public Item_func_spatial_relation
 {
 public:
