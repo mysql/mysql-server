@@ -935,6 +935,8 @@ public:
 
   Uint32 m_backup_report_frequency;
 
+  bool c_initial_start_lcp_not_done_yet;
+
   unsigned char c_part_array[BackupFormat::NDB_MAX_LCP_PARTS * 4];
   /**
    * Pools

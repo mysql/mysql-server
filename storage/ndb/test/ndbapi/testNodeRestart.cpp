@@ -2334,6 +2334,40 @@ retry:
   return NDBT_OK;
 }
 
+int
+runInitialNodeRestartTest(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter res;
+
+  if (runLoadTable(ctx, step) != NDBT_OK)
+    return NDBT_FAILED;
+
+  {
+    int lcpdump = DumpStateOrd::DihMinTimeBetweenLCP;
+    res.dumpStateAllNodes(&lcpdump, 1);
+  }
+  sleep(10);
+  int node = res.getRandomNotMasterNodeId(rand());
+  ndbout_c("node: %d", node);
+
+  if (res.restartOneDbNode(node, true, true, true))
+    return NDBT_FAILED;
+
+  if (res.waitNodesNoStart(&node, 1))
+    return NDBT_FAILED;
+
+  if (res.insertErrorInNode(node, 5091))
+    return NDBT_FAILED;
+
+  res.startNodes(&node, 1);
+
+  res.waitNodesStartPhase(&node, 1, 3);
+
+  if (res.waitClusterStarted())
+    return NDBT_FAILED;
+  return NDBT_OK;
+}
+
 int 
 runBug26481(NDBT_Context* ctx, NDBT_Step* step)
 {
@@ -9020,6 +9054,9 @@ TESTCASE("Bug26457", ""){
 }
 TESTCASE("Bug26481", ""){
   INITIALIZER(runBug26481);
+}
+TESTCASE("InitialNodeRestartTest", ""){
+  INITIALIZER(runInitialNodeRestartTest);
 }
 TESTCASE("Bug26450", ""){
   INITIALIZER(runLoadTable);
