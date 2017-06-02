@@ -1967,40 +1967,15 @@ SELECT MBRTOUCHES(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0));
 MBRTOUCHES(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0))
 0
 SELECT MBRTOUCHES(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(@star_center,100));
-MBRTOUCHES(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(@star_center,100))
-0
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 100. The axis order is unknown.
-Warning	3565	There's no spatial reference system with SRID 100. The axis order is unknown.
-Warning	3519	There's no spatial reference system with SRID 100. Calculations in function mbrtouches will be done in SRID 0.
+ERROR SR001: There's no spatial reference system with SRID 100.
 SELECT MBRTOUCHES(ST_GEOMFROMTEXT(@star_top,20000),ST_GEOMFROMTEXT(@star_center,20000));
-MBRTOUCHES(ST_GEOMFROMTEXT(@star_top,20000),ST_GEOMFROMTEXT(@star_center,20000))
-0
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 20000. The axis order is unknown.
-Warning	3565	There's no spatial reference system with SRID 20000. The axis order is unknown.
-Warning	3519	There's no spatial reference system with SRID 20000. Calculations in function mbrtouches will be done in SRID 0.
+ERROR SR001: There's no spatial reference system with SRID 20000.
 SELECT MBRTOUCHES(ST_GEOMFROMTEXT(@star_top,123456),ST_GEOMFROMTEXT(@star_center,123456));
-MBRTOUCHES(ST_GEOMFROMTEXT(@star_top,123456),ST_GEOMFROMTEXT(@star_center,123456))
-0
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 123456. The axis order is unknown.
-Warning	3565	There's no spatial reference system with SRID 123456. The axis order is unknown.
-Warning	3519	There's no spatial reference system with SRID 123456. Calculations in function mbrtouches will be done in SRID 0.
+ERROR SR001: There's no spatial reference system with SRID 123456.
 SELECT MBRTOUCHES(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575));
-MBRTOUCHES(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575))
-0
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 1048575. The axis order is unknown.
-Warning	3565	There's no spatial reference system with SRID 1048575. The axis order is unknown.
-Warning	3519	There's no spatial reference system with SRID 1048575. Calculations in function mbrtouches will be done in SRID 0.
+ERROR SR001: There's no spatial reference system with SRID 1048575.
 SELECT MBRTOUCHES(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295));
-MBRTOUCHES(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295))
-0
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
-Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
-Warning	3519	There's no spatial reference system with SRID 4294967295. Calculations in function mbrtouches will be done in SRID 0.
+ERROR SR001: There's no spatial reference system with SRID 4294967295.
 SELECT MBRTOUCHES(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-1024));
 ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT MBRTOUCHES(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-1024));
@@ -2096,7 +2071,7 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 SELECT MBRTOUCHES(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_center,4326));
 ERROR HY000: Binary geometry function mbrtouches given two geometries of different srids: 0 and 4326, which should have been identical.
 SELECT MBRTOUCHES(ST_GEOMFROMTEXT(@star_top,1048576),ST_GEOMFROMTEXT(@star_center,4326));
-ERROR HY000: Binary geometry function mbrtouches given two geometries of different srids: 1048576 and 4326, which should have been identical.
+ERROR SR001: There's no spatial reference system with SRID 1048576.
 SELECT MBRTOUCHES(NULL,ST_GEOMFROMTEXT(@star_top));
 MBRTOUCHES(NULL,ST_GEOMFROMTEXT(@star_top))
 NULL
@@ -2303,20 +2278,11 @@ ST_GEOMFROMTEXT('POINT(0 0)', 23000000),
 ST_GEOMFROMTEXT('POINT(0 0)', 23000000)
 );
 ERROR SR001: There's no spatial reference system with SRID 23000000.
-# Undefined SRS (should pass with warning)
 SELECT MBRTOUCHES(
 ST_GEOMFROMTEXT('POINT(0 0)', 23000000),
 ST_GEOMFROMTEXT('POINT(0 0)', 23000000)
 );
-MBRTOUCHES(
-ST_GEOMFROMTEXT('POINT(0 0)', 23000000),
-ST_GEOMFROMTEXT('POINT(0 0)', 23000000)
-)
-0
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 23000000. The axis order is unknown.
-Warning	3565	There's no spatial reference system with SRID 23000000. The axis order is unknown.
-Warning	3519	There's no spatial reference system with SRID 23000000. Calculations in function mbrtouches will be done in SRID 0.
+ERROR SR001: There's no spatial reference system with SRID 23000000.
 # Unparseable SRS definition (should fail)
 INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
 organization, organization_coordsys_id, definition, description)

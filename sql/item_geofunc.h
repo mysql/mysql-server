@@ -1260,6 +1260,23 @@ public:
 };
 
 
+class Item_func_mbrtouches final : public Item_func_spatial_relation
+{
+public:
+  Item_func_mbrtouches(const POS &pos, Item *a, Item *b)
+    : Item_func_spatial_relation(pos, a, b)
+  {}
+  enum Functype functype() const override
+  { return SP_TOUCHES_FUNC; }
+  enum Functype rev_functype() const override
+  { return SP_TOUCHES_FUNC; }
+  const char *func_name() const override
+  { return "mbrtouches"; }
+  bool eval(const dd::Spatial_reference_system *srs, const gis::Geometry *g1,
+            const gis::Geometry *g2, bool *result, bool *null) override;
+};
+
+
 class Item_func_mbrwithin final : public Item_func_spatial_relation
 {
 public:
