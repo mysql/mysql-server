@@ -47,113 +47,135 @@ class Distance : public Functor<double> {
 
  public:
   Distance(double major, double minor);
-  double operator()(const Geometry *g1, const Geometry *g2) override;
-  double eval(const Geometry *g1, const Geometry *g2);
+  double operator()(const Geometry *g1, const Geometry *g2) const override;
+  double eval(const Geometry *g1, const Geometry *g2) const;
 
   //////////////////////////////////////////////////////////////////////////////
 
   // distance(Cartesian_point, *)
 
-  double eval(const Cartesian_point *g1, const Cartesian_point *g2);
-  double eval(const Cartesian_point *g1, const Cartesian_linestring *g2);
-  double eval(const Cartesian_point *g1, const Cartesian_polygon *g2);
+  double eval(const Cartesian_point *g1, const Cartesian_point *g2) const;
+  double eval(const Cartesian_point *g1, const Cartesian_linestring *g2) const;
+  double eval(const Cartesian_point *g1, const Cartesian_polygon *g2) const;
   double eval(const Cartesian_point *g1,
-              const Cartesian_geometrycollection *g2);
-  double eval(const Cartesian_point *g1, const Cartesian_multipoint *g2);
-  double eval(const Cartesian_point *g1, const Cartesian_multilinestring *g2);
-  double eval(const Cartesian_point *g1, const Cartesian_multipolygon *g2);
+              const Cartesian_geometrycollection *g2) const;
+  double eval(const Cartesian_point *g1, const Cartesian_multipoint *g2) const;
+  double eval(const Cartesian_point *g1,
+              const Cartesian_multilinestring *g2) const;
+  double eval(const Cartesian_point *g1,
+              const Cartesian_multipolygon *g2) const;
 
   //////////////////////////////////////////////////////////////////////////////
 
   // distance(Cartesian_linestring, *)
 
-  double eval(const Cartesian_linestring *g1, const Cartesian_point *g2);
-  double eval(const Cartesian_linestring *g1, const Cartesian_linestring *g2);
-  double eval(const Cartesian_linestring *g1, const Cartesian_polygon *g2);
+  double eval(const Cartesian_linestring *g1, const Cartesian_point *g2) const;
   double eval(const Cartesian_linestring *g1,
-              const Cartesian_geometrycollection *g2);
-  double eval(const Cartesian_linestring *g1, const Cartesian_multipoint *g2);
+              const Cartesian_linestring *g2) const;
   double eval(const Cartesian_linestring *g1,
-              const Cartesian_multilinestring *g2);
-  double eval(const Cartesian_linestring *g1, const Cartesian_multipolygon *g2);
+              const Cartesian_polygon *g2) const;
+  double eval(const Cartesian_linestring *g1,
+              const Cartesian_geometrycollection *g2) const;
+  double eval(const Cartesian_linestring *g1,
+              const Cartesian_multipoint *g2) const;
+  double eval(const Cartesian_linestring *g1,
+              const Cartesian_multilinestring *g2) const;
+  double eval(const Cartesian_linestring *g1,
+              const Cartesian_multipolygon *g2) const;
 
   //////////////////////////////////////////////////////////////////////////////
 
   // distance(Cartesian_polygon, *)
 
-  double eval(const Cartesian_polygon *g1, const Cartesian_point *g2);
-  double eval(const Cartesian_polygon *g1, const Cartesian_linestring *g2);
-  double eval(const Cartesian_polygon *g1, const Cartesian_polygon *g2);
+  double eval(const Cartesian_polygon *g1, const Cartesian_point *g2) const;
   double eval(const Cartesian_polygon *g1,
-              const Cartesian_geometrycollection *g2);
-  double eval(const Cartesian_polygon *g1, const Cartesian_multipoint *g2);
-  double eval(const Cartesian_polygon *g1, const Cartesian_multilinestring *g2);
-  double eval(const Cartesian_polygon *g1, const Cartesian_multipolygon *g2);
+              const Cartesian_linestring *g2) const;
+  double eval(const Cartesian_polygon *g1, const Cartesian_polygon *g2) const;
+  double eval(const Cartesian_polygon *g1,
+              const Cartesian_geometrycollection *g2) const;
+  double eval(const Cartesian_polygon *g1,
+              const Cartesian_multipoint *g2) const;
+  double eval(const Cartesian_polygon *g1,
+              const Cartesian_multilinestring *g2) const;
+  double eval(const Cartesian_polygon *g1,
+              const Cartesian_multipolygon *g2) const;
 
   //////////////////////////////////////////////////////////////////////////////
 
   // distance(Cartesian_geometrycollection, *)
 
-  double eval(const Cartesian_geometrycollection *g1, const Geometry *g2);
+  double eval(const Cartesian_geometrycollection *g1, const Geometry *g2) const;
 
   //////////////////////////////////////////////////////////////////////////////
 
   // distance(Cartesian_multipoint, *)
 
-  double eval(const Cartesian_multipoint *g1, const Cartesian_point *g2);
-  double eval(const Cartesian_multipoint *g1, const Cartesian_linestring *g2);
-  double eval(const Cartesian_multipoint *g1, const Cartesian_polygon *g2);
+  double eval(const Cartesian_multipoint *g1, const Cartesian_point *g2) const;
   double eval(const Cartesian_multipoint *g1,
-              const Cartesian_geometrycollection *g2);
-  double eval(const Cartesian_multipoint *g1, const Cartesian_multipoint *g2);
+              const Cartesian_linestring *g2) const;
   double eval(const Cartesian_multipoint *g1,
-              const Cartesian_multilinestring *g2);
-  double eval(const Cartesian_multipoint *g1, const Cartesian_multipolygon *g2);
+              const Cartesian_polygon *g2) const;
+  double eval(const Cartesian_multipoint *g1,
+              const Cartesian_geometrycollection *g2) const;
+  double eval(const Cartesian_multipoint *g1,
+              const Cartesian_multipoint *g2) const;
+  double eval(const Cartesian_multipoint *g1,
+              const Cartesian_multilinestring *g2) const;
+  double eval(const Cartesian_multipoint *g1,
+              const Cartesian_multipolygon *g2) const;
 
   //////////////////////////////////////////////////////////////////////////////
 
   // distance(Cartesian_multilinestring, *)
 
-  double eval(const Cartesian_multilinestring *g1, const Cartesian_point *g2);
   double eval(const Cartesian_multilinestring *g1,
-              const Cartesian_linestring *g2);
-  double eval(const Cartesian_multilinestring *g1, const Cartesian_polygon *g2);
+              const Cartesian_point *g2) const;
   double eval(const Cartesian_multilinestring *g1,
-              const Cartesian_geometrycollection *g2);
+              const Cartesian_linestring *g2) const;
   double eval(const Cartesian_multilinestring *g1,
-              const Cartesian_multipoint *g2);
+              const Cartesian_polygon *g2) const;
   double eval(const Cartesian_multilinestring *g1,
-              const Cartesian_multilinestring *g2);
+              const Cartesian_geometrycollection *g2) const;
   double eval(const Cartesian_multilinestring *g1,
-              const Cartesian_multipolygon *g2);
+              const Cartesian_multipoint *g2) const;
+  double eval(const Cartesian_multilinestring *g1,
+              const Cartesian_multilinestring *g2) const;
+  double eval(const Cartesian_multilinestring *g1,
+              const Cartesian_multipolygon *g2) const;
 
   //////////////////////////////////////////////////////////////////////////////
 
   // distance(Cartesian_multipolygon, *)
 
-  double eval(const Cartesian_multipolygon *g1, const Cartesian_point *g2);
-  double eval(const Cartesian_multipolygon *g1, const Cartesian_linestring *g2);
-  double eval(const Cartesian_multipolygon *g1, const Cartesian_polygon *g2);
   double eval(const Cartesian_multipolygon *g1,
-              const Cartesian_geometrycollection *g2);
-  double eval(const Cartesian_multipolygon *g1, const Cartesian_multipoint *g2);
+              const Cartesian_point *g2) const;
   double eval(const Cartesian_multipolygon *g1,
-              const Cartesian_multilinestring *g2);
+              const Cartesian_linestring *g2) const;
   double eval(const Cartesian_multipolygon *g1,
-              const Cartesian_multipolygon *g2);
+              const Cartesian_polygon *g2) const;
+  double eval(const Cartesian_multipolygon *g1,
+              const Cartesian_geometrycollection *g2) const;
+  double eval(const Cartesian_multipolygon *g1,
+              const Cartesian_multipoint *g2) const;
+  double eval(const Cartesian_multipolygon *g1,
+              const Cartesian_multilinestring *g2) const;
+  double eval(const Cartesian_multipolygon *g1,
+              const Cartesian_multipolygon *g2) const;
 
   //////////////////////////////////////////////////////////////////////////////
 
   // distance(Geographic_point, *)
 
-  double eval(const Geographic_point *g1, const Geographic_point *g2);
-  double eval(const Geographic_point *g1, const Geographic_multipoint *g2);
+  double eval(const Geographic_point *g1, const Geographic_point *g2) const;
+  double eval(const Geographic_point *g1,
+              const Geographic_multipoint *g2) const;
 
   //////////////////////////////////////////////////////////////////////////////
 
   // distance(Geographic_multipoint, *)
 
-  double eval(const Geographic_multipoint *g1, const Geographic_point *g2);
+  double eval(const Geographic_multipoint *g1,
+              const Geographic_point *g2) const;
 };
 
 }  // namespace gis
