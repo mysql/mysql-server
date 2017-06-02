@@ -316,6 +316,11 @@ class Cartesian_geometrycollection : public Geometrycollection {
 
   iterator end() noexcept { return m_geometries.end(); }
   const_iterator end() const noexcept { return m_geometries.end(); }
+
+  Geometry &operator[](std::size_t i) override { return *m_geometries[i]; }
+  const Geometry &operator[](std::size_t i) const override {
+    return *m_geometries[i];
+  }
 };
 
 /// A geographic (ellipsoidal) 2d geometry collection.
@@ -361,6 +366,11 @@ class Geographic_geometrycollection : public Geometrycollection {
 
   iterator end() noexcept { return m_geometries.end(); }
   const_iterator end() const noexcept { return m_geometries.end(); }
+
+  Geometry &operator[](std::size_t i) override { return *m_geometries[i]; }
+  const Geometry &operator[](std::size_t i) const override {
+    return *m_geometries[i];
+  }
 };
 
 /// A Cartesian 2d multipoint.
@@ -396,6 +406,11 @@ class Cartesian_multipoint : public Multipoint {
 
   iterator end() noexcept { return m_points.end(); }
   const_iterator end() const noexcept { return m_points.end(); }
+
+  Geometry &operator[](std::size_t i) override { return m_points[i]; }
+  const Geometry &operator[](std::size_t i) const override {
+    return m_points[i];
+  }
 };
 
 /// A geographic (ellipsoidal) 2d multipoint.
@@ -430,6 +445,11 @@ class Geographic_multipoint : public Multipoint {
 
   iterator end() noexcept { return m_points.end(); }
   const_iterator end() const noexcept { return m_points.end(); }
+
+  Geometry &operator[](std::size_t i) override { return m_points[i]; }
+  const Geometry &operator[](std::size_t i) const override {
+    return m_points[i];
+  }
 };
 
 /// A Cartesian 2d multilinestring.
@@ -466,6 +486,11 @@ class Cartesian_multilinestring : public Multilinestring {
 
   iterator end() noexcept { return m_linestrings.end(); }
   const_iterator end() const noexcept { return m_linestrings.end(); }
+
+  Geometry &operator[](std::size_t i) override { return m_linestrings[i]; }
+  const Geometry &operator[](std::size_t i) const override {
+    return m_linestrings[i];
+  }
 };
 
 /// A geographic (ellipsoidal) 2d multilinestring.
@@ -502,6 +527,11 @@ class Geographic_multilinestring : public Multilinestring {
 
   iterator end() noexcept { return m_linestrings.end(); }
   const_iterator end() const noexcept { return m_linestrings.end(); }
+
+  Geometry &operator[](std::size_t i) override { return m_linestrings[i]; }
+  const Geometry &operator[](std::size_t i) const override {
+    return m_linestrings[i];
+  }
 };
 
 /// A Cartesian 2d multipolygon.
@@ -538,6 +568,11 @@ class Cartesian_multipolygon : public Multipolygon {
 
   iterator end() noexcept { return m_polygons.end(); }
   const_iterator end() const noexcept { return m_polygons.end(); }
+
+  Geometry &operator[](std::size_t i) override { return m_polygons[i]; }
+  const Geometry &operator[](std::size_t i) const override {
+    return m_polygons[i];
+  }
 };
 
 /// A geographic (ellipsoidal) 2d multipolygon.
@@ -574,6 +609,11 @@ class Geographic_multipolygon : public Multipolygon {
 
   iterator end() noexcept { return m_polygons.end(); }
   const_iterator end() const noexcept { return m_polygons.end(); }
+
+  Geometry &operator[](std::size_t i) override { return m_polygons[i]; }
+  const Geometry &operator[](std::size_t i) const override {
+    return m_polygons[i];
+  }
 };
 
 }  // namespace gis

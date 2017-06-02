@@ -355,6 +355,9 @@ class Geometrycollection : public Geometry {
   ///
   /// @return Number of geometries in the geometrycollection.
   virtual std::size_t size() const = 0;
+
+  virtual Geometry &operator[](std::size_t i) = 0;
+  virtual const Geometry &operator[](std::size_t i) const = 0;
 };
 
 /// A collection of points.
