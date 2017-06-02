@@ -63,7 +63,10 @@ PFS_engine_table_share table_replication_applier_status::m_share = {
   sizeof(PFS_simple_index),                        /* ref length */
   &m_table_lock,
   &m_table_def,
-  true /* perpetual */
+  true, /* perpetual */
+  PFS_engine_table_proxy(),
+  {0},
+  false /* m_in_purgatory */
 };
 
 bool

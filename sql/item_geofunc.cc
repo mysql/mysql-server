@@ -2326,7 +2326,7 @@ append_geometry(Geometry::wkb_parser *parser, Json_object *geometry,
         }
         else
         {
-          bool result;
+          bool result= false;
           Json_array *points= new (std::nothrow) Json_array();
           if (points == NULL || collection->append_alias(points))
             return true;

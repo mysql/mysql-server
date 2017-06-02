@@ -95,7 +95,10 @@ PFS_engine_table_share table_tiws_by_table::m_share = {
   sizeof(PFS_simple_index),
   &m_table_lock,
   &m_table_def,
-  false /* perpetual */
+  false, /* perpetual */
+  PFS_engine_table_proxy(),
+  {0},
+  false /* m_in_purgatory */
 };
 
 bool

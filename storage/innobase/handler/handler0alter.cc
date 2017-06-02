@@ -11441,6 +11441,7 @@ alter_part_factory::create_for_non_reorg(
 }
 
 
+#ifndef DBUG_OFF
 /** Check if the specified partition_state is of drop state
 @param[in]	s	The state to be checked
 @retval	true    if this is of a drop state
@@ -11453,6 +11454,7 @@ is_drop_state(partition_state s)
 	return(s == PART_TO_BE_DROPPED || s == PART_REORGED_DROPPED
 	       || s == PART_TO_BE_REORGED);
 }
+#endif
 
 /** Check if the specified partition_state is of common state
 @param[in]	s	The state to be checked
