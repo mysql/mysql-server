@@ -927,6 +927,7 @@ struct st_mysql_plugin ndbinfo_plugin =
   "MySQL Cluster system information storage engine",
   PLUGIN_LICENSE_GPL,
   ndbinfo_init,               /* plugin init */
+  NULL,                       /* plugin uninstall check */
   ndbinfo_deinit,             /* plugin deinit */
   0x0001,                     /* plugin version */
   NULL,                       /* status variables */
