@@ -110,9 +110,10 @@
  * have been prototyped.
  */
 int				/* 0 success, MY_REG_NOMATCH failure */
-my_regexec(preg, str, nmatch, pmatch, eflags)
+my_regexec(preg, str, strlength, nmatch, pmatch, eflags)
 const my_regex_t *preg;
 const char *str;
+size_t strlength;
 size_t nmatch;
 my_regmatch_t pmatch[];
 int eflags;
@@ -134,7 +135,7 @@ int eflags;
 
 	if ((size_t) g->nstates <= CHAR_BIT*sizeof(states1) &&
 	    !(eflags&MY_REG_LARGE))
-		return(smatcher(preg->charset, g, pstr, nmatch, pmatch, eflags));
+        return(smatcher(preg->charset, g, pstr, strlength, nmatch, pmatch, eflags));
 	else
-		return(lmatcher(preg->charset, g, pstr, nmatch, pmatch, eflags));
+        return(lmatcher(preg->charset, g, pstr, strlength, nmatch, pmatch, eflags));
 }
