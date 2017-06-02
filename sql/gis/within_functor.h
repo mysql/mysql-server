@@ -27,6 +27,7 @@
 
 #include <boost/geometry.hpp>
 
+#include "box.h"
 #include "functor.h"
 #include "geometries.h"
 #include "geometries_traits.h"
@@ -60,6 +61,7 @@ class Within : public Functor<bool> {
   /// @param semi_minor Semi-minor axis of ellipsoid.
   Within(double semi_major, double semi_minor);
   bool operator()(const Geometry *g1, const Geometry *g2) const override;
+  bool operator()(const Box *b1, const Box *b2) const;
   bool eval(const Geometry *g1, const Geometry *g2) const;
 
   //////////////////////////////////////////////////////////////////////////////
@@ -305,6 +307,13 @@ class Within : public Functor<bool> {
             const Geographic_multilinestring *g2) const;
   bool eval(const Geographic_multipolygon *g1,
             const Geographic_multipolygon *g2) const;
+
+  //////////////////////////////////////////////////////////////////////////////
+
+  // within(Box, Box)
+
+  bool eval(const Cartesian_box *b1, const Cartesian_box *b2) const;
+  bool eval(const Geographic_box *b1, const Geographic_box *b2) const;
 };
 
 }  // namespace gis
